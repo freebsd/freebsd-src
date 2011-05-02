@@ -95,6 +95,10 @@ CXCursor cxcursor::MakeCXCursor(Stmt *S, Decl *Parent,
   case Stmt::ObjCForCollectionStmtClass:
   case Stmt::CXXCatchStmtClass:
   case Stmt::CXXTryStmtClass:  
+  case Stmt::CXXForRangeStmtClass:        
+  case Stmt::SEHTryStmtClass:
+  case Stmt::SEHExceptStmtClass:
+  case Stmt::SEHFinallyStmtClass:
     K = CXCursor_UnexposedStmt;
     break;
       
@@ -111,7 +115,7 @@ CXCursor cxcursor::MakeCXCursor(Stmt *S, Decl *Parent,
   case Stmt::ParenExprClass:             
   case Stmt::UnaryOperatorClass:
   case Stmt::OffsetOfExprClass:         
-  case Stmt::SizeOfAlignOfExprClass:     
+  case Stmt::UnaryExprOrTypeTraitExprClass:     
   case Stmt::ArraySubscriptExprClass:    
   case Stmt::BinaryOperatorClass:        
   case Stmt::CompoundAssignOperatorClass:
@@ -129,6 +133,7 @@ CXCursor cxcursor::MakeCXCursor(Stmt *S, Decl *Parent,
   case Stmt::AddrLabelExprClass:        
   case Stmt::StmtExprClass:             
   case Stmt::ChooseExprClass:           
+  case Stmt::GenericSelectionExprClass:
   case Stmt::GNUNullExprClass:          
   case Stmt::CXXStaticCastExprClass:      
   case Stmt::CXXDynamicCastExprClass:     
@@ -149,6 +154,8 @@ CXCursor cxcursor::MakeCXCursor(Stmt *S, Decl *Parent,
   case Stmt::UnresolvedLookupExprClass:   
   case Stmt::UnaryTypeTraitExprClass:     
   case Stmt::BinaryTypeTraitExprClass:     
+  case Stmt::ArrayTypeTraitExprClass:
+  case Stmt::ExpressionTraitExprClass:     
   case Stmt::DependentScopeDeclRefExprClass:  
   case Stmt::CXXBindTemporaryExprClass:   
   case Stmt::ExprWithCleanupsClass: 

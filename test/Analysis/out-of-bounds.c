@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -Wno-array-bounds -analyze -analyzer-check-objc-mem -analyzer-check-buffer-overflows -verify %s
+// RUN: %clang_cc1 -Wno-array-bounds -analyze -analyzer-checker=core,security.experimental.ArrayBoundV2 -verify %s
 
 // Tests doing an out-of-bounds access after the end of an array using:
 // - constant integer index
@@ -146,3 +146,12 @@ void test4(int x) {
   if (x > 99)
     buf[x] = 1; 
 }
+
+// Don't warn when indexing below the start of a symbolic region's whose
+// base extent we don't know.
+int *get_symbolic();
+void test_index_below_symboloc() {
+  int *buf = get_symbolic();
+  buf[-1] = 0; // no-warning;
+}
+

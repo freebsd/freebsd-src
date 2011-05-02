@@ -56,6 +56,7 @@ class Sema;
 class SourceManager;
 class SwitchCase;
 class TargetInfo;
+class VersionTuple;
 
 /// \brief Writes an AST file containing the contents of a translation unit.
 ///
@@ -322,6 +323,7 @@ private:
   void WriteHeaderSearch(HeaderSearch &HS, const char* isysroot);
   void WritePreprocessorDetail(PreprocessingRecord &PPRec);
   void WritePragmaDiagnosticMappings(const Diagnostic &Diag);
+  void WriteCXXBaseSpecifiersOffsets();
   void WriteType(QualType T);
   uint64_t WriteDeclContextLexicalBlock(ASTContext &Context, DeclContext *DC);
   uint64_t WriteDeclContextVisibleBlock(ASTContext &Context, DeclContext *DC);
@@ -513,6 +515,9 @@ public:
   /// \brief Add a string to the given record.
   void AddString(llvm::StringRef Str, RecordDataImpl &Record);
 
+  /// \brief Add a version tuple to the given record
+  void AddVersionTuple(const VersionTuple &Version, RecordDataImpl &Record);
+
   /// \brief Mark a declaration context as needing an update.
   void AddUpdatedDeclContext(const DeclContext *DC) {
     UpdatedDeclContexts.insert(DC);
@@ -581,6 +586,10 @@ public:
   virtual void AddedCXXImplicitMember(const CXXRecordDecl *RD, const Decl *D);
   virtual void AddedCXXTemplateSpecialization(const ClassTemplateDecl *TD,
                                     const ClassTemplateSpecializationDecl *D);
+  virtual void AddedCXXTemplateSpecialization(const FunctionTemplateDecl *TD,
+                                              const FunctionDecl *D);
+  virtual void CompletedImplicitDefinition(const FunctionDecl *D);
+  virtual void StaticDataMemberInstantiated(const VarDecl *D);
 };
 
 /// \brief AST and semantic-analysis consumer that generates a

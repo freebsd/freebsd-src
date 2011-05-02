@@ -12,6 +12,14 @@
   } while (0)
 
 
+// Test that we don't report divide-by-zero errors in unreachable code.
+// This test should be left as is, as it also tests CFG functionality.
+void radar9171946() {
+  if (0) {
+    0 / (0 ? 1 : 0); // expected-warning {{expression result unused}}
+  }
+}
+
 int test_pr8876() {
   PR8876(0); // no-warning
   PR8876_pos(0); // expected-warning{{indirection of non-volatile null pointer will be deleted, not trap}} expected-note{{consider using __builtin_trap() or qualifying pointer with 'volatile'}}
@@ -155,7 +163,7 @@ void test17(int x) {
 }
 
 // PR6501
-void test18_a(int a);
+void test18_a(int a); // expected-note {{'test18_a' declared here}}
 void test18(int b) {
   test18_a(b, b); // expected-error {{too many arguments to function call, expected 1, have 2}}
   test18_a(); // expected-error {{too few arguments to function call, expected 1, have 0}}
@@ -166,6 +174,12 @@ void test19() {
   *(int*)0 = 0;   // expected-warning {{indirection of non-volatile null pointer}} \
                   // expected-note {{consider using __builtin_trap}}
   *(volatile int*)0 = 0;  // Ok.
+
+  // rdar://9269271
+  int x = *(int*)0;  // expected-warning {{indirection of non-volatile null pointer}} \
+                     // expected-note {{consider using __builtin_trap}}
+  int x2 = *(volatile int*)0; // Ok.
+  int *p = &(*(int*)0); // Ok;
 }
 
 int test20(int x) {

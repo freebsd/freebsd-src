@@ -5,8 +5,10 @@ add_clang_library(clangSema
   AttributeList.cpp
   CodeCompleteConsumer.cpp
   DeclSpec.cpp
+  DelayedDiagnostic.cpp
   IdentifierResolver.cpp
   JumpDiagnostics.cpp
+  Scope.cpp
   Sema.cpp
   SemaAccess.cpp
   SemaAttr.cpp

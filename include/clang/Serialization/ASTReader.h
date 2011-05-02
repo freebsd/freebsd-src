@@ -69,6 +69,7 @@ class ASTStmtReader;
 class ASTIdentifierLookupTrait;
 class TypeLocReader;
 struct HeaderFileInfo;
+class VersionTuple;
 
 struct PCHPredefinesBlock {
   /// \brief The file ID for this predefines buffer in a PCH file.
@@ -212,6 +213,10 @@ private:
       
   /// \brief The AST consumer.
   ASTConsumer *Consumer;
+
+  /// \brief AST buffers for chained PCHs created and stored in memory.
+  /// First (not depending on another) PCH in chain is in front.
+  std::vector<llvm::MemoryBuffer *> ASTBuffers;
 
   /// \brief Information that is needed for every module.
   struct PerFileData {
@@ -806,7 +811,9 @@ private:
   ///
   /// This routine should only be used for fatal errors that have to
   /// do with non-routine failures (e.g., corrupted AST file).
-  void Error(const char *Msg);
+  void Error(llvm::StringRef Msg);
+  void Error(unsigned DiagID, llvm::StringRef Arg1 = llvm::StringRef(),
+             llvm::StringRef Arg2 = llvm::StringRef());
 
   ASTReader(const ASTReader&); // do not implement
   ASTReader &operator=(const ASTReader &); // do not implement
@@ -885,6 +892,13 @@ public:
 
   /// \brief Sets and initializes the given Context.
   void InitializeContext(ASTContext &Context);
+
+  /// \brief Set AST buffers for chained PCHs created and stored in memory.
+  /// First (not depending on another) PCH in chain is first in array.
+  void setASTMemoryBuffers(llvm::MemoryBuffer **bufs, unsigned numBufs) {
+    ASTBuffers.clear();
+    ASTBuffers.insert(ASTBuffers.begin(), bufs, bufs + numBufs);
+  }
 
   /// \brief Retrieve the name of the named (primary) AST file
   const std::string &getFileName() const { return Chain[0]->FileName; }
@@ -1052,6 +1066,10 @@ public:
   /// \brief Print some statistics about AST usage.
   virtual void PrintStats();
 
+  /// Return the amount of memory used by memory buffers, breaking down
+  /// by heap-backed versus mmap'ed memory.
+  virtual void getMemoryBufferSizes(MemoryBufferSizes &sizes) const;
+
   /// \brief Initialize the semantic source with the Sema instance
   /// being used to perform semantic analysis on the abstract syntax
   /// tree.
@@ -1108,7 +1126,7 @@ public:
   }
 
   /// \brief Read the source location entry with index ID.
-  virtual void ReadSLocEntry(unsigned ID);
+  virtual bool ReadSLocEntry(unsigned ID);
 
   Selector DecodeSelector(unsigned Idx);
 
@@ -1196,6 +1214,9 @@ public:
 
   // \brief Read a string
   std::string ReadString(const RecordData &Record, unsigned &Idx);
+
+  /// \brief Read a version tuple.
+  VersionTuple ReadVersionTuple(const RecordData &Record, unsigned &Idx);
 
   CXXTemporary *ReadCXXTemporary(const RecordData &Record, unsigned &Idx);
       

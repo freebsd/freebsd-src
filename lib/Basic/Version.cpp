@@ -17,11 +17,12 @@
 #include <cstring>
 #include <cstdlib>
 
-using namespace std;
-
 namespace clang {
   
 std::string getClangRepositoryPath() {
+#if defined(CLANG_REPOSITORY_STRING)
+  return CLANG_REPOSITORY_STRING;
+#else
 #ifdef SVN_REPOSITORY
   llvm::StringRef URL(SVN_REPOSITORY);
 #else
@@ -45,6 +46,7 @@ std::string getClangRepositoryPath() {
     URL = URL.substr(Start + 4);
 
   return URL;
+#endif
 }
 
 std::string getClangRevision() {
@@ -84,6 +86,19 @@ std::string getClangFullVersion() {
   OS << " (based on LLVM " << PACKAGE_VERSION << ")";
 #endif
 
+  return OS.str();
+}
+
+std::string getClangFullCPPVersion() {
+  // The version string we report in __VERSION__ is just a compacted version of
+  // the one we report on the command line.
+  std::string buf;
+  llvm::raw_string_ostream OS(buf);
+#ifdef CLANG_VENDOR
+  OS << CLANG_VENDOR;
+#endif
+  OS << "Clang " CLANG_VERSION_STRING " ("
+     << getClangFullRepositoryVersion() << ')';
   return OS.str();
 }
 

@@ -11,6 +11,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "clang/StaticAnalyzer/Core/CheckerManager.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/AnalysisManager.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ExprEngine.h"
 #include "clang/AST/DeclCXX.h"
@@ -61,6 +62,34 @@ void ExprEngine::evalArguments(ConstExprIterator AI, ConstExprIterator AE,
   }
 }
 
+void ExprEngine::evalCallee(const CallExpr *callExpr,
+                            const ExplodedNodeSet &src,
+                            ExplodedNodeSet &dest) {
+  
+  const Expr *callee = 0;
+  
+  switch (callExpr->getStmtClass()) {
+    case Stmt::CXXMemberCallExprClass: {
+      // Evaluate the implicit object argument that is the recipient of the
+      // call.
+      callee = cast<CXXMemberCallExpr>(callExpr)->getImplicitObjectArgument();
+      
+      // FIXME: handle member pointers.
+      if (!callee)
+        return;
+
+      break;      
+    }
+    default: {
+      callee = callExpr->getCallee()->IgnoreParens();
+      break;
+    }
+  }
+
+  for (ExplodedNodeSet::iterator i = src.begin(), e = src.end(); i != e; ++i)
+    Visit(callee, *i, dest);
+}
+
 const CXXThisRegion *ExprEngine::getCXXThisRegion(const CXXRecordDecl *D,
                                                  const StackFrameContext *SFC) {
   const Type *T = D->getTypeForDecl();
@@ -95,50 +124,121 @@ void ExprEngine::CreateCXXTemporaryObject(const Expr *Ex, ExplodedNode *Pred,
 }
 
 void ExprEngine::VisitCXXConstructExpr(const CXXConstructExpr *E, 
-                                         const MemRegion *Dest,
-                                         ExplodedNode *Pred,
-                                         ExplodedNodeSet &Dst) {
-  if (!Dest)
-    Dest = svalBuilder.getRegionManager().getCXXTempObjectRegion(E,
-                                                    Pred->getLocationContext());
-
-  if (E->isElidable()) {
-    VisitAggExpr(E->getArg(0), Dest, Pred, Dst);
-    return;
-  }
+                                       const MemRegion *Dest,
+                                       ExplodedNode *Pred,
+                                       ExplodedNodeSet &destNodes) {
 
   const CXXConstructorDecl *CD = E->getConstructor();
   assert(CD);
-
+  
+#if 0
   if (!(CD->isThisDeclarationADefinition() && AMgr.shouldInlineCall()))
     // FIXME: invalidate the object.
     return;
-
+#endif
   
   // Evaluate other arguments.
   ExplodedNodeSet argsEvaluated;
   const FunctionProtoType *FnType = CD->getType()->getAs<FunctionProtoType>();
   evalArguments(E->arg_begin(), E->arg_end(), FnType, Pred, argsEvaluated);
-  // The callee stack frame context used to create the 'this' parameter region.
-  const StackFrameContext *SFC = AMgr.getStackFrame(CD, 
-                                                    Pred->getLocationContext(),
-                                                    E, Builder->getBlock(),
-                                                    Builder->getIndex());
 
-  const CXXThisRegion *ThisR =getCXXThisRegion(E->getConstructor()->getParent(),
-                                               SFC);
-
-  CallEnter Loc(E, SFC, Pred->getLocationContext());
-  for (ExplodedNodeSet::iterator NI = argsEvaluated.begin(),
-                                 NE = argsEvaluated.end(); NI != NE; ++NI) {
-    const GRState *state = GetState(*NI);
-    // Setup 'this' region, so that the ctor is evaluated on the object pointed
-    // by 'Dest'.
-    state = state->bindLoc(loc::MemRegionVal(ThisR), loc::MemRegionVal(Dest));
-    ExplodedNode *N = Builder->generateNode(Loc, state, Pred);
-    if (N)
-      Dst.Add(N);
+#if 0
+  // Is the constructor elidable?
+  if (E->isElidable()) {
+    VisitAggExpr(E->getArg(0), destNodes, Pred, Dst);
+    // FIXME: this is here to force propagation if VisitAggExpr doesn't
+    if (destNodes.empty())
+      destNodes.Add(Pred);
+    return;
   }
+#endif
+  
+  // Perform the previsit of the constructor.
+  ExplodedNodeSet destPreVisit;
+  getCheckerManager().runCheckersForPreStmt(destPreVisit, argsEvaluated, E, 
+                                            *this);
+  
+  // Evaluate the constructor.  Currently we don't now allow checker-specific
+  // implementations of specific constructors (as we do with ordinary
+  // function calls.  We can re-evaluate this in the future.
+  
+#if 0
+  // Inlining currently isn't fully implemented.
+
+  if (AMgr.shouldInlineCall()) {
+    if (!Dest)
+      Dest =
+        svalBuilder.getRegionManager().getCXXTempObjectRegion(E,
+                                                  Pred->getLocationContext());
+
+    // The callee stack frame context used to create the 'this'
+    // parameter region.
+    const StackFrameContext *SFC = 
+      AMgr.getStackFrame(CD, Pred->getLocationContext(),
+                         E, Builder->getBlock(), Builder->getIndex());
+
+    // Create the 'this' region.
+    const CXXThisRegion *ThisR =
+      getCXXThisRegion(E->getConstructor()->getParent(), SFC);
+
+    CallEnter Loc(E, SFC, Pred->getLocationContext());
+
+
+    for (ExplodedNodeSet::iterator NI = argsEvaluated.begin(),
+                                  NE = argsEvaluated.end(); NI != NE; ++NI) {
+      const GRState *state = GetState(*NI);
+      // Setup 'this' region, so that the ctor is evaluated on the object pointed
+      // by 'Dest'.
+      state = state->bindLoc(loc::MemRegionVal(ThisR), loc::MemRegionVal(Dest));
+      if (ExplodedNode *N = Builder->generateNode(Loc, state, *NI))
+        destNodes.Add(N);
+    }
+  }
+#endif
+  
+  // Default semantics: invalidate all regions passed as arguments.
+  llvm::SmallVector<const MemRegion*, 10> regionsToInvalidate;
+
+  // FIXME: We can have collisions on the conjured symbol if the
+  //  expression *I also creates conjured symbols.  We probably want
+  //  to identify conjured symbols by an expression pair: the enclosing
+  //  expression (the context) and the expression itself.  This should
+  //  disambiguate conjured symbols.
+  unsigned blockCount = Builder->getCurrentBlockCount();
+  
+  // NOTE: Even if RegionsToInvalidate is empty, we must still invalidate
+  //  global variables.
+  ExplodedNodeSet destCall;
+
+  for (ExplodedNodeSet::iterator
+        i = destPreVisit.begin(), e = destPreVisit.end();
+       i != e; ++i)
+  {
+    ExplodedNode *Pred = *i;
+    const GRState *state = GetState(Pred);
+
+    // Accumulate list of regions that are invalidated.
+    for (CXXConstructExpr::const_arg_iterator
+          ai = E->arg_begin(), ae = E->arg_end();
+          ai != ae; ++ai)
+    {
+      SVal val = state->getSVal(*ai);
+      if (const MemRegion *region = val.getAsRegion())
+        regionsToInvalidate.push_back(region);
+    }
+    
+    // Invalidate the regions.    
+    state = state->invalidateRegions(regionsToInvalidate.data(),
+                                     regionsToInvalidate.data() +
+                                     regionsToInvalidate.size(),
+                                     E, blockCount, 0,
+                                     /* invalidateGlobals = */ true);
+    
+    Builder->MakeNode(destCall, E, Pred, state);
+  }
+  
+  // Do the post visit.
+  getCheckerManager().runCheckersForPostStmt(destNodes, destCall, E, *this);  
 }
 
 void ExprEngine::VisitCXXDestructor(const CXXDestructorDecl *DD,
@@ -165,105 +265,25 @@ void ExprEngine::VisitCXXDestructor(const CXXDestructorDecl *DD,
     Dst.Add(N);
 }
 
-void ExprEngine::VisitCXXMemberCallExpr(const CXXMemberCallExpr *MCE, 
-                                          ExplodedNode *Pred, 
-                                          ExplodedNodeSet &Dst) {
-  // Get the method type.
-  const FunctionProtoType *FnType = 
-                       MCE->getCallee()->getType()->getAs<FunctionProtoType>();
-  assert(FnType && "Method type not available");
-
-  // Evaluate explicit arguments with a worklist.
-  ExplodedNodeSet argsEvaluated;
-  evalArguments(MCE->arg_begin(), MCE->arg_end(), FnType, Pred, argsEvaluated);
- 
-  // Evaluate the implicit object argument.
-  ExplodedNodeSet AllargsEvaluated;
-  const MemberExpr *ME = dyn_cast<MemberExpr>(MCE->getCallee()->IgnoreParens());
-  if (!ME)
-    return;
-  Expr *ObjArgExpr = ME->getBase();
-  for (ExplodedNodeSet::iterator I = argsEvaluated.begin(), 
-                                 E = argsEvaluated.end(); I != E; ++I) {
-      Visit(ObjArgExpr, *I, AllargsEvaluated);
-  }
-
-  // Now evaluate the call itself.
-  const CXXMethodDecl *MD = cast<CXXMethodDecl>(ME->getMemberDecl());
-  assert(MD && "not a CXXMethodDecl?");
-  evalMethodCall(MCE, MD, ObjArgExpr, Pred, AllargsEvaluated, Dst);
-}
-
-void ExprEngine::VisitCXXOperatorCallExpr(const CXXOperatorCallExpr *C,
-                                            ExplodedNode *Pred,
-                                            ExplodedNodeSet &Dst) {
-  const CXXMethodDecl *MD = dyn_cast_or_null<CXXMethodDecl>(C->getCalleeDecl());
-  if (!MD) {
-    // If the operator doesn't represent a method call treat as regural call.
-    VisitCall(C, Pred, C->arg_begin(), C->arg_end(), Dst);
-    return;
-  }
-
-  // Determine the type of function we're calling (if available).
-  const FunctionProtoType *Proto = NULL;
-  QualType FnType = C->getCallee()->IgnoreParens()->getType();
-  if (const PointerType *FnTypePtr = FnType->getAs<PointerType>())
-    Proto = FnTypePtr->getPointeeType()->getAs<FunctionProtoType>();
-
-  // Evaluate arguments treating the first one (object method is called on)
-  // as alvalue.
-  ExplodedNodeSet argsEvaluated;
-  evalArguments(C->arg_begin(), C->arg_end(), Proto, Pred, argsEvaluated, true);
-
-  // Now evaluate the call itself.
-  evalMethodCall(C, MD, C->getArg(0), Pred, argsEvaluated, Dst);
-}
-
-void ExprEngine::evalMethodCall(const CallExpr *MCE, const CXXMethodDecl *MD,
-                                  const Expr *ThisExpr, ExplodedNode *Pred,
-                                  ExplodedNodeSet &Src, ExplodedNodeSet &Dst) {
-  // Allow checkers to pre-visit the member call.
-  ExplodedNodeSet PreVisitChecks;
-  CheckerVisit(MCE, PreVisitChecks, Src, PreVisitStmtCallback);
-
-  if (!(MD->isThisDeclarationADefinition() && AMgr.shouldInlineCall())) {
-    // FIXME: conservative method call evaluation.
-    CheckerVisit(MCE, Dst, PreVisitChecks, PostVisitStmtCallback);
-    return;
-  }
-
-  const StackFrameContext *SFC = AMgr.getStackFrame(MD, 
-                                                    Pred->getLocationContext(),
-                                                    MCE,
-                                                    Builder->getBlock(), 
-                                                    Builder->getIndex());
-  const CXXThisRegion *ThisR = getCXXThisRegion(MD, SFC);
-  CallEnter Loc(MCE, SFC, Pred->getLocationContext());
-  for (ExplodedNodeSet::iterator I = PreVisitChecks.begin(),
-         E = PreVisitChecks.end(); I != E; ++I) {
-    // Set up 'this' region.
-    const GRState *state = GetState(*I);
-    state = state->bindLoc(loc::MemRegionVal(ThisR), state->getSVal(ThisExpr));
-    Dst.Add(Builder->generateNode(Loc, state, *I));
-  }
-}
-
 void ExprEngine::VisitCXXNewExpr(const CXXNewExpr *CNE, ExplodedNode *Pred,
                                    ExplodedNodeSet &Dst) {
+  
+  unsigned blockCount = Builder->getCurrentBlockCount();
+  DefinedOrUnknownSVal symVal =
+    svalBuilder.getConjuredSymbolVal(NULL, CNE, CNE->getType(), blockCount);
+  const MemRegion *NewReg = cast<loc::MemRegionVal>(symVal).getRegion();  
+  QualType ObjTy = CNE->getType()->getAs<PointerType>()->getPointeeType();
+  const ElementRegion *EleReg = 
+    getStoreManager().GetElementZeroRegion(NewReg, ObjTy);
+
   if (CNE->isArray()) {
-    // FIXME: allocating an array has not been handled.
+    // FIXME: allocating an array requires simulating the constructors.
+    // For now, just return a symbolicated region.
+    const GRState *state = GetState(Pred);
+    state = state->BindExpr(CNE, loc::MemRegionVal(EleReg));
+    MakeNode(Dst, CNE, Pred, state);
     return;
   }
-
-  unsigned Count = Builder->getCurrentBlockCount();
-  DefinedOrUnknownSVal symVal =
-    svalBuilder.getConjuredSymbolVal(NULL, CNE, CNE->getType(), Count);
-  const MemRegion *NewReg = cast<loc::MemRegionVal>(symVal).getRegion();
-
-  QualType ObjTy = CNE->getType()->getAs<PointerType>()->getPointeeType();
-
-  const ElementRegion *EleReg = 
-                         getStoreManager().GetElementZeroRegion(NewReg, ObjTy);
 
   // Evaluate constructor arguments.
   const FunctionProtoType *FnType = NULL;
@@ -277,11 +297,39 @@ void ExprEngine::VisitCXXNewExpr(const CXXNewExpr *CNE, ExplodedNode *Pred,
   // Initialize the object region and bind the 'new' expression.
   for (ExplodedNodeSet::iterator I = argsEvaluated.begin(), 
                                  E = argsEvaluated.end(); I != E; ++I) {
+
     const GRState *state = GetState(*I);
+    
+    // Accumulate list of regions that are invalidated.
+    // FIXME: Eventually we should unify the logic for constructor
+    // processing in one place.
+    llvm::SmallVector<const MemRegion*, 10> regionsToInvalidate;
+    for (CXXNewExpr::const_arg_iterator
+          ai = CNE->constructor_arg_begin(), ae = CNE->constructor_arg_end();
+          ai != ae; ++ai)
+    {
+      SVal val = state->getSVal(*ai);
+      if (const MemRegion *region = val.getAsRegion())
+        regionsToInvalidate.push_back(region);
+    }
 
     if (ObjTy->isRecordType()) {
-      state = state->invalidateRegion(EleReg, CNE, Count);
+      regionsToInvalidate.push_back(EleReg);
+      // Invalidate the regions.
+      state = state->invalidateRegions(regionsToInvalidate.data(),
+                                       regionsToInvalidate.data() +
+                                       regionsToInvalidate.size(),
+                                       CNE, blockCount, 0,
+                                       /* invalidateGlobals = */ true);
+      
     } else {
+      // Invalidate the regions.
+      state = state->invalidateRegions(regionsToInvalidate.data(),
+                                       regionsToInvalidate.data() +
+                                       regionsToInvalidate.size(),
+                                       CNE, blockCount, 0,
+                                       /* invalidateGlobals = */ true);
+
       if (CNE->hasInitializer()) {
         SVal V = state->getSVal(*CNE->constructor_arg_begin());
         state = state->bindLoc(loc::MemRegionVal(EleReg), V);

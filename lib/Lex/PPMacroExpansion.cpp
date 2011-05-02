@@ -176,8 +176,6 @@ bool Preprocessor::isNextPPTokenLParen() {
 /// expanded as a macro, handle it and return the next token as 'Identifier'.
 bool Preprocessor::HandleMacroExpandedIdentifier(Token &Identifier,
                                                  MacroInfo *MI) {
-  if (Callbacks) Callbacks->MacroExpands(Identifier, MI);
-
   // If this is a macro expansion in the "#if !defined(x)" line for the file,
   // then the macro could expand to different things in other contexts, we need
   // to disable the optimization in this case.
@@ -185,6 +183,7 @@ bool Preprocessor::HandleMacroExpandedIdentifier(Token &Identifier,
 
   // If this is a builtin macro, like __LINE__ or _Pragma, handle it specially.
   if (MI->isBuiltinMacro()) {
+    if (Callbacks) Callbacks->MacroExpands(Identifier, MI);
     ExpandBuiltinMacro(Identifier);
     return false;
   }
@@ -225,7 +224,12 @@ bool Preprocessor::HandleMacroExpandedIdentifier(Token &Identifier,
   // Notice that this macro has been used.
   markMacroAsUsed(MI);
 
+  if (Callbacks) Callbacks->MacroExpands(Identifier, MI);
+  
   // If we started lexing a macro, enter the macro expansion body.
+
+  // Remember where the token is instantiated.
+  SourceLocation InstantiateLoc = Identifier.getLocation();
 
   // If this macro expands to no tokens, don't bother to push it onto the
   // expansion stack, only to take it right back off.
@@ -249,6 +253,7 @@ bool Preprocessor::HandleMacroExpandedIdentifier(Token &Identifier,
       if (HadLeadingSpace) Identifier.setFlag(Token::LeadingSpace);
     }
     Identifier.setFlag(Token::LeadingEmptyMacro);
+    LastEmptyMacroInstantiationLoc = InstantiateLoc;
     ++NumFastMacroExpanded;
     return false;
 
@@ -266,9 +271,6 @@ bool Preprocessor::HandleMacroExpandedIdentifier(Token &Identifier,
     // identifier to the expanded token.
     bool isAtStartOfLine = Identifier.isAtStartOfLine();
     bool hasLeadingSpace = Identifier.hasLeadingSpace();
-
-    // Remember where the token is instantiated.
-    SourceLocation InstantiateLoc = Identifier.getLocation();
 
     // Replace the result token.
     Identifier = MI->getReplacementToken(0);
@@ -355,9 +357,9 @@ MacroArgs *Preprocessor::ReadFunctionLikeMacroArgs(Token &MacroName,
         LexUnexpandedToken(Tok);
       }
       
-      if (Tok.is(tok::eof) || Tok.is(tok::eom)) { // "#if f(<eof>" & "#if f(\n"
+      if (Tok.is(tok::eof) || Tok.is(tok::eod)) { // "#if f(<eof>" & "#if f(\n"
         Diag(MacroName, diag::err_unterm_macro_invoc);
-        // Do not lose the EOF/EOM.  Return it to the client.
+        // Do not lose the EOF/EOD.  Return it to the client.
         MacroName = Tok;
         return 0;
       } else if (Tok.is(tok::r_paren)) {
@@ -410,9 +412,9 @@ MacroArgs *Preprocessor::ReadFunctionLikeMacroArgs(Token &MacroName,
       return 0;
     }
 
-    // Empty arguments are standard in C99 and supported as an extension in
+    // Empty arguments are standard in C99 and C++0x, and are supported as an extension in
     // other modes.
-    if (ArgTokens.size() == ArgTokenStart && !Features.C99)
+    if (ArgTokens.size() == ArgTokenStart && !Features.C99 && !Features.CPlusPlus0x)
       Diag(Tok, diag::ext_empty_fnmacro_arg);
 
     // Add a marker EOF token to the end of the token list for this argument.
@@ -530,6 +532,7 @@ static bool HasFeature(const Preprocessor &PP, const IdentifierInfo *II) {
 
   return llvm::StringSwitch<bool>(II->getName())
            .Case("attribute_analyzer_noreturn", true)
+           .Case("attribute_availability", true)
            .Case("attribute_cf_returns_not_retained", true)
            .Case("attribute_cf_returns_retained", true)
            .Case("attribute_deprecated_with_message", true)
@@ -540,12 +543,14 @@ static bool HasFeature(const Preprocessor &PP, const IdentifierInfo *II) {
            .Case("attribute_ns_consumed", true)
            .Case("attribute_cf_consumed", true)
            .Case("attribute_objc_ivar_unused", true)
+           .Case("attribute_objc_method_family", true)
            .Case("attribute_overloadable", true)
            .Case("attribute_unavailable_with_message", true)
            .Case("blocks", LangOpts.Blocks)
            .Case("cxx_exceptions", LangOpts.Exceptions)
            .Case("cxx_rtti", LangOpts.RTTI)
            .Case("enumerator_attributes", true)
+           .Case("generic_selections", true)
            .Case("objc_nonfragile_abi", LangOpts.ObjCNonFragileABI)
            .Case("objc_weak_class", LangOpts.ObjCNonFragileABI)
            .Case("ownership_holds", true)
@@ -556,10 +561,14 @@ static bool HasFeature(const Preprocessor &PP, const IdentifierInfo *II) {
            .Case("cxx_auto_type", LangOpts.CPlusPlus0x)
            .Case("cxx_decltype", LangOpts.CPlusPlus0x)
            .Case("cxx_default_function_template_args", LangOpts.CPlusPlus0x)
+           .Case("cxx_delegating_constructors", LangOpts.CPlusPlus0x)
            .Case("cxx_deleted_functions", LangOpts.CPlusPlus0x)
            .Case("cxx_inline_namespaces", LangOpts.CPlusPlus0x)
          //.Case("cxx_lambdas", false)
+           .Case("cxx_noexcept", LangOpts.CPlusPlus0x)
          //.Case("cxx_nullptr", false)
+           .Case("cxx_override_control", LangOpts.CPlusPlus0x)
+           .Case("cxx_range_for", LangOpts.CPlusPlus0x)
            .Case("cxx_reference_qualified_functions", LangOpts.CPlusPlus0x)
            .Case("cxx_rvalue_references", LangOpts.CPlusPlus0x)
            .Case("cxx_strong_enums", LangOpts.CPlusPlus0x)
@@ -581,10 +590,11 @@ static bool HasFeature(const Preprocessor &PP, const IdentifierInfo *II) {
            .Case("is_convertible_to", LangOpts.CPlusPlus)
            .Case("is_empty", LangOpts.CPlusPlus)
            .Case("is_enum", LangOpts.CPlusPlus)
+           .Case("is_literal", LangOpts.CPlusPlus)
            .Case("is_pod", LangOpts.CPlusPlus)
            .Case("is_polymorphic", LangOpts.CPlusPlus)
+           .Case("is_trivial", LangOpts.CPlusPlus)
            .Case("is_union", LangOpts.CPlusPlus)
-           .Case("is_literal", LangOpts.CPlusPlus)
            .Case("tls", PP.getTargetInfo().isTLSSupported())
            .Default(false);
 }
@@ -626,8 +636,8 @@ static bool EvaluateHasIncludeCommon(Token &Tok,
   SourceLocation EndLoc;
   
   switch (Tok.getKind()) {
-  case tok::eom:
-    // If the token kind is EOM, the error has already been diagnosed.
+  case tok::eod:
+    // If the token kind is EOD, the error has already been diagnosed.
     return false;
 
   case tok::angle_string_literal:
@@ -644,7 +654,7 @@ static bool EvaluateHasIncludeCommon(Token &Tok,
     // case, glue the tokens together into FilenameBuffer and interpret those.
     FilenameBuffer.push_back('<');
     if (PP.ConcatenateIncludeName(FilenameBuffer, EndLoc))
-      return false;   // Found <eom> but no ">"?  Diagnostic already emitted.
+      return false;   // Found <eod> but no ">"?  Diagnostic already emitted.
     Filename = FilenameBuffer.str();
     break;
   default:
@@ -660,7 +670,8 @@ static bool EvaluateHasIncludeCommon(Token &Tok,
 
   // Search include directories.
   const DirectoryLookup *CurDir;
-  const FileEntry *File = PP.LookupFile(Filename, isAngled, LookupFrom, CurDir);
+  const FileEntry *File =
+      PP.LookupFile(Filename, isAngled, LookupFrom, CurDir, NULL, NULL);
 
   // Get the result value.  Result = true means the file exists.
   bool Result = File != 0;

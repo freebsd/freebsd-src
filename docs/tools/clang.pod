@@ -7,7 +7,7 @@ clang - the Clang C, C++, and Objective-C compiler
 =head1 SYNOPSIS
 
 B<clang> [B<-c>|B<-S>|B<-E>] B<-std=>I<standard> B<-g>
-  [B<-O0>|B<-O1>|B<-O2>|B<-Os>|B<-O3>|B<-O4>]
+  [B<-O0>|B<-O1>|B<-O2>|B<-Os>|B<-Oz>|B<-O3>|B<-O4>]
   B<-W>I<warnings...> B<-pedantic>
   B<-I>I<dir...> B<-L>I<dir...>
   B<-D>I<macro[=defn]>
@@ -53,7 +53,7 @@ parse errors.  The output of this stage is an "Abstract Syntax Tree" (AST).
 
 This stage translates an AST into low-level intermediate code (known as "LLVM
 IR") and ultimately to machine code.  This phase is responsible for optimizing
-the generated code and handling target-specfic code generation.  The output of
+the generated code and handling target-specific code generation.  The output of
 this stage is typically called a ".s" file or "assembly" file.
 
 Clang also supports the use of an integrated assembler, in which the code
@@ -263,12 +263,13 @@ may not exist on earlier ones.
 
 =over
 
-=item B<-O0> B<-O1> B<-O2> B<-Os> B<-O3> B<-O4>
+=item B<-O0> B<-O1> B<-O2> B<-Os> B<-Oz> B<-O3> B<-O4>
 
 Specify which optimization level to use.  B<-O0> means "no optimization": this
 level compiles the fastest and generates the most debuggable code.  B<-O2> is a
 moderate level of optimization which enables most optimizations.  B<-Os> is like
-B<-O2> with extra optimizations to reduce code size.  B<-O3> is like B<-O2>,
+B<-O2> with extra optimizations to reduce code size.  B<-Oz> is like B<-Os> 
+(and thus B<-O2>), but reduces code size further.  B<-O3> is like B<-O2>,
 except that it enables optimizations that take longer to perform or that may
 generate larger code (in an attempt to make the program run faster).  On
 supported platforms, B<-O4> enables link-time optimization; object files are
@@ -356,17 +357,9 @@ Pass I<arg> to the static analyzer.
 
 Pass I<arg> to the assembler.
 
-=item B<-Xclang> I<arg>
-
-Pass I<arg> to the clang compiler frontend.
-
 =item B<-Xlinker> I<arg>
 
 Pass I<arg> to the linker.
-
-=item B<-mllvm> I<arg>
-
-Pass I<arg> to the LLVM backend.
 
 =item B<-Xpreprocessor> I<arg>
 

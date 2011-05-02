@@ -32,6 +32,7 @@ namespace llvm {
 namespace clang {
   class VarDecl;
   class ObjCInterfaceDecl;
+  class ClassTemplateSpecializationDecl;
 
 namespace CodeGen {
   class CodeGenModule;
@@ -122,6 +123,16 @@ class CGDebugInfo {
                        llvm::DIFile F,
                        llvm::SmallVectorImpl<llvm::Value *> &EltTys,
                        llvm::DIType RecordTy);
+  
+  llvm::DIArray
+  CollectTemplateParams(const TemplateParameterList *TPList,
+                        const TemplateArgumentList &TAList,
+                        llvm::DIFile Unit);
+  llvm::DIArray
+  CollectFunctionTemplateParams(const FunctionDecl *FD, llvm::DIFile Unit);
+  llvm::DIArray 
+  CollectCXXTemplateParams(const ClassTemplateSpecializationDecl *TS,
+                           llvm::DIFile F);
 
   llvm::DIType createFieldType(llvm::StringRef name, QualType type,
                                Expr *bitWidth, SourceLocation loc,
@@ -158,6 +169,10 @@ public:
   /// has introduced scope change.
   void UpdateLineDirectiveRegion(CGBuilderTy &Builder);
 
+  /// UpdateCompletedType - Update type cache because the type is now
+  /// translated.
+  void UpdateCompletedType(const TagDecl *TD);
+
   /// EmitRegionStart - Emit a call to llvm.dbg.region.start to indicate start
   /// of a new block.
   void EmitRegionStart(CGBuilderTy &Builder);
@@ -181,7 +196,7 @@ public:
   /// EmitDeclareOfArgVariable - Emit call to llvm.dbg.declare for an argument
   /// variable declaration.
   void EmitDeclareOfArgVariable(const VarDecl *Decl, llvm::Value *AI,
-                                CGBuilderTy &Builder);
+                                unsigned ArgNo, CGBuilderTy &Builder);
 
   /// EmitDeclareOfBlockLiteralArgVariable - Emit call to
   /// llvm.dbg.declare for the block-literal argument to a block
@@ -204,12 +219,7 @@ public:
 private:
   /// EmitDeclare - Emit call to llvm.dbg.declare for a variable declaration.
   void EmitDeclare(const VarDecl *decl, unsigned Tag, llvm::Value *AI,
-                   CGBuilderTy &Builder);
-
-  /// EmitDeclare - Emit call to llvm.dbg.declare for a variable
-  /// declaration from an enclosing block.
-  void EmitDeclare(const VarDecl *decl, unsigned Tag, llvm::Value *AI,
-                   CGBuilderTy &Builder, const CGBlockInfo &blockInfo);
+                   unsigned ArgNo, CGBuilderTy &Builder);
 
   // EmitTypeForVarWithBlocksAttr - Build up structure info for the byref.  
   // See BuildByRefType.
@@ -243,6 +253,10 @@ private:
   llvm::DIType CreateMemberType(llvm::DIFile Unit, QualType FType,
                                 llvm::StringRef Name, uint64_t *Offset);
 
+  /// getFunctionDeclaration - Return debug info descriptor to describe method
+  /// declaration for the given method definition.
+  llvm::DISubprogram getFunctionDeclaration(const Decl *D);
+
   /// getFunctionName - Get function name for the given FunctionDecl. If the
   /// name is constructred on demand (e.g. C++ destructor) then the name
   /// is stored on the side.
@@ -251,6 +265,10 @@ private:
   /// getObjCMethodName - Returns the unmangled name of an Objective-C method.
   /// This is the display name for the debugging info.  
   llvm::StringRef getObjCMethodName(const ObjCMethodDecl *FD);
+
+  /// getSelectorName - Return selector name. This is used for debugging
+  /// info.
+  llvm::StringRef getSelectorName(Selector S);
 
   /// getClassName - Get class name including template argument list.
   llvm::StringRef getClassName(RecordDecl *RD);

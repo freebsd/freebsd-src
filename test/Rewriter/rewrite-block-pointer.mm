@@ -88,3 +88,20 @@ void  test8608902() {
   ppp(1, 0);
 }
 
+void test9204669() {
+   __attribute__((__blocks__(byref))) char (^addChangeToData)();
+
+   addChangeToData = ^() {
+      return 'b';
+   };
+   addChangeToData();
+}
+
+void test9204669_1() {
+   __attribute__((__blocks__(byref))) void (^addChangeToData)();
+
+   addChangeToData = ^() {
+    addChangeToData();
+   };
+}
+

@@ -370,6 +370,23 @@ void PrintDiagnostics(CXTranslationUnit TU) {
   }
 }
 
+void PrintMemoryUsage(CXTranslationUnit TU) {
+  unsigned long total = 0.0;
+  unsigned i = 0;
+  CXTUResourceUsage usage = clang_getCXTUResourceUsage(TU);
+  fprintf(stderr, "Memory usage:\n");
+  for (i = 0 ; i != usage.numEntries; ++i) {
+    const char *name = clang_getTUResourceUsageName(usage.entries[i].kind);
+    unsigned long amount = usage.entries[i].amount;
+    total += amount;
+    fprintf(stderr, "  %s : %ld bytes (%f MBytes)\n", name, amount,
+            ((double) amount)/(1024*1024));
+  }
+  fprintf(stderr, "  TOTAL = %ld bytes (%f MBytes)\n", total,
+          ((double) total)/(1024*1024));
+  clang_disposeCXTUResourceUsage(usage);  
+}
+
 /******************************************************************************/
 /* Logic for testing traversal.                                               */
 /******************************************************************************/
@@ -990,7 +1007,7 @@ void print_completion_result(CXCompletionResult *completion_result,
 
 int my_stricmp(const char *s1, const char *s2) {
   while (*s1 && *s2) {
-    int c1 = tolower(*s1), c2 = tolower(*s2);
+    int c1 = tolower((unsigned char)*s1), c2 = tolower((unsigned char)*s2);
     if (c1 < c2)
       return -1;
     else if (c1 > c2)
@@ -1503,6 +1520,8 @@ static CXCursorVisitor GetVisitor(const char *s) {
     return FilteredPrintingVisitor;
   if (strcmp(s, "-usrs") == 0)
     return USRVisitor;
+  if (strncmp(s, "-memory-usage", 13) == 0)
+    return GetVisitor(s + 13);
   return NULL;
 }
 
@@ -1519,16 +1538,20 @@ static void print_usage(void) {
            "[FileCheck prefix]\n"
     "       c-index-test -test-load-source <symbol filter> {<args>}*\n");
   fprintf(stderr,
+    "       c-index-test -test-load-source-memory-usage "
+    "<symbol filter> {<args>}*\n"
     "       c-index-test -test-load-source-reparse <trials> <symbol filter> "
     "          {<args>}*\n"
     "       c-index-test -test-load-source-usrs <symbol filter> {<args>}*\n"
+    "       c-index-test -test-load-source-usrs-memory-usage "
+          "<symbol filter> {<args>}*\n"
     "       c-index-test -test-annotate-tokens=<range> {<args>}*\n"
     "       c-index-test -test-inclusion-stack-source {<args>}*\n"
-    "       c-index-test -test-inclusion-stack-tu <AST file>\n"
+    "       c-index-test -test-inclusion-stack-tu <AST file>\n");
+  fprintf(stderr,
     "       c-index-test -test-print-linkage-source {<args>}*\n"
     "       c-index-test -test-print-typekind {<args>}*\n"
-    "       c-index-test -print-usr [<CursorKind> {<args>}]*\n");
-  fprintf(stderr,
+    "       c-index-test -print-usr [<CursorKind> {<args>}]*\n"
     "       c-index-test -print-usr-file <file>\n"
     "       c-index-test -write-pch <file> <compiler arguments>\n\n");
   fprintf(stderr,
@@ -1569,8 +1592,14 @@ int cindextest_main(int argc, const char **argv) {
   }
   else if (argc >= 4 && strncmp(argv[1], "-test-load-source", 17) == 0) {
     CXCursorVisitor I = GetVisitor(argv[1] + 17);
+    
+    PostVisitTU postVisit = 0;
+    if (strstr(argv[1], "-memory-usage"))
+      postVisit = PrintMemoryUsage;
+    
     if (I)
-      return perform_test_load_source(argc - 3, argv + 3, argv[2], I, NULL);
+      return perform_test_load_source(argc - 3, argv + 3, argv[2], I,
+                                      postVisit);
   }
   else if (argc >= 4 && strcmp(argv[1], "-test-file-scan") == 0)
     return perform_file_scan(argv[2], argv[3],

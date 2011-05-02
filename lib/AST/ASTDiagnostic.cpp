@@ -43,6 +43,11 @@ static QualType Desugar(ASTContext &Context, QualType QT, bool &ShouldAKA) {
       QT = ST->desugar();
       continue;
     }
+    // ...or an attributed type...
+    if (const AttributedType *AT = dyn_cast<AttributedType>(Ty)) {
+      QT = AT->desugar();
+      continue;
+    }
     // ... or an auto type.
     if (const AutoType *AT = dyn_cast<AutoType>(Ty)) {
       if (!AT->isSugared())
@@ -95,7 +100,7 @@ break; \
     // Don't desugar through the primary typedef of an anonymous type.
     if (const TagType *UTT = Underlying->getAs<TagType>())
       if (const TypedefType *QTT = dyn_cast<TypedefType>(QT))
-        if (UTT->getDecl()->getTypedefForAnonDecl() == QTT->getDecl())
+        if (UTT->getDecl()->getTypedefNameForAnonDecl() == QTT->getDecl())
           break;
 
     // Record that we actually looked through an opaque type here.

@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -analyze -analyzer-check-objc-mem -verify %s
+// RUN: %clang_cc1 -analyze -analyzer-checker=core -verify %s
 
 int f1(char *dst) {
   char *p = dst + 4;
@@ -41,5 +41,16 @@ struct S {
 void *f(S* w) {
     return &reinterpret_cast<void*&>(*w);
 }
+
+}
+
+namespace {
+
+struct C { 
+  void *p;
+  static void f();
+};
+
+void C::f() { }
 
 }

@@ -38,6 +38,8 @@ td {
   <li><a href="#cxx_deleted_functions">C++0x deleted functions</a></li>
   <li><a href="#cxx_lambdas">C++0x lambdas</a></li>
   <li><a href="#cxx_nullptr">C++0x nullptr</a></li>
+  <li><a href="#cxx_override_control">C++0x override control</a></li>
+  <li><a href="#cxx_range_for">C++0x range-based for loop</a></li>
   <li><a href="#cxx_rvalue_references">C++0x rvalue references</a></li>
   <li><a href="#cxx_reference_qualified_functions">C++0x reference-qualified functions</a></li>
   <li><a href="#cxx_static_assert">C++0x <tt>static_assert()</tt></a></li>
@@ -46,14 +48,17 @@ td {
   <li><a href="#cxx_inline_namespaces">C++0x inline namespaces</a></li>
   <li><a href="#cxx_strong_enums">C++0x strongly-typed enumerations</a></li>
   <li><a href="#cxx_trailing_return">C++0x trailing return type</a></li>
+  <li><a href="#cxx_noexcept">C++0x noexcept specification</a></li>
   </ul>
 <li><a href="#checking_type_traits">Checks for Type Traits</a></li>
 <li><a href="#blocks">Blocks</a></li>
 <li><a href="#overloading-in-c">Function Overloading in C</a></li>
+<li><a href="#generic-selections">Generic Selections</a></li>
 <li><a href="#builtins">Builtin Functions</a>
   <ul>
   <li><a href="#__builtin_shufflevector">__builtin_shufflevector</a></li>
   <li><a href="#__builtin_unreachable">__builtin_unreachable</a></li>
+  <li><a href="#__sync_swap">__sync_swap</a></li>
  </ul>
 </li>
 <li><a href="#targetspecific">Target-Specific Extensions</a>
@@ -61,11 +66,7 @@ td {
   <li><a href="#x86-specific">X86/X86-64 Language Extensions</a></li>
   </ul>
 </li>
-<li><a href="#analyzerspecific">Static Analysis-Specific Extensions</a>
-  <ul>
-    <li><a href="#analyzerattributes">Analyzer Attributes</a></li>
-  </ul>
-</li>
+<li><a href="#analyzerspecific">Static Analysis-Specific Extensions</a></li>
 </ul>
 
 <!-- ======================================================================= -->
@@ -83,7 +84,7 @@ more information on these extensions.</p>
 <!-- ======================================================================= -->
 
 <p>Language extensions can be very useful, but only if you know you can depend
-on them.  In order to allow fine-grain features checks, we support two builtin
+on them.  In order to allow fine-grain features checks, we support three builtin
 function-like macros.  This allows you to directly test for a feature in your
 code without having to resort to something like autoconf or fragile "compiler
 version checks".</p>
@@ -402,8 +403,18 @@ lambdas is enabled. clang does not currently implement this feature.</p>
 <tt>nullptr</tt> is enabled. clang does not yet fully implement this
 feature.</p>
 
+<h3 id="cxx_override_control">C++0x <tt>override control</tt></h3>
+
+<p>Use <tt>__has_feature(cxx_override_control)</tt> to determine if support for
+the override control keywords is enabled.</p>
+
 <h3 id="cxx_reference_qualified_functions">C++0x reference-qualified functions</h3>
 <p>Use <tt>__has_feature(cxx_reference_qualified_functions)</tt> to determine if support for reference-qualified functions (e.g., member functions with <code>&amp;</code> or <code>&amp;&amp;</code> applied to <code>*this</code>) is enabled.</p>
+
+<h3 id="cxx_range_for">C++0x range-based for loop</tt></h3>
+
+<p>Use <tt>__has_feature(cxx_range_for)</tt> to determine if support for
+the range-based for loop is enabled. </p>
 
 <h3 id="cxx_rvalue_references">C++0x rvalue references</tt></h3>
 
@@ -435,6 +446,11 @@ inline namespaces is enabled.</p>
 
 <p>Use <tt>__has_feature(cxx_trailing_return)</tt> to determine if support for
 the alternate function declaration syntax with trailing return type is enabled.</p>
+
+<h3 id="cxx_noexcept">C++0x noexcept</h3>
+
+<p>Use <tt>__has_feature(cxx_noexcept)</tt> to determine if support for
+noexcept exception specifications is enabled.</p>
 
 <h3 id="cxx_strong_enums">C++0x strongly typed enumerations</h3>
 
@@ -595,6 +611,20 @@ caveats to this use of name mangling:</p>
 
 
 <!-- ======================================================================= -->
+<h2 id="generic-selections">Generic Selections</h2>
+<!-- ======================================================================= -->
+
+<p>The C1X generic selection expression is available in all languages
+supported by Clang.  The syntax is the same as that given in the C1X draft
+standard.</p>
+
+<p>In C, type compatibility is decided according to the rules given in the
+appropriate standard, but in C++, which lacks the type compatibility rules
+used in C, types are considered compatible only if they are equivalent.</p>
+
+<p>Query for this feature with __has_feature(generic_selections).</p>
+
+<!-- ======================================================================= -->
 <h2 id="builtins">Builtin Functions</h2>
 <!-- ======================================================================= -->
 
@@ -703,6 +733,36 @@ no arguments and produces a void result.
 
 <p>Query for this feature with __has_builtin(__builtin_unreachable).</p>
 
+<!-- ======================================================================= -->
+<h3 id="__sync_swap">__sync_swap</h3>
+<!-- ======================================================================= -->
+
+<p><tt>__sync_swap</tt> is used to atomically swap integers or pointers in
+memory.
+</p>
+
+<p><b>Syntax:</b></p>
+
+<pre>
+<i>type</i> __sync_swap(<i>type</i> *ptr, <i>type</i> value, ...)
+</pre>
+
+<p><b>Example of Use:</b></p>
+
+<pre>
+int old_value = __sync_swap(&value, new_value);
+</pre>
+
+<p><b>Description:</b></p>
+
+<p>The __sync_swap() builtin extends the existing __sync_*() family of atomic
+intrinsics to allow code to atomically swap the current value with the new
+value.  More importantly, it helps developers write more efficient and correct
+code by avoiding expensive loops around __sync_bool_compare_and_swap() or
+relying on the platform specific implementation details of
+__sync_lock_test_and_set(). The __sync_swap() builtin is a full barrier.
+</p>
+
 
 <!-- ======================================================================= -->
 <h2 id="targetspecific">Target-Specific Extensions</h2>
@@ -754,11 +814,7 @@ are used by the <a
 href="http://clang.llvm.org/StaticAnalysis.html">path-sensitive static analyzer
 engine</a> that is part of Clang's Analysis library.</p>
 
-<!-- ======================================================================= -->
-<h3 id="analyzerattributes">Analyzer Attributes</h3>
-<!-- ======================================================================= -->
-
-<h4 id="attr_analyzer_noreturn"><tt>analyzer_noreturn</tt></h4>
+<h3 id="attr_analyzer_noreturn">The <tt>analyzer_noreturn</tt> attribute</h3>
 
 <p>Clang's static analysis engine understands the standard <tt>noreturn</tt>
 attribute. This attribute, which is typically affixed to a function prototype,
@@ -786,16 +842,47 @@ placed at the end of function prototypes:</p>
   void foo() <b>__attribute__((analyzer_noreturn))</b>;
 </pre>
 
-<p>Query for this feature with __has_feature(attribute_analyzer_noreturn).</p>
+<p>Query for this feature with
+<tt>__has_attribute(analyzer_noreturn)</tt>.</p>
 
-<h4 id="attr_retain_release">Objective-C retaining behavior attributes</h4>
+<h3 id="attr_method_family">The <tt>objc_method_family</tt> attribute</h3>
+
+<p>Many methods in Objective-C have conventional meanings determined
+by their selectors.  For the purposes of static analysis, it is
+sometimes useful to be able to mark a method as having a particular
+conventional meaning despite not having the right selector, or as not
+having the conventional meaning that its selector would suggest.
+For these use cases, we provide an attribute to specifically describe
+the <q>method family</q> that a method belongs to.</p>
+
+<p><b>Usage</b>: <tt>__attribute__((objc_method_family(X)))</tt>,
+where <tt>X</tt> is one of <tt>none</tt>, <tt>alloc</tt>, <tt>copy</tt>,
+<tt>init</tt>, <tt>mutableCopy</tt>, or <tt>new</tt>.  This attribute
+can only be placed at the end of a method declaration:</p>
+
+<pre>
+  - (NSString*) initMyStringValue <b>__attribute__((objc_method_family(none)))</b>;
+</pre>
+
+<p>Users who do not wish to change the conventional meaning of a
+method, and who merely want to document its non-standard retain and
+release semantics, should use the
+<a href="#attr_retain_release">retaining behavior attributes</a>
+described below.</p>
+
+<p>Query for this feature with
+<tt>__has_attribute(objc_method_family)</tt>.</p>
+
+<h3 id="attr_retain_release">Objective-C retaining behavior attributes</h3>
 
 <p>In Objective-C, functions and methods are generally assumed to take
 and return objects with +0 retain counts, with some exceptions for
 special methods like <tt>+alloc</tt> and <tt>init</tt>.  However,
 there are exceptions, and so Clang provides attributes to allow these
 exceptions to be documented, which helps the analyzer find leaks (and
-ignore non-leaks).</p>
+ignore non-leaks).  Some exceptions may be better described using
+the <a href="#attr_method_family"><tt>objc_method_family</tt></a>
+attribute instead.</p>
 
 <p><b>Usage</b>: The <tt>ns_returns_retained</tt>, <tt>ns_returns_not_retained</tt>,
 <tt>ns_returns_autoreleased</tt>, <tt>cf_returns_retained</tt>,
@@ -833,6 +920,9 @@ balance in some way.</p>
   - (void) bar <b>__attribute__((ns_consumes_self))</b>;
   - (void) baz: (id) <b>__attribute__((ns_consumed))</b> x;
 </pre>
+
+<p>Query for these features with <tt>__has_attribute(ns_consumed)</tt>,
+<tt>__has_attribute(ns_returns_retained)</tt>, etc.</p>
 
 </div>
 </body>

@@ -37,6 +37,35 @@ Selector ObjCMessage::getSelector() const {
   return propE->getGetterSelector();
 }
 
+ObjCMethodFamily ObjCMessage::getMethodFamily() const {
+  assert(isValid() && "This ObjCMessage is uninitialized!");
+  // Case 1.  Explicit message send.
+  if (const ObjCMessageExpr *msgE = dyn_cast<ObjCMessageExpr>(MsgOrPropE))
+    return msgE->getMethodFamily();
+
+  const ObjCPropertyRefExpr *propE = cast<ObjCPropertyRefExpr>(MsgOrPropE);
+
+  // Case 2.  Reference to implicit property.
+  if (propE->isImplicitProperty()) {
+    if (isPropertySetter())
+      return propE->getImplicitPropertySetter()->getMethodFamily();
+    else
+      return propE->getImplicitPropertyGetter()->getMethodFamily();
+  }
+
+  // Case 3.  Reference to explicit property.
+  const ObjCPropertyDecl *prop = propE->getExplicitProperty();
+  if (isPropertySetter()) {
+    if (prop->getSetterMethodDecl())
+      return prop->getSetterMethodDecl()->getMethodFamily();
+    return prop->getSetterName().getMethodFamily();
+  } else {
+    if (prop->getGetterMethodDecl())
+      return prop->getGetterMethodDecl()->getMethodFamily();
+    return prop->getGetterName().getMethodFamily();
+  }
+}
+
 const ObjCMethodDecl *ObjCMessage::getMethodDecl() const {
   assert(isValid() && "This ObjCMessage is uninitialized!");
   if (const ObjCMessageExpr *msgE = dyn_cast<ObjCMessageExpr>(MsgOrPropE))
@@ -80,13 +109,27 @@ const Expr *ObjCMessage::getArgExpr(unsigned i) const {
 }
 
 QualType CallOrObjCMessage::getResultType(ASTContext &ctx) const {
+  QualType resultTy;
+  bool isLVal = false;
+
   if (CallE) {
+    isLVal = CallE->isLValue();
     const Expr *Callee = CallE->getCallee();
     if (const FunctionDecl *FD = State->getSVal(Callee).getAsFunctionDecl())
-      return FD->getResultType();
-    return CallE->getType();
+      resultTy = FD->getResultType();
+    else
+      resultTy = CallE->getType();
   }
-  return Msg.getResultType(ctx);
+  else {
+    isLVal = isa<ObjCMessageExpr>(Msg.getOriginExpr()) &&
+             Msg.getOriginExpr()->isLValue();
+    resultTy = Msg.getResultType(ctx);
+  }
+
+  if (isLVal)
+    resultTy = ctx.getPointerType(resultTy);
+
+  return resultTy;
 }
 
 SVal CallOrObjCMessage::getArgSValAsScalarOrLoc(unsigned i) const {
@@ -96,4 +139,11 @@ SVal CallOrObjCMessage::getArgSValAsScalarOrLoc(unsigned i) const {
   if (Loc::isLocType(argT) || argT->isIntegerType())
     return Msg.getArgSVal(i, State);
   return UnknownVal();
+}
+
+SVal CallOrObjCMessage::getCXXCallee() const {
+  assert(isCXXCall());
+  const Expr *callee =
+    cast<CXXMemberCallExpr>(CallE)->getImplicitObjectArgument();
+  return State->getSVal(callee);  
 }

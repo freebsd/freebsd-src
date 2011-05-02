@@ -1,5 +1,5 @@
-// RUN: %clang_cc1 -triple i386-apple-darwin9 -analyze -analyzer-checker=core.experimental.IdempotentOps,core.experimental.CastToStruct,core.experimental.ReturnPtrRange,core.experimental.ReturnPtrRange,core.experimental.ArrayBound -analyzer-check-objc-mem -analyzer-store=region -verify -fblocks -analyzer-opt-analyze-nested-blocks %s
-// RUN: %clang_cc1 -triple x86_64-apple-darwin9 -DTEST_64 -analyze -analyzer-checker=core.experimental.IdempotentOps,core.experimental.CastToStruct,core.experimental.ReturnPtrRange,core.experimental.ArrayBound -analyzer-check-objc-mem -analyzer-store=region -verify -fblocks   -analyzer-opt-analyze-nested-blocks %s
+// RUN: %clang_cc1 -triple i386-apple-darwin9 -analyze -analyzer-checker=core,deadcode.IdempotentOperations,core.experimental.CastToStruct,security.experimental.ReturnPtrRange,security.experimental.ArrayBound -analyzer-store=region -verify -fblocks -analyzer-opt-analyze-nested-blocks %s
+// RUN: %clang_cc1 -triple x86_64-apple-darwin9 -DTEST_64 -analyze -analyzer-checker=core,deadcode.IdempotentOperations,core.experimental.CastToStruct,security.experimental.ReturnPtrRange,security.experimental.ArrayBound -analyzer-store=region -verify -fblocks   -analyzer-opt-analyze-nested-blocks %s
 
 typedef long unsigned int size_t;
 void *memcpy(void *, const void *, size_t);
@@ -1235,5 +1235,67 @@ void pr9048(pr9048_cdev_t dev, struct pr9048_diskslices * ssp, unsigned int slic
   if (ssp->dss_secmult == 1) {
   } else if ((lp = sp->ds_label).opaque != ((void *) 0)) {
   }
+}
+
+// Test Store reference counting in the presence of Lazy compound values.
+// This previously caused an infinite recursion.
+typedef struct {} Rdar_9103310_A;
+typedef struct Rdar_9103310_B Rdar_9103310_B_t;
+struct Rdar_9103310_B {
+  unsigned char           Rdar_9103310_C[101];
+};
+void Rdar_9103310_E(Rdar_9103310_A * x, struct Rdar_9103310_C * b) { // expected-warning {{declaration of 'struct Rdar_9103310_C' will not be visible outside of this function}}
+  char Rdar_9103310_D[4][4] = { "a", "b", "c", "d"};
+  int i;
+  Rdar_9103310_B_t *y = (Rdar_9103310_B_t *) x;
+  for (i = 0; i < 101; i++) {
+    Rdar_9103310_F(b, "%2d%s ", (y->Rdar_9103310_C[i]) / 4, Rdar_9103310_D[(y->Rdar_9103310_C[i]) % 4]); // expected-warning {{implicit declaration of function 'Rdar_9103310_F' is invalid in C99}}
+  }
+}
+
+// Test handling binding lazy compound values to a region and then have
+// specific elements have other bindings.
+int PR9455() {
+  char arr[4] = "000";
+  arr[0] = '1';
+  if (arr[1] == '0')
+    return 1;
+  int *p = 0;
+  *p = 0xDEADBEEF; // no-warning
+  return 1;
+}
+int PR9455_2() {
+  char arr[4] = "000";
+  arr[0] = '1';
+  if (arr[1] == '0') {
+    int *p = 0;
+    *p = 0xDEADBEEF; // expected-warning {{null}}
+  }
+  return 1;
+}
+
+// Test initialization of substructs via lazy compound values.
+typedef float RDar9163742_Float;
+
+typedef struct {
+    RDar9163742_Float x, y;
+} RDar9163742_Point;
+typedef struct {
+    RDar9163742_Float width, height;
+} RDar9163742_Size;
+typedef struct {
+    RDar9163742_Point origin;
+    RDar9163742_Size size;
+} RDar9163742_Rect;
+
+extern  RDar9163742_Rect RDar9163742_RectIntegral(RDar9163742_Rect);
+
+RDar9163742_Rect RDar9163742_IntegralRect(RDar9163742_Rect frame)
+{
+    RDar9163742_Rect integralFrame;
+    integralFrame.origin.x = frame.origin.x;
+    integralFrame.origin.y = frame.origin.y;
+    integralFrame.size = frame.size;
+    return RDar9163742_RectIntegral(integralFrame); // no-warning; all fields initialized
 }
 

@@ -1,7 +1,8 @@
 // RUN: %clang_cc1 -fsyntax-only -verify %s
 // RUN: cp %s %t
-// RUN: %clang_cc1 -fsyntax-only -fixit -x c++ %t || true
+// RUN: not %clang_cc1 -fsyntax-only -fixit -x c++ %t
 // RUN: %clang_cc1 -fsyntax-only -pedantic -Werror -x c++ %t
+// RUN: grep test_string %t
 
 namespace std {
   template<typename T> class basic_string { // expected-note 2{{'basic_string' declared here}}
@@ -63,4 +64,13 @@ struct Derived : public Base { // expected-note{{base class 'Base' specified her
 
 int &Derived::getMember() {
   return ember; // expected-error{{use of undeclared identifier 'ember'; did you mean 'member'?}}
+}
+
+typedef int Integer; // expected-note{{'Integer' declared here}}
+int global_value; // expected-note{{'global_value' declared here}}
+
+int foo() {
+  integer * i = 0; // expected-error{{unknown type name 'integer'; did you mean 'Integer'?}}
+  unsinged *ptr = 0; // expected-error{{use of undeclared identifier 'unsinged'; did you mean 'unsigned'?}}
+  return *i + *ptr + global_val; // expected-error{{use of undeclared identifier 'global_val'; did you mean 'global_value'?}}
 }

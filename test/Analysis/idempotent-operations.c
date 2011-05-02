@@ -1,4 +1,5 @@
-// RUN: %clang_cc1 -analyze -analyzer-store=region -analyzer-constraints=range -fblocks -analyzer-opt-analyze-nested-blocks -analyzer-check-objc-mem -analyzer-checker=core.experimental.IdempotentOps -verify %s
+// RUN: %clang_cc1 -analyze -analyzer-store=region -analyzer-constraints=range -fblocks -analyzer-opt-analyze-nested-blocks -analyzer-checker=deadcode.IdempotentOperations -verify %s
+// RUN: %clang --analyze -Xclang -analyzer-disable-checker=deadcode.DeadStores -fblocks -Xclang -verify %s -o %t
 
 // Basic tests
 
@@ -82,8 +83,8 @@ void bailout() {
 typedef unsigned uintptr_t;
 void kill_at_assign() {
   short array[2];
-  uintptr_t x = array; // expected-warning{{incompatible pointer to integer conversion}}
-  short *p = x; // expected-warning{{incompatible integer to pointer conversion}}
+  uintptr_t x = (uintptr_t) array;
+  short *p = (short *) x;
 
   // The following branch should be infeasible.
   if (!(p = &array[0])) { // expected-warning{{Assigned value is always the same as the existing value}}
@@ -175,7 +176,7 @@ int false6() {
 
 // Check that assignments filter out false positives correctly
 int false7() {
-  int zero = 0; // psuedo-constant
+  int zero = 0; // pseudo-constant
   int one = 1;
 
   int a = 55;

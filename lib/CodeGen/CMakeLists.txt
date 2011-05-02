@@ -2,6 +2,7 @@ set(LLVM_LINK_COMPONENTS
   asmparser
   bitreader
   bitwriter
+  instrumentation
   ipo
   )
 
@@ -29,6 +30,7 @@ add_clang_library(clangCodeGen
   CGObjC.cpp
   CGObjCGNU.cpp
   CGObjCMac.cpp
+  CGObjCRuntime.cpp
   CGRecordLayoutBuilder.cpp
   CGRTTI.cpp
   CGStmt.cpp

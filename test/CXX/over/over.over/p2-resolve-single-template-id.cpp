@@ -22,6 +22,36 @@ namespace DontResolveTooEarly_WaitForOverloadResolution
 
 } // End namespace
 
+namespace DontAllowUnresolvedOverloadedExpressionInAnUnusedExpression
+{
+  void one() { }
+  template<class T> void oneT() { }
+
+  void two() { } //expected-note 2{{candidate}}
+  void two(int) { } //expected-note 2{{candidate}}
+  template<class T> void twoT() { } //expected-note 2{{candidate}}
+  template<class T> void twoT(T) { } //expected-note 2{{candidate}}
+
+  void check()
+  {
+    one; // expected-warning {{expression result unused}}
+    two; // expected-error{{cannot resolve overloaded function 'two' from context}}
+    oneT<int>; // expected-warning {{expression result unused}}
+    twoT<int>; // expected-error {{cannot resolve overloaded function 'twoT' from context}}
+  }
+
+  // check the template function case
+  template<class T> void check()
+  {
+    one; // expected-warning {{expression result unused}}
+    two; // expected-error{{cannot resolve overloaded function 'two' from context}}
+    oneT<int>; // expected-warning {{expression result unused}}
+    twoT<int>; // expected-error {{cannot resolve overloaded function 'twoT' from context}}
+ 
+  }
+
+}
+
   template<typename T>
     void twoT() { }
   template<typename T, typename U>
@@ -45,13 +75,14 @@ namespace DontResolveTooEarly_WaitForOverloadResolution
 
 int main()
 {
+  
   { static_cast<void>(one); }
   { (void)(one); }
   { static_cast<void>(oneT<int>); }
   { (void)(oneT<int>); }
 
-  { static_cast<void>(two); } // expected-error {{address of overloaded}}
-  { (void)(two); } // expected-error {{address of overloaded}}
+  { static_cast<void>(two); } // expected-error {{address of overloaded function 'two' cannot be static_cast to type 'void'}}
+  { (void)(two); } // expected-error {{address of overloaded function 'two' cannot be cast to type 'void'}}
   { static_cast<void>(twoT<int>); } 
   { (void)(twoT<int>); } 
 
@@ -92,4 +123,69 @@ int main()
 
 }
 
+namespace member_pointers {
+  struct S {
+    template <typename T> bool f(T) { return false; }
+    template <typename T> static bool g(T) { return false; }
 
+    template <typename T> bool h(T) { return false; }
+    template <int N> static bool h(int) { return false; }
+  };
+
+  void test(S s) {
+    if (S::f<char>) return; // expected-error {{call to non-static member function without an object argument}}
+    if (S::f<int>) return; // expected-error {{call to non-static member function without an object argument}}
+    if (&S::f<char>) return;
+    if (&S::f<int>) return;
+    if (s.f<char>) return; // expected-error {{a bound member function may only be called}}
+    if (s.f<int>) return; // expected-error {{a bound member function may only be called}}
+    if (&s.f<char>) return; // expected-error {{cannot create a non-constant pointer to member function}}
+    if (&s.f<int>) return; // expected-error {{cannot create a non-constant pointer to member function}}
+
+    if (S::g<char>) return;
+    if (S::g<int>) return;
+    if (&S::g<char>) return;
+    if (&S::g<int>) return;
+    if (s.g<char>) return;
+    if (s.g<int>) return;
+    if (&s.g<char>) return;
+    if (&s.g<int>) return;
+
+    if (S::h<42>) return;
+    if (S::h<int>) return; // expected-error {{a bound member function may only be called}}
+    if (&S::h<42>) return;
+    if (&S::h<int>) return;
+    if (s.h<42>) return;
+    if (s.h<int>) return; // expected-error {{a bound member function may only be called}}
+    if (&s.h<42>) return;
+    if (&s.h<int>) return; // expected-error {{a bound member function may only be called}}
+
+    { bool b = S::f<char>; } // expected-error {{call to non-static member function without an object argument}}
+    { bool b = S::f<int>; } // expected-error {{call to non-static member function without an object argument}}
+    { bool b = &S::f<char>; }
+    { bool b = &S::f<int>; }
+    // These next two errors are terrible.
+    { bool b = s.f<char>; } // expected-error {{cannot initialize}}
+    { bool b = s.f<int>; } // expected-error {{cannot initialize}}
+    { bool b = &s.f<char>; } // expected-error {{cannot create a non-constant pointer to member function}}
+    { bool b = &s.f<int>; } // expected-error {{cannot create a non-constant pointer to member function}}
+
+    { bool b = S::g<char>; }
+    { bool b = S::g<int>; }
+    { bool b = &S::g<char>; }
+    { bool b = &S::g<int>; }
+    { bool b = s.g<char>; }
+    { bool b = s.g<int>; }
+    { bool b = &s.g<char>; }
+    { bool b = &s.g<int>; }
+
+    { bool b = S::h<42>; }
+    { bool b = S::h<int>; } // expected-error {{can't form member pointer of type 'bool' without '&' and class name}}
+    { bool b = &S::h<42>; }
+    { bool b = &S::h<int>; }
+    { bool b = s.h<42>; }
+    { bool b = s.h<int>; } // expected-error {{can't form member pointer of type 'bool' without '&' and class name}}
+    { bool b = &s.h<42>; }
+    { bool b = &s.h<int>; } // expected-error {{can't form member pointer of type 'bool' without '&' and class name}}
+  }
+}

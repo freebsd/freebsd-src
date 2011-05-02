@@ -95,6 +95,16 @@ void template_uuid()
 }
 
 
+template <class T, const GUID* g = &__uuidof(T)>
+class COM_CLASS_TEMPLATE  { };
+
+typedef COM_CLASS_TEMPLATE<struct_with_uuid, &__uuidof(struct_with_uuid)> COM_TYPE_1;
+typedef COM_CLASS_TEMPLATE<struct_with_uuid> COM_TYPE_2;
+
+template <class T, const GUID& g>
+class COM_CLASS_TEMPLATE_REF  { };
+typedef COM_CLASS_TEMPLATE<struct_with_uuid, __uuidof(struct_with_uuid)> COM_TYPE_REF;
+
 
 class CtorCall { 
 public:
@@ -111,3 +121,46 @@ CtorCall& CtorCall::operator=(const CtorCall& that)
     }
     return *this;
 }
+
+template <class A>
+class C1 {
+public:
+  template <int B>
+  class Iterator {
+  };
+};
+ 
+template<class T>
+class C2  {
+  typename C1<T>:: /*template*/  Iterator<0> Mypos; // expected-warning {{use 'template' keyword to treat 'Iterator' as a dependent template name}}
+};
+
+template <class T>
+void f(){
+  typename C1<T>:: /*template*/ Iterator<0> Mypos; // expected-warning {{use 'template' keyword to treat 'Iterator' as a dependent template name}}
+}
+
+
+
+class AAAA { };
+
+template <class T>
+void redundant_typename() {
+   typename T t;// expected-warning {{expected a qualified name after 'typename'}}
+   typename AAAA a;// expected-warning {{expected a qualified name after 'typename'}}
+   t = 3;
+}
+
+int main() {
+  redundant_typename<int>();
+  f<int>();
+}
+
+
+__interface MicrosoftInterface;
+__interface MicrosoftInterface {
+   virtual void foo1() = 0;
+   virtual void foo2() = 0;
+};
+
+__int64 x7 = __int64(0);

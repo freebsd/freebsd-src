@@ -1,10 +1,10 @@
-// RUN: %clang_cc1 -fsyntax-only -Wuninitialized-experimental -fsyntax-only -fblocks %s -verify
+// RUN: %clang_cc1 -fsyntax-only -Wuninitialized -fsyntax-only -fblocks %s -verify
 
 // Duplicated from uninit-variables.c.
 // Test just to ensure the analysis is working.
 int test1() {
   int x; // expected-note{{variable 'x' is declared here}} expected-note{{add initialization}}
-  return x; // expected-warning{{variable 'x' is possibly uninitialized when used here}}
+  return x; // expected-warning{{variable 'x' is uninitialized when used here}}
 }
 
 // Test ObjC fast enumeration.

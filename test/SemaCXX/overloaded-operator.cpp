@@ -384,3 +384,18 @@ void test_lookup_through_using() {
   N::X2 x;
   x << 17;
 }
+
+namespace rdar9136502 {
+  struct X {
+    int i();
+    int i(int);
+  };
+
+  struct Y {
+    Y &operator<<(int); // expected-note{{candidate function not viable: no known conversion from '<bound member function type>' to 'int'}}
+  };
+
+  void f(X x, Y y) {
+    y << x.i; // expected-error{{a bound member function may only be called}}
+  }
+}

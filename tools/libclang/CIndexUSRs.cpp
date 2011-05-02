@@ -431,7 +431,7 @@ void USRGenerator::VisitTagDecl(TagDecl *D) {
   const unsigned off = Buf.size() - 1;
 
   if (EmitDeclName(D)) {
-    if (const TypedefDecl *TD = D->getTypedefForAnonDecl()) {
+    if (const TypedefNameDecl *TD = D->getTypedefNameForAnonDecl()) {
       Buf[off] = 'A';
       Out << '@' << TD;
     }
@@ -470,6 +470,12 @@ bool USRGenerator::GenLoc(const Decl *D) {
   if (generatedLoc)
     return IgnoreResults;
   generatedLoc = true;
+  
+  // Guard against null declarations in invalid code.
+  if (!D) {
+    IgnoreResults = true;
+    return true;
+  }
 
   const SourceManager &SM = AU->getSourceManager();
   SourceLocation L = D->getLocStart();
@@ -570,7 +576,9 @@ void USRGenerator::VisitType(QualType T) {
         case BuiltinType::NullPtr:
           c = 'n'; break;
         case BuiltinType::Overload:
+        case BuiltinType::BoundMember:
         case BuiltinType::Dependent:
+        case BuiltinType::UnknownAny:
           IgnoreResults = true;
           return;
         case BuiltinType::ObjCId:

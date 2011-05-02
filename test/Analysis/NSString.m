@@ -1,13 +1,13 @@
-// RUN: %clang_cc1 -triple i386-apple-darwin10 -analyze -analyzer-checker=cocoa.NilArg -analyzer-checker=core.experimental -analyzer-check-objc-mem -analyzer-store=region -analyzer-constraints=basic -verify %s
-// RUN: %clang_cc1 -triple i386-apple-darwin10 -analyze -analyzer-checker=cocoa.NilArg -analyzer-checker=core.experimental -analyzer-check-objc-mem -analyzer-store=region -analyzer-constraints=range -verify %s
-// RUN: %clang_cc1 -DTEST_64 -triple x86_64-apple-darwin10 -analyze -analyzer-checker=cocoa.NilArg -analyzer-checker=core.experimental -analyzer-check-objc-mem -analyzer-store=region -analyzer-constraints=basic -verify %s
-// RUN: %clang_cc1 -DTEST_64 -triple x86_64-apple-darwin10 -analyze -analyzer-checker=cocoa.NilArg -analyzer-checker=core.experimental -analyzer-check-objc-mem -analyzer-store=region -analyzer-constraints=range -verify %s
+// RUN: %clang_cc1 -triple i386-apple-darwin10 -analyze -analyzer-checker=core,osx.cocoa.NilArg,osx.AtomicCAS,core.experimental -analyzer-store=region -analyzer-constraints=basic -verify %s
+// RUN: %clang_cc1 -triple i386-apple-darwin10 -analyze -analyzer-checker=core,osx.cocoa.NilArg,osx.AtomicCAS,core.experimental -analyzer-store=region -analyzer-constraints=range -verify %s
+// RUN: %clang_cc1 -DTEST_64 -triple x86_64-apple-darwin10 -analyze -analyzer-checker=core,osx.cocoa.NilArg,osx.AtomicCAS,core.experimental -analyzer-store=region -analyzer-constraints=basic -verify %s
+// RUN: %clang_cc1 -DTEST_64 -triple x86_64-apple-darwin10 -analyze -analyzer-checker=core,osx.cocoa.NilArg,osx.AtomicCAS,core.experimental -analyzer-store=region -analyzer-constraints=range -verify %s
 
 // ==-- FIXME: -analyzer-store=basic fails on this file (false negatives). --==
-// NOTWORK: %clang_cc1 -triple i386-apple-darwin10 -analyze -analyzer-checker=cocoa.NilArg -analyzer-checker=core.experimental -analyzer-check-objc-mem -analyzer-store=basic -analyzer-constraints=range -verify %s &&
-// NOTWORK: %clang_cc1 -triple i386-apple-darwin10 -analyze -analyzer-checker=cocoa.NilArg -analyzer-checker=core.experimental -analyzer-check-objc-mem -analyzer-store=basic -analyzer-constraints=basic -verify %s &&
-// NOTWORK: %clang_cc1 -DTEST_64 -triple x86_64-apple-darwin10 -analyze -analyzer-checker=cocoa.NilArg -analyzer-checker=core.experimental -analyzer-check-objc-mem -analyzer-store=basic -analyzer-constraints=basic -verify %s &&
-// NOTWORK: %clang_cc1 -DTEST_64 -triple x86_64-apple-darwin10 -analyze -analyzer-checker=cocoa.NilArg -analyzer-checker=core.experimental -analyzer-check-objc-mem -analyzer-store=basic -analyzer-constraints=range -verify %s
+// NOTWORK: %clang_cc1 -triple i386-apple-darwin10 -analyze -analyzer-checker=core,osx.cocoa.NilArg,osx.AtomicCAS,core.experimental -analyzer-store=basic -analyzer-constraints=range -verify %s &&
+// NOTWORK: %clang_cc1 -triple i386-apple-darwin10 -analyze -analyzer-checker=core,osx.cocoa.NilArg,osx.AtomicCAS,core.experimental -analyzer-store=basic -analyzer-constraints=basic -verify %s &&
+// NOTWORK: %clang_cc1 -DTEST_64 -triple x86_64-apple-darwin10 -analyze -analyzer-checker=core,osx.cocoa.NilArg,osx.AtomicCAS,core.experimental -analyzer-store=basic -analyzer-constraints=basic -verify %s &&
+// NOTWORK: %clang_cc1 -DTEST_64 -triple x86_64-apple-darwin10 -analyze -analyzer-checker=core,osx.cocoa.NilArg,osx.AtomicCAS,core.experimental -analyzer-store=basic -analyzer-constraints=range -verify %s
 
 //===----------------------------------------------------------------------===//
 // The following code is reduced using delta-debugging from
@@ -188,6 +188,13 @@ void f13(void) {
   CFStringRef ref = CFStringCreateWithFormat(kCFAllocatorDefault, ((void*)0), ((CFStringRef) __builtin___CFStringMakeConstantString ("" "%d" "")), 100);
   CFRelease(ref);
   CFRelease(ref); // expected-warning{{Reference-counted object is used after it is released}}
+}
+
+@interface MyString : NSString
+@end
+
+void f14(MyString *s) {
+  [s compare:0]; // expected-warning {{Argument to 'MyString' method 'compare:' cannot be nil.}}
 }
 
 // Test regular use of -autorelease

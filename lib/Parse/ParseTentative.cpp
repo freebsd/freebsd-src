@@ -58,6 +58,7 @@ bool Parser::isCXXDeclarationStatement() {
   case tok::kw_using:
     // static_assert-declaration
   case tok::kw_static_assert:
+  case tok::kw__Static_assert:
     return true;
     // simple-declaration
   default:
@@ -658,10 +659,12 @@ Parser::isExpressionOrTypeSpecifierSimple(tok::TokenKind Kind) {
   case tok::kw___is_convertible_to:
   case tok::kw___is_empty:
   case tok::kw___is_enum:
+  case tok::kw___is_literal:
+  case tok::kw___is_literal_type:
   case tok::kw___is_pod:
   case tok::kw___is_polymorphic:
+  case tok::kw___is_trivial:
   case tok::kw___is_union:
-  case tok::kw___is_literal:
   case tok::kw___uuidof:
     return TPResult::True();
       
@@ -673,6 +676,7 @@ Parser::isExpressionOrTypeSpecifierSimple(tok::TokenKind Kind) {
   case tok::kw_float:
   case tok::kw_int:
   case tok::kw_long:
+  case tok::kw___int64:
   case tok::kw_restrict:
   case tok::kw_short:
   case tok::kw_signed:
@@ -907,7 +911,7 @@ Parser::TPResult Parser::isCXXDeclarationSpecifier() {
     if (TemplateId->Kind != TNK_Type_template)
       return TPResult::False();
     CXXScopeSpec SS;
-    AnnotateTemplateIdTokenAsType(&SS);
+    AnnotateTemplateIdTokenAsType();
     assert(Tok.is(tok::annot_typename));
     goto case_typename;
   }
@@ -968,6 +972,7 @@ Parser::TPResult Parser::isCXXDeclarationSpecifier() {
   case tok::kw_short:
   case tok::kw_int:
   case tok::kw_long:
+  case tok::kw___int64:
   case tok::kw_signed:
   case tok::kw_unsigned:
   case tok::kw_float:
@@ -1151,7 +1156,7 @@ Parser::TPResult Parser::TryParseParameterDeclarationClause() {
       return TPResult::True(); // '...' is a sign of a function declarator.
     }
 
-    ParsedAttributes attrs;
+    ParsedAttributes attrs(AttrFactory);
     MaybeParseMicrosoftAttributes(attrs);
 
     // decl-specifier-seq
@@ -1237,6 +1242,16 @@ Parser::TPResult Parser::TryParseFunctionDeclarator() {
     ConsumeParen();
     if (!SkipUntil(tok::r_paren))
       return TPResult::Error();
+  }
+  if (Tok.is(tok::kw_noexcept)) {
+    ConsumeToken();
+    // Possibly an expression as well.
+    if (Tok.is(tok::l_paren)) {
+      // Find the matching rparen.
+      ConsumeParen();
+      if (!SkipUntil(tok::r_paren))
+        return TPResult::Error();
+    }
   }
 
   return TPResult::Ambiguous();

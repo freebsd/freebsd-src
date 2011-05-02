@@ -18,6 +18,8 @@ def MAP_IGNORE  : DiagMapping;
 def MAP_WARNING : DiagMapping;
 def MAP_ERROR   : DiagMapping;
 def MAP_FATAL   : DiagMapping;
+def MAP_WARNING_NO_WERROR             : DiagMapping;
+def MAP_WARNING_SHOW_IN_SYSTEM_HEADER : DiagMapping;
 
 // Define the diagnostic classes.
 class DiagClass;
@@ -60,6 +62,8 @@ class Diagnostic<string text, DiagClass DC, DiagMapping defaultmapping> {
   DiagMapping DefaultMapping = defaultmapping;
   DiagGroup   Group;
   string      CategoryName = "";
+  string      Brief = "";
+  string      Explanation = "";
 }
 
 class Error<string str>     : Diagnostic<str, CLASS_ERROR, MAP_ERROR>;
@@ -73,9 +77,19 @@ class DefaultIgnore { DiagMapping DefaultMapping = MAP_IGNORE; }
 class DefaultWarn   { DiagMapping DefaultMapping = MAP_WARNING; }
 class DefaultError  { DiagMapping DefaultMapping = MAP_ERROR; }
 class DefaultFatal  { DiagMapping DefaultMapping = MAP_FATAL; }
+class DefaultWarnNoWerror { DiagMapping DefaultMapping= MAP_WARNING_NO_WERROR; }
+class DefaultWarnShowInSystemHeader {
+  DiagMapping DefaultMapping = MAP_WARNING_SHOW_IN_SYSTEM_HEADER;
+}
 
 class NoSFINAE { bit SFINAE = 0; }
 class AccessControl { bit AccessControl = 1; }
+
+class Brief<string str> { string Brief = str; }
+class FullExplanation<string brief, string full> {
+  string Brief = brief;
+  string Explanation = full;
+}
 
 // Definitions for Diagnostics.
 include "DiagnosticASTKinds.td"

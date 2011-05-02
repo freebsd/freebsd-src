@@ -30,7 +30,7 @@ if( CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
 
   include(AddLLVM)
   include(TableGen)
-  include("${CLANG_PATH_TO_LLVM_BUILD}/share/llvm/cmake/LLVM.cmake")
+  include("${CLANG_PATH_TO_LLVM_BUILD}/share/llvm/cmake/LLVMConfig.cmake")
   include(HandleLLVMOptions)
 
   set(PACKAGE_VERSION "${LLVM_PACKAGE_VERSION}")
@@ -40,9 +40,6 @@ if( CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
 
   set(CMAKE_INCLUDE_CURRENT_DIR ON)
   include_directories("${PATH_TO_LLVM_BUILD}/include" "${LLVM_MAIN_INCLUDE_DIR}")
-  if( NOT PATH_TO_LLVM_BUILD STREQUAL LLVM_MAIN_SRC_DIR )
-    include_directories("${LLVM_MAIN_INCLUDE_DIR}")
-  endif()
   link_directories("${PATH_TO_LLVM_BUILD}/lib")
 
   set(LLVM_TABLEGEN_EXE "${PATH_TO_LLVM_BUILD}/bin/tblgen")
@@ -174,23 +171,12 @@ macro(add_clang_library name)
   if( LLVM_COMMON_DEPENDS )
     add_dependencies( ${name} ${LLVM_COMMON_DEPENDS} )
   endif( LLVM_COMMON_DEPENDS )
-  if( LLVM_USED_LIBS )
-    foreach(lib ${LLVM_USED_LIBS})
-      target_link_libraries( ${name} ${lib} )
-    endforeach(lib)
-  endif( LLVM_USED_LIBS )
-  if( LLVM_LINK_COMPONENTS )
-    llvm_config(${name} ${LLVM_LINK_COMPONENTS})
-  endif( LLVM_LINK_COMPONENTS )
-  if (LLVM_COMMON_LIBS)
-    target_link_libraries(${name} ${LLVM_COMMON_LIBS})
-  endif()
-  if( NOT MINGW )
-    get_system_libs(llvm_system_libs)
-    if( llvm_system_libs )
-      target_link_libraries(${name} ${llvm_system_libs})
-    endif()
-  endif()
+
+  target_link_libraries( ${name} ${LLVM_USED_LIBS} )
+  llvm_config( ${name} ${LLVM_LINK_COMPONENTS} )
+  target_link_libraries( ${name} ${LLVM_COMMON_LIBS} )
+  link_system_libs( ${name} )
+
   add_dependencies(${name} ClangDiagnosticCommon)
   if(MSVC)
     get_target_property(cflag ${name} COMPILE_FLAGS)
@@ -211,9 +197,9 @@ macro(add_clang_executable name)
   set_target_properties(${name} PROPERTIES FOLDER "Clang executables")
 endmacro(add_clang_executable)
 
-include_directories(
-  ${CMAKE_CURRENT_SOURCE_DIR}/include
+include_directories(BEFORE
   ${CMAKE_CURRENT_BINARY_DIR}/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
   )
 
 install(DIRECTORY include/
@@ -221,7 +207,6 @@ install(DIRECTORY include/
   FILES_MATCHING
   PATTERN "*.def"
   PATTERN "*.h"
-  PATTERN "*.td"
   PATTERN ".svn" EXCLUDE
   )
 

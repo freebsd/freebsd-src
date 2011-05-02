@@ -20,8 +20,8 @@ struct D { ~D(); };
 
 // PR6205: The casts should not require global initializers
 // CHECK: @_ZN6PR59741cE = external global %"struct.PR5974::C"
-// CHECK: @_ZN6PR59741aE = global %"struct.PR5974::A"* bitcast (%"struct.PR5974::C"* @_ZN6PR59741cE to %"struct.PR5974::A"*), align 8
-// CHECK: @_ZN6PR59741bE = global %"struct.PR5974::A"* bitcast (i8* getelementptr (%"struct.PR5974::C"* @_ZN6PR59741cE, i32 0, i32 0, i64 4) to %"struct.PR5974::A"*), align 8
+// CHECK: @_ZN6PR59741aE = global %"struct.PR5974::A"* getelementptr inbounds (%"struct.PR5974::C"* @_ZN6PR59741cE, i32 0, i32 0)
+// CHECK: @_ZN6PR59741bE = global %"struct.PR5974::A"* bitcast (i8* getelementptr (i8* bitcast (%"struct.PR5974::C"* @_ZN6PR59741cE to i8*), i64 4) to %"struct.PR5974::A"*), align 8
 
 // CHECK: call void @_ZN1AC1Ev(%struct.A* @a)
 // CHECK: call i32 @__cxa_atexit(void (i8*)* bitcast (void (%struct.A*)* @_ZN1AD1Ev to void (i8*)*), i8* getelementptr inbounds (%struct.A* @a, i32 0, i32 0), i8* bitcast (i8** @__dso_handle to i8*))
@@ -89,6 +89,23 @@ namespace PR5974 {
 // CHECK:        load i32* @_ZN5test1L1xE
 // CHECK-NEXT:   sub
 // CHECK-NEXT:   store i32 {{.*}}, i32* @_ZN5test1L1yE
+
+// PR9570: the indirect field shouldn't crash IR gen.
+namespace test5 {
+  static union {
+    unsigned bar[4096] __attribute__((aligned(128)));
+  };
+}
+
+namespace test6 {
+  struct A {
+    A();
+  };
+  extern int foo();
+
+  // This needs an initialization function but not guard variables.
+  __attribute__((weak)) int x = foo();
+}
 
 // At the end of the file, we check that y is initialized before z.
 

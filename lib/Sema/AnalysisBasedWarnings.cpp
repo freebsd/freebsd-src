@@ -24,12 +24,13 @@
 #include "clang/AST/ExprCXX.h"
 #include "clang/AST/StmtObjC.h"
 #include "clang/AST/StmtCXX.h"
+#include "clang/AST/EvaluatedExprVisitor.h"
 #include "clang/Analysis/AnalysisContext.h"
 #include "clang/Analysis/CFG.h"
 #include "clang/Analysis/Analyses/ReachableCode.h"
 #include "clang/Analysis/Analyses/CFGReachabilityAnalysis.h"
 #include "clang/Analysis/CFGStmtMap.h"
-#include "clang/Analysis/Analyses/UninitializedValuesV2.h"
+#include "clang/Analysis/Analyses/UninitializedValues.h"
 #include "llvm/ADT/BitVector.h"
 #include "llvm/Support/Casting.h"
 
@@ -129,11 +130,26 @@ static ControlFlowKind CheckFallThrough(AnalysisContext &AC) {
     // normal.  We need to look pass the destructors for the return
     // statement (if it exists).
     CFGBlock::const_reverse_iterator ri = B.rbegin(), re = B.rend();
+    bool hasNoReturnDtor = false;
+    
     for ( ; ri != re ; ++ri) {
       CFGElement CE = *ri;
+
+      // FIXME: The right solution is to just sever the edges in the
+      // CFG itself.
+      if (const CFGImplicitDtor *iDtor = ri->getAs<CFGImplicitDtor>())
+        if (iDtor->isNoReturn(AC.getASTContext())) {
+          hasNoReturnDtor = true;
+          HasFakeEdge = true;
+          break;
+        }
+      
       if (isa<CFGStmt>(CE))
         break;
     }
+    
+    if (hasNoReturnDtor)
+      continue;
     
     // No more CFGElements in the block?
     if (ri == re) {
@@ -363,17 +379,145 @@ static void CheckFallThroughForBody(Sema &S, const Decl *D, const Stmt *Body,
 //===----------------------------------------------------------------------===//
 
 namespace {
+/// ContainsReference - A visitor class to search for references to
+/// a particular declaration (the needle) within any evaluated component of an
+/// expression (recursively).
+class ContainsReference : public EvaluatedExprVisitor<ContainsReference> {
+  bool FoundReference;
+  const DeclRefExpr *Needle;
+
+public:
+  ContainsReference(ASTContext &Context, const DeclRefExpr *Needle)
+    : EvaluatedExprVisitor<ContainsReference>(Context),
+      FoundReference(false), Needle(Needle) {}
+
+  void VisitExpr(Expr *E) {
+    // Stop evaluating if we already have a reference.
+    if (FoundReference)
+      return;
+
+    EvaluatedExprVisitor<ContainsReference>::VisitExpr(E);
+  }
+
+  void VisitDeclRefExpr(DeclRefExpr *E) {
+    if (E == Needle)
+      FoundReference = true;
+    else
+      EvaluatedExprVisitor<ContainsReference>::VisitDeclRefExpr(E);
+  }
+
+  bool doesContainReference() const { return FoundReference; }
+};
+}
+
+/// DiagnoseUninitializedUse -- Helper function for diagnosing uses of an
+/// uninitialized variable. This manages the different forms of diagnostic
+/// emitted for particular types of uses. Returns true if the use was diagnosed
+/// as a warning. If a pariticular use is one we omit warnings for, returns
+/// false.
+static bool DiagnoseUninitializedUse(Sema &S, const VarDecl *VD,
+                                     const Expr *E, bool isAlwaysUninit) {
+  bool isSelfInit = false;
+
+  if (const DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(E)) {
+    if (isAlwaysUninit) {
+      // Inspect the initializer of the variable declaration which is
+      // being referenced prior to its initialization. We emit
+      // specialized diagnostics for self-initialization, and we
+      // specifically avoid warning about self references which take the
+      // form of:
+      //
+      //   int x = x;
+      //
+      // This is used to indicate to GCC that 'x' is intentionally left
+      // uninitialized. Proven code paths which access 'x' in
+      // an uninitialized state after this will still warn.
+      //
+      // TODO: Should we suppress maybe-uninitialized warnings for
+      // variables initialized in this way?
+      if (const Expr *Initializer = VD->getInit()) {
+        if (DRE == Initializer->IgnoreParenImpCasts())
+          return false;
+
+        ContainsReference CR(S.Context, DRE);
+        CR.Visit(const_cast<Expr*>(Initializer));
+        isSelfInit = CR.doesContainReference();
+      }
+      if (isSelfInit) {
+        S.Diag(DRE->getLocStart(),
+               diag::warn_uninit_self_reference_in_init)
+        << VD->getDeclName() << VD->getLocation() << DRE->getSourceRange();
+      } else {
+        S.Diag(DRE->getLocStart(), diag::warn_uninit_var)
+          << VD->getDeclName() << DRE->getSourceRange();
+      }
+    } else {
+      S.Diag(DRE->getLocStart(), diag::warn_maybe_uninit_var)
+        << VD->getDeclName() << DRE->getSourceRange();
+    }
+  } else {
+    const BlockExpr *BE = cast<BlockExpr>(E);
+    S.Diag(BE->getLocStart(),
+           isAlwaysUninit ? diag::warn_uninit_var_captured_by_block
+                          : diag::warn_maybe_uninit_var_captured_by_block)
+      << VD->getDeclName();
+  }
+
+  // Report where the variable was declared when the use wasn't within
+  // the initializer of that declaration.
+  if (!isSelfInit)
+    S.Diag(VD->getLocStart(), diag::note_uninit_var_def)
+      << VD->getDeclName();
+
+  return true;
+}
+
+static void SuggestInitializationFixit(Sema &S, const VarDecl *VD) {
+  // Don't issue a fixit if there is already an initializer.
+  if (VD->getInit())
+    return;
+
+  // Suggest possible initialization (if any).
+  const char *initialization = 0;
+  QualType VariableTy = VD->getType().getCanonicalType();
+
+  if (VariableTy->getAs<ObjCObjectPointerType>()) {
+    // Check if 'nil' is defined.
+    if (S.PP.getMacroInfo(&S.getASTContext().Idents.get("nil")))
+      initialization = " = nil";
+    else
+      initialization = " = 0";
+  }
+  else if (VariableTy->isRealFloatingType())
+    initialization = " = 0.0";
+  else if (VariableTy->isBooleanType() && S.Context.getLangOptions().CPlusPlus)
+    initialization = " = false";
+  else if (VariableTy->isEnumeralType())
+    return;
+  else if (VariableTy->isScalarType())
+    initialization = " = 0";
+
+  if (initialization) {
+    SourceLocation loc = S.PP.getLocForEndOfToken(VD->getLocEnd());
+    S.Diag(loc, diag::note_var_fixit_add_initialization)
+      << FixItHint::CreateInsertion(loc, initialization);
+  }
+}
+
+typedef std::pair<const Expr*, bool> UninitUse;
+
+namespace {
 struct SLocSort {
-  bool operator()(const Expr *a, const Expr *b) {
-    SourceLocation aLoc = a->getLocStart();
-    SourceLocation bLoc = b->getLocStart();
+  bool operator()(const UninitUse &a, const UninitUse &b) {
+    SourceLocation aLoc = a.first->getLocStart();
+    SourceLocation bLoc = b.first->getLocStart();
     return aLoc.getRawEncoding() < bLoc.getRawEncoding();
   }
 };
 
 class UninitValsDiagReporter : public UninitVariablesHandler {
   Sema &S;
-  typedef llvm::SmallVector<const Expr *, 2> UsesVec;
+  typedef llvm::SmallVector<UninitUse, 2> UsesVec;
   typedef llvm::DenseMap<const VarDecl *, UsesVec*> UsesMap;
   UsesMap *uses;
   
@@ -383,7 +527,8 @@ public:
     flushDiagnostics();
   }
   
-  void handleUseOfUninitVariable(const Expr *ex, const VarDecl *vd) {
+  void handleUseOfUninitVariable(const Expr *ex, const VarDecl *vd,
+                                 bool isAlwaysUninit) {
     if (!uses)
       uses = new UsesMap();
     
@@ -391,7 +536,7 @@ public:
     if (!vec)
       vec = new UsesVec();
     
-    vec->push_back(ex);
+    vec->push_back(std::make_pair(ex, isAlwaysUninit));
   }
   
   void flushDiagnostics() {
@@ -409,54 +554,19 @@ public:
       // a stable ordering.
       std::sort(vec->begin(), vec->end(), SLocSort());
       
-      for (UsesVec::iterator vi = vec->begin(), ve = vec->end(); vi != ve; ++vi)
-      {
-        if (const DeclRefExpr *dr = dyn_cast<DeclRefExpr>(*vi)) {
-          S.Diag(dr->getLocStart(), diag::warn_uninit_var)
-            << vd->getDeclName() << dr->getSourceRange();          
-        }
-        else {
-          const BlockExpr *be = cast<BlockExpr>(*vi);
-          S.Diag(be->getLocStart(), diag::warn_uninit_var_captured_by_block)
-            << vd->getDeclName();
-        }
-        
-        // Report where the variable was declared.
-        S.Diag(vd->getLocStart(), diag::note_uninit_var_def)
-          << vd->getDeclName();
-
-        // Only report the fixit once.
-        if (fixitIssued)
+      for (UsesVec::iterator vi = vec->begin(), ve = vec->end(); vi != ve;
+           ++vi) {
+        if (!DiagnoseUninitializedUse(S, vd, vi->first,
+                                      /*isAlwaysUninit=*/vi->second))
           continue;
-      
-        fixitIssued = true;
 
-        // Suggest possible initialization (if any).
-        const char *initialization = 0;
-        QualType vdTy = vd->getType().getCanonicalType();
-
-        if (vdTy->getAs<ObjCObjectPointerType>()) {
-          // Check if 'nil' is defined.
-          if (S.PP.getMacroInfo(&S.getASTContext().Idents.get("nil")))
-            initialization = " = nil";
-          else
-            initialization = " = 0";
-        }
-        else if (vdTy->isRealFloatingType())
-          initialization = " = 0.0";
-        else if (vdTy->isBooleanType() && S.Context.getLangOptions().CPlusPlus)
-          initialization = " = false";
-        else if (vdTy->isEnumeralType())
-          continue;
-        else if (vdTy->isScalarType())
-          initialization = " = 0";
-      
-        if (initialization) {
-          SourceLocation loc = S.PP.getLocForEndOfToken(vd->getLocEnd());
-          S.Diag(loc, diag::note_var_fixit_add_initialization)
-            << FixItHint::CreateInsertion(loc, initialization);
+        // Suggest a fixit hint the first time we diagnose a use of a variable.
+        if (!fixitIssued) {
+          SuggestInitializationFixit(S, vd);
+          fixitIssued = true;
         }
       }
+
       delete vec;
     }
     delete uses;
@@ -531,25 +641,41 @@ AnalysisBasedWarnings::IssueWarnings(sema::AnalysisBasedWarnings::Policy P,
   // Emit delayed diagnostics.
   if (!fscope->PossiblyUnreachableDiags.empty()) {
     bool analyzed = false;
-    if (CFGReachabilityAnalysis *cra = AC.getCFGReachablityAnalysis())
-      if (CFGStmtMap *csm = AC.getCFGStmtMap()) {
-        analyzed = true;
-        for (llvm::SmallVectorImpl<sema::PossiblyUnreachableDiag>::iterator
-             i = fscope->PossiblyUnreachableDiags.begin(),
-             e = fscope->PossiblyUnreachableDiags.end();
-             i != e; ++i) {
-          const sema::PossiblyUnreachableDiag &D = *i;
-          if (const CFGBlock *blk = csm->getBlock(D.stmt)) {
+
+    // Register the expressions with the CFGBuilder.
+    for (llvm::SmallVectorImpl<sema::PossiblyUnreachableDiag>::iterator
+         i = fscope->PossiblyUnreachableDiags.begin(),
+         e = fscope->PossiblyUnreachableDiags.end();
+         i != e; ++i) {
+      if (const Stmt *stmt = i->stmt)
+        AC.registerForcedBlockExpression(stmt);
+    }
+
+    if (AC.getCFG()) {
+      analyzed = true;
+      for (llvm::SmallVectorImpl<sema::PossiblyUnreachableDiag>::iterator
+            i = fscope->PossiblyUnreachableDiags.begin(),
+            e = fscope->PossiblyUnreachableDiags.end();
+            i != e; ++i)
+      {
+        const sema::PossiblyUnreachableDiag &D = *i;
+        bool processed = false;
+        if (const Stmt *stmt = i->stmt) {
+          const CFGBlock *block = AC.getBlockForRegisteredExpression(stmt);
+          assert(block);
+          if (CFGReverseBlockReachabilityAnalysis *cra = AC.getCFGReachablityAnalysis()) {
             // Can this block be reached from the entrance?
-            if (cra->isReachable(&AC.getCFG()->getEntry(), blk))
+            if (cra->isReachable(&AC.getCFG()->getEntry(), block))
               S.Diag(D.Loc, D.PD);
-          }
-          else {
-            // Emit the warning anyway if we cannot map to a basic block.
-            S.Diag(D.Loc, D.PD);
+            processed = true;
           }
         }
+        if (!processed) {
+          // Emit the warning anyway if we cannot map to a basic block.
+          S.Diag(D.Loc, D.PD);
+        }
       }
+    }
 
     if (!analyzed)
       flushDiagnostics(S, fscope);
@@ -569,25 +695,10 @@ AnalysisBasedWarnings::IssueWarnings(sema::AnalysisBasedWarnings::Policy P,
     CheckUnreachable(S, AC);
   
   if (Diags.getDiagnosticLevel(diag::warn_uninit_var, D->getLocStart())
+      != Diagnostic::Ignored ||
+      Diags.getDiagnosticLevel(diag::warn_maybe_uninit_var, D->getLocStart())
       != Diagnostic::Ignored) {
-    ASTContext &ctx = D->getASTContext();
-    llvm::OwningPtr<CFG> tmpCFG;
-    bool useAlternateCFG = false;
-    if (ctx.getLangOptions().CPlusPlus) {
-      // Temporary workaround: implicit dtors in the CFG can confuse
-      // the path-sensitivity in the uninitialized values analysis.
-      // For now create (if necessary) a separate CFG without implicit dtors.
-      // FIXME: We should not need to do this, as it results in multiple
-      // CFGs getting constructed.
-      CFG::BuildOptions B;
-      B.AddEHEdges = false;
-      B.AddImplicitDtors = false;
-      B.AddInitializers = true;
-      tmpCFG.reset(CFG::buildCFG(D, AC.getBody(), &ctx, B));
-      useAlternateCFG = true;
-    }
-    CFG *cfg = useAlternateCFG ? tmpCFG.get() : AC.getCFG();
-    if (cfg) {
+    if (CFG *cfg = AC.getCFG()) {
       UninitValsDiagReporter reporter(S);
       runUninitializedVariablesAnalysis(*cast<DeclContext>(D), *cfg, AC,
                                         reporter);

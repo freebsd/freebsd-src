@@ -25,7 +25,7 @@
 <!--*************************************************************************-->
 <h1>C++ and C++'0x Support in Clang</h1>
 <!--*************************************************************************-->
-<p>Last updated: $Date: 2011-02-23 01:41:16 +0100 (Wed, 23 Feb 2011) $</p>
+<p>Last updated: $Date: 2011-05-01 09:04:31 +0200 (Sun, 01 May 2011) $</p>
 
   <ul>
     <li><a href="#projects">Projects Building with Clang</a></li>
@@ -84,6 +84,11 @@
 <p>Clang's development effort is focused primarily on fixing bugs in the current
 ISO C++ standard (1998/2003). This section tracks the status of various C++0x
 features.</p>
+
+<p>You can use clang in C++0x mode either
+with <a href="http://libcxx.llvm.org/">libc++</a> or with gcc's libstdc++.
+libstdc++-4.4 requires <a href="libstdc++4.4-clang0x.patch">a patch</a> to work
+with clang; other versions have not been tested.</p>
 
 
 <h2 id="specification">Implementation Status by Feature</h2>
@@ -168,7 +173,7 @@ components are:</p>
 welcome!</p>
 
 <table width="689" border="1" cellspacing="0">
-<tr><td colspan="7" align="center" bgcolor="#ffddaa">C++0x Features (current draft report <a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2010/n3225.pdf">here</a>) </td>
+<tr><td colspan="7" align="center" bgcolor="#ffddaa">C++0x Features (current draft report <a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2011/n3291.pdf">here</a>)</td>
 </tr>
   <tr>
     <th>Feature</th>
@@ -182,12 +187,13 @@ welcome!</p>
 <tr><td colspan="7" class="category">Control Flow Modifications</td></tr>
 <tr>
   <td>Range-based for loop</td>
-  <td></td>
-  <td></td>
-  <td></td>
-  <td></td>
+  <td class="complete" align="center">&#x2713;</td>
+  <td class="complete" align="center">&#x2713;</td>
+  <td class="complete" align="center">&#x2713;</td>
+  <td class="complete" align="center">&#x2713;</td>
   <td>6.5.4</td>
-  <td><a href="http://www.open-std.org/JTC1/SC22/WG21/docs/papers/2007/n2243.html">N2243</a></td>
+  <td><a href="http://www.open-std.org/JTC1/SC22/WG21/docs/papers/2007/n2243.html">N2243</a>
+      <a href="http://www.open-std.org/JTC1/SC22/WG21/docs/papers/2011/n3271.htm">N3271</a></td>
 </tr>
 
 <tr><td colspan="7" class="category">Type System Modifications</td></tr>
@@ -216,10 +222,10 @@ welcome!</p>
 </tr>
 <tr>
   <td>auto type deduction</td>
-  <td class="complete" align="center"></td>
-  <td class="complete" align="center"></td>
-  <td class="complete" align="center"></td>
-  <td class="complete" align="center"></td>
+  <td class="complete" align="center">&#x2713;</td>
+  <td class="complete" align="center">&#x2713;</td>
+  <td class="complete" align="center">&#x2713;</td>
+  <td class="complete" align="center">&#x2713;</td>
   <td>7.1.6.2, 7.1.6.4</td>
   <td><a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2006/n1984.pdf">N1984</a></td>
 </tr>
@@ -310,7 +316,7 @@ welcome!</p>
   <td><a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2007/n2378.pdf">N2378</a></td>
 </tr>
 <tr>
-  <td>POD defintion changes</td>
+  <td>POD definition changes</td>
   <td></td>
   <td></td>
   <td></td>
@@ -342,10 +348,10 @@ welcome!</p>
 <tr><td colspan="7" class="category">Class Modifications</td></tr>
 <tr>
   <td>delegating constructors</td>
-  <td></td>
-  <td></td>
-  <td></td>
-  <td></td>
+  <td class="complete"></td>
+  <td class="complete"></td>
+  <td class="complete"></td>
+  <td class="complete"></td>
   <td>12.6.2</td>
   <td><a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2006/n1986">N1986</a></td>
 </tr>
@@ -454,14 +460,14 @@ welcome!</p>
 </tr>
 <tr>
   <td>template aliases</td>
-  <td></td>
-  <td></td>
-  <td></td>
+  <td class="basic"></td>
+  <td class="basic"></td>
+  <td class="basic"></td>
   <td></td>
   <td>7.1.3, 14.6.7</td>
   <td><a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2003/n1489.pdf">N1489</a>
       <a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2007/n2258.pdf">N2258</a>
-      Includes non-template type aliasing
+      Only non-template type aliases implemented
   </td>
 </tr>
 <tr>
@@ -515,7 +521,7 @@ welcome!</p>
 <tr><td colspan="7" class="category">Preprocessor Modifications</td></tr>
 <tr>
   <td>__STDC_HOSTED__</td>
-  <td></td>
+  <td class="complete"></td>
   <td class="na">N/A</td>
   <td class="na">N/A</td>
   <td class="na">N/A</td>
@@ -580,10 +586,10 @@ welcome!</p>
 <tr><td colspan="7" class="category">Things Completely New</td></tr>
 <tr>
   <td>Late-specified return type</td>
-  <td></td>
-  <td></td>
-  <td></td>
-  <td></td>
+  <td class="complete" align="center">&#x2713;</td>
+  <td class="complete" align="center">&#x2713;</td>
+  <td class="complete" align="center">&#x2713;</td>
+  <td class="basic"></td>
   <td>8.3.5</td>
   <td><a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2007/n2445.html">N2445</a></td>
 </tr>

@@ -27,7 +27,7 @@
 @end
 
 
-@class C;
+@class C;	// expected-note 5 {{forward class is declared here}}
 
 void test(C *c) {
   [c depInA]; // expected-warning {{'depInA' maybe deprecated because receiver type is unknown}}
@@ -36,10 +36,8 @@ void test(C *c) {
   [c unavailMeth1]; // expected-warning {{'unavailMeth1' maybe unavailable because receiver type is unknown}}
   [c depInA2]; // expected-warning {{'depInA2' maybe deprecated because receiver type is unknown}}
   [c unavailMeth2]; // expected-warning {{'unavailMeth2' maybe unavailable because receiver type is unknown}}
-  [c depunavailInA]; // expected-warning {{'depunavailInA' maybe deprecated because receiver type is unknown}} \
-                     // expected-warning {{'depunavailInA' maybe unavailable because receiver type is unknown}} 
-  [c depunavailInA1]; // expected-warning {{'depunavailInA1' maybe deprecated because receiver type is unknown}} \
-                      // expected-warning {{'depunavailInA1' maybe unavailable because receiver type is unknown}}
+  [c depunavailInA]; // expected-warning {{'depunavailInA' maybe unavailable because receiver type is unknown}} 
+  [c depunavailInA1];// expected-warning {{'depunavailInA1' maybe unavailable because receiver type is unknown}}
   [c FuzzyMeth];      // expected-warning {{'FuzzyMeth' maybe deprecated because receiver type is unknown}}
   [c FuzzyMeth1]; // expected-warning {{'FuzzyMeth1' maybe deprecated because receiver type is unknown}}
 

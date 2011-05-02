@@ -201,16 +201,16 @@ AttributeList::Kind AttributeList::getKind(const IdentifierInfo * Name) {
 // CHECK-tokens: Punctuation: "{" [3:15 - 3:16] Namespace=std:3:11 (Definition)
 // CHECK-tokens: Keyword: "template" [4:3 - 4:11] ClassTemplate=pair:4:44 (Definition)
 // CHECK-tokens: Punctuation: "<" [4:12 - 4:13] ClassTemplate=pair:4:44 (Definition)
-// CHECK-tokens: Keyword: "class" [4:14 - 4:19] ClassTemplate=pair:4:44 (Definition)
+// CHECK-tokens: Keyword: "class" [4:14 - 4:19] TemplateTypeParameter=_T1:4:20 (Definition)
 // CHECK-tokens: Identifier: "_T1" [4:20 - 4:23] TemplateTypeParameter=_T1:4:20 (Definition)
 // CHECK-tokens: Punctuation: "," [4:23 - 4:24] ClassTemplate=pair:4:44 (Definition)
-// CHECK-tokens: Keyword: "class" [4:25 - 4:30] ClassTemplate=pair:4:44 (Definition)
+// CHECK-tokens: Keyword: "class" [4:25 - 4:30] TemplateTypeParameter=_T2:4:31 (Definition)
 // CHECK-tokens: Identifier: "_T2" [4:31 - 4:34] TemplateTypeParameter=_T2:4:31 (Definition)
 // CHECK-tokens: Punctuation: ">" [4:35 - 4:36] ClassTemplate=pair:4:44 (Definition)
 // CHECK-tokens: Keyword: "struct" [4:37 - 4:43] ClassTemplate=pair:4:44 (Definition)
 // CHECK-tokens: Identifier: "pair" [4:44 - 4:48] ClassTemplate=pair:4:44 (Definition)
 // CHECK-tokens: Punctuation: "{" [4:49 - 4:50] ClassTemplate=pair:4:44 (Definition)
-// CHECK-tokens: Identifier: "_T2" [4:51 - 4:54] FieldDecl=second:4:55 (Definition)
+// CHECK-tokens: Identifier: "_T2" [4:51 - 4:54] TypeRef=_T2:4:31
 // CHECK-tokens: Identifier: "second" [4:55 - 4:61] FieldDecl=second:4:55 (Definition)
 // CHECK-tokens: Punctuation: ";" [4:61 - 4:62] ClassTemplate=pair:4:44 (Definition)
 // CHECK-tokens: Punctuation: "}" [4:63 - 4:64] ClassTemplate=pair:4:44 (Definition)
@@ -429,8 +429,8 @@ AttributeList::Kind AttributeList::getKind(const IdentifierInfo * Name) {
 // CHECK-tokens: Punctuation: ":" [39:7 - 39:8] UnexposedDecl=:39:1 (Definition)
 // CHECK-tokens: Keyword: "typedef" [40:3 - 40:10] ClassDecl=StringRef:38:7 (Definition)
 // CHECK-tokens: Keyword: "const" [40:11 - 40:16] ClassDecl=StringRef:38:7 (Definition)
-// CHECK-tokens: Keyword: "char" [40:17 - 40:21] ClassDecl=StringRef:38:7 (Definition)
-// CHECK-tokens: Punctuation: "*" [40:22 - 40:23] ClassDecl=StringRef:38:7 (Definition)
+// CHECK-tokens: Keyword: "char" [40:17 - 40:21] TypedefDecl=iterator:40:23 (Definition)
+// CHECK-tokens: Punctuation: "*" [40:22 - 40:23] TypedefDecl=iterator:40:23 (Definition)
 // CHECK-tokens: Identifier: "iterator" [40:23 - 40:31] TypedefDecl=iterator:40:23 (Definition)
 // CHECK-tokens: Punctuation: ";" [40:31 - 40:32] ClassDecl=StringRef:38:7 (Definition)
 // CHECK-tokens: Keyword: "static" [41:3 - 41:9] ClassDecl=StringRef:38:7 (Definition)
@@ -679,16 +679,16 @@ AttributeList::Kind AttributeList::getKind(const IdentifierInfo * Name) {
 // CHECK-tokens: Keyword: "const" [68:30 - 68:35] CXXMethod=getNameStart:68:15 (Definition)
 // CHECK-tokens: Punctuation: "{" [68:36 - 68:37] UnexposedStmt=
 // CHECK-tokens: Keyword: "typedef" [69:5 - 69:12] UnexposedStmt=
-// CHECK-tokens: Identifier: "std" [69:13 - 69:16] UnexposedStmt=
-// CHECK-tokens: Punctuation: "::" [69:16 - 69:18] UnexposedStmt=
-// CHECK-tokens: Identifier: "pair" [69:18 - 69:22] UnexposedStmt=
-// CHECK-tokens: Punctuation: "<" [69:23 - 69:24] UnexposedStmt=
-// CHECK-tokens: Identifier: "IdentifierInfo" [69:25 - 69:39] UnexposedStmt=
-// CHECK-tokens: Punctuation: "," [69:39 - 69:40] UnexposedStmt=
-// CHECK-tokens: Keyword: "const" [69:41 - 69:46] UnexposedStmt=
-// CHECK-tokens: Keyword: "char" [69:47 - 69:51] UnexposedStmt=
-// CHECK-tokens: Punctuation: "*" [69:52 - 69:53] UnexposedStmt=
-// CHECK-tokens: Punctuation: ">" [69:53 - 69:54] UnexposedStmt=
+// CHECK-tokens: Identifier: "std" [69:13 - 69:16] NamespaceRef=std:3:11
+// CHECK-tokens: Punctuation: "::" [69:16 - 69:18] TypedefDecl=actualtype:69:54 (Definition)
+// CHECK-tokens: Identifier: "pair" [69:18 - 69:22] TemplateRef=pair:4:44
+// CHECK-tokens: Punctuation: "<" [69:23 - 69:24] TypedefDecl=actualtype:69:54 (Definition)
+// CHECK-tokens: Identifier: "IdentifierInfo" [69:25 - 69:39] TypeRef=class clang::IdentifierInfo:66:7
+// CHECK-tokens: Punctuation: "," [69:39 - 69:40] TypedefDecl=actualtype:69:54 (Definition)
+// CHECK-tokens: Keyword: "const" [69:41 - 69:46] TypedefDecl=actualtype:69:54 (Definition)
+// CHECK-tokens: Keyword: "char" [69:47 - 69:51] TypedefDecl=actualtype:69:54 (Definition)
+// CHECK-tokens: Punctuation: "*" [69:52 - 69:53] TypedefDecl=actualtype:69:54 (Definition)
+// CHECK-tokens: Punctuation: ">" [69:53 - 69:54] TypedefDecl=actualtype:69:54 (Definition)
 // CHECK-tokens: Identifier: "actualtype" [69:54 - 69:64] TypedefDecl=actualtype:69:54 (Definition)
 // CHECK-tokens: Punctuation: ";" [69:64 - 69:65] UnexposedStmt=
 // CHECK-tokens: Keyword: "return" [70:5 - 70:11] UnexposedStmt=
@@ -711,16 +711,16 @@ AttributeList::Kind AttributeList::getKind(const IdentifierInfo * Name) {
 // CHECK-tokens: Keyword: "const" [72:24 - 72:29] CXXMethod=getLength:72:12 (Definition)
 // CHECK-tokens: Punctuation: "{" [72:30 - 72:31] UnexposedStmt=
 // CHECK-tokens: Keyword: "typedef" [73:5 - 73:12] UnexposedStmt=
-// CHECK-tokens: Identifier: "std" [73:13 - 73:16] UnexposedStmt=
-// CHECK-tokens: Punctuation: "::" [73:16 - 73:18] UnexposedStmt=
-// CHECK-tokens: Identifier: "pair" [73:18 - 73:22] UnexposedStmt=
-// CHECK-tokens: Punctuation: "<" [73:23 - 73:24] UnexposedStmt=
-// CHECK-tokens: Identifier: "IdentifierInfo" [73:25 - 73:39] UnexposedStmt=
-// CHECK-tokens: Punctuation: "," [73:39 - 73:40] UnexposedStmt=
-// CHECK-tokens: Keyword: "const" [73:41 - 73:46] UnexposedStmt=
-// CHECK-tokens: Keyword: "char" [73:47 - 73:51] UnexposedStmt=
-// CHECK-tokens: Punctuation: "*" [73:52 - 73:53] UnexposedStmt=
-// CHECK-tokens: Punctuation: ">" [73:53 - 73:54] UnexposedStmt=
+// CHECK-tokens: Identifier: "std" [73:13 - 73:16] NamespaceRef=std:3:11
+// CHECK-tokens: Punctuation: "::" [73:16 - 73:18] TypedefDecl=actualtype:73:54 (Definition)
+// CHECK-tokens: Identifier: "pair" [73:18 - 73:22] TemplateRef=pair:4:44
+// CHECK-tokens: Punctuation: "<" [73:23 - 73:24] TypedefDecl=actualtype:73:54 (Definition)
+// CHECK-tokens: Identifier: "IdentifierInfo" [73:25 - 73:39] TypeRef=class clang::IdentifierInfo:66:7
+// CHECK-tokens: Punctuation: "," [73:39 - 73:40] TypedefDecl=actualtype:73:54 (Definition)
+// CHECK-tokens: Keyword: "const" [73:41 - 73:46] TypedefDecl=actualtype:73:54 (Definition)
+// CHECK-tokens: Keyword: "char" [73:47 - 73:51] TypedefDecl=actualtype:73:54 (Definition)
+// CHECK-tokens: Punctuation: "*" [73:52 - 73:53] TypedefDecl=actualtype:73:54 (Definition)
+// CHECK-tokens: Punctuation: ">" [73:53 - 73:54] TypedefDecl=actualtype:73:54 (Definition)
 // CHECK-tokens: Identifier: "actualtype" [73:54 - 73:64] TypedefDecl=actualtype:73:54 (Definition)
 // CHECK-tokens: Punctuation: ";" [73:64 - 73:65] UnexposedStmt=
 // CHECK-tokens: Keyword: "const" [74:5 - 74:10] UnexposedStmt=
@@ -771,18 +771,18 @@ AttributeList::Kind AttributeList::getKind(const IdentifierInfo * Name) {
 // CHECK-tokens: Literal: "1" [75:61 - 75:62] UnexposedExpr=
 // CHECK-tokens: Punctuation: ";" [75:62 - 75:63] UnexposedStmt=
 // CHECK-tokens: Punctuation: "}" [76:3 - 76:4] UnexposedStmt=
-// CHECK-tokens: Identifier: "llvm" [77:3 - 77:7] CXXMethod=getName:77:19 (Definition)
+// CHECK-tokens: Identifier: "llvm" [77:3 - 77:7] NamespaceRef=llvm:37:11
 // CHECK-tokens: Punctuation: "::" [77:7 - 77:9] CXXMethod=getName:77:19 (Definition)
-// CHECK-tokens: Identifier: "StringRef" [77:9 - 77:18] CXXMethod=getName:77:19 (Definition)
+// CHECK-tokens: Identifier: "StringRef" [77:9 - 77:18] TypeRef=class llvm::StringRef:38:7
 // CHECK-tokens: Identifier: "getName" [77:19 - 77:26] CXXMethod=getName:77:19 (Definition)
 // CHECK-tokens: Punctuation: "(" [77:26 - 77:27] CXXMethod=getName:77:19 (Definition)
 // CHECK-tokens: Punctuation: ")" [77:27 - 77:28] CXXMethod=getName:77:19 (Definition)
 // CHECK-tokens: Keyword: "const" [77:29 - 77:34] CXXMethod=getName:77:19 (Definition)
 // CHECK-tokens: Punctuation: "{" [77:35 - 77:36] UnexposedStmt=
 // CHECK-tokens: Keyword: "return" [78:5 - 78:11] UnexposedStmt=
-// CHECK-tokens: Identifier: "llvm" [78:12 - 78:16] CallExpr=StringRef:49:3
+// CHECK-tokens: Identifier: "llvm" [78:12 - 78:16] NamespaceRef=llvm:37:11
 // CHECK-tokens: Punctuation: "::" [78:16 - 78:18] CallExpr=StringRef:49:3
-// CHECK-tokens: Identifier: "StringRef" [78:18 - 78:27] CallExpr=StringRef:49:3
+// CHECK-tokens: Identifier: "StringRef" [78:18 - 78:27] TypeRef=class llvm::StringRef:38:7
 // CHECK-tokens: Punctuation: "(" [78:27 - 78:28] CallExpr=StringRef:49:3
 // CHECK-tokens: Identifier: "getNameStart" [78:28 - 78:40] MemberRefExpr=getNameStart:68:15
 // CHECK-tokens: Punctuation: "(" [78:40 - 78:41] CallExpr=getNameStart:68:15
@@ -802,13 +802,13 @@ AttributeList::Kind AttributeList::getKind(const IdentifierInfo * Name) {
 // CHECK-tokens: Punctuation: "{" [82:16 - 82:17] Namespace=llvm:82:11 (Definition)
 // CHECK-tokens: Keyword: "template" [83:1 - 83:9] ClassTemplate=StringSwitch:83:47 (Definition)
 // CHECK-tokens: Punctuation: "<" [83:10 - 83:11] ClassTemplate=StringSwitch:83:47 (Definition)
-// CHECK-tokens: Keyword: "typename" [83:12 - 83:20] ClassTemplate=StringSwitch:83:47 (Definition)
+// CHECK-tokens: Keyword: "typename" [83:12 - 83:20] TemplateTypeParameter=T:83:21 (Definition)
 // CHECK-tokens: Identifier: "T" [83:21 - 83:22] TemplateTypeParameter=T:83:21 (Definition)
 // CHECK-tokens: Punctuation: "," [83:22 - 83:23] ClassTemplate=StringSwitch:83:47 (Definition)
-// CHECK-tokens: Keyword: "typename" [83:24 - 83:32] ClassTemplate=StringSwitch:83:47 (Definition)
+// CHECK-tokens: Keyword: "typename" [83:24 - 83:32] TemplateTypeParameter=R:83:33 (Definition)
 // CHECK-tokens: Identifier: "R" [83:33 - 83:34] TemplateTypeParameter=R:83:33 (Definition)
-// CHECK-tokens: Punctuation: "=" [83:35 - 83:36] ClassTemplate=StringSwitch:83:47 (Definition)
-// CHECK-tokens: Identifier: "T" [83:37 - 83:38] ClassTemplate=StringSwitch:83:47 (Definition)
+// CHECK-tokens: Punctuation: "=" [83:35 - 83:36] TemplateTypeParameter=R:83:33 (Definition)
+// CHECK-tokens: Identifier: "T" [83:37 - 83:38] TypeRef=T:83:21
 // CHECK-tokens: Punctuation: ">" [83:39 - 83:40] ClassTemplate=StringSwitch:83:47 (Definition)
 // CHECK-tokens: Keyword: "class" [83:41 - 83:46] ClassTemplate=StringSwitch:83:47 (Definition)
 // CHECK-tokens: Identifier: "StringSwitch" [83:47 - 83:59] ClassTemplate=StringSwitch:83:47 (Definition)
@@ -817,13 +817,13 @@ AttributeList::Kind AttributeList::getKind(const IdentifierInfo * Name) {
 // CHECK-tokens: Identifier: "Str" [84:13 - 84:16] FieldDecl=Str:84:13 (Definition)
 // CHECK-tokens: Punctuation: ";" [84:16 - 84:17] ClassTemplate=StringSwitch:83:47 (Definition)
 // CHECK-tokens: Keyword: "const" [85:3 - 85:8] ClassTemplate=StringSwitch:83:47 (Definition)
-// CHECK-tokens: Identifier: "T" [85:9 - 85:10] FieldDecl=Result:85:12 (Definition)
+// CHECK-tokens: Identifier: "T" [85:9 - 85:10] TypeRef=T:83:21
 // CHECK-tokens: Punctuation: "*" [85:11 - 85:12] FieldDecl=Result:85:12 (Definition)
 // CHECK-tokens: Identifier: "Result" [85:12 - 85:18] FieldDecl=Result:85:12 (Definition)
 // CHECK-tokens: Punctuation: ";" [85:18 - 85:19] ClassTemplate=StringSwitch:83:47 (Definition)
 // CHECK-tokens: Keyword: "public" [86:1 - 86:7] UnexposedDecl=:86:1 (Definition)
 // CHECK-tokens: Punctuation: ":" [86:7 - 86:8] UnexposedDecl=:86:1 (Definition)
-// CHECK-tokens: Keyword: "explicit" [87:3 - 87:11] ClassTemplate=StringSwitch:83:47 (Definition)
+// CHECK-tokens: Keyword: "explicit" [87:3 - 87:11] CXXConstructor=StringSwitch<T, R>:87:12 (Definition)
 // CHECK-tokens: Identifier: "StringSwitch" [87:12 - 87:24] CXXConstructor=StringSwitch<T, R>:87:12 (Definition)
 // CHECK-tokens: Punctuation: "(" [87:24 - 87:25] CXXConstructor=StringSwitch<T, R>:87:12 (Definition)
 // CHECK-tokens: Identifier: "StringRef" [87:25 - 87:34] TypeRef=class llvm::StringRef:38:7
@@ -858,10 +858,10 @@ AttributeList::Kind AttributeList::getKind(const IdentifierInfo * Name) {
 // CHECK-tokens: Punctuation: ")" [88:61 - 88:62] ParmDecl=S:88:60 (Definition)
 // CHECK-tokens: Punctuation: "[" [88:62 - 88:63] ParmDecl=S:88:60 (Definition)
 // CHECK-tokens: Identifier: "N" [88:63 - 88:64] DeclRefExpr=N:88:23
-// CHECK-tokens: Punctuation: "]" [88:64 - 88:65] FunctionTemplate=Case:88:42 (Definition)
+// CHECK-tokens: Punctuation: "]" [88:64 - 88:65] ParmDecl=S:88:60 (Definition)
 // CHECK-tokens: Punctuation: "," [88:65 - 88:66] FunctionTemplate=Case:88:42 (Definition)
 // CHECK-tokens: Keyword: "const" [89:47 - 89:52] FunctionTemplate=Case:88:42 (Definition)
-// CHECK-tokens: Identifier: "T" [89:53 - 89:54] ParmDecl=Value:89:57 (Definition)
+// CHECK-tokens: Identifier: "T" [89:53 - 89:54] TypeRef=T:83:21
 // CHECK-tokens: Punctuation: "&" [89:55 - 89:56] ParmDecl=Value:89:57 (Definition)
 // CHECK-tokens: Identifier: "Value" [89:57 - 89:62] ParmDecl=Value:89:57 (Definition)
 // CHECK-tokens: Punctuation: ")" [89:62 - 89:63] FunctionTemplate=Case:88:42 (Definition)
@@ -871,11 +871,11 @@ AttributeList::Kind AttributeList::getKind(const IdentifierInfo * Name) {
 // CHECK-tokens: Keyword: "this" [90:13 - 90:17] UnexposedExpr=
 // CHECK-tokens: Punctuation: ";" [90:17 - 90:18] UnexposedStmt=
 // CHECK-tokens: Punctuation: "}" [91:3 - 91:4] UnexposedStmt=
-// CHECK-tokens: Identifier: "R" [92:3 - 92:4] CXXMethod=Default:92:5 (Definition)
+// CHECK-tokens: Identifier: "R" [92:3 - 92:4] TypeRef=R:83:33
 // CHECK-tokens: Identifier: "Default" [92:5 - 92:12] CXXMethod=Default:92:5 (Definition)
 // CHECK-tokens: Punctuation: "(" [92:12 - 92:13] CXXMethod=Default:92:5 (Definition)
 // CHECK-tokens: Keyword: "const" [92:13 - 92:18] CXXMethod=Default:92:5 (Definition)
-// CHECK-tokens: Identifier: "T" [92:19 - 92:20] ParmDecl=Value:92:23 (Definition)
+// CHECK-tokens: Identifier: "T" [92:19 - 92:20] TypeRef=T:83:21
 // CHECK-tokens: Punctuation: "&" [92:21 - 92:22] ParmDecl=Value:92:23 (Definition)
 // CHECK-tokens: Identifier: "Value" [92:23 - 92:28] ParmDecl=Value:92:23 (Definition)
 // CHECK-tokens: Punctuation: ")" [92:28 - 92:29] CXXMethod=Default:92:5 (Definition)
@@ -892,9 +892,9 @@ AttributeList::Kind AttributeList::getKind(const IdentifierInfo * Name) {
 // CHECK-tokens: Keyword: "namespace" [98:7 - 98:16] UsingDirective=:98:17
 // CHECK-tokens: Identifier: "clang" [98:17 - 98:22] NamespaceRef=clang:10:17
 // CHECK-tokens: Punctuation: ";" [98:22 - 98:23]
-// CHECK-tokens: Identifier: "AttributeList" [100:1 - 100:14] CXXMethod=getKind:100:36 (Definition)
+// CHECK-tokens: Identifier: "AttributeList" [100:1 - 100:14] TypeRef=class clang::AttributeList:12:9
 // CHECK-tokens: Punctuation: "::" [100:14 - 100:16] CXXMethod=getKind:100:36 (Definition)
-// CHECK-tokens: Identifier: "Kind" [100:16 - 100:20] CXXMethod=getKind:100:36 (Definition)
+// CHECK-tokens: Identifier: "Kind" [100:16 - 100:20] TypeRef=enum clang::AttributeList::Kind:13:10
 // CHECK-tokens: Identifier: "AttributeList" [100:21 - 100:34] TypeRef=class clang::AttributeList:12:9
 // CHECK-tokens: Punctuation: "::" [100:34 - 100:36] CXXMethod=getKind:100:36 (Definition)
 // CHECK-tokens: Identifier: "getKind" [100:36 - 100:43] CXXMethod=getKind:100:36 (Definition)
@@ -905,9 +905,9 @@ AttributeList::Kind AttributeList::getKind(const IdentifierInfo * Name) {
 // CHECK-tokens: Identifier: "Name" [100:67 - 100:71] ParmDecl=Name:100:67 (Definition)
 // CHECK-tokens: Punctuation: ")" [100:71 - 100:72] CXXMethod=getKind:100:36 (Definition)
 // CHECK-tokens: Punctuation: "{" [100:73 - 100:74] UnexposedStmt=
-// CHECK-tokens: Identifier: "llvm" [101:3 - 101:7] VarDecl=AttrName:101:19 (Definition)
+// CHECK-tokens: Identifier: "llvm" [101:3 - 101:7] NamespaceRef=llvm:82:11
 // CHECK-tokens: Punctuation: "::" [101:7 - 101:9] VarDecl=AttrName:101:19 (Definition)
-// CHECK-tokens: Identifier: "StringRef" [101:9 - 101:18] VarDecl=AttrName:101:19 (Definition)
+// CHECK-tokens: Identifier: "StringRef" [101:9 - 101:18] TypeRef=class llvm::StringRef:38:7
 // CHECK-tokens: Identifier: "AttrName" [101:19 - 101:27] VarDecl=AttrName:101:19 (Definition)
 // CHECK-tokens: Punctuation: "=" [101:28 - 101:29] VarDecl=AttrName:101:19 (Definition)
 // CHECK-tokens: Identifier: "Name" [101:30 - 101:34] DeclRefExpr=Name:100:67
@@ -950,13 +950,14 @@ AttributeList::Kind AttributeList::getKind(const IdentifierInfo * Name) {
 // CHECK-tokens: Punctuation: ")" [103:54 - 103:55] CallExpr=substr:60:13
 // CHECK-tokens: Punctuation: ";" [103:55 - 103:56] UnexposedStmt=
 // CHECK-tokens: Keyword: "return" [105:3 - 105:9] UnexposedStmt=
-// CHECK-tokens: Identifier: "llvm" [105:10 - 105:14] UnexposedStmt=
-// CHECK-tokens: Punctuation: "::" [105:14 - 105:16] UnexposedStmt=
+// FIXME: Missing "llvm" namespace reference below
+// CHECK-tokens: Identifier: "llvm" [105:10 - 105:14] NamespaceRef=llvm:82:11
+// CHECK-tokens: Punctuation: "::" [105:14 - 105:16] UnexposedExpr=StringSwitch:87:12
 // CHECK-tokens: Identifier: "StringSwitch" [105:16 - 105:28] TemplateRef=StringSwitch:83:47
-// CHECK-tokens: Punctuation: "<" [105:29 - 105:30] CallExpr=StringSwitch:87:12
-// CHECK-tokens: Identifier: "AttributeList" [105:31 - 105:44] CallExpr=StringSwitch:87:12
-// CHECK-tokens: Punctuation: "::" [105:44 - 105:46] CallExpr=StringSwitch:87:12
-// CHECK-tokens: Identifier: "Kind" [105:46 - 105:50] CallExpr=StringSwitch:87:12
+// CHECK-tokens: Punctuation: "<" [105:29 - 105:30] UnexposedExpr=StringSwitch:87:12
+// CHECK-tokens: Identifier: "AttributeList" [105:31 - 105:44] TypeRef=class clang::AttributeList:12:9
+// CHECK-tokens: Punctuation: "::" [105:44 - 105:46] UnexposedExpr=StringSwitch:87:12
+// CHECK-tokens: Identifier: "Kind" [105:46 - 105:50] TypeRef=enum clang::AttributeList::Kind:13:10
 // CHECK-tokens: Punctuation: ">" [105:51 - 105:52] CallExpr=StringSwitch:87:12
 // CHECK-tokens: Punctuation: "(" [105:53 - 105:54] CallExpr=StringSwitch:87:12
 // CHECK-tokens: Identifier: "AttrName" [105:54 - 105:62] DeclRefExpr=AttrName:101:19
@@ -1523,24 +1524,24 @@ AttributeList::Kind AttributeList::getKind(const IdentifierInfo * Name) {
 // CHECK-tokens: Punctuation: "}" [186:1 - 186:2] UnexposedStmt=
 
 // RUN: c-index-test -test-load-source all %s 2>&1 | FileCheck %s
-// CHECK: 1:27: TypedefDecl=__darwin_size_t:1:27 (Definition) Extent=[1:27 - 1:42]
-// CHECK: 2:25: TypedefDecl=size_t:2:25 (Definition) Extent=[2:25 - 2:31]
+// CHECK: 1:27: TypedefDecl=__darwin_size_t:1:27 (Definition) Extent=[1:1 - 1:42]
+// CHECK: 2:25: TypedefDecl=size_t:2:25 (Definition) Extent=[2:1 - 2:31]
 // CHECK: 2:9: TypeRef=__darwin_size_t:1:27 Extent=[2:9 - 2:24]
-// CHECK: 3:11: Namespace=std:3:11 (Definition) Extent=[3:11 - 5:2]
+// CHECK: 3:11: Namespace=std:3:11 (Definition) Extent=[3:1 - 5:2]
 // CHECK: 4:44: ClassTemplate=pair:4:44 (Definition) Extent=[4:3 - 4:64]
-// CHECK: 4:20: TemplateTypeParameter=_T1:4:20 (Definition) Extent=[4:20 - 4:23]
-// CHECK: 4:31: TemplateTypeParameter=_T2:4:31 (Definition) Extent=[4:31 - 4:34]
-// CHECK: 4:55: FieldDecl=second:4:55 (Definition) Extent=[4:55 - 4:61]
-// CHECK: 6:8: UnexposedDecl=:6:8 (Definition) Extent=[6:8 - 6:11]
-// CHECK: 7:7: FunctionDecl=memcmp:7:7 Extent=[7:7 - 7:49]
-// CHECK: 7:26: ParmDecl=:7:26 (Definition) Extent=[7:20 - 7:27]
-// CHECK: 7:40: ParmDecl=:7:40 (Definition) Extent=[7:34 - 7:41]
+// CHECK: 4:20: TemplateTypeParameter=_T1:4:20 (Definition) Extent=[4:14 - 4:23]
+// CHECK: 4:31: TemplateTypeParameter=_T2:4:31 (Definition) Extent=[4:25 - 4:34]
+// CHECK: 4:55: FieldDecl=second:4:55 (Definition) Extent=[4:51 - 4:61]
+// CHECK: 6:8: UnexposedDecl=:6:8 (Definition) Extent=[6:1 - 9:2]
+// CHECK: 7:7: FunctionDecl=memcmp:7:7 Extent=[7:3 - 7:49]
+// CHECK: 7:26: ParmDecl=:7:26 (Definition) Extent=[7:14 - 7:27]
+// CHECK: 7:40: ParmDecl=:7:40 (Definition) Extent=[7:28 - 7:41]
 // CHECK: 7:48: ParmDecl=:7:48 (Definition) Extent=[7:42 - 7:49]
 // CHECK: 7:42: TypeRef=size_t:2:25 Extent=[7:42 - 7:48]
-// CHECK: 8:10: FunctionDecl=strlen:8:10 Extent=[8:10 - 8:30]
+// CHECK: 8:10: FunctionDecl=strlen:8:10 Extent=[8:3 - 8:30]
 // CHECK: 8:3: TypeRef=size_t:2:25 Extent=[8:3 - 8:9]
-// CHECK: 8:29: ParmDecl=:8:29 (Definition) Extent=[8:23 - 8:30]
-// CHECK: 10:17: Namespace=clang:10:17 (Definition) Extent=[10:17 - 35:2]
+// CHECK: 8:29: ParmDecl=:8:29 (Definition) Extent=[8:17 - 8:30]
+// CHECK: 10:17: Namespace=clang:10:17 (Definition) Extent=[10:1 - 35:2]
 // CHECK: 11:9: ClassDecl=IdentifierInfo:11:9 Extent=[11:3 - 11:23]
 // CHECK: 12:9: ClassDecl=AttributeList:12:9 (Definition) Extent=[12:3 - 34:4]
 // CHECK: 13:10: EnumDecl=Kind:13:10 (Definition) Extent=[13:5 - 32:6]
@@ -1615,18 +1616,18 @@ AttributeList::Kind AttributeList::getKind(const IdentifierInfo * Name) {
 // CHECK: 30:40: EnumConstantDecl=AT_init_priority:30:40 (Definition) Extent=[30:40 - 30:56]
 // CHECK: 31:7: EnumConstantDecl=IgnoredAttribute:31:7 (Definition) Extent=[31:7 - 31:23]
 // CHECK: 31:25: EnumConstantDecl=UnknownAttribute:31:25 (Definition) Extent=[31:25 - 31:41]
-// CHECK: 33:17: CXXMethod=getKind:33:17 Extent=[33:17 - 33:53]
+// CHECK: 33:17: CXXMethod=getKind:33:17 Extent=[33:5 - 33:53]
 // CHECK: 33:12: TypeRef=enum clang::AttributeList::Kind:13:10 Extent=[33:12 - 33:16]
-// CHECK: 33:48: ParmDecl=Name:33:48 (Definition) Extent=[33:31 - 33:52]
+// CHECK: 33:48: ParmDecl=Name:33:48 (Definition) Extent=[33:25 - 33:52]
 // CHECK: 33:31: TypeRef=class clang::IdentifierInfo:66:7 Extent=[33:31 - 33:45]
-// CHECK: 36:8: FunctionDecl=magic_length:36:8 Extent=[36:8 - 36:35]
+// CHECK: 36:8: FunctionDecl=magic_length:36:8 Extent=[36:1 - 36:35]
 // CHECK: 36:1: TypeRef=size_t:2:25 Extent=[36:1 - 36:7]
-// CHECK: 36:33: ParmDecl=s:36:33 (Definition) Extent=[36:27 - 36:34]
-// CHECK: 37:11: Namespace=llvm:37:11 (Definition) Extent=[37:11 - 64:2]
+// CHECK: 36:33: ParmDecl=s:36:33 (Definition) Extent=[36:21 - 36:34]
+// CHECK: 37:11: Namespace=llvm:37:11 (Definition) Extent=[37:1 - 64:2]
 // CHECK: 38:7: ClassDecl=StringRef:38:7 (Definition) Extent=[38:1 - 63:2]
 // CHECK: 39:1: UnexposedDecl=:39:1 (Definition) Extent=[39:1 - 39:8]
-// CHECK: 40:23: TypedefDecl=iterator:40:23 (Definition) Extent=[40:23 - 40:31]
-// CHECK: 41:23: VarDecl=npos:41:23 Extent=[41:16 - 41:40]
+// CHECK: 40:23: TypedefDecl=iterator:40:23 (Definition) Extent=[40:3 - 40:31]
+// CHECK: 41:23: VarDecl=npos:41:23 Extent=[41:3 - 41:40]
 // CHECK: 41:16: TypeRef=size_t:2:25 Extent=[41:16 - 41:22]
 // CHECK: 41:30: UnexposedExpr= Extent=[41:30 - 41:40]
 // CHECK: 41:31: UnexposedExpr= Extent=[41:31 - 41:40]
@@ -1634,10 +1635,10 @@ AttributeList::Kind AttributeList::getKind(const IdentifierInfo * Name) {
 // CHECK: 41:38: UnexposedExpr= Extent=[41:38 - 41:39]
 // CHECK: 41:38: UnexposedExpr= Extent=[41:38 - 41:39]
 // CHECK: 42:1: UnexposedDecl=:42:1 (Definition) Extent=[42:1 - 42:9]
-// CHECK: 43:15: FieldDecl=Data:43:15 (Definition) Extent=[43:15 - 43:19]
-// CHECK: 44:10: FieldDecl=Length:44:10 (Definition) Extent=[44:10 - 44:16]
+// CHECK: 43:15: FieldDecl=Data:43:15 (Definition) Extent=[43:3 - 43:19]
+// CHECK: 44:10: FieldDecl=Length:44:10 (Definition) Extent=[44:3 - 44:16]
 // CHECK: 44:3: TypeRef=size_t:2:25 Extent=[44:3 - 44:9]
-// CHECK: 45:17: CXXMethod=min:45:17 (Definition) Extent=[45:17 - 45:66]
+// CHECK: 45:17: CXXMethod=min:45:17 (Definition) Extent=[45:3 - 45:66]
 // CHECK: 45:10: TypeRef=size_t:2:25 Extent=[45:10 - 45:16]
 // CHECK: 45:28: ParmDecl=a:45:28 (Definition) Extent=[45:21 - 45:29]
 // CHECK: 45:21: TypeRef=size_t:2:25 Extent=[45:21 - 45:27]
@@ -1661,7 +1662,7 @@ AttributeList::Kind AttributeList::getKind(const IdentifierInfo * Name) {
 // CHECK: 47:32: UnexposedExpr= Extent=[47:32 - 47:33]
 // CHECK: 47:35: UnexposedStmt= Extent=[47:35 - 47:37]
 // CHECK: 48:3: CXXConstructor=StringRef:48:3 (Definition) Extent=[48:3 - 48:71]
-// CHECK: 48:25: ParmDecl=Str:48:25 (Definition) Extent=[48:19 - 48:28]
+// CHECK: 48:25: ParmDecl=Str:48:25 (Definition) Extent=[48:13 - 48:28]
 // CHECK: 48:32: MemberRef=Data:43:15 Extent=[48:32 - 48:36]
 // CHECK: 48:37: DeclRefExpr=Str:48:25 Extent=[48:37 - 48:40]
 // CHECK: 48:43: MemberRef=Length:44:10 Extent=[48:43 - 48:49]
@@ -1671,7 +1672,7 @@ AttributeList::Kind AttributeList::getKind(const IdentifierInfo * Name) {
 // CHECK: 48:63: DeclRefExpr=Str:48:25 Extent=[48:63 - 48:66]
 // CHECK: 48:69: UnexposedStmt= Extent=[48:69 - 48:71]
 // CHECK: 49:3: CXXConstructor=StringRef:49:3 (Definition) Extent=[49:3 - 49:77]
-// CHECK: 49:25: ParmDecl=data:49:25 (Definition) Extent=[49:19 - 49:29]
+// CHECK: 49:25: ParmDecl=data:49:25 (Definition) Extent=[49:13 - 49:29]
 // CHECK: 49:38: ParmDecl=length:49:38 (Definition) Extent=[49:31 - 49:44]
 // CHECK: 49:31: TypeRef=size_t:2:25 Extent=[49:31 - 49:37]
 // CHECK: 49:48: MemberRef=Data:43:15 Extent=[49:48 - 49:52]
@@ -1679,17 +1680,17 @@ AttributeList::Kind AttributeList::getKind(const IdentifierInfo * Name) {
 // CHECK: 49:60: MemberRef=Length:44:10 Extent=[49:60 - 49:66]
 // CHECK: 49:67: DeclRefExpr=length:49:38 Extent=[49:67 - 49:73]
 // CHECK: 49:75: UnexposedStmt= Extent=[49:75 - 49:77]
-// CHECK: 50:12: CXXMethod=end:50:12 (Definition) Extent=[50:12 - 50:40]
+// CHECK: 50:12: CXXMethod=end:50:12 (Definition) Extent=[50:3 - 50:40]
 // CHECK: 50:3: TypeRef=iterator:40:23 Extent=[50:3 - 50:11]
 // CHECK: 50:24: UnexposedStmt= Extent=[50:24 - 50:40]
 // CHECK: 50:26: UnexposedStmt= Extent=[50:26 - 50:37]
 // CHECK: 50:33: MemberRefExpr=Data:43:15 Extent=[50:33 - 50:37]
-// CHECK: 51:10: CXXMethod=size:51:10 (Definition) Extent=[51:10 - 51:41]
+// CHECK: 51:10: CXXMethod=size:51:10 (Definition) Extent=[51:3 - 51:41]
 // CHECK: 51:3: TypeRef=size_t:2:25 Extent=[51:3 - 51:9]
 // CHECK: 51:23: UnexposedStmt= Extent=[51:23 - 51:41]
 // CHECK: 51:25: UnexposedStmt= Extent=[51:25 - 51:38]
 // CHECK: 51:32: MemberRefExpr=Length:44:10 Extent=[51:32 - 51:38]
-// CHECK: 52:8: CXXMethod=startswith:52:8 (Definition) Extent=[52:8 - 55:4]
+// CHECK: 52:8: CXXMethod=startswith:52:8 (Definition) Extent=[52:3 - 55:4]
 // CHECK: 52:29: ParmDecl=Prefix:52:29 (Definition) Extent=[52:19 - 52:35]
 // CHECK: 52:19: TypeRef=class llvm::StringRef:38:7 Extent=[52:19 - 52:28]
 // CHECK: 52:43: UnexposedStmt= Extent=[52:43 - 55:4]
@@ -1712,7 +1713,7 @@ AttributeList::Kind AttributeList::getKind(const IdentifierInfo * Name) {
 // CHECK: 54:44: MemberRefExpr=Length:44:10 Extent=[54:37 - 54:50]
 // CHECK: 54:37: DeclRefExpr=Prefix:52:29 Extent=[54:37 - 54:43]
 // CHECK: 54:55: UnexposedExpr= Extent=[54:55 - 54:56]
-// CHECK: 56:8: CXXMethod=endswith:56:8 (Definition) Extent=[56:8 - 59:4]
+// CHECK: 56:8: CXXMethod=endswith:56:8 (Definition) Extent=[56:3 - 59:4]
 // CHECK: 56:27: ParmDecl=Suffix:56:27 (Definition) Extent=[56:17 - 56:33]
 // CHECK: 56:17: TypeRef=class llvm::StringRef:38:7 Extent=[56:17 - 56:26]
 // CHECK: 56:41: UnexposedStmt= Extent=[56:41 - 59:4]
@@ -1739,7 +1740,7 @@ AttributeList::Kind AttributeList::getKind(const IdentifierInfo * Name) {
 // CHECK: 58:57: MemberRefExpr=Length:44:10 Extent=[58:50 - 58:63]
 // CHECK: 58:50: DeclRefExpr=Suffix:56:27 Extent=[58:50 - 58:56]
 // CHECK: 58:68: UnexposedExpr= Extent=[58:68 - 58:69]
-// CHECK: 60:13: CXXMethod=substr:60:13 (Definition) Extent=[60:13 - 62:4]
+// CHECK: 60:13: CXXMethod=substr:60:13 (Definition) Extent=[60:3 - 62:4]
 // CHECK: 60:3: TypeRef=class llvm::StringRef:38:7 Extent=[60:3 - 60:12]
 // CHECK: 60:27: ParmDecl=Start:60:27 (Definition) Extent=[60:20 - 60:32]
 // CHECK: 60:20: TypeRef=size_t:2:25 Extent=[60:20 - 60:26]
@@ -1764,14 +1765,14 @@ AttributeList::Kind AttributeList::getKind(const IdentifierInfo * Name) {
 // CHECK: 61:43: UnexposedExpr=Length:44:10 Extent=[61:43 - 61:49]
 // CHECK: 61:43: MemberRefExpr=Length:44:10 Extent=[61:43 - 61:49]
 // CHECK: 61:52: DeclRefExpr=Start:60:27 Extent=[61:52 - 61:57]
-// CHECK: 65:11: Namespace=clang:65:11 (Definition) Extent=[65:11 - 81:2]
+// CHECK: 65:11: Namespace=clang:65:11 (Definition) Extent=[65:1 - 81:2]
 // CHECK: 66:7: ClassDecl=IdentifierInfo:66:7 (Definition) Extent=[66:1 - 80:2]
 // CHECK: 67:1: UnexposedDecl=:67:1 (Definition) Extent=[67:1 - 67:8]
 // CHECK: 67:8: CXXConstructor=IdentifierInfo:67:8 Extent=[67:8 - 67:24]
-// CHECK: 68:15: CXXMethod=getNameStart:68:15 (Definition) Extent=[68:15 - 71:4]
+// CHECK: 68:15: CXXMethod=getNameStart:68:15 (Definition) Extent=[68:3 - 71:4]
 // CHECK: 68:36: UnexposedStmt= Extent=[68:36 - 71:4]
 // CHECK: 69:5: UnexposedStmt= Extent=[69:5 - 69:65]
-// CHECK: 69:54: TypedefDecl=actualtype:69:54 (Definition) Extent=[69:54 - 69:64]
+// CHECK: 69:54: TypedefDecl=actualtype:69:54 (Definition) Extent=[69:5 - 69:64]
 // CHECK: 69:18: TemplateRef=pair:4:44 Extent=[69:18 - 69:22]
 // CHECK: 69:25: TypeRef=class clang::IdentifierInfo:66:7 Extent=[69:25 - 69:39]
 // CHECK: 70:5: UnexposedStmt= Extent=[70:5 - 70:47]
@@ -1780,14 +1781,14 @@ AttributeList::Kind AttributeList::getKind(const IdentifierInfo * Name) {
 // CHECK: 70:13: UnexposedExpr= Extent=[70:13 - 70:38]
 // CHECK: 70:20: TypeRef=actualtype:69:54 Extent=[70:20 - 70:30]
 // CHECK: 70:34: UnexposedExpr= Extent=[70:34 - 70:38]
-// CHECK: 72:12: CXXMethod=getLength:72:12 (Definition) Extent=[72:12 - 76:4]
+// CHECK: 72:12: CXXMethod=getLength:72:12 (Definition) Extent=[72:3 - 76:4]
 // CHECK: 72:30: UnexposedStmt= Extent=[72:30 - 76:4]
 // CHECK: 73:5: UnexposedStmt= Extent=[73:5 - 73:65]
-// CHECK: 73:54: TypedefDecl=actualtype:73:54 (Definition) Extent=[73:54 - 73:64]
+// CHECK: 73:54: TypedefDecl=actualtype:73:54 (Definition) Extent=[73:5 - 73:64]
 // CHECK: 73:18: TemplateRef=pair:4:44 Extent=[73:18 - 73:22]
 // CHECK: 73:25: TypeRef=class clang::IdentifierInfo:66:7 Extent=[73:25 - 73:39]
 // CHECK: 74:5: UnexposedStmt= Extent=[74:5 - 74:61]
-// CHECK: 74:17: VarDecl=p:74:17 (Definition) Extent=[74:11 - 74:60]
+// CHECK: 74:17: VarDecl=p:74:17 (Definition) Extent=[74:5 - 74:60]
 // CHECK: 74:21: UnexposedExpr= Extent=[74:21 - 74:60]
 // CHECK: 74:21: UnexposedExpr=second:4:55 Extent=[74:21 - 74:56]
 // CHECK: 74:50: MemberRefExpr=second:4:55 Extent=[74:21 - 74:56]
@@ -1819,7 +1820,7 @@ AttributeList::Kind AttributeList::getKind(const IdentifierInfo * Name) {
 // CHECK: 75:55: UnexposedExpr= Extent=[75:55 - 75:56]
 // CHECK: 75:61: UnexposedExpr= Extent=[75:61 - 75:62]
 // CHECK: 75:61: UnexposedExpr= Extent=[75:61 - 75:62]
-// CHECK: 77:19: CXXMethod=getName:77:19 (Definition) Extent=[77:19 - 79:4]
+// CHECK: 77:19: CXXMethod=getName:77:19 (Definition) Extent=[77:3 - 79:4]
 // CHECK: 77:35: UnexposedStmt= Extent=[77:35 - 79:4]
 // CHECK: 78:5: UnexposedStmt= Extent=[78:5 - 78:56]
 // CHECK: 78:12: CallExpr= Extent=[78:12 - 78:56]
@@ -1830,15 +1831,15 @@ AttributeList::Kind AttributeList::getKind(const IdentifierInfo * Name) {
 // CHECK: 78:44: UnexposedExpr=getLength:72:12 Extent=[78:44 - 78:55]
 // CHECK: 78:44: CallExpr=getLength:72:12 Extent=[78:44 - 78:55]
 // CHECK: 78:44: MemberRefExpr=getLength:72:12 Extent=[78:44 - 78:53]
-// CHECK: 82:11: Namespace=llvm:82:11 (Definition) Extent=[82:11 - 96:2]
+// CHECK: 82:11: Namespace=llvm:82:11 (Definition) Extent=[82:1 - 96:2]
 // CHECK: 83:47: ClassTemplate=StringSwitch:83:47 (Definition) Extent=[83:1 - 95:2]
-// CHECK: 83:21: TemplateTypeParameter=T:83:21 (Definition) Extent=[83:21 - 83:22]
-// CHECK: 83:33: TemplateTypeParameter=R:83:33 (Definition) Extent=[83:33 - 83:34]
-// CHECK: 84:13: FieldDecl=Str:84:13 (Definition) Extent=[84:13 - 84:16]
+// CHECK: 83:21: TemplateTypeParameter=T:83:21 (Definition) Extent=[83:12 - 83:22]
+// CHECK: 83:33: TemplateTypeParameter=R:83:33 (Definition) Extent=[83:24 - 83:38]
+// CHECK: 84:13: FieldDecl=Str:84:13 (Definition) Extent=[84:3 - 84:16]
 // CHECK: 84:3: TypeRef=class llvm::StringRef:38:7 Extent=[84:3 - 84:12]
-// CHECK: 85:12: FieldDecl=Result:85:12 (Definition) Extent=[85:12 - 85:18]
+// CHECK: 85:12: FieldDecl=Result:85:12 (Definition) Extent=[85:3 - 85:18]
 // CHECK: 86:1: UnexposedDecl=:86:1 (Definition) Extent=[86:1 - 86:8]
-// CHECK: 87:12: CXXConstructor=StringSwitch<T, R>:87:12 (Definition) Extent=[87:12 - 87:64]
+// CHECK: 87:12: CXXConstructor=StringSwitch<T, R>:87:12 (Definition) Extent=[87:3 - 87:64]
 // CHECK: 87:35: ParmDecl=Str:87:35 (Definition) Extent=[87:25 - 87:38]
 // CHECK: 87:25: TypeRef=class llvm::StringRef:38:7 Extent=[87:25 - 87:34]
 // CHECK: 87:42: MemberRef=Str:84:13 Extent=[87:42 - 87:45]
@@ -1850,23 +1851,23 @@ AttributeList::Kind AttributeList::getKind(const IdentifierInfo * Name) {
 // CHECK: 87:62: UnexposedStmt= Extent=[87:62 - 87:64]
 // CHECK: 88:42: FunctionTemplate=Case:88:42 (Definition) Extent=[88:3 - 91:4]
 // CHECK: 88:23: NonTypeTemplateParameter=N:88:23 (Definition) Extent=[88:14 - 88:24]
-// CHECK: 88:60: ParmDecl=S:88:60 (Definition) Extent=[88:53 - 88:61]
+// CHECK: 88:60: ParmDecl=S:88:60 (Definition) Extent=[88:47 - 88:65]
 // CHECK: 88:63: DeclRefExpr=N:88:23 Extent=[88:63 - 88:64]
-// CHECK: 89:57: ParmDecl=Value:89:57 (Definition) Extent=[89:53 - 89:62]
+// CHECK: 89:57: ParmDecl=Value:89:57 (Definition) Extent=[89:47 - 89:62]
 // CHECK: 89:64: UnexposedStmt= Extent=[89:64 - 91:4]
 // CHECK: 90:5: UnexposedStmt= Extent=[90:5 - 90:17]
 // CHECK: 90:12: UnexposedExpr= Extent=[90:12 - 90:17]
 // CHECK: 90:13: UnexposedExpr= Extent=[90:13 - 90:17]
-// CHECK: 92:5: CXXMethod=Default:92:5 (Definition) Extent=[92:5 - 94:4]
-// CHECK: 92:23: ParmDecl=Value:92:23 (Definition) Extent=[92:19 - 92:28]
+// CHECK: 92:5: CXXMethod=Default:92:5 (Definition) Extent=[92:3 - 94:4]
+// CHECK: 92:23: ParmDecl=Value:92:23 (Definition) Extent=[92:13 - 92:28]
 // CHECK: 92:36: UnexposedStmt= Extent=[92:36 - 94:4]
 // CHECK: 93:5: UnexposedStmt= Extent=[93:5 - 93:17]
 // CHECK: 93:12: DeclRefExpr=Value:92:23 Extent=[93:12 - 93:17]
 // CHECK: 98:17: UsingDirective=:98:17 Extent=[98:1 - 98:22]
 // CHECK: 98:17: NamespaceRef=clang:10:17 Extent=[98:17 - 98:22]
-// CHECK: 100:36: CXXMethod=getKind:100:36 (Definition) Extent=[100:36 - 186:2]
+// CHECK: 100:36: CXXMethod=getKind:100:36 (Definition) Extent=[100:1 - 186:2]
 // CHECK: 100:21: TypeRef=class clang::AttributeList:12:9 Extent=[100:21 - 100:34]
-// CHECK: 100:67: ParmDecl=Name:100:67 (Definition) Extent=[100:50 - 100:71]
+// CHECK: 100:67: ParmDecl=Name:100:67 (Definition) Extent=[100:44 - 100:71]
 // CHECK: 100:50: TypeRef=class clang::IdentifierInfo:66:7 Extent=[100:50 - 100:64]
 // CHECK: 100:73: UnexposedStmt= Extent=[100:73 - 186:2]
 // CHECK: 101:3: UnexposedStmt= Extent=[101:3 - 101:46]
@@ -1917,170 +1918,170 @@ AttributeList::Kind AttributeList::getKind(const IdentifierInfo * Name) {
 // CHECK: 103:53: UnexposedExpr= Extent=[103:53 - 103:54]
 // CHECK: 103:53: UnexposedExpr= Extent=[103:53 - 103:54]
 // CHECK: 105:3: UnexposedStmt= Extent=[105:3 - 185:31]
-// CHECK: 105:16: CallExpr=Default:92:5 Extent=[105:16 - 185:31]
-// CHECK: 185:6: MemberRefExpr=Default:92:5 Extent=[105:16 - 185:13]
-// CHECK: 105:16: UnexposedExpr=Case:88:42 Extent=[105:16 - 184:33]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 184:33]
-// CHECK: 184:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 184:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 183:37]
-// CHECK: 183:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 183:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 182:37]
-// CHECK: 182:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 182:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 181:35]
-// CHECK: 181:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 181:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 180:31]
-// CHECK: 180:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 180:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 179:31]
-// CHECK: 179:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 179:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 178:35]
-// CHECK: 178:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 178:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 177:63]
-// CHECK: 177:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 177:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 176:45]
-// CHECK: 176:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 176:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 175:51]
-// CHECK: 175:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 175:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 174:49]
-// CHECK: 174:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 174:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 173:49]
-// CHECK: 173:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 173:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 172:53]
-// CHECK: 172:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 172:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 171:57]
-// CHECK: 171:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 171:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 170:65]
-// CHECK: 170:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 170:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 169:57]
-// CHECK: 169:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 169:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 168:65]
-// CHECK: 168:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 168:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 167:55]
-// CHECK: 167:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 167:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 166:55]
-// CHECK: 166:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 166:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 165:53]
-// CHECK: 165:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 165:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 164:53]
-// CHECK: 164:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 164:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 163:49]
-// CHECK: 163:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 163:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 162:47]
-// CHECK: 162:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 162:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 161:45]
-// CHECK: 161:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 161:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 160:45]
-// CHECK: 160:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 160:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 159:45]
-// CHECK: 159:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 159:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 158:45]
-// CHECK: 158:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 158:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 157:43]
-// CHECK: 157:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 157:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 156:41]
-// CHECK: 156:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 156:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 155:41]
-// CHECK: 155:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 155:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 154:41]
-// CHECK: 154:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 154:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 153:37]
-// CHECK: 153:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 153:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 152:41]
-// CHECK: 152:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 152:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 151:39]
-// CHECK: 151:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 151:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 150:39]
-// CHECK: 150:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 150:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 149:39]
-// CHECK: 149:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 149:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 148:39]
-// CHECK: 148:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 148:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 147:39]
-// CHECK: 147:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 147:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 146:39]
-// CHECK: 146:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 146:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 145:41]
-// CHECK: 145:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 145:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 144:37]
-// CHECK: 144:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 144:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 143:37]
-// CHECK: 143:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 143:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 142:35]
-// CHECK: 142:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 142:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 141:35]
-// CHECK: 141:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 141:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 140:35]
-// CHECK: 140:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 140:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 139:35]
-// CHECK: 139:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 139:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 138:35]
-// CHECK: 138:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 138:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 137:55]
-// CHECK: 137:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 137:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 136:35]
-// CHECK: 136:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 136:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 135:35]
-// CHECK: 135:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 135:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 134:35]
-// CHECK: 134:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 134:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 133:35]
-// CHECK: 133:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 133:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 132:33]
-// CHECK: 132:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 132:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 131:33]
-// CHECK: 131:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 131:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 130:33]
-// CHECK: 130:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 130:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 129:33]
-// CHECK: 129:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 129:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 128:33]
-// CHECK: 128:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 128:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 127:33]
-// CHECK: 127:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 127:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 126:33]
-// CHECK: 126:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 126:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 125:29]
-// CHECK: 125:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 125:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 124:33]
-// CHECK: 124:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 124:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 123:33]
-// CHECK: 123:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 123:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 122:31]
-// CHECK: 122:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 122:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 121:31]
-// CHECK: 121:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 121:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 120:31]
-// CHECK: 120:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 120:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 119:31]
-// CHECK: 119:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 119:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 118:31]
-// CHECK: 118:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 118:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 117:31]
-// CHECK: 117:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 117:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 116:31]
-// CHECK: 116:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 116:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 115:29]
-// CHECK: 115:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 115:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 114:29]
-// CHECK: 114:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 114:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 113:29]
-// CHECK: 113:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 113:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 112:31]
-// CHECK: 112:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 112:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 111:29]
-// CHECK: 111:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 111:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 110:27]
-// CHECK: 110:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 110:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 109:27]
-// CHECK: 109:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 109:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 108:27]
-// CHECK: 108:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 108:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 107:33]
-// CHECK: 107:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 107:10]
-// CHECK: 105:16: CallExpr=Case:88:42 Extent=[105:16 - 106:27]
-// CHECK: 106:6: MemberRefExpr=Case:88:42 Extent=[105:16 - 106:10]
-// CHECK: 105:16: UnexposedExpr=StringSwitch:87:12 Extent=[105:16 - 105:63]
+// CHECK: 105:10: CallExpr=Default:92:5 Extent=[105:10 - 185:31]
+// CHECK: 185:6: MemberRefExpr=Default:92:5 Extent=[105:10 - 185:13]
+// CHECK: 105:10: UnexposedExpr=Case:88:42 Extent=[105:10 - 184:33]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 184:33]
+// CHECK: 184:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 184:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 183:37]
+// CHECK: 183:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 183:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 182:37]
+// CHECK: 182:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 182:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 181:35]
+// CHECK: 181:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 181:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 180:31]
+// CHECK: 180:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 180:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 179:31]
+// CHECK: 179:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 179:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 178:35]
+// CHECK: 178:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 178:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 177:63]
+// CHECK: 177:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 177:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 176:45]
+// CHECK: 176:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 176:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 175:51]
+// CHECK: 175:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 175:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 174:49]
+// CHECK: 174:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 174:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 173:49]
+// CHECK: 173:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 173:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 172:53]
+// CHECK: 172:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 172:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 171:57]
+// CHECK: 171:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 171:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 170:65]
+// CHECK: 170:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 170:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 169:57]
+// CHECK: 169:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 169:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 168:65]
+// CHECK: 168:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 168:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 167:55]
+// CHECK: 167:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 167:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 166:55]
+// CHECK: 166:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 166:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 165:53]
+// CHECK: 165:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 165:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 164:53]
+// CHECK: 164:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 164:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 163:49]
+// CHECK: 163:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 163:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 162:47]
+// CHECK: 162:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 162:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 161:45]
+// CHECK: 161:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 161:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 160:45]
+// CHECK: 160:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 160:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 159:45]
+// CHECK: 159:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 159:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 158:45]
+// CHECK: 158:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 158:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 157:43]
+// CHECK: 157:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 157:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 156:41]
+// CHECK: 156:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 156:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 155:41]
+// CHECK: 155:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 155:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 154:41]
+// CHECK: 154:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 154:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 153:37]
+// CHECK: 153:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 153:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 152:41]
+// CHECK: 152:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 152:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 151:39]
+// CHECK: 151:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 151:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 150:39]
+// CHECK: 150:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 150:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 149:39]
+// CHECK: 149:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 149:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 148:39]
+// CHECK: 148:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 148:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 147:39]
+// CHECK: 147:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 147:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 146:39]
+// CHECK: 146:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 146:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 145:41]
+// CHECK: 145:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 145:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 144:37]
+// CHECK: 144:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 144:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 143:37]
+// CHECK: 143:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 143:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 142:35]
+// CHECK: 142:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 142:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 141:35]
+// CHECK: 141:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 141:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 140:35]
+// CHECK: 140:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 140:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 139:35]
+// CHECK: 139:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 139:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 138:35]
+// CHECK: 138:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 138:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 137:55]
+// CHECK: 137:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 137:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 136:35]
+// CHECK: 136:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 136:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 135:35]
+// CHECK: 135:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 135:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 134:35]
+// CHECK: 134:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 134:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 133:35]
+// CHECK: 133:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 133:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 132:33]
+// CHECK: 132:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 132:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 131:33]
+// CHECK: 131:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 131:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 130:33]
+// CHECK: 130:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 130:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 129:33]
+// CHECK: 129:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 129:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 128:33]
+// CHECK: 128:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 128:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 127:33]
+// CHECK: 127:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 127:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 126:33]
+// CHECK: 126:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 126:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 125:29]
+// CHECK: 125:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 125:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 124:33]
+// CHECK: 124:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 124:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 123:33]
+// CHECK: 123:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 123:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 122:31]
+// CHECK: 122:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 122:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 121:31]
+// CHECK: 121:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 121:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 120:31]
+// CHECK: 120:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 120:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 119:31]
+// CHECK: 119:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 119:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 118:31]
+// CHECK: 118:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 118:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 117:31]
+// CHECK: 117:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 117:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 116:31]
+// CHECK: 116:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 116:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 115:29]
+// CHECK: 115:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 115:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 114:29]
+// CHECK: 114:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 114:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 113:29]
+// CHECK: 113:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 113:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 112:31]
+// CHECK: 112:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 112:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 111:29]
+// CHECK: 111:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 111:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 110:27]
+// CHECK: 110:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 110:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 109:27]
+// CHECK: 109:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 109:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 108:27]
+// CHECK: 108:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 108:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 107:33]
+// CHECK: 107:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 107:10]
+// CHECK: 105:10: CallExpr=Case:88:42 Extent=[105:10 - 106:27]
+// CHECK: 106:6: MemberRefExpr=Case:88:42 Extent=[105:10 - 106:10]
+// CHECK: 105:10: UnexposedExpr=StringSwitch:87:12 Extent=[105:10 - 105:63]
 // CHECK: 105:16: TemplateRef=StringSwitch:83:47 Extent=[105:16 - 105:28]
-// CHECK: 105:16: CallExpr=StringSwitch:87:12 Extent=[105:16 - 105:62]
+// CHECK: 105:10: CallExpr=StringSwitch:87:12 Extent=[105:10 - 105:62]
 // CHECK: 105:54: CallExpr=StringRef:38:7 Extent=[105:54 - 105:62]
 // CHECK: 105:54: UnexposedExpr=AttrName:101:19 Extent=[105:54 - 105:62]
 // CHECK: 105:54: DeclRefExpr=AttrName:101:19 Extent=[105:54 - 105:62]
