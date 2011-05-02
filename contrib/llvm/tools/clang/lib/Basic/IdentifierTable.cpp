@@ -81,17 +81,18 @@ IdentifierTable::IdentifierTable(const LangOptions &LangOpts,
 // Constants for TokenKinds.def
 namespace {
   enum {
-    KEYALL = 1,
-    KEYC99 = 2,
-    KEYCXX = 4,
-    KEYCXX0X = 8,
-    KEYGNU = 16,
-    KEYMS = 32,
-    BOOLSUPPORT = 64,
-    KEYALTIVEC = 128,
-    KEYNOCXX = 256,
-    KEYBORLAND = 512,
-    KEYOPENCL = 1024
+    KEYC99 = 0x1,
+    KEYCXX = 0x2,
+    KEYCXX0X = 0x4,
+    KEYGNU = 0x8,
+    KEYMS = 0x10,
+    BOOLSUPPORT = 0x20,
+    KEYALTIVEC = 0x40,
+    KEYNOCXX = 0x80,
+    KEYBORLAND = 0x100,
+    KEYOPENCL = 0x200,
+    KEYC1X = 0x400,
+    KEYALL = 0x7ff
   };
 }
 
@@ -107,7 +108,7 @@ static void AddKeyword(llvm::StringRef Keyword,
                        tok::TokenKind TokenCode, unsigned Flags,
                        const LangOptions &LangOpts, IdentifierTable &Table) {
   unsigned AddResult = 0;
-  if (Flags & KEYALL) AddResult = 2;
+  if (Flags == KEYALL) AddResult = 2;
   else if (LangOpts.CPlusPlus && (Flags & KEYCXX)) AddResult = 2;
   else if (LangOpts.CPlusPlus0x && (Flags & KEYCXX0X)) AddResult = 2;
   else if (LangOpts.C99 && (Flags & KEYC99)) AddResult = 2;
@@ -118,6 +119,7 @@ static void AddKeyword(llvm::StringRef Keyword,
   else if (LangOpts.AltiVec && (Flags & KEYALTIVEC)) AddResult = 2;
   else if (LangOpts.OpenCL && (Flags & KEYOPENCL)) AddResult = 2;
   else if (!LangOpts.CPlusPlus && (Flags & KEYNOCXX)) AddResult = 2;
+  else if (LangOpts.C1X && (Flags & KEYC1X)) AddResult = 2;
 
   // Don't add this keyword if disabled in this language.
   if (AddResult == 0) return;
@@ -162,7 +164,12 @@ void IdentifierTable::AddKeywords(const LangOptions &LangOpts) {
 #define OBJC2_AT_KEYWORD(NAME) \
   if (LangOpts.ObjC2)          \
     AddObjCKeyword(llvm::StringRef(#NAME), tok::objc_##NAME, *this);
+#define TESTING_KEYWORD(NAME, FLAGS)
 #include "clang/Basic/TokenKinds.def"
+
+  if (LangOpts.ParseUnknownAnytype)
+    AddKeyword("__unknown_anytype", tok::kw___unknown_anytype, KEYALL,
+               LangOpts, *this);
 }
 
 tok::PPKeywordKind IdentifierInfo::getPPKeywordID() const {
@@ -364,6 +371,56 @@ std::string Selector::getAsString() const {
   return reinterpret_cast<MultiKeywordSelector *>(InfoPtr)->getName();
 }
 
+/// Interpreting the given string using the normal CamelCase
+/// conventions, determine whether the given string starts with the
+/// given "word", which is assumed to end in a lowercase letter.
+static bool startsWithWord(llvm::StringRef name, llvm::StringRef word) {
+  if (name.size() < word.size()) return false;
+  return ((name.size() == word.size() ||
+           !islower(name[word.size()]))
+          && name.startswith(word));
+}
+
+ObjCMethodFamily Selector::getMethodFamilyImpl(Selector sel) {
+  IdentifierInfo *first = sel.getIdentifierInfoForSlot(0);
+  if (!first) return OMF_None;
+
+  llvm::StringRef name = first->getName();
+  if (sel.isUnarySelector()) {
+    if (name == "autorelease") return OMF_autorelease;
+    if (name == "dealloc") return OMF_dealloc;
+    if (name == "release") return OMF_release;
+    if (name == "retain") return OMF_retain;
+    if (name == "retainCount") return OMF_retainCount;
+  }
+
+  // The other method families may begin with a prefix of underscores.
+  while (!name.empty() && name.front() == '_')
+    name = name.substr(1);
+
+  if (name.empty()) return OMF_None;
+  switch (name.front()) {
+  case 'a':
+    if (startsWithWord(name, "alloc")) return OMF_alloc;
+    break;
+  case 'c':
+    if (startsWithWord(name, "copy")) return OMF_copy;
+    break;
+  case 'i':
+    if (startsWithWord(name, "init")) return OMF_init;
+    break;
+  case 'm':
+    if (startsWithWord(name, "mutableCopy")) return OMF_mutableCopy;
+    break;
+  case 'n':
+    if (startsWithWord(name, "new")) return OMF_new;
+    break;
+  default:
+    break;
+  }
+
+  return OMF_None;
+}
 
 namespace {
   struct SelectorTableImpl {
@@ -376,6 +433,10 @@ static SelectorTableImpl &getSelectorTableImpl(void *P) {
   return *static_cast<SelectorTableImpl*>(P);
 }
 
+size_t SelectorTable::getTotalMemory() const {
+  SelectorTableImpl &SelTabImpl = getSelectorTableImpl(Impl);
+  return SelTabImpl.Allocator.getTotalMemory();
+}
 
 Selector SelectorTable::getSelector(unsigned nKeys, IdentifierInfo **IIV) {
   if (nKeys < 2)

@@ -80,18 +80,16 @@ Instruction *InstCombiner::FoldPHIArgBinOpIntoPHI(PHINode &PN) {
   Value *InRHS = FirstInst->getOperand(1);
   PHINode *NewLHS = 0, *NewRHS = 0;
   if (LHSVal == 0) {
-    NewLHS = PHINode::Create(LHSType,
+    NewLHS = PHINode::Create(LHSType, PN.getNumIncomingValues(),
                              FirstInst->getOperand(0)->getName() + ".pn");
-    NewLHS->reserveOperandSpace(PN.getNumOperands()/2);
     NewLHS->addIncoming(InLHS, PN.getIncomingBlock(0));
     InsertNewInstBefore(NewLHS, PN);
     LHSVal = NewLHS;
   }
   
   if (RHSVal == 0) {
-    NewRHS = PHINode::Create(RHSType,
+    NewRHS = PHINode::Create(RHSType, PN.getNumIncomingValues(),
                              FirstInst->getOperand(1)->getName() + ".pn");
-    NewRHS->reserveOperandSpace(PN.getNumOperands()/2);
     NewRHS->addIncoming(InRHS, PN.getIncomingBlock(0));
     InsertNewInstBefore(NewRHS, PN);
     RHSVal = NewRHS;
@@ -202,11 +200,10 @@ Instruction *InstCombiner::FoldPHIArgGEPIntoPHI(PHINode &PN) {
   for (unsigned i = 0, e = FixedOperands.size(); i != e; ++i) {
     if (FixedOperands[i]) continue;  // operand doesn't need a phi.
     Value *FirstOp = FirstInst->getOperand(i);
-    PHINode *NewPN = PHINode::Create(FirstOp->getType(),
+    PHINode *NewPN = PHINode::Create(FirstOp->getType(), e,
                                      FirstOp->getName()+".pn");
     InsertNewInstBefore(NewPN, PN);
     
-    NewPN->reserveOperandSpace(e);
     NewPN->addIncoming(FirstOp, PN.getIncomingBlock(0));
     OperandPhis[i] = NewPN;
     FixedOperands[i] = NewPN;
@@ -240,7 +237,7 @@ Instruction *InstCombiner::FoldPHIArgGEPIntoPHI(PHINode &PN) {
 /// obvious the value of the load is not changed from the point of the load to
 /// the end of the block it is in.
 ///
-/// Finally, it is safe, but not profitable, to sink a load targetting a
+/// Finally, it is safe, but not profitable, to sink a load targeting a
 /// non-address-taken alloca.  Doing so will cause us to not promote the alloca
 /// to a register.
 static bool isSafeAndProfitableToSinkLoad(LoadInst *L) {
@@ -340,8 +337,8 @@ Instruction *InstCombiner::FoldPHIArgLoadIntoPHI(PHINode &PN) {
   // Okay, they are all the same operation.  Create a new PHI node of the
   // correct type, and PHI together all of the LHS's of the instructions.
   PHINode *NewPN = PHINode::Create(FirstLI->getOperand(0)->getType(),
+                                   PN.getNumIncomingValues(),
                                    PN.getName()+".in");
-  NewPN->reserveOperandSpace(PN.getNumOperands()/2);
   
   Value *InVal = FirstLI->getOperand(0);
   NewPN->addIncoming(InVal, PN.getIncomingBlock(0));
@@ -446,8 +443,8 @@ Instruction *InstCombiner::FoldPHIArgOpIntoPHI(PHINode &PN) {
   // Okay, they are all the same operation.  Create a new PHI node of the
   // correct type, and PHI together all of the LHS's of the instructions.
   PHINode *NewPN = PHINode::Create(FirstInst->getOperand(0)->getType(),
+                                   PN.getNumIncomingValues(),
                                    PN.getName()+".in");
-  NewPN->reserveOperandSpace(PN.getNumOperands()/2);
 
   Value *InVal = FirstInst->getOperand(0);
   NewPN->addIncoming(InVal, PN.getIncomingBlock(0));
@@ -699,7 +696,8 @@ Instruction *InstCombiner::SliceUpIllegalIntegerPHI(PHINode &FirstPhi) {
     if ((EltPHI = ExtractedVals[LoweredPHIRecord(PN, Offset, Ty)]) == 0) {
       
       // Otherwise, Create the new PHI node for this user.
-      EltPHI = PHINode::Create(Ty, PN->getName()+".off"+Twine(Offset), PN);
+      EltPHI = PHINode::Create(Ty, PN->getNumIncomingValues(),
+                               PN->getName()+".off"+Twine(Offset), PN);
       assert(EltPHI->getType() != PN->getType() &&
              "Truncate didn't shrink phi?");
     
@@ -776,9 +774,6 @@ Instruction *InstCombiner::SliceUpIllegalIntegerPHI(PHINode &FirstPhi) {
 // PHINode simplification
 //
 Instruction *InstCombiner::visitPHINode(PHINode &PN) {
-  // If LCSSA is around, don't mess with Phi nodes
-  if (MustPreserveLCSSA) return 0;
-
   if (Value *V = SimplifyInstruction(&PN, TD))
     return ReplaceInstUsesWith(PN, V);
 
@@ -826,18 +821,18 @@ Instruction *InstCombiner::visitPHINode(PHINode &PN) {
   // quick check to see if the PHI node only contains a single non-phi value, if
   // so, scan to see if the phi cycle is actually equal to that value.
   {
-    unsigned InValNo = 0, NumOperandVals = PN.getNumIncomingValues();
+    unsigned InValNo = 0, NumIncomingVals = PN.getNumIncomingValues();
     // Scan for the first non-phi operand.
-    while (InValNo != NumOperandVals && 
+    while (InValNo != NumIncomingVals &&
            isa<PHINode>(PN.getIncomingValue(InValNo)))
       ++InValNo;
 
-    if (InValNo != NumOperandVals) {
-      Value *NonPhiInVal = PN.getOperand(InValNo);
+    if (InValNo != NumIncomingVals) {
+      Value *NonPhiInVal = PN.getIncomingValue(InValNo);
       
       // Scan the rest of the operands to see if there are any conflicts, if so
       // there is no need to recursively scan other phis.
-      for (++InValNo; InValNo != NumOperandVals; ++InValNo) {
+      for (++InValNo; InValNo != NumIncomingVals; ++InValNo) {
         Value *OpVal = PN.getIncomingValue(InValNo);
         if (OpVal != NonPhiInVal && !isa<PHINode>(OpVal))
           break;
@@ -846,7 +841,7 @@ Instruction *InstCombiner::visitPHINode(PHINode &PN) {
       // If we scanned over all operands, then we have one unique value plus
       // phi values.  Scan PHI nodes to see if they all merge in each other or
       // the value.
-      if (InValNo == NumOperandVals) {
+      if (InValNo == NumIncomingVals) {
         SmallPtrSet<PHINode*, 16> ValueEqualPHIs;
         if (PHIsEqualValue(&PN, NonPhiInVal, ValueEqualPHIs))
           return ReplaceInstUsesWith(PN, NonPhiInVal);

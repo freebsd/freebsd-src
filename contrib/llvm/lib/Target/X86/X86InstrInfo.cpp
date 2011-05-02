@@ -232,7 +232,7 @@ X86InstrInfo::X86InstrInfo(X86TargetMachine &tm)
     assert(!RegOp2MemOpTable2Addr.count(RegOp) && "Duplicated entries?");
     RegOp2MemOpTable2Addr[RegOp] = std::make_pair(MemOp, 0U);
 
-    // If this is not a reversable operation (because there is a many->one)
+    // If this is not a reversible operation (because there is a many->one)
     // mapping, don't insert the reverse of the operation into MemOp2RegOpTable.
     if (OpTbl2Addr[i][1] & TB_NOT_REVERSABLE)
       continue;
@@ -335,7 +335,7 @@ X86InstrInfo::X86InstrInfo(X86TargetMachine &tm)
     assert(!RegOp2MemOpTable0.count(RegOp) && "Duplicated entries?");
     RegOp2MemOpTable0[RegOp] = std::make_pair(MemOp, Align);
 
-    // If this is not a reversable operation (because there is a many->one)
+    // If this is not a reversible operation (because there is a many->one)
     // mapping, don't insert the reverse of the operation into MemOp2RegOpTable.
     if (OpTbl0[i][1] & TB_NOT_REVERSABLE)
       continue;
@@ -460,7 +460,7 @@ X86InstrInfo::X86InstrInfo(X86TargetMachine &tm)
     assert(!RegOp2MemOpTable1.count(RegOp) && "Duplicate entries");
     RegOp2MemOpTable1[RegOp] = std::make_pair(MemOp, Align);
 
-    // If this is not a reversable operation (because there is a many->one)
+    // If this is not a reversible operation (because there is a many->one)
     // mapping, don't insert the reverse of the operation into MemOp2RegOpTable.
     if (OpTbl1[i][1] & TB_NOT_REVERSABLE)
       continue;
@@ -682,7 +682,7 @@ X86InstrInfo::X86InstrInfo(X86TargetMachine &tm)
     assert(!RegOp2MemOpTable2.count(RegOp) && "Duplicate entry!");
     RegOp2MemOpTable2[RegOp] = std::make_pair(MemOp, Align);
 
-    // If this is not a reversable operation (because there is a many->one)
+    // If this is not a reversible operation (because there is a many->one)
     // mapping, don't insert the reverse of the operation into MemOp2RegOpTable.
     if (OpTbl2[i][1] & TB_NOT_REVERSABLE)
       continue;
@@ -916,7 +916,6 @@ X86InstrInfo::isReallyTriviallyReMaterializable(const MachineInstr *MI,
     case X86::MOVSDrm:
     case X86::MOVAPSrm:
     case X86::MOVUPSrm:
-    case X86::MOVUPSrm_Int:
     case X86::MOVAPDrm:
     case X86::MOVDQArm:
     case X86::MMX_MOVD64rm:
@@ -2241,6 +2240,12 @@ X86InstrInfo::foldMemoryOperandImpl(MachineFunction &MF,
   bool isTwoAddr = NumOps > 1 &&
     MI->getDesc().getOperandConstraint(1, TOI::TIED_TO) != -1;
 
+  // FIXME: AsmPrinter doesn't know how to handle
+  // X86II::MO_GOT_ABSOLUTE_ADDRESS after folding.
+  if (MI->getOpcode() == X86::ADD32ri &&
+      MI->getOperand(2).getTargetFlags() == X86II::MO_GOT_ABSOLUTE_ADDRESS)
+    return NULL;
+
   MachineInstr *NewMI = NULL;
   // Folding a memory location into the two-address part of a two-address
   // instruction is different than folding it other places.  It requires
@@ -2535,6 +2540,12 @@ bool X86InstrInfo::canFoldMemoryOperand(const MachineInstr *MI,
     case X86::TEST32rr:
     case X86::TEST64rr:
       return true;
+    case X86::ADD32ri:
+      // FIXME: AsmPrinter doesn't know how to handle
+      // X86II::MO_GOT_ABSOLUTE_ADDRESS after folding.
+      if (MI->getOperand(2).getTargetFlags() == X86II::MO_GOT_ABSOLUTE_ADDRESS)
+        return false;
+      break;
     }
   }
 
@@ -2845,11 +2856,9 @@ X86InstrInfo::areLoadsFromSameBasePtr(SDNode *Load1, SDNode *Load2,
   case X86::FsMOVAPDrm:
   case X86::MOVAPSrm:
   case X86::MOVUPSrm:
-  case X86::MOVUPSrm_Int:
   case X86::MOVAPDrm:
   case X86::MOVDQArm:
   case X86::MOVDQUrm:
-  case X86::MOVDQUrm_Int:
     break;
   }
   switch (Opc2) {
@@ -2869,11 +2878,9 @@ X86InstrInfo::areLoadsFromSameBasePtr(SDNode *Load1, SDNode *Load2,
   case X86::FsMOVAPDrm:
   case X86::MOVAPSrm:
   case X86::MOVUPSrm:
-  case X86::MOVUPSrm_Int:
   case X86::MOVAPDrm:
   case X86::MOVDQArm:
   case X86::MOVDQUrm:
-  case X86::MOVDQUrm_Int:
     break;
   }
 
@@ -3085,12 +3092,8 @@ void X86InstrInfo::getNoopForMachoTarget(MCInst &NopInst) const {
   NopInst.setOpcode(X86::NOOP);
 }
 
-bool X86InstrInfo::
-hasHighOperandLatency(const InstrItineraryData *ItinData,
-                      const MachineRegisterInfo *MRI,
-                      const MachineInstr *DefMI, unsigned DefIdx,
-                      const MachineInstr *UseMI, unsigned UseIdx) const {
-  switch (DefMI->getOpcode()) {
+bool X86InstrInfo::isHighLatencyDef(int opc) const {
+  switch (opc) {
   default: return false;
   case X86::DIVSDrm:
   case X86::DIVSDrm_Int:
@@ -3118,6 +3121,14 @@ hasHighOperandLatency(const InstrItineraryData *ItinData,
   case X86::SQRTSSr_Int:
     return true;
   }
+}
+
+bool X86InstrInfo::
+hasHighOperandLatency(const InstrItineraryData *ItinData,
+                      const MachineRegisterInfo *MRI,
+                      const MachineInstr *DefMI, unsigned DefIdx,
+                      const MachineInstr *UseMI, unsigned UseIdx) const {
+  return isHighLatencyDef(DefMI->getOpcode());
 }
 
 namespace {

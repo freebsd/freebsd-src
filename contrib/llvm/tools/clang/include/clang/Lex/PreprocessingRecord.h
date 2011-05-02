@@ -341,7 +341,9 @@ namespace clang {
                                     llvm::StringRef FileName,
                                     bool IsAngled,
                                     const FileEntry *File,
-                                    SourceLocation EndLoc);
+                                    SourceLocation EndLoc,
+                                    llvm::StringRef SearchPath,
+                                    llvm::StringRef RelativePath);
   };
 } // end namespace clang
 

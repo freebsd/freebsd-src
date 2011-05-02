@@ -70,7 +70,7 @@ class GraphWriter {
     for (unsigned i = 0; EI != EE && i != 64; ++EI, ++i) {
       std::string label = DTraits.getEdgeSourceLabel(Node, EI);
 
-      if (label == "")
+      if (label.empty())
         continue;
 
       hasEdgeSourceLabels = true;
@@ -78,7 +78,7 @@ class GraphWriter {
       if (i)
         O << "|";
 
-      O << "<s" << i << ">" << DTraits.getEdgeSourceLabel(Node, EI);
+      O << "<s" << i << ">" << DOT::EscapeString(label);
     }
 
     if (EI != EE && hasEdgeSourceLabels)
@@ -235,12 +235,12 @@ public:
         DestPort = static_cast<int>(Offset);
       }
 
-      if (DTraits.getEdgeSourceLabel(Node, EI) == "")
+      if (DTraits.getEdgeSourceLabel(Node, EI).empty())
         edgeidx = -1;
 
       emitEdge(static_cast<const void*>(Node), edgeidx,
                static_cast<const void*>(TargetNode), DestPort,
-               DTraits.getEdgeAttributes(Node, EI));
+               DTraits.getEdgeAttributes(Node, EI, G));
     }
   }
 
@@ -272,7 +272,7 @@ public:
                 const void *DestNodeID, int DestNodePort,
                 const std::string &Attrs) {
     if (SrcNodePort  > 64) return;             // Eminating from truncated part?
-    if (DestNodePort > 64) DestNodePort = 64;  // Targetting the truncated part?
+    if (DestNodePort > 64) DestNodePort = 64;  // Targeting the truncated part?
 
     O << "\tNode" << SrcNodeID;
     if (SrcNodePort >= 0)

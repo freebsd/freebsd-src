@@ -21,6 +21,8 @@
 #include "clang/AST/ExternalASTSource.h"
 #include "clang/AST/Stmt.h"
 #include "clang/Parse/Parser.h"
+#include "llvm/ADT/OwningPtr.h"
+#include "llvm/Support/CrashRecoveryContext.h"
 #include <cstdio>
 
 using namespace clang;
@@ -37,8 +39,15 @@ void clang::ParseAST(Preprocessor &PP, ASTConsumer *Consumer,
                      ASTContext &Ctx, bool PrintStats,
                      bool CompleteTranslationUnit,
                      CodeCompleteConsumer *CompletionConsumer) {
-  Sema S(PP, Ctx, *Consumer, CompleteTranslationUnit, CompletionConsumer);
-  ParseAST(S, PrintStats);
+
+  llvm::OwningPtr<Sema> S(new Sema(PP, Ctx, *Consumer,
+                                   CompleteTranslationUnit,
+                                   CompletionConsumer));
+
+  // Recover resources if we crash before exiting this method.
+  llvm::CrashRecoveryContextCleanupRegistrar<Sema> CleaupSema(S.get());
+  
+  ParseAST(*S.get(), PrintStats);
 }
 
 void clang::ParseAST(Sema &S, bool PrintStats) {
@@ -50,7 +59,15 @@ void clang::ParseAST(Sema &S, bool PrintStats) {
 
   ASTConsumer *Consumer = &S.getASTConsumer();
 
-  Parser P(S.getPreprocessor(), S);
+  llvm::OwningPtr<Parser> ParseOP(new Parser(S.getPreprocessor(), S));
+  Parser &P = *ParseOP.get();
+
+  PrettyStackTraceParserEntry CrashInfo(P);
+
+  // Recover resources if we crash before exiting this method.
+  llvm::CrashRecoveryContextCleanupRegistrar<Parser>
+    CleaupParser(ParseOP.get());
+
   S.getPreprocessor().EnterMainSourceFile();
   P.Initialize();
   S.Initialize();

@@ -14,10 +14,12 @@
 #ifndef LLVM_CLANG_AST_ASTCONTEXT_H
 #define LLVM_CLANG_AST_ASTCONTEXT_H
 
+#include "clang/Basic/AddressSpaces.h"
 #include "clang/Basic/IdentifierTable.h"
 #include "clang/Basic/LangOptions.h"
 #include "clang/Basic/OperatorKinds.h"
 #include "clang/Basic/PartialDiagnostic.h"
+#include "clang/Basic/VersionTuple.h"
 #include "clang/AST/Decl.h"
 #include "clang/AST/NestedNameSpecifier.h"
 #include "clang/AST/PrettyPrinter.h"
@@ -27,6 +29,7 @@
 #include "clang/AST/UsuallyTinyPtrVector.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/FoldingSet.h"
+#include "llvm/ADT/IntrusiveRefCntPtr.h"
 #include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/Support/Allocator.h"
@@ -68,7 +71,7 @@ namespace clang {
   class TemplateTypeParmDecl;
   class TranslationUnitDecl;
   class TypeDecl;
-  class TypedefDecl;
+  class TypedefNameDecl;
   class UsingDecl;
   class UsingShadowDecl;
   class UnresolvedSetIterator;
@@ -77,7 +80,7 @@ namespace clang {
 
 /// ASTContext - This class holds long-lived AST nodes (such as types and
 /// decls) that can be referred to throughout the semantic analysis of a file.
-class ASTContext {
+class ASTContext : public llvm::RefCountedBase<ASTContext> {
   ASTContext &this_() { return *this; }
 
   mutable std::vector<Type*> Types;
@@ -96,7 +99,8 @@ class ASTContext {
     DependentSizedExtVectorTypes;
   mutable llvm::FoldingSet<VectorType> VectorTypes;
   mutable llvm::FoldingSet<FunctionNoProtoType> FunctionNoProtoTypes;
-  mutable llvm::FoldingSet<FunctionProtoType> FunctionProtoTypes;
+  mutable llvm::ContextualFoldingSet<FunctionProtoType, ASTContext&>
+    FunctionProtoTypes;
   mutable llvm::FoldingSet<DependentTypeOfExprType> DependentTypeOfExprTypes;
   mutable llvm::FoldingSet<DependentDecltypeType> DependentDecltypeTypes;
   mutable llvm::FoldingSet<TemplateTypeParmType> TemplateTypeParmTypes;
@@ -310,6 +314,9 @@ class ASTContext {
   llvm::OwningPtr<CXXABI> ABI;
   CXXABI *createCXXABI(const TargetInfo &T);
 
+  /// \brief The logical -> physical address space map.
+  const LangAS::Map &AddrSpaceMap;
+
   friend class ASTDeclReader;
 
 public:
@@ -334,6 +341,14 @@ public:
     return BumpAlloc.Allocate(Size, Align);
   }
   void Deallocate(void *Ptr) const { }
+  
+  /// Return the total amount of physical memory allocated for representing
+  /// AST nodes and type information.
+  size_t getASTAllocatedMemory() const {
+    return BumpAlloc.getTotalMemory();
+  }
+  /// Return the total memory used for various side tables.
+  size_t getSideTableAllocatedMemory() const;
   
   PartialDiagnostic::StorageAllocator &getDiagAllocator() {
     return DiagAllocator;
@@ -381,6 +396,16 @@ public:
   FieldDecl *getInstantiatedFromUnnamedFieldDecl(FieldDecl *Field);
 
   void setInstantiatedFromUnnamedFieldDecl(FieldDecl *Inst, FieldDecl *Tmpl);
+  
+  /// ZeroBitfieldFollowsNonBitfield - return 'true" if 'FD' is a zero-length
+  /// bitfield which follows the non-bitfield 'LastFD'.
+  bool ZeroBitfieldFollowsNonBitfield(const FieldDecl *FD, 
+                                      const FieldDecl *LastFD) const;
+
+  /// ZeroBitfieldFollowsBitfield - return 'true" if 'FD' is a zero-length
+  /// bitfield which follows the bitfield 'LastFD'.
+  bool ZeroBitfieldFollowsBitfield(const FieldDecl *FD,
+                                   const FieldDecl *LastFD) const;
 
   // Access to the set of methods overridden by the given C++ method.
   typedef CXXMethodVector::iterator overridden_cxx_method_iterator;
@@ -413,9 +438,12 @@ public:
   CanQualType FloatTy, DoubleTy, LongDoubleTy;
   CanQualType FloatComplexTy, DoubleComplexTy, LongDoubleComplexTy;
   CanQualType VoidPtrTy, NullPtrTy;
-  CanQualType OverloadTy;
-  CanQualType DependentTy;
+  CanQualType DependentTy, OverloadTy, BoundMemberTy, UnknownAnyTy;
   CanQualType ObjCBuiltinIdTy, ObjCBuiltinClassTy, ObjCBuiltinSelTy;
+
+  // Types for deductions in C++0x [stmt.ranged]'s desugaring. Built on demand.
+  mutable QualType AutoDeductTy;     // Deduction against 'auto'.
+  mutable QualType AutoRRefDeductTy; // Deduction against 'auto &&'.
 
   ASTContext(const LangOptions& LOpts, SourceManager &SM, const TargetInfo &t,
              IdentifierTable &idents, SelectorTable &sels,
@@ -654,9 +682,9 @@ public:
   }
 
   /// getTypedefType - Return the unique reference to the type for the
-  /// specified typename decl.
-  QualType getTypedefType(const TypedefDecl *Decl, QualType Canon = QualType())
-    const;
+  /// specified typedef-name decl.
+  QualType getTypedefType(const TypedefNameDecl *Decl,
+                          QualType Canon = QualType()) const;
 
   QualType getRecordType(const RecordDecl *Decl) const;
 
@@ -676,7 +704,7 @@ public:
 
   QualType getTemplateTypeParmType(unsigned Depth, unsigned Index,
                                    bool ParameterPack,
-                                   IdentifierInfo *Name = 0) const;
+                                   TemplateTypeParmDecl *ParmDecl = 0) const;
 
   QualType getTemplateSpecializationType(TemplateName T,
                                          const TemplateArgument *Args,
@@ -738,6 +766,12 @@ public:
 
   /// getAutoType - C++0x deduced auto type.
   QualType getAutoType(QualType DeducedType) const;
+
+  /// getAutoDeductType - C++0x deduction pattern for 'auto' type.
+  QualType getAutoDeductType() const;
+
+  /// getAutoRRefDeductType - C++0x deduction pattern for 'auto &&' type.
+  QualType getAutoRRefDeductType() const;
 
   /// getTagDeclType - Return the unique reference to the type for the
   /// specified TagDecl (struct/union/class/enum) decl.
@@ -1294,6 +1328,21 @@ public:
   QualType getFloatingTypeOfSizeWithinDomain(QualType typeSize,
                                              QualType typeDomain) const;
 
+  unsigned getTargetAddressSpace(QualType T) const {
+    return getTargetAddressSpace(T.getQualifiers());
+  }
+
+  unsigned getTargetAddressSpace(Qualifiers Q) const {
+    return getTargetAddressSpace(Q.getAddressSpace());
+  }
+
+  unsigned getTargetAddressSpace(unsigned AS) const {
+    if (AS < LangAS::Offset || AS >= LangAS::Offset + LangAS::Count)
+      return AS;
+    else
+      return AddrSpaceMap[AS - LangAS::Offset];
+  }
+
 private:
   // Helper for integer ordering
   unsigned getIntegerRank(const Type *T) const;
@@ -1332,7 +1381,8 @@ public:
                                const ObjCObjectType *RHS);
   bool canAssignObjCInterfacesInBlockPointer(
                                           const ObjCObjectPointerType *LHSOPT,
-                                          const ObjCObjectPointerType *RHSOPT);
+                                          const ObjCObjectPointerType *RHSOPT,
+                                          bool BlockReturnType);
   bool areComparableObjCPointerTypes(QualType LHS, QualType RHS);
   QualType areCommonBaseCompatible(const ObjCObjectPointerType *LHSOPT,
                                    const ObjCObjectPointerType *RHSOPT);
@@ -1340,7 +1390,7 @@ public:
 
   // Functions for calculating composite types
   QualType mergeTypes(QualType, QualType, bool OfBlockPointer=false,
-                      bool Unqualified = false);
+                      bool Unqualified = false, bool BlockReturnType = false);
   QualType mergeFunctionTypes(QualType, QualType, bool OfBlockPointer=false,
                               bool Unqualified = false);
   QualType mergeFunctionArgumentTypes(QualType, QualType,
@@ -1528,13 +1578,13 @@ private:
 };
   
 /// @brief Utility function for constructing a nullary selector.
-static inline Selector GetNullarySelector(const char* name, ASTContext& Ctx) {
+static inline Selector GetNullarySelector(llvm::StringRef name, ASTContext& Ctx) {
   IdentifierInfo* II = &Ctx.Idents.get(name);
   return Ctx.Selectors.getSelector(0, &II);
 }
 
 /// @brief Utility function for constructing an unary selector.
-static inline Selector GetUnarySelector(const char* name, ASTContext& Ctx) {
+static inline Selector GetUnarySelector(llvm::StringRef name, ASTContext& Ctx) {
   IdentifierInfo* II = &Ctx.Idents.get(name);
   return Ctx.Selectors.getSelector(1, &II);
 }

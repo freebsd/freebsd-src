@@ -36,18 +36,26 @@ using namespace sema;
 
 /// A convenience routine for creating a decayed reference to a
 /// function.
-static Expr *
+static ExprResult
 CreateFunctionRefExpr(Sema &S, FunctionDecl *Fn,
                       SourceLocation Loc = SourceLocation()) {
-  Expr *E = new (S.Context) DeclRefExpr(Fn, Fn->getType(), VK_LValue, Loc);
-  S.DefaultFunctionArrayConversion(E);
-  return E;
+  ExprResult E = S.Owned(new (S.Context) DeclRefExpr(Fn, Fn->getType(), VK_LValue, Loc));
+  E = S.DefaultFunctionArrayConversion(E.take());
+  if (E.isInvalid())
+    return ExprError();
+  return move(E);
 }
 
 static bool IsStandardConversion(Sema &S, Expr* From, QualType ToType,
                                  bool InOverloadResolution,
                                  StandardConversionSequence &SCS,
                                  bool CStyle);
+  
+static bool IsTransparentUnionStandardConversion(Sema &S, Expr* From, 
+                                                 QualType &ToType,
+                                                 bool InOverloadResolution,
+                                                 StandardConversionSequence &SCS,
+                                                 bool CStyle);
 static OverloadingResult
 IsUserDefinedConversion(Sema &S, Expr *From, QualType ToType,
                         UserDefinedConversionSequence& User,
@@ -128,7 +136,9 @@ ImplicitConversionRank GetConversionRank(ImplicitConversionKind Kind) {
     ICR_Conversion,
     ICR_Conversion,
     ICR_Conversion,
-    ICR_Complex_Real_Conversion
+    ICR_Complex_Real_Conversion,
+    ICR_Conversion,
+    ICR_Conversion
   };
   return Rank[(int)Kind];
 }
@@ -157,7 +167,9 @@ const char* GetImplicitConversionName(ImplicitConversionKind Kind) {
     "Derived-to-base conversion",
     "Vector conversion",
     "Vector splat",
-    "Complex-real conversion"
+    "Complex-real conversion",
+    "Block Pointer conversion",
+    "Transparent Union Conversion"
   };
   return Name[Kind];
 }
@@ -228,7 +240,7 @@ isPointerConversionToVoidPointer(ASTContext& Context) const {
   if (First == ICK_Array_To_Pointer)
     FromType = Context.getArrayDecayedType(FromType);
 
-  if (Second == ICK_Pointer_Conversion && FromType->isPointerType())
+  if (Second == ICK_Pointer_Conversion && FromType->isAnyPointerType())
     if (const PointerType* ToPtrType = ToType->getAs<PointerType>())
       return ToPtrType->getPointeeType()->isVoidType();
 
@@ -876,20 +888,19 @@ bool Sema::TryImplicitConversion(InitializationSequence &Sequence,
 }
 
 /// PerformImplicitConversion - Perform an implicit conversion of the
-/// expression From to the type ToType. Returns true if there was an
-/// error, false otherwise. The expression From is replaced with the
+/// expression From to the type ToType. Returns the
 /// converted expression. Flavor is the kind of conversion we're
 /// performing, used in the error message. If @p AllowExplicit,
 /// explicit user-defined conversions are permitted.
-bool
-Sema::PerformImplicitConversion(Expr *&From, QualType ToType,
+ExprResult
+Sema::PerformImplicitConversion(Expr *From, QualType ToType,
                                 AssignmentAction Action, bool AllowExplicit) {
   ImplicitConversionSequence ICS;
   return PerformImplicitConversion(From, ToType, Action, AllowExplicit, ICS);
 }
 
-bool
-Sema::PerformImplicitConversion(Expr *&From, QualType ToType,
+ExprResult
+Sema::PerformImplicitConversion(Expr *From, QualType ToType,
                                 AssignmentAction Action, bool AllowExplicit,
                                 ImplicitConversionSequence& ICS) {
   ICS = clang::TryImplicitConversion(*this, From, ToType,
@@ -1048,27 +1059,33 @@ static bool IsStandardConversion(Sema &S, Expr* From, QualType ToType,
           // otherwise, only a boolean conversion is standard   
           if (!ToType->isBooleanType()) 
             return false; 
-
-      }
-        
-      if (CXXMethodDecl *Method = dyn_cast<CXXMethodDecl>(Fn)) {
-        if (!Method->isStatic()) {
-          const Type *ClassType
-            = S.Context.getTypeDeclType(Method->getParent()).getTypePtr();
-          FromType = S.Context.getMemberPointerType(FromType, ClassType);
-        }
       }
 
-      // If the "from" expression takes the address of the overloaded
-      // function, update the type of the resulting expression accordingly.
-      if (FromType->getAs<FunctionType>())
-        if (UnaryOperator *UnOp = dyn_cast<UnaryOperator>(From->IgnoreParens()))
-          if (UnOp->getOpcode() == UO_AddrOf)
-            FromType = S.Context.getPointerType(FromType);
+      // Check if the "from" expression is taking the address of an overloaded
+      // function and recompute the FromType accordingly. Take advantage of the
+      // fact that non-static member functions *must* have such an address-of
+      // expression. 
+      CXXMethodDecl *Method = dyn_cast<CXXMethodDecl>(Fn);
+      if (Method && !Method->isStatic()) {
+        assert(isa<UnaryOperator>(From->IgnoreParens()) &&
+               "Non-unary operator on non-static member address");
+        assert(cast<UnaryOperator>(From->IgnoreParens())->getOpcode()
+               == UO_AddrOf &&
+               "Non-address-of operator on non-static member address");
+        const Type *ClassType
+          = S.Context.getTypeDeclType(Method->getParent()).getTypePtr();
+        FromType = S.Context.getMemberPointerType(FromType, ClassType);
+      } else if (isa<UnaryOperator>(From->IgnoreParens())) {
+        assert(cast<UnaryOperator>(From->IgnoreParens())->getOpcode() ==
+               UO_AddrOf &&
+               "Non-address-of operator for overloaded function expression");
+        FromType = S.Context.getPointerType(FromType);
+      }
 
       // Check that we've computed the proper type after overload resolution.
-      assert(S.Context.hasSameType(FromType,
-            S.FixOverloadedFunctionReference(From, AccessPair, Fn)->getType()));
+      assert(S.Context.hasSameType(
+        FromType,
+        S.FixOverloadedFunctionReference(From, AccessPair, Fn)->getType()));
     } else {
       return false;
     }
@@ -1188,6 +1205,7 @@ static bool IsStandardConversion(Sema &S, Expr* From, QualType ToType,
     // Pointer conversions (C++ 4.10).
     SCS.Second = ICK_Pointer_Conversion;
     SCS.IncompatibleObjC = IncompatibleObjC;
+    FromType = FromType.getUnqualifiedType();
   } else if (S.IsMemberPointerConversion(From, FromType, ToType,
                                          InOverloadResolution, FromType)) {
     // Pointer to member conversions (4.11).
@@ -1203,6 +1221,11 @@ static bool IsStandardConversion(Sema &S, Expr* From, QualType ToType,
   } else if (IsNoReturnConversion(S.Context, FromType, ToType, FromType)) {
     // Treat a conversion that strips "noreturn" as an identity conversion.
     SCS.Second = ICK_NoReturn_Adjustment;
+  } else if (IsTransparentUnionStandardConversion(S, From, ToType,
+                                             InOverloadResolution,
+                                             SCS, CStyle)) {
+    SCS.Second = ICK_TransparentUnionConversion;
+    FromType = ToType;
   } else {
     // No second conversion required.
     SCS.Second = ICK_Identity;
@@ -1243,6 +1266,30 @@ static bool IsStandardConversion(Sema &S, Expr* From, QualType ToType,
     return false;
 
   return true;
+}
+  
+static bool
+IsTransparentUnionStandardConversion(Sema &S, Expr* From, 
+                                     QualType &ToType,
+                                     bool InOverloadResolution,
+                                     StandardConversionSequence &SCS,
+                                     bool CStyle) {
+    
+  const RecordType *UT = ToType->getAsUnionType();
+  if (!UT || !UT->getDecl()->hasAttr<TransparentUnionAttr>())
+    return false;
+  // The field to initialize within the transparent union.
+  RecordDecl *UD = UT->getDecl();
+  // It's compatible if the expression matches any of the fields.
+  for (RecordDecl::field_iterator it = UD->field_begin(),
+       itend = UD->field_end();
+       it != itend; ++it) {
+    if (IsStandardConversion(S, From, it->getType(), InOverloadResolution, SCS, CStyle)) {
+      ToType = it->getType();
+      return true;
+    }
+  }
+  return false;
 }
 
 /// IsIntegralPromotion - Determines whether the conversion from the
@@ -1615,7 +1662,29 @@ bool Sema::IsPointerConversion(Expr *From, QualType FromType, QualType ToType,
     return true;
   }
 
+  if (FromPointeeType->isVectorType() && ToPointeeType->isVectorType() &&
+      Context.areCompatibleVectorTypes(FromPointeeType, ToPointeeType)) {
+    ConvertedType = BuildSimilarlyQualifiedPointerType(FromTypePtr,
+                                                       ToPointeeType,
+                                                       ToType, Context);
+    return true;
+  }
+  
   return false;
+}
+ 
+/// \brief Adopt the given qualifiers for the given type.
+static QualType AdoptQualifiers(ASTContext &Context, QualType T, Qualifiers Qs){
+  Qualifiers TQs = T.getQualifiers();
+  
+  // Check whether qualifiers already match.
+  if (TQs == Qs)
+    return T;
+  
+  if (Qs.compatiblyIncludes(TQs))
+    return Context.getQualifiedType(T, Qs);
+  
+  return Context.getQualifiedType(T.getUnqualifiedType(), Qs);
 }
 
 /// isObjCPointerConversion - Determines whether this is an
@@ -1627,6 +1696,9 @@ bool Sema::isObjCPointerConversion(QualType FromType, QualType ToType,
   if (!getLangOptions().ObjC1)
     return false;
 
+  // The set of qualifiers on the type we're converting from.
+  Qualifiers FromQualifiers = FromType.getQualifiers();
+  
   // First, we handle all conversions on ObjC object pointer types.
   const ObjCObjectPointerType* ToObjCPtr =
     ToType->getAs<ObjCObjectPointerType>();
@@ -1640,10 +1712,11 @@ bool Sema::isObjCPointerConversion(QualType FromType, QualType ToType,
                                        FromObjCPtr->getPointeeType()))
       return false;
 
+    // Check for compatible 
     // Objective C++: We're able to convert between "id" or "Class" and a
     // pointer to any interface (in both directions).
     if (ToObjCPtr->isObjCBuiltinType() && FromObjCPtr->isObjCBuiltinType()) {
-      ConvertedType = ToType;
+      ConvertedType = AdoptQualifiers(Context, ToType, FromQualifiers);
       return true;
     }
     // Conversions with Objective-C's id<...>.
@@ -1651,7 +1724,7 @@ bool Sema::isObjCPointerConversion(QualType FromType, QualType ToType,
          ToObjCPtr->isObjCQualifiedIdType()) &&
         Context.ObjCQualifiedIdTypesAreCompatible(ToType, FromType,
                                                   /*compare=*/false)) {
-      ConvertedType = ToType;
+      ConvertedType = AdoptQualifiers(Context, ToType, FromQualifiers);
       return true;
     }
     // Objective C++: We're able to convert from a pointer to an
@@ -1666,6 +1739,7 @@ bool Sema::isObjCPointerConversion(QualType FromType, QualType ToType,
       ConvertedType = BuildSimilarlyQualifiedPointerType(FromObjCPtr,
                                                    ToObjCPtr->getPointeeType(),
                                                          ToType, Context);
+      ConvertedType = AdoptQualifiers(Context, ConvertedType, FromQualifiers);
       return true;
     }
 
@@ -1677,6 +1751,7 @@ bool Sema::isObjCPointerConversion(QualType FromType, QualType ToType,
       ConvertedType = BuildSimilarlyQualifiedPointerType(FromObjCPtr,
                                                    ToObjCPtr->getPointeeType(),
                                                          ToType, Context);
+      ConvertedType = AdoptQualifiers(Context, ConvertedType, FromQualifiers);
       return true;
     }
   }
@@ -1689,7 +1764,7 @@ bool Sema::isObjCPointerConversion(QualType FromType, QualType ToType,
     // Objective C++: We're able to convert from a pointer to any object
     // to a block pointer type.
     if (FromObjCPtr && FromObjCPtr->isObjCBuiltinType()) {
-      ConvertedType = ToType;
+      ConvertedType = AdoptQualifiers(Context, ToType, FromQualifiers);
       return true;
     }
     ToPointeeType = ToBlockPtr->getPointeeType();
@@ -1698,7 +1773,7 @@ bool Sema::isObjCPointerConversion(QualType FromType, QualType ToType,
            ToObjCPtr && ToObjCPtr->isObjCBuiltinType()) {
     // Objective C++: We're able to convert from a block pointer type to a
     // pointer to any object.
-    ConvertedType = ToType;
+    ConvertedType = AdoptQualifiers(Context, ToType, FromQualifiers);
     return true;
   }
   else
@@ -1721,6 +1796,7 @@ bool Sema::isObjCPointerConversion(QualType FromType, QualType ToType,
     // We always complain about this conversion.
     IncompatibleObjC = true;
     ConvertedType = Context.getPointerType(ConvertedType);
+    ConvertedType = AdoptQualifiers(Context, ConvertedType, FromQualifiers);
     return true;
   }
   // Allow conversion of pointee being objective-c pointer to another one;
@@ -1730,6 +1806,7 @@ bool Sema::isObjCPointerConversion(QualType FromType, QualType ToType,
       isObjCPointerConversion(FromPointeeType, ToPointeeType, ConvertedType,
                               IncompatibleObjC)) {
     ConvertedType = Context.getPointerType(ConvertedType);
+    ConvertedType = AdoptQualifiers(Context, ConvertedType, FromQualifiers);
     return true;
   }
 
@@ -1790,7 +1867,7 @@ bool Sema::isObjCPointerConversion(QualType FromType, QualType ToType,
     if (HasObjCConversion) {
       // We had an Objective-C conversion. Allow this pointer
       // conversion, but complain about it.
-      ConvertedType = ToType;
+      ConvertedType = AdoptQualifiers(Context, ToType, FromQualifiers);
       IncompatibleObjC = true;
       return true;
     }
@@ -1936,11 +2013,12 @@ bool Sema::CheckPointerConversion(Expr *From, QualType ToType,
 
   Kind = CK_BitCast;
 
-  if (CXXBoolLiteralExpr* LitBool
-                          = dyn_cast<CXXBoolLiteralExpr>(From->IgnoreParens()))
-    if (!IsCStyleOrFunctionalCast && LitBool->getValue() == false)
-      Diag(LitBool->getExprLoc(), diag::warn_init_pointer_from_false)
-        << ToType;
+  if (!IsCStyleOrFunctionalCast &&
+      Context.hasSameUnqualifiedType(From->getType(), Context.BoolTy) &&
+      From->isNullPointerConstant(Context, Expr::NPC_ValueDependentIsNotNull))
+    DiagRuntimeBehavior(From->getExprLoc(), From,
+                        PDiag(diag::warn_impcast_bool_to_null_pointer)
+                          << ToType << From->getSourceRange());
 
   if (const PointerType *FromPtrType = FromType->getAs<PointerType>())
     if (const PointerType *ToPtrType = ToType->getAs<PointerType>()) {
@@ -2116,21 +2194,24 @@ Sema::IsQualificationConversion(QualType FromType, QualType ToType,
     // unwrap.
     UnwrappedAnyPointer = true;
 
+    Qualifiers FromQuals = FromType.getQualifiers();
+    Qualifiers ToQuals = ToType.getQualifiers();
+    
     //   -- for every j > 0, if const is in cv 1,j then const is in cv
     //      2,j, and similarly for volatile.
-    if (!CStyle && !ToType.isAtLeastAsQualifiedAs(FromType))
+    if (!CStyle && !ToQuals.compatiblyIncludes(FromQuals))
       return false;
 
     //   -- if the cv 1,j and cv 2,j are different, then const is in
     //      every cv for 0 < k < j.
-    if (!CStyle && FromType.getCVRQualifiers() != ToType.getCVRQualifiers()
+    if (!CStyle && FromQuals.getCVRQualifiers() != ToQuals.getCVRQualifiers()
         && !PreviousToQualsIncludeConst)
       return false;
 
     // Keep track of whether all prior cv-qualifiers in the "to" type
     // include const.
     PreviousToQualsIncludeConst
-      = PreviousToQualsIncludeConst && ToType.isConstQualified();
+      = PreviousToQualsIncludeConst && ToQuals.hasConst();
   }
 
   // We are left with FromType and ToType being the pointee types
@@ -2175,7 +2256,11 @@ IsUserDefinedConversion(Sema &S, Expr *From, QualType ToType,
          S.IsDerivedFrom(From->getType(), ToType)))
       ConstructorsOnly = true;
 
-    if (S.RequireCompleteType(From->getLocStart(), ToType, S.PDiag())) {
+    S.RequireCompleteType(From->getLocStart(), ToType, S.PDiag());
+    // RequireCompleteType may have returned true due to some invalid decl
+    // during template instantiation, but ToType may be complete enough now
+    // to try to recover.
+    if (ToType->isIncompleteType()) {
       // We're not going to find any constructors.
     } else if (CXXRecordDecl *ToRecordDecl
                  = dyn_cast<CXXRecordDecl>(ToRecordType->getDecl())) {
@@ -2546,7 +2631,8 @@ CompareStandardConversionSequences(Sema &S,
     if (ImplicitConversionSequence::CompareKind DerivedCK
           = CompareDerivedToBaseConversions(S, SCS1, SCS2))
       return DerivedCK;
-  } else if (SCS1ConvertsToVoid && SCS2ConvertsToVoid) {
+  } else if (SCS1ConvertsToVoid && SCS2ConvertsToVoid &&
+             !S.Context.hasSameType(SCS1.getFromType(), SCS2.getFromType())) {
     // Both conversion sequences are conversions to void
     // pointers. Compare the source types to determine if there's an
     // inheritance relationship in their sources.
@@ -2560,10 +2646,8 @@ CompareStandardConversionSequences(Sema &S,
     if (SCS2.First == ICK_Array_To_Pointer)
       FromType2 = S.Context.getArrayDecayedType(FromType2);
 
-    QualType FromPointee1
-      = FromType1->getAs<PointerType>()->getPointeeType().getUnqualifiedType();
-    QualType FromPointee2
-      = FromType2->getAs<PointerType>()->getPointeeType().getUnqualifiedType();
+    QualType FromPointee1 = FromType1->getPointeeType().getUnqualifiedType();
+    QualType FromPointee2 = FromType2->getPointeeType().getUnqualifiedType();
 
     if (S.IsDerivedFrom(FromPointee2, FromPointee1))
       return ImplicitConversionSequence::Better;
@@ -2572,13 +2656,19 @@ CompareStandardConversionSequences(Sema &S,
 
     // Objective-C++: If one interface is more specific than the
     // other, it is the better one.
-    const ObjCObjectType* FromIface1 = FromPointee1->getAs<ObjCObjectType>();
-    const ObjCObjectType* FromIface2 = FromPointee2->getAs<ObjCObjectType>();
-    if (FromIface1 && FromIface1) {
-      if (S.Context.canAssignObjCInterfaces(FromIface2, FromIface1))
-        return ImplicitConversionSequence::Better;
-      else if (S.Context.canAssignObjCInterfaces(FromIface1, FromIface2))
-        return ImplicitConversionSequence::Worse;
+    const ObjCObjectPointerType* FromObjCPtr1
+      = FromType1->getAs<ObjCObjectPointerType>();
+    const ObjCObjectPointerType* FromObjCPtr2
+      = FromType2->getAs<ObjCObjectPointerType>();
+    if (FromObjCPtr1 && FromObjCPtr2) {
+      bool AssignLeft = S.Context.canAssignObjCInterfaces(FromObjCPtr1, 
+                                                          FromObjCPtr2);
+      bool AssignRight = S.Context.canAssignObjCInterfaces(FromObjCPtr2, 
+                                                           FromObjCPtr1);
+      if (AssignLeft != AssignRight) {
+        return AssignLeft? ImplicitConversionSequence::Better
+                         : ImplicitConversionSequence::Worse;
+      }
     }
   }
 
@@ -2981,7 +3071,12 @@ Sema::CompareReferenceRelationship(SourceLocation Loc,
   //   overload resolution, cases for which cv1 is greater
   //   cv-qualification than cv2 are identified as
   //   reference-compatible with added qualification (see 13.3.3.2).
-  if (T1Quals.getCVRQualifiers() == T2Quals.getCVRQualifiers())
+  //
+  // Note that we also require equivalence of Objective-C GC and address-space
+  // qualifiers when performing these computations, so that e.g., an int in
+  // address space 1 is not reference-compatible with an int in address
+  // space 2.
+  if (T1Quals == T2Quals)
     return Ref_Compatible;
   else if (T1.isMoreQualifiedThan(T2))
     return Ref_Compatible_With_Added_Qualification;
@@ -3480,8 +3575,8 @@ TryObjectArgumentInitialization(Sema &S, QualType OrigFromType,
 /// PerformObjectArgumentInitialization - Perform initialization of
 /// the implicit object parameter for the given Method with the given
 /// expression.
-bool
-Sema::PerformObjectArgumentInitialization(Expr *&From,
+ExprResult
+Sema::PerformObjectArgumentInitialization(Expr *From,
                                           NestedNameSpecifier *Qualifier,
                                           NamedDecl *FoundDecl,
                                           CXXMethodDecl *Method) {
@@ -3517,7 +3612,7 @@ Sema::PerformObjectArgumentInitialization(Expr *&From,
           << From->getSourceRange();
         Diag(Method->getLocation(), diag::note_previous_decl)
           << Method->getDeclName();
-        return true;
+        return ExprError();
       }
     }
 
@@ -3526,13 +3621,18 @@ Sema::PerformObjectArgumentInitialization(Expr *&From,
        << ImplicitParamRecordType << FromRecordType << From->getSourceRange();
   }
 
-  if (ICS.Standard.Second == ICK_Derived_To_Base)
-    return PerformObjectMemberConversion(From, Qualifier, FoundDecl, Method);
+  if (ICS.Standard.Second == ICK_Derived_To_Base) {
+    ExprResult FromRes =
+      PerformObjectMemberConversion(From, Qualifier, FoundDecl, Method);
+    if (FromRes.isInvalid())
+      return ExprError();
+    From = FromRes.take();
+  }
 
   if (!Context.hasSameType(From->getType(), DestType))
-    ImpCastExprToType(From, DestType, CK_NoOp,
-                      From->getType()->isPointerType() ? VK_RValue : VK_LValue);
-  return false;
+    From = ImpCastExprToType(From, DestType, CK_NoOp,
+                      From->getType()->isPointerType() ? VK_RValue : VK_LValue).take();
+  return Owned(From);
 }
 
 /// TryContextuallyConvertToBool - Attempt to contextually convert the
@@ -3550,16 +3650,16 @@ TryContextuallyConvertToBool(Sema &S, Expr *From) {
 
 /// PerformContextuallyConvertToBool - Perform a contextual conversion
 /// of the expression From to bool (C++0x [conv]p3).
-bool Sema::PerformContextuallyConvertToBool(Expr *&From) {
+ExprResult Sema::PerformContextuallyConvertToBool(Expr *From) {
   ImplicitConversionSequence ICS = TryContextuallyConvertToBool(*this, From);
   if (!ICS.isBad())
     return PerformImplicitConversion(From, Context.BoolTy, ICS, AA_Converting);
 
   if (!DiagnoseMultipleUserDefinedConversion(From, Context.BoolTy))
-    return  Diag(From->getSourceRange().getBegin(),
-                 diag::err_typecheck_bool_condition)
+    return Diag(From->getSourceRange().getBegin(),
+                diag::err_typecheck_bool_condition)
                   << From->getType() << From->getSourceRange();
-  return true;
+  return ExprError();
 }
 
 /// TryContextuallyConvertToObjCId - Attempt to contextually convert the
@@ -3577,12 +3677,12 @@ TryContextuallyConvertToObjCId(Sema &S, Expr *From) {
 
 /// PerformContextuallyConvertToObjCId - Perform a contextual conversion
 /// of the expression From to 'id'.
-bool Sema::PerformContextuallyConvertToObjCId(Expr *&From) {
+ExprResult Sema::PerformContextuallyConvertToObjCId(Expr *From) {
   QualType Ty = Context.getObjCIdType();
   ImplicitConversionSequence ICS = TryContextuallyConvertToObjCId(*this, From);
   if (!ICS.isBad())
     return PerformImplicitConversion(From, Ty, ICS, AA_Converting);
-  return true;
+  return ExprError();
 }
 
 /// \brief Attempt to convert the given expression to an integral or
@@ -4061,7 +4161,7 @@ void
 Sema::AddMethodTemplateCandidate(FunctionTemplateDecl *MethodTmpl,
                                  DeclAccessPair FoundDecl,
                                  CXXRecordDecl *ActingContext,
-                        const TemplateArgumentListInfo *ExplicitTemplateArgs,
+                                 TemplateArgumentListInfo *ExplicitTemplateArgs,
                                  QualType ObjectType,
                                  Expr::Classification ObjectClassification,
                                  Expr **Args, unsigned NumArgs,
@@ -4114,7 +4214,7 @@ Sema::AddMethodTemplateCandidate(FunctionTemplateDecl *MethodTmpl,
 void
 Sema::AddTemplateOverloadCandidate(FunctionTemplateDecl *FunctionTemplate,
                                    DeclAccessPair FoundDecl,
-                        const TemplateArgumentListInfo *ExplicitTemplateArgs,
+                                 TemplateArgumentListInfo *ExplicitTemplateArgs,
                                    Expr **Args, unsigned NumArgs,
                                    OverloadCandidateSet& CandidateSet,
                                    bool SuppressUserConversions) {
@@ -6090,9 +6190,10 @@ void
 Sema::AddArgumentDependentLookupCandidates(DeclarationName Name,
                                            bool Operator,
                                            Expr **Args, unsigned NumArgs,
-                       const TemplateArgumentListInfo *ExplicitTemplateArgs,
+                                 TemplateArgumentListInfo *ExplicitTemplateArgs,
                                            OverloadCandidateSet& CandidateSet,
-                                           bool PartialOverloading) {
+                                           bool PartialOverloading,
+                                           bool StdNamespaceIsAssociated) {
   ADLResult Fns;
 
   // FIXME: This approach for uniquing ADL results (and removing
@@ -6103,7 +6204,8 @@ Sema::AddArgumentDependentLookupCandidates(DeclarationName Name,
   // we supposed to consider on ADL candidates, anyway?
 
   // FIXME: Pass in the explicit template arguments?
-  ArgumentDependentLookup(Name, Operator, Args, NumArgs, Fns);
+  ArgumentDependentLookup(Name, Operator, Args, NumArgs, Fns,
+                          StdNamespaceIsAssociated);
 
   // Erase all of the candidates we already knew about.
   for (OverloadCandidateSet::iterator Cand = CandidateSet.begin(),
@@ -6282,8 +6384,7 @@ OverloadCandidateSet::BestViableFunction(Sema &S, SourceLocation Loc,
 
   // Best is the best viable function.
   if (Best->Function &&
-      (Best->Function->isDeleted() ||
-       Best->Function->getAttr<UnavailableAttr>()))
+      (Best->Function->isDeleted() || Best->Function->isUnavailable()))
     return OR_Deleted;
 
   return OR_Success;
@@ -6469,6 +6570,17 @@ void DiagnoseBadConversion(Sema &S, OverloadCandidate *Cand, unsigned I) {
         << FromTy
         << FromQs.getAddressSpace() << ToQs.getAddressSpace()
         << (unsigned) isObjectArgument << I+1;
+      MaybeEmitInheritedConstructorNote(S, Fn);
+      return;
+    }
+
+    if (FromQs.getObjCGCAttr() != ToQs.getObjCGCAttr()) {
+      S.Diag(Fn->getLocation(), diag::note_ovl_candidate_bad_gc)
+      << (unsigned) FnKind << FnDesc
+      << (FromExpr ? FromExpr->getSourceRange() : SourceRange())
+      << FromTy
+      << FromQs.getObjCGCAttr() << ToQs.getObjCGCAttr()
+      << (unsigned) isObjectArgument << I+1;
       MaybeEmitInheritedConstructorNote(S, Fn);
       return;
     }
@@ -6735,7 +6847,7 @@ void NoteFunctionCandidate(Sema &S, OverloadCandidate *Cand,
   FunctionDecl *Fn = Cand->Function;
 
   // Note deleted candidates, but only if they're viable.
-  if (Cand->Viable && (Fn->isDeleted() || Fn->hasAttr<UnavailableAttr>())) {
+  if (Cand->Viable && (Fn->isDeleted() || Fn->isUnavailable())) {
     std::string FnDesc;
     OverloadCandidateKind FnKind = ClassifyOverloadCandidate(S, Fn, FnDesc);
 
@@ -7134,8 +7246,23 @@ public:
     if (!TargetFunctionType->isFunctionType()) {        
       if (OvlExpr->hasExplicitTemplateArgs()) {
         DeclAccessPair dap;
-        if( FunctionDecl* Fn = S.ResolveSingleFunctionTemplateSpecialization(
+        if (FunctionDecl* Fn = S.ResolveSingleFunctionTemplateSpecialization(
                                             OvlExpr, false, &dap) ) {
+
+          if (CXXMethodDecl *Method = dyn_cast<CXXMethodDecl>(Fn)) {
+            if (!Method->isStatic()) {
+              // If the target type is a non-function type and the function
+              // found is a non-static member function, pretend as if that was
+              // the target, it's the only possible type to end up with.
+              TargetTypeIsNonStaticMemberFunction = true;
+
+              // And skip adding the function if its not in the proper form.
+              // We'll diagnose this due to an empty set of functions.
+              if (!OvlExprInfo.HasFormOfMemberPointer)
+                return;
+            }
+          }
+
           Matches.push_back(std::make_pair(dap,Fn));
         }
       }
@@ -7419,32 +7546,29 @@ Sema::ResolveAddressOfOverloadedFunction(Expr *AddressOfExpr, QualType TargetTyp
 /// template, where that template-id refers to a single template whose template
 /// arguments are either provided by the template-id or have defaults,
 /// as described in C++0x [temp.arg.explicit]p3.
-FunctionDecl *Sema::ResolveSingleFunctionTemplateSpecialization(Expr *From, 
-                                                                bool Complain,
-                                                  DeclAccessPair* FoundResult) {
+FunctionDecl *
+Sema::ResolveSingleFunctionTemplateSpecialization(OverloadExpr *ovl, 
+                                                  bool Complain,
+                                                  DeclAccessPair *FoundResult) {
   // C++ [over.over]p1:
   //   [...] [Note: any redundant set of parentheses surrounding the
   //   overloaded function name is ignored (5.1). ]
   // C++ [over.over]p1:
   //   [...] The overloaded function name can be preceded by the &
   //   operator.
-  if (From->getType() != Context.OverloadTy)
-    return 0;
-
-  OverloadExpr *OvlExpr = OverloadExpr::find(From).Expression;
 
   // If we didn't actually find any template-ids, we're done.
-  if (!OvlExpr->hasExplicitTemplateArgs())
+  if (!ovl->hasExplicitTemplateArgs())
     return 0;
 
   TemplateArgumentListInfo ExplicitTemplateArgs;
-  OvlExpr->getExplicitTemplateArgs().copyInto(ExplicitTemplateArgs);
+  ovl->getExplicitTemplateArgs().copyInto(ExplicitTemplateArgs);
 
   // Look through all of the overloaded functions, searching for one
   // whose type matches exactly.
   FunctionDecl *Matched = 0;
-  for (UnresolvedSetIterator I = OvlExpr->decls_begin(),
-         E = OvlExpr->decls_end(); I != E; ++I) {
+  for (UnresolvedSetIterator I = ovl->decls_begin(),
+         E = ovl->decls_end(); I != E; ++I) {
     // C++0x [temp.arg.explicit]p3:
     //   [...] In contexts where deduction is done and fails, or in contexts
     //   where deduction is not done, if a template argument list is
@@ -7461,7 +7585,7 @@ FunctionDecl *Sema::ResolveSingleFunctionTemplateSpecialization(Expr *From,
     //   function template specialization, which is added to the set of
     //   overloaded functions considered.
     FunctionDecl *Specialization = 0;
-    TemplateDeductionInfo Info(Context, OvlExpr->getNameLoc());
+    TemplateDeductionInfo Info(Context, ovl->getNameLoc());
     if (TemplateDeductionResult Result
           = DeduceTemplateArguments(FunctionTemplate, &ExplicitTemplateArgs,
                                     Specialization, Info)) {
@@ -7470,30 +7594,98 @@ FunctionDecl *Sema::ResolveSingleFunctionTemplateSpecialization(Expr *From,
       continue;
     }
 
+    assert(Specialization && "no specialization and no error?");
+
     // Multiple matches; we can't resolve to a single declaration.
     if (Matched) {
-      if (FoundResult) 
-          *FoundResult = DeclAccessPair();
-      
       if (Complain) {
-        Diag(From->getLocStart(), diag::err_addr_ovl_ambiguous)
-          << OvlExpr->getName();
-        NoteAllOverloadCandidates(OvlExpr);
+        Diag(ovl->getExprLoc(), diag::err_addr_ovl_ambiguous)
+          << ovl->getName();
+        NoteAllOverloadCandidates(ovl);
       }
       return 0;
-    }   
+    }
     
-    if ((Matched = Specialization) && FoundResult) 
-      *FoundResult = I.getPair();    
+    Matched = Specialization;
+    if (FoundResult) *FoundResult = I.getPair();    
   }
 
   return Matched;
 }
 
+
+
+
+// Resolve and fix an overloaded expression that
+// can be resolved because it identifies a single function
+// template specialization
+// Last three arguments should only be supplied if Complain = true
+ExprResult Sema::ResolveAndFixSingleFunctionTemplateSpecialization(
+             Expr *SrcExpr, bool doFunctionPointerConverion, bool complain,
+                                  const SourceRange& OpRangeForComplaining, 
+                                           QualType DestTypeForComplaining, 
+                                            unsigned DiagIDForComplaining) {
+  assert(SrcExpr->getType() == Context.OverloadTy);
+
+  OverloadExpr::FindResult ovl = OverloadExpr::find(SrcExpr);
+
+  DeclAccessPair found;
+  ExprResult SingleFunctionExpression;
+  if (FunctionDecl *fn = ResolveSingleFunctionTemplateSpecialization(
+                           ovl.Expression, /*complain*/ false, &found)) {
+    if (DiagnoseUseOfDecl(fn, SrcExpr->getSourceRange().getBegin()))
+      return ExprError();
+
+    // It is only correct to resolve to an instance method if we're
+    // resolving a form that's permitted to be a pointer to member.
+    // Otherwise we'll end up making a bound member expression, which
+    // is illegal in all the contexts we resolve like this.
+    if (!ovl.HasFormOfMemberPointer &&
+        isa<CXXMethodDecl>(fn) &&
+        cast<CXXMethodDecl>(fn)->isInstance()) {
+      if (complain) {
+        Diag(ovl.Expression->getExprLoc(),
+             diag::err_invalid_use_of_bound_member_func)
+          << ovl.Expression->getSourceRange();
+        // TODO: I believe we only end up here if there's a mix of
+        // static and non-static candidates (otherwise the expression
+        // would have 'bound member' type, not 'overload' type).
+        // Ideally we would note which candidate was chosen and why
+        // the static candidates were rejected.
+      }
+      
+      return ExprError();
+    }
+
+    // Fix the expresion to refer to 'fn'.
+    SingleFunctionExpression =
+      Owned(FixOverloadedFunctionReference(SrcExpr, found, fn));
+
+    // If desired, do function-to-pointer decay.
+    if (doFunctionPointerConverion)
+      SingleFunctionExpression =
+        DefaultFunctionArrayLvalueConversion(SingleFunctionExpression.take());
+  }
+
+  if (!SingleFunctionExpression.isUsable()) {
+    if (complain) {
+      Diag(OpRangeForComplaining.getBegin(), DiagIDForComplaining)
+        << ovl.Expression->getName()
+        << DestTypeForComplaining
+        << OpRangeForComplaining 
+        << ovl.Expression->getQualifierLoc().getSourceRange();
+      NoteAllOverloadCandidates(SrcExpr);
+    }      
+    return ExprError();
+  }
+
+  return SingleFunctionExpression;
+}
+
 /// \brief Add a single candidate to the overload set.
 static void AddOverloadedCallCandidate(Sema &S,
                                        DeclAccessPair FoundDecl,
-                       const TemplateArgumentListInfo *ExplicitTemplateArgs,
+                                 TemplateArgumentListInfo *ExplicitTemplateArgs,
                                        Expr **Args, unsigned NumArgs,
                                        OverloadCandidateSet &CandidateSet,
                                        bool PartialOverloading) {
@@ -7559,7 +7751,7 @@ void Sema::AddOverloadedCallCandidates(UnresolvedLookupExpr *ULE,
 
   // It would be nice to avoid this copy.
   TemplateArgumentListInfo TABuffer;
-  const TemplateArgumentListInfo *ExplicitTemplateArgs = 0;
+  TemplateArgumentListInfo *ExplicitTemplateArgs = 0;
   if (ULE->hasExplicitTemplateArgs()) {
     ULE->copyTemplateArgumentsInto(TABuffer);
     ExplicitTemplateArgs = &TABuffer;
@@ -7576,7 +7768,8 @@ void Sema::AddOverloadedCallCandidates(UnresolvedLookupExpr *ULE,
                                          Args, NumArgs,
                                          ExplicitTemplateArgs,
                                          CandidateSet,
-                                         PartialOverloading);
+                                         PartialOverloading,
+                                         ULE->isStdAssociatedNamespace());
 }
 
 /// Attempts to recover from a call where no functions were found.
@@ -7590,9 +7783,7 @@ BuildRecoveryCallExpr(Sema &SemaRef, Scope *S, Expr *Fn,
                       SourceLocation RParenLoc) {
 
   CXXScopeSpec SS;
-  if (ULE->getQualifier())
-    SS.MakeTrivial(SemaRef.Context, 
-                   ULE->getQualifier(), ULE->getQualifierRange());
+  SS.Adopt(ULE->getQualifierLoc());
 
   TemplateArgumentListInfo TABuffer;
   const TemplateArgumentListInfo *ExplicitTemplateArgs = 0;
@@ -7657,7 +7848,9 @@ Sema::BuildOverloadedCallExpr(Scope *S, Expr *Fn, UnresolvedLookupExpr *ULE,
 
     // We don't perform ADL in C.
     assert(getLangOptions().CPlusPlus && "ADL enabled in C");
-  }
+  } else
+    assert(!ULE->isStdAssociatedNamespace() &&
+           "std is associated namespace but not doing ADL");
 #endif
 
   OverloadCandidateSet CandidateSet(Fn->getExprLoc());
@@ -7704,8 +7897,7 @@ Sema::BuildOverloadedCallExpr(Scope *S, Expr *Fn, UnresolvedLookupExpr *ULE,
       Diag(Fn->getSourceRange().getBegin(), diag::err_ovl_deleted_call)
         << Best->Function->isDeleted()
         << ULE->getName()
-        << Best->Function->getMessageUnavailableAttr(
-             !Best->Function->isDeleted())
+        << getDeletedOrUnavailableSuffix(Best->Function)
         << Fn->getSourceRange();
       CandidateSet.NoteCandidates(*this, OCD_AllCandidates, Args, NumArgs);
     }
@@ -7749,8 +7941,12 @@ Sema::CreateOverloadedUnaryOp(SourceLocation OpLoc, unsigned OpcIn,
   // TODO: provide better source location info.
   DeclarationNameInfo OpNameInfo(OpName, OpLoc);
 
-  if (Input->getObjectKind() == OK_ObjCProperty)
-    ConvertPropertyForRValue(Input);
+  if (Input->getObjectKind() == OK_ObjCProperty) {
+    ExprResult Result = ConvertPropertyForRValue(Input);
+    if (Result.isInvalid())
+      return ExprError();
+    Input = Result.take();
+  }
 
   Expr *Args[2] = { Input, 0 };
   unsigned NumArgs = 1;
@@ -7776,11 +7972,11 @@ Sema::CreateOverloadedUnaryOp(SourceLocation OpLoc, unsigned OpcIn,
     CXXRecordDecl *NamingClass = 0; // because lookup ignores member operators
     UnresolvedLookupExpr *Fn
       = UnresolvedLookupExpr::Create(Context, NamingClass,
-                                     0, SourceRange(), OpNameInfo,
+                                     NestedNameSpecifierLoc(), OpNameInfo,
                                      /*ADL*/ true, IsOverloaded(Fns),
                                      Fns.begin(), Fns.end());
     return Owned(new (Context) CXXOperatorCallExpr(Context, Op, Fn,
-                                                   &Args[0], NumArgs,
+                                                  &Args[0], NumArgs,
                                                    Context.DependentTy,
                                                    VK_RValue,
                                                    OpLoc));
@@ -7821,9 +8017,12 @@ Sema::CreateOverloadedUnaryOp(SourceLocation OpLoc, unsigned OpcIn,
       if (CXXMethodDecl *Method = dyn_cast<CXXMethodDecl>(FnDecl)) {
         CheckMemberOperatorAccess(OpLoc, Args[0], 0, Best->FoundDecl);
 
-        if (PerformObjectArgumentInitialization(Input, /*Qualifier=*/0,
-                                                Best->FoundDecl, Method))
+        ExprResult InputRes =
+          PerformObjectArgumentInitialization(Input, /*Qualifier=*/0,
+                                              Best->FoundDecl, Method);
+        if (InputRes.isInvalid())
           return ExprError();
+        Input = InputRes.take();
       } else {
         // Convert the arguments.
         ExprResult InputInit
@@ -7845,11 +8044,13 @@ Sema::CreateOverloadedUnaryOp(SourceLocation OpLoc, unsigned OpcIn,
       ResultTy = ResultTy.getNonLValueExprType(Context);
 
       // Build the actual expression node.
-      Expr *FnExpr = CreateFunctionRefExpr(*this, FnDecl);
+      ExprResult FnExpr = CreateFunctionRefExpr(*this, FnDecl);
+      if (FnExpr.isInvalid())
+        return ExprError();
 
       Args[0] = Input;
       CallExpr *TheCall =
-        new (Context) CXXOperatorCallExpr(Context, Op, FnExpr,
+        new (Context) CXXOperatorCallExpr(Context, Op, FnExpr.take(),
                                           Args, NumArgs, ResultTy, VK, OpLoc);
 
       if (CheckCallReturnType(FnDecl->getResultType(), OpLoc, TheCall,
@@ -7861,39 +8062,40 @@ Sema::CreateOverloadedUnaryOp(SourceLocation OpLoc, unsigned OpcIn,
       // We matched a built-in operator. Convert the arguments, then
       // break out so that we will build the appropriate built-in
       // operator node.
-        if (PerformImplicitConversion(Input, Best->BuiltinTypes.ParamTypes[0],
-                                      Best->Conversions[0], AA_Passing))
-          return ExprError();
-
-        break;
-      }
-    }
-
-    case OR_No_Viable_Function:
-      // No viable function; fall through to handling this as a
-      // built-in operator, which will produce an error message for us.
+      ExprResult InputRes =
+        PerformImplicitConversion(Input, Best->BuiltinTypes.ParamTypes[0],
+                                  Best->Conversions[0], AA_Passing);
+      if (InputRes.isInvalid())
+        return ExprError();
+      Input = InputRes.take();
       break;
-
-    case OR_Ambiguous:
-      Diag(OpLoc,  diag::err_ovl_ambiguous_oper_unary)
-          << UnaryOperator::getOpcodeStr(Opc)
-          << Input->getType()
-          << Input->getSourceRange();
-      CandidateSet.NoteCandidates(*this, OCD_ViableCandidates,
-                                  Args, NumArgs,
-                                  UnaryOperator::getOpcodeStr(Opc), OpLoc);
-      return ExprError();
-
-    case OR_Deleted:
-      Diag(OpLoc, diag::err_ovl_deleted_oper)
-        << Best->Function->isDeleted()
-        << UnaryOperator::getOpcodeStr(Opc)
-        << Best->Function->getMessageUnavailableAttr(
-             !Best->Function->isDeleted())
-        << Input->getSourceRange();
-      CandidateSet.NoteCandidates(*this, OCD_AllCandidates, Args, NumArgs);
-      return ExprError();
     }
+  }
+
+  case OR_No_Viable_Function:
+    // No viable function; fall through to handling this as a
+    // built-in operator, which will produce an error message for us.
+    break;
+
+  case OR_Ambiguous:
+    Diag(OpLoc,  diag::err_ovl_ambiguous_oper_unary)
+        << UnaryOperator::getOpcodeStr(Opc)
+        << Input->getType()
+        << Input->getSourceRange();
+    CandidateSet.NoteCandidates(*this, OCD_ViableCandidates,
+                                Args, NumArgs,
+                                UnaryOperator::getOpcodeStr(Opc), OpLoc);
+    return ExprError();
+
+  case OR_Deleted:
+    Diag(OpLoc, diag::err_ovl_deleted_oper)
+      << Best->Function->isDeleted()
+      << UnaryOperator::getOpcodeStr(Opc)
+      << getDeletedOrUnavailableSuffix(Best->Function)
+      << Input->getSourceRange();
+    CandidateSet.NoteCandidates(*this, OCD_AllCandidates, Args, NumArgs);
+    return ExprError();
+  }
 
   // Either we found no viable overloaded operator or we matched a
   // built-in operator. In either case, fall through to trying to
@@ -7956,8 +8158,9 @@ Sema::CreateOverloadedBinOp(SourceLocation OpLoc,
     // TODO: provide better source location info in DNLoc component.
     DeclarationNameInfo OpNameInfo(OpName, OpLoc);
     UnresolvedLookupExpr *Fn
-      = UnresolvedLookupExpr::Create(Context, NamingClass, 0, SourceRange(),
-                                     OpNameInfo, /*ADL*/ true, IsOverloaded(Fns),
+      = UnresolvedLookupExpr::Create(Context, NamingClass, 
+                                     NestedNameSpecifierLoc(), OpNameInfo, 
+                                     /*ADL*/ true, IsOverloaded(Fns),
                                      Fns.begin(), Fns.end());
     return Owned(new (Context) CXXOperatorCallExpr(Context, Op, Fn,
                                                    Args, 2,
@@ -7967,8 +8170,12 @@ Sema::CreateOverloadedBinOp(SourceLocation OpLoc,
   }
 
   // Always do property rvalue conversions on the RHS.
-  if (Args[1]->getObjectKind() == OK_ObjCProperty)
-    ConvertPropertyForRValue(Args[1]);
+  if (Args[1]->getObjectKind() == OK_ObjCProperty) {
+    ExprResult Result = ConvertPropertyForRValue(Args[1]);
+    if (Result.isInvalid())
+      return ExprError();
+    Args[1] = Result.take();
+  }
 
   // The LHS is more complicated.
   if (Args[0]->getObjectKind() == OK_ObjCProperty) {
@@ -7996,7 +8203,10 @@ Sema::CreateOverloadedBinOp(SourceLocation OpLoc,
         return CreateBuiltinBinOp(OpLoc, Opc, Args[0], Args[1]);
     }
 
-    ConvertPropertyForRValue(Args[0]);
+    ExprResult Result = ConvertPropertyForRValue(Args[0]);
+    if (Result.isInvalid())
+      return ExprError();
+    Args[0] = Result.take();
   }
 
   // If this is the assignment operator, we only perform overload resolution
@@ -8057,10 +8267,12 @@ Sema::CreateOverloadedBinOp(SourceLocation OpLoc,
           if (Arg1.isInvalid())
             return ExprError();
 
-          if (PerformObjectArgumentInitialization(Args[0], /*Qualifier=*/0,
-                                                  Best->FoundDecl, Method))
+          ExprResult Arg0 =
+            PerformObjectArgumentInitialization(Args[0], /*Qualifier=*/0,
+                                                Best->FoundDecl, Method);
+          if (Arg0.isInvalid())
             return ExprError();
-
+          Args[0] = Arg0.takeAs<Expr>();
           Args[1] = RHS = Arg1.takeAs<Expr>();
         } else {
           // Convert the arguments.
@@ -8090,10 +8302,12 @@ Sema::CreateOverloadedBinOp(SourceLocation OpLoc,
         ResultTy = ResultTy.getNonLValueExprType(Context);
 
         // Build the actual expression node.
-        Expr *FnExpr = CreateFunctionRefExpr(*this, FnDecl, OpLoc);
+        ExprResult FnExpr = CreateFunctionRefExpr(*this, FnDecl, OpLoc);
+        if (FnExpr.isInvalid())
+          return ExprError();
 
         CXXOperatorCallExpr *TheCall =
-          new (Context) CXXOperatorCallExpr(Context, Op, FnExpr,
+          new (Context) CXXOperatorCallExpr(Context, Op, FnExpr.take(),
                                             Args, 2, ResultTy, VK, OpLoc);
 
         if (CheckCallReturnType(FnDecl->getResultType(), OpLoc, TheCall,
@@ -8105,12 +8319,19 @@ Sema::CreateOverloadedBinOp(SourceLocation OpLoc,
         // We matched a built-in operator. Convert the arguments, then
         // break out so that we will build the appropriate built-in
         // operator node.
-        if (PerformImplicitConversion(Args[0], Best->BuiltinTypes.ParamTypes[0],
-                                      Best->Conversions[0], AA_Passing) ||
-            PerformImplicitConversion(Args[1], Best->BuiltinTypes.ParamTypes[1],
-                                      Best->Conversions[1], AA_Passing))
+        ExprResult ArgsRes0 =
+          PerformImplicitConversion(Args[0], Best->BuiltinTypes.ParamTypes[0],
+                                    Best->Conversions[0], AA_Passing);
+        if (ArgsRes0.isInvalid())
           return ExprError();
+        Args[0] = ArgsRes0.take();
 
+        ExprResult ArgsRes1 =
+          PerformImplicitConversion(Args[1], Best->BuiltinTypes.ParamTypes[1],
+                                    Best->Conversions[1], AA_Passing);
+        if (ArgsRes1.isInvalid())
+          return ExprError();
+        Args[1] = ArgsRes1.take();
         break;
       }
     }
@@ -8158,8 +8379,7 @@ Sema::CreateOverloadedBinOp(SourceLocation OpLoc,
       Diag(OpLoc, diag::err_ovl_deleted_oper)
         << Best->Function->isDeleted()
         << BinaryOperator::getOpcodeStr(Opc)
-        << Best->Function->getMessageUnavailableAttr(
-             !Best->Function->isDeleted())
+        << getDeletedOrUnavailableSuffix(Best->Function)
         << Args[0]->getSourceRange() << Args[1]->getSourceRange();
       CandidateSet.NoteCandidates(*this, OCD_AllCandidates, Args, 2);
       return ExprError();
@@ -8187,7 +8407,7 @@ Sema::CreateOverloadedArraySubscriptExpr(SourceLocation LLoc,
     OpNameInfo.setCXXOperatorNameRange(SourceRange(LLoc, RLoc));
     UnresolvedLookupExpr *Fn
       = UnresolvedLookupExpr::Create(Context, NamingClass,
-                                     0, SourceRange(), OpNameInfo,
+                                     NestedNameSpecifierLoc(), OpNameInfo,
                                      /*ADL*/ true, /*Overloaded*/ false,
                                      UnresolvedSetIterator(),
                                      UnresolvedSetIterator());
@@ -8200,10 +8420,18 @@ Sema::CreateOverloadedArraySubscriptExpr(SourceLocation LLoc,
                                                    RLoc));
   }
 
-  if (Args[0]->getObjectKind() == OK_ObjCProperty)
-    ConvertPropertyForRValue(Args[0]);
-  if (Args[1]->getObjectKind() == OK_ObjCProperty)
-    ConvertPropertyForRValue(Args[1]);
+  if (Args[0]->getObjectKind() == OK_ObjCProperty) {
+    ExprResult Result = ConvertPropertyForRValue(Args[0]);
+    if (Result.isInvalid())
+      return ExprError();
+    Args[0] = Result.take();
+  }
+  if (Args[1]->getObjectKind() == OK_ObjCProperty) {
+    ExprResult Result = ConvertPropertyForRValue(Args[1]);
+    if (Result.isInvalid())
+      return ExprError();
+    Args[1] = Result.take();
+  }
 
   // Build an empty overload set.
   OverloadCandidateSet CandidateSet(LLoc);
@@ -8234,9 +8462,12 @@ Sema::CreateOverloadedArraySubscriptExpr(SourceLocation LLoc,
 
         // Convert the arguments.
         CXXMethodDecl *Method = cast<CXXMethodDecl>(FnDecl);
-        if (PerformObjectArgumentInitialization(Args[0], /*Qualifier=*/0,
-                                                Best->FoundDecl, Method))
+        ExprResult Arg0 =
+          PerformObjectArgumentInitialization(Args[0], /*Qualifier=*/0,
+                                              Best->FoundDecl, Method);
+        if (Arg0.isInvalid())
           return ExprError();
+        Args[0] = Arg0.take();
 
         // Convert the arguments.
         ExprResult InputInit
@@ -8256,11 +8487,13 @@ Sema::CreateOverloadedArraySubscriptExpr(SourceLocation LLoc,
         ResultTy = ResultTy.getNonLValueExprType(Context);
 
         // Build the actual expression node.
-        Expr *FnExpr = CreateFunctionRefExpr(*this, FnDecl, LLoc);
+        ExprResult FnExpr = CreateFunctionRefExpr(*this, FnDecl, LLoc);
+        if (FnExpr.isInvalid())
+          return ExprError();
 
         CXXOperatorCallExpr *TheCall =
           new (Context) CXXOperatorCallExpr(Context, OO_Subscript,
-                                            FnExpr, Args, 2,
+                                            FnExpr.take(), Args, 2,
                                             ResultTy, VK, RLoc);
 
         if (CheckCallReturnType(FnDecl->getResultType(), LLoc, TheCall,
@@ -8272,11 +8505,19 @@ Sema::CreateOverloadedArraySubscriptExpr(SourceLocation LLoc,
         // We matched a built-in operator. Convert the arguments, then
         // break out so that we will build the appropriate built-in
         // operator node.
-        if (PerformImplicitConversion(Args[0], Best->BuiltinTypes.ParamTypes[0],
-                                      Best->Conversions[0], AA_Passing) ||
-            PerformImplicitConversion(Args[1], Best->BuiltinTypes.ParamTypes[1],
-                                      Best->Conversions[1], AA_Passing))
+        ExprResult ArgsRes0 =
+          PerformImplicitConversion(Args[0], Best->BuiltinTypes.ParamTypes[0],
+                                    Best->Conversions[0], AA_Passing);
+        if (ArgsRes0.isInvalid())
           return ExprError();
+        Args[0] = ArgsRes0.take();
+
+        ExprResult ArgsRes1 =
+          PerformImplicitConversion(Args[1], Best->BuiltinTypes.ParamTypes[1],
+                                    Best->Conversions[1], AA_Passing);
+        if (ArgsRes1.isInvalid())
+          return ExprError();
+        Args[1] = ArgsRes1.take();
 
         break;
       }
@@ -8308,8 +8549,7 @@ Sema::CreateOverloadedArraySubscriptExpr(SourceLocation LLoc,
     case OR_Deleted:
       Diag(LLoc, diag::err_ovl_deleted_oper)
         << Best->Function->isDeleted() << "[]"
-        << Best->Function->getMessageUnavailableAttr(
-             !Best->Function->isDeleted())
+        << getDeletedOrUnavailableSuffix(Best->Function)
         << Args[0]->getSourceRange() << Args[1]->getSourceRange();
       CandidateSet.NoteCandidates(*this, OCD_AllCandidates, Args, 2,
                                   "[]", LLoc);
@@ -8325,15 +8565,65 @@ Sema::CreateOverloadedArraySubscriptExpr(SourceLocation LLoc,
 /// function (and includes the object parameter), Args/NumArgs are the
 /// arguments to the function call (not including the object
 /// parameter). The caller needs to validate that the member
-/// expression refers to a member function or an overloaded member
-/// function.
+/// expression refers to a non-static member function or an overloaded
+/// member function.
 ExprResult
 Sema::BuildCallToMemberFunction(Scope *S, Expr *MemExprE,
                                 SourceLocation LParenLoc, Expr **Args,
                                 unsigned NumArgs, SourceLocation RParenLoc) {
+  assert(MemExprE->getType() == Context.BoundMemberTy ||
+         MemExprE->getType() == Context.OverloadTy);
+
   // Dig out the member expression. This holds both the object
   // argument and the member function we're referring to.
   Expr *NakedMemExpr = MemExprE->IgnoreParens();
+
+  // Determine whether this is a call to a pointer-to-member function.
+  if (BinaryOperator *op = dyn_cast<BinaryOperator>(NakedMemExpr)) {
+    assert(op->getType() == Context.BoundMemberTy);
+    assert(op->getOpcode() == BO_PtrMemD || op->getOpcode() == BO_PtrMemI);
+
+    QualType fnType =
+      op->getRHS()->getType()->castAs<MemberPointerType>()->getPointeeType();
+
+    const FunctionProtoType *proto = fnType->castAs<FunctionProtoType>();
+    QualType resultType = proto->getCallResultType(Context);
+    ExprValueKind valueKind = Expr::getValueKindForType(proto->getResultType());
+
+    // Check that the object type isn't more qualified than the
+    // member function we're calling.
+    Qualifiers funcQuals = Qualifiers::fromCVRMask(proto->getTypeQuals());
+
+    QualType objectType = op->getLHS()->getType();
+    if (op->getOpcode() == BO_PtrMemI)
+      objectType = objectType->castAs<PointerType>()->getPointeeType();
+    Qualifiers objectQuals = objectType.getQualifiers();
+
+    Qualifiers difference = objectQuals - funcQuals;
+    difference.removeObjCGCAttr();
+    difference.removeAddressSpace();
+    if (difference) {
+      std::string qualsString = difference.getAsString();
+      Diag(LParenLoc, diag::err_pointer_to_member_call_drops_quals)
+        << fnType.getUnqualifiedType()
+        << qualsString
+        << (qualsString.find(' ') == std::string::npos ? 1 : 2);
+    }
+              
+    CXXMemberCallExpr *call
+      = new (Context) CXXMemberCallExpr(Context, MemExprE, Args, NumArgs,
+                                        resultType, valueKind, RParenLoc);
+
+    if (CheckCallReturnType(proto->getResultType(),
+                            op->getRHS()->getSourceRange().getBegin(),
+                            call, 0))
+      return ExprError();
+
+    if (ConvertArgumentsForCall(call, op, 0, proto, Args, NumArgs, RParenLoc))
+      return ExprError();
+
+    return MaybeBindToTemporary(call);
+  }
 
   MemberExpr *MemExpr;
   CXXMethodDecl *Method = 0;
@@ -8427,8 +8717,7 @@ Sema::BuildCallToMemberFunction(Scope *S, Expr *MemExprE,
       Diag(UnresExpr->getMemberLoc(), diag::err_ovl_deleted_member_call)
         << Best->Function->isDeleted()
         << DeclName 
-        << Best->Function->getMessageUnavailableAttr(
-             !Best->Function->isDeleted())
+        << getDeletedOrUnavailableSuffix(Best->Function)
         << MemExprE->getSourceRange();
       CandidateSet.NoteCandidates(*this, OCD_AllCandidates, Args, NumArgs);
       // FIXME: Leaking incoming expressions!
@@ -8464,12 +8753,14 @@ Sema::BuildCallToMemberFunction(Scope *S, Expr *MemExprE,
   // Convert the object argument (for a non-static member function call).
   // We only need to do this if there was actually an overload; otherwise
   // it was done at lookup.
-  Expr *ObjectArg = MemExpr->getBase();
-  if (!Method->isStatic() &&
-      PerformObjectArgumentInitialization(ObjectArg, Qualifier,
-                                          FoundDecl, Method))
-    return ExprError();
-  MemExpr->setBase(ObjectArg);
+  if (!Method->isStatic()) {
+    ExprResult ObjectArg =
+      PerformObjectArgumentInitialization(MemExpr->getBase(), Qualifier,
+                                          FoundDecl, Method);
+    if (ObjectArg.isInvalid())
+      return ExprError();
+    MemExpr->setBase(ObjectArg.take());
+  }
 
   // Convert the rest of the arguments
   const FunctionProtoType *Proto =
@@ -8489,15 +8780,19 @@ Sema::BuildCallToMemberFunction(Scope *S, Expr *MemExprE,
 /// overloaded function call operator (@c operator()) or performing a
 /// user-defined conversion on the object argument.
 ExprResult
-Sema::BuildCallToObjectOfClassType(Scope *S, Expr *Object,
+Sema::BuildCallToObjectOfClassType(Scope *S, Expr *Obj,
                                    SourceLocation LParenLoc,
                                    Expr **Args, unsigned NumArgs,
                                    SourceLocation RParenLoc) {
-  if (Object->getObjectKind() == OK_ObjCProperty)
-    ConvertPropertyForRValue(Object);
+  ExprResult Object = Owned(Obj);
+  if (Object.get()->getObjectKind() == OK_ObjCProperty) {
+    Object = ConvertPropertyForRValue(Object.take());
+    if (Object.isInvalid())
+      return ExprError();
+  }
 
-  assert(Object->getType()->isRecordType() && "Requires object type argument");
-  const RecordType *Record = Object->getType()->getAs<RecordType>();
+  assert(Object.get()->getType()->isRecordType() && "Requires object type argument");
+  const RecordType *Record = Object.get()->getType()->getAs<RecordType>();
 
   // C++ [over.call.object]p1:
   //  If the primary-expression E in the function call syntax
@@ -8509,9 +8804,9 @@ Sema::BuildCallToObjectOfClassType(Scope *S, Expr *Object,
   OverloadCandidateSet CandidateSet(LParenLoc);
   DeclarationName OpName = Context.DeclarationNames.getCXXOperatorName(OO_Call);
 
-  if (RequireCompleteType(LParenLoc, Object->getType(),
+  if (RequireCompleteType(LParenLoc, Object.get()->getType(),
                           PDiag(diag::err_incomplete_object_call)
-                          << Object->getSourceRange()))
+                          << Object.get()->getSourceRange()))
     return true;
 
   LookupResult R(*this, OpName, LParenLoc, LookupOrdinaryName);
@@ -8520,8 +8815,8 @@ Sema::BuildCallToObjectOfClassType(Scope *S, Expr *Object,
 
   for (LookupResult::iterator Oper = R.begin(), OperEnd = R.end();
        Oper != OperEnd; ++Oper) {
-    AddMethodCandidate(Oper.getPair(), Object->getType(),
-                       Object->Classify(Context), Args, NumArgs, CandidateSet,
+    AddMethodCandidate(Oper.getPair(), Object.get()->getType(),
+                       Object.get()->Classify(Context), Args, NumArgs, CandidateSet,
                        /*SuppressUserConversions=*/ false);
   }
 
@@ -8566,12 +8861,12 @@ Sema::BuildCallToObjectOfClassType(Scope *S, Expr *Object,
 
     if (const FunctionProtoType *Proto = ConvType->getAs<FunctionProtoType>())
       AddSurrogateCandidate(Conv, I.getPair(), ActingContext, Proto,
-                            Object, Args, NumArgs, CandidateSet);
+                            Object.get(), Args, NumArgs, CandidateSet);
   }
 
   // Perform overload resolution.
   OverloadCandidateSet::iterator Best;
-  switch (CandidateSet.BestViableFunction(*this, Object->getLocStart(),
+  switch (CandidateSet.BestViableFunction(*this, Object.get()->getLocStart(),
                              Best)) {
   case OR_Success:
     // Overload resolution succeeded; we'll build the appropriate call
@@ -8580,31 +8875,30 @@ Sema::BuildCallToObjectOfClassType(Scope *S, Expr *Object,
 
   case OR_No_Viable_Function:
     if (CandidateSet.empty())
-      Diag(Object->getSourceRange().getBegin(), diag::err_ovl_no_oper)
-        << Object->getType() << /*call*/ 1
-        << Object->getSourceRange();
+      Diag(Object.get()->getSourceRange().getBegin(), diag::err_ovl_no_oper)
+        << Object.get()->getType() << /*call*/ 1
+        << Object.get()->getSourceRange();
     else
-      Diag(Object->getSourceRange().getBegin(),
+      Diag(Object.get()->getSourceRange().getBegin(),
            diag::err_ovl_no_viable_object_call)
-        << Object->getType() << Object->getSourceRange();
+        << Object.get()->getType() << Object.get()->getSourceRange();
     CandidateSet.NoteCandidates(*this, OCD_AllCandidates, Args, NumArgs);
     break;
 
   case OR_Ambiguous:
-    Diag(Object->getSourceRange().getBegin(),
+    Diag(Object.get()->getSourceRange().getBegin(),
          diag::err_ovl_ambiguous_object_call)
-      << Object->getType() << Object->getSourceRange();
+      << Object.get()->getType() << Object.get()->getSourceRange();
     CandidateSet.NoteCandidates(*this, OCD_ViableCandidates, Args, NumArgs);
     break;
 
   case OR_Deleted:
-    Diag(Object->getSourceRange().getBegin(),
+    Diag(Object.get()->getSourceRange().getBegin(),
          diag::err_ovl_deleted_object_call)
       << Best->Function->isDeleted()
-      << Object->getType() 
-      << Best->Function->getMessageUnavailableAttr(
-           !Best->Function->isDeleted())
-      << Object->getSourceRange();
+      << Object.get()->getType() 
+      << getDeletedOrUnavailableSuffix(Best->Function)
+      << Object.get()->getSourceRange();
     CandidateSet.NoteCandidates(*this, OCD_AllCandidates, Args, NumArgs);
     break;
   }
@@ -8619,7 +8913,7 @@ Sema::BuildCallToObjectOfClassType(Scope *S, Expr *Object,
       = cast<CXXConversionDecl>(
                          Best->Conversions[0].UserDefined.ConversionFunction);
 
-    CheckMemberOperatorAccess(LParenLoc, Object, 0, Best->FoundDecl);
+    CheckMemberOperatorAccess(LParenLoc, Object.get(), 0, Best->FoundDecl);
     DiagnoseUseOfDecl(Best->FoundDecl, LParenLoc);
 
     // We selected one of the surrogate functions that converts the
@@ -8628,7 +8922,7 @@ Sema::BuildCallToObjectOfClassType(Scope *S, Expr *Object,
 
     // Create an implicit member expr to refer to the conversion operator.
     // and then call it.
-    ExprResult Call = BuildCXXMemberCallExpr(Object, Best->FoundDecl, Conv);
+    ExprResult Call = BuildCXXMemberCallExpr(Object.get(), Best->FoundDecl, Conv);
     if (Call.isInvalid())
       return ExprError();
 
@@ -8637,7 +8931,7 @@ Sema::BuildCallToObjectOfClassType(Scope *S, Expr *Object,
   }
 
   MarkDeclarationReferenced(LParenLoc, Best->Function);
-  CheckMemberOperatorAccess(LParenLoc, Object, 0, Best->FoundDecl);
+  CheckMemberOperatorAccess(LParenLoc, Object.get(), 0, Best->FoundDecl);
   DiagnoseUseOfDecl(Best->FoundDecl, LParenLoc);
 
   // We found an overloaded operator(). Build a CXXOperatorCallExpr
@@ -8660,11 +8954,13 @@ Sema::BuildCallToObjectOfClassType(Scope *S, Expr *Object,
   } else {
     MethodArgs = new Expr*[NumArgs + 1];
   }
-  MethodArgs[0] = Object;
+  MethodArgs[0] = Object.get();
   for (unsigned ArgIdx = 0; ArgIdx < NumArgs; ++ArgIdx)
     MethodArgs[ArgIdx + 1] = Args[ArgIdx];
 
-  Expr *NewFn = CreateFunctionRefExpr(*this, Method);
+  ExprResult NewFn = CreateFunctionRefExpr(*this, Method);
+  if (NewFn.isInvalid())
+    return true;
 
   // Once we've built TheCall, all of the expressions are properly
   // owned.
@@ -8673,7 +8969,7 @@ Sema::BuildCallToObjectOfClassType(Scope *S, Expr *Object,
   ResultTy = ResultTy.getNonLValueExprType(Context);
 
   CXXOperatorCallExpr *TheCall =
-    new (Context) CXXOperatorCallExpr(Context, OO_Call, NewFn,
+    new (Context) CXXOperatorCallExpr(Context, OO_Call, NewFn.take(),
                                       MethodArgs, NumArgs + 1,
                                       ResultTy, VK, RParenLoc);
   delete [] MethodArgs;
@@ -8692,10 +8988,14 @@ Sema::BuildCallToObjectOfClassType(Scope *S, Expr *Object,
   bool IsError = false;
 
   // Initialize the implicit object parameter.
-  IsError |= PerformObjectArgumentInitialization(Object, /*Qualifier=*/0,
-                                                 Best->FoundDecl, Method);
-  TheCall->setArg(0, Object);
-
+  ExprResult ObjRes =
+    PerformObjectArgumentInitialization(Object.get(), /*Qualifier=*/0,
+                                        Best->FoundDecl, Method);
+  if (ObjRes.isInvalid())
+    IsError = true;
+  else
+    Object = move(ObjRes);
+  TheCall->setArg(0, Object.take());
 
   // Check the argument types.
   for (unsigned i = 0; i != NumArgsToCheck; i++) {
@@ -8731,9 +9031,9 @@ Sema::BuildCallToObjectOfClassType(Scope *S, Expr *Object,
   if (Proto->isVariadic()) {
     // Promote the arguments (C99 6.5.2.2p7).
     for (unsigned i = NumArgsInProto; i != NumArgs; i++) {
-      Expr *Arg = Args[i];
-      IsError |= DefaultVariadicArgumentPromotion(Arg, VariadicMethod, 0);
-      TheCall->setArg(i + 1, Arg);
+      ExprResult Arg = DefaultVariadicArgumentPromotion(Args[i], VariadicMethod, 0);
+      IsError |= Arg.isInvalid();
+      TheCall->setArg(i + 1, Arg.take());
     }
   }
 
@@ -8753,8 +9053,12 @@ Sema::BuildOverloadedArrowExpr(Scope *S, Expr *Base, SourceLocation OpLoc) {
   assert(Base->getType()->isRecordType() &&
          "left-hand side must have class type");
 
-  if (Base->getObjectKind() == OK_ObjCProperty)
-    ConvertPropertyForRValue(Base);
+  if (Base->getObjectKind() == OK_ObjCProperty) {
+    ExprResult Result = ConvertPropertyForRValue(Base);
+    if (Result.isInvalid())
+      return ExprError();
+    Base = Result.take();
+  }
 
   SourceLocation Loc = Base->getExprLoc();
 
@@ -8811,8 +9115,7 @@ Sema::BuildOverloadedArrowExpr(Scope *S, Expr *Base, SourceLocation OpLoc) {
     Diag(OpLoc,  diag::err_ovl_deleted_oper)
       << Best->Function->isDeleted()
       << "->" 
-      << Best->Function->getMessageUnavailableAttr(
-             !Best->Function->isDeleted())
+      << getDeletedOrUnavailableSuffix(Best->Function)
       << Base->getSourceRange();
     CandidateSet.NoteCandidates(*this, OCD_AllCandidates, &Base, 1);
     return ExprError();
@@ -8824,24 +9127,30 @@ Sema::BuildOverloadedArrowExpr(Scope *S, Expr *Base, SourceLocation OpLoc) {
 
   // Convert the object parameter.
   CXXMethodDecl *Method = cast<CXXMethodDecl>(Best->Function);
-  if (PerformObjectArgumentInitialization(Base, /*Qualifier=*/0,
-                                          Best->FoundDecl, Method))
+  ExprResult BaseResult =
+    PerformObjectArgumentInitialization(Base, /*Qualifier=*/0,
+                                        Best->FoundDecl, Method);
+  if (BaseResult.isInvalid())
     return ExprError();
+  Base = BaseResult.take();
 
   // Build the operator call.
-  Expr *FnExpr = CreateFunctionRefExpr(*this, Method);
+  ExprResult FnExpr = CreateFunctionRefExpr(*this, Method);
+  if (FnExpr.isInvalid())
+    return ExprError();
 
   QualType ResultTy = Method->getResultType();
   ExprValueKind VK = Expr::getValueKindForType(ResultTy);
   ResultTy = ResultTy.getNonLValueExprType(Context);
   CXXOperatorCallExpr *TheCall =
-    new (Context) CXXOperatorCallExpr(Context, OO_Arrow, FnExpr,
+    new (Context) CXXOperatorCallExpr(Context, OO_Arrow, FnExpr.take(),
                                       &Base, 1, ResultTy, VK, OpLoc);
 
   if (CheckCallReturnType(Method->getResultType(), OpLoc, TheCall,
                           Method))
           return ExprError();
-  return Owned(TheCall);
+
+  return MaybeBindToTemporary(TheCall);
 }
 
 /// FixOverloadedFunctionReference - E is an expression that refers to
@@ -8930,12 +9239,12 @@ Expr *Sema::FixOverloadedFunctionReference(Expr *E, DeclAccessPair Found,
     }
 
     return DeclRefExpr::Create(Context,
-                               ULE->getQualifier(),
-                               ULE->getQualifierRange(),
+                               ULE->getQualifierLoc(),
                                Fn,
                                ULE->getNameLoc(),
                                Fn->getType(),
                                VK_LValue,
+                               Found.getDecl(),
                                TemplateArgs);
   }
 
@@ -8954,17 +9263,17 @@ Expr *Sema::FixOverloadedFunctionReference(Expr *E, DeclAccessPair Found,
     if (MemExpr->isImplicitAccess()) {
       if (cast<CXXMethodDecl>(Fn)->isStatic()) {
         return DeclRefExpr::Create(Context,
-                                   MemExpr->getQualifier(),
-                                   MemExpr->getQualifierRange(),
+                                   MemExpr->getQualifierLoc(),
                                    Fn,
                                    MemExpr->getMemberLoc(),
                                    Fn->getType(),
                                    VK_LValue,
+                                   Found.getDecl(),
                                    TemplateArgs);
       } else {
         SourceLocation Loc = MemExpr->getMemberLoc();
         if (MemExpr->getQualifier())
-          Loc = MemExpr->getQualifierRange().getBegin();
+          Loc = MemExpr->getQualifierLoc().getBeginLoc();
         Base = new (Context) CXXThisExpr(Loc,
                                          MemExpr->getBaseType(),
                                          /*isImplicit=*/true);
@@ -8972,18 +9281,24 @@ Expr *Sema::FixOverloadedFunctionReference(Expr *E, DeclAccessPair Found,
     } else
       Base = MemExpr->getBase();
 
+    ExprValueKind valueKind;
+    QualType type;
+    if (cast<CXXMethodDecl>(Fn)->isStatic()) {
+      valueKind = VK_LValue;
+      type = Fn->getType();
+    } else {
+      valueKind = VK_RValue;
+      type = Context.BoundMemberTy;
+    }
+
     return MemberExpr::Create(Context, Base,
                               MemExpr->isArrow(),
-                              MemExpr->getQualifier(),
-                              MemExpr->getQualifierRange(),
+                              MemExpr->getQualifierLoc(),
                               Fn,
                               Found,
                               MemExpr->getMemberNameInfo(),
                               TemplateArgs,
-                              Fn->getType(),
-                              cast<CXXMethodDecl>(Fn)->isStatic()
-                                ? VK_LValue : VK_RValue,
-                              OK_Ordinary);
+                              type, valueKind, OK_Ordinary);
   }
 
   llvm_unreachable("Invalid reference to overloaded function");

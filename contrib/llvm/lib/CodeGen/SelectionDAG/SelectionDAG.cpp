@@ -1418,9 +1418,9 @@ SDValue SelectionDAG::getMDNode(const MDNode *MD) {
 
 /// getShiftAmountOperand - Return the specified value casted to
 /// the target's desired shift amount type.
-SDValue SelectionDAG::getShiftAmountOperand(SDValue Op) {
+SDValue SelectionDAG::getShiftAmountOperand(EVT LHSTy, SDValue Op) {
   EVT OpTy = Op.getValueType();
-  MVT ShTy = TLI.getShiftAmountTy(OpTy);
+  MVT ShTy = TLI.getShiftAmountTy(LHSTy);
   if (OpTy == ShTy || OpTy.isVector()) return Op;
 
   ISD::NodeType Opcode = OpTy.bitsGT(ShTy) ?  ISD::TRUNCATE : ISD::ZERO_EXTEND;
@@ -2482,6 +2482,9 @@ SDValue SelectionDAG::getNode(unsigned Opcode, DebugLoc DL,
            "Vector element count mismatch!");
     if (OpOpcode == ISD::SIGN_EXTEND || OpOpcode == ISD::ZERO_EXTEND)
       return getNode(OpOpcode, DL, VT, Operand.getNode()->getOperand(0));
+    else if (OpOpcode == ISD::UNDEF)
+      // sext(undef) = 0, because the top bits will all be the same.
+      return getConstant(0, VT);
     break;
   case ISD::ZERO_EXTEND:
     assert(VT.isInteger() && Operand.getValueType().isInteger() &&
@@ -2496,6 +2499,9 @@ SDValue SelectionDAG::getNode(unsigned Opcode, DebugLoc DL,
     if (OpOpcode == ISD::ZERO_EXTEND)   // (zext (zext x)) -> (zext x)
       return getNode(ISD::ZERO_EXTEND, DL, VT,
                      Operand.getNode()->getOperand(0));
+    else if (OpOpcode == ISD::UNDEF)
+      // zext(undef) = 0, because the top bits will be zero.
+      return getConstant(0, VT);
     break;
   case ISD::ANY_EXTEND:
     assert(VT.isInteger() && Operand.getValueType().isInteger() &&
@@ -2512,6 +2518,8 @@ SDValue SelectionDAG::getNode(unsigned Opcode, DebugLoc DL,
         OpOpcode == ISD::ANY_EXTEND)
       // (ext (zext x)) -> (zext x)  and  (ext (sext x)) -> (sext x)
       return getNode(OpOpcode, DL, VT, Operand.getNode()->getOperand(0));
+    else if (OpOpcode == ISD::UNDEF)
+      return getUNDEF(VT);
 
     // (ext (trunx x)) -> x
     if (OpOpcode == ISD::TRUNCATE) {
@@ -5904,7 +5912,7 @@ std::string SDNode::getOperationName(const SelectionDAG *G) const {
   case ISD::UINT_TO_FP:  return "uint_to_fp";
   case ISD::FP_TO_SINT:  return "fp_to_sint";
   case ISD::FP_TO_UINT:  return "fp_to_uint";
-  case ISD::BITCAST:     return "bit_convert";
+  case ISD::BITCAST:     return "bitcast";
   case ISD::FP16_TO_FP32: return "fp16_to_fp32";
   case ISD::FP32_TO_FP16: return "fp32_to_fp16";
 
@@ -6226,6 +6234,9 @@ static void printrWithDepthHelper(raw_ostream &OS, const SDNode *N,
     return;
 
   for (unsigned i = 0, e = N->getNumOperands(); i != e; ++i) {
+    // Don't follow chain operands.
+    if (N->getOperand(i).getValueType() == MVT::Other)
+      continue;
     OS << '\n';
     printrWithDepthHelper(OS, N->getOperand(i).getNode(), G, depth-1, indent+2);
   }
@@ -6238,7 +6249,7 @@ void SDNode::printrWithDepth(raw_ostream &OS, const SelectionDAG *G,
 
 void SDNode::printrFull(raw_ostream &OS, const SelectionDAG *G) const {
   // Don't print impossibly deep things.
-  printrWithDepth(OS, G, 100);
+  printrWithDepth(OS, G, 10);
 }
 
 void SDNode::dumprWithDepth(const SelectionDAG *G, unsigned depth) const {
@@ -6247,7 +6258,7 @@ void SDNode::dumprWithDepth(const SelectionDAG *G, unsigned depth) const {
 
 void SDNode::dumprFull(const SelectionDAG *G) const {
   // Don't print impossibly deep things.
-  dumprWithDepth(G, 100);
+  dumprWithDepth(G, 10);
 }
 
 static void DumpNodes(const SDNode *N, unsigned indent, const SelectionDAG *G) {
@@ -6311,7 +6322,8 @@ SDValue SelectionDAG::UnrollVectorOp(SDNode *N, unsigned ResNE) {
     case ISD::ROTL:
     case ISD::ROTR:
       Scalars.push_back(getNode(N->getOpcode(), dl, EltVT, Operands[0],
-                                getShiftAmountOperand(Operands[1])));
+                                getShiftAmountOperand(Operands[0].getValueType(),
+                                                      Operands[1])));
       break;
     case ISD::SIGN_EXTEND_INREG:
     case ISD::FP_ROUND_INREG: {

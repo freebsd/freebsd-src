@@ -46,19 +46,41 @@ struct StaticDiagInfoRec {
   unsigned AccessControl : 1;
   unsigned Category : 5;
   
+  const char *Name;
+  
   const char *Description;
   const char *OptionGroup;
+
+  const char *BriefExplanation;
+  const char *FullExplanation;
 
   bool operator<(const StaticDiagInfoRec &RHS) const {
     return DiagID < RHS.DiagID;
   }
 };
 
+struct StaticDiagNameIndexRec {
+  const char *Name;
+  unsigned short DiagID;
+  
+  bool operator<(const StaticDiagNameIndexRec &RHS) const {
+    assert(Name && RHS.Name && "Null Diagnostic Name");
+    return strcmp(Name, RHS.Name) == -1;
+  }
+  
+  bool operator==(const StaticDiagNameIndexRec &RHS) const {
+    assert(Name && RHS.Name && "Null Diagnostic Name");
+    return strcmp(Name, RHS.Name) == 0;
+  }
+};
+
 }
 
 static const StaticDiagInfoRec StaticDiagInfo[] = {
-#define DIAG(ENUM,CLASS,DEFAULT_MAPPING,DESC,GROUP,SFINAE,ACCESS,CATEGORY)    \
-  { diag::ENUM, DEFAULT_MAPPING, CLASS, SFINAE, ACCESS, CATEGORY, DESC, GROUP },
+#define DIAG(ENUM,CLASS,DEFAULT_MAPPING,DESC,GROUP,     \
+             SFINAE,ACCESS,CATEGORY,BRIEF,FULL)         \
+  { diag::ENUM, DEFAULT_MAPPING, CLASS, SFINAE,         \
+   ACCESS, CATEGORY, #ENUM, DESC, GROUP, BRIEF, FULL },
 #include "clang/Basic/DiagnosticCommonKinds.inc"
 #include "clang/Basic/DiagnosticDriverKinds.inc"
 #include "clang/Basic/DiagnosticFrontendKinds.inc"
@@ -67,20 +89,32 @@ static const StaticDiagInfoRec StaticDiagInfo[] = {
 #include "clang/Basic/DiagnosticASTKinds.inc"
 #include "clang/Basic/DiagnosticSemaKinds.inc"
 #include "clang/Basic/DiagnosticAnalysisKinds.inc"
-  { 0, 0, 0, 0, 0, 0, 0, 0}
-};
 #undef DIAG
+  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+};
+
+static const unsigned StaticDiagInfoSize =
+  sizeof(StaticDiagInfo)/sizeof(StaticDiagInfo[0])-1;
+
+/// To be sorted before first use (since it's splitted among multiple files)
+static StaticDiagNameIndexRec StaticDiagNameIndex[] = {
+#define DIAG_NAME_INDEX(ENUM) { #ENUM, diag::ENUM },
+#include "clang/Basic/DiagnosticIndexName.inc"
+#undef DIAG_NAME_INDEX
+  { 0, 0 }
+};
+
+static const unsigned StaticDiagNameIndexSize =
+  sizeof(StaticDiagNameIndex)/sizeof(StaticDiagNameIndex[0])-1;
 
 /// GetDiagInfo - Return the StaticDiagInfoRec entry for the specified DiagID,
 /// or null if the ID is invalid.
 static const StaticDiagInfoRec *GetDiagInfo(unsigned DiagID) {
-  unsigned NumDiagEntries = sizeof(StaticDiagInfo)/sizeof(StaticDiagInfo[0])-1;
-
   // If assertions are enabled, verify that the StaticDiagInfo array is sorted.
 #ifndef NDEBUG
   static bool IsFirst = true;
   if (IsFirst) {
-    for (unsigned i = 1; i != NumDiagEntries; ++i) {
+    for (unsigned i = 1; i != StaticDiagInfoSize; ++i) {
       assert(StaticDiagInfo[i-1].DiagID != StaticDiagInfo[i].DiagID &&
              "Diag ID conflict, the enums at the start of clang::diag (in "
              "DiagnosticIDs.h) probably need to be increased");
@@ -93,11 +127,11 @@ static const StaticDiagInfoRec *GetDiagInfo(unsigned DiagID) {
 #endif
 
   // Search the diagnostic table with a binary search.
-  StaticDiagInfoRec Find = { DiagID, 0, 0, 0, 0, 0, 0, 0 };
+  StaticDiagInfoRec Find = { DiagID, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
   const StaticDiagInfoRec *Found =
-    std::lower_bound(StaticDiagInfo, StaticDiagInfo + NumDiagEntries, Find);
-  if (Found == StaticDiagInfo + NumDiagEntries ||
+    std::lower_bound(StaticDiagInfo, StaticDiagInfo + StaticDiagInfoSize, Find);
+  if (Found == StaticDiagInfo + StaticDiagInfoSize ||
       Found->DiagID != DiagID)
     return 0;
 
@@ -119,7 +153,7 @@ const char *DiagnosticIDs::getWarningOptionForDiag(unsigned DiagID) {
   return 0;
 }
 
-/// getWarningOptionForDiag - Return the category number that a specified
+/// getCategoryNumberForDiag - Return the category number that a specified
 /// DiagID belongs to, or 0 if no category.
 unsigned DiagnosticIDs::getCategoryNumberForDiag(unsigned DiagID) {
   if (const StaticDiagInfoRec *Info = GetDiagInfo(DiagID))
@@ -167,7 +201,48 @@ DiagnosticIDs::getDiagnosticSFINAEResponse(unsigned DiagID) {
   return SFINAE_Report;
 }
 
-/// getDiagClass - Return the class field of the diagnostic.
+/// getName - Given a diagnostic ID, return its name
+const char *DiagnosticIDs::getName(unsigned DiagID) {
+  if (const StaticDiagInfoRec *Info = GetDiagInfo(DiagID))
+    return Info->Name;
+  return 0;
+}
+
+/// getIdFromName - Given a diagnostic name, return its ID, or 0
+unsigned DiagnosticIDs::getIdFromName(char const *Name) {
+  StaticDiagNameIndexRec *StaticDiagNameIndexEnd =
+    StaticDiagNameIndex + StaticDiagNameIndexSize;
+  
+  if (Name == 0) { return diag::DIAG_UPPER_LIMIT; }
+  
+  StaticDiagNameIndexRec Find = { Name, 0 };
+  
+  const StaticDiagNameIndexRec *Found =
+    std::lower_bound( StaticDiagNameIndex, StaticDiagNameIndexEnd, Find);
+  if (Found == StaticDiagNameIndexEnd ||
+      strcmp(Found->Name, Name) != 0)
+    return diag::DIAG_UPPER_LIMIT;
+  
+  return Found->DiagID;
+}
+
+/// getBriefExplanation - Given a diagnostic ID, return a brief explanation
+/// of the issue
+const char *DiagnosticIDs::getBriefExplanation(unsigned DiagID) {
+  if (const StaticDiagInfoRec *Info = GetDiagInfo(DiagID))
+    return Info->BriefExplanation;
+  return 0;
+}
+
+/// getFullExplanation - Given a diagnostic ID, return a full explanation
+/// of the issue
+const char *DiagnosticIDs::getFullExplanation(unsigned DiagID) {
+  if (const StaticDiagInfoRec *Info = GetDiagInfo(DiagID))
+    return Info->FullExplanation;
+  return 0;
+}
+
+/// getBuiltinDiagClass - Return the class field of the diagnostic.
 ///
 static unsigned getBuiltinDiagClass(unsigned DiagID) {
   if (const StaticDiagInfoRec *Info = GetDiagInfo(DiagID))
@@ -329,6 +404,8 @@ DiagnosticIDs::getDiagnosticLevel(unsigned DiagID, unsigned DiagClass,
   if (mapping)
     *mapping = (diag::Mapping) (MappingInfo & 7);
 
+  bool ShouldEmitInSystemHeader = false;
+
   switch (MappingInfo & 7) {
   default: assert(0 && "Unknown mapping!");
   case diag::MAP_IGNORE:
@@ -351,6 +428,9 @@ DiagnosticIDs::getDiagnosticLevel(unsigned DiagID, unsigned DiagClass,
   case diag::MAP_FATAL:
     Result = DiagnosticIDs::Fatal;
     break;
+  case diag::MAP_WARNING_SHOW_IN_SYSTEM_HEADER:
+    ShouldEmitInSystemHeader = true;
+    // continue as MAP_WARNING.
   case diag::MAP_WARNING:
     // If warnings are globally mapped to ignore or error, do it.
     if (Diag.IgnoreAllWarnings)
@@ -393,6 +473,20 @@ DiagnosticIDs::getDiagnosticLevel(unsigned DiagID, unsigned DiagClass,
   // if this is any sort of extension warning, and if we're in an __extension__
   // block, silence it.
   if (Diag.AllExtensionsSilenced && isBuiltinExtensionDiag(DiagID))
+    return DiagnosticIDs::Ignored;
+
+  // If we are in a system header, we ignore it.
+  // We also want to ignore extensions and warnings in -Werror and
+  // -pedantic-errors modes, which *map* warnings/extensions to errors.
+  if (Result >= DiagnosticIDs::Warning &&
+      DiagClass != CLASS_ERROR &&
+      // Custom diagnostics always are emitted in system headers.
+      DiagID < diag::DIAG_UPPER_LIMIT &&
+      !ShouldEmitInSystemHeader &&
+      Diag.SuppressSystemWarnings &&
+      Loc.isValid() &&
+      Diag.getSourceManager().isInSystemHeader(
+          Diag.getSourceManager().getInstantiationLoc(Loc)))
     return DiagnosticIDs::Ignored;
 
   return Result;
@@ -480,16 +574,9 @@ bool DiagnosticIDs::ProcessDiag(Diagnostic &Diag) const {
   DiagnosticIDs::Level DiagLevel;
   unsigned DiagID = Info.getID();
 
-  // ShouldEmitInSystemHeader - True if this diagnostic should be produced even
-  // in a system header.
-  bool ShouldEmitInSystemHeader;
-
   if (DiagID >= diag::DIAG_UPPER_LIMIT) {
     // Handle custom diagnostics, which cannot be mapped.
     DiagLevel = CustomDiagInfo->getLevel(DiagID);
-
-    // Custom diagnostics always are emitted in system headers.
-    ShouldEmitInSystemHeader = true;
   } else {
     // Get the class of the diagnostic.  If this is a NOTE, map it onto whatever
     // the diagnostic level was for the previous diagnostic so that it is
@@ -497,14 +584,7 @@ bool DiagnosticIDs::ProcessDiag(Diagnostic &Diag) const {
     unsigned DiagClass = getBuiltinDiagClass(DiagID);
     if (DiagClass == CLASS_NOTE) {
       DiagLevel = DiagnosticIDs::Note;
-      ShouldEmitInSystemHeader = false;  // extra consideration is needed
     } else {
-      // If this is not an error and we are in a system header, we ignore it.
-      // Check the original Diag ID here, because we also want to ignore
-      // extensions and warnings in -Werror and -pedantic-errors modes, which
-      // *map* warnings/extensions to errors.
-      ShouldEmitInSystemHeader = DiagClass == CLASS_ERROR;
-
       DiagLevel = getDiagnosticLevel(DiagID, DiagClass, Info.getLocation(),
                                      Diag);
     }
@@ -539,18 +619,6 @@ bool DiagnosticIDs::ProcessDiag(Diagnostic &Diag) const {
       (DiagLevel == DiagnosticIDs::Note &&
        Diag.LastDiagLevel == DiagnosticIDs::Ignored))
     return false;
-
-  // If this diagnostic is in a system header and is not a clang error, suppress
-  // it.
-  if (Diag.SuppressSystemWarnings && !ShouldEmitInSystemHeader &&
-      Info.getLocation().isValid() &&
-      Diag.getSourceManager().isInSystemHeader(
-          Diag.getSourceManager().getInstantiationLoc(Info.getLocation())) &&
-      (DiagLevel != DiagnosticIDs::Note ||
-       Diag.LastDiagLevel == DiagnosticIDs::Ignored)) {
-    Diag.LastDiagLevel = DiagnosticIDs::Ignored;
-    return false;
-  }
 
   if (DiagLevel >= DiagnosticIDs::Error) {
     if (Diag.Client->IncludeInDiagnosticCounts()) {

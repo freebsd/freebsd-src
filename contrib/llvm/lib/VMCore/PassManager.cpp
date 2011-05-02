@@ -14,6 +14,7 @@
 
 #include "llvm/PassManagers.h"
 #include "llvm/PassManager.h"
+#include "llvm/DebugInfoProbe.h"
 #include "llvm/Assembly/PrintModulePass.h"
 #include "llvm/Assembly/Writer.h"
 #include "llvm/Support/CommandLine.h"
@@ -25,6 +26,7 @@
 #include "llvm/Support/PassNameParser.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/Mutex.h"
+#include "llvm/ADT/StringMap.h"
 #include <algorithm>
 #include <cstdio>
 #include <map>
@@ -63,11 +65,13 @@ PassOptionList;
 // Print IR out before/after specified passes.
 static PassOptionList
 PrintBefore("print-before",
-            llvm::cl::desc("Print IR before specified passes"));
+            llvm::cl::desc("Print IR before specified passes"),
+            cl::Hidden);
 
 static PassOptionList
 PrintAfter("print-after",
-           llvm::cl::desc("Print IR after specified passes"));
+           llvm::cl::desc("Print IR after specified passes"),
+           cl::Hidden);
 
 static cl::opt<bool>
 PrintBeforeAll("print-before-all",
@@ -438,6 +442,20 @@ char PassManagerImpl::ID = 0;
 } // End of llvm namespace
 
 namespace {
+
+//===----------------------------------------------------------------------===//
+// DebugInfoProbe
+
+static DebugInfoProbeInfo *TheDebugProbe;
+static void createDebugInfoProbe() {
+  if (TheDebugProbe) return;
+      
+  // Constructed the first time this is called. This guarantees that the 
+  // object will be constructed, if -enable-debug-info-probe is set, 
+  // before static globals, thus it will be destroyed before them.
+  static ManagedStatic<DebugInfoProbeInfo> DIP;
+  TheDebugProbe = &*DIP;
+}
 
 //===----------------------------------------------------------------------===//
 /// TimingInfo Class - This class is used to calculate information about the
@@ -964,7 +982,7 @@ void PMDataManager::add(Pass *P, bool ProcessAnalysis) {
       // Keep track of higher level analysis used by this manager.
       HigherLevelAnalysis.push_back(PRequired);
     } else
-      llvm_unreachable("Unable to accomodate Required Pass");
+      llvm_unreachable("Unable to accommodate Required Pass");
   }
 
   // Set P as P's last user until someone starts using P.
@@ -1428,6 +1446,7 @@ void FunctionPassManagerImpl::releaseMemoryOnTheFly() {
 bool FunctionPassManagerImpl::run(Function &F) {
   bool Changed = false;
   TimingInfo::createTheTimeInfo();
+  createDebugInfoProbe();
 
   initializeAllAnalysisInfo();
   for (unsigned Index = 0; Index < getNumContainedManagers(); ++Index)
@@ -1475,13 +1494,16 @@ bool FPPassManager::runOnFunction(Function &F) {
     dumpRequiredSet(FP);
 
     initializeAnalysisImpl(FP);
-
+    if (TheDebugProbe)
+      TheDebugProbe->initialize(FP, F);
     {
       PassManagerPrettyStackEntry X(FP, F);
       TimeRegion PassTimer(getPassTimer(FP));
 
       LocalChanged |= FP->runOnFunction(F);
     }
+    if (TheDebugProbe)
+      TheDebugProbe->finalize(FP, F);
 
     Changed |= LocalChanged;
     if (LocalChanged)
@@ -1629,6 +1651,7 @@ Pass* MPPassManager::getOnTheFlyPass(Pass *MP, AnalysisID PI, Function &F){
 bool PassManagerImpl::run(Module &M) {
   bool Changed = false;
   TimingInfo::createTheTimeInfo();
+  createDebugInfoProbe();
 
   dumpArguments();
   dumpPasses();

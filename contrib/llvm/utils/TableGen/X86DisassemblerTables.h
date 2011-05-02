@@ -39,7 +39,9 @@ private:
   /// [1] two-byte opcodes of the form 0f __
   /// [2] three-byte opcodes of the form 0f 38 __
   /// [3] three-byte opcodes of the form 0f 3a __
-  ContextDecision* Tables[4];
+  /// [4] three-byte opcodes of the form 0f a6 __
+  /// [5] three-byte opcodes of the form 0f a7 __
+  ContextDecision* Tables[6];
   
   /// The instruction information table
   std::vector<InstructionSpecifier> InstructionSpecifiers;
@@ -77,7 +79,7 @@ private:
   ///   regardless of ModR/M byte, two entries - one for bytes 0x00-0xbf and one
   ///   for bytes 0xc0-0xff -, or 256 entries, one for each possible byte.  
   ///   nnnn is the number of a table for looking up these values.  The tables
-  ///   are writen separately so that tables consisting entirely of zeros will
+  ///   are written separately so that tables consisting entirely of zeros will
   ///   not be duplicated.  (These all have the name modRMEmptyTable.)  A table
   ///   is printed as:
   ///   
@@ -141,8 +143,9 @@ private:
   ///     }
   ///   }
   ///
-  ///   NAME is the name of the ContextDecision (typically one of the four names 
-  ///   ONEBYTE_SYM, TWOBYTE_SYM, THREEBYTE38_SYM, and THREEBYTE3A_SYM from
+  ///   NAME is the name of the ContextDecision (typically one of the four names
+  ///   ONEBYTE_SYM, TWOBYTE_SYM, THREEBYTE38_SYM, THREEBYTE3A_SYM,
+  ///   THREEBYTEA6_SYM, and THREEBYTEA7_SYM from
   ///   X86DisassemblerDecoderCommon.h).
   ///   IC is one of the contexts in InstructionContext.  There is an opcode
   ///   decision for each possible context.

@@ -288,12 +288,12 @@ PTHEntry PTHWriter::LexTokens(Lexer& L) {
 
     if ((Tok.isAtStartOfLine() || Tok.is(tok::eof)) &&
         ParsingPreprocessorDirective) {
-      // Insert an eom token into the token cache.  It has the same
+      // Insert an eod token into the token cache.  It has the same
       // position as the next token that is not on the same line as the
       // preprocessor directive.  Observe that we continue processing
       // 'Tok' when we exit this branch.
       Token Tmp = Tok;
-      Tmp.setKind(tok::eom);
+      Tmp.setKind(tok::eod);
       Tmp.clearFlag(Token::StartOfLine);
       Tmp.setIdentifierInfo(0);
       EmitToken(Tmp);
@@ -473,7 +473,7 @@ void PTHWriter::GeneratePTH(const std::string &MainFile) {
   for (SourceManager::fileinfo_iterator I = SM.fileinfo_begin(),
        E = SM.fileinfo_end(); I != E; ++I) {
     const SrcMgr::ContentCache &C = *I->second;
-    const FileEntry *FE = C.Entry;
+    const FileEntry *FE = C.OrigEntry;
 
     // FIXME: Handle files with non-absolute paths.
     if (llvm::sys::path::is_relative(FE->getName()))

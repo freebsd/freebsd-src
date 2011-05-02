@@ -55,6 +55,7 @@
 #include "llvm/Instructions.h"
 #include "llvm/LLVMContext.h"
 #include "llvm/Module.h"
+#include "llvm/Operator.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/CallSite.h"
 #include "llvm/Support/Debug.h"
@@ -125,7 +126,7 @@ private:
 const ComparableFunction ComparableFunction::EmptyKey = ComparableFunction(0);
 const ComparableFunction ComparableFunction::TombstoneKey =
     ComparableFunction(1);
-TargetData * const ComparableFunction::LookupOnly = (TargetData*)(-1);
+TargetData *const ComparableFunction::LookupOnly = (TargetData*)(-1);
 
 }
 
@@ -212,7 +213,7 @@ bool FunctionComparator::isEquivalentType(const Type *Ty1,
     return false;
   }
 
-  switch(Ty1->getTypeID()) {
+  switch (Ty1->getTypeID()) {
   default:
     llvm_unreachable("Unknown type!");
     // Fall through in Release mode.

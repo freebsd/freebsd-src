@@ -22,7 +22,6 @@
 #include <cstring>
 #include <map>
 #include <string>
-#include <vector>
 
 namespace llvm { class raw_ostream; }
 
@@ -58,7 +57,8 @@ public:
   llvm::raw_ostream &write(llvm::raw_ostream &) const;
 
   /// RemoveText - Remove the specified text.
-  void RemoveText(unsigned OrigOffset, unsigned Size);
+  void RemoveText(unsigned OrigOffset, unsigned Size,
+                  bool removeLineIfEmpty = false);
 
   /// InsertText - Insert some text at the specified point, where the offset in
   /// the buffer is specified relative to the original SourceBuffer.  The
@@ -129,6 +129,23 @@ class Rewriter {
   const LangOptions *LangOpts;
   std::map<FileID, RewriteBuffer> RewriteBuffers;
 public:
+  struct RewriteOptions {
+    /// \brief Given a source range, true to include previous inserts at the
+    /// beginning of the range as part of the range itself (true by default).
+    bool IncludeInsertsAtBeginOfRange;
+    /// \brief Given a source range, true to include previous inserts at the
+    /// end of the range as part of the range itself (true by default).
+    bool IncludeInsertsAtEndOfRange;
+    /// \brief If true and removing some text leaves a blank line
+    /// also remove the empty line (false by default).
+    bool RemoveLineIfEmpty;
+
+    RewriteOptions()
+      : IncludeInsertsAtBeginOfRange(true),
+        IncludeInsertsAtEndOfRange(true),
+        RemoveLineIfEmpty(false) { }
+  };
+
   typedef std::map<FileID, RewriteBuffer>::iterator buffer_iterator;
 
   explicit Rewriter(SourceManager &SM, const LangOptions &LO)
@@ -150,8 +167,10 @@ public:
 
   /// getRangeSize - Return the size in bytes of the specified range if they
   /// are in the same file.  If not, this returns -1.
-  int getRangeSize(SourceRange Range) const;
-  int getRangeSize(const CharSourceRange &Range) const;
+  int getRangeSize(SourceRange Range,
+                   RewriteOptions opts = RewriteOptions()) const;
+  int getRangeSize(const CharSourceRange &Range,
+                   RewriteOptions opts = RewriteOptions()) const;
 
   /// getRewrittenText - Return the rewritten form of the text in the specified
   /// range.  If the start or end of the range was unrewritable or if they are
@@ -176,6 +195,10 @@ public:
     return InsertText(Loc, Str);
   }
 
+  /// \brief Insert the specified string after the token in the
+  /// specified location.
+  bool InsertTextAfterToken(SourceLocation Loc, llvm::StringRef Str);
+
   /// InsertText - Insert the specified string at the specified location in the
   /// original buffer.  This method returns true (and does nothing) if the input
   /// location was not rewritable, false otherwise.  Text is
@@ -186,7 +209,19 @@ public:
   }
 
   /// RemoveText - Remove the specified text region.
-  bool RemoveText(SourceLocation Start, unsigned Length);
+  bool RemoveText(SourceLocation Start, unsigned Length,
+                  RewriteOptions opts = RewriteOptions());
+
+  /// \brief Remove the specified text region.
+  bool RemoveText(CharSourceRange range,
+                  RewriteOptions opts = RewriteOptions()) {
+    return RemoveText(range.getBegin(), getRangeSize(range, opts), opts);
+  }
+
+  /// \brief Remove the specified text region.
+  bool RemoveText(SourceRange range, RewriteOptions opts = RewriteOptions()) {
+    return RemoveText(range.getBegin(), getRangeSize(range, opts), opts);
+  }
 
   /// ReplaceText - This method replaces a range of characters in the input
   /// buffer with a new string.  This is effectively a combined "remove/insert"
@@ -194,10 +229,36 @@ public:
   bool ReplaceText(SourceLocation Start, unsigned OrigLength,
                    llvm::StringRef NewStr);
 
+  /// ReplaceText - This method replaces a range of characters in the input
+  /// buffer with a new string.  This is effectively a combined "remove/insert"
+  /// operation.
+  bool ReplaceText(SourceRange range, llvm::StringRef NewStr) {
+    return ReplaceText(range.getBegin(), getRangeSize(range), NewStr);
+  }
+
+  /// ReplaceText - This method replaces a range of characters in the input
+  /// buffer with a new string.  This is effectively a combined "remove/insert"
+  /// operation.
+  bool ReplaceText(SourceRange range, SourceRange replacementRange);
+
   /// ReplaceStmt - This replaces a Stmt/Expr with another, using the pretty
   /// printer to generate the replacement code.  This returns true if the input
   /// could not be rewritten, or false if successful.
   bool ReplaceStmt(Stmt *From, Stmt *To);
+
+  /// \brief Increase indentation for the lines between the given source range.
+  /// To determine what the indentation should be, 'parentIndent' is used
+  /// that should be at a source location with an indentation one degree
+  /// lower than the given range.
+  bool IncreaseIndentation(CharSourceRange range, SourceLocation parentIndent);
+  bool IncreaseIndentation(SourceRange range, SourceLocation parentIndent) {
+    return IncreaseIndentation(CharSourceRange::getTokenRange(range),
+                               parentIndent);
+  }
+
+  /// ConvertToString converts statement 'From' to a string using the
+  /// pretty printer.
+  std::string ConvertToString(Stmt *From);
 
   /// getEditBuffer - This is like getRewriteBufferFor, but always returns a
   /// buffer, and allows you to write on it directly.  This is useful if you

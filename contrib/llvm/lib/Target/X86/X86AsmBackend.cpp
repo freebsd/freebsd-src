@@ -21,12 +21,20 @@
 #include "llvm/MC/MCSectionELF.h"
 #include "llvm/MC/MCSectionMachO.h"
 #include "llvm/Object/MachOFormat.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/ELF.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetRegistry.h"
 #include "llvm/Target/TargetAsmBackend.h"
 using namespace llvm;
+
+// Option to allow disabling arithmetic relaxation to workaround PR9807, which
+// is useful when running bitwise comparison experiments on Darwin. We should be
+// able to remove this once PR9807 is resolved.
+static cl::opt<bool>
+MCDisableArithRelaxation("mc-x86-disable-arith-relaxation",
+         cl::desc("Disable relaxation of arithmetic instruction for X86"));
 
 static unsigned getFixupKindLog2Size(unsigned Kind) {
   switch (Kind) {
@@ -201,6 +209,9 @@ bool X86AsmBackend::MayNeedRelaxation(const MCInst &Inst) const {
   if (getRelaxedOpcodeBranch(Inst.getOpcode()) != Inst.getOpcode())
     return true;
 
+  if (MCDisableArithRelaxation)
+    return false;
+
   // Check if this instruction is ever relaxable.
   if (getRelaxedOpcodeArith(Inst.getOpcode()) == Inst.getOpcode())
     return false;
@@ -307,9 +318,12 @@ public:
     : ELFX86AsmBackend(T, OSType) {}
 
   MCObjectWriter *createObjectWriter(raw_ostream &OS) const {
-    return createELFObjectWriter(new X86ELFObjectWriter(false, OSType,
-                                                        ELF::EM_386, false),
+    return createELFObjectWriter(createELFObjectTargetWriter(),
                                  OS, /*IsLittleEndian*/ true);
+  }
+
+  MCELFObjectTargetWriter *createELFObjectTargetWriter() const {
+    return new X86ELFObjectWriter(false, OSType, ELF::EM_386, false);
   }
 };
 
@@ -319,9 +333,12 @@ public:
     : ELFX86AsmBackend(T, OSType) {}
 
   MCObjectWriter *createObjectWriter(raw_ostream &OS) const {
-    return createELFObjectWriter(new X86ELFObjectWriter(true, OSType,
-                                                        ELF::EM_X86_64, true),
+    return createELFObjectWriter(createELFObjectTargetWriter(),
                                  OS, /*IsLittleEndian*/ true);
+  }
+
+  MCELFObjectTargetWriter *createELFObjectTargetWriter() const {
+    return new X86ELFObjectWriter(true, OSType, ELF::EM_X86_64, true);
   }
 };
 
@@ -408,34 +425,26 @@ public:
 
 TargetAsmBackend *llvm::createX86_32AsmBackend(const Target &T,
                                                const std::string &TT) {
-  switch (Triple(TT).getOS()) {
-  case Triple::Darwin:
+  Triple TheTriple(TT);
+
+  if (TheTriple.isOSDarwin() || TheTriple.getEnvironment() == Triple::MachO)
     return new DarwinX86_32AsmBackend(T);
-  case Triple::MinGW32:
-  case Triple::Cygwin:
-  case Triple::Win32:
-    if (Triple(TT).getEnvironment() == Triple::MachO)
-      return new DarwinX86_32AsmBackend(T);
-    else
-      return new WindowsX86AsmBackend(T, false);
-  default:
-    return new ELFX86_32AsmBackend(T, Triple(TT).getOS());
-  }
+
+  if (TheTriple.isOSWindows())
+    return new WindowsX86AsmBackend(T, false);
+
+  return new ELFX86_32AsmBackend(T, TheTriple.getOS());
 }
 
 TargetAsmBackend *llvm::createX86_64AsmBackend(const Target &T,
                                                const std::string &TT) {
-  switch (Triple(TT).getOS()) {
-  case Triple::Darwin:
+  Triple TheTriple(TT);
+
+  if (TheTriple.isOSDarwin() || TheTriple.getEnvironment() == Triple::MachO)
     return new DarwinX86_64AsmBackend(T);
-  case Triple::MinGW32:
-  case Triple::Cygwin:
-  case Triple::Win32:
-    if (Triple(TT).getEnvironment() == Triple::MachO)
-      return new DarwinX86_64AsmBackend(T);
-    else
-      return new WindowsX86AsmBackend(T, true);
-  default:
-    return new ELFX86_64AsmBackend(T, Triple(TT).getOS());
-  }
+
+  if (TheTriple.isOSWindows())
+    return new WindowsX86AsmBackend(T, true);
+
+  return new ELFX86_64AsmBackend(T, TheTriple.getOS());
 }

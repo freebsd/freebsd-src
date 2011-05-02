@@ -477,7 +477,7 @@ public:
   }
 
   /// shouldScheduleLoadsNear - This is a used by the pre-regalloc scheduler to
-  /// determine (in conjuction with areLoadsFromSameBasePtr) if two loads should
+  /// determine (in conjunction with areLoadsFromSameBasePtr) if two loads should
   /// be scheduled togther. On some targets if two loads are loading from
   /// addresses in the same cache line, it's better if they are scheduled
   /// together. This function takes two integers that represent the load offsets
@@ -640,6 +640,10 @@ public:
 
   virtual int getInstrLatency(const InstrItineraryData *ItinData,
                               SDNode *Node) const;
+
+  /// isHighLatencyDef - Return true if this opcode has high latency to its
+  /// result.
+  virtual bool isHighLatencyDef(int opc) const { return false; }
 
   /// hasHighOperandLatency - Compute operand latency between a def of 'Reg'
   /// and an use in the current loop, return true if the target considered

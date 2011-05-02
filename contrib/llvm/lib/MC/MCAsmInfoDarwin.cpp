@@ -13,6 +13,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/MC/MCAsmInfoDarwin.h"
+#include "llvm/MC/MCContext.h"
+#include "llvm/MC/MCExpr.h"
+#include "llvm/MC/MCStreamer.h"
 using namespace llvm;
 
 MCAsmInfoDarwin::MCAsmInfoDarwin() {
@@ -56,4 +59,3 @@ MCAsmInfoDarwin::MCAsmInfoDarwin() {
   DwarfUsesAbsoluteLabelForStmtList = false;
   DwarfUsesLabelOffsetForRanges = false;
 }
-

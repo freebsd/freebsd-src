@@ -62,6 +62,15 @@ public:
 
 namespace clang {
 
+  /// \brief Captures the result of checking the availability of a
+  /// declaration.
+  enum AvailabilityResult {
+    AR_Available = 0,
+    AR_NotYetIntroduced,
+    AR_Deprecated,
+    AR_Unavailable
+  };
+
 /// Decl - This represents one declaration (or definition), e.g. a variable,
 /// typedef, function, struct, etc.
 ///
@@ -147,9 +156,20 @@ public:
     IDNS_NonMemberOperator   = 0x0400
   };
 
-  /// ObjCDeclQualifier - Qualifier used on types in method declarations
-  /// for remote messaging. They are meant for the arguments though and
-  /// applied to the Decls (ObjCMethodDecl and ParmVarDecl).
+  /// ObjCDeclQualifier - 'Qualifiers' written next to the return and
+  /// parameter types in method declarations.  Other than remembering
+  /// them and mangling them into the method's signature string, these
+  /// are ignored by the compiler; they are consumed by certain
+  /// remote-messaging frameworks.
+  ///
+  /// in, inout, and out are mutually exclusive and apply only to
+  /// method parameters.  bycopy and byref are mutually exclusive and
+  /// apply only to method parameters (?).  oneway applies only to
+  /// results.  All of these expect their corresponding parameter to
+  /// have a particular type.  None of this is currently enforced by
+  /// clang.
+  ///
+  /// This should be kept in sync with ObjCDeclSpec::ObjCDeclQualifier.
   enum ObjCDeclQualifier {
     OBJC_TQ_None = 0x0,
     OBJC_TQ_In = 0x1,
@@ -218,6 +238,12 @@ private:
   /// required.
   unsigned Used : 1;
 
+  /// \brief Whether this declaration was "referenced".
+  /// The difference with 'Used' is whether the reference appears in a
+  /// evaluated context or not, e.g. functions used in uninstantiated templates
+  /// are regarded as "referenced" but not "used".
+  unsigned Referenced : 1;
+
 protected:
   /// Access - Used by C++ decls for the access specifier.
   // NOTE: VC++ treats enums as signed, avoid using the AccessSpecifier enum
@@ -252,7 +278,7 @@ protected:
   Decl(Kind DK, DeclContext *DC, SourceLocation L)
     : NextDeclInContext(0), DeclCtx(DC),
       Loc(L), DeclKind(DK), InvalidDecl(0),
-      HasAttrs(false), Implicit(false), Used(false),
+      HasAttrs(false), Implicit(false), Used(false), Referenced(false),
       Access(AS_none), PCHLevel(0), ChangedAfterLoad(false),
       IdentifierNamespace(getIdentifierNamespaceForKind(DK)),
       HasCachedLinkage(0) 
@@ -262,7 +288,7 @@ protected:
 
   Decl(Kind DK, EmptyShell Empty)
     : NextDeclInContext(0), DeclKind(DK), InvalidDecl(0),
-      HasAttrs(false), Implicit(false), Used(false),
+      HasAttrs(false), Implicit(false), Used(false), Referenced(false),
       Access(AS_none), PCHLevel(0), ChangedAfterLoad(false),
       IdentifierNamespace(getIdentifierNamespaceForKind(DK)),
       HasCachedLinkage(0)
@@ -398,6 +424,57 @@ public:
   bool isUsed(bool CheckUsedAttr = true) const;
 
   void setUsed(bool U = true) { Used = U; }
+
+  /// \brief Whether this declaration was referenced.
+  bool isReferenced() const;
+
+  void setReferenced(bool R = true) { Referenced = R; }
+
+  /// \brief Determine the availability of the given declaration.
+  ///
+  /// This routine will determine the most restrictive availability of
+  /// the given declaration (e.g., preferring 'unavailable' to
+  /// 'deprecated').
+  ///
+  /// \param Message If non-NULL and the result is not \c
+  /// AR_Available, will be set to a (possibly empty) message
+  /// describing why the declaration has not been introduced, is
+  /// deprecated, or is unavailable.
+  AvailabilityResult getAvailability(std::string *Message = 0) const;
+
+  /// \brief Determine whether this declaration is marked 'deprecated'.
+  ///
+  /// \param Message If non-NULL and the declaration is deprecated,
+  /// this will be set to the message describing why the declaration
+  /// was deprecated (which may be empty).
+  bool isDeprecated(std::string *Message = 0) const {
+    return getAvailability(Message) == AR_Deprecated;
+  }
+
+  /// \brief Determine whether this declaration is marked 'unavailable'.
+  ///
+  /// \param Message If non-NULL and the declaration is unavailable,
+  /// this will be set to the message describing why the declaration
+  /// was made unavailable (which may be empty).
+  bool isUnavailable(std::string *Message = 0) const {
+    return getAvailability(Message) == AR_Unavailable;
+  }
+
+  /// \brief Determine whether this is a weak-imported symbol.
+  ///
+  /// Weak-imported symbols are typically marked with the
+  /// 'weak_import' attribute, but may also be marked with an
+  /// 'availability' attribute where we're targing a platform prior to
+  /// the introduction of this feature.
+  bool isWeakImported() const;
+
+  /// \brief Determines whether this symbol can be weak-imported,
+  /// e.g., whether it would be well-formed to add the weak_import
+  /// attribute.
+  ///
+  /// \param IsDefinition Set to \c true to indicate that this
+  /// declaration cannot be weak-imported because it has a definition.
+  bool canBeWeakImported(bool &IsDefinition) const;
 
   /// \brief Retrieve the level of precompiled header from which this
   /// declaration was generated.

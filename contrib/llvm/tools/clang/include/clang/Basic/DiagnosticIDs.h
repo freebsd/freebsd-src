@@ -42,7 +42,8 @@ namespace clang {
 
     // Get typedefs for common diagnostics.
     enum {
-#define DIAG(ENUM,FLAGS,DEFAULT_MAPPING,DESC,GROUP,SFINAE,ACCESS,CATEGORY) ENUM,
+#define DIAG(ENUM,FLAGS,DEFAULT_MAPPING,DESC,GROUP,\
+             SFINAE,ACCESS,CATEGORY,BRIEF,FULL) ENUM,
 #include "clang/Basic/DiagnosticCommonKinds.inc"
       NUM_BUILTIN_COMMON_DIAGNOSTICS
 #undef DIAG
@@ -63,9 +64,12 @@ namespace clang {
       /// Map this diagnostic to "warning", but make it immune to -Werror.  This
       /// happens when you specify -Wno-error=foo.
       MAP_WARNING_NO_WERROR = 5,
+      /// Map this diagnostic to "warning", but make it immune to
+      /// -Wno-system-headers.
+      MAP_WARNING_SHOW_IN_SYSTEM_HEADER = 6,
       /// Map this diagnostic to "error", but make it immune to -Wfatal-errors.
       /// This happens for -Wno-fatal-errors=foo.
-      MAP_ERROR_NO_WFATAL = 6
+      MAP_ERROR_NO_WFATAL = 7
     };
   }
 
@@ -99,7 +103,7 @@ public:
   /// issue.
   const char *getDescription(unsigned DiagID) const;
 
-  /// isNoteWarningOrExtension - Return true if the unmapped diagnostic
+  /// isBuiltinWarningOrExtension - Return true if the unmapped diagnostic
   /// level of the specified diagnostic ID is a Warning or Extension.
   /// This only works on builtin diagnostics, not custom ones, and is not legal to
   /// call on NOTEs.
@@ -130,7 +134,7 @@ public:
   /// the diagnostic, this returns null.
   static const char *getWarningOptionForDiag(unsigned DiagID);
 
-  /// getWarningOptionForDiag - Return the category number that a specified
+  /// getCategoryNumberForDiag - Return the category number that a specified
   /// DiagID belongs to, or 0 if no category.
   static unsigned getCategoryNumberForDiag(unsigned DiagID);
 
@@ -173,6 +177,20 @@ public:
   /// errors, such as those errors that involve C++ access control,
   /// are not SFINAE errors.
   static SFINAEResponse getDiagnosticSFINAEResponse(unsigned DiagID);
+
+  /// getName - Given a diagnostic ID, return its name
+  static const char *getName(unsigned DiagID);
+  
+  /// getIdFromName - Given a diagnostic name, return its ID, or 0
+  static unsigned getIdFromName(char const *Name);
+  
+  /// getBriefExplanation - Given a diagnostic ID, return a brief explanation
+  /// of the issue
+  static const char *getBriefExplanation(unsigned DiagID);
+
+  /// getFullExplanation - Given a diagnostic ID, return a full explanation
+  /// of the issue
+  static const char *getFullExplanation(unsigned DiagID);
 
 private:
   /// setDiagnosticGroupMapping - Change an entire diagnostic group (e.g.

@@ -253,7 +253,8 @@ static void DoInitialMatch(const SCEV *S, Loop *L,
       DoInitialMatch(AR->getStart(), L, Good, Bad, SE);
       DoInitialMatch(SE.getAddRecExpr(SE.getConstant(AR->getType(), 0),
                                       AR->getStepRecurrence(SE),
-                                      AR->getLoop()),
+                                      // FIXME: AR->getNoWrapFlags()
+                                      AR->getLoop(), SCEV::FlagAnyWrap),
                      L, Good, Bad, SE);
       return;
     }
@@ -455,7 +456,10 @@ static const SCEV *getExactSDiv(const SCEV *LHS, const SCEV *RHS,
       const SCEV *Start = getExactSDiv(AR->getStart(), RHS, SE,
                                        IgnoreSignificantBits);
       if (!Start) return 0;
-      return SE.getAddRecExpr(Start, Step, AR->getLoop());
+      // FlagNW is independent of the start value, step direction, and is
+      // preserved with smaller magnitude steps.
+      // FIXME: AR->getNoWrapFlags(SCEV::FlagNW)
+      return SE.getAddRecExpr(Start, Step, AR->getLoop(), SCEV::FlagAnyWrap);
     }
     return 0;
   }
@@ -520,7 +524,9 @@ static int64_t ExtractImmediate(const SCEV *&S, ScalarEvolution &SE) {
     SmallVector<const SCEV *, 8> NewOps(AR->op_begin(), AR->op_end());
     int64_t Result = ExtractImmediate(NewOps.front(), SE);
     if (Result != 0)
-      S = SE.getAddRecExpr(NewOps, AR->getLoop());
+      S = SE.getAddRecExpr(NewOps, AR->getLoop(),
+                           // FIXME: AR->getNoWrapFlags(SCEV::FlagNW)
+                           SCEV::FlagAnyWrap);
     return Result;
   }
   return 0;
@@ -545,7 +551,9 @@ static GlobalValue *ExtractSymbol(const SCEV *&S, ScalarEvolution &SE) {
     SmallVector<const SCEV *, 8> NewOps(AR->op_begin(), AR->op_end());
     GlobalValue *Result = ExtractSymbol(NewOps.front(), SE);
     if (Result)
-      S = SE.getAddRecExpr(NewOps, AR->getLoop());
+      S = SE.getAddRecExpr(NewOps, AR->getLoop(),
+                           // FIXME: AR->getNoWrapFlags(SCEV::FlagNW)
+                           SCEV::FlagAnyWrap);
     return Result;
   }
   return 0;
@@ -564,9 +572,6 @@ static bool isAddressUse(Instruction *Inst, Value *OperandVal) {
     switch (II->getIntrinsicID()) {
       default: break;
       case Intrinsic::prefetch:
-      case Intrinsic::x86_sse2_loadu_dq:
-      case Intrinsic::x86_sse2_loadu_pd:
-      case Intrinsic::x86_sse_loadu_ps:
       case Intrinsic::x86_sse_storeu_ps:
       case Intrinsic::x86_sse2_storeu_pd:
       case Intrinsic::x86_sse2_storeu_dq:
@@ -781,7 +786,7 @@ void Cost::RateFormula(const Formula &F,
   }
 }
 
-/// Loose - Set this cost to a loosing value.
+/// Loose - Set this cost to a losing value.
 void Cost::Loose() {
   NumRegs = ~0u;
   AddRecCost = ~0u;
@@ -1483,7 +1488,7 @@ void LSRInstance::OptimizeShadowIV() {
     if (!C->getValue().isStrictlyPositive()) continue;
 
     /* Add new PHINode. */
-    PHINode *NewPH = PHINode::Create(DestTy, "IV.S.", PH);
+    PHINode *NewPH = PHINode::Create(DestTy, 2, "IV.S.", PH);
 
     /* create new increment. '++d' in above example. */
     Constant *CFP = ConstantFP::get(DestTy, C->getZExtValue());
@@ -1819,7 +1824,7 @@ LSRInstance::OptimizeLoopTermCond() {
   }
 }
 
-/// reconcileNewOffset - Determine if the given use can accomodate a fixup
+/// reconcileNewOffset - Determine if the given use can accommodate a fixup
 /// at the given offset and other details. If so, update the use and
 /// return true.
 bool
@@ -2236,7 +2241,9 @@ static void CollectSubexprs(const SCEV *S, const SCEVConstant *C,
     if (!AR->getStart()->isZero()) {
       CollectSubexprs(SE.getAddRecExpr(SE.getConstant(AR->getType(), 0),
                                        AR->getStepRecurrence(SE),
-                                       AR->getLoop()),
+                                       AR->getLoop(),
+                                       //FIXME: AR->getNoWrapFlags(SCEV::FlagNW)
+                                       SCEV::FlagAnyWrap),
                       C, Ops, L, SE);
       CollectSubexprs(AR->getStart(), C, Ops, L, SE);
       return;
@@ -3047,7 +3054,7 @@ void LSRInstance::NarrowSearchSpaceByCollapsingUnrolledCode() {
   }
 }
 
-/// NarrowSearchSpaceByRefilteringUndesirableDedicatedRegisters - Call 
+/// NarrowSearchSpaceByRefilteringUndesirableDedicatedRegisters - Call
 /// FilterOutUndesirableDedicatedRegisters again, if necessary, now that
 /// we've done more filtering, as it may be able to find more formulae to
 /// eliminate.

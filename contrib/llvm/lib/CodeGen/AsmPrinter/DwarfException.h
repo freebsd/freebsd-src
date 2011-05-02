@@ -140,17 +140,18 @@ public:
 };
 
 class DwarfCFIException : public DwarfException {
-  /// shouldEmitTable - Per-function flag to indicate if EH tables should
-  /// be emitted.
-  bool shouldEmitTable;
+  /// shouldEmitPersonality - Per-function flag to indicate if .cfi_personality
+  /// should be emitted.
+  bool shouldEmitPersonality;
+
+  /// shouldEmitLSDA - Per-function flag to indicate if .cfi_lsda
+  /// should be emitted.
+  bool shouldEmitLSDA;
 
   /// shouldEmitMoves - Per-function flag to indicate if frame moves info
   /// should be emitted.
   bool shouldEmitMoves;
 
-  /// shouldEmitTableModule - Per-module flag to indicate if EH tables
-  /// should be emitted.
-  bool shouldEmitTableModule;
 public:
   //===--------------------------------------------------------------------===//
   // Main entry points.
@@ -224,6 +225,38 @@ public:
   //
   DwarfTableException(AsmPrinter *A);
   virtual ~DwarfTableException();
+
+  /// EndModule - Emit all exception information that should come after the
+  /// content.
+  virtual void EndModule();
+
+  /// BeginFunction - Gather pre-function exception information.  Assumes being
+  /// emitted immediately after the function entry point.
+  virtual void BeginFunction(const MachineFunction *MF);
+
+  /// EndFunction - Gather and emit post-function exception information.
+  virtual void EndFunction();
+};
+
+
+class ARMException : public DwarfException {
+  /// shouldEmitTable - Per-function flag to indicate if EH tables should
+  /// be emitted.
+  bool shouldEmitTable;
+
+  /// shouldEmitMoves - Per-function flag to indicate if frame moves info
+  /// should be emitted.
+  bool shouldEmitMoves;
+
+  /// shouldEmitTableModule - Per-module flag to indicate if EH tables
+  /// should be emitted.
+  bool shouldEmitTableModule;
+public:
+  //===--------------------------------------------------------------------===//
+  // Main entry points.
+  //
+  ARMException(AsmPrinter *A);
+  virtual ~ARMException();
 
   /// EndModule - Emit all exception information that should come after the
   /// content.

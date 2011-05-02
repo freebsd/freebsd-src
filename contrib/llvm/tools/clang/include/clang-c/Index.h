@@ -1012,7 +1012,68 @@ CINDEX_LINKAGE int clang_reparseTranslationUnit(CXTranslationUnit TU,
                                                 unsigned num_unsaved_files,
                                           struct CXUnsavedFile *unsaved_files,
                                                 unsigned options);
-  
+
+/**
+  * \brief Categorizes how memory is being used by a translation unit.
+  */
+enum CXTUResourceUsageKind {
+  CXTUResourceUsage_AST = 1,
+  CXTUResourceUsage_Identifiers = 2,
+  CXTUResourceUsage_Selectors = 3,
+  CXTUResourceUsage_GlobalCompletionResults = 4,
+  CXTUResourceUsage_SourceManagerContentCache = 5,
+  CXTUResourceUsage_AST_SideTables = 6,
+  CXTUResourceUsage_SourceManager_Membuffer_Malloc = 7,
+  CXTUResourceUsage_SourceManager_Membuffer_MMap = 8,
+  CXTUResourceUsage_ExternalASTSource_Membuffer_Malloc = 9, 
+  CXTUResourceUsage_ExternalASTSource_Membuffer_MMap = 10, 
+  CXTUResourceUsage_MEMORY_IN_BYTES_BEGIN = CXTUResourceUsage_AST,
+  CXTUResourceUsage_MEMORY_IN_BYTES_END =
+    CXTUResourceUsage_ExternalASTSource_Membuffer_MMap,
+
+  CXTUResourceUsage_First = CXTUResourceUsage_AST,
+  CXTUResourceUsage_Last = CXTUResourceUsage_ExternalASTSource_Membuffer_MMap
+};
+
+/**
+  * \brief Returns the human-readable null-terminated C string that represents
+  *  the name of the memory category.  This string should never be freed.
+  */
+CINDEX_LINKAGE
+const char *clang_getTUResourceUsageName(enum CXTUResourceUsageKind kind);
+
+typedef struct CXTUResourceUsageEntry {
+  /* \brief The memory usage category. */
+  enum CXTUResourceUsageKind kind;  
+  /* \brief Amount of resources used. 
+      The units will depend on the resource kind. */
+  unsigned long amount;
+} CXTUResourceUsageEntry;
+
+/**
+  * \brief The memory usage of a CXTranslationUnit, broken into categories.
+  */
+typedef struct CXTUResourceUsage {
+  /* \brief Private data member, used for queries. */
+  void *data;
+
+  /* \brief The number of entries in the 'entries' array. */
+  unsigned numEntries;
+
+  /* \brief An array of key-value pairs, representing the breakdown of memory
+            usage. */
+  CXTUResourceUsageEntry *entries;
+
+} CXTUResourceUsage;
+
+/**
+  * \brief Return the memory usage of a translation unit.  This object
+  *  should be released with clang_disposeCXTUResourceUsage().
+  */
+CINDEX_LINKAGE CXTUResourceUsage clang_getCXTUResourceUsage(CXTranslationUnit TU);
+
+CINDEX_LINKAGE void clang_disposeCXTUResourceUsage(CXTUResourceUsage usage);
+
 /**
  * @}
  */
@@ -1101,10 +1162,12 @@ enum CXCursorKind {
   CXCursor_NamespaceAlias                = 33,
   /** \brief A C++ using directive. */
   CXCursor_UsingDirective                = 34,
-  /** \brief A using declaration. */
+  /** \brief A C++ using declaration. */
   CXCursor_UsingDeclaration              = 35,
+  /** \brief A C++ alias declaration */
+  CXCursor_TypeAliasDecl                 = 36,
   CXCursor_FirstDecl                     = CXCursor_UnexposedDecl,
-  CXCursor_LastDecl                      = CXCursor_UsingDeclaration,
+  CXCursor_LastDecl                      = CXCursor_TypeAliasDecl,
 
   /* References */
   CXCursor_FirstRef                      = 40, /* Decl references */
@@ -2871,6 +2934,15 @@ CXDiagnostic clang_codeCompleteGetDiagnostic(CXCodeCompleteResults *Results,
  */
 CINDEX_LINKAGE CXString clang_getClangVersion();
 
+  
+/**
+ * \brief Enable/disable crash recovery.
+ *
+ * \param Flag to indicate if crash recovery is enabled.  A non-zero value
+ *        enables crash recovery, while 0 disables it.
+ */
+CINDEX_LINKAGE void clang_toggleCrashRecovery(unsigned isEnabled);
+  
  /**
   * \brief Visitor invoked for each file in a translation unit
   *        (used with clang_getInclusions()).

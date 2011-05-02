@@ -286,6 +286,11 @@ namespace llvm {
       return valnos[ValNo];
     }
 
+    /// containsValue - Returns true if VNI belongs to this interval.
+    bool containsValue(const VNInfo *VNI) const {
+      return VNI && VNI->id < getNumValNums() && VNI == getValNumInfo(VNI->id);
+    }
+
     /// getNextValue - Create a new value number and return it.  MIIdx specifies
     /// the instruction that defines the value number.
     VNInfo *getNextValue(SlotIndex def, MachineInstr *CopyMI,
@@ -447,6 +452,11 @@ namespace llvm {
       addRangeFrom(LR, ranges.begin());
     }
 
+    /// extendInBlock - If this interval is live before UseIdx in the basic
+    /// block that starts at StartIdx, extend it to be live at UseIdx and return
+    /// the value. If there is no live range before UseIdx, return NULL.
+    VNInfo *extendInBlock(SlotIndex StartIdx, SlotIndex UseIdx);
+
     /// join - Join two live intervals (this, and other) together.  This applies
     /// mappings to the value numbers in the LHS/RHS intervals as specified.  If
     /// the intervals are not joinable, this aborts.
@@ -543,8 +553,8 @@ namespace llvm {
   /// }
 
   class ConnectedVNInfoEqClasses {
-    LiveIntervals &lis_;
-    IntEqClasses eqClass_;
+    LiveIntervals &LIS;
+    IntEqClasses EqClass;
 
     // Note that values a and b are connected.
     void Connect(unsigned a, unsigned b);
@@ -552,7 +562,7 @@ namespace llvm {
     unsigned Renumber();
 
   public:
-    explicit ConnectedVNInfoEqClasses(LiveIntervals &lis) : lis_(lis) {}
+    explicit ConnectedVNInfoEqClasses(LiveIntervals &lis) : LIS(lis) {}
 
     /// Classify - Classify the values in LI into connected components.
     /// Return the number of connected components.
@@ -560,12 +570,13 @@ namespace llvm {
 
     /// getEqClass - Classify creates equivalence classes numbered 0..N. Return
     /// the equivalence class assigned the VNI.
-    unsigned getEqClass(const VNInfo *VNI) const { return eqClass_[VNI->id]; }
+    unsigned getEqClass(const VNInfo *VNI) const { return EqClass[VNI->id]; }
 
     /// Distribute - Distribute values in LIV[0] into a separate LiveInterval
     /// for each connected component. LIV must have a LiveInterval for each
     /// connected component. The LiveIntervals in Liv[1..] must be empty.
-    void Distribute(LiveInterval *LIV[]);
+    /// Instructions using LIV[0] are rewritten.
+    void Distribute(LiveInterval *LIV[], MachineRegisterInfo &MRI);
 
   };
 

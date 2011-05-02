@@ -104,7 +104,7 @@ class HeaderSearch {
   /// consequtively. Requests for <x> search the current dir first, then each
   /// directory in SearchDirs, starting at SystemDirIdx, consequtively.  If
   /// NoCurDirSearch is true, then the check for the file in the current
-  /// directory is supressed.
+  /// directory is suppressed.
   std::vector<DirectoryLookup> SearchDirs;
   unsigned SystemDirIdx;
   bool NoCurDirSearch;
@@ -182,25 +182,43 @@ public:
   }
   
   /// LookupFile - Given a "foo" or <foo> reference, look up the indicated file,
-  /// return null on failure.  isAngled indicates whether the file reference is
-  /// a <> reference.  If successful, this returns 'UsedDir', the
-  /// DirectoryLookup member the file was found in, or null if not applicable.
-  /// If CurDir is non-null, the file was found in the specified directory
-  /// search location.  This is used to implement #include_next.  CurFileEnt, if
-  /// non-null, indicates where the #including file is, in case a relative
-  /// search is needed.
+  /// return null on failure.
+  ///
+  /// \returns If successful, this returns 'UsedDir', the DirectoryLookup member
+  /// the file was found in, or null if not applicable.
+  ///
+  /// \param isAngled indicates whether the file reference is a <> reference.
+  ///
+  /// \param CurDir If non-null, the file was found in the specified directory
+  /// search location.  This is used to implement #include_next.
+  ///
+  /// \param CurFileEnt If non-null, indicates where the #including file is, in
+  /// case a relative search is needed.
+  ///
+  /// \param SearchPath If non-null, will be set to the search path relative
+  /// to which the file was found. If the include path is absolute, SearchPath
+  /// will be set to an empty string.
+  ///
+  /// \param RelativePath If non-null, will be set to the path relative to
+  /// SearchPath at which the file was found. This only differs from the
+  /// Filename for framework includes.
   const FileEntry *LookupFile(llvm::StringRef Filename, bool isAngled,
                               const DirectoryLookup *FromDir,
                               const DirectoryLookup *&CurDir,
-                              const FileEntry *CurFileEnt);
+                              const FileEntry *CurFileEnt,
+                              llvm::SmallVectorImpl<char> *SearchPath,
+                              llvm::SmallVectorImpl<char> *RelativePath);
 
   /// LookupSubframeworkHeader - Look up a subframework for the specified
   /// #include file.  For example, if #include'ing <HIToolbox/HIToolbox.h> from
   /// within ".../Carbon.framework/Headers/Carbon.h", check to see if HIToolbox
   /// is a subframework within Carbon.framework.  If so, return the FileEntry
   /// for the designated file, otherwise return null.
-  const FileEntry *LookupSubframeworkHeader(llvm::StringRef Filename,
-                                            const FileEntry *RelativeFileEnt);
+  const FileEntry *LookupSubframeworkHeader(
+      llvm::StringRef Filename,
+      const FileEntry *RelativeFileEnt,
+      llvm::SmallVectorImpl<char> *SearchPath,
+      llvm::SmallVectorImpl<char> *RelativePath);
 
   /// LookupFrameworkCache - Look up the specified framework name in our
   /// framework cache, returning the DirectoryEntry it is in if we know,
@@ -260,6 +278,17 @@ public:
 
   // Used by ASTReader.
   void setHeaderFileInfoForUID(HeaderFileInfo HFI, unsigned UID);
+
+  // Used by external tools
+  typedef std::vector<DirectoryLookup>::const_iterator search_dir_iterator;
+  search_dir_iterator search_dir_begin() const { return SearchDirs.begin(); }
+  search_dir_iterator search_dir_end() const { return SearchDirs.end(); }
+  unsigned search_dir_size() const { return SearchDirs.size(); }
+
+  search_dir_iterator system_dir_begin() const {
+    return SearchDirs.begin() + SystemDirIdx;
+  }
+  search_dir_iterator system_dir_end() const { return SearchDirs.end(); }
 
   void PrintStats();
 private:

@@ -100,7 +100,7 @@ static __inline void
 vmware_hvcall(u_int cmd, u_int *p)
 {
 
-	__asm __volatile("inl (%%dx)"
+	__asm __volatile("inl %w3, %0"
 	: "=a" (p[0]), "=b" (p[1]), "=c" (p[2]), "=d" (p[3])
 	: "0" (VMW_HVMAGIC), "1" (UINT_MAX), "2" (cmd), "3" (VMW_HVPORT)
 	: "memory");

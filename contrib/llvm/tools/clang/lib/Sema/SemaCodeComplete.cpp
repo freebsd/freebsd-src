@@ -667,8 +667,39 @@ QualType clang::getDeclUsageType(ASTContext &C, NamedDecl *ND) {
     T = Value->getType();
   else
     return QualType();
-  
-  return T.getNonReferenceType();
+
+  // Dig through references, function pointers, and block pointers to
+  // get down to the likely type of an expression when the entity is
+  // used.
+  do {
+    if (const ReferenceType *Ref = T->getAs<ReferenceType>()) {
+      T = Ref->getPointeeType();
+      continue;
+    }
+
+    if (const PointerType *Pointer = T->getAs<PointerType>()) {
+      if (Pointer->getPointeeType()->isFunctionType()) {
+        T = Pointer->getPointeeType();
+        continue;
+      }
+
+      break;
+    }
+
+    if (const BlockPointerType *Block = T->getAs<BlockPointerType>()) {
+      T = Block->getPointeeType();
+      continue;
+    }
+
+    if (const FunctionType *Function = T->getAs<FunctionType>()) {
+      T = Function->getResultType();
+      continue;
+    }
+
+    break;
+  } while (true);
+    
+  return T;
 }
 
 void ResultBuilder::AdjustResultPriorityForDecl(Result &R) {
@@ -1482,7 +1513,8 @@ static void AddOrdinaryNameResults(Sema::ParserCompletionContext CCC,
   case Sema::PCC_Statement: {
     AddTypedefResult(Results);
 
-    if (SemaRef.getLangOptions().CPlusPlus && Results.includeCodePatterns()) {
+    if (SemaRef.getLangOptions().CPlusPlus && Results.includeCodePatterns() &&
+        SemaRef.getLangOptions().CXXExceptions) {
       Builder.AddTypedTextChunk("try");
       Builder.AddChunk(CodeCompletionString::CK_LeftBrace);
       Builder.AddPlaceholderChunk("statements");
@@ -1655,15 +1687,17 @@ static void AddOrdinaryNameResults(Sema::ParserCompletionContext CCC,
       Results.AddResult(Result("true"));
       Results.AddResult(Result("false"));
 
-      // dynamic_cast < type-id > ( expression )
-      Builder.AddTypedTextChunk("dynamic_cast");
-      Builder.AddChunk(CodeCompletionString::CK_LeftAngle);
-      Builder.AddPlaceholderChunk("type");
-      Builder.AddChunk(CodeCompletionString::CK_RightAngle);
-      Builder.AddChunk(CodeCompletionString::CK_LeftParen);
-      Builder.AddPlaceholderChunk("expression");
-      Builder.AddChunk(CodeCompletionString::CK_RightParen);
-      Results.AddResult(Result(Builder.TakeString()));      
+      if (SemaRef.getLangOptions().RTTI) {
+        // dynamic_cast < type-id > ( expression )
+        Builder.AddTypedTextChunk("dynamic_cast");
+        Builder.AddChunk(CodeCompletionString::CK_LeftAngle);
+        Builder.AddPlaceholderChunk("type");
+        Builder.AddChunk(CodeCompletionString::CK_RightAngle);
+        Builder.AddChunk(CodeCompletionString::CK_LeftParen);
+        Builder.AddPlaceholderChunk("expression");
+        Builder.AddChunk(CodeCompletionString::CK_RightParen);
+        Results.AddResult(Result(Builder.TakeString()));      
+      }
       
       // static_cast < type-id > ( expression )
       Builder.AddTypedTextChunk("static_cast");
@@ -1695,13 +1729,15 @@ static void AddOrdinaryNameResults(Sema::ParserCompletionContext CCC,
       Builder.AddChunk(CodeCompletionString::CK_RightParen);
       Results.AddResult(Result(Builder.TakeString()));      
 
-      // typeid ( expression-or-type )
-      Builder.AddTypedTextChunk("typeid");
-      Builder.AddChunk(CodeCompletionString::CK_LeftParen);
-      Builder.AddPlaceholderChunk("expression-or-type");
-      Builder.AddChunk(CodeCompletionString::CK_RightParen);
-      Results.AddResult(Result(Builder.TakeString()));      
-
+      if (SemaRef.getLangOptions().RTTI) {
+        // typeid ( expression-or-type )
+        Builder.AddTypedTextChunk("typeid");
+        Builder.AddChunk(CodeCompletionString::CK_LeftParen);
+        Builder.AddPlaceholderChunk("expression-or-type");
+        Builder.AddChunk(CodeCompletionString::CK_RightParen);
+        Results.AddResult(Result(Builder.TakeString()));      
+      }
+      
       // new T ( ... )
       Builder.AddTypedTextChunk("new");
       Builder.AddChunk(CodeCompletionString::CK_HorizontalSpace);
@@ -1738,11 +1774,13 @@ static void AddOrdinaryNameResults(Sema::ParserCompletionContext CCC,
       Builder.AddPlaceholderChunk("expression");
       Results.AddResult(Result(Builder.TakeString()));
 
-      // throw expression
-      Builder.AddTypedTextChunk("throw");
-      Builder.AddChunk(CodeCompletionString::CK_HorizontalSpace);
-      Builder.AddPlaceholderChunk("expression");
-      Results.AddResult(Result(Builder.TakeString()));
+      if (SemaRef.getLangOptions().CXXExceptions) {
+        // throw expression
+        Builder.AddTypedTextChunk("throw");
+        Builder.AddChunk(CodeCompletionString::CK_HorizontalSpace);
+        Builder.AddPlaceholderChunk("expression");
+        Results.AddResult(Result(Builder.TakeString()));
+      }
       
       // FIXME: Rethrow?
     }
@@ -1785,9 +1823,9 @@ static void AddOrdinaryNameResults(Sema::ParserCompletionContext CCC,
 ///
 /// This routine provides a fast path where we provide constant strings for
 /// common type names.
-const char *GetCompletionTypeString(QualType T,
-                                    ASTContext &Context,
-                                    CodeCompletionAllocator &Allocator) {
+static const char *GetCompletionTypeString(QualType T,
+                                           ASTContext &Context,
+                                           CodeCompletionAllocator &Allocator) {
   PrintingPolicy Policy(Context.PrintingPolicy);
   Policy.AnonymousTagLocations = false;
 
@@ -1799,7 +1837,7 @@ const char *GetCompletionTypeString(QualType T,
     // Anonymous tag types are constant strings.
     if (const TagType *TagT = dyn_cast<TagType>(T))
       if (TagDecl *Tag = TagT->getDecl())
-        if (!Tag->getIdentifier() && !Tag->getTypedefForAnonDecl()) {
+        if (!Tag->getIdentifier() && !Tag->getTypedefNameForAnonDecl()) {
           switch (Tag->getTagKind()) {
           case TTK_Struct: return "struct <anonymous>";
           case TTK_Class:  return "class <anonymous>";            
@@ -1902,7 +1940,7 @@ static std::string FormatFunctionParameter(ASTContext &Context,
       // Look through typedefs.
       if (TypedefTypeLoc *TypedefTL = dyn_cast<TypedefTypeLoc>(&TL)) {
         if (TypeSourceInfo *InnerTSInfo
-            = TypedefTL->getTypedefDecl()->getTypeSourceInfo()) {
+            = TypedefTL->getTypedefNameDecl()->getTypeSourceInfo()) {
           TL = InnerTSInfo->getTypeLoc().getUnqualifiedLoc();
           continue;
         }
@@ -2602,6 +2640,7 @@ CXCursorKind clang::getCursorKindForDecl(Decl *D) {
     case Decl::ObjCProtocol:       return CXCursor_ObjCProtocolDecl;
     case Decl::ParmVar:            return CXCursor_ParmDecl;
     case Decl::Typedef:            return CXCursor_TypedefDecl;
+    case Decl::TypeAlias:          return CXCursor_TypeAliasDecl;
     case Decl::Var:                return CXCursor_VarDecl;
     case Decl::Namespace:          return CXCursor_Namespace;
     case Decl::NamespaceAlias:     return CXCursor_NamespaceAlias;
@@ -4816,8 +4855,12 @@ void Sema::CodeCompleteObjCInstanceMessage(Scope *S, ExprTy *Receiver,
   
   // If necessary, apply function/array conversion to the receiver.
   // C99 6.7.5.3p[7,8].
-  if (RecExpr)
-    DefaultFunctionArrayLvalueConversion(RecExpr);
+  if (RecExpr) {
+    ExprResult Conv = DefaultFunctionArrayLvalueConversion(RecExpr);
+    if (Conv.isInvalid()) // conversion failed. bail.
+      return;
+    RecExpr = Conv.take();
+  }
   QualType ReceiverType = RecExpr? RecExpr->getType() 
                           : Super? Context.getObjCObjectPointerType(
                                             Context.getObjCInterfaceType(Super))
@@ -5327,16 +5370,65 @@ void Sema::CodeCompleteObjCPropertySynthesizeIvar(Scope *S,
     Class = cast<ObjCCategoryImplDecl>(Container)->getCategoryDecl()
                                                           ->getClassInterface();
 
+  // Determine the type of the property we're synthesizing.
+  QualType PropertyType = Context.getObjCIdType();
+  if (Class) {
+    if (ObjCPropertyDecl *Property
+                              = Class->FindPropertyDeclaration(PropertyName)) {
+      PropertyType 
+        = Property->getType().getNonReferenceType().getUnqualifiedType();
+      
+      // Give preference to ivars 
+      Results.setPreferredType(PropertyType);
+    }
+  }
+
   // Add all of the instance variables in this class and its superclasses.
   Results.EnterNewScope();
+  bool SawSimilarlyNamedIvar = false;
+  std::string NameWithPrefix;
+  NameWithPrefix += '_';
+  NameWithPrefix += PropertyName->getName().str();
+  std::string NameWithSuffix = PropertyName->getName().str();
+  NameWithSuffix += '_';
   for(; Class; Class = Class->getSuperClass()) {
-    // FIXME: We could screen the type of each ivar for compatibility with
-    // the property, but is that being too paternal?
-    for (ObjCInterfaceDecl::ivar_iterator IVar = Class->ivar_begin(),
-                                       IVarEnd = Class->ivar_end();
-         IVar != IVarEnd; ++IVar) 
-      Results.AddResult(Result(*IVar, 0), CurContext, 0, false);
+    for (ObjCIvarDecl *Ivar = Class->all_declared_ivar_begin(); Ivar; 
+         Ivar = Ivar->getNextIvar()) {
+      Results.AddResult(Result(Ivar, 0), CurContext, 0, false);
+      
+      // Determine whether we've seen an ivar with a name similar to the 
+      // property.
+      if ((PropertyName == Ivar->getIdentifier() ||
+           NameWithPrefix == Ivar->getName() ||
+           NameWithSuffix == Ivar->getName())) {
+        SawSimilarlyNamedIvar = true;
+       
+        // Reduce the priority of this result by one, to give it a slight
+        // advantage over other results whose names don't match so closely.
+        if (Results.size() && 
+            Results.data()[Results.size() - 1].Kind 
+                                      == CodeCompletionResult::RK_Declaration &&
+            Results.data()[Results.size() - 1].Declaration == Ivar)
+          Results.data()[Results.size() - 1].Priority--;
+      }
+    }
   }
+  
+  if (!SawSimilarlyNamedIvar) {
+    // Create ivar result _propName, that the user can use to synthesize
+    // an ivar of the appropriate type.    
+    unsigned Priority = CCP_MemberDeclaration + 1;
+    typedef CodeCompletionResult Result;
+    CodeCompletionAllocator &Allocator = Results.getAllocator();
+    CodeCompletionBuilder Builder(Allocator, Priority,CXAvailability_Available);
+
+    Builder.AddResultTypeChunk(GetCompletionTypeString(PropertyType, Context,
+                                                       Allocator));
+    Builder.AddTypedTextChunk(Allocator.CopyString(NameWithPrefix));
+    Results.AddResult(Result(Builder.TakeString(), Priority, 
+                             CXCursor_ObjCIvarDecl));
+  }
+  
   Results.ExitScope();
   
   HandleCodeCompleteResults(this, CodeCompleter, 

@@ -35,38 +35,39 @@ LIBDEPS=clangfrontendtool \
 	clangast \
 	clanglex \
 	clangbasic \
-	llvminstcombine \
 	llvmipo \
+	llvminstrumentation \
 	llvmbitwriter \
 	llvmbitreader \
-	llvmpowerpccodegen \
-	llvmpowerpcinstprinter \
-	llvmpowerpcinfo \
-	llvmx86asmparser \
-	llvmx86disassembler \
-	llvmx86codegen \
-	llvmx86instprinter \
-	llvmx86info \
-	llvmx86utils \
-	llvmmipscodegen \
-	llvmmipsinfo \
+	llvmasmparser \
+	llvmarmdisassembler \
 	llvmarmasmparser \
 	llvmarmcodegen \
 	llvmarminstprinter \
-	llvmasmparser \
+	llvmarminfo \
+	llvmmipscodegen \
+	llvmmipsinfo \
+	llvmpowerpccodegen \
+	llvmpowerpcinstprinter \
+	llvmpowerpcinfo \
+	llvmx86disassembler \
+	llvmx86asmparser \
+	llvmx86codegen \
 	llvmselectiondag \
 	llvmasmprinter \
+	llvmmcparser \
 	llvmcodegen \
 	llvmscalaropts \
+	llvminstcombine \
 	llvmtransformutils \
-	llvmmc \
-	llvmmcparser \
 	llvmipa \
 	llvmanalysis \
 	llvmtarget \
-	llvmmc \
+	llvmx86instprinter \
+	llvmx86utils \
 	llvmcore \
-	llvmarminfo \
+	llvmx86info \
+	llvmmc \
 	llvmsupport
 
 .include "../clang.prog.mk"

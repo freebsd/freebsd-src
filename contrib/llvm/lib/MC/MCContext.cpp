@@ -27,8 +27,11 @@ typedef StringMap<const MCSectionCOFF*> COFFUniqueMapTy;
 
 
 MCContext::MCContext(const MCAsmInfo &mai, const TargetAsmInfo *tai) :
-  MAI(mai), TAI(tai), NextUniqueID(0),
-  CurrentDwarfLoc(0,0,0,DWARF2_FLAG_IS_STMT,0,0) {
+  MAI(mai), TAI(tai),
+  Allocator(), Symbols(Allocator), UsedNames(Allocator),
+  NextUniqueID(0),
+  CurrentDwarfLoc(0,0,0,DWARF2_FLAG_IS_STMT,0,0),
+  AllowTemporaryLabels(true) {
   MachOUniquingMap = 0;
   ELFUniquingMap = 0;
   COFFUniquingMap = 0;
@@ -76,18 +79,19 @@ MCSymbol *MCContext::GetOrCreateSymbol(StringRef Name) {
 }
 
 MCSymbol *MCContext::CreateSymbol(StringRef Name) {
-  // Determine whether this is an assembler temporary or normal label.
-  bool isTemporary = Name.startswith(MAI.getPrivateGlobalPrefix());
+  // Determine whether this is an assembler temporary or normal label, if used.
+  bool isTemporary = false;
+  if (AllowTemporaryLabels)
+    isTemporary = Name.startswith(MAI.getPrivateGlobalPrefix());
 
   StringMapEntry<bool> *NameEntry = &UsedNames.GetOrCreateValue(Name);
   if (NameEntry->getValue()) {
     assert(isTemporary && "Cannot rename non temporary symbols");
-    SmallString<128> NewName;
+    SmallString<128> NewName = Name;
     do {
-      Twine T = Name + Twine(NextUniqueID++);
-      T.toVector(NewName);
-      StringRef foo = NewName;
-      NameEntry = &UsedNames.GetOrCreateValue(foo);
+      NewName.resize(Name.size());
+      raw_svector_ostream(NewName) << NextUniqueID++;
+      NameEntry = &UsedNames.GetOrCreateValue(NewName);
     } while (NameEntry->getValue());
   }
   NameEntry->setValue(true);
@@ -107,9 +111,8 @@ MCSymbol *MCContext::GetOrCreateSymbol(const Twine &Name) {
 
 MCSymbol *MCContext::CreateTempSymbol() {
   SmallString<128> NameSV;
-  Twine Name = Twine(MAI.getPrivateGlobalPrefix()) + "tmp" +
-    Twine(NextUniqueID++);
-  Name.toVector(NameSV);
+  raw_svector_ostream(NameSV)
+    << MAI.getPrivateGlobalPrefix() << "tmp" << NextUniqueID++;
   return CreateSymbol(NameSV);
 }
 
