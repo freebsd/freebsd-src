@@ -1,11 +1,11 @@
 // Test this without pch.
-// RUN: %clang_cc1 -fexceptions -include %S/cxx-templates.h -verify %s -ast-dump -o -
-// RUN: %clang_cc1 -fexceptions -include %S/cxx-templates.h %s -emit-llvm -o - | FileCheck %s
+// RUN: %clang_cc1 -fcxx-exceptions -fexceptions -include %S/cxx-templates.h -verify %s -ast-dump -o -
+// RUN: %clang_cc1 -fcxx-exceptions -fexceptions -include %S/cxx-templates.h %s -emit-llvm -o - | FileCheck %s
 
 // Test with pch.
-// RUN: %clang_cc1 -fexceptions -x c++-header -emit-pch -o %t %S/cxx-templates.h
-// RUN: %clang_cc1 -fexceptions -include-pch %t -verify %s -ast-dump  -o -
-// RUN: %clang_cc1 -fexceptions -include-pch %t %s -emit-llvm -o - | FileCheck %s
+// RUN: %clang_cc1 -fcxx-exceptions -fexceptions -x c++-header -emit-pch -o %t %S/cxx-templates.h
+// RUN: %clang_cc1 -fcxx-exceptions -fexceptions -include-pch %t -verify %s -ast-dump  -o -
+// RUN: %clang_cc1 -fcxx-exceptions -fexceptions -include-pch %t %s -emit-llvm -o - | FileCheck %s
 
 // CHECK: define weak_odr void @_ZN2S4IiE1mEv
 // CHECK: define linkonce_odr void @_ZN2S3IiE1mEv
@@ -42,4 +42,23 @@ S7<int[5]> s7_5;
 
 namespace ZeroLengthExplicitTemplateArgs {
   template void f<X>(X*);
+}
+
+// This used to overwrite memory and crash.
+namespace Test1 {
+  struct StringHasher {
+    template<typename T, char Converter(T)> static inline unsigned createHash(const T*, unsigned) {
+      return 0;
+    }
+  };
+
+  struct CaseFoldingHash {
+    static inline char foldCase(char) {
+      return 0;
+    }
+
+    static unsigned hash(const char* data, unsigned length) {
+      return StringHasher::createHash<char, foldCase>(data, length);
+    }
+  };
 }

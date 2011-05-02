@@ -49,4 +49,18 @@ void test1() {
   // TRAPV: llvm.sadd.with.overflow.i32({{.*}}, i32 -1)
   // TRAPV_HANDLER: foo(
   --a;
+  
+  // -fwrapv should turn off inbounds for GEP's, PR9256
+  extern int* P;
+  ++P;
+  // DEFAULT: getelementptr inbounds i32*
+  // WRAPV: getelementptr i32*
+  // TRAPV: getelementptr inbounds i32*
+
+  // PR9350: char increment never overflows.
+  extern volatile signed char PR9350;
+  // DEFAULT: add i8 {{.*}}, 1
+  // WRAPV: add i8 {{.*}}, 1
+  // TRAPV: add i8 {{.*}}, 1
+  ++PR9350;
 }

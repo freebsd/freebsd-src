@@ -1,5 +1,10 @@
-// RUN: %clang_cc1 -triple x86_64-apple-darwin10 -fobjc-nonfragile-abi -S -g %s -o %t
-// RUN: grep "\[InstanceVariablesEverywhereButTheInterface someString\]" %t | count 6
+// RUN: %clang_cc1 -fno-dwarf2-cfi-asm -triple x86_64-apple-darwin10 -fobjc-nonfragile-abi -S -g %s -o - | FileCheck %s
+
+//CHECK: "-[InstanceVariablesEverywhereButTheInterface someString]":
+//CHECK: .quad	"-[InstanceVariablesEverywhereButTheInterface someString]"
+//CHECK: .ascii	 "-[InstanceVariablesEverywhereButTheInterface someString]"
+//CHECK: .asciz	 "-[InstanceVariablesEverywhereButTheInterface someString]"
+//CHECK:  "-[InstanceVariablesEverywhereButTheInterface someString].eh":
 
 //rdar: //8498026
 

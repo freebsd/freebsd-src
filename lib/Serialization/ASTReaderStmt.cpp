@@ -97,7 +97,7 @@ namespace clang {
     void VisitParenListExpr(ParenListExpr *E);
     void VisitUnaryOperator(UnaryOperator *E);
     void VisitOffsetOfExpr(OffsetOfExpr *E);
-    void VisitSizeOfAlignOfExpr(SizeOfAlignOfExpr *E);
+    void VisitUnaryExprOrTypeTraitExpr(UnaryExprOrTypeTraitExpr *E);
     void VisitArraySubscriptExpr(ArraySubscriptExpr *E);
     void VisitCallExpr(CallExpr *E);
     void VisitMemberExpr(MemberExpr *E);
@@ -122,6 +122,7 @@ namespace clang {
     void VisitShuffleVectorExpr(ShuffleVectorExpr *E);
     void VisitBlockExpr(BlockExpr *E);
     void VisitBlockDeclRefExpr(BlockDeclRefExpr *E);
+    void VisitGenericSelectionExpr(GenericSelectionExpr *E);
     void VisitObjCStringLiteral(ObjCStringLiteral *E);
     void VisitObjCEncodeExpr(ObjCEncodeExpr *E);
     void VisitObjCSelectorExpr(ObjCSelectorExpr *E);
@@ -141,6 +142,7 @@ namespace clang {
     // C++ Statements
     void VisitCXXCatchStmt(CXXCatchStmt *S);
     void VisitCXXTryStmt(CXXTryStmt *S);
+    void VisitCXXForRangeStmt(CXXForRangeStmt *);
 
     void VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E);
     void VisitCXXConstructExpr(CXXConstructExpr *E);
@@ -177,6 +179,8 @@ namespace clang {
 
     void VisitUnaryTypeTraitExpr(UnaryTypeTraitExpr *E);
     void VisitBinaryTypeTraitExpr(BinaryTypeTraitExpr *E);
+    void VisitArrayTypeTraitExpr(ArrayTypeTraitExpr *E);
+    void VisitExpressionTraitExpr(ExpressionTraitExpr *E);
     void VisitCXXNoexceptExpr(CXXNoexceptExpr *E);
     void VisitPackExpansionExpr(PackExpansionExpr *E);
     void VisitSizeOfPackExpr(SizeOfPackExpr *E);
@@ -208,7 +212,7 @@ void ASTStmtReader::VisitStmt(Stmt *S) {
 void ASTStmtReader::VisitNullStmt(NullStmt *S) {
   VisitStmt(S);
   S->setSemiLoc(ReadSourceLocation(Record, Idx));
-  S->LeadingEmptyMacro = Record[Idx++];
+  S->LeadingEmptyMacro = ReadSourceLocation(Record, Idx);
 }
 
 void ASTStmtReader::VisitCompoundStmt(CompoundStmt *S) {
@@ -421,23 +425,23 @@ void ASTStmtReader::VisitPredefinedExpr(PredefinedExpr *E) {
 void ASTStmtReader::VisitDeclRefExpr(DeclRefExpr *E) {
   VisitExpr(E);
 
-  bool HasQualifier = Record[Idx++];
-  bool HasExplicitTemplateArgs = Record[Idx++];
-  
-  E->DecoratedD.setInt((HasQualifier? DeclRefExpr::HasQualifierFlag : 0) |
-      (HasExplicitTemplateArgs 
-         ? DeclRefExpr::HasExplicitTemplateArgumentListFlag : 0));
-  
-  if (HasQualifier) {
-    E->getNameQualifier()->NNS = Reader.ReadNestedNameSpecifier(Record, Idx);
-    E->getNameQualifier()->Range = ReadSourceRange(Record, Idx);
-  }
+  E->DeclRefExprBits.HasQualifier = Record[Idx++];
+  E->DeclRefExprBits.HasFoundDecl = Record[Idx++];
+  E->DeclRefExprBits.HasExplicitTemplateArgs = Record[Idx++];
+  unsigned NumTemplateArgs = 0;
+  if (E->hasExplicitTemplateArgs())
+    NumTemplateArgs = Record[Idx++];
 
-  if (HasExplicitTemplateArgs) {
-    unsigned NumTemplateArgs = Record[Idx++];
+  if (E->hasQualifier())
+    E->getInternalQualifierLoc()
+      = Reader.ReadNestedNameSpecifierLoc(F, Record, Idx);
+
+  if (E->hasFoundDecl())
+    E->getInternalFoundDecl() = cast<NamedDecl>(Reader.GetDecl(Record[Idx++]));
+
+  if (E->hasExplicitTemplateArgs())
     ReadExplicitTemplateArgumentList(E->getExplicitTemplateArgs(),
                                      NumTemplateArgs);
-  }
 
   E->setDecl(cast<ValueDecl>(Reader.GetDecl(Record[Idx++])));
   E->setLocation(ReadSourceLocation(Record, Idx));
@@ -468,7 +472,8 @@ void ASTStmtReader::VisitStringLiteral(StringLiteral *E) {
   assert(Record[Idx] == E->getNumConcatenated() &&
          "Wrong number of concatenated tokens!");
   ++Idx;
-  E->setWide(Record[Idx++]);
+  E->IsWide = Record[Idx++];
+  E->IsPascal = Record[Idx++];
 
   // Read string data
   llvm::SmallString<16> Str(&Record[Idx], &Record[Idx] + Len);
@@ -555,9 +560,9 @@ void ASTStmtReader::VisitOffsetOfExpr(OffsetOfExpr *E) {
     E->setIndexExpr(I, Reader.ReadSubExpr());
 }
 
-void ASTStmtReader::VisitSizeOfAlignOfExpr(SizeOfAlignOfExpr *E) {
+void ASTStmtReader::VisitUnaryExprOrTypeTraitExpr(UnaryExprOrTypeTraitExpr *E) {
   VisitExpr(E);
-  E->setSizeof(Record[Idx++]);
+  E->setKind(static_cast<UnaryExprOrTypeTrait>(Record[Idx++]));
   if (Record[Idx] == 0) {
     E->setArgument(Reader.ReadSubExpr());
     ++Idx;
@@ -680,16 +685,29 @@ void ASTStmtReader::VisitExtVectorElementExpr(ExtVectorElementExpr *E) {
 
 void ASTStmtReader::VisitInitListExpr(InitListExpr *E) {
   VisitExpr(E);
-  unsigned NumInits = Record[Idx++];
-  E->reserveInits(*Reader.getContext(), NumInits);
-  for (unsigned I = 0; I != NumInits; ++I)
-    E->updateInit(*Reader.getContext(), I, Reader.ReadSubExpr());
   E->setSyntacticForm(cast_or_null<InitListExpr>(Reader.ReadSubStmt()));
   E->setLBraceLoc(ReadSourceLocation(Record, Idx));
   E->setRBraceLoc(ReadSourceLocation(Record, Idx));
-  E->setInitializedFieldInUnion(
-                      cast_or_null<FieldDecl>(Reader.GetDecl(Record[Idx++])));
+  bool isArrayFiller = Record[Idx++];
+  Expr *filler = 0;
+  if (isArrayFiller) {
+    filler = Reader.ReadSubExpr();
+    E->ArrayFillerOrUnionFieldInit = filler;
+  } else
+    E->ArrayFillerOrUnionFieldInit
+        = cast_or_null<FieldDecl>(Reader.GetDecl(Record[Idx++]));
   E->sawArrayRangeDesignator(Record[Idx++]);
+  unsigned NumInits = Record[Idx++];
+  E->reserveInits(*Reader.getContext(), NumInits);
+  if (isArrayFiller) {
+    for (unsigned I = 0; I != NumInits; ++I) {
+      Expr *init = Reader.ReadSubExpr();
+      E->updateInit(*Reader.getContext(), I, init ? init : filler);
+    }
+  } else {
+    for (unsigned I = 0; I != NumInits; ++I)
+      E->updateInit(*Reader.getContext(), I, Reader.ReadSubExpr());
+  }
 }
 
 void ASTStmtReader::VisitDesignatedInitExpr(DesignatedInitExpr *E) {
@@ -818,6 +836,25 @@ void ASTStmtReader::VisitBlockDeclRefExpr(BlockDeclRefExpr *E) {
   E->setLocation(ReadSourceLocation(Record, Idx));
   E->setByRef(Record[Idx++]);
   E->setConstQualAdded(Record[Idx++]);
+}
+
+void ASTStmtReader::VisitGenericSelectionExpr(GenericSelectionExpr *E) {
+  VisitExpr(E);
+  E->NumAssocs = Record[Idx++];
+  E->AssocTypes = new (*Reader.getContext()) TypeSourceInfo*[E->NumAssocs];
+  E->SubExprs =
+   new(*Reader.getContext()) Stmt*[GenericSelectionExpr::END_EXPR+E->NumAssocs];
+
+  E->SubExprs[GenericSelectionExpr::CONTROLLING] = Reader.ReadSubExpr();
+  for (unsigned I = 0, N = E->getNumAssocs(); I != N; ++I) {
+    E->AssocTypes[I] = GetTypeSourceInfo(Record, Idx);
+    E->SubExprs[GenericSelectionExpr::END_EXPR+I] = Reader.ReadSubExpr();
+  }
+  E->ResultIndex = Record[Idx++];
+
+  E->GenericLoc = ReadSourceLocation(Record, Idx);
+  E->DefaultLoc = ReadSourceLocation(Record, Idx);
+  E->RParenLoc = ReadSourceLocation(Record, Idx);
 }
 
 //===----------------------------------------------------------------------===//
@@ -996,6 +1033,19 @@ void ASTStmtReader::VisitCXXTryStmt(CXXTryStmt *S) {
   S->getStmts()[0] = Reader.ReadSubStmt();
   for (unsigned i = 0, e = S->getNumHandlers(); i != e; ++i)
     S->getStmts()[i + 1] = Reader.ReadSubStmt();
+}
+
+void ASTStmtReader::VisitCXXForRangeStmt(CXXForRangeStmt *S) {
+  VisitStmt(S);
+  S->setForLoc(ReadSourceLocation(Record, Idx));
+  S->setColonLoc(ReadSourceLocation(Record, Idx));
+  S->setRParenLoc(ReadSourceLocation(Record, Idx));
+  S->setRangeStmt(Reader.ReadSubStmt());
+  S->setBeginEndStmt(Reader.ReadSubStmt());
+  S->setCond(Reader.ReadSubExpr());
+  S->setInc(Reader.ReadSubExpr());
+  S->setLoopVarStmt(Reader.ReadSubStmt());
+  S->setBody(Reader.ReadSubStmt());
 }
 
 void ASTStmtReader::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
@@ -1201,14 +1251,13 @@ ASTStmtReader::VisitCXXDependentScopeMemberExpr(CXXDependentScopeMemberExpr *E){
     ReadExplicitTemplateArgumentList(E->getExplicitTemplateArgs(),
                                      Record[Idx++]);
 
-  E->setBase(Reader.ReadSubExpr());
-  E->setBaseType(Reader.GetType(Record[Idx++]));
-  E->setArrow(Record[Idx++]);
-  E->setOperatorLoc(ReadSourceLocation(Record, Idx));
-  E->setQualifier(Reader.ReadNestedNameSpecifier(Record, Idx));
-  E->setQualifierRange(ReadSourceRange(Record, Idx));
-  E->setFirstQualifierFoundInScope(
-                        cast_or_null<NamedDecl>(Reader.GetDecl(Record[Idx++])));
+  E->Base = Reader.ReadSubExpr();
+  E->BaseType = Reader.GetType(Record[Idx++]);
+  E->IsArrow = Record[Idx++];
+  E->OperatorLoc = ReadSourceLocation(Record, Idx);
+  E->QualifierLoc = Reader.ReadNestedNameSpecifierLoc(F, Record, Idx);
+  E->FirstQualifierFoundInScope
+                      = cast_or_null<NamedDecl>(Reader.GetDecl(Record[Idx++]));
   ReadDeclarationNameInfo(E->MemberNameInfo, Record, Idx);
 }
 
@@ -1254,24 +1303,25 @@ void ASTStmtReader::VisitOverloadExpr(OverloadExpr *E) {
   E->initializeResults(*Reader.getContext(), Decls.begin(), Decls.end());
 
   ReadDeclarationNameInfo(E->NameInfo, Record, Idx);
-  E->setQualifier(Reader.ReadNestedNameSpecifier(Record, Idx));
-  E->setQualifierRange(ReadSourceRange(Record, Idx));
+  E->QualifierLoc = Reader.ReadNestedNameSpecifierLoc(F, Record, Idx);
 }
 
 void ASTStmtReader::VisitUnresolvedMemberExpr(UnresolvedMemberExpr *E) {
   VisitOverloadExpr(E);
-  E->setArrow(Record[Idx++]);
-  E->setHasUnresolvedUsing(Record[Idx++]);
-  E->setBase(Reader.ReadSubExpr());
-  E->setBaseType(Reader.GetType(Record[Idx++]));
-  E->setOperatorLoc(ReadSourceLocation(Record, Idx));
+  E->IsArrow = Record[Idx++];
+  E->HasUnresolvedUsing = Record[Idx++];
+  E->Base = Reader.ReadSubExpr();
+  E->BaseType = Reader.GetType(Record[Idx++]);
+  E->OperatorLoc = ReadSourceLocation(Record, Idx);
 }
 
 void ASTStmtReader::VisitUnresolvedLookupExpr(UnresolvedLookupExpr *E) {
   VisitOverloadExpr(E);
-  E->setRequiresADL(Record[Idx++]);
-  E->setOverloaded(Record[Idx++]);
-  E->setNamingClass(cast_or_null<CXXRecordDecl>(Reader.GetDecl(Record[Idx++])));
+  E->RequiresADL = Record[Idx++];
+  if (E->RequiresADL)
+    E->StdIsAssociatedNamespace = Record[Idx++];
+  E->Overloaded = Record[Idx++];
+  E->NamingClass = cast_or_null<CXXRecordDecl>(Reader.GetDecl(Record[Idx++]));
 }
 
 void ASTStmtReader::VisitUnaryTypeTraitExpr(UnaryTypeTraitExpr *E) {
@@ -1293,6 +1343,26 @@ void ASTStmtReader::VisitBinaryTypeTraitExpr(BinaryTypeTraitExpr *E) {
   E->RParen = Range.getEnd();
   E->LhsType = GetTypeSourceInfo(Record, Idx);
   E->RhsType = GetTypeSourceInfo(Record, Idx);
+}
+
+void ASTStmtReader::VisitArrayTypeTraitExpr(ArrayTypeTraitExpr *E) {
+  VisitExpr(E);
+  E->ATT = (ArrayTypeTrait)Record[Idx++];
+  E->Value = (unsigned int)Record[Idx++];
+  SourceRange Range = ReadSourceRange(Record, Idx);
+  E->Loc = Range.getBegin();
+  E->RParen = Range.getEnd();
+  E->QueriedType = GetTypeSourceInfo(Record, Idx);
+}
+
+void ASTStmtReader::VisitExpressionTraitExpr(ExpressionTraitExpr *E) {
+  VisitExpr(E);
+  E->ET = (ExpressionTrait)Record[Idx++];
+  E->Value = (bool)Record[Idx++];
+  SourceRange Range = ReadSourceRange(Record, Idx);
+  E->QueriedExpression = Reader.ReadSubExpr();
+  E->Loc = Range.getBegin();
+  E->RParen = Range.getEnd();
 }
 
 void ASTStmtReader::VisitCXXNoexceptExpr(CXXNoexceptExpr *E) {
@@ -1500,12 +1570,13 @@ Stmt *ASTReader::ReadStmtFromStream(PerFileData &F) {
       break;
 
     case EXPR_DECL_REF:
-      S = DeclRefExpr::CreateEmpty(*Context,
-                         /*HasQualifier=*/Record[ASTStmtReader::NumExprFields],
-          /*HasExplicitTemplateArgs=*/Record[ASTStmtReader::NumExprFields + 1],
-                  /*NumTemplateArgs=*/Record[ASTStmtReader::NumExprFields + 1]
-                                   ? Record[ASTStmtReader::NumExprFields + 2] 
-                                   : 0);
+      S = DeclRefExpr::CreateEmpty(
+        *Context,
+        /*HasQualifier=*/Record[ASTStmtReader::NumExprFields],
+        /*HasFoundDecl=*/Record[ASTStmtReader::NumExprFields + 1],
+        /*HasExplicitTemplateArgs=*/Record[ASTStmtReader::NumExprFields + 2],
+        /*NumTemplateArgs=*/Record[ASTStmtReader::NumExprFields + 2] ?
+          Record[ASTStmtReader::NumExprFields + 3] : 0);
       break;
 
     case EXPR_INTEGER_LITERAL:
@@ -1548,7 +1619,7 @@ Stmt *ASTReader::ReadStmtFromStream(PerFileData &F) {
       break;
         
     case EXPR_SIZEOF_ALIGN_OF:
-      S = new (Context) SizeOfAlignOfExpr(Empty);
+      S = new (Context) UnaryExprOrTypeTraitExpr(Empty);
       break;
 
     case EXPR_ARRAY_SUBSCRIPT:
@@ -1565,11 +1636,9 @@ Stmt *ASTReader::ReadStmtFromStream(PerFileData &F) {
       // logic with a MemberExpr::CreateEmpty.
 
       assert(Idx == 0);
-      NestedNameSpecifier *NNS = 0;
-      SourceRange QualifierRange;
+      NestedNameSpecifierLoc QualifierLoc;
       if (Record[Idx++]) { // HasQualifier.
-        NNS = ReadNestedNameSpecifier(Record, Idx);
-        QualifierRange = ReadSourceRange(F, Record, Idx);
+        QualifierLoc = ReadNestedNameSpecifierLoc(F, Record, Idx);
       }
 
       TemplateArgumentListInfo ArgInfo;
@@ -1595,7 +1664,7 @@ Stmt *ASTReader::ReadStmtFromStream(PerFileData &F) {
       DeclarationNameInfo MemberNameInfo(MemberD->getDeclName(), MemberLoc);
       bool IsArrow = Record[Idx++];
 
-      S = MemberExpr::Create(*Context, Base, IsArrow, NNS, QualifierRange,
+      S = MemberExpr::Create(*Context, Base, IsArrow, QualifierLoc,
                              MemberD, FoundDecl, MemberNameInfo,
                              HasExplicitTemplateArgs ? &ArgInfo : 0, T, VK, OK);
       ReadDeclarationNameLoc(F, cast<MemberExpr>(S)->MemberDNLoc,
@@ -1683,6 +1752,10 @@ Stmt *ASTReader::ReadStmtFromStream(PerFileData &F) {
       S = new (Context) BlockDeclRefExpr(Empty);
       break;
 
+    case EXPR_GENERIC_SELECTION:
+      S = new (Context) GenericSelectionExpr(Empty);
+      break;
+
     case EXPR_OBJC_STRING_LITERAL:
       S = new (Context) ObjCStringLiteral(Empty);
       break;
@@ -1739,6 +1812,10 @@ Stmt *ASTReader::ReadStmtFromStream(PerFileData &F) {
     case STMT_CXX_TRY:
       S = CXXTryStmt::Create(*Context, Empty,
              /*NumHandlers=*/Record[ASTStmtReader::NumStmtFields]);
+      break;
+
+    case STMT_CXX_FOR_RANGE:
+      S = new (Context) CXXForRangeStmt(Empty);
       break;
 
     case EXPR_CXX_OPERATOR_CALL:
@@ -1879,6 +1956,14 @@ Stmt *ASTReader::ReadStmtFromStream(PerFileData &F) {
 
     case EXPR_BINARY_TYPE_TRAIT:
       S = new (Context) BinaryTypeTraitExpr(Empty);
+      break;
+
+    case EXPR_ARRAY_TYPE_TRAIT:
+      S = new (Context) ArrayTypeTraitExpr(Empty);
+      break;
+
+    case EXPR_CXX_EXPRESSION_TRAIT:
+      S = new (Context) ExpressionTraitExpr(Empty);
       break;
 
     case EXPR_CXX_NOEXCEPT:

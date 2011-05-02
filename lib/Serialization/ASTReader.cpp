@@ -23,6 +23,7 @@
 #include "clang/AST/DeclTemplate.h"
 #include "clang/AST/Expr.h"
 #include "clang/AST/ExprCXX.h"
+#include "clang/AST/NestedNameSpecifier.h"
 #include "clang/AST/Type.h"
 #include "clang/AST/TypeLocVisitor.h"
 #include "clang/Lex/MacroInfo.h"
@@ -36,6 +37,7 @@
 #include "clang/Basic/FileSystemStatCache.h"
 #include "clang/Basic/TargetInfo.h"
 #include "clang/Basic/Version.h"
+#include "clang/Basic/VersionTuple.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Bitcode/BitstreamReader.h"
 #include "llvm/Support/MemoryBuffer.h"
@@ -77,6 +79,7 @@ PCHValidator::ReadLanguageOptions(const LangOptions &LangOpts) {
   PARSE_LANGOPT_BENIGN(Digraphs);
   PARSE_LANGOPT_BENIGN(HexFloats);
   PARSE_LANGOPT_IMPORTANT(C99, diag::warn_pch_c99);
+  PARSE_LANGOPT_IMPORTANT(C1X, diag::warn_pch_c1x);
   PARSE_LANGOPT_IMPORTANT(Microsoft, diag::warn_pch_microsoft_extensions);
   PARSE_LANGOPT_BENIGN(MSCVersion);
   PARSE_LANGOPT_IMPORTANT(CPlusPlus, diag::warn_pch_cplusplus);
@@ -126,6 +129,7 @@ PCHValidator::ReadLanguageOptions(const LangOptions &LangOpts) {
   PARSE_LANGOPT_IMPORTANT(PICLevel, diag::warn_pch_pic_level);
   PARSE_LANGOPT_IMPORTANT(GNUInline, diag::warn_pch_gnu_inline);
   PARSE_LANGOPT_IMPORTANT(NoInline, diag::warn_pch_no_inline);
+  PARSE_LANGOPT_IMPORTANT(Deprecated, diag::warn_pch_deprecated);
   PARSE_LANGOPT_IMPORTANT(AccessControl, diag::warn_pch_access_control);
   PARSE_LANGOPT_IMPORTANT(CharIsSigned, diag::warn_pch_char_signed);
   PARSE_LANGOPT_IMPORTANT(ShortWChar, diag::warn_pch_short_wchar);
@@ -953,8 +957,16 @@ bool ASTReader::ReadDeclContextStorage(llvm::BitstreamCursor &Cursor,
   return false;
 }
 
-void ASTReader::Error(const char *Msg) {
-  Diag(diag::err_fe_pch_malformed) << Msg;
+void ASTReader::Error(llvm::StringRef Msg) {
+  Error(diag::err_fe_pch_malformed, Msg);
+}
+
+void ASTReader::Error(unsigned DiagID,
+                      llvm::StringRef Arg1, llvm::StringRef Arg2) {
+  if (Diags.isDiagnosticInFlight())
+    Diags.SetDelayedDiagnostic(DiagID, Arg1, Arg2);
+  else
+    Diag(DiagID) << Arg1 << Arg2;
 }
 
 /// \brief Tell the AST listener about the predefines buffers in the chain.
@@ -1306,8 +1318,7 @@ ASTReader::ASTReadResult ASTReader::ReadSLocEntryRecord(unsigned ID) {
          || (time_t)Record[5] != File->getModificationTime()
 #endif
         )) {
-      Diag(diag::err_fe_pch_file_modified)
-        << Filename;
+      Error(diag::err_fe_pch_file_modified, Filename);
       return Failure;
     }
 
@@ -2460,20 +2471,26 @@ ASTReader::ASTReadResult ASTReader::ReadASTCore(llvm::StringRef FileName,
     if (CurrentDir.empty()) CurrentDir = ".";
   }
 
-  // Open the AST file.
-  //
-  // FIXME: This shouldn't be here, we should just take a raw_ostream.
-  std::string ErrStr;
-  llvm::error_code ec;
-  if (FileName == "-") {
-    ec = llvm::MemoryBuffer::getSTDIN(F.Buffer);
-    if (ec)
-      ErrStr = ec.message();
-  } else
-    F.Buffer.reset(FileMgr.getBufferForFile(FileName, &ErrStr));
-  if (!F.Buffer) {
-    Error(ErrStr.c_str());
-    return IgnorePCH;
+  if (!ASTBuffers.empty()) {
+    F.Buffer.reset(ASTBuffers.back());
+    ASTBuffers.pop_back();
+    assert(F.Buffer && "Passed null buffer");
+  } else {
+    // Open the AST file.
+    //
+    // FIXME: This shouldn't be here, we should just take a raw_ostream.
+    std::string ErrStr;
+    llvm::error_code ec;
+    if (FileName == "-") {
+      ec = llvm::MemoryBuffer::getSTDIN(F.Buffer);
+      if (ec)
+        ErrStr = ec.message();
+    } else
+      F.Buffer.reset(FileMgr.getBufferForFile(FileName, &ErrStr));
+    if (!F.Buffer) {
+      Error(ErrStr.c_str());
+      return IgnorePCH;
+    }
   }
 
   // Initialize the stream
@@ -2668,6 +2685,11 @@ void ASTReader::InitializeContext(ASTContext &Ctx) {
   if (SpecialTypes[SPECIAL_TYPE_INT128_INSTALLED])
     Context->setInt128Installed();
 
+  if (unsigned AutoDeduct = SpecialTypes[SPECIAL_TYPE_AUTO_DEDUCT])
+    Context->AutoDeductTy = GetType(AutoDeduct);
+  if (unsigned AutoRRefDeduct = SpecialTypes[SPECIAL_TYPE_AUTO_RREF_DEDUCT])
+    Context->AutoRRefDeductTy = GetType(AutoRRefDeduct);
+
   ReadPragmaDiagnosticMappings(Context->getDiagnostics());
 
   // If there were any CUDA special declarations, deserialize them.
@@ -2786,6 +2808,7 @@ bool ASTReader::ParseLanguageOptions(
     PARSE_LANGOPT(Digraphs);
     PARSE_LANGOPT(HexFloats);
     PARSE_LANGOPT(C99);
+    PARSE_LANGOPT(C1X);
     PARSE_LANGOPT(Microsoft);
     PARSE_LANGOPT(CPlusPlus);
     PARSE_LANGOPT(CPlusPlus0x);
@@ -2823,6 +2846,7 @@ bool ASTReader::ParseLanguageOptions(
     PARSE_LANGOPT(PICLevel);
     PARSE_LANGOPT(GNUInline);
     PARSE_LANGOPT(NoInline);
+    PARSE_LANGOPT(Deprecated);
     PARSE_LANGOPT(AccessControl);
     PARSE_LANGOPT(CharIsSigned);
     PARSE_LANGOPT(ShortWChar);
@@ -2836,7 +2860,9 @@ bool ASTReader::ParseLanguageOptions(
     PARSE_LANGOPT(CUDA);
     PARSE_LANGOPT(CatchUndefined);
     PARSE_LANGOPT(DefaultFPContract);
-    // FIXME: Missing ElideConstructors?!
+    PARSE_LANGOPT(ElideConstructors);
+    PARSE_LANGOPT(SpellChecking);
+    PARSE_LANGOPT(MRTD);
   #undef PARSE_LANGOPT
 
     return Listener->ReadLanguageOptions(LangOpts);
@@ -2999,12 +3025,12 @@ QualType ASTReader::ReadTypeRecord(unsigned Index) {
   }
 
   case TYPE_LVALUE_REFERENCE: {
-    if (Record.size() != 1) {
+    if (Record.size() != 2) {
       Error("Incorrect encoding of lvalue reference type");
       return QualType();
     }
     QualType PointeeType = GetType(Record[0]);
-    return Context->getLValueReferenceType(PointeeType);
+    return Context->getLValueReferenceType(PointeeType, Record[1]);
   }
 
   case TYPE_RVALUE_REFERENCE: {
@@ -3082,12 +3108,12 @@ QualType ASTReader::ReadTypeRecord(unsigned Index) {
   }
 
   case TYPE_FUNCTION_NO_PROTO: {
-    if (Record.size() != 4) {
+    if (Record.size() != 5) {
       Error("incorrect encoding of no-proto function type");
       return QualType();
     }
     QualType ResultType = GetType(Record[0]);
-    FunctionType::ExtInfo Info(Record[1], Record[2], (CallingConv)Record[3]);
+    FunctionType::ExtInfo Info(Record[1], Record[2], Record[3], (CallingConv)Record[4]);
     return Context->getFunctionNoProtoType(ResultType, Info);
   }
 
@@ -3096,10 +3122,11 @@ QualType ASTReader::ReadTypeRecord(unsigned Index) {
 
     FunctionProtoType::ExtProtoInfo EPI;
     EPI.ExtInfo = FunctionType::ExtInfo(/*noreturn*/ Record[1],
-                                        /*regparm*/ Record[2],
-                                        static_cast<CallingConv>(Record[3]));
+                                        /*hasregparm*/ Record[2],
+                                        /*regparm*/ Record[3],
+                                        static_cast<CallingConv>(Record[4]));
 
-    unsigned Idx = 4;
+    unsigned Idx = 5;
     unsigned NumParams = Record[Idx++];
     llvm::SmallVector<QualType, 16> ParamTypes;
     for (unsigned I = 0; I != NumParams; ++I)
@@ -3108,13 +3135,18 @@ QualType ASTReader::ReadTypeRecord(unsigned Index) {
     EPI.Variadic = Record[Idx++];
     EPI.TypeQuals = Record[Idx++];
     EPI.RefQualifier = static_cast<RefQualifierKind>(Record[Idx++]);
-    EPI.HasExceptionSpec = Record[Idx++];
-    EPI.HasAnyExceptionSpec = Record[Idx++];
-    EPI.NumExceptions = Record[Idx++];
-    llvm::SmallVector<QualType, 2> Exceptions;
-    for (unsigned I = 0; I != EPI.NumExceptions; ++I)
-      Exceptions.push_back(GetType(Record[Idx++]));
-    EPI.Exceptions = Exceptions.data();
+    ExceptionSpecificationType EST =
+        static_cast<ExceptionSpecificationType>(Record[Idx++]);
+    EPI.ExceptionSpecType = EST;
+    if (EST == EST_Dynamic) {
+      EPI.NumExceptions = Record[Idx++];
+      llvm::SmallVector<QualType, 2> Exceptions;
+      for (unsigned I = 0; I != EPI.NumExceptions; ++I)
+        Exceptions.push_back(GetType(Record[Idx++]));
+      EPI.Exceptions = Exceptions.data();
+    } else if (EST == EST_ComputedNoexcept) {
+      EPI.NoexceptExpr = ReadExpr(*Loc.F);
+    }
     return Context->getFunctionType(ResultType, ParamTypes.data(), NumParams,
                                     EPI);
   }
@@ -3128,7 +3160,7 @@ QualType ASTReader::ReadTypeRecord(unsigned Index) {
       Error("incorrect encoding of typedef type");
       return QualType();
     }
-    TypedefDecl *Decl = cast<TypedefDecl>(GetDecl(Record[0]));
+    TypedefNameDecl *Decl = cast<TypedefNameDecl>(GetDecl(Record[0]));
     QualType Canonical = GetType(Record[1]);
     if (!Canonical.isNull())
       Canonical = Context->getCanonicalType(Canonical);
@@ -3271,8 +3303,9 @@ QualType ASTReader::ReadTypeRecord(unsigned Index) {
     unsigned Depth = Record[Idx++];
     unsigned Index = Record[Idx++];
     bool Pack = Record[Idx++];
-    IdentifierInfo *Name = GetIdentifierInfo(Record, Idx);
-    return Context->getTemplateTypeParmType(Depth, Index, Pack, Name);
+    TemplateTypeParmDecl *D =
+      cast_or_null<TemplateTypeParmDecl>(GetDecl(Record[Idx++]));
+    return Context->getTemplateTypeParmType(Depth, Index, Pack, D);
   }
 
   case TYPE_DEPENDENT_NAME: {
@@ -3398,6 +3431,7 @@ void TypeLocReader::VisitRValueReferenceTypeLoc(RValueReferenceTypeLoc TL) {
 }
 void TypeLocReader::VisitMemberPointerTypeLoc(MemberPointerTypeLoc TL) {
   TL.setStarLoc(ReadSourceLocation(Record, Idx));
+  TL.setClassTInfo(Reader.GetTypeSourceInfo(F, Record, Idx));
 }
 void TypeLocReader::VisitArrayTypeLoc(ArrayTypeLoc TL) {
   TL.setLBracketLoc(ReadSourceLocation(Record, Idx));
@@ -3431,8 +3465,8 @@ void TypeLocReader::VisitExtVectorTypeLoc(ExtVectorTypeLoc TL) {
   TL.setNameLoc(ReadSourceLocation(Record, Idx));
 }
 void TypeLocReader::VisitFunctionTypeLoc(FunctionTypeLoc TL) {
-  TL.setLParenLoc(ReadSourceLocation(Record, Idx));
-  TL.setRParenLoc(ReadSourceLocation(Record, Idx));
+  TL.setLocalRangeBegin(ReadSourceLocation(Record, Idx));
+  TL.setLocalRangeEnd(ReadSourceLocation(Record, Idx));
   TL.setTrailingReturn(Record[Idx++]);
   for (unsigned i = 0, e = TL.getNumArgs(); i != e; ++i) {
     TL.setArg(i, cast_or_null<ParmVarDecl>(Reader.GetDecl(Record[Idx++])));
@@ -3517,20 +3551,20 @@ void TypeLocReader::VisitParenTypeLoc(ParenTypeLoc TL) {
 }
 void TypeLocReader::VisitElaboratedTypeLoc(ElaboratedTypeLoc TL) {
   TL.setKeywordLoc(ReadSourceLocation(Record, Idx));
-  TL.setQualifierRange(Reader.ReadSourceRange(F, Record, Idx));
+  TL.setQualifierLoc(Reader.ReadNestedNameSpecifierLoc(F, Record, Idx));
 }
 void TypeLocReader::VisitInjectedClassNameTypeLoc(InjectedClassNameTypeLoc TL) {
   TL.setNameLoc(ReadSourceLocation(Record, Idx));
 }
 void TypeLocReader::VisitDependentNameTypeLoc(DependentNameTypeLoc TL) {
   TL.setKeywordLoc(ReadSourceLocation(Record, Idx));
-  TL.setQualifierRange(Reader.ReadSourceRange(F, Record, Idx));
+  TL.setQualifierLoc(Reader.ReadNestedNameSpecifierLoc(F, Record, Idx));
   TL.setNameLoc(ReadSourceLocation(Record, Idx));
 }
 void TypeLocReader::VisitDependentTemplateSpecializationTypeLoc(
        DependentTemplateSpecializationTypeLoc TL) {
   TL.setKeywordLoc(ReadSourceLocation(Record, Idx));
-  TL.setQualifierRange(Reader.ReadSourceRange(F, Record, Idx));
+  TL.setQualifierLoc(Reader.ReadNestedNameSpecifierLoc(F, Record, Idx));
   TL.setNameLoc(ReadSourceLocation(Record, Idx));
   TL.setLAngleLoc(ReadSourceLocation(Record, Idx));
   TL.setRAngleLoc(ReadSourceLocation(Record, Idx));
@@ -3605,7 +3639,9 @@ QualType ASTReader::GetType(TypeID ID) {
     case PREDEF_TYPE_DOUBLE_ID:     T = Context->DoubleTy;           break;
     case PREDEF_TYPE_LONGDOUBLE_ID: T = Context->LongDoubleTy;       break;
     case PREDEF_TYPE_OVERLOAD_ID:   T = Context->OverloadTy;         break;
+    case PREDEF_TYPE_BOUND_MEMBER:  T = Context->BoundMemberTy;      break;
     case PREDEF_TYPE_DEPENDENT_ID:  T = Context->DependentTy;        break;
+    case PREDEF_TYPE_UNKNOWN_ANY:   T = Context->UnknownAnyTy;       break;
     case PREDEF_TYPE_NULLPTR_ID:    T = Context->NullPtrTy;          break;
     case PREDEF_TYPE_CHAR16_ID:     T = Context->Char16Ty;           break;
     case PREDEF_TYPE_CHAR32_ID:     T = Context->Char32Ty;           break;
@@ -3675,16 +3711,18 @@ ASTReader::GetTemplateArgumentLocInfo(PerFileData &F,
   case TemplateArgument::Type:
     return GetTypeSourceInfo(F, Record, Index);
   case TemplateArgument::Template: {
-    SourceRange QualifierRange = ReadSourceRange(F, Record, Index);
+    NestedNameSpecifierLoc QualifierLoc = ReadNestedNameSpecifierLoc(F, Record, 
+                                                                     Index);
     SourceLocation TemplateNameLoc = ReadSourceLocation(F, Record, Index);
-    return TemplateArgumentLocInfo(QualifierRange, TemplateNameLoc,
+    return TemplateArgumentLocInfo(QualifierLoc, TemplateNameLoc,
                                    SourceLocation());
   }
   case TemplateArgument::TemplateExpansion: {
-    SourceRange QualifierRange = ReadSourceRange(F, Record, Index);
+    NestedNameSpecifierLoc QualifierLoc = ReadNestedNameSpecifierLoc(F, Record, 
+                                                                     Index);
     SourceLocation TemplateNameLoc = ReadSourceLocation(F, Record, Index);
     SourceLocation EllipsisLoc = ReadSourceLocation(F, Record, Index);
-    return TemplateArgumentLocInfo(QualifierRange, TemplateNameLoc, 
+    return TemplateArgumentLocInfo(QualifierLoc, TemplateNameLoc, 
                                    EllipsisLoc);
   }
   case TemplateArgument::Null:
@@ -3722,11 +3760,13 @@ ASTReader::GetCXXBaseSpecifiersOffset(serialization::CXXBaseSpecifiersID ID) {
   --ID;
   uint64_t Offset = 0;
   for (unsigned I = 0, N = Chain.size(); I != N; ++I) {
-    if (ID < Chain[I]->LocalNumCXXBaseSpecifiers)
-      return Offset + Chain[I]->CXXBaseSpecifiersOffsets[ID];
+    PerFileData &F = *Chain[N - I - 1];
+
+    if (ID < F.LocalNumCXXBaseSpecifiers)
+      return Offset + F.CXXBaseSpecifiersOffsets[ID];
     
-    ID -= Chain[I]->LocalNumCXXBaseSpecifiers;
-    Offset += Chain[I]->SizeInBits;
+    ID -= F.LocalNumCXXBaseSpecifiers;
+    Offset += F.SizeInBits;
   }
   
   assert(false && "CXXBaseSpecifiers not found");
@@ -3737,14 +3777,14 @@ CXXBaseSpecifier *ASTReader::GetExternalCXXBaseSpecifiers(uint64_t Offset) {
   // Figure out which AST file contains this offset.
   PerFileData *F = 0;
   for (unsigned I = 0, N = Chain.size(); I != N; ++I) {
-    if (Offset < Chain[I]->SizeInBits) {
-      F = Chain[I];
+    if (Offset < Chain[N - I - 1]->SizeInBits) {
+      F = Chain[N - I - 1];
       break;
     }
     
-    Offset -= Chain[I]->SizeInBits;
+    Offset -= Chain[N - I - 1]->SizeInBits;
   }
-  
+
   if (!F) {
     Error("Malformed AST file: C++ base specifiers at impossible offset");
     return 0;
@@ -4014,6 +4054,23 @@ void ASTReader::PrintStats() {
   std::fprintf(stderr, "\n");
 }
 
+/// Return the amount of memory used by memory buffers, breaking down
+/// by heap-backed versus mmap'ed memory.
+void ASTReader::getMemoryBufferSizes(MemoryBufferSizes &sizes) const {
+  for (unsigned i = 0, e = Chain.size(); i != e; ++i)
+    if (llvm::MemoryBuffer *buf = Chain[i]->Buffer.get()) {
+      size_t bytes = buf->getBufferSize();
+      switch (buf->getBufferKind()) {
+        case llvm::MemoryBuffer::MemoryBuffer_Malloc:
+          sizes.malloc_bytes += bytes;
+          break;
+        case llvm::MemoryBuffer::MemoryBuffer_MMap:
+          sizes.mmap_bytes += bytes;
+          break;
+      }
+    }
+}
+
 void ASTReader::InitializeSema(Sema &S) {
   SemaObj = &S;
   S.ExternalSource = this;
@@ -4054,7 +4111,7 @@ void ASTReader::InitializeSema(Sema &S) {
   // and add them to Sema's vector of such declarations.
   for (unsigned I = 0, N = ExtVectorDecls.size(); I != N; ++I)
     SemaObj->ExtVectorDecls.push_back(
-                               cast<TypedefDecl>(GetDecl(ExtVectorDecls[I])));
+                             cast<TypedefNameDecl>(GetDecl(ExtVectorDecls[I])));
 
   // FIXME: Do VTable uses and dynamic classes deserialize too much ?
   // Can we cut them down before writing them ?
@@ -4087,21 +4144,21 @@ void ASTReader::InitializeSema(Sema &S) {
         SemaObj->ReferencedSelectors.insert(std::make_pair(Sel, SelLoc));
       }
     }
-
-    // If there were any pending implicit instantiations, deserialize them
-    // and add them to Sema's queue of such instantiations.
-    assert(F->PendingInstantiations.size() % 2 == 0 &&
-           "Expected pairs of entries");
-    for (unsigned Idx = 0, N = F->PendingInstantiations.size(); Idx < N;) {
-      ValueDecl *D=cast<ValueDecl>(GetDecl(F->PendingInstantiations[Idx++]));
-      SourceLocation Loc = ReadSourceLocation(*F, F->PendingInstantiations,Idx);
-      SemaObj->PendingInstantiations.push_back(std::make_pair(D, Loc));
-    }
   }
 
-  // The two special data sets below always come from the most recent PCH,
+  // The special data sets below always come from the most recent PCH,
   // which is at the front of the chain.
   PerFileData &F = *Chain.front();
+
+  // If there were any pending implicit instantiations, deserialize them
+  // and add them to Sema's queue of such instantiations.
+  assert(F.PendingInstantiations.size() % 2 == 0 &&
+         "Expected pairs of entries");
+  for (unsigned Idx = 0, N = F.PendingInstantiations.size(); Idx < N;) {
+    ValueDecl *D=cast<ValueDecl>(GetDecl(F.PendingInstantiations[Idx++]));
+    SourceLocation Loc = ReadSourceLocation(F, F.PendingInstantiations,Idx);
+    SemaObj->PendingInstantiations.push_back(std::make_pair(D, Loc));
+  }
 
   // If there were any weak undeclared identifiers, deserialize them and add to
   // Sema's list of weak undeclared identifiers.
@@ -4354,8 +4411,8 @@ IdentifierInfo *ASTReader::DecodeIdentifierInfo(unsigned ID) {
   return IdentifiersLoaded[ID];
 }
 
-void ASTReader::ReadSLocEntry(unsigned ID) {
-  ReadSLocEntryRecord(ID);
+bool ASTReader::ReadSLocEntry(unsigned ID) {
+  return ReadSLocEntryRecord(ID) != Success;
 }
 
 Selector ASTReader::DecodeSelector(unsigned ID) {
@@ -4762,103 +4819,57 @@ NestedNameSpecifierLoc
 ASTReader::ReadNestedNameSpecifierLoc(PerFileData &F, const RecordData &Record, 
                                       unsigned &Idx) {
   unsigned N = Record[Idx++];
-  NestedNameSpecifier *NNS = 0, *Prev = 0;
-  llvm::SmallVector<char, 32> LocationData;
+  NestedNameSpecifierLocBuilder Builder;
   for (unsigned I = 0; I != N; ++I) {
     NestedNameSpecifier::SpecifierKind Kind
       = (NestedNameSpecifier::SpecifierKind)Record[Idx++];
     switch (Kind) {
     case NestedNameSpecifier::Identifier: {
-      // Nested-name-specifier
-      IdentifierInfo *II = GetIdentifierInfo(Record, Idx);
-      NNS = NestedNameSpecifier::Create(*Context, Prev, II);
-      
-      // Location information
+      IdentifierInfo *II = GetIdentifierInfo(Record, Idx);      
       SourceRange Range = ReadSourceRange(F, Record, Idx);
-      unsigned RawStart = Range.getBegin().getRawEncoding();
-      unsigned RawEnd = Range.getEnd().getRawEncoding();
-      LocationData.append(reinterpret_cast<char*>(&RawStart),
-                          reinterpret_cast<char*>(&RawStart) +sizeof(unsigned));
-      LocationData.append(reinterpret_cast<char*>(&RawEnd),
-                          reinterpret_cast<char*>(&RawEnd) + sizeof(unsigned));
+      Builder.Extend(*Context, II, Range.getBegin(), Range.getEnd());
       break;
     }
 
     case NestedNameSpecifier::Namespace: {
-      // Nested-name-specifier
       NamespaceDecl *NS = cast<NamespaceDecl>(GetDecl(Record[Idx++]));
-      NNS = NestedNameSpecifier::Create(*Context, Prev, NS);
-
-      // Location information
       SourceRange Range = ReadSourceRange(F, Record, Idx);
-      unsigned RawStart = Range.getBegin().getRawEncoding();
-      unsigned RawEnd = Range.getEnd().getRawEncoding();
-      LocationData.append(reinterpret_cast<char*>(&RawStart),
-                          reinterpret_cast<char*>(&RawStart) +sizeof(unsigned));
-      LocationData.append(reinterpret_cast<char*>(&RawEnd),
-                          reinterpret_cast<char*>(&RawEnd) + sizeof(unsigned));
+      Builder.Extend(*Context, NS, Range.getBegin(), Range.getEnd());
       break;
     }
 
     case NestedNameSpecifier::NamespaceAlias: {
-      // Nested-name-specifier
       NamespaceAliasDecl *Alias
         = cast<NamespaceAliasDecl>(GetDecl(Record[Idx++]));
-      NNS = NestedNameSpecifier::Create(*Context, Prev, Alias);
-      
-      // Location information
       SourceRange Range = ReadSourceRange(F, Record, Idx);
-      unsigned RawStart = Range.getBegin().getRawEncoding();
-      unsigned RawEnd = Range.getEnd().getRawEncoding();
-      LocationData.append(reinterpret_cast<char*>(&RawStart),
-                          reinterpret_cast<char*>(&RawStart) +sizeof(unsigned));
-      LocationData.append(reinterpret_cast<char*>(&RawEnd),
-                          reinterpret_cast<char*>(&RawEnd) + sizeof(unsigned));
-
+      Builder.Extend(*Context, Alias, Range.getBegin(), Range.getEnd());
       break;
     }
 
     case NestedNameSpecifier::TypeSpec:
     case NestedNameSpecifier::TypeSpecWithTemplate: {
-      // Nested-name-specifier
       bool Template = Record[Idx++];
       TypeSourceInfo *T = GetTypeSourceInfo(F, Record, Idx);
       if (!T)
         return NestedNameSpecifierLoc();
-      NNS = NestedNameSpecifier::Create(*Context, Prev, Template, 
-                                        T->getType().getTypePtr());
-
-      // Location information.
       SourceLocation ColonColonLoc = ReadSourceLocation(F, Record, Idx);
-      unsigned RawLocation = ColonColonLoc.getRawEncoding();
-      void *OpaqueTypeData = T->getTypeLoc().getOpaqueData();
-      LocationData.append(reinterpret_cast<char*>(&OpaqueTypeData),
-                          (reinterpret_cast<char*>(&OpaqueTypeData) 
-                             + sizeof(void *)));
-      LocationData.append(reinterpret_cast<char*>(&RawLocation),
-                          (reinterpret_cast<char*>(&RawLocation) +
-                             sizeof(unsigned)));
+
+      // FIXME: 'template' keyword location not saved anywhere, so we fake it.
+      Builder.Extend(*Context, 
+                     Template? T->getTypeLoc().getBeginLoc() : SourceLocation(),
+                     T->getTypeLoc(), ColonColonLoc);
       break;
     }
 
     case NestedNameSpecifier::Global: {
-      // Nested-name-specifier
-      NNS = NestedNameSpecifier::GlobalSpecifier(*Context);
-
       SourceLocation ColonColonLoc = ReadSourceLocation(F, Record, Idx);
-      unsigned RawLocation = ColonColonLoc.getRawEncoding();
-      LocationData.append(reinterpret_cast<char*>(&RawLocation),
-                          (reinterpret_cast<char*>(&RawLocation) +
-                             sizeof(unsigned)));
+      Builder.MakeGlobal(*Context, ColonColonLoc);
       break;
     }
     }
-    Prev = NNS;
   }
   
-  void *Mem = Context->Allocate(LocationData.size(), llvm::alignOf<void*>());
-  memcpy(Mem, LocationData.data(), LocationData.size());
-  return NestedNameSpecifierLoc(NNS, Mem);
+  return Builder.getWithLocInContext(*Context);
 }
 
 SourceRange
@@ -4895,6 +4906,18 @@ std::string ASTReader::ReadString(const RecordData &Record, unsigned &Idx) {
   std::string Result(Record.data() + Idx, Record.data() + Idx + Len);
   Idx += Len;
   return Result;
+}
+
+VersionTuple ASTReader::ReadVersionTuple(const RecordData &Record, 
+                                         unsigned &Idx) {
+  unsigned Major = Record[Idx++];
+  unsigned Minor = Record[Idx++];
+  unsigned Subminor = Record[Idx++];
+  if (Minor == 0)
+    return VersionTuple(Major);
+  if (Subminor == 0)
+    return VersionTuple(Major, Minor - 1);
+  return VersionTuple(Major, Minor - 1, Subminor - 1);
 }
 
 CXXTemporary *ASTReader::ReadCXXTemporary(const RecordData &Record,

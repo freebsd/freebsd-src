@@ -51,12 +51,12 @@ void test0(A* a, B* b, id val) {
 }
 
 void test1(A* a) {
-  B* b = a; // expected-warning{{incompatible pointer types initializing 'A *' with an expression of type 'B *'}}
+  B* b = a; // expected-warning{{incompatible pointer types initializing 'B *' with an expression of type 'A *'}}
   B *c; c = a; // expected-warning{{incompatible pointer types assigning to 'A *' from 'B *'}}
 }
 
 void test2(A** ap) {
-  B** bp = ap; // expected-warning{{incompatible pointer types initializing 'A **' with an expression of type 'B **'}}
+  B** bp = ap; // expected-warning{{incompatible pointer types initializing 'B **' with an expression of type 'A **'}}
   bp = ap; // expected-warning{{incompatible pointer types assigning to 'A **' from 'B **'}}
 }
 
@@ -147,5 +147,27 @@ namespace rdar8734046 {
   void g(const A *a) {
     f1(a);
     f2(a);
+  }
+}
+
+namespace PR9735 {
+  int &f3(const A*);
+  float &f3(const void*);
+
+  void test_f(B* b, const B* bc) {
+    int &ir1 = f3(b);
+    int &ir2 = f3(bc);
+  }
+}
+
+@interface D : B
+@end
+
+namespace rdar9327203 {
+  int &f(void* const&, int);
+  float &f(void* const&, long);
+  
+  void g(id x) { 
+    int &fr = (f)(x, 0); 
   }
 }

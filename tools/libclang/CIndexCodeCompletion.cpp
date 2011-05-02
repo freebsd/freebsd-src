@@ -201,7 +201,7 @@ clang_getCompletionAvailability(CXCompletionString completion_string) {
 /// \brief The CXCodeCompleteResults structure we allocate internally;
 /// the client only sees the initial CXCodeCompleteResults structure.
 struct AllocatedCXCodeCompleteResults : public CXCodeCompleteResults {
-  AllocatedCXCodeCompleteResults();
+  AllocatedCXCodeCompleteResults(const FileSystemOptions& FileSystemOpts);
   ~AllocatedCXCodeCompleteResults();
   
   /// \brief Diagnostics produced while performing code completion.
@@ -216,10 +216,10 @@ struct AllocatedCXCodeCompleteResults : public CXCodeCompleteResults {
   FileSystemOptions FileSystemOpts;
 
   /// \brief File manager, used for diagnostics.
-  FileManager FileMgr;
+  llvm::IntrusiveRefCntPtr<FileManager> FileMgr;
 
   /// \brief Source manager, used for diagnostics.
-  SourceManager SourceMgr;
+  llvm::IntrusiveRefCntPtr<SourceManager> SourceMgr;
   
   /// \brief Temporary files that should be removed once we have finished
   /// with the code-completion results.
@@ -243,12 +243,14 @@ struct AllocatedCXCodeCompleteResults : public CXCodeCompleteResults {
 /// Used for debugging purposes only.
 static llvm::sys::cas_flag CodeCompletionResultObjects;
   
-AllocatedCXCodeCompleteResults::AllocatedCXCodeCompleteResults() 
+AllocatedCXCodeCompleteResults::AllocatedCXCodeCompleteResults(
+                                      const FileSystemOptions& FileSystemOpts)
   : CXCodeCompleteResults(),
     Diag(new Diagnostic(
                    llvm::IntrusiveRefCntPtr<DiagnosticIDs>(new DiagnosticIDs))),
-    FileMgr(FileSystemOpts),
-    SourceMgr(*Diag, FileMgr) { 
+    FileSystemOpts(FileSystemOpts),
+    FileMgr(new FileManager(FileSystemOpts)),
+    SourceMgr(new SourceManager(*Diag, *FileMgr)) { 
   if (getenv("LIBCLANG_OBJTRACKING")) {
     llvm::sys::AtomicIncrement(&CodeCompletionResultObjects);
     fprintf(stderr, "+++ %d completion results\n", CodeCompletionResultObjects);
@@ -380,7 +382,8 @@ void clang_codeCompleteAt_Impl(void *UserData) {
   }
 
   // Parse the resulting source file to find code-completion results.
-  AllocatedCXCodeCompleteResults *Results = new AllocatedCXCodeCompleteResults;
+  AllocatedCXCodeCompleteResults *Results = 
+        new AllocatedCXCodeCompleteResults(AST->getFileSystemOpts());
   Results->Results = 0;
   Results->NumResults = 0;
   
@@ -393,8 +396,8 @@ void clang_codeCompleteAt_Impl(void *UserData) {
                     (options & CXCodeComplete_IncludeMacros),
                     (options & CXCodeComplete_IncludeCodePatterns),
                     Capture,
-                    *Results->Diag, Results->LangOpts, Results->SourceMgr,
-                    Results->FileMgr, Results->Diagnostics,
+                    *Results->Diag, Results->LangOpts, *Results->SourceMgr,
+                    *Results->FileMgr, Results->Diagnostics,
                     Results->TemporaryBuffers);
   
   // Keep a reference to the allocator used for cached global completions, so

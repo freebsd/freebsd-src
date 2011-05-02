@@ -38,7 +38,7 @@ struct Z {
 typedef typeof(__builtin_offsetof(struct Z, y.array[1 + 2].member)) 
   offsetof_type;
 
-// SizeOfAlignOfExpr
+// UnaryExprOrTypeTraitExpr
 typedef typeof(sizeof(int)) typeof_sizeof;
 typedef typeof(sizeof(Enumerator)) typeof_sizeof2;
 
@@ -99,3 +99,7 @@ typedef typeof(__builtin_choose_expr(17 > 19, d0, 1)) choose_expr;
 
 // ShuffleVectorExpr
 typedef typeof(__builtin_shufflevector(vec2, vec2b, 2, 1)) shuffle_expr;
+
+// GenericSelectionExpr
+typedef typeof(_Generic(i, char*: 0, int: 0., default: hello))
+  generic_selection_expr;

@@ -108,6 +108,9 @@ public:
   }
   ComplexPairTy VisitExpr(Expr *S);
   ComplexPairTy VisitParenExpr(ParenExpr *PE) { return Visit(PE->getSubExpr());}
+  ComplexPairTy VisitGenericSelectionExpr(GenericSelectionExpr *GE) {
+    return Visit(GE->getResultExpr());
+  }
   ComplexPairTy VisitImaginaryLiteral(const ImaginaryLiteral *IL);
 
   // l-values.
@@ -668,14 +671,12 @@ VisitAbstractConditionalOperator(const AbstractConditionalOperator *E) {
   eval.end(CGF);
 
   // Create a PHI node for the real part.
-  llvm::PHINode *RealPN = Builder.CreatePHI(LHS.first->getType(), "cond.r");
-  RealPN->reserveOperandSpace(2);
+  llvm::PHINode *RealPN = Builder.CreatePHI(LHS.first->getType(), 2, "cond.r");
   RealPN->addIncoming(LHS.first, LHSBlock);
   RealPN->addIncoming(RHS.first, RHSBlock);
 
   // Create a PHI node for the imaginary part.
-  llvm::PHINode *ImagPN = Builder.CreatePHI(LHS.first->getType(), "cond.i");
-  ImagPN->reserveOperandSpace(2);
+  llvm::PHINode *ImagPN = Builder.CreatePHI(LHS.first->getType(), 2, "cond.i");
   ImagPN->addIncoming(LHS.second, LHSBlock);
   ImagPN->addIncoming(RHS.second, RHSBlock);
 

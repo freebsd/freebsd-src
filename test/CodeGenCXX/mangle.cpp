@@ -183,7 +183,7 @@ template <typename T> typename T::U ft6(const T&) { return 0; }
 // CHECK: @_Z3ft6I1SENT_1UERKS1_
 template int ft6<S>(const S&);
 
-template<typename> struct __is_scalar {
+template<typename> struct __is_scalar_type {
   enum { __value = 1 };
 };
 
@@ -194,11 +194,11 @@ template<typename T> struct __enable_if<true, T> {
 };
 
 // PR5063
-template<typename T> typename __enable_if<__is_scalar<T>::__value, void>::__type ft7() { }
+template<typename T> typename __enable_if<__is_scalar_type<T>::__value, void>::__type ft7() { }
 
-// CHECK: @_Z3ft7IiEN11__enable_ifIXsr11__is_scalarIT_E7__valueEvE6__typeEv
+// CHECK: @_Z3ft7IiEN11__enable_ifIXsr16__is_scalar_typeIT_E7__valueEvE6__typeEv
 template void ft7<int>();
-// CHECK: @_Z3ft7IPvEN11__enable_ifIXsr11__is_scalarIT_E7__valueEvE6__typeEv
+// CHECK: @_Z3ft7IPvEN11__enable_ifIXsr16__is_scalar_typeIT_E7__valueEvE6__typeEv
 template void ft7<void*>();
 
 // PR5144
@@ -225,15 +225,15 @@ struct S7 {
 S7::S7() {}
 
 // PR5063
-template<typename T> typename __enable_if<(__is_scalar<T>::__value), void>::__type ft8() { }
-// CHECK: @_Z3ft8IiEN11__enable_ifIXsr11__is_scalarIT_E7__valueEvE6__typeEv
+template<typename T> typename __enable_if<(__is_scalar_type<T>::__value), void>::__type ft8() { }
+// CHECK: @_Z3ft8IiEN11__enable_ifIXsr16__is_scalar_typeIT_E7__valueEvE6__typeEv
 template void ft8<int>();
-// CHECK: @_Z3ft8IPvEN11__enable_ifIXsr11__is_scalarIT_E7__valueEvE6__typeEv
+// CHECK: @_Z3ft8IPvEN11__enable_ifIXsr16__is_scalar_typeIT_E7__valueEvE6__typeEv
 template void ft8<void*>();
 
 // PR5796
 namespace PR5796 {
-template<typename> struct __is_scalar {
+template<typename> struct __is_scalar_type {
   enum { __value = 0 };
 };
 
@@ -241,8 +241,8 @@ template<bool, typename> struct __enable_if {};
 template<typename T> struct __enable_if<true, T> { typedef T __type; };
 template<typename T>
 
-// CHECK: define linkonce_odr void @_ZN6PR57968__fill_aIiEENS_11__enable_ifIXntsrNS_11__is_scalarIT_EE7__valueEvE6__typeEv
-typename __enable_if<!__is_scalar<T>::__value, void>::__type __fill_a() { };
+// CHECK: define linkonce_odr void @_ZN6PR57968__fill_aIiEENS_11__enable_ifIXntsrNS_16__is_scalar_typeIT_EE7__valueEvE6__typeEv
+typename __enable_if<!__is_scalar_type<T>::__value, void>::__type __fill_a() { };
 
 void f() { __fill_a<int>(); }
 }
@@ -348,7 +348,7 @@ namespace test0 {
     char buffer[sizeof(float)];
     g<float>(buffer);
   }
-  // CHECK: define linkonce_odr void @_ZN5test01gIfEEvRAszplcvT__ELf40A00000E_c(
+  // CHECK: define linkonce_odr void @_ZN5test01gIfEEvRAszplcvT__ELf40a00000E_c(
 
   template <class T> void h(char (&buffer)[sizeof(T() + 5.0)]) {}
   void test3() {
@@ -373,7 +373,7 @@ namespace test1 {
   template void f(X<int>);
 }
 
-// CHECK: define internal void @_Z27functionWithInternalLinkagev()
+// CHECK: define internal void @_ZL27functionWithInternalLinkagev()
 static void functionWithInternalLinkage() {  }
 void g() { functionWithInternalLinkage(); }
 
@@ -390,26 +390,29 @@ namespace test2 {
   // CHECK: define linkonce_odr i32 @_ZN5test211read_memberINS_1AEEEDtptcvPT_Li0E6memberERS2_(
 }
 
+// rdar://problem/9280586
 namespace test3 {
   struct AmbiguousBase { int ab; };
   struct Path1 : AmbiguousBase { float p; };
   struct Path2 : AmbiguousBase { double p; };
   struct Derived : Path1, Path2 { };
 
-  //template <class T> decltype(((T*) 0)->Path1::ab) get_ab_1(T &ref) { return ref.Path1::ab; }
-  //template <class T> decltype(((T*) 0)->Path2::ab) get_ab_2(T &ref) { return ref.Path2::ab; }
+  // CHECK: define linkonce_odr i32 @_ZN5test38get_ab_1INS_7DerivedEEEDtptcvPT_Li0EsrNS_5Path1E2abERS2_(
+  template <class T> decltype(((T*) 0)->Path1::ab) get_ab_1(T &ref) { return ref.Path1::ab; }
 
-  // define weak_odr float @_ZN5test37get_p_1INS_7DerivedEEEDtptcvPT_Li0E5Path11pERS2_(
+  // CHECK: define linkonce_odr i32 @_ZN5test38get_ab_2INS_7DerivedEEEDtptcvPT_Li0EsrNS_5Path2E2abERS2_(
+  template <class T> decltype(((T*) 0)->Path2::ab) get_ab_2(T &ref) { return ref.Path2::ab; }
+
+  // CHECK: define linkonce_odr float @_ZN5test37get_p_1INS_7DerivedEEEDtptcvPT_Li0EsrNS_5Path1E1pERS2_(
   template <class T> decltype(((T*) 0)->Path1::p) get_p_1(T &ref) { return ref.Path1::p; }
 
-  // define weak_odr double @_ZN5test37get_p_1INS_7DerivedEEEDtptcvPT_Li0E5Path21pERS2_(
+  // CHECK: define linkonce_odr double @_ZN5test37get_p_2INS_7DerivedEEEDtptcvPT_Li0EsrNS_5Path2E1pERS2_(
   template <class T> decltype(((T*) 0)->Path2::p) get_p_2(T &ref) { return ref.Path2::p; }
 
   Derived obj;
   void test() {
-    // FIXME: uncomment these when we support diamonds competently
-    //get_ab_1(obj);
-    //get_ab_2(obj);
+    get_ab_1(obj);
+    get_ab_2(obj);
     get_p_1(obj);
     get_p_2(obj);
   }
@@ -646,4 +649,30 @@ namespace test23 {
   typedef vpc vpca5[5];
   void f(vpca5 volatile (&)[10]) {}
   // CHECK: define void @_ZN6test231fERA10_A5_VKPv(
+}
+
+namespace test24 {
+  void test0() {
+    extern int foo();
+    // CHECK: call i32 @_ZN6test243fooEv()
+    foo();
+  }
+
+  static char foo() {}
+  void test1() {
+    // CHECK: call signext i8 @_ZN6test24L3fooEv()
+    foo();
+  }
+}
+
+// rdar://problem/8806641
+namespace test25 {
+  template <void (*fn)()> struct A {
+    static void call() { fn(); }
+  };
+  void foo();
+  void test() {
+    // CHECK: call void @_ZN6test251AIXadL_ZNS_3fooEvEEE4callEv()
+    A<foo>::call();
+  }
 }

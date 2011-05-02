@@ -1,7 +1,7 @@
-// RUN: %clang_cc1 -analyze -analyzer-checker=core.experimental.CString,core.experimental.UnreachableCode -analyzer-check-objc-mem -analyzer-store=region -verify %s
-// RUN: %clang_cc1 -analyze -DUSE_BUILTINS -analyzer-checker=core.experimental.CString,core.experimental.UnreachableCode -analyzer-check-objc-mem -analyzer-store=region -verify %s
-// RUN: %clang_cc1 -analyze -DVARIANT -analyzer-checker=core.experimental.CString,core.experimental.UnreachableCode -analyzer-check-objc-mem -analyzer-store=region -verify %s
-// RUN: %clang_cc1 -analyze -DUSE_BUILTINS -DVARIANT -analyzer-checker=core.experimental.CString,core.experimental.UnreachableCode -analyzer-check-objc-mem -analyzer-store=region -verify %s
+// RUN: %clang_cc1 -analyze -analyzer-checker=core,cplusplus.experimental.CString,deadcode.experimental.UnreachableCode -analyzer-store=region -Wno-null-dereference -verify %s
+// RUN: %clang_cc1 -analyze -DUSE_BUILTINS -analyzer-checker=core,cplusplus.experimental.CString,deadcode.experimental.UnreachableCode -analyzer-store=region -Wno-null-dereference -verify %s
+// RUN: %clang_cc1 -analyze -DVARIANT -analyzer-checker=core,cplusplus.experimental.CString,deadcode.experimental.UnreachableCode -analyzer-store=region -Wno-null-dereference -verify %s
+// RUN: %clang_cc1 -analyze -DUSE_BUILTINS -DVARIANT -analyzer-checker=core,cplusplus.experimental.CString,deadcode.experimental.UnreachableCode -analyzer-store=region -Wno-null-dereference -verify %s
 
 //===----------------------------------------------------------------------===
 // Declarations
@@ -15,7 +15,7 @@
 // Some functions are implemented as builtins. These should be #defined as
 // BUILTIN(f), which will prepend "__builtin_" if USE_BUILTINS is defined.
 
-// Functions that have variants and are also availabe as builtins should be
+// Functions that have variants and are also available as builtins should be
 // declared carefully! See memcpy() for an example.
 
 #ifdef USE_BUILTINS
@@ -68,7 +68,7 @@ label:
 }
 
 void strlen_subregion() {
-  struct two_strings { char a[2], b[2] };
+  struct two_strings { char a[2], b[2]; };
   extern void use_two_strings(struct two_strings *);
 
   struct two_strings z;
@@ -200,7 +200,7 @@ label:
 }
 
 void strnlen_subregion() {
-  struct two_stringsn { char a[2], b[2] };
+  struct two_stringsn { char a[2], b[2]; };
   extern void use_two_stringsn(struct two_stringsn *);
 
   struct two_stringsn z;
@@ -437,4 +437,438 @@ void stpcpy_no_overflow(char *y) {
   char x[4];
   if (strlen(y) == 3)
     stpcpy(x, y); // no-warning
+}
+
+//===----------------------------------------------------------------------===
+// strcat()
+//===----------------------------------------------------------------------===
+
+#ifdef VARIANT
+
+#define __strcat_chk BUILTIN(__strcat_chk)
+char *__strcat_chk(char *restrict s1, const char *restrict s2, size_t destlen);
+
+#define strcat(a,b) __strcat_chk(a,b,(size_t)-1)
+
+#else /* VARIANT */
+
+#define strcat BUILTIN(strcat)
+char *strcat(char *restrict s1, const char *restrict s2);
+
+#endif /* VARIANT */
+
+
+void strcat_null_dst(char *x) {
+  strcat(NULL, x); // expected-warning{{Null pointer argument in call to byte string function}}
+}
+
+void strcat_null_src(char *x) {
+  strcat(x, NULL); // expected-warning{{Null pointer argument in call to byte string function}}
+}
+
+void strcat_fn(char *x) {
+  strcat(x, (char*)&strcat_fn); // expected-warning{{Argument to byte string function is the address of the function 'strcat_fn', which is not a null-terminated string}}
+}
+
+void strcat_effects(char *y) {
+  char x[8] = "123";
+  size_t orig_len = strlen(x);
+  char a = x[0];
+
+  if (strlen(y) != 4)
+    return;
+
+  if (strcat(x, y) != x)
+    (void)*(char*)0; // no-warning
+
+  if ((int)strlen(x) != (orig_len + strlen(y)))
+    (void)*(char*)0; // no-warning
+
+  if (a != x[0])
+    (void)*(char*)0; // expected-warning{{null}}
+}
+
+void strcat_overflow_0(char *y) {
+  char x[4] = "12";
+  if (strlen(y) == 4)
+    strcat(x, y); // expected-warning{{Byte string function overflows destination buffer}}
+}
+
+void strcat_overflow_1(char *y) {
+  char x[4] = "12";
+  if (strlen(y) == 3)
+    strcat(x, y); // expected-warning{{Byte string function overflows destination buffer}}
+}
+
+void strcat_overflow_2(char *y) {
+  char x[4] = "12";
+  if (strlen(y) == 2)
+    strcat(x, y); // expected-warning{{Byte string function overflows destination buffer}}
+}
+
+void strcat_no_overflow(char *y) {
+  char x[5] = "12";
+  if (strlen(y) == 2)
+    strcat(x, y); // no-warning
+}
+
+
+//===----------------------------------------------------------------------===
+// strncat()
+//===----------------------------------------------------------------------===
+
+#ifdef VARIANT
+
+#define __strncat_chk BUILTIN(__strncat_chk)
+char *__strncat_chk(char *restrict s1, const char *restrict s2, size_t n, size_t destlen);
+
+#define strncat(a,b,c) __strncat_chk(a,b,c, (size_t)-1)
+
+#else /* VARIANT */
+
+#define strncat BUILTIN(strncat)
+char *strncat(char *restrict s1, const char *restrict s2, size_t n);
+
+#endif /* VARIANT */
+
+
+void strncat_null_dst(char *x) {
+  strncat(NULL, x, 4); // expected-warning{{Null pointer argument in call to byte string function}}
+}
+
+void strncat_null_src(char *x) {
+  strncat(x, NULL, 4); // expected-warning{{Null pointer argument in call to byte string function}}
+}
+
+void strncat_fn(char *x) {
+  strncat(x, (char*)&strncat_fn, 4); // expected-warning{{Argument to byte string function is the address of the function 'strncat_fn', which is not a null-terminated string}}
+}
+
+void strncat_effects(char *y) {
+  char x[8] = "123";
+  size_t orig_len = strlen(x);
+  char a = x[0];
+
+  if (strlen(y) != 4)
+    return;
+
+  if (strncat(x, y, strlen(y)) != x)
+    (void)*(char*)0; // no-warning
+
+  if (strlen(x) != orig_len + strlen(y))
+    (void)*(char*)0; // no-warning
+
+  if (a != x[0])
+    (void)*(char*)0; // expected-warning{{null}}
+}
+
+void strncat_overflow_0(char *y) {
+  char x[4] = "12";
+  if (strlen(y) == 4)
+    strncat(x, y, strlen(y)); // expected-warning{{Byte string function overflows destination buffer}}
+}
+
+void strncat_overflow_1(char *y) {
+  char x[4] = "12";
+  if (strlen(y) == 3)
+    strncat(x, y, strlen(y)); // expected-warning{{Byte string function overflows destination buffer}}
+}
+
+void strncat_overflow_2(char *y) {
+  char x[4] = "12";
+  if (strlen(y) == 2)
+    strncat(x, y, strlen(y)); // expected-warning{{Byte string function overflows destination buffer}}
+}
+
+void strncat_overflow_3(char *y) {
+  char x[4] = "12";
+  if (strlen(y) == 4)
+    strncat(x, y, 2); // expected-warning{{Byte string function overflows destination buffer}}
+}
+void strncat_no_overflow_1(char *y) {
+  char x[5] = "12";
+  if (strlen(y) == 2)
+    strncat(x, y, strlen(y)); // no-warning
+}
+
+void strncat_no_overflow_2(char *y) {
+  char x[4] = "12";
+  if (strlen(y) == 4)
+    strncat(x, y, 1); // no-warning
+}
+
+//===----------------------------------------------------------------------===
+// strcmp()
+//===----------------------------------------------------------------------===
+
+#define strcmp BUILTIN(strcmp)
+int strcmp(const char *restrict s1, const char *restrict s2);
+
+void strcmp_constant0() {
+  if (strcmp("123", "123") != 0)
+    (void)*(char*)0; // no-warning
+}
+
+void strcmp_constant_and_var_0() {
+  char *x = "123";
+  if (strcmp(x, "123") != 0)
+    (void)*(char*)0; // no-warning
+}
+
+void strcmp_constant_and_var_1() {
+  char *x = "123";
+    if (strcmp("123", x) != 0)
+    (void)*(char*)0; // no-warning
+}
+
+void strcmp_0() {
+  char *x = "123";
+  char *y = "123";
+  if (strcmp(x, y) != 0)
+    (void)*(char*)0; // no-warning
+}
+
+void strcmp_1() {
+  char *x = "234";
+  char *y = "123";
+  if (strcmp(x, y) != 1)
+    (void)*(char*)0; // no-warning
+}
+
+void strcmp_2() {
+  char *x = "123";
+  char *y = "234";
+  if (strcmp(x, y) != -1)
+    (void)*(char*)0; // no-warning
+}
+
+void strcmp_null_0() {
+  char *x = NULL;
+  char *y = "123";
+  strcmp(x, y); // expected-warning{{Null pointer argument in call to byte string function}}
+}
+
+void strcmp_null_1() {
+  char *x = "123";
+  char *y = NULL;
+  strcmp(x, y); // expected-warning{{Null pointer argument in call to byte string function}}
+}
+
+void strcmp_diff_length_0() {
+  char *x = "12345";
+  char *y = "234";
+  if (strcmp(x, y) != -1)
+    (void)*(char*)0; // no-warning
+}
+
+void strcmp_diff_length_1() {
+  char *x = "123";
+  char *y = "23456";
+  if (strcmp(x, y) != -1)
+    (void)*(char*)0; // no-warning
+}
+
+void strcmp_diff_length_2() {
+  char *x = "12345";
+  char *y = "123";
+  if (strcmp(x, y) != 1)
+    (void)*(char*)0; // no-warning
+}
+
+void strcmp_diff_length_3() {
+  char *x = "123";
+  char *y = "12345";
+  if (strcmp(x, y) != -1)
+    (void)*(char*)0; // no-warning
+}
+
+//===----------------------------------------------------------------------===
+// strncmp()
+//===----------------------------------------------------------------------===
+
+#define strncmp BUILTIN(strncmp)
+int strncmp(const char *restrict s1, const char *restrict s2, size_t n);
+
+void strncmp_constant0() {
+  if (strncmp("123", "123", 3) != 0)
+    (void)*(char*)0; // no-warning
+}
+
+void strncmp_constant_and_var_0() {
+  char *x = "123";
+  if (strncmp(x, "123", 3) != 0)
+    (void)*(char*)0; // no-warning
+}
+
+void strncmp_constant_and_var_1() {
+  char *x = "123";
+  if (strncmp("123", x, 3) != 0)
+    (void)*(char*)0; // no-warning
+}
+
+void strncmp_0() {
+  char *x = "123";
+  char *y = "123";
+  if (strncmp(x, y, 3) != 0)
+    (void)*(char*)0; // no-warning
+}
+
+void strncmp_1() {
+  char *x = "234";
+  char *y = "123";
+  if (strncmp(x, y, 3) != 1)
+    (void)*(char*)0; // no-warning
+}
+
+void strncmp_2() {
+  char *x = "123";
+  char *y = "234";
+  if (strncmp(x, y, 3) != -1)
+    (void)*(char*)0; // no-warning
+}
+
+void strncmp_null_0() {
+  char *x = NULL;
+  char *y = "123";
+  strncmp(x, y, 3); // expected-warning{{Null pointer argument in call to byte string function}}
+}
+
+void strncmp_null_1() {
+  char *x = "123";
+  char *y = NULL;
+  strncmp(x, y, 3); // expected-warning{{Null pointer argument in call to byte string function}}
+}
+
+void strncmp_diff_length_0() {
+  char *x = "12345";
+  char *y = "234";
+  if (strncmp(x, y, 5) != -1)
+    (void)*(char*)0; // no-warning
+}
+
+void strncmp_diff_length_1() {
+  char *x = "123";
+  char *y = "23456";
+  if (strncmp(x, y, 5) != -1)
+    (void)*(char*)0; // no-warning
+}
+
+void strncmp_diff_length_2() {
+  char *x = "12345";
+  char *y = "123";
+  if (strncmp(x, y, 5) != 1)
+    (void)*(char*)0; // no-warning
+}
+
+void strncmp_diff_length_3() {
+  char *x = "123";
+  char *y = "12345";
+  if (strncmp(x, y, 5) != -1)
+    (void)*(char*)0; // no-warning
+}
+
+void strncmp_diff_length_4() {
+  char *x = "123";
+  char *y = "12345";
+  if (strncmp(x, y, 3) != 0)
+    (void)*(char*)0; // no-warning
+}
+
+void strncmp_diff_length_5() {
+  char *x = "012";
+  char *y = "12345";
+  if (strncmp(x, y, 3) != -1)
+    (void)*(char*)0; // no-warning
+}
+
+void strncmp_diff_length_6() {
+  char *x = "234";
+  char *y = "12345";
+  if (strncmp(x, y, 3) != 1)
+    (void)*(char*)0; // no-warning
+}
+
+//===----------------------------------------------------------------------===
+// strcasecmp()
+//===----------------------------------------------------------------------===
+
+#define strcasecmp BUILTIN(strcasecmp)
+int strcasecmp(const char *restrict s1, const char *restrict s2);
+
+void strcasecmp_constant0() {
+  if (strcasecmp("abc", "Abc") != 0)
+    (void)*(char*)0; // no-warning
+}
+
+void strcasecmp_constant_and_var_0() {
+  char *x = "abc";
+  if (strcasecmp(x, "Abc") != 0)
+    (void)*(char*)0; // no-warning
+}
+
+void strcasecmp_constant_and_var_1() {
+  char *x = "abc";
+    if (strcasecmp("Abc", x) != 0)
+    (void)*(char*)0; // no-warning
+}
+
+void strcasecmp_0() {
+  char *x = "abc";
+  char *y = "Abc";
+  if (strcasecmp(x, y) != 0)
+    (void)*(char*)0; // no-warning
+}
+
+void strcasecmp_1() {
+  char *x = "Bcd";
+  char *y = "abc";
+  if (strcasecmp(x, y) != 1)
+    (void)*(char*)0; // no-warning
+}
+
+void strcasecmp_2() {
+  char *x = "abc";
+  char *y = "Bcd";
+  if (strcasecmp(x, y) != -1)
+    (void)*(char*)0; // no-warning
+}
+
+void strcasecmp_null_0() {
+  char *x = NULL;
+  char *y = "123";
+  strcasecmp(x, y); // expected-warning{{Null pointer argument in call to byte string function}}
+}
+
+void strcasecmp_null_1() {
+  char *x = "123";
+  char *y = NULL;
+  strcasecmp(x, y); // expected-warning{{Null pointer argument in call to byte string function}}
+}
+
+void strcasecmp_diff_length_0() {
+  char *x = "abcde";
+  char *y = "aBd";
+  if (strcasecmp(x, y) != -1)
+    (void)*(char*)0; // no-warning
+}
+
+void strcasecmp_diff_length_1() {
+  char *x = "abc";
+  char *y = "aBdef";
+  if (strcasecmp(x, y) != -1)
+    (void)*(char*)0; // no-warning
+}
+
+void strcasecmp_diff_length_2() {
+  char *x = "aBcDe";
+  char *y = "abc";
+  if (strcasecmp(x, y) != 1)
+    (void)*(char*)0; // no-warning
+}
+
+void strcasecmp_diff_length_3() {
+  char *x = "aBc";
+  char *y = "abcde";
+  if (strcasecmp(x, y) != -1)
+    (void)*(char*)0; // no-warning
 }

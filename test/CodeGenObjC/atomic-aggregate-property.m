@@ -23,7 +23,7 @@ struct s1 {
 @synthesize y;
 @synthesize z;
 @end
-
 // CHECK-LP64: call void @objc_copyStruct
 // CHECK-LP64: call void @objc_copyStruct
 // CHECK-LP64: call void @objc_copyStruct
+// CHECK-LP64: call i8* @objc_memmove_collectable

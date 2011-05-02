@@ -120,3 +120,56 @@ int test_pr9296() {
     return array[true]; // no-warning
 }
 
+int test_sizeof_as_condition(int flag) {
+  int arr[2] = { 0, 0 }; // expected-note {{array 'arr' declared here}}
+  if (flag) 
+    return sizeof(char) != sizeof(char) ? arr[2] : arr[1];
+  return sizeof(char) == sizeof(char) ? arr[2] : arr[1]; // expected-warning {{array index of '2' indexes past the end of an array (that contains 2 elements)}}
+}
+
+void test_switch() {
+  switch (4) {
+    case 1: {
+      int arr[2];
+      arr[2] = 1; // no-warning
+      break;
+    }
+    case 4: {
+      int arr[2]; // expected-note {{array 'arr' declared here}}
+      arr[2] = 1; // expected-warning {{array index of '2' indexes past the end of an array (that contains 2 elements)}}
+      break;
+    }
+    default: {
+      int arr[2];
+      arr[2] = 1; // no-warning
+      break;
+    }
+  }
+}
+
+// Test nested switch statements.
+enum enumA { enumA_A, enumA_B, enumA_C, enumA_D, enumA_E };
+enum enumB { enumB_X, enumB_Y, enumB_Z };
+static enum enumB myVal = enumB_X;
+void test_nested_switch()
+{
+  switch (enumA_E) { // expected-warning {{no case matching constant}}
+    switch (myVal) { // expected-warning {{enumeration values 'enumB_X' and 'enumB_Z' not handled in switch}}
+      case enumB_Y: ;
+    }
+  }
+}
+
+// Test that if all the values of an enum covered, that the 'default' branch
+// is unreachable.
+enum Values { A, B, C, D };
+void test_all_enums_covered(enum Values v) {
+  int x[2];
+  switch (v) {
+  case A: return;
+  case B: return;
+  case C: return;
+  case D: return;
+  }
+  x[2] = 0; // no-warning
+}

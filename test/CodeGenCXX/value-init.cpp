@@ -83,6 +83,61 @@ namespace ptrmem {
   }
 }
 
+namespace PR9801 {
+
+struct Test {
+  Test() : i(10) {}
+  Test(int i) : i(i) {}
+  int i;
+private:
+  int j;
+};
+
+struct Test2 {
+  Test t;
+};
+
+struct Test3 : public Test { };
+
+// CHECK: define void @_ZN6PR98011fEv
+void f() {
+  // CHECK-NOT: call void @llvm.memset.p0i8.i64
+  // CHECK: call void @_ZN6PR98014TestC1Ei
+  // CHECK-NOT: call void @llvm.memset.p0i8.i64
+  // CHECK: call void @_ZN6PR98014TestC1Ev
+  // CHECK-NOT: call void @llvm.memset.p0i8.i64
+  // CHECK: call void @_ZN6PR98014TestC1Ev
+  Test partial[3] = { 1 };
+
+  // CHECK-NOT: call void @llvm.memset.p0i8.i64
+  // CHECK: call void @_ZN6PR98014TestC1Ev
+  // CHECK-NOT: call void @llvm.memset.p0i8.i64
+  // CHECK: call void @_ZN6PR98014TestC1Ev
+  // CHECK-NOT: call void @llvm.memset.p0i8.i64
+  // CHECK: call void @_ZN6PR98014TestC1Ev
+  Test empty[3] = {};
+
+  // CHECK: call void @llvm.memset.p0i8.i64
+  // CHECK-NOT: call void @llvm.memset.p0i8.i64
+  // CHECK: call void @_ZN6PR98015Test2C1Ev
+  // CHECK-NOT: call void @llvm.memset.p0i8.i64
+  // CHECK: call void @_ZN6PR98015Test2C1Ev
+  // CHECK-NOT: call void @llvm.memset.p0i8.i64
+  // CHECK: call void @_ZN6PR98015Test2C1Ev
+  Test2 empty2[3] = {};
+
+  // CHECK: call void @llvm.memset.p0i8.i64
+  // CHECK-NOT: call void @llvm.memset.p0i8.i64
+  // CHECK: call void @_ZN6PR98015Test3C1Ev
+  // CHECK-NOT: call void @llvm.memset.p0i8.i64
+  // CHECK: call void @_ZN6PR98015Test3C1Ev
+  // CHECK-NOT: call void @llvm.memset.p0i8.i64
+  // CHECK: call void @_ZN6PR98015Test3C1Ev
+  Test3 empty3[3] = {};
+}
+
+}
+
 namespace zeroinit {
   struct S { int i; };
 
@@ -121,6 +176,7 @@ namespace zeroinit {
   template<typename>
   struct X3 : X2<int> { 
     X3() : X2<int>() { }
+    int i;
   };
   
 
@@ -133,7 +189,7 @@ namespace zeroinit {
     X3<int>().f();
   }
 
-  // CHECK: define linkonce_odr void @_ZN8zeroinit2X3IiEC2Ev(%struct.B* %this) unnamed_addr
+  // CHECK: define linkonce_odr void @_ZN8zeroinit2X3IiEC2Ev(%"struct.zeroinit::X3"* %this) unnamed_addr
   // CHECK: call void @llvm.memset.p0i8.i64
   // CHECK-NEXT: call void @_ZN8zeroinit2X2IiEC2Ev
   // CHECK-NEXT: ret void

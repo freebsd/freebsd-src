@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -analyze -analyzer-checker=core.experimental.UnreachableCode,core.experimental.CastSize -analyzer-check-objc-mem -analyzer-experimental-checks -analyzer-store=region -verify %s
+// RUN: %clang_cc1 -analyze -analyzer-checker=core,deadcode.experimental.UnreachableCode,core.experimental.CastSize,unix.experimental.Malloc -analyzer-store=region -verify %s
 typedef __typeof(sizeof(int)) size_t;
 void *malloc(size_t);
 void free(void *);
@@ -31,6 +31,17 @@ void f2() {
   int *p = malloc(12);
   free(p);
   free(p); // expected-warning{{Try to free a memory block that has been released}}
+}
+
+void f2_realloc_0() {
+  int *p = malloc(12);
+  realloc(p,0);
+  realloc(p,0); // expected-warning{{Try to free a memory block that has been released}}
+}
+
+void f2_realloc_1() {
+  int *p = malloc(12);
+  int *q = realloc(p,0); // expected-warning{{Assigned value is garbage or undefined}}
 }
 
 // ownership attributes tests
@@ -166,6 +177,15 @@ void f6() {
     free(p);
 }
 
+void f6_realloc() {
+  int *p = malloc(12);
+  if (!p)
+    return; // no-warning
+  else
+    realloc(p,0);
+}
+
+
 char *doit2();
 void pr6069() {
   char *buf = doit2();
@@ -179,6 +199,12 @@ void pr6293() {
 void f7() {
   char *x = (char*) malloc(4);
   free(x);
+  x[0] = 'a'; // expected-warning{{Use dynamically allocated memory after it is freed.}}
+}
+
+void f7_realloc() {
+  char *x = (char*) malloc(4);
+  realloc(x,0);
   x[0] = 'a'; // expected-warning{{Use dynamically allocated memory after it is freed.}}
 }
 

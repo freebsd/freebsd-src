@@ -42,25 +42,25 @@ using llvm::APFloat;
 /// rules.  For example, the RHS of (0 && foo()) is not evaluated.  We can
 /// evaluate the expression regardless of what the RHS is, but C only allows
 /// certain things in certain situations.
-struct EvalInfo {
-  const ASTContext &Ctx;
-
-  /// EvalResult - Contains information about the evaluation.
-  Expr::EvalResult &EvalResult;
-
-  llvm::DenseMap<const OpaqueValueExpr*, APValue> OpaqueValues;
-  const APValue *getOpaqueValue(const OpaqueValueExpr *e) {
-    llvm::DenseMap<const OpaqueValueExpr*, APValue>::iterator
-      i = OpaqueValues.find(e);
-    if (i == OpaqueValues.end()) return 0;
-    return &i->second;
-  }
-
-  EvalInfo(const ASTContext &ctx, Expr::EvalResult& evalresult)
-    : Ctx(ctx), EvalResult(evalresult) {}
-};
-
 namespace {
+  struct EvalInfo {
+    const ASTContext &Ctx;
+
+    /// EvalResult - Contains information about the evaluation.
+    Expr::EvalResult &EvalResult;
+
+    typedef llvm::DenseMap<const OpaqueValueExpr*, APValue> MapTy;
+    MapTy OpaqueValues;
+    const APValue *getOpaqueValue(const OpaqueValueExpr *e) const {
+      MapTy::const_iterator i = OpaqueValues.find(e);
+      if (i == OpaqueValues.end()) return 0;
+      return &i->second;
+    }
+
+    EvalInfo(const ASTContext &ctx, Expr::EvalResult &evalresult)
+      : Ctx(ctx), EvalResult(evalresult) {}
+  };
+
   struct ComplexValue {
   private:
     bool IsInt;
@@ -175,7 +175,7 @@ static bool EvalPointerValueAsBool(LValue& Value, bool& Result) {
   const ValueDecl* Decl = DeclRef->getDecl();
   if (Decl->hasAttr<WeakAttr>() ||
       Decl->hasAttr<WeakRefAttr>() ||
-      Decl->hasAttr<WeakImportAttr>())
+      Decl->isWeakImported())
     return false;
 
   return true;
@@ -274,6 +274,9 @@ public:
   }
 
   bool VisitParenExpr(ParenExpr *E) { return Visit(E->getSubExpr()); }
+  bool VisitGenericSelectionExpr(GenericSelectionExpr *E) {
+    return Visit(E->getResultExpr());
+  }
   bool VisitDeclRefExpr(DeclRefExpr *E) {
     if (Info.Ctx.getCanonicalType(E->getType()).isVolatileQualified())
       return true;
@@ -290,7 +293,8 @@ public:
   bool VisitFloatingLiteral(FloatingLiteral *E) { return false; }
   bool VisitStringLiteral(StringLiteral *E) { return false; }
   bool VisitCharacterLiteral(CharacterLiteral *E) { return false; }
-  bool VisitSizeOfAlignOfExpr(SizeOfAlignOfExpr *E) { return false; }
+  bool VisitUnaryExprOrTypeTraitExpr(UnaryExprOrTypeTraitExpr *E)
+    { return false; }
   bool VisitArraySubscriptExpr(ArraySubscriptExpr *E)
     { return Visit(E->getLHS()) || Visit(E->getRHS()); }
   bool VisitChooseExpr(ChooseExpr *E)
@@ -315,6 +319,8 @@ public:
   bool VisitInitListExpr(InitListExpr *E) {
     for (unsigned i = 0, e = E->getNumInits(); i != e; ++i)
       if (Visit(E->getInit(i))) return true;
+    if (Expr *filler = E->getArrayFiller())
+      return Visit(filler);
     return false;
   }
     
@@ -371,6 +377,9 @@ public:
   }
   
   bool VisitParenExpr(ParenExpr *E) { return Visit(E->getSubExpr()); }
+  bool VisitGenericSelectionExpr(GenericSelectionExpr *E) {
+    return Visit(E->getResultExpr());
+  }
   bool VisitDeclRefExpr(DeclRefExpr *E);
   bool VisitPredefinedExpr(PredefinedExpr *E) { return Success(E); }
   bool VisitCompoundLiteralExpr(CompoundLiteralExpr *E);
@@ -500,6 +509,9 @@ public:
   }
 
   bool VisitParenExpr(ParenExpr *E) { return Visit(E->getSubExpr()); }
+  bool VisitGenericSelectionExpr(GenericSelectionExpr *E) {
+    return Visit(E->getResultExpr());
+  }
 
   bool VisitBinaryOperator(const BinaryOperator *E);
   bool VisitCastExpr(CastExpr* E);
@@ -589,7 +601,6 @@ bool PointerExprEvaluator::VisitCastExpr(CastExpr* E) {
 
   case CK_NoOp:
   case CK_BitCast:
-  case CK_LValueBitCast:
   case CK_AnyPointerToObjCPointerCast:
   case CK_AnyPointerToBlockPointerCast:
     return Visit(SubExpr);
@@ -717,6 +728,8 @@ namespace {
 
     APValue VisitParenExpr(ParenExpr *E)
         { return Visit(E->getSubExpr()); }
+    APValue VisitGenericSelectionExpr(GenericSelectionExpr *E)
+        { return Visit(E->getResultExpr()); }
     APValue VisitUnaryExtension(const UnaryOperator *E)
       { return Visit(E->getSubExpr()); }
     APValue VisitUnaryPlus(const UnaryOperator *E)
@@ -755,68 +768,61 @@ APValue VectorExprEvaluator::VisitCastExpr(const CastExpr* E) {
 
   const Expr* SE = E->getSubExpr();
   QualType SETy = SE->getType();
-  APValue Result = APValue();
 
-  // Check for vector->vector bitcast and scalar->vector splat.
-  if (SETy->isVectorType()) {
-    return this->Visit(const_cast<Expr*>(SE));
-  } else if (SETy->isIntegerType()) {
-    APSInt IntResult;
-    if (!EvaluateInteger(SE, IntResult, Info))
+  switch (E->getCastKind()) {
+  case CK_VectorSplat: {
+    APValue Result = APValue();
+    if (SETy->isIntegerType()) {
+      APSInt IntResult;
+      if (!EvaluateInteger(SE, IntResult, Info))
+         return APValue();
+      Result = APValue(IntResult);
+    } else if (SETy->isRealFloatingType()) {
+       APFloat F(0.0);
+       if (!EvaluateFloat(SE, F, Info))
+         return APValue();
+       Result = APValue(F);
+    } else {
       return APValue();
-    Result = APValue(IntResult);
-  } else if (SETy->isRealFloatingType()) {
-    APFloat F(0.0);
-    if (!EvaluateFloat(SE, F, Info))
-      return APValue();
-    Result = APValue(F);
-  } else
-    return APValue();
-
-  // For casts of a scalar to ExtVector, convert the scalar to the element type
-  // and splat it to all elements.
-  if (E->getType()->isExtVectorType()) {
-    if (EltTy->isIntegerType() && Result.isInt())
-      Result = APValue(HandleIntToIntCast(EltTy, SETy, Result.getInt(),
-                                          Info.Ctx));
-    else if (EltTy->isIntegerType())
-      Result = APValue(HandleFloatToIntCast(EltTy, SETy, Result.getFloat(),
-                                            Info.Ctx));
-    else if (EltTy->isRealFloatingType() && Result.isInt())
-      Result = APValue(HandleIntToFloatCast(EltTy, SETy, Result.getInt(),
-                                            Info.Ctx));
-    else if (EltTy->isRealFloatingType())
-      Result = APValue(HandleFloatToFloatCast(EltTy, SETy, Result.getFloat(),
-                                              Info.Ctx));
-    else
-      return APValue();
+    }
 
     // Splat and create vector APValue.
     llvm::SmallVector<APValue, 4> Elts(NElts, Result);
     return APValue(&Elts[0], Elts.size());
   }
+  case CK_BitCast: {
+    if (SETy->isVectorType())
+      return Visit(const_cast<Expr*>(SE));
 
-  // For casts of a scalar to regular gcc-style vector type, bitcast the scalar
-  // to the vector. To construct the APValue vector initializer, bitcast the
-  // initializing value to an APInt, and shift out the bits pertaining to each
-  // element.
-  APSInt Init;
-  Init = Result.isInt() ? Result.getInt() : Result.getFloat().bitcastToAPInt();
-
-  llvm::SmallVector<APValue, 4> Elts;
-  for (unsigned i = 0; i != NElts; ++i) {
-    APSInt Tmp = Init.extOrTrunc(EltWidth);
-
-    if (EltTy->isIntegerType())
-      Elts.push_back(APValue(Tmp));
-    else if (EltTy->isRealFloatingType())
-      Elts.push_back(APValue(APFloat(Tmp)));
-    else
+    if (!SETy->isIntegerType())
       return APValue();
 
-    Init >>= EltWidth;
+    APSInt Init;
+    if (!EvaluateInteger(SE, Init, Info))
+      return APValue();
+
+    assert((EltTy->isIntegerType() || EltTy->isRealFloatingType()) &&
+           "Vectors must be composed of ints or floats");
+
+    llvm::SmallVector<APValue, 4> Elts;
+    for (unsigned i = 0; i != NElts; ++i) {
+      APSInt Tmp = Init.extOrTrunc(EltWidth);
+
+      if (EltTy->isIntegerType())
+        Elts.push_back(APValue(Tmp));
+      else
+        Elts.push_back(APValue(APFloat(Tmp)));
+
+      Init >>= EltWidth;
+    }
+    return APValue(&Elts[0], Elts.size());
   }
-  return APValue(&Elts[0], Elts.size());
+  case CK_LValueToRValue:
+  case CK_NoOp:
+    return Visit(const_cast<Expr*>(SE));
+  default:
+    return APValue();
+  }
 }
 
 APValue
@@ -837,6 +843,12 @@ VectorExprEvaluator::VisitInitListExpr(const InitListExpr *E) {
   // becomes every element of the vector, not just the first.
   // This is the behavior described in the IBM AltiVec documentation.
   if (NumInits == 1) {
+    
+    // Handle the case where the vector is initialized by a another 
+    // vector (OpenCL 6.1.6).
+    if (E->getInit(0)->getType()->isVectorType())
+      return this->Visit(const_cast<Expr*>(E->getInit(0)));
+    
     APValue InitValue;
     if (EltTy->isIntegerType()) {
       llvm::APSInt sInt(32);
@@ -953,6 +965,11 @@ public:
     return true;
   }
 
+  bool Success(CharUnits Size, const Expr *E) {
+    return Success(Size.getQuantity(), E);
+  }
+
+
   bool Error(SourceLocation L, diag::kind D, const Expr *E) {
     // Take the first error.
     if (Info.EvalResult.Diag == 0) {
@@ -977,6 +994,9 @@ public:
   }
 
   bool VisitParenExpr(ParenExpr *E) { return Visit(E->getSubExpr()); }
+  bool VisitGenericSelectionExpr(GenericSelectionExpr *E) {
+    return Visit(E->getResultExpr());
+  }
 
   bool VisitIntegerLiteral(const IntegerLiteral *E) {
     return Success(E->getValue(), E);
@@ -1015,7 +1035,7 @@ public:
   bool VisitBinaryConditionalOperator(const BinaryConditionalOperator *E);
 
   bool VisitCastExpr(CastExpr* E);
-  bool VisitSizeOfAlignOfExpr(const SizeOfAlignOfExpr *E);
+  bool VisitUnaryExprOrTypeTraitExpr(const UnaryExprOrTypeTraitExpr *E);
 
   bool VisitCXXBoolLiteralExpr(const CXXBoolLiteralExpr *E) {
     return Success(E->getValue(), E);
@@ -1038,6 +1058,14 @@ public:
   }
 
   bool VisitBinaryTypeTraitExpr(const BinaryTypeTraitExpr *E) {
+    return Success(E->getValue(), E);
+  }
+
+  bool VisitArrayTypeTraitExpr(const ArrayTypeTraitExpr *E) {
+    return Success(E->getValue(), E);
+  }
+
+  bool VisitExpressionTraitExpr(const ExpressionTraitExpr *E) {
     return Success(E->getValue(), E);
   }
 
@@ -1213,7 +1241,7 @@ bool IntExprEvaluator::TryEvaluateBuiltinObjectSize(CallExpr *E) {
     Size -= Offset;
   else
     Size = CharUnits::Zero();
-  return Success(Size.getQuantity(), E);
+  return Success(Size, E);
 }
 
 bool IntExprEvaluator::VisitCallExpr(CallExpr *E) {
@@ -1596,36 +1624,59 @@ CharUnits IntExprEvaluator::GetAlignOfExpr(const Expr *E) {
 }
 
 
-/// VisitSizeAlignOfExpr - Evaluate a sizeof or alignof with a result as the
-/// expression's type.
-bool IntExprEvaluator::VisitSizeOfAlignOfExpr(const SizeOfAlignOfExpr *E) {
-  // Handle alignof separately.
-  if (!E->isSizeOf()) {
+/// VisitUnaryExprOrTypeTraitExpr - Evaluate a sizeof, alignof or vec_step with
+/// a result as the expression's type.
+bool IntExprEvaluator::VisitUnaryExprOrTypeTraitExpr(
+                                    const UnaryExprOrTypeTraitExpr *E) {
+  switch(E->getKind()) {
+  case UETT_AlignOf: {
     if (E->isArgumentType())
-      return Success(GetAlignOfType(E->getArgumentType()).getQuantity(), E);
+      return Success(GetAlignOfType(E->getArgumentType()), E);
     else
-      return Success(GetAlignOfExpr(E->getArgumentExpr()).getQuantity(), E);
+      return Success(GetAlignOfExpr(E->getArgumentExpr()), E);
   }
 
-  QualType SrcTy = E->getTypeOfArgument();
-  // C++ [expr.sizeof]p2: "When applied to a reference or a reference type,
-  //   the result is the size of the referenced type."
-  // C++ [expr.alignof]p3: "When alignof is applied to a reference type, the
-  //   result shall be the alignment of the referenced type."
-  if (const ReferenceType *Ref = SrcTy->getAs<ReferenceType>())
-    SrcTy = Ref->getPointeeType();
+  case UETT_VecStep: {
+    QualType Ty = E->getTypeOfArgument();
 
-  // sizeof(void), __alignof__(void), sizeof(function) = 1 as a gcc
-  // extension.
-  if (SrcTy->isVoidType() || SrcTy->isFunctionType())
-    return Success(1, E);
+    if (Ty->isVectorType()) {
+      unsigned n = Ty->getAs<VectorType>()->getNumElements();
 
-  // sizeof(vla) is not a constantexpr: C99 6.5.3.4p2.
-  if (!SrcTy->isConstantSizeType())
-    return false;
+      // The vec_step built-in functions that take a 3-component
+      // vector return 4. (OpenCL 1.1 spec 6.11.12)
+      if (n == 3)
+        n = 4;
 
-  // Get information about the size.
-  return Success(Info.Ctx.getTypeSizeInChars(SrcTy).getQuantity(), E);
+      return Success(n, E);
+    } else
+      return Success(1, E);
+  }
+
+  case UETT_SizeOf: {
+    QualType SrcTy = E->getTypeOfArgument();
+    // C++ [expr.sizeof]p2: "When applied to a reference or a reference type,
+    //   the result is the size of the referenced type."
+    // C++ [expr.alignof]p3: "When alignof is applied to a reference type, the
+    //   result shall be the alignment of the referenced type."
+    if (const ReferenceType *Ref = SrcTy->getAs<ReferenceType>())
+      SrcTy = Ref->getPointeeType();
+
+    // sizeof(void), __alignof__(void), sizeof(function) = 1 as a gcc
+    // extension.
+    if (SrcTy->isVoidType() || SrcTy->isFunctionType())
+      return Success(1, E);
+
+    // sizeof(vla) is not a constantexpr: C99 6.5.3.4p2.
+    if (!SrcTy->isConstantSizeType())
+      return false;
+
+    // Get information about the size.
+    return Success(Info.Ctx.getTypeSizeInChars(SrcTy), E);
+  }
+  }
+
+  llvm_unreachable("unknown expr/type trait");
+  return false;
 }
 
 bool IntExprEvaluator::VisitOffsetOfExpr(const OffsetOfExpr *E) {
@@ -1694,7 +1745,7 @@ bool IntExprEvaluator::VisitOffsetOfExpr(const OffsetOfExpr *E) {
     }
     }
   }
-  return Success(Result.getQuantity(), E);
+  return Success(Result, E);
 }
 
 bool IntExprEvaluator::VisitUnaryOperator(const UnaryOperator *E) {
@@ -1742,15 +1793,60 @@ bool IntExprEvaluator::VisitCastExpr(CastExpr *E) {
   QualType DestType = E->getType();
   QualType SrcType = SubExpr->getType();
 
-  if (DestType->isBooleanType()) {
+  switch (E->getCastKind()) {
+  case CK_BaseToDerived:
+  case CK_DerivedToBase:
+  case CK_UncheckedDerivedToBase:
+  case CK_Dynamic:
+  case CK_ToUnion:
+  case CK_ArrayToPointerDecay:
+  case CK_FunctionToPointerDecay:
+  case CK_NullToPointer:
+  case CK_NullToMemberPointer:
+  case CK_BaseToDerivedMemberPointer:
+  case CK_DerivedToBaseMemberPointer:
+  case CK_ConstructorConversion:
+  case CK_IntegralToPointer:
+  case CK_ToVoid:
+  case CK_VectorSplat:
+  case CK_IntegralToFloating:
+  case CK_FloatingCast:
+  case CK_AnyPointerToObjCPointerCast:
+  case CK_AnyPointerToBlockPointerCast:
+  case CK_ObjCObjectLValueCast:
+  case CK_FloatingRealToComplex:
+  case CK_FloatingComplexToReal:
+  case CK_FloatingComplexCast:
+  case CK_FloatingComplexToIntegralComplex:
+  case CK_IntegralRealToComplex:
+  case CK_IntegralComplexCast:
+  case CK_IntegralComplexToFloatingComplex:
+    llvm_unreachable("invalid cast kind for integral value");
+
+  case CK_BitCast:
+  case CK_Dependent:
+  case CK_GetObjCProperty:
+  case CK_LValueBitCast:
+  case CK_UserDefinedConversion:
+    return false;
+
+  case CK_LValueToRValue:
+  case CK_NoOp:
+    return Visit(E->getSubExpr());
+
+  case CK_MemberPointerToBoolean:
+  case CK_PointerToBoolean:
+  case CK_IntegralToBoolean:
+  case CK_FloatingToBoolean:
+  case CK_FloatingComplexToBoolean:
+  case CK_IntegralComplexToBoolean: {
     bool BoolResult;
     if (!HandleConversionToBool(SubExpr, BoolResult, Info))
       return false;
     return Success(BoolResult, E);
   }
 
-  // Handle simple integer->integer casts.
-  if (SrcType->isIntegralOrEnumerationType()) {
+  case CK_IntegralCast: {
     if (!Visit(SubExpr))
       return false;
 
@@ -1763,8 +1859,7 @@ bool IntExprEvaluator::VisitCastExpr(CastExpr *E) {
                                       Result.getInt(), Info.Ctx), E);
   }
 
-  // FIXME: Clean this up!
-  if (SrcType->isPointerType()) {
+  case CK_PointerToIntegral: {
     LValue LV;
     if (!EvaluatePointer(SubExpr, LV, Info))
       return false;
@@ -1783,42 +1878,24 @@ bool IntExprEvaluator::VisitCastExpr(CastExpr *E) {
     return Success(HandleIntToIntCast(DestType, SrcType, AsInt, Info.Ctx), E);
   }
 
-  if (SrcType->isArrayType() || SrcType->isFunctionType()) {
-    // This handles double-conversion cases, where there's both
-    // an l-value promotion and an implicit conversion to int.
-    LValue LV;
-    if (!EvaluateLValue(SubExpr, LV, Info))
-      return false;
-
-    if (Info.Ctx.getTypeSize(DestType) != Info.Ctx.getTypeSize(Info.Ctx.VoidPtrTy))
-      return false;
-
-    LV.moveInto(Result);
-    return true;
-  }
-
-  if (SrcType->isAnyComplexType()) {
+  case CK_IntegralComplexToReal: {
     ComplexValue C;
     if (!EvaluateComplex(SubExpr, C, Info))
       return false;
-    if (C.isComplexFloat())
-      return Success(HandleFloatToIntCast(DestType, SrcType,
-                                          C.getComplexFloatReal(), Info.Ctx),
-                     E);
-    else
-      return Success(HandleIntToIntCast(DestType, SrcType,
-                                        C.getComplexIntReal(), Info.Ctx), E);
+    return Success(C.getComplexIntReal(), E);
   }
-  // FIXME: Handle vectors
 
-  if (!SrcType->isRealFloatingType())
-    return Error(E->getExprLoc(), diag::note_invalid_subexpr_in_ice, E);
+  case CK_FloatingToIntegral: {
+    APFloat F(0.0);
+    if (!EvaluateFloat(SubExpr, F, Info))
+      return false;
 
-  APFloat F(0.0);
-  if (!EvaluateFloat(SubExpr, F, Info))
-    return Error(E->getExprLoc(), diag::note_invalid_subexpr_in_ice, E);
+    return Success(HandleFloatToIntCast(DestType, SrcType, F, Info.Ctx), E);
+  }
+  }
 
-  return Success(HandleFloatToIntCast(DestType, SrcType, F, Info.Ctx), E);
+  llvm_unreachable("unknown cast resulting in integral value");
+  return false;
 }
 
 bool IntExprEvaluator::VisitUnaryReal(const UnaryOperator *E) {
@@ -1871,6 +1948,9 @@ public:
   }
 
   bool VisitParenExpr(ParenExpr *E) { return Visit(E->getSubExpr()); }
+  bool VisitGenericSelectionExpr(GenericSelectionExpr *E) {
+    return Visit(E->getResultExpr());
+  }
   bool VisitCallExpr(const CallExpr *E);
 
   bool VisitUnaryOperator(const UnaryOperator *E);
@@ -2119,7 +2199,15 @@ bool FloatExprEvaluator::VisitFloatingLiteral(const FloatingLiteral *E) {
 bool FloatExprEvaluator::VisitCastExpr(CastExpr *E) {
   Expr* SubExpr = E->getSubExpr();
 
-  if (SubExpr->getType()->isIntegralOrEnumerationType()) {
+  switch (E->getCastKind()) {
+  default:
+    return false;
+
+  case CK_LValueToRValue:
+  case CK_NoOp:
+    return Visit(SubExpr);
+
+  case CK_IntegralToFloating: {
     APSInt IntResult;
     if (!EvaluateInteger(SubExpr, IntResult, Info))
       return false;
@@ -2127,7 +2215,8 @@ bool FloatExprEvaluator::VisitCastExpr(CastExpr *E) {
                                   IntResult, Info.Ctx);
     return true;
   }
-  if (SubExpr->getType()->isRealFloatingType()) {
+
+  case CK_FloatingCast: {
     if (!Visit(SubExpr))
       return false;
     Result = HandleFloatToFloatCast(E->getType(), SubExpr->getType(),
@@ -2135,12 +2224,13 @@ bool FloatExprEvaluator::VisitCastExpr(CastExpr *E) {
     return true;
   }
 
-  if (E->getCastKind() == CK_FloatingComplexToReal) {
+  case CK_FloatingComplexToReal: {
     ComplexValue V;
     if (!EvaluateComplex(SubExpr, V, Info))
       return false;
     Result = V.getComplexFloatReal();
     return true;
+  }
   }
 
   return false;
@@ -2194,6 +2284,9 @@ public:
   }
 
   bool VisitParenExpr(ParenExpr *E) { return Visit(E->getSubExpr()); }
+  bool VisitGenericSelectionExpr(GenericSelectionExpr *E) {
+    return Visit(E->getResultExpr());
+  }
 
   bool VisitImaginaryLiteral(ImaginaryLiteral *E);
 
@@ -2253,7 +2346,6 @@ bool ComplexExprEvaluator::VisitCastExpr(CastExpr *E) {
 
   switch (E->getCastKind()) {
   case CK_BitCast:
-  case CK_LValueBitCast:
   case CK_BaseToDerived:
   case CK_DerivedToBase:
   case CK_UncheckedDerivedToBase:
@@ -2293,6 +2385,7 @@ bool ComplexExprEvaluator::VisitCastExpr(CastExpr *E) {
 
   case CK_Dependent:
   case CK_GetObjCProperty:
+  case CK_LValueBitCast:
   case CK_UserDefinedConversion:
     return false;
 
@@ -2782,12 +2875,16 @@ static ICEDiag CheckICE(const Expr* E, ASTContext &Ctx) {
 
   case Expr::ParenExprClass:
     return CheckICE(cast<ParenExpr>(E)->getSubExpr(), Ctx);
+  case Expr::GenericSelectionExprClass:
+    return CheckICE(cast<GenericSelectionExpr>(E)->getResultExpr(), Ctx);
   case Expr::IntegerLiteralClass:
   case Expr::CharacterLiteralClass:
   case Expr::CXXBoolLiteralExprClass:
   case Expr::CXXScalarValueInitExprClass:
   case Expr::UnaryTypeTraitExprClass:
   case Expr::BinaryTypeTraitExprClass:
+  case Expr::ArrayTypeTraitExprClass:
+  case Expr::ExpressionTraitExprClass:
   case Expr::CXXNoexceptExprClass:
     return NoDiag();
   case Expr::CallExprClass:
@@ -2879,9 +2976,10 @@ static ICEDiag CheckICE(const Expr* E, ASTContext &Ctx) {
       // are ICEs, the value of the offsetof must be an integer constant.
       return CheckEvalInICE(E, Ctx);
   }
-  case Expr::SizeOfAlignOfExprClass: {
-    const SizeOfAlignOfExpr *Exp = cast<SizeOfAlignOfExpr>(E);
-    if (Exp->isSizeOf() && Exp->getTypeOfArgument()->isVariableArrayType())
+  case Expr::UnaryExprOrTypeTraitExprClass: {
+    const UnaryExprOrTypeTraitExpr *Exp = cast<UnaryExprOrTypeTraitExpr>(E);
+    if ((Exp->getKind() ==  UETT_SizeOf) &&
+        Exp->getTypeOfArgument()->isVariableArrayType())
       return ICEDiag(2, E->getLocStart());
     return NoDiag();
   }

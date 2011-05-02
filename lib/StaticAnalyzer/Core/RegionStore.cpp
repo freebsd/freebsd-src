@@ -337,6 +337,9 @@ public: // Part of public interface to class.
 
   SVal RetrieveFieldOrElementCommon(Store store, const TypedRegion *R,
                                     QualType Ty, const MemRegion *superR);
+  
+  SVal RetrieveLazyBinding(const MemRegion *lazyBindingRegion,
+                           Store lazyBindingStore);
 
   /// Retrieve the values in a struct and return a CompoundVal, used when doing
   /// struct copy:
@@ -355,7 +358,8 @@ public: // Part of public interface to class.
 
   /// Get the state and region whose binding this region R corresponds to.
   std::pair<Store, const MemRegion*>
-  GetLazyBinding(RegionBindings B, const MemRegion *R);
+  GetLazyBinding(RegionBindings B, const MemRegion *R,
+                 const MemRegion *originalRegion);
 
   StoreRef CopyLazyBindings(nonloc::LazyCompoundVal V, Store store,
                             const TypedRegion *R);
@@ -684,11 +688,11 @@ void invalidateRegionsWorker::VisitBaseRegion(const MemRegion *baseR) {
   QualType T = TR->getValueType();
 
     // Invalidate the binding.
-  if (T->isStructureType()) {
+  if (T->isStructureOrClassType()) {
     // Invalidate the region by setting its default value to
     // conjured symbol. The type of the symbol is irrelavant.
-    DefinedOrUnknownSVal V = svalBuilder.getConjuredSymbolVal(baseR, Ex, Ctx.IntTy,
-                                                         Count);
+    DefinedOrUnknownSVal V =
+      svalBuilder.getConjuredSymbolVal(baseR, Ex, Ctx.IntTy, Count);
     B = RM.addBinding(B, baseR, BindingKey::Default, V);
     return;
   }
@@ -976,15 +980,20 @@ SVal RegionStoreManager::Retrieve(Store store, Loc L, QualType T) {
 }
 
 std::pair<Store, const MemRegion *>
-RegionStoreManager::GetLazyBinding(RegionBindings B, const MemRegion *R) {
-  if (Optional<SVal> OV = getDirectBinding(B, R))
-    if (const nonloc::LazyCompoundVal *V =
-        dyn_cast<nonloc::LazyCompoundVal>(OV.getPointer()))
-      return std::make_pair(V->getStore(), V->getRegion());
-
+RegionStoreManager::GetLazyBinding(RegionBindings B, const MemRegion *R,
+                                   const MemRegion *originalRegion) {
+  
+  if (originalRegion != R) {
+    if (Optional<SVal> OV = getDefaultBinding(B, R)) {
+      if (const nonloc::LazyCompoundVal *V =
+          dyn_cast<nonloc::LazyCompoundVal>(OV.getPointer()))
+        return std::make_pair(V->getStore(), V->getRegion());
+    }
+  }
+  
   if (const ElementRegion *ER = dyn_cast<ElementRegion>(R)) {
     const std::pair<Store, const MemRegion *> &X =
-      GetLazyBinding(B, ER->getSuperRegion());
+      GetLazyBinding(B, ER->getSuperRegion(), originalRegion);
 
     if (X.second)
       return std::make_pair(X.first,
@@ -992,7 +1001,7 @@ RegionStoreManager::GetLazyBinding(RegionBindings B, const MemRegion *R) {
   }
   else if (const FieldRegion *FR = dyn_cast<FieldRegion>(R)) {
     const std::pair<Store, const MemRegion *> &X =
-      GetLazyBinding(B, FR->getSuperRegion());
+      GetLazyBinding(B, FR->getSuperRegion(), originalRegion);
 
     if (X.second)
       return std::make_pair(X.first,
@@ -1003,12 +1012,13 @@ RegionStoreManager::GetLazyBinding(RegionBindings B, const MemRegion *R) {
   else if (const CXXBaseObjectRegion *baseReg = 
                             dyn_cast<CXXBaseObjectRegion>(R)) {
     const std::pair<Store, const MemRegion *> &X =
-      GetLazyBinding(B, baseReg->getSuperRegion());
+      GetLazyBinding(B, baseReg->getSuperRegion(), originalRegion);
     
     if (X.second)
       return std::make_pair(X.first,
                      MRMgr.getCXXBaseObjectRegionWithSuper(baseReg, X.second));
   }
+
   // The NULL MemRegion indicates an non-existent lazy binding. A NULL Store is
   // possible for a valid lazy binding.
   return std::make_pair((Store) 0, (const MemRegion *) 0);
@@ -1098,14 +1108,19 @@ RegionStoreManager::RetrieveDerivedDefaultValue(RegionBindings B,
                                                 QualType Ty) {
 
   if (const Optional<SVal> &D = getDefaultBinding(B, superR)) {
-    if (SymbolRef parentSym = D->getAsSymbol())
+    const SVal &val = D.getValue();
+    if (SymbolRef parentSym = val.getAsSymbol())
       return svalBuilder.getDerivedRegionValueSymbolVal(parentSym, R);
 
-    if (D->isZeroConstant())
+    if (val.isZeroConstant())
       return svalBuilder.makeZeroVal(Ty);
 
-    if (D->isUnknownOrUndef())
-      return *D;
+    if (val.isUnknownOrUndef())
+      return val;
+
+    // Lazy bindings are handled later.
+    if (isa<nonloc::LazyCompoundVal>(val))
+      return Optional<SVal>();
 
     assert(0 && "Unknown default value");
   }
@@ -1113,6 +1128,15 @@ RegionStoreManager::RetrieveDerivedDefaultValue(RegionBindings B,
   return Optional<SVal>();
 }
 
+SVal RegionStoreManager::RetrieveLazyBinding(const MemRegion *lazyBindingRegion,
+                                             Store lazyBindingStore) {
+  if (const ElementRegion *ER = dyn_cast<ElementRegion>(lazyBindingRegion))
+    return RetrieveElement(lazyBindingStore, ER);
+  
+  return RetrieveField(lazyBindingStore,
+                       cast<FieldRegion>(lazyBindingRegion));
+}
+                                        
 SVal RegionStoreManager::RetrieveFieldOrElementCommon(Store store,
                                                       const TypedRegion *R,
                                                       QualType Ty,
@@ -1140,14 +1164,10 @@ SVal RegionStoreManager::RetrieveFieldOrElementCommon(Store store,
   // Lazy binding?
   Store lazyBindingStore = NULL;
   const MemRegion *lazyBindingRegion = NULL;
-  llvm::tie(lazyBindingStore, lazyBindingRegion) = GetLazyBinding(B, R);
+  llvm::tie(lazyBindingStore, lazyBindingRegion) = GetLazyBinding(B, R, R);
 
-  if (lazyBindingRegion) {
-    if (const ElementRegion *ER = dyn_cast<ElementRegion>(lazyBindingRegion))
-      return RetrieveElement(lazyBindingStore, ER);
-    return RetrieveField(lazyBindingStore,
-                         cast<FieldRegion>(lazyBindingRegion));
-  }
+  if (lazyBindingRegion)
+    return RetrieveLazyBinding(lazyBindingRegion, lazyBindingStore);
 
   if (R->hasStackNonParametersStorage()) {
     if (const ElementRegion *ER = dyn_cast<ElementRegion>(R)) {
@@ -1250,12 +1270,12 @@ SVal RegionStoreManager::RetrieveLazySymbol(const TypedRegion *R) {
 SVal RegionStoreManager::RetrieveStruct(Store store, const TypedRegion* R) {
   QualType T = R->getValueType();
   assert(T->isStructureOrClassType());
-  return svalBuilder.makeLazyCompoundVal(store, R);
+  return svalBuilder.makeLazyCompoundVal(StoreRef(store, *this), R);
 }
 
 SVal RegionStoreManager::RetrieveArray(Store store, const TypedRegion * R) {
   assert(Ctx.getAsConstantArrayType(R->getValueType()));
-  return svalBuilder.makeLazyCompoundVal(store, R);
+  return svalBuilder.makeLazyCompoundVal(StoreRef(store, *this), R);
 }
 
 //===----------------------------------------------------------------------===//
@@ -1378,7 +1398,8 @@ StoreRef RegionStoreManager::BindArray(Store store, const TypedRegion* R,
 
     // Treat the string as a lazy compound value.
     nonloc::LazyCompoundVal LCV =
-      cast<nonloc::LazyCompoundVal>(svalBuilder.makeLazyCompoundVal(store, S));
+      cast<nonloc::LazyCompoundVal>(svalBuilder.
+                                makeLazyCompoundVal(StoreRef(store, *this), S));
     return CopyLazyBindings(LCV, store, R);
   }
 
@@ -1529,7 +1550,7 @@ StoreRef RegionStoreManager::CopyLazyBindings(nonloc::LazyCompoundVal V,
 
   // Now copy the bindings.  This amounts to just binding 'V' to 'R'.  This
   // results in a zero-copy algorithm.
-  return StoreRef(addBinding(B, R, BindingKey::Direct,
+  return StoreRef(addBinding(B, R, BindingKey::Default,
                              V).getRootWithoutRetain(), *this);
 }
 

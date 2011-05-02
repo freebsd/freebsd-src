@@ -39,7 +39,7 @@ negate_enum *int_ptr4 = &integer;
 // OffsetOfExpr
 offsetof_type *offsetof_ptr = &size_type_value;
 
-// SizeOfAlignOfExpr
+// UnaryExprOrTypeTraitExpr
 typeof(sizeof(float)) size_t_value;
 typeof_sizeof *size_t_ptr = &size_t_value;
 typeof_sizeof2 *size_t_ptr2 = &size_t_value;
@@ -93,3 +93,6 @@ choose_expr *int_ptr8 = &integer;
 
 // ShuffleVectorExpr
 shuffle_expr *vec_ptr = &vec2;
+
+// GenericSelectionExpr
+generic_selection_expr *double_ptr6 = &floating;

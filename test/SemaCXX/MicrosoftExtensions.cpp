@@ -1,24 +1,16 @@
-// RUN: %clang_cc1 %s -fsyntax-only -Wmicrosoft -verify -fms-extensions -fexceptions
+// RUN: %clang_cc1 %s -triple i686-pc-win32 -fsyntax-only -Wmicrosoft -verify -fms-extensions -fexceptions -fcxx-exceptions
 
 
 // ::type_info is predeclared with forward class declartion
 void f(const type_info &a);
 
-// The following three are all equivalent when ms-extensions are on
-void foo() throw(int);
-void foo() throw(int, long);
-void foo() throw(...); 
+
+// Microsoft doesn't validate exception specification.
 void foo(); // expected-note {{previous declaration}}
+void foo() throw(); // expected-warning {{exception specification in declaration does not match previous declaration}}
 
-// Only nothrow specification is treated specially.
-void foo() throw(); // expected-error {{exception specification in declaration does not match previous declaration}}
-
-// throw(...)
-void r3();
-void r3() throw(...);
-
-void r6() throw(...);
-void r6() throw(int); // okay
+void r6() throw(...); // expected-note {{previous declaration}}
+void r6() throw(int); // expected-warning {{exception specification in declaration does not match previous declaration}}
 
 struct Base {
   virtual void f2();
@@ -122,3 +114,69 @@ struct X0 {
 enum : long long {  // expected-warning{{enumeration types with a fixed underlying type are a Microsoft extension}}
   SomeValue = 0x100000000
 };
+
+
+class AAA {
+__declspec(dllimport) void f(void) { }
+void f2(void);
+};
+
+__declspec(dllimport) void AAA::f2(void) { // expected-error {{dllimport attribute can be applied only to symbol}}
+
+}
+
+
+
+template <class T>
+class BB {
+public:
+   void f(int g = 10 ); // expected-note {{previous definition is here}}
+};
+
+template <class T>
+void BB<T>::f(int g = 0) { } // expected-warning {{redefinition of default argument}}
+
+
+namespace MissingTypename {
+
+template<class T> class A {
+public:
+	 typedef int TYPE;
+};
+
+template<class T> class B {
+public:
+	 typedef int TYPE;
+};
+
+
+template<class T, class U>
+class C : private A<T>, public B<U> {
+public:
+   typedef A<T> Base1;
+   typedef B<U> Base2;
+   typedef A<U> Base3;
+
+   A<T>::TYPE a1; // expected-warning {{missing 'typename' prior to dependent type name}}
+   Base1::TYPE a2; // expected-warning {{missing 'typename' prior to dependent type name}}
+
+   B<U>::TYPE a3; // expected-warning {{missing 'typename' prior to dependent type name}}
+   Base2::TYPE a4; // expected-warning {{missing 'typename' prior to dependent type name}}
+
+   A<U>::TYPE a5; // expected-error {{missing 'typename' prior to dependent type name}}
+   Base3::TYPE a6; // expected-error {{missing 'typename' prior to dependent type name}}
+ };
+
+}
+
+
+
+
+extern void static_func();
+void static_func(); // expected-note {{previous declaration is here}}
+
+
+static void static_func() // expected-warning {{static declaration of 'static_func' follows non-static declaration}}
+{
+
+}

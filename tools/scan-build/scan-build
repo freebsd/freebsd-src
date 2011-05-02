@@ -201,8 +201,8 @@ sub SetHtmlEnv {
   die "No build command." if (scalar(@$Args) == 0);
   
   my $Cmd = $$Args[0];
-  
-  if ($Cmd =~ /configure/) {
+
+  if ($Cmd =~ /configure/ || $Cmd =~ /autogen/) {
     return;
   }
   
@@ -290,7 +290,7 @@ sub AddStatLine {
   print $Line . "\n";
 
   my $Regex = qr/(.*?)\ :\ (.*?)\ ->\ Total\ CFGBlocks:\ (\d+)\ \|\ Unreachable
-      \ CFGBlocks:\ (\d+)\ \|\ Aborted\ Block:\ (yes|no)\ \|\ Empty\ WorkList:
+      \ CFGBlocks:\ (\d+)\ \|\ Exhausted\ Block:\ (yes|no)\ \|\ Empty\ WorkList:
       \ (yes|no)/x;
 
   if ($Line !~ $Regex) {
@@ -1001,8 +1001,16 @@ ADVANCED OPTIONS:
  -stats - Generates visitation statistics for the project being analyzed.
 
  -maxloop N - specifiy the number of times a block can be visited before giving
-              up. Default is 3. Increase for more comprehensive coverage at a
+              up. Default is 4. Increase for more comprehensive coverage at a
               cost of speed.
+
+CONTROLLING CHECKERS:
+
+ A default group of checkers are always run unless explicitly disabled.
+ Checkers may be enabled/disabled using the following options:
+
+ -enable-checker [checker name]
+ -disable-checker [checker name]
 ENDTEXT
 
 # Query clang for list of checkers that are enabled.
@@ -1053,7 +1061,7 @@ else {
   print("\nAVAILABLE CHECKERS:\n\n");
   my $skip = 0;
   while(<FROM_CHILD>) {
-    if (/core\.experimental/ or /debug\./ or /unix.experimental/ or /cocoa.experimental/) {
+    if (/experimental/) {
       $skip = 1;
       next;
     }
@@ -1305,6 +1313,16 @@ while (@ARGV) {
     $MaxLoop = shift @ARGV;
     next;
   }
+  if ($arg eq "-enable-checker") {
+    shift @ARGV;
+    push @AnalysesToRun, "-analyzer-checker", shift @ARGV;
+    next;
+  }
+  if ($arg eq "-disable-checker") {
+    shift @ARGV;
+    push @AnalysesToRun, "-analyzer-disable-checker", shift @ARGV;
+    next;
+  }
 
   DieDiag("unrecognized option '$arg'\n") if ($arg =~ /^-/);
   
@@ -1365,7 +1383,7 @@ if ($AnalyzeHeaders) {
   push @AnalysesToRun,"-analyzer-opt-analyze-headers";  
 }
 if ($AnalyzerStats) {
-  push @AnalysesToRun, '-analyzer-stats';
+  push @AnalysesToRun, '-analyzer-checker', 'debug.Stats';
 }
 if ($MaxLoop > 0) {
   push @AnalysesToRun, '-analyzer-max-loop ' . $MaxLoop;

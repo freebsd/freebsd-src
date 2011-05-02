@@ -56,3 +56,13 @@ void test() {
 #define ashift 8
 enum { b = (a << ashift) };
 
+// Don't warn for negative shifts in code that is unreachable.
+void test_pr5544() {
+  (void) (((1) > 63 && (1) < 128 ? (((unsigned long long) 1)<<((1)-64)) : (unsigned long long) 0)); // no-warning
+}
+
+void test_shift_too_much(char x) {
+  if (0)
+    (void) (x >> 80); // no-warning
+  (void) (x >> 80); // expected-warning {{shift count >= width of type}}
+}

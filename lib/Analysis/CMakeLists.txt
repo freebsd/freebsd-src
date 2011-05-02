@@ -13,7 +13,6 @@ add_clang_library(clangAnalysis
   ReachableCode.cpp
   ScanfFormatString.cpp
   UninitializedValues.cpp
-  UninitializedValuesV2.cpp
   )
 
 add_dependencies(clangAnalysis ClangAttrClasses ClangAttrList

@@ -44,8 +44,7 @@ class TypeLocBuilder {
 
  public:
   TypeLocBuilder()
-    : Buffer(InlineBuffer), Capacity(InlineCapacity), Index(InlineCapacity)
-  {}
+    : Buffer(InlineBuffer), Capacity(InlineCapacity), Index(InlineCapacity) {}
 
   ~TypeLocBuilder() {
     if (Buffer != InlineBuffer)

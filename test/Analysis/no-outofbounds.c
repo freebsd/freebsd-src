@@ -1,5 +1,5 @@
-// RUN: %clang_cc1 -analyzer-check-objc-mem -analyze -analyzer-checker=core.experimental -analyzer-store=basic -verify %s
-// RUN: %clang_cc1 -analyzer-check-objc-mem -analyze -analyzer-checker=core.experimental -analyzer-store=region -verify %s
+// RUN: %clang_cc1 -analyze -analyzer-checker=core,core.experimental,unix.experimental,security.experimental.ArrayBound -analyzer-store=basic -verify %s
+// RUN: %clang_cc1 -analyze -analyzer-checker=core,core.experimental,unix.experimental,security.experimental.ArrayBound -analyzer-store=region -verify %s
 
 //===----------------------------------------------------------------------===//
 // This file tests cases where we should not flag out-of-bounds warnings.
@@ -25,7 +25,9 @@ void free(void *);
 
 void field() {
   struct vec { size_t len; int data[0]; };
-  struct vec *a = malloc(sizeof(struct vec) + 10);
+  // FIXME: Not warn for this.
+  struct vec *a = malloc(sizeof(struct vec) + 10); // expected-warning {{Cast a region whose size is not a multiple of the destination type size}}
   a->len = 10;
   a->data[1] = 5; // no-warning
+  free(a);
 }

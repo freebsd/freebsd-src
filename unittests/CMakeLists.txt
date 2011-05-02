@@ -59,3 +59,13 @@ add_clang_unittest(Frontend
   Frontend/FrontendActionTest.cpp
   USED_LIBS gtest gtest_main clangFrontend
  )
+
+add_clang_unittest(Tooling
+  Tooling/ToolingTest.cpp
+  USED_LIBS gtest gtest_main clangTooling
+ )
+
+add_clang_unittest(JsonCompileCommandLineDatabase
+  Tooling/JsonCompileCommandLineDatabaseTest.cpp
+  USED_LIBS gtest gtest_main clangTooling
+ )

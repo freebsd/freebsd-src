@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -fexceptions -fsyntax-only -verify %s -std=c++0x
+// RUN: %clang_cc1 -fcxx-exceptions -fexceptions -fsyntax-only -verify %s -std=c++0x
 
 struct S {
   virtual ~S();
@@ -43,8 +43,7 @@ void j() {
   (void)sizeof(auto); // expected-error{{'auto' not allowed here}}
   (void)__alignof(auto); // expected-error{{'auto' not allowed here}}
 
-  // FIXME: don't issue the second diagnostic for this error.
-  U<auto> v; // expected-error{{'auto' not allowed in template argument}} unexpected-error{{C++ requires a type specifier}}
+  U<auto> v; // expected-error{{'auto' not allowed in template argument}}
 
   int n;
   (void)dynamic_cast<auto&>(S()); // expected-error{{'auto' not allowed here}}
@@ -63,7 +62,7 @@ enum E : auto {}; // expected-error{{'auto' not allowed here}}
 struct F : auto {}; // expected-error{{expected class name}}
 template<typename T = auto> struct G { }; // expected-error{{'auto' not allowed here}}
 
-using A = auto; // expected-error{{expected ';'}} expected-error{{requires a qualified name}}
+using A = auto; // expected-error{{'auto' not allowed in type alias}}
 
 // FIXME: don't issue the second diagnostic for this error.
 auto k() -> auto; // expected-error{{'auto' not allowed here}} unexpected-error{{without trailing return type}}

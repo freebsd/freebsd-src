@@ -16,10 +16,9 @@ add_clang_library(clangFrontend
   CacheTokens.cpp
   CompilerInstance.cpp
   CompilerInvocation.cpp
-  DeclXML.cpp
+  CreateInvocationFromCommandLine.cpp
   DependencyFile.cpp
   DiagChecker.cpp
-  DocumentXML.cpp
   FrontendAction.cpp
   FrontendActions.cpp
   FrontendOptions.cpp
@@ -27,12 +26,11 @@ add_clang_library(clangFrontend
   InitHeaderSearch.cpp
   InitPreprocessor.cpp
   LangStandards.cpp
+  LogDiagnosticPrinter.cpp
   MultiplexConsumer.cpp
   PrintPreprocessedOutput.cpp
-  StmtXML.cpp
   TextDiagnosticBuffer.cpp
   TextDiagnosticPrinter.cpp
-  TypeXML.cpp
   VerifyDiagnosticsClient.cpp
   Warnings.cpp
   )
