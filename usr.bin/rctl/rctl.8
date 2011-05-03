@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 14, 2011
+.Dd May 3, 2011
 .Dt RCTL 8
 .Os
 .Sh NAME
@@ -90,7 +90,7 @@ Subject defines the kind of entity the rule applies to.
 It can be either process, user, login class, or jail.
 .Pp
 Subject ID identifies the subject.  It can be user name,
-numerical user ID, login class name, jail name, or numerical jail ID.
+numerical user ID, login class name, or jail name.
 .Pp
 Resource identifies the resource the rule controls.
 .Pp
@@ -177,9 +177,9 @@ Prevent user "joe" from allocating more than 1GB of virtual memory.
 .Pp
 Remove all RCTL rules.
 .Pp
-.Dl rctl -hu jail:5
+.Dl rctl -hu jail:www
 .Pp
-Display resource usage information for jail with JID 5.
+Display resource usage information for jail named "www".
 .Pp
 .Dl rctl -l process:512
 .Pp
