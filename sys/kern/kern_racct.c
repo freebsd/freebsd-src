@@ -313,7 +313,8 @@ racct_add_cred_locked(struct ucred *cred, int resource, uint64_t amount)
 
 	racct_alloc_resource(cred->cr_ruidinfo->ui_racct, resource, amount);
 	for (pr = cred->cr_prison; pr != NULL; pr = pr->pr_parent)
-		racct_alloc_resource(pr->pr_racct, resource, amount);
+		racct_alloc_resource(pr->pr_prison_racct->prr_racct, resource,
+		    amount);
 	racct_alloc_resource(cred->cr_loginclass->lc_racct, resource, amount);
 }
 
@@ -522,7 +523,8 @@ racct_sub_cred_locked(struct ucred *cred, int resource, uint64_t amount)
 
 	racct_alloc_resource(cred->cr_ruidinfo->ui_racct, resource, -amount);
 	for (pr = cred->cr_prison; pr != NULL; pr = pr->pr_parent)
-		racct_alloc_resource(pr->pr_racct, resource, -amount);
+		racct_alloc_resource(pr->pr_prison_racct->prr_racct, resource,
+		    -amount);
 	racct_alloc_resource(cred->cr_loginclass->lc_racct, resource, -amount);
 }
 
@@ -669,9 +671,11 @@ racct_proc_ucred_changed(struct proc *p, struct ucred *oldcred,
 	}
 	if (newpr != oldpr) {
 		for (pr = oldpr; pr != NULL; pr = pr->pr_parent)
-			racct_sub_racct(pr->pr_racct, p->p_racct);
+			racct_sub_racct(pr->pr_prison_racct->prr_racct,
+			    p->p_racct);
 		for (pr = newpr; pr != NULL; pr = pr->pr_parent)
-			racct_add_racct(pr->pr_racct, p->p_racct);
+			racct_add_racct(pr->pr_prison_racct->prr_racct,
+			    p->p_racct);
 	}
 	mtx_unlock(&racct_lock);
 
@@ -744,7 +748,7 @@ racct_init(void)
 	/*
 	 * XXX: Move this somewhere.
 	 */
-	racct_create(&prison0.pr_racct);
+	prison0.pr_prison_racct = prison_racct_find("0");
 }
 SYSINIT(racct, SI_SUB_RACCT, SI_ORDER_FIRST, racct_init, NULL);
 
