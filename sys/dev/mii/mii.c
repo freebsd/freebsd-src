@@ -44,7 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
-#include <sys/bus.h> 
+#include <sys/bus.h>
 
 #include <net/if.h>
 #include <net/if_media.h>
@@ -69,6 +69,7 @@ static int miibus_writereg(device_t, int, int, int);
 static void miibus_statchg(device_t);
 static void miibus_linkchg(device_t);
 static void miibus_mediainit(device_t);
+static unsigned char mii_bitreverse(unsigned char x);
 
 static device_method_t miibus_methods[] = {
 	/* device interface */
@@ -87,9 +88,9 @@ static device_method_t miibus_methods[] = {
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	miibus_readreg),
 	DEVMETHOD(miibus_writereg,	miibus_writereg),
-	DEVMETHOD(miibus_statchg,	miibus_statchg),    
-	DEVMETHOD(miibus_linkchg,	miibus_linkchg),    
-	DEVMETHOD(miibus_mediainit,	miibus_mediainit),    
+	DEVMETHOD(miibus_statchg,	miibus_statchg),
+	DEVMETHOD(miibus_linkchg,	miibus_linkchg),
+	DEVMETHOD(miibus_mediainit,	miibus_mediainit),
 
 	{ 0, 0 }
 };
@@ -265,7 +266,7 @@ miibus_linkchg(device_t dev)
 	MIIBUS_LINKCHG(parent);
 
 	mii = device_get_softc(dev);
-	
+
 	if (mii->mii_media_status & IFM_AVALID) {
 		if (mii->mii_media_status & IFM_ACTIVE)
 			link_state = LINK_STATE_UP;
@@ -361,7 +362,7 @@ mii_attach(device_t dev, device_t *miibus, struct ifnet *ifp,
 		 * has been allocated.
 		 */
 		ma.mii_data = device_get_softc(*miibus);
-	} 
+	}
 
 	ma.mii_capmask = capmask;
 
@@ -392,7 +393,7 @@ mii_attach(device_t dev, device_t *miibus, struct ifnet *ifp,
 		 * Check to see if there is a PHY at this address.  Note,
 		 * many braindead PHYs report 0/0 in their ID registers,
 		 * so we test for media in the BMSR.
-	 	 */
+		 */
 		bmsr = MIIBUS_READREG(dev, ma.mii_phyno, MII_BMSR);
 		if (bmsr == 0 || bmsr == 0xffff ||
 		    (bmsr & (BMSR_EXTSTAT | BMSR_MEDIAMASK)) == 0) {
@@ -411,10 +412,11 @@ mii_attach(device_t dev, device_t *miibus, struct ifnet *ifp,
 		 * Extract the IDs. Braindead PHYs will be handled by
 		 * the `ukphy' driver, as we have no ID information to
 		 * match on.
-	 	 */
+		 */
 		ma.mii_id1 = MIIBUS_READREG(dev, ma.mii_phyno, MII_PHYIDR1);
 		ma.mii_id2 = MIIBUS_READREG(dev, ma.mii_phyno, MII_PHYIDR2);
 
+		ma.mii_offset = offset;
 		args = malloc(sizeof(struct mii_attach_args), M_DEVBUF,
 		    M_NOWAIT);
 		if (args == NULL)
@@ -486,7 +488,7 @@ mii_mediachg(struct mii_data *mii)
 			    BMCR_ISO);
 			continue;
 		}
-		rv = (*child->mii_service)(child, mii, MII_MEDIACHG);
+		rv = PHY_SERVICE(child, mii, MII_MEDIACHG);
 		if (rv)
 			return (rv);
 	}
@@ -509,7 +511,7 @@ mii_tick(struct mii_data *mii)
 		 */
 		if (IFM_INST(ife->ifm_media) != child->mii_inst)
 			continue;
-		(void)(*child->mii_service)(child, mii, MII_TICK);
+		(void)PHY_SERVICE(child, mii, MII_TICK);
 	}
 }
 
@@ -531,7 +533,7 @@ mii_pollstat(struct mii_data *mii)
 		 */
 		if (IFM_INST(ife->ifm_media) != child->mii_inst)
 			continue;
-		(void)(*child->mii_service)(child, mii, MII_POLLSTAT);
+		(void)PHY_SERVICE(child, mii, MII_POLLSTAT);
 	}
 }
 
@@ -545,4 +547,26 @@ mii_down(struct mii_data *mii)
 
 	LIST_FOREACH(child, &mii->mii_phys, mii_list)
 		mii_phy_down(child);
+}
+
+static unsigned char
+mii_bitreverse(unsigned char x)
+{
+	static unsigned char nibbletab[16] = {
+		0, 8, 4, 12, 2, 10, 6, 14, 1, 9, 5, 13, 3, 11, 7, 15
+	};
+
+	return ((nibbletab[x & 15] << 4) | nibbletab[x >> 4]);
+}
+
+u_int
+mii_oui(u_int id1, u_int id2)
+{
+	u_int h;
+
+	h = (id1 << 6) | (id2 >> 10);
+
+	return ((mii_bitreverse(h >> 16) << 16) |
+	     (mii_bitreverse((h >> 8) & 0xff) << 8) |
+	     mii_bitreverse(h & 0xff));
 }
