@@ -108,14 +108,58 @@ SYSCTL_NODE(_net_inet_ip, OID_AUTO, dummynet, CTLFLAG_RW, 0, "Dummynet");
 //#define DC(x)	(&(VNET_NAME(_base_dn_cfg).x))
 #define DC(x)	(&(dn_cfg.x))
 /* parameters */
-SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, hash_size,
-    CTLFLAG_RW, DC(hash_size), 0, "Default hash table size");
-SYSCTL_LONG(_net_inet_ip_dummynet, OID_AUTO, pipe_slot_limit,
-    CTLFLAG_RW, DC(slot_limit), 0,
-    "Upper limit in slots for pipe queue.");
-SYSCTL_LONG(_net_inet_ip_dummynet, OID_AUTO, pipe_byte_limit,
-    CTLFLAG_RW, DC(byte_limit), 0,
-    "Upper limit in bytes for pipe queue.");
+
+static int
+sysctl_hash_size(SYSCTL_HANDLER_ARGS)
+{
+	int error, value;
+
+	value = dn_cfg.hash_size;
+	error = sysctl_handle_int(oidp, &value, 0, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	if (value < 16 || value > 65536)
+		return (EINVAL);
+	dn_cfg.hash_size = value;
+	return (0);
+}
+
+SYSCTL_PROC(_net_inet_ip_dummynet, OID_AUTO, hash_size,
+    CTLTYPE_INT | CTLFLAG_RW, 0, 0, sysctl_hash_size,
+    "I", "Default hash table size");
+
+static int
+sysctl_limits(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+	long value;
+
+	if (arg2 != 0)
+		value = dn_cfg.slot_limit;
+	else
+		value = dn_cfg.byte_limit;
+	error = sysctl_handle_long(oidp, &value, 0, req);
+
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	if (arg2 != 0) {
+		if (value < 1)
+			return (EINVAL);
+		dn_cfg.slot_limit = value;
+	} else {
+		if (value < 1500)
+			return (EINVAL);
+		dn_cfg.byte_limit = value;
+	}
+	return (0);
+}
+
+SYSCTL_PROC(_net_inet_ip_dummynet, OID_AUTO, pipe_slot_limit,
+    CTLTYPE_LONG | CTLFLAG_RW, 0, 1, sysctl_limits,
+    "L", "Upper limit in slots for pipe queue.");
+SYSCTL_PROC(_net_inet_ip_dummynet, OID_AUTO, pipe_byte_limit,
+    CTLTYPE_LONG | CTLFLAG_RW, 0, 0, sysctl_limits,
+    "L", "Upper limit in bytes for pipe queue.");
 SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, io_fast,
     CTLFLAG_RW, DC(io_fast), 0, "Enable fast dummynet io.");
 SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, debug,
