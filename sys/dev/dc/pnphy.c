@@ -90,6 +90,13 @@ DRIVER_MODULE(pnphy, miibus, pnphy_driver, pnphy_devclass, 0, 0);
 
 static int	pnphy_service(struct mii_softc *, struct mii_data *, int);
 static void	pnphy_status(struct mii_softc *);
+static void	pnphy_reset(struct mii_softc *);
+
+static const struct mii_phy_funcs pnphy_funcs = {
+	pnphy_service,
+	pnphy_status,
+	pnphy_reset
+};
 
 static int
 pnphy_probe(device_t dev)
@@ -115,29 +122,15 @@ static int
 pnphy_attach(device_t dev)
 {
 	struct mii_softc *sc;
-	struct mii_attach_args *ma;
-	struct mii_data *mii;
 
 	sc = device_get_softc(dev);
-	ma = device_get_ivars(dev);
-	sc->mii_dev = device_get_parent(dev);
-	mii = ma->mii_data;
-	LIST_INSERT_HEAD(&mii->mii_phys, sc, mii_list);
 
-	sc->mii_flags = miibus_get_flags(dev);
-	sc->mii_inst = mii->mii_instance++;
-	sc->mii_phy = ma->mii_phyno;
-	sc->mii_service = pnphy_service;
-	sc->mii_pdata = mii;
-
-	/*
-	 * Apparently, we can neither isolate nor do loopback.
-	 */
-	sc->mii_flags |= MIIF_NOISOLATE | MIIF_NOLOOP;
+	mii_phy_dev_attach(dev, MIIF_NOISOLATE | MIIF_NOMANPAUSE,
+	    &pnphy_funcs, 0);
 
 	sc->mii_capabilities =
 	    BMSR_100TXFDX | BMSR_100TXHDX | BMSR_10TFDX | BMSR_10THDX;
-	sc->mii_capabilities &= ma->mii_capmask;
+	sc->mii_capabilities &= sc->mii_capmask;
 	device_printf(dev, " ");
 	mii_phy_add_media(sc);
 	printf("\n");
@@ -194,7 +187,7 @@ pnphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 	}
 
 	/* Update the media status. */
-	pnphy_status(sc);
+	PHY_STATUS(sc);
 
 	/* Callback if something changed. */
 	mii_phy_update(sc, cmd);
@@ -225,4 +218,10 @@ pnphy_status(struct mii_softc *sc)
 		mii->mii_media_active |= IFM_FDX;
 	else
 		mii->mii_media_active |= IFM_HDX;
+}
+
+static void
+pnphy_reset(struct mii_softc *sc __unused)
+{
+
 }
