@@ -2930,6 +2930,7 @@ sctp_process_initack_addresses(struct sctp_tcb *stcb, struct mbuf *m,
 				}
 				sin.sin_addr.s_addr = a4p->addr;
 				sa = (struct sockaddr *)&sin;
+				break;
 			}
 #endif
 		default:
