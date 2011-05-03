@@ -76,7 +76,7 @@ sz2shft(vm_offset_t ofs, vm_size_t sz)
 
 	shft = 12;	/* Start with 4K */
 	s = 1 << shft;
-	while (s < sz) {
+	while (s <= sz) {
 		shft++;
 		s <<= 1;
 	}
