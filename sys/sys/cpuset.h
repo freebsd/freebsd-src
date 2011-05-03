@@ -36,6 +36,10 @@
 #define	CPU_SETSIZE	MAXCPU
 #endif
 
+/*
+ * In userland a bigger cpuset structure is preferable in order to cope
+ * with kernel bumping of MAXCPU and still have a compatible layout.
+ */
 #define	CPU_MAXSIZE	(4 * MAXCPU)
 
 #ifndef	CPU_SETSIZE
