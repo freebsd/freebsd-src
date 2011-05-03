@@ -28,7 +28,7 @@
 .\"	@(#)mount_nfs.8	8.3 (Berkeley) 3/29/95
 .\" $FreeBSD$
 .\"
-.Dd July 28, 2009
+.Dd April 27, 2011
 .Dt MOUNT_NFS 8
 .Os
 .Sh NAME
@@ -62,6 +62,12 @@ This command is normally executed by
 It implements the mount protocol as described in RFC 1094, Appendix A and
 .%T "NFS: Network File System Version 3 Protocol Specification" ,
 Appendix I.
+.Pp
+If the file system type is specified as ``oldnfs'', which implies this
+command is run as ``mount_oldnfs'', then it forces use of the old NFS
+client, which does not support the
+.Cm nfsv4
+option.
 .Pp
 By default,
 .Nm
@@ -163,10 +169,8 @@ Note that NFS version 2 has a file size limit of 2 gigabytes.
 Use the NFS Version 3 protocol.
 .It Cm nfsv4
 Use the NFS Version 4 protocol.
-This option will force the mount to use the experimental nfs subsystem and
+This option will force the mount to use
 TCP transport.
-To use the experimental nfs subsystem for nfsv2 and nfsv3 mounts, you
-must specify the ``newnfs'' file system type instead of ``nfs''.
 .It Cm noconn
 For UDP mount points, do not do a
 .Xr connect 2 .

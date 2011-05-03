@@ -142,6 +142,7 @@ static device_method_t pci_methods[] = {
 	DEVMETHOD(bus_get_resource,	bus_generic_rl_get_resource),
 	DEVMETHOD(bus_delete_resource,	pci_delete_resource),
 	DEVMETHOD(bus_alloc_resource,	pci_alloc_resource),
+	DEVMETHOD(bus_adjust_resource,	bus_generic_adjust_resource),
 	DEVMETHOD(bus_release_resource,	bus_generic_rl_release_resource),
 	DEVMETHOD(bus_activate_resource, pci_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, pci_deactivate_resource),
@@ -1969,7 +1970,7 @@ pci_alloc_msi_method(device_t dev, device_t child, int *count)
 	for (;;) {
 		/* Try to allocate N messages. */
 		error = PCIB_ALLOC_MSI(device_get_parent(dev), child, actual,
-		    cfg->msi.msi_msgnum, irqs);
+		    actual, irqs);
 		if (error == 0)
 			break;
 		if (actual == 1)
@@ -3966,6 +3967,26 @@ pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		break;
 	case SYS_RES_IOPORT:
 	case SYS_RES_MEMORY:
+#ifdef NEW_PCIB
+		/*
+		 * PCI-PCI bridge I/O window resources are not BARs.
+		 * For those allocations just pass the request up the
+		 * tree.
+		 */
+		if (cfg->hdrtype == PCIM_HDRTYPE_BRIDGE) {
+			switch (*rid) {
+			case PCIR_IOBASEL_1:
+			case PCIR_MEMBASE_1:
+			case PCIR_PMBASEL_1:
+				/*
+				 * XXX: Should we bother creating a resource
+				 * list entry?
+				 */
+				return (bus_generic_alloc_resource(dev, child,
+				    type, rid, start, end, count, flags));
+			}
+		}
+#endif
 		/* Reserve resources for this BAR if needed. */
 		rle = resource_list_find(rl, type, *rid);
 		if (rle == NULL) {

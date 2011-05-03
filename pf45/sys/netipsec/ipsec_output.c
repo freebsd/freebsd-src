@@ -165,7 +165,29 @@ ipsec_process_done(struct mbuf *m, struct ipsecrequest *isr)
 	 */
 	if (isr->next) {
 		V_ipsec4stat.ips_out_bundlesa++;
-		return ipsec4_process_packet(m, isr->next, 0, 0);
+		sav = isr->next->sav;
+		saidx = &sav->sah->saidx;
+		switch (saidx->dst.sa.sa_family) {
+#ifdef INET
+		case AF_INET:
+			return ipsec4_process_packet(m, isr->next, 0, 0);
+			/* NOTREACHED */
+#endif
+#ifdef notyet
+#ifdef INET6
+		case AF_INET6:
+			/* XXX */
+			ipsec6_output_trans()
+			ipsec6_output_tunnel()
+			/* NOTREACHED */
+#endif /* INET6 */
+#endif
+		default:
+			DPRINTF(("%s: unknown protocol family %u\n", __func__,
+			    saidx->dst.sa.sa_family));
+			error = ENXIO;
+			goto bad;
+		}
 	}
 	key_sa_recordxfer(sav, m);		/* record data transfer */
 

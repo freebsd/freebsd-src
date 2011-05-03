@@ -493,7 +493,7 @@ dev/advansys/adwcam.c		optional adw
 dev/advansys/adwlib.c		optional adw
 dev/advansys/adwmcode.c		optional adw
 dev/ae/if_ae.c			optional ae pci
-dev/age/if_age.c		optional age pci inet
+dev/age/if_age.c		optional age pci
 dev/agp/agp.c			optional agp pci
 dev/agp/agp_if.m			optional agp pci
 dev/aha/aha.c			optional aha
@@ -515,8 +515,8 @@ dev/aic7xxx/aic7xxx.c		optional ahc
 dev/aic7xxx/aic7xxx_93cx6.c	optional ahc
 dev/aic7xxx/aic7xxx_osm.c	optional ahc
 dev/aic7xxx/aic7xxx_pci.c	optional ahc pci
-dev/alc/if_alc.c		optional alc pci inet
-dev/ale/if_ale.c		optional ale pci inet
+dev/alc/if_alc.c		optional alc pci
+dev/ale/if_ale.c		optional ale pci
 dev/amd/amd.c			optional amd
 dev/amr/amr.c			optional amr
 dev/amr/amr_cam.c		optional amrp amr
@@ -757,6 +757,14 @@ dev/ath/ath_hal/ar5416/ar5416_reset.c \
 dev/ath/ath_hal/ar5416/ar5416_xmit.c \
 	optional ath_hal | ath_ar5416 | ath_ar9160 | ath_ar9280 | ath_ar9285 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
+# ar9130 (depends upon ar5416) - also requires AH_SUPPORT_AR9130
+dev/ath/ath_hal/ar9001/ar9130_attach.c optional ath_hal | ath_ar9130 \
+	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
+dev/ath/ath_hal/ar9001/ar9130_phy.c optional ath_hal | ath_ar9130 \
+	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
+dev/ath/ath_hal/ar9001/ar9130_eeprom.c optional ath_hal | ath_ar9130 \
+	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
+
 # ar9160 (depends on ar5416)
 dev/ath/ath_hal/ar9001/ar9160_attach.c optional ath_hal | ath_ar9160 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
@@ -973,11 +981,11 @@ dev/ed/if_ed_pccard.c		optional ed pccard
 dev/ed/if_ed_pci.c		optional ed pci
 dev/eisa/eisa_if.m		standard
 dev/eisa/eisaconf.c		optional eisa
-dev/e1000/if_em.c		optional em inet \
+dev/e1000/if_em.c		optional em \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
-dev/e1000/if_lem.c		optional em inet \
+dev/e1000/if_lem.c		optional em \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
-dev/e1000/if_igb.c		optional igb inet \
+dev/e1000/if_igb.c		optional igb \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
 dev/e1000/e1000_80003es2lan.c	optional em | igb \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
@@ -1046,7 +1054,7 @@ dev/firewire/sbp.c		optional sbp
 dev/firewire/sbp_targ.c		optional sbp_targ
 dev/flash/at45d.c		optional at45d
 dev/flash/mx25l.c		optional mx25l
-dev/fxp/if_fxp.c		optional fxp inet
+dev/fxp/if_fxp.c		optional fxp
 dev/gem/if_gem.c		optional gem
 dev/gem/if_gem_pci.c		optional gem pci
 dev/gem/if_gem_sbus.c		optional gem sbus
@@ -1336,7 +1344,7 @@ dev/ixgbe/ixgbe_82598.c		optional ixgbe inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
 dev/ixgbe/ixgbe_82599.c		optional ixgbe inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
-dev/jme/if_jme.c		optional jme pci inet
+dev/jme/if_jme.c		optional jme pci
 dev/joy/joy.c			optional joy
 dev/joy/joy_isa.c		optional joy isa
 dev/joy/joy_pccard.c		optional joy pccard
@@ -1425,7 +1433,7 @@ dev/mpt/mpt_debug.c		optional mpt
 dev/mpt/mpt_pci.c		optional mpt pci
 dev/mpt/mpt_raid.c		optional mpt
 dev/mpt/mpt_user.c		optional mpt
-dev/msk/if_msk.c		optional msk inet
+dev/msk/if_msk.c		optional msk
 dev/mvs/mvs.c			optional mvs
 dev/mvs/mvs_if.m		optional mvs
 dev/mvs/mvs_pci.c		optional mvs pci
@@ -1639,7 +1647,7 @@ dev/siba/siba_bwn.c		optional siba_bwn pci
 dev/siba/siba_core.c		optional siba_bwn pci
 dev/siis/siis.c			optional siis pci
 dev/sis/if_sis.c		optional sis pci
-dev/sk/if_sk.c			optional sk pci inet
+dev/sk/if_sk.c			optional sk pci
 dev/smbus/smb.c			optional smb
 dev/smbus/smbconf.c		optional smbus
 dev/smbus/smbus.c		optional smbus
@@ -1788,7 +1796,7 @@ dev/twa/tw_osl_freebsd.c	optional twa \
 dev/twe/twe.c			optional twe
 dev/twe/twe_freebsd.c		optional twe
 dev/tx/if_tx.c			optional tx
-dev/txp/if_txp.c		optional txp inet
+dev/txp/if_txp.c		optional txp
 dev/uart/uart_bus_acpi.c	optional uart acpi
 #dev/uart/uart_bus_cbus.c	optional uart cbus
 dev/uart/uart_bus_ebus.c	optional uart ebus
@@ -1962,6 +1970,24 @@ dev/vte/if_vte.c		optional vte pci
 dev/vx/if_vx.c			optional vx
 dev/vx/if_vx_eisa.c		optional vx eisa
 dev/vx/if_vx_pci.c		optional vx pci
+dev/vxge/vxge.c				optional vxge
+dev/vxge/vxgehal/vxgehal-ifmsg.c	optional vxge
+dev/vxge/vxgehal/vxgehal-mrpcim.c	optional vxge
+dev/vxge/vxgehal/vxge-queue.c		optional vxge
+dev/vxge/vxgehal/vxgehal-ring.c		optional vxge
+dev/vxge/vxgehal/vxgehal-swapper.c	optional vxge
+dev/vxge/vxgehal/vxgehal-mgmt.c		optional vxge
+dev/vxge/vxgehal/vxgehal-srpcim.c	optional vxge
+dev/vxge/vxgehal/vxgehal-config.c	optional vxge
+dev/vxge/vxgehal/vxgehal-blockpool.c	optional vxge
+dev/vxge/vxgehal/vxgehal-doorbells.c	optional vxge
+dev/vxge/vxgehal/vxgehal-mgmtaux.c	optional vxge
+dev/vxge/vxgehal/vxgehal-device.c	optional vxge
+dev/vxge/vxgehal/vxgehal-mm.c		optional vxge
+dev/vxge/vxgehal/vxgehal-driver.c	optional vxge
+dev/vxge/vxgehal/vxgehal-virtualpath.c	optional vxge
+dev/vxge/vxgehal/vxgehal-channel.c	optional vxge
+dev/vxge/vxgehal/vxgehal-fifo.c		optional vxge
 dev/watchdog/watchdog.c		standard
 dev/wb/if_wb.c			optional wb pci
 dev/wds/wd7000.c		optional wds isa
@@ -1969,6 +1995,7 @@ dev/wi/if_wi.c			optional wi
 dev/wi/if_wi_pccard.c		optional wi pccard
 dev/wi/if_wi_pci.c		optional wi pci
 dev/wl/if_wl.c			optional wl isa
+dev/wpi/if_wpi.c		optional wpi pci
 wpifw.c			optional wpifw					\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk wpi.fw:wpifw:153229 -mwpi -c${.TARGET}" \
 	no-implicit-rule before-depend local				\
@@ -2490,7 +2517,7 @@ net/bpf_jitter.c		optional bpf_jitter
 net/bpf_filter.c		optional bpf | netgraph_bpf
 net/bpf_zerocopy.c		optional bpf
 net/bridgestp.c			optional bridge | if_bridge
-net/flowtable.c			optional flowtable inet
+net/flowtable.c			optional flowtable inet | flowtable inet6
 net/ieee8023ad_lacp.c		optional lagg
 net/if.c			standard
 net/if_arcsubr.c		optional arcnet
@@ -2707,44 +2734,44 @@ netinet/ipfw/ip_fw_pfil.c	optional inet ipfirewall
 netinet/ipfw/ip_fw_sockopt.c	optional inet ipfirewall
 netinet/ipfw/ip_fw_table.c	optional inet ipfirewall
 netinet/ipfw/ip_fw_nat.c	optional inet ipfirewall_nat
-netinet/ip_icmp.c		optional inet
+netinet/ip_icmp.c		optional inet | inet6
 netinet/ip_input.c		optional inet
 netinet/ip_ipsec.c		optional inet ipsec
-netinet/ip_mroute.c		optional mrouting inet | mrouting inet6
+netinet/ip_mroute.c		optional mrouting inet
 netinet/ip_options.c		optional inet
 netinet/ip_output.c		optional inet
-netinet/raw_ip.c		optional inet
-netinet/cc/cc.c			optional inet
-netinet/cc/cc_newreno.c		optional inet
-netinet/sctp_asconf.c		optional inet sctp
-netinet/sctp_auth.c		optional inet sctp
-netinet/sctp_bsd_addr.c		optional inet sctp
-netinet/sctp_cc_functions.c	optional inet sctp
-netinet/sctp_crc32.c		optional inet sctp
-netinet/sctp_indata.c		optional inet sctp
-netinet/sctp_input.c		optional inet sctp
-netinet/sctp_output.c		optional inet sctp
-netinet/sctp_pcb.c		optional inet sctp
-netinet/sctp_peeloff.c		optional inet sctp
-netinet/sctp_ss_functions.c	optional inet sctp
-netinet/sctp_sysctl.c		optional inet sctp
-netinet/sctp_timer.c		optional inet sctp
-netinet/sctp_usrreq.c		optional inet sctp
-netinet/sctputil.c		optional inet sctp
+netinet/raw_ip.c		optional inet | inet6
+netinet/cc/cc.c			optional inet | inet6
+netinet/cc/cc_newreno.c		optional inet | inet6
+netinet/sctp_asconf.c		optional inet sctp | inet6 sctp
+netinet/sctp_auth.c		optional inet sctp | inet6 sctp
+netinet/sctp_bsd_addr.c		optional inet sctp | inet6 sctp
+netinet/sctp_cc_functions.c	optional inet sctp | inet6 sctp
+netinet/sctp_crc32.c		optional inet sctp | inet6 sctp
+netinet/sctp_indata.c		optional inet sctp | inet6 sctp
+netinet/sctp_input.c		optional inet sctp | inet6 sctp
+netinet/sctp_output.c		optional inet sctp | inet6 sctp
+netinet/sctp_pcb.c		optional inet sctp | inet6 sctp
+netinet/sctp_peeloff.c		optional inet sctp | inet6 sctp
+netinet/sctp_ss_functions.c	optional inet sctp | inet6 sctp
+netinet/sctp_sysctl.c		optional inet sctp | inet6 sctp
+netinet/sctp_timer.c		optional inet sctp | inet6 sctp
+netinet/sctp_usrreq.c		optional inet sctp | inet6 sctp
+netinet/sctputil.c		optional inet sctp | inet6 sctp
 netinet/tcp_debug.c		optional tcpdebug
-netinet/tcp_hostcache.c		optional inet
-netinet/tcp_input.c		optional inet
-netinet/tcp_lro.c		optional inet
-netinet/tcp_output.c		optional inet
-netinet/tcp_offload.c		optional inet
-netinet/tcp_reass.c		optional inet
-netinet/tcp_sack.c		optional inet
-netinet/tcp_subr.c		optional inet
-netinet/tcp_syncache.c		optional inet
-netinet/tcp_timer.c		optional inet
-netinet/tcp_timewait.c		optional inet
-netinet/tcp_usrreq.c		optional inet
-netinet/udp_usrreq.c		optional inet
+netinet/tcp_hostcache.c		optional inet | inet6
+netinet/tcp_input.c		optional inet | inet6
+netinet/tcp_lro.c		optional inet | inet6
+netinet/tcp_output.c		optional inet | inet6
+netinet/tcp_offload.c		optional inet | inet6
+netinet/tcp_reass.c		optional inet | inet6
+netinet/tcp_sack.c		optional inet | inet6
+netinet/tcp_subr.c		optional inet | inet6
+netinet/tcp_syncache.c		optional inet | inet6
+netinet/tcp_timer.c		optional inet | inet6
+netinet/tcp_timewait.c		optional inet | inet6
+netinet/tcp_usrreq.c		optional inet | inet6
+netinet/udp_usrreq.c		optional inet | inet6
 netinet/libalias/alias.c	optional libalias inet | netgraph_nat inet
 netinet/libalias/alias_db.c	optional libalias inet | netgraph_nat inet
 netinet/libalias/alias_mod.c	optional libalias | netgraph_nat
@@ -2822,12 +2849,12 @@ netsmb/smb_smb.c		optional netsmb
 netsmb/smb_subr.c		optional netsmb
 netsmb/smb_trantcp.c		optional netsmb
 netsmb/smb_usr.c		optional netsmb
+nfs/bootp_subr.c		optional bootp nfsclient | bootp nfscl
+nfs/krpc_subr.c			optional bootp nfsclient | bootp nfscl
 nfs/nfs_common.c		optional nfsclient | nfsserver
+nfs/nfs_diskless.c		optional nfsclient nfs_root | nfscl nfs_root
 nfs/nfs_lock.c			optional nfsclient | nfscl | nfslockd | nfsd
-nfsclient/bootp_subr.c		optional bootp nfsclient
-nfsclient/krpc_subr.c		optional bootp nfsclient
 nfsclient/nfs_bio.c		optional nfsclient
-nfsclient/nfs_diskless.c	optional nfsclient nfs_root
 nfsclient/nfs_node.c		optional nfsclient
 nfsclient/nfs_krpc.c		optional nfsclient
 nfsclient/nfs_subs.c		optional nfsclient
@@ -3181,7 +3208,7 @@ security/mac/mac_atalk.c	optional mac netatalk
 security/mac/mac_audit.c	optional mac audit
 security/mac/mac_cred.c		optional mac
 security/mac/mac_framework.c	optional mac
-security/mac/mac_inet.c		optional mac inet
+security/mac/mac_inet.c		optional mac inet | mac inet6
 security/mac/mac_inet6.c	optional mac inet6
 security/mac/mac_label.c	optional mac
 security/mac/mac_net.c		optional mac

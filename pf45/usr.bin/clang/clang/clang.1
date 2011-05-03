@@ -125,7 +125,7 @@
 .\" ========================================================================
 .\"
 .IX Title "CLANG 1"
-.TH CLANG 1 "2010-10-25" "clang 2.9" "Clang Tools Documentation"
+.TH CLANG 1 "2011-04-30" "clang 3.0" "Clang Tools Documentation"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -135,7 +135,7 @@ clang \- the Clang C, C++, and Objective\-C compiler
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 \&\fBclang\fR [\fB\-c\fR|\fB\-S\fR|\fB\-E\fR] \fB\-std=\fR\fIstandard\fR \fB\-g\fR
-  [\fB\-O0\fR|\fB\-O1\fR|\fB\-O2\fR|\fB\-Os\fR|\fB\-O3\fR|\fB\-O4\fR]
+  [\fB\-O0\fR|\fB\-O1\fR|\fB\-O2\fR|\fB\-Os\fR|\fB\-Oz\fR|\fB\-O3\fR|\fB\-O4\fR]
   \fB\-W\fR\fIwarnings...\fR \fB\-pedantic\fR
   \fB\-I\fR\fIdir...\fR \fB\-L\fR\fIdir...\fR
   \fB\-D\fR\fImacro[=defn]\fR
@@ -174,7 +174,7 @@ parse errors.  The output of this stage is an \*(L"Abstract Syntax Tree\*(R" (\s
 .IX Item "Code Generation and Optimization"
 This stage translates an \s-1AST\s0 into low-level intermediate code (known as \*(L"\s-1LLVM\s0
 \&\s-1IR\s0\*(R") and ultimately to machine code.  This phase is responsible for optimizing
-the generated code and handling target-specfic code generation.  The output of
+the generated code and handling target-specific code generation.  The output of
 this stage is typically called a \*(L".s\*(R" file or \*(L"assembly\*(R" file.
 .Sp
 Clang also supports the use of an integrated assembler, in which the code
@@ -325,12 +325,13 @@ generate instructions that are valid on i486 and later processors, but which
 may not exist on earlier ones.
 .SS "Code Generation Options"
 .IX Subsection "Code Generation Options"
-.IP "\fB\-O0\fR \fB\-O1\fR \fB\-O2\fR \fB\-Os\fR \fB\-O3\fR \fB\-O4\fR" 4
-.IX Item "-O0 -O1 -O2 -Os -O3 -O4"
+.IP "\fB\-O0\fR \fB\-O1\fR \fB\-O2\fR \fB\-Os\fR \fB\-Oz\fR \fB\-O3\fR \fB\-O4\fR" 4
+.IX Item "-O0 -O1 -O2 -Os -Oz -O3 -O4"
 Specify which optimization level to use.  \fB\-O0\fR means \*(L"no optimization\*(R": this
 level compiles the fastest and generates the most debuggable code.  \fB\-O2\fR is a
 moderate level of optimization which enables most optimizations.  \fB\-Os\fR is like
-\&\fB\-O2\fR with extra optimizations to reduce code size.  \fB\-O3\fR is like \fB\-O2\fR,
+\&\fB\-O2\fR with extra optimizations to reduce code size.  \fB\-Oz\fR is like \fB\-Os\fR 
+(and thus \fB\-O2\fR), but reduces code size further.  \fB\-O3\fR is like \fB\-O2\fR,
 except that it enables optimizations that take longer to perform or that may
 generate larger code (in an attempt to make the program run faster).  On
 supported platforms, \fB\-O4\fR enables link-time optimization; object files are
@@ -389,15 +390,9 @@ Pass \fIarg\fR to the static analyzer.
 .IP "\fB\-Xassembler\fR \fIarg\fR" 4
 .IX Item "-Xassembler arg"
 Pass \fIarg\fR to the assembler.
-.IP "\fB\-Xclang\fR \fIarg\fR" 4
-.IX Item "-Xclang arg"
-Pass \fIarg\fR to the clang compiler frontend.
 .IP "\fB\-Xlinker\fR \fIarg\fR" 4
 .IX Item "-Xlinker arg"
 Pass \fIarg\fR to the linker.
-.IP "\fB\-mllvm\fR \fIarg\fR" 4
-.IX Item "-mllvm arg"
-Pass \fIarg\fR to the \s-1LLVM\s0 backend.
 .IP "\fB\-Xpreprocessor\fR \fIarg\fR" 4
 .IX Item "-Xpreprocessor arg"
 Pass \fIarg\fR to the preprocessor.

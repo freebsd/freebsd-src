@@ -65,6 +65,36 @@ void CodeGenTypes::HandleLateResolvedPointers() {
   }
 }
 
+void CodeGenTypes::addRecordTypeName(const RecordDecl *RD, const llvm::Type *Ty,
+                                     llvm::StringRef suffix) {
+  llvm::SmallString<256> TypeName;
+  llvm::raw_svector_ostream OS(TypeName);
+  OS << RD->getKindName() << '.';
+  
+  // Name the codegen type after the typedef name
+  // if there is no tag type name available
+  if (RD->getIdentifier()) {
+    // FIXME: We should not have to check for a null decl context here.
+    // Right now we do it because the implicit Obj-C decls don't have one.
+    if (RD->getDeclContext())
+      OS << RD->getQualifiedNameAsString();
+    else
+      RD->printName(OS);
+  } else if (const TypedefNameDecl *TDD = RD->getTypedefNameForAnonDecl()) {
+    // FIXME: We should not have to check for a null decl context here.
+    // Right now we do it because the implicit Obj-C decls don't have one.
+    if (TDD->getDeclContext())
+      OS << TDD->getQualifiedNameAsString();
+    else
+      TDD->printName(OS);
+  } else
+    OS << "anon";
+
+  if (!suffix.empty())
+    OS << suffix;
+
+  TheModule.addTypeName(OS.str(), Ty);
+}
 
 /// ConvertType - Convert the specified type to its LLVM form.
 const llvm::Type *CodeGenTypes::ConvertType(QualType T, bool IsRecursive) {
@@ -199,7 +229,7 @@ const llvm::Type *CodeGenTypes::ConvertNewType(QualType T) {
 #define DEPENDENT_TYPE(Class, Base) case Type::Class:
 #define NON_CANONICAL_UNLESS_DEPENDENT_TYPE(Class, Base) case Type::Class:
 #include "clang/AST/TypeNodes.def"
-    assert(false && "Non-canonical or dependent types aren't possible.");
+    llvm_unreachable("Non-canonical or dependent types aren't possible.");
     break;
 
   case Type::Builtin: {
@@ -253,10 +283,12 @@ const llvm::Type *CodeGenTypes::ConvertNewType(QualType T) {
     
     case BuiltinType::Overload:
     case BuiltinType::Dependent:
-      assert(0 && "Unexpected builtin type!");
+    case BuiltinType::BoundMember:
+    case BuiltinType::UnknownAny:
+      llvm_unreachable("Unexpected placeholder builtin type!");
       break;
     }
-    assert(0 && "Unknown builtin type!");
+    llvm_unreachable("Unknown builtin type!");
     break;
   }
   case Type::Complex: {
@@ -270,14 +302,16 @@ const llvm::Type *CodeGenTypes::ConvertNewType(QualType T) {
     QualType ETy = RTy.getPointeeType();
     llvm::OpaqueType *PointeeType = llvm::OpaqueType::get(getLLVMContext());
     PointersToResolve.push_back(std::make_pair(ETy, PointeeType));
-    return llvm::PointerType::get(PointeeType, ETy.getAddressSpace());
+    unsigned AS = Context.getTargetAddressSpace(ETy);
+    return llvm::PointerType::get(PointeeType, AS);
   }
   case Type::Pointer: {
     const PointerType &PTy = cast<PointerType>(Ty);
     QualType ETy = PTy.getPointeeType();
     llvm::OpaqueType *PointeeType = llvm::OpaqueType::get(getLLVMContext());
     PointersToResolve.push_back(std::make_pair(ETy, PointeeType));
-    return llvm::PointerType::get(PointeeType, ETy.getAddressSpace());
+    unsigned AS = Context.getTargetAddressSpace(ETy);
+    return llvm::PointerType::get(PointeeType, AS);
   }
 
   case Type::VariableArray: {
@@ -371,30 +405,8 @@ const llvm::Type *CodeGenTypes::ConvertNewType(QualType T) {
     const TagDecl *TD = cast<TagType>(Ty).getDecl();
     const llvm::Type *Res = ConvertTagDeclType(TD);
 
-    llvm::SmallString<256> TypeName;
-    llvm::raw_svector_ostream OS(TypeName);
-    OS << TD->getKindName() << '.';
-
-    // Name the codegen type after the typedef name
-    // if there is no tag type name available
-    if (TD->getIdentifier()) {
-      // FIXME: We should not have to check for a null decl context here.
-      // Right now we do it because the implicit Obj-C decls don't have one.
-      if (TD->getDeclContext())
-        OS << TD->getQualifiedNameAsString();
-      else
-        TD->printName(OS);
-    } else if (const TypedefDecl *TDD = TD->getTypedefForAnonDecl()) {
-      // FIXME: We should not have to check for a null decl context here.
-      // Right now we do it because the implicit Obj-C decls don't have one.
-      if (TDD->getDeclContext())
-        OS << TDD->getQualifiedNameAsString();
-      else
-        TDD->printName(OS);
-    } else
-      OS << "anon";
-
-    TheModule.addTypeName(OS.str(), Res);
+    if (const RecordDecl *RD = dyn_cast<RecordDecl>(TD))
+      addRecordTypeName(RD, Res, llvm::StringRef());
     return Res;
   }
 
@@ -402,7 +414,8 @@ const llvm::Type *CodeGenTypes::ConvertNewType(QualType T) {
     const QualType FTy = cast<BlockPointerType>(Ty).getPointeeType();
     llvm::OpaqueType *PointeeType = llvm::OpaqueType::get(getLLVMContext());
     PointersToResolve.push_back(std::make_pair(FTy, PointeeType));
-    return llvm::PointerType::get(PointeeType, FTy.getAddressSpace());
+    unsigned AS = Context.getTargetAddressSpace(FTy);
+    return llvm::PointerType::get(PointeeType, AS);
   }
 
   case Type::MemberPointer: {
@@ -498,6 +511,15 @@ CodeGenTypes::getCGRecordLayout(const RecordDecl *RD) {
 
   assert(Layout && "Unable to find record layout information for type");
   return *Layout;
+}
+
+void CodeGenTypes::addBaseSubobjectTypeName(const CXXRecordDecl *RD,
+                                            const CGRecordLayout &layout) {
+  llvm::StringRef suffix;
+  if (layout.getBaseSubobjectLLVMType() != layout.getLLVMType())
+    suffix = ".base";
+
+  addRecordTypeName(RD, layout.getBaseSubobjectLLVMType(), suffix);
 }
 
 bool CodeGenTypes::isZeroInitializable(QualType T) {

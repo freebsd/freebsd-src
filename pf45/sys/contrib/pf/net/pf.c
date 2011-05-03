@@ -2521,8 +2521,10 @@ pf_send_icmp(struct mbuf *m, u_int8_t type, u_int8_t code, sa_family_t af,
 {
 	struct mbuf	*m0;
 #ifdef __FreeBSD__
+#ifdef INET
 	struct ip *ip;
 	struct pf_mtag *pf_mtag;
+#endif
 #endif
 
 #ifdef __FreeBSD__

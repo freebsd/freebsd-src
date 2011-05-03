@@ -40,6 +40,7 @@ SUBDIR=	${_3dfx} \
 	bce \
 	bfe \
 	bge \
+	${_bxe} \
 	${_bios} \
 	${_bktr} \
 	${_bm} \
@@ -115,14 +116,14 @@ SUBDIR=	${_3dfx} \
 	${_ida} \
 	${_ie} \
 	if_bridge \
-	if_carp \
+	${_if_carp} \
 	if_disc \
 	if_edsc \
 	if_ef \
 	if_epair \
 	if_faith \
 	if_gif \
-	if_gre \
+	${_if_gre} \
 	if_lagg \
 	${_if_ndis} \
 	if_stf \
@@ -357,6 +358,15 @@ _random=	random
 .endif
 .endif
 
+.if ${MK_INET_SUPPORT} != "no" || defined(ALL_MODULES)
+_if_gre=	if_gre
+.endif
+
+.if (${MK_INET_SUPPORT} != "no" || ${MK_INET6_SUPPORT} != "no") || \
+	defined(ALL_MODULES)
+_if_carp=	if_carp
+.endif
+
 .if ${MK_IPFILTER} != "no" || defined(ALL_MODULES)
 _ipfilter=	ipfilter
 .endif
@@ -365,7 +375,8 @@ _ipfilter=	ipfilter
 _netgraph=	netgraph
 .endif
 
-.if ${MK_PF} != "no" || defined(ALL_MODULES)
+.if (${MK_PF} != "no" && (${MK_INET_SUPPORT} != "no" || \
+	${MK_INET6_SUPPORT} != "no")) || defined(ALL_MODULES)
 _pf=		pf
 _pflog=		pflog
 .endif
@@ -383,6 +394,7 @@ _aout=		aout
 _apm=		apm
 _arcnet=	arcnet
 _bktr=		bktr
+_bxe=		bxe
 _cardbus=	cardbus
 _cbb=		cbb
 _ce=		ce
@@ -529,6 +541,7 @@ _amdsbwd=	amdsbwd
 _amdtemp=	amdtemp
 _arcmsr=	arcmsr
 _asmc=		asmc
+_bxe=		bxe
 _cardbus=	cardbus
 _cbb=		cbb
 _cmx=		cmx

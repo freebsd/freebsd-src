@@ -217,6 +217,15 @@ ichwd_smi_enable(struct ichwd_softc *sc)
 }
 
 /*
+ * Check if the watchdog SMI triggering is enabled.
+ */
+static __inline int
+ichwd_smi_is_enabled(struct ichwd_softc *sc)
+{
+	return ((ichwd_read_smi_4(sc, SMI_EN) & SMI_TCO_EN) != 0);
+}
+
+/*
  * Reset the watchdog status bits.
  */
 static __inline void
@@ -228,8 +237,8 @@ ichwd_sts_reset(struct ichwd_softc *sc)
 	 * by writing a 1, not a 0.
 	 */
 	ichwd_write_tco_2(sc, TCO1_STS, TCO_TIMEOUT);
-	/* 
-	 * According to Intel's docs, clearing SECOND_TO_STS and BOOT_STS must 
+	/*
+	 * According to Intel's docs, clearing SECOND_TO_STS and BOOT_STS must
 	 * be done in two separate operations.
 	 */
 	ichwd_write_tco_2(sc, TCO2_STS, TCO_SECOND_TO_STS);
@@ -534,6 +543,7 @@ ichwd_attach(device_t dev)
 	sc->ev_tag = EVENTHANDLER_REGISTER(watchdog_list, ichwd_event, sc, 0);
 
 	/* disable the SMI handler */
+	sc->smi_enabled = ichwd_smi_is_enabled(sc);
 	ichwd_smi_disable(sc);
 
 	return (0);
@@ -565,7 +575,8 @@ ichwd_detach(device_t dev)
 		ichwd_tmr_disable(sc);
 
 	/* enable the SMI handler */
-	ichwd_smi_enable(sc);
+	if (sc->smi_enabled != 0)
+		ichwd_smi_enable(sc);
 
 	/* deregister event handler */
 	if (sc->ev_tag != NULL)

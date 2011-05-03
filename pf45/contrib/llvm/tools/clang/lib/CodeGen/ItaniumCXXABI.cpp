@@ -7,7 +7,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This provides C++ code generation targetting the Itanium C++ ABI.  The class
+// This provides C++ code generation targeting the Itanium C++ ABI.  The class
 // in this file generates structures that follow the Itanium C++ ABI, which is
 // documented at:
 //  http://www.codesourcery.com/public/cxx-abi/abi.html
@@ -282,8 +282,7 @@ ItaniumCXXABI::EmitLoadOfMemberFunctionPointer(CodeGenFunction &CGF,
   
   // We're done.
   CGF.EmitBlock(FnEnd);
-  llvm::PHINode *Callee = Builder.CreatePHI(FTy->getPointerTo());
-  Callee->reserveOperandSpace(2);
+  llvm::PHINode *Callee = Builder.CreatePHI(FTy->getPointerTo(), 2);
   Callee->addIncoming(VirtualFn, FnVirtual);
   Callee->addIncoming(NonVirtualFn, FnNonVirtual);
   return Callee;
@@ -515,10 +514,10 @@ llvm::Constant *ItaniumCXXABI::EmitMemberPointer(const CXXMethodDecl *MD) {
   if (MD->isVirtual()) {
     uint64_t Index = CGM.getVTables().getMethodVTableIndex(MD);
 
-    // FIXME: We shouldn't use / 8 here.
-    uint64_t PointerWidthInBytes =
-      getContext().Target.getPointerWidth(0) / 8;
-    uint64_t VTableOffset = (Index * PointerWidthInBytes);
+    const ASTContext &Context = getContext();
+    CharUnits PointerWidth =
+      Context.toCharUnitsFromBits(Context.Target.getPointerWidth(0));
+    uint64_t VTableOffset = (Index * PointerWidth.getQuantity());
 
     if (IsARM) {
       // ARM C++ ABI 3.2.1:
@@ -538,20 +537,21 @@ llvm::Constant *ItaniumCXXABI::EmitMemberPointer(const CXXMethodDecl *MD) {
       MemPtr[1] = llvm::ConstantInt::get(ptrdiff_t, 0);
     }
   } else {
-    const FunctionProtoType *FPT = MD->getType()->getAs<FunctionProtoType>();
+    const FunctionProtoType *FPT = MD->getType()->castAs<FunctionProtoType>();
     const llvm::Type *Ty;
     // Check whether the function has a computable LLVM signature.
     if (!CodeGenTypes::VerifyFuncTypeComplete(FPT)) {
       // The function has a computable LLVM signature; use the correct type.
-      Ty = Types.GetFunctionType(Types.getFunctionInfo(MD), FPT->isVariadic());
+      Ty = Types.GetFunctionType(Types.getFunctionInfo(MD),
+                                 FPT->isVariadic());
     } else {
       // Use an arbitrary non-function type to tell GetAddrOfFunction that the
       // function type is incomplete.
       Ty = ptrdiff_t;
     }
+    llvm::Constant *addr = CGM.GetAddrOfFunction(MD, Ty);
 
-    llvm::Constant *Addr = CGM.GetAddrOfFunction(MD, Ty);
-    MemPtr[0] = llvm::ConstantExpr::getPtrToInt(Addr, ptrdiff_t);
+    MemPtr[0] = llvm::ConstantExpr::getPtrToInt(addr, ptrdiff_t);
     MemPtr[1] = llvm::ConstantInt::get(ptrdiff_t, 0);
   }
   
@@ -651,20 +651,21 @@ ItaniumCXXABI::EmitMemberPointerIsNotNull(CodeGenFunction &CGF,
     return Builder.CreateICmpNE(MemPtr, NegativeOne, "memptr.tobool");
   }
   
-  // In Itanium, a member function pointer is null if 'ptr' is null.
+  // In Itanium, a member function pointer is not null if 'ptr' is not null.
   llvm::Value *Ptr = Builder.CreateExtractValue(MemPtr, 0, "memptr.ptr");
 
   llvm::Constant *Zero = llvm::ConstantInt::get(Ptr->getType(), 0);
   llvm::Value *Result = Builder.CreateICmpNE(Ptr, Zero, "memptr.tobool");
 
-  // In ARM, it's that, plus the low bit of 'adj' must be zero.
+  // On ARM, a member function pointer is also non-null if the low bit of 'adj'
+  // (the virtual bit) is set.
   if (IsARM) {
     llvm::Constant *One = llvm::ConstantInt::get(Ptr->getType(), 1);
     llvm::Value *Adj = Builder.CreateExtractValue(MemPtr, 1, "memptr.adj");
     llvm::Value *VirtualBit = Builder.CreateAnd(Adj, One, "memptr.virtualbit");
-    llvm::Value *IsNotVirtual = Builder.CreateICmpEQ(VirtualBit, Zero,
-                                                     "memptr.notvirtual");
-    Result = Builder.CreateAnd(Result, IsNotVirtual);
+    llvm::Value *IsVirtual = Builder.CreateICmpNE(VirtualBit, Zero,
+                                                  "memptr.isvirtual");
+    Result = Builder.CreateOr(Result, IsVirtual);
   }
 
   return Result;
@@ -745,7 +746,7 @@ void ItaniumCXXABI::BuildInstanceFunctionParams(CodeGenFunction &CGF,
     ImplicitParamDecl *VTTDecl
       = ImplicitParamDecl::Create(Context, 0, MD->getLocation(),
                                   &Context.Idents.get("vtt"), T);
-    Params.push_back(std::make_pair(VTTDecl, VTTDecl->getType()));
+    Params.push_back(VTTDecl);
     getVTTDecl(CGF) = VTTDecl;
   }
 }
@@ -757,7 +758,7 @@ void ARMCXXABI::BuildInstanceFunctionParams(CodeGenFunction &CGF,
 
   // Return 'this' from certain constructors and destructors.
   if (HasThisReturn(CGF.CurGD))
-    ResTy = Params[0].second;
+    ResTy = Params[0]->getType();
 }
 
 void ItaniumCXXABI::EmitInstanceFunctionProlog(CodeGenFunction &CGF) {
@@ -1064,10 +1065,18 @@ void ItaniumCXXABI::EmitGuardedInit(CodeGenFunction &CGF,
   // global initialization is always single-threaded.
   bool ThreadsafeStatics = (getContext().getLangOptions().ThreadsafeStatics &&
                             D.isLocalVarDecl());
-  
-  // Guard variables are 64 bits in the generic ABI and 32 bits on ARM.
-  const llvm::IntegerType *GuardTy
-    = (IsARM ? Builder.getInt32Ty() : Builder.getInt64Ty());
+
+  const llvm::IntegerType *GuardTy;
+
+  // If we have a global variable with internal linkage and thread-safe statics
+  // are disabled, we can just let the guard variable be of type i8.
+  bool UseInt8GuardVariable = !ThreadsafeStatics && GV->hasInternalLinkage();
+  if (UseInt8GuardVariable)
+    GuardTy = Builder.getInt8Ty();
+  else {
+    // Guard variables are 64 bits in the generic ABI and 32 bits on ARM.
+    GuardTy = (IsARM ? Builder.getInt32Ty() : Builder.getInt64Ty());
+  }
   const llvm::PointerType *GuardPtrTy = GuardTy->getPointerTo();
 
   // Create the guard variable.
@@ -1098,7 +1107,7 @@ void ItaniumCXXABI::EmitGuardedInit(CodeGenFunction &CGF,
   //       if (__cxa_guard_acquire(&obj_guard))
   //         ...
   //     }
-  if (IsARM) {
+  if (IsARM && !UseInt8GuardVariable) {
     llvm::Value *V = Builder.CreateLoad(GuardVariable);
     V = Builder.CreateAnd(V, Builder.getInt32(1));
     IsInitialized = Builder.CreateIsNull(V, "guard.uninitialized");

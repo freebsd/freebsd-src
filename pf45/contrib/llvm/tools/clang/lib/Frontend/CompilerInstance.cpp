@@ -22,6 +22,7 @@
 #include "clang/Frontend/ChainedDiagnosticClient.h"
 #include "clang/Frontend/FrontendAction.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
+#include "clang/Frontend/LogDiagnosticPrinter.h"
 #include "clang/Frontend/TextDiagnosticPrinter.h"
 #include "clang/Frontend/VerifyDiagnosticsClient.h"
 #include "clang/Frontend/Utils.h"
@@ -47,7 +48,7 @@ CompilerInstance::~CompilerInstance() {
 }
 
 void CompilerInstance::setInvocation(CompilerInvocation *Value) {
-  Invocation.reset(Value);
+  Invocation = Value;
 }
 
 void CompilerInstance::setDiagnostics(Diagnostic *Value) {
@@ -55,24 +56,20 @@ void CompilerInstance::setDiagnostics(Diagnostic *Value) {
 }
 
 void CompilerInstance::setTarget(TargetInfo *Value) {
-  Target.reset(Value);
+  Target = Value;
 }
 
 void CompilerInstance::setFileManager(FileManager *Value) {
-  FileMgr.reset(Value);
+  FileMgr = Value;
 }
 
-void CompilerInstance::setSourceManager(SourceManager *Value) {
-  SourceMgr.reset(Value);
+void CompilerInstance::setSourceManager(SourceManager *Value) { 
+  SourceMgr = Value;
 }
 
-void CompilerInstance::setPreprocessor(Preprocessor *Value) {
-  PP.reset(Value);
-}
+void CompilerInstance::setPreprocessor(Preprocessor *Value) { PP = Value; }
 
-void CompilerInstance::setASTContext(ASTContext *Value) {
-  Context.reset(Value);
-}
+void CompilerInstance::setASTContext(ASTContext *Value) { Context = Value; }
 
 void CompilerInstance::setSema(Sema *S) {
   TheSema.reset(S);
@@ -110,15 +107,47 @@ static void SetUpBuildDumpLog(const DiagnosticOptions &DiagOpts,
   Diags.setClient(new ChainedDiagnosticClient(Diags.takeClient(), Logger));
 }
 
+static void SetUpDiagnosticLog(const DiagnosticOptions &DiagOpts,
+                               const CodeGenOptions *CodeGenOpts,
+                               Diagnostic &Diags) {
+  std::string ErrorInfo;
+  bool OwnsStream = false;
+  llvm::raw_ostream *OS = &llvm::errs();
+  if (DiagOpts.DiagnosticLogFile != "-") {
+    // Create the output stream.
+    llvm::raw_fd_ostream *FileOS(
+      new llvm::raw_fd_ostream(DiagOpts.DiagnosticLogFile.c_str(),
+                               ErrorInfo, llvm::raw_fd_ostream::F_Append));
+    if (!ErrorInfo.empty()) {
+      Diags.Report(diag::warn_fe_cc_log_diagnostics_failure)
+        << DiagOpts.DumpBuildInformation << ErrorInfo;
+    } else {
+      FileOS->SetUnbuffered();
+      FileOS->SetUseAtomicWrites(true);
+      OS = FileOS;
+      OwnsStream = true;
+    }
+  }
+
+  // Chain in the diagnostic client which will log the diagnostics.
+  LogDiagnosticPrinter *Logger = new LogDiagnosticPrinter(*OS, DiagOpts,
+                                                          OwnsStream);
+  if (CodeGenOpts)
+    Logger->setDwarfDebugFlags(CodeGenOpts->DwarfDebugFlags);
+  Diags.setClient(new ChainedDiagnosticClient(Diags.takeClient(), Logger));
+}
+
 void CompilerInstance::createDiagnostics(int Argc, const char* const *Argv,
                                          DiagnosticClient *Client) {
-  Diagnostics = createDiagnostics(getDiagnosticOpts(), Argc, Argv, Client);
+  Diagnostics = createDiagnostics(getDiagnosticOpts(), Argc, Argv, Client,
+                                  &getCodeGenOpts());
 }
 
 llvm::IntrusiveRefCntPtr<Diagnostic> 
 CompilerInstance::createDiagnostics(const DiagnosticOptions &Opts,
                                     int Argc, const char* const *Argv,
-                                    DiagnosticClient *Client) {
+                                    DiagnosticClient *Client,
+                                    const CodeGenOptions *CodeGenOpts) {
   llvm::IntrusiveRefCntPtr<DiagnosticIDs> DiagID(new DiagnosticIDs());
   llvm::IntrusiveRefCntPtr<Diagnostic> Diags(new Diagnostic(DiagID));
 
@@ -133,6 +162,10 @@ CompilerInstance::createDiagnostics(const DiagnosticOptions &Opts,
   if (Opts.VerifyDiagnostics)
     Diags->setClient(new VerifyDiagnosticsClient(*Diags, Diags->takeClient()));
 
+  // Chain in -diagnostic-log-file dumper, if requested.
+  if (!Opts.DiagnosticLogFile.empty())
+    SetUpDiagnosticLog(Opts, CodeGenOpts, *Diags);
+  
   if (!Opts.DumpBuildInformation.empty())
     SetUpBuildDumpLog(Opts, Argc, Argv, *Diags);
 
@@ -145,23 +178,23 @@ CompilerInstance::createDiagnostics(const DiagnosticOptions &Opts,
 // File Manager
 
 void CompilerInstance::createFileManager() {
-  FileMgr.reset(new FileManager(getFileSystemOpts()));
+  FileMgr = new FileManager(getFileSystemOpts());
 }
 
 // Source Manager
 
 void CompilerInstance::createSourceManager(FileManager &FileMgr) {
-  SourceMgr.reset(new SourceManager(getDiagnostics(), FileMgr));
+  SourceMgr = new SourceManager(getDiagnostics(), FileMgr);
 }
 
 // Preprocessor
 
 void CompilerInstance::createPreprocessor() {
-  PP.reset(createPreprocessor(getDiagnostics(), getLangOpts(),
-                              getPreprocessorOpts(), getHeaderSearchOpts(),
-                              getDependencyOutputOpts(), getTarget(),
-                              getFrontendOpts(), getSourceManager(),
-                              getFileManager()));
+  PP = createPreprocessor(getDiagnostics(), getLangOpts(),
+                          getPreprocessorOpts(), getHeaderSearchOpts(),
+                          getDependencyOutputOpts(), getTarget(),
+                          getFrontendOpts(), getSourceManager(),
+                          getFileManager());
 }
 
 Preprocessor *
@@ -209,7 +242,8 @@ CompilerInstance::createPreprocessor(Diagnostic &Diags,
     llvm::StringRef OutputPath = DepOpts.HeaderIncludeOutputFile;
     if (OutputPath == "-")
       OutputPath = "";
-    AttachHeaderIncludeGen(*PP, /*ShowAllHeaders=*/true, OutputPath);
+    AttachHeaderIncludeGen(*PP, /*ShowAllHeaders=*/true, OutputPath,
+                           /*ShowDepth=*/false);
   }
 
   return PP;
@@ -219,10 +253,10 @@ CompilerInstance::createPreprocessor(Diagnostic &Diags,
 
 void CompilerInstance::createASTContext() {
   Preprocessor &PP = getPreprocessor();
-  Context.reset(new ASTContext(getLangOpts(), PP.getSourceManager(),
-                               getTarget(), PP.getIdentifierTable(),
-                               PP.getSelectorTable(), PP.getBuiltinInfo(),
-                               /*size_reserve=*/ 0));
+  Context = new ASTContext(getLangOpts(), PP.getSourceManager(),
+                           getTarget(), PP.getIdentifierTable(),
+                           PP.getSelectorTable(), PP.getBuiltinInfo(),
+                           /*size_reserve=*/ 0);
 }
 
 // ExternalASTSource
@@ -362,19 +396,22 @@ void CompilerInstance::clearOutputFiles(bool EraseFiles) {
          it = OutputFiles.begin(), ie = OutputFiles.end(); it != ie; ++it) {
     delete it->OS;
     if (!it->TempFilename.empty()) {
-      llvm::sys::Path TempPath(it->TempFilename);
-      if (EraseFiles)
-        TempPath.eraseFromDisk();
-      else {
-        std::string Error;
-        llvm::sys::Path NewOutFile(it->Filename);
+      if (EraseFiles) {
+        bool existed;
+        llvm::sys::fs::remove(it->TempFilename, existed);
+      } else {
+        llvm::SmallString<128> NewOutFile(it->Filename);
+
         // If '-working-directory' was passed, the output filename should be
         // relative to that.
-        FileManager::FixupRelativePath(NewOutFile, getFileSystemOpts());
-        if (TempPath.renamePathOnDisk(NewOutFile, &Error)) {
+        FileMgr->FixupRelativePath(NewOutFile);
+        if (llvm::error_code ec = llvm::sys::fs::rename(it->TempFilename,
+                                                        NewOutFile.str())) {
           getDiagnostics().Report(diag::err_fe_unable_to_rename_temp)
-            << it->TempFilename << it->Filename << Error;
-          TempPath.eraseFromDisk();
+            << it->TempFilename << it->Filename << ec.message();
+
+          bool existed;
+          llvm::sys::fs::remove(it->TempFilename, existed);
         }
       }
     } else if (!it->Filename.empty() && EraseFiles)

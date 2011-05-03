@@ -522,7 +522,7 @@ blk_setmask(struct jblkrec *brec, int *mask)
  * Determine whether a given block has been reallocated to a new location.
  * Returns a mask of overlapping bits if any frags have been reused or
  * zero if the block has not been re-used and the contents can be trusted.
- * 
+ *
  * This is used to ensure that an orphaned pointer due to truncate is safe
  * to be freed.  The mask value can be used to free partial blocks.
  */
@@ -554,7 +554,7 @@ blk_freemask(ufs2_daddr_t blk, ino_t ino, ufs_lbn_t lbn, int frags)
 		 * exactly it's a new allocation.  If it matches
 		 * exactly this record refers to the current
 		 * location.
-		 */ 
+		 */
 		if (blk_overlaps(brec, blk, frags) == 0)
 			continue;
 		if (blk_equals(brec, ino, lbn, blk, frags) == 1)
@@ -576,7 +576,7 @@ blk_freemask(ufs2_daddr_t blk, ino_t ino, ufs_lbn_t lbn, int frags)
  * It is also not safe to follow an indirect if the cg bitmap has been
  * cleared as a new allocation may write to the block prior to the journal
  * being written.
- * 
+ *
  * Returns 1 if it's safe to follow the indirect and 0 otherwise.
  */
 static int
@@ -718,7 +718,7 @@ indir_blkatoff(ufs2_daddr_t blk, ino_t ino, ufs_lbn_t cur, ufs_lbn_t lbn)
 	base = -(cur + level);
 	for (i = level; i > 0; i--)
 		lbnadd *= NINDIR(fs);
-	if (lbn > 0) 
+	if (lbn > 0)
 		i = (lbn - base) / lbnadd;
 	else
 		i = (-lbn - base) / lbnadd;
@@ -1572,7 +1572,7 @@ ino_trunc(ino_t ino, off_t size)
 	 * last populated lbn is.  We will set the size to this last lbn
 	 * rather than worrying about allocating the final lbn as the kernel
 	 * would've done.  This is consistent with normal fsck behavior.
-	 */ 
+	 */
 	visitlbn = 0;
 	totalfrags = ino_visit(ip, ino, null_visit, VISIT_INDIR | VISIT_EXT);
 	if (size > lblktosize(fs, visitlbn + 1))
@@ -1650,7 +1650,7 @@ ino_check(struct suj_ino *sino)
 	removes = sino->si_nlinkadj;
 	TAILQ_FOREACH(srec, &sino->si_recs, sr_next) {
 		rrec = (struct jrefrec *)srec->sr_rec;
-		isat = ino_isat(rrec->jr_parent, rrec->jr_diroff, 
+		isat = ino_isat(rrec->jr_parent, rrec->jr_diroff,
 		    rrec->jr_ino, &mode, &isdot);
 		if (isat && (mode & IFMT) != (rrec->jr_mode & IFMT))
 			err_suj("Inode mode/directory type mismatch %o != %o\n",
@@ -1952,13 +1952,13 @@ ino_append(union jrec *rec)
 	mvrec = &rec->rec_jmvrec;
 	refrec = &rec->rec_jrefrec;
 	if (debug && mvrec->jm_op == JOP_MVREF)
-		printf("ino move: ino %d, parent %d, diroff %jd, oldoff %jd\n", 
+		printf("ino move: ino %d, parent %d, diroff %jd, oldoff %jd\n",
 		    mvrec->jm_ino, mvrec->jm_parent, mvrec->jm_newoff,
 		    mvrec->jm_oldoff);
 	else if (debug &&
 	    (refrec->jr_op == JOP_ADDREF || refrec->jr_op == JOP_REMREF))
 		printf("ino ref: op %d, ino %d, nlink %d, "
-		    "parent %d, diroff %jd\n", 
+		    "parent %d, diroff %jd\n",
 		    refrec->jr_op, refrec->jr_ino, refrec->jr_nlink,
 		    refrec->jr_parent, refrec->jr_diroff);
 	/*
@@ -2330,7 +2330,7 @@ suj_prune(void)
 		TAILQ_REMOVE(&allsegs, seg, ss_next);
 		TAILQ_INSERT_HEAD(&allsegs, seg, ss_next);
 		newseq = seg->ss_rec.jsr_seq;
-		
+
 	}
 	if (newseq != oldseq) {
 		err_suj("Journal file sequence mismatch %jd != %jd\n",
@@ -2609,7 +2609,7 @@ restart:
 				recn = (void *)((uintptr_t)rec) + i *
 				    real_dev_bsize;
 				if (recn->jsr_seq == rec->jsr_seq &&
-				    recn->jsr_time == rec->jsr_time) 
+				    recn->jsr_time == rec->jsr_time)
 					continue;
 				if (debug)
 					printf("Incomplete record %jd (%d)\n",

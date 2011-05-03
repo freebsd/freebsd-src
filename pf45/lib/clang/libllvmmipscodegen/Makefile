@@ -5,6 +5,7 @@ LIB=	llvmmipscodegen
 SRCDIR=	lib/Target/Mips
 SRCS=	MipsAsmPrinter.cpp \
 	MipsDelaySlotFiller.cpp \
+	MipsExpandPseudo.cpp \
 	MipsFrameLowering.cpp \
 	MipsISelDAGToDAG.cpp \
 	MipsISelLowering.cpp \

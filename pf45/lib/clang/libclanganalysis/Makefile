@@ -14,8 +14,7 @@ SRCS=	AnalysisContext.cpp \
 	PseudoConstantAnalysis.cpp \
 	ReachableCode.cpp \
 	ScanfFormatString.cpp \
-	UninitializedValues.cpp \
-	UninitializedValuesV2.cpp
+	UninitializedValues.cpp
 
 TGHDRS=	AttrList \
 	Attrs \

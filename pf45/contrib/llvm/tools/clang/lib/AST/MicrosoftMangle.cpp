@@ -7,7 +7,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This provides C++ name mangling targetting the Microsoft Visual C++ ABI.
+// This provides C++ name mangling targeting the Microsoft Visual C++ ABI.
 //
 //===----------------------------------------------------------------------===//
 
@@ -314,7 +314,7 @@ MicrosoftCXXNameMangler::mangleUnqualifiedName(const NamedDecl *ND,
       
       // We must have an anonymous struct.
       const TagDecl *TD = cast<TagDecl>(ND);
-      if (const TypedefDecl *D = TD->getTypedefForAnonDecl()) {
+      if (const TypedefNameDecl *D = TD->getTypedefNameForAnonDecl()) {
         assert(TD->getDeclContext() == D->getDeclContext() &&
                "Typedef should not be in another decl context!");
         assert(D->getDeclName().getAsIdentifierInfo() &&
@@ -676,12 +676,6 @@ void MicrosoftCXXNameMangler::mangleType(const BuiltinType *T) {
   //                 ::= M  # float
   //                 ::= N  # double
   //                 ::= O  # long double (__float80 is mangled differently)
-  //                 ::= _D # __int8 (yup, it's a distinct type in MSVC)
-  //                 ::= _E # unsigned __int8
-  //                 ::= _F # __int16
-  //                 ::= _G # unsigned __int16
-  //                 ::= _H # __int32
-  //                 ::= _I # unsigned __int32
   //                 ::= _J # long long, __int64
   //                 ::= _K # unsigned long long, __int64
   //                 ::= _L # __int128
@@ -706,7 +700,6 @@ void MicrosoftCXXNameMangler::mangleType(const BuiltinType *T) {
   case BuiltinType::Double: Out << 'N'; break;
   // TODO: Determine size and mangle accordingly
   case BuiltinType::LongDouble: Out << 'O'; break;
-  // TODO: __int8 and friends
   case BuiltinType::LongLong: Out << "_J"; break;
   case BuiltinType::ULongLong: Out << "_K"; break;
   case BuiltinType::Int128: Out << "_L"; break;
@@ -717,6 +710,8 @@ void MicrosoftCXXNameMangler::mangleType(const BuiltinType *T) {
 
   case BuiltinType::Overload:
   case BuiltinType::Dependent:
+  case BuiltinType::UnknownAny:
+  case BuiltinType::BoundMember:
     assert(false &&
            "Overloaded and dependent types shouldn't get to name mangling");
     break;
@@ -873,6 +868,8 @@ void MicrosoftCXXNameMangler::mangleCallingConvention(const FunctionType *T,
   if (CC == CC_Default)
     CC = IsInstMethod ? getASTContext().getDefaultMethodCallConv() : CC_C;
   switch (CC) {
+    default:
+      assert(0 && "Unsupported CC for mangling");
     case CC_Default:
     case CC_C: Out << 'A'; break;
     case CC_X86Pascal: Out << 'C'; break;

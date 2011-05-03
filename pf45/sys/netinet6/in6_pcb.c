@@ -204,6 +204,7 @@ in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
 				      == 0) && (inp->inp_cred->cr_uid !=
 				     t->inp_cred->cr_uid))
 					return (EADDRINUSE);
+#ifdef INET
 				if ((inp->inp_flags & IN6P_IPV6_V6ONLY) == 0 &&
 				    IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr)) {
 					struct sockaddr_in sin;
@@ -222,6 +223,7 @@ in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
 					     t->inp_cred->cr_uid))
 						return (EADDRINUSE);
 				}
+#endif
 			}
 			t = in6_pcblookup_local(pcbinfo, &sin6->sin6_addr,
 			    lport, wild, cred);
@@ -229,6 +231,7 @@ in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
 			    intotw(t)->tw_so_options :
 			    t->inp_socket->so_options)) == 0)
 				return (EADDRINUSE);
+#ifdef INET
 			if ((inp->inp_flags & IN6P_IPV6_V6ONLY) == 0 &&
 			    IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr)) {
 				struct sockaddr_in sin;
@@ -252,6 +255,7 @@ in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
 				     INP_SOCKAF(t->inp_socket)))
 					return (EADDRINUSE);
 			}
+#endif
 		}
 		inp->in6p_laddr = sin6->sin6_addr;
 	}
@@ -496,11 +500,14 @@ in6_mapped_sockaddr(struct socket *so, struct sockaddr **nam)
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("in6_mapped_sockaddr: inp == NULL"));
 
+#ifdef INET
 	if ((inp->inp_vflag & (INP_IPV4 | INP_IPV6)) == INP_IPV4) {
 		error = in_getsockaddr(so, nam);
 		if (error == 0)
 			in6_sin_2_v4mapsin6_in_sock(nam);
-	} else {
+	} else
+#endif
+	{
 		/* scope issues will be handled in in6_getsockaddr(). */
 		error = in6_getsockaddr(so, nam);
 	}
@@ -517,11 +524,13 @@ in6_mapped_peeraddr(struct socket *so, struct sockaddr **nam)
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("in6_mapped_peeraddr: inp == NULL"));
 
+#ifdef INET
 	if ((inp->inp_vflag & (INP_IPV4 | INP_IPV6)) == INP_IPV4) {
 		error = in_getpeeraddr(so, nam);
 		if (error == 0)
 			in6_sin_2_v4mapsin6_in_sock(nam);
 	} else
+#endif
 	/* scope issues will be handled in in6_getpeeraddr(). */
 	error = in6_getpeeraddr(so, nam);
 

@@ -119,8 +119,10 @@ ipsec_common_input(struct mbuf *m, int skip, int protoff, int af, int sproto)
 	struct secasvar *sav;
 	u_int32_t spi;
 	int error;
+#ifdef INET
 #ifdef IPSEC_NAT_T
 	struct m_tag *tag;
+#endif
 #endif
 
 	IPSEC_ISTAT(sproto, V_espstat.esps_input, V_ahstat.ahs_input,

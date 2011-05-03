@@ -5,7 +5,6 @@ MAN=	accept_filter.9 \
 	accf_dns.9 \
 	accf_http.9 \
 	acl.9 \
-	alloc_unr.9 \
 	alq.9 \
 	altq.9 \
 	atomic.9 \
@@ -22,6 +21,7 @@ MAN=	accept_filter.9 \
 	BUF_UNLOCK.9 \
 	bus_activate_resource.9 \
 	BUS_ADD_CHILD.9 \
+	bus_adjust_resource.9 \
 	bus_alloc_resource.9 \
 	BUS_BIND_INTR.9 \
 	bus_child_present.9 \
@@ -257,6 +257,7 @@ MAN=	accept_filter.9 \
 	ucred.9 \
 	uidinfo.9 \
 	uio.9 \
+	unr.9 \
 	usbdi.9 \
 	utopia.9 \
 	vaccess.9 \
@@ -377,11 +378,12 @@ MAN=	accept_filter.9 \
 	zero_copy.9 \
 	zone.9
 
-MLINKS=	alloc_unr.9 alloc_unrl.9 \
-	alloc_unr.9 alloc_unr_specific.9 \
-	alloc_unr.9 delete_unrhdr.9 \
-	alloc_unr.9 free_unr.9 \
-	alloc_unr.9 new_unrhdr.9
+MLINKS=	unr.9 alloc_unr.9 \
+	unr.9 alloc_unrl.9 \
+	unr.9 alloc_unr_specific.9 \
+	unr.9 delete_unrhdr.9 \
+	unr.9 free_unr.9 \
+	unr.9 new_unrhdr.9
 MLINKS+=alq.9 ALQ.9 \
 	alq.9 alq_close.9 \
 	alq.9 alq_flush.9 \
@@ -966,9 +968,11 @@ MLINKS+=refcount.9 refcount_acquire.9 \
 MLINKS+=resource_int_value.9 resource_long_value.9 \
 	resource_int_value.9 resource_string_value.9
 MLINKS+=rman.9 rman_activate_resource.9 \
+	rman.9 rman_adjust_resource.9 \
 	rman.9 rman_await_resource.9 \
 	rman.9 rman_deactivate_resource.9 \
 	rman.9 rman_fini.9 \
+	rman.9 rman_first_free_region.9 \
 	rman.9 rman_get_bushandle.9 \
 	rman.9 rman_get_bustag.9 \
 	rman.9 rman_get_device.9 \
@@ -979,6 +983,9 @@ MLINKS+=rman.9 rman_activate_resource.9 \
 	rman.9 rman_get_start.9 \
 	rman.9 rman_get_virtual.9 \
 	rman.9 rman_init.9 \
+	rman.9 rman_init_from_resource.9 \
+	rman.9 rman_is_region_manager.9 \
+	rman.9 rman_last_free_region.9 \
 	rman.9 rman_make_alignment_flags.9 \
 	rman.9 rman_manage_region.9 \
 	rman.9 rman_release_resource.9 \

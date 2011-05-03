@@ -26,19 +26,18 @@ using namespace llvm;
 
 static MCAsmInfo *createMCAsmInfo(const Target &T, StringRef TT) {
   Triple TheTriple(TT);
-  switch (TheTriple.getOS()) {
-  case Triple::Darwin:
-    return new X86MCAsmInfoDarwin(TheTriple);
-  case Triple::MinGW32:
-  case Triple::Cygwin:
-  case Triple::Win32:
-    if (TheTriple.getEnvironment() == Triple::MachO)
-      return new X86MCAsmInfoDarwin(TheTriple);
+
+  if (TheTriple.isOSDarwin() || TheTriple.getEnvironment() == Triple::MachO) {
+    if (TheTriple.getArch() == Triple::x86_64)
+      return new X86_64MCAsmInfoDarwin(TheTriple);
     else
-      return new X86MCAsmInfoCOFF(TheTriple);
-  default:
-    return new X86ELFMCAsmInfo(TheTriple);
+      return new X86MCAsmInfoDarwin(TheTriple);
   }
+
+  if (TheTriple.isOSWindows())
+    return new X86MCAsmInfoCOFF(TheTriple);
+
+  return new X86ELFMCAsmInfo(TheTriple);
 }
 
 static MCStreamer *createMCStreamer(const Target &T, const std::string &TT,
@@ -48,19 +47,14 @@ static MCStreamer *createMCStreamer(const Target &T, const std::string &TT,
                                     bool RelaxAll,
                                     bool NoExecStack) {
   Triple TheTriple(TT);
-  switch (TheTriple.getOS()) {
-  case Triple::Darwin:
+
+  if (TheTriple.isOSDarwin() || TheTriple.getEnvironment() == Triple::MachO)
     return createMachOStreamer(Ctx, TAB, _OS, _Emitter, RelaxAll);
-  case Triple::MinGW32:
-  case Triple::Cygwin:
-  case Triple::Win32:
-    if (TheTriple.getEnvironment() == Triple::MachO)
-      return createMachOStreamer(Ctx, TAB, _OS, _Emitter, RelaxAll);
-    else
-      return createWinCOFFStreamer(Ctx, TAB, *_Emitter, _OS, RelaxAll);
-  default:
-    return createELFStreamer(Ctx, TAB, _OS, _Emitter, RelaxAll, NoExecStack);
-  }
+
+  if (TheTriple.isOSWindows())
+    return createWinCOFFStreamer(Ctx, TAB, *_Emitter, _OS, RelaxAll);
+
+  return createELFStreamer(Ctx, TAB, _OS, _Emitter, RelaxAll, NoExecStack);
 }
 
 extern "C" void LLVMInitializeX86Target() {
@@ -96,11 +90,11 @@ X86_32TargetMachine::X86_32TargetMachine(const Target &T, const std::string &TT,
                                          const std::string &FS)
   : X86TargetMachine(T, TT, FS, false),
     DataLayout(getSubtargetImpl()->isTargetDarwin() ?
-               "e-p:32:32-f64:32:64-i64:32:64-f80:128:128-n8:16:32" :
+               "e-p:32:32-f64:32:64-i64:32:64-f80:128:128-f128:128:128-n8:16:32" :
                (getSubtargetImpl()->isTargetCygMing() ||
                 getSubtargetImpl()->isTargetWindows()) ?
-               "e-p:32:32-f64:64:64-i64:64:64-f80:32:32-n8:16:32" :
-               "e-p:32:32-f64:32:64-i64:32:64-f80:32:32-n8:16:32"),
+               "e-p:32:32-f64:64:64-i64:64:64-f80:32:32-f128:128:128-n8:16:32" :
+               "e-p:32:32-f64:32:64-i64:32:64-f80:32:32-f128:128:128-n8:16:32"),
     InstrInfo(*this),
     TSInfo(*this),
     TLInfo(*this),
@@ -111,7 +105,7 @@ X86_32TargetMachine::X86_32TargetMachine(const Target &T, const std::string &TT,
 X86_64TargetMachine::X86_64TargetMachine(const Target &T, const std::string &TT,
                                          const std::string &FS)
   : X86TargetMachine(T, TT, FS, true),
-    DataLayout("e-p:64:64-s:64-f64:64:64-i64:64:64-f80:128:128-n8:16:32:64"),
+    DataLayout("e-p:64:64-s:64-f64:64:64-i64:64:64-f80:128:128-f128:128:128-n8:16:32:64"),
     InstrInfo(*this),
     TSInfo(*this),
     TLInfo(*this),

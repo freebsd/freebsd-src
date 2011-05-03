@@ -88,8 +88,14 @@ static int tdkphy_service(struct mii_softc *, struct mii_data *, int);
 static void tdkphy_status(struct mii_softc *);
 
 static const struct mii_phydesc tdkphys[] = {
-	MII_PHY_DESC(TDK, 78Q2120),
+	MII_PHY_DESC(xxTSC, 78Q2120),
 	MII_PHY_END
+};
+
+static const struct mii_phy_funcs tdkphy_funcs = {
+	tdkphy_service,
+	tdkphy_status,
+	mii_phy_reset
 };
 
 static int
@@ -102,39 +108,8 @@ tdkphy_probe(device_t dev)
 static int
 tdkphy_attach(device_t dev)
 {
-	struct mii_softc *sc;
-	struct mii_attach_args *ma;
-	struct mii_data *mii;
-	sc = device_get_softc(dev);
-	ma = device_get_ivars(dev);
-	sc->mii_dev = device_get_parent(dev);
-	mii = ma->mii_data;
-	LIST_INSERT_HEAD(&mii->mii_phys, sc, mii_list);
 
-	if (bootverbose)
-		device_printf(dev, "OUI 0x%06x, model 0x%04x, rev. %d\n",
-		    MII_OUI(ma->mii_id1, ma->mii_id2),
-		    MII_MODEL(ma->mii_id2), MII_REV(ma->mii_id2));
-
-	sc->mii_flags = miibus_get_flags(dev);
-	sc->mii_inst = mii->mii_instance++;
-	sc->mii_phy = ma->mii_phyno;
-	sc->mii_service = tdkphy_service;
-	sc->mii_pdata = mii;
-
-	/*
-	 * Apparently, we can't do loopback on this PHY.
-	 */
-	sc->mii_flags |= MIIF_NOLOOP;
-
-	mii_phy_reset(sc);
-
-	sc->mii_capabilities = PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
-	device_printf(dev, " ");
-	mii_phy_add_media(sc);
-	printf("\n");
-
-	MIIBUS_MEDIAINIT(sc->mii_dev);
+	mii_phy_dev_attach(dev, MIIF_NOMANPAUSE, &tdkphy_funcs, 1);
 	return (0);
 }
 
@@ -163,7 +138,7 @@ tdkphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 	}
 
 	/* Update the media status. */
-	tdkphy_status(sc);
+	PHY_STATUS(sc);
 	if (sc->mii_pdata->mii_media_active & IFM_FDX)
 		PHY_WRITE(sc, MII_BMCR, PHY_READ(sc, MII_BMCR) | BMCR_FDX);
 	else
@@ -247,6 +222,8 @@ tdkphy_status(struct mii_softc *phy)
 					mii->mii_media_active |= IFM_10_T;
 			}
 		}
+		if ((mii->mii_media_active & IFM_FDX) != 0)
+			mii->mii_media_active |= mii_phy_flowstatus(phy);
 	} else
 		mii->mii_media_active = ife->ifm_media;
 }

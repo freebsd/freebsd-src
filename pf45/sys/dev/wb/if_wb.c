@@ -681,6 +681,7 @@ wb_reset(sc)
 {
 	register int		i;
 	struct mii_data		*mii;
+	struct mii_softc	*miisc;
 
 	CSR_WRITE_4(sc, WB_NETCFG, 0);
 	CSR_WRITE_4(sc, WB_BUSCTL, 0);
@@ -705,16 +706,8 @@ wb_reset(sc)
 		return;
 
 	mii = device_get_softc(sc->wb_miibus);
-	if (mii == NULL)
-		return;
-
-        if (mii->mii_instance) {
-                struct mii_softc        *miisc;
-                LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
-                        mii_phy_reset(miisc);
-        }
-
-        return;
+	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
+		PHY_RESET(miisc);
 }
 
 static void
@@ -724,9 +717,6 @@ wb_fixmedia(sc)
 	struct mii_data		*mii = NULL;
 	struct ifnet		*ifp;
 	u_int32_t		media;
-
-	if (sc->wb_miibus == NULL)
-		return;
 
 	mii = device_get_softc(sc->wb_miibus);
 	ifp = sc->wb_ifp;
@@ -742,8 +732,6 @@ wb_fixmedia(sc)
 		return;
 
 	ifmedia_set(&mii->mii_media, media);
-
-	return;
 }
 
 /*

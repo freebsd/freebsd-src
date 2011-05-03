@@ -686,8 +686,7 @@ static bool LookupDirect(Sema &S, LookupResult &R, const DeclContext *DC) {
     // FIXME: Calling convention!
     FunctionProtoType::ExtProtoInfo EPI = ConvProto->getExtProtoInfo();
     EPI.ExtInfo = EPI.ExtInfo.withCallingConv(CC_Default);
-    EPI.HasExceptionSpec = false;
-    EPI.HasAnyExceptionSpec = false;
+    EPI.ExceptionSpecType = EST_None;
     EPI.NumExceptions = 0;
     QualType ExpectedType
       = R.getSema().Context.getFunctionType(R.getLookupName().getCXXNameType(),
@@ -1130,8 +1129,8 @@ bool Sema::LookupName(LookupResult &R, Scope *S, bool AllowBuiltinCreation) {
   // If we didn't find a use of this identifier, and if the identifier
   // corresponds to a compiler builtin, create the decl object for the builtin
   // now, injecting it into translation unit scope, and return it.
-  if (AllowBuiltinCreation)
-    return LookupBuiltin(*this, R);
+  if (AllowBuiltinCreation && LookupBuiltin(*this, R))
+    return true;
 
   // If we didn't find a use of this identifier, the ExternalSource 
   // may be able to handle the situation. 
@@ -1964,10 +1963,13 @@ addAssociatedClassesAndNamespaces(AssociatedLookup &Result, QualType Ty) {
     case Type::Complex:
       break;
 
-    // These are ignored by ADL.
+    // If T is an Objective-C object or interface type, or a pointer to an 
+    // object or interface type, the associated namespace is the global
+    // namespace.
     case Type::ObjCObject:
     case Type::ObjCInterface:
     case Type::ObjCObjectPointer:
+      Result.Namespaces.insert(Result.S.Context.getTranslationUnitDecl());
       break;
     }
 
@@ -2203,7 +2205,8 @@ void ADLResult::insert(NamedDecl *New) {
 
 void Sema::ArgumentDependentLookup(DeclarationName Name, bool Operator,
                                    Expr **Args, unsigned NumArgs,
-                                   ADLResult &Result) {
+                                   ADLResult &Result,
+                                   bool StdNamespaceIsAssociated) {
   // Find all of the associated namespaces and classes based on the
   // arguments we have.
   AssociatedNamespaceSet AssociatedNamespaces;
@@ -2211,6 +2214,8 @@ void Sema::ArgumentDependentLookup(DeclarationName Name, bool Operator,
   FindAssociatedClassesAndNamespaces(Args, NumArgs,
                                      AssociatedNamespaces,
                                      AssociatedClasses);
+  if (StdNamespaceIsAssociated && StdNamespace)
+    AssociatedNamespaces.insert(getStdNamespace());
 
   QualType T1, T2;
   if (Operator) {
@@ -2766,30 +2771,35 @@ void Sema::LookupVisibleDecls(DeclContext *Ctx, LookupNameKind Kind,
 }
 
 /// LookupOrCreateLabel - Do a name lookup of a label with the specified name.
-/// If isLocalLabel is true, then this is a definition of an __label__ label
-/// name, otherwise it is a normal label definition or use.
+/// If GnuLabelLoc is a valid source location, then this is a definition
+/// of an __label__ label name, otherwise it is a normal label definition
+/// or use.
 LabelDecl *Sema::LookupOrCreateLabel(IdentifierInfo *II, SourceLocation Loc,
-                                     bool isLocalLabel) {
+                                     SourceLocation GnuLabelLoc) {
   // Do a lookup to see if we have a label with this name already.
   NamedDecl *Res = 0;
-  
-  // Local label definitions always shadow existing labels.
-  if (!isLocalLabel)
-    Res = LookupSingleName(CurScope, II, Loc, LookupLabel, NotForRedeclaration);
-  
-  // If we found a label, check to see if it is in the same context as us.  When
-  // in a Block, we don't want to reuse a label in an enclosing function.
+
+  if (GnuLabelLoc.isValid()) {
+    // Local label definitions always shadow existing labels.
+    Res = LabelDecl::Create(Context, CurContext, Loc, II, GnuLabelLoc);
+    Scope *S = CurScope;
+    PushOnScopeChains(Res, S, true);
+    return cast<LabelDecl>(Res);
+  }
+
+  // Not a GNU local label.
+  Res = LookupSingleName(CurScope, II, Loc, LookupLabel, NotForRedeclaration);
+  // If we found a label, check to see if it is in the same context as us.
+  // When in a Block, we don't want to reuse a label in an enclosing function.
   if (Res && Res->getDeclContext() != CurContext)
     Res = 0;
-  
   if (Res == 0) {
     // If not forward referenced or defined already, create the backing decl.
     Res = LabelDecl::Create(Context, CurContext, Loc, II);
-    Scope *S = isLocalLabel ? CurScope : CurScope->getFnParent();
+    Scope *S = CurScope->getFnParent();
     assert(S && "Not in a function?");
     PushOnScopeChains(Res, S, true);
   }
-  
   return cast<LabelDecl>(Res);
 }
 
@@ -2853,8 +2863,6 @@ void TypoCorrectionConsumer::FoundDecl(NamedDecl *ND, NamedDecl *Hiding,
 }
 
 void TypoCorrectionConsumer::FoundName(llvm::StringRef Name) {
-  using namespace std;
-
   // Use a simple length-based heuristic to determine the minimum possible
   // edit distance. If the minimum isn't good enough, bail out early.
   unsigned MinED = abs((int)Name.size() - (int)Typo.size());
@@ -2863,7 +2871,8 @@ void TypoCorrectionConsumer::FoundName(llvm::StringRef Name) {
 
   // Compute an upper bound on the allowable edit distance, so that the
   // edit-distance algorithm can short-circuit.
-  unsigned UpperBound = min(unsigned((Typo.size() + 2) / 3), BestEditDistance);
+  unsigned UpperBound =
+    std::min(unsigned((Typo.size() + 2) / 3), BestEditDistance);
 
   // Compute the edit distance between the typo and the name of this
   // entity. If this edit distance is not worse than the best edit

@@ -490,6 +490,18 @@ class SDNodeXForm<SDNode opc, code xformFunction> {
 
 def NOOP_SDNodeXForm : SDNodeXForm<imm, [{}]>;
 
+//===----------------------------------------------------------------------===//
+// PatPred Subclasses.
+//
+// These allow specifying different sorts of predicates that control whether a
+// node is matched.
+//
+class PatPred;
+
+class CodePatPred<code predicate> : PatPred {
+  code PredicateCode = predicate;
+}
+
 
 //===----------------------------------------------------------------------===//
 // Selection DAG Pattern Fragments.
@@ -507,7 +519,8 @@ class PatFrag<dag ops, dag frag, code pred = [{}],
               SDNodeXForm xform = NOOP_SDNodeXForm> : SDPatternOperator {
   dag Operands = ops;
   dag Fragment = frag;
-  code Predicate = pred;
+  code PredicateCode = pred;
+  code ImmediateCode = [{}];
   SDNodeXForm OperandTransform = xform;
 }
 
@@ -515,6 +528,27 @@ class PatFrag<dag ops, dag frag, code pred = [{}],
 // to define immediates and other common things concisely.
 class PatLeaf<dag frag, code pred = [{}], SDNodeXForm xform = NOOP_SDNodeXForm>
  : PatFrag<(ops), frag, pred, xform>;
+
+
+// ImmLeaf is a pattern fragment with a constraint on the immediate.  The
+// constraint is a function that is run on the immediate (always with the value
+// sign extended out to an int64_t) as Imm.  For example:
+//
+//  def immSExt8 : ImmLeaf<i16, [{ return (char)Imm == Imm; }]>;
+//
+// this is a more convenient form to match 'imm' nodes in than PatLeaf and also
+// is preferred over using PatLeaf because it allows the code generator to
+// reason more about the constraint.
+//
+// If FastIsel should ignore all instructions that have an operand of this type,
+// the FastIselShouldIgnore flag can be set.  This is an optimization to reduce
+// the code size of the generated fast instruction selector.
+class ImmLeaf<ValueType vt, code pred, SDNodeXForm xform = NOOP_SDNodeXForm>
+  : PatFrag<(ops), (vt imm), [{}], xform> {
+  let ImmediateCode = pred;
+  bit FastIselShouldIgnore = 0;
+}
+
 
 // Leaf fragments.
 

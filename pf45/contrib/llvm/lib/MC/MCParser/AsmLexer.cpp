@@ -213,13 +213,13 @@ AsmToken AsmLexer::LexDigit() {
 
     // Requires at least one binary digit.
     if (CurPtr == NumStart)
-      return ReturnError(TokStart, "Invalid binary number");
+      return ReturnError(TokStart, "invalid binary number");
 
     StringRef Result(TokStart, CurPtr - TokStart);
 
     long long Value;
     if (Result.substr(2).getAsInteger(2, Value))
-      return ReturnError(TokStart, "Invalid binary number");
+      return ReturnError(TokStart, "invalid binary number");
 
     // The darwin/x86 (and x86-64) assembler accepts and ignores ULL and LL
     // suffixes on integer literals.
@@ -236,11 +236,11 @@ AsmToken AsmLexer::LexDigit() {
 
     // Requires at least one hex digit.
     if (CurPtr == NumStart)
-      return ReturnError(CurPtr-2, "Invalid hexadecimal number");
+      return ReturnError(CurPtr-2, "invalid hexadecimal number");
 
     unsigned long long Result;
     if (StringRef(TokStart, CurPtr - TokStart).getAsInteger(0, Result))
-      return ReturnError(TokStart, "Invalid hexadecimal number");
+      return ReturnError(TokStart, "invalid hexadecimal number");
 
     // The darwin/x86 (and x86-64) assembler accepts and ignores ULL and LL
     // suffixes on integer literals.
@@ -251,13 +251,13 @@ AsmToken AsmLexer::LexDigit() {
   }
 
   // Must be an octal number, it starts with 0.
-  while (*CurPtr >= '0' && *CurPtr <= '7')
+  while (*CurPtr >= '0' && *CurPtr <= '9')
     ++CurPtr;
 
   StringRef Result(TokStart, CurPtr - TokStart);
   long long Value;
   if (Result.getAsInteger(8, Value))
-    return ReturnError(TokStart, "Invalid octal number");
+    return ReturnError(TokStart, "invalid octal number");
 
   // The darwin/x86 (and x86-64) assembler accepts and ignores ULL and LL
   // suffixes on integer literals.
@@ -324,8 +324,8 @@ AsmToken AsmLexer::LexQuote() {
 StringRef AsmLexer::LexUntilEndOfStatement() {
   TokStart = CurPtr;
 
-  while (!isAtStartOfComment(*CurPtr) && // Start of line comment.
-          *CurPtr != ';' &&  // End of statement marker.
+  while (!isAtStartOfComment(*CurPtr) &&    // Start of line comment.
+         !isAtStatementSeparator(CurPtr) && // End of statement marker.
          *CurPtr != '\n' &&
          *CurPtr != '\r' &&
          (*CurPtr != 0 || CurPtr != CurBuf->getBufferEnd())) {
@@ -339,6 +339,11 @@ bool AsmLexer::isAtStartOfComment(char Char) {
   return Char == *MAI.getCommentString();
 }
 
+bool AsmLexer::isAtStatementSeparator(const char *Ptr) {
+  return strncmp(Ptr, MAI.getSeparatorString(),
+                 strlen(MAI.getSeparatorString())) == 0;
+}
+
 AsmToken AsmLexer::LexToken() {
   TokStart = CurPtr;
   // This always consumes at least one character.
@@ -346,6 +351,11 @@ AsmToken AsmLexer::LexToken() {
 
   if (isAtStartOfComment(CurChar))
     return LexLineComment();
+  if (isAtStatementSeparator(TokStart)) {
+    CurPtr += strlen(MAI.getSeparatorString()) - 1;
+    return AsmToken(AsmToken::EndOfStatement,
+                    StringRef(TokStart, strlen(MAI.getSeparatorString())));
+  }
 
   switch (CurChar) {
   default:
@@ -362,8 +372,8 @@ AsmToken AsmLexer::LexToken() {
     // Ignore whitespace.
     return LexToken();
   case '\n': // FALL THROUGH.
-  case '\r': // FALL THROUGH.
-  case ';': return AsmToken(AsmToken::EndOfStatement, StringRef(TokStart, 1));
+  case '\r':
+    return AsmToken(AsmToken::EndOfStatement, StringRef(TokStart, 1));
   case ':': return AsmToken(AsmToken::Colon, StringRef(TokStart, 1));
   case '+': return AsmToken(AsmToken::Plus, StringRef(TokStart, 1));
   case '-': return AsmToken(AsmToken::Minus, StringRef(TokStart, 1));

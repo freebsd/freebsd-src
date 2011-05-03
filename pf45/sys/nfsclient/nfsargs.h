@@ -78,7 +78,7 @@ struct nfs_args {
 #define	NFSMNT_NOCONN		0x00000080  /* Don't Connect the socket */
 /* 0x100 free, was NFSMNT_NQNFS */
 #define	NFSMNT_NFSV3		0x00000200  /* Use NFS Version 3 protocol */
-/* 0x400 free, was NFSMNT_KERB */
+#define	NFSMNT_KERB		0x00000400  /* Use RPCSEC_GSS/Krb5 */
 #define	NFSMNT_DUMBTIMR		0x00000800  /* Don't estimate rtt dynamically */
 #define	NFSMNT_WCOMMITSIZE	0x00001000  /* set max write commit size */
 #define	NFSMNT_READAHEAD	0x00002000  /* set read ahead */
@@ -93,5 +93,9 @@ struct nfs_args {
 #define	NFSMNT_NOLOCKD		0x00400000 /* Locks are local */
 #define	NFSMNT_NFSV4		0x00800000 /* Use NFS Version 4 protocol */
 #define	NFSMNT_HASWRITEVERF	0x01000000 /* NFSv4 Write verifier */
+#define	NFSMNT_INTEGRITY	0x02000000 /* Use integrity with RPCSEC_GSS */
+#define	NFSMNT_PRIVACY		0x04000000 /* Use privacy with RPCSEC_GSS */
+#define	NFSMNT_ALLGSSNAME	0x08000000 /* Use principal for all accesses */
+#define	NFSMNT_STRICT3530	0x10000000 /* Adhere strictly to RFC3530 */
 
 #endif

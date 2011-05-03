@@ -39,7 +39,7 @@ __FBSDID("$FreeBSD$");
  *
  * The Broadcom BCM5700 is based on technology originally developed by
  * Alteon Networks as part of the Tigon I and Tigon II gigabit ethernet
- * MAC chips. The BCM5700, sometimes refered to as the Tigon III, has
+ * MAC chips. The BCM5700, sometimes referred to as the Tigon III, has
  * two on-board MIPS R4000 CPUs and can have as much as 16MB of external
  * SSRAM. The BCM5700 supports TCP, UDP and IP checksum offload, jumbo
  * frames, highly configurable RX filtering, and 16 RX and TX queues
@@ -1022,7 +1022,7 @@ bge_newbuf_jumbo(struct bge_softc *sc, int i)
 		return (error);
 	}
 
-	if (sc->bge_cdata.bge_rx_jumbo_chain[i] == NULL) {
+	if (sc->bge_cdata.bge_rx_jumbo_chain[i] != NULL) {
 		bus_dmamap_sync(sc->bge_cdata.bge_mtag_jumbo,
 		    sc->bge_cdata.bge_rx_jumbo_dmamap[i], BUS_DMASYNC_POSTREAD);
 		bus_dmamap_unload(sc->bge_cdata.bge_mtag_jumbo,
@@ -3419,7 +3419,7 @@ bge_reset(struct bge_softc *sc)
 		pci_write_config(dev, sc->bge_pcixcap + PCIXR_COMMAND,
 		    devctl, 2);
 	}
-	/* Re-enable MSI, if neccesary, and enable the memory arbiter. */
+	/* Re-enable MSI, if necessary, and enable the memory arbiter. */
 	if (BGE_IS_5714_FAMILY(sc)) {
 		/* This chip disables MSI on reset. */
 		if (sc->bge_flags & BGE_FLAG_MSI) {
@@ -4854,9 +4854,8 @@ bge_ifmedia_upd_locked(struct ifnet *ifp)
 
 	sc->bge_link_evt++;
 	mii = device_get_softc(sc->bge_miibus);
-	if (mii->mii_instance)
-		LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
-			mii_phy_reset(miisc);
+	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
+		PHY_RESET(miisc);
 	mii_mediachg(mii);
 
 	/*

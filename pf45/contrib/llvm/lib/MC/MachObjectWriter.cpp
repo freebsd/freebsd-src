@@ -121,6 +121,33 @@ private:
   }
   uint64_t getSymbolAddress(const MCSymbolData* SD,
                             const MCAsmLayout &Layout) const {
+    const MCSymbol &S = SD->getSymbol();
+
+    // If this is a variable, then recursively evaluate now.
+    if (S.isVariable()) {
+      MCValue Target;
+      if (!S.getVariableValue()->EvaluateAsRelocatable(Target, Layout))
+        report_fatal_error("unable to evaluate offset for variable '" +
+                           S.getName() + "'");
+
+      // Verify that any used symbols are defined.
+      if (Target.getSymA() && Target.getSymA()->getSymbol().isUndefined())
+        report_fatal_error("unable to evaluate offset to undefined symbol '" +
+                           Target.getSymA()->getSymbol().getName() + "'");
+      if (Target.getSymB() && Target.getSymB()->getSymbol().isUndefined())
+        report_fatal_error("unable to evaluate offset to undefined symbol '" +
+                           Target.getSymB()->getSymbol().getName() + "'");
+
+      uint64_t Address = Target.getConstant();
+      if (Target.getSymA())
+        Address += getSymbolAddress(&Layout.getAssembler().getSymbolData(
+                                      Target.getSymA()->getSymbol()), Layout);
+      if (Target.getSymB())
+        Address += getSymbolAddress(&Layout.getAssembler().getSymbolData(
+                                      Target.getSymB()->getSymbol()), Layout);
+      return Address;
+    }
+
     return getSectionAddress(SD->getFragment()->getParent()) +
       Layout.getSymbolOffset(SD);
   }
@@ -274,8 +301,8 @@ public:
     if (is64Bit())
       Write32(0); // reserved3
 
-    assert(OS.tell() - Start == is64Bit() ? macho::Section64Size :
-           macho::Section32Size);
+    assert(OS.tell() - Start == (is64Bit() ? macho::Section64Size :
+           macho::Section32Size));
   }
 
   void WriteSymtabLoadCommand(uint32_t SymbolOffset, uint32_t NumSymbols,
@@ -440,7 +467,7 @@ public:
       // Compensate for the relocation offset, Darwin x86_64 relocations only
       // have the addend and appear to have attempted to define it to be the
       // actual expression addend without the PCrel bias. However, instructions
-      // with data following the relocation are not accomodated for (see comment
+      // with data following the relocation are not accommodated for (see comment
       // below regarding SIGNED{1,2,4}), so it isn't exactly that either.
       Value += 1LL << Log2Size;
     }
@@ -541,7 +568,7 @@ public:
       }
 
       // x86_64 almost always uses external relocations, except when there is no
-      // symbol to use as a base address (a local symbol with no preceeding
+      // symbol to use as a base address (a local symbol with no preceding
       // non-local symbol).
       if (Base) {
         Index = Base->getIndex();
@@ -550,7 +577,7 @@ public:
         // Add the local offset, if needed.
         if (Base != &SD)
           Value += Layout.getSymbolOffset(&SD) - Layout.getSymbolOffset(Base);
-      } else if (Symbol->isInSection()) {
+      } else if (Symbol->isInSection() && !Symbol->isVariable()) {
         // The index is the section ordinal (1-based).
         Index = SD.getFragment()->getParent()->getOrdinal() + 1;
         IsExtern = 0;
@@ -821,12 +848,12 @@ public:
     //  1 - :upper16: for movt instructions
     // high bit of r_length:
     //  0 - arm instructions
-    //  1 - thumb instructions   
+    //  1 - thumb instructions
     // the other half of the relocated expression is in the following pair
     // relocation entry in the the low 16 bits of r_address field.
     unsigned ThumbBit = 0;
     unsigned MovtBit = 0;
-    switch (Fixup.getKind()) {
+    switch ((unsigned)Fixup.getKind()) {
     default: break;
     case ARM::fixup_arm_movt_hi16:
     case ARM::fixup_arm_movt_hi16_pcrel:
@@ -952,15 +979,10 @@ public:
       RelocType = unsigned(macho::RIT_ARM_ThumbBranch22Bit);
       Log2Size = llvm::Log2_32(2);
       return true;
-
+      
     case ARM::fixup_arm_thumb_bl:
-      RelocType = unsigned(macho::RIT_ARM_ThumbBranch32Bit);
-      Log2Size = llvm::Log2_32(4);
-      return true;
-
     case ARM::fixup_arm_thumb_blx:
       RelocType = unsigned(macho::RIT_ARM_ThumbBranch22Bit);
-      // Report as 'long', even though that is not quite accurate.
       Log2Size = llvm::Log2_32(4);
       return true;
 
@@ -1033,17 +1055,17 @@ public:
       // FIXME!
       report_fatal_error("FIXME: relocations to absolute targets "
                          "not yet implemented");
-    } else if (SD->getSymbol().isVariable()) {
-      int64_t Res;
-      if (SD->getSymbol().getVariableValue()->EvaluateAsAbsolute(
-            Res, Layout, SectionAddress)) {
-        FixedValue = Res;
-        return;
+    } else {
+      // Resolve constant variables.
+      if (SD->getSymbol().isVariable()) {
+        int64_t Res;
+        if (SD->getSymbol().getVariableValue()->EvaluateAsAbsolute(
+              Res, Layout, SectionAddress)) {
+          FixedValue = Res;
+          return;
+        }
       }
 
-      report_fatal_error("unsupported relocation of variable '" +
-                         SD->getSymbol().getName() + "'");
-    } else {
       // Check whether we need an external or internal relocation.
       if (doesSymbolRequireExternRelocation(SD)) {
         IsExtern = 1;
@@ -1055,8 +1077,10 @@ public:
           FixedValue -= Layout.getSymbolOffset(SD);
       } else {
         // The index is the section ordinal (1-based).
-        Index = SD->getFragment()->getParent()->getOrdinal() + 1;
-        FixedValue += getSectionAddress(SD->getFragment()->getParent());
+        const MCSectionData &SymSD = Asm.getSectionData(
+          SD->getSymbol().getSection());
+        Index = SymSD.getOrdinal() + 1;
+        FixedValue += getSectionAddress(&SymSD);
       }
       if (IsPCRel)
         FixedValue -= getSectionAddress(Fragment->getParent());
@@ -1132,17 +1156,17 @@ public:
       // FIXME: Currently, these are never generated (see code below). I cannot
       // find a case where they are actually emitted.
       Type = macho::RIT_Vanilla;
-    } else if (SD->getSymbol().isVariable()) {
-      int64_t Res;
-      if (SD->getSymbol().getVariableValue()->EvaluateAsAbsolute(
-            Res, Layout, SectionAddress)) {
-        FixedValue = Res;
-        return;
+    } else {
+      // Resolve constant variables.
+      if (SD->getSymbol().isVariable()) {
+        int64_t Res;
+        if (SD->getSymbol().getVariableValue()->EvaluateAsAbsolute(
+              Res, Layout, SectionAddress)) {
+          FixedValue = Res;
+          return;
+        }
       }
 
-      report_fatal_error("unsupported relocation of variable '" +
-                         SD->getSymbol().getName() + "'");
-    } else {
       // Check whether we need an external or internal relocation.
       if (doesSymbolRequireExternRelocation(SD)) {
         IsExtern = 1;
@@ -1154,8 +1178,10 @@ public:
           FixedValue -= Layout.getSymbolOffset(SD);
       } else {
         // The index is the section ordinal (1-based).
-        Index = SD->getFragment()->getParent()->getOrdinal() + 1;
-        FixedValue += getSectionAddress(SD->getFragment()->getParent());
+        const MCSectionData &SymSD = Asm.getSectionData(
+          SD->getSymbol().getSection());
+        Index = SymSD.getOrdinal() + 1;
+        FixedValue += getSectionAddress(&SymSD);
       }
       if (IsPCRel)
         FixedValue -= getSectionAddress(Fragment->getParent());

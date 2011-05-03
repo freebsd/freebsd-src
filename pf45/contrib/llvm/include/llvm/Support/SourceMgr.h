@@ -156,10 +156,9 @@ public:
   // Null diagnostic.
   SMDiagnostic() : SM(0), LineNo(0), ColumnNo(0), ShowLine(0) {}
   // Diagnostic with no location (e.g. file not found, command line arg error).
-  SMDiagnostic(const std::string &filename, const std::string &Msg,
-               bool showline = true)
+  SMDiagnostic(const std::string &filename, const std::string &Msg)
     : SM(0), Filename(filename), LineNo(-1), ColumnNo(-1),
-      Message(Msg), ShowLine(showline) {}
+      Message(Msg), ShowLine(false) {}
   
   // Diagnostic with a location.
   SMDiagnostic(const SourceMgr &sm, SMLoc L, const std::string &FN,
@@ -171,7 +170,7 @@ public:
 
   const SourceMgr *getSourceMgr() const { return SM; }
   SMLoc getLoc() const { return Loc; }
-  const std::string &getFilename() { return Filename; }
+  const std::string &getFilename() const { return Filename; }
   int getLineNo() const { return LineNo; }
   int getColumnNo() const { return ColumnNo; }
   const std::string &getMessage() const { return Message; }

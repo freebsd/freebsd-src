@@ -76,7 +76,7 @@ __FBSDID("$FreeBSD$");
 #include <nfsclient/nfsmount.h>
 #include <nfs/xdr_subs.h>
 #include <nfsclient/nfsm_subs.h>
-#include <nfsclient/nfsdiskless.h>
+#include <nfs/nfsdiskless.h>
 
 FEATURE(nfsclient, "NFS client");
 
@@ -144,16 +144,16 @@ static struct vfsops nfs_vfsops = {
 	.vfs_unmount =		nfs_unmount,
 	.vfs_sysctl =		nfs_sysctl,
 };
-VFS_SET(nfs_vfsops, nfs, VFCF_NETWORK);
+VFS_SET(nfs_vfsops, oldnfs, VFCF_NETWORK);
 
 /* So that loader and kldload(2) can find us, wherever we are.. */
-MODULE_VERSION(nfs, 1);
-MODULE_DEPEND(nfs, krpc, 1, 1, 1);
+MODULE_VERSION(oldnfs, 1);
+MODULE_DEPEND(oldnfs, krpc, 1, 1, 1);
 #ifdef KGSSAPI
-MODULE_DEPEND(nfs, kgssapi, 1, 1, 1);
+MODULE_DEPEND(oldnfs, kgssapi, 1, 1, 1);
 #endif
-MODULE_DEPEND(nfs, nfs_common, 1, 1, 1);
-MODULE_DEPEND(nfs, nfslock, 1, 1, 1);
+MODULE_DEPEND(oldnfs, nfs_common, 1, 1, 1);
+MODULE_DEPEND(oldnfs, nfslock, 1, 1, 1);
 
 static struct nfs_rpcops nfs_rpcops = {
 	nfs_readrpc,
@@ -165,13 +165,16 @@ static struct nfs_rpcops nfs_rpcops = {
 };
 
 /*
- * This structure must be filled in by a primary bootstrap or bootstrap
- * server for a diskless/dataless machine. It is initialized below just
- * to ensure that it is allocated to initialized data (.data not .bss).
+ * This structure is now defined in sys/nfs/nfs_diskless.c so that it
+ * can be shared by both NFS clients. It is declared here so that it
+ * will be defined for kernels built without NFS_ROOT, although it
+ * isn't used in that case.
  */
-struct nfs_diskless nfs_diskless = { { { 0 } } };
-struct nfsv3_diskless nfsv3_diskless = { { { 0 } } };
-int nfs_diskless_valid = 0;
+#ifndef NFS_ROOT
+struct nfs_diskless	nfs_diskless = { { { 0 } } };
+struct nfsv3_diskless	nfsv3_diskless = { { { 0 } } };
+int			nfs_diskless_valid = 0;
+#endif
 
 SYSCTL_INT(_vfs_nfs, OID_AUTO, diskless_valid, CTLFLAG_RD,
     &nfs_diskless_valid, 0,

@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 18, 2009
+.Dd April 26, 2011
 .Dt TASKQUEUE 9
 .Os
 .Sh NAME
@@ -52,6 +52,8 @@ struct task {
 	task_fn_t		ta_func;	/* task handler */
 	void			*ta_context;	/* argument for handler */
 };
+
+struct timeout_task;
 .Ed
 .Ft struct taskqueue *
 .Fn taskqueue_create "const char *name" "int mflags" "taskqueue_enqueue_fn enqueue" "void *context"
@@ -64,19 +66,26 @@ struct task {
 .Ft int
 .Fn taskqueue_enqueue_fast "struct taskqueue *queue" "struct task *task"
 .Ft int
+.Fn taskqueue_enqueue_timeout "struct taskqueue *queue" "struct timeout_task *timeout_task" "int ticks"
+.Ft int
 .Fn taskqueue_cancel "struct taskqueue *queue" "struct task *task" "u_int *pendp"
+.Ft int
+.Fn taskqueue_cancel_timeout "struct taskqueue *queue" "struct timeout_task *timeout_task" "u_int *pendp"
 .Ft void
 .Fn taskqueue_drain "struct taskqueue *queue" "struct task *task"
+.Ft void
+.Fn taskqueue_drain_timeout "struct taskqueue *queue" "struct timeout_task *timeout_task"
 .Ft int
 .Fn taskqueue_member "struct taskqueue *queue" "struct thread *td"
 .Ft void
 .Fn taskqueue_run "struct taskqueue *queue"
-.Fn TASK_INIT "struct task *task" "int priority" "task_fn_t *func" "void *context"
+.Fn TASK_INIT "struct task *task" "int priority" "task_fn_t func" "void *context"
 .Fn TASKQUEUE_DECLARE "name"
 .Fn TASKQUEUE_DEFINE "name" "taskqueue_enqueue_fn enqueue" "void *context" "init"
 .Fn TASKQUEUE_FAST_DEFINE "name" "taskqueue_enqueue_fn enqueue" "void *context" "init"
 .Fn TASKQUEUE_DEFINE_THREAD "name"
 .Fn TASKQUEUE_FAST_DEFINE_THREAD "name"
+.Fn TIMEOUT_TASK_INIT "struct taskqueue *queue" "struct timeout_task *timeout_task" "int priority" "task_fn_t func" "void *context"
 .Sh DESCRIPTION
 These functions provide a simple interface for asynchronous execution
 of code.
@@ -164,6 +173,14 @@ is called on the task pointer passed to
 .Fn taskqueue_enqueue .
 .Pp
 The
+.Fn taskqueue_enqueue_timeout
+is used to schedule the enqueue after the specified amount of
+.Va ticks .
+Only non-fast task queues can be used for
+.Va timeout_task
+scheduling.
+.Pp
+The
 .Fn taskqueue_cancel
 function is used to cancel a task.
 The
@@ -188,9 +205,16 @@ Note that, as with
 the caller is responsible for ensuring that the task is not re-enqueued
 after being canceled.
 .Pp
+Similarly, the
+.Fn taskqueue_cancel_timeout
+function is used to cancel the scheduled task execution.
+.Pp
 The
 .Fn taskqueue_drain
-function is used to wait for the task to finish.
+function is used to wait for the task to finish, and
+the
+.Fn taskqueue_drain_timeout
+function is used to wait for the scheduled task to finish.
 There is no guarantee that the task will not be
 enqueued after call to
 .Fn taskqueue_drain .
@@ -218,6 +242,9 @@ A convenience macro,
 is provided to initialise a
 .Va task
 structure.
+A macro
+.Fn TIMEOUT_TASK_INIT "queue" "timeout_task" "priority" "func" "context"
+initializes the timeout_task structure.
 The values of
 .Va priority ,
 .Va func ,
@@ -342,7 +369,7 @@ be created with a dedicated processing thread.
 .Sh HISTORY
 This interface first appeared in
 .Fx 5.0 .
-There is a similar facility called tqueue in the Linux kernel.
+There is a similar facility called work_queue in the Linux kernel.
 .Sh AUTHORS
 This manual page was written by
 .An Doug Rabson .

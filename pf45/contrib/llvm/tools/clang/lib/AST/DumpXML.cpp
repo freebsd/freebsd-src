@@ -543,9 +543,17 @@ struct XMLDumper : public XMLDeclVisitor<XMLDumper>,
 
   // TypedefDecl
   void visitTypedefDeclAttrs(TypedefDecl *D) {
-    visitRedeclarableAttrs(D);
+    visitRedeclarableAttrs<TypedefNameDecl>(D);
   }
   void visitTypedefDeclChildren(TypedefDecl *D) {
+    dispatch(D->getTypeSourceInfo()->getTypeLoc());
+  }
+
+  // TypeAliasDecl
+  void visitTypeAliasDeclAttrs(TypeAliasDecl *D) {
+    visitRedeclarableAttrs<TypedefNameDecl>(D);
+  }
+  void visitTypeAliasDeclChildren(TypeAliasDecl *D) {
     dispatch(D->getTypeSourceInfo()->getTypeLoc());
   }
 
@@ -911,6 +919,8 @@ struct XMLDumper : public XMLDeclVisitor<XMLDumper>,
     case CC_X86StdCall: return set("cc", "x86_stdcall");
     case CC_X86ThisCall: return set("cc", "x86_thiscall");
     case CC_X86Pascal: return set("cc", "x86_pascal");
+    case CC_AAPCS: return set("cc", "aapcs");
+    case CC_AAPCS_VFP: return set("cc", "aapcs_vfp");
     }
   }
 
@@ -955,7 +965,7 @@ struct XMLDumper : public XMLDeclVisitor<XMLDumper>,
   void visitFunctionTypeAttrs(FunctionType *T) {
     setFlag("noreturn", T->getNoReturnAttr());
     setCallingConv(T->getCallConv());
-    if (T->getRegParmType()) setInteger("regparm", T->getRegParmType());
+    if (T->getHasRegParm()) setInteger("regparm", T->getRegParmType());
   }
   void visitFunctionTypeChildren(FunctionType *T) {
     dispatch(T->getResultType());
@@ -975,15 +985,16 @@ struct XMLDumper : public XMLDeclVisitor<XMLDumper>,
       dispatch(*I);
     pop();
 
-    if (T->hasExceptionSpec()) {
+    if (T->hasDynamicExceptionSpec()) {
       push("exception_specifiers");
-      setFlag("any", T->hasAnyExceptionSpec());
+      setFlag("any", T->getExceptionSpecType() == EST_MSAny);
       completeAttrs();
       for (FunctionProtoType::exception_iterator
              I = T->exception_begin(), E = T->exception_end(); I != E; ++I)
         dispatch(*I);
       pop();
     }
+    // FIXME: noexcept specifier
   }
 
   void visitTemplateSpecializationTypeChildren(TemplateSpecializationType *T) {

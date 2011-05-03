@@ -57,9 +57,10 @@
 
 #include <fs/ext2fs/inode.h>
 #include <fs/ext2fs/ext2_mount.h>
-#include <fs/ext2fs/ext2_extern.h>
 #include <fs/ext2fs/ext2fs.h>
+#include <fs/ext2fs/ext2_dinode.h>
 #include <fs/ext2fs/ext2_dir.h>
+#include <fs/ext2fs/ext2_extern.h>
 
 #ifdef DIAGNOSTIC
 static int dirchk = 1;
@@ -889,7 +890,12 @@ ext2_direnter(ip, dvp, cnp)
 		ep = (struct ext2fs_direct_2 *)((char *)ep + dsize);
 	}
 	bcopy((caddr_t)&newdir, (caddr_t)ep, (u_int)newentrysize);
-	error = bwrite(bp);
+	if (DOINGASYNC(dvp)) {
+		bdwrite(bp);
+		error = 0;
+	} else {
+		error = bwrite(bp);
+	}
 	dp->i_flag |= IN_CHANGE | IN_UPDATE;
 	if (!error && dp->i_endoff && dp->i_endoff < dp->i_size)
 		error = ext2_truncate(dvp, (off_t)dp->i_endoff, IO_SYNC,
@@ -946,7 +952,10 @@ ext2_dirremove(dvp, cnp)
 	else
 		rep = (struct ext2fs_direct_2 *)((char *)ep + ep->e2d_reclen);
 	ep->e2d_reclen += rep->e2d_reclen;
-	error = bwrite(bp);
+	if (DOINGASYNC(dvp) && dp->i_count != 0)
+		bdwrite(bp);
+	else
+		error = bwrite(bp);
 	dp->i_flag |= IN_CHANGE | IN_UPDATE;
 	return (error);
 }
@@ -1056,7 +1065,7 @@ ext2_checkpath(source, target, cred)
 		error = EEXIST;
 		goto out;
 	}
-	rootino = ROOTINO;
+	rootino = EXT2_ROOTINO;
 	error = 0;
 	if (target->i_number == rootino)
 		goto out;

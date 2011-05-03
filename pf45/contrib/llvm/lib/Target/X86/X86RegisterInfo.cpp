@@ -308,6 +308,33 @@ X86RegisterInfo::getMatchingSuperRegClass(const TargetRegisterClass *A,
   return 0;
 }
 
+const TargetRegisterClass*
+X86RegisterInfo::getLargestLegalSuperClass(const TargetRegisterClass *RC) const{
+  const TargetRegisterClass *Super = RC;
+  TargetRegisterClass::sc_iterator I = RC->superclasses_begin();
+  do {
+    switch (Super->getID()) {
+    case X86::GR8RegClassID:
+    case X86::GR16RegClassID:
+    case X86::GR32RegClassID:
+    case X86::GR64RegClassID:
+    case X86::FR32RegClassID:
+    case X86::FR64RegClassID:
+    case X86::RFP32RegClassID:
+    case X86::RFP64RegClassID:
+    case X86::RFP80RegClassID:
+    case X86::VR128RegClassID:
+    case X86::VR256RegClassID:
+      // Don't return a super-class that would shrink the spill size.
+      // That can happen with the vector and float classes.
+      if (Super->getSize() == RC->getSize())
+        return Super;
+    }
+    Super = *I++;
+  } while (Super);
+  return RC;
+}
+
 const TargetRegisterClass *
 X86RegisterInfo::getPointerRegClass(unsigned Kind) const {
   switch (Kind) {
@@ -337,7 +364,27 @@ X86RegisterInfo::getCrossCopyRegClass(const TargetRegisterClass *RC) const {
     else
       return &X86::GR32RegClass;
   }
-  return NULL;
+  return RC;
+}
+
+unsigned
+X86RegisterInfo::getRegPressureLimit(const TargetRegisterClass *RC,
+                                     MachineFunction &MF) const {
+  const TargetFrameLowering *TFI = MF.getTarget().getFrameLowering();
+
+  unsigned FPDiff = TFI->hasFP(MF) ? 1 : 0;
+  switch (RC->getID()) {
+  default:
+    return 0;
+  case X86::GR32RegClassID:
+    return 4 - FPDiff;
+  case X86::GR64RegClassID:
+    return 12 - FPDiff;
+  case X86::VR128RegClassID:
+    return TM.getSubtarget<X86Subtarget>().is64Bit() ? 10 : 4;
+  case X86::VR64RegClassID:
+    return 4;
+  }
 }
 
 const unsigned *
@@ -450,7 +497,7 @@ bool X86RegisterInfo::needsStackRealignment(const MachineFunction &MF) const {
   // FIXME: It's more complicated than this...
   if (0 && requiresRealignment && MFI->hasVarSizedObjects())
     report_fatal_error(
-      "Stack realignment in presense of dynamic allocas is not supported");
+      "Stack realignment in presence of dynamic allocas is not supported");
 
   // If we've requested that we force align the stack do so now.
   if (ForceStackAlign)

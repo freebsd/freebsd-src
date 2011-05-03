@@ -72,7 +72,7 @@ __FBSDID("$FreeBSD$");
 #include <fs/nfsclient/nfsnode.h>
 #include <fs/nfsclient/nfsmount.h>
 #include <fs/nfsclient/nfs.h>
-#include <fs/nfsclient/nfsdiskless.h>
+#include <nfs/nfsdiskless.h>
 
 FEATURE(nfscl, "NFSv4 client");
 
@@ -97,13 +97,15 @@ static int nfs_tprintf_delay = NFS_TPRINTF_DELAY;
 SYSCTL_INT(_vfs_newnfs, NFS_TPRINTF_DELAY,
         downdelayinterval, CTLFLAG_RW, &nfs_tprintf_delay, 0, "");
 
+static int	nfs_mountroot(struct mount *);
 static void	nfs_sec_name(char *, int *);
 static void	nfs_decode_args(struct mount *mp, struct nfsmount *nmp,
 		    struct nfs_args *argp, const char *, struct ucred *,
 		    struct thread *);
 static int	mountnfs(struct nfs_args *, struct mount *,
-		    struct sockaddr *, char *, u_char *, u_char *, u_char *,
-		    struct vnode **, struct ucred *, struct thread *, int);
+		    struct sockaddr *, char *, u_char *, int, u_char *, int,
+		    u_char *, int, struct vnode **, struct ucred *,
+		    struct thread *, int);
 static void	nfs_getnlminfo(struct vnode *, uint8_t *, size_t *,
 		    struct sockaddr_storage *, int *, off_t *,
 		    struct timeval *);
@@ -129,29 +131,36 @@ static struct vfsops nfs_vfsops = {
 	.vfs_unmount =		nfs_unmount,
 	.vfs_sysctl =		nfs_sysctl,
 };
-VFS_SET(nfs_vfsops, newnfs, VFCF_NETWORK);
+VFS_SET(nfs_vfsops, nfs, VFCF_NETWORK);
 
 /* So that loader and kldload(2) can find us, wherever we are.. */
-MODULE_VERSION(newnfs, 1);
+MODULE_VERSION(nfs, 1);
+MODULE_DEPEND(nfs, nfscommon, 1, 1, 1);
+MODULE_DEPEND(nfs, krpc, 1, 1, 1);
+MODULE_DEPEND(nfs, nfssvc, 1, 1, 1);
+MODULE_DEPEND(nfs, nfslock, 1, 1, 1);
 
 /*
- * This structure must be filled in by a primary bootstrap or bootstrap
- * server for a diskless/dataless machine. It is initialized below just
- * to ensure that it is allocated to initialized data (.data not .bss).
+ * This structure is now defined in sys/nfs/nfs_diskless.c so that it
+ * can be shared by both NFS clients. It is declared here so that it
+ * will be defined for kernels built without NFS_ROOT, although it
+ * isn't used in that case.
  */
-struct nfs_diskless newnfs_diskless = { { { 0 } } };
-struct nfsv3_diskless newnfsv3_diskless = { { { 0 } } };
-int newnfs_diskless_valid = 0;
+#if !defined(NFS_ROOT) && !defined(NFSCLIENT)
+struct nfs_diskless	nfs_diskless = { { { 0 } } };
+struct nfsv3_diskless	nfsv3_diskless = { { { 0 } } };
+int			nfs_diskless_valid = 0;
+#endif
 
 SYSCTL_INT(_vfs_newnfs, OID_AUTO, diskless_valid, CTLFLAG_RD,
-    &newnfs_diskless_valid, 0,
+    &nfs_diskless_valid, 0,
     "Has the diskless struct been filled correctly");
 
 SYSCTL_STRING(_vfs_newnfs, OID_AUTO, diskless_rootpath, CTLFLAG_RD,
-    newnfsv3_diskless.root_hostnam, 0, "Path to nfs root");
+    nfsv3_diskless.root_hostnam, 0, "Path to nfs root");
 
 SYSCTL_OPAQUE(_vfs_newnfs, OID_AUTO, diskless_rootaddr, CTLFLAG_RD,
-    &newnfsv3_diskless.root_saddr, sizeof newnfsv3_diskless.root_saddr,
+    &nfsv3_diskless.root_saddr, sizeof(nfsv3_diskless.root_saddr),
     "%Ssockaddr_in", "Diskless root nfs address");
 
 
@@ -229,29 +238,25 @@ static void
 nfs_convert_diskless(void)
 {
 
-	bcopy(&newnfs_diskless.myif, &newnfsv3_diskless.myif,
-	    sizeof (struct ifaliasreq));
-	bcopy(&newnfs_diskless.mygateway, &newnfsv3_diskless.mygateway,
-	    sizeof (struct sockaddr_in));
-	nfs_convert_oargs(&newnfsv3_diskless.root_args,
-	    &newnfs_diskless.root_args);
-	if (newnfsv3_diskless.root_args.flags & NFSMNT_NFSV3) {
-		newnfsv3_diskless.root_fhsize = NFSX_MYFH;
-		bcopy(newnfs_diskless.root_fh, newnfsv3_diskless.root_fh,
-		    NFSX_MYFH);
+	bcopy(&nfs_diskless.myif, &nfsv3_diskless.myif,
+		sizeof(struct ifaliasreq));
+	bcopy(&nfs_diskless.mygateway, &nfsv3_diskless.mygateway,
+		sizeof(struct sockaddr_in));
+	nfs_convert_oargs(&nfsv3_diskless.root_args,&nfs_diskless.root_args);
+	if (nfsv3_diskless.root_args.flags & NFSMNT_NFSV3) {
+		nfsv3_diskless.root_fhsize = NFSX_MYFH;
+		bcopy(nfs_diskless.root_fh, nfsv3_diskless.root_fh, NFSX_MYFH);
 	} else {
-		newnfsv3_diskless.root_fhsize = NFSX_V2FH;
-		bcopy(newnfs_diskless.root_fh, newnfsv3_diskless.root_fh,
-		    NFSX_V2FH);
+		nfsv3_diskless.root_fhsize = NFSX_V2FH;
+		bcopy(nfs_diskless.root_fh, nfsv3_diskless.root_fh, NFSX_V2FH);
 	}
-	bcopy(&newnfs_diskless.root_saddr,&newnfsv3_diskless.root_saddr,
-	    sizeof(struct sockaddr_in));
-	bcopy(newnfs_diskless.root_hostnam, newnfsv3_diskless.root_hostnam,
-	    MNAMELEN);
-	newnfsv3_diskless.root_time = newnfs_diskless.root_time;
-	bcopy(newnfs_diskless.my_hostnam, newnfsv3_diskless.my_hostnam,
-	    MAXHOSTNAMELEN);
-	newnfs_diskless_valid = 3;
+	bcopy(&nfs_diskless.root_saddr,&nfsv3_diskless.root_saddr,
+		sizeof(struct sockaddr_in));
+	bcopy(nfs_diskless.root_hostnam, nfsv3_diskless.root_hostnam, MNAMELEN);
+	nfsv3_diskless.root_time = nfs_diskless.root_time;
+	bcopy(nfs_diskless.my_hostnam, nfsv3_diskless.my_hostnam,
+		MAXHOSTNAMELEN);
+	nfs_diskless_valid = 3;
 }
 
 /*
@@ -317,7 +322,6 @@ nfs_statfs(struct mount *mp, struct statfs *sbp)
 	    if (gotfsinfo || (nmp->nm_flag & NFSMNT_NFSV4))
 		nfscl_loadfsinfo(nmp, &fs);
 	    nfscl_loadsbinfo(nmp, &sb, sbp);
-	    sbp->f_flags = nmp->nm_flag;
 	    sbp->f_iosize = newnfs_iosize(nmp);
 	    mtx_unlock(&nmp->nm_mtx);
 	    if (sbp != &mp->mnt_stat) {
@@ -358,12 +362,12 @@ ncl_fsinfo(struct nfsmount *nmp, struct vnode *vp, struct ucred *cred,
 
 /*
  * Mount a remote root fs via. nfs. This depends on the info in the
- * newnfs_diskless structure that has been filled in properly by some primary
+ * nfs_diskless structure that has been filled in properly by some primary
  * bootstrap.
  * It goes something like this:
  * - do enough of "ifconfig" by calling ifioctl() so that the system
  *   can talk to the server
- * - If newnfs_diskless.mygateway is filled in, use that address as
+ * - If nfs_diskless.mygateway is filled in, use that address as
  *   a default gateway.
  * - build the rootfs mount point and call mountnfs() to do the rest.
  *
@@ -372,11 +376,11 @@ ncl_fsinfo(struct nfsmount *nmp, struct vnode *vp, struct ucred *cred,
  * nfs_mountroot() will be called once in the boot before any other NFS
  * client activity occurs.
  */
-int
-ncl_mountroot(struct mount *mp)
+static int
+nfs_mountroot(struct mount *mp)
 {
 	struct thread *td = curthread;
-	struct nfsv3_diskless *nd = &newnfsv3_diskless;
+	struct nfsv3_diskless *nd = &nfsv3_diskless;
 	struct socket *so;
 	struct vnode *vp;
 	struct ifreq ir;
@@ -391,9 +395,9 @@ ncl_mountroot(struct mount *mp)
 	nfs_setup_diskless();
 #endif
 
-	if (newnfs_diskless_valid == 0)
+	if (nfs_diskless_valid == 0)
 		return (-1);
-	if (newnfs_diskless_valid == 1)
+	if (nfs_diskless_valid == 1)
 		nfs_convert_diskless();
 
 	/*
@@ -503,11 +507,21 @@ nfs_mountdiskless(char *path,
     struct vnode **vpp, struct mount *mp)
 {
 	struct sockaddr *nam;
-	int error;
+	int dirlen, error;
+	char *dirpath;
 
+	/*
+	 * Find the directory path in "path", which also has the server's
+	 * name/ip address in it.
+	 */
+	dirpath = strchr(path, ':');
+	if (dirpath != NULL)
+		dirlen = strlen(++dirpath);
+	else
+		dirlen = 0;
 	nam = sodupsockaddr((struct sockaddr *)sin, M_WAITOK);
-	if ((error = mountnfs(args, mp, nam, path, NULL, NULL, NULL, vpp,
-	    td->td_ucred, td, NFS_DEFAULT_NEGNAMETIMEO)) != 0) {
+	if ((error = mountnfs(args, mp, nam, path, NULL, 0, dirpath, dirlen,
+	    NULL, 0, vpp, td->td_ucred, td, NFS_DEFAULT_NEGNAMETIMEO)) != 0) {
 		printf("nfs_mountroot: mount %s on /: %d\n", path, error);
 		return (error);
 	}
@@ -694,7 +708,7 @@ nfs_decode_args(struct mount *mp, struct nfsmount *nmp, struct nfs_args *argp,
 	}
 }
 
-static const char *nfs_opts[] = { "from",
+static const char *nfs_opts[] = { "from", "nfs_args",
     "noatime", "noexec", "suiddir", "nosuid", "nosymfollow", "union",
     "noclusterr", "noclusterw", "multilabel", "acls", "force", "update",
     "async", "noconn", "nolockd", "conn", "lockd", "intr", "rdirplus",
@@ -735,14 +749,10 @@ nfs_mount(struct mount *mp)
 	    .readahead = NFS_DEFRAHEAD,
 	    .wcommitsize = 0,			/* was: NQ_DEFLEASE */
 	    .hostname = NULL,
-	    /* args version 4 */
 	    .acregmin = NFS_MINATTRTIMO,
 	    .acregmax = NFS_MAXATTRTIMO,
 	    .acdirmin = NFS_MINDIRATTRTIMO,
 	    .acdirmax = NFS_MAXDIRATTRTIMO,
-	    .dirlen = 0,
-	    .krbnamelen = 0,
-	    .srvkrbnamelen = 0,
 	};
 	int error = 0, ret, len;
 	struct sockaddr *nam = NULL;
@@ -752,7 +762,10 @@ nfs_mount(struct mount *mp)
 	u_char nfh[NFSX_FHMAX], krbname[100], dirpath[100], srvkrbname[100];
 	char *opt, *name, *secname;
 	int negnametimeo = NFS_DEFAULT_NEGNAMETIMEO;
+	int dirlen, has_nfs_args_opt, krbnamelen, srvkrbnamelen;
+	size_t hstlen;
 
+	has_nfs_args_opt = 0;
 	if (vfs_filteropt(mp->mnt_optnew, nfs_opts)) {
 		error = EINVAL;
 		goto out;
@@ -760,11 +773,30 @@ nfs_mount(struct mount *mp)
 
 	td = curthread;
 	if ((mp->mnt_flag & (MNT_ROOTFS | MNT_UPDATE)) == MNT_ROOTFS) {
-		error = ncl_mountroot(mp);
+		error = nfs_mountroot(mp);
 		goto out;
 	}
 
 	nfscl_init();
+
+	/*
+	 * The old mount_nfs program passed the struct nfs_args
+	 * from userspace to kernel.  The new mount_nfs program
+	 * passes string options via nmount() from userspace to kernel
+	 * and we populate the struct nfs_args in the kernel.
+	 */
+	if (vfs_getopt(mp->mnt_optnew, "nfs_args", NULL, NULL) == 0) {
+		error = vfs_copyopt(mp->mnt_optnew, "nfs_args", &args,
+		    sizeof(args));
+		if (error != 0)
+			goto out;
+
+		if (args.version != NFS_ARGSVERSION) {
+			error = EPROGMISMATCH;
+			goto out;
+		}
+		has_nfs_args_opt = 1;
+	}
 
 	/* Handle the new style options. */
 	if (vfs_getopt(mp->mnt_optnew, "noconn", NULL, NULL) == 0)
@@ -982,48 +1014,73 @@ nfs_mount(struct mount *mp)
 	if (nfs_ip_paranoia == 0)
 		args.flags |= NFSMNT_NOCONN;
 
-	if (vfs_getopt(mp->mnt_optnew, "fh", (void **)&args.fh,
-	    &args.fhsize) == 0) {
-		if (args.fhsize < 0 || args.fhsize > NFSX_FHMAX) {
+	if (has_nfs_args_opt != 0) {
+		/*
+		 * In the 'nfs_args' case, the pointers in the args
+		 * structure are in userland - we copy them in here.
+		 */
+		if (args.fhsize < 0 || args.fhsize > NFSX_V3FHMAX) {
 			vfs_mount_error(mp, "Bad file handle");
 			error = EINVAL;
 			goto out;
 		}
-		bcopy(args.fh, nfh, args.fhsize);
+		error = copyin((caddr_t)args.fh, (caddr_t)nfh,
+		    args.fhsize);
+		if (error != 0)
+			goto out;
+		error = copyinstr(args.hostname, hst, MNAMELEN - 1, &hstlen);
+		if (error != 0)
+			goto out;
+		bzero(&hst[hstlen], MNAMELEN - hstlen);
+		args.hostname = hst;
+		/* sockargs() call must be after above copyin() calls */
+		error = getsockaddr(&nam, (caddr_t)args.addr,
+		    args.addrlen);
+		if (error != 0)
+			goto out;
 	} else {
-		args.fhsize = 0;
+		if (vfs_getopt(mp->mnt_optnew, "fh", (void **)&args.fh,
+		    &args.fhsize) == 0) {
+			if (args.fhsize < 0 || args.fhsize > NFSX_FHMAX) {
+				vfs_mount_error(mp, "Bad file handle");
+				error = EINVAL;
+				goto out;
+			}
+			bcopy(args.fh, nfh, args.fhsize);
+		} else {
+			args.fhsize = 0;
+		}
+		(void) vfs_getopt(mp->mnt_optnew, "hostname",
+		    (void **)&args.hostname, &len);
+		if (args.hostname == NULL) {
+			vfs_mount_error(mp, "Invalid hostname");
+			error = EINVAL;
+			goto out;
+		}
+		bcopy(args.hostname, hst, MNAMELEN);
+		hst[MNAMELEN - 1] = '\0';
 	}
-
-	(void) vfs_getopt(mp->mnt_optnew, "hostname", (void **)&args.hostname,
-	    &len);
-	if (args.hostname == NULL) {
-		vfs_mount_error(mp, "Invalid hostname");
-		error = EINVAL;
-		goto out;
-	}
-	bcopy(args.hostname, hst, MNAMELEN);
-	hst[MNAMELEN - 1] = '\0';
 
 	if (vfs_getopt(mp->mnt_optnew, "principal", (void **)&name, NULL) == 0)
 		strlcpy(srvkrbname, name, sizeof (srvkrbname));
 	else
 		snprintf(srvkrbname, sizeof (srvkrbname), "nfs@%s", hst);
-	args.srvkrbnamelen = strlen(srvkrbname);
+	srvkrbnamelen = strlen(srvkrbname);
 
 	if (vfs_getopt(mp->mnt_optnew, "gssname", (void **)&name, NULL) == 0)
 		strlcpy(krbname, name, sizeof (krbname));
 	else
 		krbname[0] = '\0';
-	args.krbnamelen = strlen(krbname);
+	krbnamelen = strlen(krbname);
 
 	if (vfs_getopt(mp->mnt_optnew, "dirpath", (void **)&name, NULL) == 0)
 		strlcpy(dirpath, name, sizeof (dirpath));
 	else
 		dirpath[0] = '\0';
-	args.dirlen = strlen(dirpath);
+	dirlen = strlen(dirpath);
 
-	if (vfs_getopt(mp->mnt_optnew, "addr", (void **)&args.addr,
-	    &args.addrlen) == 0) {
+	if (has_nfs_args_opt == 0 && vfs_getopt(mp->mnt_optnew, "addr",
+	    (void **)&args.addr, &args.addrlen) == 0) {
 		if (args.addrlen > SOCK_MAXADDRLEN) {
 			error = ENAMETOOLONG;
 			goto out;
@@ -1034,8 +1091,9 @@ nfs_mount(struct mount *mp)
 	}
 
 	args.fh = nfh;
-	error = mountnfs(&args, mp, nam, hst, krbname, dirpath, srvkrbname,
-	    &vp, td->td_ucred, td, negnametimeo);
+	error = mountnfs(&args, mp, nam, hst, krbname, krbnamelen, dirpath,
+	    dirlen, srvkrbname, srvkrbnamelen, &vp, td->td_ucred, td,
+	    negnametimeo);
 out:
 	if (!error) {
 		MNT_ILOCK(mp);
@@ -1077,9 +1135,9 @@ nfs_cmount(struct mntarg *ma, void *data, int flags)
  */
 static int
 mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
-    char *hst, u_char *krbname, u_char *dirpath, u_char *srvkrbname,
-    struct vnode **vpp, struct ucred *cred, struct thread *td,
-    int negnametimeo)
+    char *hst, u_char *krbname, int krbnamelen, u_char *dirpath, int dirlen,
+    u_char *srvkrbname, int srvkrbnamelen, struct vnode **vpp,
+    struct ucred *cred, struct thread *td, int negnametimeo)
 {
 	struct nfsmount *nmp;
 	struct nfsnode *np;
@@ -1094,17 +1152,15 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 		return (0);
 	} else {
 		MALLOC(nmp, struct nfsmount *, sizeof (struct nfsmount) +
-		    argp->krbnamelen + argp->dirlen + argp->srvkrbnamelen + 2,
-		    M_NEWNFSMNT, M_WAITOK);
-		bzero((caddr_t)nmp, sizeof (struct nfsmount) +
-		    argp->krbnamelen + argp->dirlen + argp->srvkrbnamelen + 2);
+		    krbnamelen + dirlen + srvkrbnamelen + 2,
+		    M_NEWNFSMNT, M_WAITOK | M_ZERO);
 		TAILQ_INIT(&nmp->nm_bufq);
 		if (clval == 0)
 			clval = (u_int64_t)nfsboottime.tv_sec;
 		nmp->nm_clval = clval++;
-		nmp->nm_krbnamelen = argp->krbnamelen;
-		nmp->nm_dirpathlen = argp->dirlen;
-		nmp->nm_srvkrbnamelen = argp->srvkrbnamelen;
+		nmp->nm_krbnamelen = krbnamelen;
+		nmp->nm_dirpathlen = dirlen;
+		nmp->nm_srvkrbnamelen = srvkrbnamelen;
 		if (td->td_ucred->cr_uid != (uid_t)0) {
 			/*
 			 * nm_uid is used to get KerberosV credentials for

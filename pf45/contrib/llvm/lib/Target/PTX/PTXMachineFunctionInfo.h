@@ -42,36 +42,37 @@ public:
   void setRetReg(unsigned reg) { reg_ret = reg; }
 
   void doneAddArg(void) {
-    std::sort(reg_arg.begin(), reg_arg.end());
     _isDoneAddArg = true;
   }
-  void doneAddLocalVar(void) {
-    std::sort(reg_local_var.begin(), reg_local_var.end());
-  }
+  void doneAddLocalVar(void) {}
 
   bool isDoneAddArg(void) { return _isDoneAddArg; }
 
   bool isKernel() const { return is_kernel; }
 
-  typedef std::vector<unsigned>::const_iterator reg_iterator;
+  typedef std::vector<unsigned>::const_iterator         reg_iterator;
+  typedef std::vector<unsigned>::const_reverse_iterator reg_reverse_iterator;
 
-  bool argRegEmpty() const { return reg_arg.empty(); }
-  int getNumArg() const { return reg_arg.size(); }
+  bool         argRegEmpty() const { return reg_arg.empty(); }
+  int          getNumArg() const { return reg_arg.size(); }
   reg_iterator argRegBegin() const { return reg_arg.begin(); }
   reg_iterator argRegEnd()   const { return reg_arg.end(); }
+  reg_reverse_iterator argRegReverseBegin() const { return reg_arg.rbegin(); }
+  reg_reverse_iterator argRegReverseEnd() const { return reg_arg.rend(); }
 
-  bool localVarRegEmpty() const { return reg_local_var.empty(); }
+  bool         localVarRegEmpty() const { return reg_local_var.empty(); }
   reg_iterator localVarRegBegin() const { return reg_local_var.begin(); }
   reg_iterator localVarRegEnd()   const { return reg_local_var.end(); }
 
   unsigned retReg() const { return reg_ret; }
 
   bool isArgReg(unsigned reg) const {
-    return std::binary_search(reg_arg.begin(), reg_arg.end(), reg);
+    return std::find(reg_arg.begin(), reg_arg.end(), reg) != reg_arg.end();
   }
 
   bool isLocalVarReg(unsigned reg) const {
-    return std::binary_search(reg_local_var.begin(), reg_local_var.end(), reg);
+    return std::find(reg_local_var.begin(), reg_local_var.end(), reg)
+      != reg_local_var.end();
   }
 }; // class PTXMachineFunctionInfo
 } // namespace llvm

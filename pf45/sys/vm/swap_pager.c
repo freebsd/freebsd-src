@@ -424,7 +424,6 @@ swp_pager_free_nrpage(vm_page_t m)
  *
  *	No restrictions on call
  *	This routine may not block.
- *	This routine must be called at splvm()
  */
 static void
 swp_sizecheck(void)
@@ -449,8 +448,6 @@ swp_sizecheck(void)
  *	the object and page index.  It returns a pointer to a pointer
  *	to the object, or a pointer to a NULL pointer if it could not
  *	find a swapblk.
- *
- *	This routine must be called at splvm().
  */
 static struct swblock **
 swp_pager_hash(vm_object_t object, vm_pindex_t index)
@@ -590,12 +587,7 @@ swap_pager_swap_init(void)
  *	and then converting it with swp_pager_meta_build().
  *
  *	This routine may block in vm_object_allocate() and create a named
- *	object lookup race, so we must interlock.   We must also run at
- *	splvm() for the object lookup to handle races with interrupts, but
- *	we do not have to maintain splvm() in between the lookup and the
- *	add because (I believe) it is not possible to attempt to create
- *	a new swap object w/handle when a default object with that handle
- *	already exists.
+ *	object lookup race, so we must interlock.
  *
  * MPSAFE
  */
@@ -708,11 +700,7 @@ swap_pager_dealloc(vm_object_t object)
  *	Also has the side effect of advising that somebody made a mistake
  *	when they configured swap and didn't configure enough.
  *
- *	Must be called at splvm() to avoid races with bitmap frees from
- *	vm_page_remove() aka swap_pager_page_removed().
- *
  *	This routine may not block
- *	This routine must be called at splvm().
  *
  *	We allocate in round-robin fashion from the configured devices.
  */
@@ -785,11 +773,7 @@ swp_pager_strategy(struct buf *bp)
  *	Note:  This routine may not block (it could in the old swap code),
  *	and through the use of the new blist routines it does not block.
  *
- *	We must be called at splvm() to avoid races with bitmap frees from
- *	vm_page_remove() aka swap_pager_page_removed().
- *
  *	This routine may not block
- *	This routine must be called at splvm().
  */
 static void
 swp_pager_freeswapspace(daddr_t blk, int npages)
@@ -829,9 +813,6 @@ swp_pager_freeswapspace(daddr_t blk, int npages)
  *	The external callers of this routine typically have already destroyed 
  *	or renamed vm_page_t's associated with this range in the object so 
  *	we should be ok.
- *
- *	This routine may be called at any spl.  We up our spl to splvm temporarily
- *	in order to perform the metadata removal.
  */
 void
 swap_pager_freespace(vm_object_t object, vm_pindex_t start, vm_size_t size)
@@ -891,8 +872,6 @@ swap_pager_reserve(vm_object_t object, vm_pindex_t start, vm_size_t size)
  *	This routine is allowed to block.  It may block allocating metadata
  *	indirectly through swp_pager_meta_build() or if paging is still in
  *	progress on the source. 
- *
- *	This routine can be called at any spl
  *
  *	XXX vm_page_collapse() kinda expects us not to block because we 
  *	supposedly do not need to allocate memory, but for the moment we
@@ -1082,7 +1061,6 @@ swap_pager_haspage(vm_object_t object, vm_pindex_t pindex, int *before, int *aft
  *	depends on it.
  *
  *	This routine may not block
- *	This routine must be called at splvm()
  */
 static void
 swap_pager_unswapped(vm_page_t m)
@@ -1813,9 +1791,7 @@ restart:
  ************************************************************************
  *
  *	These routines manipulate the swap metadata stored in the 
- *	OBJT_SWAP object.  All swp_*() routines must be called at
- *	splvm() because swap can be freed up by the low level vm_page
- *	code which might be called from interrupts beyond what splbio() covers.
+ *	OBJT_SWAP object.
  *
  *	Swap metadata is implemented with a global hash and not directly
  *	linked into the object.  Instead the object simply contains
@@ -1831,9 +1807,6 @@ restart:
  *	The specified swapblk is added to the object's swap metadata.  If
  *	the swapblk is not valid, it is freed instead.  Any previously
  *	assigned swapblk is freed.
- *
- *	This routine must be called at splvm(), except when used to convert
- *	an OBJT_DEFAULT object into an OBJT_SWAP object.
  */
 static void
 swp_pager_meta_build(vm_object_t object, vm_pindex_t pindex, daddr_t swapblk)
@@ -1930,8 +1903,6 @@ done:
  *	This routine will free swap metadata structures as they are cleaned 
  *	out.  This routine does *NOT* operate on swap metadata associated
  *	with resident pages.
- *
- *	This routine must be called at splvm()
  */
 static void
 swp_pager_meta_free(vm_object_t object, vm_pindex_t index, daddr_t count)
@@ -1977,8 +1948,6 @@ swp_pager_meta_free(vm_object_t object, vm_pindex_t index, daddr_t count)
  *
  *	This routine locates and destroys all swap metadata associated with
  *	an object.
- *
- *	This routine must be called at splvm()
  */
 static void
 swp_pager_meta_free_all(vm_object_t object)
@@ -2032,8 +2001,6 @@ swp_pager_meta_free_all(vm_object_t object)
  *	When acting on a busy resident page and paging is in progress, we 
  *	have to wait until paging is complete but otherwise can act on the 
  *	busy page.
- *
- *	This routine must be called at splvm().
  *
  *	SWM_FREE	remove and free swap block from metadata
  *	SWM_POP		remove from meta data but do not free.. pop it out

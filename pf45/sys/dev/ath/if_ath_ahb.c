@@ -78,15 +78,15 @@ struct ath_ahb_softc {
 };
 
 #define	VENDOR_ATHEROS	0x168c
-#define	AR9100_DEVID	0x000b
+#define	AR9130_DEVID	0x000b
 
 static int
 ath_ahb_probe(device_t dev)
 {
 	const char* devname;
 
-	/* Atheros / ar9100 */
-	devname = ath_hal_probe(VENDOR_ATHEROS, AR9100_DEVID);
+	/* Atheros / ar9130 */
+	devname = ath_hal_probe(VENDOR_ATHEROS, AR9130_DEVID);
 
 	if (devname != NULL) {
 		device_set_desc(dev, devname);
@@ -187,7 +187,7 @@ ath_ahb_attach(device_t dev)
 
 	ATH_LOCK_INIT(sc);
 
-	error = ath_attach(AR9100_DEVID, sc);
+	error = ath_attach(AR9130_DEVID, sc);
 	if (error == 0)					/* success */
 		return 0;
 

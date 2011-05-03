@@ -16,13 +16,32 @@
 #define LLVM_CLANG_SEMA_ATTRLIST_H
 
 #include "llvm/Support/Allocator.h"
-#include "clang/Sema/Ownership.h"
+#include "llvm/ADT/SmallVector.h"
 #include "clang/Basic/SourceLocation.h"
+#include "clang/Basic/VersionTuple.h"
 #include <cassert>
 
 namespace clang {
+  class ASTContext;
   class IdentifierInfo;
   class Expr;
+
+/// \brief Represents information about a change in availability for
+/// an entity, which is part of the encoding of the 'availability'
+/// attribute.
+struct AvailabilityChange {
+  /// \brief The location of the keyword indicating the kind of change.
+  SourceLocation KeywordLoc;
+
+  /// \brief The version number at which the change occurred.
+  VersionTuple Version;
+
+  /// \brief The source range covering the version number.
+  SourceRange VersionRange;
+
+  /// \brief Determine whether this availability change is valid.
+  bool isValid() const { return !Version.empty(); }
+};
 
 /// AttributeList - Represents GCC's __attribute__ declaration. There are
 /// 4 forms of this construct...they are:
@@ -32,52 +51,102 @@ namespace clang {
 /// 3: __attribute__(( format(printf, 1, 2) )). ParmName/Args/NumArgs all used.
 /// 4: __attribute__(( aligned(16) )). ParmName is unused, Args/Num used.
 ///
-class AttributeList {
-public:
-  class Factory;
+class AttributeList { // TODO: This should really be called ParsedAttribute
 private:
   IdentifierInfo *AttrName;
-  SourceLocation AttrLoc;
   IdentifierInfo *ScopeName;
-  SourceLocation ScopeLoc;
   IdentifierInfo *ParmName;
+  SourceLocation AttrLoc;
+  SourceLocation ScopeLoc;
   SourceLocation ParmLoc;
-  Expr **Args;
-  unsigned NumArgs;
-  AttributeList *Next;
-  bool DeclspecAttribute, CXX0XAttribute;
+
+  /// The number of expression arguments this attribute has.
+  /// The expressions themselves are stored after the object.
+  unsigned NumArgs : 16;
+
+  /// True if Microsoft style: declspec(foo).
+  unsigned DeclspecAttribute : 1;
+
+  /// True if C++0x-style: [[foo]].
+  unsigned CXX0XAttribute : 1;
 
   /// True if already diagnosed as invalid.
-  mutable bool Invalid;
+  mutable unsigned Invalid : 1;
+
+  /// True if this has the extra information associated with an
+  /// availability attribute.
+  unsigned IsAvailability : 1;
+
+  /// \brief The location of the 'unavailable' keyword in an
+  /// availability attribute.
+  SourceLocation UnavailableLoc;
+
+  /// The next attribute in the current position.
+  AttributeList *NextInPosition;
+
+  /// The next attribute allocated in the current Pool.
+  AttributeList *NextInPool;
+
+  Expr **getArgsBuffer() {
+    return reinterpret_cast<Expr**>(this+1);
+  }
+  Expr * const *getArgsBuffer() const {
+    return reinterpret_cast<Expr* const *>(this+1);
+  }
+
+  enum AvailabilitySlot {
+    IntroducedSlot, DeprecatedSlot, ObsoletedSlot
+  };
+
+  AvailabilityChange &getAvailabilitySlot(AvailabilitySlot index) {
+    return reinterpret_cast<AvailabilityChange*>(this+1)[index];
+  }
+  const AvailabilityChange &getAvailabilitySlot(AvailabilitySlot index) const {
+    return reinterpret_cast<const AvailabilityChange*>(this+1)[index];
+  }
 
   AttributeList(const AttributeList &); // DO NOT IMPLEMENT
   void operator=(const AttributeList &); // DO NOT IMPLEMENT
   void operator delete(void *); // DO NOT IMPLEMENT
   ~AttributeList(); // DO NOT IMPLEMENT
-  AttributeList(llvm::BumpPtrAllocator &Alloc,
-                IdentifierInfo *AttrName, SourceLocation AttrLoc,
-                IdentifierInfo *ScopeName, SourceLocation ScopeLoc,
-                IdentifierInfo *ParmName, SourceLocation ParmLoc,
-                Expr **args, unsigned numargs,
-                bool declspec, bool cxx0x);
+
+  size_t allocated_size() const;
+
+  AttributeList(IdentifierInfo *attrName, SourceLocation attrLoc,
+                IdentifierInfo *scopeName, SourceLocation scopeLoc,
+                IdentifierInfo *parmName, SourceLocation parmLoc,
+                Expr **args, unsigned numArgs,
+                bool declspec, bool cxx0x)
+    : AttrName(attrName), ScopeName(scopeName), ParmName(parmName),
+      AttrLoc(attrLoc), ScopeLoc(scopeLoc), ParmLoc(parmLoc),
+      NumArgs(numArgs),
+      DeclspecAttribute(declspec), CXX0XAttribute(cxx0x), Invalid(false),
+      IsAvailability(false), NextInPosition(0), NextInPool(0) {
+    if (numArgs) memcpy(getArgsBuffer(), args, numArgs * sizeof(Expr*));
+  }
+
+  AttributeList(IdentifierInfo *attrName, SourceLocation attrLoc,
+                IdentifierInfo *scopeName, SourceLocation scopeLoc,
+                IdentifierInfo *parmName, SourceLocation parmLoc,
+                const AvailabilityChange &introduced,
+                const AvailabilityChange &deprecated,
+                const AvailabilityChange &obsoleted,
+                SourceLocation unavailable,
+                bool declspec, bool cxx0x)
+    : AttrName(attrName), ScopeName(scopeName), ParmName(parmName),
+      AttrLoc(attrLoc), ScopeLoc(scopeLoc), ParmLoc(parmLoc),
+      NumArgs(0), DeclspecAttribute(declspec), CXX0XAttribute(cxx0x),
+      Invalid(false), IsAvailability(true), UnavailableLoc(unavailable),
+      NextInPosition(0), NextInPool(0) {
+    new (&getAvailabilitySlot(IntroducedSlot)) AvailabilityChange(introduced);
+    new (&getAvailabilitySlot(DeprecatedSlot)) AvailabilityChange(deprecated);
+    new (&getAvailabilitySlot(ObsoletedSlot)) AvailabilityChange(obsoleted);
+  }
+
+  friend class AttributePool;
+  friend class AttributeFactory;
+
 public:
-  class Factory {
-    llvm::BumpPtrAllocator Alloc;
-  public:
-    Factory() {}
-    ~Factory() {}
-    AttributeList *Create(IdentifierInfo *AttrName, SourceLocation AttrLoc,
-      IdentifierInfo *ScopeName, SourceLocation ScopeLoc,
-      IdentifierInfo *ParmName, SourceLocation ParmLoc,
-      Expr **args, unsigned numargs, bool declspec = false, bool cxx0x = false) {
-        AttributeList *Mem = Alloc.Allocate<AttributeList>();
-        new (Mem) AttributeList(Alloc, AttrName, AttrLoc, ScopeName, ScopeLoc,
-                                ParmName, ParmLoc, args, numargs,
-                                declspec, cxx0x);
-        return Mem;
-      }
-  };
-  
   enum Kind {             // Please keep this list alphabetized.
     AT_IBAction,          // Clang-specific.
     AT_IBOutlet,          // Clang-specific.
@@ -88,6 +157,7 @@ public:
     AT_always_inline,
     AT_analyzer_noreturn,
     AT_annotate,
+    AT_availability,      // Clang-specific
     AT_base_check,
     AT_blocks,
     AT_carries_dependency,
@@ -125,6 +195,7 @@ public:
     AT_nothrow,
     AT_nsobject,
     AT_objc_exception,
+    AT_objc_method_family,
     AT_cf_returns_not_retained, // Clang-specific.
     AT_cf_returns_retained,     // Clang-specific.
     AT_ns_returns_not_retained, // Clang-specific.
@@ -134,6 +205,7 @@ public:
     AT_ns_consumed,             // Clang-specific.
     AT_ns_consumes_self,        // Clang-specific.
     AT_objc_gc,
+    AT_opencl_image_access,     // OpenCL-specific.
     AT_opencl_kernel_function,  // OpenCL-specific.
     AT_overloadable,       // Clang-specific.
     AT_ownership_holds,    // Clang-specific.
@@ -141,6 +213,7 @@ public:
     AT_ownership_takes,    // Clang-specific.
     AT_packed,
     AT_pascal,
+    AT_pcs,  // ARM specific
     AT_pure,
     AT_regparm,
     AT_section,
@@ -162,6 +235,7 @@ public:
     AT_weak_import,
     AT_reqd_wg_size,
     AT_init_priority,
+    AT_MsStruct,
     IgnoredAttribute,
     UnknownAttribute
   };
@@ -185,23 +259,27 @@ public:
   Kind getKind() const { return getKind(getName()); }
   static Kind getKind(const IdentifierInfo *Name);
 
-  AttributeList *getNext() const { return Next; }
-  void setNext(AttributeList *N) { Next = N; }
+  AttributeList *getNext() const { return NextInPosition; }
+  void setNext(AttributeList *N) { NextInPosition = N; }
 
   /// getNumArgs - Return the number of actual arguments to this attribute.
   unsigned getNumArgs() const { return NumArgs; }
 
+  /// hasParameterOrArguments - Return true if this attribute has a parameter,
+  /// or has a non empty argument expression list.
+  bool hasParameterOrArguments() const { return ParmName || NumArgs; }
+
   /// getArg - Return the specified argument.
   Expr *getArg(unsigned Arg) const {
     assert(Arg < NumArgs && "Arg access out of range!");
-    return Args[Arg];
+    return getArgsBuffer()[Arg];
   }
 
   class arg_iterator {
-    Expr** X;
+    Expr * const *X;
     unsigned Idx;
   public:
-    arg_iterator(Expr** x, unsigned idx) : X(x), Idx(idx) {}
+    arg_iterator(Expr * const *x, unsigned idx) : X(x), Idx(idx) {}
 
     arg_iterator& operator++() {
       ++Idx;
@@ -228,12 +306,165 @@ public:
   };
 
   arg_iterator arg_begin() const {
-    return arg_iterator(Args, 0);
+    return arg_iterator(getArgsBuffer(), 0);
   }
 
   arg_iterator arg_end() const {
-    return arg_iterator(Args, NumArgs);
+    return arg_iterator(getArgsBuffer(), NumArgs);
   }
+
+  const AvailabilityChange &getAvailabilityIntroduced() const {
+    assert(getKind() == AT_availability && "Not an availability attribute");
+    return getAvailabilitySlot(IntroducedSlot);
+  }
+
+  const AvailabilityChange &getAvailabilityDeprecated() const {
+    assert(getKind() == AT_availability && "Not an availability attribute");
+    return getAvailabilitySlot(DeprecatedSlot);
+  }
+
+  const AvailabilityChange &getAvailabilityObsoleted() const {
+    assert(getKind() == AT_availability && "Not an availability attribute");
+    return getAvailabilitySlot(ObsoletedSlot);
+  }
+
+  SourceLocation getUnavailableLoc() const {
+    assert(getKind() == AT_availability && "Not an availability attribute");
+    return UnavailableLoc;
+  }
+};
+
+/// A factory, from which one makes pools, from which one creates
+/// individual attributes which are deallocated with the pool.
+///
+/// Note that it's tolerably cheap to create and destroy one of
+/// these as long as you don't actually allocate anything in it.
+class AttributeFactory {
+public:
+  enum {
+    /// The required allocation size of an availability attribute,
+    /// which we want to ensure is a multiple of sizeof(void*).
+    AvailabilityAllocSize =
+      sizeof(AttributeList)
+      + ((3 * sizeof(AvailabilityChange) + sizeof(void*) - 1)
+         / sizeof(void*) * sizeof(void*))
+  };
+
+private:
+  enum {
+    /// The number of free lists we want to be sure to support
+    /// inline.  This is just enough that availability attributes
+    /// don't surpass it.  It's actually very unlikely we'll see an
+    /// attribute that needs more than that; on x86-64 you'd need 10
+    /// expression arguments, and on i386 you'd need 19.
+    InlineFreeListsCapacity =
+      1 + (AvailabilityAllocSize - sizeof(AttributeList)) / sizeof(void*)
+  };
+
+  llvm::BumpPtrAllocator Alloc;
+
+  /// Free lists.  The index is determined by the following formula:
+  ///   (size - sizeof(AttributeList)) / sizeof(void*)
+  llvm::SmallVector<AttributeList*, InlineFreeListsCapacity> FreeLists;
+
+  // The following are the private interface used by AttributePool.
+  friend class AttributePool;
+
+  /// Allocate an attribute of the given size.
+  void *allocate(size_t size);
+
+  /// Reclaim all the attributes in the given pool chain, which is
+  /// non-empty.  Note that the current implementation is safe
+  /// against reclaiming things which were not actually allocated
+  /// with the allocator, although of course it's important to make
+  /// sure that their allocator lives at least as long as this one.
+  void reclaimPool(AttributeList *head);
+
+public:
+  AttributeFactory();
+  ~AttributeFactory();
+};
+
+class AttributePool {
+  AttributeFactory &Factory;
+  AttributeList *Head;
+
+  void *allocate(size_t size) {
+    return Factory.allocate(size);
+  }
+
+  AttributeList *add(AttributeList *attr) {
+    // We don't care about the order of the pool.
+    attr->NextInPool = Head;
+    Head = attr;
+    return attr;
+  }
+
+  void takePool(AttributeList *pool);
+
+public:
+  /// Create a new pool for a factory.
+  AttributePool(AttributeFactory &factory) : Factory(factory), Head(0) {}
+
+  /// Move the given pool's allocations to this pool.
+  AttributePool(AttributePool &pool) : Factory(pool.Factory), Head(pool.Head) {
+    pool.Head = 0;
+  }
+
+  AttributeFactory &getFactory() const { return Factory; }
+
+  void clear() {
+    if (Head) {
+      Factory.reclaimPool(Head);
+      Head = 0;
+    }
+  }
+
+  /// Take the given pool's allocations and add them to this pool.
+  void takeAllFrom(AttributePool &pool) {
+    if (pool.Head) {
+      takePool(pool.Head);
+      pool.Head = 0;
+    }
+  }
+
+  ~AttributePool() {
+    if (Head) Factory.reclaimPool(Head);
+  }
+
+  AttributeList *create(IdentifierInfo *attrName, SourceLocation attrLoc,
+                        IdentifierInfo *scopeName, SourceLocation scopeLoc,
+                        IdentifierInfo *parmName, SourceLocation parmLoc,
+                        Expr **args, unsigned numArgs,
+                        bool declspec = false, bool cxx0x = false) {
+    void *memory = allocate(sizeof(AttributeList)
+                            + numArgs * sizeof(Expr*));
+    return add(new (memory) AttributeList(attrName, attrLoc,
+                                          scopeName, scopeLoc,
+                                          parmName, parmLoc,
+                                          args, numArgs,
+                                          declspec, cxx0x));
+  }
+
+  AttributeList *create(IdentifierInfo *attrName, SourceLocation attrLoc,
+                        IdentifierInfo *scopeName, SourceLocation scopeLoc,
+                        IdentifierInfo *parmName, SourceLocation parmLoc,
+                        const AvailabilityChange &introduced,
+                        const AvailabilityChange &deprecated,
+                        const AvailabilityChange &obsoleted,
+                        SourceLocation unavailable,
+                        bool declspec = false, bool cxx0x = false) {
+    void *memory = allocate(AttributeFactory::AvailabilityAllocSize);
+    return add(new (memory) AttributeList(attrName, attrLoc,
+                                          scopeName, scopeLoc,
+                                          parmName, parmLoc,
+                                          introduced, deprecated, obsoleted,
+                                          unavailable,
+                                          declspec, cxx0x));
+  }
+
+  AttributeList *createIntegerAttribute(ASTContext &C, IdentifierInfo *Name,
+                                        SourceLocation TokLoc, int Arg);
 };
 
 /// addAttributeLists - Add two AttributeLists together
@@ -278,7 +509,16 @@ struct CXX0XAttributeList {
 /// is that this will become significantly more serious.
 class ParsedAttributes {
 public:
-  ParsedAttributes() : list(0) {}
+  ParsedAttributes(AttributeFactory &factory)
+    : pool(factory), list(0) {
+  }
+
+  ParsedAttributes(ParsedAttributes &attrs)
+    : pool(attrs.pool), list(attrs.list) {
+    attrs.list = 0;
+  }
+
+  AttributePool &getPool() const { return pool; }
 
   bool empty() const { return list == 0; }
 
@@ -289,7 +529,7 @@ public:
     list = newAttr;
   }
 
-  void append(AttributeList *newList) {
+  void addAll(AttributeList *newList) {
     if (!newList) return;
 
     AttributeList *lastInNewList = newList;
@@ -304,14 +544,59 @@ public:
     list = newList;
   }
 
-  void clear() { list = 0; }
+  void takeAllFrom(ParsedAttributes &attrs) {
+    addAll(attrs.list);
+    attrs.list = 0;
+    pool.takeAllFrom(attrs.pool);
+  }
+
+  void clear() { list = 0; pool.clear(); }
   AttributeList *getList() const { return list; }
 
   /// Returns a reference to the attribute list.  Try not to introduce
   /// dependencies on this method, it may not be long-lived.
   AttributeList *&getListRef() { return list; }
 
+
+  AttributeList *addNew(IdentifierInfo *attrName, SourceLocation attrLoc,
+                        IdentifierInfo *scopeName, SourceLocation scopeLoc,
+                        IdentifierInfo *parmName, SourceLocation parmLoc,
+                        Expr **args, unsigned numArgs,
+                        bool declspec = false, bool cxx0x = false) {
+    AttributeList *attr =
+      pool.create(attrName, attrLoc, scopeName, scopeLoc, parmName, parmLoc,
+                  args, numArgs, declspec, cxx0x);
+    add(attr);
+    return attr;
+  }
+
+  AttributeList *addNew(IdentifierInfo *attrName, SourceLocation attrLoc,
+                        IdentifierInfo *scopeName, SourceLocation scopeLoc,
+                        IdentifierInfo *parmName, SourceLocation parmLoc,
+                        const AvailabilityChange &introduced,
+                        const AvailabilityChange &deprecated,
+                        const AvailabilityChange &obsoleted,
+                        SourceLocation unavailable,
+                        bool declspec = false, bool cxx0x = false) {
+    AttributeList *attr =
+      pool.create(attrName, attrLoc, scopeName, scopeLoc, parmName, parmLoc,
+                  introduced, deprecated, obsoleted, unavailable,
+                  declspec, cxx0x);
+    add(attr);
+    return attr;
+  }
+
+  AttributeList *addNewInteger(ASTContext &C, IdentifierInfo *name,
+                               SourceLocation loc, int arg) {
+    AttributeList *attr =
+      pool.createIntegerAttribute(C, name, loc, arg);
+    add(attr);
+    return attr;
+  }
+
+
 private:
+  mutable AttributePool pool;
   AttributeList *list;
 };
 

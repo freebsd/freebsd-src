@@ -1,5 +1,5 @@
 # <pre>
-# @(#)southamerica	8.48
+# @(#)southamerica	8.49
 # This file is in the public domain, so clarified as of
 # 2009-05-17 by Arthur David Olson.
 
@@ -745,7 +745,7 @@ Zone	America/La_Paz	-4:32:36 -	LMT	1890
 #
 # As a result of the above Decree I believe the America/Rio_Branco
 # timezone shall be modified from UTC-5 to UTC-4 and a new timezone shall
-# be created to represent the the west side of the Para State. I
+# be created to represent the...west side of the Para State. I
 # suggest this new timezone be called Santarem as the most
 # important/populated city in the affected area.
 #

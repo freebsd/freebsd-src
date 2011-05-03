@@ -4068,9 +4068,9 @@ zfs_ioc_userspace_many(zfs_cmd_t *zc)
 	    buf, &zc->zc_nvlist_dst_size);
 
 	if (error == 0) {
-		error = xcopyout(buf,
+		error = ddi_copyout(buf,
 		    (void *)(uintptr_t)zc->zc_nvlist_dst,
-		    zc->zc_nvlist_dst_size);
+		    zc->zc_nvlist_dst_size, zc->zc_iflags);
 	}
 	kmem_free(buf, bufsize);
 	zfsvfs_rele(zfsvfs, FTAG);

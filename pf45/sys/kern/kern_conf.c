@@ -893,23 +893,34 @@ dev_depends(struct cdev *pdev, struct cdev *cdev)
 	dev_unlock();
 }
 
-struct cdev *
-make_dev_alias(struct cdev *pdev, const char *fmt, ...)
+static int
+make_dev_alias_v(int flags, struct cdev **cdev, struct cdev *pdev,
+    const char *fmt, va_list ap)
 {
 	struct cdev *dev;
-	va_list ap;
 	int error;
 
-	KASSERT(pdev != NULL, ("NULL pdev"));
-	dev = devfs_alloc(MAKEDEV_WAITOK);
+	KASSERT(pdev != NULL, ("make_dev_alias_v: pdev is NULL"));
+	KASSERT((flags & MAKEDEV_WAITOK) == 0 || (flags & MAKEDEV_NOWAIT) == 0,
+	    ("make_dev_alias_v: both WAITOK and NOWAIT specified"));
+	KASSERT((flags & ~(MAKEDEV_WAITOK | MAKEDEV_NOWAIT |
+	    MAKEDEV_CHECKNAME)) == 0,
+	    ("make_dev_alias_v: invalid flags specified (flags=%02x)", flags));
+
+	dev = devfs_alloc(flags);
+	if (dev == NULL)
+		return (ENOMEM);
 	dev_lock();
 	dev->si_flags |= SI_ALIAS;
-	va_start(ap, fmt);
 	error = prep_devname(dev, fmt, ap);
-	va_end(ap);
 	if (error != 0) {
-		panic("make_dev_alias: bad si_name (error=%d, si_name=%s)",
-		    error, dev->si_name);
+		if ((flags & MAKEDEV_CHECKNAME) == 0) {
+			panic("make_dev_alias_v: bad si_name "
+			    "(error=%d, si_name=%s)", error, dev->si_name);
+		}
+		dev_unlock();
+		devfs_free(dev);
+		return (error);
 	}
 	dev->si_flags |= SI_NAMED;
 	devfs_create(dev);
@@ -917,9 +928,39 @@ make_dev_alias(struct cdev *pdev, const char *fmt, ...)
 	clean_unrhdrl(devfs_inos);
 	dev_unlock();
 
-	notify_create(dev, MAKEDEV_WAITOK);
+	notify_create(dev, flags);
+	*cdev = dev;
 
+	return (0);
+}
+
+struct cdev *
+make_dev_alias(struct cdev *pdev, const char *fmt, ...)
+{
+	struct cdev *dev;
+	va_list ap;
+	int res;
+
+	va_start(ap, fmt);
+	res = make_dev_alias_v(MAKEDEV_WAITOK, &dev, pdev, fmt, ap);
+	va_end(ap);
+
+	KASSERT(res == 0 && dev != NULL,
+	    ("make_dev_alias: failed make_dev_alias_v (error=%d)", res));
 	return (dev);
+}
+
+int
+make_dev_alias_p(int flags, struct cdev **cdev, struct cdev *pdev,
+    const char *fmt, ...)
+{
+	va_list ap;
+	int res;
+
+	va_start(ap, fmt);
+	res = make_dev_alias_v(flags, cdev, pdev, fmt, ap);
+	va_end(ap);
+	return (res);
 }
 
 static void

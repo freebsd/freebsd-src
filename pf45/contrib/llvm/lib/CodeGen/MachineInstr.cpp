@@ -441,6 +441,10 @@ raw_ostream &llvm::operator<<(raw_ostream &OS, const MachineMemOperand &MMO) {
     OS << ")";
   }
 
+  // Print nontemporal info.
+  if (MMO.isNonTemporal())
+    OS << "(nontemporal)";
+
   return OS;
 }
 
@@ -451,7 +455,8 @@ raw_ostream &llvm::operator<<(raw_ostream &OS, const MachineMemOperand &MMO) {
 /// MachineInstr ctor - This constructor creates a dummy MachineInstr with
 /// TID NULL and no operands.
 MachineInstr::MachineInstr()
-  : TID(0), NumImplicitOps(0), AsmPrinterFlags(0), MemRefs(0), MemRefsEnd(0),
+  : TID(0), NumImplicitOps(0), Flags(0), AsmPrinterFlags(0),
+    MemRefs(0), MemRefsEnd(0),
     Parent(0) {
   // Make sure that we get added to a machine basicblock
   LeakDetector::addGarbageObject(this);
@@ -470,7 +475,7 @@ void MachineInstr::addImplicitDefUseOperands() {
 /// implicit operands. It reserves space for the number of operands specified by
 /// the TargetInstrDesc.
 MachineInstr::MachineInstr(const TargetInstrDesc &tid, bool NoImp)
-  : TID(&tid), NumImplicitOps(0), AsmPrinterFlags(0),
+  : TID(&tid), NumImplicitOps(0), Flags(0), AsmPrinterFlags(0),
     MemRefs(0), MemRefsEnd(0), Parent(0) {
   if (!NoImp)
     NumImplicitOps = TID->getNumImplicitDefs() + TID->getNumImplicitUses();
@@ -484,8 +489,8 @@ MachineInstr::MachineInstr(const TargetInstrDesc &tid, bool NoImp)
 /// MachineInstr ctor - As above, but with a DebugLoc.
 MachineInstr::MachineInstr(const TargetInstrDesc &tid, const DebugLoc dl,
                            bool NoImp)
-  : TID(&tid), NumImplicitOps(0), AsmPrinterFlags(0), MemRefs(0), MemRefsEnd(0),
-    Parent(0), debugLoc(dl) {
+  : TID(&tid), NumImplicitOps(0), Flags(0), AsmPrinterFlags(0),
+    MemRefs(0), MemRefsEnd(0), Parent(0), debugLoc(dl) {
   if (!NoImp)
     NumImplicitOps = TID->getNumImplicitDefs() + TID->getNumImplicitUses();
   Operands.reserve(NumImplicitOps + TID->getNumOperands());
@@ -499,7 +504,7 @@ MachineInstr::MachineInstr(const TargetInstrDesc &tid, const DebugLoc dl,
 /// that the MachineInstr is created and added to the end of the specified 
 /// basic block.
 MachineInstr::MachineInstr(MachineBasicBlock *MBB, const TargetInstrDesc &tid)
-  : TID(&tid), NumImplicitOps(0), AsmPrinterFlags(0),
+  : TID(&tid), NumImplicitOps(0), Flags(0), AsmPrinterFlags(0),
     MemRefs(0), MemRefsEnd(0), Parent(0) {
   assert(MBB && "Cannot use inserting ctor with null basic block!");
   NumImplicitOps = TID->getNumImplicitDefs() + TID->getNumImplicitUses();
@@ -514,8 +519,8 @@ MachineInstr::MachineInstr(MachineBasicBlock *MBB, const TargetInstrDesc &tid)
 ///
 MachineInstr::MachineInstr(MachineBasicBlock *MBB, const DebugLoc dl,
                            const TargetInstrDesc &tid)
-  : TID(&tid), NumImplicitOps(0), AsmPrinterFlags(0), MemRefs(0), MemRefsEnd(0),
-    Parent(0), debugLoc(dl) {
+  : TID(&tid), NumImplicitOps(0), Flags(0), AsmPrinterFlags(0),
+    MemRefs(0), MemRefsEnd(0), Parent(0), debugLoc(dl) {
   assert(MBB && "Cannot use inserting ctor with null basic block!");
   NumImplicitOps = TID->getNumImplicitDefs() + TID->getNumImplicitUses();
   Operands.reserve(NumImplicitOps + TID->getNumOperands());
@@ -528,7 +533,7 @@ MachineInstr::MachineInstr(MachineBasicBlock *MBB, const DebugLoc dl,
 /// MachineInstr ctor - Copies MachineInstr arg exactly
 ///
 MachineInstr::MachineInstr(MachineFunction &MF, const MachineInstr &MI)
-  : TID(&MI.getDesc()), NumImplicitOps(0), AsmPrinterFlags(0),
+  : TID(&MI.getDesc()), NumImplicitOps(0), Flags(0), AsmPrinterFlags(0),
     MemRefs(MI.MemRefs), MemRefsEnd(MI.MemRefsEnd),
     Parent(0), debugLoc(MI.getDebugLoc()) {
   Operands.reserve(MI.getNumOperands());
@@ -537,6 +542,9 @@ MachineInstr::MachineInstr(MachineFunction &MF, const MachineInstr &MI)
   for (unsigned i = 0; i != MI.getNumOperands(); ++i)
     addOperand(MI.getOperand(i));
   NumImplicitOps = MI.NumImplicitOps;
+
+  // Copy all the flags.
+  Flags = MI.Flags;
 
   // Set parent to null.
   Parent = 0;
@@ -1417,6 +1425,14 @@ void MachineInstr::print(raw_ostream &OS, const TargetMachine *TM) const {
   }
 
   bool HaveSemi = false;
+  if (Flags) {
+    if (!HaveSemi) OS << ";"; HaveSemi = true;
+    OS << " flags: ";
+
+    if (Flags & FrameSetup)
+      OS << "FrameSetup";
+  }
+
   if (!memoperands_empty()) {
     if (!HaveSemi) OS << ";"; HaveSemi = true;
 
@@ -1447,13 +1463,14 @@ void MachineInstr::print(raw_ostream &OS, const TargetMachine *TM) const {
     }
   }
 
+  // Print debug location information.
   if (!debugLoc.isUnknown() && MF) {
-    if (!HaveSemi) OS << ";";
+    if (!HaveSemi) OS << ";"; HaveSemi = true;
     OS << " dbg:";
     printDebugLoc(debugLoc, MF, OS);
   }
 
-  OS << "\n";
+  OS << '\n';
 }
 
 bool MachineInstr::addRegisterKilled(unsigned IncomingReg,
@@ -1530,13 +1547,8 @@ bool MachineInstr::addRegisterDead(unsigned IncomingReg,
       continue;
 
     if (Reg == IncomingReg) {
-      if (!Found) {
-        if (MO.isDead())
-          // The register is already marked dead.
-          return true;
-        MO.setIsDead();
-        Found = true;
-      }
+      MO.setIsDead();
+      Found = true;
     } else if (hasAliases && MO.isDead() &&
                TargetRegisterInfo::isPhysicalRegister(Reg)) {
       // There exists a super-register that's marked dead.

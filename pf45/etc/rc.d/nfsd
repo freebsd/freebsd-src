@@ -19,19 +19,8 @@ sig_stop="USR1"
 
 nfsd_precmd()
 {
-	if checkyesno nfsv4_server_enable; then
-		# If nfsv4_server_enable is yes, force use
-		# of the experimental server
-		#
-		rc_flags="-e ${nfs_server_flags}"
-
-		if ! checkyesno nfsuserd_enable  && \
-		    ! /etc/rc.d/nfsuserd forcestatus 1>/dev/null 2>&1
-		then
-			force_depend nfsuserd || return 1
-		fi
-	else
-		rc_flags="${nfs_server_flags}"
+	if checkyesno oldnfs_server_enable; then
+		rc_flags="-o ${nfs_server_flags}"
 
 		if ! sysctl vfs.nfsrv >/dev/null 2>&1; then
 			force_depend nfsserver || return 1
@@ -40,6 +29,30 @@ nfsd_precmd()
 		if checkyesno nfs_reserved_port_only; then
 			echo 'NFS on reserved port only=YES'
 			sysctl vfs.nfsrv.nfs_privport=1 > /dev/null
+		fi
+	else
+		rc_flags="${nfs_server_flags}"
+
+		# Load the modules now, so that the vfs.newnfs sysctl
+		# oids are available.
+		load_kld nfsd
+
+		if checkyesno nfs_reserved_port_only; then
+			echo 'NFS on reserved port only=YES'
+			sysctl vfs.newnfs.nfs_privport=1 > /dev/null
+		fi
+
+		if checkyesno nfsv4_server_enable; then
+			if ! checkyesno nfsuserd_enable  && \
+			    ! /etc/rc.d/nfsuserd forcestatus 1>/dev/null 2>&1
+			then
+				if ! force_depend nfsuserd; then
+					err 1 "Cannot run nfsuserd"
+				fi
+			fi
+		else
+			echo 'NFSv4 is disabled'
+			sysctl vfs.newnfs.server_max_nfsvers=3 > /dev/null
 		fi
 	fi
 

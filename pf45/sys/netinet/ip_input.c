@@ -101,11 +101,6 @@ SYSCTL_VNET_INT(_net_inet_ip, IPCTL_SENDREDIRECTS, redirect, CTLFLAG_RW,
     &VNET_NAME(ipsendredirects), 0,
     "Enable sending IP redirects");
 
-VNET_DEFINE(int, ip_defttl) = IPDEFTTL;
-SYSCTL_VNET_INT(_net_inet_ip, IPCTL_DEFTTL, ttl, CTLFLAG_RW,
-    &VNET_NAME(ip_defttl), 0,
-    "Maximum TTL on IP packets");
-
 static VNET_DEFINE(int, ip_keepfaith);
 #define	V_ip_keepfaith		VNET(ip_keepfaith)
 SYSCTL_VNET_INT(_net_inet_ip, IPCTL_KEEPFAITH, keepfaith, CTLFLAG_RW,

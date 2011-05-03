@@ -73,7 +73,8 @@ static void ChangeToUnreachable(Instruction *I, bool UseLLVMTrap) {
   if (UseLLVMTrap) {
     Function *TrapFn =
       Intrinsic::getDeclaration(BB->getParent()->getParent(), Intrinsic::trap);
-    CallInst::Create(TrapFn, "", I);
+    CallInst *CallTrap = CallInst::Create(TrapFn, "", I);
+    CallTrap->setDebugLoc(I->getDebugLoc());
   }
   new UnreachableInst(I->getContext(), I);
   
@@ -259,11 +260,12 @@ static bool MergeEmptyReturnBlocks(Function &F) {
     PHINode *RetBlockPHI = dyn_cast<PHINode>(RetBlock->begin());
     if (RetBlockPHI == 0) {
       Value *InVal = cast<ReturnInst>(RetBlock->getTerminator())->getOperand(0);
-      RetBlockPHI = PHINode::Create(Ret->getOperand(0)->getType(), "merge",
+      pred_iterator PB = pred_begin(RetBlock), PE = pred_end(RetBlock);
+      RetBlockPHI = PHINode::Create(Ret->getOperand(0)->getType(),
+                                    std::distance(PB, PE), "merge",
                                     &RetBlock->front());
       
-      for (pred_iterator PI = pred_begin(RetBlock), E = pred_end(RetBlock);
-           PI != E; ++PI)
+      for (pred_iterator PI = PB; PI != PE; ++PI)
         RetBlockPHI->addIncoming(InVal, *PI);
       RetBlock->getTerminator()->setOperand(0, RetBlockPHI);
     }

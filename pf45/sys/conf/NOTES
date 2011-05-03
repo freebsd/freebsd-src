@@ -1754,7 +1754,7 @@ hint.ata.1.irq="15"
 #			atapifd, atapist, atapicam) and all user-level APIs.
 #			cam(4) drivers and APIs will be connected instead.
 
-#options 	ATA_STATIC_ID
+options 	ATA_STATIC_ID
 #options 	ATA_REQUEST_TIMEOUT=10
 options 	ATA_CAM
 
@@ -1940,6 +1940,8 @@ device		xmphy		# XaQti XMAC II
 # lge:	Support for PCI gigabit ethernet adapters based on the Level 1
 #	LXT1001 NetCellerator chipset. This includes the D-Link DGE-500SX,
 #	SMC TigerCard 1000 (SMC9462SX), and some Addtron cards.
+# malo: Marvell Libertas wireless NICs.
+# mwl:  Marvell 88W8363 802.11n wireless NICs.
 # msk:	Support for gigabit ethernet adapters based on the Marvell/SysKonnect
 #	Yukon II Gigabit controllers, including 88E8021, 88E8022, 88E8061,
 #	88E8062, 88E8035, 88E8036, 88E8038, 88E8050, 88E8052, 88E8053,
@@ -2094,6 +2096,7 @@ device		nxge		# Neterion Xframe 10GbE Server/Storage Adapter
 device		ti		# Alteon Networks Tigon I/II gigabit Ethernet
 device		txp		# 3Com 3cR990 (``Typhoon'')
 device		vx		# 3Com 3c590, 3c595 (``Vortex'')
+device		vxge		# Exar/Neterion XFrame 3100 10GbE
 
 # PCI FDDI NICs.
 device		fpa
@@ -2130,6 +2133,8 @@ options	   	AH_RXCFG_SDMAMW_4BYTES
 device		ath_rate_sample	# SampleRate tx rate control for ath
 device		bwi		# Broadcom BCM430* BCM431*
 device		bwn		# Broadcom BCM43xx
+device		malo		# Marvell Libertas wireless NICs.
+device		mwl		# Marvell 88W8363 802.11n wireless NICs.
 device		ral		# Ralink Technology RT2500 wireless NICs.
 
 # Use "private" jumbo buffers allocated exclusively for the ti(4) driver.
@@ -2726,8 +2731,14 @@ device		run
 # Atheros AR5523 wireless driver
 device		uath
 #
+# Conexant/Intersil PrismGT wireless driver
+device		upgt
+#
 # Ralink Technology RT2500USB wireless driver
 device		ural
+#
+# Realtek RTL8187B/L wireless driver
+device		urtw
 #
 # ZyDas ZD1211/ZD1211B wireless driver
 device		zyd

@@ -31,7 +31,9 @@ CFLAGS+=	-I${.CURDIR} -DHAS_DES -DHAS_BLOWFISH
 SRCS+=		auth.c property.c
 .for sym in auth_getval property_find properties_read properties_free \
 	    MD4Init MD4Final MD4Update MD4Pad \
-	    MD5Init MD5Final MD5Update MD5Pad
+	    MD5Init MD5Final MD5Update MD5Pad \
+	    SHA256_Init SHA256_Final SHA256_Update \
+	    SHA512_Init SHA512_Final SHA512_Update
 CFLAGS+=	-D${sym}=__${sym}
 .endfor
 

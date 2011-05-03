@@ -3586,14 +3586,14 @@ rx_accept:
 				IEEE80211_KEYIX_NONE : rs->rs_keyix);
 		sc->sc_lastrs = rs;
 
-		/* Keep statistics on the number of aggregate packets received */
 		if (rs->rs_isaggr)
 			sc->sc_stats.ast_rx_agg++;
 
 		if (ni != NULL) {
 			/*
- 			 * Only punt packets for ampdu reorder processing for 11n nodes;
- 			 * net80211 enforces that M_AMPDU is only set for 11n nodes.
+ 			 * Only punt packets for ampdu reorder processing for
+			 * 11n nodes; net80211 enforces that M_AMPDU is only
+			 * set for 11n nodes.
  			 */
 			if (ni->ni_flags & IEEE80211_NODE_HT)
 				m->m_flags |= M_AMPDU;

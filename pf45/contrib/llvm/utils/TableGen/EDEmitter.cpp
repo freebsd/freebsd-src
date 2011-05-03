@@ -24,7 +24,6 @@
 #include "llvm/Support/Format.h"
 #include "llvm/Support/raw_ostream.h"
 
-#include <map>
 #include <string>
 #include <vector>
 
@@ -598,6 +597,11 @@ static int ARMFlagFromOpName(LiteralConstantEmitter *type,
   IMM("t2adrlabel");
   IMM("shift_imm");
   IMM("neon_vcvt_imm32");
+  IMM("shr_imm8");
+  IMM("shr_imm16");
+  IMM("shr_imm32");
+  IMM("shr_imm64");
+  IMM("t2ldrlabel");
 
   MISC("brtarget", "kOperandTypeARMBranchTarget");                // ?
   MISC("uncondbrtarget", "kOperandTypeARMBranchTarget");           // ?
@@ -632,10 +636,12 @@ static int ARMFlagFromOpName(LiteralConstantEmitter *type,
   MISC("am6offset", "kOperandTypeARMAddrMode6Offset");            // R, I, I
   MISC("addrmode6dup", "kOperandTypeARMAddrMode6");               // R, R, I, I
   MISC("addrmodepc", "kOperandTypeARMAddrModePC");                // R, I
+  MISC("addrmode7", "kOperandTypeARMAddrMode7");                  // R
   MISC("reglist", "kOperandTypeARMRegisterList");                 // I, R, ...
   MISC("dpr_reglist", "kOperandTypeARMDPRRegisterList");          // I, R, ...
   MISC("spr_reglist", "kOperandTypeARMSPRRegisterList");          // I, R, ...
   MISC("it_mask", "kOperandTypeThumbITMask");                     // I
+  MISC("t2addrmode_reg", "kOperandTypeThumb2AddrModeReg");        // R
   MISC("t2addrmode_imm8", "kOperandTypeThumb2AddrModeImm8");      // R, I
   MISC("t2am_imm8_offset", "kOperandTypeThumb2AddrModeImm8Offset");//I
   MISC("t2addrmode_imm12", "kOperandTypeThumb2AddrModeImm12");    // R, I
@@ -853,6 +859,7 @@ static void emitCommonEnums(raw_ostream &o, unsigned int &i) {
   operandTypes.addEntry("kOperandTypeARMAddrMode5");
   operandTypes.addEntry("kOperandTypeARMAddrMode6");
   operandTypes.addEntry("kOperandTypeARMAddrMode6Offset");
+  operandTypes.addEntry("kOperandTypeARMAddrMode7");
   operandTypes.addEntry("kOperandTypeARMAddrModePC");
   operandTypes.addEntry("kOperandTypeARMRegisterList");
   operandTypes.addEntry("kOperandTypeARMDPRRegisterList");
@@ -864,6 +871,7 @@ static void emitCommonEnums(raw_ostream &o, unsigned int &i) {
   operandTypes.addEntry("kOperandTypeThumbAddrModeRR");
   operandTypes.addEntry("kOperandTypeThumbAddrModeSP");
   operandTypes.addEntry("kOperandTypeThumbAddrModePC");
+  operandTypes.addEntry("kOperandTypeThumb2AddrModeReg");
   operandTypes.addEntry("kOperandTypeThumb2SoReg");
   operandTypes.addEntry("kOperandTypeThumb2SoImm");
   operandTypes.addEntry("kOperandTypeThumb2AddrModeImm8");

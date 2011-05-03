@@ -420,7 +420,8 @@ evalsubshell(union node *n, int flags)
 		INTOFF;
 		exitstatus = waitforjob(jp, (int *)NULL);
 		INTON;
-	}
+	} else
+		exitstatus = 0;
 }
 
 
@@ -559,7 +560,8 @@ evalpipe(union node *n)
 		exitstatus = waitforjob(jp, (int *)NULL);
 		TRACE(("evalpipe:  job done exit status %d\n", exitstatus));
 		INTON;
-	}
+	} else
+		exitstatus = 0;
 }
 
 
@@ -1056,7 +1058,8 @@ parent:	/* parent process gets here (if we forked) */
 		backcmd->fd = pip[0];
 		close(pip[1]);
 		backcmd->jp = jp;
-	}
+	} else
+		exitstatus = 0;
 
 out:
 	if (lastarg)

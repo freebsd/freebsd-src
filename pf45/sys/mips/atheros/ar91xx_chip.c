@@ -174,6 +174,13 @@ ar91xx_chip_ddr_flush_ge1(void)
 	ar71xx_ddr_flush(AR91XX_DDR_REG_FLUSH_GE1);
 }
 
+static void
+ar91xx_chip_ddr_flush_ip2(void)
+{
+	ar71xx_ddr_flush(AR91XX_DDR_REG_FLUSH_WMAC);
+}
+
+
 static uint32_t
 ar91xx_chip_get_eth_pll(unsigned int mac, int speed)
 {
@@ -211,6 +218,6 @@ struct ar71xx_cpu_def ar91xx_chip_def = {
         &ar91xx_chip_ddr_flush_ge0,
         &ar91xx_chip_ddr_flush_ge1,
         &ar91xx_chip_get_eth_pll,
-	NULL,
+        &ar91xx_chip_ddr_flush_ip2,
 	&ar91xx_chip_init_usb_peripheral,
 };

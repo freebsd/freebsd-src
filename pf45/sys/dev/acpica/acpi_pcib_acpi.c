@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
+#include <sys/rman.h>
 #include <sys/sysctl.h>
 
 #include <contrib/dev/acpica/include/acpi.h>
@@ -100,6 +101,7 @@ static device_method_t acpi_pcib_acpi_methods[] = {
     DEVMETHOD(bus_read_ivar,		acpi_pcib_read_ivar),
     DEVMETHOD(bus_write_ivar,		acpi_pcib_write_ivar),
     DEVMETHOD(bus_alloc_resource,	acpi_pcib_acpi_alloc_resource),
+    DEVMETHOD(bus_adjust_resource,	bus_generic_adjust_resource),
     DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
     DEVMETHOD(bus_activate_resource,	bus_generic_activate_resource),
     DEVMETHOD(bus_deactivate_resource,	bus_generic_deactivate_resource),
@@ -267,7 +269,7 @@ acpi_pcib_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 
     switch (which) {
     case PCIB_IVAR_DOMAIN:
-	*result = 0;
+	*result = sc->ap_segment;
 	return (0);
     case PCIB_IVAR_BUS:
 	*result = sc->ap_bus;
@@ -369,11 +371,17 @@ acpi_pcib_acpi_alloc_resource(device_t dev, device_t child, int type, int *rid,
      * Hardcoding like this sucks, so a more MD/MI way needs to be
      * found to do it.  This is typically only used on older laptops
      * that don't have pci busses behind pci bridge, so assuming > 32MB
-     * is liekly OK.
+     * is likely OK.
+     *
+     * PCI-PCI bridges may allocate smaller ranges for their windows,
+     * but the heuristics here should apply to those, so we allow
+     * several different end addresses.
      */
-    if (type == SYS_RES_MEMORY && start == 0UL && end == ~0UL)
+    if (type == SYS_RES_MEMORY && start == 0UL && (end == ~0UL ||
+	end == 0xffffffff))
 	start = acpi_host_mem_start;
-    if (type == SYS_RES_IOPORT && start == 0UL && end == ~0UL)
+    if (type == SYS_RES_IOPORT && start == 0UL && (end == ~0UL ||
+	end == 0xffff || end == 0xffffffff))
 	start = 0x1000;
     return (bus_generic_alloc_resource(dev, child, type, rid, start, end,
 	count, flags));

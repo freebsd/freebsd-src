@@ -524,7 +524,7 @@ igb_rx_unrefreshed(struct rx_ring *rxr)
 	cur |= new;				\
 }
 
-#if __FreeBSD_version < 800504
+#if __FreeBSD_version >= 800000 && __FreeBSD_version < 800504
 static __inline int
 drbr_needs_enqueue(struct ifnet *ifp, struct buf_ring *br)
 {

@@ -22,6 +22,28 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 9.x IS SLOW:
 	machines to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20110430:
+	Users of the Atheros AR71xx SoC code now need to add 'device ar71xx_pci'
+	into their kernel configurations along with 'device pci'.
+
+20110427:
+	The default NFS client is now the new NFS client, so fstype "newnfs"
+	is now "nfs" and the regular/old NFS client is now fstype "oldnfs".
+	Although mounts via fstype "nfs" will usually work without userland
+	changes, it is recommended that the mount(8) and mount_nfs(8)
+	commands be rebuilt from sources and that a link to mount_nfs called
+	mount_oldnfs be created. The new client is compiled into the
+	kernel with "options NFSCL" and this is needed for diskless root
+	file systems. The GENERIC kernel configs have been changed to use
+	NFSCL and NFSD (the new server) instead of NFSCLIENT and NFSSERVER.
+	To use the regular/old client, you can "mount -t oldnfs ...". For
+	a diskless root file system, you must also include a line like:
+	
+	vfs.root.mountfrom="oldnfs:"
+
+	in the boot/loader.conf on the root fs on the NFS server to make
+	a diskless root fs use the old client.
+
 20110424:
 	The GENERIC kernels for all architectures now default to the new
 	CAM-based ATA stack. It means that all legacy ATA drivers were
@@ -30,7 +52,20 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 9.x IS SLOW:
 	them respectively (adX -> adaY, acdX -> cdY, afdX -> daY, astX -> saY,
 	where 'Y's are the sequential numbers starting from zero for each type
 	in order of detection, unless configured otherwise with tunables,
-	see cam(4)).
+	see cam(4)). There will be symbolic links created in /dev/ to map
+	old adX devices to the respective adaY. They should provide basic
+	compatibility for file systems mounting in most cases, but they do
+	not support old user-level APIs and do not have respective providers
+	in GEOM. Consider using updated management tools with new device names.
+
+	It is possible to load devices ahci, ata, siis and mvs as modules,
+	but option ATA_CAM should remain in kernel configuration to make ata
+	module work as CAM driver supporting legacy ATA controllers. Device ata
+	still can be used in modular fashion (atacore + ...). Modules atadisk
+	and atapi* are not used and won't affect operation in ATA_CAM mode.
+	Note that to use CAM-based ATA kernel should include CAM devices
+	scbus, pass, da (or explicitly ada), cd and optionally others. All of
+	them are parts of the cam module.
 
 	ataraid(4) functionality is now supported by the RAID GEOM class.
 	To use it you can load geom_raid kernel module and use graid(8) tool
@@ -49,7 +84,6 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 9.x IS SLOW:
 	    device         atapicd         # ATAPI CDROM drives
 	    device         atapifd         # ATAPI floppy drives
 	    device         atapist         # ATAPI tape drives
-	    options        ATA_STATIC_ID   # Static device numbering
 
 20110423:
 	The default NFS server has been changed to the new server, which

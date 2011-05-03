@@ -1,4 +1,4 @@
-//===--- CGVTables.h - Emit LLVM Code for C++ vtables ---------------------===//
+//===--- CGVTables.h - Emit LLVM Code for C++ vtables -----------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -17,6 +17,7 @@
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/GlobalVariable.h"
 #include "clang/Basic/ABI.h"
+#include "clang/AST/CharUnits.h"
 #include "GlobalDecl.h"
 
 namespace clang {
@@ -33,17 +34,17 @@ class BaseSubobject {
   const CXXRecordDecl *Base;
   
   /// BaseOffset - The offset from the most derived class to the base class.
-  uint64_t BaseOffset;
+  CharUnits BaseOffset;
   
 public:
-  BaseSubobject(const CXXRecordDecl *Base, uint64_t BaseOffset)
+  BaseSubobject(const CXXRecordDecl *Base, CharUnits BaseOffset)
     : Base(Base), BaseOffset(BaseOffset) { }
   
   /// getBase - Returns the base class declaration.
   const CXXRecordDecl *getBase() const { return Base; }
 
   /// getBaseOffset - Returns the base class offset.
-  uint64_t getBaseOffset() const { return BaseOffset; }
+  CharUnits getBaseOffset() const { return BaseOffset; }
 
   friend bool operator==(const BaseSubobject &LHS, const BaseSubobject &RHS) {
     return LHS.Base == RHS.Base && LHS.BaseOffset == RHS.BaseOffset;
@@ -59,19 +60,19 @@ template<> struct DenseMapInfo<clang::CodeGen::BaseSubobject> {
   static clang::CodeGen::BaseSubobject getEmptyKey() {
     return clang::CodeGen::BaseSubobject(
       DenseMapInfo<const clang::CXXRecordDecl *>::getEmptyKey(),
-      DenseMapInfo<uint64_t>::getEmptyKey());
+      clang::CharUnits::fromQuantity(DenseMapInfo<int64_t>::getEmptyKey()));
   }
 
   static clang::CodeGen::BaseSubobject getTombstoneKey() {
     return clang::CodeGen::BaseSubobject(
       DenseMapInfo<const clang::CXXRecordDecl *>::getTombstoneKey(),
-      DenseMapInfo<uint64_t>::getTombstoneKey());
+      clang::CharUnits::fromQuantity(DenseMapInfo<int64_t>::getTombstoneKey()));
   }
 
   static unsigned getHashValue(const clang::CodeGen::BaseSubobject &Base) {
     return 
       DenseMapInfo<const clang::CXXRecordDecl *>::getHashValue(Base.getBase()) ^
-      DenseMapInfo<uint64_t>::getHashValue(Base.getBaseOffset());
+      DenseMapInfo<int64_t>::getHashValue(Base.getBaseOffset().getQuantity());
   }
 
   static bool isEqual(const clang::CodeGen::BaseSubobject &LHS, 
@@ -102,9 +103,9 @@ class CodeGenVTables {
                     const CXXRecordDecl *> ClassPairTy;
 
   /// VirtualBaseClassOffsetOffsets - Contains the vtable offset (relative to 
-  /// the address point) in bytes where the offsets for virtual bases of a class
+  /// the address point) in chars where the offsets for virtual bases of a class
   /// are stored.
-  typedef llvm::DenseMap<ClassPairTy, int64_t> 
+  typedef llvm::DenseMap<ClassPairTy, CharUnits> 
     VirtualBaseClassOffsetOffsetsMapTy;
   VirtualBaseClassOffsetOffsetsMapTy VirtualBaseClassOffsetOffsets;
 
@@ -234,13 +235,13 @@ public:
   /// stored.
   uint64_t getMethodVTableIndex(GlobalDecl GD);
 
-  /// getVirtualBaseOffsetOffset - Return the offset in bytes (relative to the
+  /// getVirtualBaseOffsetOffset - Return the offset in chars (relative to the
   /// vtable address point) where the offset of the virtual base that contains 
   /// the given base is stored, otherwise, if no virtual base contains the given
   /// class, return 0.  Base must be a virtual base class or an unambigious
   /// base.
-  int64_t getVirtualBaseOffsetOffset(const CXXRecordDecl *RD,
-                                     const CXXRecordDecl *VBase);
+  CharUnits getVirtualBaseOffsetOffset(const CXXRecordDecl *RD,
+                                       const CXXRecordDecl *VBase);
 
   /// getAddressPoint - Get the address point of the given subobject in the
   /// class decl.
@@ -259,6 +260,7 @@ public:
   llvm::GlobalVariable *
   GenerateConstructionVTable(const CXXRecordDecl *RD, const BaseSubobject &Base, 
                              bool BaseIsVirtual, 
+                             llvm::GlobalVariable::LinkageTypes Linkage,
                              VTableAddressPointsMapTy& AddressPoints);
 
     

@@ -75,13 +75,14 @@ SRCS+=	ar2425.c
 SRCS+=	ar5413.c
 
 #
-# AR5416, AR9160 support; these are 11n parts but only really
-# supported (right now) operating in legacy mode.  Note enabling
-# this support requires defining AH_SUPPORT_AR5416 in opt_ah.h
-# so the 11n tx/rx descriptor format is handled.
+# AR5416, AR9130, AR9160, AR9220, AR9280, AR9285 support.
+
+# Note enabling this support requires defining AH_SUPPORT_AR5416
+# in opt_ah.h so the 11n tx/rx descriptor format is handled.
 #
 # NB: 9160 depends on 5416 but 5416 does not require 9160
 #
+# + 5416 (Owl)
 .PATH:	${.CURDIR}/../../dev/ath/ath_hal/ar5416
 SRCS+=	ah_eeprom_v14.c ah_eeprom_v4k.c \
 	ar5416_ani.c ar5416_attach.c ar5416_beacon.c ar5416_cal.c \
@@ -90,14 +91,28 @@ SRCS+=	ah_eeprom_v14.c ah_eeprom_v4k.c \
 	ar5416_misc.c ar5416_phy.c ar5416_power.c ar5416_recv.c \
 	ar5416_reset.c ar5416_xmit.c
 
-# RF backend for 5416 and 9160
+# RF backend for 5416, 9130 and 9160
 SRCS+=	ar2133.c
 
+# + AR9160 (Sowl)
 .PATH:	${.CURDIR}/../../dev/ath/ath_hal/ar9001
 SRCS+=	ar9160_attach.c
 
+# + AR9130 - (Sowl) - Embedded (AR913x SoC)
+#
+# This requires AH_SUPPORT_AR9130 in order to function as some
+# register values have shifted for this chipset. Definig this however
+# (currently) breaks non-AR9130 chipsets - since this is an embedded
+# chipset and no other radios are glued to it, this shouldn't pose a
+# problem.
+SRCS+=	ar9130_attach.c ar9130_eeprom.c ar9130_phy.c
+
+# AR9002 series chips
+# + AR9220/AR9280 - Merlin
 .PATH:	${.CURDIR}/../../dev/ath/ath_hal/ar9002
 SRCS+=	ar9280.c ar9280_attach.c ar9280_olc.c
+
+# + AR9285 - Kite
 SRCS+=	ar9285.c ar9285_reset.c ar9285_attach.c ar9285_cal.c ar9285_phy.c
 SRCS+=	ar9285_diversity.c
 

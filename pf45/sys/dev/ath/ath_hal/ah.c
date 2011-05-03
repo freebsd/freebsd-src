@@ -109,6 +109,8 @@ ath_hal_mac_name(struct ath_hal *ah)
 		return "5416";
 	case AR_XSREV_VERSION_OWL_PCIE:
 		return "5418";
+	case AR_XSREV_VERSION_HOWL:
+		return "9130";
 	case AR_XSREV_VERSION_SOWL:
 		return "9160";
 	case AR_XSREV_VERSION_MERLIN:
@@ -906,6 +908,7 @@ ath_hal_get_mimo_chan_noise(struct ath_hal *ah,
     const struct ieee80211_channel *chan, int16_t *nf_ctl,
     int16_t *nf_ext)
 {
+#ifdef	AH_SUPPORT_AR5416
 	HAL_CHANNEL_INTERNAL *ichan;
 	int i;
 
@@ -960,6 +963,9 @@ ath_hal_get_mimo_chan_noise(struct ath_hal *ah,
 		}
 		return 1;
 	}
+#else
+	return 0;
+#endif	/* AH_SUPPORT_AR5416 */
 }
 
 /*

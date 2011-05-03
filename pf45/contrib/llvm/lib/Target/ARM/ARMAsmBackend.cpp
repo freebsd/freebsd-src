@@ -246,7 +246,7 @@ static unsigned adjustFixupValue(unsigned Kind, uint64_t Value) {
     }
 
     uint32_t out = (opc << 21);
-    out |= (Value & 0x800) << 14;
+    out |= (Value & 0x800) << 15;
     out |= (Value & 0x700) << 4;
     out |= (Value & 0x0FF);
 
@@ -416,20 +416,21 @@ void ELFARMAsmBackend::ApplyFixup(const MCFixup &Fixup, char *Data,
 // FIXME: This should be in a separate file.
 class DarwinARMAsmBackend : public ARMAsmBackend {
 public:
-  DarwinARMAsmBackend(const Target &T) : ARMAsmBackend(T) { }
-
-  void ApplyFixup(const MCFixup &Fixup, char *Data, unsigned DataSize,
-                  uint64_t Value) const;
+  const object::mach::CPUSubtypeARM Subtype;
+  DarwinARMAsmBackend(const Target &T, object::mach::CPUSubtypeARM st)
+    : ARMAsmBackend(T), Subtype(st) { }
 
   MCObjectWriter *createObjectWriter(raw_ostream &OS) const {
-    // FIXME: Subtarget info should be derived. Force v7 for now.
     return createMachObjectWriter(new ARMMachObjectWriter(
                                     /*Is64Bit=*/false,
                                     object::mach::CTM_ARM,
-                                    object::mach::CSARM_V7),
+                                    Subtype),
                                   OS,
                                   /*IsLittleEndian=*/true);
   }
+
+  void ApplyFixup(const MCFixup &Fixup, char *Data, unsigned DataSize,
+                  uint64_t Value) const;
 
   virtual bool doesSectionRequireSymbols(const MCSection &Section) const {
     return false;
@@ -499,14 +500,17 @@ void DarwinARMAsmBackend::ApplyFixup(const MCFixup &Fixup, char *Data,
 
 TargetAsmBackend *llvm::createARMAsmBackend(const Target &T,
                                             const std::string &TT) {
-  switch (Triple(TT).getOS()) {
-  case Triple::Darwin:
-    return new DarwinARMAsmBackend(T);
-  case Triple::MinGW32:
-  case Triple::Cygwin:
-  case Triple::Win32:
-    assert(0 && "Windows not supported on ARM");
-  default:
-    return new ELFARMAsmBackend(T, Triple(TT).getOS());
+  Triple TheTriple(TT);
+
+  if (TheTriple.isOSDarwin()) {
+    if (TheTriple.getArchName() == "armv6" ||
+        TheTriple.getArchName() == "thumbv6")
+      return new DarwinARMAsmBackend(T, object::mach::CSARM_V6);
+    return new DarwinARMAsmBackend(T, object::mach::CSARM_V7);
   }
+
+  if (TheTriple.isOSWindows())
+    assert(0 && "Windows not supported on ARM");
+
+  return new ELFARMAsmBackend(T, Triple(TT).getOS());
 }

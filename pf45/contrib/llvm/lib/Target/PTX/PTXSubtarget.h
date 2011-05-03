@@ -19,10 +19,57 @@
 namespace llvm {
   class PTXSubtarget : public TargetSubtarget {
     private:
-      bool is_sm20;
+
+      /**
+       * Enumeration of Shader Models supported by the back-end.
+       */
+      enum PTXShaderModelEnum {
+        PTX_SM_1_0, /*< Shader Model 1.0 */
+        PTX_SM_1_3, /*< Shader Model 1.3 */
+        PTX_SM_2_0  /*< Shader Model 2.0 */
+      };
+
+      /**
+       * Enumeration of PTX versions supported by the back-end.
+       *
+       * Currently, PTX 2.0 is the minimum supported version.
+       */
+      enum PTXVersionEnum {
+        PTX_VERSION_2_0,  /*< PTX Version 2.0 */
+        PTX_VERSION_2_1,  /*< PTX Version 2.1 */
+        PTX_VERSION_2_2   /*< PTX Version 2.2 */
+      };
+
+      /// Shader Model supported on the target GPU.
+      PTXShaderModelEnum PTXShaderModel;
+
+      /// PTX Language Version.
+      PTXVersionEnum PTXVersion;
+
+      // The native .f64 type is supported on the hardware.
+      bool SupportsDouble;
+
+      // Use .u64 instead of .u32 for addresses.
+      bool Is64Bit;
 
     public:
-      PTXSubtarget(const std::string &TT, const std::string &FS);
+      PTXSubtarget(const std::string &TT, const std::string &FS, bool is64Bit);
+
+      std::string getTargetString() const;
+
+      std::string getPTXVersionString() const;
+
+      bool supportsDouble() const { return SupportsDouble; }
+
+      bool is64Bit() const { return Is64Bit; }
+
+      bool supportsSM13() const { return PTXShaderModel >= PTX_SM_1_3; }
+
+      bool supportsSM20() const { return PTXShaderModel >= PTX_SM_2_0; }
+
+      bool supportsPTX21() const { return PTXVersion >= PTX_VERSION_2_1; }
+
+      bool supportsPTX22() const { return PTXVersion >= PTX_VERSION_2_2; }
 
       std::string ParseSubtargetFeatures(const std::string &FS,
                                          const std::string &CPU);
