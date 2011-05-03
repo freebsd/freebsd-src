@@ -39,85 +39,34 @@ pwdhome=
 with_passphrase=
 
 # ======================================================================
-# Routine: create_ssh1_identity
-#   optionally create ~/.ssh/identity[.pub]
+# Routine: create_identity
+#   optionally create identity of type argument in ~/.ssh
 #   optionally add result to ~/.ssh/authorized_keys
 # ======================================================================
-create_ssh1_identity() {
-  if [ ! -f "${pwdhome}/.ssh/identity" ]
+create_identity() {
+  local file="$1"
+  local type="$2"
+  local name="$3"
+  if [ ! -f "${pwdhome}/.ssh/${file}" ]
   then
-    if csih_request "Shall I create an SSH1 RSA identity file for you?"
+    if csih_request "Shall I create a ${name} identity file for you?"
     then
-      csih_inform "Generating ${pwdhome}/.ssh/identity"
+      csih_inform "Generating ${pwdhome}/.ssh/${file}"
       if [ "${with_passphrase}" = "yes" ]
       then
-        ssh-keygen -t rsa1 -N "${passphrase}" -f "${pwdhome}/.ssh/identity" > /dev/null
+        ssh-keygen -t "${type}" -N "${passphrase}" -f "${pwdhome}/.ssh/${file}" > /dev/null
       else
-        ssh-keygen -t rsa1 -f "${pwdhome}/.ssh/identity" > /dev/null
+        ssh-keygen -t "${type}" -f "${pwdhome}/.ssh/${file}" > /dev/null
       fi
       if csih_request "Do you want to use this identity to login to this machine?"
       then
         csih_inform "Adding to ${pwdhome}/.ssh/authorized_keys"
-        cat "${pwdhome}/.ssh/identity.pub" >> "${pwdhome}/.ssh/authorized_keys"
+        cat "${pwdhome}/.ssh/${file}.pub" >> "${pwdhome}/.ssh/authorized_keys"
       fi
     fi
   fi
 } # === End of create_ssh1_identity() === #
-readonly -f create_ssh1_identity
-
-# ======================================================================
-# Routine: create_ssh2_rsa_identity
-#   optionally create ~/.ssh/id_rsa[.pub]
-#   optionally add result to ~/.ssh/authorized_keys
-# ======================================================================
-create_ssh2_rsa_identity() {
-  if [ ! -f "${pwdhome}/.ssh/id_rsa" ]
-  then
-    if csih_request "Shall I create an SSH2 RSA identity file for you?"
-    then
-      csih_inform "Generating ${pwdhome}/.ssh/id_rsa"
-      if [ "${with_passphrase}" = "yes" ]
-      then
-        ssh-keygen -t rsa -N "${passphrase}" -f "${pwdhome}/.ssh/id_rsa" > /dev/null
-      else
-        ssh-keygen -t rsa -f "${pwdhome}/.ssh/id_rsa" > /dev/null
-      fi
-      if csih_request "Do you want to use this identity to login to this machine?"
-      then
-        csih_inform "Adding to ${pwdhome}/.ssh/authorized_keys"
-        cat "${pwdhome}/.ssh/id_rsa.pub" >> "${pwdhome}/.ssh/authorized_keys"
-      fi
-    fi
-  fi
-} # === End of create_ssh2_rsa_identity() === #
-readonly -f create_ssh2_rsa_identity
-
-# ======================================================================
-# Routine: create_ssh2_dsa_identity
-#   optionally create ~/.ssh/id_dsa[.pub]
-#   optionally add result to ~/.ssh/authorized_keys
-# ======================================================================
-create_ssh2_dsa_identity() {
-  if [ ! -f "${pwdhome}/.ssh/id_dsa" ]
-  then
-    if csih_request "Shall I create an SSH2 DSA identity file for you?"
-    then
-      csih_inform "Generating ${pwdhome}/.ssh/id_dsa"
-      if [ "${with_passphrase}" = "yes" ]
-      then
-        ssh-keygen -t dsa -N "${passphrase}" -f "${pwdhome}/.ssh/id_dsa" > /dev/null
-      else
-        ssh-keygen -t dsa -f "${pwdhome}/.ssh/id_dsa" > /dev/null
-      fi
-      if csih_request "Do you want to use this identity to login to this machine?"
-      then
-        csih_inform "Adding to ${pwdhome}/.ssh/authorized_keys"
-        cat "${pwdhome}/.ssh/id_dsa.pub" >> "${pwdhome}/.ssh/authorized_keys"
-      fi
-    fi
-  fi
-} # === End of create_ssh2_dsa_identity() === #
-readonly -f create_ssh2_dsa_identity
+readonly -f create_identity
 
 # ======================================================================
 # Routine: check_user_homedir
@@ -311,9 +260,10 @@ fi
 
 check_user_homedir
 check_user_dot_ssh_dir
-create_ssh1_identity
-create_ssh2_rsa_identity
-create_ssh2_dsa_identity
+create_identity id_rsa rsa "SSH2 RSA"
+create_identity id_dsa dsa "SSH2 DSA"
+create_identity id_ecdsa ecdsa "SSH2 ECDSA"
+create_identity identity rsa1 "(deprecated) SSH1 RSA"
 fix_authorized_keys_perms
 
 echo
