@@ -406,7 +406,6 @@ struct vxge_dev_t {
 	int	no_of_vpath;
 	u64	active_port;
 	u32	no_of_func;
-	u32	all_multi_flag;
 	u32	hw_fw_version;
 	u32	max_supported_vpath;
 	int	rx_mbuf_sz;
