@@ -148,14 +148,14 @@ recvtftp(struct iodesc *d, void *pkt, ssize_t len, time_t tleft)
 			printf("illegal tftp error %d\n", ntohs(t->th_code));
 			errno = EIO;
 		} else {
-#ifdef DEBUG
+#ifdef TFTP_DEBUG
 			printf("tftp-error %d\n", ntohs(t->th_code));
 #endif
 			errno = tftperrors[ntohs(t->th_code)];
 		}
 		return (-1);
 	default:
-#ifdef DEBUG
+#ifdef TFTP_DEBUG
 		printf("tftp type %d not handled\n", ntohs(t->th_opcode));
 #endif
 		return (-1);
@@ -303,7 +303,7 @@ tftp_read(struct open_file *f, void *addr, size_t size,
 
 			res = tftp_getnextblock(tftpfile);
 			if (res) {	/* no answer */
-#ifdef DEBUG
+#ifdef TFTP_DEBUG
 				printf("tftp: read error\n");
 #endif
 				return (res);
@@ -319,7 +319,7 @@ tftp_read(struct open_file *f, void *addr, size_t size,
 
 			inbuffer = tftpfile->validsize - offinblock;
 			if (inbuffer < 0) {
-#ifdef DEBUG
+#ifdef TFTP_DEBUG
 				printf("tftp: invalid offset %d\n",
 				    tftpfile->off);
 #endif
@@ -336,7 +336,7 @@ tftp_read(struct open_file *f, void *addr, size_t size,
 			if ((tftpfile->islastblock) && (count == inbuffer))
 				break;	/* EOF */
 		} else {
-#ifdef DEBUG
+#ifdef TFTP_DEBUG
 			printf("tftp: block %d not found\n", needblock);
 #endif
 			return (EINVAL);
