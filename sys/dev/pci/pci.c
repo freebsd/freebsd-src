@@ -3967,6 +3967,26 @@ pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		break;
 	case SYS_RES_IOPORT:
 	case SYS_RES_MEMORY:
+#ifdef NEW_PCIB
+		/*
+		 * PCI-PCI bridge I/O window resources are not BARs.
+		 * For those allocations just pass the request up the
+		 * tree.
+		 */
+		if (cfg->hdrtype == PCIM_HDRTYPE_BRIDGE) {
+			switch (*rid) {
+			case PCIR_IOBASEL_1:
+			case PCIR_MEMBASE_1:
+			case PCIR_PMBASEL_1:
+				/*
+				 * XXX: Should we bother creating a resource
+				 * list entry?
+				 */
+				return (bus_generic_alloc_resource(dev, child,
+				    type, rid, start, end, count, flags));
+			}
+		}
+#endif
 		/* Reserve resources for this BAR if needed. */
 		rle = resource_list_find(rl, type, *rid);
 		if (rle == NULL) {
