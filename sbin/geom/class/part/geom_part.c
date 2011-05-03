@@ -93,6 +93,7 @@ static void gpart_restore(struct gctl_req *, unsigned int);
 
 struct g_command PUBSYM(class_commands)[] = {
 	{ "add", 0, gpart_issue, {
+		{ 'a', "alignment", GPART_AUTOFILL, G_TYPE_STRING },
 		{ 'b', "start", GPART_AUTOFILL, G_TYPE_STRING },
 		{ 's', "size", GPART_AUTOFILL, G_TYPE_STRING },
 		{ 't', "type", NULL, G_TYPE_STRING },
@@ -100,7 +101,8 @@ struct g_command PUBSYM(class_commands)[] = {
 		{ 'l', "label", G_VAL_OPTIONAL, G_TYPE_STRING },
 		{ 'f', "flags", GPART_FLAGS, G_TYPE_STRING },
 		G_OPT_SENTINEL },
-	    "[-b start] [-s size] -t type [-i index] [-l label] [-f flags] geom"
+	    "[-a alignment] [-b start] [-s size] -t type [-i index] "
+		"[-l label] [-f flags] geom"
 	},
 	{ "backup", 0, gpart_backup, G_NULL_OPTS,
 	    "geom"
@@ -168,11 +170,12 @@ struct g_command PUBSYM(class_commands)[] = {
 	    "-a attrib -i index [-f flags] geom"
 	},
 	{ "resize", 0, gpart_issue, {
+		{ 'a', "alignment", GPART_AUTOFILL, G_TYPE_STRING },
 		{ 's', "size", GPART_AUTOFILL, G_TYPE_STRING },
 		{ 'i', GPART_PARAM_INDEX, NULL, G_TYPE_NUMBER },
 		{ 'f', "flags", GPART_FLAGS, G_TYPE_STRING },
 		G_OPT_SENTINEL },
-	    "[-s size] -i index [-f flags] geom"
+	    "[-a alignment] [-s size] -i index [-f flags] geom"
 	},
 	{ "restore", 0, gpart_restore, {
 		{ 'F', "force", NULL, G_TYPE_BOOL },
@@ -298,6 +301,9 @@ fmtattrib(struct gprovider *pp)
 	return (buf);
 }
 
+#define	ALIGNDOWN(d, a)		(-(a) & (d))
+#define	ALIGNUP(d, a)		(-(-(a) & -(d)))
+
 static int
 gpart_autofill_resize(struct gctl_req *req)
 {
@@ -306,7 +312,7 @@ gpart_autofill_resize(struct gctl_req *req)
 	struct ggeom *gp;
 	struct gprovider *pp;
 	off_t last, size, start, new_size;
-	off_t lba, new_lba;
+	off_t lba, new_lba, alignment;
 	const char *s;
 	int error, idx;
 
@@ -333,6 +339,19 @@ gpart_autofill_resize(struct gctl_req *req)
 	if (pp == NULL)
 		errx(EXIT_FAILURE, "Provider for geom %s not found.", s);
 
+	s = gctl_get_ascii(req, "alignment");
+	alignment = 1;
+	if (*s != '*') {
+		error = g_parse_lba(s, pp->lg_sectorsize, &alignment);
+		if (error)
+			errc(EXIT_FAILURE, error, "Invalid alignment param");
+		if (alignment == 0)
+			errx(EXIT_FAILURE, "Invalid alignment param");
+	}
+	error = gctl_delete_param(req, "alignment");
+	if (error)
+		errc(EXIT_FAILURE, error, "internal error");
+
 	s = gctl_get_ascii(req, "size");
 	if (*s == '*')
 		new_size = 0;
@@ -341,10 +360,14 @@ gpart_autofill_resize(struct gctl_req *req)
 		if (error)
 			errc(EXIT_FAILURE, error, "Invalid size param");
 		/* no autofill necessary. */
-		goto done;
+		if (alignment == 1)
+			goto done;
+		if (new_size > alignment)
+			new_size = ALIGNDOWN(new_size, alignment);
 	}
 
 	last = (off_t)strtoimax(find_geomcfg(gp, "last"), NULL, 0);
+	last = ALIGNDOWN(last, alignment);
 	LIST_FOREACH(pp, &gp->lg_provider, lg_provider) {
 		s = find_provcfg(pp, "index");
 		if (s == NULL)
@@ -376,7 +399,7 @@ gpart_autofill_resize(struct gctl_req *req)
 	size = lba - start;
 	pp = find_provider(gp, lba);
 	if (pp == NULL)
-		new_size = last - start + 1;
+		new_size = ALIGNDOWN(last - start + 1, alignment);
 	else {
 		s = find_provcfg(pp, "start");
 		if (s == NULL) {
@@ -389,6 +412,7 @@ gpart_autofill_resize(struct gctl_req *req)
 		 * Is there any free space between current and
 		 * next providers?
 		 */
+		new_lba = ALIGNUP(new_lba, alignment);
 		if (new_lba > lba)
 			new_size = new_lba - start;
 		else {
@@ -410,12 +434,12 @@ gpart_autofill(struct gctl_req *req)
 	struct gclass *cp;
 	struct ggeom *gp;
 	struct gprovider *pp;
-	off_t first, last;
-	off_t size, start;
-	off_t lba, len;
+	off_t first, last, a_first;
+	off_t size, start, a_lba;
+	off_t lba, len, alignment;
 	uintmax_t grade;
 	const char *s;
-	int error, has_size, has_start;
+	int error, has_size, has_start, has_alignment;
 
 	s = gctl_get_ascii(req, "verb");
 	if (strcmp(s, "resize") == 0)
@@ -442,6 +466,20 @@ gpart_autofill(struct gctl_req *req)
 	if (pp == NULL)
 		errx(EXIT_FAILURE, "Provider for geom %s not found.", s);
 
+	s = gctl_get_ascii(req, "alignment");
+	has_alignment = (*s == '*') ? 0 : 1;
+	alignment = 1;
+	if (has_alignment) {
+		error = g_parse_lba(s, pp->lg_sectorsize, &alignment);
+		if (error)
+			errc(EXIT_FAILURE, error, "Invalid alignment param");
+		if (alignment == 0)
+			errx(EXIT_FAILURE, "Invalid alignment param");
+	}
+	error = gctl_delete_param(req, "alignment");
+	if (error)
+		errc(EXIT_FAILURE, error, "internal error");
+
 	s = gctl_get_ascii(req, "size");
 	has_size = (*s == '*') ? 0 : 1;
 	size = 0;
@@ -449,6 +487,8 @@ gpart_autofill(struct gctl_req *req)
 		error = g_parse_lba(s, pp->lg_sectorsize, &size);
 		if (error)
 			errc(EXIT_FAILURE, error, "Invalid size param");
+		if (size > alignment)
+			size = ALIGNDOWN(size, alignment);
 	}
 
 	s = gctl_get_ascii(req, "start");
@@ -458,15 +498,18 @@ gpart_autofill(struct gctl_req *req)
 		error = g_parse_lba(s, pp->lg_sectorsize, &start);
 		if (error)
 			errc(EXIT_FAILURE, error, "Invalid start param");
+		start = ALIGNUP(start, alignment);
 	}
 
 	/* No autofill necessary. */
-	if (has_size && has_start)
+	if (has_size && has_start && !has_alignment)
 		goto done;
 
 	first = (off_t)strtoimax(find_geomcfg(gp, "first"), NULL, 0);
 	last = (off_t)strtoimax(find_geomcfg(gp, "last"), NULL, 0);
 	grade = ~0ULL;
+	a_first = ALIGNUP(first, alignment);
+	last = ALIGNDOWN(last, alignment);
 	while ((pp = find_provider(gp, first)) != NULL) {
 		s = find_provcfg(pp, "start");
 		if (s == NULL) {
@@ -475,23 +518,24 @@ gpart_autofill(struct gctl_req *req)
 		} else
 			lba = (off_t)strtoimax(s, NULL, 0);
 
-		if (first < lba) {
+		a_lba = ALIGNDOWN(lba, alignment);
+		if (first < a_lba && a_first < a_lba) {
 			/* Free space [first, lba> */
-			len = lba - first;
+			len = a_lba - a_first;
 			if (has_size) {
 				if (len >= size &&
 				    (uintmax_t)(len - size) < grade) {
-					start = first;
+					start = a_first;
 					grade = len - size;
 				}
 			} else if (has_start) {
-				if (start >= first && start < lba) {
-					size = lba - start;
-					grade = start - first;
+				if (start >= a_first && start < a_lba) {
+					size = a_lba - start;
+					grade = start - a_first;
 				}
 			} else {
 				if (grade == ~0ULL || len > size) {
-					start = first;
+					start = a_first;
 					size = len;
 					grade = 0;
 				}
@@ -505,24 +549,25 @@ gpart_autofill(struct gctl_req *req)
 			    (off_t)strtoimax(s, NULL, 0) / pp->lg_sectorsize;
 		} else
 			first = (off_t)strtoimax(s, NULL, 0) + 1;
+		a_first = ALIGNUP(first, alignment);
 	}
-	if (first <= last) {
+	if (a_first <= last) {
 		/* Free space [first-last] */
-		len = last - first + 1;
+		len = ALIGNDOWN(last - a_first + 1, alignment);
 		if (has_size) {
 			if (len >= size &&
 			    (uintmax_t)(len - size) < grade) {
-				start = first;
+				start = a_first;
 				grade = len - size;
 			}
 		} else if (has_start) {
-			if (start >= first && start <= last) {
-				size = last - start + 1;
-				grade = start - first;
+			if (start >= a_first && start <= last) {
+				size = ALIGNDOWN(last - start + 1, alignment);
+				grade = start - a_first;
 			}
 		} else {
 			if (grade == ~0ULL || len > size) {
-				start = first;
+				start = a_first;
 				size = len;
 				grade = 0;
 			}
