@@ -1,3 +1,29 @@
+20110403
+ - (djm) [README contrib/caldera/openssh.spec contrib/redhat/openssh.spec]
+   [contrib/suse/openssh.spec] Prepare for 5.8p2 release.
+ - Release 5.8p2
+
+20110329
+ - (djm) [entropy.c] closefrom() before running ssh-rand-helper; leftover fds
+   noticed by tmraz AT redhat.com
+ 
+20110221
+ - (dtucker) [contrib/cygwin/ssh-host-config] From Corinna: revamp of the
+   Cygwin-specific service installer script ssh-host-config.  The actual
+   functionality is the same, the revisited version is just more
+   exact when it comes to check for problems which disallow to run
+   certain aspects of the script.  So, part of this script and the also
+   rearranged service helper script library "csih" is to check if all
+   the tools required to run the script are available on the system.
+   The new script also is more thorough to inform the user why the
+   script failed.  Patch from vinschen at redhat com.
+
+20110206
+ - (dtucker) [openbsd-compat/port-linux.c] Bug #1851: fix syntax error in
+   selinux code.  Patch from Leonardo Chiquitto 
+ - (dtucker) [contrib/cygwin/ssh-{host,user}-config]  Add ECDSA key
+   generation and simplify.  Patch from Corinna Vinschen.
+
 20110204
  - OpenBSD CVS Sync
    - djm@cvs.openbsd.org 2011/01/31 21:42:15

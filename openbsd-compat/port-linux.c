@@ -1,4 +1,4 @@
-/* $Id: port-linux.c,v 1.11.4.2 2011/02/04 00:43:08 djm Exp $ */
+/* $Id: port-linux.c,v 1.11.4.3 2011/02/06 02:24:17 dtucker Exp $ */
 
 /*
  * Copyright (c) 2005 Daniel Walsh <dwalsh@redhat.com>
@@ -213,7 +213,7 @@ ssh_selinux_setfscreatecon(const char *path)
 
 	if (!ssh_selinux_enabled())
 		return;
-	if (path == NULL)
+	if (path == NULL) {
 		setfscreatecon(NULL);
 		return;
 	}

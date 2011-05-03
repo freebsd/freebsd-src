@@ -100,6 +100,7 @@ seed_rng(void)
 		close(p[0]);
 		close(p[1]);
 		close(devnull);
+		closefrom(STDERR_FILENO + 1);
 
 		if (original_uid != original_euid &&
 		    ( seteuid(getuid()) == -1 ||
