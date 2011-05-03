@@ -37,7 +37,7 @@
 .\" $FreeBSD$
 .\" $xMach: xargs.1,v 1.2 2002/02/23 05:23:37 tim Exp $
 .\"
-.Dd January 26, 2008
+.Dd March 24, 2011
 .Dt XARGS 1
 .Os
 .Sh NAME
@@ -167,7 +167,7 @@ directories which start with an uppercase letter in the current
 directory to
 .Pa destdir :
 .Pp
-.Dl /bin/ls -1d [A-Z]* | xargs -J % cp -rp % destdir
+.Dl /bin/ls -1d [A-Z]* | xargs -J % cp -Rp % destdir
 .Pp
 .It Fl L Ar number
 Call
