@@ -3600,9 +3600,12 @@ xpt_path_legacy_ata_id(struct cam_path *path)
 		}
 		xpt_unlock_buses();
 	}
-	if (path->target != NULL)
-		return (bus_id * 2 + path->target->target_id);
-	else
+	if (path->target != NULL) {
+		if (path->target->target_id < 2)
+			return (bus_id * 2 + path->target->target_id);
+		else
+			return (-1);
+	} else
 		return (bus_id * 2);
 }
 
