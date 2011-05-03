@@ -31,6 +31,7 @@
 /*$FreeBSD$*/
 
 #include "vxge_info.h"
+#include <unistd.h>
 
 static int sockfd;
 static struct ifreq ifr;
@@ -38,6 +39,15 @@ static struct ifreq ifr;
 int
 main(int argc, char *argv[])
 {
+	uid_t uid;
+	
+	uid = getuid();
+
+	if (uid) {
+		printf("vxge-manage: Operation not permitted.\nExiting...\n");
+		goto _exit0;
+	}
+
 	if (argc >= 4) {
 		if (!((strcasecmp(argv[2], "regs") == 0) ||
 		    (strcasecmp(argv[2], "stats") == 0) ||
