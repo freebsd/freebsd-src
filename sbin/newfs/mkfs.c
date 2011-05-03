@@ -517,9 +517,12 @@ restart:
 			fsdummy.fs_magic = 0;
 			bwrite(&disk, part_ofs + SBLOCK_UFS1 / disk.d_bsize,
 			    chdummy, SBLOCKSIZE);
-			for (cg = 0; cg < fsdummy.fs_ncg; cg++)
+			for (cg = 0; cg < fsdummy.fs_ncg; cg++) {
+				if (fsbtodb(&fsdummy, cgsblock(&fsdummy, cg)) > fssize)
+					break;
 				bwrite(&disk, part_ofs + fsbtodb(&fsdummy,
 				  cgsblock(&fsdummy, cg)), chdummy, SBLOCKSIZE);
+			}
 		}
 	}
 	if (!Nflag)
