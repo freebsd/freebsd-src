@@ -357,6 +357,9 @@ vxge_init_locked(vxge_dev_t *vdev)
 		if (!vpath_handle)
 			continue;
 
+		/* Enabling mcast for all vpath */
+		vxge_hal_vpath_mcast_enable(vpath_handle);
+
 		/* Enabling bcast for all vpath */
 		status = vxge_hal_vpath_bcast_enable(vpath_handle);
 		if (status != VXGE_HAL_OK)
@@ -2879,26 +2882,6 @@ vxge_promisc_set(vxge_dev_t *vdev)
 
 	ifp = vdev->ifp;
 
-	if ((ifp->if_flags & IFF_ALLMULTI) && (!vdev->all_multi_flag)) {
-		for (i = 0; i < vdev->no_of_vpath; i++) {
-			vpath_handle = vxge_vpath_handle_get(vdev, i);
-			if (!vpath_handle)
-				continue;
-
-			vxge_hal_vpath_mcast_enable(vpath_handle);
-			vdev->all_multi_flag = 1;
-		}
-
-	} else if (!(ifp->if_flags & IFF_ALLMULTI) && (vdev->all_multi_flag)) {
-		for (i = 0; i < vdev->no_of_vpath; i++) {
-			vpath_handle = vxge_vpath_handle_get(vdev, i);
-			if (!vpath_handle)
-				continue;
-
-			vxge_hal_vpath_mcast_disable(vpath_handle);
-			vdev->all_multi_flag = 0;
-		}
-	}
 	for (i = 0; i < vdev->no_of_vpath; i++) {
 		vpath_handle = vxge_vpath_handle_get(vdev, i);
 		if (!vpath_handle)
