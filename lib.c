@@ -256,6 +256,7 @@ void fldbld(void)	/* create fields from current record */
 {
 	/* this relies on having fields[] the same length as $0 */
 	/* the fields are all stored in this one array with \0's */
+	/* possibly with a final trailing \0 not associated with any field */
 	char *r, *fr, sep;
 	Cell *p;
 	int i, j, n;
@@ -268,7 +269,7 @@ void fldbld(void)	/* create fields from current record */
 	n = strlen(r);
 	if (n > fieldssize) {
 		xfree(fields);
-		if ((fields = (char *) malloc(n+1)) == NULL)
+		if ((fields = (char *) malloc(n+2)) == NULL) /* possibly 2 final \0s */
 			FATAL("out of space for fields in fldbld %d", n);
 		fieldssize = n;
 	}
