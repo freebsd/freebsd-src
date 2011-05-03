@@ -57,12 +57,6 @@ __FBSDID("$FreeBSD$");
 static int ip1000phy_probe(device_t);
 static int ip1000phy_attach(device_t);
 
-struct ip1000phy_softc {
-	struct mii_softc mii_sc;
-	int model;
-	int revision;
-};
-
 static device_method_t ip1000phy_methods[] = {
 	/* device interface */
 	DEVMETHOD(device_probe,		ip1000phy_probe),
@@ -87,9 +81,15 @@ static void	ip1000phy_reset(struct mii_softc *);
 static int	ip1000phy_mii_phy_auto(struct mii_softc *, int);
 
 static const struct mii_phydesc ip1000phys[] = {
-	MII_PHY_DESC(ICPLUS, IP1000A),
-	MII_PHY_DESC(ICPLUS, IP1001),
+	MII_PHY_DESC(xxICPLUS, IP1000A),
+	MII_PHY_DESC(xxICPLUS, IP1001),
 	MII_PHY_END
+};
+
+static const struct mii_phy_funcs ip1000phy_funcs = {
+	ip1000phy_service,
+	ip1000phy_status,
+	ip1000phy_reset
 };
 
 static int
@@ -102,43 +102,16 @@ ip1000phy_probe(device_t dev)
 static int
 ip1000phy_attach(device_t dev)
 {
-	struct ip1000phy_softc *isc;
-	struct mii_softc *sc;
 	struct mii_attach_args *ma;
-	struct mii_data *mii;
+	u_int flags;
 
-	isc = device_get_softc(dev);
-	sc = &isc->mii_sc;
 	ma = device_get_ivars(dev);
-	sc->mii_dev = device_get_parent(dev);
-	mii = ma->mii_data;
-	LIST_INSERT_HEAD(&mii->mii_phys, sc, mii_list);
-
-	sc->mii_flags = miibus_get_flags(dev);
-	sc->mii_inst = mii->mii_instance++;
-	sc->mii_phy = ma->mii_phyno;
-	sc->mii_service = ip1000phy_service;
-	sc->mii_pdata = mii;
-
-	sc->mii_flags |= MIIF_NOISOLATE | MIIF_NOMANPAUSE;
-
-	isc->model = MII_MODEL(ma->mii_id2);
-	isc->revision = MII_REV(ma->mii_id2);
-	if (isc->model == MII_MODEL_ICPLUS_IP1000A &&
-	     strcmp(mii->mii_ifp->if_dname, "stge") == 0 &&
-	     (sc->mii_flags & MIIF_MACPRIV0) != 0)
-		sc->mii_flags |= MIIF_PHYPRIV0;
-
-	sc->mii_capabilities = PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
-	if (sc->mii_capabilities & BMSR_EXTSTAT)
-		sc->mii_extcapabilities = PHY_READ(sc, MII_EXTSR);
-	device_printf(dev, " ");
-
-	ip1000phy_reset(sc);
-	mii_phy_add_media(sc);
-	printf("\n");
-
-	MIIBUS_MEDIAINIT(sc->mii_dev);
+	flags = MIIF_NOISOLATE | MIIF_NOMANPAUSE;
+	if (MII_MODEL(ma->mii_id2) == MII_MODEL_xxICPLUS_IP1000A &&
+	     strcmp(ma->mii_data->mii_ifp->if_dname, "stge") == 0 &&
+	     (miibus_get_flags(dev) & MIIF_MACPRIV0) != 0)
+		flags |= MIIF_PHYPRIV0;
+	mii_phy_dev_attach(dev, flags, &ip1000phy_funcs, 0);
 	return (0);
 }
 
@@ -160,7 +133,7 @@ ip1000phy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 			break;
 		}
 
-		ip1000phy_reset(sc);
+		PHY_RESET(sc);
 		switch (IFM_SUBTYPE(ife->ifm_media)) {
 		case IFM_AUTO:
 			(void)ip1000phy_mii_phy_auto(sc, ife->ifm_media);
@@ -245,7 +218,7 @@ done:
 	}
 
 	/* Update the media status. */
-	ip1000phy_status(sc);
+	PHY_STATUS(sc);
 
 	/* Callback if something changed. */
 	mii_phy_update(sc, cmd);
@@ -255,11 +228,8 @@ done:
 static void
 ip1000phy_status(struct mii_softc *sc)
 {
-	struct ip1000phy_softc *isc;
 	struct mii_data *mii = sc->mii_pdata;
 	uint32_t bmsr, bmcr, stat;
-
-	isc = (struct ip1000phy_softc *)sc;
 
 	mii->mii_media_status = IFM_AVALID;
 	mii->mii_media_active = IFM_ETHER;
@@ -281,7 +251,7 @@ ip1000phy_status(struct mii_softc *sc)
                 }
         }
 
-	if (isc->model == MII_MODEL_ICPLUS_IP1001) {
+	if (sc->mii_mpd_model == MII_MODEL_xxICPLUS_IP1001) {
 		stat = PHY_READ(sc, IP1000PHY_LSR);
 		switch (stat & IP1000PHY_LSR_SPEED_MASK) {
 		case IP1000PHY_LSR_SPEED_10:
@@ -339,12 +309,10 @@ ip1000phy_status(struct mii_softc *sc)
 static int
 ip1000phy_mii_phy_auto(struct mii_softc *sc, int media)
 {
-	struct ip1000phy_softc *isc;
 	uint32_t reg;
 
-	isc = (struct ip1000phy_softc *)sc;
 	reg = 0;
-	if (isc->model == MII_MODEL_ICPLUS_IP1001) {
+	if (sc->mii_mpd_model == MII_MODEL_xxICPLUS_IP1001) {
 		reg = PHY_READ(sc, IP1000PHY_MII_ANAR);
 		reg &= ~(IP1000PHY_ANAR_PAUSE | IP1000PHY_ANAR_APAUSE);
 		reg |= IP1000PHY_ANAR_NP;

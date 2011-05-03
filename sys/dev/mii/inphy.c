@@ -80,12 +80,18 @@ static void	inphy_status(struct mii_softc *);
 static void	inphy_reset(struct mii_softc *);
 
 static const struct mii_phydesc inphys[] = {
-	MII_PHY_DESC(INTEL, I82553C),
-	MII_PHY_DESC(INTEL, I82555),
-	MII_PHY_DESC(INTEL, I82562EM),
-	MII_PHY_DESC(INTEL, I82562ET),
-	MII_PHY_DESC(xxINTEL, I82553AB),
+	MII_PHY_DESC(xxINTEL, I82553),
+	MII_PHY_DESC(yyINTEL, I82553),
+	MII_PHY_DESC(yyINTEL, I82555),
+	MII_PHY_DESC(yyINTEL, I82562EM),
+	MII_PHY_DESC(yyINTEL, I82562ET),
 	MII_PHY_END
+};
+
+static const struct mii_phy_funcs inphy_funcs = {
+	inphy_service,
+	inphy_status,
+	inphy_reset
 };
 
 static int
@@ -98,37 +104,8 @@ inphy_probe(device_t dev)
 static int
 inphy_attach(device_t dev)
 {
-	struct mii_softc *sc;
-	struct mii_attach_args *ma;
-	struct mii_data *mii;
 
-	sc = device_get_softc(dev);
-	ma = device_get_ivars(dev);
-	sc->mii_dev = device_get_parent(dev);
-	mii = ma->mii_data;
-	LIST_INSERT_HEAD(&mii->mii_phys, sc, mii_list);
-
-	sc->mii_flags = miibus_get_flags(dev);
-	sc->mii_inst = mii->mii_instance++;
-	sc->mii_phy = ma->mii_phyno;
-	sc->mii_service = inphy_service;
-	sc->mii_pdata = mii;
-
-	sc->mii_flags |= MIIF_NOMANPAUSE;
-
-	ifmedia_add(&mii->mii_media,
-	    IFM_MAKEWORD(IFM_ETHER, IFM_100_TX, IFM_LOOP, sc->mii_inst),
-	    MII_MEDIA_100_TX, NULL);
-
-	inphy_reset(sc);
-
-	sc->mii_capabilities = PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
-	device_printf(dev, " ");
-	mii_phy_add_media(sc);
-	printf("\n");
-
-	MIIBUS_MEDIAINIT(sc->mii_dev);
-
+	mii_phy_dev_attach(dev, MIIF_NOMANPAUSE, &inphy_funcs, 1);
 	return (0);
 }
 
@@ -157,7 +134,7 @@ inphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 	}
 
 	/* Update the media status. */
-	inphy_status(sc);
+	PHY_STATUS(sc);
 
 	/* Callback if something changed. */
 	mii_phy_update(sc, cmd);
