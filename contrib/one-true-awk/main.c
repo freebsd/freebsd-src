@@ -25,7 +25,7 @@ THIS SOFTWARE.
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-const char	*version = "version 20091126 (FreeBSD)";
+const char	*version = "version 20110501 (FreeBSD)";
 
 #define DEBUG
 #include <stdio.h>
@@ -41,6 +41,7 @@ extern	char	**environ;
 extern	int	nfields;
 
 int	dbg	= 0;
+Awkfloat	srand_seed = 1;
 char	*cmdname;	/* gets argv[0] for error messages */
 extern	FILE	*yyin;	/* lex input file */
 char	*lexprog;	/* points to program argument if it exists */
@@ -71,6 +72,10 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 	signal(SIGFPE, fpecatch);
+
+	srand_seed = 1;
+	srand(srand_seed);
+
 	yyin = NULL;
 	symtab = makesymtab(NSYMTAB/NSYMTAB);
 	while (argc > 1 && argv[1][0] == '-' && argv[1][1] != '\0') {
@@ -120,14 +125,10 @@ int main(int argc, char *argv[])
 				WARNING("field separator FS is empty");
 			break;
 		case 'v':	/* -v a=1 to be done NOW.  one -v for each */
-			if (argv[1][2] != 0) {	/* arg is -vsomething */
-				if (argv[1][2] != 0)
-					setclvar(&argv[1][2]);
-			} else {		/* arg is -v something */
-				argc--; argv++;
-				if (argc > 1 && isclvar(argv[1]))
-					setclvar(argv[1]);
-			}
+			if (argv[1][2] == '\0' && --argc > 1 && isclvar((++argv)[1]))
+				setclvar(argv[1]);
+			else if (argv[1][2] != '\0')
+				setclvar(&argv[1][2]);
 			break;
 		case 'd':
 			dbg = atoi(&argv[1][2]);

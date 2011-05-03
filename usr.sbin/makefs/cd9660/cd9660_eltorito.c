@@ -31,6 +31,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY
  * OF SUCH DAMAGE.
  */
+
+#include <netinet/in.h>
+
 #include "cd9660.h"
 #include "cd9660_eltorito.h"
 
@@ -497,11 +500,43 @@ cd9660_setup_boot_volume_descriptor(volume_descriptor *bvd)
 	return 1;
 }
 
+static int
+cd9660_write_apm_partition_entry(FILE *fd, int index, int total_partitions,
+    off_t sector_start, off_t nsectors, off_t sector_size,
+    const char *part_name, const char *part_type) {
+	uint32_t apm32;
+	uint16_t apm16;
+
+	fseeko(fd, (off_t)(index + 1) * sector_size, SEEK_SET);
+
+	/* Signature */
+	apm16 = htons(0x504d);
+	fwrite(&apm16, sizeof(apm16), 1, fd);
+	apm16 = 0;
+	fwrite(&apm16, sizeof(apm16), 1, fd);
+
+	/* Total number of partitions */
+	apm32 = htonl(total_partitions);
+	fwrite(&apm32, sizeof(apm32), 1, fd);
+	/* Bounds */
+	apm32 = htonl(sector_start);
+	fwrite(&apm32, sizeof(apm32), 1, fd);
+	apm32 = htonl(nsectors);
+	fwrite(&apm32, sizeof(apm32), 1, fd);
+
+	fwrite(part_name, strlen(part_name) + 1, 1, fd);
+	fseek(fd, 32 - strlen(part_name) - 1, SEEK_CUR);
+	fwrite(part_type, strlen(part_type) + 1, 1, fd);
+
+	return 0;
+}
+
 int
 cd9660_write_boot(FILE *fd)
 {
 	struct boot_catalog_entry *e;
 	struct cd9660_boot_image *t;
+	int apm_partitions = 0;
 
 	/* write boot catalog */
 	if (fseeko(fd, (off_t)diskStructure.boot_catalog_sector *
@@ -533,7 +568,51 @@ cd9660_write_boot(FILE *fd)
 			    t->filename, t->sector);
 		}
 		cd9660_copy_file(fd, t->sector, t->filename);
+
+		if (t->system == ET_SYS_MAC) 
+			apm_partitions++;
+	}
+
+	if (apm_partitions > 0) {
+		/* Write DDR and global APM info */
+		uint32_t apm32;
+		uint16_t apm16;
+		int total_parts;
+
+		fseek(fd, 0, SEEK_SET);
+		apm16 = htons(0x4552);
+		fwrite(&apm16, sizeof(apm16), 1, fd);
+		apm16 = htons(diskStructure.sectorSize);
+		fwrite(&apm16, sizeof(apm16), 1, fd);
+		apm32 = htonl(diskStructure.totalSectors);
+		fwrite(&apm32, sizeof(apm32), 1, fd);
+
+		/* Count total needed entries */
+		total_parts = 2 + apm_partitions; /* Self + ISO9660 */
+
+		/* Write self-descriptor */
+		cd9660_write_apm_partition_entry(fd, 0,
+		    total_parts, 1, total_parts, diskStructure.sectorSize,
+		    "Apple", "Apple_partition_map");
+
+		/* Write ISO9660 descriptor, enclosing the whole disk */
+		cd9660_write_apm_partition_entry(fd, 1,
+		    total_parts, 0, diskStructure.totalSectors,
+		    diskStructure.sectorSize, "", "CD_ROM_Mode_1");
+
+		/* Write all partition entries */
+		apm_partitions = 0;
+		TAILQ_FOREACH(t, &diskStructure.boot_images, image_list) {
+			if (t->system != ET_SYS_MAC)
+				continue;
+
+			cd9660_write_apm_partition_entry(fd,
+			    2 + apm_partitions++, total_parts,
+			    t->sector, t->num_sectors, diskStructure.sectorSize,
+			    "CD Boot", "Apple_Bootstrap");
+		}
 	}
 
 	return 0;
 }
+
