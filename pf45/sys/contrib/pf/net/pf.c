@@ -876,7 +876,7 @@ int
 pf_state_key_attach(struct pf_state_key *sk, struct pf_state *s, int idx)
 {
 	struct pf_state_item	*si;
-	struct pf_state_key     *cur;
+	struct pf_state_key	*cur;
 	struct pf_state		*olds = NULL;
 
 #ifdef __FreeBSD__
@@ -1419,7 +1419,7 @@ pf_state_expires(const struct pf_state *state)
 		return (time_second);
 	if (state->timeout == PFTM_UNTIL_PACKET)
 		return (0);
-#ifdef __FreeBSD__     
+#ifdef __FreeBSD__
 	KASSERT(state->timeout != PFTM_UNLINKED,
 	    ("pf_state_expires: timeout == PFTM_UNLINKED"));
 	KASSERT((state->timeout < PFTM_MAX), 
@@ -2999,7 +2999,7 @@ pf_socket_lookup(int direction, struct pf_pdesc *pd)
 #ifdef INET
 	case AF_INET:
 #ifdef __FreeBSD__
-		INP_INFO_RLOCK(pi);     /* XXX LOR */
+		INP_INFO_RLOCK(pi);	/* XXX LOR */
 		inp = in_pcblookup_hash(pi, saddr->v4, sport, daddr->v4,
 		    dport, 0, NULL);
 		if (inp == NULL) {
@@ -6007,7 +6007,7 @@ pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 		 * XXX: in_delayed_cksum assumes HBO for ip->ip_len (at least)
 		 */
 		NTOHS(ip->ip_len);
-		NTOHS(ip->ip_off);       /* XXX: needed? */
+		NTOHS(ip->ip_off);	/* XXX: needed? */
 		in_delayed_cksum(m0);
 		HTONS(ip->ip_len);
 		HTONS(ip->ip_off);
@@ -6380,7 +6380,7 @@ pf_check_proto_cksum(struct mbuf *m, int off, int len, u_int8_t p, sa_family_t a
 			if (m->m_pkthdr.csum_flags & CSUM_PSEUDO_HDR) {
 				sum = m->m_pkthdr.csum_data;
 			} else {
-				ip = mtod(m, struct ip *);      
+				ip = mtod(m, struct ip *);
 				sum = in_pseudo(ip->ip_src.s_addr,
 				ip->ip_dst.s_addr, htonl((u_short)len +
 				m->m_pkthdr.csum_data + IPPROTO_UDP));

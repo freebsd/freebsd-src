@@ -34,9 +34,9 @@
 __FBSDID("$FreeBSD$");
 
 #ifdef DEV_PFLOG
-#define        NPFLOG DEV_PFLOG
+#define	NPFLOG	DEV_PFLOG
 #else
-#define        NPFLOG 0
+#define	NPFLOG	0
 #endif
 #else
 #include "pflog.h"
@@ -132,8 +132,8 @@ TAILQ_HEAD(pf_cachequeue, pf_fragment)	pf_cachequeue;
 static __inline int	 pf_frag_compare(struct pf_fragment *,
 			    struct pf_fragment *);
 #else
-static int      pf_frag_compare(struct pf_fragment *,
-                           struct pf_fragment *);
+static int		 pf_frag_compare(struct pf_fragment *,
+			    struct pf_fragment *);
 #endif
 
 #ifdef __FreeBSD__
@@ -203,15 +203,15 @@ void
 pf_normalize_init(void)
 {
 #ifdef __FreeBSD__
-        /*
-         * XXX
-         * No high water mark support(It's hint not hard limit).
-         * uma_zone_set_max(pf_frag_pl, PFFRAG_FRAG_HIWAT);
-         */
-        uma_zone_set_max(V_pf_frent_pl, PFFRAG_FRENT_HIWAT);
-        uma_zone_set_max(V_pf_cache_pl, PFFRAG_FRCACHE_HIWAT);
-        uma_zone_set_max(V_pf_cent_pl, PFFRAG_FRCENT_HIWAT);
- #else
+	/*
+	 * XXX
+	 * No high water mark support(It's hint not hard limit).
+	 * uma_zone_set_max(pf_frag_pl, PFFRAG_FRAG_HIWAT);
+	 */
+	uma_zone_set_max(V_pf_frent_pl, PFFRAG_FRENT_HIWAT);
+	uma_zone_set_max(V_pf_cache_pl, PFFRAG_FRCACHE_HIWAT);
+	uma_zone_set_max(V_pf_cent_pl, PFFRAG_FRCENT_HIWAT);
+#else
 	pool_init(&pf_frent_pl, sizeof(struct pf_frent), 0, 0, 0, "pffrent",
 	    NULL);
 	pool_init(&pf_frag_pl, sizeof(struct pf_fragment), 0, 0, 0, "pffrag",
@@ -276,8 +276,8 @@ pf_purge_expired_fragments(void)
 
 #ifdef __FreeBSD__
 	while ((frag = TAILQ_LAST(&V_pf_fragqueue, pf_fragqueue)) != NULL) {
-                KASSERT((BUFFER_FRAGMENTS(frag)),
-                        ("BUFFER_FRAGMENTS(frag) == 0: %s", __FUNCTION__));
+		KASSERT((BUFFER_FRAGMENTS(frag)),
+		    ("BUFFER_FRAGMENTS(frag) == 0: %s", __FUNCTION__));
 #else
 	while ((frag = TAILQ_LAST(&pf_fragqueue, pf_fragqueue)) != NULL) {
 		KASSERT(BUFFER_FRAGMENTS(frag));
@@ -291,8 +291,8 @@ pf_purge_expired_fragments(void)
 
 #ifdef __FreeBSD__
 	while ((frag = TAILQ_LAST(&V_pf_cachequeue, pf_cachequeue)) != NULL) {
-                KASSERT((!BUFFER_FRAGMENTS(frag)),
-                        ("BUFFER_FRAGMENTS(frag) != 0: %s", __FUNCTION__));
+		KASSERT((!BUFFER_FRAGMENTS(frag)),
+		    ("BUFFER_FRAGMENTS(frag) != 0: %s", __FUNCTION__));
 #else
 	while ((frag = TAILQ_LAST(&pf_cachequeue, pf_cachequeue)) != NULL) {
 		KASSERT(!BUFFER_FRAGMENTS(frag));
@@ -303,10 +303,10 @@ pf_purge_expired_fragments(void)
 		DPFPRINTF(("expiring %d(%p)\n", frag->fr_id, frag));
 		pf_free_fragment(frag);
 #ifdef __FreeBSD__
-                KASSERT((TAILQ_EMPTY(&V_pf_cachequeue) ||
-                    TAILQ_LAST(&V_pf_cachequeue, pf_cachequeue) != frag),
-                    ("!(TAILQ_EMPTY() || TAILQ_LAST() == farg): %s",
-                    __FUNCTION__));
+		KASSERT((TAILQ_EMPTY(&V_pf_cachequeue) ||
+		    TAILQ_LAST(&V_pf_cachequeue, pf_cachequeue) != frag),
+		    ("!(TAILQ_EMPTY() || TAILQ_LAST() == farg): %s",
+		    __FUNCTION__));
 #else
 		KASSERT(TAILQ_EMPTY(&pf_cachequeue) ||
 		    TAILQ_LAST(&pf_cachequeue, pf_cachequeue) != frag);
@@ -396,16 +396,16 @@ pf_free_fragment(struct pf_fragment *frag)
 		    frcache = LIST_FIRST(&frag->fr_cache)) {
 			LIST_REMOVE(frcache, fr_next);
 
- #ifdef __FreeBSD__
-                        KASSERT((LIST_EMPTY(&frag->fr_cache) ||
-                            LIST_FIRST(&frag->fr_cache)->fr_off >
-                            frcache->fr_end),
-                            ("! (LIST_EMPTY() || LIST_FIRST()->fr_off >"
-                              " frcache->fr_end): %s", __FUNCTION__));
+#ifdef __FreeBSD__
+			KASSERT((LIST_EMPTY(&frag->fr_cache) ||
+			    LIST_FIRST(&frag->fr_cache)->fr_off >
+			    frcache->fr_end),
+			    ("! (LIST_EMPTY() || LIST_FIRST()->fr_off >"
+			      " frcache->fr_end): %s", __FUNCTION__));
 
 			pool_put(&V_pf_cent_pl, frcache);
 			V_pf_ncache--;
- #else
+#else
 			KASSERT(LIST_EMPTY(&frag->fr_cache) ||
 			    LIST_FIRST(&frag->fr_cache)->fr_off >
 			    frcache->fr_end);
@@ -504,10 +504,10 @@ pf_reassemble(struct mbuf **m0, struct pf_fragment **frag,
 	u_int16_t	 ip_len = ntohs(ip->ip_len) - ip->ip_hl * 4;
 	u_int16_t	 max = ip_len + off;
 
- #ifdef __FreeBSD__
-        KASSERT((*frag == NULL || BUFFER_FRAGMENTS(*frag)),
-            ("! (*frag == NULL || BUFFER_FRAGMENTS(*frag)): %s", __FUNCTION__));
- #else
+#ifdef __FreeBSD__
+	KASSERT((*frag == NULL || BUFFER_FRAGMENTS(*frag)),
+	    ("! (*frag == NULL || BUFFER_FRAGMENTS(*frag)): %s", __FUNCTION__));
+#else
 	KASSERT(*frag == NULL || BUFFER_FRAGMENTS(*frag));
 #endif
 
@@ -565,10 +565,10 @@ pf_reassemble(struct mbuf **m0, struct pf_fragment **frag,
 		frep = frea;
 	}
 
- #ifdef __FreeBSD__
-        KASSERT((frep != NULL || frea != NULL),
-            ("!(frep != NULL || frea != NULL): %s", __FUNCTION__));;
- #else
+#ifdef __FreeBSD__
+	KASSERT((frep != NULL || frea != NULL),
+	    ("!(frep != NULL || frea != NULL): %s", __FUNCTION__));;
+#else
 	KASSERT(frep != NULL || frea != NULL);
 #endif
 
@@ -660,9 +660,9 @@ pf_reassemble(struct mbuf **m0, struct pf_fragment **frag,
 
 	/* We have all the data */
 	frent = LIST_FIRST(&(*frag)->fr_queue);
- #ifdef __FreeBSD__
-        KASSERT((frent != NULL), ("frent == NULL: %s", __FUNCTION__));
- #else
+#ifdef __FreeBSD__
+	KASSERT((frent != NULL), ("frent == NULL: %s", __FUNCTION__));
+#else
 	KASSERT(frent != NULL);
 #endif
 	if ((frent->fr_ip->ip_hl << 2) + off > IP_MAXPACKET) {
@@ -697,18 +697,18 @@ pf_reassemble(struct mbuf **m0, struct pf_fragment **frag,
 		pool_put(&pf_frent_pl, frent);
 		pf_nfrents--;
 #endif
- #ifdef __FreeBSD__
-                m->m_pkthdr.csum_flags &= m2->m_pkthdr.csum_flags;
-                m->m_pkthdr.csum_data += m2->m_pkthdr.csum_data;
- #endif
+#ifdef __FreeBSD__
+		m->m_pkthdr.csum_flags &= m2->m_pkthdr.csum_flags;
+		m->m_pkthdr.csum_data += m2->m_pkthdr.csum_data;
+#endif
 		m_cat(m, m2);
 	}
 
- #ifdef __FreeBSD__
-        while (m->m_pkthdr.csum_data & 0xffff0000)
-                m->m_pkthdr.csum_data = (m->m_pkthdr.csum_data & 0xffff) +
-                    (m->m_pkthdr.csum_data >> 16);
- #endif
+#ifdef __FreeBSD__
+	while (m->m_pkthdr.csum_data & 0xffff0000)
+		m->m_pkthdr.csum_data = (m->m_pkthdr.csum_data & 0xffff) +
+		    (m->m_pkthdr.csum_data >> 16);
+#endif
 	ip->ip_src = (*frag)->fr_src;
 	ip->ip_dst = (*frag)->fr_dst;
 
@@ -757,10 +757,10 @@ pf_fragcache(struct mbuf **m0, struct ip *h, struct pf_fragment **frag, int mff,
 	u_int16_t		 max = ip_len + off;
 	int			 hosed = 0;
 
- #ifdef __FreeBSD__
-        KASSERT((*frag == NULL || !BUFFER_FRAGMENTS(*frag)),
-            ("!(*frag == NULL || !BUFFER_FRAGMENTS(*frag)): %s", __FUNCTION__));
- #else
+#ifdef __FreeBSD__
+	KASSERT((*frag == NULL || !BUFFER_FRAGMENTS(*frag)),
+	    ("!(*frag == NULL || !BUFFER_FRAGMENTS(*frag)): %s", __FUNCTION__));
+#else
 	KASSERT(*frag == NULL || !BUFFER_FRAGMENTS(*frag));
 #endif
 
@@ -838,10 +838,10 @@ pf_fragcache(struct mbuf **m0, struct ip *h, struct pf_fragment **frag, int mff,
 		frp = fra;
 	}
 
- #ifdef __FreeBSD__
-        KASSERT((frp != NULL || fra != NULL),
-            ("!(frp != NULL || fra != NULL): %s", __FUNCTION__));
- #else
+#ifdef __FreeBSD__
+	KASSERT((frp != NULL || fra != NULL),
+	    ("!(frp != NULL || fra != NULL): %s", __FUNCTION__));
+#else
 	KASSERT(frp != NULL || fra != NULL);
 #endif
 
@@ -885,22 +885,22 @@ pf_fragcache(struct mbuf **m0, struct ip *h, struct pf_fragment **frag, int mff,
 				 * than this mbuf magic.  For my next trick,
 				 * I'll pull a rabbit out of my laptop.
 				 */
- #ifdef __FreeBSD__
-                                *m0 = m_dup(m, M_DONTWAIT);
- #else
+#ifdef __FreeBSD__
+				*m0 = m_dup(m, M_DONTWAIT);
+#else
 				*m0 = m_copym2(m, 0, h->ip_hl << 2, M_NOWAIT);
 #endif
 				if (*m0 == NULL)
 					goto no_mem;
- #ifdef __FreeBSD__
-                                /* From KAME Project : We have missed this! */
-                                m_adj(*m0, (h->ip_hl << 2) -
-                                    (*m0)->m_pkthdr.len);
- 
-                                KASSERT(((*m0)->m_next == NULL), 
-                                    ("(*m0)->m_next != NULL: %s", 
-                                    __FUNCTION__));
- #else
+#ifdef __FreeBSD__
+				/* From KAME Project : We have missed this! */
+				m_adj(*m0, (h->ip_hl << 2) -
+				    (*m0)->m_pkthdr.len);
+
+				KASSERT(((*m0)->m_next == NULL), 
+				    ("(*m0)->m_next != NULL: %s", 
+				    __FUNCTION__));
+#else
 				KASSERT((*m0)->m_next == NULL);
 #endif
 				m_adj(m, precut + (h->ip_hl << 2));
@@ -917,12 +917,12 @@ pf_fragcache(struct mbuf **m0, struct ip *h, struct pf_fragment **frag, int mff,
 
 				h = mtod(m, struct ip *);
 
- #ifdef __FreeBSD__
-                                KASSERT(((int)m->m_len ==
-                                    ntohs(h->ip_len) - precut),
-                                    ("m->m_len != ntohs(h->ip_len) - precut: %s",
-                                    __FUNCTION__));
- #else
+#ifdef __FreeBSD__
+				KASSERT(((int)m->m_len ==
+				    ntohs(h->ip_len) - precut),
+				    ("m->m_len != ntohs(h->ip_len) - precut: %s",
+				    __FUNCTION__));
+#else
 				KASSERT((int)m->m_len ==
 				    ntohs(h->ip_len) - precut);
 #endif
@@ -989,11 +989,11 @@ pf_fragcache(struct mbuf **m0, struct ip *h, struct pf_fragment **frag, int mff,
 					m->m_pkthdr.len = plen;
 				}
 				h = mtod(m, struct ip *);
- #ifdef __FreeBSD__
-                                KASSERT(((int)m->m_len == ntohs(h->ip_len) - aftercut),
-                                    ("m->m_len != ntohs(h->ip_len) - aftercut: %s",
-                                    __FUNCTION__));
- #else
+#ifdef __FreeBSD__
+				KASSERT(((int)m->m_len == ntohs(h->ip_len) - aftercut),
+				    ("m->m_len != ntohs(h->ip_len) - aftercut: %s",
+				    __FUNCTION__));
+#else
 				KASSERT((int)m->m_len ==
 				    ntohs(h->ip_len) - aftercut);
 #endif
@@ -1047,10 +1047,10 @@ pf_fragcache(struct mbuf **m0, struct ip *h, struct pf_fragment **frag, int mff,
 
 			} else if (frp && fra->fr_off <= frp->fr_end) {
 				/* Need to merge in a modified 'frp' */
- #ifdef __FreeBSD__
-                                KASSERT((cur == NULL), ("cur != NULL: %s",
-                                    __FUNCTION__));
- #else
+#ifdef __FreeBSD__
+				KASSERT((cur == NULL), ("cur != NULL: %s",
+				    __FUNCTION__));
+#else
 				KASSERT(cur == NULL);
 #endif
 				DPFPRINTF(("fragcache[%d]: adjacent(merge "
@@ -1268,18 +1268,18 @@ pf_normalize_ip(struct mbuf **m0, int dir, struct pfi_kif *kif, u_short *reason,
 		if (m == NULL)
 			return (PF_DROP);
 
-                /* use mtag from concatenated mbuf chain */
-                pd->pf_mtag = pf_find_mtag(m);
- #ifdef DIAGNOSTIC
-                if (pd->pf_mtag == NULL) {
-                        printf("%s: pf_find_mtag returned NULL(1)\n", __func__);
-                        if ((pd->pf_mtag = pf_get_mtag(m)) == NULL) {
-                                m_freem(m);
-                                *m0 = NULL;
-                                goto no_mem;
-                        }
-                }
- #endif
+		/* use mtag from concatenated mbuf chain */
+		pd->pf_mtag = pf_find_mtag(m);
+#ifdef DIAGNOSTIC
+		if (pd->pf_mtag == NULL) {
+			printf("%s: pf_find_mtag returned NULL(1)\n", __func__);
+			if ((pd->pf_mtag = pf_get_mtag(m)) == NULL) {
+				m_freem(m);
+				*m0 = NULL;
+				goto no_mem;
+			}
+		}
+#endif
 		if (frag != NULL && (frag->fr_flags & PFFRAG_DROP))
 			goto drop;
 
@@ -1323,18 +1323,18 @@ pf_normalize_ip(struct mbuf **m0, int dir, struct pfi_kif *kif, u_short *reason,
 			goto drop;
 		}
 
-                /* use mtag from copied and trimmed mbuf chain */
-                pd->pf_mtag = pf_find_mtag(m);
- #ifdef DIAGNOSTIC
-                if (pd->pf_mtag == NULL) {
-                        printf("%s: pf_find_mtag returned NULL(2)\n", __func__);
-                        if ((pd->pf_mtag = pf_get_mtag(m)) == NULL) {
-                                m_freem(m);
-                                *m0 = NULL;
-                                goto no_mem;
-                        }
-                }
- #endif
+		/* use mtag from copied and trimmed mbuf chain */
+		pd->pf_mtag = pf_find_mtag(m);
+#ifdef DIAGNOSTIC
+		if (pd->pf_mtag == NULL) {
+			printf("%s: pf_find_mtag returned NULL(2)\n", __func__);
+			if ((pd->pf_mtag = pf_get_mtag(m)) == NULL) {
+				m_freem(m);
+				*m0 = NULL;
+				goto no_mem;
+			}
+		}
+#endif
 		if (dir == PF_IN)
 #ifdef __FreeBSD__
 			pd->pf_mtag->flags |= PF_TAG_FRAGCACHE;
@@ -1695,12 +1695,12 @@ pf_normalize_tcp_init(struct mbuf *m, int off, struct pf_pdesc *pd,
 	u_int8_t hdr[60];
 	u_int8_t *opt;
 
- #ifdef __FreeBSD__
-        KASSERT((src->scrub == NULL), 
-            ("pf_normalize_tcp_init: src->scrub != NULL"));
+#ifdef __FreeBSD__
+	KASSERT((src->scrub == NULL), 
+	    ("pf_normalize_tcp_init: src->scrub != NULL"));
 
 	src->scrub = pool_get(&V_pf_state_scrub_pl, PR_NOWAIT);
- #else
+#else
 	KASSERT(src->scrub == NULL);
 
 	src->scrub = pool_get(&pf_state_scrub_pl, PR_NOWAIT);
@@ -1808,10 +1808,10 @@ pf_normalize_tcp_stateful(struct mbuf *m, int off, struct pf_pdesc *pd,
 	int copyback = 0;
 	int got_ts = 0;
 
- #ifdef __FreeBSD__
-        KASSERT((src->scrub || dst->scrub), 
-            ("pf_normalize_tcp_statefull: src->scrub && dst->scrub!"));
- #else
+#ifdef __FreeBSD__
+	KASSERT((src->scrub || dst->scrub), 
+	    ("pf_normalize_tcp_statefull: src->scrub && dst->scrub!"));
+#else
 	KASSERT(src->scrub || dst->scrub);
 #endif
 
@@ -2053,19 +2053,19 @@ pf_normalize_tcp_stateful(struct mbuf *m, int off, struct pf_pdesc *pd,
 		/* Calculate max ticks since the last timestamp */
 #define TS_MAXFREQ	1100		/* RFC max TS freq of 1Khz + 10% skew */
 #define TS_MICROSECS	1000000		/* microseconds per second */
- #ifdef __FreeBSD__
- #ifndef timersub
- #define timersub(tvp, uvp, vvp)                                                \
-        do {                                                            \
-                (vvp)->tv_sec = (tvp)->tv_sec - (uvp)->tv_sec;          \
-                (vvp)->tv_usec = (tvp)->tv_usec - (uvp)->tv_usec;       \
-                if ((vvp)->tv_usec < 0) {                               \
-                        (vvp)->tv_sec--;                                \
-                        (vvp)->tv_usec += 1000000;                      \
-                }                                                       \
-        } while (0)
- #endif
- #endif
+#ifdef __FreeBSD__
+#ifndef timersub
+#define	timersub(tvp, uvp, vvp)						\
+	do {								\
+		(vvp)->tv_sec = (tvp)->tv_sec - (uvp)->tv_sec;		\
+		(vvp)->tv_usec = (tvp)->tv_usec - (uvp)->tv_usec;	\
+		if ((vvp)->tv_usec < 0) {				\
+			(vvp)->tv_sec--;				\
+			(vvp)->tv_usec += 1000000;			\
+		}							\
+	} while (0)
+#endif
+#endif
 		timersub(&uptime, &src->scrub->pfss_last, &delta_ts);
 		tsval_from_last = (delta_ts.tv_sec + ts_fudge) * TS_MAXFREQ;
 		tsval_from_last += delta_ts.tv_usec / (TS_MICROSECS/TS_MAXFREQ);
@@ -2090,18 +2090,18 @@ pf_normalize_tcp_stateful(struct mbuf *m, int off, struct pf_pdesc *pd,
 			    tsval_from_last) ? '1' : ' ',
 			    SEQ_GT(tsecr, dst->scrub->pfss_tsval) ? '2' : ' ',
 			    SEQ_LT(tsecr, dst->scrub->pfss_tsval0)? '3' : ' '));
- #ifdef __FreeBSD__
-                        DPFPRINTF((" tsval: %u  tsecr: %u  +ticks: %u  "
-                            "idle: %jus %lums\n",
-                            tsval, tsecr, tsval_from_last,
-                            (uintmax_t)delta_ts.tv_sec,
-                            delta_ts.tv_usec / 1000));
-                        DPFPRINTF((" src->tsval: %u  tsecr: %u\n",
-                            src->scrub->pfss_tsval, src->scrub->pfss_tsecr));
-                        DPFPRINTF((" dst->tsval: %u  tsecr: %u  tsval0: %u"
-                            "\n", dst->scrub->pfss_tsval,
-                            dst->scrub->pfss_tsecr, dst->scrub->pfss_tsval0));
- #else
+#ifdef __FreeBSD__
+			DPFPRINTF((" tsval: %u  tsecr: %u  +ticks: %u  "
+			    "idle: %jus %lums\n",
+			    tsval, tsecr, tsval_from_last,
+			    (uintmax_t)delta_ts.tv_sec,
+			    delta_ts.tv_usec / 1000));
+			DPFPRINTF((" src->tsval: %u  tsecr: %u\n",
+			    src->scrub->pfss_tsval, src->scrub->pfss_tsecr));
+			DPFPRINTF((" dst->tsval: %u  tsecr: %u  tsval0: %u"
+			    "\n", dst->scrub->pfss_tsval,
+			    dst->scrub->pfss_tsecr, dst->scrub->pfss_tsval0));
+#else
 			DPFPRINTF((" tsval: %lu  tsecr: %lu  +ticks: %lu  "
 			    "idle: %lus %lums\n",
 			    tsval, tsecr, tsval_from_last, delta_ts.tv_sec,

@@ -20,16 +20,16 @@
  */
 
 #ifndef _NET_IF_PFLOW_H_
-#define _NET_IF_PFLOW_H_
+#define	_NET_IF_PFLOW_H_
 
-#define PFLOW_ID_LEN	sizeof(u_int64_t)
+#define	PFLOW_ID_LEN	sizeof(u_int64_t)
 
-#define PFLOW_MAXFLOWS 30
-#define PFLOW_VERSION 5
-#define PFLOW_ENGINE_TYPE 42
-#define PFLOW_ENGINE_ID 42
-#define PFLOW_MAXBYTES 0xffffffff
-#define PFLOW_TIMEOUT 30
+#define	PFLOW_MAXFLOWS 30
+#define	PFLOW_VERSION 5
+#define	PFLOW_ENGINE_TYPE 42
+#define	PFLOW_ENGINE_ID 42
+#define	PFLOW_MAXBYTES 0xffffffff
+#define	PFLOW_TIMEOUT 30
 
 struct pflow_flow {
 	u_int32_t	src_ip;
@@ -96,7 +96,7 @@ struct pflow_header {
 	u_int8_t	reserved2;
 } __packed;
 
-#define PFLOW_HDRLEN sizeof(struct pflow_header)
+#define	PFLOW_HDRLEN sizeof(struct pflow_header)
 
 struct pflowstats {
 	u_int64_t	pflow_flows;
@@ -113,9 +113,9 @@ struct pflowreq {
 	struct in_addr		receiver_ip;
 	u_int16_t		receiver_port;
 	u_int16_t		addrmask;
-#define PFLOW_MASK_SRCIP	0x01
-#define PFLOW_MASK_DSTIP	0x02
-#define PFLOW_MASK_DSTPRT	0x04
+#define	PFLOW_MASK_SRCIP	0x01
+#define	PFLOW_MASK_DSTIP	0x02
+#define	PFLOW_MASK_DSTPRT	0x04
 };
 
 #ifdef _KERNEL

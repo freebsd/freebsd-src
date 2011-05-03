@@ -3380,9 +3380,9 @@ vnet_pfsync_uninit(const void *unused)
 }
 
 /* Define startup order. */
-#define PFSYNC_SYSINIT_ORDER      SI_SUB_PROTO_BEGIN
-#define PFSYNC_MODEVENT_ORDER     (SI_ORDER_FIRST) /* On boot slot in here. */
-#define PFSYNC_VNET_ORDER         (PFSYNC_MODEVENT_ORDER + 2) /* Later still. */
+#define	PFSYNC_SYSINIT_ORDER	SI_SUB_PROTO_BEGIN
+#define	PFSYNC_MODEVENT_ORDER	(SI_ORDER_FIRST) /* On boot slot in here. */
+#define	PFSYNC_VNET_ORDER	(PFSYNC_MODEVENT_ORDER + 2) /* Later still. */
 
 /*
  * Starting up.

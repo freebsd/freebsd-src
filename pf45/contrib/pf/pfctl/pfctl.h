@@ -89,7 +89,7 @@ FILE	*pfctl_fopen(const char *, const char *);
 #ifdef __FreeBSD__
 extern int altqsupport;
 extern int dummynetsupport;
- #define HTONL(x)       (x) = htonl((__uint32_t)(x))
+#define	HTONL(x)		(x) = htonl((__uint32_t)(x))
 #endif
 
 #ifndef DEFAULT_PRIORITY

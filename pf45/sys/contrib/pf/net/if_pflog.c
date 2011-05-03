@@ -2,7 +2,7 @@
 /*
  * The authors of this code are John Ioannidis (ji@tla.org),
  * Angelos D. Keromytis (kermit@csd.uch.gr) and 
- * Niels Provos (provos@physnet.uni hamburg.de).
+ * Niels Provos (provos@physnet.uni-hamburg.de).
  *
  * This code was written by John Ioannidis for BSD/OS in Athens, Greece, 
  * in November 1995.
@@ -116,9 +116,9 @@ __FBSDID("$FreeBSD$");
 void	pflogattach(int);
 int	pflogoutput(struct ifnet *, struct mbuf *, struct sockaddr *,
 #ifdef __FreeBSD__
-		       struct route *);
+	    struct route *);
 #else
-	    	       struct rtentry *);
+	    struct rtentry *);
 #endif
 int	pflogioctl(struct ifnet *, u_long, caddr_t);
 void	pflogstart(struct ifnet *);

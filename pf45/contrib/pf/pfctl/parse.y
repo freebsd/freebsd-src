@@ -248,21 +248,21 @@ struct antispoof_opts {
 } antispoof_opts;
 
 struct scrub_opts {
-	int			marker;
+	int			 marker;
 #define SOM_MINTTL	0x01
 #define SOM_MAXMSS	0x02
 #define SOM_FRAGCACHE	0x04
 #define SOM_SETTOS	0x08
-	int			nodf;
-	int			minttl;
-	int			maxmss;
-	int			settos;
-	int			fragcache;
-	int			randomid;
-	int			reassemble_tcp;
-	char		       *match_tag;
-	u_int8_t		match_tag_not;
-	u_int			rtableid;
+	int			 nodf;
+	int			 minttl;
+	int			 maxmss;
+	int			 settos;
+	int			 fragcache;
+	int			 randomid;
+	int			 reassemble_tcp;
+	char			*match_tag;
+	u_int8_t		 match_tag_not;
+	u_int			 rtableid;
 } scrub_opts;
 
 struct queue_opts {
@@ -2371,9 +2371,9 @@ filter_opt	: USER uids {
 #ifdef __FreeBSD__
 			filter_opts.divert.port = $2.a;
 			if (!filter_opts.divert.port) {
-                                yyerror("invalid divert port: %u", ntohs($2.a));
-                                YYERROR;
-                        }
+				yyerror("invalid divert port: %u", ntohs($2.a));
+				YYERROR;
+			}
 #endif
 		}
 		| DIVERTTO STRING PORT portplain {

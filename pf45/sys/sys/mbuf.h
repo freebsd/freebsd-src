@@ -662,9 +662,11 @@ m_last(struct mbuf *m)
 extern void (*m_addr_chg_pf_p)(struct mbuf *m);
 
 static __inline void 
-m_addr_changed(struct mbuf *m) {
-       if (m_addr_chg_pf_p)
-               m_addr_chg_pf_p(m);
+m_addr_changed(struct mbuf *m)
+{
+
+	if (m_addr_chg_pf_p)
+		m_addr_chg_pf_p(m);
 }
 
 /*

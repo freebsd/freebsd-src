@@ -194,8 +194,8 @@ print_queue(const struct pf_altq *a, unsigned int level,
 	unsigned int	i;
 
 #ifdef __FreeBSD__
-        if (a->local_flags & PFALTQ_FLAG_IF_REMOVED)
-                printf("INACTIVE ");
+	if (a->local_flags & PFALTQ_FLAG_IF_REMOVED)
+		printf("INACTIVE ");
 #endif
 	printf("queue ");
 	for (i = 0; i < level; ++i)

@@ -251,10 +251,10 @@ pfctl_enable(int dev, int opts)
 	if (ioctl(dev, DIOCSTART)) {
 		if (errno == EEXIST)
 			errx(1, "pf already enabled");
- #ifdef __FreeBSD__
-                else if (errno == ESRCH)
-                        errx(1, "pfil registeration failed");
- #endif
+#ifdef __FreeBSD__
+		else if (errno == ESRCH)
+			errx(1, "pfil registeration failed");
+#endif
 		else
 			err(1, "DIOCSTART");
 	}
@@ -1208,7 +1208,7 @@ pfctl_add_rule(struct pfctl *pf, struct pf_rule *r, const char *anchor_call)
 		r->anchor->ruleset.anchor = r->anchor;
 		if (strlcpy(r->anchor->path, anchor_call,
 		    sizeof(rule->anchor->path)) >= sizeof(rule->anchor->path))
-                        errx(1, "pfctl_add_rule: strlcpy");
+			errx(1, "pfctl_add_rule: strlcpy");
 		if ((p = strrchr(anchor_call, '/')) != NULL) {
 			if (!strlen(p))
 				err(1, "pfctl_add_rule: bad anchor name %s",
@@ -1217,7 +1217,7 @@ pfctl_add_rule(struct pfctl *pf, struct pf_rule *r, const char *anchor_call)
 			p = (char *)anchor_call;
 		if (strlcpy(r->anchor->name, p,
 		    sizeof(rule->anchor->name)) >= sizeof(rule->anchor->name))
-                        errx(1, "pfctl_add_rule: strlcpy");
+			errx(1, "pfctl_add_rule: strlcpy");
 	}
 
 	if ((rule = calloc(1, sizeof(*rule))) == NULL)
@@ -1242,7 +1242,7 @@ pfctl_ruleset_trans(struct pfctl *pf, char *path, struct pf_anchor *a)
 			return (1);
 	}
 	if (a == pf->astack[0] && ((altqsupport &&
-	     (pf->loadopt & PFCTL_FLAG_ALTQ) != 0))) {
+	    (pf->loadopt & PFCTL_FLAG_ALTQ) != 0))) {
 		if (pfctl_add_trans(pf->trans, PF_RULESET_ALTQ, path))
 			return (2);
 	}
@@ -2197,9 +2197,9 @@ main(int argc, char *argv[])
 		/* turn off options */
 		opts &= ~ (PF_OPT_DISABLE | PF_OPT_ENABLE);
 		clearopt = showopt = debugopt = NULL;
- #if defined(__FreeBSD__) && !defined(ENABLE_ALTQ)
-                altqsupport = 0;
- #else
+#if defined(__FreeBSD__) && !defined(ENABLE_ALTQ)
+		altqsupport = 0;
+#else
 		altqsupport = 1;
 #endif
 	}

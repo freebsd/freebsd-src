@@ -174,7 +174,7 @@ struct pf_addr_wrap {
 		char			 ifname[IFNAMSIZ];
 		char			 tblname[PF_TABLE_NAME_SIZE];
 #ifdef __FreeBSD__
-#define        RTLABEL_LEN     32
+#define	RTLABEL_LEN	32
 #endif
 		char			 rtlabelname[RTLABEL_LEN];
 		u_int32_t		 rtlabel;
@@ -212,104 +212,106 @@ struct pfi_dynaddr {
  */
 
 #ifdef __FreeBSD__
-#define splsoftnet()   splnet()
+#define	splsoftnet()	splnet()
 
-#define        HTONL(x)        (x) = htonl((__uint32_t)(x))
-#define        HTONS(x)        (x) = htons((__uint16_t)(x))
-#define        NTOHL(x)        (x) = ntohl((__uint32_t)(x))
-#define        NTOHS(x)        (x) = ntohs((__uint16_t)(x))
+#define	HTONL(x)	(x) = htonl((__uint32_t)(x))
+#define	HTONS(x)	(x) = htons((__uint16_t)(x))
+#define	NTOHL(x)	(x) = ntohl((__uint32_t)(x))
+#define	NTOHS(x)	(x) = ntohs((__uint16_t)(x))
 
-#define PF_NAME                "pf"
+#define	PF_NAME		"pf"
 
-#define PR_NOWAIT	M_NOWAIT
+#define	PR_NOWAIT	M_NOWAIT
 #define	PR_WAITOK	M_WAIT
-#define PR_ZERO		M_ZERO
-#define pool_get(p, f) uma_zalloc(*(p), (f))
-#define pool_put(p, o) uma_zfree(*(p), (o))
+#define	PR_ZERO		M_ZERO
+#define	pool_get(p, f)	uma_zalloc(*(p), (f))
+#define	pool_put(p, o)	uma_zfree(*(p), (o))
 
-#define UMA_CREATE(var, type, desc) \
-               var = uma_zcreate(desc, sizeof(type),   \
-                       NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0); \
-               if (var == NULL) break
-#define UMA_DESTROY(var) \
-               if(var) uma_zdestroy(var)
+#define	UMA_CREATE(var, type, desc)			\
+	var = uma_zcreate(desc, sizeof(type),		\
+	NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);	\
+	if (var == NULL)				\
+		break
+#define	UMA_DESTROY(var)				\
+	if (var)					\
+		uma_zdestroy(var)
 
 #ifdef __FreeBSD__
 VNET_DECLARE(struct mtx,	 pf_task_mtx);
 #define	V_pf_task_mtx		 VNET(pf_task_mtx)
 
-#define        PF_ASSERT(h) mtx_assert(&V_pf_task_mtx, (h))
+#define	PF_ASSERT(h)	mtx_assert(&V_pf_task_mtx, (h))
 
-#define PF_LOCK()      do {                    \
-       PF_ASSERT(MA_NOTOWNED);                 \
-       mtx_lock(&V_pf_task_mtx);               \
+#define	PF_LOCK()	do {				\
+	PF_ASSERT(MA_NOTOWNED);				\
+	mtx_lock(&V_pf_task_mtx);			\
 } while(0)
-#define PF_UNLOCK()    do {                    \
-       PF_ASSERT(MA_OWNED);                    \
-       mtx_unlock(&V_pf_task_mtx);             \
+#define	PF_UNLOCK()	do {				\
+	PF_ASSERT(MA_OWNED);				\
+	mtx_unlock(&V_pf_task_mtx);			\
 } while(0)
 #else
 extern struct mtx pf_task_mtx;
 
-#define        PF_ASSERT(h) mtx_assert(&pf_task_mtx, (h))
+#define	PF_ASSERT(h)	mtx_assert(&pf_task_mtx, (h))
 
-#define PF_LOCK()      do {                    \
-       PF_ASSERT(MA_NOTOWNED);                 \
-       mtx_lock(&pf_task_mtx);                 \
+#define	PF_LOCK()	do {				\
+	PF_ASSERT(MA_NOTOWNED);				\
+	mtx_lock(&pf_task_mtx);				\
 } while(0)
-#define PF_UNLOCK()    do {                    \
-       PF_ASSERT(MA_OWNED);                    \
-       mtx_unlock(&pf_task_mtx);               \
+#define	PF_UNLOCK()	do {				\
+	PF_ASSERT(MA_OWNED);				\
+	mtx_unlock(&pf_task_mtx);			\
 } while(0)
 #endif
 
-#define PF_COPYIN(uaddr, kaddr, len, r) do {   \
-       PF_UNLOCK();                            \
-       r = copyin((uaddr), (kaddr), (len));    \
-       PF_LOCK();                              \
+#define	PF_COPYIN(uaddr, kaddr, len, r)		do {	\
+	PF_UNLOCK();					\
+	r = copyin((uaddr), (kaddr), (len));		\
+	PF_LOCK();					\
 } while(0)
 
-#define PF_COPYOUT(kaddr, uaddr, len, r) do {  \
-       PF_UNLOCK();                            \
-       r = copyout((kaddr), (uaddr), (len));   \
-       PF_LOCK();                              \
+#define	PF_COPYOUT(kaddr, uaddr, len, r)	do {	\
+	PF_UNLOCK();					\
+	r = copyout((kaddr), (uaddr), (len));		\
+	PF_LOCK();					\
 } while(0)
 
 extern void init_pf_mutex(void);
 extern void destroy_pf_mutex(void);
 
-#define PF_MODVER      1
-#define PFLOG_MODVER   1
-#define PFSYNC_MODVER  1
+#define	PF_MODVER	1
+#define	PFLOG_MODVER	1
+#define	PFSYNC_MODVER	1
 
-#define PFLOG_MINVER   1
-#define PFLOG_PREFVER  PFLOG_MODVER
-#define PFLOG_MAXVER   1
-#define PFSYNC_MINVER  1
-#define PFSYNC_PREFVER PFSYNC_MODVER
-#define PFSYNC_MAXVER  1
+#define	PFLOG_MINVER	1
+#define	PFLOG_PREFVER	PFLOG_MODVER
+#define	PFLOG_MAXVER	1
+#define	PFSYNC_MINVER	1
+#define	PFSYNC_PREFVER	PFSYNC_MODVER
+#define	PFSYNC_MAXVER	1
 #endif /* __FreeBSD__ */
 #ifdef INET
 #ifndef INET6
-#define PF_INET_ONLY
+#define	PF_INET_ONLY
 #endif /* ! INET6 */
 #endif /* INET */
 
 #ifdef INET6
 #ifndef INET
-#define PF_INET6_ONLY
+#define	PF_INET6_ONLY
 #endif /* ! INET */
 #endif /* INET6 */
 
 #ifdef INET
 #ifdef INET6
-#define PF_INET_INET6
+#define	PF_INET_INET6
 #endif /* INET6 */
 #endif /* INET */
 
 #else
 
-#define PF_INET_INET6
+#define	PF_INET_INET6
 
 #endif /* _KERNEL */
 
@@ -645,7 +647,7 @@ struct pf_rule {
 	u_int32_t		 src_nodes;
 	u_int32_t		 max_src_nodes;
 	u_int32_t		 max_src_states;
-	u_int32_t                spare1;                /* netgraph */
+	u_int32_t		 spare1;			/* netgraph */
 	u_int32_t		 max_src_conn;
 	struct {
 		u_int32_t		limit;
@@ -664,7 +666,7 @@ struct pf_rule {
 	u_int16_t		 max_mss;
 	u_int16_t		 tag;
 	u_int16_t		 match_tag;
-	u_int16_t                spare2;                /* netgraph */
+	u_int16_t		 spare2;			/* netgraph */
 
 	struct pf_rule_uid	 uid;
 	struct pf_rule_gid	 gid;
@@ -933,8 +935,8 @@ struct pfsync_state {
 	u_int8_t	 proto;
 	u_int8_t	 direction;
 #ifdef __FreeBSD__
-	u_int8_t         local_flags;
-#define        PFSTATE_EXPIRING        0x01
+	u_int8_t	 local_flags;
+#define	PFSTATE_EXPIRING		0x01
 	u_int8_t	 pad;
 #endif
 	u_int8_t	 log;
@@ -947,7 +949,7 @@ struct pfsync_state {
 #ifdef __FreeBSD__
 #ifdef _KERNEL
 /* pfsync */
-typedef int     	pfsync_state_import_t(struct pfsync_state *, u_int8_t);
+typedef int		pfsync_state_import_t(struct pfsync_state *, u_int8_t);
 typedef	void		pfsync_insert_state_t(struct pf_state *);
 typedef	void		pfsync_update_state_t(struct pf_state *);
 typedef	void		pfsync_delete_state_t(struct pf_state *);
@@ -965,8 +967,8 @@ extern pfsync_state_in_use_t	*pfsync_state_in_use_ptr;
 extern pfsync_defer_t		*pfsync_defer_ptr;
 extern pfsync_up_t		*pfsync_up_ptr;
 
-void                    pfsync_state_export(struct pfsync_state *,
-                            struct pf_state *);
+void			pfsync_state_export(struct pfsync_state *,
+			    struct pf_state *);
 
 /* pflow */
 typedef int		export_pflow_t(struct pf_state *);
@@ -983,22 +985,22 @@ typedef int pflog_packet_t(struct pfi_kif *, struct mbuf *, sa_family_t,
 extern pflog_packet_t		*pflog_packet_ptr;
 
 /* pf uid hack */
-VNET_DECLARE(int,       	debug_pfugidhack);
-#define V_debug_pfugidhack      VNET(debug_pfugidhack)
+VNET_DECLARE(int, debug_pfugidhack);
+#define	V_debug_pfugidhack	VNET(debug_pfugidhack)
 
-#define V_pf_end_threads	VNET(pf_end_threads)
+#define	V_pf_end_threads	VNET(pf_end_threads)
 #endif
 
 /* Macros to set/clear/test flags. */
 #ifdef _KERNEL
-#define SET(t, f)       ((t) |= (f))
-#define CLR(t, f)       ((t) &= ~(f))
-#define ISSET(t, f)     ((t) & (f))
+#define	SET(t, f)	((t) |= (f))
+#define	CLR(t, f)	((t) &= ~(f))
+#define	ISSET(t, f)	((t) & (f))
 #endif
 #endif
 
-#define PFSYNC_FLAG_SRCNODE	0x04
-#define PFSYNC_FLAG_NATSRCNODE	0x08
+#define	PFSYNC_FLAG_SRCNODE	0x04
+#define	PFSYNC_FLAG_NATSRCNODE	0x08
 
 /* for copies to/from network byte order */
 /* ioctl interface also uses network byte order */
@@ -1498,8 +1500,8 @@ struct pf_altq {
 	u_int32_t		 bandwidth;	/* queue bandwidth */
 	u_int8_t		 priority;	/* priority */
 #ifdef __FreeBSD__
-	u_int8_t                 local_flags;   /* dynamic interface */
-#define        PFALTQ_FLAG_IF_REMOVED          0x01
+	u_int8_t		 local_flags;	/* dynamic interface */
+#define	PFALTQ_FLAG_IF_REMOVED		0x01
 #endif
 	u_int16_t		 qlimit;	/* queue size limit */
 	u_int16_t		 flags;		/* misc flags */
@@ -1753,36 +1755,36 @@ struct pfioc_iface {
 #define	DIOCRDELTABLES	_IOWR('D', 62, struct pfioc_table)
 #define	DIOCRGETTABLES	_IOWR('D', 63, struct pfioc_table)
 #define	DIOCRGETTSTATS	_IOWR('D', 64, struct pfioc_table)
-#define DIOCRCLRTSTATS  _IOWR('D', 65, struct pfioc_table)
+#define DIOCRCLRTSTATS	_IOWR('D', 65, struct pfioc_table)
 #define	DIOCRCLRADDRS	_IOWR('D', 66, struct pfioc_table)
 #define	DIOCRADDADDRS	_IOWR('D', 67, struct pfioc_table)
 #define	DIOCRDELADDRS	_IOWR('D', 68, struct pfioc_table)
 #define	DIOCRSETADDRS	_IOWR('D', 69, struct pfioc_table)
 #define	DIOCRGETADDRS	_IOWR('D', 70, struct pfioc_table)
 #define	DIOCRGETASTATS	_IOWR('D', 71, struct pfioc_table)
-#define DIOCRCLRASTATS  _IOWR('D', 72, struct pfioc_table)
+#define	DIOCRCLRASTATS	_IOWR('D', 72, struct pfioc_table)
 #define	DIOCRTSTADDRS	_IOWR('D', 73, struct pfioc_table)
 #define	DIOCRSETTFLAGS	_IOWR('D', 74, struct pfioc_table)
-#define DIOCRINADEFINE	_IOWR('D', 77, struct pfioc_table)
-#define DIOCOSFPFLUSH	_IO('D', 78)
-#define DIOCOSFPADD	_IOWR('D', 79, struct pf_osfp_ioctl)
-#define DIOCOSFPGET	_IOWR('D', 80, struct pf_osfp_ioctl)
-#define DIOCXBEGIN      _IOWR('D', 81, struct pfioc_trans)
-#define DIOCXCOMMIT     _IOWR('D', 82, struct pfioc_trans)
-#define DIOCXROLLBACK   _IOWR('D', 83, struct pfioc_trans)
-#define DIOCGETSRCNODES	_IOWR('D', 84, struct pfioc_src_nodes)
-#define DIOCCLRSRCNODES	_IO('D', 85)
-#define DIOCSETHOSTID	_IOWR('D', 86, u_int32_t)
-#define DIOCIGETIFACES	_IOWR('D', 87, struct pfioc_iface)
-#define DIOCSETIFFLAG	_IOWR('D', 89, struct pfioc_iface)
-#define DIOCCLRIFFLAG	_IOWR('D', 90, struct pfioc_iface)
-#define DIOCKILLSRCNODES	_IOWR('D', 91, struct pfioc_src_node_kill)
+#define	DIOCRINADEFINE	_IOWR('D', 77, struct pfioc_table)
+#define	DIOCOSFPFLUSH	_IO('D', 78)
+#define	DIOCOSFPADD	_IOWR('D', 79, struct pf_osfp_ioctl)
+#define	DIOCOSFPGET	_IOWR('D', 80, struct pf_osfp_ioctl)
+#define	DIOCXBEGIN	_IOWR('D', 81, struct pfioc_trans)
+#define	DIOCXCOMMIT	_IOWR('D', 82, struct pfioc_trans)
+#define	DIOCXROLLBACK	_IOWR('D', 83, struct pfioc_trans)
+#define	DIOCGETSRCNODES	_IOWR('D', 84, struct pfioc_src_nodes)
+#define	DIOCCLRSRCNODES	_IO('D', 85)
+#define	DIOCSETHOSTID	_IOWR('D', 86, u_int32_t)
+#define	DIOCIGETIFACES	_IOWR('D', 87, struct pfioc_iface)
+#define	DIOCSETIFFLAG	_IOWR('D', 89, struct pfioc_iface)
+#define	DIOCCLRIFFLAG	_IOWR('D', 90, struct pfioc_iface)
+#define	DIOCKILLSRCNODES	_IOWR('D', 91, struct pfioc_src_node_kill)
 #ifdef __FreeBSD__
 struct pf_ifspeed {
-	char                    ifname[IFNAMSIZ];
-	u_int32_t               baudrate;
+	char			ifname[IFNAMSIZ];
+	u_int32_t		baudrate;
 };
-#define DIOCGIFSPEED   _IOWR('D', 92, struct pf_ifspeed)
+#define	DIOCGIFSPEED	_IOWR('D', 92, struct pf_ifspeed)
 #endif
 
 #ifdef _KERNEL
@@ -2072,7 +2074,7 @@ int		 pfi_clear_flags(const char *, int);
 
 #ifdef __FreeBSD__
 int		 pf_match_tag(struct mbuf *, struct pf_rule *, int *,
-		     struct pf_mtag *);
+		    struct pf_mtag *);
 #else
 int		 pf_match_tag(struct mbuf *, struct pf_rule *, int *);
 #endif
@@ -2128,25 +2130,25 @@ struct pf_frent {
 
 struct pf_frcache {
 	LIST_ENTRY(pf_frcache) fr_next;
-	uint16_t        fr_off;
-	uint16_t        fr_end;
+	uint16_t		fr_off;
+	uint16_t		fr_end;
 };
 
 struct pf_fragment {
 	RB_ENTRY(pf_fragment) fr_entry;
 	TAILQ_ENTRY(pf_fragment) frag_next;
-	struct in_addr  fr_src;
-	struct in_addr  fr_dst;
-	u_int8_t        fr_p;           /* protocol of this fragment */
-	u_int8_t        fr_flags;       /* status flags */
-	u_int16_t       fr_id;          /* fragment id for reassemble */
-	u_int16_t       fr_max;         /* fragment data max */
-	u_int32_t       fr_timeout;
-#define fr_queue        fr_u.fru_queue
-#define fr_cache        fr_u.fru_cache
+	struct in_addr	fr_src;
+	struct in_addr	fr_dst;
+	u_int8_t	fr_p;		/* protocol of this fragment */
+	u_int8_t	fr_flags;	/* status flags */
+	u_int16_t	fr_id;		/* fragment id for reassemble */
+	u_int16_t	fr_max;		/* fragment data max */
+	u_int32_t	fr_timeout;
+#define	fr_queue	fr_u.fru_queue
+#define	fr_cache	fr_u.fru_cache
 	union {
-		LIST_HEAD(pf_fragq, pf_frent) fru_queue;        /* buffering */
-		LIST_HEAD(pf_cacheq, pf_frcache) fru_cache;     /* non-buf */
+		LIST_HEAD(pf_fragq, pf_frent) fru_queue;	/* buffering */
+		LIST_HEAD(pf_cacheq, pf_frcache) fru_cache;	/* non-buf */
 	} fr_u;
 };
 #endif /* (__FreeBSD__) */
@@ -2162,8 +2164,8 @@ VNET_DECLARE(struct pf_anchor,			 pf_main_anchor);
 #define pf_main_ruleset	V_pf_main_anchor.ruleset
 #endif
 #else
-extern struct pf_anchor_global  pf_anchors;
-extern struct pf_anchor        pf_main_anchor;
+extern struct pf_anchor_global	pf_anchors;
+extern struct pf_anchor		pf_main_anchor;
 #define pf_main_ruleset	pf_main_anchor.ruleset
 #endif
 
@@ -2218,8 +2220,8 @@ void			 pf_print_host(struct pf_addr *, u_int16_t, u_int8_t);
 void			 pf_step_into_anchor(int *, struct pf_ruleset **, int,
 			    struct pf_rule **, struct pf_rule **, int *);
 int			 pf_step_out_of_anchor(int *, struct pf_ruleset **,
-			     int, struct pf_rule **, struct pf_rule **,
-			     int *);
+			    int, struct pf_rule **, struct pf_rule **,
+			    int *);
 
 int			 pf_map_addr(u_int8_t, struct pf_rule *,
 			    struct pf_addr *, struct pf_addr *,

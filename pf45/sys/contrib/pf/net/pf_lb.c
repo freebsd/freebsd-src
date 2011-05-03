@@ -38,37 +38,37 @@
 #ifdef __FreeBSD__
 #include "opt_inet.h"
 #include "opt_inet6.h"
- 
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 #endif
- 
+
 #ifdef __FreeBSD__
 #include "opt_bpf.h"
 #include "opt_pf.h"
 
 #ifdef DEV_BPF
-#define        NBPFILTER       DEV_BPF
+#define	NBPFILTER	DEV_BPF
 #else
-#define        NBPFILTER       0
+#define	NBPFILTER	0
 #endif
- 
+
 #ifdef DEV_PFLOG
-#define        NPFLOG          DEV_PFLOG
+#define	NPFLOG		DEV_PFLOG
 #else
-#define        NPFLOG          0
+#define	NPFLOG		0
 #endif
- 
+
 #ifdef DEV_PFSYNC
-#define        NPFSYNC         DEV_PFSYNC
+#define	NPFSYNC		DEV_PFSYNC
 #else
-#define        NPFSYNC         0
+#define	NPFSYNC		0
 #endif
-  
+
 #ifdef DEV_PFLOW
-#define        NPFLOW          DEV_PFLOW
+#define	NPFLOW	DEV_PFLOW
 #else
-#define        NPFLOW          0
+#define	NPFLOW	0
 #endif
 
 #else
@@ -379,7 +379,7 @@ pf_get_sport(sa_family_t af, u_int8_t proto, struct pf_rule *r,
 				key.port[0] = htons(tmp);
 				if (pf_find_state_all(&key, PF_IN, NULL) ==
 #ifdef __FreeBSD__
-                                    NULL) {
+				    NULL) {
 #else
 				    NULL && !in_baddynamic(tmp, proto)) {
 #endif

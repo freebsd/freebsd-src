@@ -39,7 +39,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 #endif
- 
+
 #include <sys/param.h>
 #include <sys/socket.h>
 #ifdef _KERNEL
@@ -62,38 +62,38 @@ __FBSDID("$FreeBSD$");
 
 #ifdef _KERNEL
 #ifdef __FreeBSD__
-# define DPFPRINTF(format, x...)		\
+#define DPFPRINTF(format, x...)				\
 	if (V_pf_status.debug >= PF_DEBUG_NOISY)	\
 		printf(format , ##x)
 #else
-# define DPFPRINTF(format, x...)		\
-	if (pf_status.debug >= PF_DEBUG_NOISY)	\
+#define DPFPRINTF(format, x...)				\
+	if (pf_status.debug >= PF_DEBUG_NOISY)		\
 		printf(format , ##x)
 #endif
 #ifdef __FreeBSD__
- #define rs_malloc(x)           malloc(x, M_TEMP, M_NOWAIT|M_ZERO)
+#define rs_malloc(x)		malloc(x, M_TEMP, M_NOWAIT|M_ZERO)
 #else
 #define rs_malloc(x)		malloc(x, M_TEMP, M_WAITOK|M_CANFAIL|M_ZERO)
- #endif
+#endif
 #define rs_free(x)		free(x, M_TEMP)
 
 #else
 /* Userland equivalents so we can lend code to pfctl et al. */
 
-# include <arpa/inet.h>
-# include <errno.h>
-# include <stdio.h>
-# include <stdlib.h>
-# include <string.h>
-# define rs_malloc(x)		 calloc(1, x)
-# define rs_free(x)		 free(x)
+#include <arpa/inet.h>
+#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#define rs_malloc(x)		 calloc(1, x)
+#define rs_free(x)		 free(x)
 
-# ifdef PFDEBUG
-#  include <sys/stdarg.h>
-#  define DPFPRINTF(format, x...)	fprintf(stderr, format , ##x)
-# else
-#  define DPFPRINTF(format, x...)	((void)0)
-# endif /* PFDEBUG */
+#ifdef PFDEBUG
+#include <sys/stdarg.h>
+#define DPFPRINTF(format, x...)	fprintf(stderr, format , ##x)
+#else
+#define DPFPRINTF(format, x...)	((void)0)
+#endif /* PFDEBUG */
 #endif /* _KERNEL */
 
 #if defined(__FreeBSD__) && !defined(_KERNEL)

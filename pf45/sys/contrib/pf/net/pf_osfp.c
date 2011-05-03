@@ -25,7 +25,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/socket.h>
 #ifdef _KERNEL
-# include <sys/systm.h>
+#include <sys/systm.h>
 #ifndef __FreeBSD__
 #include <sys/pool.h>
 #endif
@@ -48,44 +48,44 @@ __FBSDID("$FreeBSD$");
 
 #ifdef _KERNEL
 #ifdef __FreeBSD__
-# define DPFPRINTF(format, x...)		\
+#define	DPFPRINTF(format, x...)		\
 	if (V_pf_status.debug >= PF_DEBUG_NOISY)	\
 		printf(format , ##x)
 #else
-# define DPFPRINTF(format, x...)		\
+#define	DPFPRINTF(format, x...)		\
 	if (pf_status.debug >= PF_DEBUG_NOISY)	\
 		printf(format , ##x)
 #endif
- #ifdef __FreeBSD__
- typedef uma_zone_t pool_t;
- #else
+#ifdef __FreeBSD__
+typedef uma_zone_t pool_t;
+#else
 typedef struct pool pool_t;
 #endif
 
 #else
 /* Userland equivalents so we can lend code to tcpdump et al. */
 
-# include <arpa/inet.h>
-# include <errno.h>
-# include <stdio.h>
-# include <stdlib.h>
-# include <string.h>
-# include <netdb.h>
-# define pool_t			int
-# define pool_get(pool, flags)	malloc(*(pool))
-# define pool_put(pool, item)	free(item)
-# define pool_init(pool, size, a, ao, f, m, p)	(*(pool)) = (size)
+#include <arpa/inet.h>
+#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <netdb.h>
+#define	pool_t			int
+#define	pool_get(pool, flags)	malloc(*(pool))
+#define	pool_put(pool, item)	free(item)
+#define	pool_init(pool, size, a, ao, f, m, p)	(*(pool)) = (size)
 
- # ifdef __FreeBSD__
- # define NTOHS(x) (x) = ntohs((u_int16_t)(x))
- # endif
+#ifdef __FreeBSD__
+#define	NTOHS(x) (x) = ntohs((u_int16_t)(x))
+#endif
 
-# ifdef PFDEBUG
-#  include <sys/stdarg.h>
-#  define DPFPRINTF(format, x...)	fprintf(stderr, format , ##x)
-# else
-#  define DPFPRINTF(format, x...)	((void)0)
-# endif /* PFDEBUG */
+#ifdef PFDEBUG
+#include <sys/stdarg.h>
+#define	DPFPRINTF(format, x...)	fprintf(stderr, format , ##x)
+#else
+#define	DPFPRINTF(format, x...)	((void)0)
+#endif /* PFDEBUG */
 #endif /* _KERNEL */
 
 
@@ -325,22 +325,22 @@ pf_osfp_match(struct pf_osfp_enlist *list, pf_osfp_t os)
 }
 
 /* Initialize the OS fingerprint system */
- #ifdef __FreeBSD__
- int
- #else
+#ifdef __FreeBSD__
+int
+#else
 void
 #endif
 pf_osfp_initialize(void)
 {
 #if defined(__FreeBSD__) && defined(_KERNEL)
-        int error = ENOMEM;
-        
-        do {
-                pf_osfp_entry_pl = pf_osfp_pl = NULL;
-                UMA_CREATE(pf_osfp_entry_pl, struct pf_osfp_entry, "pfospfen");
-                UMA_CREATE(pf_osfp_pl, struct pf_os_fingerprint, "pfosfp");
-                error = 0;
-        } while(0);
+	int error = ENOMEM;
+
+	do {
+		pf_osfp_entry_pl = pf_osfp_pl = NULL;
+		UMA_CREATE(pf_osfp_entry_pl, struct pf_osfp_entry, "pfospfen");
+		UMA_CREATE(pf_osfp_pl, struct pf_os_fingerprint, "pfosfp");
+		error = 0;
+	} while(0);
 
 	SLIST_INIT(&V_pf_osfp_list);
 #else
@@ -353,9 +353,9 @@ pf_osfp_initialize(void)
 
 #ifdef __FreeBSD__
 #ifdef _KERNEL
-        return (error);
+	return (error);
 #else
-        return (0);
+	return (0);
 #endif
 #endif
 }
@@ -364,11 +364,12 @@ pf_osfp_initialize(void)
 void
 pf_osfp_cleanup(void)
 {
-        UMA_DESTROY(pf_osfp_entry_pl);
-        UMA_DESTROY(pf_osfp_pl);
+
+	UMA_DESTROY(pf_osfp_entry_pl);
+	UMA_DESTROY(pf_osfp_pl);
 }
 #endif
- 
+
 /* Flush the fingerprint list */
 void
 pf_osfp_flush(void)
@@ -454,7 +455,7 @@ pf_osfp_add(struct pf_osfp_ioctl *fpioc)
 	} else {
 		if ((fp = pool_get(&pf_osfp_pl,
 #ifdef __FreeBSD__
-                    PR_NOWAIT)) == NULL)
+		    PR_NOWAIT)) == NULL)
 #else
 		    PR_WAITOK|PR_LIMITFAIL)) == NULL)
 #endif
@@ -471,7 +472,7 @@ pf_osfp_add(struct pf_osfp_ioctl *fpioc)
 		SLIST_INIT(&fp->fp_oses);
 		if ((entry = pool_get(&pf_osfp_entry_pl,
 #ifdef __FreeBSD__
-                    PR_NOWAIT)) == NULL) {
+		    PR_NOWAIT)) == NULL) {
 #else
 		    PR_WAITOK|PR_LIMITFAIL)) == NULL) {
 #endif
@@ -508,7 +509,7 @@ pf_osfp_find(struct pf_osfp_list *list, struct pf_os_fingerprint *find,
 {
 	struct pf_os_fingerprint *f;
 
-#define MATCH_INT(_MOD, _DC, _field)					\
+#define	MATCH_INT(_MOD, _DC, _field)					\
 	if ((f->fp_flags & _DC) == 0) {					\
 		if ((f->fp_flags & _MOD) == 0) {			\
 			if (f->_field != find->_field)			\
@@ -536,10 +537,11 @@ pf_osfp_find(struct pf_osfp_list *list, struct pf_os_fingerprint *find,
 				if (find->fp_mss == 0)
 					continue;
 
-/* Some "smart" NAT devices and DSL routers will tweak the MSS size and
+/*
+ * Some "smart" NAT devices and DSL routers will tweak the MSS size and
  * will set it to whatever is suitable for the link type.
  */
-#define SMART_MSS	1460
+#define	SMART_MSS	1460
 				if ((find->fp_wsize % find->fp_mss ||
 				    find->fp_wsize / find->fp_mss !=
 				    f->fp_wsize) &&
@@ -551,8 +553,8 @@ pf_osfp_find(struct pf_osfp_list *list, struct pf_os_fingerprint *find,
 				if (find->fp_mss == 0)
 					continue;
 
-#define MTUOFF	(sizeof(struct ip) + sizeof(struct tcphdr))
-#define SMART_MTU	(SMART_MSS + MTUOFF)
+#define	MTUOFF		(sizeof(struct ip) + sizeof(struct tcphdr))
+#define	SMART_MTU	(SMART_MSS + MTUOFF)
 				if ((find->fp_wsize % (find->fp_mss + MTUOFF) ||
 				    find->fp_wsize / (find->fp_mss + MTUOFF) !=
 				    f->fp_wsize) &&

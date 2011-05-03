@@ -164,23 +164,23 @@ struct node_queue_opt {
  * Absolutely this is not correct location to define this.
  * Should we use an another sperate header file?
  */
-#define        SIMPLEQ_HEAD                    STAILQ_HEAD
-#define        SIMPLEQ_HEAD_INITIALIZER        STAILQ_HEAD_INITIALIZER
-#define        SIMPLEQ_ENTRY                   STAILQ_ENTRY
-#define        SIMPLEQ_FIRST                   STAILQ_FIRST
-#define        SIMPLEQ_END(head)               NULL
-#define        SIMPLEQ_EMPTY                   STAILQ_EMPTY
-#define        SIMPLEQ_NEXT                    STAILQ_NEXT
-/*#define SIMPLEQ_FOREACH              STAILQ_FOREACH*/
-#define        SIMPLEQ_FOREACH(var, head, field)       \
-    for((var) = SIMPLEQ_FIRST(head);           \
-       (var) != SIMPLEQ_END(head);             \
-       (var) = SIMPLEQ_NEXT(var, field))
-#define        SIMPLEQ_INIT                    STAILQ_INIT
-#define        SIMPLEQ_INSERT_HEAD             STAILQ_INSERT_HEAD
-#define        SIMPLEQ_INSERT_TAIL             STAILQ_INSERT_TAIL
-#define        SIMPLEQ_INSERT_AFTER            STAILQ_INSERT_AFTER
-#define        SIMPLEQ_REMOVE_HEAD             STAILQ_REMOVE_HEAD
+#define	SIMPLEQ_HEAD			STAILQ_HEAD
+#define	SIMPLEQ_HEAD_INITIALIZER	STAILQ_HEAD_INITIALIZER
+#define	SIMPLEQ_ENTRY			STAILQ_ENTRY
+#define	SIMPLEQ_FIRST			STAILQ_FIRST
+#define	SIMPLEQ_END(head)		NULL
+#define	SIMPLEQ_EMPTY			STAILQ_EMPTY
+#define	SIMPLEQ_NEXT			STAILQ_NEXT
+/*#define	SIMPLEQ_FOREACH			STAILQ_FOREACH*/
+#define	SIMPLEQ_FOREACH(var, head, field)		\
+    for((var) = SIMPLEQ_FIRST(head);			\
+	(var) != SIMPLEQ_END(head);			\
+	(var) = SIMPLEQ_NEXT(var, field))
+#define	SIMPLEQ_INIT			STAILQ_INIT
+#define	SIMPLEQ_INSERT_HEAD		STAILQ_INSERT_HEAD
+#define	SIMPLEQ_INSERT_TAIL		STAILQ_INSERT_TAIL
+#define	SIMPLEQ_INSERT_AFTER		STAILQ_INSERT_AFTER
+#define	SIMPLEQ_REMOVE_HEAD		STAILQ_REMOVE_HEAD
 #endif
 SIMPLEQ_HEAD(node_tinithead, node_tinit);
 struct node_tinit {	/* table initializer */

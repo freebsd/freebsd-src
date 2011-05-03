@@ -278,7 +278,7 @@ pfctl_table(int argc, char *argv[], char *tname, const char *command,
 		PFRB_FOREACH(p, &b) {
 			((struct pfr_astats *)p)->pfras_a.pfra_fback = 0;
 			if (time(NULL) - ((struct pfr_astats *)p)->pfras_tzero >
-			     lifetime)
+			    lifetime)
 				if (pfr_buf_add(&b2,
 				    &((struct pfr_astats *)p)->pfras_a))
 					err(1, "duplicate buffer");
