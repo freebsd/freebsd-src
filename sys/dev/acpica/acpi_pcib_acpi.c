@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
+#include <sys/rman.h>
 #include <sys/sysctl.h>
 
 #include <contrib/dev/acpica/include/acpi.h>
@@ -370,11 +371,17 @@ acpi_pcib_acpi_alloc_resource(device_t dev, device_t child, int type, int *rid,
      * Hardcoding like this sucks, so a more MD/MI way needs to be
      * found to do it.  This is typically only used on older laptops
      * that don't have pci busses behind pci bridge, so assuming > 32MB
-     * is liekly OK.
+     * is likely OK.
+     *
+     * PCI-PCI bridges may allocate smaller ranges for their windows,
+     * but the heuristics here should apply to those, so we allow
+     * several different end addresses.
      */
-    if (type == SYS_RES_MEMORY && start == 0UL && end == ~0UL)
+    if (type == SYS_RES_MEMORY && start == 0UL && (end == ~0UL ||
+	end == 0xffffffff))
 	start = acpi_host_mem_start;
-    if (type == SYS_RES_IOPORT && start == 0UL && end == ~0UL)
+    if (type == SYS_RES_IOPORT && start == 0UL && (end == ~0UL ||
+	end == 0xffff || end == 0xffffffff))
 	start = 0x1000;
     return (bus_generic_alloc_resource(dev, child, type, rid, start, end,
 	count, flags));
