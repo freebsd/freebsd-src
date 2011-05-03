@@ -2813,7 +2813,6 @@ sctp_compose_asconf(struct sctp_tcb *stcb, int *retlen, int addr_locked)
 			lookup->ph.param_length = htons(SCTP_SIZE32(p_size));
 			memcpy(lookup->addr, addr_ptr, addr_size);
 			SCTP_BUF_LEN(m_asconf_chk) += SCTP_SIZE32(p_size);
-			lookup_used = 1;
 		} else {
 			/* uh oh... don't have any address?? */
 			SCTPDBG(SCTP_DEBUG_ASCONF1,
@@ -2823,7 +2822,6 @@ sctp_compose_asconf(struct sctp_tcb *stcb, int *retlen, int addr_locked)
 			lookup->ph.param_length = htons(SCTP_SIZE32(sizeof(struct sctp_ipv4addr_param)));
 			bzero(lookup->addr, sizeof(struct in_addr));
 			SCTP_BUF_LEN(m_asconf_chk) += SCTP_SIZE32(sizeof(struct sctp_ipv4addr_param));
-			lookup_used = 1;
 		}
 	}
 	/* chain it all together */
