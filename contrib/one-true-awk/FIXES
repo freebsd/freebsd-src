@@ -25,6 +25,32 @@ THIS SOFTWARE.
 This file lists all bug fixes, changes, etc., made since the AWK book
 was sent to the printers in August, 1987.
 
+May 1, 2011:
+	after advice from todd miller, kevin lo, ruslan ermilov,
+	and arnold robbins, changed srand() to return the previous
+	seed (which is 1 on the first call of srand).  the seed is
+	an Awkfloat internally though converted to unsigned int to
+	pass to the library srand().  thanks, everyone. 
+
+	fixed a subtle (and i hope low-probability) overflow error
+	in fldbld, by adding space for one extra \0.  thanks to 
+	robert bassett for spotting this one and providing a fix.
+
+	removed the files related to compilation on windows.  i no
+	longer have anything like a current windows environment, so
+	i can't test any of it.
+
+May 23, 2010:
+	fixed long-standing overflow bug in run.c; many thanks to
+	nelson beebe for spotting it and providing the fix.
+
+	fixed bug that didn't parse -vd=1 properly; thanks to santiago
+	vila for spotting it.
+
+Feb 8, 2010:
+	i give up.  replaced isblank with isspace in b.c; there are
+	no consistent header files.
+
 Nov 26, 2009:
 	fixed a long-standing issue with when FS takes effect.  a
 	change to FS is now noticed immediately for subsequent splits.
