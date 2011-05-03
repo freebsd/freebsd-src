@@ -113,11 +113,17 @@ DRIVER_MODULE(tlphy, miibus, tlphy_driver, tlphy_devclass, 0, 0);
 static int	tlphy_service(struct mii_softc *, struct mii_data *, int);
 static int	tlphy_auto(struct tlphy_softc *);
 static void	tlphy_acomp(struct tlphy_softc *);
-static void	tlphy_status(struct tlphy_softc *);
+static void	tlphy_status(struct mii_softc *);
 
 static const struct mii_phydesc tlphys[] = {
-	MII_PHY_DESC(xxTI, TLAN10T),
+	MII_PHY_DESC(TI, TLAN10T),
 	MII_PHY_END
+};
+
+static const struct mii_phy_funcs tlphy_funcs = {
+	tlphy_service,
+	tlphy_status,
+	mii_phy_reset
 };
 
 static int
@@ -134,24 +140,13 @@ static int
 tlphy_attach(device_t dev)
 {
 	device_t *devlist;
-	struct tlphy_softc *sc;
-	struct mii_softc *other;
-	struct mii_attach_args *ma;
-	struct mii_data *mii;
+	struct mii_softc *other, *sc_mii;
 	const char *sep = "";
 	int capmask, devs, i;
 
-	sc = device_get_softc(dev);
-	ma = device_get_ivars(dev);
-	sc->sc_mii.mii_dev = device_get_parent(dev);
-	mii = device_get_softc(sc->sc_mii.mii_dev);
-	LIST_INSERT_HEAD(&mii->mii_phys, &sc->sc_mii, mii_list);
+	sc_mii = device_get_softc(dev);
 
-	sc->sc_mii.mii_flags = miibus_get_flags(dev);
-	sc->sc_mii.mii_inst = mii->mii_instance;
-	sc->sc_mii.mii_phy = ma->mii_phyno;
-	sc->sc_mii.mii_service = tlphy_service;
-	sc->sc_mii.mii_pdata = mii;
+	mii_phy_dev_attach(dev, MIIF_NOMANPAUSE, &tlphy_funcs, 0);
 
 	/*
 	 * Note that if we're on a device that also supports 100baseTX,
@@ -160,8 +155,8 @@ tlphy_attach(device_t dev)
 	 * UTP connector.
 	 */
 	capmask = BMSR_DEFCAPMASK;
-	if (mii->mii_instance &&
-	    device_get_children(sc->sc_mii.mii_dev, &devlist, &devs) == 0) {
+	if (sc_mii->mii_inst &&
+	    device_get_children(sc_mii->mii_dev, &devlist, &devs) == 0) {
 		for (i = 0; i < devs; i++) {
 			if (devlist[i] != dev) {
 				other = device_get_softc(devlist[i]);
@@ -172,43 +167,38 @@ tlphy_attach(device_t dev)
 		free(devlist, M_TEMP);
 	}
 
-	mii->mii_instance++;
+	PHY_RESET(sc_mii);
 
-	mii_phy_reset(&sc->sc_mii);
+	sc_mii->mii_capabilities = PHY_READ(sc_mii, MII_BMSR) & capmask;
 
-	sc->sc_mii.mii_capabilities =
-	    PHY_READ(&sc->sc_mii, MII_BMSR) & capmask;
-
-#define	ADD(m, c)	ifmedia_add(&mii->mii_media, (m), (c), NULL)
-
-	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_10_T, IFM_LOOP, sc->sc_mii.mii_inst),
-	    MII_MEDIA_100_TX);
-
+#define	ADD(m, c)							\
+    ifmedia_add(&sc_mii->mii_pdata->mii_media, (m), (c), NULL)
 #define	PRINT(s)	printf("%s%s", sep, s); sep = ", "
 
-	if ((sc->sc_mii.mii_flags & (MIIF_MACPRIV0 | MIIF_MACPRIV1)) != 0 &&
-	    (sc->sc_mii.mii_capabilities & BMSR_MEDIAMASK) != 0)
+	if ((sc_mii->mii_flags & (MIIF_MACPRIV0 | MIIF_MACPRIV1)) != 0 &&
+	    (sc_mii->mii_capabilities & BMSR_MEDIAMASK) != 0)
 		device_printf(dev, " ");
-	if ((sc->sc_mii.mii_flags & MIIF_MACPRIV0) != 0) {
-		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_10_2, 0, sc->sc_mii.mii_inst),
+	if ((sc_mii->mii_flags & MIIF_MACPRIV0) != 0) {
+		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_10_2, 0, sc_mii->mii_inst),
 		    0);
 		PRINT("10base2/BNC");
 	}
-	if ((sc->sc_mii.mii_flags & MIIF_MACPRIV1) != 0) {
-		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_10_5, 0, sc->sc_mii.mii_inst),
+	if ((sc_mii->mii_flags & MIIF_MACPRIV1) != 0) {
+		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_10_5, 0, sc_mii->mii_inst),
 		    0);
 		PRINT("10base5/AUI");
 	}
-	if ((sc->sc_mii.mii_capabilities & BMSR_MEDIAMASK) != 0) {
+	if ((sc_mii->mii_capabilities & BMSR_MEDIAMASK) != 0) {
 		printf("%s", sep);
-		mii_phy_add_media(&sc->sc_mii);
+		mii_phy_add_media(sc_mii);
 	}
-	if ((sc->sc_mii.mii_flags & (MIIF_MACPRIV0 | MIIF_MACPRIV1)) != 0 &&
-	    (sc->sc_mii.mii_capabilities & BMSR_MEDIAMASK) != 0)
+	if ((sc_mii->mii_flags & (MIIF_MACPRIV0 | MIIF_MACPRIV1)) != 0 &&
+	    (sc_mii->mii_capabilities & BMSR_MEDIAMASK) != 0)
 		printf("\n");
 #undef ADD
 #undef PRINT
-	MIIBUS_MEDIAINIT(sc->sc_mii.mii_dev);
+
+	MIIBUS_MEDIAINIT(sc_mii->mii_dev);
 	return (0);
 }
 
@@ -287,13 +277,13 @@ tlphy_service(struct mii_softc *self, struct mii_data *mii, int cmd)
 			break;
 
 		sc->sc_mii.mii_ticks = 0;
-		mii_phy_reset(&sc->sc_mii);
+		PHY_RESET(&sc->sc_mii);
 		(void)tlphy_auto(sc);
 		return (0);
 	}
 
 	/* Update the media status. */
-	tlphy_status(sc);
+	PHY_STATUS(self);
 
 	/* Callback if something changed. */
 	mii_phy_update(&sc->sc_mii, cmd);
@@ -301,8 +291,9 @@ tlphy_service(struct mii_softc *self, struct mii_data *mii, int cmd)
 }
 
 static void
-tlphy_status(struct tlphy_softc *sc)
+tlphy_status(struct mii_softc *self)
 {
+	struct tlphy_softc *sc = (struct tlphy_softc *)self;
 	struct mii_data *mii = sc->sc_mii.mii_pdata;
 	int bmsr, bmcr, tlctrl;
 
@@ -338,7 +329,7 @@ tlphy_status(struct tlphy_softc *sc)
 	 * just have to report what's in the BMCR.
 	 */
 	if (bmcr & BMCR_FDX)
-		mii->mii_media_active |= IFM_FDX;
+		mii->mii_media_active |= IFM_FDX | mii_phy_flowstatus(self);
 	else
 		mii->mii_media_active |= IFM_HDX;
 	mii->mii_media_active |= IFM_10_T;

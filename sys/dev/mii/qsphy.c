@@ -109,8 +109,14 @@ static void	qsphy_reset(struct mii_softc *);
 static void	qsphy_status(struct mii_softc *);
 
 static const struct mii_phydesc qsphys[] = {
-	MII_PHY_DESC(QUALSEMI, QS6612),
+	MII_PHY_DESC(xxQUALSEMI, QS6612),
 	MII_PHY_END
+};
+
+static const struct mii_phy_funcs qsphy_funcs = {
+	qsphy_service,
+	qsphy_status,
+	qsphy_reset
 };
 
 static int
@@ -123,30 +129,8 @@ qsphy_probe(device_t dev)
 static int
 qsphy_attach(device_t dev)
 {
-	struct mii_softc *sc;
-	struct mii_attach_args *ma;
-	struct mii_data *mii;
 
-	sc = device_get_softc(dev);
-	ma = device_get_ivars(dev);
-	sc->mii_dev = device_get_parent(dev);
-	mii = ma->mii_data;
-	LIST_INSERT_HEAD(&mii->mii_phys, sc, mii_list);
-
-	sc->mii_flags = miibus_get_flags(dev);
-	sc->mii_inst = mii->mii_instance++;
-	sc->mii_phy = ma->mii_phyno;
-	sc->mii_service = qsphy_service;
-	sc->mii_pdata = mii;
-
-	qsphy_reset(sc);
-
-	sc->mii_capabilities = PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
-	device_printf(dev, " ");
-	mii_phy_add_media(sc);
-	printf("\n");
-
-	MIIBUS_MEDIAINIT(sc->mii_dev);
+	mii_phy_dev_attach(dev, MIIF_NOMANPAUSE, &qsphy_funcs, 1);
 	return (0);
 }
 
@@ -182,7 +166,7 @@ qsphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 	}
 
 	/* Update the media status. */
-	qsphy_status(sc);
+	PHY_STATUS(sc);
 
 	/* Callback if something changed. */
 	mii_phy_update(sc, cmd);
@@ -238,6 +222,8 @@ qsphy_status(struct mii_softc *sc)
 		mii->mii_media_active |= IFM_NONE;
 		break;
 	}
+	if ((mii->mii_media_active & IFM_FDX) != 0)
+		mii->mii_media_active |= mii_phy_flowstatus(sc);
 }
 
 static void

@@ -110,63 +110,31 @@ static int	nsphyter_service(struct mii_softc *, struct mii_data *, int);
 static void	nsphyter_status(struct mii_softc *);
 static void	nsphyter_reset(struct mii_softc *);
 
-static const struct mii_phydesc nsphys[] = {
-	MII_PHY_DESC(NATSEMI, DP83815),
-	MII_PHY_DESC(NATSEMI, DP83843),
-	MII_PHY_DESC(NATSEMI, DP83847),
+static const struct mii_phydesc nsphyters[] = {
+	MII_PHY_DESC(xxNATSEMI, DP83815),
+	MII_PHY_DESC(xxNATSEMI, DP83843),
+	MII_PHY_DESC(xxNATSEMI, DP83847),
 	MII_PHY_END
+};
+
+static const struct mii_phy_funcs nsphyter_funcs = {
+	nsphyter_service,
+	nsphyter_status,
+	nsphyter_reset
 };
 
 static int
 nsphyter_probe(device_t dev)
 {
 
-	return (mii_phy_dev_probe(dev, nsphys, BUS_PROBE_DEFAULT));
+	return (mii_phy_dev_probe(dev, nsphyters, BUS_PROBE_DEFAULT));
 }
 
 static int
 nsphyter_attach(device_t dev)
 {
-	struct mii_softc *sc;
-	struct mii_attach_args *ma;
-	struct mii_data *mii;
 
-	sc = device_get_softc(dev);
-	ma = device_get_ivars(dev);
-	sc->mii_dev = device_get_parent(dev);
-	mii = ma->mii_data;
-	LIST_INSERT_HEAD(&mii->mii_phys, sc, mii_list);
-
-	sc->mii_flags = miibus_get_flags(dev);
-	sc->mii_inst = mii->mii_instance++;
-	sc->mii_phy = ma->mii_phyno;
-	sc->mii_service = nsphyter_service;
-	sc->mii_pdata = mii;
-
-	sc->mii_flags |= MIIF_NOMANPAUSE;
-
-#if 1
-
-#define	ADD(m, c)	ifmedia_add(&mii->mii_media, (m), (c), NULL)
-
-	/*
-	 * XXX IFM_LOOP should be handled by mii_phy_add_media() based
-	 * on MIIF_NOLOOP.
-	 */
-	if ((sc->mii_flags & MIIF_NOLOOP) == 0)
-		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_TX, IFM_LOOP,
-		    sc->mii_inst), MII_MEDIA_100_TX);
-
-#endif
-
-	nsphyter_reset(sc);
-
-	sc->mii_capabilities = PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
-	device_printf(dev, " ");
-	mii_phy_add_media(sc);
-	printf("\n");
-
-	MIIBUS_MEDIAINIT(sc->mii_dev);
+	mii_phy_dev_attach(dev, MIIF_NOMANPAUSE, &nsphyter_funcs, 1);
 	return (0);
 }
 
@@ -195,7 +163,7 @@ nsphyter_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 	}
 
 	/* Update the media status. */
-	nsphyter_status(sc);
+	PHY_STATUS(sc);
 
 	/* Callback if something changed. */
 	mii_phy_update(sc, cmd);
