@@ -148,7 +148,8 @@ g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 			snprintf(buf, sizeof(buf), "%s%s",
 			    val, gp->name + len);
 			freeenv(val);
-			adev = make_dev_alias(dev, buf);
+			make_dev_alias_p(MAKEDEV_CHECKNAME | MAKEDEV_WAITOK,
+			    &adev, dev, "%s", buf);
 			break;
 		}
 	}
