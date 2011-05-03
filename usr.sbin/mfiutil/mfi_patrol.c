@@ -252,7 +252,8 @@ patrol_config(int ac, char **av)
 	if (strcasecmp(av[1], "auto") == 0) {
 		op_mode = MFI_PR_OPMODE_AUTO;
 		if (ac > 2) {
-			if (strcasecmp(av[2], "continously") == 0)
+			if (strcasecmp(av[2], "continously") == 0 ||
+			    strcasecmp(av[2], "continuously") == 0)
 				exec_freq = 0xffffffff;
 			else {
 				val = strtol(av[2], &cp, 0);
