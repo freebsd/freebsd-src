@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 12, 2011
+.Dd May 03, 2011
 .Dt GPART 8
 .Os
 .Sh NAME
@@ -91,6 +91,7 @@ utility:
 .Nm
 .Cm add
 .Fl t Ar type
+.Op Fl a Ar alignment
 .Op Fl b Ar start
 .Op Fl s Ar size
 .Op Fl i Ar index
@@ -148,6 +149,7 @@ utility:
 .Nm
 .Cm resize
 .Fl i Ar index
+.Op Fl a Ar alignment
 .Op Fl s Ar size
 .Op Fl f Ar flags
 .Ar geom
@@ -209,7 +211,17 @@ Partition types are discussed below in the section entitled
 .Sx "PARTITION TYPES" .
 .Pp
 Additional options include:
-.Bl -tag -width 10n
+.Bl -tag -width 12n
+.It Fl a Ar alignment
+If specified, then
+.Nm
+utility tries to align
+.Ar start
+offset and partition
+.Ar size
+to be multiple of
+.Ar alignment
+value.
 .It Fl i Ar index
 The index in the partition table at which the new partition is to be
 placed.
@@ -416,7 +428,15 @@ to maximum available from given geom
 .Ar geom .
 .Pp
 Additional options include:
-.Bl -tag -width 10n
+.Bl -tag -width 12n
+.It Fl a Ar alignment
+If specified, then
+.Nm
+utility tries to align partition
+.Ar size
+to be multiple of
+.Ar alignment
+value.
 .It Fl f Ar flags
 Additional operational flags.
 See the section entitled
@@ -832,6 +852,13 @@ Create a 512MB-sized
 partition that would contain UFS where the system boots from.
 .Bd -literal -offset indent
 /sbin/gpart add -s 512M -t freebsd-ufs da0
+.Ed
+.Pp
+Create a 15GB-sized
+.Cm freebsd-ufs
+partition that would contain UFS and aligned on 4KB boundaries:
+.Bd -literal -offset indent
+/sbin/gpart add -s 15G -t freebsd-ufs -a 4k da0
 .Ed
 .Pp
 After having created all required partitions, embed bootstrap code into them.

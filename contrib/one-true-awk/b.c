@@ -752,7 +752,7 @@ Node *unary(Node *np)
 /* #define HAS_ISBLANK */
 #ifndef HAS_ISBLANK
 
-int (isblank)(int c)
+int (xisblank)(int c)
 {
 	return c==' ' || c=='\t';
 }
@@ -766,7 +766,11 @@ struct charclass {
 } charclasses[] = {
 	{ "alnum",	5,	isalnum },
 	{ "alpha",	5,	isalpha },
+#ifndef HAS_ISBLANK
+	{ "blank",	5,	isspace }, /* was isblank */
+#else
 	{ "blank",	5,	isblank },
+#endif
 	{ "cntrl",	5,	iscntrl },
 	{ "digit",	5,	isdigit },
 	{ "graph",	5,	isgraph },
