@@ -1,4 +1,4 @@
-/* $Id: bsd-misc.h,v 1.18 2005/02/25 23:07:38 dtucker Exp $ */
+/* $Id: bsd-misc.h,v 1.19 2010/11/08 22:26:23 tim Exp $ */
 
 /*
  * Copyright (c) 1999-2004 Damien Miller <djm@mindrot.org>
@@ -94,5 +94,9 @@ typedef void (*mysig_t)(int);
 mysig_t mysignal(int sig, mysig_t act);
 
 #define signal(a,b) mysignal(a,b)
+
+#ifndef HAVE_ISBLANK
+int	isblank(int);
+#endif
 
 #endif /* _BSD_MISC_H */

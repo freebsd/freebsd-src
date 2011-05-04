@@ -1,4 +1,4 @@
-/* $OpenBSD: servconf.c,v 1.209 2010/06/22 04:22:59 djm Exp $ */
+/* $OpenBSD: servconf.c,v 1.213 2010/11/13 23:27:50 djm Exp $ */
 /*
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
@@ -15,6 +15,10 @@ __RCSID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/socket.h>
+
+#include <netinet/in.h>
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
 
 #include <netdb.h>
 #include <pwd.h>
@@ -111,6 +115,7 @@ initialize_server_options(ServerOptions *options)
 	options->num_deny_groups = 0;
 	options->ciphers = NULL;
 	options->macs = NULL;
+	options->kex_algorithms = NULL;
 	options->protocol = SSH_PROTO_UNKNOWN;
 	options->gateway_ports = -1;
 	options->num_subsystems = 0;
@@ -134,6 +139,8 @@ initialize_server_options(ServerOptions *options)
 	options->revoked_keys_file = NULL;
 	options->trusted_user_ca_keys = NULL;
 	options->authorized_principals_file = NULL;
+	options->ip_qos_interactive = -1;
+	options->ip_qos_bulk = -1;
 }
 
 void
@@ -156,6 +163,10 @@ fill_default_server_options(ServerOptions *options)
                             _PATH_HOST_RSA_KEY_FILE;
 			options->host_key_files[options->num_host_key_files++] =
 			    _PATH_HOST_DSA_KEY_FILE;
+#ifdef OPENSSL_HAS_ECC
+			options->host_key_files[options->num_host_key_files++] =
+			    _PATH_HOST_ECDSA_KEY_FILE;
+#endif
 		}
 	}
 	/* No certificates by default */
@@ -258,16 +269,20 @@ fill_default_server_options(ServerOptions *options)
 	if (options->authorized_keys_file2 == NULL) {
 		/* authorized_keys_file2 falls back to authorized_keys_file */
 		if (options->authorized_keys_file != NULL)
-			options->authorized_keys_file2 = options->authorized_keys_file;
+			options->authorized_keys_file2 = xstrdup(options->authorized_keys_file);
 		else
-			options->authorized_keys_file2 = _PATH_SSH_USER_PERMITTED_KEYS2;
+			options->authorized_keys_file2 = xstrdup(_PATH_SSH_USER_PERMITTED_KEYS2);
 	}
 	if (options->authorized_keys_file == NULL)
-		options->authorized_keys_file = _PATH_SSH_USER_PERMITTED_KEYS;
+		options->authorized_keys_file = xstrdup(_PATH_SSH_USER_PERMITTED_KEYS);
 	if (options->permit_tun == -1)
 		options->permit_tun = SSH_TUNMODE_NO;
 	if (options->zero_knowledge_password_authentication == -1)
 		options->zero_knowledge_password_authentication = 0;
+	if (options->ip_qos_interactive == -1)
+		options->ip_qos_interactive = IPTOS_LOWDELAY;
+	if (options->ip_qos_bulk == -1)
+		options->ip_qos_bulk = IPTOS_THROUGHPUT;
 
 	/* Turn privilege separation on by default */
 	if (use_privsep == -1)
@@ -314,6 +329,7 @@ typedef enum {
 	sUsePrivilegeSeparation, sAllowAgentForwarding,
 	sZeroKnowledgePasswordAuthentication, sHostCertificate,
 	sRevokedKeys, sTrustedUserCAKeys, sAuthorizedPrincipalsFile,
+	sKexAlgorithms, sIPQoS,
 	sVersionAddendum,
 	sDeprecated, sUnsupported
 } ServerOpCodes;
@@ -437,6 +453,8 @@ static struct {
 	{ "revokedkeys", sRevokedKeys, SSHCFG_ALL },
 	{ "trustedusercakeys", sTrustedUserCAKeys, SSHCFG_ALL },
 	{ "authorizedprincipalsfile", sAuthorizedPrincipalsFile, SSHCFG_ALL },
+	{ "kexalgorithms", sKexAlgorithms, SSHCFG_GLOBAL },
+	{ "ipqos", sIPQoS, SSHCFG_ALL },
 	{ "versionaddendum", sVersionAddendum, SSHCFG_GLOBAL },
 	{ NULL, sBadOption, 0 }
 };
@@ -667,7 +685,7 @@ process_server_config_line(ServerOptions *options, char *line,
     const char *host, const char *address)
 {
 	char *cp, **charptr, *arg, *p;
-	int cmdline = 0, *intptr, value, n;
+	int cmdline = 0, *intptr, value, value2, n;
 	SyslogFacility *log_facility_ptr;
 	LogLevel *log_level_ptr;
 	ServerOpCodes opcode;
@@ -1133,6 +1151,18 @@ process_server_config_line(ServerOptions *options, char *line,
 			options->macs = xstrdup(arg);
 		break;
 
+	case sKexAlgorithms:
+		arg = strdelim(&cp);
+		if (!arg || *arg == '\0')
+			fatal("%s line %d: Missing argument.",
+			    filename, linenum);
+		if (!kex_names_valid(arg))
+			fatal("%s line %d: Bad SSH2 KexAlgorithms '%s'.",
+			    filename, linenum, arg ? arg : "<NONE>");
+		if (options->kex_algorithms == NULL)
+			options->kex_algorithms = xstrdup(arg);
+		break;
+
 	case sProtocol:
 		intptr = &options->protocol;
 		arg = strdelim(&cp);
@@ -1355,11 +1385,28 @@ process_server_config_line(ServerOptions *options, char *line,
 		charptr = &options->revoked_keys_file;
 		goto parse_filename;
 
+	case sIPQoS:
+		arg = strdelim(&cp);
+		if ((value = parse_ipqos(arg)) == -1)
+			fatal("%s line %d: Bad IPQoS value: %s",
+			    filename, linenum, arg);
+		arg = strdelim(&cp);
+		if (arg == NULL)
+			value2 = value;
+		else if ((value2 = parse_ipqos(arg)) == -1)
+			fatal("%s line %d: Bad IPQoS value: %s",
+			    filename, linenum, arg);
+		if (*activep) {
+			options->ip_qos_interactive = value;
+			options->ip_qos_bulk = value2;
+		}
+		break;
+
 	case sVersionAddendum:
-                ssh_version_set_addendum(strtok(cp, "\n"));
-                do {
-                        arg = strdelim(&cp);
-                } while (arg != NULL && *arg != '\0');
+		ssh_version_set_addendum(strtok(cp, "\n"));
+		do {
+			arg = strdelim(&cp);
+		} while (arg != NULL && *arg != '\0');
 		break;
 
 	case sDeprecated:
@@ -1472,6 +1519,8 @@ copy_set_server_options(ServerOptions *dst, ServerOptions *src, int preauth)
 	M_CP_INTOPT(x11_use_localhost);
 	M_CP_INTOPT(max_sessions);
 	M_CP_INTOPT(max_authtries);
+	M_CP_INTOPT(ip_qos_interactive);
+	M_CP_INTOPT(ip_qos_bulk);
 
 	M_CP_STROPT(banner);
 	if (preauth)
@@ -1736,6 +1785,8 @@ dump_config(ServerOptions *o)
 			break;
 		}
 	dump_cfg_string(sPermitTunnel, s);
+
+	printf("ipqos 0x%02x 0x%02x\n", o->ip_qos_interactive, o->ip_qos_bulk);
 
 	channel_print_adm_permitted_opens();
 }
