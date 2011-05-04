@@ -1,6 +1,9 @@
 /* config.h.  Generated from config.h.in by configure.  */
 /* config.h.in.  Generated from configure.ac by autoheader.  */
 
+/* Define if building universal (internal helper macro) */
+/* #undef AC_APPLE_UNIVERSAL_BUILD */
+
 /* Define if you have a getaddrinfo that fails for the all-zeros IPv6 address
    */
 /* #undef AIX_GETNAMEINFO_HACK */
@@ -81,9 +84,6 @@
 /* Define if you want to specify the path to your lastlog file */
 /* #undef CONF_LASTLOG_FILE */
 
-/* Define if you want to specify the path to your utmpx file */
-/* #undef CONF_UTMPX_FILE */
-
 /* Define if you want to specify the path to your utmp file */
 /* #undef CONF_UTMP_FILE */
 
@@ -129,6 +129,9 @@
 /* Builtin PRNG command timeout */
 #define ENTROPY_TIMEOUT_MSEC 200
 
+/* File names may not contain backslash characters */
+/* #undef FILESYSTEM_NO_BACKSLASH */
+
 /* fsid_t has member val */
 /* #undef FSID_HAS_VAL */
 
@@ -146,6 +149,9 @@
 
 /* Define if your system glob() function has gl_matchc options in glob_t */
 #define GLOB_HAS_GL_MATCHC 1
+
+/* Define if your system glob() function has gl_statv options in glob_t */
+/* #undef GLOB_HAS_GL_STATV */
 
 /* Define this if you want GSSAPI support in the version 2 protocol */
 /* #undef GSSAPI */
@@ -206,6 +212,9 @@
 
 /* Define to 1 if you have the `bindresvport_sa' function. */
 #define HAVE_BINDRESVPORT_SA 1
+
+/* Define to 1 if you have the `BN_is_prime_ex' function. */
+#define HAVE_BN_IS_PRIME_EX 1
 
 /* Define to 1 if you have the <bsm/audit.h> header file. */
 /* #undef HAVE_BSM_AUDIT_H */
@@ -314,6 +323,9 @@
 
 /* Define to 1 if you have the `dirname' function. */
 #define HAVE_DIRNAME 1
+
+/* Define to 1 if you have the `DSA_generate_parameters_ex' function. */
+#define HAVE_DSA_GENERATE_PARAMETERS_EX 1
 
 /* Define to 1 if you have the <endian.h> header file. */
 /* #undef HAVE_ENDIAN_H */
@@ -537,8 +549,14 @@
 /* Define to 1 if the system has the type `in_port_t'. */
 #define HAVE_IN_PORT_T 1
 
+/* Define if you have isblank(3C). */
+#define HAVE_ISBLANK 1
+
 /* Define to 1 if you have the <lastlog.h> header file. */
 /* #undef HAVE_LASTLOG_H */
+
+/* Define to 1 if you have the <libaudit.h> header file. */
+/* #undef HAVE_LIBAUDIT_H */
 
 /* Define to 1 if you have the `bsm' library (-lbsm). */
 /* #undef HAVE_LIBBSM */
@@ -742,6 +760,12 @@
 /* Define to 1 if you have the `rresvport_af' function. */
 #define HAVE_RRESVPORT_AF 1
 
+/* Define to 1 if you have the `RSA_generate_key_ex' function. */
+#define HAVE_RSA_GENERATE_KEY_EX 1
+
+/* Define to 1 if you have the `RSA_get_default_method' function. */
+#define HAVE_RSA_GET_DEFAULT_METHOD 1
+
 /* define if you have sa_family_t data type */
 #define HAVE_SA_FAMILY_T 1
 
@@ -928,13 +952,13 @@
 /* define if you have struct sockaddr_in6 data type */
 #define HAVE_STRUCT_SOCKADDR_IN6 1
 
-/* Define to 1 if `sin6_scope_id' is member of `struct sockaddr_in6'. */
+/* Define to 1 if `sin6_scope_id' is a member of `struct sockaddr_in6'. */
 #define HAVE_STRUCT_SOCKADDR_IN6_SIN6_SCOPE_ID 1
 
 /* define if you have struct sockaddr_storage data type */
 #define HAVE_STRUCT_SOCKADDR_STORAGE 1
 
-/* Define to 1 if `st_blksize' is member of `struct stat'. */
+/* Define to 1 if `st_blksize' is a member of `struct stat'. */
 #define HAVE_STRUCT_STAT_ST_BLKSIZE 1
 
 /* Define to 1 if the system has the type `struct timespec'. */
@@ -1047,6 +1071,9 @@
 
 /* Define if you have ut_time in utmpx.h */
 /* #undef HAVE_TIME_IN_UTMPX */
+
+/* Define to 1 if you have the `timingsafe_bcmp' function. */
+/* #undef HAVE_TIMINGSAFE_BCMP */
 
 /* Define to 1 if you have the <tmpdir.h> header file. */
 /* #undef HAVE_TMPDIR_H */
@@ -1263,6 +1290,9 @@
 /* Define if EVP_DigestUpdate returns void */
 /* #undef OPENSSL_EVP_DIGESTUPDATE_VOID */
 
+/* libcrypto includes complete ECC support */
+#define OPENSSL_HAS_ECC 1
+
 /* libcrypto is missing AES 192 and 256 bit functions */
 /* #undef OPENSSL_LOBOTOMISED_AES */
 
@@ -1280,6 +1310,9 @@
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "openssh"
+
+/* Define to the home page for this package. */
+#define PACKAGE_URL ""
 
 /* Define to the version of this package. */
 #define PACKAGE_VERSION "Portable"
@@ -1394,6 +1427,9 @@
 /* Use libedit for sftp */
 #define USE_LIBEDIT 1
 
+/* Use Linux audit module */
+/* #undef USE_LINUX_AUDIT */
+
 /* Enable OpenSSL engine support */
 #define USE_OPENSSL_ENGINE 1
 
@@ -1405,6 +1441,9 @@
 
 /* Define if you have Solaris process contracts */
 /* #undef USE_SOLARIS_PROCESS_CONTRACTS */
+
+/* Define if you have Solaris projects */
+/* #undef USE_SOLARIS_PROJECTS */
 
 /* Define if you shouldn't strip 'tty' from your ttyname in [uw]tmp */
 /* #undef WITH_ABBREV_NO_TTY */
@@ -1429,7 +1468,7 @@
 /* #undef WITH_SELINUX */
 
 /* Define WORDS_BIGENDIAN to 1 if your processor stores words with the most
-   significant byte first (like Motorola and SPARC, unlike Intel and VAX). */
+   significant byte first (like Motorola and SPARC, unlike Intel). */
 #if defined __BIG_ENDIAN__
 # define WORDS_BIGENDIAN 1
 #elif ! defined __LITTLE_ENDIAN__

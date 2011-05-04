@@ -1,7 +1,5 @@
-.\"	$OpenBSD: ssh-keygen.1,v 1.98 2010/08/04 06:07:11 djm Exp $
+.\"	$OpenBSD: ssh-keygen.1,v 1.101 2010/10/28 18:33:28 jmc Exp $
 .\"	$FreeBSD$
-.\"
-.\"  -*- nroff -*-
 .\"
 .\" Author: Tatu Ylonen <ylo@cs.hut.fi>
 .\" Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -38,7 +36,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd August 4, 2010
+.Dd October 28, 2010
 .Dt SSH-KEYGEN 1
 .Os
 .Sh NAME
@@ -126,7 +124,7 @@
 generates, manages and converts authentication keys for
 .Xr ssh 1 .
 .Nm
-can create RSA keys for use by SSH protocol version 1 and RSA or DSA
+can create RSA keys for use by SSH protocol version 1 and DSA, ECDSA or RSA
 keys for use by SSH protocol version 2.
 The type of key to be generated is specified with the
 .Fl t
@@ -143,9 +141,10 @@ See the
 section for details.
 .Pp
 Normally each user wishing to use SSH
-with RSA or DSA authentication runs this once to create the authentication
+with public key authentication runs this once to create the authentication
 key in
 .Pa ~/.ssh/identity ,
+.Pa ~/.ssh/id_ecdsa ,
 .Pa ~/.ssh/id_dsa
 or
 .Pa ~/.ssh/id_rsa .
@@ -427,9 +426,10 @@ Specifies the type of key to create.
 The possible values are
 .Dq rsa1
 for protocol version 1 and
-.Dq rsa
+.Dq dsa ,
+.Dq ecdsa
 or
-.Dq dsa
+.Dq rsa
 for protocol version 2.
 .It Fl V Ar validity_interval
 Specify a validity interval when signing a certificate.
@@ -606,18 +606,19 @@ or
 .Xr ssh 1 .
 Please refer to those manual pages for details.
 .Sh FILES
-.Bl -tag -width Ds
+.Bl -tag -width Ds -compact
 .It Pa ~/.ssh/identity
 Contains the protocol version 1 RSA authentication identity of the user.
 This file should not be readable by anyone but the user.
 It is possible to
 specify a passphrase when generating the key; that passphrase will be
-used to encrypt the private part of this file using 128-bit AES.
+used to encrypt the private part of this file using 3DES.
 This file is not automatically accessed by
 .Nm
 but it is offered as the default file for the private key.
 .Xr ssh 1
 will read this file when a login attempt is made.
+.Pp
 .It Pa ~/.ssh/identity.pub
 Contains the protocol version 1 RSA public key for authentication.
 The contents of this file should be added to
@@ -625,26 +626,11 @@ The contents of this file should be added to
 on all machines
 where the user wishes to log in using RSA authentication.
 There is no need to keep the contents of this file secret.
+.Pp
 .It Pa ~/.ssh/id_dsa
-Contains the protocol version 2 DSA authentication identity of the user.
-This file should not be readable by anyone but the user.
-It is possible to
-specify a passphrase when generating the key; that passphrase will be
-used to encrypt the private part of this file using 128-bit AES.
-This file is not automatically accessed by
-.Nm
-but it is offered as the default file for the private key.
-.Xr ssh 1
-will read this file when a login attempt is made.
-.It Pa ~/.ssh/id_dsa.pub
-Contains the protocol version 2 DSA public key for authentication.
-The contents of this file should be added to
-.Pa ~/.ssh/authorized_keys
-on all machines
-where the user wishes to log in using public key authentication.
-There is no need to keep the contents of this file secret.
+.It Pa ~/.ssh/id_ecdsa
 .It Pa ~/.ssh/id_rsa
-Contains the protocol version 2 RSA authentication identity of the user.
+Contains the protocol version 2 DSA, ECDSA or RSA authentication identity of the user.
 This file should not be readable by anyone but the user.
 It is possible to
 specify a passphrase when generating the key; that passphrase will be
@@ -654,13 +640,17 @@ This file is not automatically accessed by
 but it is offered as the default file for the private key.
 .Xr ssh 1
 will read this file when a login attempt is made.
+.Pp
+.It Pa ~/.ssh/id_dsa.pub
+.It Pa ~/.ssh/id_ecdsa.pub
 .It Pa ~/.ssh/id_rsa.pub
-Contains the protocol version 2 RSA public key for authentication.
+Contains the protocol version 2 DSA, ECDSA or RSA public key for authentication.
 The contents of this file should be added to
 .Pa ~/.ssh/authorized_keys
 on all machines
 where the user wishes to log in using public key authentication.
 There is no need to keep the contents of this file secret.
+.Pp
 .It Pa /etc/moduli
 Contains Diffie-Hellman groups used for DH-GEX.
 The file format is described in

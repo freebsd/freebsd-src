@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp-server.c,v 1.91 2010/01/13 01:40:16 djm Exp $ */
+/* $OpenBSD: sftp-server.c,v 1.93 2010/12/04 00:18:01 djm Exp $ */
 /*
  * Copyright (c) 2000-2004 Markus Friedl.  All rights reserved.
  *
@@ -535,6 +535,9 @@ process_init(void)
 	/* fstatvfs extension */
 	buffer_put_cstring(&msg, "fstatvfs@openssh.com");
 	buffer_put_cstring(&msg, "2"); /* version */
+	/* hardlink extension */
+	buffer_put_cstring(&msg, "hardlink@openssh.com");
+	buffer_put_cstring(&msg, "1"); /* version */
 	send_msg(&msg);
 	buffer_free(&msg);
 }
@@ -1223,6 +1226,27 @@ process_extended_fstatvfs(u_int32_t id)
 }
 
 static void
+process_extended_hardlink(u_int32_t id)
+{
+	char *oldpath, *newpath;
+	int ret, status;
+
+	oldpath = get_string(NULL);
+	newpath = get_string(NULL);
+	debug3("request %u: hardlink", id);
+	logit("hardlink old \"%s\" new \"%s\"", oldpath, newpath);
+	if (readonly)
+		status = SSH2_FX_PERMISSION_DENIED;
+	else {
+		ret = link(oldpath, newpath);
+		status = (ret == -1) ? errno_to_portable(errno) : SSH2_FX_OK;
+	}
+	send_status(id, status);
+	xfree(oldpath);
+	xfree(newpath);
+}
+
+static void
 process_extended(void)
 {
 	u_int32_t id;
@@ -1236,6 +1260,8 @@ process_extended(void)
 		process_extended_statvfs(id);
 	else if (strcmp(request, "fstatvfs@openssh.com") == 0)
 		process_extended_fstatvfs(id);
+	else if (strcmp(request, "hardlink@openssh.com") == 0)
+		process_extended_hardlink(id);
 	else
 		send_status(id, SSH2_FX_OP_UNSUPPORTED);	/* MUST */
 	xfree(request);
@@ -1377,8 +1403,7 @@ sftp_server_main(int argc, char **argv, struct passwd *user_pw)
 	ssize_t len, olen, set_size;
 	SyslogFacility log_facility = SYSLOG_FACILITY_AUTH;
 	char *cp, buf[4*4096];
-	const char *errmsg;
-	mode_t mask;
+	long mask;
 
 	extern char *optarg;
 	extern char *__progname;
@@ -1412,11 +1437,12 @@ sftp_server_main(int argc, char **argv, struct passwd *user_pw)
 				error("Invalid log facility \"%s\"", optarg);
 			break;
 		case 'u':
-			mask = (mode_t)strtonum(optarg, 0, 0777, &errmsg);
-			if (errmsg != NULL)
-				fatal("Invalid umask \"%s\": %s",
-				    optarg, errmsg);
-			(void)umask(mask);
+			errno = 0;
+			mask = strtol(optarg, &cp, 8);
+			if (mask < 0 || mask > 0777 || *cp != '\0' ||
+			    cp == optarg || (mask == 0 && errno != 0))
+				fatal("Invalid umask \"%s\"", optarg);
+			(void)umask((mode_t)mask);
 			break;
 		case 'h':
 		default:

@@ -1,4 +1,4 @@
-/* $OpenBSD: atomicio.c,v 1.25 2007/06/25 12:02:27 dtucker Exp $ */
+/* $OpenBSD: atomicio.c,v 1.26 2010/09/22 22:58:51 djm Exp $ */
 /*
  * Copyright (c) 2006 Damien Miller. All rights reserved.
  * Copyright (c) 2005 Anil Madhavapeddy. All rights reserved.
@@ -48,7 +48,8 @@
  * ensure all of data on socket comes through. f==read || f==vwrite
  */
 size_t
-atomicio(ssize_t (*f) (int, void *, size_t), int fd, void *_s, size_t n)
+atomicio6(ssize_t (*f) (int, void *, size_t), int fd, void *_s, size_t n,
+    int (*cb)(void *, size_t), void *cb_arg)
 {
 	char *s = _s;
 	size_t pos = 0;
@@ -73,17 +74,28 @@ atomicio(ssize_t (*f) (int, void *, size_t), int fd, void *_s, size_t n)
 			return pos;
 		default:
 			pos += (size_t)res;
+			if (cb != NULL && cb(cb_arg, (size_t)res) == -1) {
+				errno = EINTR;
+				return pos;
+			}
 		}
 	}
-	return (pos);
+	return pos;
+}
+
+size_t
+atomicio(ssize_t (*f) (int, void *, size_t), int fd, void *_s, size_t n)
+{
+	return atomicio6(f, fd, _s, n, NULL, NULL);
 }
 
 /*
  * ensure all of data on socket comes through. f==readv || f==writev
  */
 size_t
-atomiciov(ssize_t (*f) (int, const struct iovec *, int), int fd,
-    const struct iovec *_iov, int iovcnt)
+atomiciov6(ssize_t (*f) (int, const struct iovec *, int), int fd,
+    const struct iovec *_iov, int iovcnt,
+    int (*cb)(void *, size_t), void *cb_arg)
 {
 	size_t pos = 0, rem;
 	ssize_t res;
@@ -137,6 +149,17 @@ atomiciov(ssize_t (*f) (int, const struct iovec *, int), int fd,
 			iov[0].iov_base = ((char *)iov[0].iov_base) + rem;
 			iov[0].iov_len -= rem;
 		}
+		if (cb != NULL && cb(cb_arg, (size_t)res) == -1) {
+			errno = EINTR;
+			return pos;
+		}
 	}
 	return pos;
+}
+
+size_t
+atomiciov(ssize_t (*f) (int, const struct iovec *, int), int fd,
+    const struct iovec *_iov, int iovcnt)
+{
+	return atomiciov6(f, fd, _iov, iovcnt, NULL, NULL);
 }

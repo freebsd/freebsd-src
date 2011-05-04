@@ -53,13 +53,6 @@ __FBSDID("$FreeBSD$");
 static int atphy_probe(device_t);
 static int atphy_attach(device_t);
 
-struct atphy_softc {
-	struct mii_softc mii_sc;
-	int mii_oui;
-	int mii_model;
-	int mii_rev;
-};
-
 static device_method_t atphy_methods[] = {
 	/* Device interface. */
 	DEVMETHOD(device_probe,		atphy_probe),
@@ -73,7 +66,7 @@ static devclass_t atphy_devclass;
 static driver_t atphy_driver = {
 	"atphy",
 	atphy_methods,
-	sizeof(struct atphy_softc)
+	sizeof(struct mii_softc)
 };
 
 DRIVER_MODULE(atphy, miibus, atphy_driver, atphy_devclass, 0, 0);
@@ -85,10 +78,16 @@ static uint16_t	atphy_anar(struct ifmedia_entry *);
 static int	atphy_setmedia(struct mii_softc *, int);
 
 static const struct mii_phydesc atphys[] = {
-	MII_PHY_DESC(ATHEROS, F1),
-	MII_PHY_DESC(ATHEROS, F1_7),
-	MII_PHY_DESC(ATHEROS, F2),
+	MII_PHY_DESC(xxATHEROS, F1),
+	MII_PHY_DESC(xxATHEROS, F1_7),
+	MII_PHY_DESC(xxATHEROS, F2),
 	MII_PHY_END
+};
+
+static const struct mii_phy_funcs atphy_funcs = {
+	atphy_service,
+	atphy_status,
+	atphy_reset
 };
 
 static int
@@ -101,41 +100,8 @@ atphy_probe(device_t dev)
 static int
 atphy_attach(device_t dev)
 {
-	struct atphy_softc *asc;
-	struct mii_softc *sc;
-	struct mii_attach_args *ma;
-	struct mii_data *mii;
 
-	asc = device_get_softc(dev);
-	sc = &asc->mii_sc;
-	ma = device_get_ivars(dev);
-	sc->mii_dev = device_get_parent(dev);
-	mii = ma->mii_data;
-	LIST_INSERT_HEAD(&mii->mii_phys, sc, mii_list);
-
-	sc->mii_flags = miibus_get_flags(dev);
-	sc->mii_inst = mii->mii_instance++;
-	sc->mii_phy = ma->mii_phyno;
-	sc->mii_service = atphy_service;
-	sc->mii_pdata = mii;
-
-	asc->mii_oui = MII_OUI(ma->mii_id1, ma->mii_id2);
-	asc->mii_model = MII_MODEL(ma->mii_id2);
-	asc->mii_rev = MII_REV(ma->mii_id2);
-	if (bootverbose)
-		device_printf(dev, "OUI 0x%06x, model 0x%04x, rev. %d\n",
-		    asc->mii_oui, asc->mii_model, asc->mii_rev);
-
-	atphy_reset(sc);
-
-	sc->mii_capabilities = PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
-	if (sc->mii_capabilities & BMSR_EXTSTAT)
-		sc->mii_extcapabilities = PHY_READ(sc, MII_EXTSR);
-	device_printf(dev, " ");
-	mii_phy_add_media(sc);
-	printf("\n");
-
-	MIIBUS_MEDIAINIT(sc->mii_dev);
+	mii_phy_dev_attach(dev, MIIF_NOMANPAUSE, &atphy_funcs, 1);
 	return (0);
 }
 
@@ -244,7 +210,7 @@ done:
 	}
 
 	/* Update the media status. */
-	atphy_status(sc);
+	PHY_STATUS(sc);
 
 	/* Callback if something changed. */
 	mii_phy_update(sc, cmd);
@@ -318,11 +284,8 @@ static void
 atphy_reset(struct mii_softc *sc)
 {
 	struct ifmedia_entry *ife = sc->mii_pdata->mii_media.ifm_cur;
-	struct atphy_softc *asc;
 	uint32_t reg;
 	int i;
-
-	asc = (struct atphy_softc *)sc;
 
 	/* Take PHY out of power down mode. */
 	PHY_WRITE(sc, 29, 0x29);

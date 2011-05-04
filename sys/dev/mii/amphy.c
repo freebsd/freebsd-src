@@ -83,10 +83,16 @@ static int	amphy_service(struct mii_softc *, struct mii_data *, int);
 static void	amphy_status(struct mii_softc *);
 
 static const struct mii_phydesc amphys[] = {
-	MII_PHY_DESC(DAVICOM, DM9102),
-	MII_PHY_DESC(xxAMD, 79C873),
+	MII_PHY_DESC(xxDAVICOM, DM9102),
 	MII_PHY_DESC(xxDAVICOM, DM9101),
+	MII_PHY_DESC(yyDAVICOM, DM9101),
 	MII_PHY_END
+};
+
+static const struct mii_phy_funcs amphy_funcs = {
+	amphy_service,
+	amphy_status,
+	mii_phy_reset
 };
 
 static int
@@ -99,37 +105,8 @@ amphy_probe(device_t dev)
 static int
 amphy_attach(device_t dev)
 {
-	struct mii_softc *sc;
-	struct mii_attach_args *ma;
-	struct mii_data *mii;
 
-	sc = device_get_softc(dev);
-	ma = device_get_ivars(dev);
-	sc->mii_dev = device_get_parent(dev);
-	mii = ma->mii_data;
-	LIST_INSERT_HEAD(&mii->mii_phys, sc, mii_list);
-
-	sc->mii_flags = miibus_get_flags(dev);
-	sc->mii_inst = mii->mii_instance++;
-	sc->mii_phy = ma->mii_phyno;
-	sc->mii_service = amphy_service;
-	sc->mii_pdata = mii;
-
-#define	ADD(m, c)	ifmedia_add(&mii->mii_media, (m), (c), NULL)
-
-#if 0
-	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_TX, IFM_LOOP, sc->mii_inst),
-	    MII_MEDIA_100_TX);
-#endif
-
-	mii_phy_reset(sc);
-
-	sc->mii_capabilities = PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
-	device_printf(dev, " ");
-	mii_phy_add_media(sc);
-	printf("\n");
-#undef ADD
-	MIIBUS_MEDIAINIT(sc->mii_dev);
+	mii_phy_dev_attach(dev, MIIF_NOMANPAUSE, &amphy_funcs, 1);
 	return (0);
 }
 
@@ -158,7 +135,7 @@ amphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 	}
 
 	/* Update the media status. */
-	amphy_status(sc);
+	PHY_STATUS(sc);
 
 	/* Callback if something changed. */
 	mii_phy_update(sc, cmd);
@@ -231,6 +208,8 @@ amphy_status(struct mii_softc *sc)
 			mii->mii_media_active |= IFM_10_T|IFM_HDX;
 		else if (par & DSCSR_10HDX)
 			mii->mii_media_active |= IFM_10_T|IFM_HDX;
+		if ((mii->mii_media_active & IFM_FDX) != 0)
+			mii->mii_media_active |= mii_phy_flowstatus(sc);
 	} else
 		mii->mii_media_active = ife->ifm_media;
 }
