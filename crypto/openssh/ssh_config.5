@@ -1,4 +1,3 @@
-.\"  -*- nroff -*-
 .\"
 .\" Author: Tatu Ylonen <ylo@cs.hut.fi>
 .\" Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -34,9 +33,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh_config.5,v 1.138 2010/08/04 05:37:01 djm Exp $
+.\" $OpenBSD: ssh_config.5,v 1.146 2010/12/08 04:02:47 djm Exp $
 .\" $FreeBSD$
-.Dd August 4, 2010
+.Dd December 8, 2010
 .Dt SSH_CONFIG 5
 .Os
 .Sh NAME
@@ -548,7 +547,18 @@ is similar to
 Specifies the protocol version 2 host key algorithms
 that the client wants to use in order of preference.
 The default for this option is:
-.Dq ssh-rsa,ssh-dss .
+.Bd -literal -offset 3n
+ecdsa-sha2-nistp256-cert-v01@openssh.com,
+ecdsa-sha2-nistp384-cert-v01@openssh.com,
+ecdsa-sha2-nistp521-cert-v01@openssh.com,
+ssh-rsa-cert-v01@openssh.com,ssh-dss-cert-v01@openssh.com,
+ssh-rsa-cert-v00@openssh.com,ssh-dss-cert-v00@openssh.com,
+ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
+ssh-rsa,ssh-dss
+.Ed
+.Pp
+If hostkeys are known for the destination host then this default is modified
+to prefer their algorithms.
 .It Cm HostKeyAlias
 Specifies an alias that should be used instead of the
 real host name when looking up or saving the host key
@@ -584,14 +594,15 @@ offers many different identities.
 The default is
 .Dq no .
 .It Cm IdentityFile
-Specifies a file from which the user's RSA or DSA authentication identity
-is read.
+Specifies a file from which the user's DSA, ECDSA or DSA authentication
+identity is read.
 The default is
 .Pa ~/.ssh/identity
 for protocol version 1, and
-.Pa ~/.ssh/id_rsa
+.Pa ~/.ssh/id_dsa ,
+.Pa ~/.ssh/id_ecdsa
 and
-.Pa ~/.ssh/id_dsa
+.Pa ~/.ssh/id_rsa
 for protocol version 2.
 Additionally, any identities represented by the authentication agent
 will be used for authentication.
@@ -619,6 +630,43 @@ escape characters:
 It is possible to have
 multiple identity files specified in configuration files; all these
 identities will be tried in sequence.
+.It Cm IPQoS
+Specifies the IPv4 type-of-service or DSCP class for connections.
+Accepted values are
+.Dq af11 ,
+.Dq af12 ,
+.Dq af13 ,
+.Dq af14 ,
+.Dq af22 ,
+.Dq af23 ,
+.Dq af31 ,
+.Dq af32 ,
+.Dq af33 ,
+.Dq af41 ,
+.Dq af42 ,
+.Dq af43 ,
+.Dq cs0 ,
+.Dq cs1 ,
+.Dq cs2 ,
+.Dq cs3 ,
+.Dq cs4 ,
+.Dq cs5 ,
+.Dq cs6 ,
+.Dq cs7 ,
+.Dq ef ,
+.Dq lowdelay ,
+.Dq throughput ,
+.Dq reliability ,
+or a numeric value.
+This option may take one or two arguments, separated by whitespace.
+If one argument is specified, it is used as the packet class unconditionally.
+If two values are specified, the first is automatically selected for
+interactive sessions and the second for non-interactive sessions.
+The default is
+.Dq lowdelay
+for interactive sessions and
+.Dq throughput
+for non-interactive sessions.
 .It Cm KbdInteractiveAuthentication
 Specifies whether to use keyboard-interactive authentication.
 The argument to this keyword must be
@@ -638,6 +686,17 @@ it may be zero or more of:
 .Dq pam ,
 and
 .Dq skey .
+.It Cm KexAlgorithms
+Specifies the available KEX (Key Exchange) algorithms.
+Multiple algorithms must be comma-separated.
+The default is:
+.Bd -literal -offset indent
+ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,
+diffie-hellman-group-exchange-sha256,
+diffie-hellman-group-exchange-sha1,
+diffie-hellman-group14-sha1,
+diffie-hellman-group1-sha1
+.Ed
 .It Cm LocalCommand
 Specifies a command to execute on the local machine after successfully
 connecting to the server.
@@ -751,7 +810,7 @@ The default is
 .Dq no .
 .It Cm PKCS11Provider
 Specifies which PKCS#11 provider to use.
-The argument to this keyword is the PKCS#11 shared libary
+The argument to this keyword is the PKCS#11 shared library
 .Xr ssh 1
 should use to communicate with a PKCS#11 token providing the user's
 private RSA key.
@@ -1114,7 +1173,7 @@ in
 Specifies a string to append to the regular version string to identify
 OS- or site-specific modifications.
 The default is
-.Dq FreeBSD-20101111 .
+.Dq FreeBSD-20110503 .
 .It Cm VisualHostKey
 If this flag is set to
 .Dq yes ,

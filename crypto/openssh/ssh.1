@@ -1,4 +1,3 @@
-.\"  -*- nroff -*-
 .\"
 .\" Author: Tatu Ylonen <ylo@cs.hut.fi>
 .\" Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -34,9 +33,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh.1,v 1.308 2010/08/04 05:37:01 djm Exp $
+.\" $OpenBSD: ssh.1,v 1.316 2010/11/18 15:01:00 jmc Exp $
 .\" $FreeBSD$
-.Dd August 4 2010
+.Dd November 18, 2010
 .Dt SSH 1
 .Os
 .Sh NAME
@@ -270,13 +269,14 @@ should use to communicate with a PKCS#11 token providing the user's
 private RSA key.
 .It Fl i Ar identity_file
 Selects a file from which the identity (private key) for
-RSA or DSA authentication is read.
+public key authentication is read.
 The default is
 .Pa ~/.ssh/identity
 for protocol version 1, and
-.Pa ~/.ssh/id_rsa
+.Pa ~/.ssh/id_dsa ,
+.Pa ~/.ssh/id_ecdsa
 and
-.Pa ~/.ssh/id_dsa
+.Pa ~/.ssh/id_rsa
 for protocol version 2.
 Identity files may also be specified on
 a per-host basis in the configuration file.
@@ -436,7 +436,9 @@ For full details of the options listed below, and their possible values, see
 .It HostName
 .It IdentityFile
 .It IdentitiesOnly
+.It IPQoS
 .It KbdInteractiveDevices
+.It KexAlgorithms
 .It LocalCommand
 .It LocalForward
 .It LogLevel
@@ -648,10 +650,6 @@ may additionally obtain configuration data from
 a per-user configuration file and a system-wide configuration file.
 The file format and configuration options are described in
 .Xr ssh_config 5 .
-.Pp
-.Nm
-exits with the exit status of the remote command or with 255
-if an error occurred.
 .Sh AUTHENTICATION
 The OpenSSH SSH client supports SSH protocols 1 and 2.
 The default is to use protocol 2 only,
@@ -723,14 +721,14 @@ key pair for authentication purposes.
 The server knows the public key, and only the user knows the private key.
 .Nm
 implements public key authentication protocol automatically,
-using either the RSA or DSA algorithms.
+using one of the DSA, ECDSA or RSA algorithms.
 Protocol 1 is restricted to using only RSA keys,
-but protocol 2 may use either.
+but protocol 2 may use any.
 The
 .Sx HISTORY
 section of
 .Xr ssl 8
-contains a brief discussion of the two algorithms.
+contains a brief discussion of the DSA and RSA algorithms.
 .Pp
 The file
 .Pa ~/.ssh/authorized_keys
@@ -750,6 +748,8 @@ This stores the private key in
 (protocol 1),
 .Pa ~/.ssh/id_dsa
 (protocol 2 DSA),
+.Pa ~/.ssh/id_ecdsa
+(protocol 2 ECDSA),
 or
 .Pa ~/.ssh/id_rsa
 (protocol 2 RSA)
@@ -758,6 +758,8 @@ and stores the public key in
 (protocol 1),
 .Pa ~/.ssh/id_dsa.pub
 (protocol 2 DSA),
+.Pa ~/.ssh/id_ecdsa.pub
+(protocol 2 ECDSA),
 or
 .Pa ~/.ssh/id_rsa.pub
 (protocol 2 RSA)
@@ -1252,7 +1254,7 @@ option in
 .Xr sshd_config 5 .
 .Sh FILES
 .Bl -tag -width Ds -compact
-.It ~/.rhosts
+.It Pa ~/.rhosts
 This file is used for host-based authentication (see above).
 On some machines this file may need to be
 world-readable if the user's home directory is on an NFS partition,
@@ -1265,42 +1267,44 @@ The recommended
 permission for most machines is read/write for the user, and not
 accessible by others.
 .Pp
-.It ~/.shosts
+.It Pa ~/.shosts
 This file is used in exactly the same way as
 .Pa .rhosts ,
 but allows host-based authentication without permitting login with
 rlogin/rsh.
 .Pp
-.It ~/.ssh/
+.It Pa ~/.ssh/
 This directory is the default location for all user-specific configuration
 and authentication information.
 There is no general requirement to keep the entire contents of this directory
 secret, but the recommended permissions are read/write/execute for the user,
 and not accessible by others.
 .Pp
-.It ~/.ssh/authorized_keys
-Lists the public keys (RSA/DSA) that can be used for logging in as this user.
+.It Pa ~/.ssh/authorized_keys
+Lists the public keys (DSA/ECDSA/RSA) that can be used for logging in as
+this user.
 The format of this file is described in the
 .Xr sshd 8
 manual page.
 This file is not highly sensitive, but the recommended
 permissions are read/write for the user, and not accessible by others.
 .Pp
-.It ~/.ssh/config
+.It Pa ~/.ssh/config
 This is the per-user configuration file.
 The file format and configuration options are described in
 .Xr ssh_config 5 .
 Because of the potential for abuse, this file must have strict permissions:
 read/write for the user, and not accessible by others.
 .Pp
-.It ~/.ssh/environment
+.It Pa ~/.ssh/environment
 Contains additional definitions for environment variables; see
 .Sx ENVIRONMENT ,
 above.
 .Pp
-.It ~/.ssh/identity
-.It ~/.ssh/id_dsa
-.It ~/.ssh/id_rsa
+.It Pa ~/.ssh/identity
+.It Pa ~/.ssh/id_dsa
+.It Pa ~/.ssh/id_ecdsa
+.It Pa ~/.ssh/id_rsa
 Contains the private key for authentication.
 These files
 contain sensitive data and should be readable by the user but not
@@ -1311,21 +1315,22 @@ It is possible to specify a passphrase when
 generating the key which will be used to encrypt the
 sensitive part of this file using 3DES.
 .Pp
-.It ~/.ssh/identity.pub
-.It ~/.ssh/id_dsa.pub
-.It ~/.ssh/id_rsa.pub
+.It Pa ~/.ssh/identity.pub
+.It Pa ~/.ssh/id_dsa.pub
+.It Pa ~/.ssh/id_ecdsa.pub
+.It Pa ~/.ssh/id_rsa.pub
 Contains the public key for authentication.
 These files are not
 sensitive and can (but need not) be readable by anyone.
 .Pp
-.It ~/.ssh/known_hosts
+.It Pa ~/.ssh/known_hosts
 Contains a list of host keys for all hosts the user has logged into
 that are not already in the systemwide list of known host keys.
 See
 .Xr sshd 8
 for further details of the format of this file.
 .Pp
-.It ~/.ssh/rc
+.It Pa ~/.ssh/rc
 Commands in this file are executed by
 .Nm
 when the user logs in, just before the user's shell (or command) is
@@ -1334,11 +1339,11 @@ See the
 .Xr sshd 8
 manual page for more information.
 .Pp
-.It /etc/hosts.equiv
+.It Pa /etc/hosts.equiv
 This file is for host-based authentication (see above).
 It should only be writable by root.
 .Pp
-.It /etc/shosts.equiv
+.It Pa /etc/shosts.equiv
 This file is used in exactly the same way as
 .Pa hosts.equiv ,
 but allows host-based authentication without permitting login with
@@ -1349,9 +1354,10 @@ Systemwide configuration file.
 The file format and configuration options are described in
 .Xr ssh_config 5 .
 .Pp
-.It /etc/ssh/ssh_host_key
-.It /etc/ssh/ssh_host_dsa_key
-.It /etc/ssh/ssh_host_rsa_key
+.It Pa /etc/ssh/ssh_host_key
+.It Pa /etc/ssh/ssh_host_dsa_key
+.It Pa /etc/ssh/ssh_host_ecdsa_key
+.It Pa /etc/ssh/ssh_host_rsa_key
 These three files contain the private parts of the host keys
 and are used for host-based authentication.
 If protocol version 1 is used,
@@ -1369,7 +1375,7 @@ By default
 .Nm
 is not setuid root.
 .Pp
-.It /etc/ssh/ssh_known_hosts
+.It Pa /etc/ssh/ssh_known_hosts
 Systemwide list of known host keys.
 This file should be prepared by the
 system administrator to contain the public host keys of all machines in the
@@ -1379,7 +1385,7 @@ See
 .Xr sshd 8
 for further details of the format of this file.
 .Pp
-.It /etc/ssh/sshrc
+.It Pa /etc/ssh/sshrc
 Commands in this file are executed by
 .Nm
 when the user logs in, just before the user's shell (or command) is started.
@@ -1387,6 +1393,10 @@ See the
 .Xr sshd 8
 manual page for more information.
 .El
+.Sh EXIT STATUS
+.Nm
+exits with the exit status of the remote command or with 255
+if an error occurred.
 .Sh SEE ALSO
 .Xr scp 1 ,
 .Xr sftp 1 ,
@@ -1458,6 +1468,11 @@ manual page for more information.
 .%R RFC 4716
 .%T "The Secure Shell (SSH) Public Key File Format"
 .%D 2006
+.Re
+.Rs
+.%R RFC 5656
+.%T "Elliptic Curve Algorithm Integration in the Secure Shell Transport Layer"
+.%D 2009
 .Re
 .Rs
 .%T "Hash Visualization: a New Technique to improve Real-World Security"

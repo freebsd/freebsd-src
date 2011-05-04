@@ -1,4 +1,4 @@
-/* $Id: openssl-compat.h,v 1.15 2010/05/12 07:50:02 djm Exp $ */
+/* $Id: openssl-compat.h,v 1.18 2011/01/21 22:37:06 dtucker Exp $ */
 
 /*
  * Copyright (c) 2005 Darren Tucker <dtucker@zip.com.au>
@@ -17,6 +17,7 @@
  */
 
 #include "includes.h"
+#include <openssl/opensslv.h>
 #include <openssl/evp.h>
 #include <openssl/rsa.h>
 #include <openssl/dsa.h>
@@ -37,6 +38,12 @@
 #if OPENSSL_VERSION_NUMBER < 0x00906000L
 # define SSH_OLD_EVP
 # define EVP_CIPHER_CTX_get_app_data(e)		((e)->app_data)
+#endif
+
+#if OPENSSL_VERSION_NUMBER < 0x1000000fL
+# define LIBCRYPTO_EVP_INL_TYPE unsigned int
+#else
+# define LIBCRYPTO_EVP_INL_TYPE size_t
 #endif
 
 #if (OPENSSL_VERSION_NUMBER < 0x00907000L) || defined(OPENSSL_LOBOTOMISED_AES)
@@ -71,6 +78,10 @@ extern const EVP_CIPHER *evp_acss(void);
 # define EVP_CIPHER_CTX_key_length(c) ((c)->key_len)
 #endif
 
+#ifndef HAVE_RSA_GET_DEFAULT_METHOD
+RSA_METHOD *RSA_get_default_method(void);
+#endif
+
 /*
  * We overload some of the OpenSSL crypto functions with ssh_* equivalents
  * which cater for older and/or less featureful OpenSSL version.
@@ -99,6 +110,19 @@ extern const EVP_CIPHER *evp_acss(void);
 #   undef SSLeay_add_all_algorithms
 #  endif
 #  define SSLeay_add_all_algorithms()  ssh_SSLeay_add_all_algorithms()
+# endif
+
+# ifndef HAVE_BN_IS_PRIME_EX
+int BN_is_prime_ex(const BIGNUM *, int, BN_CTX *, void *);
+# endif
+
+# ifndef HAVE_DSA_GENERATE_PARAMETERS_EX
+int DSA_generate_parameters_ex(DSA *, int, const unsigned char *, int, int *,
+    unsigned long *, void *);
+# endif
+
+# ifndef HAVE_RSA_GENERATE_KEY_EX
+int RSA_generate_key_ex(RSA *, int, BIGNUM *, void *);
 # endif
 
 int ssh_EVP_CipherInit(EVP_CIPHER_CTX *, const EVP_CIPHER *, unsigned char *,

@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-dss.c,v 1.26 2010/04/16 01:47:26 djm Exp $ */
+/* $OpenBSD: ssh-dss.c,v 1.27 2010/08/31 09:58:37 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -133,7 +133,7 @@ ssh_dss_verify(const Key *key, const u_char *signature, u_int signaturelen,
 		char *ktype;
 		buffer_init(&b);
 		buffer_append(&b, signature, signaturelen);
-		ktype = buffer_get_string(&b, NULL);
+		ktype = buffer_get_cstring(&b, NULL);
 		if (strcmp("ssh-dss", ktype) != 0) {
 			error("ssh_dss_verify: cannot handle type %s", ktype);
 			buffer_free(&b);
