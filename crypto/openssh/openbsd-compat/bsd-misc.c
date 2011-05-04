@@ -240,3 +240,10 @@ strdup(const char *str)
 	return NULL;
 }
 #endif
+
+#ifndef HAVE_ISBLANK
+int isblank(int c)
+{
+	return (c == ' ' || c == '\t');
+}
+#endif

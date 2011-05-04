@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp.c,v 1.125 2010/06/18 00:58:39 djm Exp $ */
+/* $OpenBSD: sftp.c,v 1.132 2010/12/04 00:18:01 djm Exp $ */
 /*
  * Copyright (c) 2001-2004 Damien Miller <djm@openbsd.org>
  *
@@ -132,6 +132,7 @@ extern char *__progname;
 #define I_GET		5
 #define I_HELP		6
 #define I_LCHDIR	7
+#define I_LINK		25
 #define I_LLS		8
 #define I_LMKDIR	9
 #define I_LPWD		10
@@ -176,7 +177,7 @@ static const struct CMD cmds[] = {
 	{ "lchdir",	I_LCHDIR,	LOCAL	},
 	{ "lls",	I_LLS,		LOCAL	},
 	{ "lmkdir",	I_LMKDIR,	LOCAL	},
-	{ "ln",		I_SYMLINK,	REMOTE	},
+	{ "ln",		I_LINK,		REMOTE	},
 	{ "lpwd",	I_LPWD,		LOCAL	},
 	{ "ls",		I_LS,		REMOTE	},
 	{ "lumask",	I_LUMASK,	NOARGS	},
@@ -240,7 +241,7 @@ help(void)
 	    "lcd path                           Change local directory to 'path'\n"
 	    "lls [ls-options [path]]            Display local directory listing\n"
 	    "lmkdir path                        Create local directory\n"
-	    "ln oldpath newpath                 Symlink remote file\n"
+	    "ln [-s] oldpath newpath            Link remote file (-s for symlink)\n"
 	    "lpwd                               Print local working directory\n"
 	    "ls [-1afhlnrSt] [path]             Display remote directory listing\n"
 	    "lumask umask                       Set local umask to 'umask'\n"
@@ -269,7 +270,7 @@ local_do_shell(const char *args)
 	if (!*args)
 		args = NULL;
 
-	if ((shell = getenv("SHELL")) == NULL)
+	if ((shell = getenv("SHELL")) == NULL || *shell == '\0')
 		shell = _PATH_BSHELL;
 
 	if ((pid = fork()) == -1)
@@ -366,6 +367,30 @@ parse_getput_flags(const char *cmd, char **argv, int argc, int *pflag,
 		case 'r':
 		case 'R':
 			*rflag = 1;
+			break;
+		default:
+			error("%s: Invalid flag -%c", cmd, optopt);
+			return -1;
+		}
+	}
+
+	return optind;
+}
+
+static int
+parse_link_flags(const char *cmd, char **argv, int argc, int *sflag)
+{
+	extern int opterr, optind, optopt, optreset;
+	int ch;
+
+	optind = optreset = 1;
+	opterr = 0;
+
+	*sflag = 0;
+	while ((ch = getopt(argc, argv, "s")) != -1) {
+		switch (ch) {
+		case 's':
+			*sflag = 1;
 			break;
 		default:
 			error("%s: Invalid flag -%c", cmd, optopt);
@@ -758,18 +783,22 @@ static int
 do_globbed_ls(struct sftp_conn *conn, char *path, char *strip_path,
     int lflag)
 {
-	glob_t g;
-	u_int i, c = 1, colspace = 0, columns = 1;
 	Attrib *a = NULL;
+	char *fname, *lname;
+	glob_t g;
+	int err;
+	struct winsize ws;
+	u_int i, c = 1, colspace = 0, columns = 1, m = 0, width = 80;
 
 	memset(&g, 0, sizeof(g));
 
-	if (remote_glob(conn, path, GLOB_MARK|GLOB_NOCHECK|GLOB_BRACE,
-	    NULL, &g) || (g.gl_pathc && !g.gl_matchc)) {
+	if (remote_glob(conn, path,
+	    GLOB_MARK|GLOB_NOCHECK|GLOB_BRACE|GLOB_KEEPSTAT, NULL, &g) ||
+	    (g.gl_pathc && !g.gl_matchc)) {
 		if (g.gl_pathc)
 			globfree(&g);
 		error("Can't ls: \"%s\" not found", path);
-		return (-1);
+		return -1;
 	}
 
 	if (interrupted)
@@ -779,31 +808,20 @@ do_globbed_ls(struct sftp_conn *conn, char *path, char *strip_path,
 	 * If the glob returns a single match and it is a directory,
 	 * then just list its contents.
 	 */
-	if (g.gl_matchc == 1) {
-		if ((a = do_lstat(conn, g.gl_pathv[0], 1)) == NULL) {
-			globfree(&g);
-			return (-1);
-		}
-		if ((a->flags & SSH2_FILEXFER_ATTR_PERMISSIONS) &&
-		    S_ISDIR(a->perm)) {
-			int err;
-
-			err = do_ls_dir(conn, g.gl_pathv[0], strip_path, lflag);
-			globfree(&g);
-			return (err);
-		}
+	if (g.gl_matchc == 1 && g.gl_statv[0] != NULL &&
+	    S_ISDIR(g.gl_statv[0]->st_mode)) {
+		err = do_ls_dir(conn, g.gl_pathv[0], strip_path, lflag);
+		globfree(&g);
+		return err;
 	}
 
-	if (!(lflag & LS_SHORT_VIEW)) {
-		u_int m = 0, width = 80;
-		struct winsize ws;
+	if (ioctl(fileno(stdin), TIOCGWINSZ, &ws) != -1)
+		width = ws.ws_col;
 
+	if (!(lflag & LS_SHORT_VIEW)) {
 		/* Count entries for sort and find longest filename */
 		for (i = 0; g.gl_pathv[i]; i++)
 			m = MAX(m, strlen(g.gl_pathv[i]));
-
-		if (ioctl(fileno(stdin), TIOCGWINSZ, &ws) != -1)
-			width = ws.ws_col;
 
 		columns = width / (m + 2);
 		columns = MAX(columns, 1);
@@ -811,27 +829,14 @@ do_globbed_ls(struct sftp_conn *conn, char *path, char *strip_path,
 	}
 
 	for (i = 0; g.gl_pathv[i] && !interrupted; i++, a = NULL) {
-		char *fname;
-
 		fname = path_strip(g.gl_pathv[i], strip_path);
-
 		if (lflag & LS_LONG_VIEW) {
-			char *lname;
-			struct stat sb;
-
-			/*
-			 * XXX: this is slow - 1 roundtrip per path
-			 * A solution to this is to fork glob() and
-			 * build a sftp specific version which keeps the
-			 * attribs (which currently get thrown away)
-			 * that the server returns as well as the filenames.
-			 */
-			memset(&sb, 0, sizeof(sb));
-			if (a == NULL)
-				a = do_lstat(conn, g.gl_pathv[i], 1);
-			if (a != NULL)
-				attrib_to_stat(a, &sb);
-			lname = ls_file(fname, &sb, 1, (lflag & LS_SI_UNITS));
+			if (g.gl_statv[i] == NULL) {
+				error("no stat information for %s", fname);
+				continue;
+			}
+			lname = ls_file(fname, g.gl_statv[i], 1,
+			    (lflag & LS_SI_UNITS));
 			printf("%s\n", lname);
 			xfree(lname);
 		} else {
@@ -852,7 +857,7 @@ do_globbed_ls(struct sftp_conn *conn, char *path, char *strip_path,
 	if (g.gl_pathc)
 		globfree(&g);
 
-	return (0);
+	return 0;
 }
 
 static int
@@ -1108,7 +1113,7 @@ makeargv(const char *arg, int *argcp, int sloppy, char *lastquote,
 
 static int
 parse_args(const char **cpp, int *pflag, int *rflag, int *lflag, int *iflag,
-    int *hflag, unsigned long *n_arg, char **path1, char **path2)
+    int *hflag, int *sflag, unsigned long *n_arg, char **path1, char **path2)
 {
 	const char *cmd, *cp = *cpp;
 	char *cp2, **argv;
@@ -1158,7 +1163,8 @@ parse_args(const char **cpp, int *pflag, int *rflag, int *lflag, int *iflag,
 	switch (cmdnum) {
 	case I_GET:
 	case I_PUT:
-		if ((optidx = parse_getput_flags(cmd, argv, argc, pflag, rflag)) == -1)
+		if ((optidx = parse_getput_flags(cmd, argv, argc,
+		    pflag, rflag)) == -1)
 			return -1;
 		/* Get first pathname (mandatory) */
 		if (argc - optidx < 1) {
@@ -1174,8 +1180,11 @@ parse_args(const char **cpp, int *pflag, int *rflag, int *lflag, int *iflag,
 			undo_glob_escape(*path2);
 		}
 		break;
-	case I_RENAME:
+	case I_LINK:
+		if ((optidx = parse_link_flags(cmd, argv, argc, sflag)) == -1)
+			return -1;
 	case I_SYMLINK:
+	case I_RENAME:
 		if (argc - optidx < 2) {
 			error("You must specify two paths after a %s "
 			    "command.", cmd);
@@ -1278,7 +1287,8 @@ parse_dispatch_command(struct sftp_conn *conn, const char *cmd, char **pwd,
     int err_abort)
 {
 	char *path1, *path2, *tmp;
-	int pflag = 0, rflag = 0, lflag = 0, iflag = 0, hflag = 0, cmdnum, i;
+	int pflag = 0, rflag = 0, lflag = 0, iflag = 0, hflag = 0, sflag = 0;
+	int cmdnum, i;
 	unsigned long n_arg = 0;
 	Attrib a, *aa;
 	char path_buf[MAXPATHLEN];
@@ -1286,8 +1296,8 @@ parse_dispatch_command(struct sftp_conn *conn, const char *cmd, char **pwd,
 	glob_t g;
 
 	path1 = path2 = NULL;
-	cmdnum = parse_args(&cmd, &pflag, &rflag, &lflag, &iflag, &hflag, &n_arg,
-	    &path1, &path2);
+	cmdnum = parse_args(&cmd, &pflag, &rflag, &lflag, &iflag, &hflag,
+	    &sflag, &n_arg, &path1, &path2);
 
 	if (iflag != 0)
 		err_abort = 0;
@@ -1315,8 +1325,11 @@ parse_dispatch_command(struct sftp_conn *conn, const char *cmd, char **pwd,
 		err = do_rename(conn, path1, path2);
 		break;
 	case I_SYMLINK:
+		sflag = 1;
+	case I_LINK:
+		path1 = make_absolute(path1, *pwd);
 		path2 = make_absolute(path2, *pwd);
-		err = do_symlink(conn, path1, path2);
+		err = (sflag ? do_symlink : do_hardlink)(conn, path1, path2);
 		break;
 	case I_RM:
 		path1 = make_absolute(path1, *pwd);
@@ -1745,6 +1758,7 @@ complete_match(EditLine *el, struct sftp_conn *conn, char *remote_path,
 			case '"':
 			case '\\':
 			case '\t':
+			case '[':
 			case ' ':
 				if (quote == '\0' || tmp2[i] == quote) {
 					if (el_insertstr(el, ins) == -1)
@@ -1874,7 +1888,7 @@ interactive_loop(struct sftp_conn *conn, char *file1, char *file2)
 
 		/* Tab Completion */
 		el_set(el, EL_ADDFN, "ftp-complete", 
-		    "Context senstive argument completion", complete);
+		    "Context sensitive argument completion", complete);
 		complete_ctx.conn = conn;
 		complete_ctx.remote_pathp = &remote_path;
 		el_set(el, EL_CLIENTDATA, (void*)&complete_ctx);
@@ -2054,7 +2068,7 @@ usage(void)
 	fprintf(stderr,
 	    "usage: %s [-1246Cpqrv] [-B buffer_size] [-b batchfile] [-c cipher]\n"
 	    "          [-D sftp_server_path] [-F ssh_config] "
-	    "[-i identity_file]\n"
+	    "[-i identity_file] [-l limit]\n"
 	    "          [-o ssh_option] [-P port] [-R num_requests] "
 	    "[-S program]\n"
 	    "          [-s subsystem | sftp_server] host\n"
@@ -2073,6 +2087,7 @@ main(int argc, char **argv)
 	int debug_level = 0, sshver = 2;
 	char *file1 = NULL, *sftp_server = NULL;
 	char *ssh_program = _PATH_SSH_PROGRAM, *sftp_direct = NULL;
+	const char *errstr;
 	LogLevel ll = SYSLOG_LEVEL_INFO;
 	arglist args;
 	extern int optind;
@@ -2080,6 +2095,7 @@ main(int argc, char **argv)
 	struct sftp_conn *conn;
 	size_t copy_buffer_len = DEFAULT_COPY_BUFLEN;
 	size_t num_requests = DEFAULT_NUM_REQUESTS;
+	long long limit_kbps = 0;
 
 	/* Ensure that fds 0, 1 and 2 are open or directed to /dev/null */
 	sanitise_stdfd();
@@ -2097,7 +2113,7 @@ main(int argc, char **argv)
 	infile = stdin;
 
 	while ((ch = getopt(argc, argv,
-	    "1246hpqrvCc:D:i:o:s:S:b:B:F:P:R:")) != -1) {
+	    "1246hpqrvCc:D:i:l:o:s:S:b:B:F:P:R:")) != -1) {
 		switch (ch) {
 		/* Passed through to ssh(1) */
 		case '4':
@@ -2157,6 +2173,13 @@ main(int argc, char **argv)
 			break;
 		case 'D':
 			sftp_direct = optarg;
+			break;
+		case 'l':
+			limit_kbps = strtonum(optarg, 1, 100 * 1024 * 1024,
+			    &errstr);
+			if (errstr != NULL)
+				usage();
+			limit_kbps *= 1024; /* kbps */
 			break;
 		case 'r':
 			global_rflag = 1;
@@ -2235,7 +2258,7 @@ main(int argc, char **argv)
 	}
 	freeargs(&args);
 
-	conn = do_init(in, out, copy_buffer_len, num_requests);
+	conn = do_init(in, out, copy_buffer_len, num_requests, limit_kbps);
 	if (conn == NULL)
 		fatal("Couldn't initialise connection to server");
 

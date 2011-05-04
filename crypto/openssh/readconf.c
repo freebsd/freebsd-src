@@ -1,4 +1,4 @@
-/* $OpenBSD: readconf.c,v 1.187 2010/07/19 09:15:12 djm Exp $ */
+/* $OpenBSD: readconf.c,v 1.190 2010/11/13 23:27:50 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -21,6 +21,8 @@ __RCSID("$FreeBSD$");
 #include <sys/sysctl.h>
 
 #include <netinet/in.h>
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
 
 #include <ctype.h>
 #include <errno.h>
@@ -135,6 +137,7 @@ typedef enum {
 	oHashKnownHosts,
 	oTunnel, oTunnelDevice, oLocalCommand, oPermitLocalCommand,
 	oVisualHostKey, oUseRoaming, oZeroKnowledgePasswordAuthentication,
+	oKexAlgorithms, oIPQoS,
 	oVersionAddendum,
 	oDeprecated, oUnsupported
 } OpCodes;
@@ -244,6 +247,8 @@ static struct {
 #else
 	{ "zeroknowledgepasswordauthentication", oUnsupported },
 #endif
+	{ "kexalgorithms", oKexAlgorithms },
+	{ "ipqos", oIPQoS },
 
 	{ "versionaddendum", oVersionAddendum },
 	{ NULL, oBadOption }
@@ -716,6 +721,18 @@ parse_int:
 			options->macs = xstrdup(arg);
 		break;
 
+	case oKexAlgorithms:
+		arg = strdelim(&s);
+		if (!arg || *arg == '\0')
+			fatal("%.200s line %d: Missing argument.",
+			    filename, linenum);
+		if (!kex_names_valid(arg))
+			fatal("%.200s line %d: Bad SSH2 KexAlgorithms '%s'.",
+			    filename, linenum, arg ? arg : "<NONE>");
+		if (*activep && options->kex_algorithms == NULL)
+			options->kex_algorithms = xstrdup(arg);
+		break;
+
 	case oHostKeyAlgorithms:
 		arg = strdelim(&s);
 		if (!arg || *arg == '\0')
@@ -976,6 +993,23 @@ parse_int:
 		intptr = &options->visual_host_key;
 		goto parse_flag;
 
+	case oIPQoS:
+		arg = strdelim(&s);
+		if ((value = parse_ipqos(arg)) == -1)
+			fatal("%s line %d: Bad IPQoS value: %s",
+			    filename, linenum, arg);
+		arg = strdelim(&s);
+		if (arg == NULL)
+			value2 = value;
+		else if ((value2 = parse_ipqos(arg)) == -1)
+			fatal("%s line %d: Bad IPQoS value: %s",
+			    filename, linenum, arg);
+		if (*activep) {
+			options->ip_qos_interactive = value;
+			options->ip_qos_bulk = value2;
+		}
+		break;
+
 	case oUseRoaming:
 		intptr = &options->use_roaming;
 		goto parse_flag;
@@ -1102,6 +1136,7 @@ initialize_options(Options * options)
 	options->cipher = -1;
 	options->ciphers = NULL;
 	options->macs = NULL;
+	options->kex_algorithms = NULL;
 	options->hostkeyalgorithms = NULL;
 	options->protocol = SSH_PROTO_UNKNOWN;
 	options->num_identity_files = 0;
@@ -1144,6 +1179,8 @@ initialize_options(Options * options)
 	options->use_roaming = -1;
 	options->visual_host_key = -1;
 	options->zero_knowledge_password_authentication = -1;
+	options->ip_qos_interactive = -1;
+	options->ip_qos_bulk = -1;
 }
 
 /*
@@ -1215,6 +1252,7 @@ fill_default_options(Options * options)
 		options->cipher = SSH_CIPHER_NOT_SET;
 	/* options->ciphers, default set in myproposals.h */
 	/* options->macs, default set in myproposals.h */
+	/* options->kex_algorithms, default set in myproposals.h */
 	/* options->hostkeyalgorithms, default set in myproposals.h */
 	if (options->protocol == SSH_PROTO_UNKNOWN)
 		options->protocol = SSH_PROTO_2;
@@ -1238,6 +1276,13 @@ fill_default_options(Options * options)
 			    xmalloc(len);
 			snprintf(options->identity_files[options->num_identity_files++],
 			    len, "~/%.100s", _PATH_SSH_CLIENT_ID_DSA);
+#ifdef OPENSSL_HAS_ECC
+			len = 2 + strlen(_PATH_SSH_CLIENT_ID_ECDSA) + 1;
+			options->identity_files[options->num_identity_files] =
+			    xmalloc(len);
+			snprintf(options->identity_files[options->num_identity_files++],
+			    len, "~/%.100s", _PATH_SSH_CLIENT_ID_ECDSA);
+#endif
 		}
 	}
 	if (options->escape_char == -1)
@@ -1290,6 +1335,10 @@ fill_default_options(Options * options)
 		options->visual_host_key = 0;
 	if (options->zero_knowledge_password_authentication == -1)
 		options->zero_knowledge_password_authentication = 0;
+	if (options->ip_qos_interactive == -1)
+		options->ip_qos_interactive = IPTOS_LOWDELAY;
+	if (options->ip_qos_bulk == -1)
+		options->ip_qos_bulk = IPTOS_THROUGHPUT;
 	/* options->local_command should not be set by default */
 	/* options->proxy_command should not be set by default */
 	/* options->user will be set in the main program if appropriate */

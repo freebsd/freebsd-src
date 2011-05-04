@@ -168,13 +168,6 @@ ar5416Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 	if (AR_SREV_MERLIN_10_OR_LATER(ah))
 		OS_REG_SET_BIT(ah, AR_GPIO_INPUT_EN_VAL, AR_GPIO_JTAG_DISABLE);
 
-	if (AR_SREV_KITE(ah)) {
-		uint32_t val;
-		val = OS_REG_READ(ah, AR_PHY_HEAVY_CLIP_FACTOR_RIFS);
-		val &= ~AR_PHY_RIFS_INIT_DELAY;
-		OS_REG_WRITE(ah, AR_PHY_HEAVY_CLIP_FACTOR_RIFS, val);
-	}
-
 	AH5416(ah)->ah_writeIni(ah, chan);
 
 	/* Override ini values (that can be overriden in this fashion) */

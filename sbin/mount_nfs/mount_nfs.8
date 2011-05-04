@@ -28,7 +28,7 @@
 .\"	@(#)mount_nfs.8	8.3 (Berkeley) 3/29/95
 .\" $FreeBSD$
 .\"
-.Dd April 27, 2011
+.Dd May 3, 2011
 .Dt MOUNT_NFS 8
 .Os
 .Sh NAME
@@ -180,6 +180,17 @@ NFS port number 2049 or replies to requests using a different IP address
 Setting the
 .Va vfs.nfs.nfs_ip_paranoia
 sysctl to 0 will make this option the default.
+.It Cm nocto
+Normally, NFS clients maintain the close-to-open cache coherency.
+This works by flushing at close time and checking at open time.
+Checking at open time is implemented by getting attributes from
+the server and purging the data cache if they do not match
+attributes cached by the client.
+.Pp
+This option disables checking at open time.
+It may improve performance for read-only mounts,
+but should only be used if the data on the server changes rarely.
+Be sure to understand the consequences before enabling this option.
 .It Cm noinet4 , noinet6
 Disables
 .Dv AF_INET

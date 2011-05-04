@@ -1566,7 +1566,7 @@ hme_mediachange_locked(struct hme_softc *sc)
 	 */
 	if (sc->sc_phys[0] != -1 && sc->sc_phys[1] != -1)
 		LIST_FOREACH(child, &sc->sc_mii->mii_phys, mii_list)
-			mii_phy_reset(child);
+			PHY_RESET(child);
 	return (mii_mediachg(sc->sc_mii));
 }
 

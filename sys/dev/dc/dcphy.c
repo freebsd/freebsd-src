@@ -114,6 +114,12 @@ static void	dcphy_status(struct mii_softc *);
 static void	dcphy_reset(struct mii_softc *);
 static int	dcphy_auto(struct mii_softc *);
 
+static const struct mii_phy_funcs dcphy_funcs = {
+	dcphy_service,
+	dcphy_status,
+	dcphy_reset
+};
+
 static int
 dcphy_probe(device_t dev)
 {
@@ -138,30 +144,16 @@ static int
 dcphy_attach(device_t dev)
 {
 	struct mii_softc *sc;
-	struct mii_attach_args *ma;
-	struct mii_data *mii;
 	struct dc_softc		*dc_sc;
 	device_t brdev;
 
 	sc = device_get_softc(dev);
-	ma = device_get_ivars(dev);
-	sc->mii_dev = device_get_parent(dev);
-	mii = ma->mii_data;
-	LIST_INSERT_HEAD(&mii->mii_phys, sc, mii_list);
 
-	sc->mii_flags = miibus_get_flags(dev);
-	sc->mii_inst = mii->mii_instance++;
-	sc->mii_phy = ma->mii_phyno;
-	sc->mii_service = dcphy_service;
-	sc->mii_pdata = mii;
+	mii_phy_dev_attach(dev, MIIF_NOISOLATE | MIIF_NOMANPAUSE,
+	    &dcphy_funcs, 0);
 
-	/*
-	 * Apparently, we can neither isolate nor do loopback.
-	 */
-	sc->mii_flags |= MIIF_NOISOLATE | MIIF_NOLOOP;
-
-	/*dcphy_reset(sc);*/
-	dc_sc = mii->mii_ifp->if_softc;
+	/*PHY_RESET(sc);*/
+	dc_sc = sc->mii_pdata->mii_ifp->if_softc;
 	CSR_WRITE_4(dc_sc, DC_10BTSTAT, 0);
 	CSR_WRITE_4(dc_sc, DC_10BTCTRL, 0);
 
@@ -182,7 +174,7 @@ dcphy_attach(device_t dev)
 		break;
 	}
 
-	sc->mii_capabilities &= ma->mii_capmask;
+	sc->mii_capabilities &= sc->mii_capmask;
 	device_printf(dev, " ");
 	mii_phy_add_media(sc);
 	printf("\n");
@@ -219,11 +211,11 @@ dcphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 
 		switch (IFM_SUBTYPE(ife->ifm_media)) {
 		case IFM_AUTO:
-			/*dcphy_reset(sc);*/
-			(void) dcphy_auto(sc);
+			/*PHY_RESET(sc);*/
+			(void)dcphy_auto(sc);
 			break;
 		case IFM_100_TX:
-			dcphy_reset(sc);
+			PHY_RESET(sc);
 			DC_CLRBIT(dc_sc, DC_10BTCTRL, DC_TCTL_AUTONEGENBL);
 			mode |= DC_NETCFG_PORTSEL | DC_NETCFG_PCS |
 			    DC_NETCFG_SCRAMBLER;
@@ -292,7 +284,7 @@ dcphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 	}
 
 	/* Update the media status. */
-	dcphy_status(sc);
+	PHY_STATUS(sc);
 
 	/* Callback if something changed. */
 	mii_phy_update(sc, cmd);
