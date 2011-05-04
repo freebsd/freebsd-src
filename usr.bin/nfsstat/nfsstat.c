@@ -160,10 +160,7 @@ main(int argc, char **argv)
 	if (run_v4 != 0 && modfind("nfscommon") < 0)
 		errx(1, "experimental client/server not loaded");
 
-	if (run_v4 != 0) {
-		if (nfssvc(NFSSVC_GETSTATS, &ext_nfsstats) < 0)
-			err(1, "Can't get stats");
-	} else if (nlistf != NULL || memf != NULL) {
+	if (run_v4 == 0 && (nlistf != NULL || memf != NULL)) {
 		deadkernel = 1;
 
 		if ((kd = kvm_openfiles(nlistf, memf, NULL, O_RDONLY,
@@ -545,7 +542,17 @@ sperc2(int ttl, int misses)
 void
 exp_intpr(int clientOnly, int serverOnly)
 {
+	int nfssvc_flag;
 
+	nfssvc_flag = NFSSVC_GETSTATS;
+	if (zflag != 0) {
+		if (clientOnly != 0)
+			nfssvc_flag |= NFSSVC_ZEROCLTSTATS;
+		if (serverOnly != 0)
+			nfssvc_flag |= NFSSVC_ZEROSRVSTATS;
+	}
+	if (nfssvc(nfssvc_flag, &ext_nfsstats) < 0)
+		err(1, "Can't get stats");
 	if (clientOnly != 0) {
 		if (printtitle) {
 			printf("Client Info:\n");
