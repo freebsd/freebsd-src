@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/soundcard.h>
 #include <sys/stdint.h>
 #include <sys/sx.h>
+#include <sys/sysctl.h>
 #include <sys/tty.h>
 #include <sys/uio.h>
 #include <sys/types.h>
@@ -90,6 +91,9 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_videodev2_compat.h>
 
 CTASSERT(LINUX_IFNAMSIZ == IFNAMSIZ);
+
+FEATURE(linuxulator_v4l, "V4L ioctl wrapper support in the linuxulator");
+FEATURE(linuxulator_v4l2, "V4L2 ioctl wrapper support in the linuxulator");
 
 static linux_ioctl_function_t linux_ioctl_cdrom;
 static linux_ioctl_function_t linux_ioctl_vfat;
