@@ -546,8 +546,6 @@ g_shsec_create(struct g_class *mp, const struct g_shsec_metadata *md)
 		}
 	}
 	gp = g_new_geomf(mp, "%s", md->md_name);
-	gp->softc = NULL;	/* for a moment */
-
 	sc = malloc(sizeof(*sc), M_SHSEC, M_WAITOK | M_ZERO);
 	gp->start = g_shsec_start;
 	gp->spoiled = g_shsec_orphan;
