@@ -112,6 +112,8 @@ nfs_parse_options(const char *envopts, struct nfs_args *nd)
 			nd->flags |= NFSMNT_NOCONN;
 		else if (strcmp(o, "nolockd") == 0)
 			nd->flags |= NFSMNT_NOLOCKD;
+		else if (strcmp(o, "nocto") == 0)
+			nd->flags |= NFSMNT_NOCTO;
 		else if (strcmp(o, "nfsv2") == 0)
 			nd->flags &= ~(NFSMNT_NFSV3 | NFSMNT_NFSV4);
 		else if (strcmp(o, "nfsv3") == 0) {
