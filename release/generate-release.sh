@@ -60,6 +60,7 @@ if [ -d $2/usr/doc ]; then
 fi
 
 chroot $2 /bin/sh -c "cd /usr/src && make $MAKE_FLAGS buildworld buildkernel" || exit 1
+chroot $2 /bin/sh -c "cd /usr/src/release && make obj" || exit 1
 chroot $2 /bin/sh -c "cd /usr/src/release && make release" || exit 1
 chroot $2 /bin/sh -c "cd /usr/src/release && make install DESTDIR=/R" || exit 1
 
