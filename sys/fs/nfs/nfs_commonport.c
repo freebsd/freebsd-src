@@ -404,6 +404,64 @@ nfssvc_call(struct thread *p, struct nfssvc_args *uap, struct ucred *cred)
 	} else if (uap->flag & NFSSVC_GETSTATS) {
 		error = copyout(&newnfsstats,
 		    CAST_USER_ADDR_T(uap->argp), sizeof (newnfsstats));
+		if (error == 0) {
+			if ((uap->flag & NFSSVC_ZEROCLTSTATS) != 0) {
+				newnfsstats.attrcache_hits = 0;
+				newnfsstats.attrcache_misses = 0;
+				newnfsstats.lookupcache_hits = 0;
+				newnfsstats.lookupcache_misses = 0;
+				newnfsstats.direofcache_hits = 0;
+				newnfsstats.direofcache_misses = 0;
+				newnfsstats.accesscache_hits = 0;
+				newnfsstats.accesscache_misses = 0;
+				newnfsstats.biocache_reads = 0;
+				newnfsstats.read_bios = 0;
+				newnfsstats.read_physios = 0;
+				newnfsstats.biocache_writes = 0;
+				newnfsstats.write_bios = 0;
+				newnfsstats.write_physios = 0;
+				newnfsstats.biocache_readlinks = 0;
+				newnfsstats.readlink_bios = 0;
+				newnfsstats.biocache_readdirs = 0;
+				newnfsstats.readdir_bios = 0;
+				newnfsstats.rpcretries = 0;
+				newnfsstats.rpcrequests = 0;
+				newnfsstats.rpctimeouts = 0;
+				newnfsstats.rpcunexpected = 0;
+				newnfsstats.rpcinvalid = 0;
+				bzero(newnfsstats.rpccnt,
+				    sizeof(newnfsstats.rpccnt));
+			}
+			if ((uap->flag & NFSSVC_ZEROSRVSTATS) != 0) {
+				newnfsstats.srvrpc_errs = 0;
+				newnfsstats.srv_errs = 0;
+				newnfsstats.srvcache_inproghits = 0;
+				newnfsstats.srvcache_idemdonehits = 0;
+				newnfsstats.srvcache_nonidemdonehits = 0;
+				newnfsstats.srvcache_misses = 0;
+				newnfsstats.srvcache_tcppeak = 0;
+				newnfsstats.srvcache_size = 0;
+				newnfsstats.srvclients = 0;
+				newnfsstats.srvopenowners = 0;
+				newnfsstats.srvopens = 0;
+				newnfsstats.srvlockowners = 0;
+				newnfsstats.srvlocks = 0;
+				newnfsstats.srvdelegates = 0;
+				newnfsstats.clopenowners = 0;
+				newnfsstats.clopens = 0;
+				newnfsstats.cllockowners = 0;
+				newnfsstats.cllocks = 0;
+				newnfsstats.cldelegates = 0;
+				newnfsstats.cllocalopenowners = 0;
+				newnfsstats.cllocalopens = 0;
+				newnfsstats.cllocallockowners = 0;
+				newnfsstats.cllocallocks = 0;
+				bzero(newnfsstats.srvrpccnt,
+				    sizeof(newnfsstats.srvrpccnt));
+				bzero(newnfsstats.cbrpccnt,
+				    sizeof(newnfsstats.cbrpccnt));
+			}
+		}
 		return (error);
 	} else if (uap->flag & NFSSVC_NFSUSERDPORT) {
 		u_short sockport;
