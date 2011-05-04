@@ -85,7 +85,6 @@ static int zflag = 0;
 static int run_v4 = 0;
 static int printtitle = 1;
 static struct ext_nfsstats ext_nfsstats;
-static int nfssvc_flag;
 
 void intpr(int, int);
 void printhdr(int, int);
@@ -108,7 +107,6 @@ main(int argc, char **argv)
 	char *memf, *nlistf;
 	char errbuf[_POSIX2_LINE_MAX];
 
-	nfssvc_flag = NFSSVC_GETSTATS;
 	interval = 0;
 	memf = nlistf = NULL;
 	while ((ch = getopt(argc, argv, "cesWM:N:w:z")) != -1)
@@ -137,7 +135,6 @@ main(int argc, char **argv)
 			break;
 		case 'z':
 			zflag = 1;
-			nfssvc_flag |= NFSSVC_ZEROSTATS;
 			break;
 		case 'e':
 			run_v4 = 1;
@@ -164,7 +161,7 @@ main(int argc, char **argv)
 		errx(1, "experimental client/server not loaded");
 
 	if (run_v4 != 0) {
-		if (nfssvc(nfssvc_flag, &ext_nfsstats) < 0)
+		if (nfssvc(NFSSVC_GETSTATS, &ext_nfsstats) < 0)
 			err(1, "Can't get stats");
 	} else if (nlistf != NULL || memf != NULL) {
 		deadkernel = 1;
@@ -796,13 +793,13 @@ exp_sidewaysintpr(u_int interval, int clientOnly, int serverOnly)
 	int hdrcnt = 1;
 
 	ext_nfsstatsp = &lastst;
-	if (nfssvc(nfssvc_flag, ext_nfsstatsp) < 0)
+	if (nfssvc(NFSSVC_GETSTATS, ext_nfsstatsp) < 0)
 		err(1, "Can't get stats");
 	sleep(interval);
 
 	for (;;) {
 		ext_nfsstatsp = &nfsstats;
-		if (nfssvc(nfssvc_flag, ext_nfsstatsp) < 0)
+		if (nfssvc(NFSSVC_GETSTATS, ext_nfsstatsp) < 0)
 			err(1, "Can't get stats");
 
 		if (--hdrcnt == 0) {
