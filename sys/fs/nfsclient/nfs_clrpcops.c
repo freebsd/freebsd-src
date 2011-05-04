@@ -1285,12 +1285,13 @@ nfsrpc_readrpc(vnode_t vp, struct uio *uiop, struct ucred *cred,
 	struct nfsmount *nmp = VFSTONFS(vnode_mount(vp));
 	struct nfsrv_descript *nd = &nfsd;
 	int rsize;
+	off_t tmp_off;
 
 	*attrflagp = 0;
 	tsiz = uio_uio_resid(uiop);
+	tmp_off = uiop->uio_offset + tsiz;
 	NFSLOCKMNT(nmp);
-	if (uiop->uio_offset + tsiz > nmp->nm_maxfilesize) {
-		/* XXX Needs overflow/negative check for uio_offset */
+	if (tmp_off > nmp->nm_maxfilesize || tmp_off < uiop->uio_offset) {
 		NFSUNLOCKMNT(nmp);
 		return (EFBIG);
 	}
@@ -1458,12 +1459,14 @@ nfsrpc_writerpc(vnode_t vp, struct uio *uiop, int *iomode,
 	struct nfsrv_descript nfsd;
 	struct nfsrv_descript *nd = &nfsd;
 	nfsattrbit_t attrbits;
+	off_t tmp_off;
 
 	KASSERT(uiop->uio_iovcnt == 1, ("nfs: writerpc iovcnt > 1"));
 	*attrflagp = 0;
 	tsiz = uio_uio_resid(uiop);
+	tmp_off = uiop->uio_offset + tsiz;
 	NFSLOCKMNT(nmp);
-	if (uiop->uio_offset + tsiz > nmp->nm_maxfilesize) {
+	if (tmp_off > nmp->nm_maxfilesize || tmp_off < uiop->uio_offset) {
 		NFSUNLOCKMNT(nmp);
 		return (EFBIG);
 	}
