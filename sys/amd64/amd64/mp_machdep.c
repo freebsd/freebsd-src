@@ -1428,22 +1428,6 @@ cpususpend_handler(void)
 	intr_restore(rf);
 }
 
-void
-md_assert_nopreempt(void)
-{
-#ifdef INVARIANTS
-	struct thread *td;
-	register_t rflags;
-
-	td = curthread;
-	rflags = read_rflags();
-
-	if ((rflags & PSL_I) != 0 && td->td_critnest <= 0)
-		panic("Preemption still allowed, thread %s\n",
-		    (td->td_pinned <= 0) ? "not pinned" : "pinned");
-#endif
-}
-
 /*
  * This is called once the rest of the system is up and running and we're
  * ready to let the AP's out of the pen.
