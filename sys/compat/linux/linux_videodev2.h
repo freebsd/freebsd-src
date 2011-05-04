@@ -1,3 +1,12 @@
+/*
+ * This header comes from linux, but it has no license. The author
+ * (Bill Dirks) gave explicit permissions to use it in FreeBSD.
+ * The FreeBSD vendor branch for v4l gives a more detailed description
+ * about this in the README.
+ *
+ * $FreeBSD$
+ */
+
 #ifndef __LINUX_VIDEODEV2_H
 #define __LINUX_VIDEODEV2_H
 /*
@@ -13,6 +22,11 @@
  *		Justin Schoeman
  *		et al.
  */
+#ifdef __FreeBSD__
+#define __user
+typedef uint64_t	__u64;
+typedef int64_t		__s64;
+#else
 #ifdef __KERNEL__
 #include <linux/time.h> /* need struct timeval */
 #include <linux/poll.h>
@@ -20,6 +34,7 @@
 #include <linux/mutex.h>
 #endif
 #include <linux/compiler.h> /* need __user */
+#endif
 
 
 #define OBSOLETE_OWNER 1 /* It will be removed for 2.6.17 */
