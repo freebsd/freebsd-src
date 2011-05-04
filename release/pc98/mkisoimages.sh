@@ -26,7 +26,7 @@
 publisher="The FreeBSD Project.  http://www.freebsd.org/"
 if [ "x$1" = "x-b" ]; then
 	# This is highly x86-centric and will be used directly below.
-	bootable="-o bootimage=i386;$4/boot/cdboot -o no-emul-boot"
+	bootable="-o generic-bootimage=$4/boot/cdboot"
 	shift
 else
 	bootable=""
