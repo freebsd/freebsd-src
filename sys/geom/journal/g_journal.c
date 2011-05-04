@@ -2097,7 +2097,6 @@ g_journal_worker(void *arg)
 	gp = sc->sc_geom;
 	g_topology_lock();
 	pp = g_new_providerf(gp, "%s.journal", sc->sc_name);
-	KASSERT(pp != NULL, ("Cannot create %s.journal.", sc->sc_name));
 	pp->mediasize = sc->sc_mediasize;
 	/*
 	 * There could be a problem when data provider and journal providers
