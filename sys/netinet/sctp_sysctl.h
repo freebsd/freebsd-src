@@ -336,9 +336,9 @@ struct sctp_sysctl {
 
 /* cmt_on_off: CMT on/off flag */
 #define SCTPCTL_CMT_ON_OFF_DESC		"CMT settings"
-#define SCTPCTL_CMT_ON_OFF_MIN		0
-#define SCTPCTL_CMT_ON_OFF_MAX		2
-#define SCTPCTL_CMT_ON_OFF_DEFAULT	0
+#define SCTPCTL_CMT_ON_OFF_MIN		SCTP_CMT_OFF
+#define SCTPCTL_CMT_ON_OFF_MAX		SCTP_CMT_MAX
+#define SCTPCTL_CMT_ON_OFF_DEFAULT	SCTP_CMT_OFF
 
 /* EY - nr_sack_on_off: NR_SACK on/off flag */
 #define SCTPCTL_NR_SACK_ON_OFF_DESC	"NR_SACK on/off flag"
