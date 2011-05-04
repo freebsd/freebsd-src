@@ -108,8 +108,14 @@ static void	nsphy_status(struct mii_softc *);
 static void	nsphy_reset(struct mii_softc *);
 
 static const struct mii_phydesc nsphys[] = {
-	MII_PHY_DESC(NATSEMI, DP83840),
+	MII_PHY_DESC(xxNATSEMI, DP83840),
 	MII_PHY_END
+};
+
+static const struct mii_phy_funcs nsphy_funcs = {
+	nsphy_service,
+	nsphy_status,
+	nsphy_reset
 };
 
 static int
@@ -122,52 +128,17 @@ nsphy_probe(device_t dev)
 static int
 nsphy_attach(device_t dev)
 {
-	struct mii_softc *sc;
-	struct mii_attach_args *ma;
-	struct mii_data *mii;
 	const char *nic;
+	u_int flags;
 
-	sc = device_get_softc(dev);
-	ma = device_get_ivars(dev);
-	sc->mii_dev = device_get_parent(dev);
-	mii = ma->mii_data;
-	LIST_INSERT_HEAD(&mii->mii_phys, sc, mii_list);
-
-	sc->mii_flags = miibus_get_flags(dev);
-	sc->mii_inst = mii->mii_instance++;
-	sc->mii_phy = ma->mii_phyno;
-	sc->mii_service = nsphy_service;
-	sc->mii_pdata = mii;
-
-	nic = device_get_name(device_get_parent(sc->mii_dev));
+	nic = device_get_name(device_get_parent(device_get_parent(dev)));
+	flags = MIIF_NOMANPAUSE;
 	/*
 	 * Am79C971 wedge when isolating all of their external PHYs.
 	 */
 	if (strcmp(nic, "pcn") == 0)
-		sc->mii_flags |= MIIF_NOISOLATE;
-
-#if 1
-
-#define	ADD(m, c)	ifmedia_add(&mii->mii_media, (m), (c), NULL)
-
-	/*
-	 * XXX IFM_LOOP should be handled by mii_phy_add_media() based
-	 * on MIIF_NOLOOP.
-	 */
-	if ((sc->mii_flags & MIIF_NOLOOP) == 0)
-		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_TX, IFM_LOOP,
-		    sc->mii_inst), MII_MEDIA_100_TX);
-
-#endif
-
-	nsphy_reset(sc);
-
-	sc->mii_capabilities = PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
-	device_printf(dev, " ");
-	mii_phy_add_media(sc);
-	printf("\n");
-
-	MIIBUS_MEDIAINIT(sc->mii_dev);
+		flags |= MIIF_NOISOLATE;
+	mii_phy_dev_attach(dev, flags, &nsphy_funcs, 1);
 	return (0);
 }
 
@@ -233,7 +204,7 @@ nsphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 	}
 
 	/* Update the media status. */
-	nsphy_status(sc);
+	PHY_STATUS(sc);
 
 	/* Callback if something changed. */
 	mii_phy_update(sc, cmd);
@@ -296,6 +267,9 @@ nsphy_status(struct mii_softc *sc)
 				mii->mii_media_active |= IFM_10_T|IFM_HDX;
 			else
 				mii->mii_media_active |= IFM_NONE;
+			if ((mii->mii_media_active & IFM_FDX) != 0)
+				mii->mii_media_active |=
+				    mii_phy_flowstatus(sc);
 			return;
 		}
 

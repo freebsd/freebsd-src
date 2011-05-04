@@ -903,10 +903,8 @@ ae_mediachange(struct ifnet *ifp)
 	KASSERT(sc != NULL, ("[ae, %d]: sc is NULL", __LINE__));
 	AE_LOCK(sc);
 	mii = device_get_softc(sc->miibus);
-	if (mii->mii_instance != 0) {
-		LIST_FOREACH(mii_sc, &mii->mii_phys, mii_list)
-			mii_phy_reset(mii_sc);
-	}
+	LIST_FOREACH(mii_sc, &mii->mii_phys, mii_list)
+		PHY_RESET(mii_sc);
 	error = mii_mediachg(mii);
 	AE_UNLOCK(sc);
 
