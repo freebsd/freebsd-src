@@ -82,9 +82,10 @@ kvm_t *kd;
 static int deadkernel = 0;
 static int widemode = 0;
 static int zflag = 0;
-static int run_v4 = 0;
+static int run_v4 = 1;
 static int printtitle = 1;
 static struct ext_nfsstats ext_nfsstats;
+static int extra_output = 0;
 
 void intpr(int, int);
 void printhdr(int, int);
@@ -109,7 +110,7 @@ main(int argc, char **argv)
 
 	interval = 0;
 	memf = nlistf = NULL;
-	while ((ch = getopt(argc, argv, "cesWM:N:w:z")) != -1)
+	while ((ch = getopt(argc, argv, "cesWM:N:ow:z")) != -1)
 		switch(ch) {
 		case 'M':
 			memf = optarg;
@@ -136,8 +137,15 @@ main(int argc, char **argv)
 		case 'z':
 			zflag = 1;
 			break;
+		case 'o':
+			if (extra_output != 0)
+				err(1, "-o incompatible with -e");
+			run_v4 = 0;
+			break;
 		case 'e':
-			run_v4 = 1;
+			if (run_v4 == 0)
+				err(1, "-e incompatible with -o");
+			extra_output = 1;
 			break;
 		case '?':
 		default:
@@ -158,7 +166,7 @@ main(int argc, char **argv)
 	}
 #endif
 	if (run_v4 != 0 && modfind("nfscommon") < 0)
-		errx(1, "experimental client/server not loaded");
+		errx(1, "new client/server not loaded");
 
 	if (run_v4 == 0 && (nlistf != NULL || memf != NULL)) {
 		deadkernel = 1;
@@ -178,7 +186,7 @@ main(int argc, char **argv)
 		else
 			sidewaysintpr(interval, clientOnly, serverOnly);
 	} else {
-		if (run_v4 > 0)
+		if (extra_output != 0)
 			exp_intpr(clientOnly, serverOnly);
 		else
 			intpr(clientOnly, serverOnly);
@@ -238,25 +246,38 @@ intpr(int clientOnly, int serverOnly)
 {
 	struct nfsstats nfsstats, *nfsstatsp;
 	struct nfsrvstats nfsrvstats, *nfsrvstatsp;
+	int nfssvc_flag;
 
-	/*
-	 * Only read the stats we are going to display to avoid zeroing
-	 * stats the user didn't request.
-	 */
-	if (clientOnly)
-		nfsstatsp = &nfsstats;
-	else
-		nfsstatsp = NULL;
-	if (serverOnly)
-		nfsrvstatsp = &nfsrvstats;
-	else
-		nfsrvstatsp = NULL;
-
-	readstats(&nfsstatsp, &nfsrvstatsp, zflag);
-
-	if (clientOnly && !nfsstatsp) {
-		printf("Client not present!\n");
-		clientOnly = 0;
+	if (run_v4 == 0) {
+		/*
+		 * Only read the stats we are going to display to avoid zeroing
+		 * stats the user didn't request.
+		 */
+		if (clientOnly)
+			nfsstatsp = &nfsstats;
+		else
+			nfsstatsp = NULL;
+		if (serverOnly)
+			nfsrvstatsp = &nfsrvstats;
+		else
+			nfsrvstatsp = NULL;
+	
+		readstats(&nfsstatsp, &nfsrvstatsp, zflag);
+	
+		if (clientOnly && !nfsstatsp) {
+			printf("Client not present!\n");
+			clientOnly = 0;
+		}
+	} else {
+		nfssvc_flag = NFSSVC_GETSTATS;
+		if (zflag != 0) {
+			if (clientOnly != 0)
+				nfssvc_flag |= NFSSVC_ZEROCLTSTATS;
+			if (serverOnly != 0)
+				nfssvc_flag |= NFSSVC_ZEROSRVSTATS;
+		}
+		if (nfssvc(nfssvc_flag, &ext_nfsstats) < 0)
+			err(1, "Can't get stats");
 	}
 	if (clientOnly) {
 		printf("Client Info:\n");
@@ -264,71 +285,145 @@ intpr(int clientOnly, int serverOnly)
 		printf("%9.9s %9.9s %9.9s %9.9s %9.9s %9.9s %9.9s %9.9s\n",
 			"Getattr", "Setattr", "Lookup", "Readlink", "Read",
 			"Write", "Create", "Remove");
-		printf("%9d %9d %9d %9d %9d %9d %9d %9d\n",
-			nfsstats.rpccnt[NFSPROC_GETATTR],
-			nfsstats.rpccnt[NFSPROC_SETATTR],
-			nfsstats.rpccnt[NFSPROC_LOOKUP],
-			nfsstats.rpccnt[NFSPROC_READLINK],
-			nfsstats.rpccnt[NFSPROC_READ],
-			nfsstats.rpccnt[NFSPROC_WRITE],
-			nfsstats.rpccnt[NFSPROC_CREATE],
-			nfsstats.rpccnt[NFSPROC_REMOVE]);
+		if (run_v4 == 0)
+			printf("%9d %9d %9d %9d %9d %9d %9d %9d\n",
+				nfsstats.rpccnt[NFSPROC_GETATTR],
+				nfsstats.rpccnt[NFSPROC_SETATTR],
+				nfsstats.rpccnt[NFSPROC_LOOKUP],
+				nfsstats.rpccnt[NFSPROC_READLINK],
+				nfsstats.rpccnt[NFSPROC_READ],
+				nfsstats.rpccnt[NFSPROC_WRITE],
+				nfsstats.rpccnt[NFSPROC_CREATE],
+				nfsstats.rpccnt[NFSPROC_REMOVE]);
+		else
+			printf("%9d %9d %9d %9d %9d %9d %9d %9d\n",
+				ext_nfsstats.rpccnt[NFSPROC_GETATTR],
+				ext_nfsstats.rpccnt[NFSPROC_SETATTR],
+				ext_nfsstats.rpccnt[NFSPROC_LOOKUP],
+				ext_nfsstats.rpccnt[NFSPROC_READLINK],
+				ext_nfsstats.rpccnt[NFSPROC_READ],
+				ext_nfsstats.rpccnt[NFSPROC_WRITE],
+				ext_nfsstats.rpccnt[NFSPROC_CREATE],
+				ext_nfsstats.rpccnt[NFSPROC_REMOVE]);
 		printf("%9.9s %9.9s %9.9s %9.9s %9.9s %9.9s %9.9s %9.9s\n",
 			"Rename", "Link", "Symlink", "Mkdir", "Rmdir",
 			"Readdir", "RdirPlus", "Access");
-		printf("%9d %9d %9d %9d %9d %9d %9d %9d\n",
-			nfsstats.rpccnt[NFSPROC_RENAME],
-			nfsstats.rpccnt[NFSPROC_LINK],
-			nfsstats.rpccnt[NFSPROC_SYMLINK],
-			nfsstats.rpccnt[NFSPROC_MKDIR],
-			nfsstats.rpccnt[NFSPROC_RMDIR],
-			nfsstats.rpccnt[NFSPROC_READDIR],
-			nfsstats.rpccnt[NFSPROC_READDIRPLUS],
-			nfsstats.rpccnt[NFSPROC_ACCESS]);
+		if (run_v4 == 0)
+			printf("%9d %9d %9d %9d %9d %9d %9d %9d\n",
+				nfsstats.rpccnt[NFSPROC_RENAME],
+				nfsstats.rpccnt[NFSPROC_LINK],
+				nfsstats.rpccnt[NFSPROC_SYMLINK],
+				nfsstats.rpccnt[NFSPROC_MKDIR],
+				nfsstats.rpccnt[NFSPROC_RMDIR],
+				nfsstats.rpccnt[NFSPROC_READDIR],
+				nfsstats.rpccnt[NFSPROC_READDIRPLUS],
+				nfsstats.rpccnt[NFSPROC_ACCESS]);
+		else
+			printf("%9d %9d %9d %9d %9d %9d %9d %9d\n",
+				ext_nfsstats.rpccnt[NFSPROC_RENAME],
+				ext_nfsstats.rpccnt[NFSPROC_LINK],
+				ext_nfsstats.rpccnt[NFSPROC_SYMLINK],
+				ext_nfsstats.rpccnt[NFSPROC_MKDIR],
+				ext_nfsstats.rpccnt[NFSPROC_RMDIR],
+				ext_nfsstats.rpccnt[NFSPROC_READDIR],
+				ext_nfsstats.rpccnt[NFSPROC_READDIRPLUS],
+				ext_nfsstats.rpccnt[NFSPROC_ACCESS]);
 		printf("%9.9s %9.9s %9.9s %9.9s %9.9s\n",
 			"Mknod", "Fsstat", "Fsinfo", "PathConf", "Commit");
-		printf("%9d %9d %9d %9d %9d\n",
-			nfsstats.rpccnt[NFSPROC_MKNOD],
-			nfsstats.rpccnt[NFSPROC_FSSTAT],
-			nfsstats.rpccnt[NFSPROC_FSINFO],
-			nfsstats.rpccnt[NFSPROC_PATHCONF],
-			nfsstats.rpccnt[NFSPROC_COMMIT]);
+		if (run_v4 == 0)
+			printf("%9d %9d %9d %9d %9d\n",
+				nfsstats.rpccnt[NFSPROC_MKNOD],
+				nfsstats.rpccnt[NFSPROC_FSSTAT],
+				nfsstats.rpccnt[NFSPROC_FSINFO],
+				nfsstats.rpccnt[NFSPROC_PATHCONF],
+				nfsstats.rpccnt[NFSPROC_COMMIT]);
+		else
+			printf("%9d %9d %9d %9d %9d\n",
+				ext_nfsstats.rpccnt[NFSPROC_MKNOD],
+				ext_nfsstats.rpccnt[NFSPROC_FSSTAT],
+				ext_nfsstats.rpccnt[NFSPROC_FSINFO],
+				ext_nfsstats.rpccnt[NFSPROC_PATHCONF],
+				ext_nfsstats.rpccnt[NFSPROC_COMMIT]);
 		printf("Rpc Info:\n");
 		printf("%9.9s %9.9s %9.9s %9.9s %9.9s\n",
 			"TimedOut", "Invalid", "X Replies", "Retries", 
 			"Requests");
-		printf("%9d %9d %9d %9d %9d\n",
-			nfsstats.rpctimeouts,
-			nfsstats.rpcinvalid,
-			nfsstats.rpcunexpected,
-			nfsstats.rpcretries,
-			nfsstats.rpcrequests);
+		if (run_v4 == 0)
+			printf("%9d %9d %9d %9d %9d\n",
+				nfsstats.rpctimeouts,
+				nfsstats.rpcinvalid,
+				nfsstats.rpcunexpected,
+				nfsstats.rpcretries,
+				nfsstats.rpcrequests);
+		else
+			printf("%9d %9d %9d %9d %9d\n",
+				ext_nfsstats.rpctimeouts,
+				ext_nfsstats.rpcinvalid,
+				ext_nfsstats.rpcunexpected,
+				ext_nfsstats.rpcretries,
+				ext_nfsstats.rpcrequests);
 		printf("Cache Info:\n");
 		printf("%9.9s %9.9s %9.9s %9.9s",
 			"Attr Hits", "Misses", "Lkup Hits", "Misses");
 		printf(" %9.9s %9.9s %9.9s %9.9s\n",
 			"BioR Hits", "Misses", "BioW Hits", "Misses");
-		printf("%9d %9d %9d %9d",
-			nfsstats.attrcache_hits, nfsstats.attrcache_misses,
-			nfsstats.lookupcache_hits, nfsstats.lookupcache_misses);
-		printf(" %9d %9d %9d %9d\n",
-			nfsstats.biocache_reads-nfsstats.read_bios,
-			nfsstats.read_bios,
-			nfsstats.biocache_writes-nfsstats.write_bios,
-			nfsstats.write_bios);
+		if (run_v4 == 0) {
+			printf("%9d %9d %9d %9d",
+				nfsstats.attrcache_hits,
+				nfsstats.attrcache_misses,
+				nfsstats.lookupcache_hits,
+				nfsstats.lookupcache_misses);
+			printf(" %9d %9d %9d %9d\n",
+				nfsstats.biocache_reads-nfsstats.read_bios,
+				nfsstats.read_bios,
+				nfsstats.biocache_writes-nfsstats.write_bios,
+				nfsstats.write_bios);
+		} else {
+			printf("%9d %9d %9d %9d",
+				ext_nfsstats.attrcache_hits,
+				ext_nfsstats.attrcache_misses,
+				ext_nfsstats.lookupcache_hits,
+				ext_nfsstats.lookupcache_misses);
+			printf(" %9d %9d %9d %9d\n",
+				ext_nfsstats.biocache_reads -
+				ext_nfsstats.read_bios,
+				ext_nfsstats.read_bios,
+				ext_nfsstats.biocache_writes -
+				ext_nfsstats.write_bios,
+				ext_nfsstats.write_bios);
+		}
 		printf("%9.9s %9.9s %9.9s %9.9s",
 			"BioRLHits", "Misses", "BioD Hits", "Misses");
 		printf(" %9.9s %9.9s %9.9s %9.9s\n", "DirE Hits", "Misses", "Accs Hits", "Misses");
-		printf("%9d %9d %9d %9d",
-			nfsstats.biocache_readlinks-nfsstats.readlink_bios,
-			nfsstats.readlink_bios,
-			nfsstats.biocache_readdirs-nfsstats.readdir_bios,
-			nfsstats.readdir_bios);
-		printf(" %9d %9d %9d %9d\n",
-			nfsstats.direofcache_hits, nfsstats.direofcache_misses,
-			nfsstats.accesscache_hits, nfsstats.accesscache_misses);
+		if (run_v4 == 0) {
+			printf("%9d %9d %9d %9d",
+				nfsstats.biocache_readlinks -
+				nfsstats.readlink_bios,
+				nfsstats.readlink_bios,
+				nfsstats.biocache_readdirs -
+				nfsstats.readdir_bios,
+				nfsstats.readdir_bios);
+			printf(" %9d %9d %9d %9d\n",
+				nfsstats.direofcache_hits,
+				nfsstats.direofcache_misses,
+				nfsstats.accesscache_hits,
+				nfsstats.accesscache_misses);
+		} else {
+			printf("%9d %9d %9d %9d",
+				ext_nfsstats.biocache_readlinks -
+				ext_nfsstats.readlink_bios,
+				ext_nfsstats.readlink_bios,
+				ext_nfsstats.biocache_readdirs -
+				ext_nfsstats.readdir_bios,
+				ext_nfsstats.readdir_bios);
+			printf(" %9d %9d %9d %9d\n",
+				ext_nfsstats.direofcache_hits,
+				ext_nfsstats.direofcache_misses,
+				ext_nfsstats.accesscache_hits,
+				ext_nfsstats.accesscache_misses);
+		}
 	}
-	if (serverOnly && !nfsrvstatsp) {
+	if (run_v4 == 0 && serverOnly && !nfsrvstatsp) {
 		printf("Server not present!\n");
 		serverOnly = 0;
 	}
@@ -337,55 +432,107 @@ intpr(int clientOnly, int serverOnly)
 		printf("%9.9s %9.9s %9.9s %9.9s %9.9s %9.9s %9.9s %9.9s\n",
 			"Getattr", "Setattr", "Lookup", "Readlink", "Read",
 			"Write", "Create", "Remove");
-		printf("%9d %9d %9d %9d %9d %9d %9d %9d\n",
-			nfsrvstats.srvrpccnt[NFSPROC_GETATTR],
-			nfsrvstats.srvrpccnt[NFSPROC_SETATTR],
-			nfsrvstats.srvrpccnt[NFSPROC_LOOKUP],
-			nfsrvstats.srvrpccnt[NFSPROC_READLINK],
-			nfsrvstats.srvrpccnt[NFSPROC_READ],
-			nfsrvstats.srvrpccnt[NFSPROC_WRITE],
-			nfsrvstats.srvrpccnt[NFSPROC_CREATE],
-			nfsrvstats.srvrpccnt[NFSPROC_REMOVE]);
+		if (run_v4 == 0)
+			printf("%9d %9d %9d %9d %9d %9d %9d %9d\n",
+				nfsrvstats.srvrpccnt[NFSPROC_GETATTR],
+				nfsrvstats.srvrpccnt[NFSPROC_SETATTR],
+				nfsrvstats.srvrpccnt[NFSPROC_LOOKUP],
+				nfsrvstats.srvrpccnt[NFSPROC_READLINK],
+				nfsrvstats.srvrpccnt[NFSPROC_READ],
+				nfsrvstats.srvrpccnt[NFSPROC_WRITE],
+				nfsrvstats.srvrpccnt[NFSPROC_CREATE],
+				nfsrvstats.srvrpccnt[NFSPROC_REMOVE]);
+		else
+			printf("%9d %9d %9d %9d %9d %9d %9d %9d\n",
+				ext_nfsstats.srvrpccnt[NFSPROC_GETATTR],
+				ext_nfsstats.srvrpccnt[NFSPROC_SETATTR],
+				ext_nfsstats.srvrpccnt[NFSPROC_LOOKUP],
+				ext_nfsstats.srvrpccnt[NFSPROC_READLINK],
+				ext_nfsstats.srvrpccnt[NFSPROC_READ],
+				ext_nfsstats.srvrpccnt[NFSPROC_WRITE],
+				ext_nfsstats.srvrpccnt[NFSPROC_CREATE],
+				ext_nfsstats.srvrpccnt[NFSPROC_REMOVE]);
 		printf("%9.9s %9.9s %9.9s %9.9s %9.9s %9.9s %9.9s %9.9s\n",
 			"Rename", "Link", "Symlink", "Mkdir", "Rmdir",
 			"Readdir", "RdirPlus", "Access");
-		printf("%9d %9d %9d %9d %9d %9d %9d %9d\n",
-			nfsrvstats.srvrpccnt[NFSPROC_RENAME],
-			nfsrvstats.srvrpccnt[NFSPROC_LINK],
-			nfsrvstats.srvrpccnt[NFSPROC_SYMLINK],
-			nfsrvstats.srvrpccnt[NFSPROC_MKDIR],
-			nfsrvstats.srvrpccnt[NFSPROC_RMDIR],
-			nfsrvstats.srvrpccnt[NFSPROC_READDIR],
-			nfsrvstats.srvrpccnt[NFSPROC_READDIRPLUS],
-			nfsrvstats.srvrpccnt[NFSPROC_ACCESS]);
+		if (run_v4 == 0)
+			printf("%9d %9d %9d %9d %9d %9d %9d %9d\n",
+				nfsrvstats.srvrpccnt[NFSPROC_RENAME],
+				nfsrvstats.srvrpccnt[NFSPROC_LINK],
+				nfsrvstats.srvrpccnt[NFSPROC_SYMLINK],
+				nfsrvstats.srvrpccnt[NFSPROC_MKDIR],
+				nfsrvstats.srvrpccnt[NFSPROC_RMDIR],
+				nfsrvstats.srvrpccnt[NFSPROC_READDIR],
+				nfsrvstats.srvrpccnt[NFSPROC_READDIRPLUS],
+				nfsrvstats.srvrpccnt[NFSPROC_ACCESS]);
+		else
+			printf("%9d %9d %9d %9d %9d %9d %9d %9d\n",
+				ext_nfsstats.srvrpccnt[NFSPROC_RENAME],
+				ext_nfsstats.srvrpccnt[NFSPROC_LINK],
+				ext_nfsstats.srvrpccnt[NFSPROC_SYMLINK],
+				ext_nfsstats.srvrpccnt[NFSPROC_MKDIR],
+				ext_nfsstats.srvrpccnt[NFSPROC_RMDIR],
+				ext_nfsstats.srvrpccnt[NFSPROC_READDIR],
+				ext_nfsstats.srvrpccnt[NFSPROC_READDIRPLUS],
+				ext_nfsstats.srvrpccnt[NFSPROC_ACCESS]);
 		printf("%9.9s %9.9s %9.9s %9.9s %9.9s\n",
 			"Mknod", "Fsstat", "Fsinfo", "PathConf", "Commit");
-		printf("%9d %9d %9d %9d %9d\n",
-			nfsrvstats.srvrpccnt[NFSPROC_MKNOD],
-			nfsrvstats.srvrpccnt[NFSPROC_FSSTAT],
-			nfsrvstats.srvrpccnt[NFSPROC_FSINFO],
-			nfsrvstats.srvrpccnt[NFSPROC_PATHCONF],
-			nfsrvstats.srvrpccnt[NFSPROC_COMMIT]);
+		if (run_v4 == 0)
+			printf("%9d %9d %9d %9d %9d\n",
+				nfsrvstats.srvrpccnt[NFSPROC_MKNOD],
+				nfsrvstats.srvrpccnt[NFSPROC_FSSTAT],
+				nfsrvstats.srvrpccnt[NFSPROC_FSINFO],
+				nfsrvstats.srvrpccnt[NFSPROC_PATHCONF],
+				nfsrvstats.srvrpccnt[NFSPROC_COMMIT]);
+		else
+			printf("%9d %9d %9d %9d %9d\n",
+				ext_nfsstats.srvrpccnt[NFSPROC_MKNOD],
+				ext_nfsstats.srvrpccnt[NFSPROC_FSSTAT],
+				ext_nfsstats.srvrpccnt[NFSPROC_FSINFO],
+				ext_nfsstats.srvrpccnt[NFSPROC_PATHCONF],
+				ext_nfsstats.srvrpccnt[NFSPROC_COMMIT]);
 		printf("Server Ret-Failed\n");
-		printf("%17d\n", nfsrvstats.srvrpc_errs);
+		if (run_v4 == 0)
+			printf("%17d\n", nfsrvstats.srvrpc_errs);
+		else
+			printf("%17d\n", ext_nfsstats.srvrpc_errs);
 		printf("Server Faults\n");
-		printf("%13d\n", nfsrvstats.srv_errs);
+		if (run_v4 == 0)
+			printf("%13d\n", nfsrvstats.srv_errs);
+		else
+			printf("%13d\n", ext_nfsstats.srv_errs);
 		printf("Server Cache Stats:\n");
 		printf("%9.9s %9.9s %9.9s %9.9s\n",
 			"Inprog", "Idem", "Non-idem", "Misses");
-		printf("%9d %9d %9d %9d\n",
-			nfsrvstats.srvcache_inproghits,
-			nfsrvstats.srvcache_idemdonehits,
-			nfsrvstats.srvcache_nonidemdonehits,
-			nfsrvstats.srvcache_misses);
+		if (run_v4 == 0)
+			printf("%9d %9d %9d %9d\n",
+				nfsrvstats.srvcache_inproghits,
+				nfsrvstats.srvcache_idemdonehits,
+				nfsrvstats.srvcache_nonidemdonehits,
+				nfsrvstats.srvcache_misses);
+		else
+			printf("%9d %9d %9d %9d\n",
+				ext_nfsstats.srvcache_inproghits,
+				ext_nfsstats.srvcache_idemdonehits,
+				ext_nfsstats.srvcache_nonidemdonehits,
+				ext_nfsstats.srvcache_misses);
 		printf("Server Write Gathering:\n");
 		printf("%9.9s %9.9s %9.9s\n",
 			"WriteOps", "WriteRPC", "Opsaved");
-		printf("%9d %9d %9d\n",
-			nfsrvstats.srvvop_writes,
-			nfsrvstats.srvrpccnt[NFSPROC_WRITE],
-			nfsrvstats.srvrpccnt[NFSPROC_WRITE] - 
-			    nfsrvstats.srvvop_writes);
+		if (run_v4 == 0)
+			printf("%9d %9d %9d\n",
+				nfsrvstats.srvvop_writes,
+				nfsrvstats.srvrpccnt[NFSPROC_WRITE],
+				nfsrvstats.srvrpccnt[NFSPROC_WRITE] - 
+				    nfsrvstats.srvvop_writes);
+		else
+			/*
+			 * The new client doesn't do write gathering. It was
+			 * only useful for NFSv2.
+			 */
+			printf("%9d %9d %9d\n",
+				ext_nfsstats.srvrpccnt[NFSPROC_WRITE],
+				ext_nfsstats.srvrpccnt[NFSPROC_WRITE], 0);
 	}
 }
 
