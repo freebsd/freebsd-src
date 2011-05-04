@@ -23,9 +23,16 @@
 # extra-bits-dir, if provided, contains additional files to be merged
 # into base-bits-dir as part of making the image.
 
+publisher="The FreeBSD Project.  http://www.freebsd.org/"
 if [ "x$1" = "x-b" ]; then
-	cp /usr/src/release/powerpc/boot.tbxi ${4}/boot
-	bootable="-hfs -hfs-bless ${4}/boot -map /usr/src/release/powerpc/hfs.map -hide-hfs ${4}/usr/share/man"
+	uudecode -o /tmp/hfs-boot-block.bz2 `dirname $0`/hfs-boot.bz2.uu
+	bzip2 -d /tmp/hfs-boot-block.bz2
+	OFFSET=$(hd /tmp/hfs-boot-block | grep 'Loader START' | cut -f 1 -d ' ')
+	OFFSET=0x$(echo 0x$OFFSET | awk '{printf("%x\n",$1/512);}')
+	echo dd if=$4/boot/loader of=/tmp/hfs-boot-block seek=$OFFSET conv=notrunc
+	dd if=$4/boot/loader of=/tmp/hfs-boot-block seek=$OFFSET conv=notrunc
+
+	bootable="-o bootimage=macppc;/tmp/hfs-boot-block -o no-emul-boot"
 	shift
 else
 	bootable=""
@@ -33,28 +40,13 @@ fi
 
 if [ $# -lt 3 ]; then
 	echo Usage: $0 '[-b] image-label image-name base-bits-dir [extra-bits-dir]'
-	rm -f ${IMG}
 	exit 1
-fi
-
-type mkisofs 2>&1 | grep " is " >/dev/null
-if [ $? -ne 0 ]; then
-	echo The cdrtools port is not installed.  Trying to get it now.
-	if [ -f /usr/ports/sysutils/cdrtools/Makefile ]; then
-		cd /usr/ports/sysutils/cdrtools && make install BATCH=yes && make clean
-	else
-		if ! pkg_add -r cdrtools; then
-			echo "Could not get it via pkg_add - please go install this"
-			echo "from the ports collection and run this script again."
-			exit 2
-		fi
-	fi
 fi
 
 LABEL=$1; shift
 NAME=$1; shift
 
-echo "/dev/iso9660/$LABEL / cd9660 ro 0 0" > $1/etc/fstab
-mkisofs $bootable -l -r -part -no-desktop -V $LABEL -o $NAME $*
+echo "/dev/iso9660/`echo $LABEL | tr '[:lower:]' '[:upper:]'` / cd9660 ro 0 0" > $1/etc/fstab
+makefs -t cd9660 $bootable -o rockridge -o label=$LABEL $NAME $*
 rm $1/etc/fstab
-
+rm /tmp/hfs-boot-block
