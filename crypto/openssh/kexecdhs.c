@@ -1,6 +1,7 @@
-/* $OpenBSD: kexdhs.c,v 1.12 2010/11/10 01:33:07 djm Exp $ */
+/* $OpenBSD: kexecdhs.c,v 1.2 2010/09/22 05:01:29 djm Exp $ */
 /*
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
+ * Copyright (c) 2010 Damien Miller.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -26,12 +27,8 @@
 #include "includes.h"
 
 #include <sys/types.h>
-
-#include <stdarg.h>
 #include <string.h>
 #include <signal.h>
-
-#include <openssl/dh.h>
 
 #include "xmalloc.h"
 #include "buffer.h"
@@ -47,31 +44,35 @@
 #endif
 #include "monitor_wrap.h"
 
+#ifdef OPENSSL_HAS_ECC
+
+#include <openssl/ecdh.h>
+
 void
-kexdh_server(Kex *kex)
+kexecdh_server(Kex *kex)
 {
-	BIGNUM *shared_secret = NULL, *dh_client_pub = NULL;
-	DH *dh;
-	Key *server_host_public, *server_host_private;
-	u_char *kbuf, *hash, *signature = NULL, *server_host_key_blob = NULL;
-	u_int sbloblen, klen, hashlen, slen;
-	int kout;
+	EC_POINT *client_public;
+	EC_KEY *server_key;
+	const EC_GROUP *group;
+	BIGNUM *shared_secret;
+	Key *server_host_private, *server_host_public;
+	u_char *server_host_key_blob = NULL, *signature = NULL;
+	u_char *kbuf, *hash;
+	u_int klen, slen, sbloblen, hashlen;
+	int curve_nid;
 
-	/* generate server DH public key */
-	switch (kex->kex_type) {
-	case KEX_DH_GRP1_SHA1:
-		dh = dh_new_group1();
-		break;
-	case KEX_DH_GRP14_SHA1:
-		dh = dh_new_group14();
-		break;
-	default:
-		fatal("%s: Unexpected KEX type %d", __func__, kex->kex_type);
-	}
-	dh_gen_key(dh, kex->we_need * 8);
+	if ((curve_nid = kex_ecdh_name_to_nid(kex->name)) == -1)
+		fatal("%s: unsupported ECDH curve \"%s\"", __func__, kex->name);
+	if ((server_key = EC_KEY_new_by_curve_name(curve_nid)) == NULL)
+		fatal("%s: EC_KEY_new_by_curve_name failed", __func__);
+	if (EC_KEY_generate_key(server_key) != 1)
+		fatal("%s: EC_KEY_generate_key failed", __func__);
+	group = EC_KEY_get0_group(server_key);
 
-	debug("expecting SSH2_MSG_KEXDH_INIT");
-	packet_read_expect(SSH2_MSG_KEXDH_INIT);
+#ifdef DEBUG_KEXECDH
+	fputs("server private key:\n", stderr);
+	key_dump_ec_key(server_key);
+#endif
 
 	if (kex->load_host_public_key == NULL ||
 	    kex->load_host_private_key == NULL)
@@ -84,57 +85,54 @@ kexdh_server(Kex *kex)
 		fatal("Missing private key for hostkey type %d",
 		    kex->hostkey_type);
 
-	/* key, cert */
-	if ((dh_client_pub = BN_new()) == NULL)
-		fatal("dh_client_pub == NULL");
-	packet_get_bignum2(dh_client_pub);
+	debug("expecting SSH2_MSG_KEX_ECDH_INIT");
+	packet_read_expect(SSH2_MSG_KEX_ECDH_INIT);
+	if ((client_public = EC_POINT_new(group)) == NULL)
+		fatal("%s: EC_POINT_new failed", __func__);
+	packet_get_ecpoint(group, client_public);
 	packet_check_eom();
 
-#ifdef DEBUG_KEXDH
-	fprintf(stderr, "dh_client_pub= ");
-	BN_print_fp(stderr, dh_client_pub);
-	fprintf(stderr, "\n");
-	debug("bits %d", BN_num_bits(dh_client_pub));
+	if (key_ec_validate_public(group, client_public) != 0)
+		fatal("%s: invalid client public key", __func__);
+
+#ifdef DEBUG_KEXECDH
+	fputs("client public key:\n", stderr);
+	key_dump_ec_point(group, client_public);
 #endif
 
-#ifdef DEBUG_KEXDH
-	DHparams_print_fp(stderr, dh);
-	fprintf(stderr, "pub= ");
-	BN_print_fp(stderr, dh->pub_key);
-	fprintf(stderr, "\n");
-#endif
-	if (!dh_pub_is_valid(dh, dh_client_pub))
-		packet_disconnect("bad client public DH value");
-
-	klen = DH_size(dh);
+	/* Calculate shared_secret */
+	klen = (EC_GROUP_get_degree(group) + 7) / 8;
 	kbuf = xmalloc(klen);
-	if ((kout = DH_compute_key(kbuf, dh_client_pub, dh)) < 0)
-		fatal("DH_compute_key: failed");
+	if (ECDH_compute_key(kbuf, klen, client_public,
+	    server_key, NULL) != (int)klen)
+		fatal("%s: ECDH_compute_key failed", __func__);
+
 #ifdef DEBUG_KEXDH
-	dump_digest("shared secret", kbuf, kout);
+	dump_digest("shared secret", kbuf, klen);
 #endif
 	if ((shared_secret = BN_new()) == NULL)
-		fatal("kexdh_server: BN_new failed");
-	if (BN_bin2bn(kbuf, kout, shared_secret) == NULL)
-		fatal("kexdh_server: BN_bin2bn failed");
+		fatal("%s: BN_new failed", __func__);
+	if (BN_bin2bn(kbuf, klen, shared_secret) == NULL)
+		fatal("%s: BN_bin2bn failed", __func__);
 	memset(kbuf, 0, klen);
 	xfree(kbuf);
 
-	key_to_blob(server_host_public, &server_host_key_blob, &sbloblen);
-
 	/* calc H */
-	kex_dh_hash(
+	key_to_blob(server_host_public, &server_host_key_blob, &sbloblen);
+	kex_ecdh_hash(
+	    kex->evp_md,
+	    group,
 	    kex->client_version_string,
 	    kex->server_version_string,
 	    buffer_ptr(&kex->peer), buffer_len(&kex->peer),
 	    buffer_ptr(&kex->my), buffer_len(&kex->my),
 	    server_host_key_blob, sbloblen,
-	    dh_client_pub,
-	    dh->pub_key,
+	    client_public,
+	    EC_KEY_get0_public_key(server_key),
 	    shared_secret,
 	    &hash, &hashlen
 	);
-	BN_clear_free(dh_client_pub);
+	EC_POINT_clear_free(client_public);
 
 	/* save session id := H */
 	if (kex->session_id == NULL) {
@@ -144,25 +142,32 @@ kexdh_server(Kex *kex)
 	}
 
 	/* sign H */
-	if (PRIVSEP(key_sign(server_host_private, &signature, &slen, hash,
-	    hashlen)) < 0)
+	if (PRIVSEP(key_sign(server_host_private, &signature, &slen,
+	    hash, hashlen)) < 0)
 		fatal("kexdh_server: key_sign failed");
 
 	/* destroy_sensitive_data(); */
 
-	/* send server hostkey, DH pubkey 'f' and singed H */
-	packet_start(SSH2_MSG_KEXDH_REPLY);
+	/* send server hostkey, ECDH pubkey 'Q_S' and signed H */
+	packet_start(SSH2_MSG_KEX_ECDH_REPLY);
 	packet_put_string(server_host_key_blob, sbloblen);
-	packet_put_bignum2(dh->pub_key);	/* f */
+	packet_put_ecpoint(group, EC_KEY_get0_public_key(server_key));
 	packet_put_string(signature, slen);
 	packet_send();
 
 	xfree(signature);
 	xfree(server_host_key_blob);
-	/* have keys, free DH */
-	DH_free(dh);
+	/* have keys, free server key */
+	EC_KEY_free(server_key);
 
 	kex_derive_keys(kex, hash, hashlen, shared_secret);
 	BN_clear_free(shared_secret);
 	kex_finish(kex);
 }
+#else /* OPENSSL_HAS_ECC */
+void
+kexecdh_server(Kex *kex)
+{
+	fatal("ECC support is not enabled");
+}
+#endif /* OPENSSL_HAS_ECC */
