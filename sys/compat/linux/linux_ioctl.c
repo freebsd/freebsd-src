@@ -59,6 +59,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/sx.h>
 #include <sys/tty.h>
 #include <sys/uio.h>
+#include <sys/types.h>
+#include <sys/mman.h>
+#include <sys/resourcevar.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -83,6 +86,9 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_videodev.h>
 #include <compat/linux/linux_videodev_compat.h>
 
+#include <compat/linux/linux_videodev2.h>
+#include <compat/linux/linux_videodev2_compat.h>
+
 CTASSERT(LINUX_IFNAMSIZ == IFNAMSIZ);
 
 static linux_ioctl_function_t linux_ioctl_cdrom;
@@ -97,6 +103,7 @@ static linux_ioctl_function_t linux_ioctl_private;
 static linux_ioctl_function_t linux_ioctl_drm;
 static linux_ioctl_function_t linux_ioctl_sg;
 static linux_ioctl_function_t linux_ioctl_v4l;
+static linux_ioctl_function_t linux_ioctl_v4l2;
 static linux_ioctl_function_t linux_ioctl_special;
 static linux_ioctl_function_t linux_ioctl_fbsd_usb;
 
@@ -124,6 +131,8 @@ static struct linux_ioctl_handler sg_handler =
 { linux_ioctl_sg, LINUX_IOCTL_SG_MIN, LINUX_IOCTL_SG_MAX };
 static struct linux_ioctl_handler video_handler =
 { linux_ioctl_v4l, LINUX_IOCTL_VIDEO_MIN, LINUX_IOCTL_VIDEO_MAX };
+static struct linux_ioctl_handler video2_handler =
+{ linux_ioctl_v4l2, LINUX_IOCTL_VIDEO2_MIN, LINUX_IOCTL_VIDEO2_MAX };
 static struct linux_ioctl_handler fbsd_usb =
 { linux_ioctl_fbsd_usb, FBSD_LUSB_MIN, FBSD_LUSB_MAX };
 
@@ -139,6 +148,7 @@ DATA_SET(linux_ioctl_handler_set, private_handler);
 DATA_SET(linux_ioctl_handler_set, drm_handler);
 DATA_SET(linux_ioctl_handler_set, sg_handler);
 DATA_SET(linux_ioctl_handler_set, video_handler);
+DATA_SET(linux_ioctl_handler_set, video2_handler);
 DATA_SET(linux_ioctl_handler_set, fbsd_usb);
 
 struct handler_element
@@ -2985,6 +2995,302 @@ linux_ioctl_special(struct thread *td, struct linux_ioctl_args *args)
 		error = ENOIOCTL;
 	}
 
+	return (error);
+}
+
+static int
+linux_to_bsd_v4l2_standard(struct l_v4l2_standard *lvstd, struct v4l2_standard *vstd)
+{
+	vstd->index = lvstd->index;
+	vstd->id = lvstd->id;
+	memcpy(&vstd->name, &lvstd->name, sizeof(*lvstd) - offsetof(struct l_v4l2_standard, name));
+	return (0);
+}
+
+static int
+bsd_to_linux_v4l2_standard(struct v4l2_standard *vstd, struct l_v4l2_standard *lvstd)
+{
+	lvstd->index = vstd->index;
+	lvstd->id = vstd->id;
+	memcpy(&lvstd->name, &vstd->name, sizeof(*lvstd) - offsetof(struct l_v4l2_standard, name));
+	return (0);
+}
+
+static int
+linux_to_bsd_v4l2_buffer(struct l_v4l2_buffer *lvb, struct v4l2_buffer *vb)
+{
+	vb->index = lvb->index;
+	vb->type = lvb->type;
+	vb->bytesused = lvb->bytesused;
+	vb->flags = lvb->flags;
+	vb->field = lvb->field;
+	vb->timestamp.tv_sec = lvb->timestamp.tv_sec;
+	vb->timestamp.tv_usec = lvb->timestamp.tv_usec;
+	memcpy(&vb->timecode, &lvb->timecode, sizeof (lvb->timecode));
+	vb->sequence = lvb->sequence;
+	vb->memory = lvb->memory;
+	if (lvb->memory == V4L2_MEMORY_USERPTR)
+		/* possible pointer size conversion */
+		vb->m.userptr = (unsigned long)PTRIN(lvb->m.userptr);
+	else
+		vb->m.offset = lvb->m.offset;
+	vb->length = lvb->length;
+	vb->input = lvb->input;
+	vb->reserved = lvb->reserved;
+	return (0);
+}
+
+static int
+bsd_to_linux_v4l2_buffer(struct v4l2_buffer *vb, struct l_v4l2_buffer *lvb)
+{
+	lvb->index = vb->index;
+	lvb->type = vb->type;
+	lvb->bytesused = vb->bytesused;
+	lvb->flags = vb->flags;
+	lvb->field = vb->field;
+	lvb->timestamp.tv_sec = vb->timestamp.tv_sec;
+	lvb->timestamp.tv_usec = vb->timestamp.tv_usec;
+	memcpy(&lvb->timecode, &vb->timecode, sizeof (vb->timecode));
+	lvb->sequence = vb->sequence;
+	lvb->memory = vb->memory;
+	if (vb->memory == V4L2_MEMORY_USERPTR)
+		/* possible pointer size conversion */
+		lvb->m.userptr = PTROUT(vb->m.userptr);
+	else
+		lvb->m.offset = vb->m.offset;
+	lvb->length = vb->length;
+	lvb->input = vb->input;
+	lvb->reserved = vb->reserved;
+	return (0);
+}
+
+static int
+linux_to_bsd_v4l2_format(struct l_v4l2_format *lvf, struct v4l2_format *vf)
+{
+	vf->type = lvf->type;
+	if (lvf->type == V4L2_BUF_TYPE_VIDEO_OVERLAY
+#ifdef V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY
+	    || lvf->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY
+#endif
+	    )
+		/*
+		 * XXX TODO - needs 32 -> 64 bit conversion:
+		 * (unused by webcams?)
+		 */
+		return EINVAL;
+	memcpy(&vf->fmt, &lvf->fmt, sizeof(vf->fmt));
+	return 0;
+}
+
+static int
+bsd_to_linux_v4l2_format(struct v4l2_format *vf, struct l_v4l2_format *lvf)
+{
+	lvf->type = vf->type;
+	if (vf->type == V4L2_BUF_TYPE_VIDEO_OVERLAY
+#ifdef V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY
+	    || vf->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY
+#endif
+	    )
+		/*
+		 * XXX TODO - needs 32 -> 64 bit conversion:
+		 * (unused by webcams?)
+		 */
+		return EINVAL;
+	memcpy(&lvf->fmt, &vf->fmt, sizeof(vf->fmt));
+	return 0;
+}
+static int
+linux_ioctl_v4l2(struct thread *td, struct linux_ioctl_args *args)
+{
+	struct file *fp;
+	int error;
+	struct v4l2_format vformat;
+	struct l_v4l2_format l_vformat;
+	struct v4l2_standard vstd;
+	struct l_v4l2_standard l_vstd;
+	struct l_v4l2_buffer l_vbuf;
+	struct v4l2_buffer vbuf;
+	struct v4l2_input vinp;
+
+	switch (args->cmd & 0xffff) {
+	case LINUX_VIDIOC_RESERVED:
+	case LINUX_VIDIOC_LOG_STATUS:
+		if ((args->cmd & IOC_DIRMASK) != LINUX_IOC_VOID)
+			return ENOIOCTL;
+		args->cmd = (args->cmd & 0xffff) | IOC_VOID;
+		break;
+
+	case LINUX_VIDIOC_OVERLAY:
+	case LINUX_VIDIOC_STREAMON:
+	case LINUX_VIDIOC_STREAMOFF:
+	case LINUX_VIDIOC_S_STD:
+	case LINUX_VIDIOC_S_TUNER:
+	case LINUX_VIDIOC_S_AUDIO:
+	case LINUX_VIDIOC_S_AUDOUT:
+	case LINUX_VIDIOC_S_MODULATOR:
+	case LINUX_VIDIOC_S_FREQUENCY:
+	case LINUX_VIDIOC_S_CROP:
+	case LINUX_VIDIOC_S_JPEGCOMP:
+	case LINUX_VIDIOC_S_PRIORITY:
+	case LINUX_VIDIOC_DBG_S_REGISTER:
+	case LINUX_VIDIOC_S_HW_FREQ_SEEK:
+	case LINUX_VIDIOC_SUBSCRIBE_EVENT:
+	case LINUX_VIDIOC_UNSUBSCRIBE_EVENT:
+		args->cmd = (args->cmd & ~IOC_DIRMASK) | IOC_IN;
+		break;
+
+	case LINUX_VIDIOC_QUERYCAP:
+	case LINUX_VIDIOC_G_STD:
+	case LINUX_VIDIOC_G_AUDIO:
+	case LINUX_VIDIOC_G_INPUT:
+	case LINUX_VIDIOC_G_OUTPUT:
+	case LINUX_VIDIOC_G_AUDOUT:
+	case LINUX_VIDIOC_G_JPEGCOMP:
+	case LINUX_VIDIOC_QUERYSTD:
+	case LINUX_VIDIOC_G_PRIORITY:
+	case LINUX_VIDIOC_QUERY_DV_PRESET:
+		args->cmd = (args->cmd & ~IOC_DIRMASK) | IOC_OUT;
+		break;
+
+	case LINUX_VIDIOC_ENUM_FMT:
+	case LINUX_VIDIOC_REQBUFS:
+	case LINUX_VIDIOC_G_PARM:
+	case LINUX_VIDIOC_S_PARM:
+	case LINUX_VIDIOC_G_CTRL:
+	case LINUX_VIDIOC_S_CTRL:
+	case LINUX_VIDIOC_G_TUNER:
+	case LINUX_VIDIOC_QUERYCTRL:
+	case LINUX_VIDIOC_QUERYMENU:
+	case LINUX_VIDIOC_S_INPUT:
+	case LINUX_VIDIOC_S_OUTPUT:
+	case LINUX_VIDIOC_ENUMOUTPUT:
+	case LINUX_VIDIOC_G_MODULATOR:
+	case LINUX_VIDIOC_G_FREQUENCY:
+	case LINUX_VIDIOC_CROPCAP:
+	case LINUX_VIDIOC_G_CROP:
+	case LINUX_VIDIOC_ENUMAUDIO:
+	case LINUX_VIDIOC_ENUMAUDOUT:
+	case LINUX_VIDIOC_G_SLICED_VBI_CAP:
+#ifdef VIDIOC_ENUM_FRAMESIZES
+	case LINUX_VIDIOC_ENUM_FRAMESIZES:
+	case LINUX_VIDIOC_ENUM_FRAMEINTERVALS:
+	case LINUX_VIDIOC_ENCODER_CMD:
+	case LINUX_VIDIOC_TRY_ENCODER_CMD:
+#endif
+	case LINUX_VIDIOC_DBG_G_REGISTER:
+	case LINUX_VIDIOC_DBG_G_CHIP_IDENT:
+	case LINUX_VIDIOC_ENUM_DV_PRESETS:
+	case LINUX_VIDIOC_S_DV_PRESET:
+	case LINUX_VIDIOC_G_DV_PRESET:
+	case LINUX_VIDIOC_S_DV_TIMINGS:
+	case LINUX_VIDIOC_G_DV_TIMINGS:
+		args->cmd = (args->cmd & ~IOC_DIRMASK) | IOC_INOUT;
+		break;
+
+	case LINUX_VIDIOC_G_FMT:
+	case LINUX_VIDIOC_S_FMT:
+	case LINUX_VIDIOC_TRY_FMT:
+		error = copyin((void *)args->arg, &l_vformat, sizeof(l_vformat));
+		if (error)
+			return (error);
+		if ((error = fget(td, args->fd, &fp)) != 0)
+			return (error);
+		if (linux_to_bsd_v4l2_format(&l_vformat, &vformat) != 0)
+			error = EINVAL;
+		else if ((args->cmd & 0xffff) == LINUX_VIDIOC_G_FMT)
+			error = fo_ioctl(fp, VIDIOC_G_FMT, &vformat,
+			    td->td_ucred, td);
+		else if ((args->cmd & 0xffff) == LINUX_VIDIOC_S_FMT)
+			error = fo_ioctl(fp, VIDIOC_S_FMT, &vformat,
+			    td->td_ucred, td);
+		else
+			error = fo_ioctl(fp, VIDIOC_TRY_FMT, &vformat,
+			    td->td_ucred, td);
+		bsd_to_linux_v4l2_format(&vformat, &l_vformat);
+		copyout(&l_vformat, (void *)args->arg, sizeof(l_vformat));
+		fdrop(fp, td);
+		return (error);
+
+	case LINUX_VIDIOC_ENUMSTD:
+		error = copyin((void *)args->arg, &l_vstd, sizeof(l_vstd));
+		if (error)
+			return (error);
+		linux_to_bsd_v4l2_standard(&l_vstd, &vstd);
+		if ((error = fget(td, args->fd, &fp)) != 0)
+			return (error);
+		error = fo_ioctl(fp, VIDIOC_ENUMSTD, (caddr_t)&vstd,
+		    td->td_ucred, td);
+		if (error) {
+			fdrop(fp, td);
+			return (error);
+		}
+		bsd_to_linux_v4l2_standard(&vstd, &l_vstd);
+		error = copyout(&l_vstd, (void *)args->arg, sizeof(l_vstd));
+		fdrop(fp, td);
+		return (error);
+
+	case LINUX_VIDIOC_ENUMINPUT:
+		/*
+		 * The Linux struct l_v4l2_input differs only in size,
+		 * it has no padding at the end.
+		 */
+		error = copyin((void *)args->arg, &vinp,
+				sizeof(struct l_v4l2_input));
+		if (error != 0)
+			return (error);
+		if ((error = fget(td, args->fd, &fp)) != 0)
+			return (error);
+		error = fo_ioctl(fp, VIDIOC_ENUMINPUT, (caddr_t)&vinp,
+		    td->td_ucred, td);
+		if (error) {
+			fdrop(fp, td);
+			return (error);
+		}
+		error = copyout(&vinp, (void *)args->arg,
+				sizeof(struct l_v4l2_input));
+		fdrop(fp, td);
+		return (error);
+
+	case LINUX_VIDIOC_QUERYBUF:
+	case LINUX_VIDIOC_QBUF:
+	case LINUX_VIDIOC_DQBUF:
+		error = copyin((void *)args->arg, &l_vbuf, sizeof(l_vbuf));
+		if (error)
+			return (error);
+		if ((error = fget(td, args->fd, &fp)) != 0)
+			return (error);
+		linux_to_bsd_v4l2_buffer(&l_vbuf, &vbuf);
+		if ((args->cmd & 0xffff) == LINUX_VIDIOC_QUERYBUF)
+			error = fo_ioctl(fp, VIDIOC_QUERYBUF, &vbuf,
+			    td->td_ucred, td);
+		else if ((args->cmd & 0xffff) == LINUX_VIDIOC_QBUF)
+			error = fo_ioctl(fp, VIDIOC_QBUF, &vbuf,
+			    td->td_ucred, td);
+		else
+			error = fo_ioctl(fp, VIDIOC_DQBUF, &vbuf,
+			    td->td_ucred, td);
+		bsd_to_linux_v4l2_buffer(&vbuf, &l_vbuf);
+		copyout(&l_vbuf, (void *)args->arg, sizeof(l_vbuf));
+		fdrop(fp, td);
+		return (error);
+
+	/*
+	 * XXX TODO - these need 32 -> 64 bit conversion:
+	 * (are any of them needed for webcams?)
+	 */
+	case LINUX_VIDIOC_G_FBUF:
+	case LINUX_VIDIOC_S_FBUF:
+
+	case LINUX_VIDIOC_G_EXT_CTRLS:
+	case LINUX_VIDIOC_S_EXT_CTRLS:
+	case LINUX_VIDIOC_TRY_EXT_CTRLS:
+
+	case LINUX_VIDIOC_DQEVENT:
+
+	default:			return (ENOIOCTL);
+	}
+
+	error = ioctl(td, (struct ioctl_args *)args);
 	return (error);
 }
 
