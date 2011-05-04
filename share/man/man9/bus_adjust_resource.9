@@ -93,7 +93,7 @@ Grow an existing memory resource by 4096 bytes.
 
 	error = bus_adjust_resource(dev, SYS_RES_MEMORY, res,
 	    rman_get_start(res), rman_get_end(res) + 0x1000);
-.Ed		
+.Ed
 .Sh SEE ALSO
 .Xr bus_alloc_resource 9 ,
 .Xr bus_release_resource 9 ,
