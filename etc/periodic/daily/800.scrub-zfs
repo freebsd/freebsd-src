@@ -26,10 +26,12 @@ case "$daily_scrub_zfs_enable" in
 		daily_scrub_zfs_pools="$(zpool list -H -o name)"
 	fi
 
+	rc=0
 	for pool in ${daily_scrub_zfs_pools}; do
 		# sanity check
 		_status=$(zpool list "${pool}" 2> /dev/null)
 		if [ $? -ne 0 ]; then
+			rc=2
 			echo "   WARNING: pool '${pool}' specified in"
 			echo "            '/etc/periodic.conf:daily_scrub_zfs_pools'"
 			echo "            does not exist"
@@ -38,12 +40,10 @@ case "$daily_scrub_zfs_enable" in
 		_status=${_status##*$newline}
 		case ${_status} in
 		*FAULTED*)
+			rc=3
 			echo "Skipping faulted pool: ${pool}"
 			continue ;;
 		esac
-
-		# successful only if there is at least one pool to scrub
-		rc=0
 
 		# determine how many days shall be between scrubs
 		eval _pool_threshold=\${daily_scrub_zfs_${pool}_threshold}
@@ -77,10 +77,12 @@ case "$daily_scrub_zfs_enable" in
 			*"none requested"*)
 				echo "   starting first scrub (since reboot) of pool '${pool}':"
 				zpool scrub ${pool}
+				[ $rc -eq 0 ] && rc=1
 				;;
 			*)
 				echo "   starting scrub of pool '${pool}':"
 				zpool scrub ${pool}
+				[ $rc -eq 0 ] && rc=1
 				;;
 		esac
 
