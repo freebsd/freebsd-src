@@ -415,7 +415,7 @@ t4_attach(device_t dev)
 
 	/* These are total (sum of all ports) limits for a bus driver */
 	rc = -t4_cfg_pfvf(sc, sc->mbox, sc->pf, 0,
-	    64,		/* max # of egress queues */
+	    128,	/* max # of egress queues */
 	    64,		/* max # of egress Ethernet or control queues */
 	    64,		/* max # of ingress queues with fl/interrupt */
 	    0,		/* max # of ingress queues without interrupt */
