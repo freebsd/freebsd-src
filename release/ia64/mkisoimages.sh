@@ -41,27 +41,6 @@ LABEL=$1; shift
 NAME=$1; shift
 BASE=$1; shift
 
-MKISOFS=mkisofs
-MKISOFS_PKG=cdrtools
-MKISOFS_PORT=/usr/ports/sysutils/${MKISOFS_PKG}
-
-if ! which ${MKISOFS} > /dev/null; then
-    echo -n "${MKISOFS}(8) does not exist: "
-    if [ -f ${MKISOFS_PORT}/Makefile ]; then
-	echo building the port...
-	if ! (cd ${MKISOFS_PORT} && make install BATCH=yes && make clean); then
-	    echo "error: cannot build ${MKISOFS}(8). Bailing out..."
-	    exit 2
-	fi
-    else
-	echo fetching the package...
-	if ! pkg_add -r ${MKISOFS_PKG}; then
-	    echo "error: cannot fetch ${MKISOFS}(8). Bailing out..."
-	    exit 2
-	fi
-    fi
-fi
-
 EFIPART=efipart.sys
 
 # To create a bootable CD under EFI, the boot image should be an EFI
@@ -84,15 +63,13 @@ if [ $bootable = yes ]; then
     mv $MNT/boot/loader.efi $MNT/efi/boot/bootia64.efi
     umount $MNT
     mdconfig -d -u $md
-    BOOTOPTS="-b $EFIPART -no-emul-boot"
+    BOOTOPTS="-b bootimage=i386;$EFIPART -o no-emul-boot"
 else
     BOOTOPTS=""
 fi
 
-publisher="The FreeBSD Project.  http://www.freebsd.org/"
-
 echo "/dev/iso9660/$LABEL / cd9660 ro 0 0" > $1/etc/fstab
-$MKISOFS $BOOTOPTS -r -J -V $LABEL -publisher "$publisher" -o $NAME $BASE $*
+makefs -t cd9660 $BOOTOPTS -o rockridge -o label=$LABEL $NAME $BASE $*
 rm -f $BASE/$EFIPART
 rm $1/etc/fstab
 exit 0
