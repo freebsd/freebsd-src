@@ -606,6 +606,12 @@ t4_evt_rx(void *arg)
 	    V_INGRESSQID(iq->cntxt_id) | V_SEINTARM(iq->intr_params));
 }
 
+#ifdef T4_PKT_TIMESTAMP
+#define RX_COPY_THRESHOLD (MINCLSIZE - 8)
+#else
+#define RX_COPY_THRESHOLD MINCLSIZE
+#endif
+
 void
 t4_eth_rx(void *arg)
 {
@@ -669,7 +675,22 @@ t4_eth_rx(void *arg)
 		    BUS_DMASYNC_POSTREAD);
 
 		m_init(m0, NULL, 0, M_NOWAIT, MT_DATA, M_PKTHDR);
-		if (len < MINCLSIZE) {
+
+#ifdef T4_PKT_TIMESTAMP
+		*mtod(m0, uint64_t *) =
+		    be64toh(ctrl->u.last_flit & 0xfffffffffffffff);
+		m0->m_data += 8;
+
+		/*
+		 * 60 bit timestamp value is *(uint64_t *)m0->m_pktdat.  Note
+		 * that it is in the leading free-space (see M_LEADINGSPACE) in
+		 * the mbuf.  The kernel can clobber it during a pullup,
+		 * m_copymdata, etc.  You need to make sure that the mbuf
+		 * reaches you unmolested if you care about the timestamp.
+		 */
+#endif
+
+		if (len < RX_COPY_THRESHOLD) {
 			/* copy data to mbuf, buffer will be recycled */
 			bcopy(sd->cl, mtod(m0, caddr_t), len);
 			m0->m_len = len;
