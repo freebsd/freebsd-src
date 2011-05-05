@@ -195,13 +195,8 @@ options(int cmdline)
 				minus_o(*argptr, val);
 				if (*argptr)
 					argptr++;
-			} else {
-				if (c == 'p' && !val && privileged) {
-					(void) setuid(getuid());
-					(void) setgid(getgid());
-				}
+			} else
 				setoption(c, val);
-			}
 		}
 	}
 	return;
@@ -269,10 +264,6 @@ minus_o(char *name, int val)
 	} else {
 		for (i = 0; i < NOPTS; i++)
 			if (equal(name, optlist[i].name)) {
-				if (!val && privileged && equal(name, "privileged")) {
-					(void) setuid(getuid());
-					(void) setgid(getgid());
-				}
 				setoption(optlist[i].letter, val);
 				return;
 			}
@@ -286,6 +277,10 @@ setoption(int flag, int val)
 {
 	int i;
 
+	if (flag == 'p' && !val && privileged) {
+		(void) setuid(getuid());
+		(void) setgid(getgid());
+	}
 	for (i = 0; i < NOPTS; i++)
 		if (optlist[i].letter == flag) {
 			optlist[i].val = val;
