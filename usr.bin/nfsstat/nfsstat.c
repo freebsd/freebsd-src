@@ -646,7 +646,7 @@ void
 usage(void)
 {
 	(void)fprintf(stderr,
-	    "usage: nfsstat [-ceszW] [-M core] [-N system] [-w interval]\n");
+	    "usage: nfsstat [-ceoszW] [-M core] [-N system] [-w wait]\n");
 	exit(1);
 }
 
