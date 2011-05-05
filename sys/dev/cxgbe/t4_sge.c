@@ -142,6 +142,8 @@ static int handle_sge_egr_update(struct adapter *,
 
 static int ctrl_tx(struct adapter *, struct sge_ctrlq *, struct mbuf *);
 
+extern void filter_rpl(struct adapter *, const struct cpl_set_tcb_rpl *);
+
 /*
  * Called on MOD_LOAD and fills up fl_buf_info[].
  */
@@ -580,7 +582,9 @@ t4_evt_rx(void *arg)
 		case CPL_SGE_EGR_UPDATE:
 			handle_sge_egr_update(sc, (const void *)(rss + 1));
 			break;
-
+		case CPL_SET_TCB_RPL:
+			filter_rpl(sc, (const void *) (rss + 1));
+			break;
 		default:
 			device_printf(sc->dev,
 			    "can't handle CPL opcode %d.", rss->opcode);
