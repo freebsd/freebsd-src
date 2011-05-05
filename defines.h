@@ -25,7 +25,7 @@
 #ifndef _DEFINES_H
 #define _DEFINES_H
 
-/* $Id: defines.h,v 1.164 2011/01/17 10:15:31 dtucker Exp $ */
+/* $Id: defines.h,v 1.165 2011/05/05 01:19:15 djm Exp $ */
 
 
 /* Constants */
@@ -45,6 +45,8 @@ enum
 /*
  * Definitions for IP type of service (ip_tos)
  */
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
 #ifndef IPTOS_LOWDELAY
 # define IPTOS_LOWDELAY          0x10
 # define IPTOS_THROUGHPUT        0x08
@@ -56,8 +58,6 @@ enum
 /*
  * Definitions for DiffServ Codepoints as per RFC2474
  */
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
 #ifndef IPTOS_DSCP_AF11
 # define	IPTOS_DSCP_AF11		0x28
 # define	IPTOS_DSCP_AF12		0x30
