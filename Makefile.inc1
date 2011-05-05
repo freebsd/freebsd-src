@@ -868,7 +868,7 @@ reinstallkernel reinstallkernel.debug: installcheck
 	false
 .endif
 	@echo "--------------------------------------------------------------"
-	@echo ">>> Installing kernel ${KERNCONF}"
+	@echo ">>> Installing kernel ${INSTALLKERNEL}"
 	@echo "--------------------------------------------------------------"
 	cd ${KRNLOBJDIR}/${INSTALLKERNEL}; \
 	    ${CROSSENV} PATH=${TMPPATH} \
