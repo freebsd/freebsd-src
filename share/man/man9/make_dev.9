@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 03, 2011
+.Dd May 3, 2011
 .Dt MAKE_DEV 9
 .Os
 .Sh NAME
@@ -84,15 +84,15 @@ The device will be owned by
 .Va uid ,
 with the group ownership as
 .Va gid .
-The name is the expansion of 
-.Va fmt 
+The name is the expansion of
+.Va fmt
 and following arguments as
 .Xr printf 9
 would print it.
 The name determines its path under
 .Pa /dev
-or other 
-.Xr devfs 5 
+or other
+.Xr devfs 5
 mount point and may contain slash
 .Ql /
 characters to denote subdirectories.
@@ -152,9 +152,9 @@ created device will be never destroyed
 return an error if the device name is invalid or already exists
 .El
 .Pp
-Only 
+Only
 .Dv MAKEDEV_NOWAIT ,
-.Dv MAKEDEV_WAITOK 
+.Dv MAKEDEV_WAITOK
 and
 .Dv MAKEDEV_CHECKNAME
 values are accepted for the
@@ -307,7 +307,8 @@ The
 .Fn d_close
 driver method cannot call
 .Fn destroy_dev
-directly. Doing so causes deadlock when
+directly.
+Doing so causes deadlock when
 .Fn destroy_dev
 waits for all threads to leave the driver methods.
 Also, because
@@ -321,7 +322,8 @@ The device driver may call the
 .Fn destroy_dev_drain
 function to wait until all devices that have supplied
 .Fa csw
-as cdevsw, are destroyed. This is useful when driver knows that
+as cdevsw, are destroyed.
+This is useful when driver knows that
 .Fn destroy_dev_sched
 is called for all instantiated devices, but need to postpone module
 unload until
@@ -370,9 +372,9 @@ flag was specified and the provided device name already exists.
 .Pp
 .Sh SEE ALSO
 .Xr devctl 4 ,
+.Xr devfs 5 ,
 .Xr destroy_dev_drain 9 ,
-.Xr dev_clone 9 ,
-.Xr devfs 5
+.Xr dev_clone 9
 .Sh HISTORY
 The
 .Fn make_dev
