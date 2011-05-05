@@ -617,6 +617,49 @@ out:
 }
 
 /*
+ * Calculate the ffs() of the cpuset.
+ */
+int
+cpusetobj_ffs(const cpuset_t *set)
+{
+	size_t i;
+	int cbit;
+
+	cbit = 0;
+	for (i = 0; i < _NCPUWORDS; i++) {
+		if (set->__bits[i] != 0) {
+			cbit = ffsl(set->__bits[i]);
+			cbit += i * _NCPUBITS;
+			break;
+		}
+	}
+	return (cbit);
+}
+
+/*
+ * Return a string representing a valid layout for a cpuset_t object.
+ * It expects an incoming buffer at least sized as CPUSETBUFSIZ.
+ */
+char *
+cpusetobj_strprint(char *buf, const cpuset_t *set)
+{
+	char *tbuf;
+	size_t i, bytesp, bufsiz;
+
+	tbuf = buf;
+	bytesp = 0;
+	bufsiz = CPUSETBUFSIZ;
+
+	for (i = 0; i < (_NCPUWORDS - 1); i++) {
+		bytesp = snprintf(tbuf, bufsiz, "%lx, ", set->__bits[i]);
+		bufsiz -= bytesp;
+		tbuf += bytesp;
+	}
+	snprintf(tbuf, bufsiz, "%lx", set->__bits[_NCPUWORDS - 1]);
+	return (buf);
+}
+
+/*
  * Apply an anonymous mask to a single thread.
  */
 int
@@ -754,11 +797,10 @@ cpuset_init(void *arg)
 {
 	cpuset_t mask;
 
-	CPU_ZERO(&mask);
 #ifdef SMP
-	mask.__bits[0] = all_cpus;
+	mask = all_cpus;
 #else
-	mask.__bits[0] = 1;
+	CPU_SETOF(0, &mask);
 #endif
 	if (cpuset_modify(cpuset_zero, &mask))
 		panic("Can't set initial cpuset mask.\n");

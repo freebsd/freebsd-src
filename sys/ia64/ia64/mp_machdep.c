@@ -139,18 +139,18 @@ ia64_ih_rndzvs(struct thread *td, u_int xiv, struct trapframe *tf)
 static u_int
 ia64_ih_stop(struct thread *td, u_int xiv, struct trapframe *tf)
 {
-	cpumask_t mybit;
+	cpuset_t mybit;
 
 	PCPU_INC(md.stats.pcs_nstops);
 	mybit = PCPU_GET(cpumask);
 
 	savectx(PCPU_PTR(md.pcb));
 
-	atomic_set_int(&stopped_cpus, mybit);
-	while ((started_cpus & mybit) == 0)
+	CPU_OR_ATOMIC(&stopped_cpus, &mybit);
+	while (!CPU_OVERLAP(&started_cpus, &mybit))
 		cpu_spinwait();
-	atomic_clear_int(&started_cpus, mybit);
-	atomic_clear_int(&stopped_cpus, mybit);
+	CPU_NAND_ATOMIC(&started_cpus, &mybit);
+	CPU_NAND_ATOMIC(&stopped_cpus, &mybit);
 	return (0);
 }
 
@@ -458,12 +458,12 @@ cpu_mp_unleash(void *dummy)
  * send an IPI to a set of cpus.
  */
 void
-ipi_selected(cpumask_t cpus, int ipi)
+ipi_selected(cpuset_t cpus, int ipi)
 {
 	struct pcpu *pc;
 
 	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
-		if (cpus & pc->pc_cpumask)
+		if (CPU_OVERLAP(&cpus, &pc->pc_cpumask))
 			ipi_send(pc, ipi);
 	}
 }

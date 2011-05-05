@@ -422,7 +422,7 @@ pmap_bootstrap(vm_paddr_t firstaddr)
 #ifdef PAE
 	kernel_pmap->pm_pdpt = (pdpt_entry_t *) (KERNBASE + (u_int)IdlePDPT);
 #endif
-	kernel_pmap->pm_active = -1;	/* don't allow deactivation */
+	CPU_FILL(&kernel_pmap->pm_active);	/* don't allow deactivation */
 	TAILQ_INIT(&kernel_pmap->pm_pvchunk);
 	LIST_INIT(&allpmaps);
 	mtx_init(&allpmaps_lock, "allpmaps", NULL, MTX_SPIN);
@@ -802,22 +802,23 @@ pmap_cache_bits(int mode, boolean_t is_pde)
 void
 pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 {
-	cpumask_t cpumask, other_cpus;
+	cpuset_t cpumask, other_cpus;
 
 	CTR2(KTR_PMAP, "pmap_invalidate_page: pmap=%p va=0x%x",
 	    pmap, va);
 	
 	sched_pin();
-	if (pmap == kernel_pmap || pmap->pm_active == all_cpus) {
+	if (pmap == kernel_pmap || !CPU_CMP(&pmap->pm_active, &all_cpus)) {
 		invlpg(va);
 		smp_invlpg(va);
 	} else {
 		cpumask = PCPU_GET(cpumask);
 		other_cpus = PCPU_GET(other_cpus);
-		if (pmap->pm_active & cpumask)
+		if (CPU_OVERLAP(&pmap->pm_active, &cpumask))
 			invlpg(va);
-		if (pmap->pm_active & other_cpus)
-			smp_masked_invlpg(pmap->pm_active & other_cpus, va);
+		CPU_AND(&other_cpus, &pmap->pm_active);
+		if (!CPU_EMPTY(&other_cpus))
+			smp_masked_invlpg(other_cpus, va);
 	}
 	sched_unpin();
 	PT_UPDATES_FLUSH();
@@ -826,26 +827,26 @@ pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 void
 pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 {
-	cpumask_t cpumask, other_cpus;
+	cpuset_t cpumask, other_cpus;
 	vm_offset_t addr;
 
 	CTR3(KTR_PMAP, "pmap_invalidate_page: pmap=%p eva=0x%x sva=0x%x",
 	    pmap, sva, eva);
 
 	sched_pin();
-	if (pmap == kernel_pmap || pmap->pm_active == all_cpus) {
+	if (pmap == kernel_pmap || !CPU_CMP(&pmap->pm_active, &all_cpus)) {
 		for (addr = sva; addr < eva; addr += PAGE_SIZE)
 			invlpg(addr);
 		smp_invlpg_range(sva, eva);
 	} else {
 		cpumask = PCPU_GET(cpumask);
 		other_cpus = PCPU_GET(other_cpus);
-		if (pmap->pm_active & cpumask)
+		if (CPU_OVERLAP(&pmap->pm_active, &cpumask))
 			for (addr = sva; addr < eva; addr += PAGE_SIZE)
 				invlpg(addr);
-		if (pmap->pm_active & other_cpus)
-			smp_masked_invlpg_range(pmap->pm_active & other_cpus,
-			    sva, eva);
+		CPU_AND(&other_cpus, &pmap->pm_active);
+		if (!CPU_EMPTY(&other_cpus))
+			smp_masked_invlpg_range(other_cpus, sva, eva);
 	}
 	sched_unpin();
 	PT_UPDATES_FLUSH();
@@ -854,21 +855,22 @@ pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 void
 pmap_invalidate_all(pmap_t pmap)
 {
-	cpumask_t cpumask, other_cpus;
+	cpuset_t cpumask, other_cpus;
 
 	CTR1(KTR_PMAP, "pmap_invalidate_page: pmap=%p", pmap);
 
 	sched_pin();
-	if (pmap == kernel_pmap || pmap->pm_active == all_cpus) {
+	if (pmap == kernel_pmap || !CPU_CMP(&pmap->pm_active, &all_cpus)) {
 		invltlb();
 		smp_invltlb();
 	} else {
 		cpumask = PCPU_GET(cpumask);
 		other_cpus = PCPU_GET(other_cpus);
-		if (pmap->pm_active & cpumask)
+		if (CPU_OVERLAP(&pmap->pm_active, &cpumask))
 			invltlb();
-		if (pmap->pm_active & other_cpus)
-			smp_masked_invltlb(pmap->pm_active & other_cpus);
+		CPU_AND(&other_cpus, &pmap->pm_active);
+		if (!CPU_EMPTY(&other_cpus))
+			smp_masked_invltlb(other_cpus);
 	}
 	sched_unpin();
 }
@@ -893,7 +895,7 @@ pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 	CTR2(KTR_PMAP, "pmap_invalidate_page: pmap=%p va=0x%x",
 	    pmap, va);
 
-	if (pmap == kernel_pmap || pmap->pm_active)
+	if (pmap == kernel_pmap || !CPU_EMPTY(&pmap->pm_active))
 		invlpg(va);
 	PT_UPDATES_FLUSH();
 }
@@ -907,7 +909,7 @@ pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 		CTR3(KTR_PMAP, "pmap_invalidate_range: pmap=%p sva=0x%x eva=0x%x",
 		    pmap, sva, eva);
 
-	if (pmap == kernel_pmap || pmap->pm_active)
+	if (pmap == kernel_pmap || !CPU_EMPTY(&pmap->pm_active))
 		for (addr = sva; addr < eva; addr += PAGE_SIZE)
 			invlpg(addr);
 	PT_UPDATES_FLUSH();
@@ -919,7 +921,7 @@ pmap_invalidate_all(pmap_t pmap)
 
 	CTR1(KTR_PMAP, "pmap_invalidate_all: pmap=%p", pmap);
 	
-	if (pmap == kernel_pmap || pmap->pm_active)
+	if (pmap == kernel_pmap || !CPU_EMPTY(&pmap->pm_active))
 		invltlb();
 }
 
@@ -1449,7 +1451,7 @@ pmap_pinit0(pmap_t pmap)
 #ifdef PAE
 	pmap->pm_pdpt = (pdpt_entry_t *)(KERNBASE + (vm_offset_t)IdlePDPT);
 #endif
-	pmap->pm_active = 0;
+	CPU_ZERO(&pmap->pm_active);
 	PCPU_SET(curpmap, pmap);
 	TAILQ_INIT(&pmap->pm_pvchunk);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
@@ -1556,7 +1558,7 @@ pmap_pinit(pmap_t pmap)
 	}
 	xen_flush_queue();
 	vm_page_unlock_queues();
-	pmap->pm_active = 0;
+	CPU_ZERO(&pmap->pm_active);
 	TAILQ_INIT(&pmap->pm_pvchunk);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
 
@@ -4030,11 +4032,11 @@ pmap_activate(struct thread *td)
 	pmap = vmspace_pmap(td->td_proc->p_vmspace);
 	oldpmap = PCPU_GET(curpmap);
 #if defined(SMP)
-	atomic_clear_int(&oldpmap->pm_active, PCPU_GET(cpumask));
-	atomic_set_int(&pmap->pm_active, PCPU_GET(cpumask));
+	CPU_NAND_ATOMIC(&oldpmap->pm_active, PCPU_PTR(cpumask));
+	CPU_OR_ATOMIC(&pmap->pm_active, PCPU_PTR(cpumask));
 #else
-	oldpmap->pm_active &= ~1;
-	pmap->pm_active |= 1;
+	CPU_NAND(&oldpmap->pm_active, PCPU_PTR(cpumask));
+	CPU_OR(&pmap->pm_active, PCPU_PTR(cpumask));
 #endif
 #ifdef PAE
 	cr3 = vtophys(pmap->pm_pdpt);

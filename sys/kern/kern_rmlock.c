@@ -263,7 +263,7 @@ _rm_rlock_hard(struct rmlock *rm, struct rm_priotracker *tracker, int trylock)
 	pc = pcpu_find(curcpu);
 
 	/* Check if we just need to do a proper critical_exit. */
-	if (!(pc->pc_cpumask & rm->rm_writecpus)) {
+	if (!CPU_OVERLAP(&pc->pc_cpumask, &rm->rm_writecpus)) {
 		critical_exit();
 		return (1);
 	}
@@ -325,7 +325,7 @@ _rm_rlock_hard(struct rmlock *rm, struct rm_priotracker *tracker, int trylock)
 
 	critical_enter();
 	pc = pcpu_find(curcpu);
-	rm->rm_writecpus &= ~pc->pc_cpumask;
+	CPU_NAND(&rm->rm_writecpus, &pc->pc_cpumask);
 	rm_tracker_add(pc, tracker);
 	sched_pin();
 	critical_exit();
@@ -366,7 +366,8 @@ _rm_rlock(struct rmlock *rm, struct rm_priotracker *tracker, int trylock)
 	 * Fast path to combine two common conditions into a single
 	 * conditional jump.
 	 */
-	if (0 == (td->td_owepreempt | (rm->rm_writecpus & pc->pc_cpumask)))
+	if (0 == (td->td_owepreempt |
+	    CPU_OVERLAP(&rm->rm_writecpus,  &pc->pc_cpumask)))
 		return (1);
 
 	/* We do not have a read token and need to acquire one. */
@@ -429,17 +430,17 @@ _rm_wlock(struct rmlock *rm)
 {
 	struct rm_priotracker *prio;
 	struct turnstile *ts;
-	cpumask_t readcpus;
+	cpuset_t readcpus;
 
 	if (rm->lock_object.lo_flags & RM_SLEEPABLE)
 		sx_xlock(&rm->rm_lock_sx);
 	else
 		mtx_lock(&rm->rm_lock_mtx);
 
-	if (rm->rm_writecpus != all_cpus) {
+	if (CPU_CMP(&rm->rm_writecpus, &all_cpus)) {
 		/* Get all read tokens back */
-
-		readcpus = all_cpus & (all_cpus & ~rm->rm_writecpus);
+		readcpus = all_cpus;
+		CPU_NAND(&readcpus, &rm->rm_writecpus);
 		rm->rm_writecpus = all_cpus;
 
 		/*
