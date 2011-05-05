@@ -2,5 +2,5 @@
 
 #define SSH_VERSION	"OpenSSH_5.8"
 
-#define SSH_PORTABLE	"p1"
+#define SSH_PORTABLE	"p2"
 #define SSH_RELEASE	SSH_VERSION SSH_PORTABLE
