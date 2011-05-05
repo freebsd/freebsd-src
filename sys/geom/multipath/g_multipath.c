@@ -293,9 +293,6 @@ g_multipath_create(struct g_class *mp, struct g_multipath_metadata *md)
 	}
 
 	gp = g_new_geomf(mp, md->md_name);
-	if (gp == NULL)
-		goto fail;
-
 	sc = g_malloc(sizeof(*sc), M_WAITOK | M_ZERO);
 	gp->softc = sc;
 	gp->start = g_multipath_start;
@@ -305,21 +302,12 @@ g_multipath_create(struct g_class *mp, struct g_multipath_metadata *md)
 	memcpy(sc->sc_name, md->md_name, sizeof (sc->sc_name));
 
 	pp = g_new_providerf(gp, "multipath/%s", md->md_name);
-	if (pp == NULL)
-		goto fail;
 	/* limit the provider to not have it stomp on metadata */
 	pp->mediasize = md->md_size - md->md_sectorsize;
 	pp->sectorsize = md->md_sectorsize;
 	sc->pp = pp;
 	g_error_provider(pp, 0);
 	return (gp);
-fail:
-	if (gp != NULL) {
-		if (gp->softc != NULL)
-			g_free(gp->softc);
-		g_destroy_geom(gp);
-	}
-	return (NULL);
 }
 
 static int
@@ -348,8 +336,6 @@ g_multipath_add_disk(struct g_geom *gp, struct g_provider *pp)
 	}
 	nxtcp = LIST_FIRST(&gp->consumer);
 	cp = g_new_consumer(gp);
-	if (cp == NULL)
-		return (ENOMEM);
 	error = g_attach(cp, pp);
 	if (error != 0) {
 		printf("GEOM_MULTIPATH: cannot attach %s to %s",

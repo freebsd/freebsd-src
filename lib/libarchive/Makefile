@@ -2,8 +2,8 @@
 .include <bsd.own.mk>
 
 LIB=	archive
-DPADD=	${LIBZ} ${LIBMD}
-LDADD=	-lz -lmd
+DPADD=	${LIBZ}
+LDADD=	-lz
 
 DPADD+= ${LIBBZ2}
 LDADD+= -lbz2
@@ -24,6 +24,9 @@ CFLAGS+=	-I${.OBJDIR}
 CFLAGS+=	-DWITH_OPENSSL
 DPADD+=	${LIBCRYPTO}
 LDADD+=	-lcrypto
+.else
+DPADD+=	${LIBMD}
+LDADD+=	-lmd
 .endif
 
 # Headers to be installed in /usr/include

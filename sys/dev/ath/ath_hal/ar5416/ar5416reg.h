@@ -199,6 +199,12 @@
 #define	AR_RXCFG_DMASZ_512B	7
 
 /* MAC Led registers */
+#define	AR_CFG_SCLK_RATE_IND	0x00000003 /* sleep clock indication */
+#define	AR_CFG_SCLK_RATE_IND_S	0
+#define	AR_CFG_SCLK_32MHZ	0x00000000 /* Sleep clock rate */
+#define	AR_CFG_SCLK_4MHZ	0x00000001 /* Sleep clock rate */
+#define	AR_CFG_SCLK_1MHZ	0x00000002 /* Sleep clock rate */
+#define	AR_CFG_SCLK_32KHZ	0x00000003 /* Sleep clock rate */
 #define	AR_MAC_LED_BLINK_SLOW	0x00000008	/* LED slowest blink rate mode */
 #define	AR_MAC_LED_BLINK_THRESH_SEL 0x00000070	/* LED blink threshold select */
 #define	AR_MAC_LED_MODE		0x00000380	/* LED mode select */
@@ -619,56 +625,83 @@
 #define	AR_XSREV_REVISION_KITE_11	1	/* Kite 1.1 */
 #define	AR_XSREV_REVISION_KITE_12	2	/* Kite 1.2 */
 
+/* Owl (AR5416) */
 #define	AR_SREV_OWL(_ah) \
 	((AH_PRIVATE((_ah))->ah_macVersion == AR_XSREV_VERSION_OWL_PCI) || \
 	 (AH_PRIVATE((_ah))->ah_macVersion == AR_XSREV_VERSION_OWL_PCIE))
 
 #define	AR_SREV_OWL_20_OR_LATER(_ah) \
-	((AR_SREV_OWL(_ah) && AH_PRIVATE((_ah))->ah_macRev >= AR_XSREV_REVISION_OWL_20) || \
-	AH_PRIVATE((_ah))->ah_macVersion >= AR_XSREV_VERSION_HOWL)
+	((AR_SREV_OWL(_ah) &&						\
+	 AH_PRIVATE((_ah))->ah_macRev >= AR_XSREV_REVISION_OWL_20) ||	\
+	 AH_PRIVATE((_ah))->ah_macVersion >= AR_XSREV_VERSION_HOWL)
+
 #define	AR_SREV_OWL_22_OR_LATER(_ah) \
-	((AR_SREV_OWL(_ah) && AH_PRIVATE((_ah))->ah_macRev >= AR_XSREV_REVISION_OWL_22) || \
-	AH_PRIVATE((_ah))->ah_macVersion >= AR_XSREV_VERSION_HOWL)
+	((AR_SREV_OWL(_ah) &&						\
+	 AH_PRIVATE((_ah))->ah_macRev >= AR_XSREV_REVISION_OWL_22) ||	\
+	 AH_PRIVATE((_ah))->ah_macVersion >= AR_XSREV_VERSION_HOWL)
+
+/* Howl (AR9130) */
 
 #define AR_SREV_HOWL(_ah) \
 	(AH_PRIVATE((_ah))->ah_macVersion == AR_XSREV_VERSION_HOWL)
+
 #define	AR_SREV_9100(_ah)	AR_SREV_HOWL(_ah)
+
+/* Sowl (AR9160) */
 
 #define	AR_SREV_SOWL(_ah) \
 	(AH_PRIVATE((_ah))->ah_macVersion == AR_XSREV_VERSION_SOWL)
+
 #define	AR_SREV_SOWL_10_OR_LATER(_ah) \
 	(AH_PRIVATE((_ah))->ah_macVersion >= AR_XSREV_VERSION_SOWL)
+
 #define	AR_SREV_SOWL_11(_ah) \
 	(AR_SREV_SOWL(_ah) && \
 	 AH_PRIVATE((_ah))->ah_macRev == AR_XSREV_REVISION_SOWL_11)
 
+/* Merlin (AR9280) */
+
 #define	AR_SREV_MERLIN(_ah) \
 	(AH_PRIVATE((_ah))->ah_macVersion == AR_XSREV_VERSION_MERLIN)
+
 #define	AR_SREV_MERLIN_10_OR_LATER(_ah)	\
 	(AH_PRIVATE((_ah))->ah_macVersion >= AR_XSREV_VERSION_MERLIN)
+
 #define	AR_SREV_MERLIN_20(_ah) \
 	(AR_SREV_MERLIN(_ah) && \
 	 AH_PRIVATE((_ah))->ah_macRev == AR_XSREV_REVISION_MERLIN_20)
+
 #define	AR_SREV_MERLIN_20_OR_LATER(_ah) \
-	(AR_SREV_MERLIN_20(_ah) || \
-	 AH_PRIVATE((_ah))->ah_macVersion >= AR_XSREV_VERSION_MERLIN)
+	((AH_PRIVATE((_ah))->ah_macVersion > AR_XSREV_VERSION_MERLIN) ||	\
+	 (AR_SREV_MERLIN((_ah)) &&						\
+	 AH_PRIVATE((_ah))->ah_macRev >= AR_XSREV_REVISION_MERLIN_20))
+
+/* Kite (AR9285) */
 
 #define	AR_SREV_KITE(_ah) \
 	(AH_PRIVATE((_ah))->ah_macVersion == AR_XSREV_VERSION_KITE)
+
 #define	AR_SREV_KITE_10_OR_LATER(_ah) \
 	(AH_PRIVATE((_ah))->ah_macVersion >= AR_XSREV_VERSION_KITE)
+
 #define	AR_SREV_KITE_11(_ah) \
 	(AR_SREV_KITE(ah) && \
 	 AH_PRIVATE((_ah))->ah_macRev == AR_XSREV_REVISION_KITE_11)
+
 #define	AR_SREV_KITE_11_OR_LATER(_ah) \
-	(AR_SREV_KITE_11(_ah) || \
-	 AH_PRIVATE((_ah))->ah_macRev >= AR_XSREV_REVISION_KITE_11)
+	((AH_PRIVATE((_ah))->ah_macVersion > AR_XSREV_VERSION_KITE) ||	\
+	 (AR_SREV_KITE((_ah)) &&					\
+	 AH_PRIVATE((_ah))->ah_macRev >= AR_XSREV_REVISION_KITE_11))
+
 #define	AR_SREV_KITE_12(_ah) \
 	(AR_SREV_KITE(ah) && \
 	 AH_PRIVATE((_ah))->ah_macRev == AR_XSREV_REVISION_KITE_12)
+
 #define	AR_SREV_KITE_12_OR_LATER(_ah) \
-	(AR_SREV_KITE_12(_ah) || \
-	 AH_PRIVATE((_ah))->ah_macRev >= AR_XSREV_REVISION_KITE_12)
+	((AH_PRIVATE((_ah))->ah_macVersion > AR_XSREV_VERSION_KITE) ||	\
+	 (AR_SREV_KITE((_ah)) &&					\
+	 AH_PRIVATE((_ah))->ah_macRev >= AR_XSREV_REVISION_KITE_12))
+
 #define	AR_SREV_9285E_20(_ah) \
 	(AR_SREV_KITE_12_OR_LATER(_ah) && \
 	((OS_REG_READ(_ah, AR_AN_SYNTH9) & 0x7) == 0x1))

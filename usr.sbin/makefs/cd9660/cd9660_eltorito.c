@@ -528,6 +528,25 @@ cd9660_write_apm_partition_entry(FILE *fd, int index, int total_partitions,
 	fseek(fd, 32 - strlen(part_name) - 1, SEEK_CUR);
 	fwrite(part_type, strlen(part_type) + 1, 1, fd);
 
+	if (sector_size > 512) {
+		/*
+		 * Some old broken software looks at 512-byte boundaries for
+		 * partition table entries instead of sector boundaries. We
+		 * can fit 3 entries into the first 2048-byte block, so use
+		 * that to humor old code.
+		 */
+
+		int n_512_parts = (sector_size / 512) - 1;
+		if (n_512_parts > total_partitions)
+			n_512_parts = total_partitions;
+
+		if (index < n_512_parts)	
+			cd9660_write_apm_partition_entry(fd, index, n_512_parts,
+			    sector_start * (sector_size / 512),
+			    nsectors * (sector_size / 512), 512, part_name,
+			    part_type);
+	}
+
 	return 0;
 }
 

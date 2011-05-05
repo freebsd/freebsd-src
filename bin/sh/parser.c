@@ -1569,6 +1569,8 @@ varname:
 				}
 			}
 		} else if (subtype != VSERROR) {
+			if (subtype == VSLENGTH && c != '}')
+				subtype = VSERROR;
 			pungetc();
 		}
 		STPUTC('=', out);
