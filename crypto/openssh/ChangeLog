@@ -1,6 +1,7 @@
 20110403
  - (djm) [README contrib/caldera/openssh.spec contrib/redhat/openssh.spec]
    [contrib/suse/openssh.spec] Prepare for 5.8p2 release.
+ - (djm) [version.h] crank version
  - Release 5.8p2
 
 20110329

@@ -64,12 +64,12 @@ static const struct {
 	},
 	{
 		"sha256",
-		sha256_crypt,
+		crypt_sha256,
 		"$5$"
 	},
 	{
 		"sha512",
-		sha512_crypt,
+		crypt_sha512,
 		"$6$"
 	},
 	{
