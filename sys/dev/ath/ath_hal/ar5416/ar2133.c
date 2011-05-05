@@ -165,7 +165,7 @@ ar2133SetChannel(struct ath_hal *ah, const struct ieee80211_channel *chan)
 		}
 	} else if ((freq % 20) == 0 && freq >= 5120) {
 		channelSel = ath_hal_reverseBits(((freq - 4800) / 20 << 2), 8);
-		if (AR_SREV_SOWL_10_OR_LATER(ah))
+		if (AR_SREV_HOWL(ah) || AR_SREV_SOWL_10_OR_LATER(ah))
 			aModeRefSel = ath_hal_reverseBits(3, 2);
 		else
 			aModeRefSel = ath_hal_reverseBits(1, 2);
