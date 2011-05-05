@@ -199,6 +199,12 @@
 #define	AR_RXCFG_DMASZ_512B	7
 
 /* MAC Led registers */
+#define	AR_CFG_SCLK_RATE_IND	0x00000003 /* sleep clock indication */
+#define	AR_CFG_SCLK_RATE_IND_S	0
+#define	AR_CFG_SCLK_32MHZ	0x00000000 /* Sleep clock rate */
+#define	AR_CFG_SCLK_4MHZ	0x00000001 /* Sleep clock rate */
+#define	AR_CFG_SCLK_1MHZ	0x00000002 /* Sleep clock rate */
+#define	AR_CFG_SCLK_32KHZ	0x00000003 /* Sleep clock rate */
 #define	AR_MAC_LED_BLINK_SLOW	0x00000008	/* LED slowest blink rate mode */
 #define	AR_MAC_LED_BLINK_THRESH_SEL 0x00000070	/* LED blink threshold select */
 #define	AR_MAC_LED_MODE		0x00000380	/* LED mode select */
