@@ -60,7 +60,7 @@ static const char sha512_rounds_prefix[] = "rounds=";
 #define ROUNDS_MAX 999999999
 
 static char *
-sha512_crypt_r(const char *key, const char *salt, char *buffer, int buflen)
+crypt_sha512_r(const char *key, const char *salt, char *buffer, int buflen)
 {
 	u_long srounds;
 	int n;
@@ -280,12 +280,12 @@ sha512_crypt_r(const char *key, const char *salt, char *buffer, int buflen)
 
 /* This entry point is equivalent to crypt(3). */
 char *
-sha512_crypt(const char *key, const char *salt)
+crypt_sha512(const char *key, const char *salt)
 {
 	/* We don't want to have an arbitrary limit in the size of the
 	 * password. We can compute an upper bound for the size of the
 	 * result in advance and so we can prepare the buffer we pass to
-	 * `sha512_crypt_r'. */
+	 * `crypt_sha512_r'. */
 	static char *buffer;
 	static int buflen;
 	int needed;
@@ -305,7 +305,7 @@ sha512_crypt(const char *key, const char *salt)
 		buflen = needed;
 	}
 
-	return sha512_crypt_r(key, salt, buffer, buflen);
+	return crypt_sha512_r(key, salt, buffer, buflen);
 }
 
 #ifdef TEST
@@ -482,7 +482,7 @@ main(void)
 	}
 
 	for (cnt = 0; cnt < ntests2; ++cnt) {
-		char *cp = sha512_crypt(tests2[cnt].input, tests2[cnt].salt);
+		char *cp = crypt_sha512(tests2[cnt].input, tests2[cnt].salt);
 
 		if (strcmp(cp, tests2[cnt].expected) != 0) {
 			printf("test %d: expected \"%s\", got \"%s\"\n",
