@@ -18,7 +18,8 @@ case "$daily_backup_pkgdb_enable" in
 	bak="${daily_backup_pkgdb_dir:-/var/backups}"
 	bak_file="${bak}/pkgdb.bak.tbz"
 
-	pkg_dbdir=`make -f/usr/share/mk/bsd.port.mk -V PKG_DBDIR 2>/dev/null`
+	pkg_dbdir=`make -f/usr/share/mk/bsd.port.mk -V PKG_DBDIR 2>/dev/null` ||
+	  pkg_dbdir=/var/db/pkg
 
 	if [ ! -d "$bak" ]
 	then
@@ -33,7 +34,7 @@ case "$daily_backup_pkgdb_enable" in
 
 	new_bak_file=`mktemp ${bak_file}-XXXXX`
 
-	if tar -cjf "${new_bak_file}" "$pkg_dbdir"; then
+	if tar -cjHf "${new_bak_file}" "$pkg_dbdir" 2>/dev/null; then
 	    chmod 644 "${new_bak_file}"
 
 	    if [ -e "${bak_file}.2" -a -e "${bak_file}" ]; then
