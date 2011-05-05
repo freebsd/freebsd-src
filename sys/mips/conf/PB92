@@ -6,8 +6,12 @@
 #
 
 ident		PB92
+# XXX The default load address in the Uboot environment is 0x80010000
 makeoptions	KERNLOADADDR=0x80050000
 options		HZ=1000
+
+# The PB92 has 32mb of RAM; hard-code that
+options		AR71XX_REALMEM=32*1024*1024
 
 hints		"PB92.hints"
 include		"../atheros/std.ar71xx"
@@ -21,20 +25,17 @@ options		KDB
 options		SCHED_4BSD		#4BSD scheduler
 options		INET			#InterNETworking
 options		INET6
-options		NFSCLIENT		#Network Filesystem Client
+# options		NFSCLIENT		#Network Filesystem Client
 options		PSEUDOFS		#Pseudo-filesystem framework
 options		_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
 options		ALQ
 
-# options		NFS_LEGACYRPC
-#options		NFS_DEBUG
-
 # Debugging for use in -current
-options		DEADLKRES
-options		INVARIANTS
-options		INVARIANT_SUPPORT
-options		WITNESS
-options		WITNESS_SKIPSPIN
+#options		DEADLKRES
+#options		INVARIANTS
+#options		INVARIANT_SUPPORT
+#options		WITNESS
+#options		WITNESS_SKIPSPIN
 options         FFS                     #Berkeley Fast Filesystem
 #options         SOFTUPDATES             #Enable FFS soft updates support
 #options         UFS_ACL                 #Support for access control lists
@@ -46,8 +47,12 @@ device		geom_uzip
 options		GEOM_UZIP
 options		ROOTDEVNAME=\"ufs:/dev/md0.uzip\"
 
+# PCI bus
 device		pci
 device		ar724x_pci
+
+# NVRAM U-Boot Environment -> Kernel environment
+device		nvram2env
 
 # Wireless NIC cards
 options		IEEE80211_DEBUG
@@ -75,23 +80,42 @@ device		ath_rate_sample
 device		mii
 device		arge
 
+# USB devices - PB92 has EHCI only
+
 device		usb
 options		USB_EHCI_BIG_ENDIAN_DESC        # handle big-endian byte order
 options		USB_DEBUG
 options		USB_HOST_ALIGN=32
 device		ehci
 
+# Mass storage
+device		scbus
+device		umass
+device		da
+
+# Read MSDOS formatted disks
+options		GEOM_PART_BSD
+options		GEOM_PART_MBR
+options		MSDOSFS
+
+# GPIO Bus
 device		gpio
 device		gpioled
 
+# SPI and flash
 device		spibus
 device		ar71xx_spi
 device		mx25l
 
+# The flash is statically partitioned; add in that
+device		geom_map
+
 device		ar71xx_wdog
 
+# Serial
 device		uart
 
+# Network twiddling
 device		loop
 device		ether
 device		md

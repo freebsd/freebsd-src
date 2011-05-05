@@ -620,9 +620,9 @@ ar5416LoadNF(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	HALDEBUG(ah, HAL_DEBUG_NFCAL, "CCA: ");
 	for (i = 0; i < AR5416_NUM_NF_READINGS; i ++) {
 
-		/* Don't write to EXT radio CCA registers */
+		/* Don't write to EXT radio CCA registers unless in HT/40 mode */
 		/* XXX this check should really be cleaner! */
-		if (i >= 3 && !IEEE80211_IS_CHAN_HT40(chan))
+		if (i > 2 && !IEEE80211_IS_CHAN_HT40(chan))
 			continue;
 
 		if (chainmask & (1 << i)) { 
@@ -670,6 +670,12 @@ ar5416LoadNF(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	 * of next noise floor calibration the baseband does.  
 	 */
 	for (i = 0; i < AR5416_NUM_NF_READINGS; i ++)
+
+		/* Don't write to EXT radio CCA registers unless in HT/40 mode */
+		/* XXX this check should really be cleaner! */
+		if (i > 2 && !IEEE80211_IS_CHAN_HT40(chan))
+			continue;
+
 		if (chainmask & (1 << i)) {	
 			val = OS_REG_READ(ah, ar5416_cca_regs[i]);
 			val &= 0xFFFFFE00;
@@ -701,10 +707,12 @@ ar5416InitNfHistBuff(struct ar5212NfCalHist *h)
  * Update the noise floor buffer as a ring buffer
  */
 static void
-ar5416UpdateNFHistBuff(struct ar5212NfCalHist *h, int16_t *nfarray)
+ar5416UpdateNFHistBuff(struct ath_hal *ah, struct ar5212NfCalHist *h,
+    int16_t *nfarray)
 {
 	int i;
 
+	/* XXX TODO: don't record nfarray[] entries for inactive chains */
 	for (i = 0; i < AR5416_NUM_NF_READINGS; i ++) {
 		h[i].nfCalBuffer[h[i].currIndex] = nfarray[i];
 
@@ -814,7 +822,7 @@ ar5416GetNf(struct ath_hal *ah, struct ieee80211_channel *chan)
 		}
 		ichan->privFlags |= CHANNEL_MIMO_NF_VALID;
 
-		ar5416UpdateNFHistBuff(AH5416(ah)->ah_cal.nfCalHist, nfarray);
+		ar5416UpdateNFHistBuff(ah, AH5416(ah)->ah_cal.nfCalHist, nfarray);
 		ichan->rawNoiseFloor = nf;
 	}
 	return nf;
