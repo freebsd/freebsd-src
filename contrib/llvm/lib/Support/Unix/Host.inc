@@ -35,6 +35,9 @@ static std::string getOSVersion() {
 }
 
 std::string sys::getHostTriple() {
+#ifdef __FreeBSD__
+  return LLVM_HOSTTRIPLE;
+#else
   // FIXME: Derive directly instead of relying on the autoconf generated
   // variable.
 
@@ -91,4 +94,5 @@ std::string sys::getHostTriple() {
   }
 
   return Triple;
+#endif
 }
