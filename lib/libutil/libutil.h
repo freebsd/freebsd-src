@@ -41,20 +41,11 @@
 
 #include <sys/cdefs.h>
 #include <sys/_types.h>
+#include <sys/_stdint.h>
 
 #ifndef _GID_T_DECLARED
 typedef	__gid_t		gid_t;
 #define	_GID_T_DECLARED
-#endif
-
-#ifndef _INT64_T_DECLARED
-typedef	__int64_t	int64_t;
-#define	_INT64_T_DECLARED
-#endif
-
-#ifndef _UINT64_T_DECLARED
-typedef	__uint64_t	uint64_t;
-#define	_UINT64_T_DECLARED
 #endif
 
 #ifndef _PID_T_DECLARED
