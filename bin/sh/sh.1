@@ -32,7 +32,7 @@
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd March 20, 2011
+.Dd May 5, 2011
 .Dt SH 1
 .Os
 .Sh NAME
@@ -396,13 +396,82 @@ Quoting is used to remove the special meaning of certain characters
 or words to the shell, such as operators, whitespace, keywords,
 or alias names.
 .Pp
-There are three types of quoting: matched single quotes,
+There are four types of quoting: matched single quotes,
+dollar-single quotes,
 matched double quotes, and backslash.
 .Bl -tag -width indent
 .It Single Quotes
 Enclosing characters in single quotes preserves the literal
 meaning of all the characters (except single quotes, making
 it impossible to put single-quotes in a single-quoted string).
+.It Dollar-Single Quotes
+Enclosing characters between
+.Li $'
+and
+.Li '
+preserves the literal meaning of all characters
+except backslashes and single quotes.
+A backslash introduces a C-style escape sequence:
+.Bl -tag -width xUnnnnnnnn
+.It \ea
+Alert (ring the terminal bell)
+.It \eb
+Backspace
+.It \ec Ns Ar c
+The control character denoted by
+.Li ^ Ns Ar c
+in
+.Xr stty 1 .
+If
+.Ar c
+is a backslash, it must be doubled.
+.It \ee
+The ESC character
+.Tn ( ASCII
+0x1b)
+.It \ef
+Formfeed
+.It \en
+Newline
+.It \er
+Carriage return
+.It \et
+Horizontal tab
+.It \ev
+Vertical tab
+.It \e\e
+Literal backslash
+.It \e\&'
+Literal single-quote
+.It \e\&"
+Literal double-quote
+.It \e Ns Ar nnn
+The byte whose octal value is
+.Ar nnn
+(one to three digits)
+.It \ex Ns Ar nn
+The byte whose hexadecimal value is
+.Ar nn
+(one or more digits only the last two of which are used)
+.It \eu Ns Ar nnnn
+The Unicode code point
+.Ar nnnn
+(four hexadecimal digits)
+.It \eU Ns Ar nnnnnnnn
+The Unicode code point
+.Ar nnnnnnnn
+(eight hexadecimal digits)
+.El
+.Pp
+The sequences for Unicode code points currently only provide useful results
+for values below 128.
+They reject code point 0 and UTF-16 surrogates.
+.Pp
+If an escape sequence would produce a byte with value 0,
+that byte and the rest of the string until the matching single-quote
+are ignored.
+.Pp
+Any other string starting with a backslash is an error.
 .It Double Quotes
 Enclosing characters within double quotes preserves the literal
 meaning of all characters except dollar sign
