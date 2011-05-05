@@ -21,7 +21,9 @@
 #
 
 mkdir -p $2/usr/src
-svn co ${SVNROOT:-svn://svn.freebsd.org/base}/$1 $2/usr/src || exit 1
+set -e # Everything must succeed
+
+svn co ${SVNROOT:-svn://svn.freebsd.org/base}/$1 $2/usr/src
 if [ ! -z $CVSUP_HOST ]; then
 	cat > $2/docports-supfile << EOF
 	*default host=$CVSUP_HOST
@@ -35,32 +37,33 @@ if [ ! -z $CVSUP_HOST ]; then
 EOF
 elif [ ! -z $CVSROOT ]; then
 	cd $2/usr
-	cvs -R ${CVSARGS} -d ${CVSROOT} co -P -r ${CVS_TAG:-HEAD} ports || exit 1
-	cvs -R ${CVSARGS} -d ${CVSROOT} co -P -r ${CVS_TAG:-HEAD} doc || exit 1
+	cvs -R ${CVSARGS} -d ${CVSROOT} co -P -r ${CVS_TAG:-HEAD} ports
+	cvs -R ${CVSARGS} -d ${CVSROOT} co -P -r ${CVS_TAG:-HEAD} doc
 fi
 
 cd $2/usr/src
-make $MAKE_FLAGS buildworld || exit 1
-make installworld distribution DESTDIR=$2 || exit 1
+make $MAKE_FLAGS buildworld
+make installworld distribution DESTDIR=$2
 mount -t devfs devfs $2/dev
+trap "umount $2/dev" EXIT # Clean up devfs mount on exit
 
 if [ ! -z $CVSUP_HOST ]; then 
 	cp /etc/resolv.conf $2/etc/resolv.conf
 
 	# Checkout ports and doc trees
-	chroot $2 /usr/bin/csup /docports-supfile || exit 1
+	chroot $2 /usr/bin/csup /docports-supfile
 fi
 
 if [ -d $2/usr/doc ]; then 
 	cp /etc/resolv.conf $2/etc/resolv.conf
 
 	# Build ports to build the docs, then build the docs
-	chroot $2 /bin/sh -c 'pkg_add -r docproj || (cd /usr/ports/textproc/docproj && make install clean BATCH=yes WITHOUT_X11=yes JADETEX=no WITHOUT_PYTHON=yes)' || exit 1
-	chroot $2 /bin/sh -c "cd /usr/doc && make $MAKE_FLAGS 'FORMATS=html html-split txt' URLS_ABSOLUTE=YES" || exit 1
+	chroot $2 /bin/sh -c 'pkg_add -r docproj || (cd /usr/ports/textproc/docproj && make install clean BATCH=yes WITHOUT_X11=yes JADETEX=no WITHOUT_PYTHON=yes)'
+	chroot $2 make -C /usr/doc $MAKE_FLAGS 'FORMATS=html html-split txt' URLS_ABSOLUTE=YES
 fi
 
-chroot $2 /bin/sh -c "cd /usr/src && make $MAKE_FLAGS buildworld buildkernel" || exit 1
-chroot $2 /bin/sh -c "cd /usr/src/release && make obj" || exit 1
-chroot $2 /bin/sh -c "cd /usr/src/release && make release" || exit 1
-chroot $2 /bin/sh -c "cd /usr/src/release && make install DESTDIR=/R" || exit 1
+chroot $2 make -C /usr/src $MAKE_FLAGS buildworld buildkernel
+chroot $2 make -C /usr/src/release obj
+chroot $2 make -C /usr/src/release release
+chroot $2 make -C /usr/src/release install DESTDIR=/R
 
