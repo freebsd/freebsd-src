@@ -55,7 +55,7 @@ int (*pmc_hook)(struct thread *td, int function, void *arg) = NULL;
 int (*pmc_intr)(int cpu, struct trapframe *tf) = NULL;
 
 /* Bitmask of CPUs requiring servicing at hardclock time */
-volatile cpumask_t pmc_cpumask;
+volatile cpuset_t pmc_cpumask;
 
 /*
  * A global count of SS mode PMCs.  When non-zero, this means that
@@ -112,7 +112,7 @@ pmc_cpu_is_active(int cpu)
 {
 #ifdef	SMP
 	return (pmc_cpu_is_present(cpu) &&
-	    (hlt_cpus_mask & (1 << cpu)) == 0);
+	    !CPU_ISSET(cpu, &hlt_cpus_mask));
 #else
 	return (1);
 #endif
@@ -139,7 +139,7 @@ int
 pmc_cpu_is_primary(int cpu)
 {
 #ifdef	SMP
-	return ((logical_cpus_mask & (1 << cpu)) == 0);
+	return (!CPU_ISSET(cpu, &logical_cpus_mask));
 #else
 	return (1);
 #endif
