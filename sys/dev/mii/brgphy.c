@@ -927,7 +927,7 @@ brgphy_reset(struct mii_softc *sc)
 
 		brgphy_jumbo_settings(sc, ifp->if_mtu);
 
-		if (bge_sc->bge_phy_flags & BGE_PHY_WIRESPEED)
+		if ((bge_sc->bge_phy_flags & BGE_PHY_NO_WIRESPEED) == 0)
 			brgphy_ethernet_wirespeed(sc);
 
 		/* Enable Link LED on Dell boxes */
