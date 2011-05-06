@@ -81,6 +81,4 @@
 #define	AR91XX_GPIO_FUNC_UART_EN	(1 << 8)
 #define	AR91XX_GPIO_FUNC_USB_CLK_EN	(1 << 4)
 
-#define	AR91XX_GPIO_COUNT		22
-
 #endif
