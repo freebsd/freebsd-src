@@ -558,6 +558,7 @@ bm_attach(device_t dev)
 	}
 
 	/* alloc interrupt */
+	bm_disable_interrupts(sc);
 
 	sc->sc_txdmairqid = BM_TXDMA_INTERRUPT;
 	sc->sc_txdmairq = bus_alloc_resource_any(dev, SYS_RES_IRQ,
@@ -591,9 +592,6 @@ bm_attach(device_t dev)
 	eaddr = sc->sc_enaddr;
 	OF_getprop(node, "local-mac-address", eaddr, ETHER_ADDR_LEN);
 
-	/* reset the adapter  */
-	bm_chip_setup(sc);
-
 	/*
 	 * Setup MII
 	 * On Apple BMAC controllers, we end up in a weird state of
@@ -607,6 +605,9 @@ bm_attach(device_t dev)
 		device_printf(dev, "attaching PHYs failed\n");
 		return (error);
 	}
+
+	/* reset the adapter  */
+	bm_chip_setup(sc);
 
 	sc->sc_mii = device_get_softc(sc->sc_miibus);
 
@@ -1129,31 +1130,26 @@ bm_chip_setup(struct bm_softc *sc)
 {
 	uint16_t reg;
 	uint16_t *eaddr_sect;
-	char path[128];
-	ihandle_t bmac_ih;
+	struct mii_data *mii;
+	struct mii_softc *miisc;
 
 	eaddr_sect = (uint16_t *)(sc->sc_enaddr);
+	dbdma_stop(sc->sc_txdma);
+	dbdma_stop(sc->sc_rxdma);
 
-	/* 
-	 * Enable BMAC cell by opening and closing its OF node. This enables 
-	 * the cell in macio as a side effect. We should probably directly 
-	 * twiddle the FCR bits, but we lack a good interface for this at the
-	 * present time. 
-	 */
-
-	OF_package_to_path(ofw_bus_get_node(sc->sc_dev), path, sizeof(path));
-	bmac_ih = OF_open(path);
-	if (bmac_ih == -1) {
-		device_printf(sc->sc_dev,
-		    "Enabling BMAC cell failed! Hoping it's already active.\n");
-	} else {
-		OF_close(bmac_ih);
+	/* Reset MII */
+	mii = device_get_softc(sc->sc_miibus);
+	LIST_FOREACH(miisc, &mii->mii_phys, mii_list) {
+		PHY_RESET(miisc);
+		PHY_WRITE(miisc, MII_BMCR, PHY_READ(miisc, MII_BMCR) &
+		    ~BMCR_ISO);
 	}
 
 	/* Reset chip */
 	CSR_WRITE_2(sc, BM_RX_RESET, 0x0000);
 	CSR_WRITE_2(sc, BM_TX_RESET, 0x0001);
 	do {
+		DELAY(10);
 		reg = CSR_READ_2(sc, BM_TX_RESET);
 	} while (reg & 0x0001);
 
