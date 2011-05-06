@@ -528,25 +528,6 @@ cd9660_write_apm_partition_entry(FILE *fd, int index, int total_partitions,
 	fseek(fd, 32 - strlen(part_name) - 1, SEEK_CUR);
 	fwrite(part_type, strlen(part_type) + 1, 1, fd);
 
-	if (sector_size > 512) {
-		/*
-		 * Some old broken software looks at 512-byte boundaries for
-		 * partition table entries instead of sector boundaries. We
-		 * can fit 3 entries into the first 2048-byte block, so use
-		 * that to humor old code.
-		 */
-
-		int n_512_parts = (sector_size / 512) - 1;
-		if (n_512_parts > total_partitions)
-			n_512_parts = total_partitions;
-
-		if (index < n_512_parts)	
-			cd9660_write_apm_partition_entry(fd, index, n_512_parts,
-			    sector_start * (sector_size / 512),
-			    nsectors * (sector_size / 512), 512, part_name,
-			    part_type);
-	}
-
 	return 0;
 }
 
@@ -601,23 +582,30 @@ cd9660_write_boot(FILE *fd)
 		fseek(fd, 0, SEEK_SET);
 		apm16 = htons(0x4552);
 		fwrite(&apm16, sizeof(apm16), 1, fd);
-		apm16 = htons(diskStructure.sectorSize);
+		/* Device block size */
+		apm16 = htons(512);
 		fwrite(&apm16, sizeof(apm16), 1, fd);
-		apm32 = htonl(diskStructure.totalSectors);
+		/* Device block count */
+		apm32 = htonl(diskStructure.totalSectors *
+		    (diskStructure.sectorSize / 512));
 		fwrite(&apm32, sizeof(apm32), 1, fd);
+		/* Device type/id */
+		apm16 = htons(1);
+		fwrite(&apm16, sizeof(apm16), 1, fd);
+		fwrite(&apm16, sizeof(apm16), 1, fd);
 
 		/* Count total needed entries */
 		total_parts = 2 + apm_partitions; /* Self + ISO9660 */
 
 		/* Write self-descriptor */
-		cd9660_write_apm_partition_entry(fd, 0,
-		    total_parts, 1, total_parts, diskStructure.sectorSize,
-		    "Apple", "Apple_partition_map");
+		cd9660_write_apm_partition_entry(fd, 0, total_parts, 1,
+		    total_parts, 512, "Apple", "Apple_partition_map");
 
 		/* Write ISO9660 descriptor, enclosing the whole disk */
-		cd9660_write_apm_partition_entry(fd, 1,
-		    total_parts, 0, diskStructure.totalSectors,
-		    diskStructure.sectorSize, "", "CD_ROM_Mode_1");
+		cd9660_write_apm_partition_entry(fd, 1, total_parts, 0,
+		    diskStructure.totalSectors *
+		    (diskStructure.sectorSize / 512), 512, "ISO9660",
+		    "CD_ROM_Mode_1");
 
 		/* Write all partition entries */
 		apm_partitions = 0;
@@ -627,8 +615,9 @@ cd9660_write_boot(FILE *fd)
 
 			cd9660_write_apm_partition_entry(fd,
 			    2 + apm_partitions++, total_parts,
-			    t->sector, t->num_sectors, diskStructure.sectorSize,
-			    "CD Boot", "Apple_Bootstrap");
+			    t->sector * (diskStructure.sectorSize / 512),
+			    t->num_sectors * (diskStructure.sectorSize / 512),
+			    512, "CD Boot", "Apple_Bootstrap");
 		}
 	}
 

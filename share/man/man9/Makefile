@@ -781,6 +781,7 @@ MLINKS+=make_dev.9 destroy_dev.9 \
 	make_dev.9 destroy_dev_sched_cb.9 \
 	make_dev.9 dev_depends.9 \
 	make_dev.9 make_dev_alias.9 \
+	make_dev.9 make_dev_alias_p.9 \
 	make_dev.9 make_dev_cred.9 \
 	make_dev.9 make_dev_credf.9 \
 	make_dev.9 make_dev_p.9

@@ -43,7 +43,8 @@ CFLAGS=	-Os \
 	-Winline --param max-inline-insns-single=100
 
 .if ${CC:T:Mclang} == "clang"
-CFLAGS+=	-mllvm -stack-alignment=8 -mllvm -inline-threshold=3
+CFLAGS+=	-mllvm -stack-alignment=8 -mllvm -inline-threshold=3 \
+		-mllvm -enable-load-pre=false
 # XXX: clang integrated-as doesn't grok .codeNN directives yet
 CFLAGS+=	${.IMPSRC:T:Mboot1.S:C/^.+$/-no-integrated-as/}
 .endif
