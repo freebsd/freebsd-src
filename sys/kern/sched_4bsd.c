@@ -944,13 +944,9 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 	if ((td->td_flags & TDF_NOLOAD) == 0)
 		sched_load_rem();
 
-	if (newtd) {
-		MPASS(newtd->td_lock == &sched_lock);
-		newtd->td_flags |= (td->td_flags & TDF_NEEDRESCHED);
-	}
-
 	td->td_lastcpu = td->td_oncpu;
-	td->td_flags &= ~TDF_NEEDRESCHED;
+	if (!(flags & SW_PREEMPT))
+		td->td_flags &= ~TDF_NEEDRESCHED;
 	td->td_owepreempt = 0;
 	td->td_oncpu = NOCPU;
 
