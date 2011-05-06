@@ -105,6 +105,4 @@
 #define	AR724X_GPIO_FUNC_UART_EN		(1 >> 1)
 #define	AR724X_GPIO_FUNC_JTAG_DISABLE		(1 >> 0)
 
-#define	AR724X_GPIO_COUNT		18
-
 #endif

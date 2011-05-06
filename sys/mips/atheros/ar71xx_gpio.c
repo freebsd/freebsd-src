@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <mips/atheros/ar71xxreg.h>
+#include <mips/atheros/ar71xx_setup.h>
 #include <mips/atheros/ar71xx_gpiovar.h>
 
 #include "gpio_if.h"
@@ -144,7 +145,19 @@ static int
 ar71xx_gpio_pin_max(device_t dev, int *maxpin)
 {
 
-	*maxpin = AR71XX_GPIO_PINS - 1;
+	switch (ar71xx_soc) {
+		case AR71XX_SOC_AR9130:
+		case AR71XX_SOC_AR9132:
+			*maxpin = AR91XX_GPIO_PINS - 1;
+			break;
+		case AR71XX_SOC_AR7240:
+		case AR71XX_SOC_AR7241:
+		case AR71XX_SOC_AR7242:
+			*maxpin = AR724X_GPIO_PINS - 1;
+			break;
+		default:
+			*maxpin = AR71XX_GPIO_PINS - 1;
+	}
 	return (0);
 }
 
