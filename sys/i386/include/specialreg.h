@@ -227,6 +227,8 @@
  * AMD extended function 8000_0008h ecx info
  */
 #define	AMDID_CMP_CORES		0x000000ff
+#define	AMDID_COREID_SIZE	0x0000f000
+#define	AMDID_COREID_SIZE_SHIFT	12
 
 /*
  * CPUID manufacturers identifiers
