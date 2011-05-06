@@ -59,7 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <nfsclient/nfs.h>
 #include <nfsclient/nfsmount.h>
 #include <nfsclient/nfsnode.h>
-#include <nfsclient/nfs_kdtrace.h>
+#include <nfs/nfs_kdtrace.h>
 
 static struct buf *nfs_getcacheblk(struct vnode *vp, daddr_t bn, int size,
 		    struct thread *td);
