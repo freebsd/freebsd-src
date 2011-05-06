@@ -2507,6 +2507,7 @@ xl_encap(struct xl_softc *sc, struct xl_chain *c, struct mbuf **m_head)
 		*m_head = NULL;
 		return (EIO);
 	}
+	bus_dmamap_sync(sc->xl_mtag, c->xl_map, BUS_DMASYNC_PREWRITE);
 
 	total_len = 0;
 	for (i = 0; i < nseg; i++) {
@@ -2519,8 +2520,6 @@ xl_encap(struct xl_softc *sc, struct xl_chain *c, struct mbuf **m_head)
 		total_len += sc->xl_cdata.xl_tx_segs[i].ds_len;
 	}
 	c->xl_ptr->xl_frag[nseg - 1].xl_len |= htole32(XL_LAST_FRAG);
-	c->xl_ptr->xl_status = htole32(total_len);
-	c->xl_ptr->xl_next = 0;
 
 	if (sc->xl_type == XL_TYPE_905B) {
 		status = XL_TXSTAT_RND_DEFEAT;
@@ -2535,11 +2534,12 @@ xl_encap(struct xl_softc *sc, struct xl_chain *c, struct mbuf **m_head)
 				status |= XL_TXSTAT_UDPCKSUM;
 		}
 #endif
-		c->xl_ptr->xl_status = htole32(status);
-	}
+	} else
+		status = total_len;
+	c->xl_ptr->xl_status = htole32(status);
+	c->xl_ptr->xl_next = 0;
 
 	c->xl_mbuf = *m_head;
-	bus_dmamap_sync(sc->xl_mtag, c->xl_map, BUS_DMASYNC_PREWRITE);
 	return (0);
 }
 
