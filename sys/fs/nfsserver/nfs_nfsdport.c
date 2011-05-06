@@ -1280,8 +1280,23 @@ nfsvno_fsync(struct vnode *vp, u_int64_t off, int cnt, struct ucred *cred,
 int
 nfsvno_statfs(struct vnode *vp, struct statfs *sf)
 {
+	int error;
 
-	return (VFS_STATFS(vp->v_mount, sf));
+	error = VFS_STATFS(vp->v_mount, sf);
+	if (error == 0) {
+		/*
+		 * Since NFS handles these values as unsigned on the
+		 * wire, there is no way to represent negative values,
+		 * so set them to 0. Without this, they will appear
+		 * to be very large positive values for clients like
+		 * Solaris10.
+		 */
+		if (sf->f_bavail < 0)
+			sf->f_bavail = 0;
+		if (sf->f_ffree < 0)
+			sf->f_ffree = 0;
+	}
+	return (error);
 }
 
 /*
