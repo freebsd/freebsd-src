@@ -23,13 +23,11 @@
 # extra-bits-dir, if provided, contains additional files to be merged
 # into base-bits-dir as part of making the image.
 
-publisher="The FreeBSD Project.  http://www.freebsd.org/"
 if [ "x$1" = "x-b" ]; then
 	uudecode -o /tmp/hfs-boot-block.bz2 `dirname $0`/hfs-boot.bz2.uu
 	bzip2 -d /tmp/hfs-boot-block.bz2
 	OFFSET=$(hd /tmp/hfs-boot-block | grep 'Loader START' | cut -f 1 -d ' ')
 	OFFSET=0x$(echo 0x$OFFSET | awk '{printf("%x\n",$1/512);}')
-	echo dd if=$4/boot/loader of=/tmp/hfs-boot-block seek=$OFFSET conv=notrunc
 	dd if=$4/boot/loader of=/tmp/hfs-boot-block seek=$OFFSET conv=notrunc
 
 	bootable="-o bootimage=macppc;/tmp/hfs-boot-block -o no-emul-boot"

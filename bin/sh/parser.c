@@ -1127,6 +1127,127 @@ done:
 
 
 /*
+ * Called to parse a backslash escape sequence inside $'...'.
+ * The backslash has already been read.
+ */
+static char *
+readcstyleesc(char *out)
+{
+	int c, v, i, n;
+
+	c = pgetc();
+	switch (c) {
+	case '\0':
+		synerror("Unterminated quoted string");
+	case '\n':
+		plinno++;
+		if (doprompt)
+			setprompt(2);
+		else
+			setprompt(0);
+		return out;
+	case '\\':
+	case '\'':
+	case '"':
+		v = c;
+		break;
+	case 'a': v = '\a'; break;
+	case 'b': v = '\b'; break;
+	case 'e': v = '\033'; break;
+	case 'f': v = '\f'; break;
+	case 'n': v = '\n'; break;
+	case 'r': v = '\r'; break;
+	case 't': v = '\t'; break;
+	case 'v': v = '\v'; break;
+	case 'x':
+		  v = 0;
+		  for (;;) {
+			  c = pgetc();
+			  if (c >= '0' && c <= '9')
+				  v = (v << 4) + c - '0';
+			  else if (c >= 'A' && c <= 'F')
+				  v = (v << 4) + c - 'A' + 10;
+			  else if (c >= 'a' && c <= 'f')
+				  v = (v << 4) + c - 'a' + 10;
+			  else
+				  break;
+		  }
+		  pungetc();
+		  break;
+	case '0': case '1': case '2': case '3':
+	case '4': case '5': case '6': case '7':
+		  v = c - '0';
+		  c = pgetc();
+		  if (c >= '0' && c <= '7') {
+			  v <<= 3;
+			  v += c - '0';
+			  c = pgetc();
+			  if (c >= '0' && c <= '7') {
+				  v <<= 3;
+				  v += c - '0';
+			  } else
+				  pungetc();
+		  } else
+			  pungetc();
+		  break;
+	case 'c':
+		  c = pgetc();
+		  if (c < 0x3f || c > 0x7a || c == 0x60)
+			  synerror("Bad escape sequence");
+		  if (c == '\\' && pgetc() != '\\')
+			  synerror("Bad escape sequence");
+		  if (c == '?')
+			  v = 127;
+		  else
+			  v = c & 0x1f;
+		  break;
+	case 'u':
+	case 'U':
+		  n = c == 'U' ? 8 : 4;
+		  v = 0;
+		  for (i = 0; i < n; i++) {
+			  c = pgetc();
+			  if (c >= '0' && c <= '9')
+				  v = (v << 4) + c - '0';
+			  else if (c >= 'A' && c <= 'F')
+				  v = (v << 4) + c - 'A' + 10;
+			  else if (c >= 'a' && c <= 'f')
+				  v = (v << 4) + c - 'a' + 10;
+			  else
+				  synerror("Bad escape sequence");
+		  }
+		  if (v == 0 || (v >= 0xd800 && v <= 0xdfff))
+			  synerror("Bad escape sequence");
+		  /* We really need iconv here. */
+		  if (v > 127)
+			  v = '?';
+		  break;
+	default:
+		  synerror("Bad escape sequence");
+	}
+	v = (char)v;
+	/*
+	 * We can't handle NUL bytes.
+	 * POSIX says we should skip till the closing quote.
+	 */
+	if (v == '\0') {
+		while ((c = pgetc()) != '\'') {
+			if (c == '\\')
+				c = pgetc();
+			if (c == PEOF)
+				synerror("Unterminated quoted string");
+		}
+		pungetc();
+		return out;
+	}
+	if (SQSYNTAX[v] == CCTL)
+		USTPUTC(CTLESC, out);
+	USTPUTC(v, out);
+	return out;
+}
+
+
+/*
  * If eofmark is NULL, read a word or a redirection symbol.  If eofmark
  * is not NULL, read a here document.  In the latter case, eofmark is the
  * word which marks the end of the document and striptabs is true if
@@ -1158,6 +1279,7 @@ readtoken1(int firstc, char const *initialsyntax, char *eofmark, int striptabs)
 	struct tokenstate state_static[MAXNEST_static];
 	int maxnest = MAXNEST_static;
 	struct tokenstate *state = state_static;
+	int sqiscstyle = 0;
 
 	startlinno = plinno;
 	quotef = 0;
@@ -1188,6 +1310,12 @@ readtoken1(int firstc, char const *initialsyntax, char *eofmark, int striptabs)
 					setprompt(0);
 				c = pgetc();
 				goto loop;		/* continue outer loop */
+			case CSBACK:
+				if (sqiscstyle) {
+					out = readcstyleesc(out);
+					break;
+				}
+				/* FALLTHROUGH */
 			case CWORD:
 				USTPUTC(c, out);
 				break;
@@ -1232,6 +1360,7 @@ readtoken1(int firstc, char const *initialsyntax, char *eofmark, int striptabs)
 			case CSQUOTE:
 				USTPUTC(CTLQUOTEMARK, out);
 				state[level].syntax = SQSYNTAX;
+				sqiscstyle = 0;
 				break;
 			case CDQUOTE:
 				USTPUTC(CTLQUOTEMARK, out);
@@ -1450,11 +1579,7 @@ parsesub: {
 	int c1;
 
 	c = pgetc();
-	if (c != '(' && c != '{' && (is_eof(c) || !is_name(c)) &&
-	    !is_special(c)) {
-		USTPUTC('$', out);
-		pungetc();
-	} else if (c == '(') {	/* $(command) or $((arith)) */
+	if (c == '(') {	/* $(command) or $((arith)) */
 		if (pgetc() == '(') {
 			PARSEARITH();
 		} else {
@@ -1465,7 +1590,7 @@ parsesub: {
 			    state[level].syntax == DQSYNTAX ||
 			    state[level].syntax == ARISYNTAX);
 		}
-	} else {
+	} else if (c == '{' || is_name(c) || is_special(c)) {
 		USTPUTC(CTLVAR, out);
 		typeloc = out - stackblock();
 		USTPUTC(VSNORMAL, out);
@@ -1612,6 +1737,14 @@ varname:
 				newvarnest++;
 			}
 		}
+	} else if (c == '\'' && state[level].syntax == BASESYNTAX) {
+		/* $'cstylequotes' */
+		USTPUTC(CTLQUOTEMARK, out);
+		state[level].syntax = SQSYNTAX;
+		sqiscstyle = 1;
+	} else {
+		USTPUTC('$', out);
+		pungetc();
 	}
 	goto parsesub_return;
 }

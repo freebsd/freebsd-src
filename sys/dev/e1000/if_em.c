@@ -3901,7 +3901,7 @@ em_setup_receive_ring(struct rx_ring *rxr)
 	struct	adapter 	*adapter = rxr->adapter;
 	struct em_buffer	*rxbuf;
 	bus_dma_segment_t	seg[1];
-	int			i, j, nsegs, error;
+	int			i, j, nsegs, error = 0;
 
 
 	/* Clear the ring contents */
@@ -3919,7 +3919,7 @@ em_setup_receive_ring(struct rx_ring *rxr)
 	if (++j == adapter->num_rx_desc)
 		j = 0;
 
-	while(j != rxr->next_to_check) {
+	while (j != rxr->next_to_check) {
 		rxbuf = &rxr->rx_buffers[i];
 		rxbuf->m_head = m_getjcl(M_DONTWAIT, MT_DATA,
 		    M_PKTHDR, adapter->rx_mbuf_sz);

@@ -39,7 +39,7 @@
  */
 
 #define	NFS_MAXIOVEC	34
-#define	NFS_TICKINTVL	10		/* Desired time for a tick (msec) */
+#define	NFS_TICKINTVL	500		/* Desired time for a tick (msec) */
 #define	NFS_HZ		(hz / nfscl_ticks) /* Ticks/sec */
 #define	NFS_TIMEO	(1 * NFS_HZ)	/* Default timeout = 1 second */
 #define	NFS_MINTIMEO	(1 * NFS_HZ)	/* Min timeout to use */

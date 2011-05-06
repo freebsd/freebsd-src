@@ -2520,11 +2520,8 @@ ar5416OverrideIni(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	 * Disable RIFS search on some chips to avoid baseband
 	 * hang issues.
 	 */
-	if (AR_SREV_HOWL(ah) || AR_SREV_SOWL(ah)) {
-		val = OS_REG_READ(ah, AR_PHY_HEAVY_CLIP_FACTOR_RIFS);
-		val &= ~AR_PHY_RIFS_INIT_DELAY;
-		OS_REG_WRITE(ah, AR_PHY_HEAVY_CLIP_FACTOR_RIFS, val);
-	}
+	if (AR_SREV_HOWL(ah) || AR_SREV_SOWL(ah))
+		(void) ar5416SetRifsDelay(ah, AH_FALSE);
 }
 
 struct ini {
