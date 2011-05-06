@@ -197,6 +197,15 @@ coretemp_attach(device_t dev)
 		default:	/* Unknown stepping */
 			break;
 		}
+	} else if (cpu_model == 0x1c) {
+		switch (cpu_stepping) {
+		case 0xa:	/* 45nm Atom D400, N400 and D500 series */
+			sc->sc_tjmax = 100;
+			break;
+		default:
+			sc->sc_tjmax = 90;
+			break;
+		}
 	} else {
 		/*
 		 * Attempt to get Tj(max) from MSR IA32_TEMPERATURE_TARGET.
