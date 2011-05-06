@@ -1289,7 +1289,7 @@ parsesub: {
 			pungetc();
 		}
 		STPUTC('=', out);
-		if (subtype != VSLENGTH && (dblquote || arinest))
+		if (dblquote || arinest)
 			flags |= VSQUOTE;
 		*(stackblock() + typeloc) = subtype | flags;
 		if (subtype != VSNORMAL)
