@@ -25,6 +25,11 @@ THIS SOFTWARE.
 This file lists all bug fixes, changes, etc., made since the AWK book
 was sent to the printers in August, 1987.
 
+May 6, 2011:
+	added #ifdef for isblank.
+	now allows -ffoo as well as -f foo arguments.
+	(thanks, ruslan)
+
 May 1, 2011:
 	after advice from todd miller, kevin lo, ruslan ermilov,
 	and arnold robbins, changed srand() to return the previous
