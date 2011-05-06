@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
  */
 
 #include <locale.h>
+#include <langinfo.h>
 
 #include "shell.h"
 #include "output.h"
@@ -361,6 +362,7 @@ setvareq(char *s, int flags)
 			if ((vp->flags & VEXPORT) && localevar(s)) {
 				change_env(s, 1);
 				(void) setlocale(LC_ALL, "");
+				updatecharset();
 			}
 			INTON;
 			return;
@@ -379,6 +381,7 @@ setvareq(char *s, int flags)
 	if ((vp->flags & VEXPORT) && localevar(s)) {
 		change_env(s, 1);
 		(void) setlocale(LC_ALL, "");
+		updatecharset();
 	}
 	INTON;
 }
@@ -480,6 +483,7 @@ bltinsetlocale(void)
 	if (loc != NULL) {
 		setlocale(LC_ALL, loc);
 		INTON;
+		updatecharset();
 		return;
 	}
 	locdef = bltinlookup("LANG", 0);
@@ -491,6 +495,7 @@ bltinsetlocale(void)
 			setlocale(locale_categories[i], loc);
 	}
 	INTON;
+	updatecharset();
 }
 
 /*
@@ -505,12 +510,24 @@ bltinunsetlocale(void)
 	for (lp = cmdenviron ; lp ; lp = lp->next) {
 		if (localevar(lp->text)) {
 			setlocale(LC_ALL, "");
+			updatecharset();
 			return;
 		}
 	}
 	INTON;
 }
 
+/*
+ * Update the localeisutf8 flag.
+ */
+void
+updatecharset(void)
+{
+	char *charset;
+
+	charset = nl_langinfo(CODESET);
+	localeisutf8 = !strcmp(charset, "UTF-8");
+}
 
 /*
  * Generate a list of exported variables.  This routine is used to construct
@@ -656,6 +673,7 @@ exportcmd(int argc, char **argv)
 						if ((vp->flags & VEXPORT) && localevar(vp->text)) {
 							change_env(vp->text, 1);
 							(void) setlocale(LC_ALL, "");
+							updatecharset();
 						}
 						goto found;
 					}
@@ -850,6 +868,7 @@ unsetvar(const char *s)
 			if ((vp->flags & VEXPORT) && localevar(vp->text)) {
 				change_env(s, 0);
 				setlocale(LC_ALL, "");
+				updatecharset();
 			}
 			vp->flags &= ~VEXPORT;
 			vp->flags |= VUNSET;
