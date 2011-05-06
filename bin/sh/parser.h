@@ -34,16 +34,16 @@
  */
 
 /* control characters in argument strings */
-#define CTLESC '\201'
-#define CTLVAR '\202'
-#define CTLENDVAR '\203'
-#define CTLBACKQ '\204'
+#define CTLESC '\300'
+#define CTLVAR '\301'
+#define CTLENDVAR '\371'
+#define CTLBACKQ '\372'
 #define CTLQUOTE 01		/* ored with CTLBACKQ code if in quotes */
 /*	CTLBACKQ | CTLQUOTE == '\205' */
-#define	CTLARI	'\206'
-#define	CTLENDARI '\207'
-#define	CTLQUOTEMARK '\210'
-#define	CTLQUOTEEND '\211' /* only for ${v+-...} */
+#define	CTLARI	'\374'
+#define	CTLENDARI '\375'
+#define	CTLQUOTEMARK '\376'
+#define	CTLQUOTEEND '\377' /* only for ${v+-...} */
 
 /* variable substitution byte (follows CTLVAR) */
 #define VSTYPE		0x0f	/* type of variable substitution */
