@@ -2571,8 +2571,9 @@ static void
 xl_start_locked(struct ifnet *ifp)
 {
 	struct xl_softc		*sc = ifp->if_softc;
-	struct mbuf		*m_head = NULL;
+	struct mbuf		*m_head;
 	struct xl_chain		*prev = NULL, *cur_tx = NULL, *start_tx;
+	struct xl_chain		*prev_tx;
 	u_int32_t		status;
 	int			error;
 
@@ -2603,11 +2604,13 @@ xl_start_locked(struct ifnet *ifp)
 			break;
 
 		/* Pick a descriptor off the free list. */
+		prev_tx = cur_tx;
 		cur_tx = sc->xl_cdata.xl_tx_free;
 
 		/* Pack the data into the descriptor. */
 		error = xl_encap(sc, cur_tx, &m_head);
 		if (error) {
+			cur_tx = prev_tx;
 			if (m_head == NULL)
 				break;
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
@@ -2702,8 +2705,9 @@ static void
 xl_start_90xB_locked(struct ifnet *ifp)
 {
 	struct xl_softc		*sc = ifp->if_softc;
-	struct mbuf		*m_head = NULL;
+	struct mbuf		*m_head;
 	struct xl_chain		*prev = NULL, *cur_tx = NULL, *start_tx;
+	struct xl_chain		*prev_tx;
 	int			error, idx;
 
 	XL_LOCK_ASSERT(sc);
@@ -2726,11 +2730,13 @@ xl_start_90xB_locked(struct ifnet *ifp)
 		if (m_head == NULL)
 			break;
 
+		prev_tx = cur_tx;
 		cur_tx = &sc->xl_cdata.xl_tx_chain[idx];
 
 		/* Pack the data into the descriptor. */
 		error = xl_encap(sc, cur_tx, &m_head);
 		if (error) {
+			cur_tx = prev_tx;
 			if (m_head == NULL)
 				break;
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
