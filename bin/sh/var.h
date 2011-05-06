@@ -81,6 +81,8 @@ extern struct var vhistsize;
 extern struct var vterm;
 #endif
 
+extern int localeisutf8;
+
 /*
  * The following macros access the values of the above variables.
  * They have to skip over the name.  They return the null string
@@ -112,6 +114,7 @@ char *lookupvar(const char *);
 char *bltinlookup(const char *, int);
 void bltinsetlocale(void);
 void bltinunsetlocale(void);
+void updatecharset(void);
 char **environment(void);
 int showvarscmd(int, char **);
 int exportcmd(int, char **);
