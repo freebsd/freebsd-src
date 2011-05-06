@@ -1879,7 +1879,8 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 #endif
 	td->td_lastcpu = td->td_oncpu;
 	td->td_oncpu = NOCPU;
-	td->td_flags &= ~TDF_NEEDRESCHED;
+	if (!(flags & SW_PREEMPT))
+		td->td_flags &= ~TDF_NEEDRESCHED;
 	td->td_owepreempt = 0;
 	/*
 	 * The lock pointer in an idle thread should never change.  Reset it
