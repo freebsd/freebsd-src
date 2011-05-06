@@ -661,10 +661,8 @@ tunoutput(
 	}
 
 	error = (ifp->if_transmit)(ifp, m0);
-	if (error) {
-		ifp->if_collisions++;
+	if (error)
 		return (ENOBUFS);
-	}
 	ifp->if_opackets++;
 	return (0);
 }
