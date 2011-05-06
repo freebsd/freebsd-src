@@ -1944,7 +1944,7 @@ xl_rxeof(struct xl_softc *sc)
 	struct mbuf		*m;
 	struct ifnet		*ifp = sc->xl_ifp;
 	struct xl_chain_onefrag	*cur_rx;
-	int			total_len = 0;
+	int			total_len;
 	int			rx_npkts = 0;
 	u_int32_t		rxstat;
 
@@ -1963,6 +1963,7 @@ again:
 		cur_rx = sc->xl_cdata.xl_rx_head;
 		sc->xl_cdata.xl_rx_head = cur_rx->xl_next;
 		total_len = rxstat & XL_RXSTAT_LENMASK;
+		rx_npkts++;
 
 		/*
 		 * Since we have told the chip to allow large frames,
@@ -2047,7 +2048,6 @@ again:
 		XL_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
 		XL_LOCK(sc);
-		rx_npkts++;
 
 		/*
 		 * If we are running from the taskqueue, the interface
@@ -2283,11 +2283,7 @@ xl_intr(void *arg)
 			break;
 
 		if (status & XL_STAT_UP_COMPLETE) {
-			int	curpkts;
-
-			curpkts = ifp->if_ipackets;
-			xl_rxeof(sc);
-			if (curpkts == ifp->if_ipackets) {
+			if (xl_rxeof(sc) == 0) {
 				while (xl_rx_resync(sc))
 					xl_rxeof(sc);
 			}
