@@ -748,7 +748,11 @@ struct charclass {
 } charclasses[] = {
 	{ "alnum",	5,	isalnum },
 	{ "alpha",	5,	isalpha },
+#ifndef HAS_ISBLANK
 	{ "blank",	5,	isspace }, /* was isblank */
+#else
+	{ "blank",	5,	isblank },
+#endif
 	{ "cntrl",	5,	iscntrl },
 	{ "digit",	5,	isdigit },
 	{ "graph",	5,	isgraph },
