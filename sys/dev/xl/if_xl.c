@@ -1904,8 +1904,8 @@ xl_newbuf(struct xl_softc *sc, struct xl_chain_onefrag *c)
 	sc->xl_tmpmap = map;
 	c->xl_mbuf = m_new;
 	c->xl_ptr->xl_frag.xl_len = htole32(m_new->m_len | XL_LAST_FRAG);
-	c->xl_ptr->xl_status = 0;
 	c->xl_ptr->xl_frag.xl_addr = htole32(segs->ds_addr);
+	c->xl_ptr->xl_status = 0;
 	bus_dmamap_sync(sc->xl_mtag, c->xl_map, BUS_DMASYNC_PREREAD);
 	return (0);
 }
