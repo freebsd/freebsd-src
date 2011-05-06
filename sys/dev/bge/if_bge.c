@@ -1022,7 +1022,7 @@ bge_newbuf_jumbo(struct bge_softc *sc, int i)
 		return (error);
 	}
 
-	if (sc->bge_cdata.bge_rx_jumbo_chain[i] == NULL) {
+	if (sc->bge_cdata.bge_rx_jumbo_chain[i] != NULL) {
 		bus_dmamap_sync(sc->bge_cdata.bge_mtag_jumbo,
 		    sc->bge_cdata.bge_rx_jumbo_dmamap[i], BUS_DMASYNC_POSTREAD);
 		bus_dmamap_unload(sc->bge_cdata.bge_mtag_jumbo,
