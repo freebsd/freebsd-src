@@ -40,6 +40,7 @@
 #define	_MACHINE_PMAP_H_
 
 #include <sys/queue.h>
+#include <sys/_cpuset.h>
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
 #include <machine/cache.h>
@@ -61,7 +62,7 @@ struct pmap {
 	struct	mtx pm_mtx;
 	struct	tte *pm_tsb;
 	vm_object_t pm_tsb_obj;
-	cpumask_t pm_active;
+	cpuset_t pm_active;
 	u_int	pm_context[MAXCPU];
 	struct	pmap_statistics pm_stats;
 };
