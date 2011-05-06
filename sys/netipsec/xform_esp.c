@@ -423,6 +423,8 @@ esp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	tc->tc_proto = sav->sah->saidx.proto;
 	tc->tc_protoff = protoff;
 	tc->tc_skip = skip;
+	KEY_ADDREFSA(sav);
+	tc->tc_sav = sav;
 
 	/* Decryption descriptor */
 	if (espx) {
@@ -484,15 +486,8 @@ esp_input_cb(struct cryptop *crp)
 	mtag = (struct m_tag *) tc->tc_ptr;
 	m = (struct mbuf *) crp->crp_buf;
 
-	sav = KEY_ALLOCSA(&tc->tc_dst, tc->tc_proto, tc->tc_spi);
-	if (sav == NULL) {
-		V_espstat.esps_notdb++;
-		DPRINTF(("%s: SA gone during crypto (SA %s/%08lx proto %u)\n",
-		    __func__, ipsec_address(&tc->tc_dst),
-		    (u_long) ntohl(tc->tc_spi), tc->tc_proto));
-		error = ENOBUFS;		/*XXX*/
-		goto bad;
-	}
+	sav = tc->tc_sav;
+	IPSEC_ASSERT(sav != NULL, ("null SA!"));
 
 	saidx = &sav->sah->saidx;
 	IPSEC_ASSERT(saidx->dst.sa.sa_family == AF_INET ||
@@ -509,7 +504,6 @@ esp_input_cb(struct cryptop *crp)
 			sav->tdb_cryptoid = crp->crp_sid;
 
 		if (crp->crp_etype == EAGAIN) {
-			KEY_FREESAV(&sav);
 			error = crypto_dispatch(crp);
 			return error;
 		}
@@ -877,6 +871,8 @@ esp_output(
 
 	/* Callback parameters */
 	tc->tc_isr = isr;
+	KEY_ADDREFSA(sav);
+	tc->tc_sav = sav;
 	tc->tc_spi = sav->spi;
 	tc->tc_dst = saidx->dst;
 	tc->tc_proto = saidx->proto;
@@ -926,8 +922,9 @@ esp_output_cb(struct cryptop *crp)
 
 	isr = tc->tc_isr;
 	IPSECREQUEST_LOCK(isr);
-	sav = KEY_ALLOCSA(&tc->tc_dst, tc->tc_proto, tc->tc_spi);
-	if (sav == NULL) {
+	sav = tc->tc_sav;
+	/* With the isr lock released SA pointer can be updated. */
+	if (sav != isr->sav) {
 		V_espstat.esps_notdb++;
 		DPRINTF(("%s: SA gone during crypto (SA %s/%08lx proto %u)\n",
 		    __func__, ipsec_address(&tc->tc_dst),
@@ -935,8 +932,6 @@ esp_output_cb(struct cryptop *crp)
 		error = ENOBUFS;		/*XXX*/
 		goto bad;
 	}
-	IPSEC_ASSERT(isr->sav == sav,
-		("SA changed was %p now %p\n", isr->sav, sav));
 
 	/* Check for crypto errors. */
 	if (crp->crp_etype) {
@@ -945,7 +940,6 @@ esp_output_cb(struct cryptop *crp)
 			sav->tdb_cryptoid = crp->crp_sid;
 
 		if (crp->crp_etype == EAGAIN) {
-			KEY_FREESAV(&sav);
 			IPSECREQUEST_UNLOCK(isr);
 			error = crypto_dispatch(crp);
 			return error;

@@ -809,6 +809,7 @@ key_checkrequest(struct ipsecrequest *isr, const struct secasindex *saidx)
 {
 	u_int level;
 	int error;
+	struct secasvar *sav;
 
 	IPSEC_ASSERT(isr != NULL, ("null isr"));
 	IPSEC_ASSERT(saidx != NULL, ("null saidx"));
@@ -826,45 +827,31 @@ key_checkrequest(struct ipsecrequest *isr, const struct secasindex *saidx)
 
 	/* get current level */
 	level = ipsec_get_reqlevel(isr);
-#if 0
+
 	/*
-	 * We do allocate new SA only if the state of SA in the holder is
-	 * SADB_SASTATE_DEAD.  The SA for outbound must be the oldest.
-	 */
-	if (isr->sav != NULL) {
-		if (isr->sav->sah == NULL)
-			panic("%s: sah is null.\n", __func__);
-		if (isr->sav == (struct secasvar *)LIST_FIRST(
-			    &isr->sav->sah->savtree[SADB_SASTATE_DEAD])) {
-			KEY_FREESAV(&isr->sav);
-			isr->sav = NULL;
-		}
-	}
-#else
-	/*
-	 * we free any SA stashed in the IPsec request because a different
+	 * We check new SA in the IPsec request because a different
 	 * SA may be involved each time this request is checked, either
 	 * because new SAs are being configured, or this request is
 	 * associated with an unconnected datagram socket, or this request
 	 * is associated with a system default policy.
 	 *
-	 * The operation may have negative impact to performance.  We may
-	 * want to check cached SA carefully, rather than picking new SA
-	 * every time.
-	 */
-	if (isr->sav != NULL) {
-		KEY_FREESAV(&isr->sav);
-		isr->sav = NULL;
-	}
-#endif
-
-	/*
-	 * new SA allocation if no SA found.
 	 * key_allocsa_policy should allocate the oldest SA available.
 	 * See key_do_allocsa_policy(), and draft-jenkins-ipsec-rekeying-03.txt.
 	 */
-	if (isr->sav == NULL)
-		isr->sav = key_allocsa_policy(saidx);
+	sav = key_allocsa_policy(saidx);
+	if (sav != isr->sav) {
+		/* SA need to be updated. */
+		if (!IPSECREQUEST_UPGRADE(isr)) {
+			/* Kick everyone off. */
+			IPSECREQUEST_UNLOCK(isr);
+			IPSECREQUEST_WLOCK(isr);
+		}
+		if (isr->sav != NULL)
+			KEY_FREESAV(&isr->sav);
+		isr->sav = sav;
+		IPSECREQUEST_DOWNGRADE(isr);
+	} else if (sav != NULL)
+		KEY_FREESAV(&sav);
 
 	/* When there is SA. */
 	if (isr->sav != NULL) {
@@ -1237,6 +1224,16 @@ key_freesp_so(struct secpolicy **sp)
 	IPSEC_ASSERT((*sp)->policy == IPSEC_POLICY_IPSEC,
 		("invalid policy %u", (*sp)->policy));
 	KEY_FREESP(sp);
+}
+
+void
+key_addrefsa(struct secasvar *sav, const char* where, int tag)
+{
+
+	IPSEC_ASSERT(sav != NULL, ("null sav"));
+	IPSEC_ASSERT(sav->refcnt > 0, ("refcount must exist"));
+
+	sa_addref(sav);
 }
 
 /*
