@@ -368,6 +368,25 @@ typedef struct {
 	uint8_t qcu_complete_state;
 } hal_mac_hang_check_t;
 
+HAL_BOOL
+ar5416SetRifsDelay(struct ath_hal *ah, HAL_BOOL enable)
+{
+	uint32_t val;
+
+	/* Only support disabling RIFS delay for now */
+	HALASSERT(enable == AH_FALSE);
+
+	if (enable == AH_TRUE)
+		return AH_FALSE;
+
+	/* Change RIFS init delay to 0 */
+	val = OS_REG_READ(ah, AR_PHY_HEAVY_CLIP_FACTOR_RIFS);
+	val &= ~AR_PHY_RIFS_INIT_DELAY;
+	OS_REG_WRITE(ah, AR_PHY_HEAVY_CLIP_FACTOR_RIFS, val);
+
+	return AH_TRUE;
+}
+
 static HAL_BOOL
 ar5416CompareDbgHang(struct ath_hal *ah, const mac_dbg_regs_t *regs,
     const hal_mac_hang_check_t *check)
