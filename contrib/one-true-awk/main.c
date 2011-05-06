@@ -25,7 +25,7 @@ THIS SOFTWARE.
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-const char	*version = "version 20110501 (FreeBSD)";
+const char	*version = "version 20110506 (FreeBSD)";
 
 #define DEBUG
 #include <stdio.h>
@@ -95,7 +95,7 @@ int main(int argc, char *argv[])
 				safe = 1;
 			break;
 		case 'f':	/* next argument is program filename */
-			if (argv[1][2] != 0) {	/* arg is -fsomething */
+			if (argv[1][2] != 0) {  /* arg is -fsomething */
 				if (npfile >= MAX_PFILE - 1)
 					FATAL("too many -f options"); 
 				pfile[npfile++] = &argv[1][2];
