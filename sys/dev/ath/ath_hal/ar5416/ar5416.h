@@ -199,6 +199,7 @@ extern	HAL_STATUS ar5416GetCapability(struct ath_hal *ah,
 extern	HAL_BOOL ar5416GetDiagState(struct ath_hal *ah, int request,
 	    const void *args, uint32_t argsize,
 	    void **result, uint32_t *resultsize);
+extern	HAL_BOOL ar5416SetRifsDelay(struct ath_hal *ah, HAL_BOOL enable);
 
 extern	HAL_BOOL ar5416SetPowerMode(struct ath_hal *ah, HAL_POWER_MODE mode,
 		int setChip);
