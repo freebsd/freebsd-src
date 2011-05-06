@@ -624,7 +624,7 @@ dn_c_copy_pipe(struct dn_schk *s, struct copy_args *a, int nq)
 	/* These 4 field are the same in pipe7 and pipe8 */
 	pipe7->next.sle_next = (struct dn_pipe7 *)DN_IS_PIPE;
 	pipe7->bandwidth = l->bandwidth;
-	pipe7->delay = l->delay;
+	pipe7->delay = l->delay * 1000 / hz;
 	pipe7->pipe_nr = l->link_nr - DN_MAX_ID;
 
 	if (!is7) {
