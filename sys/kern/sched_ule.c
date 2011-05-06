@@ -1795,7 +1795,8 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 	ts->ts_rltick = ticks;
 	td->td_lastcpu = td->td_oncpu;
 	td->td_oncpu = NOCPU;
-	td->td_flags &= ~TDF_NEEDRESCHED;
+	if (!(flags & SW_PREEMPT))
+		td->td_flags &= ~TDF_NEEDRESCHED;
 	td->td_owepreempt = 0;
 	tdq->tdq_switchcnt++;
 	/*
