@@ -614,13 +614,12 @@ struct xl_softc {
 	u_int32_t		xl_xcvr;
 	u_int16_t		xl_media;
 	u_int16_t		xl_caps;
-	u_int8_t		xl_stats_no_timeout;
 	u_int16_t		xl_tx_thresh;
 	int			xl_pmcap;
 	int			xl_if_flags;
 	struct xl_list_data	xl_ldata;
 	struct xl_chain_data	xl_cdata;
-	struct callout		xl_stat_callout;
+	struct callout		xl_tick_callout;
 	int			xl_wdog_timer;
 	int			xl_flags;
 	struct resource		*xl_fres;
