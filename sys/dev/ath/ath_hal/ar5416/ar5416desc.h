@@ -387,11 +387,11 @@ struct ar5416_desc {
 #define RXSTATUS_OFFSET(ah)	4
 #define RXSTATUS_NUMWORDS(ah)	9
 #define RXSTATUS_RATE(ah, ads) \
-	(AR_SREV_OWL_20_OR_LATER(ah) ? \
+	(AR_SREV_5416_V20_OR_LATER(ah) ? \
 	 MS((ads)->ds_rxstatus0, AR_RxRate) : \
 	 ((ads)->ds_rxstatus3 >> 2) & 0xFF)
 #define RXSTATUS_DUPLICATE(ah, ads) \
-	(AR_SREV_OWL_20_OR_LATER(ah) ?	\
+	(AR_SREV_5416_V20_OR_LATER(ah) ?	\
 	 MS((ads)->ds_rxstatus3, AR_Parallel40) : \
 	 ((ads)->ds_rxstatus3 >> 10) & 0x1)
 #endif /* _ATH_AR5416_DESC_H_ */
