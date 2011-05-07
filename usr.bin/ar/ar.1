@@ -236,6 +236,10 @@ If the archive has a symbol table, it is updated to reflect the
 new contents of the archive.
 .It Fl M
 Read and execute MRI librarian commands from standard input.
+The commands understood by the
+.Nm
+utility are described in the section
+.Sx "MRI Librarian Commands" .
 .It Fl o
 Preserve the original modification times of members when extracting
 them.
@@ -378,6 +382,117 @@ option was specified.
 .It Fl z
 This option is accepted but ignored.
 .El
+.Ss "MRI Librarian Commands"
+If the
+.Fl M
+option is specified, the
+.Nm
+utility will read and execute commands from its standard input.
+If standard input is a terminal, the
+.Nm
+utility will display the prompt
+.Dq Li "AR >"
+before reading a line, and will continue operation even if errors are
+encountered.
+If standard input is not a terminal, the
+.Nm
+utility will not display a prompt and will terminate execution on
+encountering an error.
+.Pp
+Each input line contains a single command.
+Words in an input line are separated by whitespace characters.
+The first word of the line is the command, the remaining words are
+the arguments to the command.
+The command word may be specified in either case.
+Arguments may be separated by commas or blanks.
+.Pp
+Empty lines are allowed and are ignored.
+Long lines are continued by ending them with the
+.Dq Li +
+character.
+.Pp
+The
+.Dq Li *
+and
+.Dq Li "\;"
+characters start a comment.
+Comments extend till the end of the line.
+.Pp
+When executing an MRI librarian script the
+.Nm
+utility works on a temporary copy of an archive.
+Changes to the copy are made permanent using the
+.Ic save
+command.
+.Pp
+Commands understood by the
+.Nm
+utility are:
+.Bl -tag -width indent
+.It Ic addlib Ar archive | Ic addlib Ar archive Pq Ar member Oo Li , Ar member Oc Ns ...
+Add the contents of the archive named by argument
+.Ar archive
+to the current archive.
+If specific members are named using the arguments
+.Ar member ,
+then those members are added to the current archive.
+If no members are specified, the entire contents of the archive
+are added to the current archive.
+.It Ic addmod Ar member Oo Li , Ar member Oc Ns ...
+Add the files named by arguments
+.Ar member
+to the current archive.
+.It Ic clear
+Discard all the contents of the current archive.
+.It Ic create Ar archive
+Create a new archive named by the argument
+.Ar archive ,
+and makes it the current archive.
+If the named archive already exists, it will be overwritten
+when the
+.Ic save
+command is issued.
+.It Ic delete Ar module Oo Li , Ar member Oc Ns ...
+Delete the modules named by the arguments
+.Ar member
+from the current archive.
+.It Ic directory Ar archive Po Ar member Oo Li , Ar member Oc Ns ... Pc Op Ar outputfile
+List each named module in the archive.
+The format of the output depends on the verbosity setting set using
+the
+.Ic verbose
+command.
+Output is sent to standard output, or to the file specified by
+argument
+.Ar outputfile .
+.It Ic end
+Exit successfully from the
+.Nm
+utility.
+Any unsaved changes to the current archive will be discarded.
+.It Ic extract Ar member Oo Li , Ar member Oc Ns ...
+Extract the members named by the arguments
+.Ar member
+from the current archive.
+.It Ic list
+Display the contents of the current archive in verbose style.
+.It Ic open Ar archive
+Open the archive named by argument
+.Ar archive
+and make it the current archive.
+.It Ic replace Ar member Oo Li , Ar member Oc Ns ...
+Replace named members in the current archive with the files specified
+by arguments
+.Ar member .
+The files must be present in the current directory and the named
+modules must already exist in the current archive.
+.It Ic save
+Commit all changes to the current archive.
+.It Ic verbose
+Toggle the verbosity of the
+.Ic directory
+command.
+.El
 .Sh EXAMPLES
 To create a new archive
 .Pa ex.a
@@ -405,6 +520,20 @@ To verbosely list the contents of archive
 .Pa ex.a ,
 use:
 .D1 "ar -tv ex.a"
+.Pp
+To create a new archive
+.Pa ex.a
+containing the files
+.Pa ex1.o ,
+and
+.Pa ex2.o ,
+using MRI librarian commands, use the following script:
+.Bd -literal -offset indent
+create ex.a		 * specify the output archive
+addmod ex1.o ex2.o	 * add modules
+save			 * save pending changes 
+end			 * exit the utility
+.Ed
 .Sh DIAGNOSTICS
 .Ex -std
 .Sh SEE ALSO
