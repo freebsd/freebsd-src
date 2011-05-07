@@ -1565,6 +1565,7 @@ product FALCOM TWIST		0x0001	USB GSM/GPRS Modem
 
 /* FEIYA products */
 product FEIYA 5IN1		0x1132	5-in-1 Card Reader
+product FEIYA AC110		0x6300	AC-110 Card Reader
 
 /* Fiberline */
 product FIBERLINE WL430U	0x6003	WL-430U
