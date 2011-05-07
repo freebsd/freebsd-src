@@ -585,19 +585,49 @@ ath_hal_getcapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 		return HAL_ENOTSUPP;
 	case HAL_CAP_11D:
 		return HAL_OK;
-	case HAL_CAP_RXORN_FATAL:	/* HAL_INT_RXORN treated as fatal  */
-		return AH_PRIVATE(ah)->ah_rxornIsFatal ? HAL_OK : HAL_ENOTSUPP;
+
 	case HAL_CAP_HT:
 		return pCap->halHTSupport ? HAL_OK : HAL_ENOTSUPP;
+	case HAL_CAP_GTXTO:
+		return pCap->halGTTSupport ? HAL_OK : HAL_ENOTSUPP;
+	case HAL_CAP_FAST_CC:
+		return pCap->halFastCCSupport ? HAL_OK : HAL_ENOTSUPP;
 	case HAL_CAP_TX_CHAINMASK:	/* mask of TX chains supported */
 		*result = pCap->halTxChainMask;
 		return HAL_OK;
 	case HAL_CAP_RX_CHAINMASK:	/* mask of RX chains supported */
 		*result = pCap->halRxChainMask;
 		return HAL_OK;
+	case HAL_CAP_NUM_GPIO_PINS:
+		*result = pCap->halNumGpioPins;
+		return HAL_OK;
+	case HAL_CAP_CST:
+		return pCap->halCSTSupport ? HAL_OK : HAL_ENOTSUPP;
+	case HAL_CAP_RTS_AGGR_LIMIT:
+		*result = pCap->halRtsAggrLimit;
+		return HAL_OK;
+	case HAL_CAP_4ADDR_AGGR:
+		return pCap->hal4AddrAggrSupport ? HAL_OK : HAL_ENOTSUPP;
+	case HAL_CAP_AUTO_SLEEP:
+		return pCap->halAutoSleepSupport ? HAL_OK : HAL_ENOTSUPP;
+	case HAL_CAP_MBSSID_AGGR_SUPPORT:
+		return pCap->halMbssidAggrSupport ? HAL_OK : HAL_ENOTSUPP;
+	case HAL_CAP_SPLIT_4KB_TRANS:	/* hardware handles descriptors straddling 4k page boundary */
+		return pCap->hal4kbSplitTransSupport ? HAL_OK : HAL_ENOTSUPP;
+	case HAL_CAP_REG_FLAG:
+		*result = AH_PRIVATE(ah)->ah_currentRDext;
+		return HAL_OK;
+	case HAL_CAP_BT_COEX:
+		return pCap->halBtCoexSupport ? HAL_OK : HAL_ENOTSUPP;
+	case HAL_CAP_HT20_SGI:
+		return pCap->halHTSGI20Support ? HAL_OK : HAL_ENOTSUPP;
 	case HAL_CAP_RXTSTAMP_PREC:	/* rx desc tstamp precision (bits) */
 		*result = pCap->halTstampPrecision;
 		return HAL_OK;
+
+	/* FreeBSD-specific entries for now */
+	case HAL_CAP_RXORN_FATAL:	/* HAL_INT_RXORN treated as fatal  */
+		return AH_PRIVATE(ah)->ah_rxornIsFatal ? HAL_OK : HAL_ENOTSUPP;
 	case HAL_CAP_INTRMASK:		/* mask of supported interrupts */
 		*result = pCap->halIntrMask;
 		return HAL_OK;
@@ -614,10 +644,6 @@ ath_hal_getcapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 		default:
 			return HAL_ENOTSUPP;
 		}
-	case HAL_CAP_SPLIT_4KB_TRANS:	/* hardware handles descriptors straddling 4k page boundary */
-		return pCap->hal4kbSplitTransSupport ? HAL_OK : HAL_ENOTSUPP;
-	case HAL_CAP_HAS_PSPOLL:	/* hardware has ps-poll support */
-		return pCap->halHasPsPollSupport ? HAL_OK : HAL_ENOTSUPP;
 	case HAL_CAP_RXDESC_SELFLINK:	/* hardware supports self-linked final RX descriptors correctly */
 		return pCap->halHasRxSelfLinkedTail ? HAL_OK : HAL_ENOTSUPP;
 	default:
