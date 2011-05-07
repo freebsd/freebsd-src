@@ -321,6 +321,8 @@ getenv(const char *name)
 		} else {
 			mtx_unlock(&kenv_lock);
 			ret = NULL;
+			WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
+			    "getenv");
 		}
 	} else
 		ret = _getenv_static(name);

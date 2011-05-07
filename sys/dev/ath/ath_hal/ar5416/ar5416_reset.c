@@ -1465,7 +1465,7 @@ ar5416GetRegChainOffset(struct ath_hal *ah, int i)
 {
 	int regChainOffset;
 
-	if (AR_SREV_OWL_20_OR_LATER(ah) && 
+	if (AR_SREV_5416_V20_OR_LATER(ah) && 
 	    (AH5416(ah)->ah_rx_chainmask == 0x5 ||
 	    AH5416(ah)->ah_tx_chainmask == 0x5) && (i != 0)) {
 		/* Regs are swapped from chain 2 to 1 for 5416 2_0 with 
@@ -1518,7 +1518,7 @@ ar5416SetBoardValues(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	 * XXX update
          */
 
-        if ((i == 0) || AR_SREV_OWL_20_OR_LATER(ah))
+        if ((i == 0) || AR_SREV_5416_V20_OR_LATER(ah))
 	    ar5416SetDefGainValues(ah, pModal, eep, txRxAttenLocal, regChainOffset, i);
 
     }
@@ -2217,7 +2217,7 @@ ar5416SetPowerCalTable(struct ath_hal *ah, struct ar5416eeprom *pEepData,
                                              &tMinCalPower, gainBoundaries,
                                              pdadcValues, numXpdGain);
 
-            if ((i == 0) || AR_SREV_OWL_20_OR_LATER(ah)) {
+            if ((i == 0) || AR_SREV_5416_V20_OR_LATER(ah)) {
 		ar5416SetGainBoundariesClosedLoop(ah, i, pdGainOverlap_t2,
 		  gainBoundaries);
             }
@@ -2329,7 +2329,7 @@ ar5416GetGainBoundariesAndPdadcs(struct ath_hal *ah,
         pPdGainBoundaries[i] = (uint16_t)AH_MIN(AR5416_MAX_RATE_POWER, pPdGainBoundaries[i]);
 
 	/* NB: only applies to owl 1.0 */
-        if ((i == 0) && !AR_SREV_OWL_20_OR_LATER(ah) ) {
+        if ((i == 0) && !AR_SREV_5416_V20_OR_LATER(ah) ) {
 	    /*
              * fix the gain delta, but get a delta that can be applied to min to
              * keep the upper power values accurate, don't think max needs to
@@ -2501,27 +2501,20 @@ ar5416OverrideIni(struct ath_hal *ah, const struct ieee80211_channel *chan)
         }
 
 	/*
-	 * The AR5416 initvals have this already set to 0x11; AR9160 has
-	 * the register set to 0x0. Figure out whether AR9130/AR9160 needs
-	 * this before moving forward with it.
-	 */
-#if 0
-	/* Disable BB clock gating for AR5416v2, AR9130, AR9160 */
-        if (AR_SREV_OWL_20_OR_LATER(ah) || AR_SREV_HOWL(ah) || AR_SREV_SOWL(ah)) {
-		/*
-		 * Disable BB clock gating
-		 * Necessary to avoid issues on AR5416 2.0
-		 */
-		OS_REG_WRITE(ah, 0x9800 + (651 << 2), 0x11);
-	}
-#endif
-
-	/*
 	 * Disable RIFS search on some chips to avoid baseband
 	 * hang issues.
 	 */
 	if (AR_SREV_HOWL(ah) || AR_SREV_SOWL(ah))
 		(void) ar5416SetRifsDelay(ah, AH_FALSE);
+
+        if (!AR_SREV_5416_V20_OR_LATER(ah) || AR_SREV_MERLIN(ah))
+		return;
+
+	/*
+	 * Disable BB clock gating
+	 * Necessary to avoid issues on AR5416 2.0
+	 */
+	OS_REG_WRITE(ah, 0x9800 + (651 << 2), 0x11);
 }
 
 struct ini {
