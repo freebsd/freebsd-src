@@ -580,6 +580,17 @@
 #define	AR_EEPROM_STATUS_DATA_PROT_ACCESS   0x00040000
 #define	AR_EEPROM_STATUS_DATA_ABSENT_ACCESS 0x00080000
 
+/*
+ * AR5212 defines the MAC revision mask as 0xF, but both ath9k and
+ * the Atheros HAL define it as 0x7. 
+ *
+ * What this means however is AR5416 silicon revisions have
+ * changed. The below macros are for what is contained in the
+ * lower four bits; if the lower three bits are taken into account
+ * the revisions become 1.0 => 0x0, 2.0 => 0x1, 2.2 => 0x2.
+ */
+
+/* These are the legacy revisions, with a four bit AR_SREV_REVISION mask */
 #define	AR_SREV_REVISION_OWL_10		0x08
 #define	AR_SREV_REVISION_OWL_20		0x09
 #define	AR_SREV_REVISION_OWL_22		0x0a
@@ -590,9 +601,13 @@
 #define	AR_RAD2122_SREV_MAJOR		0xf0	/* Fowl: 2+5G/2x2 */
 
 /* Test macro for owl 1.0 */
-#define	IS_5416V1(_ah)	((_ah)->ah_macRev == AR_SREV_REVISION_OWL_10)  
-#define	IS_5416V2(_ah)	((_ah)->ah_macRev >= AR_SREV_REVISION_OWL_20)
-#define	IS_5416V2_2(_ah)	((_ah)->ah_macRev == AR_SREV_REVISION_OWL_22) 
+#define	IS_5416V1(_ah)	(AR_SREV_OWL((ah)) && (_ah)->ah_macRev == AR_SREV_REVISION_OWL_10)
+#define	IS_5416V2(_ah)	(AR_SREV_OWL((ah)) && (_ah)->ah_macRev >= AR_SREV_REVISION_OWL_20)
+#define	IS_5416V2_2(_ah)	(AR_SREV_OWL((ah)) && (_ah)->ah_macRev == AR_SREV_REVISION_OWL_22)
+
+/* Misc; compatibility with Atheros HAL */
+#define	AR_SREV_5416_V20_OR_LATER(_ah)	(AR_SREV_HOWL((_ah)) || AR_SREV_OWL_20_OR_LATER(_ah))
+#define	AR_SREV_5416_V22_OR_LATER(_ah)	(AR_SREV_HOWL((_ah)) || AR_SREV_OWL_22_OR_LATER(_ah)) 
 
 /* Expanded Mac Silicon Rev (16 bits starting with Sowl) */
 #define	AR_XSREV_ID		0xFFFFFFFF	/* Chip ID */
@@ -609,9 +624,20 @@
 
 #define	AR_XSREV_VERSION_OWL_PCI	0x0D
 #define	AR_XSREV_VERSION_OWL_PCIE	0x0C
+
+
+/*
+ * These are from ath9k/Atheros and assume an AR_SREV version mask
+ * of 0x07, rather than 0x0F which is being used in the FreeBSD HAL.
+ * Thus, don't use these values as they're incorrect here; use
+ * AR_SREV_REVISION_OWL_{10,20,22}.
+ */
+#if 0
 #define	AR_XSREV_REVISION_OWL_10	0	/* Owl 1.0 */
 #define	AR_XSREV_REVISION_OWL_20	1	/* Owl 2.0/2.1 */
 #define	AR_XSREV_REVISION_OWL_22	2	/* Owl 2.2 */
+#endif
+
 #define	AR_XSREV_VERSION_HOWL		0x14	/* Howl (AR9130) */
 #define	AR_XSREV_VERSION_SOWL		0x40	/* Sowl (AR9160) */
 #define	AR_XSREV_REVISION_SOWL_10	0	/* Sowl 1.0 */
@@ -632,12 +658,12 @@
 
 #define	AR_SREV_OWL_20_OR_LATER(_ah) \
 	((AR_SREV_OWL(_ah) &&						\
-	 AH_PRIVATE((_ah))->ah_macRev >= AR_XSREV_REVISION_OWL_20) ||	\
+	 AH_PRIVATE((_ah))->ah_macRev >= AR_SREV_REVISION_OWL_20) ||	\
 	 AH_PRIVATE((_ah))->ah_macVersion >= AR_XSREV_VERSION_HOWL)
 
 #define	AR_SREV_OWL_22_OR_LATER(_ah) \
 	((AR_SREV_OWL(_ah) &&						\
-	 AH_PRIVATE((_ah))->ah_macRev >= AR_XSREV_REVISION_OWL_22) ||	\
+	 AH_PRIVATE((_ah))->ah_macRev >= AR_SREV_REVISION_OWL_22) ||	\
 	 AH_PRIVATE((_ah))->ah_macVersion >= AR_XSREV_VERSION_HOWL)
 
 /* Howl (AR9130) */
