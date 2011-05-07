@@ -109,6 +109,8 @@ typedef enum {
 	HAL_CAP_TPC_ACK		= 26,	/* ack txpower with per-packet tpc */
 	HAL_CAP_TPC_CTS		= 27,	/* cts txpower with per-packet tpc */
 	HAL_CAP_11D		= 28,   /* 11d beacon support for changing cc */
+
+	/* The following are currently different IDs to the Atheros HAL */
 	HAL_CAP_INTMIT		= 29,	/* interference mitigation */
 	HAL_CAP_RXORN_FATAL	= 30,	/* HAL_INT_RXORN treated as fatal */
 	HAL_CAP_HT		= 31,   /* hardware can support HT */
@@ -124,6 +126,11 @@ typedef enum {
 	HAL_CAP_HAS_PSPOLL	= 41,	/* hardware has ps-poll support */
 	HAL_CAP_RXDESC_SELFLINK	= 42,	/* support a self-linked tail RX descriptor */
 	HAL_CAP_GTXTO		= 43,	/* hardware supports global tx timeout */
+
+	/* The following are back to normal, shared with the Atheros HAL */
+
+	/* The following are private to the FreeBSD HAL (224 onward) */
+
 } HAL_CAPABILITY_TYPE;
 
 /* 
