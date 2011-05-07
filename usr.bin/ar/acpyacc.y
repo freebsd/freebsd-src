@@ -250,7 +250,7 @@ arscp_open(char *fname)
 
 	if ((a = archive_read_new()) == NULL)
 		bsdar_errc(bsdar, EX_SOFTWARE, 0, "archive_read_new failed");
-	archive_read_support_compression_all(a);
+	archive_read_support_compression_none(a);
 	archive_read_support_format_ar(a);
 	AC(archive_read_open_file(a, fname, DEF_BLKSZ));
 	if ((r = archive_read_next_header(a, &entry)))
