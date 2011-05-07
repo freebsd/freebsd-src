@@ -105,7 +105,7 @@ struct ucom_callback {
 	void    (*ucom_stop_read) (struct ucom_softc *);
 	void    (*ucom_start_write) (struct ucom_softc *);
 	void    (*ucom_stop_write) (struct ucom_softc *);
-	void    (*ucom_tty_name) (struct ucom_softc *, char *pbuf, uint16_t buflen, uint16_t local_subunit);
+	void    (*ucom_tty_name) (struct ucom_softc *, char *pbuf, uint16_t buflen, uint16_t unit, uint16_t subunit);
 	void    (*ucom_poll) (struct ucom_softc *);
 };
 
@@ -133,6 +133,8 @@ struct ucom_param_task {
 
 struct ucom_super_softc {
 	struct usb_process sc_tq;
+	uint32_t sc_unit;
+	uint32_t sc_subunits;
 };
 
 struct ucom_softc {
@@ -161,8 +163,7 @@ struct ucom_softc {
 	struct tty *sc_tty;
 	struct mtx *sc_mtx;
 	void   *sc_parent;
-	uint32_t sc_unit;
-	uint32_t sc_local_unit;
+	uint32_t sc_subunit;
 	uint16_t sc_portno;
 	uint16_t sc_flag;
 #define	UCOM_FLAG_RTS_IFLOW	0x01	/* use RTS input flow control */
@@ -192,8 +193,8 @@ struct ucom_softc {
 int	ucom_attach(struct ucom_super_softc *,
 	    struct ucom_softc *, uint32_t, void *,
 	    const struct ucom_callback *callback, struct mtx *);
-void	ucom_detach(struct ucom_super_softc *,
-	    struct ucom_softc *, uint32_t);
+void	ucom_detach(struct ucom_super_softc *, struct ucom_softc *);
+void	ucom_set_pnpinfo_usb(struct ucom_super_softc *, device_t);
 void	ucom_status_change(struct ucom_softc *);
 uint8_t	ucom_get_data(struct ucom_softc *, struct usb_page_cache *,
 	    uint32_t, uint32_t, uint32_t *);

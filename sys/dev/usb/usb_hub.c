@@ -1329,7 +1329,7 @@ uhub_child_pnpinfo_string(device_t parent, device_t child,
 		    "devclass=0x%02x devsubclass=0x%02x "
 		    "sernum=\"%s\" "
 		    "release=0x%04x "
-		    "intclass=0x%02x intsubclass=0x%02x",
+		    "intclass=0x%02x intsubclass=0x%02x" "%s%s",
 		    UGETW(res.udev->ddesc.idVendor),
 		    UGETW(res.udev->ddesc.idProduct),
 		    res.udev->ddesc.bDeviceClass,
@@ -1337,7 +1337,9 @@ uhub_child_pnpinfo_string(device_t parent, device_t child,
 		    usb_get_serial(res.udev),
 		    UGETW(res.udev->ddesc.bcdDevice),
 		    iface->idesc->bInterfaceClass,
-		    iface->idesc->bInterfaceSubClass);
+		    iface->idesc->bInterfaceSubClass,
+		    iface->pnpinfo ? " " : "",
+		    iface->pnpinfo ? iface->pnpinfo : "");
 	} else {
 		if (buflen) {
 			buf[0] = '\0';
