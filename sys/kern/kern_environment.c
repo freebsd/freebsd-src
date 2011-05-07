@@ -310,7 +310,6 @@ getenv(const char *name)
 	int len;
 
 	if (dynamic_kenv) {
-		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, "getenv");
 		mtx_lock(&kenv_lock);
 		cp = _getenv_dynamic(name, NULL);
 		if (cp != NULL) {
@@ -322,6 +321,8 @@ getenv(const char *name)
 		} else {
 			mtx_unlock(&kenv_lock);
 			ret = NULL;
+			WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
+			    "getenv");
 		}
 	} else
 		ret = _getenv_static(name);
