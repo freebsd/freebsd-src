@@ -105,7 +105,7 @@ interact(void)
     /*
      * Read our default configuration
      */
-    if(include("/boot/loader.rc") != CMD_OK)
+    if (include("/boot/loader.rc") != CMD_OK)
 	include("/boot/boot.conf");
     printf("\n");
     /*
