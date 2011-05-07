@@ -110,27 +110,40 @@ typedef enum {
 	HAL_CAP_TPC_CTS		= 27,	/* cts txpower with per-packet tpc */
 	HAL_CAP_11D		= 28,   /* 11d beacon support for changing cc */
 
-	/* The following are currently different IDs to the Atheros HAL */
-	HAL_CAP_INTMIT		= 29,	/* interference mitigation */
-	HAL_CAP_RXORN_FATAL	= 30,	/* HAL_INT_RXORN treated as fatal */
-	HAL_CAP_HT		= 31,   /* hardware can support HT */
-	HAL_CAP_TX_CHAINMASK	= 32,	/* mask of TX chains supported */
-	HAL_CAP_RX_CHAINMASK	= 33,	/* mask of RX chains supported */
-	HAL_CAP_RXTSTAMP_PREC	= 34,	/* rx desc tstamp precision (bits) */
-	HAL_CAP_BB_HANG		= 35,	/* can baseband hang */
-	HAL_CAP_MAC_HANG	= 36,	/* can MAC hang */
-	HAL_CAP_INTRMASK	= 37,	/* bitmask of supported interrupts */
-	HAL_CAP_BSSIDMATCH	= 38,	/* hardware has disable bssid match */
-	HAL_CAP_STREAMS		= 39,	/* how many 802.11n spatial streams are available */
-	HAL_CAP_SPLIT_4KB_TRANS	= 40,	/* hardware supports descriptors straddling a 4k page boundary */
-	HAL_CAP_HAS_PSPOLL	= 41,	/* hardware has ps-poll support */
-	HAL_CAP_RXDESC_SELFLINK	= 42,	/* support a self-linked tail RX descriptor */
-	HAL_CAP_GTXTO		= 43,	/* hardware supports global tx timeout */
+	HAL_CAP_HT		= 30,   /* hardware can support HT */
+	HAL_CAP_GTXTO		= 31,	/* hardware supports global tx timeout */
+	HAL_CAP_FAST_CC		= 32,	/* hardware supports fast channel change */
+	HAL_CAP_TX_CHAINMASK	= 33,	/* mask of TX chains supported */
+	HAL_CAP_RX_CHAINMASK	= 34,	/* mask of RX chains supported */
+	HAL_CAP_NUM_GPIO_PINS	= 36,	/* number of GPIO pins */
 
-	/* The following are back to normal, shared with the Atheros HAL */
+	HAL_CAP_CST		= 38,	/* hardware supports carrier sense timeout */
+
+	HAL_CAP_RTS_AGGR_LIMIT	= 42,	/* aggregation limit with RTS */
+	HAL_CAP_4ADDR_AGGR	= 43,	/* hardware is capable of 4addr aggregation */
+
+	HAL_CAP_AUTO_SLEEP	= 48,	/* hardware can go to network sleep
+					   automatically after waking up to receive TIM */
+	HAL_CAP_MBSSID_AGGR_SUPPORT	= 49, /* Support for mBSSID Aggregation */
+	HAL_CAP_SPLIT_4KB_TRANS	= 50,	/* hardware supports descriptors straddling a 4k page boundary */
+	HAL_CAP_REG_FLAG	= 51,	/* Regulatory domain flags */
+
+	HAL_CAP_BT_COEX		= 60,	/* hardware is capable of bluetooth coexistence */
+
+	HAL_CAP_HT20_SGI	= 96,	/* hardware supports HT20 short GI */
+
+	HAL_CAP_RXTSTAMP_PREC	= 100,	/* rx desc tstamp precision (bits) */
 
 	/* The following are private to the FreeBSD HAL (224 onward) */
 
+	HAL_CAP_INTMIT		= 229,	/* interference mitigation */
+	HAL_CAP_RXORN_FATAL	= 230,	/* HAL_INT_RXORN treated as fatal */
+	HAL_CAP_BB_HANG		= 235,	/* can baseband hang */
+	HAL_CAP_MAC_HANG	= 236,	/* can MAC hang */
+	HAL_CAP_INTRMASK	= 237,	/* bitmask of supported interrupts */
+	HAL_CAP_BSSIDMATCH	= 238,	/* hardware has disable bssid match */
+	HAL_CAP_STREAMS		= 239,	/* how many 802.11n spatial streams are available */
+	HAL_CAP_RXDESC_SELFLINK	= 242,	/* support a self-linked tail RX descriptor */
 } HAL_CAPABILITY_TYPE;
 
 /* 

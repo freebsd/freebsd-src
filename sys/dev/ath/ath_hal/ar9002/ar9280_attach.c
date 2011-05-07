@@ -784,8 +784,11 @@ ar9280FillCapabilityInfo(struct ath_hal *ah)
 	pCap->hal4kbSplitTransSupport = AH_FALSE;
 	/* Disable this so Block-ACK works correctly */
 	pCap->halHasRxSelfLinkedTail = AH_FALSE;
+	pCap->halMbssidAggrSupport = AH_TRUE;
+	pCap->hal4AddrAggrSupport = AH_TRUE;
+
 	if (AR_SREV_MERLIN_20_OR_LATER(ah))
-		pCap->halHasPsPollSupport = AH_TRUE;
+		pCap->halPSPollBroken = AH_FALSE;
 	pCap->halRxStbcSupport = 1;
 	pCap->halTxStbcSupport = 1;
 
