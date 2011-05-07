@@ -471,7 +471,7 @@ ar5416DetectMacHang(struct ath_hal *ah)
 	    __func__, mac_dbg.dma_dbg_3, mac_dbg.dma_dbg_4, mac_dbg.dma_dbg_5,
 	    mac_dbg.dma_dbg_6);
 
-	return HAL_MAC_HANG_UNKNOWN;
+	return 0;
 }
 
 /*
@@ -524,7 +524,7 @@ ar5416DetectBBHang(struct ath_hal *ah)
 	HALDEBUG(ah, HAL_DEBUG_HANG, "%s Found an unknown BB hang signature! "
 	    "<0x806c>=0x%x\n", __func__, hang_sig);
 
-	return HAL_BB_HANG_UNKNOWN;
+	return 0;
 #undef N
 }
 #undef NUM_STATUS_READS
