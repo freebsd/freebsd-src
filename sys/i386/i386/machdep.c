@@ -1359,6 +1359,7 @@ cpu_idle(int busy)
 	if (mp_grab_cpu_hlt())
 		return;
 #endif
+#ifndef XEN
 	/* If we are busy - try to use fast methods. */
 	if (busy) {
 		if ((cpu_feature2 & CPUID2_MON) && idle_mwait) {
@@ -1367,7 +1368,6 @@ cpu_idle(int busy)
 		}
 	}
 
-#ifndef XEN
 	/* If we have time - switch timers into idle mode. */
 	if (!busy) {
 		critical_enter();
@@ -1395,8 +1395,8 @@ cpu_idle(int busy)
 		cpu_activeclock();
 		critical_exit();
 	}
-#endif
 out:
+#endif
 	CTR2(KTR_SPARE2, "cpu_idle(%d) at %d done",
 	    busy, curcpu);
 }
