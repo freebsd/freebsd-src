@@ -184,6 +184,7 @@ typedef struct {
 			halChanHalfRate			: 1,
 			halChanQuarterRate		: 1,
 			halHTSupport			: 1,
+			halHTSGI20Support		: 1,
 			halRfSilentSupport		: 1,
 			halHwPhyCounterSupport		: 1,
 			halWowSupport			: 1,
@@ -197,13 +198,13 @@ typedef struct {
 			halCSTSupport			: 1,
 			halRifsRxSupport		: 1,
 			halRifsTxSupport		: 1,
+			hal4AddrAggrSupport		: 1,
 			halExtChanDfsSupport		: 1,
 			halForcePpmSupport		: 1,
 			halEnhancedPmSupport		: 1,
 			halMbssidAggrSupport		: 1,
 			halBssidMatchSupport		: 1,
 			hal4kbSplitTransSupport		: 1,
-			halHasPsPollSupport		: 1,
 			halHasRxSelfLinkedTail		: 1;
 	uint32_t	halWirelessModes;
 	uint16_t	halTotalQueues;
@@ -298,6 +299,7 @@ struct ath_hal_private {
 	 * State for regulatory domain handling.
 	 */
 	HAL_REG_DOMAIN	ah_currentRD;		/* EEPROM regulatory domain */
+	HAL_REG_DOMAIN	ah_currentRDext;	/* EEPROM extended regdomain flags */
 	HAL_CHANNEL_INTERNAL ah_channels[AH_MAXCHAN]; /* private chan state */
 	u_int		ah_nchan;		/* valid items in ah_channels */
 	const struct regDomain *ah_rd2GHz;	/* reg state for 2G band */

@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pageout.h>
 #include <vm/uma.h>
 
+#include <machine/bootinfo.h>
 #include <machine/md_var.h>
 #include <machine/pal.h>
 
@@ -1206,6 +1207,8 @@ vm_paddr_t
 pmap_kextract(vm_offset_t va)
 {
 	struct ia64_lpte *pte;
+	uint64_t *pbvm_pgtbl;
+	u_int idx;
 
 	KASSERT(va >= VM_MAXUSER_ADDRESS, ("Must be kernel VA"));
 
@@ -1222,6 +1225,25 @@ pmap_kextract(vm_offset_t va)
 		return (pmap_present(pte) ? pmap_ppn(pte)|(va&PAGE_MASK) : 0);
 	}
 
+	/* PBVM page table. */
+	if (va >= IA64_PBVM_PGTBL + bootinfo->bi_pbvm_pgtblsz);
+		return (0);
+	if (va >= IA64_PBVM_PGTBL)
+		return (va - IA64_PBVM_PGTBL) + bootinfo->bi_pbvm_pgtbl;
+
+	/* PBVM. */
+	if (va >= IA64_PBVM_BASE) {
+		pbvm_pgtbl = (void *)IA64_PBVM_PGTBL;
+		idx = (va - IA64_PBVM_BASE) >> IA64_PBVM_PAGE_SHIFT;
+		if (idx >= (bootinfo->bi_pbvm_pgtblsz >> 3))
+			return (0);
+		if ((pbvm_pgtbl[idx] & PTE_PRESENT) == 0)
+			return (0);
+		return ((pbvm_pgtbl[idx] & PTE_PPN_MASK) +
+		    (va & IA64_PBVM_PAGE_MASK));
+	}
+
+	printf("XXX: %s: va=%#lx\n", __func__, va);
 	return (0);
 }
 

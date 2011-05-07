@@ -578,6 +578,9 @@ dwarf_init_info(Dwarf_Debug dbg, Dwarf_Error *error)
 		offset = next_offset;
 	}
 
+	/* Build the function table. */
+	dwarf_build_function_table(dbg);
+
 	return ret;
 }
 
@@ -686,6 +689,7 @@ dwarf_elf_init(Elf *elf, int mode, Dwarf_Debug *ret_dbg, Dwarf_Error *error)
 		dbg->dbg_mode		= mode;
 
 		STAILQ_INIT(&dbg->dbg_cu);
+		STAILQ_INIT(&dbg->dbg_func);
 
 		*ret_dbg = dbg;
 
