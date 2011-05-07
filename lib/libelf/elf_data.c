@@ -225,7 +225,8 @@ elf_rawdata(Elf_Scn *s, Elf_Data *d)
 	if ((d = _libelf_allocate_data(s)) == NULL)
 		return (NULL);
 
-	d->d_buf     = sh_type == SHT_NOBITS ? NULL : e->e_rawfile + sh_offset;
+	d->d_buf     = (sh_type == SHT_NOBITS || sh_size == 0) ? NULL :
+	    e->e_rawfile + sh_offset;
 	d->d_off     = 0;
 	d->d_align   = sh_align;
 	d->d_size    = sh_size;
