@@ -154,7 +154,7 @@ main(int argc, char **argv)
 		}
 	}
 
-	while ((opt = getopt_long(argc, argv, "abCcdfijlMmopqrSsTtuVvxz",
+	while ((opt = getopt_long(argc, argv, "abCcdDfijlMmopqrSsTtuVvxz",
 	    longopts, NULL)) != -1) {
 		switch(opt) {
 		case 'a':
@@ -172,6 +172,9 @@ main(int argc, char **argv)
 			break;
 		case 'd':
 			set_mode(bsdar, opt);
+			break;
+		case 'D':
+			bsdar->options |= AR_D;
 			break;
 		case 'f':
 		case 'T':
@@ -269,6 +272,8 @@ main(int argc, char **argv)
 		only_mode(bsdar, "-c", "qr");
 	if (bsdar->options & AR_CC)
 		only_mode(bsdar, "-C", "x");
+	if (bsdar->options & AR_D)
+		only_mode(bsdar, "-D", "qr");
 	if (bsdar->options & AR_O)
 		only_mode(bsdar, "-o", "x");
 	if (bsdar->options & AR_SS)
@@ -356,9 +361,9 @@ bsdar_usage()
 	(void)fprintf(stderr, "\tar -m [-Tjsvz] archive file ...\n");
 	(void)fprintf(stderr, "\tar -m [-Tabijsvz] position archive file ...\n");
 	(void)fprintf(stderr, "\tar -p [-Tv] archive [file ...]\n");
-	(void)fprintf(stderr, "\tar -q [-Tcjsvz] archive file ...\n");
-	(void)fprintf(stderr, "\tar -r [-Tcjsuvz] archive file ...\n");
-	(void)fprintf(stderr, "\tar -r [-Tabcijsuvz] position archive file ...\n");
+	(void)fprintf(stderr, "\tar -q [-TcDjsvz] archive file ...\n");
+	(void)fprintf(stderr, "\tar -r [-TcDjsuvz] archive file ...\n");
+	(void)fprintf(stderr, "\tar -r [-TabcDijsuvz] position archive file ...\n");
 	(void)fprintf(stderr, "\tar -s [-jz] archive\n");
 	(void)fprintf(stderr, "\tar -t [-Tv] archive [file ...]\n");
 	(void)fprintf(stderr, "\tar -x [-CTouv] archive [file ...]\n");
