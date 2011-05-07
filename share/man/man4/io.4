@@ -40,7 +40,6 @@
 .In sys/ioctl.h
 .In dev/io/iodev.h
 .In machine/iodev.h
-.Pp
 .Bd -literal
 struct iodev_pio_req {
 	u_int access;
@@ -48,6 +47,7 @@ struct iodev_pio_req {
 	u_int width;
 	u_int val;
 };
+.Ed
 .Sh DESCRIPTION
 The special file
 .Pa /dev/io
