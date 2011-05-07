@@ -283,9 +283,9 @@ ar5416GetCapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 	case HAL_CAP_BB_HANG:
 		switch (capability) {
 		case HAL_BB_HANG_RIFS:
-			return AR_SREV_SOWL(ah) ? HAL_OK : HAL_ENOTSUPP;
+			return (AR_SREV_HOWL(ah) || AR_SREV_SOWL(ah)) ? HAL_OK : HAL_ENOTSUPP;
 		case HAL_BB_HANG_DFS:
-			return AR_SREV_SOWL(ah) ? HAL_OK : HAL_ENOTSUPP;
+			return (AR_SREV_HOWL(ah) || AR_SREV_SOWL(ah)) ? HAL_OK : HAL_ENOTSUPP;
 		case HAL_BB_HANG_RX_CLEAR:
 			return AR_SREV_MERLIN(ah) ? HAL_OK : HAL_ENOTSUPP;
 		}
@@ -293,7 +293,7 @@ ar5416GetCapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 	case HAL_CAP_MAC_HANG:
 		return ((ah->ah_macVersion == AR_XSREV_VERSION_OWL_PCI) ||
 		    (ah->ah_macVersion == AR_XSREV_VERSION_OWL_PCIE) ||
-		    AR_SREV_SOWL(ah)) ?
+		    AR_SREV_HOWL(ah) || AR_SREV_SOWL(ah)) ?
 			HAL_OK : HAL_ENOTSUPP;
 	case HAL_CAP_DIVERSITY:		/* disable classic fast diversity */
 		return HAL_ENXIO;
@@ -466,7 +466,7 @@ ar5416DetectMacHang(struct ath_hal *ah)
 	if (ar5416CompareDbgHang(ah, &mac_dbg, &hang_sig2))
 		return HAL_MAC_HANG_SIG2;
 
-	HALDEBUG(ah, HAL_DEBUG_ANY, "%s Found an unknown MAC hang signature "
+	HALDEBUG(ah, HAL_DEBUG_HANG, "%s Found an unknown MAC hang signature "
 	    "DMADBG_3=0x%x DMADBG_4=0x%x DMADBG_5=0x%x DMADBG_6=0x%x\n",
 	    __func__, mac_dbg.dma_dbg_3, mac_dbg.dma_dbg_4, mac_dbg.dma_dbg_5,
 	    mac_dbg.dma_dbg_6);
@@ -515,13 +515,13 @@ ar5416DetectBBHang(struct ath_hal *ah)
 	}
 	for (i = 0; i < N(hang_list); i++)
 		if ((hang_sig & hang_list[i].mask) == hang_list[i].val) {
-			HALDEBUG(ah, HAL_DEBUG_ANY,
+			HALDEBUG(ah, HAL_DEBUG_HANG,
 			    "%s BB hang, signature 0x%x, code 0x%x\n",
 			    __func__, hang_sig, hang_list[i].code);
 			return hang_list[i].code;
 		}
 
-	HALDEBUG(ah, HAL_DEBUG_ANY, "%s Found an unknown BB hang signature! "
+	HALDEBUG(ah, HAL_DEBUG_HANG, "%s Found an unknown BB hang signature! "
 	    "<0x806c>=0x%x\n", __func__, hang_sig);
 
 	return HAL_BB_HANG_UNKNOWN;
