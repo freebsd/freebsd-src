@@ -225,8 +225,8 @@ static int xl_attach(device_t);
 static int xl_detach(device_t);
 
 static int xl_newbuf(struct xl_softc *, struct xl_chain_onefrag *);
-static void xl_stats_update(void *);
-static void xl_stats_update_locked(struct xl_softc *);
+static void xl_tick(void *);
+static void xl_stats_update(struct xl_softc *);
 static int xl_encap(struct xl_softc *, struct xl_chain *, struct mbuf **);
 static int xl_rxeof(struct xl_softc *);
 static void xl_rxeof_task(void *, int);
@@ -1330,7 +1330,7 @@ xl_attach(device_t dev)
 		goto fail;
 	}
 
-	callout_init_mtx(&sc->xl_stat_callout, &sc->xl_mtx, 0);
+	callout_init_mtx(&sc->xl_tick_callout, &sc->xl_mtx, 0);
 	TASK_INIT(&sc->xl_task, 0, xl_rxeof_task, sc);
 
 	/*
@@ -1695,7 +1695,7 @@ xl_detach(device_t dev)
 		xl_stop(sc);
 		XL_UNLOCK(sc);
 		taskqueue_drain(taskqueue_swi, &sc->xl_task);
-		callout_drain(&sc->xl_stat_callout);
+		callout_drain(&sc->xl_tick_callout);
 		ether_ifdetach(ifp);
 	}
 	if (sc->xl_miibus)
@@ -2307,11 +2307,8 @@ xl_intr(void *arg)
 			break;
 		}
 
-		if (status & XL_STAT_STATSOFLOW) {
-			sc->xl_stats_no_timeout = 1;
-			xl_stats_update_locked(sc);
-			sc->xl_stats_no_timeout = 0;
-		}
+		if (status & XL_STAT_STATSOFLOW)
+			xl_stats_update(sc);
 	}
 
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd) &&
@@ -2379,48 +2376,45 @@ xl_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 				xl_init_locked(sc);
 			}
 
-			if (status & XL_STAT_STATSOFLOW) {
-				sc->xl_stats_no_timeout = 1;
+			if (status & XL_STAT_STATSOFLOW)
 				xl_stats_update_locked(sc);
-				sc->xl_stats_no_timeout = 0;
-			}
 		}
 	}
 	return (rx_npkts);
 }
 #endif /* DEVICE_POLLING */
 
-/*
- * XXX: This is an entry point for callout which needs to take the lock.
- */
 static void
-xl_stats_update(void *xsc)
+xl_tick(void *xsc)
 {
 	struct xl_softc *sc = xsc;
+	struct mii_data *mii;
 
 	XL_LOCK_ASSERT(sc);
 
+	if (sc->xl_miibus != NULL) {
+		mii = device_get_softc(sc->xl_miibus);
+		mii_tick(mii);
+	}
+
+	xl_stats_update(sc);
 	if (xl_watchdog(sc) == EJUSTRETURN)
 		return;
 
-	xl_stats_update_locked(sc);
+	callout_reset(&sc->xl_tick_callout, hz, xl_tick, sc);
 }
 
 static void
-xl_stats_update_locked(struct xl_softc *sc)
+xl_stats_update(struct xl_softc *sc)
 {
 	struct ifnet		*ifp = sc->xl_ifp;
 	struct xl_stats		xl_stats;
 	u_int8_t		*p;
 	int			i;
-	struct mii_data		*mii = NULL;
 
 	XL_LOCK_ASSERT(sc);
 
 	bzero((char *)&xl_stats, sizeof(struct xl_stats));
-
-	if (sc->xl_miibus != NULL)
-		mii = device_get_softc(sc->xl_miibus);
 
 	p = (u_int8_t *)&xl_stats;
 
@@ -2443,14 +2437,7 @@ xl_stats_update_locked(struct xl_softc *sc)
 	 */
 	XL_SEL_WIN(4);
 	CSR_READ_1(sc, XL_W4_BADSSD);
-
-	if ((mii != NULL) && (!sc->xl_stats_no_timeout))
-		mii_tick(mii);
-
 	XL_SEL_WIN(7);
-
-	if (!sc->xl_stats_no_timeout)
-		callout_reset(&sc->xl_stat_callout, hz, xl_stats_update, sc);
 }
 
 /*
@@ -2957,9 +2944,7 @@ xl_init_locked(struct xl_softc *sc)
 
 	/* Clear out the stats counters. */
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_STATS_DISABLE);
-	sc->xl_stats_no_timeout = 1;
-	xl_stats_update_locked(sc);
-	sc->xl_stats_no_timeout = 0;
+	xl_stats_update(sc);
 	XL_SEL_WIN(4);
 	CSR_WRITE_2(sc, XL_W4_NET_DIAG, XL_NETDIAG_UPPER_BYTES_ENABLE);
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_STATS_ENABLE);
@@ -3000,7 +2985,7 @@ xl_init_locked(struct xl_softc *sc)
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	sc->xl_wdog_timer = 0;
-	callout_reset(&sc->xl_stat_callout, hz, xl_stats_update, sc);
+	callout_reset(&sc->xl_tick_callout, hz, xl_tick, sc);
 }
 
 /*
@@ -3309,7 +3294,7 @@ xl_stop(struct xl_softc *sc)
 		bus_space_write_4(sc->xl_ftag, sc->xl_fhandle, 4, 0x8000);
 
 	/* Stop the stats updater. */
-	callout_stop(&sc->xl_stat_callout);
+	callout_stop(&sc->xl_tick_callout);
 
 	/*
 	 * Free data in the RX lists.
