@@ -601,9 +601,9 @@
 #define	AR_RAD2122_SREV_MAJOR		0xf0	/* Fowl: 2+5G/2x2 */
 
 /* Test macro for owl 1.0 */
-#define	IS_5416V1(_ah)	(AR_SREV_OWL((ah)) && (_ah)->ah_macRev == AR_SREV_REVISION_OWL_10)
-#define	IS_5416V2(_ah)	(AR_SREV_OWL((ah)) && (_ah)->ah_macRev >= AR_SREV_REVISION_OWL_20)
-#define	IS_5416V2_2(_ah)	(AR_SREV_OWL((ah)) && (_ah)->ah_macRev == AR_SREV_REVISION_OWL_22)
+#define	IS_5416V1(_ah)	(AR_SREV_OWL((_ah)) && AH_PRIVATE((_ah))->ah_macRev == AR_SREV_REVISION_OWL_10)
+#define	IS_5416V2(_ah)	(AR_SREV_OWL((_ah)) && AH_PRIVATE((_ah))->ah_macRev >= AR_SREV_REVISION_OWL_20)
+#define	IS_5416V2_2(_ah)	(AR_SREV_OWL((_ah)) && AH_PRIVATE((_ah))->ah_macRev == AR_SREV_REVISION_OWL_22)
 
 /* Misc; compatibility with Atheros HAL */
 #define	AR_SREV_5416_V20_OR_LATER(_ah)	(AR_SREV_HOWL((_ah)) || AR_SREV_OWL_20_OR_LATER(_ah))
