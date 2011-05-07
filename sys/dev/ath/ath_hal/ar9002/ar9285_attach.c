@@ -284,6 +284,11 @@ ar9285Attach(uint16_t devid, HAL_SOFTC sc,
 	/* Read Reg Domain */
 	AH_PRIVATE(ah)->ah_currentRD =
 	    ath_hal_eepromGet(ah, AR_EEP_REGDMN_0, AH_NULL);
+	/*
+         * For Kite and later chipsets, the following bits are not
+	 * programmed in EEPROM and so are set as enabled always.
+	 */
+	AH_PRIVATE(ah)->ah_currentRDext = AR9285_RDEXT_DEFAULT;
 
 	/*
 	 * ah_miscMode is populated by ar5416FillCapabilityInfo()
