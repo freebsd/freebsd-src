@@ -1,4 +1,4 @@
-.\" Copyright (c) 2006,2008,2010 Joseph Koshy.  All rights reserved.
+.\" Copyright (c) 2006,2008,2010-2011 Joseph Koshy.  All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 30, 2010
+.Dd January 26, 2011
 .Dt ELF_GETDATA 3
 .Os
 .Sh NAME
@@ -142,9 +142,10 @@ always returns
 .Vt Elf_Data
 structures of type
 .Dv ELF_T_BYTE .
-.Ss Special handling of SHT_NOBITS sections
+.Ss Special handling of zero-sized and SHT_NOBITS sections
 For sections of type
-.Dv SHT_NOBITS ,
+.Dv SHT_NOBITS,
+and for zero-sized sections,
 the functions
 .Fn elf_getdata
 and
