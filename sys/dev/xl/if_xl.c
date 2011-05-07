@@ -2380,7 +2380,7 @@ xl_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 			}
 
 			if (status & XL_STAT_STATSOFLOW)
-				xl_stats_update_locked(sc);
+				xl_stats_update(sc);
 		}
 	}
 	return (rx_npkts);
