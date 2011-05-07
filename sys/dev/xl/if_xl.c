@@ -2207,7 +2207,7 @@ xl_txeoc(struct xl_softc *sc)
 			txstat & XL_TXSTATUS_JABBER ||
 			txstat & XL_TXSTATUS_RECLAIM) {
 			device_printf(sc->xl_dev,
-			    "transmission error: %x\n", txstat);
+			    "transmission error: 0x%02x\n", txstat);
 			CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_TX_RESET);
 			xl_wait(sc);
 			if (sc->xl_type == XL_TYPE_905B) {
@@ -2220,11 +2220,14 @@ xl_txeoc(struct xl_softc *sc)
 					CSR_WRITE_4(sc, XL_DOWNLIST_PTR,
 					    c->xl_phys);
 					CSR_WRITE_1(sc, XL_DOWN_POLL, 64);
+					sc->xl_wdog_timer = 5;
 				}
 			} else {
-				if (sc->xl_cdata.xl_tx_head != NULL)
+				if (sc->xl_cdata.xl_tx_head != NULL) {
 					CSR_WRITE_4(sc, XL_DOWNLIST_PTR,
 					    sc->xl_cdata.xl_tx_head->xl_phys);
+					sc->xl_wdog_timer = 5;
+				}
 			}
 			/*
 			 * Remember to set this for the
