@@ -113,11 +113,14 @@ main(int argc, char **argv)
 	len = strlen(bsdar->progname);
 	if (len >= strlen("ranlib") &&
 	    strcmp(bsdar->progname + len - strlen("ranlib"), "ranlib") == 0) {
-		while ((opt = getopt_long(argc, argv, "tV", longopts,
+		while ((opt = getopt_long(argc, argv, "tDV", longopts,
 		    NULL)) != -1) {
 			switch(opt) {
 			case 't':
 				/* Ignored. */
+				break;
+			case 'D':
+				bsdar->options |= AR_D;
 				break;
 			case 'V':
 				ranlib_version();
