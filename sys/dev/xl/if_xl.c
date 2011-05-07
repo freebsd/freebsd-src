@@ -2564,7 +2564,6 @@ xl_start_locked(struct ifnet *ifp)
 	struct mbuf		*m_head;
 	struct xl_chain		*prev = NULL, *cur_tx = NULL, *start_tx;
 	struct xl_chain		*prev_tx;
-	u_int32_t		status;
 	int			error;
 
 	XL_LOCK_ASSERT(sc);
@@ -2651,7 +2650,6 @@ xl_start_locked(struct ifnet *ifp)
 		sc->xl_cdata.xl_tx_tail->xl_next = start_tx;
 		sc->xl_cdata.xl_tx_tail->xl_ptr->xl_next =
 		    htole32(start_tx->xl_phys);
-		status = sc->xl_cdata.xl_tx_tail->xl_ptr->xl_status;
 		sc->xl_cdata.xl_tx_tail->xl_ptr->xl_status &=
 		    htole32(~XL_TXSTAT_DL_INTR);
 		sc->xl_cdata.xl_tx_tail = cur_tx;
