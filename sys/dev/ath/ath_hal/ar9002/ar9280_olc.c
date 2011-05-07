@@ -368,7 +368,7 @@ ar9280SetPowerCalTable(struct ath_hal *ah, struct ar5416eeprom *pEepData,
 			    gainBoundaries, numXpdGain, pdGainOverlap_t2,
 			    pwr_table_offset, &diff);
 
-			if ((i == 0) || AR_SREV_OWL_20_OR_LATER(ah)) {
+			if ((i == 0) || AR_SREV_5416_V20_OR_LATER(ah)) {
 				/* Set gain boundaries for either open- or closed-loop TPC */
 				if (AR_SREV_MERLIN_20_OR_LATER(ah) &&
 				    ath_hal_eepromGetFlag(ah, AR_EEP_OL_PWRCTRL))
