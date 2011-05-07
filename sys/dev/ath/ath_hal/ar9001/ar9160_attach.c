@@ -241,6 +241,8 @@ ar9160Attach(uint16_t devid, HAL_SOFTC sc,
 	/* Read Reg Domain */
 	AH_PRIVATE(ah)->ah_currentRD =
 	    ath_hal_eepromGet(ah, AR_EEP_REGDMN_0, AH_NULL);
+	AH_PRIVATE(ah)->ah_currentRDext =
+	    ath_hal_eepromGet(ah, AR_EEP_REGDMN_1, AH_NULL);
 
 	/*
 	 * ah_miscMode is populated by ar5416FillCapabilityInfo()
@@ -292,6 +294,9 @@ ar9160FillCapabilityInfo(struct ath_hal *ah)
 	pCap->halRtsAggrLimit = 64*1024;	/* 802.11n max */
 	pCap->halExtChanDfsSupport = AH_TRUE;
 	pCap->halAutoSleepSupport = AH_FALSE;	/* XXX? */
+	pCap->halMbssidAggrSupport = AH_TRUE;
+	pCap->hal4AddrAggrSupport = AH_TRUE;
+
 	/* AR9160 is a 2x2 stream device */
 	pCap->halTxStreams = 2;
 	pCap->halRxStreams = 2;

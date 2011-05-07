@@ -284,6 +284,11 @@ ar9285Attach(uint16_t devid, HAL_SOFTC sc,
 	/* Read Reg Domain */
 	AH_PRIVATE(ah)->ah_currentRD =
 	    ath_hal_eepromGet(ah, AR_EEP_REGDMN_0, AH_NULL);
+	/*
+         * For Kite and later chipsets, the following bits are not
+	 * programmed in EEPROM and so are set as enabled always.
+	 */
+	AH_PRIVATE(ah)->ah_currentRDext = AR9285_RDEXT_DEFAULT;
 
 	/*
 	 * ah_miscMode is populated by ar5416FillCapabilityInfo()
@@ -390,8 +395,11 @@ ar9285FillCapabilityInfo(struct ath_hal *ah)
 	pCap->hal4kbSplitTransSupport = AH_FALSE;
 	/* Disable this so Block-ACK works correctly */
 	pCap->halHasRxSelfLinkedTail = AH_FALSE;
+	pCap->halMbssidAggrSupport = AH_TRUE;  
+	pCap->hal4AddrAggrSupport = AH_TRUE;
+
 	if (AR_SREV_KITE_12_OR_LATER(ah))
-		pCap->halHasPsPollSupport = AH_TRUE;
+		pCap->halPSPollBroken = AH_FALSE;
 
 	pCap->halRxStbcSupport = 1;
 	pCap->halTxStbcSupport = 1;

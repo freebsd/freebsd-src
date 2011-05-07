@@ -225,8 +225,8 @@ static int xl_attach(device_t);
 static int xl_detach(device_t);
 
 static int xl_newbuf(struct xl_softc *, struct xl_chain_onefrag *);
-static void xl_stats_update(void *);
-static void xl_stats_update_locked(struct xl_softc *);
+static void xl_tick(void *);
+static void xl_stats_update(struct xl_softc *);
 static int xl_encap(struct xl_softc *, struct xl_chain *, struct mbuf **);
 static int xl_rxeof(struct xl_softc *);
 static void xl_rxeof_task(void *, int);
@@ -1330,7 +1330,7 @@ xl_attach(device_t dev)
 		goto fail;
 	}
 
-	callout_init_mtx(&sc->xl_stat_callout, &sc->xl_mtx, 0);
+	callout_init_mtx(&sc->xl_tick_callout, &sc->xl_mtx, 0);
 	TASK_INIT(&sc->xl_task, 0, xl_rxeof_task, sc);
 
 	/*
@@ -1695,7 +1695,7 @@ xl_detach(device_t dev)
 		xl_stop(sc);
 		XL_UNLOCK(sc);
 		taskqueue_drain(taskqueue_swi, &sc->xl_task);
-		callout_drain(&sc->xl_stat_callout);
+		callout_drain(&sc->xl_tick_callout);
 		ether_ifdetach(ifp);
 	}
 	if (sc->xl_miibus)
@@ -1904,8 +1904,8 @@ xl_newbuf(struct xl_softc *sc, struct xl_chain_onefrag *c)
 	sc->xl_tmpmap = map;
 	c->xl_mbuf = m_new;
 	c->xl_ptr->xl_frag.xl_len = htole32(m_new->m_len | XL_LAST_FRAG);
-	c->xl_ptr->xl_status = 0;
 	c->xl_ptr->xl_frag.xl_addr = htole32(segs->ds_addr);
+	c->xl_ptr->xl_status = 0;
 	bus_dmamap_sync(sc->xl_mtag, c->xl_map, BUS_DMASYNC_PREREAD);
 	return (0);
 }
@@ -1944,7 +1944,7 @@ xl_rxeof(struct xl_softc *sc)
 	struct mbuf		*m;
 	struct ifnet		*ifp = sc->xl_ifp;
 	struct xl_chain_onefrag	*cur_rx;
-	int			total_len = 0;
+	int			total_len;
 	int			rx_npkts = 0;
 	u_int32_t		rxstat;
 
@@ -1963,6 +1963,7 @@ again:
 		cur_rx = sc->xl_cdata.xl_rx_head;
 		sc->xl_cdata.xl_rx_head = cur_rx->xl_next;
 		total_len = rxstat & XL_RXSTAT_LENMASK;
+		rx_npkts++;
 
 		/*
 		 * Since we have told the chip to allow large frames,
@@ -2047,7 +2048,6 @@ again:
 		XL_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
 		XL_LOCK(sc);
-		rx_npkts++;
 
 		/*
 		 * If we are running from the taskqueue, the interface
@@ -2207,7 +2207,7 @@ xl_txeoc(struct xl_softc *sc)
 			txstat & XL_TXSTATUS_JABBER ||
 			txstat & XL_TXSTATUS_RECLAIM) {
 			device_printf(sc->xl_dev,
-			    "transmission error: %x\n", txstat);
+			    "transmission error: 0x%02x\n", txstat);
 			CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_TX_RESET);
 			xl_wait(sc);
 			if (sc->xl_type == XL_TYPE_905B) {
@@ -2220,11 +2220,14 @@ xl_txeoc(struct xl_softc *sc)
 					CSR_WRITE_4(sc, XL_DOWNLIST_PTR,
 					    c->xl_phys);
 					CSR_WRITE_1(sc, XL_DOWN_POLL, 64);
+					sc->xl_wdog_timer = 5;
 				}
 			} else {
-				if (sc->xl_cdata.xl_tx_head != NULL)
+				if (sc->xl_cdata.xl_tx_head != NULL) {
 					CSR_WRITE_4(sc, XL_DOWNLIST_PTR,
 					    sc->xl_cdata.xl_tx_head->xl_phys);
+					sc->xl_wdog_timer = 5;
+				}
 			}
 			/*
 			 * Remember to set this for the
@@ -2273,17 +2276,17 @@ xl_intr(void *arg)
 	}
 #endif
 
-	while ((status = CSR_READ_2(sc, XL_STATUS)) & XL_INTRS &&
-	    status != 0xFFFF) {
+	for (;;) {
+		status = CSR_READ_2(sc, XL_STATUS);
+		if ((status & XL_INTRS) == 0 || status == 0xFFFF)
+			break;
 		CSR_WRITE_2(sc, XL_COMMAND,
 		    XL_CMD_INTR_ACK|(status & XL_INTRS));
+		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+			break;
 
 		if (status & XL_STAT_UP_COMPLETE) {
-			int	curpkts;
-
-			curpkts = ifp->if_ipackets;
-			xl_rxeof(sc);
-			if (curpkts == ifp->if_ipackets) {
+			if (xl_rxeof(sc) == 0) {
 				while (xl_rx_resync(sc))
 					xl_rxeof(sc);
 			}
@@ -2304,16 +2307,15 @@ xl_intr(void *arg)
 		if (status & XL_STAT_ADFAIL) {
 			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			xl_init_locked(sc);
+			break;
 		}
 
-		if (status & XL_STAT_STATSOFLOW) {
-			sc->xl_stats_no_timeout = 1;
-			xl_stats_update_locked(sc);
-			sc->xl_stats_no_timeout = 0;
-		}
+		if (status & XL_STAT_STATSOFLOW)
+			xl_stats_update(sc);
 	}
 
-	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
+	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd) &&
+	    ifp->if_drv_flags & IFF_DRV_RUNNING) {
 		if (sc->xl_type == XL_TYPE_905B)
 			xl_start_90xB_locked(ifp);
 		else
@@ -2377,48 +2379,45 @@ xl_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 				xl_init_locked(sc);
 			}
 
-			if (status & XL_STAT_STATSOFLOW) {
-				sc->xl_stats_no_timeout = 1;
-				xl_stats_update_locked(sc);
-				sc->xl_stats_no_timeout = 0;
-			}
+			if (status & XL_STAT_STATSOFLOW)
+				xl_stats_update(sc);
 		}
 	}
 	return (rx_npkts);
 }
 #endif /* DEVICE_POLLING */
 
-/*
- * XXX: This is an entry point for callout which needs to take the lock.
- */
 static void
-xl_stats_update(void *xsc)
+xl_tick(void *xsc)
 {
 	struct xl_softc *sc = xsc;
+	struct mii_data *mii;
 
 	XL_LOCK_ASSERT(sc);
 
+	if (sc->xl_miibus != NULL) {
+		mii = device_get_softc(sc->xl_miibus);
+		mii_tick(mii);
+	}
+
+	xl_stats_update(sc);
 	if (xl_watchdog(sc) == EJUSTRETURN)
 		return;
 
-	xl_stats_update_locked(sc);
+	callout_reset(&sc->xl_tick_callout, hz, xl_tick, sc);
 }
 
 static void
-xl_stats_update_locked(struct xl_softc *sc)
+xl_stats_update(struct xl_softc *sc)
 {
 	struct ifnet		*ifp = sc->xl_ifp;
 	struct xl_stats		xl_stats;
 	u_int8_t		*p;
 	int			i;
-	struct mii_data		*mii = NULL;
 
 	XL_LOCK_ASSERT(sc);
 
 	bzero((char *)&xl_stats, sizeof(struct xl_stats));
-
-	if (sc->xl_miibus != NULL)
-		mii = device_get_softc(sc->xl_miibus);
 
 	p = (u_int8_t *)&xl_stats;
 
@@ -2441,14 +2440,7 @@ xl_stats_update_locked(struct xl_softc *sc)
 	 */
 	XL_SEL_WIN(4);
 	CSR_READ_1(sc, XL_W4_BADSSD);
-
-	if ((mii != NULL) && (!sc->xl_stats_no_timeout))
-		mii_tick(mii);
-
 	XL_SEL_WIN(7);
-
-	if (!sc->xl_stats_no_timeout)
-		callout_reset(&sc->xl_stat_callout, hz, xl_stats_update, sc);
 }
 
 /*
@@ -2507,6 +2499,7 @@ xl_encap(struct xl_softc *sc, struct xl_chain *c, struct mbuf **m_head)
 		*m_head = NULL;
 		return (EIO);
 	}
+	bus_dmamap_sync(sc->xl_mtag, c->xl_map, BUS_DMASYNC_PREWRITE);
 
 	total_len = 0;
 	for (i = 0; i < nseg; i++) {
@@ -2519,8 +2512,6 @@ xl_encap(struct xl_softc *sc, struct xl_chain *c, struct mbuf **m_head)
 		total_len += sc->xl_cdata.xl_tx_segs[i].ds_len;
 	}
 	c->xl_ptr->xl_frag[nseg - 1].xl_len |= htole32(XL_LAST_FRAG);
-	c->xl_ptr->xl_status = htole32(total_len);
-	c->xl_ptr->xl_next = 0;
 
 	if (sc->xl_type == XL_TYPE_905B) {
 		status = XL_TXSTAT_RND_DEFEAT;
@@ -2535,11 +2526,12 @@ xl_encap(struct xl_softc *sc, struct xl_chain *c, struct mbuf **m_head)
 				status |= XL_TXSTAT_UDPCKSUM;
 		}
 #endif
-		c->xl_ptr->xl_status = htole32(status);
-	}
+	} else
+		status = total_len;
+	c->xl_ptr->xl_status = htole32(status);
+	c->xl_ptr->xl_next = 0;
 
 	c->xl_mbuf = *m_head;
-	bus_dmamap_sync(sc->xl_mtag, c->xl_map, BUS_DMASYNC_PREWRITE);
 	return (0);
 }
 
@@ -2569,9 +2561,9 @@ static void
 xl_start_locked(struct ifnet *ifp)
 {
 	struct xl_softc		*sc = ifp->if_softc;
-	struct mbuf		*m_head = NULL;
+	struct mbuf		*m_head;
 	struct xl_chain		*prev = NULL, *cur_tx = NULL, *start_tx;
-	u_int32_t		status;
+	struct xl_chain		*prev_tx;
 	int			error;
 
 	XL_LOCK_ASSERT(sc);
@@ -2601,11 +2593,13 @@ xl_start_locked(struct ifnet *ifp)
 			break;
 
 		/* Pick a descriptor off the free list. */
+		prev_tx = cur_tx;
 		cur_tx = sc->xl_cdata.xl_tx_free;
 
 		/* Pack the data into the descriptor. */
 		error = xl_encap(sc, cur_tx, &m_head);
 		if (error) {
+			cur_tx = prev_tx;
 			if (m_head == NULL)
 				break;
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
@@ -2644,8 +2638,6 @@ xl_start_locked(struct ifnet *ifp)
 	 * once for each packet.
 	 */
 	cur_tx->xl_ptr->xl_status |= htole32(XL_TXSTAT_DL_INTR);
-	bus_dmamap_sync(sc->xl_ldata.xl_tx_tag, sc->xl_ldata.xl_tx_dmamap,
-	    BUS_DMASYNC_PREWRITE);
 
 	/*
 	 * Queue the packets. If the TX channel is clear, update
@@ -2658,7 +2650,6 @@ xl_start_locked(struct ifnet *ifp)
 		sc->xl_cdata.xl_tx_tail->xl_next = start_tx;
 		sc->xl_cdata.xl_tx_tail->xl_ptr->xl_next =
 		    htole32(start_tx->xl_phys);
-		status = sc->xl_cdata.xl_tx_tail->xl_ptr->xl_status;
 		sc->xl_cdata.xl_tx_tail->xl_ptr->xl_status &=
 		    htole32(~XL_TXSTAT_DL_INTR);
 		sc->xl_cdata.xl_tx_tail = cur_tx;
@@ -2666,6 +2657,8 @@ xl_start_locked(struct ifnet *ifp)
 		sc->xl_cdata.xl_tx_head = start_tx;
 		sc->xl_cdata.xl_tx_tail = cur_tx;
 	}
+	bus_dmamap_sync(sc->xl_ldata.xl_tx_tag, sc->xl_ldata.xl_tx_dmamap,
+	    BUS_DMASYNC_PREWRITE);
 	if (!CSR_READ_4(sc, XL_DOWNLIST_PTR))
 		CSR_WRITE_4(sc, XL_DOWNLIST_PTR, start_tx->xl_phys);
 
@@ -2700,8 +2693,9 @@ static void
 xl_start_90xB_locked(struct ifnet *ifp)
 {
 	struct xl_softc		*sc = ifp->if_softc;
-	struct mbuf		*m_head = NULL;
+	struct mbuf		*m_head;
 	struct xl_chain		*prev = NULL, *cur_tx = NULL, *start_tx;
+	struct xl_chain		*prev_tx;
 	int			error, idx;
 
 	XL_LOCK_ASSERT(sc);
@@ -2724,11 +2718,13 @@ xl_start_90xB_locked(struct ifnet *ifp)
 		if (m_head == NULL)
 			break;
 
+		prev_tx = cur_tx;
 		cur_tx = &sc->xl_cdata.xl_tx_chain[idx];
 
 		/* Pack the data into the descriptor. */
 		error = xl_encap(sc, cur_tx, &m_head);
 		if (error) {
+			cur_tx = prev_tx;
 			if (m_head == NULL)
 				break;
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
@@ -2765,12 +2761,12 @@ xl_start_90xB_locked(struct ifnet *ifp)
 	 * once for each packet.
 	 */
 	cur_tx->xl_ptr->xl_status |= htole32(XL_TXSTAT_DL_INTR);
-	bus_dmamap_sync(sc->xl_ldata.xl_tx_tag, sc->xl_ldata.xl_tx_dmamap,
-	    BUS_DMASYNC_PREWRITE);
 
 	/* Start transmission */
 	sc->xl_cdata.xl_tx_prod = idx;
 	start_tx->xl_prev->xl_ptr->xl_next = htole32(start_tx->xl_phys);
+	bus_dmamap_sync(sc->xl_ldata.xl_tx_tag, sc->xl_ldata.xl_tx_dmamap,
+	    BUS_DMASYNC_PREWRITE);
 
 	/*
 	 * Set a timeout in case the chip goes out to lunch.
@@ -2949,9 +2945,7 @@ xl_init_locked(struct xl_softc *sc)
 
 	/* Clear out the stats counters. */
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_STATS_DISABLE);
-	sc->xl_stats_no_timeout = 1;
-	xl_stats_update_locked(sc);
-	sc->xl_stats_no_timeout = 0;
+	xl_stats_update(sc);
 	XL_SEL_WIN(4);
 	CSR_WRITE_2(sc, XL_W4_NET_DIAG, XL_NETDIAG_UPPER_BYTES_ENABLE);
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_STATS_ENABLE);
@@ -2973,7 +2967,7 @@ xl_init_locked(struct xl_softc *sc)
 
 	/* Set the RX early threshold */
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_RX_SET_THRESH|(XL_PACKET_SIZE >>2));
-	CSR_WRITE_2(sc, XL_DMACTL, XL_DMACTL_UP_RX_EARLY);
+	CSR_WRITE_4(sc, XL_DMACTL, XL_DMACTL_UP_RX_EARLY);
 
 	/* Enable receiver and transmitter. */
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_TX_ENABLE);
@@ -2992,7 +2986,7 @@ xl_init_locked(struct xl_softc *sc)
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	sc->xl_wdog_timer = 0;
-	callout_reset(&sc->xl_stat_callout, hz, xl_stats_update, sc);
+	callout_reset(&sc->xl_tick_callout, hz, xl_tick, sc);
 }
 
 /*
@@ -3301,7 +3295,7 @@ xl_stop(struct xl_softc *sc)
 		bus_space_write_4(sc->xl_ftag, sc->xl_fhandle, 4, 0x8000);
 
 	/* Stop the stats updater. */
-	callout_stop(&sc->xl_stat_callout);
+	callout_stop(&sc->xl_tick_callout);
 
 	/*
 	 * Free data in the RX lists.

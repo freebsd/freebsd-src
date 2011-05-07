@@ -14,6 +14,7 @@ SRCS=	\
 	dwarf_errno.c		\
 	dwarf_finish.c		\
 	dwarf_form.c		\
+	dwarf_func.c		\
 	dwarf_init.c		\
 	dwarf_loc.c
 

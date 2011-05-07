@@ -100,6 +100,13 @@
 #define AR_PHY_EXT_MINCCA_PWR_S 23
 #define AR_PHY_EXT_CCA_THRESH62	0x007F0000
 #define AR_PHY_EXT_CCA_THRESH62_S	16
+/*
+ * This duplicates AR_PHY_EXT_CCA_CYCPWR_THR1; it reads more like
+ * an ANI register this way.
+ */
+#define	AR_PHY_EXT_TIMING5_CYCPWR_THR1		0x0000FE00
+#define	AR_PHY_EXT_TIMING5_CYCPWR_THR1_S	9
+
 #define AR9280_PHY_EXT_MINCCA_PWR       0x01FF0000
 #define AR9280_PHY_EXT_MINCCA_PWR_S     16
 

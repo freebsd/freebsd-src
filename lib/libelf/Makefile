@@ -57,7 +57,7 @@ INCS=	libelf.h gelf.h
 
 GENSRCS=	libelf_fsize.c libelf_msize.c libelf_convert.c
 CLEANFILES=	${GENSRCS}
-CFLAGS+=	-I. -I${.CURDIR}
+CFLAGS+=	-I${.CURDIR} -I${.CURDIR}/../../sys
 
 SHLIB_MAJOR=	1
 
