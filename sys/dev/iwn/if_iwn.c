@@ -5348,12 +5348,12 @@ iwn_auth(struct iwn_softc *sc, struct ieee80211vap *vap)
 static int
 iwn_run(struct iwn_softc *sc, struct ieee80211vap *vap)
 {
-#define	MS(v,x)	(((v) & x) >> x##_S)
 	struct iwn_ops *ops = &sc->ops;
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
 	struct ieee80211_node *ni = vap->iv_bss;
 	struct iwn_node_info node;
+	uint32_t htflags = 0;
 	int error;
 
 	if (ic->ic_opmode == IEEE80211_M_MONITOR) {
@@ -5389,26 +5389,22 @@ iwn_run(struct iwn_softc *sc, struct ieee80211vap *vap)
 		sc->rxon.cck_mask  = 0x0f;
 		sc->rxon.ofdm_mask = 0x15;
 	}
-#if 0	/* HT */
 	if (IEEE80211_IS_CHAN_HT(ni->ni_chan)) {
-		sc->rxon.flags &= ~htole32(IWN_RXON_HT);
-		if (IEEE80211_IS_CHAN_HT40U(ni->ni_chan))
-			sc->rxon.flags |= htole32(IWN_RXON_HT40U);
-		else if (IEEE80211_IS_CHAN_HT40D(ni->ni_chan))
-			sc->rxon.flags |= htole32(IWN_RXON_HT40D);
-		else
-			sc->rxon.flags |= htole32(IWN_RXON_HT20);
-		sc->rxon.rxchain = htole16(
-			  IWN_RXCHAIN_VALID(3)
-			| IWN_RXCHAIN_MIMO_COUNT(3)
-			| IWN_RXCHAIN_IDLE_COUNT(1)
-			| IWN_RXCHAIN_MIMO_FORCE);
-
-		maxrxampdu = MS(ni->ni_htparam, IEEE80211_HTCAP_MAXRXAMPDU);
-		ampdudensity = MS(ni->ni_htparam, IEEE80211_HTCAP_MPDUDENSITY);
-	} else
-		maxrxampdu = ampdudensity = 0;
-#endif
+		htflags |= IWN_RXON_HT_PROTMODE(ic->ic_curhtprotmode);
+		if (IEEE80211_IS_CHAN_HT40(ni->ni_chan)) {
+			switch (ic->ic_curhtprotmode) {
+			case IEEE80211_HTINFO_OPMODE_HT20PR:
+				htflags |= IWN_RXON_HT_MODEPURE40;
+				break;
+			default:
+				htflags |= IWN_RXON_HT_MODEMIXED;
+				break;
+			}
+		}
+		if (IEEE80211_IS_CHAN_HT40D(ni->ni_chan))
+			htflags |= IWN_RXON_HT_HT40MINUS;
+	}
+	sc->rxon.flags |= htole32(htflags);
 	sc->rxon.filter |= htole32(IWN_FILTER_BSS);
 	DPRINTF(sc, IWN_DEBUG_STATE, "rxon chan %d flags %x\n",
 	    sc->rxon.chan, sc->rxon.flags);
@@ -5435,10 +5431,20 @@ iwn_run(struct iwn_softc *sc, struct ieee80211vap *vap)
 	memset(&node, 0, sizeof node);
 	IEEE80211_ADDR_COPY(node.macaddr, ni->ni_macaddr);
 	node.id = IWN_ID_BSS;
-#ifdef notyet
-	node.htflags = htole32(IWN_AMDPU_SIZE_FACTOR(3) |
-	    IWN_AMDPU_DENSITY(5));	/* 2us */
-#endif
+	if (IEEE80211_IS_CHAN_HT(ni->ni_chan)) {
+		switch (ni->ni_htcap & IEEE80211_HTCAP_SMPS) {
+		case IEEE80211_HTCAP_SMPS_ENA:
+			node.htflags |= htole32(IWN_SMPS_MIMO_DIS);
+			break;
+		case IEEE80211_HTCAP_SMPS_DYNAMIC:
+			node.htflags |= htole32(IWN_SMPS_MIMO_PROT);
+			break;
+		}
+		node.htflags |= htole32(IWN_AMDPU_SIZE_FACTOR(3) |
+		    IWN_AMDPU_DENSITY(5));	/* 4us */
+		if (IEEE80211_IS_CHAN_HT40(ni->ni_chan))
+			node.htflags |= htole32(IWN_NODE_HT40);
+	}
 	DPRINTF(sc, IWN_DEBUG_STATE, "%s: adding BSS node\n", __func__);
 	error = ops->add_node(sc, &node, 1);
 	if (error != 0) {
@@ -5470,7 +5476,6 @@ iwn_run(struct iwn_softc *sc, struct ieee80211vap *vap)
 	/* Link LED always on while associated. */
 	iwn_set_led(sc, IWN_LED_LINK, 0, 1);
 	return 0;
-#undef MS
 }
 
 /*
