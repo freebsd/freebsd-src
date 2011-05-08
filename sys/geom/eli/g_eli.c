@@ -57,6 +57,9 @@ MALLOC_DEFINE(M_ELI, "eli data", "GEOM_ELI Data");
 
 SYSCTL_DECL(_kern_geom);
 SYSCTL_NODE(_kern_geom, OID_AUTO, eli, CTLFLAG_RW, 0, "GEOM_ELI stuff");
+static int g_eli_version = G_ELI_VERSION;
+SYSCTL_INT(_kern_geom_eli, OID_AUTO, version, CTLFLAG_RD, &g_eli_version, 0,
+    "GELI version");
 int g_eli_debug = 0;
 TUNABLE_INT("kern.geom.eli.debug", &g_eli_debug);
 SYSCTL_INT(_kern_geom_eli, OID_AUTO, debug, CTLFLAG_RW, &g_eli_debug, 0,
