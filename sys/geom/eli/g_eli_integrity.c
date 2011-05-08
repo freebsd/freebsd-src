@@ -149,7 +149,7 @@ g_eli_auth_read_done(struct cryptop *crp)
 			bp->bio_error = crp->crp_etype;
 	}
 	sc = bp->bio_to->geom->softc;
-	g_eli_key_drop(sc, crp->crp_desc->crd_key);
+	g_eli_key_drop(sc, crp->crp_desc->crd_next->crd_key);
 	/*
 	 * Do we have all sectors already?
 	 */
