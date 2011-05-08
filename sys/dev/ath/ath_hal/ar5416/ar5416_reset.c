@@ -521,7 +521,6 @@ ar5416InitBB(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	/* Turn on PLL on 5416 */
 	HALDEBUG(ah, HAL_DEBUG_RESET, "%s %s channel\n",
 	    __func__, IEEE80211_IS_CHAN_5GHZ(chan) ? "5GHz" : "2GHz");
-	AH5416(ah)->ah_initPLL(ah, chan);
 
 	/* Activate the PHY (includes baseband activate and synthesizer on) */
 	OS_REG_WRITE(ah, AR_PHY_ACTIVE, AR_PHY_ACTIVE_EN);
@@ -674,6 +673,10 @@ ar5416ChipReset(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	if (!ar5416SetPowerMode(ah, HAL_PM_AWAKE, AH_TRUE))
 	       return AH_FALSE;
 
+#ifdef notyet
+	ahp->ah_chipFullSleep = AH_FALSE;
+#endif
+
 	AH5416(ah)->ah_initPLL(ah, chan);
 
 	/*
@@ -682,8 +685,7 @@ ar5416ChipReset(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	 * with an active radio can result in corrupted shifts to the
 	 * radio device.
 	 */
-	if (chan != AH_NULL)
-		ar5416SetRfMode(ah, chan);
+	ar5416SetRfMode(ah, chan);
 
 	return AH_TRUE;	
 }
@@ -1103,7 +1105,11 @@ ar5416Disable(struct ath_hal *ah)
 {
 	if (!ar5212SetPowerMode(ah, HAL_PM_AWAKE, AH_TRUE))
 		return AH_FALSE;
-	return ar5416SetResetReg(ah, HAL_RESET_COLD);
+	if (! ar5416SetResetReg(ah, HAL_RESET_COLD))
+		return AH_FALSE;
+
+	AH5416(ah)->ah_initPLL(ah, AH_NULL);
+	return AH_TRUE;
 }
 
 /*
@@ -1115,7 +1121,11 @@ ar5416Disable(struct ath_hal *ah)
 HAL_BOOL
 ar5416PhyDisable(struct ath_hal *ah)
 {
-	return ar5416SetResetReg(ah, HAL_RESET_WARM);
+	if (! ar5416SetResetReg(ah, HAL_RESET_WARM))
+		return AH_FALSE;
+
+	AH5416(ah)->ah_initPLL(ah, AH_NULL);
+	return AH_TRUE;
 }
 
 /*
@@ -1277,8 +1287,6 @@ ar5416SetReset(struct ath_hal *ah, int type)
 			OS_REG_WRITE(ah, AR_CFG, INIT_CONFIG_STATUS);
 	}
     }
-
-    AH5416(ah)->ah_initPLL(ah, AH_NULL);
 
     return AH_TRUE;
 }
