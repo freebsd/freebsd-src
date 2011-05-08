@@ -261,7 +261,7 @@ g_part_pc98_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 
 	cyl = basetable->gpt_heads * basetable->gpt_sectors;
 
-	msize = MIN(pp->mediasize / SECSIZE, 0xffffffff);
+	msize = MIN(pp->mediasize / SECSIZE, UINT_MAX);
 	basetable->gpt_first = cyl;
 	basetable->gpt_last = msize - (msize % cyl) - 1;
 
@@ -451,7 +451,7 @@ g_part_pc98_read(struct g_part_table *basetable, struct g_consumer *cp)
 
 	pp = cp->provider;
 	table = (struct g_part_pc98_table *)basetable;
-	msize = pp->mediasize / SECSIZE;
+	msize = MIN(pp->mediasize / SECSIZE, UINT_MAX);
 
 	buf = g_read_data(cp, 0L, BOOTSIZE, &error);
 	if (buf == NULL)
