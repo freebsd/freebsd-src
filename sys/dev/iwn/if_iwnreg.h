@@ -492,6 +492,10 @@ struct iwn_rxon {
 #define IWN_RXON_ANTENNA_A	(1 <<  8)
 #define IWN_RXON_ANTENNA_B	(1 <<  9)
 #define IWN_RXON_TSF		(1 << 15)
+#define IWN_RXON_HT_HT40MINUS	(1 << 22)
+#define IWN_RXON_HT_PROTMODE(x)	(x << 23)
+#define IWN_RXON_HT_MODEPURE40	(1 << 25)
+#define IWN_RXON_HT_MODEMIXED	(2 << 25)
 #define IWN_RXON_CTS_TO_SELF	(1 << 30)
 
 	uint32_t	filter;
@@ -591,7 +595,10 @@ struct iwn_node_info {
 	uint8_t		txmic[8];
 
 	uint32_t	htflags;
+#define IWN_SMPS_MIMO_PROT		(1 << 17)
 #define IWN_AMDPU_SIZE_FACTOR(x)	((x) << 19)
+#define IWN_NODE_HT40			(1 << 21)
+#define IWN_SMPS_MIMO_DIS		(1 << 22)
 #define IWN_AMDPU_DENSITY(x)		((x) << 23)
 
 	uint32_t	mask;
