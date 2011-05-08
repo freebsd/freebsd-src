@@ -76,16 +76,16 @@ static int nfs_commit_miss;
 extern int nfsrv_issuedelegs;
 extern int nfsrv_dolocallocks;
 
-SYSCTL_DECL(_vfs_newnfs);
-SYSCTL_INT(_vfs_newnfs, OID_AUTO, mirrormnt, CTLFLAG_RW,
+SYSCTL_NODE(_vfs, OID_AUTO, nfsd, CTLFLAG_RW, 0, "New NFS server");
+SYSCTL_INT(_vfs_nfsd, OID_AUTO, mirrormnt, CTLFLAG_RW,
     &nfsrv_enable_crossmntpt, 0, "Enable nfsd to cross mount points");
-SYSCTL_INT(_vfs_newnfs, OID_AUTO, commit_blks, CTLFLAG_RW, &nfs_commit_blks,
+SYSCTL_INT(_vfs_nfsd, OID_AUTO, commit_blks, CTLFLAG_RW, &nfs_commit_blks,
     0, "");
-SYSCTL_INT(_vfs_newnfs, OID_AUTO, commit_miss, CTLFLAG_RW, &nfs_commit_miss,
+SYSCTL_INT(_vfs_nfsd, OID_AUTO, commit_miss, CTLFLAG_RW, &nfs_commit_miss,
     0, "");
-SYSCTL_INT(_vfs_newnfs, OID_AUTO, issue_delegations, CTLFLAG_RW,
+SYSCTL_INT(_vfs_nfsd, OID_AUTO, issue_delegations, CTLFLAG_RW,
     &nfsrv_issuedelegs, 0, "Enable nfsd to issue delegations");
-SYSCTL_INT(_vfs_newnfs, OID_AUTO, enable_locallocks, CTLFLAG_RW,
+SYSCTL_INT(_vfs_nfsd, OID_AUTO, enable_locallocks, CTLFLAG_RW,
     &nfsrv_dolocallocks, 0, "Enable nfsd to acquire local locks on files");
 
 #define	NUM_HEURISTIC		1017
