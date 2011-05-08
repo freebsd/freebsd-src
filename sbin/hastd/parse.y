@@ -92,8 +92,10 @@ isitme(const char *name)
 	 * Now check if it matches first part of the host name.
 	 */
 	pos = strchr(buf, '.');
-	if (pos != NULL && pos != buf && strncmp(buf, name, pos - buf) == 0)
+	if (pos != NULL && (size_t)(pos - buf) == strlen(name) &&
+	    strncmp(buf, name, pos - buf) == 0) {
 		return (1);
+	}
 
 	/*
 	 * At the end check if name is equal to our host's UUID.
