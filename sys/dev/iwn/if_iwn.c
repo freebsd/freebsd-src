@@ -599,45 +599,30 @@ iwn_attach(device_t dev)
 		    macaddr, ":");
 	}
 
-#if 0	/* HT */
-	/* XXX disable until HT channel setup works */
-	ic->ic_htcaps =
-		  IEEE80211_HTCAP_SMPS_ENA	/* SM PS mode enabled */
-		| IEEE80211_HTCAP_CHWIDTH40	/* 40MHz channel width */
-		| IEEE80211_HTCAP_SHORTGI20	/* short GI in 20MHz */
-		| IEEE80211_HTCAP_SHORTGI40	/* short GI in 40MHz */
-		| IEEE80211_HTCAP_RXSTBC_2STREAM/* 1-2 spatial streams */
-		| IEEE80211_HTCAP_MAXAMSDU_3839	/* max A-MSDU length */
-		/* s/w capabilities */
-		| IEEE80211_HTC_HT		/* HT operation */
-		| IEEE80211_HTC_AMPDU		/* tx A-MPDU */
-		| IEEE80211_HTC_AMSDU		/* tx A-MSDU */
-		;
-
-	/* Set HT capabilities. */
-	ic->ic_htcaps =
+	if (sc->sc_flags & IWN_FLAG_HAS_11N) {
+		ic->ic_rxstream = sc->nrxchains;
+		ic->ic_txstream = sc->ntxchains;
+		ic->ic_htcaps =
+			  IEEE80211_HTCAP_SMPS_OFF	/* SMPS mode disabled */
+			| IEEE80211_HTCAP_SHORTGI20	/* short GI in 20MHz */
+#ifdef notyet
+			| IEEE80211_HTCAP_CHWIDTH40	/* 40MHz channel width*/
+			| IEEE80211_HTCAP_SHORTGI40	/* short GI in 40MHz */
+			| IEEE80211_HTCAP_GREENFIELD
 #if IWN_RBUF_SIZE == 8192
-	    IEEE80211_HTCAP_AMSDU7935 |
+			| IEEE80211_HTCAP_MAXAMSDU_7935	/* max A-MSDU length */
+#else
+			| IEEE80211_HTCAP_MAXAMSDU_3839	/* max A-MSDU length */
 #endif
-	    IEEE80211_HTCAP_CBW20_40 |
-	    IEEE80211_HTCAP_SGI20 |
-	    IEEE80211_HTCAP_SGI40;
-	if (sc->hw_type != IWN_HW_REV_TYPE_4965)
-		ic->ic_htcaps |= IEEE80211_HTCAP_GF;
-	if (sc->hw_type == IWN_HW_REV_TYPE_6050)
-		ic->ic_htcaps |= IEEE80211_HTCAP_SMPS_DYN;
-	else
-		ic->ic_htcaps |= IEEE80211_HTCAP_SMPS_DIS;
 #endif
-
-#if 0	/* HT */
-	/* Set supported HT rates. */
-	ic->ic_sup_mcs[0] = 0xff;
-	if (sc->nrxchains > 1)
-		ic->ic_sup_mcs[1] = 0xff;
-	if (sc->nrxchains > 2)
-		ic->ic_sup_mcs[2] = 0xff;
+			/* s/w capabilities */
+			| IEEE80211_HTC_HT		/* HT operation */
+			| IEEE80211_HTC_AMPDU		/* tx A-MPDU */
+#ifdef notyet
+			| IEEE80211_HTC_AMSDU		/* tx A-MSDU */
 #endif
+			;
+	}
 
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_softc = sc;
