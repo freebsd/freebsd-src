@@ -92,8 +92,10 @@ isitme(const char *name)
 	 * Now check if it matches first part of the host name.
 	 */
 	pos = strchr(buf, '.');
-	if (pos != NULL && pos != buf && strncmp(buf, name, pos - buf) == 0)
+	if (pos != NULL && (size_t)(pos - buf) == strlen(name) &&
+	    strncmp(buf, name, pos - buf) == 0) {
 		return (1);
+	}
 
 	/*
 	 * At the end check if name is equal to our host's UUID.
@@ -287,6 +289,7 @@ yy_config_free(struct hastd_config *config)
 %token FULLSYNC MEMSYNC ASYNC NONE CRC32 SHA256 HOLE LZF
 %token NUM STR OB CB
 
+%type <str> remote_str
 %type <num> replication_type
 %type <num> checksum_type
 %type <num> compression_type
@@ -794,7 +797,7 @@ resource_node_entry:
 	source_statement
 	;
 
-remote_statement:	REMOTE STR
+remote_statement:	REMOTE remote_str
 	{
 		assert(depth == 2);
 		if (mynode) {
@@ -809,6 +812,12 @@ remote_statement:	REMOTE STR
 		}
 		free($2);
 	}
+	;
+
+remote_str:
+	NONE		{ $$ = strdup("none"); }
+	|
+	STR		{ }
 	;
 
 source_statement:	SOURCE STR

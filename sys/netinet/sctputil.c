@@ -1634,7 +1634,7 @@ sctp_timeout_handler(void *t)
 		} {
 			SCTP_STAT_INCR(sctps_timosack);
 			stcb->asoc.timosack++;
-			sctp_send_sack(stcb);
+			sctp_send_sack(stcb, SCTP_SO_NOT_LOCKED);
 		}
 #ifdef SCTP_AUDITING_ENABLED
 		sctp_auditing(4, inp, stcb, net);
@@ -3656,7 +3656,7 @@ sctp_report_all_outbound(struct sctp_tcb *stcb, int holds_lock, int so_locked
 				chk->data = NULL;
 			}
 		}
-		sctp_free_a_chunk(stcb, chk);
+		sctp_free_a_chunk(stcb, chk, so_locked);
 		/* sa_ignore FREED_MEMORY */
 	}
 	/* pending send queue SHOULD be empty */
@@ -3672,7 +3672,7 @@ sctp_report_all_outbound(struct sctp_tcb *stcb, int holds_lock, int so_locked
 				chk->data = NULL;
 			}
 		}
-		sctp_free_a_chunk(stcb, chk);
+		sctp_free_a_chunk(stcb, chk, so_locked);
 		/* sa_ignore FREED_MEMORY */
 	}
 	for (i = 0; i < asoc->streamoutcnt; i++) {
@@ -3697,7 +3697,7 @@ sctp_report_all_outbound(struct sctp_tcb *stcb, int holds_lock, int so_locked
 				sp->net = NULL;
 			}
 			/* Free the chunk */
-			sctp_free_a_strmoq(stcb, sp);
+			sctp_free_a_strmoq(stcb, sp, so_locked);
 			/* sa_ignore FREED_MEMORY */
 		}
 	}
@@ -5033,7 +5033,7 @@ sctp_user_rcvd(struct sctp_tcb *stcb, uint32_t * freed_so_far, int hold_rlock,
 			goto out;
 		}
 		SCTP_STAT_INCR(sctps_wu_sacks_sent);
-		sctp_send_sack(stcb);
+		sctp_send_sack(stcb, SCTP_SO_LOCKED);
 
 		sctp_chunk_output(stcb->sctp_ep, stcb,
 		    SCTP_OUTPUT_FROM_USR_RCVD, SCTP_SO_LOCKED);
