@@ -154,9 +154,7 @@ static void	iwn4965_print_power_group(struct iwn_softc *, int);
 static void	iwn5000_read_eeprom(struct iwn_softc *);
 static uint32_t	iwn_eeprom_channel_flags(struct iwn_eeprom_chan *);
 static void	iwn_read_eeprom_band(struct iwn_softc *, int);
-#if 0	/* HT */
 static void	iwn_read_eeprom_ht40(struct iwn_softc *, int);
-#endif
 static void	iwn_read_eeprom_channels(struct iwn_softc *, int, uint32_t);
 static struct iwn_eeprom_chan *iwn_find_eeprom_channel(struct iwn_softc *,
 		    struct ieee80211_channel *);
@@ -1696,7 +1694,7 @@ iwn4965_read_eeprom(struct iwn_softc *sc)
 	iwn_read_prom_data(sc, IWN4965_EEPROM_DOMAIN, sc->eeprom_domain, 4);
 
 	/* Read the list of authorized channels (20MHz ones only). */
-	for (i = 0; i < 5; i++) {
+	for (i = 0; i < 7; i++) {
 		addr = iwn4965_regulatory_bands[i];
 		iwn_read_eeprom_channels(sc, i, addr);
 	}
@@ -1783,7 +1781,7 @@ iwn5000_read_eeprom(struct iwn_softc *sc)
 	    sc->eeprom_domain, 4);
 
 	/* Read the list of authorized channels (20MHz ones only). */
-	for (i = 0; i < 5; i++) {
+	for (i = 0; i < 7; i++) {
 		if (sc->hw_type >= IWN_HW_REV_TYPE_6000)
 			addr = base + iwn6000_regulatory_bands[i];
 		else
@@ -1889,18 +1887,15 @@ iwn_read_eeprom_band(struct iwn_softc *sc, int n)
 		    "add chan %d flags 0x%x maxpwr %d\n", chan,
 		    channels[i].flags, channels[i].maxpwr);
 
-#if 0	/* HT */
-		/* XXX no constraints on using HT20 */
-		/* add HT20, HT40 added separately */
-		c = &ic->ic_channels[ic->ic_nchans++];
-		c[0] = c[-1];
-		c->ic_flags |= IEEE80211_CHAN_HT20;
-		/* XXX NARROW =>'s 1/2 and 1/4 width? */
-#endif
+		if (sc->sc_flags & IWN_FLAG_HAS_11N) {
+			/* add HT20, HT40 added separately */
+			c = &ic->ic_channels[ic->ic_nchans++];
+			c[0] = c[-1];
+			c->ic_flags |= IEEE80211_CHAN_HT20;
+		}
 	}
 }
 
-#if 0	/* HT */
 static void
 iwn_read_eeprom_ht40(struct iwn_softc *sc, int n)
 {
@@ -1909,55 +1904,59 @@ iwn_read_eeprom_ht40(struct iwn_softc *sc, int n)
 	struct iwn_eeprom_chan *channels = sc->eeprom_channels[n];
 	const struct iwn_chan_band *band = &iwn_bands[n];
 	struct ieee80211_channel *c, *cent, *extc;
-	int i;
+	uint8_t chan;
+	int i, nflags;
+
+	if (!(sc->sc_flags & IWN_FLAG_HAS_11N))
+		return;
 
 	for (i = 0; i < band->nchan; i++) {
-		if (!(channels[i].flags & IWN_EEPROM_CHAN_VALID) ||
-		    !(channels[i].flags & IWN_EEPROM_CHAN_WIDE)) {
+		if (!(channels[i].flags & IWN_EEPROM_CHAN_VALID)) {
 			DPRINTF(sc, IWN_DEBUG_RESET,
 			    "skip chan %d flags 0x%x maxpwr %d\n",
 			    band->chan[i], channels[i].flags,
 			    channels[i].maxpwr);
 			continue;
 		}
+		chan = band->chan[i];
+		nflags = iwn_eeprom_channel_flags(&channels[i]);
+
 		/*
 		 * Each entry defines an HT40 channel pair; find the
 		 * center channel, then the extension channel above.
 		 */
-		cent = ieee80211_find_channel_byieee(ic, band->chan[i],
-		    band->flags & ~IEEE80211_CHAN_HT);
+		cent = ieee80211_find_channel_byieee(ic, chan,
+		    (n == 5 ? IEEE80211_CHAN_G : IEEE80211_CHAN_A));
 		if (cent == NULL) {	/* XXX shouldn't happen */
 			device_printf(sc->sc_dev,
-			    "%s: no entry for channel %d\n",
-			    __func__, band->chan[i]);
+			    "%s: no entry for channel %d\n", __func__, chan);
 			continue;
 		}
 		extc = ieee80211_find_channel(ic, cent->ic_freq+20,
-		    band->flags & ~IEEE80211_CHAN_HT);
+		    (n == 5 ? IEEE80211_CHAN_G : IEEE80211_CHAN_A));
 		if (extc == NULL) {
 			DPRINTF(sc, IWN_DEBUG_RESET,
-			    "skip chan %d, extension channel not found\n",
-			    band->chan[i]);
+			    "%s: skip chan %d, extension channel not found\n",
+			    __func__, chan);
 			continue;
 		}
 
 		DPRINTF(sc, IWN_DEBUG_RESET,
 		    "add ht40 chan %d flags 0x%x maxpwr %d\n",
-		    band->chan[i], channels[i].flags, channels[i].maxpwr);
+		    chan, channels[i].flags, channels[i].maxpwr);
 
 		c = &ic->ic_channels[ic->ic_nchans++];
 		c[0] = cent[0];
 		c->ic_extieee = extc->ic_ieee;
 		c->ic_flags &= ~IEEE80211_CHAN_HT;
-		c->ic_flags |= IEEE80211_CHAN_HT40U;
+		c->ic_flags |= IEEE80211_CHAN_HT40U | nflags;
 		c = &ic->ic_channels[ic->ic_nchans++];
 		c[0] = extc[0];
 		c->ic_extieee = cent->ic_ieee;
 		c->ic_flags &= ~IEEE80211_CHAN_HT;
-		c->ic_flags |= IEEE80211_CHAN_HT40D;
+		c->ic_flags |= IEEE80211_CHAN_HT40D | nflags;
 	}
 }
-#endif
 
 static void
 iwn_read_eeprom_channels(struct iwn_softc *sc, int n, uint32_t addr)
@@ -1970,25 +1969,34 @@ iwn_read_eeprom_channels(struct iwn_softc *sc, int n, uint32_t addr)
 
 	if (n < 5)
 		iwn_read_eeprom_band(sc, n);
-#if 0	/* HT */
 	else
 		iwn_read_eeprom_ht40(sc, n);
-#endif
 	ieee80211_sort_channels(ic->ic_channels, ic->ic_nchans);
 }
 
 static struct iwn_eeprom_chan *
 iwn_find_eeprom_channel(struct iwn_softc *sc, struct ieee80211_channel *c)
 {
-	int i, j;
+	int band, chan, i, j;
 
-	for (j = 0; j < 7; j++) {
-		for (i = 0; i < iwn_bands[j].nchan; i++) {
-			if (iwn_bands[j].chan[i] == c->ic_ieee)
-				return &sc->eeprom_channels[j][i];
+	if (IEEE80211_IS_CHAN_HT40(c)) {
+		band = IEEE80211_IS_CHAN_5GHZ(c) ? 6 : 5;
+		if (IEEE80211_IS_CHAN_HT40D(c))
+			chan = c->ic_extieee;
+		else
+			chan = c->ic_ieee;
+		for (i = 0; i < iwn_bands[band].nchan; i++) {
+			if (iwn_bands[band].chan[i] == chan)
+				return &sc->eeprom_channels[band][i];
+		}
+	} else {
+		for (j = 0; j < 5; j++) {
+			for (i = 0; i < iwn_bands[j].nchan; i++) {
+				if (iwn_bands[j].chan[i] == c->ic_ieee)
+					return &sc->eeprom_channels[j][i];
+			}
 		}
 	}
-
 	return NULL;
 }
 
