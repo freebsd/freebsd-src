@@ -2387,87 +2387,12 @@ usbd_get_device_index(struct usb_device *udev)
 }
 
 #if USB_HAVE_DEVCTL
-/*------------------------------------------------------------------------*
- *	usb_notify_addq
- *
- * This function will generate events for dev.
- *------------------------------------------------------------------------*/
-#ifndef BURN_BRIDGES
-static void
-usb_notify_addq_compat(const char *type, struct usb_device *udev)
-{
-	char *data = NULL;
-	const char *ntype;
-	struct malloc_type *mt;
-	const size_t buf_size = 512;
-
-	/* Convert notify type */
-	if (strcmp(type, "ATTACH") == 0)
-		ntype = "+";
-	else if (strcmp(type, "DETACH") == 0)
-		ntype = "-";
-	else
-		return;
-
-	mtx_lock(&malloc_mtx);
-	mt = malloc_desc2type("bus");	/* XXX M_BUS */
-	mtx_unlock(&malloc_mtx);
-	if (mt == NULL)
-		return;
-
-	data = malloc(buf_size, mt, M_NOWAIT);
-	if (data == NULL)
-		return;
-
-	/* String it all together. */
-	snprintf(data, buf_size,
-	    "%s"
-#if USB_HAVE_UGEN
-	    "%s "
-#endif
-	    "at port=%u "
-	    "vendor=0x%04x "
-	    "product=0x%04x "
-	    "devclass=0x%02x "
-	    "devsubclass=0x%02x "
-	    "sernum=\"%s\" "
-	    "release=0x%04x "
-#if USB_HAVE_UGEN
-	    "on %s\n"
-#endif
-	    "",
-	    ntype,
-#if USB_HAVE_UGEN
-	    udev->ugen_name,
-#endif
-	    udev->port_no,
-	    UGETW(udev->ddesc.idVendor),
-	    UGETW(udev->ddesc.idProduct),
-	    udev->ddesc.bDeviceClass,
-	    udev->ddesc.bDeviceSubClass,
-	    usb_get_serial(udev),
-	    UGETW(udev->ddesc.bcdDevice)
-#if USB_HAVE_UGEN
-	    , udev->parent_hub != NULL ?
-		udev->parent_hub->ugen_name :
-		device_get_nameunit(device_get_parent(udev->bus->bdev))
-#endif
-	    );
-
-	devctl_queue_data(data);
-}
-#endif
-
 static void
 usb_notify_addq(const char *type, struct usb_device *udev)
 {
 	struct usb_interface *iface;
 	struct sbuf *sb;
 	int i;
-
-#ifndef BURN_BRIDGES
-	usb_notify_addq_compat(type, udev);
-#endif
 
 	/* announce the device */
 	sb = sbuf_new_auto();
