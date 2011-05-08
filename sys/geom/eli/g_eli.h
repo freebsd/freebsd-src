@@ -509,8 +509,6 @@ void g_eli_config(struct gctl_req *req, struct g_class *mp, const char *verb);
 void g_eli_read_done(struct bio *bp);
 void g_eli_write_done(struct bio *bp);
 int g_eli_crypto_rerun(struct cryptop *crp);
-uint8_t *g_eli_crypto_key(struct g_eli_softc *sc, off_t offset,
-    size_t blocksize);
 void g_eli_crypto_ivgen(struct g_eli_softc *sc, off_t offset, u_char *iv,
     size_t size);
 
