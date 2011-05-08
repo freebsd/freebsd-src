@@ -664,7 +664,7 @@ pmap_bootstrap(u_int cpu_impl)
 	pm = kernel_pmap;
 	for (i = 0; i < MAXCPU; i++)
 		pm->pm_context[i] = TLB_CTX_KERNEL;
-	CPU_ZERO(&pm->pm_active);
+	CPU_FILL(&pm->pm_active);
 
 	/*
 	 * Flush all non-locked TLB entries possibly left over by the
