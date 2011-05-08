@@ -550,21 +550,6 @@ iwn_attach(device_t dev)
 	/* Clear pending interrupts. */
 	IWN_WRITE(sc, IWN_INT, 0xffffffff);
 
-	/* Count the number of available chains. */
-	sc->ntxchains =
-	    ((sc->txchainmask >> 2) & 1) +
-	    ((sc->txchainmask >> 1) & 1) +
-	    ((sc->txchainmask >> 0) & 1);
-	sc->nrxchains =
-	    ((sc->rxchainmask >> 2) & 1) +
-	    ((sc->rxchainmask >> 1) & 1) +
-	    ((sc->rxchainmask >> 0) & 1);
-	if (bootverbose) {
-		device_printf(dev, "MIMO %dT%dR, %.4s, address %6D\n",
-		    sc->ntxchains, sc->nrxchains, sc->eeprom_domain,
-		    macaddr, ":");
-	}
-
 	ifp = sc->sc_ifp = if_alloc(IFT_IEEE80211);
 	if (ifp == NULL) {
 		device_printf(dev, "can not allocate ifnet structure\n");
@@ -591,6 +576,28 @@ iwn_attach(device_t dev)
 		;
 	if (sc->hw_type != IWN_HW_REV_TYPE_4965)
 		ic->ic_caps |= IEEE80211_C_BGSCAN; /* background scanning */
+
+	/* Read MAC address, channels, etc from EEPROM. */
+	if ((error = iwn_read_eeprom(sc, macaddr)) != 0) {
+		device_printf(dev, "could not read EEPROM, error %d\n",
+		    error);
+		goto fail;
+	}
+
+	/* Count the number of available chains. */
+	sc->ntxchains =
+	    ((sc->txchainmask >> 2) & 1) +
+	    ((sc->txchainmask >> 1) & 1) +
+	    ((sc->txchainmask >> 0) & 1);
+	sc->nrxchains =
+	    ((sc->rxchainmask >> 2) & 1) +
+	    ((sc->rxchainmask >> 1) & 1) +
+	    ((sc->rxchainmask >> 0) & 1);
+	if (bootverbose) {
+		device_printf(dev, "MIMO %dT%dR, %.4s, address %6D\n",
+		    sc->ntxchains, sc->nrxchains, sc->eeprom_domain,
+		    macaddr, ":");
+	}
 
 #if 0	/* HT */
 	/* XXX disable until HT channel setup works */
@@ -622,13 +629,6 @@ iwn_attach(device_t dev)
 	else
 		ic->ic_htcaps |= IEEE80211_HTCAP_SMPS_DIS;
 #endif
-
-	/* Read MAC address, channels, etc from EEPROM. */
-	if ((error = iwn_read_eeprom(sc, macaddr)) != 0) {
-		device_printf(dev, "could not read EEPROM, error %d\n",
-		    error);
-		goto fail;
-	}
 
 #if 0	/* HT */
 	/* Set supported HT rates. */
