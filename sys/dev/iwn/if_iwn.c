@@ -251,11 +251,11 @@ static uint8_t	*ieee80211_add_ssid(uint8_t *, const uint8_t *, u_int);
 static int	iwn_scan(struct iwn_softc *);
 static int	iwn_auth(struct iwn_softc *, struct ieee80211vap *vap);
 static int	iwn_run(struct iwn_softc *, struct ieee80211vap *vap);
+static int	iwn_ampdu_rx_start(struct ieee80211_node *,
+		    struct ieee80211_rx_ampdu *, int, int, int);
+static void	iwn_ampdu_rx_stop(struct ieee80211_node *,
+		    struct ieee80211_rx_ampdu *);
 #if 0	/* HT */
-static int	iwn_ampdu_rx_start(struct ieee80211com *,
-		    struct ieee80211_node *, uint8_t);
-static void	iwn_ampdu_rx_stop(struct ieee80211com *,
-		    struct ieee80211_node *, uint8_t);
 static int	iwn_ampdu_tx_start(struct ieee80211com *,
 		    struct ieee80211_node *, uint8_t);
 static void	iwn_ampdu_tx_stop(struct ieee80211com *,
@@ -653,9 +653,11 @@ iwn_attach(device_t dev)
 	ic->ic_vap_delete = iwn_vap_delete;
 	ic->ic_raw_xmit = iwn_raw_xmit;
 	ic->ic_node_alloc = iwn_node_alloc;
-#if 0	/* HT */
+	sc->sc_ampdu_rx_start = ic->ic_ampdu_rx_start;
 	ic->ic_ampdu_rx_start = iwn_ampdu_rx_start;
+	sc->sc_ampdu_rx_stop = ic->ic_ampdu_rx_stop;
 	ic->ic_ampdu_rx_stop = iwn_ampdu_rx_stop;
+#if 0	/* HT */
 	ic->ic_ampdu_tx_start = iwn_ampdu_tx_start;
 	ic->ic_ampdu_tx_stop = iwn_ampdu_tx_stop;
 #endif
@@ -2434,6 +2436,8 @@ iwn_rx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 
 	/* Send the frame to the 802.11 layer. */
 	if (ni != NULL) {
+		if (ni->ni_flags & IEEE80211_NODE_HT)
+			m->m_flags |= M_AMPDU;
 		(void)ieee80211_input(ni, m, rssi - nf, nf);
 		/* Node is no longer needed. */
 		ieee80211_free_node(ni);
@@ -3765,7 +3769,8 @@ iwn_cmd(struct iwn_softc *sc, int code, const void *buf, int size, int async)
 	bus_addr_t paddr;
 	int totlen, error;
 
-	IWN_LOCK_ASSERT(sc);
+	if (async == 0)
+		IWN_LOCK_ASSERT(sc);
 
 	desc = &ring->desc[ring->cur];
 	data = &ring->data[ring->cur];
@@ -5321,30 +5326,39 @@ iwn_run(struct iwn_softc *sc, struct ieee80211vap *vap)
 #undef MS
 }
 
-#if 0	/* HT */
 /*
  * This function is called by upper layer when an ADDBA request is received
  * from another STA and before the ADDBA response is sent.
  */
 static int
-iwn_ampdu_rx_start(struct ieee80211com *ic, struct ieee80211_node *ni,
-    uint8_t tid)
+iwn_ampdu_rx_start(struct ieee80211_node *ni, struct ieee80211_rx_ampdu *rap,
+    int baparamset, int batimeout, int baseqctl)
 {
-	struct ieee80211_rx_ba *ba = &ni->ni_rx_ba[tid];
-	struct iwn_softc *sc = ic->ic_softc;
+#define MS(_v, _f)	(((_v) & _f) >> _f##_S)
+	struct iwn_softc *sc = ni->ni_ic->ic_ifp->if_softc;
 	struct iwn_ops *ops = &sc->ops;
 	struct iwn_node *wn = (void *)ni;
 	struct iwn_node_info node;
+	uint16_t ssn;
+	uint8_t tid;
+	int error;
+
+	tid = MS(le16toh(baparamset), IEEE80211_BAPS_TID);
+	ssn = MS(le16toh(baseqctl), IEEE80211_BASEQ_START);
 
 	memset(&node, 0, sizeof node);
 	node.id = wn->id;
 	node.control = IWN_NODE_UPDATE;
 	node.flags = IWN_FLAG_SET_ADDBA;
 	node.addba_tid = tid;
-	node.addba_ssn = htole16(ba->ba_winstart);
+	node.addba_ssn = htole16(ssn);
 	DPRINTF(sc, IWN_DEBUG_RECV, "ADDBA RA=%d TID=%d SSN=%d\n",
-	    wn->id, tid, ba->ba_winstart);
-	return ops->add_node(sc, &node, 1);
+	    wn->id, tid, ssn);
+	error = ops->add_node(sc, &node, 1);
+	if (error != 0)
+		return error;
+	return sc->sc_ampdu_rx_start(ni, rap, baparamset, batimeout, baseqctl);
+#undef MS
 }
 
 /*
@@ -5352,13 +5366,20 @@ iwn_ampdu_rx_start(struct ieee80211com *ic, struct ieee80211_node *ni,
  * Block Ack agreement (eg. uppon receipt of a DELBA frame).
  */
 static void
-iwn_ampdu_rx_stop(struct ieee80211com *ic, struct ieee80211_node *ni,
-    uint8_t tid)
+iwn_ampdu_rx_stop(struct ieee80211_node *ni, struct ieee80211_rx_ampdu *rap)
 {
-	struct iwn_softc *sc = ic->ic_softc;
+	struct ieee80211com *ic = ni->ni_ic;
+	struct iwn_softc *sc = ic->ic_ifp->if_softc;
 	struct iwn_ops *ops = &sc->ops;
 	struct iwn_node *wn = (void *)ni;
 	struct iwn_node_info node;
+	uint8_t tid;
+
+	/* XXX: tid as an argument */
+	for (tid = 0; tid < WME_NUM_TID; tid++) {
+		if (&ni->ni_rx_ampdu[tid] == rap)
+			break;
+	}
 
 	memset(&node, 0, sizeof node);
 	node.id = wn->id;
@@ -5367,8 +5388,10 @@ iwn_ampdu_rx_stop(struct ieee80211com *ic, struct ieee80211_node *ni,
 	node.delba_tid = tid;
 	DPRINTF(sc, IWN_DEBUG_RECV, "DELBA RA=%d TID=%d\n", wn->id, tid);
 	(void)ops->add_node(sc, &node, 1);
+	sc->sc_ampdu_rx_stop(ni, rap);
 }
 
+#if 0 /* HT */
 /*
  * This function is called by upper layer when an ADDBA response is received
  * from another STA.
