@@ -1285,13 +1285,26 @@ ar5416SetReset(struct ath_hal *ah, int type)
 void
 ar5416InitChainMasks(struct ath_hal *ah)
 {
-	if (AH5416(ah)->ah_rx_chainmask == 0x5 ||
-	    AH5416(ah)->ah_tx_chainmask == 0x5)
-		OS_REG_WRITE(ah, AR_PHY_ANALOG_SWAP, AR_PHY_SWAP_ALT_CHAIN);
-	/* Setup Chain Masks */
-	OS_REG_WRITE(ah, AR_PHY_RX_CHAINMASK, AH5416(ah)->ah_rx_chainmask);
-	OS_REG_WRITE(ah, AR_PHY_CAL_CHAINMASK, AH5416(ah)->ah_rx_chainmask);
+	int rx_chainmask = AH5416(ah)->ah_rx_chainmask;
+
+	if (rx_chainmask)
+		OS_REG_SET_BIT(ah, AR_PHY_ANALOG_SWAP, AR_PHY_SWAP_ALT_CHAIN);
+
+	/*
+	 * Workaround for OWL 1.0 calibration failure; enable multi-chain;
+	 * then set true mask after calibration.
+	 */
+	if (IS_5416V1(ah) && (rx_chainmask == 0x5 || rx_chainmask == 0x3)) {
+		OS_REG_WRITE(ah, AR_PHY_RX_CHAINMASK, 0x7);
+		OS_REG_WRITE(ah, AR_PHY_CAL_CHAINMASK, 0x7);
+	} else {
+		OS_REG_WRITE(ah, AR_PHY_RX_CHAINMASK, AH5416(ah)->ah_rx_chainmask);
+		OS_REG_WRITE(ah, AR_PHY_CAL_CHAINMASK, AH5416(ah)->ah_rx_chainmask);
+	}
 	OS_REG_WRITE(ah, AR_SELFGEN_MASK, AH5416(ah)->ah_tx_chainmask);
+
+	if (AH5416(ah)->ah_tx_chainmask == 0x5)
+		OS_REG_SET_BIT(ah, AR_PHY_ANALOG_SWAP, AR_PHY_SWAP_ALT_CHAIN);
 
 	if (AR_SREV_HOWL(ah)) {
 		OS_REG_WRITE(ah, AR_PHY_ANALOG_SWAP,
@@ -1299,12 +1312,19 @@ ar5416InitChainMasks(struct ath_hal *ah)
 	}
 }
 
+/*
+ * Work-around for Owl 1.0 calibration failure.
+ *
+ * ar5416InitChainMasks sets the RX chainmask to 0x7 if it's Owl 1.0
+ * due to init calibration failures. ar5416RestoreChainMask restores
+ * these registers to the correct setting.
+ */
 void
 ar5416RestoreChainMask(struct ath_hal *ah)
 {
 	int rx_chainmask = AH5416(ah)->ah_rx_chainmask;
 
-	if ((rx_chainmask == 0x5) || (rx_chainmask == 0x3)) {
+	if (IS_5416V1(ah) && (rx_chainmask == 0x5 || rx_chainmask == 0x3)) {
 		OS_REG_WRITE(ah, AR_PHY_RX_CHAINMASK, rx_chainmask);
 		OS_REG_WRITE(ah, AR_PHY_CAL_CHAINMASK, rx_chainmask);
 	}
