@@ -199,7 +199,6 @@ static void	iwn5000_update_sched(struct iwn_softc *, int, int, uint8_t,
 #ifdef notyet
 static void	iwn5000_reset_sched(struct iwn_softc *, int, int);
 #endif
-static uint8_t	iwn_plcp_signal(int);
 static int	iwn_tx_data(struct iwn_softc *, struct mbuf *,
 		    struct ieee80211_node *);
 static int	iwn_tx_data_raw(struct iwn_softc *, struct mbuf *,
@@ -2094,15 +2093,48 @@ iwn_node_alloc(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN])
 	return malloc(sizeof (struct iwn_node), M_80211_NODE,M_NOWAIT | M_ZERO);
 }
 
+static __inline int
+rate2plcp(int rate)
+{
+	switch (rate & 0xff) {
+	case 12:	return 0xd;
+	case 18:	return 0xf;
+	case 24:	return 0x5;
+	case 36:	return 0x7;
+	case 48:	return 0x9;
+	case 72:	return 0xb;
+	case 96:	return 0x1;
+	case 108:	return 0x3;
+	case 2:		return 10;
+	case 4:		return 20;
+	case 11:	return 55;
+	case 22:	return 110;
+	}
+	return 0;
+}
+
 static void
 iwn_newassoc(struct ieee80211_node *ni, int isnew)
 {
+	struct ieee80211com *ic = ni->ni_ic;
+	struct iwn_softc *sc = ic->ic_ifp->if_softc;
 	struct iwn_node *wn = (void *)ni;
-	int ridx, i;
+	uint8_t txant;
+	int i, plcp, rate, ridx;
+
+	/* Use the first valid TX antenna. */
+	txant = IWN_LSB(sc->txchainmask);
 
 	for (i = 0; i < ni->ni_rates.rs_nrates; i++) {
-		ridx = iwn_plcp_signal(ni->ni_rates.rs_rates[i]);
-		wn->ridx[i] = ridx;
+		rate = ni->ni_rates.rs_rates[i] & IEEE80211_RATE_VAL;
+		plcp = rate2plcp(rate);
+		ridx = ic->ic_rt->rateCodeToIndex[rate];
+
+		if (ridx < IWN_RIDX_OFDM6 &&
+		    IEEE80211_IS_CHAN_2GHZ(ni->ni_chan))
+			plcp |= IWN_RFLAG_CCK;
+		plcp |= IWN_RFLAG_ANT(txant);
+		wn->ridx[rate] = htole32(plcp);
 	}
 }
 
@@ -3087,18 +3119,6 @@ iwn5000_reset_sched(struct iwn_softc *sc, int qid, int idx)
 }
 #endif
 
-static uint8_t
-iwn_plcp_signal(int rate) {
-	int i;
-
-	for (i = 0; i < IWN_RIDX_MAX + 1; i++) {
-		if ((rate & IEEE80211_RATE_VAL) == iwn_rates[i].rate)
-			return i;
-	}
-
-	return 0;
-}
-
 static int
 iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 {
@@ -3111,7 +3131,6 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 	struct iwn_tx_data *data;
 	struct iwn_tx_cmd *cmd;
 	struct iwn_cmd_data *tx;
-	const struct iwn_rate *rinfo;
 	struct ieee80211_frame *wh;
 	struct ieee80211_key *k = NULL;
 	struct mbuf *m1;
@@ -3155,8 +3174,7 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 		(void) ieee80211_ratectl_rate(ni, NULL, 0);
 		rate = ni->ni_txrate;
 	}
-	ridx = iwn_plcp_signal(rate);
-	rinfo = &iwn_rates[ridx];
+	ridx = ic->ic_rt->rateCodeToIndex[rate];
 
 	/* Encrypt the frame if need be. */
 	if (wh->i_fc[1] & IEEE80211_FC1_WEP) {
@@ -3175,7 +3193,7 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 		struct iwn_tx_radiotap_header *tap = &sc->sc_txtap;
 
 		tap->wt_flags = 0;
-		tap->wt_rate = rinfo->rate;
+		tap->wt_rate = rate;
 		if (k != NULL)
 			tap->wt_flags |= IEEE80211_RADIOTAP_F_WEP;
 
@@ -3262,14 +3280,13 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 	tx->rts_ntries = 60;
 	tx->data_ntries = 15;
 	tx->lifetime = htole32(IWN_LIFETIME_INFINITE);
-	tx->plcp = rinfo->plcp;
-	tx->rflags = rinfo->flags;
+	tx->rate = wn->ridx[rate];
 	if (tx->id == sc->broadcast_id) {
 		/* Group or management frame. */
 		tx->linkq = 0;
 		/* XXX Alternate between antenna A and B? */
 		txant = IWN_LSB(sc->txchainmask);
-		tx->rflags |= IWN_RFLAG_ANT(txant);
+		tx->rate |= htole32(IWN_RFLAG_ANT(txant));
 	} else {
 		tx->linkq = ni->ni_rates.rs_nrates - ridx - 1;
 		flags |= IWN_TX_LINKQ;	/* enable MRR */
@@ -3364,7 +3381,6 @@ static int
 iwn_tx_data_raw(struct iwn_softc *sc, struct mbuf *m,
     struct ieee80211_node *ni, const struct ieee80211_bpf_params *params)
 {
-	const struct iwn_rate *rinfo;
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ifp->if_l2com;
@@ -3395,13 +3411,12 @@ iwn_tx_data_raw(struct iwn_softc *sc, struct mbuf *m,
 
 	/* Choose a TX rate index. */
 	rate = params->ibp_rate0;
-	if (!ieee80211_isratevalid(ic->ic_rt, rate)) {
+	ridx = ic->ic_rt->rateCodeToIndex[rate];
+	if (ridx == (uint8_t)-1) {
 		/* XXX fall back to mcast/mgmt rate? */
 		m_freem(m);
 		return EINVAL;
 	}
-	ridx = iwn_plcp_signal(rate);
-	rinfo = &iwn_rates[ridx];
 
 	totlen = m->m_pkthdr.len;
 
@@ -3472,12 +3487,14 @@ iwn_tx_data_raw(struct iwn_softc *sc, struct mbuf *m,
 	tx->rts_ntries = params->ibp_try1;
 	tx->data_ntries = params->ibp_try0;
 	tx->lifetime = htole32(IWN_LIFETIME_INFINITE);
-	tx->plcp = rinfo->plcp;
-	tx->rflags = rinfo->flags;
+	tx->rate = htole32(rate2plcp(rate));
+	if (ridx < IWN_RIDX_OFDM6 &&
+	    IEEE80211_IS_CHAN_2GHZ(ni->ni_chan))
+		tx->rate |= htole32(IWN_RFLAG_CCK);
 	/* Group or management frame. */
 	tx->linkq = 0;
 	txant = IWN_LSB(sc->txchainmask);
-	tx->rflags |= IWN_RFLAG_ANT(txant);
+	tx->rate |= htole32(IWN_RFLAG_ANT(txant));
 	/* Set physical address of "scratch area". */
 	tx->loaddr = htole32(IWN_LOADDR(data->scratch_paddr));
 	tx->hiaddr = IWN_HIADDR(data->scratch_paddr);
@@ -3817,9 +3834,8 @@ iwn_set_link_quality(struct iwn_softc *sc, struct ieee80211_node *ni)
 	struct iwn_node *wn = (void *)ni;
 	struct ieee80211_rateset *rs = &ni->ni_rates;
 	struct iwn_cmd_link_quality linkq;
-	const struct iwn_rate *rinfo;
 	uint8_t txant;
-	int i, txrate;
+	int i, rate, txrate;
 
 	/* Use the first valid TX antenna. */
 	txant = IWN_LSB(sc->txchainmask);
@@ -3835,10 +3851,9 @@ iwn_set_link_quality(struct iwn_softc *sc, struct ieee80211_node *ni)
 	/* Start at highest available bit-rate. */
 	txrate = rs->rs_nrates - 1;
 	for (i = 0; i < IWN_MAX_TX_RETRIES; i++) {
-		rinfo = &iwn_rates[wn->ridx[txrate]];
-		linkq.retry[i].plcp = rinfo->plcp;
-		linkq.retry[i].rflags = rinfo->flags;
-		linkq.retry[i].rflags |= IWN_RFLAG_ANT(txant);
+		rate = rs->rs_rates[txrate] & IEEE80211_RATE_VAL;
+		linkq.retry[i] = wn->ridx[rate];
+
 		/* Next retry at immediate lower bit-rate. */
 		if (txrate > 0)
 			txrate--;
@@ -3857,7 +3872,6 @@ iwn_add_broadcast_node(struct iwn_softc *sc, int async)
 	struct ieee80211com *ic = ifp->if_l2com;
 	struct iwn_node_info node;
 	struct iwn_cmd_link_quality linkq;
-	const struct iwn_rate *rinfo;
 	uint8_t txant;
 	int i, error;
 
@@ -3881,16 +3895,13 @@ iwn_add_broadcast_node(struct iwn_softc *sc, int async)
 
 	/* Use lowest mandatory bit-rate. */
 	if (IEEE80211_IS_CHAN_5GHZ(ic->ic_curchan))
-		rinfo = &iwn_rates[IWN_RIDX_OFDM6];
+		linkq.retry[0] = htole32(0xd);
 	else
-		rinfo = &iwn_rates[IWN_RIDX_CCK1];
-	linkq.retry[0].plcp = rinfo->plcp;
-	linkq.retry[0].rflags = rinfo->flags;
-	linkq.retry[0].rflags |= IWN_RFLAG_ANT(txant);
+		linkq.retry[0] = htole32(10 | IWN_RFLAG_CCK);
+	linkq.retry[0] |= htole32(IWN_RFLAG_ANT(txant));
 	/* Use same bit-rate for all TX retries. */
 	for (i = 1; i < IWN_MAX_TX_RETRIES; i++) {
-		linkq.retry[i].plcp = linkq.retry[0].plcp;
-		linkq.retry[i].rflags = linkq.retry[0].rflags;
+		linkq.retry[i] = linkq.retry[0];
 	}
 	return iwn_cmd(sc, IWN_CMD_LINK_QUALITY, &linkq, sizeof linkq, async);
 }
@@ -4991,18 +5002,17 @@ iwn_scan(struct iwn_softc *sc)
 
 	if (IEEE80211_IS_CHAN_A(ic->ic_curchan)) {
 		/* Send probe requests at 6Mbps. */
-		tx->plcp = iwn_rates[IWN_RIDX_OFDM6].plcp;
+		tx->rate = htole32(0xd);
 		rs = &ic->ic_sup_rates[IEEE80211_MODE_11A];
 	} else {
 		hdr->flags = htole32(IWN_RXON_24GHZ | IWN_RXON_AUTO);
 		/* Send probe requests at 1Mbps. */
-		tx->plcp = iwn_rates[IWN_RIDX_CCK1].plcp;
-		tx->rflags = IWN_RFLAG_CCK;
+		tx->rate = htole32(10 | IWN_RFLAG_CCK);
 		rs = &ic->ic_sup_rates[IEEE80211_MODE_11G];
 	}
 	/* Use the first valid TX antenna. */
 	txant = IWN_LSB(sc->txchainmask);
-	tx->rflags |= IWN_RFLAG_ANT(txant);
+	tx->rate |= htole32(IWN_RFLAG_ANT(txant));
 
 	essid = (struct iwn_scan_essid *)(tx + 1);
 	if (ss->ss_ssid[0].len != 0) {

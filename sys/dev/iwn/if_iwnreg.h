@@ -625,8 +625,8 @@ struct iwn4965_node_info {
 	uint32_t	reserved7;
 } __packed;
 
-#define IWN_RFLAG_CCK		(1 << 1)
-#define IWN_RFLAG_ANT(x)	((x) << 6)
+#define IWN_RFLAG_CCK		(1 << 9)
+#define IWN_RFLAG_ANT(x)	((x) << 14)
 
 /* Structure for command IWN_CMD_TX_DATA. */
 struct iwn_cmd_data {
@@ -647,9 +647,7 @@ struct iwn_cmd_data {
 #define IWN_TX_NEED_PADDING	(1 << 20)
 
 	uint32_t	scratch;
-	uint8_t		plcp;
-	uint8_t		rflags;
-	uint16_t	xrflags;
+	uint32_t	rate;
 
 	uint8_t		id;
 	uint8_t		security;
@@ -690,11 +688,7 @@ struct iwn_cmd_link_quality {
 	uint8_t		ampdu_threshold;
 	uint8_t		ampdu_max;
 	uint32_t	reserved2;
-	struct {
-		uint8_t		plcp;
-		uint8_t		rflags;
-		uint16_t	xrflags;
-	} __packed	retry[IWN_MAX_TX_RETRIES];
+	uint32_t	retry[IWN_MAX_TX_RETRIES];
 	uint32_t	reserved3;
 } __packed;
 
@@ -1065,9 +1059,7 @@ struct iwn4965_tx_stat {
 	uint8_t		btkillcnt;
 	uint8_t		rtsfailcnt;
 	uint8_t		ackfailcnt;
-	uint8_t		rate;
-	uint8_t		rflags;
-	uint16_t	xrflags;
+	uint32_t	rate;
 	uint16_t	duration;
 	uint16_t	reserved;
 	uint32_t	power[2];
@@ -1079,9 +1071,7 @@ struct iwn5000_tx_stat {
 	uint8_t		btkillcnt;
 	uint8_t		rtsfailcnt;
 	uint8_t		ackfailcnt;
-	uint8_t		rate;
-	uint8_t		rflags;
-	uint16_t	xrflags;
+	uint32_t	rate;
 	uint16_t	duration;
 	uint16_t	reserved;
 	uint32_t	power[2];
@@ -1136,9 +1126,7 @@ struct iwn_rx_stat {
 
 	uint16_t	chan;
 	uint8_t		phybuf[32];
-	uint8_t		rate;
-	uint8_t		rflags;
-	uint16_t	xrflags;
+	uint32_t	rate;
 	uint16_t	len;
 	uint16_t	reserve3;
 } __packed;
@@ -1533,26 +1521,6 @@ static const struct iwn_chan_band {
 /* HW rate indices. */
 #define IWN_RIDX_CCK1	0
 #define IWN_RIDX_OFDM6	4
-
-static const struct iwn_rate {
-	uint8_t	rate;
-	uint8_t	plcp;
-	uint8_t	flags;
-} iwn_rates[IWN_RIDX_MAX + 1] = {
-	{   2,  10, IWN_RFLAG_CCK },
-	{   4,  20, IWN_RFLAG_CCK },
-	{  11,  55, IWN_RFLAG_CCK },
-	{  22, 110, IWN_RFLAG_CCK },
-	{  12, 0xd, 0 },
-	{  18, 0xf, 0 },
-	{  24, 0x5, 0 },
-	{  36, 0x7, 0 },
-	{  48, 0x9, 0 },
-	{  72, 0xb, 0 },
-	{  96, 0x1, 0 },
-	{ 108, 0x3, 0 },
-	{ 120, 0x3, 0 }
-};
 
 #define IWN4965_MAX_PWR_INDEX	107
 

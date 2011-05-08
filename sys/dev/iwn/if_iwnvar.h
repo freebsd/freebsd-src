@@ -101,7 +101,7 @@ struct iwn_node {
 	struct	ieee80211_node		ni;	/* must be the first */
 	uint16_t			disable_tid;
 	uint8_t				id;
-	uint8_t				ridx[IEEE80211_RATE_MAXSIZE];
+	uint32_t			ridx[256];
 };
 
 struct iwn_calib_state {
