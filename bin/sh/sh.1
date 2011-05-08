@@ -32,7 +32,7 @@
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd May 5, 2011
+.Dd May 8, 2011
 .Dt SH 1
 .Os
 .Sh NAME
@@ -2591,4 +2591,9 @@ was originally written by
 .Sh BUGS
 The
 .Nm
-utility does not recognize multibyte characters.
+utility does not recognize multibyte characters other than UTF-8.
+Splitting using
+.Va IFS
+and the line editing library
+.Xr editline 3
+do not recognize multibyte characters.
