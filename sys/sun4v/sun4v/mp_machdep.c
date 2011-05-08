@@ -61,6 +61,8 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/queue.h>
+#include <sys/cpuset.h>
 #include <sys/lock.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>
@@ -115,7 +117,7 @@ vm_offset_t mp_tramp;
 
 u_int	mp_boot_mid;
 
-static volatile cpumask_t	shutdown_cpus;
+static volatile cpuset_t	shutdown_cpus;
 
 void cpu_mp_unleash(void *);
 SYSINIT(cpu_mp_unleash, SI_SUB_SMP, SI_ORDER_FIRST, cpu_mp_unleash, NULL);
@@ -221,7 +223,7 @@ cpu_mp_setmaxid(void)
 	char buf[128];
 	int cpus;
 
-	all_cpus = 1 << PCPU_GET(cpuid);
+	CPU_SETOF(PCPU_GET(cpuid), &all_cpus);
 	mp_ncpus = 1;
 
 	cpus = 0;
@@ -292,6 +294,7 @@ cpu_mp_start(void)
 	u_int clock;
 	int cpuid, bp_skipped;
 	u_long s;
+	cpuset_t ocpus;
 
 	root = OF_peer(0);
 	csa = &cpu_start_args;
@@ -328,7 +331,7 @@ cpu_mp_start(void)
 		    cpuid);
 		pc->pc_addr = va;
 
-		all_cpus |= 1 << cpuid;
+		CPU_SET(cpuid, &all_cpus);
 
 		if (mp_ncpus == MAXCPU)
 			break;
@@ -336,7 +339,9 @@ cpu_mp_start(void)
 	printf("%d cpus: UltraSparc T1 Processor (%d.%02d MHz CPU)\n", mp_ncpus,
 	    (clock + 4999) / 1000000, ((clock + 4999) / 10000) % 100);
 
-	PCPU_SET(other_cpus, all_cpus & ~(1 << PCPU_GET(cpuid)));
+	ocpus = all_cpus;
+	CPU_CLR(PCPU_GET(cpuid), &ocpus);
+	PCPU_SET(other_cpus, ocpus);
 	smp_active = 1;
 }
 
@@ -384,6 +389,7 @@ cpu_mp_unleash(void *v)
 void
 cpu_mp_bootstrap(struct pcpu *pc)
 {
+	cpuset_t ocpus;
 	volatile struct cpu_start_args *csa;
 
 	csa = &cpu_start_args;
@@ -404,7 +410,9 @@ cpu_mp_bootstrap(struct pcpu *pc)
 
 	smp_cpus++;
 	KASSERT(curthread != NULL, ("cpu_mp_bootstrap: curthread"));
-	PCPU_SET(other_cpus, all_cpus & ~(1 << curcpu));
+	ocpus = all_cpus;
+	CPU_CLR(curcpu, &ocpus);
+	PCPU_SET(other_cpus, ocpus);
 	printf("AP: #%d\n", curcpu);
 	csa->csa_count--;
 	membar(StoreLoad);
@@ -423,14 +431,22 @@ cpu_mp_bootstrap(struct pcpu *pc)
 void
 cpu_mp_shutdown(void)
 {
+	cpuset_t cpus;
 	int i;
 
 	critical_enter();
 	shutdown_cpus = PCPU_GET(other_cpus);
-	if (stopped_cpus != PCPU_GET(other_cpus))	/* XXX */
-		stop_cpus(stopped_cpus ^ PCPU_GET(other_cpus));
+	cpus = shutdown_cpus;
+
+	/* XXX: Stop all the CPUs which aren't already. */
+	if (CPU_CMP(&stopped_cpus, &cpus)) {
+
+		/* pc_other_cpus is just a flat "on" mask without curcpu. */
+		CPU_NAND(&cpus, &stopped_cpus);
+		stop_cpus(cpus);
+	}
 	i = 0;
-	while (shutdown_cpus != 0) {
+	while (!CPU_EMPTY(&shutdown_cpus)) {
 		if (i++ > 100000) {
 			printf("timeout shutting down CPUs.\n");
 			break;
@@ -450,7 +466,6 @@ void
 cpu_ipi_stop(struct trapframe *tf)
 {
 
-	CTR1(KTR_SMP, "cpu_ipi_stop: stopped %d", curcpu);
 	savectx(&stoppcbs[curcpu]);
 	atomic_set_acq_int(&stopped_cpus, PCPU_GET(cpumask));
 	while ((started_cpus & PCPU_GET(cpumask)) == 0) {
@@ -539,12 +554,14 @@ retry:
 }
 
 void
-ipi_selected(cpumask_t icpus, u_int ipi)
+ipi_selected(cpuset_t icpus, u_int ipi)
 {
-	int i, cpu_count;
+	int cpu_count, cpu;
 	uint16_t *cpulist;
-	cpumask_t cpus;
 	uint64_t ackmask;
+
+	KASSERT(!CPU_ISSET(PCPU_GET(cpuid), &icpus),
+	    ("Invalid passed CPU mask"));
 
 	/* 
 	 * 
@@ -553,14 +570,12 @@ ipi_selected(cpumask_t icpus, u_int ipi)
 	 *    and not in forward wakeup
 	 */
 	cpulist = PCPU_GET(cpulist);
-	cpus = (icpus & ~PCPU_GET(cpumask));
-	
-	for (cpu_count = 0, i = 0; i < 32 && cpus; cpus = cpus >> 1, i++) {
-		if (!(cpus & 0x1))
-			continue;
-		
-		cpulist[cpu_count] = (uint16_t)i;
+
+	for (cpu_count = 0; (cpu = cpusetobj_ffs(&cpus)) != 0 && cpu < MAXCPU;
+	    CPU_CLR(cpu, &cpus)) {
+		cpulist[cpu_count] = (uint16_t)cpu;
 		cpu_count++;
+		
 	}
 
 	cpu_ipi_selected(cpu_count, cpulist, (u_long)tl_ipi_level, ipi, 0,

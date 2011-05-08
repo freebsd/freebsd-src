@@ -1014,7 +1014,12 @@ g_eli_config(struct gctl_req *req, struct g_class *mp, const char *verb)
 		gctl_error(req, "No '%s' argument.", "version");
 		return;
 	}
-	if (*version != G_ELI_VERSION) {
+	while (*version != G_ELI_VERSION) {
+		if (G_ELI_VERSION == G_ELI_VERSION_06 &&
+		    *version == G_ELI_VERSION_05) {
+			/* Compatible. */
+			break;
+		}
 		gctl_error(req, "Userland and kernel parts are out of sync.");
 		return;
 	}

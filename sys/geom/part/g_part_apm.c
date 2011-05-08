@@ -255,7 +255,7 @@ g_part_apm_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 		return (ENOSPC);
 
 	/* APM uses 32-bit LBAs. */
-	last = MIN(pp->mediasize / pp->sectorsize, 0xffffffff) - 1;
+	last = MIN(pp->mediasize / pp->sectorsize, UINT32_MAX) - 1;
 
 	basetable->gpt_first = 2 + basetable->gpt_entries;
 	basetable->gpt_last = last;
@@ -398,6 +398,8 @@ g_part_apm_probe(struct g_part_table *basetable, struct g_consumer *cp)
 		g_free(buf);
 		if (table->ddr.ddr_blksize != pp->sectorsize)
 			return (ENXIO);
+		if (table->ddr.ddr_blkcount > pp->mediasize / pp->sectorsize)
+			return (ENXIO);
 	} else {
 		/*
 		 * Check for Tivo drives, which have no DDR and a different
@@ -412,7 +414,8 @@ g_part_apm_probe(struct g_part_table *basetable, struct g_consumer *cp)
 		}
 		table->ddr.ddr_sig = APM_DDR_SIG;		/* XXX */
 		table->ddr.ddr_blksize = pp->sectorsize;	/* XXX */
-		table->ddr.ddr_blkcount = pp->mediasize / pp->sectorsize;/* XXX */
+		table->ddr.ddr_blkcount =
+		    MIN(pp->mediasize / pp->sectorsize, UINT32_MAX);
 		table->tivo_series1 = 1;
 		g_free(buf);
 	}

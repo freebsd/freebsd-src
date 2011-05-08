@@ -286,6 +286,7 @@ ar5416Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 	ar5416InitIMR(ah, opmode);
 	ar5212SetCoverageClass(ah, AH_PRIVATE(ah)->ah_coverageClass, 1);
 	ar5416InitQoS(ah);
+	/* This may override the AR_DIAG_SW register */
 	ar5416InitUserSettings(ah);
 
 	/*
@@ -520,7 +521,6 @@ ar5416InitBB(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	/* Turn on PLL on 5416 */
 	HALDEBUG(ah, HAL_DEBUG_RESET, "%s %s channel\n",
 	    __func__, IEEE80211_IS_CHAN_5GHZ(chan) ? "5GHz" : "2GHz");
-	AH5416(ah)->ah_initPLL(ah, chan);
 
 	/* Activate the PHY (includes baseband activate and synthesizer on) */
 	OS_REG_WRITE(ah, AR_PHY_ACTIVE, AR_PHY_ACTIVE_EN);
@@ -673,6 +673,10 @@ ar5416ChipReset(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	if (!ar5416SetPowerMode(ah, HAL_PM_AWAKE, AH_TRUE))
 	       return AH_FALSE;
 
+#ifdef notyet
+	ahp->ah_chipFullSleep = AH_FALSE;
+#endif
+
 	AH5416(ah)->ah_initPLL(ah, chan);
 
 	/*
@@ -681,8 +685,7 @@ ar5416ChipReset(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	 * with an active radio can result in corrupted shifts to the
 	 * radio device.
 	 */
-	if (chan != AH_NULL)
-		ar5416SetRfMode(ah, chan);
+	ar5416SetRfMode(ah, chan);
 
 	return AH_TRUE;	
 }
@@ -1102,7 +1105,11 @@ ar5416Disable(struct ath_hal *ah)
 {
 	if (!ar5212SetPowerMode(ah, HAL_PM_AWAKE, AH_TRUE))
 		return AH_FALSE;
-	return ar5416SetResetReg(ah, HAL_RESET_COLD);
+	if (! ar5416SetResetReg(ah, HAL_RESET_COLD))
+		return AH_FALSE;
+
+	AH5416(ah)->ah_initPLL(ah, AH_NULL);
+	return AH_TRUE;
 }
 
 /*
@@ -1114,7 +1121,11 @@ ar5416Disable(struct ath_hal *ah)
 HAL_BOOL
 ar5416PhyDisable(struct ath_hal *ah)
 {
-	return ar5416SetResetReg(ah, HAL_RESET_WARM);
+	if (! ar5416SetResetReg(ah, HAL_RESET_WARM))
+		return AH_FALSE;
+
+	AH5416(ah)->ah_initPLL(ah, AH_NULL);
+	return AH_TRUE;
 }
 
 /*
@@ -1277,21 +1288,32 @@ ar5416SetReset(struct ath_hal *ah, int type)
 	}
     }
 
-    AH5416(ah)->ah_initPLL(ah, AH_NULL);
-
     return AH_TRUE;
 }
 
 void
 ar5416InitChainMasks(struct ath_hal *ah)
 {
-	if (AH5416(ah)->ah_rx_chainmask == 0x5 ||
-	    AH5416(ah)->ah_tx_chainmask == 0x5)
-		OS_REG_WRITE(ah, AR_PHY_ANALOG_SWAP, AR_PHY_SWAP_ALT_CHAIN);
-	/* Setup Chain Masks */
-	OS_REG_WRITE(ah, AR_PHY_RX_CHAINMASK, AH5416(ah)->ah_rx_chainmask);
-	OS_REG_WRITE(ah, AR_PHY_CAL_CHAINMASK, AH5416(ah)->ah_rx_chainmask);
+	int rx_chainmask = AH5416(ah)->ah_rx_chainmask;
+
+	if (rx_chainmask)
+		OS_REG_SET_BIT(ah, AR_PHY_ANALOG_SWAP, AR_PHY_SWAP_ALT_CHAIN);
+
+	/*
+	 * Workaround for OWL 1.0 calibration failure; enable multi-chain;
+	 * then set true mask after calibration.
+	 */
+	if (IS_5416V1(ah) && (rx_chainmask == 0x5 || rx_chainmask == 0x3)) {
+		OS_REG_WRITE(ah, AR_PHY_RX_CHAINMASK, 0x7);
+		OS_REG_WRITE(ah, AR_PHY_CAL_CHAINMASK, 0x7);
+	} else {
+		OS_REG_WRITE(ah, AR_PHY_RX_CHAINMASK, AH5416(ah)->ah_rx_chainmask);
+		OS_REG_WRITE(ah, AR_PHY_CAL_CHAINMASK, AH5416(ah)->ah_rx_chainmask);
+	}
 	OS_REG_WRITE(ah, AR_SELFGEN_MASK, AH5416(ah)->ah_tx_chainmask);
+
+	if (AH5416(ah)->ah_tx_chainmask == 0x5)
+		OS_REG_SET_BIT(ah, AR_PHY_ANALOG_SWAP, AR_PHY_SWAP_ALT_CHAIN);
 
 	if (AR_SREV_HOWL(ah)) {
 		OS_REG_WRITE(ah, AR_PHY_ANALOG_SWAP,
@@ -1299,12 +1321,19 @@ ar5416InitChainMasks(struct ath_hal *ah)
 	}
 }
 
+/*
+ * Work-around for Owl 1.0 calibration failure.
+ *
+ * ar5416InitChainMasks sets the RX chainmask to 0x7 if it's Owl 1.0
+ * due to init calibration failures. ar5416RestoreChainMask restores
+ * these registers to the correct setting.
+ */
 void
 ar5416RestoreChainMask(struct ath_hal *ah)
 {
 	int rx_chainmask = AH5416(ah)->ah_rx_chainmask;
 
-	if ((rx_chainmask == 0x5) || (rx_chainmask == 0x3)) {
+	if (IS_5416V1(ah) && (rx_chainmask == 0x5 || rx_chainmask == 0x3)) {
 		OS_REG_WRITE(ah, AR_PHY_RX_CHAINMASK, rx_chainmask);
 		OS_REG_WRITE(ah, AR_PHY_CAL_CHAINMASK, rx_chainmask);
 	}
@@ -2488,17 +2517,17 @@ ar5416OverrideIni(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	 */
 	OS_REG_SET_BIT(ah, AR_DIAG_SW, (AR_DIAG_RX_DIS | AR_DIAG_RX_ABORT));
 
-        if (AR_SREV_MERLIN_20_OR_LATER(ah)) {
-                val = OS_REG_READ(ah, AR_PCU_MISC_MODE2);
+	if (AR_SREV_MERLIN_10_OR_LATER(ah)) {
+		val = OS_REG_READ(ah, AR_PCU_MISC_MODE2);
+		val &= (~AR_PCU_MISC_MODE2_ADHOC_MCAST_KEYID_ENABLE);
+		if (!AR_SREV_9271(ah))
+			val &= ~AR_PCU_MISC_MODE2_HWWAR1;
 
-                if (!AR_SREV_9271(ah))
-                        val &= ~AR_PCU_MISC_MODE2_HWWAR1;
+		if (AR_SREV_9287_11_OR_LATER(ah))
+			val = val & (~AR_PCU_MISC_MODE2_HWWAR2);
 
-                if (AR_SREV_9287_11_OR_LATER(ah))
-                        val = val & (~AR_PCU_MISC_MODE2_HWWAR2);
-
-                OS_REG_WRITE(ah, AR_PCU_MISC_MODE2, val);
-        }
+		OS_REG_WRITE(ah, AR_PCU_MISC_MODE2, val);
+	}
 
 	/*
 	 * Disable RIFS search on some chips to avoid baseband

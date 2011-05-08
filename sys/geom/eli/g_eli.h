@@ -63,10 +63,19 @@
  * 2 - Added G_ELI_FLAG_READONLY.
  * 3 - Added 'configure' subcommand.
  * 4 - IV is generated from offset converted to little-endian
- *     (flag G_ELI_FLAG_NATIVE_BYTE_ORDER will be set for older versions).
+ *     (the G_ELI_FLAG_NATIVE_BYTE_ORDER flag will be set for older versions).
  * 5 - Added multiple encrypton keys and AES-XTS support.
+ * 6 - Fixed usage of multiple keys for authenticated providers (the
+ *     G_ELI_FLAG_FIRST_KEY flag will be set for older versions).
  */
-#define	G_ELI_VERSION		5
+#define	G_ELI_VERSION_00	0
+#define	G_ELI_VERSION_01	1
+#define	G_ELI_VERSION_02	2
+#define	G_ELI_VERSION_03	3
+#define	G_ELI_VERSION_04	4
+#define	G_ELI_VERSION_05	5
+#define	G_ELI_VERSION_06	6
+#define	G_ELI_VERSION		G_ELI_VERSION_06
 
 /* ON DISK FLAGS. */
 /* Use random, onetime keys. */
@@ -92,6 +101,8 @@
 #define	G_ELI_FLAG_SINGLE_KEY		0x00080000
 /* Device suspended. */
 #define	G_ELI_FLAG_SUSPEND		0x00100000
+/* Provider uses first encryption key. */
+#define	G_ELI_FLAG_FIRST_KEY		0x00200000
 
 #define	G_ELI_NEW_BIO	255
 
@@ -254,7 +265,7 @@ eli_metadata_decode_v0(const u_char *data, struct g_eli_metadata *md)
 }
 
 static __inline int
-eli_metadata_decode_v1v2v3v4v5(const u_char *data, struct g_eli_metadata *md)
+eli_metadata_decode_v1v2v3v4v5v6(const u_char *data, struct g_eli_metadata *md)
 {
 	MD5_CTX ctx;
 	const u_char *p;
@@ -285,15 +296,16 @@ eli_metadata_decode(const u_char *data, struct g_eli_metadata *md)
 	bcopy(data, md->md_magic, sizeof(md->md_magic));
 	md->md_version = le32dec(data + sizeof(md->md_magic));
 	switch (md->md_version) {
-	case 0:
+	case G_ELI_VERSION_00:
 		error = eli_metadata_decode_v0(data, md);
 		break;
-	case 1:
-	case 2:
-	case 3:
-	case 4:
-	case 5:
-		error = eli_metadata_decode_v1v2v3v4v5(data, md);
+	case G_ELI_VERSION_01:
+	case G_ELI_VERSION_02:
+	case G_ELI_VERSION_03:
+	case G_ELI_VERSION_04:
+	case G_ELI_VERSION_05:
+	case G_ELI_VERSION_06:
+		error = eli_metadata_decode_v1v2v3v4v5v6(data, md);
 		break;
 	default:
 		error = EINVAL;
@@ -509,8 +521,6 @@ void g_eli_config(struct gctl_req *req, struct g_class *mp, const char *verb);
 void g_eli_read_done(struct bio *bp);
 void g_eli_write_done(struct bio *bp);
 int g_eli_crypto_rerun(struct cryptop *crp);
-uint8_t *g_eli_crypto_key(struct g_eli_softc *sc, off_t offset,
-    size_t blocksize);
 void g_eli_crypto_ivgen(struct g_eli_softc *sc, off_t offset, u_char *iv,
     size_t size);
 

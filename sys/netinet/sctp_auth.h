@@ -156,7 +156,9 @@ sctp_copy_skeylist(const struct sctp_keyhead *src,
 
 /* ref counts on shared keys, by key id */
 extern void sctp_auth_key_acquire(struct sctp_tcb *stcb, uint16_t keyid);
-extern void sctp_auth_key_release(struct sctp_tcb *stcb, uint16_t keyid);
+extern void 
+sctp_auth_key_release(struct sctp_tcb *stcb, uint16_t keyid,
+    int so_locked);
 
 
 /* hmac list handling */

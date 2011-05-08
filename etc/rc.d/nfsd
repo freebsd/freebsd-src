@@ -33,13 +33,13 @@ nfsd_precmd()
 	else
 		rc_flags="${nfs_server_flags}"
 
-		# Load the modules now, so that the vfs.newnfs sysctl
+		# Load the modules now, so that the vfs.nfsd sysctl
 		# oids are available.
 		load_kld nfsd
 
 		if checkyesno nfs_reserved_port_only; then
 			echo 'NFS on reserved port only=YES'
-			sysctl vfs.newnfs.nfs_privport=1 > /dev/null
+			sysctl vfs.nfsd.nfs_privport=1 > /dev/null
 		fi
 
 		if checkyesno nfsv4_server_enable; then
@@ -52,7 +52,7 @@ nfsd_precmd()
 			fi
 		else
 			echo 'NFSv4 is disabled'
-			sysctl vfs.newnfs.server_max_nfsvers=3 > /dev/null
+			sysctl vfs.nfsd.server_max_nfsvers=3 > /dev/null
 		fi
 	fi
 
