@@ -1784,7 +1784,10 @@ iwn5000_read_eeprom(struct iwn_softc *sc)
 
 	/* Read the list of authorized channels (20MHz ones only). */
 	for (i = 0; i < 5; i++) {
-		addr = base + iwn5000_regulatory_bands[i];
+		if (sc->hw_type >= IWN_HW_REV_TYPE_6000)
+			addr = base + iwn6000_regulatory_bands[i];
+		else
+			addr = base + iwn5000_regulatory_bands[i];
 		iwn_read_eeprom_channels(sc, i, addr);
 	}
 
