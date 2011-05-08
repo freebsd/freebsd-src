@@ -286,6 +286,7 @@ ar5416Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 	ar5416InitIMR(ah, opmode);
 	ar5212SetCoverageClass(ah, AH_PRIVATE(ah)->ah_coverageClass, 1);
 	ar5416InitQoS(ah);
+	/* This may override the AR_DIAG_SW register */
 	ar5416InitUserSettings(ah);
 
 	/*
@@ -2508,8 +2509,9 @@ ar5416OverrideIni(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	 */
 	OS_REG_SET_BIT(ah, AR_DIAG_SW, (AR_DIAG_RX_DIS | AR_DIAG_RX_ABORT));
 
-        if (AR_SREV_MERLIN_20_OR_LATER(ah)) {
+        if (AR_SREV_MERLIN_10_OR_LATER(ah)) {
                 val = OS_REG_READ(ah, AR_PCU_MISC_MODE2);
+		val &= (~AR_PCU_MISC_MODE2_ADHOC_MCAST_KEYID_ENABLE);
 
                 if (!AR_SREV_9271(ah))
                         val &= ~AR_PCU_MISC_MODE2_HWWAR1;
