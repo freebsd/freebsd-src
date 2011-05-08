@@ -63,10 +63,19 @@
  * 2 - Added G_ELI_FLAG_READONLY.
  * 3 - Added 'configure' subcommand.
  * 4 - IV is generated from offset converted to little-endian
- *     (flag G_ELI_FLAG_NATIVE_BYTE_ORDER will be set for older versions).
+ *     (the G_ELI_FLAG_NATIVE_BYTE_ORDER flag will be set for older versions).
  * 5 - Added multiple encrypton keys and AES-XTS support.
+ * 6 - Fixed usage of multiple keys for authenticated providers (the
+ *     G_ELI_FLAG_FIRST_KEY flag will be set for older versions).
  */
-#define	G_ELI_VERSION		5
+#define	G_ELI_VERSION_00	0
+#define	G_ELI_VERSION_01	1
+#define	G_ELI_VERSION_02	2
+#define	G_ELI_VERSION_03	3
+#define	G_ELI_VERSION_04	4
+#define	G_ELI_VERSION_05	5
+#define	G_ELI_VERSION_06	6
+#define	G_ELI_VERSION		G_ELI_VERSION_06
 
 /* ON DISK FLAGS. */
 /* Use random, onetime keys. */
@@ -92,6 +101,8 @@
 #define	G_ELI_FLAG_SINGLE_KEY		0x00080000
 /* Device suspended. */
 #define	G_ELI_FLAG_SUSPEND		0x00100000
+/* Provider uses first encryption key. */
+#define	G_ELI_FLAG_FIRST_KEY		0x00200000
 
 #define	G_ELI_NEW_BIO	255
 

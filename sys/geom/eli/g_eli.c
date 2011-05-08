@@ -329,7 +329,12 @@ g_eli_newsession(struct g_eli_worker *wr)
 	crie.cri_klen = sc->sc_ekeylen;
 	if (sc->sc_ealgo == CRYPTO_AES_XTS)
 		crie.cri_klen <<= 1;
-	crie.cri_key = sc->sc_ekey;
+	if ((sc->sc_flags & G_ELI_FLAG_FIRST_KEY) != 0) {
+		crie.cri_key = g_eli_key_hold(sc, 0,
+		    LIST_FIRST(&sc->sc_geom->consumer)->provider->sectorsize);
+	} else {
+		crie.cri_key = sc->sc_ekey;
+	}
 	if (sc->sc_flags & G_ELI_FLAG_AUTH) {
 		bzero(&cria, sizeof(cria));
 		cria.cri_alg = sc->sc_aalgo;
@@ -367,6 +372,9 @@ g_eli_newsession(struct g_eli_worker *wr)
 	default:
 		panic("%s: invalid condition", __func__);
 	}
+
+	if ((sc->sc_flags & G_ELI_FLAG_FIRST_KEY) != 0)
+		g_eli_key_drop(sc, crie.cri_key);
 
 	return (error);
 }
@@ -708,6 +716,8 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 		sc->sc_flags |= G_ELI_FLAG_NATIVE_BYTE_ORDER;
 	if (md->md_version < 5)
 		sc->sc_flags |= G_ELI_FLAG_SINGLE_KEY;
+	if (md->md_version < 6 && (sc->sc_flags & G_ELI_FLAG_AUTH) != 0)
+		sc->sc_flags |= G_ELI_FLAG_FIRST_KEY;
 	sc->sc_ealgo = md->md_ealgo;
 	sc->sc_nkey = nkey;
 
