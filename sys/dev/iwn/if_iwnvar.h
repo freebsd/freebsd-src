@@ -78,6 +78,7 @@ struct iwn_tx_ring {
 	int			qid;
 	int			queued;
 	int			cur;
+	int			read;
 };
 
 struct iwn_softc;
@@ -102,6 +103,11 @@ struct iwn_node {
 	uint16_t			disable_tid;
 	uint8_t				id;
 	uint32_t			ridx[256];
+	struct {
+		uint64_t		bitmap;
+		int			startidx;
+		int			nframes;
+	} agg[IEEE80211_TID_SIZE];
 };
 
 struct iwn_calib_state {
@@ -174,12 +180,10 @@ struct iwn_ops {
 			    int);
 	void		(*tx_done)(struct iwn_softc *, struct iwn_rx_desc *,
 			    struct iwn_rx_data *);
-#if 0	/* HT */
 	void		(*ampdu_tx_start)(struct iwn_softc *,
-			    struct ieee80211_node *, uint8_t, uint16_t);
-	void		(*ampdu_tx_stop)(struct iwn_softc *, uint8_t,
+			    struct ieee80211_node *, int, uint8_t, uint16_t);
+	void		(*ampdu_tx_stop)(struct iwn_softc *, int, uint8_t,
 			    uint16_t);
-#endif
 };
 
 struct iwn_vap {
@@ -215,6 +219,7 @@ struct iwn_softc {
 	const struct iwn_sensitivity_limits
 				*limits;
 	int			ntxqs;
+	int			firstaggqueue;
 	int			ndmachnls;
 	uint8_t			broadcast_id;
 	int			rxonsz;
@@ -306,10 +311,19 @@ struct iwn_softc {
 
 	int			sc_tx_timer;
 
+	struct ieee80211_tx_ampdu *qid2tap[IWN5000_NTXQUEUES];
+
 	int			(*sc_ampdu_rx_start)(struct ieee80211_node *,
 				    struct ieee80211_rx_ampdu *, int, int, int);
 	void			(*sc_ampdu_rx_stop)(struct ieee80211_node *,
 				    struct ieee80211_rx_ampdu *);
+	int			(*sc_addba_request)(struct ieee80211_node *,
+				    struct ieee80211_tx_ampdu *, int, int, int);
+	int			(*sc_addba_response)(struct ieee80211_node *,
+				    struct ieee80211_tx_ampdu *, int, int, int);
+	void			(*sc_addba_stop)(struct ieee80211_node *,
+				    struct ieee80211_tx_ampdu *);
+
 
 	struct iwn_rx_radiotap_header sc_rxtap;
 	struct iwn_tx_radiotap_header sc_txtap;
