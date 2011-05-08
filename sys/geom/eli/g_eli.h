@@ -265,7 +265,7 @@ eli_metadata_decode_v0(const u_char *data, struct g_eli_metadata *md)
 }
 
 static __inline int
-eli_metadata_decode_v1v2v3v4v5(const u_char *data, struct g_eli_metadata *md)
+eli_metadata_decode_v1v2v3v4v5v6(const u_char *data, struct g_eli_metadata *md)
 {
 	MD5_CTX ctx;
 	const u_char *p;
@@ -296,15 +296,16 @@ eli_metadata_decode(const u_char *data, struct g_eli_metadata *md)
 	bcopy(data, md->md_magic, sizeof(md->md_magic));
 	md->md_version = le32dec(data + sizeof(md->md_magic));
 	switch (md->md_version) {
-	case 0:
+	case G_ELI_VERSION_00:
 		error = eli_metadata_decode_v0(data, md);
 		break;
-	case 1:
-	case 2:
-	case 3:
-	case 4:
-	case 5:
-		error = eli_metadata_decode_v1v2v3v4v5(data, md);
+	case G_ELI_VERSION_01:
+	case G_ELI_VERSION_02:
+	case G_ELI_VERSION_03:
+	case G_ELI_VERSION_04:
+	case G_ELI_VERSION_05:
+	case G_ELI_VERSION_06:
+		error = eli_metadata_decode_v1v2v3v4v5v6(data, md);
 		break;
 	default:
 		error = EINVAL;
