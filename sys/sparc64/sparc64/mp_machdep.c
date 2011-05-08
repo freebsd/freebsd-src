@@ -497,7 +497,7 @@ cpu_mp_shutdown(void)
 	shutdown_cpus = PCPU_GET(other_cpus);
 	cpus = shutdown_cpus;
 
-	/* XXX: Stopp all the CPUs which aren't already. */
+	/* XXX: Stop all the CPUs which aren't already. */
 	if (CPU_CMP(&stopped_cpus, &cpus)) {
 
 		/* pc_other_cpus is just a flat "on" mask without curcpu. */
