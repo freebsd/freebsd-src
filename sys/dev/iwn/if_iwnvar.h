@@ -306,6 +306,11 @@ struct iwn_softc {
 
 	int			sc_tx_timer;
 
+	int			(*sc_ampdu_rx_start)(struct ieee80211_node *,
+				    struct ieee80211_rx_ampdu *, int, int, int);
+	void			(*sc_ampdu_rx_stop)(struct ieee80211_node *,
+				    struct ieee80211_rx_ampdu *);
+
 	struct iwn_rx_radiotap_header sc_rxtap;
 	struct iwn_tx_radiotap_header sc_txtap;
 };
