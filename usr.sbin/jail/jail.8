@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 17, 2010
+.Dd May 8, 2011
 .Dt JAIL 8
 .Os
 .Sh NAME
@@ -431,7 +431,7 @@ command script can be used:
 .Bd -literal
 D=/here/is/the/jail
 cd /usr/src
-mkdir -p $D
+mkdir -p -m 0700 $D
 make world DESTDIR=$D
 make distribution DESTDIR=$D
 mount -t devfs devfs $D/dev
@@ -447,6 +447,10 @@ for information on how to use devfs rules to limit access to entries
 in the per-jail devfs.
 A simple devfs ruleset for jails is available as ruleset #4 in
 .Pa /etc/defaults/devfs.rules .
+.Pp
+Non-superusers in the host system should not be able to access the 
+jail's files; otherwise an attacker with root access to the jail
+could obtain elevated privileges on the host.
 .Pp
 In many cases this example would put far more in the jail than needed.
 In the other extreme case a jail might contain only one file:
