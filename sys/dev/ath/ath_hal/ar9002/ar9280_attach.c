@@ -787,8 +787,14 @@ ar9280FillCapabilityInfo(struct ath_hal *ah)
 	pCap->halMbssidAggrSupport = AH_TRUE;
 	pCap->hal4AddrAggrSupport = AH_TRUE;
 
-	if (AR_SREV_MERLIN_20_OR_LATER(ah))
+	if (AR_SREV_MERLIN_20(ah)) {
 		pCap->halPSPollBroken = AH_FALSE;
+		/*
+		 * This just enables the support; it doesn't
+		 * state 5ghz fast clock will always be used.
+		 */
+		pCap->halSupportsFastClock5GHz = AH_TRUE;
+	}
 	pCap->halRxStbcSupport = 1;
 	pCap->halTxStbcSupport = 1;
 
