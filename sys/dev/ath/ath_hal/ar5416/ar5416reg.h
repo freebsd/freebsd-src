@@ -535,6 +535,12 @@
 
 #define	AR_PCU_MISC_MODE2_MGMT_CRYPTO_ENABLE		0x00000002
 #define	AR_PCU_MISC_MODE2_NO_CRYPTO_FOR_NON_DATA_PKT	0x00000004
+/*
+ * This bit enables the Multicast search based on both MAC Address and Key ID. 
+ * If bit is 0, then Multicast search is based on MAC address only.
+ * For Merlin and above only.
+ */
+#define	AR_PCU_MISC_MODE2_ADHOC_MCAST_KEYID_ENABLE	0x00000040
 #define	AR_PCU_MISC_MODE2_HWWAR1	0x00100000
 #define	AR_PCU_MISC_MODE2_HWWAR2	0x02000000
 
