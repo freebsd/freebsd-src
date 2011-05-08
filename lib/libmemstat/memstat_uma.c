@@ -27,6 +27,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/cpuset.h>
 #include <sys/sysctl.h>
 
 #define	LIBMEMSTAT	/* Cause vm_page.h not to include opt_vmpage.h */
