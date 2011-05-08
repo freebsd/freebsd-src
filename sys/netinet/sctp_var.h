@@ -87,9 +87,9 @@ extern struct pr_usrreqs sctp_usrreqs;
 	} \
 }
 
-#define sctp_free_a_strmoq(_stcb, _strmoq) { \
+#define sctp_free_a_strmoq(_stcb, _strmoq, _so_locked) { \
 	if ((_strmoq)->holds_key_ref) { \
-		sctp_auth_key_release(stcb, sp->auth_keyid); \
+		sctp_auth_key_release(stcb, sp->auth_keyid, _so_locked); \
 		(_strmoq)->holds_key_ref = 0; \
 	} \
 	SCTP_ZONE_FREE(SCTP_BASE_INFO(ipi_zone_strmoq), (_strmoq)); \
@@ -105,9 +105,9 @@ extern struct pr_usrreqs sctp_usrreqs;
  	} \
 }
 
-#define sctp_free_a_chunk(_stcb, _chk) { \
+#define sctp_free_a_chunk(_stcb, _chk, _so_locked) { \
 	if ((_chk)->holds_key_ref) {\
-		sctp_auth_key_release((_stcb), (_chk)->auth_keyid); \
+		sctp_auth_key_release((_stcb), (_chk)->auth_keyid, _so_locked); \
 		(_chk)->holds_key_ref = 0; \
 	} \
         if (_stcb) { \
