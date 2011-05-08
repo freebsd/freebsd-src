@@ -1,4 +1,4 @@
-.\" Copyright (c) 2005-2010 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+.\" Copyright (c) 2005-2011 Pawel Jakub Dawidek <pawel@dawidek.net>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -627,9 +627,13 @@ variables can be used to control the behavior of the
 .Nm ELI
 GEOM class.
 The default value is shown next to each variable.
-All variables can also be set in
+Some variables can also be set in
 .Pa /boot/loader.conf .
 .Bl -tag -width indent
+.It Va kern.geom.eli.version
+Version number of the
+.Nm ELI
+GEOM class.
 .It Va kern.geom.eli.debug : No 0
 Debug level of the
 .Nm ELI
@@ -668,6 +672,22 @@ When set to 1, can speed-up crypto operations by using batching.
 Batching allows to reduce number of interrupts by responding on a group of
 crypto requests with one interrupt.
 The crypto card and the driver has to support this feature.
+.It Va kern.geom.eli.key_cache_limit : No 8192
+Specifies how many encryption keys to cache.
+The default limit
+.No ( 8192
+keys) will allow to cache all keys for 4TB provider with 512 bytes sectors and
+will take around 1MB of memory.
+.It Va kern.geom.eli.key_cache_hits
+Reports how many times we were looking up a key and it was already in cache.
+This sysctl is not updated for providers that need less keys than the limit
+specified in
+.Va kern.geom.eli.key_cache_limit .
+.It Va kern.geom.eli.key_cache_misses
+Reports how many times we were looking up a key and it was not in cache.
+This sysctl is not updated for providers that need less keys than the limit
+specified in
+.Va kern.geom.eli.key_cache_limit .
 .El
 .Sh EXIT STATUS
 Exit status is 0 on success, and 1 if the command fails.

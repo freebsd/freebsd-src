@@ -3997,7 +3997,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 					/************************NET SPECIFIC SET ******************/
 					if (paddrp->spp_flags & SPP_HB_DEMAND) {
 						/* on demand HB */
-						if (sctp_send_hb(stcb, 1, net) < 0) {
+						if (sctp_send_hb(stcb, 1, net, SCTP_SO_LOCKED) < 0) {
 							/* asoc destroyed */
 							SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
 							error = EINVAL;

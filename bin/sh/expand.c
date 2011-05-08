@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <wchar.h>
 
 /*
  * Routines to expand arguments to commands.  We have to deal with
@@ -111,16 +112,16 @@ static void addfname(char *);
 static struct strlist *expsort(struct strlist *);
 static struct strlist *msort(struct strlist *, int);
 static char *cvtnum(int, char *);
-static int collate_range_cmp(int, int);
+static int collate_range_cmp(wchar_t, wchar_t);
 
 static int
-collate_range_cmp(int c1, int c2)
+collate_range_cmp(wchar_t c1, wchar_t c2)
 {
-	static char s1[2], s2[2];
+	static wchar_t s1[2], s2[2];
 
 	s1[0] = c1;
 	s2[0] = c2;
-	return (strcoll(s1, s2));
+	return (wcscoll(s1, s2));
 }
 
 /*
@@ -1377,6 +1378,23 @@ msort(struct strlist *list, int len)
 
 
 
+static wchar_t
+get_wc(const char **p)
+{
+	wchar_t c;
+	int chrlen;
+
+	chrlen = mbtowc(&c, *p, 4);
+	if (chrlen == 0)
+		return 0;
+	else if (chrlen == -1)
+		c = 0;
+	else
+		*p += chrlen;
+	return c;
+}
+
+
 /*
  * Returns true if the pattern matches the string.
  */
@@ -1386,6 +1404,7 @@ patmatch(const char *pattern, const char *string, int squoted)
 {
 	const char *p, *q;
 	char c;
+	wchar_t wc, wc2;
 
 	p = pattern;
 	q = string;
@@ -1404,7 +1423,11 @@ patmatch(const char *pattern, const char *string, int squoted)
 		case '?':
 			if (squoted && *q == CTLESC)
 				q++;
-			if (*q++ == '\0')
+			if (localeisutf8)
+				wc = get_wc(&q);
+			else
+				wc = *q++;
+			if (wc == '\0')
 				return 0;
 			break;
 		case '*':
@@ -1434,7 +1457,7 @@ patmatch(const char *pattern, const char *string, int squoted)
 		case '[': {
 			const char *endp;
 			int invert, found;
-			char chr;
+			wchar_t chr;
 
 			endp = p;
 			if (*endp == '!' || *endp == '^')
@@ -1455,8 +1478,11 @@ patmatch(const char *pattern, const char *string, int squoted)
 				p++;
 			}
 			found = 0;
-			chr = *q++;
-			if (squoted && chr == CTLESC)
+			if (squoted && *q == CTLESC)
+				q++;
+			if (localeisutf8)
+				chr = get_wc(&q);
+			else
 				chr = *q++;
 			if (chr == '\0')
 				return 0;
@@ -1466,19 +1492,31 @@ patmatch(const char *pattern, const char *string, int squoted)
 					continue;
 				if (c == CTLESC)
 					c = *p++;
+				if (localeisutf8 && c & 0x80) {
+					p--;
+					wc = get_wc(&p);
+					if (wc == 0) /* bad utf-8 */
+						return 0;
+				} else
+					wc = c;
 				if (*p == '-' && p[1] != ']') {
 					p++;
 					while (*p == CTLQUOTEMARK)
 						p++;
 					if (*p == CTLESC)
 						p++;
-					if (   collate_range_cmp(chr, c) >= 0
-					    && collate_range_cmp(chr, *p) <= 0
+					if (localeisutf8) {
+						wc2 = get_wc(&p);
+						if (wc2 == 0) /* bad utf-8 */
+							return 0;
+					} else
+						wc2 = *p++;
+					if (   collate_range_cmp(chr, wc) >= 0
+					    && collate_range_cmp(chr, wc2) <= 0
 					   )
 						found = 1;
-					p++;
 				} else {
-					if (chr == c)
+					if (chr == wc)
 						found = 1;
 				}
 			} while ((c = *p++) != ']');
