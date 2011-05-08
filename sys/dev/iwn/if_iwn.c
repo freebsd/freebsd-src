@@ -2033,18 +2033,22 @@ static void
 iwn_read_eeprom_enhinfo(struct iwn_softc *sc)
 {
 	struct iwn_eeprom_enhinfo enhinfo[35];
+	struct ifnet *ifp = sc->sc_ifp;
+	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211_channel *c;
 	uint16_t val, base;
 	int8_t maxpwr;
-	int i;
+	uint8_t flags;
+	int i, j;
 
 	iwn_read_prom_data(sc, IWN5000_EEPROM_REG, &val, 2);
 	base = le16toh(val);
 	iwn_read_prom_data(sc, base + IWN6000_EEPROM_ENHINFO,
 	    enhinfo, sizeof enhinfo);
 
-	memset(sc->enh_maxpwr, 0, sizeof sc->enh_maxpwr);
 	for (i = 0; i < nitems(enhinfo); i++) {
-		if (enhinfo[i].chan == 0 || enhinfo[i].reserved != 0)
+		flags = enhinfo[i].flags;
+		if (!(flags & IWN_ENHINFO_VALID))
 			continue;	/* Skip invalid entries. */
 
 		maxpwr = 0;
@@ -2058,11 +2062,34 @@ iwn_read_eeprom_enhinfo(struct iwn_softc *sc)
 			maxpwr = MAX(maxpwr, enhinfo[i].mimo2);
 		else if (sc->ntxchains == 3)
 			maxpwr = MAX(maxpwr, enhinfo[i].mimo3);
-		maxpwr /= 2;	/* Convert half-dBm to dBm. */
 
-		DPRINTF(sc, IWN_DEBUG_RESET, "enhinfo %d, maxpwr=%d\n", i,
-		    maxpwr);
-		sc->enh_maxpwr[i] = maxpwr;
+		for (j = 0; j < ic->ic_nchans; j++) {
+			c = &ic->ic_channels[j];
+			if ((flags & IWN_ENHINFO_5GHZ)) {
+				if (!IEEE80211_IS_CHAN_A(c))
+					continue;
+			} else if ((flags & IWN_ENHINFO_OFDM)) {
+				if (!IEEE80211_IS_CHAN_G(c))
+					continue;
+			} else if (!IEEE80211_IS_CHAN_B(c))
+				continue;
+			if ((flags & IWN_ENHINFO_HT40)) {
+				if (!IEEE80211_IS_CHAN_HT40(c))
+					continue;
+			} else {
+				if (IEEE80211_IS_CHAN_HT40(c))
+					continue;
+			}
+			if (enhinfo[i].chan != 0 &&
+			    enhinfo[i].chan != c->ic_ieee)
+				continue;
+
+			DPRINTF(sc, IWN_DEBUG_RESET,
+			    "channel %d(%x), maxpwr %d\n", c->ic_ieee,
+			    c->ic_flags, maxpwr / 2);
+			c->ic_maxregpower = maxpwr / 2;
+			c->ic_maxpower = maxpwr;
+		}
 	}
 }
 

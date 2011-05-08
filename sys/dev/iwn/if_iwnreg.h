@@ -1433,7 +1433,17 @@ struct iwn_eeprom_chan {
 } __packed;
 
 struct iwn_eeprom_enhinfo {
-	uint16_t	chan;
+	uint8_t		flags;
+#define IWN_ENHINFO_VALID	0x01
+#define IWN_ENHINFO_5GHZ	0x02
+#define IWN_ENHINFO_OFDM	0x04
+#define IWN_ENHINFO_HT40	0x08
+#define IWN_ENHINFO_HTAP	0x10
+#define IWN_ENHINFO_RES1	0x20
+#define IWN_ENHINFO_RES2	0x40
+#define IWN_ENHINFO_COMMON	0x80
+
+	uint8_t		chan;
 	int8_t		chain[3];	/* max power in half-dBm */
 	uint8_t		reserved;
 	int8_t		mimo2;		/* max power in half-dBm */
