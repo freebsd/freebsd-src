@@ -625,7 +625,12 @@ struct iwn4965_node_info {
 	uint32_t	reserved7;
 } __packed;
 
+#define IWN_RFLAG_MCS		(1 << 8)
 #define IWN_RFLAG_CCK		(1 << 9)
+#define IWN_RFLAG_GREENFIELD	(1 << 10)
+#define IWN_RFLAG_HT40		(1 << 11)
+#define IWN_RFLAG_DUPLICATE	(1 << 12)
+#define IWN_RFLAG_SGI		(1 << 13)
 #define IWN_RFLAG_ANT(x)	((x) << 14)
 
 /* Structure for command IWN_CMD_TX_DATA. */
