@@ -100,11 +100,11 @@ struct memory_type {
 		uint64_t	 mtp_sizemask;	/* Per-CPU mt_sizemask. */
 		void		*mtp_caller_pointer[MEMSTAT_MAXCALLER];
 		uint64_t	 mtp_caller_uint64[MEMSTAT_MAXCALLER];
-	}	mt_percpu_alloc[MAXCPU];
+	}	mt_percpu_alloc[MEMSTAT_MAXCPU];
 
 	struct {
 		uint64_t	 mtp_free;	/* Per-CPU cache free items. */
-	}	mt_percpu_cache[MAXCPU];
+	}	mt_percpu_cache[MEMSTAT_MAXCPU];
 
 	LIST_ENTRY(memory_type)	mt_list;	/* List of types. */
 };

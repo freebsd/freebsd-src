@@ -27,7 +27,6 @@
  */
 
 #include <sys/param.h>
-#include <sys/cpuset.h>
 #include <sys/sysctl.h>
 
 #define	LIBMEMSTAT	/* Cause vm_page.h not to include opt_vmpage.h */
@@ -106,7 +105,7 @@ retry:
 		return (-1);
 	}
 
-	if (maxcpus > MAXCPU) {
+	if (maxcpus > MEMSTAT_MAXCPU) {
 		list->mtl_error = MEMSTAT_ERROR_TOOMANYCPUS;
 		return (-1);
 	}
@@ -170,7 +169,7 @@ retry:
 		return (-1);
 	}
 
-	if (ushp->ush_maxcpus > MAXCPU) {
+	if (ushp->ush_maxcpus > MEMSTAT_MAXCPU) {
 		list->mtl_error = MEMSTAT_ERROR_TOOMANYCPUS;
 		free(buffer);
 		return (-1);
