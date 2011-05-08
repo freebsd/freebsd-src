@@ -2119,22 +2119,47 @@ iwn_newassoc(struct ieee80211_node *ni, int isnew)
 	struct ieee80211com *ic = ni->ni_ic;
 	struct iwn_softc *sc = ic->ic_ifp->if_softc;
 	struct iwn_node *wn = (void *)ni;
-	uint8_t txant;
+	uint8_t txant1, txant2;
 	int i, plcp, rate, ridx;
 
 	/* Use the first valid TX antenna. */
-	txant = IWN_LSB(sc->txchainmask);
+	txant1 = IWN_LSB(sc->txchainmask);
+	txant2 = IWN_LSB(sc->txchainmask & ~txant1);
 
-	for (i = 0; i < ni->ni_rates.rs_nrates; i++) {
-		rate = ni->ni_rates.rs_rates[i] & IEEE80211_RATE_VAL;
-		plcp = rate2plcp(rate);
-		ridx = ic->ic_rt->rateCodeToIndex[rate];
+	if (IEEE80211_IS_CHAN_HT(ni->ni_chan)) {
+		ridx = ni->ni_rates.rs_nrates - 1;
+		for (i = ni->ni_htrates.rs_nrates - 1; i >= 0; i--) {
+			plcp = ni->ni_htrates.rs_rates[i] | IWN_RFLAG_MCS;
+			if (IEEE80211_IS_CHAN_HT40(ni->ni_chan)) {
+				plcp |= IWN_RFLAG_HT40;
+				if (ni->ni_htcap & IEEE80211_HTCAP_SHORTGI40)
+					plcp |= IWN_RFLAG_SGI;
+			} else if (ni->ni_htcap & IEEE80211_HTCAP_SHORTGI20)
+				plcp |= IWN_RFLAG_SGI;
+			if (i > 7)
+				plcp |= IWN_RFLAG_ANT(txant1 | txant2);
+			else
+				plcp |= IWN_RFLAG_ANT(txant1);
+			if (ridx >= 0) {
+				rate = ni->ni_rates.rs_rates[ridx];
+				rate &= IEEE80211_RATE_VAL;
+				wn->ridx[rate] = plcp;
+			}
+			wn->ridx[IEEE80211_RATE_MCS | i] = plcp;
+			ridx--;
+		}
+	} else {
+		for (i = 0; i < ni->ni_rates.rs_nrates; i++) {
+			rate = ni->ni_rates.rs_rates[i] & IEEE80211_RATE_VAL;
 
-		if (ridx < IWN_RIDX_OFDM6 &&
-		    IEEE80211_IS_CHAN_2GHZ(ni->ni_chan))
-			plcp |= IWN_RFLAG_CCK;
-		plcp |= IWN_RFLAG_ANT(txant);
-		wn->ridx[rate] = htole32(plcp);
+			plcp = rate2plcp(rate);
+			ridx = ic->ic_rt->rateCodeToIndex[rate];
+			if (ridx < IWN_RIDX_OFDM6 &&
+			    IEEE80211_IS_CHAN_2GHZ(ni->ni_chan))
+				plcp |= IWN_RFLAG_CCK;
+			plcp |= IWN_RFLAG_ANT(txant1);
+			wn->ridx[rate] = htole32(plcp);
+		}
 	}
 }
 
@@ -3849,10 +3874,20 @@ iwn_set_link_quality(struct iwn_softc *sc, struct ieee80211_node *ni)
 	linkq.ampdu_limit = htole16(4000);	/* 4ms */
 
 	/* Start at highest available bit-rate. */
-	txrate = rs->rs_nrates - 1;
+	if (IEEE80211_IS_CHAN_HT(ni->ni_chan))
+		txrate = ni->ni_htrates.rs_nrates - 1;
+	else
+		txrate = rs->rs_nrates - 1;
 	for (i = 0; i < IWN_MAX_TX_RETRIES; i++) {
-		rate = rs->rs_rates[txrate] & IEEE80211_RATE_VAL;
+		if (IEEE80211_IS_CHAN_HT(ni->ni_chan))
+			rate = IEEE80211_RATE_MCS | txrate;
+		else
+			rate = rs->rs_rates[txrate] & IEEE80211_RATE_VAL;
 		linkq.retry[i] = wn->ridx[rate];
+
+		if ((le32toh(wn->ridx[rate]) & IWN_RFLAG_MCS) &&
+		    (le32toh(wn->ridx[rate]) & 0xff) > 7)
+			linkq.mimo = i + 1;
 
 		/* Next retry at immediate lower bit-rate. */
 		if (txrate > 0)
