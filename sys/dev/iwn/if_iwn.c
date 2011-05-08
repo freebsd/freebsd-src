@@ -4942,6 +4942,7 @@ iwn_scan(struct iwn_softc *sc)
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
 	struct ieee80211_scan_state *ss = ic->ic_scan;	/*XXX*/
+	struct ieee80211_node *ni = ss->ss_vap->iv_bss;
 	struct iwn_scan_hdr *hdr;
 	struct iwn_cmd_data *tx;
 	struct iwn_scan_essid *essid;
@@ -5028,10 +5029,8 @@ iwn_scan(struct iwn_softc *sc)
 	frm = ieee80211_add_rates(frm, rs);
 	if (rs->rs_nrates > IEEE80211_RATE_SIZE)
 		frm = ieee80211_add_xrates(frm, rs);
-#if 0	/* HT */
-	if (ic->ic_flags & IEEE80211_F_HTON)
-		frm = ieee80211_add_htcaps(frm, ic);
-#endif
+	if (ic->ic_htcaps & IEEE80211_HTC_HT)
+		frm = ieee80211_add_htcap(frm, ni);
 
 	/* Set length of probe request. */
 	tx->len = htole16(frm - (uint8_t *)wh);
