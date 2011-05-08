@@ -517,6 +517,13 @@ updatecharset(void)
 	localeisutf8 = !strcmp(charset, "UTF-8");
 }
 
+void
+initcharset(void)
+{
+	updatecharset();
+	initial_localeisutf8 = localeisutf8;
+}
+
 /*
  * Generate a list of exported variables.  This routine is used to construct
  * the third argument to execve when executing a program.
