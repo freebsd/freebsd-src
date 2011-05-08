@@ -2253,7 +2253,6 @@ iwn_rx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 			    "%s: missing RX_PHY\n", __func__);
 			return;
 		}
-		sc->last_rx_valid = 0;
 		stat = &sc->last_rx_stat;
 	} else
 		stat = (struct iwn_rx_stat *)(desc + 1);
