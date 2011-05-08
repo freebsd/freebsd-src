@@ -295,7 +295,6 @@ struct iwn_softc {
 	int8_t			maxpwr2GHz;
 	int8_t			maxpwr5GHz;
 	int8_t			maxpwr[IEEE80211_CHAN_MAX];
-	int8_t			enh_maxpwr[35];
 
 	int32_t			temp_off;
 	uint32_t		int_mask;
