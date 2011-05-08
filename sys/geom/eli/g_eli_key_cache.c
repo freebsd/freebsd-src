@@ -57,9 +57,13 @@ static uint64_t g_eli_key_cache_misses;
 SYSCTL_UQUAD(_kern_geom_eli, OID_AUTO, key_cache_misses, CTLFLAG_RW,
     &g_eli_key_cache_misses, 0, "Key cache misses");
 
+#define	G_ELI_KEY_MAGIC	0xe11341c
+
 struct g_eli_key {
 	/* Key value, must be first in the structure. */
 	uint8_t		gek_key[G_ELI_DATAKEYLEN];
+	/* Magic. */
+	int		gek_magic;
 	/* Key number. */
 	uint64_t	gek_keyno;
 	/* Reference counter. */
@@ -98,6 +102,7 @@ g_eli_key_fill(struct g_eli_softc *sc, struct g_eli_key *key, uint64_t keyno)
 	    sizeof(hmacdata), key->gek_key, 0);
 	key->gek_keyno = keyno;
 	key->gek_count = 0;
+	key->gek_magic = G_ELI_KEY_MAGIC;
 }
 
 static struct g_eli_key *
@@ -150,6 +155,7 @@ g_eli_key_replace(struct g_eli_softc *sc, struct g_eli_key *key, uint64_t keyno)
 {
 
 	mtx_assert(&sc->sc_ekeys_lock, MA_OWNED);
+	KASSERT(key->gek_magic == G_ELI_KEY_MAGIC, ("Invalid magic."));
 
 	RB_REMOVE(g_eli_key_tree, &sc->sc_ekeys_tree, key);
 	TAILQ_REMOVE(&sc->sc_ekeys_queue, key, gek_next);
@@ -167,7 +173,7 @@ g_eli_key_remove(struct g_eli_softc *sc, struct g_eli_key *key)
 {
 
 	mtx_assert(&sc->sc_ekeys_lock, MA_OWNED);
-
+	KASSERT(key->gek_magic == G_ELI_KEY_MAGIC, ("Invalid magic."));
 	KASSERT(key->gek_count == 0, ("gek_count=%d", key->gek_count));
 
 	RB_REMOVE(g_eli_key_tree, &sc->sc_ekeys_tree, key);
@@ -276,6 +282,8 @@ g_eli_key_hold(struct g_eli_softc *sc, off_t offset, size_t blocksize)
 		/* We have all the keys, so avoid some overhead. */
 		key = RB_FIND(g_eli_key_tree, &sc->sc_ekeys_tree, &keysearch);
 		KASSERT(key != NULL, ("No key %ju found.", (uintmax_t)keyno));
+		KASSERT(key->gek_magic == G_ELI_KEY_MAGIC,
+		    ("Invalid key magic."));
 		return (key->gek_key);
 	}
 
@@ -306,6 +314,8 @@ g_eli_key_hold(struct g_eli_softc *sc, off_t offset, size_t blocksize)
 	key->gek_count++;
 	mtx_unlock(&sc->sc_ekeys_lock);
 
+	KASSERT(key->gek_magic == G_ELI_KEY_MAGIC, ("Invalid key magic."));
+
 	return (key->gek_key);
 }
 
@@ -316,6 +326,8 @@ g_eli_key_drop(struct g_eli_softc *sc, uint8_t *rawkey)
 
 	if ((sc->sc_flags & G_ELI_FLAG_SINGLE_KEY) != 0)
 		return;
+
+	KASSERT(key->gek_magic == G_ELI_KEY_MAGIC, ("Invalid key magic."));
 
 	if (sc->sc_ekeys_total == sc->sc_ekeys_allocated)
 		return;
