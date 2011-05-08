@@ -97,8 +97,10 @@ static void	usb_suspend_resume_sub(struct usb_device *, device_t,
 static void	usbd_clear_stall_proc(struct usb_proc_msg *_pm);
 static usb_error_t usb_config_parse(struct usb_device *, uint8_t, uint8_t);
 static void	usbd_set_device_strings(struct usb_device *);
-#if USB_HAVE_UGEN
+#if USB_HAVE_DEVCTL
 static void	usb_notify_addq(const char *type, struct usb_device *);
+#endif
+#if USB_HAVE_UGEN
 static void	usb_fifo_free_wrap(struct usb_device *, uint8_t, uint8_t);
 static struct cdev *usb_make_dev(struct usb_device *, int, int);
 static void	usb_cdev_create(struct usb_device *);
@@ -1865,7 +1867,9 @@ config_done:
 	printf("%s: <%s> at %s\n", udev->ugen_name,
 	    usb_get_manufacturer(udev),
 	    device_get_nameunit(udev->bus->bdev));
+#endif
 
+#if USB_HAVE_DEVCTL
 	usb_notify_addq("ATTACH", udev);
 #endif
 done:
@@ -2011,9 +2015,11 @@ usb_free_device(struct usb_device *udev, uint8_t flag)
 	bus = udev->bus;
 	usb_set_device_state(udev, USB_STATE_DETACHED);
 
-#if USB_HAVE_UGEN
+#if USB_HAVE_DEVCTL
 	usb_notify_addq("DETACH", udev);
+#endif
 
+#if USB_HAVE_UGEN
 	printf("%s: <%s> at %s (disconnected)\n", udev->ugen_name,
 	    usb_get_manufacturer(udev), device_get_nameunit(bus->bdev));
 
@@ -2380,7 +2386,7 @@ usbd_get_device_index(struct usb_device *udev)
 	return (udev->device_index);
 }
 
-#if USB_HAVE_UGEN
+#if USB_HAVE_DEVCTL
 /*------------------------------------------------------------------------*
  *	usb_notify_addq
  *
@@ -2416,7 +2422,9 @@ usb_notify_addq_compat(const char *type, struct usb_device *udev)
 	/* String it all together. */
 	snprintf(data, buf_size,
 	    "%s"
+#if USB_HAVE_UGEN
 	    "%s "
+#endif
 	    "at port=%u "
 	    "vendor=0x%04x "
 	    "product=0x%04x "
@@ -2424,20 +2432,27 @@ usb_notify_addq_compat(const char *type, struct usb_device *udev)
 	    "devsubclass=0x%02x "
 	    "sernum=\"%s\" "
 	    "release=0x%04x "
-	    "on "
-	    "%s\n",
+#if USB_HAVE_UGEN
+	    "on %s\n"
+#endif
+	    "",
 	    ntype,
+#if USB_HAVE_UGEN
 	    udev->ugen_name,
+#endif
 	    udev->port_no,
 	    UGETW(udev->ddesc.idVendor),
 	    UGETW(udev->ddesc.idProduct),
 	    udev->ddesc.bDeviceClass,
 	    udev->ddesc.bDeviceSubClass,
 	    usb_get_serial(udev),
-	    UGETW(udev->ddesc.bcdDevice),
-	    udev->parent_hub != NULL ?
+	    UGETW(udev->ddesc.bcdDevice)
+#if USB_HAVE_UGEN
+	    , udev->parent_hub != NULL ?
 		udev->parent_hub->ugen_name :
-		device_get_nameunit(device_get_parent(udev->bus->bdev)));
+		device_get_nameunit(device_get_parent(udev->bus->bdev))
+#endif
+	    );
 
 	devctl_queue_data(data);
 }
@@ -2457,7 +2472,10 @@ usb_notify_addq(const char *type, struct usb_device *udev)
 	/* announce the device */
 	sb = sbuf_new_auto();
 	sbuf_printf(sb,
+#if USB_HAVE_UGEN
+	    "ugen=%s "
 	    "cdev=%s "
+#endif
 	    "vendor=0x%04x "
 	    "product=0x%04x "
 	    "devclass=0x%02x "
@@ -2466,8 +2484,14 @@ usb_notify_addq(const char *type, struct usb_device *udev)
 	    "release=0x%04x "
 	    "mode=%s "
 	    "port=%u "
-	    "parent=%s",
+#if USB_HAVE_UGEN
+	    "parent=%s"
+#endif
+	    "",
+#if USB_HAVE_UGEN
 	    udev->ugen_name,
+	    udev->ugen_name,
+#endif
 	    UGETW(udev->ddesc.idVendor),
 	    UGETW(udev->ddesc.idProduct),
 	    udev->ddesc.bDeviceClass,
@@ -2475,10 +2499,13 @@ usb_notify_addq(const char *type, struct usb_device *udev)
 	    usb_get_serial(udev),
 	    UGETW(udev->ddesc.bcdDevice),
 	    (udev->flags.usb_mode == USB_MODE_HOST) ? "host" : "device",
-	    udev->port_no,
-	    udev->parent_hub != NULL ?
-	    udev->parent_hub->ugen_name :
-	    device_get_nameunit(device_get_parent(udev->bus->bdev)));
+	    udev->port_no
+#if USB_HAVE_UGEN
+	    , udev->parent_hub != NULL ?
+		udev->parent_hub->ugen_name :
+		device_get_nameunit(device_get_parent(udev->bus->bdev))
+#endif
+	    );
 	sbuf_finish(sb);
 	devctl_notify("USB", "DEVICE", type, sbuf_data(sb));
 	sbuf_delete(sb);
@@ -2493,7 +2520,10 @@ usb_notify_addq(const char *type, struct usb_device *udev)
 
 		sb = sbuf_new_auto();
 		sbuf_printf(sb,
+#if USB_HAVE_UGEN
+		    "ugen=%s "
 		    "cdev=%s "
+#endif
 		    "vendor=0x%04x "
 		    "product=0x%04x "
 		    "devclass=0x%02x "
@@ -2506,7 +2536,10 @@ usb_notify_addq(const char *type, struct usb_device *udev)
 		    "intclass=0x%02x "
 		    "intsubclass=0x%02x "
 		    "intprotocol=0x%02x",
+#if USB_HAVE_UGEN
 		    udev->ugen_name,
+		    udev->ugen_name,
+#endif
 		    UGETW(udev->ddesc.idVendor),
 		    UGETW(udev->ddesc.idProduct),
 		    udev->ddesc.bDeviceClass,
@@ -2524,7 +2557,9 @@ usb_notify_addq(const char *type, struct usb_device *udev)
 		sbuf_delete(sb);
 	}
 }
+#endif
 
+#if USB_HAVE_UGEN
 /*------------------------------------------------------------------------*
  *	usb_fifo_free_wrap
  *
