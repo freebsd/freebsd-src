@@ -584,12 +584,14 @@ iwn_attach(device_t dev)
 		| IEEE80211_C_SHSLOT		/* short slot time supported */
 		| IEEE80211_C_WPA
 		| IEEE80211_C_SHPREAMBLE	/* short preamble supported */
-		| IEEE80211_C_BGSCAN		/* background scanning */
 #if 0
 		| IEEE80211_C_IBSS		/* ibss/adhoc mode */
 #endif
 		| IEEE80211_C_WME		/* WME */
 		;
+	if (sc->hw_type != IWN_HW_REV_TYPE_4965)
+		ic->ic_caps |= IEEE80211_C_BGSCAN; /* background scanning */
+
 #if 0	/* HT */
 	/* XXX disable until HT channel setup works */
 	ic->ic_htcaps =
