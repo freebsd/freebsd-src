@@ -51,6 +51,7 @@
 struct var {
 	struct var *next;		/* next entry in hash list */
 	int flags;			/* flags are defined above */
+	int name_len;			/* length of name */
 	char *text;			/* name=value */
 	void (*func)(const char *);
 					/* function to be called when  */
