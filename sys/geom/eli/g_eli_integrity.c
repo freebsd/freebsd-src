@@ -513,6 +513,8 @@ g_eli_auth_run(struct g_eli_worker *wr, struct bio *bp)
 		crde->crd_skip = sc->sc_alen;
 		crde->crd_len = data_secsize;
 		crde->crd_flags = CRD_F_IV_EXPLICIT | CRD_F_IV_PRESENT;
+		if ((sc->sc_flags & G_ELI_FLAG_FIRST_KEY) == 0)
+			crde->crd_flags |= CRD_F_KEY_EXPLICIT;
 		if (bp->bio_cmd == BIO_WRITE)
 			crde->crd_flags |= CRD_F_ENCRYPT;
 		crde->crd_alg = sc->sc_ealgo;
