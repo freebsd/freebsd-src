@@ -205,6 +205,12 @@ static void	 tcp_xmit_timer(struct tcpcb *, int);
 static void	 tcp_newreno_partial_ack(struct tcpcb *, struct tcphdr *);
 static void inline
 		 tcp_congestion_exp(struct tcpcb *);
+static void inline 	tcp_fields_to_host(struct tcphdr *);
+#ifdef TCP_SIGNATURE
+static void inline 	tcp_fields_to_net(struct tcphdr *);
+static int inline	tcp_signature_verify_input(struct mbuf *, int, int,
+			    int, struct tcpopt *, struct tcphdr *, u_int);
+#endif
 
 /*
  * Kernel module interface for updating tcpstat.  The argument is an index
@@ -235,6 +241,40 @@ tcp_congestion_exp(struct tcpcb *tp)
 	if (tp->t_flags & TF_ECN_PERMIT)
 		tp->t_flags |= TF_ECN_SND_CWR;
 }
+
+static inline void
+tcp_fields_to_host(struct tcphdr *th)
+{
+
+	th->th_seq = ntohl(th->th_seq);
+	th->th_ack = ntohl(th->th_ack);
+	th->th_win = ntohs(th->th_win);
+	th->th_urp = ntohs(th->th_urp);
+}
+
+#ifdef TCP_SIGNATURE
+static inline void
+tcp_fields_to_net(struct tcphdr *th)
+{
+
+	th->th_seq = htonl(th->th_seq);
+	th->th_ack = htonl(th->th_ack);
+	th->th_win = htons(th->th_win);
+	th->th_urp = htons(th->th_urp);
+}
+
+static inline int
+tcp_signature_verify_input(struct mbuf *m, int off0, int tlen, int optlen,
+    struct tcpopt *to, struct tcphdr *th, u_int tcpbflag)
+{
+	int ret;
+
+	tcp_fields_to_net(th);
+	ret = tcp_signature_verify(m, off0, tlen, optlen, to, th, tcpbflag);
+	tcp_fields_to_host(th);
+	return (ret);
+}
+#endif
 
 /* Neighbor Discovery, Neighbor Unreachability Detection Upper layer hint. */
 #ifdef INET6
@@ -315,6 +355,9 @@ tcp_input(struct mbuf *m, int off0)
 	int thflags;
 	int rstreason = 0;	/* For badport_bandlim accounting purposes */
 	uint8_t iptos;
+#ifdef TCP_SIGNATURE
+	uint8_t sig_checked = 0;
+#endif
 #ifdef IPFIREWALL_FORWARD
 	struct m_tag *fwd_tag;
 #endif
@@ -472,10 +515,7 @@ tcp_input(struct mbuf *m, int off0)
 	/*
 	 * Convert TCP protocol specific fields to host format.
 	 */
-	th->th_seq = ntohl(th->th_seq);
-	th->th_ack = ntohl(th->th_ack);
-	th->th_win = ntohs(th->th_win);
-	th->th_urp = ntohs(th->th_urp);
+	tcp_fields_to_host(th);
 
 	/*
 	 * Delay dropping TCP, IP headers, IPv6 ext headers, and TCP options.
@@ -657,8 +697,24 @@ relocked:
 		}
 		INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
 
+#ifdef TCP_SIGNATURE
+		tcp_dooptions(&to, optp, optlen,
+		    (thflags & TH_SYN) ? TO_SYN : 0);
+		if (sig_checked == 0) {
+			tp = intotcpcb(inp);
+			if (tp == NULL || tp->t_state == TCPS_CLOSED) {
+				rstreason = BANDLIM_RST_CLOSEDPORT;
+				goto dropwithreset;
+			}
+			if (!tcp_signature_verify_input(m, off0, tlen, optlen,
+			    &to, th, tp->t_flags))
+				goto dropunlock;
+			sig_checked = 1;
+		}
+#else
 		if (thflags & TH_SYN)
 			tcp_dooptions(&to, optp, optlen, TO_SYN);
+#endif
 		/*
 		 * NB: tcp_twcheck unlocks the INP and frees the mbuf.
 		 */
@@ -817,6 +873,26 @@ relocked:
 			tp = intotcpcb(inp);
 			KASSERT(tp->t_state == TCPS_SYN_RECEIVED,
 			    ("%s: ", __func__));
+#ifdef TCP_SIGNATURE
+			if (sig_checked == 0)  {
+				tcp_dooptions(&to, optp, optlen,
+				    (thflags & TH_SYN) ? TO_SYN : 0);
+				if (!tcp_signature_verify_input(m, off0, tlen,
+				    optlen, &to, th, tp->t_flags)) {
+
+					/*
+					 * In SYN_SENT state if it receives an
+					 * RST, it is allowed for further
+					 * processing.
+					 */
+					if ((thflags & TH_RST) == 0 ||
+					    (tp->t_state == TCPS_SYN_SENT) == 0)
+						goto dropunlock;
+				}
+				sig_checked = 1;
+			}
+#endif
+
 			/*
 			 * Process the segment and the data it
 			 * contains.  tcp_do_segment() consumes
@@ -1020,6 +1096,25 @@ relocked:
 		INP_INFO_UNLOCK_ASSERT(&V_tcbinfo);
 		return;
 	}
+
+#ifdef TCP_SIGNATURE
+	if (sig_checked == 0)  {
+		tcp_dooptions(&to, optp, optlen,
+		    (thflags & TH_SYN) ? TO_SYN : 0);
+		if (!tcp_signature_verify_input(m, off0, tlen, optlen, &to,
+		    th, tp->t_flags)) {
+
+			/*
+			 * In SYN_SENT state if it receives an RST, it is
+			 * allowed for further processing.
+			 */
+			if ((thflags & TH_RST) == 0 ||
+			    (tp->t_state == TCPS_SYN_SENT) == 0)
+				goto dropunlock;
+		}
+		sig_checked = 1;
+	}
+#endif
 
 	/*
 	 * Segment belongs to a connection in SYN_SENT, ESTABLISHED or later
