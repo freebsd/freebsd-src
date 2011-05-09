@@ -45,6 +45,7 @@ struct ichwd_softc {
 	int			 active;
 	unsigned int		 timeout;
 
+	int			 smi_enabled;
 	int			 smi_rid;
 	struct resource		*smi_res;
 	bus_space_tag_t		 smi_bst;
@@ -135,15 +136,19 @@ struct ichwd_softc {
 #define TCO2_STS		0x06 /* TCO Status 2 */
 #define TCO1_CNT		0x08 /* TCO Control 1 */
 #define TCO2_CNT		0x08 /* TCO Control 2 */
+#define TCO_MESSAGE1		0x0c /* TCO Message 1 */
+#define TCO_MESSAGE2		0x0d /* TCO Message 2 */
 
 /* bit definitions for SMI_EN and SMI_STS */
 #define SMI_TCO_EN		0x2000
 #define SMI_TCO_STS		0x2000
+#define SMI_GBL_EN		0x0001
 
 /* timer value mask for TCO_RLD and TCO_TMR */
 #define TCO_TIMER_MASK		0x1f
 
 /* status bits for TCO1_STS */
+#define TCO_NEWCENTURY		0x80 /* set for RTC year roll over (99 to 00) */
 #define TCO_TIMEOUT		0x08 /* timed out */
 #define TCO_INT_STS		0x04 /* data out (DO NOT USE) */
 #define TCO_SMI_STS		0x02 /* data in (DO NOT USE) */
@@ -153,8 +158,10 @@ struct ichwd_softc {
 #define TCO_SECOND_TO_STS	0x02 /* ran down twice */
 
 /* control bits for TCO1_CNT */
-#define TCO_TMR_HALT		0x0800 /* clear to enable WDT */
-#define TCO_CNT_PRESERVE	0x0200 /* preserve these bits */
+#define TCO_TMR_HALT		0x0800		/* clear to enable WDT */
+#define TCO_NMI2SMI_EN		0x0200		/* convert NMIs to SMIs */
+#define TCO_CNT_PRESERVE	TCO_NMI2SMI_EN	/* preserve these bits */
+#define TCO_NMI_NOW		0x0100		/* trigger an NMI */
 
 /*
  * Masks for the TCO timer value field in TCO_RLD.
