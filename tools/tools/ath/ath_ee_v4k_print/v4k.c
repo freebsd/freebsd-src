@@ -89,7 +89,7 @@ eeprom_v4k_modal_print(uint16_t *buf)
 	MODAL_EEP4K_HEADER *mh = &eep->ee_base.modalHeader;
 	int i;
 
-	printf("| antCtrlCommon: 0x%.4x |\n", mh->antCtrlCommon);
+	printf("| antCtrlCommon: 0x%.8x |\n", mh->antCtrlCommon);
 	printf("| switchSettling: 0x%.2x |\n", mh->switchSettling);
 	printf("| adcDesiredSize: %d |\n| pgaDesiredSize: %.2f dBm |\n",
 	    mh->adcDesiredSize, (float) mh->pgaDesiredSize / 2.0);
