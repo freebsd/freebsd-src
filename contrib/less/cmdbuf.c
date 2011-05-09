@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2009  Mark Nudelman
+ * Copyright (C) 1984-2011  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -857,6 +857,10 @@ cmd_edit(c)
 	case EC_LINEKILL:
 		not_in_completion();
 		return (cmd_kill());
+	case EC_ABORT:
+		not_in_completion();
+		(void) cmd_kill();
+		return (CC_QUIT);
 	case EC_W_BACKSPACE:
 		not_in_completion();
 		return (cmd_werase());

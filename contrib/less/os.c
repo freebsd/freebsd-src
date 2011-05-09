@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2009  Mark Nudelman
+ * Copyright (C) 1984-2011  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -250,6 +250,28 @@ errno_message(filename)
 	return (m);
 }
 
+/* #define HAVE_FLOAT 0 */
+
+	static POSITION
+muldiv(val, num, den)
+	POSITION val, num, den;
+{
+#if HAVE_FLOAT
+	double v = (((double) val) * num) / den;
+	return ((POSITION) (v + 0.5));
+#else
+	POSITION v = ((POSITION) val) * num;
+
+	if (v / num == val)
+		/* No overflow */
+		return (POSITION) (v / den);
+	else
+		/* Above calculation overflows; 
+		 * use a method that is less precise but won't overflow. */
+		return (POSITION) (val / (den / num));
+#endif
+}
+
 /*
  * Return the ratio of two POSITIONS, as a percentage.
  * {{ Assumes a POSITION is a long int. }}
@@ -258,12 +280,7 @@ errno_message(filename)
 percentage(num, den)
 	POSITION num, den;
 {
-	POSITION num100 = num * 100;
-
-	if (num100 / 100 == num)
-		return (num100 / den);
-	else
-		return (num / (den / 100));
+	return (int) muldiv(num,  (POSITION) 100, den);
 }
 
 /*
@@ -276,19 +293,11 @@ percent_pos(pos, percent, fraction)
 	long fraction;
 {
 	/* Change percent (parts per 100) to perden (parts per NUM_FRAC_DENOM). */
-	long perden = (percent * (NUM_FRAC_DENOM / 100)) + (fraction / 100);
-	POSITION temp;
+	POSITION perden = (percent * (NUM_FRAC_DENOM / 100)) + (fraction / 100);
 
 	if (perden == 0)
 		return (0);
-	temp = pos * perden;  /* This might overflow. */
-	if (temp / perden == pos)
-		/* No overflow */
-		return (temp / NUM_FRAC_DENOM);
-	else
-		/* Above calculation overflows; 
-		 * use a method that is less precise but won't overflow. */
-		return (perden * (pos / NUM_FRAC_DENOM));
+	return (POSITION) muldiv(pos, perden, (POSITION) NUM_FRAC_DENOM);
 }
 
 #if !HAVE_STRCHR
