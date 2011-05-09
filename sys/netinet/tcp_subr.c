@@ -224,7 +224,6 @@ VNET_DEFINE(uma_zone_t, sack_hole_zone);
 VNET_DEFINE(struct hhook_head *, tcp_hhh[HHOOK_TCP_LAST+1]);
 
 static struct inpcb *tcp_notify(struct inpcb *, int);
-static void	tcp_isn_tick(void *);
 static char *	tcp_log_addr(struct in_conninfo *inc, struct tcphdr *th,
 		    void *ip4hdr, const void *ip6hdr);
 
@@ -255,7 +254,6 @@ static VNET_DEFINE(uma_zone_t, tcpcb_zone);
 #define	V_tcpcb_zone			VNET(tcpcb_zone)
 
 MALLOC_DEFINE(M_TCPLOG, "tcplog", "TCP address and flags print buffers");
-struct callout isn_callout;
 static struct mtx isn_mtx;
 
 #define	ISN_LOCK_INIT()	mtx_init(&isn_mtx, "isn_mtx", NULL, MTX_DEF)
@@ -358,8 +356,6 @@ tcp_init(void)
 #undef TCP_MINPROTOHDR
 
 	ISN_LOCK_INIT();
-	callout_init(&isn_callout, CALLOUT_MPSAFE);
-	callout_reset(&isn_callout, hz/100, tcp_isn_tick, NULL);
 	EVENTHANDLER_REGISTER(shutdown_pre_sync, tcp_fini, NULL,
 		SHUTDOWN_PRI_DEFAULT);
 	EVENTHANDLER_REGISTER(maxsockets_change, tcp_zone_change, NULL,
@@ -385,7 +381,6 @@ void
 tcp_fini(void *xtp)
 {
 
-	callout_stop(&isn_callout);
 }
 
 /*
@@ -1571,11 +1566,13 @@ tcp6_ctlinput(int cmd, struct sockaddr *sa, void *d)
 #define ISN_RANDOM_INCREMENT (4096 - 1)
 
 static VNET_DEFINE(u_char, isn_secret[32]);
+static VNET_DEFINE(int, isn_last);
 static VNET_DEFINE(int, isn_last_reseed);
 static VNET_DEFINE(u_int32_t, isn_offset);
 static VNET_DEFINE(u_int32_t, isn_offset_old);
 
 #define	V_isn_secret			VNET(isn_secret)
+#define	V_isn_last			VNET(isn_last)
 #define	V_isn_last_reseed		VNET(isn_last_reseed)
 #define	V_isn_offset			VNET(isn_offset)
 #define	V_isn_offset_old		VNET(isn_offset_old)
@@ -1586,6 +1583,7 @@ tcp_new_isn(struct tcpcb *tp)
 	MD5_CTX isn_ctx;
 	u_int32_t md5_buffer[4];
 	tcp_seq new_isn;
+	u_int32_t projected_offset;
 
 	INP_WLOCK_ASSERT(tp->t_inpcb);
 
@@ -1621,38 +1619,17 @@ tcp_new_isn(struct tcpcb *tp)
 	new_isn = (tcp_seq) md5_buffer[0];
 	V_isn_offset += ISN_STATIC_INCREMENT +
 		(arc4random() & ISN_RANDOM_INCREMENT);
+	if (ticks != V_isn_last) {
+		projected_offset = V_isn_offset_old +
+		    ISN_BYTES_PER_SECOND / hz * (ticks - V_isn_last);
+		if (SEQ_GT(projected_offset, V_isn_offset))
+			V_isn_offset = projected_offset;
+		V_isn_offset_old = V_isn_offset;
+		V_isn_last = ticks;
+	}
 	new_isn += V_isn_offset;
 	ISN_UNLOCK();
 	return (new_isn);
-}
-
-/*
- * Increment the offset to the next ISN_BYTES_PER_SECOND / 100 boundary
- * to keep time flowing at a relatively constant rate.  If the random
- * increments have already pushed us past the projected offset, do nothing.
- */
-static void
-tcp_isn_tick(void *xtp)
-{
-	VNET_ITERATOR_DECL(vnet_iter);
-	u_int32_t projected_offset;
-
-	VNET_LIST_RLOCK_NOSLEEP();
-	ISN_LOCK();
-	VNET_FOREACH(vnet_iter) {
-		CURVNET_SET(vnet_iter); /* XXX appease INVARIANTS */
-		projected_offset =
-		    V_isn_offset_old + ISN_BYTES_PER_SECOND / 100;
-
-		if (SEQ_GT(projected_offset, V_isn_offset))
-			V_isn_offset = projected_offset;
-
-		V_isn_offset_old = V_isn_offset;
-		CURVNET_RESTORE();
-	}
-	ISN_UNLOCK();
-	VNET_LIST_RUNLOCK_NOSLEEP();
-	callout_reset(&isn_callout, hz/100, tcp_isn_tick, NULL);
 }
 
 /*

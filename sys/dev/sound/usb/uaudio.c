@@ -789,6 +789,46 @@ uaudio_chan_dump_ep_desc(const usb_endpoint_descriptor_audio_t *ed)
 
 #endif
 
+/*
+ * The following is a workaround for broken no-name USB audio devices
+ * sold by dealextreme called "3D sound". The problem is that the
+ * manufacturer computed wMaxPacketSize is too small to hold the
+ * actual data sent. In other words the device sometimes sends more
+ * data than it actually reports it can send in a single isochronous
+ * packet.
+ */
+static void
+uaudio_record_fix_fs(usb_endpoint_descriptor_audio_t *ep,
+    uint32_t xps, uint32_t add)
+{
+	uint32_t mps;
+
+	mps = UGETW(ep->wMaxPacketSize);
+
+	/*
+	 * If the device indicates it can send more data than what the
+	 * sample rate indicates, we apply the workaround.
+	 */
+	if (mps > xps) {
+
+		/* allow additional data */
+		xps += add;
+
+		/* check against the maximum USB 1.x length */
+		if (xps > 1023)
+			xps = 1023;
+
+		/* check if we should do an update */
+		if (mps < xps) {
+			/* simply update the wMaxPacketSize field */
+			USETW(ep->wMaxPacketSize, xps);
+			DPRINTF("Workaround: Updated wMaxPacketSize "
+			    "from %d to %d bytes.\n",
+			    (int)mps, (int)xps);
+		}
+	}
+}
+
 static void
 uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
     uint32_t rate, uint8_t channels, uint8_t bit_resolution)
@@ -797,7 +837,7 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 	const struct usb_audio_streaming_interface_descriptor *asid = NULL;
 	const struct usb_audio_streaming_type1_descriptor *asf1d = NULL;
 	const struct usb_audio_streaming_endpoint_descriptor *sed = NULL;
-	const usb_endpoint_descriptor_audio_t *ed1 = NULL;
+	usb_endpoint_descriptor_audio_t *ed1 = NULL;
 	const usb_endpoint_descriptor_audio_t *ed2 = NULL;
 	struct usb_config_descriptor *cd = usbd_get_config_descriptor(udev);
 	struct usb_interface_descriptor *id;
@@ -998,6 +1038,13 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 					chan->sample_size = ((
 					    UAUDIO_MAX_CHAN(chan->p_asf1d->bNrChannels) *
 					    chan->p_asf1d->bBitResolution) / 8);
+
+					if (ep_dir == UE_DIR_IN &&
+					    usbd_get_speed(udev) == USB_SPEED_FULL) {
+						uaudio_record_fix_fs(ed1,
+						    chan->sample_size * (rate / 1000),
+						    chan->sample_size * (rate / 4000));
+					}
 
 					if (sc->sc_sndstat_valid) {
 						sbuf_printf(&sc->sc_sndstat, "\n\t"
