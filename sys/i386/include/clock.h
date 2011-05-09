@@ -30,7 +30,6 @@ void	i8254_init(void);
 void	startrtclock(void);
 void	timer_restore(void);
 void	init_TSC(void);
-void	init_TSC_tc(void);
 
 #define	HAS_TIMER_SPKR 1
 int	timer_spkr_acquire(void);

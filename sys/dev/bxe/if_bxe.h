@@ -1773,11 +1773,11 @@ struct bxe_softc {
 	USTORM_ETH_ST_CONTEXT_CONFIG_BD_SB_INDEX_NUMBER))
 
 #define	CAM_IS_INVALID(x)						\
-	(x.target_table_entry.flags ==					\
+	((x)->target_table_entry.flags ==				\
 	TSTORM_CAM_TARGET_TABLE_ENTRY_ACTION_TYPE)
 
 #define	CAM_INVALIDATE(x)						\
-	(x.target_table_entry.flags = TSTORM_CAM_TARGET_TABLE_ENTRY_ACTION_TYPE)
+	((x)->target_table_entry.flags = TSTORM_CAM_TARGET_TABLE_ENTRY_ACTION_TYPE)
 
 /* Number of uint32_t elements in multicast hash array. */
 #define	MC_HASH_SIZE			8
