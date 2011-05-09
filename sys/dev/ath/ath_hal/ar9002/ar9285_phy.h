@@ -41,6 +41,6 @@ extern	void ar9285_antdiv_comb_conf_set(struct ath_hal *ah,
 		struct ar9285_antcomb_conf *antconf);
 extern	void ar9285_antdiv_comb_conf_get(struct ath_hal *ah,
 		struct ar9285_antcomb_conf *antconf);
-extern	int ar9285_check_div_comb(struct ath_hal *ah);
+extern	HAL_BOOL ar9285_check_div_comb(struct ath_hal *ah);
 
 #endif
