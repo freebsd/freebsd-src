@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2009  Mark Nudelman
+ * Copyright (C) 1984-2011  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -303,6 +303,9 @@ protochar(c, where, iseditproto)
 	case 'f':	/* File name */
 		ap_str(get_filename(curr_ifile));
 		break;
+	case 'F':	/* Last component of file name */
+		ap_str(last_component(get_filename(curr_ifile)));
+		break;
 	case 'i':	/* Index into list of files */
 #if TAGS
 		if (ntags())
@@ -363,6 +366,7 @@ protochar(c, where, iseditproto)
 	case 't':	/* Truncate trailing spaces in the message */
 		while (mp > message && mp[-1] == ' ')
 			mp--;
+		*mp = '\0';
 		break;
 	case 'T':	/* Type of list */
 #if TAGS

@@ -219,6 +219,9 @@
 /* Define HAVE_FILENO if you have the fileno() macro. */
 #undef HAVE_FILENO
 
+/* Define HAVE_FLOAT if your compiler supports the "double" type. */
+#undef HAVE_FLOAT
+
 /* Define to 1 if you have the `fsync' function. */
 #undef HAVE_FSYNC
 
@@ -385,6 +388,9 @@
 
 /* Define to the one symbol short name of this package. */
 #undef PACKAGE_TARNAME
+
+/* Define to the home page for this package. */
+#undef PACKAGE_URL
 
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION

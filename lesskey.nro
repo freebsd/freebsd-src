@@ -1,4 +1,4 @@
-.TH LESSKEY 1 "Version 436: 07 Jul 2009"
+.TH LESSKEY 1 "Version 443: 09 Apr 2011"
 .SH NAME
 lesskey \- specify key bindings for less
 .SH SYNOPSIS
@@ -13,7 +13,7 @@ lesskey \- specify key bindings for less
 .I Lesskey
 is used to specify a set of key bindings to be used by 
 .I less.
-The input file is a text file which describes the key bindings,
+The input file is a text file which describes the key bindings.
 If the input file is "-", standard input is read.
 If no input file is specified, a standard filename is used
 as the name of the input file, which depends on the system being used:
@@ -311,6 +311,7 @@ default line-editing keys used by less:
 	\eek		up
 	\eku		up
 	\eej		down
+	^G		abort
 .fi
 .sp
 
@@ -349,17 +350,12 @@ is run, and specifies the character set to be "latin1":
 less(1)
 
 .SH WARNINGS
-It is not possible to specify special keys, such as uparrow, 
-in a keyboard-independent manner.
-The only way to specify such keys is to specify the escape sequence
-which a particular keyboard sends when such a key is pressed.
-.PP
 On MS-DOS and OS/2 systems, certain keys send a sequence of characters
 which start with a NUL character (0).
 This NUL character should be represented as \e340 in a lesskey file.
 
 .SH COPYRIGHT
-Copyright (C) 2000-2009  Mark Nudelman
+Copyright (C) 2000-2011  Mark Nudelman
 .PP
 lesskey is part of the GNU project and is free software;
 you can redistribute it and/or modify it
