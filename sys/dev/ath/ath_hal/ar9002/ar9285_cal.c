@@ -263,7 +263,5 @@ ar9285InitCalHardware(struct ath_hal *ah,
 	if (! ar9285_hw_clc(ah, chan))
 		return AH_FALSE;
 
-	ar9285_hw_pa_cal(ah, AH_TRUE);
-
 	return AH_TRUE;
 }

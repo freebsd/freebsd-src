@@ -76,7 +76,7 @@ __FBSDID("$FreeBSD$");
 int rootpid;
 int rootshell;
 struct jmploc main_handler;
-int localeisutf8;
+int localeisutf8, initial_localeisutf8;
 
 static void read_profile(const char *);
 static char *find_dot_file(char *);
@@ -97,7 +97,7 @@ main(int argc, char *argv[])
 	char *shinit;
 
 	(void) setlocale(LC_ALL, "");
-	updatecharset();
+	initcharset();
 	state = 0;
 	if (setjmp(main_handler.loc)) {
 		switch (exception) {

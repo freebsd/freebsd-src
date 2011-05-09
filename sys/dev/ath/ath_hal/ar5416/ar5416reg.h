@@ -701,7 +701,7 @@
 
 #define	AR_SREV_MERLIN_20(_ah) \
 	(AR_SREV_MERLIN(_ah) && \
-	 AH_PRIVATE((_ah))->ah_macRev == AR_XSREV_REVISION_MERLIN_20)
+	 AH_PRIVATE((_ah))->ah_macRev >= AR_XSREV_REVISION_MERLIN_20)
 
 #define	AR_SREV_MERLIN_20_OR_LATER(_ah) \
 	((AH_PRIVATE((_ah))->ah_macVersion > AR_XSREV_VERSION_MERLIN) ||	\
@@ -741,5 +741,6 @@
 /* Not yet implemented chips */
 #define	AR_SREV_9271(_ah)	0
 #define	AR_SREV_9287_11_OR_LATER(_ah)	0
+#define	AR_SREV_KIWI_10_OR_LATER(_ah)	0
 
 #endif /* _DEV_ATH_AR5416REG_H */

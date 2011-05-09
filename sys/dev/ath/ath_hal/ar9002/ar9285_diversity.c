@@ -374,10 +374,18 @@ ar9285_ant_comb_scan(struct ath_hal *ah, struct ath_rx_status *rs,
 	if (! ar9285_check_div_comb(ah))
 		return;
 
+	if (AH5212(ah)->ah_diversity == AH_FALSE)
+		return;
+
 	rx_ant_conf = (rs->rs_rssi_ctl[2] >> ATH_ANT_RX_CURRENT_SHIFT) &
 		       ATH_ANT_RX_MASK;
 	main_ant_conf = (rs->rs_rssi_ctl[2] >> ATH_ANT_RX_MAIN_SHIFT) &
 			 ATH_ANT_RX_MASK;
+
+#if 0
+	HALDEBUG(ah, HAL_DEBUG_DIVERSITY, "%s: main: %d, alt: %d, rx_ant_conf: %x, main_ant_conf: %x\n",
+	    __func__, main_rssi, alt_rssi, rx_ant_conf, main_ant_conf);
+#endif
 
 	/* Record packet only when alt_rssi is positive */
 	if (alt_rssi > 0) {
@@ -587,6 +595,24 @@ div_comb_done:
 
 	ar9285_antdiv_comb_conf_set(ah, &div_ant_conf);
 
+	HALDEBUG(ah, HAL_DEBUG_DIVERSITY, "%s: total_pkt_count=%d\n",
+	   __func__, antcomb->total_pkt_count);
+
+	HALDEBUG(ah, HAL_DEBUG_DIVERSITY, "%s: main_total_rssi=%d\n",
+	   __func__, antcomb->main_total_rssi);
+	HALDEBUG(ah, HAL_DEBUG_DIVERSITY, "%s: alt_total_rssi=%d\n",
+	   __func__, antcomb->alt_total_rssi);
+
+	HALDEBUG(ah, HAL_DEBUG_DIVERSITY, "%s: main_rssi_avg=%d\n",
+	   __func__, main_rssi_avg);
+	HALDEBUG(ah, HAL_DEBUG_DIVERSITY, "%s: alt_alt_rssi_avg=%d\n",
+	   __func__, alt_rssi_avg);
+
+	HALDEBUG(ah, HAL_DEBUG_DIVERSITY, "%s: main_recv_cnt=%d\n",
+	   __func__, antcomb->main_recv_cnt);
+	HALDEBUG(ah, HAL_DEBUG_DIVERSITY, "%s: alt_recv_cnt=%d\n",
+	   __func__, antcomb->alt_recv_cnt);
+
 	if (curr_alt_set != div_ant_conf.alt_lna_conf)
 		HALDEBUG(ah, HAL_DEBUG_DIVERSITY, "%s: lna_conf: %x -> %x\n",
 		    __func__, curr_alt_set, div_ant_conf.alt_lna_conf);
@@ -603,4 +629,118 @@ div_comb_done:
 	antcomb->alt_total_rssi = 0;
 	antcomb->main_recv_cnt = 0;
 	antcomb->alt_recv_cnt = 0;
+}
+
+/*
+ * Set the antenna switch to control RX antenna diversity.
+ *
+ * If a fixed configuration is used, the LNA and div bias
+ * settings are fixed and the antenna diversity scanning routine
+ * is disabled.
+ *
+ * If a variable configuration is used, a default is programmed
+ * in and sampling commences per RXed packet.
+ *
+ * Since this is called from ar9285SetBoardValues() to setup
+ * diversity, it means that after a reset or scan, any current
+ * software diversity combining settings will be lost and won't
+ * re-appear until after the first successful sample run.
+ * Please keep this in mind if you're seeing weird performance
+ * that happens to relate to scan/diversity timing.
+ */
+HAL_BOOL
+ar9285SetAntennaSwitch(struct ath_hal *ah, HAL_ANT_SETTING settings)
+{
+	int regVal;
+	const HAL_EEPROM_v4k *ee = AH_PRIVATE(ah)->ah_eeprom;
+	const MODAL_EEP4K_HEADER *pModal = &ee->ee_base.modalHeader;
+	uint8_t ant_div_control1, ant_div_control2;
+
+	if (pModal->version < 3) {
+		HALDEBUG(ah, HAL_DEBUG_DIVERSITY, "%s: not supported\n",
+	    __func__);
+		return AH_FALSE;	/* Can't do diversity */
+	}
+
+	/* Store settings */
+	AH5212(ah)->ah_antControl = settings;
+	AH5212(ah)->ah_diversity = (settings == HAL_ANT_VARIABLE);
+	
+	/* XXX don't fiddle if the PHY is in sleep mode or ! chan */
+
+	/* Begin setting the relevant registers */
+
+	ant_div_control1 = pModal->antdiv_ctl1;
+	ant_div_control2 = pModal->antdiv_ctl2;
+
+	regVal = OS_REG_READ(ah, AR_PHY_MULTICHAIN_GAIN_CTL);
+	regVal &= (~(AR_PHY_9285_ANT_DIV_CTL_ALL));
+
+	/* enable antenna diversity only if diversityControl == HAL_ANT_VARIABLE */
+	if (settings == HAL_ANT_VARIABLE)
+	    regVal |= SM(ant_div_control1, AR_PHY_9285_ANT_DIV_CTL);
+
+	if (settings == HAL_ANT_VARIABLE) {
+	    HALDEBUG(ah, HAL_DEBUG_DIVERSITY, "%s: HAL_ANT_VARIABLE\n",
+	      __func__);
+	    regVal |= SM(ant_div_control2, AR_PHY_9285_ANT_DIV_ALT_LNACONF);
+	    regVal |= SM((ant_div_control2 >> 2), AR_PHY_9285_ANT_DIV_MAIN_LNACONF);
+	    regVal |= SM((ant_div_control1 >> 1), AR_PHY_9285_ANT_DIV_ALT_GAINTB);
+	    regVal |= SM((ant_div_control1 >> 2), AR_PHY_9285_ANT_DIV_MAIN_GAINTB);
+	} else {
+	    if (settings == HAL_ANT_FIXED_A) {
+		/* Diversity disabled, RX = LNA1 */
+		HALDEBUG(ah, HAL_DEBUG_DIVERSITY, "%s: HAL_ANT_FIXED_A\n",
+		    __func__);
+		regVal |= SM(ATH_ANT_DIV_COMB_LNA2, AR_PHY_9285_ANT_DIV_ALT_LNACONF);
+		regVal |= SM(ATH_ANT_DIV_COMB_LNA1, AR_PHY_9285_ANT_DIV_MAIN_LNACONF);
+		regVal |= SM(AR_PHY_9285_ANT_DIV_GAINTB_0, AR_PHY_9285_ANT_DIV_ALT_GAINTB);
+		regVal |= SM(AR_PHY_9285_ANT_DIV_GAINTB_1, AR_PHY_9285_ANT_DIV_MAIN_GAINTB);
+	    }
+	    else if (settings == HAL_ANT_FIXED_B) {
+		/* Diversity disabled, RX = LNA2 */
+		HALDEBUG(ah, HAL_DEBUG_DIVERSITY, "%s: HAL_ANT_FIXED_B\n",
+		    __func__);
+		regVal |= SM(ATH_ANT_DIV_COMB_LNA1, AR_PHY_9285_ANT_DIV_ALT_LNACONF);
+		regVal |= SM(ATH_ANT_DIV_COMB_LNA2, AR_PHY_9285_ANT_DIV_MAIN_LNACONF);
+		regVal |= SM(AR_PHY_9285_ANT_DIV_GAINTB_1, AR_PHY_9285_ANT_DIV_ALT_GAINTB);
+		regVal |= SM(AR_PHY_9285_ANT_DIV_GAINTB_0, AR_PHY_9285_ANT_DIV_MAIN_GAINTB);
+	    }
+	}
+
+	OS_REG_WRITE(ah, AR_PHY_MULTICHAIN_GAIN_CTL, regVal);
+	regVal = OS_REG_READ(ah, AR_PHY_MULTICHAIN_GAIN_CTL);
+	regVal = OS_REG_READ(ah, AR_PHY_CCK_DETECT);
+	regVal &= (~AR_PHY_CCK_DETECT_BB_ENABLE_ANT_FAST_DIV);
+	if (settings == HAL_ANT_VARIABLE)
+	    regVal |= SM((ant_div_control1 >> 3), AR_PHY_CCK_DETECT_BB_ENABLE_ANT_FAST_DIV);
+
+	OS_REG_WRITE(ah, AR_PHY_CCK_DETECT, regVal);
+	regVal = OS_REG_READ(ah, AR_PHY_CCK_DETECT);
+
+	/*
+	 * If Diversity combining is available and the diversity setting
+	 * is to allow variable diversity, enable it by default.
+	 *
+	 * This will be eventually overridden by the software antenna
+	 * diversity logic.
+	 *
+	 * Note that yes, this following section overrides the above
+	 * settings for the LNA configuration and fast-bias.
+	 */
+	if (ar9285_check_div_comb(ah) && AH5212(ah)->ah_diversity == AH_TRUE) {
+		// If support DivComb, set MAIN to LNA1 and ALT to LNA2 at the first beginning
+		HALDEBUG(ah, HAL_DEBUG_DIVERSITY,
+		    "%s: Enable initial settings for combined diversity\n",
+		    __func__);
+		regVal = OS_REG_READ(ah, AR_PHY_MULTICHAIN_GAIN_CTL);
+		regVal &= (~(AR_PHY_9285_ANT_DIV_MAIN_LNACONF | AR_PHY_9285_ANT_DIV_ALT_LNACONF));
+		regVal |= (ATH_ANT_DIV_COMB_LNA1 << AR_PHY_9285_ANT_DIV_MAIN_LNACONF_S);
+		regVal |= (ATH_ANT_DIV_COMB_LNA2 << AR_PHY_9285_ANT_DIV_ALT_LNACONF_S);
+		regVal &= (~(AR_PHY_9285_FAST_DIV_BIAS));
+		regVal |= (0 << AR_PHY_9285_FAST_DIV_BIAS_S);
+		OS_REG_WRITE(ah, AR_PHY_MULTICHAIN_GAIN_CTL, regVal);
+	}
+
+	return AH_TRUE;
 }
