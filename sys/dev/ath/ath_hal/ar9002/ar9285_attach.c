@@ -407,15 +407,6 @@ ar9285FillCapabilityInfo(struct ath_hal *ah)
 	return AH_TRUE;
 }
 
-/*
- * Antenna selection is not (currently) done this way.
- */
-HAL_BOOL
-ar9285SetAntennaSwitch(struct ath_hal *ah, HAL_ANT_SETTING settings)
-{
-	return AH_TRUE;
-}
-
 static const char*
 ar9285Probe(uint16_t vendorid, uint16_t devid)
 {
