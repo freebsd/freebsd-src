@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2009  Mark Nudelman
+ * Copyright (C) 1984-2011  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -395,7 +395,7 @@ init_charset()
 binary_char(c)
 	LWCHAR c;
 {
-    if (utf_mode)
+	if (utf_mode)
 		return (is_ubin_char(c));
 	c &= 0377;
 	return (chardef[c] & IS_BINARY_CHAR);
@@ -817,7 +817,7 @@ static struct wchar_range ubin_table[] = {
 	{  0x000B,  0x000C} /* Cc */, 
 	{  0x000E,  0x001A} /* Cc */, 
 	{  0x001C,  0x001F} /* Cc */, 
-    {  0x007F,  0x009F} /* Cc */,
+	{  0x007F,  0x009F} /* Cc */,
 #if 0
 	{  0x00AD,  0x00AD} /* Cf */,
 #endif
