@@ -104,7 +104,8 @@ static	scr_stat	main_console;
 static	struct tty 	*main_devs[MAXCONS];
 
 static  char        	init_done = COLD;
-static  char		shutdown_in_progress = FALSE;
+static	int		shutdown_in_progress = FALSE;
+static	int		suspend_in_progress = FALSE;
 static	char		sc_malloc = FALSE;
 
 static	int		saver_mode = CONS_NO_SAVER; /* LKM/user saver */
@@ -128,6 +129,13 @@ static	void		none_saver(sc_softc_t *sc, int blank) { }
 static	void		(*current_saver)(sc_softc_t *, int) = none_saver;
 #endif
 
+#ifdef SC_NO_SUSPEND_VTYSWITCH
+static	int		sc_no_suspend_vtswitch = 1;
+#else
+static	int		sc_no_suspend_vtswitch = 0;
+#endif
+static	int		sc_susp_scr;
+
 SYSCTL_NODE(_hw, OID_AUTO, syscons, CTLFLAG_RD, 0, "syscons");
 SYSCTL_NODE(_hw_syscons, OID_AUTO, saver, CTLFLAG_RD, 0, "saver");
 SYSCTL_INT(_hw_syscons_saver, OID_AUTO, keybonly, CTLFLAG_RW,
@@ -142,6 +150,9 @@ SYSCTL_INT(_hw_syscons, OID_AUTO, kbd_reboot, CTLFLAG_RW|CTLFLAG_SECURE, &enable
 SYSCTL_INT(_hw_syscons, OID_AUTO, kbd_debug, CTLFLAG_RW|CTLFLAG_SECURE, &enable_kdbkey,
     0, "enable keyboard debug");
 #endif
+TUNABLE_INT("hw.syscons.sc_no_suspend_vtswitch", &sc_no_suspend_vtswitch);
+SYSCTL_INT(_hw_syscons, OID_AUTO, sc_no_suspend_vtswitch, CTLFLAG_RW,
+    &sc_no_suspend_vtswitch, 0, "Disable VT switch before suspend.");
 #if !defined(SC_NO_FONT_LOADING) && defined(SC_DFLT_FONT)
 #include "font.h"
 #endif
@@ -170,7 +181,9 @@ static kbd_callback_func_t sckbdevent;
 static void scinit(int unit, int flags);
 static scr_stat *sc_get_stat(struct tty *tp);
 static void scterm(int unit, int flags);
-static void scshutdown(void *arg, int howto);
+static void scshutdown(void *, int);
+static void scsuspend(void *);
+static void scresume(void *);
 static u_int scgetc(sc_softc_t *sc, u_int flags);
 #define SCGETC_CN	1
 #define SCGETC_NONBLOCK	2
@@ -518,10 +531,15 @@ sc_attach_unit(int unit, int flags)
 	printf("\n");
     }
 
-    /* register a shutdown callback for the kernel console */
-    if (sc_console_unit == unit)
-	EVENTHANDLER_REGISTER(shutdown_pre_sync, scshutdown, 
-			      (void *)(uintptr_t)unit, SHUTDOWN_PRI_DEFAULT);
+    /* Register suspend/resume/shutdown callbacks for the kernel console. */
+    if (sc_console_unit == unit) {
+	EVENTHANDLER_REGISTER(power_suspend, scsuspend, NULL,
+			      EVENTHANDLER_PRI_ANY);
+	EVENTHANDLER_REGISTER(power_resume, scresume, NULL,
+			      EVENTHANDLER_PRI_ANY);
+	EVENTHANDLER_REGISTER(shutdown_pre_sync, scshutdown, NULL,
+			      SHUTDOWN_PRI_DEFAULT);
+    }
 
     for (vc = 0; vc < sc->vtys; vc++) {
 	if (sc->dev[vc] == NULL) {
@@ -1718,7 +1736,7 @@ sccnupdate(scr_stat *scp)
 {
     /* this is a cut-down version of scrn_timer()... */
 
-    if (scp->sc->suspend_in_progress || scp->sc->font_loading_in_progress)
+    if (suspend_in_progress || scp->sc->font_loading_in_progress)
 	return;
 
     if (debugger > 0 || panicstr || shutdown_in_progress) {
@@ -1768,7 +1786,7 @@ scrn_timer(void *arg)
 	return;
 
     /* don't do anything when we are performing some I/O operations */
-    if (sc->suspend_in_progress || sc->font_loading_in_progress) {
+    if (suspend_in_progress || sc->font_loading_in_progress) {
 	if (again)
 	    timeout(scrn_timer, sc, hz / 10);
 	return;
@@ -3007,16 +3025,64 @@ scterm(int unit, int flags)
 }
 
 static void
-scshutdown(void *arg, int howto)
+scshutdown(__unused void *arg, __unused int howto)
 {
-    /* assert(sc_console != NULL) */
 
-    sc_touch_scrn_saver();
-    if (!cold && sc_console
-	&& sc_console->sc->cur_scp->smode.mode == VT_AUTO 
-	&& sc_console->smode.mode == VT_AUTO)
-	sc_switch_scr(sc_console->sc, sc_console->index);
-    shutdown_in_progress = TRUE;
+	KASSERT(sc_console != NULL, ("sc_console != NULL"));
+	KASSERT(sc_console->sc != NULL, ("sc_console->sc != NULL"));
+	KASSERT(sc_console->sc->cur_scp != NULL,
+	    ("sc_console->sc->cur_scp != NULL"));
+
+	sc_touch_scrn_saver();
+	if (!cold &&
+	    sc_console->sc->cur_scp->index != sc_console->index &&
+	    sc_console->sc->cur_scp->smode.mode == VT_AUTO &&
+	    sc_console->smode.mode == VT_AUTO)
+		sc_switch_scr(sc_console->sc, sc_console->index);
+	shutdown_in_progress = TRUE;
+}
+
+static void
+scsuspend(__unused void *arg)
+{
+	int retry;
+
+	KASSERT(sc_console != NULL, ("sc_console != NULL"));
+	KASSERT(sc_console->sc != NULL, ("sc_console->sc != NULL"));
+	KASSERT(sc_console->sc->cur_scp != NULL,
+	    ("sc_console->sc->cur_scp != NULL"));
+
+	sc_susp_scr = sc_console->sc->cur_scp->index;
+	if (sc_no_suspend_vtswitch ||
+	    sc_susp_scr == sc_console->index) {
+		sc_touch_scrn_saver();
+		sc_susp_scr = -1;
+		return;
+	}
+	for (retry = 0; retry < 10; retry++) {
+		sc_switch_scr(sc_console->sc, sc_console->index);
+		if (!sc_console->sc->switch_in_progress)
+			break;
+		pause("scsuspend", hz);
+	}
+	suspend_in_progress = TRUE;
+}
+
+static void
+scresume(__unused void *arg)
+{
+
+	KASSERT(sc_console != NULL, ("sc_console != NULL"));
+	KASSERT(sc_console->sc != NULL, ("sc_console->sc != NULL"));
+	KASSERT(sc_console->sc->cur_scp != NULL,
+	    ("sc_console->sc->cur_scp != NULL"));
+
+	suspend_in_progress = FALSE;
+	if (sc_susp_scr < 0) {
+		mark_all(sc_console->sc->cur_scp);
+		return;
+	}
+	sc_switch_scr(sc_console->sc, sc_susp_scr);
 }
 
 int

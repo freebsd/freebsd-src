@@ -498,7 +498,6 @@ void
 cpu_initclocks(void)
 {
 
-	init_TSC_tc();
 	cpu_initclocks_bsp();
 }
 
