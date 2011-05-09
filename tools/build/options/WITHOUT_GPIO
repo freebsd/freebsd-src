@@ -1,0 +1,4 @@
+.\" $FreeBSD: head/tools/build/options/WITHOUT_GPIO 221541 2011-05-06 19:14:06Z ru $
+Set to not build
+.Xr gpioctl 8
+as part of the base system.
