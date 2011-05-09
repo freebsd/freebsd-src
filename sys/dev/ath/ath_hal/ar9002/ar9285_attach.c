@@ -401,8 +401,9 @@ ar9285FillCapabilityInfo(struct ath_hal *ah)
 	if (AR_SREV_KITE_12_OR_LATER(ah))
 		pCap->halPSPollBroken = AH_FALSE;
 
+	/* Only RX STBC supported */
 	pCap->halRxStbcSupport = 1;
-	pCap->halTxStbcSupport = 1;
+	pCap->halTxStbcSupport = 0;
 
 	return AH_TRUE;
 }
