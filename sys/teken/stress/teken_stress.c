@@ -34,7 +34,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#include "teken.h"
+#include <teken.h>
 
 static tf_bell_t	stress_bell;
 static tf_cursor_t	stress_cursor;
