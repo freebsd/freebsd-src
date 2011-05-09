@@ -1,0 +1,11 @@
+# $FreeBSD: head/tools/regression/bin/sh/parser/dollar-quote8.0 221513 2011-05-05 20:55:55Z jilles $
+
+[ $'hello\0' = hello ]
+[ $'hello\0world' = hello ]
+[ $'hello\0'$'world' = helloworld ]
+[ $'hello\000' = hello ]
+[ $'hello\000world' = hello ]
+[ $'hello\000'$'world' = helloworld ]
+[ $'hello\x00' = hello ]
+[ $'hello\x00world' = hello ]
+[ $'hello\x00'$'world' = helloworld ]

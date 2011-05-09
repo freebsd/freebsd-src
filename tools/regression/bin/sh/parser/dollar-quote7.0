@@ -1,0 +1,6 @@
+# $FreeBSD: head/tools/regression/bin/sh/parser/dollar-quote7.0 221513 2011-05-05 20:55:55Z jilles $
+
+set -e
+
+[ $'\u0024\u0040\u0060' = '$@`' ]
+[ $'\U00000024\U00000040\U00000060' = '$@`' ]
