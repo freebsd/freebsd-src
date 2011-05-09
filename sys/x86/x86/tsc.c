@@ -326,7 +326,73 @@ init_TSC(void)
 	    tsc_levels_changed, NULL, EVENTHANDLER_PRI_ANY);
 }
 
-void
+#ifdef SMP
+
+#define	TSC_READ(x)			\
+static void				\
+tsc_read_##x(void *arg)			\
+{					\
+	uint32_t *tsc = arg;		\
+	u_int cpu = PCPU_GET(cpuid);	\
+					\
+	tsc[cpu * 3 + x] = rdtsc32();	\
+}
+TSC_READ(0)
+TSC_READ(1)
+TSC_READ(2)
+#undef TSC_READ
+
+#define	N	1000
+
+static void
+comp_smp_tsc(void *arg)
+{
+	uint32_t *tsc;
+	int32_t d1, d2;
+	u_int cpu = PCPU_GET(cpuid);
+	u_int i, j, size;
+
+	size = (mp_maxid + 1) * 3;
+	for (i = 0, tsc = arg; i < N; i++, tsc += size)
+		CPU_FOREACH(j) {
+			if (j == cpu)
+				continue;
+			d1 = tsc[cpu * 3 + 1] - tsc[j * 3];
+			d2 = tsc[cpu * 3 + 2] - tsc[j * 3 + 1];
+			if (d1 <= 0 || d2 <= 0) {
+				smp_tsc = 0;
+				return;
+			}
+		}
+}
+
+static int
+test_smp_tsc(void)
+{
+	uint32_t *data, *tsc;
+	u_int i, size;
+
+	if (!smp_tsc && !tsc_is_invariant)
+		return (-100);
+	size = (mp_maxid + 1) * 3;
+	data = malloc(sizeof(*data) * size * N, M_TEMP, M_WAITOK);
+	for (i = 0, tsc = data; i < N; i++, tsc += size)
+		smp_rendezvous(tsc_read_0, tsc_read_1, tsc_read_2, tsc);
+	smp_tsc = 1;	/* XXX */
+	smp_rendezvous(smp_no_rendevous_barrier, comp_smp_tsc,
+	    smp_no_rendevous_barrier, data);
+	free(data, M_TEMP);
+	if (bootverbose)
+		printf("SMP: %sed TSC synchronization test\n",
+		    smp_tsc ? "pass" : "fail");
+	return (smp_tsc ? 800 : -100);
+}
+
+#undef N
+
+#endif /* SMP */
+
+static void
 init_TSC_tc(void)
 {
 
@@ -347,26 +413,25 @@ init_TSC_tc(void)
 		tsc_timecounter.tc_quality = -1000;
 		if (bootverbose)
 			printf("TSC timecounter disabled: APM enabled.\n");
+		goto init;
 	}
 
 #ifdef SMP
 	/*
-	 * We can not use the TSC in SMP mode unless the TSCs on all CPUs
-	 * are somehow synchronized.  Some hardware configurations do
-	 * this, but we have no way of determining whether this is the
-	 * case, so we do not use the TSC in multi-processor systems
-	 * unless the user indicated (by setting kern.timecounter.smp_tsc
-	 * to 1) that he believes that his TSCs are synchronized.
+	 * We can not use the TSC in SMP mode unless the TSCs on all CPUs are
+	 * synchronized.  If the user is sure that the system has synchronized
+	 * TSCs, set kern.timecounter.smp_tsc tunable to a non-zero value.
 	 */
-	if (mp_ncpus > 1 && !smp_tsc)
-		tsc_timecounter.tc_quality = -100;
+	if (smp_cpus > 1)
+		tsc_timecounter.tc_quality = test_smp_tsc();
 #endif
-
+init:
 	if (tsc_freq != 0) {
 		tsc_timecounter.tc_frequency = tsc_freq;
 		tc_init(&tsc_timecounter);
 	}
 }
+SYSINIT(tsc_tc, SI_SUB_SMP, SI_ORDER_ANY, init_TSC_tc, NULL);
 
 /*
  * When cpufreq levels change, find out about the (new) max frequency.  We

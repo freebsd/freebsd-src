@@ -75,24 +75,30 @@ ar9285_antdiv_comb_conf_set(struct ath_hal *ah,
 }
 
 /*
- * Check whether antenna diversity should be enabled
+ * Check whether combined + fast antenna diversity should be enabled.
+ *
+ * This enables software-driven RX antenna diversity based on RX
+ * RSSI + antenna config packet sampling.
  */
-int
+HAL_BOOL
 ar9285_check_div_comb(struct ath_hal *ah)
 {
 	uint8_t ant_div_ctl1;
 	HAL_EEPROM_v4k *ee = AH_PRIVATE(ah)->ah_eeprom;
         const MODAL_EEP4K_HEADER *pModal = &ee->ee_base.modalHeader;
 
+	/* For now, simply disable this until it's better debugged. -adrian */
+	return AH_FALSE;
+
 	if (! AR_SREV_KITE(ah))
-		return 0;
+		return AH_FALSE;
 
 	if (pModal->version < 3)
-		return 0;
+		return AH_FALSE;
 
 	ant_div_ctl1 = pModal->antdiv_ctl1;
 	if ((ant_div_ctl1 & 0x1) && ((ant_div_ctl1 >> 3) & 0x1))
-		return 1;
+		return AH_TRUE;
 
-	return 0;
+	return AH_FALSE;
 }

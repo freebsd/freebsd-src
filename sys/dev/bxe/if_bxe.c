@@ -3323,7 +3323,7 @@ bxe_stop_locked(struct bxe_softc *sc, int unload_mode)
 		bxe_set_mac_addr_e1(sc, 0);
 
 		for (i = 0; i < config->hdr.length; i++)
-			CAM_INVALIDATE(config->config_table[i]);
+			CAM_INVALIDATE(&config->config_table[i]);
 
 		config->hdr.length = i;
 		config->hdr.offset = BXE_MAX_MULTICAST * (1 + port);
@@ -14254,6 +14254,8 @@ static void
 bxe_set_mac_addr_e1(struct bxe_softc *sc, int set)
 {
 	struct mac_configuration_cmd *config;
+	struct mac_configuration_entry *config_table;
+	uint8_t *eaddr;
 	int port;
 
 	DBENTER(BXE_VERBOSE_MISC);
@@ -14274,43 +14276,40 @@ bxe_set_mac_addr_e1(struct bxe_softc *sc, int set)
 	config->hdr.reserved1 = 0;
 
 	/* Program the primary MAC address. */
-	config->config_table[0].cam_entry.msb_mac_addr =
-	    ntohs(*(uint16_t *)&sc->link_params.mac_addr[0]);
-	config->config_table[0].cam_entry.middle_mac_addr =
-	    ntohs(*(uint16_t *)&sc->link_params.mac_addr[2]);
-	config->config_table[0].cam_entry.lsb_mac_addr =
-	    ntohs(*(uint16_t *)&sc->link_params.mac_addr[4]);
-	config->config_table[0].cam_entry.flags = htole16(port);
+	config_table = &config->config_table[0];
+	eaddr = sc->link_params.mac_addr;
+	config_table->cam_entry.msb_mac_addr = eaddr[0] << 8 | eaddr[1];
+	config_table->cam_entry.middle_mac_addr = eaddr[2] << 8 | eaddr[3];
+	config_table->cam_entry.lsb_mac_addr = eaddr[4] << 8 | eaddr[5];
+	config_table->cam_entry.flags = htole16(port);
 
 	if (set)
-		config->config_table[0].target_table_entry.flags = 0;
+		config_table->target_table_entry.flags = 0;
 	else
-		CAM_INVALIDATE(config->config_table[0]);
+		CAM_INVALIDATE(config_table);
 
-	/* t48 	config->config_table[0].target_table_entry.client_id = 0; */
-	config->config_table[0].target_table_entry.vlan_id = 0;
+	config_table->target_table_entry.vlan_id = 0;
 
 	DBPRINT(sc, BXE_VERBOSE, "%s(): %s MAC (%04x:%04x:%04x)\n",
 	   __FUNCTION__, (set ? "Setting" : "Clearing"),
-	   config->config_table[0].cam_entry.msb_mac_addr,
-	   config->config_table[0].cam_entry.middle_mac_addr,
-	   config->config_table[0].cam_entry.lsb_mac_addr);
+	   config_table->cam_entry.msb_mac_addr,
+	   config_table->cam_entry.middle_mac_addr,
+	   config_table->cam_entry.lsb_mac_addr);
 
 	/* Program the broadcast MAC address. */
-	config->config_table[1].cam_entry.msb_mac_addr = 0xffff;
-	config->config_table[1].cam_entry.middle_mac_addr = 0xffff;
-	config->config_table[1].cam_entry.lsb_mac_addr = 0xffff;
-	config->config_table[1].cam_entry.flags = htole16(port);
+	config_table = &config->config_table[1];
+	config_table->cam_entry.msb_mac_addr = 0xffff;
+	config_table->cam_entry.middle_mac_addr = 0xffff;
+	config_table->cam_entry.lsb_mac_addr = 0xffff;
+	config_table->cam_entry.flags = htole16(port);
 
 	if (set)
-		config->config_table[1].target_table_entry.flags =
+		config_table->target_table_entry.flags =
 		    TSTORM_CAM_TARGET_TABLE_ENTRY_BROADCAST;
 	else
-		CAM_INVALIDATE(config->config_table[1]);
+		CAM_INVALIDATE(config_table);
 
-	/*t48	config->config_table[1].target_table_entry.client_id = 0; */
-	config->config_table[1].target_table_entry.vlan_id = 0;
-
+	config_table->target_table_entry.vlan_id = 0;
 
 	/* Post the command to slow path queue. */
 	bxe_sp_post(sc, RAMROD_CMD_ID_ETH_SET_MAC, 0,
@@ -14330,6 +14329,8 @@ static void
 bxe_set_mac_addr_e1h(struct bxe_softc *sc, int set)
 {
 	struct mac_configuration_cmd_e1h *config;
+	struct mac_configuration_entry_e1h *config_table;
+	uint8_t *eaddr;
 	int func, port;
 
 	DBENTER(BXE_VERBOSE_MISC);
@@ -14356,30 +14357,27 @@ bxe_set_mac_addr_e1h(struct bxe_softc *sc, int set)
 	config->hdr.reserved1 = 0;
 
 	/* Program the primary MAC address. */
-	config->config_table[0].msb_mac_addr =
-	    ntohs(*(uint16_t *)&sc->link_params.mac_addr[0]);
-	config->config_table[0].middle_mac_addr =
-	    ntohs(*(uint16_t *)&sc->link_params.mac_addr[2]);
-	config->config_table[0].lsb_mac_addr =
-	    ntohs(*(uint16_t *)&sc->link_params.mac_addr[4]);
-	config->config_table[0].clients_bit_vector =
-	    htole32(1 << sc->fp->cl_id);
+	config_table = &config->config_table[0];
+	eaddr = sc->link_params.mac_addr;
+	config_table->msb_mac_addr = eaddr[0] << 8 | eaddr[1];
+	config_table->middle_mac_addr = eaddr[2] << 8 | eaddr[3];
+	config_table->lsb_mac_addr = eaddr[4] << 8 | eaddr[5];
+	config_table->clients_bit_vector = htole32(1 << sc->fp->cl_id);
 
-	config->config_table[0].vlan_id = 0;
-	config->config_table[0].e1hov_id = htole16(sc->e1hov);
+	config_table->vlan_id = 0;
+	config_table->e1hov_id = htole16(sc->e1hov);
 
 	if (set)
-		config->config_table[0].flags = port;
+		config_table->flags = port;
 	else
-		config->config_table[0].flags =
+		config_table->flags =
 			MAC_CONFIGURATION_ENTRY_E1H_ACTION_TYPE;
 
 	DBPRINT(sc, BXE_VERBOSE_MISC,
 	    "%s(): %s MAC (%04x:%04x:%04x), E1HOV = %d, CLID = %d\n",
 	    __FUNCTION__, (set ? "Setting" : "Clearing"),
-	    config->config_table[0].msb_mac_addr,
-	    config->config_table[0].middle_mac_addr,
-	    config->config_table[0].lsb_mac_addr, sc->e1hov, BP_L_ID(sc));
+	    config_table->msb_mac_addr, config_table->middle_mac_addr,
+	    config_table->lsb_mac_addr, sc->e1hov, BP_L_ID(sc));
 
 	bxe_sp_post(sc, RAMROD_CMD_ID_ETH_SET_MAC, 0,
 	    U64_HI(BXE_SP_MAPPING(sc, mac_config)),
@@ -14402,7 +14400,9 @@ bxe_set_rx_mode(struct bxe_softc *sc)
 	struct ifnet *ifp;
 	struct ifmultiaddr *ifma;
 	struct mac_configuration_cmd *config;
+	struct mac_configuration_entry *config_table;
 	uint32_t mc_filter[MC_HASH_SIZE];
+	uint8_t *maddr;
 	uint32_t crc, bit, regidx, rx_mode;
 	int i, old, offset, port;
 
@@ -14431,8 +14431,8 @@ bxe_set_rx_mode(struct bxe_softc *sc)
 
 		/* Enable promiscuous mode. */
 		rx_mode = BXE_RX_MODE_PROMISC;
-	} else if ((ifp->if_flags & IFF_ALLMULTI) ||
-	    (ifp->if_amcount > BXE_MAX_MULTICAST)) {
+	} else if (ifp->if_flags & IFF_ALLMULTI ||
+	    ifp->if_amcount > BXE_MAX_MULTICAST) {
 		DBPRINT(sc, BXE_VERBOSE_MISC,
 		    "%s(): Enabling all multicast mode.\n", __FUNCTION__);
 
@@ -14453,28 +14453,28 @@ bxe_set_rx_mode(struct bxe_softc *sc)
 			TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 				if (ifma->ifma_addr->sa_family != AF_LINK)
 					continue;
-
-				config->config_table[i].cam_entry.msb_mac_addr =
-					bswap16(*(uint32_t *)(LLADDR((struct sockaddr_dl *)ifma->ifma_addr)));
-				config->config_table[i].cam_entry.middle_mac_addr =
-					bswap16(*(uint16_t *)(LLADDR((struct sockaddr_dl *)ifma->ifma_addr) + 2));
-				config->config_table[i].cam_entry.lsb_mac_addr =
-					bswap16(*(uint16_t *)(LLADDR((struct sockaddr_dl *)ifma->ifma_addr) + 4));
-
-				config->config_table[i].cam_entry.flags = htole16(port);
-				config->config_table[i].target_table_entry.flags = 0;
-				config->config_table[i].target_table_entry.
-					clients_bit_vector = htole32(1 << BP_L_ID(sc));
-				config->config_table[i].target_table_entry.vlan_id = 0;
-
+				maddr = (uint8_t *)LLADDR(
+				    (struct sockaddr_dl *)ifma->ifma_addr);
+				config_table = &config->config_table[i];
+				config_table->cam_entry.msb_mac_addr =
+				    maddr[0] << 8 | maddr[1];
+				config_table->cam_entry.middle_mac_addr =
+				    maddr[2] << 8 | maddr[3];
+				config_table->cam_entry.lsb_mac_addr =
+				    maddr[4] << 8 | maddr[5];
+				config_table->cam_entry.flags = htole16(port);
+				config_table->target_table_entry.flags = 0;
+				config_table->target_table_entry.
+				    clients_bit_vector =
+				    htole32(1 << BP_L_ID(sc));
+				config_table->target_table_entry.vlan_id = 0;
 				i++;
-
 				DBPRINT(sc, BXE_INFO,
 			"%s(): Setting MCAST[%d] (%04X:%04X:%04X)\n",
 				    __FUNCTION__, i,
-				    config->config_table[i].cam_entry.msb_mac_addr,
-				    config->config_table[i].cam_entry.middle_mac_addr,
-				    config->config_table[i].cam_entry.lsb_mac_addr);
+				    config_table->cam_entry.msb_mac_addr,
+				    config_table->cam_entry.middle_mac_addr,
+				    config_table->cam_entry.lsb_mac_addr);
 			}
 
 			IF_ADDR_UNLOCK(ifp);
@@ -14484,11 +14484,11 @@ bxe_set_rx_mode(struct bxe_softc *sc)
 			/* Invalidate any extra MC entries in the CAM. */
 			if (old > i) {
 				for (; i < old; i++) {
-					if (CAM_IS_INVALID(
-					    config->config_table[i]))
+					config_table = &config->config_table[i];
+					if (CAM_IS_INVALID(config_table))
 						break;
 					/* Invalidate */
-					CAM_INVALIDATE(config->config_table[i]);
+					CAM_INVALIDATE(config_table);
 				}
 			}
 
@@ -14501,7 +14501,6 @@ bxe_set_rx_mode(struct bxe_softc *sc)
 			bxe_sp_post(sc, RAMROD_CMD_ID_ETH_SET_MAC, 0,
 			    U64_HI(BXE_SP_MAPPING(sc, mcast_config)),
 			    U64_LO(BXE_SP_MAPPING(sc, mcast_config)), 0);
-
 		} else { /* E1H */
 			/* Accept one or more multicasts */
 			memset(mc_filter, 0, 4 * MC_HASH_SIZE);
