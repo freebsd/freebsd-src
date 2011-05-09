@@ -237,8 +237,6 @@ ar9285SetBoardValues(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	const MODAL_EEP4K_HEADER *pModal;
 	uint8_t txRxAttenLocal;
 	uint8_t ob[5], db1[5], db2[5];
-	uint8_t ant_div_control1, ant_div_control2;
-	uint32_t regVal;
 
 	pModal = &eep->modalHeader;
 	txRxAttenLocal = 23;
@@ -248,36 +246,10 @@ ar9285SetBoardValues(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	/* Single chain for 4K EEPROM*/
 	ar9285SetBoardGain(ah, pModal, eep, txRxAttenLocal);
 
-	/* Initialize Ant Diversity settings from EEPROM */
-	if (pModal->version >= 3) {
-		ant_div_control1 = pModal->antdiv_ctl1;
-		ant_div_control2 = pModal->antdiv_ctl2;
+	/* Initialize Ant Diversity settings if supported */
+	(void) ar9285SetAntennaSwitch(ah, AH5212(ah)->ah_antControl);
 
-		regVal = OS_REG_READ(ah, AR_PHY_MULTICHAIN_GAIN_CTL);
-		regVal &= (~(AR_PHY_9285_ANT_DIV_CTL_ALL));
-
-		regVal |= SM(ant_div_control1,
-			     AR_PHY_9285_ANT_DIV_CTL);
-		regVal |= SM(ant_div_control2,
-			     AR_PHY_9285_ANT_DIV_ALT_LNACONF);
-		regVal |= SM((ant_div_control2 >> 2),
-			     AR_PHY_9285_ANT_DIV_MAIN_LNACONF);
-		regVal |= SM((ant_div_control1 >> 1),
-			     AR_PHY_9285_ANT_DIV_ALT_GAINTB);
-		regVal |= SM((ant_div_control1 >> 2),
-			     AR_PHY_9285_ANT_DIV_MAIN_GAINTB);
-
-		OS_REG_WRITE(ah, AR_PHY_MULTICHAIN_GAIN_CTL, regVal);
-		regVal = OS_REG_READ(ah, AR_PHY_MULTICHAIN_GAIN_CTL);
-		regVal = OS_REG_READ(ah, AR_PHY_CCK_DETECT);
-		regVal &= (~AR_PHY_CCK_DETECT_BB_ENABLE_ANT_FAST_DIV);
-		regVal |= SM((ant_div_control1 >> 3),
-			     AR_PHY_CCK_DETECT_BB_ENABLE_ANT_FAST_DIV);
-
-		OS_REG_WRITE(ah, AR_PHY_CCK_DETECT, regVal);
-		regVal = OS_REG_READ(ah, AR_PHY_CCK_DETECT);
-	}
-
+	/* Configure TX power calibration */
 	if (pModal->version >= 2) {
 		ob[0] = pModal->ob_0;
 		ob[1] = pModal->ob_1;
@@ -379,6 +351,7 @@ ar9285SetBoardValues(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	if (AR_SREV_9271(ah) || AR_SREV_KITE(ah)) {
 		uint8_t bb_desired_scale = (pModal->bb_scale_smrt_antenna & EEP_4K_BB_DESIRED_SCALE_MASK);
 		if ((eep->baseEepHeader.txGainType == 0) && (bb_desired_scale != 0)) {
+			ath_hal_printf(ah, "[ath]: adjusting cck tx gain factor\n");
 			uint32_t pwrctrl, mask, clr;
 
 			mask = (1<<0) | (1<<5) | (1<<10) | (1<<15) | (1<<20) | (1<<25);
