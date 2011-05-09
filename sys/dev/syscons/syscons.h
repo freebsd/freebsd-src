@@ -230,7 +230,6 @@ typedef struct sc_softc {
 	char        	switch_in_progress;
 	char        	write_in_progress;
 	char        	blink_in_progress;
-	char		suspend_in_progress;
 	struct mtx	video_mtx;
 
 	long		scrn_time_stamp;
