@@ -45,7 +45,7 @@
 #include <util.h>
 #endif
 
-#include "teken.h"
+#include <teken.h>
 
 static tf_bell_t	test_bell;
 static tf_cursor_t	test_cursor;

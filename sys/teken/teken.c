@@ -32,7 +32,6 @@
 #include <sys/lock.h>
 #include <sys/systm.h>
 #define	teken_assert(x)		MPASS(x)
-#define	teken_printf(x,...)
 #else /* !(__FreeBSD__ && _KERNEL) */
 #include <sys/types.h>
 #include <assert.h>
@@ -40,13 +39,10 @@
 #include <stdio.h>
 #include <string.h>
 #define	teken_assert(x)		assert(x)
-#define	teken_printf(x,...)	do { \
-	if (df != NULL) \
-		fprintf(df, x, ## __VA_ARGS__); \
-} while (0)
-/* debug messages */
-static FILE *df;
 #endif /* __FreeBSD__ && _KERNEL */
+
+/* debug messages */
+#define	teken_printf(x,...)
 
 /* Private flags for t_stateflags. */
 #define	TS_FIRSTDIGIT	0x0001	/* First numeric digit in escape sequence. */
@@ -152,12 +148,6 @@ void
 teken_init(teken_t *t, const teken_funcs_t *tf, void *softc)
 {
 	teken_pos_t tp = { .tp_row = 24, .tp_col = 80 };
-
-#if !(defined(__FreeBSD__) && defined(_KERNEL))
-	df = fopen("teken.log", "w");
-	if (df != NULL)
-		setvbuf(df, NULL, _IOLBF, BUFSIZ);
-#endif /* !(__FreeBSD__ && _KERNEL) */
 
 	t->t_funcs = tf;
 	t->t_softc = softc;
