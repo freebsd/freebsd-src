@@ -43,6 +43,31 @@
 #define	wmb()	mb()
 #define	rmb()	mb()
 
+#define	_ATOMIC_PUN_LTOI(FUNC)						\
+	static __inline void						\
+	atomic_##FUNC##_long(volatile u_long *p, u_long v)		\
+	{								\
+									\
+		atomic_##FUNC##_int((volatile u_int *)p, (u_int)v);	\
+	}								\
+									\
+	static __inline void						\
+	atomic_##FUNC##_acq_long(volatile u_long *p, u_long v)		\
+	{								\
+									\
+		atomic_##FUNC##_acq_int((volatile u_int *)p,		\
+		    (u_int)v);						\
+	}								\
+									\
+	static __inline void						\
+	atomic_##FUNC##_rel_long(volatile u_long *p, u_long v)		\
+	{								\
+									\
+		atomic_##FUNC##_rel_int((volatile u_int *)p,		\
+		    (u_int)v);						\
+	}								\
+	/* _ATOMIC_PUN_LTOI */
+
 /*
  * atomic_add(p, v)
  * { *p += v; }
@@ -110,26 +135,15 @@ _ATOMIC_ADD(long)
 #define	atomic_add_acq_64	atomic_add_acq_long
 #define	atomic_add_rel_64	atomic_add_rel_long
 
-#define	atomic_add_ptr(p, v)					\
-	atomic_add_long((volatile u_long *)(p), (u_long)(v))
-#define	atomic_add_acq_ptr(p, v)				\
-	atomic_add_acq_long((volatile u_long *)(p), (u_long)(v))
-#define	atomic_add_rel_ptr(p, v)				\
-	atomic_add_rel_long((volatile u_long *)(p), (u_long)(v))
+#define	atomic_add_ptr		atomic_add_long
+#define	atomic_add_acq_ptr	atomic_add_acq_long
+#define	atomic_add_rel_ptr	atomic_add_rel_long
 #else
-#define	atomic_add_long(p, v)					\
-	atomic_add_int((volatile u_int *)(p), (u_int)(v))
-#define	atomic_add_acq_long(p, v)				\
-	atomic_add_acq_int((volatile u_int *)(p), (u_int)(v))
-#define	atomic_add_rel_long(p, v)				\
-	atomic_add_rel_int((volatile u_int *)(p), (u_int)(v))
+_ATOMIC_PUN_LTOI(add)
 
-#define	atomic_add_ptr(p, v)					\
-	atomic_add_int((volatile u_int *)(p), (u_int)(v))
-#define	atomic_add_acq_ptr(p, v)				\
-	atomic_add_acq_int((volatile u_int *)(p), (u_int)(v))
-#define	atomic_add_rel_ptr(p, v)				\
-	atomic_add_rel_int((volatile u_int *)(p), (u_int)(v))
+#define	atomic_add_ptr		atomic_add_int
+#define	atomic_add_acq_ptr	atomic_add_acq_int
+#define	atomic_add_rel_ptr	atomic_add_rel_int
 #endif
 #undef _ATOMIC_ADD
 #undef __atomic_add_long
@@ -203,26 +217,15 @@ _ATOMIC_CLEAR(long)
 #define	atomic_clear_acq_64	atomic_clear_acq_long
 #define	atomic_clear_rel_64	atomic_clear_rel_long
 
-#define	atomic_clear_ptr(p, v)					\
-	atomic_clear_long((volatile u_long *)(p), (u_long)(v))
-#define	atomic_clear_acq_ptr(p, v)				\
-	atomic_clear_acq_long((volatile u_long *)(p), (u_long)(v))
-#define	atomic_clear_rel_ptr(p, v)				\
-	atomic_clear_rel_long((volatile u_long *)(p), (u_long)(v))
+#define	atomic_clear_ptr	atomic_clear_long
+#define	atomic_clear_acq_ptr	atomic_clear_acq_long
+#define	atomic_clear_rel_ptr	atomic_clear_rel_long
 #else
-#define	atomic_clear_long(p, v)					\
-	atomic_clear_int((volatile u_int *)(p), (u_int)(v))
-#define	atomic_clear_acq_long(p, v)				\
-	atomic_clear_acq_int((volatile u_int *)(p), (u_int)(v))
-#define	atomic_clear_rel_long(p, v)				\
-	atomic_clear_rel_int((volatile u_int *)(p), (u_int)(v))
+_ATOMIC_PUN_LTOI(clear)
 
-#define	atomic_clear_ptr(p, v)					\
-	atomic_clear_int((volatile u_int *)(p), (u_int)(v))
-#define	atomic_clear_acq_ptr(p, v)				\
-	atomic_clear_acq_int((volatile u_int *)(p), (u_int)(v))
-#define	atomic_clear_rel_ptr(p, v)				\
-	atomic_clear_rel_int((volatile u_int *)(p), (u_int)(v))
+#define	atomic_clear_ptr	atomic_clear_int
+#define	atomic_clear_acq_ptr	atomic_clear_acq_int
+#define	atomic_clear_rel_ptr	atomic_clear_rel_int
 #endif
 #undef _ATOMIC_ADD
 #undef __atomic_clear_long
@@ -310,26 +313,15 @@ _ATOMIC_SET(long)
 #define	atomic_set_acq_64	atomic_set_acq_long
 #define	atomic_set_rel_64	atomic_set_rel_long
 
-#define	atomic_set_ptr(p, v)					\
-	atomic_set_long((volatile u_long *)(p), (u_long)(v))
-#define	atomic_set_acq_ptr(p, v)				\
-	atomic_set_acq_long((volatile u_long *)(p), (u_long)(v))
-#define	atomic_set_rel_ptr(p, v)				\
-	atomic_set_rel_long((volatile u_long *)(p), (u_long)(v))
+#define	atomic_set_ptr		atomic_set_long
+#define	atomic_set_acq_ptr	atomic_set_acq_long
+#define	atomic_set_rel_ptr	atomic_set_rel_long
 #else
-#define	atomic_set_long(p, v)					\
-	atomic_set_int((volatile u_int *)(p), (u_int)(v))
-#define	atomic_set_acq_long(p, v)				\
-	atomic_set_acq_int((volatile u_int *)(p), (u_int)(v))
-#define	atomic_set_rel_long(p, v)				\
-	atomic_set_rel_int((volatile u_int *)(p), (u_int)(v))
+_ATOMIC_PUN_LTOI(set)
 
-#define	atomic_set_ptr(p, v)					\
-	atomic_set_int((volatile u_int *)(p), (u_int)(v))
-#define	atomic_set_acq_ptr(p, v)				\
-	atomic_set_acq_int((volatile u_int *)(p), (u_int)(v))
-#define	atomic_set_rel_ptr(p, v)				\
-	atomic_set_rel_int((volatile u_int *)(p), (u_int)(v))
+#define	atomic_set_ptr		atomic_set_int
+#define	atomic_set_acq_ptr	atomic_set_acq_int
+#define	atomic_set_rel_ptr	atomic_set_rel_int
 #endif
 #undef _ATOMIC_SET
 #undef __atomic_set_long
@@ -402,30 +394,21 @@ _ATOMIC_SUBTRACT(long)
 #define	atomic_subtract_acq_64	atomic_subract_acq_long
 #define	atomic_subtract_rel_64	atomic_subtract_rel_long
 
-#define	atomic_subtract_ptr(p, v)					\
-	atomic_subtract_long((volatile u_long *)(p), (u_long)(v))
-#define	atomic_subtract_acq_ptr(p, v)					\
-	atomic_subtract_acq_long((volatile u_long *)(p), (u_long)(v))
-#define	atomic_subtract_rel_ptr(p, v)					\
-	atomic_subtract_rel_long((volatile u_long *)(p), (u_long)(v))
+#define	atomic_subtract_ptr	atomic_subtract_long
+#define	atomic_subtract_acq_ptr	atomic_subtract_acq_long
+#define	atomic_subtract_rel_ptr	atomic_subtract_rel_long
 #else
-#define	atomic_subtract_long(p, v)					\
-	atomic_subtract_int((volatile u_int *)(p), (u_int)(v))
-#define	atomic_subtract_acq_long(p, v)					\
-	atomic_subtract_acq_int((volatile u_int *)(p), (u_int)(v))
-#define	atomic_subtract_rel_long(p, v)					\
-	atomic_subtract_rel_int((volatile u_int *)(p), (u_int)(v))
+_ATOMIC_PUN_LTOI(subtract)
 
-#define	atomic_subtract_ptr(p, v)					\
-	atomic_subtract_int((volatile u_int *)(p), (u_int)(v))
-#define	atomic_subtract_acq_ptr(p, v)					\
-	atomic_subtract_acq_int((volatile u_int *)(p), (u_int)(v))
-#define	atomic_subtract_rel_ptr(p, v)					\
-	atomic_subtract_rel_int((volatile u_int *)(p), (u_int)(v))
+#define	atomic_subtract_ptr	atomic_subtract_int
+#define	atomic_subtract_acq_ptr	atomic_subtract_acq_int
+#define	atomic_subtract_rel_ptr	atomic_subtract_rel_int
 #endif
 #undef _ATOMIC_SUBTRACT
 #undef __atomic_subtract_long
 #undef __atomic_subtract_int
+
+#undef _ATOMIC_PUN_LTOI
 
 /*
  * atomic_store_rel(p, v)
@@ -483,14 +466,16 @@ atomic_readandclear_long(volatile u_long *addr)
 #ifdef __powerpc64__
 #define	atomic_readandclear_64		atomic_readandclear_long
 
-#define	atomic_readandclear_ptr(p)				\
-	atomic_readandclear_long((volatile u_long *)(p))
+#define	atomic_readandclear_ptr		atomic_readandclear_long
 #else
-#define	atomic_readandclear_long(p)				\
-	atomic_readandclear_int((volatile u_int *)(p))
+static __inline u_long
+atomic_readandclear_long(volatile u_long *addr)
+{
 
-#define	atomic_readandclear_ptr(p)				\
-	atomic_readandclear_int((volatile u_int *)(p))
+	return ((u_long)atomic_readandclear_int((volatile u_int *)addr));
+}
+
+#define	atomic_readandclear_ptr		atomic_readandclear_int
 #endif
 
 /*
@@ -525,20 +510,25 @@ ATOMIC_STORE_LOAD(long)
 #define	atomic_load_acq_64	atomic_load_acq_long
 #define	atomic_store_rel_64	atomic_store_rel_long
 
-#define	atomic_load_acq_ptr(p)						\
-	atomic_load_acq_long((volatile u_long *)(p))
-#define	atomic_store_rel_ptr(p, v)					\
-	atomic_store_rel_long((volatile u_long *)(p), (u_long)(v))
+#define	atomic_load_acq_ptr	atomic_load_acq_long
+#define	atomic_store_rel_ptr	atomic_store_rel_long
 #else
-#define	atomic_load_acq_long(p)						\
-	atomic_load_acq_int((volatile u_int *)(p))
-#define	atomic_store_rel_long(p, v)					\
-	atomic_store_rel_int((volatile u_int *)(p), (u_int)(v))
+static __inline u_long
+atomic_load_acq_long(volatile u_long *addr)
+{
 
-#define	atomic_load_acq_ptr(p)						\
-	atomic_load_acq_int((volatile u_int *)(p))
-#define	atomic_store_rel_ptr(p, v)					\
-	atomic_store_rel_int((volatile u_int *)(p), (u_int)(v))
+	return ((u_long)atomic_load_acq_int((volatile u_int *)addr));
+}
+
+static __inline void
+atomic_store_rel_long(volatile u_long *addr, u_long val)
+{
+
+	atomic_store_rel_int((volatile u_int *)addr, (u_int)val);
+}
+
+#define	atomic_load_acq_ptr	atomic_load_acq_int
+#define	atomic_store_rel_ptr	atomic_store_rel_int
 #endif
 #undef ATOMIC_STORE_LOAD
 
@@ -572,6 +562,42 @@ atomic_cmpset_int(volatile u_int* p, u_int cmpval, u_int newval)
 
 	return (ret);
 }
+static __inline int
+atomic_cmpset_long(volatile u_long* p, u_long cmpval, u_long newval)
+{
+	int ret;
+
+#ifdef __GNUCLIKE_ASM
+	__asm __volatile (
+	    #ifdef __powerpc64__
+		"1:\tldarx %0, 0, %2\n\t"	/* load old value */
+		"cmpld %3, %0\n\t"		/* compare */
+		"bne 2f\n\t"			/* exit if not equal */
+		"stdcx. %4, 0, %2\n\t"		/* attempt to store */
+	    #else
+		"1:\tlwarx %0, 0, %2\n\t"	/* load old value */
+		"cmplw %3, %0\n\t"		/* compare */
+		"bne 2f\n\t"			/* exit if not equal */
+		"stwcx. %4, 0, %2\n\t"		/* attempt to store */
+	    #endif
+		"bne- 1b\n\t"			/* spin if failed */
+		"li %0, 1\n\t"			/* success - retval = 1 */
+		"b 3f\n\t"			/* we've succeeded */
+		"2:\n\t"
+	    #ifdef __powerpc64__
+		"stdcx. %0, 0, %2\n\t"		/* clear reservation (74xx) */
+	    #else
+		"stwcx. %0, 0, %2\n\t"		/* clear reservation (74xx) */
+	    #endif
+		"li %0, 0\n\t"			/* failure - retval = 0 */
+		"3:\n\t"
+		: "=&r" (ret), "=m" (*p)
+		: "r" (p), "r" (cmpval), "r" (newval), "m" (*p)
+		: "cc", "memory");
+#endif
+
+	return (ret);
+}
 
 static __inline int
 atomic_cmpset_acq_int(volatile u_int *p, u_int cmpval, u_int newval)
@@ -588,37 +614,6 @@ atomic_cmpset_rel_int(volatile u_int *p, u_int cmpval, u_int newval)
 {
 	__ATOMIC_BARRIER;
 	return (atomic_cmpset_int(p, cmpval, newval));
-}
-
-#define	atomic_cmpset_32	atomic_cmpset_int
-#define	atomic_cmpset_acq_32	atomic_cmpset_acq_int
-#define	atomic_cmpset_rel_32	atomic_cmpset_rel_int
-
-#ifdef __powerpc64__
-static __inline int
-atomic_cmpset_long(volatile u_long* p, u_long cmpval, u_long newval)
-{
-	int ret;
-
-#ifdef __GNUCLIKE_ASM
-	__asm __volatile (
-		"1:\tldarx %0, 0, %2\n\t"	/* load old value */
-		"cmpld %3, %0\n\t"		/* compare */
-		"bne 2f\n\t"			/* exit if not equal */
-		"stdcx. %4, 0, %2\n\t"      	/* attempt to store */
-		"bne- 1b\n\t"			/* spin if failed */
-		"li %0, 1\n\t"			/* success - retval = 1 */
-		"b 3f\n\t"			/* we've succeeded */
-		"2:\n\t"
-		"stdcx. %0, 0, %2\n\t"       	/* clear reservation (74xx) */
-		"li %0, 0\n\t"			/* failure - retval = 0 */
-		"3:\n\t"
-		: "=&r" (ret), "=m" (*p)
-		: "r" (p), "r" (cmpval), "r" (newval), "m" (*p)
-		: "cc", "memory");
-#endif
-
-	return (ret);
 }
 
 static __inline int
@@ -638,39 +633,22 @@ atomic_cmpset_rel_long(volatile u_long *p, u_long cmpval, u_long newval)
 	return (atomic_cmpset_long(p, cmpval, newval));
 }
 
+#define	atomic_cmpset_32	atomic_cmpset_int
+#define	atomic_cmpset_acq_32	atomic_cmpset_acq_int
+#define	atomic_cmpset_rel_32	atomic_cmpset_rel_int
+
+#ifdef __powerpc64__
 #define	atomic_cmpset_64	atomic_cmpset_long
 #define	atomic_cmpset_acq_64	atomic_cmpset_acq_long
 #define	atomic_cmpset_rel_64	atomic_cmpset_rel_long
 
-#define	atomic_cmpset_ptr(dst, old, new)				\
-	atomic_cmpset_long((volatile u_long *)(dst), (u_long)(old),	\
-	    (u_long)(new))
-#define	atomic_cmpset_acq_ptr(dst, old, new)				\
-	atomic_cmpset_acq_long((volatile u_long *)(dst), (u_long)(old),	\
-	    (u_long)(new))
-#define	atomic_cmpset_rel_ptr(dst, old, new)				\
-	atomic_cmpset_rel_long((volatile u_long *)(dst), (u_long)(old),	\
-	    (u_long)(new))
+#define	atomic_cmpset_ptr	atomic_cmpset_long
+#define	atomic_cmpset_acq_ptr	atomic_cmpset_acq_long
+#define	atomic_cmpset_rel_ptr	atomic_cmpset_rel_long
 #else
-#define	atomic_cmpset_long(dst, old, new)				\
-	atomic_cmpset_int((volatile u_int *)(dst), (u_int)(old),	\
-	    (u_int)(new))
-#define	atomic_cmpset_acq_long(dst, old, new)				\
-	atomic_cmpset_acq_int((volatile u_int *)(dst), (u_int)(old),	\
-	    (u_int)(new))
-#define	atomic_cmpset_rel_long(dst, old, new)				\
-	atomic_cmpset_rel_int((volatile u_int *)(dst), (u_int)(old),	\
-	    (u_int)(new))
-
-#define	atomic_cmpset_ptr(dst, old, new)				\
-	atomic_cmpset_int((volatile u_int *)(dst), (u_int)(old),	\
-	    (u_int)(new))
-#define	atomic_cmpset_acq_ptr(dst, old, new)				\
-	atomic_cmpset_acq_int((volatile u_int *)(dst), (u_int)(old),	\
-	    (u_int)(new))
-#define	atomic_cmpset_rel_ptr(dst, old, new)				\
-	atomic_cmpset_rel_int((volatile u_int *)(dst), (u_int)(old),	\
-	    (u_int)(new))
+#define	atomic_cmpset_ptr	atomic_cmpset_int
+#define	atomic_cmpset_acq_ptr	atomic_cmpset_acq_int
+#define	atomic_cmpset_rel_ptr	atomic_cmpset_rel_int
 #endif
 
 static __inline u_int
@@ -684,9 +662,6 @@ atomic_fetchadd_int(volatile u_int *p, u_int v)
 	return (value);
 }
 
-#define	atomic_fetchadd_32	atomic_fetchadd_int
-
-#ifdef __powerpc64__
 static __inline u_long
 atomic_fetchadd_long(volatile u_long *p, u_long v)
 {
@@ -698,10 +673,10 @@ atomic_fetchadd_long(volatile u_long *p, u_long v)
 	return (value);
 }
 
+#define	atomic_fetchadd_32	atomic_fetchadd_int
+
+#ifdef __powerpc64__
 #define	atomic_fetchadd_64	atomic_fetchadd_long
-#else
-#define	atomic_fetchadd_long(p, v)					\
-	(u_long)atomic_fetchadd_int((volatile u_int *)(p), (u_int)(v))
 #endif
 
 #endif /* ! _MACHINE_ATOMIC_H_ */
