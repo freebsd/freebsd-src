@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2009  Mark Nudelman
+ * Copyright (C) 1984-2011  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -254,8 +254,8 @@ match_pattern(pattern, tpattern, line, line_len, sp, ep, notbol, search_type)
 
 	if (search_type & SRCH_NO_REGEX)
 		matched = match(tpattern, strlen(tpattern), line, line_len, sp, ep);
-    else
-    {
+	else
+	{
 #if HAVE_POSIX_REGCOMP
 	{
 		regmatch_t rm;
@@ -314,7 +314,7 @@ match_pattern(pattern, tpattern, line, line_len, sp, ep, notbol, search_type)
 #if NO_REGEX
 	matched = match(tpattern, strlen(tpattern), line, line_len, sp, ep);
 #endif
-    }
+	}
 	matched = (!(search_type & SRCH_NO_MATCH) && matched) ||
 			((search_type & SRCH_NO_MATCH) && !matched);
 	return (matched);
