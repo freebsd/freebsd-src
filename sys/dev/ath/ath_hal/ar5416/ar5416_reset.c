@@ -1296,7 +1296,8 @@ ar5416InitChainMasks(struct ath_hal *ah)
 {
 	int rx_chainmask = AH5416(ah)->ah_rx_chainmask;
 
-	if (rx_chainmask)
+	/* Flip this for this chainmask regardless of chip */
+	if (rx_chainmask == 0x5)
 		OS_REG_SET_BIT(ah, AR_PHY_ANALOG_SWAP, AR_PHY_SWAP_ALT_CHAIN);
 
 	/*
