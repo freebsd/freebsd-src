@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2009  Mark Nudelman
+ * Copyright (C) 1984-2011  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -181,6 +181,11 @@ get_forw_line:
 			{
 				do
 				{
+					if (ABORT_SIGS())
+					{
+						null_line();
+						return (NULL_POSITION);
+					}
 					c = ch_forw_get();
 				} while (c != '\n' && c != EOI);
 				new_pos = ch_tell();
