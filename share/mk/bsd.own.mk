@@ -394,7 +394,6 @@ __DEFAULT_NO_OPTIONS = \
     BIND_LIBS \
     BIND_SIGCHASE \
     BIND_XML \
-    GNU_CPIO \
     HESIOD \
     ICONV \
     IDEA \
@@ -405,7 +404,7 @@ __DEFAULT_NO_OPTIONS = \
 # this means that we have to test TARGET_ARCH (the buildworld case) as well
 # as MACHINE_ARCH (the non-buildworld case).  Normally TARGET_ARCH is not
 # used at all in bsd.*.mk, but we have to make an exception here if we want
-# to allow defaults for some things like clang and ftd to vary by target
+# to allow defaults for some things like clang and fdt to vary by target
 # architecture.
 #
 .if defined(TARGET_ARCH)
