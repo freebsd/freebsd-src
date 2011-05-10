@@ -74,8 +74,33 @@ static void ar9285WriteIni(struct ath_hal *ah,
 static void
 ar9285AniSetup(struct ath_hal *ah)
 {
-	/* NB: disable ANI for reliable RIFS rx */
-	ar5416AniAttach(ah, AH_NULL, AH_NULL, AH_FALSE);
+	/*
+	 * These are the parameters from the AR5416 ANI code;
+	 * they likely need quite a bit of adjustment for the
+	 * AR9285.
+	 */
+        static const struct ar5212AniParams aniparams = {
+                .maxNoiseImmunityLevel  = 4,    /* levels 0..4 */
+                .totalSizeDesired       = { -55, -55, -55, -55, -62 },
+                .coarseHigh             = { -14, -14, -14, -14, -12 },
+                .coarseLow              = { -64, -64, -64, -64, -70 },
+                .firpwr                 = { -78, -78, -78, -78, -80 },
+                .maxSpurImmunityLevel   = 2,
+                .cycPwrThr1             = { 2, 4, 6 },
+                .maxFirstepLevel        = 2,    /* levels 0..2 */
+                .firstep                = { 0, 4, 8 },
+                .ofdmTrigHigh           = 500,
+                .ofdmTrigLow            = 200,
+                .cckTrigHigh            = 200,
+                .cckTrigLow             = 100,
+                .rssiThrHigh            = 40,
+                .rssiThrLow             = 7,
+                .period                 = 100,
+        };
+	/* NB: disable ANI noise immmunity for reliable RIFS rx */
+	AH5416(ah)->ah_ani_function &= ~ HAL_ANI_NOISE_IMMUNITY_LEVEL;
+
+        ar5416AniAttach(ah, &aniparams, &aniparams, AH_TRUE);
 }
 
 /*
@@ -121,10 +146,6 @@ ar9285Attach(uint16_t devid, HAL_SOFTC sc,
 	AH5416(ah)->ah_cal.adcDcCalData.calData = &ar9280_adc_dc_cal;
 	AH5416(ah)->ah_cal.adcDcCalInitData.calData = &ar9280_adc_init_dc_cal;
 	AH5416(ah)->ah_cal.suppCals = ADC_GAIN_CAL | ADC_DC_CAL | IQ_MISMATCH_CAL;
-
-	if (AR_SREV_KITE_12_OR_LATER(ah))
-		AH5416(ah)->ah_cal_initcal      = ar9285InitCalHardware;
-	AH5416(ah)->ah_cal_pacal        = ar9002_hw_pa_cal;
 
 	AH5416(ah)->ah_spurMitigate	= ar9280SpurMitigate;
 	AH5416(ah)->ah_writeIni		= ar9285WriteIni;
@@ -172,6 +193,12 @@ ar9285Attach(uint16_t devid, HAL_SOFTC sc,
 		    ar9285PciePhy_clkreq_always_on_L1, 2);
 	}
 	ar5416AttachPCIE(ah);
+
+	/* Attach methods that require MAC version/revision info */
+	if (AR_SREV_KITE_12_OR_LATER(ah))
+		AH5416(ah)->ah_cal_initcal      = ar9285InitCalHardware;
+	if (AR_SREV_KITE_11_OR_LATER(ah))
+		AH5416(ah)->ah_cal_pacal        = ar9002_hw_pa_cal;
 
 	ecode = ath_hal_v4kEepromAttach(ah);
 	if (ecode != HAL_OK)
