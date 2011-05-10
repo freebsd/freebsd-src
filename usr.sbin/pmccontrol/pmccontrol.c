@@ -141,6 +141,7 @@ pmcc_do_enable_disable(struct pmcc_op_list *op_list)
 	unsigned char *map;
 	unsigned char op;
 	int cpu, pmc;
+	size_t setsize;
 
 	if ((ncpu = pmc_ncpu()) < 0)
 		err(EX_OSERR, "Unable to determine the number of cpus");
@@ -152,8 +153,9 @@ pmcc_do_enable_disable(struct pmcc_op_list *op_list)
 		    "halted");
 	}
 	CPU_ZERO(&haltedcpus);
+	setsize = (size_t)cpusetsize;
 	if (ncpu > 1 && sysctlbyname("machdep.hlt_cpus", &haltedcpus,
-	    (size_t *)&cpusetsize, NULL, 0) < 0)
+	    &setsize, NULL, 0) < 0)
 		err(EX_OSERR, "ERROR: Cannot determine which CPUs are "
 		    "halted");
 	CPU_FILL(&cpumask);
