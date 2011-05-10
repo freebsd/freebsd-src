@@ -170,12 +170,18 @@ tipout(void)
 		if (boolean(value(SCRIPT)) && fscript != NULL) {
 			if (!boolean(value(BEAUTIFY))) {
 				fwrite(buf, 1, cnt, fscript);
-				continue;
+			} else {
+				for (cp = buf; cp < buf + cnt; cp++)
+					if ((*cp >= ' ' && *cp <= '~') ||
+					    any(*cp, value(EXCEPTIONS)))
+						putc(*cp, fscript);
 			}
-			for (cp = buf; cp < buf + cnt; cp++)
-				if ((*cp >= ' ' && *cp <= '~') ||
-				    any(*cp, value(EXCEPTIONS)))
-					putc(*cp, fscript);
+			for (cp = buf; cp < buf + cnt; cp++) {
+				if (!isgraph(*cp)) {
+					fflush(fscript);
+					break;
+				}
+			}
 		}
 	}
 }
