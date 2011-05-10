@@ -681,6 +681,7 @@ vendor HAUPPAUGE2	0x2040	Hauppauge Computer Works
 vendor TLAYTECH		0x20b9	Tlay Tech
 vendor ENCORE		0x203d	Encore
 vendor PARA		0x20b8	PARA Industrial
+vendor SIMTEC		0x20df	Simtec Electronics
 vendor ERICSSON		0x2282	Ericsson
 vendor MOTOROLA2	0x22b8	Motorola
 vendor TRIPPLITE	0x2478	Tripp-Lite
@@ -2512,6 +2513,9 @@ product PANASONIC TYTP50P6S	0x3900	TY-TP50P6-S 50in Touch Panel
 
 /* PARA Industrial products */
 product PARA RT3070		0x8888	RT3070
+
+/* Simtec Electronics products */
+product SIMTEC ENTROPYKEY	0x0001	Entropy Key
 
 /* Pegatron products */
 product PEGATRON RT2870		0x0002	RT2870
