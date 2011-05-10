@@ -1786,7 +1786,7 @@ lagg_lacp_input(struct lagg_softc *sc, struct lagg_port *lp, struct mbuf *m)
 	etype = ntohs(eh->ether_type);
 
 	/* Tap off LACP control messages */
-	if (etype == ETHERTYPE_SLOW) {
+	if ((m->m_flags & M_VLANTAG) == 0 && etype == ETHERTYPE_SLOW) {
 		m = lacp_input(lp, m);
 		if (m == NULL)
 			return (NULL);
