@@ -297,7 +297,6 @@ __DEFAULT_YES_OPTIONS = \
     BIND_MTREE \
     BIND_NAMED \
     BIND_UTILS \
-    BINUTILS \
     BLUETOOTH \
     BOOT \
     BSD_CPIO \
@@ -318,7 +317,6 @@ __DEFAULT_YES_OPTIONS = \
     FP_LIBC \
     FREEBSD_UPDATE \
     GAMES \
-    GCC \
     GCOV \
     GDB \
     GNU \
