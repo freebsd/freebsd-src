@@ -532,7 +532,7 @@ cpu_ipi_stop(struct trapframe *tf)
 	CPU_OR_ATOMIC(&stopped_cpus, &tcmask);
 	while (!CPU_OVERLAP(&started_cpus, &tcmask)) {
 		if (CPU_OVERLAP(&shutdown_cpus, &tcmask)) {
-			CPU_OR_ATOMIC(&shutdown_cpus, &tcmask);
+			CPU_NAND_ATOMIC(&shutdown_cpus, &tcmask);
 			(void)intr_disable();
 			for (;;)
 				;
