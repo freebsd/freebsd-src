@@ -76,7 +76,7 @@ static devclass_t ip1000phy_devclass;
 static driver_t ip1000phy_driver = {
 	"ip1000phy",
 	ip1000phy_methods,
-	sizeof (struct mii_softc)
+	sizeof(struct ip1000phy_softc)
 };
 
 DRIVER_MODULE(ip1000phy, miibus, ip1000phy_driver, ip1000phy_devclass, 0, 0);
