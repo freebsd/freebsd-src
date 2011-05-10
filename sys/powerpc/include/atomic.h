@@ -43,31 +43,6 @@
 #define	wmb()	mb()
 #define	rmb()	mb()
 
-#define	_ATOMIC_PUN_LTOI(FUNC)						\
-	static __inline void						\
-	atomic_##FUNC##_long(volatile u_long *p, u_long v)		\
-	{								\
-									\
-		atomic_##FUNC##_int((volatile u_int *)p, (u_int)v);	\
-	}								\
-									\
-	static __inline void						\
-	atomic_##FUNC##_acq_long(volatile u_long *p, u_long v)		\
-	{								\
-									\
-		atomic_##FUNC##_acq_int((volatile u_int *)p,		\
-		    (u_int)v);						\
-	}								\
-									\
-	static __inline void						\
-	atomic_##FUNC##_rel_long(volatile u_long *p, u_long v)		\
-	{								\
-									\
-		atomic_##FUNC##_rel_int((volatile u_int *)p,		\
-		    (u_int)v);						\
-	}								\
-	/* _ATOMIC_PUN_LTOI */
-
 /*
  * atomic_add(p, v)
  * { *p += v; }
@@ -97,7 +72,15 @@
     /* __atomic_add_long */
 #else
 #define	__atomic_add_long(p, v, t)				\
-    long atomic_add not implemented
+    __asm __volatile(						\
+	"1:	lwarx	%0, 0, %2\n"				\
+	"	add	%0, %3, %0\n"				\
+	"	stwcx.	%0, 0, %2\n"				\
+	"	bne-	1b\n"					\
+	: "=&r" (t), "=m" (*p)					\
+	: "r" (p), "r" (v), "m" (*p)				\
+	: "cc", "memory")					\
+    /* __atomic_add_long */
 #endif
 
 #define	_ATOMIC_ADD(type)					\
@@ -123,14 +106,13 @@
     /* _ATOMIC_ADD */
 
 _ATOMIC_ADD(int)
+_ATOMIC_ADD(long)
 
 #define	atomic_add_32		atomic_add_int
 #define	atomic_add_acq_32	atomic_add_acq_int
 #define	atomic_add_rel_32	atomic_add_rel_int
 
 #ifdef __powerpc64__
-_ATOMIC_ADD(long)
-
 #define	atomic_add_64		atomic_add_long
 #define	atomic_add_acq_64	atomic_add_acq_long
 #define	atomic_add_rel_64	atomic_add_rel_long
@@ -139,8 +121,6 @@ _ATOMIC_ADD(long)
 #define	atomic_add_acq_ptr	atomic_add_acq_long
 #define	atomic_add_rel_ptr	atomic_add_rel_long
 #else
-_ATOMIC_PUN_LTOI(add)
-
 #define	atomic_add_ptr		atomic_add_int
 #define	atomic_add_acq_ptr	atomic_add_acq_int
 #define	atomic_add_rel_ptr	atomic_add_rel_int
@@ -178,7 +158,15 @@ _ATOMIC_PUN_LTOI(add)
     /* __atomic_clear_long */
 #else
 #define	__atomic_clear_long(p, v, t)				\
-    long atomic_clear not implemented
+    __asm __volatile(						\
+	"1:	lwarx	%0, 0, %2\n"				\
+	"	andc	%0, %0, %3\n"				\
+	"	stwcx.	%0, 0, %2\n"				\
+	"	bne-	1b\n"					\
+	: "=&r" (t), "=m" (*p)					\
+	: "r" (p), "r" (v), "m" (*p)				\
+	: "cc", "memory")					\
+    /* __atomic_clear_long */
 #endif
 
 #define	_ATOMIC_CLEAR(type)					\
@@ -205,14 +193,13 @@ _ATOMIC_PUN_LTOI(add)
 
 
 _ATOMIC_CLEAR(int)
+_ATOMIC_CLEAR(long)
 
 #define	atomic_clear_32		atomic_clear_int
 #define	atomic_clear_acq_32	atomic_clear_acq_int
 #define	atomic_clear_rel_32	atomic_clear_rel_int
 
 #ifdef __powerpc64__
-_ATOMIC_CLEAR(long)
-
 #define	atomic_clear_64		atomic_clear_long
 #define	atomic_clear_acq_64	atomic_clear_acq_long
 #define	atomic_clear_rel_64	atomic_clear_rel_long
@@ -221,13 +208,11 @@ _ATOMIC_CLEAR(long)
 #define	atomic_clear_acq_ptr	atomic_clear_acq_long
 #define	atomic_clear_rel_ptr	atomic_clear_rel_long
 #else
-_ATOMIC_PUN_LTOI(clear)
-
 #define	atomic_clear_ptr	atomic_clear_int
 #define	atomic_clear_acq_ptr	atomic_clear_acq_int
 #define	atomic_clear_rel_ptr	atomic_clear_rel_int
 #endif
-#undef _ATOMIC_ADD
+#undef _ATOMIC_CLEAR
 #undef __atomic_clear_long
 #undef __atomic_clear_int
 
@@ -275,7 +260,15 @@ _ATOMIC_PUN_LTOI(clear)
     /* __atomic_set_long */
 #else
 #define	__atomic_set_long(p, v, t)				\
-    long atomic_set not implemented
+    __asm __volatile(						\
+	"1:	lwarx	%0, 0, %2\n"				\
+	"	or	%0, %3, %0\n"				\
+	"	stwcx.	%0, 0, %2\n"				\
+	"	bne-	1b\n"					\
+	: "=&r" (t), "=m" (*p)					\
+	: "r" (p), "r" (v), "m" (*p)				\
+	: "cc", "memory")					\
+    /* __atomic_set_long */
 #endif
 
 #define	_ATOMIC_SET(type)					\
@@ -301,14 +294,13 @@ _ATOMIC_PUN_LTOI(clear)
     /* _ATOMIC_SET */
 
 _ATOMIC_SET(int)
+_ATOMIC_SET(long)
 
 #define	atomic_set_32		atomic_set_int
 #define	atomic_set_acq_32	atomic_set_acq_int
 #define	atomic_set_rel_32	atomic_set_rel_int
 
 #ifdef __powerpc64__
-_ATOMIC_SET(long)
-
 #define	atomic_set_64		atomic_set_long
 #define	atomic_set_acq_64	atomic_set_acq_long
 #define	atomic_set_rel_64	atomic_set_rel_long
@@ -317,8 +309,6 @@ _ATOMIC_SET(long)
 #define	atomic_set_acq_ptr	atomic_set_acq_long
 #define	atomic_set_rel_ptr	atomic_set_rel_long
 #else
-_ATOMIC_PUN_LTOI(set)
-
 #define	atomic_set_ptr		atomic_set_int
 #define	atomic_set_acq_ptr	atomic_set_acq_int
 #define	atomic_set_rel_ptr	atomic_set_rel_int
@@ -356,7 +346,15 @@ _ATOMIC_PUN_LTOI(set)
     /* __atomic_subtract_long */
 #else
 #define	__atomic_subtract_long(p, v, t)				\
-    long atomic_subtract not implemented
+    __asm __volatile(						\
+	"1:	lwarx	%0, 0, %2\n"				\
+	"	subf	%0, %3, %0\n"				\
+	"	stwcx.	%0, 0, %2\n"				\
+	"	bne-	1b\n"					\
+	: "=&r" (t), "=m" (*p)					\
+	: "r" (p), "r" (v), "m" (*p)				\
+	: "cc", "memory")					\
+    /* __atomic_subtract_long */
 #endif
 
 #define	_ATOMIC_SUBTRACT(type)						\
@@ -382,14 +380,13 @@ _ATOMIC_PUN_LTOI(set)
     /* _ATOMIC_SUBTRACT */
 
 _ATOMIC_SUBTRACT(int)
+_ATOMIC_SUBTRACT(long)
 
 #define	atomic_subtract_32	atomic_subtract_int
 #define	atomic_subtract_acq_32	atomic_subtract_acq_int
 #define	atomic_subtract_rel_32	atomic_subtract_rel_int
 
 #ifdef __powerpc64__
-_ATOMIC_SUBTRACT(long)
-
 #define	atomic_subtract_64	atomic_subtract_long
 #define	atomic_subtract_acq_64	atomic_subract_acq_long
 #define	atomic_subtract_rel_64	atomic_subtract_rel_long
@@ -398,8 +395,6 @@ _ATOMIC_SUBTRACT(long)
 #define	atomic_subtract_acq_ptr	atomic_subtract_acq_long
 #define	atomic_subtract_rel_ptr	atomic_subtract_rel_long
 #else
-_ATOMIC_PUN_LTOI(subtract)
-
 #define	atomic_subtract_ptr	atomic_subtract_int
 #define	atomic_subtract_acq_ptr	atomic_subtract_acq_int
 #define	atomic_subtract_rel_ptr	atomic_subtract_rel_int
@@ -407,8 +402,6 @@ _ATOMIC_PUN_LTOI(subtract)
 #undef _ATOMIC_SUBTRACT
 #undef __atomic_subtract_long
 #undef __atomic_subtract_int
-
-#undef _ATOMIC_PUN_LTOI
 
 /*
  * atomic_store_rel(p, v)
