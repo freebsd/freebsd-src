@@ -1,4 +1,4 @@
-# $FreeBSD: head/tools/regression/bin/sh/parser/dollar-quote8.0 221513 2011-05-05 20:55:55Z jilles $
+# $FreeBSD$
 
 [ $'hello\0' = hello ]
 [ $'hello\0world' = hello ]

@@ -1,4 +1,4 @@
-# $FreeBSD: head/tools/regression/bin/sh/parser/dollar-quote9.0 221513 2011-05-05 20:55:55Z jilles $
+# $FreeBSD$
 
 # POSIX and C99 say D800-DFFF are undefined in a universal character name.
 # We reject this but many other shells expand to something that looks like
