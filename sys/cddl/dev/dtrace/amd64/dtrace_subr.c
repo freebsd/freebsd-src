@@ -359,26 +359,6 @@ static uint64_t	nsec_scale;
 #define SCALE_SHIFT	28
 
 static void
-dtrace_gethrtime_init_sync(void *arg)
-{
-#ifdef CHECK_SYNC
-	/*
-	 * Delay this function from returning on one
-	 * of the CPUs to check that the synchronisation
-	 * works.
-	 */
-	uintptr_t cpu = (uintptr_t) arg;
-
-	if (cpu == curcpu) {
-		int i;
-		for (i = 0; i < 1000000000; i++)
-			tgt_cpu_tsc = rdtsc();
-		tgt_cpu_tsc = 0;
-	}
-#endif
-}
-
-static void
 dtrace_gethrtime_init_cpu(void *arg)
 {
 	uintptr_t cpu = (uintptr_t) arg;
@@ -434,7 +414,7 @@ dtrace_gethrtime_init(void *arg)
 		pc = pcpu_find(i);
 		map = PCPU_GET(cpumask) | pc->pc_cpumask;
 
-		smp_rendezvous_cpus(map, dtrace_gethrtime_init_sync,
+		smp_rendezvous_cpus(map, NULL,
 		    dtrace_gethrtime_init_cpu,
 		    smp_no_rendevous_barrier, (void *)(uintptr_t) i);
 
