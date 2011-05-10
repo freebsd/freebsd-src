@@ -245,7 +245,7 @@ openpic_bind(device_t dev, u_int irq, cpuset_t cpumask)
 	 * XXX: openpic_write() is very special and just needs a 32 bits mask.
 	 * For the moment, just play dirty and get the first half word.
 	 */
-	openpic_write(sc, OPENPIC_IDEST(irq), (long)cpumask & 0xffffffff);
+	openpic_write(sc, OPENPIC_IDEST(irq), cpumask.__bits[0] & 0xffffffff);
 }
 
 void
