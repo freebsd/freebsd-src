@@ -206,21 +206,21 @@ EOF
 		if [ ! -f ${opt} ] ; then
 			echo "no description found for ${opt}, skipping" >&2
 			continue
-		else
-			echo ".It Va ${opt}"
-			sed -e's/\$\(FreeBSD: .*\) \$/from \1/' ${opt}
-			if [ -n "${targets}" ] ; then
-				echo '.Pp'
-				echo 'It is a default setting on'
-				echo $(echo ${targets} | sed -e's/ /, /g' -e's/\(.*\), /\1 and /').
-			fi
 		fi
 
-		if [ "${opt%%_*}" = "WITHOUT" ] ; then
+		echo ".It Va ${opt}"
+		sed -e's/\$\(FreeBSD: .*\) \$/from \1/' ${opt}
+		if [ -n "${targets}" ] ; then
+			echo '.Pp'
+			echo 'It is a default setting on'
+			echo $(echo ${targets} | sed -e's/ /, /g' -e's/\(.*\), /\1 and /').
+		fi
+
+		if [ "${opt%%_*}" = 'WITHOUT' ] ; then
 			sed -n "/^WITH_${opt#WITHOUT_}$/!s/$/=/p" $t/config_WITH_ALL > $t/src.conf
 			show settings SRCCONF=$t/src.conf -D${opt} | sort > $t/config_WITH_ALL_${opt}
 			comm -13 $t/config_WITH_ALL $t/config_WITH_ALL_${opt} | sed -n "/^${opt}$/!p" > $t/deps
-		elif [ "${opt%%_*}" = "WITH" ] ; then
+		elif [ "${opt%%_*}" = 'WITH' ] ; then
 			sed -n "/^WITHOUT${opt#WITH}$/!s/$/=/p" $t/config_WITHOUT_ALL > $t/src.conf
 			show settings SRCCONF=$t/src.conf -D${opt} | sort > $t/config_WITHOUT_ALL_${opt}
 			comm -13 $t/config_WITHOUT_ALL $t/config_WITHOUT_ALL_${opt} | sed -n "/^${opt}$/!p" > $t/deps
