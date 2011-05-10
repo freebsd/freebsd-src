@@ -60,12 +60,12 @@ ar9285_hw_pa_cal(struct ath_hal *ah, HAL_BOOL is_reset)
 		{ 0x7838, 0 },
 	};
 
-	HALDEBUG(ah, HAL_DEBUG_PERCAL, "Running PA Calibration\n");
-
 	/* PA CAL is not needed for high power solution */
 	if (ath_hal_eepromGet(ah, AR_EEP_TXGAIN_TYPE, AH_NULL) ==
 	    AR5416_EEP_TXGAIN_HIGH_POWER)
 		return;
+
+	HALDEBUG(ah, HAL_DEBUG_PERCAL, "Running PA Calibration\n");
 
 	for (i = 0; i < N(regList); i++)
 		regList[i][1] = OS_REG_READ(ah, regList[i][0]);
@@ -151,7 +151,7 @@ ar9285_hw_pa_cal(struct ath_hal *ah, HAL_BOOL is_reset)
 void
 ar9002_hw_pa_cal(struct ath_hal *ah, HAL_BOOL is_reset)
 {
-	if (AR_SREV_KITE_12_OR_LATER(ah)) {
+	if (AR_SREV_KITE_11_OR_LATER(ah)) {
 		if (is_reset || !AH9285(ah)->pacal_info.skipcount)
 			ar9285_hw_pa_cal(ah, is_reset);
 		else
@@ -260,7 +260,8 @@ HAL_BOOL
 ar9285InitCalHardware(struct ath_hal *ah,
     const struct ieee80211_channel *chan)
 {
-	if (! ar9285_hw_clc(ah, chan))
+	if (AR_SREV_KITE(ah) && AR_SREV_KITE_10_OR_LATER(ah) &&
+	    (! ar9285_hw_clc(ah, chan)))
 		return AH_FALSE;
 
 	return AH_TRUE;
