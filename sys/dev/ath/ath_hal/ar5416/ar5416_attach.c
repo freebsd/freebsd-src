@@ -420,6 +420,12 @@ ar5416Detach(struct ath_hal *ah)
 	HALASSERT(ah != AH_NULL);
 	HALASSERT(ah->ah_magic == AR5416_MAGIC);
 
+	/* Make sure that chip is awake before writing to it */
+	if (! ar5416SetPowerMode(ah, HAL_PM_AWAKE, AH_TRUE))
+		HALDEBUG(ah, HAL_DEBUG_UNMASKABLE,
+		    "%s: failed to wake up chip\n",
+		    __func__);
+
 	ar5416AniDetach(ah);
 	ar5212RfDetach(ah);
 	ah->ah_disable(ah);
