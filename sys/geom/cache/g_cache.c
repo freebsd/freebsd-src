@@ -499,12 +499,6 @@ g_cache_create(struct g_class *mp, struct g_provider *pp,
 	}
 
 	gp = g_new_geomf(mp, md->md_name);
-	if (gp == NULL) {
-		G_CACHE_DEBUG(0, "Cannot create geom %s.", md->md_name);
-		return (NULL);
-	}
-	gp->softc = NULL;	/* for a moment */
-
 	sc = g_malloc(sizeof(*sc), M_WAITOK | M_ZERO);
 	sc->sc_type = type;
 	sc->sc_bshift = bshift;
@@ -525,10 +519,6 @@ g_cache_create(struct g_class *mp, struct g_provider *pp,
 	gp->dumpconf = g_cache_dumpconf;
 
 	newpp = g_new_providerf(gp, "cache/%s", gp->name);
-	if (newpp == NULL) {
-		G_CACHE_DEBUG(0, "Cannot create provider cache/%s.", gp->name);
-		goto fail;
-	}
 	newpp->sectorsize = pp->sectorsize;
 	newpp->mediasize = pp->mediasize;
 	if (type == G_CACHE_TYPE_AUTOMATIC)
@@ -536,35 +526,20 @@ g_cache_create(struct g_class *mp, struct g_provider *pp,
 	sc->sc_tail = BNO2OFF(OFF2BNO(newpp->mediasize, sc), sc);
 
 	cp = g_new_consumer(gp);
-	if (cp == NULL) {
-		G_CACHE_DEBUG(0, "Cannot create consumer for %s.", gp->name);
-		goto fail;
-	}
 	if (g_attach(cp, pp) != 0) {
 		G_CACHE_DEBUG(0, "Cannot attach to provider %s.", pp->name);
-		goto fail;
+		g_destroy_consumer(cp);
+		g_destroy_provider(newpp);
+		mtx_destroy(&sc->sc_mtx);
+		g_free(sc);
+		g_destroy_geom(gp);
+		return (NULL);
 	}
 
 	g_error_provider(newpp, 0);
 	G_CACHE_DEBUG(0, "Device %s created.", gp->name);
 	callout_reset(&sc->sc_callout, g_cache_timeout * hz, g_cache_go, sc);
 	return (gp);
-fail:
-	if (cp != NULL) {
-		if (cp->provider != NULL)
-			g_detach(cp);
-		g_destroy_consumer(cp);
-	}
-	if (newpp != NULL)
-		g_destroy_provider(newpp);
-	if (gp != NULL) {
-		if (gp->softc != NULL) {
-			mtx_destroy(&sc->sc_mtx);
-			g_free(gp->softc);
-		}
-		g_destroy_geom(gp);
-	}
-	return (NULL);
 }
 
 static int
