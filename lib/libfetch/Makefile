@@ -28,7 +28,7 @@ CFLAGS+=	-DFTP_COMBINE_CWDS
 CSTD?=		c99
 WARNS?=		2
 
-SHLIB_MAJOR=    6
+SHLIB_MAJOR=    5
 
 ftperr.h: ftp.errors ${.CURDIR}/Makefile
 	@echo "static struct fetcherr ftp_errlist[] = {" > ${.TARGET}
