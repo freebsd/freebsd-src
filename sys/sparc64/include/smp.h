@@ -222,8 +222,8 @@ ipi_tlb_context_demap(struct pmap *pm)
 	}
 	ita = &ipi_tlb_args;
 	mtx_lock_spin(&ipi_mtx);
-	CPU_OR(&cpus, PCPU_PTR(cpumask));
 	ita->ita_mask = cpus;
+	CPU_OR(&ita->ita_mask, PCPU_PTR(cpumask));
 	ita->ita_pmap = pm;
 	cpu_ipi_selected(cpus, 0, (u_long)tl_ipi_tlb_context_demap,
 	    (u_long)ita);
@@ -247,8 +247,8 @@ ipi_tlb_page_demap(struct pmap *pm, vm_offset_t va)
 	}
 	ita = &ipi_tlb_args;
 	mtx_lock_spin(&ipi_mtx);
-	CPU_OR(&cpus, PCPU_PTR(cpumask));
 	ita->ita_mask = cpus;
+	CPU_OR(&ita->ita_mask, PCPU_PTR(cpumask));
 	ita->ita_pmap = pm;
 	ita->ita_va = va;
 	cpu_ipi_selected(cpus, 0, (u_long)tl_ipi_tlb_page_demap, (u_long)ita);
@@ -272,8 +272,8 @@ ipi_tlb_range_demap(struct pmap *pm, vm_offset_t start, vm_offset_t end)
 	}
 	ita = &ipi_tlb_args;
 	mtx_lock_spin(&ipi_mtx);
-	CPU_OR(&cpus, PCPU_PTR(cpumask));
 	ita->ita_mask = cpus;
+	CPU_OR(&ita->ita_mask, PCPU_PTR(cpumask));
 	ita->ita_pmap = pm;
 	ita->ita_start = start;
 	ita->ita_end = end;
