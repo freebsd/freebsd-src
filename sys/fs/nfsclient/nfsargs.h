@@ -100,5 +100,6 @@ struct nfs_args {
 #define	NFSMNT_HASSETFSID	0x02000000 /* Has set FSID */
 #define	NFSMNT_RESVPORT		0x04000000 /* Use a reserved port (Bunk!!) */
 #define	NFSMNT_AUTOM		0x08000000 /* Done by autofs */
+#define	NFSMNT_NOCTO		0x20000000 /* Don't flush attrcache on open */
 
 #endif	/* _NFSCLIENT_NFSARGS_H_ */
