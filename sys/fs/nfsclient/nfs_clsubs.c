@@ -167,7 +167,7 @@ ncl_printf(const char *fmt, ...)
 
 	mtx_lock(&Giant);
 	va_start(ap, fmt);
-	printf(fmt, ap);
+	vprintf(fmt, ap);
 	va_end(ap);
 	mtx_unlock(&Giant);
 }
