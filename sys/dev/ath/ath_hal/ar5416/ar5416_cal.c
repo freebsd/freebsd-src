@@ -264,31 +264,13 @@ ar5416InitCal(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	 * triggered at the same time.
 	 */
 	OS_REG_SET_BIT(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_NF);
-	/*
-	 * This sometimes takes a -lot- longer than it should.
-	 * Just give it a bit more time.
-	 */
-	for (i = 0; i < MAX_CAL_CHECK; i++) {
-		if (ar5212WaitNFCalComplete(ah, 10000))
-			break;
 
-		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: initial NF calibration did "
-		    "not complete in time; noisy environment (pass %d)?\n", __func__, i);
-	}
-	
 	/*
-	 * Although periodic and NF calibrations shouldn't run concurrently,
-	 * this was causing the radio to not be usable on the active
-	 * channel if the channel was busy.
-	 *
-	 * Instead, now simply print a warning and continue. That way if users
-	 * report "weird crap", they should get this warning.
+	 * This may take a while to run; make sure subsequent
+	 * calibration routines check that this has completed
+	 * before reading the value and triggering a subsequent
+	 * calibration.
 	 */
-	if (i >= MAX_CAL_CHECK) {
-		ath_hal_printf(ah, "[ath] Warning - initial NF calibration did "
-		    "not complete in time, noisy environment?\n");
-		/* return AH_FALSE; */
-	}
 
 	/* Initialize list pointers */
 	cal->cal_list = cal->cal_last = cal->cal_curr = AH_NULL;
