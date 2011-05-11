@@ -263,7 +263,6 @@ ar5416InitCal(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	 * higher than normal value if DC offset and noise floor cal are
 	 * triggered at the same time.
 	 */
-	/* XXX this actually kicks off a NF calibration -adrian */
 	OS_REG_SET_BIT(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_NF);
 	/*
 	 * This sometimes takes a -lot- longer than it should.
