@@ -25,7 +25,7 @@ options		KDB
 options		SCHED_4BSD		#4BSD scheduler
 options		INET			#InterNETworking
 options		INET6
-# options		NFSCLIENT		#Network Filesystem Client
+# options		NFSCL			#Network Filesystem Client
 options		PSEUDOFS		#Pseudo-filesystem framework
 options		_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
 options		ALQ
