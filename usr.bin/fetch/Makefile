@@ -4,6 +4,7 @@
 
 PROG=		fetch
 CSTD?=		c99
+WARNS?=		6
 DPADD=		${LIBFETCH} ${LIBMD}
 LDADD=		-lfetch -lmd
 .if ${MK_OPENSSL} != "no"
