@@ -1004,11 +1004,6 @@ g_sched_create(struct gctl_req *req, struct g_class *mp,
 
 	gp = g_new_geomf(mp, name);
 	dstgp = proxy ? pp->geom : gp; /* where do we link the provider */
-	if (gp == NULL) {
-		gctl_error(req, "Cannot create geom %s.", name);
-		error = ENOMEM;
-		goto fail;
-	}
 
 	sc = g_malloc(sizeof(*sc), M_WAITOK | M_ZERO);
 	sc->sc_gsched = gsp;
@@ -1034,23 +1029,10 @@ g_sched_create(struct gctl_req *req, struct g_class *mp,
 	gp->dumpconf = g_sched_dumpconf;
 
 	newpp = g_new_providerf(dstgp, gp->name);
-	if (newpp == NULL) {
-		gctl_error(req, "Cannot create provider %s.", name);
-		error = ENOMEM;
-		goto fail;
-	}
-
 	newpp->mediasize = pp->mediasize;
 	newpp->sectorsize = pp->sectorsize;
 
 	cp = g_new_consumer(gp);
-	if (cp == NULL) {
-		gctl_error(req, "Cannot create consumer for %s.",
-		    gp->name);
-		error = ENOMEM;
-		goto fail;
-	}
-
 	error = g_attach(cp, proxy ? newpp : pp);
 	if (error != 0) {
 		gctl_error(req, "Cannot attach to provider %s.",
@@ -1076,23 +1058,15 @@ fail:
 			g_detach(cp);
 		g_destroy_consumer(cp);
 	}
-
 	if (newpp != NULL)
 		g_destroy_provider(newpp);
-
-	if (sc && sc->sc_hash) {
+	if (sc->sc_hash)
 		g_sched_hash_fini(gp, sc->sc_hash, sc->sc_mask,
 		    gsp, sc->sc_data);
-	}
-
-	if (sc && sc->sc_data)
+	if (sc->sc_data)
 		gsp->gs_fini(sc->sc_data);
-
-	if (gp != NULL) {
-		if (gp->softc != NULL)
-			g_free(gp->softc);
-		g_destroy_geom(gp);
-	}
+	g_free(gp->softc);
+	g_destroy_geom(gp);
 
 	return (error);
 }
