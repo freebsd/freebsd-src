@@ -231,6 +231,48 @@ g_part_geometry(struct g_part_table *table, struct g_consumer *cp,
 	}
 }
 
+static int
+g_part_check_integrity(struct g_part_table *table, struct g_consumer *cp)
+{
+	struct g_part_entry *e1, *e2;
+	struct g_provider *pp;
+
+	pp = cp->provider;
+	if (table->gpt_first > table->gpt_last ||
+	    table->gpt_last > pp->mediasize / pp->sectorsize - 1)
+		goto fail;
+
+	LIST_FOREACH(e1, &table->gpt_entry, gpe_entry) {
+		if (e1->gpe_deleted || e1->gpe_internal)
+			continue;
+		if (e1->gpe_start < table->gpt_first ||
+		    e1->gpe_start > table->gpt_last ||
+		    e1->gpe_end < e1->gpe_start ||
+		    e1->gpe_end > table->gpt_last)
+			goto fail;
+		e2 = e1;
+		while ((e2 = LIST_NEXT(e2, gpe_entry)) != NULL) {
+			if (e2->gpe_deleted || e2->gpe_internal)
+				continue;
+			if (e1->gpe_start >= e2->gpe_start &&
+			    e1->gpe_start <= e2->gpe_end)
+				goto fail;
+			if (e1->gpe_end >= e2->gpe_start &&
+			    e1->gpe_end <= e2->gpe_end)
+				goto fail;
+			if (e1->gpe_start < e2->gpe_start &&
+			    e1->gpe_end > e2->gpe_end)
+				goto fail;
+		}
+	}
+	return (0);
+fail:
+	if (bootverbose)
+		printf("GEOM_PART: integrity check failed (%s, %s)\n",
+		    pp->name, table->gpt_scheme->name);
+	return (EINVAL);
+}
+
 struct g_part_entry *
 g_part_new_entry(struct g_part_table *table, int index, quad_t start,
     quad_t end)
@@ -1310,9 +1352,11 @@ g_part_ctl_undo(struct gctl_req *req, struct g_part_parms *gpp)
 	error = G_PART_READ(table, cp);
 	if (error)
 		goto fail;
+	error = g_part_check_integrity(table, cp);
+	if (error)
+		goto fail;
 
 	g_topology_lock();
-
 	LIST_FOREACH(entry, &table->gpt_entry, gpe_entry) {
 		if (!entry->gpe_internal)
 			g_part_new_provider(gp, table, entry);
@@ -1771,6 +1815,9 @@ g_part_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	g_part_geometry(table, cp, pp->mediasize / pp->sectorsize);
 
 	error = G_PART_READ(table, cp);
+	if (error)
+		goto fail;
+	error = g_part_check_integrity(table, cp);
 	if (error)
 		goto fail;
 
