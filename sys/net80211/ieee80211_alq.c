@@ -64,7 +64,8 @@ __FBSDID("$FreeBSD$");
 
 static struct alq *ieee80211_alq;
 static int ieee80211_alq_lost;
-static char ieee80211_alq_logfile[MAXPATHLEN] = "/tmp/net80211.log";
+static int ieee80211_alq_logged;
+static char ieee80211_alq_logfile[MAXPATHLEN] = "/mnt/tmp/net80211.log";
 static unsigned int ieee80211_alq_qsize = 64*1024;
 
 static int
@@ -113,6 +114,8 @@ SYSCTL_INT(_net_wlan, OID_AUTO, alq_size, CTLFLAG_RW,
 	&ieee80211_alq_qsize, 0, "In-memory log size (#records)");
 SYSCTL_INT(_net_wlan, OID_AUTO, alq_lost, CTLFLAG_RW,
 	&ieee80211_alq_lost, 0, "Debugging operations not logged");
+SYSCTL_INT(_net_wlan, OID_AUTO, alq_logged, CTLFLAG_RW,
+	&ieee80211_alq_logged, 0, "Debugging operations logged");
 
 static struct ale *
 ieee80211_alq_get(void)
@@ -122,6 +125,8 @@ ieee80211_alq_get(void)
 	ale = alq_get(ieee80211_alq, ALQ_NOWAIT);
 	if (!ale)
 		ieee80211_alq_lost++;
+	else
+		ieee80211_alq_logged++;
 	return ale;
 }
 
@@ -131,14 +136,18 @@ ieee80211_alq_log(struct ieee80211vap *vap, uint8_t op, u_char *p, int l)
 	struct ale *ale;
 	struct ieee80211_alq_rec *r;
 
+	if (ieee80211_alq == NULL)
+		return;
+
 	ale = ieee80211_alq_get();
 	if (! ale)
 		return;
 
 	r = (struct ieee80211_alq_rec *) ale;
-	r->r_timestamp = ticks;
+	r->r_timestamp = htonl(ticks);
 	r->r_version = 1;
-	r->r_wlan = vap->iv_ifp->if_dunit;
+	r->r_wlan = htons(vap->iv_ifp->if_dunit);
 	r->r_op = op;
 	memcpy(&r->r_payload, p, MIN(l, sizeof(r->r_payload)));
+	alq_post(ieee80211_alq, ale);
 }
