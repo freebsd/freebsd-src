@@ -241,7 +241,6 @@ ar5416InitCal(struct ath_hal *ah, const struct ieee80211_channel *chan)
 {
 	struct ar5416PerCal *cal = &AH5416(ah)->ah_cal;
 	HAL_CHANNEL_INTERNAL *ichan;
-	int i;
 
 	ichan = ath_hal_checkchannel(ah, chan);
 	HALASSERT(ichan != AH_NULL);
