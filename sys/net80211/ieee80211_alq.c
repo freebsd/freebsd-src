@@ -65,7 +65,7 @@ __FBSDID("$FreeBSD$");
 static struct alq *ieee80211_alq;
 static int ieee80211_alq_lost;
 static int ieee80211_alq_logged;
-static char ieee80211_alq_logfile[MAXPATHLEN] = "/mnt/tmp/net80211.log";
+static char ieee80211_alq_logfile[MAXPATHLEN] = "/tmp/net80211.log";
 static unsigned int ieee80211_alq_qsize = 64*1024;
 
 static int
@@ -84,7 +84,9 @@ ieee80211_alq_setlogging(int enable)
 		    sizeof (struct ieee80211_alq_rec),
 		    ieee80211_alq_qsize);
 		ieee80211_alq_lost = 0;
-		printf("net80211: logging to %s enabled\n", ieee80211_alq_logfile);
+		ieee80211_alq_logged = 0;
+		printf("net80211: logging to %s enabled; struct size %d bytes\n",
+		    ieee80211_alq_logfile, sizeof(struct ieee80211_alq_rec));
 	} else {
 		if (ieee80211_alq)
 			alq_close(ieee80211_alq);
@@ -143,7 +145,7 @@ ieee80211_alq_log(struct ieee80211vap *vap, uint8_t op, u_char *p, int l)
 	if (! ale)
 		return;
 
-	r = (struct ieee80211_alq_rec *) ale;
+	r = (struct ieee80211_alq_rec *) ale->ae_data;
 	r->r_timestamp = htonl(ticks);
 	r->r_version = 1;
 	r->r_wlan = htons(vap->iv_ifp->if_dunit);
