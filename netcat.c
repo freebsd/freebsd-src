@@ -1,4 +1,4 @@
-/* $OpenBSD: netcat.c,v 1.98 2010/07/03 04:44:51 guenther Exp $ */
+/* $OpenBSD: netcat.c,v 1.100 2011/01/09 22:16:46 jeremy Exp $ */
 /*
  * Copyright (c) 2001 Eric Jackson <ericj@monkey.org>
  *
@@ -62,6 +62,7 @@
 
 #define PORT_MAX	65535
 #define PORT_MAX_LEN	6
+#define UNIX_DG_TMP_SOCKET_SIZE	19
 
 /* Command Line Options */
 int	dflag;					/* detached, no stdin */
@@ -89,6 +90,7 @@ u_int	rtableid;
 int timeout = -1;
 int family = AF_UNSPEC;
 char *portlist[PORT_MAX+1];
+char *unix_dg_tmp_socket;
 
 void	atelnet(int, unsigned char *, unsigned int);
 void	build_ports(char *);
@@ -99,6 +101,7 @@ int	remote_connect(const char *, const char *, struct addrinfo);
 int	socks_connect(const char *, const char *, struct addrinfo,
 	    const char *, const char *, struct addrinfo, int, const char *);
 int	udptest(int);
+int	unix_bind(char *);
 int	unix_connect(char *);
 int	unix_listen(char *);
 void	set_common_sockopts(int);
@@ -117,6 +120,7 @@ main(int argc, char *argv[])
 	char *proxy;
 	const char *errstr, *proxyhost = "", *proxyport = NULL;
 	struct addrinfo proxyhints;
+	char unix_dg_tmp_socket_buf[UNIX_DG_TMP_SOCKET_SIZE];
 
 	ret = 1;
 	s = 0;
@@ -241,8 +245,6 @@ main(int argc, char *argv[])
 
 	/* Cruft to make sure options are clean, and used properly. */
 	if (argv[0] && !argv[1] && family == AF_UNIX) {
-		if (uflag)
-			errx(1, "cannot use -u and -U");
 		host = argv[0];
 		uport = NULL;
 	} else if (argv[0] && !argv[1]) {
@@ -264,6 +266,19 @@ main(int argc, char *argv[])
 		errx(1, "cannot use -z and -l");
 	if (!lflag && kflag)
 		errx(1, "must use -l with -k");
+
+	/* Get name of temporary socket for unix datagram client */
+	if ((family == AF_UNIX) && uflag && !lflag) {
+		if (sflag) {
+			unix_dg_tmp_socket = sflag;
+		} else {
+			strlcpy(unix_dg_tmp_socket_buf, "/tmp/nc.XXXXXXXXXX",
+				UNIX_DG_TMP_SOCKET_SIZE);
+			if (mktemp(unix_dg_tmp_socket_buf) == NULL)
+				err(1, "mktemp");
+			unix_dg_tmp_socket = unix_dg_tmp_socket_buf;
+		}
+	}
 
 	/* Initialize addrinfo structure. */
 	if (family != AF_UNIX) {
@@ -307,8 +322,12 @@ main(int argc, char *argv[])
 		int connfd;
 		ret = 0;
 
-		if (family == AF_UNIX)
-			s = unix_listen(host);
+		if (family == AF_UNIX) {
+			if (uflag)
+				s = unix_bind(host);
+			else
+				s = unix_listen(host);
+		}
 
 		/* Allow only one connection at a time, but stay alive. */
 		for (;;) {
@@ -337,17 +356,21 @@ main(int argc, char *argv[])
 				if (rv < 0)
 					err(1, "connect");
 
-				connfd = s;
+				readwrite(s);
 			} else {
 				len = sizeof(cliaddr);
 				connfd = accept(s, (struct sockaddr *)&cliaddr,
 				    &len);
+				readwrite(connfd);
+				close(connfd);
 			}
 
-			readwrite(connfd);
-			close(connfd);
 			if (family != AF_UNIX)
 				close(s);
+			else if (uflag) {
+				if (connect(s, NULL, 0) < 0)
+					err(1, "connect");
+			}
 
 			if (!kflag)
 				break;
@@ -361,6 +384,8 @@ main(int argc, char *argv[])
 		} else
 			ret = 1;
 
+		if (uflag)
+			unlink(unix_dg_tmp_socket);
 		exit(ret);
 
 	} else {
@@ -421,6 +446,38 @@ main(int argc, char *argv[])
 }
 
 /*
+ * unix_bind()
+ * Returns a unix socket bound to the given path
+ */
+int
+unix_bind(char *path)
+{
+	struct sockaddr_un sun;
+	int s;
+
+	/* Create unix domain socket. */
+	if ((s = socket(AF_UNIX, uflag ? SOCK_DGRAM : SOCK_STREAM,
+	     0)) < 0)
+		return (-1);
+
+	memset(&sun, 0, sizeof(struct sockaddr_un));
+	sun.sun_family = AF_UNIX;
+
+	if (strlcpy(sun.sun_path, path, sizeof(sun.sun_path)) >=
+	    sizeof(sun.sun_path)) {
+		close(s);
+		errno = ENAMETOOLONG;
+		return (-1);
+	}
+
+	if (bind(s, (struct sockaddr *)&sun, SUN_LEN(&sun)) < 0) {
+		close(s);
+		return (-1);
+	}
+	return (s);
+}
+
+/*
  * unix_connect()
  * Returns a socket connected to a local unix socket. Returns -1 on failure.
  */
@@ -430,8 +487,13 @@ unix_connect(char *path)
 	struct sockaddr_un sun;
 	int s;
 
-	if ((s = socket(AF_UNIX, SOCK_STREAM, 0)) < 0)
-		return (-1);
+	if (uflag) {
+		if ((s = unix_bind(unix_dg_tmp_socket)) < 0)
+			return (-1);
+	} else {
+		if ((s = socket(AF_UNIX, SOCK_STREAM, 0)) < 0)
+			return (-1);
+	}
 	(void)fcntl(s, F_SETFD, 1);
 
 	memset(&sun, 0, sizeof(struct sockaddr_un));
@@ -458,27 +520,9 @@ unix_connect(char *path)
 int
 unix_listen(char *path)
 {
-	struct sockaddr_un sun;
 	int s;
-
-	/* Create unix domain socket. */
-	if ((s = socket(AF_UNIX, SOCK_STREAM, 0)) < 0)
+	if ((s = unix_bind(path)) < 0)
 		return (-1);
-
-	memset(&sun, 0, sizeof(struct sockaddr_un));
-	sun.sun_family = AF_UNIX;
-
-	if (strlcpy(sun.sun_path, path, sizeof(sun.sun_path)) >=
-	    sizeof(sun.sun_path)) {
-		close(s);
-		errno = ENAMETOOLONG;
-		return (-1);
-	}
-
-	if (bind(s, (struct sockaddr *)&sun, SUN_LEN(&sun)) < 0) {
-		close(s);
-		return (-1);
-	}
 
 	if (listen(s, 5) < 0) {
 		close(s);
@@ -886,9 +930,9 @@ usage(int ret)
 {
 	fprintf(stderr,
 	    "usage: nc [-46DdhklnrStUuvz] [-I length] [-i interval] [-O length]\n"
-	    "\t  [-P proxy_username] [-p source_port] [-s source_ip_address] [-T ToS]\n"
+	    "\t  [-P proxy_username] [-p source_port] [-s source] [-T ToS]\n"
 	    "\t  [-V rtable] [-w timeout] [-X proxy_protocol]\n"
-	    "\t  [-x proxy_address[:port]] [hostname] [port]\n");
+	    "\t  [-x proxy_address[:port]] [destination] [port]\n");
 	if (ret)
 		exit(1);
 }

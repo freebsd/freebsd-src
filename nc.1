@@ -1,4 +1,4 @@
-.\"     $OpenBSD: nc.1,v 1.55 2010/07/25 07:51:39 guenther Exp $
+.\"     $OpenBSD: nc.1,v 1.57 2011/01/09 22:16:46 jeremy Exp $
 .\"
 .\" Copyright (c) 1996 David Sacerdote
 .\" All rights reserved.
@@ -25,7 +25,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd $Mdocdate: July 3 2010 $
+.Dd $Mdocdate: January 8 2011 $
 .Dt NC 1
 .Os
 .Sh NAME
@@ -40,7 +40,7 @@
 .Op Fl O Ar length
 .Op Fl P Ar proxy_username
 .Op Fl p Ar source_port
-.Op Fl s Ar source_ip_address
+.Op Fl s Ar source
 .Op Fl T Ar ToS
 .Op Fl V Ar rtable
 .Op Fl w Ar timeout
@@ -49,7 +49,7 @@
 .Fl x Ar proxy_address Ns Oo : Ns
 .Ar port Oc
 .Xc Oc
-.Op Ar hostname
+.Op Ar destination
 .Op Ar port
 .Ek
 .Sh DESCRIPTION
@@ -57,8 +57,10 @@ The
 .Nm
 (or
 .Nm netcat )
-utility is used for just about anything under the sun involving TCP
-or UDP.
+utility is used for just about anything under the sun involving TCP,
+UDP, or
+.Ux Ns -domain
+sockets.
 It can open TCP connections, send UDP packets, listen on arbitrary
 TCP and UDP ports, do port scanning, and deal with both IPv4 and
 IPv6.
@@ -153,8 +155,12 @@ instead of sequentially within a range or in the order that the system
 assigns them.
 .It Fl S
 Enables the RFC 2385 TCP MD5 signature option.
-.It Fl s Ar source_ip_address
+.It Fl s Ar source
 Specifies the IP of the interface which is used to send the packets.
+For
+.Ux Ns -domain
+datagram sockets, specifies the local temporary socket file
+to create and use so that datagrams can be received.
 It is an error to use this option in conjunction with the
 .Fl l
 option.
@@ -179,6 +185,16 @@ Specifies to use
 sockets.
 .It Fl u
 Use UDP instead of the default option of TCP.
+For
+.Ux Ns -domain
+sockets, use a datagram socket instead of a stream socket.
+If a
+.Ux Ns -domain
+socket is used, a temporary receiving socket is created in
+.Pa /tmp
+unless the
+.Fl s
+flag is given.
 .It Fl V Ar rtable
 Set the routing table to be used.
 The default is 0.
@@ -220,7 +236,7 @@ If the protocol is not specified, SOCKS version 5 is used.
 Requests that
 .Nm
 should connect to
-.Ar hostname
+.Ar destination
 using a proxy at
 .Ar proxy_address
 and
@@ -238,16 +254,22 @@ It is an error to use this option in conjunction with the
 option.
 .El
 .Pp
-.Ar hostname
+.Ar destination
 can be a numerical IP address or a symbolic hostname
 (unless the
 .Fl n
 option is given).
-In general, a hostname must be specified,
+In general, a destination must be specified,
 unless the
 .Fl l
 option is given
 (in which case the local host is used).
+For
+.Ux Ns -domain
+sockets, a destination is required and is the socket path to connect to
+(or listen on if the
+.Fl l
+option is given).
 .Pp
 .Ar port
 can be a single integer or a range of ports.
@@ -256,8 +278,7 @@ In general,
 a destination port must be specified,
 unless the
 .Fl U
-option is given
-(in which case a socket must be specified).
+option is given.
 .Sh CLIENT/SERVER MODEL
 It is quite simple to build a very basic client/server model using
 .Nm .
@@ -390,7 +411,7 @@ IP for the local end of the connection:
 .Pp
 Create and listen on a
 .Ux Ns -domain
-socket:
+stream socket:
 .Pp
 .Dl $ nc -lU /var/tmp/dsocket
 .Pp
