@@ -157,9 +157,6 @@ ar5416Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 		FAIL(HAL_EIO);
 	}
 
-	/* Restore bmiss rssi & count thresholds */
-	OS_REG_WRITE(ah, AR_RSSI_THR, rssiThrReg);
-
 	/* Restore TSF */
 	if (tsf)
 		ar5212SetTsf64(ah, tsf);
@@ -269,6 +266,9 @@ ar5416Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 	OS_REG_WRITE(ah, AR_RSSI_THR, ahp->ah_rssiThr);
 
 	OS_REG_WRITE(ah, AR_ISR, ~0);		/* cleared on write */
+
+	/* Restore bmiss rssi & count thresholds */
+	OS_REG_WRITE(ah, AR_RSSI_THR, rssiThrReg);
 
 	if (!ar5212SetChannel(ah, chan))
 		FAIL(HAL_EIO);
