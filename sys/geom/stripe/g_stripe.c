@@ -818,8 +818,6 @@ g_stripe_create(struct g_class *mp, const struct g_stripe_metadata *md,
 		}
 	}
 	gp = g_new_geomf(mp, "%s", md->md_name);
-	gp->softc = NULL;	/* for a moment */
-
 	sc = malloc(sizeof(*sc), M_STRIPE, M_WAITOK | M_ZERO);
 	gp->start = g_stripe_start;
 	gp->spoiled = g_stripe_orphan;
