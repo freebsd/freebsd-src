@@ -709,8 +709,6 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 	G_ELI_DEBUG(1, "Creating device %s%s.", bpp->name, G_ELI_SUFFIX);
 
 	gp = g_new_geomf(mp, "%s%s", bpp->name, G_ELI_SUFFIX);
-	gp->softc = NULL;	/* for a moment */
-
 	sc = malloc(sizeof(*sc), M_ELI, M_WAITOK | M_ZERO);
 	gp->start = g_eli_start;
 	/*
