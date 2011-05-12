@@ -454,7 +454,7 @@ http_match(const char *str, const char *hdr)
  * Get the next header and return the appropriate symbolic code.  We
  * need to read one line ahead for checking for a continuation line
  * belonging to the current header (continuation lines start with
- * white space). 
+ * white space).
  *
  * We get called with a fresh line already in the conn buffer, either
  * from the previous http_next_header() invocation, or, the first
@@ -462,7 +462,7 @@ http_match(const char *str, const char *hdr)
  *
  * This stops when we encounter an empty line (we dont read beyond the header
  * area).
- * 
+ *
  * Note that the "headerbuf" is just a place to return the result. Its
  * contents are not used for the next call. This means that no cleanup
  * is needed when ie doing another connection, just call the cleanup when
@@ -487,7 +487,7 @@ init_http_headerbuf(http_headerbuf_t *buf)
 	buf->buflen = 0;
 }
 
-static void 
+static void
 clean_http_headerbuf(http_headerbuf_t *buf)
 {
 	if (buf->buf)
@@ -496,10 +496,10 @@ clean_http_headerbuf(http_headerbuf_t *buf)
 }
 
 /* Remove whitespace at the end of the buffer */
-static void 
+static void
 http_conn_trimright(conn_t *conn)
 {
-	while (conn->buflen && 
+	while (conn->buflen &&
 	       isspace((unsigned char)conn->buf[conn->buflen - 1]))
 		conn->buflen--;
 	conn->buf[conn->buflen] = '\0';
@@ -510,9 +510,9 @@ http_next_header(conn_t *conn, http_headerbuf_t *hbuf, const char **p)
 {
 	unsigned int i, len;
 
-	/* 
+	/*
 	 * Have to do the stripping here because of the first line. So
-	 * it's done twice for the subsequent lines. No big deal 
+	 * it's done twice for the subsequent lines. No big deal
 	 */
 	http_conn_trimright(conn);
 	if (conn->buflen == 0)
@@ -527,19 +527,19 @@ http_next_header(conn_t *conn, http_headerbuf_t *hbuf, const char **p)
 	strcpy(hbuf->buf, conn->buf);
 	hbuf->buflen = conn->buflen;
 
-	/* 
+	/*
 	 * Fetch possible continuation lines. Stop at 1st non-continuation
-	 * and leave it in the conn buffer 
-         */
+	 * and leave it in the conn buffer
+	 */
 	for (i = 0; i < HTTP_MAX_CONT_LINES; i++) {
 		if (fetch_getln(conn) == -1)
 			return (hdr_syserror);
 
-		/* 
+		/*
 		 * Note: we carry on the idea from the previous version
 		 * that a pure whitespace line is equivalent to an empty
 		 * one (so it's not continuation and will be handled when
-		 * we are called next) 
+		 * we are called next)
 		 */
 		http_conn_trimright(conn);
 		if (conn->buf[0] != ' ' && conn->buf[0] != "\t"[0])
@@ -555,7 +555,7 @@ http_next_header(conn_t *conn, http_headerbuf_t *hbuf, const char **p)
 		}
 		strcpy(hbuf->buf + hbuf->buflen, conn->buf);
 		hbuf->buflen += conn->buflen;
-	} 
+	}
 
 	/*
 	 * We could check for malformed headers but we don't really care.
@@ -574,12 +574,12 @@ http_next_header(conn_t *conn, http_headerbuf_t *hbuf, const char **p)
  * [Proxy-]Authenticate header parsing
  */
 
-/* 
- * Read doublequote-delimited string into output buffer obuf (allocated 
+/*
+ * Read doublequote-delimited string into output buffer obuf (allocated
  * by caller, whose responsibility it is to ensure that it's big enough)
  * cp points to the first char after the initial '"'
- * Handles \ quoting 
- * Returns pointer to the first char after the terminating double quote, or 
+ * Handles \ quoting
+ * Returns pointer to the first char after the terminating double quote, or
  * NULL for error.
  */
 static const char *
@@ -620,7 +620,7 @@ typedef struct {
 	int	 nc; /* Nonce count */
 } http_auth_challenge_t;
 
-static void 
+static void
 init_http_auth_challenge(http_auth_challenge_t *b)
 {
 	b->scheme = HTTPAS_UNKNOWN;
@@ -628,18 +628,18 @@ init_http_auth_challenge(http_auth_challenge_t *b)
 	b->stale = b->nc = 0;
 }
 
-static void 
+static void
 clean_http_auth_challenge(http_auth_challenge_t *b)
 {
-	if (b->realm) 
+	if (b->realm)
 		free(b->realm);
-	if (b->qop) 
+	if (b->qop)
 		free(b->qop);
-	if (b->nonce) 
+	if (b->nonce)
 		free(b->nonce);
-	if (b->opaque) 
+	if (b->opaque)
 		free(b->opaque);
-	if (b->algo) 
+	if (b->algo)
 		free(b->algo);
 	init_http_auth_challenge(b);
 }
@@ -652,7 +652,7 @@ typedef struct {
 	int	valid; /* We did parse an authenticate header */
 } http_auth_challenges_t;
 
-static void 
+static void
 init_http_auth_challenges(http_auth_challenges_t *cs)
 {
 	int i;
@@ -661,7 +661,7 @@ init_http_auth_challenges(http_auth_challenges_t *cs)
 	cs->count = cs->valid = 0;
 }
 
-static void 
+static void
 clean_http_auth_challenges(http_auth_challenges_t *cs)
 {
 	int i;
@@ -675,19 +675,19 @@ clean_http_auth_challenges(http_auth_challenges_t *cs)
 	init_http_auth_challenges(cs);
 }
 
-/* 
+/*
  * Enumeration for lexical elements. Separators will be returned as their own
  * ascii value
  */
 typedef enum {HTTPHL_WORD=256, HTTPHL_STRING=257, HTTPHL_END=258,
 	      HTTPHL_ERROR = 259} http_header_lex_t;
 
-/* 
+/*
  * Determine what kind of token comes next and return possible value
  * in buf, which is supposed to have been allocated big enough by
- * caller. Advance input pointer and return element type. 
+ * caller. Advance input pointer and return element type.
  */
-static int 
+static int
 http_header_lex(const char **cpp, char *buf)
 {
 	size_t l;
@@ -716,7 +716,7 @@ http_header_lex(const char **cpp, char *buf)
 	return (HTTPHL_WORD);
 }
 
-/* 
+/*
  * Read challenges from http xxx-authenticate header and accumulate them
  * in the challenges list structure.
  *
@@ -728,7 +728,7 @@ http_header_lex(const char **cpp, char *buf)
  *
  * We support both approaches anyway
  */
-static int 
+static int
 http_parse_authenticate(const char *cp, http_auth_challenges_t *cs)
 {
 	int ret = -1;
@@ -752,7 +752,7 @@ http_parse_authenticate(const char *cp, http_auth_challenges_t *cs)
 
 	/* Loop on challenges */
 	for (; cs->count < MAX_CHALLENGES; cs->count++) {
-		cs->challenges[cs->count] = 
+		cs->challenges[cs->count] =
 			malloc(sizeof(http_auth_challenge_t));
 		if (cs->challenges[cs->count] == NULL) {
 			fetch_syserr();
@@ -765,14 +765,14 @@ http_parse_authenticate(const char *cp, http_auth_challenges_t *cs)
 			cs->challenges[cs->count]->scheme = HTTPAS_DIGEST;
 		} else {
 			cs->challenges[cs->count]->scheme = HTTPAS_UNKNOWN;
-			/* 
-                         * Continue parsing as basic or digest may
+			/*
+			 * Continue parsing as basic or digest may
 			 * follow, and the syntax is the same for
 			 * all. We'll just ignore this one when
 			 * looking at the list
 			 */
 		}
-	
+
 		/* Loop on attributes */
 		for (;;) {
 			/* Key */
@@ -791,31 +791,31 @@ http_parse_authenticate(const char *cp, http_auth_challenges_t *cs)
 				goto out;
 
 			if (!strcasecmp(key, "realm"))
-				cs->challenges[cs->count]->realm = 
+				cs->challenges[cs->count]->realm =
 					strdup(value);
 			else if (!strcasecmp(key, "qop"))
-				cs->challenges[cs->count]->qop = 
+				cs->challenges[cs->count]->qop =
 					strdup(value);
 			else if (!strcasecmp(key, "nonce"))
-				cs->challenges[cs->count]->nonce = 
+				cs->challenges[cs->count]->nonce =
 					strdup(value);
 			else if (!strcasecmp(key, "opaque"))
-				cs->challenges[cs->count]->opaque = 
+				cs->challenges[cs->count]->opaque =
 					strdup(value);
 			else if (!strcasecmp(key, "algorithm"))
-				cs->challenges[cs->count]->algo = 
+				cs->challenges[cs->count]->algo =
 					strdup(value);
 			else if (!strcasecmp(key, "stale"))
-				cs->challenges[cs->count]->stale = 
+				cs->challenges[cs->count]->stale =
 					strcasecmp(value, "no");
 			/* Else ignore unknown attributes */
 
 			/* Comma or Next challenge or End */
 			lex = http_header_lex(&cp, key);
-			/* 
-                         * If we get a word here, this is the beginning of the
-			 * next challenge. Break the attributes loop 
-                         */
+			/*
+			 * If we get a word here, this is the beginning of the
+			 * next challenge. Break the attributes loop
+			 */
 			if (lex == HTTPHL_WORD)
 				break;
 
@@ -832,10 +832,10 @@ http_parse_authenticate(const char *cp, http_auth_challenges_t *cs)
 		} /* End attributes loop */
 	} /* End challenge loop */
 
-	/* 
-         * Challenges max count exceeded. This really can't happen
-	 * with normal data, something's fishy -> error 
-	 */ 
+	/*
+	 * Challenges max count exceeded. This really can't happen
+	 * with normal data, something's fishy -> error
+	 */
 
 out:
 	if (key)
@@ -1011,16 +1011,16 @@ init_http_auth_params(http_auth_params_t *s)
 	s->scheme = s->realm = s->user = s->password = 0;
 }
 
-static void 
+static void
 clean_http_auth_params(http_auth_params_t *s)
 {
-	if (s->scheme) 
+	if (s->scheme)
 		free(s->scheme);
-	if (s->realm) 
+	if (s->realm)
 		free(s->realm);
-	if (s->user) 
+	if (s->user)
 		free(s->user);
-	if (s->password) 
+	if (s->password)
 		free(s->password);
 	init_http_auth_params(s);
 }
@@ -1075,7 +1075,7 @@ http_authfromenv(const char *p, http_auth_params_t *parms)
 	}
 	ret = 0;
 out:
-	if (ret == -1) 
+	if (ret == -1)
 		clean_http_auth_params(parms);
 	if (str)
 		free(str);
@@ -1083,9 +1083,9 @@ out:
 }
 
 
-/* 
+/*
  * Digest response: the code to compute the digest is taken from the
- * sample implementation in RFC2616 
+ * sample implementation in RFC2616
  */
 #define IN
 #define OUT
@@ -1096,7 +1096,7 @@ typedef char HASH[HASHLEN];
 typedef char HASHHEX[HASHHEXLEN+1];
 
 static const char *hexchars = "0123456789abcdef";
-static void 
+static void
 CvtHex(IN HASH Bin, OUT HASHHEX Hex)
 {
 	unsigned short i;
@@ -1112,7 +1112,7 @@ CvtHex(IN HASH Bin, OUT HASHHEX Hex)
 };
 
 /* calculate H(A1) as per spec */
-static void 
+static void
 DigestCalcHA1(
 	IN char * pszAlg,
 	IN char * pszUserName,
@@ -1147,7 +1147,7 @@ DigestCalcHA1(
 }
 
 /* calculate request-digest/response-digest as per HTTP Digest spec */
-static void 
+static void
 DigestCalcResponse(
 	IN HASHHEX HA1,           /* H(A1) */
 	IN char * pszNonce,       /* nonce from server */
@@ -1160,7 +1160,7 @@ DigestCalcResponse(
 	OUT HASHHEX Response      /* request-digest or response-digest */
 	)
 {
-/*	DEBUG(fprintf(stderr, 
+/*	DEBUG(fprintf(stderr,
 		      "Calc: HA1[%s] Nonce[%s] qop[%s] method[%s] URI[%s]\n",
 		      HA1, pszNonce, pszQop, pszMethod, pszDigestUri));*/
 	MD5_CTX Md5Ctx;
@@ -1199,8 +1199,8 @@ DigestCalcResponse(
 	CvtHex(RespHash, Response);
 }
 
-/* 
- * Generate/Send a Digest authorization header 
+/*
+ * Generate/Send a Digest authorization header
  * This looks like: [Proxy-]Authorization: credentials
  *
  *  credentials      = "Digest" digest-response
@@ -1233,10 +1233,10 @@ http_digest_auth(conn_t *conn, const char *hdr, http_auth_challenge_t *c,
 		DEBUG(fprintf(stderr, "realm/nonce not set in challenge\n"));
 		return(-1);
 	}
-	if (!c->algo) 
+	if (!c->algo)
 		c->algo = strdup("");
 
-	if (asprintf(&options, "%s%s%s%s", 
+	if (asprintf(&options, "%s%s%s%s",
 		     *c->algo? ",algorithm=" : "", c->algo,
 		     c->opaque? ",opaque=" : "", c->opaque?c->opaque:"")== -1)
 		return (-1);
@@ -1264,13 +1264,13 @@ http_digest_auth(conn_t *conn, const char *hdr, http_auth_challenge_t *c,
 		r = http_cmd(conn, "%s: Digest username=\"%s\",realm=\"%s\","
 			     "nonce=\"%s\",uri=\"%s\",response=\"%s\","
 			     "qop=\"auth\", cnonce=\"%s\", nc=%s%s",
-			     hdr, parms->user, c->realm, 
+			     hdr, parms->user, c->realm,
 			     c->nonce, url->doc, digest,
 			     cnonce, noncecount, options);
 	} else {
 		r = http_cmd(conn, "%s: Digest username=\"%s\",realm=\"%s\","
 			     "nonce=\"%s\",uri=\"%s\",response=\"%s\"%s",
-			     hdr, parms->user, c->realm, 
+			     hdr, parms->user, c->realm,
 			     c->nonce, url->doc, digest, options);
 	}
 	if (options)
@@ -1301,7 +1301,7 @@ http_basic_auth(conn_t *conn, const char *hdr, const char *usr, const char *pwd)
 }
 
 /*
- * Chose the challenge to answer and call the appropriate routine to 
+ * Chose the challenge to answer and call the appropriate routine to
  * produce the header.
  */
 static int
@@ -1327,16 +1327,16 @@ http_authorize(conn_t *conn, const char *hdr, http_auth_challenges_t *cs,
 	}
 
 	/* Error if "Digest" was specified and there is no Digest challenge */
-	if (!digest && (parms->scheme && 
+	if (!digest && (parms->scheme &&
 			!strcasecmp(parms->scheme, "digest"))) {
-		DEBUG(fprintf(stderr, 
+		DEBUG(fprintf(stderr,
 			      "Digest auth in env, not supported by peer\n"));
 		return (-1);
 	}
-	/* 
-         * If "basic" was specified in the environment, or there is no Digest
+	/*
+	 * If "basic" was specified in the environment, or there is no Digest
 	 * challenge, do the basic thing. Don't need a challenge for this,
-	 * so no need to check basic!=NULL 
+	 * so no need to check basic!=NULL
 	 */
 	if (!digest || (parms->scheme && !strcasecmp(parms->scheme,"basic")))
 		return (http_basic_auth(conn,hdr,parms->user,parms->password));
@@ -1492,7 +1492,7 @@ http_request(struct url *URL, const char *op, struct url_stat *us,
 	http_auth_challenges_t proxy_challenges;
 
 	/* The following calls don't allocate anything */
-	init_http_headerbuf(&headerbuf); 
+	init_http_headerbuf(&headerbuf);
 	init_http_auth_challenges(&server_challenges);
 	init_http_auth_challenges(&proxy_challenges);
 
@@ -1578,65 +1578,65 @@ http_request(struct url *URL, const char *op, struct url_stat *us,
 		/* virtual host */
 		http_cmd(conn, "Host: %s", host);
 
-		/* 
-                 * Proxy authorization: we only send auth after we received
-		 * a 407 error. We do not first try basic anyway (changed 
-                 * when support was added for digest-auth)
-                 */
+		/*
+		 * Proxy authorization: we only send auth after we received
+		 * a 407 error. We do not first try basic anyway (changed
+		 * when support was added for digest-auth)
+		 */
 		if (purl && proxy_challenges.valid) {
 			http_auth_params_t aparams;
 			init_http_auth_params(&aparams);
 			if (*purl->user || *purl->pwd) {
-				aparams.user = purl->user ? 
+				aparams.user = purl->user ?
 					strdup(purl->user) : strdup("");
 				aparams.password = purl->pwd?
 					strdup(purl->pwd) : strdup("");
-			} else if ((p = getenv("HTTP_PROXY_AUTH")) != NULL && 
+			} else if ((p = getenv("HTTP_PROXY_AUTH")) != NULL &&
 				   *p != '\0') {
 				if (http_authfromenv(p, &aparams) < 0) {
 					http_seterr(HTTP_NEED_PROXY_AUTH);
 					goto ouch;
 				}
 			}
-			http_authorize(conn, "Proxy-Authorization", 
+			http_authorize(conn, "Proxy-Authorization",
 				       &proxy_challenges, &aparams, url);
 			clean_http_auth_params(&aparams);
 		}
 
-		/* 
-                 * Server authorization: we never send "a priori"
+		/*
+		 * Server authorization: we never send "a priori"
 		 * Basic auth, which used to be done if user/pass were
 		 * set in the url. This would be weird because we'd send the
-		 * password in the clear even if Digest is finally to be 
+		 * password in the clear even if Digest is finally to be
 		 * used (it would have made more sense for the
-		 * pre-digest version to do this when Basic was specified 
-                 * in the environment) 
-                 */
+		 * pre-digest version to do this when Basic was specified
+		 * in the environment)
+		 */
 		if (server_challenges.valid) {
 			http_auth_params_t aparams;
 			init_http_auth_params(&aparams);
 			if (*url->user || *url->pwd) {
-				aparams.user = url->user ? 
+				aparams.user = url->user ?
 					strdup(url->user) : strdup("");
-				aparams.password = url->pwd ? 
+				aparams.password = url->pwd ?
 					strdup(url->pwd) : strdup("");
-			} else if ((p = getenv("HTTP_AUTH")) != NULL && 
+			} else if ((p = getenv("HTTP_AUTH")) != NULL &&
 				   *p != '\0') {
 				if (http_authfromenv(p, &aparams) < 0) {
 					http_seterr(HTTP_NEED_AUTH);
 					goto ouch;
 				}
-			} else if (fetchAuthMethod && 
+			} else if (fetchAuthMethod &&
 				   fetchAuthMethod(url) == 0) {
-				aparams.user = url->user ? 
+				aparams.user = url->user ?
 					strdup(url->user) : strdup("");
-				aparams.password = url->pwd ? 
+				aparams.password = url->pwd ?
 					strdup(url->pwd) : strdup("");
 			} else {
 				http_seterr(HTTP_NEED_AUTH);
 				goto ouch;
 			}
-			http_authorize(conn, "Authorization", 
+			http_authorize(conn, "Authorization",
 				       &server_challenges, &aparams, url);
 			clean_http_auth_params(&aparams);
 		}
@@ -1804,12 +1804,12 @@ http_request(struct url *URL, const char *op, struct url_stat *us,
 		} while (h > hdr_end);
 
 		/* we need to provide authentication */
-		if (conn->err == HTTP_NEED_AUTH || 
+		if (conn->err == HTTP_NEED_AUTH ||
 		    conn->err == HTTP_NEED_PROXY_AUTH) {
 			e = conn->err;
-			if ((conn->err == HTTP_NEED_AUTH && 
-			     !server_challenges.valid) || 
-			    (conn->err == HTTP_NEED_PROXY_AUTH && 
+			if ((conn->err == HTTP_NEED_AUTH &&
+			     !server_challenges.valid) ||
+			    (conn->err == HTTP_NEED_PROXY_AUTH &&
 			     !proxy_challenges.valid)) {
 				/* 401/7 but no www/proxy-authenticate ?? */
 				DEBUG(fprintf(stderr, "401/7 and no auth header\n"));
