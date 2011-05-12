@@ -56,7 +56,10 @@ ar5416SetPowerModeAwake(struct ath_hal *ah, int setChip)
 			OS_REG_SET_BIT(ah, AR_RTC_RESET, AR_RTC_RESET_EN);
 
 		OS_REG_SET_BIT(ah, AR_RTC_FORCE_WAKE, AR_RTC_FORCE_WAKE_EN);
-		OS_DELAY(50);   /* Give chip the chance to awake */
+		if (AR_SREV_HOWL(ah))
+			OS_DELAY(10000);
+		else
+			OS_DELAY(50);   /* Give chip the chance to awake */
 
 		for (i = POWER_UP_TIME / 50; i != 0; i--) {
 			val = OS_REG_READ(ah, AR_RTC_STATUS) & AR_RTC_STATUS_M;
@@ -94,7 +97,8 @@ ar5416SetPowerModeSleep(struct ath_hal *ah, int setChip)
 		if (! AR_SREV_HOWL(ah))
 			OS_REG_WRITE(ah, AR_RC, AR_RC_AHB|AR_RC_HOSTIF);
 		/* Shutdown chip. Active low */
-		OS_REG_CLR_BIT(ah, AR_RTC_RESET, AR_RTC_RESET_EN);
+		if (! AR_SREV_OWL(ah))
+			OS_REG_CLR_BIT(ah, AR_RTC_RESET, AR_RTC_RESET_EN);
 	}
 }
 
