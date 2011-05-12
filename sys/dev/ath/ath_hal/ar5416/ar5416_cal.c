@@ -241,7 +241,6 @@ ar5416InitCal(struct ath_hal *ah, const struct ieee80211_channel *chan)
 {
 	struct ar5416PerCal *cal = &AH5416(ah)->ah_cal;
 	HAL_CHANNEL_INTERNAL *ichan;
-	int i;
 
 	ichan = ath_hal_checkchannel(ah, chan);
 	HALASSERT(ichan != AH_NULL);
@@ -263,33 +262,14 @@ ar5416InitCal(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	 * higher than normal value if DC offset and noise floor cal are
 	 * triggered at the same time.
 	 */
-	/* XXX this actually kicks off a NF calibration -adrian */
 	OS_REG_SET_BIT(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_NF);
-	/*
-	 * This sometimes takes a -lot- longer than it should.
-	 * Just give it a bit more time.
-	 */
-	for (i = 0; i < MAX_CAL_CHECK; i++) {
-		if (ar5212WaitNFCalComplete(ah, 10000))
-			break;
 
-		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: initial NF calibration did "
-		    "not complete in time; noisy environment (pass %d)?\n", __func__, i);
-	}
-	
 	/*
-	 * Although periodic and NF calibrations shouldn't run concurrently,
-	 * this was causing the radio to not be usable on the active
-	 * channel if the channel was busy.
-	 *
-	 * Instead, now simply print a warning and continue. That way if users
-	 * report "weird crap", they should get this warning.
+	 * This may take a while to run; make sure subsequent
+	 * calibration routines check that this has completed
+	 * before reading the value and triggering a subsequent
+	 * calibration.
 	 */
-	if (i >= MAX_CAL_CHECK) {
-		ath_hal_printf(ah, "[ath] Warning - initial NF calibration did "
-		    "not complete in time, noisy environment?\n");
-		/* return AH_FALSE; */
-	}
 
 	/* Initialize list pointers */
 	cal->cal_list = cal->cal_last = cal->cal_curr = AH_NULL;
@@ -462,6 +442,7 @@ ar5416PerCalibrationN(struct ath_hal *ah, struct ieee80211_channel *chan,
 	struct ar5416PerCal *cal = &AH5416(ah)->ah_cal;
 	HAL_CAL_LIST *currCal = cal->cal_curr;
 	HAL_CHANNEL_INTERNAL *ichan;
+	int r;
 
 	OS_MARK(ah, AH_MARK_PERCAL, chan->ic_freq);
 
@@ -518,17 +499,24 @@ ar5416PerCalibrationN(struct ath_hal *ah, struct ieee80211_channel *chan,
 		 * Get the value from the previous NF cal
 		 * and update the history buffer.
 		 */
-		ar5416GetNf(ah, chan);
+		r = ar5416GetNf(ah, chan);
+		if (r <= 0) {
+			/* NF calibration result isn't valid */
+			HALDEBUG(ah, HAL_DEBUG_UNMASKABLE, "%s: NF calibration"
+			    " didn't finish; delaying CCA\n", __func__);
+		} else {
+			/* 
+			 * NF calibration result is valid.
+			 *
+			 * Load the NF from history buffer of the current channel.
+			 * NF is slow time-variant, so it is OK to use a
+			 * historical value.
+			 */
+			ar5416LoadNF(ah, AH_PRIVATE(ah)->ah_curchan);
 
-		/* 
-		 * Load the NF from history buffer of the current channel.
-		 * NF is slow time-variant, so it is OK to use a
-		 * historical value.
-		 */
-		ar5416LoadNF(ah, AH_PRIVATE(ah)->ah_curchan);
-
-		/* start NF calibration, without updating BB NF register*/
-		ar5416StartNFCal(ah);
+			/* start NF calibration, without updating BB NF register*/
+			ar5416StartNFCal(ah);
+		}
 	}
 	return AH_TRUE;
 }
@@ -658,8 +646,8 @@ ar5416LoadNF(struct ath_hal *ah, const struct ieee80211_channel *chan)
 		 * here, the baseband nf cal will just be capped by our present
 		 * noisefloor until the next calibration timer.
 		 */
-		HALDEBUG(ah, HAL_DEBUG_ANY, "Timeout while waiting for nf "
-		    "to load: AR_PHY_AGC_CONTROL=0x%x\n",
+		HALDEBUG(ah, HAL_DEBUG_UNMASKABLE, "Timeout while waiting for "
+		    "nf to load: AR_PHY_AGC_CONTROL=0x%x\n",
 		    OS_REG_READ(ah, AR_PHY_AGC_CONTROL));
 		return;
 	}
@@ -778,17 +766,22 @@ ar5416SanitizeNF(struct ath_hal *ah, int16_t *nf)
 
 /*
  * Read the NF and check it against the noise floor threshhold
+ *
+ * Return 0 if the NF calibration hadn't finished, 0 if it was
+ * invalid, or > 0 for a valid NF reading.
  */
 static int16_t
 ar5416GetNf(struct ath_hal *ah, struct ieee80211_channel *chan)
 {
 	int16_t nf, nfThresh;
 	int i;
+	int retval = 0;
 
 	if (ar5212IsNFCalInProgress(ah)) {
 		HALDEBUG(ah, HAL_DEBUG_ANY,
 		    "%s: NF didn't complete in calibration window\n", __func__);
 		nf = 0;
+		retval = -1;	/* NF didn't finish */
 	} else {
 		/* Finished NF cal, check against threshold */
 		int16_t nfarray[NUM_NOISEFLOOR_READINGS] = { 0 };
@@ -800,7 +793,7 @@ ar5416GetNf(struct ath_hal *ah, struct ieee80211_channel *chan)
 		ar5416SanitizeNF(ah, nfarray);
 		if (ar5416GetEepromNoiseFloorThresh(ah, chan, &nfThresh)) {
 			if (nf > nfThresh) {
-				HALDEBUG(ah, HAL_DEBUG_ANY,
+				HALDEBUG(ah, HAL_DEBUG_UNMASKABLE,
 				    "%s: noise floor failed detected; "
 				    "detected %d, threshold %d\n", __func__,
 				    nf, nfThresh);
@@ -811,9 +804,11 @@ ar5416GetNf(struct ath_hal *ah, struct ieee80211_channel *chan)
 				 */
 				chan->ic_state |= IEEE80211_CHANSTATE_CWINT;
 				nf = 0;
+				retval = 0;
 			}
 		} else {
 			nf = 0;
+			retval = 0;
 		}
 		/* Update MIMO channel statistics, regardless of validity or not (for now) */
 		for (i = 0; i < 3; i++) {
@@ -824,6 +819,7 @@ ar5416GetNf(struct ath_hal *ah, struct ieee80211_channel *chan)
 
 		ar5416UpdateNFHistBuff(ah, AH5416(ah)->ah_cal.nfCalHist, nfarray);
 		ichan->rawNoiseFloor = nf;
+		retval = nf;
 	}
-	return nf;
+	return retval;
 }
