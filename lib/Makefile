@@ -92,6 +92,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libpkg} \
 	${_libpmc} \
 	${_libproc} \
+	libprocstat \
 	librt \
 	${_librtld_db} \
 	${_libsdp} \

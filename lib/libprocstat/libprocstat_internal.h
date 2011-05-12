@@ -1,6 +1,6 @@
 /*-
- * Copyright (c) 1988, 1993
- *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 2009 Stanislav Sedov <stas@FreeBSD.org>
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -10,9 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -29,48 +26,14 @@
  * $FreeBSD$
  */
 
-#ifndef	__FSTAT_H__
-#define	__FSTAT_H__
+#ifndef _LIBPROCSTAT_INTERNAL_H_
+#define	_LIBPROCSTAT_INTERNAL_H_
 
-/*
- * a kvm_read that returns true if everything is read
- */
-#define KVM_READ(kaddr, paddr, len) \
-	((len) < SSIZE_MAX && \
-	kvm_read(kd, (u_long)(kaddr), (char *)(paddr), (len)) == (ssize_t)(len))
-
-#define dprintf	if (vflg) fprintf
-
-typedef struct devs {
-	struct	devs *next;
-	long	fsid;
-	long	ino;
-	const char	*name;
-} DEVS;
-
-struct  filestat {
-	long	fsid;
-	long	fileid;
-	mode_t	mode;
-	u_long	size;
-	dev_t	rdev;
+struct procstat {
+	int	type;
+	kvm_t	*kd;
+	void	*vmentries;
+	void	*files;
 };
 
-/* Ugh */
-extern kvm_t *kd;
-extern int vflg;
-extern int Pid;
-
-dev_t dev2udev(struct cdev *dev);
-
-/* Additional filesystem types */
-int isofs_filestat(struct vnode *vp, struct filestat *fsp);
-int msdosfs_filestat(struct vnode *vp, struct filestat *fsp);
-
-#ifdef ZFS
-int zfs_filestat(struct vnode *vp, struct filestat *fsp);
-void *getvnodedata(struct vnode *vp);
-struct mount *getvnodemount(struct vnode *vp);
-#endif
-
-#endif /* __FSTAT_H__ */
+#endif	/* !_LIBPROCSTAT_INTERNAL_H_ */

@@ -1,4 +1,4 @@
-/* $OpenBSD: atomicio.c,v 1.9 2007/09/07 14:50:44 tobias Exp $ */
+/* $OpenBSD: atomicio.c,v 1.10 2011/01/08 00:47:19 jeremy Exp $ */
 /*
  * Copyright (c) 2006 Damien Miller. All rights reserved.
  * Copyright (c) 2005 Anil Madhavapeddy. All rights reserved.
@@ -53,7 +53,7 @@ atomicio(ssize_t (*f) (int, void *, size_t), int fd, void *_s, size_t n)
 		case -1:
 			if (errno == EINTR)
 				continue;
-			if (errno == EAGAIN) {
+			if ((errno == EAGAIN) || (errno == ENOBUFS)) {
 				(void)poll(&pfd, 1, -1);
 				continue;
 			}

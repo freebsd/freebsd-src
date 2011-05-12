@@ -70,7 +70,7 @@ static devclass_t ip1000phy_devclass;
 static driver_t ip1000phy_driver = {
 	"ip1000phy",
 	ip1000phy_methods,
-	sizeof (struct mii_softc)
+	sizeof(struct mii_softc)
 };
 
 DRIVER_MODULE(ip1000phy, miibus, ip1000phy_driver, ip1000phy_devclass, 0, 0);
@@ -111,7 +111,7 @@ ip1000phy_attach(device_t dev)
 	     strcmp(ma->mii_data->mii_ifp->if_dname, "stge") == 0 &&
 	     (miibus_get_flags(dev) & MIIF_MACPRIV0) != 0)
 		flags |= MIIF_PHYPRIV0;
-	mii_phy_dev_attach(dev, flags, &ip1000phy_funcs, 0);
+	mii_phy_dev_attach(dev, flags, &ip1000phy_funcs, 1);
 	return (0);
 }
 

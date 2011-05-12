@@ -16,8 +16,8 @@ options 	KDB
 
 options 	SCHED_4BSD		#4BSD scheduler
 options 	INET			#InterNETworking
-options 	NFSCLIENT		#Network Filesystem Client
-options 	NFS_ROOT		#NFS usable as /, requires NFSCLIENT
+options 	NFSCL			#Network Filesystem Client
+options 	NFS_ROOT		#NFS usable as /, requires NFSCL
 options 	PSEUDOFS		#Pseudo-filesystem framework
 
 options 	BOOTP
