@@ -1087,7 +1087,7 @@ out:
  * Digest response: the code to compute the digest is taken from the
  * sample implementation in RFC2616
  */
-#define IN
+#define IN const
 #define OUT
 
 #define HASHLEN 16
