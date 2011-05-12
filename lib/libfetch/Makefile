@@ -26,7 +26,7 @@ LDADD=		-lmd
 CFLAGS+=	-DFTP_COMBINE_CWDS
 
 CSTD?=		c99
-WARNS?=		2
+WARNS?=		3
 
 SHLIB_MAJOR=    6
 

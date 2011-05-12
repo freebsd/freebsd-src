@@ -508,7 +508,7 @@ http_conn_trimright(conn_t *conn)
 static hdr_t
 http_next_header(conn_t *conn, http_headerbuf_t *hbuf, const char **p)
 {
-	int i, len;
+	unsigned int i, len;
 
 	/* 
 	 * Have to do the stripping here because of the first line. So
