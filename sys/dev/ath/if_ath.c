@@ -1946,17 +1946,15 @@ ath_calcrxfilter(struct ath_softc *sc)
 	    IEEE80211_IS_CHAN_ANYG(ic->ic_curchan))
 		rfilt |= HAL_RX_FILTER_BEACON;
 
-#if 0
 	/*
 	 * Enable hardware PS-POLL RX only for hostap mode;
 	 * STA mode sends PS-POLL frames but never
 	 * receives them.
 	 */
-	if (ath_hal_getcapability(ah, HAL_CAP_HAS_PSPOLL,
+	if (ath_hal_getcapability(sc->sc_ah, HAL_CAP_PSPOLL,
 	    0, NULL) == HAL_OK &&
 	    ic->ic_opmode == IEEE80211_M_HOSTAP)
 		rfilt |= HAL_RX_FILTER_PSPOLL;
-#endif
 
 	if (sc->sc_nmeshvaps) {
 		rfilt |= HAL_RX_FILTER_BEACON;
