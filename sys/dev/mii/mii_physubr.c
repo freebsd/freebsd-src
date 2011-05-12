@@ -257,7 +257,7 @@ void
 mii_phy_reset(struct mii_softc *sc)
 {
 	struct ifmedia_entry *ife = sc->mii_pdata->mii_media.ifm_cur;
-	int reg, i;
+	int i, reg;
 
 	if ((sc->mii_flags & MIIF_NOISOLATE) != 0)
 		reg = BMCR_RESET;
@@ -273,11 +273,14 @@ mii_phy_reset(struct mii_softc *sc)
 		DELAY(1000);
 	}
 
-	if ((sc->mii_flags & MIIF_NOISOLATE) == 0) {
-		if ((ife == NULL && sc->mii_inst != 0) ||
-		    (ife != NULL && IFM_INST(ife->ifm_media) != sc->mii_inst))
-			PHY_WRITE(sc, MII_BMCR, reg | BMCR_ISO);
-	}
+	/* NB: a PHY may default to isolation. */
+	reg &= ~BMCR_ISO;
+	if ((sc->mii_flags & MIIF_NOISOLATE) == 0 &&
+	    ((ife == NULL && sc->mii_inst != 0) ||
+	    (ife != NULL && IFM_INST(ife->ifm_media) != sc->mii_inst)))
+		reg |= BMCR_ISO;
+	if (PHY_READ(sc, MII_BMCR) != reg)
+		PHY_WRITE(sc, MII_BMCR, reg);
 }
 
 void
