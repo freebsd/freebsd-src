@@ -45,14 +45,16 @@
 #include <sys/zfs_znode.h>
 #include <sys/zfs_sa.h>
 
+#include <netinet/in.h>
+
 #include <err.h>
 #include <kvm.h>
 #include <stdio.h>
 #include <stdlib.h>
 
 #define ZFS
-#undef dprintf
-#include <fstat.h>
+#include "libprocstat.h"
+#include "common_kvm.h"
 
 /* 
  * Offset calculations that are used to get data from znode without having the
@@ -62,7 +64,7 @@
 #define LOCATION_ZPHYS(zsize) ((zsize) - (2 * sizeof(void *) + sizeof(struct task)))
 
 int
-zfs_filestat(struct vnode *vp, struct filestat *fsp)
+zfs_filestat(kvm_t *kd, struct vnode *vp, struct vnstat *vn)
 {
 
 	znode_phys_t zphys;
@@ -76,20 +78,19 @@ zfs_filestat(struct vnode *vp, struct filestat *fsp)
 
 	len = sizeof(size);
 	if (sysctlbyname("debug.sizeof.znode", &size, &len, NULL, 0) == -1) {
-		dprintf(stderr, "error getting sysctl\n");
-		return (0);
+		warnx("error getting sysctl");
+		return (1);
 	}
 	znodeptr = malloc(size);
 	if (znodeptr == NULL) {
-		dprintf(stderr, "error allocating memory for znode storage\n");
-		return (0);
+		warnx("error allocating memory for znode storage");
+		return (1);
 	}
-
 	/* Since we have problems including vnode.h, we'll use the wrappers. */
 	vnodeptr = getvnodedata(vp);
-	if (!KVM_READ(vnodeptr, znodeptr, (size_t)size)) {
-		dprintf(stderr, "can't read znode at %p for pid %d\n",
-		    (void *)vnodeptr, Pid);
+	if (!kvm_read_all(kd, (unsigned long)vnodeptr, znodeptr,
+	    (size_t)size)) {
+		warnx("can't read znode at %p", (void *)vnodeptr);
 		goto bad;
 	}
 
@@ -104,33 +105,30 @@ zfs_filestat(struct vnode *vp, struct filestat *fsp)
 	zid = (uint64_t *)(dataptr + LOCATION_ZID);
 	zphys_addr = *(void **)(dataptr + LOCATION_ZPHYS(size));
 
-	if (!KVM_READ(zphys_addr, &zphys, sizeof(zphys))) {
-		dprintf(stderr, "can't read znode_phys at %p for pid %d\n",
-		    zphys_addr, Pid);
+	if (!kvm_read_all(kd, (unsigned long)zphys_addr, &zphys,
+	    sizeof(zphys))) {
+		warnx("can't read znode_phys at %p", zphys_addr);
 		goto bad;
 	}
 
 	/* Get the mount pointer, and read from the address. */
 	mountptr = getvnodemount(vp);
-	if (!KVM_READ(mountptr, &mount, sizeof(mount))) {
-		dprintf(stderr, "can't read mount at %p for pid %d\n",
-		    (void *)mountptr, Pid);
+	if (!kvm_read_all(kd, (unsigned long)mountptr, &mount, sizeof(mount))) {
+		warnx("can't read mount at %p", (void *)mountptr);
 		goto bad;
 	}
-
-	fsp->fsid = (long)(uint32_t)mount.mnt_stat.f_fsid.val[0];
-	fsp->fileid = *zid;
+	vn->vn_fsid = mount.mnt_stat.f_fsid.val[0];
+	vn->vn_fileid = *zid;
 	/*
 	 * XXX: Shows up wrong in output, but UFS has this error too. Could
 	 * be that we're casting mode-variables from 64-bit to 8-bit or simply
 	 * error in the mode-to-string function.
 	 */
-	fsp->mode = (mode_t)zphys.zp_mode;
-	fsp->size = (u_long)zphys.zp_size;
-	fsp->rdev = (dev_t)zphys.zp_rdev;
-	free(znodeptr);
-	return (1);
-bad:
+	vn->vn_mode = (mode_t)zphys.zp_mode;
+	vn->vn_size = (u_long)zphys.zp_size;
 	free(znodeptr);
 	return (0);
+bad:
+	free(znodeptr);
+	return (1);
 }

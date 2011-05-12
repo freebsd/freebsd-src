@@ -517,7 +517,8 @@ extern	void ath_hal_free(void *);
 extern	int ath_hal_debug;
 #define	HALDEBUG(_ah, __m, ...) \
 	do {							\
-		if (ath_hal_debug & (__m)) {			\
+		if ((__m) == HAL_DEBUG_UNMASKABLE ||		\
+		    (ath_hal_debug & (__m))) {			\
 			DO_HALDEBUG((_ah), (__m), __VA_ARGS__);	\
 		}						\
 	} while(0);

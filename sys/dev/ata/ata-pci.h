@@ -233,6 +233,19 @@ struct ata_pci_controller {
 #define ATA_PBG_R2		0x1d068086
 #define ATA_PBG_S2		0x1d088086
 
+#define ATA_PPT_S1		0x1e008086
+#define ATA_PPT_S2		0x1e018086
+#define ATA_PPT_AH1		0x1e028086
+#define ATA_PPT_AH2		0x1e038086
+#define ATA_PPT_R1		0x1e048086
+#define ATA_PPT_R2		0x1e058086
+#define ATA_PPT_R3		0x1e068086
+#define ATA_PPT_R4		0x1e078086
+#define ATA_PPT_S3		0x1e088086
+#define ATA_PPT_S4		0x1e098086
+#define ATA_PPT_R5		0x1e0e8086
+#define ATA_PPT_R6		0x1e0f8086
+
 #define ATA_I31244              0x32008086
 #define ATA_ISCH                0x811a8086
 #define ATA_DH89XXCC            0x23238086

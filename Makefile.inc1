@@ -246,9 +246,10 @@ TMAKE=		MAKEOBJDIRPREFIX=${OBJTREE} \
 		${BMAKEENV} ${MAKE} -f Makefile.inc1 \
 		TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
 		DESTDIR= \
+		BOOTSTRAPPING=${OSRELDATE} \
 		SSP_CFLAGS= \
-		BOOTSTRAPPING=${OSRELDATE} -DNO_LINT -DNO_CPU_CFLAGS \
-		-DNO_WARNS -DNO_CTF
+		-DNO_LINT \
+		-DNO_CPU_CFLAGS -DNO_WARNS -DNO_CTF
 
 # cross-tools stage
 XMAKE=		TOOLS_PREFIX=${WORLDTMP} ${BMAKE} \
@@ -829,7 +830,7 @@ buildkernel:
 	@echo "--------------------------------------------------------------"
 	cd ${KRNLOBJDIR}/${_kernel}; \
 	    MAKESRCPATH=${KERNSRCDIR}/dev/aic7xxx/aicasm \
-	    ${MAKE} SSP_CFLAGS= -DNO_CPU_CFLAGS \
+	    ${MAKE} SSP_CFLAGS= -DNO_CPU_CFLAGS -DNO_CTF \
 	    -f ${KERNSRCDIR}/dev/aic7xxx/aicasm/Makefile
 # XXX - Gratuitously builds aicasm in the ``makeoptions NO_MODULES'' case.
 .if !defined(MODULES_WITH_WORLD) && !defined(NO_MODULES) && exists(${KERNSRCDIR}/modules)
@@ -1024,7 +1025,9 @@ _clang_tblgen= \
 	usr.bin/clang/tblgen
 .endif
 
-.if ${MK_CDDL} != "no"
+.if ${MK_CDDL} != "no" && \
+    ${BOOTSTRAPPING} < 800038 && \
+    !(${BOOTSTRAPPING} >= 700112 && ${BOOTSTRAPPING} < 799999)
 _dtrace_tools= cddl/usr.bin/sgsmsg cddl/lib/libctf lib/libelf \
     lib/libdwarf cddl/usr.bin/ctfconvert cddl/usr.bin/ctfmerge
 .endif
@@ -1033,6 +1036,9 @@ _dtrace_tools= cddl/usr.bin/sgsmsg cddl/lib/libctf lib/libelf \
 _dtc= gnu/usr.bin/dtc
 .endif
 
+#	Please document (add comment) why something is in 'bootstrap-tools'.
+#	Try to bound the building of the bootstrap-tool to just the
+#	FreeBSD versions that need the tool built at this stage of the build.
 bootstrap-tools:
 .for _tool in \
     ${_clang_tblgen} \

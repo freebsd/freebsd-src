@@ -170,6 +170,7 @@ device		splash		# Splash screen and screen saver support
 
 # syscons is the default console driver, resembling an SCO console
 device		sc
+options 	SC_PIXEL_MODE	# add support for the raster text mode
 
 device		agp		# support several AGP chipsets
 
