@@ -1389,10 +1389,12 @@ ar5416InitPLL(struct ath_hal *ah, const struct ieee80211_channel *chan)
 				pll |= SM(0x1, AR_RTC_SOWL_PLL_CLKSEL);
 			else if (IEEE80211_IS_CHAN_QUARTER(chan))
 				pll |= SM(0x2, AR_RTC_SOWL_PLL_CLKSEL);
-			else if (IEEE80211_IS_CHAN_5GHZ(chan))
+
+			if (IEEE80211_IS_CHAN_5GHZ(chan))
 				pll |= SM(0x28, AR_RTC_SOWL_PLL_DIV);
 			else
 				pll |= SM(0x2c, AR_RTC_SOWL_PLL_DIV);
+
 		} else
 			pll |= SM(0x2c, AR_RTC_SOWL_PLL_DIV);
 	} else if (AR_SREV_SOWL_10_OR_LATER(ah)) {
@@ -1402,7 +1404,8 @@ ar5416InitPLL(struct ath_hal *ah, const struct ieee80211_channel *chan)
 				pll |= SM(0x1, AR_RTC_SOWL_PLL_CLKSEL);
 			else if (IEEE80211_IS_CHAN_QUARTER(chan))
 				pll |= SM(0x2, AR_RTC_SOWL_PLL_CLKSEL);
-			else if (IEEE80211_IS_CHAN_5GHZ(chan))
+
+			if (IEEE80211_IS_CHAN_5GHZ(chan))
 				pll |= SM(0x50, AR_RTC_SOWL_PLL_DIV);
 			else
 				pll |= SM(0x58, AR_RTC_SOWL_PLL_DIV);
@@ -1415,7 +1418,8 @@ ar5416InitPLL(struct ath_hal *ah, const struct ieee80211_channel *chan)
 				pll |= SM(0x1, AR_RTC_PLL_CLKSEL);
 			else if (IEEE80211_IS_CHAN_QUARTER(chan))
 				pll |= SM(0x2, AR_RTC_PLL_CLKSEL);
-			else if (IEEE80211_IS_CHAN_5GHZ(chan))
+
+			if (IEEE80211_IS_CHAN_5GHZ(chan))
 				pll |= SM(0xa, AR_RTC_PLL_DIV);
 			else
 				pll |= SM(0xb, AR_RTC_PLL_DIV);
