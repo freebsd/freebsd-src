@@ -3224,7 +3224,8 @@ sysctl_kern_proc_filedesc(SYSCTL_HANDLER_ARGS)
 	}
 	FILEDESC_SUNLOCK(fdp);
 fail:
-	fddrop(fdp);
+	if (fdp != NULL)
+		fddrop(fdp);
 	free(kif, M_TEMP);
 	return (error);
 }
