@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007 Robert N. M. Watson
+ * Copyright (c) 2005-2009 Stanislav Sedov <stas@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,27 +22,50 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-#ifndef PROCSTAT_H
-#define	PROCSTAT_H
+#include <sys/param.h>
+#include <sys/stat.h>
+#include <sys/time.h>
+#include <sys/vnode.h>
+#include <sys/mount.h>
 
-extern int	hflag, nflag;
+#include <netinet/in.h>
 
-struct kinfo_proc;
-void	kinfo_proc_sort(struct kinfo_proc *kipp, int count);
+#include <assert.h>
+#include <err.h>
+#include <kvm.h>
+#include <stdlib.h>
 
-void	procstat_args(struct kinfo_proc *kipp);
-void	procstat_basic(struct kinfo_proc *kipp);
-void	procstat_bin(struct kinfo_proc *kipp);
-void	procstat_cred(struct kinfo_proc *kipp);
-void	procstat_files(struct procstat *prstat, struct kinfo_proc *kipp);
-void	procstat_kstack(struct kinfo_proc *kipp, int kflag);
-void	procstat_sigs(struct procstat *prstat, struct kinfo_proc *kipp);
-void	procstat_threads(struct kinfo_proc *kipp);
-void	procstat_threads_sigs(struct procstat *prstat, struct kinfo_proc *kipp);
-void	procstat_vm(struct kinfo_proc *kipp);
+#include <fs/ntfs/ntfs.h>
+#include <fs/ntfs/ntfs_inode.h>
 
-#endif /* !PROCSTAT_H */
+#include "libprocstat.h"
+#include "common_kvm.h"
+
+int
+ntfs_filestat(kvm_t *kd, struct vnode *vp, struct vnstat *vn)
+{
+	struct fnode fnod;
+	struct ntnode node;
+	int error;
+
+	assert(kd);
+	assert(vn);
+	error = kvm_read_all(kd, (unsigned long)VTOF(vp), &fnod, sizeof(fnod));
+	if (error != 0) {
+		warnx("can't read ntfs fnode at %p", (void *)VTOF(vp));
+		return (1);
+	}
+	error = kvm_read_all(kd, (unsigned long)FTONT(&fnod), &node,
+	    sizeof(node));
+	if (error != 0) {
+		warnx("can't read ntfs node at %p", (void *)FTONT(&fnod));
+		return (1);
+	}
+	vn->vn_fileid = node.i_number;
+	vn->vn_fsid = dev2udev(kd, node.i_dev);
+	return (0);
+}

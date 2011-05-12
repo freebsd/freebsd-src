@@ -1757,8 +1757,6 @@ sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 		last_timestamp = map->timestamp;
 		vm_map_unlock_read(map);
 
-		kve->kve_fileid = 0;
-		kve->kve_fsid = 0;
 		freepath = NULL;
 		fullpath = "";
 		if (lobj) {
@@ -1800,12 +1798,18 @@ sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 			if (vp != NULL) {
 				vn_fullpath(curthread, vp, &fullpath,
 				    &freepath);
+				kve->kve_vn_type = vntype_to_kinfo(vp->v_type);
 				cred = curthread->td_ucred;
 				vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 				vn_lock(vp, LK_SHARED | LK_RETRY);
 				if (VOP_GETATTR(vp, &va, cred) == 0) {
-					kve->kve_fileid = va.va_fileid;
-					kve->kve_fsid = va.va_fsid;
+					kve->kve_vn_fileid = va.va_fileid;
+					kve->kve_vn_fsid = va.va_fsid;
+					kve->kve_vn_mode =
+					    MAKEIMODE(va.va_type, va.va_mode);
+					kve->kve_vn_size = va.va_size;
+					kve->kve_vn_rdev = va.va_rdev;
+					kve->kve_status = KF_ATTR_VALID;
 				}
 				vput(vp);
 				VFS_UNLOCK_GIANT(vfslocked);
