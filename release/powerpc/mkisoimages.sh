@@ -34,17 +34,15 @@ if [ "x$1" = "x-b" ]; then
 	bootable="-o bootimage=macppc;/tmp/hfs-boot-block -o no-emul-boot"
 
 	# pSeries/PAPR boot code
-	mkdir $4/ppc
+	mkdir -p $4/ppc/chrp
+	cp $4/boot/loader $4/ppc/chrp
 	cat > $4/ppc/bootinfo.txt << EOF
-<CHRP-BOOT>
-<DESCRIPTION>FreeBSD/powerpc</DESCRIPTION>
-<OS-NAME>FreeBSD</OS-NAME>
-<BOOT-SCRIPT>
-boot &device;:&partition;,\boot\loader &device;:0
-</BOOT-SCRIPT>
-</CHRP-BOOT>
+<chrp-boot>
+<description>FreeBSD Install</description>
+<os-name>FreeBSD</os-name>
+<boot-script>boot &device;:&partition;,\ppc\chrp\loader</boot-script>
+</chrp-boot>
 EOF
-
 	shift
 else
 	bootable=""
