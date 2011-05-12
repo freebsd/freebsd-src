@@ -31,6 +31,7 @@
 #include <sys/user.h>
 
 #include <err.h>
+#include <libprocstat.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sysexits.h>
@@ -45,36 +46,36 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: procstat [-h] [-n] [-w interval] [-b | -c | -f | "
-	    "-i | -j | -k | -s | -t | -v]\n");
+	fprintf(stderr, "usage: procstat [-h] [-M core] [-N system] "
+	    "[-w interval] [-b | -c | -f | -i | -j | -k | -s | -t | -v]\n");
 	fprintf(stderr, "                [-a | pid ...]\n");
 	exit(EX_USAGE);
 }
 
 static void
-procstat(pid_t pid, struct kinfo_proc *kipp)
+procstat(struct procstat *prstat, struct kinfo_proc *kipp)
 {
 
 	if (bflag)
-		procstat_bin(pid, kipp);
+		procstat_bin(kipp);
 	else if (cflag)
-		procstat_args(pid, kipp);
+		procstat_args(kipp);
 	else if (fflag)
-		procstat_files(pid, kipp);
+		procstat_files(prstat, kipp);
 	else if (iflag)
-		procstat_sigs(pid, kipp);
+		procstat_sigs(prstat, kipp);
 	else if (jflag)
-		procstat_threads_sigs(pid, kipp);
+		procstat_threads_sigs(prstat, kipp);
 	else if (kflag)
-		procstat_kstack(pid, kipp, kflag);
+		procstat_kstack(kipp, kflag);
 	else if (sflag)
-		procstat_cred(pid, kipp);
+		procstat_cred(kipp);
 	else if (tflag)
-		procstat_threads(pid, kipp);
+		procstat_threads(kipp);
 	else if (vflag)
-		procstat_vm(pid, kipp);
+		procstat_vm(kipp);
 	else
-		procstat_basic(pid, kipp);
+		procstat_basic(kipp);
 }
 
 /*
@@ -104,17 +105,26 @@ kinfo_proc_sort(struct kinfo_proc *kipp, int count)
 int
 main(int argc, char *argv[])
 {
-	int ch, interval, name[4], tmp;
-	unsigned int i;
-	struct kinfo_proc *kipp;
-	size_t len;
+	int ch, interval, tmp;
+	int i;
+	struct kinfo_proc *p;
+	struct procstat *prstat;
 	long l;
 	pid_t pid;
 	char *dummy;
+	char *nlistf, *memf;
+	int cnt;
 
 	interval = 0;
-	while ((ch = getopt(argc, argv, "abcfijknhstvw:")) != -1) {
+	memf = nlistf = NULL;
+	while ((ch = getopt(argc, argv, "N:M:abcfijkhstvw:")) != -1) {
 		switch (ch) {
+		case 'M':
+			memf = optarg;
+			break;
+		case 'N':
+			nlistf = optarg;
+			break;
 		case 'a':
 			aflag++;
 			break;
@@ -194,38 +204,27 @@ main(int argc, char *argv[])
 	if (!(aflag == 1 && argc == 0) && !(aflag == 0 && argc > 0))
 		usage();
 
+	if (memf != NULL)
+		prstat = procstat_open_kvm(nlistf, memf);
+	else
+		prstat = procstat_open_sysctl();
+	if (prstat == NULL)
+		errx(1, "procstat_open()");
 	do {
 		if (aflag) {
-			name[0] = CTL_KERN;
-			name[1] = KERN_PROC;
-			name[2] = KERN_PROC_PROC;
-
-			len = 0;
-			if (sysctl(name, 3, NULL, &len, NULL, 0) < 0)
-				err(-1, "sysctl: kern.proc.all");
-
-			kipp = malloc(len);
-			if (kipp == NULL)
-				err(-1, "malloc");
-
-			if (sysctl(name, 3, kipp, &len, NULL, 0) < 0) {
-				free(kipp);
-				err(-1, "sysctl: kern.proc.all");
-			}
-			if (len % sizeof(*kipp) != 0)
-				err(-1, "kinfo_proc mismatch");
-			if (kipp->ki_structsize != sizeof(*kipp))
-				err(-1, "kinfo_proc structure mismatch");
-			kinfo_proc_sort(kipp, len / sizeof(*kipp));
-			for (i = 0; i < len / sizeof(*kipp); i++) {
-				procstat(kipp[i].ki_pid, &kipp[i]);
+			p = procstat_getprocs(prstat, KERN_PROC_PROC, 0, &cnt);
+			if (p == NULL)
+				errx(1, "procstat_getprocs()");
+			kinfo_proc_sort(p, cnt);
+			for (i = 0; i < cnt; i++) {
+				procstat(prstat, &p[i]);
 
 				/* Suppress header after first process. */
 				hflag = 1;
 			}
-			free(kipp);
+			procstat_freeprocs(prstat, p);
 		}
-		for (i = 0; i < (unsigned int)argc; i++) {
+		for (i = 0; i < argc; i++) {
 			l = strtol(argv[i], &dummy, 10);
 			if (*dummy != '\0')
 				usage();
@@ -233,31 +232,12 @@ main(int argc, char *argv[])
 				usage();
 			pid = l;
 
-			name[0] = CTL_KERN;
-			name[1] = KERN_PROC;
-			name[2] = KERN_PROC_PID;
-			name[3] = pid;
-
-			len = 0;
-			if (sysctl(name, 4, NULL, &len, NULL, 0) < 0)
-				err(-1, "sysctl: kern.proc.pid: %d", pid);
-
-			kipp = malloc(len);
-			if (kipp == NULL)
-				err(-1, "malloc");
-
-			if (sysctl(name, 4, kipp, &len, NULL, 0) < 0) {
-				free(kipp);
-				err(-1, "sysctl: kern.proc.pid: %d", pid);
-			}
-			if (len != sizeof(*kipp))
-				err(-1, "kinfo_proc mismatch");
-			if (kipp->ki_structsize != sizeof(*kipp))
-				errx(-1, "kinfo_proc structure mismatch");
-			if (kipp->ki_pid != pid)
-				errx(-1, "kinfo_proc pid mismatch");
-			procstat(pid, kipp);
-			free(kipp);
+			p = procstat_getprocs(prstat, KERN_PROC_PID, pid, &cnt);
+			if (p == NULL)
+				errx(1, "procstat_getprocs()");
+			if (cnt != 0)
+				procstat(prstat, p);
+			procstat_freeprocs(prstat, p);
 
 			/* Suppress header after first process. */
 			hflag = 1;
@@ -265,5 +245,6 @@ main(int argc, char *argv[])
 		if (interval)
 			sleep(interval);
 	} while (interval);
+	procstat_close(prstat);
 	exit(0);
 }
