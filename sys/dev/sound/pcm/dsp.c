@@ -2255,7 +2255,7 @@ dsp_mmap_single(struct cdev *i_dev, vm_ooffset_t *offset,
 	if (rdch != NULL)
 		rdch->flags |= CHN_F_MMAP;
 
-	*offset = (vm_ooffset_t)sndbuf_getbufofs(c->bufsoft, *offset);
+	*offset = (uintptr_t)sndbuf_getbufofs(c->bufsoft, *offset);
 	relchns(i_dev, rdch, wrch, SD_F_PRIO_RD | SD_F_PRIO_WR);
 	*object = vm_pager_allocate(OBJT_DEVICE, i_dev,
 	    size, nprot, *offset, curthread->td_ucred);
