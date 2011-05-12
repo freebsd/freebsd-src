@@ -164,7 +164,6 @@ ASSYM(MAXCOMLEN, MAXCOMLEN);
 ASSYM(PC_CURTHREAD, offsetof(struct pcpu, pc_curthread));
 ASSYM(PC_CURPCB, offsetof(struct pcpu, pc_curpcb));
 ASSYM(PC_CPUID, offsetof(struct pcpu, pc_cpuid));
-ASSYM(PC_CPUMASK, offsetof(struct pcpu, pc_cpumask));
 ASSYM(PC_IRHEAD, offsetof(struct pcpu, pc_irhead));
 ASSYM(PC_IRTAIL, offsetof(struct pcpu, pc_irtail));
 ASSYM(PC_IRFREE, offsetof(struct pcpu, pc_irfree));
