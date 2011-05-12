@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007 Robert N. M. Watson
+ * Copyright (c) 2009 Stanislav Sedov <stas@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -11,10 +11,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -25,24 +25,10 @@
  *
  * $FreeBSD$
  */
+#ifndef __FUNCTIONS_H__
+#define	__FUNCTIONS_H__
 
-#ifndef PROCSTAT_H
-#define	PROCSTAT_H
+int	do_fstat(int argc, char *argv[]);
+int	do_fuser(int argc, char *argv[]);
 
-extern int	hflag, nflag;
-
-struct kinfo_proc;
-void	kinfo_proc_sort(struct kinfo_proc *kipp, int count);
-
-void	procstat_args(struct kinfo_proc *kipp);
-void	procstat_basic(struct kinfo_proc *kipp);
-void	procstat_bin(struct kinfo_proc *kipp);
-void	procstat_cred(struct kinfo_proc *kipp);
-void	procstat_files(struct procstat *prstat, struct kinfo_proc *kipp);
-void	procstat_kstack(struct kinfo_proc *kipp, int kflag);
-void	procstat_sigs(struct procstat *prstat, struct kinfo_proc *kipp);
-void	procstat_threads(struct kinfo_proc *kipp);
-void	procstat_threads_sigs(struct procstat *prstat, struct kinfo_proc *kipp);
-void	procstat_vm(struct kinfo_proc *kipp);
-
-#endif /* !PROCSTAT_H */
+#endif /* !__FUNCTIONS_H__ */

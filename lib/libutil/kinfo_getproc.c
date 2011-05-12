@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007 Robert N. M. Watson
+ * Copyright (c) 2009 Ulf Lilleengen
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,23 +26,46 @@
  * $FreeBSD$
  */
 
-#ifndef PROCSTAT_H
-#define	PROCSTAT_H
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-extern int	hflag, nflag;
+#include <sys/param.h>
+#include <sys/user.h>
+#include <sys/sysctl.h>
+#include <stdlib.h>
+#include <string.h>
 
-struct kinfo_proc;
-void	kinfo_proc_sort(struct kinfo_proc *kipp, int count);
+#include "libutil.h"
 
-void	procstat_args(struct kinfo_proc *kipp);
-void	procstat_basic(struct kinfo_proc *kipp);
-void	procstat_bin(struct kinfo_proc *kipp);
-void	procstat_cred(struct kinfo_proc *kipp);
-void	procstat_files(struct procstat *prstat, struct kinfo_proc *kipp);
-void	procstat_kstack(struct kinfo_proc *kipp, int kflag);
-void	procstat_sigs(struct procstat *prstat, struct kinfo_proc *kipp);
-void	procstat_threads(struct kinfo_proc *kipp);
-void	procstat_threads_sigs(struct procstat *prstat, struct kinfo_proc *kipp);
-void	procstat_vm(struct kinfo_proc *kipp);
+struct kinfo_proc *
+kinfo_getproc(pid_t pid)
+{
+	struct kinfo_proc *kipp;
+	int mib[4];
+	size_t len;
 
-#endif /* !PROCSTAT_H */
+	len = 0;
+	mib[0] = CTL_KERN;
+	mib[1] = KERN_PROC;
+	mib[2] = KERN_PROC_PID;
+	mib[3] = pid;
+	if (sysctl(mib, 4, NULL, &len, NULL, 0) < 0)
+		return (NULL);
+
+	kipp = malloc(len);
+	if (kipp == NULL)
+		return (NULL);
+
+	if (sysctl(mib, 4, kipp, &len, NULL, 0) < 0)
+		goto bad;
+	if (len != sizeof(*kipp))
+		goto bad;
+	if (kipp->ki_structsize != sizeof(*kipp))
+		goto bad;
+	if (kipp->ki_pid != pid)
+		goto bad;
+	return (kipp);
+bad:
+	free(kipp);
+	return (NULL);
+}

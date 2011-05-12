@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2007 Robert N. M. Watson
+ * Copyright (c) 2009 Ulf Lilleengen
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,23 +27,72 @@
  * $FreeBSD$
  */
 
-#ifndef PROCSTAT_H
-#define	PROCSTAT_H
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-extern int	hflag, nflag;
+#include <sys/param.h>
+#include <sys/user.h>
+#include <sys/sysctl.h>
+#include <stdlib.h>
+#include <string.h>
 
-struct kinfo_proc;
-void	kinfo_proc_sort(struct kinfo_proc *kipp, int count);
+#include "libutil.h"
 
-void	procstat_args(struct kinfo_proc *kipp);
-void	procstat_basic(struct kinfo_proc *kipp);
-void	procstat_bin(struct kinfo_proc *kipp);
-void	procstat_cred(struct kinfo_proc *kipp);
-void	procstat_files(struct procstat *prstat, struct kinfo_proc *kipp);
-void	procstat_kstack(struct kinfo_proc *kipp, int kflag);
-void	procstat_sigs(struct procstat *prstat, struct kinfo_proc *kipp);
-void	procstat_threads(struct kinfo_proc *kipp);
-void	procstat_threads_sigs(struct procstat *prstat, struct kinfo_proc *kipp);
-void	procstat_vm(struct kinfo_proc *kipp);
 
-#endif /* !PROCSTAT_H */
+/*
+ * Sort processes first by pid and then tid.
+ */
+static int
+kinfo_proc_compare(const void *a, const void *b)
+{
+	int i;
+
+	i = ((const struct kinfo_proc *)a)->ki_pid -
+	    ((const struct kinfo_proc *)b)->ki_pid;
+	if (i != 0)
+		return (i);
+	i = ((const struct kinfo_proc *)a)->ki_tid -
+	    ((const struct kinfo_proc *)b)->ki_tid;
+	return (i);
+}
+
+static void
+kinfo_proc_sort(struct kinfo_proc *kipp, int count)
+{
+
+	qsort(kipp, count, sizeof(*kipp), kinfo_proc_compare);
+}
+
+struct kinfo_proc *
+kinfo_getallproc(int *cntp)
+{
+	struct kinfo_proc *kipp;
+	size_t len;
+	int mib[3];
+
+	mib[0] = CTL_KERN;
+	mib[1] = KERN_PROC;
+	mib[2] = KERN_PROC_PROC;
+
+	len = 0;
+	if (sysctl(mib, 3, NULL, &len, NULL, 0) < 0)
+		return (NULL);
+
+	kipp = malloc(len);
+	if (kipp == NULL)
+		return (NULL);
+
+	if (sysctl(mib, 3, kipp, &len, NULL, 0) < 0)
+		goto bad;
+	if (len % sizeof(*kipp) != 0)
+		goto bad;
+	if (kipp->ki_structsize != sizeof(*kipp))
+		goto bad;
+	*cntp = len / sizeof(*kipp);
+	kinfo_proc_sort(kipp, len / sizeof(*kipp));
+	return (kipp);
+bad:
+	*cntp = 0;
+	free(kipp);
+	return (NULL);
+}

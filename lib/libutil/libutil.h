@@ -88,6 +88,7 @@ struct termios;
 struct winsize;
 struct in_addr;
 struct kinfo_file;
+struct kinfo_proc;
 struct kinfo_vmentry;
 
 __BEGIN_DECLS
@@ -126,6 +127,10 @@ struct kinfo_file *
 	kinfo_getfile(pid_t _pid, int *_cntp);
 struct kinfo_vmentry *
 	kinfo_getvmmap(pid_t _pid, int *_cntp);
+struct kinfo_proc *
+	kinfo_getallproc(int *_cntp);
+struct kinfo_proc *
+	kinfo_getproc(pid_t _pid);
 
 #ifdef _STDIO_H_	/* avoid adding new includes */
 char   *fparseln(FILE *, size_t *, size_t *, const char[3], int);

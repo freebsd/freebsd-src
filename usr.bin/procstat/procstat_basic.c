@@ -31,13 +31,14 @@
 #include <sys/user.h>
 
 #include <err.h>
+#include <libprocstat.h>
 #include <stdio.h>
 #include <string.h>
 
 #include "procstat.h"
 
 void
-procstat_basic(pid_t pid __unused, struct kinfo_proc *kipp)
+procstat_basic(struct kinfo_proc *kipp)
 {
 
 	if (!hflag)
