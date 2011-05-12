@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007 Robert N. M. Watson
+ * Copyright (c) 2005-2009 Stanislav Sedov <stas@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,27 +22,55 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-#ifndef PROCSTAT_H
-#define	PROCSTAT_H
+#include <sys/param.h>
+#include <sys/stat.h>
+#include <sys/time.h>
+#include <sys/vnode.h>
+#define _KERNEL
+#include <sys/mount.h>
+#undef _KERNEL
 
-extern int	hflag, nflag;
+#include <netinet/in.h>
 
-struct kinfo_proc;
-void	kinfo_proc_sort(struct kinfo_proc *kipp, int count);
+#include <assert.h>
+#include <err.h>
+#include <kvm.h>
+#include <stdlib.h>
 
-void	procstat_args(struct kinfo_proc *kipp);
-void	procstat_basic(struct kinfo_proc *kipp);
-void	procstat_bin(struct kinfo_proc *kipp);
-void	procstat_cred(struct kinfo_proc *kipp);
-void	procstat_files(struct procstat *prstat, struct kinfo_proc *kipp);
-void	procstat_kstack(struct kinfo_proc *kipp, int kflag);
-void	procstat_sigs(struct procstat *prstat, struct kinfo_proc *kipp);
-void	procstat_threads(struct kinfo_proc *kipp);
-void	procstat_threads_sigs(struct procstat *prstat, struct kinfo_proc *kipp);
-void	procstat_vm(struct kinfo_proc *kipp);
+#include <fs/nwfs/nwfs.h>
+#include <fs/nwfs/nwfs_node.h>
 
-#endif /* !PROCSTAT_H */
+#include "libprocstat.h"
+#include "common_kvm.h"
+
+int
+nwfs_filestat(kvm_t *kd, struct vnode *vp, struct vnstat *vn)
+{
+	struct mount mnt;
+	struct nwnode node;
+	int error;
+
+	assert(kd);
+	assert(vn);
+	error = kvm_read_all(kd, (unsigned long)VTONW(vp), &node, sizeof(node));
+	if (error != 0) {
+		warnx("can't read nwfs fnode at %p", (void *)VTONW(vp));
+		return (1);
+	}
+        error = kvm_read_all(kd, (unsigned long)getvnodemount(vp), &mnt,
+	    sizeof(mnt));
+        if (error != 0) {
+                warnx("can't read mount at %p for vnode %p",
+                    (void *)getvnodemount(vp), vp);
+                return (1);
+        }
+	vn->vn_fileid = node.n_fid.f_id;
+	if (vn->vn_fileid == 0)
+		vn->vn_fileid = NWFS_ROOT_INO;
+	vn->vn_fsid = mnt.mnt_stat.f_fsid.val[0];
+	return (0);
+}
