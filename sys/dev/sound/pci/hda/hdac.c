@@ -496,7 +496,7 @@ static const struct {
 } hdac_devices[] = {
 	{ HDA_INTEL_CPT,     "Intel Cougar Point",	0 },
 	{ HDA_INTEL_PATSBURG,"Intel Patsburg",  0 },
-	{ HDA_INTEL_PPT,     "Intel Panther Point",	0 },
+	{ HDA_INTEL_PPT1,    "Intel Panther Point",	0 },
 	{ HDA_INTEL_82801F,  "Intel 82801F",	0 },
 	{ HDA_INTEL_63XXESB, "Intel 631x/632xESB",	0 },
 	{ HDA_INTEL_82801G,  "Intel 82801G",	0 },
