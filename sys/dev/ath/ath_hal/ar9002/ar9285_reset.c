@@ -37,6 +37,7 @@
 #include "ar5416/ar5416phy.h"
 #include "ar9002/ar9002phy.h"
 #include "ar9002/ar9285phy.h"
+#include "ar9002/ar9285an.h"
 
 /* Eeprom versioning macros. Returns true if the version is equal or newer than the ver specified */ 
 #define	EEP_MINOR(_ah) \
