@@ -462,7 +462,7 @@ print_vnode_info(struct procstat *procstat, struct filestat *fst)
 			printf(" %6s", vn.vn_devname);
 		}
 	} else
-		printf(" %6ju", (intmax_t)vn.vn_size);
+		printf(" %6ju", (uintmax_t)vn.vn_size);
 	print_access_flags(fst->fs_fflags);
 }
 
