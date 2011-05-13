@@ -65,8 +65,6 @@ static struct cdevsw zero_cdevsw = {
 	.d_flags =	D_MMAP_ANON,
 };
 
-static void *zbuf;
-
 /* ARGSUSED */
 static int
 null_write(struct cdev *dev __unused, struct uio *uio, int flags __unused)
@@ -95,10 +93,19 @@ null_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t data __unused,
 static int
 zero_read(struct cdev *dev __unused, struct uio *uio, int flags __unused)
 {
+	void *zbuf;
+	ssize_t len;
 	int error = 0;
 
-	while (uio->uio_resid > 0 && error == 0)
-		error = uiomove(zbuf, MIN(uio->uio_resid, PAGE_SIZE), uio);
+	KASSERT(uio->uio_rw == UIO_READ,
+	    ("Can't be in %s for write", __func__));
+	zbuf = __DECONST(void *, zero_region);
+	while (uio->uio_resid > 0 && error == 0) {
+		len = uio->uio_resid;
+		if (len > ZERO_REGION_SIZE)
+			len = ZERO_REGION_SIZE;
+		error = uiomove(zbuf, len, uio);
+	}
 
 	return (error);
 }
@@ -111,7 +118,6 @@ null_modevent(module_t mod __unused, int type, void *data __unused)
 	case MOD_LOAD:
 		if (bootverbose)
 			printf("null: <null device, zero device>\n");
-		zbuf = (void *)malloc(PAGE_SIZE, M_TEMP, M_WAITOK | M_ZERO);
 		null_dev = make_dev_credf(MAKEDEV_ETERNAL_KLD, &null_cdevsw, 0,
 		    NULL, UID_ROOT, GID_WHEEL, 0666, "null");
 		zero_dev = make_dev_credf(MAKEDEV_ETERNAL_KLD, &zero_cdevsw, 0,
@@ -121,7 +127,6 @@ null_modevent(module_t mod __unused, int type, void *data __unused)
 	case MOD_UNLOAD:
 		destroy_dev(null_dev);
 		destroy_dev(zero_dev);
-		free(zbuf, M_TEMP);
 		break;
 
 	case MOD_SHUTDOWN:

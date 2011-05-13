@@ -91,6 +91,9 @@ vm_map_t exec_map=0;
 vm_map_t pipe_map;
 vm_map_t buffer_map=0;
 
+const void *zero_region;
+CTASSERT((ZERO_REGION_SIZE & PAGE_MASK) == 0);
+
 /*
  *	kmem_alloc_nofault:
  *
@@ -527,6 +530,35 @@ kmem_free_wakeup(map, addr, size)
 	vm_map_unlock(map);
 }
 
+static void
+kmem_init_zero_region(void)
+{
+	vm_offset_t addr;
+	vm_page_t m;
+	unsigned int i;
+	int error;
+
+	/* Allocate virtual address space. */
+	addr = kmem_alloc_nofault(kernel_map, ZERO_REGION_SIZE);
+
+	/* Allocate a page and zero it. */
+	m = vm_page_alloc(NULL, OFF_TO_IDX(addr - VM_MIN_KERNEL_ADDRESS),
+	    VM_ALLOC_NOOBJ | VM_ALLOC_WIRED | VM_ALLOC_ZERO);
+	if ((m->flags & PG_ZERO) == 0)
+		pmap_zero_page(m);
+
+	/* Map the address space to the page. */
+	for (i = 0; i < ZERO_REGION_SIZE; i += PAGE_SIZE)
+		pmap_qenter(addr + i, &m, 1);
+
+	/* Protect it r/o. */
+	error = vm_map_protect(kernel_map, addr, addr + ZERO_REGION_SIZE,
+	    VM_PROT_READ, TRUE);
+	KASSERT(error == 0, ("error=%d", error));
+
+	zero_region = (const void *)addr;
+}
+
 /*
  * 	kmem_init:
  *
@@ -555,6 +587,8 @@ kmem_init(start, end)
 	    start, VM_PROT_ALL, VM_PROT_ALL, MAP_NOFAULT);
 	/* ... and ending with the completion of the above `insert' */
 	vm_map_unlock(m);
+
+	kmem_init_zero_region();
 }
 
 #ifdef DIAGNOSTIC
