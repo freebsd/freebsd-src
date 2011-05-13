@@ -492,8 +492,9 @@ ar5416PerCalibrationN(struct ath_hal *ah, struct ieee80211_channel *chan,
 		if (AH5416(ah)->ah_cal_pacal)
 			AH5416(ah)->ah_cal_pacal(ah, AH_FALSE);
 
-		/* Do temperature compensation if the chipset needs it */
-		AH5416(ah)->ah_olcTempCompensation(ah);
+		/* Do open-loop temperature compensation if the chipset needs it */
+		if (ath_hal_eepromGetFlag(ah, AR_EEP_OL_PWRCTRL))
+			AH5416(ah)->ah_olcTempCompensation(ah);
 
 		/*
 		 * Get the value from the previous NF cal

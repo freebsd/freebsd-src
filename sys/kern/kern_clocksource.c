@@ -31,9 +31,6 @@ __FBSDID("$FreeBSD$");
  * Common routines to manage event timers hardware.
  */
 
-/* XEN has own timer routines now. */
-#ifndef XEN
-
 #include "opt_device_polling.h"
 #include "opt_kdtrace.h"
 
@@ -899,5 +896,3 @@ sysctl_kern_eventtimer_periodic(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_kern_eventtimer, OID_AUTO, periodic,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
     0, 0, sysctl_kern_eventtimer_periodic, "I", "Enable event timer periodic mode");
-
-#endif

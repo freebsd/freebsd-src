@@ -24,6 +24,7 @@
 # into base-bits-dir as part of making the image.
 
 if [ "x$1" = "x-b" ]; then
+	# Apple boot code
 	uudecode -o /tmp/hfs-boot-block.bz2 `dirname $0`/hfs-boot.bz2.uu
 	bzip2 -d /tmp/hfs-boot-block.bz2
 	OFFSET=$(hd /tmp/hfs-boot-block | grep 'Loader START' | cut -f 1 -d ' ')
@@ -31,6 +32,17 @@ if [ "x$1" = "x-b" ]; then
 	dd if=$4/boot/loader of=/tmp/hfs-boot-block seek=$OFFSET conv=notrunc
 
 	bootable="-o bootimage=macppc;/tmp/hfs-boot-block -o no-emul-boot"
+
+	# pSeries/PAPR boot code
+	mkdir -p $4/ppc/chrp
+	cp $4/boot/loader $4/ppc/chrp
+	cat > $4/ppc/bootinfo.txt << EOF
+<chrp-boot>
+<description>FreeBSD Install</description>
+<os-name>FreeBSD</os-name>
+<boot-script>boot &device;:&partition;,\ppc\chrp\loader</boot-script>
+</chrp-boot>
+EOF
 	shift
 else
 	bootable=""
@@ -48,3 +60,5 @@ echo "/dev/iso9660/`echo $LABEL | tr '[:lower:]' '[:upper:]'` / cd9660 ro 0 0" >
 makefs -t cd9660 $bootable -o rockridge -o label=$LABEL $NAME $*
 rm $1/etc/fstab
 rm /tmp/hfs-boot-block
+rm -rf $1/ppc
+

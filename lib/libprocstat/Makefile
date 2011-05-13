@@ -9,7 +9,6 @@ SRCS=	cd9660.c	\
 	libprocstat.c	\
         msdosfs.c	\
 	ntfs.c		\
-	nwfs.c		\
 	smbfs.c		\
 	udf.c
 
@@ -18,9 +17,14 @@ CFLAGS+=	-I. -I${.CURDIR} -D_KVM_VNODE
 SHLIB_MAJOR=	1
 WITHOUT_MAN=	yes
 
+.if ${MK_NCP} != "no"
+CFLAGS+=	-DLIBPROCSTAT_NWFS
+SRCS+=	nwfs.c
+.endif
+
 # XXX This is a hack.
 .if ${MK_CDDL} != "no"
-CFLAGS+=	-DZFS
+CFLAGS+=	-DLIBPROCSTAT_ZFS
 OBJS+=	zfs/zfs.o
 SOBJS+=	zfs/zfs.So
 POBJS+=	zfs/zfs.po

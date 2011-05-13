@@ -491,7 +491,7 @@ vn_rdwr_inchunks(rw, vp, base, len, offset, segflg, ioflg, active_cred,
 			break;
 		offset += chunk;
 		base = (char *)base + chunk;
-		kern_yield(curthread->td_user_pri);
+		kern_yield(PRI_USER);
 	} while (len);
 	if (aresid)
 		*aresid = len + iaresid;

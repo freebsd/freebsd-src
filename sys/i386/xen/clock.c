@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/time.h>
+#include <sys/timeet.h>
 #include <sys/timetc.h>
 #include <sys/kernel.h>
 #include <sys/limits.h>
@@ -301,38 +302,44 @@ static struct timecounter xen_timecounter = {
 	0			/* quality */
 };
 
+static struct eventtimer xen_et;
+
+struct xen_et_state {
+	int		mode;
+#define	MODE_STOP	0
+#define	MODE_PERIODIC	1
+#define	MODE_ONESHOT	2
+	int64_t		period;
+	int64_t		next;
+};
+
+static DPCPU_DEFINE(struct xen_et_state, et_state);
+
 static int
 clkintr(void *arg)
 {
-	int64_t delta_cpu, delta;
-	struct trapframe *frame = (struct trapframe *)arg;
+	int64_t now;
 	int cpu = smp_processor_id();
 	struct shadow_time_info *shadow = &per_cpu(shadow_time, cpu);
+	struct xen_et_state *state = DPCPU_PTR(et_state);
 
 	do {
 		__get_time_values_from_xen();
-		
-		delta = delta_cpu = 
-			shadow->system_timestamp + get_nsec_offset(shadow);
-		delta     -= processed_system_time;
-		delta_cpu -= per_cpu(processed_system_time, cpu);
-
+		now = shadow->system_timestamp + get_nsec_offset(shadow);
 	} while (!time_values_up_to_date(cpu));
-	
-	if (unlikely(delta < (int64_t)0) || unlikely(delta_cpu < (int64_t)0)) {
-		printf("Timer ISR: Time went backwards: %lld\n", delta);
-		return (FILTER_HANDLED);
-	}
-	
+
 	/* Process elapsed ticks since last call. */
-	while (delta >= NS_PER_TICK) {
-	        delta -= NS_PER_TICK;
-		processed_system_time += NS_PER_TICK;
-		per_cpu(processed_system_time, cpu) +=  NS_PER_TICK;
-		if (PCPU_GET(cpuid) == 0)
-		      hardclock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
-		else
-		      hardclock_cpu(TRAPF_USERMODE(frame));
+	processed_system_time = now;
+	if (state->mode == MODE_PERIODIC) {
+		while (now >= state->next) {
+		        state->next += state->period;
+			if (xen_et.et_active)
+				xen_et.et_event_cb(&xen_et, xen_et.et_arg);
+		}
+		HYPERVISOR_set_timer_op(state->next + 50000);
+	} else if (state->mode == MODE_ONESHOT) {
+		if (xen_et.et_active)
+			xen_et.et_event_cb(&xen_et, xen_et.et_arg);
 	}
 	/*
 	 * Take synchronised time from Xen once a minute if we're not
@@ -484,12 +491,14 @@ DELAY(int n)
 void
 timer_restore(void)
 {
+	struct xen_et_state *state = DPCPU_PTR(et_state);
+
 	/* Get timebases for new environment. */ 
 	__get_time_values_from_xen();
 
 	/* Reset our own concept of passage of system time. */
 	processed_system_time = per_cpu(shadow_time, 0).system_timestamp;
-	per_cpu(processed_system_time, 0) = processed_system_time;
+	state->next = processed_system_time;
 }
 
 void
@@ -503,7 +512,6 @@ startrtclock()
 	/* initialize xen values */
 	__get_time_values_from_xen();
 	processed_system_time = per_cpu(shadow_time, 0).system_timestamp;
-	per_cpu(processed_system_time, 0) = processed_system_time;
 
 	__cpu_khz = 1000000ULL << 32;
 	info = &HYPERVISOR_shared_info->vcpu_info[0].time;
@@ -759,7 +767,49 @@ resettodr()
 }
 #endif
 
-static struct vcpu_set_periodic_timer xen_set_periodic_tick;
+static int
+xen_et_start(struct eventtimer *et,
+    struct bintime *first, struct bintime *period)
+{
+	struct xen_et_state *state = DPCPU_PTR(et_state);
+	struct shadow_time_info *shadow;
+	int64_t fperiod;
+
+	__get_time_values_from_xen();
+
+	if (period != NULL) {
+		state->mode = MODE_PERIODIC;
+		state->period = (1000000000LL *
+		    (uint32_t)(period->frac >> 32)) >> 32;
+		if (period->sec != 0)
+			state->period += 1000000000LL * period->sec;
+	} else {
+		state->mode = MODE_ONESHOT;
+		state->period = 0;
+	}
+	if (first != NULL) {
+		fperiod = (1000000000LL * (uint32_t)(first->frac >> 32)) >> 32;
+		if (first->sec != 0)
+			fperiod += 1000000000LL * first->sec;
+	} else
+		fperiod = state->period;
+
+	shadow = &per_cpu(shadow_time, smp_processor_id());
+	state->next = shadow->system_timestamp + get_nsec_offset(shadow);
+	state->next += fperiod;
+	HYPERVISOR_set_timer_op(state->next + 50000);
+	return (0);
+}
+
+static int
+xen_et_stop(struct eventtimer *et)
+{
+	struct xen_et_state *state = DPCPU_PTR(et_state);
+
+	state->mode = MODE_STOP;
+	HYPERVISOR_set_timer_op(0);
+	return (0);
+}
 
 /*
  * Start clocks running.
@@ -770,55 +820,47 @@ cpu_initclocks(void)
 	unsigned int time_irq;
 	int error;
 
-	xen_set_periodic_tick.period_ns = NS_PER_TICK;
-	
-	HYPERVISOR_vcpu_op(VCPUOP_set_periodic_timer, 0,
-			   &xen_set_periodic_tick);
-	
-        error = bind_virq_to_irqhandler(VIRQ_TIMER, 0, "clk", 
-	    clkintr, NULL, NULL,
-	    INTR_TYPE_CLK, &time_irq);
+	HYPERVISOR_vcpu_op(VCPUOP_stop_periodic_timer, 0, NULL);
+	error = bind_virq_to_irqhandler(VIRQ_TIMER, 0, "cpu0:timer",
+	    clkintr, NULL, NULL, INTR_TYPE_CLK, &time_irq);
 	if (error)
 		panic("failed to register clock interrupt\n");
 	/* should fast clock be enabled ? */
-	
+
+	bzero(&xen_et, sizeof(xen_et));
+	xen_et.et_name = "ixen";
+	xen_et.et_flags = ET_FLAGS_PERIODIC | ET_FLAGS_ONESHOT |
+	    ET_FLAGS_PERCPU;
+	xen_et.et_quality = 600;
+	xen_et.et_frequency = 0;
+	xen_et.et_min_period.sec = 0;
+	xen_et.et_min_period.frac = 0x00400000LL << 32;
+	xen_et.et_max_period.sec = 2;
+	xen_et.et_max_period.frac = 0;
+	xen_et.et_start = xen_et_start;
+	xen_et.et_stop = xen_et_stop;
+	xen_et.et_priv = NULL;
+	et_register(&xen_et);
+
+	cpu_initclocks_bsp();
 }
 
 int
 ap_cpu_initclocks(int cpu)
 {
+	char buf[MAXCOMLEN + 1];
 	unsigned int time_irq;
 	int error;
 
-	xen_set_periodic_tick.period_ns = NS_PER_TICK;
-
-	HYPERVISOR_vcpu_op(VCPUOP_set_periodic_timer, cpu,
-			   &xen_set_periodic_tick);
-        error = bind_virq_to_irqhandler(VIRQ_TIMER, 0, "clk", 
-	    clkintr, NULL, NULL,
-	    INTR_TYPE_CLK, &time_irq);
+	HYPERVISOR_vcpu_op(VCPUOP_stop_periodic_timer, cpu, NULL);
+	snprintf(buf, sizeof(buf), "cpu%d:timer", cpu);
+	error = bind_virq_to_irqhandler(VIRQ_TIMER, cpu, buf,
+	    clkintr, NULL, NULL, INTR_TYPE_CLK, &time_irq);
 	if (error)
 		panic("failed to register clock interrupt\n");
 
-
 	return (0);
 }
-
-
-void
-cpu_startprofclock(void)
-{
-
-    	printf("cpu_startprofclock: profiling clock is not supported\n");
-}
-
-void
-cpu_stopprofclock(void)
-{
-
-    	printf("cpu_stopprofclock: profiling clock is not supported\n");
-}
-#define NSEC_PER_USEC 1000
 
 static uint32_t
 xen_get_timecount(struct timecounter *tc)
@@ -842,45 +884,11 @@ get_system_time(int ticks)
     return processed_system_time + (ticks * NS_PER_TICK);
 }
 
-/*
- * Track behavior of cur_timer->get_offset() functionality in timer_tsc.c
- */
-
-
-/* Convert jiffies to system time. */
-static uint64_t 
-ticks_to_system_time(int newticks)
-{
-	int delta;
-	uint64_t st;
-
-	delta = newticks - ticks;
-	if (delta < 1) {
-		/* Triggers in some wrap-around cases,
-		 * but that's okay:
-		 * we just end up with a shorter timeout. */
-		st = processed_system_time + NS_PER_TICK;
-	} else if (((unsigned int)delta >> (BITS_PER_LONG-3)) != 0) {
-		/* Very long timeout means there is no pending timer.
-		 * We indicate this to Xen by passing zero timeout. */
-		st = 0;
-	} else {
-		st = processed_system_time + delta * (uint64_t)NS_PER_TICK;
-	}
-
-	return (st);
-}
-
 void
 idle_block(void)
 {
-  uint64_t timeout;
 
-  timeout = ticks_to_system_time(ticks + 1) + NS_PER_TICK/2;
-
-  __get_time_values_from_xen();
-  PANIC_IF(HYPERVISOR_set_timer_op(timeout) != 0);
-  HYPERVISOR_sched_op(SCHEDOP_block, 0);
+	HYPERVISOR_sched_op(SCHEDOP_block, 0);
 }
 
 int
@@ -903,6 +911,3 @@ timer_spkr_setfreq(int freq)
 
 }
 
-
-	
-	
