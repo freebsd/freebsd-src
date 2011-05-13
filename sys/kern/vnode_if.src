@@ -625,6 +625,6 @@ vop_vptocnp {
 
 vop_allocate {
 	IN struct vnode *vp;
-	IN off_t *offset;
-	IN off_t *len;
+	INOUT off_t *offset;
+	INOUT off_t *len;
 };
