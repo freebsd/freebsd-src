@@ -31,7 +31,7 @@
 
 struct pflog_softc {
 #ifdef __FreeBSD__
-	struct ifnet		*sc_ifp;i	/* the interface pointer */
+	struct ifnet		*sc_ifp;	/* the interface pointer */
 #else
 	struct ifnet		sc_if;		/* the interface */
 #endif
