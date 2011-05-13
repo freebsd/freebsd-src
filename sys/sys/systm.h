@@ -125,6 +125,9 @@ extern char static_hints[];	/* by config for now */
 
 extern char **kenvp;
 
+extern const void *zero_region;	/* address space maps to a zeroed page	*/
+#define	ZERO_REGION_SIZE	(2048 * 1024)
+
 /*
  * General function declarations.
  */
