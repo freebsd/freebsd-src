@@ -93,7 +93,7 @@ extern int platform_processor_id(void);
 /*
  * Return the cpumask of available processors.
  */
-extern cpuset_t platform_cpu_mask(void);
+extern void platform_cpu_mask(cpuset_t *mask);
 
 /*
  * Return the topology of processors on this platform
