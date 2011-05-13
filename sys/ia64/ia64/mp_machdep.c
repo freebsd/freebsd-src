@@ -286,7 +286,7 @@ cpu_mp_add(u_int acpi_id, u_int id, u_int eid)
 	cpuid = (IA64_LID_GET_SAPIC_ID(ia64_get_lid()) == sapic_id)
 	    ? 0 : smp_cpus++;
 
-	KASSERT((all_cpus & (1UL << cpuid)) == 0,
+	KASSERT(!CPU_ISSET(cpuid, &all_cpus),
 	    ("%s: cpu%d already in CPU map", __func__, acpi_id));
 
 	if (cpuid != 0) {
@@ -300,7 +300,7 @@ cpu_mp_add(u_int acpi_id, u_int id, u_int eid)
 	pc->pc_acpi_id = acpi_id;
 	pc->pc_md.lid = IA64_LID_SET_SAPIC_ID(sapic_id);
 
-	all_cpus |= (1UL << pc->pc_cpuid);
+	CPU_SET(pc->pc_cpuid, &all_cpus);
 }
 
 void
@@ -359,7 +359,8 @@ cpu_mp_start()
 
 	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
 		pc->pc_md.current_pmap = kernel_pmap;
-		pc->pc_other_cpus = all_cpus & ~pc->pc_cpumask;
+		pc->pc_other_cpus = all_cpus;
+		CPU_NAND(&pc->pc_other_cpus, &pc->pc_cpumask);
 		/* The BSP is obviously running already. */
 		if (pc->pc_cpuid == 0) {
 			pc->pc_md.awake = 1;
