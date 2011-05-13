@@ -418,7 +418,7 @@ populate_slice ( ) (
 	echo "Creating ${dev} with ${dir} (mounting on ${mnt})"
 	newfs_part $dev $mnt $lbl
 	cd ${dir}
-	find . -print | grep -Ev '/(CVS|\.svn)' | cpio -dumpv ${mnt}
+	find . -print | grep -Ev '/(CVS|\.svn)' | cpio -Ldumpv ${mnt}
 	df -i ${mnt}
 	umount ${mnt}
 )
@@ -674,7 +674,7 @@ cust_allow_ssh_root () (
 
 cust_install_files () (
 	cd ${NANO_TOOLS}/Files
-	find . -print | grep -Ev '/(CVS|\.svn)' | cpio -dumpv ${NANO_WORLDDIR}
+	find . -print | grep -Ev '/(CVS|\.svn)' | cpio -Ldumpv ${NANO_WORLDDIR}
 )
 
 #######################################################################
@@ -687,7 +687,7 @@ cust_pkg () (
 	(
 		cd ${NANO_PACKAGE_DIR}
 		find ${NANO_PACKAGE_LIST} -print |
-		    cpio -dumpv ${NANO_WORLDDIR}/Pkg
+		    cpio -Ldumpv ${NANO_WORLDDIR}/Pkg
 	)
 
 	# Count & report how many we have to install
