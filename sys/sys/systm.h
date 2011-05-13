@@ -125,6 +125,8 @@ extern char static_hints[];	/* by config for now */
 
 extern char **kenvp;
 
+extern const void *zero_region;	/* address space maps to a zeroed page	*/
+
 /*
  * General function declarations.
  */

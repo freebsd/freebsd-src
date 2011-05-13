@@ -89,6 +89,8 @@
 #include <vm/swap_pager.h>
 #include <vm/uma.h>
 
+#include <machine/vmparam.h>
+
 #define MD_MODVER 1
 
 #define MD_SHUTDOWN	0x10000		/* Tell worker thread to terminate. */
@@ -204,9 +206,6 @@ struct md_s {
 	/* MD_SWAP related fields */
 	vm_object_t object;
 };
-
-/* Used for BIO_DELETE on MD_VNODE */
-static u_char zero[PAGE_SIZE];
 
 static struct indir *
 new_indir(u_int shift)
@@ -560,7 +559,8 @@ mdstart_vnode(struct md_s *sc, struct bio *bp)
 	 * that the two cases end up having very little in common.
 	 */
 	if (bp->bio_cmd == BIO_DELETE) {
-		zerosize = sizeof(zero) - (sizeof(zero) % sc->sectorsize);
+		zerosize = ZERO_REGION_SIZE -
+		    (ZERO_REGION_SIZE % sc->sectorsize);
 		auio.uio_iov = &aiov;
 		auio.uio_iovcnt = 1;
 		auio.uio_offset = (vm_ooffset_t)bp->bio_offset;
@@ -573,7 +573,7 @@ mdstart_vnode(struct md_s *sc, struct bio *bp)
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		error = 0;
 		while (auio.uio_offset < end) {
-			aiov.iov_base = zero;
+			aiov.iov_base = __DECONST(void *, zero_region);
 			aiov.iov_len = end - auio.uio_offset;
 			if (aiov.iov_len > zerosize)
 				aiov.iov_len = zerosize;

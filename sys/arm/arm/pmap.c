@@ -3646,7 +3646,7 @@ pmap_change_wiring(pmap_t pmap, vm_offset_t va, boolean_t wired)
 	pte = *ptep;
 	pg = PHYS_TO_VM_PAGE(l2pte_pa(pte));
 	if (pg) 
-		pmap_modify_pv(pg, pmap, va, PVF_WIRED, wired);
+		pmap_modify_pv(pg, pmap, va, PVF_WIRED, wired ? PVF_WIRED : 0);
 	vm_page_unlock_queues();
  	PMAP_UNLOCK(pmap);
 }
