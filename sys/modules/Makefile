@@ -290,6 +290,7 @@ SUBDIR=	${_3dfx} \
 	${_vesa} \
 	vge \
 	vkbd \
+	${_vmm} \
 	${_vpo} \
 	vr \
 	vx \
@@ -557,6 +558,7 @@ _sppp=		sppp
 _tmpfs=		tmpfs
 _twa=		twa
 _vesa=		vesa
+_vmm=		vmm
 _x86bios=	x86bios
 _wi=		wi
 _wpi=		wpi

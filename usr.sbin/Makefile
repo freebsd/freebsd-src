@@ -19,6 +19,7 @@ SUBDIR=	${_ac} \
 	${_auditd} \
 	${_auditreduce} \
 	${_authpf} \
+	${_bhyve} \
 	${_bluetooth} \
 	${_boot0cfg} \
 	${_boot98cfg} \
@@ -194,6 +195,7 @@ SUBDIR=	${_ac} \
 	${_usbdevs} \
 	${_usbconfig} \
 	${_vidcontrol} \
+	${_vmmctl} \
 	vipw \
 	wake \
 	watch \
@@ -477,6 +479,7 @@ _boot98cfg=	boot98cfg
 _acpi=		acpi
 .endif
 _asf=		asf
+_bhyve=		bhyve
 _boot0cfg=	boot0cfg
 .if ${MK_TOOLCHAIN} != "no"
 _btxld=		btxld
@@ -494,6 +497,7 @@ _ndiscvt=	ndiscvt
 .endif
 _sicontrol=	sicontrol
 _spkrtest=	spkrtest
+_vmmctl=	vmmctl
 _zzz=		zzz
 .endif
 
