@@ -205,7 +205,7 @@ cpu_mp_setmaxid(void)
 	cpuset_t cpumask;
 	int cpu, last;
 
-	cpumask = platform_cpu_mask();
+	platform_cpu_mask(&cpumask);
 	mp_ncpus = 0;
 	last = 1;
 	while ((cpu = cpusetobj_ffs(&cpumask)) != 0) {
@@ -247,7 +247,7 @@ cpu_mp_start(void)
 	mtx_init(&ap_boot_mtx, "ap boot", NULL, MTX_SPIN);
 
 	CPU_ZERO(&all_cpus);
-	cpumask = platform_cpu_mask();
+	platform_cpu_mask(&cpumask);
 
 	while (!CPU_EMPTY(&cpumask)) {
 		cpuid = cpusetobj_ffs(&cpumask) - 1;

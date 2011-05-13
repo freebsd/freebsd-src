@@ -243,17 +243,15 @@ sb_clear_mailbox(int cpu, uint64_t val)
 	sb_store64(regaddr, val);
 }
 
-cpuset_t
-platform_cpu_mask(void)
+void
+platform_cpu_mask(cpuset_t *mask)
 {
-	cpuset_t cpumask;
 	int i, s;
 
-	CPU_ZERO(&cpumask);
+	CPU_ZERO(mask);
 	s = SYSREV_NUM_PROCESSORS(sb_read_sysrev());
 	for (i = 0; i < s; i++)
-		CPU_SET(i, &cpumask);
-	return (cpumask);
+		CPU_SET(i, mask);
 }
 #endif	/* SMP */
 
