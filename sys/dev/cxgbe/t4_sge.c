@@ -499,11 +499,8 @@ t4_intr_fwd(void *arg)
 		iq_next(iq);
 	}
 
-	if (ndesc_total > 0) {
-		t4_write_reg(sc, MYPF_REG(A_SGE_PF_GTS),
-		    V_CIDXINC(ndesc_pending) | V_INGRESSQID((u32)iq->cntxt_id) |
-		    V_SEINTARM(iq->intr_params));
-	}
+	t4_write_reg(sc, MYPF_REG(A_SGE_PF_GTS), V_CIDXINC(ndesc_pending) |
+	    V_INGRESSQID((u32)iq->cntxt_id) | V_SEINTARM(iq->intr_params));
 
 	atomic_cmpset_32(&iq->state, IQS_BUSY, IQS_IDLE);
 }
@@ -601,11 +598,8 @@ t4_evt_rx(void *arg)
 		iq_next(iq);
 	}
 
-	if (ndesc_total > 0) {
-		t4_write_reg(sc, MYPF_REG(A_SGE_PF_GTS),
-		    V_CIDXINC(ndesc_pending) | V_INGRESSQID(iq->cntxt_id) |
-		    V_SEINTARM(iq->intr_params));
-	}
+	t4_write_reg(sc, MYPF_REG(A_SGE_PF_GTS), V_CIDXINC(ndesc_pending) |
+	    V_INGRESSQID(iq->cntxt_id) | V_SEINTARM(iq->intr_params));
 }
 
 void
