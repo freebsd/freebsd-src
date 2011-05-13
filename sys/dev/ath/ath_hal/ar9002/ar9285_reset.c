@@ -533,32 +533,15 @@ ar9285SetPowerPerRateTable(struct ath_hal *ah, struct ar5416eeprom_4k *pEepData,
 		}
 	} /* end ctl mode checking */
 
-	/* Set rates Array from collected data */
-	ratesArray[rate6mb] = ratesArray[rate9mb] = ratesArray[rate12mb] = ratesArray[rate18mb] = ratesArray[rate24mb] = targetPowerOfdm.tPow2x[0];
-	ratesArray[rate36mb] = targetPowerOfdm.tPow2x[1];
-	ratesArray[rate48mb] = targetPowerOfdm.tPow2x[2];
-	ratesArray[rate54mb] = targetPowerOfdm.tPow2x[3];
-	ratesArray[rateXr] = targetPowerOfdm.tPow2x[0];
+        /* Set rates Array from collected data */
+	ar5416SetRatesArrayFromTargetPower(ah, chan, ratesArray,
+	    &targetPowerCck,
+	    &targetPowerCckExt,
+	    &targetPowerOfdm,
+	    &targetPowerOfdmExt,
+	    &targetPowerHt20,
+	    &targetPowerHt40);
 
-	for (i = 0; i < N(targetPowerHt20.tPow2x); i++) {
-		ratesArray[rateHt20_0 + i] = targetPowerHt20.tPow2x[i];
-	}
-
-	ratesArray[rate1l]  = targetPowerCck.tPow2x[0];
-	ratesArray[rate2s] = ratesArray[rate2l]  = targetPowerCck.tPow2x[1];
-	ratesArray[rate5_5s] = ratesArray[rate5_5l] = targetPowerCck.tPow2x[2];
-	ratesArray[rate11s] = ratesArray[rate11l] = targetPowerCck.tPow2x[3];
-	if (IEEE80211_IS_CHAN_HT40(chan)) {
-		for (i = 0; i < N(targetPowerHt40.tPow2x); i++) {
-			ratesArray[rateHt40_0 + i] = targetPowerHt40.tPow2x[i];
-		}
-		ratesArray[rateDupOfdm] = targetPowerHt40.tPow2x[0];
-		ratesArray[rateDupCck]  = targetPowerHt40.tPow2x[0];
-		ratesArray[rateExtOfdm] = targetPowerOfdmExt.tPow2x[0];
-		if (IEEE80211_IS_CHAN_2GHZ(chan)) {
-			ratesArray[rateExtCck]  = targetPowerCckExt.tPow2x[0];
-		}
-	}
 	return AH_TRUE;
 #undef EXT_ADDITIVE
 #undef CTL_11G_EXT
