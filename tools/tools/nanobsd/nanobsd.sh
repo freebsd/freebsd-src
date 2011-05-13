@@ -567,8 +567,10 @@ create_i386_diskimage ( ) (
 		dd if=/dev/${MD} of=${IMG} bs=64k
 	fi
 
-	echo "Writing out _.disk.image..."
-	dd if=/dev/${MD}s1 of=${NANO_DISKIMGDIR}/_.disk.image bs=64k
+	if do_copyout_partition ; then
+		echo "Writing out _.disk.image..."
+		dd if=/dev/${MD}s1 of=${NANO_DISKIMGDIR}/_.disk.image bs=64k
+	fi
 	mdconfig -d -u $MD
 
 	trap - 1 2 15 EXIT
@@ -758,8 +760,9 @@ pprint() {
 
 usage () {
 	(
-	echo "Usage: $0 [-biknqvw] [-c config_file]"
+	echo "Usage: $0 [-bfiknqvw] [-c config_file]"
 	echo "	-b	suppress builds (both kernel and world)"
+	echo "	-f	suppress code slice extraction"
 	echo "	-i	suppress disk image build"
 	echo "	-k	suppress buildkernel"
 	echo "	-n	add -DNO_CLEAN to buildworld, buildkernel, etc"
@@ -778,9 +781,10 @@ do_clean=true
 do_kernel=true
 do_world=true
 do_image=true
+do_copyout_partition=true
 
 set +e
-args=`getopt bc:hiknqvw $*`
+args=`getopt bc:fhiknqvw $*`
 if [ $? -ne 0 ] ; then
 	usage
 	exit 2
@@ -804,6 +808,10 @@ do
 	-c)
 		. "$2"
 		shift
+		shift
+		;;
+	-f)
+		do_copyout_partition=false
 		shift
 		;;
 	-h)
