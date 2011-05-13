@@ -718,7 +718,7 @@ next_iter:
 			continue;
 		MNT_IUNLOCK(mp);
 yield:
-		kern_yield(-1);
+		kern_yield(PRI_UNCHANGED);
 relock_mnt:
 		MNT_ILOCK(mp);
 	}
@@ -831,7 +831,7 @@ vnlru_proc(void)
 			vnlru_nowhere++;
 			tsleep(vnlruproc, PPAUSE, "vlrup", hz * 3);
 		} else
-			kern_yield(-1);
+			kern_yield(PRI_UNCHANGED);
 	}
 }
 

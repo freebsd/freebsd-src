@@ -213,6 +213,7 @@ fetch_reopen(int sd)
 	/* allocate and fill connection structure */
 	if ((conn = calloc(1, sizeof(*conn))) == NULL)
 		return (NULL);
+	fcntl(sd, F_SETFD, FD_CLOEXEC);
 	conn->sd = sd;
 	++conn->ref;
 	return (conn);

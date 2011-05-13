@@ -1130,20 +1130,10 @@ bm_chip_setup(struct bm_softc *sc)
 {
 	uint16_t reg;
 	uint16_t *eaddr_sect;
-	struct mii_data *mii;
-	struct mii_softc *miisc;
 
 	eaddr_sect = (uint16_t *)(sc->sc_enaddr);
 	dbdma_stop(sc->sc_txdma);
 	dbdma_stop(sc->sc_rxdma);
-
-	/* Reset MII */
-	mii = device_get_softc(sc->sc_miibus);
-	LIST_FOREACH(miisc, &mii->mii_phys, mii_list) {
-		PHY_RESET(miisc);
-		PHY_WRITE(miisc, MII_BMCR, PHY_READ(miisc, MII_BMCR) &
-		    ~BMCR_ISO);
-	}
 
 	/* Reset chip */
 	CSR_WRITE_2(sc, BM_RX_RESET, 0x0000);
