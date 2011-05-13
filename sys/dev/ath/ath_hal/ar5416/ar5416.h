@@ -237,6 +237,15 @@ extern	HAL_BOOL ar5416GetChipPowerLimits(struct ath_hal *ah,
 		struct ieee80211_channel *chan);
 extern	void ar5416GetChannelCenters(struct ath_hal *,
 		const struct ieee80211_channel *chan, CHAN_CENTERS *centers);
+extern	void ar5416SetRatesArrayFromTargetPower(struct ath_hal *ah,
+		const struct ieee80211_channel *chan,
+		int16_t *ratesArray,
+		const CAL_TARGET_POWER_LEG *targetPowerCck,
+		const CAL_TARGET_POWER_LEG *targetPowerCckExt,
+		const CAL_TARGET_POWER_LEG *targetPowerOfdm,
+		const CAL_TARGET_POWER_LEG *targetPowerOfdmExt,
+		const CAL_TARGET_POWER_HT *targetPowerHt20,
+		const CAL_TARGET_POWER_HT *targetPowerHt40);
 extern	void ar5416GetTargetPowers(struct ath_hal *ah, 
 		const struct ieee80211_channel *chan,
 		CAL_TARGET_POWER_HT *powInfo,
