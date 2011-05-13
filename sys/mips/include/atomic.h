@@ -581,32 +581,47 @@ atomic_fetchadd_64(__volatile uint64_t *p, uint64_t v)
 #else /* !__mips_n64 */
 
 /* Operations on longs. */
-#define	atomic_set_long		atomic_set_32
-#define	atomic_set_acq_long	atomic_set_acq_32
-#define	atomic_set_rel_long	atomic_set_rel_32
-#define	atomic_clear_long	atomic_clear_32
-#define	atomic_clear_acq_long	atomic_clear_acq_32
-#define	atomic_clear_rel_long	atomic_clear_rel_32
-#define	atomic_add_long(p, v) \
+#define	atomic_set_long(p, v)						\
+	atomic_set_32((volatile u_int *)(p), (u_int)(v))
+#define	atomic_set_acq_long(p, v)					\
+	atomic_set_acq_32((volatile u_int *)(p), (u_int)(v))
+#define	atomic_set_rel_long(p, v)					\
+	atomic_set_rel_32((volatile u_int *)(p), (u_int)(v))
+#define	atomic_clear_long(p, v)						\
+	atomic_clear_32((volatile u_int *)(p), (u_int)(v))
+#define	atomic_clear_acq_long(p, v)					\
+	atomic_clear_acq_32((volatile u_int *)(p), (u_int)(v))
+#define	atomic_clear_rel_long(p, v)					\
+	atomic_clear_rel_32((volatile u_int *)(p), (u_int)(v))
+#define	atomic_add_long(p, v)						\
 	atomic_add_32((volatile u_int *)(p), (u_int)(v))
-#define	atomic_add_acq_long	atomic_add_acq_32
-#define	atomic_add_rel_long	atomic_add_rel_32
-#define	atomic_subtract_long(p, v) \
+#define	atomic_add_acq_long(p, v)					\
+	atomic_add_32((volatile u_int *)(p), (u_int)(v))
+#define	atomic_add_rel_long(p, v)					\
+	atomic_add_32((volatile u_int *)(p), (u_int)(v))
+#define	atomic_subtract_long(p, v)					\
 	atomic_subtract_32((volatile u_int *)(p), (u_int)(v))
-#define	atomic_subtract_acq_long	atomic_subtract_acq_32
-#define	atomic_subtract_rel_long	atomic_subtract_rel_32
-#define	atomic_cmpset_long	atomic_cmpset_32
-#define	atomic_cmpset_acq_long(p, cmpval, newval) \
-	atomic_cmpset_acq_32((volatile u_int *)(p), \
-	    (u_int)(cmpval), (u_int)(newval))
-#define	atomic_cmpset_rel_long(p, cmpval, newval) \
-	atomic_cmpset_rel_32((volatile u_int *)(p), \
-	    (u_int)(cmpval), (u_int)(newval))
-#define	atomic_load_acq_long	atomic_load_acq_32
-#define	atomic_store_rel_long	atomic_store_rel_32
-#define	atomic_fetchadd_long(p, v) \
+#define	atomic_subtract_acq_long(p, v)					\
+	atomic_subtract_acq_32((volatile u_int *)(p), (u_int)(v))
+#define	atomic_subtract_rel_long(p, v)					\
+	atomic_subtract_rel_32((volatile u_int *)(p), (u_int)(v))
+#define	atomic_cmpset_long(p, cmpval, newval)				\
+	atomic_cmpset_32((volatile u_int *)(p), (u_int)(cmpval),	\
+	    (u_int)(newval))
+#define	atomic_cmpset_acq_long(p, cmpval, newval)			\
+	atomic_cmpset_acq_32((volatile u_int *)(p), (u_int)(cmpval),	\
+	    (u_int)(newval))
+#define	atomic_cmpset_rel_long(p, cmpval, newval)			\
+	atomic_cmpset_rel_32((volatile u_int *)(p), (u_int)(cmpval),	\
+	    (u_int)(newval))
+#define	atomic_load_acq_long(p)						\
+	(u_long)atomic_load_acq_32((volatile u_int *)(p))
+#define	atomic_store_rel_long(p, v)					\
+	atomic_store_rel_32((volatile u_int *)(p), (u_int)(v))
+#define	atomic_fetchadd_long(p, v)					\
 	atomic_fetchadd_32((volatile u_int *)(p), (u_int)(v))
-#define	atomic_readandclear_long	atomic_readandclear_32
+#define	atomic_readandclear_long(p)					\
+	atomic_readandclear_32((volatile u_int *)(p))
 
 #endif /* __mips_n64 */
 
