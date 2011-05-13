@@ -102,10 +102,20 @@ platform_init_ap(int cpuid)
 	mips_wbflush();
 }
 
-cpumask_t
+cpuset_t
 platform_cpu_mask(void)
 {
-       return (octeon_bootinfo->core_mask);
+	cpuset_t cpumask;
+
+	CPU_ZERO(&cpumask);
+
+	/*
+	 * XXX: hack in order to simplify CPU set building, assuming that
+	 * core_mask is 32-bits.
+	 */
+	memcpy(&cpumask, &octeon_bootinfo->core_mask,
+	    sizeof(octeon_bootinfo->core_mask));
+	return (cpumask);
 }
 
 struct cpu_group *
