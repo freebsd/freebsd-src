@@ -628,8 +628,11 @@ init_secondary(void)
 	while (smp_started == 0)
 		ia32_pause();
 
-	
 	PCPU_SET(curthread, PCPU_GET(idlethread));
+
+	/* Start per-CPU event timers. */
+	cpu_initclocks_ap();
+
 	/* enter the scheduler */
 	sched_throw(NULL);
 
