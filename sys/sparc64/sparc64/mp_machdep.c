@@ -470,7 +470,7 @@ cpu_mp_bootstrap(struct pcpu *pc)
 	smp_cpus++;
 	KASSERT(curthread != NULL, ("%s: curthread", __func__));
 	ocpus = all_cpus;
-	CPU_CLR(curcpu, &all_cpus);
+	CPU_CLR(curcpu, &ocpus);
 	PCPU_SET(other_cpus, ocpus);
 	printf("SMP: AP CPU #%d Launched!\n", curcpu);
 
