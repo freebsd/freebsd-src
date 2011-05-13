@@ -1590,7 +1590,7 @@ userland_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 		SYSCTL_XUNLOCK();
 		if (error != EAGAIN)
 			break;
-		kern_yield(curthread->td_user_pri);
+		kern_yield(PRI_USER);
 	}
 
 	CURVNET_RESTORE();

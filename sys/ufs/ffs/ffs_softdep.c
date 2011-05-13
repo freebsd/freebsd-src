@@ -1412,7 +1412,7 @@ softdep_process_worklist(mp, full)
 		 */
 		if (should_yield()) {
 			FREE_LOCK(&lk);
-			kern_yield(-1);
+			kern_yield(PRI_UNCHANGED);
 			bwillwrite();
 			ACQUIRE_LOCK(&lk);
 		}

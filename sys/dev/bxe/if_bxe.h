@@ -1110,6 +1110,8 @@ struct bxe_fastpath {
 	int			sge_mbuf_alloc;
 	int			tpa_mbuf_alloc;
 
+	int			max_drbr_queue_depth;
+
 	uint64_t		tpa_queue_used;
 
 	unsigned long		null_cqe_flags;
@@ -1148,7 +1150,6 @@ struct bxe_fastpath {
 #define	BXE_TX_CHAIN_PAGE_SZ	BCM_PAGE_SIZE
 #define	BXE_RX_CHAIN_PAGE_SZ	BCM_PAGE_SIZE
 
-/* ToDo: Audit this structure for unused varaibles. */
 struct bxe_softc {
 	struct ifnet		*bxe_ifp;
 	int			media;

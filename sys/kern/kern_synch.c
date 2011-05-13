@@ -551,7 +551,7 @@ maybe_yield(void)
 {
 
 	if (should_yield())
-		kern_yield(curthread->td_user_pri);
+		kern_yield(PRI_USER);
 }
 
 void
@@ -562,6 +562,8 @@ kern_yield(int prio)
 	td = curthread;
 	DROP_GIANT();
 	thread_lock(td);
+	if (prio == PRI_USER)
+		prio = td->td_user_pri;
 	if (prio >= 0)
 		sched_prio(td, prio);
 	mi_switch(SW_VOL | SWT_RELINQUISH, NULL);
