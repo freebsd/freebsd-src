@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 
 #include "common/t4_hw.h"
 #include "common/common.h"
+#include "common/t4_msg.h"
 #include "common/t4_regs.h"
 #include "common/t4_regs_values.h"
 #include "common/t4fw_interface.h"
@@ -218,6 +219,11 @@ TUNABLE_INT("hw.cxgbe.interrupt_forwarding", &intr_fwd);
 SYSCTL_UINT(_hw_cxgbe, OID_AUTO, interrupt_forwarding, CTLFLAG_RDTUN,
     &intr_fwd, 0, "always use forwarded interrupts");
 
+static unsigned int filter_mode = HW_TPL_FR_MT_PR_IV_P_FC;
+TUNABLE_INT("hw.cxgbe.filter_mode", &filter_mode);
+SYSCTL_UINT(_hw_cxgbe, OID_AUTO, filter_mode, CTLFLAG_RDTUN,
+    &filter_mode, 0, "default global filter mode.");
+
 struct intrs_and_queues {
 	int intr_type;		/* INTx, MSI, or MSI-X */
 	int nirq;		/* Number of vectors */
@@ -226,6 +232,15 @@ struct intrs_and_queues {
 	int nrxq10g;		/* # of NIC rxq's for each 10G port */
 	int ntxq1g;		/* # of NIC txq's for each 1G port */
 	int nrxq1g;		/* # of NIC rxq's for each 1G port */
+};
+
+struct filter_entry {
+        uint32_t valid:1;	/* filter allocated and valid */
+        uint32_t locked:1;	/* filter is administratively locked */
+        uint32_t pending:1;	/* filter action is pending firmware reply */
+	uint32_t smtidx:8;	/* Source MAC Table index for smac */
+
+        struct t4_filter_specification fs;
 };
 
 enum {
@@ -280,6 +295,18 @@ static int sysctl_qsize_rxq(SYSCTL_HANDLER_ARGS);
 static int sysctl_qsize_txq(SYSCTL_HANDLER_ARGS);
 static int sysctl_handle_t4_reg64(SYSCTL_HANDLER_ARGS);
 static inline void txq_start(struct ifnet *, struct sge_txq *);
+static uint32_t fconf_to_mode(uint32_t);
+static uint32_t mode_to_fconf(uint32_t);
+static uint32_t fspec_to_fconf(struct t4_filter_specification *);
+static int get_filter_mode(struct adapter *, uint32_t *);
+static int set_filter_mode(struct adapter *, uint32_t);
+static int get_filter(struct adapter *, struct t4_filter *);
+static int set_filter(struct adapter *, struct t4_filter *);
+static int del_filter(struct adapter *, struct t4_filter *);
+static void clear_filter(struct adapter *, struct filter_entry *);
+static int set_filter_wr(struct adapter *, int);
+static int del_filter_wr(struct adapter *, int);
+void filter_rpl(struct adapter *, const struct cpl_set_tcb_rpl *);
 static int t4_mod_event(module_t, int, void *);
 
 struct t4_pciids {
@@ -421,9 +448,12 @@ t4_attach(device_t dev)
 
 	t4_sge_init(sc);
 
-	/*
-	 * XXX: This is the place to call t4_set_filter_mode()
-	 */
+	t4_set_filter_mode(sc, filter_mode);
+	t4_set_reg_field(sc, A_TP_GLOBAL_CONFIG,
+	    V_FIVETUPLELOOKUP(M_FIVETUPLELOOKUP),
+	    V_FIVETUPLELOOKUP(M_FIVETUPLELOOKUP));
+	t4_tp_wr_bits_indirect(sc, A_TP_INGRESS_CONFIG, F_CSUM_HAS_PSEUDO_HDR,
+	    F_LOOKUPEVERYPKT);
 
 	/* get basic stuff going */
 	rc = -t4_early_init(sc, sc->mbox);
@@ -661,6 +691,7 @@ t4_detach(device_t dev)
 	free(sc->sge.fiq, M_CXGBE);
 	free(sc->sge.iqmap, M_CXGBE);
 	free(sc->sge.eqmap, M_CXGBE);
+	free(sc->tids.ftid_tab, M_CXGBE);
 	t4_destroy_dma_tag(sc);
 	mtx_destroy(&sc->sc_lock);
 
@@ -2699,6 +2730,481 @@ cxgbe_txq_start(void *arg, int count)
 	TXQ_UNLOCK(txq);
 }
 
+static uint32_t
+fconf_to_mode(uint32_t fconf)
+{
+	uint32_t mode;
+
+	mode = T4_FILTER_IPv4 | T4_FILTER_IPv6 | T4_FILTER_IP_SADDR |
+	    T4_FILTER_IP_DADDR | T4_FILTER_IP_SPORT | T4_FILTER_IP_DPORT;
+
+	if (fconf & F_FRAGMENTATION)
+		mode |= T4_FILTER_IP_FRAGMENT;
+
+	if (fconf & F_MPSHITTYPE)
+		mode |= T4_FILTER_MPS_HIT_TYPE;
+
+	if (fconf & F_MACMATCH)
+		mode |= T4_FILTER_MAC_IDX;
+
+	if (fconf & F_ETHERTYPE)
+		mode |= T4_FILTER_ETH_TYPE;
+
+	if (fconf & F_PROTOCOL)
+		mode |= T4_FILTER_IP_PROTO;
+
+	if (fconf & F_TOS)
+		mode |= T4_FILTER_IP_TOS;
+
+	if (fconf & F_VLAN)
+		mode |= T4_FILTER_IVLAN;
+
+	if (fconf & F_VNIC_ID)
+		mode |= T4_FILTER_OVLAN;
+
+	if (fconf & F_PORT)
+		mode |= T4_FILTER_PORT;
+
+	if (fconf & F_FCOE)
+		mode |= T4_FILTER_FCoE;
+
+	return (mode);
+}
+
+static uint32_t
+mode_to_fconf(uint32_t mode)
+{
+	uint32_t fconf = 0;
+
+	if (mode & T4_FILTER_IP_FRAGMENT)
+		fconf |= F_FRAGMENTATION;
+
+	if (mode & T4_FILTER_MPS_HIT_TYPE)
+		fconf |= F_MPSHITTYPE;
+
+	if (mode & T4_FILTER_MAC_IDX)
+		fconf |= F_MACMATCH;
+
+	if (mode & T4_FILTER_ETH_TYPE)
+		fconf |= F_ETHERTYPE;
+
+	if (mode & T4_FILTER_IP_PROTO)
+		fconf |= F_PROTOCOL;
+
+	if (mode & T4_FILTER_IP_TOS)
+		fconf |= F_TOS;
+
+	if (mode & T4_FILTER_IVLAN)
+		fconf |= F_VLAN;
+
+	if (mode & T4_FILTER_OVLAN)
+		fconf |= F_VNIC_ID;
+
+	if (mode & T4_FILTER_PORT)
+		fconf |= F_PORT;
+
+	if (mode & T4_FILTER_FCoE)
+		fconf |= F_FCOE;
+
+	return (fconf);
+}
+
+static uint32_t
+fspec_to_fconf(struct t4_filter_specification *fs)
+{
+	uint32_t fconf = 0;
+
+	if (fs->val.frag || fs->mask.frag)
+		fconf |= F_FRAGMENTATION;
+
+	if (fs->val.matchtype || fs->mask.matchtype)
+		fconf |= F_MPSHITTYPE;
+
+	if (fs->val.macidx || fs->mask.macidx)
+		fconf |= F_MACMATCH;
+
+	if (fs->val.ethtype || fs->mask.ethtype)
+		fconf |= F_ETHERTYPE;
+
+	if (fs->val.proto || fs->mask.proto)
+		fconf |= F_PROTOCOL;
+
+	if (fs->val.tos || fs->mask.tos)
+		fconf |= F_TOS;
+
+	if (fs->val.ivlan_vld || fs->mask.ivlan_vld)
+		fconf |= F_VLAN;
+
+	if (fs->val.ovlan_vld || fs->mask.ovlan_vld)
+		fconf |= F_VNIC_ID;
+
+	if (fs->val.iport || fs->mask.iport)
+		fconf |= F_PORT;
+
+	if (fs->val.fcoe || fs->mask.fcoe)
+		fconf |= F_FCOE;
+
+	return (fconf);
+}
+
+static int
+get_filter_mode(struct adapter *sc, uint32_t *mode)
+{
+	uint32_t fconf;
+
+	t4_read_indirect(sc, A_TP_PIO_ADDR, A_TP_PIO_DATA, &fconf, 1,
+	    A_TP_VLAN_PRI_MAP);
+
+	*mode = fconf_to_mode(fconf);
+
+	return (0);
+}
+
+static int
+set_filter_mode(struct adapter *sc, uint32_t mode)
+{
+	uint32_t fconf;
+	int rc;
+
+	fconf = mode_to_fconf(mode);
+
+	ADAPTER_LOCK(sc);
+	if (IS_BUSY(sc)) {
+		rc = EAGAIN;
+		goto done;
+	}
+
+	if (sc->tids.ftids_in_use > 0) {
+		rc = EBUSY;
+		goto done;
+	}
+
+	rc = -t4_set_filter_mode(sc, fconf);
+done:
+	ADAPTER_UNLOCK(sc);
+	return (rc);
+}
+
+static int
+get_filter(struct adapter *sc, struct t4_filter *t)
+{
+	int i, nfilters = sc->tids.nftids;
+	struct filter_entry *f;
+
+	ADAPTER_LOCK_ASSERT_OWNED(sc);
+
+	if (IS_BUSY(sc))
+		return (EAGAIN);
+
+	if (sc->tids.ftids_in_use == 0 || sc->tids.ftid_tab == NULL ||
+	    t->idx >= nfilters) {
+		t->idx = 0xffffffff;
+		return (0);
+	}
+
+	f = &sc->tids.ftid_tab[t->idx];
+	for (i = t->idx; i < nfilters; i++, f++) {
+		if (f->valid) {
+			t->idx = i;
+			t->fs = f->fs;
+			t->hits = 0;	/* XXX implement */
+
+			return (0);
+		}
+	}
+
+	t->idx = 0xffffffff;
+	return (0);
+}
+
+static int
+set_filter(struct adapter *sc, struct t4_filter *t)
+{
+	uint32_t fconf;
+	unsigned int nfilters, nports;
+	struct filter_entry *f;
+	int i;
+
+	ADAPTER_LOCK_ASSERT_OWNED(sc);
+
+	nfilters = sc->tids.nftids;
+	nports = sc->params.nports;
+
+	if (nfilters == 0)
+		return (ENOTSUP);
+
+	if (!(sc->flags & FULL_INIT_DONE))
+		return (EAGAIN);
+
+	if (t->idx >= nfilters)
+		return (EINVAL);
+
+	/* Validate against the global filter mode */
+	t4_read_indirect(sc, A_TP_PIO_ADDR, A_TP_PIO_DATA, &fconf, 1,
+	    A_TP_VLAN_PRI_MAP);
+	if ((fconf | fspec_to_fconf(&t->fs)) != fconf)
+		return (E2BIG);
+
+	if (t->fs.action == FILTER_SWITCH && t->fs.eport >= nports)
+		return (EINVAL);
+
+	if (t->fs.val.iport >= nports)
+		return (EINVAL);
+
+	/* Can't specify an iq if not steering to it */
+	if (!t->fs.dirsteer && t->fs.iq)
+		return (EINVAL);
+
+	/* IPv6 filter idx must be 4 aligned */
+	if (t->fs.type == 1 &&
+	    ((t->idx & 0x3) || t->idx + 4 >= nfilters))
+		return (EINVAL);
+
+	if (sc->tids.ftid_tab == NULL) {
+		KASSERT(sc->tids.ftids_in_use == 0,
+		    ("%s: no memory allocated but filters_in_use > 0",
+		    __func__));
+
+		sc->tids.ftid_tab = malloc(sizeof (struct filter_entry) *
+		    nfilters, M_CXGBE, M_NOWAIT | M_ZERO);
+		if (sc->tids.ftid_tab == NULL)
+			return (ENOMEM);
+	}
+
+	for (i = 0; i < 4; i++) {
+		f = &sc->tids.ftid_tab[t->idx + i];
+
+		if (f->pending || f->valid)
+			return (EBUSY);
+		if (f->locked)
+			return (EPERM);
+
+		if (t->fs.type == 0)
+			break;
+	}
+
+	f = &sc->tids.ftid_tab[t->idx];
+	f->fs = t->fs;
+
+	return set_filter_wr(sc, t->idx);
+}
+
+static int
+del_filter(struct adapter *sc, struct t4_filter *t)
+{
+	unsigned int nfilters;
+	struct filter_entry *f;
+
+	ADAPTER_LOCK_ASSERT_OWNED(sc);
+
+	if (IS_BUSY(sc))
+		return (EAGAIN);
+
+	nfilters = sc->tids.nftids;
+
+	if (nfilters == 0)
+		return (ENOTSUP);
+
+	if (sc->tids.ftid_tab == NULL || sc->tids.ftids_in_use == 0 ||
+	    t->idx >= nfilters)
+		return (EINVAL);
+
+	if (!(sc->flags & FULL_INIT_DONE))
+		return (EAGAIN);
+
+	f = &sc->tids.ftid_tab[t->idx];
+
+	if (f->pending)
+		return (EBUSY);
+	if (f->locked)
+		return (EPERM);
+
+	if (f->valid) {
+		t->fs = f->fs;	/* extra info for the caller */
+		return del_filter_wr(sc, t->idx);
+	}
+
+	return (0);
+}
+
+/* XXX: L2T */
+static void
+clear_filter(struct adapter *sc, struct filter_entry *f)
+{
+	(void) sc;
+	bzero(f, sizeof (*f));
+}
+
+static int
+set_filter_wr(struct adapter *sc, int fidx)
+{
+	int rc;
+	struct filter_entry *f = &sc->tids.ftid_tab[fidx];
+	struct mbuf *m;
+	struct fw_filter_wr *fwr;
+	unsigned int ftid;
+
+	ADAPTER_LOCK_ASSERT_OWNED(sc);
+
+	if (f->fs.newdmac || f->fs.newvlan)
+		return (ENOTSUP);	/* XXX: fix after L2T code */
+
+	ftid = sc->tids.ftid_base + fidx;
+
+	m = m_gethdr(M_NOWAIT, MT_DATA);
+	if (m == NULL)
+		return (ENOMEM);
+
+	fwr = mtod(m, struct fw_filter_wr *);
+	m->m_len = m->m_pkthdr.len = sizeof(*fwr);
+	bzero(fwr, sizeof (*fwr));
+
+	fwr->op_pkd = htobe32(V_FW_WR_OP(FW_FILTER_WR));
+	fwr->len16_pkd = htobe32(FW_LEN16(*fwr));
+	fwr->tid_to_iq =
+	    htobe32(V_FW_FILTER_WR_TID(ftid) |
+		V_FW_FILTER_WR_RQTYPE(f->fs.type) |
+		V_FW_FILTER_WR_NOREPLY(0) |
+		V_FW_FILTER_WR_IQ(f->fs.iq));
+	fwr->del_filter_to_l2tix =
+	    htobe32(V_FW_FILTER_WR_RPTTID(f->fs.rpttid) |
+		V_FW_FILTER_WR_DROP(f->fs.action == FILTER_DROP) |
+		V_FW_FILTER_WR_DIRSTEER(f->fs.dirsteer) |
+		V_FW_FILTER_WR_MASKHASH(f->fs.maskhash) |
+		V_FW_FILTER_WR_DIRSTEERHASH(f->fs.dirsteerhash) |
+		V_FW_FILTER_WR_LPBK(f->fs.action == FILTER_SWITCH) |
+		V_FW_FILTER_WR_DMAC(f->fs.newdmac) |
+		V_FW_FILTER_WR_SMAC(f->fs.newsmac) |
+		V_FW_FILTER_WR_INSVLAN(f->fs.newvlan == VLAN_INSERT ||
+		    f->fs.newvlan == VLAN_REWRITE) |
+		V_FW_FILTER_WR_RMVLAN(f->fs.newvlan == VLAN_REMOVE ||
+		    f->fs.newvlan == VLAN_REWRITE) |
+		V_FW_FILTER_WR_HITCNTS(f->fs.hitcnts) |
+		V_FW_FILTER_WR_TXCHAN(f->fs.eport) |
+		V_FW_FILTER_WR_PRIO(f->fs.prio) |
+		V_FW_FILTER_WR_L2TIX(0));	/* XXX: L2T */
+	fwr->ethtype = htobe16(f->fs.val.ethtype);
+	fwr->ethtypem = htobe16(f->fs.mask.ethtype);
+	fwr->frag_to_ovlan_vldm =
+	    (V_FW_FILTER_WR_FRAG(f->fs.val.frag) |
+		V_FW_FILTER_WR_FRAGM(f->fs.mask.frag) |
+		V_FW_FILTER_WR_IVLAN_VLD(f->fs.val.ivlan_vld) |
+		V_FW_FILTER_WR_OVLAN_VLD(f->fs.val.ovlan_vld) |
+		V_FW_FILTER_WR_IVLAN_VLDM(f->fs.mask.ivlan_vld) |
+		V_FW_FILTER_WR_OVLAN_VLDM(f->fs.mask.ovlan_vld));
+	fwr->smac_sel = 0;
+	fwr->rx_chan_rx_rpl_iq = htobe16(V_FW_FILTER_WR_RX_CHAN(0) |
+	    V_FW_FILTER_WR_RX_RPL_IQ(sc->sge.fwq.abs_id));
+	fwr->maci_to_matchtypem =
+	    htobe32(V_FW_FILTER_WR_MACI(f->fs.val.macidx) |
+		V_FW_FILTER_WR_MACIM(f->fs.mask.macidx) |
+		V_FW_FILTER_WR_FCOE(f->fs.val.fcoe) |
+		V_FW_FILTER_WR_FCOEM(f->fs.mask.fcoe) |
+		V_FW_FILTER_WR_PORT(f->fs.val.iport) |
+		V_FW_FILTER_WR_PORTM(f->fs.mask.iport) |
+		V_FW_FILTER_WR_MATCHTYPE(f->fs.val.matchtype) |
+		V_FW_FILTER_WR_MATCHTYPEM(f->fs.mask.matchtype));
+	fwr->ptcl = f->fs.val.proto;
+	fwr->ptclm = f->fs.mask.proto;
+	fwr->ttyp = f->fs.val.tos;
+	fwr->ttypm = f->fs.mask.tos;
+	fwr->ivlan = htobe16(f->fs.val.ivlan);
+	fwr->ivlanm = htobe16(f->fs.mask.ivlan);
+	fwr->ovlan = htobe16(f->fs.val.ovlan);
+	fwr->ovlanm = htobe16(f->fs.mask.ovlan);
+	bcopy(f->fs.val.dip, fwr->lip, sizeof (fwr->lip));
+	bcopy(f->fs.mask.dip, fwr->lipm, sizeof (fwr->lipm));
+	bcopy(f->fs.val.sip, fwr->fip, sizeof (fwr->fip));
+	bcopy(f->fs.mask.sip, fwr->fipm, sizeof (fwr->fipm));
+	fwr->lp = htobe16(f->fs.val.dport);
+	fwr->lpm = htobe16(f->fs.mask.dport);
+	fwr->fp = htobe16(f->fs.val.sport);
+	fwr->fpm = htobe16(f->fs.mask.sport);
+	if (f->fs.newsmac)
+		bcopy(f->fs.smac, fwr->sma, sizeof (fwr->sma));
+
+	f->pending = 1;
+	sc->tids.ftids_in_use++;
+	rc = t4_mgmt_tx(sc, m);
+	if (rc != 0) {
+		sc->tids.ftids_in_use--;
+		m_freem(m);
+		clear_filter(sc, f);
+	}
+	return (rc);
+}
+
+static int
+del_filter_wr(struct adapter *sc, int fidx)
+{
+	struct filter_entry *f = &sc->tids.ftid_tab[fidx];
+	struct mbuf *m;
+	struct fw_filter_wr *fwr;
+	unsigned int rc, ftid;
+
+	ADAPTER_LOCK_ASSERT_OWNED(sc);
+
+	ftid = sc->tids.ftid_base + fidx;
+
+	m = m_gethdr(M_NOWAIT, MT_DATA);
+	if (m == NULL)
+		return (ENOMEM);
+
+	fwr = mtod(m, struct fw_filter_wr *);
+	m->m_len = m->m_pkthdr.len = sizeof(*fwr);
+	bzero(fwr, sizeof (*fwr));
+
+	t4_mk_filtdelwr(ftid, fwr, sc->sge.fwq.abs_id);
+
+	f->pending = 1;
+	rc = t4_mgmt_tx(sc, m);
+	if (rc != 0) {
+		f->pending = 0;
+		m_freem(m);
+	}
+	return (rc);
+}
+
+/* XXX move intr handlers to main.c and make this static */
+void
+filter_rpl(struct adapter *sc, const struct cpl_set_tcb_rpl *rpl)
+{
+	unsigned int idx = GET_TID(rpl);
+
+	if (idx >= sc->tids.ftid_base &&
+	    (idx -= sc->tids.ftid_base) < sc->tids.nftids) {
+		unsigned int rc = G_COOKIE(rpl->cookie);
+		struct filter_entry *f = &sc->tids.ftid_tab[idx];
+
+		if (rc == FW_FILTER_WR_FLT_DELETED) {
+			/*
+			 * Clear the filter when we get confirmation from the
+			 * hardware that the filter has been deleted.
+			 */
+			clear_filter(sc, f);
+			sc->tids.ftids_in_use--;
+		} else if (rc == FW_FILTER_WR_SMT_TBL_FULL) {
+			device_printf(sc->dev,
+			    "filter %u setup failed due to full SMT\n", idx);
+			clear_filter(sc, f);
+			sc->tids.ftids_in_use--;
+		} else if (rc == FW_FILTER_WR_FLT_ADDED) {
+			f->smtidx = (be64toh(rpl->oldval) >> 24) & 0xff;
+			f->pending = 0;  /* asynchronous setup completed */
+			f->valid = 1;
+		} else {
+			/*
+			 * Something went wrong.  Issue a warning about the
+			 * problem and clear everything out.
+			 */
+			device_printf(sc->dev,
+			    "filter %u setup failed with error %u\n", idx, rc);
+			clear_filter(sc, f);
+			sc->tids.ftids_in_use--;
+		}
+	}
+}
+
 int
 t4_os_find_pci_capability(struct adapter *sc, int cap)
 {
@@ -2873,6 +3379,27 @@ t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
 		free(buf, M_CXGBE);
 		break;
 	}
+	case CHELSIO_T4_GET_FILTER_MODE:
+		rc = get_filter_mode(sc, (uint32_t *)data);
+		break;
+	case CHELSIO_T4_SET_FILTER_MODE:
+		rc = set_filter_mode(sc, *(uint32_t *)data);
+		break;
+	case CHELSIO_T4_GET_FILTER:
+		ADAPTER_LOCK(sc);
+		rc = get_filter(sc, (struct t4_filter *)data);
+		ADAPTER_UNLOCK(sc);
+		break;
+	case CHELSIO_T4_SET_FILTER:
+		ADAPTER_LOCK(sc);
+		rc = set_filter(sc, (struct t4_filter *)data);
+		ADAPTER_UNLOCK(sc);
+		break;
+	case CHELSIO_T4_DEL_FILTER:
+		ADAPTER_LOCK(sc);
+		rc = del_filter(sc, (struct t4_filter *)data);
+		ADAPTER_UNLOCK(sc);
+		break;
 	default:
 		rc = EINVAL;
 	}

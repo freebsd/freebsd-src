@@ -13,4 +13,7 @@ SRCS+= opt_inet.h
 
 CFLAGS+= -I${CXGBE}
 
+# Provide the timestamp of a packet in its header mbuf.
+#CFLAGS+= -DT4_PKT_TIMESTAMP
+
 .include <bsd.kmod.mk>

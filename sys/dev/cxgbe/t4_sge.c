@@ -142,6 +142,8 @@ static int handle_sge_egr_update(struct adapter *,
 
 static int ctrl_tx(struct adapter *, struct sge_ctrlq *, struct mbuf *);
 
+extern void filter_rpl(struct adapter *, const struct cpl_set_tcb_rpl *);
+
 /*
  * Called on MOD_LOAD and fills up fl_buf_info[].
  */
@@ -580,7 +582,9 @@ t4_evt_rx(void *arg)
 		case CPL_SGE_EGR_UPDATE:
 			handle_sge_egr_update(sc, (const void *)(rss + 1));
 			break;
-
+		case CPL_SET_TCB_RPL:
+			filter_rpl(sc, (const void *) (rss + 1));
+			break;
 		default:
 			device_printf(sc->dev,
 			    "can't handle CPL opcode %d.", rss->opcode);
@@ -601,6 +605,12 @@ t4_evt_rx(void *arg)
 	t4_write_reg(sc, MYPF_REG(A_SGE_PF_GTS), V_CIDXINC(ndesc_pending) |
 	    V_INGRESSQID(iq->cntxt_id) | V_SEINTARM(iq->intr_params));
 }
+
+#ifdef T4_PKT_TIMESTAMP
+#define RX_COPY_THRESHOLD (MINCLSIZE - 8)
+#else
+#define RX_COPY_THRESHOLD MINCLSIZE
+#endif
 
 void
 t4_eth_rx(void *arg)
@@ -665,7 +675,22 @@ t4_eth_rx(void *arg)
 		    BUS_DMASYNC_POSTREAD);
 
 		m_init(m0, NULL, 0, M_NOWAIT, MT_DATA, M_PKTHDR);
-		if (len < MINCLSIZE) {
+
+#ifdef T4_PKT_TIMESTAMP
+		*mtod(m0, uint64_t *) =
+		    be64toh(ctrl->u.last_flit & 0xfffffffffffffff);
+		m0->m_data += 8;
+
+		/*
+		 * 60 bit timestamp value is *(uint64_t *)m0->m_pktdat.  Note
+		 * that it is in the leading free-space (see M_LEADINGSPACE) in
+		 * the mbuf.  The kernel can clobber it during a pullup,
+		 * m_copymdata, etc.  You need to make sure that the mbuf
+		 * reaches you unmolested if you care about the timestamp.
+		 */
+#endif
+
+		if (len < RX_COPY_THRESHOLD) {
 			/* copy data to mbuf, buffer will be recycled */
 			bcopy(sd->cl, mtod(m0, caddr_t), len);
 			m0->m_len = len;

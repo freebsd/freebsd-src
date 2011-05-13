@@ -61,8 +61,10 @@ struct tid_info {
 	union aopen_entry *atid_tab;
 	unsigned int natids;
 
+	struct filter_entry *ftid_tab;
 	unsigned int nftids;
 	unsigned int ftid_base;
+	unsigned int ftids_in_use;
 
 	union aopen_entry *afree;
 	unsigned int atids_in_use;
