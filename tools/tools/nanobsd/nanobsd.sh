@@ -567,7 +567,7 @@ create_i386_diskimage ( ) (
 		dd if=/dev/${MD} of=${IMG} bs=64k
 	fi
 
-	if do_copyout_partition ; then
+	if ${do_copyout_partition} ; then
 		echo "Writing out _.disk.image..."
 		dd if=/dev/${MD}s1 of=${NANO_DISKIMGDIR}/_.disk.image bs=64k
 	fi
