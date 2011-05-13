@@ -684,6 +684,12 @@ cust_install_files () (
 
 cust_pkg () (
 
+	# If the package directory doesn't exist, we're done.
+	if [ ! -d ${NANO_PACKAGE_DIR} ]; then
+		echo "DONE 0 packages"
+		return 0
+	fi
+
 	# Copy packages into chroot
 	mkdir -p ${NANO_WORLDDIR}/Pkg
 	(
