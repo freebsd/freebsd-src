@@ -4254,7 +4254,6 @@ hook_pf(void)
 	pfh_inet = pfil_head_get(PFIL_TYPE_AF, AF_INET);
 	if (pfh_inet == NULL)
 		return (ESRCH); /* XXX */
-#ifdef INET
 	pfil_add_hook(pf_check_in, NULL, PFIL_IN | PFIL_WAITOK, pfh_inet);
 	pfil_add_hook(pf_check_out, NULL, PFIL_OUT | PFIL_WAITOK, pfh_inet);
 #endif
@@ -4296,7 +4295,6 @@ dehook_pf(void)
 	pfh_inet = pfil_head_get(PFIL_TYPE_AF, AF_INET);
 	if (pfh_inet == NULL)
 		return (ESRCH); /* XXX */
-#ifdef INET
 	pfil_remove_hook(pf_check_in, NULL, PFIL_IN | PFIL_WAITOK,
 	    pfh_inet);
 	pfil_remove_hook(pf_check_out, NULL, PFIL_OUT | PFIL_WAITOK,
