@@ -1351,7 +1351,9 @@ void (*cpu_idle_fn)(int) = cpu_idle_acpi;
 void
 cpu_idle(int busy)
 {
+#ifndef XEN
 	uint64_t msr;
+#endif
 
 	CTR2(KTR_SPARE2, "cpu_idle(%d) at %d",
 	    busy, curcpu);
@@ -1367,34 +1369,32 @@ cpu_idle(int busy)
 			goto out;
 		}
 	}
+#endif
 
 	/* If we have time - switch timers into idle mode. */
 	if (!busy) {
 		critical_enter();
 		cpu_idleclock();
 	}
-#endif
 
-	/* Apply AMD APIC timer C1E workaround. */
-	if (cpu_ident_amdc1e
 #ifndef XEN
-	    && cpu_disable_deep_sleep
-#endif
-	    ) {
+	/* Apply AMD APIC timer C1E workaround. */
+	if (cpu_ident_amdc1e && cpu_disable_deep_sleep) {
 		msr = rdmsr(MSR_AMDK8_IPM);
 		if (msr & AMDK8_CMPHALT)
 			wrmsr(MSR_AMDK8_IPM, msr & ~AMDK8_CMPHALT);
 	}
+#endif
 
 	/* Call main idle method. */
 	cpu_idle_fn(busy);
 
-#ifndef XEN
 	/* Switch timers mack into active mode. */
 	if (!busy) {
 		cpu_activeclock();
 		critical_exit();
 	}
+#ifndef XEN
 out:
 #endif
 	CTR2(KTR_SPARE2, "cpu_idle(%d) at %d done",
