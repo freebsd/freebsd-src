@@ -2234,7 +2234,7 @@ buf_daemon()
 		while (numdirtybuffers > lodirtybuffers) {
 			if (buf_do_flush(NULL) == 0)
 				break;
-			kern_yield(-1);
+			kern_yield(PRI_UNCHANGED);
 		}
 		lodirtybuffers = lodirtysave;
 
