@@ -45,12 +45,22 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 
-static int	isab_probe(device_t dev);
+#include <machine/bus.h>
+#include <sys/rman.h>
+#include <machine/resource.h>
+
+static int	isab_pci_probe(device_t dev);
+static int	isab_pci_attach(device_t dev);
+static struct resource *	isab_pci_alloc_resource(device_t dev,
+    device_t child, int type, int *rid, u_long start, u_long end, u_long count,
+    u_int flags);
+static int	isab_pci_release_resource(device_t dev, device_t child,
+    int type, int rid, struct resource *r);
 
 static device_method_t isab_methods[] = {
     /* Device interface */
-    DEVMETHOD(device_probe,		isab_probe),
-    DEVMETHOD(device_attach,		isab_attach),
+    DEVMETHOD(device_probe,		isab_pci_probe),
+    DEVMETHOD(device_attach,		isab_pci_attach),
     DEVMETHOD(device_detach,		bus_generic_detach),
     DEVMETHOD(device_shutdown,		bus_generic_shutdown),
     DEVMETHOD(device_suspend,		bus_generic_suspend),
@@ -58,8 +68,8 @@ static device_method_t isab_methods[] = {
 
     /* Bus interface */
     DEVMETHOD(bus_print_child,		bus_generic_print_child),
-    DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
-    DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
+    DEVMETHOD(bus_alloc_resource,	isab_pci_alloc_resource),
+    DEVMETHOD(bus_release_resource,	isab_pci_release_resource),
     DEVMETHOD(bus_activate_resource,	bus_generic_activate_resource),
     DEVMETHOD(bus_deactivate_resource,	bus_generic_deactivate_resource),
     DEVMETHOD(bus_setup_intr,		bus_generic_setup_intr),
@@ -68,10 +78,19 @@ static device_method_t isab_methods[] = {
     { 0, 0 }
 };
 
+struct isab_pci_resource {
+	struct resource	*ip_res;
+	int	ip_refs;
+};
+
+struct isab_pci_softc {
+	struct isab_pci_resource isab_pci_res[PCIR_MAX_BAR_0 + 1];
+};
+
 static driver_t isab_driver = {
     "isab",
     isab_methods,
-    0,
+    sizeof(struct isab_pci_softc),
 };
 
 DRIVER_MODULE(isab, pci, isab_driver, isab_devclass, 0, 0);
@@ -81,7 +100,7 @@ DRIVER_MODULE(isab, pci, isab_driver, isab_devclass, 0, 0);
  *     report themselves.
  */
 static int
-isab_probe(device_t dev)
+isab_pci_probe(device_t dev)
 {
     int		matched = 0;
 
@@ -138,4 +157,89 @@ isab_probe(device_t dev)
 	return(-10000);
     }
     return(ENXIO);
+}
+
+static int
+isab_pci_attach(device_t dev)
+{
+
+	bus_generic_probe(dev);
+	return (isab_attach(dev));
+}
+
+static struct resource *
+isab_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
+    u_long start, u_long end, u_long count, u_int flags)
+{
+	struct isab_pci_softc *sc;
+	int bar;
+
+	if (device_get_parent(child) != dev)
+		return bus_generic_alloc_resource(dev, child, type, rid, start,
+		    end, count, flags);
+
+	switch (type) {
+	case SYS_RES_MEMORY:
+	case SYS_RES_IOPORT:
+		/*
+		 * For BARs, we cache the resource so that we only allocate it
+		 * from the PCI bus once.
+		 */
+		bar = PCI_RID2BAR(*rid);
+		if (bar < 0 || bar > PCIR_MAX_BAR_0)
+			return (NULL);
+		sc = device_get_softc(dev);
+		if (sc->isab_pci_res[bar].ip_res == NULL)
+			sc->isab_pci_res[bar].ip_res = bus_alloc_resource(dev, type,
+			    rid, start, end, count, flags);
+		if (sc->isab_pci_res[bar].ip_res != NULL)
+			sc->isab_pci_res[bar].ip_refs++;
+		return (sc->isab_pci_res[bar].ip_res);
+	}
+
+	return (BUS_ALLOC_RESOURCE(device_get_parent(dev), child, type, rid,
+		start, end, count, flags));
+}
+
+static int
+isab_pci_release_resource(device_t dev, device_t child, int type, int rid,
+    struct resource *r)
+{
+	struct isab_pci_softc *sc;
+	int bar, error;
+
+	if (device_get_parent(child) != dev)
+		return bus_generic_release_resource(dev, child, type, rid, r);
+
+	switch (type) {
+	case SYS_RES_MEMORY:
+	case SYS_RES_IOPORT:
+		/*
+		 * For BARs, we release the resource from the PCI bus
+		 * when the last child reference goes away.
+		 */
+		bar = PCI_RID2BAR(rid);
+		if (bar < 0 || bar > PCIR_MAX_BAR_0)
+			return (EINVAL);
+		sc = device_get_softc(dev);
+		if (sc->isab_pci_res[bar].ip_res == NULL)
+			return (EINVAL);
+		KASSERT(sc->isab_pci_res[bar].ip_res == r,
+		    ("isa_pci resource mismatch"));
+		if (sc->isab_pci_res[bar].ip_refs > 1) {
+			sc->isab_pci_res[bar].ip_refs--;
+			return (0);
+		}
+		KASSERT(sc->isab_pci_res[bar].ip_refs > 0,
+		    ("isa_pci resource reference count underflow"));
+		error = bus_release_resource(dev, type, rid, r);
+		if (error == 0) {
+			sc->isab_pci_res[bar].ip_res = NULL;
+			sc->isab_pci_res[bar].ip_refs = 0;
+		}
+		return (error);
+	}
+
+	return (BUS_RELEASE_RESOURCE(device_get_parent(dev), child, type,
+		rid, r));
 }
