@@ -202,8 +202,11 @@ ar5416Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 	 */
 	ar5416InitChainMasks(ah);
 
-	/* Setup the open-loop temperature compensation if required */
-	AH5416(ah)->ah_olcInit(ah);
+	/* Setup the open-loop power calibration if required */
+	if (ath_hal_eepromGetFlag(ah, AR_EEP_OL_PWRCTRL)) {
+		AH5416(ah)->ah_olcInit(ah);
+		AH5416(ah)->ah_olcTempCompensation(ah);
+	}
 
 	/* Setup the transmit power values. */
 	if (!ah->ah_setTxPower(ah, chan, rfXpdGain)) {
