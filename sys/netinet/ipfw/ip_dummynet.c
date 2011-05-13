@@ -807,6 +807,7 @@ copy_obj(char **start, char *end, void *_o, const char *msg, int i)
 		/* Adjust burst parameter for link */
 		struct dn_link *l = (struct dn_link *)*start;
 		l->burst =  div64(l->burst, 8 * hz);
+		l->delay = l->delay * 1000 / hz;
 	} else if (o->type == DN_SCH) {
 		/* Set id->id to the number of instances */
 		struct dn_schk *s = _o;
