@@ -368,8 +368,18 @@ ar9285_ant_comb_scan(struct ath_hal *ah, struct ath_rx_status *rs,
 	int curr_main_set, curr_bias;
 	int main_rssi = rs->rs_rssi_ctl[0];
 	int alt_rssi = rs->rs_rssi_ctl[1];
-	int rx_ant_conf, main_ant_conf;
+	int rx_ant_conf, main_ant_conf, alt_ant_conf;
 	HAL_BOOL short_scan = AH_FALSE;
+
+	rx_ant_conf = (rs->rs_rssi_ctl[2] >> 4) & ATH_ANT_RX_MASK;
+	main_ant_conf = (rs->rs_rssi_ctl[2] >> 2) & ATH_ANT_RX_MASK;
+	alt_ant_conf = (rs->rs_rssi_ctl[2] >> 0) & ATH_ANT_RX_MASK;
+
+#if 0
+	HALDEBUG(ah, HAL_DEBUG_DIVERSITY, "%s: RSSI %d/%d, conf %x/%x, rxconf %x, LNA: %d; ANT: %d; FastDiv: %d\n",
+	    __func__, main_rssi, alt_rssi, main_ant_conf,alt_ant_conf, rx_ant_conf,
+	    !!(rs->rs_rssi_ctl[2] & 0x80), !!(rs->rs_rssi_ctl[2] & 0x40), !!(rs->rs_rssi_ext[2] & 0x40));
+#endif
 
 	if (! ar9285_check_div_comb(ah))
 		return;
@@ -377,18 +387,13 @@ ar9285_ant_comb_scan(struct ath_hal *ah, struct ath_rx_status *rs,
 	if (AH5212(ah)->ah_diversity == AH_FALSE)
 		return;
 
-	rx_ant_conf = (rs->rs_rssi_ctl[2] >> ATH_ANT_RX_CURRENT_SHIFT) &
-		       ATH_ANT_RX_MASK;
-	main_ant_conf = (rs->rs_rssi_ctl[2] >> ATH_ANT_RX_MAIN_SHIFT) &
-			 ATH_ANT_RX_MASK;
-
 #if 0
 	HALDEBUG(ah, HAL_DEBUG_DIVERSITY, "%s: main: %d, alt: %d, rx_ant_conf: %x, main_ant_conf: %x\n",
 	    __func__, main_rssi, alt_rssi, rx_ant_conf, main_ant_conf);
 #endif
 
 	/* Record packet only when alt_rssi is positive */
-	if (alt_rssi > 0) {
+	if (main_rssi > 0 && alt_rssi > 0) {
 		antcomb->total_pkt_count++;
 		antcomb->main_total_rssi += main_rssi;
 		antcomb->alt_total_rssi  += alt_rssi;
@@ -613,13 +618,13 @@ div_comb_done:
 	HALDEBUG(ah, HAL_DEBUG_DIVERSITY, "%s: alt_recv_cnt=%d\n",
 	   __func__, antcomb->alt_recv_cnt);
 
-	if (curr_alt_set != div_ant_conf.alt_lna_conf)
+//	if (curr_alt_set != div_ant_conf.alt_lna_conf)
 		HALDEBUG(ah, HAL_DEBUG_DIVERSITY, "%s: lna_conf: %x -> %x\n",
 		    __func__, curr_alt_set, div_ant_conf.alt_lna_conf);
-	if (curr_main_set != div_ant_conf.main_lna_conf)
+//	if (curr_main_set != div_ant_conf.main_lna_conf)
 		HALDEBUG(ah, HAL_DEBUG_DIVERSITY, "%s: main_lna_conf: %x -> %x\n",
 		    __func__, curr_main_set, div_ant_conf.main_lna_conf);
-	if (curr_bias != div_ant_conf.fast_div_bias)
+//	if (curr_bias != div_ant_conf.fast_div_bias)
 		HALDEBUG(ah, HAL_DEBUG_DIVERSITY, "%s: fast_div_bias: %x -> %x\n",
 		    __func__, curr_bias, div_ant_conf.fast_div_bias);
 
