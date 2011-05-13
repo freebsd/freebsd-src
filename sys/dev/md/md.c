@@ -89,6 +89,8 @@
 #include <vm/swap_pager.h>
 #include <vm/uma.h>
 
+#include <machine/vmparam.h>
+
 #define MD_MODVER 1
 
 #define MD_SHUTDOWN	0x10000		/* Tell worker thread to terminate. */

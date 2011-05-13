@@ -223,4 +223,6 @@
 #define	UMA_MD_SMALL_ALLOC
 extern vm_offset_t vm_max_kernel_address;
 
+#define	ZERO_REGION_SIZE	(64 * 1024)	/* 64KB */
+
 #endif /* !_MACHINE_VMPARAM_H_ */

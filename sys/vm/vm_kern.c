@@ -533,25 +533,22 @@ kmem_free_wakeup(map, addr, size)
 static void
 kmem_init_zero_region(void)
 {
-	vm_offset_t addr;
+	vm_offset_t addr, i;
 	vm_page_t m;
-	unsigned int i;
 	int error;
 
-	/* Allocate virtual address space. */
+	/*
+	 * Map a single physical page of zeros to a larger virtual range.
+	 * This requires less looping in places that want large amounts of
+	 * zeros, while not using much more physical resources.
+	 */
 	addr = kmem_alloc_nofault(kernel_map, ZERO_REGION_SIZE);
-
-	/* Allocate a page and zero it. */
 	m = vm_page_alloc(NULL, OFF_TO_IDX(addr - VM_MIN_KERNEL_ADDRESS),
 	    VM_ALLOC_NOOBJ | VM_ALLOC_WIRED | VM_ALLOC_ZERO);
 	if ((m->flags & PG_ZERO) == 0)
 		pmap_zero_page(m);
-
-	/* Map the address space to the page. */
 	for (i = 0; i < ZERO_REGION_SIZE; i += PAGE_SIZE)
 		pmap_qenter(addr + i, &m, 1);
-
-	/* Protect it r/o. */
 	error = vm_map_protect(kernel_map, addr, addr + ZERO_REGION_SIZE,
 	    VM_PROT_READ, TRUE);
 	KASSERT(error == 0, ("error=%d", error));

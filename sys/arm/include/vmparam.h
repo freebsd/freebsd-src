@@ -150,4 +150,7 @@
 #ifdef ARM_USE_SMALL_ALLOC
 #define UMA_MD_SMALL_ALLOC
 #endif /* ARM_USE_SMALL_ALLOC */
+
+#define	ZERO_REGION_SIZE	(64 * 1024)	/* 64KB */
+
 #endif	/* _MACHINE_VMPARAM_H_ */
