@@ -797,11 +797,7 @@ cpuset_init(void *arg)
 {
 	cpuset_t mask;
 
-#ifdef SMP
 	mask = all_cpus;
-#else
-	CPU_SETOF(0, &mask);
-#endif
 	if (cpuset_modify(cpuset_zero, &mask))
 		panic("Can't set initial cpuset mask.\n");
 	cpuset_zero->cs_flags |= CPU_SET_RDONLY;
