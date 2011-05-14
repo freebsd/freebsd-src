@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 1999, 2000 Matthew R. Green
  * Copyright (c) 2001 - 2003 by Thomas Moestl <tmm@FreeBSD.org>
- * Copyright (c) 2005, 2007, 2008 by Marius Strobl <marius@FreeBSD.org>
+ * Copyright (c) 2005 - 2011 by Marius Strobl <marius@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -35,8 +35,8 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * Driver for `Schizo' Fireplane/Safari to PCI 2.1 and `Tomatillo' JBus to
- * PCI 2.2 bridges
+ * Driver for `Schizo' Fireplane/Safari to PCI 2.1, `Tomatillo' JBus to
+ * PCI 2.2 and `XMITS' Fireplane/Safari to PCI-X bridges
  */
 
 #include "opt_ofw_pci.h"
@@ -81,8 +81,10 @@ __FBSDID("$FreeBSD$");
 static const struct schizo_desc *schizo_get_desc(device_t);
 static void schizo_set_intr(struct schizo_softc *, u_int, u_int,
     driver_filter_t);
-static driver_filter_t schizo_dma_sync_stub;
-static driver_filter_t ichip_dma_sync_stub;
+static void schizo_dmamap_sync(bus_dma_tag_t dt, bus_dmamap_t map,
+    bus_dmasync_op_t op);
+static void ichip_dmamap_sync(bus_dma_tag_t dt, bus_dmamap_t map,
+    bus_dmasync_op_t op);
 static void schizo_intr_enable(void *);
 static void schizo_intr_disable(void *);
 static void schizo_intr_assign(void *);
@@ -110,18 +112,17 @@ static device_probe_t schizo_probe;
 static device_attach_t schizo_attach;
 static bus_read_ivar_t schizo_read_ivar;
 static bus_setup_intr_t schizo_setup_intr;
-static bus_teardown_intr_t schizo_teardown_intr;
 static bus_alloc_resource_t schizo_alloc_resource;
 static bus_activate_resource_t schizo_activate_resource;
 static bus_deactivate_resource_t schizo_deactivate_resource;
 static bus_release_resource_t schizo_release_resource;
-static bus_describe_intr_t schizo_describe_intr;
 static bus_get_dma_tag_t schizo_get_dma_tag;
 static pcib_maxslots_t schizo_maxslots;
 static pcib_read_config_t schizo_read_config;
 static pcib_write_config_t schizo_write_config;
 static pcib_route_interrupt_t schizo_route_interrupt;
 static ofw_bus_get_node_t schizo_get_node;
+static ofw_pci_setup_device_t schizo_setup_device;
 
 static device_method_t schizo_methods[] = {
 	/* Device interface */
@@ -135,12 +136,11 @@ static device_method_t schizo_methods[] = {
 	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	DEVMETHOD(bus_read_ivar,	schizo_read_ivar),
 	DEVMETHOD(bus_setup_intr,	schizo_setup_intr),
-	DEVMETHOD(bus_teardown_intr,	schizo_teardown_intr),
+	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 	DEVMETHOD(bus_alloc_resource,	schizo_alloc_resource),
 	DEVMETHOD(bus_activate_resource,	schizo_activate_resource),
 	DEVMETHOD(bus_deactivate_resource,	schizo_deactivate_resource),
 	DEVMETHOD(bus_release_resource,	schizo_release_resource),
-	DEVMETHOD(bus_describe_intr,	schizo_describe_intr),
 	DEVMETHOD(bus_get_dma_tag,	schizo_get_dma_tag),
 
 	/* pcib interface */
@@ -151,6 +151,9 @@ static device_method_t schizo_methods[] = {
 
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_node,	schizo_get_node),
+
+	/* ofw_pci interface */ 	 
+	DEVMETHOD(ofw_pci_setup_device,	schizo_setup_device),
 
 	KOBJMETHOD_END
 };
@@ -177,24 +180,26 @@ struct schizo_icarg {
 	bus_addr_t		sica_clr;
 };
 
-struct schizo_dma_sync {
-	struct schizo_softc	*sds_sc;
-	driver_filter_t		*sds_handler;
-	void			*sds_arg;
-	void			*sds_cookie;
-	uint64_t		sds_syncval;
-	device_t		sds_ppb;	/* farest PCI-PCI bridge */
-	uint8_t			sds_bus;	/* bus of farest PCI dev. */
-	uint8_t			sds_slot;	/* slot of farest PCI dev. */
-	uint8_t			sds_func;	/* func. of farest PCI dev. */
-};
-
 #define	SCHIZO_PERF_CNT_QLTY	100
 
+#define	SCHIZO_SPC_BARRIER(spc, sc, offs, len, flags)			\
+	bus_barrier((sc)->sc_mem_res[(spc)], (offs), (len), (flags))
 #define	SCHIZO_SPC_READ_8(spc, sc, offs)				\
 	bus_read_8((sc)->sc_mem_res[(spc)], (offs))
 #define	SCHIZO_SPC_WRITE_8(spc, sc, offs, v)				\
 	bus_write_8((sc)->sc_mem_res[(spc)], (offs), (v))
+
+#ifndef SCHIZO_DEBUG
+#define	SCHIZO_SPC_SET(spc, sc, offs, reg, v)				\
+	SCHIZO_SPC_WRITE_8((spc), (sc), (offs), (v))
+#else
+#define	SCHIZO_SPC_SET(spc, sc, offs, reg, v) do {			\
+	device_printf((sc)->sc_dev, reg " 0x%016llx -> 0x%016llx\n",	\
+	    (unsigned long long)SCHIZO_SPC_READ_8((spc), (sc), (offs)),	\
+	    (unsigned long long)(v));					\
+	SCHIZO_SPC_WRITE_8((spc), (sc), (offs), (v));			\
+	} while (0)
+#endif
 
 #define	SCHIZO_PCI_READ_8(sc, offs)					\
 	SCHIZO_SPC_READ_8(STX_PCI, (sc), (offs))
@@ -213,6 +218,11 @@ struct schizo_dma_sync {
 #define	SCHIZO_ICON_WRITE_8(sc, offs, v)				\
 	SCHIZO_SPC_WRITE_8(STX_ICON, (sc), (offs), (v))
 
+#define	SCHIZO_PCI_SET(sc, offs, v)					\
+	SCHIZO_SPC_SET(STX_PCI, (sc), (offs), # offs, (v))
+#define	SCHIZO_CTRL_SET(sc, offs, v)					\
+	SCHIZO_SPC_SET(STX_CTRL, (sc), (offs), # offs, (v))
+
 struct schizo_desc {
 	const char	*sd_string;
 	int		sd_mode;
@@ -221,6 +231,9 @@ struct schizo_desc {
 
 static const struct schizo_desc const schizo_compats[] = {
 	{ "pci108e,8001",	SCHIZO_MODE_SCZ,	"Schizo" },
+#if 0
+	{ "pci108e,8002",	SCHIZO_MODE_XMS,	"XMITS" },
+#endif
 	{ "pci108e,a801",	SCHIZO_MODE_TOM,	"Tomatillo" },
 	{ NULL,			0,			NULL }
 };
@@ -340,65 +353,70 @@ schizo_attach(device_t dev)
 	if (OF_getprop(node, "version#", &sc->sc_ver, sizeof(sc->sc_ver)) ==
 	    -1)
 		panic("%s: could not determine version", __func__);
+	if (mode == SCHIZO_MODE_XMS && OF_getprop(node, "module-revision#",
+	    &sc->sc_mrev, sizeof(sc->sc_mrev)) == -1)
+		panic("%s: could not determine module-revision", __func__);
 	if (OF_getprop(node, "clock-frequency", &prop, sizeof(prop)) == -1)
 		prop = 33000000;
 
-	device_printf(dev, "%s, version %d, IGN %#x, bus %c, %dMHz\n",
-	    desc->sd_name, sc->sc_ver, sc->sc_ign, 'A' + sc->sc_half,
-	    prop / 1000 / 1000);
+	if (mode == SCHIZO_MODE_XMS && (SCHIZO_PCI_READ_8(sc, STX_PCI_CTRL) &
+	    XMS_PCI_CTRL_X_MODE) != 0) {
+		if (sc->sc_mrev < 1)
+			panic("PCI-X mode unsupported");
+		sc->sc_flags |= SCHIZO_FLAGS_XMODE;
+	}
+
+	device_printf(dev, "%s, version %d, ", desc->sd_name, sc->sc_ver);
+	if (mode == SCHIZO_MODE_XMS)
+		printf("module-revision %d, ", sc->sc_mrev);
+	printf("IGN %#x, bus %c, PCI%s mode, %dMHz\n", sc->sc_ign,
+	    'A' + sc->sc_half, (sc->sc_flags & SCHIZO_FLAGS_XMODE) != 0 ?
+	    "-X" : "", prop / 1000 / 1000);
 
 	/* Set up the PCI interrupt retry timer. */
-#ifdef SCHIZO_DEBUG
-	device_printf(dev, "PCI IRT 0x%016llx\n", (unsigned long long)
-	    SCHIZO_PCI_READ_8(sc, STX_PCI_INTR_RETRY_TIM));
-#endif
-	SCHIZO_PCI_WRITE_8(sc, STX_PCI_INTR_RETRY_TIM, 5);
+	SCHIZO_PCI_SET(sc, STX_PCI_INTR_RETRY_TIM, 5);
 
 	/* Set up the PCI control register. */
 	reg = SCHIZO_PCI_READ_8(sc, STX_PCI_CTRL);
+	reg &= ~(TOM_PCI_CTRL_DTO_IEN | STX_PCI_CTRL_ARB_PARK |
+	    STX_PCI_CTRL_ARB_MASK);
 	reg |= STX_PCI_CTRL_MMU_IEN | STX_PCI_CTRL_SBH_IEN |
-	    STX_PCI_CTRL_ERR_IEN | STX_PCI_CTRL_ARB_MASK;
-	reg &= ~(TOM_PCI_CTRL_DTO_IEN | STX_PCI_CTRL_ARB_PARK);
+	    STX_PCI_CTRL_ERR_IEN;
 	if (OF_getproplen(node, "no-bus-parking") < 0)
 		reg |= STX_PCI_CTRL_ARB_PARK;
+	if (mode == SCHIZO_MODE_XMS && sc->sc_mrev == 1)
+		reg |= XMS_PCI_CTRL_XMITS10_ARB_MASK;
+	else
+		reg |= STX_PCI_CTRL_ARB_MASK;
 	if (mode == SCHIZO_MODE_TOM) {
 		reg |= TOM_PCI_CTRL_PRM | TOM_PCI_CTRL_PRO | TOM_PCI_CTRL_PRL;
 		if (sc->sc_ver <= 1)	/* revision <= 2.0 */
 			reg |= TOM_PCI_CTRL_DTO_IEN;
 		else
 			reg |= STX_PCI_CTRL_PTO;
+	} else if (mode == SCHIZO_MODE_XMS) {
+		SCHIZO_PCI_SET(sc, XMS_PCI_PARITY_DETECT, 0x3fff);
+		SCHIZO_PCI_SET(sc, XMS_PCI_UPPER_RETRY_COUNTER, 0x3e8);
+		reg |= XMS_PCI_CTRL_X_ERRINT_EN;
 	}
-#ifdef SCHIZO_DEBUG
-	device_printf(dev, "PCI CSR 0x%016llx -> 0x%016llx\n",
-	    (unsigned long long)SCHIZO_PCI_READ_8(sc, STX_PCI_CTRL),
-	    (unsigned long long)reg);
-#endif
-	SCHIZO_PCI_WRITE_8(sc, STX_PCI_CTRL, reg);
+	SCHIZO_PCI_SET(sc, STX_PCI_CTRL, reg);
 
 	/* Set up the PCI diagnostic register. */
 	reg = SCHIZO_PCI_READ_8(sc, STX_PCI_DIAG);
 	reg &= ~(SCZ_PCI_DIAG_RTRYARB_DIS | STX_PCI_DIAG_RETRY_DIS |
 	    STX_PCI_DIAG_INTRSYNC_DIS);
-#ifdef SCHIZO_DEBUG
-	device_printf(dev, "PCI DR 0x%016llx -> 0x%016llx\n",
-	    (unsigned long long)SCHIZO_PCI_READ_8(sc, STX_PCI_DIAG),
-	    (unsigned long long)reg);
-#endif
-	SCHIZO_PCI_WRITE_8(sc, STX_PCI_DIAG, reg);
+	SCHIZO_PCI_SET(sc, STX_PCI_DIAG, reg);
 
 	/*
 	 * Enable DMA write parity error interrupts of version >= 7 (i.e.
-	 * revision >= 2.5) Schizo.
+	 * revision >= 2.5) Schizo and XMITS (enabling it on XMITS < 3.0 has
+	 * no effect though).
 	 */
-	if (mode == SCHIZO_MODE_SCZ && sc->sc_ver >= 7) {
+	if ((mode == SCHIZO_MODE_SCZ && sc->sc_ver >= 7) ||
+	    mode == SCHIZO_MODE_XMS) {
 		reg = SCHIZO_PCI_READ_8(sc, SX_PCI_CFG_ICD);
 		reg |= SX_PCI_CFG_ICD_DMAW_PERR_IEN;
-#ifdef SCHIZO_DEBUG
-		device_printf(dev, "PCI CFG/ICD 0x%016llx -> 0x%016llx\n",
-		(unsigned long long)SCHIZO_PCI_READ_8(sc, SX_PCI_CFG_ICD),
-		(unsigned long long)reg);
-#endif
-		SCHIZO_PCI_WRITE_8(sc, SX_PCI_CFG_ICD, reg);
+		SCHIZO_PCI_SET(sc, SX_PCI_CFG_ICD, reg);
 	}
 
 	/*
@@ -406,7 +424,7 @@ schizo_attach(device_t dev)
 	 * Jalapeno bug).
 	 */
 	if (mode == SCHIZO_MODE_TOM)
-		SCHIZO_PCI_WRITE_8(sc, TOM_PCI_IOC_CSR, TOM_PCI_IOC_PW |
+		SCHIZO_PCI_SET(sc, TOM_PCI_IOC_CSR, TOM_PCI_IOC_PW |
 		    (1 << TOM_PCI_IOC_PREF_OFF_SHIFT) | TOM_PCI_IOC_CPRM |
 		    TOM_PCI_IOC_CPRO | TOM_PCI_IOC_CPRL);
 
@@ -457,7 +475,7 @@ schizo_attach(device_t dev)
 	 * "pair" of Tomatillos, too.
 	 */
 	if (sc->sc_half == 0) {
-		SCHIZO_CTRL_WRITE_8(sc, STX_CTRL_PERF,
+		SCHIZO_CTRL_SET(sc, STX_CTRL_PERF,
 		    (STX_CTRL_PERF_DIS << STX_CTRL_PERF_CNT1_SHIFT) |
 		    (STX_CTRL_PERF_BUSCYC << STX_CTRL_PERF_CNT0_SHIFT));
 		tc = malloc(sizeof(*tc), M_DEVBUF, M_NOWAIT | M_ZERO);
@@ -486,12 +504,15 @@ schizo_attach(device_t dev)
 	 * buffer, in Schizo version < 5 (i.e. revision < 2.3) it's
 	 * affected by several errata and basically unusable though.
 	 */
-	sc->sc_is.is_flags = IOMMU_PRESERVE_PROM;
-	sc->sc_is.is_pmaxaddr = IOMMU_MAXADDR(STX_IOMMU_BITS);
-	sc->sc_is.is_sb[0] = sc->sc_is.is_sb[1] = 0;
+	memcpy(&sc->sc_dma_methods, &iommu_dma_methods,
+	    sizeof(sc->sc_dma_methods));
+	sc->sc_is.sis_sc = sc;
+	sc->sc_is.sis_is.is_flags = IOMMU_PRESERVE_PROM;
+	sc->sc_is.sis_is.is_pmaxaddr = IOMMU_MAXADDR(STX_IOMMU_BITS);
+	sc->sc_is.sis_is.is_sb[0] = sc->sc_is.sis_is.is_sb[1] = 0;
 	if (OF_getproplen(node, "no-streaming-cache") < 0 &&
 	    !(sc->sc_mode == SCHIZO_MODE_SCZ && sc->sc_ver < 5))
-		sc->sc_is.is_sb[0] = STX_PCI_STRBUF;
+		sc->sc_is.sis_is.is_sb[0] = STX_PCI_STRBUF;
 
 #define	TSBCASE(x)							\
 	case (IOTSB_BASESZ << (x)) << (IO_PAGE_SHIFT - IOTTE_SHIFT):	\
@@ -564,12 +585,13 @@ schizo_attach(device_t dev)
 	sc->sc_pci_iot = schizo_alloc_bus_tag(sc, PCI_IO_BUS_SPACE);
 	sc->sc_pci_cfgt = schizo_alloc_bus_tag(sc, PCI_CONFIG_BUS_SPACE);
 	if (bus_dma_tag_create(bus_get_dma_tag(dev), 8, 0,
-	    sc->sc_is.is_pmaxaddr, ~0, NULL, NULL, sc->sc_is.is_pmaxaddr,
-	    0xff, 0xffffffff, 0, NULL, NULL, &sc->sc_pci_dmat) != 0)
+	    sc->sc_is.sis_is.is_pmaxaddr, ~0, NULL, NULL,
+	    sc->sc_is.sis_is.is_pmaxaddr, 0xff, 0xffffffff, 0, NULL, NULL,
+	    &sc->sc_pci_dmat) != 0)
 		panic("%s: bus_dma_tag_create failed", __func__);
 	/* Customize the tag. */
 	sc->sc_pci_dmat->dt_cookie = &sc->sc_is;
-	sc->sc_pci_dmat->dt_mt = &iommu_dma_methods;
+	sc->sc_pci_dmat->dt_mt = &sc->sc_dma_methods;
 
 	/*
 	 * Get the bus range from the firmware.
@@ -591,10 +613,8 @@ schizo_attach(device_t dev)
 	PCIB_WRITE_CONFIG(dev, sc->sc_pci_secbus, STX_CS_DEVICE, STX_CS_FUNC,
 	    PCIR_STATUS, PCIB_READ_CONFIG(dev, sc->sc_pci_secbus,
 	    STX_CS_DEVICE, STX_CS_FUNC, PCIR_STATUS, 2), 2);
-	SCHIZO_PCI_WRITE_8(sc, STX_PCI_CTRL,
-	    SCHIZO_PCI_READ_8(sc, STX_PCI_CTRL));
-	SCHIZO_PCI_WRITE_8(sc, STX_PCI_AFSR,
-	    SCHIZO_PCI_READ_8(sc, STX_PCI_AFSR));
+	SCHIZO_PCI_SET(sc, STX_PCI_CTRL, SCHIZO_PCI_READ_8(sc, STX_PCI_CTRL));
+	SCHIZO_PCI_SET(sc, STX_PCI_AFSR, SCHIZO_PCI_READ_8(sc, STX_PCI_AFSR));
 
 	/*
 	 * Establish handlers for interesting interrupts...
@@ -671,9 +691,10 @@ schizo_attach(device_t dev)
 	if ((sc->sc_mode == SCHIZO_MODE_SCZ && sc->sc_ver >= 5) ||
 	    sc->sc_mode == SCHIZO_MODE_TOM ||
 	    sc->sc_mode == SCHIZO_MODE_XMS) {
-		sc->sc_flags |= SCHIZO_FLAGS_CDMA;
 		if (sc->sc_mode == SCHIZO_MODE_SCZ) {
-			sc->sc_cdma_state = SCHIZO_CDMA_STATE_DONE;
+			sc->sc_dma_methods.dm_dmamap_sync =
+			    schizo_dmamap_sync;
+			sc->sc_cdma_state = SCHIZO_CDMA_STATE_IDLE;
 			/*
 			 * Some firmware versions include the CDMA interrupt
 			 * at RID 4 but most don't.  With the latter we add
@@ -700,6 +721,14 @@ schizo_attach(device_t dev)
 				   &sc->sc_cdma_clr);
 				schizo_set_intr(sc, 5, i, schizo_cdma);
 			}
+		} else {
+			if (sc->sc_mode == SCHIZO_MODE_XMS)
+				mtx_init(&sc->sc_sync_mtx, "pcib_sync_mtx",
+				    NULL, MTX_SPIN);
+			sc->sc_sync_val = 1ULL << (STX_PCIERR_A_INO +
+			    sc->sc_half);
+			sc->sc_dma_methods.dm_dmamap_sync =
+			    ichip_dmamap_sync;
 		}
 		if (sc->sc_mode == SCHIZO_MODE_TOM && sc->sc_ver <= 4)
 			sc->sc_flags |= SCHIZO_FLAGS_BSWAR;
@@ -820,7 +849,7 @@ static int
 schizo_pci_bus(void *arg)
 {
 	struct schizo_softc *sc = arg;
-	uint64_t afar, afsr, csr, iommu;
+	uint64_t afar, afsr, csr, iommu, xstat;
 	uint32_t status;
 	u_int fatal;
 
@@ -832,6 +861,10 @@ schizo_pci_bus(void *arg)
 	afsr = SCHIZO_PCI_READ_8(sc, STX_PCI_AFSR);
 	csr = SCHIZO_PCI_READ_8(sc, STX_PCI_CTRL);
 	iommu = SCHIZO_PCI_READ_8(sc, STX_PCI_IOMMU);
+	if ((sc->sc_flags & SCHIZO_FLAGS_XMODE) != 0)
+		xstat = SCHIZO_PCI_READ_8(sc, XMS_PCI_X_ERR_STAT);
+	else
+		xstat = 0;
 	status = PCIB_READ_CONFIG(sc->sc_dev, sc->sc_pci_secbus,
 	    STX_CS_DEVICE, STX_CS_FUNC, PCIR_STATUS, 2);
 
@@ -858,14 +891,19 @@ schizo_pci_bus(void *arg)
 	    STX_PCI_AFSR_P_RTRY | STX_PCI_AFSR_P_PERR | STX_PCI_AFSR_P_TTO |
 	    STX_PCI_AFSR_P_UNUS)) != 0)
 		fatal = 1;
+	if (xstat & (XMS_PCI_X_ERR_STAT_P_SC_DSCRD |
+	    XMS_PCI_X_ERR_STAT_P_SC_TTO | XMS_PCI_X_ERR_STAT_P_SDSTAT |
+	    XMS_PCI_X_ERR_STAT_P_SMMU | XMS_PCI_X_ERR_STAT_P_CDSTAT |
+	    XMS_PCI_X_ERR_STAT_P_CMMU | XMS_PCI_X_ERR_STAT_PERR_RCV))
+		fatal = 1;
 	if (fatal == 0)
 		sc->sc_stats_pci_non_fatal++;
 
 	device_printf(sc->sc_dev, "PCI bus %c error AFAR %#llx AFSR %#llx "
-	    "PCI CSR %#llx IOMMU %#llx STATUS %#llx\n", 'A' + sc->sc_half,
-	    (unsigned long long)afar, (unsigned long long)afsr,
-	    (unsigned long long)csr, (unsigned long long)iommu,
-	    (unsigned long long)status);
+	    "PCI CSR %#llx IOMMU %#llx PCI-X %#llx STATUS %#x\n",
+	    'A' + sc->sc_half, (unsigned long long)afar,
+	    (unsigned long long)afsr, (unsigned long long)csr,
+	    (unsigned long long)iommu, (unsigned long long)xstat, status);
 
 	/* Clear the error bits that we caught. */
 	PCIB_WRITE_CONFIG(sc->sc_dev, sc->sc_pci_secbus, STX_CS_DEVICE,
@@ -873,6 +911,8 @@ schizo_pci_bus(void *arg)
 	SCHIZO_PCI_WRITE_8(sc, STX_PCI_CTRL, csr);
 	SCHIZO_PCI_WRITE_8(sc, STX_PCI_AFSR, afsr);
 	SCHIZO_PCI_WRITE_8(sc, STX_PCI_IOMMU, iommu);
+	if ((sc->sc_flags & SCHIZO_FLAGS_XMODE) != 0)
+		SCHIZO_PCI_WRITE_8(sc, XMS_PCI_X_ERR_STAT, xstat);
 
 	mtx_unlock_spin(sc->sc_mtx);
 
@@ -945,7 +985,7 @@ schizo_cdma(void *arg)
 {
 	struct schizo_softc *sc = arg;
 
-	atomic_store_rel_32(&sc->sc_cdma_state, SCHIZO_CDMA_STATE_DONE);
+	atomic_store_rel_32(&sc->sc_cdma_state, SCHIZO_CDMA_STATE_RECEIVED);
 	return (FILTER_HANDLED);
 }
 
@@ -954,17 +994,18 @@ schizo_iommu_init(struct schizo_softc *sc, int tsbsize, uint32_t dvmabase)
 {
 
 	/* Punch in our copies. */
-	sc->sc_is.is_bustag = rman_get_bustag(sc->sc_mem_res[STX_PCI]);
-	sc->sc_is.is_bushandle = rman_get_bushandle(sc->sc_mem_res[STX_PCI]);
-	sc->sc_is.is_iommu = STX_PCI_IOMMU;
-	sc->sc_is.is_dtag = STX_PCI_IOMMU_TLB_TAG_DIAG;
-	sc->sc_is.is_ddram = STX_PCI_IOMMU_TLB_DATA_DIAG;
-	sc->sc_is.is_dqueue = STX_PCI_IOMMU_QUEUE_DIAG;
-	sc->sc_is.is_dva = STX_PCI_IOMMU_SVADIAG;
-	sc->sc_is.is_dtcmp = STX_PCI_IOMMU_TLB_CMP_DIAG;
+	sc->sc_is.sis_is.is_bustag = rman_get_bustag(sc->sc_mem_res[STX_PCI]);
+	sc->sc_is.sis_is.is_bushandle =
+	    rman_get_bushandle(sc->sc_mem_res[STX_PCI]);
+	sc->sc_is.sis_is.is_iommu = STX_PCI_IOMMU;
+	sc->sc_is.sis_is.is_dtag = STX_PCI_IOMMU_TLB_TAG_DIAG;
+	sc->sc_is.sis_is.is_ddram = STX_PCI_IOMMU_TLB_DATA_DIAG;
+	sc->sc_is.sis_is.is_dqueue = STX_PCI_IOMMU_QUEUE_DIAG;
+	sc->sc_is.sis_is.is_dva = STX_PCI_IOMMU_SVADIAG;
+	sc->sc_is.sis_is.is_dtcmp = STX_PCI_IOMMU_TLB_CMP_DIAG;
 
-	iommu_init(device_get_nameunit(sc->sc_dev), &sc->sc_is, tsbsize,
-	    dvmabase, 0);
+	iommu_init(device_get_nameunit(sc->sc_dev),
+	    (struct iommu_state *)&sc->sc_is, tsbsize, dvmabase, 0);
 }
 
 static int
@@ -1103,67 +1144,100 @@ schizo_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 	return (ENOENT);
 }
 
-static int
-schizo_dma_sync_stub(void *arg)
+static void
+schizo_dmamap_sync(bus_dma_tag_t dt, bus_dmamap_t map, bus_dmasync_op_t op)
 {
 	struct timeval cur, end;
-	struct schizo_dma_sync *sds = arg;
-	struct schizo_softc *sc = sds->sds_sc;
-	uint32_t state;
+	struct schizo_iommu_state *sis = dt->dt_cookie;
+	struct schizo_softc *sc = sis->sis_sc;
+	int res;
 
-	(void)PCIB_READ_CONFIG(sds->sds_ppb, sds->sds_bus, sds->sds_slot,
-	    sds->sds_func, PCIR_VENDOR, 2);
-	for (; atomic_cmpset_acq_32(&sc->sc_cdma_state,
-	    SCHIZO_CDMA_STATE_DONE, SCHIZO_CDMA_STATE_PENDING) == 0;)
-		;
-	SCHIZO_PCI_WRITE_8(sc, sc->sc_cdma_clr, INTCLR_RECEIVED);
-	microuptime(&cur);
-	end.tv_sec = 1;
-	end.tv_usec = 0;
-	timevaladd(&end, &cur);
-	for (; (state = atomic_load_32(&sc->sc_cdma_state)) !=
-	    SCHIZO_CDMA_STATE_DONE && timevalcmp(&cur, &end, <=);)
+	if ((map->dm_flags & DMF_STREAMED) != 0) {
+		iommu_dma_methods.dm_dmamap_sync(dt, map, op);
+		return;
+	}
+
+	if ((map->dm_flags & DMF_LOADED) == 0)
+		return;
+
+	if ((op & BUS_DMASYNC_POSTREAD) != 0) {
+		/*
+	 	 * Note that in order to allow this function to be called from
+		 * filters we would need to use a spin mutex for serialization
+		 * but given that these disable interrupts we have to emulate
+		 * one.
+		 */
+		for (; atomic_cmpset_acq_32(&sc->sc_cdma_state,
+		    SCHIZO_CDMA_STATE_IDLE, SCHIZO_CDMA_STATE_PENDING) == 0;)
+			;
+		SCHIZO_PCI_WRITE_8(sc, sc->sc_cdma_clr, INTCLR_RECEIVED);
 		microuptime(&cur);
-	if (state != SCHIZO_CDMA_STATE_DONE)
-		panic("%s: DMA does not sync", __func__);
-	return (sds->sds_handler(sds->sds_arg));
+		end.tv_sec = 1;
+		end.tv_usec = 0;
+		timevaladd(&end, &cur);
+		for (; (res = atomic_cmpset_rel_32(&sc->sc_cdma_state,
+		    SCHIZO_CDMA_STATE_RECEIVED, SCHIZO_CDMA_STATE_IDLE)) ==
+		    0 && timevalcmp(&cur, &end, <=);)
+			microuptime(&cur);
+		if (res == 0)
+			panic("%s: DMA does not sync", __func__);
+	}
+
+	if ((op & BUS_DMASYNC_PREWRITE) != 0)
+		membar(Sync);
 }
 
 #define	VIS_BLOCKSIZE	64
 
-static int
-ichip_dma_sync_stub(void *arg)
+static void
+ichip_dmamap_sync(bus_dma_tag_t dt, bus_dmamap_t map, bus_dmasync_op_t op)
 {
 	static u_char buf[VIS_BLOCKSIZE] __aligned(VIS_BLOCKSIZE);
 	struct timeval cur, end;
-	struct schizo_dma_sync *sds = arg;
-	struct schizo_softc *sc = sds->sds_sc;
+	struct schizo_iommu_state *sis = dt->dt_cookie;
+	struct schizo_softc *sc = sis->sis_sc;
 	register_t reg, s;
 
-	(void)PCIB_READ_CONFIG(sds->sds_ppb, sds->sds_bus, sds->sds_slot,
-	    sds->sds_func, PCIR_VENDOR, 2);
-	SCHIZO_PCI_WRITE_8(sc, TOMXMS_PCI_DMA_SYNC_PEND, sds->sds_syncval);
-	microuptime(&cur);
-	end.tv_sec = 1;
-	end.tv_usec = 0;
-	timevaladd(&end, &cur);
-	for (; ((reg = SCHIZO_PCI_READ_8(sc, TOMXMS_PCI_DMA_SYNC_PEND)) &
-	    sds->sds_syncval) != 0 && timevalcmp(&cur, &end, <=);)
-		microuptime(&cur);
-	if ((reg & sds->sds_syncval) != 0)
-		panic("%s: DMA does not sync", __func__);
-
-	if ((sc->sc_flags & SCHIZO_FLAGS_BSWAR) != 0) {
-		s = intr_disable();
-		reg = rd(fprs);
-		wr(fprs, reg | FPRS_FEF, 0);
-		__asm __volatile("stda %%f0, [%0] %1"
-		    : : "r" (buf), "n" (ASI_BLK_COMMIT_S));
-		membar(Sync);
-		wr(fprs, reg, 0);
-		intr_restore(s);
+	if ((map->dm_flags & DMF_STREAMED) != 0) {
+		iommu_dma_methods.dm_dmamap_sync(dt, map, op);
+		return;
 	}
-	return (sds->sds_handler(sds->sds_arg));
+
+	if ((map->dm_flags & DMF_LOADED) == 0)
+		return;
+
+	if ((op & BUS_DMASYNC_POSTREAD) != 0) {
+		if (sc->sc_mode == SCHIZO_MODE_XMS)
+			mtx_lock_spin(&sc->sc_sync_mtx);
+		SCHIZO_PCI_WRITE_8(sc, TOMXMS_PCI_DMA_SYNC_PEND,
+		    sc->sc_sync_val);
+		microuptime(&cur);
+		end.tv_sec = 1;
+		end.tv_usec = 0;
+		timevaladd(&end, &cur);
+		for (; ((reg = SCHIZO_PCI_READ_8(sc,
+		    TOMXMS_PCI_DMA_SYNC_PEND)) & sc->sc_sync_val) != 0 &&
+		    timevalcmp(&cur, &end, <=);)
+			microuptime(&cur);
+		if ((reg & sc->sc_sync_val) != 0)
+			panic("%s: DMA does not sync", __func__);
+		if (sc->sc_mode == SCHIZO_MODE_XMS)
+			mtx_unlock_spin(&sc->sc_sync_mtx);
+		else if ((sc->sc_flags & SCHIZO_FLAGS_BSWAR) != 0) {
+			s = intr_disable();
+			reg = rd(fprs);
+			wr(fprs, reg | FPRS_FEF, 0);
+			__asm __volatile("stda %%f0, [%0] %1"
+			    : : "r" (buf), "n" (ASI_BLK_COMMIT_S));
+			membar(Sync);
+			wr(fprs, reg, 0);
+			intr_restore(s);
+			return;
+		}
+	}
+
+	if ((op & BUS_DMASYNC_PREWRITE) != 0)
+		membar(Sync);
 }
 
 static void
@@ -1209,12 +1283,9 @@ schizo_setup_intr(device_t dev, device_t child, struct resource *ires,
     int flags, driver_filter_t *filt, driver_intr_t *intr, void *arg,
     void **cookiep)
 {
-	devclass_t pci_devclass;
-	device_t cdev, pdev, pcidev;
-	struct schizo_dma_sync *sds;
 	struct schizo_softc *sc;
 	u_long vec;
-	int error, found;
+	int error;
 
 	sc = device_get_softc(dev);
 	/*
@@ -1252,110 +1323,8 @@ schizo_setup_intr(device_t dev, device_t child, struct resource *ires,
 		    "invalid interrupt controller for vector 0x%lx\n", vec);
 		return (EINVAL);
 	}
-
-	/*
-	 * Install a a wrapper for CDMA flushing/syncing for devices
-	 * behind PCI-PCI bridges if possible.
-	 */
-	pcidev = NULL;
-	found = 0;
-	pci_devclass = devclass_find("pci");
-	for (cdev = child; cdev != dev; cdev = pdev) {
-		pdev = device_get_parent(cdev);
-		if (pcidev == NULL) {
-			if (device_get_devclass(pdev) != pci_devclass)
-				continue;
-			pcidev = cdev;
-			continue;
-		}
-		if (pci_get_class(cdev) == PCIC_BRIDGE &&
-		    pci_get_subclass(cdev) == PCIS_BRIDGE_PCI)
-			found = 1;
-	}
-	if ((sc->sc_flags & SCHIZO_FLAGS_CDMA) != 0) {
-		sds = malloc(sizeof(*sds), M_DEVBUF, M_NOWAIT | M_ZERO);
-		if (sds == NULL)
-			return (ENOMEM);
-		if (found != 0 && pcidev != NULL) {
-			sds->sds_sc = sc;
-			sds->sds_arg = arg;
-			sds->sds_ppb =
-			    device_get_parent(device_get_parent(pcidev));
-			sds->sds_bus = pci_get_bus(pcidev);
-			sds->sds_slot = pci_get_slot(pcidev);
-			sds->sds_func = pci_get_function(pcidev);
-			sds->sds_syncval = 1ULL << INTINO(vec);
-			if (bootverbose)
-				device_printf(dev, "installed DMA sync "
-				    "wrapper for device %d.%d on bus %d\n",
-				    sds->sds_slot, sds->sds_func,
-				    sds->sds_bus);
-
-#define	DMA_SYNC_STUB							\
-	(sc->sc_mode == SCHIZO_MODE_SCZ ? schizo_dma_sync_stub :	\
-	ichip_dma_sync_stub)
-
-			if (intr == NULL) {
-				sds->sds_handler = filt;
-				error = bus_generic_setup_intr(dev, child,
-				    ires, flags, DMA_SYNC_STUB, intr, sds,
-				    cookiep);
-			} else {
-				sds->sds_handler = (driver_filter_t *)intr;
-				error = bus_generic_setup_intr(dev, child,
-				    ires, flags, filt, (driver_intr_t *)
-				    DMA_SYNC_STUB, sds, cookiep);
-			}
-
-#undef DMA_SYNC_STUB
-
-		} else
-			error = bus_generic_setup_intr(dev, child, ires,
-			    flags, filt, intr, arg, cookiep);
-		if (error != 0) {
-			free(sds, M_DEVBUF);
-			return (error);
-		}
-		sds->sds_cookie = *cookiep;
-		*cookiep = sds;
-		return (error);
-	} else if (found != 0)
-		device_printf(dev, "WARNING: using devices behind PCI-PCI "
-		    "bridges may cause data corruption\n");
 	return (bus_generic_setup_intr(dev, child, ires, flags, filt, intr,
 	    arg, cookiep));
-}
-
-static int
-schizo_teardown_intr(device_t dev, device_t child, struct resource *vec,
-    void *cookie)
-{
-	struct schizo_dma_sync *sds;
-	struct schizo_softc *sc;
-	int error;
-
-	sc = device_get_softc(dev);
-	if ((sc->sc_flags & SCHIZO_FLAGS_CDMA) != 0) {
-		sds = cookie;
-		error = bus_generic_teardown_intr(dev, child, vec,
-		    sds->sds_cookie);
-		if (error == 0)
-			free(sds, M_DEVBUF);
-		return (error);
-	}
-	return (bus_generic_teardown_intr(dev, child, vec, cookie));
-}
-
-static int
-schizo_describe_intr(device_t dev, device_t child, struct resource *vec,
-    void *cookie, const char *descr)
-{
-	struct schizo_softc *sc;
-
-	sc = device_get_softc(dev);
-	if ((sc->sc_flags & SCHIZO_FLAGS_CDMA) != 0)
-		cookie = ((struct schizo_dma_sync *)cookie)->sds_cookie;
-	return (bus_generic_describe_intr(dev, child, vec, cookie, descr));
 }
 
 static struct resource *
@@ -1476,7 +1445,7 @@ schizo_release_resource(device_t bus, device_t child, int type, int rid,
 }
 
 static bus_dma_tag_t
-schizo_get_dma_tag(device_t bus, device_t child)
+schizo_get_dma_tag(device_t bus, device_t child __unused)
 {
 	struct schizo_softc *sc;
 
@@ -1485,13 +1454,49 @@ schizo_get_dma_tag(device_t bus, device_t child)
 }
 
 static phandle_t
-schizo_get_node(device_t bus, device_t dev)
+schizo_get_node(device_t bus, device_t child __unused)
 {
 	struct schizo_softc *sc;
 
 	sc = device_get_softc(bus);
 	/* We only have one child, the PCI bus, which needs our own node. */
 	return (sc->sc_node);
+}
+
+static void
+schizo_setup_device(device_t bus, device_t child)
+{
+	struct schizo_softc *sc;
+	uint64_t reg;
+	int capreg;
+
+	sc = device_get_softc(bus);
+	/*
+	 * Disable bus parking in order to work around a bus hang caused by
+	 * Casinni/Skyhawk combinations.
+	 */ 
+	if (OF_getproplen(ofw_bus_get_node(child), "pci-req-removal") >= 0)
+		SCHIZO_PCI_SET(sc, STX_PCI_CTRL, SCHIZO_PCI_READ_8(sc,
+		    STX_PCI_CTRL) & ~STX_PCI_CTRL_ARB_PARK);
+
+	if (sc->sc_mode == SCHIZO_MODE_XMS) {
+		/* XMITS NCPQ WAR: set outstanding split transactions to 1. */
+		if ((sc->sc_flags & SCHIZO_FLAGS_XMODE) != 0 &&
+		    (pci_read_config(child, PCIR_HDRTYPE, 1) &
+		    PCIM_HDRTYPE) != PCIM_HDRTYPE_BRIDGE &&
+		    pci_find_cap(child, PCIY_PCIX, &capreg) == 0)
+			pci_write_config(child, capreg + PCIXR_COMMAND,
+			    pci_read_config(child, capreg + PCIXR_COMMAND,
+			    2) & 0x7c, 2);
+		/* XMITS 3.x WAR: set BUGCNTL iff value is unexpected. */
+		if (sc->sc_mrev >= 4) {
+			reg = ((sc->sc_flags & SCHIZO_FLAGS_XMODE) != 0 ?
+			    0xa0UL : 0xffUL) << XMS_PCI_X_DIAG_BUGCNTL_SHIFT;
+			if ((SCHIZO_PCI_READ_8(sc, XMS_PCI_X_DIAG) &
+			    XMS_PCI_X_DIAG_BUGCNTL_MASK) != reg)
+				SCHIZO_PCI_SET(sc, XMS_PCI_X_DIAG, reg);
+		}
+	}
 }
 
 static bus_space_tag_t
