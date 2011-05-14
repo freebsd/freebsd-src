@@ -78,6 +78,8 @@ static STAILQ_HEAD(, pic) pics;
 
 #ifdef SMP
 static int assign_cpu;
+static int round_robin_interrupts = 1;
+TUNABLE_INT("round_robin_interrupts", &round_robin_interrupts);
 #endif
 
 static int	intr_assign_cpu(void *arg, u_char cpu);
@@ -458,6 +460,10 @@ intr_next_cpu(void)
 
 	/* Leave all interrupts on the BSP during boot. */
 	if (!assign_cpu)
+		return (cpu_apic_ids[0]);
+
+	/* All interrupts go to the BSP if not allowed to round robin */
+	if (!round_robin_interrupts)
 		return (cpu_apic_ids[0]);
 
 	mtx_lock_spin(&icu_lock);
