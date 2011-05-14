@@ -89,6 +89,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/smp.h>
 #include <machine/tick.h>
 #include <machine/tlb.h>
+#include <machine/tsb.h>
 #include <machine/tte.h>
 #include <machine/ver.h>
 
@@ -437,8 +438,12 @@ cpu_mp_bootstrap(struct pcpu *pc)
 	tick_clear(pc->pc_impl);
 	tick_stop(pc->pc_impl);
 
-	/* Lock the kernel TSB in the TLB. */
-	pmap_map_tsb();
+	/* Set the kernel context. */
+	pmap_set_kctx();
+
+	/* Lock the kernel TSB in the TLB if necessary. */
+	if (tsb_kernel_ldd_phys == 0)
+		pmap_map_tsb();
 
 	/*
 	 * Flush all non-locked TLB entries possibly left over by the
