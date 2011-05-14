@@ -336,7 +336,7 @@ fire_attach(device_t dev)
 	if (OF_getprop(node, "portid", &sc->sc_ign, sizeof(sc->sc_ign)) == -1)
 		panic("%s: could not determine IGN", __func__);
 	if (OF_getprop(node, "module-revision#", &prop, sizeof(prop)) == -1)
-		panic("%s: could not determine revision", __func__);
+		panic("%s: could not determine module-revision", __func__);
 
 	device_printf(dev, "%s, module-revision %d, IGN %#x\n",
 	    desc->fd_name, prop, sc->sc_ign);
@@ -1509,18 +1509,20 @@ fire_dmamap_sync(bus_dma_tag_t dt __unused, bus_dmamap_t map,
 	static u_char buf[VIS_BLOCKSIZE] __aligned(VIS_BLOCKSIZE);
 	register_t reg, s;
 
-	if ((map->dm_flags & DMF_LOADED) == 0 ||
-	    (op & ~BUS_DMASYNC_POSTWRITE) == 0)
+	if ((map->dm_flags & DMF_LOADED) == 0)
 		return;
 
-	s = intr_disable();
-	reg = rd(fprs);
-	wr(fprs, reg | FPRS_FEF, 0);
-	__asm __volatile("stda %%f0, [%0] %1"
-	    : : "r" (buf), "n" (ASI_BLK_COMMIT_S));
-	membar(Sync);
-	wr(fprs, reg, 0);
-	intr_restore(s);
+	if ((op & BUS_DMASYNC_POSTREAD) != 0) {
+		s = intr_disable();
+		reg = rd(fprs);
+		wr(fprs, reg | FPRS_FEF, 0);
+		__asm __volatile("stda %%f0, [%0] %1"
+		    : : "r" (buf), "n" (ASI_BLK_COMMIT_S));
+		membar(Sync);
+		wr(fprs, reg, 0);
+		intr_restore(s);
+	} else if ((op & BUS_DMASYNC_PREWRITE) != 0)
+		membar(Sync);
 }
 
 static void
@@ -2127,7 +2129,7 @@ fire_release_resource(device_t bus, device_t child, int type, int rid,
 }
 
 static bus_dma_tag_t
-fire_get_dma_tag(device_t bus, device_t child)
+fire_get_dma_tag(device_t bus, device_t child __unused)
 {
 	struct fire_softc *sc;
 
@@ -2136,7 +2138,7 @@ fire_get_dma_tag(device_t bus, device_t child)
 }
 
 static phandle_t
-fire_get_node(device_t bus, device_t dev)
+fire_get_node(device_t bus, device_t child __unused)
 {
 	struct fire_softc *sc;
 
