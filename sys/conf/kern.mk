@@ -25,11 +25,21 @@ CWARNFLAGS?=	-Wall -Wredundant-decls -Wnested-externs -Wstrict-prototypes \
 # operations inside the kernel itself.  These operations are exclusively
 # reserved for user applications.
 #
+# gcc:
+# Setting -mno-mmx implies -mno-3dnow
+# Setting -mno-sse implies -mno-sse2, -mno-sse3 and -mno-ssse3
+#
+# clang:
+# Setting -mno-mmx implies -mno-3dnow, -mno-3dnowa, -mno-sse, -mno-sse2,
+#                          -mno-sse3, -mno-ssse3, -mno-sse41 and -mno-sse42
+#
 .if ${MACHINE_CPUARCH} == "i386"
 .if ${CC:T:Mclang} != "clang"
-CFLAGS+=	-mno-align-long-strings -mpreferred-stack-boundary=2
+CFLAGS+=	-mno-align-long-strings -mpreferred-stack-boundary=2 -mno-sse
+.else
+CFLAGS+=	-mno-aes -mno-avx
 .endif
-CFLAGS+=	-mno-mmx -mno-3dnow -mno-sse -mno-sse2 -mno-sse3 -msoft-float
+CFLAGS+=	-mno-mmx -msoft-float
 INLINE_LIMIT?=	8000
 .endif
 
@@ -61,10 +71,23 @@ INLINE_LIMIT?=	15000
 # operations inside the kernel itself.  These operations are exclusively
 # reserved for user applications.
 #
+# gcc:
+# Setting -mno-mmx implies -mno-3dnow
+# Setting -mno-sse implies -mno-sse2, -mno-sse3, -mno-ssse3 and -mfpmath=387
+#
+# clang:
+# Setting -mno-mmx implies -mno-3dnow, -mno-3dnowa, -mno-sse, -mno-sse2,
+#                          -mno-sse3, -mno-ssse3, -mno-sse41 and -mno-sse42
+# (-mfpmath= is not supported)
+#
 .if ${MACHINE_CPUARCH} == "amd64"
-CFLAGS+=	-mcmodel=kernel -mno-red-zone \
-		-mfpmath=387 -mno-mmx -mno-3dnow -mno-sse -mno-sse2 -mno-sse3 \
-		-msoft-float -fno-asynchronous-unwind-tables
+.if ${CC:T:Mclang} != "clang"
+CFLAGS+=	-mno-sse
+.else
+CFLAGS+=	-mno-aes -mno-avx
+.endif
+CFLAGS+=	-mcmodel=kernel -mno-red-zone -mno-mmx -msoft-float \
+		-fno-asynchronous-unwind-tables
 INLINE_LIMIT?=	8000
 .endif
 

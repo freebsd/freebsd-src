@@ -1333,38 +1333,14 @@ get_default_if()
 #	Echo decimal number $arg (single digit) in hexadecimal format.
 hexdigit()
 {
-	if [ $1 -lt 10 ]; then
-		echo $1
-	else
-		case $1 in
-		10)	echo a ;;
-		11)	echo b ;;
-		12)	echo c ;;
-		13)	echo d ;;
-		14)	echo e ;;
-		15)	echo f ;;
-		esac
-	fi
+	printf '%x\n' "$1"
 }
 
 # hexprint arg
 #	Echo decimal number $arg (multiple digits) in hexadecimal format.
 hexprint()
 {
-	local val str dig
-	val=$1
-	str=''
-	dig=`hexdigit $((${val} & 15))`
-	str=${dig}${str}
-	val=$((${val} >> 4))
-
-	while [ ${val} -gt 0 ]; do
-		dig=`hexdigit $((${val} & 15))`
-		str=${dig}${str}
-		val=$((${val} >> 4))
-	done
-
-	echo ${str}
+	printf '%x\n' "$1"
 }
 
 is_wired_interface()

@@ -84,8 +84,10 @@ v14EepromGet(struct ath_hal *ah, int param, void *val)
 		return IS_VERS(>=, AR5416_EEP_MINOR_VER_19) ?
 		    pBase->txGainType : AR5416_EEP_TXGAIN_ORIG;
 	case AR_EEP_FSTCLK_5G:
-		return IS_VERS(>, AR5416_EEP_MINOR_VER_16) ?
-		    pBase->fastClk5g : AH_TRUE;
+		/* 5ghz fastclock is always enabled for Merlin minor <= 16 */
+		if (IS_VERS(<=, AR5416_EEP_MINOR_VER_16))
+			return HAL_OK;
+		return pBase->fastClk5g ? HAL_OK : HAL_EIO;
 	case AR_EEP_OL_PWRCTRL:
 		HALASSERT(val == AH_NULL);
 		return pBase->openLoopPwrCntl ?  HAL_OK : HAL_EIO;
@@ -148,7 +150,7 @@ v14EepromGet(struct ath_hal *ah, int param, void *val)
 #undef CHAN_B_IDX
 }
 
-static HAL_BOOL
+static HAL_STATUS
 v14EepromSet(struct ath_hal *ah, int param, int v)
 {
 	HAL_EEPROM_v14 *ee = AH_PRIVATE(ah)->ah_eeprom;
