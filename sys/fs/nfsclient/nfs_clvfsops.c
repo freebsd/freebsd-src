@@ -100,8 +100,9 @@ static void	nfs_decode_args(struct mount *mp, struct nfsmount *nmp,
 		    struct nfs_args *argp, const char *, struct ucred *,
 		    struct thread *);
 static int	mountnfs(struct nfs_args *, struct mount *,
-		    struct sockaddr *, char *, u_char *, u_char *, u_char *,
-		    struct vnode **, struct ucred *, struct thread *, int);
+		    struct sockaddr *, char *, u_char *, int, u_char *, int,
+		    u_char *, int, struct vnode **, struct ucred *,
+		    struct thread *, int);
 static void	nfs_getnlminfo(struct vnode *, uint8_t *, size_t *,
 		    struct sockaddr_storage *, int *, off_t *,
 		    struct timeval *);
@@ -315,7 +316,6 @@ nfs_statfs(struct mount *mp, struct statfs *sbp)
 	    if (gotfsinfo || (nmp->nm_flag & NFSMNT_NFSV4))
 		nfscl_loadfsinfo(nmp, &fs);
 	    nfscl_loadsbinfo(nmp, &sb, sbp);
-	    sbp->f_flags = nmp->nm_flag;
 	    sbp->f_iosize = newnfs_iosize(nmp);
 	    mtx_unlock(&nmp->nm_mtx);
 	    if (sbp != &mp->mnt_stat) {
@@ -501,11 +501,21 @@ nfs_mountdiskless(char *path,
     struct vnode **vpp, struct mount *mp)
 {
 	struct sockaddr *nam;
-	int error;
+	int dirlen, error;
+	char *dirpath;
 
+	/*
+	 * Find the directory path in "path", which also has the server's
+	 * name/ip address in it.
+	 */
+	dirpath = strchr(path, ':');
+	if (dirpath != NULL)
+		dirlen = strlen(++dirpath);
+	else
+		dirlen = 0;
 	nam = sodupsockaddr((struct sockaddr *)sin, M_WAITOK);
-	if ((error = mountnfs(args, mp, nam, path, NULL, NULL, NULL, vpp,
-	    td->td_ucred, td, NFS_DEFAULT_NEGNAMETIMEO)) != 0) {
+	if ((error = mountnfs(args, mp, nam, path, NULL, 0, dirpath, dirlen,
+	    NULL, 0, vpp, td->td_ucred, td, NFS_DEFAULT_NEGNAMETIMEO)) != 0) {
 		printf("nfs_mountroot: mount %s on /: %d\n", path, error);
 		return (error);
 	}
@@ -733,14 +743,10 @@ nfs_mount(struct mount *mp)
 	    .readahead = NFS_DEFRAHEAD,
 	    .wcommitsize = 0,			/* was: NQ_DEFLEASE */
 	    .hostname = NULL,
-	    /* args version 4 */
 	    .acregmin = NFS_MINATTRTIMO,
 	    .acregmax = NFS_MAXATTRTIMO,
 	    .acdirmin = NFS_MINDIRATTRTIMO,
 	    .acdirmax = NFS_MAXDIRATTRTIMO,
-	    .dirlen = 0,
-	    .krbnamelen = 0,
-	    .srvkrbnamelen = 0,
 	};
 	int error = 0, ret, len;
 	struct sockaddr *nam = NULL;
@@ -750,6 +756,7 @@ nfs_mount(struct mount *mp)
 	u_char nfh[NFSX_FHMAX], krbname[100], dirpath[100], srvkrbname[100];
 	char *opt, *name, *secname;
 	int negnametimeo = NFS_DEFAULT_NEGNAMETIMEO;
+	int dirlen, krbnamelen, srvkrbnamelen;
 
 	if (vfs_filteropt(mp->mnt_optnew, nfs_opts)) {
 		error = EINVAL;
@@ -1008,19 +1015,19 @@ nfs_mount(struct mount *mp)
 		strlcpy(srvkrbname, name, sizeof (srvkrbname));
 	else
 		snprintf(srvkrbname, sizeof (srvkrbname), "nfs@%s", hst);
-	args.srvkrbnamelen = strlen(srvkrbname);
+	srvkrbnamelen = strlen(srvkrbname);
 
 	if (vfs_getopt(mp->mnt_optnew, "gssname", (void **)&name, NULL) == 0)
 		strlcpy(krbname, name, sizeof (krbname));
 	else
 		krbname[0] = '\0';
-	args.krbnamelen = strlen(krbname);
+	krbnamelen = strlen(krbname);
 
 	if (vfs_getopt(mp->mnt_optnew, "dirpath", (void **)&name, NULL) == 0)
 		strlcpy(dirpath, name, sizeof (dirpath));
 	else
 		dirpath[0] = '\0';
-	args.dirlen = strlen(dirpath);
+	dirlen = strlen(dirpath);
 
 	if (vfs_getopt(mp->mnt_optnew, "addr", (void **)&args.addr,
 	    &args.addrlen) == 0) {
@@ -1034,8 +1041,9 @@ nfs_mount(struct mount *mp)
 	}
 
 	args.fh = nfh;
-	error = mountnfs(&args, mp, nam, hst, krbname, dirpath, srvkrbname,
-	    &vp, td->td_ucred, td, negnametimeo);
+	error = mountnfs(&args, mp, nam, hst, krbname, krbnamelen, dirpath,
+	    dirlen, srvkrbname, srvkrbnamelen, &vp, td->td_ucred, td,
+	    negnametimeo);
 out:
 	if (!error) {
 		MNT_ILOCK(mp);
@@ -1077,9 +1085,9 @@ nfs_cmount(struct mntarg *ma, void *data, int flags)
  */
 static int
 mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
-    char *hst, u_char *krbname, u_char *dirpath, u_char *srvkrbname,
-    struct vnode **vpp, struct ucred *cred, struct thread *td,
-    int negnametimeo)
+    char *hst, u_char *krbname, int krbnamelen, u_char *dirpath, int dirlen,
+    u_char *srvkrbname, int srvkrbnamelen, struct vnode **vpp,
+    struct ucred *cred, struct thread *td, int negnametimeo)
 {
 	struct nfsmount *nmp;
 	struct nfsnode *np;
@@ -1094,17 +1102,15 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 		return (0);
 	} else {
 		MALLOC(nmp, struct nfsmount *, sizeof (struct nfsmount) +
-		    argp->krbnamelen + argp->dirlen + argp->srvkrbnamelen + 2,
-		    M_NEWNFSMNT, M_WAITOK);
-		bzero((caddr_t)nmp, sizeof (struct nfsmount) +
-		    argp->krbnamelen + argp->dirlen + argp->srvkrbnamelen + 2);
+		    krbnamelen + dirlen + srvkrbnamelen + 2,
+		    M_NEWNFSMNT, M_WAITOK | M_ZERO);
 		TAILQ_INIT(&nmp->nm_bufq);
 		if (clval == 0)
 			clval = (u_int64_t)nfsboottime.tv_sec;
 		nmp->nm_clval = clval++;
-		nmp->nm_krbnamelen = argp->krbnamelen;
-		nmp->nm_dirpathlen = argp->dirlen;
-		nmp->nm_srvkrbnamelen = argp->srvkrbnamelen;
+		nmp->nm_krbnamelen = krbnamelen;
+		nmp->nm_dirpathlen = dirlen;
+		nmp->nm_srvkrbnamelen = srvkrbnamelen;
 		if (td->td_ucred->cr_uid != (uid_t)0) {
 			/*
 			 * nm_uid is used to get KerberosV credentials for

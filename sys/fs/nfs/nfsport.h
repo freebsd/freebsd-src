@@ -372,7 +372,7 @@ struct ext_nfsstats {
 #include <fs/nfs/xdr_subs.h>
 #include <fs/nfs/nfscl.h>
 #include <fs/nfs/nfsclstate.h>
-#include <fs/nfsclient/nfsargs.h>
+#include <nfsclient/nfsargs.h>
 #include <fs/nfsclient/nfsmount.h>
 
 /*
