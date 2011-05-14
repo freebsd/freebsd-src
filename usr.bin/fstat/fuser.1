@@ -1,4 +1,4 @@
-.\" Copyright (c) 2005-2009 Stanislav Sedov <stas@FreeBSD.org>
+.\" Copyright (c) 2005-2011 Stanislav Sedov <stas@FreeBSD.org>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 31, 2009
+.Dd May 13, 2011
 .Dt FUSER 1
 .Os
 .Sh NAME
@@ -66,7 +66,7 @@ Send signal to reported processes
 .It Fl m
 Search through mmapped files too.
 .It Fl u
-Write the user name associated with each process to stdout.
+Write the user name associated with each process to stderr.
 .It Fl M
 Extract values associated with the name list from the specified core
 instead of the default
@@ -114,9 +114,9 @@ utility returns 0 on successful completion and >0 otherwise.
 .Sh EXAMPLES
 The command:
 .Dq Li "fuser -fu ."
-writes to standart output the process IDs of processes that are using the
+writes to standard output the process IDs of processes that are using the
 current directory and writes to stderr an indication of how those processes are
-using the direcory and user names associated with the processes that are using
+using the directory and user names associated with the processes that are using
 this directory.
 .Sh SEE ALSO
 .Xr fstat 1 ,
@@ -125,7 +125,7 @@ this directory.
 .Xr iostat 8 ,
 .Xr pstat 8 ,
 .Xr vmstat 8
-.Sh STANDARTS
+.Sh STANDARDS
 The
 .Nm
 utility is expected to conform to
@@ -141,6 +141,11 @@ interface the report will be limited to filesystems the
 .Nm
 utility knows about (currently only cd9660, devfs, nfs, ntfs, nwfs, udf,
 ufs and zfs).
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 9.0 .
 .Sh AUTHORS
 The
 .Nm
