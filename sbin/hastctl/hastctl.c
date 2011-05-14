@@ -480,7 +480,7 @@ main(int argc, char *argv[])
 		    cfg->hc_controladdr);
 	}
 
-	if (drop_privs(true) != 0)
+	if (drop_privs(NULL) != 0)
 		exit(EX_CONFIG);
 
 	/* Send the command to the server... */
