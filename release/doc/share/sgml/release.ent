@@ -57,7 +57,6 @@
 <!ENTITY arch.pc98 "pc98">
 <!ENTITY arch.powerpc "powerpc">
 <!ENTITY arch.sparc64 "sparc64">
-<!ENTITY arch.sun4v "sun4v">
 
 <!-- The marker for MFCs. -->
 <!ENTITY merged "MERGED">

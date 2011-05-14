@@ -45,18 +45,11 @@ __FBSDID("$FreeBSD$");
 #ifdef SUN4U
 #include <machine/cache.h>
 #endif
-#ifdef SUN4V
-#include <machine/mmu.h>
-#endif
 #include <machine/pcb.h>
 #include <machine/setjmp.h>
 #include <machine/smp.h>
 #include <machine/tlb.h>
 #include <machine/tte.h>
-#ifdef SUN4V
-#include <machine/trap.h>
-#include <machine/tte_hash.h>
-#endif
 #include <machine/vmparam.h>
 
 ASSYM(KERNBASE, KERNBASE);
@@ -92,9 +85,6 @@ ASSYM(CSA_STICK, offsetof(struct cpu_start_args, csa_stick));
 ASSYM(CSA_TICK, offsetof(struct cpu_start_args, csa_tick));
 ASSYM(CSA_TTES, offsetof(struct cpu_start_args, csa_ttes));
 ASSYM(CSA_VER, offsetof(struct cpu_start_args, csa_ver));
-#endif
-#ifdef SUN4V
-ASSYM(CSA_CPUID, offsetof(struct cpu_start_args, csa_cpuid));
 #endif
 #endif
 
@@ -141,20 +131,6 @@ ASSYM(TLB_DIRECT_TO_TTE_MASK, TLB_DIRECT_TO_TTE_MASK);
 ASSYM(TV_SIZE_BITS, TV_SIZE_BITS);
 #endif
 
-#ifdef SUN4V
-ASSYM(VTD_REF, VTD_REF);
-ASSYM(VTD_W, VTD_W);
-ASSYM(VTD_SW_W, VTD_SW_W);
-ASSYM(VTD_LOCK, VTD_LOCK);
-
-ASSYM(THE_SHIFT, THE_SHIFT);
-ASSYM(PM_HASHSCRATCH, offsetof(struct pmap, pm_hashscratch));
-ASSYM(PM_TSBSCRATCH, offsetof(struct pmap, pm_tsbscratch));
-ASSYM(PM_TSB_RA, offsetof(struct pmap, pm_tsb_ra));
-ASSYM(PM_TLBACTIVE, offsetof(struct pmap, pm_tlbactive));
-ASSYM(HASH_ENTRY_SHIFT, HASH_ENTRY_SHIFT);
-#endif
-
 ASSYM(V_INTR, offsetof(struct vmmeter, v_intr));
 
 ASSYM(MAXCOMLEN, MAXCOMLEN);
@@ -168,35 +144,6 @@ ASSYM(PC_IRFREE, offsetof(struct pcpu, pc_irfree));
 ASSYM(PC_CNT, offsetof(struct pcpu, pc_cnt));
 ASSYM(PC_SIZEOF, sizeof(struct pcpu));
 
-#ifdef SUN4V
-ASSYM(PC_CPU_Q_RA, offsetof(struct pcpu, pc_cpu_q_ra));
-ASSYM(PC_CPU_Q_SIZE, offsetof(struct pcpu, pc_cpu_q_size));
-ASSYM(PC_DEV_Q_RA, offsetof(struct pcpu, pc_dev_q_ra));
-ASSYM(PC_DEV_Q_SIZE, offsetof(struct pcpu, pc_dev_q_size));
-
-ASSYM(PC_RQ_BASE, offsetof(struct pcpu, pc_rq_ra));
-ASSYM(PC_RQ_SIZE, offsetof(struct pcpu, pc_rq_size));
-ASSYM(PC_NRQ_BASE, offsetof(struct pcpu, pc_nrq_ra));
-ASSYM(PC_NRQ_SIZE, offsetof(struct pcpu, pc_nrq_size));
-ASSYM(PC_MONDO_DATA, offsetof(struct pcpu, pc_mondo_data));
-ASSYM(PC_MONDO_DATA_RA, offsetof(struct pcpu, pc_mondo_data_ra));
-
-ASSYM(PC_KWBUF_FULL, offsetof(struct pcpu, pc_kwbuf_full));
-ASSYM(PC_KWBUF_SP, offsetof(struct pcpu, pc_kwbuf_sp));
-ASSYM(PC_KWBUF, offsetof(struct pcpu, pc_kwbuf));
-ASSYM(PC_PAD, offsetof(struct pcpu, pad));
-ASSYM(PC_PMAP, offsetof(struct pcpu, pc_curpmap));
-ASSYM(PC_TSBWBUF, offsetof(struct pcpu, pc_tsbwbuf));
-
-ASSYM(PCB_KSTACK, offsetof(struct pcb, pcb_kstack));
-ASSYM(PCB_TSTATE, offsetof(struct pcb, pcb_tstate));
-ASSYM(PCB_TPC, offsetof(struct pcb, pcb_tpc));
-ASSYM(PCB_TNPC, offsetof(struct pcb, pcb_tnpc));
-ASSYM(PCB_TT, offsetof(struct pcb, pcb_tt));
-ASSYM(PCB_SFAR, offsetof(struct pcb, pcb_sfar));
-ASSYM(PM_TSB_MISS_COUNT, offsetof(struct pmap, pm_tsb_miss_count));
-ASSYM(PM_TSB_CAP_MISS_COUNT, offsetof(struct pmap, pm_tsb_cap_miss_count));
-#endif
 #ifdef SUN4U
 ASSYM(PC_CACHE, offsetof(struct pcpu, pc_cache));
 ASSYM(PC_MID, offsetof(struct pcpu, pc_mid));
@@ -297,9 +244,6 @@ ASSYM(TF_SFSR, offsetof(struct trapframe, tf_sfsr));
 ASSYM(TF_TAR, offsetof(struct trapframe, tf_tar));
 ASSYM(TF_TYPE, offsetof(struct trapframe, tf_type));
 ASSYM(TF_Y, offsetof(struct trapframe, tf_y));
-#endif
-#ifdef SUN4V
-ASSYM(TF_ASI, offsetof(struct trapframe, tf_asi));
 #endif
 ASSYM(TF_TNPC, offsetof(struct trapframe, tf_tnpc));
 ASSYM(TF_TPC, offsetof(struct trapframe, tf_tpc));
