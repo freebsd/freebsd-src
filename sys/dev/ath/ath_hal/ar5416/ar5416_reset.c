@@ -1053,9 +1053,9 @@ ar5416SetTransmitPower(struct ath_hal *ah,
         int cck_ofdm_delta = 2;
 	int i;
 	for (i = 0; i < N(adj); i++) {
-            ratesArray[i] -= cck_ofdm_delta;
-	    if (ratesArray[i] < 0)
-	        ratesArray[i] = 0;
+            ratesArray[adj[i]] -= cck_ofdm_delta;
+	    if (ratesArray[adj[i]] < 0)
+	        ratesArray[adj[i]] = 0;
         }
     }
 
@@ -2430,7 +2430,7 @@ ar5416GetGainBoundariesAndPdadcs(struct ath_hal *ah,
 
         /* Find starting index for this pdGain */
         if (i == 0) {
-            if (AR_SREV_MERLIN_20_OR_LATER(ah))
+            if (AR_SREV_MERLIN_10_OR_LATER(ah))
                 ss = (int16_t)(0 - (minPwrT4[i] / 2));
             else
                 ss = 0; /* for the first pdGain, start from index 0 */
