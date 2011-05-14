@@ -1833,7 +1833,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		win = 0;
 	KASSERT(SEQ_GEQ(tp->rcv_adv, tp->rcv_nxt),
 	    ("tcp_input negative window: tp %p rcv_nxt %u rcv_adv %u", tp,
-	    tp->rcv_adv, tp->rcv_nxt));
+	    tp->rcv_nxt, tp->rcv_adv));
 	tp->rcv_wnd = imax(win, (int)(tp->rcv_adv - tp->rcv_nxt));
 
 	/* Reset receive buffer auto scaling when not in bulk receive mode. */
