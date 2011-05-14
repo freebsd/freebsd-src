@@ -131,7 +131,7 @@ _MAKE=	PATH=${PATH} ${BINMAKE} -f Makefile.inc1 TARGET=${_TARGET} TARGET_ARCH=${
 
 # Guess machine architecture from machine type, and vice versa.
 .if !defined(TARGET_ARCH) && defined(TARGET)
-_TARGET_ARCH=	${TARGET:S/pc98/i386/:S/sun4v/sparc64/:S/mips/mipsel/}
+_TARGET_ARCH=	${TARGET:S/pc98/i386/:S/mips/mipsel/}
 .elif !defined(TARGET) && defined(TARGET_ARCH) && \
     ${TARGET_ARCH} != ${MACHINE_ARCH}
 _TARGET=		${TARGET_ARCH:C/mips.*e[lb]/mips/:C/armeb/arm/}
@@ -323,12 +323,11 @@ toolchains:
 # existing system is.
 #
 .if make(universe) || make(universe_kernels) || make(tinderbox) || make(targets)
-TARGETS?=amd64 arm i386 ia64 mips pc98 powerpc sparc64 sun4v
+TARGETS?=amd64 arm i386 ia64 mips pc98 powerpc sparc64
 TARGET_ARCHES_arm?=	arm armeb
 TARGET_ARCHES_mips?=	mipsel mipseb mips64el mips64eb mipsn32eb
 TARGET_ARCHES_powerpc?=	powerpc powerpc64
 TARGET_ARCHES_pc98?=	i386
-TARGET_ARCHES_sun4v?=	sparc64
 .for target in ${TARGETS}
 TARGET_ARCHES_${target}?= ${target}
 .endfor

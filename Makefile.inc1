@@ -130,7 +130,7 @@ VERSION!=	uname -srp
 VERSION+=	${OSRELDATE}
 .endif
 
-KNOWN_ARCHES?=	amd64 arm armeb/arm i386 i386/pc98 ia64 mipsel/mips mipseb/mips mips64el/mips mips64eb/mips mipsn32el/mips mipsn32eb/mips powerpc powerpc64/powerpc sparc64 sparc64/sun4v
+KNOWN_ARCHES?=	amd64 arm armeb/arm i386 i386/pc98 ia64 mipsel/mips mipseb/mips mips64el/mips mips64eb/mips mipsn32el/mips mipsn32eb/mips powerpc powerpc64/powerpc sparc64
 .if ${TARGET} == ${TARGET_ARCH}
 _t=		${TARGET}
 .else
