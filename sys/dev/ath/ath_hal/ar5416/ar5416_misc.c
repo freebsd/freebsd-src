@@ -367,9 +367,18 @@ typedef struct {
 } hal_mac_hang_check_t;
 
 HAL_BOOL
-ar5416SetRifsDelay(struct ath_hal *ah, HAL_BOOL enable)
+ar5416SetRifsDelay(struct ath_hal *ah, const struct ieee80211_channel *chan,
+    HAL_BOOL enable)
 {
 	uint32_t val;
+	HAL_BOOL is_chan_2g = AH_FALSE;
+	HAL_BOOL is_ht40 = AH_FALSE;
+
+	if (chan)
+		is_chan_2g = IEEE80211_IS_CHAN_2GHZ(chan);
+
+	if (chan)
+		is_ht40 = IEEE80211_IS_CHAN_HT40(chan);
 
 	/* Only support disabling RIFS delay for now */
 	HALASSERT(enable == AH_FALSE);
@@ -381,6 +390,31 @@ ar5416SetRifsDelay(struct ath_hal *ah, HAL_BOOL enable)
 	val = OS_REG_READ(ah, AR_PHY_HEAVY_CLIP_FACTOR_RIFS);
 	val &= ~AR_PHY_RIFS_INIT_DELAY;
 	OS_REG_WRITE(ah, AR_PHY_HEAVY_CLIP_FACTOR_RIFS, val);
+
+	/*
+	 * For Owl, RIFS RX parameters are controlled differently;
+	 * it isn't enabled in the inivals by default.
+	 *
+	 * For Sowl/Howl, RIFS RX is enabled in the inivals by default;
+	 * the following code sets them back to non-RIFS values.
+	 *
+	 * For > Sowl/Howl, RIFS RX can be left on by default and so
+	 * this function shouldn't be called.
+	 */
+	if ((! AR_SREV_SOWL(ah)) && (! AR_SREV_HOWL(ah)))
+		return AH_TRUE;
+
+	/* Reset search delay to default values */
+	if (is_chan_2g)
+		if (is_ht40)
+			OS_REG_WRITE(ah, AR_PHY_SEARCH_START_DELAY, 0x268);
+		else
+			OS_REG_WRITE(ah, AR_PHY_SEARCH_START_DELAY, 0x134);
+	else
+		if (is_ht40)
+			OS_REG_WRITE(ah, AR_PHY_SEARCH_START_DELAY, 0x370);
+		else
+			OS_REG_WRITE(ah, AR_PHY_SEARCH_START_DELAY, 0x1b8);
 
 	return AH_TRUE;
 }
