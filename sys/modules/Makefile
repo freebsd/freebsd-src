@@ -43,6 +43,7 @@ SUBDIR=	${_3dfx} \
 	${_bxe} \
 	${_bios} \
 	${_bktr} \
+	${_blackhole} \
 	${_bm} \
 	bridgestp \
 	bwi \
@@ -311,6 +312,7 @@ SUBDIR=	${_3dfx} \
 	${_vesa} \
 	vge \
 	vkbd \
+	${_vmm} \
 	${_vpo} \
 	vr \
 	vte \
@@ -541,6 +543,7 @@ _amdsbwd=	amdsbwd
 _amdtemp=	amdtemp
 _arcmsr=	arcmsr
 _asmc=		asmc
+_blackhole=	blackhole
 _bxe=		bxe
 _cardbus=	cardbus
 _cbb=		cbb
@@ -617,6 +620,7 @@ _sppp=		sppp
 _tpm=		tpm
 _twa=		twa
 _vesa=		vesa
+_vmm=		vmm
 _x86bios=	x86bios
 _wi=		wi
 _wpi=		wpi

@@ -57,8 +57,15 @@ IDTVEC(vec_name) ;							\
 	PUSH_FRAME ;							\
 	FAKE_MCOUNT(TF_RIP(%rsp)) ;					\
 	movq	lapic, %rdx ;	/* pointer to local APIC */		\
+	testq	%rdx, %rdx;						\
+	jnz	3f;							\
+	movl	$MSR_APIC_ISR ## index, %ecx;				\
+	rdmsr;								\
+	jmp	4f;							\
+3:	;								\
 	movl	LA_ISR + 16 * (index)(%rdx), %eax ;	/* load ISR */	\
-	bsrl	%eax, %eax ;	/* index of highest set bit in ISR */	\
+4:	;								\
+	bsrl	%eax, %eax ;	/* index of highset set bit in ISR */	\
 	jz	1f ;							\
 	addl	$(32 * index),%eax ;					\
 	movq	%rsp, %rsi	;                                       \
@@ -129,6 +136,26 @@ IDTVEC(errorint)
 	jmp	doreti
 
 #ifdef SMP
+
+/*
+ * We assume that %rax is being saved/restored outside of this macro
+ */
+#define	DO_EOI								\
+	movq	lapic, %rax;						\
+	testq	%rax, %rax;						\
+	jz	8f;							\
+	movl	$0, LA_EOI(%rax);					\
+	jmp	9f;							\
+8:;									\
+	pushq	%rcx;							\
+	pushq	%rdx;							\
+	xorl	%edx, %edx;	/* eax is already zero */		\
+	movl	$MSR_APIC_EOI, %ecx;					\
+	wrmsr;								\
+	popq	%rdx;							\
+	popq	%rcx;							\
+9:
+	
 /*
  * Global address space TLB shootdown.
  */
@@ -153,8 +180,7 @@ IDTVEC(invltlb)
 	movq	%cr3, %rax		/* invalidate the TLB */
 	movq	%rax, %cr3
 
-	movq	lapic, %rax
-	movl	$0, LA_EOI(%rax)	/* End Of Interrupt to APIC */
+	DO_EOI
 
 	lock
 	incl	smp_tlb_wait
@@ -186,8 +212,7 @@ IDTVEC(invlpg)
 	movq	smp_tlb_addr1, %rax
 	invlpg	(%rax)			/* invalidate single page */
 
-	movq	lapic, %rax
-	movl	$0, LA_EOI(%rax)	/* End Of Interrupt to APIC */
+	DO_EOI
 
 	lock
 	incl	smp_tlb_wait
@@ -224,8 +249,7 @@ IDTVEC(invlrng)
 	cmpq	%rax, %rdx
 	jb	1b
 
-	movq	lapic, %rax
-	movl	$0, LA_EOI(%rax)	/* End Of Interrupt to APIC */
+	DO_EOI
 
 	lock
 	incl	smp_tlb_wait
@@ -252,8 +276,7 @@ IDTVEC(invlcache)
 
 	wbinvd
 
-	movq	lapic, %rax
-	movl	$0, LA_EOI(%rax)	/* End Of Interrupt to APIC */
+	DO_EOI
 
 	lock
 	incl	smp_tlb_wait
@@ -269,9 +292,8 @@ IDTVEC(invlcache)
 IDTVEC(ipi_intr_bitmap_handler)		
 	PUSH_FRAME
 
-	movq	lapic, %rdx
-	movl	$0, LA_EOI(%rdx)	/* End Of Interrupt to APIC */
-	
+	DO_EOI
+
 	FAKE_MCOUNT(TF_RIP(%rsp))
 
 	call	ipi_bitmap_handler
@@ -286,8 +308,7 @@ IDTVEC(ipi_intr_bitmap_handler)
 IDTVEC(cpustop)
 	PUSH_FRAME
 
-	movq	lapic, %rax
-	movl	$0, LA_EOI(%rax)	/* End Of Interrupt to APIC */
+	DO_EOI
 
 	call	cpustop_handler
 	jmp	doreti
@@ -300,8 +321,7 @@ IDTVEC(cpustop)
 IDTVEC(cpususpend)
 	PUSH_FRAME
 
-	movq	lapic, %rax
-	movl	$0, LA_EOI(%rax)	/* End Of Interrupt to APIC */
+	DO_EOI
 
 	call	cpususpend_handler
 
@@ -323,7 +343,6 @@ IDTVEC(rendezvous)
 	incq	(%rax)
 #endif
 	call	smp_rendezvous_action
-	movq	lapic, %rax
-	movl	$0, LA_EOI(%rax)	/* End Of Interrupt to APIC */
+	DO_EOI
 	jmp	doreti
 #endif /* SMP */

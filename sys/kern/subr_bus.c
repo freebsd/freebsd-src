@@ -2683,7 +2683,7 @@ device_attach(device_t dev)
 		printf("device_attach: %s%d attach returned %d\n",
 		    dev->driver->name, dev->unit, error);
 		/* Unset the class; set in device_probe_child */
-		if (dev->devclass == NULL)
+		if ((dev->flags & DF_FIXEDCLASS) == 0)
 			device_set_devclass(dev, NULL);
 		device_set_driver(dev, NULL);
 		device_sysctl_fini(dev);

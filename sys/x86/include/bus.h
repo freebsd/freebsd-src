@@ -279,9 +279,13 @@ bus_space_read_multi_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 		       bus_size_t offset, u_int8_t *addr, size_t count)
 {
 
-	if (tag == X86_BUS_SPACE_IO)
-		insb(bsh + offset, addr, count);
-	else {
+	if (tag == X86_BUS_SPACE_IO) {
+		while (count > 0) {
+			*addr = inb(bsh + offset);
+			count--;
+			addr++;
+		}
+	} else {
 #ifdef __GNUCLIKE_ASM
 		__asm __volatile("				\n\
 			cld					\n\
@@ -300,9 +304,13 @@ bus_space_read_multi_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 		       bus_size_t offset, u_int16_t *addr, size_t count)
 {
 
-	if (tag == X86_BUS_SPACE_IO)
-		insw(bsh + offset, addr, count);
-	else {
+	if (tag == X86_BUS_SPACE_IO) {
+		while (count > 0) {
+			*addr = inw(bsh + offset);
+			count--;
+			addr++;
+		}
+	} else {
 #ifdef __GNUCLIKE_ASM
 		__asm __volatile("				\n\
 			cld					\n\
@@ -321,9 +329,13 @@ bus_space_read_multi_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 		       bus_size_t offset, u_int32_t *addr, size_t count)
 {
 
-	if (tag == X86_BUS_SPACE_IO)
-		insl(bsh + offset, addr, count);
-	else {
+	if (tag == X86_BUS_SPACE_IO) {
+		while (count > 0) {
+			*addr = inl(bsh + offset);
+			count--;
+			addr++;
+		}
+	} else {
 #ifdef __GNUCLIKE_ASM
 		__asm __volatile("				\n\
 			cld					\n\
@@ -543,9 +555,13 @@ bus_space_write_multi_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 			bus_size_t offset, const u_int8_t *addr, size_t count)
 {
 
-	if (tag == X86_BUS_SPACE_IO)
-		outsb(bsh + offset, addr, count);
-	else {
+	if (tag == X86_BUS_SPACE_IO) {
+		while (count > 0) {
+			outb(bsh + offset, *addr);
+			addr++;
+			count--;
+		}
+	} else {
 #ifdef __GNUCLIKE_ASM
 		__asm __volatile("				\n\
 			cld					\n\
@@ -564,9 +580,13 @@ bus_space_write_multi_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 			bus_size_t offset, const u_int16_t *addr, size_t count)
 {
 
-	if (tag == X86_BUS_SPACE_IO)
-		outsw(bsh + offset, addr, count);
-	else {
+	if (tag == X86_BUS_SPACE_IO) {
+		while (count > 0) {
+			outw(bsh + offset, *addr);
+			addr++;
+			count--;
+		}
+	} else {
 #ifdef __GNUCLIKE_ASM
 		__asm __volatile("				\n\
 			cld					\n\
@@ -585,9 +605,13 @@ bus_space_write_multi_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 			bus_size_t offset, const u_int32_t *addr, size_t count)
 {
 
-	if (tag == X86_BUS_SPACE_IO)
-		outsl(bsh + offset, addr, count);
-	else {
+	if (tag == X86_BUS_SPACE_IO) {
+		while (count > 0) {
+			outl(bsh + offset, *addr);
+			addr++;
+			count--;
+		}
+	} else {
 #ifdef __GNUCLIKE_ASM
 		__asm __volatile("				\n\
 			cld					\n\
