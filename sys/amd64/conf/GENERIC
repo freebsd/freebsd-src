@@ -323,3 +323,14 @@ device		fwe		# Ethernet over FireWire (non-standard!)
 device		fwip		# IP over FireWire (RFC 2734,3146)
 device		dcons		# Dumb console driver
 device		dcons_crom	# Configuration ROM for dcons
+
+# bhyve options
+device		bvmconsole	# brain dead simple bvm console
+device		bvmdebug	# brain dead simple bvm gdb pipe
+device		mptable
+
+options		KDB
+options		KDB_TRACE
+options		DDB
+options		GDB
+
