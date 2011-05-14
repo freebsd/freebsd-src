@@ -79,6 +79,7 @@ sparc64/pci/fire.c		optional	pci
 sparc64/pci/ofw_pcib.c		optional	pci
 sparc64/pci/ofw_pcib_subr.c	optional	pci
 sparc64/pci/ofw_pcibus.c	optional	pci
+sparc64/pci/ofw_pci_if.m	optional	pci
 sparc64/pci/psycho.c		optional	pci
 sparc64/pci/schizo.c		optional	pci
 sparc64/sbus/dma_sbus.c		optional	sbus
