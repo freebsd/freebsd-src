@@ -1780,16 +1780,16 @@ mvs_issue_recovery(device_t dev)
 	struct ccb_scsiio *csio;
 	int i;
 
-	/* Find some holden command. */
+	/* Find some held command. */
 	for (i = 0; i < MVS_MAX_SLOTS; i++) {
 		if (ch->hold[i])
 			break;
 	}
 	ccb = xpt_alloc_ccb_nowait();
 	if (ccb == NULL) {
-		device_printf(dev, "Unable allocate recovery command\n");
+		device_printf(dev, "Unable to allocate recovery command\n");
 completeall:
-		/* We can't do anything -- complete holden commands. */
+		/* We can't do anything -- complete held commands. */
 		for (i = 0; i < MVS_MAX_SLOTS; i++) {
 			if (ch->hold[i] == NULL)
 				continue;
@@ -1814,7 +1814,7 @@ completeall:
 		if (ataio->data_ptr == NULL) {
 			xpt_free_ccb(ccb);
 			device_printf(dev,
-			    "Unable allocate memory for READ LOG command\n");
+			    "Unable to allocate memory for READ LOG command\n");
 			goto completeall;
 		}
 		ataio->dxfer_len = 512;

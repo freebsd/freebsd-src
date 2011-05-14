@@ -408,7 +408,7 @@ struct ahci_channel {
 	int			numrslotspd[16];/* Number of running slots per dev */
 	int			numtslots;	/* Number of tagged slots */
 	int			numtslotspd[16];/* Number of tagged slots per dev */
-	int			numhslots;	/* Number of holden slots */
+	int			numhslots;	/* Number of held slots */
 	int			recoverycmd;	/* Our READ LOG active */
 	int			fatalerr;	/* Fatal error happend */
 	int			lastslot;	/* Last used slot */
