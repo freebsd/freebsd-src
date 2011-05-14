@@ -2575,11 +2575,13 @@ static int
 ahci_sata_connect(struct ahci_channel *ch)
 {
 	u_int32_t status;
-	int timeout;
+	int timeout, found = 0;
 
 	/* Wait up to 100ms for "connect well" */
 	for (timeout = 0; timeout < 1000 ; timeout++) {
 		status = ATA_INL(ch->r_mem, AHCI_P_SSTS);
+		if ((status & ATA_SS_DET_MASK) != ATA_SS_DET_NO_DEVICE)
+			found = 1;
 		if (((status & ATA_SS_DET_MASK) == ATA_SS_DET_PHY_ONLINE) &&
 		    ((status & ATA_SS_SPD_MASK) != ATA_SS_SPD_NO_SPEED) &&
 		    ((status & ATA_SS_IPM_MASK) == ATA_SS_IPM_ACTIVE))
@@ -2591,12 +2593,15 @@ ahci_sata_connect(struct ahci_channel *ch)
 			}
 			return (0);
 		}
+		if (found == 0 && timeout >= 100)
+			break;
 		DELAY(100);
 	}
-	if (timeout >= 1000) {
+	if (timeout >= 1000 || !found) {
 		if (bootverbose) {
-			device_printf(ch->dev, "SATA connect timeout status=%08x\n",
-			    status);
+			device_printf(ch->dev,
+			    "SATA connect timeout time=%dus status=%08x\n",
+			    timeout * 100, status);
 		}
 		return (0);
 	}
