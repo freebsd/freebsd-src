@@ -824,7 +824,7 @@ change_filter(int add, const char *l_user, const char *ip_src)
 		remove_stale_rulesets();
 
 		gettimeofday(&Tend, NULL);
-		syslog(LOG_INFO, "removed %s, user %s - duration %zu seconds",
+		syslog(LOG_INFO, "removed %s, user %s - duration %ju seconds",
 		    ip_src, l_user, Tend.tv_sec - Tstart.tv_sec);
 	}
 	return (0);
