@@ -40,7 +40,6 @@
 #include <dev/usb/usb.h>
 #include <dev/usb/usb_pf.h>
 #include <dev/usb/usbdi.h>
-#include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
@@ -49,6 +48,8 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <sysexits.h>
+#include <err.h>
 
 struct usbcap {
 	int		fd;		/* fd for /dev/usbpf */
@@ -414,9 +415,15 @@ write_packets(struct usbcap *p, const uint8_t *data, const int datalen)
 	int ret;
 
 	ret = write(p->wfd, &len, sizeof(int));
-	assert(ret == sizeof(int));
+	if (ret != sizeof(int)) {
+		err(EXIT_FAILURE, "Could not write length "
+		    "field of USB data payload");
+	}
 	ret = write(p->wfd, data, datalen);
-	assert(ret == datalen);
+	if (ret != datalen) {
+		err(EXIT_FAILURE, "Could not write "
+		    "complete USB data payload");
+	}
 }
 
 static void
@@ -429,14 +436,16 @@ read_file(struct usbcap *p)
 	while ((ret = read(p->rfd, &datalen, sizeof(int))) == sizeof(int)) {
 		datalen = le32toh(datalen);
 		data = malloc(datalen);
-		assert(data != NULL);
+		if (data == NULL)
+			errx(EX_SOFTWARE, "Out of memory.");
 		ret = read(p->rfd, data, datalen);
-		assert(ret == datalen);
+		if (ret != datalen) {
+			err(EXIT_FAILURE, "Could not read complete "
+			    "USB data payload");
+		}
 		print_packets(data, datalen);
 		free(data);
 	}
-	if (ret == -1)
-		fprintf(stderr, "read: %s\n", strerror(errno));
 }
 
 static void
@@ -472,14 +481,27 @@ init_rfile(struct usbcap *p)
 
 	p->rfd = open(r_arg, O_RDONLY);
 	if (p->rfd < 0) {
-		fprintf(stderr, "open: %s (%s)\n", r_arg, strerror(errno));
-		exit(EXIT_FAILURE);
+		err(EXIT_FAILURE, "Could not open "
+		    "'%s' for read", r_arg);
 	}
 	ret = read(p->rfd, &uf, sizeof(uf));
-	assert(ret == sizeof(uf));
-	assert(le32toh(uf.magic) == USBCAP_FILEHDR_MAGIC);
-	assert(uf.major == 0);
-	assert(uf.minor == 2);
+	if (ret != sizeof(uf)) {
+		err(EXIT_FAILURE, "Could not read USB capture "
+		    "file header");
+	}
+	if (le32toh(uf.magic) != USBCAP_FILEHDR_MAGIC) {
+		errx(EX_SOFTWARE, "Invalid magic field(0x%08x) "
+		    "in USB capture file header.",
+		    (unsigned int)le32toh(uf.magic));
+	}
+	if (uf.major != 0) {
+		errx(EX_SOFTWARE, "Invalid major version(%d) "
+		    "field in USB capture file header.", (int)uf.major);
+	}
+	if (uf.minor != 2) {
+		errx(EX_SOFTWARE, "Invalid minor version(%d) "
+		    "field in USB capture file header.", (int)uf.minor);
+	}
 }
 
 static void
@@ -490,15 +512,18 @@ init_wfile(struct usbcap *p)
 
 	p->wfd = open(w_arg, O_CREAT | O_TRUNC | O_WRONLY, S_IRUSR | S_IWUSR);
 	if (p->wfd < 0) {
-		fprintf(stderr, "open: %s (%s)\n", w_arg, strerror(errno));
-		exit(EXIT_FAILURE);
+		err(EXIT_FAILURE, "Could not open "
+		    "'%s' for write", r_arg);
 	}
-	bzero(&uf, sizeof(uf));
+	memset(&uf, 0, sizeof(uf));
 	uf.magic = htole32(USBCAP_FILEHDR_MAGIC);
 	uf.major = 0;
 	uf.minor = 2;
 	ret = write(p->wfd, (const void *)&uf, sizeof(uf));
-	assert(ret == sizeof(uf));
+	if (ret != sizeof(uf)) {
+		err(EXIT_FAILURE, "Could not write "
+		    "USB capture header");
+	}
 }
 
 static void
@@ -507,13 +532,13 @@ usage(void)
 
 #define FMT "    %-14s %s\n"
 	fprintf(stderr, "usage: usbdump [options]\n");
-	fprintf(stderr, FMT, "-i ifname", "Listen on USB bus interface");
-	fprintf(stderr, FMT, "-r file", "Read the raw packets from file");
-	fprintf(stderr, FMT, "-s snaplen", "Snapshot bytes from each packet");
-	fprintf(stderr, FMT, "-v", "Increases the verbose level");
-	fprintf(stderr, FMT, "-w file", "Write the raw packets to file");
+	fprintf(stderr, FMT, "-i <usbusX>", "Listen on USB bus interface");
+	fprintf(stderr, FMT, "-r <file>", "Read the raw packets from file");
+	fprintf(stderr, FMT, "-s <snaplen>", "Snapshot bytes from each packet");
+	fprintf(stderr, FMT, "-v", "Increase the verbose level");
+	fprintf(stderr, FMT, "-w <file>", "Write the raw packets to file");
 #undef FMT
-	exit(1);
+	exit(EX_USAGE);
 }
 
 int
@@ -531,7 +556,7 @@ main(int argc, char *argv[])
 	int fd, o;
 	const char *optstring;
 
-	bzero(&uc, sizeof(struct usbcap));
+	memset(&uc, 0, sizeof(struct usbcap));
 
 	optstring = "i:r:s:vw:";
 	while ((o = getopt(argc, argv, optstring)) != -1) {
@@ -571,20 +596,15 @@ main(int argc, char *argv[])
 	}
 
 	p->fd = fd = open("/dev/bpf", O_RDONLY);
-	if (p->fd < 0) {
-		fprintf(stderr, "(no devices found)\n");
-		return (EXIT_FAILURE);
-	}
+	if (p->fd < 0)
+		err(EXIT_FAILURE, "Could not open BPF device");
 
-	if (ioctl(fd, BIOCVERSION, (caddr_t)&bv) < 0) {
-		fprintf(stderr, "BIOCVERSION: %s\n", strerror(errno));
-		return (EXIT_FAILURE);
-	}
+	if (ioctl(fd, BIOCVERSION, (caddr_t)&bv) < 0)
+		err(EXIT_FAILURE, "BIOCVERSION ioctl failed");
+
 	if (bv.bv_major != BPF_MAJOR_VERSION ||
-	    bv.bv_minor < BPF_MINOR_VERSION) {
-		fprintf(stderr, "kernel bpf filter out of date");
-		return (EXIT_FAILURE);
-	}
+	    bv.bv_minor < BPF_MINOR_VERSION)
+		errx(EXIT_FAILURE, "Kernel BPF filter out of date");
 
 	/* USB transfers can be greater than 64KByte */
 	v = 1U << 16;
@@ -598,22 +618,16 @@ main(int argc, char *argv[])
 		if (ioctl(fd, BIOCSETIF, (caddr_t)&ifr) >= 0)
 			break;
 	}
-	if (v == 0) {
-		fprintf(stderr, "BIOCSBLEN: %s: No buffer size worked", i_arg);
-		return (EXIT_FAILURE);
-	}
+	if (v == 0)
+		errx(EXIT_FAILURE, "No buffer size worked.");
 
-	if (ioctl(fd, BIOCGBLEN, (caddr_t)&v) < 0) {
-		fprintf(stderr, "BIOCGBLEN: %s", strerror(errno));
-		return (EXIT_FAILURE);
-	}
+	if (ioctl(fd, BIOCGBLEN, (caddr_t)&v) < 0)
+		err(EXIT_FAILURE, "BIOCGBLEN ioctl failed");
 
 	p->bufsize = v;
 	p->buffer = (uint8_t *)malloc(p->bufsize);
-	if (p->buffer == NULL) {
-		fprintf(stderr, "malloc: %s", strerror(errno));
-		return (EXIT_FAILURE);
-	}
+	if (p->buffer == NULL)
+		errx(EX_SOFTWARE, "Out of memory.");
 
 	/* XXX no read filter rules yet so at this moment accept everything */
 	total_insn.code = (u_short)(BPF_RET | BPF_K);
@@ -623,27 +637,21 @@ main(int argc, char *argv[])
 
 	total_prog.bf_len = 1;
 	total_prog.bf_insns = &total_insn;
-	if (ioctl(p->fd, BIOCSETF, (caddr_t)&total_prog) < 0) {
-		fprintf(stderr, "BIOCSETF: %s", strerror(errno));
-		return (EXIT_FAILURE);
-	}
+	if (ioctl(p->fd, BIOCSETF, (caddr_t)&total_prog) < 0)
+		err(EXIT_FAILURE, "BIOCSETF ioctl failed");
 
 	/* 1 second read timeout */
 	tv.tv_sec = 1;
 	tv.tv_usec = 0;
-	if (ioctl(p->fd, BIOCSRTIMEOUT, (caddr_t)&tv) < 0) {
-		fprintf(stderr, "BIOCSRTIMEOUT: %s", strerror(errno));
-		return (EXIT_FAILURE);
-	}
+	if (ioctl(p->fd, BIOCSRTIMEOUT, (caddr_t)&tv) < 0)
+		err(EXIT_FAILURE, "BIOCSRTIMEOUT ioctl failed");
 
 	(void)signal(SIGINT, handle_sigint);
 
 	do_loop(p);
 
-	if (ioctl(fd, BIOCGSTATS, (caddr_t)&us) < 0) {
-		fprintf(stderr, "BIOCGSTATS: %s", strerror(errno));
-		return (EXIT_FAILURE);
-	}
+	if (ioctl(fd, BIOCGSTATS, (caddr_t)&us) < 0)
+		err(EXIT_FAILURE, "BIOCGSTATS ioctl failed");
 
 	/* XXX what's difference between pkt_captured and us.us_recv? */
 	printf("\n");
