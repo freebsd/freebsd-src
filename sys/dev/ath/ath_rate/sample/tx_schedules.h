@@ -172,7 +172,7 @@ static const struct txschedule series_half[] = {
 #undef H
 
 #ifdef Q
-#undef Q		/* sun4v bogosity */
+#undef Q
 #endif
 #define Q(_r) \
     (((_r) == 1.5) ? 0 : (((_r) ==2.25) ? 1 : (((_r) == 3)  ? 2 : \

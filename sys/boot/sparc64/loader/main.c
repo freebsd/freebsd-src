@@ -113,13 +113,11 @@ static int map_phys(int, size_t, vm_offset_t, vm_offset_t);
 static void release_phys(vm_offset_t, u_int);
 static int __elfN(exec)(struct preloaded_file *);
 static int mmu_mapin_sun4u(vm_offset_t, vm_size_t);
-static int mmu_mapin_sun4v(vm_offset_t, vm_size_t);
 static vm_offset_t init_heap(void);
 static phandle_t find_bsp_sun4u(phandle_t, uint32_t);
 const char *cpu_cpuid_prop_sun4u(void);
 uint32_t cpu_get_mid_sun4u(void);
 static void tlb_init_sun4u(void);
-static void tlb_init_sun4v(void);
 
 #ifdef LOADER_DEBUG
 typedef u_int64_t tte_t;
@@ -129,7 +127,6 @@ static void pmap_print_tte_sun4u(tte_t, tte_t);
 #endif
 
 static struct mmu_ops mmu_ops_sun4u = { tlb_init_sun4u, mmu_mapin_sun4u };
-static struct mmu_ops mmu_ops_sun4v = { tlb_init_sun4v, mmu_mapin_sun4v };
 
 /* sun4u */
 struct tlb_entry *dtlb_store;
@@ -139,16 +136,6 @@ u_int itlb_slot;
 static int cpu_impl;
 static u_int dtlb_slot_max;
 static u_int itlb_slot_max;
-
-/* sun4v */
-static struct tlb_entry *tlb_store;
-static int is_sun4v = 0;
-/*
- * no direct TLB access on sun4v
- * we somewhat arbitrarily declare enough
- * slots to cover a 4GB AS with 4MB pages
- */
-#define	SUN4V_TLB_SLOT_MAX	(1 << 10)
 
 static vm_offset_t curkva = 0;
 static vm_offset_t heapva;
@@ -568,47 +555,6 @@ mmu_mapin_sun4u(vm_offset_t va, vm_size_t len)
 	return (0);
 }
 
-static int
-mmu_mapin_sun4v(vm_offset_t va, vm_size_t len)
-{
-	vm_offset_t pa, mva;
-
-	if (va + len > curkva)
-		curkva = va + len;
-
-	pa = (vm_offset_t)-1;
-	len += va & PAGE_MASK_4M;
-	va &= ~PAGE_MASK_4M;
-	while (len) {
-		if ((va >> 22) > SUN4V_TLB_SLOT_MAX)
-			panic("%s: trying to map more than 4GB", __func__);
-		if (tlb_store[va >> 22].te_pa == -1) {
-			/* Allocate a physical page, claim the virtual area */
-			if (pa == (vm_offset_t)-1) {
-				pa = alloc_phys(PAGE_SIZE_4M, PAGE_SIZE_4M);
-				if (pa == (vm_offset_t)-1)
-				    panic("%s: out of memory", __func__);
-				mva = claim_virt(va, PAGE_SIZE_4M, 0);
-				if (mva != va)
-					panic("%s: can't claim virtual page "
-					    "(wanted %#lx, got %#lx)",
-					    __func__, va, mva);
-			}
-
-			tlb_store[va >> 22].te_pa = pa;
-			if (map_phys(-1, PAGE_SIZE_4M, va, pa) == -1)
-				printf("%s: can't map physical page\n",
-				    __func__);
-			pa = (vm_offset_t)-1;
-		}
-		len -= len > PAGE_SIZE_4M ? PAGE_SIZE_4M : len;
-		va += PAGE_SIZE_4M;
-	}
-	if (pa != (vm_offset_t)-1)
-		release_phys(pa, PAGE_SIZE_4M);
-	return (0);
-}
-
 static vm_offset_t
 init_heap(void)
 {
@@ -739,14 +685,6 @@ tlb_init_sun4u(void)
 		panic("%s: can't allocate TLB store", __func__);
 }
 
-static void
-tlb_init_sun4v(void)
-{
-
-	tlb_store = malloc(SUN4V_TLB_SLOT_MAX * sizeof(*tlb_store));
-	memset(tlb_store, 0xFF, SUN4V_TLB_SLOT_MAX * sizeof(*tlb_store));
-}
-
 int
 main(int (*openfirm)(void *))
 {
@@ -777,14 +715,7 @@ main(int (*openfirm)(void *))
 	if ((root = OF_peer(0)) == -1)
 		panic("%s: can't get root phandle", __func__);
 	OF_getprop(root, "compatible", compatible, sizeof(compatible));
-	if (!strcmp(compatible, "sun4v")) {
-		printf("\nBooting with sun4v support.\n");
-		mmu_ops = &mmu_ops_sun4v;
-		is_sun4v = 1;
-	} else {
-		printf("\nBooting with sun4u support.\n");
-		mmu_ops = &mmu_ops_sun4u;
-	}
+	mmu_ops = &mmu_ops_sun4u;
 
 	mmu_ops->tlb_init();
 
