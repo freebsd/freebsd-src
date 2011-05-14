@@ -202,13 +202,13 @@ exception_save_restart:
 {	.mmi
 	st8		[r30]=r19,16		// length
 	st8		[r31]=r0,16		// flags
-	add		r19=16,r19
+	add		r29=16,r19		// Clobber restart token
 	;;
 }
 {	.mmi
 	st8.spill	[r30]=sp,16		// sp
 	st8		[r31]=r20,16		// unat
-	sub		sp=r23,r19
+	sub		sp=r23,r29
 	;;
 }
 {	.mmi
@@ -641,7 +641,7 @@ exception_restore_restart:
 	mov		r30=ar.bspstore
 	;;
 	loadrs					// load user regs
-	nop		0
+	mov		r29=0			// Clobber restart token
 	;;
 }
 {	.mmi
@@ -1094,22 +1094,26 @@ IVT_ENTRY(Data_Nested_TLB, 0x1400)
 }
 {	.mlx
 	mov		r26=ar.bsp
-	movl		r27=kstack
+	movl		r29=kstack
 	;;
 }
-{	.mmi
+{	.mlx
 	mov		r28=sp
-	nop		0
-	addl		r27=KSTACK_PAGES*PAGE_SIZE-16,r0
+	movl		r27=kstack_top
 	;;
 }
 {	.mmi
-	mov		sp=r27
+	add		sp=-16,r27
 	;;
 	mov		r27=ar.bspstore
 	nop		0
 	;;
 }
+	mov		ar.rsc=0
+	dep		r29=r27,r29,0,9
+	;;
+	mov		ar.bspstore=r29
+	;;
 	CALL(trap, 5, r30)
 IVT_END(Data_Nested_TLB)
 
