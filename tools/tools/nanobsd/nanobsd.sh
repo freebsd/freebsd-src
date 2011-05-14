@@ -660,7 +660,7 @@ cust_comconsole () (
 	sed -i "" -e '/^ttyv[0-8]/s/	on/	off/' ${NANO_WORLDDIR}/etc/ttys
 
 	# Tell loader to use serial console early.
-	echo " -h" > ${NANO_WORLDDIR}/boot.config
+	echo "${NANO_BOOT2CFG}" > ${NANO_WORLDDIR}/boot.config
 )
 
 #######################################################################
