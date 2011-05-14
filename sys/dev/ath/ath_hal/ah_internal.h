@@ -269,7 +269,7 @@ struct ath_hal_private {
 	uint16_t	ah_eeversion;		/* EEPROM version */
 	void		(*ah_eepromDetach)(struct ath_hal *);
 	HAL_STATUS	(*ah_eepromGet)(struct ath_hal *, int, void *);
-	HAL_BOOL	(*ah_eepromSet)(struct ath_hal *, int, int);
+	HAL_STATUS	(*ah_eepromSet)(struct ath_hal *, int, int);
 	uint16_t	(*ah_getSpurChan)(struct ath_hal *, int, HAL_BOOL);
 	HAL_BOOL	(*ah_eepromDiag)(struct ath_hal *, int request,
 			    const void *args, uint32_t argsize,

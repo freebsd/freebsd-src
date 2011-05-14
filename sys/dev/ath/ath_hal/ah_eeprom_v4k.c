@@ -116,7 +116,7 @@ v4kEepromGet(struct ath_hal *ah, int param, void *val)
 #undef CHAN_B_IDX
 }
 
-static HAL_BOOL
+static HAL_STATUS
 v4kEepromSet(struct ath_hal *ah, int param, int v)
 {
 	HAL_EEPROM_v4k *ee = AH_PRIVATE(ah)->ah_eeprom;
