@@ -133,4 +133,5 @@ HAL_STATUS	ath_hal_v1EepromAttach(struct ath_hal *ah);
 HAL_STATUS	ath_hal_legacyEepromAttach(struct ath_hal *ah);
 HAL_STATUS	ath_hal_v14EepromAttach(struct ath_hal *ah);
 HAL_STATUS	ath_hal_v4kEepromAttach(struct ath_hal *ah);
+HAL_STATUS	ath_hal_9287EepromAttach(struct ath_hal *ah);
 #endif /* _ATH_AH_EEPROM_H_ */

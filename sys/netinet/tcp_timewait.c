@@ -244,7 +244,7 @@ tcp_twstart(struct tcpcb *tp)
 	 */
 	KASSERT(SEQ_GEQ(tp->rcv_adv, tp->rcv_nxt),
 	    ("tcp_twstart negative window: tp %p rcv_nxt %u rcv_adv %u", tp,
-	    tp->rcv_adv, tp->rcv_nxt));
+	    tp->rcv_nxt, tp->rcv_adv));
 	tw->last_win = (tp->rcv_adv - tp->rcv_nxt) >> tp->rcv_scale;
 
 	/*
