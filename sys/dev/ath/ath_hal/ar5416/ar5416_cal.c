@@ -277,7 +277,7 @@ ar5416InitCal(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	/*
 	 * Enable IQ, ADC Gain, ADC DC Offset Cals
 	 */
-	if (AR_SREV_SOWL_10_OR_LATER(ah)) {
+	if (AR_SREV_HOWL(ah) || AR_SREV_SOWL_10_OR_LATER(ah)) {
 		/* Setup all non-periodic, init time only calibrations */
 		/* XXX: Init DC Offset not working yet */
 #if 0
