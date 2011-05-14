@@ -508,17 +508,14 @@ ia64_enable_highfp(void)
 	__asm __volatile("rsm psr.dfh;; srlz.d");
 }
 
-static __inline void
-ia64_srlz_d(void)
-{
-	__asm __volatile("srlz.d");
-}
-
-static __inline void
-ia64_srlz_i(void)
-{
-	__asm __volatile("srlz.i;;");
-}
+/*
+ * Avoid inline functions for the following so that they still work
+ * correctly when inlining is not enabled (e.g. -O0). Function calls
+ * need data serialization after setting psr, which results in a
+ * hazard.
+ */
+#define	ia64_srlz_d()	__asm __volatile("srlz.d")
+#define	ia64_srlz_i()	__asm __volatile("srlz.i;;")
 
 #endif /* !LOCORE */
 
