@@ -153,15 +153,7 @@ drop_privs(bool usecapsicum)
 	uid_t ruid, euid, suid;
 	gid_t rgid, egid, sgid;
 	gid_t gidset[1];
-
-	if (usecapsicum) {
-		if (cap_enter() == 0) {
-			pjdlog_debug(1,
-			    "Privileges successfully dropped using capsicum.");
-			return (0);
-		}
-		pjdlog_errno(LOG_WARNING, "Unable to sandbox using capsicum");
-	}
+	bool capsicum;
 
 	/*
 	 * According to getpwnam(3) we have to clear errno before calling the
@@ -205,6 +197,16 @@ drop_privs(bool usecapsicum)
 		return (-1);
 	}
 
+	capsicum = false;
+	if (usecapsicum) {
+		if (cap_enter() == 0) {
+			capsicum = true;
+		} else {
+			pjdlog_errno(LOG_WARNING,
+			    "Unable to sandbox using capsicum");
+		}
+	}
+
 	/*
 	 * Better be sure that everything succeeded.
 	 */
@@ -221,7 +223,8 @@ drop_privs(bool usecapsicum)
 	PJDLOG_VERIFY(gidset[0] == pw->pw_gid);
 
 	pjdlog_debug(1,
-	    "Privileges successfully dropped using chroot+setgid+setuid.");
+	    "Privileges successfully dropped using %schroot+setgid+setuid.",
+	    capsicum ? "capsicum+" : "");
 
 	return (0);
 }
