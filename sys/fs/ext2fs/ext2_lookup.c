@@ -119,17 +119,11 @@ static int	ext2_dirbadentry(struct vnode *dp, struct ext2fs_direct_2 *de,
 /*
  * Vnode op for reading directories.
  *
- * The routine below assumes that the on-disk format of a directory
- * is the same as that defined by <sys/dirent.h>. If the on-disk
- * format changes, then it will be necessary to do a conversion
- * from the on-disk format that read returns to the format defined
- * by <sys/dirent.h>.
- */
-/*
- * this is exactly what we do here - the problem is that the conversion
- * will blow up some entries by four bytes, so it can't be done in place.
- * This is too bad. Right now the conversion is done entry by entry, the
- * converted entry is sent via uiomove.
+ * This function has to convert directory entries from the on-disk
+ * format to the format defined by <sys/dirent.h>.  Unfortunately, the
+ * conversion will blow up some entries by four bytes, so it can't be
+ * done in place.  Instead, the conversion is done entry by entry and
+ * the converted entry is sent via uiomove.
  *
  * XXX allocate a buffer, convert as many entries as possible, then send
  * the whole buffer to uiomove
