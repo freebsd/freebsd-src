@@ -628,6 +628,7 @@ vendor OQO		0x1557	OQO
 vendor UMEDIA		0x157e	U-MEDIA Communications
 vendor FIBERLINE	0x1582	Fiberline
 vendor SPARKLAN		0x15a9	SparkLAN
+vendor SOUNDGRAPH 	0x15c2	Soundgraph, Inc.
 vendor AMIT2		0x15c5	AMIT
 vendor SOHOWARE		0x15e8	SOHOware
 vendor UMAX		0x1606	UMAX Data Systems
@@ -3140,6 +3141,10 @@ product SOURCENEXT KEIKAI8_CHG	0x012e	KeikaiDenwa 8 with charger
 product SPARKLAN RT2573		0x0004	RT2573
 product SPARKLAN RT2870_1	0x0006	RT2870
 product SPARKLAN RT3070		0x0010	RT3070
+
+/* Soundgraph products */
+product SOUNDGRAPH IMON_VFD	0x0044	Antec Veris Elite VFD Panel, Knob, and Remote
+product SOUNDGRAPH SSTONE_LC16	0xffdc	Silverstone LC16 VFD Panel, Knob, and Remote
 
 /* Speed Dragon Multimedia products */
 product SPEEDDRAGON MS3303H	0x110b	MS3303H Serial
