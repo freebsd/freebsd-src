@@ -32,9 +32,10 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/capability.h>
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/disk.h>
 #include <sys/ioctl.h>
+#include <sys/jail.h>
 #include <sys/stat.h>
 
 #include <errno.h>
@@ -147,13 +148,15 @@ role2str(int role)
 }
 
 int
-drop_privs(bool usecapsicum)
+drop_privs(struct hast_resource *res)
 {
+	char jailhost[sizeof(res->hr_name) * 2];
+	struct jail jailst;
 	struct passwd *pw;
 	uid_t ruid, euid, suid;
 	gid_t rgid, egid, sgid;
 	gid_t gidset[1];
-	bool capsicum;
+	bool capsicum, jailed;
 
 	/*
 	 * According to getpwnam(3) we have to clear errno before calling the
@@ -173,10 +176,34 @@ drop_privs(bool usecapsicum)
 			return (-1);
 		}
 	}
-	if (chroot(pw->pw_dir) == -1) {
-		KEEP_ERRNO(pjdlog_errno(LOG_ERR,
-		    "Unable to change root directory to %s", pw->pw_dir));
-		return (-1);
+
+	bzero(&jailst, sizeof(jailst));
+	jailst.version = JAIL_API_VERSION;
+	jailst.path = pw->pw_dir;
+	if (res == NULL) {
+		(void)snprintf(jailhost, sizeof(jailhost), "hastctl");
+	} else {
+		(void)snprintf(jailhost, sizeof(jailhost), "hastd: %s (%s)",
+		    res->hr_name, role2str(res->hr_role));
+	}
+	jailst.hostname = jailhost;
+	jailst.jailname = NULL;
+	jailst.ip4s = 0;
+	jailst.ip4 = NULL;
+	jailst.ip6s = 0;
+	jailst.ip6 = NULL;
+	if (jail(&jailst) >= 0) {
+		jailed = true;
+	} else {
+		jailed = false;
+		pjdlog_errno(LOG_WARNING,
+		    "Unable to jail to directory to %s", pw->pw_dir);
+		if (chroot(pw->pw_dir) == -1) {
+			KEEP_ERRNO(pjdlog_errno(LOG_ERR,
+			    "Unable to change root directory to %s",
+			    pw->pw_dir));
+			return (-1);
+		}
 	}
 	PJDLOG_VERIFY(chdir("/") == 0);
 	gidset[0] = pw->pw_gid;
@@ -197,15 +224,10 @@ drop_privs(bool usecapsicum)
 		return (-1);
 	}
 
-	capsicum = false;
-	if (usecapsicum) {
-		if (cap_enter() == 0) {
-			capsicum = true;
-		} else {
-			pjdlog_errno(LOG_WARNING,
-			    "Unable to sandbox using capsicum");
-		}
-	}
+	if (res == NULL || res->hr_role != HAST_ROLE_PRIMARY)
+		capsicum = (cap_enter() == 0);
+	else
+		capsicum = false;
 
 	/*
 	 * Better be sure that everything succeeded.
@@ -223,8 +245,8 @@ drop_privs(bool usecapsicum)
 	PJDLOG_VERIFY(gidset[0] == pw->pw_gid);
 
 	pjdlog_debug(1,
-	    "Privileges successfully dropped using %schroot+setgid+setuid.",
-	    capsicum ? "capsicum+" : "");
+	    "Privileges successfully dropped using %s%s+setgid+setuid.",
+	    capsicum ? "capsicum+" : "", jailed ? "jail" : "chroot");
 
 	return (0);
 }

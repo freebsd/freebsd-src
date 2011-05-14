@@ -904,7 +904,7 @@ hastd_primary(struct hast_resource *res)
 	init_ggate(res);
 	init_environment(res);
 
-	if (drop_privs(true) != 0) {
+	if (drop_privs(res) != 0) {
 		cleanup(res);
 		exit(EX_CONFIG);
 	}
