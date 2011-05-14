@@ -2591,7 +2591,7 @@ ar5416OverrideIni(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	 * hang issues.
 	 */
 	if (AR_SREV_HOWL(ah) || AR_SREV_SOWL(ah))
-		(void) ar5416SetRifsDelay(ah, AH_FALSE);
+		(void) ar5416SetRifsDelay(ah, chan, AH_FALSE);
 
         if (!AR_SREV_5416_V20_OR_LATER(ah) || AR_SREV_MERLIN(ah))
 		return;
