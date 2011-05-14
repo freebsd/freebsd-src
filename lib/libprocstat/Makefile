@@ -12,6 +12,9 @@ SRCS=	cd9660.c	\
 	smbfs.c		\
 	udf.c
 
+VERSION_DEF=	${.CURDIR}/Versions.def
+SYMBOL_MAPS=	${.CURDIR}/Symbol.map
+
 INCS=	libprocstat.h
 CFLAGS+=	-I. -I${.CURDIR} -D_KVM_VNODE
 SHLIB_MAJOR=	1
