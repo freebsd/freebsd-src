@@ -13,6 +13,6 @@ CFLAGS+= -I${.CURDIR}/../../../sys/contrib/pf
 LDADD+= ${LIBEVENT}
 DPADD+= ${LIBEVENT}
 
-WARNS?=	7
+WARNS?=	3
 
 .include <bsd.prog.mk>
