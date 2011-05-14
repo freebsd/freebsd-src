@@ -52,6 +52,7 @@ sun4v/sun4v/trap_trace.S	optional	trap_tracing
 sparc64/pci/ofw_pcib.c		optional	pci
 sparc64/pci/ofw_pcib_subr.c	optional	pci
 sparc64/pci/ofw_pcibus.c	optional	pci
+sparc64/pci/ofw_pci_if.m	optional	pci
 
 # XXX hvcons should be optional
 sun4v/sun4v/hvcons.c	standard	

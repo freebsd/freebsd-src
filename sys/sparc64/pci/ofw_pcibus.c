@@ -279,6 +279,7 @@ ofw_pcibus_attach(device_t dev)
 			continue;
 		}
 		pci_add_child(dev, (struct pci_devinfo *)dinfo);
+		OFW_PCI_SETUP_DEVICE(pcib, dinfo->opd_dinfo.cfg.dev);
 	}
 
 	return (bus_generic_attach(dev));
