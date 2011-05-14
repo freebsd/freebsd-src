@@ -68,7 +68,7 @@ struct pcpu_md {
 
 struct pcpu;
 
-register struct pcpu *pcpup __asm__("r13");
+register struct pcpu * volatile pcpup __asm__("r13");
 
 static __inline __pure2 struct thread *
 __curthread(void)
