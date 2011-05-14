@@ -99,6 +99,10 @@ ar9280AniSetup(struct ath_hal *ah)
         ar5416AniAttach(ah, &aniparams, &aniparams, AH_TRUE);
 }
 
+/* XXX shouldn't be here! */
+#define	EEP_MINOR(_ah) \
+	(AH_PRIVATE(_ah)->ah_eeversion & AR5416_EEP_VER_MINOR_MASK)
+
 /*
  * Attach for an AR9280 part.
  */
@@ -270,7 +274,8 @@ ar9280Attach(uint16_t devid, HAL_SOFTC sc,
 		ath_hal_printf(ah, "[ath]: default pwr offset: %d dBm != EEPROM pwr offset: %d dBm; curves will be adjusted.\n",
 		    AR5416_PWR_TABLE_OFFSET_DB, (int) pwr_table_offset);
 
-	if (AR_SREV_MERLIN_20_OR_LATER(ah)) {
+	/* XXX check for >= minor ver 17 */
+	if (AR_SREV_MERLIN_20(ah)) {
 		/* setup rxgain table */
 		switch (ath_hal_eepromGet(ah, AR_EEP_RXGAIN_TYPE, AH_NULL)) {
 		case AR5416_EEP_RXGAIN_13dB_BACKOFF:
@@ -290,7 +295,9 @@ ar9280Attach(uint16_t devid, HAL_SOFTC sc,
 			goto bad;		/* XXX ? try to continue */
 		}
 	}
-	if (AR_SREV_MERLIN_20_OR_LATER(ah)) {
+
+	/* XXX check for >= minor ver 19 */
+	if (AR_SREV_MERLIN_20(ah)) {
 		/* setp txgain table */
 		switch (ath_hal_eepromGet(ah, AR_EEP_TXGAIN_TYPE, AH_NULL)) {
 		case AR5416_EEP_TXGAIN_HIGH_POWER:
