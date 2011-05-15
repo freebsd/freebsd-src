@@ -681,14 +681,13 @@ exportcmd(int argc, char **argv)
 						out1str(cmdname);
 						out1c(' ');
 					}
-					p = strchr(vp->text, '=');
 					if (values && !(vp->flags & VUNSET)) {
-						p++;
-						outbin(vp->text, p - vp->text,
-						    out1);
-						out1qstr(p);
+						outbin(vp->text,
+						    vp->name_len + 1, out1);
+						out1qstr(vp->text +
+						    vp->name_len + 1);
 					} else
-						outbin(vp->text, p - vp->text,
+						outbin(vp->text, vp->name_len,
 						    out1);
 					out1c('\n');
 				}
