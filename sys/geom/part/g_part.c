@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/queue.h>
 #include <sys/sbuf.h>
+#include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/uuid.h>
 #include <geom/geom.h>
@@ -103,6 +104,13 @@ struct g_part_alias_list {
 	{ "netbsd-raid", G_PART_ALIAS_NETBSD_RAID },
 	{ "netbsd-swap", G_PART_ALIAS_NETBSD_SWAP },
 };
+
+SYSCTL_DECL(_kern_geom);
+SYSCTL_NODE(_kern_geom, OID_AUTO, part, CTLFLAG_RW, 0, "GEOM_PART stuff");
+static u_int check_integrity = 1;
+TUNABLE_INT("kern.geom.part.check_integrity", &check_integrity);
+SYSCTL_UINT(_kern_geom_part, OID_AUTO, check_integrity, CTLFLAG_RW,
+    &check_integrity, 1, "Enable integrity checking");
 
 /*
  * The GEOM partitioning class.
@@ -267,9 +275,12 @@ g_part_check_integrity(struct g_part_table *table, struct g_consumer *cp)
 	}
 	return (0);
 fail:
-	if (bootverbose)
-		printf("GEOM_PART: integrity check failed (%s, %s)\n",
-		    pp->name, table->gpt_scheme->name);
+	printf("GEOM_PART: integrity check failed (%s, %s)\n", pp->name,
+	    table->gpt_scheme->name);
+	if (check_integrity == 0) {
+		table->gpt_corrupt = 1;
+		return (0);
+	}
 	return (EINVAL);
 }
 
