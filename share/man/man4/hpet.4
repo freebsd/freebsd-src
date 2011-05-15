@@ -69,14 +69,14 @@ This driver uses High Precision Event Timer hardware (part of the chipset,
 usually enumerated via ACPI) to supply kernel with one time counter and
 several (usually from 3 to 8) event timers.
 This hardware includes single main counter with known increment frequency
-(10MHz or more), and several programable comparators (optionally with
+(10MHz or more), and several programmable comparators (optionally with
 automatic reload feature).
 When value of the main counter matches current value of any comparator,
 interrupt can be generated.
 Depending on hardware capabilities and configuration, interrupt can be
 delivered as regular I/O APIC interrupt (ISA or PCI) in range from 0 to 31,
 or as Front Side Bus interrupt, alike to PCI MSI interrupts, or in so called
-"LegacyReplacement Route" HPET can speal IRQ0 of i8254 and IRQ8 of the RTC.
+"LegacyReplacement Route" HPET can steal IRQ0 of i8254 and IRQ8 of the RTC.
 Interrupt can be either edge- or level-triggered. In last case they could be
 safely shared with PCI IRQs.
 Driver prefers to use FSB interrupts, if supported, to avoid sharing.
