@@ -141,6 +141,7 @@ static int handle_sge_egr_update(struct adapter *,
     const struct cpl_sge_egr_update *);
 
 static int ctrl_tx(struct adapter *, struct sge_ctrlq *, struct mbuf *);
+static int sysctl_abs_id(SYSCTL_HANDLER_ARGS);
 
 extern void filter_rpl(struct adapter *, const struct cpl_set_tcb_rpl *);
 
@@ -1363,6 +1364,9 @@ alloc_rxq(struct port_info *pi, struct sge_rxq *rxq, int intr_idx, int idx)
 	    NULL, "rx queue");
 	children = SYSCTL_CHILDREN(oid);
 
+	SYSCTL_ADD_PROC(&pi->ctx, children, OID_AUTO, "abs_id",
+	    CTLTYPE_INT | CTLFLAG_RD, &rxq->iq.abs_id, 0, sysctl_abs_id, "I",
+	    "absolute id of the queue");
 #ifdef INET
 	SYSCTL_ADD_INT(&pi->ctx, children, OID_AUTO, "lro_queued", CTLFLAG_RD,
 	    &rxq->lro.lro_queued, 0, NULL);
@@ -2732,4 +2736,13 @@ failed:
 		m_freem(m0);
 
 	return (rc);
+}
+
+static int
+sysctl_abs_id(SYSCTL_HANDLER_ARGS)
+{
+	uint16_t *id = arg1;
+	int i = *id;
+
+	return sysctl_handle_int(oidp, &i, 0, req);
 }

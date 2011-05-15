@@ -253,13 +253,7 @@ find_provider(struct ggeom *gp, off_t minsector)
 	bestsector = 0;
 	LIST_FOREACH(pp, &gp->lg_provider, lg_provider) {
 		s = find_provcfg(pp, "start");
-		if (s == NULL) {
-			s = find_provcfg(pp, "offset");
-			sector =
-			    (off_t)strtoimax(s, NULL, 0) / pp->lg_sectorsize;
-		} else
-			sector = (off_t)strtoimax(s, NULL, 0);
-
+		sector = (off_t)strtoimax(s, NULL, 0);
 		if (sector < minsector)
 			continue;
 		if (bestpp != NULL && sector >= bestsector)
@@ -379,18 +373,9 @@ gpart_autofill_resize(struct gctl_req *req)
 		errx(EXIT_FAILURE, "invalid partition index");
 
 	s = find_provcfg(pp, "start");
-	if (s == NULL) {
-		s = find_provcfg(pp, "offset");
-		start = (off_t)strtoimax(s, NULL, 0) / pp->lg_sectorsize;
-	} else
-		start = (off_t)strtoimax(s, NULL, 0);
+	start = (off_t)strtoimax(s, NULL, 0);
 	s = find_provcfg(pp, "end");
-	if (s == NULL) {
-		s = find_provcfg(pp, "length");
-		lba = start +
-		    (off_t)strtoimax(s, NULL, 0) / pp->lg_sectorsize;
-	} else
-		lba = (off_t)strtoimax(s, NULL, 0) + 1;
+	lba = (off_t)strtoimax(s, NULL, 0) + 1;
 
 	if (lba > last) {
 		geom_deletetree(&mesh);
@@ -402,12 +387,7 @@ gpart_autofill_resize(struct gctl_req *req)
 		new_size = ALIGNDOWN(last - start + 1, alignment);
 	else {
 		s = find_provcfg(pp, "start");
-		if (s == NULL) {
-			s = find_provcfg(pp, "offset");
-			new_lba =
-			    (off_t)strtoimax(s, NULL, 0) / pp->lg_sectorsize;
-		} else
-			new_lba = (off_t)strtoimax(s, NULL, 0);
+		new_lba = (off_t)strtoimax(s, NULL, 0);
 		/*
 		 * Is there any free space between current and
 		 * next providers?
@@ -512,12 +492,7 @@ gpart_autofill(struct gctl_req *req)
 	last = ALIGNDOWN(last, alignment);
 	while ((pp = find_provider(gp, first)) != NULL) {
 		s = find_provcfg(pp, "start");
-		if (s == NULL) {
-			s = find_provcfg(pp, "offset");
-			lba = (off_t)strtoimax(s, NULL, 0) / pp->lg_sectorsize;
-		} else
-			lba = (off_t)strtoimax(s, NULL, 0);
-
+		lba = (off_t)strtoimax(s, NULL, 0);
 		a_lba = ALIGNDOWN(lba, alignment);
 		if (first < a_lba && a_first < a_lba) {
 			/* Free space [first, lba> */
@@ -543,12 +518,7 @@ gpart_autofill(struct gctl_req *req)
 		}
 
 		s = find_provcfg(pp, "end");
-		if (s == NULL) {
-			s = find_provcfg(pp, "length");
-			first = lba +
-			    (off_t)strtoimax(s, NULL, 0) / pp->lg_sectorsize;
-		} else
-			first = (off_t)strtoimax(s, NULL, 0) + 1;
+		first = (off_t)strtoimax(s, NULL, 0) + 1;
 		a_first = ALIGNUP(first, alignment);
 	}
 	if (a_first <= last) {
@@ -625,21 +595,12 @@ gpart_show_geom(struct ggeom *gp, const char *element, int show_providers)
 
 	while ((pp = find_provider(gp, first)) != NULL) {
 		s = find_provcfg(pp, "start");
-		if (s == NULL) {
-			s = find_provcfg(pp, "offset");
-			sector = (off_t)strtoimax(s, NULL, 0) / secsz;
-		} else
-			sector = (off_t)strtoimax(s, NULL, 0);
+		sector = (off_t)strtoimax(s, NULL, 0);
 
 		s = find_provcfg(pp, "end");
-		if (s == NULL) {
-			s = find_provcfg(pp, "length");
-			length = (off_t)strtoimax(s, NULL, 0) / secsz;
-			end = sector + length - 1;
-		} else {
-			end = (off_t)strtoimax(s, NULL, 0);
-			length = end - sector + 1;
-		}
+		end = (off_t)strtoimax(s, NULL, 0);
+		length = end - sector + 1;
+
 		s = find_provcfg(pp, "index");
 		idx = atoi(s);
 		if (first < sector) {
@@ -782,20 +743,12 @@ gpart_backup(struct gctl_req *req, unsigned int fl __unused)
 	printf("%s %s\n", scheme, s);
 	LIST_FOREACH(pp, &gp->lg_provider, lg_provider) {
 		s = find_provcfg(pp, "start");
-		if (s == NULL) {
-			s = find_provcfg(pp, "offset");
-			sector = (off_t)strtoimax(s, NULL, 0) / secsz;
-		} else
-			sector = (off_t)strtoimax(s, NULL, 0);
+		sector = (off_t)strtoimax(s, NULL, 0);
 
 		s = find_provcfg(pp, "end");
-		if (s == NULL) {
-			s = find_provcfg(pp, "length");
-			length = (off_t)strtoimax(s, NULL, 0) / secsz;
-		} else {
-			end = (off_t)strtoimax(s, NULL, 0);
-			length = end - sector + 1;
-		}
+		end = (off_t)strtoimax(s, NULL, 0);
+		length = end - sector + 1;
+
 		s = find_provcfg(pp, "label");
 		printf("%-*s %*s %*jd %*jd %s %s\n",
 		    windex, find_provcfg(pp, "index"),
