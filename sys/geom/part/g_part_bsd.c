@@ -203,7 +203,7 @@ g_part_bsd_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 	if (BBSIZE % pp->sectorsize)
 		return (ENOTBLK);
 
-	msize = MIN(pp->mediasize / pp->sectorsize, 0xffffffff);
+	msize = MIN(pp->mediasize / pp->sectorsize, UINT32_MAX);
 	secpercyl = basetable->gpt_sectors * basetable->gpt_heads;
 	ncyls = msize / secpercyl;
 
@@ -362,7 +362,7 @@ g_part_bsd_read(struct g_part_table *basetable, struct g_consumer *cp)
 
 	pp = cp->provider;
 	table = (struct g_part_bsd_table *)basetable;
-	msize = pp->mediasize / pp->sectorsize;
+	msize = MIN(pp->mediasize / pp->sectorsize, UINT32_MAX);
 
 	table->bbarea = g_read_data(cp, 0, BBSIZE, &error);
 	if (table->bbarea == NULL)

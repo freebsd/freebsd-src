@@ -195,9 +195,7 @@ g_part_vtoc8_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 
 	table = (struct g_part_vtoc8_table *)basetable;
 
-	msize = pp->mediasize / pp->sectorsize;
-	if (msize > 0xffffffffu)
-		msize = 0xffffffffu;
+	msize = MIN(pp->mediasize / pp->sectorsize, UINT32_MAX);
 	table->secpercyl = basetable->gpt_sectors * basetable->gpt_heads;
 	pcyls = msize / table->secpercyl;
 	acyls = 2;
@@ -389,8 +387,7 @@ g_part_vtoc8_read(struct g_part_table *basetable, struct g_consumer *cp)
 	bcopy(buf, &table->vtoc, sizeof(table->vtoc));
 	g_free(buf);
 
-	msize = pp->mediasize / pp->sectorsize;
-
+	msize = MIN(pp->mediasize / pp->sectorsize, UINT32_MAX);
 	sectors = be16dec(&table->vtoc.nsecs);
 	if (sectors < 1)
 		goto invalid_label;

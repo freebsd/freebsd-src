@@ -280,7 +280,7 @@ g_part_ebr_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 	if (strcmp(psn, "MBR"))
 		return (ENXIO);
 
-	msize = MIN(pp->mediasize / pp->sectorsize, 0xffffffff);
+	msize = MIN(pp->mediasize / pp->sectorsize, UINT32_MAX);
 	msize -= msize % basetable->gpt_sectors;
 	basetable->gpt_first = 0;
 	basetable->gpt_last = msize - 1;
@@ -472,7 +472,7 @@ g_part_ebr_read(struct g_part_table *basetable, struct g_consumer *cp)
 
 	pp = cp->provider;
 	table = (struct g_part_ebr_table *)basetable;
-	msize = pp->mediasize / pp->sectorsize;
+	msize = MIN(pp->mediasize / pp->sectorsize, UINT32_MAX);
 
 	lba = 0;
 	while (1) {
