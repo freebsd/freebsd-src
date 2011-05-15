@@ -72,7 +72,7 @@ __FBSDID("$FreeBSD$");
 #include <fs/nfsclient/nfsnode.h>
 #include <fs/nfsclient/nfsmount.h>
 #include <fs/nfsclient/nfs.h>
-#include <fs/nfsclient/nfsdiskless.h>
+#include <nfs/nfsdiskless.h>
 
 extern int nfscl_ticks;
 extern struct timeval nfsboottime;
@@ -95,6 +95,7 @@ static int nfs_tprintf_delay = NFS_TPRINTF_DELAY;
 SYSCTL_INT(_vfs_newnfs, NFS_TPRINTF_DELAY,
         downdelayinterval, CTLFLAG_RW, &nfs_tprintf_delay, 0, "");
 
+static int	nfs_mountroot(struct mount *);
 static void	nfs_sec_name(char *, int *);
 static void	nfs_decode_args(struct mount *mp, struct nfsmount *nmp,
 		    struct nfs_args *argp, const char *, struct ucred *,
@@ -134,23 +135,26 @@ VFS_SET(nfs_vfsops, newnfs, VFCF_NETWORK);
 MODULE_VERSION(newnfs, 1);
 
 /*
- * This structure must be filled in by a primary bootstrap or bootstrap
- * server for a diskless/dataless machine. It is initialized below just
- * to ensure that it is allocated to initialized data (.data not .bss).
+ * This structure is now defined in sys/nfs/nfs_diskless.c so that it
+ * can be shared by both NFS clients. It is declared here so that it
+ * will be defined for kernels built without NFS_ROOT, although it
+ * isn't used in that case.
  */
-struct nfs_diskless newnfs_diskless = { { { 0 } } };
-struct nfsv3_diskless newnfsv3_diskless = { { { 0 } } };
-int newnfs_diskless_valid = 0;
+#if !defined(NFS_ROOT) && !defined(NFSCLIENT)
+struct nfs_diskless	nfs_diskless = { { { 0 } } };
+struct nfsv3_diskless	nfsv3_diskless = { { { 0 } } };
+int			nfs_diskless_valid = 0;
+#endif
 
 SYSCTL_INT(_vfs_newnfs, OID_AUTO, diskless_valid, CTLFLAG_RD,
-    &newnfs_diskless_valid, 0,
+    &nfs_diskless_valid, 0,
     "Has the diskless struct been filled correctly");
 
 SYSCTL_STRING(_vfs_newnfs, OID_AUTO, diskless_rootpath, CTLFLAG_RD,
-    newnfsv3_diskless.root_hostnam, 0, "Path to nfs root");
+    nfsv3_diskless.root_hostnam, 0, "Path to nfs root");
 
 SYSCTL_OPAQUE(_vfs_newnfs, OID_AUTO, diskless_rootaddr, CTLFLAG_RD,
-    &newnfsv3_diskless.root_saddr, sizeof newnfsv3_diskless.root_saddr,
+    &nfsv3_diskless.root_saddr, sizeof(nfsv3_diskless.root_saddr),
     "%Ssockaddr_in", "Diskless root nfs address");
 
 
@@ -228,29 +232,25 @@ static void
 nfs_convert_diskless(void)
 {
 
-	bcopy(&newnfs_diskless.myif, &newnfsv3_diskless.myif,
-	    sizeof (struct ifaliasreq));
-	bcopy(&newnfs_diskless.mygateway, &newnfsv3_diskless.mygateway,
-	    sizeof (struct sockaddr_in));
-	nfs_convert_oargs(&newnfsv3_diskless.root_args,
-	    &newnfs_diskless.root_args);
-	if (newnfsv3_diskless.root_args.flags & NFSMNT_NFSV3) {
-		newnfsv3_diskless.root_fhsize = NFSX_MYFH;
-		bcopy(newnfs_diskless.root_fh, newnfsv3_diskless.root_fh,
-		    NFSX_MYFH);
+	bcopy(&nfs_diskless.myif, &nfsv3_diskless.myif,
+		sizeof(struct ifaliasreq));
+	bcopy(&nfs_diskless.mygateway, &nfsv3_diskless.mygateway,
+		sizeof(struct sockaddr_in));
+	nfs_convert_oargs(&nfsv3_diskless.root_args,&nfs_diskless.root_args);
+	if (nfsv3_diskless.root_args.flags & NFSMNT_NFSV3) {
+		nfsv3_diskless.root_fhsize = NFSX_MYFH;
+		bcopy(nfs_diskless.root_fh, nfsv3_diskless.root_fh, NFSX_MYFH);
 	} else {
-		newnfsv3_diskless.root_fhsize = NFSX_V2FH;
-		bcopy(newnfs_diskless.root_fh, newnfsv3_diskless.root_fh,
-		    NFSX_V2FH);
+		nfsv3_diskless.root_fhsize = NFSX_V2FH;
+		bcopy(nfs_diskless.root_fh, nfsv3_diskless.root_fh, NFSX_V2FH);
 	}
-	bcopy(&newnfs_diskless.root_saddr,&newnfsv3_diskless.root_saddr,
-	    sizeof(struct sockaddr_in));
-	bcopy(newnfs_diskless.root_hostnam, newnfsv3_diskless.root_hostnam,
-	    MNAMELEN);
-	newnfsv3_diskless.root_time = newnfs_diskless.root_time;
-	bcopy(newnfs_diskless.my_hostnam, newnfsv3_diskless.my_hostnam,
-	    MAXHOSTNAMELEN);
-	newnfs_diskless_valid = 3;
+	bcopy(&nfs_diskless.root_saddr,&nfsv3_diskless.root_saddr,
+		sizeof(struct sockaddr_in));
+	bcopy(nfs_diskless.root_hostnam, nfsv3_diskless.root_hostnam, MNAMELEN);
+	nfsv3_diskless.root_time = nfs_diskless.root_time;
+	bcopy(nfs_diskless.my_hostnam, nfsv3_diskless.my_hostnam,
+		MAXHOSTNAMELEN);
+	nfs_diskless_valid = 3;
 }
 
 /*
@@ -356,12 +356,12 @@ ncl_fsinfo(struct nfsmount *nmp, struct vnode *vp, struct ucred *cred,
 
 /*
  * Mount a remote root fs via. nfs. This depends on the info in the
- * newnfs_diskless structure that has been filled in properly by some primary
+ * nfs_diskless structure that has been filled in properly by some primary
  * bootstrap.
  * It goes something like this:
  * - do enough of "ifconfig" by calling ifioctl() so that the system
  *   can talk to the server
- * - If newnfs_diskless.mygateway is filled in, use that address as
+ * - If nfs_diskless.mygateway is filled in, use that address as
  *   a default gateway.
  * - build the rootfs mount point and call mountnfs() to do the rest.
  *
@@ -370,11 +370,11 @@ ncl_fsinfo(struct nfsmount *nmp, struct vnode *vp, struct ucred *cred,
  * nfs_mountroot() will be called once in the boot before any other NFS
  * client activity occurs.
  */
-int
-ncl_mountroot(struct mount *mp)
+static int
+nfs_mountroot(struct mount *mp)
 {
 	struct thread *td = curthread;
-	struct nfsv3_diskless *nd = &newnfsv3_diskless;
+	struct nfsv3_diskless *nd = &nfsv3_diskless;
 	struct socket *so;
 	struct vnode *vp;
 	struct ifreq ir;
@@ -389,9 +389,9 @@ ncl_mountroot(struct mount *mp)
 	nfs_setup_diskless();
 #endif
 
-	if (newnfs_diskless_valid == 0)
+	if (nfs_diskless_valid == 0)
 		return (-1);
-	if (newnfs_diskless_valid == 1)
+	if (nfs_diskless_valid == 1)
 		nfs_convert_diskless();
 
 	/*
@@ -765,7 +765,7 @@ nfs_mount(struct mount *mp)
 
 	td = curthread;
 	if ((mp->mnt_flag & (MNT_ROOTFS | MNT_UPDATE)) == MNT_ROOTFS) {
-		error = ncl_mountroot(mp);
+		error = nfs_mountroot(mp);
 		goto out;
 	}
 

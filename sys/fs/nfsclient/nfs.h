@@ -101,7 +101,6 @@ int ncl_fsinfo(struct nfsmount *, struct vnode *, struct ucred *,
     struct thread *);
 int ncl_init(struct vfsconf *);
 int ncl_uninit(struct vfsconf *);
-int ncl_mountroot(struct mount *);
 void	ncl_nfsiodnew(void);
 void	ncl_nfsiodnew_tq(__unused void *, int);
 

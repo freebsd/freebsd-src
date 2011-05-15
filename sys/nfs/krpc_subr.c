@@ -63,7 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <rpc/types.h>
 #include <rpc/auth.h>
 #include <rpc/rpc_msg.h>
-#include <nfsclient/krpc.h>
+#include <nfs/krpc.h>
 #include <nfs/xdr_subs.h>
 
 /*
