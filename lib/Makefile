@@ -110,6 +110,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libusbhid} \
 	${_libusb} \
 	${_libvgl} \
+	${_libvmmapi} \
 	libwrap \
 	liby \
 	libz \
@@ -197,6 +198,7 @@ _libsmb=	libsmb
 .if ${MK_NCP} != "no"
 _libncp=	libncp
 .endif
+_libvmmapi=	libvmmapi
 .endif
 
 .if ${MACHINE_CPUARCH} == "powerpc"
