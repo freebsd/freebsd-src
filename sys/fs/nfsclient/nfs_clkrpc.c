@@ -46,8 +46,6 @@ __FBSDID("$FreeBSD$");
 
 NFSDLOCKMUTEX;
 
-SYSCTL_DECL(_vfs_newnfs);
-
 SVCPOOL		*nfscbd_pool;
 
 static int nfs_cbproc(struct nfsrv_descript *, u_int32_t);
