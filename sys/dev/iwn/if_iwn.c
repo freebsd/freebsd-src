@@ -3527,7 +3527,8 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 	    BUS_DMASYNC_PREWRITE);
 
 	/* Update TX scheduler. */
-	ops->update_sched(sc, ring->qid, ring->cur, tx->id, totlen);
+	if (ring->qid >= sc->firstaggqueue)
+		ops->update_sched(sc, ring->qid, ring->cur, tx->id, totlen);
 
 	/* Kick TX ring. */
 	ring->cur = (ring->cur + 1) % IWN_TX_RING_COUNT;
@@ -3730,7 +3731,8 @@ iwn_tx_data_raw(struct iwn_softc *sc, struct mbuf *m,
 	    BUS_DMASYNC_PREWRITE);
 
 	/* Update TX scheduler. */
-	ops->update_sched(sc, ring->qid, ring->cur, tx->id, totlen);
+	if (ring->qid >= sc->firstaggqueue)
+		ops->update_sched(sc, ring->qid, ring->cur, tx->id, totlen);
 
 	/* Kick TX ring. */
 	ring->cur = (ring->cur + 1) % IWN_TX_RING_COUNT;
@@ -3894,7 +3896,6 @@ iwn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 static int
 iwn_cmd(struct iwn_softc *sc, int code, const void *buf, int size, int async)
 {
-	struct iwn_ops *ops = &sc->ops;
 	struct iwn_tx_ring *ring = &sc->txq[4];
 	struct iwn_tx_desc *desc;
 	struct iwn_tx_data *data;
@@ -3953,9 +3954,6 @@ iwn_cmd(struct iwn_softc *sc, int code, const void *buf, int size, int async)
 	}
 	bus_dmamap_sync(ring->desc_dma.tag, ring->desc_dma.map,
 	    BUS_DMASYNC_PREWRITE);
-
-	/* Update TX scheduler. */
-	ops->update_sched(sc, ring->qid, ring->cur, 0, 0);
 
 	/* Kick command ring. */
 	ring->cur = (ring->cur + 1) % IWN_TX_RING_COUNT;
