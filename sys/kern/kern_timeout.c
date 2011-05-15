@@ -56,6 +56,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/smp.h>
 
+#ifdef SMP
+#include <machine/cpu.h>
+#endif
+
 SDT_PROVIDER_DEFINE(callout_execute);
 SDT_PROBE_DEFINE(callout_execute, kernel, , callout_start, callout-start);
 SDT_PROBE_ARGTYPE(callout_execute, kernel, , callout_start, 0,
@@ -83,6 +87,21 @@ SYSCTL_INT(_debug, OID_AUTO, to_avg_mpcalls, CTLFLAG_RD, &avg_mpcalls, 0,
 int callwheelsize, callwheelbits, callwheelmask;
 
 /*
+ * The callout cpu migration entity represents informations necessary for
+ * describing the migrating callout to the new callout cpu.
+ * The cached informations are very important for deferring migration when
+ * the migrating callout is already running.
+ */
+struct cc_mig_ent {
+#ifdef SMP
+	void	(*ce_migration_func)(void *);
+	void	*ce_migration_arg;
+	int	ce_migration_cpu;
+	int	ce_migration_ticks;
+#endif
+};
+	
+/*
  * There is one struct callout_cpu per cpu, holding all relevant
  * state for the callout processing thread on the individual CPU.
  * In particular:
@@ -100,6 +119,7 @@ int callwheelsize, callwheelbits, callwheelmask;
  *	when the callout should be served.
  */
 struct callout_cpu {
+	struct cc_mig_ent	cc_migrating_entity;
 	struct mtx		cc_lock;
 	struct callout		*cc_callout;
 	struct callout_tailq	*cc_callwheel;
@@ -114,7 +134,13 @@ struct callout_cpu {
 };
 
 #ifdef SMP
+#define	cc_migration_func	cc_migrating_entity.ce_migration_func
+#define	cc_migration_arg	cc_migrating_entity.ce_migration_arg
+#define	cc_migration_cpu	cc_migrating_entity.ce_migration_cpu
+#define	cc_migration_ticks	cc_migrating_entity.ce_migration_ticks
+
 struct callout_cpu cc_cpu[MAXCPU];
+#define	CPUBLOCK	MAXCPU
 #define	CC_CPU(cpu)	(&cc_cpu[(cpu)])
 #define	CC_SELF()	CC_CPU(PCPU_GET(cpuid))
 #else
@@ -124,6 +150,7 @@ struct callout_cpu cc_cpu;
 #endif
 #define	CC_LOCK(cc)	mtx_lock_spin(&(cc)->cc_lock)
 #define	CC_UNLOCK(cc)	mtx_unlock_spin(&(cc)->cc_lock)
+#define	CC_LOCK_ASSERT(cc)	mtx_assert(&(cc)->cc_lock, MA_OWNED)
 
 static int timeout_cpu;
 
@@ -145,6 +172,35 @@ MALLOC_DEFINE(M_CALLOUT, "callout", "Callout datastructures");
  *                     callout_wait is nonzero.  Set only when
  *                     curr_callout is non-NULL.
  */
+
+/*
+ * Resets the migration entity tied to a specific callout cpu.
+ */
+static void
+cc_cme_cleanup(struct callout_cpu *cc)
+{
+
+#ifdef SMP
+	cc->cc_migration_cpu = CPUBLOCK;
+	cc->cc_migration_ticks = 0;
+	cc->cc_migration_func = NULL;
+	cc->cc_migration_arg = NULL;
+#endif
+}
+
+/*
+ * Checks if migration is requested by a specific callout cpu.
+ */
+static int
+cc_cme_migrating(struct callout_cpu *cc)
+{
+
+#ifdef SMP
+	return (cc->cc_migration_cpu != CPUBLOCK);
+#else
+	return (0);
+#endif
+}
 
 /*
  * kern_timeout_callwheel_alloc() - kernel low level callwheel initialization 
@@ -186,6 +242,7 @@ callout_cpu_init(struct callout_cpu *cc)
 	for (i = 0; i < callwheelsize; i++) {
 		TAILQ_INIT(&cc->cc_callwheel[i]);
 	}
+	cc_cme_cleanup(cc);
 	if (cc->cc_callout == NULL)
 		return;
 	for (i = 0; i < ncallout; i++) {
@@ -195,6 +252,29 @@ callout_cpu_init(struct callout_cpu *cc)
 		SLIST_INSERT_HEAD(&cc->cc_callfree, c, c_links.sle);
 	}
 }
+
+#ifdef SMP
+/*
+ * Switches the cpu tied to a specific callout.
+ * The function expects a locked incoming callout cpu and returns with
+ * locked outcoming callout cpu.
+ */
+static struct callout_cpu *
+callout_cpu_switch(struct callout *c, struct callout_cpu *cc, int new_cpu)
+{
+	struct callout_cpu *new_cc;
+
+	MPASS(c != NULL && cc != NULL);
+	CC_LOCK_ASSERT(cc);
+
+	c->c_cpu = CPUBLOCK;
+	CC_UNLOCK(cc);
+	new_cc = CC_CPU(new_cpu);
+	CC_LOCK(new_cc);
+	c->c_cpu = new_cpu;
+	return (new_cc);
+}
+#endif
 
 /*
  * kern_timeout_callwheel_init() - initialize previously reserved callwheel
@@ -285,6 +365,13 @@ callout_lock(struct callout *c)
 
 	for (;;) {
 		cpu = c->c_cpu;
+#ifdef SMP
+		if (cpu == CPUBLOCK) {
+			while (c->c_cpu == CPUBLOCK)
+				cpu_spinwait();
+			continue;
+		}
+#endif
 		cc = CC_CPU(cpu);
 		CC_LOCK(cc);
 		if (cpu == c->c_cpu)
@@ -292,6 +379,23 @@ callout_lock(struct callout *c)
 		CC_UNLOCK(cc);
 	}
 	return (cc);
+}
+
+static void
+callout_cc_add(struct callout *c, struct callout_cpu *cc, int to_ticks,
+    void (*func)(void *), void *arg, int cpu)
+{
+
+	CC_LOCK_ASSERT(cc);
+
+	if (to_ticks <= 0)
+		to_ticks = 1;
+	c->c_arg = arg;
+	c->c_flags |= (CALLOUT_ACTIVE | CALLOUT_PENDING);
+	c->c_func = func;
+	c->c_time = cc->cc_ticks + to_ticks;
+	TAILQ_INSERT_TAIL(&cc->cc_callwheel[c->c_time & callwheelmask],
+	    c, c_links.tqe);
 }
 
 /*
@@ -471,14 +575,50 @@ softclock(void *arg)
 				}
 				cc->cc_curr = NULL;
 				if (cc->cc_waiting) {
+
 					/*
-					 * There is someone waiting
-					 * for the callout to complete.
+					 * There is someone waiting for the
+					 * callout to complete.
+					 * If the callout was scheduled for
+					 * migration just cancel it.
 					 */
+					if (cc_cme_migrating(cc))
+						cc_cme_cleanup(cc);
 					cc->cc_waiting = 0;
 					CC_UNLOCK(cc);
 					wakeup(&cc->cc_waiting);
 					CC_LOCK(cc);
+				} else if (cc_cme_migrating(cc)) {
+#ifdef SMP
+					struct callout_cpu *new_cc;
+					void (*new_func)(void *);
+					void *new_arg;
+					int new_cpu, new_ticks;
+
+					/*
+					 * If the callout was scheduled for
+					 * migration just perform it now.
+					 */
+					new_cpu = cc->cc_migration_cpu;
+					new_ticks = cc->cc_migration_ticks;
+					new_func = cc->cc_migration_func;
+					new_arg = cc->cc_migration_arg;
+					cc_cme_cleanup(cc);
+
+					/*
+					 * It should be assert here that the
+					 * callout is not destroyed but that
+					 * is not easy.
+					 */
+					new_cc = callout_cpu_switch(c, cc,
+					    new_cpu);
+					callout_cc_add(c, new_cc, new_ticks,
+					    new_func, new_arg, new_cpu);
+					CC_UNLOCK(new_cc);
+					CC_LOCK(cc);
+#else
+					panic("migration should not happen");
+#endif
 				}
 				steps = 0;
 				c = cc->cc_next;
@@ -591,7 +731,6 @@ callout_reset_on(struct callout *c, int to_ticks, void (*ftn)(void *),
 	 */
 	if (c->c_flags & CALLOUT_LOCAL_ALLOC)
 		cpu = c->c_cpu;
-retry:
 	cc = callout_lock(c);
 	if (cc->cc_curr == c) {
 		/*
@@ -623,25 +762,30 @@ retry:
 		cancelled = 1;
 		c->c_flags &= ~(CALLOUT_ACTIVE | CALLOUT_PENDING);
 	}
+
+#ifdef SMP
 	/*
-	 * If the lock must migrate we have to check the state again as
-	 * we can't hold both the new and old locks simultaneously.
+	 * If the callout must migrate try to perform it immediately.
+	 * If the callout is currently running, just defer the migration
+	 * to a more appropriate moment.
 	 */
 	if (c->c_cpu != cpu) {
-		c->c_cpu = cpu;
-		CC_UNLOCK(cc);
-		goto retry;
+		if (cc->cc_curr == c) {
+			cc->cc_migration_cpu = cpu;
+			cc->cc_migration_ticks = to_ticks;
+			cc->cc_migration_func = ftn;
+			cc->cc_migration_arg = arg;
+			CTR5(KTR_CALLOUT,
+		    "migration of %p func %p arg %p in %d to %u deferred",
+			    c, c->c_func, c->c_arg, to_ticks, cpu);
+			CC_UNLOCK(cc);
+			return (cancelled);
+		}
+		cc = callout_cpu_switch(c, cc, cpu);
 	}
+#endif
 
-	if (to_ticks <= 0)
-		to_ticks = 1;
-
-	c->c_arg = arg;
-	c->c_flags |= (CALLOUT_ACTIVE | CALLOUT_PENDING);
-	c->c_func = ftn;
-	c->c_time = cc->cc_ticks + to_ticks;
-	TAILQ_INSERT_TAIL(&cc->cc_callwheel[c->c_time & callwheelmask], 
-			  c, c_links.tqe);
+	callout_cc_add(c, cc, to_ticks, ftn, arg, cpu);
 	CTR5(KTR_CALLOUT, "%sscheduled %p func %p arg %p in %d",
 	    cancelled ? "re" : "", c, c->c_func, c->c_arg, to_ticks);
 	CC_UNLOCK(cc);
@@ -669,7 +813,7 @@ _callout_stop_safe(c, safe)
 	struct	callout *c;
 	int	safe;
 {
-	struct callout_cpu *cc;
+	struct callout_cpu *cc, *old_cc;
 	struct lock_class *class;
 	int use_lock, sq_locked;
 
@@ -689,8 +833,27 @@ _callout_stop_safe(c, safe)
 		use_lock = 0;
 
 	sq_locked = 0;
+	old_cc = NULL;
 again:
 	cc = callout_lock(c);
+
+	/*
+	 * If the callout was migrating while the callout cpu lock was
+	 * dropped,  just drop the sleepqueue lock and check the states
+	 * again.
+	 */
+	if (sq_locked != 0 && cc != old_cc) {
+#ifdef SMP
+		CC_UNLOCK(cc);
+		sleepq_release(&old_cc->cc_waiting);
+		sq_locked = 0;
+		old_cc = NULL;
+		goto again;
+#else
+		panic("migration should not happen");
+#endif
+	}
+
 	/*
 	 * If the callout isn't pending, it's not on the queue, so
 	 * don't attempt to remove it from the queue.  We can try to
@@ -742,8 +905,16 @@ again:
 					CC_UNLOCK(cc);
 					sleepq_lock(&cc->cc_waiting);
 					sq_locked = 1;
+					old_cc = cc;
 					goto again;
 				}
+
+				/*
+				 * Migration could be cancelled here, but
+				 * as long as it is still not sure when it
+				 * will be packed up, just let softclock()
+				 * take care of it.
+				 */
 				cc->cc_waiting = 1;
 				DROP_GIANT();
 				CC_UNLOCK(cc);
@@ -752,6 +923,7 @@ again:
 				    SLEEPQ_SLEEP, 0);
 				sleepq_wait(&cc->cc_waiting, 0);
 				sq_locked = 0;
+				old_cc = NULL;
 
 				/* Reacquire locks previously released. */
 				PICKUP_GIANT();
@@ -768,6 +940,8 @@ again:
 			cc->cc_cancel = 1;
 			CTR3(KTR_CALLOUT, "cancelled %p func %p arg %p",
 			    c, c->c_func, c->c_arg);
+			KASSERT(!cc_cme_migrating(cc),
+			    ("callout wrongly scheduled for migration"));
 			CC_UNLOCK(cc);
 			KASSERT(!sq_locked, ("sleepqueue chain locked"));
 			return (1);
