@@ -253,7 +253,7 @@ procstat_getfiles(struct procstat *procstat, struct kinfo_proc *kp, int mmapped)
 	if (procstat->type == PROCSTAT_SYSCTL)
 		return (procstat_getfiles_sysctl(procstat, kp, mmapped));
 	else if (procstat->type == PROCSTAT_KVM)
-		 return (procstat_getfiles_kvm(procstat, kp, mmapped));
+		return (procstat_getfiles_kvm(procstat, kp, mmapped));
 	else
 		return (NULL);
 }
