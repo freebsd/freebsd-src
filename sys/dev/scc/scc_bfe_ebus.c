@@ -56,7 +56,8 @@ scc_ebus_probe(device_t dev)
 	cmpt = ofw_bus_get_compat(dev);
 	if (cmpt == NULL)
 		cmpt = "";
-	if (!strcmp(nm, "se") || !strcmp(cmpt, "sab82532")) {
+	if (!strcmp(nm, "se") || !strcmp(nm, "FJSV,se") ||
+	    !strcmp(cmpt, "sab82532")) {
 		device_set_desc(dev, "Siemens SAB 82532 dual channel SCC");
 		sc->sc_class = &scc_sab82532_class;
 		return (scc_bfe_probe(dev, EBUS_REGSHFT, EBUS_RCLK, 0));
