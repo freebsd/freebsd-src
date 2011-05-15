@@ -168,7 +168,8 @@ clnt_vc_create(
 	const rpcprog_t prog,		/* program number */
 	const rpcvers_t vers,		/* version number */
 	size_t sendsz,			/* buffer recv size */
-	size_t recvsz)			/* buffer send size */
+	size_t recvsz,			/* buffer send size */
+	int intrflag)			/* interruptible */
 {
 	CLIENT *cl;			/* client handle */
 	struct ct_data *ct = NULL;	/* client handle */
@@ -177,7 +178,7 @@ clnt_vc_create(
 	static uint32_t disrupt;
 	struct __rpc_sockinfo si;
 	XDR xdrs;
-	int error, interrupted, one = 1;
+	int error, interrupted, one = 1, sleep_flag;
 	struct sockopt sopt;
 
 	if (disrupt == 0)
@@ -196,10 +197,13 @@ clnt_vc_create(
 		error = soconnect(so, raddr, curthread);
 		SOCK_LOCK(so);
 		interrupted = 0;
+		sleep_flag = PSOCK;
+		if (intrflag != 0)
+			sleep_flag |= (PCATCH | PBDRY);
 		while ((so->so_state & SS_ISCONNECTING)
 		    && so->so_error == 0) {
 			error = msleep(&so->so_timeo, SOCK_MTX(so),
-			    PSOCK | PCATCH | PBDRY, "connec", 0);
+			    sleep_flag, "connec", 0);
 			if (error) {
 				if (error == EINTR || error == ERESTART)
 					interrupted = 1;
