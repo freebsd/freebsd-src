@@ -3966,9 +3966,21 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 					sc->sc_stats.ast_tx_fifoerr++;
 				if (ts->ts_status & HAL_TXERR_FILT)
 					sc->sc_stats.ast_tx_filtered++;
+				if (ts->ts_status & HAL_TXERR_XTXOP)
+					sc->sc_stats.ast_tx_xtxop++;
+				if (ts->ts_status & HAL_TXERR_TIMER_EXPIRED)
+					sc->sc_stats.ast_tx_timerexpired++;
+
+				/* XXX HAL_TX_DATA_UNDERRUN */
+				/* XXX HAL_TX_DELIM_UNDERRUN */
+
 				if (bf->bf_m->m_flags & M_FF)
 					sc->sc_stats.ast_ff_txerr++;
 			}
+			/* XXX when is this valid? */
+			if (ts->ts_status & HAL_TX_DESC_CFG_ERR)
+				sc->sc_stats.ast_tx_desccfgerr++;
+
 			sr = ts->ts_shortretry;
 			lr = ts->ts_longretry;
 			sc->sc_stats.ast_tx_shortretry += sr;
