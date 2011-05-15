@@ -168,8 +168,7 @@ vmm_mem_direct_map(vm_paddr_t start, vm_paddr_t end)
 	if (end >= NBPML4)
 		panic("Cannot map memory beyond %ldGB", NBPML4 / GB);
 
-	/* XXX FreeBSD 8.1 does not use 1G superpages in the direct map */
-	if (0 && vmm_supports_1G_pages())
+	if (vmm_supports_1G_pages())
 		superpage_size = NBPDP;
 	else
 		superpage_size = NBPDR;
