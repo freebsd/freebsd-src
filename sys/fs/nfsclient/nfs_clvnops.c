@@ -199,27 +199,27 @@ static int nfs_renameit(struct vnode *sdvp, struct vnode *svp,
  */
 #define	DIRHDSIZ	(sizeof (struct dirent) - (MAXNAMLEN + 1))
 
-SYSCTL_DECL(_vfs_newnfs);
+SYSCTL_DECL(_vfs_nfs);
 
 static int	nfsaccess_cache_timeout = NFS_MAXATTRTIMO;
-SYSCTL_INT(_vfs_newnfs, OID_AUTO, access_cache_timeout, CTLFLAG_RW,
+SYSCTL_INT(_vfs_nfs, OID_AUTO, access_cache_timeout, CTLFLAG_RW,
 	   &nfsaccess_cache_timeout, 0, "NFS ACCESS cache timeout");
 
 static int	nfs_prime_access_cache = 0;
-SYSCTL_INT(_vfs_newnfs, OID_AUTO, prime_access_cache, CTLFLAG_RW,
+SYSCTL_INT(_vfs_nfs, OID_AUTO, prime_access_cache, CTLFLAG_RW,
 	   &nfs_prime_access_cache, 0,
 	   "Prime NFS ACCESS cache when fetching attributes");
 
 static int	newnfs_commit_on_close = 0;
-SYSCTL_INT(_vfs_newnfs, OID_AUTO, commit_on_close, CTLFLAG_RW,
+SYSCTL_INT(_vfs_nfs, OID_AUTO, commit_on_close, CTLFLAG_RW,
     &newnfs_commit_on_close, 0, "write+commit on close, else only write");
 
 static int	nfs_clean_pages_on_close = 1;
-SYSCTL_INT(_vfs_newnfs, OID_AUTO, clean_pages_on_close, CTLFLAG_RW,
+SYSCTL_INT(_vfs_nfs, OID_AUTO, clean_pages_on_close, CTLFLAG_RW,
 	   &nfs_clean_pages_on_close, 0, "NFS clean dirty pages on close");
 
 int newnfs_directio_enable = 0;
-SYSCTL_INT(_vfs_newnfs, OID_AUTO, nfs_directio_enable, CTLFLAG_RW,
+SYSCTL_INT(_vfs_nfs, OID_AUTO, nfs_directio_enable, CTLFLAG_RW,
 	   &newnfs_directio_enable, 0, "Enable NFS directio");
 
 /*
@@ -234,14 +234,14 @@ SYSCTL_INT(_vfs_newnfs, OID_AUTO, nfs_directio_enable, CTLFLAG_RW,
  * meaningful.
  */
 int newnfs_directio_allow_mmap = 1;
-SYSCTL_INT(_vfs_newnfs, OID_AUTO, nfs_directio_allow_mmap, CTLFLAG_RW,
+SYSCTL_INT(_vfs_nfs, OID_AUTO, nfs_directio_allow_mmap, CTLFLAG_RW,
 	   &newnfs_directio_allow_mmap, 0, "Enable mmaped IO on file with O_DIRECT opens");
 
 #if 0
-SYSCTL_INT(_vfs_newnfs, OID_AUTO, access_cache_hits, CTLFLAG_RD,
+SYSCTL_INT(_vfs_nfs, OID_AUTO, access_cache_hits, CTLFLAG_RD,
 	   &newnfsstats.accesscache_hits, 0, "NFS ACCESS cache hit count");
 
-SYSCTL_INT(_vfs_newnfs, OID_AUTO, access_cache_misses, CTLFLAG_RD,
+SYSCTL_INT(_vfs_nfs, OID_AUTO, access_cache_misses, CTLFLAG_RD,
 	   &newnfsstats.accesscache_misses, 0, "NFS ACCESS cache miss count");
 #endif
 

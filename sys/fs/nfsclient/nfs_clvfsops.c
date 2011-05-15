@@ -83,18 +83,16 @@ extern struct nfsstats	newnfsstats;
 MALLOC_DEFINE(M_NEWNFSREQ, "newnfsclient_req", "New NFS request header");
 MALLOC_DEFINE(M_NEWNFSMNT, "newnfsmnt", "New NFS mount struct");
 
-SYSCTL_DECL(_vfs_newnfs);
-SYSCTL_STRUCT(_vfs_newnfs, NFS_NFSSTATS, nfsstats, CTLFLAG_RW,
-	&newnfsstats, nfsstats, "S,nfsstats");
+SYSCTL_DECL(_vfs_nfs);
 static int nfs_ip_paranoia = 1;
-SYSCTL_INT(_vfs_newnfs, OID_AUTO, nfs_ip_paranoia, CTLFLAG_RW,
+SYSCTL_INT(_vfs_nfs, OID_AUTO, nfs_ip_paranoia, CTLFLAG_RW,
     &nfs_ip_paranoia, 0, "");
 static int nfs_tprintf_initial_delay = NFS_TPRINTF_INITIAL_DELAY;
-SYSCTL_INT(_vfs_newnfs, NFS_TPRINTF_INITIAL_DELAY,
+SYSCTL_INT(_vfs_nfs, NFS_TPRINTF_INITIAL_DELAY,
         downdelayinitial, CTLFLAG_RW, &nfs_tprintf_initial_delay, 0, "");
 /* how long between console messages "nfs server foo not responding" */
 static int nfs_tprintf_delay = NFS_TPRINTF_DELAY;
-SYSCTL_INT(_vfs_newnfs, NFS_TPRINTF_DELAY,
+SYSCTL_INT(_vfs_nfs, NFS_TPRINTF_DELAY,
         downdelayinterval, CTLFLAG_RW, &nfs_tprintf_delay, 0, "");
 
 static int	nfs_mountroot(struct mount *);
@@ -152,14 +150,14 @@ struct nfsv3_diskless	nfsv3_diskless = { { { 0 } } };
 int			nfs_diskless_valid = 0;
 #endif
 
-SYSCTL_INT(_vfs_newnfs, OID_AUTO, diskless_valid, CTLFLAG_RD,
+SYSCTL_INT(_vfs_nfs, OID_AUTO, diskless_valid, CTLFLAG_RD,
     &nfs_diskless_valid, 0,
     "Has the diskless struct been filled correctly");
 
-SYSCTL_STRING(_vfs_newnfs, OID_AUTO, diskless_rootpath, CTLFLAG_RD,
+SYSCTL_STRING(_vfs_nfs, OID_AUTO, diskless_rootpath, CTLFLAG_RD,
     nfsv3_diskless.root_hostnam, 0, "Path to nfs root");
 
-SYSCTL_OPAQUE(_vfs_newnfs, OID_AUTO, diskless_rootaddr, CTLFLAG_RD,
+SYSCTL_OPAQUE(_vfs_nfs, OID_AUTO, diskless_rootaddr, CTLFLAG_RD,
     &nfsv3_diskless.root_saddr, sizeof(nfsv3_diskless.root_saddr),
     "%Ssockaddr_in", "Diskless root nfs address");
 
