@@ -552,7 +552,8 @@ evalpipe(union node *n)
 		if (prevfd >= 0)
 			close(prevfd);
 		prevfd = pip[0];
-		close(pip[1]);
+		if (pip[1] != -1)
+			close(pip[1]);
 	}
 	INTON;
 	if (n->npipe.backgnd == 0) {
