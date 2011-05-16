@@ -153,9 +153,10 @@ struct glxiic_softc {
 };
 
 #ifdef GLXIIC_DEBUG
-#define DEBUG(fmt, args...)	log(LOG_DEBUG, "%s: " fmt "\n" , __func__ , ## args)
+#define GLXIIC_DEBUG_LOG(fmt, args...)	\
+	log(LOG_DEBUG, "%s: " fmt "\n" , __func__ , ## args)
 #else
-#define DEBUG(fmt, args...)
+#define GLXIIC_DEBUG_LOG(fmt, args...)
 #endif
 
 #define	GLXIIC_SCLFRQ(n)		((n << 1))
@@ -540,7 +541,7 @@ glxiic_timeout(void *arg)
 
 	sc = (struct glxiic_softc *)arg;
 
-	DEBUG("timeout in state %d", sc->state);
+	GLXIIC_DEBUG_LOG("timeout in state %d", sc->state);
 
 	if (glxiic_state_table[sc->state].master) {
 		sc->error = IIC_ETIMEOUT;
@@ -604,7 +605,7 @@ glxiic_handle_slave_match_locked(struct glxiic_softc *sc, uint8_t status)
 		glxiic_set_state_locked(sc, GLXIIC_STATE_SLAVE_RX);
 		iicbus_intr(sc->iicbus, INTR_GENERAL, &addr);
 	} else {
-		DEBUG("unknown slave match");
+		GLXIIC_DEBUG_LOG("unknown slave match");
 		return (IIC_ESTATUS);
 	}
 
@@ -618,7 +619,7 @@ glxiic_state_idle_callback(struct glxiic_softc *sc, uint8_t status)
 	GLXIIC_ASSERT_LOCKED(sc);
 
 	if ((status & GLXIIC_SMB_STS_BER_BIT) != 0) {
-		DEBUG("bus error in idle");
+		GLXIIC_DEBUG_LOG("bus error in idle");
 		return (IIC_EBUSERR);
 	}
 
@@ -637,7 +638,7 @@ glxiic_state_slave_tx_callback(struct glxiic_softc *sc, uint8_t status)
 	GLXIIC_ASSERT_LOCKED(sc);
 
 	if ((status & GLXIIC_SMB_STS_BER_BIT) != 0) {
-		DEBUG("bus error in slave tx");
+		GLXIIC_DEBUG_LOG("bus error in slave tx");
 		return (IIC_EBUSERR);
 	}
 
@@ -658,7 +659,7 @@ glxiic_state_slave_tx_callback(struct glxiic_softc *sc, uint8_t status)
 	}
 
 	if ((status & GLXIIC_SMB_STS_SDAST_BIT) == 0) {
-		DEBUG("not awaiting data in slave tx");
+		GLXIIC_DEBUG_LOG("not awaiting data in slave tx");
 		return (IIC_ESTATUS);
 	}
 
@@ -678,7 +679,7 @@ glxiic_state_slave_rx_callback(struct glxiic_softc *sc, uint8_t status)
 	GLXIIC_ASSERT_LOCKED(sc);
 
 	if ((status & GLXIIC_SMB_STS_BER_BIT) != 0) {
-		DEBUG("bus error in slave rx");
+		GLXIIC_DEBUG_LOG("bus error in slave rx");
 		return (IIC_EBUSERR);
 	}
 
@@ -694,7 +695,7 @@ glxiic_state_slave_rx_callback(struct glxiic_softc *sc, uint8_t status)
 	}
 
 	if ((status & GLXIIC_SMB_STS_SDAST_BIT) == 0) {
-		DEBUG("no pending data in slave rx");
+		GLXIIC_DEBUG_LOG("no pending data in slave rx");
 		return (IIC_ESTATUS);
 	}
 
@@ -714,17 +715,17 @@ glxiic_state_master_addr_callback(struct glxiic_softc *sc, uint8_t status)
 	GLXIIC_ASSERT_LOCKED(sc);
 
 	if ((status & GLXIIC_SMB_STS_BER_BIT) != 0) {
-		DEBUG("bus error after master start");
+		GLXIIC_DEBUG_LOG("bus error after master start");
 		return (IIC_EBUSERR);
 	}
 
 	if ((status & GLXIIC_SMB_STS_MASTER_BIT) == 0) {
-		DEBUG("not bus master after master start");
+		GLXIIC_DEBUG_LOG("not bus master after master start");
 		return (IIC_ESTATUS);
 	}
 
 	if ((status & GLXIIC_SMB_STS_SDAST_BIT) == 0) {
-		DEBUG("not awaiting address in master addr");
+		GLXIIC_DEBUG_LOG("not awaiting address in master addr");
 		return (IIC_ESTATUS);
 	}
 
@@ -755,17 +756,17 @@ glxiic_state_master_tx_callback(struct glxiic_softc *sc, uint8_t status)
 	GLXIIC_ASSERT_LOCKED(sc);
 
 	if ((status & GLXIIC_SMB_STS_BER_BIT) != 0) {
-		DEBUG("bus error in master tx");
+		GLXIIC_DEBUG_LOG("bus error in master tx");
 		return (IIC_EBUSERR);
 	}
 
 	if ((status & GLXIIC_SMB_STS_MASTER_BIT) == 0) {
-		DEBUG("not bus master in master tx");
+		GLXIIC_DEBUG_LOG("not bus master in master tx");
 		return (IIC_ESTATUS);
 	}
 
 	if ((status & GLXIIC_SMB_STS_NEGACK_BIT) != 0) {
-		DEBUG("slave nack in master tx");
+		GLXIIC_DEBUG_LOG("slave nack in master tx");
 		return (IIC_ENOACK);
 	}
 
@@ -775,7 +776,7 @@ glxiic_state_master_tx_callback(struct glxiic_softc *sc, uint8_t status)
 	}
 
 	if ((status & GLXIIC_SMB_STS_SDAST_BIT) == 0) {
-		DEBUG("not awaiting data in master tx");
+		GLXIIC_DEBUG_LOG("not awaiting data in master tx");
 		return (IIC_ESTATUS);
 	}
 
@@ -796,17 +797,17 @@ glxiic_state_master_rx_callback(struct glxiic_softc *sc, uint8_t status)
 	GLXIIC_ASSERT_LOCKED(sc);
 
 	if ((status & GLXIIC_SMB_STS_BER_BIT) != 0) {
-		DEBUG("bus error in master rx");
+		GLXIIC_DEBUG_LOG("bus error in master rx");
 		return (IIC_EBUSERR);
 	}
 
 	if ((status & GLXIIC_SMB_STS_MASTER_BIT) == 0) {
-		DEBUG("not bus master in master rx");
+		GLXIIC_DEBUG_LOG("not bus master in master rx");
 		return (IIC_ESTATUS);
 	}
 
 	if ((status & GLXIIC_SMB_STS_NEGACK_BIT) != 0) {
-		DEBUG("slave nack in rx");
+		GLXIIC_DEBUG_LOG("slave nack in rx");
 		return (IIC_ENOACK);
 	}
 
@@ -825,7 +826,7 @@ glxiic_state_master_rx_callback(struct glxiic_softc *sc, uint8_t status)
 	}
 
 	if ((status & GLXIIC_SMB_STS_SDAST_BIT) == 0) {
-		DEBUG("no pending data in master rx");
+		GLXIIC_DEBUG_LOG("no pending data in master rx");
 		return (IIC_ESTATUS);
 	}
 
@@ -849,17 +850,17 @@ glxiic_state_master_stop_callback(struct glxiic_softc *sc, uint8_t status)
 	GLXIIC_ASSERT_LOCKED(sc);
 
 	if ((status & GLXIIC_SMB_STS_BER_BIT) != 0) {
-		DEBUG("bus error in master stop");
+		GLXIIC_DEBUG_LOG("bus error in master stop");
 		return (IIC_EBUSERR);
 	}
 
 	if ((status & GLXIIC_SMB_STS_MASTER_BIT) == 0) {
-		DEBUG("not bus master in master stop");
+		GLXIIC_DEBUG_LOG("not bus master in master stop");
 		return (IIC_ESTATUS);
 	}
 
 	if ((status & GLXIIC_SMB_STS_NEGACK_BIT) != 0) {
-		DEBUG("slave nack in master stop");
+		GLXIIC_DEBUG_LOG("slave nack in master stop");
 		return (IIC_ENOACK);
 	}
 

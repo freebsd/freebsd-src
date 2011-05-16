@@ -341,6 +341,16 @@ static cyc_backend_t cyclic_backend;
 
 MALLOC_DEFINE(M_CYCLIC, "cyclic", "Cyclic timer subsystem");
 
+static __inline hrtime_t
+cyc_gethrtime(void)
+{
+	struct bintime bt;
+
+	binuptime(&bt);
+	return ((hrtime_t)bt.sec * NANOSEC +
+	    (((uint64_t)NANOSEC * (uint32_t)(bt.frac >> 32)) >> 32));
+}
+
 /*
  * Returns 1 if the upheap propagated to the root, 0 if it did not.  This
  * allows the caller to reprogram the backend only when the root has been
@@ -507,7 +517,7 @@ cyclic_fire(cpu_t *c)
 	cyc_index_t *heap = cpu->cyp_heap;
 	cyclic_t *cyclic, *cyclics = cpu->cyp_cyclics;
 	void *arg = be->cyb_arg;
-	hrtime_t now = gethrtime();
+	hrtime_t now = cyc_gethrtime();
 	hrtime_t exp;
 
 	if (cpu->cyp_nelems == 0) {
@@ -687,7 +697,7 @@ cyclic_add_xcall(cyc_xcallarg_t *arg)
 		 * If a start time hasn't been explicitly specified, we'll
 		 * start on the next interval boundary.
 		 */
-		cyclic->cy_expire = (gethrtime() / cyclic->cy_interval + 1) *
+		cyclic->cy_expire = (cyc_gethrtime() / cyclic->cy_interval + 1) *
 		    cyclic->cy_interval;
 	} else {
 		cyclic->cy_expire = when->cyt_when;

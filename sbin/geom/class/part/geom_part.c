@@ -416,7 +416,7 @@ gpart_autofill(struct gctl_req *req)
 	struct gprovider *pp;
 	off_t first, last, a_first;
 	off_t size, start, a_lba;
-	off_t lba, len, alignment;
+	off_t lba, len, alignment, offset;
 	uintmax_t grade;
 	const char *s;
 	int error, has_size, has_start, has_alignment;
@@ -467,8 +467,6 @@ gpart_autofill(struct gctl_req *req)
 		error = g_parse_lba(s, pp->lg_sectorsize, &size);
 		if (error)
 			errc(EXIT_FAILURE, error, "Invalid size param");
-		if (size > alignment)
-			size = ALIGNDOWN(size, alignment);
 	}
 
 	s = gctl_get_ascii(req, "start");
@@ -478,22 +476,29 @@ gpart_autofill(struct gctl_req *req)
 		error = g_parse_lba(s, pp->lg_sectorsize, &start);
 		if (error)
 			errc(EXIT_FAILURE, error, "Invalid start param");
-		start = ALIGNUP(start, alignment);
 	}
 
 	/* No autofill necessary. */
 	if (has_size && has_start && !has_alignment)
 		goto done;
 
+	/* Adjust parameters to offset value for better alignment */
+	s = find_provcfg(pp, "offset");
+	offset = (s == NULL) ? 0:
+	    (off_t)strtoimax(s, NULL, 0) / pp->lg_sectorsize;
+	start = ALIGNUP(start + offset, alignment);
+	if (size + offset > alignment)
+		size = ALIGNDOWN(size + offset, alignment);
+
 	first = (off_t)strtoimax(find_geomcfg(gp, "first"), NULL, 0);
 	last = (off_t)strtoimax(find_geomcfg(gp, "last"), NULL, 0);
 	grade = ~0ULL;
-	a_first = ALIGNUP(first, alignment);
-	last = ALIGNDOWN(last, alignment);
+	a_first = ALIGNUP(first + offset, alignment);
+	last = ALIGNDOWN(last + offset, alignment);
 	while ((pp = find_provider(gp, first)) != NULL) {
 		s = find_provcfg(pp, "start");
 		lba = (off_t)strtoimax(s, NULL, 0);
-		a_lba = ALIGNDOWN(lba, alignment);
+		a_lba = ALIGNDOWN(lba + offset, alignment);
 		if (first < a_lba && a_first < a_lba) {
 			/* Free space [first, lba> */
 			len = a_lba - a_first;
@@ -519,7 +524,7 @@ gpart_autofill(struct gctl_req *req)
 
 		s = find_provcfg(pp, "end");
 		first = (off_t)strtoimax(s, NULL, 0) + 1;
-		a_first = ALIGNUP(first, alignment);
+		a_first = ALIGNUP(first + offset, alignment);
 	}
 	if (a_first <= last) {
 		/* Free space [first-last] */
@@ -543,12 +548,11 @@ gpart_autofill(struct gctl_req *req)
 			}
 		}
 	}
-
 	if (grade == ~0ULL) {
 		geom_deletetree(&mesh);
 		return (ENOSPC);
 	}
-
+	start -= offset;	/* Return back to real offset */
 done:
 	snprintf(ssize, sizeof(ssize), "%jd", (intmax_t)size);
 	gctl_change_param(req, "size", -1, ssize);
