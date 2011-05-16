@@ -245,6 +245,7 @@ g_part_check_integrity(struct g_part_table *table, struct g_consumer *cp)
 	struct g_part_entry *e1, *e2;
 	struct g_provider *pp;
 
+	e1 = e2 = NULL;
 	pp = cp->provider;
 	if (table->gpt_first > table->gpt_last ||
 	    table->gpt_last > pp->mediasize / pp->sectorsize - 1)
@@ -277,6 +278,25 @@ g_part_check_integrity(struct g_part_table *table, struct g_consumer *cp)
 fail:
 	printf("GEOM_PART: integrity check failed (%s, %s)\n", pp->name,
 	    table->gpt_scheme->name);
+	if (bootverbose) {
+		if (e1 == NULL)
+			printf("GEOM_PART: invalid geom configuration:\n");
+		else if (e2 == NULL)
+			printf("GEOM_PART: invalid partition entry:\n");
+		else
+			printf("GEOM_PART: overlapped partition entries:\n");
+		if (e1 != NULL)
+			printf("GEOM_PART: index: %d, start: %jd, end: %jd\n",
+			    e1->gpe_index,
+			    (intmax_t)e1->gpe_start, (intmax_t)e1->gpe_end);
+		if (e2 != NULL)
+			printf("GEOM_PART: index: %d, start: %jd, end: %jd\n",
+			    e2->gpe_index,
+			    (intmax_t)e2->gpe_start, (intmax_t)e2->gpe_end);
+		printf("GEOM_PART: first: %jd, last: %jd, sectors: %jd\n",
+		    (intmax_t)table->gpt_first, (intmax_t)table->gpt_last,
+		    (intmax_t)pp->mediasize / pp->sectorsize - 1);
+	}
 	if (check_integrity == 0) {
 		table->gpt_corrupt = 1;
 		return (0);
