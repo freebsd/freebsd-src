@@ -1141,8 +1141,6 @@ moea64_zero_page_area(mmu_t mmu, vm_page_t m, int off, int size)
 {
 	vm_offset_t pa = VM_PAGE_TO_PHYS(m);
 
-	if (!moea64_initialized)
-		panic("moea64_zero_page: can't zero pa %#" PRIxPTR, pa);
 	if (size + off > PAGE_SIZE)
 		panic("moea64_zero_page: size + off > PAGE_SIZE");
 
@@ -1164,9 +1162,6 @@ moea64_zero_page(mmu_t mmu, vm_page_t m)
 {
 	vm_offset_t pa = VM_PAGE_TO_PHYS(m);
 	vm_offset_t va, off;
-
-	if (!moea64_initialized)
-		panic("moea64_zero_page: can't zero pa %#zx", pa);
 
 	if (!hw_direct_map) {
 		mtx_lock(&moea64_scratchpage_mtx);
