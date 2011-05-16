@@ -1342,7 +1342,7 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode, struct thread *
 				/* XXX abusive DMA update: chn_rdupdate(rdch); */
 	        		a->bytes = sndbuf_gettotal(bs);
 	        		a->blocks = sndbuf_getblocks(bs) - rdch->blocks;
-	        		a->ptr = sndbuf_getreadyptr(bs);
+	        		a->ptr = sndbuf_getfreeptr(bs);
 				rdch->blocks = sndbuf_getblocks(bs);
 				CHN_UNLOCK(rdch);
 	    		} else

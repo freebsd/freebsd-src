@@ -642,9 +642,9 @@ ndis_convert_res(arg)
 				    CM_RESOURCE_MEMORY_READ_WRITE;
 				prd->cprd_sharedisp =
 				    CmResourceShareDeviceExclusive;
-				prd->u.cprd_port.cprd_start.np_quad =
+				prd->u.cprd_mem.cprd_start.np_quad =
 				    brle->start;
-				prd->u.cprd_port.cprd_len = brle->count;
+				prd->u.cprd_mem.cprd_len = brle->count;
 				break;
 			case SYS_RES_IRQ:
 				prd->cprd_type = CmResourceTypeInterrupt;

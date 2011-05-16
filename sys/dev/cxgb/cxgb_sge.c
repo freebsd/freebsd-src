@@ -1779,15 +1779,9 @@ t3_free_qset(adapter_t *sc, struct sge_qset *q)
  *	Frees resources used by the SGE queue sets.
  */
 void
-t3_free_sge_resources(adapter_t *sc)
+t3_free_sge_resources(adapter_t *sc, int nqsets)
 {
-	int i, nqsets;
-	
-#ifdef IFNET_MULTIQUEUE
-	panic("%s should not be called when IFNET_MULTIQUEUE is defined", __FUNCTION__);
-#endif		
-	for (nqsets = i = 0; i < (sc)->params.nports; i++) 
-		nqsets += sc->port[i].nqsets;
+	int i;
 
 	for (i = 0; i < nqsets; ++i)
 		t3_free_qset(sc, &sc->sge.qs[i]);

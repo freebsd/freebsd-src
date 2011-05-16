@@ -646,7 +646,7 @@ cond_bl_upd(ufs2_daddr_t *block, struct gfs_bpp *field, int fsi, int fso,
 		/*
 		 * Copy the block back immediately.
 		 *
-		 * XXX	If src is is from an indirect block we have
+		 * XXX	If src is from an indirect block we have
 		 *	to implement copy on write here in case of
 		 *	active snapshots.
 		 */

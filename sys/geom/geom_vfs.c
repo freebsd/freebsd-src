@@ -109,7 +109,7 @@ g_vfs_strategy(struct bufobj *bo, struct buf *bp)
 	G_VALID_CONSUMER(cp);
 
 	/*
-	 * If the the provider has orphaned us, just return EXIO.
+	 * If the provider has orphaned us, just return EXIO.
 	 */
 	if (cp->provider == NULL) {
 		bp->b_error = ENXIO;

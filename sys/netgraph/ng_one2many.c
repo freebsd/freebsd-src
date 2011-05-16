@@ -278,6 +278,7 @@ ng_one2many_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			switch (conf->xmitAlg) {
 			case NG_ONE2MANY_XMIT_ROUNDROBIN:
 			case NG_ONE2MANY_XMIT_ALL:
+			case NG_ONE2MANY_XMIT_FAILOVER:
 				break;
 			default:
 				error = EINVAL;
@@ -473,6 +474,9 @@ ng_one2many_rcvdata(hook_p hook, item_p item)
 				NG_SEND_DATA_ONLY(error, mdst->hook, m2);
 			}
 			break;
+		case NG_ONE2MANY_XMIT_FAILOVER:
+			dst = &priv->many[priv->activeMany[0]];
+			break;
 #ifdef INVARIANTS
 		default:
 			panic("%s: invalid xmitAlg", __func__);
@@ -583,6 +587,7 @@ ng_one2many_update_many(priv_p priv)
 			priv->nextMany %= priv->numActiveMany;
 		break;
 	case NG_ONE2MANY_XMIT_ALL:
+	case NG_ONE2MANY_XMIT_FAILOVER:
 		break;
 #ifdef INVARIANTS
 	default:

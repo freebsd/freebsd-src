@@ -367,7 +367,7 @@ fdesc_open(ap)
 		return (0);
 
 	/*
-	 * XXX Kludge: set td->td_proc->p_dupfd to contain the value of the the file
+	 * XXX Kludge: set td->td_proc->p_dupfd to contain the value of the file
 	 * descriptor being sought for duplication. The error return ensures
 	 * that the vnode for this device will be released by vn_open. Open
 	 * will detect this special error and take the actions in dupfdopen.

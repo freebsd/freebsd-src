@@ -58,6 +58,7 @@ oui JMICRON			0x001b8c	JMicron Technologies
 oui LEVEL1			0x00207b	Level 1
 oui NATSEMI			0x080017	National Semiconductor
 oui QUALSEMI			0x006051	Quality Semiconductor
+oui RDC				0x000bb4	RDC Semiconductor
 oui REALTEK			0x000020	RealTek Semicondctor
 oui SEEQ			0x00a07d	Seeq
 oui SIS				0x00e006	Silicon Integrated Systems
@@ -152,6 +153,8 @@ model xxBROADCOM_ALT1 BCM5709C	0x003c BCM5709C 10/100/1000baseTX PHY
 model xxBROADCOM_ALT1 BCM5761	0x003d BCM5761 10/100/1000baseTX PHY
 model xxBROADCOM_ALT1 BCM5709S	0x003f BCM5709S 1000/2500baseSX PHY
 model xxBROADCOM_ALT2 BCM5717C	0x0020 BCM5717C 10/100/1000baseTX PHY
+model xxBROADCOM_ALT2 BCM5719C	0x0022 BCM5719C 10/100/1000baseTX PHY
+model xxBROADCOM_ALT2 BCM57765	0x0024 BCM57765 10/100/1000baseTX PHY
 model BROADCOM2 BCM5906		0x0004 BCM5906 10/100baseTX PHY
 
 /* Cicada Semiconductor PHYs (now owned by Vitesse?) */
@@ -206,6 +209,9 @@ model NATSEMI DP83865		0x0007 DP83865 10/100/1000 media interface
 
 /* Quality Semiconductor PHYs */
 model QUALSEMI QS6612		0x0000 QS6612 10/100 media interface
+
+/* RDC Semiconductor PHYs */
+model RDC R6040			0x0003 R6040 10/100 media interface
 
 /* RealTek Semiconductor PHYs */
 model REALTEK RTL8201L		0x0020 RTL8201L 10/100 media interface

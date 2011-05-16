@@ -42,16 +42,11 @@ main(void)
 	char *sret;
 	int iret;
 
-	plan_tests(25);
+	plan_tests(27);
 
 	/*
 	 * strerror() failure tests.
 	 */
-	errno = 0;
-	sret = strerror(0);
-	ok1(strcmp(sret, "Unknown error: 0") == 0);
-	ok1(errno == EINVAL);
-
 	errno = 0;
 	sret = strerror(INT_MAX);
 	snprintf(buf, sizeof(buf), "Unknown error: %d", INT_MAX);
@@ -61,6 +56,11 @@ main(void)
 	/*
 	 * strerror() success tests.
 	 */
+	errno = 0;
+	sret = strerror(0);
+	ok1(strcmp(sret, "No error: 0") == 0);
+	ok1(errno == 0);
+
 	errno = 0;
 	sret = strerror(EPERM);
 	ok1(strcmp(sret, "Operation not permitted") == 0);
@@ -79,8 +79,8 @@ main(void)
 	 * strerror_r() failure tests.
 	 */
 	memset(buf, '*', sizeof(buf));
-	iret = strerror_r(0, buf, sizeof(buf));
-	ok1(strcmp(buf, "Unknown error: 0") == 0);
+	iret = strerror_r(-1, buf, sizeof(buf));
+	ok1(strcmp(buf, "Unknown error: -1") == 0);
 	ok1(iret == EINVAL);
 
 	memset(buf, '*', sizeof(buf));
@@ -116,6 +116,11 @@ main(void)
 	/*
 	 * strerror_r() success tests.
 	 */
+	memset(buf, '*', sizeof(buf));
+	iret = strerror_r(0, buf, sizeof(buf));
+	ok1(strcmp(buf, "No error: 0") == 0);
+	ok1(iret == 0);
+
 	memset(buf, '*', sizeof(buf));
 	iret = strerror_r(EDEADLK, buf, sizeof(buf));
 	ok1(strcmp(buf, "Resource deadlock avoided") == 0);

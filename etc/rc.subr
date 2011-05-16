@@ -372,6 +372,48 @@ wait_for_pids()
 }
 
 #
+# get_pidfile_from_conf string file
+#
+#	Takes a string to search for in the specified file.
+#	Ignores lines with traditional comment characters.
+#
+# Example:
+#
+# if get_pidfile_from_conf string file; then
+#	pidfile="$_pidfile_from_conf"
+# else
+#	pidfile='appropriate default'
+# fi
+#
+get_pidfile_from_conf()
+{
+	if [ -z "$1" -o -z "$2" ]; then
+		err 3 "USAGE: get_pidfile_from_conf string file ($name)"
+	fi
+
+	local string file line
+
+	string="$1" ; file="$2"
+
+	if [ ! -s "$file" ]; then
+		err 3 "get_pidfile_from_conf: $file does not exist ($name)"
+	fi
+
+	while read line; do
+		case "$line" in
+		*[#\;]*${string}*)	continue ;;
+		*${string}*)		break ;;
+		esac
+	done < $file
+
+	if [ -n "$line" ]; then
+		line=${line#*/}
+		_pidfile_from_conf="/${line%%[\"\;]*}"
+	else
+		return 1
+	fi
+}
+
 # run_rc_command argument
 #	Search for argument in the list of supported commands, which is:
 #		"start stop restart rcvar status poll ${extra_commands}"
@@ -551,7 +593,7 @@ run_rc_command()
 		rc_fast=yes
 		rc_quiet=yes
 		;;
-	force*)				# "force prefix; always run
+	force*)				# "force" prefix; always run
 		rc_force=yes
 		_rc_prefix=force
 		rc_arg=${rc_arg#${_rc_prefix}}
@@ -623,7 +665,8 @@ run_rc_command()
 					#	checkyesno ${rcvar}
 					# and return if that failed
 					#
-		if [ -n "${rcvar}" -a "$rc_arg" != "rcvar" -a -z "${rc_pid}" ]; then
+		if [ -n "${rcvar}" -a "$rc_arg" != "rcvar" -a "$rc_arg" != "stop" ] ||
+		    [ -n "${rcvar}" -a "$rc_arg" = "stop" -a -z "${rc_pid}" ]; then
 			if ! checkyesno ${rcvar}; then
 				if [ -n "${rc_quiet}" ]; then
 					return 0
@@ -875,10 +918,11 @@ _run_rc_killcmd()
 #
 # run_rc_script file arg
 #	Start the script `file' with `arg', and correctly handle the
-#	return value from the script.  If `file' ends with `.sh', it's
-#	sourced into the current environment.  If `file' appears to be
-#	a backup or scratch file, ignore it.  Otherwise if it's
-#	executable run as a child process.
+#	return value from the script.
+#	If `file' ends with `.sh', it's sourced into the current environment
+#	when $rc_fast_and_loose is set, otherwise it is run as a child process.
+#	If `file' appears to be a backup or scratch file, ignore it.
+#	Otherwise if it is executable run as a child process.
 #
 run_rc_script()
 {
@@ -1242,7 +1286,10 @@ devfs_init_rulesets()
 		return
 	fi
 	for file in $devfs_rulesets; do
-		devfs_rulesets_from_file $file || return 1
+		if ! devfs_rulesets_from_file $file; then
+			warn "$_me: could not read rules from $file"
+			return 1
+		fi
 	done
 	devfs_rulesets_init=1
 	debug "$_me: devfs rulesets initialized"

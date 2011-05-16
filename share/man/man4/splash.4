@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 15, 2006
+.Dd November 29, 2010
 .Dt SPLASH 4
 .Os
 .Sh NAME
@@ -108,7 +108,10 @@ The screen will gradually fade away.
 .It Pa fire_saver.ko
 A fire which becomes higher as load increases.
 .It Pa green_saver.ko
-If the monitor supports power saving mode, it will be turned off.
+The screen will be blanked, similar to
+.Pa blank_saver.ko .
+If the monitor and the video card's BIOS support it
+the screen will also be powered off.
 .It Pa logo_saver.ko
 Animated graphical
 .Bx

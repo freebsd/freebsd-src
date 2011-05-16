@@ -817,7 +817,7 @@ try_media:
     i = distExtractAll(self);
 
     if (i == FALSE)
-	    return FALSE;
+	    return DITEM_FAILURE;
 
     /* When running as init, *now* it's safe to grab the rc.foo vars */
     installEnvironment();
@@ -910,7 +910,7 @@ installFixupBase(dialogMenuItem *self)
         vsystem("mtree -deU -f /etc/mtree/BSD.usr.dist -p /usr");
 
 #ifdef __ia64__
-	/* Move /boot to the the EFI partition and make /boot a link to it. */
+	/* Move /boot to the EFI partition and make /boot a link to it. */
 	efi_mntpt = (EfiChunk != NULL) ? ((PartInfo *)EfiChunk->private_data)->mountpoint : NULL;
 	if (efi_mntpt != NULL) {
 		vsystem("if [ ! -L /boot ]; then mv /boot %s; fi", efi_mntpt);

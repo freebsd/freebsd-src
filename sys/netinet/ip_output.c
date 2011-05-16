@@ -81,7 +81,7 @@ __FBSDID("$FreeBSD$");
 u_short ip_id;
 
 #ifdef MBUF_STRESS_TEST
-int mbuf_frag_size = 0;
+static int mbuf_frag_size = 0;
 SYSCTL_INT(_net_inet_ip, OID_AUTO, mbuf_frag_size, CTLFLAG_RW,
 	&mbuf_frag_size, 0, "Fragment outgoing mbufs to this size");
 #endif

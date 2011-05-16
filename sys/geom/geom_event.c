@@ -212,11 +212,12 @@ one_event(void)
 	g_topology_assert();
 	mtx_lock(&g_eventlock);
 	TAILQ_REMOVE(&g_events, ep, events);
-	mtx_unlock(&g_eventlock);
 	if (ep->flag & EV_WAKEUP) {
 		ep->flag |= EV_DONE;
+		mtx_unlock(&g_eventlock);
 		wakeup(ep);
 	} else {
+		mtx_unlock(&g_eventlock);
 		g_free(ep);
 	}
 	g_topology_unlock();
@@ -355,11 +356,14 @@ g_waitfor_event(g_event_t *func, void *arg, int flag, ...)
 	va_end(ap);
 	if (error)
 		return (error);
-	do 
-		tsleep(ep, PRIBIO, "g_waitfor_event", hz);
-	while (!(ep->flag & EV_DONE));
+
+	mtx_lock(&g_eventlock);
+	while (!(ep->flag & EV_DONE))
+		msleep(ep, &g_eventlock, PRIBIO, "g_waitfor_event", hz);
 	if (ep->flag & EV_CANCELED)
 		error = EAGAIN;
+	mtx_unlock(&g_eventlock);
+
 	g_free(ep);
 	return (error);
 }

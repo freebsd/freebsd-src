@@ -660,6 +660,7 @@ sched_fork_thread(struct thread *td, struct thread *childtd)
 	childtd->td_estcpu = td->td_estcpu;
 	childtd->td_lock = &sched_lock;
 	childtd->td_cpuset = cpuset_ref(td->td_cpuset);
+	childtd->td_priority = childtd->td_base_pri;
 	sched_newthread(childtd);
 	childtd->td_sched->ts_flags |= (td->td_sched->ts_flags & TSF_AFFINITY);
 }
@@ -847,13 +848,9 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 	if ((p->p_flag & P_NOLOAD) == 0)
 		sched_load_rem();
 
-	if (newtd) {
-		MPASS(newtd->td_lock == &sched_lock);
-		newtd->td_flags |= (td->td_flags & TDF_NEEDRESCHED);
-	}
-
 	td->td_lastcpu = td->td_oncpu;
-	td->td_flags &= ~TDF_NEEDRESCHED;
+	if (!(flags & SW_PREEMPT))
+		td->td_flags &= ~TDF_NEEDRESCHED;
 	td->td_owepreempt = 0;
 	td->td_oncpu = NOCPU;
 

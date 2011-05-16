@@ -47,10 +47,12 @@
 #define	PIL_STOP	5	/* stop cpu ipi */
 #define	PIL_PREEMPT	6	/* preempt idle thread cpu ipi */
 #define	PIL_FILTER	12	/* filter interrupts */
-#define	PIL_FAST	13	/* fast interrupts */
+#define	PIL_BRIDGE	13	/* bridge interrupts */
 #define	PIL_TICK	14	/* tick interrupts */
 
 #ifndef LOCORE
+
+#define	INTR_BRIDGE	INTR_MD1
 
 struct trapframe;
 

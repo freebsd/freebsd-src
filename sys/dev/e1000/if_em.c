@@ -90,7 +90,7 @@ int	em_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version:
  *********************************************************************/
-char em_driver_version[] = "7.1.8";
+char em_driver_version[] = "7.1.9";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -516,7 +516,7 @@ em_attach(device_t dev)
 
 	/* Sysctl for setting the interface flow control */
 	em_set_flow_cntrl(adapter, "flow_control",
-	    "max number of rx packets to process",
+	    "configure flow control",
 	    &adapter->fc_setting, em_fc_setting);
 
 	/*
@@ -1699,12 +1699,12 @@ em_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 		}
 		ip = (struct ip *)(mtod(m_head, char *) + ip_off);
 		poff = ip_off + (ip->ip_hl << 2);
-		m_head = m_pullup(m_head, poff + sizeof(struct tcphdr));
-		if (m_head == NULL) {
-			*m_headp = NULL;
-			return (ENOBUFS);
-		}
 		if (do_tso) {
+			m_head = m_pullup(m_head, poff + sizeof(struct tcphdr));
+			if (m_head == NULL) {
+				*m_headp = NULL;
+				return (ENOBUFS);
+			}
 			tp = (struct tcphdr *)(mtod(m_head, char *) + poff);
 			/*
 			 * TSO workaround:
@@ -1728,6 +1728,11 @@ em_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 			tp->th_sum = in_pseudo(ip->ip_src.s_addr,
 			    ip->ip_dst.s_addr, htons(IPPROTO_TCP));
 		} else if (m_head->m_pkthdr.csum_flags & CSUM_TCP) {
+			m_head = m_pullup(m_head, poff + sizeof(struct tcphdr));
+			if (m_head == NULL) {
+				*m_headp = NULL;
+				return (ENOBUFS);
+			}
 			tp = (struct tcphdr *)(mtod(m_head, char *) + poff);
 			m_head = m_pullup(m_head, poff + (tp->th_off << 2));
 			if (m_head == NULL) {
@@ -1788,14 +1793,23 @@ em_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 		error = bus_dmamap_load_mbuf_sg(txr->txtag, map,
 		    *m_headp, segs, &nsegs, BUS_DMA_NOWAIT);
 
-		if (error) {
+		if (error == ENOMEM) {
+			adapter->no_tx_dma_setup++;
+			return (error);
+		} else if (error != 0) {
 			adapter->no_tx_dma_setup++;
 			m_freem(*m_headp);
 			*m_headp = NULL;
 			return (error);
 		}
+
+	} else if (error == ENOMEM) {
+		adapter->no_tx_dma_setup++;
+		return (error);
 	} else if (error != 0) {
 		adapter->no_tx_dma_setup++;
+		m_freem(*m_headp);
+		*m_headp = NULL;
 		return (error);
 	}
 
@@ -2077,7 +2091,6 @@ hung:
 	    txr->me, txr->tx_avail, txr->next_to_clean);
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	adapter->watchdog_events++;
-	EM_TX_UNLOCK(txr);
 	em_init_locked(adapter);
 }
 
@@ -3595,46 +3608,43 @@ em_refresh_mbufs(struct rx_ring *rxr, int limit)
 	cleaned = -1;
 	while (i != limit) {
 		rxbuf = &rxr->rx_buffers[i];
-		/*
-		** Just skip entries with a buffer,
-		** they can only be due to an error
-		** and are to be reused.
-		*/
-		if (rxbuf->m_head != NULL)
-			goto reuse;
-		m = m_getjcl(M_DONTWAIT, MT_DATA,
-		    M_PKTHDR, adapter->rx_mbuf_sz);
-		/*
-		** If we have a temporary resource shortage
-		** that causes a failure, just abort refresh
-		** for now, we will return to this point when
-		** reinvoked from em_rxeof.
-		*/
-		if (m == NULL)
-			goto update;
+		if (rxbuf->m_head == NULL) {
+			m = m_getjcl(M_DONTWAIT, MT_DATA,
+			    M_PKTHDR, adapter->rx_mbuf_sz);
+			/*
+			** If we have a temporary resource shortage
+			** that causes a failure, just abort refresh
+			** for now, we will return to this point when
+			** reinvoked from em_rxeof.
+			*/
+			if (m == NULL)
+				goto update;
+		} else
+			m = rxbuf->m_head;
+
 		m->m_len = m->m_pkthdr.len = adapter->rx_mbuf_sz;
+		m->m_flags |= M_PKTHDR;
+		m->m_data = m->m_ext.ext_buf;
 
 		/* Use bus_dma machinery to setup the memory mapping  */
 		error = bus_dmamap_load_mbuf_sg(rxr->rxtag, rxbuf->map,
 		    m, segs, &nsegs, BUS_DMA_NOWAIT);
 		if (error != 0) {
+			printf("Refresh mbufs: hdr dmamap load"
+			    " failure - %d\n", error);
 			m_free(m);
+			rxbuf->m_head = NULL;
 			goto update;
 		}
-
-		/* If nsegs is wrong then the stack is corrupt. */
-		KASSERT(nsegs == 1, ("Too many segments returned!"));
-	
+		rxbuf->m_head = m;
 		bus_dmamap_sync(rxr->rxtag,
 		    rxbuf->map, BUS_DMASYNC_PREREAD);
-		rxbuf->m_head = m;
 		rxr->rx_base[i].buffer_addr = htole64(segs[0].ds_addr);
-reuse:
+
 		cleaned = i;
 		/* Calculate next index */
 		if (++i == adapter->num_rx_desc)
 			i = 0;
-		/* This is the work marker for refresh */
 		rxr->next_to_refresh = i;
 	}
 update:
@@ -4052,8 +4062,8 @@ em_rxeof(struct rx_ring *rxr, int count, int *done)
 		len = le16toh(cur->length);
 		eop = (status & E1000_RXD_STAT_EOP) != 0;
 
-		if ((rxr->discard == TRUE) || (cur->errors &
-		    E1000_RXD_ERR_FRAME_ERR_MASK)) {
+		if ((cur->errors & E1000_RXD_ERR_FRAME_ERR_MASK) ||
+		    (rxr->discard == TRUE)) {
 			ifp->if_ierrors++;
 			++rxr->rx_discarded;
 			if (!eop) /* Catch subsequent segs */
@@ -4146,9 +4156,7 @@ next_desc:
 static __inline void
 em_rx_discard(struct rx_ring *rxr, int i)
 {
-	struct adapter		*adapter = rxr->adapter;
 	struct em_buffer	*rbuf;
-	struct mbuf		*m;
 
 	rbuf = &rxr->rx_buffers[i];
 	/* Free any previous pieces */
@@ -4158,14 +4166,14 @@ em_rx_discard(struct rx_ring *rxr, int i)
 		rxr->fmp = NULL;
 		rxr->lmp = NULL;
 	}
-                         
-	/* Reset state, keep loaded DMA map and reuse */
-	m = rbuf->m_head;
-	m->m_len = m->m_pkthdr.len = adapter->rx_mbuf_sz;
-	m->m_flags |= M_PKTHDR;
-	m->m_data = m->m_ext.ext_buf;
-	m->m_next = NULL;
-
+	/*
+	** Free buffer and allow em_refresh_mbufs()
+	** to clean up and recharge buffer.
+	*/
+	if (rbuf->m_head) {
+		m_free(rbuf->m_head);
+		rbuf->m_head = NULL;
+	}
 	return;
 }
 

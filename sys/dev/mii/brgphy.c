@@ -142,6 +142,8 @@ static const struct mii_phydesc brgphys[] = {
 	MII_PHY_DESC(xxBROADCOM_ALT1, BCM5761),
 	MII_PHY_DESC(xxBROADCOM_ALT1, BCM5709S),
 	MII_PHY_DESC(xxBROADCOM_ALT2, BCM5717C),
+	MII_PHY_DESC(xxBROADCOM_ALT2, BCM5719C),
+	MII_PHY_DESC(xxBROADCOM_ALT2, BCM57765),
 	MII_PHY_DESC(BROADCOM2, BCM5906),
 	MII_PHY_END
 };
@@ -452,7 +454,7 @@ brgphy_setmedia(struct mii_softc *sc, int media)
 		break;
 	}
 
-	if ((media & IFM_GMASK) == IFM_FDX) {
+	if ((media & IFM_FDX) != 0) {
 		bmcr |= BRGPHY_BMCR_FDX;
 		gig = BRGPHY_1000CTL_AFD;
 	} else {

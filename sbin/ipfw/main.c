@@ -491,11 +491,11 @@ ipfw_readfile(int ac, char *av[])
 	}
 
 	while (fgets(buf, BUFSIZ, f)) {		/* read commands */
-		char linename[10];
+		char linename[20];
 		char *args[2];
 
 		lineno++;
-		sprintf(linename, "Line %d", lineno);
+		snprintf(linename, sizeof(linename), "Line %d", lineno);
 		setprogname(linename); /* XXX */
 		args[0] = progname;
 		args[1] = buf;

@@ -78,7 +78,7 @@
 
 /*
  * IPv6 port allocation rules should mirror the IPv4 rules and are controlled
- * by the the net.inet.ip.portrange sysctl tree. The following defines exist
+ * by the net.inet.ip.portrange sysctl tree. The following defines exist
  * for compatibility with userland applications that need them.
  */
 #if __BSD_VISIBLE

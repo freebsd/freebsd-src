@@ -139,7 +139,7 @@ MODULE_DEPEND(bge, miibus, 1, 1, 1);
 static const struct bge_type {
 	uint16_t	bge_vid;
 	uint16_t	bge_did;
-} bge_devs[] = {
+} const bge_devs[] = {
 	{ ALTEON_VENDORID,	ALTEON_DEVICEID_BCM5700 },
 	{ ALTEON_VENDORID,	ALTEON_DEVICEID_BCM5701 },
 
@@ -232,7 +232,7 @@ static const struct bge_type {
 static const struct bge_vendor {
 	uint16_t	v_id;
 	const char	*v_name;
-} bge_vendors[] = {
+} const bge_vendors[] = {
 	{ ALTEON_VENDORID,	"Alteon" },
 	{ ALTIMA_VENDORID,	"Altima" },
 	{ APPLE_VENDORID,	"Apple" },
@@ -247,7 +247,7 @@ static const struct bge_vendor {
 static const struct bge_revision {
 	uint32_t	br_chipid;
 	const char	*br_name;
-} bge_revisions[] = {
+} const bge_revisions[] = {
 	{ BGE_CHIPID_BCM5700_A0,	"BCM5700 A0" },
 	{ BGE_CHIPID_BCM5700_A1,	"BCM5700 A1" },
 	{ BGE_CHIPID_BCM5700_B0,	"BCM5700 B0" },
@@ -317,7 +317,7 @@ static const struct bge_revision {
  * Some defaults for major revisions, so that newer steppings
  * that we don't know about have a shot at working.
  */
-static const struct bge_revision bge_majorrevs[] = {
+static const struct bge_revision const bge_majorrevs[] = {
 	{ BGE_ASICREV_BCM5700,		"unknown BCM5700" },
 	{ BGE_ASICREV_BCM5701,		"unknown BCM5701" },
 	{ BGE_ASICREV_BCM5703,		"unknown BCM5703" },
@@ -943,10 +943,19 @@ bge_newbuf_std(struct bge_softc *sc, int i)
 	bus_dmamap_t map;
 	int error, nsegs;
 
-	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
-	if (m == NULL)
-		return (ENOBUFS);
-	m->m_len = m->m_pkthdr.len = MCLBYTES;
+	if (sc->bge_flags & BGE_FLAG_JUMBO_STD &&
+	    (sc->bge_ifp->if_mtu + ETHER_HDR_LEN + ETHER_CRC_LEN +
+	    ETHER_VLAN_ENCAP_LEN > (MCLBYTES - ETHER_ALIGN))) {
+		m = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, MJUM9BYTES);
+		if (m == NULL)
+			return (ENOBUFS);
+		m->m_len = m->m_pkthdr.len = MJUM9BYTES;
+	} else {
+		m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+		if (m == NULL)
+			return (ENOBUFS);
+		m->m_len = m->m_pkthdr.len = MCLBYTES;
+	}
 	if ((sc->bge_flags & BGE_FLAG_RX_ALIGNBUG) == 0)
 		m_adj(m, ETHER_ALIGN);
 
@@ -1013,7 +1022,7 @@ bge_newbuf_jumbo(struct bge_softc *sc, int i)
 		return (error);
 	}
 
-	if (sc->bge_cdata.bge_rx_jumbo_chain[i] == NULL) {
+	if (sc->bge_cdata.bge_rx_jumbo_chain[i] != NULL) {
 		bus_dmamap_sync(sc->bge_cdata.bge_mtag_jumbo,
 		    sc->bge_cdata.bge_rx_jumbo_dmamap[i], BUS_DMASYNC_POSTREAD);
 		bus_dmamap_unload(sc->bge_cdata.bge_mtag_jumbo,
@@ -2143,20 +2152,21 @@ bge_lookup_vendor(uint16_t vid)
 static int
 bge_probe(device_t dev)
 {
-	const struct bge_type *t = bge_devs;
+	char buf[96];
+	char model[64];
+	const struct bge_revision *br;
+	const char *pname;
 	struct bge_softc *sc = device_get_softc(dev);
-	uint16_t vid, did;
+	const struct bge_type *t = bge_devs;
+	const struct bge_vendor *v;
+	uint32_t id;
+	uint16_t did, vid;
 
 	sc->bge_dev = dev;
 	vid = pci_get_vendor(dev);
 	did = pci_get_device(dev);
 	while(t->bge_vid != 0) {
 		if ((vid == t->bge_vid) && (did == t->bge_did)) {
-			char model[64], buf[96];
-			const struct bge_revision *br;
-			const struct bge_vendor *v;
-			uint32_t id;
-
 			id = pci_read_config(dev, BGE_PCI_MISC_CTL, 4) >>
 			    BGE_PCIMISCCTL_ASICREV_SHIFT;
 			if (BGE_ASICREV(id) == BGE_ASICREV_USE_PRODID_REG) {
@@ -2177,20 +2187,13 @@ bge_probe(device_t dev)
 			}
 			br = bge_lookup_rev(id);
 			v = bge_lookup_vendor(vid);
-			{
-#if __FreeBSD_version > 700024
-				const char *pname;
-
-				if (bge_has_eaddr(sc) &&
-				    pci_get_vpd_ident(dev, &pname) == 0)
-					snprintf(model, 64, "%s", pname);
-				else
-#endif
-					snprintf(model, 64, "%s %s",
-					    v->v_name,
-					    br != NULL ? br->br_name :
-					    "NetXtreme Ethernet Controller");
-			}
+			if (bge_has_eaddr(sc) &&
+			    pci_get_vpd_ident(dev, &pname) == 0)
+				snprintf(model, 64, "%s", pname);
+			else
+				snprintf(model, 64, "%s %s", v->v_name,
+				    br != NULL ? br->br_name :
+				    "NetXtreme Ethernet Controller");
 			snprintf(buf, 96, "%s, %sASIC rev. %#08x", model,
 			    br != NULL ? "" : "unknown ", id);
 			device_set_desc_copy(dev, buf);
@@ -2391,7 +2394,7 @@ static int
 bge_dma_alloc(struct bge_softc *sc)
 {
 	bus_addr_t lowaddr;
-	bus_size_t boundary, sbsz, txsegsz, txmaxsegsz;
+	bus_size_t boundary, sbsz, rxmaxsegsz, txsegsz, txmaxsegsz;
 	int i, error;
 
 	lowaddr = BUS_SPACE_MAXADDR;
@@ -2479,8 +2482,18 @@ bge_dma_alloc(struct bge_softc *sc)
 
 	/* Create parent tag for buffers. */
 	boundary = 0;
-	if ((sc->bge_flags & BGE_FLAG_4G_BNDRY_BUG) != 0)
+	if ((sc->bge_flags & BGE_FLAG_4G_BNDRY_BUG) != 0) {
 		boundary = BGE_DMA_BNDRY;
+		/*
+		 * XXX
+		 * watchdog timeout issue was observed on BCM5704 which
+		 * lives behind PCI-X bridge(e.g AMD 8131 PCI-X bridge).
+		 * Limiting DMA address space to 32bits seems to address
+		 * it.
+		 */
+		if (sc->bge_flags & BGE_FLAG_PCIX)
+			lowaddr = BUS_SPACE_MAXADDR_32BIT;
+	}
 	error = bus_dma_tag_create(bus_get_dma_tag(sc->bge_dev),
 	    1, boundary, lowaddr, BUS_SPACE_MAXADDR, NULL,
 	    NULL, BUS_SPACE_MAXSIZE_32BIT, 0, BUS_SPACE_MAXSIZE_32BIT,
@@ -2509,9 +2522,13 @@ bge_dma_alloc(struct bge_softc *sc)
 	}
 
 	/* Create tag for Rx mbufs. */
+	if (sc->bge_flags & BGE_FLAG_JUMBO_STD)
+		rxmaxsegsz = MJUM9BYTES;
+	else
+		rxmaxsegsz = MCLBYTES;
 	error = bus_dma_tag_create(sc->bge_cdata.bge_buffer_tag, 1, 0,
-	    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES, 1,
-	    MCLBYTES, 0, NULL, NULL, &sc->bge_cdata.bge_rx_mtag);
+	    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL, rxmaxsegsz, 1,
+	    rxmaxsegsz, 0, NULL, NULL, &sc->bge_cdata.bge_rx_mtag);
 
 	if (error) {
 		device_printf(sc->bge_dev, "could not allocate RX dma tag\n");
@@ -2755,7 +2772,7 @@ bge_attach(device_t dev)
 	case BGE_ASICREV_BCM5714_A0:
 	case BGE_ASICREV_BCM5780:
 	case BGE_ASICREV_BCM5714:
-		sc->bge_flags |= BGE_FLAG_5714_FAMILY /* | BGE_FLAG_JUMBO */;
+		sc->bge_flags |= BGE_FLAG_5714_FAMILY | BGE_FLAG_JUMBO_STD;
 		/* FALLTHROUGH */
 	case BGE_ASICREV_BCM5750:
 	case BGE_ASICREV_BCM5752:
@@ -3167,7 +3184,6 @@ again:
 	/*
 	 * Hookup IRQ last.
 	 */
-#if __FreeBSD_version > 700030
 	if (BGE_IS_5755_PLUS(sc) && sc->bge_flags & BGE_FLAG_MSI) {
 		/* Take advantage of single-shot MSI. */
 		CSR_WRITE_4(sc, BGE_MSI_MODE, CSR_READ_4(sc, BGE_MSI_MODE) &
@@ -3191,10 +3207,6 @@ again:
 		error = bus_setup_intr(dev, sc->bge_irq,
 		    INTR_TYPE_NET | INTR_MPSAFE, NULL, bge_intr, sc,
 		    &sc->bge_intrhand);
-#else
-	error = bus_setup_intr(dev, sc->bge_irq, INTR_TYPE_NET | INTR_MPSAFE,
-	   bge_intr, sc, &sc->bge_intrhand);
-#endif
 
 	if (error) {
 		bge_detach(dev);
@@ -3561,7 +3573,8 @@ bge_rxeof(struct bge_softc *sc, uint16_t rx_prod, int holdlck)
 	    sc->bge_cdata.bge_rx_return_ring_map, BUS_DMASYNC_POSTREAD);
 	bus_dmamap_sync(sc->bge_cdata.bge_rx_std_ring_tag,
 	    sc->bge_cdata.bge_rx_std_ring_map, BUS_DMASYNC_POSTWRITE);
-	if (ifp->if_mtu + ETHER_HDR_LEN + ETHER_CRC_LEN + ETHER_VLAN_ENCAP_LEN >
+	if (BGE_IS_JUMBO_CAPABLE(sc) &&
+	    ifp->if_mtu + ETHER_HDR_LEN + ETHER_CRC_LEN + ETHER_VLAN_ENCAP_LEN >
 	    (MCLBYTES - ETHER_ALIGN))
 		bus_dmamap_sync(sc->bge_cdata.bge_rx_jumbo_ring_tag,
 		    sc->bge_cdata.bge_rx_jumbo_ring_map, BUS_DMASYNC_POSTWRITE);
@@ -3643,14 +3656,8 @@ bge_rxeof(struct bge_softc *sc, uint16_t rx_prod, int holdlck)
 		 * attach that information to the packet.
 		 */
 		if (have_tag) {
-#if __FreeBSD_version > 700022
 			m->m_pkthdr.ether_vtag = vlan_tag;
 			m->m_flags |= M_VLANTAG;
-#else
-			VLAN_INPUT_TAG_NEW(ifp, m, vlan_tag);
-			if (m == NULL)
-				continue;
-#endif
 		}
 
 		if (holdlck != 0) {
@@ -4452,21 +4459,10 @@ bge_encap(struct bge_softc *sc, struct mbuf **m_head, uint32_t *txidx)
 
 	bus_dmamap_sync(sc->bge_cdata.bge_tx_mtag, map, BUS_DMASYNC_PREWRITE);
 
-#if __FreeBSD_version > 700022
 	if (m->m_flags & M_VLANTAG) {
 		csum_flags |= BGE_TXBDFLAG_VLAN_TAG;
 		vlan_tag = m->m_pkthdr.ether_vtag;
 	}
-#else
-	{
-		struct m_tag		*mtag;
-
-		if ((mtag = VLAN_OUTPUT_TAG(sc->bge_ifp, m)) != NULL) {
-			csum_flags |= BGE_TXBDFLAG_VLAN_TAG;
-			vlan_tag = VLAN_TAG_VALUE(mtag);
-		}
-	}
-#endif
 	for (i = 0; ; i++) {
 		d = &sc->bge_ldata.bge_tx_ring[idx];
 		d->bge_addr.bge_addr_lo = BGE_ADDR_LO(segs[i].ds_addr);
@@ -4703,7 +4699,8 @@ bge_init_locked(struct bge_softc *sc)
 	}
 
 	/* Init jumbo RX ring. */
-	if (ifp->if_mtu + ETHER_HDR_LEN + ETHER_CRC_LEN + ETHER_VLAN_ENCAP_LEN >
+	if (BGE_IS_JUMBO_CAPABLE(sc) &&
+	    ifp->if_mtu + ETHER_HDR_LEN + ETHER_CRC_LEN + ETHER_VLAN_ENCAP_LEN >
 	    (MCLBYTES - ETHER_ALIGN)) {
 		if (bge_init_rx_ring_jumbo(sc) != 0) {
 			device_printf(sc->bge_dev,
@@ -4928,14 +4925,19 @@ bge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 
 	switch (command) {
 	case SIOCSIFMTU:
+		if (BGE_IS_JUMBO_CAPABLE(sc) ||
+		    (sc->bge_flags & BGE_FLAG_JUMBO_STD)) {
+			if (ifr->ifr_mtu < ETHERMIN ||
+			    ifr->ifr_mtu > BGE_JUMBO_MTU) {
+				error = EINVAL;
+				break;
+			}
+		} else if (ifr->ifr_mtu < ETHERMIN || ifr->ifr_mtu > ETHERMTU) {
+			error = EINVAL; 
+			break;
+		}
 		BGE_LOCK(sc);
-		if (ifr->ifr_mtu < ETHERMIN ||
-		    ((BGE_IS_JUMBO_CAPABLE(sc)) &&
-		    ifr->ifr_mtu > BGE_JUMBO_MTU) ||
-		    ((!BGE_IS_JUMBO_CAPABLE(sc)) &&
-		    ifr->ifr_mtu > ETHERMTU))
-			error = EINVAL;
-		else if (ifp->if_mtu != ifr->ifr_mtu) {
+		if (ifp->if_mtu != ifr->ifr_mtu) {
 			ifp->if_mtu = ifr->ifr_mtu;
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;

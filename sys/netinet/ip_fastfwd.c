@@ -215,7 +215,7 @@ ip_fastforward(struct mbuf *m)
 	 */
 	hlen = ip->ip_hl << 2;
 	if (hlen < sizeof(struct ip)) {	/* minimum header length */
-		ipstat.ips_badlen++;
+		ipstat.ips_badhlen++;
 		goto drop;
 	}
 	if (hlen > m->m_len) {

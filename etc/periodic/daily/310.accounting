@@ -41,13 +41,16 @@ case "$daily_accounting_enable" in
 		m=$n
 		n=$(($n - 1))
 	    done
-	    cp -pf acct acct.0 || rc=3
-	    sa -s $daily_accounting_flags || rc=3
+
+	    /etc/rc.d/accounting rotate_log || rc=3
 
 	    case "$daily_accounting_compress" in
 		[Yy][Ee][Ss])
-		    gzip -f acct.0 || rc=3;;
+		    gzip --keep -f acct.0 || rc=3;;
 	    esac
+
+	    sa -s $daily_accounting_flags /var/account/acct.0 &&
+		unlink acct.0 || rc=3
 	fi;;
 
     *)  rc=0;;

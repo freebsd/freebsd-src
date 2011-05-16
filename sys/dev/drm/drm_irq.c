@@ -140,7 +140,7 @@ int drm_vblank_init(struct drm_device *dev, int num_crtcs)
 	for (i = 0; i < num_crtcs; i++) {
 		DRM_INIT_WAITQUEUE(&dev->vblank[i].queue);
 		dev->vblank[i].refcount = 0;
-		atomic_set_rel_32(&dev->vblank[i].count, 0);
+		atomic_store_rel_32(&dev->vblank[i].count, 0);
 	}
 	dev->vblank_disable_allowed = 0;
 	DRM_SPINUNLOCK(&dev->vbl_lock);

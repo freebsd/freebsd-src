@@ -41,7 +41,7 @@
  *
  * If a mutex is not provided when the unit number space is created, a
  * default global mutex is used.  The advantage to passing a mutex in, is
- * that the the alloc_unrl() function can be called with the mutex already
+ * that the alloc_unrl() function can be called with the mutex already
  * held (it will not be released by alloc_unrl()).
  *
  * The allocation function alloc_unr{l}() never sleeps (but it may block on
@@ -52,7 +52,7 @@
  *
  * A userland test program is included.
  *
- * Memory usage is a very complex function of the the exact allocation
+ * Memory usage is a very complex function of the exact allocation
  * pattern, but always very compact:
  *    * For the very typical case where a single unbroken run of unit
  *      numbers are allocated 44 bytes are used on i386.

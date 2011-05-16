@@ -931,7 +931,7 @@ main(int argc, char *argv[])
 		/*
 		 * We cannot continue because of error.  Exit if the
 		 * program has not become a daemon.  Otherwise, block
-		 * until the the user corrects the problem and issues SIGHUP.
+		 * until the user corrects the problem and issues SIGHUP.
 		 */
 		if (!background)
 		    exit(1);

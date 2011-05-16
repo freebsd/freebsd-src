@@ -66,8 +66,8 @@
  * JMC250 can send 9K jumbo frame on Tx path and can receive
  * 65535 bytes.
  */
-#define JME_JUMBO_FRAMELEN	9216
-#define JME_JUMBO_MTU							\
+#define	JME_JUMBO_FRAMELEN	9216
+#define	JME_JUMBO_MTU							\
 	(JME_JUMBO_FRAMELEN - sizeof(struct ether_vlan_header) -	\
 	 ETHER_HDR_LEN - ETHER_CRC_LEN)
 #define	JME_MAX_MTU							\
@@ -143,14 +143,14 @@ struct jme_ring_data {
 	bus_addr_t		jme_ssb_block_paddr;
 };
 
-#define JME_TX_RING_ADDR(sc, i)	\
+#define	JME_TX_RING_ADDR(sc, i)	\
     ((sc)->jme_rdata.jme_tx_ring_paddr + sizeof(struct jme_desc) * (i))
-#define JME_RX_RING_ADDR(sc, i)	\
+#define	JME_RX_RING_ADDR(sc, i)	\
     ((sc)->jme_rdata.jme_rx_ring_paddr + sizeof(struct jme_desc) * (i))
 
-#define JME_TX_RING_SIZE	\
+#define	JME_TX_RING_SIZE	\
     (sizeof(struct jme_desc) * JME_TX_RING_CNT)
-#define JME_RX_RING_SIZE	\
+#define	JME_RX_RING_SIZE	\
     (sizeof(struct jme_desc) * JME_RX_RING_CNT)
 #define	JME_SSB_SIZE		sizeof(struct jme_ssb)
 
@@ -185,19 +185,22 @@ struct jme_softc {
 	uint32_t		jme_tx_dma_size;
 	uint32_t		jme_rx_dma_size;
 	int			jme_flags;
-#define	JME_FLAG_FPGA		0x0001
-#define	JME_FLAG_PCIE		0x0002
-#define	JME_FLAG_PCIX		0x0003
-#define	JME_FLAG_MSI		0x0004
-#define	JME_FLAG_MSIX		0x0010
-#define	JME_FLAG_PMCAP		0x0020
-#define	JME_FLAG_FASTETH	0x0040
-#define	JME_FLAG_NOJUMBO	0x0080
-#define	JME_FLAG_TXCLK		0x0100
-#define	JME_FLAG_DMA32BIT	0x0200
-#define	JME_FLAG_HWMIB		0x0400
-#define	JME_FLAG_DETACH		0x4000
-#define	JME_FLAG_LINK		0x8000
+#define	JME_FLAG_FPGA		0x00000001
+#define	JME_FLAG_PCIE		0x00000002
+#define	JME_FLAG_PCIX		0x00000004
+#define	JME_FLAG_MSI		0x00000008
+#define	JME_FLAG_MSIX		0x00000010
+#define	JME_FLAG_PMCAP		0x00000020
+#define	JME_FLAG_FASTETH	0x00000040
+#define	JME_FLAG_NOJUMBO	0x00000080
+#define	JME_FLAG_RXCLK		0x00000100
+#define	JME_FLAG_TXCLK		0x00000200
+#define	JME_FLAG_DMA32BIT	0x00000400
+#define	JME_FLAG_HWMIB		0x00000800
+#define	JME_FLAG_EFUSE		0x00001000
+#define	JME_FLAG_PCCPCD		0x00002000
+#define	JME_FLAG_DETACH		0x40000000
+#define	JME_FLAG_LINK		0x80000000
 
 	struct jme_hw_stats	jme_ostats;
 	struct jme_hw_stats	jme_stats;
@@ -210,27 +213,28 @@ struct jme_softc {
 	uint32_t		jme_rxcsr;
 	int			jme_process_limit;
 	int			jme_tx_coal_to;
+	int			jme_tx_pcd_to;
 	int			jme_tx_coal_pkt;
 	int			jme_rx_coal_to;
+	int			jme_rx_pcd_to;
 	int			jme_rx_coal_pkt;
 	volatile int		jme_morework;
 
 	struct task		jme_int_task;
-	struct task		jme_tx_task;
 	struct task		jme_link_task;
 	struct taskqueue	*jme_tq;
 	struct mtx		jme_mtx;
 };
 
 /* Register access macros. */
-#define CSR_WRITE_4(_sc, reg, val)	\
+#define	CSR_WRITE_4(_sc, reg, val)	\
 	bus_write_4((_sc)->jme_res[0], (reg), (val))
-#define CSR_READ_4(_sc, reg)		\
+#define	CSR_READ_4(_sc, reg)		\
 	bus_read_4((_sc)->jme_res[0], (reg))
 
-#define JME_LOCK(_sc)		mtx_lock(&(_sc)->jme_mtx)
-#define JME_UNLOCK(_sc)		mtx_unlock(&(_sc)->jme_mtx)
-#define JME_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->jme_mtx, MA_OWNED)
+#define	JME_LOCK(_sc)		mtx_lock(&(_sc)->jme_mtx)
+#define	JME_UNLOCK(_sc)		mtx_unlock(&(_sc)->jme_mtx)
+#define	JME_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->jme_mtx, MA_OWNED)
 
 #define	JME_MAXERR	5
 
@@ -242,8 +246,8 @@ do {									\
 } while (0)
 
 #define	JME_TX_TIMEOUT		5
-#define JME_TIMEOUT		1000
-#define JME_PHY_TIMEOUT		1000
-#define JME_EEPROM_TIMEOUT	1000
+#define	JME_TIMEOUT		1000
+#define	JME_PHY_TIMEOUT		1000
+#define	JME_EEPROM_TIMEOUT	1000
 
 #endif

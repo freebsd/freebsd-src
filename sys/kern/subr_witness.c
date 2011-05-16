@@ -966,7 +966,7 @@ witness_checkorder(struct lock_object *lock, int flags, const char *file,
 	MPASS(!mtx_owned(&w_mtx));
 	mtx_lock_spin(&w_mtx);
 	/*
-	 * If we know that the the lock we are acquiring comes after
+	 * If we know that the lock we are acquiring comes after
 	 * the lock we most recently acquired in the lock order tree,
 	 * then there is no need for any further checks.
 	 */

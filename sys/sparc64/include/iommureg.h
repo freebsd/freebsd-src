@@ -194,7 +194,7 @@
  * Unfortunately, sabres on UltraSPARC IIi and IIe processors does not use
  * this scheme to determine the IOVA base address.  Instead, bits 31-29 are
  * used to check against the Target Address Space register in the IIi and
- * the the IOMMU is used if they hit.  God knows what goes on in the IIe.
+ * the IOMMU is used if they hit.  God knows what goes on in the IIe.
  *
  */
 

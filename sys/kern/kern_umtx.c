@@ -58,37 +58,8 @@ __FBSDID("$FreeBSD$");
 #include <compat/freebsd32/freebsd32_proto.h>
 #endif
 
-#define TYPE_SIMPLE_WAIT	0
-#define TYPE_CV			1
-#define TYPE_SIMPLE_LOCK	2
-#define TYPE_NORMAL_UMUTEX	3
-#define TYPE_PI_UMUTEX		4
-#define TYPE_PP_UMUTEX		5
-#define TYPE_RWLOCK		6
-
 #define _UMUTEX_TRY		1
 #define _UMUTEX_WAIT		2
-
-/* Key to represent a unique userland synchronous object */
-struct umtx_key {
-	int	hash;
-	int	type;
-	int	shared;
-	union {
-		struct {
-			vm_object_t	object;
-			uintptr_t	offset;
-		} shared;
-		struct {
-			struct vmspace	*vs;
-			uintptr_t	addr;
-		} private;
-		struct {
-			void		*a;
-			uintptr_t	b;
-		} both;
-	} info;
-};
 
 /* Priority inheritance mutex info. */
 struct umtx_pi {
@@ -185,10 +156,6 @@ struct umtxq_chain {
 #define	UMTX_CHAINS		128
 #define	UMTX_SHIFTS		(__WORD_BIT - 7)
 
-#define THREAD_SHARE		0
-#define PROCESS_SHARE		1
-#define AUTO_SHARE		2
-
 #define	GET_SHARE(flags)	\
     (((flags) & USYNC_PROCESS_SHARED) == 0 ? THREAD_SHARE : PROCESS_SHARE)
 
@@ -214,10 +181,6 @@ static void umtxq_insert_queue(struct umtx_q *uq, int q);
 static void umtxq_remove_queue(struct umtx_q *uq, int q);
 static int umtxq_sleep(struct umtx_q *uq, const char *wmesg, int timo);
 static int umtxq_count(struct umtx_key *key);
-static int umtx_key_match(const struct umtx_key *k1, const struct umtx_key *k2);
-static int umtx_key_get(void *addr, int type, int share,
-	struct umtx_key *key);
-static void umtx_key_release(struct umtx_key *key);
 static struct umtx_pi *umtx_pi_alloc(int);
 static void umtx_pi_free(struct umtx_pi *pi);
 static void umtx_pi_adjust_locked(struct thread *td, u_char oldpri);
@@ -278,14 +241,6 @@ umtxq_hash(struct umtx_key *key)
 {
 	unsigned n = (uintptr_t)key->info.both.a + key->info.both.b;
 	key->hash = ((n * GOLDEN_RATIO_PRIME) >> UMTX_SHIFTS) % UMTX_CHAINS;
-}
-
-static inline int
-umtx_key_match(const struct umtx_key *k1, const struct umtx_key *k2)
-{
-	return (k1->type == k2->type &&
-		k1->info.both.a == k2->info.both.a &&
-	        k1->info.both.b == k2->info.both.b);
 }
 
 static inline struct umtxq_chain *
@@ -500,7 +455,7 @@ umtxq_sleep(struct umtx_q *uq, const char *wmesg, int timo)
 /*
  * Convert userspace address into unique logical address.
  */
-static int
+int
 umtx_key_get(void *addr, int type, int share, struct umtx_key *key)
 {
 	struct thread *td = curthread;
@@ -546,7 +501,7 @@ umtx_key_get(void *addr, int type, int share, struct umtx_key *key)
 /*
  * Release key.
  */
-static inline void
+void
 umtx_key_release(struct umtx_key *key)
 {
 	if (key->shared)

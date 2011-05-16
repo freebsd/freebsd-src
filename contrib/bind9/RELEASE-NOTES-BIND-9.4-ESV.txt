@@ -1,0 +1,70 @@
+     __________________________________________________________________
+
+Introduction
+
+   BIND 9.3-ESV-R4 is a maintenance release for BIND 9.4-ESV.
+
+   This document summarizes changes from BIND 9.4-ESV-R3 to BIND
+   9.4-ESV-R4. Please see the CHANGES file in the source code release for
+   a complete list of all changes.
+
+Download
+
+   The latest release of BIND 9 software can always be found on our web
+   site at http://www.isc.org/software/bind. There you will find
+   additional information about each release, source code, and some
+   pre-compiled versions for certain operating systems.
+
+Support
+
+   Product support information is available on
+   http://www.isc.org/services/support for paid support options. Free
+   support is provided by our user community via a mailing list.
+   Information on all public email lists is available at
+   https://lists.isc.org/mailman/listinfo.
+
+New Features
+
+9.4-ESV-R4
+
+   None.
+
+Feature Changes
+
+9.4-ESV-R4
+
+   None.
+
+Security Fixes
+
+9.4-ESV-R4
+
+     * Adding a NO DATA signed negative response to cache failed to clear
+       any matching RRSIG records already in cache. A subsequent lookup of
+       the cached NO DATA entry could crash named (INSIST) when the
+       unexpected RRSIG was also returned with the NO DATA cache entry.
+       [RT #22288] [CVE-2010-3613] [VU#706148]
+     * BIND, acting as a DNSSEC validator, was determining if the NS RRset
+       is insecure based on a value that could mean either that the RRset
+       is actually insecure or that there wasn't a matching key for the
+       RRSIG in the DNSKEY RRset when resuming from validating the DNSKEY
+       RRset. This can happen when in the middle of a DNSKEY algorithm
+       rollover, when two different algorithms were used to sign a zone
+       but only the new set of keys are in the zone DNSKEY RRset. [RT
+       #22309] [CVE-2010-3614] [VU#837744]
+
+Bug Fixes
+
+9.4-ESV-R4
+
+     * isc_print_vsnprintf() failed to check if there was space available
+       in the buffer when adding a left justified character with a non
+       zero width, (e.g. "%-1c"). [RT #22270]
+     * win32: add more dependencies to BINDBuild.dsw. [RT #22062]
+
+Thank You
+
+   Thank you to everyone who assisted us in making this release possible.
+   If you would like to contribute to ISC to assist us in continuing to
+   make quality open source software, please visit our donations page at
+   http://www.isc.org/supportisc.

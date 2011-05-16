@@ -337,8 +337,8 @@
 struct sis_desc {
 	/* SiS hardware descriptor section */
 	uint32_t		sis_next;
-	uint32_t		sis_cmdsts;
-	uint32_t		sis_ptr;
+	volatile uint32_t	sis_cmdsts;
+	volatile uint32_t	sis_ptr;
 };
 
 #define SIS_CMDSTS_BUFLEN	0x00000FFF

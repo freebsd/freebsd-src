@@ -4418,7 +4418,7 @@ xge_hal_device_status(xge_hal_device_t *hldev, u64 *hw_status)
 #ifndef XGE_HAL_HERC_EMULATION
 	/*
 	 * Andrew: in PCI 33 mode, the P_PLL is not used, and therefore,
-	 * the the P_PLL_LOCK bit in the adapter_status register will
+	 * the P_PLL_LOCK bit in the adapter_status register will
 	 * not be asserted.
 	 */
 	if (!(tmp64 & XGE_HAL_ADAPTER_STATUS_P_PLL_LOCK) &&

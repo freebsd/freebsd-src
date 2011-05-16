@@ -1937,11 +1937,11 @@ fxp_intr_body(struct fxp_softc *sc, struct ifnet *ifp, uint8_t statack,
 				/* Adjust for appended checksum bytes. */
 				total_len -= 2;
 			}
-			if (total_len < sizeof(struct ether_header) ||
+			if (total_len < (int)sizeof(struct ether_header) ||
 			    total_len > (MCLBYTES - RFA_ALIGNMENT_FUDGE -
 			    sc->rfa_size) ||
 			    status & (FXP_RFA_STATUS_CRC |
-			    FXP_RFA_STATUS_ALIGN)) {
+			    FXP_RFA_STATUS_ALIGN | FXP_RFA_STATUS_OVERRUN)) {
 				m_freem(m);
 				fxp_add_rfabuf(sc, rxp);
 				continue;
@@ -2816,8 +2816,10 @@ fxp_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
+		FXP_LOCK(sc);
 		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
-			fxp_init(sc);
+			fxp_init_body(sc, 0);
+		FXP_UNLOCK(sc);
 		break;
 
 	case SIOCSIFMEDIA:

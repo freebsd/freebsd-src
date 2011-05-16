@@ -244,7 +244,7 @@ addrmerge(struct netbuf *caller, char *serv_uaddr, char *clnt_uaddr,
 
 found:
 	/*
-	 * Construct the new address using the the address from
+	 * Construct the new address using the address from
 	 * `bestif', and the port number from `serv_uaddr'.
 	 */
 	serv_nbp = uaddr2taddr(nconf, serv_uaddr);

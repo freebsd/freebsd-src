@@ -27,7 +27,8 @@ else:
 # install as a distribution
 def disc1_packages():
     pkgs = ['lang/perl5.10']
-    pkgs.extend(['x11/xorg',
+    if arch == 'amd64' or arch == 'i386':
+	pkgs.extend(['x11/xorg',
 		 'x11-drivers/xorg-drivers',
 		 'x11-fonts/xorg-fonts',
 		 'x11-servers/xorg-nestserver',
@@ -47,48 +48,36 @@ def disc2_packages():
 		'x11/kde-lite']
     else:
 	pkgs = ['x11/gnome2',
-		'x11/kdelibs4',
-		'games/kdegames4']
+            	'archivers/unzip',
+            	'devel/gmake',
+            	'editors/emacs',
+            	'editors/vim-lite',
+            	'editors/xemacs',
+            	'emulators/mtools',
+            	'graphics/png',
+            	'graphics/xv',
+            	'irc/xchat',
+            	'lang/php5',
+            	'mail/alpine',
+            	'mail/exim',
+            	'mail/fetchmail',
+            	'mail/mutt',
+            	'mail/popd',
+            	'mail/xfmail',
+            	'mail/postfix',
+            	'misc/compat5x',
+            	'net/samba35']
     return pkgs
 
 def disc3_packages():
     pkgs = ['x11/kde4',
-	    'x11-wm/afterstep',
-            'x11-wm/windowmaker',
-            'x11-wm/fvwm2',
-            # "Nice to have"
-            'archivers/unzip',
-            'astro/xearth',                 
-            'devel/gmake',
-            'editors/emacs',
-            'editors/vim-lite',
-            'editors/xemacs',
-            'emulators/mtools',
-            'graphics/png',
-            'graphics/xv',
-            'irc/xchat',
-            'lang/php5',
-            'mail/alpine',
-            'mail/exim',
-            'mail/fetchmail',
-            'mail/mutt',
-            'mail/popd',
-            'mail/xfmail',
-            'mail/postfix',
-            'misc/compat5x',
             'misc/compat6x',
             'net/cvsup-without-gui',
             'net/rsync',
             'net/mpd5',
-            'net/samba3',
-            'news/slrn',
-            'news/tin',
+            'ports-mgmt/portaudit',
             'ports-mgmt/portmaster',
             'ports-mgmt/portupgrade',
-            'print/a2ps-letter',
-            'print/ghostscript7-nox11',
-            'print/gv',
-            'print/psutils-letter',
             'shells/bash',
             'shells/pdksh',
             'shells/zsh',
@@ -99,9 +88,7 @@ def disc3_packages():
             'www/apache22',
             'www/links',
             'www/lynx',
-            'x11/rxvt',
-            # Formerly on disc3
-            'ports-mgmt/portaudit']
+            'x11/rxvt']
     if arch == 'amd64' or arch == 'i386':
         pkgs.extend(['www/opera'])
     if arch == 'i386':

@@ -922,9 +922,9 @@ DMenu MenuDistributions = {
 	checkDistUser,		distSetUser },
       { "9 X-User",		"Same as above + X Window System",
 	checkDistXUser,		distSetXUser },
-      { "A Minimal",		"The smallest configuration possible",
+      { "B Minimal",		"The smallest configuration possible",
 	checkDistMinimum,	distSetMinimum },
-      { "B Custom",		"Specify your own distribution set",
+      { "C Custom",		"Specify your own distribution set",
 	NULL,			dmenuSubmenu, NULL, &MenuSubDistributions, '>', '>', '>' },
       { NULL } },
 };
@@ -1263,8 +1263,6 @@ DMenu MenuStartup = {
       { " OSF/1",	"This host wants to be able to run DEC OSF/1 binaries.",
 	dmenuVarCheck, configOSF1, NULL, VAR_OSF1_ENABLE "=YES" },
 #endif
-      { " quotas",	"This host wishes to check quotas on startup.",
-	dmenuVarCheck, dmenuToggleVariable, NULL, "check_quotas=YES" },
       { NULL } },
 };
 

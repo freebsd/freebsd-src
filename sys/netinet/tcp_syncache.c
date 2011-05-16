@@ -542,7 +542,7 @@ syncache_chkrst(struct in_conninfo *inc, struct tcphdr *th)
 	 * used, or we are under memory pressure, a valid RST
 	 * may not find a syncache entry.  In that case we're
 	 * done and no SYN|ACK retransmissions will happen.
-	 * Otherwise the the RST was misdirected or spoofed.
+	 * Otherwise the RST was misdirected or spoofed.
 	 */
 	if (sc == NULL) {
 		if ((s = tcp_log_addrs(inc, th, NULL, NULL)))

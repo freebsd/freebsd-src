@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2007 Sandvine Incorporated
  * Copyright (c) 1998 John D. Polstra
  * All rights reserved.
  *
@@ -29,8 +30,12 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/procfs.h>
+#include <sys/ptrace.h>
 #include <sys/queue.h>
 #include <sys/linker_set.h>
+#include <sys/sysctl.h>
+#include <sys/user.h>
+#include <sys/wait.h>
 #include <machine/elf.h>
 #include <vm/vm_param.h>
 #include <vm/vm.h>
@@ -44,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <libutil.h>
 
 #include "extern.h"
 
@@ -69,15 +75,14 @@ static void cb_put_phdr(vm_map_entry_t, void *);
 static void cb_size_segment(vm_map_entry_t, void *);
 static void each_writable_segment(vm_map_entry_t, segment_callback,
     void *closure);
-static void elf_corehdr(int fd, pid_t, vm_map_entry_t, int numsegs,
-    void *hdr, size_t hdrsize);
-static void elf_puthdr(vm_map_entry_t, void *, size_t *,
-    const prstatus_t *, const prfpregset_t *, const prpsinfo_t *, int numsegs);
+static void elf_detach(void);	/* atexit() handler. */
+static void elf_puthdr(pid_t, vm_map_entry_t, void *, size_t *, int numsegs);
 static void elf_putnote(void *dst, size_t *off, const char *name, int type,
     const void *desc, size_t descsz);
 static void freemap(vm_map_entry_t);
-static void readhdrinfo(pid_t, prstatus_t *, prfpregset_t *, prpsinfo_t *);
 static vm_map_entry_t readmap(pid_t);
+
+static pid_t g_pid;		/* Pid being dumped, global for elf_detach */
 
 static int
 elf_ident(int efd, pid_t pid __unused, char *binfile __unused)
@@ -93,6 +98,14 @@ elf_ident(int efd, pid_t pid __unused, char *binfile __unused)
 	return (0);
 }
 
+static void
+elf_detach(void)
+{
+
+	if (g_pid != 0)
+		ptrace(PT_DETACH, g_pid, (caddr_t)1, 0);
+}
+
 /*
  * Write an ELF coredump for the given pid to the given fd.
  */
@@ -103,10 +116,19 @@ elf_coredump(int efd __unused, int fd, pid_t pid)
 	struct sseg_closure seginfo;
 	void *hdr;
 	size_t hdrsize;
-	char memname[64];
-	int memfd;
 	Elf_Phdr *php;
 	int i;
+
+	/* Attach to process to dump. */
+	g_pid = pid;
+	if (atexit(elf_detach) != 0)
+		err(1, "atexit");
+	errno = 0;
+	ptrace(PT_ATTACH, pid, NULL, 0);
+	if (errno)
+		err(1, "PT_ATTACH");
+	if (waitpid(pid, NULL, 0) == -1)
+		err(1, "waitpid");
 
 	/* Get the program's memory map. */
 	map = readmap(pid);
@@ -122,28 +144,31 @@ elf_coredump(int efd __unused, int fd, pid_t pid)
 	 * size is calculated.
 	 */
 	hdrsize = 0;
-	elf_puthdr(map, (void *)NULL, &hdrsize,
-	    (const prstatus_t *)NULL, (const prfpregset_t *)NULL,
-	    (const prpsinfo_t *)NULL, seginfo.count);
+	elf_puthdr(pid, map, NULL, &hdrsize, seginfo.count);
 
 	/*
 	 * Allocate memory for building the header, fill it up,
 	 * and write it out.
 	 */
-	if ((hdr = malloc(hdrsize)) == NULL)
+	if ((hdr = calloc(1, hdrsize)) == NULL)
 		errx(1, "out of memory");
-	elf_corehdr(fd, pid, map, seginfo.count, hdr, hdrsize);
+
+	/* Fill in the header. */
+	hdrsize = 0;
+	elf_puthdr(pid, map, hdr, &hdrsize, seginfo.count);
+
+	/* Write it to the core file. */
+	if (write(fd, hdr, hdrsize) == -1)
+		err(1, "write");
 
 	/* Write the contents of all of the writable segments. */
-	snprintf(memname, sizeof memname, "/proc/%d/mem", pid);
-	if ((memfd = open(memname, O_RDONLY)) == -1)
-		err(1, "cannot open %s", memname);
-
 	php = (Elf_Phdr *)((char *)hdr + sizeof(Elf_Ehdr)) + 1;
 	for (i = 0;  i < seginfo.count;  i++) {
+		struct ptrace_io_desc iorequest;
 		uintmax_t nleft = php->p_filesz;
 
-		lseek(memfd, (off_t)php->p_vaddr, SEEK_SET);
+		iorequest.piod_op = PIOD_READ_D;
+		iorequest.piod_offs = (caddr_t)php->p_vaddr;
 		while (nleft > 0) {
 			char buf[8*1024];
 			size_t nwant;
@@ -153,12 +178,12 @@ elf_coredump(int efd __unused, int fd, pid_t pid)
 				nwant = sizeof buf;
 			else
 				nwant = nleft;
-			ngot = read(memfd, buf, nwant);
-			if (ngot == -1)
-				err(1, "read from %s", memname);
+			iorequest.piod_addr = buf;
+			iorequest.piod_len = nwant;
+			ptrace(PT_IO, pid, (caddr_t)&iorequest, 0);
+			ngot = iorequest.piod_len;
 			if ((size_t)ngot < nwant)
-				errx(1, "short read from %s:"
-				    " wanted %zu, got %zd", memname,
+				errx(1, "short read wanted %d, got %d",
 				    nwant, ngot);
 			ngot = write(fd, buf, nwant);
 			if (ngot == -1)
@@ -166,10 +191,10 @@ elf_coredump(int efd __unused, int fd, pid_t pid)
 			if ((size_t)ngot != nwant)
 				errx(1, "short write");
 			nleft -= nwant;
+			iorequest.piod_offs += ngot;
 		}
 		php++;
 	}
-	close(memfd);
 	free(hdr);
 	freemap(map);
 }
@@ -231,30 +256,25 @@ each_writable_segment(vm_map_entry_t map, segment_callback func, void *closure)
 		(*func)(entry, closure);
 }
 
-/*
- * Write the core file header to the file, including padding up to
- * the page boundary.
- */
 static void
-elf_corehdr(int fd, pid_t pid, vm_map_entry_t map, int numsegs, void *hdr,
-    size_t hdrsize)
+elf_getstatus(pid_t pid, prpsinfo_t *psinfo)
 {
-	size_t off;
-	prstatus_t status;
-	prfpregset_t fpregset;
-	prpsinfo_t psinfo;
+	struct kinfo_proc kobj;
+	int name[4];
+	size_t len;
 
-	/* Gather the information for the header. */
-	readhdrinfo(pid, &status, &fpregset, &psinfo);
+	name[0] = CTL_KERN;
+	name[1] = KERN_PROC;
+	name[2] = KERN_PROC_PID;
+	name[3] = pid;
 
-	/* Fill in the header. */
-	memset(hdr, 0, hdrsize);
-	off = 0;
-	elf_puthdr(map, hdr, &off, &status, &fpregset, &psinfo, numsegs);
-
-	/* Write it to the core file. */
-	if (write(fd, hdr, hdrsize) == -1)
-		err(1, "write");
+	len = sizeof(kobj);
+	if (sysctl(name, 4, &kobj, &len, NULL, 0) == -1)
+		err(1, "error accessing kern.proc.pid.%u sysctl", pid);
+	if (kobj.ki_pid != pid)
+		err(1, "error accessing kern.proc.pid.%u sysctl datas", pid);
+	strncpy(psinfo->pr_fname, kobj.ki_comm, MAXCOMLEN);
+	strncpy(psinfo->pr_psargs, psinfo->pr_fname, PRARGSZ);
 }
 
 /*
@@ -262,13 +282,24 @@ elf_corehdr(int fd, pid_t pid, vm_map_entry_t map, int numsegs, void *hdr,
  * be NULL, in which case the header is sized but not actually generated.
  */
 static void
-elf_puthdr(vm_map_entry_t map, void *dst, size_t *off, const prstatus_t *status,
-    const prfpregset_t *fpregset, const prpsinfo_t *psinfo, int numsegs)
+elf_puthdr(pid_t pid, vm_map_entry_t map, void *dst, size_t *off, int numsegs)
 {
+	struct {
+		prstatus_t status;
+		prfpregset_t fpregset;
+		prpsinfo_t psinfo;
+	} *tempdata;
 	size_t ehoff;
 	size_t phoff;
 	size_t noteoff;
 	size_t notesz;
+	size_t threads;
+	lwpid_t *tids;
+	int i;
+
+	prstatus_t *status;
+	prfpregset_t *fpregset;
+	prpsinfo_t *psinfo;
 
 	ehoff = *off;
 	*off += sizeof(Elf_Ehdr);
@@ -277,13 +308,67 @@ elf_puthdr(vm_map_entry_t map, void *dst, size_t *off, const prstatus_t *status,
 	*off += (numsegs + 1) * sizeof(Elf_Phdr);
 
 	noteoff = *off;
-	elf_putnote(dst, off, "FreeBSD", NT_PRSTATUS, status,
-	    sizeof *status);
-	elf_putnote(dst, off, "FreeBSD", NT_FPREGSET, fpregset,
-	    sizeof *fpregset);
+
+	if (dst != NULL) {
+		if ((tempdata = calloc(1, sizeof(*tempdata))) == NULL)
+			errx(1, "out of memory");
+		status = &tempdata->status;
+		fpregset = &tempdata->fpregset;
+		psinfo = &tempdata->psinfo;
+	} else {
+		tempdata = NULL;
+		status = NULL;
+		fpregset = NULL;
+		psinfo = NULL;
+	}
+
+	errno = 0;
+	threads = ptrace(PT_GETNUMLWPS, pid, NULL, 0);
+	if (errno)
+		err(1, "PT_GETNUMLWPS");
+
+	if (dst != NULL) {
+		psinfo->pr_version = PRPSINFO_VERSION;
+		psinfo->pr_psinfosz = sizeof(prpsinfo_t);
+		elf_getstatus(pid, psinfo);
+
+	}
 	elf_putnote(dst, off, "FreeBSD", NT_PRPSINFO, psinfo,
 	    sizeof *psinfo);
+
+	if (dst != NULL) {
+		tids = malloc(threads * sizeof(*tids));
+		if (tids == NULL)
+			errx(1, "out of memory");
+		errno = 0;
+		ptrace(PT_GETLWPLIST, pid, (void *)tids, threads);
+		if (errno)
+			err(1, "PT_GETLWPLIST");
+	}
+	for (i = 0; i < threads; ++i) {
+		if (dst != NULL) {
+			status->pr_version = PRSTATUS_VERSION;
+			status->pr_statussz = sizeof(prstatus_t);
+			status->pr_gregsetsz = sizeof(gregset_t);
+			status->pr_fpregsetsz = sizeof(fpregset_t);
+			status->pr_osreldate = __FreeBSD_version;
+			status->pr_pid = tids[i];
+
+			ptrace(PT_GETREGS, tids[i], (void *)&status->pr_reg, 0);
+			ptrace(PT_GETFPREGS, tids[i], (void *)fpregset, 0);
+		}
+		elf_putnote(dst, off, "FreeBSD", NT_PRSTATUS, status,
+		    sizeof *status);
+		elf_putnote(dst, off, "FreeBSD", NT_FPREGSET, fpregset,
+		    sizeof *fpregset);
+	}
+
 	notesz = *off - noteoff;
+
+	if (dst != NULL) {
+		free(tids);
+		free(tempdata);
+	}
 
 	/* Align up to a page boundary for the program segments. */
 	*off = round_page(*off);
@@ -381,70 +466,7 @@ freemap(vm_map_entry_t map)
 }
 
 /*
- * Read the process information necessary to fill in the core file's header.
- */
-static void
-readhdrinfo(pid_t pid, prstatus_t *status, prfpregset_t *fpregset,
-    prpsinfo_t *psinfo)
-{
-	char name[64];
-	char line[256];
-	int fd;
-	int i;
-	int n;
-
-	memset(status, 0, sizeof *status);
-	status->pr_version = PRSTATUS_VERSION;
-	status->pr_statussz = sizeof(prstatus_t);
-	status->pr_gregsetsz = sizeof(gregset_t);
-	status->pr_fpregsetsz = sizeof(fpregset_t);
-	status->pr_osreldate = __FreeBSD_version;
-	status->pr_pid = pid;
-
-	memset(fpregset, 0, sizeof *fpregset);
-
-	memset(psinfo, 0, sizeof *psinfo);
-	psinfo->pr_version = PRPSINFO_VERSION;
-	psinfo->pr_psinfosz = sizeof(prpsinfo_t);
-
-	/* Read the general registers. */
-	snprintf(name, sizeof name, "/proc/%d/regs", pid);
-	if ((fd = open(name, O_RDONLY)) == -1)
-		err(1, "cannot open %s", name);
-	if ((n = read(fd, &status->pr_reg, sizeof status->pr_reg)) == -1)
-		err(1, "read error from %s", name);
-	if ((size_t)n < sizeof(status->pr_reg))
-		errx(1, "short read from %s: wanted %zu, got %d", name,
-		    sizeof status->pr_reg, n);
-	close(fd);
-
-	/* Read the floating point registers. */
-	snprintf(name, sizeof name, "/proc/%d/fpregs", pid);
-	if ((fd = open(name, O_RDONLY)) == -1)
-		err(1, "cannot open %s", name);
-	if ((n = read(fd, fpregset, sizeof *fpregset)) == -1)
-		err(1, "read error from %s", name);
-	if ((size_t)n < sizeof(*fpregset))
-		errx(1, "short read from %s: wanted %zu, got %d", name,
-		    sizeof *fpregset, n);
-	close(fd);
-
-	/* Read and parse the process status. */
-	snprintf(name, sizeof name, "/proc/%d/status", pid);
-	if ((fd = open(name, O_RDONLY)) == -1)
-		err(1, "cannot open %s", name);
-	if ((n = read(fd, line, sizeof line - 1)) == -1)
-		err(1, "read error from %s", name);
-	if (n > MAXCOMLEN)
-		n = MAXCOMLEN;
-	for (i = 0;  i < n && line[i] != ' ';  i++)
-		psinfo->pr_fname[i] = line[i];
-	strncpy(psinfo->pr_psargs, psinfo->pr_fname, PRARGSZ);
-	close(fd);
-}
-
-/*
- * Read the process's memory map using procfs, and return a list of
+ * Read the process's memory map using kinfo_getvmmap(), and return a list of
  * VM map entries.  Only the non-device read/writable segments are
  * returned.  The map entries in the list aren't fully filled in; only
  * the items we need are present.
@@ -452,83 +474,49 @@ readhdrinfo(pid_t pid, prstatus_t *status, prfpregset_t *fpregset,
 static vm_map_entry_t
 readmap(pid_t pid)
 {
-	char mapname[64];
-	int mapfd;
-	ssize_t mapsize;
-	size_t bufsize;
-	char *mapbuf;
-	int pos;
-	vm_map_entry_t map;
-	vm_map_entry_t *linkp;
+	vm_map_entry_t ent, *linkp, map;
+	struct kinfo_vmentry *vmentl, *kve;
+	int i, nitems;
 
-	snprintf(mapname, sizeof mapname, "/proc/%d/map", pid);
-	if ((mapfd = open(mapname, O_RDONLY)) == -1)
-		err(1, "cannot open %s", mapname);
+	vmentl = kinfo_getvmmap(pid, &nitems);
+	if (vmentl == NULL)
+		err(1, "cannot retrieve mappings for %u process", pid);
 
-	/*
-	 * Procfs requires (for consistency) that the entire memory map
-	 * be read with a single read() call.  Start with a reasonably sized
-	 * buffer, and double it until it is big enough.
-	 */
-	bufsize = 8 * 1024;
-	mapbuf = NULL;
-	for ( ; ; ) {
-		if ((mapbuf = realloc(mapbuf, bufsize + 1)) == NULL)
-			errx(1, "out of memory");
-		mapsize = read(mapfd, mapbuf, bufsize);
-		if (mapsize != -1 || errno != EFBIG)
-			break;
-		bufsize *= 2;
-		/* This lseek shouldn't be necessary, but it is. */
-		lseek(mapfd, (off_t)0, SEEK_SET);
-	}
-	if (mapsize == -1)
-		err(1, "read error from %s", mapname);
-	if (mapsize == 0)
-		errx(1, "empty map file %s", mapname);
-	mapbuf[mapsize] = 0;
-	close(mapfd);
-
-	pos = 0;
 	map = NULL;
 	linkp = &map;
-	while (pos < mapsize) {
-		vm_map_entry_t ent;
-		u_long start;
-		u_long end;
-		char prot[4];
-		char type[16];
-		int n;
-		int len;
+	for (i = 0; i < nitems; i++) {
+		kve = &vmentl[i];
 
-		len = 0;
-		n = sscanf(mapbuf + pos, "%lx %lx %*d %*d %*x %3[-rwx]"
-		    " %*d %*d %*x %*s %*s %16s %*s%*[\n]%n",
-		    &start, &end, prot, type, &len);
-		if (n != 4 || len == 0)
-			errx(1, "ill-formed line in %s starting at character %d", mapname, pos + 1);
-		pos += len;
-
-		/* Ignore segments of the wrong kind, and unwritable ones */
-		if (strncmp(prot, "rw", 2) != 0 ||
-		    (strcmp(type, "default") != 0 &&
-		    strcmp(type, "vnode") != 0 &&
-		    strcmp(type, "swap") != 0))
+		/*
+		 * Ignore 'malformed' segments or ones representing memory
+		 * mapping with MAP_NOCORE on.
+		 * If the 'full' support is disabled, just dump the most
+		 * meaningful data segments.
+		 */
+		if ((kve->kve_protection & KVME_PROT_READ) == 0 ||
+		    (kve->kve_flags & KVME_FLAG_NOCOREDUMP) != 0 ||
+		    kve->kve_type == KVME_TYPE_DEAD ||
+		    kve->kve_type == KVME_TYPE_UNKNOWN ||
+		    ((pflags & PFLAGS_FULL) == 0 &&
+		    kve->kve_type != KVME_TYPE_DEFAULT &&
+		    kve->kve_type != KVME_TYPE_VNODE &&
+		    kve->kve_type != KVME_TYPE_SWAP))
 			continue;
 
-		if ((ent = (vm_map_entry_t)calloc(1, sizeof *ent)) == NULL)
+		ent = calloc(1, sizeof(*ent));
+		if (ent == NULL)
 			errx(1, "out of memory");
-		ent->start = start;
-		ent->end = end;
+		ent->start = (vm_offset_t)kve->kve_start;
+		ent->end = (vm_offset_t)kve->kve_end;
 		ent->protection = VM_PROT_READ | VM_PROT_WRITE;
-		if (prot[2] == 'x')
-		    ent->protection |= VM_PROT_EXECUTE;
+		if ((kve->kve_protection & KVME_PROT_EXEC) != 0)
+			ent->protection |= VM_PROT_EXECUTE;
 
 		*linkp = ent;
 		linkp = &ent->next;
 	}
-	free(mapbuf);
-	return map;
+	free(vmentl);
+	return (map);
 }
 
 struct dumpers elfdump = { elf_ident, elf_coredump };

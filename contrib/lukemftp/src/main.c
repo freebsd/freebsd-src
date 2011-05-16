@@ -707,6 +707,7 @@ cmdscanner(void)
 			 * such commands as invalid.
 			 */
 			if (strchr(margv[0], ':') != NULL ||
+			    !editing ||
 			    el_parse(el, margc, (const char **)margv) != 0)
 #endif /* !NO_EDITCOMPLETE */
 				fputs("?Invalid command.\n", ttyout);

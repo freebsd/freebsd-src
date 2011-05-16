@@ -115,26 +115,13 @@ dtrace_xcall(processorid_t cpu, dtrace_xcall_t func, void *arg)
 {
 	cpumask_t cpus;
 
-	critical_enter();
-
 	if (cpu == DTRACE_CPUALL)
 		cpus = all_cpus;
 	else
-		cpus = (cpumask_t) (1 << cpu);
+		cpus = (cpumask_t)1 << cpu;
 
-	/* If the current CPU is in the set, call the function directly: */
-	if ((cpus & (1 << curcpu)) != 0) {
-		(*func)(arg);
-
-		/* Mask the current CPU from the set */
-		cpus &= ~(1 << curcpu);
-	}
-
-	/* If there are any CPUs in the set, cross-call to those CPUs */
-	if (cpus != 0)
-		smp_rendezvous_cpus(cpus, NULL, func, smp_no_rendevous_barrier, arg);
-
-	critical_exit();
+	smp_rendezvous_cpus(cpus, smp_no_rendevous_barrier, func,
+	    smp_no_rendevous_barrier, arg);
 }
 
 static void
@@ -372,26 +359,6 @@ static uint64_t	nsec_scale;
 #define SCALE_SHIFT	28
 
 static void
-dtrace_gethrtime_init_sync(void *arg)
-{
-#ifdef CHECK_SYNC
-	/*
-	 * Delay this function from returning on one
-	 * of the CPUs to check that the synchronisation
-	 * works.
-	 */
-	uintptr_t cpu = (uintptr_t) arg;
-
-	if (cpu == curcpu) {
-		int i;
-		for (i = 0; i < 1000000000; i++)
-			tgt_cpu_tsc = rdtsc();
-		tgt_cpu_tsc = 0;
-	}
-#endif
-}
-
-static void
 dtrace_gethrtime_init_cpu(void *arg)
 {
 	uintptr_t cpu = (uintptr_t) arg;
@@ -450,7 +417,7 @@ dtrace_gethrtime_init(void *arg)
 		map |= (1 << curcpu);
 		map |= (1 << i);
 
-		smp_rendezvous_cpus(map, dtrace_gethrtime_init_sync,
+		smp_rendezvous_cpus(map, NULL,
 		    dtrace_gethrtime_init_cpu,
 		    smp_no_rendevous_barrier, (void *)(uintptr_t) i);
 
@@ -502,7 +469,7 @@ dtrace_trap(struct trapframe *frame, u_int type)
 	 * A trap can occur while DTrace executes a probe. Before
 	 * executing the probe, DTrace blocks re-scheduling and sets
 	 * a flag in it's per-cpu flags to indicate that it doesn't
-	 * want to fault. On returning from the the probe, the no-fault
+	 * want to fault. On returning from the probe, the no-fault
 	 * flag is cleared and finally re-scheduling is enabled.
 	 *
 	 * Check if DTrace has enabled 'no-fault' mode:

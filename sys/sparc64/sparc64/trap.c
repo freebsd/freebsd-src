@@ -438,7 +438,7 @@ trap_cecc(void)
 	cache_flush();
 	/* Ensure the caches are still turned on (should be). */
 	cache_enable(PCPU_GET(impl));
-	/* Clear the the error from the AFSR. */
+	/* Clear the error from the AFSR. */
 	stxa_sync(0, ASI_AFSR, ldxa(0, ASI_AFSR));
 	corrected_ecc++;
 	printf("corrected ECC error\n");

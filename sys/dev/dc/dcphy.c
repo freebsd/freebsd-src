@@ -222,17 +222,12 @@ dcphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 			/*dcphy_reset(sc);*/
 			(void) dcphy_auto(sc);
 			break;
-		case IFM_100_T4:
-			/*
-			 * XXX Not supported as a manual setting right now.
-			 */
-			return (EINVAL);
 		case IFM_100_TX:
 			dcphy_reset(sc);
 			DC_CLRBIT(dc_sc, DC_10BTCTRL, DC_TCTL_AUTONEGENBL);
 			mode |= DC_NETCFG_PORTSEL | DC_NETCFG_PCS |
 			    DC_NETCFG_SCRAMBLER;
-			if ((ife->ifm_media & IFM_GMASK) == IFM_FDX)
+			if ((ife->ifm_media & IFM_FDX) != 0)
 				mode |= DC_NETCFG_FULLDUPLEX;
 			else
 				mode &= ~DC_NETCFG_FULLDUPLEX;
@@ -241,7 +236,7 @@ dcphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		case IFM_10_T:
 			DC_CLRBIT(dc_sc, DC_SIARESET, DC_SIA_RESET);
 			DC_CLRBIT(dc_sc, DC_10BTCTRL, 0xFFFF);
-			if ((ife->ifm_media & IFM_GMASK) == IFM_FDX)
+			if ((ife->ifm_media & IFM_FDX) != 0)
 				DC_SETBIT(dc_sc, DC_10BTCTRL, 0x7F3D);
 			else
 				DC_SETBIT(dc_sc, DC_10BTCTRL, 0x7F3F);
@@ -249,7 +244,7 @@ dcphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 			DC_CLRBIT(dc_sc, DC_10BTCTRL, DC_TCTL_AUTONEGENBL);
 			mode &= ~DC_NETCFG_PORTSEL;
 			mode |= DC_NETCFG_SPEEDSEL;
-			if ((ife->ifm_media & IFM_GMASK) == IFM_FDX)
+			if ((ife->ifm_media & IFM_FDX) != 0)
 				mode |= DC_NETCFG_FULLDUPLEX;
 			else
 				mode &= ~DC_NETCFG_FULLDUPLEX;

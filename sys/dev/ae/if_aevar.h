@@ -119,7 +119,6 @@ typedef struct ae_softc	{
 
 	/* Tasks. */
 	struct task		int_task;
-	struct task		tx_task;
 	struct task		link_task;
 	struct taskqueue	*tq;
 	

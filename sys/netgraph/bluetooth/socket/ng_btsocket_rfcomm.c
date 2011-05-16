@@ -557,7 +557,7 @@ ng_btsocket_rfcomm_connect(struct socket *so, struct sockaddr *nam,
 		soclose(l2so); /* we don't need new L2CAP socket */
 
 	/*
-	 * Check if we already have the same DLCI the the same session
+	 * Check if we already have the same DLCI the same session
 	 */
 
 	mtx_lock(&s->session_mtx);

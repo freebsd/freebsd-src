@@ -99,8 +99,8 @@ static int  nfe_jrxeof(struct nfe_softc *, int);
 static void nfe_txeof(struct nfe_softc *);
 static int  nfe_encap(struct nfe_softc *, struct mbuf **);
 static void nfe_setmulti(struct nfe_softc *);
-static void nfe_tx_task(void *, int);
 static void nfe_start(struct ifnet *);
+static void nfe_start_locked(struct ifnet *);
 static void nfe_watchdog(struct ifnet *);
 static void nfe_init(void *);
 static void nfe_init_locked(void *);
@@ -553,7 +553,6 @@ nfe_attach(device_t dev)
 		error = ENOSPC;
 		goto fail;
 	}
-	TASK_INIT(&sc->nfe_tx_task, 1, nfe_tx_task, ifp);
 
 	/*
 	 * Allocate Tx and Rx rings.
@@ -594,7 +593,8 @@ nfe_attach(device_t dev)
 	if ((sc->nfe_flags & NFE_HW_VLAN) != 0) {
 		ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING;
 		if ((ifp->if_capabilities & IFCAP_HWCSUM) != 0)
-			ifp->if_capabilities |= IFCAP_VLAN_HWCSUM;
+			ifp->if_capabilities |= IFCAP_VLAN_HWCSUM |
+			    IFCAP_VLAN_HWTSO;
 	}
 
 	if (pci_find_extcap(dev, PCIY_PMG, &reg) == 0)
@@ -679,7 +679,6 @@ nfe_detach(device_t dev)
 		ifp->if_flags &= ~IFF_UP;
 		NFE_UNLOCK(sc);
 		callout_drain(&sc->nfe_stat_ch);
-		taskqueue_drain(taskqueue_fast, &sc->nfe_tx_task);
 		ether_ifdetach(ifp);
 	}
 
@@ -1630,7 +1629,7 @@ nfe_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 		nfe_rxeof(sc, count);
 	nfe_txeof(sc);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		taskqueue_enqueue_fast(sc->nfe_tq, &sc->nfe_tx_task);
+		nfe_start_locked(ifp);
 
 	if (cmd == POLL_AND_CHECK_STATUS) {
 		if ((r = NFE_READ(sc, sc->nfe_irq_status)) == 0) {
@@ -1709,8 +1708,10 @@ nfe_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			else {
 				NFE_LOCK(sc);
 				ifp->if_mtu = ifr->ifr_mtu;
-				if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+				if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+					ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 					nfe_init_locked(sc);
+				}
 				NFE_UNLOCK(sc);
 			}
 		}
@@ -1776,20 +1777,35 @@ nfe_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		if ((mask & IFCAP_WOL_MAGIC) != 0 &&
 		    (ifp->if_capabilities & IFCAP_WOL_MAGIC) != 0)
 			ifp->if_capenable ^= IFCAP_WOL_MAGIC;
-
-		if ((sc->nfe_flags & NFE_HW_CSUM) != 0 &&
-		    (mask & IFCAP_HWCSUM) != 0) {
-			ifp->if_capenable ^= IFCAP_HWCSUM;
-			if ((IFCAP_TXCSUM & ifp->if_capenable) != 0 &&
-			    (IFCAP_TXCSUM & ifp->if_capabilities) != 0)
+		if ((mask & IFCAP_TXCSUM) != 0 &&
+		    (ifp->if_capabilities & IFCAP_TXCSUM) != 0) {
+			ifp->if_capenable ^= IFCAP_TXCSUM;
+			if ((ifp->if_capenable & IFCAP_TXCSUM) != 0)
 				ifp->if_hwassist |= NFE_CSUM_FEATURES;
 			else
 				ifp->if_hwassist &= ~NFE_CSUM_FEATURES;
+		}
+		if ((mask & IFCAP_RXCSUM) != 0 &&
+		    (ifp->if_capabilities & IFCAP_RXCSUM) != 0) {
+			ifp->if_capenable ^= IFCAP_RXCSUM;
 			init++;
 		}
-		if ((sc->nfe_flags & NFE_HW_VLAN) != 0 &&
-		    (mask & IFCAP_VLAN_HWTAGGING) != 0) {
+		if ((mask & IFCAP_TSO4) != 0 &&
+		    (ifp->if_capabilities & IFCAP_TSO4) != 0) {
+			ifp->if_capenable ^= IFCAP_TSO4;
+			if ((IFCAP_TSO4 & ifp->if_capenable) != 0)
+				ifp->if_hwassist |= CSUM_TSO;
+			else
+				ifp->if_hwassist &= ~CSUM_TSO;
+		}
+		if ((mask & IFCAP_VLAN_HWTSO) != 0 &&
+		    (ifp->if_capabilities & IFCAP_VLAN_HWTSO) != 0)
+			ifp->if_capenable ^= IFCAP_VLAN_HWTSO;
+		if ((mask & IFCAP_VLAN_HWTAGGING) != 0 &&
+		    (ifp->if_capabilities & IFCAP_VLAN_HWTAGGING) != 0) {
 			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
+			if ((ifp->if_capenable & IFCAP_VLAN_HWTAGGING) == 0)
+				ifp->if_capenable &= ~IFCAP_VLAN_HWTSO;
 			init++;
 		}
 		/*
@@ -1799,28 +1815,17 @@ nfe_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		 * VLAN stripping. So when we know Rx checksum offload is
 		 * disabled turn entire hardware VLAN assist off.
 		 */
-		if ((sc->nfe_flags & (NFE_HW_CSUM | NFE_HW_VLAN)) ==
-		    (NFE_HW_CSUM | NFE_HW_VLAN)) {
-			if ((ifp->if_capenable & IFCAP_RXCSUM) == 0)
-				ifp->if_capenable &= ~IFCAP_VLAN_HWTAGGING;
+		if ((ifp->if_capenable & IFCAP_RXCSUM) == 0) {
+			if ((ifp->if_capenable & IFCAP_VLAN_HWTAGGING) != 0)
+				init++;
+			ifp->if_capenable &= ~(IFCAP_VLAN_HWTAGGING |
+			    IFCAP_VLAN_HWTSO);
 		}
-
-		if ((sc->nfe_flags & NFE_HW_CSUM) != 0 &&
-		    (mask & IFCAP_TSO4) != 0) {
-			ifp->if_capenable ^= IFCAP_TSO4;
-			if ((IFCAP_TSO4 & ifp->if_capenable) != 0 &&
-			    (IFCAP_TSO4 & ifp->if_capabilities) != 0)
-				ifp->if_hwassist |= CSUM_TSO;
-			else
-				ifp->if_hwassist &= ~CSUM_TSO;
-		}
-
 		if (init > 0 && (ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
 			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			nfe_init(sc);
 		}
-		if ((sc->nfe_flags & NFE_HW_VLAN) != 0)
-			VLAN_CAPABILITIES(ifp);
+		VLAN_CAPABILITIES(ifp);
 		break;
 	default:
 		error = ether_ioctl(ifp, cmd, data);
@@ -1897,7 +1902,7 @@ nfe_int_task(void *arg, int pending)
 	nfe_txeof(sc);
 
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		taskqueue_enqueue_fast(sc->nfe_tq, &sc->nfe_tx_task);
+		nfe_start_locked(ifp);
 
 	NFE_UNLOCK(sc);
 
@@ -2585,29 +2590,27 @@ done:
 
 
 static void
-nfe_tx_task(void *arg, int pending)
+nfe_start(struct ifnet *ifp)
 {
-	struct ifnet *ifp;
+	struct nfe_softc *sc = ifp->if_softc;
 
-	ifp = (struct ifnet *)arg;
-	nfe_start(ifp);
+	NFE_LOCK(sc);
+	nfe_start_locked(ifp);
+	NFE_UNLOCK(sc);
 }
 
-
 static void
-nfe_start(struct ifnet *ifp)
+nfe_start_locked(struct ifnet *ifp)
 {
 	struct nfe_softc *sc = ifp->if_softc;
 	struct mbuf *m0;
 	int enq;
 
-	NFE_LOCK(sc);
+	NFE_LOCK_ASSERT(sc);
 
 	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
-	    IFF_DRV_RUNNING || sc->nfe_link == 0) {
-		NFE_UNLOCK(sc);
+	    IFF_DRV_RUNNING || sc->nfe_link == 0)
 		return;
-	}
 
 	for (enq = 0; !IFQ_DRV_IS_EMPTY(&ifp->if_snd);) {
 		IFQ_DRV_DEQUEUE(&ifp->if_snd, m0);
@@ -2637,8 +2640,6 @@ nfe_start(struct ifnet *ifp)
 		 */
 		sc->nfe_watchdog_timer = 5;
 	}
-
-	NFE_UNLOCK(sc);
 }
 
 
@@ -2656,7 +2657,7 @@ nfe_watchdog(struct ifnet *ifp)
 		if_printf(ifp, "watchdog timeout (missed Tx interrupts) "
 		    "-- recovering\n");
 		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-			taskqueue_enqueue_fast(sc->nfe_tq, &sc->nfe_tx_task);
+			nfe_start_locked(ifp);
 		return;
 	}
 	/* Check if we've lost start Tx command. */

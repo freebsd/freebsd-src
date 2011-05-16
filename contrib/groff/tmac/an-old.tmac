@@ -630,6 +630,18 @@
 .  hy \n[HY]
 .\}
 .
+.\" For UTF-8, map some characters conservatively for the sake
+.\" of easy cut and paste.
+.
+.if '\*[.T]'utf8' \{\
+.  rchar \- - ' `
+.
+.  char \- \N'45'
+.  char  - \N'45'
+.  char  ' \N'39'
+.  char  ` \N'96'
+.\}
+.
 .\" Load local modifications.
 .mso man.local
 .

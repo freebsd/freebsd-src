@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 3, 1999
+.Dd April 23, 2011
 .Dt KLDSTAT 2
 .Os
 .Sh NAME
@@ -51,8 +51,8 @@ struct kld_file_stat {
 	char        name[MAXPATHLEN];
 	int         refs;
 	int         id;
-	caddr_t     address;        /* load address */
-	size_t      size;           /* size in bytes */
+	caddr_t     address;
+	size_t      size;
 };
 .Ed
 .Pp
@@ -76,7 +76,7 @@ The id of the file specified in
 .It address
 The load address of the kld file.
 .It size
-The size of the file.
+The amount of memory in bytes allocated by the file.
 .El
 .Sh RETURN VALUES
 .Rv -std kldstat

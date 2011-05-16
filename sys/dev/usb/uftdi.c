@@ -190,6 +190,9 @@ uftdi_match(device_t self)
 	if (uaa->vendor == USB_VENDOR_MATRIXORBITAL &&
 	    (uaa->product == USB_PRODUCT_MATRIXORBITAL_MOUA))
 		return (UMATCH_VENDOR_PRODUCT);
+	if (uaa->vendor == USB_VENDOR_FALCOM &&
+	    (uaa->product == USB_PRODUCT_FALCOM_TWIST))
+		return (UMATCH_VENDOR_PRODUCT);
 
 	return (UMATCH_NONE);
 }

@@ -92,7 +92,7 @@ static char		*pci_describe_device(device_t dev);
 static int		pci_modevent(module_t mod, int what, void *arg);
 static void		pci_hdrtypedata(device_t pcib, int b, int s, int f,
 			    pcicfgregs *cfg);
-static void		pci_read_extcap(device_t pcib, pcicfgregs *cfg);
+static void		pci_read_cap(device_t pcib, pcicfgregs *cfg);
 static int		pci_read_vpd_reg(device_t pcib, pcicfgregs *cfg,
 			    int reg, uint32_t *data);
 #if 0
@@ -473,7 +473,7 @@ pci_read_device(device_t pcib, int d, int b, int s, int f, size_t size)
 		pci_hdrtypedata(pcib, b, s, f, cfg);
 
 		if (REG(PCIR_STATUS, 2) & PCIM_STATUS_CAPPRESENT)
-			pci_read_extcap(pcib, cfg);
+			pci_read_cap(pcib, cfg);
 
 		STAILQ_INSERT_TAIL(devlist_head, devlist_entry, pci_links);
 
@@ -501,7 +501,7 @@ pci_read_device(device_t pcib, int d, int b, int s, int f, size_t size)
 }
 
 static void
-pci_read_extcap(device_t pcib, pcicfgregs *cfg)
+pci_read_cap(device_t pcib, pcicfgregs *cfg)
 {
 #define	REG(n, w)	PCIB_READ_CONFIG(pcib, cfg->bus, cfg->slot, cfg->func, n, w)
 #define	WREG(n, v, w)	PCIB_WRITE_CONFIG(pcib, cfg->bus, cfg->slot, cfg->func, n, v, w)
@@ -1577,7 +1577,7 @@ pci_get_max_read_req(device_t dev)
 	int cap;
 	uint16_t val;
 
-	if (pci_find_extcap(dev, PCIY_EXPRESS, &cap) != 0)
+	if (pci_find_cap(dev, PCIY_EXPRESS, &cap) != 0)
 		return (0);
 	val = pci_read_config(dev, cap + PCIR_EXPRESS_DEVICE_CTL, 2);
 	val &= PCIM_EXP_CTL_MAX_READ_REQUEST;
@@ -1591,7 +1591,7 @@ pci_set_max_read_req(device_t dev, int size)
 	int cap;
 	uint16_t val;
 
-	if (pci_find_extcap(dev, PCIY_EXPRESS, &cap) != 0)
+	if (pci_find_cap(dev, PCIY_EXPRESS, &cap) != 0)
 		return (0);
 	if (size < 128)
 		size = 128;
@@ -2469,13 +2469,13 @@ pci_add_map(device_t bus, device_t dev, int reg, struct resource_list *rl,
 			return (barlen);
 	}
 
-	count = 1 << mapsize;
+	count = (pci_addr_t)1 << mapsize;
 	if (basezero || base == pci_mapbase(testval)) {
 		start = 0;	/* Let the parent decide. */
 		end = ~0ULL;
 	} else {
 		start = base;
-		end = base + (1 << mapsize) - 1;
+		end = base + count - 1;
 	}
 	resource_list_add(rl, type, reg, start, end, count);
 
@@ -3524,7 +3524,7 @@ pci_alloc_map(device_t dev, device_t child, int type, int *rid,
 	 * another driver, which won't work.
 	 */
 	mapsize = pci_mapsize(testval);
-	count = 1UL << mapsize;
+	count = (pci_addr_t)1 << mapsize;
 	if (RF_ALIGNMENT(flags) < mapsize)
 		flags = (flags & ~RF_ALIGNMENT_MASK) | RF_ALIGNMENT_LOG2(mapsize);
 	if (PCI_BAR_MEM(testval) && (testval & PCIM_BAR_MEM_PREFETCH))

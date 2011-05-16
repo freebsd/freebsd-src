@@ -95,7 +95,17 @@ gdb_init(void)
 static int
 gdb_trap(int type, int code)
 {
+	jmp_buf jb;
 	struct thread *thr_iter;
+	void *prev_jb;
+
+	prev_jb = kdb_jmpbuf(jb);
+	if (setjmp(jb) != 0) {
+		printf("%s bailing, hopefully back to ddb!\n", __func__);
+		gdb_listening = 0;
+		(void)kdb_jmpbuf(prev_jb);
+		return (1);
+	}
 
 	gdb_listening = 0;
 	/*
@@ -291,5 +301,6 @@ gdb_trap(int type, int code)
 			break;
 		}
 	}
+	(void)kdb_jmpbuf(prev_jb);
 	return (0);
 }

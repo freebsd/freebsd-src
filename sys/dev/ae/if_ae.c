@@ -124,10 +124,10 @@ static int	ae_resume(device_t dev);
 static unsigned int	ae_tx_avail_size(ae_softc_t *sc);
 static int	ae_encap(ae_softc_t *sc, struct mbuf **m_head);
 static void	ae_start(struct ifnet *ifp);
+static void	ae_start_locked(struct ifnet *ifp);
 static void	ae_link_task(void *arg, int pending);
 static void	ae_stop_rxmac(ae_softc_t *sc);
 static void	ae_stop_txmac(ae_softc_t *sc);
-static void	ae_tx_task(void *arg, int pending);
 static void	ae_mac_config(ae_softc_t *sc);
 static int	ae_intr(void *arg);
 static void	ae_int_task(void *arg, int pending);
@@ -402,7 +402,6 @@ ae_attach(device_t dev)
 	/*
 	 * Create and run all helper tasks.
 	 */
-	TASK_INIT(&sc->tx_task, 1, ae_tx_task, ifp);
 	sc->tq = taskqueue_create_fast("ae_taskq", M_WAITOK,
             taskqueue_thread_enqueue, &sc->tq);
 	if (sc->tq == NULL) {
@@ -763,7 +762,6 @@ ae_detach(device_t dev)
 		AE_UNLOCK(sc);
 		callout_drain(&sc->tick_ch);
 		taskqueue_drain(sc->tq, &sc->int_task);
-		taskqueue_drain(sc->tq, &sc->tx_task);
 		taskqueue_drain(taskqueue_swi, &sc->link_task);
 		ether_ifdetach(ifp);
 	}
@@ -1518,23 +1516,32 @@ static void
 ae_start(struct ifnet *ifp)
 {
 	ae_softc_t *sc;
+
+	sc = ifp->if_softc;
+	AE_LOCK(sc);
+	ae_start_locked(ifp);
+	AE_UNLOCK(sc);
+}
+
+static void
+ae_start_locked(struct ifnet *ifp)
+{
+	ae_softc_t *sc;
 	unsigned int count;
 	struct mbuf *m0;
 	int error;
 
 	sc = ifp->if_softc;
 	KASSERT(sc != NULL, ("[ae, %d]: sc is NULL", __LINE__));
-	AE_LOCK(sc);
+	AE_LOCK_ASSERT(sc);
 
 #ifdef AE_DEBUG
 	if_printf(ifp, "Start called.\n");
 #endif
 
 	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
-	    IFF_DRV_RUNNING || (sc->flags & AE_FLAG_LINK) == 0) {
-		AE_UNLOCK(sc);
+	    IFF_DRV_RUNNING || (sc->flags & AE_FLAG_LINK) == 0)
 		return;
-	}
 
 	count = 0;
 	while (!IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
@@ -1570,7 +1577,6 @@ ae_start(struct ifnet *ifp)
 		if_printf(ifp, "Tx pos now is %d.\n", sc->txd_cur);
 #endif
 	}
-	AE_UNLOCK(sc);
 }
 
 static void
@@ -1701,15 +1707,6 @@ ae_stop_txmac(ae_softc_t *sc)
 	}
 	if (i == AE_IDLE_TIMEOUT)
 		device_printf(sc->dev, "timed out while stopping Tx MAC.\n");
-}
-
-static void
-ae_tx_task(void *arg, int pending)
-{
-	struct ifnet *ifp;
-
-	ifp = (struct ifnet *)arg;
-	ae_start(ifp);
 }
 
 static void
@@ -1869,7 +1866,7 @@ ae_tx_intr(ae_softc_t *sc)
 	
 	if ((sc->flags & AE_FLAG_TXAVAIL) != 0) {
 		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-			taskqueue_enqueue(sc->tq, &sc->tx_task);
+			ae_start_locked(ifp);
 	}
 
 	/*
@@ -1997,7 +1994,7 @@ ae_watchdog(ae_softc_t *sc)
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	ae_init_locked(sc);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		taskqueue_enqueue(sc->tq, &sc->tx_task);
+		ae_start_locked(ifp);
 }
 
 static void

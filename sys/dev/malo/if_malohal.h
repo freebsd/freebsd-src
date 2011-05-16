@@ -133,7 +133,7 @@ struct malo_hal_hwstats {
 /*
  * Set Antenna Configuration (legacy operation).
  *
- * The RX antenna can be selected using the the bitmask
+ * The RX antenna can be selected using the bitmask
  * ant (bit 0 = antenna 1, bit 1 = antenna 2, etc.)
  * (diversity?XXX)
  */

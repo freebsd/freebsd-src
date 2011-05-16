@@ -138,6 +138,10 @@ update_cache_policy(int fd, struct mfi_ld_props *props, uint8_t new_policy,
 		    policy & MR_LD_CACHE_READ_AHEAD ?
 		    (policy & MR_LD_CACHE_READ_ADAPTIVE ?
 		    "adaptive" : "always") : "none");
+	if (changes & MR_LD_CACHE_WRITE_CACHE_BAD_BBU)
+		printf("%s write caching with bad BBU\n",
+		    policy & MR_LD_CACHE_WRITE_CACHE_BAD_BBU ? "Enabling" :
+		    "Disabling");
 
 	props->default_cache_policy = policy;
 	if (mfi_ld_set_props(fd, props) < 0) {
@@ -182,7 +186,7 @@ volume_cache(int ac, char **av)
 	if (ac == 2) {
 		printf("mfi%u volume %s cache settings:\n", mfi_unit,
 		    mfi_volume_name(fd, target_id));
-		printf("      I/O caching: ");
+		printf("             I/O caching: ");
 		switch (props.default_cache_policy &
 		    (MR_LD_CACHE_ALLOW_WRITE_CACHE |
 		    MR_LD_CACHE_ALLOW_READ_CACHE)) {
@@ -200,14 +204,17 @@ volume_cache(int ac, char **av)
 			printf("writes and reads\n");
 			break;
 		}
-		printf("    write caching: %s\n",
+		printf("           write caching: %s\n",
 		    props.default_cache_policy & MR_LD_CACHE_WRITE_BACK ?
 		    "write-back" : "write-through");
-		printf("       read ahead: %s\n",
+		printf("write cache with bad BBU: %s\n",
+		    props.default_cache_policy &
+		    MR_LD_CACHE_WRITE_CACHE_BAD_BBU ? "enabled" : "disabled");
+		printf("              read ahead: %s\n",
 		    props.default_cache_policy & MR_LD_CACHE_READ_AHEAD ?
 		    (props.default_cache_policy & MR_LD_CACHE_READ_ADAPTIVE ?
 		    "adaptive" : "always") : "none");
-		printf("drive write cache: ");
+		printf("       drive write cache: ");
 		switch (props.disk_cache_policy) {
 		case MR_PD_CACHE_UNCHANGED:
 			printf("default\n");
@@ -273,6 +280,21 @@ volume_cache(int ac, char **av)
 			error = update_cache_policy(fd, &props, policy,
 			    MR_LD_CACHE_READ_AHEAD |
 			    MR_LD_CACHE_READ_ADAPTIVE);
+		} else if (strcmp(av[2], "bad-bbu-write-cache") == 0) {
+			if (ac < 4) {
+				warnx("cache: bad BBU setting required");
+				return (EINVAL);
+			}
+			if (strcmp(av[3], "enable") == 0)
+				policy = MR_LD_CACHE_WRITE_CACHE_BAD_BBU;
+			else if (strcmp(av[3], "disable") == 0)
+				policy = 0;
+			else {
+				warnx("cache: invalid bad BBU setting");
+				return (EINVAL);
+			}
+			error = update_cache_policy(fd, &props, policy,
+			    MR_LD_CACHE_WRITE_CACHE_BAD_BBU);
 		} else if (strcmp(av[2], "write-cache") == 0) {
 			if (ac < 4) {
 				warnx("cache: write-cache setting required");
