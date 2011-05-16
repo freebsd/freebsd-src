@@ -4083,7 +4083,7 @@ pmc_process_interrupt(int cpu, struct pmc *pm, struct trapframe *tf,
 
  done:
 	/* mark CPU as needing processing */
-	atomic_set_rel_int(&pmc_cpumask, (1 << cpu));
+	atomic_set_int(&pmc_cpumask, (1 << cpu));
 
 	return (error);
 }
@@ -4193,7 +4193,7 @@ pmc_process_samples(int cpu)
 			break;
 		if (ps->ps_nsamples == PMC_SAMPLE_INUSE) {
 			/* Need a rescan at a later time. */
-			atomic_set_rel_int(&pmc_cpumask, (1 << cpu));
+			atomic_set_int(&pmc_cpumask, (1 << cpu));
 			break;
 		}
 
@@ -4782,7 +4782,7 @@ pmc_cleanup(void)
 	PMCDBG(MOD,INI,0, "%s", "cleanup");
 
 	/* switch off sampling */
-	atomic_store_rel_int(&pmc_cpumask, 0);
+	pmc_cpumask = 0;
 	pmc_intr = NULL;
 
 	sx_xlock(&pmc_sx);
