@@ -30,6 +30,7 @@ static void enable(cyb_arg_t);
 static void disable(cyb_arg_t);
 static void reprogram(cyb_arg_t, hrtime_t);
 static void xcall(cyb_arg_t, cpu_t *, cyc_func_t, void *);
+static void cyclic_clock(struct trapframe *frame);
 
 static cyc_backend_t	be	= {
 	NULL,		/* cyb_configure */
@@ -45,6 +46,7 @@ static void
 cyclic_ap_start(void *dummy)
 {
 	/* Initialise the rest of the CPUs. */
+	cyclic_clock_func = cyclic_clock;
 	cyclic_mp_init();
 }
 
@@ -63,17 +65,9 @@ cyclic_machdep_init(void)
 static void
 cyclic_machdep_uninit(void)
 {
-	int i;
-
-	for (i = 0; i <= mp_maxid; i++)
-		/* Reset the cyclic clock callback hook. */
-		cyclic_clock_func[i] = NULL;
-
 	/* De-register the cyclic backend. */
 	cyclic_uninit();
 }
-
-static hrtime_t exp_due[MAXCPU];
 
 /*
  * This function is the one registered by the machine dependent
@@ -84,7 +78,7 @@ cyclic_clock(struct trapframe *frame)
 {
 	cpu_t *c = &solaris_cpu[curcpu];
 
-	if (c->cpu_cyclic != NULL && gethrtime() >= exp_due[curcpu]) {
+	if (c->cpu_cyclic != NULL) {
 		if (TRAPF_USERMODE(frame)) {
 			c->cpu_profile_pc = 0;
 			c->cpu_profile_upc = TRAPF_PC(frame);
@@ -102,26 +96,34 @@ cyclic_clock(struct trapframe *frame)
 	}
 }
 
-static void enable(cyb_arg_t arg)
+static void
+enable(cyb_arg_t arg __unused)
 {
-	/* Register the cyclic clock callback function. */
-	cyclic_clock_func[curcpu] = cyclic_clock;
+
 }
 
-static void disable(cyb_arg_t arg)
+static void
+disable(cyb_arg_t arg __unused)
 {
-	/* Reset the cyclic clock callback function. */
-	cyclic_clock_func[curcpu] = NULL;
+
 }
 
-static void reprogram(cyb_arg_t arg, hrtime_t exp)
+static void
+reprogram(cyb_arg_t arg __unused, hrtime_t exp)
 {
-	exp_due[curcpu] = exp;
+	struct bintime bt;
+	struct timespec ts;
+
+	ts.tv_sec = exp / 1000000000;
+	ts.tv_nsec = exp % 1000000000;
+	timespec2bintime(&ts, &bt);
+	clocksource_cyc_set(&bt);
 }
 
-static void xcall(cyb_arg_t arg, cpu_t *c, cyc_func_t func, void *param)
+static void xcall(cyb_arg_t arg __unused, cpu_t *c, cyc_func_t func,
+    void *param)
 {
 
-	smp_rendezvous_cpus((cpumask_t) (1 << c->cpuid),
+	smp_rendezvous_cpus((cpumask_t)1 << c->cpuid,
 	    smp_no_rendevous_barrier, func, smp_no_rendevous_barrier, param);
 }
