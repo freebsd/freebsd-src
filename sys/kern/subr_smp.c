@@ -55,7 +55,6 @@ __FBSDID("$FreeBSD$");
 #ifdef SMP
 volatile cpumask_t stopped_cpus;
 volatile cpumask_t started_cpus;
-cpumask_t idle_cpus_mask;
 cpumask_t hlt_cpus_mask;
 cpumask_t logical_cpus_mask;
 

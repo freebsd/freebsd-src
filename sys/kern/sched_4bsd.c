@@ -155,6 +155,8 @@ static struct runq runq;
  */
 static struct runq runq_pcpu[MAXCPU];
 long runq_length[MAXCPU];
+
+static cpumask_t idle_cpus_mask;
 #endif
 
 struct pcpuidlestat {
