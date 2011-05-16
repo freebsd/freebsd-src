@@ -94,7 +94,8 @@ _assert_sbuf_integrity(const char *fun, struct sbuf *s)
 	KASSERT(s->s_buf != NULL,
 	    ("%s called with uninitialized or corrupt sbuf", fun));
 	KASSERT(s->s_len < s->s_size,
-	    ("wrote past end of sbuf (%d >= %d)", s->s_len, s->s_size));
+	    ("wrote past end of sbuf (%jd >= %jd)",
+	    (intmax_t)s->s_len, (intmax_t)s->s_size));
 }
 
 static void
@@ -255,16 +256,17 @@ sbuf_clear(struct sbuf *s)
  * Effectively truncates the sbuf at the new position.
  */
 int
-sbuf_setpos(struct sbuf *s, int pos)
+sbuf_setpos(struct sbuf *s, ssize_t pos)
 {
 
 	assert_sbuf_integrity(s);
 	assert_sbuf_state(s, 0);
 
 	KASSERT(pos >= 0,
-	    ("attempt to seek to a negative position (%d)", pos));
+	    ("attempt to seek to a negative position (%jd)", (intmax_t)pos));
 	KASSERT(pos < s->s_size,
-	    ("attempt to seek past end of sbuf (%d >= %d)", pos, s->s_size));
+	    ("attempt to seek past end of sbuf (%jd >= %jd)",
+	    (intmax_t)pos, (intmax_t)s->s_size));
 
 	if (pos < 0 || pos > s->s_len)
 		return (-1);
@@ -640,7 +642,7 @@ sbuf_trim(struct sbuf *s)
  * Check if an sbuf has an error.
  */
 int
-sbuf_error(struct sbuf *s)
+sbuf_error(const struct sbuf *s)
 {
 
 	return (s->s_error);
@@ -691,7 +693,7 @@ sbuf_data(struct sbuf *s)
 /*
  * Return the length of the sbuf data.
  */
-int
+ssize_t
 sbuf_len(struct sbuf *s)
 {
 
@@ -728,7 +730,7 @@ sbuf_delete(struct sbuf *s)
  * Check if an sbuf has been finished.
  */
 int
-sbuf_done(struct sbuf *s)
+sbuf_done(const struct sbuf *s)
 {
 
 	return (SBUF_ISFINISHED(s));
