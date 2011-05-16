@@ -44,14 +44,9 @@ struct reg;
  * subsystem into the appropriate timer interrupt.
  */
 typedef	void (*cyclic_clock_func_t)(struct trapframe *);
+extern cyclic_clock_func_t	cyclic_clock_func;
 
-/*
- * These external variables are actually machine-dependent, so
- * they might not actually exist.
- *
- * Defining them here avoids a proliferation of header files.
- */
-extern cyclic_clock_func_t     cyclic_clock_func[];
+void clocksource_cyc_set(const struct bintime *t);
 
 /*
  * The dtrace module handles traps that occur during a DTrace probe.
