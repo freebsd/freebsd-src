@@ -53,7 +53,7 @@ gethrtime(void) {
 	struct timespec ts;
 	hrtime_t nsec;
 
-	nanouptime(&ts);
+	getnanouptime(&ts);
 	nsec = (hrtime_t)ts.tv_sec * NANOSEC + ts.tv_nsec;
 	return (nsec);
 }
