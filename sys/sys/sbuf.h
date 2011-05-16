@@ -44,8 +44,8 @@ struct sbuf {
 	sbuf_drain_func	*s_drain_func;	/* drain function */
 	void		*s_drain_arg;	/* user-supplied drain argument */
 	int		 s_error;	/* current error code */
-	int		 s_size;	/* size of storage buffer */
-	int		 s_len;		/* current length of string */
+	ssize_t		 s_size;	/* size of storage buffer */
+	ssize_t		 s_len;		/* current length of string */
 #define	SBUF_FIXEDLEN	0x00000000	/* fixed length buffer (default) */
 #define	SBUF_AUTOEXTEND	0x00000001	/* automatically extend buffer */
 #define	SBUF_USRFLAGMSK	0x0000ffff	/* mask of flags the user may specify */
@@ -63,7 +63,7 @@ struct sbuf	*sbuf_new(struct sbuf *, char *, int, int);
 #define		 sbuf_new_auto()				\
 	sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND)
 void		 sbuf_clear(struct sbuf *);
-int		 sbuf_setpos(struct sbuf *, int);
+int		 sbuf_setpos(struct sbuf *, ssize_t);
 int		 sbuf_bcat(struct sbuf *, const void *, size_t);
 int		 sbuf_bcpy(struct sbuf *, const void *, size_t);
 int		 sbuf_cat(struct sbuf *, const char *);
@@ -75,11 +75,11 @@ int		 sbuf_vprintf(struct sbuf *, const char *, __va_list)
 int		 sbuf_putc(struct sbuf *, int);
 void		 sbuf_set_drain(struct sbuf *, sbuf_drain_func *, void *);
 int		 sbuf_trim(struct sbuf *);
-int		 sbuf_error(struct sbuf *);
+int		 sbuf_error(const struct sbuf *);
 int		 sbuf_finish(struct sbuf *);
 char		*sbuf_data(struct sbuf *);
-int		 sbuf_len(struct sbuf *);
-int		 sbuf_done(struct sbuf *);
+ssize_t		 sbuf_len(struct sbuf *);
+int		 sbuf_done(const struct sbuf *);
 void		 sbuf_delete(struct sbuf *);
 
 #ifdef _KERNEL

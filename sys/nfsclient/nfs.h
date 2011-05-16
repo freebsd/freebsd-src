@@ -107,7 +107,7 @@
 #endif
 
 /*
- * vfs.nfs sysctl(3) identifiers
+ * vfs.oldnfs sysctl(3) identifiers
  */
 #define NFS_NFSSTATS	1		/* struct: struct nfsstats */
 
