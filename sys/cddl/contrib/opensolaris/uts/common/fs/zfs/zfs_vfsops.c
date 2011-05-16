@@ -1203,6 +1203,8 @@ zfs_mount(vfs_t *vfsp)
 		goto out;
 	}
 
+	vfsp->vfs_flag |= MNT_NFS4ACLS;
+
 	/*
 	 * When doing a remount, we simply refresh our temporary properties
 	 * according to those options set in the current VFS options.
