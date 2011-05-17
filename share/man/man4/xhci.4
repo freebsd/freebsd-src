@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 24, 2011
+.Dd May 17, 2011
 .Dt XHCI 4
 .Os
 .Sh NAME
@@ -49,6 +49,13 @@ The
 controller supports
 .Tn USB
 connection speeds up to 5.0Gbps when using a USB 3.0 compliant device.
+.Sh HARDWARE
+The
+.Nm
+driver supports
+.Tn XHCI
+compatible controllers having PCI class 12 (serial bus),
+subclass 3 (USB) and programming interface 48 (XHCI).
 .Sh SEE ALSO
 .Xr ehci 4 ,
 .Xr ohci 4 ,
