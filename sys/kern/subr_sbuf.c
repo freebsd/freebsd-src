@@ -67,7 +67,7 @@ static MALLOC_DEFINE(M_SBUF, "sbuf", "string buffers");
 #define	SBUF_ISDYNSTRUCT(s)	((s)->s_flags & SBUF_DYNSTRUCT)
 #define	SBUF_ISFINISHED(s)	((s)->s_flags & SBUF_FINISHED)
 #define	SBUF_HASROOM(s)		((s)->s_len < (s)->s_size - 1)
-#define	SBUF_FREESPACE(s)	((s)->s_size - (s)->s_len - 1)
+#define	SBUF_FREESPACE(s)	((s)->s_size - ((s)->s_len + 1))
 #define	SBUF_CANEXTEND(s)	((s)->s_flags & SBUF_AUTOEXTEND)
 
 /*
@@ -77,8 +77,14 @@ static MALLOC_DEFINE(M_SBUF, "sbuf", "string buffers");
 #define	SBUF_CLEARFLAG(s, f)	do { (s)->s_flags &= ~(f); } while (0)
 
 #define	SBUF_MINEXTENDSIZE	16		/* Should be power of 2. */
+
+#ifdef PAGE_SIZE
 #define	SBUF_MAXEXTENDSIZE	PAGE_SIZE
 #define	SBUF_MAXEXTENDINCR	PAGE_SIZE
+#else
+#define	SBUF_MAXEXTENDSIZE	4096
+#define	SBUF_MAXEXTENDINCR	4096
+#endif
 
 /*
  * Debugging support
@@ -328,7 +334,7 @@ sbuf_drain(struct sbuf *s)
  * buffer and marking overflow.
  */
 static void
-sbuf_put_byte(int c, struct sbuf *s)
+sbuf_put_byte(struct sbuf *s, int c)
 {
 
 	assert_sbuf_integrity(s);
@@ -337,7 +343,7 @@ sbuf_put_byte(int c, struct sbuf *s)
 	if (s->s_error != 0)
 		return;
 	if (SBUF_FREESPACE(s) <= 0) {
-		/* 
+		/*
 		 * If there is a drain, use it, otherwise extend the
 		 * buffer.
 		 */
@@ -349,18 +355,6 @@ sbuf_put_byte(int c, struct sbuf *s)
 			return;
 	}
 	s->s_buf[s->s_len++] = c;
-}
-
-/*
- * Append a non-NUL character to an sbuf.  This prototype signature is
- * suitable for use with kvprintf(9).
- */
-static void
-sbuf_putc_func(int c, void *arg)
-{
-
-	if (c != '\0')
-		sbuf_put_byte(c, arg);
 }
 
 /*
@@ -378,10 +372,10 @@ sbuf_bcat(struct sbuf *s, const void *buf, size_t len)
 	if (s->s_error != 0)
 		return (-1);
 	for (; str < end; str++) {
-		sbuf_put_byte(*str, s);
+		sbuf_put_byte(s, *str);
 		if (s->s_error != 0)
 			return (-1);
- 	}
+	}
 	return (0);
 }
 
@@ -443,7 +437,7 @@ sbuf_cat(struct sbuf *s, const char *str)
 		return (-1);
 
 	while (*str != '\0') {
-		sbuf_put_byte(*str++, s);
+		sbuf_put_byte(s, *str++);
 		if (s->s_error != 0)
 			return (-1);
 	}
@@ -507,6 +501,19 @@ sbuf_cpy(struct sbuf *s, const char *str)
  * Format the given argument list and append the resulting string to an sbuf.
  */
 #ifdef _KERNEL
+
+/*
+ * Append a non-NUL character to an sbuf.  This prototype signature is
+ * suitable for use with kvprintf(9).
+ */
+static void
+sbuf_putc_func(int c, void *arg)
+{
+
+	if (c != '\0')
+		sbuf_put_byte(arg, c);
+}
+
 int
 sbuf_vprintf(struct sbuf *s, const char *fmt, va_list ap)
 {
@@ -611,7 +618,7 @@ int
 sbuf_putc(struct sbuf *s, int c)
 {
 
-	sbuf_putc_func(c, s);
+	sbuf_put_byte(s, c);
 	if (s->s_error != 0)
 		return (-1);
 	return (0);
@@ -654,24 +661,23 @@ sbuf_error(const struct sbuf *s)
 int
 sbuf_finish(struct sbuf *s)
 {
-	int error;
 
 	assert_sbuf_integrity(s);
 	assert_sbuf_state(s, 0);
 
-	error = s->s_error;
 	if (s->s_drain_func != NULL) {
-		while (s->s_len > 0 && error == 0)
-			error = sbuf_drain(s);
+		while (s->s_len > 0 && s->s_error == 0)
+			s->s_error = sbuf_drain(s);
 	}
 	s->s_buf[s->s_len] = '\0';
-	s->s_error = 0;
 	SBUF_SETFLAG(s, SBUF_FINISHED);
 #ifdef _KERNEL
-	return (error);
+	return (s->s_error);
 #else
-	errno = error;
-	return (-1);
+	errno = s->s_error;
+	if (s->s_error)
+		return (-1);
+	return (0);
 #endif
 }
 
