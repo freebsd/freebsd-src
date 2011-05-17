@@ -23,10 +23,6 @@
 #ifndef _INST_LIB_LIB_H_
 #define _INST_LIB_LIB_H_
 
-#ifndef YES_I_KNOW_THE_API_IS_RUBBISH_AND_IS_DOOMED_TO_CHANGE
-#error "You obviously have no idea what you're doing."
-#endif
-
 /* Includes */
 #include <sys/param.h>
 #include <sys/file.h>
@@ -100,12 +96,13 @@
 #define PKG_PREFIX_VNAME	"PKG_PREFIX"
 
 /*
- * Version of the package library - increase whenever you make a change
+ * Version of the package tools - increase whenever you make a change
  * in the code that is not cosmetic only.
  */
-#define LIBPKG_VERSION 20100423
+#define PKG_INSTALL_VERSION	20100403
 
 #define PKG_WRAPCONF_FNAME	"/var/db/pkg_install.conf"
+#define main(argc, argv)	real_main(argc, argv)
 
 /* Version numbers to assist with changes in package file format */
 #define PLIST_FMT_VER_MAJOR	1
@@ -217,7 +214,7 @@ Boolean 	make_preserve_name(char *, int, const char *, const char *);
 
 /* For all */
 int		pkg_perform(char **);
-void		pkg_wrap(long, char **);
+int		real_main(int, char **);
 
 /* Query installed packages */
 char		**matchinstalled(match_t, char **, int *);
@@ -232,7 +229,6 @@ int		chkifdepends(const char *, const char *);
 int		requiredby(const char *, struct reqr_by_head **, Boolean, Boolean);
 
 /* Version */
-int		libpkg_version(void);
 int		verscmp(Package *, int, int);
 int		version_cmp(const char *, const char *);
 

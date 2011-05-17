@@ -23,7 +23,7 @@ resync_precmd="$stop_precmd"
 resync_cmd="ipfilter_resync"
 status_precmd="$stop_precmd"
 status_cmd="ipfilter_status"
-extra_commands="reload resync status"
+extra_commands="reload resync"
 required_modules="ipl:ipfilter"
 
 ipfilter_start()

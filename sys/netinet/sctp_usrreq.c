@@ -2489,6 +2489,7 @@ flags_out:
 				paddri->spinfo_srtt = net->lastsa >> SCTP_RTT_SHIFT;
 				paddri->spinfo_rto = net->RTO;
 				paddri->spinfo_assoc_id = sctp_get_associd(stcb);
+				paddri->spinfo_mtu = net->mtu;
 				SCTP_TCB_UNLOCK(stcb);
 			} else {
 				if (stcb) {
