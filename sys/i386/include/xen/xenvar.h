@@ -99,7 +99,6 @@ void xpq_init(void);
 	(((bits)+BITS_PER_LONG-1)/BITS_PER_LONG)
 #define DECLARE_BITMAP(name,bits) \
 	unsigned long name[BITS_TO_LONGS(bits)]
-typedef struct { DECLARE_BITMAP(bits, NR_CPUS); } xen_cpumask_t;
 
 int  xen_create_contiguous_region(vm_page_t pages, int npages);
 
