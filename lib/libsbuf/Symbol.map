@@ -1,0 +1,24 @@
+/*
+ * $FreeBSD$
+ */
+
+FBSD_1.2 {
+	sbuf_new;
+	sbuf_clear;
+	sbuf_setpos;
+	sbuf_bcat;
+	sbuf_bcpy;
+	sbuf_cat;
+	sbuf_cpy;
+	sbuf_printf;
+	sbuf_vprintf;
+	sbuf_putc;
+	sbuf_set_drain;
+	sbuf_trim;
+	sbuf_error;
+	sbuf_finish;
+	sbuf_data;
+	sbuf_len;
+	sbuf_done;
+	sbuf_delete;
+};
