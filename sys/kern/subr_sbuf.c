@@ -67,7 +67,7 @@ static MALLOC_DEFINE(M_SBUF, "sbuf", "string buffers");
 #define	SBUF_ISDYNSTRUCT(s)	((s)->s_flags & SBUF_DYNSTRUCT)
 #define	SBUF_ISFINISHED(s)	((s)->s_flags & SBUF_FINISHED)
 #define	SBUF_HASROOM(s)		((s)->s_len < (s)->s_size - 1)
-#define	SBUF_FREESPACE(s)	((s)->s_size - (s)->s_len - 1)
+#define	SBUF_FREESPACE(s)	((s)->s_size - ((s)->s_len + 1))
 #define	SBUF_CANEXTEND(s)	((s)->s_flags & SBUF_AUTOEXTEND)
 
 /*
@@ -77,8 +77,14 @@ static MALLOC_DEFINE(M_SBUF, "sbuf", "string buffers");
 #define	SBUF_CLEARFLAG(s, f)	do { (s)->s_flags &= ~(f); } while (0)
 
 #define	SBUF_MINEXTENDSIZE	16		/* Should be power of 2. */
+
+#ifdef PAGE_SIZE
 #define	SBUF_MAXEXTENDSIZE	PAGE_SIZE
 #define	SBUF_MAXEXTENDINCR	PAGE_SIZE
+#else
+#define	SBUF_MAXEXTENDSIZE	4096
+#define	SBUF_MAXEXTENDINCR	4096
+#endif
 
 /*
  * Debugging support
@@ -138,7 +144,6 @@ sbuf_extendsize(int size)
 	return (newsize);
 }
 
-
 /*
  * Extend an sbuf.
  */
@@ -154,7 +159,7 @@ sbuf_extend(struct sbuf *s, int addlen)
 	newbuf = SBMALLOC(newsize);
 	if (newbuf == NULL)
 		return (-1);
-	bcopy(s->s_buf, newbuf, s->s_size);
+	memcpy(newbuf, s->s_buf, s->s_size);
 	if (SBUF_ISDYNAMIC(s))
 		SBFREE(s->s_buf);
 	else
@@ -162,6 +167,38 @@ sbuf_extend(struct sbuf *s, int addlen)
 	s->s_buf = newbuf;
 	s->s_size = newsize;
 	return (0);
+}
+
+/*
+ * Initialize the internals of an sbuf.
+ * If buf is non-NULL, it points to a static or already-allocated string
+ * big enough to hold at least length characters.
+ */
+static struct sbuf *
+sbuf_newbuf(struct sbuf *s, char *buf, int length, int flags)
+{
+
+	memset(s, 0, sizeof(*s));
+	s->s_flags = flags;
+	s->s_size = length;
+	s->s_buf = buf;
+
+	if ((s->s_flags & SBUF_AUTOEXTEND) == 0) {
+		KASSERT(s->s_size > 1,
+		    ("attempt to create a too small sbuf"));
+	}
+
+	if (s->s_buf != NULL)
+		return (s);
+
+	if ((flags & SBUF_AUTOEXTEND) != 0)
+		s->s_size = sbuf_extendsize(s->s_size);
+
+	s->s_buf = SBMALLOC(s->s_size);
+	if (s->s_buf == NULL)
+		return (NULL);
+	SBUF_SETFLAG(s, SBUF_DYNAMIC);
+	return (s);
 }
 
 /*
@@ -179,31 +216,17 @@ sbuf_new(struct sbuf *s, char *buf, int length, int flags)
 	    ("%s called with invalid flags", __func__));
 
 	flags &= SBUF_USRFLAGMSK;
-	if (s == NULL) {
-		s = SBMALLOC(sizeof(*s));
-		if (s == NULL)
-			return (NULL);
-		bzero(s, sizeof(*s));
-		s->s_flags = flags;
-		SBUF_SETFLAG(s, SBUF_DYNSTRUCT);
-	} else {
-		bzero(s, sizeof(*s));
-		s->s_flags = flags;
-	}
-	s->s_size = length;
-	if (buf != NULL) {
-		s->s_buf = buf;
-		return (s);
-	}
-	if ((flags & SBUF_AUTOEXTEND) != 0)
-		s->s_size = sbuf_extendsize(s->s_size);
-	s->s_buf = SBMALLOC(s->s_size);
-	if (s->s_buf == NULL) {
-		if (SBUF_ISDYNSTRUCT(s))
-			SBFREE(s);
+	if (s != NULL)
+		return (sbuf_newbuf(s, buf, length, flags));
+
+	s = SBMALLOC(sizeof(*s));
+	if (s == NULL)
+		return (NULL);
+	if (sbuf_newbuf(s, buf, length, flags) == NULL) {
+		SBFREE(s);
 		return (NULL);
 	}
-	SBUF_SETFLAG(s, SBUF_DYNAMIC);
+	SBUF_SETFLAG(s, SBUF_DYNSTRUCT);
 	return (s);
 }
 
@@ -328,7 +351,7 @@ sbuf_drain(struct sbuf *s)
  * buffer and marking overflow.
  */
 static void
-sbuf_put_byte(int c, struct sbuf *s)
+sbuf_put_byte(struct sbuf *s, int c)
 {
 
 	assert_sbuf_integrity(s);
@@ -337,7 +360,7 @@ sbuf_put_byte(int c, struct sbuf *s)
 	if (s->s_error != 0)
 		return;
 	if (SBUF_FREESPACE(s) <= 0) {
-		/* 
+		/*
 		 * If there is a drain, use it, otherwise extend the
 		 * buffer.
 		 */
@@ -349,18 +372,6 @@ sbuf_put_byte(int c, struct sbuf *s)
 			return;
 	}
 	s->s_buf[s->s_len++] = c;
-}
-
-/*
- * Append a non-NUL character to an sbuf.  This prototype signature is
- * suitable for use with kvprintf(9).
- */
-static void
-sbuf_putc_func(int c, void *arg)
-{
-
-	if (c != '\0')
-		sbuf_put_byte(c, arg);
 }
 
 /*
@@ -378,10 +389,10 @@ sbuf_bcat(struct sbuf *s, const void *buf, size_t len)
 	if (s->s_error != 0)
 		return (-1);
 	for (; str < end; str++) {
-		sbuf_put_byte(*str, s);
+		sbuf_put_byte(s, *str);
 		if (s->s_error != 0)
 			return (-1);
- 	}
+	}
 	return (0);
 }
 
@@ -443,7 +454,7 @@ sbuf_cat(struct sbuf *s, const char *str)
 		return (-1);
 
 	while (*str != '\0') {
-		sbuf_put_byte(*str++, s);
+		sbuf_put_byte(s, *str++);
 		if (s->s_error != 0)
 			return (-1);
 	}
@@ -507,6 +518,19 @@ sbuf_cpy(struct sbuf *s, const char *str)
  * Format the given argument list and append the resulting string to an sbuf.
  */
 #ifdef _KERNEL
+
+/*
+ * Append a non-NUL character to an sbuf.  This prototype signature is
+ * suitable for use with kvprintf(9).
+ */
+static void
+sbuf_putc_func(int c, void *arg)
+{
+
+	if (c != '\0')
+		sbuf_put_byte(arg, c);
+}
+
 int
 sbuf_vprintf(struct sbuf *s, const char *fmt, va_list ap)
 {
@@ -611,7 +635,7 @@ int
 sbuf_putc(struct sbuf *s, int c)
 {
 
-	sbuf_putc_func(c, s);
+	sbuf_put_byte(s, c);
 	if (s->s_error != 0)
 		return (-1);
 	return (0);
@@ -654,24 +678,23 @@ sbuf_error(const struct sbuf *s)
 int
 sbuf_finish(struct sbuf *s)
 {
-	int error;
 
 	assert_sbuf_integrity(s);
 	assert_sbuf_state(s, 0);
 
-	error = s->s_error;
 	if (s->s_drain_func != NULL) {
-		while (s->s_len > 0 && error == 0)
-			error = sbuf_drain(s);
+		while (s->s_len > 0 && s->s_error == 0)
+			s->s_error = sbuf_drain(s);
 	}
 	s->s_buf[s->s_len] = '\0';
-	s->s_error = 0;
 	SBUF_SETFLAG(s, SBUF_FINISHED);
 #ifdef _KERNEL
-	return (error);
+	return (s->s_error);
 #else
-	errno = error;
-	return (-1);
+	errno = s->s_error;
+	if (s->s_error)
+		return (-1);
+	return (0);
 #endif
 }
 
@@ -721,7 +744,7 @@ sbuf_delete(struct sbuf *s)
 	if (SBUF_ISDYNAMIC(s))
 		SBFREE(s->s_buf);
 	isdyn = SBUF_ISDYNSTRUCT(s);
-	bzero(s, sizeof(*s));
+	memset(s, 0, sizeof(*s));
 	if (isdyn)
 		SBFREE(s);
 }
