@@ -46,6 +46,7 @@ BJ	BEN	204	Benin
 BM	BMU	060	Bermuda
 BT	BTN	064	Bhutan
 BO	BOL	068	Bolivia, Plurinational State of
+BQ	BES	535	Bonaire, Saint Eustatius and Saba
 BA	BIH	070	Bosnia and Herzegovina
 BW	BWA	072	Botswana
 BV	BVT	074	Bouvet Island
@@ -75,6 +76,7 @@ CR	CRI	188	Costa Rica
 CI	CIV	384	Cote d'Ivoire
 HR	HRV	191	Croatia
 CU	CUB	192	Cuba
+CW	CUW	531	Curacao
 CY	CYP	196	Cyprus
 CZ	CZE	203	Czech Republic
 DK	DNK	208	Denmark
@@ -174,7 +176,6 @@ NA	NAM	516	Namibia
 NR	NRU	520	Nauru
 NP	NPL	524	Nepal
 NL	NLD	528	Netherlands
-AN	ANT	530	Netherlands Antilles
 NC	NCL	540	New Caledonia
 NZ	NZL	554	New Zealand
 NI	NIC	558	Nicaragua
@@ -216,6 +217,7 @@ RS	SRB	688	Serbia
 SC	SYC	690	Seychelles
 SL	SLE	694	Sierra Leone
 SG	SGP	702	Singapore
+SX	SXM	534	Sint Maarten (Dutch part)
 SK	SVK	703	Slovakia
 SI	SVN	705	Slovenia
 SB	SLB	090	Solomon Islands
@@ -224,7 +226,7 @@ ZA	ZAF	710	South Africa
 GS	SGS	239	South Georgia and the South Sandwich Islands
 ES	ESP	724	Spain
 LK	LKA	144	Sri Lanka
-SH	SHN	654	Saint Helena
+SH	SHN	654	Saint Helena, Ascension and Tristan da Cunha
 PM	SPM	666	Saint Pierre and Miquelon
 SD	SDN	736	Sudan
 SR	SUR	740	Suriname
@@ -537,3 +539,11 @@ ZW	ZWE	716	Zimbabwe
 #
 # Newsletter VI-6 2009-05-08
 #  Name change for Plurinational State of Bolivia.
+#
+# Newsletter VI-7 2010-02-22
+#  Name change for Saint Helena, Ascension and Tristan da Cunha
+#
+# Newsletter VI-8 2010-12-15
+#  BONAIRE, SAINT EUSTATIUS AND SABA (BQ), CURACAO (CW) and
+#  SINT MAARTEN (DUTCH PART) (SX) added as new entries.
+#  NETHERLANDS ANTILLES (AN) removed.
