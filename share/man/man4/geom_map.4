@@ -30,7 +30,7 @@
 .Os
 .Sh NAME
 .Nm geom_map
-.Nd "GEOM module that map difined items as separate partitions"
+.Nd "GEOM module that maps defined items as separate partitions"
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following line in your
@@ -41,16 +41,16 @@ kernel configuration file:
 .Sh DESCRIPTION
 The
 .Nm
-framework provides support for mapping defined parts of the media. Basicaly it
-is helpful in the embedded devices where in the one continous flash are loader,
-kernel and rootfs parts. The
+framework provides support for mapping defined parts of the media.
+Basically it is helpful for embedded devices where in the one continuous
+flash are loader, kernel and rootfs parts.
 .Nm
-allows making them available as separate parts and protect loader from
-overwriting.
+allows making them available as separate parts and protects the loader from
+being overwritten.
 .Pp
 At boot time
 .Nm
-partitions listed (only with bootverbose) as:
+partitions are listed (only with bootverbose) as:
 .Bd -literal -offset indent
 MAP: 0x30000, data=0x30000 "/dev/map/bootloader"
 MAP: 30000x10000, data=0x10000 "/dev/map/factory"
@@ -62,10 +62,12 @@ MAP: 150000x690000, data=0x690000 "/dev/map/rootfs"
 MAP: 7e0000x20000, data=0x20000 "/dev/map/config"
 .Ed
 .Pp
-Also
+The current
 .Nm
-current configuration can be accessible with sysctl's kern.geom.conftxt,
-kern.geom.confxml, kern.geom.confdot or geom map list.
+configuration can be accessed with the following
+.Xr sysctl 8
+nodes: kern.geom.conftxt, kern.geom.confxml, and kern.geom.confdot
+or by using "geom map list".
 .Bd -literal -offset indent
 # sysctl kern.geom.conftxt
 kern.geom.conftxt: 0 MD md0 10485760 512 u 0 s 512 f 0 fs 0 l 10485760 t malloc
@@ -84,7 +86,7 @@ Driver configuration can be done in device hints file. List of used parameters:
 .It Fa at
 select media to attach
 .It Fa name
-name of partiton (will create device /dev/map/that_name)
+name of partition (will create device /dev/map/that_name)
 .It Fa start
 offset from the beginning of the parent media to start of the mapped partition.
 This field can also have special value 
@@ -119,9 +121,7 @@ MAP: 150000x690000, data=0x690000 "/dev/map/rootfs"
 "map/rootfs" - new media will be accessible via /dev/map/rootfs dev.
 .Ed
 .Sh EXAMPLES
-.Pp
-.Bl -bullet -compact
-If we need to implement layout shown above, we need to define the folowing
+If we need to implement layout shown above, we need to define the following
 hints:
 .Bd -literal -offset indent
 hint.map.0.at="cfid0"
@@ -129,8 +129,8 @@ hint.map.0.start=0x00000000
 hint.map.0.end=0x00030000
 hint.map.0.name="bootloader"
 hint.map.0.readonly=1
-
 .Ed
+.Pp
 define "/dev/map/bootloader" at disk "cfid0" starting at 0x00000000 and end
 0x00030000, also marked as readonly.
 .Bd -literal -offset indent
@@ -148,8 +148,8 @@ hint.map.3.at="cfid0"
 hint.map.3.name="kernel"
 hint.map.3.start=0x00040000
 hint.map.3.end="search:0x00100000:0x10000:.!/bin/sh"
-
 .Ed
+.Pp
 define "/dev/map/kernel" at disk "cfid0" starting at 0x00040000, but end
 position must be searched by the key ".!/bin/sh", from offset 0x00100000 to end
 of media with step 0x10000. Real marker in that case is "#!/bin/sh", but "#"
@@ -166,7 +166,6 @@ hint.map.5.start=0x007e0000
 hint.map.5.end=0x00800000
 hint.map.5.name="config"
 .Ed
-.El
 .Sh SEE ALSO
 .Xr GEOM 4 ,
 .Xr geom 8 ,
