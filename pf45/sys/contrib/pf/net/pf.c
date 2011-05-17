@@ -278,7 +278,7 @@ void			 pf_send_tcp(const struct pf_rule *, sa_family_t,
 			    u_int16_t, u_int16_t, u_int32_t, u_int32_t,
 			    u_int8_t, u_int16_t, u_int16_t, u_int8_t, int,
 			    u_int16_t, struct ether_header *, struct ifnet *);
-void			 pf_send_icmp(struct mbuf *, u_int8_t, u_int8_t,
+static void		 pf_send_icmp(struct mbuf *, u_int8_t, u_int8_t,
 			    sa_family_t, struct pf_rule *);
 void			 pf_detach_state(struct pf_state *);
 void			 pf_state_key_detach(struct pf_state *, int);
@@ -2515,7 +2515,7 @@ pf_send_tcp(const struct pf_rule *r, sa_family_t af,
 	}
 }
 
-void
+static void
 pf_send_icmp(struct mbuf *m, u_int8_t type, u_int8_t code, sa_family_t af,
     struct pf_rule *r)
 {
@@ -2523,8 +2523,8 @@ pf_send_icmp(struct mbuf *m, u_int8_t type, u_int8_t code, sa_family_t af,
 #ifdef __FreeBSD__
 #ifdef INET
 	struct ip *ip;
-	struct pf_mtag *pf_mtag;
 #endif
+	struct pf_mtag *pf_mtag;
 #endif
 
 #ifdef __FreeBSD__
