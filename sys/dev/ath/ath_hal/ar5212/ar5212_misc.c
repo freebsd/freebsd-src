@@ -857,7 +857,7 @@ ar5212GetCapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 	case HAL_CAP_MCAST_KEYSRCH:	/* multicast frame keycache search */
 		switch (capability) {
 		case 0:			/* hardware capability */
-			return HAL_OK;
+			return pcap->halMcastKeySrchSupport ? HAL_OK : HAL_ENXIO;
 		case 1:
 			return (ahp->ah_staId1Defaults &
 			    AR_STA_ID1_MCAST_KSRCH) ? HAL_OK : HAL_ENXIO;
