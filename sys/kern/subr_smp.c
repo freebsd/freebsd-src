@@ -110,6 +110,7 @@ static void (*volatile smp_rv_action_func)(void *arg);
 static void (*volatile smp_rv_teardown_func)(void *arg);
 static void *volatile smp_rv_func_arg;
 static volatile int smp_rv_waiters[3];
+static volatile int smp_rv_generation;
 
 /* 
  * Shared mutex to restrict busywaits between smp_rendezvous() and
@@ -310,39 +311,63 @@ restart_cpus(cpumask_t map)
 void
 smp_rendezvous_action(void)
 {
-	void* local_func_arg = smp_rv_func_arg;
-	void (*local_setup_func)(void*)   = smp_rv_setup_func;
-	void (*local_action_func)(void*)   = smp_rv_action_func;
-	void (*local_teardown_func)(void*) = smp_rv_teardown_func;
+	void *local_func_arg;
+	void (*local_setup_func)(void*);
+	void (*local_action_func)(void*);
+	void (*local_teardown_func)(void*);
+	int generation;
 
 	/* Ensure we have up-to-date values. */
 	atomic_add_acq_int(&smp_rv_waiters[0], 1);
 	while (smp_rv_waiters[0] < smp_rv_ncpus)
 		cpu_spinwait();
 
-	/* setup function */
+	/* Fetch rendezvous parameters after acquire barrier. */
+	local_func_arg = smp_rv_func_arg;
+	local_setup_func = smp_rv_setup_func;
+	local_action_func = smp_rv_action_func;
+	local_teardown_func = smp_rv_teardown_func;
+	generation = smp_rv_generation;
+
+	/*
+	 * If requested, run a setup function before the main action
+	 * function.  Ensure all CPUs have completed the setup
+	 * function before moving on to the action function.
+	 */
 	if (local_setup_func != smp_no_rendevous_barrier) {
 		if (smp_rv_setup_func != NULL)
 			smp_rv_setup_func(smp_rv_func_arg);
-
-		/* spin on entry rendezvous */
 		atomic_add_int(&smp_rv_waiters[1], 1);
 		while (smp_rv_waiters[1] < smp_rv_ncpus)
                 	cpu_spinwait();
 	}
 
-	/* action function */
 	if (local_action_func != NULL)
 		local_action_func(local_func_arg);
 
-	/* spin on exit rendezvous */
+	/*
+	 * Signal that the main action has been completed.  If a
+	 * full exit rendezvous is requested, then all CPUs will
+	 * wait here until all CPUs have finished the main action.
+	 *
+	 * Note that the write by the last CPU to finish the action
+	 * may become visible to different CPUs at different times.
+	 * As a result, the CPU that initiated the rendezvous may
+	 * exit the rendezvous and drop the lock allowing another
+	 * rendezvous to be initiated on the same CPU or a different
+	 * CPU.  In that case the exit sentinel may be cleared before
+	 * all CPUs have noticed causing those CPUs to hang forever.
+	 * Workaround this by using a generation count to notice when
+	 * this race occurs and to exit the rendezvous in that case.
+	 */
+	MPASS(generation == smp_rv_generation);
 	atomic_add_int(&smp_rv_waiters[2], 1);
 	if (local_teardown_func == smp_no_rendevous_barrier)
                 return;
-	while (smp_rv_waiters[2] < smp_rv_ncpus)
+	while (smp_rv_waiters[2] < smp_rv_ncpus &&
+	    generation == smp_rv_generation)
 		cpu_spinwait();
 
-	/* teardown function */
 	if (local_teardown_func != NULL)
 		local_teardown_func(local_func_arg);
 }
@@ -373,10 +398,11 @@ smp_rendezvous_cpus(cpumask_t map,
 	if (ncpus == 0)
 		panic("ncpus is 0 with map=0x%x", map);
 
-	/* obtain rendezvous lock */
 	mtx_lock_spin(&smp_ipi_mtx);
 
-	/* set static function pointers */
+	atomic_add_acq_int(&smp_rv_generation, 1);
+
+	/* Pass rendezvous parameters via global variables. */
 	smp_rv_ncpus = ncpus;
 	smp_rv_setup_func = setup_func;
 	smp_rv_action_func = action_func;
@@ -386,18 +412,25 @@ smp_rendezvous_cpus(cpumask_t map,
 	smp_rv_waiters[2] = 0;
 	atomic_store_rel_int(&smp_rv_waiters[0], 0);
 
-	/* signal other processors, which will enter the IPI with interrupts off */
+	/*
+	 * Signal other processors, which will enter the IPI with
+	 * interrupts off.
+	 */
 	ipi_selected(map & ~(1 << curcpu), IPI_RENDEZVOUS);
 
 	/* Check if the current CPU is in the map */
 	if ((map & (1 << curcpu)) != 0)
 		smp_rendezvous_action();
 
+	/*
+	 * If the caller did not request an exit barrier to be enforced
+	 * on each CPU, ensure that this CPU waits for all the other
+	 * CPUs to finish the rendezvous.
+	 */
 	if (teardown_func == smp_no_rendevous_barrier)
 		while (atomic_load_acq_int(&smp_rv_waiters[2]) < ncpus)
 			cpu_spinwait();
 
-	/* release lock */
 	mtx_unlock_spin(&smp_ipi_mtx);
 }
 
