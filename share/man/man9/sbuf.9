@@ -52,7 +52,7 @@
 .Nm sbuf_len ,
 .Nm sbuf_done ,
 .Nm sbuf_delete
-.Nd safe string formatting
+.Nd safe string composition
 .Sh SYNOPSIS
 .In sys/types.h
 .In sys/sbuf.h
@@ -106,13 +106,19 @@
 .Sh DESCRIPTION
 The
 .Nm
-family of functions allows one to safely allocate, construct and
-release bounded NUL-terminated strings in kernel space.
+family of functions allows one to safely allocate, compose and
+release strings in kernel or user space.
+.Pp
 Instead of arrays of characters, these functions operate on structures
 called
 .Fa sbufs ,
 defined in
 .In sys/sbuf.h .
+.Pp
+Any errors encountered during the allocation or composition of the
+string will be latched in the data structure,
+making a single error test at the end of the composition 
+sufficient to determine success or failure of the entire process.
 .Pp
 The
 .Fn sbuf_new
@@ -468,14 +474,35 @@ The
 function
 returns \-1 if copying string from userland failed, and number of bytes
 copied otherwise.
+.Pp
 The
-.Fn sbuf_finish
-function returns ENOMEM if the sbuf overflowed before being finished,
+.Fn sbuf_finish 9
+function (the kernel version) returns ENOMEM if the sbuf overflowed before
+being finished,
 or returns the error code from the drain if one is attached.
-When used as
-.Xr sbuf_finish 3 ,
-.Fn sbuf_finish
-will return \-1 and set errno on error instead.
+.Pp
+The
+.Fn sbuf_finish 3 
+function (the userland version)
+will return zero for success and \-1 and set errno on error.
+.Sh EXAMPLES
+.Bd -literal -compact
+#include <sys/sbuf.h>
+
+struct sbuf *sb;
+
+sb = sbuf_new_auto();
+sbuf_cat("Customers found:\en");
+TAILQ_FOREACH(foo, &foolist, list) {
+	sbuf_printf("   %4d %s\en", foo->index, foo->name);
+	sbuf_printf("      Address: %s\en", foo->address);
+	sbuf_printf("      Zip: %s\en", foo->zipcode);
+}
+if (sbuf_finish(sb))
+	err(1,"Could not generate message");
+transmit_msg(sbuf_data(sb), sbuf_len(sb));
+sbuf_delete(sb);
+.Ed
 .Sh SEE ALSO
 .Xr printf 3 ,
 .Xr strcat 3 ,
