@@ -235,16 +235,6 @@ SYSCTL_INT(_kern_sched_ipiwakeup, OID_AUTO, useloop, CTLFLAG_RW,
 	   &forward_wakeup_use_loop, 0,
 	   "Use a loop to find idle cpus");
 
-static int forward_wakeup_use_single = 0;
-SYSCTL_INT(_kern_sched_ipiwakeup, OID_AUTO, onecpu, CTLFLAG_RW,
-	   &forward_wakeup_use_single, 0,
-	   "Only signal one idle cpu");
-
-static int forward_wakeup_use_htt = 0;
-SYSCTL_INT(_kern_sched_ipiwakeup, OID_AUTO, htt2, CTLFLAG_RW,
-	   &forward_wakeup_use_htt, 0,
-	   "account for htt");
-
 #endif
 #if 0
 static int sched_followon = 0;
@@ -1064,7 +1054,7 @@ static int
 forward_wakeup(int cpunum)
 {
 	struct pcpu *pc;
-	cpumask_t dontuse, id, map, map2, map3, me;
+	cpumask_t dontuse, id, map, map2, me;
 
 	mtx_assert(&sched_lock, MA_OWNED);
 
@@ -1089,13 +1079,13 @@ forward_wakeup(int cpunum)
 		return (0);
 
 	dontuse = me | stopped_cpus | hlt_cpus_mask;
-	map3 = 0;
+	map2 = 0;
 	if (forward_wakeup_use_loop) {
 		SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
 			id = pc->pc_cpumask;
 			if ((id & dontuse) == 0 &&
 			    pc->pc_curthread == pc->pc_idlethread) {
-				map3 |= id;
+				map2 |= id;
 			}
 		}
 	}
@@ -1106,33 +1096,19 @@ forward_wakeup(int cpunum)
 
 		/* If they are both on, compare and use loop if different. */
 		if (forward_wakeup_use_loop) {
-			if (map != map3) {
-				printf("map (%02X) != map3 (%02X)\n", map,
-				    map3);
-				map = map3;
+			if (map != map2) {
+				printf("map != map2, loop method preferred\n");
+				map = map2;
 			}
 		}
 	} else {
-		map = map3;
+		map = map2;
 	}
 
 	/* If we only allow a specific CPU, then mask off all the others. */
 	if (cpunum != NOCPU) {
 		KASSERT((cpunum <= mp_maxcpus),("forward_wakeup: bad cpunum."));
 		map &= (1 << cpunum);
-	} else {
-		/* Try choose an idle die. */
-		if (forward_wakeup_use_htt) {
-			map2 =  (map & (map >> 1)) & 0x5555;
-			if (map2) {
-				map = map2;
-			}
-		}
-
-		/* Set only one bit. */
-		if (forward_wakeup_use_single) {
-			map = map & ((~map) + 1);
-		}
 	}
 	if (map) {
 		forward_wakeups_delivered++;
