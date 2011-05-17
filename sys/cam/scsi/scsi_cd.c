@@ -2125,7 +2125,7 @@ cdioctl(struct disk *dp, u_long cmd, void *addr, int flag, struct thread *td)
 				  ("trying to do CDIOREADTOCHEADER\n"));
 
 			error = cdreadtoc(periph, 0, 0, (u_int8_t *)th, 
-				          sizeof (*th), /*sense_flags*/0);
+				          sizeof (*th), /*sense_flags*/SF_NO_PRINT);
 			if (error) {
 				free(th, M_SCSICD);
 				cam_periph_unlock(periph);
