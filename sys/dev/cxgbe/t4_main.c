@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_types.h>
 #include <net/if_dl.h>
+#include <net/if_vlan_var.h>
 
 #include "common/t4_hw.h"
 #include "common/common.h"
