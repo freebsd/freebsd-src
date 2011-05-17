@@ -144,7 +144,6 @@ sbuf_extendsize(int size)
 	return (newsize);
 }
 
-
 /*
  * Extend an sbuf.
  */
@@ -160,7 +159,7 @@ sbuf_extend(struct sbuf *s, int addlen)
 	newbuf = SBMALLOC(newsize);
 	if (newbuf == NULL)
 		return (-1);
-	bcopy(s->s_buf, newbuf, s->s_size);
+	memcpy(newbuf, s->s_buf, s->s_size);
 	if (SBUF_ISDYNAMIC(s))
 		SBFREE(s->s_buf);
 	else
@@ -168,6 +167,38 @@ sbuf_extend(struct sbuf *s, int addlen)
 	s->s_buf = newbuf;
 	s->s_size = newsize;
 	return (0);
+}
+
+/*
+ * Initialize the internals of an sbuf.
+ * If buf is non-NULL, it points to a static or already-allocated string
+ * big enough to hold at least length characters.
+ */
+static struct sbuf *
+sbuf_newbuf(struct sbuf *s, char *buf, int length, int flags)
+{
+
+	memset(s, 0, sizeof(*s));
+	s->s_flags = flags;
+	s->s_size = length;
+	s->s_buf = buf;
+
+	if ((s->s_flags & SBUF_AUTOEXTEND) == 0) {
+		KASSERT(s->s_size > 1,
+		    ("attempt to create a too small sbuf"));
+	}
+
+	if (s->s_buf != NULL)
+		return (s);
+
+	if ((flags & SBUF_AUTOEXTEND) != 0)
+		s->s_size = sbuf_extendsize(s->s_size);
+
+	s->s_buf = SBMALLOC(s->s_size);
+	if (s->s_buf == NULL)
+		return (NULL);
+	SBUF_SETFLAG(s, SBUF_DYNAMIC);
+	return (s);
 }
 
 /*
@@ -185,31 +216,17 @@ sbuf_new(struct sbuf *s, char *buf, int length, int flags)
 	    ("%s called with invalid flags", __func__));
 
 	flags &= SBUF_USRFLAGMSK;
-	if (s == NULL) {
-		s = SBMALLOC(sizeof(*s));
-		if (s == NULL)
-			return (NULL);
-		bzero(s, sizeof(*s));
-		s->s_flags = flags;
-		SBUF_SETFLAG(s, SBUF_DYNSTRUCT);
-	} else {
-		bzero(s, sizeof(*s));
-		s->s_flags = flags;
-	}
-	s->s_size = length;
-	if (buf != NULL) {
-		s->s_buf = buf;
-		return (s);
-	}
-	if ((flags & SBUF_AUTOEXTEND) != 0)
-		s->s_size = sbuf_extendsize(s->s_size);
-	s->s_buf = SBMALLOC(s->s_size);
-	if (s->s_buf == NULL) {
-		if (SBUF_ISDYNSTRUCT(s))
-			SBFREE(s);
+	if (s != NULL)
+		return (sbuf_newbuf(s, buf, length, flags));
+
+	s = SBMALLOC(sizeof(*s));
+	if (s == NULL)
+		return (NULL);
+	if (sbuf_newbuf(s, buf, length, flags) == NULL) {
+		SBFREE(s);
 		return (NULL);
 	}
-	SBUF_SETFLAG(s, SBUF_DYNAMIC);
+	SBUF_SETFLAG(s, SBUF_DYNSTRUCT);
 	return (s);
 }
 
@@ -727,7 +744,7 @@ sbuf_delete(struct sbuf *s)
 	if (SBUF_ISDYNAMIC(s))
 		SBFREE(s->s_buf);
 	isdyn = SBUF_ISDYNSTRUCT(s);
-	bzero(s, sizeof(*s));
+	memset(s, 0, sizeof(*s));
 	if (isdyn)
 		SBFREE(s);
 }
