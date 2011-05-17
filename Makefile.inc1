@@ -1205,7 +1205,7 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} ${_kerberos5_lib_libheimntlm} \
 		${_kerberos5_lib_libhx509} ${_kerberos5_lib_libkrb5} \
 		${_kerberos5_lib_libroken} \
 		lib/libbz2 lib/libcom_err lib/libcrypt \
-		lib/libexpat lib/libfetch \
+		lib/libexpat \
 		${_lib_libgssapi} ${_lib_libipx} \
 		lib/libkiconv lib/libkvm lib/liblzma lib/libmd \
 		lib/ncurses/ncurses lib/ncurses/ncursesw \
@@ -1238,7 +1238,6 @@ _cddl_lib= cddl/lib
 _secure_lib_libcrypto= secure/lib/libcrypto
 _secure_lib_libssl= secure/lib/libssl
 lib/libradius__L secure/lib/libssl__L: secure/lib/libcrypto__L
-lib/libfetch__L: secure/lib/libcrypto__L secure/lib/libssl__L lib/libmd__L
 .if ${MK_OPENSSH} != "no"
 _secure_lib_libssh= secure/lib/libssh
 secure/lib/libssh__L: lib/libz__L secure/lib/libcrypto__L lib/libcrypt__L
@@ -1274,7 +1273,7 @@ _lib_libypclnt=	lib/libypclnt
 .endif
 
 .if ${MK_OPENSSL} == "no"
-lib/libfetch__L lib/libradius__L: lib/libmd__L
+lib/libradius__L: lib/libmd__L
 .endif
 
 .for _lib in ${_prereq_libs}
