@@ -15,7 +15,7 @@ __FBSDID("$FreeBSD$");
 #include <getopt.h>
 #include <err.h>
 
-#include <pkg.h>
+#include "lib.h"
 #include "create.h"
 
 match_t	MatchType	= MATCH_GLOB;
@@ -71,8 +71,6 @@ main(int argc, char **argv)
 {
     int ch;
     char **pkgs, **start, *tmp;
-
-    pkg_wrap(PKG_INSTALL_VERSION, argv);
 
     pkgs = start = argv;
     while ((ch = getopt_long(argc, argv, opts, longopts, NULL)) != -1)
