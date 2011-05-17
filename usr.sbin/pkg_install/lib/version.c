@@ -19,18 +19,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "pkg.h"
+#include "lib.h"
 #include <err.h>
-
-/*
- * This routine could easily go somewhere else.
- *
- */
-int
-libpkg_version(void)
-{
-	return LIBPKG_VERSION;
-}
 
 /*
  * Routines to assist with PLIST_FMT_VER numbers in the packing
@@ -76,7 +66,7 @@ split_version(const char *pkgname, const char **endname, unsigned long *epoch, u
     if (pkgname == NULL)
 	errx(2, "%s: Passed NULL pkgname.", __func__);
 
-    /* Look for the last '-' the pkgname */
+    /* Look for the last '-' the the pkgname */
     ch = strrchr(pkgname, '-');
     /* Cheat if we are just passed a version, not a valid package name */
     versionstr = ch ? ch + 1 : pkgname;

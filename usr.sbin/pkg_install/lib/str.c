@@ -21,7 +21,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "pkg.h"
+#include "lib.h"
 
 char *
 strconcat(const char *s1, const char *s2)
