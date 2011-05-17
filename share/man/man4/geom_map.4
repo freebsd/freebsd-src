@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 5, 2011
+.Dd May 17, 2011
 .Dt GEOM_MAP 4
 .Os
 .Sh NAME
@@ -66,11 +66,15 @@ The current
 .Nm
 configuration can be accessed with the following
 .Xr sysctl 8
-nodes: kern.geom.conftxt, kern.geom.confxml, and kern.geom.confdot
-or by using "geom map list".
+nodes:
+.Va kern.geom.conftxt , kern.geom.confxml ,
+and
+.Va kern.geom.confdot
+or by using
+.Dq Li "geom map list" .
 .Bd -literal -offset indent
-# sysctl kern.geom.conftxt
-kern.geom.conftxt: 0 MD md0 10485760 512 u 0 s 512 f 0 fs 0 l 10485760 t malloc
+# sysctl -n kern.geom.conftxt
+0 MD md0 10485760 512 u 0 s 512 f 0 fs 0 l 10485760 t malloc
 0 DISK cfid0 8388608 4 hd 0 sc 0
 1 MAP map/config 131072 4 i 5 o 8257536 entry 0 dsize 131072
 1 MAP map/rootfs 6881280 4 i 4 o 1376256 entry 0 dsize 6881280
@@ -81,40 +85,48 @@ kern.geom.conftxt: 0 MD md0 10485760 512 u 0 s 512 f 0 fs 0 l 10485760 t malloc
 1 MAP map/bootloader 196608 4 i 0 o 0 entry 0 dsize 196608
 .Ed
 .Pp
-Driver configuration can be done in device hints file. List of used parameters:
+Driver configuration can be done in
+.Xr device.hints 5 .
+List of used parameters:
 .Bl -tag -width indent
-.It Fa at
+.It Va at
 select media to attach
-.It Fa name
-name of partition (will create device /dev/map/that_name)
-.It Fa start
+.It Va name
+name of partition (will create device
+.Pa /dev/map/ Ns Ar that_name )
+.It Va start
 offset from the beginning of the parent media to start of the mapped partition.
-This field can also have special value 
-"search:searchstart:searchstep:searchkey", where:
+This field can also have a special value
+.Qq Li search: Ns Ar searchstart Ns Li : Ns Ar searchstep Ns Li : Ns Ar searchkey ,
+where:
 .Bl -tag -width indent
-.It Fa searchstart
+.It Ar searchstart
 offset from the beginning of the parent media where search will be started
-.It Fa searchstep
+.It Ar searchstep
 value of the increment used while searching for the partition boundary markers
-.It Fa searchkey
-key which will be used to find partition boundary markers. Wildcard "." char 
-can be used to match any char on that position
+.It Ar searchkey
+key which will be used to find partition boundary markers.
+The wildcard
+.Ql .\&
+can be used to match any character on that position
 .El
-.It Fa end
-offset from the beginning of the parent media to end of the mapped partition.
-This field can also have special value 
-"search:searchstart:searchstep:searchkey", look "start" for details.
-.It Fa offset
-offset where the data of mapped partition begins
+.It Va end
+offset from the beginning of the parent media to the end of the mapped partition.
+This field can also have the special value
+.Qq Li search: Ns Ar searchstart Ns Li : Ns Ar searchstep Ns Li : Ns Ar searchkey ,
+as described above.
+.It Va offset
+offset where the data of the mapped partition begins
 .El
 .Pp
-Each record contains start address(bytes) from the media begin, size(bytes),
-offset where the data of mapped partition begins, and the name of new device.
+Each record contains the start address (in bytes) from the media begin, size
+(in bytes), offset where the data of mapped partition begins, and the name of
+new device.
 .Bd -literal -offset indent
 MAP: 150000x690000, data=0x690000 "/dev/map/rootfs"
 .Ed
 .Bd -literal
-00150000 - begin address
+00150000 - start address
 00690000 - size
 00000000 - data begin from zero offset
 00690000 - data size
@@ -131,8 +143,15 @@ hint.map.0.name="bootloader"
 hint.map.0.readonly=1
 .Ed
 .Pp
-define "/dev/map/bootloader" at disk "cfid0" starting at 0x00000000 and end
-0x00030000, also marked as readonly.
+This defines
+.Pa /dev/map/bootloader
+at disk
+.Pa cfid0
+starting at
+.Li 0x00000000
+and ending at
+.Li 0x00030000 ,
+it is also marked as readonly.
 .Bd -literal -offset indent
 hint.map.1.at="cfid0"
 hint.map.1.start=0x00030000
@@ -150,11 +169,26 @@ hint.map.3.start=0x00040000
 hint.map.3.end="search:0x00100000:0x10000:.!/bin/sh"
 .Ed
 .Pp
-define "/dev/map/kernel" at disk "cfid0" starting at 0x00040000, but end
-position must be searched by the key ".!/bin/sh", from offset 0x00100000 to end
-of media with step 0x10000. Real marker in that case is "#!/bin/sh", but "#"
-terminates the line when hints file is parsed, so we need to use wildcard "." 
-instead of "#".
+This defines
+.Pa /dev/map/kernel
+at disk
+.Pa cfid0
+starting at
+.Li 0x00040000 ,
+but the end position must be searched by finding the key
+.Dq Li ".!/bin/sh" ,
+from offset
+.Li 0x00100000
+to the end of media with step
+.Li 0x10000 .
+The real marker in this case is
+.Dq Li "#!/bin/sh" ,
+but
+.Ql #
+terminates the line when the hints file is parsed, so we need to use wildcard
+.Ql .\&
+instead of
+.Ql # .
 .Bd -literal -offset indent
 hint.map.4.at="cfid0"
 hint.map.4.name="rootfs"
@@ -167,11 +201,10 @@ hint.map.5.end=0x00800000
 hint.map.5.name="config"
 .Ed
 .Sh SEE ALSO
-.Xr GEOM 4 ,
+.Xr geom 4 ,
 .Xr geom 8 ,
 .Xr sysctl 8
 .Sh AUTHORS
-.An -nosplit
 The
 .Nm
 driver was written by
