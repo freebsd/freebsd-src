@@ -617,10 +617,6 @@ uhid_probe(device_t dev)
 	if (uaa->usb_mode != USB_MODE_HOST) {
 		return (ENXIO);
 	}
-	if (uaa->use_generic == 0) {
-		/* give Mouse and Keyboard drivers a try first */
-		return (ENXIO);
-	}
 	if (uaa->info.bInterfaceClass != UICLASS_HID) {
 
 		/* the Xbox 360 gamepad doesn't use the HID class */
