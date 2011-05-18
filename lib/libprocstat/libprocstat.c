@@ -132,6 +132,7 @@ procstat_close(struct procstat *procstat)
 	assert(procstat);
 	if (procstat->type == PROCSTAT_KVM)
 		kvm_close(procstat->kd);
+	free(procstat);
 }
 
 struct procstat *
