@@ -539,9 +539,6 @@ uaudio_probe(device_t dev)
 	if (uaa->usb_mode != USB_MODE_HOST)
 		return (ENXIO);
 
-	if (uaa->use_generic == 0)
-		return (ENXIO);
-
 	/* lookup non-standard device */
 
 	if (uaa->info.bInterfaceClass != UICLASS_AUDIO) {
@@ -555,7 +552,7 @@ uaudio_probe(device_t dev)
 		if (usb_test_quirk(uaa, UQ_BAD_AUDIO))
 			return (ENXIO);
 		else
-			return (0);
+			return (BUS_PROBE_GENERIC);
 	}
 
 	/* check for MIDI stream */
@@ -564,7 +561,7 @@ uaudio_probe(device_t dev)
 		if (usb_test_quirk(uaa, UQ_BAD_MIDI))
 			return (ENXIO);
 		else
-			return (0);
+			return (BUS_PROBE_GENERIC);
 	}
 	return (ENXIO);
 }
