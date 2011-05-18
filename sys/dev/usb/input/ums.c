@@ -373,7 +373,7 @@ ums_probe(device_t dev)
 
 	if ((uaa->info.bInterfaceSubClass == UISUBCLASS_BOOT) &&
 	    (uaa->info.bInterfaceProtocol == UIPROTO_MOUSE))
-		return (BUS_PROBE_GENERIC);
+		return (BUS_PROBE_DEFAULT);
 
 	error = usbd_req_get_hid_desc(uaa->device, NULL,
 	    &d_ptr, &d_len, M_TEMP, uaa->info.bIfaceIndex);
@@ -383,7 +383,7 @@ ums_probe(device_t dev)
 
 	if (hid_is_collection(d_ptr, d_len,
 	    HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_MOUSE)))
-		error = BUS_PROBE_GENERIC;
+		error = BUS_PROBE_DEFAULT;
 	else
 		error = ENXIO;
 

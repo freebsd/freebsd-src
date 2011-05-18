@@ -357,7 +357,6 @@ struct usb_attach_arg {
 	struct usb_interface *iface;	/* current interface */
 	enum usb_hc_mode usb_mode;	/* host or device mode */
 	uint8_t	port;
-	uint8_t	use_generic;		/* hint for generic drivers */
 	uint8_t dev_state;
 #define UAA_DEV_READY		0
 #define UAA_DEV_DISABLED	1
