@@ -771,7 +771,7 @@ ukbd_probe(device_t dev)
 		if (usb_test_quirk(uaa, UQ_KBD_IGNORE))
 			return (ENXIO);
 		else
-			return (BUS_PROBE_GENERIC);
+			return (BUS_PROBE_DEFAULT);
 	}
 
 	error = usbd_req_get_hid_desc(uaa->device, NULL,
@@ -793,7 +793,7 @@ ukbd_probe(device_t dev)
 		if (usb_test_quirk(uaa, UQ_KBD_IGNORE))
 			error = ENXIO;
 		else
-			error = BUS_PROBE_GENERIC;
+			error = BUS_PROBE_DEFAULT;
 	} else
 		error = ENXIO;
 
