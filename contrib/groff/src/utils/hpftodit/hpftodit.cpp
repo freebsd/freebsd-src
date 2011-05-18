@@ -870,9 +870,9 @@ output_charset(const int tfm_type)
       else if (!all_flag)
 	continue;
       else if (tfm_type == MSL)
-	printf(hp_msl_to_ucode_name(charcode));
+	fputs(hp_msl_to_ucode_name(charcode), stdout);
       else
-	printf(unicode_to_ucode_name(charcode));
+	fputs(unicode_to_ucode_name(charcode), stdout);
 
       printf("\t%d,%d",
 	     scale(char_table[i].width), scale(char_table[i].ascent));
