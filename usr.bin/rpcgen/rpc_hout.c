@@ -500,7 +500,7 @@ pdeclaration(const char *name, declaration *dec, int tab, const char *separator)
 			break;
 		}
 	}
-	f_print(fout, separator);
+	fputs(separator, fout);
 }
 
 static int
