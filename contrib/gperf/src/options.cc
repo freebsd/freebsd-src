@@ -237,7 +237,7 @@ Options::print_options (void)
         {
           putchar (*arg);
           arg++;
-          if (*arg >= 'A' && *arg <= 'Z' || *arg >= 'a' && *arg <= 'z')
+          if ((*arg >= 'A' && *arg <= 'Z') || (*arg >= 'a' && *arg <= 'z'))
             {
               putchar (*arg);
               arg++;
