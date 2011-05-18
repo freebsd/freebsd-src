@@ -654,9 +654,9 @@ exp_intpr(int clientOnly, int serverOnly)
 		    ext_nfsstats.lookupcache_hits,
 		    ext_nfsstats.lookupcache_misses);
 		printf(" %9d %9d %9d %9d\n",
-		    ext_nfsstats.biocache_reads,
+		    ext_nfsstats.biocache_reads - ext_nfsstats.read_bios,
 		    ext_nfsstats.read_bios,
-		    ext_nfsstats.biocache_writes,
+		    ext_nfsstats.biocache_writes - ext_nfsstats.write_bios,
 		    ext_nfsstats.write_bios);
 		if (printtitle) {
 			printf("%9.9s %9.9s %9.9s %9.9s",
@@ -664,9 +664,11 @@ exp_intpr(int clientOnly, int serverOnly)
 			printf(" %9.9s %9.9s\n", "DirE Hits", "Misses");
 		}
 		printf("%9d %9d %9d %9d",
-		    ext_nfsstats.biocache_readlinks,
+		    ext_nfsstats.biocache_readlinks -
 		    ext_nfsstats.readlink_bios,
-		    ext_nfsstats.biocache_readdirs,
+		    ext_nfsstats.readlink_bios,
+		    ext_nfsstats.biocache_readdirs -
+		    ext_nfsstats.readdir_bios,
 		    ext_nfsstats.readdir_bios);
 		printf(" %9d %9d\n",
 		    ext_nfsstats.direofcache_hits,
