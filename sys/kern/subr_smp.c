@@ -53,10 +53,10 @@ __FBSDID("$FreeBSD$");
 #include "opt_sched.h"
 
 #ifdef SMP
-volatile cpumask_t stopped_cpus;
-volatile cpumask_t started_cpus;
-cpumask_t hlt_cpus_mask;
-cpumask_t logical_cpus_mask;
+volatile cpuset_t stopped_cpus;
+volatile cpuset_t started_cpus;
+cpuset_t hlt_cpus_mask;
+cpuset_t logical_cpus_mask;
 
 void (*cpustop_restartfunc)(void);
 #endif
