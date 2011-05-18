@@ -366,7 +366,13 @@ t4_attach(device_t dev)
 	sc->mbox = sc->pf;
 
 	pci_enable_busmaster(dev);
-	pci_set_max_read_req(dev, 4096);
+	if (pci_find_cap(dev, PCIY_EXPRESS, &i) == 0) {
+		pci_set_max_read_req(dev, 4096);
+		v = pci_read_config(dev, i + PCIR_EXPRESS_DEVICE_CTL, 2);
+		v |= PCIM_EXP_CTL_RELAXED_ORD_ENABLE;
+		pci_write_config(dev, i + PCIR_EXPRESS_DEVICE_CTL, v, 2);
+	}
+
 	snprintf(sc->lockname, sizeof(sc->lockname), "%s",
 	    device_get_nameunit(dev));
 	mtx_init(&sc->sc_lock, sc->lockname, 0, MTX_DEF);
@@ -3206,6 +3212,7 @@ filter_rpl(struct adapter *sc, const struct cpl_set_tcb_rpl *rpl)
 	}
 }
 
+/* XXX: use pci_find_cap */
 int
 t4_os_find_pci_capability(struct adapter *sc, int cap)
 {
