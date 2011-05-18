@@ -161,9 +161,10 @@ dot11rate_label(const HAL_RATE_TABLE *rt, int rix)
  * or -1 if all the average_tx_times are 0.
  */
 static __inline int
-pick_best_rate(struct sample_node *sn, const HAL_RATE_TABLE *rt,
+pick_best_rate(struct ath_node *an, const HAL_RATE_TABLE *rt,
     int size_bin, int require_acked_before)
 {
+	struct sample_node *sn = ATH_NODE_SAMPLE(an);
         int best_rate_rix, best_rate_tt;
 	uint32_t mask;
 	int rix, tt;
@@ -173,6 +174,12 @@ pick_best_rate(struct sample_node *sn, const HAL_RATE_TABLE *rt,
 	for (mask = sn->ratemask, rix = 0; mask != 0; mask >>= 1, rix++) {
 		if ((mask & 1) == 0)		/* not a supported rate */
 			continue;
+
+		/* Don't pick a non-HT rate for a HT node */
+		if ((an->an_node.ni_flags & IEEE80211_NODE_HT) &&
+		    (rt->info[rix].phy != IEEE80211_T_HT)) {
+			continue;
+		}
 
 		tt = sn->stats[size_bin][rix].average_tx_time;
 		if (tt <= 0 ||
@@ -196,11 +203,12 @@ pick_best_rate(struct sample_node *sn, const HAL_RATE_TABLE *rt,
  * Pick a good "random" bit-rate to sample other than the current one.
  */
 static __inline int
-pick_sample_rate(struct sample_softc *ssc , struct sample_node *sn,
+pick_sample_rate(struct sample_softc *ssc , struct ath_node *an,
     const HAL_RATE_TABLE *rt, int size_bin)
 {
 #define	DOT11RATE(ix)	(rt->info[ix].dot11Rate & IEEE80211_RATE_VAL)
 #define	MCS(ix)		(rt->info[ix].dot11Rate | IEEE80211_RATE_MCS)
+	struct sample_node *sn = ATH_NODE_SAMPLE(an);
 	int current_rix, rix;
 	unsigned current_tt;
 	uint32_t mask;
@@ -208,6 +216,7 @@ pick_sample_rate(struct sample_softc *ssc , struct sample_node *sn,
 	current_rix = sn->current_rix[size_bin];
 	if (current_rix < 0) {
 		/* no successes yet, send at the lowest bit-rate */
+		/* XXX should return MCS0 if HT */
 		return 0;
 	}
 
@@ -223,6 +232,13 @@ pick_sample_rate(struct sample_softc *ssc , struct sample_node *sn,
 			continue;
 		}
 
+		/* if the node is HT and the rate isn't HT, don't bother sample */
+		if ((an->an_node.ni_flags & IEEE80211_NODE_HT) &&
+		    (rt->info[rix].phy != IEEE80211_T_HT)) {
+			mask &= ~(1<<rix);
+			goto nextrate;
+		}
+
 		/* this bit-rate is always worse than the current one */
 		if (sn->stats[size_bin][rix].perfect_tx_time > current_tt) {
 			mask &= ~(1<<rix);
@@ -236,10 +252,12 @@ pick_sample_rate(struct sample_softc *ssc , struct sample_node *sn,
 			goto nextrate;
 		}
 
-		/* don't sample more than 2 rates higher for rates > 11M */
-		if (DOT11RATE(rix) > 2*11 && rix > current_rix + 2) {
-			mask &= ~(1<<rix);
-			goto nextrate;
+		/* Don't sample more than 2 rates higher for rates > 11M for non-HT rates */
+		if (! (an->an_node.ni_flags & IEEE80211_NODE_HT)) {
+			if (DOT11RATE(rix) > 2*11 && rix > current_rix + 2) {
+				mask &= ~(1<<rix);
+				goto nextrate;
+			}
 		}
 
 		sn->last_sample_rix[size_bin] = rix;
@@ -327,7 +345,7 @@ ath_rate_findrate(struct ath_softc *sc, struct ath_node *an,
 	/* XXX TODO: this doesn't know about 11gn vs 11g protection; teach it */
 	mrr = sc->sc_mrretry && !(ic->ic_flags & IEEE80211_F_USEPROT);
 
-	best_rix = pick_best_rate(sn, rt, size_bin, !mrr);
+	best_rix = pick_best_rate(an, rt, size_bin, !mrr);
 	if (best_rix >= 0) {
 		average_tx_time = sn->stats[size_bin][best_rix].average_tx_time;
 	} else {
@@ -338,7 +356,7 @@ ath_rate_findrate(struct ath_softc *sc, struct ath_node *an,
 	 * rates to sample_rate% of the total transmission time.
 	 */
 	if (sn->sample_tt[size_bin] < average_tx_time * (sn->packets_since_sample[size_bin]*ssc->sample_rate/100)) {
-		rix = pick_sample_rate(ssc, sn, rt, size_bin);
+		rix = pick_sample_rate(ssc, an, rt, size_bin);
 		IEEE80211_NOTE(an->an_node.ni_vap, IEEE80211_MSG_RATECTL,
 		     &an->an_node, "size %u sample rate %d current rate %d",
 		     bin_to_size(size_bin), RATE(rix),
