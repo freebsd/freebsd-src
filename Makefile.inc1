@@ -1552,7 +1552,8 @@ _xb-build-tools:
 _xb-cross-tools:
 .for _tool in \
     gnu/usr.bin/binutils \
-    gnu/usr.bin/cc
+    gnu/usr.bin/cc \
+    usr.bin/ar
 	${_+_}@${ECHODIR} "===> xdev ${_tool} (obj,depend,all)"; \
 	cd ${.CURDIR}/${_tool}; \
 	${CDMAKE} DIRPRFX=${_tool}/ obj; \
@@ -1577,7 +1578,8 @@ _xi-cross-tools:
 	@echo "_xi-cross-tools"
 .for _tool in \
     gnu/usr.bin/binutils \
-    gnu/usr.bin/cc
+    gnu/usr.bin/cc \
+    usr.bin/ar
 	${_+_}@${ECHODIR} "===> xdev ${_tool} (install)"; \
 	cd ${.CURDIR}/${_tool}; \
 	${CDMAKE} DIRPRFX=${_tool}/ install DESTDIR=${XDDESTDIR}
