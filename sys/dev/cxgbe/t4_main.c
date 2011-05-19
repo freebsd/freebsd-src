@@ -3212,45 +3212,12 @@ filter_rpl(struct adapter *sc, const struct cpl_set_tcb_rpl *rpl)
 	}
 }
 
-/* XXX: use pci_find_cap */
 int
 t4_os_find_pci_capability(struct adapter *sc, int cap)
 {
-	device_t dev;
-	struct pci_devinfo *dinfo;
-	pcicfgregs *cfg;
-	uint32_t status;
-	uint8_t ptr;
+	int i;
 
-	dev = sc->dev;
-	dinfo = device_get_ivars(dev);
-	cfg = &dinfo->cfg;
-
-	status = pci_read_config(dev, PCIR_STATUS, 2);
-	if (!(status & PCIM_STATUS_CAPPRESENT))
-		return (0);
-
-	switch (cfg->hdrtype & PCIM_HDRTYPE) {
-	case 0:
-	case 1:
-		ptr = PCIR_CAP_PTR;
-		break;
-	case 2:
-		ptr = PCIR_CAP_PTR_2;
-		break;
-	default:
-		return (0);
-		break;
-	}
-	ptr = pci_read_config(dev, ptr, 1);
-
-	while (ptr != 0) {
-		if (pci_read_config(dev, ptr + PCICAP_ID, 1) == cap)
-			return (ptr);
-		ptr = pci_read_config(dev, ptr + PCICAP_NEXTPTR, 1);
-	}
-
-	return (0);
+	return (pci_find_cap(sc->dev, cap, &i) == 0 ? i : 0);
 }
 
 int
