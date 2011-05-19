@@ -100,7 +100,7 @@ static int alloc_ring(struct adapter *, size_t, bus_dma_tag_t *, bus_dmamap_t *,
 static int free_ring(struct adapter *, bus_dma_tag_t, bus_dmamap_t, bus_addr_t,
     void *);
 static int alloc_iq_fl(struct port_info *, struct sge_iq *, struct sge_fl *,
-    int);
+    int, int);
 static int free_iq_fl(struct port_info *, struct sge_iq *, struct sge_fl *);
 static int alloc_iq(struct sge_iq *, int);
 static int free_iq(struct sge_iq *);
@@ -1104,7 +1104,7 @@ free_ring(struct adapter *sc, bus_dma_tag_t tag, bus_dmamap_t map,
  */
 static int
 alloc_iq_fl(struct port_info *pi, struct sge_iq *iq, struct sge_fl *fl,
-    int intr_idx)
+    int intr_idx, int cong)
 {
 	int rc, i, cntxt_id;
 	size_t len;
@@ -1155,6 +1155,8 @@ alloc_iq_fl(struct port_info *pi, struct sge_iq *iq, struct sge_fl *fl,
 	    V_FW_IQ_CMD_IQESIZE(ilog2(iq->esize) - 4));
 	c.iqsize = htobe16(iq->qsize);
 	c.iqaddr = htobe64(iq->ba);
+	if (cong >= 0)
+		c.iqns_to_fl0congen = htobe32(F_FW_IQ_CMD_IQFLINTCONGEN);
 
 	if (fl) {
 		mtx_init(&fl->fl_lock, fl->lockname, NULL, MTX_DEF);
@@ -1198,7 +1200,15 @@ alloc_iq_fl(struct port_info *pi, struct sge_iq *iq, struct sge_fl *fl,
 		fl->needed = fl->cap;
 
 		c.iqns_to_fl0congen =
-		    htobe32(V_FW_IQ_CMD_FL0HOSTFCMODE(X_HOSTFCMODE_NONE));
+		    htobe32(V_FW_IQ_CMD_FL0HOSTFCMODE(X_HOSTFCMODE_NONE) |
+			F_FW_IQ_CMD_FL0FETCHRO | F_FW_IQ_CMD_FL0DATARO |
+			F_FW_IQ_CMD_FL0PADEN);
+		if (cong >= 0) {
+			c.iqns_to_fl0congen |=
+				htobe32(V_FW_IQ_CMD_FL0CNGCHMAP(cong) |
+				    F_FW_IQ_CMD_FL0CONGCIF |
+				    F_FW_IQ_CMD_FL0CONGEN);
+		}
 		c.fl0dcaen_to_fl0cidxfthresh =
 		    htobe16(V_FW_IQ_CMD_FL0FBMIN(X_FETCHBURSTMIN_64B) |
 			V_FW_IQ_CMD_FL0FBMAX(X_FETCHBURSTMAX_512B));
@@ -1325,7 +1335,7 @@ free_iq_fl(struct port_info *pi, struct sge_iq *iq, struct sge_fl *fl)
 static int
 alloc_iq(struct sge_iq *iq, int intr_idx)
 {
-	return alloc_iq_fl(NULL, iq, NULL, intr_idx);
+	return alloc_iq_fl(NULL, iq, NULL, intr_idx, -1);
 }
 
 static int
@@ -1342,7 +1352,7 @@ alloc_rxq(struct port_info *pi, struct sge_rxq *rxq, int intr_idx, int idx)
 	struct sysctl_oid_list *children;
 	char name[16];
 
-	rc = alloc_iq_fl(pi, &rxq->iq, &rxq->fl, intr_idx);
+	rc = alloc_iq_fl(pi, &rxq->iq, &rxq->fl, intr_idx, 1 << pi->tx_chan);
 	if (rc != 0)
 		return (rc);
 
@@ -1436,7 +1446,7 @@ alloc_ctrlq(struct adapter *sc, struct sge_ctrlq *ctrlq, int idx)
 	c.physeqid_pkd = htobe32(0);
 	c.fetchszm_to_iqid =
 	    htobe32(V_FW_EQ_CTRL_CMD_HOSTFCMODE(X_HOSTFCMODE_STATUS_PAGE) |
-		V_FW_EQ_CTRL_CMD_PCIECHN(idx) |
+		V_FW_EQ_CTRL_CMD_PCIECHN(idx) | F_FW_EQ_CTRL_CMD_FETCHRO |
 		V_FW_EQ_CTRL_CMD_IQID(eq->iqid));
 	c.dcaen_to_eqsize =
 	    htobe32(V_FW_EQ_CTRL_CMD_FBMIN(X_FETCHBURSTMIN_64B) |
@@ -1561,7 +1571,7 @@ alloc_txq(struct port_info *pi, struct sge_txq *txq, int idx)
 	c.viid_pkd = htobe32(V_FW_EQ_ETH_CMD_VIID(pi->viid));
 	c.fetchszm_to_iqid =
 	    htobe32(V_FW_EQ_ETH_CMD_HOSTFCMODE(X_HOSTFCMODE_STATUS_PAGE) |
-		V_FW_EQ_ETH_CMD_PCIECHN(pi->tx_chan) |
+		V_FW_EQ_ETH_CMD_PCIECHN(pi->tx_chan) | F_FW_EQ_ETH_CMD_FETCHRO |
 		V_FW_EQ_ETH_CMD_IQID(eq->iqid));
 	c.dcaen_to_eqsize = htobe32(V_FW_EQ_ETH_CMD_FBMIN(X_FETCHBURSTMIN_64B) |
 		      V_FW_EQ_ETH_CMD_FBMAX(X_FETCHBURSTMAX_512B) |
