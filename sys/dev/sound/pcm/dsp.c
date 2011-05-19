@@ -27,6 +27,11 @@
 #include <dev/sound/pcm/sound.h>
 #include <sys/ctype.h>
 
+#include <vm/vm.h>
+#include <vm/vm_object.h>
+#include <vm/vm_page.h>
+#include <vm/vm_pager.h>
+
 SND_DECLARE_FILE("$FreeBSD$");
 
 static int dsp_mmap_allow_prot_exec = 0;
@@ -57,6 +62,7 @@ static d_write_t dsp_write;
 static d_ioctl_t dsp_ioctl;
 static d_poll_t dsp_poll;
 static d_mmap_t dsp_mmap;
+static d_mmap_single_t dsp_mmap_single;
 
 struct cdevsw dsp_cdevsw = {
 	.d_version =	D_VERSION,
@@ -67,6 +73,7 @@ struct cdevsw dsp_cdevsw = {
 	.d_ioctl =	dsp_ioctl,
 	.d_poll =	dsp_poll,
 	.d_mmap =	dsp_mmap,
+	.d_mmap_single = dsp_mmap_single,
 	.d_name =	"dsp",
 };
 
@@ -1851,6 +1858,16 @@ dsp_poll(struct cdev *i_dev, int events, struct thread *td)
 static int
 dsp_mmap(struct cdev *i_dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
 {
+
+	/* XXX memattr is not honored */
+	*paddr = vtophys(offset);
+	return (0);
+}
+
+static int
+dsp_mmap_single(struct cdev *i_dev, vm_ooffset_t *offset,
+    vm_size_t size, struct vm_object **object, int nprot)
+{
 	struct snddev_info *d;
 	struct pcm_channel *wrch, *rdch, *c;
 
@@ -1863,51 +1880,48 @@ dsp_mmap(struct cdev *i_dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
 	 *
 	 */
 	if ((nprot & PROT_EXEC) && dsp_mmap_allow_prot_exec == 0)
-		return (-1);
+		return (EINVAL);
+
+	/*
+	 * PROT_READ (alone) selects the input buffer.
+	 * PROT_WRITE (alone) selects the output buffer.
+	 * PROT_WRITE|PROT_READ together select the output buffer.
+	 */
+	if ((nprot & (PROT_READ | PROT_WRITE)) == 0)
+		return (EINVAL);
 
 	d = dsp_get_info(i_dev);
 	if (!DSP_REGISTERED(d, i_dev))
-		return (-1);
+		return (EINVAL);
 
 	PCM_GIANT_ENTER(d);
 
 	getchns(i_dev, &rdch, &wrch, SD_F_PRIO_RD | SD_F_PRIO_WR);
 
-	/*
-	 * XXX The linux api uses the nprot to select read/write buffer
-	 *     our vm system doesn't allow this, so force write buffer.
-	 *
-	 *     This is just a quack to fool full-duplex mmap, so that at
-	 *     least playback _or_ recording works. If you really got the
-	 *     urge to make _both_ work at the same time, avoid O_RDWR.
-	 *     Just open each direction separately and mmap() it.
-	 *
-	 *     Failure is not an option due to INVARIANTS check within
-	 *     device_pager.c, which means, we have to give up one over
-	 *     another.
-	 */
-	c = (wrch != NULL) ? wrch : rdch;
-
+	c = ((nprot & PROT_WRITE) != 0) ? wrch : rdch;
 	if (c == NULL || (c->flags & CHN_F_MMAP_INVALID) ||
-	    offset >= sndbuf_getsize(c->bufsoft) ||
+	    (*offset  + size) > sndbuf_getsize(c->bufsoft) ||
 	    (wrch != NULL && (wrch->flags & CHN_F_MMAP_INVALID)) ||
 	    (rdch != NULL && (rdch->flags & CHN_F_MMAP_INVALID))) {
 		relchns(i_dev, rdch, wrch, SD_F_PRIO_RD | SD_F_PRIO_WR);
 		PCM_GIANT_EXIT(d);
-		return (-1);
+		return (EINVAL);
 	}
 
-	/* XXX full-duplex quack. */
 	if (wrch != NULL)
 		wrch->flags |= CHN_F_MAPPED;
 	if (rdch != NULL)
 		rdch->flags |= CHN_F_MAPPED;
 
-	*paddr = vtophys(sndbuf_getbufofs(c->bufsoft, offset));
+	*offset = (uintptr_t)sndbuf_getbufofs(c->bufsoft, *offset);
 	relchns(i_dev, rdch, wrch, SD_F_PRIO_RD | SD_F_PRIO_WR);
+	*object = vm_pager_allocate(OBJT_DEVICE, i_dev,
+	    size, nprot, *offset, curthread->td_ucred);
 
 	PCM_GIANT_LEAVE(d);
 
+	if (*object == NULL)
+		 return (EINVAL);
 	return (0);
 }
 
