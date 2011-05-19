@@ -3414,10 +3414,21 @@ pfioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 			error = ENODEV;
 			goto fail;
 		}
+#ifdef __FreeBSD__
+		PF_UNLOCK();
+#endif
 		ioe = malloc(sizeof(*ioe), M_TEMP, M_WAITOK);
 		table = malloc(sizeof(*table), M_TEMP, M_WAITOK);
+#ifdef __FreeBSD__
+		PF_LOCK();
+#endif
 		for (i = 0; i < io->size; i++) {
+#ifdef __FreeBSD__
+		PF_COPYIN(io->array+i, ioe, sizeof(*ioe), error);
+		if (error) {
+#else
 			if (copyin(io->array+i, ioe, sizeof(*ioe))) {
+#endif
 				free(table, M_TEMP);
 				free(ioe, M_TEMP);
 				error = EFAULT;
