@@ -384,6 +384,7 @@ atphy_anar(struct ifmedia_entry *ife)
 static int
 atphy_setmedia(struct mii_softc *sc, int media)
 {
+	struct atphy_softc *asc;
 	uint16_t anar;
 
 	anar = BMSR_MEDIA_TO_ANAR(sc->mii_capabilities) | ANAR_CSMA;
@@ -396,6 +397,20 @@ atphy_setmedia(struct mii_softc *sc, int media)
 	     (EXTSR_1000TFDX | EXTSR_1000THDX)) != 0)
 		PHY_WRITE(sc, MII_100T2CR, GTCR_ADV_1000TFDX |
 		    GTCR_ADV_1000THDX);
+	else {
+		/*
+		 * AR8132 has 10/100 PHY and the PHY uses the same
+		 * model number of F1 gigabit PHY.  The PHY has no
+		 * ability to establish gigabit link so explicitly
+		 * disable 1000baseT configuration for the PHY.
+		 * Otherwise, there is a case that atphy(4) could
+		 * not establish a link against gigabit link partner
+		 * unless the link partner supports down-shifting.
+		 */
+		asc = (struct atphy_softc *)sc;
+		if (asc->mii_model == MII_MODEL_ATHEROS_F1)
+			PHY_WRITE(sc, MII_100T2CR, 0);
+	}
 	PHY_WRITE(sc, MII_BMCR, BMCR_RESET | BMCR_AUTOEN | BMCR_STARTNEG);
 
 	return (EJUSTRETURN);
