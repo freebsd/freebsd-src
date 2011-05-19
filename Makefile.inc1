@@ -1132,6 +1132,10 @@ _kgzip=		usr.sbin/kgzip
 .endif
 .endif
 
+.if ${MK_BINUTILS} != "no"
+_binutils=	gnu/usr.bin/binutils
+.endif
+
 .if ${MK_CLANG} != "no"
 .if ${CC:T:Mclang} == "clang"
 _clang=		usr.bin/clang
@@ -1139,12 +1143,16 @@ _clang_libs=	lib/clang
 .endif
 .endif
 
+.if ${MK_GCC} != "no"
+_cc=		gnu/usr.bin/cc
+.endif
+
 cross-tools:
 .for _tool in \
     ${_clang_libs} \
     ${_clang} \
-    gnu/usr.bin/binutils \
-    gnu/usr.bin/cc \
+    ${_binutils} \
+    ${_cc} \
     usr.bin/xlint/lint1 usr.bin/xlint/lint2 usr.bin/xlint/xlint \
     ${_btxld} \
     ${_crunchide} \

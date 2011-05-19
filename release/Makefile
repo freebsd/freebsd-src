@@ -25,11 +25,11 @@ PORTSDIR?=	/usr/ports
 DOCDIR?=	/usr/doc
 RELNOTES_LANG?= en_US.ISO8859-1
 
-TARGET_ARCH?=	${MACHINE_ARCH}
-.if ${TARGET_ARCH} == ${MACHINE_ARCH}
 TARGET?=	${MACHINE}
+.if ${TARGET} == ${MACHINE}
+TARGET_ARCH?=	${MACHINE_ARCH}
 .else
-TARGET?=	${TARGET_ARCH}
+TARGET_ARCH?=	${TARGET}
 .endif
 IMAKE=		${MAKE} TARGET_ARCH=${TARGET_ARCH} TARGET=${TARGET}
 DISTDIR=	${.OBJDIR}/dist
@@ -169,7 +169,9 @@ ftp: packagesystem
 	mkdir ftp
 	cp *.txz MANIFEST ftp
 
-release: obj ${RELEASE_TARGETS}
+release:
+	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} obj
+	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} ${RELEASE_TARGETS}
 
 clean:
 	chflags -R noschg ${.OBJDIR}
