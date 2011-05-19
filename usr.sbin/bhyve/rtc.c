@@ -68,6 +68,8 @@ __FBSDID("$FreeBSD$");
 
 #define RTC_RSTCODE	0x0f
 
+#define	RTC_EQUIPMENT	0x14
+
 static int addr;
 
 /* XXX initialize these to default values as they would be from BIOS */
@@ -136,6 +138,7 @@ rtc_addr_handler(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 	case RTC_STATUSD:
 	case RTC_DIAG:
 	case RTC_RSTCODE:
+	case RTC_EQUIPMENT:
 		break;
 	default:
 		return (-1);
@@ -227,6 +230,9 @@ rtc_data_handler(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 			return (0);
 		case RTC_RSTCODE:
 			*eax = rstcode;
+			return (0);
+		case RTC_EQUIPMENT:
+			*eax = 0;
 			return (0);
 		default:
 			return (-1);

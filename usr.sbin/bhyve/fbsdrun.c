@@ -85,6 +85,8 @@ static int guest_vmexit_on_hlt, guest_vmexit_on_pause;
 
 static int foundcpus;
 
+static int strictio;
+
 static char *lomem_addr;
 static char *himem_addr;
 
@@ -122,7 +124,7 @@ usage(int code)
 {
 
         fprintf(stderr,
-                "Usage: %s [-hBHP][-g <gdb port>][-z <hz>][-s <pci>][-p pincpu]"
+                "Usage: %s [-ehBHP][-g <gdb port>][-z <hz>][-s <pci>][-p pincpu]"
 		"[-n <pci>][-m lowmem][-M highmem] <vm>\n"
 		"       -g: gdb port (default is %d and 0 means don't open)\n"
 		"       -c: # cpus (default 1)\n"
@@ -130,6 +132,7 @@ usage(int code)
 		"       -B: inject breakpoint exception on vm entry\n"
 		"       -H: vmexit from the guest on hlt\n"
 		"       -P: vmexit from the guest on pause\n"
+		"	-e: exit on unhandled i/o access\n"
 		"       -h: help\n"
 		"       -z: guest hz (default is %d)\n"
 		"       -s: <slot,driver,configinfo> PCI slot config\n"
@@ -300,7 +303,7 @@ vmexit_inout(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
         if (out && port == GUEST_NIO_PORT)
                 return (vmexit_handle_notify(ctx, vme, pvcpu, eax));
 
-	error = emulate_inout(ctx, vcpu, in, port, bytes, &eax);
+	error = emulate_inout(ctx, vcpu, in, port, bytes, &eax, strictio);
 	if (error == 0 && in)
 		error = vm_set_register(ctx, vcpu, VM_REG_GUEST_RAX, eax);
 
@@ -510,7 +513,7 @@ main(int argc, char *argv[])
 	gdb_port = DEFAULT_GDB_PORT;
 	guest_ncpus = 1;
 
-	while ((c = getopt(argc, argv, "hBHPxp:g:c:z:s:n:m:M:")) != -1) {
+	while ((c = getopt(argc, argv, "ehBHPxp:g:c:z:s:n:m:M:")) != -1) {
 		switch (c) {
 		case 'B':
 			inject_bkpt = 1;
@@ -550,6 +553,9 @@ main(int argc, char *argv[])
 			break;
 		case 'P':
 			guest_vmexit_on_pause = 1;
+			break;
+		case 'e':
+			strictio = 1;
 			break;
 		case 'h':
 			usage(0);			

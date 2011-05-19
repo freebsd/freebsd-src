@@ -48,9 +48,30 @@ static struct {
 	void		*arg;
 } inout_handlers[MAX_IOPORTS];
 
+static int
+default_inout(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
+              uint32_t *eax, void *arg)
+{
+        if (in) {
+                switch (bytes) {
+                case 4:
+                        *eax = 0xffffffff;
+                        break;
+                case 2:
+                        *eax = 0xffff;
+                        break;
+                case 1:
+                        *eax = 0xff;
+                        break;
+                }
+        }
+        
+        return (0);
+}
+
 int
 emulate_inout(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
-	      uint32_t *eax)
+	      uint32_t *eax, int strict)
 {
 	int flags;
 	inout_func_t handler;
@@ -58,7 +79,9 @@ emulate_inout(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 
 	assert(port < MAX_IOPORTS);
 
-	if ((handler = inout_handlers[port].handler) == NULL)
+	handler = inout_handlers[port].handler;
+
+	if (strict && handler == default_inout)
 		return (-1);
 
 	flags = inout_handlers[port].flags;
@@ -74,7 +97,21 @@ void
 init_inout(void)
 {
 	struct inout_port **iopp, *iop;
+	int i;
 
+	/*
+	 * Set up the default handler for all ports
+	 */
+	for (i = 0; i < MAX_IOPORTS; i++) {
+		inout_handlers[i].name = "default";
+		inout_handlers[i].flags = IOPORT_F_IN | IOPORT_F_OUT;
+		inout_handlers[i].handler = default_inout;
+		inout_handlers[i].arg = NULL;
+	}
+
+	/*
+	 * Overwrite with specified handlers
+	 */
 	SET_FOREACH(iopp, inout_port_set) {
 		iop = *iopp;
 		assert(iop->port < MAX_IOPORTS);

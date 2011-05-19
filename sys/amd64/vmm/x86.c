@@ -75,18 +75,35 @@ x86_emulate_cpuid(uint32_t *eax, uint32_t *ebx, uint32_t *ecx, uint32_t *edx)
 			regs[1] |= (0 << CPUID_0000_0001_APICID_SHIFT);
 
 			/*
-			 * Don't expose VMX capability.
+			 * Don't expose VMX, SpeedStep or TME capability.
 			 * Advertise x2APIC capability.
 			 */
-			regs[2] &= ~CPUID_0000_0001_FEAT0_VMX;
+			regs[2] &= ~(CPUID_0000_0001_FEAT0_VMX | CPUID2_EST |
+				     CPUID2_TM2);
 			regs[2] |= CPUID2_X2APIC;
 
+			/*
+			 * Hide thermal monitoring
+			 */
+			regs[3] &= ~(CPUID_ACPI | CPUID_TM);
+			
 			/*
 			 * Machine check handling is done in the host.
 			 * Hide MTRR capability.
 			 */
 			regs[3] &= ~(CPUID_MCA | CPUID_MCE | CPUID_MTRR);
 
+			break;
+
+		case CPUID_0000_0006:
+			/*
+			 * Handle the access, but report 0 for
+			 * all options
+			 */
+			regs[0] = 0;
+			regs[1] = 0;
+			regs[2] = 0;
+			regs[3] = 0;
 			break;
 
 		case CPUID_0000_000B:

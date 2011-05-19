@@ -59,7 +59,7 @@ struct inout_port {
 	
 void	init_inout(void);
 int	emulate_inout(struct vmctx *, int vcpu, int in, int port, int bytes,
-		      uint32_t *eax);
+		      uint32_t *eax, int strict);
 int	register_inout(struct inout_port *iop);
 
 #endif	/* _INOUT_H_ */
