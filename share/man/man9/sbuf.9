@@ -492,13 +492,13 @@ will return zero for success and \-1 and set errno on error.
 struct sbuf *sb;
 
 sb = sbuf_new_auto();
-sbuf_cat("Customers found:\en");
+sbuf_cat(sb, "Customers found:\en");
 TAILQ_FOREACH(foo, &foolist, list) {
-	sbuf_printf("   %4d %s\en", foo->index, foo->name);
-	sbuf_printf("      Address: %s\en", foo->address);
-	sbuf_printf("      Zip: %s\en", foo->zipcode);
+	sbuf_printf(sb, "   %4d %s\en", foo->index, foo->name);
+	sbuf_printf(sb, "      Address: %s\en", foo->address);
+	sbuf_printf(sb, "      Zip: %s\en", foo->zipcode);
 }
-if (sbuf_finish(sb))
+if (sbuf_finish(sb)) /* Check for any and all errors */
 	err(1,"Could not generate message");
 transmit_msg(sbuf_data(sb), sbuf_len(sb));
 sbuf_delete(sb);
