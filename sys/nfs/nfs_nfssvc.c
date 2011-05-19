@@ -81,9 +81,12 @@ nfssvc(struct thread *td, struct nfssvc_args *uap)
 
 	AUDIT_ARG_CMD(uap->flag);
 
-	error = priv_check(td, PRIV_NFS_DAEMON);
-	if (error)
-		return (error);
+	/* Allow anyone to get the stats. */
+	if ((uap->flag & ~NFSSVC_GETSTATS) != 0) {
+		error = priv_check(td, PRIV_NFS_DAEMON);
+		if (error != 0)
+			return (error);
+	}
 	error = EINVAL;
 	if ((uap->flag & (NFSSVC_ADDSOCK | NFSSVC_OLDNFSD | NFSSVC_NFSD)) &&
 	    nfsd_call_nfsserver != NULL)
