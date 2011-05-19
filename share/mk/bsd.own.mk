@@ -297,6 +297,7 @@ __DEFAULT_YES_OPTIONS = \
     BIND_MTREE \
     BIND_NAMED \
     BIND_UTILS \
+    BINUTILS \
     BLUETOOTH \
     BOOT \
     BSD_CPIO \
@@ -317,6 +318,7 @@ __DEFAULT_YES_OPTIONS = \
     FP_LIBC \
     FREEBSD_UPDATE \
     GAMES \
+    GCC \
     GCOV \
     GDB \
     GNU \
@@ -529,7 +531,9 @@ MK_GROFF:=	no
 .endif
 
 .if ${MK_TOOLCHAIN} == "no"
+MK_BINUTILS:=	no
 MK_CLANG:=	no
+MK_GCC:=	no
 MK_GDB:=	no
 .endif
 
