@@ -82,12 +82,13 @@
 #define	HIO_FLUSH		4
 #define	HIO_KEEPALIVE		5
 
-#define	HAST_USER	"hast"
-#define	HAST_TIMEOUT	20
-#define	HAST_CONFIG	"/etc/hast.conf"
-#define	HAST_CONTROL	"/var/run/hastctl"
-#define	HASTD_LISTEN	"tcp4://0.0.0.0:8457"
-#define	HASTD_PIDFILE	"/var/run/hastd.pid"
+#define	HAST_USER		"hast"
+#define	HAST_TIMEOUT		20
+#define	HAST_CONFIG		"/etc/hast.conf"
+#define	HAST_CONTROL		"/var/run/hastctl"
+#define	HASTD_LISTEN_IPV4	"tcp4://0.0.0.0:8457"
+#define	HASTD_LISTEN_IPV6	"tcp6://[::]:8457"
+#define	HASTD_PIDFILE		"/var/run/hastd.pid"
 
 /* Default extent size. */
 #define	HAST_EXTENTSIZE	2097152
@@ -100,6 +101,14 @@
 /* Number of seconds to sleep between reconnect retries or keepalive packets. */
 #define	HAST_KEEPALIVE	10
 
+struct hastd_listen {
+	/* Address to listen on. */
+	char	 hl_addr[HAST_ADDRSIZE];
+	/* Protocol-specific data. */
+	struct proto_conn *hl_conn;
+	TAILQ_ENTRY(hastd_listen) hl_next;
+};
+
 struct hastd_config {
 	/* Address to communicate with hastctl(8). */
 	char	 hc_controladdr[HAST_ADDRSIZE];
@@ -107,10 +116,8 @@ struct hastd_config {
 	struct proto_conn *hc_controlconn;
 	/* Incoming control connection. */
 	struct proto_conn *hc_controlin;
-	/* Address to listen on. */
-	char	 hc_listenaddr[HAST_ADDRSIZE];
-	/* Protocol-specific data. */
-	struct proto_conn *hc_listenconn;
+	/* List of addresses to listen on. */
+	TAILQ_HEAD(, hastd_listen) hc_listen;
 	/* List of resources. */
 	TAILQ_HEAD(, hast_resource) hc_resources;
 };
