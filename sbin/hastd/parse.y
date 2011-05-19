@@ -33,12 +33,14 @@
 
 #include <sys/param.h>	/* MAXHOSTNAMELEN */
 #include <sys/queue.h>
+#include <sys/socket.h>
 #include <sys/sysctl.h>
 
 #include <arpa/inet.h>
 
 #include <assert.h>
 #include <err.h>
+#include <errno.h>
 #include <stdio.h>
 #include <string.h>
 #include <sysexits.h>
@@ -59,7 +61,9 @@ static struct hast_resource *curres;
 static bool mynode, hadmynode;
 
 static char depth0_control[HAST_ADDRSIZE];
-static char depth0_listen[HAST_ADDRSIZE];
+static char depth0_listen_ipv4[HAST_ADDRSIZE];
+static char depth0_listen_ipv6[HAST_ADDRSIZE];
+static TAILQ_HEAD(, hastd_listen) depth0_listen;
 static int depth0_replication;
 static int depth0_checksum;
 static int depth0_compression;
@@ -112,6 +116,19 @@ isitme(const char *name)
 	 * Looks like this isn't about us.
 	 */
 	return (0);
+}
+
+static bool
+family_supported(int family)
+{
+	int sock;
+
+	sock = socket(family, SOCK_STREAM, 0);
+	if (sock == -1 && errno == EPROTONOSUPPORT)
+		return (false);
+	if (sock >= 0)
+		(void)close(sock);
+	return (true);
 }
 
 static int
@@ -175,7 +192,11 @@ yy_config_parse(const char *config, bool exitonerror)
 	depth0_checksum = HAST_CHECKSUM_NONE;
 	depth0_compression = HAST_COMPRESSION_HOLE;
 	strlcpy(depth0_control, HAST_CONTROL, sizeof(depth0_control));
-	strlcpy(depth0_listen, HASTD_LISTEN, sizeof(depth0_listen));
+	TAILQ_INIT(&depth0_listen);
+	strlcpy(depth0_listen_ipv4, HASTD_LISTEN_IPV4,
+	    sizeof(depth0_listen_ipv4));
+	strlcpy(depth0_listen_ipv6, HASTD_LISTEN_IPV6,
+	    sizeof(depth0_listen_ipv6));
 	depth0_exec[0] = '\0';
 
 	lconfig = calloc(1, sizeof(*lconfig));
@@ -186,6 +207,7 @@ yy_config_parse(const char *config, bool exitonerror)
 		return (NULL);
 	}
 
+	TAILQ_INIT(&lconfig->hc_listen);
 	TAILQ_INIT(&lconfig->hc_resources);
 
 	yyin = fopen(config, "r");
@@ -214,9 +236,52 @@ yy_config_parse(const char *config, bool exitonerror)
 		strlcpy(lconfig->hc_controladdr, depth0_control,
 		    sizeof(lconfig->hc_controladdr));
 	}
-	if (lconfig->hc_listenaddr[0] == '\0') {
-		strlcpy(lconfig->hc_listenaddr, depth0_listen,
-		    sizeof(lconfig->hc_listenaddr));
+	if (!TAILQ_EMPTY(&depth0_listen))
+		TAILQ_CONCAT(&lconfig->hc_listen, &depth0_listen, hl_next);
+	if (TAILQ_EMPTY(&lconfig->hc_listen)) {
+		struct hastd_listen *lst;
+
+		if (family_supported(AF_INET)) {
+			lst = calloc(1, sizeof(*lst));
+			if (lst == NULL) {
+				pjdlog_error("Unable to allocate memory for listen address.");
+				yy_config_free(lconfig);
+				if (exitonerror)
+					exit(EX_TEMPFAIL);
+				return (NULL);
+			}
+			(void)strlcpy(lst->hl_addr, depth0_listen_ipv4,
+			    sizeof(lst->hl_addr));
+			TAILQ_INSERT_TAIL(&lconfig->hc_listen, lst, hl_next);
+		} else {
+			pjdlog_debug(1,
+			    "No IPv4 support in the kernel, not listening on IPv4 address.");
+		}
+#ifdef notyet
+		if (family_supported(AF_INET6)) {
+			lst = calloc(1, sizeof(*lst));
+			if (lst == NULL) {
+				pjdlog_error("Unable to allocate memory for listen address.");
+				yy_config_free(lconfig);
+				if (exitonerror)
+					exit(EX_TEMPFAIL);
+				return (NULL);
+			}
+			(void)strlcpy(lst->hl_addr, depth0_listen_ipv6,
+			    sizeof(lst->hl_addr));
+			TAILQ_INSERT_TAIL(&lconfig->hc_listen, lst, hl_next);
+		} else {
+			pjdlog_debug(1,
+			    "No IPv6 support in the kernel, not listening on IPv6 address.");
+		}
+#endif
+		if (TAILQ_EMPTY(&lconfig->hc_listen)) {
+			pjdlog_error("No address to listen on.");
+			yy_config_free(lconfig);
+			if (exitonerror)
+				exit(EX_TEMPFAIL);
+			return (NULL);
+		}
 	}
 	TAILQ_FOREACH(curres, &lconfig->hc_resources, hr_next) {
 		assert(curres->hr_provname[0] != '\0');
@@ -274,8 +339,17 @@ yy_config_parse(const char *config, bool exitonerror)
 void
 yy_config_free(struct hastd_config *config)
 {
+	struct hastd_listen *lst;
 	struct hast_resource *res;
 
+	while ((lst = TAILQ_FIRST(&depth0_listen)) != NULL) {
+		TAILQ_REMOVE(&depth0_listen, lst, hl_next);
+		free(lst);
+	}
+	while ((lst = TAILQ_FIRST(&config->hc_listen)) != NULL) {
+		TAILQ_REMOVE(&config->hc_listen, lst, hl_next);
+		free(lst);
+	}
 	while ((res = TAILQ_FIRST(&config->hc_resources)) != NULL) {
 		TAILQ_REMOVE(&config->hc_resources, res, hr_next);
 		free(res);
@@ -362,26 +436,30 @@ control_statement:	CONTROL STR
 
 listen_statement:	LISTEN STR
 	{
+		struct hastd_listen *lst;
+
+		lst = calloc(1, sizeof(*lst));
+		if (lst == NULL) {
+			pjdlog_error("Unable to allocate memory for listen address.");
+			free($2);
+			return (1);
+		}
+		if (strlcpy(lst->hl_addr, $2, sizeof(lst->hl_addr)) >=
+		    sizeof(lst->hl_addr)) {
+			pjdlog_error("listen argument is too long.");
+			free($2);
+			free(lst);
+			return (1);
+		}
 		switch (depth) {
 		case 0:
-			if (strlcpy(depth0_listen, $2,
-			    sizeof(depth0_listen)) >=
-			    sizeof(depth0_listen)) {
-				pjdlog_error("listen argument is too long.");
-				free($2);
-				return (1);
-			}
+			TAILQ_INSERT_TAIL(&depth0_listen, lst, hl_next);
 			break;
 		case 1:
-			if (!mynode)
-				break;
-			if (strlcpy(lconfig->hc_listenaddr, $2,
-			    sizeof(lconfig->hc_listenaddr)) >=
-			    sizeof(lconfig->hc_listenaddr)) {
-				pjdlog_error("listen argument is too long.");
-				free($2);
-				return (1);
-			}
+			if (mynode)
+				TAILQ_INSERT_TAIL(&depth0_listen, lst, hl_next);
+			else
+				free(lst);
 			break;
 		default:
 			assert(!"listen at wrong depth level");
