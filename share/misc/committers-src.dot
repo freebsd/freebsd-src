@@ -100,6 +100,7 @@ antoine [label="Antoine Brodin\nantoine@FreeBSD.org\n2008/02/03"]
 ariff [label="Ariff Abdullah\nariff@FreeBSD.org\n2005/11/14"]
 art [label="Artem Belevich\nart@FreeBSD.org\n2011/03/29"]
 avg [label="Andriy Gapon\navg@FreeBSD.org\n2009/02/18"]
+benl [label="Ben Laurie\nbenl@FreeBSD.org\n2011/05/18"]
 benno [label="Benno Rice\nbenno@FreeBSD.org\n2000/11/02"]
 bms [label="Bruce M Simpson\nbms@FreeBSD.org\n2003/08/06"]
 brian [label="Brian Somers\nbrian@FreeBSD.org\n1996/12/16"]
@@ -486,6 +487,7 @@ peter -> asmodai
 peter -> jayanth
 peter -> ps
 
+philip -> benl
 philip -> ed
 philip -> jls
 philip -> matteo
@@ -545,6 +547,8 @@ sheldonh -> dwmalone
 sheldonh -> iedowse
 
 shin -> ume
+
+simon -> benl
 
 sos -> marcel
 
