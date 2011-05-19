@@ -70,6 +70,8 @@ static int			alt_break_state;
 #define	BVM_CONS_PORT	0x220
 static int bvm_cons_port = BVM_CONS_PORT;
 
+#define BVM_CONS_SIG	('b' << 8 | 'v')
+
 static void	bvm_timeout(void *);
 
 static cn_probe_t	bvm_cnprobe;
@@ -171,14 +173,16 @@ bvm_cnprobe(struct consdev *cp)
 	int disabled, port;
 
 	disabled = 0;
-	resource_int_value("bvmconsole", 0, "disabled", &disabled);
-	if (disabled)
-		cp->cn_pri = CN_DEAD;
-	else
-		cp->cn_pri = CN_NORMAL;
+	cp->cn_pri = CN_DEAD;
 
-	if (resource_int_value("bvmconsole", 0, "port", &port) == 0)
-		bvm_cons_port = port;
+	resource_int_value("bvmconsole", 0, "disabled", &disabled);
+	if (!disabled) {
+		if (resource_int_value("bvmconsole", 0, "port", &port) == 0)
+			bvm_cons_port = port;
+
+		if (inw(bvm_cons_port) == BVM_CONS_SIG)
+			cp->cn_pri = CN_REMOTE;
+	}
 }
 
 static void

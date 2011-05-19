@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include "inout.h"
 
 #define	BVM_CONSOLE_PORT	0x220
+#define	BVM_CONS_SIG		('b' << 8 | 'v')
 
 static struct termios tio_orig, tio_new;
 
@@ -102,6 +103,11 @@ console_handler(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 		uint32_t *eax, void *arg)
 {
 	static int opened;
+
+	if (bytes == 2 && in) {
+		*eax = BVM_CONS_SIG;
+		return (0);
+	}
 
 	if (bytes != 4)
 		return (-1);
