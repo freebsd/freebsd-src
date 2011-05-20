@@ -1859,7 +1859,6 @@ static int
 dsp_mmap(struct cdev *i_dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
 {
 
-	/* XXX memattr is not honored */
 	*paddr = vtophys(offset);
 	return (0);
 }
@@ -1916,7 +1915,7 @@ dsp_mmap_single(struct cdev *i_dev, vm_ooffset_t *offset,
 	*offset = (uintptr_t)sndbuf_getbufofs(c->bufsoft, *offset);
 	relchns(i_dev, rdch, wrch, SD_F_PRIO_RD | SD_F_PRIO_WR);
 	*object = vm_pager_allocate(OBJT_DEVICE, i_dev,
-	    size, nprot, *offset, curthread->td_ucred);
+	    size, nprot, *offset);
 
 	PCM_GIANT_LEAVE(d);
 
