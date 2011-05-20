@@ -739,8 +739,10 @@ gem_reset_rxdma(struct gem_softc *sc)
 {
 	int i;
 
-	if (gem_reset_rx(sc) != 0)
+	if (gem_reset_rx(sc) != 0) {
+		sc->sc_ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		return (gem_init_locked(sc));
+	}
 	for (i = 0; i < GEM_NRXDESC; i++)
 		if (sc->sc_rxsoft[i].rxs_mbuf != NULL)
 			GEM_UPDATE_RXDESC(sc, i);
@@ -923,6 +925,9 @@ gem_init_locked(struct gem_softc *sc)
 	uint32_t v;
 
 	GEM_LOCK_ASSERT(sc, MA_OWNED);
+
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+		return;
 
 #ifdef GEM_DEBUG
 	CTR2(KTR_GEM, "%s: %s: calling stop", device_get_name(sc->sc_dev),
@@ -1762,6 +1767,7 @@ gem_intr(void *v)
 		if ((status2 &
 		    (GEM_MAC_TX_UNDERRUN | GEM_MAC_TX_PKT_TOO_LONG)) != 0) {
 			sc->sc_ifp->if_oerrors++;
+			sc->sc_ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			gem_init_locked(sc);
 		}
 	}
@@ -1814,6 +1820,7 @@ gem_watchdog(struct gem_softc *sc)
 	++ifp->if_oerrors;
 
 	/* Try to get more packets going. */
+	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	gem_init_locked(sc);
 	gem_start_locked(ifp);
 	return (EJUSTRETURN);
