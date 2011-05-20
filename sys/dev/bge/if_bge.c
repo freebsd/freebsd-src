@@ -214,9 +214,15 @@ static const struct bge_type {
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5906 },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5906M },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM57760 },
+	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM57761 },
+	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM57765 },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM57780 },
+	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM57781 },
+	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM57785 },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM57788 },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM57790 },
+	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM57791 },
+	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM57795 },
 
 	{ SK_VENDORID,		SK_DEVICEID_ALTIMA },
 
@@ -307,6 +313,8 @@ static const struct bge_revision {
 	{ BGE_CHIPID_BCM5787_A2,	"BCM5754/5787 A2" },
 	{ BGE_CHIPID_BCM5906_A1,	"BCM5906 A1" },
 	{ BGE_CHIPID_BCM5906_A2,	"BCM5906 A2" },
+	{ BGE_CHIPID_BCM57765_A0,	"BCM57765 A0" },
+	{ BGE_CHIPID_BCM57765_B0,	"BCM57765 B0" },
 	{ BGE_CHIPID_BCM57780_A0,	"BCM57780 A0" },
 	{ BGE_CHIPID_BCM57780_A1,	"BCM57780 A1" },
 
@@ -335,6 +343,7 @@ static const struct bge_revision const bge_majorrevs[] = {
 	/* 5754 and 5787 share the same ASIC ID */
 	{ BGE_ASICREV_BCM5787,		"unknown BCM5754/5787" },
 	{ BGE_ASICREV_BCM5906,		"unknown BCM5906" },
+	{ BGE_ASICREV_BCM57765,		"unknown BCM57765" },
 	{ BGE_ASICREV_BCM57780,		"unknown BCM57780" },
 	{ BGE_ASICREV_BCM5717,		"unknown BCM5717" },
 
@@ -1467,8 +1476,11 @@ bge_chipinit(struct bge_softc *sc)
 	if (sc->bge_asicrev == BGE_ASICREV_BCM5703 ||
 	    sc->bge_asicrev == BGE_ASICREV_BCM5704)
 		dma_rw_ctl &= ~BGE_PCIDMARWCTL_MINDMA;
-	if (BGE_IS_5717_PLUS(sc))
+	if (BGE_IS_5717_PLUS(sc)) {
 		dma_rw_ctl &= ~BGE_PCIDMARWCTL_DIS_CACHE_ALIGNMENT;
+		if (sc->bge_chipid == BGE_CHIPID_BCM57765_A0)
+			dma_rw_ctl &= ~BGE_PCIDMARWCTL_CRDRDR_RDMA_MRRS_MSK;
+	}
 	pci_write_config(sc->bge_dev, BGE_PCI_DMA_RW_CTL, dma_rw_ctl, 4);
 
 	/*
@@ -1552,7 +1564,8 @@ bge_blockinit(struct bge_softc *sc)
 	}
 
 	/* Configure mbuf pool watermarks */
-	if (sc->bge_asicrev == BGE_ASICREV_BCM5717) {
+	if (sc->bge_asicrev == BGE_ASICREV_BCM5717 ||
+	    sc->bge_asicrev == BGE_ASICREV_BCM57765) {
 		CSR_WRITE_4(sc, BGE_BMAN_MBUFPOOL_READDMA_LOWAT, 0x0);
 		if (sc->bge_ifp->if_mtu > ETHERMTU) {
 			CSR_WRITE_4(sc, BGE_BMAN_MBUFPOOL_MACRX_LOWAT, 0x7e);
@@ -1819,7 +1832,8 @@ bge_blockinit(struct bge_softc *sc)
 		limit = 16;
 	} else if (!BGE_IS_5705_PLUS(sc))
 		limit = BGE_RX_RINGS_MAX;
-	else if (sc->bge_asicrev == BGE_ASICREV_BCM5755)
+	else if (sc->bge_asicrev == BGE_ASICREV_BCM5755 ||
+	    sc->bge_asicrev == BGE_ASICREV_BCM57765)
 		limit = 4;
 	else
 		limit = 1;
@@ -2179,6 +2193,15 @@ bge_probe(device_t dev)
 				case BCOM_DEVICEID_BCM5718:
 					id = pci_read_config(dev,
 					    BGE_PCI_GEN2_PRODID_ASICREV, 4);
+					break;
+				case BCOM_DEVICEID_BCM57761:
+				case BCOM_DEVICEID_BCM57765:
+				case BCOM_DEVICEID_BCM57781:
+				case BCOM_DEVICEID_BCM57785:
+				case BCOM_DEVICEID_BCM57791:
+				case BCOM_DEVICEID_BCM57795:
+					id = pci_read_config(dev,
+					    BGE_PCI_GEN15_PRODID_ASICREV, 4);
 					break;
 				default:
 					id = pci_read_config(dev,
@@ -2694,6 +2717,15 @@ bge_attach(device_t dev)
 			sc->bge_chipid = pci_read_config(dev,
 			    BGE_PCI_GEN2_PRODID_ASICREV, 4);
 			break;
+		case BCOM_DEVICEID_BCM57761:
+		case BCOM_DEVICEID_BCM57765:
+		case BCOM_DEVICEID_BCM57781:
+		case BCOM_DEVICEID_BCM57785:
+		case BCOM_DEVICEID_BCM57791:
+		case BCOM_DEVICEID_BCM57795:
+			sc->bge_chipid = pci_read_config(dev,
+			    BGE_PCI_GEN15_PRODID_ASICREV, 4);
+			break;
 		default:
 			sc->bge_chipid = pci_read_config(dev,
 			    BGE_PCI_PRODID_ASICREV, 4);
@@ -2750,9 +2782,11 @@ bge_attach(device_t dev)
 	/* Save chipset family. */
 	switch (sc->bge_asicrev) {
 	case BGE_ASICREV_BCM5717:
+		sc->bge_flags |= BGE_FLAG_SHORT_DMA_BUG;
+	case BGE_ASICREV_BCM57765:
 		sc->bge_flags |= BGE_FLAG_5717_PLUS | BGE_FLAG_5755_PLUS |
 		    BGE_FLAG_575X_PLUS | BGE_FLAG_5705_PLUS | BGE_FLAG_JUMBO |
-		    BGE_FLAG_SHORT_DMA_BUG | BGE_FLAG_JUMBO_FRAME;
+		    BGE_FLAG_JUMBO_FRAME;
 		break;
 	case BGE_ASICREV_BCM5755:
 	case BGE_ASICREV_BCM5761:
@@ -2801,6 +2835,7 @@ bge_attach(device_t dev)
 	    sc->bge_asicrev != BGE_ASICREV_BCM5906 &&
 	    sc->bge_asicrev != BGE_ASICREV_BCM5717 &&
 	    sc->bge_asicrev != BGE_ASICREV_BCM5785 &&
+	    sc->bge_asicrev != BGE_ASICREV_BCM57765 &&
 	    sc->bge_asicrev != BGE_ASICREV_BCM57780) {
 		if (sc->bge_asicrev == BGE_ASICREV_BCM5755 ||
 		    sc->bge_asicrev == BGE_ASICREV_BCM5761 ||
@@ -3466,6 +3501,9 @@ bge_reset(struct bge_softc *sc)
 			device_printf(dev,
 			    "firmware handshake timed out, found 0x%08x\n",
 			    val);
+		/* BCM57765 A0 needs additional time before accessing. */
+		if (sc->bge_chipid == BGE_CHIPID_BCM57765_A0)
+			DELAY(10 * 1000);	/* XXX */
 	}
 
 	/*
@@ -3506,7 +3544,7 @@ bge_reset(struct bge_softc *sc)
 
 	/* XXX: Broadcom Linux driver. */
 	if (sc->bge_flags & BGE_FLAG_PCIE &&
-	    sc->bge_asicrev != BGE_ASICREV_BCM5717 &&
+	    !BGE_IS_5717_PLUS(sc) &&
 	    sc->bge_chipid != BGE_CHIPID_BCM5750_A0 &&
 	    sc->bge_asicrev != BGE_ASICREV_BCM5785) {
 		/* Enable Data FIFO protection. */
@@ -4735,7 +4773,10 @@ bge_init_locked(struct bge_softc *sc)
 	 * this number of frames, it will drop subsequent incoming
 	 * frames until the MBUF High Watermark is reached.
 	 */
-	CSR_WRITE_4(sc, BGE_MAX_RX_FRAME_LOWAT, 2);
+	if (sc->bge_asicrev == BGE_ASICREV_BCM57765)
+		CSR_WRITE_4(sc, BGE_MAX_RX_FRAME_LOWAT, 1);
+	else
+		CSR_WRITE_4(sc, BGE_MAX_RX_FRAME_LOWAT, 2);
 
 	/* Clear MAC statistics. */
 	if (BGE_IS_5705_PLUS(sc))
