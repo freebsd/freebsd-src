@@ -1513,10 +1513,12 @@ checkend: {
 
 				p = line;
 				for (q = eofmark + 1 ; *q && *p == *q ; p++, q++);
-				if (*p == '\n' && *q == '\0') {
+				if ((*p == '\0' || *p == '\n') && *q == '\0') {
 					c = PEOF;
-					plinno++;
-					needprompt = doprompt;
+					if (*p == '\n') {
+						plinno++;
+						needprompt = doprompt;
+					}
 				} else {
 					pushstring(line, strlen(line), NULL);
 				}
