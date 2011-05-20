@@ -61,8 +61,8 @@ static struct hast_resource *curres;
 static bool mynode, hadmynode;
 
 static char depth0_control[HAST_ADDRSIZE];
-static char depth0_listen_ipv4[HAST_ADDRSIZE];
-static char depth0_listen_ipv6[HAST_ADDRSIZE];
+static char depth0_listen_tcp4[HAST_ADDRSIZE];
+static char depth0_listen_tcp6[HAST_ADDRSIZE];
 static TAILQ_HEAD(, hastd_listen) depth0_listen;
 static int depth0_replication;
 static int depth0_checksum;
@@ -193,10 +193,10 @@ yy_config_parse(const char *config, bool exitonerror)
 	depth0_compression = HAST_COMPRESSION_HOLE;
 	strlcpy(depth0_control, HAST_CONTROL, sizeof(depth0_control));
 	TAILQ_INIT(&depth0_listen);
-	strlcpy(depth0_listen_ipv4, HASTD_LISTEN_IPV4,
-	    sizeof(depth0_listen_ipv4));
-	strlcpy(depth0_listen_ipv6, HASTD_LISTEN_IPV6,
-	    sizeof(depth0_listen_ipv6));
+	strlcpy(depth0_listen_tcp4, HASTD_LISTEN_TCP4,
+	    sizeof(depth0_listen_tcp4));
+	strlcpy(depth0_listen_tcp6, HASTD_LISTEN_TCP6,
+	    sizeof(depth0_listen_tcp6));
 	depth0_exec[0] = '\0';
 
 	lconfig = calloc(1, sizeof(*lconfig));
@@ -250,7 +250,7 @@ yy_config_parse(const char *config, bool exitonerror)
 					exit(EX_TEMPFAIL);
 				return (NULL);
 			}
-			(void)strlcpy(lst->hl_addr, depth0_listen_ipv4,
+			(void)strlcpy(lst->hl_addr, depth0_listen_tcp4,
 			    sizeof(lst->hl_addr));
 			TAILQ_INSERT_TAIL(&lconfig->hc_listen, lst, hl_next);
 		} else {
@@ -267,7 +267,7 @@ yy_config_parse(const char *config, bool exitonerror)
 					exit(EX_TEMPFAIL);
 				return (NULL);
 			}
-			(void)strlcpy(lst->hl_addr, depth0_listen_ipv6,
+			(void)strlcpy(lst->hl_addr, depth0_listen_tcp6,
 			    sizeof(lst->hl_addr));
 			TAILQ_INSERT_TAIL(&lconfig->hc_listen, lst, hl_next);
 		} else {
