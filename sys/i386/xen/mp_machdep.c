@@ -154,6 +154,7 @@ static cpuset_t	hyperthreading_cpus_mask;
 
 extern void Xhypervisor_callback(void);
 extern void failsafe_callback(void);
+extern void pmap_lazyfix_action(void);
 
 struct cpu_group *
 cpu_topo(void)
@@ -341,16 +342,24 @@ iv_invlcache(uintptr_t a, uintptr_t b)
 	atomic_add_int(&smp_tlb_wait, 1);
 }
 
+static void
+iv_lazypmap(uintptr_t a, uintptr_t b)
+{
+	pmap_lazyfix_action();
+	atomic_add_int(&smp_tlb_wait, 1);
+}
+
 /*
  * These start from "IPI offset" APIC_IPI_INTS
  */
-static call_data_func_t *ipi_vectors[5] = 
+static call_data_func_t *ipi_vectors[6] = 
 {
   iv_rendezvous,
   iv_invltlb,
   iv_invlpg,
   iv_invlrng,
   iv_invlcache,
+  iv_lazypmap,
 };
 
 /*

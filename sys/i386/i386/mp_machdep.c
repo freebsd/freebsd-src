@@ -166,6 +166,7 @@ u_long *ipi_invlrng_counts[MAXCPU];
 u_long *ipi_invlpg_counts[MAXCPU];
 u_long *ipi_invlcache_counts[MAXCPU];
 u_long *ipi_rendezvous_counts[MAXCPU];
+u_long *ipi_lazypmap_counts[MAXCPU];
 static u_long *ipi_hardclock_counts[MAXCPU];
 #endif
 
@@ -573,6 +574,10 @@ cpu_mp_start(void)
 
 	/* Install an inter-CPU IPI for cache invalidation. */
 	setidt(IPI_INVLCACHE, IDTVEC(invlcache),
+	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
+
+	/* Install an inter-CPU IPI for lazy pmap release */
+	setidt(IPI_LAZYPMAP, IDTVEC(lazypmap),
 	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
 
 	/* Install an inter-CPU IPI for all-CPU rendezvous */
@@ -1718,6 +1723,8 @@ mp_ipi_intrcnt(void *dummy)
 		intrcnt_add(buf, &ipi_ast_counts[i]);
 		snprintf(buf, sizeof(buf), "cpu%d:rendezvous", i);
 		intrcnt_add(buf, &ipi_rendezvous_counts[i]);
+		snprintf(buf, sizeof(buf), "cpu%d:lazypmap", i);
+		intrcnt_add(buf, &ipi_lazypmap_counts[i]);
 		snprintf(buf, sizeof(buf), "cpu%d:hardclock", i);
 		intrcnt_add(buf, &ipi_hardclock_counts[i]);
 	}		
