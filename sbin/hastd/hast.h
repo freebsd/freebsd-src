@@ -86,8 +86,8 @@
 #define	HAST_TIMEOUT		20
 #define	HAST_CONFIG		"/etc/hast.conf"
 #define	HAST_CONTROL		"/var/run/hastctl"
-#define	HASTD_LISTEN_IPV4	"tcp4://0.0.0.0:8457"
-#define	HASTD_LISTEN_IPV6	"tcp6://[::]:8457"
+#define	HASTD_LISTEN_TCP4	"tcp4://0.0.0.0:8457"
+#define	HASTD_LISTEN_TCP6	"tcp6://[::]:8457"
 #define	HASTD_PIDFILE		"/var/run/hastd.pid"
 
 /* Default extent size. */
