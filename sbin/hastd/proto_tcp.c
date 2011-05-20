@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2009-2010 The FreeBSD Foundation
+ * Copyright (c) 2011 Pawel Jakub Dawidek <pawel@dawidek.net>
  * All rights reserved.
  *
  * This software was developed by Pawel Jakub Dawidek under sponsorship from
@@ -51,10 +52,10 @@ __FBSDID("$FreeBSD$");
 #include "proto_impl.h"
 #include "subr.h"
 
-#define	TCP_CTX_MAGIC	0x7c441c
+#define	TCP_CTX_MAGIC	0x7c41c
 struct tcp_ctx {
 	int			tc_magic;
-	struct sockaddr_in	tc_sin;
+	struct sockaddr_storage	tc_sa;
 	int			tc_fd;
 	int			tc_side;
 #define	TCP_SIDE_CLIENT		0
@@ -64,24 +65,6 @@ struct tcp_ctx {
 
 static int tcp_connect_wait(void *ctx, int timeout);
 static void tcp_close(void *ctx);
-
-static in_addr_t
-str2ip(const char *str)
-{
-	struct hostent *hp;
-	in_addr_t ip;
-
-	ip = inet_addr(str);
-	if (ip != INADDR_NONE) {
-		/* It is a valid IP address. */
-		return (ip);
-	}
-	/* Check if it is a valid host name. */
-	hp = gethostbyname(str);
-	if (hp == NULL)
-		return (INADDR_NONE);
-	return (((struct in_addr *)(void *)hp->h_addr)->s_addr);
-}
 
 /*
  * Function converts the given string to unsigned number.
@@ -114,57 +97,93 @@ invalid:
 }
 
 static int
-tcp_addr(const char *addr, int defport, struct sockaddr_in *sinp)
+tcp_addr(const char *addr, int defport, struct sockaddr_storage *sap)
 {
-	char iporhost[MAXHOSTNAMELEN];
+	char iporhost[MAXHOSTNAMELEN], portstr[6];
+	struct addrinfo hints;
+	struct addrinfo *res;
 	const char *pp;
+	intmax_t port;
 	size_t size;
-	in_addr_t ip;
+	int error;
 
 	if (addr == NULL)
 		return (-1);
 
-	if (strncasecmp(addr, "tcp://", 7) == 0)
+	bzero(&hints, sizeof(hints));
+	hints.ai_flags = AI_ADDRCONFIG | AI_NUMERICSERV;
+	hints.ai_family = PF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_protocol = IPPROTO_TCP;
+
+	if (strncasecmp(addr, "tcp4://", 7) == 0) {
 		addr += 7;
-	else if (strncasecmp(addr, "tcp://", 6) == 0)
+		hints.ai_family = PF_INET;
+	} else if (strncasecmp(addr, "tcp6://", 7) == 0) {
+		addr += 7;
+		hints.ai_family = PF_INET6;
+	} else if (strncasecmp(addr, "tcp://", 6) == 0) {
 		addr += 6;
-	else {
+	} else {
 		/*
 		 * Because TCP is the default assume IP or host is given without
 		 * prefix.
 		 */
 	}
 
-	sinp->sin_family = AF_INET;
-	sinp->sin_len = sizeof(*sinp);
-	/* Extract optional port. */
-	pp = strrchr(addr, ':');
+	/*
+	 * Extract optional port.
+	 * There are three cases to consider.
+	 * 1. hostname with port, eg. freefall.freebsd.org:8457
+	 * 2. IPv4 address with port, eg. 192.168.0.101:8457
+	 * 3. IPv6 address with port, eg. [fe80::1]:8457
+	 * We discover IPv6 address by checking for two colons and if port is
+	 * given, the address has to start with [.
+	 */
+	pp = NULL;
+	if (strchr(addr, ':') != strrchr(addr, ':')) {
+		if (addr[0] == '[')
+			pp = strrchr(addr, ':');
+	} else {
+		pp = strrchr(addr, ':');
+	}
 	if (pp == NULL) {
 		/* Port not given, use the default. */
-		sinp->sin_port = htons(defport);
+		port = defport;
 	} else {
-		intmax_t port;
-
 		if (numfromstr(pp + 1, 1, 65535, &port) < 0)
 			return (errno);
-		sinp->sin_port = htons(port);
 	}
+	(void)snprintf(portstr, sizeof(portstr), "%jd", (intmax_t)port);
 	/* Extract host name or IP address. */
 	if (pp == NULL) {
 		size = sizeof(iporhost);
 		if (strlcpy(iporhost, addr, size) >= size)
 			return (ENAMETOOLONG);
+	} else if (addr[0] == '[' && pp[-1] == ']') {
+		size = (size_t)(pp - addr - 2 + 1);
+		if (size > sizeof(iporhost))
+			return (ENAMETOOLONG);
+		(void)strlcpy(iporhost, addr + 1, size);
 	} else {
 		size = (size_t)(pp - addr + 1);
 		if (size > sizeof(iporhost))
 			return (ENAMETOOLONG);
 		(void)strlcpy(iporhost, addr, size);
 	}
-	/* Convert string (IP address or host name) to in_addr_t. */
-	ip = str2ip(iporhost);
-	if (ip == INADDR_NONE)
+
+	error = getaddrinfo(iporhost, portstr, &hints, &res);
+	if (error != 0) {
+		pjdlog_debug(1, "getaddrinfo(%s, %s) failed: %s.", iporhost,
+		    portstr, gai_strerror(error));
 		return (EINVAL);
-	sinp->sin_addr.s_addr = ip;
+	}
+	if (res == NULL)
+		return (ENOENT);
+
+	memcpy(sap, res->ai_addr, res->ai_addrlen);
+
+	freeaddrinfo(res);
 
 	return (0);
 }
@@ -185,22 +204,21 @@ tcp_setup_new(const char *addr, int side, void **ctxp)
 		return (errno);
 
 	/* Parse given address. */
-	if ((ret = tcp_addr(addr, PROTO_TCP_DEFAULT_PORT,
-	    &tctx->tc_sin)) != 0) {
+	if ((ret = tcp_addr(addr, PROTO_TCP_DEFAULT_PORT, &tctx->tc_sa)) != 0) {
 		free(tctx);
 		return (ret);
 	}
 
-	PJDLOG_ASSERT(tctx->tc_sin.sin_family != AF_UNSPEC);
+	PJDLOG_ASSERT(tctx->tc_sa.ss_family != AF_UNSPEC);
 
-	tctx->tc_fd = socket(AF_INET, SOCK_STREAM, 0);
+	tctx->tc_fd = socket(tctx->tc_sa.ss_family, SOCK_STREAM, 0);
 	if (tctx->tc_fd == -1) {
 		ret = errno;
 		free(tctx);
 		return (ret);
 	}
 
-	PJDLOG_ASSERT(tctx->tc_sin.sin_family != AF_UNSPEC);
+	PJDLOG_ASSERT(tctx->tc_sa.ss_family != AF_UNSPEC);
 
 	/* Socket settings. */
 	nodelay = 1;
@@ -231,7 +249,7 @@ tcp_setup_wrap(int fd, int side, void **ctxp)
 		return (errno);
 
 	tctx->tc_fd = fd;
-	tctx->tc_sin.sin_family = AF_UNSPEC;
+	tctx->tc_sa.ss_family = AF_UNSPEC;
 	tctx->tc_side = side;
 	tctx->tc_magic = TCP_CTX_MAGIC;
 	*ctxp = tctx;
@@ -243,7 +261,7 @@ static int
 tcp_client(const char *srcaddr, const char *dstaddr, void **ctxp)
 {
 	struct tcp_ctx *tctx;
-	struct sockaddr_in sin;
+	struct sockaddr_storage sa;
 	int ret;
 
 	ret = tcp_setup_new(dstaddr, TCP_SIDE_CLIENT, ctxp);
@@ -252,12 +270,12 @@ tcp_client(const char *srcaddr, const char *dstaddr, void **ctxp)
 	tctx = *ctxp;
 	if (srcaddr == NULL)
 		return (0);
-	ret = tcp_addr(srcaddr, 0, &sin);
+	ret = tcp_addr(srcaddr, 0, &sa);
 	if (ret != 0) {
 		tcp_close(tctx);
 		return (ret);
 	}
-	if (bind(tctx->tc_fd, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
+	if (bind(tctx->tc_fd, (struct sockaddr *)&sa, sa.ss_len) < 0) {
 		ret = errno;
 		tcp_close(tctx);
 		return (ret);
@@ -275,7 +293,7 @@ tcp_connect(void *ctx, int timeout)
 	PJDLOG_ASSERT(tctx->tc_magic == TCP_CTX_MAGIC);
 	PJDLOG_ASSERT(tctx->tc_side == TCP_SIDE_CLIENT);
 	PJDLOG_ASSERT(tctx->tc_fd >= 0);
-	PJDLOG_ASSERT(tctx->tc_sin.sin_family != AF_UNSPEC);
+	PJDLOG_ASSERT(tctx->tc_sa.ss_family != AF_UNSPEC);
 	PJDLOG_ASSERT(timeout >= -1);
 
 	flags = fcntl(tctx->tc_fd, F_GETFL);
@@ -295,8 +313,8 @@ tcp_connect(void *ctx, int timeout)
 		return (errno);
 	}
 
-	if (connect(tctx->tc_fd, (struct sockaddr *)&tctx->tc_sin,
-	    sizeof(tctx->tc_sin)) == 0) {
+	if (connect(tctx->tc_fd, (struct sockaddr *)&tctx->tc_sa,
+	    tctx->tc_sa.ss_len) == 0) {
 		if (timeout == -1)
 			return (0);
 		error = 0;
@@ -403,10 +421,10 @@ tcp_server(const char *addr, void **ctxp)
 	(void)setsockopt(tctx->tc_fd, SOL_SOCKET, SO_REUSEADDR, &val,
 	   sizeof(val));
 
-	PJDLOG_ASSERT(tctx->tc_sin.sin_family != AF_UNSPEC);
+	PJDLOG_ASSERT(tctx->tc_sa.ss_family != AF_UNSPEC);
 
-	if (bind(tctx->tc_fd, (struct sockaddr *)&tctx->tc_sin,
-	    sizeof(tctx->tc_sin)) < 0) {
+	if (bind(tctx->tc_fd, (struct sockaddr *)&tctx->tc_sa,
+	    tctx->tc_sa.ss_len) < 0) {
 		ret = errno;
 		tcp_close(tctx);
 		return (ret);
@@ -432,14 +450,14 @@ tcp_accept(void *ctx, void **newctxp)
 	PJDLOG_ASSERT(tctx->tc_magic == TCP_CTX_MAGIC);
 	PJDLOG_ASSERT(tctx->tc_side == TCP_SIDE_SERVER_LISTEN);
 	PJDLOG_ASSERT(tctx->tc_fd >= 0);
-	PJDLOG_ASSERT(tctx->tc_sin.sin_family != AF_UNSPEC);
+	PJDLOG_ASSERT(tctx->tc_sa.ss_family != AF_UNSPEC);
 
 	newtctx = malloc(sizeof(*newtctx));
 	if (newtctx == NULL)
 		return (errno);
 
-	fromlen = sizeof(tctx->tc_sin);
-	newtctx->tc_fd = accept(tctx->tc_fd, (struct sockaddr *)&tctx->tc_sin,
+	fromlen = tctx->tc_sa.ss_len;
+	newtctx->tc_fd = accept(tctx->tc_fd, (struct sockaddr *)&tctx->tc_sa,
 	    &fromlen);
 	if (newtctx->tc_fd < 0) {
 		ret = errno;
@@ -503,59 +521,82 @@ static bool
 tcp_address_match(const void *ctx, const char *addr)
 {
 	const struct tcp_ctx *tctx = ctx;
-	struct sockaddr_in sin;
-	socklen_t sinlen;
-	in_addr_t ip1, ip2;
+	struct sockaddr_storage sa1, sa2;
+	socklen_t salen;
 
 	PJDLOG_ASSERT(tctx != NULL);
 	PJDLOG_ASSERT(tctx->tc_magic == TCP_CTX_MAGIC);
 
-	if (tcp_addr(addr, PROTO_TCP_DEFAULT_PORT, &sin) != 0)
+	if (tcp_addr(addr, PROTO_TCP_DEFAULT_PORT, &sa1) != 0)
 		return (false);
-	ip1 = sin.sin_addr.s_addr;
 
-	sinlen = sizeof(sin);
-	if (getpeername(tctx->tc_fd, (struct sockaddr *)&sin, &sinlen) < 0)
+	salen = sizeof(sa2);
+	if (getpeername(tctx->tc_fd, (struct sockaddr *)&sa2, &salen) < 0)
 		return (false);
-	ip2 = sin.sin_addr.s_addr;
 
-	return (ip1 == ip2);
+	if (sa1.ss_family != sa2.ss_family || sa1.ss_len != sa2.ss_len)
+		return (false);
+
+	switch (sa1.ss_family) {
+	case AF_INET:
+	    {
+		struct sockaddr_in *sin1, *sin2;
+
+		sin1 = (struct sockaddr_in *)&sa1;
+		sin2 = (struct sockaddr_in *)&sa2;
+
+		return (memcmp(&sin1->sin_addr, &sin2->sin_addr,
+		    sizeof(sin1->sin_addr)) == 0);
+	    }
+	case AF_INET6:
+	    {
+		struct sockaddr_in6 *sin1, *sin2;
+
+		sin1 = (struct sockaddr_in6 *)&sa1;
+		sin2 = (struct sockaddr_in6 *)&sa2;
+
+		return (memcmp(&sin1->sin6_addr, &sin2->sin6_addr,
+		    sizeof(sin1->sin6_addr)) == 0);
+	    }
+	default:
+		return (false);
+	}
 }
 
 static void
 tcp_local_address(const void *ctx, char *addr, size_t size)
 {
 	const struct tcp_ctx *tctx = ctx;
-	struct sockaddr_in sin;
-	socklen_t sinlen;
+	struct sockaddr_storage sa;
+	socklen_t salen;
 
 	PJDLOG_ASSERT(tctx != NULL);
 	PJDLOG_ASSERT(tctx->tc_magic == TCP_CTX_MAGIC);
 
-	sinlen = sizeof(sin);
-	if (getsockname(tctx->tc_fd, (struct sockaddr *)&sin, &sinlen) < 0) {
+	salen = sizeof(sa);
+	if (getsockname(tctx->tc_fd, (struct sockaddr *)&sa, &salen) < 0) {
 		PJDLOG_VERIFY(strlcpy(addr, "N/A", size) < size);
 		return;
 	}
-	PJDLOG_VERIFY(snprintf(addr, size, "tcp://%S", &sin) < (ssize_t)size);
+	PJDLOG_VERIFY(snprintf(addr, size, "tcp://%S", &sa) < (ssize_t)size);
 }
 
 static void
 tcp_remote_address(const void *ctx, char *addr, size_t size)
 {
 	const struct tcp_ctx *tctx = ctx;
-	struct sockaddr_in sin;
-	socklen_t sinlen;
+	struct sockaddr_storage sa;
+	socklen_t salen;
 
 	PJDLOG_ASSERT(tctx != NULL);
 	PJDLOG_ASSERT(tctx->tc_magic == TCP_CTX_MAGIC);
 
-	sinlen = sizeof(sin);
-	if (getpeername(tctx->tc_fd, (struct sockaddr *)&sin, &sinlen) < 0) {
+	salen = sizeof(sa);
+	if (getpeername(tctx->tc_fd, (struct sockaddr *)&sa, &salen) < 0) {
 		PJDLOG_VERIFY(strlcpy(addr, "N/A", size) < size);
 		return;
 	}
-	PJDLOG_VERIFY(snprintf(addr, size, "tcp://%S", &sin) < (ssize_t)size);
+	PJDLOG_VERIFY(snprintf(addr, size, "tcp://%S", &sa) < (ssize_t)size);
 }
 
 static void
