@@ -51,19 +51,19 @@ __FBSDID("$FreeBSD$");
 #include "proto_impl.h"
 #include "subr.h"
 
-#define	TCP4_CTX_MAGIC	0x7c441c
-struct tcp4_ctx {
+#define	TCP_CTX_MAGIC	0x7c441c
+struct tcp_ctx {
 	int			tc_magic;
 	struct sockaddr_in	tc_sin;
 	int			tc_fd;
 	int			tc_side;
-#define	TCP4_SIDE_CLIENT	0
-#define	TCP4_SIDE_SERVER_LISTEN	1
-#define	TCP4_SIDE_SERVER_WORK	2
+#define	TCP_SIDE_CLIENT		0
+#define	TCP_SIDE_SERVER_LISTEN	1
+#define	TCP_SIDE_SERVER_WORK	2
 };
 
-static int tcp4_connect_wait(void *ctx, int timeout);
-static void tcp4_close(void *ctx);
+static int tcp_connect_wait(void *ctx, int timeout);
+static void tcp_close(void *ctx);
 
 static in_addr_t
 str2ip(const char *str)
@@ -114,7 +114,7 @@ invalid:
 }
 
 static int
-tcp4_addr(const char *addr, int defport, struct sockaddr_in *sinp)
+tcp_addr(const char *addr, int defport, struct sockaddr_in *sinp)
 {
 	char iporhost[MAXHOSTNAMELEN];
 	const char *pp;
@@ -124,13 +124,13 @@ tcp4_addr(const char *addr, int defport, struct sockaddr_in *sinp)
 	if (addr == NULL)
 		return (-1);
 
-	if (strncasecmp(addr, "tcp4://", 7) == 0)
+	if (strncasecmp(addr, "tcp://", 7) == 0)
 		addr += 7;
 	else if (strncasecmp(addr, "tcp://", 6) == 0)
 		addr += 6;
 	else {
 		/*
-		 * Because TCP4 is the default assume IP or host is given without
+		 * Because TCP is the default assume IP or host is given without
 		 * prefix.
 		 */
 	}
@@ -170,14 +170,14 @@ tcp4_addr(const char *addr, int defport, struct sockaddr_in *sinp)
 }
 
 static int
-tcp4_setup_new(const char *addr, int side, void **ctxp)
+tcp_setup_new(const char *addr, int side, void **ctxp)
 {
-	struct tcp4_ctx *tctx;
+	struct tcp_ctx *tctx;
 	int ret, nodelay;
 
 	PJDLOG_ASSERT(addr != NULL);
-	PJDLOG_ASSERT(side == TCP4_SIDE_CLIENT ||
-	    side == TCP4_SIDE_SERVER_LISTEN);
+	PJDLOG_ASSERT(side == TCP_SIDE_CLIENT ||
+	    side == TCP_SIDE_SERVER_LISTEN);
 	PJDLOG_ASSERT(ctxp != NULL);
 
 	tctx = malloc(sizeof(*tctx));
@@ -185,7 +185,7 @@ tcp4_setup_new(const char *addr, int side, void **ctxp)
 		return (errno);
 
 	/* Parse given address. */
-	if ((ret = tcp4_addr(addr, PROTO_TCP4_DEFAULT_PORT,
+	if ((ret = tcp_addr(addr, PROTO_TCP_DEFAULT_PORT,
 	    &tctx->tc_sin)) != 0) {
 		free(tctx);
 		return (ret);
@@ -210,20 +210,20 @@ tcp4_setup_new(const char *addr, int side, void **ctxp)
 	}
 
 	tctx->tc_side = side;
-	tctx->tc_magic = TCP4_CTX_MAGIC;
+	tctx->tc_magic = TCP_CTX_MAGIC;
 	*ctxp = tctx;
 
 	return (0);
 }
 
 static int
-tcp4_setup_wrap(int fd, int side, void **ctxp)
+tcp_setup_wrap(int fd, int side, void **ctxp)
 {
-	struct tcp4_ctx *tctx;
+	struct tcp_ctx *tctx;
 
 	PJDLOG_ASSERT(fd >= 0);
-	PJDLOG_ASSERT(side == TCP4_SIDE_CLIENT ||
-	    side == TCP4_SIDE_SERVER_WORK);
+	PJDLOG_ASSERT(side == TCP_SIDE_CLIENT ||
+	    side == TCP_SIDE_SERVER_WORK);
 	PJDLOG_ASSERT(ctxp != NULL);
 
 	tctx = malloc(sizeof(*tctx));
@@ -233,47 +233,47 @@ tcp4_setup_wrap(int fd, int side, void **ctxp)
 	tctx->tc_fd = fd;
 	tctx->tc_sin.sin_family = AF_UNSPEC;
 	tctx->tc_side = side;
-	tctx->tc_magic = TCP4_CTX_MAGIC;
+	tctx->tc_magic = TCP_CTX_MAGIC;
 	*ctxp = tctx;
 
 	return (0);
 }
 
 static int
-tcp4_client(const char *srcaddr, const char *dstaddr, void **ctxp)
+tcp_client(const char *srcaddr, const char *dstaddr, void **ctxp)
 {
-	struct tcp4_ctx *tctx;
+	struct tcp_ctx *tctx;
 	struct sockaddr_in sin;
 	int ret;
 
-	ret = tcp4_setup_new(dstaddr, TCP4_SIDE_CLIENT, ctxp);
+	ret = tcp_setup_new(dstaddr, TCP_SIDE_CLIENT, ctxp);
 	if (ret != 0)
 		return (ret);
 	tctx = *ctxp;
 	if (srcaddr == NULL)
 		return (0);
-	ret = tcp4_addr(srcaddr, 0, &sin);
+	ret = tcp_addr(srcaddr, 0, &sin);
 	if (ret != 0) {
-		tcp4_close(tctx);
+		tcp_close(tctx);
 		return (ret);
 	}
 	if (bind(tctx->tc_fd, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
 		ret = errno;
-		tcp4_close(tctx);
+		tcp_close(tctx);
 		return (ret);
 	}
 	return (0);
 }
 
 static int
-tcp4_connect(void *ctx, int timeout)
+tcp_connect(void *ctx, int timeout)
 {
-	struct tcp4_ctx *tctx = ctx;
+	struct tcp_ctx *tctx = ctx;
 	int error, flags;
 
 	PJDLOG_ASSERT(tctx != NULL);
-	PJDLOG_ASSERT(tctx->tc_magic == TCP4_CTX_MAGIC);
-	PJDLOG_ASSERT(tctx->tc_side == TCP4_SIDE_CLIENT);
+	PJDLOG_ASSERT(tctx->tc_magic == TCP_CTX_MAGIC);
+	PJDLOG_ASSERT(tctx->tc_side == TCP_SIDE_CLIENT);
 	PJDLOG_ASSERT(tctx->tc_fd >= 0);
 	PJDLOG_ASSERT(tctx->tc_sin.sin_family != AF_UNSPEC);
 	PJDLOG_ASSERT(timeout >= -1);
@@ -309,7 +309,7 @@ tcp4_connect(void *ctx, int timeout)
 	}
 	if (timeout == -1)
 		return (0);
-	return (tcp4_connect_wait(ctx, timeout));
+	return (tcp_connect_wait(ctx, timeout));
 done:
 	flags &= ~O_NONBLOCK;
 	if (fcntl(tctx->tc_fd, F_SETFL, flags) == -1) {
@@ -322,17 +322,17 @@ done:
 }
 
 static int
-tcp4_connect_wait(void *ctx, int timeout)
+tcp_connect_wait(void *ctx, int timeout)
 {
-	struct tcp4_ctx *tctx = ctx;
+	struct tcp_ctx *tctx = ctx;
 	struct timeval tv;
 	fd_set fdset;
 	socklen_t esize;
 	int error, flags, ret;
 
 	PJDLOG_ASSERT(tctx != NULL);
-	PJDLOG_ASSERT(tctx->tc_magic == TCP4_CTX_MAGIC);
-	PJDLOG_ASSERT(tctx->tc_side == TCP4_SIDE_CLIENT);
+	PJDLOG_ASSERT(tctx->tc_magic == TCP_CTX_MAGIC);
+	PJDLOG_ASSERT(tctx->tc_side == TCP_SIDE_CLIENT);
 	PJDLOG_ASSERT(tctx->tc_fd >= 0);
 	PJDLOG_ASSERT(timeout >= 0);
 
@@ -387,12 +387,12 @@ done:
 }
 
 static int
-tcp4_server(const char *addr, void **ctxp)
+tcp_server(const char *addr, void **ctxp)
 {
-	struct tcp4_ctx *tctx;
+	struct tcp_ctx *tctx;
 	int ret, val;
 
-	ret = tcp4_setup_new(addr, TCP4_SIDE_SERVER_LISTEN, ctxp);
+	ret = tcp_setup_new(addr, TCP_SIDE_SERVER_LISTEN, ctxp);
 	if (ret != 0)
 		return (ret);
 
@@ -408,12 +408,12 @@ tcp4_server(const char *addr, void **ctxp)
 	if (bind(tctx->tc_fd, (struct sockaddr *)&tctx->tc_sin,
 	    sizeof(tctx->tc_sin)) < 0) {
 		ret = errno;
-		tcp4_close(tctx);
+		tcp_close(tctx);
 		return (ret);
 	}
 	if (listen(tctx->tc_fd, 8) < 0) {
 		ret = errno;
-		tcp4_close(tctx);
+		tcp_close(tctx);
 		return (ret);
 	}
 
@@ -421,16 +421,16 @@ tcp4_server(const char *addr, void **ctxp)
 }
 
 static int
-tcp4_accept(void *ctx, void **newctxp)
+tcp_accept(void *ctx, void **newctxp)
 {
-	struct tcp4_ctx *tctx = ctx;
-	struct tcp4_ctx *newtctx;
+	struct tcp_ctx *tctx = ctx;
+	struct tcp_ctx *newtctx;
 	socklen_t fromlen;
 	int ret;
 
 	PJDLOG_ASSERT(tctx != NULL);
-	PJDLOG_ASSERT(tctx->tc_magic == TCP4_CTX_MAGIC);
-	PJDLOG_ASSERT(tctx->tc_side == TCP4_SIDE_SERVER_LISTEN);
+	PJDLOG_ASSERT(tctx->tc_magic == TCP_CTX_MAGIC);
+	PJDLOG_ASSERT(tctx->tc_side == TCP_SIDE_SERVER_LISTEN);
 	PJDLOG_ASSERT(tctx->tc_fd >= 0);
 	PJDLOG_ASSERT(tctx->tc_sin.sin_family != AF_UNSPEC);
 
@@ -447,28 +447,28 @@ tcp4_accept(void *ctx, void **newctxp)
 		return (ret);
 	}
 
-	newtctx->tc_side = TCP4_SIDE_SERVER_WORK;
-	newtctx->tc_magic = TCP4_CTX_MAGIC;
+	newtctx->tc_side = TCP_SIDE_SERVER_WORK;
+	newtctx->tc_magic = TCP_CTX_MAGIC;
 	*newctxp = newtctx;
 
 	return (0);
 }
 
 static int
-tcp4_wrap(int fd, bool client, void **ctxp)
+tcp_wrap(int fd, bool client, void **ctxp)
 {
 
-	return (tcp4_setup_wrap(fd,
-	    client ? TCP4_SIDE_CLIENT : TCP4_SIDE_SERVER_WORK, ctxp));
+	return (tcp_setup_wrap(fd,
+	    client ? TCP_SIDE_CLIENT : TCP_SIDE_SERVER_WORK, ctxp));
 }
 
 static int
-tcp4_send(void *ctx, const unsigned char *data, size_t size, int fd)
+tcp_send(void *ctx, const unsigned char *data, size_t size, int fd)
 {
-	struct tcp4_ctx *tctx = ctx;
+	struct tcp_ctx *tctx = ctx;
 
 	PJDLOG_ASSERT(tctx != NULL);
-	PJDLOG_ASSERT(tctx->tc_magic == TCP4_CTX_MAGIC);
+	PJDLOG_ASSERT(tctx->tc_magic == TCP_CTX_MAGIC);
 	PJDLOG_ASSERT(tctx->tc_fd >= 0);
 	PJDLOG_ASSERT(fd == -1);
 
@@ -476,12 +476,12 @@ tcp4_send(void *ctx, const unsigned char *data, size_t size, int fd)
 }
 
 static int
-tcp4_recv(void *ctx, unsigned char *data, size_t size, int *fdp)
+tcp_recv(void *ctx, unsigned char *data, size_t size, int *fdp)
 {
-	struct tcp4_ctx *tctx = ctx;
+	struct tcp_ctx *tctx = ctx;
 
 	PJDLOG_ASSERT(tctx != NULL);
-	PJDLOG_ASSERT(tctx->tc_magic == TCP4_CTX_MAGIC);
+	PJDLOG_ASSERT(tctx->tc_magic == TCP_CTX_MAGIC);
 	PJDLOG_ASSERT(tctx->tc_fd >= 0);
 	PJDLOG_ASSERT(fdp == NULL);
 
@@ -489,28 +489,28 @@ tcp4_recv(void *ctx, unsigned char *data, size_t size, int *fdp)
 }
 
 static int
-tcp4_descriptor(const void *ctx)
+tcp_descriptor(const void *ctx)
 {
-	const struct tcp4_ctx *tctx = ctx;
+	const struct tcp_ctx *tctx = ctx;
 
 	PJDLOG_ASSERT(tctx != NULL);
-	PJDLOG_ASSERT(tctx->tc_magic == TCP4_CTX_MAGIC);
+	PJDLOG_ASSERT(tctx->tc_magic == TCP_CTX_MAGIC);
 
 	return (tctx->tc_fd);
 }
 
 static bool
-tcp4_address_match(const void *ctx, const char *addr)
+tcp_address_match(const void *ctx, const char *addr)
 {
-	const struct tcp4_ctx *tctx = ctx;
+	const struct tcp_ctx *tctx = ctx;
 	struct sockaddr_in sin;
 	socklen_t sinlen;
 	in_addr_t ip1, ip2;
 
 	PJDLOG_ASSERT(tctx != NULL);
-	PJDLOG_ASSERT(tctx->tc_magic == TCP4_CTX_MAGIC);
+	PJDLOG_ASSERT(tctx->tc_magic == TCP_CTX_MAGIC);
 
-	if (tcp4_addr(addr, PROTO_TCP4_DEFAULT_PORT, &sin) != 0)
+	if (tcp_addr(addr, PROTO_TCP_DEFAULT_PORT, &sin) != 0)
 		return (false);
 	ip1 = sin.sin_addr.s_addr;
 
@@ -523,48 +523,48 @@ tcp4_address_match(const void *ctx, const char *addr)
 }
 
 static void
-tcp4_local_address(const void *ctx, char *addr, size_t size)
+tcp_local_address(const void *ctx, char *addr, size_t size)
 {
-	const struct tcp4_ctx *tctx = ctx;
+	const struct tcp_ctx *tctx = ctx;
 	struct sockaddr_in sin;
 	socklen_t sinlen;
 
 	PJDLOG_ASSERT(tctx != NULL);
-	PJDLOG_ASSERT(tctx->tc_magic == TCP4_CTX_MAGIC);
+	PJDLOG_ASSERT(tctx->tc_magic == TCP_CTX_MAGIC);
 
 	sinlen = sizeof(sin);
 	if (getsockname(tctx->tc_fd, (struct sockaddr *)&sin, &sinlen) < 0) {
 		PJDLOG_VERIFY(strlcpy(addr, "N/A", size) < size);
 		return;
 	}
-	PJDLOG_VERIFY(snprintf(addr, size, "tcp4://%S", &sin) < (ssize_t)size);
+	PJDLOG_VERIFY(snprintf(addr, size, "tcp://%S", &sin) < (ssize_t)size);
 }
 
 static void
-tcp4_remote_address(const void *ctx, char *addr, size_t size)
+tcp_remote_address(const void *ctx, char *addr, size_t size)
 {
-	const struct tcp4_ctx *tctx = ctx;
+	const struct tcp_ctx *tctx = ctx;
 	struct sockaddr_in sin;
 	socklen_t sinlen;
 
 	PJDLOG_ASSERT(tctx != NULL);
-	PJDLOG_ASSERT(tctx->tc_magic == TCP4_CTX_MAGIC);
+	PJDLOG_ASSERT(tctx->tc_magic == TCP_CTX_MAGIC);
 
 	sinlen = sizeof(sin);
 	if (getpeername(tctx->tc_fd, (struct sockaddr *)&sin, &sinlen) < 0) {
 		PJDLOG_VERIFY(strlcpy(addr, "N/A", size) < size);
 		return;
 	}
-	PJDLOG_VERIFY(snprintf(addr, size, "tcp4://%S", &sin) < (ssize_t)size);
+	PJDLOG_VERIFY(snprintf(addr, size, "tcp://%S", &sin) < (ssize_t)size);
 }
 
 static void
-tcp4_close(void *ctx)
+tcp_close(void *ctx)
 {
-	struct tcp4_ctx *tctx = ctx;
+	struct tcp_ctx *tctx = ctx;
 
 	PJDLOG_ASSERT(tctx != NULL);
-	PJDLOG_ASSERT(tctx->tc_magic == TCP4_CTX_MAGIC);
+	PJDLOG_ASSERT(tctx->tc_magic == TCP_CTX_MAGIC);
 
 	if (tctx->tc_fd >= 0)
 		close(tctx->tc_fd);
@@ -572,26 +572,26 @@ tcp4_close(void *ctx)
 	free(tctx);
 }
 
-static struct proto tcp4_proto = {
-	.prt_name = "tcp4",
-	.prt_client = tcp4_client,
-	.prt_connect = tcp4_connect,
-	.prt_connect_wait = tcp4_connect_wait,
-	.prt_server = tcp4_server,
-	.prt_accept = tcp4_accept,
-	.prt_wrap = tcp4_wrap,
-	.prt_send = tcp4_send,
-	.prt_recv = tcp4_recv,
-	.prt_descriptor = tcp4_descriptor,
-	.prt_address_match = tcp4_address_match,
-	.prt_local_address = tcp4_local_address,
-	.prt_remote_address = tcp4_remote_address,
-	.prt_close = tcp4_close
+static struct proto tcp_proto = {
+	.prt_name = "tcp",
+	.prt_client = tcp_client,
+	.prt_connect = tcp_connect,
+	.prt_connect_wait = tcp_connect_wait,
+	.prt_server = tcp_server,
+	.prt_accept = tcp_accept,
+	.prt_wrap = tcp_wrap,
+	.prt_send = tcp_send,
+	.prt_recv = tcp_recv,
+	.prt_descriptor = tcp_descriptor,
+	.prt_address_match = tcp_address_match,
+	.prt_local_address = tcp_local_address,
+	.prt_remote_address = tcp_remote_address,
+	.prt_close = tcp_close
 };
 
 static __constructor void
-tcp4_ctor(void)
+tcp_ctor(void)
 {
 
-	proto_register(&tcp4_proto, true);
+	proto_register(&tcp_proto, true);
 }
