@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 29, 2008
+.Dd May 20, 2011
 .Dt ATKBD 4
 .Os
 .Sh NAME
@@ -175,6 +175,11 @@ like the old XT keyboard and require this option.
 When this option is given, the
 .Nm
 driver will not test the keyboard port during the probe routine.
+Some machines hang during boot when this test is performed.
+.It bit 4 (PROBE_TYPEMATIC)
+When this option is given, the
+.Nm
+driver will try to probe the keyboard typematic rate on boot.
 Some machines hang during boot when this test is performed.
 .El
 .\".Sh FILES
