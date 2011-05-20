@@ -160,8 +160,13 @@ tcp4://0.0.0.0:8457
 .Ed
 .Pp
 Multiple listen addresses can be specified.
-The default value is
-.Pa tcp4://0.0.0.0:8457 .
+By default
+.Nm hastd
+listens on
+.Pa tcp4://0.0.0.0:8457
+and
+.Pa tcp6://[::]:8457
+if kernel supports IPv4 and IPv6 respectively.
 .It Ic replication Aq mode
 .Pp
 Replication mode should be one of the following:
@@ -365,26 +370,35 @@ daemon.
 .Sh EXAMPLES
 The example configuration file can look as follows:
 .Bd -literal -offset indent
+listen tcp://0.0.0.0
+
+on hasta {
+	listen tcp://2001:db8::1/64
+}
+on hastb {
+	listen tcp://2001:db8::2/64
+}
+
 resource shared {
 	local /dev/da0
 
 	on hasta {
-		remote tcp4://10.0.0.2
+		remote tcp://10.0.0.2
 	}
 	on hastb {
-		remote tcp4://10.0.0.1
+		remote tcp://10.0.0.1
 	}
 }
 resource tank {
 	on hasta {
 		local /dev/mirror/tanka
-		source tcp4://10.0.0.1
-		remote tcp4://10.0.0.2
+		source tcp://10.0.0.1
+		remote tcp://10.0.0.2
 	}
 	on hastb {
 		local /dev/mirror/tankb
-		source tcp4://10.0.0.2
-		remote tcp4://10.0.0.1
+		source tcp://10.0.0.2
+		remote tcp://10.0.0.1
 	}
 }
 .Ed
