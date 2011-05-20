@@ -45,7 +45,7 @@
  *  
  * The uma_slab_t may be embedded in a UMA_SLAB_SIZE chunk of memory or it may
  * be allocated off the page from a special slab zone.  The free list within a
- * slab is managed with a linked list of indexes, which are 8 bit values.  If
+ * slab is managed with a linked list of indices, which are 8 bit values.  If
  * UMA_SLAB_SIZE is defined to be too large I will have to switch to 16bit
  * values.  Currently on alpha you can get 250 or so 32 byte items and on x86
  * you can get 250 or so 16byte items.  For item sizes that would yield more
@@ -56,9 +56,9 @@
  * wasted between items due to alignment problems.  This may yield a much better
  * memory footprint for certain sizes of objects.  Another alternative is to
  * increase the UMA_SLAB_SIZE, or allow for dynamic slab sizes.  I prefer
- * dynamic slab sizes because we could stick with 8 bit indexes and only use
+ * dynamic slab sizes because we could stick with 8 bit indices and only use
  * large slab sizes for zones with a lot of waste per slab.  This may create
- * ineffeciencies in the vm subsystem due to fragmentation in the address space.
+ * inefficiencies in the vm subsystem due to fragmentation in the address space.
  *
  * The only really gross cases, with regards to memory waste, are for those
  * items that are just over half the page size.   You can get nearly 50% waste,
