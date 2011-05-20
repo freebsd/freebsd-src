@@ -312,7 +312,8 @@ db_nextframe(struct i386_frame **fp, db_addr_t *ip, struct thread *td)
 			frame_type = TRAP_TIMERINT;
 		else if (strcmp(name, "Xcpustop") == 0 ||
 		    strcmp(name, "Xrendezvous") == 0 ||
-		    strcmp(name, "Xipi_intr_bitmap_handler") == 0)
+		    strcmp(name, "Xipi_intr_bitmap_handler") == 0 ||
+		    strcmp(name, "Xlazypmap") == 0)
 			frame_type = TRAP_INTERRUPT;
 	}
 
