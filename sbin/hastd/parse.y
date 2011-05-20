@@ -257,7 +257,6 @@ yy_config_parse(const char *config, bool exitonerror)
 			pjdlog_debug(1,
 			    "No IPv4 support in the kernel, not listening on IPv4 address.");
 		}
-#ifdef notyet
 		if (family_supported(AF_INET6)) {
 			lst = calloc(1, sizeof(*lst));
 			if (lst == NULL) {
@@ -274,7 +273,6 @@ yy_config_parse(const char *config, bool exitonerror)
 			pjdlog_debug(1,
 			    "No IPv6 support in the kernel, not listening on IPv6 address.");
 		}
-#endif
 		if (TAILQ_EMPTY(&lconfig->hc_listen)) {
 			pjdlog_error("No address to listen on.");
 			yy_config_free(lconfig);
