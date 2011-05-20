@@ -128,6 +128,7 @@
 #define	CPUID2_X2APIC	0x00200000
 #define	CPUID2_MOVBE	0x00400000
 #define	CPUID2_POPCNT	0x00800000
+#define	CPUID2_HV	0x80000000
 
 /*
  * Important bits in the Thermal and Power Management flags
