@@ -1290,7 +1290,7 @@ out:
 			mtx_lock(&ps->ps_mtx);
 			action = ps->ps_sigact[_SIG_IDX(sig)];
 			mtx_unlock(&ps->ps_mtx);
-			ktrpsig(sig, action, &td->td_sigmask, 0);
+			ktrpsig(sig, action, &td->td_sigmask, ksi->ksi_code);
 		}
 #endif
 		if (sig == SIGKILL)
@@ -2750,7 +2750,7 @@ postsig(sig)
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_PSIG))
 		ktrpsig(sig, action, td->td_pflags & TDP_OLDMASK ?
-		    &td->td_oldsigmask : &td->td_sigmask, 0);
+		    &td->td_oldsigmask : &td->td_sigmask, ksi.ksi_code);
 #endif
 	if (p->p_stops & S_SIG) {
 		mtx_unlock(&ps->ps_mtx);
