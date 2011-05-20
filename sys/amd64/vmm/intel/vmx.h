@@ -34,6 +34,9 @@
 #define	GUEST_MSR_MAX_ENTRIES	64		/* arbitrary */
 
 struct vmxctx {
+	register_t	tmpstk[32];		/* vmx_return() stack */
+	register_t	tmpstktop;
+
 	register_t	guest_rdi;		/* Guest state */
 	register_t	guest_rsi;
 	register_t	guest_rdx;
@@ -63,6 +66,7 @@ struct vmxctx {
 	 * XXX todo debug registers and fpu state
 	 */
 	
+	int		launched;		/* vmcs launch state */
 	int		launch_error;
 };
 

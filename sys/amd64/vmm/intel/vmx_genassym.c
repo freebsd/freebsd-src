@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include "vmx.h"
 #include "vmx_cpufunc.h"
 
+ASSYM(VMXCTX_TMPSTKTOP, offsetof(struct vmxctx, tmpstktop));
 ASSYM(VMXCTX_GUEST_RDI, offsetof(struct vmxctx, guest_rdi));
 ASSYM(VMXCTX_GUEST_RSI, offsetof(struct vmxctx, guest_rsi));
 ASSYM(VMXCTX_GUEST_RDX, offsetof(struct vmxctx, guest_rdx));
