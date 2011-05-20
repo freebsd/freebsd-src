@@ -31,15 +31,23 @@
 #include "vmx_assym.s"
 
 /*
- * Assumes that %rdi holds a pointer to the 'vmxctx'
+ * Assumes that %rdi holds a pointer to the 'vmxctx'.
+ *
+ * On "return" all registers are updated to reflect guest state. The two
+ * exceptions are %rip and %rsp. These registers are atomically switched
+ * by hardware from the guest area of the vmcs.
+ *
+ * We modify %rsp to point to the 'vmxctx' so we can use it to restore
+ * host context in case of an error with 'vmlaunch' or 'vmresume'.
  */
 #define	VMX_GUEST_RESTORE						\
 	/*								\
-	 * Make sure that interrupts are disabled before restoring CR2.	\
-	 * Otherwise there could be a page fault during the interrupt	\
-	 * handler execution that would end up trashing CR2.		\
+	 * Disable interrupts before updating %rsp. The location that	\
+	 * %rsp points to is a 'vmxctx' and not a real stack so we	\
+	 * don't want an interrupt handler to trash it.			\
 	 */								\
 	cli;								\
+	movq	%rdi,%rsp;						\
 	movq	VMXCTX_GUEST_CR2(%rdi),%rsi;				\
 	movq	%rsi,%cr2;						\
 	movq	VMXCTX_GUEST_RSI(%rdi),%rsi;				\
@@ -148,6 +156,8 @@ ENTRY(vmx_longjmp)
 
 	movq	%rsp,%rdi
 	movq	$VMX_RETURN_LONGJMP,%rsi
+
+	addq	$VMXCTX_TMPSTKTOP,%rsp
 	callq	vmx_return
 END(vmx_longjmp)
 
@@ -174,6 +184,8 @@ ENTRY(vmx_resume)
 	/* Return via vmx_setjmp with return value of VMX_RETURN_VMRESUME */
 	movq	%rsp,%rdi
 	movq	$VMX_RETURN_VMRESUME,%rsi
+
+	addq	$VMXCTX_TMPSTKTOP,%rsp
 	callq	vmx_return
 END(vmx_resume)
 
@@ -200,5 +212,7 @@ ENTRY(vmx_launch)
 	/* Return via vmx_setjmp with return value of VMX_RETURN_VMLAUNCH */
 	movq	%rsp,%rdi
 	movq	$VMX_RETURN_VMLAUNCH,%rsi
+
+	addq	$VMXCTX_TMPSTKTOP,%rsp
 	callq	vmx_return
 END(vmx_launch)
