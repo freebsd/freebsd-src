@@ -304,7 +304,7 @@ uint64_t vmcs_read(uint32_t encoding);
 /*
  * VMCS interrupt information fields
  */
-#define	VMCS_INTERRUPTION_INFO_VALID	(1 << 31)
+#define	VMCS_INTERRUPTION_INFO_VALID	(1U << 31)
 #define	VMCS_INTERRUPTION_INFO_HW_INTR	(0 << 8)
 #define	VMCS_INTERRUPTION_INFO_NMI	(2 << 8)
 
