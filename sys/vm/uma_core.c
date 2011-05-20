@@ -86,8 +86,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma_int.h>
 #include <vm/uma_dbg.h>
 
-#include <machine/vmparam.h>
-
 #include <ddb/ddb.h>
 
 /*
