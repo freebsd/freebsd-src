@@ -134,6 +134,8 @@ static struct mtx uma_boot_pages_mtx;
 
 /* Is the VM done starting up? */
 static int booted = 0;
+#define	UMA_STARTUP	1
+#define	UMA_STARTUP2	2
 
 /* Maximum number of allowed items-per-slab if the slab header is OFFPAGE */
 static u_int uma_max_ipers;
@@ -959,7 +961,7 @@ startup_alloc(uma_zone_t zone, int bytes, u_int8_t *pflag, int wait)
 		return (tmps->us_data);
 	}
 	mtx_unlock(&uma_boot_pages_mtx);
-	if (booted == 0)
+	if (booted < UMA_STARTUP2)
 		panic("UMA: Increase vm.boot_pages");
 	/*
 	 * Now that we've booted reset these users to their real allocator.
@@ -1317,9 +1319,10 @@ keg_ctor(void *mem, int size, void *udata, int flags)
 		keg->uk_allocf = uma_small_alloc;
 		keg->uk_freef = uma_small_free;
 #endif
-		if (booted == 0)
+		if (booted < UMA_STARTUP)
 			keg->uk_allocf = startup_alloc;
-	} else if (booted == 0 && (keg->uk_flags & UMA_ZFLAG_INTERNAL))
+	} else if (booted < UMA_STARTUP2 &&
+	    (keg->uk_flags & UMA_ZFLAG_INTERNAL))
 		keg->uk_allocf = startup_alloc;
 
 	/*
@@ -1752,9 +1755,7 @@ uma_startup(void *bootmem, int boot_pages)
 
 	bucket_init();
 
-#if defined(UMA_MD_SMALL_ALLOC) && !defined(UMA_MD_SMALL_ALLOC_NEEDS_VM)
-	booted = 1;
-#endif
+	booted = UMA_STARTUP;
 
 #ifdef UMA_DEBUG
 	printf("UMA startup complete.\n");
@@ -1765,7 +1766,7 @@ uma_startup(void *bootmem, int boot_pages)
 void
 uma_startup2(void)
 {
-	booted = 1;
+	booted = UMA_STARTUP2;
 	bucket_enable();
 #ifdef UMA_DEBUG
 	printf("UMA startup2 complete.\n");
