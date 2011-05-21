@@ -32,7 +32,7 @@
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd May 20, 2011
+.Dd May 21, 2011
 .Dt SH 1
 .Os
 .Sh NAME
@@ -506,8 +506,8 @@ The following are keywords:
 An alias is a name and corresponding value set using the
 .Ic alias
 built-in command.
-Whenever a keyword may occur (see above),
-and after checking for keywords, the shell
+Wherever the command word of a simple command may occur,
+and after checking for keywords if a keyword may occur, the shell
 checks the word to see if it matches an alias.
 If it does, it replaces it in the input stream with its value.
 For example, if there is an alias called
