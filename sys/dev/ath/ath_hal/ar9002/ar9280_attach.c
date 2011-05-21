@@ -430,7 +430,7 @@ ar9280WriteIni(struct ath_hal *ah, const struct ieee80211_channel *chan)
 		OS_REG_WRITE(ah, reg, val);
 
 		/* Analog shift register delay seems needed for Merlin - PR kern/154220 */
-		if (reg >= 0x7800 && reg < 0x78a0)
+		if (reg >= 0x7800 && reg < 0x7900)
 			OS_DELAY(100);
 
 		DMA_YIELD(regWrites);
