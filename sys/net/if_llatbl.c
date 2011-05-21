@@ -228,7 +228,8 @@ lltable_drain(int af)
 #endif
 
 void
-lltable_prefix_free(int af, struct sockaddr *prefix, struct sockaddr *mask)
+lltable_prefix_free(int af, struct sockaddr *prefix, struct sockaddr *mask,
+	    u_int flags)
 {
 	struct lltable *llt;
 
@@ -237,7 +238,7 @@ lltable_prefix_free(int af, struct sockaddr *prefix, struct sockaddr *mask)
 		if (llt->llt_af != af)
 			continue;
 
-		llt->llt_prefix_free(llt, prefix, mask);
+		llt->llt_prefix_free(llt, prefix, mask, flags);
 	}
 	LLTABLE_RUNLOCK();
 }

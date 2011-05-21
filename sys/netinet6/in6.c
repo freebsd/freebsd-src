@@ -2376,19 +2376,25 @@ in6_lltable_free(struct lltable *llt, struct llentry *lle)
 static void
 in6_lltable_prefix_free(struct lltable *llt, 
 			const struct sockaddr *prefix,
-			const struct sockaddr *mask)
+			const struct sockaddr *mask,
+			u_int flags)
 {
 	const struct sockaddr_in6 *pfx = (const struct sockaddr_in6 *)prefix;
 	const struct sockaddr_in6 *msk = (const struct sockaddr_in6 *)mask;
 	struct llentry *lle, *next;
 	register int i;
 
+	/*
+	 * (flags & LLE_STATIC) means deleting all entries 
+	 * including static ND6 entries
+	 */
 	for (i=0; i < LLTBL_HASHTBL_SIZE; i++) {
 		LIST_FOREACH_SAFE(lle, &llt->lle_head[i], lle_next, next) {
 			if (IN6_ARE_MASKED_ADDR_EQUAL(
 				    &((struct sockaddr_in6 *)L3_ADDR(lle))->sin6_addr, 
 				    &pfx->sin6_addr, 
-				    &msk->sin6_addr)) {
+				    &msk->sin6_addr) &&
+			    ((flags & LLE_STATIC) || !(lle->la_flags & LLE_STATIC))) {
 				int canceled;
 
 				canceled = callout_drain(&lle->la_timer);
