@@ -228,8 +228,8 @@ tunclone(void *arg, struct ucred *cred, char *name, int namelen,
 	i = clone_create(&tunclones, &tun_cdevsw, &u, dev, 0);
 	if (i) {
 		if (append_unit) {
-			namelen = snprintf(devname, sizeof(devname), "%s%d", name,
-			    u);
+			namelen = snprintf(devname, sizeof(devname), "%s%d",
+			    name, u);
 			name = devname;
 		}
 		/* No preexisting struct cdev *, create one */
@@ -577,11 +577,8 @@ tunifioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
  * tunoutput - queue packets from higher level ready to put out.
  */
 static int
-tunoutput(
-	struct ifnet *ifp,
-	struct mbuf *m0,
-	struct sockaddr *dst,
-	struct route *ro)
+tunoutput(struct ifnet *ifp, struct mbuf *m0, struct sockaddr *dst,
+    struct route *ro)
 {
 	struct tun_softc *tp = ifp->if_softc;
 	u_short cached_tun_flags;
@@ -661,10 +658,8 @@ tunoutput(
 	}
 
 	error = (ifp->if_transmit)(ifp, m0);
-	if (error) {
-		ifp->if_collisions++;
+	if (error)
 		return (ENOBUFS);
-	}
 	ifp->if_opackets++;
 	return (0);
 }
@@ -673,7 +668,8 @@ tunoutput(
  * the cdevsw interface is now pretty minimal.
  */
 static	int
-tunioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
+tunioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag,
+    struct thread *td)
 {
 	int		error;
 	struct tun_softc *tp = dev->si_drv1;
@@ -995,7 +991,7 @@ tunkqfilter(struct cdev *dev, struct knote *kn)
 		    ifp->if_xname, dev2unit(dev));
 		kn->kn_fop = &tun_write_filterops;
 		break;
-	
+
 	default:
 		TUNDEBUG(ifp, "%s kqfilter: invalid filter, minor = %#x\n",
 		    ifp->if_xname, dev2unit(dev));
