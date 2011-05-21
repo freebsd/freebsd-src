@@ -1069,7 +1069,7 @@ ath_hal_ini_write(struct ath_hal *ah, const HAL_INI_ARRAY *ia,
 		    HAL_INI_VAL(ia, r, col));
 
 		/* Analog shift register delay seems needed for Merlin - PR kern/154220 */
-		if (HAL_INI_VAL(ia, r, 0) >= 0x7800 && HAL_INI_VAL(ia, r, 0) < 0x78a0)
+		if (HAL_INI_VAL(ia, r, 0) >= 0x7800 && HAL_INI_VAL(ia, r, 0) < 0x7900)
 			OS_DELAY(100);
 
 		DMA_YIELD(regWr);
