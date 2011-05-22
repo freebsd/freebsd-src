@@ -72,7 +72,7 @@ options 	KDB			# Kernel debugger related code
 options 	KDB_TRACE		# Print a stack trace for a panic
 
 # To make an SMP kernel, the next line is needed
-#options 	SMP			# Symmetric MultiProcessor Kernel
+options 	SMP			# Symmetric MultiProcessor Kernel
 
 # CPU frequency control
 device		cpufreq
