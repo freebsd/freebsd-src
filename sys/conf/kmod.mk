@@ -286,7 +286,7 @@ realinstall: _kmodinstall
 _kmodinstall:
 	${INSTALL} -o ${KMODOWN} -g ${KMODGRP} -m ${KMODMODE} \
 	    ${_INSTALLFLAGS} ${PROG} ${DESTDIR}${KMODDIR}
-.if defined(DEBUG_FLAGS) && !defined(INSTALL_NODEBUG)
+.if defined(DEBUG_FLAGS) && !defined(INSTALL_NODEBUG) && ${MK_KERNEL_SYMBOLS} == "yes"
 	${INSTALL} -o ${KMODOWN} -g ${KMODGRP} -m ${KMODMODE} \
 	    ${_INSTALLFLAGS} ${PROG}.symbols ${DESTDIR}${KMODDIR}
 .endif
