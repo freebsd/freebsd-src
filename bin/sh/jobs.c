@@ -91,6 +91,7 @@ static void freejob(struct job *);
 static struct job *getjob(char *);
 static pid_t dowait(int, struct job *);
 static pid_t waitproc(int, int *);
+static void checkzombies(void);
 static void cmdtxt(union node *);
 static void cmdputs(const char *);
 #if JOBS
@@ -400,7 +401,7 @@ showjobs(int change, int mode)
 	struct job *jp;
 
 	TRACE(("showjobs(%d) called\n", change));
-	while (dowait(0, (struct job *)NULL) > 0);
+	checkzombies();
 	for (jobno = 1, jp = jobtab ; jobno <= njobs ; jobno++, jp++) {
 		if (! jp->used)
 			continue;
@@ -742,6 +743,8 @@ forkshell(struct job *jp, union node *n, int mode)
 	TRACE(("forkshell(%%%td, %p, %d) called\n", jp - jobtab, (void *)n,
 	    mode));
 	INTOFF;
+	if (mode == FORK_BG && (jp == NULL || jp->nprocs == 0))
+		checkzombies();
 	flushall();
 	pid = fork();
 	if (pid == -1) {
@@ -948,7 +951,7 @@ dowait(int block, struct job *job)
 	INTOFF;
 	thisjob = NULL;
 	for (jp = jobtab ; jp < jobtab + njobs ; jp++) {
-		if (jp->used) {
+		if (jp->used && jp->nprocs > 0) {
 			done = 1;
 			stopped = 1;
 			for (sp = jp->ps ; sp < jp->ps + jp->nprocs ; sp++) {
@@ -1061,6 +1064,15 @@ stoppedjobs(void)
 
 	return (0);
 }
+
+
+static void
+checkzombies(void)
+{
+	while (njobs > 0 && dowait(0, NULL) > 0)
+		;
+}
+
 
 /*
  * Return a string identifying a command (to be printed by the
