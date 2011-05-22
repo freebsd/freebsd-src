@@ -63,7 +63,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/signalvar.h>
 
 #include <vm/vm.h>
-#include <vm/vm_object.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_object.h>
 
