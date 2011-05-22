@@ -335,6 +335,7 @@ __DEFAULT_YES_OPTIONS = \
     IPX \
     JAIL \
     KERBEROS \
+    KERNEL_SYMBOLS \
     KVM \
     LEGACY_CONSOLE \
     LIB32 \

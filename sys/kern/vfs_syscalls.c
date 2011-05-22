@@ -4405,7 +4405,7 @@ fhopen(td, uap)
 		return (ESTALE);
 	vfslocked = VFS_LOCK_GIANT(mp);
 	/* now give me my vnode, it gets returned to me locked */
-	error = VFS_FHTOVP(mp, &fhp.fh_fid, &vp);
+	error = VFS_FHTOVP(mp, &fhp.fh_fid, LK_EXCLUSIVE, &vp);
 	vfs_unbusy(mp);
 	if (error)
 		goto out;
@@ -4581,7 +4581,7 @@ fhstat(td, uap)
 	if ((mp = vfs_busyfs(&fh.fh_fsid)) == NULL)
 		return (ESTALE);
 	vfslocked = VFS_LOCK_GIANT(mp);
-	error = VFS_FHTOVP(mp, &fh.fh_fid, &vp);
+	error = VFS_FHTOVP(mp, &fh.fh_fid, LK_EXCLUSIVE, &vp);
 	vfs_unbusy(mp);
 	if (error) {
 		VFS_UNLOCK_GIANT(vfslocked);
@@ -4641,7 +4641,7 @@ kern_fhstatfs(struct thread *td, fhandle_t fh, struct statfs *buf)
 	if ((mp = vfs_busyfs(&fh.fh_fsid)) == NULL)
 		return (ESTALE);
 	vfslocked = VFS_LOCK_GIANT(mp);
-	error = VFS_FHTOVP(mp, &fh.fh_fid, &vp);
+	error = VFS_FHTOVP(mp, &fh.fh_fid, LK_EXCLUSIVE, &vp);
 	if (error) {
 		vfs_unbusy(mp);
 		VFS_UNLOCK_GIANT(vfslocked);
