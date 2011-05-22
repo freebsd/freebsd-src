@@ -50,7 +50,6 @@ TPIPE	0	"|"
 TLP	0	"("
 TRP	1	")"
 TENDCASE 1	";;"
-TENDBQUOTE 1	"`"
 TREDIR	0	redirection
 TWORD	0	word
 TIF	0	"if"

@@ -93,7 +93,7 @@ static int zfs_vget(vfs_t *vfsp, ino_t ino, int flags, vnode_t **vpp);
 static int zfs_sync(vfs_t *vfsp, int waitfor);
 static int zfs_checkexp(vfs_t *vfsp, struct sockaddr *nam, int *extflagsp,
     struct ucred **credanonp, int *numsecflavors, int **secflavors);
-static int zfs_fhtovp(vfs_t *vfsp, fid_t *fidp, vnode_t **vpp);
+static int zfs_fhtovp(vfs_t *vfsp, fid_t *fidp, int flags, vnode_t **vpp);
 static void zfs_objset_close(zfsvfs_t *zfsvfs);
 static void zfs_freevfs(vfs_t *vfsp);
 
@@ -2007,7 +2007,7 @@ CTASSERT(SHORT_FID_LEN <= sizeof(struct fid));
 CTASSERT(LONG_FID_LEN <= sizeof(struct fid));
 
 static int
-zfs_fhtovp(vfs_t *vfsp, fid_t *fidp, vnode_t **vpp)
+zfs_fhtovp(vfs_t *vfsp, fid_t *fidp, int flags, vnode_t **vpp)
 {
 	zfsvfs_t	*zfsvfs = vfsp->vfs_data;
 	znode_t		*zp;
