@@ -1,0 +1,4 @@
+.\" $FreeBSD$
+Set to not install kernel symbol files.
+This option is recommended for those people who have small root partitions.
+
