@@ -285,6 +285,7 @@ typedef struct _iso9660_disk {
 	cd9660node *rr_moved_dir;
 
 	int archimedes_enabled;
+	int chrp_boot;
 
 	/* Spec breaking options */
 	u_char allow_deep_trees;
