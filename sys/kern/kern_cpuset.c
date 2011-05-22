@@ -650,12 +650,12 @@ cpusetobj_strprint(char *buf, const cpuset_t *set)
 	bytesp = 0;
 	bufsiz = CPUSETBUFSIZ;
 
-	for (i = 0; i < (_NCPUWORDS - 1); i++) {
+	for (i = _NCPUWORDS - 1; i > 0; i--) {
 		bytesp = snprintf(tbuf, bufsiz, "%lx, ", set->__bits[i]);
 		bufsiz -= bytesp;
 		tbuf += bytesp;
 	}
-	snprintf(tbuf, bufsiz, "%lx", set->__bits[_NCPUWORDS - 1]);
+	snprintf(tbuf, bufsiz, "%lx", set->__bits[0]);
 	return (buf);
 }
 
