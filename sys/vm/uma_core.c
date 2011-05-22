@@ -1318,9 +1318,13 @@ keg_ctor(void *mem, int size, void *udata, int flags)
 #ifdef UMA_MD_SMALL_ALLOC
 		keg->uk_allocf = uma_small_alloc;
 		keg->uk_freef = uma_small_free;
-#endif
+
 		if (booted < UMA_STARTUP)
 			keg->uk_allocf = startup_alloc;
+#else
+		if (booted < UMA_STARTUP2)
+			keg->uk_allocf = startup_alloc;
+#endif
 	} else if (booted < UMA_STARTUP2 &&
 	    (keg->uk_flags & UMA_ZFLAG_INTERNAL))
 		keg->uk_allocf = startup_alloc;
