@@ -210,8 +210,9 @@ cpu_mp_setmaxid(void)
 	last = 1;
 	while ((cpu = cpusetobj_ffs(&cpumask)) != 0) {
 		last = cpu;
-		mp_ncpus++;
+		cpu--;
 		CPU_CLR(cpu, &cpumask);
+		mp_ncpus++;
 	}
 	if (mp_ncpus <= 0)
 		mp_ncpus = 1;
