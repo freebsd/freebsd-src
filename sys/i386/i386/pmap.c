@@ -1947,6 +1947,7 @@ pmap_lazyfix(pmap_t pmap)
 
 		/* Find least significant set bit. */
 		lsb = cpusetobj_ffs(&mask);
+		MPASS(lsb != 0);
 		lsb--;
 		CPU_SETOF(lsb, &mask);
 		mtx_lock_spin(&smp_ipi_mtx);
