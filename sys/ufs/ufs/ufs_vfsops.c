@@ -208,9 +208,10 @@ ufs_uninit(vfsp)
  * Call the VFS_CHECKEXP beforehand to verify access.
  */
 int
-ufs_fhtovp(mp, ufhp, vpp)
+ufs_fhtovp(mp, ufhp, flags, vpp)
 	struct mount *mp;
 	struct ufid *ufhp;
+	int flags;
 	struct vnode **vpp;
 {
 	struct inode *ip;
