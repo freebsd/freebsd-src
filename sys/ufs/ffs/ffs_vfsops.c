@@ -1640,9 +1640,10 @@ ffs_vgetf(mp, ino, flags, vpp, ffs_flags)
  *   those rights via. exflagsp and credanonp
  */
 static int
-ffs_fhtovp(mp, fhp, vpp)
+ffs_fhtovp(mp, fhp, flags, vpp)
 	struct mount *mp;
 	struct fid *fhp;
+	int flags;
 	struct vnode **vpp;
 {
 	struct ufid *ufhp;
@@ -1653,7 +1654,7 @@ ffs_fhtovp(mp, fhp, vpp)
 	if (ufhp->ufid_ino < ROOTINO ||
 	    ufhp->ufid_ino >= fs->fs_ncg * fs->fs_ipg)
 		return (ESTALE);
-	return (ufs_fhtovp(mp, ufhp, vpp));
+	return (ufs_fhtovp(mp, ufhp, flags, vpp));
 }
 
 /*
