@@ -615,6 +615,7 @@ static void     xenpic_dynirq_enable_source(struct intsrc *isrc);
 static void     xenpic_dynirq_disable_source(struct intsrc *isrc, int); 
 static void     xenpic_dynirq_eoi_source(struct intsrc *isrc); 
 static void     xenpic_dynirq_enable_intr(struct intsrc *isrc); 
+static void     xenpic_dynirq_disable_intr(struct intsrc *isrc);
 
 static void     xenpic_pirq_enable_source(struct intsrc *isrc); 
 static void     xenpic_pirq_disable_source(struct intsrc *isrc, int); 
@@ -626,7 +627,7 @@ static int      xenpic_vector(struct intsrc *isrc);
 static int      xenpic_source_pending(struct intsrc *isrc); 
 static void     xenpic_suspend(struct pic* pic); 
 static void     xenpic_resume(struct pic* pic); 
-static void     xenpic_assign_cpu(struct intsrc *, u_int apic_id);
+static int      xenpic_assign_cpu(struct intsrc *, u_int apic_id);
 
 
 struct pic xenpic_dynirq_template  =  { 
@@ -645,6 +646,7 @@ struct pic xenpic_pirq_template  =  {
 	.pic_disable_source	=	xenpic_pirq_disable_source,
 	.pic_eoi_source		=	xenpic_pirq_eoi_source, 
 	.pic_enable_intr	=	xenpic_pirq_enable_intr, 
+	.pic_disable_intr       =       xenpic_dynirq_disable_intr,
 	.pic_vector		=	xenpic_vector, 
 	.pic_source_pending	=	xenpic_source_pending,
 	.pic_suspend		=	xenpic_suspend, 
@@ -702,6 +704,20 @@ xenpic_dynirq_enable_intr(struct intsrc *isrc)
 	mtx_unlock_spin(&irq_mapping_update_lock);
 }
 
+static void
+xenpic_dynirq_disable_intr(struct intsrc *isrc)
+{
+	unsigned int irq;
+	struct xenpic_intsrc *xp;
+
+	xp = (struct xenpic_intsrc *)isrc;
+	mtx_lock_spin(&irq_mapping_update_lock);
+	irq = xenpic_vector(isrc);
+	mask_evtchn(evtchn_from_irq(irq));
+	xp->xp_masked = 1;
+	mtx_unlock_spin(&irq_mapping_update_lock);
+}
+
 static void 
 xenpic_dynirq_eoi_source(struct intsrc *isrc)
 {
@@ -752,10 +768,11 @@ xenpic_resume(struct pic* pic)
 	TODO; 
 }
 
-static void
+static int
 xenpic_assign_cpu(struct intsrc *isrc, u_int apic_id)
 { 
 	TODO; 
+	return (EOPNOTSUPP);
 }
 
 void
