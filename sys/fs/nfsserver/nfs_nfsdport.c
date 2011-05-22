@@ -2551,7 +2551,7 @@ nfsvno_fhtovp(struct mount *mp, fhandle_t *fhp, struct sockaddr *nam,
 	if (VFS_NEEDSGIANT(mp))
 		error = ESTALE;
 	else
-		error = VFS_FHTOVP(mp, &fhp->fh_fid, vpp);
+		error = VFS_FHTOVP(mp, &fhp->fh_fid, LK_EXCLUSIVE, vpp);
 	if (error != 0)
 		/* Make sure the server replies ESTALE to the client. */
 		error = ESTALE;
@@ -2834,7 +2834,7 @@ nfsvno_getvp(fhandle_t *fhp)
 	mp = vfs_busyfs(&fhp->fh_fsid);
 	if (mp == NULL)
 		return (NULL);
-	error = VFS_FHTOVP(mp, &fhp->fh_fid, &vp);
+	error = VFS_FHTOVP(mp, &fhp->fh_fid, LK_EXCLUSIVE, &vp);
 	vfs_unbusy(mp);
 	if (error)
 		return (NULL);
