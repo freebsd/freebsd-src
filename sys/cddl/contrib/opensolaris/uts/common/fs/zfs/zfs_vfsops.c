@@ -2069,7 +2069,7 @@ zfs_fhtovp(vfs_t *vfsp, fid_t *fidp, int flags, vnode_t **vpp)
 			VN_HOLD(*vpp);
 		}
 		ZFS_EXIT(zfsvfs);
-		err = zfs_vnode_lock(*vpp, LK_EXCLUSIVE | LK_RETRY);
+		err = zfs_vnode_lock(*vpp, flags | LK_RETRY);
 		if (err != 0)
 			*vpp = NULL;
 		return (err);
@@ -2096,7 +2096,7 @@ zfs_fhtovp(vfs_t *vfsp, fid_t *fidp, int flags, vnode_t **vpp)
 
 	*vpp = ZTOV(zp);
 	ZFS_EXIT(zfsvfs);
-	err = zfs_vnode_lock(*vpp, LK_EXCLUSIVE | LK_RETRY);
+	err = zfs_vnode_lock(*vpp, flags | LK_RETRY);
 	if (err == 0)
 		vnode_create_vobject(*vpp, zp->z_size, curthread);
 	else
