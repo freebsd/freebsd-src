@@ -33,8 +33,8 @@ struct cpu_group {
 	struct cpu_group *cg_parent;	/* Our parent group. */
 	struct cpu_group *cg_child;	/* Optional children groups. */
 	cpumask_t	cg_mask;	/* Mask of cpus in this group. */
-	int8_t		cg_count;	/* Count of cpus in this group. */
-	int8_t		cg_children;	/* Number of children groups. */
+	int32_t		cg_count;	/* Count of cpus in this group. */
+	int16_t		cg_children;	/* Number of children groups. */
 	int8_t		cg_level;	/* Shared cache level. */
 	int8_t		cg_flags;	/* Traversal modifiers. */
 };
