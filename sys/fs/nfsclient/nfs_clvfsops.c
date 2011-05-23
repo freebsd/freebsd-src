@@ -79,6 +79,7 @@ FEATURE(nfscl, "NFSv4 client");
 extern int nfscl_ticks;
 extern struct timeval nfsboottime;
 extern struct nfsstats	newnfsstats;
+extern int nfsrv_useacl;
 
 MALLOC_DEFINE(M_NEWNFSREQ, "newnfsclient_req", "New NFS request header");
 MALLOC_DEFINE(M_NEWNFSMNT, "newnfsmnt", "New NFS mount struct");
@@ -1330,6 +1331,15 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 		(void) nfscl_loadattrcache(vpp, &nfsva, NULL, NULL, 0, 1);
 		if (argp->flags & NFSMNT_NFSV3)
 			ncl_fsinfo(nmp, *vpp, cred, td);
+	
+		/* Mark if the mount point supports NFSv4 ACLs. */
+		if ((argp->flags & NFSMNT_NFSV4) != 0 && nfsrv_useacl != 0 &&
+		    ret == 0 &&
+		    NFSISSET_ATTRBIT(&nfsva.na_suppattr, NFSATTRBIT_ACL)) {
+			MNT_ILOCK(mp);
+			mp->mnt_flag |= MNT_NFS4ACLS;
+			MNT_IUNLOCK(mp);
+		}
 	
 		/*
 		 * Lose the lock but keep the ref.

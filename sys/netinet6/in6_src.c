@@ -851,7 +851,7 @@ in6_pcbsetport(struct in6_addr *laddr, struct inpcb *inp, struct ucred *cred)
 {
 	struct socket *so = inp->inp_socket;
 	u_int16_t lport = 0;
-	int error, wild = 0;
+	int error, lookupflags = 0;
 #ifdef INVARIANTS
 	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
 #endif
@@ -866,11 +866,11 @@ in6_pcbsetport(struct in6_addr *laddr, struct inpcb *inp, struct ucred *cred)
 
 	/* XXX: this is redundant when called from in6_pcbbind */
 	if ((so->so_options & (SO_REUSEADDR|SO_REUSEPORT)) == 0)
-		wild = INPLOOKUP_WILDCARD;
+		lookupflags = INPLOOKUP_WILDCARD;
 
 	inp->inp_flags |= INP_ANONPORT;
 
-	error = in_pcb_lport(inp, NULL, &lport, cred, wild);
+	error = in_pcb_lport(inp, NULL, &lport, cred, lookupflags);
 	if (error != 0)
 		return (error);
 
