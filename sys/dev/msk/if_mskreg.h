@@ -677,6 +677,7 @@
 /* ASF Subsystem Registers (Yukon-2 only) */
 #define B28_Y2_SMB_CONFIG	0x0e40	/* 32 bit ASF SMBus Config Register */
 #define B28_Y2_SMB_CSD_REG	0x0e44	/* 32 bit ASF SMB Control/Status/Data */
+#define B28_Y2_CPU_WDOG		0x0e48	/* 32 bit Watchdog Register */
 #define B28_Y2_ASF_IRQ_V_BASE	0x0e60	/* 32 bit ASF IRQ Vector Base */
 #define B28_Y2_ASF_STAT_CMD	0x0e68	/* 32 bit ASF Status and Command Reg */
 #define B28_Y2_ASF_HCU_CCSR	0x0e68	/* 32 bit ASF HCU CCSR (Yukon EX) */
