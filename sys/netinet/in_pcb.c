@@ -329,7 +329,7 @@ in_pcbbind(struct inpcb *inp, struct sockaddr *nam, struct ucred *cred)
 #if defined(INET) || defined(INET6)
 int
 in_pcb_lport(struct inpcb *inp, struct in_addr *laddrp, u_short *lportp,
-    struct ucred *cred, int wild)
+    struct ucred *cred, int lookupflags)
 {
 	struct inpcbinfo *pcbinfo;
 	struct inpcb *tmpinp;
@@ -424,14 +424,14 @@ in_pcb_lport(struct inpcb *inp, struct in_addr *laddrp, u_short *lportp,
 #ifdef INET6
 		if ((inp->inp_vflag & INP_IPV6) != 0)
 			tmpinp = in6_pcblookup_local(pcbinfo,
-			    &inp->in6p_laddr, lport, wild, cred);
+			    &inp->in6p_laddr, lport, lookupflags, cred);
 #endif
 #if defined(INET) && defined(INET6)
 		else
 #endif
 #ifdef INET
 			tmpinp = in_pcblookup_local(pcbinfo, laddr,
-			    lport, wild, cred);
+			    lport, lookupflags, cred);
 #endif
 	} while (tmpinp != NULL);
 
@@ -464,7 +464,7 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
 	struct in_addr laddr;
 	u_short lport = 0;
-	int wild = 0, reuseport = (so->so_options & SO_REUSEPORT);
+	int lookupflags = 0, reuseport = (so->so_options & SO_REUSEPORT);
 	int error;
 
 	/*
@@ -480,7 +480,7 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 	if (nam != NULL && laddr.s_addr != INADDR_ANY)
 		return (EINVAL);
 	if ((so->so_options & (SO_REUSEADDR|SO_REUSEPORT)) == 0)
-		wild = INPLOOKUP_WILDCARD;
+		lookupflags = INPLOOKUP_WILDCARD;
 	if (nam == NULL) {
 		if ((error = prison_local_ip4(cred, &laddr)) != 0)
 			return (error);
@@ -561,7 +561,7 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 					return (EADDRINUSE);
 			}
 			t = in_pcblookup_local(pcbinfo, sin->sin_addr,
-			    lport, wild, cred);
+			    lport, lookupflags, cred);
 			if (t && (t->inp_flags & INP_TIMEWAIT)) {
 				/*
 				 * XXXRW: If an incpb has had its timewait
@@ -590,7 +590,7 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 	if (*lportp != 0)
 		lport = *lportp;
 	if (lport == 0) {
-		error = in_pcb_lport(inp, &laddr, &lport, cred, wild);
+		error = in_pcb_lport(inp, &laddr, &lport, cred, lookupflags);
 		if (error != 0)
 			return (error);
 
@@ -1307,7 +1307,7 @@ in_pcbpurgeif0(struct inpcbinfo *pcbinfo, struct ifnet *ifp)
 #define INP_LOOKUP_MAPPED_PCB_COST	3
 struct inpcb *
 in_pcblookup_local(struct inpcbinfo *pcbinfo, struct in_addr laddr,
-    u_short lport, int wild_okay, struct ucred *cred)
+    u_short lport, int lookupflags, struct ucred *cred)
 {
 	struct inpcb *inp;
 #ifdef INET6
@@ -1317,9 +1317,12 @@ in_pcblookup_local(struct inpcbinfo *pcbinfo, struct in_addr laddr,
 #endif
 	int wildcard;
 
+	KASSERT((lookupflags & ~(INPLOOKUP_WILDCARD)) == 0,
+	    ("%s: invalid lookup flags %d", __func__, lookupflags));
+
 	INP_INFO_LOCK_ASSERT(pcbinfo);
 
-	if (!wild_okay) {
+	if ((lookupflags & INPLOOKUP_WILDCARD) == 0) {
 		struct inpcbhead *head;
 		/*
 		 * Look for an unconnected (wildcard foreign addr) PCB that
@@ -1425,12 +1428,15 @@ in_pcblookup_local(struct inpcbinfo *pcbinfo, struct in_addr laddr,
  */
 struct inpcb *
 in_pcblookup_hash(struct inpcbinfo *pcbinfo, struct in_addr faddr,
-    u_int fport_arg, struct in_addr laddr, u_int lport_arg, int wildcard,
+    u_int fport_arg, struct in_addr laddr, u_int lport_arg, int lookupflags,
     struct ifnet *ifp)
 {
 	struct inpcbhead *head;
 	struct inpcb *inp, *tmpinp;
 	u_short fport = fport_arg, lport = lport_arg;
+
+	KASSERT((lookupflags & ~(INPLOOKUP_WILDCARD)) == 0,
+	    ("%s: invalid lookup flags %d", __func__, lookupflags));
 
 	INP_INFO_LOCK_ASSERT(pcbinfo);
 
@@ -1467,7 +1473,7 @@ in_pcblookup_hash(struct inpcbinfo *pcbinfo, struct in_addr faddr,
 	/*
 	 * Then look for a wildcard match, if requested.
 	 */
-	if (wildcard == INPLOOKUP_WILDCARD) {
+	if ((lookupflags & INPLOOKUP_WILDCARD) != 0) {
 		struct inpcb *local_wild = NULL, *local_exact = NULL;
 #ifdef INET6
 		struct inpcb *local_wild_mapped = NULL;
@@ -1538,7 +1544,7 @@ in_pcblookup_hash(struct inpcbinfo *pcbinfo, struct in_addr faddr,
 		if (local_wild_mapped != NULL)
 			return (local_wild_mapped);
 #endif /* defined(INET6) */
-	} /* if (wildcard == INPLOOKUP_WILDCARD) */
+	} /* if ((lookupflags & INPLOOKUP_WILDCARD) != 0) */
 
 	return (NULL);
 }
