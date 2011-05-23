@@ -144,6 +144,8 @@
 #define DEVICEID_MRVL_436A	0x436A
 #define DEVICEID_MRVL_436B	0x436B
 #define DEVICEID_MRVL_436C	0x436C
+#define DEVICEID_MRVL_436D	0x436D
+#define DEVICEID_MRVL_4370	0x4370
 #define DEVICEID_MRVL_4380	0x4380
 #define DEVICEID_MRVL_4381	0x4381
 
@@ -320,6 +322,9 @@
 #define PCI_OS_SPD_X66		1	/* PCI-X 66MHz Bus */
 #define PCI_OS_SPD_X100		2	/* PCI-X 100MHz Bus */
 #define PCI_OS_SPD_X133		3	/* PCI-X 133MHz Bus */
+
+/* PCI_OUR_REG_3	32 bit	Our Register 3 (Yukon-ECU only) */
+#define	PCI_CLK_MACSEC_DIS	BIT_17	/* Disable Clock MACSec. */
 
 /* PCI_OUR_REG_4	32 bit	Our Register 4 (Yukon-ECU only) */
 #define	PCI_TIMER_VALUE_MSK	(0xff<<16)	/* Bit 23..16:	Timer Value Mask */
@@ -918,6 +923,10 @@
 
 #define	CHIP_REV_YU_EX_A0	1 /* Chip Rev. for Yukon-2 EX A0 */
 #define	CHIP_REV_YU_EX_B0	2 /* Chip Rev. for Yukon-2 EX B0 */
+
+#define	CHIP_REV_YU_SU_A0	0 /* Chip Rev. for Yukon-2 SUPR A0 */
+#define	CHIP_REV_YU_SU_B0	1 /* Chip Rev. for Yukon-2 SUPR B0 */
+#define	CHIP_REV_YU_SU_B1	3 /* Chip Rev. for Yukon-2 SUPR B1 */
 
 /*	B2_Y2_CLK_GATE	 8 bit	Clock Gating (Yukon-2 only) */
 #define Y2_STATUS_LNK2_INAC	BIT_7	/* Status Link 2 inactiv (0 = activ) */
