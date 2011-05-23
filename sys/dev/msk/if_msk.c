@@ -1212,37 +1212,30 @@ msk_phy_power(struct msk_softc *sc, int mode)
 		 */
 		CSR_WRITE_1(sc, B2_Y2_CLK_GATE, val);
 
-		val = CSR_PCI_READ_4(sc, PCI_OUR_REG_1);
-		val &= ~(PCI_Y2_PHY1_POWD | PCI_Y2_PHY2_POWD);
+		our = CSR_PCI_READ_4(sc, PCI_OUR_REG_1);
+		our &= ~(PCI_Y2_PHY1_POWD | PCI_Y2_PHY2_POWD);
 		if (sc->msk_hw_id == CHIP_ID_YUKON_XL) {
 			if (sc->msk_hw_rev > CHIP_REV_YU_XL_A1) {
 				/* Deassert Low Power for 1st PHY. */
-				val |= PCI_Y2_PHY1_COMA;
+				our |= PCI_Y2_PHY1_COMA;
 				if (sc->msk_num_port > 1)
-					val |= PCI_Y2_PHY2_COMA;
+					our |= PCI_Y2_PHY2_COMA;
 			}
 		}
-		/* Release PHY from PowerDown/COMA mode. */
-		CSR_PCI_WRITE_4(sc, PCI_OUR_REG_1, val);
-		switch (sc->msk_hw_id) {
-		case CHIP_ID_YUKON_EC_U:
-		case CHIP_ID_YUKON_EX:
-		case CHIP_ID_YUKON_FE_P:
-		case CHIP_ID_YUKON_UL_2:
-		case CHIP_ID_YUKON_OPT:
-			CSR_WRITE_2(sc, B0_CTST, Y2_HW_WOL_OFF);
-
-			/* Enable all clocks. */
-			CSR_PCI_WRITE_4(sc, PCI_OUR_REG_3, 0);
-			our = CSR_PCI_READ_4(sc, PCI_OUR_REG_4);
-			our &= (PCI_FORCE_ASPM_REQUEST|PCI_ASPM_GPHY_LINK_DOWN|
-			    PCI_ASPM_INT_FIFO_EMPTY|PCI_ASPM_CLKRUN_REQUEST);
+		if (sc->msk_hw_id == CHIP_ID_YUKON_EC_U ||
+		    sc->msk_hw_id == CHIP_ID_YUKON_EX ||
+		    sc->msk_hw_id >= CHIP_ID_YUKON_FE_P) {
+			val = CSR_PCI_READ_4(sc, PCI_OUR_REG_4);
+			val &= (PCI_FORCE_ASPM_REQUEST |
+			    PCI_ASPM_GPHY_LINK_DOWN | PCI_ASPM_INT_FIFO_EMPTY |
+			    PCI_ASPM_CLKRUN_REQUEST);
 			/* Set all bits to 0 except bits 15..12. */
-			CSR_PCI_WRITE_4(sc, PCI_OUR_REG_4, our);
-			our = CSR_PCI_READ_4(sc, PCI_OUR_REG_5);
-			our &= PCI_CTL_TIM_VMAIN_AV_MSK;
-			CSR_PCI_WRITE_4(sc, PCI_OUR_REG_5, our);
+			CSR_PCI_WRITE_4(sc, PCI_OUR_REG_4, val);
+			val = CSR_PCI_READ_4(sc, PCI_OUR_REG_5);
+			val &= PCI_CTL_TIM_VMAIN_AV_MSK;
+			CSR_PCI_WRITE_4(sc, PCI_OUR_REG_5, val);
 			CSR_PCI_WRITE_4(sc, PCI_CFG_REG_1, 0);
+			CSR_WRITE_2(sc, B0_CTST, Y2_HW_WOL_ON);
 			/*
 			 * Disable status race, workaround for
 			 * Yukon EC Ultra & Yukon EX.
@@ -1251,10 +1244,10 @@ msk_phy_power(struct msk_softc *sc, int mode)
 			val |= GLB_GPIO_STAT_RACE_DIS;
 			CSR_WRITE_4(sc, B2_GP_IO, val);
 			CSR_READ_4(sc, B2_GP_IO);
-			break;
-		default:
-			break;
 		}
+		/* Release PHY from PowerDown/COMA mode. */
+		CSR_PCI_WRITE_4(sc, PCI_OUR_REG_1, our);
+
 		for (i = 0; i < sc->msk_num_port; i++) {
 			CSR_WRITE_2(sc, MR_ADDR(i, GMAC_LINK_CTRL),
 			    GMLC_RST_SET);
@@ -1301,8 +1294,6 @@ mskc_reset(struct msk_softc *sc)
 	uint16_t status;
 	uint32_t val;
 	int i, initram;
-
-	CSR_WRITE_2(sc, B0_CTST, CS_RST_CLR);
 
 	/* Disable ASF. */
 	if (sc->msk_hw_id == CHIP_ID_YUKON_EX) {
@@ -1712,6 +1703,9 @@ mskc_attach(device_t dev)
 		}
 	}
 
+	/* Enable all clocks before accessing any registers. */
+	CSR_PCI_WRITE_4(sc, PCI_OUR_REG_3, 0);
+
 	CSR_WRITE_2(sc, B0_CTST, CS_RST_CLR);
 	sc->msk_hw_id = CSR_READ_1(sc, B2_CHIP_ID);
 	sc->msk_hw_rev = (CSR_READ_1(sc, B2_MAC_CFG) >> 4) & 0x0f;
@@ -1752,9 +1746,6 @@ mskc_attach(device_t dev)
 	resource_int_value(device_get_name(dev), device_get_unit(dev),
 	    "int_holdoff", &sc->msk_int_holdoff);
 
-	/* Soft reset. */
-	CSR_WRITE_2(sc, B0_CTST, CS_RST_SET);
-	CSR_WRITE_2(sc, B0_CTST, CS_RST_CLR);
 	sc->msk_pmd = CSR_READ_1(sc, B2_PMD_TYP);
 	/* Check number of MACs. */
 	sc->msk_num_port = 1;
@@ -2969,6 +2960,7 @@ mskc_resume(device_t dev)
 
 	MSK_LOCK(sc);
 
+	CSR_PCI_WRITE_4(sc, PCI_OUR_REG_3, 0);
 	mskc_reset(sc);
 	for (i = 0; i < sc->msk_num_port; i++) {
 		if (sc->msk_if[i] != NULL && sc->msk_if[i]->msk_ifp != NULL &&
