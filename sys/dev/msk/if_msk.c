@@ -1034,7 +1034,10 @@ msk_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				}
 			}
 			ifp->if_mtu = ifr->ifr_mtu;
-			msk_init_locked(sc_if);
+			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
+				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+				msk_init_locked(sc_if);
+			}
 		}
 		MSK_IF_UNLOCK(sc_if);
 		break;
