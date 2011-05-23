@@ -476,7 +476,7 @@ hpet_attach(device_t dev)
 		sc->tc.tc_get_timecount = hpet_get_timecount,
 		sc->tc.tc_counter_mask = ~0u,
 		sc->tc.tc_name = "HPET",
-		sc->tc.tc_quality = 900,
+		sc->tc.tc_quality = 950,
 		sc->tc.tc_frequency = sc->freq;
 		sc->tc.tc_priv = sc;
 		tc_init(&sc->tc);
