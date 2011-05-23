@@ -1782,7 +1782,7 @@ handle_pathname(char *path)
 	}
 
 retry:
-	if (stat(path, &sb) != 0) {
+	if (stat(path, &sb) != 0 || (fflag == 0 && lstat(path, &sb) != 0)) {
 		/* lets try <path>.gz if we're decompressing */
 		if (dflag && s == NULL && errno == ENOENT) {
 			len = strlen(path);
