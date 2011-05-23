@@ -1296,23 +1296,30 @@ mskc_reset(struct msk_softc *sc)
 	int i, initram;
 
 	/* Disable ASF. */
-	if (sc->msk_hw_id == CHIP_ID_YUKON_EX) {
-		status = CSR_READ_2(sc, B28_Y2_ASF_HCU_CCSR);
-		/* Clear AHB bridge & microcontroller reset. */
-		status &= ~(Y2_ASF_HCU_CCSR_AHB_RST |
-		    Y2_ASF_HCU_CCSR_CPU_RST_MODE);
-		/* Clear ASF microcontroller state. */
-		status &= ~ Y2_ASF_HCU_CCSR_UC_STATE_MSK;
-		CSR_WRITE_2(sc, B28_Y2_ASF_HCU_CCSR, status);
-	} else
-		CSR_WRITE_1(sc, B28_Y2_ASF_STAT_CMD, Y2_ASF_RESET);
-	CSR_WRITE_2(sc, B0_CTST, Y2_ASF_DISABLE);
-
-	/*
-	 * Since we disabled ASF, S/W reset is required for Power Management.
-	 */
-	CSR_WRITE_2(sc, B0_CTST, CS_RST_SET);
-	CSR_WRITE_2(sc, B0_CTST, CS_RST_CLR);
+	if (sc->msk_hw_id >= CHIP_ID_YUKON_XL &&
+	    sc->msk_hw_id <= CHIP_ID_YUKON_SUPR) {
+		if (sc->msk_hw_id == CHIP_ID_YUKON_EX ||
+		    sc->msk_hw_id == CHIP_ID_YUKON_SUPR) {
+			CSR_WRITE_4(sc, B28_Y2_CPU_WDOG, 0);
+			status = CSR_READ_2(sc, B28_Y2_ASF_HCU_CCSR);
+			/* Clear AHB bridge & microcontroller reset. */
+			status &= ~(Y2_ASF_HCU_CCSR_AHB_RST |
+			    Y2_ASF_HCU_CCSR_CPU_RST_MODE);
+			/* Clear ASF microcontroller state. */
+			status &= ~Y2_ASF_HCU_CCSR_UC_STATE_MSK;
+			status &= ~Y2_ASF_HCU_CCSR_CPU_CLK_DIVIDE_MSK;
+			CSR_WRITE_2(sc, B28_Y2_ASF_HCU_CCSR, status);
+			CSR_WRITE_4(sc, B28_Y2_CPU_WDOG, 0);
+		} else
+			CSR_WRITE_1(sc, B28_Y2_ASF_STAT_CMD, Y2_ASF_RESET);
+		CSR_WRITE_2(sc, B0_CTST, Y2_ASF_DISABLE);
+		/*
+		 * Since we disabled ASF, S/W reset is required for
+		 * Power Management.
+		 */
+		CSR_WRITE_2(sc, B0_CTST, CS_RST_SET);
+		CSR_WRITE_2(sc, B0_CTST, CS_RST_CLR);
+	}
 
 	/* Clear all error bits in the PCI status register. */
 	status = pci_read_config(sc->msk_dev, PCIR_STATUS, 2);
