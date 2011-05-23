@@ -218,6 +218,17 @@ struct hast_resource {
 	/* Locked used to synchronize access to hr_amp. */
 	pthread_mutex_t hr_amp_lock;
 
+	/* Number of BIO_READ requests. */
+	uint64_t	hr_stat_read;
+	/* Number of BIO_WRITE requests. */
+	uint64_t	hr_stat_write;
+	/* Number of BIO_DELETE requests. */
+	uint64_t	hr_stat_delete;
+	/* Number of BIO_FLUSH requests. */
+	uint64_t	hr_stat_flush;
+	/* Number of activemap updates. */
+	uint64_t	hr_stat_activemap_update;
+
 	/* Next resource. */
 	TAILQ_ENTRY(hast_resource) hr_next;
 };
