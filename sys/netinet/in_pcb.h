@@ -534,6 +534,8 @@ void	in_pcbnotifyall(struct inpcbinfo *pcbinfo, struct in_addr,
 void	in_pcbref(struct inpcb *);
 void	in_pcbrehash(struct inpcb *);
 int	in_pcbrele(struct inpcb *);
+int	in_pcbrele_rlocked(struct inpcb *);
+int	in_pcbrele_wlocked(struct inpcb *);
 void	in_pcbsetsolabel(struct socket *so);
 int	in_getpeeraddr(struct socket *so, struct sockaddr **nam);
 int	in_getsockaddr(struct socket *so, struct sockaddr **nam);
