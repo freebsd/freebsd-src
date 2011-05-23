@@ -1,7 +1,11 @@
 /*-
  * Copyright (c) 1982, 1986, 1990, 1993
  *	The Regents of the University of California.
+ * Copyright (c) 2010-2011 Juniper Networks, Inc.
  * All rights reserved.
+ *
+ * Portions of this software were developed by Robert N. M. Watson under
+ * contract to Juniper Networks, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -260,53 +264,70 @@ struct inpcbport {
 	u_short phd_port;
 };
 
-/*
+/*-
  * Global data structure for each high-level protocol (UDP, TCP, ...) in both
  * IPv4 and IPv6.  Holds inpcb lists and information for managing them.
+ *
+ * Each pcbinfo is protected by ipi_lock, covering mutable global fields (such
+ * as the global pcb list) and hashed lookup tables.  The lock order is:
+ *
+ *    ipi_lock (before) inpcb locks
+ *
+ * Locking key:
+ *
+ * (c) Constant or nearly constant after initialisation
+ * (g) Locked by ipi_lock
+ * (h) Read using either ipi_lock or inpcb lock; write requires both.
+ * (x) Synchronisation properties poorly defined
  */
 struct inpcbinfo {
 	/*
+	 * Global lock protecting global inpcb list, inpcb count, hash tables,
+	 * etc.
+	 */
+	struct rwlock		 ipi_lock;
+
+	/*
 	 * Global list of inpcbs on the protocol.
 	 */
-	struct inpcbhead	*ipi_listhead;
-	u_int			 ipi_count;
+	struct inpcbhead	*ipi_listhead;		/* (g) */
+	u_int			 ipi_count;		/* (g) */
+
+	/*
+	 * Generation count -- incremented each time a connection is allocated
+	 * or freed.
+	 */
+	u_quad_t		 ipi_gencnt;		/* (g) */
+
+	/*
+	 * Fields associated with port lookup and allocation.
+	 */
+	u_short			 ipi_lastport;		/* (x) */
+	u_short			 ipi_lastlow;		/* (x) */
+	u_short			 ipi_lasthi;		/* (x) */
+
+	/*
+	 * UMA zone from which inpcbs are allocated for this protocol.
+	 */
+	struct	uma_zone	*ipi_zone;		/* (c) */
 
 	/*
 	 * Global hash of inpcbs, hashed by local and foreign addresses and
 	 * port numbers.
 	 */
-	struct inpcbhead	*ipi_hashbase;
-	u_long			 ipi_hashmask;
+	struct inpcbhead	*ipi_hashbase;		/* (g) */
+	u_long			 ipi_hashmask;		/* (g) */
 
 	/*
 	 * Global hash of inpcbs, hashed by only local port number.
 	 */
-	struct inpcbporthead	*ipi_porthashbase;
-	u_long			 ipi_porthashmask;
-
-	/*
-	 * Fields associated with port lookup and allocation.
-	 */
-	u_short			 ipi_lastport;
-	u_short			 ipi_lastlow;
-	u_short			 ipi_lasthi;
-
-	/*
-	 * UMA zone from which inpcbs are allocated for this protocol.
-	 */
-	struct	uma_zone	*ipi_zone;
-
-	/*
-	 * Generation count--incremented each time a connection is allocated
-	 * or freed.
-	 */
-	u_quad_t		 ipi_gencnt;
-	struct rwlock		 ipi_lock;
+	struct inpcbporthead	*ipi_porthashbase;	/* (g) */
+	u_long			 ipi_porthashmask;	/* (g) */
 
 	/*
 	 * Pointer to network stack instance
 	 */
-	struct vnet		*ipi_vnet;
+	struct vnet		*ipi_vnet;		/* (c) */
 
 	/*
 	 * general use 2
