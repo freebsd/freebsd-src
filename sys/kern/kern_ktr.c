@@ -40,8 +40,10 @@ __FBSDID("$FreeBSD$");
 #include "opt_alq.h"
 
 #include <sys/param.h>
+#include <sys/queue.h>
 #include <sys/alq.h>
 #include <sys/cons.h>
+#include <sys/cpuset.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/libkern.h>
@@ -68,10 +70,6 @@ __FBSDID("$FreeBSD$");
 #define	KTR_MASK	(0)
 #endif
 
-#ifndef KTR_CPUMASK
-#define	KTR_CPUMASK	(~0)
-#endif
-
 #ifndef KTR_TIME
 #define	KTR_TIME	get_cyclecount()
 #endif
@@ -84,10 +82,10 @@ FEATURE(ktr, "Kernel support for KTR kernel tracing facility");
 
 SYSCTL_NODE(_debug, OID_AUTO, ktr, CTLFLAG_RD, 0, "KTR options");
 
-int	ktr_cpumask = KTR_CPUMASK;
-TUNABLE_INT("debug.ktr.cpumask", &ktr_cpumask);
-SYSCTL_INT(_debug_ktr, OID_AUTO, cpumask, CTLFLAG_RW,
-    &ktr_cpumask, 0, "Bitmask of CPUs on which KTR logging is enabled");
+static char ktr_cpumask[CPUSETBUFSIZ];
+TUNABLE_STR("debug.ktr.cpumask", ktr_cpumask, sizeof(ktr_cpumask));
+SYSCTL_STRING(_debug_ktr, OID_AUTO, cpumask, CTLFLAG_RW, ktr_cpumask,
+    sizeof(ktr_cpumask), "Bitmask of CPUs on which KTR logging is enabled");
 
 int	ktr_mask = KTR_MASK;
 TUNABLE_INT("debug.ktr.mask", &ktr_mask);
@@ -198,6 +196,7 @@ ktr_tracepoint(u_int mask, const char *file, int line, const char *format,
     u_long arg1, u_long arg2, u_long arg3, u_long arg4, u_long arg5,
     u_long arg6)
 {
+	cpuset_t intern_cpumask;
 	struct ktr_entry *entry;
 #ifdef KTR_ALQ
 	struct ale *ale = NULL;
@@ -212,8 +211,16 @@ ktr_tracepoint(u_int mask, const char *file, int line, const char *format,
 		return;
 	if ((ktr_mask & mask) == 0)
 		return;
+#ifndef KTR_CPUMASK
+	CPU_FILL(&intern_cpumask);
+#else
+	if (ktr_cpumask[0] == '\0')
+		strncpy(ktr_cpumask, KTR_CPUMASK, sizeof(ktr_cpumask));
+	if (cpusetobj_strscan(&intern_cpumask, ktr_cpumask) == -1)
+		return;
+#endif
 	cpu = KTR_CPU;
-	if (((1 << cpu) & ktr_cpumask) == 0)
+	if (!CPU_ISSET(cpu, &intern_cpumask))
 		return;
 #if defined(KTR_VERBOSE) || defined(KTR_ALQ)
 	td = curthread;
