@@ -224,7 +224,13 @@ drop_privs(struct hast_resource *res)
 		return (-1);
 	}
 
-	if (res == NULL || res->hr_role != HAST_ROLE_PRIMARY)
+	/*
+	 * Until capsicum doesn't allow ioctl(2) we cannot use it to sandbox
+	 * primary and secondary worker processes, as primary uses GGATE
+	 * ioctls and secondary uses ioctls to handle BIO_DELETE and BIO_FLUSH.
+	 * For now capsicum is only used to sandbox hastctl.
+	 */
+	if (res == NULL)
 		capsicum = (cap_enter() == 0);
 	else
 		capsicum = false;
