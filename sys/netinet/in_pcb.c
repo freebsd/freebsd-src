@@ -2,7 +2,11 @@
  * Copyright (c) 1982, 1986, 1991, 1993, 1995
  *	The Regents of the University of California.
  * Copyright (c) 2007-2009 Robert N. M. Watson
+ * Copyright (c) 2010-2011 Juniper Networks, Inc.
  * All rights reserved.
+ *
+ * Portions of this software were developed by Robert N. M. Watson under
+ * contract to Juniper Networks, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -50,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
+#include <sys/refcount.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
@@ -287,7 +292,7 @@ in_pcballoc(struct socket *so, struct inpcbinfo *pcbinfo)
 #endif
 	INP_WLOCK(inp);
 	inp->inp_gencnt = ++pcbinfo->ipi_gencnt;
-	inp->inp_refcount = 1;	/* Reference from the inpcbinfo */
+	refcount_init(&inp->inp_refcount, 1);	/* Reference from inpcbinfo */
 #if defined(IPSEC) || defined(MAC)
 out:
 	if (error != 0) {
@@ -1028,26 +1033,121 @@ in_pcbdetach(struct inpcb *inp)
 }
 
 /*
- * in_pcbfree_internal() frees an inpcb that has been detached from its
- * socket, and whose reference count has reached 0.  It will also remove the
- * inpcb from any global lists it might remain on.
+ * in_pcbref() bumps the reference count on an inpcb in order to maintain
+ * stability of an inpcb pointer despite the inpcb lock being released.  This
+ * is used in TCP when the inpcbinfo lock needs to be acquired or upgraded,
+ * but where the inpcb lock is already held.
+ *
+ * in_pcbref() should be used only to provide brief memory stability, and
+ * must always be followed by a call to INP_WLOCK() and in_pcbrele() to
+ * garbage collect the inpcb if it has been in_pcbfree()'d from another
+ * context.  Until in_pcbrele() has returned that the inpcb is still valid,
+ * lock and rele are the *only* safe operations that may be performed on the
+ * inpcb.
+ *
+ * While the inpcb will not be freed, releasing the inpcb lock means that the
+ * connection's state may change, so the caller should be careful to
+ * revalidate any cached state on reacquiring the lock.  Drop the reference
+ * using in_pcbrele().
  */
-static void
-in_pcbfree_internal(struct inpcb *inp)
+void
+in_pcbref(struct inpcb *inp)
 {
-	struct inpcbinfo *ipi = inp->inp_pcbinfo;
 
-	KASSERT(inp->inp_socket == NULL, ("%s: inp_socket != NULL", __func__));
-	KASSERT(inp->inp_refcount == 0, ("%s: refcount !0", __func__));
-
-	INP_INFO_WLOCK_ASSERT(ipi);
 	INP_WLOCK_ASSERT(inp);
 
+	KASSERT(inp->inp_refcount > 0, ("%s: refcount 0", __func__));
+
+	refcount_acquire(&inp->inp_refcount);
+}
+
+/*
+ * Drop a refcount on an inpcb elevated using in_pcbref(); because a call to
+ * in_pcbfree() may have been made between in_pcbref() and in_pcbrele(), we
+ * return a flag indicating whether or not the inpcb remains valid.  If it is
+ * valid, we return with the inpcb lock held.
+ *
+ * Notice that, unlike in_pcbref(), the inpcb lock must be held to drop a
+ * reference on an inpcb.  Historically more work was done here (actually, in
+ * in_pcbfree_internal()) but has been moved to in_pcbfree() to avoid the
+ * need for the pcbinfo lock in in_pcbrele().  Deferring the free is entirely
+ * about memory stability (and continued use of the write lock).
+ */
+int
+in_pcbrele_rlocked(struct inpcb *inp)
+{
+	struct inpcbinfo *pcbinfo;
+
+	KASSERT(inp->inp_refcount > 0, ("%s: refcount 0", __func__));
+
+	INP_RLOCK_ASSERT(inp);
+
+	if (refcount_release(&inp->inp_refcount) == 0)
+		return (0);
+
+	KASSERT(inp->inp_socket == NULL, ("%s: inp_socket != NULL", __func__));
+
+	INP_RUNLOCK(inp);
+	pcbinfo = inp->inp_pcbinfo;
+	uma_zfree(pcbinfo->ipi_zone, inp);
+	return (1);
+}
+
+int
+in_pcbrele_wlocked(struct inpcb *inp)
+{
+	struct inpcbinfo *pcbinfo;
+
+	KASSERT(inp->inp_refcount > 0, ("%s: refcount 0", __func__));
+
+	INP_WLOCK_ASSERT(inp);
+
+	if (refcount_release(&inp->inp_refcount) == 0)
+		return (0);
+
+	KASSERT(inp->inp_socket == NULL, ("%s: inp_socket != NULL", __func__));
+
+	INP_WUNLOCK(inp);
+	pcbinfo = inp->inp_pcbinfo;
+	uma_zfree(pcbinfo->ipi_zone, inp);
+	return (1);
+}
+
+/*
+ * Temporary wrapper.
+ */
+int
+in_pcbrele(struct inpcb *inp)
+{
+
+	return (in_pcbrele_wlocked(inp));
+}
+
+/*
+ * Unconditionally schedule an inpcb to be freed by decrementing its
+ * reference count, which should occur only after the inpcb has been detached
+ * from its socket.  If another thread holds a temporary reference (acquired
+ * using in_pcbref()) then the free is deferred until that reference is
+ * released using in_pcbrele(), but the inpcb is still unlocked.  Almost all
+ * work, including removal from global lists, is done in this context, where
+ * the pcbinfo lock is held.
+ */
+void
+in_pcbfree(struct inpcb *inp)
+{
+	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
+
+	KASSERT(inp->inp_socket == NULL, ("%s: inp_socket != NULL", __func__));
+
+	INP_INFO_WLOCK_ASSERT(pcbinfo);
+	INP_WLOCK_ASSERT(inp);
+
+	/* XXXRW: Do as much as possible here. */
 #ifdef IPSEC
 	if (inp->inp_sp != NULL)
 		ipsec_delete_pcbpolicy(inp);
 #endif /* IPSEC */
-	inp->inp_gencnt = ++ipi->ipi_gencnt;
+	inp->inp_gencnt = ++pcbinfo->ipi_gencnt;
 	in_pcbremlists(inp);
 #ifdef INET6
 	if (inp->inp_vflag & INP_IPV6PROTO) {
@@ -1064,82 +1164,10 @@ in_pcbfree_internal(struct inpcb *inp)
 #endif
 	inp->inp_vflag = 0;
 	crfree(inp->inp_cred);
-
 #ifdef MAC
 	mac_inpcb_destroy(inp);
 #endif
-	INP_WUNLOCK(inp);
-	uma_zfree(ipi->ipi_zone, inp);
-}
-
-/*
- * in_pcbref() bumps the reference count on an inpcb in order to maintain
- * stability of an inpcb pointer despite the inpcb lock being released.  This
- * is used in TCP when the inpcbinfo lock needs to be acquired or upgraded,
- * but where the inpcb lock is already held.
- *
- * While the inpcb will not be freed, releasing the inpcb lock means that the
- * connection's state may change, so the caller should be careful to
- * revalidate any cached state on reacquiring the lock.  Drop the reference
- * using in_pcbrele().
- */
-void
-in_pcbref(struct inpcb *inp)
-{
-
-	INP_WLOCK_ASSERT(inp);
-
-	KASSERT(inp->inp_refcount > 0, ("%s: refcount 0", __func__));
-
-	inp->inp_refcount++;
-}
-
-/*
- * Drop a refcount on an inpcb elevated using in_pcbref(); because a call to
- * in_pcbfree() may have been made between in_pcbref() and in_pcbrele(), we
- * return a flag indicating whether or not the inpcb remains valid.  If it is
- * valid, we return with the inpcb lock held.
- */
-int
-in_pcbrele(struct inpcb *inp)
-{
-#ifdef INVARIANTS
-	struct inpcbinfo *ipi = inp->inp_pcbinfo;
-#endif
-
-	KASSERT(inp->inp_refcount > 0, ("%s: refcount 0", __func__));
-
-	INP_INFO_WLOCK_ASSERT(ipi);
-	INP_WLOCK_ASSERT(inp);
-
-	inp->inp_refcount--;
-	if (inp->inp_refcount > 0)
-		return (0);
-	in_pcbfree_internal(inp);
-	return (1);
-}
-
-/*
- * Unconditionally schedule an inpcb to be freed by decrementing its
- * reference count, which should occur only after the inpcb has been detached
- * from its socket.  If another thread holds a temporary reference (acquired
- * using in_pcbref()) then the free is deferred until that reference is
- * released using in_pcbrele(), but the inpcb is still unlocked.
- */
-void
-in_pcbfree(struct inpcb *inp)
-{
-#ifdef INVARIANTS
-	struct inpcbinfo *ipi = inp->inp_pcbinfo;
-#endif
-
-	KASSERT(inp->inp_socket == NULL, ("%s: inp_socket != NULL",
-	    __func__));
-
-	INP_INFO_WLOCK_ASSERT(ipi);
-	INP_WLOCK_ASSERT(inp);
-
-	if (!in_pcbrele(inp))
+	if (!in_pcbrele_wlocked(inp))
 		INP_WUNLOCK(inp);
 }
 
