@@ -1300,7 +1300,7 @@ mskc_reset(struct msk_softc *sc)
 	bus_addr_t addr;
 	uint16_t status;
 	uint32_t val;
-	int i;
+	int i, initram;
 
 	CSR_WRITE_2(sc, B0_CTST, CS_RST_CLR);
 
@@ -1396,8 +1396,14 @@ mskc_reset(struct msk_softc *sc)
 	CSR_WRITE_1(sc, GMAC_TI_ST_CTRL, GMT_ST_STOP);
 	CSR_WRITE_1(sc, GMAC_TI_ST_CTRL, GMT_ST_CLR_IRQ);
 
+	initram = 0;
+	if (sc->msk_hw_id == CHIP_ID_YUKON_XL ||
+	    sc->msk_hw_id == CHIP_ID_YUKON_EC ||
+	    sc->msk_hw_id == CHIP_ID_YUKON_FE)
+		initram++;
+
 	/* Configure timeout values. */
-	for (i = 0; i < sc->msk_num_port; i++) {
+	for (i = 0; initram > 0 && i < sc->msk_num_port; i++) {
 		CSR_WRITE_2(sc, SELECT_RAM_BUFFER(i, B3_RI_CTRL), RI_RST_SET);
 		CSR_WRITE_2(sc, SELECT_RAM_BUFFER(i, B3_RI_CTRL), RI_RST_CLR);
 		CSR_WRITE_1(sc, SELECT_RAM_BUFFER(i, B3_RI_WTO_R1),
