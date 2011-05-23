@@ -203,7 +203,7 @@ acpi_timer_probe(device_t dev)
     if (j == 10) {
 	acpi_timer_timecounter.tc_name = "ACPI-fast";
 	acpi_timer_timecounter.tc_get_timecount = acpi_timer_get_timecount;
-	acpi_timer_timecounter.tc_quality = 1000;
+	acpi_timer_timecounter.tc_quality = 900;
     } else {
 	acpi_timer_timecounter.tc_name = "ACPI-safe";
 	acpi_timer_timecounter.tc_get_timecount = acpi_timer_get_timecount_safe;
