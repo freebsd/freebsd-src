@@ -107,7 +107,6 @@ struct ktr_entry {
 	u_long	ktr_parms[KTR_PARMS];
 };
 
-extern int ktr_cpumask;
 extern int ktr_mask;
 extern int ktr_entries;
 extern int ktr_verbose;
