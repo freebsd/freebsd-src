@@ -1939,7 +1939,7 @@ pmap_lazyfix(pmap_t pmap)
 {
 	cpuset_t mymask, mask;
 	u_int spins;
-	int lbs;
+	int lsb;
 
 	mask = pmap->pm_active;
 	while (!CPU_EMPTY(&mask)) {
@@ -1957,7 +1957,7 @@ pmap_lazyfix(pmap_t pmap)
 		lazyptd = vtophys(pmap->pm_pdir);
 #endif
 		mymask = PCPU_GET(cpumask);
-		if (mask == mymask) {
+		if (!CPU_CMP(&mask, &mymask)) {
 			lazymask = &pmap->pm_active;
 			pmap_lazyfix_self(mymask);
 		} else {
