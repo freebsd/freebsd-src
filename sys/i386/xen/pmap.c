@@ -1740,7 +1740,7 @@ pmap_lazyfix(pmap_t pmap)
 		lazyptd = vtophys(pmap->pm_pdir);
 #endif
 		mymask = PCPU_GET(cpumask);
-		if (mask == mymask) {
+		if (!CPU_CMP(&mask, &mymask)) {
 			lazymask = &pmap->pm_active;
 			pmap_lazyfix_self(mymask);
 		} else {
