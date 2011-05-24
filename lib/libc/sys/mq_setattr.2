@@ -37,7 +37,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 29, 2005
+.Dd May 17, 2011
 .Dt MQ_SETATTR 2
 .Os
 .Sh NAME
@@ -50,7 +50,7 @@
 .Ft int
 .Fo mq_setattr
 .Fa "mqd_t mqdes"
-.Fa "struct mq_attr *restrict mqstat"
+.Fa "const struct mq_attr *restrict mqstat"
 .Fa "struct mq_attr *restrict omqstat"
 .Fc
 .Sh DESCRIPTION
