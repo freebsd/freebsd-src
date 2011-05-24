@@ -21,7 +21,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "pkg.h"
+#include "lib.h"
 #include <err.h>
 #include <fetch.h>
 #include <libgen.h>
@@ -109,7 +109,7 @@ fileGetURL(const char *base, const char *spec, int keep_package)
 	printf("Error: Unable to get %s: %s\n",
 	       fname, fetchLastErrString);
 	/* If the fetch fails, yank the package. */
-	if (keep_package && unlink(pkg) < 0) {
+	if (keep_package && unlink(pkg) < 0 && Verbose) {
 	    warnx("failed to remove partially fetched package: %s", pkg);
 	}
 	return NULL;

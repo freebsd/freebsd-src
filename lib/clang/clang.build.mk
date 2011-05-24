@@ -15,7 +15,7 @@ CFLAGS+= -O1
 
 TARGET_ARCH?=	${MACHINE_ARCH}
 # XXX: 8.0, to keep __FreeBSD_cc_version happy
-CFLAGS+=-DLLVM_HOSTTRIPLE=\"${TARGET_ARCH}-undermydesk-freebsd9.0\"
+CFLAGS+=-DLLVM_HOSTTRIPLE=\"${TARGET_ARCH:C/amd64/x86_64/}-unknown-freebsd9.0\"
 
 .ifndef LLVM_REQUIRES_EH
 CXXFLAGS+=-fno-exceptions

@@ -124,6 +124,7 @@ g_eli_key_allocate(struct g_eli_softc *sc, uint64_t keyno)
 	ekey = RB_FIND(g_eli_key_tree, &sc->sc_ekeys_tree, &keysearch);
 	if (ekey != NULL) {
 		bzero(key, sizeof(*key));
+		free(key, M_ELI);
 		key = ekey;
 		TAILQ_REMOVE(&sc->sc_ekeys_queue, key, gek_next);
 	} else {

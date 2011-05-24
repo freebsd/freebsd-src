@@ -25,7 +25,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd April 27, 2010
+.Dd May 23, 2011
 .Dt GZIP 1
 .Os
 .Sh NAME
@@ -127,9 +127,9 @@ stream, leaving files intact.
 This option selects decompression rather than compression.
 .It Fl f , -force
 This option turns on force mode.
-This allows files with multiple links, overwriting of pre-existing
-files, reading from or writing to a terminal, and when combined
-with the
+This allows files with multiple links, symbolic links to regular files,
+overwriting of pre-existing files, reading from or writing to a terminal,
+and when combined with the
 .Fl c
 option, allowing non-compressed data to pass through unchanged.
 .It Fl h , -help

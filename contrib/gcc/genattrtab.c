@@ -1652,7 +1652,7 @@ simplify_cond (rtx exp, int insn_code, int insn_index)
   rtx ret;
 
   /* This lets us free all storage allocated below, if appropriate.  */
-  obstack_finish (rtl_obstack);
+  (void) obstack_finish (rtl_obstack);
 
   memcpy (tests, XVEC (exp, 0)->elem, len * sizeof (rtx));
 

@@ -501,7 +501,7 @@ ar5416PerCalibrationN(struct ath_hal *ah, struct ieee80211_channel *chan,
 		 * and update the history buffer.
 		 */
 		r = ar5416GetNf(ah, chan);
-		if (r <= 0) {
+		if (r == 0 || r == -1) {
 			/* NF calibration result isn't valid */
 			HALDEBUG(ah, HAL_DEBUG_UNMASKABLE, "%s: NF calibration"
 			    " didn't finish; delaying CCA\n", __func__);

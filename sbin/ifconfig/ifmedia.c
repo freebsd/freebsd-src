@@ -268,12 +268,8 @@ setmedia(const char *val, int d, int s, const struct afswtch *afp)
 	subtype = get_media_subtype(IFM_TYPE(ifmr->ifm_ulist[0]), val);
 
 	strncpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
-	ifr.ifr_media = (ifmr->ifm_current & ~(IFM_NMASK|IFM_TMASK)) |
+	ifr.ifr_media = (ifmr->ifm_current & IFM_IMASK) |
 	    IFM_TYPE(ifmr->ifm_ulist[0]) | subtype;
-
-	if ((ifr.ifr_media & IFM_TMASK) == 0) {
-		ifr.ifr_media &= ~(IFM_GMASK | IFM_OMASK);
-	}
 
 	ifmr->ifm_current = ifr.ifr_media;
 	callback_register(setifmediacallback, (void *)ifmr);

@@ -111,7 +111,8 @@ in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
 	struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)NULL;
 	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
 	u_short	lport = 0;
-	int error, wild = 0, reuseport = (so->so_options & SO_REUSEPORT);
+	int error, lookupflags = 0;
+	int reuseport = (so->so_options & SO_REUSEPORT);
 
 	INP_INFO_WLOCK_ASSERT(pcbinfo);
 	INP_WLOCK_ASSERT(inp);
@@ -121,7 +122,7 @@ in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
 	if (inp->inp_lport || !IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr))
 		return (EINVAL);
 	if ((so->so_options & (SO_REUSEADDR|SO_REUSEPORT)) == 0)
-		wild = INPLOOKUP_WILDCARD;
+		lookupflags = INPLOOKUP_WILDCARD;
 	if (nam == NULL) {
 		if ((error = prison_local_ip6(cred, &inp->in6p_laddr,
 		    ((inp->inp_flags & IN6P_IPV6_V6ONLY) != 0))) != 0)
@@ -226,7 +227,7 @@ in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
 #endif
 			}
 			t = in6_pcblookup_local(pcbinfo, &sin6->sin6_addr,
-			    lport, wild, cred);
+			    lport, lookupflags, cred);
 			if (t && (reuseport & ((t->inp_flags & INP_TIMEWAIT) ?
 			    intotw(t)->tw_so_options :
 			    t->inp_socket->so_options)) == 0)
@@ -238,7 +239,7 @@ in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
 
 				in6_sin6_2_sin(&sin, sin6);
 				t = in_pcblookup_local(pcbinfo, sin.sin_addr,
-				    lport, wild, cred);
+				    lport, lookupflags, cred);
 				if (t && t->inp_flags & INP_TIMEWAIT) {
 					if ((reuseport &
 					    intotw(t)->tw_so_options) == 0 &&
@@ -652,14 +653,17 @@ in6_pcbnotify(struct inpcbinfo *pcbinfo, struct sockaddr *dst,
  */
 struct inpcb *
 in6_pcblookup_local(struct inpcbinfo *pcbinfo, struct in6_addr *laddr,
-    u_short lport, int wild_okay, struct ucred *cred)
+    u_short lport, int lookupflags, struct ucred *cred)
 {
 	register struct inpcb *inp;
 	int matchwild = 3, wildcard;
 
+	KASSERT((lookupflags & ~(INPLOOKUP_WILDCARD)) == 0,
+	    ("%s: invalid lookup flags %d", __func__, lookupflags));
+
 	INP_INFO_WLOCK_ASSERT(pcbinfo);
 
-	if (!wild_okay) {
+	if ((lookupflags & INPLOOKUP_WILDCARD) == 0) {
 		struct inpcbhead *head;
 		/*
 		 * Look for an unconnected (wildcard foreign addr) PCB that
@@ -815,13 +819,16 @@ in6_rtchange(struct inpcb *inp, int errno)
  */
 struct inpcb *
 in6_pcblookup_hash(struct inpcbinfo *pcbinfo, struct in6_addr *faddr,
-    u_int fport_arg, struct in6_addr *laddr, u_int lport_arg, int wildcard,
+    u_int fport_arg, struct in6_addr *laddr, u_int lport_arg, int lookupflags,
     struct ifnet *ifp)
 {
 	struct inpcbhead *head;
 	struct inpcb *inp, *tmpinp;
 	u_short fport = fport_arg, lport = lport_arg;
 	int faith;
+
+	KASSERT((lookupflags & ~(INPLOOKUP_WILDCARD)) == 0,
+	    ("%s: invalid lookup flags %d", __func__, lookupflags));
 
 	INP_INFO_LOCK_ASSERT(pcbinfo);
 
@@ -862,7 +869,7 @@ in6_pcblookup_hash(struct inpcbinfo *pcbinfo, struct in6_addr *faddr,
 	/*
 	 * Then look for a wildcard match, if requested.
 	 */
-	if (wildcard == INPLOOKUP_WILDCARD) {
+	if ((lookupflags & INPLOOKUP_WILDCARD) != 0) {
 		struct inpcb *local_wild = NULL, *local_exact = NULL;
 		struct inpcb *jail_wild = NULL;
 		int injail;
@@ -919,7 +926,7 @@ in6_pcblookup_hash(struct inpcbinfo *pcbinfo, struct in6_addr *faddr,
 			return (local_exact);
 		if (local_wild != NULL)
 			return (local_wild);
-	} /* if (wildcard == INPLOOKUP_WILDCARD) */
+	} /* if ((lookupflags & INPLOOKUP_WILDCARD) != 0) */
 
 	/*
 	 * Not found.

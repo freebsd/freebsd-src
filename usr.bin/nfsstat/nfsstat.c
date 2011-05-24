@@ -221,10 +221,10 @@ readstats(struct nfsstats **stp, struct nfsrvstats **srvstp, int zero)
 		if (zero)
 			bzero(&zerostat, sizeof(zerostat));
 		buflen = sizeof(struct nfsstats);
-		if (*stp != NULL && sysctlbyname("vfs.nfs.nfsstats", *stp,
+		if (*stp != NULL && sysctlbyname("vfs.oldnfs.nfsstats", *stp,
 		    &buflen, zero ? &zerostat : NULL, zero ? buflen : 0) < 0) {
 			if (errno != ENOENT)
-				err(1, "sysctl: vfs.nfs.nfsstats");
+				err(1, "sysctl: vfs.oldnfs.nfsstats");
 			*stp = NULL;
 		}
 		buflen = sizeof(struct nfsrvstats);

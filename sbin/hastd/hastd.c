@@ -98,6 +98,7 @@ void
 descriptors_cleanup(struct hast_resource *res)
 {
 	struct hast_resource *tres;
+	struct hastd_listen *lst;
 
 	TAILQ_FOREACH(tres, &cfg->hc_resources, hr_next) {
 		if (tres == res) {
@@ -120,7 +121,10 @@ descriptors_cleanup(struct hast_resource *res)
 	if (cfg->hc_controlin != NULL)
 		proto_close(cfg->hc_controlin);
 	proto_close(cfg->hc_controlconn);
-	proto_close(cfg->hc_listenconn);
+	TAILQ_FOREACH(lst, &cfg->hc_listen, hl_next) {
+		if (lst->hl_conn != NULL)
+			proto_close(lst->hl_conn);
+	}
 	(void)pidfile_close(pfh);
 	hook_fini();
 	pjdlog_fini();
@@ -462,6 +466,8 @@ hastd_reload(void)
 {
 	struct hastd_config *newcfg;
 	struct hast_resource *nres, *cres, *tres;
+	struct hastd_listen *nlst, *clst;
+	unsigned int nlisten;
 	uint8_t role;
 
 	pjdlog_info("Reloading configuration...");
@@ -483,19 +489,37 @@ hastd_reload(void)
 		}
 	}
 	/*
-	 * Check if listen address has changed.
+	 * Check if any listen address has changed.
 	 */
-	if (strcmp(cfg->hc_listenaddr, newcfg->hc_listenaddr) != 0) {
-		if (proto_server(newcfg->hc_listenaddr,
-		    &newcfg->hc_listenconn) < 0) {
-			pjdlog_errno(LOG_ERR, "Unable to listen on address %s",
-			    newcfg->hc_listenaddr);
-			goto failed;
+	nlisten = 0;
+	TAILQ_FOREACH(nlst, &newcfg->hc_listen, hl_next) {
+		TAILQ_FOREACH(clst, &cfg->hc_listen, hl_next) {
+			if (strcmp(nlst->hl_addr, clst->hl_addr) == 0)
+				break;
+		}
+		if (clst != NULL && clst->hl_conn != NULL) {
+			pjdlog_info("Keep listening on address %s.",
+			    nlst->hl_addr);
+			nlst->hl_conn = clst->hl_conn;
+			nlisten++;
+		} else if (proto_server(nlst->hl_addr, &nlst->hl_conn) == 0) {
+			pjdlog_info("Listening on new address %s.",
+			    nlst->hl_addr);
+			nlisten++;
+		} else {
+			pjdlog_errno(LOG_WARNING,
+			    "Unable to listen on address %s", nlst->hl_addr);
 		}
 	}
+	if (nlisten == 0) {
+		pjdlog_error("No addresses to listen on.");
+		goto failed;
+	}
+
+	/* No failures from now on. */
+
 	/*
-	 * Only when both control and listen sockets are successfully
-	 * initialized switch them to new configuration.
+	 * Switch to new control socket.
 	 */
 	if (newcfg->hc_controlconn != NULL) {
 		pjdlog_info("Control socket changed from %s to %s.",
@@ -506,15 +530,23 @@ hastd_reload(void)
 		strlcpy(cfg->hc_controladdr, newcfg->hc_controladdr,
 		    sizeof(cfg->hc_controladdr));
 	}
-	if (newcfg->hc_listenconn != NULL) {
-		pjdlog_info("Listen socket changed from %s to %s.",
-		    cfg->hc_listenaddr, newcfg->hc_listenaddr);
-		proto_close(cfg->hc_listenconn);
-		cfg->hc_listenconn = newcfg->hc_listenconn;
-		newcfg->hc_listenconn = NULL;
-		strlcpy(cfg->hc_listenaddr, newcfg->hc_listenaddr,
-		    sizeof(cfg->hc_listenaddr));
+	/*
+	 * Switch to new listen addresses. Close all that were removed.
+	 */
+	while ((clst = TAILQ_FIRST(&cfg->hc_listen)) != NULL) {
+		TAILQ_FOREACH(nlst, &newcfg->hc_listen, hl_next) {
+			if (strcmp(nlst->hl_addr, clst->hl_addr) == 0)
+				break;
+		}
+		if (nlst == NULL && clst->hl_conn != NULL) {
+			proto_close(clst->hl_conn);
+			pjdlog_info("No longer listening on address %s.",
+			    clst->hl_addr);
+		}
+		TAILQ_REMOVE(&cfg->hc_listen, clst, hl_next);
+		free(clst);
 	}
+	TAILQ_CONCAT(&cfg->hc_listen, &newcfg->hc_listen, hl_next);
 
 	/*
 	 * Stop and remove resources that were removed from the configuration.
@@ -607,8 +639,20 @@ failed:
 	if (newcfg != NULL) {
 		if (newcfg->hc_controlconn != NULL)
 			proto_close(newcfg->hc_controlconn);
-		if (newcfg->hc_listenconn != NULL)
-			proto_close(newcfg->hc_listenconn);
+		while ((nlst = TAILQ_FIRST(&newcfg->hc_listen)) != NULL) {
+			if (nlst->hl_conn != NULL) {
+				TAILQ_FOREACH(clst, &cfg->hc_listen, hl_next) {
+					if (strcmp(nlst->hl_addr,
+					    clst->hl_addr) == 0) {
+						break;
+					}
+				}
+				if (clst == NULL || clst->hl_conn == NULL)
+					proto_close(nlst->hl_conn);
+			}
+			TAILQ_REMOVE(&newcfg->hc_listen, nlst, hl_next);
+			free(nlst);
+		}
 		yy_config_free(newcfg);
 	}
 	pjdlog_warning("Configuration not reloaded.");
@@ -634,7 +678,7 @@ terminate_workers(void)
 }
 
 static void
-listen_accept(void)
+listen_accept(struct hastd_listen *lst)
 {
 	struct hast_resource *res;
 	struct proto_conn *conn;
@@ -646,10 +690,10 @@ listen_accept(void)
 	pid_t pid;
 	int status;
 
-	proto_local_address(cfg->hc_listenconn, laddr, sizeof(laddr));
+	proto_local_address(lst->hl_conn, laddr, sizeof(laddr));
 	pjdlog_debug(1, "Accepting connection to %s.", laddr);
 
-	if (proto_accept(cfg->hc_listenconn, &conn) < 0) {
+	if (proto_accept(lst->hl_conn, &conn) < 0) {
 		pjdlog_errno(LOG_ERR, "Unable to accept connection %s", laddr);
 		return;
 	}
@@ -943,6 +987,7 @@ static void
 main_loop(void)
 {
 	struct hast_resource *res;
+	struct hastd_listen *lst;
 	struct timeval seltimeout;
 	int fd, maxfd, ret;
 	time_t lastcheck, now;
@@ -952,9 +997,6 @@ main_loop(void)
 	seltimeout.tv_sec = REPORT_INTERVAL;
 	seltimeout.tv_usec = 0;
 
-	pjdlog_info("Started successfully, running protocol version %d.",
-	    HAST_PROTO_VERSION);
-
 	for (;;) {
 		check_signals();
 
@@ -963,10 +1005,14 @@ main_loop(void)
 		maxfd = fd = proto_descriptor(cfg->hc_controlconn);
 		PJDLOG_ASSERT(fd >= 0);
 		FD_SET(fd, &rfds);
-		fd = proto_descriptor(cfg->hc_listenconn);
-		PJDLOG_ASSERT(fd >= 0);
-		FD_SET(fd, &rfds);
-		maxfd = fd > maxfd ? fd : maxfd;
+		TAILQ_FOREACH(lst, &cfg->hc_listen, hl_next) {
+			if (lst->hl_conn == NULL)
+				continue;
+			fd = proto_descriptor(lst->hl_conn);
+			PJDLOG_ASSERT(fd >= 0);
+			FD_SET(fd, &rfds);
+			maxfd = fd > maxfd ? fd : maxfd;
+		}
 		TAILQ_FOREACH(res, &cfg->hc_resources, hr_next) {
 			if (res->hr_event == NULL)
 				continue;
@@ -1014,8 +1060,12 @@ main_loop(void)
 
 		if (FD_ISSET(proto_descriptor(cfg->hc_controlconn), &rfds))
 			control_handle(cfg);
-		if (FD_ISSET(proto_descriptor(cfg->hc_listenconn), &rfds))
-			listen_accept();
+		TAILQ_FOREACH(lst, &cfg->hc_listen, hl_next) {
+			if (lst->hl_conn == NULL)
+				continue;
+			if (FD_ISSET(proto_descriptor(lst->hl_conn), &rfds))
+				listen_accept(lst);
+		}
 		TAILQ_FOREACH(res, &cfg->hc_resources, hr_next) {
 			if (res->hr_event == NULL)
 				continue;
@@ -1053,6 +1103,7 @@ dummy_sighandler(int sig __unused)
 int
 main(int argc, char *argv[])
 {
+	struct hastd_listen *lst;
 	const char *pidfile;
 	pid_t otherpid;
 	bool foreground;
@@ -1136,10 +1187,12 @@ main(int argc, char *argv[])
 		    cfg->hc_controladdr);
 	}
 	/* Listen for remote connections. */
-	if (proto_server(cfg->hc_listenaddr, &cfg->hc_listenconn) < 0) {
-		KEEP_ERRNO((void)pidfile_remove(pfh));
-		pjdlog_exit(EX_OSERR, "Unable to listen on address %s",
-		    cfg->hc_listenaddr);
+	TAILQ_FOREACH(lst, &cfg->hc_listen, hl_next) {
+		if (proto_server(lst->hl_addr, &lst->hl_conn) < 0) {
+			KEEP_ERRNO((void)pidfile_remove(pfh));
+			pjdlog_exit(EX_OSERR, "Unable to listen on address %s",
+			    lst->hl_addr);
+		}
 	}
 
 	if (!foreground) {
@@ -1157,6 +1210,14 @@ main(int argc, char *argv[])
 			    "Unable to write PID to a file");
 		}
 	}
+
+	pjdlog_info("Started successfully, running protocol version %d.",
+	    HAST_PROTO_VERSION);
+
+	pjdlog_debug(1, "Listening on control address %s.",
+	    cfg->hc_controladdr);
+	TAILQ_FOREACH(lst, &cfg->hc_listen, hl_next)
+		pjdlog_info("Listening on address %s.", lst->hl_addr);
 
 	hook_init();
 

@@ -417,6 +417,7 @@ static int
 hpfs_fhtovp(
 	struct mount *mp,
 	struct fid *fhp,
+	int flags,
 	struct vnode **vpp)
 {
 	struct vnode *nvp;

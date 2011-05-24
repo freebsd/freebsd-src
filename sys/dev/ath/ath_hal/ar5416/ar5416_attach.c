@@ -816,7 +816,7 @@ ar5416FillCapabilityInfo(struct ath_hal *ah)
 	pCap->halPSPollBroken = AH_TRUE;	/* XXX fixed in later revs? */
 	pCap->halVEOLSupport = AH_TRUE;
 	pCap->halBssIdMaskSupport = AH_TRUE;
-	pCap->halMcastKeySrchSupport = AH_FALSE;
+	pCap->halMcastKeySrchSupport = AH_TRUE;	/* Works on AR5416 and later */
 	pCap->halTsfAddSupport = AH_TRUE;
 	pCap->hal4AddrAggrSupport = AH_FALSE;	/* Broken in Owl */
 

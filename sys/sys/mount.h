@@ -566,7 +566,8 @@ typedef	int vfs_statfs_t(struct mount *mp, struct statfs *sbp);
 typedef	int vfs_sync_t(struct mount *mp, int waitfor);
 typedef	int vfs_vget_t(struct mount *mp, ino_t ino, int flags,
 		    struct vnode **vpp);
-typedef	int vfs_fhtovp_t(struct mount *mp, struct fid *fhp, struct vnode **vpp);
+typedef	int vfs_fhtovp_t(struct mount *mp, struct fid *fhp,
+		    int flags, struct vnode **vpp);
 typedef	int vfs_checkexp_t(struct mount *mp, struct sockaddr *nam,
 		    int *extflagsp, struct ucred **credanonp,
 		    int *numsecflavors, int **secflavors);
@@ -610,8 +611,8 @@ vfs_statfs_t	__vfs_statfs;
 #define	VFS_SYNC(MP, WAIT)	(*(MP)->mnt_op->vfs_sync)(MP, WAIT)
 #define VFS_VGET(MP, INO, FLAGS, VPP) \
 	(*(MP)->mnt_op->vfs_vget)(MP, INO, FLAGS, VPP)
-#define VFS_FHTOVP(MP, FIDP, VPP) \
-	(*(MP)->mnt_op->vfs_fhtovp)(MP, FIDP, VPP)
+#define VFS_FHTOVP(MP, FIDP, FLAGS, VPP) \
+	(*(MP)->mnt_op->vfs_fhtovp)(MP, FIDP, FLAGS, VPP)
 #define VFS_CHECKEXP(MP, NAM, EXFLG, CRED, NUMSEC, SEC)	\
 	(*(MP)->mnt_op->vfs_checkexp)(MP, NAM, EXFLG, CRED, NUMSEC, SEC)
 #define	VFS_EXTATTRCTL(MP, C, FN, NS, N)				\

@@ -731,6 +731,12 @@ options 	SAFE_DEBUG	# enable debugging support: hw.safe.debug
 options 	SAFE_RNDTEST	# enable rndtest support
 
 #
+# glxiic is an I2C driver for the AMD Geode LX CS5536 System Management Bus
+# controller.  Requires 'device iicbus'.
+#
+device		glxiic		# AMD Geode LX CS5536 System Management Bus
+
+#
 # glxsb is a driver for the Security Block in AMD Geode LX processors.
 # Requires 'device crypto'.
 #

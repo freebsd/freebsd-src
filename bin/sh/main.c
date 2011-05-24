@@ -281,7 +281,6 @@ readcmdfile(const char *name)
 static char *
 find_dot_file(char *basename)
 {
-	static char localname[FILENAME_MAX+1];
 	char *fullname;
 	const char *path = pathval();
 	struct stat statb;
@@ -291,10 +290,14 @@ find_dot_file(char *basename)
 		return basename;
 
 	while ((fullname = padvance(&path, basename)) != NULL) {
-		strcpy(localname, fullname);
+		if ((stat(fullname, &statb) == 0) && S_ISREG(statb.st_mode)) {
+			/*
+			 * Don't bother freeing here, since it will
+			 * be freed by the caller.
+			 */
+			return fullname;
+		}
 		stunalloc(fullname);
-		if ((stat(fullname, &statb) == 0) && S_ISREG(statb.st_mode))
-			return localname;
 	}
 	return basename;
 }

@@ -120,9 +120,11 @@ COMPTMPDIR=\"${COMPTMPDIR}\"
 export COMPTMPDIR
 CFILE=\"${CFILE}\"
 export CFILE
+mount -t devfs devfs /dev
 
 sh ${COMPTMPDIR}/install.sh
 
+umount /dev
 " >${FSMNT}/.componentwrapper.sh
   chmod 755 ${FSMNT}/.componentwrapper.sh
    

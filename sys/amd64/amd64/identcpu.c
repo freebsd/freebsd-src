@@ -216,6 +216,14 @@ printcpuinfo(void)
 		printf("  Family = %x", CPUID_TO_FAMILY(cpu_id));
 		printf("  Model = %x", CPUID_TO_MODEL(cpu_id));
 		printf("  Stepping = %u", cpu_id & CPUID_STEPPING);
+
+		/*
+		 * AMD CPUID Specification
+		 * http://support.amd.com/us/Embedded_TechDocs/25481.pdf
+		 *
+		 * Intel Processor Identification and CPUID Instruction
+		 * http://www.intel.com/assets/pdf/appnote/241618.pdf
+		 */
 		if (cpu_high > 0) {
 
 			/*
@@ -277,38 +285,29 @@ printcpuinfo(void)
 				"\012SSSE3"	/* SSSE3 */
 				"\013CNXT-ID"	/* L1 context ID available */
 				"\014<b11>"
-				"\015<b12>"
+				"\015FMA"	/* Fused Multiply Add */
 				"\016CX16"	/* CMPXCHG16B Instruction */
 				"\017xTPR"	/* Send Task Priority Messages*/
 				"\020PDCM"	/* Perf/Debug Capability MSR */
 				"\021<b16>"
-				"\022PCID"	/* Process-context Identifiers */
+				"\022PCID"	/* Process-context Identifiers*/
 				"\023DCA"	/* Direct Cache Access */
-				"\024SSE4.1"
-				"\025SSE4.2"
+				"\024SSE4.1"	/* SSE 4.1 */
+				"\025SSE4.2"	/* SSE 4.2 */
 				"\026x2APIC"	/* xAPIC Extensions */
-				"\027MOVBE"
-				"\030POPCNT"
-				"\031<b24>"
-				"\032AESNI"	/* AES Crypto*/
-				"\033XSAVE"
-				"\034OSXSAVE"
-				"\035<b28>"
-				"\036<b29>"
+				"\027MOVBE"	/* MOVBE Instruction */
+				"\030POPCNT"	/* POPCNT Instruction */
+				"\031TSCDLT"	/* TSC-Deadline Timer */
+				"\032AESNI"	/* AES Crypto */
+				"\033XSAVE"	/* XSAVE/XRSTOR States */
+				"\034OSXSAVE"	/* OS-Enabled State Management*/
+				"\035AVX"	/* Advanced Vector Extensions */
+				"\036F16C"	/* Half-precision conversions */
 				"\037<b30>"
 				"\040HV"	/* Hypervisor */
 				);
 			}
 
-			/*
-			 * AMD64 Architecture Programmer's Manual Volume 3:
-			 * General-Purpose and System Instructions
-			 * http://www.amd.com/us-en/assets/content_type/white_papers_and_tech_docs/24594.pdf
-			 *
-			 * IA-32 Intel Architecture Software Developer's Manual,
-			 * Volume 2A: Instruction Set Reference, A-M
-			 * ftp://download.intel.com/design/Pentium4/manuals/25366617.pdf
-			 */
 			if (amd_feature != 0) {
 				printf("\n  AMD Features=0x%b", amd_feature,
 				"\020"		/* in hex */
@@ -361,18 +360,18 @@ printcpuinfo(void)
 				"\011Prefetch"	/* 3DNow! Prefetch/PrefetchW */
 				"\012OSVW"	/* OS visible workaround */
 				"\013IBS"	/* Instruction based sampling */
-				"\014SSE5"	/* SSE5 */
+				"\014XOP"	/* XOP extended instructions */
 				"\015SKINIT"	/* SKINIT/STGI */
 				"\016WDT"	/* Watchdog timer */
 				"\017<b14>"
-				"\020<b15>"
-				"\021<b16>"
+				"\020LWP"	/* Lightweight Profiling */
+				"\021FMA4"	/* 4-operand FMA instructions */
 				"\022<b17>"
 				"\023<b18>"
-				"\024<b19>"
+				"\024NodeId"	/* NodeId MSR support */
 				"\025<b20>"
-				"\026<b21>"
-				"\027<b22>"
+				"\026TBM"	/* Trailing Bit Manipulation */
+				"\027Topology"	/* Topology Extensions */
 				"\030<b23>"
 				"\031<b24>"
 				"\032<b25>"

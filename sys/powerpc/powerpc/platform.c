@@ -93,7 +93,7 @@ mem_valid(vm_offset_t addr, int len)
 
 	for (i = 0; i < npregions; i++)
 		if ((addr >= pregions[i].mr_start) 
-		   && (addr + len < pregions[i].mr_start + pregions[i].mr_size))
+		   && (addr + len <= pregions[i].mr_start + pregions[i].mr_size))
 			return (0);
 
 	return (EFAULT);

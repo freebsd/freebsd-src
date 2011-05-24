@@ -40,7 +40,7 @@ BRIDGE_NAME="bnet0"
 # machine as well then set ${LOCAL_IFACES} as well (they may also be
 # listed in ${BRIDGE_IFACES}). Of course, any ${LOCAL_IFACE} must
 # be ifconfig(8)ured separately. If you don't want a ${LOCAL_IFACE}
-# then assign it the emtpy string.
+# then assign it the empty string.
 
 BRIDGE_IFACES="de0 fxp0 fxp1"
 LOCAL_IFACES="fxp0 fxp1"

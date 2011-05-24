@@ -1132,6 +1132,10 @@ _kgzip=		usr.sbin/kgzip
 .endif
 .endif
 
+.if ${MK_BINUTILS} != "no"
+_binutils=	gnu/usr.bin/binutils
+.endif
+
 .if ${MK_CLANG} != "no"
 .if ${CC:T:Mclang} == "clang"
 _clang=		usr.bin/clang
@@ -1139,12 +1143,16 @@ _clang_libs=	lib/clang
 .endif
 .endif
 
+.if ${MK_GCC} != "no"
+_cc=		gnu/usr.bin/cc
+.endif
+
 cross-tools:
 .for _tool in \
     ${_clang_libs} \
     ${_clang} \
-    gnu/usr.bin/binutils \
-    gnu/usr.bin/cc \
+    ${_binutils} \
+    ${_cc} \
     usr.bin/xlint/lint1 usr.bin/xlint/lint2 usr.bin/xlint/xlint \
     ${_btxld} \
     ${_crunchide} \
@@ -1205,7 +1213,7 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} ${_kerberos5_lib_libheimntlm} \
 		${_kerberos5_lib_libhx509} ${_kerberos5_lib_libkrb5} \
 		${_kerberos5_lib_libroken} \
 		lib/libbz2 lib/libcom_err lib/libcrypt \
-		lib/libexpat lib/libfetch \
+		lib/libexpat \
 		${_lib_libgssapi} ${_lib_libipx} \
 		lib/libkiconv lib/libkvm lib/liblzma lib/libmd \
 		lib/ncurses/ncurses lib/ncurses/ncursesw \
@@ -1238,7 +1246,6 @@ _cddl_lib= cddl/lib
 _secure_lib_libcrypto= secure/lib/libcrypto
 _secure_lib_libssl= secure/lib/libssl
 lib/libradius__L secure/lib/libssl__L: secure/lib/libcrypto__L
-lib/libfetch__L: secure/lib/libcrypto__L secure/lib/libssl__L lib/libmd__L
 .if ${MK_OPENSSH} != "no"
 _secure_lib_libssh= secure/lib/libssh
 secure/lib/libssh__L: lib/libz__L secure/lib/libcrypto__L lib/libcrypt__L
@@ -1274,7 +1281,7 @@ _lib_libypclnt=	lib/libypclnt
 .endif
 
 .if ${MK_OPENSSL} == "no"
-lib/libfetch__L lib/libradius__L: lib/libmd__L
+lib/libradius__L: lib/libmd__L
 .endif
 
 .for _lib in ${_prereq_libs}
@@ -1553,7 +1560,8 @@ _xb-build-tools:
 _xb-cross-tools:
 .for _tool in \
     gnu/usr.bin/binutils \
-    gnu/usr.bin/cc
+    gnu/usr.bin/cc \
+    usr.bin/ar
 	${_+_}@${ECHODIR} "===> xdev ${_tool} (obj,depend,all)"; \
 	cd ${.CURDIR}/${_tool}; \
 	${CDMAKE} DIRPRFX=${_tool}/ obj; \
@@ -1578,7 +1586,8 @@ _xi-cross-tools:
 	@echo "_xi-cross-tools"
 .for _tool in \
     gnu/usr.bin/binutils \
-    gnu/usr.bin/cc
+    gnu/usr.bin/cc \
+    usr.bin/ar
 	${_+_}@${ECHODIR} "===> xdev ${_tool} (install)"; \
 	cd ${.CURDIR}/${_tool}; \
 	${CDMAKE} DIRPRFX=${_tool}/ install DESTDIR=${XDDESTDIR}

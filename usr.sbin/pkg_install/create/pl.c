@@ -21,7 +21,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <pkg.h>
+#include "lib.h"
 #include "create.h"
 #include <errno.h>
 #include <err.h>

@@ -219,7 +219,7 @@ main(int argc, char *argv[])
 		case 'A':
 			/*
 			 * Exactly the same as `-ax'.   This has been
-			 * added for compatability with SUSv3, but for
+			 * added for compatibility with SUSv3, but for
 			 * now it will not be described in the man page.
 			 */
 			nselectors++;

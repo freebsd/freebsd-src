@@ -157,21 +157,21 @@ struct pargs {
  * either lock is sufficient for read access, but both locks must be held
  * for write access.
  */
-struct racct;
-struct kaudit_record;
-struct td_sched;
-struct nlminfo;
+struct cpuset;
 struct kaioinfo;
+struct kaudit_record;
+struct kdtrace_proc;
+struct kdtrace_thread;
+struct mqueue_notifier;
+struct nlminfo;
 struct p_sched;
 struct proc;
+struct racct;
 struct sleepqueue;
+struct td_sched;
 struct thread;
 struct trapframe;
 struct turnstile;
-struct mqueue_notifier;
-struct kdtrace_proc;
-struct kdtrace_thread;
-struct cpuset;
 
 /*
  * XXX: Does this belong in resource.h or resourcevar.h instead?
@@ -185,13 +185,13 @@ struct cpuset;
  * Locking for td_rux: (t) for all fields.
  */
 struct rusage_ext {
-	u_int64_t	rux_runtime;    /* (cj) Real time. */
-	u_int64_t	rux_uticks;     /* (cj) Statclock hits in user mode. */
-	u_int64_t	rux_sticks;     /* (cj) Statclock hits in sys mode. */
-	u_int64_t	rux_iticks;     /* (cj) Statclock hits in intr mode. */
-	u_int64_t	rux_uu;         /* (c) Previous user time in usec. */
-	u_int64_t	rux_su;         /* (c) Previous sys time in usec. */
-	u_int64_t	rux_tu;         /* (c) Previous total time in usec. */
+	uint64_t	rux_runtime;    /* (cj) Real time. */
+	uint64_t	rux_uticks;     /* (cj) Statclock hits in user mode. */
+	uint64_t	rux_sticks;     /* (cj) Statclock hits in sys mode. */
+	uint64_t	rux_iticks;     /* (cj) Statclock hits in intr mode. */
+	uint64_t	rux_uu;         /* (c) Previous user time in usec. */
+	uint64_t	rux_su;         /* (c) Previous sys time in usec. */
+	uint64_t	rux_tu;         /* (c) Previous total time in usec. */
 };
 
 /*

@@ -93,16 +93,16 @@ static int	nfs3_jukebox_delay = 10;
 static int	nfs_skip_wcc_data_onerr = 1;
 static int	fake_wchan;
 
-SYSCTL_DECL(_vfs_nfs);
+SYSCTL_DECL(_vfs_oldnfs);
 
-SYSCTL_INT(_vfs_nfs, OID_AUTO, bufpackets, CTLFLAG_RW, &nfs_bufpackets, 0,
+SYSCTL_INT(_vfs_oldnfs, OID_AUTO, bufpackets, CTLFLAG_RW, &nfs_bufpackets, 0,
     "Buffer reservation size 2 < x < 64");
-SYSCTL_INT(_vfs_nfs, OID_AUTO, reconnects, CTLFLAG_RD, &nfs_reconnects, 0,
+SYSCTL_INT(_vfs_oldnfs, OID_AUTO, reconnects, CTLFLAG_RD, &nfs_reconnects, 0,
     "Number of times the nfs client has had to reconnect");
-SYSCTL_INT(_vfs_nfs, OID_AUTO, nfs3_jukebox_delay, CTLFLAG_RW,
+SYSCTL_INT(_vfs_oldnfs, OID_AUTO, nfs3_jukebox_delay, CTLFLAG_RW,
     &nfs3_jukebox_delay, 0,
     "Number of seconds to delay a retry after receiving EJUKEBOX");
-SYSCTL_INT(_vfs_nfs, OID_AUTO, skip_wcc_data_onerr, CTLFLAG_RW,
+SYSCTL_INT(_vfs_oldnfs, OID_AUTO, skip_wcc_data_onerr, CTLFLAG_RW,
     &nfs_skip_wcc_data_onerr, 0,
     "Disable weak cache consistency checking when server returns an error");
 

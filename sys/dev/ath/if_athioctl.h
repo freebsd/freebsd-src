@@ -121,17 +121,20 @@ struct ath_stats {
 	u_int32_t	ast_be_missed;	/* missed beacons */
 	u_int32_t	ast_ani_cal;	/* ANI calibrations performed */
 	u_int32_t	ast_rx_agg;	/* number of aggregate frames RX'ed */
-	u_int32_t	ast_rx_halfgi;
-	u_int32_t	ast_rx_2040;
-	u_int32_t	ast_rx_pre_crc_err;
-	u_int32_t	ast_rx_post_crc_err;
-	u_int32_t	ast_rx_decrypt_busy_err;
+	u_int32_t	ast_rx_halfgi;	/* RX half-GI */
+	u_int32_t	ast_rx_2040;	/* RX 40mhz frame */
+	u_int32_t	ast_rx_pre_crc_err;	/* RX pre-delimiter CRC error */
+	u_int32_t	ast_rx_post_crc_err;	/* RX post-delimiter CRC error */
+	u_int32_t	ast_rx_decrypt_busy_err;	/* RX decrypt engine busy error */
 	u_int32_t	ast_rx_hi_rx_chain;
 	u_int32_t	ast_tx_htprotect;	/* HT tx frames with protection */
-	u_int32_t	ast_rx_hitqueueend;
+	u_int32_t	ast_rx_hitqueueend;	/* RX hit descr queue end */
 	u_int32_t	ast_tx_timeout;		/* Global TX timeout */
 	u_int32_t	ast_tx_cst;		/* Carrier sense timeout */
-	u_int32_t	ast_pad[16];
+	u_int32_t	ast_tx_xtxop;	/* tx exceeded TXOP */
+	u_int32_t	ast_tx_timerexpired;	/* tx exceeded TX_TIMER */
+	u_int32_t	ast_tx_desccfgerr;	/* tx desc cfg error */
+	u_int32_t	ast_pad[13];
 };
 
 #define	SIOCGATHSTATS	_IOWR('i', 137, struct ifreq)

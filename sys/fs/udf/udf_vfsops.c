@@ -722,7 +722,7 @@ udf_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 }
 
 static int
-udf_fhtovp(struct mount *mp, struct fid *fhp, struct vnode **vpp)
+udf_fhtovp(struct mount *mp, struct fid *fhp, int flags, struct vnode **vpp)
 {
 	struct ifid *ifhp;
 	struct vnode *nvp;

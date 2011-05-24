@@ -71,7 +71,8 @@ MALLOC_DEFINE(M_TMPFSNAME, "tmpfs name", "tmpfs file names");
 static int	tmpfs_mount(struct mount *);
 static int	tmpfs_unmount(struct mount *, int);
 static int	tmpfs_root(struct mount *, int flags, struct vnode **);
-static int	tmpfs_fhtovp(struct mount *, struct fid *, struct vnode **);
+static int	tmpfs_fhtovp(struct mount *, struct fid *, int,
+		    struct vnode **);
 static int	tmpfs_statfs(struct mount *, struct statfs *);
 
 /* --------------------------------------------------------------------- */
@@ -341,7 +342,8 @@ tmpfs_root(struct mount *mp, int flags, struct vnode **vpp)
 /* --------------------------------------------------------------------- */
 
 static int
-tmpfs_fhtovp(struct mount *mp, struct fid *fhp, struct vnode **vpp)
+tmpfs_fhtovp(struct mount *mp, struct fid *fhp, int flags,
+    struct vnode **vpp)
 {
 	boolean_t found;
 	struct tmpfs_fid *tfhp;

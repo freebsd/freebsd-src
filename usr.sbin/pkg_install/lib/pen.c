@@ -21,7 +21,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "pkg.h"
+#include "lib.h"
 #include <err.h>
 #include <libutil.h>
 #include <libgen.h>
@@ -103,7 +103,7 @@ popPen(char *pen)
 const char *
 make_playpen(char *pen, off_t sz)
 {
-    char humbuf[6];
+    char humbuf1[6], humbuf2[6];
     char cwd[FILENAME_MAX];
 
     if (!find_play_pen(pen, sz))
@@ -114,15 +114,22 @@ make_playpen(char *pen, off_t sz)
 	errx(2, "%s: can't mktemp '%s'", __func__, pen);
     }
 
-    humanize_number(humbuf, sizeof humbuf, sz, "", HN_AUTOSCALE, HN_NOSPACE);
+    if (Verbose) {
+	if (sz) {
+	    humanize_number(humbuf1, sizeof humbuf1, sz, "", HN_AUTOSCALE,
+	        HN_NOSPACE);
+	    humanize_number(humbuf2, sizeof humbuf2, min_free(pen),
+	        "", HN_AUTOSCALE, HN_NOSPACE);
+	    fprintf(stderr, "Requested space: %s bytes, free space: %s bytes in %s\n", humbuf1, humbuf2, pen);
+	}
+    }
 
     if (min_free(pen) < sz) {
 	rmdir(pen);
 	cleanup(0);
 	errx(2, "%s: not enough free space to create '%s'.\n"
 	     "Please set your PKG_TMPDIR environment variable to a location\n"
-	     "with at least %s and try the command again",
-	     __func__, humbuf, pen);
+	     "with more space and\ntry the command again", __func__, pen);
     }
 
     if (!getcwd(cwd, FILENAME_MAX)) {

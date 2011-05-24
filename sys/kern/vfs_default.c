@@ -1081,9 +1081,10 @@ vfs_stdvget (mp, ino, flags, vpp)
 }
 
 int
-vfs_stdfhtovp (mp, fhp, vpp)
+vfs_stdfhtovp (mp, fhp, flags, vpp)
 	struct mount *mp;
 	struct fid *fhp;
+	int flags;
 	struct vnode **vpp;
 {
 

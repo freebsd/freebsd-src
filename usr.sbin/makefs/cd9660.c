@@ -207,6 +207,7 @@ cd9660_set_defaults(void)
 	diskStructure.rr_moved_dir = 0;
 
 	diskStructure.archimedes_enabled = 0;
+	diskStructure.chrp_boot = 0;
 
 	diskStructure.include_padding_areas = 1;
 
@@ -391,6 +392,8 @@ cd9660_parse_opts(const char *option, fsinfo_t *fsopts)
 		diskStructure.rock_ridge_enabled = 1;
 	else if (CD9660_IS_COMMAND_ARG_DUAL(var, "A", "archimedes"))
 		diskStructure.archimedes_enabled = 1;
+	else if (CD9660_IS_COMMAND_ARG(var, "chrp-boot"))
+		diskStructure.chrp_boot = 1;
 	else if (CD9660_IS_COMMAND_ARG_DUAL(var, "K", "keep-bad-images"))
 		diskStructure.keep_bad_images = 1;
 	else if (CD9660_IS_COMMAND_ARG(var, "allow-deep-trees"))

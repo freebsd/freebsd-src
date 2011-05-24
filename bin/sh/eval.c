@@ -552,7 +552,8 @@ evalpipe(union node *n)
 		if (prevfd >= 0)
 			close(prevfd);
 		prevfd = pip[0];
-		close(pip[1]);
+		if (pip[1] != -1)
+			close(pip[1]);
 	}
 	INTON;
 	if (n->npipe.backgnd == 0) {
@@ -713,15 +714,9 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 	oexitstatus = exitstatus;
 	exitstatus = 0;
 	for (argp = cmd->ncmd.args ; argp ; argp = argp->narg.next) {
-		char *p = argp->narg.text;
-		if (varflag && is_name(*p)) {
-			do {
-				p++;
-			} while (is_in_name(*p));
-			if (*p == '=') {
-				expandarg(argp, &varlist, EXP_VARTILDE);
-				continue;
-			}
+		if (varflag && isassignment(argp->narg.text)) {
+			expandarg(argp, &varlist, EXP_VARTILDE);
+			continue;
 		}
 		expandarg(argp, &arglist, EXP_FULL | EXP_TILDE);
 		varflag = 0;

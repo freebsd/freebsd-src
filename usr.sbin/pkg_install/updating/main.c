@@ -19,7 +19,7 @@ __FBSDID("$FreeBSD$");
 #include <sysexits.h>
 #include <getopt.h>
 
-#include <pkg.h>
+#include "lib.h"
 #include "pathnames.h"
 
 typedef struct installedport {
@@ -86,8 +86,6 @@ main(int argc, char *argv[])
 
 	DIR *dir;
 	FILE *fd;
-
-	pkg_wrap(PKG_INSTALL_VERSION, argv);
 
 	while ((ch = getopt_long(argc, argv, opts, longopts, NULL)) != -1) {
 		switch (ch) {

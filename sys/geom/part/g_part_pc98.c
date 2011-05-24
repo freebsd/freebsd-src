@@ -246,14 +246,11 @@ g_part_pc98_bootcode(struct g_part_table *basetable, struct g_part_parms *gpp)
 static int
 g_part_pc98_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 {
-	struct g_consumer *cp;
 	struct g_provider *pp;
 	struct g_part_pc98_table *table;
 	uint32_t cyl, msize;
 
 	pp = gpp->gpp_provider;
-	cp = LIST_FIRST(&pp->consumers);
-
 	if (pp->sectorsize < SECSIZE || pp->mediasize < BOOTSIZE)
 		return (ENOSPC);
 	if (pp->sectorsize > SECSIZE)

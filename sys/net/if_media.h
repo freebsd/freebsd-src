@@ -370,6 +370,7 @@ struct ifmedia_description {
 }
 
 #define	IFM_SUBTYPE_ETHERNET_ALIASES {					\
+	{ IFM_10_T,	"10baseT" },					\
 	{ IFM_10_T,	"UTP" },					\
 	{ IFM_10_T,	"10UTP" },					\
 	{ IFM_10_2,	"BNC" },					\
@@ -389,6 +390,23 @@ struct ifmedia_description {
 	{ IFM_1000_T,	"1000TX" },					\
 	{ IFM_1000_T,	"1000T" },					\
 	{ IFM_2500_SX,	"2500SX" },					\
+									\
+	/*								\
+	 * Shorthands for common media+option combinations as announced	\
+	 * by miibus(4)							\
+	 */								\
+	{ IFM_10_T | IFM_FDX,			"10baseT-FDX" },	\
+	{ IFM_10_T | IFM_FDX | IFM_FLOW,	"10baseT-FDX-flow" },	\
+	{ IFM_100_TX | IFM_FDX,			"100baseTX-FDX" },	\
+	{ IFM_100_TX | IFM_FDX | IFM_FLOW,	"100baseTX-FDX-flow" },	\
+	{ IFM_1000_T | IFM_FDX,			"1000baseT-FDX" },	\
+	{ IFM_1000_T | IFM_FDX | IFM_FLOW,	"1000baseT-FDX-flow" },	\
+	{ IFM_1000_T | IFM_FDX | IFM_FLOW | IFM_ETH_MASTER,		\
+	    "1000baseT-FDX-flow-master" },				\
+	{ IFM_1000_T | IFM_FDX | IFM_ETH_MASTER,			\
+	    "1000baseT-FDX-master" },					\
+	{ IFM_1000_T | IFM_ETH_MASTER,		"1000baseT-master" },	\
+									\
 	{ 0, NULL },							\
 }
 
@@ -584,6 +602,13 @@ struct ifmedia_description {
 
 #define	IFM_SUBTYPE_SHARED_ALIASES {					\
 	{ IFM_AUTO,	"auto" },					\
+									\
+	/*								\
+	 * Shorthands for common media+option combinations as announced	\
+	 * by miibus(4)							\
+	 */								\
+	{ IFM_AUTO | IFM_FLOW,	"auto-flow" },				\
+									\
 	{ 0, NULL },							\
 }
 

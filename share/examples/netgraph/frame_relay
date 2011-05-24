@@ -13,13 +13,13 @@ ngctl mkpeer ${CARD}: frame_relay rawdata downstream
 # Link management protocol node.
 ngctl mkpeer ${CARD}:rawdata lmi dlci0 auto0
 
-# Also attach dlci 1023, as it needs both to try autoconfiguring.
+# Also attach dlci 1023, as it needs both to try auto-configuring.
 # The Link management protocol is now alive and probing..
 ngctl connect ${CARD}:rawdata ${CARD}:rawdata.dlci0 dlci1023 auto1023
 
 # Attach the DLCI(channel) the Telco has assigned you to
-# a node to hadle whatever protocol encapsulation your peer
-# is using. In this case rfc1490 encapsulation.
+# a node to handle whatever protocol encapsulation your peer
+# is using. In this case RFC1490 encapsulation.
 ngctl mkpeer ${CARD}:rawdata rfc1490 dlci${DLCI} downstream
 
 
@@ -34,8 +34,8 @@ ngctl mkpeer ${CARD}:rawdata.dlci${DLCI} iface inet inet
 # Then use ifconfig on interface ng0 as usual
 
 # A variant on this whole set might use the 'name' command to make it more
-# readable. but it doesn't work if you have multiple lines or dlcis 
-# e.g. 
+# readable. But it doesn't work if you have multiple lines or dlcis
+# e.g.
 # ngctl mkpeer ${CARD}: frame_relay rawdata downstream
 # ngctl name ${CARD}:rawdata mux
 # ngctl mkpeer mux: lmi dlci0 auto0

@@ -709,6 +709,12 @@ ath_sysctl_stats_attach(struct ath_softc *sc)
 	    &sc->sc_stats.ast_tx_timeout, 0, "TX Global Timeout");
 	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_cst", CTLFLAG_RD,
 	    &sc->sc_stats.ast_tx_cst, 0, "TX Carrier Sense Timeout");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_xtxop", CTLFLAG_RD,
+	    &sc->sc_stats.ast_tx_xtxop, 0, "TX exceeded TXOP");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_timerexpired", CTLFLAG_RD,
+	    &sc->sc_stats.ast_tx_timerexpired, 0, "TX exceeded TX_TIMER register");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_desccfgerr", CTLFLAG_RD,
+	    &sc->sc_stats.ast_tx_desccfgerr, 0, "TX Descriptor Cfg Error");
 
 	/* Attach the RX phy error array */
 	ath_sysctl_stats_attach_rxphyerr(sc, child);

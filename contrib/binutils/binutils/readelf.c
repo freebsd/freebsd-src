@@ -9701,7 +9701,7 @@ process_archive (char *file_name, FILE *file)
 	}
 
       if ((longnames_size & 1) != 0)
-	getc (file);
+	(void) getc (file);
 
       got = fread (&arhdr, 1, sizeof arhdr, file);
       if (got != sizeof arhdr)

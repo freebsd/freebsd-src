@@ -70,7 +70,7 @@ static int in_lifaddr_ioctl(struct socket *, u_long, caddr_t,
 	struct ifnet *, struct thread *);
 
 static int	in_addprefix(struct in_ifaddr *, int);
-static int	in_scrubprefix(struct in_ifaddr *);
+static int	in_scrubprefix(struct in_ifaddr *, u_int);
 static void	in_socktrim(struct sockaddr_in *);
 static int	in_ifinit(struct ifnet *,
 	    struct in_ifaddr *, struct sockaddr_in *, int);
@@ -548,7 +548,7 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 			 * is the same as before, then the call is 
 			 * un-necessarily executed here.
 			 */
-			in_ifscrub(ifp, ia);
+			in_ifscrub(ifp, ia, 0);
 			ia->ia_sockmask = ifra->ifra_mask;
 			ia->ia_sockmask.sin_family = AF_INET;
 			ia->ia_subnetmask =
@@ -557,7 +557,7 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		}
 		if ((ifp->if_flags & IFF_POINTOPOINT) &&
 		    (ifra->ifra_dstaddr.sin_family == AF_INET)) {
-			in_ifscrub(ifp, ia);
+			in_ifscrub(ifp, ia, 0);
 			ia->ia_dstaddr = ifra->ifra_dstaddr;
 			maskIsNew  = 1; /* We lie; but the effect's the same */
 		}
@@ -585,7 +585,7 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		/*
 		 * in_ifscrub kills the interface route.
 		 */
-		in_ifscrub(ifp, ia);
+		in_ifscrub(ifp, ia, LLE_STATIC);
 
 		/*
 		 * in_ifadown gets rid of all the rest of
@@ -829,10 +829,10 @@ in_lifaddr_ioctl(struct socket *so, u_long cmd, caddr_t data,
  * Delete any existing route for an interface.
  */
 void
-in_ifscrub(struct ifnet *ifp, struct in_ifaddr *ia)
+in_ifscrub(struct ifnet *ifp, struct in_ifaddr *ia, u_int flags)
 {
 
-	in_scrubprefix(ia);
+	in_scrubprefix(ia, flags);
 }
 
 /*
@@ -887,7 +887,7 @@ in_ifinit(struct ifnet *ifp, struct in_ifaddr *ia, struct sockaddr_in *sin,
 	splx(s);
 	if (scrub) {
 		ia->ia_ifa.ifa_addr = (struct sockaddr *)&oldaddr;
-		in_ifscrub(ifp, ia);
+		in_ifscrub(ifp, ia, LLE_STATIC);
 		ia->ia_ifa.ifa_addr = (struct sockaddr *)&ia->ia_addr;
 	}
 	if (IN_CLASSA(i))
@@ -1095,7 +1095,7 @@ extern void arp_ifscrub(struct ifnet *ifp, uint32_t addr);
  * otherwise.
  */
 static int
-in_scrubprefix(struct in_ifaddr *target)
+in_scrubprefix(struct in_ifaddr *target, u_int flags)
 {
 	struct in_ifaddr *ia;
 	struct in_addr prefix, mask, p;
@@ -1130,13 +1130,15 @@ in_scrubprefix(struct in_ifaddr *target)
 				RT_REMREF(ia_ro.ro_rt);
 			RTFREE_LOCKED(ia_ro.ro_rt);
 		}
-		if (freeit)
+		if (freeit && (flags & LLE_STATIC)) {
 			error = ifa_del_loopback_route((struct ifaddr *)target,
 				       (struct sockaddr *)&target->ia_addr);
-		if (error == 0)
-			target->ia_flags &= ~IFA_RTSELF;
-		/* remove arp cache */
-		arp_ifscrub(target->ia_ifp, IA_SIN(target)->sin_addr.s_addr);
+			if (error == 0)
+				target->ia_flags &= ~IFA_RTSELF;
+		}
+		if (flags & LLE_STATIC)
+			/* remove arp cache */
+			arp_ifscrub(target->ia_ifp, IA_SIN(target)->sin_addr.s_addr);
 	}
 
 	if (rtinitflags(target))
@@ -1203,7 +1205,7 @@ in_scrubprefix(struct in_ifaddr *target)
 	mask0.sin_family = AF_INET;
 	mask0.sin_addr.s_addr = target->ia_subnetmask;
 	lltable_prefix_free(AF_INET, (struct sockaddr *)&prefix0, 
-			    (struct sockaddr *)&mask0);
+			    (struct sockaddr *)&mask0, flags);
 
 	/*
 	 * As no-one seem to have this prefix, we can remove the route.
@@ -1362,7 +1364,8 @@ in_lltable_free(struct lltable *llt, struct llentry *lle)
 static void
 in_lltable_prefix_free(struct lltable *llt, 
 		       const struct sockaddr *prefix,
-		       const struct sockaddr *mask)
+		       const struct sockaddr *mask,
+		       u_int flags)
 {
 	const struct sockaddr_in *pfx = (const struct sockaddr_in *)prefix;
 	const struct sockaddr_in *msk = (const struct sockaddr_in *)mask;
@@ -1373,8 +1376,13 @@ in_lltable_prefix_free(struct lltable *llt,
 	for (i=0; i < LLTBL_HASHTBL_SIZE; i++) {
 		LIST_FOREACH_SAFE(lle, &llt->lle_head[i], lle_next, next) {
 
+		        /* 
+			 * (flags & LLE_STATIC) means deleting all entries
+			 * including static ARP entries
+			 */
 			if (IN_ARE_MASKED_ADDR_EQUAL((struct sockaddr_in *)L3_ADDR(lle), 
-						     pfx, msk)) {
+						     pfx, msk) &&
+			    ((flags & LLE_STATIC) || !(lle->la_flags & LLE_STATIC))) {
 				int canceled;
 
 				canceled = callout_drain(&lle->la_timer);

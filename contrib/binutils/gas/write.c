@@ -345,7 +345,7 @@ record_alignment (/* Segment to which alignment pertains.  */
     return;
 
   if ((unsigned int) align > bfd_get_section_alignment (stdoutput, seg))
-    bfd_set_section_alignment (stdoutput, seg, align);
+    (void) bfd_set_section_alignment (stdoutput, seg, align);
 }
 
 int
@@ -2247,7 +2247,7 @@ relax_segment (struct frag *segment_frag_root, segT segment, int pass)
 
 		      newf = frag_alloc (ob);
 		      obstack_blank_fast (ob, fragP->fr_var);
-		      obstack_finish (ob);
+		      (void) obstack_finish (ob);
 		      memcpy (newf, fragP, SIZEOF_STRUCT_FRAG);
 		      memcpy (newf->fr_literal,
 			      fragP->fr_literal + fragP->fr_fix,

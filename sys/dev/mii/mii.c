@@ -552,7 +552,7 @@ mii_down(struct mii_data *mii)
 static unsigned char
 mii_bitreverse(unsigned char x)
 {
-	static unsigned char nibbletab[16] = {
+	unsigned const char const nibbletab[16] = {
 		0, 8, 4, 12, 2, 10, 6, 14, 1, 9, 5, 13, 3, 11, 7, 15
 	};
 
@@ -567,6 +567,6 @@ mii_oui(u_int id1, u_int id2)
 	h = (id1 << 6) | (id2 >> 10);
 
 	return ((mii_bitreverse(h >> 16) << 16) |
-	     (mii_bitreverse((h >> 8) & 0xff) << 8) |
-	     mii_bitreverse(h & 0xff));
+	    (mii_bitreverse((h >> 8) & 0xff) << 8) |
+	    mii_bitreverse(h & 0xff));
 }
