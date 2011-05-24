@@ -1068,18 +1068,8 @@ zio_taskq_dispatch(zio_t *zio, enum zio_taskq_type q, boolean_t cutinline)
 	spa_t *spa = zio->io_spa;
 	zio_type_t t = zio->io_type;
 	int flags = TQ_SLEEP | (cutinline ? TQ_FRONT : 0);
-#ifdef _KERNEL
-	struct ostask *task;
-#endif
 
 	ASSERT(q == ZIO_TASKQ_ISSUE || q == ZIO_TASKQ_INTERRUPT);
-
-#ifdef _KERNEL
-	if (q == ZIO_TASKQ_ISSUE)
-		task = &zio->io_task_issue;
-	else /* if (q == ZIO_TASKQ_INTERRUPT) */
-		task = &zio->io_task_interrupt;
-#endif
 
 	/*
 	 * If we're a config writer or a probe, the normal issue and
@@ -1105,7 +1095,7 @@ zio_taskq_dispatch(zio_t *zio, enum zio_taskq_type q, boolean_t cutinline)
 	ASSERT3U(q, <, ZIO_TASKQ_TYPES);
 #ifdef _KERNEL
 	(void) taskq_dispatch_safe(spa->spa_zio_taskq[t][q],
-	    (task_func_t *)zio_execute, zio, flags, task);
+	    (task_func_t *)zio_execute, zio, flags, &zio->io_task);
 #else
 	(void) taskq_dispatch(spa->spa_zio_taskq[t][q],
 	    (task_func_t *)zio_execute, zio, flags);
@@ -2904,7 +2894,7 @@ zio_done(zio_t *zio)
 			(void) taskq_dispatch_safe(
 			    spa->spa_zio_taskq[ZIO_TYPE_CLAIM][ZIO_TASKQ_ISSUE],
 			    (task_func_t *)zio_reexecute, zio, TQ_SLEEP,
-			    &zio->io_task_issue);
+			    &zio->io_task);
 #else
 			(void) taskq_dispatch(
 			    spa->spa_zio_taskq[ZIO_TYPE_CLAIM][ZIO_TASKQ_ISSUE],
