@@ -203,6 +203,9 @@ ar5212AniSetup(struct ath_hal *ah)
 		ar5212AniAttach(ah, &tmp, &tmp, AH_TRUE);
 	} else
 		ar5212AniAttach(ah, &aniparams, &aniparams, AH_TRUE);
+
+	/* Set overridable ANI methods */
+	AH5212(ah)->ah_aniControl = ar5212AniControl;
 }
 
 /*
