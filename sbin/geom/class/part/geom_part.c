@@ -295,8 +295,8 @@ fmtattrib(struct gprovider *pp)
 	return (buf);
 }
 
-#define	ALIGNDOWN(d, a)		(-(a) & (d))
-#define	ALIGNUP(d, a)		(-(-(a) & -(d)))
+#define	ALIGNDOWN(d, a)	((d) % (a) ? (d) - (d) % (a): (d))
+#define	ALIGNUP(d, a)	((d) % (a) ? (d) - (d) % (a) + (a): (d))
 
 static int
 gpart_autofill_resize(struct gctl_req *req)
