@@ -990,7 +990,7 @@ ar5212SetCapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 			HAL_ANI_SPUR_IMMUNITY_LEVEL,
 		};
 		return capability < N(cmds) ?
-			ar5212AniControl(ah, cmds[capability], setting) :
+			AH5212(ah)->ah_aniControl(ah, cmds[capability], setting) :
 			AH_FALSE;
 	}
 	case HAL_CAP_TSF_ADJUST:	/* hardware has beacon tsf adjust */
@@ -1053,7 +1053,7 @@ ar5212GetDiagState(struct ath_hal *ah, int request,
 	case HAL_DIAG_ANI_CMD:
 		if (argsize != 2*sizeof(uint32_t))
 			return AH_FALSE;
-		ar5212AniControl(ah, ((const uint32_t *)args)[0],
+		AH5212(ah)->ah_aniControl(ah, ((const uint32_t *)args)[0],
 			((const uint32_t *)args)[1]);
 		return AH_TRUE;
 	case HAL_DIAG_ANI_PARAMS:

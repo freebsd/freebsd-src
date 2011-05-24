@@ -200,6 +200,9 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 
 	/* Enable all ANI functions to begin with */
 	AH5416(ah)->ah_ani_function = HAL_ANI_ALL;
+
+        /* Set overridable ANI methods */
+        AH5212(ah)->ah_aniControl = ar5416AniControl;
 }
 
 uint32_t
