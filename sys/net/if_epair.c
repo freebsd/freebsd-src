@@ -66,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_clone.h>
+#include <net/if_media.h>
 #include <net/if_var.h>
 #include <net/if_types.h>
 #include <net/netisr.h>
@@ -92,6 +93,8 @@ static struct mbuf *epair_nh_m2cpuid(struct mbuf *, uintptr_t, u_int *);
 static void epair_nh_drainedcpu(u_int);
 
 static void epair_start_locked(struct ifnet *);
+static int epair_media_change(struct ifnet *);
+static void epair_media_status(struct ifnet *, struct ifmediareq *);
 
 static int epair_clone_match(struct if_clone *, const char *);
 static int epair_clone_create(struct if_clone *, char *, size_t, caddr_t);
@@ -127,6 +130,7 @@ SYSCTL_PROC(_net_link_epair, OID_AUTO, netisr_maxqlen, CTLTYPE_INT|CTLFLAG_RW,
 struct epair_softc {
 	struct ifnet	*ifp;		/* This ifp. */
 	struct ifnet	*oifp;		/* other ifp of pair. */
+	struct ifmedia	media;		/* Media config (fake). */
 	u_int		refcount;	/* # of mbufs in flight. */
 	u_int		cpuid;		/* CPU ID assigned upon creation. */
 	void		(*if_qflush)(struct ifnet *);
@@ -611,8 +615,25 @@ epair_qflush(struct ifnet *ifp)
 }
 
 static int
+epair_media_change(struct ifnet *ifp __unused)
+{
+
+	/* Do nothing. */
+	return (0);
+}
+
+static void
+epair_media_status(struct ifnet *ifp __unused, struct ifmediareq *imr)
+{
+
+	imr->ifm_status = IFM_AVALID | IFM_ACTIVE;
+	imr->ifm_active = IFM_ETHER | IFM_10G_T | IFM_FDX;
+}
+
+static int
 epair_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
+	struct epair_softc *sc;
 	struct ifreq *ifr;
 	int error;
 
@@ -622,6 +643,12 @@ epair_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		error = 0;
+		break;
+
+	case SIOCSIFMEDIA:
+	case SIOCGIFMEDIA:
+		sc = ifp->if_softc;
+		error = ifmedia_ioctl(ifp, ifr, &sc->media, cmd);
 		break;
 
 	case SIOCSIFMTU:
@@ -829,6 +856,14 @@ epair_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	strlcpy(name, sca->ifp->if_xname, len);
 	DPRINTF("name='%s/%db' created sca=%p scb=%p\n", name, unit, sca, scb);
 
+	/* Initialise pseudo media types. */
+	ifmedia_init(&sca->media, 0, epair_media_change, epair_media_status);
+	ifmedia_add(&sca->media, IFM_ETHER | IFM_10G_T, 0, NULL);
+	ifmedia_set(&sca->media, IFM_ETHER | IFM_10G_T);
+	ifmedia_init(&scb->media, 0, epair_media_change, epair_media_status);
+	ifmedia_add(&scb->media, IFM_ETHER | IFM_10G_T, 0, NULL);
+	ifmedia_set(&scb->media, IFM_ETHER | IFM_10G_T);
+
 	/* Tell the world, that we are ready to rock. */
 	sca->ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	scb->ifp->if_drv_flags |= IFF_DRV_RUNNING;
@@ -895,6 +930,8 @@ epair_clone_destroy(struct if_clone *ifc, struct ifnet *ifp)
 	if_free(oifp);
 	CURVNET_RESTORE();
 	if_free(ifp);
+	ifmedia_removeall(&sca->media);
+	ifmedia_removeall(&scb->media);
 	free(scb, M_EPAIR);
 	free(sca, M_EPAIR);
 	ifc_free_unit(ifc, unit);
