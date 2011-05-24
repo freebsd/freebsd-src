@@ -208,10 +208,11 @@ ar5416SetupTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 		     | SM(ahp->ah_tx_chainmask, AR_ChainSel2) 
 		     | SM(ahp->ah_tx_chainmask, AR_ChainSel3)
 		     ;
-	ads->ds_ctl8 = 0;
-	ads->ds_ctl9 = (txPower << 24);		/* XXX? */
-	ads->ds_ctl10 = (txPower << 24);	/* XXX? */
-	ads->ds_ctl11 = (txPower << 24);	/* XXX? */
+	ads->ds_ctl8 = SM(0, AR_AntCtl0);
+	ads->ds_ctl9 = SM(0, AR_AntCtl1) | SM(txPower, AR_XmitPower1);
+	ads->ds_ctl10 = SM(0, AR_AntCtl2) | SM(txPower, AR_XmitPower2);
+	ads->ds_ctl11 = SM(0, AR_AntCtl3) | SM(txPower, AR_XmitPower3);
+
 	if (keyIx != HAL_TXKEYIX_INVALID) {
 		/* XXX validate key index */
 		ads->ds_ctl1 |= SM(keyIx, AR_DestIdx);
@@ -232,11 +233,16 @@ ar5416SetupTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 		ads->ds_ctl7 |= (rtsctsRate << AR_RTSCTSRate_S);
 	}
 
+	/*
+	 * Set the TX antenna to 0 for Kite
+	 * To preserve existing behaviour, also set the TPC bits to 0;
+	 * when TPC is enabled these should be filled in appropriately.
+	 */
 	if (AR_SREV_KITE(ah)) {
-		ads->ds_ctl8 = 0;
-		ads->ds_ctl9 = 0;
-		ads->ds_ctl10 = 0;
-		ads->ds_ctl11 = 0;
+		ads->ds_ctl8 = SM(0, AR_AntCtl0);
+		ads->ds_ctl9 = SM(0, AR_AntCtl1) | SM(0, AR_XmitPower1);
+		ads->ds_ctl10 = SM(0, AR_AntCtl2) | SM(0, AR_XmitPower2);
+		ads->ds_ctl11 = SM(0, AR_AntCtl3) | SM(0, AR_XmitPower3);
 	}
 	return AH_TRUE;
 #undef RTSCTS
@@ -410,10 +416,10 @@ ar5416SetupFirstTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 		| SM(AH5416(ah)->ah_tx_chainmask, AR_ChainSel3);
 	
 	/* NB: no V1 WAR */
-	ads->ds_ctl8 = 0;
-	ads->ds_ctl9 = (txPower << 24);
-	ads->ds_ctl10 = (txPower << 24);
-	ads->ds_ctl11 = (txPower << 24);
+	ads->ds_ctl8 = SM(0, AR_AntCtl0);
+	ads->ds_ctl9 = SM(0, AR_AntCtl1) | SM(txPower, AR_XmitPower1);
+	ads->ds_ctl10 = SM(0, AR_AntCtl2) | SM(txPower, AR_XmitPower2);
+	ads->ds_ctl11 = SM(0, AR_AntCtl3) | SM(txPower, AR_XmitPower3);
 
 	ads->ds_ctl6 &= ~(0xffff);
 	ads->ds_ctl6 |= SM(aggrLen, AR_AggrLen);
@@ -424,11 +430,16 @@ ar5416SetupFirstTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 			| (flags & HAL_TXDESC_RTSENA ? AR_RTSEnable : 0);
 	}
 
+	/*
+	 * Set the TX antenna to 0 for Kite
+	 * To preserve existing behaviour, also set the TPC bits to 0;
+	 * when TPC is enabled these should be filled in appropriately.
+	 */
 	if (AR_SREV_KITE(ah)) {
-		ads->ds_ctl8 = 0;
-		ads->ds_ctl9 = 0;
-		ads->ds_ctl10 = 0;
-		ads->ds_ctl11 = 0;
+		ads->ds_ctl8 = SM(0, AR_AntCtl0);
+		ads->ds_ctl9 = SM(0, AR_AntCtl1) | SM(0, AR_XmitPower1);
+		ads->ds_ctl10 = SM(0, AR_AntCtl2) | SM(0, AR_XmitPower2);
+		ads->ds_ctl11 = SM(0, AR_AntCtl3) | SM(0, AR_XmitPower3);
 	}
 	
 	return AH_TRUE;
