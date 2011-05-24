@@ -49,6 +49,7 @@ RCSID("$Id: slc-gram.y 20767 2007-06-01 11:24:52Z lha $");
 #include "slc.h"
 extern FILE *yyin;
 extern struct assignment *assignment;
+extern int yyparse(void);
 %}
 
 %union {

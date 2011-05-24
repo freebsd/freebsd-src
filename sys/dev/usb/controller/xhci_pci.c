@@ -137,7 +137,7 @@ xhci_pci_match(device_t self)
 {
 	if ((pci_get_class(self) == PCIC_SERIALBUS)
 	    && (pci_get_subclass(self) == PCIS_SERIALBUS_USB)
-	    && (pci_get_progif(self) == PCI_INTERFACE_XHCI)) {
+	    && (pci_get_progif(self) == PCIP_SERIALBUS_USB_XHCI)) {
 		return ("XHCI (generic) USB 3.0 controller");
 	}
 	return (NULL);			/* dunno */

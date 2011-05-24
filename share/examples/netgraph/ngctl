@@ -46,7 +46,7 @@
 
 # Note that we used ngctl's ``name'' command to do this.  However,
 # the following manually constructed netgraph message would have
-# acomplished the exact same thing:
+# accomplished the exact same thing:
 
     + msg foo name { name="fred" }
 
@@ -85,7 +85,7 @@
 
 # As soon as we sent the message, we got back a response.  Here
 # ngctl is telling us that it received a control message with the
-# NGF_RESP (response) flag set, the reponse was to a prior ``getname''
+# NGF_RESP (response) flag set, the response was to a prior ``getname''
 # control message, that the originator was the node addressable
 # as ``fred:''.  The message arguments field is then displayed to
 # us in its ASCII form.  In this case, what we get back is a struct

@@ -56,7 +56,7 @@ __FBSDID("$FreeBSD$");
 
 #ifdef KDTRACE_HOOKS
 #include <sys/dtrace_bsd.h>
-cyclic_clock_func_t	cyclic_clock_func[MAXCPU];
+cyclic_clock_func_t	cyclic_clock_func = NULL;
 #endif
 
 int			cpu_disable_deep_sleep = 0; /* Timer dies in C3. */
@@ -128,6 +128,9 @@ struct pcpu_state {
 	struct bintime	nexthard;	/* Next hardlock() event. */
 	struct bintime	nextstat;	/* Next statclock() event. */
 	struct bintime	nextprof;	/* Next profclock() event. */
+#ifdef KDTRACE_HOOKS
+	struct bintime	nextcyc;	/* Next OpenSolaris cyclics event. */
+#endif
 	int		ipi;		/* This CPU needs IPI. */
 	int		idle;		/* This CPU is in idle mode. */
 };
@@ -190,17 +193,10 @@ handleevents(struct bintime *now, int fake)
 		usermode = TRAPF_USERMODE(frame);
 		pc = TRAPF_PC(frame);
 	}
-#ifdef KDTRACE_HOOKS
-	/*
-	 * If the DTrace hooks are configured and a callback function
-	 * has been registered, then call it to process the high speed
-	 * timers.
-	 */
-	if (!fake && cyclic_clock_func[curcpu] != NULL)
-		(*cyclic_clock_func[curcpu])(frame);
-#endif
+
 	runs = 0;
 	state = DPCPU_PTR(timerstate);
+
 	while (bintime_cmp(now, &state->nexthard, >=)) {
 		bintime_add(&state->nexthard, &hardperiod);
 		runs++;
@@ -224,6 +220,16 @@ handleevents(struct bintime *now, int fake)
 		}
 	} else
 		state->nextprof = state->nextstat;
+
+#ifdef KDTRACE_HOOKS
+	if (fake == 0 && cyclic_clock_func != NULL &&
+	    state->nextcyc.sec != -1 &&
+	    bintime_cmp(now, &state->nextcyc, >=)) {
+		state->nextcyc.sec = -1;
+		(*cyclic_clock_func)(frame);
+	}
+#endif
+
 	getnextcpuevent(&t, 0);
 	if (fake == 2) {
 		state->nextevent = t;
@@ -263,10 +269,13 @@ getnextcpuevent(struct bintime *event, int idle)
 	} else { /* If CPU is active - handle all types of events. */
 		if (bintime_cmp(event, &state->nextstat, >))
 			*event = state->nextstat;
-		if (profiling &&
-		    bintime_cmp(event, &state->nextprof, >))
+		if (profiling && bintime_cmp(event, &state->nextprof, >))
 			*event = state->nextprof;
 	}
+#ifdef KDTRACE_HOOKS
+	if (state->nextcyc.sec != -1 && bintime_cmp(event, &state->nextcyc, >))
+		*event = state->nextcyc;
+#endif
 }
 
 /*
@@ -590,6 +599,9 @@ cpu_initclocks_bsp(void)
 	CPU_FOREACH(cpu) {
 		state = DPCPU_ID_PTR(cpu, timerstate);
 		mtx_init(&state->et_hw_mtx, "et_hw_mtx", NULL, MTX_SPIN);
+#ifdef KDTRACE_HOOKS
+		state->nextcyc.sec = -1;
+#endif
 	}
 #ifdef SMP
 	callout_new_inserted = cpu_new_callout;
@@ -783,6 +795,43 @@ cpu_activeclock(void)
 	td->td_intr_nesting_level--;
 	spinlock_exit();
 }
+
+#ifdef KDTRACE_HOOKS
+void
+clocksource_cyc_set(const struct bintime *t)
+{
+	struct bintime now;
+	struct pcpu_state *state;
+
+	state = DPCPU_PTR(timerstate);
+	if (periodic)
+		now = state->now;
+	else
+		binuptime(&now);
+
+	CTR4(KTR_SPARE2, "set_cyc at %d:  now  %d.%08x%08x",
+	    curcpu, now.sec, (unsigned int)(now.frac >> 32),
+			     (unsigned int)(now.frac & 0xffffffff));
+	CTR4(KTR_SPARE2, "set_cyc at %d:  t  %d.%08x%08x",
+	    curcpu, t->sec, (unsigned int)(t->frac >> 32),
+			     (unsigned int)(t->frac & 0xffffffff));
+
+	ET_HW_LOCK(state);
+	if (bintime_cmp(t, &state->nextcyc, ==)) {
+		ET_HW_UNLOCK(state);
+		return;
+	}
+	state->nextcyc = *t;
+	if (bintime_cmp(&state->nextcyc, &state->nextevent, >=)) {
+		ET_HW_UNLOCK(state);
+		return;
+	}
+	state->nextevent = state->nextcyc;
+	if (!periodic)
+		loadtimer(&now, 0);
+	ET_HW_UNLOCK(state);
+}
+#endif
 
 #ifdef SMP
 static void

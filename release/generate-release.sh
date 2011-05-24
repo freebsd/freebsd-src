@@ -63,7 +63,6 @@ if [ -d $2/usr/doc ]; then
 fi
 
 chroot $2 make -C /usr/src $MAKE_FLAGS buildworld buildkernel
-chroot $2 make -C /usr/src/release obj
 chroot $2 make -C /usr/src/release release
 chroot $2 make -C /usr/src/release install DESTDIR=/R
 

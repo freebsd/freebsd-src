@@ -27,7 +27,7 @@ __FBSDID("$FreeBSD$");
 #include <getopt.h>
 #include <err.h>
 
-#include <pkg.h>
+#include "lib.h"
 #include "delete.h"
 
 char	*Prefix		= NULL;
@@ -66,8 +66,6 @@ main(int argc, char **argv)
     char *pkgs_split;
     const char *tmp;
     struct stat stat_s;
-
-    pkg_wrap(PKG_INSTALL_VERSION, argv);
 
     pkgs = start = argv;
     while ((ch = getopt_long(argc, argv, opts, longopts, NULL)) != -1)

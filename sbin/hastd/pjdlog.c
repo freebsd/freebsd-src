@@ -31,8 +31,10 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 
 #include <assert.h>
 #include <errno.h>
@@ -103,22 +105,39 @@ pjdlog_printf_render_sockaddr(struct __printf_io *io,
 	switch (ss->ss_family) {
 	case AF_INET:
 	    {
+		char addr[INET_ADDRSTRLEN];
 		const struct sockaddr_in *sin;
-		in_addr_t ip;
 		unsigned int port;
 
 		sin = (const struct sockaddr_in *)ss;
-		ip = ntohl(sin->sin_addr.s_addr);
 		port = ntohs(sin->sin_port);
+		if (inet_ntop(ss->ss_family, &sin->sin_addr, addr,
+		    sizeof(addr)) == NULL) {
+			PJDLOG_ABORT("inet_ntop(AF_INET) failed: %s.",
+			    strerror(errno));
+		}
+		snprintf(buf, sizeof(buf), "%s:%u", addr, port);
+		break;
+	    }
+	case AF_INET6:
+	    {
+		char addr[INET6_ADDRSTRLEN];
+		const struct sockaddr_in6 *sin;
+		unsigned int port;
 
-		snprintf(buf, sizeof(buf), "%u.%u.%u.%u:%u",
-		    ((ip >> 24) & 0xff), ((ip >> 16) & 0xff),
-		    ((ip >> 8) & 0xff), (ip & 0xff), port);
+		sin = (const struct sockaddr_in6 *)ss;
+		port = ntohs(sin->sin6_port);
+		if (inet_ntop(ss->ss_family, &sin->sin6_addr, addr,
+		    sizeof(addr)) == NULL) {
+			PJDLOG_ABORT("inet_ntop(AF_INET6) failed: %s.",
+			    strerror(errno));
+		}
+		snprintf(buf, sizeof(buf), "[%s]:%u", addr, port);
 		break;
 	    }
 	default:
-		snprintf(buf, sizeof(buf), "[unsupported family %u]",
-		    (unsigned int)ss->ss_family);
+		snprintf(buf, sizeof(buf), "[unsupported family %hhu]",
+		    ss->ss_family);
 		break;
 	}
 	ret = __printf_out(io, pi, buf, strlen(buf));

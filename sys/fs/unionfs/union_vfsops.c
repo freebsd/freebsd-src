@@ -454,7 +454,8 @@ unionfs_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 }
 
 static int
-unionfs_fhtovp(struct mount *mp, struct fid *fidp, struct vnode **vpp)
+unionfs_fhtovp(struct mount *mp, struct fid *fidp, int flags,
+    struct vnode **vpp)
 {
 	return (EOPNOTSUPP);
 }

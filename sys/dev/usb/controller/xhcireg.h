@@ -33,7 +33,6 @@
 #define	PCI_XHCI_USBREV		0x60	/* RO USB protocol revision */
 #define	PCI_USB_REV_3_0		0x30	/* USB 3.0 */
 #define	PCI_XHCI_FLADJ		0x61	/* RW frame length adjust */
-#define	PCI_INTERFACE_XHCI	0x30	/* USB 3.0 - XHCI */
 
 /* XHCI capability registers */
 #define	XHCI_CAPLENGTH		0x00	/* RO capability */

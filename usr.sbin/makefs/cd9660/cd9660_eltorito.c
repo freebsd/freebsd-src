@@ -32,7 +32,7 @@
  * OF SUCH DAMAGE.
  */
 
-#include <netinet/in.h>
+#include <sys/endian.h>
 
 #include "cd9660.h"
 #include "cd9660_eltorito.h"
@@ -501,27 +501,62 @@ cd9660_setup_boot_volume_descriptor(volume_descriptor *bvd)
 }
 
 static int
+cd9660_write_mbr_partition_entry(FILE *fd, int index, off_t sector_start,
+    off_t nsectors, int type)
+{
+	uint8_t val;
+	uint32_t lba;
+
+	fseeko(fd, (off_t)(index) * 16 + 0x1be, SEEK_SET);
+	
+	val = 0x80; /* Bootable */
+	fwrite(&val, sizeof(val), 1, fd);
+
+	val = 0xff; /* CHS begin */
+	fwrite(&val, sizeof(val), 1, fd);
+	fwrite(&val, sizeof(val), 1, fd);
+	fwrite(&val, sizeof(val), 1, fd);
+
+	val = type; /* Part type */
+	fwrite(&val, sizeof(val), 1, fd);
+
+	val = 0xff; /* CHS end */
+	fwrite(&val, sizeof(val), 1, fd);
+	fwrite(&val, sizeof(val), 1, fd);
+	fwrite(&val, sizeof(val), 1, fd);
+
+	/* LBA extent */
+	lba = htole32(sector_start);
+	fwrite(&lba, sizeof(lba), 1, fd);
+	lba = htole32(nsectors);
+	fwrite(&lba, sizeof(lba), 1, fd);
+
+	return (0);
+}
+
+static int
 cd9660_write_apm_partition_entry(FILE *fd, int index, int total_partitions,
     off_t sector_start, off_t nsectors, off_t sector_size,
-    const char *part_name, const char *part_type) {
+    const char *part_name, const char *part_type)
+{
 	uint32_t apm32;
 	uint16_t apm16;
 
 	fseeko(fd, (off_t)(index + 1) * sector_size, SEEK_SET);
 
 	/* Signature */
-	apm16 = htons(0x504d);
+	apm16 = htobe16(0x504d);
 	fwrite(&apm16, sizeof(apm16), 1, fd);
 	apm16 = 0;
 	fwrite(&apm16, sizeof(apm16), 1, fd);
 
 	/* Total number of partitions */
-	apm32 = htonl(total_partitions);
+	apm32 = htobe32(total_partitions);
 	fwrite(&apm32, sizeof(apm32), 1, fd);
 	/* Bounds */
-	apm32 = htonl(sector_start);
+	apm32 = htobe32(sector_start);
 	fwrite(&apm32, sizeof(apm32), 1, fd);
-	apm32 = htonl(nsectors);
+	apm32 = htobe32(nsectors);
 	fwrite(&apm32, sizeof(apm32), 1, fd);
 
 	fwrite(part_name, strlen(part_name) + 1, 1, fd);
@@ -537,6 +572,7 @@ cd9660_write_boot(FILE *fd)
 	struct boot_catalog_entry *e;
 	struct cd9660_boot_image *t;
 	int apm_partitions = 0;
+	int mbr_partitions = 0;
 
 	/* write boot catalog */
 	if (fseeko(fd, (off_t)diskStructure.boot_catalog_sector *
@@ -571,6 +607,35 @@ cd9660_write_boot(FILE *fd)
 
 		if (t->system == ET_SYS_MAC) 
 			apm_partitions++;
+		if (t->system == ET_SYS_PPC) 
+			mbr_partitions++;
+	}
+
+	/* some systems need partition tables as well */
+	if (mbr_partitions > 0 || diskStructure.chrp_boot) {
+		uint16_t sig;
+
+		fseek(fd, 0x1fe, SEEK_SET);
+		sig = htole16(0xaa55);
+		fwrite(&sig, sizeof(sig), 1, fd);
+
+		mbr_partitions = 0;
+
+		/* Write ISO9660 descriptor, enclosing the whole disk */
+		if (diskStructure.chrp_boot)
+			cd9660_write_mbr_partition_entry(fd, mbr_partitions++,
+			    0, diskStructure.totalSectors *
+			    (diskStructure.sectorSize / 512), 0x96);
+
+		/* Write all partition entries */
+		TAILQ_FOREACH(t, &diskStructure.boot_images, image_list) {
+			if (t->system != ET_SYS_PPC)
+				continue;
+			cd9660_write_mbr_partition_entry(fd, mbr_partitions++,
+			    t->sector * (diskStructure.sectorSize / 512),
+			    t->num_sectors * (diskStructure.sectorSize / 512),
+			    0x41 /* PReP Boot */);
+		}
 	}
 
 	if (apm_partitions > 0) {
@@ -580,17 +645,17 @@ cd9660_write_boot(FILE *fd)
 		int total_parts;
 
 		fseek(fd, 0, SEEK_SET);
-		apm16 = htons(0x4552);
+		apm16 = htobe16(0x4552);
 		fwrite(&apm16, sizeof(apm16), 1, fd);
 		/* Device block size */
-		apm16 = htons(512);
+		apm16 = htobe16(512);
 		fwrite(&apm16, sizeof(apm16), 1, fd);
 		/* Device block count */
-		apm32 = htonl(diskStructure.totalSectors *
+		apm32 = htobe32(diskStructure.totalSectors *
 		    (diskStructure.sectorSize / 512));
 		fwrite(&apm32, sizeof(apm32), 1, fd);
 		/* Device type/id */
-		apm16 = htons(1);
+		apm16 = htobe16(1);
 		fwrite(&apm16, sizeof(apm16), 1, fd);
 		fwrite(&apm16, sizeof(apm16), 1, fd);
 

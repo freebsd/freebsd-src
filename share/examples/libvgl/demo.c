@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1991-1997 Søren Schmidt
+ * Copyright (c) 1991-1997 SÃ¸ren Schmidt
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,15 +42,15 @@ main(int argc, char **argv)
 
   // set graphics mode, here 320x240 256 colors
   // supported modes are (from <sys/consio.h>):
-  // SW_VGA_CG320:	std VGA 320x200 256 colors
-  // SW_VGA_MODEX:	Modex VGA 320x240 256 colors
-  // SW_VGA_VG640:	std VGA 640x480 16 colors
+  // SW_VGA_CG320:      std VGA 320x200 256 colors
+  // SW_VGA_MODEX:      Modex VGA 320x240 256 colors
+  // SW_VGA_VG640:      std VGA 640x480 16 colors
   VGLInit(SW_VGA_MODEX);
 
   // initialize mouse and show pointer
   VGLMouseInit(VGL_MOUSESHOW);
 
-  // VGLDisplay is a ptr to a struct Bitmap defined and initialized by 
+  // VGLDisplay is a ptr to a struct Bitmap defined and initialized by
   // libvgl. The Bitmap points directly to screen memory etc.
   xsize=VGLDisplay->Xsize;
   ysize=VGLDisplay->Ysize;
@@ -61,7 +61,7 @@ main(int argc, char **argv)
   VGLClear(tmp, 0);
 
   // fill the screen with colored lines
-  for (y=0; y<ysize; y++) 
+  for (y=0; y<ysize; y++)
     VGLLine(VGLDisplay, 0, y, xsize-1, y, y/2 % 256);
 
   // draw some lines and circles just to show off
@@ -72,7 +72,7 @@ main(int argc, char **argv)
   VGLEllipse(VGLDisplay, 256, 0, 256, 256, 63);
   VGLEllipse(VGLDisplay, 0, 256, 256, 256, 0);
 
-  // some text is also usefull
+  // some text is also useful
   VGLBitmapString(VGLDisplay, 100,100,
     "This is text", 63, 0, 0, VGL_DIR_RIGHT);
   sleep(2);
@@ -86,7 +86,7 @@ main(int argc, char **argv)
     "This is text", 63, 0, 0, VGL_DIR_DOWN);
   sleep(2);
 
-  // now show some simple bitblit 
+  // now show some simple bitblit
   for (i=0; i<256; i++)
     for (j=0; j<256; j++)
       tmp->Bitmap[i+256*j] = i%16;
@@ -106,12 +106,12 @@ main(int argc, char **argv)
   // loop around drawing and copying
   while (++i) {
     VGLBitmapCopy(VGLDisplay, rand()%xsize, rand()%ysize,
-  		  VGLDisplay, rand()%xsize, rand()%ysize,
-  		  rand()%xsize, rand()%ysize);
+                  VGLDisplay, rand()%xsize, rand()%ysize,
+                  rand()%xsize, rand()%ysize);
     VGLLine(VGLDisplay,  rand()%xsize, rand()%ysize, 
             rand()%xsize, rand()%ysize, rand()%256);
     VGLEllipse(VGLDisplay, rand()%xsize, rand()%ysize,
-   	       rand()%xsize/2, rand()%ysize/2, rand()%256);
+               rand()%xsize/2, rand()%ysize/2, rand()%256);
     rand();
     if (i > 1000) break;
   }
@@ -120,4 +120,3 @@ main(int argc, char **argv)
   VGLEnd();
   return 0;
 }
-

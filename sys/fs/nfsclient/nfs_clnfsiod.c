@@ -80,11 +80,11 @@ static void	nfssvc_iod(void *);
 
 static int nfs_asyncdaemon[NFS_MAXASYNCDAEMON];
 
-SYSCTL_DECL(_vfs_newnfs);
+SYSCTL_DECL(_vfs_nfs);
 
 /* Maximum number of seconds a nfsiod kthread will sleep before exiting */
 static unsigned int nfs_iodmaxidle = 120;
-SYSCTL_UINT(_vfs_newnfs, OID_AUTO, iodmaxidle, CTLFLAG_RW, &nfs_iodmaxidle, 0,
+SYSCTL_UINT(_vfs_nfs, OID_AUTO, iodmaxidle, CTLFLAG_RW, &nfs_iodmaxidle, 0,
     "Max number of seconds an nfsiod kthread will sleep before exiting");
 
 /* Maximum number of nfsiod kthreads */
@@ -123,7 +123,7 @@ out:
 	mtx_unlock(&ncl_iod_mutex);	
 	return (0);
 }
-SYSCTL_PROC(_vfs_newnfs, OID_AUTO, iodmin, CTLTYPE_UINT | CTLFLAG_RW, 0,
+SYSCTL_PROC(_vfs_nfs, OID_AUTO, iodmin, CTLTYPE_UINT | CTLFLAG_RW, 0,
     sizeof (nfs_iodmin), sysctl_iodmin, "IU",
     "Min number of nfsiod kthreads to keep as spares");
 
@@ -159,7 +159,7 @@ out:
 	mtx_unlock(&ncl_iod_mutex);
 	return (0);
 }
-SYSCTL_PROC(_vfs_newnfs, OID_AUTO, iodmax, CTLTYPE_UINT | CTLFLAG_RW, 0,
+SYSCTL_PROC(_vfs_nfs, OID_AUTO, iodmax, CTLTYPE_UINT | CTLFLAG_RW, 0,
     sizeof (ncl_iodmax), sysctl_iodmax, "IU",
     "Max number of nfsiod kthreads");
 
@@ -214,7 +214,7 @@ nfsiod_setup(void *dummy)
 {
 	int error;
 
-	TUNABLE_INT_FETCH("vfs.newnfs.iodmin", &nfs_iodmin);
+	TUNABLE_INT_FETCH("vfs.nfs.iodmin", &nfs_iodmin);
 	nfscl_init();
 	mtx_lock(&ncl_iod_mutex);
 	/* Silently limit the start number of nfsiod's */
@@ -231,7 +231,7 @@ nfsiod_setup(void *dummy)
 SYSINIT(newnfsiod, SI_SUB_KTHREAD_IDLE, SI_ORDER_ANY, nfsiod_setup, NULL);
 
 static int nfs_defect = 0;
-SYSCTL_INT(_vfs_newnfs, OID_AUTO, defect, CTLFLAG_RW, &nfs_defect, 0,
+SYSCTL_INT(_vfs_nfs, OID_AUTO, defect, CTLFLAG_RW, &nfs_defect, 0,
     "Allow nfsiods to migrate serving different mounts");
 
 /*

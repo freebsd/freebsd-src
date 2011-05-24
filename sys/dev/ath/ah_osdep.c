@@ -140,16 +140,20 @@ ath_hal_ether_sprintf(const u_int8_t *mac)
 }
 
 #ifdef AH_DEBUG
+
+/* This must match the definition in ath_hal/ah_debug.h */
+#define	HAL_DEBUG_UNMASKABLE	0xf0000000
 void
 DO_HALDEBUG(struct ath_hal *ah, u_int mask, const char* fmt, ...)
 {
-	if (ath_hal_debug & mask) {
+	if ((mask == HAL_DEBUG_UNMASKABLE) || (ath_hal_debug & mask)) {
 		__va_list ap;
 		va_start(ap, fmt);
 		ath_hal_vprintf(ah, fmt, ap);
 		va_end(ap);
 	}
 }
+#undef	HAL_DEBUG_UNMASKABLE
 #endif /* AH_DEBUG */
 
 #ifdef AH_DEBUG_ALQ

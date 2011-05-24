@@ -731,7 +731,8 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: tzsetup [-nrs] [zoneinfo file]\n");
+	fprintf(stderr, "usage: tzsetup [-nrs] [-C chroot_directory]"
+	    " [zoneinfo_file | zoneinfo_name]\n");
 	exit(1);
 }
 

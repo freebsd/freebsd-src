@@ -973,7 +973,7 @@ ext2_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
  *   those rights via. exflagsp and credanonp
  */
 static int
-ext2_fhtovp(struct mount *mp, struct fid *fhp, struct vnode **vpp)
+ext2_fhtovp(struct mount *mp, struct fid *fhp, int flags, struct vnode **vpp)
 {
 	struct inode *ip;
 	struct ufid *ufhp;

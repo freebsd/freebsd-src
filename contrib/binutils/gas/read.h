@@ -30,7 +30,7 @@ extern char *input_line_pointer;	/* -> char we are parsing now.  */
 
 #ifdef PERMIT_WHITESPACE
 #define SKIP_WHITESPACE()			\
-  ((*input_line_pointer == ' ') ? ++input_line_pointer : 0)
+  do { if (*input_line_pointer == ' ') ++input_line_pointer; } while (0)
 #else
 #define SKIP_WHITESPACE() know(*input_line_pointer != ' ' )
 #endif

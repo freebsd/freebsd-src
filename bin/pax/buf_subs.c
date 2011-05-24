@@ -145,7 +145,7 @@ rd_start(void)
 		}
 		if (wrblksz % BLKMULT) {
 			paxwarn(1, "Write block size %d is not a %d byte multiple",
-		    	wrblksz, BLKMULT);
+			wrblksz, BLKMULT);
 			return(-1);
 		}
 	}
@@ -182,13 +182,13 @@ cp_start(void)
  *	the start of the header of the first file added to the archive. The
  *	format specific end read function tells us how many bytes to move
  *	backwards in the archive to be positioned BEFORE the trailer. Two
- *	different postions have to be adjusted, the O.S. file offset (e.g. the
+ *	different positions have to be adjusted, the O.S. file offset (e.g. the
  *	position of the tape head) and the write point within the data we have
  *	stored in the read (soon to become write) buffer. We may have to move
  *	back several records (the number depends on the size of the archive
  *	record and the size of the format trailer) to read up the record where
  *	the first byte of the trailer is recorded. Trailers may span (and
- *	overlap) record boundries.
+ *	overlap) record boundaries.
  *	We first calculate which record has the first byte of the trailer. We
  *	move the OS file offset back to the start of this record and read it
  *	up. We set the buffer write pointer to be at this byte (the byte where
@@ -196,10 +196,10 @@ cp_start(void)
  *	start of this record so a flush of this buffer will replace the record
  *	in the archive.
  *	A major problem is rewriting this last record. For archives stored
- *	on disk files, this is trival. However, many devices are really picky
+ *	on disk files, this is trivial. However, many devices are really picky
  *	about the conditions under which they will allow a write to occur.
  *	Often devices restrict the conditions where writes can be made writes,
- *	so it may not be feasable to append archives stored on all types of
+ *	so it may not be feasible to append archives stored on all types of
  *	devices.
  * Return:
  *	0 for success, -1 for failure
@@ -365,7 +365,7 @@ rd_sync(void)
  * pback()
  *	push the data used during the archive id phase back into the I/O
  *	buffer. This is required as we cannot be sure that the header does NOT
- *	overlap a block boundry (as in the case we are trying to recover a
+ *	overlap a block boundary (as in the case we are trying to recover a
  *	flawed archived). This was not designed to be used for any other
  *	purpose. (What software engineering, HA!)
  *	WARNING: do not even THINK of pback greater than BLKMULT, unless the
@@ -382,7 +382,7 @@ pback(char *pt, int cnt)
 
 /*
  * rd_skip()
- *	skip foward in the archive during an archive read. Used to get quickly
+ *	skip forward in the archive during an archive read. Used to get quickly
  *	past file data and padding for files the user did NOT select.
  * Return:
  *	0 if ok, -1 failure, and 1 when EOF on the archive volume was detected.
@@ -396,7 +396,7 @@ rd_skip(off_t skcnt)
 	off_t skipped = 0;
 
 	/*
-	 * consume what data we have in the buffer. If we have to move foward
+	 * consume what data we have in the buffer. If we have to move forward
 	 * whole records, we call the low level skip function to see if we can
 	 * move within the archive without doing the expensive reads on data we
 	 * do not want.
@@ -453,7 +453,7 @@ rd_skip(off_t skcnt)
  * wr_fin()
  *	flush out any data (and pad if required) the last block. We always pad
  *	with zero (even though we do not have to). Padding with 0 makes it a
- *	lot easier to recover if the archive is damaged. zero paddding SHOULD
+ *	lot easier to recover if the archive is damaged. zero padding SHOULD
  *	BE a requirement....
  */
 
@@ -530,7 +530,7 @@ rd_wrbuf(char *in, int cpcnt)
 			/*
 			 * read error, return what we got (or the error if
 			 * no data was copied). The caller must know that an
-			 * error occured and has the best knowledge what to
+			 * error occurred and has the best knowledge what to
 			 * do with it
 			 */
 			if ((res = cpcnt - incnt) > 0)
@@ -584,7 +584,7 @@ wr_skip(off_t skcnt)
 
 /*
  * wr_rdfile()
- *	fill write buffer with the contents of a file. We are passed an	open
+ *	fill write buffer with the contents of a file. We are passed an open
  *	file descriptor to the file and the archive structure that describes the
  *	file we are storing. The variable "left" is modified to contain the
  *	number of bytes of the file we were NOT able to write to the archive.
@@ -671,7 +671,7 @@ rd_wrfile(ARCHD *arcn, int ofd, off_t *left)
 	int isem = 1;
 	int rem;
 	int sz = MINFBSZ;
- 	struct stat sb;
+	struct stat sb;
 	u_long crc = 0L;
 
 	/*
@@ -884,7 +884,7 @@ buf_flush(int bufcnt)
 
 	/*
 	 * if we have reached the user specified byte count for each archive
-	 * volume, prompt for the next volume. (The non-standrad -R flag).
+	 * volume, prompt for the next volume. (The non-standard -R flag).
 	 * NOTE: If the wrlimit is smaller than wrcnt, we will always write
 	 * at least one record. We always round limit UP to next blocksize.
 	 */
@@ -944,7 +944,7 @@ buf_flush(int bufcnt)
 		} else if (cnt > 0) {
 			/*
 			 * Oh drat we got a partial write!
-			 * if format doesnt care about alignment let it go,
+			 * if format doesn't care about alignment let it go,
 			 * we warned the user in ar_write().... but this means
 			 * the last record on this volume violates pax spec....
 			 */

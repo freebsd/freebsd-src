@@ -132,6 +132,7 @@ procstat_close(struct procstat *procstat)
 	assert(procstat);
 	if (procstat->type == PROCSTAT_KVM)
 		kvm_close(procstat->kd);
+	free(procstat);
 }
 
 struct procstat *
@@ -253,7 +254,7 @@ procstat_getfiles(struct procstat *procstat, struct kinfo_proc *kp, int mmapped)
 	if (procstat->type == PROCSTAT_SYSCTL)
 		return (procstat_getfiles_sysctl(procstat, kp, mmapped));
 	else if (procstat->type == PROCSTAT_KVM)
-		 return (procstat_getfiles_kvm(procstat, kp, mmapped));
+		return (procstat_getfiles_kvm(procstat, kp, mmapped));
 	else
 		return (NULL);
 }

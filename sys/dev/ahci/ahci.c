@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
+#include <dev/led/led.h>
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 #include "ahci.h"
@@ -68,6 +69,7 @@ static int ahci_ch_resume(device_t dev);
 static void ahci_ch_pm(void *arg);
 static void ahci_ch_intr_locked(void *data);
 static void ahci_ch_intr(void *data);
+static void ahci_ch_led(void *priv, int onoff);
 static int ahci_ctlr_reset(device_t dev);
 static int ahci_ctlr_setup(device_t dev);
 static void ahci_begin_transaction(device_t dev, union ccb *ccb);
@@ -418,6 +420,8 @@ ahci_attach(device_t dev)
 		ctlr->caps &= ~AHCI_CAP_SNCQ;
 	if ((ctlr->caps & AHCI_CAP_CCCS) == 0)
 		ctlr->ccc = 0;
+	mtx_init(&ctlr->em_mtx, "AHCI EM lock", NULL, MTX_DEF);
+	ctlr->emloc = ATA_INL(ctlr->r_mem, AHCI_EM_LOC);
 	ahci_ctlr_setup(dev);
 	/* Setup interrupts. */
 	if (ahci_setup_interrupt(dev)) {
@@ -521,6 +525,7 @@ ahci_detach(device_t dev)
 	rman_fini(&ctlr->sc_iomem);
 	if (ctlr->r_mem)
 		bus_release_resource(dev, SYS_RES_MEMORY, ctlr->r_rid, ctlr->r_mem);
+	mtx_destroy(&ctlr->em_mtx);
 	return (0);
 }
 
@@ -887,6 +892,7 @@ ahci_ch_attach(device_t dev)
 	struct cam_devq *devq;
 	int rid, error, i, sata_rev = 0;
 	u_int32_t version;
+	char buf[32];
 
 	ch->dev = dev;
 	ch->unit = (intptr_t)device_get_ivars(dev);
@@ -995,6 +1001,25 @@ ahci_ch_attach(device_t dev)
 		    ahci_ch_pm, dev);
 	}
 	mtx_unlock(&ch->mtx);
+	if ((ch->caps & AHCI_CAP_EMS) &&
+	    (ctlr->capsem & AHCI_EM_LED)) {
+		for (i = 0; i < AHCI_NUM_LEDS; i++) {
+			ch->leds[i].dev = dev;
+			ch->leds[i].num = i;
+		}
+		if ((ctlr->capsem & AHCI_EM_ALHD) == 0) {
+			snprintf(buf, sizeof(buf), "%s.act",
+			    device_get_nameunit(dev));
+			ch->leds[0].led = led_create(ahci_ch_led,
+			    &ch->leds[0], buf);
+		}
+		snprintf(buf, sizeof(buf), "%s.locate",
+		    device_get_nameunit(dev));
+		ch->leds[1].led = led_create(ahci_ch_led, &ch->leds[1], buf);
+		snprintf(buf, sizeof(buf), "%s.fault",
+		    device_get_nameunit(dev));
+		ch->leds[2].led = led_create(ahci_ch_led, &ch->leds[2], buf);
+	}
 	return (0);
 
 err3:
@@ -1014,7 +1039,12 @@ static int
 ahci_ch_detach(device_t dev)
 {
 	struct ahci_channel *ch = device_get_softc(dev);
+	int i;
 
+	for (i = 0; i < AHCI_NUM_LEDS; i++) {
+		if (ch->leds[i].led)
+			led_destroy(ch->leds[i].led);
+	}
 	mtx_lock(&ch->mtx);
 	xpt_async(AC_LOST_DEVICE, ch->path, NULL);
 	/* Forget about reset. */
@@ -1136,6 +1166,47 @@ static driver_t ahcich_driver = {
         sizeof(struct ahci_channel)
 };
 DRIVER_MODULE(ahcich, ahci, ahcich_driver, ahcich_devclass, 0, 0);
+
+static void
+ahci_ch_setleds(device_t dev)
+{
+	struct ahci_channel *ch;
+	struct ahci_controller *ctlr;
+	size_t buf;
+	int i, timeout;
+	int16_t val;
+
+	ctlr = device_get_softc(device_get_parent(dev));
+	ch = device_get_softc(dev);
+
+	val = 0;
+	for (i = 0; i < AHCI_NUM_LEDS; i++)
+		val |= ch->leds[i].state << (i * 3);
+
+	buf = (ctlr->emloc & 0xffff0000) >> 14;
+	mtx_lock(&ctlr->em_mtx);
+	timeout = 1000;
+	while (ATA_INL(ctlr->r_mem, AHCI_EM_CTL) & (AHCI_EM_TM | AHCI_EM_RST) &&
+	    --timeout > 0)
+		DELAY(1000);
+	if (timeout == 0)
+		device_printf(dev, "EM timeout\n");
+	ATA_OUTL(ctlr->r_mem, buf, (1 << 8) | (0 << 16) | (0 << 24));
+	ATA_OUTL(ctlr->r_mem, buf + 4, ch->unit | (val << 16));
+	ATA_OUTL(ctlr->r_mem, AHCI_EM_CTL, AHCI_EM_TM);
+	mtx_unlock(&ctlr->em_mtx);
+}
+
+static void
+ahci_ch_led(void *priv, int onoff)
+{
+	struct ahci_led *led;
+
+	led = (struct ahci_led *)priv;
+
+	led->state = onoff;
+	ahci_ch_setleds(led->dev);
+}
 
 struct ahci_dc_cb_args {
 	bus_addr_t maddr;

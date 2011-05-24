@@ -1368,10 +1368,6 @@ ar5416UpdateChainMasks(struct ath_hal *ah, HAL_BOOL is_ht)
 	    AH5416(ah)->ah_rx_chainmask);
 }
 
-#ifndef IS_5GHZ_FAST_CLOCK_EN
-#define	IS_5GHZ_FAST_CLOCK_EN(ah, chan)	AH_FALSE
-#endif
-
 void
 ar5416InitPLL(struct ath_hal *ah, const struct ieee80211_channel *chan)
 {

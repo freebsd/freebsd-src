@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/queue.h>
 #include <sys/sbuf.h>
+#include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/uuid.h>
 #include <geom/geom.h>
@@ -103,6 +104,13 @@ struct g_part_alias_list {
 	{ "netbsd-raid", G_PART_ALIAS_NETBSD_RAID },
 	{ "netbsd-swap", G_PART_ALIAS_NETBSD_SWAP },
 };
+
+SYSCTL_DECL(_kern_geom);
+SYSCTL_NODE(_kern_geom, OID_AUTO, part, CTLFLAG_RW, 0, "GEOM_PART stuff");
+static u_int check_integrity = 1;
+TUNABLE_INT("kern.geom.part.check_integrity", &check_integrity);
+SYSCTL_UINT(_kern_geom_part, OID_AUTO, check_integrity, CTLFLAG_RW,
+    &check_integrity, 1, "Enable integrity checking");
 
 /*
  * The GEOM partitioning class.
@@ -231,47 +239,111 @@ g_part_geometry(struct g_part_table *table, struct g_consumer *cp,
 	}
 }
 
+#define	DPRINTF(...)	if (bootverbose) {	\
+	printf("GEOM_PART: " __VA_ARGS__);	\
+}
+
 static int
 g_part_check_integrity(struct g_part_table *table, struct g_consumer *cp)
 {
 	struct g_part_entry *e1, *e2;
 	struct g_provider *pp;
+	int failed;
 
+	failed = 0;
 	pp = cp->provider;
-	if (table->gpt_first > table->gpt_last ||
-	    table->gpt_last > pp->mediasize / pp->sectorsize - 1)
-		goto fail;
-
+	if (table->gpt_last < table->gpt_first) {
+		DPRINTF("last LBA is below first LBA: %jd < %jd\n",
+		    (intmax_t)table->gpt_last, (intmax_t)table->gpt_first);
+		failed++;
+	}
+	if (table->gpt_last > pp->mediasize / pp->sectorsize - 1) {
+		DPRINTF("last LBA extends beyond mediasize: "
+		    "%jd > %jd\n", (intmax_t)table->gpt_last,
+		    (intmax_t)pp->mediasize / pp->sectorsize - 1);
+		failed++;
+	}
 	LIST_FOREACH(e1, &table->gpt_entry, gpe_entry) {
 		if (e1->gpe_deleted || e1->gpe_internal)
 			continue;
-		if (e1->gpe_start < table->gpt_first ||
-		    e1->gpe_start > table->gpt_last ||
-		    e1->gpe_end < e1->gpe_start ||
-		    e1->gpe_end > table->gpt_last)
-			goto fail;
+		if (e1->gpe_start < table->gpt_first) {
+			DPRINTF("partition %d has start offset below first "
+			    "LBA: %jd < %jd\n", e1->gpe_index,
+			    (intmax_t)e1->gpe_start,
+			    (intmax_t)table->gpt_first);
+			failed++;
+		}
+		if (e1->gpe_start > table->gpt_last) {
+			DPRINTF("partition %d has start offset beyond last "
+			    "LBA: %jd > %jd\n", e1->gpe_index,
+			    (intmax_t)e1->gpe_start,
+			    (intmax_t)table->gpt_last);
+			failed++;
+		}
+		if (e1->gpe_end < e1->gpe_start) {
+			DPRINTF("partition %d has end offset below start "
+			    "offset: %jd < %jd\n", e1->gpe_index,
+			    (intmax_t)e1->gpe_end,
+			    (intmax_t)e1->gpe_start);
+			failed++;
+		}
+		if (e1->gpe_end > table->gpt_last) {
+			DPRINTF("partition %d has end offset beyond last "
+			    "LBA: %jd > %jd\n", e1->gpe_index,
+			    (intmax_t)e1->gpe_end,
+			    (intmax_t)table->gpt_last);
+			failed++;
+		}
 		e2 = e1;
 		while ((e2 = LIST_NEXT(e2, gpe_entry)) != NULL) {
 			if (e2->gpe_deleted || e2->gpe_internal)
 				continue;
 			if (e1->gpe_start >= e2->gpe_start &&
-			    e1->gpe_start <= e2->gpe_end)
-				goto fail;
+			    e1->gpe_start <= e2->gpe_end) {
+				DPRINTF("partition %d has start offset inside "
+				    "partition %d: start[%d] %jd >= start[%d] "
+				    "%jd <= end[%d] %jd\n",
+				    e1->gpe_index, e2->gpe_index,
+				    e2->gpe_index, (intmax_t)e2->gpe_start,
+				    e1->gpe_index, (intmax_t)e1->gpe_start,
+				    e2->gpe_index, (intmax_t)e2->gpe_end);
+				failed++;
+			}
 			if (e1->gpe_end >= e2->gpe_start &&
-			    e1->gpe_end <= e2->gpe_end)
-				goto fail;
+			    e1->gpe_end <= e2->gpe_end) {
+				DPRINTF("partition %d has end offset inside "
+				    "partition %d: start[%d] %jd >= end[%d] "
+				    "%jd <= end[%d] %jd\n",
+				    e1->gpe_index, e2->gpe_index,
+				    e2->gpe_index, (intmax_t)e2->gpe_start,
+				    e1->gpe_index, (intmax_t)e1->gpe_end,
+				    e2->gpe_index, (intmax_t)e2->gpe_end);
+				failed++;
+			}
 			if (e1->gpe_start < e2->gpe_start &&
-			    e1->gpe_end > e2->gpe_end)
-				goto fail;
+			    e1->gpe_end > e2->gpe_end) {
+				DPRINTF("partition %d contains partition %d: "
+				    "start[%d] %jd > start[%d] %jd, end[%d] "
+				    "%jd < end[%d] %jd\n",
+				    e1->gpe_index, e2->gpe_index,
+				    e1->gpe_index, (intmax_t)e1->gpe_start,
+				    e2->gpe_index, (intmax_t)e2->gpe_start,
+				    e2->gpe_index, (intmax_t)e2->gpe_end,
+				    e1->gpe_index, (intmax_t)e1->gpe_end);
+				failed++;
+			}
 		}
 	}
-	return (0);
-fail:
-	if (bootverbose)
+	if (failed != 0) {
 		printf("GEOM_PART: integrity check failed (%s, %s)\n",
 		    pp->name, table->gpt_scheme->name);
-	return (EINVAL);
+		if (check_integrity != 0)
+			return (EINVAL);
+		table->gpt_corrupt = 1;
+	}
+	return (0);
 }
+#undef	DPRINTF
 
 struct g_part_entry *
 g_part_new_entry(struct g_part_table *table, int index, quad_t start,

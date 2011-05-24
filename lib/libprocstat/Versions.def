@@ -1,0 +1,5 @@
+# $FreeBSD$
+
+# This version was first added to 9.0-current.
+FBSD_1.2 {
+};

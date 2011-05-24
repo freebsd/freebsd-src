@@ -21,7 +21,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "pkg.h"
+#include "lib.h"
 #include <err.h>
 #include <fnmatch.h>
 #include <fts.h>
@@ -292,7 +292,7 @@ matchallbyorigin(const char **origins, int *retval)
 		break;
 	    }
 	}
-	if (cmd != PLIST_ORIGIN && 0 != strncmp("bsdpan-", installed[i], 7))
+	if (cmd != PLIST_ORIGIN && ( Verbose || 0 != strncmp("bsdpan-", installed[i], 7 ) ) )
 	    warnx("package %s has no origin recorded", installed[i]);
 	fclose(fp);
     }

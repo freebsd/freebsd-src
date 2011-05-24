@@ -582,17 +582,9 @@ stop_gjournal()
 # Function to wipe the potential backup gpt table from a disk
 clear_backup_gpt_table()
 {
-  # Get the disk block size
-  local dSize="`gpart show $1 | grep $1 | tr -s ' ' | cut -d ' ' -f 3`"
-
-  # Make sure this is a valid number
-  is_num "${dSize}" >/dev/null 2>/dev/null
-  [ $? -ne 0 ] && return
-
-  # Die backup label, DIE
   echo_log "Clearing gpt backup table location on disk"
-  rc_nohalt "dd if=/dev/zero of=${1} bs=512 seek=${dSize}"
-
+  rc_nohalt "dd if=/dev/zero of=${1} bs=1m count=1"
+  rc_nohalt "dd if=/dev/zero of=${1} bs=1m oseek=`diskinfo ${1} | awk '{print int($3 / (1024*1024)) - 4;}'`"
 } ;
 
 

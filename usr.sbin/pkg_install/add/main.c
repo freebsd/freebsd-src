@@ -26,7 +26,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <getopt.h>
 
-#include <pkg.h>
+#include "lib.h"
 #include "add.h"
 
 char	*Prefix		= NULL;
@@ -131,8 +131,6 @@ main(int argc, char **argv)
     char *cp, *packagesite = NULL, *remotepkg = NULL, *ptr;
     static char temppackageroot[MAXPATHLEN];
     static char pkgaddpath[MAXPATHLEN];
-
-    pkg_wrap(PKG_INSTALL_VERSION, argv);
 
     if (*argv[0] != '/' && strchr(argv[0], '/') != NULL)
 	PkgAddCmd = realpath(argv[0], pkgaddpath);

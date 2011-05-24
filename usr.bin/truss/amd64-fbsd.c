@@ -128,7 +128,7 @@ amd64_syscall_entry(struct trussinfo *trussinfo, int nargs) {
   /*
    * FreeBSD has two special kinds of system call redirctions --
    * SYS_syscall, and SYS___syscall.  The former is the old syscall()
-   * routine, basicly; the latter is for quad-aligned arguments.
+   * routine, basically; the latter is for quad-aligned arguments.
    */
   reg = 0;
   syscall_num = regs.r_rax;
