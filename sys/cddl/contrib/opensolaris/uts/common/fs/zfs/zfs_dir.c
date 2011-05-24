@@ -239,15 +239,20 @@ zfs_dirent_lock(zfs_dirlock_t **dlpp, znode_t *dzp, char *name, znode_t **zpp,
 			return (ENOENT);
 		}
 		if (dl == NULL)	{
+			size_t namesize;
+
 			/*
 			 * Allocate a new dirlock and add it to the list.
 			 */
-			dl = kmem_alloc(sizeof (zfs_dirlock_t), KM_SLEEP);
+			namesize = strlen(name) + 1;
+			dl = kmem_alloc(sizeof (zfs_dirlock_t) + namesize,
+			    KM_SLEEP);
 			cv_init(&dl->dl_cv, NULL, CV_DEFAULT, NULL);
-			dl->dl_name = name;
+			dl->dl_name = (char *)(dl + 1);
+			bcopy(name, dl->dl_name, namesize);
 			dl->dl_sharecnt = 0;
 			dl->dl_namelock = 0;
-			dl->dl_namesize = 0;
+			dl->dl_namesize = namesize;
 			dl->dl_dzp = dzp;
 			dl->dl_next = dzp->z_dirlocks;
 			dzp->z_dirlocks = dl;
@@ -264,20 +269,8 @@ zfs_dirent_lock(zfs_dirlock_t **dlpp, znode_t *dzp, char *name, znode_t **zpp,
 	if (flag & ZHAVELOCK)
 		dl->dl_namelock = 1;
 
-	if ((flag & ZSHARED) && ++dl->dl_sharecnt > 1 && dl->dl_namesize == 0) {
-		/*
-		 * We're the second shared reference to dl.  Make a copy of
-		 * dl_name in case the first thread goes away before we do.
-		 * Note that we initialize the new name before storing its
-		 * pointer into dl_name, because the first thread may load
-		 * dl->dl_name at any time.  He'll either see the old value,
-		 * which is his, or the new shared copy; either is OK.
-		 */
-		dl->dl_namesize = strlen(dl->dl_name) + 1;
-		name = kmem_alloc(dl->dl_namesize, KM_SLEEP);
-		bcopy(dl->dl_name, name, dl->dl_namesize);
-		dl->dl_name = name;
-	}
+	if (flag & ZSHARED)
+		dl->dl_sharecnt++;
 
 	mutex_exit(&dzp->z_lock);
 
@@ -361,10 +354,8 @@ zfs_dirent_unlock(zfs_dirlock_t *dl)
 	cv_broadcast(&dl->dl_cv);
 	mutex_exit(&dzp->z_lock);
 
-	if (dl->dl_namesize != 0)
-		kmem_free(dl->dl_name, dl->dl_namesize);
 	cv_destroy(&dl->dl_cv);
-	kmem_free(dl, sizeof (*dl));
+	kmem_free(dl, sizeof (*dl) + dl->dl_namesize);
 }
 
 /*
