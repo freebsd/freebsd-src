@@ -298,11 +298,12 @@ ngp_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
 	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct ng_mesg *resp = NULL;
-	struct ng_mesg *msg;
+	struct ng_mesg *msg, *flow_msg;
 	struct ng_pipe_stats *stats;
 	struct ng_pipe_run *run;
 	struct ng_pipe_cfg *cfg;
 	int error = 0;
+	int prev_down, now_down, cmd;
 
 	NGI_GET_MSG(item, msg);
 	switch (msg->header.typecookie) {
@@ -403,10 +404,38 @@ ngp_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			    cfg->header_offset < 64)
 				priv->header_offset = cfg->header_offset;
 
+			prev_down = priv->upper.cfg.ber == 1 ||
+			    priv->lower.cfg.ber == 1;
 			parse_cfg(&priv->upper.cfg, &cfg->downstream,
 			    &priv->upper, priv);
 			parse_cfg(&priv->lower.cfg, &cfg->upstream,
 			    &priv->lower, priv);
+			now_down = priv->upper.cfg.ber == 1 ||
+			    priv->lower.cfg.ber == 1;
+
+			if (prev_down != now_down) {
+				if (now_down)
+					cmd = NGM_LINK_IS_DOWN;
+				else
+					cmd = NGM_LINK_IS_UP;
+
+				if (priv->lower.hook != NULL) {
+					NG_MKMESSAGE(flow_msg, NGM_FLOW_COOKIE,
+					    cmd, 0, M_NOWAIT);
+					if (flow_msg != NULL)
+						NG_SEND_MSG_HOOK(error, node,
+						    flow_msg, priv->lower.hook,
+						    0);
+				}
+				if (priv->upper.hook != NULL) {
+					NG_MKMESSAGE(flow_msg, NGM_FLOW_COOKIE,
+					    cmd, 0, M_NOWAIT);
+					if (flow_msg != NULL)
+						NG_SEND_MSG_HOOK(error, node,
+						    flow_msg, priv->upper.hook,
+						    0);
+				}
+			}
 			break;
 		default:
 			error = EINVAL;
