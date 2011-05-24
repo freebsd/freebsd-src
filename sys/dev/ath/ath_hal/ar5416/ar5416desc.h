@@ -205,6 +205,29 @@ struct ar5416_desc {
 #define	AR_STBC2	    0x40000000
 #define	AR_STBC3	    0x80000000
 
+/* ds_ctl8 */
+#define	AR_AntCtl0	    0x00ffffff
+#define	AR_AntCtl0_S	    0
+/* Xmit 0 TPC is AR_XmitPower in ctl0 */
+
+/* ds_ctl9 */
+#define	AR_AntCtl1	    0x00ffffff
+#define	AR_AntCtl1_S	    0
+#define	AR_XmitPower1	    0xff000000
+#define	AR_XmitPower1_S	    24
+
+/* ds_ctl10 */
+#define	AR_AntCtl2	    0x00ffffff
+#define	AR_AntCtl2_S	    0
+#define	AR_XmitPower2	    0xff000000
+#define	AR_XmitPower2_S	    24
+
+/* ds_ctl11 */
+#define	AR_AntCtl3	    0x00ffffff
+#define	AR_AntCtl3_S	    0
+#define	AR_XmitPower3	    0xff000000
+#define	AR_XmitPower3_S	    24
+
 /*************
  * TX Status *
  *************/
