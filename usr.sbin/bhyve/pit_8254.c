@@ -183,6 +183,8 @@ pit_8254_handler(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 		if (c->crbyte == 2) {
 			c->crbyte = 0;
 			c->initial = c->cr[0] | (uint16_t)c->cr[1] << 8;
+			if (c->initial == 0)
+				c->initial = 0xffff;
 			gettimeofday(&c->tv, NULL);
 		}
 	}
