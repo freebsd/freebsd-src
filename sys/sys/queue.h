@@ -99,6 +99,7 @@
  * _REMOVE_AFTER		+	-	+	-
  * _REMOVE_HEAD			+	-	+	-
  * _REMOVE			+	+	+	+
+ * _SWAP			+	+	+	+
  *
  */
 #ifdef QUEUE_MACRO_DEBUG
@@ -307,16 +308,16 @@ struct {								\
 	TRASHIT(*oldnext);						\
 } while (0)
 
-#define	STAILQ_REMOVE_HEAD(head, field) do {				\
-	if ((STAILQ_FIRST((head)) =					\
-	     STAILQ_NEXT(STAILQ_FIRST((head)), field)) == NULL)		\
-		(head)->stqh_last = &STAILQ_FIRST((head));		\
-} while (0)
-
 #define STAILQ_REMOVE_AFTER(head, elm, field) do {			\
 	if ((STAILQ_NEXT(elm, field) =					\
 	     STAILQ_NEXT(STAILQ_NEXT(elm, field), field)) == NULL)	\
 		(head)->stqh_last = &STAILQ_NEXT((elm), field);		\
+} while (0)
+
+#define	STAILQ_REMOVE_HEAD(head, field) do {				\
+	if ((STAILQ_FIRST((head)) =					\
+	     STAILQ_NEXT(STAILQ_FIRST((head)), field)) == NULL)		\
+		(head)->stqh_last = &STAILQ_FIRST((head));		\
 } while (0)
 
 #define STAILQ_SWAP(head1, head2, type) do {				\
