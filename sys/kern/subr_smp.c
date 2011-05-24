@@ -348,11 +348,11 @@ smp_rendezvous_action(void)
 	 * cannot use a regular critical section however as having
 	 * critical_exit() preempt from this routine would also be
 	 * problematic (the preemption must not occur before the IPI
-	 * has been acknowleged via an EOI).  Instead, we
+	 * has been acknowledged via an EOI).  Instead, we
 	 * intentionally ignore td_owepreempt when leaving the
-	 * critical setion.  This should be harmless because we do not
-	 * permit rendezvous action routines to schedule threads, and
-	 * thus td_owepreempt should never transition from 0 to 1
+	 * critical section.  This should be harmless because we do
+	 * not permit rendezvous action routines to schedule threads,
+	 * and thus td_owepreempt should never transition from 0 to 1
 	 * during this routine.
 	 */
 	td = curthread;
