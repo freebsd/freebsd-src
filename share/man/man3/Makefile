@@ -50,6 +50,7 @@ MLINKS+=	queue.3 LIST_EMPTY.3 \
 		queue.3 LIST_INSERT_HEAD.3 \
 		queue.3 LIST_NEXT.3 \
 		queue.3 LIST_REMOVE.3 \
+		queue.3 LIST_SWAP.3 \
 		queue.3 SLIST_EMPTY.3 \
 		queue.3 SLIST_ENTRY.3 \
 		queue.3 SLIST_FIRST.3 \
@@ -64,6 +65,7 @@ MLINKS+=	queue.3 LIST_EMPTY.3 \
 		queue.3 SLIST_REMOVE.3 \
 		queue.3 SLIST_REMOVE_AFTER.3 \
 		queue.3 SLIST_REMOVE_HEAD.3 \
+		queue.3 SLIST_SWAP.3 \
 		queue.3 STAILQ_CONCAT.3 \
 		queue.3 STAILQ_EMPTY.3 \
 		queue.3 STAILQ_ENTRY.3 \
@@ -81,6 +83,7 @@ MLINKS+=	queue.3 LIST_EMPTY.3 \
 		queue.3 STAILQ_REMOVE.3 \
 		queue.3 STAILQ_REMOVE_AFTER.3 \
 		queue.3 STAILQ_REMOVE_HEAD.3 \
+		queue.3 STAILQ_SWAP.3 \
 		queue.3 TAILQ_CONCAT.3 \
 		queue.3 TAILQ_EMPTY.3 \
 		queue.3 TAILQ_ENTRY.3 \
@@ -99,7 +102,8 @@ MLINKS+=	queue.3 LIST_EMPTY.3 \
 		queue.3 TAILQ_LAST.3 \
 		queue.3 TAILQ_NEXT.3 \
 		queue.3 TAILQ_PREV.3 \
-		queue.3 TAILQ_REMOVE.3
+		queue.3 TAILQ_REMOVE.3 \
+		queue.3 TAILQ_SWAP.3
 MLINKS+=	stdarg.3 va_arg.3 \
 		stdarg.3 va_copy.3 \
 		stdarg.3 va_end.3 \

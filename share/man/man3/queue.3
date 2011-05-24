@@ -32,7 +32,7 @@
 .\"	@(#)queue.3	8.2 (Berkeley) 1/24/94
 .\" $FreeBSD$
 .\"
-.Dd March 24, 2006
+.Dd May 13, 2011
 .Dt QUEUE 3
 .Os
 .Sh NAME
@@ -50,6 +50,7 @@
 .Nm SLIST_REMOVE_AFTER ,
 .Nm SLIST_REMOVE_HEAD ,
 .Nm SLIST_REMOVE ,
+.Nm SLIST_SWAP ,
 .Nm STAILQ_CONCAT ,
 .Nm STAILQ_EMPTY ,
 .Nm STAILQ_ENTRY ,
@@ -67,6 +68,7 @@
 .Nm STAILQ_REMOVE_AFTER ,
 .Nm STAILQ_REMOVE_HEAD ,
 .Nm STAILQ_REMOVE ,
+.Nm STAILQ_SWAP ,
 .Nm LIST_EMPTY ,
 .Nm LIST_ENTRY ,
 .Nm LIST_FIRST ,
@@ -80,6 +82,7 @@
 .Nm LIST_INSERT_HEAD ,
 .Nm LIST_NEXT ,
 .Nm LIST_REMOVE ,
+.Nm LIST_SWAP ,
 .Nm TAILQ_CONCAT ,
 .Nm TAILQ_EMPTY ,
 .Nm TAILQ_ENTRY ,
@@ -98,7 +101,8 @@
 .Nm TAILQ_LAST ,
 .Nm TAILQ_NEXT ,
 .Nm TAILQ_PREV ,
-.Nm TAILQ_REMOVE
+.Nm TAILQ_REMOVE ,
+.Nm TAILQ_SWAP
 .Nd implementations of singly-linked lists, singly-linked tail queues,
 lists and tail queues
 .Sh SYNOPSIS
@@ -118,6 +122,7 @@ lists and tail queues
 .Fn SLIST_REMOVE_AFTER "TYPE *elm" "SLIST_ENTRY NAME"
 .Fn SLIST_REMOVE_HEAD "SLIST_HEAD *head" "SLIST_ENTRY NAME"
 .Fn SLIST_REMOVE "SLIST_HEAD *head" "TYPE *elm" "TYPE" "SLIST_ENTRY NAME"
+.Fn SLIST_SWAP "SLIST_HEAD *head1" "SLIST_HEAD *head2" "SLIST_ENTRY NAME"
 .\"
 .Fn STAILQ_CONCAT "STAILQ_HEAD *head1" "STAILQ_HEAD *head2"
 .Fn STAILQ_EMPTY "STAILQ_HEAD *head"
@@ -136,6 +141,7 @@ lists and tail queues
 .Fn STAILQ_REMOVE_AFTER "STAILQ_HEAD *head" "TYPE *elm" "STAILQ_ENTRY NAME"
 .Fn STAILQ_REMOVE_HEAD "STAILQ_HEAD *head" "STAILQ_ENTRY NAME"
 .Fn STAILQ_REMOVE "STAILQ_HEAD *head" "TYPE *elm" "TYPE" "STAILQ_ENTRY NAME"
+.Fn STAILQ_SWAP "STAILQ_HEAD *head1" "STAILQ_HEAD *head2" "STAILQ_ENTRY NAME"
 .\"
 .Fn LIST_EMPTY "LIST_HEAD *head"
 .Fn LIST_ENTRY "TYPE"
@@ -150,6 +156,7 @@ lists and tail queues
 .Fn LIST_INSERT_HEAD "LIST_HEAD *head" "TYPE *elm" "LIST_ENTRY NAME"
 .Fn LIST_NEXT "TYPE *elm" "LIST_ENTRY NAME"
 .Fn LIST_REMOVE "TYPE *elm" "LIST_ENTRY NAME"
+.Fn LIST_SWAP "LIST_HEAD *head1" "LIST_HEAD *head2" "TYPE" "LIST_ENTRY NAME"
 .\"
 .Fn TAILQ_CONCAT "TAILQ_HEAD *head1" "TAILQ_HEAD *head2" "TAILQ_ENTRY NAME"
 .Fn TAILQ_EMPTY "TAILQ_HEAD *head"
@@ -170,6 +177,7 @@ lists and tail queues
 .Fn TAILQ_NEXT "TYPE *elm" "TAILQ_ENTRY NAME"
 .Fn TAILQ_PREV "TYPE *elm" "HEADNAME" "TAILQ_ENTRY NAME"
 .Fn TAILQ_REMOVE "TAILQ_HEAD *head" "TYPE *elm" "TAILQ_ENTRY NAME"
+.Fn TAILQ_SWAP "TAILQ_HEAD *head1" "TAILQ_HEAD *head2" "TYPE" "TAILQ_ENTRY NAME"
 .\"
 .Sh DESCRIPTION
 These macros define and operate on four types of data structures:
@@ -184,6 +192,8 @@ Insertion of a new entry after any element in the list.
 O(1) removal of an entry from the head of the list.
 .It
 Forward traversal through the list.
+.It
+Swawpping the contents of two lists.
 .El
 .Pp
 Singly-linked lists are the simplest of the four data structures
@@ -402,6 +412,13 @@ The macro
 removes the element
 .Fa elm
 from the list.
+.Pp
+The macro
+.Nm SLIST_SWAP
+swaps the contents of
+.Fa head1
+and
+.Fa head2 .
 .Sh SINGLY-LINKED LIST EXAMPLE
 .Bd -literal
 SLIST_HEAD(slisthead, entry) head =
@@ -584,6 +601,13 @@ The macro
 removes the element
 .Fa elm
 from the tail queue.
+.Pp
+The macro
+.Nm STAILQ_SWAP
+swaps the contents of
+.Fa head1
+and
+.Fa head2 .
 .Sh SINGLY-LINKED TAIL QUEUE EXAMPLE
 .Bd -literal
 STAILQ_HEAD(stailhead, entry) head =
@@ -743,6 +767,13 @@ The macro
 removes the element
 .Fa elm
 from the list.
+.Pp
+The macro
+.Nm LIST_SWAP
+swaps the contents of
+.Fa head1
+and
+.Fa head2 .
 .Sh LIST EXAMPLE
 .Bd -literal
 LIST_HEAD(listhead, entry) head =
@@ -942,6 +973,13 @@ The macro
 removes the element
 .Fa elm
 from the tail queue.
+.Pp
+The macro
+.Nm TAILQ_SWAP
+swaps the contents of
+.Fa head1
+and
+.Fa head2 .
 .Sh TAIL QUEUE EXAMPLE
 .Bd -literal
 TAILQ_HEAD(tailhead, entry) head =
