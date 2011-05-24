@@ -295,7 +295,7 @@ fmtattrib(struct gprovider *pp)
 	return (buf);
 }
 
-#define	ALIGNDOWN(d, a)	((d) % (a) ? (d) - (d) % (a): (d))
+#define	ALIGNDOWN(d, a)	((d) - (d) % (a))
 #define	ALIGNUP(d, a)	((d) % (a) ? (d) - (d) % (a) + (a): (d))
 
 static int
