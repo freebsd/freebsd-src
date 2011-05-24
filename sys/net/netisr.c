@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2007-2009 Robert N. M. Watson
- * Copyright (c) 2010 Juniper Networks, Inc.
+ * Copyright (c) 2010-2011 Juniper Networks, Inc.
  * All rights reserved.
  *
  * This software was developed by Robert N. M. Watson under contract
@@ -127,32 +127,44 @@ static struct rmlock	netisr_rmlock;
 SYSCTL_NODE(_net, OID_AUTO, isr, CTLFLAG_RW, 0, "netisr");
 
 /*-
- * Three direct dispatch policies are supported:
+ * Three global direct dispatch policies are supported:
  *
- * - Always defer: all work is scheduled for a netisr, regardless of context.
- *   (!direct)
+ * NETISR_DISPATCH_QUEUED: All work is deferred for a netisr, regardless of
+ * context (may be overriden by protocols).
  *
- * - Hybrid: if the executing context allows direct dispatch, and we're
- *   running on the CPU the work would be done on, then direct dispatch if it
- *   wouldn't violate ordering constraints on the workstream.
- *   (direct && !direct_force)
+ * NETISR_DISPATCH_HYBRID: If the executing context allows direct dispatch,
+ * and we're running on the CPU the work would be performed on, then direct
+ * dispatch it if it wouldn't violate ordering constraints on the workstream.
  *
- * - Always direct: if the executing context allows direct dispatch, always
- *   direct dispatch.  (direct && direct_force)
+ * NETISR_DISPATCH_DIRECT: If the executing context allows direct dispatch,
+ * always direct dispatch.  (The default.)
  *
  * Notice that changing the global policy could lead to short periods of
  * misordered processing, but this is considered acceptable as compared to
- * the complexity of enforcing ordering during policy changes.
+ * the complexity of enforcing ordering during policy changes.  Protocols can
+ * override the global policy (when they're not doing that, they select
+ * NETISR_DISPATCH_DEFAULT).
  */
-static int	netisr_direct_force = 1;	/* Always direct dispatch. */
-TUNABLE_INT("net.isr.direct_force", &netisr_direct_force);
-SYSCTL_INT(_net_isr, OID_AUTO, direct_force, CTLFLAG_RW,
-    &netisr_direct_force, 0, "Force direct dispatch");
+#define	NETISR_DISPATCH_POLICY_DEFAULT	NETISR_DISPATCH_DIRECT
+#define	NETISR_DISPATCH_POLICY_MAXSTR	20 /* Used for temporary buffers. */
+static u_int	netisr_dispatch_policy = NETISR_DISPATCH_POLICY_DEFAULT;
+static int	sysctl_netisr_dispatch_policy(SYSCTL_HANDLER_ARGS);
+SYSCTL_PROC(_net_isr, OID_AUTO, dispatch, CTLTYPE_STRING | CTLFLAG_RW |
+    CTLFLAG_TUN, 0, 0, sysctl_netisr_dispatch_policy, "A",
+    "netisr dispatch policy");
 
-static int	netisr_direct = 1;	/* Enable direct dispatch. */
-TUNABLE_INT("net.isr.direct", &netisr_direct);
-SYSCTL_INT(_net_isr, OID_AUTO, direct, CTLFLAG_RW,
-    &netisr_direct, 0, "Enable direct dispatch");
+/*
+ * These sysctls were used in previous versions to control and export
+ * dispatch policy state.  Now, we provide read-only export via them so that
+ * older netstat binaries work.  At some point they can be garbage collected.
+ */
+static int	netisr_direct_force;
+SYSCTL_INT(_net_isr, OID_AUTO, direct_force, CTLFLAG_RD,
+    &netisr_direct_force, 0, "compat: force direct dispatch");
+
+static int	netisr_direct;
+SYSCTL_INT(_net_isr, OID_AUTO, direct, CTLFLAG_RD, &netisr_direct, 0,
+    "compat: enable direct dispatch");
 
 /*
  * Allow the administrator to limit the number of threads (CPUs) to use for
@@ -276,6 +288,106 @@ netisr_default_flow2cpu(u_int flowid)
 }
 
 /*
+ * Dispatch tunable and sysctl configuration.
+ */
+struct netisr_dispatch_table_entry {
+	u_int		 ndte_policy;
+	const char	*ndte_policy_str;
+};
+static const struct netisr_dispatch_table_entry netisr_dispatch_table[] = {
+	{ NETISR_DISPATCH_DEFAULT, "default" },
+	{ NETISR_DISPATCH_DEFERRED, "deferred" },
+	{ NETISR_DISPATCH_HYBRID, "hybrid" },
+	{ NETISR_DISPATCH_DIRECT, "direct" },
+};
+static const u_int netisr_dispatch_table_len =
+    (sizeof(netisr_dispatch_table) / sizeof(netisr_dispatch_table[0]));
+
+static void
+netisr_dispatch_policy_to_str(u_int dispatch_policy, char *buffer,
+    u_int buflen)
+{
+	const struct netisr_dispatch_table_entry *ndtep;
+	const char *str;
+	u_int i;
+
+	str = "unknown";
+	for (i = 0; i < netisr_dispatch_table_len; i++) {
+		ndtep = &netisr_dispatch_table[i];
+		if (ndtep->ndte_policy == dispatch_policy) {
+			str = ndtep->ndte_policy_str;
+			break;
+		}
+	}
+	snprintf(buffer, buflen, "%s", str);
+}
+
+static int
+netisr_dispatch_policy_from_str(const char *str, u_int *dispatch_policyp)
+{
+	const struct netisr_dispatch_table_entry *ndtep;
+	u_int i;
+
+	for (i = 0; i < netisr_dispatch_table_len; i++) {
+		ndtep = &netisr_dispatch_table[i];
+		if (strcmp(ndtep->ndte_policy_str, str) == 0) {
+			*dispatch_policyp = ndtep->ndte_policy;
+			return (0);
+		}
+	}
+	return (EINVAL);
+}
+
+static void
+netisr_dispatch_policy_compat(void)
+{
+
+	switch (netisr_dispatch_policy) {
+	case NETISR_DISPATCH_DEFERRED:
+		netisr_direct_force = 0;
+		netisr_direct = 0;
+		break;
+
+	case NETISR_DISPATCH_HYBRID:
+		netisr_direct_force = 0;
+		netisr_direct = 1;
+		break;
+
+	case NETISR_DISPATCH_DIRECT:
+		netisr_direct_force = 1;
+		netisr_direct = 1;
+		break;
+
+	default:
+		panic("%s: unknown policy %u", __func__,
+		    netisr_dispatch_policy);
+	}
+}
+
+static int
+sysctl_netisr_dispatch_policy(SYSCTL_HANDLER_ARGS)
+{
+	char tmp[NETISR_DISPATCH_POLICY_MAXSTR];
+	u_int dispatch_policy;
+	int error;
+
+	netisr_dispatch_policy_to_str(netisr_dispatch_policy, tmp,
+	    sizeof(tmp));
+	error = sysctl_handle_string(oidp, tmp, sizeof(tmp), req);
+	if (error == 0 && req->newptr != NULL) {
+		error = netisr_dispatch_policy_from_str(tmp,
+		    &dispatch_policy);
+		if (error == 0 && dispatch_policy == NETISR_DISPATCH_DEFAULT)
+			error = EINVAL;
+		if (error == 0) {
+			netisr_dispatch_policy = dispatch_policy;
+			netisr_dispatch_policy_compat();
+		}
+	}
+	return (error);
+}
+
+/*
  * Register a new netisr handler, which requires initializing per-protocol
  * fields for each workstream.  All netisr work is briefly suspended while
  * the protocol is installed.
@@ -312,6 +424,12 @@ netisr_register(const struct netisr_handler *nhp)
 	KASSERT(nhp->nh_policy != NETISR_POLICY_CPU || nhp->nh_m2cpuid != NULL,
 	    ("%s: nh_policy == CPU but m2cpuid not defined for %s", __func__,
 	    name));
+	KASSERT(nhp->nh_dispatch == NETISR_DISPATCH_DEFAULT ||
+	    nhp->nh_dispatch == NETISR_DISPATCH_DEFERRED ||
+	    nhp->nh_dispatch == NETISR_DISPATCH_HYBRID ||
+	    nhp->nh_dispatch == NETISR_DISPATCH_DIRECT,
+	    ("%s: invalid nh_dispatch (%u)", __func__, nhp->nh_dispatch));
+
 	KASSERT(proto < NETISR_MAXPROT,
 	    ("%s(%u, %s): protocol too big", __func__, proto, name));
 
@@ -339,6 +457,7 @@ netisr_register(const struct netisr_handler *nhp)
 	} else
 		netisr_proto[proto].np_qlimit = nhp->nh_qlimit;
 	netisr_proto[proto].np_policy = nhp->nh_policy;
+	netisr_proto[proto].np_dispatch = nhp->nh_dispatch;
 	CPU_FOREACH(i) {
 		npwp = &(DPCPU_ID_PTR(i, nws))->nws_work[proto];
 		bzero(npwp, sizeof(*npwp));
@@ -541,15 +660,32 @@ netisr_unregister(const struct netisr_handler *nhp)
 }
 
 /*
+ * Compose the global and per-protocol policies on dispatch, and return the
+ * dispatch policy to use.
+ */
+static u_int
+netisr_get_dispatch(struct netisr_proto *npp)
+{
+
+	/*
+	 * Protocol-specific configuration overrides the global default.
+	 */
+	if (npp->np_dispatch != NETISR_DISPATCH_DEFAULT)
+		return (npp->np_dispatch);
+	return (netisr_dispatch_policy);
+}
+
+/*
  * Look up the workstream given a packet and source identifier.  Do this by
  * checking the protocol's policy, and optionally call out to the protocol
  * for assistance if required.
  */
 static struct mbuf *
-netisr_select_cpuid(struct netisr_proto *npp, uintptr_t source,
-    struct mbuf *m, u_int *cpuidp)
+netisr_select_cpuid(struct netisr_proto *npp, u_int dispatch_policy,
+    uintptr_t source, struct mbuf *m, u_int *cpuidp)
 {
 	struct ifnet *ifp;
+	u_int policy;
 
 	NETISR_LOCK_ASSERT();
 
@@ -567,11 +703,30 @@ netisr_select_cpuid(struct netisr_proto *npp, uintptr_t source,
 	 * If we want to support per-interface policies, we should do that
 	 * here first.
 	 */
-	switch (npp->np_policy) {
-	case NETISR_POLICY_CPU:
-		return (npp->np_m2cpuid(m, source, cpuidp));
+	policy = npp->np_policy;
+	if (policy == NETISR_POLICY_CPU) {
+		m = npp->np_m2cpuid(m, source, cpuidp);
+		if (m == NULL)
+			return (NULL);
 
-	case NETISR_POLICY_FLOW:
+		/*
+		 * It's possible for a protocol not to have a good idea about
+		 * where to process a packet, in which case we fall back on
+		 * the netisr code to decide.  In the hybrid case, return the
+		 * current CPU ID, which will force an immediate direct
+		 * dispatch.  In the queued case, fall back on the SOURCE
+		 * policy.
+		 */
+		if (*cpuidp != NETISR_CPUID_NONE)
+			return (m);
+		if (dispatch_policy == NETISR_DISPATCH_HYBRID) {
+			*cpuidp = curcpu;
+			return (m);
+		}
+		policy = NETISR_POLICY_SOURCE;
+	}
+
+	if (policy == NETISR_POLICY_FLOW) {
 		if (!(m->m_flags & M_FLOWID) && npp->np_m2flow != NULL) {
 			m = npp->np_m2flow(m, source);
 			if (m == NULL)
@@ -582,21 +737,19 @@ netisr_select_cpuid(struct netisr_proto *npp, uintptr_t source,
 			    netisr_default_flow2cpu(m->m_pkthdr.flowid);
 			return (m);
 		}
-		/* FALLTHROUGH */
-
-	case NETISR_POLICY_SOURCE:
-		ifp = m->m_pkthdr.rcvif;
-		if (ifp != NULL)
-			*cpuidp = nws_array[(ifp->if_index + source) %
-			    nws_count];
-		else
-			*cpuidp = nws_array[source % nws_count];
-		return (m);
-
-	default:
-		panic("%s: invalid policy %u for %s", __func__,
-		    npp->np_policy, npp->np_name);
+		policy = NETISR_POLICY_SOURCE;
 	}
+
+	KASSERT(policy == NETISR_POLICY_SOURCE,
+	    ("%s: invalid policy %u for %s", __func__, npp->np_policy,
+	    npp->np_name));
+
+	ifp = m->m_pkthdr.rcvif;
+	if (ifp != NULL)
+		*cpuidp = nws_array[(ifp->if_index + source) % nws_count];
+	else
+		*cpuidp = nws_array[source % nws_count];
+	return (m);
 }
 
 /*
@@ -795,7 +948,8 @@ netisr_queue_src(u_int proto, uintptr_t source, struct mbuf *m)
 	KASSERT(netisr_proto[proto].np_handler != NULL,
 	    ("%s: invalid proto %u", __func__, proto));
 
-	m = netisr_select_cpuid(&netisr_proto[proto], source, m, &cpuid);
+	m = netisr_select_cpuid(&netisr_proto[proto], NETISR_DISPATCH_DEFERRED,
+	    source, m, &cpuid);
 	if (m != NULL) {
 		KASSERT(!CPU_ABSENT(cpuid), ("%s: CPU %u absent", __func__,
 		    cpuid));
@@ -826,23 +980,23 @@ netisr_dispatch_src(u_int proto, uintptr_t source, struct mbuf *m)
 	struct rm_priotracker tracker;
 #endif
 	struct netisr_workstream *nwsp;
+	struct netisr_proto *npp;
 	struct netisr_work *npwp;
 	int dosignal, error;
-	u_int cpuid;
-
-	/*
-	 * If direct dispatch is entirely disabled, fall back on queueing.
-	 */
-	if (!netisr_direct)
-		return (netisr_queue_src(proto, source, m));
+	u_int cpuid, dispatch_policy;
 
 	KASSERT(proto < NETISR_MAXPROT,
 	    ("%s: invalid proto %u", __func__, proto));
 #ifdef NETISR_LOCKING
 	NETISR_RLOCK(&tracker);
 #endif
-	KASSERT(netisr_proto[proto].np_handler != NULL,
-	    ("%s: invalid proto %u", __func__, proto));
+	npp = &netisr_proto[proto];
+	KASSERT(npp->np_handler != NULL, ("%s: invalid proto %u", __func__,
+	    proto));
+
+	dispatch_policy = netisr_get_dispatch(npp);
+	if (dispatch_policy == NETISR_DISPATCH_DEFERRED)
+		return (netisr_queue_src(proto, source, m));
 
 	/*
 	 * If direct dispatch is forced, then unconditionally dispatch
@@ -851,7 +1005,7 @@ netisr_dispatch_src(u_int proto, uintptr_t source, struct mbuf *m)
 	 * nws_flags because all netisr processing will be source ordered due
 	 * to always being forced to directly dispatch.
 	 */
-	if (netisr_direct_force) {
+	if (dispatch_policy == NETISR_DISPATCH_DIRECT) {
 		nwsp = DPCPU_PTR(nws);
 		npwp = &nwsp->nws_work[proto];
 		npwp->nw_dispatched++;
@@ -861,18 +1015,22 @@ netisr_dispatch_src(u_int proto, uintptr_t source, struct mbuf *m)
 		goto out_unlock;
 	}
 
+	KASSERT(dispatch_policy == NETISR_DISPATCH_HYBRID,
+	    ("%s: unknown dispatch policy (%u)", __func__, dispatch_policy));
+
 	/*
 	 * Otherwise, we execute in a hybrid mode where we will try to direct
 	 * dispatch if we're on the right CPU and the netisr worker isn't
 	 * already running.
 	 */
-	m = netisr_select_cpuid(&netisr_proto[proto], source, m, &cpuid);
+	sched_pin();
+	m = netisr_select_cpuid(&netisr_proto[proto], NETISR_DISPATCH_HYBRID,
+	    source, m, &cpuid);
 	if (m == NULL) {
 		error = ENOBUFS;
-		goto out_unlock;
+		goto out_unpin;
 	}
 	KASSERT(!CPU_ABSENT(cpuid), ("%s: CPU %u absent", __func__, cpuid));
-	sched_pin();
 	if (cpuid != curcpu)
 		goto queue_fallback;
 	nwsp = DPCPU_PTR(nws);
@@ -1003,6 +1161,9 @@ netisr_start_swi(u_int cpuid, struct pcpu *pc)
 static void
 netisr_init(void *arg)
 {
+	char tmp[NETISR_DISPATCH_POLICY_MAXSTR];
+	u_int dispatch_policy;
+	int error;
 
 	KASSERT(curcpu == 0, ("%s: not on CPU 0", __func__));
 
@@ -1032,6 +1193,20 @@ netisr_init(void *arg)
 		netisr_bindthreads = 0;
 	}
 #endif
+
+	if (TUNABLE_STR_FETCH("net.isr.dispatch", tmp, sizeof(tmp))) {
+		error = netisr_dispatch_policy_from_str(tmp,
+		    &dispatch_policy);
+		if (error == 0 && dispatch_policy == NETISR_DISPATCH_DEFAULT)
+			error = EINVAL;
+		if (error == 0) {
+			netisr_dispatch_policy = dispatch_policy;
+			netisr_dispatch_policy_compat();
+		} else
+			printf(
+			    "%s: invalid dispatch policy %s, using default\n",
+			    __func__, tmp);
+	}
 
 	netisr_start_swi(curcpu, pcpu_find(curcpu));
 }
@@ -1088,6 +1263,7 @@ sysctl_netisr_proto(SYSCTL_HANDLER_ARGS)
 		snpp->snp_proto = proto;
 		snpp->snp_qlimit = npp->np_qlimit;
 		snpp->snp_policy = npp->np_policy;
+		snpp->snp_dispatch = npp->np_dispatch;
 		if (npp->np_m2flow != NULL)
 			snpp->snp_flags |= NETISR_SNP_FLAGS_M2FLOW;
 		if (npp->np_m2cpuid != NULL)
