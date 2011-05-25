@@ -57,7 +57,7 @@ SUBDIR=	alias \
 	getconf \
 	getent \
 	getopt \
-	${_grep} \
+	grep \
 	gzip \
 	head \
 	hexdump \
@@ -225,10 +225,6 @@ SUBDIR+=	bluetooth
 
 .if ${MK_BSD_CPIO} != "no"
 SUBDIR+=	cpio
-.endif
-
-.if ${MK_BSD_GREP} != "no"
-_grep=		grep
 .endif
 
 .if ${MK_CALENDAR} != "no"
