@@ -1332,19 +1332,9 @@ ncl_writerpc(struct vnode *vp, struct uio *uiop, struct ucred *cred,
 {
 	struct nfsvattr nfsva;
 	int error = 0, attrflag, ret;
-	u_char verf[NFSX_VERF];
-	struct nfsmount *nmp = VFSTONFS(vp->v_mount);
 
-	*must_commit = 0;
-	error = nfsrpc_write(vp, uiop, iomode, verf, cred,
+	error = nfsrpc_write(vp, uiop, iomode, must_commit, cred,
 	    uiop->uio_td, &nfsva, &attrflag, NULL, called_from_strategy);
-	NFSLOCKMNT(nmp);
-	if (!error && NFSHASWRITEVERF(nmp) &&
-	    NFSBCMP(verf, nmp->nm_verf, NFSX_VERF)) {
-		*must_commit = 1;
-		NFSBCOPY(verf, nmp->nm_verf, NFSX_VERF);
-	}
-	NFSUNLOCKMNT(nmp);
 	if (attrflag) {
 		if (VTONFS(vp)->n_flag & ND_NFSV4)
 			ret = nfscl_loadattrcache(&vp, &nfsva, NULL, NULL, 1,
