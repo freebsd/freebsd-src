@@ -880,16 +880,16 @@ ar5212GetCapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 		return HAL_OK;
 	case HAL_CAP_INTMIT:		/* interference mitigation */
 		switch (capability) {
-		case 0:			/* hardware capability */
+		case HAL_CAP_INTMIT_PRESENT:		/* hardware capability */
 			return HAL_OK;
-		case 1:
+		case HAL_CAP_INTMIT_ENABLE:
 			return (ahp->ah_procPhyErr & HAL_ANI_ENA) ?
 				HAL_OK : HAL_ENXIO;
-		case 2:			/* HAL_ANI_NOISE_IMMUNITY_LEVEL */
-		case 3:			/* HAL_ANI_OFDM_WEAK_SIGNAL_DETECTION */
-		case 4:			/* HAL_ANI_CCK_WEAK_SIGNAL_THR */
-		case 5:			/* HAL_ANI_FIRSTEP_LEVEL */
-		case 6:			/* HAL_ANI_SPUR_IMMUNITY_LEVEL */
+		case HAL_CAP_INTMIT_NOISE_IMMUNITY_LEVEL:
+		case HAL_CAP_INTMIT_OFDM_WEAK_SIGNAL_LEVEL:
+		case HAL_CAP_INTMIT_CCK_WEAK_SIGNAL_THR:
+		case HAL_CAP_INTMIT_FIRSTEP_LEVEL:
+		case HAL_CAP_INTMIT_SPUR_IMMUNITY_LEVEL:
 			ani = ar5212AniGetCurrentState(ah);
 			if (ani == AH_NULL)
 				return HAL_ENXIO;
@@ -980,6 +980,8 @@ ar5212SetCapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 		OS_REG_WRITE(ah, AR_TPC, ahp->ah_macTPC);
 		return AH_TRUE;
 	case HAL_CAP_INTMIT: {		/* interference mitigation */
+		/* This maps the public ANI commands to the internal ANI commands */
+		/* Private: HAL_ANI_CMD; Public: HAL_CAP_INTMIT_CMD */
 		static const HAL_ANI_CMD cmds[] = {
 			HAL_ANI_PRESENT,
 			HAL_ANI_MODE,
