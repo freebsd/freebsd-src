@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 27, 2010
+.Dd May 15, 2011
 .Dt GPIOCTL 1
 .Os
 .Sh NAME
@@ -93,17 +93,17 @@ be verbose: for each listed pin print current configuration
 .Sh EXAMPLES
 .Bl -bullet
 .It
-List pins available on GPIO controller defined by device /dev/gpioctl0
+List pins available on GPIO controller defined by device /dev/gpioc0
 .Pp
-gpioctl -f /dev/gpioctl0 -l
+gpioctl -f /dev/gpioc0 -l
 .It
 Set the value of pin 12 to 1
 .Pp
-gpioctl -f /dev/gpioctl0 12 1
+gpioctl -f /dev/gpioc0 12 1
 .It
 Configure pin 12 to be input pin
 .Pp
-gpioctl -f /dev/gpioctl0 -c 12 IN
+gpioctl -f /dev/gpioc0 -c 12 IN
 .El
 .Sh HISTORY
 The
