@@ -1738,13 +1738,6 @@ mvs_end_transaction(struct mvs_slot *slot, enum mvs_err_type et)
 		ch->numhslots++;
 	} else
 		xpt_done(ccb);
-	/* Unfreeze frozen command. */
-	if (ch->frozen && !mvs_check_collision(dev, ch->frozen)) {
-		union ccb *fccb = ch->frozen;
-		ch->frozen = NULL;
-		mvs_begin_transaction(dev, fccb);
-		xpt_release_simq(ch->sim, TRUE);
-	}
 	/* If we have no other active commands, ... */
 	if (ch->rslots == 0) {
 		/* if there was fatal error - reset port. */
@@ -1764,6 +1757,13 @@ mvs_end_transaction(struct mvs_slot *slot, enum mvs_err_type et)
 	} else if ((ch->rslots & ~ch->toslots) == 0 &&
 	    et != MVS_ERR_TIMEOUT)
 		mvs_rearm_timeout(dev);
+	/* Unfreeze frozen command. */
+	if (ch->frozen && !mvs_check_collision(dev, ch->frozen)) {
+		union ccb *fccb = ch->frozen;
+		ch->frozen = NULL;
+		mvs_begin_transaction(dev, fccb);
+		xpt_release_simq(ch->sim, TRUE);
+	}
 	/* Start PM timer. */
 	if (ch->numrslots == 0 && ch->pm_level > 3 &&
 	    (ch->curr[ch->pm_present ? 15 : 0].caps & CTS_SATA_CAPS_D_PMREQ)) {
@@ -2080,7 +2080,8 @@ mvs_softreset(device_t dev, union ccb *ccb)
 {
 	struct mvs_channel *ch = device_get_softc(dev);
 	int port = ccb->ccb_h.target_id & 0x0f;
-	int i;
+	int i, stuck;
+	uint8_t status;
 
 	mvs_set_edma_mode(dev, MVS_EDMA_OFF);
 	ATA_OUTB(ch->r_mem, SATA_SATAICTL, port << SATA_SATAICTL_PMPTX_SHIFT);
@@ -2089,12 +2090,35 @@ mvs_softreset(device_t dev, union ccb *ccb)
 	ATA_OUTB(ch->r_mem, ATA_CONTROL, 0);
 	ccb->ccb_h.status &= ~CAM_STATUS_MASK;
 	/* Wait for clearing busy status. */
-	if ((i = mvs_wait(dev, 0, ATA_S_BUSY | ATA_S_DRQ, ccb->ccb_h.timeout)) < 0) {
+	if ((i = mvs_wait(dev, 0, ATA_S_BUSY, ccb->ccb_h.timeout)) < 0) {
 		ccb->ccb_h.status |= CAM_CMD_TIMEOUT;
+		stuck = 1;
 	} else {
-		ccb->ccb_h.status |= CAM_REQ_CMP;
+		status = mvs_getstatus(dev, 0);
+		if (status & ATA_S_ERROR)
+			ccb->ccb_h.status |= CAM_ATA_STATUS_ERROR;
+		else
+			ccb->ccb_h.status |= CAM_REQ_CMP;
+		if (status & ATA_S_DRQ)
+			stuck = 1;
+		else
+			stuck = 0;
 	}
 	mvs_tfd_read(dev, ccb);
+
+	/*
+	 * XXX: If some device on PMP failed to soft-reset,
+	 * try to recover by sending dummy soft-reset to PMP.
+	 */
+	if (stuck && ch->pm_present && port != 15) {
+		ATA_OUTB(ch->r_mem, SATA_SATAICTL,
+		    15 << SATA_SATAICTL_PMPTX_SHIFT);
+		ATA_OUTB(ch->r_mem, ATA_CONTROL, ATA_A_RESET);
+		DELAY(10000);
+		ATA_OUTB(ch->r_mem, ATA_CONTROL, 0);
+		mvs_wait(dev, 0, ATA_S_BUSY | ATA_S_DRQ, ccb->ccb_h.timeout);
+	}
+
 	xpt_done(ccb);
 }
 
