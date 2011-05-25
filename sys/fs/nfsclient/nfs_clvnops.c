@@ -2470,10 +2470,12 @@ ncl_commit(struct vnode *vp, u_quad_t offset, int cnt, struct ucred *cred,
 	error = nfsrpc_commit(vp, offset, cnt, cred, td, verf, &nfsva,
 	    &attrflag, NULL);
 	if (!error) {
+		mtx_lock(&nmp->nm_mtx);
 		if (NFSBCMP((caddr_t)nmp->nm_verf, verf, NFSX_VERF)) {
 			NFSBCOPY(verf, (caddr_t)nmp->nm_verf, NFSX_VERF);
 			error = NFSERR_STALEWRITEVERF;
 		}
+		mtx_unlock(&nmp->nm_mtx);
 		if (!error && attrflag)
 			(void) nfscl_loadattrcache(&vp, &nfsva, NULL, NULL,
 			    0, 1);
