@@ -133,6 +133,7 @@ __FBSDID("$FreeBSD$");
 /*
  * TCP/IP protocol family: IP6, ICMP6, UDP, TCP.
  */
+FEATURE(inet6, "Internet Protocol version 6");
 
 extern	struct domain inet6domain;
 static	struct pr_usrreqs nousrreqs;
