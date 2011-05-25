@@ -98,7 +98,7 @@ ar9285AniSetup(struct ath_hal *ah)
                 .period                 = 100,
         };
 	/* NB: disable ANI noise immmunity for reliable RIFS rx */
-	AH5416(ah)->ah_ani_function &= ~ HAL_ANI_NOISE_IMMUNITY_LEVEL;
+	AH5416(ah)->ah_ani_function &= ~(1 << HAL_ANI_NOISE_IMMUNITY_LEVEL);
 
         ar5416AniAttach(ah, &aniparams, &aniparams, AH_TRUE);
 }
