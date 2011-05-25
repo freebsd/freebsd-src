@@ -58,7 +58,7 @@ ar5416AniSetup(struct ath_hal *ah)
 		.period			= 100,
 	};
 	/* NB: disable ANI noise immmunity for reliable RIFS rx */
-	AH5416(ah)->ah_ani_function &= ~ HAL_ANI_NOISE_IMMUNITY_LEVEL;
+	AH5416(ah)->ah_ani_function &= ~(1 << HAL_ANI_NOISE_IMMUNITY_LEVEL);
 	ar5416AniAttach(ah, &aniparams, &aniparams, AH_TRUE);
 }
 
@@ -199,7 +199,7 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 	AH5416(ah)->ah_tx_chainmask = AR5416_DEFAULT_TXCHAINMASK;
 
 	/* Enable all ANI functions to begin with */
-	AH5416(ah)->ah_ani_function = HAL_ANI_ALL;
+	AH5416(ah)->ah_ani_function = 0xffffffff;
 
         /* Set overridable ANI methods */
         AH5212(ah)->ah_aniControl = ar5416AniControl;
