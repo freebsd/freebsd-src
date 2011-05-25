@@ -175,9 +175,17 @@ ar5416AniControl(struct ath_hal *ah, HAL_ANI_CMD cmd, int param)
 	struct ar5212AniState *aniState = ahp->ah_curani;
 	const struct ar5212AniParams *params = aniState->params;
 
+	/* Check whether the particular function is enabled */
+	if (((1 << cmd) & AH5416(ah)->ah_ani_function) == 0) {
+		HALDEBUG(ah, HAL_DEBUG_ANI, "%s: command %d disabled\n",
+		    __func__, cmd);
+		HALDEBUG(ah, HAL_DEBUG_ANI, "%s: cmd %d; mask %x\n", __func__, cmd, AH5416(ah)->ah_ani_function);
+		return AH_FALSE;
+	}
+
 	OS_MARK(ah, AH_MARK_ANI_CONTROL, cmd);
 
-	switch (cmd & AH5416(ah)->ah_ani_function) {
+	switch (cmd) {
 	case HAL_ANI_NOISE_IMMUNITY_LEVEL: {
 		u_int level = param;
 
@@ -356,14 +364,14 @@ ar5416AniOfdmErrTrigger(struct ath_hal *ah)
 	aniState = ahp->ah_curani;
 	params = aniState->params;
 	/* First, raise noise immunity level, up to max */
-	if ((AH5416(ah)->ah_ani_function & HAL_ANI_NOISE_IMMUNITY_LEVEL) &&
+	if ((AH5416(ah)->ah_ani_function & (1 << HAL_ANI_NOISE_IMMUNITY_LEVEL)) &&
 	    (aniState->noiseImmunityLevel+1 < params->maxNoiseImmunityLevel)) {
 		ar5416AniControl(ah, HAL_ANI_NOISE_IMMUNITY_LEVEL, 
 				 aniState->noiseImmunityLevel + 1);
 		return;
 	}
 	/* then, raise spur immunity level, up to max */
-	if ((AH5416(ah)->ah_ani_function & HAL_ANI_SPUR_IMMUNITY_LEVEL) &&
+	if ((AH5416(ah)->ah_ani_function & (1 << HAL_ANI_SPUR_IMMUNITY_LEVEL)) &&
 	    (aniState->spurImmunityLevel+1 < params->maxSpurImmunityLevel)) {
 		ar5416AniControl(ah, HAL_ANI_SPUR_IMMUNITY_LEVEL,
 				 aniState->spurImmunityLevel + 1);
@@ -443,7 +451,8 @@ ar5416AniCckErrTrigger(struct ath_hal *ah)
 	/* first, raise noise immunity level, up to max */
 	aniState = ahp->ah_curani;
 	params = aniState->params;
-	if (aniState->noiseImmunityLevel+1 < params->maxNoiseImmunityLevel) {
+	if ((AH5416(ah)->ah_ani_function & (1 << HAL_ANI_NOISE_IMMUNITY_LEVEL) &&
+	    aniState->noiseImmunityLevel+1 < params->maxNoiseImmunityLevel)) {
 		ar5416AniControl(ah, HAL_ANI_NOISE_IMMUNITY_LEVEL,
 				 aniState->noiseImmunityLevel + 1);
 		return;
