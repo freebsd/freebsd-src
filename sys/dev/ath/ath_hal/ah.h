@@ -669,6 +669,41 @@ typedef struct {
 } HAL_CHANNEL_SURVEY;
 
 /*
+ * ANI commands.
+ *
+ * These are used both internally and externally via the diagnostic
+ * API.
+ *
+ * Note that this is NOT the ANI commands being used via the INTMIT
+ * capability - that has a different mapping for some reason.
+ */
+typedef enum {
+	HAL_ANI_PRESENT = 0,			/* is ANI support present */
+	HAL_ANI_NOISE_IMMUNITY_LEVEL = 1,	/* set level */
+	HAL_ANI_OFDM_WEAK_SIGNAL_DETECTION = 2,	/* enable/disable */
+	HAL_ANI_CCK_WEAK_SIGNAL_THR = 3,	/* enable/disable */
+	HAL_ANI_FIRSTEP_LEVEL = 4,		/* set level */
+	HAL_ANI_SPUR_IMMUNITY_LEVEL = 5,	/* set level */
+	HAL_ANI_MODE = 6,			/* 0 => manual, 1 => auto (XXX do not change) */
+	HAL_ANI_PHYERR_RESET = 7,		/* reset phy error stats */
+} HAL_ANI_CMD;
+
+/*
+ * This is the layout of the ANI INTMIT capability.
+ *
+ * Notice that the command values differ to HAL_ANI_CMD.
+ */
+typedef enum {
+	HAL_CAP_INTMIT_PRESENT = 0,
+	HAL_CAP_INTMIT_ENABLE = 1,
+	HAL_CAP_INTMIT_NOISE_IMMUNITY_LEVEL = 2,
+	HAL_CAP_INTMIT_OFDM_WEAK_SIGNAL_LEVEL = 3,
+	HAL_CAP_INTMIT_CCK_WEAK_SIGNAL_THR = 4,
+	HAL_CAP_INTMIT_FIRSTEP_LEVEL = 5,
+	HAL_CAP_INTMIT_SPUR_IMMUNITY_LEVEL = 6
+} HAL_CAP_INTMIT_CMD;
+
+/*
  * Hardware Access Layer (HAL) API.
  *
  * Clients of the HAL call ath_hal_attach to obtain a reference to an
