@@ -80,6 +80,8 @@
 #define AR9280_DEVID_PCIE	0x002a          /* AR9280 PCI-E Merlin */
 #define AR9285_DEVID_PCIE	0x002b          /* AR9285 PCI-E Kite */
 #define	AR2427_DEVID_PCIE	0x002c		/* AR2427 PCI-E w/ 802.11n bonded out */
+#define	AR9287_DEVID_PCI	0x002d		/* AR9227 PCI Merlin */
+#define	AR9287_DEVID_PCIE	0x002e		/* AR9287 PCI-E Merlin */
 
 #define	AR_SUBVENDOR_ID_NOG	0x0e11		/* No 11G subvendor ID */
 #define AR_SUBVENDOR_ID_NEW_A	0x7065		/* Update device to new RD */
