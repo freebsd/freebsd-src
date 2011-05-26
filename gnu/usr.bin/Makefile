@@ -27,9 +27,7 @@ _groff=		groff
 .endif
 .endif
 
-.if ${MK_BSD_GREP} != "yes"
 _grep=          grep
-.endif
 
 .if ${MK_CVS} != "no"
 _cvs=		cvs

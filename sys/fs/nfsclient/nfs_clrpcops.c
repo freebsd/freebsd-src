@@ -68,7 +68,7 @@ static int nfsrpc_setattrrpc(vnode_t , struct vattr *, nfsv4stateid_t *,
     struct ucred *, NFSPROC_T *, struct nfsvattr *, int *, void *);
 static int nfsrpc_readrpc(vnode_t , struct uio *, struct ucred *,
     nfsv4stateid_t *, NFSPROC_T *, struct nfsvattr *, int *, void *);
-static int nfsrpc_writerpc(vnode_t , struct uio *, int *, u_char *,
+static int nfsrpc_writerpc(vnode_t , struct uio *, int *, int *,
     struct ucred *, nfsv4stateid_t *, NFSPROC_T *, struct nfsvattr *, int *,
     void *);
 static int nfsrpc_createv23(vnode_t , char *, int, struct vattr *,
@@ -1369,7 +1369,7 @@ nfsmout:
  * will then deadlock.
  */
 APPLESTATIC int
-nfsrpc_write(vnode_t vp, struct uio *uiop, int *iomode, u_char *verfp,
+nfsrpc_write(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
     struct ucred *cred, NFSPROC_T *p, struct nfsvattr *nap, int *attrflagp,
     void *stuff, int called_from_strategy)
 {
@@ -1382,6 +1382,7 @@ nfsrpc_write(vnode_t vp, struct uio *uiop, int *iomode, u_char *verfp,
 	nfsv4stateid_t stateid;
 	void *lckp;
 
+	*must_commit = 0;
 	if (nmp->nm_clp != NULL)
 		clidrev = nmp->nm_clp->nfsc_clientidrev;
 	newcred = cred;
@@ -1412,7 +1413,7 @@ nfsrpc_write(vnode_t vp, struct uio *uiop, int *iomode, u_char *verfp,
 		if (nostateid)
 			error = 0;
 		else
-			error = nfsrpc_writerpc(vp, uiop, iomode, verfp,
+			error = nfsrpc_writerpc(vp, uiop, iomode, must_commit,
 			    newcred, &stateid, p, nap, attrflagp, stuff);
 		if (error == NFSERR_STALESTATEID)
 			nfscl_initiate_recovery(nmp->nm_clp);
@@ -1447,7 +1448,7 @@ nfsrpc_write(vnode_t vp, struct uio *uiop, int *iomode, u_char *verfp,
  */
 static int
 nfsrpc_writerpc(vnode_t vp, struct uio *uiop, int *iomode,
-    u_char *verfp, struct ucred *cred, nfsv4stateid_t *stateidp,
+    int *must_commit, struct ucred *cred, nfsv4stateid_t *stateidp,
     NFSPROC_T *p, struct nfsvattr *nap, int *attrflagp, void *stuff)
 {
 	u_int32_t *tl;
@@ -1585,14 +1586,16 @@ nfsrpc_writerpc(vnode_t vp, struct uio *uiop, int *iomode,
 				else if (committed == NFSWRITE_DATASYNC &&
 					commit == NFSWRITE_UNSTABLE)
 					committed = commit;
-				if (verfp != NULL)
-					NFSBCOPY((caddr_t)tl, verfp, NFSX_VERF);
 				NFSLOCKMNT(nmp);
 				if (!NFSHASWRITEVERF(nmp)) {
 					NFSBCOPY((caddr_t)tl,
 					    (caddr_t)&nmp->nm_verf[0],
 					    NFSX_VERF);
 					NFSSETWRITEVERF(nmp);
+	    			} else if (NFSBCMP(tl, nmp->nm_verf,
+				    NFSX_VERF)) {
+					*must_commit = 1;
+					NFSBCOPY(tl, nmp->nm_verf, NFSX_VERF);
 				}
 				NFSUNLOCKMNT(nmp);
 			}
