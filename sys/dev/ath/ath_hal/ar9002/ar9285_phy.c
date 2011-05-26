@@ -87,8 +87,10 @@ ar9285_check_div_comb(struct ath_hal *ah)
 	HAL_EEPROM_v4k *ee = AH_PRIVATE(ah)->ah_eeprom;
         const MODAL_EEP4K_HEADER *pModal = &ee->ee_base.modalHeader;
 
+#if 0
 	/* For now, simply disable this until it's better debugged. -adrian */
 	return AH_FALSE;
+#endif
 
 	if (! AR_SREV_KITE(ah))
 		return AH_FALSE;
