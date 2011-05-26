@@ -33,13 +33,103 @@
 #include "ar9002/ar9287phy.h"
 #include "ar9002/ar9287an.h"
 
+#include "ar9002/ar9287_olc.h"
 #include "ar9002/ar9287_reset.h"
+
+/*
+ * Set the TX power calibration table per-chain.
+ *
+ * This only supports open-loop TX power control for the AR9287.
+ */
+static void
+ar9287SetPowerCalTable(struct ath_hal *ah,
+    const struct ieee80211_channel *chan, int16_t *pTxPowerIndexOffset)
+{
+        struct cal_data_op_loop_ar9287 *pRawDatasetOpenLoop;
+        uint8_t *pCalBChans = NULL;
+        uint16_t pdGainOverlap_t2;
+        uint16_t numPiers = 0, i;
+        uint16_t numXpdGain, xpdMask;
+        uint16_t xpdGainValues[AR5416_NUM_PD_GAINS] = {0, 0, 0, 0};
+        uint32_t regChainOffset;
+	HAL_EEPROM_9287 *ee = AH_PRIVATE(ah)->ah_eeprom;
+        struct ar9287_eeprom *pEepData = &ee->ee_base;
+
+        xpdMask = pEepData->modalHeader.xpdGain;
+
+        if ((pEepData->baseEepHeader.version & AR9287_EEP_VER_MINOR_MASK) >=
+            AR9287_EEP_MINOR_VER_2)
+                pdGainOverlap_t2 = pEepData->modalHeader.pdGainOverlap;
+        else
+                pdGainOverlap_t2 = (uint16_t)(MS(OS_REG_READ(ah, AR_PHY_TPCRG5),
+                                            AR_PHY_TPCRG5_PD_GAIN_OVERLAP));
+
+	/* Note: Kiwi should only be 2ghz.. */
+        if (IEEE80211_IS_CHAN_2GHZ(chan)) {
+                pCalBChans = pEepData->calFreqPier2G;
+                numPiers = AR9287_NUM_2G_CAL_PIERS;
+                pRawDatasetOpenLoop = (struct cal_data_op_loop_ar9287 *)pEepData->calPierData2G[0];
+                AH5416(ah)->initPDADC = pRawDatasetOpenLoop->vpdPdg[0][0];
+        }
+        numXpdGain = 0;
+
+        /* Calculate the value of xpdgains from the xpdGain Mask */
+        for (i = 1; i <= AR5416_PD_GAINS_IN_MASK; i++) {
+                if ((xpdMask >> (AR5416_PD_GAINS_IN_MASK - i)) & 1) {
+                        if (numXpdGain >= AR5416_NUM_PD_GAINS)
+                                break;
+                        xpdGainValues[numXpdGain] =
+                                (uint16_t)(AR5416_PD_GAINS_IN_MASK-i);
+                        numXpdGain++;
+                }
+        }
+
+        OS_REG_RMW_FIELD(ah, AR_PHY_TPCRG1, AR_PHY_TPCRG1_NUM_PD_GAIN,
+                      (numXpdGain - 1) & 0x3);
+        OS_REG_RMW_FIELD(ah, AR_PHY_TPCRG1, AR_PHY_TPCRG1_PD_GAIN_1,
+                      xpdGainValues[0]);
+        OS_REG_RMW_FIELD(ah, AR_PHY_TPCRG1, AR_PHY_TPCRG1_PD_GAIN_2,
+                      xpdGainValues[1]);
+        OS_REG_RMW_FIELD(ah, AR_PHY_TPCRG1, AR_PHY_TPCRG1_PD_GAIN_3,
+                      xpdGainValues[2]);
+
+        for (i = 0; i < AR9287_MAX_CHAINS; i++) {
+                regChainOffset = i * 0x1000;
+
+                if (pEepData->baseEepHeader.txMask & (1 << i)) {
+                        int8_t txPower;
+                        pRawDatasetOpenLoop =
+                        (struct cal_data_op_loop_ar9287 *)pEepData->calPierData2G[i];
+                                ar9287olcGetTxGainIndex(ah, chan,
+                                    pRawDatasetOpenLoop,
+                                    pCalBChans, numPiers,
+                                    &txPower);
+                                ar9287olcSetPDADCs(ah, txPower, i);
+                }
+        }
+
+        *pTxPowerIndexOffset = 0;
+}
 
 HAL_BOOL
 ar9287SetTransmitPower(struct ath_hal *ah,
 	const struct ieee80211_channel *chan, uint16_t *rfXpdGain)
 {
+	int16_t txPowerIndexOffset = 0;
+
 	/* XXX TODO */
+
+	/* Fetch per-rate power table for the given channel */
+
+	/* Set open-loop TX power control calibration */
+	ar9287SetPowerCalTable(ah, chan, &txPowerIndexOffset);
+
+	/* Calculate regulatory maximum power level */
+
+	/* Kiwi TX power starts at -5 dBm */
+
+	/* Write TX power registers */
+
 	return AH_TRUE;
 }
 

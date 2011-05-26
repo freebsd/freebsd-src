@@ -30,6 +30,7 @@
 #include "ah_internal.h"
 
 #include "ah_eeprom_v14.h"
+#include "ah_eeprom_9287.h"
 
 #include "ar9002/ar9280.h"
 #include "ar5416/ar5416reg.h"
@@ -91,4 +92,75 @@ ar9287olcTemperatureCompensation(struct ath_hal *ah)
 		OS_REG_RMW_FIELD(ah, AR_PHY_CH1_TX_PWRCTRL11,
 		    AR_PHY_TX_PWRCTRL_OLPC_TEMP_COMP, delta);
 	}
+}
+
+void
+ar9287olcGetTxGainIndex(struct ath_hal *ah,
+    const struct ieee80211_channel *chan,
+    struct cal_data_op_loop_ar9287 *pRawDatasetOpLoop,
+    uint8_t *pCalChans,  uint16_t availPiers, int8_t *pPwr)
+{
+        uint16_t idxL = 0, idxR = 0, numPiers;
+        HAL_BOOL match;
+        CHAN_CENTERS centers;
+
+        ar5416GetChannelCenters(ah, chan, &centers);
+
+        for (numPiers = 0; numPiers < availPiers; numPiers++) {
+                if (pCalChans[numPiers] == AR5416_BCHAN_UNUSED)
+                        break;
+        }
+
+        match = ath_ee_getLowerUpperIndex(
+                (uint8_t)FREQ2FBIN(centers.synth_center, IEEE80211_IS_CHAN_2GHZ(chan)),
+                pCalChans, numPiers, &idxL, &idxR);
+
+        if (match) {
+                *pPwr = (int8_t) pRawDatasetOpLoop[idxL].pwrPdg[0][0];
+        } else {
+                *pPwr = ((int8_t) pRawDatasetOpLoop[idxL].pwrPdg[0][0] +
+                         (int8_t) pRawDatasetOpLoop[idxR].pwrPdg[0][0])/2;
+        }
+}
+
+void
+ar9287olcSetPDADCs(struct ath_hal *ah, int32_t txPower,
+    uint16_t chain)
+{
+        uint32_t tmpVal;
+        uint32_t a;
+
+        /* Enable OLPC for chain 0 */
+
+        tmpVal = OS_REG_READ(ah, 0xa270);
+        tmpVal = tmpVal & 0xFCFFFFFF;
+        tmpVal = tmpVal | (0x3 << 24);
+        OS_REG_WRITE(ah, 0xa270, tmpVal);
+
+        /* Enable OLPC for chain 1 */
+
+        tmpVal = OS_REG_READ(ah, 0xb270);
+        tmpVal = tmpVal & 0xFCFFFFFF;
+        tmpVal = tmpVal | (0x3 << 24);
+        OS_REG_WRITE(ah, 0xb270, tmpVal);
+
+        /* Write the OLPC ref power for chain 0 */
+
+        if (chain == 0) {
+                tmpVal = OS_REG_READ(ah, 0xa398);
+                tmpVal = tmpVal & 0xff00ffff;
+                a = (txPower)&0xff;
+                tmpVal = tmpVal | (a << 16);
+                OS_REG_WRITE(ah, 0xa398, tmpVal);
+        }
+
+        /* Write the OLPC ref power for chain 1 */
+
+        if (chain == 1) {
+                tmpVal = OS_REG_READ(ah, 0xb398);
+                tmpVal = tmpVal & 0xff00ffff;
+                a = (txPower)&0xff;
+                tmpVal = tmpVal | (a << 16);
+                OS_REG_WRITE(ah, 0xb398, tmpVal);
+        }
 }
