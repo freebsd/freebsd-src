@@ -70,6 +70,9 @@ ar9287olcTemperatureCompensation(struct ath_hal *ah)
 	rddata = OS_REG_READ(ah, AR_PHY_TX_PWRCTRL4);
 	currPDADC = MS(rddata, AR_PHY_TX_PWRCTRL_PD_AVG_OUT);
 
+	HALDEBUG(ah, HAL_DEBUG_PERCAL, "%s: initPDADC=%d, currPDADC=%d\n",
+	     __func__, AH5416(ah)->initPDADC, currPDADC);
+
 	if (AH5416(ah)->initPDADC == 0 || currPDADC == 0) {
 		/*
 		 * Zero value indicates that no frames have been transmitted
@@ -91,6 +94,8 @@ ar9287olcTemperatureCompensation(struct ath_hal *ah)
 		    AR_PHY_TX_PWRCTRL_OLPC_TEMP_COMP, delta);
 		OS_REG_RMW_FIELD(ah, AR_PHY_CH1_TX_PWRCTRL11,
 		    AR_PHY_TX_PWRCTRL_OLPC_TEMP_COMP, delta);
+
+		HALDEBUG(ah, HAL_DEBUG_PERCAL, "%s: delta=%d\n", __func__, delta);
 	}
 }
 
