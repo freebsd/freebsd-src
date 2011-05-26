@@ -21,5 +21,11 @@
 
 extern	void ar9287olcInit(struct ath_hal *ah);
 extern	void ar9287olcTemperatureCompensation(struct ath_hal *ah);
+extern	void ar9287olcGetTxGainIndex(struct ath_hal *ah,
+	const struct ieee80211_channel *chan,
+	struct cal_data_op_loop_ar9287 *pRawDatasetOpLoop,
+	uint8_t *pCalChans, uint16_t availPiers, int8_t *pPwr);
+extern	void ar9287olcSetPDADCs(struct ath_hal *ah,
+	int32_t txPower, uint16_t chain);
 
 #endif	/* __AR9287_OLC_H__ */
