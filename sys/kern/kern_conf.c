@@ -874,6 +874,8 @@ destroy_devl(struct cdev *dev)
 	/* Remove name marking */
 	dev->si_flags &= ~SI_NAMED;
 
+	dev->si_refcount++;	/* Avoid race with dev_rel() */
+
 	/* If we are a child, remove us from the parents list */
 	if (dev->si_flags & SI_CHILD) {
 		LIST_REMOVE(dev, si_siblings);
@@ -890,7 +892,6 @@ destroy_devl(struct cdev *dev)
 		dev->si_flags &= ~SI_CLONELIST;
 	}
 
-	dev->si_refcount++;	/* Avoid race with dev_rel() */
 	csw = dev->si_devsw;
 	dev->si_devsw = NULL;	/* already NULL for SI_ALIAS */
 	while (csw != NULL && csw->d_purge != NULL && dev->si_threadcount) {
