@@ -117,6 +117,8 @@ ath_hal_mac_name(struct ath_hal *ah)
 		return "9280";
 	case AR_XSREV_VERSION_KITE:
 		return "9285";
+	case AR_XSREV_VERSION_KIWI:
+		return "9287";
 	}
 	return "????";
 }
