@@ -301,4 +301,6 @@
 #define	AR_PHY_TX_PWRCTRL9_RES_DC_REMOVAL	0x80000000
 #define	AR_PHY_TX_PWRCTRL9_RES_DC_REMOVAL_S	31
 
+#define	AR_PHY_MODE_ASYNCFIFO			0x80	/* Enable async fifo */
+
 #endif /* _DEV_ATH_AR5416PHY_H_ */

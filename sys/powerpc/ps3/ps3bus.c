@@ -31,6 +31,7 @@
 #include <sys/module.h>
 #include <sys/malloc.h>
 #include <sys/bus.h>
+#include <sys/clock.h>
 #include <sys/cpu.h>
 #include <sys/resource.h>
 #include <sys/rman.h>
@@ -46,6 +47,7 @@
 #include "ps3bus.h"
 #include "ps3-hvcall.h"
 #include "iommu_if.h"
+#include "clock_if.h"
 
 static void	ps3bus_identify(driver_t *, device_t);
 static int	ps3bus_probe(device_t);
@@ -63,6 +65,8 @@ static int	ps3_iommu_map(device_t dev, bus_dma_segment_t *segs, int *nsegs,		   
 		    bus_size_t boundary, void *cookie);
 static int	ps3_iommu_unmap(device_t dev, bus_dma_segment_t *segs,
 		    int nsegs, void *cookie);
+static int	ps3_gettime(device_t dev, struct timespec *ts);
+static int	ps3_settime(device_t dev, struct timespec *ts);
 
 struct ps3bus_devinfo {
 	int bus;
@@ -105,6 +109,10 @@ static device_method_t ps3bus_methods[] = {
 	/* IOMMU interface */
 	DEVMETHOD(iommu_map,		ps3_iommu_map),
 	DEVMETHOD(iommu_unmap,		ps3_iommu_unmap),
+
+	/* Clock interface */
+	DEVMETHOD(clock_gettime,	ps3_gettime),
+	DEVMETHOD(clock_settime,	ps3_settime),
 
 	{ 0, 0 }
 };
@@ -312,6 +320,8 @@ ps3bus_attach(device_t self)
 			device_set_ivars(cdev, dinfo);
 		}
 	}
+	
+	clock_register(self, 1000);
 
 	return (bus_generic_attach(self));
 }
@@ -551,11 +561,33 @@ ps3_iommu_map(device_t dev, bus_dma_segment_t *segs, int *nsegs,
 	return (0);
 }
 
-
 static int
 ps3_iommu_unmap(device_t dev, bus_dma_segment_t *segs, int nsegs, void *cookie)
 {
 
 	return (0);
+}
+
+#define Y2K 946684800
+
+static int
+ps3_gettime(device_t dev, struct timespec *ts)
+{
+	uint64_t rtc, tb;
+	int result;
+
+	result = lv1_get_rtc(&rtc, &tb);
+	if (result)
+		return (result);
+
+	ts->tv_sec = rtc + Y2K;
+	ts->tv_nsec = 0;
+	return (0);
+}
+	
+static int
+ps3_settime(device_t dev, struct timespec *ts)
+{
+	return (-1);
 }
 

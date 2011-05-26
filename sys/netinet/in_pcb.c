@@ -1054,8 +1054,6 @@ void
 in_pcbref(struct inpcb *inp)
 {
 
-	INP_WLOCK_ASSERT(inp);
-
 	KASSERT(inp->inp_refcount > 0, ("%s: refcount 0", __func__));
 
 	refcount_acquire(&inp->inp_refcount);

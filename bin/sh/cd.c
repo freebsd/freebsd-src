@@ -86,6 +86,7 @@ cdcmd(int argc, char **argv)
 	struct stat statb;
 	int ch, phys, print = 0, getcwderr = 0;
 	int rc;
+	int errno1 = ENOENT;
 
 	optreset = 1; optind = 1; opterr = 0; /* initialize getopt */
 	phys = Pflag;
@@ -138,9 +139,11 @@ cdcmd(int argc, char **argv)
 			rc = docd(p, print, phys);
 			if (rc >= 0)
 				return getcwderr ? rc : 0;
+			if (errno != ENOENT)
+				errno1 = errno;
 		}
 	}
-	error("can't cd to %s", dest);
+	error("%s: %s", dest, strerror(errno1));
 	/*NOTREACHED*/
 	return 0;
 }

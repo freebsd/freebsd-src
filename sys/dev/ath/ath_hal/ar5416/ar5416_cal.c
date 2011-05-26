@@ -594,8 +594,8 @@ ar5416LoadNF(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	if (AR_SREV_KITE(ah)) {
 		/* Kite has only one chain */
 		chainmask = 0x9;
-	} else if (AR_SREV_MERLIN(ah)) {
-		/* Merlin has only two chains */
+	} else if (AR_SREV_MERLIN(ah) || AR_SREV_KIWI(ah)) {
+		/* Merlin/Kiwi has only two chains */
 		chainmask = 0x1B;
 	} else {
 		chainmask = 0x3F;
