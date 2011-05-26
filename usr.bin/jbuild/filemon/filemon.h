@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009, 2010, Juniper Networks, Inc.
+ * Copyright (c) 2009-2011, Juniper Networks, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,3 +28,5 @@
 
 #define FILEMON_SET_FD		_IOWR('S', 1, int)
 #define FILEMON_SET_PID		_IOWR('S', 2, pid_t)
+
+#define FILEMON_VERSION		2	/* output format */

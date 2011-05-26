@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009, 2010, Juniper Networks, Inc.
+ * Copyright (c) 2009-2011, Juniper Networks, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -70,7 +70,11 @@ filemon_pid_check(struct proc *p)
 static void
 filemon_comment(struct filemon *filemon)
 {
+	struct timeval now;
 	int len;
+
+	/* Load timestamp before locking.  Less accurate but less contention. */
+	getmicrotime(&now);
 
 	/* Grab a read lock on the filemon inuse list. */
 	filemon_lock_read();
@@ -79,7 +83,9 @@ filemon_comment(struct filemon *filemon)
 	filemon_filemon_lock(filemon);
 
 	len = snprintf(filemon->msgbufr, sizeof(filemon->msgbufr),
-	    "# buildmon version 2\n# Target pid %d\nV 2\n", curproc->p_pid);
+	    "# buildmon version %d\n# Target pid %d\n# Start %ju.%06ju\nV %d\n",
+	    FILEMON_VERSION, curproc->p_pid, (uintmax_t)now.tv_sec,
+	    (uintmax_t)now.tv_usec, FILEMON_VERSION);
 
 	filemon_output(filemon, filemon->msgbufr, len);
 
@@ -479,8 +485,12 @@ filemon_wrapper_freebsd32_stat(struct thread *td, struct freebsd32_stat_args *ua
 static void
 filemon_wrapper_sys_exit(struct thread *td, struct sys_exit_args *uap)
 {
+	struct timeval now;
 	size_t len;
 	struct filemon *filemon;
+
+	/* Get timestamp before locking. */
+	getmicrotime(&now);
 
 	/* Grab a read lock on the filemon inuse list. */
 	filemon_lock_read();
@@ -496,7 +506,10 @@ filemon_wrapper_sys_exit(struct thread *td, struct sys_exit_args *uap)
 
 		/* Check if the monitored process is about to exit. */
 		if (filemon->pid == curproc->p_pid) {
-			len = snprintf(filemon->msgbufr, sizeof(filemon->msgbufr), "# Bye bye\n");
+			len = snprintf(filemon->msgbufr,
+			    sizeof(filemon->msgbufr),
+			    "# Stop %ju.%06ju\n# Bye bye\n",
+			    (uintmax_t)now.tv_sec, (uintmax_t)now.tv_usec);
 
 			filemon_output(filemon, filemon->msgbufr, len);
 		}
