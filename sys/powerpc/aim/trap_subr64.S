@@ -519,6 +519,7 @@ CNAME(trapexit):
 	mfmsr	%r3
 	andi.	%r3,%r3,~PSL_EE@l
 	mtmsr	%r3
+	isync
 /* Test AST pending: */
 	ld	%r5,FRAME_SRR1+48(%r1)
 	mtcr	%r5
