@@ -63,28 +63,10 @@ v9287EepromGet(struct ath_hal *ah, int param, void *val)
 		return pBase->opCapFlags;
         case AR_EEP_RFSILENT:
 		return pBase->rfSilent;
-#if 0
-	case AR_EEP_OB_5:
-		return pModal[CHAN_A_IDX].ob;
-    	case AR_EEP_DB_5:
-		return pModal[CHAN_A_IDX].db;
-    	case AR_EEP_OB_2:
-		return pModal[CHAN_B_IDX].ob;
-    	case AR_EEP_DB_2:
-		return pModal[CHAN_B_IDX].db;
-#endif
 	case AR_EEP_TXMASK:
 		return pBase->txMask;
 	case AR_EEP_RXMASK:
 		return pBase->rxMask;
-#if 0
-	case AR_EEP_RXGAIN_TYPE:
-		return IS_VERS(>=, AR5416_EEP_MINOR_VER_17) ?
-		    pBase->rxGainType : AR5416_EEP_RXGAIN_ORIG;
-	case AR_EEP_TXGAIN_TYPE:
-		return IS_VERS(>=, AR5416_EEP_MINOR_VER_19) ?
-		    pBase->txGainType : AR5416_EEP_TXGAIN_ORIG;
-#endif
 	case AR_EEP_OL_PWRCTRL:
 		HALASSERT(val == AH_NULL);
 		return pBase->openLoopPwrCntl ?  HAL_OK : HAL_EIO;
@@ -117,6 +99,18 @@ v9287EepromGet(struct ath_hal *ah, int param, void *val)
 	case AR_EEP_PWR_TABLE_OFFSET:
 		*(int8_t *) val = pBase->pwrTableOffset;
 		return HAL_OK;
+	case AR_EEP_TEMPSENSE_SLOPE:
+		if (IS_VERS(>=,  AR9287_EEP_MINOR_VER_2))
+			*(int8_t *)val = pBase->tempSensSlope;
+		else
+			*(int8_t *)val = 0;
+		return HAL_OK;
+	case AR_EEP_TEMPSENSE_SLOPE_PAL_ON:
+		if (IS_VERS(>=,  AR9287_EEP_MINOR_VER_3))
+			*(int8_t *)val = pBase->tempSensSlopePalOn;
+		else
+			*(int8_t *)val = 0;
+		return HAL_OK;
         default:
 		HALASSERT(0);
 		return HAL_EINVAL;
@@ -135,10 +129,6 @@ v9287EepromSet(struct ath_hal *ah, int param, int v)
 	case AR_EEP_ANTGAINMAX_2:
 		ee->ee_antennaGainMax[1] = (int8_t) v;
 		return HAL_OK;
-	case AR_EEP_ANTGAINMAX_5:
-		ee->ee_antennaGainMax[0] = (int8_t) v;
-		return HAL_OK;
-	}
 	return HAL_EINVAL;
 }
 
