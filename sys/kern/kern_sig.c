@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/posix4.h>
 #include <sys/pioctl.h>
+#include <sys/racct.h>
 #include <sys/resourcevar.h>
 #include <sys/sdt.h>
 #include <sys/sbuf.h>
@@ -3173,14 +3174,15 @@ coredump(struct thread *td)
 	 * if it is larger than the limit.
 	 */
 	limit = (off_t)lim_cur(p, RLIMIT_CORE);
-	PROC_UNLOCK(p);
-	if (limit == 0) {
+	if (limit == 0 || racct_get_available(p, RACCT_CORE) == 0) {
+		PROC_UNLOCK(p);
 #ifdef AUDIT
 		audit_proc_coredump(td, name, EFBIG);
 #endif
 		free(name, M_TEMP);
 		return (EFBIG);
 	}
+	PROC_UNLOCK(p);
 
 restart:
 	NDINIT(&nd, LOOKUP, NOFOLLOW | MPSAFE, UIO_SYSSPACE, name, td);
