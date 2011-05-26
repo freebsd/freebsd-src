@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009, 2010, Juniper Networks, Inc.
+ * Copyright (c) 2009-2011, Juniper Networks, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -54,7 +54,6 @@ __FBSDID("$FreeBSD$");
 #include <compat/freebsd32/freebsd32_proto.h>
 
 extern struct sysentvec ia32_freebsd_sysvec;
-
 #endif
 
 extern struct sysentvec elf32_freebsd_sysvec;
@@ -129,7 +128,7 @@ filemon_clone(void *arg, struct ucred *cred, char *name, int namelen,
 	if (len != 7)
 		return;
 
-	if (bcmp(name,"filemon",7) != 0)
+	if (bcmp(name,"filemon", 7) != 0)
 		return;
 
 	/* Clone the device to the new minor number. */
@@ -180,7 +179,8 @@ filemon_dtr(void *data)
 }
 
 static int
-filemon_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag __unused, struct thread *td)
+filemon_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag __unused,
+    struct thread *td)
 {
 	int error = 0;
 	struct filemon *filemon;
@@ -210,7 +210,7 @@ filemon_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag __unused, str
 		break;
 	}
 
-	return(error);
+	return (error);
 }
 
 static int
@@ -229,7 +229,8 @@ filemon_open(struct cdev *dev, int oflags __unused, int devtype __unused,
 	filemon_unlock_write();
 
 	if (filemon == NULL) {
-		filemon = malloc(sizeof(struct filemon), M_FILEMON, M_WAITOK | M_ZERO);
+		filemon = malloc(sizeof(struct filemon), M_FILEMON,
+		    M_WAITOK | M_ZERO);
 
 		filemon->fp = NULL;
 
@@ -293,7 +294,6 @@ filemon_load(void *dummy __unused)
 	    "filemon");
 #endif
 }
-
 
 static int
 filemon_unload(void)

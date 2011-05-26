@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009, 2010, Juniper Networks, Inc.
+ * Copyright (c) 2009-2011, Juniper Networks, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -91,7 +91,8 @@ filemon_lock_write(void)
 
 	while (access_owner != curthread) {
 		if (access_owner == NULL &&
-			(access_requester == NULL || access_requester == curthread)) {
+		    (access_requester == NULL ||
+		    access_requester == curthread)) {
 			access_owner = curthread;
 			access_requester = NULL;
 		} else {
