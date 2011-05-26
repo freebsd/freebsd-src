@@ -126,10 +126,12 @@ v9287EepromSet(struct ath_hal *ah, int param, int v)
 	HAL_EEPROM_9287 *ee = AH_PRIVATE(ah)->ah_eeprom;
 
 	switch (param) {
-	case AR_EEP_ANTGAINMAX_2:
-		ee->ee_antennaGainMax[1] = (int8_t) v;
-		return HAL_OK;
-	return HAL_EINVAL;
+		case AR_EEP_ANTGAINMAX_2:
+			ee->ee_antennaGainMax[1] = (int8_t) v;
+			return HAL_OK;
+		default:
+			return HAL_EINVAL;
+	}
 }
 
 static HAL_BOOL
