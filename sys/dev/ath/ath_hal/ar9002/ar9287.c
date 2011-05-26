@@ -36,7 +36,7 @@ struct ar9287State {
 	RF_HAL_FUNCS	base;		/* public state, must be first */
 	uint16_t	pcdacTable[1];	/* XXX */
 };
-#define	AR9280(ah)	((struct ar9287State *) AH5212(ah)->ah_rfHal)
+#define	AR9287(ah)	((struct ar9287State *) AH5212(ah)->ah_rfHal)
 
 static HAL_BOOL ar9287GetChannelMaxMinPower(struct ath_hal *,
 	const struct ieee80211_channel *, int16_t *maxPow,int16_t *minPow);
