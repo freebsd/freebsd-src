@@ -119,6 +119,7 @@ static struct {
 #define AHCI_Q_NOBSYRES	256
 #define AHCI_Q_NOAA	512
 #define AHCI_Q_NOCOUNT	1024
+#define AHCI_Q_ALTSIG	2048
 } ahci_ids[] = {
 	{0x43801002, 0x00, "ATI IXP600",	0},
 	{0x43901002, 0x00, "ATI IXP700",	0},
@@ -192,7 +193,7 @@ static struct {
 	{0x614511ab, 0x00, "Marvell 88SX6145",	AHCI_Q_NOFORCE | AHCI_Q_4CH |
 	    AHCI_Q_EDGEIS | AHCI_Q_NONCQ | AHCI_Q_NOCOUNT},
 	{0x91201b4b, 0x00, "Marvell 88SE912x",	AHCI_Q_EDGEIS|AHCI_Q_NOBSYRES},
-	{0x91231b4b, 0x11, "Marvell 88SE912x",	AHCI_Q_NOBSYRES},
+	{0x91231b4b, 0x11, "Marvell 88SE912x",	AHCI_Q_NOBSYRES|AHCI_Q_ALTSIG},
 	{0x91231b4b, 0x00, "Marvell 88SE912x",	AHCI_Q_EDGEIS|AHCI_Q_SATA2|AHCI_Q_NOBSYRES},
 	{0x91821b4b, 0x00, "Marvell 88SE9182",	AHCI_Q_NOBSYRES},
 	{0x06201103, 0x00, "HighPoint RocketRAID 620",	AHCI_Q_NOBSYRES},
@@ -398,6 +399,13 @@ ahci_attach(device_t dev)
 	if (ctlr->caps & AHCI_CAP_EMS)
 		ctlr->capsem = ATA_INL(ctlr->r_mem, AHCI_EM_CTL);
 	ctlr->ichannels = ATA_INL(ctlr->r_mem, AHCI_PI);
+
+	/* Identify and set separate quirks for HBA and RAID f/w Marvells. */
+	if ((ctlr->quirks & AHCI_Q_NOBSYRES) &&
+	    (ctlr->quirks & AHCI_Q_ALTSIG) &&
+	    (ctlr->caps & AHCI_CAP_SPM) == 0)
+		ctlr->quirks &= ~AHCI_Q_NOBSYRES;
+
 	if (ctlr->quirks & AHCI_Q_1CH) {
 		ctlr->caps &= ~AHCI_CAP_NPMASK;
 		ctlr->ichannels &= 0x01;
@@ -1764,7 +1772,7 @@ ahci_execute_transaction(struct ahci_slot *slot)
 	struct ahci_cmd_list *clp;
 	union ccb *ccb = slot->ccb;
 	int port = ccb->ccb_h.target_id & 0x0f;
-	int fis_size, i;
+	int fis_size, i, softreset;
 	uint8_t *fis = ch->dma.rfis + 0x40;
 	uint8_t val;
 
@@ -1791,17 +1799,20 @@ ahci_execute_transaction(struct ahci_slot *slot)
 	if ((ccb->ccb_h.func_code == XPT_ATA_IO) &&
 	    (ccb->ataio.cmd.flags & CAM_ATAIO_CONTROL)) {
 		if (ccb->ataio.cmd.control & ATA_A_RESET) {
+			softreset = 1;
 			/* Kick controller into sane state */
 			ahci_stop(dev);
 			ahci_clo(dev);
 			ahci_start(dev, 0);
 			clp->cmd_flags |= AHCI_CMD_RESET | AHCI_CMD_CLR_BUSY;
 		} else {
+			softreset = 2;
 			/* Prepare FIS receive area for check. */
 			for (i = 0; i < 20; i++)
 				fis[i] = 0xff;
 		}
-	}
+	} else
+		softreset = 0;
 	clp->bytecount = 0;
 	clp->cmd_table_phys = htole64(ch->dma.work_bus + AHCI_CT_OFFSET +
 				  (AHCI_CT_SIZE * slot->slot));
@@ -1825,8 +1836,7 @@ ahci_execute_transaction(struct ahci_slot *slot)
 	ATA_OUTL(ch->r_mem, AHCI_P_CI, (1 << slot->slot));
 	/* Device reset commands doesn't interrupt. Poll them. */
 	if (ccb->ccb_h.func_code == XPT_ATA_IO &&
-	    (ccb->ataio.cmd.command == ATA_DEVICE_RESET ||
-	    (ccb->ataio.cmd.flags & CAM_ATAIO_CONTROL))) {
+	    (ccb->ataio.cmd.command == ATA_DEVICE_RESET || softreset)) {
 		int count, timeout = ccb->ccb_h.timeout * 100;
 		enum ahci_err_type et = AHCI_ERR_NONE;
 
@@ -1834,7 +1844,8 @@ ahci_execute_transaction(struct ahci_slot *slot)
 			DELAY(10);
 			if (!(ATA_INL(ch->r_mem, AHCI_P_CI) & (1 << slot->slot)))
 				break;
-			if (ATA_INL(ch->r_mem, AHCI_P_TFD) & ATA_S_ERROR) {
+			if ((ATA_INL(ch->r_mem, AHCI_P_TFD) & ATA_S_ERROR) &&
+			    softreset != 1) {
 #if 0
 				device_printf(ch->dev,
 				    "Poll error on slot %d, TFD: %04x\n",
@@ -1851,9 +1862,20 @@ ahci_execute_transaction(struct ahci_slot *slot)
 				break;
 			}
 		}
+
+		/* Marvell controllers do not wait for readyness. */
+		if ((ch->quirks & AHCI_Q_NOBSYRES) && softreset == 2 &&
+		    et == AHCI_ERR_NONE) {
+			while ((val = fis[2]) & ATA_S_BUSY) {
+				DELAY(10);
+				if (count++ >= timeout)
+					break;
+			}
+		}
+
 		if (timeout && (count >= timeout)) {
-			device_printf(ch->dev,
-			    "Poll timeout on slot %d\n", slot->slot);
+			device_printf(dev, "Poll timeout on slot %d port %d\n",
+			    slot->slot, port);
 			device_printf(dev, "is %08x cs %08x ss %08x "
 			    "rs %08x tfd %02x serr %08x\n",
 			    ATA_INL(ch->r_mem, AHCI_P_IS),
@@ -1863,26 +1885,9 @@ ahci_execute_transaction(struct ahci_slot *slot)
 			    ATA_INL(ch->r_mem, AHCI_P_SERR));
 			et = AHCI_ERR_TIMEOUT;
 		}
-		/* Marvell controllers do not wait for readyness. */
-		if ((ch->quirks & AHCI_Q_NOBSYRES) &&
-		    (ccb->ccb_h.func_code == XPT_ATA_IO) &&
-		    (ccb->ataio.cmd.flags & CAM_ATAIO_CONTROL) &&
-		    (ccb->ataio.cmd.control & ATA_A_RESET) == 0) {
-			while ((val = fis[2]) & (ATA_S_BUSY | ATA_S_DRQ)) {
-				DELAY(10);
-				if (count++ >= timeout) {
-					device_printf(dev, "device is not "
-					    "ready after soft-reset: "
-					    "tfd = %08x\n", val);
-	    				et = AHCI_ERR_TIMEOUT;
-	    				break;
-				}
-			} 
-		}
+
 		/* Kick controller into sane state and enable FBS. */
-		if ((ccb->ccb_h.func_code == XPT_ATA_IO) &&
-		    (ccb->ataio.cmd.flags & CAM_ATAIO_CONTROL) &&
-		    (ccb->ataio.cmd.control & ATA_A_RESET) == 0)
+		if (softreset == 2)
 			ch->eslots |= (1 << slot->slot);
 		ahci_end_transaction(slot, et);
 		return;
@@ -1962,7 +1967,8 @@ ahci_timeout(struct ahci_slot *slot)
 		return;
 	}
 
-	device_printf(dev, "Timeout on slot %d\n", slot->slot);
+	device_printf(dev, "Timeout on slot %d port %d\n",
+	    slot->slot, slot->ccb->ccb_h.target_id & 0x0f);
 	device_printf(dev, "is %08x cs %08x ss %08x rs %08x tfd %02x serr %08x\n",
 	    ATA_INL(ch->r_mem, AHCI_P_IS), ATA_INL(ch->r_mem, AHCI_P_CI),
 	    ATA_INL(ch->r_mem, AHCI_P_SACT), ch->rslots,
@@ -2013,6 +2019,7 @@ ahci_end_transaction(struct ahci_slot *slot, enum ahci_err_type et)
 	union ccb *ccb = slot->ccb;
 	struct ahci_cmd_list *clp;
 	int lastto;
+	uint32_t sig;
 
 	bus_dmamap_sync(ch->dma.work_tag, ch->dma.work_map,
 	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
@@ -2050,6 +2057,20 @@ ahci_end_transaction(struct ahci_slot *slot, enum ahci_err_type et)
 			res->lba_high_exp = fis[10];
 			res->sector_count = fis[12];
 			res->sector_count_exp = fis[13];
+
+			/*
+			 * Some weird controllers do not return signature in
+			 * FIS receive area. Read it from PxSIG register.
+			 */
+			if ((ch->quirks & AHCI_Q_ALTSIG) &&
+			    (ccb->ataio.cmd.flags & CAM_ATAIO_CONTROL) &&
+			    (ccb->ataio.cmd.control & ATA_A_RESET) == 0) {
+				sig = ATA_INL(ch->r_mem,  AHCI_P_SIG);
+				res->lba_high = sig >> 24;
+				res->lba_mid = sig >> 16;
+				res->lba_low = sig >> 8;
+				res->sector_count = sig;
+			}
 		} else
 			bzero(res, sizeof(*res));
 		if ((ccb->ataio.cmd.flags & CAM_ATAIO_FPDMA) == 0 &&
