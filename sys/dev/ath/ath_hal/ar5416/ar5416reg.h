@@ -219,6 +219,10 @@
 #define	AR_AHB_PAGE_SIZE_1K	0x00000000	/* set page-size as 1k */
 #define	AR_AHB_PAGE_SIZE_2K	0x00000008	/* set page-size as 2k */
 #define	AR_AHB_PAGE_SIZE_4K	0x00000010	/* set page-size as 4k */
+/* Kiwi */
+#define	AR_AHB_CUSTOM_BURST_EN	0x000000C0      /* set Custom Burst Mode */
+#define	AR_AHB_CUSTOM_BURST_EN_S		6	/* set Custom Burst Mode */
+#define	AR_AHB_CUSTOM_BURST_ASYNC_FIFO_VAL	3	/* set both bits in Async FIFO mode */
 
 /* MAC PCU Registers */
 #define	AR_STA_ID1_PRESERVE_SEQNUM	0x20000000 /* Don't replace seq num */
@@ -451,8 +455,22 @@
  * For Merlin and above only.
  */
 #define	AR_PCU_MISC_MODE2_ADHOC_MCAST_KEYID_ENABLE	0x00000040
+#define	AR_PCU_MISC_MODE2_ENABLE_AGGWEP	0x00020000	/* Kiwi or later? */
 #define	AR_PCU_MISC_MODE2_HWWAR1	0x00100000
 #define	AR_PCU_MISC_MODE2_HWWAR2	0x02000000
+
+/* For Kiwi */
+#define	AR_MAC_PCU_ASYNC_FIFO_REG3		0x8358
+#define	AR_MAC_PCU_ASYNC_FIFO_REG3_DATAPATH_SEL	0x00000400
+#define	AR_MAC_PCU_ASYNC_FIFO_REG3_SOFT_RESET	0x80000000
+
+/* TSF2. For Kiwi only */
+#define	AR_TSF2_L32			0x8390
+#define	AR_TSF2_U32			0x8394
+
+/* MAC Direct Connect Control. For Kiwi only */
+#define	AR_DIRECT_CONNECT		0x83A0
+#define	AR_DC_AP_STA_EN			0x00000001
 
 /* GPIO Interrupt */
 #define	AR_INTR_GPIO		0x3FF00000	/* gpio interrupted */
@@ -487,6 +505,17 @@
 #define	AR_PCU_TXBUF_CTRL_SIZE_MASK	0x7FF
 #define	AR_PCU_TXBUF_CTRL_USABLE_SIZE	0x700
 #define	AR_9285_PCU_TXBUF_CTRL_USABLE_SIZE 0x380
+
+/* IFS, SIFS, slot, etc for Async FIFO mode (Kiwi) */
+#define	AR_D_GBL_IFS_SIFS_ASYNC_FIFO_DUR	0x000003AB
+#define	AR_TIME_OUT_ACK_CTS_ASYNC_FIFO_DUR	0x16001D56
+#define	AR_USEC_ASYNC_FIFO_DUR			0x12e00074
+#define	AR_D_GBL_IFS_SLOT_ASYNC_FIFO_DUR	0x00000420
+#define	AR_D_GBL_IFS_EIFS_ASYNC_FIFO_DUR	0x0000A5EB
+
+/* Used by Kiwi Async FIFO */
+#define	AR_MAC_PCU_LOGIC_ANALYZER		0x8264
+#define	AR_MAC_PCU_LOGIC_ANALYZER_DISBUG20768	0x20000000
 
 /* Eeprom defines */
 #define	AR_EEPROM_STATUS_DATA_VAL           0x0000ffff
@@ -566,7 +595,7 @@
 #define	AR_XSREV_REVISION_KITE_10	0	/* Kite 1.0 */
 #define	AR_XSREV_REVISION_KITE_11	1	/* Kite 1.1 */
 #define	AR_XSREV_REVISION_KITE_12	2	/* Kite 1.2 */
-#define	AR_XSREV_VERSION_KIWI		0x180	/* Kite Version */
+#define	AR_XSREV_VERSION_KIWI		0x180	/* Kiwi (AR9287) */
 #define	AR_XSREV_REVISION_KIWI_10	0
 #define	AR_XSREV_REVISION_KIWI_11	1
 #define	AR_XSREV_REVISION_KIWI_12	2
