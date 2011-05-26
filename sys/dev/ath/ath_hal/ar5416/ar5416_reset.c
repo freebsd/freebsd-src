@@ -2576,7 +2576,7 @@ ar5416OverrideIni(struct ath_hal *ah, const struct ieee80211_channel *chan)
 		if (!AR_SREV_9271(ah))
 			val &= ~AR_PCU_MISC_MODE2_HWWAR1;
 
-		if (AR_SREV_9287_11_OR_LATER(ah))
+		if (AR_SREV_KIWI_11_OR_LATER(ah))
 			val = val & (~AR_PCU_MISC_MODE2_HWWAR2);
 
 		OS_REG_WRITE(ah, AR_PCU_MISC_MODE2, val);

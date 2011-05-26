@@ -566,6 +566,11 @@
 #define	AR_XSREV_REVISION_KITE_10	0	/* Kite 1.0 */
 #define	AR_XSREV_REVISION_KITE_11	1	/* Kite 1.1 */
 #define	AR_XSREV_REVISION_KITE_12	2	/* Kite 1.2 */
+#define	AR_XSREV_VERSION_KIWI		0x180	/* Kite Version */
+#define	AR_XSREV_REVISION_KIWI_10	0
+#define	AR_XSREV_REVISION_KIWI_11	1
+#define	AR_XSREV_REVISION_KIWI_12	2
+#define	AR_XSREV_REVISION_KIWI_13	3
 
 /* Owl (AR5416) */
 #define	AR_SREV_OWL(_ah) \
@@ -648,9 +653,31 @@
 	(AR_SREV_KITE_12_OR_LATER(_ah) && \
 	((OS_REG_READ(_ah, AR_AN_SYNTH9) & 0x7) == 0x1))
 
+#define AR_SREV_KIWI(_ah) \
+	(AH_PRIVATE((_ah))->ah_macVersion == AR_XSREV_VERSION_KIWI)
+
+#define AR_SREV_KIWI_11_OR_LATER(_ah) \
+	(AR_SREV_KIWI(_ah) && \
+	 AH_PRIVATE((_ah))->ah_macRev >= AR_XSREV_REVISION_KIWI_11)
+
+#define AR_SREV_KIWI_11(_ah) \
+	(AR_SREV_KIWI(_ah) && \
+	 AH_PRIVATE((_ah))->ah_macRev == AR_XSREV_REVISION_KIWI_11)
+
+#define AR_SREV_KIWI_12(_ah) \
+	(AR_SREV_KIWI(_ah) && \
+	 AH_PRIVATE((_ah))->ah_macRev == AR_XSREV_REVISION_KIWI_12)
+
+#define	AR_SREV_KIWI_12_OR_LATER(_ah) \
+	(AR_SREV_KIWI(_ah) && \
+	 AH_PRIVATE((_ah))->ah_macRev >= AR_XSREV_REVISION_KIWI_12)
+
+#define	AR_SREV_KIWI_13_OR_LATER(_ah) \
+	(AR_SREV_KIWI(_ah) && \
+	 AH_PRIVATE((_ah))->ah_macRev >= AR_XSREV_REVISION_KIWI_13)
+
+
 /* Not yet implemented chips */
 #define	AR_SREV_9271(_ah)	0
-#define	AR_SREV_9287_11_OR_LATER(_ah)	0
-#define	AR_SREV_KIWI_10_OR_LATER(_ah)	0
 
 #endif /* _DEV_ATH_AR5416REG_H */
