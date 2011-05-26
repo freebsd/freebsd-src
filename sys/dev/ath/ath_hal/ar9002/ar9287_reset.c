@@ -114,7 +114,6 @@ ar9287SetPowerCalTable(struct ath_hal *ah,
 
 /* XXX hard-coded values? */
 #define REDUCE_SCALED_POWER_BY_TWO_CHAIN     6
-#define REDUCE_SCALED_POWER_BY_THREE_CHAIN   10
 
 /*
  * ar9287SetPowerPerRateTable
@@ -186,10 +185,6 @@ ar9287SetPowerPerRateTable(struct ath_hal *ah,
 		break;
 	case 2:
 		scaledPower -= REDUCE_SCALED_POWER_BY_TWO_CHAIN;
-		break;
-	case 3:
-		scaledPower -= REDUCE_SCALED_POWER_BY_THREE_CHAIN;
-		break;
 	default:
 		return AH_FALSE; /* Unsupported number of chains */
 	}
@@ -323,7 +318,6 @@ ar9287SetPowerPerRateTable(struct ath_hal *ah,
 }
 
 #undef REDUCE_SCALED_POWER_BY_TWO_CHAIN
-#undef REDUCE_SCALED_POWER_BY_THREE_CHAIN
 
 /*
  * This is based off of the AR5416/AR9285 code and likely could
