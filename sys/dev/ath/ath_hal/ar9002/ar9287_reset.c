@@ -111,29 +111,219 @@ ar9287SetPowerCalTable(struct ath_hal *ah,
         *pTxPowerIndexOffset = 0;
 }
 
+
+/* XXX hard-coded values? */
+#define REDUCE_SCALED_POWER_BY_TWO_CHAIN     6
+#define REDUCE_SCALED_POWER_BY_THREE_CHAIN   10
+
 /*
- * Fetch the maximum TX power per rate.
+ * ar9287SetPowerPerRateTable
  *
- * For now, this is hard-coded at 5dBm until this code has been ported
- * from Atheros/ath9k and tested.
+ * Sets the transmit power in the baseband for the given
+ * operating channel and mode.
+ *
+ * This is like the v14 EEPROM table except the 5GHz code.
  */
 static HAL_BOOL
-ar9285SetPowerPerRateTable(struct ath_hal *ah,
+ar9287SetPowerPerRateTable(struct ath_hal *ah,
     struct ar9287_eeprom *pEepData,
     const struct ieee80211_channel *chan,
     int16_t *ratesArray, uint16_t cfgCtl,
-    uint16_t AntennaReduction,
+    uint16_t AntennaReduction, 
     uint16_t twiceMaxRegulatoryPower,
     uint16_t powerLimit)
 {
+#define	N(a)	(sizeof(a)/sizeof(a[0]))
+/* Local defines to distinguish between extension and control CTL's */
+#define EXT_ADDITIVE (0x8000)
+#define CTL_11A_EXT (CTL_11A | EXT_ADDITIVE)
+#define CTL_11G_EXT (CTL_11G | EXT_ADDITIVE)
+#define CTL_11B_EXT (CTL_11B | EXT_ADDITIVE)
+
+	uint16_t twiceMaxEdgePower = AR5416_MAX_RATE_POWER;
 	int i;
+	int16_t  twiceLargestAntenna;
+	struct cal_ctl_data_ar9287 *rep;
+	CAL_TARGET_POWER_LEG targetPowerOfdm;
+	CAL_TARGET_POWER_LEG targetPowerCck = {0, {0, 0, 0, 0}};
+	CAL_TARGET_POWER_LEG targetPowerOfdmExt = {0, {0, 0, 0, 0}};
+	CAL_TARGET_POWER_LEG targetPowerCckExt = {0, {0, 0, 0, 0}};
+	CAL_TARGET_POWER_HT  targetPowerHt20;
+	CAL_TARGET_POWER_HT  targetPowerHt40 = {0, {0, 0, 0, 0}};
+	int16_t scaledPower, minCtlPower;
 
-	/* For now, set all tx power rates to 5 dBm */
-	for (i = 0; i < Ar5416RateSize; i++)
-		ratesArray[i] = 10;
+#define SUB_NUM_CTL_MODES_AT_2G_40 3   /* excluding HT40, EXT-OFDM, EXT-CCK */
+	static const uint16_t ctlModesFor11g[] = {
+	   CTL_11B, CTL_11G, CTL_2GHT20, CTL_11B_EXT, CTL_11G_EXT, CTL_2GHT40
+	};
+	const uint16_t *pCtlMode;
+	uint16_t numCtlModes, ctlMode, freq;
+	CHAN_CENTERS centers;
 
+	ar5416GetChannelCenters(ah,  chan, &centers);
+
+	/* Compute TxPower reduction due to Antenna Gain */
+
+	twiceLargestAntenna = AH_MAX(
+	    pEepData->modalHeader.antennaGainCh[0],
+	    pEepData->modalHeader.antennaGainCh[1]);
+
+	twiceLargestAntenna = (int16_t)AH_MIN((AntennaReduction) - twiceLargestAntenna, 0);
+
+	/* XXX setup for 5212 use (really used?) */
+	ath_hal_eepromSet(ah, AR_EEP_ANTGAINMAX_2, twiceLargestAntenna);
+
+	/* 
+	 * scaledPower is the minimum of the user input power level and
+	 * the regulatory allowed power level
+	 */
+	scaledPower = AH_MIN(powerLimit, twiceMaxRegulatoryPower + twiceLargestAntenna);
+
+	/* Reduce scaled Power by number of chains active to get to per chain tx power level */
+	/* TODO: better value than these? */
+	switch (owl_get_ntxchains(AH5416(ah)->ah_tx_chainmask)) {
+	case 1:
+		break;
+	case 2:
+		scaledPower -= REDUCE_SCALED_POWER_BY_TWO_CHAIN;
+		break;
+	case 3:
+		scaledPower -= REDUCE_SCALED_POWER_BY_THREE_CHAIN;
+		break;
+	default:
+		return AH_FALSE; /* Unsupported number of chains */
+	}
+
+	scaledPower = AH_MAX(0, scaledPower);
+
+	/* Get target powers from EEPROM - our baseline for TX Power */
+	/* XXX assume channel is 2ghz */
+	if (1) {
+		/* Setup for CTL modes */
+		numCtlModes = N(ctlModesFor11g) - SUB_NUM_CTL_MODES_AT_2G_40; /* CTL_11B, CTL_11G, CTL_2GHT20 */
+		pCtlMode = ctlModesFor11g;
+
+		ar5416GetTargetPowersLeg(ah,  chan, pEepData->calTargetPowerCck,
+				AR9287_NUM_2G_CCK_TARGET_POWERS, &targetPowerCck, 4, AH_FALSE);
+		ar5416GetTargetPowersLeg(ah,  chan, pEepData->calTargetPower2G,
+				AR9287_NUM_2G_20_TARGET_POWERS, &targetPowerOfdm, 4, AH_FALSE);
+		ar5416GetTargetPowers(ah,  chan, pEepData->calTargetPower2GHT20,
+				AR9287_NUM_2G_20_TARGET_POWERS, &targetPowerHt20, 8, AH_FALSE);
+
+		if (IEEE80211_IS_CHAN_HT40(chan)) {
+			numCtlModes = N(ctlModesFor11g);    /* All 2G CTL's */
+
+			ar5416GetTargetPowers(ah,  chan, pEepData->calTargetPower2GHT40,
+				AR9287_NUM_2G_40_TARGET_POWERS, &targetPowerHt40, 8, AH_TRUE);
+			/* Get target powers for extension channels */
+			ar5416GetTargetPowersLeg(ah,  chan, pEepData->calTargetPowerCck,
+				AR9287_NUM_2G_CCK_TARGET_POWERS, &targetPowerCckExt, 4, AH_TRUE);
+			ar5416GetTargetPowersLeg(ah,  chan, pEepData->calTargetPower2G,
+				AR9287_NUM_2G_20_TARGET_POWERS, &targetPowerOfdmExt, 4, AH_TRUE);
+		}
+	}
+
+	/*
+	 * For MIMO, need to apply regulatory caps individually across dynamically
+	 * running modes: CCK, OFDM, HT20, HT40
+	 *
+	 * The outer loop walks through each possible applicable runtime mode.
+	 * The inner loop walks through each ctlIndex entry in EEPROM.
+	 * The ctl value is encoded as [7:4] == test group, [3:0] == test mode.
+	 *
+	 */
+	for (ctlMode = 0; ctlMode < numCtlModes; ctlMode++) {
+		HAL_BOOL isHt40CtlMode = (pCtlMode[ctlMode] == CTL_5GHT40) ||
+		    (pCtlMode[ctlMode] == CTL_2GHT40);
+		if (isHt40CtlMode) {
+			freq = centers.ctl_center;
+		} else if (pCtlMode[ctlMode] & EXT_ADDITIVE) {
+			freq = centers.ext_center;
+		} else {
+			freq = centers.ctl_center;
+		}
+
+		/* walk through each CTL index stored in EEPROM */
+		for (i = 0; (i < AR9287_NUM_CTLS) && pEepData->ctlIndex[i]; i++) {
+			uint16_t twiceMinEdgePower;
+
+			/* compare test group from regulatory channel list with test mode from pCtlMode list */
+			if ((((cfgCtl & ~CTL_MODE_M) | (pCtlMode[ctlMode] & CTL_MODE_M)) == pEepData->ctlIndex[i]) ||
+				(((cfgCtl & ~CTL_MODE_M) | (pCtlMode[ctlMode] & CTL_MODE_M)) == 
+				 ((pEepData->ctlIndex[i] & CTL_MODE_M) | SD_NO_CTL))) {
+				rep = &(pEepData->ctlData[i]);
+				twiceMinEdgePower = ar5416GetMaxEdgePower(freq,
+							rep->ctlEdges[owl_get_ntxchains(AH5416(ah)->ah_tx_chainmask) - 1],
+							IEEE80211_IS_CHAN_2GHZ(chan));
+				if ((cfgCtl & ~CTL_MODE_M) == SD_NO_CTL) {
+					/* Find the minimum of all CTL edge powers that apply to this channel */
+					twiceMaxEdgePower = AH_MIN(twiceMaxEdgePower, twiceMinEdgePower);
+				} else {
+					/* specific */
+					twiceMaxEdgePower = twiceMinEdgePower;
+					break;
+				}
+			}
+		}
+		minCtlPower = (uint8_t)AH_MIN(twiceMaxEdgePower, scaledPower);
+		/* Apply ctl mode to correct target power set */
+		switch(pCtlMode[ctlMode]) {
+		case CTL_11B:
+			for (i = 0; i < N(targetPowerCck.tPow2x); i++) {
+				targetPowerCck.tPow2x[i] = (uint8_t)AH_MIN(targetPowerCck.tPow2x[i], minCtlPower);
+			}
+			break;
+		case CTL_11A:
+		case CTL_11G:
+			for (i = 0; i < N(targetPowerOfdm.tPow2x); i++) {
+				targetPowerOfdm.tPow2x[i] = (uint8_t)AH_MIN(targetPowerOfdm.tPow2x[i], minCtlPower);
+			}
+			break;
+		case CTL_5GHT20:
+		case CTL_2GHT20:
+			for (i = 0; i < N(targetPowerHt20.tPow2x); i++) {
+				targetPowerHt20.tPow2x[i] = (uint8_t)AH_MIN(targetPowerHt20.tPow2x[i], minCtlPower);
+			}
+			break;
+		case CTL_11B_EXT:
+			targetPowerCckExt.tPow2x[0] = (uint8_t)AH_MIN(targetPowerCckExt.tPow2x[0], minCtlPower);
+			break;
+		case CTL_11A_EXT:
+		case CTL_11G_EXT:
+			targetPowerOfdmExt.tPow2x[0] = (uint8_t)AH_MIN(targetPowerOfdmExt.tPow2x[0], minCtlPower);
+			break;
+		case CTL_5GHT40:
+		case CTL_2GHT40:
+			for (i = 0; i < N(targetPowerHt40.tPow2x); i++) {
+				targetPowerHt40.tPow2x[i] = (uint8_t)AH_MIN(targetPowerHt40.tPow2x[i], minCtlPower);
+			}
+			break;
+		default:
+			return AH_FALSE;
+			break;
+		}
+	} /* end ctl mode checking */
+
+	/* Set rates Array from collected data */
+	ar5416SetRatesArrayFromTargetPower(ah, chan, ratesArray,
+	    &targetPowerCck,
+	    &targetPowerCckExt,
+	    &targetPowerOfdm,
+	    &targetPowerOfdmExt,
+	    &targetPowerHt20,
+	    &targetPowerHt40);
 	return AH_TRUE;
+#undef EXT_ADDITIVE
+#undef CTL_11A_EXT
+#undef CTL_11G_EXT
+#undef CTL_11B_EXT
+#undef SUB_NUM_CTL_MODES_AT_5G_40
+#undef SUB_NUM_CTL_MODES_AT_2G_40
+#undef N
 }
+
+#undef REDUCE_SCALED_POWER_BY_TWO_CHAIN
+#undef REDUCE_SCALED_POWER_BY_THREE_CHAIN
 
 /*
  * This is based off of the AR5416/AR9285 code and likely could
@@ -175,7 +365,7 @@ ar9287SetTransmitPower(struct ath_hal *ah,
 	ht40PowerIncForPdadc = pModal->ht40PowerIncForPdadc;
 
 	/* Fetch per-rate power table for the given channel */
-	if (!ar9285SetPowerPerRateTable(ah, pEepData,  chan,
+	if (! ar9287SetPowerPerRateTable(ah, pEepData,  chan,
             &ratesArray[0],cfgCtl,
             twiceAntennaReduction,
             twiceMaxRegulatoryPower, powerLimit)) {
