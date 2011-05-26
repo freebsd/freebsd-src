@@ -242,8 +242,14 @@ ns8250_probe(struct uart_bas *bas)
 	val = uart_getreg(bas, REG_IIR);
 	if (val & 0x30)
 		return (ENXIO);
+	/*
+	 * Bit 6 of the MCR (= 0x40) appears to be 1 for the Sun1699
+	 * chip, but otherwise doesn't seem to have a function. In
+	 * other words, uart(4) works regardless. Ignore that bit so
+	 * the probe succeeds.
+	 */
 	val = uart_getreg(bas, REG_MCR);
-	if (val & 0xe0)
+	if (val & 0xa0)
 		return (ENXIO);
 
 	return (0);
