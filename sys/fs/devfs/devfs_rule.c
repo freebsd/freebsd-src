@@ -139,6 +139,8 @@ devfs_rules_apply(struct devfs_mount *dm, struct devfs_dirent *de)
 {
 	struct devfs_ruleset *ds;
 
+	sx_assert(&dm->dm_lock, SX_XLOCKED);
+
 	if (dm->dm_ruleset == 0)
 		return;
 	sx_slock(&sx_rules);
