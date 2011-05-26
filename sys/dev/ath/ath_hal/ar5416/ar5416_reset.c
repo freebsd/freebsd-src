@@ -167,6 +167,17 @@ ar5416Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 
 	AH5416(ah)->ah_writeIni(ah, chan);
 
+	if(AR_SREV_KIWI_13_OR_LATER(ah) ) {
+		/* Enable ASYNC FIFO */
+		OS_REG_SET_BIT(ah, AR_MAC_PCU_ASYNC_FIFO_REG3,
+		    AR_MAC_PCU_ASYNC_FIFO_REG3_DATAPATH_SEL);
+		OS_REG_SET_BIT(ah, AR_PHY_MODE, AR_PHY_MODE_ASYNCFIFO);
+		OS_REG_CLR_BIT(ah, AR_MAC_PCU_ASYNC_FIFO_REG3,
+		    AR_MAC_PCU_ASYNC_FIFO_REG3_SOFT_RESET);
+		OS_REG_SET_BIT(ah, AR_MAC_PCU_ASYNC_FIFO_REG3,
+		    AR_MAC_PCU_ASYNC_FIFO_REG3_SOFT_RESET);
+	}
+
 	/* Override ini values (that can be overriden in this fashion) */
 	ar5416OverrideIni(ah, chan);
 
@@ -258,6 +269,12 @@ ar5416Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 		OS_REG_WRITE(ah, AR_MAC_LED, OS_REG_READ(ah, AR_MAC_LED) |
 		    saveLedState);
 
+        /* Start TSF2 for generic timer 8-15 */
+#ifdef	NOTYET
+	if (AR_SREV_KIWI(ah))
+		ar5416StartTsf2(ah);
+#endif
+
 	/* Restore previous antenna */
 	OS_REG_WRITE(ah, AR_DEF_ANTENNA, saveDefAntenna);
 
@@ -291,6 +308,41 @@ ar5416Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 	ar5416InitQoS(ah);
 	/* This may override the AR_DIAG_SW register */
 	ar5416InitUserSettings(ah);
+
+	if (AR_SREV_KIWI_13_OR_LATER(ah)) {
+		/*
+		 * Enable ASYNC FIFO
+		 *
+		 * If Async FIFO is enabled, the following counters change
+		 * as MAC now runs at 117 Mhz instead of 88/44MHz when
+		 * async FIFO is disabled.
+		 *
+		 * Overwrite the delay/timeouts initialized in ProcessIni()
+		 * above.
+		 */
+		OS_REG_WRITE(ah, AR_D_GBL_IFS_SIFS,
+		    AR_D_GBL_IFS_SIFS_ASYNC_FIFO_DUR);
+		OS_REG_WRITE(ah, AR_D_GBL_IFS_SLOT,
+		    AR_D_GBL_IFS_SLOT_ASYNC_FIFO_DUR);
+		OS_REG_WRITE(ah, AR_D_GBL_IFS_EIFS,
+		    AR_D_GBL_IFS_EIFS_ASYNC_FIFO_DUR);
+
+		OS_REG_WRITE(ah, AR_TIME_OUT,
+		    AR_TIME_OUT_ACK_CTS_ASYNC_FIFO_DUR);
+		OS_REG_WRITE(ah, AR_USEC, AR_USEC_ASYNC_FIFO_DUR);
+
+		OS_REG_SET_BIT(ah, AR_MAC_PCU_LOGIC_ANALYZER,
+		    AR_MAC_PCU_LOGIC_ANALYZER_DISBUG20768);
+		OS_REG_RMW_FIELD(ah, AR_AHB_MODE, AR_AHB_CUSTOM_BURST_EN,
+		    AR_AHB_CUSTOM_BURST_ASYNC_FIFO_VAL);
+	}
+
+	if (AR_SREV_KIWI_13_OR_LATER(ah)) {
+		/* Enable AGGWEP to accelerate encryption engine */
+		OS_REG_SET_BIT(ah, AR_PCU_MISC_MODE2,
+		    AR_PCU_MISC_MODE2_ENABLE_AGGWEP);
+	}
+
 
 	/*
 	 * disable seq number generation in hw
