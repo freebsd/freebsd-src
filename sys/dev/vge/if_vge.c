@@ -688,7 +688,18 @@ vge_dma_alloc(struct vge_softc *sc)
 	bus_addr_t lowaddr, tx_ring_end, rx_ring_end;
 	int error, i;
 
-	lowaddr = BUS_SPACE_MAXADDR;
+	/*
+	 * It seems old PCI controllers do not support DAC.  DAC
+	 * configuration can be enabled by accessing VGE_CHIPCFG3
+	 * register but honor EEPROM configuration instead of
+	 * blindly overriding DAC configuration.  PCIe based
+	 * controllers are supposed to support 64bit DMA so enable
+	 * 64bit DMA on these controllers.
+	 */
+	if ((sc->vge_flags & VGE_FLAG_PCIE) != 0)
+		lowaddr = BUS_SPACE_MAXADDR;
+	else
+		lowaddr = BUS_SPACE_MAXADDR_32BIT;
 
 again:
 	/* Create parent ring tag. */
@@ -805,10 +816,14 @@ again:
 		goto again;
 	}
 
+	if ((sc->vge_flags & VGE_FLAG_PCIE) != 0)
+		lowaddr = VGE_BUF_DMA_MAXADDR;
+	else
+		lowaddr = BUS_SPACE_MAXADDR_32BIT;
 	/* Create parent buffer tag. */
 	error = bus_dma_tag_create(bus_get_dma_tag(sc->vge_dev),/* parent */
 	    1, 0,			/* algnmnt, boundary */
-	    VGE_BUF_DMA_MAXADDR,	/* lowaddr */
+	    lowaddr,			/* lowaddr */
 	    BUS_SPACE_MAXADDR,		/* highaddr */
 	    NULL, NULL,			/* filter, filterarg */
 	    BUS_SPACE_MAXSIZE_32BIT,	/* maxsize */
