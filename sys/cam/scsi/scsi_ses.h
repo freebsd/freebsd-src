@@ -111,8 +111,8 @@ typedef struct {
 #define	SESTYP_SCSI_INI		0x15
 #define	SESTYP_SUBENC		0x16
 #define	SESTYP_ARRAY		0x17
-#define	SESTYP_SAS_EXP		0x18
-#define	SESTYP_SAS_CONN		0x19
+#define	SESTYP_SASEXPANDER	0x18
+#define	SESTYP_SASCONNECTOR	0x19
 
 /*
  * Overall Enclosure Status
