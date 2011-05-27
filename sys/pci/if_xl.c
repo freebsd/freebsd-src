@@ -231,7 +231,7 @@ static int xl_newbuf(struct xl_softc *, struct xl_chain_onefrag *);
 static void xl_stats_update(void *);
 static void xl_stats_update_locked(struct xl_softc *);
 static int xl_encap(struct xl_softc *, struct xl_chain *, struct mbuf **);
-static void xl_rxeof(struct xl_softc *);
+static int xl_rxeof(struct xl_softc *);
 static void xl_rxeof_task(void *, int);
 static int xl_rx_resync(struct xl_softc *);
 static void xl_txeof(struct xl_softc *);
@@ -1943,13 +1943,14 @@ xl_rx_resync(struct xl_softc *sc)
  * A frame has been uploaded: pass the resulting mbuf chain up to
  * the higher level protocols.
  */
-static void
+static int
 xl_rxeof(struct xl_softc *sc)
 {
 	struct mbuf		*m;
 	struct ifnet		*ifp = sc->xl_ifp;
 	struct xl_chain_onefrag	*cur_rx;
-	int			total_len = 0;
+	int			total_len;
+	int			rx_npkts = 0;
 	u_int32_t		rxstat;
 
 	XL_LOCK_ASSERT(sc);
@@ -1967,6 +1968,7 @@ again:
 		cur_rx = sc->xl_cdata.xl_rx_head;
 		sc->xl_cdata.xl_rx_head = cur_rx->xl_next;
 		total_len = rxstat & XL_RXSTAT_LENMASK;
+		rx_npkts++;
 
 		/*
 		 * Since we have told the chip to allow large frames,
@@ -2058,7 +2060,7 @@ again:
 		 * packet up the network stack.
 		 */
 		if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
-			return;
+			return (rx_npkts);
 	}
 
 	/*
@@ -2082,6 +2084,7 @@ again:
 		CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_UP_UNSTALL);
 		goto again;
 	}
+	return (rx_npkts);
 }
 
 /*
@@ -2275,17 +2278,17 @@ xl_intr(void *arg)
 	}
 #endif
 
-	while ((status = CSR_READ_2(sc, XL_STATUS)) & XL_INTRS &&
-	    status != 0xFFFF) {
+	for (;;) {
+		status = CSR_READ_2(sc, XL_STATUS);
+		if ((status & XL_INTRS) == 0 || status == 0xFFFF)
+			break;
 		CSR_WRITE_2(sc, XL_COMMAND,
 		    XL_CMD_INTR_ACK|(status & XL_INTRS));
+		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+			break;
 
 		if (status & XL_STAT_UP_COMPLETE) {
-			int	curpkts;
-
-			curpkts = ifp->if_ipackets;
-			xl_rxeof(sc);
-			if (curpkts == ifp->if_ipackets) {
+			if (xl_rxeof(sc) == 0) {
 				while (xl_rx_resync(sc))
 					xl_rxeof(sc);
 			}
@@ -2306,6 +2309,7 @@ xl_intr(void *arg)
 		if (status & XL_STAT_ADFAIL) {
 			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			xl_init_locked(sc);
+			break;
 		}
 
 		if (status & XL_STAT_STATSOFLOW) {
@@ -2315,7 +2319,8 @@ xl_intr(void *arg)
 		}
 	}
 
-	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
+	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd) &&
+	    ifp->if_drv_flags & IFF_DRV_RUNNING) {
 		if (sc->xl_type == XL_TYPE_905B)
 			xl_start_90xB_locked(ifp);
 		else
