@@ -175,6 +175,7 @@ XFILES=	BSD_daemon/FreeBSD.pfa \
 	ses/setobjstat/setobjstat.0 \
 	ses/srcs/chpmon.c \
 	ses/srcs/eltsub.c \
+	ses/srcs/eltsub.h \
 	ses/srcs/getencstat.c \
 	ses/srcs/getnobj.c \
 	ses/srcs/getobjmap.c \

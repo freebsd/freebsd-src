@@ -262,7 +262,7 @@ send_rrq(int peer, char *filename, char *mode)
 	n = sendto(peer, buf, size, 0,
 	    (struct sockaddr *)&peer_sock, peer_sock.ss_len);
 	if (n != size) {
-		tftp_log(LOG_ERR, "send_rrq: %s", n, strerror(errno));
+		tftp_log(LOG_ERR, "send_rrq: %d %s", n, strerror(errno));
 		return (1);
 	}
 	return (0);
