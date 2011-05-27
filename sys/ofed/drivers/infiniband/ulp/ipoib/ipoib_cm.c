@@ -554,8 +554,8 @@ void ipoib_cm_handle_rx_wc(struct ipoib_dev_priv *priv, struct ib_wc *wc)
 
 	ipoib_dma_mb(priv, mb, wc->byte_len);
 
-	++dev->if_opackets;
-	dev->if_obytes += mb->m_pkthdr.len;
+	++dev->if_ipackets;
+	dev->if_ibytes += mb->m_pkthdr.len;
 
 	mb->m_pkthdr.rcvif = dev;
 	proto = *mtod(mb, uint16_t *);
