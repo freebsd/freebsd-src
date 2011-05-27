@@ -644,8 +644,8 @@
 #define	SPR_MCSRR1		0x23b	/* ..8 571 Machine check SRR1 */
 
 #define	SPR_SVR			0x3ff	/* ..8 1023 System Version Register */
-#define	  SVR_MPC8533		  0x803c
-#define	  SVR_MPC8533E		  0x8034
+#define	  SVR_MPC8533		  0x8034
+#define	  SVR_MPC8533E		  0x803c
 #define	  SVR_MPC8541		  0x8072
 #define	  SVR_MPC8541E		  0x807a
 #define	  SVR_MPC8548		  0x8031
@@ -654,6 +654,14 @@
 #define	  SVR_MPC8555E		  0x8079
 #define	  SVR_MPC8572		  0x80e0
 #define	  SVR_MPC8572E		  0x80e8
+#define	  SVR_P1011		  0x80e5
+#define	  SVR_P1011E		  0x80ed
+#define	  SVR_P1020		  0x80e4
+#define	  SVR_P1020E		  0x80ec
+#define	  SVR_P2010		  0x80e3
+#define	  SVR_P2010E		  0x80eb
+#define	  SVR_P2020		  0x80e2
+#define	  SVR_P2020E		  0x80ea
 #define	SVR_VER(svr)		(((svr) >> 16) & 0xffff)
 
 #define	SPR_PID0		0x030	/* ..8 Process ID Register 0 */
