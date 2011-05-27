@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 3, 2011
+.Dd May 26, 2011
 .Dt RCTL 8
 .Os
 .Sh NAME
@@ -123,7 +123,6 @@ A filter that matches all defined rules for nproc resource would be
 .Sh RESOURCES
 .Bl -column -offset 3n "msgqqueued"
 .It cpu		CPU time, in milliseconds
-.It fsize	maximum file size, in bytes
 .It data	data size, in bytes
 .It stack	stack size, in bytes
 .It core	core dump size, in bytes
@@ -131,7 +130,6 @@ A filter that matches all defined rules for nproc resource would be
 .It memlock	locked memory, in bytes
 .It nproc	number of processes
 .It nofile	file descriptor table size
-.It sbsize	memory consumed by socket buffers, in bytes
 .It vmem	address space limit, in bytes
 .It npts	number of PTYs
 .It swap	swap usage, in bytes
