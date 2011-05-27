@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: base64.h,v 1.22 2007/06/19 23:47:18 tbox Exp $ */
+/* $Id: base64.h,v 1.22 2007-06-19 23:47:18 tbox Exp $ */
 
 #ifndef ISC_BASE64_H
 #define ISC_BASE64_H 1

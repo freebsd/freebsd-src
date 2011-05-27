@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: zoneconf.c,v 1.147.50.2 2009/01/29 23:47:44 tbox Exp $ */
+/* $Id: zoneconf.c,v 1.147.50.2 2009-01-29 23:47:44 tbox Exp $ */
 
 /*% */
 

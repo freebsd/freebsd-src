@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dnssectool.h,v 1.22.48.2 2009/09/04 23:46:58 tbox Exp $ */
+/* $Id: dnssectool.h,v 1.22.48.2 2009-09-04 23:46:58 tbox Exp $ */
 
 #ifndef DNSSECTOOL_H
 #define DNSSECTOOL_H 1

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: a_1.c,v 1.31 2007/06/19 23:47:17 tbox Exp $ */
+/* $Id: a_1.c,v 1.31 2007-06-19 23:47:17 tbox Exp $ */
 
 /* reviewed: Thu Mar 16 15:58:36 PST 2000 by brister */
 

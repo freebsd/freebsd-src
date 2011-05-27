@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: zoneconf.h,v 1.26 2007/06/19 23:46:59 tbox Exp $ */
+/* $Id: zoneconf.h,v 1.26 2007-06-19 23:46:59 tbox Exp $ */
 
 #ifndef NS_ZONECONF_H
 #define NS_ZONECONF_H 1

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: tsigconf.h,v 1.16 2007/06/19 23:46:59 tbox Exp $ */
+/* $Id: tsigconf.h,v 1.16 2007-06-19 23:46:59 tbox Exp $ */
 
 #ifndef NS_TSIGCONF_H
 #define NS_TSIGCONF_H 1

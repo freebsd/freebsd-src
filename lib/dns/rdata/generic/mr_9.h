@@ -19,7 +19,7 @@
 #ifndef GENERIC_MR_9_H
 #define GENERIC_MR_9_H 1
 
-/* $Id: mr_9.h,v 1.26 2007/06/19 23:47:17 tbox Exp $ */
+/* $Id: mr_9.h,v 1.26 2007-06-19 23:47:17 tbox Exp $ */
 
 typedef struct dns_rdata_mr {
 	dns_rdatacommon_t	common;
