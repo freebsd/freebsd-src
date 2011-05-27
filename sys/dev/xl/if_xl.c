@@ -1904,8 +1904,8 @@ xl_newbuf(struct xl_softc *sc, struct xl_chain_onefrag *c)
 	sc->xl_tmpmap = map;
 	c->xl_mbuf = m_new;
 	c->xl_ptr->xl_frag.xl_len = htole32(m_new->m_len | XL_LAST_FRAG);
-	c->xl_ptr->xl_status = 0;
 	c->xl_ptr->xl_frag.xl_addr = htole32(segs->ds_addr);
+	c->xl_ptr->xl_status = 0;
 	bus_dmamap_sync(sc->xl_mtag, c->xl_map, BUS_DMASYNC_PREREAD);
 	return (0);
 }
@@ -2507,6 +2507,7 @@ xl_encap(struct xl_softc *sc, struct xl_chain *c, struct mbuf **m_head)
 		*m_head = NULL;
 		return (EIO);
 	}
+	bus_dmamap_sync(sc->xl_mtag, c->xl_map, BUS_DMASYNC_PREWRITE);
 
 	total_len = 0;
 	for (i = 0; i < nseg; i++) {
@@ -2518,10 +2519,7 @@ xl_encap(struct xl_softc *sc, struct xl_chain *c, struct mbuf **m_head)
 		    htole32(sc->xl_cdata.xl_tx_segs[i].ds_len);
 		total_len += sc->xl_cdata.xl_tx_segs[i].ds_len;
 	}
-	c->xl_ptr->xl_frag[nseg - 1].xl_len =
-	    htole32(sc->xl_cdata.xl_tx_segs[nseg - 1].ds_len | XL_LAST_FRAG);
-	c->xl_ptr->xl_status = htole32(total_len);
-	c->xl_ptr->xl_next = 0;
+	c->xl_ptr->xl_frag[nseg - 1].xl_len |= htole32(XL_LAST_FRAG);
 
 	if (sc->xl_type == XL_TYPE_905B) {
 		status = XL_TXSTAT_RND_DEFEAT;
@@ -2536,11 +2534,12 @@ xl_encap(struct xl_softc *sc, struct xl_chain *c, struct mbuf **m_head)
 				status |= XL_TXSTAT_UDPCKSUM;
 		}
 #endif
-		c->xl_ptr->xl_status = htole32(status);
-	}
+	} else
+		status = total_len;
+	c->xl_ptr->xl_status = htole32(status);
+	c->xl_ptr->xl_next = 0;
 
 	c->xl_mbuf = *m_head;
-	bus_dmamap_sync(sc->xl_mtag, c->xl_map, BUS_DMASYNC_PREWRITE);
 	return (0);
 }
 
@@ -2572,7 +2571,6 @@ xl_start_locked(struct ifnet *ifp)
 	struct xl_softc		*sc = ifp->if_softc;
 	struct mbuf		*m_head = NULL;
 	struct xl_chain		*prev = NULL, *cur_tx = NULL, *start_tx;
-	u_int32_t		status;
 	int			error;
 
 	XL_LOCK_ASSERT(sc);
@@ -2644,10 +2642,7 @@ xl_start_locked(struct ifnet *ifp)
 	 * get an interrupt once for the whole chain rather than
 	 * once for each packet.
 	 */
-	cur_tx->xl_ptr->xl_status = htole32(le32toh(cur_tx->xl_ptr->xl_status) |
-	    XL_TXSTAT_DL_INTR);
-	bus_dmamap_sync(sc->xl_ldata.xl_tx_tag, sc->xl_ldata.xl_tx_dmamap,
-	    BUS_DMASYNC_PREWRITE);
+	cur_tx->xl_ptr->xl_status |= htole32(XL_TXSTAT_DL_INTR);
 
 	/*
 	 * Queue the packets. If the TX channel is clear, update
@@ -2660,14 +2655,15 @@ xl_start_locked(struct ifnet *ifp)
 		sc->xl_cdata.xl_tx_tail->xl_next = start_tx;
 		sc->xl_cdata.xl_tx_tail->xl_ptr->xl_next =
 		    htole32(start_tx->xl_phys);
-		status = sc->xl_cdata.xl_tx_tail->xl_ptr->xl_status;
-		sc->xl_cdata.xl_tx_tail->xl_ptr->xl_status =
-		    htole32(le32toh(status) & ~XL_TXSTAT_DL_INTR);
+		sc->xl_cdata.xl_tx_tail->xl_ptr->xl_status &=
+		    htole32(~XL_TXSTAT_DL_INTR);
 		sc->xl_cdata.xl_tx_tail = cur_tx;
 	} else {
 		sc->xl_cdata.xl_tx_head = start_tx;
 		sc->xl_cdata.xl_tx_tail = cur_tx;
 	}
+	bus_dmamap_sync(sc->xl_ldata.xl_tx_tag, sc->xl_ldata.xl_tx_dmamap,
+	    BUS_DMASYNC_PREWRITE);
 	if (!CSR_READ_4(sc, XL_DOWNLIST_PTR))
 		CSR_WRITE_4(sc, XL_DOWNLIST_PTR, start_tx->xl_phys);
 
@@ -2766,14 +2762,13 @@ xl_start_90xB_locked(struct ifnet *ifp)
 	 * get an interrupt once for the whole chain rather than
 	 * once for each packet.
 	 */
-	cur_tx->xl_ptr->xl_status = htole32(le32toh(cur_tx->xl_ptr->xl_status) |
-	    XL_TXSTAT_DL_INTR);
-	bus_dmamap_sync(sc->xl_ldata.xl_tx_tag, sc->xl_ldata.xl_tx_dmamap,
-	    BUS_DMASYNC_PREWRITE);
+	cur_tx->xl_ptr->xl_status |= htole32(XL_TXSTAT_DL_INTR);
 
 	/* Start transmission */
 	sc->xl_cdata.xl_tx_prod = idx;
 	start_tx->xl_prev->xl_ptr->xl_next = htole32(start_tx->xl_phys);
+	bus_dmamap_sync(sc->xl_ldata.xl_tx_tag, sc->xl_ldata.xl_tx_dmamap,
+	    BUS_DMASYNC_PREWRITE);
 
 	/*
 	 * Set a timeout in case the chip goes out to lunch.
