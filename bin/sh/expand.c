@@ -761,7 +761,8 @@ again: /* jump here after setting a variable with ${var=text} */
 			break;
 record:
 		recordregion(startloc, expdest - stackblock(),
-			     varflags & VSQUOTE);
+		    varflags & VSQUOTE || (ifsset() && ifsval()[0] == '\0' &&
+		    (*var == '@' || *var == '*')));
 		break;
 
 	case VSPLUS:
@@ -947,7 +948,9 @@ numvar:
 			sep = ' ';
 		for (ap = shellparam.p ; (p = *ap++) != NULL ; ) {
 			strtodest(p, flag, subtype, quoted);
-			if (*ap && sep)
+			if (!*ap)
+				break;
+			if (sep || (flag & EXP_FULL && !quoted && **ap != '\0'))
 				STPUTC(sep, expdest);
 		}
 		break;
