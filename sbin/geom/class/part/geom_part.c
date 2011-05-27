@@ -101,7 +101,7 @@ struct g_command PUBSYM(class_commands)[] = {
 		{ 'l', "label", G_VAL_OPTIONAL, G_TYPE_STRING },
 		{ 'f', "flags", GPART_FLAGS, G_TYPE_STRING },
 		G_OPT_SENTINEL },
-	    "[-a alignment] [-b start] [-s size] -t type [-i index] "
+	    "-t type [-a alignment] [-b start] [-s size] [-i index] "
 		"[-l label] [-f flags] geom"
 	},
 	{ "backup", 0, gpart_backup, G_NULL_OPTS,
@@ -113,7 +113,7 @@ struct g_command PUBSYM(class_commands)[] = {
 		{ 'i', GPART_PARAM_INDEX, G_VAL_OPTIONAL, G_TYPE_NUMBER },
 		{ 'f', "flags", GPART_FLAGS, G_TYPE_STRING },
 		G_OPT_SENTINEL },
-	    "[-b bootcode] [-p partcode] [-i index] [-f flags] geom"
+	    "[-b bootcode] [-p partcode -i index] [-f flags] geom"
 	},
 	{ "commit", 0, gpart_issue, G_NULL_OPTS,
 	    "geom"
@@ -157,7 +157,7 @@ struct g_command PUBSYM(class_commands)[] = {
 		{ 'r', "show_rawtype", NULL, G_TYPE_BOOL },
 		{ 'p', "show_providers", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL },
-	    "[-lrp] [geom ...]"
+	    "[-l | -r] [-p] [geom ...]"
 	},
 	{ "undo", 0, gpart_issue, G_NULL_OPTS,
 	    "geom"
@@ -175,7 +175,7 @@ struct g_command PUBSYM(class_commands)[] = {
 		{ 'i', GPART_PARAM_INDEX, NULL, G_TYPE_NUMBER },
 		{ 'f', "flags", GPART_FLAGS, G_TYPE_STRING },
 		G_OPT_SENTINEL },
-	    "[-a alignment] [-s size] -i index [-f flags] geom"
+	    "-i index [-a alignment] [-s size] [-f flags] geom"
 	},
 	{ "restore", 0, gpart_restore, {
 		{ 'F', "force", NULL, G_TYPE_BOOL },
