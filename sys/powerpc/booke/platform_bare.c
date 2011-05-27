@@ -104,7 +104,10 @@ bare_probe(platform_t plat)
 	int i, law_max, tgt;
 
 	ver = SVR_VER(mfspr(SPR_SVR));
-	if (ver == SVR_MPC8572E || ver == SVR_MPC8572)
+
+	if (ver == SVR_MPC8572E || ver == SVR_MPC8572 ||
+	    ver == SVR_P1020E || ver == SVR_P1020 ||
+	    ver == SVR_P2020E || ver == SVR_P2020)
 		maxcpu = 2;
 	else
 		maxcpu = 1;
@@ -280,24 +283,23 @@ bare_smp_start_cpu(platform_t plat, struct pcpu *pc)
 static void
 e500_reset(platform_t plat)
 {
-	uint32_t ver = SVR_VER(mfspr(SPR_SVR));
 
-	if (ver == SVR_MPC8572E || ver == SVR_MPC8572 ||
-	    ver == SVR_MPC8548E || ver == SVR_MPC8548)
-		/* Systems with dedicated reset register */
-		ccsr_write4(OCP85XX_RSTCR, 2);
-	else {
-		/* Clear DBCR0, disables debug interrupts and events. */
-		mtspr(SPR_DBCR0, 0);
-		__asm __volatile("isync");
+	/*
+	 * Try the dedicated reset register first.
+	 * If the SoC doesn't have one, we'll fall
+	 * back to using the debug control register.
+	 */
+	ccsr_write4(OCP85XX_RSTCR, 2);
 
-		/* Enable Debug Interrupts in MSR. */
-		mtmsr(mfmsr() | PSL_DE);
+	/* Clear DBCR0, disables debug interrupts and events. */
+	mtspr(SPR_DBCR0, 0);
+	__asm __volatile("isync");
 
-		/* Enable debug interrupts and issue reset. */
-		mtspr(SPR_DBCR0, mfspr(SPR_DBCR0) | DBCR0_IDM |
-		    DBCR0_RST_SYSTEM);
-	}
+	/* Enable Debug Interrupts in MSR. */
+	mtmsr(mfmsr() | PSL_DE);
+
+	/* Enable debug interrupts and issue reset. */
+	mtspr(SPR_DBCR0, mfspr(SPR_DBCR0) | DBCR0_IDM | DBCR0_RST_SYSTEM);
 
 	printf("Reset failed...\n");
 	while (1);
