@@ -104,8 +104,6 @@ SDT_PROBE_DEFINE2(racct, kernel, racct, leave, leave, "struct racct *",
 int racct_types[] = {
 	[RACCT_CPU] =
 		RACCT_IN_THOUSANDS,
-	[RACCT_FSIZE] =
-		RACCT_RECLAIMABLE | RACCT_INHERITABLE | RACCT_DENIABLE,
 	[RACCT_DATA] =
 		RACCT_RECLAIMABLE | RACCT_INHERITABLE | RACCT_DENIABLE,
 	[RACCT_STACK] =
@@ -120,8 +118,6 @@ int racct_types[] = {
 		RACCT_RECLAIMABLE | RACCT_DENIABLE,
 	[RACCT_NOFILE] =
 		RACCT_RECLAIMABLE | RACCT_INHERITABLE | RACCT_DENIABLE,
-	[RACCT_SBSIZE] =
-		RACCT_RECLAIMABLE | RACCT_DENIABLE | RACCT_SLOPPY,
 	[RACCT_VMEM] =
 		RACCT_RECLAIMABLE | RACCT_INHERITABLE | RACCT_DENIABLE,
 	[RACCT_NPTS] =
@@ -627,7 +623,6 @@ racct_proc_exit(struct proc *p)
 	/*
 	 * XXX: Free this some other way.
 	 */
-	racct_set(p, RACCT_FSIZE, 0);
 	racct_set(p, RACCT_NPTS, 0);
 	racct_set(p, RACCT_NTHR, 0);
 	racct_set(p, RACCT_RSS, 0);
