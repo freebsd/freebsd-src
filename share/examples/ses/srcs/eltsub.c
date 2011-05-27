@@ -85,6 +85,9 @@ geteltnm(int type)
 	case SESTYP_KEYPAD:
 		sprintf(rbuf, "Key pad entry device");
 		break;
+	case SESTYP_ENCLOSURE:
+		sprintf(rbuf, "Enclosure");
+		break;
 	case SESTYP_SCSIXVR:
 		sprintf(rbuf, "SCSI port/transceiver");
 		break;
@@ -108,6 +111,15 @@ geteltnm(int type)
 		break;
 	case SESTYP_SUBENC:
 		sprintf(rbuf, "Simple sub-enclosure");
+		break;
+	case SESTYP_ARRAY:
+		sprintf(rbuf, "Array device");
+		break;
+	case SESTYP_SAS_EXP:
+		sprintf(rbuf, "SAS Expender");
+		break;
+	case SESTYP_SAS_CONN:
+		sprintf(rbuf, "SAS Connector");
 		break;
 	default:
 		(void) sprintf(rbuf, "<Type 0x%x>", type);
