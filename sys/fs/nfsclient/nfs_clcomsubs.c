@@ -482,7 +482,7 @@ nfscl_lockexcl(struct nfsv4lock *lckp, void *mutex)
 	int igotlock;
 
 	do {
-		igotlock = nfsv4_lock(lckp, 1, NULL, mutex);
+		igotlock = nfsv4_lock(lckp, 1, NULL, mutex, NULL);
 	} while (!igotlock);
 }
 
