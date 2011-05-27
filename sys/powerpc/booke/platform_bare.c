@@ -166,8 +166,11 @@ bare_timebase_freq(platform_t plat, struct cpuref *cpuref)
 	phandle_t cpus, child;
 	pcell_t freq;
 
-	/* Backward compatibility. See 8-STABLE. */
-	ticks = bootinfo[3] >> 3;
+	if (bootinfo != NULL) {
+		/* Backward compatibility. See 8-STABLE. */
+		ticks = bootinfo[3] >> 3;
+	} else
+		ticks = 0;
 
 	if ((cpus = OF_finddevice("/cpus")) == 0)
 		goto out;

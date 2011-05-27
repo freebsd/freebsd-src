@@ -116,6 +116,12 @@ SRCS+=	ar9280.c ar9280_attach.c ar9280_olc.c
 SRCS+=	ar9285.c ar9285_reset.c ar9285_attach.c ar9285_cal.c ar9285_phy.c
 SRCS+=	ar9285_diversity.c
 
+# + AR9287 - Kiwi
+.PATH:  ${.CURDIR}/../../dev/ath/ath_hal
+SRCS+=  ah_eeprom_9287.c
+.PATH:  ${.CURDIR}/../../dev/ath/ath_hal/ar9002
+SRCS+=  ar9287.c ar9287_reset.c ar9287_attach.c ar9287_cal.c ar9287_olc.c
+
 # NB: rate control is bound to the driver by symbol names so only pick one
 .if ${ATH_RATE} == "sample"
 .PATH:	${.CURDIR}/../../dev/ath/ath_rate/sample
