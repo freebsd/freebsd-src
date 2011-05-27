@@ -266,10 +266,11 @@ static void xl_mii_send(struct xl_softc *, u_int32_t, int);
 static int xl_mii_readreg(struct xl_softc *, struct xl_mii_frame *);
 static int xl_mii_writereg(struct xl_softc *, struct xl_mii_frame *);
 
+static void xl_rxfilter(struct xl_softc *);
+static void xl_rxfilter_90x(struct xl_softc *);
+static void xl_rxfilter_90xB(struct xl_softc *);
 static void xl_setcfg(struct xl_softc *);
 static void xl_setmode(struct xl_softc *, int);
-static void xl_setmulti(struct xl_softc *);
-static void xl_setmulti_hash(struct xl_softc *);
 static void xl_reset(struct xl_softc *);
 static int xl_list_rx_init(struct xl_softc *);
 static int xl_list_tx_init(struct xl_softc *);
@@ -705,101 +706,133 @@ xl_read_eeprom(struct xl_softc *sc, caddr_t dest, int off, int cnt, int swap)
 	return (err ? 1 : 0);
 }
 
+static void
+xl_rxfilter(struct xl_softc *sc)
+{
+
+	if (sc->xl_type == XL_TYPE_905B)
+		xl_rxfilter_90xB(sc);
+	else
+		xl_rxfilter_90x(sc);
+}
+
 /*
  * NICs older than the 3c905B have only one multicast option, which
  * is to enable reception of all multicast frames.
  */
 static void
-xl_setmulti(struct xl_softc *sc)
+xl_rxfilter_90x(struct xl_softc *sc)
 {
-	struct ifnet		*ifp = sc->xl_ifp;
+	struct ifnet		*ifp;
 	struct ifmultiaddr	*ifma;
 	u_int8_t		rxfilt;
-	int			mcnt = 0;
 
 	XL_LOCK_ASSERT(sc);
 
+	ifp = sc->xl_ifp;
+
 	XL_SEL_WIN(5);
 	rxfilt = CSR_READ_1(sc, XL_W5_RX_FILTER);
+	rxfilt &= ~(XL_RXFILTER_ALLFRAMES | XL_RXFILTER_ALLMULTI |
+	    XL_RXFILTER_BROADCAST | XL_RXFILTER_INDIVIDUAL);
 
-	if (ifp->if_flags & IFF_ALLMULTI) {
-		rxfilt |= XL_RXFILTER_ALLMULTI;
-		CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_RX_SET_FILT|rxfilt);
-		return;
+	/* Set the individual bit to receive frames for this host only. */
+	rxfilt |= XL_RXFILTER_INDIVIDUAL;
+	/* Set capture broadcast bit to capture broadcast frames. */
+	if (ifp->if_flags & IFF_BROADCAST)
+		rxfilt |= XL_RXFILTER_BROADCAST;
+
+	/* If we want promiscuous mode, set the allframes bit. */
+	if (ifp->if_flags & (IFF_PROMISC | IFF_ALLMULTI)) {
+		if (ifp->if_flags & IFF_PROMISC)
+			rxfilt |= XL_RXFILTER_ALLFRAMES;
+		if (ifp->if_flags & IFF_ALLMULTI)
+			rxfilt |= XL_RXFILTER_ALLMULTI;
+	} else {
+		IF_ADDR_LOCK(ifp);
+		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+			if (ifma->ifma_addr->sa_family != AF_LINK)
+				continue;
+			rxfilt |= XL_RXFILTER_ALLMULTI;
+			break;
+		}
+		IF_ADDR_UNLOCK(ifp);
 	}
 
-	IF_ADDR_LOCK(ifp);
-	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link)
-		mcnt++;
-	IF_ADDR_UNLOCK(ifp);
-
-	if (mcnt)
-		rxfilt |= XL_RXFILTER_ALLMULTI;
-	else
-		rxfilt &= ~XL_RXFILTER_ALLMULTI;
-
-	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_RX_SET_FILT|rxfilt);
+	CSR_WRITE_2(sc, XL_COMMAND, rxfilt | XL_CMD_RX_SET_FILT);
+	XL_SEL_WIN(7);
 }
 
 /*
  * 3c905B adapters have a hash filter that we can program.
  */
 static void
-xl_setmulti_hash(struct xl_softc *sc)
+xl_rxfilter_90xB(struct xl_softc *sc)
 {
-	struct ifnet		*ifp = sc->xl_ifp;
-	int			h = 0, i;
+	struct ifnet		*ifp;
 	struct ifmultiaddr	*ifma;
+	int			i, mcnt;
+	u_int16_t		h;
 	u_int8_t		rxfilt;
-	int			mcnt = 0;
 
 	XL_LOCK_ASSERT(sc);
 
+	ifp = sc->xl_ifp;
+
 	XL_SEL_WIN(5);
 	rxfilt = CSR_READ_1(sc, XL_W5_RX_FILTER);
+	rxfilt &= ~(XL_RXFILTER_ALLFRAMES | XL_RXFILTER_ALLMULTI |
+	    XL_RXFILTER_BROADCAST | XL_RXFILTER_INDIVIDUAL |
+	    XL_RXFILTER_MULTIHASH);
 
-	if (ifp->if_flags & IFF_ALLMULTI) {
-		rxfilt |= XL_RXFILTER_ALLMULTI;
-		CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_RX_SET_FILT|rxfilt);
-		return;
-	} else
-		rxfilt &= ~XL_RXFILTER_ALLMULTI;
+	/* Set the individual bit to receive frames for this host only. */
+	rxfilt |= XL_RXFILTER_INDIVIDUAL;
+	/* Set capture broadcast bit to capture broadcast frames. */
+	if (ifp->if_flags & IFF_BROADCAST)
+		rxfilt |= XL_RXFILTER_BROADCAST;
 
-	/* first, zot all the existing hash bits */
-	for (i = 0; i < XL_HASHFILT_SIZE; i++)
-		CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_RX_SET_HASH|i);
+	/* If we want promiscuous mode, set the allframes bit. */
+	if (ifp->if_flags & (IFF_PROMISC | IFF_ALLMULTI)) {
+		if (ifp->if_flags & IFF_PROMISC)
+			rxfilt |= XL_RXFILTER_ALLFRAMES;
+		if (ifp->if_flags & IFF_ALLMULTI)
+			rxfilt |= XL_RXFILTER_ALLMULTI;
+	} else {
+		/* First, zot all the existing hash bits. */
+		for (i = 0; i < XL_HASHFILT_SIZE; i++)
+			CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_RX_SET_HASH | i);
 
-	/* now program new ones */
-	IF_ADDR_LOCK(ifp);
-	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-		if (ifma->ifma_addr->sa_family != AF_LINK)
-			continue;
-		/*
-		 * Note: the 3c905B currently only supports a 64-bit hash
-		 * table, which means we really only need 6 bits, but the
-		 * manual indicates that future chip revisions will have a
-		 * 256-bit hash table, hence the routine is set up to
-		 * calculate 8 bits of position info in case we need it some
-		 * day.
-		 * Note II, The Sequel: _CURRENT_ versions of the 3c905B have
-		 * a 256 bit hash table. This means we have to use all 8 bits
-		 * regardless. On older cards, the upper 2 bits will be
-		 * ignored. Grrrr....
-		 */
-		h = ether_crc32_be(LLADDR((struct sockaddr_dl *)
-		    ifma->ifma_addr), ETHER_ADDR_LEN) & 0xFF;
-		CSR_WRITE_2(sc, XL_COMMAND,
-		    h | XL_CMD_RX_SET_HASH | XL_HASH_SET);
-		mcnt++;
+		/* Now program new ones. */
+		mcnt = 0;
+		IF_ADDR_LOCK(ifp);
+		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+			if (ifma->ifma_addr->sa_family != AF_LINK)
+				continue;
+			/*
+			 * Note: the 3c905B currently only supports a 64-bit
+			 * hash table, which means we really only need 6 bits,
+			 * but the manual indicates that future chip revisions
+			 * will have a 256-bit hash table, hence the routine
+			 * is set up to calculate 8 bits of position info in
+			 * case we need it some day.
+			 * Note II, The Sequel: _CURRENT_ versions of the
+			 * 3c905B have a 256 bit hash table. This means we have
+			 * to use all 8 bits regardless.  On older cards, the
+			 * upper 2 bits will be ignored. Grrrr....
+			 */
+			h = ether_crc32_be(LLADDR((struct sockaddr_dl *)
+			    ifma->ifma_addr), ETHER_ADDR_LEN) & 0xFF;
+			CSR_WRITE_2(sc, XL_COMMAND,
+			    h | XL_CMD_RX_SET_HASH | XL_HASH_SET);
+			mcnt++;
+		}
+		IF_ADDR_UNLOCK(ifp);
+		if (mcnt > 0)
+			rxfilt |= XL_RXFILTER_MULTIHASH;
 	}
-	IF_ADDR_UNLOCK(ifp);
-
-	if (mcnt)
-		rxfilt |= XL_RXFILTER_MULTIHASH;
-	else
-		rxfilt &= ~XL_RXFILTER_MULTIHASH;
 
 	CSR_WRITE_2(sc, XL_COMMAND, rxfilt | XL_CMD_RX_SET_FILT);
+	XL_SEL_WIN(7);
 }
 
 static void
@@ -2761,7 +2794,6 @@ xl_init_locked(struct xl_softc *sc)
 {
 	struct ifnet		*ifp = sc->xl_ifp;
 	int			error, i;
-	u_int16_t		rxfilt = 0;
 	struct mii_data		*mii = NULL;
 
 	XL_LOCK_ASSERT(sc);
@@ -2860,39 +2892,7 @@ xl_init_locked(struct xl_softc *sc)
 	}
 
 	/* Set RX filter bits. */
-	XL_SEL_WIN(5);
-	rxfilt = CSR_READ_1(sc, XL_W5_RX_FILTER);
-
-	/* Set the individual bit to receive frames for this host only. */
-	rxfilt |= XL_RXFILTER_INDIVIDUAL;
-
-	/* If we want promiscuous mode, set the allframes bit. */
-	if (ifp->if_flags & IFF_PROMISC) {
-		rxfilt |= XL_RXFILTER_ALLFRAMES;
-		CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_RX_SET_FILT|rxfilt);
-	} else {
-		rxfilt &= ~XL_RXFILTER_ALLFRAMES;
-		CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_RX_SET_FILT|rxfilt);
-	}
-
-	/*
-	 * Set capture broadcast bit to capture broadcast frames.
-	 */
-	if (ifp->if_flags & IFF_BROADCAST) {
-		rxfilt |= XL_RXFILTER_BROADCAST;
-		CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_RX_SET_FILT|rxfilt);
-	} else {
-		rxfilt &= ~XL_RXFILTER_BROADCAST;
-		CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_RX_SET_FILT|rxfilt);
-	}
-
-	/*
-	 * Program the multicast filter, if necessary.
-	 */
-	if (sc->xl_type == XL_TYPE_905B)
-		xl_setmulti_hash(sc);
-	else
-		xl_setmulti(sc);
+	xl_rxfilter(sc);
 
 	/*
 	 * Load the address of the RX list. We have to
@@ -3121,30 +3121,16 @@ xl_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	struct ifreq		*ifr = (struct ifreq *) data;
 	int			error = 0, mask;
 	struct mii_data		*mii = NULL;
-	u_int8_t		rxfilt;
 
 	switch (command) {
 	case SIOCSIFFLAGS:
 		XL_LOCK(sc);
-
-		XL_SEL_WIN(5);
-		rxfilt = CSR_READ_1(sc, XL_W5_RX_FILTER);
 		if (ifp->if_flags & IFF_UP) {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
-			    ifp->if_flags & IFF_PROMISC &&
-			    !(sc->xl_if_flags & IFF_PROMISC)) {
-				rxfilt |= XL_RXFILTER_ALLFRAMES;
-				CSR_WRITE_2(sc, XL_COMMAND,
-				    XL_CMD_RX_SET_FILT|rxfilt);
-				XL_SEL_WIN(7);
-			} else if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
-			    !(ifp->if_flags & IFF_PROMISC) &&
-			    sc->xl_if_flags & IFF_PROMISC) {
-				rxfilt &= ~XL_RXFILTER_ALLFRAMES;
-				CSR_WRITE_2(sc, XL_COMMAND,
-				    XL_CMD_RX_SET_FILT|rxfilt);
-				XL_SEL_WIN(7);
-			} else
+			    (ifp->if_flags ^ sc->xl_if_flags) &
+			    (IFF_PROMISC | IFF_ALLMULTI))
+				xl_rxfilter(sc);
+			else
 				xl_init_locked(sc);
 		} else {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
@@ -3152,18 +3138,14 @@ xl_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		}
 		sc->xl_if_flags = ifp->if_flags;
 		XL_UNLOCK(sc);
-		error = 0;
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		/* XXX Downcall from if_addmulti() possibly with locks held. */
 		XL_LOCK(sc);
-		if (sc->xl_type == XL_TYPE_905B)
-			xl_setmulti_hash(sc);
-		else
-			xl_setmulti(sc);
+		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+			xl_rxfilter(sc);
 		XL_UNLOCK(sc);
-		error = 0;
 		break;
 	case SIOCGIFMEDIA:
 	case SIOCSIFMEDIA:
