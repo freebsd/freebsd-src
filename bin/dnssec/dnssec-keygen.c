@@ -29,7 +29,7 @@
  * IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dnssec-keygen.c,v 1.81.48.2 2010/01/15 23:47:31 tbox Exp $ */
+/* $Id: dnssec-keygen.c,v 1.81.48.2 2010-01-15 23:47:31 tbox Exp $ */
 
 /*! \file */
 

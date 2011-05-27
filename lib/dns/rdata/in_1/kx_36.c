@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: kx_36.c,v 1.45 2007/06/19 23:47:17 tbox Exp $ */
+/* $Id: kx_36.c,v 1.45 2007-06-19 23:47:17 tbox Exp $ */
 
 /* Reviewed: Thu Mar 16 17:24:54 PST 2000 by explorer */
 

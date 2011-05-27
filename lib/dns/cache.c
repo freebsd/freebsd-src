@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: cache.c,v 1.80.50.3 2009/05/06 23:34:30 jinmei Exp $ */
+/* $Id: cache.c,v 1.80.50.3 2009-05-06 23:34:30 jinmei Exp $ */
 
 /*! \file */
 

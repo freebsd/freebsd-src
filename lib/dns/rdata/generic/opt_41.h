@@ -18,7 +18,7 @@
 #ifndef GENERIC_OPT_41_H
 #define GENERIC_OPT_41_H 1
 
-/* $Id: opt_41.h,v 1.18 2007/06/19 23:47:17 tbox Exp $ */
+/* $Id: opt_41.h,v 1.18 2007-06-19 23:47:17 tbox Exp $ */
 
 /*!
  *  \brief Per RFC2671 */

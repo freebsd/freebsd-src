@@ -17,7 +17,7 @@
 
 /*! \file */
 /*
- * $Id: ssu.c,v 1.34 2008/01/18 23:46:58 tbox Exp $
+ * $Id: ssu.c,v 1.34 2008-01-18 23:46:58 tbox Exp $
  * Principal Author: Brian Wellington
  */
 

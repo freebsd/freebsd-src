@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: soa_6.c,v 1.61.332.2 2009/02/16 23:47:15 tbox Exp $ */
+/* $Id: soa_6.c,v 1.61.332.2 2009-02-16 23:47:15 tbox Exp $ */
 
 /* Reviewed: Thu Mar 16 15:18:32 PST 2000 by explorer */
 

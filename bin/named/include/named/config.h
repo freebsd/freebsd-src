@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: config.h,v 1.14 2007/06/19 23:46:59 tbox Exp $ */
+/* $Id: config.h,v 1.14 2007-06-19 23:46:59 tbox Exp $ */
 
 #ifndef NAMED_CONFIG_H
 #define NAMED_CONFIG_H 1

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: main.h,v 1.15 2007/06/19 23:46:59 tbox Exp $ */
+/* $Id: main.h,v 1.15 2007-06-19 23:46:59 tbox Exp $ */
 
 #ifndef NAMED_MAIN_H
 #define NAMED_MAIN_H 1

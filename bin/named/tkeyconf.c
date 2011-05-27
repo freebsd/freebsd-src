@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: tkeyconf.c,v 1.29 2007/06/19 23:46:59 tbox Exp $ */
+/* $Id: tkeyconf.c,v 1.29 2007-06-19 23:46:59 tbox Exp $ */
 
 /*! \file */
 
