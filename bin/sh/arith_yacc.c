@@ -344,7 +344,7 @@ arith_t arith(const char *s)
  *  The exp(1) builtin.
  */
 int
-expcmd(int argc, char **argv)
+letcmd(int argc, char **argv)
 {
 	const char *p;
 	char *concat;
