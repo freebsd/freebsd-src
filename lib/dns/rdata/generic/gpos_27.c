@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: gpos_27.c,v 1.41 2007/06/19 23:47:17 tbox Exp $ */
+/* $Id: gpos_27.c,v 1.41 2007-06-19 23:47:17 tbox Exp $ */
 
 /* reviewed: Wed Mar 15 16:48:45 PST 2000 by brister */
 

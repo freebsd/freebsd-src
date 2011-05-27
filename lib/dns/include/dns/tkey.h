@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: tkey.h,v 1.26.332.2 2009/01/18 23:47:41 tbox Exp $ */
+/* $Id: tkey.h,v 1.26.332.2 2009-01-18 23:47:41 tbox Exp $ */
 
 #ifndef DNS_TKEY_H
 #define DNS_TKEY_H 1

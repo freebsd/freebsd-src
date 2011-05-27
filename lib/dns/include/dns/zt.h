@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: zt.h,v 1.38 2007/06/19 23:47:17 tbox Exp $ */
+/* $Id: zt.h,v 1.38 2007-06-19 23:47:17 tbox Exp $ */
 
 #ifndef DNS_ZT_H
 #define DNS_ZT_H 1

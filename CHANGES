@@ -1,3 +1,16 @@
+	--- 9.6-ESV-R4-P1 released ---
+
+3121.   [security]      An authoritative name server sending a negative
+                        response containing a very large RRset could
+                        trigger an off-by-one error in the ncache code
+                        and crash named. [RT #24650]
+
+3120.	[bug]		Named could fail to validate zones listed in a DLV
+			that validated insecure without using DLV and had
+			DS records in the parent zone. [RT #24631]
+
+	--- 9.6-ESV-R4 released ---
+
 	--- 9.6.3 released ---
 
 3009.	[bug]		clients-per-query code didn't work as expected with
@@ -50,50 +63,8 @@
 			wrong lock which could lead to server deadlock.
 			[RT #22614]
 
-2972.	[bug]		win32: address windows socket errors. [RT #21906]
-
-2971.	[bug]		Fixed a bug that caused journal files not to be
-			compacted on Windows systems as a result of
-			non-POSIX-compliant rename() semantics. [RT #22434]
-
-2970.	[security]	Adding a NO DATA negative cache entry failed to clear
-			any matching RRSIG records.  A subsequent lookup of
-			of NO DATA cache entry could trigger a INSIST when the
-			unexpected RRSIG was also returned with the NO DATA
-			cache entry.
-
-			CVE-2010-3613, VU#706148. [RT #22288]
-
-2969.	[security]	Fix acl type processing so that allow-query works
-			in options and view statements.  Also add a new
-			set of tests to verify proper functioning.
-
-			CVE-2010-3615, VU#510208. [RT #22418]
-
-2968.	[security]	Named could fail to prove a data set was insecure
-			before marking it as insecure.  One set of conditions
-			that can trigger this occurs naturally when rolling
-			DNSKEY algorithms.
-
-			CVE-2010-3614, VU#837744. [RT #22309]
-
-2967.	[bug]		'host -D' now turns on debugging messages earlier.
-			[RT #22361]
-
-2966.	[bug]		isc_print_vsnprintf() failed to check if there was
-			space available in the buffer when adding a left
-			justified character with a non zero width,
-			(e.g. "%-1c"). [RT #22270]
-
 2965.	[func]		Test HMAC functions using test data from RFC 2104 and
 			RFC 4634. [RT #21702]
-
-2964.	[bug]		view->queryacl was being overloaded.  Seperate the
-			usage into view->queryacl, view->cacheacl and
-			view->queryonacl. [RT #22114]
-
-2962.	[port]		win32: add more dependencies to BINDBuild.dsw.
-			[RT #22062]
 
 2960.	[func]		Check that named accepts non-authoritative answers.
 			[RT #21594]
@@ -114,13 +85,6 @@
 			exact match" message when returning a wildcard
 			no data response. [RT #21744]
 
-2952.	[port]		win32: named-checkzone and named-checkconf failed
-			to initialise winsock. [RT #21932]
-
-2951.	[bug]		named failed to generate a correct signed response
-			in a optout, delegation only zone with no secure
-			delegations. [RT #22007]
-
 2950.	[bug]		named failed to perform a SOA up to date check when
 			falling back to TCP on UDP timeouts when
 			ixfr-from-differences was set. [RT #21595]
@@ -138,27 +102,6 @@
 
 2941.	[bug]		sdb and sdlz (dlz's zone database) failed to support
 			DNAME at the zone apex.  [RT #21610]
-
-2939.	[func]		Check that named successfully skips NSEC3 records
-			that fail to match the NSEC3PARAM record currently
-			in use. [RT# 21868]
-
-2937.	[bug]		Worked around an apparent race condition in over
-			memory conditions.  Without this fix a DNS cache DB or
-			ADB could incorrectly stay in an over memory state,
-			effectively refusing further caching, which
-			subsequently made a BIND 9 caching server unworkable.
-			This fix prevents this problem from happening by
-			polling the state of the memory context, rather than
-			making a copy of the state, which appeared to cause
-			a race.  This is a "workaround" in that it doesn't
-			solve the possible race per se, but several experiments
-			proved this change solves the symptom.  Also, the
-			polling overhead hasn't been reported to be an issue.
-			This bug should only affect a caching server that
-			specifies a finite max-cache-size.  It's also quite
-			likely that the bug happens only when enabling threads,
-			but it's not confirmed yet. [RT #21818]
 
 2935.	[bug]		nsupdate: improve 'file not found' error message.
 			[RT #21871]
@@ -189,16 +132,10 @@
 			   smaller)
 			[RT #19737]
 
-2925.	[bug]		Named failed to accept uncachable negative responses
-			from insecure zones. [RT# 21555]
-
 2923.	[bug]		'dig +trace' could drop core after "connection
 			timeout". [RT #21514]
 
 2922.	[contrib]	Update zkt to version 1.0.
-
-2921.	[bug]		The resolver could attempt to destroy a fetch context
-			too soon.  [RT #19878]
 
 2918.	[maint]		Add AAAA address for I.ROOT-SERVERS.NET.
 
@@ -229,10 +166,6 @@
 
 2901.	[port]		Use AC_C_FLEXIBLE_ARRAY_MEMBER. [RT #21316]
 
-2900.	[bug]		The placeholder negative caching element was not
-			properly constructed triggering a INSIST in
-			dns_ncache_towire(). [RT #21346]
-
 2899.	[port]		win32: Support linking against OpenSSL 1.0.0.
 
 2898.	[bug]		nslookup leaked memory when -domain=value was
@@ -242,9 +175,6 @@
 
 2891.	[maint]		Update empty-zones list to match
 			draft-ietf-dnsop-default-local-zones-13. [RT# 21099]
-
-2890.	[bug]		Handle the introduction of new trusted-keys and
-			DS, DLV RRsets better. [RT #21097]
 
 2889.	[bug]		Elements of the grammar where not properly reported.
 			[RT #21046]
@@ -272,9 +202,6 @@
 2877.	[bug]		The validator failed to skip obviously mismatching
 			RRSIGs. [RT #21138]
 
-2876.	[bug]		Named could return SERVFAIL for negative responses
-			from unsigned zones. [RT #21131]
-
 2875.	[bug]		dns_time64_fromtext() could accept non digits.
 			[RT #21033]
 
@@ -283,9 +210,6 @@
 			[RT #20930]
 
 2870.	[maint]		Add AAAA address for L.ROOT-SERVERS.NET.
-
-2869.	[bug]		Fix arguments to dns_keytable_findnextkeynode() call.
-			[RT #20877]
 
 2868.	[cleanup]	Run "make clean" at the end of configure to ensure
 			any changes made by configure are integrated.
@@ -322,10 +246,107 @@
 
 2853.	[bug]		add_sigs() could run out of scratch space. [RT #21015]
 
-2852.	[bug]		Handle broken DNSSEC trust chains better. [RT #15619]
-
 2851.	[doc]		nslookup.1, removed <informalexample> from the docbook
 			source as it produced bad nroff.  [RT #21007]
+
+	--- 9.6-ESV-R3 released ---
+
+2972.	[bug]		win32: address windows socket errors. [RT #21906]
+
+2971.	[bug]		Fixed a bug that caused journal files not to be
+			compacted on Windows systems as a result of
+			non-POSIX-compliant rename() semantics. [RT #22434]
+
+2970.	[security]	Adding a NO DATA negative cache entry failed to clear
+			any matching RRSIG records.  A subsequent lookup of
+			of NO DATA cache entry could trigger a INSIST when the
+			unexpected RRSIG was also returned with the NO DATA
+			cache entry.
+
+			CVE-2010-3613, VU#706148. [RT #22288]
+
+2969.	[security]	Fix acl type processing so that allow-query works
+			in options and view statements.  Also add a new
+			set of tests to verify proper functioning.
+
+			CVE-2010-3615, VU#510208. [RT #22418]
+
+2968.	[security]	Named could fail to prove a data set was insecure
+			before marking it as insecure.  One set of conditions
+			that can trigger this occurs naturally when rolling
+			DNSKEY algorithms.
+
+			CVE-2010-3614, VU#837744. [RT #22309]
+
+2967.	[bug]		'host -D' now turns on debugging messages earlier.
+			[RT #22361]
+
+2966.	[bug]		isc_print_vsnprintf() failed to check if there was
+			space available in the buffer when adding a left
+			justified character with a non zero width,
+			(e.g. "%-1c"). [RT #22270]
+
+2964.	[bug]		view->queryacl was being overloaded.  Seperate the
+			usage into view->queryacl, view->cacheacl and
+			view->queryonacl. [RT #22114]
+
+2962.	[port]		win32: add more dependencies to BINDBuild.dsw.
+			[RT #22062]
+
+2952.	[port]		win32: named-checkzone and named-checkconf failed
+			to initialise winsock. [RT #21932]
+
+2951.	[bug]		named failed to generate a correct signed response
+			in a optout, delegation only zone with no secure
+			delegations. [RT #22007]
+
+	--- 9.6-ESV-R2 released ---
+
+2939.	[func]		Check that named successfully skips NSEC3 records
+			that fail to match the NSEC3PARAM record currently
+			in use. [RT# 21868]
+
+2937.	[bug]		Worked around an apparent race condition in over
+			memory conditions.  Without this fix a DNS cache DB or
+			ADB could incorrectly stay in an over memory state,
+			effectively refusing further caching, which
+			subsequently made a BIND 9 caching server unworkable.
+			This fix prevents this problem from happening by
+			polling the state of the memory context, rather than
+			making a copy of the state, which appeared to cause
+			a race.  This is a "workaround" in that it doesn't
+			solve the possible race per se, but several experiments
+			proved this change solves the symptom.  Also, the
+			polling overhead hasn't been reported to be an issue.
+			This bug should only affect a caching server that
+			specifies a finite max-cache-size.  It's also quite
+			likely that the bug happens only when enabling threads,
+			but it's not confirmed yet. [RT #21818]
+
+2925.	[bug]		Named failed to accept uncachable negative responses
+			from insecure zones. [RT# 21555]
+
+2921.	[bug]		The resolver could attempt to destroy a fetch context
+			too soon.  [RT #19878]
+
+2900.	[bug]		The placeholder negative caching element was not
+			properly constructed triggering a INSIST in
+			dns_ncache_towire(). [RT #21346]
+
+2890.	[bug]		Handle the introduction of new trusted-keys and
+			DS, DLV RRsets better. [RT #21097]
+
+2869.	[bug]		Fix arguments to dns_keytable_findnextkeynode() call.
+			[RT #20877]
+
+	--- 9.6-ESV-R1 released ---
+
+2876.	[bug]		Named could return SERVFAIL for negative responses
+			from unsigned zones. [RT #21131]
+
+	--- 9.6-ESV released ---
+
+2852.	[bug]		Handle broken DNSSEC trust chains better. [RT #15619]
 
 	--- 9.6.2 released ---
 

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: hmacmd5.c,v 1.14 2007/06/19 23:47:17 tbox Exp $ */
+/* $Id: hmacmd5.c,v 1.14 2007-06-19 23:47:17 tbox Exp $ */
 
 /*! \file
  * This code implements the HMAC-MD5 keyed hash algorithm

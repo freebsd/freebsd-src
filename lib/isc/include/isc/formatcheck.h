@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: formatcheck.h,v 1.13 2007/06/19 23:47:18 tbox Exp $ */
+/* $Id: formatcheck.h,v 1.13 2007-06-19 23:47:18 tbox Exp $ */
 
 #ifndef ISC_FORMATCHECK_H
 #define ISC_FORMATCHECK_H 1

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: afsdb_18.c,v 1.47 2007/06/19 23:47:17 tbox Exp $ */
+/* $Id: afsdb_18.c,v 1.47 2007-06-19 23:47:17 tbox Exp $ */
 
 /* Reviewed: Wed Mar 15 14:59:00 PST 2000 by explorer */
 

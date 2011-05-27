@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lwresd.h,v 1.19 2007/06/19 23:46:59 tbox Exp $ */
+/* $Id: lwresd.h,v 1.19 2007-06-19 23:46:59 tbox Exp $ */
 
 #ifndef NAMED_LWRESD_H
 #define NAMED_LWRESD_H 1

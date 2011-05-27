@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: getnameinfo.c,v 1.39 2007/06/19 23:47:22 tbox Exp $ */
+/* $Id: getnameinfo.c,v 1.39 2007-06-19 23:47:22 tbox Exp $ */
 
 /*! \file */
 

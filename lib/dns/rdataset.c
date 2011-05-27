@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rdataset.c,v 1.82.50.4 2010-02-25 10:56:41 tbox Exp $ */
+/* $Id: rdataset.c,v 1.82.50.4.6.1 2011-05-27 00:19:19 each Exp $ */
 
 /*! \file */
 
@@ -33,6 +33,26 @@
 #include <dns/rdata.h>
 #include <dns/rdataset.h>
 #include <dns/compress.h>
+
+static const char *trustnames[] = {
+	"none",
+	"pending-additional",
+	"pending-answer",
+	"additional",
+	"glue",
+	"answer",
+	"authauthority",
+	"authanswer",
+	"secure",
+	"local" /* aka ultimate */
+};
+
+const char *
+dns_trust_totext(dns_trust_t trust) {
+	if (trust >= sizeof(trustnames)/sizeof(*trustnames))
+		return ("bad");
+	return (trustnames[trust]);
+}
 
 void
 dns_rdataset_init(dns_rdataset_t *rdataset) {

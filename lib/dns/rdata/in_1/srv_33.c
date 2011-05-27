@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: srv_33.c,v 1.45 2007/06/19 23:47:17 tbox Exp $ */
+/* $Id: srv_33.c,v 1.45 2007-06-19 23:47:17 tbox Exp $ */
 
 /* Reviewed: Fri Mar 17 13:01:00 PST 2000 by bwelling */
 
