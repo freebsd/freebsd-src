@@ -468,8 +468,8 @@ struct xl_list {
 
 struct xl_list_onefrag {
 	u_int32_t		xl_next;	/* final entry has 0 nextptr */
-	u_int32_t		xl_status;
-	struct xl_frag		xl_frag;
+	volatile u_int32_t	xl_status;
+	volatile struct xl_frag	xl_frag;
 };
 
 struct xl_list_data {
