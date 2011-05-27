@@ -228,8 +228,8 @@ static int xl_attach(device_t);
 static int xl_detach(device_t);
 
 static int xl_newbuf(struct xl_softc *, struct xl_chain_onefrag *);
-static void xl_stats_update(void *);
-static void xl_stats_update_locked(struct xl_softc *);
+static void xl_tick(void *);
+static void xl_stats_update(struct xl_softc *);
 static int xl_encap(struct xl_softc *, struct xl_chain *, struct mbuf **);
 static int xl_rxeof(struct xl_softc *);
 static void xl_rxeof_task(void *, int);
@@ -1335,7 +1335,7 @@ xl_attach(device_t dev)
 	}
 
 	sc->xl_unit = unit;
-	callout_init_mtx(&sc->xl_stat_callout, &sc->xl_mtx, 0);
+	callout_init_mtx(&sc->xl_tick_callout, &sc->xl_mtx, 0);
 	TASK_INIT(&sc->xl_task, 0, xl_rxeof_task, sc);
 
 	/*
@@ -1700,7 +1700,7 @@ xl_detach(device_t dev)
 		xl_stop(sc);
 		XL_UNLOCK(sc);
 		taskqueue_drain(taskqueue_swi, &sc->xl_task);
-		callout_drain(&sc->xl_stat_callout);
+		callout_drain(&sc->xl_tick_callout);
 		ether_ifdetach(ifp);
 	}
 	if (sc->xl_miibus)
@@ -2212,7 +2212,7 @@ xl_txeoc(struct xl_softc *sc)
 			txstat & XL_TXSTATUS_JABBER ||
 			txstat & XL_TXSTATUS_RECLAIM) {
 			device_printf(sc->xl_dev,
-			    "transmission error: %x\n", txstat);
+			    "transmission error: 0x%02x\n", txstat);
 			CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_TX_RESET);
 			xl_wait(sc);
 			if (sc->xl_type == XL_TYPE_905B) {
@@ -2225,11 +2225,14 @@ xl_txeoc(struct xl_softc *sc)
 					CSR_WRITE_4(sc, XL_DOWNLIST_PTR,
 					    c->xl_phys);
 					CSR_WRITE_1(sc, XL_DOWN_POLL, 64);
+					sc->xl_wdog_timer = 5;
 				}
 			} else {
-				if (sc->xl_cdata.xl_tx_head != NULL)
+				if (sc->xl_cdata.xl_tx_head != NULL) {
 					CSR_WRITE_4(sc, XL_DOWNLIST_PTR,
 					    sc->xl_cdata.xl_tx_head->xl_phys);
+					sc->xl_wdog_timer = 5;
+				}
 			}
 			/*
 			 * Remember to set this for the
@@ -2312,11 +2315,8 @@ xl_intr(void *arg)
 			break;
 		}
 
-		if (status & XL_STAT_STATSOFLOW) {
-			sc->xl_stats_no_timeout = 1;
-			xl_stats_update_locked(sc);
-			sc->xl_stats_no_timeout = 0;
-		}
+		if (status & XL_STAT_STATSOFLOW)
+			xl_stats_update(sc);
 	}
 
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd) &&
@@ -2381,47 +2381,44 @@ xl_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 				xl_init_locked(sc);
 			}
 
-			if (status & XL_STAT_STATSOFLOW) {
-				sc->xl_stats_no_timeout = 1;
-				xl_stats_update_locked(sc);
-				sc->xl_stats_no_timeout = 0;
-			}
+			if (status & XL_STAT_STATSOFLOW)
+				xl_stats_update(sc);
 		}
 	}
 }
 #endif /* DEVICE_POLLING */
 
-/*
- * XXX: This is an entry point for callout which needs to take the lock.
- */
 static void
-xl_stats_update(void *xsc)
+xl_tick(void *xsc)
 {
 	struct xl_softc *sc = xsc;
+	struct mii_data *mii;
 
 	XL_LOCK_ASSERT(sc);
 
+	if (sc->xl_miibus != NULL) {
+		mii = device_get_softc(sc->xl_miibus);
+		mii_tick(mii);
+	}
+
+	xl_stats_update(sc);
 	if (xl_watchdog(sc) == EJUSTRETURN)
 		return;
 
-	xl_stats_update_locked(sc);
+	callout_reset(&sc->xl_tick_callout, hz, xl_tick, sc);
 }
 
 static void
-xl_stats_update_locked(struct xl_softc *sc)
+xl_stats_update(struct xl_softc *sc)
 {
 	struct ifnet		*ifp = sc->xl_ifp;
 	struct xl_stats		xl_stats;
 	u_int8_t		*p;
 	int			i;
-	struct mii_data		*mii = NULL;
 
 	XL_LOCK_ASSERT(sc);
 
 	bzero((char *)&xl_stats, sizeof(struct xl_stats));
-
-	if (sc->xl_miibus != NULL)
-		mii = device_get_softc(sc->xl_miibus);
 
 	p = (u_int8_t *)&xl_stats;
 
@@ -2444,14 +2441,7 @@ xl_stats_update_locked(struct xl_softc *sc)
 	 */
 	XL_SEL_WIN(4);
 	CSR_READ_1(sc, XL_W4_BADSSD);
-
-	if ((mii != NULL) && (!sc->xl_stats_no_timeout))
-		mii_tick(mii);
-
 	XL_SEL_WIN(7);
-
-	if (!sc->xl_stats_no_timeout)
-		callout_reset(&sc->xl_stat_callout, hz, xl_stats_update, sc);
 }
 
 /*
@@ -2572,8 +2562,9 @@ static void
 xl_start_locked(struct ifnet *ifp)
 {
 	struct xl_softc		*sc = ifp->if_softc;
-	struct mbuf		*m_head = NULL;
+	struct mbuf		*m_head;
 	struct xl_chain		*prev = NULL, *cur_tx = NULL, *start_tx;
+	struct xl_chain		*prev_tx;
 	int			error;
 
 	XL_LOCK_ASSERT(sc);
@@ -2603,11 +2594,13 @@ xl_start_locked(struct ifnet *ifp)
 			break;
 
 		/* Pick a descriptor off the free list. */
+		prev_tx = cur_tx;
 		cur_tx = sc->xl_cdata.xl_tx_free;
 
 		/* Pack the data into the descriptor. */
 		error = xl_encap(sc, cur_tx, &m_head);
 		if (error) {
+			cur_tx = prev_tx;
 			if (m_head == NULL)
 				break;
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
@@ -2701,8 +2694,9 @@ static void
 xl_start_90xB_locked(struct ifnet *ifp)
 {
 	struct xl_softc		*sc = ifp->if_softc;
-	struct mbuf		*m_head = NULL;
+	struct mbuf		*m_head;
 	struct xl_chain		*prev = NULL, *cur_tx = NULL, *start_tx;
+	struct xl_chain		*prev_tx;
 	int			error, idx;
 
 	XL_LOCK_ASSERT(sc);
@@ -2725,11 +2719,13 @@ xl_start_90xB_locked(struct ifnet *ifp)
 		if (m_head == NULL)
 			break;
 
+		prev_tx = cur_tx;
 		cur_tx = &sc->xl_cdata.xl_tx_chain[idx];
 
 		/* Pack the data into the descriptor. */
 		error = xl_encap(sc, cur_tx, &m_head);
 		if (error) {
+			cur_tx = prev_tx;
 			if (m_head == NULL)
 				break;
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
@@ -2950,9 +2946,7 @@ xl_init_locked(struct xl_softc *sc)
 
 	/* Clear out the stats counters. */
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_STATS_DISABLE);
-	sc->xl_stats_no_timeout = 1;
-	xl_stats_update_locked(sc);
-	sc->xl_stats_no_timeout = 0;
+	xl_stats_update(sc);
 	XL_SEL_WIN(4);
 	CSR_WRITE_2(sc, XL_W4_NET_DIAG, XL_NETDIAG_UPPER_BYTES_ENABLE);
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_STATS_ENABLE);
@@ -2974,7 +2968,7 @@ xl_init_locked(struct xl_softc *sc)
 
 	/* Set the RX early threshold */
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_RX_SET_THRESH|(XL_PACKET_SIZE >>2));
-	CSR_WRITE_2(sc, XL_DMACTL, XL_DMACTL_UP_RX_EARLY);
+	CSR_WRITE_4(sc, XL_DMACTL, XL_DMACTL_UP_RX_EARLY);
 
 	/* Enable receiver and transmitter. */
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_TX_ENABLE);
@@ -2993,7 +2987,7 @@ xl_init_locked(struct xl_softc *sc)
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	sc->xl_wdog_timer = 0;
-	callout_reset(&sc->xl_stat_callout, hz, xl_stats_update, sc);
+	callout_reset(&sc->xl_tick_callout, hz, xl_tick, sc);
 }
 
 /*
@@ -3302,7 +3296,7 @@ xl_stop(struct xl_softc *sc)
 		bus_space_write_4(sc->xl_ftag, sc->xl_fhandle, 4, 0x8000);
 
 	/* Stop the stats updater. */
-	callout_stop(&sc->xl_stat_callout);
+	callout_stop(&sc->xl_tick_callout);
 
 	/*
 	 * Free data in the RX lists.
