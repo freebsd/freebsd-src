@@ -191,7 +191,7 @@ main(argc, argv)
 		printf("Exports list on %s:\n", host);
 		exp = exportslist;
 		while (exp) {
-			printf("%-35s", exp->ex_dirp);
+			printf("%-34s ", exp->ex_dirp);
 			grp = exp->ex_groups;
 			if (grp == NULL) {
 				printf("Everyone\n");
