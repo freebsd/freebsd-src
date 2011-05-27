@@ -148,7 +148,7 @@ __start:
  */
 	/* Final kernel mapping, map in 16 MB of RAM */
 	lis	%r3, MAS0_TLBSEL1@h	/* Select TLB1 */
-	li	%r4, 1			/* Entry 1 */
+	li	%r4, 0			/* Entry 0 */
 	rlwimi	%r3, %r4, 16, 12, 15
 	mtspr	SPR_MAS0, %r3
 	isync
@@ -318,7 +318,7 @@ kernload_ap:
  */
 	/* Final kernel mapping, map in 16 MB of RAM */
 	lis	%r3, MAS0_TLBSEL1@h	/* Select TLB1 */
-	li	%r4, 1			/* Entry 1 */
+	li	%r4, 0			/* Entry 0 */
 	rlwimi	%r3, %r4, 16, 4, 15
 	mtspr	SPR_MAS0, %r3
 	isync
@@ -490,11 +490,7 @@ tlb1_temp_mapping_as1:
 	 */
 	lis	%r3, MAS0_TLBSEL1@h	/* Select TLB1 */
 	addi	%r29, %r30, 1		/* Use next entry. */
-	li	%r4, 1
-	cmpw	%r4, %r29
-	bne	1f
-	addi	%r29, %r29, 1
-1:	rlwimi	%r3, %r29, 16, 12, 15	/* Select temp entry */
+	rlwimi	%r3, %r29, 16, 12, 15	/* Select temp entry */
 	mtspr	SPR_MAS0, %r3
 	isync
 	mfspr	%r5, SPR_MAS1
