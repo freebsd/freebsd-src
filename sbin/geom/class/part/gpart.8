@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 03, 2011
+.Dd May 27, 2011
 .Dt GPART 8
 .Os
 .Sh NAME
@@ -840,6 +840,33 @@ Create a 512MB-sized
 partition that would contain UFS where the system boots from.
 .Bd -literal -offset indent
 /sbin/gpart add -b 162 -s 1048576 -t freebsd-ufs ad0
+.Ed
+.Pp
+Create MBR scheme on
+.Pa ada0 ,
+then create 30GB-sized FreeBSD slice, mark it active and
+install boot0 boot manager:
+.Bd -literal -offset indent
+/sbin/gpart create -s MBR ada0
+/sbin/gpart add -t freebsd -s 30G ada0
+/sbin/gpart set -a active -i 1 ada0
+/sbin/gpart bootcode -b /boot/boot0 ada0
+.Ed
+.Pp
+Now create BSD scheme (BSD label) with ability to have up to 20 partitions:
+.Bd -literal -offset indent
+/sbin/gpart create -s BSD -n 20 ada0s1
+.Ed
+.Pp
+Create 1GB-sized UFS partition and 4GB-sized swap partition:
+.Bd -literal -offset indent
+/sbin/gpart add -t freebsd-ufs -s 1G ada0s1
+/sbin/gpart add -t freebsd-swap -s 4G ada0s1
+.Ed
+.Pp
+Install bootstrap code for the BSD label:
+.Bd -literal -offset indent
+/sbin/gpart bootcode -b /boot/boot ada0s1
 .Ed
 .Pp
 Create VTOC8 scheme on
