@@ -35,6 +35,7 @@
 #include <sys/user.h>
 #include <sys/vmmeter.h>
 
+#include <err.h>
 #include <kvm.h>
 #include <math.h>
 #include <nlist.h>
