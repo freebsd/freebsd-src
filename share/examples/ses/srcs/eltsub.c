@@ -115,10 +115,10 @@ geteltnm(int type)
 	case SESTYP_ARRAY:
 		sprintf(rbuf, "Array device");
 		break;
-	case SESTYP_SAS_EXP:
+	case SESTYP_SASEXPANDER:
 		sprintf(rbuf, "SAS Expander");
 		break;
-	case SESTYP_SAS_CONN:
+	case SESTYP_SASCONNECTOR:
 		sprintf(rbuf, "SAS Connector");
 		break;
 	default:
