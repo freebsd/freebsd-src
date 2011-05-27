@@ -148,7 +148,7 @@ pmcc_do_enable_disable(struct pmcc_op_list *op_list)
 
 	/* Determine the set of active CPUs. */
 	cpusetsize = sysconf(_SC_CPUSET_SIZE);
-	if (cpusetsize == -1 || (u_long)cpusetsize > sizeof(cpuset_t)) {
+	if (cpusetsize == -1 || (size_t)cpusetsize > sizeof(cpuset_t)) {
 		err(EX_OSERR, "ERROR: Cannot determine which CPUs are "
 		    "halted");
 	}
