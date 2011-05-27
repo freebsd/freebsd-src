@@ -101,6 +101,7 @@ typedef struct {
 #define	SESTYP_UPS		0x0b
 #define	SESTYP_DISPLAY		0x0c
 #define	SESTYP_KEYPAD		0x0d
+#define	SESTYP_ENCLOSURE	0x0e
 #define	SESTYP_SCSIXVR		0x0f
 #define	SESTYP_LANGUAGE		0x10
 #define	SESTYP_COMPORT		0x11
@@ -109,6 +110,9 @@ typedef struct {
 #define	SESTYP_SCSI_TGT		0x14
 #define	SESTYP_SCSI_INI		0x15
 #define	SESTYP_SUBENC		0x16
+#define	SESTYP_ARRAY		0x17
+#define	SESTYP_SAS_EXP		0x18
+#define	SESTYP_SAS_CONN		0x19
 
 /*
  * Overall Enclosure Status
