@@ -123,7 +123,10 @@ cdcmd(int argc, char **argv)
 		else
 			dest = ".";
 	}
-	if (*dest == '/' || (path = bltinlookup("CDPATH", 1)) == NULL)
+	if (dest[0] == '/' ||
+	    (dest[0] == '.' && (dest[1] == '/' || dest[1] == '\0')) ||
+	    (dest[0] == '.' && dest[1] == '.' && (dest[2] == '/' || dest[2] == '\0')) ||
+	    (path = bltinlookup("CDPATH", 1)) == NULL)
 		path = nullstr;
 	while ((p = padvance(&path, dest)) != NULL) {
 		if (stat(p, &statb) >= 0 && S_ISDIR(statb.st_mode)) {
