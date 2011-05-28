@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/vnet.h>
 
+#include <netinet/cc.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
@@ -80,7 +81,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/nd6.h>
 #endif
 #include <netinet/ip_icmp.h>
-#include <netinet/tcp.h>
 #include <netinet/tcp_fsm.h>
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_timer.h>
@@ -290,6 +290,7 @@ static char *	tcp_log_addr(struct in_conninfo *inc, struct tcphdr *th,
 struct tcpcb_mem {
 	struct	tcpcb		tcb;
 	struct	tcp_timer	tt;
+	struct	cc_var		ccv;
 };
 
 static VNET_DEFINE(uma_zone_t, tcpcb_zone);
@@ -705,6 +706,26 @@ tcp_newtcpcb(struct inpcb *inp)
 	if (tm == NULL)
 		return (NULL);
 	tp = &tm->tcb;
+
+	/* Initialise cc_var struct for this tcpcb. */
+	tp->ccv = &tm->ccv;
+	tp->ccv->type = IPPROTO_TCP;
+	tp->ccv->ccvc.tcp = tp;
+
+	/*
+	 * Use the current system default CC algorithm.
+	 */
+	CC_LIST_RLOCK();
+	KASSERT(!STAILQ_EMPTY(&cc_list), ("cc_list is empty!"));
+	CC_ALGO(tp) = CC_DEFAULT();
+	CC_LIST_RUNLOCK();
+
+	if (CC_ALGO(tp)->cb_init != NULL)
+		if (CC_ALGO(tp)->cb_init(tp->ccv) > 0) {
+			uma_zfree(V_tcpcb_zone, tm);
+			return (NULL);
+		}
+
 #ifdef VIMAGE
 	tp->t_vnet = inp->inp_vnet;
 #endif
@@ -751,6 +772,69 @@ tcp_newtcpcb(struct inpcb *inp)
 	inp->inp_ip_ttl = V_ip_defttl;
 	inp->inp_ppcb = tp;
 	return (tp);		/* XXX */
+}
+
+/*
+ * Switch the congestion control algorithm back to NewReno for any active
+ * control blocks using an algorithm which is about to go away.
+ * This ensures the CC framework can allow the unload to proceed without leaving
+ * any dangling pointers which would trigger a panic.
+ * Returning non-zero would inform the CC framework that something went wrong
+ * and it would be unsafe to allow the unload to proceed. However, there is no
+ * way for this to occur with this implementation so we always return zero.
+ */
+int
+tcp_ccalgounload(struct cc_algo *unload_algo)
+{
+	struct cc_algo *tmpalgo;
+	struct inpcb *inp;
+	struct tcpcb *tp;
+	VNET_ITERATOR_DECL(vnet_iter);
+
+	/*
+	 * Check all active control blocks across all network stacks and change
+	 * any that are using "unload_algo" back to NewReno. If "unload_algo"
+	 * requires cleanup code to be run, call it.
+	 */
+	VNET_LIST_RLOCK();
+	VNET_FOREACH(vnet_iter) {
+		CURVNET_SET(vnet_iter);
+		INP_INFO_RLOCK(&V_tcbinfo);
+		/*
+		 * New connections already part way through being initialised
+		 * with the CC algo we're removing will not race with this code
+		 * because the INP_INFO_WLOCK is held during initialisation. We
+		 * therefore don't enter the loop below until the connection
+		 * list has stabilised.
+		 */
+		LIST_FOREACH(inp, &V_tcb, inp_list) {
+			INP_WLOCK(inp);
+			/* Important to skip tcptw structs. */
+			if (!(inp->inp_flags & INP_TIMEWAIT) &&
+			    (tp = intotcpcb(inp)) != NULL) {
+				/*
+				 * By holding INP_WLOCK here, we are assured
+				 * that the connection is not currently
+				 * executing inside the CC module's functions
+				 * i.e. it is safe to make the switch back to
+				 * NewReno.
+				 */
+				if (CC_ALGO(tp) == unload_algo) {
+					tmpalgo = CC_ALGO(tp);
+					/* NewReno does not require any init. */
+					CC_ALGO(tp) = &newreno_cc_algo;
+					if (tmpalgo->cb_destroy != NULL)
+						tmpalgo->cb_destroy(tp->ccv);
+				}
+			}
+			INP_WUNLOCK(inp);
+		}
+		INP_INFO_RUNLOCK(&V_tcbinfo);
+		CURVNET_RESTORE();
+	}
+	VNET_LIST_RUNLOCK();
+
+	return (0);
 }
 
 /*
@@ -863,6 +947,12 @@ tcp_discardcb(struct tcpcb *tp)
 	tcp_offload_detach(tp);
 		
 	tcp_free_sackholes(tp);
+
+	/* Allow the CC algorithm to clean up after itself. */
+	if (CC_ALGO(tp)->cb_destroy != NULL)
+		CC_ALGO(tp)->cb_destroy(tp->ccv);
+
+	CC_ALGO(tp) = NULL;
 	inp->inp_ppcb = NULL;
 	tp->t_inpcb = NULL;
 	uma_zfree(V_tcpcb_zone, tp);
@@ -1627,7 +1717,7 @@ tcp_mtudisc(struct inpcb *inp, int errno)
 	tcp_free_sackholes(tp);
 	tp->snd_recover = tp->snd_max;
 	if (tp->t_flags & TF_SACK_PERMIT)
-		EXIT_FASTRECOVERY(tp);
+		EXIT_FASTRECOVERY(tp->t_flags);
 	tcp_output_send(tp);
 	return (inp);
 }
