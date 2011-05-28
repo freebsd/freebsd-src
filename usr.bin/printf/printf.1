@@ -171,7 +171,7 @@ A `\-' overrides a `0' if both are used;
 .It "Field Width:"
 An optional digit string specifying a
 .Em field width ;
-if the output string has fewer characters than the field width it will
+if the output string has fewer bytes than the field width it will
 be blank-padded on the left (or right, if the left-adjustment indicator
 has been given) to make up the field width (note that a leading zero
 is a flag, but an embedded zero is part of a field width);
@@ -185,7 +185,7 @@ for
 .Cm e
 and
 .Cm f
-formats, or the maximum number of characters to be printed
+formats, or the maximum number of bytes to be printed
 from a string; if the digit string is missing, the precision is treated
 as zero;
 .It Format:
@@ -271,15 +271,15 @@ and
 .Ql nan ,
 respectively.
 .It Cm c
-The first character of
+The first byte of
 .Ar argument
 is printed.
 .It Cm s
-Characters from the string
+Bytes from the string
 .Ar argument
-are printed until the end is reached or until the number of characters
+are printed until the end is reached or until the number of bytes
 indicated by the precision specification is reached; however if the
-precision is 0 or missing, all characters in the string are printed.
+precision is 0 or missing, the string is printed entirely.
 .It Cm b
 As for
 .Cm s ,
@@ -346,6 +346,17 @@ to interpret the dash as a program argument.
 .Nm --
 must be used before 
 .Ar format .
+.Pp
+If the locale contains multibyte characters
+(such as UTF-8),
+the
+.Cm c
+format and
+.Cm b
+and
+.Cm s
+formats with a precision
+may not operate as expected.
 .Sh BUGS
 Since the floating point numbers are translated from
 .Tn ASCII
