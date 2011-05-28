@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: zt.c,v 1.47 2007/06/19 23:47:16 tbox Exp $ */
+/* $Id: zt.c,v 1.47 2007-06-19 23:47:16 tbox Exp $ */
 
 /*! \file */
 

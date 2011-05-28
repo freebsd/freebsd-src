@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: iterated_hash.c,v 1.4.48.2 2009/02/18 23:47:12 tbox Exp $ */
+/* $Id: iterated_hash.c,v 1.4.48.2 2009-02-18 23:47:12 tbox Exp $ */
 
 #include "config.h"
 

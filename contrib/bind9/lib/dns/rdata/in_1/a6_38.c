@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: a6_38.c,v 1.54 2007/06/19 23:47:17 tbox Exp $ */
+/* $Id: a6_38.c,v 1.54 2007-06-19 23:47:17 tbox Exp $ */
 
 /* RFC2874 */
 

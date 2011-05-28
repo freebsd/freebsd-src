@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: symtab.h,v 1.24.332.2 2009/01/18 23:47:41 tbox Exp $ */
+/* $Id: symtab.h,v 1.24.332.2 2009-01-18 23:47:41 tbox Exp $ */
 
 #ifndef ISC_SYMTAB_H
 #define ISC_SYMTAB_H 1

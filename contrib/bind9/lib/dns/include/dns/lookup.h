@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lookup.h,v 1.12.332.2 2009/01/18 23:47:41 tbox Exp $ */
+/* $Id: lookup.h,v 1.12.332.2 2009-01-18 23:47:41 tbox Exp $ */
 
 #ifndef DNS_LOOKUP_H
 #define DNS_LOOKUP_H 1

@@ -18,7 +18,7 @@
 #ifndef GENERIC_ISDN_20_H
 #define GENERIC_ISDN_20_H 1
 
-/* $Id: isdn_20.h,v 1.18 2007/06/19 23:47:17 tbox Exp $ */
+/* $Id: isdn_20.h,v 1.18 2007-06-19 23:47:17 tbox Exp $ */
 
 /*!
  * \brief Per RFC1183 */

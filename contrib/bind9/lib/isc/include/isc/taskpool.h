@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: taskpool.h,v 1.15 2007/06/19 23:47:18 tbox Exp $ */
+/* $Id: taskpool.h,v 1.15 2007-06-19 23:47:18 tbox Exp $ */
 
 #ifndef ISC_TASKPOOL_H
 #define ISC_TASKPOOL_H 1

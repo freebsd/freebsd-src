@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: netaddr.c,v 1.38 2007/06/18 23:47:44 tbox Exp $ */
+/* $Id: netaddr.c,v 1.38 2007-06-18 23:47:44 tbox Exp $ */
 
 /*! \file */
 
