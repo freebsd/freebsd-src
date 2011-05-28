@@ -43,9 +43,13 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/openfirm.h>
 
+#include <powerpc/powermac/powermac_thermal.h>
+
 struct smu_sensor {
+	struct pmac_therm therm;
+	device_t dev;
+
 	cell_t	reg;
-	char	location[32];
 	enum {
 		SMU_CURRENT_SENSOR,
 		SMU_VOLTAGE_SENSOR,
@@ -57,6 +61,7 @@ struct smu_sensor {
 static int	smusat_probe(device_t);
 static int	smusat_attach(device_t);
 static int	smusat_sensor_sysctl(SYSCTL_HANDLER_ARGS);
+static int	smusat_sensor_read(struct smu_sensor *sens);
 
 MALLOC_DEFINE(M_SMUSAT, "smusat", "SMU Sattelite Sensors");
 
@@ -135,14 +140,16 @@ smusat_attach(device_t dev)
 		char sysctl_name[40], sysctl_desc[40];
 		const char *units;
 
+		sens->dev = dev;
 		sens->reg = 0;
 		OF_getprop(child, "reg", &sens->reg, sizeof(sens->reg));
 		if (sens->reg < 0x30)
 			continue;
-
 		sens->reg -= 0x30;
-		OF_getprop(child, "location", sens->location,
-		    sizeof(sens->location));
+
+		OF_getprop(child, "zone", &sens->therm.zone, sizeof(int));
+		OF_getprop(child, "location", sens->therm.name,
+		    sizeof(sens->therm.name));
 
 		OF_getprop(child, "device_type", type, sizeof(type));
 
@@ -162,17 +169,27 @@ smusat_attach(device_t dev)
 			continue;
 		}
 
-		for (i = 0; i < strlen(sens->location); i++) {
-			sysctl_name[i] = tolower(sens->location[i]);
+		for (i = 0; i < strlen(sens->therm.name); i++) {
+			sysctl_name[i] = tolower(sens->therm.name[i]);
 			if (isspace(sysctl_name[i]))
 				sysctl_name[i] = '_';
 		}
 		sysctl_name[i] = 0;
 
-		sprintf(sysctl_desc,"%s (%s)", sens->location, units);
+		sprintf(sysctl_desc,"%s (%s)", sens->therm.name, units);
 		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(sensroot_oid), OID_AUTO,
 		    sysctl_name, CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, dev,
-		    sc->sc_nsensors, smusat_sensor_sysctl, "I", sysctl_desc);
+		    sc->sc_nsensors, smusat_sensor_sysctl,
+		    (sens->type == SMU_TEMP_SENSOR) ? "IK" : "I", sysctl_desc);
+
+		if (sens->type == SMU_TEMP_SENSOR) {
+			/* Make up some numbers */
+			sens->therm.target_temp = 500 + 2732; /* 50 C */
+			sens->therm.max_temp = 900 + 2732; /* 90 C */
+			sens->therm.read =
+			    (int (*)(struct pmac_therm *))smusat_sensor_read;
+			pmac_thermal_sensor_register(&sens->therm);
+		}
 
 		sens++;
 		sc->sc_nsensors++;
@@ -198,11 +215,13 @@ smusat_updatecache(device_t dev)
 }
 
 static int
-smusat_sensor_read(device_t dev, struct smu_sensor *sens, int *val)
+smusat_sensor_read(struct smu_sensor *sens)
 {
 	int value;
+	device_t dev;
 	struct smusat_softc *sc;
 
+	dev = sens->dev;
 	sc = device_get_softc(dev);
 
 	if (time_uptime - sc->sc_last_update > 1)
@@ -215,8 +234,8 @@ smusat_sensor_read(device_t dev, struct smu_sensor *sens, int *val)
 	case SMU_TEMP_SENSOR:
 		/* 16.16 */
 		value <<= 10;
-		/* Kill the .16 */
-		value >>= 16;
+		/* From 16.16 to 0.1 C */
+		value = 10*(value >> 16) + 2732;
 		break;
 	case SMU_VOLTAGE_SENSOR:
 		/* 16.16 */
@@ -235,8 +254,7 @@ smusat_sensor_read(device_t dev, struct smu_sensor *sens, int *val)
 		break;
 	}
 
-	*val = value;
-	return (0);
+	return (value);
 }
 
 static int
@@ -251,9 +269,9 @@ smusat_sensor_sysctl(SYSCTL_HANDLER_ARGS)
 	sc = device_get_softc(dev);
 	sens = &sc->sc_sensors[arg2];
 
-	error = smusat_sensor_read(dev, sens, &value);
-	if (error != 0)
-		return (error);
+	value = smusat_sensor_read(sens);
+	if (value < 0)
+		return (EBUSY);
 
 	error = sysctl_handle_int(oidp, &value, 0, req);
 
