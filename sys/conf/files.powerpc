@@ -150,6 +150,7 @@ powerpc/powermac/macgpio.c	optional	powermac pci
 powerpc/powermac/macio.c	optional	powermac pci
 powerpc/powermac/openpic_macio.c optional	powermac pci
 powerpc/powermac/platform_powermac.c optional	powermac
+powerpc/powermac/powermac_thermal.c optional	powermac
 powerpc/powermac/pswitch.c	optional	powermac pswitch
 powerpc/powermac/pmu.c		optional	powermac pmu 
 powerpc/powermac/smu.c		optional	powermac smu 
