@@ -4,9 +4,9 @@
  * All rights reserved.
  *
  * This software was developed by Lawrence Stewart while studying at the Centre
- * for Advanced Internet Architectures, Swinburne University, made possible in
- * part by grants from the FreeBSD Foundation and Cisco University Research
- * Program Fund at Community Foundation Silicon Valley.
+ * for Advanced Internet Architectures, Swinburne University of Technology, made
+ * possible in part by grants from the FreeBSD Foundation and Cisco University
+ * Research Program Fund at Community Foundation Silicon Valley.
  *
  * Portions of this software were developed at the Centre for Advanced
  * Internet Architectures, Swinburne University of Technology, Melbourne,
@@ -38,11 +38,11 @@
 
 /*
  * A KPI for managing kernel helper modules which perform useful functionality
- * within the kernel. Originally released as part of the NewTCP research
- * project at Swinburne University's Centre for Advanced Internet Architectures,
- * Melbourne, Australia, which was made possible in part by a grant from the
- * Cisco University Research Program Fund at Community Foundation Silicon
- * Valley. More details are available at:
+ * within the kernel. Originally released as part of the NewTCP research project
+ * at Swinburne University of Technology's Centre for Advanced Internet
+ * Architectures, Melbourne, Australia, which was made possible in part by a
+ * grant from the Cisco University Research Program Fund at Community Foundation
+ * Silicon Valley. More details are available at:
  *   http://caia.swin.edu.au/urp/newtcp/
  */
 
