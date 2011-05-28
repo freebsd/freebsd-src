@@ -41,7 +41,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/callout.h>
+#include <sys/hhook.h>
 #include <sys/kernel.h>
+#include <sys/khelp.h>
 #include <sys/sysctl.h>
 #include <sys/jail.h>
 #include <sys/malloc.h>
@@ -266,6 +268,8 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, signature_verify_input, CTLFLAG_RW,
 VNET_DEFINE(uma_zone_t, sack_hole_zone);
 #define	V_sack_hole_zone		VNET(sack_hole_zone)
 
+VNET_DEFINE(struct hhook_head *, tcp_hhh[HHOOK_TCP_LAST+1]);
+
 static struct inpcb *tcp_notify(struct inpcb *, int);
 static void	tcp_isn_tick(void *);
 static char *	tcp_log_addr(struct in_conninfo *inc, struct tcphdr *th,
@@ -291,6 +295,7 @@ struct tcpcb_mem {
 	struct	tcpcb		tcb;
 	struct	tcp_timer	tt;
 	struct	cc_var		ccv;
+	struct	osd		osd;
 };
 
 static VNET_DEFINE(uma_zone_t, tcpcb_zone);
@@ -336,6 +341,14 @@ tcp_init(void)
 	V_tcbinfo.ipi_vnet = curvnet;
 #endif
 	V_tcbinfo.ipi_listhead = &V_tcb;
+
+	if (hhook_head_register(HHOOK_TYPE_TCP, HHOOK_TCP_EST_IN,
+	    &V_tcp_hhh[HHOOK_TCP_EST_IN], HHOOK_NOWAIT|HHOOK_HEADISINVNET) != 0)
+		printf("%s: WARNING: unable to register helper hook\n", __func__);
+	if (hhook_head_register(HHOOK_TYPE_TCP, HHOOK_TCP_EST_OUT,
+	    &V_tcp_hhh[HHOOK_TCP_EST_OUT], HHOOK_NOWAIT|HHOOK_HEADISINVNET) != 0)
+		printf("%s: WARNING: unable to register helper hook\n", __func__);
+
 	hashsize = TCBHASHSIZE;
 	TUNABLE_INT_FETCH("net.inet.tcp.tcbhashsize", &hashsize);
 	if (!powerof2(hashsize)) {
@@ -726,6 +739,12 @@ tcp_newtcpcb(struct inpcb *inp)
 			return (NULL);
 		}
 
+	tp->osd = &tm->osd;
+	if (khelp_init_osd(HELPER_CLASS_TCP, tp->osd)) {
+		uma_zfree(V_tcpcb_zone, tm);
+		return (NULL);
+	}
+
 #ifdef VIMAGE
 	tp->t_vnet = inp->inp_vnet;
 #endif
@@ -951,6 +970,8 @@ tcp_discardcb(struct tcpcb *tp)
 	/* Allow the CC algorithm to clean up after itself. */
 	if (CC_ALGO(tp)->cb_destroy != NULL)
 		CC_ALGO(tp)->cb_destroy(tp->ccv);
+
+	khelp_destroy_osd(tp->osd);
 
 	CC_ALGO(tp) = NULL;
 	inp->inp_ppcb = NULL;
