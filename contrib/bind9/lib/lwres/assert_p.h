@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: assert_p.h,v 1.14 2007/06/19 23:47:22 tbox Exp $ */
+/* $Id: assert_p.h,v 1.14 2007-06-19 23:47:22 tbox Exp $ */
 
 #ifndef LWRES_ASSERT_P_H
 #define LWRES_ASSERT_P_H 1

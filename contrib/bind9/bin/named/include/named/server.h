@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: server.h,v 1.93.120.3 2009/07/11 04:23:53 marka Exp $ */
+/* $Id: server.h,v 1.93.120.3 2009-07-11 04:23:53 marka Exp $ */
 
 #ifndef NAMED_SERVER_H
 #define NAMED_SERVER_H 1

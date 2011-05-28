@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: diff.c,v 1.18.50.2 2009/01/05 23:47:22 tbox Exp $ */
+/* $Id: diff.c,v 1.18.50.2 2009-01-05 23:47:22 tbox Exp $ */
 
 /*! \file */
 

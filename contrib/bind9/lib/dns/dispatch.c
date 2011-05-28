@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dispatch.c,v 1.155.12.11 2009/12/02 23:26:28 marka Exp $ */
+/* $Id: dispatch.c,v 1.155.12.11 2009-12-02 23:26:28 marka Exp $ */
 
 /*! \file */
 

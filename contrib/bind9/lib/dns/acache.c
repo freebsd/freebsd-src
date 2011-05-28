@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: acache.c,v 1.22 2008/02/07 23:46:54 tbox Exp $ */
+/* $Id: acache.c,v 1.22 2008-02-07 23:46:54 tbox Exp $ */
 
 #include <config.h>
 
