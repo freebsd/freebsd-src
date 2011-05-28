@@ -16,7 +16,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: cc.c,v 1.10.18.5 2006/12/07 23:57:58 marka Exp $ */
+/* $Id: cc.c,v 1.10.18.5 2006-12-07 23:57:58 marka Exp $ */
 
 /*! \file */
 

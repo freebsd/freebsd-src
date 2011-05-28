@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: refcount.h,v 1.6.18.5 2005/07/12 01:22:31 marka Exp $ */
+/* $Id: refcount.h,v 1.6.18.5 2005-07-12 01:22:31 marka Exp $ */
 
 #ifndef ISC_REFCOUNT_H
 #define ISC_REFCOUNT_H 1

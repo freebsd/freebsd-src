@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: mutex.c,v 1.6.18.2 2006/08/25 05:25:51 marka Exp $ */
+/* $Id: mutex.c,v 1.6.18.2 2006-08-25 05:25:51 marka Exp $ */
 
 #include <config.h>
 

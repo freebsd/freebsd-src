@@ -53,7 +53,7 @@
 static char sccsid[] = "@(#)strtoul.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 
-/* $Id: strtoul.c,v 1.2.2.1 2005/06/08 02:07:59 marka Exp $ */
+/* $Id: strtoul.c,v 1.2.2.1 2005-06-08 02:07:59 marka Exp $ */
 
 #include <config.h>
 

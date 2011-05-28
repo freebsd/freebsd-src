@@ -18,7 +18,7 @@
 #ifndef IN_1_KX_36_H
 #define IN_1_KX_36_H 1
 
-/* $Id: kx_36.h,v 1.16.18.2 2005/04/29 00:16:42 marka Exp $ */
+/* $Id: kx_36.h,v 1.16.18.2 2005-04-29 00:16:42 marka Exp $ */
 
 /*! 
  *  \brief Per RFC2230 */

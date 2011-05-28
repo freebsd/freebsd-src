@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: fsaccess.c,v 1.6.18.2 2005/04/29 00:16:45 marka Exp $ */
+/* $Id: fsaccess.c,v 1.6.18.2 2005-04-29 00:16:45 marka Exp $ */
 
 /*! \file
  * \brief

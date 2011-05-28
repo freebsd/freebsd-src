@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ondestroy.h,v 1.8.18.2 2005/04/29 00:17:00 marka Exp $ */
+/* $Id: ondestroy.h,v 1.8.18.2 2005-04-29 00:17:00 marka Exp $ */
 
 #ifndef ISC_ONDESTROY_H
 #define ISC_ONDESTROY_H 1

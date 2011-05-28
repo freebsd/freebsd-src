@@ -16,7 +16,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: symtab.c,v 1.5.18.4 2007/09/13 23:46:26 tbox Exp $ */
+/* $Id: symtab.c,v 1.5.18.4 2007-09-13 23:46:26 tbox Exp $ */
 
 /*! \file */
 

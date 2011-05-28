@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rdatasetiter.c,v 1.12.18.2 2005/04/29 00:16:03 marka Exp $ */
+/* $Id: rdatasetiter.c,v 1.12.18.2 2005-04-29 00:16:03 marka Exp $ */
 
 /*! \file */
 

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lib.h,v 1.8.18.4 2005/09/20 04:33:48 marka Exp $ */
+/* $Id: lib.h,v 1.8.18.4 2005-09-20 04:33:48 marka Exp $ */
 
 #ifndef DNS_LIB_H
 #define DNS_LIB_H 1

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: errno2result.c,v 1.13.18.2 2005/04/29 00:17:07 marka Exp $ */
+/* $Id: errno2result.c,v 1.13.18.2 2005-04-29 00:17:07 marka Exp $ */
 
 /*! \file */
 

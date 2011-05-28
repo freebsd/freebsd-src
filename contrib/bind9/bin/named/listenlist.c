@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: listenlist.c,v 1.10.18.2 2005/04/29 00:15:22 marka Exp $ */
+/* $Id: listenlist.c,v 1.10.18.2 2005-04-29 00:15:22 marka Exp $ */
 
 /*! \file */
 

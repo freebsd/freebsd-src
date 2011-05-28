@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dst_openssl.h,v 1.1.4.3 2005/04/29 00:15:52 marka Exp $ */
+/* $Id: dst_openssl.h,v 1.1.4.3 2005-04-29 00:15:52 marka Exp $ */
 
 #ifndef DST_OPENSSL_H
 #define DST_OPENSSL_H 1

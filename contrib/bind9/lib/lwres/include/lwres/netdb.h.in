@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: netdb.h.in,v 1.35.18.4 2009/01/19 23:46:17 tbox Exp $ */
+/* $Id: netdb.h.in,v 1.35.18.4 2009-01-19 23:46:17 tbox Exp $ */
 
 /*! \file */
 

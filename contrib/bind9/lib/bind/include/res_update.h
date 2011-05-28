@@ -16,7 +16,7 @@
  */
 
 /*
- *	$Id: res_update.h,v 1.2.18.1 2005/04/27 05:00:49 sra Exp $
+ *	$Id: res_update.h,v 1.2.18.1 2005-04-27 05:00:49 sra Exp $
  */
 
 #ifndef __RES_UPDATE_H

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: check.c,v 1.44.18.45 2009/06/03 00:08:52 marka Exp $ */
+/* $Id: check.c,v 1.44.18.45 2009-06-03 00:08:52 marka Exp $ */
 
 /*! \file */
 

@@ -16,7 +16,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lib.h,v 1.4.18.2 2005/04/29 00:17:13 marka Exp $ */
+/* $Id: lib.h,v 1.4.18.2 2005-04-29 00:17:13 marka Exp $ */
 
 #ifndef ISCCC_LIB_H
 #define ISCCC_LIB_H 1

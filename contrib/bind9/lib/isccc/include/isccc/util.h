@@ -16,7 +16,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: util.h,v 1.4.18.2 2005/04/29 00:17:14 marka Exp $ */
+/* $Id: util.h,v 1.4.18.2 2005-04-29 00:17:14 marka Exp $ */
 
 #ifndef ISCCC_UTIL_H
 #define ISCCC_UTIL_H 1

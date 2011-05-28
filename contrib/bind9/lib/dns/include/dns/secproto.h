@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: secproto.h,v 1.10.18.2 2005/04/29 00:16:21 marka Exp $ */
+/* $Id: secproto.h,v 1.10.18.2 2005-04-29 00:16:21 marka Exp $ */
 
 #ifndef DNS_SECPROTO_H
 #define DNS_SECPROTO_H 1

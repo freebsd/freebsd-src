@@ -52,7 +52,7 @@
 /* BIND Id: gethnamaddr.c,v 8.15 1996/05/22 04:56:30 vixie Exp $ */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: lcl_ho.c,v 1.3.18.2 2006/03/10 00:20:08 marka Exp $";
+static const char rcsid[] = "$Id: lcl_ho.c,v 1.3.18.2 2006-03-10 00:20:08 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /* Imports. */

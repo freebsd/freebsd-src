@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: cache.c,v 1.57.18.20 2009/01/19 23:46:14 tbox Exp $ */
+/* $Id: cache.c,v 1.57.18.20 2009-01-19 23:46:14 tbox Exp $ */
 
 /*! \file */
 

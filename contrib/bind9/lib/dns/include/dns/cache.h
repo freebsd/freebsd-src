@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: cache.h,v 1.19.18.3 2005/08/23 02:31:38 marka Exp $ */
+/* $Id: cache.h,v 1.19.18.3 2005-08-23 02:31:38 marka Exp $ */
 
 #ifndef DNS_CACHE_H
 #define DNS_CACHE_H 1

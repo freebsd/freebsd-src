@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: random.c,v 1.21.18.4 2009/07/16 23:46:08 tbox Exp $ */
+/* $Id: random.c,v 1.21.18.4 2009-07-16 23:46:08 tbox Exp $ */
 
 /*! \file */
 

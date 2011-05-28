@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rootns.c,v 1.26.18.7 2008/02/05 23:46:09 tbox Exp $ */
+/* $Id: rootns.c,v 1.26.18.7 2008-02-05 23:46:09 tbox Exp $ */
 
 /*! \file */
 

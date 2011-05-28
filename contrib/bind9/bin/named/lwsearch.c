@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lwsearch.c,v 1.8.18.3 2005/07/12 01:22:17 marka Exp $ */
+/* $Id: lwsearch.c,v 1.8.18.3 2005-07-12 01:22:17 marka Exp $ */
 
 /*! \file */
 

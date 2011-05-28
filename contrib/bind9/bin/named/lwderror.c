@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lwderror.c,v 1.8.18.2 2005/04/29 00:15:24 marka Exp $ */
+/* $Id: lwderror.c,v 1.8.18.2 2005-04-29 00:15:24 marka Exp $ */
 
 /*! \file */
 

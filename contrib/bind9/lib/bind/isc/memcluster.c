@@ -24,7 +24,7 @@
 
 
 #if !defined(LINT) && !defined(CODECENTER)
-static const char rcsid[] = "$Id: memcluster.c,v 1.5.18.6 2006/08/30 23:30:35 marka Exp $";
+static const char rcsid[] = "$Id: memcluster.c,v 1.5.18.6 2006-08-30 23:30:35 marka Exp $";
 #endif /* not lint */
 
 #include "port_before.h"

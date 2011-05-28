@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: resource.c,v 1.12.18.8 2009/02/13 23:46:06 tbox Exp $ */
+/* $Id: resource.c,v 1.12.18.8 2009-02-13 23:46:06 tbox Exp $ */
 
 #include <config.h>
 

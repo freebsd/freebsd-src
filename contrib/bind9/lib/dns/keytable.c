@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: keytable.c,v 1.28.18.4 2005/12/05 00:00:03 marka Exp $ */
+/* $Id: keytable.c,v 1.28.18.4 2005-12-05 00:00:03 marka Exp $ */
 
 /*! \file */
 

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: getnameinfo.c,v 1.34.18.3 2005/04/29 00:17:18 marka Exp $ */
+/* $Id: getnameinfo.c,v 1.34.18.3 2005-04-29 00:17:18 marka Exp $ */
 
 /*! \file */
 

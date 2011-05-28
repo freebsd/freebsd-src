@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dnssectool.c,v 1.40.18.3 2005/07/01 03:55:28 marka Exp $ */
+/* $Id: dnssectool.c,v 1.40.18.3 2005-07-01 03:55:28 marka Exp $ */
 
 /*! \file */
 

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: key_25.c,v 1.47.18.2 2005/04/29 00:16:33 marka Exp $ */
+/* $Id: key_25.c,v 1.47.18.2 2005-04-29 00:16:33 marka Exp $ */
 
 /*
  * Reviewed: Wed Mar 15 16:47:10 PST 2000 by halley.

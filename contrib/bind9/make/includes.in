@@ -13,7 +13,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: includes.in,v 1.17.18.2 2005/06/04 06:23:47 jinmei Exp $
+# $Id: includes.in,v 1.17.18.2 2005-06-04 06:23:47 jinmei Exp $
 
 # Search for machine-generated header files in the build tree,
 # and for normal headers in the source tree (${top_srcdir}).

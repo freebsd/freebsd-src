@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: keyboard.h,v 1.7.18.2 2005/04/29 00:17:09 marka Exp $ */
+/* $Id: keyboard.h,v 1.7.18.2 2005-04-29 00:17:09 marka Exp $ */
 
 #ifndef ISC_KEYBOARD_H
 #define ISC_KEYBOARD_H 1

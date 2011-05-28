@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: compress.h,v 1.32.18.8 2009/01/19 23:46:15 tbox Exp $ */
+/* $Id: compress.h,v 1.32.18.8 2009-01-19 23:46:15 tbox Exp $ */
 
 #ifndef DNS_COMPRESS_H
 #define DNS_COMPRESS_H 1

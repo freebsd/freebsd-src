@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: bitstring.c,v 1.13.18.2 2005/04/29 00:16:44 marka Exp $ */
+/* $Id: bitstring.c,v 1.13.18.2 2005-04-29 00:16:44 marka Exp $ */
 
 /*! \file */
 

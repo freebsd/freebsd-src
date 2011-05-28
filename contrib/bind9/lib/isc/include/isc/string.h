@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: string.h,v 1.12.18.6 2007/09/13 05:04:01 each Exp $ */
+/* $Id: string.h,v 1.12.18.6 2007-09-13 05:04:01 each Exp $ */
 
 #ifndef ISC_STRING_H
 #define ISC_STRING_H 1

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: log.c,v 1.5.18.2 2005/04/29 00:17:15 marka Exp $ */
+/* $Id: log.c,v 1.5.18.2 2005-04-29 00:17:15 marka Exp $ */
 
 /*! \file */
 

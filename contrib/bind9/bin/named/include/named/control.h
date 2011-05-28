@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: control.h,v 1.14.18.8 2006/03/09 23:46:20 marka Exp $ */
+/* $Id: control.h,v 1.14.18.8 2006-03-09 23:46:20 marka Exp $ */
 
 #ifndef NAMED_CONTROL_H
 #define NAMED_CONTROL_H 1

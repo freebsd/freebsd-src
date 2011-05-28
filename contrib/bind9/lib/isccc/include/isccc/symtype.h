@@ -16,7 +16,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: symtype.h,v 1.3.18.2 2005/04/29 00:17:14 marka Exp $ */
+/* $Id: symtype.h,v 1.3.18.2 2005-04-29 00:17:14 marka Exp $ */
 
 #ifndef ISCCC_SYMTYPE_H
 #define ISCCC_SYMTYPE_H 1

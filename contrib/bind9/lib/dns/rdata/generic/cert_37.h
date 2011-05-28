@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: cert_37.h,v 1.16.18.2 2005/04/29 00:16:31 marka Exp $ */
+/* $Id: cert_37.h,v 1.16.18.2 2005-04-29 00:16:31 marka Exp $ */
 
 #ifndef GENERIC_CERT_37_H
 #define GENERIC_CERT_37_H 1

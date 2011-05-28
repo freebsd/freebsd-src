@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: check-tool.c,v 1.10.18.23 2009/09/24 21:38:50 jinmei Exp $ */
+/* $Id: check-tool.c,v 1.10.18.23 2009-09-24 21:38:50 jinmei Exp $ */
 
 /*! \file */
 

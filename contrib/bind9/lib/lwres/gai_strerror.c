@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: gai_strerror.c,v 1.16.18.4 2006/08/25 05:25:51 marka Exp $ */
+/* $Id: gai_strerror.c,v 1.16.18.4 2006-08-25 05:25:51 marka Exp $ */
 
 /*! \file gai_strerror.c
  * lwres_gai_strerror() returns an error message corresponding to an

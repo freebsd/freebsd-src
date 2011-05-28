@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: net.h,v 1.5.18.2 2005/04/29 00:17:23 marka Exp $ */
+/* $Id: net.h,v 1.5.18.2 2005-04-29 00:17:23 marka Exp $ */
 
 #ifndef LWRES_NET_H
 #define LWRES_NET_H 1

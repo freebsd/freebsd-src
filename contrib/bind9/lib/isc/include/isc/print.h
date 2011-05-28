@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: print.h,v 1.19.18.3 2005/06/08 02:07:56 marka Exp $ */
+/* $Id: print.h,v 1.19.18.3 2005-06-08 02:07:56 marka Exp $ */
 
 #ifndef ISC_PRINT_H
 #define ISC_PRINT_H 1

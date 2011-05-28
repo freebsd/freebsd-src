@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: event.h,v 1.27.18.3 2005/04/29 00:16:54 marka Exp $ */
+/* $Id: event.h,v 1.27.18.3 2005-04-29 00:16:54 marka Exp $ */
 
 #ifndef ISC_EVENT_H
 #define ISC_EVENT_H 1

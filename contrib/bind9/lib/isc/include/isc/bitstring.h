@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: bitstring.h,v 1.8.18.2 2005/04/29 00:16:53 marka Exp $ */
+/* $Id: bitstring.h,v 1.8.18.2 2005-04-29 00:16:53 marka Exp $ */
 
 #ifndef ISC_BITSTRING_H
 #define ISC_BITSTRING_H 1

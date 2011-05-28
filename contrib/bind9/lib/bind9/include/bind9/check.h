@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: check.h,v 1.2.18.4 2006/03/02 00:37:21 marka Exp $ */
+/* $Id: check.h,v 1.2.18.4 2006-03-02 00:37:21 marka Exp $ */
 
 #ifndef BIND9_CHECK_H
 #define BIND9_CHECK_H 1

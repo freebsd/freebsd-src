@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: getrrset.c,v 1.14.18.2 2005/04/29 00:17:18 marka Exp $ */
+/* $Id: getrrset.c,v 1.14.18.2 2005-04-29 00:17:18 marka Exp $ */
 
 /*! \file */
 

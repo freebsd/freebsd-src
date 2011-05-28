@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: bitncmp.c,v 1.2.18.2 2008/05/12 00:21:22 marka Exp $";
+static const char rcsid[] = "$Id: bitncmp.c,v 1.2.18.2 2008-05-12 00:21:22 marka Exp $";
 #endif
 
 #include "port_before.h"

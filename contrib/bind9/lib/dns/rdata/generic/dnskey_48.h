@@ -18,7 +18,7 @@
 #ifndef GENERIC_DNSKEY_48_H
 #define GENERIC_DNSKEY_48_H 1
 
-/* $Id: dnskey_48.h,v 1.3.20.2 2005/04/29 00:16:32 marka Exp $ */
+/* $Id: dnskey_48.h,v 1.3.20.2 2005-04-29 00:16:32 marka Exp $ */
 
 /*!
  *  \brief per RFC2535 */

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: opcode.h,v 1.2.18.2 2005/04/29 00:16:16 marka Exp $ */
+/* $Id: opcode.h,v 1.2.18.2 2005-04-29 00:16:16 marka Exp $ */
 
 #ifndef DNS_OPCODE_H
 #define DNS_OPCODE_H 1

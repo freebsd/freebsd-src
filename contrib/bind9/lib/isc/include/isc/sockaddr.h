@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: sockaddr.h,v 1.42.18.10 2009/01/19 23:46:16 tbox Exp $ */
+/* $Id: sockaddr.h,v 1.42.18.10 2009-01-19 23:46:16 tbox Exp $ */
 
 #ifndef ISC_SOCKADDR_H
 #define ISC_SOCKADDR_H 1

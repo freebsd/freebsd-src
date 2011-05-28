@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: event.c,v 1.17.18.2 2005/04/29 00:16:45 marka Exp $ */
+/* $Id: event.c,v 1.17.18.2 2005-04-29 00:16:45 marka Exp $ */
 
 /*!
  * \file

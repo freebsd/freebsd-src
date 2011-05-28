@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: byaddr.c,v 1.34.18.3 2005/04/29 00:15:49 marka Exp $ */
+/* $Id: byaddr.c,v 1.34.18.3 2005-04-29 00:15:49 marka Exp $ */
 
 /*! \file */
 

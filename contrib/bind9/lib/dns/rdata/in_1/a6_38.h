@@ -18,7 +18,7 @@
 #ifndef IN_1_A6_38_H
 #define IN_1_A6_38_H 1
 
-/* $Id: a6_38.h,v 1.20.18.2 2005/04/29 00:16:41 marka Exp $ */
+/* $Id: a6_38.h,v 1.20.18.2 2005-04-29 00:16:41 marka Exp $ */
 
 /*! 
  *  \brief Per RFC2874 */

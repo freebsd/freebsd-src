@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: error.h,v 1.14.18.2 2005/04/29 00:16:54 marka Exp $ */
+/* $Id: error.h,v 1.14.18.2 2005-04-29 00:16:54 marka Exp $ */
 
 #ifndef ISC_ERROR_H
 #define ISC_ERROR_H 1

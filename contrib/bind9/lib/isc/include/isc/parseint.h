@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: parseint.h,v 1.3.18.2 2005/04/29 00:17:00 marka Exp $ */
+/* $Id: parseint.h,v 1.3.18.2 2005-04-29 00:17:00 marka Exp $ */
 
 #ifndef ISC_PARSEINT_H
 #define ISC_PARSEINT_H 1

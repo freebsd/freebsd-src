@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lfsr.h,v 1.11.18.2 2005/04/29 00:16:56 marka Exp $ */
+/* $Id: lfsr.h,v 1.11.18.2 2005-04-29 00:16:56 marka Exp $ */
 
 #ifndef ISC_LFSR_H
 #define ISC_LFSR_H 1

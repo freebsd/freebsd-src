@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lib.c,v 1.11.18.3 2005/08/15 01:46:50 marka Exp $ */
+/* $Id: lib.c,v 1.11.18.3 2005-08-15 01:46:50 marka Exp $ */
 
 /*! \file */
 

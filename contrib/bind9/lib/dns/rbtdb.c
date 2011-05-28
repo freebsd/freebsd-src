@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rbtdb.c,v 1.196.18.64 2010/11/17 10:21:01 marka Exp $ */
+/* $Id: rbtdb.c,v 1.196.18.64 2010-11-17 10:21:01 marka Exp $ */
 
 /*! \file */
 

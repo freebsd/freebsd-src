@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: gethost.c,v 1.30.18.2 2005/04/29 00:17:17 marka Exp $ */
+/* $Id: gethost.c,v 1.30.18.2 2005-04-29 00:17:17 marka Exp $ */
 
 /*! \file */
 

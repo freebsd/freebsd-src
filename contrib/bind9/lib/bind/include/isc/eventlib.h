@@ -18,7 +18,7 @@
 /* eventlib.h - exported interfaces for eventlib
  * vix 09sep95 [initial]
  *
- * $Id: eventlib.h,v 1.3.18.3 2008/01/23 02:12:01 marka Exp $
+ * $Id: eventlib.h,v 1.3.18.3 2008-01-23 02:12:01 marka Exp $
  */
 
 #ifndef _EVENTLIB_H

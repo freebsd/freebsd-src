@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: view.c,v 1.126.18.18 2010/02/26 23:46:37 tbox Exp $ */
+/* $Id: view.c,v 1.126.18.18 2010-02-26 23:46:37 tbox Exp $ */
 
 /*! \file */
 

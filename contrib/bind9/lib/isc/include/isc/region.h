@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: region.h,v 1.19.18.2 2005/04/29 00:17:01 marka Exp $ */
+/* $Id: region.h,v 1.19.18.2 2005-04-29 00:17:01 marka Exp $ */
 
 #ifndef ISC_REGION_H
 #define ISC_REGION_H 1

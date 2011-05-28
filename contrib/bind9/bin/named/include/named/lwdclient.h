@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lwdclient.h,v 1.14.18.4 2009/01/19 23:46:14 tbox Exp $ */
+/* $Id: lwdclient.h,v 1.14.18.4 2009-01-19 23:46:14 tbox Exp $ */
 
 #ifndef NAMED_LWDCLIENT_H
 #define NAMED_LWDCLIENT_H 1

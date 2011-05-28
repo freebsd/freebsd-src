@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: os.h,v 1.6.18.2 2005/04/29 00:17:00 marka Exp $ */
+/* $Id: os.h,v 1.6.18.2 2005-04-29 00:17:00 marka Exp $ */
 
 #ifndef ISC_OS_H
 #define ISC_OS_H 1

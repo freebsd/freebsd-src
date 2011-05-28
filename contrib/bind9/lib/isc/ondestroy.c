@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ondestroy.c,v 1.12.18.2 2005/04/29 00:16:48 marka Exp $ */
+/* $Id: ondestroy.c,v 1.12.18.2 2005-04-29 00:16:48 marka Exp $ */
 
 /*! \file */
 

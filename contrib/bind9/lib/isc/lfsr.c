@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lfsr.c,v 1.14.18.4 2005/10/14 01:28:29 marka Exp $ */
+/* $Id: lfsr.c,v 1.14.18.4 2005-10-14 01:28:29 marka Exp $ */
 
 /*! \file */
 

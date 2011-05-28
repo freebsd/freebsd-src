@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: getnetgrent.c,v 1.3.18.2 2008/02/27 00:08:30 marka Exp $";
+static const char rcsid[] = "$Id: getnetgrent.c,v 1.3.18.2 2008-02-27 00:08:30 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /* Imports */

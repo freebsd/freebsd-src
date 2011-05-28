@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: db.c,v 1.74.18.8 2009/04/29 23:46:04 tbox Exp $ */
+/* $Id: db.c,v 1.74.18.8 2009-04-29 23:46:04 tbox Exp $ */
 
 /*! \file */
 

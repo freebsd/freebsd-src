@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: peer.c,v 1.19.18.8 2006/02/28 03:10:48 marka Exp $ */
+/* $Id: peer.c,v 1.19.18.8 2006-02-28 03:10:48 marka Exp $ */
 
 /*! \file */
 

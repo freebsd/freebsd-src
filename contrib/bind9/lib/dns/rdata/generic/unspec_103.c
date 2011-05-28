@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: unspec_103.c,v 1.33 2004/03/05 05:10:18 marka Exp $ */
+/* $Id: unspec_103.c,v 1.33 2004-03-05 05:10:18 marka Exp $ */
 
 #ifndef RDATA_GENERIC_UNSPEC_103_C
 #define RDATA_GENERIC_UNSPEC_103_C

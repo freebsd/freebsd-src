@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: nsec.c,v 1.5.20.4 2009/01/06 23:45:57 tbox Exp $ */
+/* $Id: nsec.c,v 1.5.20.4 2009-01-06 23:45:57 tbox Exp $ */
 
 /*! \file */
 

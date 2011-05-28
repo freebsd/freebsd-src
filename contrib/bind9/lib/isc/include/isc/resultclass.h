@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: resultclass.h,v 1.12.18.2 2005/04/29 00:17:02 marka Exp $ */
+/* $Id: resultclass.h,v 1.12.18.2 2005-04-29 00:17:02 marka Exp $ */
 
 #ifndef ISC_RESULTCLASS_H
 #define ISC_RESULTCLASS_H 1

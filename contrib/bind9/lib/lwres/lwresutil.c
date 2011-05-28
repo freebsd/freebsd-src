@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lwresutil.c,v 1.30.18.2 2005/04/29 00:17:20 marka Exp $ */
+/* $Id: lwresutil.c,v 1.30.18.2 2005-04-29 00:17:20 marka Exp $ */
 
 /*! \file */
 

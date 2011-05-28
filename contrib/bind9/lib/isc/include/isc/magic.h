@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: magic.h,v 1.12.18.2 2005/04/29 00:16:59 marka Exp $ */
+/* $Id: magic.h,v 1.12.18.2 2005-04-29 00:16:59 marka Exp $ */
 
 #ifndef ISC_MAGIC_H
 #define ISC_MAGIC_H 1

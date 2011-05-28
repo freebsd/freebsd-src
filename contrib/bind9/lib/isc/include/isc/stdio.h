@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: stdio.h,v 1.7.18.2 2005/04/29 00:17:03 marka Exp $ */
+/* $Id: stdio.h,v 1.7.18.2 2005-04-29 00:17:03 marka Exp $ */
 
 #ifndef ISC_STDIO_H
 #define ISC_STDIO_H 1

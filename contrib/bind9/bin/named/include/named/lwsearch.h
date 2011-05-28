@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lwsearch.h,v 1.5.18.2 2005/04/29 00:15:36 marka Exp $ */
+/* $Id: lwsearch.h,v 1.5.18.2 2005-04-29 00:15:36 marka Exp $ */
 
 #ifndef NAMED_LWSEARCH_H
 #define NAMED_LWSEARCH_H 1

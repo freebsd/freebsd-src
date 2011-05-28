@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: taskpool.c,v 1.12.18.3 2005/11/30 03:44:39 marka Exp $ */
+/* $Id: taskpool.c,v 1.12.18.3 2005-11-30 03:44:39 marka Exp $ */
 
 /*! \file */
 

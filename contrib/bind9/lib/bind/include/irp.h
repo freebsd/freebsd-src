@@ -16,7 +16,7 @@
  */
 
 /*
- * $Id: irp.h,v 1.3.18.1 2005/04/27 05:00:49 sra Exp $
+ * $Id: irp.h,v 1.3.18.1 2005-04-27 05:00:49 sra Exp $
  */
 
 #ifndef _IRP_H_INCLUDED

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rdataslab.h,v 1.25.18.2 2005/04/29 00:16:19 marka Exp $ */
+/* $Id: rdataslab.h,v 1.25.18.2 2005-04-29 00:16:19 marka Exp $ */
 
 #ifndef DNS_RDATASLAB_H
 #define DNS_RDATASLAB_H 1

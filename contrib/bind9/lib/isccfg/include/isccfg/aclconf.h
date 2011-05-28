@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: aclconf.h,v 1.2.2.5 2006/03/02 00:37:22 marka Exp $ */
+/* $Id: aclconf.h,v 1.2.2.5 2006-03-02 00:37:22 marka Exp $ */
 
 #ifndef ISCCFG_ACLCONF_H
 #define ISCCFG_ACLCONF_H 1

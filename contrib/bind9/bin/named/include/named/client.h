@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: client.h,v 1.69.18.11 2009/01/19 23:46:14 tbox Exp $ */
+/* $Id: client.h,v 1.69.18.11 2009-01-19 23:46:14 tbox Exp $ */
 
 #ifndef NAMED_CLIENT_H
 #define NAMED_CLIENT_H 1

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: app.c,v 1.50.18.8 2008/10/15 03:41:17 marka Exp $ */
+/* $Id: app.c,v 1.50.18.8 2008-10-15 03:41:17 marka Exp $ */
 
 /*! \file */
 

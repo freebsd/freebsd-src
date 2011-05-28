@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: eventclass.h,v 1.14.18.2 2005/04/29 00:16:54 marka Exp $ */
+/* $Id: eventclass.h,v 1.14.18.2 2005-04-29 00:16:54 marka Exp $ */
 
 #ifndef ISC_EVENTCLASS_H
 #define ISC_EVENTCLASS_H 1

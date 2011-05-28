@@ -16,7 +16,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: symtab.h,v 1.3.18.2 2005/04/29 00:17:14 marka Exp $ */
+/* $Id: symtab.h,v 1.3.18.2 2005-04-29 00:17:14 marka Exp $ */
 
 #ifndef ISCCC_SYMTAB_H
 #define ISCCC_SYMTAB_H 1

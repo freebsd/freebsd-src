@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lwbuffer.h,v 1.16.18.2 2005/04/29 00:17:22 marka Exp $ */
+/* $Id: lwbuffer.h,v 1.16.18.2 2005-04-29 00:17:22 marka Exp $ */
 
 
 /*! \file lwbuffer.h

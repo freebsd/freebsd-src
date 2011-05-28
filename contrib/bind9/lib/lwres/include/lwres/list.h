@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: list.h,v 1.8.18.2 2005/04/29 00:17:22 marka Exp $ */
+/* $Id: list.h,v 1.8.18.2 2005-04-29 00:17:22 marka Exp $ */
 
 #ifndef LWRES_LIST_H
 #define LWRES_LIST_H 1

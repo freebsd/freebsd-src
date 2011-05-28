@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: tsig.h,v 1.43.18.4 2006/01/27 23:57:44 marka Exp $ */
+/* $Id: tsig.h,v 1.43.18.4 2006-01-27 23:57:44 marka Exp $ */
 
 #ifndef DNS_TSIG_H
 #define DNS_TSIG_H 1

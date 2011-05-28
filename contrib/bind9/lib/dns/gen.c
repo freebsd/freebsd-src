@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: gen.c,v 1.73.18.6 2006/10/02 06:36:43 marka Exp $ */
+/* $Id: gen.c,v 1.73.18.6 2006-10-02 06:36:43 marka Exp $ */
 
 /*! \file */
 

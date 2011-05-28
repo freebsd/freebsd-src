@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: update.h,v 1.9.18.2 2005/04/29 00:15:39 marka Exp $ */
+/* $Id: update.h,v 1.9.18.2 2005-04-29 00:15:39 marka Exp $ */
 
 #ifndef NAMED_UPDATE_H
 #define NAMED_UPDATE_H 1

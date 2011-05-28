@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: thread.c,v 1.12.18.3 2005/04/29 00:17:05 marka Exp $ */
+/* $Id: thread.c,v 1.12.18.3 2005-04-29 00:17:05 marka Exp $ */
 
 /*! \file */
 

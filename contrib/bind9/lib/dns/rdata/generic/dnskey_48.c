@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dnskey_48.c,v 1.4.20.2 2005/04/29 00:16:31 marka Exp $ */
+/* $Id: dnskey_48.c,v 1.4.20.2 2005-04-29 00:16:31 marka Exp $ */
 
 /*
  * Reviewed: Wed Mar 15 16:47:10 PST 2000 by halley.

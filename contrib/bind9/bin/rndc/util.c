@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: util.c,v 1.3.18.2 2005/04/29 00:15:40 marka Exp $ */
+/* $Id: util.c,v 1.3.18.2 2005-04-29 00:15:40 marka Exp $ */
 
 /*! \file */
 

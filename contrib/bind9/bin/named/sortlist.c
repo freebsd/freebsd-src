@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: sortlist.c,v 1.9.18.4 2006/03/02 00:37:21 marka Exp $ */
+/* $Id: sortlist.c,v 1.9.18.4 2006-03-02 00:37:21 marka Exp $ */
 
 /*! \file */
 

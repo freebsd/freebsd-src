@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: log.c,v 1.37.18.9 2009/09/24 21:38:50 jinmei Exp $ */
+/* $Id: log.c,v 1.37.18.9 2009-09-24 21:38:50 jinmei Exp $ */
 
 /*! \file */
 

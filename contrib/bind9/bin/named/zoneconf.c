@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: zoneconf.c,v 1.110.18.23 2006/05/16 03:39:57 marka Exp $ */
+/* $Id: zoneconf.c,v 1.110.18.23 2006-05-16 03:39:57 marka Exp $ */
 
 /*% */
 

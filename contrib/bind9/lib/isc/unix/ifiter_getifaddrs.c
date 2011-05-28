@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ifiter_getifaddrs.c,v 1.4.18.7 2009/09/24 23:46:07 tbox Exp $ */
+/* $Id: ifiter_getifaddrs.c,v 1.4.18.7 2009-09-24 23:46:07 tbox Exp $ */
 
 /*! \file
  * \brief

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: types.h,v 1.21.18.2 2005/04/29 00:15:38 marka Exp $ */
+/* $Id: types.h,v 1.21.18.2 2005-04-29 00:15:38 marka Exp $ */
 
 #ifndef NAMED_TYPES_H
 #define NAMED_TYPES_H 1

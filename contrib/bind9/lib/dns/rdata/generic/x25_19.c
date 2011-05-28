@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: x25_19.c,v 1.35.18.2 2005/04/29 00:16:40 marka Exp $ */
+/* $Id: x25_19.c,v 1.35.18.2 2005-04-29 00:16:40 marka Exp $ */
 
 /* Reviewed: Thu Mar 16 16:15:57 PST 2000 by bwelling */
 

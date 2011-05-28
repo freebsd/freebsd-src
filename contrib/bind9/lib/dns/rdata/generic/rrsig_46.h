@@ -18,7 +18,7 @@
 #ifndef GENERIC_DNSSIG_46_H
 #define GENERIC_DNSSIG_46_H 1
 
-/* $Id: rrsig_46.h,v 1.3.20.2 2005/04/29 00:16:39 marka Exp $ */
+/* $Id: rrsig_46.h,v 1.3.20.2 2005-04-29 00:16:39 marka Exp $ */
 
 /*!
  *  \brief Per RFC2535 */

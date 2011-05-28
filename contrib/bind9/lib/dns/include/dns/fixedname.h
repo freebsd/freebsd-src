@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: fixedname.h,v 1.13.18.2 2005/04/29 00:16:13 marka Exp $ */
+/* $Id: fixedname.h,v 1.13.18.2 2005-04-29 00:16:13 marka Exp $ */
 
 #ifndef DNS_FIXEDNAME_H
 #define DNS_FIXEDNAME_H 1

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: masterdump.h,v 1.31.14.4 2005/09/01 03:04:28 marka Exp $ */
+/* $Id: masterdump.h,v 1.31.14.4 2005-09-01 03:04:28 marka Exp $ */
 
 #ifndef DNS_MASTERDUMP_H
 #define DNS_MASTERDUMP_H 1

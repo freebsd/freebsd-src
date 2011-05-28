@@ -16,7 +16,7 @@
  * IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dst_internal.h,v 1.1.6.5 2006/01/27 23:57:44 marka Exp $ */
+/* $Id: dst_internal.h,v 1.1.6.5 2006-01-27 23:57:44 marka Exp $ */
 
 #ifndef DST_DST_INTERNAL_H
 #define DST_DST_INTERNAL_H 1

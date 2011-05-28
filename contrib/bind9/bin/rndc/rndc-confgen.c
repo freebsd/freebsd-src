@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rndc-confgen.c,v 1.18.18.5 2008/10/15 23:46:06 tbox Exp $ */
+/* $Id: rndc-confgen.c,v 1.18.18.5 2008-10-15 23:46:06 tbox Exp $ */
 
 /*! \file */
 

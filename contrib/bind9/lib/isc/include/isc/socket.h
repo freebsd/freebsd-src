@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: socket.h,v 1.57.18.17 2009/01/19 23:46:16 tbox Exp $ */
+/* $Id: socket.h,v 1.57.18.17 2009-01-19 23:46:16 tbox Exp $ */
 
 #ifndef ISC_SOCKET_H
 #define ISC_SOCKET_H 1

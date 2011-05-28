@@ -16,7 +16,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: events.h,v 1.3.18.2 2005/04/29 00:17:13 marka Exp $ */
+/* $Id: events.h,v 1.3.18.2 2005-04-29 00:17:13 marka Exp $ */
 
 #ifndef ISCCC_EVENTS_H
 #define ISCCC_EVENTS_H 1

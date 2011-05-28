@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ifiter_sysctl.c,v 1.20.18.3 2005/04/27 05:02:35 sra Exp $ */
+/* $Id: ifiter_sysctl.c,v 1.20.18.3 2005-04-27 05:02:35 sra Exp $ */
 
 /*! \file
  * \brief

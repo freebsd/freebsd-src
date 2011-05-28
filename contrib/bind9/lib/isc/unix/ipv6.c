@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ipv6.c,v 1.8.18.4 2006/08/25 05:25:51 marka Exp $ */
+/* $Id: ipv6.c,v 1.8.18.4 2006-08-25 05:25:51 marka Exp $ */
 
 /*! \file */
 

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ns_2.c,v 1.44 2004/03/05 05:10:15 marka Exp $ */
+/* $Id: ns_2.c,v 1.44 2004-03-05 05:10:15 marka Exp $ */
 
 /* Reviewed: Wed Mar 15 18:15:00 PST 2000 by bwelling */
 

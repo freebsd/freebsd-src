@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: xfrin.c,v 1.135.18.23 2008/09/25 04:15:52 marka Exp $ */
+/* $Id: xfrin.c,v 1.135.18.23 2008-09-25 04:15:52 marka Exp $ */
 
 /*! \file */
 

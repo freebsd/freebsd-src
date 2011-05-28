@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: aaaa_28.c,v 1.41.18.2 2005/04/29 00:16:41 marka Exp $ */
+/* $Id: aaaa_28.c,v 1.41.18.2 2005-04-29 00:16:41 marka Exp $ */
 
 /* Reviewed: Thu Mar 16 16:52:50 PST 2000 by bwelling */
 

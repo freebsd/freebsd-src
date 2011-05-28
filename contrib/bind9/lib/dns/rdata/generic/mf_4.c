@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: mf_4.c,v 1.43 2004/03/05 05:10:14 marka Exp $ */
+/* $Id: mf_4.c,v 1.43 2004-03-05 05:10:14 marka Exp $ */
 
 /* reviewed: Wed Mar 15 17:47:33 PST 2000 by brister */
 

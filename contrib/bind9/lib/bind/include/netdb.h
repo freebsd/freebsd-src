@@ -86,7 +86,7 @@
 
 /*
  *      @(#)netdb.h	8.1 (Berkeley) 6/2/93
- *	$Id: netdb.h,v 1.15.18.7 2008/02/28 05:49:37 marka Exp $
+ *	$Id: netdb.h,v 1.15.18.7 2008-02-28 05:49:37 marka Exp $
  */
 
 #ifndef _NETDB_H_

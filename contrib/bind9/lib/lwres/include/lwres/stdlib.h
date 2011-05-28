@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: stdlib.h,v 1.2.2.1 2005/06/08 02:08:01 marka Exp $ */
+/* $Id: stdlib.h,v 1.2.2.1 2005-06-08 02:08:01 marka Exp $ */
 
 #ifndef LWRES_STDLIB_H
 #define LWRES_STDLIB_H 1

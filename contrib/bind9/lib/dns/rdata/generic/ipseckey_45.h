@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ipseckey_45.h,v 1.2.2.1 2005/07/07 03:17:36 marka Exp $ */
+/* $Id: ipseckey_45.h,v 1.2.2.1 2005-07-07 03:17:36 marka Exp $ */
 
 #ifndef GENERIC_IPSECKEY_45_H
 #define GENERIC_IPSECKEY_45_H 1

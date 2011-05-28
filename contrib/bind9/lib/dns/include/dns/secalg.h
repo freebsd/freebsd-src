@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: secalg.h,v 1.13.18.2 2005/04/29 00:16:21 marka Exp $ */
+/* $Id: secalg.h,v 1.13.18.2 2005-04-29 00:16:21 marka Exp $ */
 
 #ifndef DNS_SECALG_H
 #define DNS_SECALG_H 1

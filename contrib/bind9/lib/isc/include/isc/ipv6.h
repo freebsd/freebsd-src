@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ipv6.h,v 1.20.18.2 2005/04/29 00:16:56 marka Exp $ */
+/* $Id: ipv6.h,v 1.20.18.2 2005-04-29 00:16:56 marka Exp $ */
 
 #ifndef ISC_IPV6_H
 #define ISC_IPV6_H 1

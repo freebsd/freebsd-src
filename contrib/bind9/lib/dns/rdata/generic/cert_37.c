@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: cert_37.c,v 1.46.18.2 2005/04/29 00:16:30 marka Exp $ */
+/* $Id: cert_37.c,v 1.46.18.2 2005-04-29 00:16:30 marka Exp $ */
 
 /* Reviewed: Wed Mar 15 21:14:32 EST 2000 by tale */
 

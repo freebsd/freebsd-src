@@ -18,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: named.docbook,v 1.7.18.14 2008/08/21 23:46:01 tbox Exp $ -->
+<!-- $Id: named.docbook,v 1.7.18.14 2008-08-21 23:46:01 tbox Exp $ -->
 <refentry id="man.named">
   <refentryinfo>
     <date>June 30, 2000</date>

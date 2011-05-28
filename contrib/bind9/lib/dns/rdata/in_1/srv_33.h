@@ -18,7 +18,7 @@
 #ifndef IN_1_SRV_33_H
 #define IN_1_SRV_33_H 1
 
-/* $Id: srv_33.h,v 1.15.18.2 2005/04/29 00:16:43 marka Exp $ */
+/* $Id: srv_33.h,v 1.15.18.2 2005-04-29 00:16:43 marka Exp $ */
 
 /* Reviewed: Fri Mar 17 13:01:00 PST 2000 by bwelling */
 

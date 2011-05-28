@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: resolver.c,v 1.284.18.103 2010/06/23 23:45:21 tbox Exp $ */
+/* $Id: resolver.c,v 1.284.18.103 2010-06-23 23:45:21 tbox Exp $ */
 
 /*! \file */
 

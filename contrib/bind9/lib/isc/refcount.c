@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: refcount.c,v 1.2.2.2 2005/07/25 00:51:46 marka Exp $ */
+/* $Id: refcount.c,v 1.2.2.2 2005-07-25 00:51:46 marka Exp $ */
 
 #include <config.h>
 

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: nxt_30.c,v 1.59.18.2 2005/04/29 00:16:38 marka Exp $ */
+/* $Id: nxt_30.c,v 1.59.18.2 2005-04-29 00:16:38 marka Exp $ */
 
 /* reviewed: Wed Mar 15 18:21:15 PST 2000 by brister */
 

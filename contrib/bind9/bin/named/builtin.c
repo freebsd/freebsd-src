@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: builtin.c,v 1.5.18.5 2005/08/23 04:12:38 marka Exp $ */
+/* $Id: builtin.c,v 1.5.18.5 2005-08-23 04:12:38 marka Exp $ */
 
 /*! \file
  * \brief

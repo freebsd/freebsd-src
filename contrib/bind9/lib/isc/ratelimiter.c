@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ratelimiter.c,v 1.21.18.2 2005/04/29 00:16:49 marka Exp $ */
+/* $Id: ratelimiter.c,v 1.21.18.2 2005-04-29 00:16:49 marka Exp $ */
 
 /*! \file */
 

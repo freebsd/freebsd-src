@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: heap.h,v 1.17.18.5 2009/01/19 23:46:16 tbox Exp $ */
+/* $Id: heap.h,v 1.17.18.5 2009-01-19 23:46:16 tbox Exp $ */
 
 #ifndef ISC_HEAP_H
 #define ISC_HEAP_H 1

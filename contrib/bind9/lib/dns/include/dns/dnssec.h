@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dnssec.h,v 1.26.18.2 2005/04/29 00:16:12 marka Exp $ */
+/* $Id: dnssec.h,v 1.26.18.2 2005-04-29 00:16:12 marka Exp $ */
 
 #ifndef DNS_DNSSEC_H
 #define DNS_DNSSEC_H 1

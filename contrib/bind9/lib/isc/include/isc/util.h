@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: util.h,v 1.24.18.2 2005/04/29 00:17:04 marka Exp $ */
+/* $Id: util.h,v 1.24.18.2 2005-04-29 00:17:04 marka Exp $ */
 
 #ifndef ISC_UTIL_H
 #define ISC_UTIL_H 1

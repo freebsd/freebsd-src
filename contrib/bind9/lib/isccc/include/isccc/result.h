@@ -16,7 +16,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: result.h,v 1.5.18.2 2005/04/29 00:17:14 marka Exp $ */
+/* $Id: result.h,v 1.5.18.2 2005-04-29 00:17:14 marka Exp $ */
 
 #ifndef ISCCC_RESULT_H
 #define ISCCC_RESULT_H 1

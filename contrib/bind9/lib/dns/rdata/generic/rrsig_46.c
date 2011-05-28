@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rrsig_46.c,v 1.5.18.3 2005/04/29 00:16:39 marka Exp $ */
+/* $Id: rrsig_46.c,v 1.5.18.3 2005-04-29 00:16:39 marka Exp $ */
 
 /* Reviewed: Fri Mar 17 09:05:02 PST 2000 by gson */
 

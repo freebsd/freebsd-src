@@ -16,7 +16,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ccmsg.c,v 1.5.18.2 2005/04/29 00:17:11 marka Exp $ */
+/* $Id: ccmsg.c,v 1.5.18.2 2005-04-29 00:17:11 marka Exp $ */
 
 /*! \file */
 

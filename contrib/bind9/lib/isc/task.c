@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: task.c,v 1.91.18.6 2006/01/04 23:50:23 marka Exp $ */
+/* $Id: task.c,v 1.91.18.6 2006-01-04 23:50:23 marka Exp $ */
 
 /*! \file
  * \author Principal Author: Bob Halley

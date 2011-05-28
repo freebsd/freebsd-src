@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: bufferlist.h,v 1.11.18.2 2005/04/29 00:16:53 marka Exp $ */
+/* $Id: bufferlist.h,v 1.11.18.2 2005-04-29 00:16:53 marka Exp $ */
 
 #ifndef ISC_BUFFERLIST_H
 #define ISC_BUFFERLIST_H 1

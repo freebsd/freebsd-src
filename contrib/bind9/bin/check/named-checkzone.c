@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: named-checkzone.c,v 1.29.18.24 2009/05/29 02:19:20 marka Exp $ */
+/* $Id: named-checkzone.c,v 1.29.18.24 2009-05-29 02:19:20 marka Exp $ */
 
 /*! \file */
 

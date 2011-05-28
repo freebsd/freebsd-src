@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lib.h,v 1.8.18.2 2005/04/29 00:16:58 marka Exp $ */
+/* $Id: lib.h,v 1.8.18.2 2005-04-29 00:16:58 marka Exp $ */
 
 #ifndef ISC_LIB_H
 #define ISC_LIB_H 1

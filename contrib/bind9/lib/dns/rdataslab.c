@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rdataslab.c,v 1.35.18.12 2010/02/26 23:46:36 tbox Exp $ */
+/* $Id: rdataslab.c,v 1.35.18.12 2010-02-26 23:46:36 tbox Exp $ */
 
 /*! \file */
 
