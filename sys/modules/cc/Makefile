@@ -1,5 +1,5 @@
 # $FreeBSD$
 
-SUBDIR=
+SUBDIR=	cc_cubic
 
 .include <bsd.subdir.mk>
