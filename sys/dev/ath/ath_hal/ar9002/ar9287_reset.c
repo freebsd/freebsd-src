@@ -185,6 +185,7 @@ ar9287SetPowerPerRateTable(struct ath_hal *ah,
 		break;
 	case 2:
 		scaledPower -= REDUCE_SCALED_POWER_BY_TWO_CHAIN;
+		break;
 	default:
 		return AH_FALSE; /* Unsupported number of chains */
 	}
