@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: print.c,v 1.10 2007/06/19 23:47:22 tbox Exp $ */
+/* $Id: print.c,v 1.10 2007-06-19 23:47:22 tbox Exp $ */
 
 #include <config.h>
 

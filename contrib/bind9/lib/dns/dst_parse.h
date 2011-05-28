@@ -29,7 +29,7 @@
  * IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dst_parse.h,v 1.11 2008/05/15 00:50:26 each Exp $ */
+/* $Id: dst_parse.h,v 1.11 2008-05-15 00:50:26 each Exp $ */
 
 /*! \file */
 #ifndef DST_DST_PARSE_H

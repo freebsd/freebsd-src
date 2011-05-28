@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: update.h,v 1.13 2007/06/19 23:46:59 tbox Exp $ */
+/* $Id: update.h,v 1.13 2007-06-19 23:46:59 tbox Exp $ */
 
 #ifndef NAMED_UPDATE_H
 #define NAMED_UPDATE_H 1
