@@ -240,6 +240,8 @@
                     fwimage
                     ..
                 ..
+                khelp
+                ..
                 syscall
                     module
                     ..
