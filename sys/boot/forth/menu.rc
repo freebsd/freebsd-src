@@ -1,0 +1,76 @@
+\ Menu.rc
+\ $FreeBSD$
+\
+\ Load required Forth modules
+include /boot/version.4th
+include /boot/brand.4th
+include /boot/menu.4th
+include /boot/menu-commands.4th
+include /boot/shortcuts.4th
+
+\ Screen prep
+clear         \ clear the screen (see `screen.4th')
+print_version \ print version string (bottom-right; see `version.4th')
+draw-beastie  \ draw freebsd mascot (on right; see `beastie.4th')
+draw-brand    \ draw the FreeBSD title (top-left; see `brand.4th')
+menu-init     \ initialize the menu area (see `menu.4th')
+
+\ Initialize main menu constructs (see `menu.4th')
+\ NOTE: To use the `ansi' variants, add `loader_color=1' to loader.conf(5)
+
+set menu_caption[1]="Boot [ENTER]"
+set menu_command[1]="boot"
+set ansi_caption[1]="[1mB[37moot [1m[ENTER][37m"
+set menu_keycode[1]="98"
+
+set menu_caption[2]="[Esc]ape to loader prompt"
+set menu_command[2]="goto_prompt"
+set menu_keycode[2]="27"
+set ansi_caption[2]="[1mEsc[37mape to loader prompt"
+
+\ Enable built-in "Reboot" trailing menuitem
+\ NOTE: appears before menu_options if configured
+\ 
+set menu_reboot
+
+\ Enable "Options:" separator. When set to a numerical value (1-8), a visual
+\ separator is inserted before that menuitem number.
+\ 
+set menu_options=4
+
+set menu_caption[4]="[A]CPI Support: Disabled"
+set toggled_text[4]="[A]CPI Support: Enabled"
+set menu_command[4]="toggle_acpi"
+set menu_keycode[4]="97"
+set menu_acpi=4
+set ansi_caption[4]="[1mA[37mCPI Support: [34;1mDisabled[37m"
+set toggled_ansi[4]="[1mA[37mCPI Support: [32mEnabled[37m"
+
+set menu_caption[5]="Boot Safe [M]ode: NO"
+set toggled_text[5]="Boot Safe [M]ode: YES"
+set menu_command[5]="toggle_safemode"
+set menu_keycode[5]="109"
+set ansi_caption[5]="Boot Safe [1mM[37mode: [34;1mNO[37m"
+set toggled_ansi[5]="Boot Safe [1mM[37mode: [32mYES[37m"
+
+set menu_caption[6]="Boot [S]ingle User: NO"
+set toggled_text[6]="Boot [S]ingle User: YES"
+set menu_command[6]="toggle_singleuser"
+set menu_keycode[6]="115"
+set ansi_caption[6]="Boot [1mS[37mingle User: [34;1mNO[37m"
+set toggled_ansi[6]="Boot [1mS[37mingle User: [32mYES[37m"
+
+set menu_caption[7]="Boot [V]erbose: NO"
+set toggled_text[7]="Boot [V]erbose: YES"
+set menu_command[7]="toggle_verbose"
+set menu_keycode[7]="118"
+set ansi_caption[7]="Boot [1mV[37merbose: [34;1mNO[37m"
+set toggled_ansi[7]="Boot [1mV[37merbose: [32mYES[37m"
+
+\ Enable automatic booting (add ``autoboot_delay=N'' to loader.conf(5) to
+\ customize the timeout; default is 10-seconds)
+\ 
+set menu_timeout_command="boot"
+
+\ Display the main menu (see `menu.4th')
+menu-display
