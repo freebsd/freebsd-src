@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 #include <powerpc/powermac/macgpiovar.h>
+#include <powerpc/powermac/powermac_thermal.h>
 
 #include "clock_if.h"
 #include "iicbus_if.h"
@@ -69,19 +70,19 @@ struct smu_cmd {
 STAILQ_HEAD(smu_cmdq, smu_cmd);
 
 struct smu_fan {
+	struct pmac_fan fan;
+	device_t dev;
 	cell_t	reg;
-	cell_t	min_rpm;
-	cell_t	max_rpm;
-	cell_t	unmanaged_rpm;
-	char	location[32];
 
 	int	old_style;
 	int	setpoint;
 };
 
 struct smu_sensor {
+	struct pmac_therm therm;
+	device_t dev;
+
 	cell_t	reg;
-	char	location[32];
 	enum {
 		SMU_CURRENT_SENSOR,
 		SMU_VOLTAGE_SENSOR,
@@ -131,10 +132,6 @@ struct smu_softc {
 	uint16_t	sc_slots_pow_scale;
 	int16_t		sc_slots_pow_offset;
 
-	/* Thermal management parameters */
-	int		sc_target_temp;		/* Default 55 C */
-	int		sc_critical_temp;	/* Default 90 C */
-
 	struct cdev 	*sc_leddev;
 };
 
@@ -161,8 +158,6 @@ static int	smu_get_datablock(device_t dev, int8_t id, uint8_t *buf,
 static void	smu_attach_i2c(device_t dev, phandle_t i2croot);
 static void	smu_attach_fans(device_t dev, phandle_t fanroot);
 static void	smu_attach_sensors(device_t dev, phandle_t sensroot);
-static void	smu_fan_management_proc(void *xdev);
-static void	smu_manage_fans(device_t smu);
 static void	smu_set_sleepled(void *xdev, int onoff);
 static int	smu_server_mode(SYSCTL_HANDLER_ARGS);
 static void	smu_doorbell_intr(void *xdev);
@@ -347,24 +342,6 @@ smu_attach(device_t dev)
 	smu_get_datablock(dev, SMU_SLOTPW_CAL, data, sizeof(data));
 	sc->sc_slots_pow_scale = (data[4] << 8) + data[5];
 	sc->sc_slots_pow_offset = (data[6] << 8) + data[7];
-
-	/*
-	 * Set up simple-minded thermal management.
-	 */
-	sc->sc_target_temp = 55;
-	sc->sc_critical_temp = 90;
-
-	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
-	    "target_temp", CTLTYPE_INT | CTLFLAG_RW, &sc->sc_target_temp,
-	    sizeof(int), "Target temperature (C)");
-	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
-	    "critical_temp", CTLTYPE_INT | CTLFLAG_RW,
-	    &sc->sc_critical_temp, sizeof(int), "Critical temperature (C)");
-
-	kproc_create(smu_fan_management_proc, dev, &sc->sc_fanmgt_proc,
-	    RFHIGHPID, 0, "smu_thermal");
 
 	/*
 	 * Set up LED interface
@@ -658,8 +635,9 @@ doorbell_attach(device_t dev)
  */
 
 static int
-smu_fan_set_rpm(device_t smu, struct smu_fan *fan, int rpm)
+smu_fan_set_rpm(struct smu_fan *fan, int rpm)
 {
+	device_t smu = fan->dev;
 	struct smu_cmd cmd;
 	int error;
 
@@ -667,8 +645,8 @@ smu_fan_set_rpm(device_t smu, struct smu_fan *fan, int rpm)
 	error = EIO;
 
 	/* Clamp to allowed range */
-	rpm = max(fan->min_rpm, rpm);
-	rpm = min(fan->max_rpm, rpm);
+	rpm = max(fan->fan.min_rpm, rpm);
+	rpm = min(fan->fan.max_rpm, rpm);
 
 	/*
 	 * Apple has two fan control mechanisms. We can't distinguish
@@ -704,8 +682,9 @@ smu_fan_set_rpm(device_t smu, struct smu_fan *fan, int rpm)
 }
 
 static int
-smu_fan_read_rpm(device_t smu, struct smu_fan *fan)
+smu_fan_read_rpm(struct smu_fan *fan)
 {
+	device_t smu = fan->dev;
 	struct smu_cmd cmd;
 	int rpm, error;
 
@@ -749,7 +728,7 @@ smu_fanrpm_sysctl(SYSCTL_HANDLER_ARGS)
 	sc = device_get_softc(smu);
 	fan = &sc->sc_fans[arg2];
 
-	rpm = smu_fan_read_rpm(smu, fan);
+	rpm = smu_fan_read_rpm(fan);
 	if (rpm < 0)
 		return (rpm);
 
@@ -760,7 +739,7 @@ smu_fanrpm_sysctl(SYSCTL_HANDLER_ARGS)
 
 	sc->sc_lastuserchange = time_uptime;
 
-	return (smu_fan_set_rpm(smu, fan, rpm));
+	return (smu_fan_set_rpm(fan, rpm));
 }
 
 static void
@@ -801,23 +780,25 @@ smu_attach_fans(device_t dev, phandle_t fanroot)
 		if (strcmp(type, "fan-rpm-control") != 0)
 			continue;
 
+		fan->dev = dev;
 		fan->old_style = 0;
 		OF_getprop(child, "reg", &fan->reg, sizeof(cell_t));
-		OF_getprop(child, "min-value", &fan->min_rpm, sizeof(cell_t));
-		OF_getprop(child, "max-value", &fan->max_rpm, sizeof(cell_t));
+		OF_getprop(child, "min-value", &fan->fan.min_rpm, sizeof(int));
+		OF_getprop(child, "max-value", &fan->fan.max_rpm, sizeof(int));
+		OF_getprop(child, "zone", &fan->fan.zone, sizeof(int));
 
-		if (OF_getprop(child, "unmanaged-value", &fan->unmanaged_rpm,
-		    sizeof(cell_t)) != sizeof(cell_t))
-			fan->unmanaged_rpm = fan->max_rpm;
+		if (OF_getprop(child, "unmanaged-value", &fan->fan.default_rpm,
+		    sizeof(int)) != sizeof(int))
+			fan->fan.default_rpm = fan->fan.max_rpm;
 
-		fan->setpoint = smu_fan_read_rpm(dev, fan);
+		fan->setpoint = smu_fan_read_rpm(fan);
 
-		OF_getprop(child, "location", fan->location,
-		    sizeof(fan->location));
+		OF_getprop(child, "location", fan->fan.name,
+		    sizeof(fan->fan.name));
 	
 		/* Add sysctls */
-		for (i = 0; i < strlen(fan->location); i++) {
-			sysctl_name[i] = tolower(fan->location[i]);
+		for (i = 0; i < strlen(fan->fan.name); i++) {
+			sysctl_name[i] = tolower(fan->fan.name[i]);
 			if (isspace(sysctl_name[i]))
 				sysctl_name[i] = '_';
 		}
@@ -826,14 +807,18 @@ smu_attach_fans(device_t dev, phandle_t fanroot)
 		oid = SYSCTL_ADD_NODE(ctx, SYSCTL_CHILDREN(fanroot_oid),
 		    OID_AUTO, sysctl_name, CTLFLAG_RD, 0, "Fan Information");
 		SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(oid), OID_AUTO, "minrpm",
-		    CTLTYPE_INT | CTLFLAG_RD, &fan->min_rpm, sizeof(cell_t),
+		    CTLTYPE_INT | CTLFLAG_RD, &fan->fan.min_rpm, sizeof(int),
 		    "Minimum allowed RPM");
 		SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(oid), OID_AUTO, "maxrpm",
-		    CTLTYPE_INT | CTLFLAG_RD, &fan->max_rpm, sizeof(cell_t),
+		    CTLTYPE_INT | CTLFLAG_RD, &fan->fan.max_rpm, sizeof(int),
 		    "Maximum allowed RPM");
 		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(oid), OID_AUTO, "rpm",
 		    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, dev,
 		    sc->sc_nfans, smu_fanrpm_sysctl, "I", "Fan RPM");
+
+		fan->fan.read = (int (*)(struct pmac_fan *))smu_fan_read_rpm;
+		fan->fan.set = (int (*)(struct pmac_fan *, int))smu_fan_set_rpm;
+		pmac_thermal_fan_register(&fan->fan);
 
 		fan++;
 		sc->sc_nfans++;
@@ -841,8 +826,9 @@ smu_attach_fans(device_t dev, phandle_t fanroot)
 }
 
 static int
-smu_sensor_read(device_t smu, struct smu_sensor *sens, int *val)
+smu_sensor_read(struct smu_sensor *sens)
 {
+	device_t smu = sens->dev;
 	struct smu_cmd cmd;
 	struct smu_softc *sc;
 	int64_t value;
@@ -855,7 +841,7 @@ smu_sensor_read(device_t smu, struct smu_sensor *sens, int *val)
 
 	error = smu_run_cmd(smu, &cmd, 1);
 	if (error != 0)
-		return (error);
+		return (-1);
 	
 	sc = device_get_softc(smu);
 	value = (cmd.data[0] << 8) | cmd.data[1];
@@ -867,8 +853,8 @@ smu_sensor_read(device_t smu, struct smu_sensor *sens, int *val)
 		value += ((int64_t)sc->sc_cpu_diode_offset) << 9;
 		value <<= 1;
 
-		/* Convert from 16.16 fixed point degC into integer C. */
-		value >>= 16;
+		/* Convert from 16.16 fixed point degC into integer 0.1 K. */
+		value = 10*(value >> 16) + 2732;
 		break;
 	case SMU_VOLTAGE_SENSOR:
 		value *= sc->sc_cpu_volt_scale;
@@ -902,8 +888,7 @@ smu_sensor_read(device_t smu, struct smu_sensor *sens, int *val)
 		break;
 	}
 
-	*val = value;
-	return (0);
+	return (value);
 }
 
 static int
@@ -918,9 +903,9 @@ smu_sensor_sysctl(SYSCTL_HANDLER_ARGS)
 	sc = device_get_softc(smu);
 	sens = &sc->sc_sensors[arg2];
 
-	error = smu_sensor_read(smu, sens, &value);
-	if (error != 0)
-		return (error);
+	value = smu_sensor_read(sens);
+	if (value < 0)
+		return (EBUSY);
 
 	error = sysctl_handle_int(oidp, &value, 0, req);
 
@@ -964,6 +949,7 @@ smu_attach_sensors(device_t dev, phandle_t sensroot)
 		char sysctl_name[40], sysctl_desc[40];
 		const char *units;
 
+		sens->dev = dev;
 		OF_getprop(child, "device_type", type, sizeof(type));
 
 		if (strcmp(type, "current-sensor") == 0) {
@@ -983,98 +969,37 @@ smu_attach_sensors(device_t dev, phandle_t sensroot)
 		}
 
 		OF_getprop(child, "reg", &sens->reg, sizeof(cell_t));
-		OF_getprop(child, "location", sens->location,
-		    sizeof(sens->location));
+		OF_getprop(child, "zone", &sens->therm.zone, sizeof(int));
+		OF_getprop(child, "location", sens->therm.name,
+		    sizeof(sens->therm.name));
 
-		for (i = 0; i < strlen(sens->location); i++) {
-			sysctl_name[i] = tolower(sens->location[i]);
+		for (i = 0; i < strlen(sens->therm.name); i++) {
+			sysctl_name[i] = tolower(sens->therm.name[i]);
 			if (isspace(sysctl_name[i]))
 				sysctl_name[i] = '_';
 		}
 		sysctl_name[i] = 0;
 
-		sprintf(sysctl_desc,"%s (%s)", sens->location, units);
+		sprintf(sysctl_desc,"%s (%s)", sens->therm.name, units);
 
 		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(sensroot_oid), OID_AUTO,
 		    sysctl_name, CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
-		    dev, sc->sc_nsensors, smu_sensor_sysctl, "I", sysctl_desc);
+		    dev, sc->sc_nsensors, smu_sensor_sysctl, 
+		    (sens->type == SMU_TEMP_SENSOR) ? "IK" : "I", sysctl_desc);
+
+		if (sens->type == SMU_TEMP_SENSOR) {
+			/* Make up some numbers */
+			sens->therm.target_temp = 500 + 2732; /* 50 C */
+			sens->therm.max_temp = 900 + 2732; /* 90 C */
+
+			sens->therm.read =
+			    (int (*)(struct pmac_therm *))smu_sensor_read;
+			pmac_thermal_sensor_register(&sens->therm);
+		}
 
 		sens++;
 		sc->sc_nsensors++;
 	}
-}
-
-static void
-smu_fan_management_proc(void *xdev)
-{
-	device_t smu = xdev;
-
-	while(1) {
-		smu_manage_fans(smu);
-		pause("smu", SMU_FANMGT_INTERVAL * hz / 1000);
-	}
-}
-
-static void
-smu_manage_fans(device_t smu)
-{
-	struct smu_softc *sc;
-	int i, maxtemp, temp, factor, error;
-
-	sc = device_get_softc(smu);
-
-	maxtemp = 0;
-	for (i = 0; i < sc->sc_nsensors; i++) {
-		if (sc->sc_sensors[i].type != SMU_TEMP_SENSOR)
-			continue;
-
-		error = smu_sensor_read(smu, &sc->sc_sensors[i], &temp);
-		if (error == 0 && temp > maxtemp)
-			maxtemp = temp;
-	}
-
-	if (maxtemp > sc->sc_critical_temp) {
-		device_printf(smu, "WARNING: Current system temperature (%d C) "
-		    "exceeds critical temperature (%d C)! Shutting down!\n",
-		    maxtemp, sc->sc_critical_temp);
-		shutdown_nice(RB_POWEROFF);
-	}
-
-	if (maxtemp - sc->sc_target_temp > 20)
-		device_printf(smu, "WARNING: Current system temperature (%d C) "
-		    "more than 20 degrees over target temperature (%d C)!\n",
-		    maxtemp, sc->sc_target_temp);
-
-	if (time_uptime - sc->sc_lastuserchange < 3) {
-		/*
-		 * If we have heard from a user process in the last 3 seconds,
-		 * go away.
-		 */
-
-		return;
-	}
-
-	if (maxtemp < 10) { /* Bail if no good sensors */
-		for (i = 0; i < sc->sc_nfans; i++) 
-			smu_fan_set_rpm(smu, &sc->sc_fans[i],
-			    sc->sc_fans[i].unmanaged_rpm);
-		return;
-	}
-
-	if (maxtemp - sc->sc_target_temp > 4) 
-		factor = 110;
-	else if (maxtemp - sc->sc_target_temp > 1) 
-		factor = 105;
-	else if (sc->sc_target_temp - maxtemp > 4) 
-		factor = 90;
-	else if (sc->sc_target_temp - maxtemp > 1) 
-		factor = 95;
-	else
-		factor = 100;
-
-	for (i = 0; i < sc->sc_nfans; i++) 
-		smu_fan_set_rpm(smu, &sc->sc_fans[i],
-		    (sc->sc_fans[i].setpoint * factor) / 100);
 }
 
 static void
