@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: check-tool.h,v 1.7.18.4 2005/06/20 01:19:25 marka Exp $ */
+/* $Id: check-tool.h,v 1.7.18.4 2005-06-20 01:19:25 marka Exp $ */
 
 #ifndef CHECK_TOOL_H
 #define CHECK_TOOL_H

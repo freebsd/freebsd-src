@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: context_p.h,v 1.13.18.4 2008/12/17 23:46:01 tbox Exp $ */
+/* $Id: context_p.h,v 1.13.18.4 2008-12-17 23:46:01 tbox Exp $ */
 
 #ifndef LWRES_CONTEXT_P_H
 #define LWRES_CONTEXT_P_H 1

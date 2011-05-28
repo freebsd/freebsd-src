@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: atomic.h,v 1.2.2.4 2009/04/08 06:46:30 tbox Exp $ */
+/* $Id: atomic.h,v 1.2.2.4 2009-04-08 06:46:30 tbox Exp $ */
 
 /*
  * This code was written based on FreeBSD's kernel source whose copyright

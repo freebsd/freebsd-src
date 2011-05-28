@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: atomic.h,v 1.2.2.5 2009/07/13 23:46:05 tbox Exp $ */
+/* $Id: atomic.h,v 1.2.2.5 2009-07-13 23:46:05 tbox Exp $ */
 
 #ifndef ISC_ATOMIC_H
 #define ISC_ATOMIC_H 1

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: isdn_20.c,v 1.34.18.2 2005/04/29 00:16:33 marka Exp $ */
+/* $Id: isdn_20.c,v 1.34.18.2 2005-04-29 00:16:33 marka Exp $ */
 
 /* Reviewed: Wed Mar 15 16:53:11 PST 2000 by bwelling */
 

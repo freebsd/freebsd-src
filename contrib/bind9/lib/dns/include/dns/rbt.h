@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rbt.h,v 1.59.18.7 2009/01/19 23:46:16 tbox Exp $ */
+/* $Id: rbt.h,v 1.59.18.7 2009-01-19 23:46:16 tbox Exp $ */
 
 #ifndef DNS_RBT_H
 #define DNS_RBT_H 1

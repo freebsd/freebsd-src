@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: srv_33.c,v 1.41.18.2 2005/04/29 00:16:43 marka Exp $ */
+/* $Id: srv_33.c,v 1.41.18.2 2005-04-29 00:16:43 marka Exp $ */
 
 /* Reviewed: Fri Mar 17 13:01:00 PST 2000 by bwelling */
 

@@ -16,7 +16,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: sexpr.c,v 1.4.18.2 2005/04/29 00:17:12 marka Exp $ */
+/* $Id: sexpr.c,v 1.4.18.2 2005-04-29 00:17:12 marka Exp $ */
 
 /*! \file */
 

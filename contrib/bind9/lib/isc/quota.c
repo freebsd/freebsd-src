@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: quota.c,v 1.13.18.3 2005/07/27 02:44:21 marka Exp $ */
+/* $Id: quota.c,v 1.13.18.3 2005-07-27 02:44:21 marka Exp $ */
 
 /*! \file */
 

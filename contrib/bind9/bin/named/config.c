@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: config.c,v 1.47.18.35 2008/09/04 08:03:07 marka Exp $ */
+/* $Id: config.c,v 1.47.18.35 2008-09-04 08:03:07 marka Exp $ */
 
 /*! \file */
 

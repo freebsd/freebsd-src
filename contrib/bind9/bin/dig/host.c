@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: host.c,v 1.94.18.22 2009/09/08 23:29:03 marka Exp $ */
+/* $Id: host.c,v 1.94.18.22 2009-09-08 23:29:03 marka Exp $ */
 
 /*! \file */
 

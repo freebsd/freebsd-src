@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: opt_41.c,v 1.29.18.2 2005/04/29 00:16:38 marka Exp $ */
+/* $Id: opt_41.c,v 1.29.18.2 2005-04-29 00:16:38 marka Exp $ */
 
 /* Reviewed: Thu Mar 16 14:06:44 PST 2000 by gson */
 

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dnssectool.h,v 1.18 2004/03/05 04:57:41 marka Exp $ */
+/* $Id: dnssectool.h,v 1.18 2004-03-05 04:57:41 marka Exp $ */
 
 #ifndef DNSSECTOOL_H
 #define DNSSECTOOL_H 1

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: md5.h,v 1.9.18.4 2006/02/01 00:10:34 marka Exp $ */
+/* $Id: md5.h,v 1.9.18.4 2006-02-01 00:10:34 marka Exp $ */
 
 /*! \file 
  * \brief This is the header file for the MD5 message-digest algorithm.

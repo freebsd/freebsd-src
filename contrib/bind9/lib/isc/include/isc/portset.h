@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: portset.h,v 1.3.4.4 2009/06/25 05:33:47 marka Exp $ */
+/* $Id: portset.h,v 1.3.4.4 2009-06-25 05:33:47 marka Exp $ */
 
 /*! \file isc/portset.h
  * \brief Transport Protocol Port Manipulation Module

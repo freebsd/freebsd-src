@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: builtin.h,v 1.2.18.2 2005/04/29 00:15:34 marka Exp $ */
+/* $Id: builtin.h,v 1.2.18.2 2005-04-29 00:15:34 marka Exp $ */
 
 #ifndef NAMED_BUILTIN_H
 #define NAMED_BUILTIN_H 1

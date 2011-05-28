@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rdatatype.h,v 1.18.18.2 2005/04/29 00:16:20 marka Exp $ */
+/* $Id: rdatatype.h,v 1.18.18.2 2005-04-29 00:16:20 marka Exp $ */
 
 #ifndef DNS_RDATATYPE_H
 #define DNS_RDATATYPE_H 1

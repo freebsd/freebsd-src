@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: boolean.h,v 1.13.18.2 2005/04/29 00:16:53 marka Exp $ */
+/* $Id: boolean.h,v 1.13.18.2 2005-04-29 00:16:53 marka Exp $ */
 
 #ifndef ISC_BOOLEAN_H
 #define ISC_BOOLEAN_H 1

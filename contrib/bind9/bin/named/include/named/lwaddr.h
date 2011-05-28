@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lwaddr.h,v 1.4.18.2 2005/04/29 00:15:35 marka Exp $ */
+/* $Id: lwaddr.h,v 1.4.18.2 2005-04-29 00:15:35 marka Exp $ */
 
 /*! \file */
 

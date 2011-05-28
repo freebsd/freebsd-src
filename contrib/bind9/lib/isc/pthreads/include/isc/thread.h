@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: thread.h,v 1.20.18.4 2005/09/18 07:58:08 marka Exp $ */
+/* $Id: thread.h,v 1.20.18.4 2005-09-18 07:58:08 marka Exp $ */
 
 #ifndef ISC_THREAD_H
 #define ISC_THREAD_H 1

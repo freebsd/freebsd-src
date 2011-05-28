@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rdata.h,v 1.60.18.7 2009/01/19 23:46:16 tbox Exp $ */
+/* $Id: rdata.h,v 1.60.18.7 2009-01-19 23:46:16 tbox Exp $ */
 
 #ifndef DNS_RDATA_H
 #define DNS_RDATA_H 1

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: commandline.h,v 1.10.18.2 2005/04/29 00:16:53 marka Exp $ */
+/* $Id: commandline.h,v 1.10.18.2 2005-04-29 00:16:53 marka Exp $ */
 
 #ifndef ISC_COMMANDLINE_H
 #define ISC_COMMANDLINE_H 1

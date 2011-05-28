@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: sshfp_44.h,v 1.2.18.3 2006/03/10 04:04:32 marka Exp $ */
+/* $Id: sshfp_44.h,v 1.2.18.3 2006-03-10 04:04:32 marka Exp $ */
 
 /*!
  *  \brief Per RFC 4255 */

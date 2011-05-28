@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: hmacsha.h,v 1.2.2.3 2006/08/16 03:18:14 marka Exp $ */
+/* $Id: hmacsha.h,v 1.2.2.3 2006-08-16 03:18:14 marka Exp $ */
 
 /*
  * This is the header file for the HMAC-SHA1, HMAC-SHA224, HMAC-SHA256,

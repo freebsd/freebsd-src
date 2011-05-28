@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: syslog.h,v 1.3.18.2 2005/04/29 00:17:10 marka Exp $ */
+/* $Id: syslog.h,v 1.3.18.2 2005-04-29 00:17:10 marka Exp $ */
 
 #ifndef ISC_SYSLOG_H
 #define ISC_SYSLOG_H 1

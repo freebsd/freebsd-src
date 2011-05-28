@@ -14,7 +14,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: sort-options.pl,v 1.3.36.2 2007/12/02 23:46:31 tbox Exp $
+# $Id: sort-options.pl,v 1.3.36.2 2007-12-02 23:46:31 tbox Exp $
 
 sub sortlevel() {
 	my @options = ();

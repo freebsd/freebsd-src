@@ -16,7 +16,7 @@
  */
 
 /*
- * $Id: assertions.h,v 1.18.18.4 2008/10/15 23:46:06 tbox Exp $
+ * $Id: assertions.h,v 1.18.18.4 2008-10-15 23:46:06 tbox Exp $
  */
 /*! \file assertions.h
  */

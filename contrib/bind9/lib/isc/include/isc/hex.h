@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: hex.h,v 1.5.18.2 2005/04/29 00:16:55 marka Exp $ */
+/* $Id: hex.h,v 1.5.18.2 2005-04-29 00:16:55 marka Exp $ */
 
 #ifndef ISC_HEX_H
 #define ISC_HEX_H 1

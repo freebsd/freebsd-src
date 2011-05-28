@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: listenlist.h,v 1.11.18.2 2005/04/29 00:15:34 marka Exp $ */
+/* $Id: listenlist.h,v 1.11.18.2 2005-04-29 00:15:34 marka Exp $ */
 
 #ifndef NAMED_LISTENLIST_H
 #define NAMED_LISTENLIST_H 1

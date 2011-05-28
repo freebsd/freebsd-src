@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: msgcat.h,v 1.9.18.2 2005/04/29 00:16:59 marka Exp $ */
+/* $Id: msgcat.h,v 1.9.18.2 2005-04-29 00:16:59 marka Exp $ */
 
 #ifndef ISC_MSGCAT_H
 #define ISC_MSGCAT_H 1

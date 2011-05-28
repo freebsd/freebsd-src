@@ -1,5 +1,5 @@
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: hesiod.c,v 1.4.18.3 2005/07/28 07:38:08 marka Exp $";
+static const char rcsid[] = "$Id: hesiod.c,v 1.4.18.3 2005-07-28 07:38:08 marka Exp $";
 #endif
 
 /*

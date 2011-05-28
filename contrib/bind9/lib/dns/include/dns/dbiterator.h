@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dbiterator.h,v 1.19.18.2 2005/04/29 00:16:11 marka Exp $ */
+/* $Id: dbiterator.h,v 1.19.18.2 2005-04-29 00:16:11 marka Exp $ */
 
 #ifndef DNS_DBITERATOR_H
 #define DNS_DBITERATOR_H 1

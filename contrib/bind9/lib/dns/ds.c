@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ds.c,v 1.4.20.5 2006/02/22 23:50:09 marka Exp $ */
+/* $Id: ds.c,v 1.4.20.5 2006-02-22 23:50:09 marka Exp $ */
 
 /*! \file */
 

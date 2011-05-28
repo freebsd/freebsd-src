@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: interfaceiter.c,v 1.35.18.5 2005/04/29 00:17:08 marka Exp $ */
+/* $Id: interfaceiter.c,v 1.35.18.5 2005-04-29 00:17:08 marka Exp $ */
 
 /*! \file */
 

@@ -18,7 +18,7 @@
 #ifndef GENERIC_ISDN_20_H
 #define GENERIC_ISDN_20_H 1
 
-/* $Id: isdn_20.h,v 1.14.18.2 2005/04/29 00:16:33 marka Exp $ */
+/* $Id: isdn_20.h,v 1.14.18.2 2005-04-29 00:16:33 marka Exp $ */
 
 /*!
  * \brief Per RFC1183 */

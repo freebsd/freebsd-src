@@ -18,7 +18,7 @@
 #ifndef IN_1_PX_26_H
 #define IN_1_PX_26_H 1
 
-/* $Id: px_26.h,v 1.15.18.2 2005/04/29 00:16:43 marka Exp $ */
+/* $Id: px_26.h,v 1.15.18.2 2005-04-29 00:16:43 marka Exp $ */
 
 /*! 
  *  \brief Per RFC2163 */

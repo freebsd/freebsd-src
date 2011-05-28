@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: task_p.h,v 1.7.18.2 2005/04/29 00:16:50 marka Exp $ */
+/* $Id: task_p.h,v 1.7.18.2 2005-04-29 00:16:50 marka Exp $ */
 
 #ifndef ISC_TASK_P_H
 #define ISC_TASK_P_H

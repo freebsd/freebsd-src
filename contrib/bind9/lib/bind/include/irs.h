@@ -16,7 +16,7 @@
  */
 
 /*
- * $Id: irs.h,v 1.4.18.1 2005/04/27 05:00:49 sra Exp $
+ * $Id: irs.h,v 1.4.18.1 2005-04-27 05:00:49 sra Exp $
  */
 
 #ifndef _IRS_H_INCLUDED

@@ -16,7 +16,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: sexpr.h,v 1.4.18.2 2005/04/29 00:17:14 marka Exp $ */
+/* $Id: sexpr.h,v 1.4.18.2 2005-04-29 00:17:14 marka Exp $ */
 
 #ifndef ISCCC_SEXPR_H
 #define ISCCC_SEXPR_H 1

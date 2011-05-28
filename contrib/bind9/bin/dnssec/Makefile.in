@@ -13,7 +13,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: Makefile.in,v 1.26.18.4 2005/05/02 00:26:11 marka Exp $
+# $Id: Makefile.in,v 1.26.18.4 2005-05-02 00:26:11 marka Exp $
 
 srcdir =	@srcdir@
 VPATH =		@srcdir@

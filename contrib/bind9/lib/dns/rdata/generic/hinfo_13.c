@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: hinfo_13.c,v 1.42 2004/03/05 05:10:11 marka Exp $ */
+/* $Id: hinfo_13.c,v 1.42 2004-03-05 05:10:11 marka Exp $ */
 
 /*
  * Reviewed: Wed Mar 15 16:47:10 PST 2000 by halley.

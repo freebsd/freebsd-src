@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: cert.h,v 1.13.18.2 2005/04/29 00:16:10 marka Exp $ */
+/* $Id: cert.h,v 1.13.18.2 2005-04-29 00:16:10 marka Exp $ */
 
 #ifndef DNS_CERT_H
 #define DNS_CERT_H 1

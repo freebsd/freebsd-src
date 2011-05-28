@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: zt.c,v 1.38.18.5 2005/11/30 03:44:39 marka Exp $ */
+/* $Id: zt.c,v 1.38.18.5 2005-11-30 03:44:39 marka Exp $ */
 
 /*! \file */
 

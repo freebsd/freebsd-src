@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rwlock.h,v 1.21.18.3 2005/06/04 06:23:44 jinmei Exp $ */
+/* $Id: rwlock.h,v 1.21.18.3 2005-06-04 06:23:44 jinmei Exp $ */
 
 #ifndef ISC_RWLOCK_H
 #define ISC_RWLOCK_H 1

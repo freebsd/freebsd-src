@@ -1,3 +1,14 @@
+	--- 9.4-ESV-R4-P1 released ---
+
+3121.   [security]      An authoritative name server sending a negative
+                        response containing a very large RRset could
+                        trigger an off-by-one error in the ncache code
+                        and crash named. [RT #24650]
+
+3120.	[bug]		Named could fail to validate zones listed in a DLV
+			that validated insecure without using DLV and had
+			DS records in the parent zone. [RT #24631]
+
 	--- 9.4-ESV-R4 released ---
 
 2970.	[security]	Adding a NO DATA negative cache entry failed to clear

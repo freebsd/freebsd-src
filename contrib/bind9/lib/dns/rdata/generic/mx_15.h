@@ -19,7 +19,7 @@
 #ifndef GENERIC_MX_15_H
 #define GENERIC_MX_15_H 1
 
-/* $Id: mx_15.h,v 1.25.18.2 2005/04/29 00:16:36 marka Exp $ */
+/* $Id: mx_15.h,v 1.25.18.2 2005-04-29 00:16:36 marka Exp $ */
 
 typedef struct dns_rdata_mx {
 	dns_rdatacommon_t	common;

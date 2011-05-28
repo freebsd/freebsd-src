@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: sockaddr.c,v 1.59.18.9 2006/06/21 01:25:40 marka Exp $ */
+/* $Id: sockaddr.c,v 1.59.18.9 2006-06-21 01:25:40 marka Exp $ */
 
 /*! \file */
 

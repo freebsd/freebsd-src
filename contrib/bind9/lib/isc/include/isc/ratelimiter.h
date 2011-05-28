@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ratelimiter.h,v 1.15.18.4 2009/01/19 23:46:16 tbox Exp $ */
+/* $Id: ratelimiter.h,v 1.15.18.4 2009-01-19 23:46:16 tbox Exp $ */
 
 #ifndef ISC_RATELIMITER_H
 #define ISC_RATELIMITER_H 1

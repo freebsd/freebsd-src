@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: query.h,v 1.36.18.2 2005/04/29 00:15:37 marka Exp $ */
+/* $Id: query.h,v 1.36.18.2 2005-04-29 00:15:37 marka Exp $ */
 
 #ifndef NAMED_QUERY_H
 #define NAMED_QUERY_H 1

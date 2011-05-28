@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: buffer.h,v 1.43.18.2 2005/04/29 00:16:53 marka Exp $ */
+/* $Id: buffer.h,v 1.43.18.2 2005-04-29 00:16:53 marka Exp $ */
 
 #ifndef ISC_BUFFER_H
 #define ISC_BUFFER_H 1

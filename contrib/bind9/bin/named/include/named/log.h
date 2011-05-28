@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: log.h,v 1.21.18.4 2009/09/24 23:46:06 tbox Exp $ */
+/* $Id: log.h,v 1.21.18.4 2009-09-24 23:46:06 tbox Exp $ */
 
 #ifndef NAMED_LOG_H
 #define NAMED_LOG_H 1

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: quota.h,v 1.10.18.4 2005/08/11 15:01:54 marka Exp $ */
+/* $Id: quota.h,v 1.10.18.4 2005-08-11 15:01:54 marka Exp $ */
 
 #ifndef ISC_QUOTA_H
 #define ISC_QUOTA_H 1

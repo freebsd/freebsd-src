@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: tsig_250.h,v 1.21.18.2 2005/04/29 00:16:29 marka Exp $ */
+/* $Id: tsig_250.h,v 1.21.18.2 2005-04-29 00:16:29 marka Exp $ */
 
 #ifndef ANY_255_TSIG_250_H
 #define ANY_255_TSIG_250_H 1

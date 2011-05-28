@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: minfo_14.c,v 1.43 2004/03/05 05:10:14 marka Exp $ */
+/* $Id: minfo_14.c,v 1.43 2004-03-05 05:10:14 marka Exp $ */
 
 /* reviewed: Wed Mar 15 17:45:32 PST 2000 by brister */
 

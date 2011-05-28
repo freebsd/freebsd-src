@@ -16,7 +16,7 @@
  */
 
 #if !defined(LINT) && !defined(CODECENTER)
-static const char rcsid[] = "$Id: logging.c,v 1.6.18.2 2008/02/28 05:49:37 marka Exp $";
+static const char rcsid[] = "$Id: logging.c,v 1.6.18.2 2008-02-28 05:49:37 marka Exp $";
 #endif /* not lint */
 
 #include "port_before.h"

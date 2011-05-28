@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: sortlist.h,v 1.5.18.4 2006/03/02 00:37:21 marka Exp $ */
+/* $Id: sortlist.h,v 1.5.18.4 2006-03-02 00:37:21 marka Exp $ */
 
 #ifndef NAMED_SORTLIST_H
 #define NAMED_SORTLIST_H 1

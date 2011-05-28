@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rt_21.c,v 1.41.18.3 2005/04/27 05:01:52 sra Exp $ */
+/* $Id: rt_21.c,v 1.41.18.3 2005-04-27 05:01:52 sra Exp $ */
 
 /* reviewed: Thu Mar 16 15:02:31 PST 2000 by brister */
 

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lwdnoop.c,v 1.7.18.4 2008/01/22 23:27:05 tbox Exp $ */
+/* $Id: lwdnoop.c,v 1.7.18.4 2008-01-22 23:27:05 tbox Exp $ */
 
 /*! \file */
 

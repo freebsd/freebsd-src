@@ -49,7 +49,7 @@
  */
 
 /*
- *	$Id: nameser.h,v 1.7.18.2 2008/04/03 23:15:15 marka Exp $
+ *	$Id: nameser.h,v 1.7.18.2 2008-04-03 23:15:15 marka Exp $
  */
 
 #ifndef _ARPA_NAMESER_H_

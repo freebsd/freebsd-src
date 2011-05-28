@@ -18,7 +18,7 @@
 #ifndef GENERIC_DNAME_39_H
 #define GENERIC_DNAME_39_H 1
 
-/* $Id: dname_39.h,v 1.17.18.2 2005/04/29 00:16:31 marka Exp $ */
+/* $Id: dname_39.h,v 1.17.18.2 2005-04-29 00:16:31 marka Exp $ */
 
 /*! 
  *  \brief per RFC2672 */

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: hex.c,v 1.14.18.2 2005/04/29 00:16:46 marka Exp $ */
+/* $Id: hex.c,v 1.14.18.2 2005-04-29 00:16:46 marka Exp $ */
 
 /*! \file */
 

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: keyflags.h,v 1.10.18.2 2005/04/29 00:16:13 marka Exp $ */
+/* $Id: keyflags.h,v 1.10.18.2 2005-04-29 00:16:13 marka Exp $ */
 
 #ifndef DNS_KEYFLAGS_H
 #define DNS_KEYFLAGS_H 1

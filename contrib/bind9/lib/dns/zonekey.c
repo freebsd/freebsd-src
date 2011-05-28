@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: zonekey.c,v 1.5.18.2 2005/04/29 00:16:08 marka Exp $ */
+/* $Id: zonekey.c,v 1.5.18.2 2005-04-29 00:16:08 marka Exp $ */
 
 /*! \file */
 

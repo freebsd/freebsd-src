@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lwpacket.c,v 1.14.18.2 2005/04/29 00:17:19 marka Exp $ */
+/* $Id: lwpacket.c,v 1.14.18.2 2005-04-29 00:17:19 marka Exp $ */
 
 /*! \file */
 

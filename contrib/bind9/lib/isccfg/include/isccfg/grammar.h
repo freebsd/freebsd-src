@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: grammar.h,v 1.4.18.8 2006/02/28 03:10:49 marka Exp $ */
+/* $Id: grammar.h,v 1.4.18.8 2006-02-28 03:10:49 marka Exp $ */
 
 #ifndef ISCCFG_GRAMMAR_H
 #define ISCCFG_GRAMMAR_H 1

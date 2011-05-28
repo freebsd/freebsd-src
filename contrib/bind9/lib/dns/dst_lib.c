@@ -17,7 +17,7 @@
 
 /*
  * Principal Author: Brian Wellington
- * $Id: dst_lib.c,v 1.1.6.3 2005/04/29 00:15:51 marka Exp $
+ * $Id: dst_lib.c,v 1.1.6.3 2005-04-29 00:15:51 marka Exp $
  */
 
 /*! \file */

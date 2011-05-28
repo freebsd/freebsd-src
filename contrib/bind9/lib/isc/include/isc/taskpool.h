@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: taskpool.h,v 1.9.18.2 2005/04/29 00:17:04 marka Exp $ */
+/* $Id: taskpool.h,v 1.9.18.2 2005-04-29 00:17:04 marka Exp $ */
 
 #ifndef ISC_TASKPOOL_H
 #define ISC_TASKPOOL_H 1

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: acl.c,v 1.25.18.5 2006/03/02 00:37:21 marka Exp $ */
+/* $Id: acl.c,v 1.25.18.5 2006-03-02 00:37:21 marka Exp $ */
 
 /*! \file */
 

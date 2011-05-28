@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lang.h,v 1.7.18.2 2005/04/29 00:16:56 marka Exp $ */
+/* $Id: lang.h,v 1.7.18.2 2005-04-29 00:16:56 marka Exp $ */
 
 #ifndef ISC_LANG_H
 #define ISC_LANG_H 1

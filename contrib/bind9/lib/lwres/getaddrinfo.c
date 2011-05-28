@@ -18,7 +18,7 @@
  * IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: getaddrinfo.c,v 1.43.18.10 2008/11/25 23:46:01 tbox Exp $ */
+/* $Id: getaddrinfo.c,v 1.43.18.10 2008-11-25 23:46:01 tbox Exp $ */
 
 /*! \file */
 

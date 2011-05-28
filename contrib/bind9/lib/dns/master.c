@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: master.c,v 1.148.18.23 2009/01/19 23:46:15 tbox Exp $ */
+/* $Id: master.c,v 1.148.18.23 2009-01-19 23:46:15 tbox Exp $ */
 
 /*! \file */
 

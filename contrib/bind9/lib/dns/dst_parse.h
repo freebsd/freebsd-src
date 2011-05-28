@@ -16,7 +16,7 @@
  * IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dst_parse.h,v 1.1.6.7 2008/05/15 23:46:06 tbox Exp $ */
+/* $Id: dst_parse.h,v 1.1.6.7 2008-05-15 23:46:06 tbox Exp $ */
 
 /*! \file */
 #ifndef DST_DST_PARSE_H

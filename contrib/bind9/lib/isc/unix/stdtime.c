@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: stdtime.c,v 1.14.18.3 2005/06/08 02:07:57 marka Exp $ */
+/* $Id: stdtime.c,v 1.14.18.3 2005-06-08 02:07:57 marka Exp $ */
 
 /*! \file */
 

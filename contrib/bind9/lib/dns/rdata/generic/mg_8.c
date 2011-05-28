@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: mg_8.c,v 1.41 2004/03/05 05:10:14 marka Exp $ */
+/* $Id: mg_8.c,v 1.41 2004-03-05 05:10:14 marka Exp $ */
 
 /* reviewed: Wed Mar 15 17:49:21 PST 2000 by brister */
 

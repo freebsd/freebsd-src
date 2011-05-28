@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: nsupdate.c,v 1.130.18.24 2009/04/30 23:46:03 tbox Exp $ */
+/* $Id: nsupdate.c,v 1.130.18.24 2009-04-30 23:46:03 tbox Exp $ */
 
 /*! \file */
 

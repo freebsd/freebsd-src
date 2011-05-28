@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: string.c,v 1.10.18.7 2006/10/03 23:50:51 marka Exp $ */
+/* $Id: string.c,v 1.10.18.7 2006-10-03 23:50:51 marka Exp $ */
 
 /*! \file */
 

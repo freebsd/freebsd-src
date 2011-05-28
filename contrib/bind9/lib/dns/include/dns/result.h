@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: result.h,v 1.104.10.8 2010/02/26 23:46:37 tbox Exp $ */
+/* $Id: result.h,v 1.104.10.8 2010-02-26 23:46:37 tbox Exp $ */
 
 #ifndef DNS_RESULT_H
 #define DNS_RESULT_H 1

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lwaddr.c,v 1.4.18.4 2008/01/11 23:45:59 tbox Exp $ */
+/* $Id: lwaddr.c,v 1.4.18.4 2008-01-11 23:45:59 tbox Exp $ */
 
 /*! \file */
 

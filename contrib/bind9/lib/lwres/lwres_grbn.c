@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lwres_grbn.c,v 1.6.18.2 2005/04/29 00:17:20 marka Exp $ */
+/* $Id: lwres_grbn.c,v 1.6.18.2 2005-04-29 00:17:20 marka Exp $ */
 
 /*! \file lwres_grbn.c
 

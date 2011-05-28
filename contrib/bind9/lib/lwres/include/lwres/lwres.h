@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lwres.h,v 1.51.18.2 2005/04/29 00:17:22 marka Exp $ */
+/* $Id: lwres.h,v 1.51.18.2 2005-04-29 00:17:22 marka Exp $ */
 
 #ifndef LWRES_LWRES_H
 #define LWRES_LWRES_H 1

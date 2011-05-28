@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: interfacemgr.c,v 1.76.18.13 2009/01/19 23:46:14 tbox Exp $ */
+/* $Id: interfacemgr.c,v 1.76.18.13 2009-01-19 23:46:14 tbox Exp $ */
 
 /*! \file */
 

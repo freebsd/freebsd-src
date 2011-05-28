@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: mr_9.c,v 1.40 2004/03/05 05:10:15 marka Exp $ */
+/* $Id: mr_9.c,v 1.40 2004-03-05 05:10:15 marka Exp $ */
 
 /* Reviewed: Wed Mar 15 21:30:35 EST 2000 by tale */
 

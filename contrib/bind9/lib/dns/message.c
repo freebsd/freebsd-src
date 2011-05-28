@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: message.c,v 1.222.18.18 2009/01/19 23:46:15 tbox Exp $ */
+/* $Id: message.c,v 1.222.18.18 2009-01-19 23:46:15 tbox Exp $ */
 
 /*! \file */
 

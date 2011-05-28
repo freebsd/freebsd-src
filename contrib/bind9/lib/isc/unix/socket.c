@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: socket.c,v 1.237.18.68 2009/09/07 02:17:09 marka Exp $ */
+/* $Id: socket.c,v 1.237.18.68 2009-09-07 02:17:09 marka Exp $ */
 
 /*! \file */
 

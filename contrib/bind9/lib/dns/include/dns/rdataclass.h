@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rdataclass.h,v 1.18.18.2 2005/04/29 00:16:18 marka Exp $ */
+/* $Id: rdataclass.h,v 1.18.18.2 2005-04-29 00:16:18 marka Exp $ */
 
 #ifndef DNS_RDATACLASS_H
 #define DNS_RDATACLASS_H 1

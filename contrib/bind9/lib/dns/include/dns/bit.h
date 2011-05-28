@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: bit.h,v 1.8.18.2 2005/04/29 00:16:09 marka Exp $ */
+/* $Id: bit.h,v 1.8.18.2 2005-04-29 00:16:09 marka Exp $ */
 
 #ifndef DNS_BIT_H
 #define DNS_BIT_H 1

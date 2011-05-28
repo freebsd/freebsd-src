@@ -17,7 +17,7 @@
 
 /*! \file */
 /*
- * $Id: ssu.c,v 1.24.18.4 2006/02/16 23:51:32 marka Exp $
+ * $Id: ssu.c,v 1.24.18.4 2006-02-16 23:51:32 marka Exp $
  * Principal Author: Brian Wellington
  */
 

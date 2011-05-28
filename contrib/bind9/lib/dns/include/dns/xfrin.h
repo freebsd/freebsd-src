@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: xfrin.h,v 1.20.18.7 2009/01/19 23:46:16 tbox Exp $ */
+/* $Id: xfrin.h,v 1.20.18.7 2009-01-19 23:46:16 tbox Exp $ */
 
 #ifndef DNS_XFRIN_H
 #define DNS_XFRIN_H 1

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: main.h,v 1.11.18.2 2005/04/29 00:15:37 marka Exp $ */
+/* $Id: main.h,v 1.11.18.2 2005-04-29 00:15:37 marka Exp $ */
 
 #ifndef NAMED_MAIN_H
 #define NAMED_MAIN_H 1

@@ -19,7 +19,7 @@
 #ifndef GENERIC_MG_8_H
 #define GENERIC_MG_8_H 1
 
-/* $Id: mg_8.h,v 1.22.18.2 2005/04/29 00:16:35 marka Exp $ */
+/* $Id: mg_8.h,v 1.22.18.2 2005-04-29 00:16:35 marka Exp $ */
 
 typedef struct dns_rdata_mg {
 	dns_rdatacommon_t	common;

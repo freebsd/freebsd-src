@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: condition.c,v 1.32.18.2 2005/04/29 00:17:05 marka Exp $ */
+/* $Id: condition.c,v 1.32.18.2 2005-04-29 00:17:05 marka Exp $ */
 
 /*! \file */
 

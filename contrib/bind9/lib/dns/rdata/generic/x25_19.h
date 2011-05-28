@@ -18,7 +18,7 @@
 #ifndef GENERIC_X25_19_H
 #define GENERIC_X25_19_H 1
 
-/* $Id: x25_19.h,v 1.14.18.2 2005/04/29 00:16:40 marka Exp $ */
+/* $Id: x25_19.h,v 1.14.18.2 2005-04-29 00:16:40 marka Exp $ */
 
 /*!
  *  \brief Per RFC1183 */

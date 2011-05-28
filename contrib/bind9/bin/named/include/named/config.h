@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: config.h,v 1.6.18.6 2006/02/28 03:10:47 marka Exp $ */
+/* $Id: config.h,v 1.6.18.6 2006-02-28 03:10:47 marka Exp $ */
 
 #ifndef NAMED_CONFIG_H
 #define NAMED_CONFIG_H 1

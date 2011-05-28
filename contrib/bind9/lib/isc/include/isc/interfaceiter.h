@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: interfaceiter.h,v 1.11.18.2 2005/04/29 00:16:55 marka Exp $ */
+/* $Id: interfaceiter.h,v 1.11.18.2 2005-04-29 00:16:55 marka Exp $ */
 
 #ifndef ISC_INTERFACEITER_H
 #define ISC_INTERFACEITER_H 1

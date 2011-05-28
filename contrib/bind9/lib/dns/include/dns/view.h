@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: view.h,v 1.91.18.13 2009/01/19 00:36:28 marka Exp $ */
+/* $Id: view.h,v 1.91.18.13 2009-01-19 00:36:28 marka Exp $ */
 
 #ifndef DNS_VIEW_H
 #define DNS_VIEW_H 1

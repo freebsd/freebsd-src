@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: globals.h,v 1.64.18.6 2008/10/24 01:43:17 tbox Exp $ */
+/* $Id: globals.h,v 1.64.18.6 2008-10-24 01:43:17 tbox Exp $ */
 
 #ifndef NAMED_GLOBALS_H
 #define NAMED_GLOBALS_H 1

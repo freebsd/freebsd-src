@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: gpos_27.c,v 1.37.18.2 2005/04/29 00:16:32 marka Exp $ */
+/* $Id: gpos_27.c,v 1.37.18.2 2005-04-29 00:16:32 marka Exp $ */
 
 /* reviewed: Wed Mar 15 16:48:45 PST 2000 by brister */
 

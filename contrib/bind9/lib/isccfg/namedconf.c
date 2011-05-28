@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: namedconf.c,v 1.30.18.43 2008/09/04 08:03:08 marka Exp $ */
+/* $Id: namedconf.c,v 1.30.18.43 2008-09-04 08:03:08 marka Exp $ */
 
 /*! \file */
 

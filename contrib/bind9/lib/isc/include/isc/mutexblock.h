@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: mutexblock.h,v 1.11.18.2 2005/04/29 00:17:00 marka Exp $ */
+/* $Id: mutexblock.h,v 1.11.18.2 2005-04-29 00:17:00 marka Exp $ */
 
 #ifndef ISC_MUTEXBLOCK_H
 #define ISC_MUTEXBLOCK_H 1

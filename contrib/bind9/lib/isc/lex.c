@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lex.c,v 1.78.18.5 2005/11/30 03:44:39 marka Exp $ */
+/* $Id: lex.c,v 1.78.18.5 2005-11-30 03:44:39 marka Exp $ */
 
 /*! \file */
 

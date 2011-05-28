@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lwdgnba.c,v 1.16.18.4 2008/01/14 23:45:59 tbox Exp $ */
+/* $Id: lwdgnba.c,v 1.16.18.4 2008-01-14 23:45:59 tbox Exp $ */
 
 /*! \file */
 

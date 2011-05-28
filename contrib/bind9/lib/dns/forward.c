@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: forward.c,v 1.6.18.4 2005/07/12 01:22:20 marka Exp $ */
+/* $Id: forward.c,v 1.6.18.4 2005-07-12 01:22:20 marka Exp $ */
 
 /*! \file */
 

@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: acache.h,v 1.3.2.4 2006/05/03 00:07:49 marka Exp $ */
+/* $Id: acache.h,v 1.3.2.4 2006-05-03 00:07:49 marka Exp $ */
 
 #ifndef DNS_ACACHE_H
 #define DNS_ACACHE_H 1

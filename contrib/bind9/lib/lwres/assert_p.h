@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: assert_p.h,v 1.10.18.2 2005/04/29 00:17:16 marka Exp $ */
+/* $Id: assert_p.h,v 1.10.18.2 2005-04-29 00:17:16 marka Exp $ */
 
 #ifndef LWRES_ASSERT_P_H
 #define LWRES_ASSERT_P_H 1

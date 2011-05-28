@@ -13,7 +13,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: rules.in,v 1.9.18.4 2007/08/28 07:20:04 tbox Exp $
+# $Id: rules.in,v 1.9.18.4 2007-08-28 07:20:04 tbox Exp $
 
 ###
 ### Common Makefile rules for BIND 9.

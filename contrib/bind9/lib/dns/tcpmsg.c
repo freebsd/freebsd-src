@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: tcpmsg.c,v 1.25.18.4 2006/08/10 23:59:29 marka Exp $ */
+/* $Id: tcpmsg.c,v 1.25.18.4 2006-08-10 23:59:29 marka Exp $ */
 
 /*! \file */
 

@@ -16,7 +16,7 @@
  * IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dnssec-keygen.c,v 1.66.18.10 2007/08/28 07:19:55 tbox Exp $ */
+/* $Id: dnssec-keygen.c,v 1.66.18.10 2007-08-28 07:19:55 tbox Exp $ */
 
 /*! \file */
 

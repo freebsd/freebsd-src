@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: nsap_22.c,v 1.38.18.2 2005/04/29 00:16:43 marka Exp $ */
+/* $Id: nsap_22.c,v 1.38.18.2 2005-04-29 00:16:43 marka Exp $ */
 
 /* Reviewed: Fri Mar 17 10:41:07 PST 2000 by gson */
 

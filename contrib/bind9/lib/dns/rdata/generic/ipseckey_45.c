@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ipseckey_45.c,v 1.2.2.4 2009/09/18 21:57:08 jinmei Exp $ */
+/* $Id: ipseckey_45.c,v 1.2.2.4 2009-09-18 21:57:08 jinmei Exp $ */
 
 #ifndef RDATA_GENERIC_IPSECKEY_45_C
 #define RDATA_GENERIC_IPSECKEY_45_C

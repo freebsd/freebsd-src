@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: md_3.c,v 1.45 2004/03/05 05:10:13 marka Exp $ */
+/* $Id: md_3.c,v 1.45 2004-03-05 05:10:13 marka Exp $ */
 
 /* Reviewed: Wed Mar 15 17:48:20 PST 2000 by bwelling */
 

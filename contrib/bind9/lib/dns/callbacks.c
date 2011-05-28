@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: callbacks.c,v 1.13.18.2 2005/04/29 00:15:49 marka Exp $ */
+/* $Id: callbacks.c,v 1.13.18.2 2005-04-29 00:15:49 marka Exp $ */
 
 /*! \file */
 

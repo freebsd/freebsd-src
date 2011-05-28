@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: timer_p.h,v 1.6.18.2 2005/04/29 00:16:51 marka Exp $ */
+/* $Id: timer_p.h,v 1.6.18.2 2005-04-29 00:16:51 marka Exp $ */
 
 #ifndef ISC_TIMER_P_H
 #define ISC_TIMER_P_H

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: message.h,v 1.114.18.8 2009/01/19 23:46:16 tbox Exp $ */
+/* $Id: message.h,v 1.114.18.8 2009-01-19 23:46:16 tbox Exp $ */
 
 #ifndef DNS_MESSAGE_H
 #define DNS_MESSAGE_H 1

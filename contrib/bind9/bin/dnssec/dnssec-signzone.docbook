@@ -18,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: dnssec-signzone.docbook,v 1.10.18.19 2008/10/15 23:46:06 tbox Exp $ -->
+<!-- $Id: dnssec-signzone.docbook,v 1.10.18.19 2008-10-15 23:46:06 tbox Exp $ -->
 <refentry id="man.dnssec-signzone">
   <refentryinfo>
     <date>June 30, 2000</date>

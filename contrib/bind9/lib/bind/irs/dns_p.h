@@ -16,7 +16,7 @@
  */
 
 /*
- * $Id: dns_p.h,v 1.3.18.1 2005/04/27 05:00:55 sra Exp $
+ * $Id: dns_p.h,v 1.3.18.1 2005-04-27 05:00:55 sra Exp $
  */
 
 #ifndef _DNS_P_H_INCLUDED

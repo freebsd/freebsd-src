@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: txt_16.c,v 1.41.18.2 2008/02/15 23:45:53 tbox Exp $ */
+/* $Id: txt_16.c,v 1.41.18.2 2008-02-15 23:45:53 tbox Exp $ */
 
 /* Reviewed: Thu Mar 16 15:40:00 PST 2000 by bwelling */
 

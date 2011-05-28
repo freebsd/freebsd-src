@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: gen-unix.h,v 1.14.18.5 2009/01/19 23:46:15 tbox Exp $ */
+/* $Id: gen-unix.h,v 1.14.18.5 2009-01-19 23:46:15 tbox Exp $ */
 
 /*! \file
  * \brief

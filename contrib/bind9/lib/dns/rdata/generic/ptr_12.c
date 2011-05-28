@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ptr_12.c,v 1.41 2004/03/05 05:10:17 marka Exp $ */
+/* $Id: ptr_12.c,v 1.41 2004-03-05 05:10:17 marka Exp $ */
 
 /* Reviewed: Thu Mar 16 14:05:12 PST 2000 by explorer */
 

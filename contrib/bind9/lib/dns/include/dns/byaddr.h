@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: byaddr.h,v 1.16.18.2 2005/04/29 00:16:09 marka Exp $ */
+/* $Id: byaddr.h,v 1.16.18.2 2005-04-29 00:16:09 marka Exp $ */
 
 #ifndef DNS_BYADDR_H
 #define DNS_BYADDR_H 1

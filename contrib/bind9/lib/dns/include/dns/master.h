@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: master.h,v 1.38.18.6 2005/06/20 01:19:43 marka Exp $ */
+/* $Id: master.h,v 1.38.18.6 2005-06-20 01:19:43 marka Exp $ */
 
 #ifndef DNS_MASTER_H
 #define DNS_MASTER_H 1

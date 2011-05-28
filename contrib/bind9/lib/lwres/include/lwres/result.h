@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: result.h,v 1.15.18.2 2005/04/29 00:17:23 marka Exp $ */
+/* $Id: result.h,v 1.15.18.2 2005-04-29 00:17:23 marka Exp $ */
 
 #ifndef LWRES_RESULT_H
 #define LWRES_RESULT_H 1

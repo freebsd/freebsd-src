@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: resource.h,v 1.5.18.4 2008/08/01 23:45:58 tbox Exp $ */
+/* $Id: resource.h,v 1.5.18.4 2008-08-01 23:45:58 tbox Exp $ */
 
 #ifndef ISC_RESOURCE_H
 #define ISC_RESOURCE_H 1

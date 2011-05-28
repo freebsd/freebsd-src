@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: base64.h,v 1.16.18.2 2005/04/29 00:16:53 marka Exp $ */
+/* $Id: base64.h,v 1.16.18.2 2005-04-29 00:16:53 marka Exp $ */
 
 #ifndef ISC_BASE64_H
 #define ISC_BASE64_H 1

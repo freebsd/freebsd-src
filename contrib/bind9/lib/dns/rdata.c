@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rdata.c,v 1.184.18.11 2008/12/12 23:46:04 tbox Exp $ */
+/* $Id: rdata.c,v 1.184.18.11 2008-12-12 23:46:04 tbox Exp $ */
 
 /*! \file */
 

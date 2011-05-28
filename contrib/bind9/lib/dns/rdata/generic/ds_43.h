@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ds_43.h,v 1.3.20.2 2005/04/29 00:16:32 marka Exp $ */
+/* $Id: ds_43.h,v 1.3.20.2 2005-04-29 00:16:32 marka Exp $ */
 
 #ifndef GENERIC_DS_43_H
 #define GENERIC_DS_43_H 1

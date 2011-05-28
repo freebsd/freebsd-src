@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: soa.h,v 1.3.18.2 2005/04/29 00:16:22 marka Exp $ */
+/* $Id: soa.h,v 1.3.18.2 2005-04-29 00:16:22 marka Exp $ */
 
 #ifndef DNS_SOA_H
 #define DNS_SOA_H 1

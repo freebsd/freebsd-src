@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: inet_pton.c,v 1.3.18.2 2005/07/28 07:38:07 marka Exp $";
+static const char rcsid[] = "$Id: inet_pton.c,v 1.3.18.2 2005-07-28 07:38:07 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include "port_before.h"

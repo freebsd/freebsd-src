@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: zoneconf.h,v 1.19.18.5 2006/03/02 00:37:21 marka Exp $ */
+/* $Id: zoneconf.h,v 1.19.18.5 2006-03-02 00:37:21 marka Exp $ */
 
 #ifndef NS_ZONECONF_H
 #define NS_ZONECONF_H 1

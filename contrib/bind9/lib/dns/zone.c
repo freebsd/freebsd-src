@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: zone.c,v 1.410.18.61 2009/09/24 21:38:52 jinmei Exp $ */
+/* $Id: zone.c,v 1.410.18.61 2009-09-24 21:38:52 jinmei Exp $ */
 
 /*! \file */
 

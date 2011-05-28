@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: mx_15.c,v 1.52.18.2 2005/05/20 01:10:11 marka Exp $ */
+/* $Id: mx_15.c,v 1.52.18.2 2005-05-20 01:10:11 marka Exp $ */
 
 /* reviewed: Wed Mar 15 18:05:46 PST 2000 by brister */
 

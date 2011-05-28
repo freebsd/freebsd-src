@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rbt.c,v 1.128.18.12 2009/01/19 23:46:15 tbox Exp $ */
+/* $Id: rbt.c,v 1.128.18.12 2009-01-19 23:46:15 tbox Exp $ */
 
 /*! \file */
 

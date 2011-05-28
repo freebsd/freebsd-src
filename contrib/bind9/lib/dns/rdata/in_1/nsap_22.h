@@ -18,7 +18,7 @@
 #ifndef IN_1_NSAP_22_H
 #define IN_1_NSAP_22_H 1
 
-/* $Id: nsap_22.h,v 1.14.18.2 2005/04/29 00:16:43 marka Exp $ */
+/* $Id: nsap_22.h,v 1.14.18.2 2005-04-29 00:16:43 marka Exp $ */
 
 /*! 
  *  \brief Per RFC1706 */

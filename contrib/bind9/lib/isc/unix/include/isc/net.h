@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: net.h,v 1.39.18.8 2008/12/01 04:13:20 marka Exp $ */
+/* $Id: net.h,v 1.39.18.8 2008-12-01 04:13:20 marka Exp $ */
 
 #ifndef ISC_NET_H
 #define ISC_NET_H 1

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: zone.h,v 1.126.18.24 2009/07/11 04:30:50 marka Exp $ */
+/* $Id: zone.h,v 1.126.18.24 2009-07-11 04:30:50 marka Exp $ */
 
 #ifndef DNS_ZONE_H
 #define DNS_ZONE_H 1

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lwres_noop.c,v 1.15.18.2 2005/04/29 00:17:20 marka Exp $ */
+/* $Id: lwres_noop.c,v 1.15.18.2 2005-04-29 00:17:20 marka Exp $ */
 
 /*! \file */
 

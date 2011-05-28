@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: gssapi.h,v 1.1.6.3 2005/04/29 00:16:28 marka Exp $ */
+/* $Id: gssapi.h,v 1.1.6.3 2005-04-29 00:16:28 marka Exp $ */
 
 #ifndef DST_GSSAPI_H
 #define DST_GSSAPI_H 1
