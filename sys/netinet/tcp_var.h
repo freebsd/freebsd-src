@@ -70,8 +70,8 @@ struct sackhole {
 struct sackhint {
 	struct sackhole	*nexthole;
 	int		sack_bytes_rexmit;
+	tcp_seq		last_sack_ack;	/* Most recent/largest sacked ack */
 
-	int		ispare;		/* explicit pad for 64bit alignment */
 	uint64_t	_pad[2];	/* 1 sacked_bytes, 1 TBD */
 };
 
