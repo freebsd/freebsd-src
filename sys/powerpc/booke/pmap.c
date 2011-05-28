@@ -943,7 +943,7 @@ pte_find(mmu_t mmu, pmap_t pmap, vm_offset_t va)
 /**************************************************************************/
 
 /*
- * This is called during e500_init, before the system is really initialized.
+ * This is called during booke_init, before the system is really initialized.
  */
 static void
 mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
