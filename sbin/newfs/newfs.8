@@ -28,7 +28,7 @@
 .\"     @(#)newfs.8	8.6 (Berkeley) 5/3/95
 .\" $FreeBSD$
 .\"
-.Dd February 22, 2011
+.Dd May 25, 2011
 .Dt NEWFS 8
 .Os
 .Sh NAME
@@ -112,7 +112,7 @@ for more details on how to set this option.
 The block size of the file system, in bytes.
 It must be a power of 2.
 The
-default size is 16384 bytes, and the smallest allowable size is 4096 bytes.
+default size is 32768 bytes, and the smallest allowable size is 4096 bytes.
 The optimal block:fragment ratio is 8:1.
 Other ratios are possible, but are not recommended,
 and may produce poor results.
@@ -143,7 +143,7 @@ ranging in value between
 .Ar blocksize Ns /8
 and
 .Ar blocksize .
-The default is 2048 bytes.
+The default is 4096 bytes.
 .It Fl g Ar avgfilesize
 The expected average file size for the file system.
 .It Fl h Ar avgfpdir
@@ -279,7 +279,7 @@ Creates a new ufs file system on
 .Pa ad3s1a .
 The
 .Nm
-utility will use a block size of 16384 bytes, a fragment size of 2048 bytes
+utility will use a block size of 32768 bytes, a fragment size of 4096 bytes
 and the largest possible number of blocks per cylinders group.
 These values tend to produce better performance for most applications
 than the historical defaults
