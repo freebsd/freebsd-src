@@ -175,7 +175,7 @@ dns_ncache_add(dns_message_t *message, dns_db_t *cache, dns_dbnode_t *node,
 					 */
 					isc_buffer_availableregion(&buffer,
 								   &r);
-					if (r.length < 2)
+					if (r.length < 3)
 						return (ISC_R_NOSPACE);
 					isc_buffer_putuint16(&buffer,
 							     rdataset->type);

@@ -8,6 +8,10 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20110528:	p2	FreeBSD-SA-11:02.bind
+	Fix BIND remote DoS with large RRSIG RRsets and negative
+	caching.
+
 20110420:	p1	FreeBSD-SA-11:01.mountd
 	Fix CIDR parsing bug in mountd ACLs.
 
