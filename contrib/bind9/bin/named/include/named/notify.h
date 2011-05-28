@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: notify.h,v 1.14.332.2 2009/01/18 23:47:34 tbox Exp $ */
+/* $Id: notify.h,v 1.14.332.2 2009-01-18 23:47:34 tbox Exp $ */
 
 #ifndef NAMED_NOTIFY_H
 #define NAMED_NOTIFY_H 1

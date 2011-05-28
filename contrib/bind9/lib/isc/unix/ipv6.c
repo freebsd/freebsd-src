@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ipv6.c,v 1.14 2007/06/19 23:47:18 tbox Exp $ */
+/* $Id: ipv6.c,v 1.14 2007-06-19 23:47:18 tbox Exp $ */
 
 /*! \file */
 

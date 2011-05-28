@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rdatalist_p.h,v 1.11 2008/09/25 04:02:38 tbox Exp $ */
+/* $Id: rdatalist_p.h,v 1.11 2008-09-25 04:02:38 tbox Exp $ */
 
 #ifndef DNS_RDATALIST_P_H
 #define DNS_RDATALIST_P_H

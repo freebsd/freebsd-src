@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: isdn_20.c,v 1.38 2007/06/19 23:47:17 tbox Exp $ */
+/* $Id: isdn_20.c,v 1.38 2007-06-19 23:47:17 tbox Exp $ */
 
 /* Reviewed: Wed Mar 15 16:53:11 PST 2000 by bwelling */
 

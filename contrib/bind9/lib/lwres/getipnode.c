@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: getipnode.c,v 1.42.332.5 2009/09/01 23:47:05 tbox Exp $ */
+/* $Id: getipnode.c,v 1.42.332.5 2009-09-01 23:47:05 tbox Exp $ */
 
 /*! \file */
 

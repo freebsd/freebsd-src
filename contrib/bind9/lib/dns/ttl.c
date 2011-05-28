@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ttl.c,v 1.29 2007/06/19 23:47:16 tbox Exp $ */
+/* $Id: ttl.c,v 1.29 2007-06-19 23:47:16 tbox Exp $ */
 
 /*! \file */
 

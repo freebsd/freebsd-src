@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: quota.h,v 1.16 2007/06/19 23:47:18 tbox Exp $ */
+/* $Id: quota.h,v 1.16 2007-06-19 23:47:18 tbox Exp $ */
 
 #ifndef ISC_QUOTA_H
 #define ISC_QUOTA_H 1
