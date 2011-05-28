@@ -15,6 +15,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW ON IA64 OR SUN4V:
 	debugging tools present in HEAD were left in place because
 	sun4v support still needs work to become production ready.
 
+20110528:	p2	FreeBSD-SA-11:02.bind
+	Fix BIND remote DoS with large RRSIG RRsets and negative
+	caching.
+
 20110420:	p1	FreeBSD-SA-11:01.mountd
 	Fix CIDR parsing bug in mountd ACLs.
 
