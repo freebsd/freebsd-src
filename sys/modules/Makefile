@@ -51,6 +51,7 @@ SUBDIR=	${_3dfx} \
 	${_cardbus} \
 	cas \
 	${_cbb} \
+	cc \
 	cd9660 \
 	cd9660_iconv \
 	${_ce} \
