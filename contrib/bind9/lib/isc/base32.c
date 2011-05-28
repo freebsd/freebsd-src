@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: base32.c,v 1.3.116.3 2009/10/21 01:22:47 each Exp $ */
+/* $Id: base32.c,v 1.3.116.3 2009-10-21 01:22:47 each Exp $ */
 
 /*! \file */
 

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: opt_41.c,v 1.33 2007/06/19 23:47:17 tbox Exp $ */
+/* $Id: opt_41.c,v 1.33 2007-06-19 23:47:17 tbox Exp $ */
 
 /* Reviewed: Thu Mar 16 14:06:44 PST 2000 by gson */
 

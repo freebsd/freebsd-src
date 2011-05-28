@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: socket.h,v 1.85.58.3 2009/01/29 22:40:35 jinmei Exp $ */
+/* $Id: socket.h,v 1.85.58.3 2009-01-29 22:40:35 jinmei Exp $ */
 
 #ifndef ISC_SOCKET_H
 #define ISC_SOCKET_H 1

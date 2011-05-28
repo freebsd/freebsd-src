@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: nsap_22.c,v 1.42 2007/06/19 23:47:17 tbox Exp $ */
+/* $Id: nsap_22.c,v 1.42 2007-06-19 23:47:17 tbox Exp $ */
 
 /* Reviewed: Fri Mar 17 10:41:07 PST 2000 by gson */
 

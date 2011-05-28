@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rcode.c,v 1.8.48.2 2010/01/15 23:47:33 tbox Exp $ */
+/* $Id: rcode.c,v 1.8.48.2 2010-01-15 23:47:33 tbox Exp $ */
 
 #include <config.h>
 #include <ctype.h>

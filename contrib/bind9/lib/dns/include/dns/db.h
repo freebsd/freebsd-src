@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: db.h,v 1.93.50.5 2009/11/25 23:48:42 tbox Exp $ */
+/* $Id: db.h,v 1.93.50.5 2009-11-25 23:48:42 tbox Exp $ */
 
 #ifndef DNS_DB_H
 #define DNS_DB_H 1

@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ns_smf_globals.h,v 1.7 2007/06/19 23:46:59 tbox Exp $ */
+/* $Id: ns_smf_globals.h,v 1.7 2007-06-19 23:46:59 tbox Exp $ */
 
 #ifndef NS_SMF_GLOBALS_H
 #define NS_SMF_GLOBALS_H 1
