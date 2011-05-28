@@ -190,7 +190,7 @@ SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_e500_startup, NULL);
 
 void print_kernel_section_addr(void);
 void print_kenv(void);
-u_int e500_init(u_int32_t, u_int32_t, void *);
+u_int booke_init(uint32_t, uint32_t);
 
 static void
 cpu_e500_startup(void *dummy)
@@ -276,17 +276,39 @@ print_kernel_section_addr(void)
 }
 
 u_int
-e500_init(u_int32_t startkernel, u_int32_t endkernel, void *mdp)
+booke_init(uint32_t arg1, uint32_t arg2)
 {
 	struct pcpu *pc;
-	void *kmdp;
+	void *kmdp, *mdp;
 	vm_offset_t dtbp, end;
 	uint32_t csr;
 
 	kmdp = NULL;
 
-	end = endkernel;
+	end = (uintptr_t)_end;
 	dtbp = (vm_offset_t)NULL;
+
+	/*
+	 * Handle the various ways we can get loaded and started:
+	 *  -	FreeBSD's loader passes the pointer to the metadata
+	 *	in arg1, with arg2 undefined. arg1 has a value that's
+	 *	relative to the kernel's link address (i.e. larger
+	 *	than 0xc0000000).
+	 *  -	Juniper's loader passes the metadata pointer in arg2
+	 *	and sets arg1 to zero. This is to signal that the
+	 *	loader maps the kernel and starts it at its link
+	 *	address (unlike the FreeBSD loader).
+	 *  -	U-Boot passes the standard argc and argv parameters
+	 *	in arg1 and arg2 (resp). arg1 is between 1 and some
+	 *	relatively small number, such as 64K. arg2 is the
+	 *	physical address of the argv vector.
+	 */
+	if (arg1 > (uintptr_t)kernel_text)	/* FreeBSD loader */
+		mdp = (void *)arg1;
+	else if (arg1 == 0)			/* Juniper loader */
+		mdp = (void *)arg2;
+	else					/* U-Boot */
+		mdp = NULL;
 
 	/*
 	 * Parse metadata and fetch parameters.
@@ -309,17 +331,8 @@ e500_init(u_int32_t startkernel, u_int32_t endkernel, void *mdp)
 #endif
 		}
 	} else {
-		/*
-		 * We should scream but how? Cannot even output anything...
-		 */
-
-		 /*
-		  * FIXME add return value and handle in the locore so we can
-		  * return to the loader maybe? (this seems not very easy to
-		  * restore everything as the TLB have all been reprogrammed
-		  * in the locore etc...)
-		  */
-		while (1);
+		bzero(__sbss_start, __sbss_end - __sbss_start);
+		bzero(__bss_start, _end - __bss_start);
 	}
 
 #if defined(FDT_DTB_STATIC)
@@ -368,9 +381,7 @@ e500_init(u_int32_t startkernel, u_int32_t endkernel, void *mdp)
 	cninit();
 
 	/* Print out some debug info... */
-	debugf("e500_init: console initialized\n");
-	debugf(" arg1 startkernel = 0x%08x\n", startkernel);
-	debugf(" arg2 endkernel = 0x%08x\n", endkernel);
+	debugf("%s: console initialized\n", __func__);
 	debugf(" arg3 mdp = 0x%08x\n", (u_int32_t)mdp);
 	debugf(" end = 0x%08x\n", (u_int32_t)end);
 	debugf(" boothowto = 0x%08x\n", boothowto);
@@ -403,7 +414,7 @@ e500_init(u_int32_t startkernel, u_int32_t endkernel, void *mdp)
 
 	/* Initialise virtual memory. */
 	pmap_mmu_install(MMU_TYPE_BOOKE, 0);
-	pmap_bootstrap(startkernel, end);
+	pmap_bootstrap((uintptr_t)kernel_text, end);
 	debugf("MSR = 0x%08x\n", mfmsr());
 	//tlb1_print_entries();
 	//tlb1_print_tlbentries();
@@ -449,8 +460,8 @@ e500_init(u_int32_t startkernel, u_int32_t endkernel, void *mdp)
 		printf("L1 I-cache %sabled\n",
 		    (csr & L1CSR1_ICE) ? "en" : "dis");
 
-	debugf("e500_init: SP = 0x%08x\n", ((uintptr_t)thread0.td_pcb - 16) & ~15);
-	debugf("e500_init: e\n");
+	debugf("%s: SP = 0x%08x\n", __func__,
+	    ((uintptr_t)thread0.td_pcb - 16) & ~15);
 
 	return (((uintptr_t)thread0.td_pcb - 16) & ~15);
 }
