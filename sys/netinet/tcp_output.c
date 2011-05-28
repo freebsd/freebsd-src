@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/domain.h>
+#include <sys/hhook.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mbuf.h>
@@ -126,7 +127,31 @@ SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, sendbuf_max, CTLFLAG_RW,
 	&VNET_NAME(tcp_autosndbuf_max), 0,
 	"Max size of automatic send buffer");
 
+static void inline	hhook_run_tcp_est_out(struct tcpcb *tp,
+			    struct tcphdr *th, struct tcpopt *to,
+			    long len, int tso);
 static void inline	cc_after_idle(struct tcpcb *tp);
+
+/*
+ * Wrapper for the TCP established ouput helper hook.
+ */
+static void inline
+hhook_run_tcp_est_out(struct tcpcb *tp, struct tcphdr *th,
+    struct tcpopt *to, long len, int tso)
+{
+	struct tcp_hhook_data hhook_data;
+
+	if (V_tcp_hhh[HHOOK_TCP_EST_OUT]->hhh_nhooks > 0) {
+		hhook_data.tp = tp;
+		hhook_data.th = th;
+		hhook_data.to = to;
+		hhook_data.len = len;
+		hhook_data.tso = tso;
+
+		hhook_run_hooks(V_tcp_hhh[HHOOK_TCP_EST_OUT], &hhook_data,
+		    tp->osd);
+	}
+}
 
 /*
  * CC wrapper hook functions
@@ -1118,6 +1143,9 @@ timer:
 		if (SEQ_GT(tp->snd_nxt + xlen, tp->snd_max))
 			tp->snd_max = tp->snd_nxt + len;
 	}
+
+	/* Run HHOOK_TCP_ESTABLISHED_OUT helper hooks. */
+	hhook_run_tcp_est_out(tp, th, &to, len, tso);
 
 #ifdef TCPDEBUG
 	/*
