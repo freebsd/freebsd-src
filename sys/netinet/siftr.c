@@ -38,10 +38,11 @@
  * for experimental, debugging and performance analysis purposes.
  *
  * SIFTR was first released in 2007 by James Healy and Lawrence Stewart whilst
- * working on the NewTCP research project at Swinburne University's Centre for
- * Advanced Internet Architectures, Melbourne, Australia, which was made
- * possible in part by a grant from the Cisco University Research Program Fund
- * at Community Foundation Silicon Valley. More details are available at:
+ * working on the NewTCP research project at Swinburne University of
+ * Technology's Centre for Advanced Internet Architectures, Melbourne,
+ * Australia, which was made possible in part by a grant from the Cisco
+ * University Research Program Fund at Community Foundation Silicon Valley.
+ * More details are available at:
  *   http://caia.swin.edu.au/urp/newtcp/
  *
  * Work on SIFTR v1.2.x was sponsored by the FreeBSD Foundation as part of
