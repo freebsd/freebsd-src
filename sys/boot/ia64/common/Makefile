@@ -33,8 +33,13 @@ loader.help: help.common
 
 .PATH: ${.CURDIR}/../../forth
 FILES+=		loader.4th support.4th loader.conf
+FILES+=		beastie.4th brand.4th check-password.4th color.4th delay.4th
+FILES+=		menu.4th menu-commands.4th shortcuts.4th version.4th
 .if !exists(${DESTDIR}/boot/loader.rc)
 FILES+=		loader.rc
+.endif
+.if !exists(${DESTDIR}/boot/menu.rc)
+FILES+=		menu.rc
 .endif
 FILESDIR_loader.conf= /boot/defaults
 
