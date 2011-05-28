@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <net/route.h>
 #include <net/vnet.h>
 
+#include <netinet/cc.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #ifdef INET6
@@ -77,7 +78,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/ip6_var.h>
 #include <netinet6/scope6_var.h>
 #endif
-#include <netinet/tcp.h>
 #include <netinet/tcp_fsm.h>
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_timer.h>
@@ -1253,6 +1253,8 @@ tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 	struct	inpcb *inp;
 	struct	tcpcb *tp;
 	struct	tcp_info ti;
+	char buf[TCP_CA_NAME_MAX];
+	struct cc_algo *algo;
 
 	error = 0;
 	inp = sotoinpcb(so);
@@ -1363,6 +1365,54 @@ tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 			error = EINVAL;
 			break;
 
+		case TCP_CONGESTION:
+			INP_WUNLOCK(inp);
+			bzero(buf, sizeof(buf));
+			error = sooptcopyin(sopt, &buf, sizeof(buf), 1);
+			if (error)
+				break;
+			INP_WLOCK_RECHECK(inp);
+			/*
+			 * Return EINVAL if we can't find the requested cc algo.
+			 */
+			error = EINVAL;
+			CC_LIST_RLOCK();
+			STAILQ_FOREACH(algo, &cc_list, entries) {
+				if (strncmp(buf, algo->name, TCP_CA_NAME_MAX)
+				    == 0) {
+					/* We've found the requested algo. */
+					error = 0;
+					/*
+					 * We hold a write lock over the tcb
+					 * so it's safe to do these things
+					 * without ordering concerns.
+					 */
+					if (CC_ALGO(tp)->cb_destroy != NULL)
+						CC_ALGO(tp)->cb_destroy(tp->ccv);
+					CC_ALGO(tp) = algo;
+					/*
+					 * If something goes pear shaped
+					 * initialising the new algo,
+					 * fall back to newreno (which
+					 * does not require initialisation).
+					 */
+					if (algo->cb_init != NULL)
+						if (algo->cb_init(tp->ccv) > 0) {
+							CC_ALGO(tp) = &newreno_cc_algo;
+							/*
+							 * The only reason init
+							 * should fail is
+							 * because of malloc.
+							 */
+							error = ENOMEM;
+						}
+					break; /* Break the STAILQ_FOREACH. */
+				}
+			}
+			CC_LIST_RUNLOCK();
+			INP_WUNLOCK(inp);
+			break;
+
 		default:
 			INP_WUNLOCK(inp);
 			error = ENOPROTOOPT;
@@ -1405,6 +1455,12 @@ tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 			tcp_fill_info(tp, &ti);
 			INP_WUNLOCK(inp);
 			error = sooptcopyout(sopt, &ti, sizeof ti);
+			break;
+		case TCP_CONGESTION:
+			bzero(buf, sizeof(buf));
+			strlcpy(buf, CC_ALGO(tp)->name, TCP_CA_NAME_MAX);
+			INP_WUNLOCK(inp);
+			error = sooptcopyout(sopt, buf, TCP_CA_NAME_MAX);
 			break;
 		default:
 			INP_WUNLOCK(inp);
@@ -1713,6 +1769,10 @@ db_print_tflags(u_int t_flags)
 	}
 	if (t_flags & TF_FASTRECOVERY) {
 		db_printf("%sTF_FASTRECOVERY", comma ? ", " : "");
+		comma = 1;
+	}
+	if (t_flags & TF_CONGRECOVERY) {
+		db_printf("%sTF_CONGRECOVERY", comma ? ", " : "");
 		comma = 1;
 	}
 	if (t_flags & TF_WASFRECOVERY) {

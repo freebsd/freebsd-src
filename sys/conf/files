@@ -2568,6 +2568,8 @@ netinet/ip_mroute.c		optional mrouting inet | mrouting inet6
 netinet/ip_options.c		optional inet
 netinet/ip_output.c		optional inet
 netinet/raw_ip.c		optional inet
+netinet/cc/cc.c			optional inet
+netinet/cc/cc_newreno.c		optional inet
 netinet/sctp_asconf.c		optional inet sctp
 netinet/sctp_auth.c		optional inet sctp
 netinet/sctp_bsd_addr.c		optional inet sctp
