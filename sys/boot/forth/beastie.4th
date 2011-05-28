@@ -1,7 +1,8 @@
 \ Copyright (c) 2003 Scott Long <scottl@freebsd.org>
 \ Copyright (c) 2003 Aleksander Fafula <alex@fafula.com>
+\ Copyright (c) 2006-2011 Devin Teske <devinteske@hotmail.com>
 \ All rights reserved.
-\
+\ 
 \ Redistribution and use in source and binary forms, with or without
 \ modification, are permitted provided that the following conditions
 \ are met:
@@ -10,7 +11,7 @@
 \ 2. Redistributions in binary form must reproduce the above copyright
 \    notice, this list of conditions and the following disclaimer in the
 \    documentation and/or other materials provided with the distribution.
-\
+\ 
 \ THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
 \ ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 \ IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -22,35 +23,24 @@
 \ LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 \ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 \ SUCH DAMAGE.
-\
+\ 
 \ $FreeBSD$
 
 marker task-beastie.4th
 
-include /boot/screen.4th
-include /boot/frames.4th
+include /boot/color.4th
+include /boot/delay.4th
 
-hide
+variable logoX
+variable logoY
 
-variable menuidx
-variable menubllt
-variable menuX
-variable menuY
-variable promptwidth
+\ Initialize logo placement to defaults
+46 logoX !
+4  logoY !
 
-variable bootkey
-variable bootacpikey
-variable bootsafekey
-variable bootverbosekey
-variable bootsinglekey
-variable escapekey
-variable rebootkey
+: beastie-logo ( x y -- ) \ color BSD mascot (19 rows x 34 columns)
 
-46 constant dot
-
-\ The BSD Daemon.  He is 19 rows high and 34 columns wide
-: beastie-logo ( x y -- )
-2dup at-xy ."               [1;31m,        ," 1+
+2dup at-xy ."               [31m,        ," 1+
 2dup at-xy ."              /(        )`" 1+
 2dup at-xy ."              \ \___   / |" 1+
 2dup at-xy ."              /- [37m_[31m  `-/  '" 1+
@@ -59,7 +49,7 @@ variable rebootkey
 2dup at-xy ."             [34mO O   [37m) [31m/    |" 1+
 2dup at-xy ."             [37m`-^--'[31m`<     '" 1+
 2dup at-xy ."            (_.)  _  )   /" 1+
-2dup at-xy ."             `.___/`    /       " 1+
+2dup at-xy ."             `.___/`    /" 1+
 2dup at-xy ."               `-----' /" 1+
 2dup at-xy ."  [33m<----.[31m     __ / __   \" 1+
 2dup at-xy ."  [33m<----|====[31mO)))[33m==[31m) \) /[33m====|" 1+
@@ -68,173 +58,201 @@ variable rebootkey
 2dup at-xy ."                \       /       /\" 1+
 2dup at-xy ."           [36m______[31m( (_  / \______/" 1+
 2dup at-xy ."         [36m,'  ,-----'   |" 1+
-at-xy ."         `--{__________) [0m"
+     at-xy ."         `--{__________)[37m"
+
+	\ Put the cursor back at the bottom
+	0 25 at-xy
 ;
 
-: beastiebw-logo ( x y -- )
-	2dup at-xy ."              ,        ," 1+
-	2dup at-xy ."             /(        )`" 1+
-	2dup at-xy ."             \ \___   / |" 1+
-	2dup at-xy ."             /- _  `-/  '" 1+
-	2dup at-xy ."            (/\/ \ \   /\" 1+
-	2dup at-xy ."            / /   | `    \" 1+
-	2dup at-xy ."            O O   ) /    |" 1+
-	2dup at-xy ."            `-^--'`<     '" 1+
-	2dup at-xy ."           (_.)  _  )   /" 1+
-	2dup at-xy ."            `.___/`    /" 1+
-	2dup at-xy ."              `-----' /" 1+
-	2dup at-xy ." <----.     __ / __   \" 1+
-	2dup at-xy ." <----|====O)))==) \) /====" 1+
-	2dup at-xy ." <----'    `--' `.__,' \" 1+
-	2dup at-xy ."              |        |" 1+
-	2dup at-xy ."               \       /       /\" 1+
-	2dup at-xy ."          ______( (_  / \______/" 1+
-	2dup at-xy ."        ,'  ,-----'   |" 1+
-	     at-xy ."        `--{__________)"
+: beastiebw-logo ( x y -- ) \ B/W BSD mascot (19 rows x 34 columns)
+
+	2dup at-xy ."               ,        ," 1+
+	2dup at-xy ."              /(        )`" 1+
+	2dup at-xy ."              \ \___   / |" 1+
+	2dup at-xy ."              /- _  `-/  '" 1+
+	2dup at-xy ."             (/\/ \ \   /\" 1+
+	2dup at-xy ."             / /   | `    \" 1+
+	2dup at-xy ."             O O   ) /    |" 1+
+	2dup at-xy ."             `-^--'`<     '" 1+
+	2dup at-xy ."            (_.)  _  )   /" 1+
+	2dup at-xy ."             `.___/`    /" 1+
+	2dup at-xy ."               `-----' /" 1+
+	2dup at-xy ."  <----.     __ / __   \" 1+
+	2dup at-xy ."  <----|====O)))==) \) /====|" 1+
+	2dup at-xy ."  <----'    `--' `.__,' \" 1+
+	2dup at-xy ."               |        |" 1+
+	2dup at-xy ."                \       /       /\" 1+
+	2dup at-xy ."           ______( (_  / \______/" 1+
+	2dup at-xy ."         ,'  ,-----'   |" 1+
+	     at-xy ."         `--{__________)"
+
+	\ Put the cursor back at the bottom
+	0 25 at-xy
 ;
 
-: fbsdbw-logo ( x y -- )
-	2dup at-xy ."      ______" 1+
-	2dup at-xy ."     |  ____| __ ___  ___ " 1+
-	2dup at-xy ."     | |__ | '__/ _ \/ _ \" 1+
-	2dup at-xy ."     |  __|| | |  __/  __/" 1+
-	2dup at-xy ."     | |   | | |    |    |" 1+
-	2dup at-xy ."     |_|   |_|  \___|\___|" 1+
-	2dup at-xy ."      ____   _____ _____" 1+
-	2dup at-xy ."     |  _ \ / ____|  __ \" 1+
-	2dup at-xy ."     | |_) | (___ | |  | |" 1+
-	2dup at-xy ."     |  _ < \___ \| |  | |" 1+
-	2dup at-xy ."     | |_) |____) | |__| |" 1+
-	2dup at-xy ."     |     |      |      |" 1+
-	     at-xy ."     |____/|_____/|_____/"
+: fbsdbw-logo ( x y -- ) \ "FreeBSD" logo in B/W (13 rows x 21 columns)
+
+	\ We used to use the beastie himself as our default... until the
+	\ eventual complaint derided his reign of the advanced boot-menu.
+	\ 
+	\ This is the replacement of beastie to satiate the haters of our
+	\ beloved helper-daemon (ready to track down and spear bugs with
+	\ his trident and sporty sneakers; see above).
+	\ 
+	\ Since we merely just changed the default and not the default-
+	\ location, below is an adjustment to the passed-in coordinates,
+	\ forever influenced by the proper location of beastie himself
+	\ kept as the default loader_logo_x/loader_logo_y values.
+	\ 
+	5 + swap 6 + swap
+
+	2dup at-xy ."  ______" 1+
+	2dup at-xy ." |  ____| __ ___  ___ " 1+
+	2dup at-xy ." | |__ | '__/ _ \/ _ \" 1+
+	2dup at-xy ." |  __|| | |  __/  __/" 1+
+	2dup at-xy ." | |   | | |    |    |" 1+
+	2dup at-xy ." |_|   |_|  \___|\___|" 1+
+	2dup at-xy ."  ____   _____ _____" 1+
+	2dup at-xy ." |  _ \ / ____|  __ \" 1+
+	2dup at-xy ." | |_) | (___ | |  | |" 1+
+	2dup at-xy ." |  _ < \___ \| |  | |" 1+
+	2dup at-xy ." | |_) |____) | |__| |" 1+
+	2dup at-xy ." |     |      |      |" 1+
+	     at-xy ." |____/|_____/|_____/"
+
+	\ Put the cursor back at the bottom
+	0 25 at-xy
 ;
 
-: print-logo ( x y -- )
-	s" loader_logo" getenv
-	dup -1 = if
+: orb-logo ( x y -- ) \ color Orb mascot (15 rows x 30 columns)
+
+	3 + \ beastie adjustment (see `fbsdbw-logo' comments above)
+
+	2dup at-xy ."  [31m```                        [31;1m`[31m" 1+
+	2dup at-xy ." s` `.....---...[31;1m....--.```   -/[31m" 1+
+	2dup at-xy ." +o   .--`         [31;1m/y:`      +.[31m" 1+
+	2dup at-xy ."  yo`:.            [31;1m:o      `+-[31m" 1+
+	2dup at-xy ."   y/               [31;1m-/`   -o/[31m" 1+
+	2dup at-xy ."  .-                  [31;1m::/sy+:.[31m" 1+
+	2dup at-xy ."  /                     [31;1m`--  /[31m" 1+
+	2dup at-xy ." `:                          [31;1m:`[31m" 1+
+	2dup at-xy ." `:                          [31;1m:`[31m" 1+
+	2dup at-xy ."  /                          [31;1m/[31m" 1+
+	2dup at-xy ."  .-                        [31;1m-.[31m" 1+
+	2dup at-xy ."   --                      [31;1m-.[31m" 1+
+	2dup at-xy ."    `:`                  [31;1m`:`" 1+
+	2dup at-xy ."      [31;1m.--             `--." 1+
+	     at-xy ."         .---.....----.[37m"
+
+ 	\ Put the cursor back at the bottom
+ 	0 25 at-xy
+;
+
+: orbbw-logo ( x y -- ) \ B/W Orb mascot (15 rows x 32 columns)
+
+	3 + \ beastie adjustment (see `fbsdbw-logo' comments above)
+
+	2dup at-xy ."  ```                        `" 1+
+	2dup at-xy ." s` `.....---.......--.```   -/" 1+
+	2dup at-xy ." +o   .--`         /y:`      +." 1+
+	2dup at-xy ."  yo`:.            :o      `+-" 1+
+	2dup at-xy ."   y/               -/`   -o/" 1+
+	2dup at-xy ."  .-                  ::/sy+:." 1+
+	2dup at-xy ."  /                     `--  /" 1+
+	2dup at-xy ." `:                          :`" 1+
+	2dup at-xy ." `:                          :`" 1+
+	2dup at-xy ."  /                          /" 1+
+	2dup at-xy ."  .-                        -." 1+
+	2dup at-xy ."   --                      -." 1+
+	2dup at-xy ."    `:`                  `:`" 1+
+	2dup at-xy ."      .--             `--." 1+
+	     at-xy ."         .---.....----."
+
+ 	\ Put the cursor back at the bottom
+ 	0 25 at-xy
+;
+
+\ This function draws any number of beastie logos at (loader_logo_x,
+\ loader_logo_y) if defined, else (46,4) (to the right of the menu). To choose
+\ your beastie, set the variable `loader_logo' to the respective logo name.
+\ 
+\ Currently available:
+\ 
+\ 	NAME        DESCRIPTION
+\ 	beastie     Color ``Helper Daemon'' mascot (19 rows x 34 columns)
+\ 	beastiebw   B/W ``Helper Daemon'' mascot (19 rows x 34 columns)
+\ 	fbsdbw      "FreeBSD" logo in B/W (13 rows x 21 columns)
+\ 	orb         Color ``Orb'' mascot (15 rows x 30 columns)
+\ 	orbbw       B/W ``Orb'' mascot (15 rows x 32 columns) (default)
+\ 
+\ NOTE: Setting `loader_logo' to an undefined value (such as "none") will
+\       prevent beastie from being drawn.
+\ 
+: draw-beastie ( -- ) \ at (loader_logo_x,loader_logo_y), else (46,4)
+
+	s" loader_logo_x" getenv dup -1 <> if
+		?number 1 = if logoX ! then
+	else
 		drop
-		fbsdbw-logo
-		exit
 	then
-	2dup s" fbsdbw" compare-insensitive 0= if
-		2drop
-		fbsdbw-logo
-		exit
+	s" loader_logo_y" getenv dup -1 <> if
+		?number 1 = if logoY ! then
+	else
+		drop
+	then
+
+	s" loader_logo" getenv dup -1 = if
+		logoX @ logoY @
+		loader_color? if
+			orb-logo
+		else
+			orbbw-logo
+		then
+		drop exit
+	then
+
+	2dup s" beastie" compare-insensitive 0= if
+		logoX @ logoY @ beastie-logo
+		2drop exit
 	then
 	2dup s" beastiebw" compare-insensitive 0= if
-		2drop
-		beastiebw-logo
-		exit
+		logoX @ logoY @ beastiebw-logo
+		2drop exit
 	then
-	2dup s" beastie" compare-insensitive 0= if
-		2drop
-		beastie-logo
-		exit
+	2dup s" fbsdbw" compare-insensitive 0= if
+		logoX @ logoY @ fbsdbw-logo
+		2drop exit
 	then
-	2dup s" none" compare-insensitive 0= if
-		2drop
-		\ no logo
-		exit
+	2dup s" orb" compare-insensitive 0= if
+		logoX @ logoY @ orb-logo
+		2drop exit
 	then
+	2dup s" orbbw" compare-insensitive 0= if
+		logoX @ logoY @ orbbw-logo
+		2drop exit
+	then
+
 	2drop
-	fbsdbw-logo
 ;
 
-: acpipresent? ( -- flag )
-	s" hint.acpi.0.rsdp" getenv
-	dup -1 = if
-		drop false exit
-	then
-	2drop
-	true
+: clear-beastie ( -- ) \ clears beastie from the screen
+	logoX @ logoY @
+	2dup at-xy 34 spaces 1+		2dup at-xy 34 spaces 1+
+	2dup at-xy 34 spaces 1+		2dup at-xy 34 spaces 1+
+	2dup at-xy 34 spaces 1+		2dup at-xy 34 spaces 1+
+	2dup at-xy 34 spaces 1+		2dup at-xy 34 spaces 1+
+	2dup at-xy 34 spaces 1+		2dup at-xy 34 spaces 1+
+	2dup at-xy 34 spaces 1+		2dup at-xy 34 spaces 1+
+	2dup at-xy 34 spaces 1+		2dup at-xy 34 spaces 1+
+	2dup at-xy 34 spaces 1+		2dup at-xy 34 spaces 1+
+	2dup at-xy 34 spaces 1+		2dup at-xy 34 spaces 1+
+	2dup at-xy 34 spaces		2drop
+
+	\ Put the cursor back at the bottom
+	0 25 at-xy
 ;
 
-: acpienabled? ( -- flag )
-	s" hint.acpi.0.disabled" getenv
-	dup -1 <> if
-		s" 0" compare 0<> if
-			false exit
-		then
-	else
-		drop
-	then
-	true
-;
-
-: printmenuitem ( -- n )
-	menuidx @
-	1+ dup
-	menuidx !
-	menuY @ + dup menuX @ swap at-xy
-	menuidx @ .
-	menuX @ 1+ swap at-xy
-	menubllt @ emit
-	menuidx @ 48 +
-;
-
-: beastie-menu ( -- )
-	0 menuidx !
-	dot menubllt !
-	8 menuY !
-	5 menuX !
-	clear
-	46 4 print-logo
-	42 20 2 2 box
-	13 6 at-xy ." Welcome to FreeBSD!"
-	printmenuitem ."  Boot FreeBSD [default]" bootkey !
-	s" arch-i386" environment? if
-		drop
-		acpipresent? if
-			printmenuitem ."  Boot FreeBSD with ACPI " bootacpikey !
-			acpienabled? if
-				." disabled"
-			else
-				." enabled"
-			then
-		else
-			menuidx @
-			1+
-			menuidx !
-			-2 bootacpikey !
-		then
-	else
-		-2 bootacpikey !
-	then
-	printmenuitem ."  Boot FreeBSD in Safe Mode" bootsafekey !
-	printmenuitem ."  Boot FreeBSD in single user mode" bootsinglekey !
-	printmenuitem ."  Boot FreeBSD with verbose logging" bootverbosekey !
-	printmenuitem ."  Escape to loader prompt" escapekey !
-	printmenuitem ."  Reboot" rebootkey !
-	menuX @ 20 at-xy
-	." Select option, [Enter] for default"
-	menuX @ 21 at-xy
-	s" or [Space] to pause timer    " dup 2 - promptwidth !
-	type
-;
-
-: tkey
-	seconds +
-	begin 1 while
-		over 0<> if
-			dup seconds u< if
-				drop
-				-1
-				exit
-			then
-			menuX @ promptwidth @ + 21 at-xy dup seconds - .
-		then
-		key? if
-			drop
-			key
-			exit
-		then
-	50 ms
-	repeat
-;
-
-set-current
-
-: beastie-start
+: beastie-start ( -- ) \ starts the menu
 	s" beastie_disable" getenv
 	dup -1 <> if
 		s" YES" compare-insensitive 0= if
@@ -243,62 +261,15 @@ set-current
 	else
 		drop
 	then
-	beastie-menu
-	s" autoboot_delay" getenv
-	dup -1 = if
-		drop
-		10
-	else
-		2dup s" -1" compare 0= if
-			0 boot
-		then
-		0 s>d 2swap >number 2drop drop
-	then
-	begin
-		dup tkey
-		0 25 at-xy
-		dup 32 = if nip 0 swap then
-		dup -1 = if 0 boot then
-		dup 13 = if 0 boot then
-		dup bootkey @ = if 0 boot then
-		dup bootacpikey @ = if
-			acpienabled? if
-				s" 1" s" hint.acpi.0.disabled" setenv
-				s" 1" s" loader.acpi_disabled_by_user" setenv
-			else
-				s" 0" s" hint.acpi.0.disabled" setenv
-			then
-			0 boot
-		then
-		dup bootsafekey @ = if
-			s" arch-i386" environment? if
-				drop
-				s" 1" s" hint.acpi.0.disabled" setenv
-				s" 1" s" loader.acpi_disabled_by_user" setenv
-				s" 1" s" hint.apic.0.disabled" setenv
-			then
-			s" 0" s" hw.ata.ata_dma" setenv
-			s" 0" s" hw.ata.atapi_dma" setenv
-			s" 0" s" hw.ata.wc" setenv
-			s" 0" s" hw.eisa_slots" setenv
-			s" 1" s" hint.kbdmux.0.disabled" setenv
-			0 boot
-		then
-		dup bootverbosekey @ = if
-			s" YES" s" boot_verbose" setenv
-			0 boot
-		then
-		dup bootsinglekey @ = if
-			s" YES" s" boot_single" setenv
-			0 boot
-		then
-		dup escapekey @ = if
-			2drop
-			s" NO" s" autoboot_delay" setenv
-			exit
-		then
-		rebootkey @ = if 0 reboot then
-	again
-;
 
-previous
+	s" loader_delay" getenv
+	-1 = if
+		s" include /boot/menu.rc" evaluate
+	else
+		drop
+		." Loading Menu (Ctrl-C to Abort)" cr
+		s" set delay_command='include /boot/menu.rc'" evaluate
+		s" set delay_showdots" evaluate
+		delay_execute
+	then
+;
