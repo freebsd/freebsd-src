@@ -44,8 +44,15 @@ SRCS+=	pnp.c
 # Forth interpreter
 .if defined(BOOT_FORTH)
 SRCS+=	interp_forth.c
+MAN+=	../forth/beastie.4th.8
+MAN+=	../forth/brand.4th.8
+MAN+=	../forth/check-password.4th.8
+MAN+=	../forth/color.4th.8
+MAN+=	../forth/delay.4th.8
 MAN+=	../forth/loader.conf.5
 MAN+=	../forth/loader.4th.8
+MAN+=	../forth/menu.4th.8
+MAN+=	../forth/version.4th.8
 .endif
 
 .if defined(BOOT_PROMPT_123)
