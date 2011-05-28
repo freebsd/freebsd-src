@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lib.c,v 1.16 2007/06/19 23:47:16 tbox Exp $ */
+/* $Id: lib.c,v 1.16 2007-06-19 23:47:16 tbox Exp $ */
 
 /*! \file */
 

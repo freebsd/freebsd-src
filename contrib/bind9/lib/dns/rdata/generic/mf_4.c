@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: mf_4.c,v 1.45 2007/06/19 23:47:17 tbox Exp $ */
+/* $Id: mf_4.c,v 1.45 2007-06-19 23:47:17 tbox Exp $ */
 
 /* reviewed: Wed Mar 15 17:47:33 PST 2000 by brister */
 

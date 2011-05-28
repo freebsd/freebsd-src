@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: adb.h,v 1.85 2008/04/03 06:09:04 tbox Exp $ */
+/* $Id: adb.h,v 1.85 2008-04-03 06:09:04 tbox Exp $ */
 
 #ifndef DNS_ADB_H
 #define DNS_ADB_H 1

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: socket_p.h,v 1.13 2008/06/23 23:47:11 tbox Exp $ */
+/* $Id: socket_p.h,v 1.13 2008-06-23 23:47:11 tbox Exp $ */
 
 #ifndef ISC_SOCKET_P_H
 #define ISC_SOCKET_P_H

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: os.h,v 1.29 2008/10/24 01:44:48 tbox Exp $ */
+/* $Id: os.h,v 1.29 2008-10-24 01:44:48 tbox Exp $ */
 
 #ifndef NS_OS_H
 #define NS_OS_H 1

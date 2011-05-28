@@ -29,7 +29,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: symtype.h,v 1.10 2007/08/28 07:20:43 tbox Exp $ */
+/* $Id: symtype.h,v 1.10 2007-08-28 07:20:43 tbox Exp $ */
 
 #ifndef ISCCC_SYMTYPE_H
 #define ISCCC_SYMTYPE_H 1
