@@ -45,6 +45,7 @@
 
 #include <arpa/inet.h>
 
+#include <netdb.h>
 #include <time.h>
 #include <stdio.h>
 #include <stdarg.h>
@@ -63,6 +64,7 @@ extern struct rainfo *ralist;
 
 static char *ether_str(struct sockaddr_dl *);
 static void if_dump(void);
+static size_t dname_labeldec(char *, const char *);
 
 static char *rtpref_str[] = {
 	"medium",		/* 00 */
@@ -95,6 +97,10 @@ if_dump()
 	struct prefix *pfx;
 #ifdef ROUTEINFO
 	struct rtinfo *rti;
+#endif
+#ifdef RDNSS
+	struct rdnss *rdn;
+	struct dnssl *dns;
 #endif
 	char prefixbuf[INET6_ADDRSTRLEN];
 	int first;
@@ -230,6 +236,44 @@ if_dump()
 			fprintf(fp, ")\n");
 		}
 #endif
+#ifdef RDNSS
+		TAILQ_FOREACH(rdn, &rai->rdnss, rd_next) {
+			struct rdnss_addr *rdna;
+
+			if (rdn == TAILQ_FIRST(&rai->rdnss))
+				fprintf(fp, "  Recursive DNS servers:\n"
+					    "    Lifetime\tServers\n");
+
+			fprintf(fp, "    % 8u\t", rdn->rd_ltime);
+			TAILQ_FOREACH(rdna, &rdn->rd_list, ra_next) {
+				inet_ntop(AF_INET6, &rdna->ra_dns,
+				    prefixbuf, sizeof(prefixbuf));
+				
+				if (rdna != TAILQ_FIRST(&rdn->rd_list))
+					fprintf(fp, "            \t");
+				fprintf(fp, "%s\n", prefixbuf);
+			}
+			fprintf(fp, "\n");
+		}
+
+		TAILQ_FOREACH(dns, &rai->dnssl, dn_next) {
+			struct dnssl_addr *dnsa;
+			char buf[NI_MAXHOST + 1];
+
+			if (dns == TAILQ_FIRST(&rai->dnssl))
+				fprintf(fp, "  DNS search list:\n"
+					    "    Lifetime\tDomains\n");
+
+			fprintf(fp, "    % 8u\t", dns->dn_ltime);
+			TAILQ_FOREACH(dnsa, &dns->dn_list, da_next) {
+				dname_labeldec(buf, dnsa->da_dom);
+				if (dnsa != TAILQ_FIRST(&dns->dn_list))
+					fprintf(fp, "            \t");
+				fprintf(fp, "%s(%d)\n", buf, dnsa->da_len);
+			}
+			fprintf(fp, "\n");
+		}
+#endif
 	}
 }
 
@@ -249,4 +293,24 @@ rtadvd_dump_file(dumpfile)
 	if_dump();
 
 	fclose(fp);
+}
+
+/* Decode domain name label encoding in RFC 1035 Section 3.1 */
+static size_t
+dname_labeldec(char *dst, const char *src)
+{
+	size_t len;
+	const char *src_origin;
+
+	src_origin = src;
+	while (*src && (len = (uint8_t)(*src++) & 0x3f) != 0) {
+		syslog(LOG_DEBUG, "<%s> labellen = %d", __func__, len);
+		memcpy(dst, src, len);
+		src += len;
+		dst += len;
+		if (*(dst - 1) == '\0')
+			break;
+	}
+
+	return (src - src_origin);
 }

@@ -37,6 +37,7 @@
 #include <sys/queue.h>
 
 #include <net/if.h>
+#include <net/if_media.h>
 #include <net/route.h>
 #include <net/if_dl.h>
 #include <netinet/in.h>
@@ -52,6 +53,7 @@
 #include <err.h>
 #include <errno.h>
 #include <libutil.h>
+#include <netdb.h>
 #include <string.h>
 #include <stdlib.h>
 #include <syslog.h>
@@ -115,15 +117,26 @@ union nd_opts {
 #define nd_opts_mtu		nd_opt_each.mtu
 #define nd_opts_list		nd_opt_each.list
 
-#define NDOPT_FLAG_SRCLINKADDR 0x1
-#define NDOPT_FLAG_TGTLINKADDR 0x2
-#define NDOPT_FLAG_PREFIXINFO 0x4
-#define NDOPT_FLAG_RDHDR 0x8
-#define NDOPT_FLAG_MTU 0x10
+#define NDOPT_FLAG_SRCLINKADDR	(1 << 0)
+#define NDOPT_FLAG_TGTLINKADDR	(1 << 1)
+#define NDOPT_FLAG_PREFIXINFO	(1 << 2)
+#define NDOPT_FLAG_RDHDR	(1 << 3)
+#define NDOPT_FLAG_MTU		(1 << 4)
+#ifdef RDNSS
+#define NDOPT_FLAG_RDNSS	(1 << 5)
+#define NDOPT_FLAG_DNSSL	(1 << 6)
+#endif
 
 u_int32_t ndopt_flags[] = {
-	0, NDOPT_FLAG_SRCLINKADDR, NDOPT_FLAG_TGTLINKADDR,
-	NDOPT_FLAG_PREFIXINFO, NDOPT_FLAG_RDHDR, NDOPT_FLAG_MTU,
+	[ND_OPT_SOURCE_LINKADDR]	= NDOPT_FLAG_SRCLINKADDR,
+	[ND_OPT_TARGET_LINKADDR]	= NDOPT_FLAG_TGTLINKADDR,
+	[ND_OPT_PREFIX_INFORMATION]	= NDOPT_FLAG_PREFIXINFO,
+	[ND_OPT_REDIRECTED_HEADER]	= NDOPT_FLAG_RDHDR,
+	[ND_OPT_MTU]			= NDOPT_FLAG_MTU,
+#ifdef RDNSS
+	[ND_OPT_RDNSS]			= NDOPT_FLAG_RDNSS,
+	[ND_OPT_DNSSL]			= NDOPT_FLAG_DNSSL,
+#endif
 };
 
 int main(int, char *[]);
@@ -376,6 +389,10 @@ static void
 die()
 {
 	struct rainfo *ra;
+#ifdef RDNSS
+	struct rdnss *rdn;
+	struct dnssl *dns;
+#endif
 	int i;
 	const int retrans = MAX_FINAL_RTR_ADVERTISEMENTS;
 
@@ -386,6 +403,12 @@ die()
 
 	for (ra = ralist; ra; ra = ra->next) {
 		ra->lifetime = 0;
+#ifdef RDNSS
+		TAILQ_FOREACH(rdn, &ra->rdnss, rd_next)
+			rdn->rd_ltime = 0;
+		TAILQ_FOREACH(dns, &ra->dnssl, dn_next)
+			dns->dn_ltime = 0;
+#endif
 		make_packet(ra);
 	}
 	for (i = 0; i < retrans; i++) {
@@ -961,7 +984,11 @@ ra_input(int len, struct nd_router_advert *ra,
 	if (nd6_options((struct nd_opt_hdr *)(ra + 1),
 			len - sizeof(struct nd_router_advert),
 			&ndopts, NDOPT_FLAG_SRCLINKADDR |
-			NDOPT_FLAG_PREFIXINFO | NDOPT_FLAG_MTU)) {
+			NDOPT_FLAG_PREFIXINFO | NDOPT_FLAG_MTU
+#ifdef RDNSS
+			| NDOPT_FLAG_RDNSS | NDOPT_FLAG_DNSSL
+#endif
+	    )) {
 		syslog(LOG_INFO,
 		       "<%s> ND option check failed for an RA from %s on %s",
 		       __func__,
@@ -1300,7 +1327,12 @@ nd6_options(struct nd_opt_hdr *hdr, int limit,
 			goto bad;
 		}
 
-		if (hdr->nd_opt_type > ND_OPT_MTU) {
+		if (hdr->nd_opt_type > ND_OPT_MTU
+#ifdef RDNSS
+		    && hdr->nd_opt_type != ND_OPT_RDNSS &&
+		       hdr->nd_opt_type != ND_OPT_DNSSL
+#endif
+		    ) {
 			syslog(LOG_INFO, "<%s> unknown ND option(type %d)",
 			    __func__, hdr->nd_opt_type);
 			continue;
@@ -1317,9 +1349,18 @@ nd6_options(struct nd_opt_hdr *hdr, int limit,
 		 * options.
 		 */
 		if ((hdr->nd_opt_type == ND_OPT_MTU &&
-		    (optlen != sizeof(struct nd_opt_mtu))) ||
-		    ((hdr->nd_opt_type == ND_OPT_PREFIX_INFORMATION &&
-		    optlen != sizeof(struct nd_opt_prefix_info)))) {
+			optlen != sizeof(struct nd_opt_mtu)) ||
+#ifdef RDNSS
+		    (hdr->nd_opt_type == ND_OPT_RDNSS &&
+			(optlen < 24 ||
+			(optlen - sizeof(struct nd_opt_rdnss)) % 16 != 0)) ||
+		    (hdr->nd_opt_type == ND_OPT_DNSSL &&
+			(optlen < 16 ||
+			(optlen - sizeof(struct nd_opt_dnssl)) % 8 != 0)) ||
+#endif
+		    (hdr->nd_opt_type == ND_OPT_PREFIX_INFORMATION &&
+			optlen != sizeof(struct nd_opt_prefix_info))
+		) {
 			syslog(LOG_INFO, "<%s> invalid option length",
 			    __func__);
 			continue;
@@ -1328,6 +1369,10 @@ nd6_options(struct nd_opt_hdr *hdr, int limit,
 		switch (hdr->nd_opt_type) {
 		case ND_OPT_TARGET_LINKADDR:
 		case ND_OPT_REDIRECTED_HEADER:
+#ifdef RDNSS
+		case ND_OPT_RDNSS:
+		case ND_OPT_DNSSL:
+#endif
 			break;	/* we don't care about these options */
 		case ND_OPT_SOURCE_LINKADDR:
 		case ND_OPT_MTU:

@@ -50,6 +50,7 @@
 
 #include <arpa/inet.h>
 
+#include <netdb.h>
 #include <time.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -77,8 +78,23 @@ static struct sockaddr_in6 sin6_allrouters = {
 	.sin6_family =	AF_INET6,
 };
 
-static void call_script(char *, char *);
+struct script_msg {
+	TAILQ_ENTRY(script_msg)	sm_next;
+
+	char *sm_msg;
+};
+
+static void call_script(char **, void *);
+static size_t dname_labeldec(char *, const char *);
 static int safefile(const char *);
+
+#define _ARGS_OTHER	otherconf_script, ifi->ifname
+#define _ARGS_RESCONF	resolvconf_script, "-a", ifi->ifname
+#define CALL_SCRIPT(name, sm_head)	\
+	do {						\
+		char *sarg[] = { _ARGS_##name, NULL };	\
+		call_script(sarg, sm_head);		\
+	} while(0);
 
 int
 sockopen(void)
@@ -234,17 +250,34 @@ rtsol_input(int s)
 {
 	u_char ntopbuf[INET6_ADDRSTRLEN], ifnamebuf[IFNAMSIZ];
 	int ifindex = 0, *hlimp = NULL;
-	ssize_t i;
+	ssize_t msglen;
 	struct in6_pktinfo *pi = NULL;
 	struct ifinfo *ifi = NULL;
 	struct icmp6_hdr *icp;
 	struct nd_router_advert *nd_ra;
 	struct cmsghdr *cm;
+	char *raoptp;
+	char *p;
+	struct in6_addr *addr;
+	struct nd_opt_hdr *ndo;
+	struct nd_opt_rdnss *rdnss;
+	struct nd_opt_dnssl *dnssl;
+	size_t len;
+	struct script_msg *smp;
+	TAILQ_HEAD(, script_msg) sm_ns_head =
+		TAILQ_HEAD_INITIALIZER(sm_ns_head);
+	char nsbuf[11 + INET6_ADDRSTRLEN + 1 + IFNAMSIZ + 1 + 1];
+	/* 11 = sizeof("nameserver "), 1+1 = \n\0 termination */
+	TAILQ_HEAD(, script_msg) sm_sl_head =
+		TAILQ_HEAD_INITIALIZER(sm_sl_head);
+	char slbuf[7 + NI_MAXHOST + 1 + 1];
+	/* 7 = sizeof("search "), 1+1 = \n\0 termination */
+	char dname[NI_MAXHOST + 1];
 
 	/* get message.  namelen and controllen must always be initialized. */
 	rcvmhdr.msg_namelen = sizeof(from);
 	rcvmhdr.msg_controllen = rcvcmsglen;
-	if ((i = recvmsg(s, &rcvmhdr, 0)) < 0) {
+	if ((msglen = recvmsg(s, &rcvmhdr, 0)) < 0) {
 		warnmsg(LOG_ERR, __func__, "recvmsg: %s", strerror(errno));
 		return;
 	}
@@ -275,9 +308,9 @@ rtsol_input(int s)
 		return;
 	}
 
-	if ((size_t)i < sizeof(struct nd_router_advert)) {
+	if ((size_t)msglen < sizeof(struct nd_router_advert)) {
 		warnmsg(LOG_INFO, __func__,
-		    "packet size(%zd) is too short", i);
+		    "packet size(%zd) is too short", msglen);
 		return;
 	}
 
@@ -354,9 +387,166 @@ rtsol_input(int s)
 		warnmsg(LOG_DEBUG, __func__,
 		    "OtherConfigFlag on %s is turned on", ifi->ifname);
 		ifi->otherconfig = 1;
-		call_script(otherconf_script, ifi->ifname);
+		CALL_SCRIPT(OTHER, NULL);
 	}
 
+#define RA_OPT_NEXT_HDR(x)	(struct nd_opt_hdr *)((char *)x + \
+				(((struct nd_opt_hdr *)x)->nd_opt_len * 8))
+	raoptp = (char *)icp + sizeof(struct nd_router_advert);
+
+	warnmsg(LOG_DEBUG, __func__, "Processing RA");
+	/* Process RA options. */
+	while (raoptp < (char *)icp + msglen) {
+		ndo = (struct nd_opt_hdr *)raoptp;
+		warnmsg(LOG_DEBUG, __func__, "ndo = %p", raoptp);
+		warnmsg(LOG_DEBUG, __func__, "ndo->nd_opt_type = %d",
+		    ndo->nd_opt_type);
+		warnmsg(LOG_DEBUG, __func__, "ndo->nd_opt_len = %d",
+		    ndo->nd_opt_len);
+
+		switch (ndo->nd_opt_type) {
+		case ND_OPT_RDNSS:
+			if (resolvconf_script == NULL)
+				break;
+			rdnss = (struct nd_opt_rdnss *)raoptp;
+			/* XXX: no lifetime handling now */
+
+			addr = (struct in6_addr *)(raoptp + sizeof(*rdnss));
+			while ((char *)addr < (char *)RA_OPT_NEXT_HDR(raoptp)) {
+				if (inet_ntop(AF_INET6, addr, ntopbuf,
+				    INET6_ADDRSTRLEN) == NULL) {
+					warnmsg(LOG_INFO, __func__,
+		    			"an invalid address in RDNSS option "
+					"in RA from %s was ignored.",
+					inet_ntop(AF_INET6, &from.sin6_addr,
+					ntopbuf, INET6_ADDRSTRLEN));
+
+					continue;
+				}
+				if (IN6_IS_ADDR_LINKLOCAL(addr))
+					/* XXX: % has to be escaped here */
+					sprintf(nsbuf, "nameserver "
+					    "%s%c%c%c%c%s\n",
+					    ntopbuf,
+					    SCOPE_DELIMITER,
+					    SCOPE_DELIMITER,
+					    SCOPE_DELIMITER,
+					    SCOPE_DELIMITER,
+					    ifi->ifname);
+				else
+					sprintf(nsbuf, "nameserver %s\n",
+					    ntopbuf);
+				warnmsg(LOG_DEBUG, __func__, "nsbuf = %s",
+				    nsbuf);
+
+				smp = malloc(sizeof(*smp));
+				if (smp == NULL) {
+					warnmsg(LOG_ERR, __func__,
+					    "malloc failed: %s",
+					    strerror(errno));
+					continue;
+				}
+				memset(smp, 0, sizeof(*smp));
+				smp->sm_msg = strdup(nsbuf);
+				if (smp->sm_msg == NULL) {
+					warnmsg(LOG_ERR, __func__,
+					    "strdup failed: %s",
+					    strerror(errno));
+					free(smp);
+					continue;
+				}
+				TAILQ_INSERT_TAIL(&sm_ns_head, smp, sm_next);
+				addr++;
+			}
+			break;
+		case ND_OPT_DNSSL:
+			if (resolvconf_script == NULL)
+				break;
+			dnssl = (struct nd_opt_dnssl *)raoptp;
+			/* XXX: no lifetime handling now */
+
+			if (TAILQ_EMPTY(&sm_sl_head)) {
+				smp = malloc(sizeof(*smp));
+				if (smp == NULL) {
+					warnmsg(LOG_ERR, __func__,
+					    "malloc failed: %s",
+					    strerror(errno));
+					break;
+				}
+				smp = malloc(sizeof(*smp));
+				smp->sm_msg = strdup("search ");
+				if (smp->sm_msg == NULL) {
+					warnmsg(LOG_ERR, __func__,
+					    "strdup failed: %s",
+					    strerror(errno));
+					free(smp);
+					break;
+				}
+				TAILQ_INSERT_TAIL(&sm_sl_head, smp, sm_next);
+			}
+
+			p = raoptp + sizeof(*dnssl);
+			while (0 < (len = dname_labeldec(dname, p))) {
+				sprintf(slbuf, "%s ", dname);
+				warnmsg(LOG_DEBUG, __func__, "slbuf = %s",
+				    slbuf);
+
+				smp = malloc(sizeof(*smp));
+				if (smp == NULL) {
+					warnmsg(LOG_ERR, __func__,
+					    "malloc failed: %s",
+					    strerror(errno));
+					break;
+				}
+				memset(smp, 0, sizeof(*smp));
+				smp->sm_msg = strdup(slbuf);
+				if (smp->sm_msg == NULL) {
+					warnmsg(LOG_ERR, __func__,
+					    "strdup failed: %s",
+					    strerror(errno));
+					free(smp);
+					break;
+				}
+				TAILQ_INSERT_TAIL(&sm_sl_head, smp, sm_next);
+				p += len;
+			}
+			break;
+		default:  
+			/* nothing to do for other options */
+			break;
+		}
+		raoptp = (char *)RA_OPT_NEXT_HDR(raoptp);
+	}
+	if (!TAILQ_EMPTY(&sm_sl_head)) {
+		smp = malloc(sizeof(*smp));
+		if (smp == NULL) {
+			warnmsg(LOG_ERR, __func__, "malloc failed: %s",
+			    strerror(errno));
+			return;
+		}
+		smp = malloc(sizeof(*smp));
+		smp->sm_msg = strdup("\n");
+		if (smp->sm_msg == NULL) {
+			warnmsg(LOG_ERR, __func__, "strdup failed: %s",
+			    strerror(errno));
+			free(smp);
+			return;
+		}
+	}
+	TAILQ_CONCAT(&sm_ns_head, &sm_sl_head, sm_next);
+	if (!TAILQ_EMPTY(&sm_ns_head) || !TAILQ_EMPTY(&sm_sl_head)) {
+		struct script_msg *sm_tmp;
+
+		CALL_SCRIPT(RESCONF, &sm_ns_head);
+
+		/* Clear script message queue. */
+		smp = TAILQ_FIRST(&sm_ns_head);
+		while(smp != NULL) {
+			sm_tmp = TAILQ_NEXT(smp, sm_next);
+			free(smp);
+			smp = sm_tmp;
+		}
+	}
 	ifi->racnt++;
 
 	switch (ifi->state) {
@@ -372,12 +562,27 @@ rtsol_input(int s)
 }
 
 static void
-call_script(char *scriptpath, char *ifname)
+call_script(char *argv[], void *head)
 {
+	char *scriptpath;
+	int fd[2];
+	int error;
 	pid_t pid, wpid;
+	TAILQ_HEAD(, script_msg) *sm_head = NULL;
 
-	if (scriptpath == NULL)
+	sm_head = head;
+	fd[0] = fd[1] = -1;
+	if ((scriptpath = argv[0]) == NULL)
 		return;
+
+	if (sm_head != NULL && !TAILQ_EMPTY(sm_head)) {
+		error = pipe(fd);
+		if (error) {
+			warnmsg(LOG_ERR, __func__,
+			    "failed to create a pipe: %s", strerror(errno));
+			return;
+		}
+	}
 
 	/* launch the script */
 	pid = fork();
@@ -385,9 +590,28 @@ call_script(char *scriptpath, char *ifname)
 		warnmsg(LOG_ERR, __func__,
 		    "failed to fork: %s", strerror(errno));
 		return;
-	} else if (pid) {
+	} else if (pid) {	/* parent */
 		int wstatus;
 
+		if (fd[0] != -1) {	/* Send message to the child if any. */
+			ssize_t len;
+			struct script_msg *smp;
+
+			close(fd[0]);
+			TAILQ_FOREACH(smp, sm_head, sm_next) {
+				len = strlen(smp->sm_msg);
+				warnmsg(LOG_DEBUG, __func__,
+				    "write to child = %s(%d)",
+				    smp->sm_msg, len);
+				if (write(fd[1], smp->sm_msg, len) != len) {
+					warnmsg(LOG_ERR, __func__,
+					    "write to child failed: %s",
+					    strerror(errno));
+					break;
+				}
+			}
+			close(fd[1]);
+		}
 		do {
 			wpid = wait(&wstatus);
 		} while (wpid != pid && wpid > 0);
@@ -399,13 +623,8 @@ call_script(char *scriptpath, char *ifname)
 			warnmsg(LOG_DEBUG, __func__,
 			    "script \"%s\" terminated", scriptpath);
 		}
-	} else {
-		char *argv[3];
-		int fd;
-
-		argv[0] = scriptpath;
-		argv[1] = ifname;
-		argv[2] = NULL;
+	} else {		/* child */
+		int nullfd;
 
 		if (safefile(scriptpath)) {
 			warnmsg(LOG_ERR, __func__,
@@ -413,20 +632,35 @@ call_script(char *scriptpath, char *ifname)
 			    scriptpath);
 			exit(1);
 		}
-
-		if ((fd = open("/dev/null", O_RDWR)) != -1) {
-			dup2(fd, STDIN_FILENO);
-			dup2(fd, STDOUT_FILENO);
-			dup2(fd, STDERR_FILENO);
-			if (fd > STDERR_FILENO)
-				close(fd);
+		nullfd = open("/dev/null", O_RDWR);
+		if (nullfd < 0) {
+			warnmsg(LOG_ERR, __func__,
+			    "open /dev/null: %s", strerror(errno));
+			exit(1);
 		}
+		if (fd[0] != -1) {	/* Receive message from STDIN if any. */
+			close(fd[1]);
+			if (fd[0] != STDIN_FILENO) {
+				/* Connect a pipe read-end to child's STDIN. */
+				if (dup2(fd[0], STDIN_FILENO) != STDIN_FILENO) {
+					warnmsg(LOG_ERR, __func__,
+					    "dup2 STDIN: %s", strerror(errno));
+					exit(1);
+				}
+				close(fd[0]);
+			}
+		} else
+			dup2(nullfd, STDIN_FILENO);
+	
+		dup2(nullfd, STDOUT_FILENO);
+		dup2(nullfd, STDERR_FILENO);
+		if (nullfd > STDERR_FILENO)
+			close(nullfd);
 
 		execv(scriptpath, argv);
-
 		warnmsg(LOG_ERR, __func__, "child: exec failed: %s",
 		    strerror(errno));
-		exit(0);
+		exit(1);
 	}
 
 	return;
@@ -470,4 +704,24 @@ safefile(const char *path)
 	}
 
 	return (0);
+}
+
+/* Decode domain name label encoding in RFC 1035 Section 3.1 */
+static size_t
+dname_labeldec(char *dst, const char *src)
+{
+	size_t len;
+	const char *src_origin;
+
+	src_origin = src;
+	while (*src && (len = (uint8_t)(*src++) & 0x3f) != 0) {
+		warnmsg(LOG_DEBUG, __func__, "labellen = %d", len);
+		memcpy(dst, src, len);
+		src += len;
+		dst += len;
+		if (*(dst - 1) == '\0')
+			break; 
+	}
+
+	return (src - src_origin);
 }

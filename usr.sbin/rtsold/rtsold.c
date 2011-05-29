@@ -73,6 +73,7 @@ int aflag = 0;
 int dflag = 0;
 
 char *otherconf_script;
+char *resolvconf_script = "/sbin/resolvconf";
 
 /* protocol constants */
 #define MAX_RTR_SOLICITATION_DELAY	1 /* second */
@@ -133,9 +134,9 @@ main(int argc, char **argv)
 	if (argv0 && argv0[strlen(argv0) - 1] != 'd') {
 		fflag = 1;
 		once = 1;
-		opts = "adDFO:";
+		opts = "adDFO:R:";
 	} else
-		opts = "adDfFm1O:";
+		opts = "adDfFm1O:R:";
 
 	while ((ch = getopt(argc, argv, opts)) != -1) {
 		switch (ch) {
@@ -162,6 +163,9 @@ main(int argc, char **argv)
 			break;
 		case 'O':
 			otherconf_script = optarg;
+			break;
+		case 'R':
+			resolvconf_script = optarg;
 			break;
 		default:
 			usage(argv0);
