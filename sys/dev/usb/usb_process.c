@@ -34,7 +34,6 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -221,7 +220,7 @@ usb_proc_create(struct usb_process *up, struct mtx *p_mtx,
 	cv_init(&up->up_drain, "usbdrain");
 
 	if (USB_THREAD_CREATE(&usb_process, up,
-	    &up->up_ptr, pmesg)) {
+	    &up->up_ptr, "%s", pmesg)) {
 		DPRINTFN(0, "Unable to create USB process.");
 		up->up_ptr = NULL;
 		goto error;
@@ -463,7 +462,7 @@ usb_proc_drain(struct usb_process *up)
 /*------------------------------------------------------------------------*
  *	usb_proc_rewakeup
  *
- * This function is called to re-wakeup the the given USB
+ * This function is called to re-wakeup the given USB
  * process. This usually happens after that the USB system has been in
  * polling mode, like during a panic. This function must be called
  * having "up->up_mtx" locked.

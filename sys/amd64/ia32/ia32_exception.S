@@ -46,7 +46,7 @@ IDTVEC(int0x80_syscall)
 	subq	$TF_ERR,%rsp		/* skip over tf_trapno */
 	movq	%rdi,TF_RDI(%rsp)
 	movq	PCPU(CURPCB),%rdi
-	movb	$0,PCB_FULL_IRET(%rdi)
+	andl	$~PCB_FULL_IRET,PCB_FLAGS(%rdi)
 	movw	%fs,TF_FS(%rsp)
 	movw	%gs,TF_GS(%rsp)
 	movw	%es,TF_ES(%rsp)
@@ -67,6 +67,7 @@ IDTVEC(int0x80_syscall)
 	movq	%r14,TF_R14(%rsp)
 	movq	%r15,TF_R15(%rsp)
 	movl	$TF_HASSEGS,TF_FLAGS(%rsp)
+	cld
 	FAKE_MCOUNT(TF_RIP(%rsp))
 	movq	%rsp, %rdi
 	call	ia32_syscall

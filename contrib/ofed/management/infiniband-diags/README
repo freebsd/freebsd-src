@@ -1,0 +1,564 @@
+Diagnostic Tools
+shaharf@voltaire.com, halr@voltaire.com
+
+General:
+
+Model of operation: All utilities use direct MAD access to perform their
+operations. Operations that require QP 0 mads only, may use direct routed
+mads, and therefore may work even in unconfigured subnets. Almost all
+utilities can operate without accessing the SM, unless GUID to lid translation
+is required.
+
+Dependencies: Most utilities depend on libibmad and libibumad.
+	All utilities depend on the ib_umad kernel module.
+
+Multiple port/Multiple CA support: when no IB device or port is specified
+	(see the "local umad parameters" below), the libibumad library
+	selects the port to use by the following criteria:
+	1. the first port that is ACTIVE.
+	2. if not found, the first port that is UP (physical link up).
+
+	If a port and/or CA name is specified, the libibumad library
+	attempts to fulfill the user request, and will fail if it is not
+	possible.
+	For example:
+	ibaddr 			# use the 'best port'
+	ibaddr -C mthca1	# pick the best port from mthca1 only.
+	ibaddr -P 2		# use the second (active/up) port from the
+				  first available IB device.
+	ibaddr -C mthca0 -P 2	# use the specified port only.
+
+Common options & flags:
+	Most diagnostics take the following flags. The exact list of supported
+	flags per utility can be found in the usage message and can be shown
+	using util_name -h syntax.
+
+	# Debugging flags
+	-d	raise the IB debugging level. May be used
+		several times (-ddd or -d -d -d).
+	-e	show umad send receive errors (timeouts and others)
+	-h	show the usage message
+	-v	increase the application verbosity level.
+		May be used several times (-vv or -v -v -v)
+	-V	show the internal version info.
+
+	# Addressing flags
+	-D	use directed path address arguments. The path
+		is a comma separated list of out ports.
+		Examples:
+		"0" 		# self port
+		"0,1,2,1,4"	# out via port 1, then 2, ...
+	-G	use GUID address arguments. In most cases, it is the Port GUID.
+		Examples:
+		"0x08f1040023"
+	-s <smlid>	use 'smlid' as the target lid for SA queries.
+
+	# Local umad parameters:
+	-C <ca_name>	use the specified ca_name.
+	-P <ca_port>	use the specified ca_port.
+	-t <timeout_ms>	override the default timeout for the solicited mads.
+
+CLI notation: all utilities use the POSIX style notation,
+	meaning that all options (flags) must precede all arguments
+	(parameters).
+
+
+Utilities descriptions:
+
+1. ibstatus
+
+Description:
+ibstatus is a script which displays basic information obtained from the local
+IB driver. Output includes LID, SMLID, port state, link width active, and port
+physical state.
+
+Syntax:
+ibstatus [-h] [devname[:port]]...
+
+Examples:
+	ibstatus		# display status of all IB ports
+	ibstatus mthca1 	# status of mthca1 ports
+	ibstatus mthca1:1 mthca0:2	# show status of specified ports
+
+See also:
+	ibstat
+
+2. ibstat
+
+Description:
+Similar to the ibstatus utility but implemented as a binary and not a script.
+It has options to list CAs and/or ports.
+
+Syntax:
+ibstat [-d(ebug) -l(ist_of_cas) -p(ort_list) -s(hort)] <ca_name> [portnum]
+
+Examples:
+	ibstat			# display status of all IB ports
+	ibstat mthca1 		# status of mthca1 ports
+	ibstat mthca1 2		# show status of specified ports
+	ibstat -p mthca0	# list the port guids of mthca0
+	ibstat -l		# list all CA names
+
+See also:
+	ibstatus
+
+3. ibroute
+
+Description:
+ibroute uses SMPs to display the forwarding tables (unicast
+(LinearForwardingTable or LFT) or multicast (MulticastForwardingTable or MFT))
+for the specified switch LID and the optional lid (mlid) range.
+The default range is all valid entries in the range 1...FDBTop.
+
+Syntax:
+ibroute [options] <switch_addr> [<startlid> [<endlid>]]]
+
+Non standard flags:
+	-a	show all lids in range, even invalid entries.
+	-n	do not try to resolve destinations.
+	-M 	show multicast forwarding tables. In this case the range
+		parameters are specifying mlid range.
+
+Examples:
+	ibroute 2		# dump all valid entries of switch lid 2
+	ibroute 2 15		# dump entries in the range 15...FDBTop.
+	ibroute -a 2 10 20	# dump all entries in the range 10..20
+	ibroute -n 2		# simple format
+	ibroute -M 2		# show multicast tables
+
+See also:
+	ibtracert
+
+4. ibtracert
+
+Description:
+ibtracert uses SMPs to trace the path from a source GID/LID to a
+destination GID/LID. Each hop along the path is displayed until the destination
+is reached or a hop does not respond. By using the -m option, multicast path
+tracing can be performed between source and destination nodes.
+
+Syntax:
+ibtracert [options] <src-addr> <dest-addr>
+
+Non standard flags:
+	-n		simple format; don't show additional information.
+	-m <mlid>	show the multicast trace of the specified mlid.
+
+Examples:
+	ibtracert 2 23		# show trace between lid 2 and 23
+	ibtracert -m 0xc000 3 5 # show multicast trace between lid 3 and 5
+				   for mcast lid 0xc000.
+
+5. smpquery
+
+Description:
+smpquery allows a basic subset of standard SMP queries including the following:
+node info, node description, switch info, port info. Fields are displayed in
+human readable format.
+
+Syntax:
+smpquery [options] <op> <dest_addr> [op_params]
+
+Current supported operations and their parameters:
+	nodeinfo <addr>
+	nodedesc <addr>
+	portinfo <addr> [<portnum>]	# default port is zero
+	switchinfo <addr>
+        pkeys <addr> [<portnum>]
+        sl2vl <addr> [<portnum>]
+        vlarb <addr> [<portnum>]
+
+Examples:
+	smpquery nodeinfo 2		# show nodeinfo for lid 2
+	smpquery portinfo 2 5		# show portinfo for lid 2 port 5
+
+6. smpdump
+
+Description:
+smpdump is a general purpose SMP utility which gets SM attributes from a
+specified SMA. The result is dumped in hex by default.
+
+Syntax:
+smpdump [options] <dest_addr> <attr> [mod]
+
+Non standard flags:
+	-s	show output as string
+
+Examples:
+	smpdump -D 0,1,2 0x15 2		# port info, port 2
+	smpdump 3 0x15 2		# port info, lid 3 port 2
+
+7. ibaddr
+
+Description:
+ibaddr can be used to show the lid and GID addresses of the specified port,
+or the local port by default.
+Note: this utility can be used as simple address resolver.
+
+Syntax:
+ibaddr [options] [<dest_addr>]
+
+Examples:
+	ibaddr			# show local address
+	ibaddr 2		# show address of the specified port lid
+	ibaddr -G 0x8f1040023	# show address of the specified port guid
+
+8. sminfo
+
+Description:
+sminfo issue and dumps the output of a sminfo query in human readable format.
+The target SM is the one listed in the local port info, or the SM specified
+by the optional SM lid or by the SM direct routed path.
+Note: using sminfo for any purposes other then simple query may be very
+dangerous, and may result in a malfunction of the target SM.
+
+Syntax:
+sminfo [options] <sm_lid|sm_dr_path> [sminfo_modifier]
+
+Non standard flags:
+	-s <state>	# use the specified state in sminfo mad
+	-p <priority>	# use the specified priority in sminfo mad
+	-a <activity>	# use the specified activity in sminfo mad
+
+Examples:
+	sminfo			# show sminfo of SM listed in local portinfo
+	sminfo 2		# query SM on port lid 2
+
+9. perfquery
+
+Description:
+perfquery uses PerfMgt GMPs to obtain the PortCounters (basic performance
+and error counters) from the PMA at the node specified. Optionally reset all
+or
+
+Syntax:
+perfquery [options]  [<lid|guid> [[port] [reset_mask]]]
+
+Non standard flags:
+	-a	show aggregated counters for all ports of the destination lid.
+	-r	reset counters after read.
+	-R	only reset counters.
+
+Examples:
+	perfquery               # read local port's performance counters
+	perfquery 32 1          # read performance counters from lid 32, port 1
+	perfquery -a 32         # read node aggregated performance counters
+	perfquery -r 32 1	# read performance counters and reset
+	perfquery -R 32 1	# reset performance counters of port 1 only
+	perfquery -R -a 32	# reset performance counters of all ports
+	perfquery -R 32 2 0xf000  # reset only non-error counters of port 2
+
+10. ibping
+
+Description:
+ibping uses vendor mads to validate connectivity between IB nodes.
+On exit, (IP) ping like output is show. ibping is run as client/server.
+Default is to run as client. Note also that a default ping server is
+implemented within the kernel.
+
+Syntax:
+ibping [options] <dest lid|guid>
+
+Non standard flags:
+	-c <count>	stop after count packets
+	-f		flood destination: send packets back to back w/o delay
+	-o <oui>	use specified OUI number to multiplex vendor mads
+	-S		start in server mode (do not return)
+
+11. ibnetdiscover
+
+Description:
+ibnetdiscover performs IB subnet discovery and outputs a human readable
+topology file. GUIDs, node types, and port numbers are displayed
+as well as port LIDs and NodeDescriptions. All nodes (and links) are displayed
+(full topology). Optionally this utility can be used to list the current
+connected nodes. The output is printed to the standard output unless a
+topology file is specified.
+
+Syntax:
+ibnetdiscover [options] [<topology-filename>]
+
+Non standard flags:
+	-l	List of connected nodes
+	-H	List of connected HCAs
+	-S	List of connected switches
+	-g	Grouping
+
+12. ibhosts
+
+Description:
+ibhosts either walks the IB subnet topology or uses an already saved topology
+file and extracts the CA nodes.
+
+Syntax:
+ibhosts [-h] [<topology-file>]
+
+Dependencies:
+ibnetdiscover, ibnetdiscover format
+
+13. ibswitches
+
+Description:
+ibswitches either walks the IB subnet topology or uses an already saved
+topology file and extracts the IB switches.
+
+Syntax:
+ibswitches [-h] [<topology-file>]
+
+Dependencies:
+ibnetdiscover, ibnetdiscover format
+
+14. ibchecknet
+
+Description:
+ibchecknet uses a full topology file that was created by ibnetdiscover,
+scans the network to validate the connectivity and reports errors
+(from port counters).
+
+Syntax:
+ibchecknet [-h] [<topology-file>]
+
+Dependencies:
+ibnetdiscover, ibnetdiscover format, ibchecknode, ibcheckport, ibcheckerrs
+
+15. ibcheckport
+
+Description:
+Check connectivity and do some simple sanity checks for the specified port.
+Port address is lid unless -G option is used to specify a GUID address.
+
+Syntax:
+ibcheckport [-h] [-G] <lid|guid> <port_number>
+
+Example:
+	ibcheckport 2 3		# check lid 2 port 3
+
+Dependencies:
+smpquery, smpquery output format, ibaddr
+
+16. ibchecknode
+
+Description:
+Check connectivity and do some simple sanity checks for the specified node.
+Port address is lid unless -G option is used to specify a GUID address.
+
+Syntax:
+ibchecknode [-h] [-G] <lid|guid>
+
+Example:
+	ibchecknode 2		# check node via lid 2
+
+Dependencies:
+smpquery, smpquery output format, ibaddr
+
+Usage:
+
+17. ibcheckerrs
+
+Description:
+Check specified port (or node) and report errors that surpassed their predefined
+threshold. Port address is lid unless -G option is used to specify a GUID
+address. The predefined thresholds can be dumped using the -s option, and a
+user defined threshold_file (using the same format as the dump) can be
+specified using the -t <file> option.
+
+Syntax:
+ibcheckerrs [-h] [-G] [-t <threshold_file>] [-s(how_thresholds)] <lid|guid> [<port>]
+
+Examples:
+	ibcheckerrs 2		# check aggregated node counter for lid 2
+	ibcheckerrs 2	4	# check port counters for lid 2 port 4
+	ibcheckerrs -t xxx 2	# check node using xxx threshold file
+
+Dependencies:
+perfquery, perfquery output format, ibaddr
+
+18. ibportstate
+
+Description:
+ibportstate allows the port state and port physical state of an IB port
+to be queried or a switch port to be disabled or enabled.
+
+Syntax:
+ibportstate [-d(ebug) -e(rr_show) -v(erbose) -D(irect) -G(uid) -s smlid
+-V(ersion) -C ca_name -P ca_port -t timeout_ms] <dest dr_path|lid|guid>
+<portnum> [<op>]
+	supported ops: enable, disable, query
+
+Examples:
+	ibportstate 3 1 disable                 # by lid
+	ibportstate -G 0x2C9000100D051 1 enable # by guid
+	ibportstate -D 0 1                      # by direct route
+
+19. ibcheckwidth
+
+Description:
+ibcheckwidth uses a full topology file that was created by ibnetdiscover,
+scans the network to validate the active link widths and reports any 1x
+links.
+
+Syntax:
+ibcheckwidth [-h] [<topology-file>]
+
+Dependencies:
+ibnetdiscover, ibnetdiscover format, ibchecknode, ibcheckportwidth
+
+20. ibcheckportwidth
+
+Description:
+Check connectivity and check the specified port for 1x link width.
+Port address is lid unless -G option is used to specify a GUID address.
+
+Syntax:
+ibcheckportwidth [-h] [-G] <lid|guid> <port>
+
+Example:
+        ibcheckportwidth 2 3         # check lid 2 port 3
+
+Dependencies:
+smpquery, smpquery output format, ibaddr
+
+21. ibcheckstate
+
+Description:
+ibcheckstate uses a full topology file that was created by ibnetdiscover,
+scans the network to validate the port state and port physical state,
+and reports any ports which have a port state other than Active or
+a port physical state other than LinkUp.
+
+Syntax:
+ibcheckstate [-h] [<topology-file>]
+
+Dependencies:
+ibnetdiscover, ibnetdiscover format, ibchecknode, ibcheckportstate
+
+22. ibcheckportstate
+
+Description:
+Check connectivity and check the specified port for proper port state
+(Active) and port physical state (LinkUp).
+Port address is lid unless -G option is used to specify a GUID address.
+
+yntax:
+ibcheckportstate [-h] [-G] <lid|guid> <port_number>
+
+Example:
+        ibcheckportstate 2 3         # check lid 2 port 3
+
+Dependencies:
+smpquery, smpquery output format, ibaddr
+
+23. ibcheckerrors
+
+ibcheckerrors uses a full topology file that was created by ibnetdiscover,
+scans the network to validate the connectivity and reports errors
+(from port counters).
+
+Syntax:
+ibnetcheckerrors [-h] [<topology-file>]
+
+Dependencies:
+ibnetdiscover, ibnetdiscover format, ibchecknode, ibcheckport, ibcheckerrs
+
+24. ibdiscover.pl
+
+ibdiscover.pl uses a topology file create by ibnetdiscover and a discover.map
+file which the network administrator creates which indicates the nodes
+to be expected and a ibdiscover.topo file which is the expected connectivity
+and produces a new connectivity file (discover.topo.new) and outputs
+the changes to stdout. The network administrator can choose to replace
+the "old" topo file with the new one or certain changes in.
+
+The syntax of the ibdiscover.map file is:
+<nodeGUID>|port|"Text for node"|<NodeDescription from ibnetdiscover format>
+e.g.
+8f10400410015|8|"ISR 6000"|# SW-6IB4 Voltaire port 0 lid 5
+8f10403960558|2|"HCA 1"|# MT23108 InfiniHost Mellanox Technologies
+
+The syntax of the old and new topo files (ibdiscover.topo and
+ibdiscover.topo.new) are:
+<LocalPort>|<LocalNodeGUID>|<RemotePort>|<RemoteNodeGUID>
+e.g.
+10|5442ba00003080|1|8f10400410015
+
+These topo files are produced by the ibdiscover.pl tool.
+
+Syntax:
+ibnetdiscover | ibdiscover.pl
+
+Dependencies:
+ibnetdiscover, ibnetdiscover format
+
+25. ibnodes
+
+Description:
+ibnodes either walks the IB subnet topology or uses an already saved topology
+file and extracts the IB nodes (CAs and switches).
+
+Syntax:
+ibnodes [<topology-file>]
+
+Dependencies:
+ibnetdiscover, ibnetdiscover format
+
+26. ibclearerrors
+
+Description:
+ibclearerrors clears the PMA error counters in PortCounters by either walking
+the IB subnet topology or using an already saved topology file.
+
+Syntax:
+ibclearerrors [-h] [<topology-file>]
+
+Dependencies:
+ibnetdiscover, ibnetdiscover format, perfquery
+
+27. ibclearcounters
+
+Description:
+ibclearcounters clears the PMA port counters by either walking
+the IB subnet topology or using an already saved topology file.
+
+Syntax:
+ibclearcounters [-h] [<topology-file>]
+
+Dependencies:
+ibnetdiscover, ibnetdiscover format, perfquery
+
+28. saquery
+
+Description:
+Issue some SA queries.
+
+Syntax:
+Usage: saquery [-h -d -P -N -L -G -s -g][<name>]
+   Queries node records by default
+   -d enable debugging
+   -P get PathRecord info
+   -N get NodeRecord info
+   -L Return just the Lid of the name specified
+   -G Return just the Guid of the name specified
+   -s Return the PortInfoRecords with isSM capability mask bit on
+   -g get multicast group info
+
+Dependencies:
+OpenSM libvendor, OpenSM libopensm, libibumad
+
+29. ibsysstat
+
+Description:
+ibsysstat  uses  vendor  mads to validate connectivity between IB nodes
+and obtain other information about the IB node.  ibsysstat  is  run  as
+client/server. Default is to run as client.
+
+Syntax:
+ibsysstat [options] <dest lid|guid> [<op>]
+
+Non standard flags:
+       Current supported operations:
+               ping - verify connectivity to server (default)
+               host - obtain host information from server
+               cpu  - obtain cpu information from server
+        -o <oui>        use specified OUI number to multiplex vendor mads
+        -S              start in server mode (do not return)
+

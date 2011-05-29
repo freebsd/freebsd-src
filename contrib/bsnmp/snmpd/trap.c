@@ -4,7 +4,13 @@
  *	All rights reserved.
  *
  * Author: Harti Brandt <harti@freebsd.org>
- * 
+ *
+ * Copyright (c) 2010 The FreeBSD Foundation
+ * All rights reserved.
+ *
+ * Portions of this software were developed by Shteryana Sotirova Shopova
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -31,8 +37,10 @@
  * TrapSinkTable
  */
 #include <sys/types.h>
+#include <sys/queue.h>
 #include <sys/sysctl.h>
 #include <sys/un.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -50,6 +58,18 @@
 #include "oid.h"
 
 struct trapsink_list trapsink_list = TAILQ_HEAD_INITIALIZER(trapsink_list);
+
+/* List of target addresses */
+struct target_addresslist target_addresslist =
+    SLIST_HEAD_INITIALIZER(target_addresslist);
+
+/* List of target parameters */
+struct target_paramlist target_paramlist =
+    SLIST_HEAD_INITIALIZER(target_paramlist);
+
+/* List of notification targets */
+struct target_notifylist target_notifylist =
+    SLIST_HEAD_INITIALIZER(target_notifylist);
 
 static const struct asn_oid oid_begemotTrapSinkTable =
     OIDX_begemotTrapSinkTable;
@@ -397,56 +417,151 @@ op_trapsink(struct snmp_context *ctx, struct snmp_value *value,
 	return (SNMP_ERR_NOERROR);
 }
 
+static void
+snmp_create_v1_trap(struct snmp_pdu *pdu, char *com,
+    const struct asn_oid *trap_oid)
+{
+	memset(pdu, 0, sizeof(*pdu));
+	strcpy(pdu->community, com);
+
+	pdu->version = SNMP_V1;
+	pdu->type = SNMP_PDU_TRAP;
+	pdu->enterprise = systemg.object_id;
+	memcpy(pdu->agent_addr, snmpd.trap1addr, 4);
+	pdu->generic_trap = trap_oid->subs[trap_oid->len - 1] - 1;
+	pdu->specific_trap = 0;
+	pdu->time_stamp = get_ticks() - start_tick;
+	pdu->nbindings = 0;
+}
+
+static void
+snmp_create_v2_trap(struct snmp_pdu *pdu, char *com,
+    const struct asn_oid *trap_oid)
+{
+	memset(pdu, 0, sizeof(*pdu));
+	strcpy(pdu->community, com);
+
+	pdu->version = SNMP_V2c;
+	pdu->type = SNMP_PDU_TRAP2;
+	pdu->request_id = reqid_next(trap_reqid);
+	pdu->error_index = 0;
+	pdu->error_status = SNMP_ERR_NOERROR;
+
+	pdu->bindings[0].var = oid_sysUpTime;
+	pdu->bindings[0].var.subs[pdu->bindings[0].var.len++] = 0;
+	pdu->bindings[0].syntax = SNMP_SYNTAX_TIMETICKS;
+	pdu->bindings[0].v.uint32 = get_ticks() - start_tick;
+
+	pdu->bindings[1].var = oid_snmpTrapOID;
+	pdu->bindings[1].var.subs[pdu->bindings[1].var.len++] = 0;
+	pdu->bindings[1].syntax = SNMP_SYNTAX_OID;
+	pdu->bindings[1].v.oid = *trap_oid;
+
+	pdu->nbindings = 2;
+}
+
+static void
+snmp_create_v3_trap(struct snmp_pdu *pdu, struct target_param *target,
+    const struct asn_oid *trap_oid)
+{
+	uint64_t etime;
+	struct usm_user *usmuser;
+
+	memset(pdu, 0, sizeof(*pdu));
+
+	pdu->version = SNMP_V3;
+	pdu->type = SNMP_PDU_TRAP2;
+	pdu->request_id = reqid_next(trap_reqid);
+	pdu->error_index = 0;
+	pdu->error_status = SNMP_ERR_NOERROR;
+
+	pdu->bindings[0].var = oid_sysUpTime;
+	pdu->bindings[0].var.subs[pdu->bindings[0].var.len++] = 0;
+	pdu->bindings[0].syntax = SNMP_SYNTAX_TIMETICKS;
+	pdu->bindings[0].v.uint32 = get_ticks() - start_tick;
+
+	pdu->bindings[1].var = oid_snmpTrapOID;
+	pdu->bindings[1].var.subs[pdu->bindings[1].var.len++] = 0;
+	pdu->bindings[1].syntax = SNMP_SYNTAX_OID;
+	pdu->bindings[1].v.oid = *trap_oid;
+
+	pdu->nbindings = 2;
+
+	etime = (get_ticks() - start_tick)  / 100ULL;
+	if (etime < INT32_MAX)
+		snmpd_engine.engine_time = etime;
+	else {
+		start_tick = get_ticks();
+		set_snmpd_engine();
+		snmpd_engine.engine_time = start_tick;
+	}
+
+	memcpy(pdu->engine.engine_id, snmpd_engine.engine_id,
+	    snmpd_engine.engine_len);
+	pdu->engine.engine_len = snmpd_engine.engine_len;
+	pdu->engine.engine_boots = snmpd_engine.engine_boots;
+	pdu->engine.engine_time = snmpd_engine.engine_time;
+	pdu->engine.max_msg_size = snmpd_engine.max_msg_size;
+	strlcpy(pdu->user.sec_name, target->secname,
+	    sizeof(pdu->user.sec_name));
+	pdu->security_model = target->sec_model;
+
+	pdu->context_engine_len = snmpd_engine.engine_len;
+	memcpy(pdu->context_engine, snmpd_engine.engine_id,
+	    snmpd_engine.engine_len);
+
+	if (target->sec_model == SNMP_SECMODEL_USM &&
+	    target->sec_level != SNMP_noAuthNoPriv) {
+	    	usmuser = usm_find_user(pdu->engine.engine_id,
+	    	   pdu->engine.engine_len, pdu->user.sec_name);
+		if (usmuser != NULL) {
+			pdu->user.auth_proto = usmuser->suser.auth_proto;
+			pdu->user.priv_proto = usmuser->suser.priv_proto;
+			memcpy(pdu->user.auth_key, usmuser->suser.auth_key,
+			    sizeof(pdu->user.auth_key));
+			memcpy(pdu->user.priv_key, usmuser->suser.priv_key,
+			    sizeof(pdu->user.priv_key));
+		}
+		snmp_pdu_init_secparams(pdu);
+	}
+}
+
 void
 snmp_send_trap(const struct asn_oid *trap_oid, ...)
 {
 	struct snmp_pdu pdu;
 	struct trapsink *t;
 	const struct snmp_value *v;
+	struct target_notify *n;
+	struct target_address *ta;
+	struct target_param *tp;
+
 	va_list ap;
 	u_char *sndbuf;
+	char *tag;
 	size_t sndlen;
 	ssize_t len;
+	int32_t ip;
 
 	TAILQ_FOREACH(t, &trapsink_list, link) {
 		if (t->status != TRAPSINK_ACTIVE)
 			continue;
-		memset(&pdu, 0, sizeof(pdu));
-		strcpy(pdu.community, t->comm);
-		if (t->version == TRAPSINK_V1) {
-			pdu.version = SNMP_V1;
-			pdu.type = SNMP_PDU_TRAP;
-			pdu.enterprise = systemg.object_id;
-			memcpy(pdu.agent_addr, snmpd.trap1addr, 4);
-			pdu.generic_trap = trap_oid->subs[trap_oid->len - 1] - 1;
-			pdu.specific_trap = 0;
-			pdu.time_stamp = get_ticks() - start_tick;
-
-			pdu.nbindings = 0;
-		} else {
-			pdu.version = SNMP_V2c;
-			pdu.type = SNMP_PDU_TRAP2;
-			pdu.request_id = reqid_next(trap_reqid);
-			pdu.error_index = 0;
-			pdu.error_status = SNMP_ERR_NOERROR;
-
-			pdu.bindings[0].var = oid_sysUpTime;
-			pdu.bindings[0].var.subs[pdu.bindings[0].var.len++] = 0;
-			pdu.bindings[0].syntax = SNMP_SYNTAX_TIMETICKS;
-			pdu.bindings[0].v.uint32 = get_ticks() - start_tick;
-
-			pdu.bindings[1].var = oid_snmpTrapOID;
-			pdu.bindings[1].var.subs[pdu.bindings[1].var.len++] = 0;
-			pdu.bindings[1].syntax = SNMP_SYNTAX_OID;
-			pdu.bindings[1].v.oid = *trap_oid;
-
-			pdu.nbindings = 2;
-		}
+	
+		if (t->version == TRAPSINK_V1)
+			snmp_create_v1_trap(&pdu, t->comm, trap_oid);
+		else
+			snmp_create_v2_trap(&pdu, t->comm, trap_oid);
 
 		va_start(ap, trap_oid);
 		while ((v = va_arg(ap, const struct snmp_value *)) != NULL)
 			pdu.bindings[pdu.nbindings++] = *v;
 		va_end(ap);
+
+		if (snmp_pdu_auth_access(&pdu, &ip) != SNMP_CODE_OK) {
+			syslog(LOG_DEBUG, "send trap to %s failed: no access",
+			    t->comm);
+			continue;
+		}
 
 		if ((sndbuf = buf_alloc(1)) == NULL) {
 			syslog(LOG_ERR, "trap send buffer: %m");
@@ -463,4 +578,339 @@ snmp_send_trap(const struct asn_oid *trap_oid, ...)
 
 		free(sndbuf);
 	}
+
+	SLIST_FOREACH(n, &target_notifylist, tn) {
+		if (n->status != RowStatus_active || n->taglist[0] == '\0')
+			continue;
+
+		SLIST_FOREACH(ta, &target_addresslist, ta)
+			if ((tag = strstr(ta->taglist, n->taglist)) != NULL  &&
+			    (tag[strlen(n->taglist)] == ' ' ||
+			     tag[strlen(n->taglist)] == '\0' ||
+			     tag[strlen(n->taglist)] == '\t' ||
+			     tag[strlen(n->taglist)] == '\r' ||
+			     tag[strlen(n->taglist)] == '\n') &&
+			     ta->status == RowStatus_active)
+				break;
+		if (ta == NULL)
+			continue;
+
+		SLIST_FOREACH(tp, &target_paramlist, tp)
+			if (strcmp(tp->name, ta->paramname) == 0 &&
+			    tp->status == 1)
+				break;
+		if (tp == NULL)
+			continue;
+
+		switch (tp->mpmodel) {
+		case SNMP_MPM_SNMP_V1:
+			snmp_create_v1_trap(&pdu, tp->secname, trap_oid);
+			break;
+
+		case SNMP_MPM_SNMP_V2c:
+			snmp_create_v2_trap(&pdu, tp->secname, trap_oid);
+			break;
+
+		case SNMP_MPM_SNMP_V3:
+			snmp_create_v3_trap(&pdu, tp, trap_oid);
+			break;
+
+		default:
+			continue;
+		}
+
+		va_start(ap, trap_oid);
+		while ((v = va_arg(ap, const struct snmp_value *)) != NULL)
+			pdu.bindings[pdu.nbindings++] = *v;
+		va_end(ap);
+
+		if (snmp_pdu_auth_access(&pdu, &ip) != SNMP_CODE_OK) {
+			syslog(LOG_DEBUG, "send trap to %s failed: no access",
+			    t->comm);
+			continue;
+		}
+
+		if ((sndbuf = buf_alloc(1)) == NULL) {
+			syslog(LOG_ERR, "trap send buffer: %m");
+			return;
+		}
+
+		snmp_output(&pdu, sndbuf, &sndlen, "TRAP");
+
+		if ((len = send(ta->socket, sndbuf, sndlen, 0)) == -1)
+			syslog(LOG_ERR, "send: %m");
+		else if ((size_t)len != sndlen)
+			syslog(LOG_ERR, "send: short write %zu/%zu",
+			    sndlen, (size_t)len);
+
+		free(sndbuf);
+	}
+}
+
+/*
+ * RFC 3413 SNMP Management Target MIB
+ */
+struct snmpd_target_stats *
+bsnmpd_get_target_stats(void)
+{
+	return (&snmpd_target_stats);
+}
+
+struct target_address *
+target_first_address(void)
+{
+	return (SLIST_FIRST(&target_addresslist));
+}
+
+struct target_address *
+target_next_address(struct target_address *addrs)
+{
+	if (addrs == NULL)
+		return (NULL);
+
+	return (SLIST_NEXT(addrs, ta));
+}
+
+struct target_address *
+target_new_address(char *aname)
+{
+	int cmp;
+	struct target_address *addrs, *temp, *prev;
+
+	SLIST_FOREACH(addrs, &target_addresslist, ta)
+		if (strcmp(aname, addrs->name) == 0)
+			return (NULL);
+
+	if ((addrs = (struct target_address *)malloc(sizeof(*addrs))) == NULL)
+		return (NULL);
+
+	memset(addrs, 0, sizeof(*addrs));
+	strlcpy(addrs->name, aname, sizeof(addrs->name));
+	addrs->timeout = 150;
+	addrs->retry = 3; /* XXX */
+
+	if ((prev = SLIST_FIRST(&target_addresslist)) == NULL ||
+	    strcmp(aname, prev->name) < 0) {
+		SLIST_INSERT_HEAD(&target_addresslist, addrs, ta);
+		return (addrs);
+	}
+
+	SLIST_FOREACH(temp, &target_addresslist, ta) {
+		if ((cmp = strcmp(aname, temp->name)) <= 0)
+			break;
+		prev = temp;
+	}
+
+	if (temp == NULL || cmp < 0)
+		SLIST_INSERT_AFTER(prev, addrs, ta);
+	else if (cmp > 0)
+		SLIST_INSERT_AFTER(temp, addrs, ta);
+	else {
+		syslog(LOG_ERR, "Target address %s exists", addrs->name);
+		free(addrs);
+		return (NULL);
+	}
+
+	return (addrs);
+}
+
+int
+target_activate_address(struct target_address *addrs)
+{
+	struct sockaddr_in sa;
+
+	if ((addrs->socket = socket(PF_INET, SOCK_DGRAM, 0)) == -1) {
+		syslog(LOG_ERR, "socket(UDP): %m");
+		return (SNMP_ERR_RES_UNAVAIL);
+	}
+
+	(void)shutdown(addrs->socket, SHUT_RD);
+	sa.sin_len = sizeof(sa);
+	sa.sin_family = AF_INET;
+
+	sa.sin_addr.s_addr = htonl((addrs->address[0] << 24) |
+	    (addrs->address[1] << 16) | (addrs->address[2] << 8) |
+	    (addrs->address[3] << 0));
+	sa.sin_port = htons(addrs->address[4]) << 8 |
+	     htons(addrs->address[5]) << 0;
+
+	if (connect(addrs->socket, (struct sockaddr *)&sa, sa.sin_len) == -1) {
+		syslog(LOG_ERR, "connect(%s,%u): %m",
+		    inet_ntoa(sa.sin_addr), ntohs(sa.sin_port));
+		(void)close(addrs->socket);
+		return (SNMP_ERR_GENERR);
+	}
+
+	addrs->status = RowStatus_active;
+
+	return (SNMP_ERR_NOERROR);
+}
+
+int
+target_delete_address(struct target_address *addrs)
+{
+	SLIST_REMOVE(&target_addresslist, addrs, target_address, ta);
+	if (addrs->status == RowStatus_active)
+		close(addrs->socket);
+	free(addrs);
+
+	return (0);
+}
+
+struct target_param *
+target_first_param(void)
+{
+	return (SLIST_FIRST(&target_paramlist));
+}
+
+struct target_param *
+target_next_param(struct target_param *param)
+{
+	if (param == NULL)
+		return (NULL);
+
+	return (SLIST_NEXT(param, tp));
+}
+
+struct target_param *
+target_new_param(char *pname)
+{
+	int cmp;
+	struct target_param *param, *temp, *prev;
+
+	SLIST_FOREACH(param, &target_paramlist, tp)
+		if (strcmp(pname, param->name) == 0)
+			return (NULL);
+
+	if ((param = (struct target_param *)malloc(sizeof(*param))) == NULL)
+		return (NULL);
+
+	memset(param, 0, sizeof(*param));
+	strlcpy(param->name, pname, sizeof(param->name));
+
+	if ((prev = SLIST_FIRST(&target_paramlist)) == NULL ||
+	    strcmp(pname, prev->name) < 0) {
+		SLIST_INSERT_HEAD(&target_paramlist, param, tp);
+		return (param);
+	}
+
+	SLIST_FOREACH(temp, &target_paramlist, tp) {
+		if ((cmp = strcmp(pname, temp->name)) <= 0)
+			break;
+		prev = temp;
+	}
+
+	if (temp == NULL || cmp < 0)
+		SLIST_INSERT_AFTER(prev, param, tp);
+	else if (cmp > 0)
+		SLIST_INSERT_AFTER(temp, param, tp);
+	else {
+		syslog(LOG_ERR, "Target parameter %s exists", param->name);
+		free(param);
+		return (NULL);
+	}
+
+	return (param);
+}
+
+int
+target_delete_param(struct target_param *param)
+{
+	SLIST_REMOVE(&target_paramlist, param, target_param, tp);
+	free(param);
+
+	return (0);
+}
+
+struct target_notify *
+target_first_notify(void)
+{
+	return (SLIST_FIRST(&target_notifylist));
+}
+
+struct target_notify *
+target_next_notify(struct target_notify *notify)
+{
+	if (notify == NULL)
+		return (NULL);
+
+	return (SLIST_NEXT(notify, tn));
+}
+
+struct target_notify *
+target_new_notify(char *nname)
+{
+	int cmp;
+	struct target_notify *notify, *temp, *prev;
+
+	SLIST_FOREACH(notify, &target_notifylist, tn)
+		if (strcmp(nname, notify->name) == 0)
+			return (NULL);
+
+	if ((notify = (struct target_notify *)malloc(sizeof(*notify))) == NULL)
+		return (NULL);
+
+	memset(notify, 0, sizeof(*notify));
+	strlcpy(notify->name, nname, sizeof(notify->name));
+
+	if ((prev = SLIST_FIRST(&target_notifylist)) == NULL ||
+	    strcmp(nname, prev->name) < 0) {
+		SLIST_INSERT_HEAD(&target_notifylist, notify, tn);
+		return (notify);
+	}
+
+	SLIST_FOREACH(temp, &target_notifylist, tn) {
+		if ((cmp = strcmp(nname, temp->name)) <= 0)
+			break;
+		prev = temp;
+	}
+
+	if (temp == NULL || cmp < 0)
+		SLIST_INSERT_AFTER(prev, notify, tn);
+	else if (cmp > 0)
+		SLIST_INSERT_AFTER(temp, notify, tn);
+	else {
+		syslog(LOG_ERR, "Notification target %s exists", notify->name);
+		free(notify);
+		return (NULL);
+	}
+
+	return (notify);
+}
+
+int
+target_delete_notify(struct target_notify *notify)
+{
+	SLIST_REMOVE(&target_notifylist, notify, target_notify, tn);
+	free(notify);
+
+	return (0);
+}
+
+void
+target_flush_all(void)
+{
+	struct target_address *addrs;
+	struct target_param *param;
+	struct target_notify *notify;
+
+	while ((addrs = SLIST_FIRST(&target_addresslist)) != NULL) {
+		SLIST_REMOVE_HEAD(&target_addresslist, ta);
+		if (addrs->status == RowStatus_active)
+			close(addrs->socket);
+		free(addrs);
+	}
+	SLIST_INIT(&target_addresslist);
+
+	while ((param = SLIST_FIRST(&target_paramlist)) != NULL) {
+		SLIST_REMOVE_HEAD(&target_paramlist, tp);
+		free(param);
+	}
+	SLIST_INIT(&target_paramlist);
+
+	while ((notify = SLIST_FIRST(&target_notifylist)) != NULL) {
+		SLIST_REMOVE_HEAD(&target_notifylist, tn);
+		free(notify);
+	}
+	SLIST_INIT(&target_notifylist);
 }

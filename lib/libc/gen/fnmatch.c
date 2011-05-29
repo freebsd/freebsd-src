@@ -67,7 +67,8 @@ __FBSDID("$FreeBSD$");
 #define RANGE_ERROR     (-1)
 
 static int rangematch(const char *, wchar_t, int, char **, mbstate_t *);
-static int fnmatch1(const char *, const char *, int, mbstate_t, mbstate_t);
+static int fnmatch1(const char *, const char *, const char *, int, mbstate_t,
+		mbstate_t);
 
 int
 fnmatch(pattern, string, flags)
@@ -76,22 +77,21 @@ fnmatch(pattern, string, flags)
 {
 	static const mbstate_t initial;
 
-	return (fnmatch1(pattern, string, flags, initial, initial));
+	return (fnmatch1(pattern, string, string, flags, initial, initial));
 }
 
 static int
-fnmatch1(pattern, string, flags, patmbs, strmbs)
-	const char *pattern, *string;
+fnmatch1(pattern, string, stringstart, flags, patmbs, strmbs)
+	const char *pattern, *string, *stringstart;
 	int flags;
 	mbstate_t patmbs, strmbs;
 {
-	const char *stringstart;
 	char *newp;
 	char c;
 	wchar_t pc, sc;
 	size_t pclen, sclen;
 
-	for (stringstart = string;;) {
+	for (;;) {
 		pclen = mbrtowc(&pc, pattern, MB_LEN_MAX, &patmbs);
 		if (pclen == (size_t)-1 || pclen == (size_t)-2)
 			return (FNM_NOMATCH);
@@ -145,8 +145,8 @@ fnmatch1(pattern, string, flags, patmbs, strmbs)
 
 			/* General case, use recursion. */
 			while (sc != EOS) {
-				if (!fnmatch1(pattern, string,
-				    flags & ~FNM_PERIOD, patmbs, strmbs))
+				if (!fnmatch1(pattern, string, stringstart,
+				    flags, patmbs, strmbs))
 					return (0);
 				sclen = mbrtowc(&sc, string, MB_LEN_MAX,
 				    &strmbs);

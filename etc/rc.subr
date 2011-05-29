@@ -355,6 +355,8 @@ _find_processes()
 #
 wait_for_pids()
 {
+	local _list _prefix _nlist _j
+
 	_list="$@"
 	if [ -z "$_list" ]; then
 		return
@@ -365,6 +367,7 @@ wait_for_pids()
 		for _j in $_list; do
 			if kill -0 $_j 2>/dev/null; then
 				_nlist="${_nlist}${_nlist:+ }$_j"
+				[ -n "$_prefix" ] && sleep 1
 			fi
 		done
 		if [ -z "$_nlist" ]; then
@@ -373,10 +376,53 @@ wait_for_pids()
 		_list=$_nlist
 		echo -n ${_prefix:-"Waiting for PIDS: "}$_list
 		_prefix=", "
-		pwait $_list 2>/dev/null || sleep 2
+		pwait $_list 2>/dev/null
 	done
 	if [ -n "$_prefix" ]; then
 		echo "."
+	fi
+}
+
+#
+# get_pidfile_from_conf string file
+#
+#	Takes a string to search for in the specified file.
+#	Ignores lines with traditional comment characters.
+#
+# Example:
+#
+# if get_pidfile_from_conf string file; then
+#	pidfile="$_pidfile_from_conf"
+# else
+#	pidfile='appropriate default'
+# fi
+#
+get_pidfile_from_conf()
+{
+	if [ -z "$1" -o -z "$2" ]; then
+		err 3 "USAGE: get_pidfile_from_conf string file ($name)"
+	fi
+
+	local string file line
+
+	string="$1" ; file="$2"
+
+	if [ ! -s "$file" ]; then
+		err 3 "get_pidfile_from_conf: $file does not exist ($name)"
+	fi
+
+	while read line; do
+		case "$line" in
+		*[#\;]*${string}*)	continue ;;
+		*${string}*)		break ;;
+		esac
+	done < $file
+
+	if [ -n "$line" ]; then
+		line=${line#*/}
+		_pidfile_from_conf="/${line%%[\"\;]*}"
+	else
+		return 1
 	fi
 }
 
@@ -643,12 +689,13 @@ run_rc_command()
 		if [ "$_elem" != "$rc_arg" ]; then
 			continue
 		fi
-					# if ${rcvar} is set, and $1 is not
-					# "rcvar", then run
+					# if ${rcvar} is set, $1 is not "rcvar"
+					# and ${rc_pid} is not set, then run
 					#	checkyesno ${rcvar}
 					# and return if that failed
 					#
-		if [ -n "${rcvar}" -a "$rc_arg" != "rcvar" ]; then
+		if [ -n "${rcvar}" -a "$rc_arg" != "rcvar" -a "$rc_arg" != "stop" ] ||
+		    [ -n "${rcvar}" -a "$rc_arg" = "stop" -a -z "${rc_pid}" ]; then
 			if ! checkyesno ${rcvar}; then
 				if [ -n "${rc_quiet}" ]; then
 					return 0
@@ -1013,10 +1060,6 @@ load_rc_config()
 		. /etc/rc.conf.d/"$_name"
 	fi
 
-	# Old variable names support
-	#
-	[ -n "$enable_quotas" ] && quota_enable="$enable_quotas"
-
 	# Set defaults if defined.
 	for _var in $rcvar $rcvars; do
 		_defval=`eval echo "\\\$${_var}_defval"`
@@ -1346,7 +1389,10 @@ devfs_init_rulesets()
 		return
 	fi
 	for file in $devfs_rulesets; do
-		devfs_rulesets_from_file $file || return 1
+		if ! devfs_rulesets_from_file $file; then
+			warn "$_me: could not read rules from $file"
+			return 1
+		fi
 	done
 	devfs_rulesets_init=1
 	debug "$_me: devfs rulesets initialized"

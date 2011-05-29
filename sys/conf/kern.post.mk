@@ -15,6 +15,14 @@ MKMODULESENV+=	DESTDIR="${DESTDIR}"
 SYSDIR?= ${S:C;^[^/];${.CURDIR}/&;}
 MKMODULESENV+=	KERNBUILDDIR="${.CURDIR}" SYSDIR="${SYSDIR}"
 
+.if defined(CONF_CFLAGS)
+MKMODULESENV+=	CONF_CFLAGS="${CONF_CFLAGS}"
+.endif
+
+.if defined(WITH_CTF)
+MKMODULESENV+=	WITH_CTF="${WITH_CTF}"
+.endif
+
 .MAIN: all
 
 .for target in all clean cleandepend cleandir clobber depend install \
@@ -76,8 +84,8 @@ gdbinit:
 	grep -v '# XXX' ${S}/../tools/debugscripts/dot.gdbinit | \
 	    sed "s:MODPATH:${.OBJDIR}/modules:" > .gdbinit
 	cp ${S}/../tools/debugscripts/gdbinit.kernel ${.CURDIR}
-.if exists(${S}/../tools/debugscripts/gdbinit.${MACHINE_ARCH})
-	cp ${S}/../tools/debugscripts/gdbinit.${MACHINE_ARCH} \
+.if exists(${S}/../tools/debugscripts/gdbinit.${MACHINE_CPUARCH})
+	cp ${S}/../tools/debugscripts/gdbinit.${MACHINE_CPUARCH} \
 	    ${.CURDIR}/gdbinit.machine
 .endif
 .endif
@@ -86,9 +94,7 @@ ${FULLKERNEL}: ${SYSTEM_DEP} vers.o
 	@rm -f ${.TARGET}
 	@echo linking ${.TARGET}
 	${SYSTEM_LD}
-.if defined(CTFMERGE)
-	${SYSTEM_CTFMERGE}
-.endif
+	@${SYSTEM_CTFMERGE}
 .if !defined(DEBUG)
 	${OBJCOPY} --strip-debug ${.TARGET}
 .endif
@@ -160,8 +166,11 @@ SRCS=	assym.s vnode_if.h ${BEFORE_DEPEND} ${CFILES} \
 	mv .newdep .depend
 
 _ILINKS= machine
-.if ${MACHINE} != ${MACHINE_ARCH}
-_ILINKS+= ${MACHINE_ARCH}
+.if ${MACHINE} != ${MACHINE_CPUARCH}
+_ILINKS+= ${MACHINE_CPUARCH}
+.endif
+.if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
+_ILINKS+= x86
 .endif
 
 # Ensure that the link exists without depending on it when it exists.
@@ -175,8 +184,8 @@ ${_ILINKS}:
 	@case ${.TARGET} in \
 	machine) \
 		path=${S}/${MACHINE}/include ;; \
-	${MACHINE_ARCH}) \
-		path=${S}/${MACHINE_ARCH}/include ;; \
+	*) \
+		path=${S}/${.TARGET}/include ;; \
 	esac ; \
 	${ECHO} ${.TARGET} "->" $$path ; \
 	ln -s $$path ${.TARGET}
@@ -218,7 +227,8 @@ kernel-install:
 .endif
 	mkdir -p ${DESTDIR}${KODIR}
 	${INSTALL} -p -m 555 -o ${KMODOWN} -g ${KMODGRP} ${KERNEL_KO} ${DESTDIR}${KODIR}
-.if defined(DEBUG) && !defined(INSTALL_NODEBUG)
+.if defined(DEBUG) && !defined(INSTALL_NODEBUG) && \
+    (defined(MK_KERNEL_SYMBOLS) && ${MK_KERNEL_SYMBOLS} != "no")
 	${INSTALL} -p -m 555 -o ${KMODOWN} -g ${KMODGRP} ${KERNEL_KO}.symbols ${DESTDIR}${KODIR}
 .endif
 .if defined(KERNEL_EXTRA_INSTALL)
@@ -230,15 +240,14 @@ kernel-install:
 kernel-reinstall:
 	@-chflags -R noschg ${DESTDIR}${KODIR}
 	${INSTALL} -p -m 555 -o ${KMODOWN} -g ${KMODGRP} ${KERNEL_KO} ${DESTDIR}${KODIR}
-.if defined(DEBUG) && !defined(INSTALL_NODEBUG)
+.if defined(DEBUG) && !defined(INSTALL_NODEBUG) && \
+    (defined(MK_KERNEL_SYMBOLS) && ${MK_KERNEL_SYMBOLS} != "no")
 	${INSTALL} -p -m 555 -o ${KMODOWN} -g ${KMODGRP} ${KERNEL_KO}.symbols ${DESTDIR}${KODIR}
 .endif
 
 config.o env.o hints.o vers.o vnode_if.o:
 	${NORMAL_C}
-.if defined(CTFCONVERT)
-	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
-.endif
+	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || ${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
 
 config.ln env.ln hints.ln vers.ln vnode_if.ln:
 	${NORMAL_LINT}

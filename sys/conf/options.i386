@@ -12,6 +12,7 @@ I586_PMC_GUPROF		opt_i586_guprof.h
 MAXMEM
 MPTABLE_FORCE_HTT
 MP_WATCHDOG
+NKPT			opt_pmap.h
 PERFMON
 PMAP_SHPGPERPROC	opt_pmap.h
 POWERFAIL_NMI		opt_trap.h
@@ -117,3 +118,4 @@ BPF_JITTER		opt_bpf.h
 
 NATIVE			opt_global.h
 XEN			opt_global.h
+XENHVM			opt_global.h

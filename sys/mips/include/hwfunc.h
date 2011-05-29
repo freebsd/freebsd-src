@@ -89,9 +89,15 @@ void platform_ipi_clear(void);
 extern int platform_processor_id(void);
 
 /*
- * Return the number of processors available on this platform.
+ * Return the cpumask of available processors.
  */
-extern int platform_num_processors(void);
+extern cpumask_t platform_cpu_mask(void);
+
+/*
+ * Return the topology of processors on this platform
+ */
+struct cpu_group *platform_smp_topo(void);
+
 
 #endif	/* SMP */
 #endif /* !_MACHINE_HWFUNC_H_ */

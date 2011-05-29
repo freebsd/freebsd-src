@@ -53,6 +53,7 @@ MLINKS+=	queue.3 LIST_EMPTY.3 \
 		queue.3 LIST_INSERT_HEAD.3 \
 		queue.3 LIST_NEXT.3 \
 		queue.3 LIST_REMOVE.3 \
+		queue.3 LIST_SWAP.3 \
 		queue.3 SLIST_EMPTY.3 \
 		queue.3 SLIST_ENTRY.3 \
 		queue.3 SLIST_FIRST.3 \
@@ -67,6 +68,7 @@ MLINKS+=	queue.3 LIST_EMPTY.3 \
 		queue.3 SLIST_REMOVE.3 \
 		queue.3 SLIST_REMOVE_AFTER.3 \
 		queue.3 SLIST_REMOVE_HEAD.3 \
+		queue.3 SLIST_SWAP.3 \
 		queue.3 STAILQ_CONCAT.3 \
 		queue.3 STAILQ_EMPTY.3 \
 		queue.3 STAILQ_ENTRY.3 \
@@ -84,6 +86,7 @@ MLINKS+=	queue.3 LIST_EMPTY.3 \
 		queue.3 STAILQ_REMOVE.3 \
 		queue.3 STAILQ_REMOVE_AFTER.3 \
 		queue.3 STAILQ_REMOVE_HEAD.3 \
+		queue.3 STAILQ_SWAP.3 \
 		queue.3 TAILQ_CONCAT.3 \
 		queue.3 TAILQ_EMPTY.3 \
 		queue.3 TAILQ_ENTRY.3 \
@@ -102,7 +105,8 @@ MLINKS+=	queue.3 LIST_EMPTY.3 \
 		queue.3 TAILQ_LAST.3 \
 		queue.3 TAILQ_NEXT.3 \
 		queue.3 TAILQ_PREV.3 \
-		queue.3 TAILQ_REMOVE.3
+		queue.3 TAILQ_REMOVE.3 \
+		queue.3 TAILQ_SWAP.3
 MLINKS+=	stdarg.3 va_arg.3 \
 		stdarg.3 va_copy.3 \
 		stdarg.3 va_end.3 \
@@ -179,6 +183,7 @@ PTHREAD_MAN=	pthread.3 \
 		pthread_exit.3 \
 		pthread_getconcurrency.3 \
 		pthread_getspecific.3 \
+		pthread_getthreadid_np.3 \
 		pthread_join.3 \
 		pthread_key_create.3 \
 		pthread_key_delete.3 \
@@ -251,7 +256,11 @@ PTHREAD_MLINKS+=pthread_barrierattr.3 pthread_barrierattr_destroy.3 \
 PTHREAD_MLINKS+=pthread_barrier_destroy.3 pthread_barrier_init.3 \
 		pthread_barrier_destroy.3 pthread_barrier_wait.3
 PTHREAD_MLINKS+=pthread_condattr.3 pthread_condattr_destroy.3 \
-		pthread_condattr.3 pthread_condattr_init.3
+		pthread_condattr.3 pthread_condattr_init.3 \
+		pthread_condattr.3 pthread_condattr_getclock.3 \
+		pthread_condattr.3 pthread_condattr_setclock.3 \
+		pthread_condattr.3 pthread_condattr_getpshared.3 \
+		pthread_condattr.3 pthread_condattr_setpshared.3
 PTHREAD_MLINKS+=pthread_getconcurrency.3 pthread_setconcurrency.3
 PTHREAD_MLINKS+=pthread_multi_np.3 pthread_single_np.3
 PTHREAD_MLINKS+=pthread_mutexattr.3 pthread_mutexattr_destroy.3 \
@@ -273,6 +282,7 @@ PTHREAD_MLINKS+=pthread_spin_init.3 pthread_spin_destroy.3 \
 PTHREAD_MLINKS+=pthread_switch_add_np.3 pthread_switch_delete_np.3
 PTHREAD_MLINKS+=pthread_testcancel.3 pthread_setcancelstate.3 \
 		pthread_testcancel.3 pthread_setcanceltype.3
+PTHREAD_MLINKS+=pthread_join.3 pthread_timedjoin_np.3
 .endif
 
 .include <bsd.prog.mk>

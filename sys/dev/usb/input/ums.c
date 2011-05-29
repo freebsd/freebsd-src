@@ -43,7 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -74,7 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/tty.h>
 #include <sys/mouse.h>
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 static int ums_debug = 0;
 
 SYSCTL_NODE(_hw_usb, OID_AUTO, ums, CTLFLAG_RW, 0, "USB ums");
@@ -286,6 +285,12 @@ ums_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 			DPRINTFN(6, "x:%d y:%d z:%d t:%d w:%d buttons:0x%08x\n",
 			    dx, dy, dz, dt, dw, buttons);
 
+			/* translate T-axis into button presses until further */
+			if (dt > 0)
+				buttons |= 1UL << 3;
+			else if (dt < 0)
+				buttons |= 1UL << 4;
+
 			sc->sc_status.button = buttons;
 			sc->sc_status.dx += dx;
 			sc->sc_status.dy += dy;
@@ -368,7 +373,7 @@ ums_probe(device_t dev)
 
 	if ((uaa->info.bInterfaceSubClass == UISUBCLASS_BOOT) &&
 	    (uaa->info.bInterfaceProtocol == UIPROTO_MOUSE))
-		return (BUS_PROBE_GENERIC);
+		return (BUS_PROBE_DEFAULT);
 
 	error = usbd_req_get_hid_desc(uaa->device, NULL,
 	    &d_ptr, &d_len, M_TEMP, uaa->info.bIfaceIndex);
@@ -378,7 +383,7 @@ ums_probe(device_t dev)
 
 	if (hid_is_collection(d_ptr, d_len,
 	    HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_MOUSE)))
-		error = BUS_PROBE_GENERIC;
+		error = BUS_PROBE_DEFAULT;
 	else
 		error = ENXIO;
 
@@ -393,6 +398,7 @@ ums_hid_parse(struct ums_softc *sc, device_t dev, const uint8_t *buf,
 	struct ums_info *info = &sc->sc_info[index];
 	uint32_t flags;
 	uint8_t i;
+	uint8_t j;
 
 	if (hid_locate(buf, len, HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_X),
 	    hid_input, index, &info->sc_loc_x, &flags, &info->sc_iid_x)) {
@@ -454,6 +460,12 @@ ums_hid_parse(struct ums_softc *sc, device_t dev, const uint8_t *buf,
 		if ((flags & MOUSE_FLAGS_MASK) == MOUSE_FLAGS) {
 			info->sc_flags |= UMS_FLAG_T_AXIS;
 		}
+	} else if (hid_locate(buf, len, HID_USAGE2(HUP_CONSUMER,
+		HUC_AC_PAN), hid_input, index, &info->sc_loc_t,
+		&flags, &info->sc_iid_t)) {
+
+		if ((flags & MOUSE_FLAGS_MASK) == MOUSE_FLAGS)
+			info->sc_flags |= UMS_FLAG_T_AXIS;
 	}
 	/* figure out the number of buttons */
 
@@ -464,6 +476,17 @@ ums_hid_parse(struct ums_softc *sc, device_t dev, const uint8_t *buf,
 			break;
 		}
 	}
+
+	/* detect other buttons */
+
+	for (j = 0; (i < UMS_BUTTON_MAX) && (j < 2); i++, j++) {
+		if (!hid_locate(buf, len, HID_USAGE2(HUP_MICROSOFT, (j + 1)),
+		    hid_input, index, &info->sc_loc_btn[i], NULL, 
+		    &info->sc_iid_btn[i])) {
+			break;
+		}
+	}
+
 	info->sc_buttons = i;
 
 	if (i > sc->sc_buttons)
@@ -494,7 +517,9 @@ ums_attach(device_t dev)
 	int err;
 	uint16_t d_len;
 	uint8_t i;
+#ifdef USB_DEBUG
 	uint8_t j;
+#endif
 
 	DPRINTFN(11, "sc=%p\n", sc);
 
@@ -588,7 +613,7 @@ ums_attach(device_t dev)
 	free(d_ptr, M_TEMP);
 	d_ptr = NULL;
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 	for (j = 0; j < UMS_INFO_MAX; j++) {
 		info = &sc->sc_info[j];
 
@@ -643,7 +668,7 @@ ums_attach(device_t dev)
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
 	    OID_AUTO, "parseinfo", CTLTYPE_STRING|CTLFLAG_RD,
 	    sc, 0, ums_sysctl_handler_parseinfo,
-	    "", "Dump UMS report parsing information");
+	    "", "Dump of parsed HID report descriptor");
 
 	return (0);
 
@@ -924,10 +949,10 @@ ums_sysctl_handler_parseinfo(SYSCTL_HANDLER_ARGS)
 	struct ums_softc *sc = arg1;
 	struct ums_info *info;
 	struct sbuf *sb;
-	int i, j, err;
+	int i, j, err, had_output;
 
 	sb = sbuf_new_auto();
-	for (i = 0; i < UMS_INFO_MAX; i++) {
+	for (i = 0, had_output = 0; i < UMS_INFO_MAX; i++) {
 		info = &sc->sc_info[i];
 
 		/* Don't emit empty info */
@@ -937,6 +962,9 @@ ums_sysctl_handler_parseinfo(SYSCTL_HANDLER_ARGS)
 		    info->sc_buttons == 0)
 			continue;
 
+		if (had_output)
+			sbuf_printf(sb, "\n");
+		had_output = 1;
 		sbuf_printf(sb, "i%d:", i + 1);
 		if (info->sc_flags & UMS_FLAG_X_AXIS)
 			sbuf_printf(sb, " X:r%d, p%d, s%d;",
@@ -970,7 +998,6 @@ ums_sysctl_handler_parseinfo(SYSCTL_HANDLER_ARGS)
 			    (int)info->sc_loc_btn[j].pos,
 			    (int)info->sc_loc_btn[j].size);
 		}
-		sbuf_printf(sb, "\n");
 	}
 	sbuf_finish(sb);
 	err = SYSCTL_OUT(req, sbuf_data(sb), sbuf_len(sb) + 1);
@@ -996,3 +1023,4 @@ static driver_t ums_driver = {
 
 DRIVER_MODULE(ums, uhub, ums_driver, ums_devclass, NULL, 0);
 MODULE_DEPEND(ums, usb, 1, 1, 1);
+MODULE_VERSION(ums, 1);

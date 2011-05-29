@@ -172,8 +172,8 @@ out:
 
 /*
  * Parse a device specification. The specification is a list of attributes
- * seperated by commas. Each attribute is a tag-value pair with the tag and
- * value seperated by a colon. Supported tags are:
+ * separated by commas. Each attribute is a tag-value pair with the tag and
+ * value separated by a colon. Supported tags are:
  *
  *	br = Baudrate
  *	ch = Channel

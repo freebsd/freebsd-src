@@ -35,3 +35,5 @@ ENTRY(fn)
 	cvtss2si %xmm0, %rax
 	ret
 END(fn)
+
+	.section .note.GNU-stack,"",%progbits

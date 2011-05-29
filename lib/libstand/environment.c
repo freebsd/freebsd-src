@@ -59,7 +59,7 @@ env_getenv(const char *name)
  * Some notes:
  *
  * If the EV_VOLATILE flag is set, a copy of the variable is made.
- * If EV_DYNAMIC is set, the the variable has been allocated with
+ * If EV_DYNAMIC is set, the variable has been allocated with
  * malloc and ownership transferred to the environment.
  * If (value) is NULL, the variable is set but has no value.
  */
@@ -207,13 +207,14 @@ env_discard(struct env_var *ev)
 }
 
 int
-env_noset(struct env_var *ev, int flags, const void *value)
+env_noset(struct env_var *ev __unused, int flags __unused,
+    const void *value __unused)
 {
     return(EPERM);
 }
 
 int
-env_nounset(struct env_var *ev)
+env_nounset(struct env_var *ev __unused)
 {
     return(EPERM);
 }

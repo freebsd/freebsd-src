@@ -166,6 +166,13 @@ struct ieee80211_node {
 	uint32_t		ni_avgrssi;	/* recv ssi state */
 	int8_t			ni_noise;	/* noise floor */
 
+	/* mimo statistics */
+	uint32_t		ni_mimo_rssi_ctl[IEEE80211_MAX_CHAINS];
+	uint32_t		ni_mimo_rssi_ext[IEEE80211_MAX_CHAINS];
+	uint8_t			ni_mimo_noise_ctl[IEEE80211_MAX_CHAINS];
+	uint8_t			ni_mimo_noise_ext[IEEE80211_MAX_CHAINS];
+	uint8_t			ni_mimo_chains;
+
 	/* header */
 	uint8_t			ni_macaddr[IEEE80211_ADDR_LEN];
 	uint8_t			ni_bssid[IEEE80211_ADDR_LEN];
@@ -218,7 +225,8 @@ struct ieee80211_node {
 	struct ieee80211_nodestats ni_stats;	/* per-node statistics */
 
 	struct ieee80211vap	*ni_wdsvap;	/* associated WDS vap */
-	uint64_t		ni_spare[4];
+	void			*ni_rctls;	/* private ratectl state */
+	uint64_t		ni_spare[3];
 };
 MALLOC_DECLARE(M_80211_NODE);
 MALLOC_DECLARE(M_80211_NODE_IE);

@@ -29,9 +29,9 @@
  * write mode.  The small write mode acts like conventional pipes with
  * a kernel buffer.  If the buffer is less than PIPE_MINDIRECT, then the
  * "normal" pipe buffering is done.  If the buffer is between PIPE_MINDIRECT
- * and PIPE_SIZE in size, it is fully mapped and wired into the kernel, and
- * the receiving process can copy it directly from the pages in the sending
- * process.
+ * and PIPE_SIZE in size, the sending process pins the underlying pages in
+ * memory, and the receiving process copies directly from these pinned pages
+ * in the sending process.
  *
  * If the sending process receives a signal, it is possible that it will
  * go away, and certainly its address space can change, because control
@@ -348,7 +348,7 @@ kern_pipe(struct thread *td, int fildes[2])
 	rpipe->pipe_state |= PIPE_DIRECTOK;
 	wpipe->pipe_state |= PIPE_DIRECTOK;
 
-	error = falloc(td, &rf, &fd);
+	error = falloc(td, &rf, &fd, 0);
 	if (error) {
 		pipeclose(rpipe);
 		pipeclose(wpipe);
@@ -364,7 +364,7 @@ kern_pipe(struct thread *td, int fildes[2])
 	 * side while we are blocked trying to allocate the write side.
 	 */
 	finit(rf, FREAD | FWRITE, DTYPE_PIPE, rpipe, &pipeops);
-	error = falloc(td, &wf, &fd);
+	error = falloc(td, &wf, &fd, 0);
 	if (error) {
 		fdclose(fdp, rf, fildes[0], td);
 		fdrop(rf, td);
@@ -747,10 +747,8 @@ pipe_build_write_buffer(wpipe, uio)
 	struct pipe *wpipe;
 	struct uio *uio;
 {
-	pmap_t pmap;
 	u_int size;
-	int i, j;
-	vm_offset_t addr, endaddr;
+	int i;
 
 	PIPE_LOCK_ASSERT(wpipe, MA_NOTOWNED);
 	KASSERT(wpipe->pipe_state & PIPE_DIRECTW,
@@ -760,30 +758,10 @@ pipe_build_write_buffer(wpipe, uio)
 	if (size > wpipe->pipe_buffer.size)
 		size = wpipe->pipe_buffer.size;
 
-	pmap = vmspace_pmap(curproc->p_vmspace);
-	endaddr = round_page((vm_offset_t)uio->uio_iov->iov_base + size);
-	addr = trunc_page((vm_offset_t)uio->uio_iov->iov_base);
-	if (endaddr < addr)
+	if ((i = vm_fault_quick_hold_pages(&curproc->p_vmspace->vm_map,
+	    (vm_offset_t)uio->uio_iov->iov_base, size, VM_PROT_READ,
+	    wpipe->pipe_map.ms, PIPENPAGES)) < 0)
 		return (EFAULT);
-	for (i = 0; addr < endaddr; addr += PAGE_SIZE, i++) {
-		/*
-		 * vm_fault_quick() can sleep.  Consequently,
-		 * vm_page_lock_queue() and vm_page_unlock_queue()
-		 * should not be performed outside of this loop.
-		 */
-	race:
-		if (vm_fault_quick((caddr_t)addr, VM_PROT_READ) < 0) {
-			vm_page_lock_queues();
-			for (j = 0; j < i; j++)
-				vm_page_unhold(wpipe->pipe_map.ms[j]);
-			vm_page_unlock_queues();
-			return (EFAULT);
-		}
-		wpipe->pipe_map.ms[i] = pmap_extract_and_hold(pmap, addr,
-		    VM_PROT_READ);
-		if (wpipe->pipe_map.ms[i] == NULL)
-			goto race;
-	}
 
 /*
  * set up the control block
@@ -813,14 +791,9 @@ static void
 pipe_destroy_write_buffer(wpipe)
 	struct pipe *wpipe;
 {
-	int i;
 
 	PIPE_LOCK_ASSERT(wpipe, MA_OWNED);
-	vm_page_lock_queues();
-	for (i = 0; i < wpipe->pipe_map.npages; i++) {
-		vm_page_unhold(wpipe->pipe_map.ms[i]);
-	}
-	vm_page_unlock_queues();
+	vm_page_unhold_pages(wpipe->pipe_map.ms, wpipe->pipe_map.npages);
 	wpipe->pipe_map.npages = 0;
 }
 
@@ -1428,9 +1401,9 @@ pipe_stat(fp, ub, active_cred, td)
 	else
 		ub->st_size = pipe->pipe_buffer.cnt;
 	ub->st_blocks = (ub->st_size + ub->st_blksize - 1) / ub->st_blksize;
-	ub->st_atimespec = pipe->pipe_atime;
-	ub->st_mtimespec = pipe->pipe_mtime;
-	ub->st_ctimespec = pipe->pipe_ctime;
+	ub->st_atim = pipe->pipe_atime;
+	ub->st_mtim = pipe->pipe_mtime;
+	ub->st_ctim = pipe->pipe_ctime;
 	ub->st_uid = fp->f_cred->cr_uid;
 	ub->st_gid = fp->f_cred->cr_gid;
 	/*

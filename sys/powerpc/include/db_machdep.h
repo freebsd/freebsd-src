@@ -35,14 +35,15 @@
 #define	_POWERPC_DB_MACHDEP_H_
 
 #include <vm/vm_param.h>
+#include <machine/elf.h>
 
 #define	DB_ELF_SYMBOLS
-#define	DB_ELFSIZE	32
+#define	DB_ELFSIZE	__ELF_WORD_SIZE
 
 #define BYTE_MSF        (1)
 
 typedef	vm_offset_t	db_addr_t;	/* address - unsigned */
-typedef	int		db_expr_t;	/* expression - signed */
+typedef	intptr_t	db_expr_t;	/* expression - signed */
 
 #define	PC_REGS(regs)	((db_addr_t)kdb_thrctx->pcb_lr)
 

@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: sha2.c,v 1.13.332.4 2010/01/15 23:47:34 tbox Exp $ */
+/* $Id: sha2.c,v 1.13.332.4 2010-01-15 23:47:34 tbox Exp $ */
 
 /*	$FreeBSD$	*/
 /*	$KAME: sha2.c,v 1.8 2001/11/08 01:07:52 itojun Exp $	*/

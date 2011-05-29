@@ -9,6 +9,4 @@ MAN=	yacc.1 yyfix.1
 LINKS=	${BINDIR}/yacc ${BINDIR}/byacc
 MLINKS=	yacc.1 byacc.1
 
-WARNS?=	2
-
 .include <bsd.prog.mk>

@@ -53,16 +53,17 @@ void tree_close(struct tree *);
 
 /*
  * tree_next() returns Zero if there is no next entry, non-zero if
- * there is.  Note that directories are potentially visited three
- * times.  Directories are always visited first as part of enumerating
- * their parent.  If tree_descend() is invoked at that time, the
- * directory is added to a work list and will subsequently be visited
- * two more times: once just after descending into the directory and
- * again just after ascending back to the parent.
+ * there is.  Note that directories are visited three times.
+ * Directories are always visited first as part of enumerating their
+ * parent; that is a "regular" visit.  If tree_descend() is invoked at
+ * that time, the directory is added to a work list and will
+ * subsequently be visited two more times: once just after descending
+ * into the directory ("postdescent") and again just after ascending
+ * back to the parent ("postascent").
  *
  * TREE_ERROR_DIR is returned if the descent failed (because the
  * directory couldn't be opened, for instance).  This is returned
- * instead of TREE_PREVISIT/TREE_POSTVISIT.  TREE_ERROR_DIR is not a
+ * instead of TREE_POSTDESCENT/TREE_POSTASCENT.  TREE_ERROR_DIR is not a
  * fatal error, but it does imply that the relevant subtree won't be
  * visited.  TREE_ERROR_FATAL is returned for an error that left the
  * traversal completely hosed.  Right now, this is only returned for
@@ -96,10 +97,23 @@ void tree_descend(struct tree *);
 int tree_current_depth(struct tree *);
 
 /*
- * The current full pathname, length of the full pathname,
- * and a name that can be used to access the file.
- * Because tree does use chdir extensively, the access path is
- * almost never the same as the full current path.
+ * The current full pathname, length of the full pathname, and a name
+ * that can be used to access the file.  Because tree does use chdir
+ * extensively, the access path is almost never the same as the full
+ * current path.
+ *
+ * TODO: Flesh out this interface to provide other information.  In
+ * particular, Windows can provide file size, mode, and some permission
+ * information without invoking stat() at all.
+ *
+ * TODO: On platforms that support it, use openat()-style operations
+ * to eliminate the chdir() operations entirely while still supporting
+ * arbitrarily deep traversals.  This makes access_path troublesome to
+ * support, of course, which means we'll need a rich enough interface
+ * that clients can function without it.  (In particular, we'll need
+ * tree_current_open() that returns an open file descriptor.)
+ *
+ * TODO: Provide tree_current_archive_entry().
  */
 const char *tree_current_path(struct tree *);
 size_t tree_current_pathlen(struct tree *);

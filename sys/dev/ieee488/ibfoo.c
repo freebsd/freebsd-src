@@ -333,6 +333,14 @@ gpib_ib_wait_xfer(struct upd7210 *u, struct ibfoo *ib)
 			break;
 		}
 	}
+	if ((u->rreg[ISR1] & IXR1_ENDRX) != 0) {
+		ib->ap->__retval |= END;
+		ib->ap->__ibsta |= END;
+	}
+	if ((u->rreg[ISR2] & IXR2_SRQI) != 0) {
+		ib->ap->__retval |= SRQI;
+		ib->ap->__ibsta |= SRQI;
+	}
 	ib->mode = BUSY;
 	ib->buf = NULL;
 	upd7210_wr(u, IMR1, 0);
@@ -1019,7 +1027,7 @@ gpib_ib_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thre
 	ap->__iberr = 0;
 	ap->__ibsta = 0;
 	ap->__ibcnt = 0;
-	ap->retval = 0;
+	ap->__retval = 0;
 
 	if (ap->__field & __F_TMO) {
 		if (ap->tmo < 0 || ap->tmo >= max_timeouts)

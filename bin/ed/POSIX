@@ -75,7 +75,7 @@ DEVIATIONS
 2) Since the behavior of `u' (undo) within a `g' (global) command list is
    not specified by POSIX, it follows the behavior of the SunOS ed:
    undo forces a global command list to be executed only once, rather than
-   for each line matching a global pattern.  In addtion, each instance of
+   for each line matching a global pattern.  In addition, each instance of
    `u' within a global command undoes all previous commands (including
    undo's) in the command list.  This seems the best way, since the
    alternatives are either too complicated to implement or too confusing
@@ -83,7 +83,7 @@ DEVIATIONS
 
    The global/undo combination is useful for masking errors that
    would otherwise cause a script to fail.  For instance, an ed script
-   to remove any occurences of either `censor1' or `censor2' might be
+   to remove any occurrences of either `censor1' or `censor2' might be
    written as:
    	ed - file <<EOF
 	1g/.*/u\

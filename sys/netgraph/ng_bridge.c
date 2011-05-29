@@ -84,7 +84,7 @@
 #include <netgraph/ng_bridge.h>
 
 #ifdef NG_SEPARATE_MALLOC
-MALLOC_DEFINE(M_NETGRAPH_BRIDGE, "netgraph_bridge", "netgraph bridge node ");
+MALLOC_DEFINE(M_NETGRAPH_BRIDGE, "netgraph_bridge", "netgraph bridge node");
 #else
 #define M_NETGRAPH_BRIDGE M_NETGRAPH
 #endif
@@ -106,6 +106,7 @@ struct ng_bridge_private {
 	u_int			numBuckets;	/* num buckets in table */
 	u_int			hashMask;	/* numBuckets - 1 */
 	int			numLinks;	/* num connected links */
+	int			persistent;	/* can exist w/o hooks */
 	struct callout		timer;		/* one second periodic timer */
 };
 typedef struct ng_bridge_private *priv_p;
@@ -271,6 +272,13 @@ static const struct ng_cmdlist ng_bridge_cmdlist[] = {
 	  NULL,
 	  &ng_bridge_host_ary_type
 	},
+	{
+	  NGM_BRIDGE_COOKIE,
+	  NGM_BRIDGE_SET_PERSISTENT,
+	  "setpersistent",
+	  NULL,
+	  NULL
+	},
 	{ 0 }
 };
 
@@ -301,18 +309,12 @@ ng_bridge_constructor(node_p node)
 	priv_p priv;
 
 	/* Allocate and initialize private info */
-	priv = malloc(sizeof(*priv), M_NETGRAPH_BRIDGE, M_NOWAIT | M_ZERO);
-	if (priv == NULL)
-		return (ENOMEM);
+	priv = malloc(sizeof(*priv), M_NETGRAPH_BRIDGE, M_WAITOK | M_ZERO);
 	ng_callout_init(&priv->timer);
 
 	/* Allocate and initialize hash table, etc. */
 	priv->tab = malloc(MIN_BUCKETS * sizeof(*priv->tab),
-	    M_NETGRAPH_BRIDGE, M_NOWAIT | M_ZERO);
-	if (priv->tab == NULL) {
-		free(priv, M_NETGRAPH_BRIDGE);
-		return (ENOMEM);
-	}
+	    M_NETGRAPH_BRIDGE, M_WAITOK | M_ZERO);
 	priv->numBuckets = MIN_BUCKETS;
 	priv->hashMask = MIN_BUCKETS - 1;
 	priv->conf.debugLevel = 1;
@@ -493,6 +495,11 @@ ng_bridge_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				SLIST_FOREACH(hent, &priv->tab[bucket], next)
 					ary->hosts[i++] = hent->host;
 			}
+			break;
+		    }
+		case NGM_BRIDGE_SET_PERSISTENT:
+		    {
+			priv->persistent = 1;
 			break;
 		    }
 		default:
@@ -800,7 +807,8 @@ ng_bridge_disconnect(hook_p hook)
 
 	/* If no more hooks, go away */
 	if ((NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook)) == 0)
-	&& (NG_NODE_IS_VALID(NG_HOOK_NODE(hook)))) {
+	    && (NG_NODE_IS_VALID(NG_HOOK_NODE(hook)))
+	    && !priv->persistent) {
 		ng_rmnode_self(NG_HOOK_NODE(hook));
 	}
 	return (0);

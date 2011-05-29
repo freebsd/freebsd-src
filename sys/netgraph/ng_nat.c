@@ -272,17 +272,10 @@ ng_nat_constructor(node_p node)
 	priv_p priv;
 
 	/* Initialize private descriptor. */
-	priv = malloc(sizeof(*priv), M_NETGRAPH,
-		M_NOWAIT | M_ZERO);
-	if (priv == NULL)
-		return (ENOMEM);
+	priv = malloc(sizeof(*priv), M_NETGRAPH, M_WAITOK | M_ZERO);
 
 	/* Init aliasing engine. */
 	priv->lib = LibAliasInit(NULL);
-	if (priv->lib == NULL) {
-		free(priv, M_NETGRAPH);
-		return (ENOMEM);
-	}
 
 	/* Set same ports on. */
 	(void )LibAliasSetMode(priv->lib, PKT_ALIAS_SAME_PORTS,

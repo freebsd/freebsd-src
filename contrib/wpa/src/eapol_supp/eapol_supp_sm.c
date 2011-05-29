@@ -15,14 +15,14 @@
 #include "includes.h"
 
 #include "common.h"
-#include "eapol_supp_sm.h"
-#include "eap_peer/eap.h"
-#include "eloop.h"
-#include "eapol_common.h"
-#include "md5.h"
-#include "rc4.h"
 #include "state_machine.h"
 #include "wpabuf.h"
+#include "eloop.h"
+#include "crypto/crypto.h"
+#include "crypto/md5.h"
+#include "common/eapol_common.h"
+#include "eap_peer/eap.h"
+#include "eapol_supp_sm.h"
 
 #define STATE_MACHINE_DATA struct eapol_sm
 #define STATE_MACHINE_DEBUG_PREFIX "EAPOL"
@@ -193,6 +193,8 @@ static void eapol_sm_txSuppRsp(struct eapol_sm *sm);
 static void eapol_sm_abortSupp(struct eapol_sm *sm);
 static void eapol_sm_abort_cached(struct eapol_sm *sm);
 static void eapol_sm_step_timeout(void *eloop_ctx, void *timeout_ctx);
+static void eapol_sm_set_port_authorized(struct eapol_sm *sm);
+static void eapol_sm_set_port_unauthorized(struct eapol_sm *sm);
 
 
 /* Port Timers state machine - implemented as a function that will be called
@@ -250,6 +252,7 @@ SM_STATE(SUPP_PAE, LOGOFF)
 	eapol_sm_txLogoff(sm);
 	sm->logoffSent = TRUE;
 	sm->suppPortStatus = Unauthorized;
+	eapol_sm_set_port_unauthorized(sm);
 }
 
 
@@ -260,6 +263,7 @@ SM_STATE(SUPP_PAE, DISCONNECTED)
 	sm->startCount = 0;
 	sm->logoffSent = FALSE;
 	sm->suppPortStatus = Unauthorized;
+	eapol_sm_set_port_unauthorized(sm);
 	sm->suppAbort = TRUE;
 
 	sm->unicast_key_received = FALSE;
@@ -282,7 +286,12 @@ SM_STATE(SUPP_PAE, CONNECTING)
 		 * delay authentication. Use a short timeout to send the first
 		 * EAPOL-Start if Authenticator does not start authentication.
 		 */
+#ifdef CONFIG_WPS
+		/* Reduce latency on starting WPS negotiation. */
+		sm->startWhen = 1;
+#else /* CONFIG_WPS */
 		sm->startWhen = 3;
+#endif /* CONFIG_WPS */
 	}
 	eapol_enable_timer_tick(sm);
 	sm->eapolEap = FALSE;
@@ -310,6 +319,7 @@ SM_STATE(SUPP_PAE, HELD)
 	sm->heldWhile = sm->heldPeriod;
 	eapol_enable_timer_tick(sm);
 	sm->suppPortStatus = Unauthorized;
+	eapol_sm_set_port_unauthorized(sm);
 	sm->cb_status = EAPOL_CB_FAILURE;
 }
 
@@ -318,6 +328,7 @@ SM_STATE(SUPP_PAE, AUTHENTICATED)
 {
 	SM_ENTRY(SUPP_PAE, AUTHENTICATED);
 	sm->suppPortStatus = Authorized;
+	eapol_sm_set_port_authorized(sm);
 	sm->cb_status = EAPOL_CB_SUCCESS;
 }
 
@@ -333,6 +344,7 @@ SM_STATE(SUPP_PAE, S_FORCE_AUTH)
 {
 	SM_ENTRY(SUPP_PAE, S_FORCE_AUTH);
 	sm->suppPortStatus = Authorized;
+	eapol_sm_set_port_authorized(sm);
 	sm->sPortMode = ForceAuthorized;
 }
 
@@ -341,6 +353,7 @@ SM_STATE(SUPP_PAE, S_FORCE_UNAUTH)
 {
 	SM_ENTRY(SUPP_PAE, S_FORCE_UNAUTH);
 	sm->suppPortStatus = Unauthorized;
+	eapol_sm_set_port_unauthorized(sm);
 	sm->sPortMode = ForceUnauthorized;
 	eapol_sm_txLogoff(sm);
 }
@@ -737,8 +750,8 @@ static void eapol_sm_processKey(struct eapol_sm *sm)
 		os_memcpy(ekey + IEEE8021X_KEY_IV_LEN, keydata.encr_key,
 			  encr_key_len);
 		os_memcpy(datakey, key + 1, key_len);
-		rc4(datakey, key_len, ekey,
-		    IEEE8021X_KEY_IV_LEN + encr_key_len);
+		rc4_skip(ekey, IEEE8021X_KEY_IV_LEN + encr_key_len, 0,
+			 datakey, key_len);
 		wpa_hexdump_key(MSG_DEBUG, "EAPOL: Decrypted(RC4) key",
 				datakey, key_len);
 	} else if (key_len == 0) {
@@ -854,6 +867,20 @@ static void eapol_sm_abortSupp(struct eapol_sm *sm)
 static void eapol_sm_step_timeout(void *eloop_ctx, void *timeout_ctx)
 {
 	eapol_sm_step(timeout_ctx);
+}
+
+
+static void eapol_sm_set_port_authorized(struct eapol_sm *sm)
+{
+	if (sm->ctx->port_cb)
+		sm->ctx->port_cb(sm->ctx->ctx, 1);
+}
+
+
+static void eapol_sm_set_port_unauthorized(struct eapol_sm *sm)
+{
+	if (sm->ctx->port_cb)
+		sm->ctx->port_cb(sm->ctx->ctx, 0);
 }
 
 
@@ -1451,6 +1478,7 @@ void eapol_sm_notify_cached(struct eapol_sm *sm)
 	wpa_printf(MSG_DEBUG, "EAPOL: PMKSA caching was used - skip EAPOL");
 	sm->SUPP_PAE_state = SUPP_PAE_AUTHENTICATED;
 	sm->suppPortStatus = Authorized;
+	eapol_sm_set_port_authorized(sm);
 	sm->portValid = TRUE;
 	eap_notify_success(sm->eap);
 	eapol_sm_step(sm);
@@ -1487,6 +1515,7 @@ static void eapol_sm_abort_cached(struct eapol_sm *sm)
 	sm->cached_pmk = FALSE;
 	sm->SUPP_PAE_state = SUPP_PAE_CONNECTING;
 	sm->suppPortStatus = Unauthorized;
+	eapol_sm_set_port_unauthorized(sm);
 
 	/* Make sure we do not start sending EAPOL-Start frames first, but
 	 * instead move to RESTART state to start EAPOL authentication. */
@@ -1825,11 +1854,9 @@ struct eapol_sm *eapol_sm_init(struct eapol_ctx *ctx)
 	sm->authPeriod = 30;
 
 	os_memset(&conf, 0, sizeof(conf));
-#ifdef EAP_TLS_OPENSSL
 	conf.opensc_engine_path = ctx->opensc_engine_path;
 	conf.pkcs11_engine_path = ctx->pkcs11_engine_path;
 	conf.pkcs11_module_path = ctx->pkcs11_module_path;
-#endif /* EAP_TLS_OPENSSL */
 	conf.wps = ctx->wps;
 
 	sm->eap = eap_peer_sm_init(sm, &eapol_cb, sm->ctx->msg_ctx, &conf);

@@ -118,17 +118,21 @@ int	sx_chain(struct thread *td, struct thread **ownerp);
 struct sx_args {
 	struct sx 	*sa_sx;
 	const char	*sa_desc;
+	int		sa_flags;
 };
 
-#define	SX_SYSINIT(name, sxa, desc)					\
+#define	SX_SYSINIT_FLAGS(name, sxa, desc, flags)			\
 	static struct sx_args name##_args = {				\
 		(sxa),							\
-		(desc)							\
+		(desc),							\
+		(flags)							\
 	};								\
 	SYSINIT(name##_sx_sysinit, SI_SUB_LOCK, SI_ORDER_MIDDLE,	\
 	    sx_sysinit, &name##_args);					\
 	SYSUNINIT(name##_sx_sysuninit, SI_SUB_LOCK, SI_ORDER_MIDDLE,	\
 	    sx_destroy, (sxa))
+
+#define	SX_SYSINIT(name, sxa, desc)	SX_SYSINIT_FLAGS(name, sxa, desc, 0)
 
 /*
  * Full lock operations that are suitable to be inlined in non-debug kernels.

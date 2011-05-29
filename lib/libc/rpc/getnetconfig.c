@@ -130,21 +130,29 @@ static struct netconfig *dup_ncp(struct netconfig *);
 
 
 static FILE *nc_file;		/* for netconfig db */
-static pthread_mutex_t nc_file_lock = PTHREAD_MUTEX_INITIALIZER;
+static mutex_t nc_file_lock = MUTEX_INITIALIZER;
 
 static struct netconfig_info	ni = { 0, 0, NULL, NULL};
-static pthread_mutex_t ni_lock = PTHREAD_MUTEX_INITIALIZER;
+static mutex_t ni_lock = MUTEX_INITIALIZER;
 
+static thread_key_t nc_key;
+static once_t nc_once = ONCE_INITIALIZER;
+static int nc_key_error;
+
+static void
+nc_key_init(void)
+{
+
+	nc_key_error = thr_keycreate(&nc_key, free);
+}
 
 #define MAXNETCONFIGLINE    1000
 
 static int *
 __nc_error()
 {
-	static pthread_mutex_t nc_lock = PTHREAD_MUTEX_INITIALIZER;
-	static thread_key_t nc_key = 0;
 	static int nc_error = 0;
-	int error, *nc_addr;
+	int *nc_addr;
 
 	/*
 	 * Use the static `nc_error' if we are the main thread
@@ -153,15 +161,8 @@ __nc_error()
 	 */
 	if (thr_main())
 		return (&nc_error);
-	if (nc_key == 0) {
-		error = 0;
-		mutex_lock(&nc_lock);
-		if (nc_key == 0)
-			error = thr_keycreate(&nc_key, free);
-		mutex_unlock(&nc_lock);
-		if (error)
-			return (&nc_error);
-	}
+	if (thr_once(&nc_once, nc_key_init) != 0 || nc_key_error != 0)
+		return (&nc_error);
 	if ((nc_addr = (int *)thr_getspecific(nc_key)) == NULL) {
 		nc_addr = (int *)malloc(sizeof (int));
 		if (thr_setspecific(nc_key, (void *) nc_addr) != 0) {

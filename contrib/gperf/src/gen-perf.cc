@@ -246,7 +246,7 @@ Gen_Perf::change (List_Node *prior, List_Node *curr)
       {
         if (option[DEBUG])
           {
-            fprintf (stderr, " by changing asso_value['%c'] (char #%d) to %d\n",
+            fprintf (stderr, " by changing asso_value['%c'] (char #%zd) to %d\n",
                      *p, p - union_set + 1, asso_values[(unsigned char)(*p)]);
             fflush (stderr);
           }

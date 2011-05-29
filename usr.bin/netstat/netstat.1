@@ -9,10 +9,6 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 3. All advertising materials mentioning features or use of this software
-.\"    must display the following acknowledgement:
-.\"	This product includes software developed by the University of
-.\"	California, Berkeley and its contributors.
 .\" 4. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
@@ -49,7 +45,7 @@ depending on the options for the information presented.
 .It Xo
 .Bk -words
 .Nm
-.Op Fl AaLnSWx
+.Op Fl AaLnSTWx
 .Op Fl f Ar protocol_family | Fl p Ar protocol
 .Op Fl M Ar core
 .Op Fl N Ar system
@@ -88,6 +84,10 @@ but show ports symbolically.
 If
 .Fl x
 is present, display socket buffer and tcp timer statistics for each internet socket.
+When
+.Fl T
+is present, display information from the TCP control block, including
+retransmits, out-of-order packets received, and zero-sized windows advertised.
 .It Xo
 .Bk -words
 .Nm

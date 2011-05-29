@@ -1971,7 +1971,7 @@ check_explicit_specialization (tree declarator,
 		 context.  */
 	      fns = lookup_qualified_name (CP_DECL_CONTEXT (decl), dname,
 					   false, true);
-	      if (!fns || !is_overloaded_fn (fns))
+	      if (fns == error_mark_node || !is_overloaded_fn (fns))
 		{
 		  error ("%qD is not a template function", dname);
 		  fns = error_mark_node;
@@ -5286,6 +5286,15 @@ reopen_tinst_level (tree level)
 
   current_tinst_level = level;
   pop_tinst_level ();
+}
+
+/* Returns the TINST_LEVEL which gives the original instantiation
+   context.  */
+
+tree
+outermost_tinst_level (void)
+{
+  return tree_last (current_tinst_level);
 }
 
 /* DECL is a friend FUNCTION_DECL or TEMPLATE_DECL.  ARGS is the
@@ -10453,6 +10462,8 @@ unify (tree tparms, tree targs, tree parm, tree arg, int strict)
     case TEMPLATE_TEMPLATE_PARM:
     case BOUND_TEMPLATE_TEMPLATE_PARM:
       tparm = TREE_VALUE (TREE_VEC_ELT (tparms, 0));
+      if (tparm == error_mark_node)
+	return 1;
 
       if (TEMPLATE_TYPE_LEVEL (parm)
 	  != template_decl_level (tparm))

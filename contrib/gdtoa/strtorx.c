@@ -89,7 +89,8 @@ ULtox(UShort *L, ULong *bits, Long exp, int k)
 
 	  case STRTOG_Infinite:
 		L[_0] = 0x7fff;
-		L[_1] = L[_2] = L[_3] = L[_4] = 0;
+		L[_1] = 0x8000;
+		L[_2] = L[_3] = L[_4] = 0;
 		break;
 
 	  case STRTOG_NaN:

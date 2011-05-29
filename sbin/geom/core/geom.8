@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 5, 2008
+.Dd January 5, 2011
 .Dt GEOM 8
 .Os
 .Sh NAME
@@ -37,11 +37,12 @@
 .Nm
 .Ar class
 .Cm list
+.Op Fl a
 .Op Ar name ...
 .Nm
 .Ar class
 .Cm status
-.Op Fl s
+.Op Fl ags
 .Op Ar name ...
 .Nm
 .Ar class
@@ -57,7 +58,7 @@ The
 utility is used to control various GEOM classes.
 A class has to be aware of
 .Xr geom 8
-comunication methods, but there are also some standard commands
+communication methods, but there are also some standard commands
 which can be used for existing
 .Xr geom 8
 unaware classes.
@@ -69,6 +70,11 @@ List all available commands for the given class.
 Print detailed information (within the given class) about all geoms
 (if no additional arguments were specified) or the given geoms.
 This command is only available if the given class exists in the kernel.
+Additional options include:
+.Bl -tag -width ".Fl a"
+.It Fl a
+Print information for geoms without providers.
+.El
 .It Cm status
 Print general information (within the given class) about all geoms
 (if no additional arguments were specified) or the given geoms.
@@ -76,6 +82,10 @@ This command is only available if the given class exists in the kernel.
 .Pp
 Additional options include:
 .Bl -tag -width ".Fl s"
+.It Fl a
+When used with -g, print status for geoms without providers.
+.It Fl g
+Report statuses for geoms instead of providers.
 .It Fl s
 Produce script-friendly output.
 .El
@@ -84,7 +94,7 @@ Load the kernel module that implements the given class.
 This command is only available if the class does not yet exist in the kernel and
 the file
 .Pa geom_ Ns Ao Ar class Ac Ns Pa .ko
-can be found in one of the directories specifed in
+can be found in one of the directories specified in
 .Va kern.module_path
 sysctl.
 .It Cm unload
@@ -120,13 +130,19 @@ LABEL
 .It
 MIRROR
 .It
+MOUNTVER
+.It
 MULTIPATH
 .It
 NOP
 .It
 PART
 .It
+RAID
+.It
 RAID3
+.It
+SCHED
 .It
 SHSEC
 .It
@@ -177,6 +193,7 @@ geom md unload
 .Xr gnop 8 ,
 .Xr gpart 8 ,
 .Xr graid3 8 ,
+.Xr gsched 8 ,
 .Xr gshsec 8 ,
 .Xr gstripe 8 ,
 .Xr gvirstor 8

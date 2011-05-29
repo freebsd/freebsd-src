@@ -22,6 +22,8 @@
 /set gname=wheel
     backups
     ..
+    cache
+    ..
     crash
     ..
     cron
@@ -63,6 +65,8 @@
         named           uname=bind gname=bind
         ..
         ppp             gname=network mode=0770
+        ..
+        wpa_supplicant
         ..
     ..
     rwho            gname=daemon mode=0775

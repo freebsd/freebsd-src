@@ -51,6 +51,10 @@ struct align {
 		.a32 = 0,					\
 		.a64 = __alignof__(Elf64_##V)			\
 	}
+#define	MALIGN_WORD()	{					\
+		.a32 = __alignof__(int32_t),			\
+		.a64 = __alignof__(int64_t)			\
+	    }
 #else
 #error	Need the __alignof__ builtin.
 #endif
@@ -92,7 +96,10 @@ static struct align malign[ELF_T_NUM] = {
 	[ELF_T_VNEED]	= MALIGN(Verneed),
 #endif
 	[ELF_T_WORD]	= MALIGN(Word),
-	[ELF_T_XWORD]	= MALIGN64(Xword)
+	[ELF_T_XWORD]	= MALIGN64(Xword),
+#if	__FreeBSD_version >= 800062
+	[ELF_T_GNUHASH] = MALIGN_WORD()
+#endif
 };
 
 int
@@ -140,7 +147,10 @@ static struct align falign[ELF_T_NUM] = {
 	[ELF_T_VNEED]	= FALIGN(4,4),
 #endif
 	[ELF_T_WORD]	= FALIGN(4,4),
-	[ELF_T_XWORD]	= FALIGN(0,8)
+	[ELF_T_XWORD]	= FALIGN(0,8),
+#if	__FreeBSD_version >= 800062
+	[ELF_T_GNUHASH] = FALIGN(4,8)
+#endif
 };
 
 int

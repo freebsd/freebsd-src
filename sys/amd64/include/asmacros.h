@@ -166,7 +166,8 @@
 	movw	%gs,TF_GS(%rsp) ;					\
 	movw	%es,TF_ES(%rsp) ;					\
 	movw	%ds,TF_DS(%rsp) ;					\
-	movl	$TF_HASSEGS,TF_FLAGS(%rsp)
+	movl	$TF_HASSEGS,TF_FLAGS(%rsp) ;				\
+	cld
 
 #define POP_FRAME							\
 	movq	TF_RDI(%rsp),%rdi ;					\

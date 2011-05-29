@@ -33,8 +33,8 @@
 .\" $FreeBSD$
 .\"
 .Dd July 7, 2009
-.Os
 .Dt DLOPEN 3
+.Os
 .Sh NAME
 .Nm dlopen ,
 .Nm dlsym ,
@@ -52,7 +52,7 @@
 .Fn dlsym "void * restrict handle" "const char * restrict symbol"
 .Ft dlfunc_t
 .Fn dlfunc "void * restrict handle" "const char * restrict symbol"
-.Ft const char *
+.Ft char *
 .Fn dlerror "void"
 .Ft int
 .Fn dlclose "void *handle"
@@ -149,7 +149,7 @@ The same behaviour may be requested by
 option of the static linker
 .Xr ld 1 .
 .It Dv RTLD_NOLOAD
-Ony return valid handle for the object if it is already loaded in
+Only return valid handle for the object if it is already loaded in
 the process address space, otherwise
 .Dv NULL
 is returned.

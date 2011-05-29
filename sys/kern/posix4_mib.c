@@ -45,6 +45,8 @@ __FBSDID("$FreeBSD$");
 static int facility[CTL_P1003_1B_MAXID - 1];
 static int facility_initialized[CTL_P1003_1B_MAXID - 1];
 
+static int p31b_sysctl_proc(SYSCTL_HANDLER_ARGS);
+
 /* OID_AUTO isn't working with sysconf(3).  I guess I'd have to
  * modify it to do a lookup by name from the index.
  * For now I've left it a top-level sysctl.
@@ -55,16 +57,21 @@ static int facility_initialized[CTL_P1003_1B_MAXID - 1];
 SYSCTL_DECL(_p1003_1b);
 
 #define P1B_SYSCTL(num, name)  \
-SYSCTL_INT(_p1003_1b, num, \
-	name, CTLFLAG_RD, facility + num - 1, 0, "");
+	SYSCTL_INT(_p1003_1b, num, name, CTLFLAG_RD, facility + num - 1, 0, "");
+#define P1B_SYSCTL_RW(num, name)  \
+	SYSCTL_PROC(_p1003_1b, num, name, CTLTYPE_INT | CTLFLAG_RW, NULL, num, \
+	    p31b_sysctl_proc, "I", "");
 
 #else
 
 SYSCTL_DECL(_kern_p1003_1b);
 
 #define P1B_SYSCTL(num, name)  \
-SYSCTL_INT(_kern_p1003_1b, OID_AUTO, \
-	name, CTLFLAG_RD, facility + num - 1, 0, "");
+	SYSCTL_INT(_kern_p1003_1b, OID_AUTO, name, CTLFLAG_RD, \
+	    facility + num - 1, 0, "");
+#define P1B_SYSCTL_RW(num, name)  \
+	SYSCTL_PROC(_p1003_1b, OID_AUTO, name, CTLTYPE_INT | CTLFLAG_RW, NULL, \
+	    num, p31b_sysctl_proc, "I", "");
 SYSCTL_NODE(_kern, OID_AUTO, p1003_1b, CTLFLAG_RW, 0, "P1003.1B");
 
 #endif
@@ -91,12 +98,27 @@ P1B_SYSCTL(CTL_P1003_1B_DELAYTIMER_MAX, delaytimer_max);
 P1B_SYSCTL(CTL_P1003_1B_MQ_OPEN_MAX, mq_open_max);
 P1B_SYSCTL(CTL_P1003_1B_PAGESIZE, pagesize);
 P1B_SYSCTL(CTL_P1003_1B_RTSIG_MAX, rtsig_max);
-P1B_SYSCTL(CTL_P1003_1B_SEM_NSEMS_MAX, sem_nsems_max);
+P1B_SYSCTL_RW(CTL_P1003_1B_SEM_NSEMS_MAX, sem_nsems_max);
 P1B_SYSCTL(CTL_P1003_1B_SEM_VALUE_MAX, sem_value_max);
 P1B_SYSCTL(CTL_P1003_1B_SIGQUEUE_MAX, sigqueue_max);
 P1B_SYSCTL(CTL_P1003_1B_TIMER_MAX, timer_max);
 
 #define P31B_VALID(num)	((num) >= 1 && (num) < CTL_P1003_1B_MAXID)
+
+static int
+p31b_sysctl_proc(SYSCTL_HANDLER_ARGS)
+{
+	int error, num, val;
+
+	num = arg2;
+	if (!P31B_VALID(num))
+		return (EINVAL);
+	val = facility_initialized[num] ? facility[num - 1] : 0;
+	error = sysctl_handle_int(oidp, &val, 0, req);
+	if (error == 0 && req->newptr != NULL && facility_initialized[num])
+		facility[num - 1] = val;
+	return (error);
+}
 
 /* p31b_setcfg: Set the configuration
  */
@@ -108,6 +130,14 @@ p31b_setcfg(int num, int value)
 		facility[num - 1] = value;
 		facility_initialized[num - 1] = 1;
 	}
+}
+
+void
+p31b_unsetcfg(int num)
+{
+
+	facility[num - 1] = 0;
+	facility_initialized[num -1] = 0;
 }
 
 int
@@ -134,9 +164,10 @@ p31b_iscfg(int num)
 static void
 p31b_set_standard(void *dummy)
 {
-	/* ??? p31b_setcfg(CTL_P1003_1B_FSYNC, 1); */
-	p31b_setcfg(CTL_P1003_1B_MAPPED_FILES, 1);
-	p31b_setcfg(CTL_P1003_1B_SHARED_MEMORY_OBJECTS, 1);
+
+	p31b_setcfg(CTL_P1003_1B_FSYNC, 200112L);
+	p31b_setcfg(CTL_P1003_1B_MAPPED_FILES, 200112L);
+	p31b_setcfg(CTL_P1003_1B_SHARED_MEMORY_OBJECTS, 200112L);
 	p31b_setcfg(CTL_P1003_1B_PAGESIZE, PAGE_SIZE);
 	if (!p31b_iscfg(CTL_P1003_1B_AIO_LISTIO_MAX))
 		p31b_setcfg(CTL_P1003_1B_AIO_LISTIO_MAX, -1);

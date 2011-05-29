@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: util.c,v 1.7 2007/06/19 23:46:59 tbox Exp $ */
+/* $Id: util.c,v 1.7 2007-06-19 23:46:59 tbox Exp $ */
 
 /*! \file */
 

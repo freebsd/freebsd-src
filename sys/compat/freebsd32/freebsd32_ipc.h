@@ -147,6 +147,14 @@ struct shmid_ds32_old {
 	int32_t		shm_ctime;
 	uint32_t	shm_internal;
 };
+
+void	freebsd32_ipcperm_old_in(struct ipc_perm32_old *ip32,
+	    struct ipc_perm *ip);
+void	freebsd32_ipcperm_old_out(struct ipc_perm *ip,
+	    struct ipc_perm32_old *ip32);
 #endif
+
+void	freebsd32_ipcperm_in(struct ipc_perm32 *ip32, struct ipc_perm *ip);
+void	freebsd32_ipcperm_out(struct ipc_perm *ip, struct ipc_perm32 *ip32);
 
 #endif /* !_COMPAT_FREEBSD32_FREEBSD32_IPC_H_ */

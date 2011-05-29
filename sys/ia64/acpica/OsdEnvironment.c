@@ -29,13 +29,10 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
-#include <sys/linker_set.h>
 #include <sys/sysctl.h>
 #include <machine/efi.h>
 
 #include <contrib/dev/acpica/include/acpi.h>
-
-static struct uuid acpi_root_uuid = EFI_TABLE_ACPI20;
 
 static u_long acpi_root_phys;
 
@@ -46,27 +43,35 @@ ACPI_STATUS
 AcpiOsInitialize(void)
 {
 
-	return(AE_OK);
+	return (AE_OK);
 }
 
 ACPI_STATUS
 AcpiOsTerminate(void)
 {
 
-	return(AE_OK);
+	return (AE_OK);
+}
+
+static u_long
+acpi_get_root_from_efi(void)
+{
+	static struct uuid acpi_root_uuid = EFI_TABLE_ACPI20;
+	void *acpi_root;
+
+	acpi_root = efi_get_table(&acpi_root_uuid);
+	if (acpi_root != NULL)
+		return (IA64_RR_MASK((uintptr_t)acpi_root));
+
+	return (0);
 }
 
 ACPI_PHYSICAL_ADDRESS
 AcpiOsGetRootPointer(void)
 {
-	void *acpi_root;
 
-	if (acpi_root_phys == 0) {
-		acpi_root = efi_get_table(&acpi_root_uuid);
-		if (acpi_root == NULL)
-			return (0);
-		acpi_root_phys = IA64_RR_MASK((u_long)acpi_root);
-	}
+	if (acpi_root_phys == 0)
+		acpi_root_phys = acpi_get_root_from_efi();
 
 	return (acpi_root_phys);
 }

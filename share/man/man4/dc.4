@@ -92,7 +92,6 @@ difficult to provide a complete list of all supported cards.
 The
 .Nm
 driver supports the following media types:
-.Pp
 .Bl -tag -width ".Cm 10baseT/UTP"
 .It Cm autoselect
 Enable autoselection of the media type and options.
@@ -138,7 +137,6 @@ mode.
 The
 .Nm
 driver supports the following media options:
-.Pp
 .Bl -tag -width ".Cm full-duplex"
 .It Cm full-duplex
 Force full duplex operation.
@@ -315,7 +313,7 @@ possible transmit start threshold settings had been tried, so the
 driver programmed the chip for store and forward mode.
 In this mode,
 the NIC will not begin transmission until the entire packet has been
-transfered into its FIFO memory.
+transferred into its FIFO memory.
 .It "dc%d: chip is in D3 power state -- setting to D0"
 This message applies only to adapters which support power
 management.
@@ -434,7 +432,7 @@ can result in the receive filter being incorrectly programmed.
 The
 .Nm
 driver will watch for this condition and requeue the setup frame until
-it is transfered successfully.
+it is transferred successfully.
 .Pp
 The ADMtek AL981 chip (and possibly the AN985 as well) has been observed
 to sometimes wedge on transmit: this appears to happen when the driver

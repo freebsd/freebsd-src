@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2009-2010 The FreeBSD Foundation
+ * Copyright (c) 2011 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
  * This software was developed by Pawel Jakub Dawidek under sponsorship from
@@ -25,16 +26,22 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
 #include <assert.h>
 #include <errno.h>
+#include <libutil.h>
+#include <printf.h>
 #include <stdarg.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -42,9 +49,141 @@ __FBSDID("$FreeBSD$");
 
 #include "pjdlog.h"
 
-static int pjdlog_mode = PJDLOG_MODE_STD;
-static int pjdlog_debug_level = 0;
+#define	PJDLOG_NEVER_INITIALIZED	0
+#define	PJDLOG_NOT_INITIALIZED		1
+#define	PJDLOG_INITIALIZED		2
+
+static int pjdlog_initialized = PJDLOG_NEVER_INITIALIZED;
+static int pjdlog_mode, pjdlog_debug_level;
 static char pjdlog_prefix[128];
+
+static int
+pjdlog_printf_arginfo_humanized_number(const struct printf_info *pi __unused,
+    size_t n, int *argt)
+{
+
+	assert(n >= 1);
+	argt[0] = PA_INT | PA_FLAG_INTMAX;
+	return (1);
+}
+
+static int
+pjdlog_printf_render_humanized_number(struct __printf_io *io,
+    const struct printf_info *pi, const void * const *arg)
+{
+	char buf[5];
+	intmax_t num;
+	int ret;
+
+	num = *(const intmax_t *)arg[0];
+	humanize_number(buf, sizeof(buf), (int64_t)num, "", HN_AUTOSCALE,
+	    HN_NOSPACE | HN_DECIMAL);
+	ret = __printf_out(io, pi, buf, strlen(buf));
+	__printf_flush(io);
+	return (ret);
+}
+
+static int
+pjdlog_printf_arginfo_sockaddr(const struct printf_info *pi __unused,
+    size_t n, int *argt)
+{
+
+	assert(n >= 1);
+	argt[0] = PA_POINTER;
+	return (1);
+}
+
+static int
+pjdlog_printf_render_sockaddr(struct __printf_io *io,
+    const struct printf_info *pi, const void * const *arg)
+{
+	const struct sockaddr_storage *ss;
+	char buf[64];
+	int ret;
+
+	ss = *(const struct sockaddr_storage * const *)arg[0];
+	switch (ss->ss_family) {
+	case AF_INET:
+	    {
+		char addr[INET_ADDRSTRLEN];
+		const struct sockaddr_in *sin;
+		unsigned int port;
+
+		sin = (const struct sockaddr_in *)ss;
+		port = ntohs(sin->sin_port);
+		if (inet_ntop(ss->ss_family, &sin->sin_addr, addr,
+		    sizeof(addr)) == NULL) {
+			PJDLOG_ABORT("inet_ntop(AF_INET) failed: %s.",
+			    strerror(errno));
+		}
+		snprintf(buf, sizeof(buf), "%s:%u", addr, port);
+		break;
+	    }
+	case AF_INET6:
+	    {
+		char addr[INET6_ADDRSTRLEN];
+		const struct sockaddr_in6 *sin;
+		unsigned int port;
+
+		sin = (const struct sockaddr_in6 *)ss;
+		port = ntohs(sin->sin6_port);
+		if (inet_ntop(ss->ss_family, &sin->sin6_addr, addr,
+		    sizeof(addr)) == NULL) {
+			PJDLOG_ABORT("inet_ntop(AF_INET6) failed: %s.",
+			    strerror(errno));
+		}
+		snprintf(buf, sizeof(buf), "[%s]:%u", addr, port);
+		break;
+	    }
+	default:
+		snprintf(buf, sizeof(buf), "[unsupported family %hhu]",
+		    ss->ss_family);
+		break;
+	}
+	ret = __printf_out(io, pi, buf, strlen(buf));
+	__printf_flush(io);
+	return (ret);
+}
+
+void
+pjdlog_init(int mode)
+{
+
+	assert(pjdlog_initialized == PJDLOG_NEVER_INITIALIZED ||
+	    pjdlog_initialized == PJDLOG_NOT_INITIALIZED);
+	assert(mode == PJDLOG_MODE_STD || mode == PJDLOG_MODE_SYSLOG);
+
+	if (pjdlog_initialized == PJDLOG_NEVER_INITIALIZED) {
+		__use_xprintf = 1;
+		register_printf_render_std("T");
+		register_printf_render('N',
+		    pjdlog_printf_render_humanized_number,
+		    pjdlog_printf_arginfo_humanized_number);
+		register_printf_render('S',
+		    pjdlog_printf_render_sockaddr,
+		    pjdlog_printf_arginfo_sockaddr);
+	}
+
+	if (mode == PJDLOG_MODE_SYSLOG)
+		openlog(NULL, LOG_PID | LOG_NDELAY, LOG_DAEMON);
+	pjdlog_mode = mode;
+	pjdlog_debug_level = 0;
+	bzero(pjdlog_prefix, sizeof(pjdlog_prefix));
+
+	pjdlog_initialized = PJDLOG_INITIALIZED;
+}
+
+void
+pjdlog_fini(void)
+{
+
+	assert(pjdlog_initialized == PJDLOG_INITIALIZED);
+
+	if (pjdlog_mode == PJDLOG_MODE_SYSLOG)
+		closelog();
+
+	pjdlog_initialized = PJDLOG_NOT_INITIALIZED;
+}
 
 /*
  * Configure where the logs should go.
@@ -56,7 +195,16 @@ void
 pjdlog_mode_set(int mode)
 {
 
+	assert(pjdlog_initialized == PJDLOG_INITIALIZED);
 	assert(mode == PJDLOG_MODE_STD || mode == PJDLOG_MODE_SYSLOG);
+
+	if (pjdlog_mode == mode)
+		return;
+
+	if (mode == PJDLOG_MODE_SYSLOG)
+		openlog(NULL, LOG_PID | LOG_NDELAY, LOG_DAEMON);
+	else /* if (mode == PJDLOG_MODE_STD) */
+		closelog();
 
 	pjdlog_mode = mode;
 }
@@ -67,6 +215,8 @@ pjdlog_mode_set(int mode)
 int
 pjdlog_mode_get(void)
 {
+
+	assert(pjdlog_initialized == PJDLOG_INITIALIZED);
 
 	return (pjdlog_mode);
 }
@@ -79,6 +229,7 @@ void
 pjdlog_debug_set(int level)
 {
 
+	assert(pjdlog_initialized == PJDLOG_INITIALIZED);
 	assert(level >= 0);
 
 	pjdlog_debug_level = level;
@@ -90,6 +241,8 @@ pjdlog_debug_set(int level)
 int
 pjdlog_debug_get(void)
 {
+
+	assert(pjdlog_initialized == PJDLOG_INITIALIZED);
 
 	return (pjdlog_debug_level);
 }
@@ -103,8 +256,10 @@ pjdlog_prefix_set(const char *fmt, ...)
 {
 	va_list ap;
 
+	assert(pjdlog_initialized == PJDLOG_INITIALIZED);
+
 	va_start(ap, fmt);
-	pjdlog_prefix_setv(fmt, ap);
+	pjdlogv_prefix_set(fmt, ap);
 	va_end(ap);
 }
 
@@ -113,9 +268,10 @@ pjdlog_prefix_set(const char *fmt, ...)
  * Setting prefix to NULL will remove it.
  */
 void
-pjdlog_prefix_setv(const char *fmt, va_list ap)
+pjdlogv_prefix_set(const char *fmt, va_list ap)
 {
 
+	assert(pjdlog_initialized == PJDLOG_INITIALIZED);
 	assert(fmt != NULL);
 
 	vsnprintf(pjdlog_prefix, sizeof(pjdlog_prefix), fmt, ap);
@@ -158,6 +314,8 @@ pjdlog_common(int loglevel, int debuglevel, int error, const char *fmt, ...)
 {
 	va_list ap;
 
+	assert(pjdlog_initialized == PJDLOG_INITIALIZED);
+
 	va_start(ap, fmt);
 	pjdlogv_common(loglevel, debuglevel, error, fmt, ap);
 	va_end(ap);
@@ -172,6 +330,7 @@ pjdlogv_common(int loglevel, int debuglevel, int error, const char *fmt,
     va_list ap)
 {
 
+	assert(pjdlog_initialized == PJDLOG_INITIALIZED);
 	assert(loglevel == LOG_EMERG || loglevel == LOG_ALERT ||
 	    loglevel == LOG_CRIT || loglevel == LOG_ERR ||
 	    loglevel == LOG_WARNING || loglevel == LOG_NOTICE ||
@@ -213,12 +372,12 @@ pjdlogv_common(int loglevel, int debuglevel, int error, const char *fmt,
 		/* Attach debuglevel if this is debug log. */
 		if (loglevel == LOG_DEBUG)
 			fprintf(out, "[%d]", debuglevel);
-		fprintf(out, " ");
-		fprintf(out, "%s", pjdlog_prefix);
+		fprintf(out, " %s", pjdlog_prefix);
 		vfprintf(out, fmt, ap);
 		if (error != -1)
 			fprintf(out, ": %s.", strerror(error));
 		fprintf(out, "\n");
+		fflush(out);
 		break;
 	    }
 	case PJDLOG_MODE_SYSLOG:
@@ -228,7 +387,7 @@ pjdlogv_common(int loglevel, int debuglevel, int error, const char *fmt,
 
 		len = snprintf(log, sizeof(log), "%s", pjdlog_prefix);
 		if ((size_t)len < sizeof(log))
-			len = vsnprintf(log + len, sizeof(log) - len, fmt, ap);
+			len += vsnprintf(log + len, sizeof(log) - len, fmt, ap);
 		if (error != -1 && (size_t)len < sizeof(log)) {
 			(void)snprintf(log + len, sizeof(log) - len, ": %s.",
 			    strerror(error));
@@ -248,6 +407,8 @@ void
 pjdlogv(int loglevel, const char *fmt, va_list ap)
 {
 
+	assert(pjdlog_initialized == PJDLOG_INITIALIZED);
+
 	/* LOG_DEBUG is invalid here, pjdlogv?_debug() should be used. */
 	assert(loglevel == LOG_EMERG || loglevel == LOG_ALERT ||
 	    loglevel == LOG_CRIT || loglevel == LOG_ERR ||
@@ -265,6 +426,8 @@ pjdlog(int loglevel, const char *fmt, ...)
 {
 	va_list ap;
 
+	assert(pjdlog_initialized == PJDLOG_INITIALIZED);
+
 	va_start(ap, fmt);
 	pjdlogv(loglevel, fmt, ap);
 	va_end(ap);
@@ -277,6 +440,8 @@ void
 pjdlogv_debug(int debuglevel, const char *fmt, va_list ap)
 {
 
+	assert(pjdlog_initialized == PJDLOG_INITIALIZED);
+
 	pjdlogv_common(LOG_DEBUG, debuglevel, -1, fmt, ap);
 }
 
@@ -287,6 +452,8 @@ void
 pjdlog_debug(int debuglevel, const char *fmt, ...)
 {
 	va_list ap;
+
+	assert(pjdlog_initialized == PJDLOG_INITIALIZED);
 
 	va_start(ap, fmt);
 	pjdlogv_debug(debuglevel, fmt, ap);
@@ -300,6 +467,8 @@ void
 pjdlogv_errno(int loglevel, const char *fmt, va_list ap)
 {
 
+	assert(pjdlog_initialized == PJDLOG_INITIALIZED);
+
 	pjdlogv_common(loglevel, 0, errno, fmt, ap);
 }
 
@@ -310,6 +479,8 @@ void
 pjdlog_errno(int loglevel, const char *fmt, ...)
 {
 	va_list ap;
+
+	assert(pjdlog_initialized == PJDLOG_INITIALIZED);
 
 	va_start(ap, fmt);
 	pjdlogv_errno(loglevel, fmt, ap);
@@ -323,8 +494,11 @@ void
 pjdlogv_exit(int exitcode, const char *fmt, va_list ap)
 {
 
+	assert(pjdlog_initialized == PJDLOG_INITIALIZED);
+
 	pjdlogv_errno(LOG_ERR, fmt, ap);
 	exit(exitcode);
+	/* NOTREACHED */
 }
 
 /*
@@ -334,6 +508,8 @@ void
 pjdlog_exit(int exitcode, const char *fmt, ...)
 {
 	va_list ap;
+
+	assert(pjdlog_initialized == PJDLOG_INITIALIZED);
 
 	va_start(ap, fmt);
 	pjdlogv_exit(exitcode, fmt, ap);
@@ -348,8 +524,11 @@ void
 pjdlogv_exitx(int exitcode, const char *fmt, va_list ap)
 {
 
+	assert(pjdlog_initialized == PJDLOG_INITIALIZED);
+
 	pjdlogv(LOG_ERR, fmt, ap);
 	exit(exitcode);
+	/* NOTREACHED */
 }
 
 /*
@@ -360,8 +539,51 @@ pjdlog_exitx(int exitcode, const char *fmt, ...)
 {
 	va_list ap;
 
+	assert(pjdlog_initialized == PJDLOG_INITIALIZED);
+
 	va_start(ap, fmt);
 	pjdlogv_exitx(exitcode, fmt, ap);
 	/* NOTREACHED */
 	va_end(ap);
+}
+
+/*
+ * Log failure message and exit.
+ */
+void
+pjdlog_abort(const char *func, const char *file, int line,
+    const char *failedexpr, const char *fmt, ...)
+{
+	va_list ap;
+
+	assert(pjdlog_initialized == PJDLOG_INITIALIZED);
+
+	/*
+	 * When there is no message we pass __func__ as 'fmt'.
+	 * It would be cleaner to pass NULL or "", but gcc generates a warning
+	 * for both of those.
+	 */
+	if (fmt != func) {
+		va_start(ap, fmt);
+		pjdlogv_critical(fmt, ap);
+		va_end(ap);
+	}
+	if (failedexpr == NULL) {
+		if (func == NULL) {
+			pjdlog_critical("Aborted at file %s, line %d.", file,
+			    line);
+		} else {
+			pjdlog_critical("Aborted at function %s, file %s, line %d.",
+			    func, file, line);
+		}
+	} else {
+		if (func == NULL) {
+			pjdlog_critical("Assertion failed: (%s), file %s, line %d.",
+			    failedexpr, file, line);
+		} else {
+			pjdlog_critical("Assertion failed: (%s), function %s, file %s, line %d.",
+			    failedexpr, func, file, line);
+		}
+	}
+	abort();
 }

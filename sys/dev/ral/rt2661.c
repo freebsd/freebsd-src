@@ -55,7 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_radiotap.h>
 #include <net80211/ieee80211_regdomain.h>
-#include <net80211/ieee80211_amrr.h>
+#include <net80211/ieee80211_ratectl.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -100,9 +100,6 @@ static void		rt2661_reset_rx_ring(struct rt2661_softc *,
 			    struct rt2661_rx_ring *);
 static void		rt2661_free_rx_ring(struct rt2661_softc *,
 			    struct rt2661_rx_ring *);
-static struct ieee80211_node *rt2661_node_alloc(struct ieee80211vap *,
-			    const uint8_t [IEEE80211_ADDR_LEN]);
-static void		rt2661_newassoc(struct ieee80211_node *, int);
 static int		rt2661_newstate(struct ieee80211vap *,
 			    enum ieee80211_state, int);
 static uint16_t		rt2661_eeprom_read(struct rt2661_softc *, uint8_t);
@@ -271,8 +268,8 @@ rt2661_attach(device_t dev, int id)
 	ifp->if_init = rt2661_init;
 	ifp->if_ioctl = rt2661_ioctl;
 	ifp->if_start = rt2661_start;
-	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
-	ifp->if_snd.ifq_drv_maxlen = IFQ_MAXLEN;
+	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
+	ifp->if_snd.ifq_drv_maxlen = ifqmaxlen;
 	IFQ_SET_READY(&ifp->if_snd);
 
 	ic->ic_ifp = ifp;
@@ -306,8 +303,6 @@ rt2661_attach(device_t dev, int id)
 	ieee80211_init_channels(ic, NULL, &bands);
 
 	ieee80211_ifattach(ic, macaddr);
-	ic->ic_newassoc = rt2661_newassoc;
-	ic->ic_node_alloc = rt2661_node_alloc;
 #if 0
 	ic->ic_wme.wme_update = rt2661_wme_update;
 #endif
@@ -428,11 +423,7 @@ rt2661_vap_create(struct ieee80211com *ic,
 	vap->iv_update_beacon = rt2661_beacon_update;
 #endif
 
-	ieee80211_amrr_init(&rvp->amrr, vap,
-	    IEEE80211_AMRR_MIN_SUCCESS_THRESHOLD,
-	    IEEE80211_AMRR_MAX_SUCCESS_THRESHOLD,
-	    500 /* ms */);
-
+	ieee80211_ratectl_init(vap);
 	/* complete setup */
 	ieee80211_vap_attach(vap, ieee80211_media_change, ieee80211_media_status);
 	if (TAILQ_FIRST(&ic->ic_vaps) == vap)
@@ -445,7 +436,7 @@ rt2661_vap_delete(struct ieee80211vap *vap)
 {
 	struct rt2661_vap *rvp = RT2661_VAP(vap);
 
-	ieee80211_amrr_cleanup(&rvp->amrr);
+	ieee80211_ratectl_deinit(vap);
 	ieee80211_vap_detach(vap);
 	free(rvp, M_80211_VAP);
 }
@@ -771,27 +762,6 @@ rt2661_free_rx_ring(struct rt2661_softc *sc, struct rt2661_rx_ring *ring)
 		bus_dma_tag_destroy(ring->data_dmat);
 }
 
-static struct ieee80211_node *
-rt2661_node_alloc(struct ieee80211vap *vap,
-	const uint8_t mac[IEEE80211_ADDR_LEN])
-{
-	struct rt2661_node *rn;
-
-	rn = malloc(sizeof (struct rt2661_node), M_80211_NODE,
-	    M_NOWAIT | M_ZERO);
-
-	return (rn != NULL) ? &rn->ni : NULL;
-}
-
-static void
-rt2661_newassoc(struct ieee80211_node *ni, int isnew)
-{
-	struct ieee80211vap *vap = ni->ni_vap;
-
-	ieee80211_amrr_node_init(&RT2661_VAP(vap)->amrr,
-	    &RT2661_NODE(ni)->amrr, ni);
-}
-
 static int
 rt2661_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 {
@@ -899,9 +869,9 @@ rt2661_tx_intr(struct rt2661_softc *sc)
 	struct ifnet *ifp = sc->sc_ifp;
 	struct rt2661_tx_ring *txq;
 	struct rt2661_tx_data *data;
-	struct rt2661_node *rn;
 	uint32_t val;
 	int qid, retrycnt;
+	struct ieee80211vap *vap;
 
 	for (;;) {
 		struct ieee80211_node *ni;
@@ -925,8 +895,8 @@ rt2661_tx_intr(struct rt2661_softc *sc)
 		/* if no frame has been sent, ignore */
 		if (ni == NULL)
 			continue;
-
-		rn = RT2661_NODE(ni);
+		else
+			vap = ni->ni_vap;
 
 		switch (RT2661_TX_RESULT(val)) {
 		case RT2661_TX_SUCCESS:
@@ -935,8 +905,9 @@ rt2661_tx_intr(struct rt2661_softc *sc)
 			DPRINTFN(sc, 10, "data frame sent successfully after "
 			    "%d retries\n", retrycnt);
 			if (data->rix != IEEE80211_FIXED_RATE_NONE)
-				ieee80211_amrr_tx_complete(&rn->amrr,
-				    IEEE80211_AMRR_SUCCESS, retrycnt);
+				ieee80211_ratectl_tx_complete(vap, ni,
+				    IEEE80211_RATECTL_TX_SUCCESS,
+				    &retrycnt, NULL);
 			ifp->if_opackets++;
 			break;
 
@@ -946,8 +917,9 @@ rt2661_tx_intr(struct rt2661_softc *sc)
 			DPRINTFN(sc, 9, "%s\n",
 			    "sending data frame failed (too much retries)");
 			if (data->rix != IEEE80211_FIXED_RATE_NONE)
-				ieee80211_amrr_tx_complete(&rn->amrr,
-				    IEEE80211_AMRR_FAILURE, retrycnt);
+				ieee80211_ratectl_tx_complete(vap, ni,
+				    IEEE80211_RATECTL_TX_FAILURE,
+				    &retrycnt, NULL);
 			ifp->if_oerrors++;
 			break;
 
@@ -1511,7 +1483,7 @@ rt2661_tx_data(struct rt2661_softc *sc, struct mbuf *m0,
 	} else if (tp->ucastrate != IEEE80211_FIXED_RATE_NONE) {
 		rate = tp->ucastrate;
 	} else {
-		(void) ieee80211_amrr_choose(ni, &RT2661_NODE(ni)->amrr);
+		(void) ieee80211_ratectl_rate(ni, NULL, 0);
 		rate = ni->ni_txrate;
 	}
 	rate &= IEEE80211_RATE_VAL;
@@ -1943,7 +1915,7 @@ rt2661_set_basicrates(struct rt2661_softc *sc,
 	struct ieee80211com *ic = ifp->if_l2com;
 	uint32_t mask = 0;
 	uint8_t rate;
-	int i, j;
+	int i;
 
 	for (i = 0; i < rs->rs_nrates; i++) {
 		rate = rs->rs_rates[i];
@@ -1951,13 +1923,7 @@ rt2661_set_basicrates(struct rt2661_softc *sc,
 		if (!(rate & IEEE80211_RATE_BASIC))
 			continue;
 
-		/*
-		 * Find h/w rate index.  We know it exists because the rate
-		 * set has already been negotiated.
-		 */
-		for (j = 0; ic->ic_sup_rates[IEEE80211_MODE_11G].rs_rates[j] != RV(rate); j++);
-
-		mask |= 1 << j;
+		mask |= 1 << ic->ic_rt->rateCodeToIndex[RV(rate)];
 	}
 
 	RAL_WRITE(sc, RT2661_TXRX_CSR5, mask);

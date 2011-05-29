@@ -370,6 +370,24 @@ Probing for an MII bus has failed.
 This indicates a coding error in the PC Card attachment, because a PHY
 is required for the chips that generate this error message.
 .El
+.Sh SEE ALSO
+.Xr altq 4 ,
+.Xr arp 4 ,
+.Xr miibus 4 ,
+.Xr netintro 4 ,
+.Xr ng_ether 4 ,
+.Xr device.hints 5 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 1.0 .
+.Sh AUTHORS
+The
+.Nm
+device driver and this manual page were written by
+.An David Greenman .
 .Sh CAVEATS
 Early revision DS8390 chips have problems.
 They lock up whenever the receive
@@ -393,24 +411,6 @@ The Mitsubishi B8895 PC Card uses a DP83902, but its ASIC part is
 undocumented.
 Neither the NE2000 nor the WD83x0 drivers work with this card.
 .Pp
-.Sh SEE ALSO
-.Xr altq 4 ,
-.Xr arp 4 ,
-.Xr miibus 4 ,
-.Xr netintro 4 ,
-.Xr ng_ether 4 ,
-.Xr device.hints 5 ,
-.Xr ifconfig 8
-.Sh HISTORY
-The
-.Nm
-device driver first appeared in
-.Fx 1.0 .
-.Sh AUTHORS
-The
-.Nm
-device driver and this manual page were written by
-.An David Greenman .
 .Sh BUGS
 The
 .Nm

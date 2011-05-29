@@ -28,13 +28,13 @@
 
 #pragma D option destructive
 
-proc:::signal_send
+proc:::signal-send
 /args[1]->p_pid == $1 && args[2] == SIGUSR1/
 {
 	sent = 1;
 }
 
-proc:::signal_clear
+proc:::signal-clear
 /pid == $1 && args[0] == SIGUSR1 && sent/
 {
 	exit(0);

@@ -37,8 +37,8 @@ options 	UFS_ACL			# Support for access control lists
 options 	UFS_DIRHASH		# Improve performance on big directories
 options 	UFS_GJOURNAL		# Enable gjournal-based UFS journaling
 options 	MD_ROOT			# MD is a potential root device
-options 	NFSCLIENT		# Network Filesystem Client
-options 	NFSSERVER		# Network Filesystem Server
+options 	NFSCL			# New Network Filesystem Client
+options 	NFSD			# New Network Filesystem Server
 options 	NFSLOCKD		# Network Lock Manager
 options 	NFS_ROOT		# NFS usable as /, requires NFSCLIENT
 #options 	MSDOSFS			# MSDOS Filesystem
@@ -47,7 +47,6 @@ options 	PROCFS			# Process filesystem (requires PSEUDOFS)
 options 	PSEUDOFS		# Pseudo-filesystem framework
 options 	GEOM_PART_GPT		# GUID Partition Tables.
 options 	GEOM_LABEL		# Provides labelization
-options 	COMPAT_43TTY		# BSD 4.3 TTY compat (sgtty)
 options 	COMPAT_FREEBSD5		# Compatible with FreeBSD5
 options 	COMPAT_FREEBSD6		# Compatible with FreeBSD6
 options 	COMPAT_FREEBSD7		# Compatible with FreeBSD7
@@ -57,7 +56,6 @@ options 	STACK			# stack(9) support
 options 	SYSVSHM			# SYSV-style shared memory
 options 	SYSVMSG			# SYSV-style message queues
 options 	SYSVSEM			# SYSV-style semaphores
-options 	P1003_1B_SEMAPHORES	# POSIX-style semaphores
 options 	_KPOSIX_PRIORITY_SCHEDULING # POSIX P1003_1B real-time extensions
 options 	PRINTF_BUFR_SIZE=128	# Prevent printf output being interspersed.
 options 	HWPMC_HOOKS		# Necessary kernel hooks for hwpmc(4)
@@ -74,6 +72,7 @@ options 	INVARIANTS		# Enable calls of extra sanity checking
 options 	INVARIANT_SUPPORT	# Extra sanity checks of internal structures, required by INVARIANTS
 options 	WITNESS			# Enable checks to detect deadlocks and cycles
 options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
+options 	MALLOC_DEBUG_MAXZONES=8	# Separate malloc(9) zones
 
 # Make an SMP-capable kernel by default
 options 	SMP			# Symmetric MultiProcessor Kernel
@@ -89,15 +88,12 @@ device		fhc
 # Floppy drives
 #device		fdc
 
-# ATA and ATAPI devices
-device		ata
-device		atadisk		# ATA disk drives
-device		atapicd		# ATAPI CDROM drives
-#device		atapifd		# ATAPI floppy drives
-#device		atapist		# ATAPI tape drives
-#	Do NOT enable ATA_STATIC_ID -- cmd646 controller will be !ata2!,
-#	and you will not mount an ATA /.
-#options 	ATA_STATIC_ID	# Static device numbering
+# ATA controllers
+device		ahci		# AHCI-compatible SATA controllers
+device		ata		# Legacy ATA/SATA controllers
+options 	ATA_CAM		# Handle legacy controllers with CAM
+device		mvs		# Marvell 88SX50XX/88SX60XX/88SX70XX/SoC SATA
+device		siis		# SiliconImage SiI3124/SiI3132/SiI3531 SATA
 
 # SCSI Controllers
 device		ahc		# AHA2940 and onboard AIC7xxx devices
@@ -110,13 +106,13 @@ device		mpt		# LSI-Logic MPT-Fusion
 device		sym		# NCR/Symbios/LSI Logic 53C8XX/53C1010/53C1510D
 device		esp		# NCR53c9x (FEPS/FAS366)
 
-# SCSI peripherals
-device		scbus		# SCSI bus (required for SCSI)
+# ATA/SCSI peripherals
+device		scbus		# SCSI bus (required for ATA/SCSI)
 device		ch		# SCSI media changers
 device		da		# Direct Access (disks)
 device		sa		# Sequential Access (tape etc)
 device		cd		# CD
-device		pass		# Passthrough device (direct SCSI access)
+device		pass		# Passthrough device (direct ATA/SCSI access)
 device		ses		# SCSI Environmental Services (and SAF-TE)
 
 # RAID controllers
@@ -144,6 +140,9 @@ device		mk48txx		# Mostek MK48Txx clocks
 device		rtc		# rtc (really a front-end for the MC146818)
 device		mc146818	# Motorola MC146818 and compatible clocks
 device		epic		# Sun Fire V215/V245 LEDs
+device		sbbc		# Sun BootBus controller (time-of-day clock for
+				# Serengeti and StarCat, console for Serengeti,
+				# requires device uart)
 
 # Serial (COM) ports
 device		puc		# Multi-channel uarts
@@ -182,7 +181,7 @@ device		nge		# NatSemi DP83820 gigabit Ethernet
 device		re		# RealTek 8139C+/8169/8169S/8110S
 device		rl		# RealTek 8129/8139
 device		sf		# Adaptec AIC-6915 (``Starfire'')
-#device		sis		# Silicon Integrated Systems SiS 900/SiS 7016
+device		sis		# Silicon Integrated Systems SiS 900/SiS 7016
 device		sk		# SysKonnect SK-984x & SK-982x gigabit Ethernet
 device		ste		# Sundance ST201 (D-Link DFE-550TX)
 device		stge		# Sundance/Tamarack TC9021 gigabit Ethernet
@@ -201,7 +200,8 @@ device		wlan_wep	# 802.11 WEP support
 device		wlan_ccmp	# 802.11 CCMP support
 device		wlan_tkip	# 802.11 TKIP support
 device		wlan_amrr	# AMRR transmit rate control algorithm
-device		ath		# Atheros pci/cardbus NIC's
+device		ath		# Atheros NIC's
+device		ath_pci		# Atheros pci/cardbus glue
 device		ath_hal		# Atheros HAL (Hardware Access Layer)
 options 	AH_SUPPORT_AR5416	# enable AR5416 tx/rx descriptors
 device		ath_rate_sample	# SampleRate tx rate control for ath
@@ -224,11 +224,12 @@ device		firmware	# firmware assist module
 device		bpf		# Berkeley packet filter
 
 # USB support
+options 	USB_DEBUG	# enable debug msgs
 device		uhci		# UHCI PCI->USB interface
 device		ohci		# OHCI PCI->USB interface
 device		ehci		# EHCI PCI->USB interface (USB 2.0)
 device		usb		# USB Bus (required)
-#device		udbp		# USB Double Bulk Pipe devices
+#device		udbp		# USB Double Bulk Pipe devices (needs netgraph)
 device		uhid		# "Human Interface Devices"
 device		ukbd		# Keyboard
 device		ulpt		# Printer

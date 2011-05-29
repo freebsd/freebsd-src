@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2006 Konstantin Dimitrov <kosio.dimitrov@gmail.com>
  * Copyright (c) 2001 Katsurajima Naoto <raven@katsurajima.seya.yokohama.jp>
  * All rights reserved.
@@ -2236,7 +2236,8 @@ envy24ht_putcfg(struct sc_info *sc)
 	else
 		printf("not implemented\n");
         switch (sc->adcn) {
-        case 0x01 || 0x02:
+        case 0x01:
+	case 0x02:
                 printf("  ADC #: ");
                 printf("%d\n", sc->adcn);
                 break;

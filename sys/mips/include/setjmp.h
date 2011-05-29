@@ -39,7 +39,7 @@
 
 #include <sys/cdefs.h>
 
-#define	_JBLEN	95		/* size, in longs, of a jmp_buf */
+#define	_JBLEN	95		/* size, in longs (or long longs), of a jmp_buf */
 
 /*
  * jmp_buf and sigjmp_buf are encapsulated in different structs to force
@@ -49,10 +49,18 @@
 #ifndef _LOCORE
 #ifndef __ASSEMBLER__
 #if __BSD_VISIBLE || __POSIX_VISIBLE || __XSI_VISIBLE
+#ifdef __mips_n32
+typedef struct _sigjmp_buf { long long _sjb[_JBLEN + 1]; } sigjmp_buf[1];
+#else
 typedef struct _sigjmp_buf { long _sjb[_JBLEN + 1]; } sigjmp_buf[1];
 #endif
+#endif
 
+#ifdef __mips_n32
+typedef struct _jmp_buf { long long _jb[_JBLEN + 1]; } jmp_buf[1];
+#else
 typedef struct _jmp_buf { long _jb[_JBLEN + 1]; } jmp_buf[1];
+#endif
 #endif /* __ASSEMBLER__ */
 #endif /* _LOCORE */
 

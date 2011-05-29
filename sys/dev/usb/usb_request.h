@@ -56,20 +56,34 @@ usb_error_t usbd_req_get_device_status(struct usb_device *udev,
 usb_error_t usbd_req_get_hub_descriptor(struct usb_device *udev,
 		    struct mtx *mtx, struct usb_hub_descriptor *hd,
 		    uint8_t nports);
+usb_error_t usbd_req_get_ss_hub_descriptor(struct usb_device *udev,
+		    struct mtx *mtx, struct usb_hub_ss_descriptor *hd,
+		    uint8_t nports);
 usb_error_t usbd_req_get_hub_status(struct usb_device *udev, struct mtx *mtx,
 		    struct usb_hub_status *st);
 usb_error_t usbd_req_get_port_status(struct usb_device *udev, struct mtx *mtx,
 		    struct usb_port_status *ps, uint8_t port);
 usb_error_t usbd_req_reset_port(struct usb_device *udev, struct mtx *mtx,
 		    uint8_t port);
+usb_error_t usbd_req_warm_reset_port(struct usb_device *udev,
+		    struct mtx *mtx, uint8_t port);
 usb_error_t usbd_req_set_address(struct usb_device *udev, struct mtx *mtx,
 		    uint16_t addr);
 usb_error_t usbd_req_set_hub_feature(struct usb_device *udev, struct mtx *mtx,
 		    uint16_t sel);
 usb_error_t usbd_req_set_port_feature(struct usb_device *udev,
 		    struct mtx *mtx, uint8_t port, uint16_t sel);
+usb_error_t usbd_setup_device_desc(struct usb_device *udev, struct mtx *mtx);
 usb_error_t usbd_req_re_enumerate(struct usb_device *udev, struct mtx *mtx);
-usb_error_t usbd_req_clear_device_feature(struct usb_device *udev, struct mtx *mtx, uint16_t sel);
-usb_error_t usbd_req_set_device_feature(struct usb_device *udev, struct mtx *mtx, uint16_t sel);
+usb_error_t usbd_req_clear_device_feature(struct usb_device *udev,
+		    struct mtx *mtx, uint16_t sel);
+usb_error_t usbd_req_set_device_feature(struct usb_device *udev,
+		    struct mtx *mtx, uint16_t sel);
+usb_error_t usbd_req_set_hub_u1_timeout(struct usb_device *udev,
+		    struct mtx *mtx, uint8_t port, uint8_t timeout);
+usb_error_t usbd_req_set_hub_u2_timeout(struct usb_device *udev,
+		    struct mtx *mtx, uint8_t port, uint8_t timeout);
+usb_error_t usbd_req_set_hub_depth(struct usb_device *udev,
+		    struct mtx *mtx, uint16_t depth);
 
 #endif					/* _USB_REQUEST_H_ */

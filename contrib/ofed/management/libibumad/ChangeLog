@@ -1,0 +1,94 @@
+2007-07-10 Hal Rosenstock <halr@voltaire.com>
+
+	* Release version 1.1.2
+
+	* Makefile.am: Add man/umad_set_pkey.3 into install
+
+	* man/umad_set_pkey.3: Clarify that umad_set_pkey takes
+	  pkey_index rather than pkey
+
+2007-07-10 Sean Hefty <sean.hefty@intel.com>
+
+	* include/infiniband/umad.h: Clarify that umad_set_pkey()
+	  takes a pkey index, and not the pkey itself
+
+2007-06-26 Hal Rosenstock <halr@voltaire.com>
+
+	* src/umad.c: Change uint to unsigned for strict ANSI
+
+2007-06-26 Michael S. Tsirkin <mst@dev.mellanox.co.il>
+
+	* include/infiniband/umad.h: Change uint to unsigned
+	  for strict ANSI
+
+2007-05-24 Hal Rosenstock <halr@voltaire.com>
+
+	* man/umad_set_grh.3, man/umad_set_grh_net.3: Some more
+	  changes based on comments from Dotan Barak
+
+2007-05-23 Ira K. Weiny <weiny2@llnl.gov>
+
+	* libibumad.spec.in: Add man pages
+
+2007-05-21 Hal Rosenstock <halr@voltaire.com>
+
+	* man/umad_set_addr.3, man/umad_set_addr_net.3,
+	  man/umad_set_grh.3, man/umad_set_grh_net.3:
+	  Add "SEE ALSO" section
+
+	* man: More changes based on additional comments from Dotan Barak
+
+2007-05-17 Hal Rosenstock <halr@voltaire.com>
+
+	* Makefile.am: No longer install man/umad_set_pkey.3
+
+	* man: Man page updates based on comments from Dotan Barak
+
+2007-05-11 Hal Rosenstock <halr@voltaire.com>
+
+	* Release version 1.1.1.
+
+	* Makefile.am: Added man pages support
+
+	* man: Add initial version of libibumad man pages
+
+2007-04-24 Roland Dreier <rolandd@cisco.com>
+
+	* src/umad.c: In umad_open_port, fix declaration of
+	  return value from dev_to_umad_id
+
+2007-04-24 Hal Rosenstock <halr@voltaire.com>
+
+	* src/umad,c: In get_ca, handle drivers which do not
+	  support SYS_CA_HW_VERS or SYS_CA_TYPE
+
+2007-03-29 Hal Rosenstock <halr@voltaire.com>
+
+	* Release version 1.1.0.
+
+2007-03-22 Hal Rosenstock <halr@voltaire.com>
+
+	* src/umad.c: Implement GRH support in umad_set_grh
+
+2007-03-11 Dotan Barak <dotanb@mellanox.co.il>
+
+	* src/umad.c: In umad_get_ca_portguids, add release_ca call
+	  in error flow to prevent resource leak
+
+2007-01-25  Hal Rosenstock <halr@voltaire.com>
+
+	* Release version 1.0.2.
+
+2006-11-20  Sasha Khapyorsky <sashak@voltaire.com>
+
+	* src/umad.c: Fix various uses of printf() style functions
+
+2006-10-31  Sasha Khapyorsky <sashak@voltaire.com>
+
+	* src/umad.c (umad_set_addr_net): Fix endian used in
+	  TRACE macro
+
+2006-09-28  Sasha Khapyorsky <sashak@voltaire.com>
+
+	* src/umad.c (umad_open_port): Show open()'s errno string
+

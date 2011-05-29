@@ -406,7 +406,6 @@ wds_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 static int
 wds_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 {
-#define	SEQ_LEQ(a,b)	((int)((a)-(b)) <= 0)
 #define	HAS_SEQ(type)	((type & 0x4) == 0)
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;
@@ -454,6 +453,9 @@ wds_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 	 */
 	wh = mtod(m, struct ieee80211_frame *);
 
+	if (!IEEE80211_IS_MULTICAST(wh->i_addr1))
+		ni->ni_inact = ni->ni_inact_reload;
+
 	if ((wh->i_fc[0] & IEEE80211_FC0_VERSION_MASK) !=
 	    IEEE80211_FC0_VERSION_0) {
 		IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_ANY,
@@ -492,9 +494,7 @@ wds_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 		    TID_TO_WME_AC(tid) >= WME_AC_VI)
 			ic->ic_wme.wme_hipri_traffic++;
 		rxseq = le16toh(*(uint16_t *)wh->i_seq);
-		if ((ni->ni_flags & IEEE80211_NODE_HT) == 0 &&
-		    (wh->i_fc[1] & IEEE80211_FC1_RETRY) &&
-		    SEQ_LEQ(rxseq, ni->ni_rxseqs[tid])) {
+		if (! ieee80211_check_rxseq(ni, wh)) {
 			/* duplicate, discard */
 			IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_INPUT,
 			    wh->i_addr1, "duplicate",
@@ -536,8 +536,6 @@ wds_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 			vap->iv_stats.is_rx_wrongdir++;/*XXX*/
 			goto out;
 		}
-		if (!IEEE80211_IS_MULTICAST(wh->i_addr1))
-			ni->ni_inact = ni->ni_inact_reload;
 		/*
 		 * Handle A-MPDU re-ordering.  If the frame is to be
 		 * processed directly then ieee80211_ampdu_reorder
@@ -740,7 +738,6 @@ out:
 		m_freem(m);
 	}
 	return type;
-#undef SEQ_LEQ
 }
 
 static void
@@ -756,31 +753,47 @@ wds_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 	frm = (u_int8_t *)&wh[1];
 	efrm = mtod(m0, u_int8_t *) + m0->m_len;
 	switch (subtype) {
-	case IEEE80211_FC0_SUBTYPE_DEAUTH:
+	case IEEE80211_FC0_SUBTYPE_ACTION:
+	case IEEE80211_FC0_SUBTYPE_ACTION_NOACK:
+		if (ni == vap->iv_bss) {
+			IEEE80211_DISCARD(vap, IEEE80211_MSG_INPUT,
+			    wh, NULL, "%s", "unknown node");
+			vap->iv_stats.is_rx_mgtdiscard++;
+		} else if (!IEEE80211_ADDR_EQ(vap->iv_myaddr, wh->i_addr1)) {
+			/* NB: not interested in multicast frames. */
+			IEEE80211_DISCARD(vap, IEEE80211_MSG_INPUT,
+			    wh, NULL, "%s", "not for us");
+			vap->iv_stats.is_rx_mgtdiscard++;
+		} else if (vap->iv_state != IEEE80211_S_RUN) {
+			IEEE80211_DISCARD(vap, IEEE80211_MSG_INPUT,
+			    wh, NULL, "wrong state %s",
+			    ieee80211_state_name[vap->iv_state]);
+			vap->iv_stats.is_rx_mgtdiscard++;
+		} else {
+			if (ieee80211_parse_action(ni, m0) == 0)
+				(void)ic->ic_recv_action(ni, wh, frm, efrm);
+		}
+		break;
+
+	case IEEE80211_FC0_SUBTYPE_ASSOC_REQ:
+	case IEEE80211_FC0_SUBTYPE_ASSOC_RESP:
+	case IEEE80211_FC0_SUBTYPE_REASSOC_REQ:
+	case IEEE80211_FC0_SUBTYPE_REASSOC_RESP:
+	case IEEE80211_FC0_SUBTYPE_PROBE_REQ:
 	case IEEE80211_FC0_SUBTYPE_PROBE_RESP:
 	case IEEE80211_FC0_SUBTYPE_BEACON:
-	case IEEE80211_FC0_SUBTYPE_PROBE_REQ:
-	case IEEE80211_FC0_SUBTYPE_AUTH:
-	case IEEE80211_FC0_SUBTYPE_ASSOC_REQ:
-	case IEEE80211_FC0_SUBTYPE_REASSOC_REQ:
-	case IEEE80211_FC0_SUBTYPE_ASSOC_RESP:
-	case IEEE80211_FC0_SUBTYPE_REASSOC_RESP:
+	case IEEE80211_FC0_SUBTYPE_ATIM:
 	case IEEE80211_FC0_SUBTYPE_DISASSOC:
+	case IEEE80211_FC0_SUBTYPE_AUTH:
+	case IEEE80211_FC0_SUBTYPE_DEAUTH:
+		IEEE80211_DISCARD(vap, IEEE80211_MSG_INPUT,
+		    wh, NULL, "%s", "not handled");
 		vap->iv_stats.is_rx_mgtdiscard++;
 		break;
-	case IEEE80211_FC0_SUBTYPE_ACTION:
-		if (vap->iv_state != IEEE80211_S_RUN ||
-		    IEEE80211_IS_MULTICAST(wh->i_addr1)) {
-			vap->iv_stats.is_rx_mgtdiscard++;
-			break;
-		}
-		ni->ni_inact = ni->ni_inact_reload;
-		if (ieee80211_parse_action(ni, m0) == 0)
-			ic->ic_recv_action(ni, wh, frm, efrm);
-		break;
+
 	default:
 		IEEE80211_DISCARD(vap, IEEE80211_MSG_ANY,
-		     wh, "mgt", "subtype 0x%x not handled", subtype);
+		    wh, "mgt", "subtype 0x%x not handled", subtype);
 		vap->iv_stats.is_rx_badsubtype++;
 		break;
 	}

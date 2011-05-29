@@ -4858,3 +4858,10 @@ Fri Jan  2 16:08:54 1998  Ian Lance Taylor  <ian@cygnus.com>
 	unrecognized characters after an expression.
 
 For older changes see ChangeLog-9697
+
+Local Variables:
+mode: change-log
+left-margin: 8
+fill-column: 74
+version-control: never
+End:

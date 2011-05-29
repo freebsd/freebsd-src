@@ -73,7 +73,7 @@
 #include <netinet6/ip6_var.h>
 #endif /* INET6 */
 
-#ifdef INET
+#if defined(INET) || defined(INET6)
 #include <netinet/in_pcb.h>
 #endif
 #ifdef INET6
@@ -114,27 +114,27 @@
 
 VNET_DEFINE(u_int32_t, key_debug_level) = 0;
 static VNET_DEFINE(u_int, key_spi_trycnt) = 1000;
-#define	V_key_spi_trycnt	VNET(key_spi_trycnt)
 static VNET_DEFINE(u_int32_t, key_spi_minval) = 0x100;
-#define	V_key_spi_minval	VNET(key_spi_minval)
 static VNET_DEFINE(u_int32_t, key_spi_maxval) = 0x0fffffff;	/* XXX */
-#define	V_key_spi_maxval	VNET(key_spi_maxval)
 static VNET_DEFINE(u_int32_t, policy_id) = 0;
-#define	V_policy_id		VNET(policy_id)
 /*interval to initialize randseed,1(m)*/
 static VNET_DEFINE(u_int, key_int_random) = 60;
-#define	V_key_int_random	VNET(key_int_random)
 /* interval to expire acquiring, 30(s)*/
 static VNET_DEFINE(u_int, key_larval_lifetime) = 30;
-#define	V_key_larval_lifetime	VNET(key_larval_lifetime)
 /* counter for blocking SADB_ACQUIRE.*/
 static VNET_DEFINE(int, key_blockacq_count) = 10;
-#define	V_key_blockacq_count	VNET(key_blockacq_count)
 /* lifetime for blocking SADB_ACQUIRE.*/
 static VNET_DEFINE(int, key_blockacq_lifetime) = 20;
-#define	V_key_blockacq_lifetime	VNET(key_blockacq_lifetime)
 /* preferred old sa rather than new sa.*/
 static VNET_DEFINE(int, key_preferred_oldsa) = 1;
+#define	V_key_spi_trycnt	VNET(key_spi_trycnt)
+#define	V_key_spi_minval	VNET(key_spi_minval)
+#define	V_key_spi_maxval	VNET(key_spi_maxval)
+#define	V_policy_id		VNET(policy_id)
+#define	V_key_int_random	VNET(key_int_random)
+#define	V_key_larval_lifetime	VNET(key_larval_lifetime)
+#define	V_key_blockacq_count	VNET(key_blockacq_count)
+#define	V_key_blockacq_lifetime	VNET(key_blockacq_lifetime)
 #define	V_key_preferred_oldsa	VNET(key_preferred_oldsa)
 
 static VNET_DEFINE(u_int32_t, acq_seq) = 0;
@@ -270,10 +270,11 @@ static const int maxsize[] = {
 };
 
 static VNET_DEFINE(int, ipsec_esp_keymin) = 256;
-#define	V_ipsec_esp_keymin	VNET(ipsec_esp_keymin)
 static VNET_DEFINE(int, ipsec_esp_auth) = 0;
-#define	V_ipsec_esp_auth	VNET(ipsec_esp_auth)
 static VNET_DEFINE(int, ipsec_ah_keymin) = 128;
+
+#define	V_ipsec_esp_keymin	VNET(ipsec_esp_keymin)
+#define	V_ipsec_esp_auth	VNET(ipsec_esp_auth)
 #define	V_ipsec_ah_keymin	VNET(ipsec_ah_keymin)
 
 #ifdef SYSCTL_DECL
@@ -808,6 +809,7 @@ key_checkrequest(struct ipsecrequest *isr, const struct secasindex *saidx)
 {
 	u_int level;
 	int error;
+	struct secasvar *sav;
 
 	IPSEC_ASSERT(isr != NULL, ("null isr"));
 	IPSEC_ASSERT(saidx != NULL, ("null saidx"));
@@ -825,45 +827,31 @@ key_checkrequest(struct ipsecrequest *isr, const struct secasindex *saidx)
 
 	/* get current level */
 	level = ipsec_get_reqlevel(isr);
-#if 0
+
 	/*
-	 * We do allocate new SA only if the state of SA in the holder is
-	 * SADB_SASTATE_DEAD.  The SA for outbound must be the oldest.
-	 */
-	if (isr->sav != NULL) {
-		if (isr->sav->sah == NULL)
-			panic("%s: sah is null.\n", __func__);
-		if (isr->sav == (struct secasvar *)LIST_FIRST(
-			    &isr->sav->sah->savtree[SADB_SASTATE_DEAD])) {
-			KEY_FREESAV(&isr->sav);
-			isr->sav = NULL;
-		}
-	}
-#else
-	/*
-	 * we free any SA stashed in the IPsec request because a different
+	 * We check new SA in the IPsec request because a different
 	 * SA may be involved each time this request is checked, either
 	 * because new SAs are being configured, or this request is
 	 * associated with an unconnected datagram socket, or this request
 	 * is associated with a system default policy.
 	 *
-	 * The operation may have negative impact to performance.  We may
-	 * want to check cached SA carefully, rather than picking new SA
-	 * every time.
-	 */
-	if (isr->sav != NULL) {
-		KEY_FREESAV(&isr->sav);
-		isr->sav = NULL;
-	}
-#endif
-
-	/*
-	 * new SA allocation if no SA found.
 	 * key_allocsa_policy should allocate the oldest SA available.
 	 * See key_do_allocsa_policy(), and draft-jenkins-ipsec-rekeying-03.txt.
 	 */
-	if (isr->sav == NULL)
-		isr->sav = key_allocsa_policy(saidx);
+	sav = key_allocsa_policy(saidx);
+	if (sav != isr->sav) {
+		/* SA need to be updated. */
+		if (!IPSECREQUEST_UPGRADE(isr)) {
+			/* Kick everyone off. */
+			IPSECREQUEST_UNLOCK(isr);
+			IPSECREQUEST_WLOCK(isr);
+		}
+		if (isr->sav != NULL)
+			KEY_FREESAV(&isr->sav);
+		isr->sav = sav;
+		IPSECREQUEST_DOWNGRADE(isr);
+	} else if (sav != NULL)
+		KEY_FREESAV(&sav);
 
 	/* When there is SA. */
 	if (isr->sav != NULL) {
@@ -1237,6 +1225,16 @@ key_freesp_so(struct secpolicy **sp)
 	IPSEC_ASSERT((*sp)->policy == IPSEC_POLICY_IPSEC,
 		("invalid policy %u", (*sp)->policy));
 	KEY_FREESP(sp);
+}
+
+void
+key_addrefsa(struct secasvar *sav, const char* where, int tag)
+{
+
+	IPSEC_ASSERT(sav != NULL, ("null sav"));
+	IPSEC_ASSERT(sav->refcnt > 0, ("refcount must exist"));
+
+	sa_addref(sav);
 }
 
 /*
@@ -1882,7 +1880,9 @@ key_spdadd(so, m, mhp)
 	newsp = key_getsp(&spidx);
 	if (mhp->msg->sadb_msg_type == SADB_X_SPDUPDATE) {
 		if (newsp) {
+			SPTREE_LOCK();
 			newsp->state = IPSEC_SPSTATE_DEAD;
+			SPTREE_UNLOCK();
 			KEY_FREESP(&newsp);
 		}
 	} else {
@@ -2117,7 +2117,9 @@ key_spddelete(so, m, mhp)
 	/* save policy id to buffer to be returned. */
 	xpl0->sadb_x_policy_id = sp->id;
 
+	SPTREE_LOCK();
 	sp->state = IPSEC_SPSTATE_DEAD;
+	SPTREE_UNLOCK();
 	KEY_FREESP(&sp);
 
     {
@@ -2184,7 +2186,9 @@ key_spddelete2(so, m, mhp)
 		return key_senderror(so, m, EINVAL);
 	}
 
+	SPTREE_LOCK();
 	sp->state = IPSEC_SPSTATE_DEAD;
+	SPTREE_UNLOCK();
 	KEY_FREESP(&sp);
 
     {
@@ -2279,6 +2283,7 @@ key_spdget(so, m, mhp)
 	}
 
 	n = key_setdumpsp(sp, SADB_X_SPDGET, 0, mhp->msg->sadb_msg_pid);
+	KEY_FREESP(&sp);
 	if (n != NULL) {
 		m_freem(m);
 		return key_sendup_mbuf(so, n, KEY_SENDUP_ONE);
@@ -2751,9 +2756,9 @@ key_delsah(sah)
 		/* remove from tree of SA index */
 		if (__LIST_CHAINED(sah))
 			LIST_REMOVE(sah, chain);
-		if (sah->sa_route.ro_rt) {
-			RTFREE(sah->sa_route.ro_rt);
-			sah->sa_route.ro_rt = (struct rtentry *)NULL;
+		if (sah->route_cache.sa_route.ro_rt) {
+			RTFREE(sah->route_cache.sa_route.ro_rt);
+			sah->route_cache.sa_route.ro_rt = (struct rtentry *)NULL;
 		}
 		free(sah, M_IPSEC_SAH);
 	}
@@ -5149,12 +5154,6 @@ key_update(so, m, mhp)
 		return key_senderror(so, m, error);
 	}
 
-	/* check SA values to be mature. */
-	if ((mhp->msg->sadb_msg_errno = key_mature(sav)) != 0) {
-		KEY_FREESAV(&sav);
-		return key_senderror(so, m, 0);
-	}
-
 #ifdef IPSEC_NAT_T
 	/*
 	 * Handle more NAT-T info if present,
@@ -5180,6 +5179,12 @@ key_update(so, m, mhp)
 		sav->natt_esp_frag_len = frag->sadb_x_nat_t_frag_fraglen;
 #endif
 #endif
+
+	/* check SA values to be mature. */
+	if ((mhp->msg->sadb_msg_errno = key_mature(sav)) != 0) {
+		KEY_FREESAV(&sav);
+		return key_senderror(so, m, 0);
+	}
 
     {
 	struct mbuf *n;
@@ -5415,12 +5420,6 @@ key_add(so, m, mhp)
 		return key_senderror(so, m, error);
 	}
 
-	/* check SA values to be mature. */
-	if ((error = key_mature(newsav)) != 0) {
-		KEY_FREESAV(&newsav);
-		return key_senderror(so, m, error);
-	}
-
 #ifdef IPSEC_NAT_T
 	/*
 	 * Handle more NAT-T info if present,
@@ -5439,6 +5438,12 @@ key_add(so, m, mhp)
 		newsav->natt_esp_frag_len = frag->sadb_x_nat_t_frag_fraglen;
 #endif
 #endif
+
+	/* check SA values to be mature. */
+	if ((error = key_mature(newsav)) != 0) {
+		KEY_FREESAV(&newsav);
+		return key_senderror(so, m, error);
+	}
 
 	/*
 	 * don't call key_freesav() here, as we would like to keep the SA
@@ -6088,6 +6093,9 @@ key_getsizes_ah(
 		case SADB_X_AALG_MD5:	*min = *max = 16; break;
 		case SADB_X_AALG_SHA:	*min = *max = 20; break;
 		case SADB_X_AALG_NULL:	*min = 1; *max = 256; break;
+		case SADB_X_AALG_SHA2_256: *min = *max = 32; break;
+		case SADB_X_AALG_SHA2_384: *min = *max = 48; break;
+		case SADB_X_AALG_SHA2_512: *min = *max = 64; break;
 		default:
 			DPRINTF(("%s: unknown AH algorithm %u\n",
 				__func__, alg));
@@ -6113,7 +6121,11 @@ key_getcomb_ah()
 	for (i = 1; i <= SADB_AALG_MAX; i++) {
 #if 1
 		/* we prefer HMAC algorithms, not old algorithms */
-		if (i != SADB_AALG_SHA1HMAC && i != SADB_AALG_MD5HMAC)
+		if (i != SADB_AALG_SHA1HMAC &&
+		    i != SADB_AALG_MD5HMAC  &&
+		    i != SADB_X_AALG_SHA2_256 &&
+		    i != SADB_X_AALG_SHA2_384 &&
+		    i != SADB_X_AALG_SHA2_512)
 			continue;
 #endif
 		algo = ah_algorithm_lookup(i);
@@ -7779,7 +7791,8 @@ void
 key_destroy(void)
 {
 	struct secpolicy *sp, *nextsp;
-	struct secspacq *acq, *nextacq;
+	struct secacq *acq, *nextacq;
+	struct secspacq *spacq, *nextspacq;
 	struct secashead *sah, *nextsah;
 	struct secreg *reg;
 	int i;
@@ -7820,7 +7833,7 @@ key_destroy(void)
 	REGTREE_UNLOCK();
 
 	ACQ_LOCK();
-	for (acq = LIST_FIRST(&V_spacqtree); acq != NULL; acq = nextacq) {
+	for (acq = LIST_FIRST(&V_acqtree); acq != NULL; acq = nextacq) {
 		nextacq = LIST_NEXT(acq, chain);
 		if (__LIST_CHAINED(acq)) {
 			LIST_REMOVE(acq, chain);
@@ -7830,11 +7843,12 @@ key_destroy(void)
 	ACQ_UNLOCK();
 
 	SPACQ_LOCK();
-	for (acq = LIST_FIRST(&V_spacqtree); acq != NULL; acq = nextacq) {
-		nextacq = LIST_NEXT(acq, chain);
-		if (__LIST_CHAINED(acq)) {
-			LIST_REMOVE(acq, chain);
-			free(acq, M_IPSEC_SAQ);
+	for (spacq = LIST_FIRST(&V_spacqtree); spacq != NULL;
+	    spacq = nextspacq) {
+		nextspacq = LIST_NEXT(spacq, chain);
+		if (__LIST_CHAINED(spacq)) {
+			LIST_REMOVE(spacq, chain);
+			free(spacq, M_IPSEC_SAQ);
 		}
 	}
 	SPACQ_UNLOCK();
@@ -7916,7 +7930,7 @@ key_sa_routechange(dst)
 
 	SAHTREE_LOCK();
 	LIST_FOREACH(sah, &V_sahtree, chain) {
-		ro = &sah->sa_route;
+		ro = &sah->route_cache.sa_route;
 		if (ro->ro_rt && dst->sa_len == ro->ro_dst.sa_len
 		 && bcmp(dst, &ro->ro_dst, dst->sa_len) == 0) {
 			RTFREE(ro->ro_rt);

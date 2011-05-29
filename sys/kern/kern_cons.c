@@ -341,7 +341,8 @@ sysctl_kern_consmute(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_kern, OID_AUTO, consmute, CTLTYPE_INT|CTLFLAG_RW,
-	0, sizeof(cn_mute), sysctl_kern_consmute, "I", "");
+	0, sizeof(cn_mute), sysctl_kern_consmute, "I",
+	"State of the console muting");
 
 /*
  * Low level console routines.
@@ -429,7 +430,7 @@ cnputs(char *p)
 
 static int consmsgbuf_size = 8192;
 SYSCTL_INT(_kern, OID_AUTO, consmsgbuf_size, CTLFLAG_RW, &consmsgbuf_size, 0,
-    "");
+    "Console tty buffer size");
 
 /*
  * Redirect console output to a tty.
@@ -471,7 +472,8 @@ constty_clear(void)
 /* Times per second to check for pending console tty messages. */
 static int constty_wakeups_per_second = 5;
 SYSCTL_INT(_kern, OID_AUTO, constty_wakeups_per_second, CTLFLAG_RW,
-    &constty_wakeups_per_second, 0, "");
+    &constty_wakeups_per_second, 0,
+    "Times per second to check for pending console tty messages");
 
 static void
 constty_timeout(void *arg)

@@ -145,7 +145,7 @@ uni_decode_body_internal(enum uni_msgtype mtype, struct uni_msg *msg,
 				msg->b_rptr = msg->b_wptr;
 			else
 				msg->b_rptr += ielen;
-			UNI_SAVE_IERR(cx, ietype, hdr.act, UNI_IERR_UNK);
+			(void)UNI_SAVE_IERR(cx, ietype, hdr.act, UNI_IERR_UNK);
 			err = -1;
 			continue;
 		}
@@ -200,16 +200,16 @@ uni_decode_body_internal(enum uni_msgtype mtype, struct uni_msg *msg,
 			 * Unexpected but recognized.
 			 * Q.2931 5.6.8.3
 			 */
-			UNI_SAVE_IERR(cx, ietype, hdr.act, UNI_IERR_UNK);
+			(void)UNI_SAVE_IERR(cx, ietype, hdr.act, UNI_IERR_UNK);
 			err = -1;
 			break;
 
 		  case DEC_ERR:	/* bad IE */
 			if (iedecl->flags & UNIFL_ACCESS)
 				/* this may be wrong: 5.6.8.2 */
-				UNI_SAVE_IERR(cx, ietype, hdr.act, UNI_IERR_ACC);
+				(void)UNI_SAVE_IERR(cx, ietype, hdr.act, UNI_IERR_ACC);
 			else
-				UNI_SAVE_IERR(cx, ietype, hdr.act, UNI_IERR_BAD);
+				(void)UNI_SAVE_IERR(cx, ietype, hdr.act, UNI_IERR_BAD);
 			err = -1;
 			break;
 

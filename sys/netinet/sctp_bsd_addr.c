@@ -1,5 +1,7 @@
 /*-
  * Copyright (c) 2001-2007, by Cisco Systems, Inc. All rights reserved.
+ * Copyright (c) 2008-2011, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2011, by Michael Tuexen. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -49,16 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/unistd.h>
 
 /* Declare all of our malloc named types */
-
-/* Note to Michael/Peter for mac-os,
- * I think mac has this too since I
- * do see the M_PCB type, so I
- * will also put in the mac file the
- * MALLOC_DECLARE. If this does not
- * work for mac uncomment the defines for
- * the strings that we use in Panda, I put
- * them in comments in the mac-os file.
- */
 MALLOC_DEFINE(SCTP_M_MAP, "sctp_map", "sctp asoc map descriptor");
 MALLOC_DEFINE(SCTP_M_STRMI, "sctp_stri", "sctp stream in array");
 MALLOC_DEFINE(SCTP_M_STRMO, "sctp_stro", "sctp stream out array");
@@ -78,47 +70,78 @@ MALLOC_DEFINE(SCTP_M_TIMW, "sctp_timw", "sctp time block");
 MALLOC_DEFINE(SCTP_M_MVRF, "sctp_mvrf", "sctp mvrf pcb list");
 MALLOC_DEFINE(SCTP_M_ITER, "sctp_iter", "sctp iterator control");
 MALLOC_DEFINE(SCTP_M_SOCKOPT, "sctp_socko", "sctp socket option");
+MALLOC_DEFINE(SCTP_M_MCORE, "sctp_mcore", "sctp mcore queue");
 
-#if defined(SCTP_USE_THREAD_BASED_ITERATOR)
+/* Global NON-VNET structure that controls the iterator */
+struct iterator_control sctp_it_ctl;
+static int __sctp_thread_based_iterator_started = 0;
+
+
+static void
+sctp_cleanup_itqueue(void)
+{
+	struct sctp_iterator *it, *nit;
+
+	TAILQ_FOREACH_SAFE(it, &sctp_it_ctl.iteratorhead, sctp_nxt_itr, nit) {
+		if (it->function_atend != NULL) {
+			(*it->function_atend) (it->pointer, it->val);
+		}
+		TAILQ_REMOVE(&sctp_it_ctl.iteratorhead, it, sctp_nxt_itr);
+		SCTP_FREE(it, SCTP_M_ITER);
+	}
+}
+
+
 void
 sctp_wakeup_iterator(void)
 {
-	wakeup(&SCTP_BASE_INFO(iterator_running));
+	wakeup(&sctp_it_ctl.iterator_running);
 }
 
 static void
 sctp_iterator_thread(void *v)
 {
-	CURVNET_SET((struct vnet *)v);
 	SCTP_IPI_ITERATOR_WQ_LOCK();
-	SCTP_BASE_INFO(iterator_running) = 0;
 	while (1) {
-		msleep(&SCTP_BASE_INFO(iterator_running),
-		    &SCTP_BASE_INFO(ipi_iterator_wq_mtx),
+		msleep(&sctp_it_ctl.iterator_running,
+		    &sctp_it_ctl.ipi_iterator_wq_mtx,
 		    0, "waiting_for_work", 0);
-		if (SCTP_BASE_INFO(threads_must_exit)) {
+		if (sctp_it_ctl.iterator_flags & SCTP_ITERATOR_MUST_EXIT) {
 			SCTP_IPI_ITERATOR_WQ_DESTROY();
+			SCTP_ITERATOR_LOCK_DESTROY();
+			sctp_cleanup_itqueue();
+			__sctp_thread_based_iterator_started = 0;
 			kthread_exit();
 		}
 		sctp_iterator_worker();
 	}
-	CURVNET_RESTORE();
 }
 
 void
 sctp_startup_iterator(void)
 {
+	if (__sctp_thread_based_iterator_started) {
+		/* You only get one */
+		return;
+	}
+	/* init the iterator head */
+	__sctp_thread_based_iterator_started = 1;
+	sctp_it_ctl.iterator_running = 0;
+	sctp_it_ctl.iterator_flags = 0;
+	sctp_it_ctl.cur_it = NULL;
+	SCTP_ITERATOR_LOCK_INIT();
+	SCTP_IPI_ITERATOR_WQ_INIT();
+	TAILQ_INIT(&sctp_it_ctl.iteratorhead);
+
 	int ret;
 
 	ret = kproc_create(sctp_iterator_thread,
-	    (void *)curvnet,
-	    &SCTP_BASE_INFO(thread_proc),
+	    (void *)NULL,
+	    &sctp_it_ctl.thread_proc,
 	    RFPROC,
 	    SCTP_KTHREAD_PAGES,
 	    SCTP_KTRHEAD_NAME);
 }
-
-#endif
 
 #ifdef INET6
 
@@ -205,9 +228,13 @@ sctp_init_ifns_for_vrf(int vrfid)
 	 */
 	struct ifnet *ifn;
 	struct ifaddr *ifa;
-	struct in6_ifaddr *ifa6;
 	struct sctp_ifa *sctp_ifa;
 	uint32_t ifa_flags;
+
+#ifdef INET6
+	struct in6_ifaddr *ifa6;
+
+#endif
 
 	IFNET_RLOCK();
 	TAILQ_FOREACH(ifn, &MODULE_GLOBAL(ifnet), if_list) {
@@ -216,29 +243,44 @@ sctp_init_ifns_for_vrf(int vrfid)
 			if (ifa->ifa_addr == NULL) {
 				continue;
 			}
-			if ((ifa->ifa_addr->sa_family != AF_INET) && (ifa->ifa_addr->sa_family != AF_INET6)) {
-				/* non inet/inet6 skip */
-				continue;
-			}
-			if (ifa->ifa_addr->sa_family == AF_INET6) {
+			switch (ifa->ifa_addr->sa_family) {
+#ifdef INET
+			case AF_INET:
+				if (((struct sockaddr_in *)ifa->ifa_addr)->sin_addr.s_addr == 0) {
+					continue;
+				}
+				break;
+#endif
+#ifdef INET6
+			case AF_INET6:
 				if (IN6_IS_ADDR_UNSPECIFIED(&((struct sockaddr_in6 *)ifa->ifa_addr)->sin6_addr)) {
 					/* skip unspecifed addresses */
 					continue;
 				}
-			} else {
-				if (((struct sockaddr_in *)ifa->ifa_addr)->sin_addr.s_addr == 0) {
-					continue;
-				}
+				break;
+#endif
+			default:
+				continue;
 			}
 			if (sctp_is_desired_interface_type(ifa) == 0) {
 				/* non desired type */
 				continue;
 			}
-			if (ifa->ifa_addr->sa_family == AF_INET6) {
+			switch (ifa->ifa_addr->sa_family) {
+#ifdef INET
+			case AF_INET:
+				ifa_flags = 0;
+				break;
+#endif
+#ifdef INET6
+			case AF_INET6:
 				ifa6 = (struct in6_ifaddr *)ifa;
 				ifa_flags = ifa6->ia6_flags;
-			} else {
+				break;
+#endif
+			default:
 				ifa_flags = 0;
+				break;
 			}
 			sctp_ifa = sctp_add_addr_to_vrf(vrfid,
 			    (void *)ifn,
@@ -278,7 +320,6 @@ sctp_init_vrf_list(int vrfid)
 void
 sctp_addr_change(struct ifaddr *ifa, int cmd)
 {
-	struct sctp_ifa *ifap = NULL;
 	uint32_t ifa_flags = 0;
 
 	/*
@@ -298,20 +339,26 @@ sctp_addr_change(struct ifaddr *ifa, int cmd)
 	if (ifa->ifa_addr == NULL) {
 		return;
 	}
-	if ((ifa->ifa_addr->sa_family != AF_INET) && (ifa->ifa_addr->sa_family != AF_INET6)) {
-		/* non inet/inet6 skip */
-		return;
-	}
-	if (ifa->ifa_addr->sa_family == AF_INET6) {
+	switch (ifa->ifa_addr->sa_family) {
+#ifdef INET
+	case AF_INET:
+		if (((struct sockaddr_in *)ifa->ifa_addr)->sin_addr.s_addr == 0) {
+			return;
+		}
+		break;
+#endif
+#ifdef INET6
+	case AF_INET6:
 		ifa_flags = ((struct in6_ifaddr *)ifa)->ia6_flags;
 		if (IN6_IS_ADDR_UNSPECIFIED(&((struct sockaddr_in6 *)ifa->ifa_addr)->sin6_addr)) {
 			/* skip unspecifed addresses */
 			return;
 		}
-	} else {
-		if (((struct sockaddr_in *)ifa->ifa_addr)->sin_addr.s_addr == 0) {
-			return;
-		}
+		break;
+#endif
+	default:
+		/* non inet/inet6 skip */
+		return;
 	}
 
 	if (sctp_is_desired_interface_type(ifa) == 0) {
@@ -319,7 +366,7 @@ sctp_addr_change(struct ifaddr *ifa, int cmd)
 		return;
 	}
 	if (cmd == RTM_ADD) {
-		ifap = sctp_add_addr_to_vrf(SCTP_DEFAULT_VRFID, (void *)ifa->ifa_ifp,
+		(void)sctp_add_addr_to_vrf(SCTP_DEFAULT_VRFID, (void *)ifa->ifa_ifp,
 		    ifa->ifa_ifp->if_index, ifa->ifa_ifp->if_type,
 		    ifa->ifa_ifp->if_xname,
 		    (void *)ifa, ifa->ifa_addr, ifa_flags, 1);

@@ -90,14 +90,15 @@
  *	and sundry status bits.
  *
  *	Fields in this structure are locked either by the lock on the
- *	object that the page belongs to (O) or by the lock on the page
- *	queues (P).
+ *	object that the page belongs to (O), its corresponding page lock (P),
+ *	or by the lock on the page queues (Q).
+ *	
  */
 
 TAILQ_HEAD(pglist, vm_page);
 
 struct vm_page {
-	TAILQ_ENTRY(vm_page) pageq;	/* queue info for FIFO queue or free list (P) */
+	TAILQ_ENTRY(vm_page) pageq;	/* queue info for FIFO queue or free list (Q) */
 	TAILQ_ENTRY(vm_page) listq;	/* pages in same object (O) 	*/
 	struct vm_page *left;		/* splay tree link (O)		*/
 	struct vm_page *right;		/* splay tree link (O)		*/
@@ -106,31 +107,31 @@ struct vm_page {
 	vm_pindex_t pindex;		/* offset into object (O,P) */
 	vm_paddr_t phys_addr;		/* physical address of page */
 	struct md_page md;		/* machine dependant stuff */
-	uint8_t	queue;			/* page queue index */
+	uint8_t	queue;			/* page queue index (P,Q) */
 	int8_t segind;
 	u_short	flags;			/* see below */
 	uint8_t	order;			/* index of the buddy queue */
 	uint8_t pool;
-	u_short cow;			/* page cow mapping count */
+	u_short cow;			/* page cow mapping count (P) */
 	u_int wire_count;		/* wired down maps refs (P) */
-	short hold_count;		/* page hold count */
+	short hold_count;		/* page hold count (P) */
 	u_short oflags;			/* page flags (O) */
-	u_char	act_count;		/* page usage count */
+	u_char	act_count;		/* page usage count (O) */
 	u_char	busy;			/* page busy count (O) */
 	/* NOTE that these must support one bit per DEV_BSIZE in a page!!! */
 	/* so, on normal X86 kernels, they must be at least 8 bits wide */
 #if PAGE_SIZE == 4096
 	u_char	valid;			/* map of valid DEV_BSIZE chunks (O) */
-	u_char	dirty;			/* map of dirty DEV_BSIZE chunks */
+	u_char	dirty;			/* map of dirty DEV_BSIZE chunks (O) */
 #elif PAGE_SIZE == 8192
 	u_short	valid;			/* map of valid DEV_BSIZE chunks (O) */
-	u_short	dirty;			/* map of dirty DEV_BSIZE chunks */
+	u_short	dirty;			/* map of dirty DEV_BSIZE chunks (O) */
 #elif PAGE_SIZE == 16384
 	u_int valid;			/* map of valid DEV_BSIZE chunks (O) */
-	u_int dirty;			/* map of dirty DEV_BSIZE chunks */
+	u_int dirty;			/* map of dirty DEV_BSIZE chunks (O) */
 #elif PAGE_SIZE == 32768
 	u_long valid;			/* map of valid DEV_BSIZE chunks (O) */
-	u_long dirty;			/* map of dirty DEV_BSIZE chunks */
+	u_long dirty;			/* map of dirty DEV_BSIZE chunks (O) */
 #endif
 };
 
@@ -142,27 +143,14 @@ struct vm_page {
  */
 #define	VPO_BUSY	0x0001	/* page is in transit */
 #define	VPO_WANTED	0x0002	/* someone is waiting for page */
-#define	VPO_CLEANCHK	0x0100	/* page will be checked for cleaning */
 #define	VPO_SWAPINPROG	0x0200	/* swap I/O in progress on page */
 #define	VPO_NOSYNC	0x0400	/* do not collect for syncer */
 
-#define PQ_NONE		0
-#define	PQ_INACTIVE	1
-#define	PQ_ACTIVE	2
-#define	PQ_HOLD		3
-#define	PQ_COUNT	4
-
-/* Returns the real queue a page is on. */
-#define VM_PAGE_GETQUEUE(m)	((m)->queue)
-
-/* Returns the well known queue a page is on. */
-#define VM_PAGE_GETKNOWNQUEUE2(m)	VM_PAGE_GETQUEUE(m)
-
-/* Returns true if the page is in the named well known queue. */
-#define VM_PAGE_INQUEUE2(m, q)	(VM_PAGE_GETKNOWNQUEUE2(m) == (q))
-
-/* Sets the queue a page is on. */
-#define VM_PAGE_SETQUEUE2(m, q)	(VM_PAGE_GETQUEUE(m) = (q))
+#define	PQ_NONE		255
+#define	PQ_INACTIVE	0
+#define	PQ_ACTIVE	1
+#define	PQ_HOLD		2
+#define	PQ_COUNT	3
 
 struct vpgqueues {
 	struct pglist pl;
@@ -177,9 +165,37 @@ struct vpglocks {
 } __aligned(CACHE_LINE_SIZE);
 
 extern struct vpglocks vm_page_queue_free_lock;
+extern struct vpglocks pa_lock[];
+
+#if defined(__arm__)
+#define	PDRSHIFT	PDR_SHIFT
+#elif !defined(PDRSHIFT)
+#define PDRSHIFT	21
+#endif
+
+#define	pa_index(pa)	((pa) >> PDRSHIFT)
+#define	PA_LOCKPTR(pa)	&pa_lock[pa_index((pa)) % PA_LOCK_COUNT].data
+#define	PA_LOCKOBJPTR(pa)	((struct lock_object *)PA_LOCKPTR((pa)))
+#define	PA_LOCK(pa)	mtx_lock(PA_LOCKPTR(pa))
+#define	PA_TRYLOCK(pa)	mtx_trylock(PA_LOCKPTR(pa))
+#define	PA_UNLOCK(pa)	mtx_unlock(PA_LOCKPTR(pa))
+#define	PA_UNLOCK_COND(pa) 			\
+	do {		   			\
+		if ((pa) != 0) {		\
+			PA_UNLOCK((pa));	\
+			(pa) = 0;		\
+		}				\
+	} while (0)
+
+#define	PA_LOCK_ASSERT(pa, a)	mtx_assert(PA_LOCKPTR(pa), (a))
+
+#define	vm_page_lockptr(m)	(PA_LOCKPTR(VM_PAGE_TO_PHYS((m))))
+#define	vm_page_lock(m)		mtx_lock(vm_page_lockptr((m)))
+#define	vm_page_unlock(m)	mtx_unlock(vm_page_lockptr((m)))
+#define	vm_page_trylock(m)	mtx_trylock(vm_page_lockptr((m)))
+#define	vm_page_lock_assert(m, a)	mtx_assert(vm_page_lockptr((m)), (a))
 
 #define	vm_page_queue_free_mtx	vm_page_queue_free_lock.data
-
 /*
  * These are the flags defined for vm_page.
  *
@@ -189,6 +205,12 @@ extern struct vpglocks vm_page_queue_free_lock;
  *	 via the object/vm_page_t because there is no knowledge of their
  *	 pte mappings, nor can they be removed from their objects via 
  *	 the object, and such pages are also not on any PQ queue.
+ *
+ * PG_REFERENCED may be cleared only if the object containing the page is
+ * locked.
+ *
+ * PG_WRITEABLE is set exclusively on managed pages by pmap_enter().  When it
+ * does so, the page must be VPO_BUSY.
  */
 #define	PG_CACHED	0x0001		/* page is cached */
 #define	PG_FREE		0x0002		/* page is free */
@@ -240,6 +262,7 @@ extern struct vpglocks vm_page_queue_free_lock;
  *
  */
 
+struct vnode;
 extern int vm_page_zero_count;
 
 extern vm_page_t vm_page_array;		/* First resident page in table */
@@ -290,11 +313,15 @@ extern struct vpglocks vm_page_queue_lock;
 /* page allocation flags: */
 #define	VM_ALLOC_WIRED		0x0020	/* non pageable */
 #define	VM_ALLOC_ZERO		0x0040	/* Try to obtain a zeroed page */
-#define	VM_ALLOC_RETRY		0x0080	/* vm_page_grab() only */
+#define	VM_ALLOC_RETRY		0x0080	/* Mandatory with vm_page_grab() */
 #define	VM_ALLOC_NOOBJ		0x0100	/* No associated object */
 #define	VM_ALLOC_NOBUSY		0x0200	/* Do not busy the page */
 #define	VM_ALLOC_IFCACHED	0x0400	/* Fail if the page is not cached */
 #define	VM_ALLOC_IFNOTCACHED	0x0800	/* Fail if the page is cached */
+#define	VM_ALLOC_IGN_SBUSY	0x1000	/* vm_page_grab() only */
+
+#define	VM_ALLOC_COUNT_SHIFT	16
+#define	VM_ALLOC_COUNT(count)	((count) << VM_ALLOC_COUNT_SHIFT)
 
 void vm_page_flag_set(vm_page_t m, unsigned short bits);
 void vm_page_flag_clear(vm_page_t m, unsigned short bits);
@@ -313,6 +340,8 @@ void vm_pageq_remove(vm_page_t m);
 
 void vm_page_activate (vm_page_t);
 vm_page_t vm_page_alloc (vm_object_t, vm_pindex_t, int);
+vm_page_t vm_page_alloc_freelist(int, int);
+struct vnode *vm_page_alloc_init(vm_page_t);
 vm_page_t vm_page_grab (vm_object_t, vm_pindex_t, int);
 void vm_page_cache(vm_page_t);
 void vm_page_cache_free(vm_object_t, vm_pindex_t, vm_pindex_t);
@@ -322,8 +351,14 @@ int vm_page_try_to_cache (vm_page_t);
 int vm_page_try_to_free (vm_page_t);
 void vm_page_dontneed(vm_page_t);
 void vm_page_deactivate (vm_page_t);
+vm_page_t vm_page_find_least(vm_object_t, vm_pindex_t);
+vm_page_t vm_page_getfake(vm_paddr_t paddr, vm_memattr_t memattr);
 void vm_page_insert (vm_page_t, vm_object_t, vm_pindex_t);
 vm_page_t vm_page_lookup (vm_object_t, vm_pindex_t);
+vm_page_t vm_page_next(vm_page_t m);
+int vm_page_pa_tryrelock(pmap_t, vm_paddr_t, vm_paddr_t *);
+vm_page_t vm_page_prev(vm_page_t m);
+void vm_page_putfake(vm_page_t m);
 void vm_page_remove (vm_page_t);
 void vm_page_rename (vm_page_t, vm_object_t, vm_pindex_t);
 void vm_page_requeue(vm_page_t m);
@@ -331,7 +366,9 @@ void vm_page_set_valid(vm_page_t m, int base, int size);
 void vm_page_sleep(vm_page_t m, const char *msg);
 vm_page_t vm_page_splay(vm_pindex_t, vm_page_t);
 vm_offset_t vm_page_startup(vm_offset_t vaddr);
+void vm_page_unhold_pages(vm_page_t *ma, int count);
 void vm_page_unwire (vm_page_t, int);
+void vm_page_updatefake(vm_page_t m, vm_paddr_t paddr, vm_memattr_t memattr);
 void vm_page_wire (vm_page_t);
 void vm_page_set_validclean (vm_page_t, int, int);
 void vm_page_clear_dirty (vm_page_t, int, int);

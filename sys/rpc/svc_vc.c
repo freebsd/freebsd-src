@@ -154,10 +154,8 @@ svc_vc_create(SVCPOOL *pool, struct socket *so, size_t sendsize,
 	xprt->xp_p2 = NULL;
 	xprt->xp_ops = &svc_vc_rendezvous_ops;
 
-	CURVNET_SET(so->so_vnet);
 	error = so->so_proto->pr_usrreqs->pru_sockaddr(so, &sa);
 	if (error) {
-		CURVNET_RESTORE();
 		goto cleanup_svc_vc_create;
 	}
 
@@ -167,7 +165,6 @@ svc_vc_create(SVCPOOL *pool, struct socket *so, size_t sendsize,
 	xprt_register(xprt);
 
 	solisten(so, SOMAXCONN, curthread);
-	CURVNET_RESTORE();
 
 	SOCKBUF_LOCK(&so->so_rcv);
 	xprt->xp_upcallset = 1;
@@ -200,10 +197,8 @@ svc_vc_create_conn(SVCPOOL *pool, struct socket *so, struct sockaddr *raddr)
 	opt.sopt_name = SO_KEEPALIVE;
 	opt.sopt_val = &one;
 	opt.sopt_valsize = sizeof(one);
-	CURVNET_SET(so->so_vnet);
 	error = sosetopt(so, &opt);
 	if (error) {
-		CURVNET_RESTORE();
 		return (NULL);
 	}
 
@@ -216,11 +211,9 @@ svc_vc_create_conn(SVCPOOL *pool, struct socket *so, struct sockaddr *raddr)
 		opt.sopt_valsize = sizeof(one);
 		error = sosetopt(so, &opt);
 		if (error) {
-			CURVNET_RESTORE();
 			return (NULL);
 		}
 	}
-	CURVNET_RESTORE();
 
 	cd = mem_alloc(sizeof(*cd));
 	cd->strm_stat = XPRT_IDLE;
@@ -559,11 +552,8 @@ svc_vc_recv(SVCXPRT *xprt, struct rpc_msg *msg,
 				}
 				if (n < sizeof(uint32_t))
 					goto readmore;
-				if (cd->mpending->m_len < sizeof(uint32_t))
-					cd->mpending = m_pullup(cd->mpending,
-					    sizeof(uint32_t));
-				memcpy(&header, mtod(cd->mpending, uint32_t *),
-				    sizeof(header));
+				m_copydata(cd->mpending, 0, sizeof(header),
+				    (char *)&header);
 				header = ntohl(header);
 				cd->eor = (header & 0x80000000) != 0;
 				cd->resid = header & 0x7fffffff;
@@ -638,10 +628,8 @@ svc_vc_recv(SVCXPRT *xprt, struct rpc_msg *msg,
 		uio.uio_td = curthread;
 		m = NULL;
 		rcvflag = MSG_DONTWAIT;
-		CURVNET_SET(xprt->xp_socket->so_vnet);
 		error = soreceive(xprt->xp_socket, NULL, &uio, &m, NULL,
 		    &rcvflag);
-		CURVNET_RESTORE();
 
 		if (error == EWOULDBLOCK) {
 			/*

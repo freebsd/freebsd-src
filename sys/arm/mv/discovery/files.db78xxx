@@ -1,4 +1,3 @@
 # $FreeBSD$
 
 arm/mv/discovery/discovery.c	standard
-arm/mv/discovery/db78xxx.c	standard

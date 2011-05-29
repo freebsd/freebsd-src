@@ -4,121 +4,47 @@
  *
  *****************************************************************************/
 
-/******************************************************************************
- *
- * 1. Copyright Notice
- *
- * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
+/*
+ * Copyright (C) 2000 - 2011, Intel Corp.
  * All rights reserved.
  *
- * 2. License
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions, and the following disclaimer,
+ *    without modification.
+ * 2. Redistributions in binary form must reproduce at minimum a disclaimer
+ *    substantially similar to the "NO WARRANTY" disclaimer below
+ *    ("Disclaimer") and any redistribution must be conditioned upon
+ *    including a substantially similar Disclaimer requirement for further
+ *    binary redistribution.
+ * 3. Neither the names of the above-listed copyright holders nor the names
+ *    of any contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
  *
- * 2.1. This is your license from Intel Corp. under its intellectual property
- * rights.  You may have additional license terms from the party that provided
- * you this software, covering your right to use that party's intellectual
- * property rights.
+ * Alternatively, this software may be distributed under the terms of the
+ * GNU General Public License ("GPL") version 2 as published by the Free
+ * Software Foundation.
  *
- * 2.2. Intel grants, free of charge, to any person ("Licensee") obtaining a
- * copy of the source code appearing in this file ("Covered Code") an
- * irrevocable, perpetual, worldwide license under Intel's copyrights in the
- * base code distributed originally by Intel ("Original Intel Code") to copy,
- * make derivatives, distribute, use and display any portion of the Covered
- * Code in any form, with the right to sublicense such rights; and
- *
- * 2.3. Intel grants Licensee a non-exclusive and non-transferable patent
- * license (with the right to sublicense), under only those claims of Intel
- * patents that are infringed by the Original Intel Code, to make, use, sell,
- * offer to sell, and import the Covered Code and derivative works thereof
- * solely to the minimum extent necessary to exercise the above copyright
- * license, and in no event shall the patent license extend to any additions
- * to or modifications of the Original Intel Code.  No other license or right
- * is granted directly or by implication, estoppel or otherwise;
- *
- * The above copyright and patent license is granted only if the following
- * conditions are met:
- *
- * 3. Conditions
- *
- * 3.1. Redistribution of Source with Rights to Further Distribute Source.
- * Redistribution of source code of any substantial portion of the Covered
- * Code or modification with rights to further distribute source must include
- * the above Copyright Notice, the above License, this list of Conditions,
- * and the following Disclaimer and Export Compliance provision.  In addition,
- * Licensee must cause all Covered Code to which Licensee contributes to
- * contain a file documenting the changes Licensee made to create that Covered
- * Code and the date of any change.  Licensee must include in that file the
- * documentation of any changes made by any predecessor Licensee.  Licensee
- * must include a prominent statement that the modification is derived,
- * directly or indirectly, from Original Intel Code.
- *
- * 3.2. Redistribution of Source with no Rights to Further Distribute Source.
- * Redistribution of source code of any substantial portion of the Covered
- * Code or modification without rights to further distribute source must
- * include the following Disclaimer and Export Compliance provision in the
- * documentation and/or other materials provided with distribution.  In
- * addition, Licensee may not authorize further sublicense of source of any
- * portion of the Covered Code, and must include terms to the effect that the
- * license from Licensee to its licensee is limited to the intellectual
- * property embodied in the software Licensee provides to its licensee, and
- * not to intellectual property embodied in modifications its licensee may
- * make.
- *
- * 3.3. Redistribution of Executable. Redistribution in executable form of any
- * substantial portion of the Covered Code or modification must reproduce the
- * above Copyright Notice, and the following Disclaimer and Export Compliance
- * provision in the documentation and/or other materials provided with the
- * distribution.
- *
- * 3.4. Intel retains all right, title, and interest in and to the Original
- * Intel Code.
- *
- * 3.5. Neither the name Intel nor any other trademark owned or controlled by
- * Intel shall be used in advertising or otherwise to promote the sale, use or
- * other dealings in products derived from or relating to the Covered Code
- * without prior written authorization from Intel.
- *
- * 4. Disclaimer and Export Compliance
- *
- * 4.1. INTEL MAKES NO WARRANTY OF ANY KIND REGARDING ANY SOFTWARE PROVIDED
- * HERE.  ANY SOFTWARE ORIGINATING FROM INTEL OR DERIVED FROM INTEL SOFTWARE
- * IS PROVIDED "AS IS," AND INTEL WILL NOT PROVIDE ANY SUPPORT,  ASSISTANCE,
- * INSTALLATION, TRAINING OR OTHER SERVICES.  INTEL WILL NOT PROVIDE ANY
- * UPDATES, ENHANCEMENTS OR EXTENSIONS.  INTEL SPECIFICALLY DISCLAIMS ANY
- * IMPLIED WARRANTIES OF MERCHANTABILITY, NONINFRINGEMENT AND FITNESS FOR A
- * PARTICULAR PURPOSE.
- *
- * 4.2. IN NO EVENT SHALL INTEL HAVE ANY LIABILITY TO LICENSEE, ITS LICENSEES
- * OR ANY OTHER THIRD PARTY, FOR ANY LOST PROFITS, LOST DATA, LOSS OF USE OR
- * COSTS OF PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, OR FOR ANY INDIRECT,
- * SPECIAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THIS AGREEMENT, UNDER ANY
- * CAUSE OF ACTION OR THEORY OF LIABILITY, AND IRRESPECTIVE OF WHETHER INTEL
- * HAS ADVANCE NOTICE OF THE POSSIBILITY OF SUCH DAMAGES.  THESE LIMITATIONS
- * SHALL APPLY NOTWITHSTANDING THE FAILURE OF THE ESSENTIAL PURPOSE OF ANY
- * LIMITED REMEDY.
- *
- * 4.3. Licensee shall not export, either directly or indirectly, any of this
- * software or system incorporating such software without first obtaining any
- * required license or other approval from the U. S. Department of Commerce or
- * any other agency or department of the United States Government.  In the
- * event Licensee exports any such software from the United States or
- * re-exports any such software from a foreign destination, Licensee shall
- * ensure that the distribution and export/re-export of the software is in
- * compliance with all laws, regulations, orders, or other restrictions of the
- * U.S. Export Administration Regulations. Licensee agrees that neither it nor
- * any of its subsidiaries will export/re-export any technical data, process,
- * software, or service, directly or indirectly, to any country for which the
- * United States government or any agency thereof requires an export license,
- * other governmental approval, or letter of assurance, without first obtaining
- * such license, approval or letter.
- *
- *****************************************************************************/
+ * NO WARRANTY
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+ * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+ * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGES.
+ */
 
 #define ACPI_CREATE_PREDEFINED_TABLE
 
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
 #include "aslcompiler.y.h"
-#include <contrib/dev/acpica/include/amlcode.h>
-#include <contrib/dev/acpica/include/acparser.h>
 #include <contrib/dev/acpica/include/acpredef.h>
 
 
@@ -127,6 +53,11 @@
 
 
 /* Local prototypes */
+
+static void
+ApCheckForUnexpectedReturnValue (
+    ACPI_PARSE_OBJECT       *Op,
+    ASL_METHOD_INFO         *MethodInfo);
 
 static UINT32
 ApCheckForSpecialName (
@@ -219,7 +150,7 @@ static const ACPI_PREDEFINED_INFO      ScopeNames[] = {
  *
  ******************************************************************************/
 
-void
+BOOLEAN
 ApCheckForPredefinedMethod (
     ACPI_PARSE_OBJECT       *Op,
     ASL_METHOD_INFO         *MethodInfo)
@@ -240,18 +171,18 @@ ApCheckForPredefinedMethod (
     case ACPI_COMPILER_RESERVED_NAME:   /* A _Txx that was not emitted by compiler */
 
         /* Just return, nothing to do */
-        break;
+        return (FALSE);
 
 
-    case ACPI_EVENT_RESERVED_NAME:      /* _Lxx, _Exx, and _Qxx methods */
+    case ACPI_EVENT_RESERVED_NAME:      /* _Lxx/_Exx/_Wxx/_Qxx methods */
 
         Gbl_ReservedMethods++;
 
-        /* NumArguments must be zero for all _Lxx, _Exx, and _Qxx methods */
+        /* NumArguments must be zero for all _Lxx/_Exx/_Wxx/_Qxx methods */
 
         if (MethodInfo->NumArguments != 0)
         {
-            sprintf (MsgBuffer, "%s requires %d", Op->Asl.ExternalName, 0);
+            sprintf (MsgBuffer, "%s requires %u", Op->Asl.ExternalName, 0);
 
             AslError (ASL_WARNING, ASL_MSG_RESERVED_ARG_COUNT_HI, Op,
                 MsgBuffer);
@@ -274,7 +205,7 @@ ApCheckForPredefinedMethod (
         if ((MethodInfo->NumArguments != RequiredArgsCurrent) &&
             (MethodInfo->NumArguments != RequiredArgsOld))
         {
-            sprintf (MsgBuffer, "%4.4s requires %d",
+            sprintf (MsgBuffer, "%4.4s requires %u",
                 PredefinedNames[Index].Info.Name, RequiredArgsCurrent);
 
             if (MethodInfo->NumArguments > RequiredArgsCurrent)
@@ -296,12 +227,158 @@ ApCheckForPredefinedMethod (
         if (MethodInfo->NumReturnNoValue &&
             PredefinedNames[Index].Info.ExpectedBtypes)
         {
-            sprintf (MsgBuffer, "%4.4s", PredefinedNames[Index].Info.Name);
+            ApGetExpectedTypes (StringBuffer,
+                PredefinedNames[Index].Info.ExpectedBtypes);
+
+            sprintf (MsgBuffer, "%s required for %4.4s",
+                StringBuffer, PredefinedNames[Index].Info.Name);
 
             AslError (ASL_WARNING, ASL_MSG_RESERVED_RETURN_VALUE, Op,
                 MsgBuffer);
         }
         break;
+    }
+
+    return (TRUE);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    ApCheckForUnexpectedReturnValue
+ *
+ * PARAMETERS:  Op              - A parse node of type "RETURN".
+ *              MethodInfo      - Saved info about this method
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Check for an unexpected return value from a predefined method.
+ *              Invoked for predefined methods that are defined to not return
+ *              any value. If there is a return value, issue a remark, since
+ *              the ASL writer may be confused as to the method definition
+ *              and/or functionality.
+ *
+ * Note: We ignore all return values of "Zero", since this is what a standalone
+ *       Return() statement will always generate -- so we ignore it here --
+ *       i.e., there is no difference between Return() and Return(Zero).
+ *       Also, a null Return() will be disassembled to return(Zero) -- so, we
+ *       don't want to generate extraneous remarks/warnings for a disassembled
+ *       ASL file.
+ *
+ ******************************************************************************/
+
+static void
+ApCheckForUnexpectedReturnValue (
+    ACPI_PARSE_OBJECT       *Op,
+    ASL_METHOD_INFO         *MethodInfo)
+{
+    ACPI_PARSE_OBJECT       *ReturnValueOp;
+
+
+    /* Ignore Return() and Return(Zero) (they are the same) */
+
+    ReturnValueOp = Op->Asl.Child;
+    if (ReturnValueOp->Asl.ParseOpcode == PARSEOP_ZERO)
+    {
+        return;
+    }
+
+    /* We have a valid return value, but the reserved name did not expect it */
+
+    AslError (ASL_WARNING, ASL_MSG_RESERVED_NO_RETURN_VAL,
+        Op, MethodInfo->Op->Asl.ExternalName);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    ApCheckPredefinedReturnValue
+ *
+ * PARAMETERS:  Op              - A parse node of type "RETURN".
+ *              MethodInfo      - Saved info about this method
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: If method is a predefined name, attempt to validate the return
+ *              value. Only "static" types can be validated - a simple return
+ *              of an integer/string/buffer/package or a named reference to
+ *              a static object. Values such as a Localx or Argx or a control
+ *              method invocation are not checked. Issue a warning if there is
+ *              a valid return value, but the reserved method defines no
+ *              return value.
+ *
+ ******************************************************************************/
+
+void
+ApCheckPredefinedReturnValue (
+    ACPI_PARSE_OBJECT       *Op,
+    ASL_METHOD_INFO         *MethodInfo)
+{
+    UINT32                  Index;
+    ACPI_PARSE_OBJECT       *ReturnValueOp;
+
+
+    /* Check parent method for a match against the predefined name list */
+
+    Index = ApCheckForPredefinedName (MethodInfo->Op,
+                MethodInfo->Op->Asl.NameSeg);
+
+    switch (Index)
+    {
+    case ACPI_EVENT_RESERVED_NAME:      /* _Lxx/_Exx/_Wxx/_Qxx methods */
+
+        /* No return value expected, warn if there is one */
+
+        ApCheckForUnexpectedReturnValue (Op, MethodInfo);
+        return;
+
+    case ACPI_NOT_RESERVED_NAME:        /* No underscore or _Txx or _xxx name not matched */
+    case ACPI_PREDEFINED_NAME:          /* Resource Name or reserved scope name */
+    case ACPI_COMPILER_RESERVED_NAME:   /* A _Txx that was not emitted by compiler */
+
+        /* Just return, nothing to do */
+        return;
+
+    default: /* A standard predefined ACPI name */
+
+        if (!PredefinedNames[Index].Info.ExpectedBtypes)
+        {
+            /* No return value expected, warn if there is one */
+
+            ApCheckForUnexpectedReturnValue (Op, MethodInfo);
+            return;
+        }
+
+        /* Get the object returned, it is the next argument */
+
+        ReturnValueOp = Op->Asl.Child;
+        switch (ReturnValueOp->Asl.ParseOpcode)
+        {
+        case PARSEOP_ZERO:
+        case PARSEOP_ONE:
+        case PARSEOP_ONES:
+        case PARSEOP_INTEGER:
+        case PARSEOP_STRING_LITERAL:
+        case PARSEOP_BUFFER:
+        case PARSEOP_PACKAGE:
+
+            /* Static data return object - check against expected type */
+
+            ApCheckObjectType (ReturnValueOp,
+                PredefinedNames[Index].Info.ExpectedBtypes);
+            break;
+
+        default:
+
+            /*
+             * All other ops are very difficult or impossible to typecheck at
+             * compile time. These include all Localx, Argx, and method
+             * invocations. Also, NAMESEG and NAMESTRING because the type of
+             * any named object can be changed at runtime (for example,
+             * CopyObject will change the type of the target object.)
+             */
+            break;
+        }
     }
 }
 
@@ -337,29 +414,59 @@ ApCheckForPredefinedObject (
      * or a predefined scope name
      */
     Index = ApCheckForPredefinedName (Op, Name);
-    if (Index > ACPI_VALID_RESERVED_NAME_MAX)
-    {
-        return;
-    }
 
-    /*
-     * We found a matching predefind name.
-     * Check if this predefined name requires input arguments
-     */
-    if (PredefinedNames[Index].Info.ParamCount > 0)
+    switch (Index)
     {
+    case ACPI_NOT_RESERVED_NAME:        /* No underscore or _Txx or _xxx name not matched */
+    case ACPI_PREDEFINED_NAME:          /* Resource Name or reserved scope name */
+    case ACPI_COMPILER_RESERVED_NAME:   /* A _Txx that was not emitted by compiler */
+
+        /* Nothing to do */
+        return;
+
+    case ACPI_EVENT_RESERVED_NAME:      /* _Lxx/_Exx/_Wxx/_Qxx methods */
+
         /*
-         * This predefined name must always be defined as a control
-         * method because it is required to have input arguments.
+         * These names must be control methods, by definition in ACPI spec.
+         * Also because they are defined to return no value. None of them
+         * require any arguments.
          */
         AslError (ASL_ERROR, ASL_MSG_RESERVED_METHOD, Op,
-            "with arguments");
+            "with zero arguments");
+        return;
+
+    default: /* A standard predefined ACPI name */
+
+        /*
+         * If this predefined name requires input arguments, then
+         * it must be implemented as a control method
+         */
+        if (PredefinedNames[Index].Info.ParamCount > 0)
+        {
+            AslError (ASL_ERROR, ASL_MSG_RESERVED_METHOD, Op,
+                "with arguments");
+            return;
+        }
+
+        /*
+         * If no return value is expected from this predefined name, then
+         * it follows that it must be implemented as a control method
+         * (with zero args, because the args > 0 case was handled above)
+         * Examples are: _DIS, _INI, _IRC, _OFF, _ON, _PSx
+         */
+        if (!PredefinedNames[Index].Info.ExpectedBtypes)
+        {
+            AslError (ASL_ERROR, ASL_MSG_RESERVED_METHOD, Op,
+                "with zero arguments");
+            return;
+        }
+
+        /* Typecheck the actual object, it is the next argument */
+
+        ApCheckObjectType (Op->Asl.Child->Asl.Next,
+            PredefinedNames[Index].Info.ExpectedBtypes);
+        return;
     }
-
-    /* Typecheck the actual object, it is the next argument */
-
-    ApCheckObjectType (Op->Asl.Child->Asl.Next,
-        PredefinedNames[Index].Info.ExpectedBtypes);
 }
 
 
@@ -426,7 +533,7 @@ ApCheckForPredefinedName (
         }
     }
 
-    /* Check for _Lxx, _Exx, _Qxx, _T_x. Warning if unknown predefined name */
+    /* Check for _Lxx/_Exx/_Wxx/_Qxx/_T_x. Warning if unknown predefined name */
 
     return (ApCheckForSpecialName (Op, Name));
 }
@@ -441,8 +548,8 @@ ApCheckForPredefinedName (
  *
  * RETURN:      None
  *
- * DESCRIPTION: Check for the "special" predefined names - 
- *              _Lxx, _Exx, _Qxx, and _T_x
+ * DESCRIPTION: Check for the "special" predefined names -
+ *              _Lxx, _Exx, _Qxx, _Wxx, and _T_x
  *
  ******************************************************************************/
 
@@ -453,14 +560,16 @@ ApCheckForSpecialName (
 {
 
     /*
-     * Check for the "special" predefined names. We know the first char is an
-     * underscore already.
+     * Check for the "special" predefined names. We already know that the
+     * first character is an underscore.
      *   GPE:  _Lxx
      *   GPE:  _Exx
+     *   GPE:  _Wxx
      *   EC:   _Qxx
      */
     if ((Name[1] == 'L') ||
         (Name[1] == 'E') ||
+        (Name[1] == 'W') ||
         (Name[1] == 'Q'))
     {
         /* The next two characters must be hex digits */
@@ -512,7 +621,7 @@ ApCheckForSpecialName (
  *
  * FUNCTION:    ApCheckObjectType
  *
- * PARAMETERS:  Op              - A parse node
+ * PARAMETERS:  Op              - Current parse node
  *              ExpectedBtypes  - Bitmap of expected return type(s)
  *
  * RETURN:      None
@@ -529,11 +638,13 @@ ApCheckObjectType (
     UINT32                  ExpectedBtypes)
 {
     UINT32                  ReturnBtype;
-    char                    TypeBuffer[48]; /* Room for 5 types */
 
 
     switch (Op->Asl.ParseOpcode)
     {
+    case PARSEOP_ZERO:
+    case PARSEOP_ONE:
+    case PARSEOP_ONES:
     case PARSEOP_INTEGER:
         ReturnBtype = ACPI_RTYPE_INTEGER;
         break;
@@ -552,11 +663,11 @@ ApCheckObjectType (
 
     default:
         /* Not one of the supported object types */
-        
+
         goto TypeErrorExit;
     }
 
-    /* Is the object one of the expected types? */
+    /* Exit if the object is one of the expected types */
 
     if (ReturnBtype & ExpectedBtypes)
     {
@@ -568,10 +679,13 @@ TypeErrorExit:
 
     /* Format the expected types and emit an error message */
 
-    ApGetExpectedTypes (TypeBuffer, ExpectedBtypes);
+    ApGetExpectedTypes (StringBuffer, ExpectedBtypes);
+
+    sprintf (MsgBuffer, "found %s, requires %s",
+        UtGetOpName (Op->Asl.ParseOpcode), StringBuffer);
 
     AslError (ASL_ERROR, ASL_MSG_RESERVED_OPERAND_TYPE, Op,
-        TypeBuffer);
+        MsgBuffer);
 }
 
 
@@ -606,7 +720,7 @@ ApDisplayReservedNames (
     ThisName = PredefinedNames;
     while (ThisName->Info.Name[0])
     {
-        printf ("%4.4s    Requires %d arguments, ",
+        printf ("%4.4s    Requires %u arguments, ",
             ThisName->Info.Name, ThisName->Info.ParamCount & 0x0F);
 
         if (ThisName->Info.ExpectedBtypes)

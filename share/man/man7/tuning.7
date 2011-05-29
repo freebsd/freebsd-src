@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 23, 2009
+.Dd October 16, 2010
 .Dt TUNING 7
 .Os
 .Sh NAME
@@ -470,7 +470,7 @@ sysctl defaults to 1 (on).
 This parameter controls how directories are cached
 by the system.
 Most directories are small and use but a single fragment
-(typically 1K) in the file system and even less (typically 512 bytes) in
+(typically 2K) in the file system and even less (typically 512 bytes) in
 the buffer cache.
 However, when operating in the default mode the buffer
 cache will only cache a fixed number of directories even if you have a huge
@@ -504,17 +504,53 @@ it off.
 The
 .Va vfs.hirunningspace
 sysctl determines how much outstanding write I/O may be queued to
-disk controllers system-wide at any given instance.
-The default is
-usually sufficient but on machines with lots of disks you may want to bump
-it up to four or five megabytes.
+disk controllers system-wide at any given time.
+It is used by the UFS file system.
+The default is self-tuned and
+usually sufficient but on machines with advanced controllers and lots
+of disks this may be tuned up to match what the controllers buffer.
+Configuring this setting to match tagged queuing capabilities of
+controllers or drives with average IO size used in production works
+best (for example: 16 MiB will use 128 tags with IO requests of 128 KiB).
 Note that setting too high a value
 (exceeding the buffer cache's write threshold) can lead to extremely
 bad clustering performance.
 Do not set this value arbitrarily high!
-Also,
-higher write queueing values may add latency to reads occurring at the same
-time.
+Higher write queueing values may also add latency to reads occurring at
+the same time.
+.Pp
+The
+.Va vfs.read_max
+sysctl governs VFS read-ahead and is expressed as the number of blocks
+to pre-read if the heuristics algorithm decides that the reads are
+issued sequentially.
+It is used by the UFS, ext2fs and msdosfs file systems.
+With the default UFS block size of 16 KiB, a setting of 32 will allow
+speculatively reading up to 512 KiB.
+This setting may be increased to get around disk I/O latencies, especially
+where these latencies are large such as in virtual machine emulated
+environments.
+It may be tuned down in specific cases where the I/O load is such that
+read-ahead adversely affects performance or where system memory is really
+low.
+.Pp
+The
+.Va vfs.ncsizefactor
+sysctl defines how large VFS namecache may grow.
+The number of currently allocated entries in namecache is provided by
+.Va debug.numcache
+sysctl and the condition
+debug.numcache < kern.maxvnodes * vfs.ncsizefactor
+is adhered to.
+.Pp
+The
+.Va vfs.ncnegfactor
+sysctl defines how many negative entries VFS namecache is allowed to create.
+The number of currently allocated negative entries is provided by
+.Va debug.numneg
+sysctl and the condition
+vfs.ncnegfactor * debug.numneg < debug.numcache
+is adhered to.
 .Pp
 There are various other buffer-cache and VM page cache related sysctls.
 We do not recommend modifying these values.
@@ -1001,6 +1037,7 @@ over services you export from your box (web services, email).
 .Xr rc.conf 5 ,
 .Xr sysctl.conf 5 ,
 .Xr firewall 7 ,
+.Xr eventtimers 7 ,
 .Xr hier 7 ,
 .Xr ports 7 ,
 .Xr boot 8 ,

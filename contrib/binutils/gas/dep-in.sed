@@ -3,6 +3,7 @@
 /\\$/b loop
 
 s! \.\./! !g
+s! \./! !g
 s!@INCDIR@!$(INCDIR)!g
 s!@TOPDIR@/include!$(INCDIR)!g
 s!@BFDDIR@!$(BFDDIR)!g
@@ -11,14 +12,13 @@ s!@SRCDIR@/config!$(srcdir)/config!g
 s!@SRCDIR@/\.\./opcodes!$(srcdir)/../opcodes!g
 s!@TOPDIR@/opcodes!$(srcdir)/../opcodes!g
 s!@SRCDIR@/!!g
-s!\.\./bfd/bfdver\.h!$(BFDVER_H)!g
 s! \$(srcdir)/config/te-generic\.h!!g
-s! \.\./bfd/bfd\.h!!g
 s! itbl-cpu\.h!!g
 s! itbl-parse\.h!!g
 s! \.\./intl/libintl\.h!!g
 
-s! \$(INCDIR)/bin-bugs\.h!!g
+s! \.\./bfd/bfd\.h!!g
+s! \$(INCDIR)/symcat\.h!!g
 s! \$(INCDIR)/ansidecl\.h!!g
 s! \$(INCDIR)/libiberty\.h!!g
 s! \$(INCDIR)/progress\.h!!g

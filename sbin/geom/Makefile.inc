@@ -1,5 +1,5 @@
 # $FreeBSD$
 
-CLASS_DIR?=/lib/geom
+GEOM_CLASS_DIR?=/lib/geom
 
 .include "../Makefile.inc"

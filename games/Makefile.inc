@@ -4,3 +4,4 @@
 BINDIR?=	/usr/games
 FILESDIR?=	${SHAREDIR}/games
 WARNS?=		6
+DISTRIBUTION?=	games

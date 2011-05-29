@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/kernel.h>
+#include <sys/proc.h>
 #include <sys/reboot.h>
 #include <sys/sysproto.h>
 
@@ -249,10 +250,12 @@ _xen_flush_queue(void)
 	SET_VCPU();
 	int _xpq_idx = XPQ_IDX;
 	int error, i;
-	/* window of vulnerability here? */
 
+#ifdef INVARIANTS
 	if (__predict_true(gdtset))
-		critical_enter();
+		CRITICAL_ASSERT(curthread);
+#endif
+
 	XPQ_IDX = 0;
 	/* Make sure index is cleared first to avoid double updates. */
 	error = HYPERVISOR_mmu_update((mmu_update_t *)&XPQ_QUEUE,
@@ -286,8 +289,6 @@ _xen_flush_queue(void)
 		}
 	}
 #endif	
-	if (__predict_true(gdtset))
-		critical_exit();
 	if (__predict_false(error < 0)) {
 		for (i = 0; i < _xpq_idx; i++)
 			printf("val: %llx ptr: %llx\n",
@@ -301,7 +302,12 @@ void
 xen_flush_queue(void)
 {
 	SET_VCPU();
+
+	if (__predict_true(gdtset))
+		critical_enter();
 	if (XPQ_IDX != 0) _xen_flush_queue();
+	if (__predict_true(gdtset))
+		critical_exit();
 }
 
 static __inline void
@@ -482,7 +488,6 @@ xen_pt_pin(vm_paddr_t ma)
 	struct mmuext_op op;
 	op.cmd = MMUEXT_PIN_L1_TABLE;
 	op.arg1.mfn = ma >> PAGE_SHIFT;
-	printk("xen_pt_pin(): mfn=%x\n", op.arg1.mfn);
 	xen_flush_queue();
 	PANIC_IF(HYPERVISOR_mmuext_op(&op, 1, NULL, DOMID_SELF) < 0);
 }
@@ -722,7 +727,9 @@ char *bootmem_start, *bootmem_current, *bootmem_end;
 pteinfo_t *pteinfo_list;
 void initvalues(start_info_t *startinfo);
 
-struct ringbuf_head *xen_store; /* XXX move me */
+struct xenstore_domain_interface;
+extern struct xenstore_domain_interface *xen_store;
+
 char *console_page;
 
 void *
@@ -915,7 +922,7 @@ initvalues(start_info_t *startinfo)
 	l3_pages = 1;
 	l2_pages = 0;
 	IdlePDPT = (pd_entry_t *)startinfo->pt_base;
-	IdlePDPTma = xpmap_ptom(VTOP(startinfo->pt_base));
+	IdlePDPTma = VTOM(startinfo->pt_base);
 	for (i = (KERNBASE >> 30);
 	     (i < 4) && (IdlePDPT[i] != 0); i++)
 			l2_pages++;
@@ -924,7 +931,7 @@ initvalues(start_info_t *startinfo)
 	 * Thus, if KERNBASE
 	 */
 	for (i = 0; i < l2_pages; i++)
-		IdlePTDma[i] = xpmap_ptom(VTOP(IdlePTD + i*PAGE_SIZE));
+		IdlePTDma[i] = VTOM(IdlePTD + i*PAGE_SIZE);
 
 	l2_pages = (l2_pages == 0) ? 1 : l2_pages;
 #else	
@@ -964,13 +971,12 @@ initvalues(start_info_t *startinfo)
 	IdlePDPTnew = (pd_entry_t *)cur_space; cur_space += PAGE_SIZE;
 	bzero(IdlePDPTnew, PAGE_SIZE);
 
-	IdlePDPTnewma =  xpmap_ptom(VTOP(IdlePDPTnew));
+	IdlePDPTnewma =  VTOM(IdlePDPTnew);
 	IdlePTDnew = (pd_entry_t *)cur_space; cur_space += 4*PAGE_SIZE;
 	bzero(IdlePTDnew, 4*PAGE_SIZE);
 
 	for (i = 0; i < 4; i++) 
-		IdlePTDnewma[i] =
-		    xpmap_ptom(VTOP((uint8_t *)IdlePTDnew + i*PAGE_SIZE));
+		IdlePTDnewma[i] = VTOM((uint8_t *)IdlePTDnew + i*PAGE_SIZE);
 	/*
 	 * L3
 	 *
@@ -1038,7 +1044,7 @@ initvalues(start_info_t *startinfo)
 		    IdlePTDnewma[i] | PG_V);
 	}
 	xen_load_cr3(VTOP(IdlePDPTnew));
-	xen_pgdpt_pin(xpmap_ptom(VTOP(IdlePDPTnew)));
+	xen_pgdpt_pin(VTOM(IdlePDPTnew));
 
 	/* allocate remainder of nkpt pages */
 	cur_space_pt = cur_space;
@@ -1053,14 +1059,13 @@ initvalues(start_info_t *startinfo)
 		 * make sure that all the initial page table pages
 		 * have been zeroed
 		 */
-		PT_SET_MA(cur_space,
-		    xpmap_ptom(VTOP(cur_space)) | PG_V | PG_RW);
+		PT_SET_MA(cur_space, VTOM(cur_space) | PG_V | PG_RW);
 		bzero((char *)cur_space, PAGE_SIZE);
 		PT_SET_MA(cur_space, (vm_paddr_t)0);
-		xen_pt_pin(xpmap_ptom(VTOP(cur_space)));
+		xen_pt_pin(VTOM(cur_space));
 		xen_queue_pt_update((vm_paddr_t)(IdlePTDnewma[pdir] +
 			curoffset*sizeof(vm_paddr_t)), 
-		    xpmap_ptom(VTOP(cur_space)) | PG_KERNEL);
+		    VTOM(cur_space) | PG_KERNEL);
 		PT_UPDATES_FLUSH();
 	}
 	
@@ -1082,7 +1087,7 @@ initvalues(start_info_t *startinfo)
 	HYPERVISOR_shared_info = (shared_info_t *)cur_space;
 	cur_space += PAGE_SIZE;
 
-	xen_store = (struct ringbuf_head *)cur_space;
+	xen_store = (struct xenstore_domain_interface *)cur_space;
 	cur_space += PAGE_SIZE;
 
 	console_page = (char *)cur_space;
@@ -1111,14 +1116,14 @@ initvalues(start_info_t *startinfo)
 #if 0
 	/* add page table for KERNBASE */
 	xen_queue_pt_update(IdlePTDma + KPTDI*sizeof(vm_paddr_t), 
-			    xpmap_ptom(VTOP(cur_space) | PG_KERNEL));
+			    VTOM(cur_space) | PG_KERNEL);
 	xen_flush_queue();
 #ifdef PAE	
 	xen_queue_pt_update(pdir_shadow_ma[3] + KPTDI*sizeof(vm_paddr_t), 
-			    xpmap_ptom(VTOP(cur_space) | PG_V | PG_A));
+			    VTOM(cur_space) | PG_V | PG_A);
 #else
 	xen_queue_pt_update(pdir_shadow_ma + KPTDI*sizeof(vm_paddr_t), 
-			    xpmap_ptom(VTOP(cur_space) | PG_V | PG_A));
+			    VTOM(cur_space) | PG_V | PG_A);
 #endif	
 	xen_flush_queue();
 	cur_space += PAGE_SIZE;
@@ -1138,7 +1143,7 @@ initvalues(start_info_t *startinfo)
 	 */
 	for (i = (((vm_offset_t)&btext) & ~PAGE_MASK);
 	     i < (((vm_offset_t)&etext) & ~PAGE_MASK); i += PAGE_SIZE)
-		PT_SET_MA(i, xpmap_ptom(VTOP(i)) | PG_V | PG_A);
+		PT_SET_MA(i, VTOM(i) | PG_V | PG_A);
 	
 	printk("#7\n");
 	physfree = VTOP(cur_space);
@@ -1178,6 +1183,27 @@ trap_info_t trap_table[] = {
 	{  0, 0,           0, 0 }
 };
 
+/* Perform a multicall and check that individual calls succeeded. */
+int
+HYPERVISOR_multicall(struct multicall_entry * call_list, int nr_calls)
+{
+	int ret = 0;
+	int i;
+
+	/* Perform the multicall. */
+	PANIC_IF(_HYPERVISOR_multicall(call_list, nr_calls));
+
+	/* Check the results of individual hypercalls. */
+	for (i = 0; i < nr_calls; i++)
+		if (unlikely(call_list[i].result < 0))
+			ret++;
+	if (unlikely(ret > 0))
+		panic("%d multicall(s) failed: cpu %d\n",
+		    ret, smp_processor_id());
+
+	/* If we didn't panic already, everything succeeded. */
+	return (0);
+}
 
 /********** CODE WORTH KEEPING ABOVE HERE *****************/ 
 

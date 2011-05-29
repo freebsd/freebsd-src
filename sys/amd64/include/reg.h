@@ -37,6 +37,10 @@
 #ifndef _MACHINE_REG_H_
 #define	_MACHINE_REG_H_
 
+#if defined(_KERNEL) && !defined(_STANDALONE)
+#include "opt_compat.h"
+#endif
+
 /*
  * Register set accessible via /proc/$pid/regs and PT_{SET,GET}REGS.
  */
@@ -105,7 +109,7 @@ struct dbreg {
 #define	DBREG_DR7_EXEC		0x00	/* break on execute       */
 #define	DBREG_DR7_WRONLY	0x01	/* break on write         */
 #define	DBREG_DR7_RDWR		0x03	/* break on read or write */
-#define	DBREG_DR7_MASK(i)	((u_long)0xf << ((i) * 4 + 16) | 0x3 << (i) * 2)
+#define	DBREG_DR7_MASK(i)	(0xful << ((i) * 4 + 16) | 0x3 << (i) * 2)
 #define	DBREG_DR7_SET(i, len, access, enable)				\
 	((u_long)((len) << 2 | (access)) << ((i) * 4 + 16) | (enable) << (i) * 2)
 #define	DBREG_DR7_GD		0x2000
@@ -116,11 +120,17 @@ struct dbreg {
 #define	DBREG_DRX(d,x)	((d)->dr[(x)])	/* reference dr0 - dr15 by
 					   register number */
 
+#ifdef COMPAT_FREEBSD32
+#include <machine/fpu.h>
+#include <compat/ia32/ia32_reg.h>
+#endif
+
 #ifdef _KERNEL
 /*
  * XXX these interfaces are MI, so they should be declared in a MI place.
  */
 int	fill_regs(struct thread *, struct reg *);
+int	fill_frame_regs(struct trapframe *, struct reg *);
 int	set_regs(struct thread *, struct reg *);
 int	fill_fpregs(struct thread *, struct fpreg *);
 int	set_fpregs(struct thread *, struct fpreg *);

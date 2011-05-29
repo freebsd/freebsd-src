@@ -37,6 +37,7 @@ static char sccsid[] = "@(#)atexit.c	8.2 (Berkeley) 7/3/94";
 __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
+#include <link.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -54,6 +55,7 @@ static pthread_mutex_t atexit_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 #define _MUTEX_LOCK(x)		if (__isthreaded) _pthread_mutex_lock(x)
 #define _MUTEX_UNLOCK(x)	if (__isthreaded) _pthread_mutex_unlock(x)
+#define _MUTEX_DESTROY(x)	if (__isthreaded) _pthread_mutex_destroy(x)
 
 struct atexit {
 	struct atexit *next;			/* next in list */
@@ -119,7 +121,7 @@ atexit(void (*func)(void))
 	int error;
 
 	fn.fn_type = ATEXIT_FN_STD;
-	fn.fn_ptr.std_func = func;;
+	fn.fn_ptr.std_func = func;
 	fn.fn_arg = NULL;
 	fn.fn_dso = NULL;
 
@@ -138,13 +140,16 @@ __cxa_atexit(void (*func)(void *), void *arg, void *dso)
 	int error;
 
 	fn.fn_type = ATEXIT_FN_CXA;
-	fn.fn_ptr.cxa_func = func;;
+	fn.fn_ptr.cxa_func = func;
 	fn.fn_arg = arg;
 	fn.fn_dso = dso;
 
  	error = atexit_register(&fn);	
 	return (error);
 }
+
+#pragma weak __pthread_cxa_finalize
+void __pthread_cxa_finalize(const struct dl_phdr_info *);
 
 /*
  * Call all handlers registered with __cxa_atexit for the shared
@@ -154,18 +159,28 @@ __cxa_atexit(void (*func)(void *), void *arg, void *dso)
 void
 __cxa_finalize(void *dso)
 {
+	struct dl_phdr_info phdr_info;
 	struct atexit *p;
 	struct atexit_fn fn;
-	int n;
+	int n, has_phdr;
+
+	if (dso != NULL)
+		has_phdr = _rtld_addr_phdr(dso, &phdr_info);
+	else
+		has_phdr = 0;
 
 	_MUTEX_LOCK(&atexit_mutex);
 	for (p = __atexit; p; p = p->next) {
 		for (n = p->ind; --n >= 0;) {
 			if (p->fns[n].fn_type == ATEXIT_FN_EMPTY)
 				continue; /* already been called */
-			if (dso != NULL && dso != p->fns[n].fn_dso)
-				continue; /* wrong DSO */
 			fn = p->fns[n];
+			if (dso != NULL && dso != fn.fn_dso) {
+				/* wrong DSO ? */
+				if (!has_phdr || !__elf_phdr_match_addr(
+				    &phdr_info, fn.fn_ptr.cxa_func))
+					continue;
+			}
 			/*
 			  Mark entry to indicate that this particular handler
 			  has already been called.
@@ -182,4 +197,9 @@ __cxa_finalize(void *dso)
 		}
 	}
 	_MUTEX_UNLOCK(&atexit_mutex);
+	if (dso == NULL)
+		_MUTEX_DESTROY(&atexit_mutex);
+
+	if (has_phdr && &__pthread_cxa_finalize != NULL)
+		__pthread_cxa_finalize(&phdr_info);
 }

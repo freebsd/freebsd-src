@@ -505,10 +505,11 @@ bfe_attach(device_t dev)
 	bfe_chip_reset(sc);
 	BFE_UNLOCK(sc);
 
-	if (mii_phy_probe(dev, &sc->bfe_miibus,
-				bfe_ifmedia_upd, bfe_ifmedia_sts)) {
-		device_printf(dev, "MII without any PHY!\n");
-		error = ENXIO;
+	error = mii_attach(dev, &sc->bfe_miibus, ifp, bfe_ifmedia_upd,
+	    bfe_ifmedia_sts, BMSR_DEFCAPMASK, sc->bfe_phyaddr, MII_OFFSET_ANY,
+	    0);
+	if (error != 0) {
+		device_printf(dev, "attaching PHYs failed\n");
 		goto fail;
 	}
 
@@ -631,8 +632,6 @@ bfe_miibus_readreg(device_t dev, int phy, int reg)
 	u_int32_t ret;
 
 	sc = device_get_softc(dev);
-	if (phy != sc->bfe_phyaddr)
-		return (0);
 	bfe_readphy(sc, reg, &ret);
 
 	return (ret);
@@ -644,8 +643,6 @@ bfe_miibus_writereg(device_t dev, int phy, int reg, int val)
 	struct bfe_softc *sc;
 
 	sc = device_get_softc(dev);
-	if (phy != sc->bfe_phyaddr)
-		return (0);
 	bfe_writephy(sc, reg, val);
 
 	return (0);
@@ -1739,18 +1736,15 @@ bfe_ifmedia_upd(struct ifnet *ifp)
 {
 	struct bfe_softc *sc;
 	struct mii_data *mii;
+	struct mii_softc *miisc;
 	int error;
 
 	sc = ifp->if_softc;
 	BFE_LOCK(sc);
 
 	mii = device_get_softc(sc->bfe_miibus);
-	if (mii->mii_instance) {
-		struct mii_softc *miisc;
-		for (miisc = LIST_FIRST(&mii->mii_phys); miisc != NULL;
-				miisc = LIST_NEXT(miisc, mii_list))
-			mii_phy_reset(miisc);
-	}
+	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
+		PHY_RESET(miisc);
 	error = mii_mediachg(mii);
 	BFE_UNLOCK(sc);
 

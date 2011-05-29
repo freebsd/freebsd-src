@@ -156,8 +156,7 @@ ENTRY(cpu_switch)
 	/* have we used fp, and need a save? */
 	cmpl	%ecx,PCPU(FPCURTHREAD)
 	jne	1f
-	addl	$PCB_SAVEFPU,%edx		/* h/w bugs make saving complicated */
-	pushl	%edx
+	pushl	PCB_SAVEFPU(%edx)		/* h/w bugs make saving complicated */
 	call	npxsave				/* do it in a big C function */
 	popl	%eax
 1:
@@ -408,7 +407,7 @@ ENTRY(savectx)
 
 	pushl	%ecx
 	movl	TD_PCB(%eax),%eax
-	leal	PCB_SAVEFPU(%eax),%eax
+	movl	PCB_SAVEFPU(%eax),%eax
 	pushl	%eax
 	pushl	%eax
 	call	npxsave
@@ -417,7 +416,7 @@ ENTRY(savectx)
 	popl	%ecx
 
 	pushl	$PCB_SAVEFPU_SIZE
-	leal	PCB_SAVEFPU(%ecx),%ecx
+	leal	PCB_USERFPU(%ecx),%ecx
 	pushl	%ecx
 	pushl	%eax
 	call	bcopy

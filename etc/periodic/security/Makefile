@@ -3,6 +3,7 @@
 .include <bsd.own.mk>
 
 FILES=	100.chksetuid \
+	110.neggrpperm \
 	200.chkmounts \
 	300.chkuid0 \
 	400.passwdless \
@@ -16,6 +17,7 @@ FILES=	100.chksetuid \
 
 .if ${MK_IPFILTER} != "no"
 FILES+=	510.ipfdenied
+FILES+=	610.ipf6denied
 .endif
 
 .if ${MK_IPFW} != "no"
@@ -25,6 +27,10 @@ FILES+=	500.ipfwdenied \
 
 .if ${MK_PF} != "no"
 FILES+=	520.pfdenied
+.endif
+
+.if ${MK_PKGTOOLS} != "no"
+FILES+=	460.chkportsum
 .endif
 
 .include <bsd.prog.mk>

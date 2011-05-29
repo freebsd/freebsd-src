@@ -26,12 +26,11 @@ CFLAGS = -g
 CFLAGS = -O2
 CFLAGS =
 
-CC = gcc -Wall -g -Wwrite-strings
-CC = gcc -fprofile-arcs -ftest-coverage # then gcov f1.c; cat f1.c.gcov
 CC = gcc -Wall -g
 CC = cc
+CC = gcc -Wall -g -Wwrite-strings
+CC = gcc -fprofile-arcs -ftest-coverage # then gcov f1.c; cat f1.c.gcov
 CC = gcc -O4
-
 
 YACC = bison -y
 YACC = yacc
@@ -40,13 +39,13 @@ YFLAGS = -d
 OFILES = b.o main.o parse.o proctab.o tran.o lib.o run.o lex.o
 
 SOURCE = awk.h ytab.c ytab.h proto.h awkgram.y lex.c b.c main.c \
-	maketab.c parse.c lib.c run.c tran.c proctab.c missing95.c
+	maketab.c parse.c lib.c run.c tran.c proctab.c 
 
 LISTING = awk.h proto.h awkgram.y lex.c b.c main.c maketab.c parse.c \
-	lib.c run.c tran.c missing95.c
+	lib.c run.c tran.c 
 
-SHIP = README FIXES $(SOURCE) ytab[ch].bak makefile makefile.win \
-	vcvars32.bat buildwin.bat awk.1
+SHIP = README FIXES $(SOURCE) ytab[ch].bak makefile  \
+	 awk.1
 
 a.out:	ytab.o $(OFILES)
 	$(CC) $(CFLAGS) ytab.o $(OFILES) $(ALLOC)  -lm

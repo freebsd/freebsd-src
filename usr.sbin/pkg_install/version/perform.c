@@ -35,28 +35,41 @@ static int pkg_do(char *);
 static void show_version(Package, const char *, const char *);
 
 /*
- * This is the traditional pkg_perform, except that the argument is _not_
- * a list of packages. It is the index file from the command line.
+ * This is the traditional pkg_perform, except that the argument is _not_ a
+ * list of packages. It is the index file from the command line.
  *
- * We loop over the installed packages, matching them with the -s flag
- * if needed and calling pkg_do(). Before hand we set up a few things,
- * and after we tear them down...
+ * We loop over the installed packages, matching them with the -s flag if
+ * needed and calling pkg_do(). Beforehand we set up a few things, and after
+ * we tear them down...
+ *
+ * Returns 0 on success, non-zero on failure, corresponding to the number of
+ * failed attempts to access the INDEX.
  */
 int
 pkg_perform(char **indexarg)
 {
     char **pkgs, *pat[2], **patterns;
     struct index_entry *ie;
-    int i, err_cnt = 0;
+    int i, err_cnt = 0, rel_major_ver;
     int MatchType;
+
+    struct utsname u;
+
+    if (uname(&u) == -1) {
+	warn("%s(): failed to determine uname information", __func__);
+	return 1;
+    } else if ((rel_major_ver = (int) strtol(u.release, NULL, 10)) <= 0) {
+
+    }
 
     /*
      * Try to find and open the INDEX. We only check IndexFile != NULL
      * later, if we actually need the INDEX.
      */
-    if (*indexarg == NULL)
-	snprintf(IndexPath, sizeof(IndexPath), "%s/%s", PORTS_DIR, INDEX_FNAME);
-    else
+    if (*indexarg == NULL) {
+	snprintf(IndexPath, sizeof(IndexPath), "%s/INDEX-%d", PORTS_DIR,
+	    rel_major_ver);
+    } else
 	strlcpy(IndexPath, *indexarg, sizeof(IndexPath));
     if (isURL(IndexPath))
 	IndexFile = fetchGetURL(IndexPath, "");

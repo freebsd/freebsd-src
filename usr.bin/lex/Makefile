@@ -44,7 +44,7 @@ test: check
 check: $(PROG)
 	./$(PROG) $(LFLAGS) -t $(COMPRESSION) $(.CURDIR)/scan.l \
 	| sed s,\"$(.CURDIR)/scan.l",\"scan.l", \
-	| diff $(.CURDIR)/initscan.c -
+	| diff -I '\$$FreeBS[D]:.*\$$' $(.CURDIR)/initscan.c -
 	@echo "Check successful"
 
 .include <bsd.prog.mk>

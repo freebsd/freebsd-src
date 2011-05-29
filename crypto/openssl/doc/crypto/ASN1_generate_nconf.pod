@@ -6,6 +6,8 @@ ASN1_generate_nconf, ASN1_generate_v3 - ASN1 generation functions
 
 =head1 SYNOPSIS
 
+ #include <openssl/asn1.h>
+
  ASN1_TYPE *ASN1_generate_nconf(char *str, CONF *nconf);
  ASN1_TYPE *ASN1_generate_v3(char *str, X509V3_CTX *cnf);
 
@@ -175,7 +177,7 @@ An IA5String explicitly tagged using APPLICATION tagging:
 
 A BITSTRING with bits 1 and 5 set and all others zero:
 
- FORMAT=BITLIST,BITSTRING:1,5
+ FORMAT:BITLIST,BITSTRING:1,5
 
 A more complex example using a config file to produce a
 SEQUENCE consiting of a BOOL an OID and a UTF8String:

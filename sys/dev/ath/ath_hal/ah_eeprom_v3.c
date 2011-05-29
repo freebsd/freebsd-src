@@ -1665,7 +1665,7 @@ legacyEepromGet(struct ath_hal *ah, int param, void *val)
 	return HAL_EINVAL;
 }
 
-static HAL_BOOL
+static HAL_STATUS
 legacyEepromSet(struct ath_hal *ah, int param, int v)
 {
 	HAL_EEPROM *ee = AH_PRIVATE(ah)->ah_eeprom;

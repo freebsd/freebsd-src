@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/filio.h>
+#include <sys/resourcevar.h>
 #include <sys/sx.h>
 #include <sys/ttycom.h>
 #include <sys/conf.h>
@@ -198,6 +199,10 @@ restart:
 	}
 	if (vp->v_type == VSOCK) {
 		error = EOPNOTSUPP;
+		goto bad;
+	}
+	if (vp->v_type != VDIR && fmode & O_DIRECTORY) {
+		error = ENOTDIR;
 		goto bad;
 	}
 	accmode = 0;
@@ -439,7 +444,7 @@ vn_rdwr(rw, vp, base, len, offset, segflg, ioflg, active_cred, file_cred,
  * Package up an I/O request on a vnode into a uio and do it.  The I/O
  * request is split up into smaller chunks and we try to avoid saturating
  * the buffer cache while potentially holding a vnode locked, so we 
- * check bwillwrite() before calling vn_rdwr().  We also call uio_yield()
+ * check bwillwrite() before calling vn_rdwr().  We also call kern_yield()
  * to give other processes a chance to lock the vnode (either other processes
  * core'ing the same binary, or unrelated processes scanning the directory).
  */
@@ -486,7 +491,7 @@ vn_rdwr_inchunks(rw, vp, base, len, offset, segflg, ioflg, active_cred,
 			break;
 		offset += chunk;
 		base = (char *)base + chunk;
-		uio_yield();
+		kern_yield(PRI_USER);
 	} while (len);
 	if (aresid)
 		*aresid = len + iaresid;
@@ -501,8 +506,8 @@ vn_read(fp, uio, active_cred, flags, td)
 	struct file *fp;
 	struct uio *uio;
 	struct ucred *active_cred;
-	struct thread *td;
 	int flags;
+	struct thread *td;
 {
 	struct vnode *vp;
 	int error, ioflag;
@@ -567,8 +572,8 @@ vn_write(fp, uio, active_cred, flags, td)
 	struct file *fp;
 	struct uio *uio;
 	struct ucred *active_cred;
-	struct thread *td;
 	int flags;
+	struct thread *td;
 {
 	struct vnode *vp;
 	struct mount *mp;
@@ -778,21 +783,20 @@ vn_stat(vp, sb, active_cred, file_cred, td)
 	if (vap->va_size > OFF_MAX)
 		return (EOVERFLOW);
 	sb->st_size = vap->va_size;
-	sb->st_atimespec = vap->va_atime;
-	sb->st_mtimespec = vap->va_mtime;
-	sb->st_ctimespec = vap->va_ctime;
-	sb->st_birthtimespec = vap->va_birthtime;
+	sb->st_atim = vap->va_atime;
+	sb->st_mtim = vap->va_mtime;
+	sb->st_ctim = vap->va_ctime;
+	sb->st_birthtim = vap->va_birthtime;
 
         /*
 	 * According to www.opengroup.org, the meaning of st_blksize is 
 	 *   "a filesystem-specific preferred I/O block size for this 
 	 *    object.  In some filesystem types, this may vary from file
 	 *    to file"
-	 * Default to PAGE_SIZE after much discussion.
-	 * XXX: min(PAGE_SIZE, vp->v_bufobj.bo_bsize) may be more correct.
+	 * Use miminum/default of PAGE_SIZE (e.g. for VCHR).
 	 */
 
-	sb->st_blksize = PAGE_SIZE;
+	sb->st_blksize = max(PAGE_SIZE, vap->va_blocksize);
 	
 	sb->st_flags = vap->va_flags;
 	if (priv_check(td, PRIV_VFS_GENERATION))
@@ -1334,4 +1338,22 @@ vn_vget_ino(struct vnode *vp, ino_t ino, int lkflags, struct vnode **rvp)
 		error = ENOENT;
 	}
 	return (error);
+}
+
+int
+vn_rlimit_fsize(const struct vnode *vp, const struct uio *uio,
+    const struct thread *td)
+{
+
+	if (vp->v_type != VREG || td == NULL)
+		return (0);
+	PROC_LOCK(td->td_proc);
+	if ((uoff_t)uio->uio_offset + uio->uio_resid >
+	    lim_cur(td->td_proc, RLIMIT_FSIZE)) {
+		psignal(td->td_proc, SIGXFSZ);
+		PROC_UNLOCK(td->td_proc);
+		return (EFBIG);
+	}
+	PROC_UNLOCK(td->td_proc);
+	return (0);
 }

@@ -54,7 +54,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -172,6 +171,7 @@ MODULE_DEPEND(udav, uether, 1, 1, 1);
 MODULE_DEPEND(udav, usb, 1, 1, 1);
 MODULE_DEPEND(udav, ether, 1, 1, 1);
 MODULE_DEPEND(udav, miibus, 1, 1, 1);
+MODULE_VERSION(udav, 1);
 
 static const struct usb_ether_methods udav_ue_methods = {
 	.ue_attach_post = udav_attach_post,
@@ -185,7 +185,7 @@ static const struct usb_ether_methods udav_ue_methods = {
 	.ue_mii_sts = udav_ifmedia_status,
 };
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 static int udav_debug = 0;
 
 SYSCTL_NODE(_hw_usb, OID_AUTO, udav, CTLFLAG_RW, 0, "USB udav");
@@ -206,6 +206,10 @@ static const struct usb_device_id udav_devs[] = {
 	{USB_VPI(USB_VENDOR_SHANTOU, USB_PRODUCT_SHANTOU_ST268, 0)},
 	/* Corega USB-TXC */
 	{USB_VPI(USB_VENDOR_COREGA, USB_PRODUCT_COREGA_FETHER_USB_TXC, 0)},
+	/* ShanTou AMD8515 USB NIC */
+	{USB_VPI(USB_VENDOR_SHANTOU, USB_PRODUCT_SHANTOU_ADM8515, 0)},
+	/* Kontron AG USB Ethernet */
+	{USB_VPI(USB_VENDOR_KONTRON, USB_PRODUCT_KONTRON_DM9601, 0)},
 };
 
 static void
@@ -728,16 +732,13 @@ udav_ifmedia_upd(struct ifnet *ifp)
 {
 	struct udav_softc *sc = ifp->if_softc;
 	struct mii_data *mii = GET_MII(sc);
+	struct mii_softc *miisc;
 
 	UDAV_LOCK_ASSERT(sc, MA_OWNED);
 
         sc->sc_flags &= ~UDAV_FLAG_LINK;
-	if (mii->mii_instance) {
-		struct mii_softc *miisc;
-
-		LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
-			mii_phy_reset(miisc);
-	}
+	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
+		PHY_RESET(miisc);
 	mii_mediachg(mii);
 	return (0);
 }

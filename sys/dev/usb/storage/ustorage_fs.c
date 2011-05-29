@@ -44,7 +44,6 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -64,7 +63,7 @@
 #define	USB_DEBUG_VAR ustorage_fs_debug
 #include <dev/usb/usb_debug.h>
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 static int ustorage_fs_debug = 0;
 
 SYSCTL_NODE(_hw_usb, OID_AUTO, ustorage_fs, CTLFLAG_RW, 0, "USB ustorage_fs");
@@ -335,10 +334,6 @@ ustorage_fs_probe(device_t dev)
 	if (uaa->usb_mode != USB_MODE_DEVICE) {
 		return (ENXIO);
 	}
-	if (uaa->use_generic == 0) {
-		/* give other drivers a try first */
-		return (ENXIO);
-	}
 	/* Check for a standards compliant device */
 	id = usbd_get_interface_descriptor(uaa->iface);
 	if ((id == NULL) ||
@@ -347,7 +342,7 @@ ustorage_fs_probe(device_t dev)
 	    (id->bInterfaceProtocol != UIPROTO_MASS_BBB)) {
 		return (ENXIO);
 	}
-	return (0);
+	return (BUS_PROBE_GENERIC);
 }
 
 static int

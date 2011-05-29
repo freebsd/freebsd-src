@@ -56,12 +56,19 @@ static int ata_via_chipinit(device_t dev);
 static int ata_via_ch_attach(device_t dev);
 static int ata_via_ch_detach(device_t dev);
 static void ata_via_reset(device_t dev);
+static int ata_via_status(device_t dev);
 static int ata_via_old_setmode(device_t dev, int target, int mode);
 static void ata_via_southbridge_fixup(device_t dev);
 static int ata_via_new_setmode(device_t dev, int target, int mode);
 static int ata_via_sata_ch_attach(device_t dev);
 static int ata_via_sata_getrev(device_t dev, int target);
 static int ata_via_sata_setmode(device_t dev, int target, int mode);
+static void ata_via_sata_reset(device_t dev);
+static int ata_via_sata_scr_read(device_t dev, int port, int reg,
+    u_int32_t *result);
+static int ata_via_sata_scr_write(device_t dev, int port, int reg,
+    u_int32_t value);
+static int ata_via_sata_status(device_t dev);
 
 /* misc defines */
 #define VIA33           0
@@ -105,6 +112,7 @@ ata_via_probe(device_t dev)
      { ATA_VIACX700,  0x00, VIA133, VIASATA, ATA_SA150, "CX700" },
      { ATA_VIAVX800,  0x00, VIA133, VIASATA, ATA_SA150, "VX800" },
      { ATA_VIAVX855,  0x00, VIA133, 0x00,    ATA_UDMA6, "VX855" },
+     { ATA_VIAVX900,  0x00, VIA133, VIASATA, ATA_SA300, "VX900" },
      { 0, 0, 0, 0, 0, 0 }};
     static struct ata_chip_id new_ids[] =
     {{ ATA_VIA6410,   0x00, 0,      0x00,    ATA_UDMA6, "6410" },
@@ -122,7 +130,9 @@ ata_via_probe(device_t dev)
 
     if (pci_get_devid(dev) == ATA_VIA82C571 ||
 	pci_get_devid(dev) == ATA_VIACX700IDE ||
-	pci_get_devid(dev) == ATA_VIASATAIDE) {
+	pci_get_devid(dev) == ATA_VIASATAIDE ||
+	pci_get_devid(dev) == ATA_VIASATAIDE2 ||
+	pci_get_devid(dev) == ATA_VIASATAIDE3) {
 	if (!(ctlr->chip = ata_find_chip(dev, ids, -99))) 
 	    return ENXIO;
     }
@@ -149,11 +159,12 @@ ata_via_chipinit(device_t dev)
 	if (ata_ahci_chipinit(dev) != ENXIO)
 	    return (0);
     }
-    /* 2 SATA without SATA registers on first channel + 1 PATA on second */
+    /* 2 SATA with "SATA registers" at PCI config space + PATA on secondary */
     if (ctlr->chip->cfg2 & VIASATA) {
 	ctlr->ch_attach = ata_via_sata_ch_attach;
 	ctlr->setmode = ata_via_sata_setmode;
 	ctlr->getrev = ata_via_sata_getrev;
+	ctlr->reset = ata_via_sata_reset;
 	return 0;
     }
     /* Legacy SATA/SATA+PATA with SATA registers in BAR(5). */
@@ -249,11 +260,13 @@ ata_via_ch_attach(device_t dev)
     ch->r_io[ATA_SERROR].offset = 0x04 + (ch->unit << ctlr->chip->cfg1);
     ch->r_io[ATA_SCONTROL].res = ctlr->r_res2;
     ch->r_io[ATA_SCONTROL].offset = 0x08 + (ch->unit << ctlr->chip->cfg1);
+    ch->hw.status = ata_via_status;
     ch->flags |= ATA_NO_SLAVE;
     ch->flags |= ATA_SATA;
+    ch->flags |= ATA_PERIODIC_POLL;
 
-    /* XXX SOS PHY hotplug handling missing in VIA chip ?? */
-    /* XXX SOS unknown how to enable PHY state change interrupt */
+    ata_sata_scr_write(ch, -1, ATA_SERROR, 0xffffffff);
+
     return 0;
 }
 
@@ -290,9 +303,20 @@ ata_via_reset(device_t dev)
 
     if ((ctlr->chip->cfg2 & VIABAR) && (ch->unit > 1))
         ata_generic_reset(dev);
-    else
+    else {
 	if (ata_sata_phy_reset(dev, -1, 1))
 	    ata_generic_reset(dev);
+	else
+	    ch->devices = 0;
+    }
+}
+
+static int
+ata_via_status(device_t dev)
+{
+
+	ata_sata_phy_check_events(dev, -1);
+	return (ata_pci_status(dev));
 }
 
 static int
@@ -349,8 +373,7 @@ ata_via_old_setmode(device_t dev, int target, int mode)
 	    piomode = mode;
 	}
 	/* Set WDMA/PIO timings */
-	if (ctlr->chip->cfg1 != VIA133)
-	    pci_write_config(parent, reg - 0x08,timings[ata_mode2idx(piomode)], 1);
+	pci_write_config(parent, reg - 0x08,timings[ata_mode2idx(piomode)], 1);
 	return (mode);
 }
 
@@ -389,18 +412,30 @@ ata_via_sata_ch_attach(device_t dev)
 
 	if (ata_pci_ch_attach(dev))
 		return ENXIO;
-	if (ch->unit == 0)
+	if (ch->unit == 0) {
+		ch->hw.status = ata_via_sata_status;
+		ch->hw.pm_read = ata_via_sata_scr_read;
+		ch->hw.pm_write = ata_via_sata_scr_write;
+		ch->flags |= ATA_PERIODIC_POLL;
 		ch->flags |= ATA_SATA;
+		ata_sata_scr_write(ch, 0, ATA_SERROR, 0xffffffff);
+		ata_sata_scr_write(ch, 1, ATA_SERROR, 0xffffffff);
+	}
 	return (0);
 }
 
 static int
 ata_via_sata_getrev(device_t dev, int target)
 {
+	device_t parent = device_get_parent(dev);
 	struct ata_channel *ch = device_get_softc(dev);
 
-	if (ch->unit == 0)
-		return (1);
+	if (ch->unit == 0) {
+		if (pci_read_config(parent, 0xa0 + target, 1) & 0x10)
+			return (2);
+		else
+			return (1);
+	}
 	return (0);
 }
 
@@ -412,6 +447,113 @@ ata_via_sata_setmode(device_t dev, int target, int mode)
 	if (ch->unit == 0)
 		return (mode);
 	return (ata_via_old_setmode(dev, target, mode));
+}
+
+static void
+ata_via_sata_reset(device_t dev)
+{
+	struct ata_channel *ch = device_get_softc(dev);
+	int devs;
+
+	if (ch->unit == 0) {
+		devs = ata_sata_phy_reset(dev, 0, 0);
+		DELAY(10000);
+		devs += ata_sata_phy_reset(dev, 1, 0);
+	} else
+		devs = 1;
+	if (devs)
+		ata_generic_reset(dev);
+	else
+		ch->devices = 0;
+}
+
+static int
+ata_via_sata_scr_read(device_t dev, int port, int reg, u_int32_t *result)
+{
+	struct ata_channel *ch;
+	device_t parent;
+	uint32_t val;
+
+	parent = device_get_parent(dev);
+	ch = device_get_softc(dev);
+	port = (port == 1) ? 1 : 0;
+	switch (reg) {
+	case ATA_SSTATUS:
+		val = pci_read_config(parent, 0xa0 + port, 1);
+		*result = val & 0x03;
+		if (*result != ATA_SS_DET_NO_DEVICE) {
+			if (val & 0x04)
+				*result |= ATA_SS_IPM_PARTIAL;
+			else if (val & 0x08)
+				*result |= ATA_SS_IPM_SLUMBER;
+			else
+				*result |= ATA_SS_IPM_ACTIVE;
+			if (val & 0x10)
+				*result |= ATA_SS_SPD_GEN2;
+			else
+				*result |= ATA_SS_SPD_GEN1;
+		}
+		break;
+	case ATA_SERROR:
+		*result = pci_read_config(parent, 0xa8 + port * 4, 4);
+		break;
+	case ATA_SCONTROL:
+		val = pci_read_config(parent, 0xa4 + port, 1);
+		*result = 0;
+		if (val & 0x01)
+			*result |= ATA_SC_DET_RESET;
+		if (val & 0x02)
+			*result |= ATA_SC_DET_DISABLE;
+		if (val & 0x04)
+			*result |= ATA_SC_IPM_DIS_PARTIAL;
+		if (val & 0x08)
+			*result |= ATA_SC_IPM_DIS_SLUMBER;
+		break;
+	default:
+		return (EINVAL);
+	}
+	return (0);
+}
+
+static int
+ata_via_sata_scr_write(device_t dev, int port, int reg, u_int32_t value)
+{
+	struct ata_channel *ch;
+	device_t parent;
+	uint32_t val;
+
+	parent = device_get_parent(dev);
+	ch = device_get_softc(dev);
+	port = (port == 1) ? 1 : 0;
+	switch (reg) {
+	case ATA_SERROR:
+		pci_write_config(parent, 0xa8 + port * 4, value, 4);
+		break;
+	case ATA_SCONTROL:
+		val = 0;
+		if (value & ATA_SC_DET_RESET)
+			val |= 0x01;
+		if (value & ATA_SC_DET_DISABLE)
+			val |= 0x02;
+		if (value & ATA_SC_IPM_DIS_PARTIAL)
+			val |= 0x04;
+		if (value & ATA_SC_IPM_DIS_SLUMBER)
+			val |= 0x08;
+		pci_write_config(parent, 0xa4 + port, val, 1);
+		break;
+	default:
+		return (EINVAL);
+	}
+	return (0);
+}
+
+static int
+ata_via_sata_status(device_t dev)
+{
+
+	ata_sata_phy_check_events(dev, 0);
+	ata_sata_phy_check_events(dev, 1);
+	return (ata_pci_status(dev));
 }
 
 ATA_DECLARE_DRIVER(ata_via);

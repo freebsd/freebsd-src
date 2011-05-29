@@ -2,6 +2,6 @@
 
 .PATH: ${.CURDIR}/../../misc
 
-CLASS=	label
+GEOM_CLASS=	label
 
 .include <bsd.lib.mk>

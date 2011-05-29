@@ -750,7 +750,7 @@ main(int argc, char **argv)
 	if (argc < 3)
 		usage();
 
-	if ((i = modfind("g_bde")) < 0) {
+	if (modfind("g_bde") < 0) {
 		/* need to load the gbde module */
 		if (kldload(GBDEMOD) < 0 || modfind("g_bde") < 0)
 			err(1, GBDEMOD ": Kernel module not available");

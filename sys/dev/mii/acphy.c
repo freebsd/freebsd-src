@@ -14,13 +14,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the NetBSD
- *	Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -46,11 +39,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by Manuel Bouyer.
- * 4. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -117,11 +105,17 @@ static void	acphy_reset(struct mii_softc *);
 static void	acphy_status(struct mii_softc *);
 
 static const struct mii_phydesc acphys[] = {
-	MII_PHY_DESC(xxALTIMA, AC101),
-	MII_PHY_DESC(xxALTIMA, AC101L),
+	MII_PHY_DESC(ALTIMA, AC101),
+	MII_PHY_DESC(ALTIMA, AC101L),
 	/* XXX This is reported to work, but it's not from any data sheet. */
-	MII_PHY_DESC(xxALTIMA, ACXXX),
+	MII_PHY_DESC(ALTIMA, ACXXX),
 	MII_PHY_END
+};
+
+static const struct mii_phy_funcs acphy_funcs = {
+	acphy_service,
+	acphy_status,
+	acphy_reset
 };
 
 static int
@@ -135,29 +129,17 @@ static int
 acphy_attach(device_t dev)
 {
 	struct mii_softc *sc;
-	struct mii_attach_args *ma;
-	struct mii_data *mii;
 
 	sc = device_get_softc(dev);
-	ma = device_get_ivars(dev);
-	sc->mii_dev = device_get_parent(dev);
-	mii = device_get_softc(sc->mii_dev);
-	LIST_INSERT_HEAD(&mii->mii_phys, sc, mii_list);
 
-	sc->mii_inst = mii->mii_instance;
-	sc->mii_phy = ma->mii_phyno;
-	sc->mii_service = acphy_service;
-	sc->mii_pdata = mii;
+	mii_phy_dev_attach(dev, MIIF_NOMANPAUSE, &acphy_funcs, 0);
 
-	mii->mii_instance++;
+	PHY_RESET(sc);
 
-	acphy_reset(sc);
-
-	sc->mii_capabilities =
-	    PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
+	sc->mii_capabilities = PHY_READ(sc, MII_BMSR) & sc->mii_capmask;
 	device_printf(dev, " ");
 
-#define	ADD(m, c)	ifmedia_add(&mii->mii_media, (m), (c), NULL)
+#define	ADD(m, c)	ifmedia_add(&sc->mii_pdata->mii_media, (m), (c), NULL)
 	if ((PHY_READ(sc, MII_ACPHY_MCTL) & AC_MCTL_FX_SEL) != 0) {
 		sc->mii_flags |= MIIF_HAVEFIBER;
 		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_FX, 0, sc->mii_inst),
@@ -179,21 +161,7 @@ acphy_attach(device_t dev)
 static int
 acphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 {
-	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
 	int reg;
-
-	/*
-	 * If we're not selected, then do nothing, just isolate and power
-	 * down, if changing media.
-	 */
-	if (IFM_INST(ife->ifm_media) != sc->mii_inst) {
-		if (cmd == MII_MEDIACHG) {
-			reg = PHY_READ(sc, MII_BMCR);
-			PHY_WRITE(sc, MII_BMCR, reg | BMCR_ISO | BMCR_PDOWN);
-		}
-
-		return (0);
-	}
 
 	switch (cmd) {
 	case MII_POLLSTAT:
@@ -228,7 +196,7 @@ acphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 	}
 
 	/* Update the media status. */
-	acphy_status(sc);
+	PHY_STATUS(sc);
 
 	/* Callback if something changed. */
 	mii_phy_update(sc, cmd);
@@ -273,7 +241,10 @@ acphy_status(struct mii_softc *sc)
 			mii->mii_media_active |= IFM_10_T;
 
 		if (diag & AC_DIAG_DUPLEX)
-			mii->mii_media_active |= IFM_FDX;
+			mii->mii_media_active |=
+			    IFM_FDX | mii_phy_flowstatus(sc);
+		else
+			mii->mii_media_active |= IFM_HDX;
 	} else
 		mii->mii_media_active = ife->ifm_media;
 }

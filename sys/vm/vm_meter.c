@@ -54,8 +54,6 @@ __FBSDID("$FreeBSD$");
 
 struct vmmeter cnt;
 
-int maxslp = MAXSLP;
-
 SYSCTL_UINT(_vm, VM_V_FREE_MIN, v_free_min,
 	CTLFLAG_RW, &cnt.v_free_min, 0, "");
 SYSCTL_UINT(_vm, VM_V_FREE_TARGET, v_free_target,
@@ -132,15 +130,12 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 		if (p->p_flag & P_SYSTEM)
 			continue;
 		PROC_LOCK(p);
-		PROC_SLOCK(p);
 		switch (p->p_state) {
 		case PRS_NEW:
-			PROC_SUNLOCK(p);
 			PROC_UNLOCK(p);
 			continue;
 			break;
 		default:
-			PROC_SUNLOCK(p);
 			FOREACH_THREAD_IN_PROC(p, td) {
 				thread_lock(td);
 				switch (td->td_state) {
@@ -256,16 +251,12 @@ vcnt(SYSCTL_HANDLER_ARGS)
 {
 	int count = *(int *)arg1;
 	int offset = (char *)arg1 - (char *)&cnt;
-#ifdef SMP
 	int i;
 
-	for (i = 0; i < mp_ncpus; ++i) {
+	CPU_FOREACH(i) {
 		struct pcpu *pcpu = pcpu_find(i);
 		count += *(int *)((char *)&pcpu->pc_cnt + offset);
 	}
-#else
-	count += *(int *)((char *)PCPU_PTR(cnt) + offset);
-#endif
 	return (SYSCTL_OUT(req, &count, sizeof(int)));
 }
 

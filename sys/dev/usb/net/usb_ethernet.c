@@ -32,7 +32,6 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -214,19 +213,20 @@ ue_attach_post_task(struct usb_proc_msg *_task)
 		ifp->if_ioctl = uether_ioctl;
 	ifp->if_start = ue_start;
 	ifp->if_init = ue_init;
-	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
-	ifp->if_snd.ifq_drv_maxlen = IFQ_MAXLEN;
+	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
+	ifp->if_snd.ifq_drv_maxlen = ifqmaxlen;
 	IFQ_SET_READY(&ifp->if_snd);
 	ue->ue_ifp = ifp;
 
 	if (ue->ue_methods->ue_mii_upd != NULL && 
 	    ue->ue_methods->ue_mii_sts != NULL) {
 		mtx_lock(&Giant);	/* device_xxx() depends on this */
-		error = mii_phy_probe(ue->ue_dev, &ue->ue_miibus,
-		    ue_ifmedia_upd, ue->ue_methods->ue_mii_sts);
+		error = mii_attach(ue->ue_dev, &ue->ue_miibus, ifp,
+		    ue_ifmedia_upd, ue->ue_methods->ue_mii_sts,
+		    BMSR_DEFCAPMASK, MII_PHY_ANY, MII_OFFSET_ANY, 0);
 		mtx_unlock(&Giant);
 		if (error) {
-			device_printf(ue->ue_dev, "MII without any PHY\n");
+			device_printf(ue->ue_dev, "attaching PHYs failed\n");
 			goto error;
 		}
 	}
@@ -240,7 +240,7 @@ ue_attach_post_task(struct usb_proc_msg *_task)
 	    OID_AUTO, num, CTLFLAG_RD, NULL, "");
 	SYSCTL_ADD_PROC(&ue->ue_sysctl_ctx,
 	    SYSCTL_CHILDREN(ue->ue_sysctl_oid), OID_AUTO,
-	    "%parent", CTLFLAG_RD, ue, 0,
+	    "%parent", CTLTYPE_STRING | CTLFLAG_RD, ue, 0,
 	    ue_sysctl_parent, "A", "parent device");
 
 	UE_LOCK(ue);
@@ -558,7 +558,7 @@ uether_rxbuf(struct usb_ether *ue, struct usb_page_cache *pc,
 
 	m = uether_newbuf();
 	if (m == NULL) {
-		ifp->if_ierrors++;
+		ifp->if_iqdrops++;
 		return (ENOMEM);
 	}
 

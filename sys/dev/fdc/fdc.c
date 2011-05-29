@@ -1261,7 +1261,7 @@ fdmisccmd(struct fd_data *fd, u_int cmd, void *data)
 
 	/*
 	 * Set up a bio request for fdstrategy().  bio_offset is faked
-	 * so that fdstrategy() will seek to the the requested
+	 * so that fdstrategy() will seek to the requested
 	 * cylinder, and use the desired head.
 	 */
 	bp->bio_cmd = cmd;

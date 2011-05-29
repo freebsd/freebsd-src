@@ -1,3 +1,121 @@
+2007-08-31  Jakub Jelinek  <jakub@redhat.com>
+
+	PR rtl-optimization/33148
+	* simplify-rtx.c (simplify_unary_operation_1): Only optimize
+	(neg (lt X 0)) if X has scalar int mode.
+
+	PR debug/32914
+	* dwarf2out.c (rtl_for_decl_init): If vector decl has CONSTRUCTOR
+	initializer, use build_vector_from_ctor if possible to create
+	VECTOR_CST out of it.  If vector initializer is not VECTOR_CST
+	even after this, return NULL.
+
+2007-08-27  Jason Merrill  <jason@redhat.com>
+
+	PR c++/31337
+	* gimplify.c (gimplify_modify_expr): Discard the assignment of 
+	zero-sized types after calling gimplify_modify_expr_rhs.
+
+2007-08-24  Jakub Jelinek  <jakub@redhat.com>
+
+	PR debug/32610
+	* dwarf2out.c (gen_decl_die): Don't call
+	gen_tagged_type_instantiation_die if decl doesn't have tagged type.
+
+2007-08-24  Richard Guenther  <rguenther@suse.de>
+
+	* expr.c (get_inner_reference): Remove unused variable.
+
+2007-08-24  Richard Guenther  <rguenther@suse.de>
+
+	* expr.c (get_inner_reference): Do computation of bitoffset
+	from offset in a way we can detect overflow reliably.
+
+2007-08-22  Richard Guenther  <rguenther@suse.de>
+
+	PR middle-end/32563
+	* tree.c (host_integerp): Treat sizetype as signed as it is
+	sign-extended.
+
+2007-08-20  Adam Nemet  <anemet@caviumnetworks.com>
+
+	* config/mips/predicates.md (const_call_insn_operand): Invoke
+	SYMBOL_REF_LONG_CALL_P only on SYMBOL_REFs.
+
+2007-08-17  Chen liqin  <liqin@sunnorth.com.cn>
+
+        * config/score/score.md : Update pattern tablejump.
+        * config/score/score.c : Update score_initialize_trampoline 
+        function.
+        * config/score/score.h (TRAMPOLINE_TEMPLATE): Added macro.
+        (TRAMPOLINE_INSNS, TRAMPOLINE_SIZE) Update macro.
+        * doc/contrib.texi: Add my entry.
+
+2007-08-02  Andreas Krebbel  <krebbel1@de.ibm.com>
+
+	* config/s390/s390.md ("*xordi3_cconly"): Change xr to xg.
+
+2007-08-01  Andreas Krebbel  <krebbel1@de.ibm.com>
+
+	* config/s390/s390.md (TF in GPR splitter): Change operand_subword
+	parameter to TFmode.
+
+2007-07-30  Mark Mitchell  <mark@codesourcery.com>
+
+	* BASE-VER: Bump.
+	* DEV-PHASE: Mark as prerelease.
+
+2007-07-25  Steve Ellcey  <sje@cup.hp.com>
+
+	PR target/32218
+	* tree-vect-patterns.c (vect_pattern_recog_1): Check for valid type.
+
+2007-07-25  Dorit Nuzman  <dorit@il.ibm.com>
+	    Devang Patel  <dpatel@apple.com>
+
+	PR tree-optimization/25413
+	* targhooks.c (default_builtin_vector_alignment_reachable): New.
+	* targhooks.h (default_builtin_vector_alignment_reachable): New.
+	* tree.h (contains_packed_reference): New.
+	* expr.c (contains_packed_reference): New.
+	* tree-vect-analyze.c (vector_alignment_reachable_p): New.
+	(vect_enhance_data_refs_alignment): Call
+	vector_alignment_reachable_p.
+	* target.h (vector_alignment_reachable): New builtin.
+	* target-def.h (TARGET_VECTOR_ALIGNMENT_REACHABLE): New.
+	* config/rs6000/rs6000.c (rs6000_vector_alignment_reachable): New.
+	(TARGET_VECTOR_ALIGNMENT_REACHABLE): Define.
+
+2007-07-24  Richard Guenther  <rguenther@suse.de>
+
+	Backport from mainline:
+	2007-07-16  Richard Guenther  <rguenther@suse.de>
+		    Uros Bizjak  <ubizjak@gmail.com>
+
+	* tree-if-conv.c (find_phi_replacement_condition): Unshare "*cond"
+	before forcing it to gimple operand.
+
+2007-07-24  Richard Guenther  <rguenther@suse.de>
+
+	PR tree-optimization/32723
+	Backport from mainline:
+	2007-03-09  Daniel Berlin  <dberlin@dberlin.org>
+
+        * tree-ssa-structalias.c (shared_bitmap_info_t): New structure.
+        (shared_bitmap_table): New variable.
+        (shared_bitmap_hash): New function.
+        (shared_bitmap_eq): Ditto
+        (shared_bitmap_lookup): Ditto.
+        (shared_bitmap_add): Ditto.
+        (find_what_p_points_to): Rewrite to use shared bitmap hashtable.
+        (init_alias_vars): Init shared bitmap hashtable.
+        (delete_points_to_sets): Delete shared bitmap hashtable.
+
+2007-07-23  Bernd Schmidt  <bernd.schmidt@analog.com>
+
+	* reload1.c (choose_reload_regs): Set reload_spill_index for regs
+	chosen during find_reloads.
+
 2007-07-19  Release Manager
 
 	* GCC 4.2.1 released.

@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2010-2011 Alexander V. Chernikov <melifaro@ipfw.ru>
  * Copyright (c) 2004-2005 Gleb Smirnoff <glebius@FreeBSD.org>
  * Copyright (c) 2001-2003 Roman V. Palagin <romanp@unshadow.net>
  * All rights reserved.
@@ -30,6 +31,9 @@
 static const char rcs_id[] =
     "@(#) $FreeBSD$";
 
+#include "opt_inet6.h"
+#include "opt_route.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -41,6 +45,7 @@ static const char rcs_id[] =
 
 #include <net/if.h>
 #include <net/ethernet.h>
+#include <net/route.h>
 #include <net/if_arp.h>
 #include <net/if_var.h>
 #include <net/if_vlan_var.h>
@@ -48,13 +53,16 @@ static const char rcs_id[] =
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
+#include <netinet/ip6.h>
 #include <netinet/tcp.h>
 #include <netinet/udp.h>
+#include <netinet/sctp.h>
 
 #include <netgraph/ng_message.h>
 #include <netgraph/ng_parse.h>
 #include <netgraph/netgraph.h>
 #include <netgraph/netflow/netflow.h>
+#include <netgraph/netflow/netflow_v9.h>
 #include <netgraph/netflow/ng_netflow.h>
 
 /* Netgraph methods */
@@ -114,6 +122,22 @@ static const struct ng_parse_type ng_netflow_setconfig_type = {
 	&ng_netflow_setconfig_type_fields
 };
 
+/* Parse type for ng_netflow_settemplate */
+static const struct ng_parse_struct_field ng_netflow_settemplate_type_fields[]
+	= NG_NETFLOW_SETTEMPLATE_TYPE;
+static const struct ng_parse_type ng_netflow_settemplate_type = {
+	&ng_parse_struct_type,
+	&ng_netflow_settemplate_type_fields
+};
+
+/* Parse type for ng_netflow_setmtu */
+static const struct ng_parse_struct_field ng_netflow_setmtu_type_fields[]
+	= NG_NETFLOW_SETMTU_TYPE;
+static const struct ng_parse_type ng_netflow_setmtu_type = {
+	&ng_parse_struct_type,
+	&ng_netflow_setmtu_type_fields
+};
+
 /* List of commands and how to convert arguments to/from ASCII */
 static const struct ng_cmdlist ng_netflow_cmds[] = {
        {
@@ -158,6 +182,20 @@ static const struct ng_cmdlist ng_netflow_cmds[] = {
 	&ng_netflow_setconfig_type,
 	NULL
        },
+       {
+	NGM_NETFLOW_COOKIE,
+	NGM_NETFLOW_SETTEMPLATE,
+	"settemplate",
+	&ng_netflow_settemplate_type,
+	NULL
+       },
+       {
+	NGM_NETFLOW_COOKIE,
+	NGM_NETFLOW_SETMTU,
+	"setmtu",
+	&ng_netflow_setmtu_type,
+	NULL
+       },
        { 0 }
 };
 
@@ -182,13 +220,10 @@ static int
 ng_netflow_constructor(node_p node)
 {
 	priv_p priv;
-	int error = 0, i;
+	int i;
 
 	/* Initialize private data */
-	priv = malloc(sizeof(*priv), M_NETGRAPH, M_NOWAIT);
-	if (priv == NULL)
-		return (ENOMEM);
-	bzero(priv, sizeof(*priv));
+	priv = malloc(sizeof(*priv), M_NETGRAPH, M_WAITOK | M_ZERO);
 
 	/* Make node and its data point at each other */
 	NG_NODE_SET_PRIVATE(node, priv);
@@ -206,8 +241,7 @@ ng_netflow_constructor(node_p node)
 	callout_init(&priv->exp_callout, CALLOUT_MPSAFE);
 
 	/* Allocate memory and set up flow cache */
-	if ((error = ng_netflow_cache_init(priv)))
-		return (error);
+	ng_netflow_cache_init(priv);
 
 	return (0);
 }
@@ -284,16 +318,21 @@ ng_netflow_newhook(node_p node, hook_p hook, const char *name)
 		if (priv->export != NULL)
 			return (EISCONN);
 
+		/* Netflow version 5 supports 32-bit counters only */
+		if (CNTR_MAX == UINT64_MAX)
+			return (EINVAL);
+
 		priv->export = hook;
 
-#if 0	/* TODO: profile & test first */
-		/*
-		 * We send export dgrams in interrupt handlers and in
-		 * callout threads. We'd better queue data for later
-		 * netgraph ISR processing.
-		 */
-		NG_HOOK_FORCE_QUEUE(NG_HOOK_PEER(hook));
-#endif
+		/* Exporter is ready. Let's schedule expiry. */
+		callout_reset(&priv->exp_callout, (1*hz), &ng_netflow_expire,
+		    (void *)priv);
+	} else if (strcmp(name, NG_NETFLOW_HOOK_EXPORT9) == 0) {
+
+		if (priv->export9 != NULL)
+			return (EISCONN);
+
+		priv->export9 = hook;
 
 		/* Exporter is ready. Let's schedule expiry. */
 		callout_reset(&priv->exp_callout, (1*hz), &ng_netflow_expire,
@@ -434,6 +473,35 @@ ng_netflow_rcvmsg (node_p node, item_p item, hook_p lasthook)
 	
 			break;
 		}
+		case NGM_NETFLOW_SETTEMPLATE:
+		{
+			struct ng_netflow_settemplate *set;
+
+			if (msg->header.arglen != sizeof(struct ng_netflow_settemplate))
+				ERROUT(EINVAL);
+
+			set = (struct ng_netflow_settemplate *)msg->data;
+
+			priv->templ_packets = set->packets;
+			priv->templ_time = set->time;
+
+			break;
+		}
+		case NGM_NETFLOW_SETMTU:
+		{
+			struct ng_netflow_setmtu *set;
+
+			if (msg->header.arglen != sizeof(struct ng_netflow_setmtu))
+				ERROUT(EINVAL);
+
+			set = (struct ng_netflow_setmtu *)msg->data;
+			if ((set->mtu < MIN_MTU) || (set->mtu > MAX_MTU))
+				ERROUT(EINVAL);
+
+			priv->mtu = set->mtu;
+
+			break;
+		}
 		case NGM_NETFLOW_SHOW:
 		{
 			uint32_t *last;
@@ -481,14 +549,19 @@ ng_netflow_rcvdata (hook_p hook, item_p item)
 	const priv_p priv = NG_NODE_PRIVATE(node);
 	const iface_p iface = NG_HOOK_PRIVATE(hook);
 	hook_p out;
-	struct mbuf *m = NULL;
-	struct ip *ip;
+	struct mbuf *m = NULL, *m_old = NULL;
+	struct ip *ip = NULL;
+	struct ip6_hdr *ip6 = NULL;
 	struct m_tag *mtag;
-	int pullup_len = 0;
-	int error = 0, bypass = 0;
+	int pullup_len = 0, off;
+	uint8_t upper_proto = 0, is_frag = 0;
+	int error = 0, bypass = 0, acct = 0;
 	unsigned int src_if_index;
+	caddr_t upper_ptr = NULL;
+	fib_export_p fe;	
+	uint32_t fib;
 
-	if (hook == priv->export) {
+	if ((hook == priv->export) || (hook == priv->export9)) {
 		/*
 		 * Data arrived on export hook.
 		 * This must not happen.
@@ -505,9 +578,9 @@ ng_netflow_rcvdata (hook_p hook, item_p item)
 		if ((iface->info.conf & NG_NETFLOW_CONF_EGRESS) == 0)
 			bypass = 1;
 		out = iface->hook;
-	} else 
+	} else
 		ERROUT(EINVAL);
-	
+
 	if ((!bypass) &&
 	    (iface->info.conf & (NG_NETFLOW_CONF_ONCE | NG_NETFLOW_CONF_THISONCE))) {
 		mtag = m_tag_locate(NGI_M(item), MTAG_NETFLOW,
@@ -541,6 +614,7 @@ ng_netflow_rcvdata (hook_p hook, item_p item)
 	}
 
 	NGI_GET_M(item, m);
+	m_old = m;
 
 	/* Increase counters. */
 	iface->info.ifinfo_packets++;
@@ -558,7 +632,8 @@ ng_netflow_rcvdata (hook_p hook, item_p item)
 
 #define	M_CHECK(length)	do {					\
 	pullup_len += length;					\
-	if ((m)->m_pkthdr.len < (pullup_len)) {			\
+	if (((m)->m_pkthdr.len < (pullup_len)) ||		\
+	   ((pullup_len) > MHLEN)) {				\
 		error = EINVAL;					\
 		goto bypass;					\
 	} 							\
@@ -586,6 +661,17 @@ ng_netflow_rcvdata (hook_p hook, item_p item)
 			eh = mtod(m, struct ether_header *);
 			ip = (struct ip *)(eh + 1);
 			break;
+#ifdef INET6
+		case ETHERTYPE_IPV6:
+			/*
+			 * m_pullup() called by M_CHECK() pullups
+			 * kern.ipc.max_protohdr (default 60 bytes) which is enough
+			 */
+			M_CHECK(sizeof(struct ip6_hdr));
+			eh = mtod(m, struct ether_header *);
+			ip6 = (struct ip6_hdr *)(eh + 1);
+			break;
+#endif
 		case ETHERTYPE_VLAN:
 		    {
 			struct ether_vlan_header *evh;
@@ -593,10 +679,18 @@ ng_netflow_rcvdata (hook_p hook, item_p item)
 			M_CHECK(sizeof(struct ether_vlan_header) -
 			    sizeof(struct ether_header));
 			evh = mtod(m, struct ether_vlan_header *);
-			if (ntohs(evh->evl_proto) == ETHERTYPE_IP) {
+			etype = ntohs(evh->evl_proto);
+
+			if (etype == ETHERTYPE_IP) {
 				M_CHECK(sizeof(struct ip));
 				ip = (struct ip *)(evh + 1);
 				break;
+#ifdef INET6
+			} else if (etype == ETHERTYPE_IPV6) {
+				M_CHECK(sizeof(struct ip6_hdr));
+				ip6 = (struct ip6_hdr *)(evh + 1);
+				break;
+#endif
 			}
 		    }
 		default:
@@ -607,19 +701,41 @@ ng_netflow_rcvdata (hook_p hook, item_p item)
 	case DLT_RAW:		/* IP packets */
 		M_CHECK(sizeof(struct ip));
 		ip = mtod(m, struct ip *);
+#ifdef INET6
+		/* If INET6 is not defined IPv6 packets will be discarded in ng_netflow_flow_add() */
+		if (ip->ip_v == IP6VERSION) {
+			/* IPv6 packet */
+			ip = NULL;
+			M_CHECK(sizeof(struct ip6_hdr));
+			ip6 = mtod(m, struct ip6_hdr *);
+		}
+#endif
 		break;
 	default:
 		goto bypass;
 		break;
 	}
 
-	if ((ip->ip_off & htons(IP_OFFMASK)) == 0) {
+	off = pullup_len;
+
+	if ((ip != NULL) && ((ip->ip_off & htons(IP_OFFMASK)) == 0)) {
+		if ((ip->ip_v != IPVERSION) ||
+		    ((ip->ip_hl << 2) < sizeof(struct ip)))
+			goto bypass;
 		/*
-		 * In case of IP header with options, we haven't pulled
+		 * In case of IPv4 header with options, we haven't pulled
 		 * up enough, yet.
 		 */
-		pullup_len += (ip->ip_hl << 2) - sizeof(struct ip);
+		M_CHECK((ip->ip_hl << 2) - sizeof(struct ip));
 
+		/* Save upper layer offset and proto */
+		off = pullup_len;
+		upper_proto = ip->ip_p;
+
+		/*
+		 * XXX: in case of wrong upper layer header we will forward this packet
+		 * but skip this record in netflow
+		 */
 		switch (ip->ip_p) {
 		case IPPROTO_TCP:
 			M_CHECK(sizeof(struct tcphdr));
@@ -627,40 +743,152 @@ ng_netflow_rcvdata (hook_p hook, item_p item)
 		case IPPROTO_UDP:
 			M_CHECK(sizeof(struct udphdr));
 			break;
-		}
-	}
-
-	switch (iface->info.ifinfo_dlt) {
-	case DLT_EN10MB:
-	    {
-		struct ether_header *eh;
-
-		eh = mtod(m, struct ether_header *);
-		switch (ntohs(eh->ether_type)) {
-		case ETHERTYPE_IP:
-			ip = (struct ip *)(eh + 1);
+		case IPPROTO_SCTP:
+			M_CHECK(sizeof(struct sctphdr));
 			break;
-		case ETHERTYPE_VLAN:
-		    {
-			struct ether_vlan_header *evh;
-
-			evh = mtod(m, struct ether_vlan_header *);
-			ip = (struct ip *)(evh + 1);
-			break;
-		     }
-		default:
-			panic("ng_netflow entered deadcode");
 		}
-		break;
-	     }
-	case DLT_RAW:
-		ip = mtod(m, struct ip *);
-		break;
-	default:
-		panic("ng_netflow entered deadcode");
-	}
+	} else if (ip != NULL) {
+		/* Nothing to save except upper layer proto, since this is packet fragment */
+		is_frag = 1;
+		upper_proto = ip->ip_p;
+		if ((ip->ip_v != IPVERSION) ||
+		    ((ip->ip_hl << 2) < sizeof(struct ip)))
+			goto bypass;
+#ifdef INET6
+	} else if (ip6 != NULL) {
+		/* Check if we can export */
+		if (priv->export9 == NULL)
+			goto bypass;
 
+		/* Loop thru IPv6 extended headers to get upper layer header / frag */
+		int cur = ip6->ip6_nxt, hdr_off = 0;
+		struct ip6_ext *ip6e;
+		struct ip6_frag *ip6f;
+
+		/* Save upper layer info */
+		off = pullup_len;
+		upper_proto = cur;
+
+		if ((ip6->ip6_vfc & IPV6_VERSION_MASK) != IPV6_VERSION)
+			goto bypass;
+
+		while (42) {
+			switch (cur) {
+			/*
+			 * Same as in IPv4, we can forward 'bad' packet without accounting
+			 */
+			case IPPROTO_TCP:
+				M_CHECK(sizeof(struct tcphdr));
+				goto loopend;
+			case IPPROTO_UDP:
+				M_CHECK(sizeof(struct udphdr));
+				goto loopend;
+			case IPPROTO_SCTP:
+				M_CHECK(sizeof(struct sctphdr));
+				goto loopend;
+
+			/* Loop until 'real' upper layer headers */
+			case IPPROTO_HOPOPTS:
+			case IPPROTO_ROUTING:
+			case IPPROTO_DSTOPTS:
+				M_CHECK(sizeof(struct ip6_ext));
+				ip6e = (struct ip6_ext *)(mtod(m, caddr_t) + off);
+				upper_proto = ip6e->ip6e_nxt;
+				hdr_off = (ip6e->ip6e_len + 1) << 3;
+				break;
+
+			/* RFC4302, can be before DSTOPTS */
+			case IPPROTO_AH:
+				M_CHECK(sizeof(struct ip6_ext));
+				ip6e = (struct ip6_ext *)(mtod(m, caddr_t) + off);
+				upper_proto = ip6e->ip6e_nxt;
+				hdr_off = (ip6e->ip6e_len + 2) << 2;
+				break;
+
+			case IPPROTO_FRAGMENT:
+				M_CHECK(sizeof(struct ip6_frag));
+				ip6f = (struct ip6_frag *)(mtod(m, caddr_t) + off);
+				upper_proto = ip6f->ip6f_nxt;
+				hdr_off = sizeof(struct ip6_frag);
+				off += hdr_off;
+				is_frag = 1;
+				goto loopend;
+
+#if 0				
+			case IPPROTO_NONE:
+				goto loopend;
+#endif
+			/* Any unknow header (new extension or IPv6/IPv4 header for tunnels) */
+			default:
+				goto loopend;
+			}
+
+			off += hdr_off;
+			cur = upper_proto;
+		}
+#endif
+	}
 #undef	M_CHECK
+
+#ifdef INET6
+loopend:
+#endif
+	/* Just in case of real reallocation in M_CHECK() / m_pullup() */
+	if (m != m_old) {
+		atomic_fetchadd_32(&priv->info.nfinfo_realloc_mbuf, 1);
+		ip = NULL;
+		ip6 = NULL;
+		switch (iface->info.ifinfo_dlt) {
+		case DLT_EN10MB:	/* Ethernet */
+		    {
+			struct ether_header *eh;
+	
+			eh = mtod(m, struct ether_header *);
+			switch (ntohs(eh->ether_type)) {
+			case ETHERTYPE_IP:
+				ip = (struct ip *)(eh + 1);
+				break;
+#ifdef INET6
+			case ETHERTYPE_IPV6:
+				ip6 = (struct ip6_hdr *)(eh + 1);
+				break;
+#endif
+			case ETHERTYPE_VLAN:
+			    {
+				struct ether_vlan_header *evh;
+	
+				evh = mtod(m, struct ether_vlan_header *);
+				if (ntohs(evh->evl_proto) == ETHERTYPE_IP) {
+					ip = (struct ip *)(evh + 1);
+					break;
+#ifdef INET6
+				} else if (ntohs(evh->evl_proto) == ETHERTYPE_IPV6) {
+					ip6 = (struct ip6_hdr *)(evh + 1);
+					break;
+#endif					
+				}
+			    }
+			default:
+				panic("ng_netflow entered deadcode");
+			}
+			break;
+		    }
+		case DLT_RAW:		/* IP packets */
+			ip = mtod(m, struct ip *);
+#ifdef INET6			
+			if (ip->ip_v == IP6VERSION) {
+				/* IPv6 packet */
+				ip = NULL;
+				ip6 = mtod(m, struct ip6_hdr *);
+			}
+#endif			
+ 			break;
+ 		default:
+ 			panic("ng_netflow entered deadcode");
+ 		}
+ 	}
+
+	upper_ptr = (caddr_t)(mtod(m, caddr_t) + off);
 
 	/* Determine packet input interface. Prefer configured. */
 	src_if_index = 0;
@@ -669,11 +897,47 @@ ng_netflow_rcvdata (hook_p hook, item_p item)
 			src_if_index = m->m_pkthdr.rcvif->if_index;
 	} else
 		src_if_index = iface->info.ifinfo_index;
+	
+	/* Check packet FIB */
+	fib = M_GETFIB(m);
+	if (fib >= RT_NUMFIBS) {
+		CTR2(KTR_NET, "ng_netflow_rcvdata(): packet fib %d is out of range of available fibs: 0 .. %d", fib, RT_NUMFIBS);
+		goto bypass;
+	}
 
-	error = ng_netflow_flow_add(priv, ip, src_if_index);
+	if ((fe = priv_to_fib(priv, fib)) == NULL) {
+		/* Setup new FIB */
+		if (ng_netflow_fib_init(priv, fib) != 0) {
+			/* malloc() failed */
+			goto bypass;
+		}
 
+		fe = priv_to_fib(priv, fib);
+	}
+
+	if (ip != NULL)
+		error = ng_netflow_flow_add(priv, fe, ip, upper_ptr, upper_proto, is_frag, src_if_index);
+#ifdef INET6		
+	else if (ip6 != NULL)
+		error = ng_netflow_flow6_add(priv, fe, ip6, upper_ptr, upper_proto, is_frag, src_if_index);
+#endif
+	else
+		goto bypass;
+	
+	acct = 1;
 bypass:
 	if (out != NULL) {
+		if (acct == 0) {
+			/* Accounting failure */
+			if (ip != NULL) {
+				atomic_fetchadd_32(&priv->info.nfinfo_spackets, 1);
+				priv->info.nfinfo_sbytes += m_length(m, NULL);
+			} else if (ip6 != NULL) {
+				atomic_fetchadd_32(&priv->info.nfinfo_spackets6, 1);
+				priv->info.nfinfo_sbytes6 += m_length(m, NULL);
+			}
+		}
+
 		/* XXX: error gets overwritten here */
 		NG_FWD_NEW_DATA(error, item, out, m);
 		return (error);
@@ -730,8 +994,15 @@ ng_netflow_disconnect(hook_p hook)
 
 	/* if export hook disconnected stop running expire(). */
 	if (hook == priv->export) {
-		callout_drain(&priv->exp_callout);
+		if (priv->export9 == NULL)
+			callout_drain(&priv->exp_callout);
 		priv->export = NULL;
+	}
+
+	if (hook == priv->export9) {
+		if (priv->export == NULL)
+			callout_drain(&priv->exp_callout);
+		priv->export9 = NULL;
 	}
 
 	/* Removal of the last link destroys the node. */

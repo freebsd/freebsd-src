@@ -237,8 +237,10 @@ mxge_lro_rx(struct mxge_slice_state *ss, struct mbuf *m_head, uint32_t csum)
 		    lro->dest_ip == ip->ip_dst.s_addr) {
 			/* Try to append it */
 
-			if (__predict_false(seq != lro->next_seq)) {
-				/* out of order packet */
+			if (__predict_false(seq != lro->next_seq ||
+				    (tcp_data_len == 0 &&
+				     lro->ack_seq == tcp->th_ack))) {
+				/* out of order packet or dup ack */
 				SLIST_REMOVE(&ss->lro_active, lro,
 					     lro_entry, next);
 				mxge_lro_flush(ss, lro);

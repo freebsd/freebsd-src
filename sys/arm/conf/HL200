@@ -95,6 +95,7 @@ device		icee
 
 device		bpf
 # USB support
+options 	USB_DEBUG	# enable debug msgs
 device		ohci		# OHCI localbus->USB interface
 device		usb		# USB Bus (required)
 #device		udbp		# USB Double Bulk Pipe devices

@@ -15,6 +15,11 @@ CFLAGS+= -DNDEBUG
 NO_WERROR=
 .endif
 
+# Enable CTF conversion on request.
+.if defined(WITH_CTF)
+.undef NO_CTF
+.endif
+
 .if defined(DEBUG_FLAGS)
 CFLAGS+=${DEBUG_FLAGS}
 CXXFLAGS+=${DEBUG_FLAGS}
@@ -43,27 +48,21 @@ PROG=	${PROG_CXX}
 .if defined(PROG)
 .if defined(SRCS)
 
-# If there are Objective C sources, link with Objective C libraries.
-.if !empty(SRCS:M*.m)
-.if defined(OBJCLIBS)
-LDADD+=	${OBJCLIBS}
-.else
-DPADD+=	${LIBOBJC} ${LIBPTHREAD}
-LDADD+=	-lobjc -lpthread
-.endif
-.endif
-
 OBJS+=  ${SRCS:N*.h:R:S/$/.o/g}
 
+.if target(beforelinking)
+${PROG}: ${OBJS} beforelinking
+.else
 ${PROG}: ${OBJS}
+.endif
 .if defined(PROG_CXX)
 	${CXX} ${CXXFLAGS} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDADD}
 .else
 	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDADD}
 .endif
-.if defined(CTFMERGE)
-	${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${OBJS}
-.endif
+	@[ -z "${CTFMERGE}" -o -n "${NO_CTF}" ] || \
+		(${ECHO} ${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${OBJS} && \
+		${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${OBJS})
 
 .else	# !defined(SRCS)
 
@@ -81,15 +80,19 @@ SRCS=	${PROG}.c
 # - it's useful to keep objects around for crunching.
 OBJS=	${PROG}.o
 
+.if target(beforelinking)
+${PROG}: ${OBJS} beforelinking
+.else
 ${PROG}: ${OBJS}
+.endif
 .if defined(PROG_CXX)
 	${CXX} ${CXXFLAGS} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDADD}
 .else
 	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDADD}
 .endif
-.if defined(CTFMERGE)
-	${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${OBJS}
-.endif
+	@[ -z "${CTFMERGE}" -o -n "${NO_CTF}" ] || \
+		(${ECHO} ${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${OBJS} && \
+		${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${OBJS})
 .endif
 
 .endif

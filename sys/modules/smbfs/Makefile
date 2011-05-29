@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 .PATH:	${.CURDIR}/../../crypto/des \
-	${.CURDIR}/../../crypto/des/arch/${MACHINE_ARCH} \
+	${.CURDIR}/../../crypto/des/arch/${MACHINE_CPUARCH} \
 	${.CURDIR}/../../kern \
 	${.CURDIR}/../../libkern \
 	${.CURDIR}/../../netsmb \
@@ -21,7 +21,7 @@ SRCS=	vnode_if.h \
 
 # NETSMBCRYPTO
 SRCS+=	des_ecb.c des_setkey.c
-.if ${MACHINE_ARCH} == "i386"
+.if ${MACHINE_CPUARCH} == "i386"
 SRCS+=	des_enc.S
 .else
 SRCS+=	des_enc.c

@@ -31,6 +31,12 @@
 #define _MACHINE_IA64_CPU_H_
 
 /*
+ * Local Interrupt ID.
+ */
+#define	IA64_LID_GET_SAPIC_ID(x)	((u_int)((x) >> 16) & 0xffff)
+#define	IA64_LID_SET_SAPIC_ID(x)	((u_int)((x) & 0xffff) << 16)
+
+/*
  * Definition of DCR bits.
  */
 #define	IA64_DCR_PP		0x0000000000000001
@@ -192,13 +198,13 @@ ia64_mf_a(void)
  * Flush Cache.
  */
 static __inline void
-ia64_fc(u_int64_t va)
+ia64_fc(uint64_t va)
 {
 	__asm __volatile("fc %0" :: "r"(va));
 }
 
 static __inline void
-ia64_fc_i(u_int64_t va)
+ia64_fc_i(uint64_t va)
 {
 	__asm __volatile("fc.i %0" :: "r"(va));
 }
@@ -215,10 +221,10 @@ ia64_sync_i(void)
 /*
  * Calculate address in VHPT for va.
  */
-static __inline u_int64_t
-ia64_thash(u_int64_t va)
+static __inline uint64_t
+ia64_thash(uint64_t va)
 {
-	u_int64_t result;
+	uint64_t result;
 	__asm __volatile("thash %0=%1" : "=r" (result) : "r" (va));
 	return result;
 }
@@ -226,10 +232,10 @@ ia64_thash(u_int64_t va)
 /*
  * Calculate VHPT tag for va.
  */
-static __inline u_int64_t
-ia64_ttag(u_int64_t va)
+static __inline uint64_t
+ia64_ttag(uint64_t va)
 {
-	u_int64_t result;
+	uint64_t result;
 	__asm __volatile("ttag %0=%1" : "=r" (result) : "r" (va));
 	return result;
 }
@@ -237,10 +243,10 @@ ia64_ttag(u_int64_t va)
 /*
  * Convert virtual address to physical.
  */
-static __inline u_int64_t
-ia64_tpa(u_int64_t va)
+static __inline uint64_t
+ia64_tpa(uint64_t va)
 {
-	u_int64_t result;
+	uint64_t result;
 	__asm __volatile("tpa %0=%1" : "=r" (result) : "r" (va));
 	return result;
 }
@@ -249,7 +255,7 @@ ia64_tpa(u_int64_t va)
  * Generate a ptc.e instruction.
  */
 static __inline void
-ia64_ptc_e(u_int64_t v)
+ia64_ptc_e(uint64_t v)
 {
 	__asm __volatile("ptc.e %0;; srlz.i;;" :: "r"(v));
 }
@@ -258,7 +264,7 @@ ia64_ptc_e(u_int64_t v)
  * Generate a ptc.g instruction.
  */
 static __inline void
-ia64_ptc_g(u_int64_t va, u_int64_t log2size)
+ia64_ptc_g(uint64_t va, uint64_t log2size)
 {
 	__asm __volatile("ptc.g %0,%1;; srlz.i;;" :: "r"(va), "r"(log2size));
 }
@@ -267,7 +273,7 @@ ia64_ptc_g(u_int64_t va, u_int64_t log2size)
  * Generate a ptc.ga instruction.
  */
 static __inline void
-ia64_ptc_ga(u_int64_t va, u_int64_t log2size)
+ia64_ptc_ga(uint64_t va, uint64_t log2size)
 {
 	__asm __volatile("ptc.ga %0,%1;; srlz.i;;" :: "r"(va), "r"(log2size));
 }
@@ -276,7 +282,7 @@ ia64_ptc_ga(u_int64_t va, u_int64_t log2size)
  * Generate a ptc.l instruction.
  */
 static __inline void
-ia64_ptc_l(u_int64_t va, u_int64_t log2size)
+ia64_ptc_l(uint64_t va, uint64_t log2size)
 {
 	__asm __volatile("ptc.l %0,%1;; srlz.i;;" :: "r"(va), "r"(log2size));
 }
@@ -352,10 +358,10 @@ ia64_st8(uint64_t *p, uint64_t v)
 /*
  * Read the value of psr.
  */
-static __inline u_int64_t
+static __inline uint64_t
 ia64_get_psr(void)
 {
-	u_int64_t result;
+	uint64_t result;
 	__asm __volatile("mov %0=psr;;" : "=r" (result));
 	return result;
 }
@@ -366,16 +372,16 @@ ia64_get_psr(void)
 
 #define IA64_AR(name)						\
 								\
-static __inline u_int64_t					\
+static __inline uint64_t					\
 ia64_get_##name(void)						\
 {								\
-	u_int64_t result;					\
+	uint64_t result;					\
 	__asm __volatile("mov %0=ar." #name : "=r" (result));	\
 	return result;						\
 }								\
 								\
 static __inline void						\
-ia64_set_##name(u_int64_t v)					\
+ia64_set_##name(uint64_t v)					\
 {								\
 	__asm __volatile("mov ar." #name "=%0;;" :: "r" (v));	\
 }
@@ -422,16 +428,16 @@ IA64_AR(ec)
 
 #define IA64_CR(name)						\
 								\
-static __inline u_int64_t					\
+static __inline uint64_t					\
 ia64_get_##name(void)						\
 {								\
-	u_int64_t result;					\
+	uint64_t result;					\
 	__asm __volatile("mov %0=cr." #name : "=r" (result));	\
 	return result;						\
 }								\
 								\
 static __inline void						\
-ia64_set_##name(u_int64_t v)					\
+ia64_set_##name(uint64_t v)					\
 {								\
 	__asm __volatile("mov cr." #name "=%0;;" :: "r" (v));	\
 }
@@ -472,7 +478,7 @@ IA64_CR(lrr1)
  * Write a region register.
  */
 static __inline void
-ia64_set_rr(u_int64_t rrbase, u_int64_t v)
+ia64_set_rr(uint64_t rrbase, uint64_t v)
 {
 	__asm __volatile("mov rr[%0]=%1"
 			 :: "r"(rrbase), "r"(v) : "memory");
@@ -481,10 +487,10 @@ ia64_set_rr(u_int64_t rrbase, u_int64_t v)
 /*
  * Read a CPUID register.
  */
-static __inline u_int64_t
+static __inline uint64_t
 ia64_get_cpuid(int i)
 {
-	u_int64_t result;
+	uint64_t result;
 	__asm __volatile("mov %0=cpuid[%1]"
 			 : "=r" (result) : "r"(i));
 	return result;
@@ -502,17 +508,14 @@ ia64_enable_highfp(void)
 	__asm __volatile("rsm psr.dfh;; srlz.d");
 }
 
-static __inline void
-ia64_srlz_d(void)
-{
-	__asm __volatile("srlz.d");
-}
-
-static __inline void
-ia64_srlz_i(void)
-{
-	__asm __volatile("srlz.i;;");
-}
+/*
+ * Avoid inline functions for the following so that they still work
+ * correctly when inlining is not enabled (e.g. -O0). Function calls
+ * need data serialization after setting psr, which results in a
+ * hazard.
+ */
+#define	ia64_srlz_d()	__asm __volatile("srlz.d")
+#define	ia64_srlz_i()	__asm __volatile("srlz.i;;")
 
 #endif /* !LOCORE */
 

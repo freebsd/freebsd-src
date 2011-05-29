@@ -312,21 +312,6 @@ _libc_sem_unlink_compat(const char *name)
 }
 
 static int
-enable_async_cancel(void)
-{
-	int old;
-
-	_pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, &old);
-	return (old);
-}
-
-static void
-restore_async_cancel(int val)
-{
-	_pthread_setcanceltype(val, NULL);
-}
-
-static int
 _umtx_wait_uint(volatile unsigned *mtx, unsigned id, const struct timespec *timeout)
 {
 	if (timeout && (timeout->tv_sec < 0 || (timeout->tv_sec == 0 &&
@@ -371,15 +356,15 @@ _libc_sem_timedwait_compat(sem_t * __restrict sem,
 	const struct timespec * __restrict abstime)
 {
 	struct timespec ts, ts2;
-	int val, retval, saved_cancel;
+	int val, retval;
 
 	if (sem_check_validity(sem) != 0)
 		return (-1);
 
 	if ((*sem)->syssem != 0) {
-		saved_cancel = enable_async_cancel();
-		retval = ksem_wait((*sem)->semid);
-		restore_async_cancel(saved_cancel);
+		_pthread_cancel_enter(1);
+		retval = ksem_wait((*sem)->semid); /* XXX no timeout */
+		_pthread_cancel_leave(retval == -1);
 		return (retval);
 	}
 
@@ -390,8 +375,10 @@ _libc_sem_timedwait_compat(sem_t * __restrict sem,
 			if (atomic_cmpset_acq_int(&(*sem)->count, val, val - 1))
 				return (0);
 		}
-		if (retval)
+		if (retval) {
+			_pthread_testcancel();
 			break;
+		}
 		if (abstime) {
 			if (abstime->tv_nsec >= 1000000000 || abstime->tv_nsec < 0) {
 				errno = EINVAL;
@@ -402,9 +389,9 @@ _libc_sem_timedwait_compat(sem_t * __restrict sem,
 		}
 		atomic_add_int(&(*sem)->nwaiters, 1);
 		pthread_cleanup_push(sem_cancel_handler, sem);
-		saved_cancel = enable_async_cancel();
+		_pthread_cancel_enter(1);
 		retval = _umtx_wait_uint(&(*sem)->count, 0, abstime ? &ts2 : NULL);
-		restore_async_cancel(saved_cancel);
+		_pthread_cancel_leave(0);
 		pthread_cleanup_pop(0);
 		atomic_add_int(&(*sem)->nwaiters, -1);
 	}

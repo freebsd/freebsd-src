@@ -58,6 +58,7 @@
  * currently implemented sources
  */
 #define NSSRC_FILES	"files"		/* local files */
+#define	NSSRC_DB	"db"		/* database */
 #define	NSSRC_DNS	"dns"		/* DNS; IN for hosts, HS for others */
 #define	NSSRC_NIS	"nis"		/* YP/NIS */
 #define	NSSRC_COMPAT	"compat"	/* passwd,group in YP compat mode */

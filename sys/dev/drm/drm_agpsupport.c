@@ -51,7 +51,7 @@ drm_device_find_capability(struct drm_device *dev, int cap)
 {
 #if __FreeBSD_version >= 602102
 
-	return (pci_find_extcap(dev->device, cap, NULL) == 0);
+	return (pci_find_cap(dev->device, cap, NULL) == 0);
 #else
 	/* Code taken from agp.c.  IWBNI that was a public interface. */
 	u_int32_t status;
@@ -318,7 +318,7 @@ int drm_agp_bind(struct drm_device *dev, struct drm_agp_binding *request)
 	if (!dev->agp || !dev->agp->acquired)
 		return EINVAL;
 
-	DRM_DEBUG("agp_bind, page_size=%x\n", PAGE_SIZE);
+	DRM_DEBUG("agp_bind, page_size=%x\n", (int)PAGE_SIZE);
 
 	entry = drm_agp_lookup_entry(dev, (void *)request->handle);
 	if (entry == NULL || entry->bound)

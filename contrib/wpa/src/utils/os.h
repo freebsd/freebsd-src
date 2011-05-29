@@ -1,6 +1,6 @@
 /*
- * wpa_supplicant/hostapd / OS specific functions
- * Copyright (c) 2005-2006, Jouni Malinen <j@w1.fi>
+ * OS specific functions
+ * Copyright (c) 2005-2009, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -379,6 +379,12 @@ int os_snprintf(char *str, size_t size, const char *format, ...);
 
 #else /* OS_NO_C_LIB_DEFINES */
 
+#ifdef WPA_TRACE
+void * os_malloc(size_t size);
+void * os_realloc(void *ptr, size_t size);
+void os_free(void *ptr);
+char * os_strdup(const char *s);
+#else /* WPA_TRACE */
 #ifndef os_malloc
 #define os_malloc(s) malloc((s))
 #endif
@@ -388,6 +394,14 @@ int os_snprintf(char *str, size_t size, const char *format, ...);
 #ifndef os_free
 #define os_free(p) free((p))
 #endif
+#ifndef os_strdup
+#ifdef _MSC_VER
+#define os_strdup(s) _strdup(s)
+#else
+#define os_strdup(s) strdup(s)
+#endif
+#endif
+#endif /* WPA_TRACE */
 
 #ifndef os_memcpy
 #define os_memcpy(d, s, n) memcpy((d), (s), (n))
@@ -402,13 +416,6 @@ int os_snprintf(char *str, size_t size, const char *format, ...);
 #define os_memcmp(s1, s2, n) memcmp((s1), (s2), (n))
 #endif
 
-#ifndef os_strdup
-#ifdef _MSC_VER
-#define os_strdup(s) _strdup(s)
-#else
-#define os_strdup(s) strdup(s)
-#endif
-#endif
 #ifndef os_strlen
 #define os_strlen(s) strlen(s)
 #endif

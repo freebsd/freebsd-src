@@ -145,7 +145,7 @@ typedef enum {
  * Various supported device vendors/types and their names.
  */
 
-static struct ti_type ti_devs[] = {
+static const struct ti_type const ti_devs[] = {
 	{ ALT_VENDORID,	ALT_DEVICEID_ACENIC,
 		"Alteon AceNIC 1000baseSX Gigabit Ethernet" },
 	{ ALT_VENDORID,	ALT_DEVICEID_ACENIC_COPPER,
@@ -1118,7 +1118,8 @@ ti_alloc_jumbo_mem(sc)
 
 	if (bus_dmamem_alloc(sc->ti_jumbo_dmat,
 			     (void**)&sc->ti_cdata.ti_jumbo_buf,
-			     BUS_DMA_NOWAIT, &sc->ti_jumbo_dmamap) != 0) {
+			     BUS_DMA_NOWAIT | BUS_DMA_COHERENT,
+			     &sc->ti_jumbo_dmamap) != 0) {
 		device_printf(sc->ti_dev, "Failed to allocate jumbo memory\n");
 		return (ENOBUFS);
 	}
@@ -1488,10 +1489,8 @@ ti_newbuf_jumbo(sc, idx, m_old)
 			}
 			sf[i] = sf_buf_alloc(frame, SFB_NOWAIT);
 			if (sf[i] == NULL) {
-				vm_page_lock_queues();
 				vm_page_unwire(frame, 0);
 				vm_page_free(frame);
-				vm_page_unlock_queues();
 				device_printf(sc->ti_dev, "buffer allocation "
 				    "failed -- packet dropped!\n");
 				printf("      index %d page %d\n", idx, i);
@@ -2254,7 +2253,7 @@ static int
 ti_probe(dev)
 	device_t		dev;
 {
-	struct ti_type		*t;
+	const struct ti_type	*t;
 
 	t = ti_devs;
 
@@ -2391,7 +2390,8 @@ ti_attach(dev)
 	}
 
 	if (bus_dmamem_alloc(sc->ti_rdata_dmat, (void**)&sc->ti_rdata,
-			     BUS_DMA_NOWAIT, &sc->ti_rdata_dmamap) != 0) {
+			     BUS_DMA_NOWAIT | BUS_DMA_COHERENT,
+			     &sc->ti_rdata_dmamap) != 0) {
 		device_printf(dev, "Failed to allocate rdata memory\n");
 		error = ENOMEM;
 		goto fail;
@@ -2489,7 +2489,6 @@ ti_attach(dev)
 	ifp->if_start = ti_start;
 	ifp->if_init = ti_init;
 	ifp->if_baudrate = 1000000000;
-	ifp->if_mtu = ETHERMTU;
 	ifp->if_snd.ifq_maxlen = TI_TX_RING_CNT - 1;
 
 	/* Set up ifmedia support. */

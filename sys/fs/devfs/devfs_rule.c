@@ -139,6 +139,8 @@ devfs_rules_apply(struct devfs_mount *dm, struct devfs_dirent *de)
 {
 	struct devfs_ruleset *ds;
 
+	sx_assert(&dm->dm_lock, SX_XLOCKED);
+
 	if (dm->dm_ruleset == 0)
 		return;
 	sx_slock(&sx_rules);
@@ -528,6 +530,7 @@ devfs_rule_match(struct devfs_krule *dk, struct devfs_dirent *de)
 	struct devfs_rule *dr = &dk->dk_rule;
 	struct cdev *dev;
 	struct cdevsw *dsw;
+	int ref;
 
 	dev = devfs_rule_getdev(de);
 	/*
@@ -545,14 +548,14 @@ devfs_rule_match(struct devfs_krule *dk, struct devfs_dirent *de)
 	if (dr->dr_icond & DRC_DSWFLAGS) {
 		if (dev == NULL)
 			return (0);
-		dsw = dev_refthread(dev);
+		dsw = dev_refthread(dev, &ref);
 		if (dsw == NULL)
 			return (0);
 		if ((dsw->d_flags & dr->dr_dswflags) == 0) {
-			dev_relthread(dev);
+			dev_relthread(dev, ref);
 			return (0);
 		}
-		dev_relthread(dev);
+		dev_relthread(dev, ref);
 	}
 	if (dr->dr_icond & DRC_PATHPTRN)
 		if (!devfs_rule_matchpath(dk, de))
@@ -739,6 +742,11 @@ devfs_ruleset_use(devfs_rsnum rsnum, struct devfs_mount *dm)
 		cds = devfs_ruleset_bynum(dm->dm_ruleset);
 		--cds->ds_refcount;
 		devfs_ruleset_reap(cds);
+	}
+
+	if (rsnum == 0) {
+		dm->dm_ruleset = 0;
+		return (0);
 	}
 
 	ds = devfs_ruleset_bynum(rsnum);

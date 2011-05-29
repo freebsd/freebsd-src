@@ -159,10 +159,10 @@ kvprintf(char const *fmt, void (*func)(int), void *arg, int radix, va_list ap)
 	int ch, n;
 	uintmax_t num;
 	int base, lflag, qflag, tmp, width, ladjust, sharpflag, neg, sign, dot;
-	int jflag, tflag, zflag;
+	int cflag, hflag, jflag, tflag, zflag;
 	int dwidth, upper;
 	char padc;
-	int retval = 0;
+	int stop = 0, retval = 0;
 
 	num = 0;
 	if (!func)
@@ -179,7 +179,7 @@ kvprintf(char const *fmt, void (*func)(int), void *arg, int radix, va_list ap)
 	for (;;) {
 		padc = ' ';
 		width = 0;
-		while ((ch = (u_char)*fmt++) != '%') {
+		while ((ch = (u_char)*fmt++) != '%' || stop) {
 			if (ch == '\0')
 				return (retval);
 			PCHAR(ch);
@@ -187,7 +187,7 @@ kvprintf(char const *fmt, void (*func)(int), void *arg, int radix, va_list ap)
 		percent = fmt - 1;
 		qflag = 0; lflag = 0; ladjust = 0; sharpflag = 0; neg = 0;
 		sign = 0; dot = 0; dwidth = 0; upper = 0;
-		jflag = 0; tflag = 0; zflag = 0;
+		cflag = 0; hflag = 0; jflag = 0; tflag = 0; zflag = 0;
 reswitch:	switch (ch = (u_char)*fmt++) {
 		case '.':
 			dot = 1;
@@ -234,7 +234,7 @@ reswitch:	switch (ch = (u_char)*fmt++) {
 				width = n;
 			goto reswitch;
 		case 'b':
-			num = va_arg(ap, int);
+			num = (u_int)va_arg(ap, int);
 			p = va_arg(ap, char *);
 			for (q = ksprintn(nbuf, num, *p++, NULL, 0); *q;)
 				PCHAR(*q--);
@@ -278,6 +278,13 @@ reswitch:	switch (ch = (u_char)*fmt++) {
 			base = 10;
 			sign = 1;
 			goto handle_sign;
+		case 'h':
+			if (hflag) {
+				hflag = 0;
+				cflag = 1;
+			} else
+				hflag = 1;
+			goto reswitch;
 		case 'j':
 			jflag = 1;
 			goto reswitch;
@@ -297,6 +304,10 @@ reswitch:	switch (ch = (u_char)*fmt++) {
 				*(va_arg(ap, long *)) = retval;
 			else if (zflag)
 				*(va_arg(ap, size_t *)) = retval;
+			else if (hflag)
+				*(va_arg(ap, short *)) = retval;
+			else if (cflag)
+				*(va_arg(ap, char *)) = retval;
 			else
 				*(va_arg(ap, int *)) = retval;
 			break;
@@ -368,6 +379,10 @@ handle_nosign:
 				num = va_arg(ap, u_long);
 			else if (zflag)
 				num = va_arg(ap, size_t);
+			else if (hflag)
+				num = (u_short)va_arg(ap, int);
+			else if (cflag)
+				num = (u_char)va_arg(ap, int);
 			else
 				num = va_arg(ap, u_int);
 			goto number;
@@ -382,6 +397,10 @@ handle_sign:
 				num = va_arg(ap, long);
 			else if (zflag)
 				num = va_arg(ap, ssize_t);
+			else if (hflag)
+				num = (short)va_arg(ap, int);
+			else if (cflag)
+				num = (char)va_arg(ap, int);
 			else
 				num = va_arg(ap, int);
 number:
@@ -389,7 +408,8 @@ number:
 				neg = 1;
 				num = -(intmax_t)num;
 			}
-			p = ksprintn(nbuf, num, base, &tmp, upper);
+			p = ksprintn(nbuf, num, base, &n, upper);
+			tmp = 0;
 			if (sharpflag && num != 0) {
 				if (base == 8)
 					tmp++;
@@ -399,9 +419,13 @@ number:
 			if (neg)
 				tmp++;
 
-			if (!ladjust && width && (width -= tmp) > 0)
-				while (width--)
-					PCHAR(padc);
+			if (!ladjust && padc == '0')
+				dwidth = width - tmp;
+			width -= tmp + imax(dwidth, n);
+			dwidth -= n;
+			if (!ladjust)
+				while (width-- > 0)
+					PCHAR(' ');
 			if (neg)
 				PCHAR('-');
 			if (sharpflag && num != 0) {
@@ -412,18 +436,27 @@ number:
 					PCHAR('x');
 				}
 			}
+			while (dwidth-- > 0)
+				PCHAR('0');
 
 			while (*p)
 				PCHAR(*p--);
 
-			if (ladjust && width && (width -= tmp) > 0)
-				while (width--)
-					PCHAR(padc);
+			if (ladjust)
+				while (width-- > 0)
+					PCHAR(' ');
 
 			break;
 		default:
 			while (percent < fmt)
 				PCHAR(*percent++);
+			/*
+			 * Since we ignore an formatting argument it is no 
+			 * longer safe to obey the remaining formatting
+			 * arguments as the arguments will no longer match
+			 * the format specs.
+			 */
+			stop = 1;
 			break;
 		}
 	}

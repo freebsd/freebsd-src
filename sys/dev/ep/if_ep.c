@@ -306,8 +306,8 @@ ep_attach(struct ep_softc *sc)
 	ifp->if_start = epstart;
 	ifp->if_ioctl = epioctl;
 	ifp->if_init = epinit;
-	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
-	ifp->if_snd.ifq_drv_maxlen = IFQ_MAXLEN;
+	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
+	ifp->if_snd.ifq_drv_maxlen = ifqmaxlen;
 	IFQ_SET_READY(&ifp->if_snd);
 
 	callout_init_mtx(&sc->watchdog_timer, &sc->sc_mtx, 0);

@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
 uint32_t lib_version = G_LIB_VERSION;
 uint32_t version = G_STRIPE_VERSION;
 
-static intmax_t default_stripesize = 65536;
+#define	GSTRIPE_STRIPESIZE	"65536"
 
 static void stripe_main(struct gctl_req *req, unsigned flags);
 static void stripe_clear(struct gctl_req *req);
@@ -54,40 +54,40 @@ static void stripe_dump(struct gctl_req *req);
 static void stripe_label(struct gctl_req *req);
 
 struct g_command class_commands[] = {
-	{ "clear", G_FLAG_VERBOSE, stripe_main, G_NULL_OPTS, NULL,
+	{ "clear", G_FLAG_VERBOSE, stripe_main, G_NULL_OPTS,
 	    "[-v] prov ..."
 	},
 	{ "create", G_FLAG_VERBOSE | G_FLAG_LOADKLD, NULL,
 	    {
-		{ 's', "stripesize", &default_stripesize, G_TYPE_NUMBER },
+		{ 's', "stripesize", GSTRIPE_STRIPESIZE, G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
-	    NULL, "[-hv] [-s stripesize] name prov prov ..."
+	    "[-hv] [-s stripesize] name prov prov ..."
 	},
 	{ "destroy", G_FLAG_VERBOSE, NULL,
 	    {
 		{ 'f', "force", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
 	    },
-	    NULL, "[-fv] name ..."
+	    "[-fv] name ..."
 	},
-	{ "dump", 0, stripe_main, G_NULL_OPTS, NULL,
+	{ "dump", 0, stripe_main, G_NULL_OPTS,
 	    "prov ..."
 	},
 	{ "label", G_FLAG_VERBOSE | G_FLAG_LOADKLD, stripe_main,
 	    {
 		{ 'h', "hardcode", NULL, G_TYPE_BOOL },
-		{ 's', "stripesize", &default_stripesize, G_TYPE_NUMBER },
+		{ 's', "stripesize", GSTRIPE_STRIPESIZE, G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
-	    NULL, "[-hv] [-s stripesize] name prov prov ..."
+	    "[-hv] [-s stripesize] name prov prov ..."
 	},
 	{ "stop", G_FLAG_VERBOSE, NULL,
 	    {
 		{ 'f', "force", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
 	    },
-	    NULL, "[-fv] name ..."
+	    "[-fv] name ..."
 	},
 	G_CMD_SENTINEL
 };
@@ -197,8 +197,8 @@ stripe_label(struct gctl_req *req)
 		if (!hardcode)
 			bzero(md.md_provider, sizeof(md.md_provider));
 		else {
-			if (strncmp(name, _PATH_DEV, strlen(_PATH_DEV)) == 0)
-				name += strlen(_PATH_DEV);
+			if (strncmp(name, _PATH_DEV, sizeof(_PATH_DEV) - 1) == 0)
+				name += sizeof(_PATH_DEV) - 1;
 			strlcpy(md.md_provider, name, sizeof(md.md_provider));
 		}
 		stripe_metadata_encode(&md, sector);

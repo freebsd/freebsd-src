@@ -56,8 +56,8 @@
 
 #define	ACPI_ASM_MACROS
 #define	BREAKPOINT3
-#define	ACPI_DISABLE_IRQS() disable_intr()
-#define	ACPI_ENABLE_IRQS()  enable_intr()
+#define	ACPI_DISABLE_IRQS()	ia64_disable_intr()
+#define	ACPI_ENABLE_IRQS()	ia64_enable_intr()
 
 #define	ACPI_FLUSH_CPU_CACHE()	/* XXX ia64_fc()? */
 

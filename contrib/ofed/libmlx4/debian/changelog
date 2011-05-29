@@ -1,0 +1,11 @@
+libmlx4 (1.0-2) unstable; urgency=low
+
+  * Add debian/watch file
+
+ -- Roland Dreier <rolandd@cisco.com>  Wed, 12 Mar 2008 10:40:19 -0700
+
+libmlx4 (1.0-1) unstable; urgency=low
+
+  * Initial release.  (Closes: #456355)
+
+ -- Roland Dreier <rolandd@cisco.com>  Fri, 14 Dec 2007 09:51:39 -0800

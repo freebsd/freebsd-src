@@ -123,7 +123,7 @@ where
 is the bus ID and
 .Ar yy
 is the target ID.
-If the bus ID is ommitted,
+If the bus ID is omitted,
 the volume is assumed to be on bus 0.
 Second,
 on the volume may be specified by the corresponding
@@ -348,6 +348,11 @@ as a global hot spare:
 .Dl Nm Cm add da3
 .Sh SEE ALSO
 .Xr mpt 4
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 8.0 .
 .Sh BUGS
 .Pp
 The handling of spare drives appears to be unreliable.
@@ -379,8 +384,15 @@ configurations may not work reliably.
 .Pp
 Drive configuration commands result in an excessive flood of messages on the
 console.
-.Sh HISTORY
-The
+.Pp
+The mpt version 1 API that is used by
 .Nm
-utility first appeared in
-.Fx 8.0 .
+and 
+.Xr mpt 4
+doesn't support volumes above two terabytes.
+This is a limitation of the API.
+If you are using this adapter with volumes larger than two terabytes, use the adapter in JBOD mode.
+Utilize
+.Xr geom 8 ,
+.Xr zfs 8 ,
+or another software volume manager to work around this limitation.

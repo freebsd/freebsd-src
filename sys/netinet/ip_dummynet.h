@@ -87,14 +87,14 @@ enum {
 	DN_SYSCTL_SET,
 
 	DN_LAST,
-} ;
+};
 
 enum { /* subtype for schedulers, flowset and the like */
 	DN_SCHED_UNKNOWN = 0,
 	DN_SCHED_FIFO = 1,
 	DN_SCHED_WF2QP = 2,
 	/* others are in individual modules */
-} ;
+};
 
 enum {	/* user flags */
 	DN_HAVE_MASK	= 0x0001,	/* fs or sched has a mask */
@@ -113,16 +113,16 @@ enum {	/* user flags */
 struct dn_link {
 	struct dn_id oid;
 
-    /*
+	/*
 	 * Userland sets bw and delay in bits/s and milliseconds.
 	 * The kernel converts this back and forth to bits/tick and ticks.
 	 * XXX what about burst ?
-     */
+	 */
 	int32_t		link_nr;
 	int		bandwidth;	/* bit/s or bits/tick.   */
 	int		delay;		/* ms and ticks */
 	uint64_t	burst;		/* scaled. bits*Hz  XXX */
-} ;
+};
 
 /*
  * A flowset, which is a template for flows. Contains parameters
@@ -132,13 +132,13 @@ struct dn_link {
  */
 struct dn_fs {
 	struct dn_id oid;
-	uint32_t fs_nr;	/* the flowset number */
-	uint32_t flags;	/* userland flags */
-    int qsize ;			/* queue size in slots or bytes */
-	int32_t plr;	/* PLR, pkt loss rate (2^31-1 means 100%) */
+	uint32_t fs_nr;		/* the flowset number */
+	uint32_t flags;		/* userland flags */
+	int qsize;		/* queue size in slots or bytes */
+	int32_t plr;		/* PLR, pkt loss rate (2^31-1 means 100%) */
 	uint32_t buckets;	/* buckets used for the queue hash table */
 
-    struct ipfw_flow_id flow_mask ;
+	struct ipfw_flow_id flow_mask;
 	uint32_t sched_nr;	/* the scheduler we attach to */
 	/* generic scheduler parameters. Leave them at -1 if unset.
 	 * Now we use 0: weight, 1: lmax, 2: priority
@@ -149,14 +149,14 @@ struct dn_fs {
 	 * weight and probabilities are in the range 0..1 represented
 	 * in fixed point arithmetic with SCALE_RED decimal bits.
 	 */
-#define SCALE_RED               16
-#define SCALE(x)                ( (x) << SCALE_RED )
-#define SCALE_VAL(x)            ( (x) >> SCALE_RED )
-#define SCALE_MUL(x,y)          ( ( (x) * (y) ) >> SCALE_RED )
-    int w_q ;			/* queue weight (scaled) */
-    int max_th ;		/* maximum threshold for queue (scaled) */
-    int min_th ;		/* minimum threshold for queue (scaled) */
-    int max_p ;			/* maximum value for p_b (scaled) */
+#define SCALE_RED	16
+#define SCALE(x)	( (x) << SCALE_RED )
+#define SCALE_VAL(x)	( (x) >> SCALE_RED )
+#define SCALE_MUL(x,y)	( ( (x) * (y) ) >> SCALE_RED )
+	int w_q ;		/* queue weight (scaled) */
+	int max_th ;		/* maximum threshold for queue (scaled) */
+	int min_th ;		/* minimum threshold for queue (scaled) */
+	int max_p ;		/* maximum value for p_b (scaled) */
 
 };
 
@@ -177,10 +177,10 @@ struct dn_flow {
 };
 
 
-    /*
+/*
  * Scheduler template, mostly indicating the name, number,
  * sched_mask and buckets.
-     */
+ */
 struct dn_sch {
 	struct dn_id	oid;
 	uint32_t	sched_nr; /* N, scheduler number */
@@ -199,14 +199,14 @@ struct dn_sch {
 #define	ED_MAX_SAMPLES_NO	1024
 struct dn_profile {
 	struct dn_id	oid;
-    /* fields to simulate a delay profile */
+	/* fields to simulate a delay profile */
 #define ED_MAX_NAME_LEN		32
-    char name[ED_MAX_NAME_LEN];
-	int		link_nr;
-    int loss_level;
-	int		bandwidth;	// XXX use link bandwidth?
-	int		samples_no;	/* actual length of samples[] */
-	int samples[ED_MAX_SAMPLES_NO]; /* may be shorter */
+	char	name[ED_MAX_NAME_LEN];
+	int	link_nr;
+	int	loss_level;
+	int	bandwidth;			// XXX use link bandwidth?
+	int	samples_no;			/* actual len of samples[] */
+	int	samples[ED_MAX_SAMPLES_NO];	/* may be shorter */
 };
 
 

@@ -56,7 +56,7 @@ static void commandtime(int fd, off_t mediasize, u_int sectorsize);
 int
 main(int argc, char **argv)
 {
-	int i, ch, fd, error;
+	int i, ch, fd, error, exitval = 0;
 	char buf[BUFSIZ], ident[DISK_IDENT_SIZE];
 	off_t	mediasize, stripesize, stripeoffset;
 	u_int	sectorsize, fwsectors, fwheads;
@@ -90,14 +90,23 @@ main(int argc, char **argv)
 			sprintf(buf, "%s%s", _PATH_DEV, argv[i]);
 			fd = open(buf, O_RDONLY);
 		}
-		if (fd < 0)
-			err(1, argv[i]);
+		if (fd < 0) {
+			warn("%s", argv[i]);
+			exitval = 1;
+			goto out;
+		}
 		error = ioctl(fd, DIOCGMEDIASIZE, &mediasize);
-		if (error)
-			err(1, "%s: ioctl(DIOCGMEDIASIZE) failed, probably not a disk.", argv[i]);
+		if (error) {
+			warn("%s: ioctl(DIOCGMEDIASIZE) failed, probably not a disk.", argv[i]);
+			exitval = 1;
+			goto out;
+		}
 		error = ioctl(fd, DIOCGSECTORSIZE, &sectorsize);
-		if (error)
-			err(1, "%s: DIOCGSECTORSIZE failed, probably not a disk.", argv[i]);
+		if (error) {
+			warn("%s: DIOCGSECTORSIZE failed, probably not a disk.", argv[i]);
+			exitval = 1;
+			goto out;
+		}
 		error = ioctl(fd, DIOCGFWSECTORS, &fwsectors);
 		if (error)
 			fwsectors = 0;
@@ -148,9 +157,10 @@ main(int argc, char **argv)
 			commandtime(fd, mediasize, sectorsize);
 		if (opt_t)
 			speeddisk(fd, mediasize, sectorsize);
+out:
 		close(fd);
 	}
-	exit (0);
+	exit (exitval);
 }
 
 

@@ -48,7 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/md_var.h>
 
-#define MAX_BPAGES 256
+#define	MAX_BPAGES	1024
 
 struct bus_dma_tag {
 	bus_dma_tag_t	  parent;
@@ -77,7 +77,7 @@ struct bounce_page {
 	STAILQ_ENTRY(bounce_page) links;
 };
 
-int busdma_swi_pending;
+u_int busdma_swi_pending;
 
 static struct mtx bounce_lock;
 static STAILQ_HEAD(bp_list, bounce_page) bounce_page_list;
@@ -455,7 +455,7 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 	}
 	if (*vaddr == NULL)
 		return (ENOMEM);
-	else if ((uintptr_t)*vaddr & (dmat->alignment - 1))
+	else if (vtophys(*vaddr) & (dmat->alignment - 1))
 		printf("bus_dmamem_alloc failed to align memory properly.\n");
 	return (0);
 }

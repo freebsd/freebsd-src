@@ -320,7 +320,11 @@ ata_ahci_ch_attach(device_t dev)
 static int
 ata_ahci_ch_detach(device_t dev)
 {
-
+    struct ata_channel *ch = device_get_softc(dev);
+ 
+    if (ch->dma.work_tag && ch->dma.work_map)
+	bus_dmamap_sync(ch->dma.work_tag, ch->dma.work_map,
+	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
     ata_ahci_ch_suspend(dev);
     ata_dmafini(dev);
     return (0);
@@ -403,7 +407,7 @@ ata_ahci_status(device_t dev)
 
 	/* do we have any PHY events ? */
 	if (istatus & (ATA_AHCI_P_IX_PRC | ATA_AHCI_P_IX_PC))
-	    ata_sata_phy_check_events(dev);
+	    ata_sata_phy_check_events(dev, -1);
 
 	/* do we have a potentially hanging engine to take care of? */
 	/* XXX SOS what todo on NCQ */
@@ -495,6 +499,9 @@ ata_ahci_begin_transaction(struct ata_request *request)
 		 ATA_INL(ctlr->r_res2, ATA_AHCI_P_CMD + offset) &
 		 ~ATA_AHCI_P_CMD_ATAPI);
 
+    bus_dmamap_sync(ch->dma.work_tag, ch->dma.work_map,
+	BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+
     /* issue command to controller */
     ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_CI + offset, 1);
     
@@ -537,6 +544,9 @@ ata_ahci_end_transaction(struct ata_request *request)
     /* kill the timeout */
     callout_stop(&request->callout);
 
+    bus_dmamap_sync(ch->dma.work_tag, ch->dma.work_map,
+	BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+
     /* get status */
     tf_data = ATA_INL(ctlr->r_res2, ATA_AHCI_P_TFD + offset);
     request->status = tf_data;
@@ -563,7 +573,7 @@ ata_ahci_end_transaction(struct ata_request *request)
     /* record how much data we actually moved */
     clp = (struct ata_ahci_cmd_list *)
 	  (ch->dma.work + ATA_AHCI_CL_OFFSET);
-    request->donecount = clp->bytecount;
+    request->donecount = le32toh(clp->bytecount);
 
     /* release SG list etc */
     ch->dma.unload(request);
@@ -590,6 +600,9 @@ ata_ahci_issue_cmd(device_t dev, u_int16_t flags, int timeout)
     clp->bytecount = 0;
     clp->cmd_table_phys = htole64(ch->dma.work_bus + ATA_AHCI_CT_OFFSET);
 
+    bus_dmamap_sync(ch->dma.work_tag, ch->dma.work_map,
+	BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+
     /* issue command to controller */
     ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_CI + offset, 1);
 
@@ -599,6 +612,9 @@ ata_ahci_issue_cmd(device_t dev, u_int16_t flags, int timeout)
         if (!((status = ATA_INL(ctlr->r_res2, ATA_AHCI_P_CI + offset)) & 1))
             break;
     }
+
+    bus_dmamap_sync(ch->dma.work_tag, ch->dma.work_map,
+	BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 
     /* clear interrupts */
     ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_IS + offset,
@@ -623,6 +639,25 @@ ata_ahci_pm_read(device_t dev, int port, int reg, u_int32_t *result)
 	(struct ata_ahci_cmd_tab *)(ch->dma.work + ATA_AHCI_CT_OFFSET);
     u_int8_t *fis = ch->dma.work + ATA_AHCI_FB_OFFSET + 0x40;
 
+    if (port < 0) {
+	*result = ATA_IDX_INL(ch, reg);
+	return (0);
+    }
+    if (port < ATA_PM) {
+	switch (reg) {
+	case ATA_SSTATUS:
+	    reg = 0;
+	    break;
+	case ATA_SERROR:
+	    reg = 1;
+	    break;
+	case ATA_SCONTROL:
+	    reg = 2;
+	    break;
+	default:
+	    return (EINVAL);
+	}
+    }
     bzero(ctp->cfis, 64);
     ctp->cfis[0] = 0x27;	/* host to device */
     ctp->cfis[1] = 0x8f;	/* command FIS to PM port */
@@ -649,6 +684,25 @@ ata_ahci_pm_write(device_t dev, int port, int reg, u_int32_t value)
 	(struct ata_ahci_cmd_tab *)(ch->dma.work + ATA_AHCI_CT_OFFSET);
     int offset = ch->unit << 7;
 
+    if (port < 0) {
+	ATA_IDX_OUTL(ch, reg, value);
+	return (0);
+    }
+    if (port < ATA_PM) {
+	switch (reg) {
+	case ATA_SSTATUS:
+	    reg = 0;
+	    break;
+	case ATA_SERROR:
+	    reg = 1;
+	    break;
+	case ATA_SCONTROL:
+	    reg = 2;
+	    break;
+	default:
+	    return (EINVAL);
+	}
+    }
     bzero(ctp->cfis, 64);
     ctp->cfis[0] = 0x27;	/* host to device */
     ctp->cfis[1] = 0x8f;	/* command FIS to PM port */
@@ -815,7 +869,7 @@ ata_ahci_hardreset(device_t dev, int port, uint32_t *signature)
     if (!ata_sata_phy_reset(dev, port, 0))
 	return (ENOENT);
     /* Wait for clearing busy status. */
-    if (ata_ahci_wait_ready(dev, 10000)) {
+    if (ata_ahci_wait_ready(dev, 15000)) {
 	device_printf(dev, "hardware reset timeout\n");
 	return (EBUSY);
     }
@@ -967,12 +1021,12 @@ ata_ahci_dmainit(device_t dev)
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
 
-    ata_dmainit(dev);
     /* note start and stop are not used here */
     ch->dma.setprd = ata_ahci_dmasetprd;
     ch->dma.max_iosize = (ATA_AHCI_DMA_ENTRIES - 1) * PAGE_SIZE;
     if (ATA_INL(ctlr->r_res2, ATA_AHCI_CAP) & ATA_AHCI_CAP_64BIT)
 	ch->dma.max_address = BUS_SPACE_MAXADDR;
+    ata_dmainit(dev);
 }
 
 static int

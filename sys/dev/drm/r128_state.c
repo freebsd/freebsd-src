@@ -657,7 +657,7 @@ static void r128_cce_dispatch_indirect(struct drm_device * dev,
 		 */
 		if (dwords & 1) {
 			u32 *data = (u32 *)
-			    ((char *)dev->agp_buffer_map->handle
+			    ((char *)dev->agp_buffer_map->virtual
 			     + buf->offset + start);
 			data[dwords++] = cpu_to_le32(R128_CCE_PACKET2);
 		}
@@ -722,7 +722,7 @@ static void r128_cce_dispatch_indices(struct drm_device * dev,
 
 		dwords = (end - start + 3) / sizeof(u32);
 
-		data = (u32 *) ((char *)dev->agp_buffer_map->handle
+		data = (u32 *) ((char *)dev->agp_buffer_map->virtual
 				+ buf->offset + start);
 
 		data[0] = cpu_to_le32(CCE_PACKET3(R128_3D_RNDR_GEN_INDX_PRIM,

@@ -931,7 +931,7 @@ main(int argc, char *argv[])
 		/*
 		 * We cannot continue because of error.  Exit if the
 		 * program has not become a daemon.  Otherwise, block
-		 * until the the user corrects the problem and issues SIGHUP.
+		 * until the user corrects the problem and issues SIGHUP.
 		 */
 		if (!background)
 		    exit(1);
@@ -1090,7 +1090,8 @@ moused(void)
 	    FD_SET(rodent.mremcfd, &fds);
 
 	c = select(FD_SETSIZE, &fds, NULL, NULL,
-		   (rodent.flags & Emulate3Button) ? &timeout : NULL);
+		   ((rodent.flags & Emulate3Button) &&
+		    S_DELAYED(mouse_button_state)) ? &timeout : NULL);
 	if (c < 0) {                    /* error */
 	    logwarn("failed to read from mouse");
 	    continue;

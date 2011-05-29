@@ -47,6 +47,9 @@ extern u_char linux_debug_map[];
 MALLOC_DECLARE(M_LINUX);
 #endif
 
+#define	LINUX_SHAREDPAGE	(VM_MAXUSER_ADDRESS - PAGE_SIZE)
+#define	LINUX_USRSTACK		LINUX_SHAREDPAGE
+
 #define	PTRIN(v)	(void *)(v)
 #define	PTROUT(v)	(l_uintptr_t)(v)
 
@@ -178,9 +181,9 @@ struct l_newstat {
 	l_ulong		st_size;
 	l_ulong		st_blksize;
 	l_ulong		st_blocks;
-	struct l_timespec	st_atimespec;
-	struct l_timespec	st_mtimespec;
-	struct l_timespec	st_ctimespec;
+	struct l_timespec	st_atim;
+	struct l_timespec	st_mtim;
+	struct l_timespec	st_ctim;
 	l_ulong		__unused4;
 	l_ulong		__unused5;
 };
@@ -194,9 +197,9 @@ struct l_stat {
 	l_ushort	st_gid;
 	l_ushort	st_rdev;
 	l_long		st_size;
-	struct l_timespec	st_atimespec;
-	struct l_timespec	st_mtimespec;
-	struct l_timespec	st_ctimespec;
+	struct l_timespec	st_atim;
+	struct l_timespec	st_mtim;
+	struct l_timespec	st_ctim;
 	l_long		st_blksize;
 	l_long		st_blocks;
 	l_ulong		st_flags;
@@ -217,9 +220,9 @@ struct l_stat64 {
 	l_ulong		st_blksize;
 	l_ulong		st_blocks;
 	l_ulong		__pad4;
-	struct l_timespec	st_atimespec;
-	struct l_timespec	st_mtimespec;
-	struct l_timespec	st_ctimespec;
+	struct l_timespec	st_atim;
+	struct l_timespec	st_mtim;
+	struct l_timespec	st_ctim;
 	l_ulonglong	st_ino;
 };
 
@@ -281,6 +284,7 @@ struct l_new_utsname {
 #define	LINUX_SIGPOLL		LINUX_SIGIO
 #define	LINUX_SIGPWR		30
 #define	LINUX_SIGSYS		31
+#define	LINUX_SIGRTMIN		32
 
 #define	LINUX_SIGTBLSZ		31
 #define	LINUX_NSIG_WORDS	2
@@ -879,5 +883,8 @@ struct linux_robust_list_head {
 	l_long				futex_offset;
 	struct linux_robust_list	*pending_list;
 };
+
+int linux_set_upcall_kse(struct thread *td, register_t stack);
+int linux_set_cloned_tls(struct thread *td, void *desc);
 
 #endif /* !_I386_LINUX_H_ */

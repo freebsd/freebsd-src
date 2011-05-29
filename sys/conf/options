@@ -63,6 +63,7 @@ SYSCTL_DEBUG	opt_sysctl.h
 ADAPTIVE_LOCKMGRS
 ALQ
 AUDIT		opt_global.h
+CAPABILITIES	opt_capabilities.h
 CODA_COMPAT_5	opt_coda.h
 COMPAT_43	opt_compat.h
 COMPAT_43TTY	opt_compat.h
@@ -101,6 +102,7 @@ GEOM_PART_MBR	opt_geom.h
 GEOM_PART_PC98	opt_geom.h
 GEOM_PART_VTOC8	opt_geom.h
 GEOM_PC98	opt_geom.h
+GEOM_RAID	opt_geom.h
 GEOM_RAID3	opt_geom.h
 GEOM_SHSEC	opt_geom.h
 GEOM_STRIPE	opt_geom.h
@@ -134,6 +136,7 @@ MFI_DEBUG	opt_mfi.h
 MFI_DECODE_LOG	opt_mfi.h
 MPROF_BUFFERS	opt_mprof.h
 MPROF_HASH_SIZE	opt_mprof.h
+NEW_PCIB	opt_global.h
 NO_ADAPTIVE_MUTEXES	opt_adaptive_mutexes.h
 NO_ADAPTIVE_RWLOCKS
 NO_ADAPTIVE_SX
@@ -199,6 +202,7 @@ CD9660		opt_dontuse.h
 CODA		opt_dontuse.h
 EXT2FS		opt_dontuse.h
 FDESCFS		opt_dontuse.h
+FFS		opt_dontuse.h
 HPFS		opt_dontuse.h
 MSDOSFS		opt_dontuse.h
 NTFS		opt_dontuse.h
@@ -215,9 +219,6 @@ UNIONFS		opt_dontuse.h
 
 # Pseudofs debugging
 PSEUDOFS_TRACE	opt_pseudofs.h
-
-# Broken - ffs_snapshot() dependency from ufs_lookup() :-(
-FFS		opt_ffs_broken_fixme.h
 
 # In-kernel GSS-API
 KGSSAPI		opt_kgssapi.h
@@ -305,6 +306,9 @@ SCSI_DELAY		opt_scsi.h
 SCSI_NO_SENSE_STRINGS	opt_scsi.h
 SCSI_NO_OP_STRINGS	opt_scsi.h
 
+# Options used only in cam/ata/ata_da.c
+ADA_TEST_FAILURE       opt_ada.h
+
 # Options used only in cam/scsi/scsi_cd.c
 CHANGER_MIN_BUSY_SECONDS	opt_cd.h
 CHANGER_MAX_BUSY_SECONDS	opt_cd.h
@@ -345,6 +349,7 @@ SCSI_NCR_MYADDR		opt_ncr.h
 ISP_TARGET_MODE		opt_isp.h
 ISP_FW_CRASH_DUMP	opt_isp.h
 ISP_DEFAULT_ROLES	opt_isp.h
+ISP_INTERNAL_TARGET	opt_isp.h
 
 # Options used only in dev/iscsi
 ISCSI_INITIATOR_DEBUG	opt_iscsi_initiator.h
@@ -437,6 +442,8 @@ SCTP_MBCNT_LOGGING	opt_sctp.h # Log to KTR mbcnt activity
 SCTP_PACKET_LOGGING	opt_sctp.h # Log to a packet buffer last N packets
 SCTP_LTRACE_CHUNKS	opt_sctp.h # Log to KTR chunks processed
 SCTP_LTRACE_ERRORS	opt_sctp.h # Log to KTR error returns.
+SCTP_USE_PERCPU_STAT    opt_sctp.h # Use per cpu stats.
+SCTP_MCORE_INPUT        opt_sctp.h # Have multiple input threads for input mbufs
 #
 #
 #
@@ -485,6 +492,7 @@ NETGRAPH_MPPC_ENCRYPTION	opt_netgraph.h
 NETGRAPH_NAT		opt_netgraph.h
 NETGRAPH_NETFLOW	opt_netgraph.h
 NETGRAPH_ONE2MANY	opt_netgraph.h
+NETGRAPH_PATCH		opt_netgraph.h
 NETGRAPH_PIPE		opt_netgraph.h
 NETGRAPH_PPP		opt_netgraph.h
 NETGRAPH_PPPOE		opt_netgraph.h
@@ -584,6 +592,7 @@ VM_LEVEL_0_ORDER	opt_vm.h
 NO_SWAPPING		opt_vm.h
 MALLOC_MAKE_FAILURES	opt_vm.h
 MALLOC_PROFILE		opt_vm.h
+MALLOC_DEBUG_MAXZONES	opt_vm.h
 
 # The MemGuard replacement allocator used for tamper-after-free detection
 DEBUG_MEMGUARD		opt_vm.h
@@ -638,6 +647,8 @@ BUS_DEBUG		opt_bus.h
 
 # options for USB support
 USB_DEBUG		opt_usb.h
+USB_HOST_ALIGN		opt_usb.h
+USB_REQ_DEBUG		opt_usb.h
 USB_VERBOSE		opt_usb.h
 USB_EHCI_BIG_ENDIAN_DESC	opt_usb.h
 U3G_DEBUG		opt_u3g.h
@@ -692,8 +703,14 @@ ED_SIC			opt_ed.h
 
 # bce driver
 BCE_DEBUG		opt_bce.h
+BCE_NVRAM_WRITE_SUPPORT	opt_bce.h
+
+# bxe driver
+BXE_DEBUG		opt_bxe.h
+BXE_NVRAM_WRITE_SUPPORT	opt_bxe.h
 
 SOCKBUF_DEBUG		opt_global.h
+
 
 # options for ubsec driver
 UBSEC_DEBUG		opt_ubsec.h
@@ -755,9 +772,13 @@ ATH_TXBUF		opt_ath.h
 ATH_RXBUF		opt_ath.h
 ATH_DIAGAPI		opt_ath.h
 ATH_TX99_DIAG		opt_ath.h
+ATH_ENABLE_11N		opt_ah.h
 
 # options for the Atheros hal
 AH_SUPPORT_AR5416	opt_ah.h
+# XXX For now, this breaks non-AR9130 chipsets, so only use it
+# XXX when actually targetting AR9130.
+AH_SUPPORT_AR9130	opt_ah.h
 
 AH_DEBUG		opt_ah.h
 AH_ASSERT		opt_ah.h
@@ -770,6 +791,11 @@ AH_PRIVATE_DIAG		opt_ah.h
 AH_NEED_DESC_SWAP	opt_ah.h
 AH_USE_INIPDGAIN	opt_ah.h
 AH_MAXCHAN		opt_ah.h
+AH_RXCFG_SDMAMW_4BYTES	opt_ah.h
+
+# AR5416 and later interrupt mitigation
+# XXX do not use this for AR9130
+AH_AR5416_INTERRUPT_MITIGATION	opt_ah.h
 
 # options for the Broadcom BCM43xx driver (bwi)
 BWI_DEBUG		opt_bwi.h
@@ -813,6 +839,7 @@ IEEE80211_AMPDU_AGE	opt_wlan.h
 IEEE80211_SUPPORT_MESH	opt_wlan.h
 IEEE80211_SUPPORT_SUPERG	opt_wlan.h
 IEEE80211_SUPPORT_TDMA	opt_wlan.h
+IEEE80211_ALQ		opt_wlan.h
 
 # 802.11 TDMA support
 TDMA_SLOTLEN_DEFAULT	opt_tdma.h
@@ -845,3 +872,27 @@ SND_PCM_64		opt_snd.h
 SND_OLDSTEREO		opt_snd.h
 
 X86BIOS
+
+# Flattened device tree options
+FDT		opt_platform.h
+FDT_DTB_STATIC	opt_platform.h
+
+# OFED Infiniband stack
+OFED		opt_ofed.h
+OFED_DEBUG_INIT	opt_ofed.h
+SDP		opt_ofed.h
+SDP_DEBUG	opt_ofed.h
+IPOIB_DEBUG	opt_ofed.h
+IPOIB_CM	opt_ofed.h
+
+# Resource Accounting
+RACCT		opt_global.h
+
+# Resource Limits
+RCTL		opt_global.h
+
+# At least one of the AR71XX ubiquiti boards has a Redboot configuration
+# that "lies" about the amount of RAM it has. Until a cleaner method is
+# defined, this option will suffice in overriding what Redboot says.
+AR71XX_REALMEM    opt_global.h
+

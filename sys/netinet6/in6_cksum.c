@@ -78,10 +78,10 @@ __FBSDID("$FreeBSD$");
  */
 
 #define ADDCARRY(x)  (x > 65535 ? x -= 65535 : x)
-#define REDUCE {l_util.l = sum; sum = l_util.s[0] + l_util.s[1]; ADDCARRY(sum);}
+#define REDUCE {l_util.l = sum; sum = l_util.s[0] + l_util.s[1]; (void)ADDCARRY(sum);}
 
 /*
- * m MUST contain a continuous IP6 header.
+ * m MUST contain a contiguous IP6 header.
  * off is an offset where TCP/UDP/ICMP6 header starts.
  * len is a total length of a transport segment.
  * (e.g. TCP header + TCP payload)

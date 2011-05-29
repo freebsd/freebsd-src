@@ -126,7 +126,7 @@ oktousecallout(void *data __unused)
 {
 	calloutok = 1;
 }
-SYSINIT(gdbhack, SI_SUB_RUN_SCHEDULER, SI_ORDER_ANY, oktousecallout, NULL);
+SYSINIT(gdbhack, SI_SUB_RUN_SCHEDULER, SI_ORDER_MIDDLE, oktousecallout, NULL);
 
 static void
 gdb_cnputc(struct consdev *cp, int c)

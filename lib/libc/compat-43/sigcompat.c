@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
 #include <sys/param.h>
+#include <errno.h>
 #include <signal.h>
 #include <string.h>
 #include "un-namespace.h"
@@ -112,8 +113,10 @@ xsi_sigpause(int sig)
 {
 	sigset_t set;
 
-	sigemptyset(&set);
-	sigaddset(&set, sig);
+	if (_sigprocmask(SIG_BLOCK, NULL, &set) == -1)
+		return (-1);
+	if (sigdelset(&set, sig) == -1)
+		return (-1);
 	return (_sigsuspend(&set));
 }
 
@@ -123,7 +126,8 @@ sighold(int sig)
 	sigset_t set;
 
 	sigemptyset(&set);
-	sigaddset(&set, sig);
+	if (sigaddset(&set, sig) == -1)
+		return (-1);
 	return (_sigprocmask(SIG_BLOCK, &set, NULL));
 }
 
@@ -143,7 +147,8 @@ sigrelse(int sig)
 	sigset_t set;
 
 	sigemptyset(&set);
-	sigaddset(&set, sig);
+	if (sigaddset(&set, sig) == -1)
+		return (-1);
 	return (_sigprocmask(SIG_UNBLOCK, &set, NULL));
 }
 
@@ -152,35 +157,30 @@ void
 {
 	sigset_t set, pset;
 	struct sigaction sa, psa;
-	int error;
 
 	sigemptyset(&set);
-	sigaddset(&set, sig);
-	error = _sigprocmask(SIG_BLOCK, NULL, &pset);
-	if (error == -1)
+	if (sigaddset(&set, sig) == -1)
+		return (SIG_ERR);
+	if (_sigprocmask(SIG_BLOCK, NULL, &pset) == -1)
 		return (SIG_ERR);
 	if ((__sighandler_t *)disp == SIG_HOLD) {
-		error = _sigprocmask(SIG_BLOCK, &set, &pset);
-		if (error == -1)
+		if (_sigprocmask(SIG_BLOCK, &set, &pset) == -1)
 			return (SIG_ERR);
 		if (sigismember(&pset, sig))
 			return (SIG_HOLD);
 		else {
-			error = _sigaction(sig, NULL, &psa);
-			if (error == -1)
+			if (_sigaction(sig, NULL, &psa) == -1)
 				return (SIG_ERR);
 			return (psa.sa_handler);
 		}
 	} else {
-		error = _sigprocmask(SIG_UNBLOCK, &set, &pset);
-		if (error == -1)
+		if (_sigprocmask(SIG_UNBLOCK, &set, &pset) == -1)
 			return (SIG_ERR);
 	}
 
 	bzero(&sa, sizeof(sa));
 	sa.sa_handler = disp;
-	error = _sigaction(sig, &sa, &psa);
-	if (error == -1)
+	if (_sigaction(sig, &sa, &psa) == -1)
 		return (SIG_ERR);
 	if (sigismember(&pset, sig))
 		return (SIG_HOLD);

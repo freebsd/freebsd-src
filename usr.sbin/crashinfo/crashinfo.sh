@@ -53,7 +53,7 @@ find_kernel()
 	}' $INFO)
 
 	# Look for a matching kernel version.
-	for k in /boot/kernel/kernel $(ls -t /boot/*/kernel); do
+	for k in `sysctl -n kern.bootfile` $(ls -t /boot/*/kernel); do
 		kvers=$(echo 'printf "  Version String: %s", version' | \
 		    gdb -x /dev/stdin -batch $k 2>/dev/null)
 		if [ "$ivers" = "$kvers" ]; then

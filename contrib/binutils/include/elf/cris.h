@@ -1,5 +1,5 @@
 /* CRIS ELF support for BFD.
-   Copyright 2000, 2001 Free Software Foundation, Inc.
+   Copyright 2000, 2001, 2004 Free Software Foundation, Inc.
    Contributed by Axis Communications AB, Lund, Sweden.
    Written by Hans-Peter Nilsson.
 
@@ -17,7 +17,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #ifndef _ELF_CRIS_H
 #define _ELF_CRIS_H
@@ -97,5 +97,17 @@ END_RELOC_NUMBERS (R_CRIS_max)
 
 /* User symbols in this file have a leading underscore.  */
 #define EF_CRIS_UNDERSCORE		0x00000001
+
+/* This is a mask for different incompatible machine variants.  */
+#define EF_CRIS_VARIANT_MASK		0x0000000e
+
+/* Variant 0; may contain v0..10 object.  */
+#define EF_CRIS_VARIANT_ANY_V0_V10	0x00000000
+
+/* Variant 1; contains v32 object.  */
+#define EF_CRIS_VARIANT_V32		0x00000002
+
+/* Variant 2; contains object compatible with v32 and v10.  */
+#define EF_CRIS_VARIANT_COMMON_V10_V32	0x00000004
 
 #endif /* _ELF_CRIS_H */

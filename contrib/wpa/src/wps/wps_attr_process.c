@@ -15,7 +15,7 @@
 #include "includes.h"
 
 #include "common.h"
-#include "sha256.h"
+#include "crypto/sha256.h"
 #include "wps_i.h"
 
 
@@ -177,6 +177,13 @@ static int wps_process_cred_network_key(struct wps_credential *cred,
 	if (key == NULL) {
 		wpa_printf(MSG_DEBUG, "WPS: Credential did not include "
 			   "Network Key");
+		if (cred->auth_type == WPS_AUTH_OPEN &&
+		    cred->encr_type == WPS_ENCR_NONE) {
+			wpa_printf(MSG_DEBUG, "WPS: Workaround - Allow "
+				   "missing mandatory Network Key attribute "
+				   "for open network");
+			return 0;
+		}
 		return -1;
 	}
 

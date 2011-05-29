@@ -49,7 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -73,7 +72,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/serial/usb_serial.h>
 #include <dev/usb/serial/uftdi_reg.h>
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 static int uftdi_debug = 0;
 
 SYSCTL_NODE(_hw_usb, OID_AUTO, uftdi, CTLFLAG_RW, 0, "USB uftdi");
@@ -84,8 +83,6 @@ SYSCTL_INT(_hw_usb_uftdi, OID_AUTO, debug, CTLFLAG_RW,
 #define	UFTDI_CONFIG_INDEX	0
 #define	UFTDI_IFACE_INDEX	0
 
-#define	UFTDI_IBUFSIZE 64		/* bytes, maximum number of bytes per
-					 * frame */
 #define	UFTDI_OBUFSIZE 64		/* bytes, cannot be increased due to
 					 * do size encoding */
 
@@ -166,7 +163,7 @@ static const struct usb_config uftdi_config[UFTDI_N_TRANSFER] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.bufsize = UFTDI_IBUFSIZE,
+		.bufsize = 0,		/* use wMaxPacketSize */
 		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
 		.callback = &uftdi_read_callback,
 	},
@@ -207,6 +204,7 @@ static driver_t uftdi_driver = {
 DRIVER_MODULE(uftdi, uhub, uftdi_driver, uftdi_devclass, NULL, 0);
 MODULE_DEPEND(uftdi, ucom, 1, 1, 1);
 MODULE_DEPEND(uftdi, usb, 1, 1, 1);
+MODULE_VERSION(uftdi, 1);
 
 static struct usb_device_id uftdi_devs[] = {
 #define	UFTDI_DEV(v,p,t) \
@@ -214,6 +212,8 @@ static struct usb_device_id uftdi_devs[] = {
 	UFTDI_DEV(ATMEL, STK541, 8U232AM),
 	UFTDI_DEV(DRESDENELEKTRONIK, SENSORTERMINALBOARD, 8U232AM),
 	UFTDI_DEV(DRESDENELEKTRONIK, WIRELESSHANDHELDTERMINAL, 8U232AM),
+	UFTDI_DEV(FALCOM, TWIST, 8U232AM),
+	UFTDI_DEV(FTDI, GAMMASCOUT, 8U232AM),
 	UFTDI_DEV(FTDI, SERIAL_8U100AX, SIO),
 	UFTDI_DEV(FTDI, SERIAL_2232C, 8U232AM),
 	UFTDI_DEV(FTDI, SERIAL_2232D, 8U232AM),
@@ -226,7 +226,9 @@ static struct usb_device_id uftdi_devs[] = {
 	UFTDI_DEV(FTDI, CFA_633, 8U232AM),
 	UFTDI_DEV(FTDI, CFA_634, 8U232AM),
 	UFTDI_DEV(FTDI, CFA_635, 8U232AM),
+	UFTDI_DEV(FTDI, USB_UIRT, 8U232AM),
 	UFTDI_DEV(FTDI, USBSERIAL, 8U232AM),
+	UFTDI_DEV(FTDI, KBS, 8U232AM),
 	UFTDI_DEV(FTDI, MX2_3, 8U232AM),
 	UFTDI_DEV(FTDI, MX4_5, 8U232AM),
 	UFTDI_DEV(FTDI, LK202, 8U232AM),
@@ -246,6 +248,7 @@ static struct usb_device_id uftdi_devs[] = {
 	UFTDI_DEV(INTREPIDCS, VALUECAN, 8U232AM),
 	UFTDI_DEV(INTREPIDCS, NEOVI, 8U232AM),
 	UFTDI_DEV(BBELECTRONICS, USOTL4, 8U232AM),
+	UFTDI_DEV(MATRIXORBITAL, MOUA, 8U232AM),
 	UFTDI_DEV(MARVELL, SHEEVAPLUG, 8U232AM),
 	UFTDI_DEV(MELCO, PCOPRS1, 8U232AM),
 	UFTDI_DEV(RATOC, REXUSB60F, 8U232AM),
@@ -329,6 +332,8 @@ uftdi_attach(device_t dev)
 	if (error) {
 		goto detach;
 	}
+	ucom_set_pnpinfo_usb(&sc->sc_super_ucom, dev);
+
 	return (0);			/* success */
 
 detach:
@@ -341,7 +346,7 @@ uftdi_detach(device_t dev)
 {
 	struct uftdi_softc *sc = device_get_softc(dev);
 
-	ucom_detach(&sc->sc_super_ucom, &sc->sc_ucom, 1);
+	ucom_detach(&sc->sc_super_ucom, &sc->sc_ucom);
 	usbd_transfer_unsetup(sc->sc_xfer, UFTDI_N_TRANSFER);
 	mtx_destroy(&sc->sc_mtx);
 

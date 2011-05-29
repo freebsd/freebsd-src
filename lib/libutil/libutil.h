@@ -41,15 +41,11 @@
 
 #include <sys/cdefs.h>
 #include <sys/_types.h>
+#include <sys/_stdint.h>
 
 #ifndef _GID_T_DECLARED
 typedef	__gid_t		gid_t;
 #define	_GID_T_DECLARED
-#endif
-
-#ifndef _INT64_T_DECLARED
-typedef	__int64_t	int64_t;
-#define	_INT64_T_DECLARED
 #endif
 
 #ifndef _PID_T_DECLARED
@@ -92,6 +88,7 @@ struct termios;
 struct winsize;
 struct in_addr;
 struct kinfo_file;
+struct kinfo_proc;
 struct kinfo_vmentry;
 
 __BEGIN_DECLS
@@ -109,7 +106,7 @@ int	forkpty(int *_amaster, char *_name,
 		     struct termios *_termp, struct winsize *_winp);
 int	humanize_number(char *_buf, size_t _len, int64_t _number,
 	    const char *_suffix, int _scale, int _flags);
-int	expand_number(const char *_buf, int64_t *_num);
+int	expand_number(const char *_buf, uint64_t *_num);
 const char *uu_lockerr(int _uu_lockresult);
 int	uu_lock(const char *_ttyname);
 int	uu_unlock(const char *_ttyname);
@@ -130,6 +127,10 @@ struct kinfo_file *
 	kinfo_getfile(pid_t _pid, int *_cntp);
 struct kinfo_vmentry *
 	kinfo_getvmmap(pid_t _pid, int *_cntp);
+struct kinfo_proc *
+	kinfo_getallproc(int *_cntp);
+struct kinfo_proc *
+	kinfo_getproc(pid_t _pid);
 
 #ifdef _STDIO_H_	/* avoid adding new includes */
 char   *fparseln(FILE *, size_t *, size_t *, const char[3], int);
@@ -162,6 +163,23 @@ struct pidfh *pidfile_open(const char *path, mode_t mode, pid_t *pidptr);
 int pidfile_write(struct pidfh *pfh);
 int pidfile_close(struct pidfh *pfh);
 int pidfile_remove(struct pidfh *pfh);
+#endif
+
+#ifdef _UFS_UFS_QUOTA_H_
+struct quotafile;
+struct fstab;
+struct quotafile *quota_open(struct fstab *, int, int);
+void quota_close(struct quotafile *);
+int quota_on(struct quotafile *);
+int quota_off(struct quotafile *);
+const char *quota_fsname(const struct quotafile *);
+const char *quota_qfname(const struct quotafile *);
+int quota_maxid(struct quotafile *);
+int quota_check_path(const struct quotafile *, const char *path);
+int quota_read(struct quotafile *, struct dqblk *, int);
+int quota_write_limits(struct quotafile *, struct dqblk *, int);
+int quota_write_usage(struct quotafile *, struct dqblk *, int);
+int quota_convert(struct quotafile *, int);
 #endif
 
 __END_DECLS
@@ -198,7 +216,9 @@ __END_DECLS
 #define HN_NOSPACE		0x02
 #define HN_B			0x04
 #define HN_DIVISOR_1000		0x08
+#define HN_IEC_PREFIXES		0x10
 
+/* maxscale = 0x07 */
 #define HN_GETSCALE		0x10
 #define HN_AUTOSCALE		0x20
 

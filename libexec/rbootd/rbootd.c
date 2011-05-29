@@ -54,9 +54,9 @@ static const char copyright[] =
 #if 0
 static const char sccsid[] = "@(#)rbootd.c	8.1 (Berkeley) 6/4/93";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/time.h>
@@ -397,7 +397,7 @@ Exit(int sig)
 **		- This routine must be called with SIGHUP blocked.
 */
 void
-ReConfig(int signo)
+ReConfig(int signo __unused)
 {
 	syslog(LOG_NOTICE, "reconfiguring boot server");
 
@@ -423,7 +423,7 @@ ReConfig(int signo)
 **		- Debug file is closed.
 */
 void
-DebugOff(int signo)
+DebugOff(int signo __unused)
 {
 	if (DbgFp != NULL)
 		(void) fclose(DbgFp);
@@ -445,7 +445,7 @@ DebugOff(int signo)
 **		  otherwise do nothing.
 */
 void
-DebugOn(int signo)
+DebugOn(int signo __unused)
 {
 	if (DbgFp == NULL) {
 		if ((DbgFp = fopen(DbgFile, "w")) == NULL)

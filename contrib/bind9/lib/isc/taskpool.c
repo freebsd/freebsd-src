@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: taskpool.c,v 1.18 2007/06/18 23:47:44 tbox Exp $ */
+/* $Id: taskpool.c,v 1.18 2007-06-18 23:47:44 tbox Exp $ */
 
 /*! \file */
 

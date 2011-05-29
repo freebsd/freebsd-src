@@ -331,7 +331,7 @@ is_executable(const char *fname, int fd, int *is_shlib, int *type)
 			return (0);
 		}
 		if (hdr.elf32.e_type == ET_DYN) {
-			if (hdr.elf32.e_ident[EI_OSABI] & ELFOSABI_FREEBSD) {
+			if (hdr.elf32.e_ident[EI_OSABI] == ELFOSABI_FREEBSD) {
 				*is_shlib = 1;
 				return (1);
 			}
@@ -373,7 +373,7 @@ is_executable(const char *fname, int fd, int *is_shlib, int *type)
 			return (0);
 		}
 		if (hdr.elf.e_type == ET_DYN) {
-			if (hdr.elf.e_ident[EI_OSABI] & ELFOSABI_FREEBSD) {
+			if (hdr.elf.e_ident[EI_OSABI] == ELFOSABI_FREEBSD) {
 				*is_shlib = 1;
 				return (1);
 			}

@@ -4,6 +4,7 @@
 # Usage: genscripts_extra.sh \
 #          srcdir \
 #          libdir \
+#          prefix \
 #          exec_prefix \
 #          host \
 #          target \
@@ -21,6 +22,7 @@
 #   genscripts_extra.sh \
 #    /sources/ld \
 #    /usr/local/lib \
+#    /usr/local \
 #    /usr/local \
 #    sparc-sun-sunos4.1.3 \
 #    sparc-sun-sunos4.1.3 \
@@ -59,17 +61,18 @@
 
 srcdir=$1
 libdir=$2
-exec_prefix=$3
-host=$4
-target=$5
-target_alias=$6
-EMULATION_LIBPATH=$7
-NATIVE_LIB_DIRS=$8
-use_sysroot=$9
+prefix=$3
+exec_prefix=$4
+host=$5
+target=$6
+target_alias=$7
+EMULATION_LIBPATH=$8
+NATIVE_LIB_DIRS=$9
 shift 9
-EMULATION_NAME=$1
-TOOL_LIB=$2
-CUSTOMIZER_SCRIPT=$3
+use_sysroot=$1
+EMULATION_NAME=$2
+TOOL_LIB=$3
+CUSTOMIZER_SCRIPT=$4
 
 # Can't use ${TOOL_LIB:-$target_alias} here due to an Ultrix shell bug.
 if [ "x${TOOL_LIB}" = "x" ] ; then
@@ -186,18 +189,25 @@ if [ "x${use_sysroot}" != "xyes" ] ; then
   ::) LIB_PATH=${tool_lib} ;;
   *) LIB_PATH=${tool_lib}:${LIB_PATH} ;;
   esac
+  # For multilib targets, search both $tool_lib dirs
+  if [ "x${LIBPATH_SUFFIX}" != "x" ] ; then
+    case :${LIB_PATH}: in
+      ::: | *:${tool_lib}${LIBPATH_SUFFIX}:*) ;;
+      ::) LIB_PATH=${tool_lib}${LIBPATH_SUFFIX} ;;
+      *) LIB_PATH=${tool_lib}${LIBPATH_SUFFIX}:${LIB_PATH} ;;
+    esac
+  fi
 fi
 
 LIB_SEARCH_DIRS=`echo ${LIB_PATH} | sed -e 's/:/ /g' -e 's/\([^ ][^ ]*\)/SEARCH_DIR(\\"\1\\");/g'`
 
 # We need it for testsuite.
-case " $EMULATION_LIBPATH " in
-  *" ${EMULATION_NAME} "*)
+set $EMULATION_LIBPATH
+if [ "x$1" = "x$EMULATION_NAME" ]; then
     test -d tmpdir || mkdir tmpdir
-    test -f tmpdir/libpath.exp || \
+    rm -f tmpdir/libpath.exp
     echo "set libpath \"${LIB_PATH}\"" | sed -e 's/:/ /g' > tmpdir/libpath.exp
-    ;;
-esac
+fi
 
 # Generate 5 or 6 script files from a master script template in
 # ${srcdir}/scripttempl/${SCRIPT_NAME}.sh.  Which one of the 5 or 6
@@ -283,7 +293,16 @@ if test -n "$GENERATE_COMBRELOC_SCRIPT"; then
     . ${srcdir}/scripttempl/${SCRIPT_NAME}.sc
   ) | sed -e '/^ *$/d;s/[ 	]*$//' > ldscripts/${EMULATION_NAME}.xc
   rm -f ${COMBRELOC}
+  LD_FLAG=w
+  RELRO_NOW=" "
+  COMBRELOC=ldscripts/${EMULATION_NAME}.xw.tmp
+  ( echo "/* Script for -z combreloc -z now -z relro: combine and sort reloc sections */"
+    . ${CUSTOMIZER_SCRIPT} ${EMULATION_NAME}
+    . ${srcdir}/scripttempl/${SCRIPT_NAME}.sc
+  ) | sed -e '/^ *$/d;s/[ 	]*$//' > ldscripts/${EMULATION_NAME}.xw
+  rm -f ${COMBRELOC}
   COMBRELOC=
+  unset RELRO_NOW
 fi
 
 if test -n "$GENERATE_SHLIB_SCRIPT"; then
@@ -299,13 +318,22 @@ if test -n "$GENERATE_SHLIB_SCRIPT"; then
   if test -n "$GENERATE_COMBRELOC_SCRIPT"; then
     LD_FLAG=cshared
     DATA_ALIGNMENT=${DATA_ALIGNMENT_sc-${DATA_ALIGNMENT}}
-    COMBRELOC=ldscripts/${EMULATION_NAME}.xc.tmp
+    COMBRELOC=ldscripts/${EMULATION_NAME}.xsc.tmp
     ( echo "/* Script for --shared -z combreloc: shared library, combine & sort relocs */"
       . ${CUSTOMIZER_SCRIPT} ${EMULATION_NAME}
       . ${srcdir}/scripttempl/${SCRIPT_NAME}.sc
     ) | sed -e '/^ *$/d;s/[ 	]*$//' > ldscripts/${EMULATION_NAME}.xsc
     rm -f ${COMBRELOC}
+    LD_FLAG=wshared
+    RELRO_NOW=" "
+    COMBRELOC=ldscripts/${EMULATION_NAME}.xsw.tmp
+    ( echo "/* Script for --shared -z combreloc -z now -z relro: shared library, combine & sort relocs */"
+      . ${CUSTOMIZER_SCRIPT} ${EMULATION_NAME}
+      . ${srcdir}/scripttempl/${SCRIPT_NAME}.sc
+    ) | sed -e '/^ *$/d;s/[ 	]*$//' > ldscripts/${EMULATION_NAME}.xsw
+    rm -f ${COMBRELOC}
     COMBRELOC=
+    unset RELRO_NOW
   fi
   unset CREATE_SHLIB
 fi
@@ -323,13 +351,22 @@ if test -n "$GENERATE_PIE_SCRIPT"; then
   if test -n "$GENERATE_COMBRELOC_SCRIPT"; then
     LD_FLAG=cpie
     DATA_ALIGNMENT=${DATA_ALIGNMENT_sc-${DATA_ALIGNMENT}}
-    COMBRELOC=ldscripts/${EMULATION_NAME}.xc.tmp
+    COMBRELOC=ldscripts/${EMULATION_NAME}.xdc.tmp
     ( echo "/* Script for -pie -z combreloc: position independent executable, combine & sort relocs */"
       . ${CUSTOMIZER_SCRIPT} ${EMULATION_NAME}
       . ${srcdir}/scripttempl/${SCRIPT_NAME}.sc
     ) | sed -e '/^ *$/d;s/[ 	]*$//' > ldscripts/${EMULATION_NAME}.xdc
     rm -f ${COMBRELOC}
+    LD_FLAG=wpie
+    RELRO_NOW=" "
+    COMBRELOC=ldscripts/${EMULATION_NAME}.xdw.tmp
+    ( echo "/* Script for -pie -z combreloc -z now -z relro: position independent executable, combine & sort relocs */"
+      . ${CUSTOMIZER_SCRIPT} ${EMULATION_NAME}
+      . ${srcdir}/scripttempl/${SCRIPT_NAME}.sc
+    ) | sed -e '/^ *$/d;s/[ 	]*$//' > ldscripts/${EMULATION_NAME}.xdw
+    rm -f ${COMBRELOC}
     COMBRELOC=
+    unset RELRO_NOW
   fi
   unset CREATE_PIE
 fi

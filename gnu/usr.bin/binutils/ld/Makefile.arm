@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.if defined(TARGET_BIG_ENDIAN)
+.if ${TARGET_ARCH} == "armeb"
 NATIVE_EMULATION= armelfb_fbsd
 .else
 NATIVE_EMULATION= armelf_fbsd
@@ -10,7 +10,7 @@ SRCS+=		e${NATIVE_EMULATION}.c
 CLEANFILES+=	e${NATIVE_EMULATION}.c
 e${NATIVE_EMULATION}.c: ${.CURDIR}/${NATIVE_EMULATION}.sh emultempl/elf32.em \
     scripttempl/elf.sc genscripts.sh stringify.sed
-	sh ${.CURDIR}/genscripts.sh ${SRCDIR}/ld ${LIBSERACHPATH} \
+	sh ${.CURDIR}/genscripts.sh ${SRCDIR}/ld ${LIBSEARCHPATH} \
 	    ${TOOLS_PREFIX}/usr \
 	    ${HOST} ${TARGET_TUPLE} ${TARGET_TUPLE} \
 	    ${NATIVE_EMULATION} "" no ${NATIVE_EMULATION} ${TARGET_TUPLE} \

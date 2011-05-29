@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/socket.h>
 #include <sys/taskqueue.h>
+#include <sys/sysctl.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -78,12 +79,26 @@ MODULE_DEPEND(arge, miibus, 1, 1, 1);
 
 #include <mips/atheros/ar71xxreg.h>
 #include <mips/atheros/if_argevar.h>
+#include <mips/atheros/ar71xx_setup.h>
+#include <mips/atheros/ar71xx_cpudef.h>
 
-#undef ARGE_DEBUG
+typedef enum {
+	ARGE_DBG_MII 	=	0x00000001,
+	ARGE_DBG_INTR	=	0x00000002,
+	ARGE_DBG_TX	=	0x00000004,
+	ARGE_DBG_RX	=	0x00000008,
+	ARGE_DBG_ERR	=	0x00000010,
+	ARGE_DBG_RESET	=	0x00000020,
+} arge_debug_flags;
+
 #ifdef ARGE_DEBUG
-#define dprintf printf
+#define	ARGEDEBUG(_sc, _m, ...) 					\
+	do {								\
+		if ((_m) & (_sc)->arge_debug)				\
+			device_printf((_sc)->arge_dev, __VA_ARGS__);	\
+	} while (0)
 #else
-#define dprintf(x, arg...)
+#define	ARGEDEBUG(_sc, _m, ...)
 #endif
 
 static int arge_attach(device_t);
@@ -171,7 +186,7 @@ extern uint32_t ar711_base_mac[ETHER_ADDR_LEN];
 
 static struct mtx miibus_mtx;
 
-MTX_SYSINIT(miibus_mtx, &miibus_mtx, "arge mii lock", MTX_SPIN);
+MTX_SYSINIT(miibus_mtx, &miibus_mtx, "arge mii lock", MTX_DEF);
 
 
 /*
@@ -180,14 +195,10 @@ MTX_SYSINIT(miibus_mtx, &miibus_mtx, "arge mii lock", MTX_SPIN);
 static void
 arge_flush_ddr(struct arge_softc *sc)
 {
-
-	ATH_WRITE_REG(sc->arge_ddr_flush_reg, 1);
-	while (ATH_READ_REG(sc->arge_ddr_flush_reg) & 1)
-		;
-
-	ATH_WRITE_REG(sc->arge_ddr_flush_reg, 1);
-	while (ATH_READ_REG(sc->arge_ddr_flush_reg) & 1)
-		;
+	if (sc->arge_mac_unit == 0)
+		ar71xx_device_flush_ddr_ge0();
+	else
+		ar71xx_device_flush_ddr_ge1();
 }
 
 static int 
@@ -196,6 +207,37 @@ arge_probe(device_t dev)
 
 	device_set_desc(dev, "Atheros AR71xx built-in ethernet interface");
 	return (0);
+}
+
+static void
+arge_attach_sysctl(device_t dev)
+{
+	struct arge_softc *sc = device_get_softc(dev);
+	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(dev);
+	struct sysctl_oid *tree = device_get_sysctl_tree(dev);
+
+#ifdef	ARGE_DEBUG
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"debug", CTLFLAG_RW, &sc->arge_debug, 0,
+		"arge interface debugging flags");
+#endif
+
+	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"tx_pkts_aligned", CTLFLAG_RW, &sc->stats.tx_pkts_aligned, 0,
+		"number of TX aligned packets");
+
+	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"tx_pkts_unaligned", CTLFLAG_RW, &sc->stats.tx_pkts_unaligned, 0,
+		"number of TX unaligned packets");
+
+#ifdef	ARGE_DEBUG
+	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "tx_prod",
+	    CTLFLAG_RW, &sc->arge_cdata.arge_tx_prod, 0, "");
+	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "tx_cons",
+	    CTLFLAG_RW, &sc->arge_cdata.arge_tx_cons, 0, "");
+	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "tx_cnt",
+	    CTLFLAG_RW, &sc->arge_cdata.arge_tx_cnt, 0, "");
+#endif
 }
 
 static int
@@ -208,22 +250,34 @@ arge_attach(device_t dev)
 	uint32_t		reg, rnd;
 	int			is_base_mac_empty, i, phys_total;
 	uint32_t		hint;
+	long			eeprom_mac_addr = 0;
 
 	sc = device_get_softc(dev);
 	sc->arge_dev = dev;
 	sc->arge_mac_unit = device_get_unit(dev);
 
+	/*
+	 * Some units (eg the TP-Link WR-1043ND) do not have a convenient
+	 * EEPROM location to read the ethernet MAC address from.
+	 * OpenWRT simply snaffles it from a fixed location.
+	 *
+	 * Since multiple units seem to use this feature, include
+	 * a method of setting the MAC address based on an flash location
+	 * in CPU address space.
+	 */
+	if (sc->arge_mac_unit == 0 &&
+	    resource_long_value(device_get_name(dev), device_get_unit(dev), 
+	    "eeprommac", &eeprom_mac_addr) == 0) {
+		int i;
+		const char *mac = (const char *) MIPS_PHYS_TO_KSEG1(eeprom_mac_addr);
+		device_printf(dev, "Overriding MAC from EEPROM\n");
+		for (i = 0; i < 6; i++) {
+			ar711_base_mac[i] = mac[i];
+		}
+	}
+
 	KASSERT(((sc->arge_mac_unit == 0) || (sc->arge_mac_unit == 1)), 
 	    ("if_arge: Only MAC0 and MAC1 supported"));
-	if (sc->arge_mac_unit == 0) {
-		sc->arge_ddr_flush_reg = AR71XX_WB_FLUSH_GE0;
-		sc->arge_pll_reg = AR71XX_PLL_ETH_INT0_CLK;
-		sc->arge_pll_reg_shift = 17;
-	} else {
-		sc->arge_ddr_flush_reg = AR71XX_WB_FLUSH_GE1;
-		sc->arge_pll_reg = AR71XX_PLL_ETH_INT1_CLK;
-		sc->arge_pll_reg_shift = 19;
-	}
 
 	/*
 	 *  Get which PHY of 5 available we should use for this unit
@@ -312,8 +366,8 @@ arge_attach(device_t dev)
 	sc->arge_if_flags = ifp->if_flags;
 
 	/* XXX: add real size */
-	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
-	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
+	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
+	ifp->if_snd.ifq_maxlen = ifqmaxlen;
 	IFQ_SET_READY(&ifp->if_snd);
 
 	ifp->if_capenable = ifp->if_capabilities;
@@ -360,19 +414,9 @@ arge_attach(device_t dev)
 	DELAY(20);
 
 	/* Step 2. Punt the MAC core from the central reset register */
-	reg = ATH_READ_REG(AR71XX_RST_RESET);
-	if (sc->arge_mac_unit == 0) 
-		reg |= RST_RESET_GE0_MAC;
-	else if (sc->arge_mac_unit == 1) 
-		reg |= RST_RESET_GE1_MAC;
-	ATH_WRITE_REG(AR71XX_RST_RESET, reg);
+	ar71xx_device_stop(sc->arge_mac_unit == 0 ? RST_RESET_GE0_MAC : RST_RESET_GE1_MAC);
 	DELAY(100);
-	reg = ATH_READ_REG(AR71XX_RST_RESET);
-	if (sc->arge_mac_unit == 0) 
-		reg &= ~RST_RESET_GE0_MAC;
-	else if (sc->arge_mac_unit == 1) 
-		reg &= ~RST_RESET_GE1_MAC;
-	ATH_WRITE_REG(AR71XX_RST_RESET, reg);
+	ar71xx_device_start(sc->arge_mac_unit == 0 ? RST_RESET_GE0_MAC : RST_RESET_GE1_MAC);
 
 	/* Step 3. Reconfigure MAC block */
 	ARGE_WRITE(sc, AR71XX_MAC_CFG1, 
@@ -401,8 +445,18 @@ arge_attach(device_t dev)
 
 	ARGE_WRITE(sc, AR71XX_MAC_FIFO_CFG0, 
 	    FIFO_CFG0_ALL << FIFO_CFG0_ENABLE_SHIFT);
-	ARGE_WRITE(sc, AR71XX_MAC_FIFO_CFG1, 0x0fff0000);
-	ARGE_WRITE(sc, AR71XX_MAC_FIFO_CFG2, 0x00001fff);
+
+	switch (ar71xx_soc) {
+		case AR71XX_SOC_AR7240:
+		case AR71XX_SOC_AR7241:
+		case AR71XX_SOC_AR7242:
+			ARGE_WRITE(sc, AR71XX_MAC_FIFO_CFG1, 0x0010ffff);
+			ARGE_WRITE(sc, AR71XX_MAC_FIFO_CFG2, 0x015500aa);
+			break;
+		default:
+			ARGE_WRITE(sc, AR71XX_MAC_FIFO_CFG1, 0x0fff0000);
+			ARGE_WRITE(sc, AR71XX_MAC_FIFO_CFG2, 0x00001fff);
+	}
 
 	ARGE_WRITE(sc, AR71XX_MAC_FIFO_RX_FILTMATCH, 
 	    FIFO_RX_FILTMATCH_DEFAULT);
@@ -425,10 +479,11 @@ arge_attach(device_t dev)
 
 	if (phys_total == 1) {
 		/* Do MII setup. */
-		if (mii_phy_probe(dev, &sc->arge_miibus,
-		    arge_ifmedia_upd, arge_ifmedia_sts)) {
-			device_printf(dev, "MII without any phy!\n");
-			error = ENXIO;
+		error = mii_attach(dev, &sc->arge_miibus, ifp,
+		    arge_ifmedia_upd, arge_ifmedia_sts, BMSR_DEFCAPMASK,
+		    MII_PHY_ANY, MII_OFFSET_ANY, 0);
+		if (error != 0) {
+			device_printf(dev, "attaching PHYs failed\n");
 			goto fail;
 		}
 	}
@@ -456,6 +511,9 @@ arge_attach(device_t dev)
 		ether_ifdetach(ifp);
 		goto fail;
 	}
+
+	/* setup sysctl variables */
+	arge_attach_sysctl(dev);
 
 fail:
 	if (error) 
@@ -563,7 +621,7 @@ arge_miibus_readreg(device_t dev, int phy, int reg)
 
 	if (i < 0) {
 		mtx_unlock(&miibus_mtx);
-		dprintf("%s timedout\n", __func__);
+		ARGEDEBUG(sc, ARGE_DBG_MII, "%s timedout\n", __func__);
 		/* XXX: return ERRNO istead? */
 		return (-1);
 	}
@@ -572,7 +630,7 @@ arge_miibus_readreg(device_t dev, int phy, int reg)
 	ARGE_MII_WRITE(AR71XX_MAC_MII_CMD, MAC_MII_CMD_WRITE);
 	mtx_unlock(&miibus_mtx);
 
-	dprintf("%s: phy=%d, reg=%02x, value[%08x]=%04x\n", __func__, 
+	ARGEDEBUG(sc, ARGE_DBG_MII, "%s: phy=%d, reg=%02x, value[%08x]=%04x\n", __func__, 
 		 phy, reg, addr, result);
 
 	return (result);
@@ -590,7 +648,7 @@ arge_miibus_writereg(device_t dev, int phy, int reg, int data)
 	if ((sc->arge_phymask  & (1 << phy)) == 0)
 		return (-1);
 
-	dprintf("%s: phy=%d, reg=%02x, value=%04x\n", __func__, 
+	ARGEDEBUG(sc, ARGE_DBG_MII, "%s: phy=%d, reg=%02x, value=%04x\n", __func__, 
 	    phy, reg, data);
 
 	mtx_lock(&miibus_mtx);
@@ -605,7 +663,7 @@ arge_miibus_writereg(device_t dev, int phy, int reg, int data)
 	mtx_unlock(&miibus_mtx);
 
 	if (i < 0) {
-		dprintf("%s timedout\n", __func__);
+		ARGEDEBUG(sc, ARGE_DBG_MII, "%s timedout\n", __func__);
 		/* XXX: return ERRNO istead? */
 		return (-1);
 	}
@@ -659,7 +717,9 @@ arge_link_task(void *arg, int pending)
 static void
 arge_set_pll(struct arge_softc *sc, int media, int duplex)
 {
-	uint32_t		cfg, ifcontrol, rx_filtmask, pll, sec_cfg;
+	uint32_t		cfg, ifcontrol, rx_filtmask;
+	uint32_t		fifo_tx;
+	int if_speed;
 
 	cfg = ARGE_READ(sc, AR71XX_MAC_CFG2);
 	cfg &= ~(MAC_CFG2_IFACE_MODE_1000 
@@ -678,50 +738,50 @@ arge_set_pll(struct arge_softc *sc, int media, int duplex)
 	switch(media) {
 	case IFM_10_T:
 		cfg |= MAC_CFG2_IFACE_MODE_10_100;
-		pll = PLL_ETH_INT_CLK_10;
+		if_speed = 10;
 		break;
 	case IFM_100_TX:
 		cfg |= MAC_CFG2_IFACE_MODE_10_100;
 		ifcontrol |= MAC_IFCONTROL_SPEED;
-		pll = PLL_ETH_INT_CLK_100;
+		if_speed = 100;
 		break;
 	case IFM_1000_T:
 	case IFM_1000_SX:
 		cfg |= MAC_CFG2_IFACE_MODE_1000;
 		rx_filtmask |= FIFO_RX_MASK_BYTE_MODE;
-		pll = PLL_ETH_INT_CLK_1000;
+		if_speed = 1000;
 		break;
 	default:
-		pll = PLL_ETH_INT_CLK_100;
+		if_speed = 100;
 		device_printf(sc->arge_dev, 
 		    "Unknown media %d\n", media);
 	}
 
-	ARGE_WRITE(sc, AR71XX_MAC_FIFO_TX_THRESHOLD,
-	    0x008001ff);
+	switch (ar71xx_soc) {
+		case AR71XX_SOC_AR7240:
+		case AR71XX_SOC_AR7241:
+		case AR71XX_SOC_AR7242:
+			fifo_tx = 0x01f00140;
+			break;
+		case AR71XX_SOC_AR9130:
+		case AR71XX_SOC_AR9132:
+			fifo_tx = 0x00780fff;
+			break;
+		default:
+			fifo_tx = 0x008001ff;
+	}
 
 	ARGE_WRITE(sc, AR71XX_MAC_CFG2, cfg);
 	ARGE_WRITE(sc, AR71XX_MAC_IFCONTROL, ifcontrol);
 	ARGE_WRITE(sc, AR71XX_MAC_FIFO_RX_FILTMASK, 
 	    rx_filtmask);
+	ARGE_WRITE(sc, AR71XX_MAC_FIFO_TX_THRESHOLD, fifo_tx);
 
 	/* set PLL registers */
-	sec_cfg = ATH_READ_REG(AR71XX_PLL_SEC_CONFIG);
-	sec_cfg &= ~(3 << sc->arge_pll_reg_shift);
-	sec_cfg |= (2 << sc->arge_pll_reg_shift);
-
-	ATH_WRITE_REG(AR71XX_PLL_SEC_CONFIG, sec_cfg);
-	DELAY(100);
-
-	ATH_WRITE_REG(sc->arge_pll_reg, pll);
-
-	sec_cfg |= (3 << sc->arge_pll_reg_shift);
-	ATH_WRITE_REG(AR71XX_PLL_SEC_CONFIG, sec_cfg);
-	DELAY(100);
-
-	sec_cfg &= ~(3 << sc->arge_pll_reg_shift);
-	ATH_WRITE_REG(AR71XX_PLL_SEC_CONFIG, sec_cfg);
-	DELAY(100);
+	if (sc->arge_mac_unit == 0)
+		ar71xx_device_set_pll_ge0(if_speed);
+	else
+		ar71xx_device_set_pll_ge1(if_speed);
 }
 
 
@@ -818,6 +878,28 @@ arge_init_locked(struct arge_softc *sc)
 }
 
 /*
+ * Return whether the mbuf chain is correctly aligned
+ * for the arge TX engine.
+ *
+ * The TX engine requires each fragment to be aligned to a
+ * 4 byte boundary and the size of each fragment except
+ * the last to be a multiple of 4 bytes.
+ */
+static int
+arge_mbuf_chain_is_tx_aligned(struct mbuf *m0)
+{
+	struct mbuf *m;
+
+	for (m = m0; m != NULL; m = m->m_next) {
+		if((mtod(m, intptr_t) & 3) != 0)
+			return 0;
+		if ((m->m_next != NULL) && ((m->m_len & 0x03) != 0))
+			return 0;
+	}
+	return 1;
+}
+
+/*
  * Encapsulate an mbuf chain in a descriptor by coupling the mbuf data
  * pointers to the fragment pointers.
  */
@@ -837,14 +919,16 @@ arge_encap(struct arge_softc *sc, struct mbuf **m_head)
 	 * even 4 bytes
 	 */
 	m = *m_head;
-	if((mtod(m, intptr_t) & 3) != 0) {
+	if (! arge_mbuf_chain_is_tx_aligned(m)) {
+		sc->stats.tx_pkts_unaligned++;
 		m = m_defrag(*m_head, M_DONTWAIT);
 		if (m == NULL) {
 			*m_head = NULL;
 			return (ENOBUFS);
 		}
 		*m_head = m;
-	}
+	} else
+		sc->stats.tx_pkts_aligned++;
 
 	prod = sc->arge_cdata.arge_tx_prod;
 	txd = &sc->arge_cdata.arge_txdesc[prod];
@@ -905,6 +989,7 @@ arge_encap(struct arge_softc *sc, struct mbuf **m_head)
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
 	/* Start transmitting */
+	ARGEDEBUG(sc, ARGE_DBG_TX, "%s: setting DMA_TX_CONTROL_EN\n", __func__);
 	ARGE_WRITE(sc, AR71XX_DMA_TX_CONTROL, DMA_TX_CONTROL_EN);
 	return (0);
 }
@@ -926,15 +1011,31 @@ arge_start_locked(struct ifnet *ifp)
 {
 	struct arge_softc	*sc;
 	struct mbuf		*m_head;
-	int			enq;
+	int			enq = 0;
 
 	sc = ifp->if_softc;
 
 	ARGE_LOCK_ASSERT(sc);
 
+	ARGEDEBUG(sc, ARGE_DBG_TX, "%s: beginning\n", __func__);
+
 	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
 	    IFF_DRV_RUNNING || sc->arge_link_status == 0 )
 		return;
+
+	/*
+	 * Before we go any further, check whether we're already full.
+	 * The below check errors out immediately if the ring is full
+	 * and never gets a chance to set this flag. Although it's
+	 * likely never needed, this at least avoids an unexpected
+	 * situation.
+	 */
+	if (sc->arge_cdata.arge_tx_cnt >= ARGE_TX_RING_COUNT - 2) {
+		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+		ARGEDEBUG(sc, ARGE_DBG_ERR, "%s: tx_cnt %d >= max %d; setting IFF_DRV_OACTIVE\n",
+		    __func__, sc->arge_cdata.arge_tx_cnt, ARGE_TX_RING_COUNT - 2);
+		return;
+	}
 
 	arge_flush_ddr(sc);
 
@@ -963,6 +1064,7 @@ arge_start_locked(struct ifnet *ifp)
 		 */
 		ETHER_BPF_MTAP(ifp, m_head);
 	}
+	ARGEDEBUG(sc, ARGE_DBG_TX, "%s: finished; queued %d packets\n", __func__, enq);
 }
 
 static void
@@ -1077,10 +1179,8 @@ arge_ifmedia_upd(struct ifnet *ifp)
 	sc = ifp->if_softc;
 	ARGE_LOCK(sc);
 	mii = device_get_softc(sc->arge_miibus);
-	if (mii->mii_instance) {
-		LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
-			mii_phy_reset(miisc);
-	}
+	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
+		PHY_RESET(miisc);
 	error = mii_mediachg(mii);
 	ARGE_UNLOCK(sc);
 
@@ -1384,7 +1484,6 @@ arge_tx_ring_init(struct arge_softc *sc)
 	sc->arge_cdata.arge_tx_prod = 0;
 	sc->arge_cdata.arge_tx_cons = 0;
 	sc->arge_cdata.arge_tx_cnt = 0;
-	sc->arge_cdata.arge_tx_pkts = 0;
 
 	rd = &sc->arge_rdata;
 	bzero(rd->arge_tx_ring, sizeof(rd->arge_tx_ring));
@@ -1542,6 +1641,9 @@ arge_tx_locked(struct arge_softc *sc)
 
 	cons = sc->arge_cdata.arge_tx_cons;
 	prod = sc->arge_cdata.arge_tx_prod;
+
+	ARGEDEBUG(sc, ARGE_DBG_TX, "%s: cons=%d, prod=%d\n", __func__, cons, prod);
+
 	if (cons == prod)
 		return;
 
@@ -1670,14 +1772,12 @@ arge_intr_filter(void *arg)
 	status = ARGE_READ(sc, AR71XX_DMA_INTR_STATUS);
 	ints = ARGE_READ(sc, AR71XX_DMA_INTR);
 
-#if 0
-	dprintf("int mask(filter) = %b\n", ints,
+	ARGEDEBUG(sc, ARGE_DBG_INTR, "int mask(filter) = %b\n", ints,
 	    "\20\10RX_BUS_ERROR\7RX_OVERFLOW\5RX_PKT_RCVD"
 	    "\4TX_BUS_ERROR\2TX_UNDERRUN\1TX_PKT_SENT");
-	dprintf("status(filter) = %b\n", status, 
+	ARGEDEBUG(sc, ARGE_DBG_INTR, "status(filter) = %b\n", status, 
 	    "\20\10RX_BUS_ERROR\7RX_OVERFLOW\5RX_PKT_RCVD"
 	    "\4TX_BUS_ERROR\2TX_UNDERRUN\1TX_PKT_SENT");
-#endif
 
 	if (status & DMA_INTR_ALL) {
 		sc->arge_intr_status |= status;
@@ -1694,15 +1794,14 @@ arge_intr(void *arg)
 {
 	struct arge_softc	*sc = arg;
 	uint32_t		status;
+	struct ifnet		*ifp = sc->arge_ifp;
 
 	status = ARGE_READ(sc, AR71XX_DMA_INTR_STATUS);
 	status |= sc->arge_intr_status;
 
-#if 0
-	dprintf("int status(intr) = %b\n", status, 
+	ARGEDEBUG(sc, ARGE_DBG_INTR, "int status(intr) = %b\n", status, 
 	    "\20\10\7RX_OVERFLOW\5RX_PKT_RCVD"
 	    "\4TX_BUS_ERROR\2TX_UNDERRUN\1TX_PKT_SENT");
-#endif
 
 	/* 
 	 * Is it our interrupt at all? 
@@ -1734,6 +1833,7 @@ arge_intr(void *arg)
 	if ( status & DMA_INTR_RX_OVERFLOW) {
 		ARGE_WRITE(sc, AR71XX_DMA_RX_STATUS, DMA_RX_STATUS_OVERFLOW);
 		ARGE_WRITE(sc, AR71XX_DMA_RX_CONTROL, DMA_RX_CONTROL_EN);
+		sc->stats.rx_overflow++;
 	}
 
 	if (status & DMA_INTR_TX_PKT_SENT)
@@ -1744,10 +1844,33 @@ arge_intr(void *arg)
 	 */
 	if (status & DMA_INTR_TX_UNDERRUN) {
 		ARGE_WRITE(sc, AR71XX_DMA_TX_STATUS, DMA_TX_STATUS_UNDERRUN);
-		if (sc->arge_cdata.arge_tx_pkts > 0 ) {
+		sc->stats.tx_underflow++;
+		ARGEDEBUG(sc, ARGE_DBG_TX, "%s: TX underrun; tx_cnt=%d\n", __func__, sc->arge_cdata.arge_tx_cnt);
+		if (sc->arge_cdata.arge_tx_cnt > 0 ) {
 			ARGE_WRITE(sc, AR71XX_DMA_TX_CONTROL, 
 			    DMA_TX_CONTROL_EN);
 		}
+	}
+
+	/*
+	 * If we've finished TXing and there's space for more packets
+	 * to be queued for TX, do so. Otherwise we may end up in a
+	 * situation where the interface send queue was filled
+	 * whilst the hardware queue was full, then the hardware
+	 * queue was drained by the interface send queue wasn't,
+	 * and thus if_start() is never called to kick-start
+	 * the send process (and all subsequent packets are simply
+	 * discarded.
+	 *
+	 * XXX TODO: make sure that the hardware deals nicely
+	 * with the possibility of the queue being enabled above
+	 * after a TX underrun, then having the hardware queue added
+	 * to below.
+	 */
+	if (status & (DMA_INTR_TX_PKT_SENT | DMA_INTR_TX_UNDERRUN) &&
+	    (ifp->if_drv_flags & IFF_DRV_OACTIVE) == 0) {
+		if (!IFQ_IS_EMPTY(&ifp->if_snd))
+			arge_start_locked(ifp);
 	}
 
 	/*

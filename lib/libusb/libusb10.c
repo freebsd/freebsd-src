@@ -37,6 +37,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+#define	libusb_device_handle libusb20_device
+
 #include "libusb20.h"
 #include "libusb20_desc.h"
 #include "libusb20_int.h"
@@ -49,7 +51,6 @@ struct libusb_context *usbi_default_context = NULL;
 /* Prototypes */
 
 static struct libusb20_transfer *libusb10_get_transfer(struct libusb20_device *, uint8_t, uint8_t);
-static int libusb10_get_maxframe(struct libusb20_device *, libusb_transfer *);
 static int libusb10_get_buffsize(struct libusb20_device *, libusb_transfer *);
 static int libusb10_convert_error(uint8_t status);
 static void libusb10_complete_transfer(struct libusb20_transfer *, struct libusb_super_transfer *, int);
@@ -68,12 +69,30 @@ libusb_set_debug(libusb_context *ctx, int level)
 		ctx->debug = level;
 }
 
+static void
+libusb_set_nonblocking(int f)
+{
+	int flags;
+
+	/*
+	 * We ignore any failures in this function, hence the
+	 * non-blocking flag is not critical to the operation of
+	 * libUSB. We use F_GETFL and F_SETFL to be compatible with
+	 * Linux.
+	 */
+
+	flags = fcntl(f, F_GETFL, NULL);
+	if (flags == -1)
+		return;
+	flags |= O_NONBLOCK;
+	fcntl(f, F_SETFL, flags);
+}
+
 int
 libusb_init(libusb_context **context)
 {
 	struct libusb_context *ctx;
 	char *debug;
-	int flag;
 	int ret;
 
 	ctx = malloc(sizeof(*ctx));
@@ -104,12 +123,8 @@ libusb_init(libusb_context **context)
 		return (LIBUSB_ERROR_OTHER);
 	}
 	/* set non-blocking mode on the control pipe to avoid deadlock */
-	flag = 1;
-	ret = fcntl(ctx->ctrl_pipe[0], O_NONBLOCK, &flag);
-	assert(ret != -1 && "Couldn't set O_NONBLOCK for ctx->ctrl_pipe[0]");
-	flag = 1;
-	ret = fcntl(ctx->ctrl_pipe[1], O_NONBLOCK, &flag);
-	assert(ret != -1 && "Couldn't set O_NONBLOCK for ctx->ctrl_pipe[1]");
+	libusb_set_nonblocking(ctx->ctrl_pipe[0]);
+	libusb_set_nonblocking(ctx->ctrl_pipe[1]);
 
 	libusb10_add_pollfd(ctx, &ctx->ctx_poll, NULL, ctx->ctrl_pipe[0], POLLIN);
 
@@ -354,7 +369,7 @@ libusb_open(libusb_device *dev, libusb_device_handle **devh)
 	/* make sure our event loop detects the new device */
 	dummy = 0;
 	err = write(ctx->ctrl_pipe[1], &dummy, sizeof(dummy));
-	if (err < sizeof(dummy)) {
+	if (err < (int)sizeof(dummy)) {
 		/* ignore error, if any */
 		DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_open write failed!");
 	}
@@ -429,7 +444,7 @@ libusb_close(struct libusb20_device *pdev)
 	/* make sure our event loop detects the closed device */
 	dummy = 0;
 	err = write(ctx->ctrl_pipe[1], &dummy, sizeof(dummy));
-	if (err < sizeof(dummy)) {
+	if (err < (int)sizeof(dummy)) {
 		/* ignore error, if any */
 		DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_close write failed!");
 	}
@@ -471,7 +486,6 @@ libusb_set_configuration(struct libusb20_device *pdev, int configuration)
 	uint8_t i;
 
 	dev = libusb_get_device(pdev);
-
 	if (dev == NULL)
 		return (LIBUSB_ERROR_INVALID_PARAM);
 
@@ -618,6 +632,8 @@ libusb_clear_halt(struct libusb20_device *pdev, uint8_t endpoint)
 		return (LIBUSB_ERROR_INVALID_PARAM);
 
 	dev = libusb_get_device(pdev);
+	if (dev == NULL)
+		return (LIBUSB_ERROR_INVALID_PARAM);
 
 	CTX_LOCK(dev->ctx);
 	err = libusb20_tr_open(xfer, 0, 0, endpoint);
@@ -645,7 +661,7 @@ libusb_reset_device(struct libusb20_device *pdev)
 
 	dev = libusb_get_device(pdev);
 	if (dev == NULL)
-		return (LIBUSB20_ERROR_INVALID_PARAM);
+		return (LIBUSB_ERROR_INVALID_PARAM);
 
 	libusb10_cancel_all_transfer(dev);
 
@@ -661,6 +677,21 @@ libusb_reset_device(struct libusb20_device *pdev)
 }
 
 int
+libusb_check_connected(struct libusb20_device *pdev)
+{
+	libusb_device *dev;
+	int err;
+
+	dev = libusb_get_device(pdev);
+	if (dev == NULL)
+		return (LIBUSB_ERROR_INVALID_PARAM);
+
+	err = libusb20_dev_check_connected(pdev);
+
+	return (err ? LIBUSB_ERROR_NO_DEVICE : 0);
+}
+
+int
 libusb_kernel_driver_active(struct libusb20_device *pdev, int interface)
 {
 	if (pdev == NULL)
@@ -668,6 +699,45 @@ libusb_kernel_driver_active(struct libusb20_device *pdev, int interface)
 
 	return (libusb20_dev_kernel_driver_active(
 	    pdev, interface));
+}
+
+int
+libusb_get_driver_np(struct libusb20_device *pdev, int interface,
+    char *name, int namelen)
+{
+	return (libusb_get_driver(pdev, interface, name, namelen));
+}
+
+int
+libusb_get_driver(struct libusb20_device *pdev, int interface,
+    char *name, int namelen)
+{
+	char *ptr;
+	int err;
+
+	if (pdev == NULL)
+		return (LIBUSB_ERROR_INVALID_PARAM);
+	if (namelen < 1)
+		return (LIBUSB_ERROR_INVALID_PARAM);
+
+	err = libusb20_dev_get_iface_desc(
+	    pdev, interface, name, namelen);
+
+	if (err != 0)
+		return (LIBUSB_ERROR_OTHER);
+
+	/* we only want the driver name */
+	ptr = strstr(name, ":");
+	if (ptr != NULL)
+		*ptr = 0;
+
+	return (0);
+}
+
+int
+libusb_detach_kernel_driver_np(struct libusb20_device *pdev, int interface)
+{
+	return (libusb_detach_kernel_driver(pdev, interface));
 }
 
 int
@@ -681,7 +751,7 @@ libusb_detach_kernel_driver(struct libusb20_device *pdev, int interface)
 	err = libusb20_dev_detach_kernel_driver(
 	    pdev, interface);
 
-	return (err ? LIBUSB20_ERROR_OTHER : 0);
+	return (err ? LIBUSB_ERROR_OTHER : 0);
 }
 
 int
@@ -729,31 +799,24 @@ libusb_free_transfer(struct libusb_transfer *uxfer)
 	if (uxfer == NULL)
 		return;			/* be NULL safe */
 
+	/* check if we should free the transfer buffer */
+	if (uxfer->flags & LIBUSB_TRANSFER_FREE_BUFFER)
+		free(uxfer->buffer);
+
 	sxfer = (struct libusb_super_transfer *)(
 	    (uint8_t *)uxfer - sizeof(*sxfer));
 
 	free(sxfer);
 }
 
-static int
+static uint32_t
 libusb10_get_maxframe(struct libusb20_device *pdev, libusb_transfer *xfer)
 {
-	int ret;
-	int usb_speed;
-
-	usb_speed = libusb20_dev_get_speed(pdev);
+	uint32_t ret;
 
 	switch (xfer->type) {
 	case LIBUSB_TRANSFER_TYPE_ISOCHRONOUS:
-		switch (usb_speed) {
-		case LIBUSB20_SPEED_LOW:
-		case LIBUSB20_SPEED_FULL:
-			ret = 60 * 1;
-			break;
-		default:
-			ret = 60 * 8;
-			break;
-		}
+		ret = 60 | LIBUSB20_MAX_FRAME_PRE_SCALE;	/* 60ms */
 		break;
 	case LIBUSB_TRANSFER_TYPE_CONTROL:
 		ret = 2;
@@ -1360,3 +1423,9 @@ libusb_le16_to_cpu(uint16_t x)
 	return (le16toh(x));
 }
 
+const char *
+libusb_strerror(int code)
+{
+	/* TODO */
+	return ("Unknown error");
+}

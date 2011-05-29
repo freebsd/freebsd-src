@@ -28,6 +28,9 @@
  * $FreeBSD$
  */
 
+#ifndef	_COMPAT_IA32_IA32_UTIL_H
+#define	_COMPAT_IA32_IA32_UTIL_H
+
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
@@ -38,12 +41,23 @@
 #include <sys/cdefs.h>
 
 #ifdef __ia64__
-#define FREEBSD32_USRSTACK	((1ul << 32) - IA32_PAGE_SIZE * 2)
+#define FREEBSD32_MAXUSER	((1ul << 32) - IA32_PAGE_SIZE * 2)
+#define	FREEBSD32_SHAREDPAGE	0
+#define FREEBSD32_USRSTACK	FREEBSD32_MAXUSER
 #else
-#define FREEBSD32_USRSTACK	((1ul << 32) - IA32_PAGE_SIZE)
+#define	FREEBSD32_MAXUSER	((1ul << 32) - IA32_PAGE_SIZE)
+#define	FREEBSD32_SHAREDPAGE	(FREEBSD32_MAXUSER - IA32_PAGE_SIZE)
+#define FREEBSD32_USRSTACK	FREEBSD32_SHAREDPAGE
 #endif
 
 #define	IA32_PAGE_SIZE	4096
 #define	IA32_MAXDSIZ	(512*1024*1024)		/* 512MB */
 #define	IA32_MAXSSIZ	(64*1024*1024)		/* 64MB */
 #define IA32_MAXVMEM	0			/* Unlimited */
+
+struct syscall_args;
+int ia32_fetch_syscall_args(struct thread *td, struct syscall_args *sa);
+void ia32_set_syscall_retval(struct thread *, int);
+void ia32_fixlimit(struct rlimit *rl, int which);
+
+#endif

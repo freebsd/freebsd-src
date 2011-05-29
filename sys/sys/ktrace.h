@@ -73,10 +73,6 @@ struct ktr_header {
 	if (KTRCHECKDRAIN(td))						\
 		ktruserret(td);						\
 } while (0)
-#define	KTRPROCEXIT(td) do {						\
-	if (KTRCHECKDRAIN(td))						\
-		ktrprocexit(td);					\
-} while (0)
 
 /*
  * ktrace record types
@@ -154,14 +150,32 @@ struct ktr_csw {
  * KTR_STRUCT - misc. structs
  */
 #define KTR_STRUCT	8
+	/*
+	 * record contains null-terminated struct name followed by
+	 * struct contents
+	 */
 struct sockaddr;
 struct stat;
+struct sysentvec;
 
 /*
  * KTR_SYSCTL - name of a sysctl MIB
  */
 #define	KTR_SYSCTL	9
 	/* record contains null-terminated MIB name */
+
+/*
+ * KTR_PROCCTOR - trace process creation (multiple ABI support)
+ */
+#define KTR_PROCCTOR	10
+struct ktr_proc_ctor {
+	u_int	sv_flags;	/* struct sysentvec sv_flags copy */
+};
+
+/*
+ * KTR_PROCDTOR - trace process destruction (multiple ABI support)
+ */
+#define KTR_PROCDTOR	11
 
 /*
  * KTR_DROP - If this bit is set in ktr_type, then at least one event
@@ -182,6 +196,8 @@ struct stat;
 #define KTRFAC_USER	(1<<KTR_USER)
 #define KTRFAC_STRUCT	(1<<KTR_STRUCT)
 #define KTRFAC_SYSCTL	(1<<KTR_SYSCTL)
+#define KTRFAC_PROCCTOR	(1<<KTR_PROCCTOR)
+#define KTRFAC_PROCDTOR	(1<<KTR_PROCDTOR)
 
 /*
  * trace flags (also in p_traceflags)
@@ -191,8 +207,6 @@ struct stat;
 #define	KTRFAC_DROP	0x20000000	/* last event was dropped */
 
 #ifdef	_KERNEL
-extern struct mtx ktrace_mtx;
-
 void	ktrnamei(char *);
 void	ktrcsw(int, int);
 void	ktrpsig(int, sig_t, sigset_t *, int);
@@ -200,13 +214,16 @@ void	ktrgenio(int, enum uio_rw, struct uio *, int);
 void	ktrsyscall(int, int narg, register_t args[]);
 void	ktrsysctl(int *name, u_int namelen);
 void	ktrsysret(int, int, register_t);
+void	ktrprocctor(struct proc *);
+void	ktrprocexec(struct proc *, struct ucred **, struct vnode **);
 void	ktrprocexit(struct thread *);
+void	ktrprocfork(struct proc *, struct proc *);
 void	ktruserret(struct thread *);
-void	ktrstruct(const char *, size_t, void *, size_t);
+void	ktrstruct(const char *, void *, size_t);
 #define ktrsockaddr(s) \
-	ktrstruct("sockaddr", 8, (s), ((struct sockaddr *)(s))->sa_len)
+	ktrstruct("sockaddr", (s), ((struct sockaddr *)(s))->sa_len)
 #define ktrstat(s) \
-	ktrstruct("stat", 4, (s), sizeof(struct stat))
+	ktrstruct("stat", (s), sizeof(struct stat))
 
 #else
 

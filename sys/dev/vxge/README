@@ -1,0 +1,450 @@
+$FreeBSD$
+''_Readme for FreeBSD X3100 Series 10GbE PCIe I/O Virtualized Server Adapter Drivers_'''
+
+=== Introduction ===
+FreeBSD Driver for X3100 10GbE Server/Storage adapters 
+* Drivers support all X3100 10GbE adapters with FreeBSD version 7.x, 8.x and 9.x
+* Supports both i386 and amd64 architectures
+* Features:	Jumbo frames (up to 9600),
+		LRO (Large Receive Offload),
+		TSO (TCP segmentation offload),
+		RTH (Receive Traffic Hash).
+   Also, Extended Message Signaled Interrupts (MSI-X).
+
+
+''Features''
+
+    a.	Jumbo frames:
+	X3110 and X3120 supports MTU up to 9600 bytes, modifiable using ifconfig command.
+
+    b.	LRO (Large Receive Offload):
+	LRO can be enabled/disabled before loading driver.
+	Set lro_enable in vxge.conf to 1 before loading driver.
+
+    c.	TSO (TCP Segmentation Offload)
+	TSO can be enabled/disabled before loading driver.
+	Set tso_enable in vxge.conf to 1 before loading driver.
+
+    d.	RTH (Receive Traffic Hash)
+	Receive side steering for better scaling.
+	Set rth_enable in vxge.conf to 1 before loading driver.
+
+    e.	MSI-X
+	Can be enabled on platforms which support it, resulting in noticeable
+	performance improvement. 
+
+    f.	Multi-VPaths
+	Up to 17 hardware based transmit and receive data channels, with
+	multiple steering options.
+
+
+''X3100 & Driver configuration: vxge.conf''
+
+The vxge.conf contains following attributes.
+
+
+''msix_enable''
+
+Enable MSI (Message Signaled Interrupts) feature in driver.
+0 - INTA
+1 - MSI-X
+Default: 1
+
+
+''rth_enable''
+
+Enables Receive side steering for better scaling (RTH - Receive Traffic Hash)
+Range: 0 - 1
+Default: 1
+
+
+''lro_enable''
+
+Enables LRO (Large Receive Offload) feature in driver.
+Range: 0 - 1
+Default: 1
+
+
+''tso_enable''
+
+Enables TSO (TCP Segmentaton Offload) feature in driver.
+Range: 0 - 1
+Default: 1
+
+
+''no_of_vpath''
+
+Specifies maximum VPATH(s) configured for each device function.
+Valid range: 1-17
+Default: Optimized by driver
+
+
+''func_mode''
+
+Change PCI function mode
+    0  - SF1_VP17 (1 function with 17 VPATHs)
+    1  - MF8_VP2  (8 functions with 2 VPATHs per function)
+    8  - MF2_VP8  (2 functions, 8 Paths/Function)
+    9  - MF4_VP4  (4 Functions, 4 Paths/Function)
+    11 - MF8P_VP2 (8 functions with 2 VPATHS per function required for DirectIO)
+    Default: -1
+
+
+''port_mode''
+
+Change the default dual port mode
+    2 - Active Passive
+    3 - Single Port
+    4 - Dual Port
+
+
+''l2_switch''
+
+Turn on/off the inter function traffic through l2 switch
+    0 - Disallow inter function traffic
+    1 - Allow inter function traffic
+    Default: -1
+
+
+''bandwidth_0 - bandwidth_7''
+
+    Desired max receive/transmit bandwidth,in Mbps for function 0 to function 7
+    Minimum value is 100 Mbps, for 1 Gbps specify a value of 1024.
+
+
+''priority_0 - priority_7''
+
+    Desired receive/transmit priority for function 0 to function 7 
+
+
+''intr_coalesce''
+
+    Adaptive interrupt coalescing
+    0 - Disable
+    1 - Enable
+
+
+''Low Latency''
+
+   0 - Disable
+   1 - Enable
+
+=== Installation Instructions ===
+
+''Identifying the Adapter''
+
+    The X3100 adapter is identified by the board ID number on the adapter.
+
+    Look for a label that has a barcode and a number, for example,
+    SXT0425072. The factory-burned MAC address (hardware address)
+    shows up on the board above the serial number, 
+    (similar to 000CFC000449 -- 00:0C:FC:00:04:49).
+
+
+''Kernel Driver Source Package''
+
+This package contains kernel_update.sh script which is to be used to copy driver sources to kernel path.
+It creates vxge folder with source code in /usr/src/sys/dev and Makefile in /usr/src/sys/modules.
+
+Loadable parameters can be changed by putting below lines in /boot/device.hints and set values as desired.
+	hint.vxge.0.msix_enable="1"
+	hint.vxge.0.rth_enable="1"
+	hint.vxge.0.lro_enable="1"
+	hint.vxge.0.tso_enable="1"
+	hint.vxge.0.tx_steering="1"
+	hint.vxge.0.no_of_vpath="-1"
+	hint.vxge.0.func_mode="-1"
+	hint.vxge.0.port_mode="-1"
+	hint.vxge.0.fw_upgrade="1"
+	hint.vxge.0.bandwidth_0="-1"
+	hint.vxge.0.bandwidth_1="-1"
+	hint.vxge.0.bandwidth_2="-1"
+	hint.vxge.0.bandwidth_3="-1"
+	hint.vxge.0.bandwidth_4="-1"
+	hint.vxge.0.bandwidth_5="-1"
+	hint.vxge.0.bandwidth_6="-1"
+	hint.vxge.0.bandwidth_7="-1"
+	hint.vxge.0.priority_0="-1"
+	hint.vxge.0.priority_1="-1"
+	hint.vxge.0.priority_2="-1"
+	hint.vxge.0.priority_3="-1"
+	hint.vxge.0.priority_4="-1"
+	hint.vxge.0.priority_5="-1"
+	hint.vxge.0.priority_6="-1"
+	hint.vxge.0.priority_7="-1"
+	hint.vxge.0.intr_coalesce="0"
+	hint.vxge.0.low_latency="0"
+
+	e.g., set hint.vxge.0.msix_enable to 0 to load driver in INTA mode.
+	Then reboot the system to add loadable parameters to kenv.
+
+
+''Standalone Driver Source Package''
+
+vxge (FreeBSD package)
+    This directory contains FreeBSD driver sources for X3100 device(s),
+    Makefile, and X3100 Hardware Abstraction headers and sources
+    (vxgehal and include folders)
+
+vxgehal
+    This directory contains the X3100 HAL sources.
+    The driver uses HAL to perform operations on the X3100 hardware.
+
+include
+    The include subdirectory contains HAL header files.
+ 
+Source code for vxge-manage tool (used to get statistics, pciconfig and
+register dump) are included in the freebsd directory.
+
+
+''Building the driver''
+
+    The driver is distributed in the source form. Driver and installation
+    utility executables need to be built for the target platform. 
+
+    In the directory containing Makefile for building Exar driver for FreeBSD, 
+	#make clean
+	#make
+
+    Please unload previously installed Exar drivers before proceeding with following steps.
+	#make uninstall
+
+
+''Loading the driver''
+
+     Use "kldload" to load driver module vxge.ko.
+	#kldload ./vxge.ko
+
+    Run "kldstat" and find an entry for vxge kernel module to ensure driver installation
+    was successful.
+	#kldstat | grep vxge
+	3 1 0xc22cc000 26000   vxge.ko
+
+
+''Enabling interface and assigning IP address''
+
+    #ifconfig <INTERFACE> <IP_ADDRESS> up
+    <INTERFACE> will be similar to vxge0, vxge1 etc. and can be
+    found by executing "ifconfig -a".
+    Neterion adapters typically have MAC addresses starting with
+    "00:0C:FC" or "00:11:25".
+
+    Example:
+	#ifconfig vxge0 10.2.2.40 up
+	Enables vxge0 interface and assigns to it the IP address 10.2.2.40.
+
+	vxge0: flags=8843<UP,BROADCAST,RUNNING,SIMPLEX,MULTICAST> metric 0 mtu 1500
+	options=53b<RXCSUM,TXCSUM,VLAN_MTU,VLAN_HWTAGGING,JUMBO_MTU,TSO4,LRO>
+	ether 00:0c:fc:00:da:47
+	inet6 fe80::20c:fcff:fe00:da47%vxge0 prefixlen 64 scopeid 0x3
+	inet 10.2.2.40 netmask 0xff000000 broadcast 17.255.255.255
+	media: Ethernet autoselect (10Gbase-SR <full-duplex>)
+	status: active
+
+
+''Disabling the interface''
+
+    #ifconfig <INTERFACE> down
+    Example:
+	#ifconfig vxge0 down
+
+
+''Unloading the Driver''
+	#kldunload vxge.ko
+
+
+=== Performance Suggestions ===
+
+Sysctl Tuning Parameters
+	#sysctl net.inet.tcp.sendspace=786432
+	#sysctl net.inet.tcp.recvspace=786432
+	#sysctl net.inet.tcp.recvbuf_max=16777216
+	#sysctl net.inet.tcp.sendbuf_max=16777216
+	#sysctl net.inet.tcp.blackhole=1
+	#sysctl net.inet.tcp.rfc1323=1
+	#sysctl net.inet.tcp.path_mtu_discovery=1
+	#sysctl net.inet.tcp.inflight.enable=0
+	#sysctl net.inet.ip.maxfragsperpacket=2147483647
+	#sysctl kern.ipc.maxsockbuf=8388608
+	#sysctl kern.ipc.nmbclusters=2147483647
+	#sysctl kern.ipc.nmbjumbop=262144
+	#sysctl kern.ipc.maxsockets=81920
+	#sysctl hw.intr_storm_threshold=9000
+
+
+''Usage & Troubleshooting''
+
+For general information and support, please visit Neterion support website at 
+http://www.neterion.com/support/support.html
+
+Make sure that the operating system identifies the X3100 adapter. Note that
+Neterion vendor ID is 0x17D5 and X3110 and X3120 adapters can be fixed to both PCIe slots.
+
+The rest of this section details troubleshooting tips and information. Some of
+them are general and some are more specific. For online Troubleshooting tips 
+and faqs, please visit
+http://trac.neterion.com/cgi-bin/trac.cgi/wiki/TitleIndex?anonymous
+
+
+''Loading the driver and initializing the device''
+
+The first time FreeBSD identifies the device it stores the corresponding
+device/vendor IDs in an enumerated tree of PCI devices. Note that Neterion
+vendor id is 0x17d5.
+
+After cold reboot FreeBSD finds the device and tries to load the corresponding
+driver. If it fails, try to switch the card and/or cable. And, in parallel, send
+us the "tail" of the "/var/log/messages". We also need traces, register dump and
+statistics(Use vxge-manage tool).
+
+
+''Collect information''
+
+If you're reporting a problem to Neterion, please describe:
+host(s) and adapter(s), switch (if used), software version.
+
+
+''ARP''
+
+If this is a basic connectivity issue (e.g., cannot connect, cannot ping),
+make sure first that ARP works
+Do you see ARPs coming through a switch (in case switch is used)?
+Do you see frame drops at the switch when pinging?
+Do you see frame counts increasing via statistics?
+
+
+''Have you tried''
+
+    a. A previous driver release;
+    b. A different adapter in the same PCI slot;
+    c. A different PCI slot;
+    d. Back-to-back setup so that the switch is excluded from the equation.
+    e. To replace the cables?
+    f. To use a different PCI slot?
+
+
+''Start clean''
+
+    a. Have you tried to reboot the switch? Cold-reboot the host?
+    b. Make sure that the latest released driver gets loaded after the host
+    reboot, and that the 10GE interface shows up via ifconfig.
+
+
+''LEDs''
+
+Do you see LED going green after everything is connected and drivers loaded?
+How/when does the color changes?
+
+
+''ifconfig''
+
+Run "ifconfig -a" at the command prompt and check whether the output Looks as
+expected. Include the output in your problem report.
+
+Note for instance that "all-foxes" i.e, FF:FF:FF:FF:FF:FF MAC address could
+explain a general connectivity issue, if that's what you see.
+
+
+''Log''
+
+Please attach the generated log, with traces enabled.
+
+Note that the driver's logging facility is configurable at compile-time. Errors
+and traces can be compiled out on a per-component basis. The components are: HAL
+fifos and rings, device, etc., see VXGE_COMPONENT_HAL_??? in the Makefile.
+
+Here's how you enable all except data path traces:
+CFLAGS_VXGE = -DVXGE_DEBUG_MODULE_MASK=0xffffffbf  \
+-DVXGE_DEBUG_ERR_MASK=0xffffffbf
+Recompile with traces and include the log in the report.
+
+
+=== Utilities ===
+
+''Statistics''
+
+ To print hardware and software statistics for interface instance 0
+       (i.e., vxge0), run:
+	#vxge-manage vxgeX stats common
+	#vxge-manage vxgeX stats mrpcim
+	#vxge-manage vxgeX stats driver
+	#vxge-manage vxgeX pciconfig
+	#vxge-manage vxgeX hwinfo
+	#vxge-manage vxgeX bw_pri_get
+	#vxge-manage vxgeX bw_pri_get vf_id
+	#vxge-manage vxgeX port_mode_get
+
+The vxge-manage tool generates log file in the working directory. Once done, ping a
+few times, and collect the statistics again (Ping both from this and the remote
+machines).
+
+Many counters could be of interest. For example, "rx_vld_frms" counts all
+valid incoming Ethernet frames seen by the adapter. Information could be derived
+from the fact that (for instance) counter stay constant during ping, if that is
+what happening. For detailed description of the X3100 counters, please refer
+to the "X3100 User Guide".
+
+Please include the statistics into your problem report.
+
+
+''X3100 registers''
+
+       Use vxge-manage to dump all X3100 BAR0 space registers. Include this register dump
+       into your problem report.
+       #vxge-manage vxgeX regs
+
+
+''PCI configuration space''
+
+Use vxge-manage to retrieve PCI vendor, device, etc. Include the PCI configutation
+space in your problem report.
+	#vxge-manage vxgeX pciconfig
+
+
+''Hardware Info''
+
+To retrieve hardware info of device, e.g, serial / part number and function mode etc.
+use vxge-manage 
+	#vxge-manage vxgeX hwinfo
+
+
+''Bandwidth and Priority''
+
+Use vxge-manage to display Bandwidth and Priority information.
+	#vxge-manage vxgeX bw_pri_get
+	or
+	#vxge-manage vxgeX bw_pri_get vf_id
+
+vxge-manage can also be used to set bandwidth and priority for individual VF.
+	#vxge-manage vxgeX bw_pri_set vf_id bandwidth 
+	or
+	#vxge-manage vxgeX bw_pri_set vf_id bandwidth priority
+
+	Example:
+	#vxge-manage vxge0 bw_pri_set 0 1500
+	or
+	#vxge-manage vxge0 bw_pri_set 0 1500 1
+
+''Port mode''
+
+Use vxge-manage to display Port mode setting
+	#vxge-manage vxgeX port_mode_get
+
+vxge-manage can also be used to set Port mode.
+	#vxge-manage vxgeX port_mode_set port_mode_value
+
+	Example:
+	#vxge-manage vxge0 port_mode_set 2
+
+=== Known Issues ===
+
+
+=== Available Downloads ===
+
+   For latest available drivers or further support please contact your network
+   adapter provider or neterionsupport@exar.com.
+
+
+===================================================================
+ Exar Corp., Proprietary
+ COPYRIGHT (c) 2002-2011 Exar corp., ALL RIGHTS RESERVED

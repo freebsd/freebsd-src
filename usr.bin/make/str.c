@@ -150,7 +150,7 @@ brk_string(ArgArray *aa, const char str[], Boolean expand)
 
 	ArgArray_Init(aa);
 
-	aa->buffer = estrdup(str);;
+	aa->buffer = estrdup(str);
 
 	arg = aa->buffer;
 	start = arg;

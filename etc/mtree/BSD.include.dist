@@ -83,6 +83,10 @@
         scsi
         ..
     ..
+    clang
+        3.0
+        ..
+    ..
     crypto
     ..
     dev
@@ -102,10 +106,12 @@
         ..
         iicbus
         ..
+        io
+        ..
         lmc
         ..
-	mfi
-	..
+        mfi
+        ..
         mpt
             mpilib
             ..
@@ -129,6 +135,10 @@
         vkbd
         ..
         wi
+        ..
+    ..
+    edit
+        readline
         ..
     ..
     fs
@@ -159,6 +169,10 @@
         unionfs
         ..
     ..
+    gcc
+        4.2
+        ..
+    ..
     geom
         cache
         ..
@@ -180,6 +194,8 @@
         ..
         nop
         ..
+        raid
+        ..
         raid3
         ..
         shsec
@@ -197,6 +213,16 @@
     ..
     gssapi
     ..
+    infiniband
+        complib 
+        ..
+        iba
+        ..
+        opensm
+        ..
+        vendor
+        ..
+    ..
     isofs
         cd9660
         ..
@@ -206,6 +232,8 @@
     libmilter
     ..
     lwres
+    ..
+    lzma
     ..
     machine
         pc
@@ -255,13 +283,13 @@
     ..
     nfsserver
     ..
-    objc
-    ..
     openssl
     ..
     pcap
     ..
     protocols
+    ..
+    rdma
     ..
     readline
     ..

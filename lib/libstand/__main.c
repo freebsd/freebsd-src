@@ -38,6 +38,6 @@ __FBSDID("$FreeBSD$");
 void __main(void);
 
 void
-__main()
+__main(void)
 {
 }

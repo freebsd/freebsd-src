@@ -48,20 +48,23 @@ __FBSDID("$FreeBSD$");
 #include <ata_if.h>
 
 void
-ata_sata_phy_check_events(device_t dev)
+ata_sata_phy_check_events(device_t dev, int port)
 {
     struct ata_channel *ch = device_get_softc(dev);
-    u_int32_t error = ATA_IDX_INL(ch, ATA_SERROR);
+    u_int32_t error, status;
 
-    /* clear error bits/interrupt */
-    ATA_IDX_OUTL(ch, ATA_SERROR, error);
+    ata_sata_scr_read(ch, port, ATA_SERROR, &error);
+    /* Clear set error bits/interrupt. */
+    if (error)
+	ata_sata_scr_write(ch, port, ATA_SERROR, error);
 
     /* if we have a connection event deal with it */
     if ((error & ATA_SE_PHY_CHANGED) && (ch->pm_level == 0)) {
 	if (bootverbose) {
-	    u_int32_t status = ATA_IDX_INL(ch, ATA_SSTATUS);
-	    if (((status & ATA_SS_CONWELL_MASK) == ATA_SS_CONWELL_GEN1) ||
-		((status & ATA_SS_CONWELL_MASK) == ATA_SS_CONWELL_GEN2)) {
+	    ata_sata_scr_read(ch, port, ATA_SSTATUS, &status);
+	    if (((status & ATA_SS_DET_MASK) == ATA_SS_DET_PHY_ONLINE) &&
+		((status & ATA_SS_SPD_MASK) != ATA_SS_SPD_NO_SPEED) &&
+		((status & ATA_SS_IPM_MASK) == ATA_SS_IPM_ACTIVE)) {
 		    device_printf(dev, "CONNECT requested\n");
 	    } else
 		    device_printf(dev, "DISCONNECT requested\n");
@@ -73,69 +76,51 @@ ata_sata_phy_check_events(device_t dev)
 int
 ata_sata_scr_read(struct ata_channel *ch, int port, int reg, uint32_t *val)
 {
-    int r;
 
-    if (port < 0) {
+    if (ch->hw.pm_read != NULL)
+	return (ch->hw.pm_read(ch->dev, port, reg, val));
+    if (ch->r_io[reg].res) {
 	*val = ATA_IDX_INL(ch, reg);
 	return (0);
-    } else {
-	switch (reg) {
-	    case ATA_SSTATUS:
-		r = 0;
-		break;
-	    case ATA_SERROR:
-		r = 1;
-		break;
-	    case ATA_SCONTROL:
-		r = 2;
-		break;
-	    default:
-		return (EINVAL);
-	}
-	return (ch->hw.pm_read(ch->dev, port, r, val));
     }
+    return (-1);
 }
 
 int
 ata_sata_scr_write(struct ata_channel *ch, int port, int reg, uint32_t val)
 {
-    int r;
 
-    if (port < 0) {
+    if (ch->hw.pm_write != NULL)
+	return (ch->hw.pm_write(ch->dev, port, reg, val));
+    if (ch->r_io[reg].res) {
 	ATA_IDX_OUTL(ch, reg, val);
 	return (0);
-    } else {
-	switch (reg) {
-	    case ATA_SERROR:
-		r = 1;
-		break;
-	    case ATA_SCONTROL:
-		r = 2;
-		break;
-	    default:
-		return (EINVAL);
-	}
-	return (ch->hw.pm_write(ch->dev, port, r, val));
     }
+    return (-1);
 }
 
 static int
-ata_sata_connect(struct ata_channel *ch, int port)
+ata_sata_connect(struct ata_channel *ch, int port, int quick)
 {
     u_int32_t status;
-    int timeout;
+    int timeout, t;
 
     /* wait up to 1 second for "connect well" */
-    for (timeout = 0; timeout < 100 ; timeout++) {
+    timeout = (quick == 2) ? 0 : 100;
+    t = 0;
+    while (1) {
 	if (ata_sata_scr_read(ch, port, ATA_SSTATUS, &status))
 	    return (0);
-	if ((status & ATA_SS_CONWELL_MASK) == ATA_SS_CONWELL_GEN1 ||
-	    (status & ATA_SS_CONWELL_MASK) == ATA_SS_CONWELL_GEN2)
+	if (((status & ATA_SS_DET_MASK) == ATA_SS_DET_PHY_ONLINE) &&
+	    ((status & ATA_SS_SPD_MASK) != ATA_SS_SPD_NO_SPEED) &&
+	    ((status & ATA_SS_IPM_MASK) == ATA_SS_IPM_ACTIVE))
+	    break;
+	if (++t > timeout)
 	    break;
 	ata_udelay(10000);
     }
-    if (timeout >= 100) {
-	if (bootverbose) {
+    if (bootverbose) {
+	if (t > timeout) {
 	    if (port < 0) {
 		device_printf(ch->dev, "SATA connect timeout status=%08x\n",
 		    status);
@@ -143,23 +128,19 @@ ata_sata_connect(struct ata_channel *ch, int port)
 		device_printf(ch->dev, "p%d: SATA connect timeout status=%08x\n",
 		    port, status);
 	    }
-	}
-	return 0;
-    }
-    if (bootverbose) {
-	if (port < 0) {
+	} else if (port < 0) {
 	    device_printf(ch->dev, "SATA connect time=%dms status=%08x\n",
-		timeout * 10, status);
+		t * 10, status);
 	} else {
 	    device_printf(ch->dev, "p%d: SATA connect time=%dms status=%08x\n",
-		port, timeout * 10, status);
+		port, t * 10, status);
 	}
     }
 
     /* clear SATA error register */
     ata_sata_scr_write(ch, port, ATA_SERROR, 0xffffffff);
 
-    return 1;
+    return ((t > timeout) ? 0 : 1);
 }
 
 int
@@ -172,8 +153,12 @@ ata_sata_phy_reset(device_t dev, int port, int quick)
     if (quick) {
 	if (ata_sata_scr_read(ch, port, ATA_SCONTROL, &val))
 	    return (0);
-	if ((val & ATA_SC_DET_MASK) == ATA_SC_DET_IDLE)
-	    return ata_sata_connect(ch, port);
+	if ((val & ATA_SC_DET_MASK) == ATA_SC_DET_IDLE) {
+	    ata_sata_scr_write(ch, port, ATA_SCONTROL,
+		ATA_SC_DET_IDLE | ((ch->pm_level > 0) ? 0 :
+		ATA_SC_IPM_DIS_PARTIAL | ATA_SC_IPM_DIS_SLUMBER));
+	    return ata_sata_connect(ch, port, quick);
+	}
     }
 
     if (bootverbose) {
@@ -203,7 +188,7 @@ ata_sata_phy_reset(device_t dev, int port, int quick)
 	    if (ata_sata_scr_read(ch, port, ATA_SCONTROL, &val))
 		return (0);
 	    if ((val & ATA_SC_DET_MASK) == 0)
-		return ata_sata_connect(ch, port);
+		return ata_sata_connect(ch, port, 0);
 	}
     }
     return 0;

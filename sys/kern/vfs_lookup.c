@@ -68,9 +68,9 @@ __FBSDID("$FreeBSD$");
 #undef NAMEI_DIAGNOSTIC
 
 SDT_PROVIDER_DECLARE(vfs);
-SDT_PROBE_DEFINE3(vfs, namei, lookup, entry, "struct vnode *", "char *",
+SDT_PROBE_DEFINE3(vfs, namei, lookup, entry, entry, "struct vnode *", "char *",
     "unsigned long");
-SDT_PROBE_DEFINE2(vfs, namei, lookup, return, "int", "struct vnode *");
+SDT_PROBE_DEFINE2(vfs, namei, lookup, return, return, "int", "struct vnode *");
 
 /*
  * Allocation zone for namei
@@ -84,14 +84,13 @@ static struct vnode *vp_crossmp;
 static void
 nameiinit(void *dummy __unused)
 {
-	int error;
 
 	namei_zone = uma_zcreate("NAMEI", MAXPATHLEN, NULL, NULL, NULL, NULL,
 	    UMA_ALIGN_PTR, 0);
-	error = getnewvnode("crossmp", NULL, &dead_vnodeops, &vp_crossmp);
-	if (error != 0)
-		panic("nameiinit: getnewvnode");
+	getnewvnode("crossmp", NULL, &dead_vnodeops, &vp_crossmp);
+	vn_lock(vp_crossmp, LK_EXCLUSIVE);
 	VN_LOCK_ASHARE(vp_crossmp);
+	VOP_UNLOCK(vp_crossmp, 0);
 }
 SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_SECOND, nameiinit, NULL);
 
@@ -948,19 +947,17 @@ relookup(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp)
 #endif
 
 	/*
-	 * Check for degenerate name (e.g. / or "")
-	 * which is a way of talking about a directory,
-	 * e.g. like "/." or ".".
+	 * Check for "" which represents the root directory after slash
+	 * removal.
 	 */
 	if (cnp->cn_nameptr[0] == '\0') {
-		if (cnp->cn_nameiop != LOOKUP || wantparent) {
-			error = EISDIR;
-			goto bad;
-		}
-		if (dp->v_type != VDIR) {
-			error = ENOTDIR;
-			goto bad;
-		}
+		/*
+		 * Support only LOOKUP for "/" because lookup()
+		 * can't succeed for CREATE, DELETE and RENAME.
+		 */
+		KASSERT(cnp->cn_nameiop == LOOKUP, ("nameiop must be LOOKUP"));
+		KASSERT(dp->v_type == VDIR, ("dp is not a directory"));
+
 		if (!(cnp->cn_flags & LOCKLEAF))
 			VOP_UNLOCK(dp, 0);
 		*vpp = dp;

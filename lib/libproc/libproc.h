@@ -1,6 +1,10 @@
 /*-
+ * Copyright (c) 2010 The FreeBSD Foundation
  * Copyright (c) 2008 John Birrell (jb@freebsd.org)
  * All rights reserved.
+ *
+ * Portions of this software were developed by Rui Paulo under sponsorship
+ * from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,6 +34,8 @@
 #define	_LIBPROC_H_
 
 #include <gelf.h>
+#include <rtld_db.h>
+#include <limits.h>
 
 struct proc_handle;
 
@@ -43,30 +49,100 @@ typedef void (*proc_child_func)(void *);
 #define PS_DEAD		5
 #define PS_LOST		6
 
+/* Reason values for proc_detach(). */
+#define PRELEASE_HANG	1
+#define PRELEASE_KILL	2
+
 typedef struct prmap {
 	uintptr_t	pr_vaddr;	/* Virtual address. */
+	size_t		pr_size;	/* Mapping size in bytes */
+	size_t		pr_offset;	/* Mapping offset in object */
+	char		pr_mapname[PATH_MAX];	/* Mapping filename */
+	uint8_t		pr_mflags;	/* Protection flags */
+#define	MA_READ		0x01
+#define	MA_WRITE	0x02
+#define	MA_EXEC		0x04
+#define	MA_COW		0x08
+#define MA_NEEDS_COPY	0x10
+#define	MA_NOCOREDUMP	0x20
 } prmap_t;
+
+typedef int proc_map_f(void *, const prmap_t *, const char *);
+typedef int proc_sym_f(void *, const GElf_Sym *, const char *);
+
+/* Values for ELF sections */
+#define	PR_SYMTAB	1
+#define PR_DYNSYM	2
+
+/* Values for the 'mask' parameter in the iteration functions */
+#define	BIND_LOCAL	0x0001
+#define BIND_GLOBAL	0x0002
+#define BIND_WEAK	0x0004
+#define BIND_ANY	(BIND_LOCAL|BIND_GLOBAL|BIND_WEAK)
+#define TYPE_NOTYPE	0x0100
+#define TYPE_OBJECT	0x0200
+#define TYPE_FUNC	0x0400
+#define TYPE_SECTION	0x0800
+#define TYPE_FILE	0x1000
+#define TYPE_ANY	(TYPE_NOTYPE|TYPE_OBJECT|TYPE_FUNC|TYPE_SECTION|\
+    			 TYPE_FILE)
+
+typedef enum {
+	REG_PC,
+	REG_SP,
+	REG_RVAL1,
+	REG_RVAL2
+} proc_reg_t;
+
+#define SIG2STR_MAX	8
+
+typedef struct lwpstatus {
+	int pr_why;
+#define PR_REQUESTED	1
+#define PR_FAULTED	2
+#define PR_SYSENTRY	3
+#define PR_SYSEXIT	4
+	int pr_what;
+#define FLTBPT		-1
+} lwpstatus_t;
 
 /* Function prototype definitions. */
 __BEGIN_DECLS
 
-const prmap_t *proc_addr2map(struct proc_handle *, uintptr_t);
-const prmap_t *proc_name2map(struct proc_handle *, const char *);
+prmap_t *proc_addr2map(struct proc_handle *, uintptr_t);
+prmap_t *proc_name2map(struct proc_handle *, const char *);
 char	*proc_objname(struct proc_handle *, uintptr_t, char *, size_t);
+prmap_t *proc_obj2map(struct proc_handle *, const char *);
+int	proc_iter_objs(struct proc_handle *, proc_map_f *, void *);
+int	proc_iter_symbyaddr(struct proc_handle *, const char *, int,
+	     int, proc_sym_f *, void *);
 int	proc_addr2sym(struct proc_handle *, uintptr_t, char *, size_t, GElf_Sym *);
 int	proc_attach(pid_t pid, int flags, struct proc_handle **pphdl);
 int	proc_continue(struct proc_handle *);
 int	proc_clearflags(struct proc_handle *, int);
 int	proc_create(const char *, char * const *, proc_child_func *, void *,
 	    struct proc_handle **);
-int	proc_detach(struct proc_handle *);
+int	proc_detach(struct proc_handle *, int);
 int	proc_getflags(struct proc_handle *);
 int	proc_name2sym(struct proc_handle *, const char *, const char *, GElf_Sym *);
 int	proc_setflags(struct proc_handle *, int);
 int	proc_state(struct proc_handle *);
-int	proc_wait(struct proc_handle *);
 pid_t	proc_getpid(struct proc_handle *);
+int	proc_wstatus(struct proc_handle *);
+int	proc_getwstat(struct proc_handle *);
+char *	proc_signame(int, char *, size_t);
+int	proc_read(struct proc_handle *, void *, size_t, size_t);
+const lwpstatus_t *
+	proc_getlwpstatus(struct proc_handle *);
 void	proc_free(struct proc_handle *);
+rd_agent_t *proc_rdagent(struct proc_handle *);
+void	proc_updatesyms(struct proc_handle *);
+int	proc_bkptset(struct proc_handle *, uintptr_t, unsigned long *);
+int	proc_bkptdel(struct proc_handle *, uintptr_t, unsigned long);
+void	proc_bkptregadj(unsigned long *);
+int	proc_bkptexec(struct proc_handle *, unsigned long);
+int	proc_regget(struct proc_handle *, proc_reg_t, unsigned long *);
+int	proc_regset(struct proc_handle *, proc_reg_t, unsigned long);
 
 __END_DECLS
 

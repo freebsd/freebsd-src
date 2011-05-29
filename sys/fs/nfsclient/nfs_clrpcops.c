@@ -68,7 +68,7 @@ static int nfsrpc_setattrrpc(vnode_t , struct vattr *, nfsv4stateid_t *,
     struct ucred *, NFSPROC_T *, struct nfsvattr *, int *, void *);
 static int nfsrpc_readrpc(vnode_t , struct uio *, struct ucred *,
     nfsv4stateid_t *, NFSPROC_T *, struct nfsvattr *, int *, void *);
-static int nfsrpc_writerpc(vnode_t , struct uio *, int *, u_char *,
+static int nfsrpc_writerpc(vnode_t , struct uio *, int *, int *,
     struct ucred *, nfsv4stateid_t *, NFSPROC_T *, struct nfsvattr *, int *,
     void *);
 static int nfsrpc_createv23(vnode_t , char *, int, struct vattr *,
@@ -268,6 +268,14 @@ else printf(" fhl=0\n");
 #else
 				NFSLOCKNODE(np);
 				np->n_flag &= ~NDELEGMOD;
+				/*
+				 * Invalidate the attribute cache, so that
+				 * attributes that pre-date the issue of a
+				 * delegation are not cached, since the
+				 * cached attributes will remain valid while
+				 * the delegation is held.
+				 */
+				NFSINVALATTRCACHE(np);
 				NFSUNLOCKNODE(np);
 #endif
 				(void) nfscl_deleg(nmp->nm_mountp,
@@ -278,7 +286,13 @@ else printf(" fhl=0\n");
 			error = EIO;
 		}
 		newnfs_copyincred(cred, &op->nfso_cred);
-	    }
+	    } else if (ret == NFSCLOPEN_SETCRED)
+		/*
+		 * This is a new local open on a delegation. It needs
+		 * to have credentials so that an open can be done
+		 * against the server during recovery.
+		 */
+		newnfs_copyincred(cred, &op->nfso_cred);
 
 	    /*
 	     * nfso_opencnt is the count of how many VOP_OPEN()s have
@@ -292,7 +306,7 @@ else printf(" fhl=0\n");
 	    nfscl_openrelease(op, error, newone);
 	    if (error == NFSERR_GRACE || error == NFSERR_STALECLIENTID ||
 		error == NFSERR_STALEDONTRECOVER || error == NFSERR_DELAY) {
-		(void) nfs_catnap(PZERO, "nfs_open");
+		(void) nfs_catnap(PZERO, error, "nfs_open");
 	    } else if ((error == NFSERR_EXPIRED || error == NFSERR_BADSTATEID)
 		&& clidrev != 0) {
 		expireret = nfscl_hasexpired(nmp->nm_clp, clidrev, p);
@@ -454,7 +468,7 @@ nfsrpc_openrpc(struct nfsmount *nmp, vnode_t vp, u_int8_t *nfhp, int fhlen,
 			ret = nfsrpc_openconfirm(vp, newfhp, newfhlen, op,
 			    cred, p);
 			if (ret == NFSERR_DELAY)
-			    (void) nfs_catnap(PZERO, "nfs_open");
+			    (void) nfs_catnap(PZERO, ret, "nfs_open");
 		    } while (ret == NFSERR_DELAY);
 		    error = ret;
 		}
@@ -478,7 +492,7 @@ nfsrpc_openrpc(struct nfsmount *nmp, vnode_t vp, u_int8_t *nfhp, int fhlen,
 			    newfhlen, mode, op, name, namelen, &ndp, 0, 0x0,
 			    cred, p, syscred, 1);
 			if (ret == NFSERR_DELAY)
-			    (void) nfs_catnap(PZERO, "nfs_open2");
+			    (void) nfs_catnap(PZERO, ret, "nfs_open2");
 		    } while (ret == NFSERR_DELAY);
 		    if (ret) {
 			if (ndp != NULL)
@@ -618,6 +632,7 @@ nfsrpc_doclose(struct nfsmount *nmp, struct nfsclopen *op, NFSPROC_T *p)
 					    nd->nd_repstat == NFSERR_DELAY) &&
 					    error == 0)
 						(void) nfs_catnap(PZERO,
+						    (int)nd->nd_repstat,
 						    "nfs_close");
 				} while ((nd->nd_repstat == NFSERR_GRACE ||
 				    nd->nd_repstat == NFSERR_DELAY) &&
@@ -639,7 +654,7 @@ nfsrpc_doclose(struct nfsmount *nmp, struct nfsclopen *op, NFSPROC_T *p)
 	do {
 		error = nfscl_tryclose(op, tcred, nmp, p);
 		if (error == NFSERR_GRACE)
-			(void) nfs_catnap(PZERO, "nfs_close");
+			(void) nfs_catnap(PZERO, error, "nfs_close");
 	} while (error == NFSERR_GRACE);
 	NFSLOCKCLSTATE();
 	nfscl_lockunlock(&op->nfso_own->nfsow_rwlock);
@@ -993,7 +1008,7 @@ nfsrpc_setattr(vnode_t vp, struct vattr *vap, NFSACL_T *aclp,
 		if (error == NFSERR_GRACE || error == NFSERR_STALESTATEID ||
 		    error == NFSERR_STALEDONTRECOVER || error == NFSERR_DELAY ||
 		    error == NFSERR_OLDSTATEID) {
-			(void) nfs_catnap(PZERO, "nfs_setattr");
+			(void) nfs_catnap(PZERO, error, "nfs_setattr");
 		} else if ((error == NFSERR_EXPIRED ||
 		    error == NFSERR_BADSTATEID) && clidrev != 0) {
 			expireret = nfscl_hasexpired(nmp->nm_clp, clidrev, p);
@@ -1238,7 +1253,7 @@ nfsrpc_read(vnode_t vp, struct uio *uiop, struct ucred *cred,
 		if (error == NFSERR_GRACE || error == NFSERR_STALESTATEID ||
 		    error == NFSERR_STALEDONTRECOVER || error == NFSERR_DELAY ||
 		    error == NFSERR_OLDSTATEID) {
-			(void) nfs_catnap(PZERO, "nfs_read");
+			(void) nfs_catnap(PZERO, error, "nfs_read");
 		} else if ((error == NFSERR_EXPIRED ||
 		    error == NFSERR_BADSTATEID) && clidrev != 0) {
 			expireret = nfscl_hasexpired(nmp->nm_clp, clidrev, p);
@@ -1269,16 +1284,23 @@ nfsrpc_readrpc(vnode_t vp, struct uio *uiop, struct ucred *cred,
 	struct nfsrv_descript nfsd;
 	struct nfsmount *nmp = VFSTONFS(vnode_mount(vp));
 	struct nfsrv_descript *nd = &nfsd;
+	int rsize;
+	off_t tmp_off;
 
 	*attrflagp = 0;
 	tsiz = uio_uio_resid(uiop);
-	if (uiop->uio_offset + tsiz > 0xffffffff &&
-	    !NFSHASNFSV3OR4(nmp))
+	tmp_off = uiop->uio_offset + tsiz;
+	NFSLOCKMNT(nmp);
+	if (tmp_off > nmp->nm_maxfilesize || tmp_off < uiop->uio_offset) {
+		NFSUNLOCKMNT(nmp);
 		return (EFBIG);
+	}
+	rsize = nmp->nm_rsize;
+	NFSUNLOCKMNT(nmp);
 	nd->nd_mrep = NULL;
 	while (tsiz > 0) {
 		*attrflagp = 0;
-		len = (tsiz > nmp->nm_rsize) ? nmp->nm_rsize : tsiz;
+		len = (tsiz > rsize) ? rsize : tsiz;
 		NFSCL_REQSTART(nd, NFSPROC_READ, vp);
 		if (nd->nd_flag & ND_NFSV4)
 			nfsm_stateidtom(nd, stateidp, NFSSTATEID_PUTSTATEID);
@@ -1318,7 +1340,7 @@ nfsrpc_readrpc(vnode_t vp, struct uio *uiop, struct ucred *cred,
 			NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
 			eof = fxdr_unsigned(int, *tl);
 		}
-		NFSM_STRSIZ(retlen, nmp->nm_rsize);
+		NFSM_STRSIZ(retlen, rsize);
 		error = nfsm_mbufuio(nd, uiop, retlen);
 		if (error)
 			goto nfsmout;
@@ -1340,11 +1362,16 @@ nfsmout:
 
 /*
  * nfs write operation
+ * When called_from_strategy != 0, it should return EIO for an error that
+ * indicates recovery is in progress, so that the buffer will be left
+ * dirty and be written back to the server later. If it loops around,
+ * the recovery thread could get stuck waiting for the buffer and recovery
+ * will then deadlock.
  */
 APPLESTATIC int
-nfsrpc_write(vnode_t vp, struct uio *uiop, int *iomode, u_char *verfp,
+nfsrpc_write(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
     struct ucred *cred, NFSPROC_T *p, struct nfsvattr *nap, int *attrflagp,
-    void *stuff)
+    void *stuff, int called_from_strategy)
 {
 	int error, expireret = 0, retrycnt, nostateid;
 	u_int32_t clidrev = 0;
@@ -1355,6 +1382,7 @@ nfsrpc_write(vnode_t vp, struct uio *uiop, int *iomode, u_char *verfp,
 	nfsv4stateid_t stateid;
 	void *lckp;
 
+	*must_commit = 0;
 	if (nmp->nm_clp != NULL)
 		clidrev = nmp->nm_clp->nfsc_clientidrev;
 	newcred = cred;
@@ -1385,12 +1413,8 @@ nfsrpc_write(vnode_t vp, struct uio *uiop, int *iomode, u_char *verfp,
 		if (nostateid)
 			error = 0;
 		else
-			error = nfsrpc_writerpc(vp, uiop, iomode, verfp,
+			error = nfsrpc_writerpc(vp, uiop, iomode, must_commit,
 			    newcred, &stateid, p, nap, attrflagp, stuff);
-if (error == NFSERR_BADSTATEID) {
-printf("st=0x%x 0x%x 0x%x\n",stateid.other[0],stateid.other[1],stateid.other[2]);
-nfscl_dumpstate(nmp, 1, 1, 0, 0);
-}
 		if (error == NFSERR_STALESTATEID)
 			nfscl_initiate_recovery(nmp->nm_clp);
 		if (lckp != NULL)
@@ -1398,18 +1422,21 @@ nfscl_dumpstate(nmp, 1, 1, 0, 0);
 		if (error == NFSERR_GRACE || error == NFSERR_STALESTATEID ||
 		    error == NFSERR_STALEDONTRECOVER || error == NFSERR_DELAY ||
 		    error == NFSERR_OLDSTATEID) {
-			(void) nfs_catnap(PZERO, "nfs_write");
+			(void) nfs_catnap(PZERO, error, "nfs_write");
 		} else if ((error == NFSERR_EXPIRED ||
 		    error == NFSERR_BADSTATEID) && clidrev != 0) {
 			expireret = nfscl_hasexpired(nmp->nm_clp, clidrev, p);
 		}
 		retrycnt++;
-	} while (error == NFSERR_GRACE || error == NFSERR_STALESTATEID ||
-	    error == NFSERR_STALEDONTRECOVER || error == NFSERR_DELAY ||
+	} while (error == NFSERR_GRACE || error == NFSERR_DELAY ||
+	    ((error == NFSERR_STALESTATEID ||
+	      error == NFSERR_STALEDONTRECOVER) && called_from_strategy == 0) ||
 	    (error == NFSERR_OLDSTATEID && retrycnt < 20) ||
 	    ((error == NFSERR_EXPIRED || error == NFSERR_BADSTATEID) &&
 	     expireret == 0 && clidrev != 0 && retrycnt < 4));
-	if (error && retrycnt >= 4)
+	if (error != 0 && (retrycnt >= 4 ||
+	    ((error == NFSERR_STALESTATEID ||
+	      error == NFSERR_STALEDONTRECOVER) && called_from_strategy != 0)))
 		error = EIO;
 	if (NFSHASNFSV4(nmp) && p == NULL)
 		NFSFREECRED(newcred);
@@ -1421,7 +1448,7 @@ nfscl_dumpstate(nmp, 1, 1, 0, 0);
  */
 static int
 nfsrpc_writerpc(vnode_t vp, struct uio *uiop, int *iomode,
-    u_char *verfp, struct ucred *cred, nfsv4stateid_t *stateidp,
+    int *must_commit, struct ucred *cred, nfsv4stateid_t *stateidp,
     NFSPROC_T *p, struct nfsvattr *nap, int *attrflagp, void *stuff)
 {
 	u_int32_t *tl;
@@ -1433,16 +1460,14 @@ nfsrpc_writerpc(vnode_t vp, struct uio *uiop, int *iomode,
 	struct nfsrv_descript nfsd;
 	struct nfsrv_descript *nd = &nfsd;
 	nfsattrbit_t attrbits;
+	off_t tmp_off;
 
-#ifdef DIAGNOSTIC
-	if (uiop->uio_iovcnt != 1)
-		panic("nfs: writerpc iovcnt > 1");
-#endif
+	KASSERT(uiop->uio_iovcnt == 1, ("nfs: writerpc iovcnt > 1"));
 	*attrflagp = 0;
 	tsiz = uio_uio_resid(uiop);
+	tmp_off = uiop->uio_offset + tsiz;
 	NFSLOCKMNT(nmp);
-	if (uiop->uio_offset + tsiz > 0xffffffff &&
-	    !NFSHASNFSV3OR4(nmp)) {
+	if (tmp_off > nmp->nm_maxfilesize || tmp_off < uiop->uio_offset) {
 		NFSUNLOCKMNT(nmp);
 		return (EFBIG);
 	}
@@ -1451,11 +1476,6 @@ nfsrpc_writerpc(vnode_t vp, struct uio *uiop, int *iomode,
 	nd->nd_mrep = NULL;	/* NFSv2 sometimes does a write with */
 	nd->nd_repstat = 0;	/* uio_resid == 0, so the while is not done */
 	while (tsiz > 0) {
-		nmp = VFSTONFS(vnode_mount(vp));
-		if (nmp == NULL) {
-			error = ENXIO;
-			goto nfsmout;
-		}
 		*attrflagp = 0;
 		len = (tsiz > wsize) ? wsize : tsiz;
 		NFSCL_REQSTART(nd, NFSPROC_WRITE, vp);
@@ -1566,14 +1586,16 @@ nfsrpc_writerpc(vnode_t vp, struct uio *uiop, int *iomode,
 				else if (committed == NFSWRITE_DATASYNC &&
 					commit == NFSWRITE_UNSTABLE)
 					committed = commit;
-				if (verfp != NULL)
-					NFSBCOPY((caddr_t)tl, verfp, NFSX_VERF);
 				NFSLOCKMNT(nmp);
 				if (!NFSHASWRITEVERF(nmp)) {
 					NFSBCOPY((caddr_t)tl,
 					    (caddr_t)&nmp->nm_verf[0],
 					    NFSX_VERF);
 					NFSSETWRITEVERF(nmp);
+	    			} else if (NFSBCMP(tl, nmp->nm_verf,
+				    NFSX_VERF)) {
+					*must_commit = 1;
+					NFSBCOPY(tl, nmp->nm_verf, NFSX_VERF);
 				}
 				NFSUNLOCKMNT(nmp);
 			}
@@ -1716,13 +1738,19 @@ nfsrpc_create(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 		error = nfsrpc_createv4(dvp, name, namelen, vap, cverf, fmode,
 		  owp, &dp, cred, p, dnap, nnap, nfhpp, attrflagp, dattrflagp,
 		  dstuff, &unlocked);
+		/*
+		 * There is no need to invalidate cached attributes here,
+		 * since new post-delegation issue attributes are always
+		 * returned by nfsrpc_createv4() and these will update the
+		 * attribute cache.
+		 */
 		if (dp != NULL)
 			(void) nfscl_deleg(nmp->nm_mountp, owp->nfsow_clp,
 			    (*nfhpp)->nfh_fh, (*nfhpp)->nfh_len, cred, p, &dp);
 		nfscl_ownerrelease(owp, error, newone, unlocked);
 		if (error == NFSERR_GRACE || error == NFSERR_STALECLIENTID ||
 		    error == NFSERR_STALEDONTRECOVER || error == NFSERR_DELAY) {
-			(void) nfs_catnap(PZERO, "nfs_open");
+			(void) nfs_catnap(PZERO, error, "nfs_open");
 		} else if ((error == NFSERR_EXPIRED ||
 		    error == NFSERR_BADSTATEID) && clidrev != 0) {
 			expireret = nfscl_hasexpired(nmp->nm_clp, clidrev, p);
@@ -1955,7 +1983,7 @@ nfsrpc_createv4(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 			ret = nfsrpc_openconfirm(dvp, nfhp->nfh_fh,
 			    nfhp->nfh_len, op, cred, p);
 			if (ret == NFSERR_DELAY)
-			    (void) nfs_catnap(PZERO, "nfs_create");
+			    (void) nfs_catnap(PZERO, ret, "nfs_create");
 		    } while (ret == NFSERR_DELAY);
 		    error = ret;
 		}
@@ -1977,7 +2005,7 @@ nfsrpc_createv4(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 			    (NFSV4OPEN_ACCESSWRITE | NFSV4OPEN_ACCESSREAD), op,
 			    name, namelen, &dp, 0, 0x0, cred, p, 0, 1);
 			if (ret == NFSERR_DELAY)
-			    (void) nfs_catnap(PZERO, "nfs_crt2");
+			    (void) nfs_catnap(PZERO, ret, "nfs_crt2");
 		    } while (ret == NFSERR_DELAY);
 		    if (ret) {
 			if (dp != NULL)
@@ -2490,10 +2518,9 @@ nfsrpc_readdir(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 	u_int32_t *tl2 = NULL;
 	size_t tresid;
 
-#ifdef DIAGNOSTIC
-	if (uiop->uio_iovcnt != 1 || (uio_uio_resid(uiop) & (DIRBLKSIZ - 1)))
-		panic("nfs readdirrpc bad uio");
-#endif
+	KASSERT(uiop->uio_iovcnt == 1 &&
+	    (uio_uio_resid(uiop) & (DIRBLKSIZ - 1)) == 0,
+	    ("nfs readdirrpc bad uio"));
 
 	/*
 	 * There is no point in reading a lot more than uio_resid, however
@@ -2717,9 +2744,9 @@ nfsrpc_readdir(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 				len = fxdr_unsigned(int, *tl);
 			} else if (nd->nd_flag & ND_NFSV3) {
 				NFSM_DISSECT(tl, u_int32_t *, 3*NFSX_UNSIGNED);
-				nfsva.na_fileid =
-				    fxdr_unsigned(long, *++tl);
-				len = fxdr_unsigned(int, *++tl);
+				nfsva.na_fileid = fxdr_hyper(tl);
+				tl += 2;
+				len = fxdr_unsigned(int, *tl);
 			} else {
 				NFSM_DISSECT(tl, u_int32_t *, 2*NFSX_UNSIGNED);
 				nfsva.na_fileid =
@@ -2921,17 +2948,16 @@ nfsrpc_readdirplus(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 	nfsquad_t cookie, ncookie;
 	int error = 0, tlen, more_dirs = 1, blksiz = 0, bigenough = 1;
 	int attrflag, tryformoredirs = 1, eof = 0, gotmnton = 0;
-	int unlocknewvp = 0;
+	int isdotdot = 0, unlocknewvp = 0;
 	long dotfileid, dotdotfileid = 0, fileno = 0;
 	char *cp;
 	nfsattrbit_t attrbits, dattrbits;
 	size_t tresid;
 	u_int32_t *tl2 = NULL, fakefileno = 0xffffffff, rderr;
 
-#ifdef DIAGNOSTIC
-	if (uiop->uio_iovcnt != 1 || (uio_uio_resid(uiop) & (DIRBLKSIZ - 1)))
-		panic("nfs readdirplusrpc bad uio");
-#endif
+	KASSERT(uiop->uio_iovcnt == 1 &&
+	    (uio_uio_resid(uiop) & (DIRBLKSIZ - 1)) == 0,
+	    ("nfs readdirplusrpc bad uio"));
 	*attrflagp = 0;
 	if (eofp != NULL)
 		*eofp = 0;
@@ -3172,6 +3198,11 @@ nfsrpc_readdirplus(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 				*cp = '\0';
 				cp += tlen;	/* points to cookie storage */
 				tl2 = (u_int32_t *)cp;
+				if (len == 2 && cnp->cn_nameptr[0] == '.' &&
+				    cnp->cn_nameptr[1] == '.')
+					isdotdot = 1;
+				else
+					isdotdot = 0;
 				uio_iov_base_add(uiop, (tlen + NFSX_HYPER));
 				uio_iov_len_add(uiop, -(tlen + NFSX_HYPER));
 				uio_uio_resid_add(uiop, -(tlen + NFSX_HYPER));
@@ -3249,9 +3280,25 @@ nfsrpc_readdirplus(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 				    unlocknewvp = 0;
 				    FREE((caddr_t)nfhp, M_NFSFH);
 				    np = dnp;
+				} else if (isdotdot != 0) {
+				    /*
+				     * Skip doing a nfscl_nget() call for "..".
+				     * There's a race between acquiring the nfs
+				     * node here and lookups that look for the
+				     * directory being read (in the parent).
+				     * It would try to get a lock on ".." here,
+				     * owning the lock on the directory being
+				     * read. Lookup will hold the lock on ".."
+				     * and try to acquire the lock on the
+				     * directory being read.
+				     * If the directory is unlocked/relocked,
+				     * then there is a LOR with the buflock
+				     * vp is relocked.
+				     */
+				    free(nfhp, M_NFSFH);
 				} else {
 				    error = nfscl_nget(vnode_mount(vp), vp,
-				      nfhp, cnp, p, &np, NULL);
+				      nfhp, cnp, p, &np, NULL, LK_EXCLUSIVE);
 				    if (!error) {
 					newvp = NFSTOV(np);
 					unlocknewvp = 1;
@@ -3273,8 +3320,7 @@ nfsrpc_readdirplus(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 				    ndp->ni_vp = newvp;
 				    NFSCNHASH(cnp, HASHINIT);
 				    if (cnp->cn_namelen <= NCHNAMLEN) {
-					np->n_ctime =
-					  np->n_vattr.na_ctime.tv_sec;
+					np->n_ctime = np->n_vattr.na_ctime;
 					cache_enter(ndp->ni_dvp,ndp->ni_vp,cnp);
 				    }
 				    if (unlocknewvp)
@@ -3519,7 +3565,8 @@ nfsrpc_advlock(vnode_t vp, off_t size, int op, struct flock *fl,
 			    if ((nd->nd_repstat == NFSERR_GRACE ||
 				 nd->nd_repstat == NFSERR_DELAY) &&
 				error == 0)
-				(void) nfs_catnap(PZERO, "nfs_advlock");
+				(void) nfs_catnap(PZERO, (int)nd->nd_repstat,
+				    "nfs_advlock");
 			} while ((nd->nd_repstat == NFSERR_GRACE ||
 			    nd->nd_repstat == NFSERR_DELAY) && error == 0);
 		    }
@@ -3556,7 +3603,7 @@ nfsrpc_advlock(vnode_t vp, off_t size, int op, struct flock *fl,
 	    if (error == NFSERR_GRACE || error == NFSERR_STALESTATEID ||
 		error == NFSERR_STALEDONTRECOVER ||
 		error == NFSERR_STALECLIENTID || error == NFSERR_DELAY) {
-		(void) nfs_catnap(PZERO, "nfs_advlock");
+		(void) nfs_catnap(PZERO, error, "nfs_advlock");
 	    } else if ((error == NFSERR_EXPIRED || error == NFSERR_BADSTATEID)
 		&& clidrev != 0) {
 		expireret = nfscl_hasexpired(nmp->nm_clp, clidrev, p);
@@ -4156,8 +4203,8 @@ nfsrpc_setaclrpc(vnode_t vp, struct ucred *cred, NFSPROC_T *p,
 	nfsm_stateidtom(nd, stateidp, NFSSTATEID_PUTSTATEID);
 	NFSZERO_ATTRBIT(&attrbits);
 	NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_ACL);
-	(void) nfsv4_fillattr(nd, vp, aclp, NULL, NULL, 0, &attrbits,
-	    NULL, NULL, 0, 0);
+	(void) nfsv4_fillattr(nd, vnode_mount(vp), vp, aclp, NULL, NULL, 0,
+	    &attrbits, NULL, NULL, 0, 0, 0, 0, (uint64_t)0);
 	error = nfscl_request(nd, vp, p, cred, stuff);
 	if (error)
 		return (error);

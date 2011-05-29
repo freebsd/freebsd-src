@@ -453,6 +453,13 @@ vop_advlockasync {
 };
 
 
+%% advlockpurge	vp	E E E
+
+vop_advlockpurge {
+	IN struct vnode *vp;
+};
+
+
 %% reallocblks	vp	E E E
 
 vop_reallocblks {
@@ -601,6 +608,7 @@ vop_vptofh {
 	IN struct fid *fhp;
 };
 
+
 %% vptocnp		vp	L L L
 %% vptocnp		vpp	- U -
 
@@ -610,4 +618,13 @@ vop_vptocnp {
 	IN struct ucred *cred;
 	INOUT char *buf;
 	INOUT int *buflen;
+};
+
+
+%% allocate	vp	E E E
+
+vop_allocate {
+	IN struct vnode *vp;
+	INOUT off_t *offset;
+	INOUT off_t *len;
 };

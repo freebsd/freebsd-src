@@ -31,3 +31,5 @@ ENTRY(sqrtl)
 	fldt	8(%rsp)
 	fsqrt
 	ret
+
+	.section .note.GNU-stack,"",%progbits

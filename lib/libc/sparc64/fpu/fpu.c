@@ -69,9 +69,12 @@ __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
 #include <errno.h>
-#include <unistd.h>
 #include <signal.h>
+#ifdef FPU_DEBUG
+#include <stdio.h>
+#endif
 #include <stdlib.h>
+#include <unistd.h>
 #include "un-namespace.h"
 #include "libc_private.h"
 
@@ -97,7 +100,7 @@ __FBSDID("$FreeBSD$");
 #define	X8(x) X4(x),X4(x)
 #define	X16(x) X8(x),X8(x)
 
-static char cx_to_trapx[] = {
+static const char cx_to_trapx[] = {
 	X1(FSR_NX),
 	X2(FSR_DZ),
 	X4(FSR_UF),
@@ -113,7 +116,8 @@ int __fpe_debug = 0;
 #endif
 #endif	/* FPU_DEBUG */
 
-static int __fpu_execute(struct utrapframe *, struct fpemu *, u_int32_t, u_long);
+static int __fpu_execute(struct utrapframe *, struct fpemu *, u_int32_t,
+    u_long);
 
 /*
  * Need to use an fpstate on the stack; we could switch, so we cannot safely
@@ -169,7 +173,7 @@ __fpu_exception(struct utrapframe *uf)
 void
 __fpu_dumpfpn(struct fpn *fp)
 {
-	static char *class[] = {
+	static const char *const class[] = {
 		"SNAN", "QNAN", "ZERO", "NUM", "INF"
 	};
 
@@ -181,15 +185,11 @@ __fpu_dumpfpn(struct fpn *fp)
 }
 #endif
 
-static int opmask[] = {0, 0, 1, 3};
+static const int opmask[] = {0, 0, 1, 3, 1};
 
 /* Decode 5 bit register field depending on the type. */
 #define	RN_DECODE(tp, rn) \
-	((tp == FTYPE_DBL || tp == FTYPE_EXT ? INSFPdq_RN((rn)) : (rn)) & \
-	    ~opmask[tp])
-
-/* Operand size in 32-bit registers. */
-#define	OPSZ(tp)	((tp) == FTYPE_LNG ? 2 : (1 << (tp)))
+	((tp) >= FTYPE_DBL ? INSFPdq_RN(rn) & ~opmask[tp] : (rn))
 
 /*
  * Helper for forming the below case statements. Build only the op3 and opf
@@ -209,8 +209,6 @@ static void
 __fpu_mov(struct fpemu *fe, int type, int rd, int rs2, u_int32_t nand,
     u_int32_t xor)
 {
-	u_int64_t tmp64;
-	int i;
 
 	if (type == FTYPE_INT || type == FTYPE_SNG)
 		__fpu_setreg(rd, (__fpu_getreg(rs2) & ~nand) ^ xor);
@@ -219,13 +217,10 @@ __fpu_mov(struct fpemu *fe, int type, int rd, int rs2, u_int32_t nand,
 		 * Need to use the double versions to be able to access
 		 * the upper 32 fp registers.
 		 */
-		for (i = 0; i < OPSZ(type); i += 2, rd += 2, rs2 += 2) {
-			tmp64 = __fpu_getreg64(rs2);
-			if (i == 0)
-				tmp64 = (tmp64 & ~((u_int64_t)nand << 32)) ^
-				    ((u_int64_t)xor << 32);
-			__fpu_setreg64(rd, tmp64);
-		}
+		__fpu_setreg64(rd, (__fpu_getreg64(rs2) &
+		    ~((u_int64_t)nand << 32)) ^ ((u_int64_t)xor << 32));
+		if (type == FTYPE_EXT)
+			__fpu_setreg64(rd + 2, __fpu_getreg64(rs2 + 2));
 	}
 }
 
@@ -271,17 +266,17 @@ __fpu_cmpck(struct fpemu *fe)
  * multiply two integers this way.
  */
 static int
-__fpu_execute(struct utrapframe *uf, struct fpemu *fe, u_int32_t insn, u_long tstate)
+__fpu_execute(struct utrapframe *uf, struct fpemu *fe, u_int32_t insn,
+    u_long tstate)
 {
 	struct fpn *fp;
 	int opf, rs1, rs2, rd, type, mask, cx, cond;
 	u_long reg, fsr;
 	u_int space[4];
-	int i;
 
 	/*
 	 * `Decode' and execute instruction.  Start with no exceptions.
-	 * The type of any opf opcode is in the bottom two bits, so we
+	 * The type of almost any OPF opcode is in the bottom two bits, so we
 	 * squish them out here.
 	 */
 	opf = insn & (IF_MASK(IF_F3_OP3_SHIFT, IF_F3_OP3_BITS) |
@@ -359,7 +354,7 @@ __fpu_execute(struct utrapframe *uf, struct fpemu *fe, u_int32_t insn, u_long ts
 		__fpu_explode(fe, &fe->fe_f2, type, rs2);
 		__fpu_compare(fe, 1, IF_F3_CC(insn));
 		return (__fpu_cmpck(fe));
-	case FOP(INS2_FPop1, INSFP1_FMOV):	/* these should all be pretty obvious */
+	case FOP(INS2_FPop1, INSFP1_FMOV):
 		__fpu_mov(fe, type, rd, rs2, 0, 0);
 		return (0);
 	case FOP(INS2_FPop1, INSFP1_FNEG):
@@ -410,6 +405,7 @@ __fpu_execute(struct utrapframe *uf, struct fpemu *fe, u_int32_t insn, u_long ts
 	case FOP(INS2_FPop1, INSFP1_FxTOd):
 	case FOP(INS2_FPop1, INSFP1_FxTOq):
 		type = FTYPE_LNG;
+		rs2 = RN_DECODE(type, IF_F3_RS2(insn));
 		__fpu_explode(fe, fp = &fe->fe_f1, type, rs2);
 		/* sneaky; depends on instruction encoding */
 		type = (IF_F3_OPF(insn) >> 2) & 3;
@@ -418,8 +414,7 @@ __fpu_execute(struct utrapframe *uf, struct fpemu *fe, u_int32_t insn, u_long ts
 	case FOP(INS2_FPop1, INSFP1_FTOx):
 		__fpu_explode(fe, fp = &fe->fe_f1, type, rs2);
 		type = FTYPE_LNG;
-		mask = 1;	/* needs 2 registers */
-		rd = IF_F3_RD(insn) & ~mask;
+		rd = RN_DECODE(type, IF_F3_RD(insn));
 		break;
 	case FOP(INS2_FPop1, INSFP1_FTOs):
 	case FOP(INS2_FPop1, INSFP1_FTOd):
@@ -457,10 +452,10 @@ __fpu_execute(struct utrapframe *uf, struct fpemu *fe, u_int32_t insn, u_long ts
 	if (type == FTYPE_INT || type == FTYPE_SNG)
 		__fpu_setreg(rd, space[0]);
 	else {
-		for (i = 0; i < OPSZ(type); i += 2) {
-			__fpu_setreg64(rd + i, ((u_int64_t)space[i] << 32) |
-			    space[i + 1]);
-		}
+		__fpu_setreg64(rd, ((u_int64_t)space[0] << 32) | space[1]);
+		if (type == FTYPE_EXT)
+			__fpu_setreg64(rd + 2,
+			    ((u_int64_t)space[2] << 32) | space[3]);
 	}
 	return (0);	/* success */
 }

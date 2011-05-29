@@ -92,7 +92,7 @@ apm_event SUSPENDREQ {
 	exec "zzz";
 }
 
-Will cause apmd to recieve the APM event SUSPENDREQ (which may be
+Will cause apmd to receive the APM event SUSPENDREQ (which may be
 posted by an LCD close), run the sync command 3 times and wait for a
 while, then execute zzz (apm -z) to put the system in the suspend
 state.
@@ -130,7 +130,7 @@ Other events will not be sent to apmd.
 4.3 command line syntax
 -----------------------
 
-In the example above, the three lines begining with `exec' are commands 
+In the example above, the three lines beginning with `exec' are commands
 for the event.  Each line should be terminated with a semicolon.  The
 command list for the event should be enclosed by `{' and `}'. apmd(8)
 uses /bin/sh for double-quotation enclosed command execution, just as

@@ -23,7 +23,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-nfs.c,v 1.110.2.1 2007-12-22 03:08:45 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-nfs.c,v 1.111 2007-12-22 03:08:04 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -510,6 +510,7 @@ nfsreq_print(register const u_char *bp, u_int length,
 	nfs_type type;
 	int v3;
 	u_int32_t proc;
+	u_int32_t access_flags;
 	struct nfsv3_sattr sa3;
 	char srcid[20], dstid[20];	/*fits 32bit*/
 
@@ -572,7 +573,37 @@ nfsreq_print(register const u_char *bp, u_int length,
 		if ((dp = parsereq(rp, length)) != NULL &&
 		    (dp = parsefh(dp, v3)) != NULL) {
 			TCHECK(dp[0]);
-			printf(" %04x", EXTRACT_32BITS(&dp[0]));
+			access_flags = EXTRACT_32BITS(&dp[0]);
+			if (access_flags & ~NFSV3ACCESS_FULL) {
+				/* NFSV3ACCESS definitions aren't up to date */
+				printf(" %04x", access_flags);
+			} else if ((access_flags & NFSV3ACCESS_FULL) == NFSV3ACCESS_FULL) {
+				printf(" NFS_ACCESS_FULL");
+			} else {
+				char separator = ' ';
+				if (access_flags & NFSV3ACCESS_READ) {
+					printf(" NFS_ACCESS_READ");
+					separator = '|';
+				}
+				if (access_flags & NFSV3ACCESS_LOOKUP) {
+					printf("%cNFS_ACCESS_LOOKUP", separator);
+					separator = '|';
+				}
+				if (access_flags & NFSV3ACCESS_MODIFY) {
+					printf("%cNFS_ACCESS_MODIFY", separator);
+					separator = '|';
+				}
+				if (access_flags & NFSV3ACCESS_EXTEND) {
+					printf("%cNFS_ACCESS_EXTEND", separator);
+					separator = '|';
+				}
+				if (access_flags & NFSV3ACCESS_DELETE) {
+					printf("%cNFS_ACCESS_DELETE", separator);
+					separator = '|';
+				}
+				if (access_flags & NFSV3ACCESS_EXECUTE)
+					printf("%cNFS_ACCESS_EXECUTE", separator);
+			}
 			return;
 		}
 		break;

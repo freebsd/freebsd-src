@@ -3,5 +3,7 @@
 
 PROG=	repquota
 MAN=	repquota.8
+DPADD=  ${LIBUTIL}
+LDADD=  -lutil
 
 .include <bsd.prog.mk>

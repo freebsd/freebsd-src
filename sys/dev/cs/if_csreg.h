@@ -30,6 +30,8 @@
  * $FreeBSD$
  */
 
+#include <sys/rman.h>
+
 #define CS_89x0_IO_PORTS	0x0020
 
 #define PP_ChipID 0x0000	/* offset   0h -> Corp -ID              */
@@ -541,21 +543,21 @@ cs_inw(struct cs_softc *sc, int off)
 {
 	if (off & 1)
 		device_printf(sc->dev, "BUG: inw to an odd address.\n");
-	return ((inb(sc->nic_addr + off) & 0xff) |
-	    (inb(sc->nic_addr + off + 1) << 8));
+	return ((bus_read_1(sc->port_res, off)) |
+	    (bus_read_1(sc->port_res, off + 1) << 8));
 }
 #else
 static __inline uint16_t
 cs_inw(struct cs_softc *sc, int off)
 {
-	return (inw(sc->nic_addr + off));
+	return (bus_read_2(sc->port_res, off));
 }
 #endif
 
 static __inline void
 cs_outw(struct cs_softc *sc, int off, uint16_t val)
 {
-	outw(sc->nic_addr + off, val);
+	bus_write_2(sc->port_res, off, val);
 }
 
 static __inline uint16_t

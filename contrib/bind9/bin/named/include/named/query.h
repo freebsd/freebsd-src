@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2010  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: query.h,v 1.40 2007/06/19 23:46:59 tbox Exp $ */
+/* $Id: query.h,v 1.40.332.2 2010-09-24 08:30:28 tbox Exp $ */
 
 #ifndef NAMED_QUERY_H
 #define NAMED_QUERY_H 1
@@ -71,6 +71,8 @@ struct ns_query {
 #define NS_QUERYATTR_SECURE		0x0200
 #define NS_QUERYATTR_NOAUTHORITY	0x0400
 #define NS_QUERYATTR_NOADDITIONAL	0x0800
+#define NS_QUERYATTR_CACHEACLOKVALID	0x1000
+#define NS_QUERYATTR_CACHEACLOK		0x2000
 
 isc_result_t
 ns_query_init(ns_client_t *client);

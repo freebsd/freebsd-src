@@ -48,15 +48,15 @@
 #define LDC_MAX        28
 
 /*	128-255 bigram codes (128 most common, as determined by 'updatedb') */
-#define BIGRAM_MIN    (UCHAR_MAX - CHAR_MAX) 
+#define BIGRAM_MIN    (UCHAR_MAX - SCHAR_MAX) 
 #define BIGRAM_MAX    UCHAR_MAX
 
 /*	32-127  single character (printable) ascii residue (ie, literal) */
 #define ASCII_MIN      32
-#define ASCII_MAX     CHAR_MAX
+#define ASCII_MAX     SCHAR_MAX
 
-/* #define TO7BIT(x)     (x = ( ((u_char)x) & CHAR_MAX )) */
-#define TO7BIT(x)     (x = x & CHAR_MAX )
+/* #define TO7BIT(x)     (x = ( ((u_char)x) & SCHAR_MAX )) */
+#define TO7BIT(x)     (x = x & SCHAR_MAX )
 
 
 #if UCHAR_MAX >= 4096

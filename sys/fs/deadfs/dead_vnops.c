@@ -225,13 +225,7 @@ dead_rename(ap)
 		struct componentname *a_tcnp;
 	} */ *ap;
 {
-	if (ap->a_tvp)
-		vput(ap->a_tvp);
-	if (ap->a_tdvp == ap->a_tvp)
-		vrele(ap->a_tdvp);
-	else
-		vput(ap->a_tdvp);
-	vrele(ap->a_fdvp);
-	vrele(ap->a_fvp);
+
+	vop_rename_fail(ap);
 	return (EXDEV);
 }

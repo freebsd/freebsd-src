@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/arch/${MACHINE_ARCH}
+.PATH:	${.CURDIR}/arch/${MACHINE_CPUARCH}
 
 LIB=	thread_db
 SHLIB_MAJOR= 3

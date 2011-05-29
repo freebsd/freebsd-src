@@ -75,7 +75,7 @@ __FBSDID("$FreeBSD$");
 
 
 /*
- * A text structure is basicly just a string that grows as more characters
+ * A text structure is basically just a string that grows as more characters
  * are added onto the end of it.  It is implemented as a linked list of
  * blocks of characters.  The routines addstr and addchar append a string
  * or a single character, respectively, to a text structure.  Writetext
@@ -126,16 +126,10 @@ char reset[] = "\
  * interactive shell and control is returned to the main command loop.\n\
  */\n";
 
-char shellproc[] = "\
-/*\n\
- * This routine is called to initialize the shell to run a shell procedure.\n\
- */\n";
-
 
 struct event event[] = {
 	{ "INIT", "init", init, { NULL, 0, NULL, NULL } },
 	{ "RESET", "reset", reset, { NULL, 0, NULL, NULL } },
-	{ "SHELLPROC", "initshellproc", shellproc, { NULL, 0, NULL, NULL } },
 	{ NULL, NULL, NULL, { NULL, 0, NULL, NULL } }
 };
 

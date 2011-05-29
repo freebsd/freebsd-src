@@ -33,7 +33,7 @@
 
 /*
  * Normal and alternate %g6 point to the pcb of the current process.  Normal,
- & alternate and interrupt %g7 point to per-cpu data.
+ * alternate and interrupt %g7 point to per-cpu data.
  */
 #define	PCB_REG		%g6
 #define	PCPU_REG	%g7
@@ -90,6 +90,17 @@
 	bne,pn	%icc, 9b ; \
 	 mov	r3, r2
 
+/*
+ * Atomically clear a number of bits of an u_long in memory.
+ */
+#define	ATOMIC_CLEAR_LONG(r1, r2, r3, bits) \
+	ldx	[r1], r2 ; \
+9:	andn	r2, bits, r3 ; \
+	casxa	[r1] ASI_N, r2, r3 ; \
+	cmp	r2, r3 ; \
+	bne,pn	%icc, 9b ; \
+	 mov	r3, r2
+
 #define	PCPU(member)	PCPU_REG + PC_ ## member
 #define	PCPU_ADDR(member, reg) \
 	add	PCPU_REG, PC_ ## member, reg
@@ -133,6 +144,19 @@
 name:
 
 #define	EMPTY
+
+/*
+ * Generate atomic compare and swap, load and store instructions for the
+ * corresponding width and ASI (or not).  Note that we want to evaluate the
+ * macro args before concatenating, so that EMPTY really turns into nothing.
+ */
+#define		_LD(w, a)	ld ## w ## a
+#define		_ST(w, a)	st ## w ## a
+#define		_CAS(w, a)	cas ## w ## a
+
+#define		LD(w, a)	_LD(w, a)
+#define		ST(w, a)	_ST(w, a)
+#define		CAS(w, a)	_CAS(w, a)
 
 #endif /* LOCORE */
 

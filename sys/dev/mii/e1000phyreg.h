@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * Additonal Copyright (c) 2001 by Traakan Software under same licence.
+ * Additional Copyright (c) 2001 by Traakan Software under same licence.
  * Secondary Author: Matthew Jacob
  */
 

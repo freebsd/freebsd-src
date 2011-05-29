@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: keytable.h,v 1.16 2007/06/19 23:47:16 tbox Exp $ */
+/* $Id: keytable.h,v 1.16 2007-06-19 23:47:16 tbox Exp $ */
 
 #ifndef DNS_KEYTABLE_H
 #define DNS_KEYTABLE_H 1

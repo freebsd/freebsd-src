@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -637,18 +633,8 @@ fmt_sockaddr(struct sockaddr *sa, struct sockaddr *mask, int flags)
 	case AF_INET6:
 	    {
 		struct sockaddr_in6 *sa6 = (struct sockaddr_in6 *)sa;
-		struct in6_addr *in6 = &sa6->sin6_addr;
 
-		/*
-		 * XXX: This is a special workaround for KAME kernels.
-		 * sin6_scope_id field of SA should be set in the future.
-		 */
-		if (IN6_IS_ADDR_LINKLOCAL(in6) ||
-		    IN6_IS_ADDR_MC_LINKLOCAL(in6)) {
-		    /* XXX: override is ok? */
-		    sa6->sin6_scope_id = (u_int32_t)ntohs(*(u_short *)&in6->s6_addr[2]);
-		    *(u_short *)&in6->s6_addr[2] = 0;
-		}
+		in6_fillscopeid(sa6);
 
 		if (flags & RTF_HOST)
 		    cp = routename6(sa6);
@@ -899,6 +885,25 @@ netname(in_addr_t in, u_long mask)
 #undef NSHIFT
 
 #ifdef INET6
+void
+in6_fillscopeid(struct sockaddr_in6 *sa6)
+{
+#if defined(__KAME__)
+	/*
+	 * XXX: This is a special workaround for KAME kernels.
+	 * sin6_scope_id field of SA should be set in the future.
+	 */
+	if (IN6_IS_ADDR_LINKLOCAL(&sa6->sin6_addr) ||
+	    IN6_IS_ADDR_MC_NODELOCAL(&sa6->sin6_addr) ||
+	    IN6_IS_ADDR_MC_LINKLOCAL(&sa6->sin6_addr)) {
+		/* XXX: override is ok? */
+		sa6->sin6_scope_id =
+		    ntohs(*(u_int16_t *)&sa6->sin6_addr.s6_addr[2]);
+		sa6->sin6_addr.s6_addr[2] = sa6->sin6_addr.s6_addr[3] = 0;
+	}
+#endif
+}
+
 const char *
 netname6(struct sockaddr_in6 *sa6, struct in6_addr *mask)
 {

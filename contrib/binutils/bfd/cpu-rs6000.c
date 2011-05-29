@@ -1,11 +1,7 @@
 /* BFD back-end for rs6000 support
-   Copyright 1990, 1991, 1993, 1995, 2000, 2002, 2003
+   Copyright 1990, 1991, 1993, 1995, 2000, 2002, 2003, 2007
    Free Software Foundation, Inc.
-   FIXME: Can someone provide a transliteration of this name into ASCII?
-   Using the following chars caused a compiler warning on HIUX (so I replaced
-   them with octal escapes), and isn't useful without an understanding of what
-   character set it is.
-   Written by Mimi Ph\373\364ng-Th\345o V\365 of IBM
+   Written by Mimi Phuong-Thao Vo of IBM
    and John Gilmore of Cygnus Support.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -22,10 +18,10 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 
 /* The RS/6000 architecture is compatible with the PowerPC common

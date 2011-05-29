@@ -42,10 +42,10 @@ CLEANFILES+= list.h bsdcpio_test
 NO_MAN=yes
 
 PROG=bsdcpio_test
-DPADD=${LIBARCHIVE} ${LIBBZ2} ${LIBZ}
+DPADD=${LIBARCHIVE} ${LIBBZ2} ${LIBZ} ${LIBLZMA}
 CFLAGS+=	-DPLATFORM_CONFIG_H=\"config_freebsd.h\"
 CFLAGS+=	-I..
-LDADD= -larchive -lz -lbz2
+LDADD= -larchive -lz -lbz2 -llzma
 CFLAGS+= -static -g -O2 -Wall
 CFLAGS+= -I${.OBJDIR}
 CFLAGS+= -I${CPIO_SRCDIR}

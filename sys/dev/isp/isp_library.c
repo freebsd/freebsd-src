@@ -294,10 +294,10 @@ uint32_t
 isp_handle_index(ispsoftc_t *isp, uint32_t handle)
 {
 	if (!ISP_VALID_HANDLE(isp, handle)) {
-		return (handle & ISP_HANDLE_CMD_MASK);
-	} else {
 		isp_prt(isp, ISP_LOGERR, "%s: bad handle 0x%x", __func__, handle);
 		return (ISP_BAD_HANDLE_INDEX);
+	} else {
+		return (handle & ISP_HANDLE_CMD_MASK);
 	}
 }
 
@@ -344,7 +344,7 @@ isp_print_qentry(ispsoftc_t *isp, const char *msg, int idx, void *arg)
 		for (j = 0; j < (QENTRY_LEN >> 2); j++) {
 			ISP_SNPRINTF(buf, TBA, "%s %02x", buf, ptr[amt++] & 0xff);
 		}
-		isp_prt(isp, ISP_LOGALL, buf);
+		isp_prt(isp, ISP_LOGALL, "%s", buf);
 	}
 }
 
@@ -591,13 +591,13 @@ isp_fc_change_role(ispsoftc_t *isp, int chan, int new_role)
 		mbs.param[3] = DMA_WD0(fcp->isp_scdma);
 		mbs.param[6] = DMA_WD3(fcp->isp_scdma);
 		mbs.param[7] = DMA_WD2(fcp->isp_scdma);
-		MEMORYBARRIER(isp, SYNC_SFORDEV, 0, 2 * QENTRY_LEN);
+		MEMORYBARRIER(isp, SYNC_SFORDEV, 0, 2 * QENTRY_LEN, chan);
 		isp_control(isp, ISPCTL_RUN_MBOXCMD, &mbs);
 		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
 			FC_SCRATCH_RELEASE(isp, chan);
 			return (EIO);
 		}
-		MEMORYBARRIER(isp, SYNC_SFORCPU, QENTRY_LEN, QENTRY_LEN);
+		MEMORYBARRIER(isp, SYNC_SFORCPU, QENTRY_LEN, QENTRY_LEN, chan);
 		isp_get_vp_modify(isp, (vp_modify_t *)&scp[QENTRY_LEN], vp);
 
 #ifdef	ISP_TARGET_MODE
@@ -1338,7 +1338,7 @@ isp_put_vp_ctrl_info(ispsoftc_t *isp, vp_ctrl_info_t *src, vp_ctrl_info_t *dst)
 		ISP_IOXPUT_16(isp, src->vp_ctrl_idmap[i], &dst->vp_ctrl_idmap[i]);
 	}
 	for (i = 0; i < ASIZE(src->vp_ctrl_reserved); i++) {
-		ISP_IOXPUT_8(isp, src->vp_ctrl_idmap[i], &dst->vp_ctrl_idmap[i]);
+		ISP_IOXPUT_8(isp, src->vp_ctrl_reserved[i], &dst->vp_ctrl_reserved[i]);
 	}
 }
 

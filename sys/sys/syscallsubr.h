@@ -48,8 +48,11 @@ struct sockaddr;
 struct stat;
 struct kevent;
 struct kevent_copyops;
+struct kld_file_stat;
+struct ksiginfo;
 struct sendfile_args;
 struct thr_param;
+struct ogetdirentries_args;
 
 int	kern___getcwd(struct thread *td, u_char *buf, enum uio_seg bufseg,
 	    u_int buflen);
@@ -112,6 +115,7 @@ int	kern_jail_set(struct thread *td, struct uio *options, int flags);
 int	kern_kevent(struct thread *td, int fd, int nchanges, int nevents,
 	    struct kevent_copyops *k_ops, const struct timespec *timeout);
 int	kern_kldload(struct thread *td, const char *file, int *fileid);
+int	kern_kldstat(struct thread *td, int fileid, struct kld_file_stat *stat);
 int	kern_kldunload(struct thread *td, int fileid, int flags);
 int	kern_lchown(struct thread *td, char *path, enum uio_seg pathseg,
 	    int uid, int gid);
@@ -140,6 +144,8 @@ int	kern_msgsnd(struct thread *, int, const void *, size_t, int, long);
 int	kern_msgrcv(struct thread *, int, void *, size_t, long, int, long *);
 int     kern_nanosleep(struct thread *td, struct timespec *rqt,
 	    struct timespec *rmt);
+int	kern_ogetdirentries(struct thread *td, struct ogetdirentries_args *uap,
+	    long *ploff);
 int	kern_open(struct thread *td, char *path, enum uio_seg pathseg,
 	    int flags, int mode);
 int	kern_openat(struct thread *td, int fd, char *path,
@@ -192,7 +198,11 @@ int	kern_shmctl(struct thread *td, int shmid, int cmd, void *buf,
 int	kern_sigaction(struct thread *td, int sig, struct sigaction *act,
 	    struct sigaction *oact, int flags);
 int	kern_sigaltstack(struct thread *td, stack_t *ss, stack_t *oss);
+int	kern_sigprocmask(struct thread *td, int how,
+	    sigset_t *set, sigset_t *oset, int flags);
 int	kern_sigsuspend(struct thread *td, sigset_t mask);
+int	kern_sigtimedwait(struct thread *td, sigset_t waitset,
+	    struct ksiginfo *ksi, struct timespec *timeout);
 int	kern_stat(struct thread *td, char *path, enum uio_seg pathseg,
 	    struct stat *sbp);
 int	kern_statat(struct thread *td, int flag, int fd, char *path,

@@ -54,7 +54,7 @@ __FBSDID("$FreeBSD$");
 
 #include "nlm_prot.h"
 #include <nfs/nfsproto.h>
-#include <nfsclient/nfs_lock.h>
+#include <nfs/nfs_lock.h>
 
 #include "lockd.h"
 #include "lockd_lock.h"

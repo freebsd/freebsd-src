@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 28, 2006
+.Dd September 2, 2010
 .Dt SIS 4
 .Os
 .Sh NAME
@@ -80,7 +80,6 @@ by the same driver.
 The
 .Nm
 driver supports the following media types:
-.Pp
 .Bl -tag -width 10baseTXUTP
 .It autoselect
 Enable autoselection of the media type and options.
@@ -112,7 +111,6 @@ modes.
 The
 .Nm
 driver supports the following media options:
-.Pp
 .Bl -tag -width full-duplex
 .It full-duplex
 Force full duplex operation
@@ -144,6 +142,22 @@ Netgear FA312-TX (DP83815)
 SiS 630, 635, and 735 motherboard chipsets
 .It
 Soekris Engineering net45xx, net48xx, lan1621, and lan1641
+.El
+.Sh SYSCTL VARIABLES
+The following variable is available as both
+.Xr sysctl 8
+variable and
+.Xr loader 8
+tunable:
+.Bl -tag -width indent
+.It Va dev.sis.%unit.manual_pad
+This variable controls how to pad short frames for DP83815/DP83816
+controllers on the specified device.
+DP83815/DP83816 controllers are known to pad 0xFF for short frames
+which is violation of RFC 1042.
+Set this variable to a non-zero value to let driver manually pad
+each short frame with zeros at the cost of extra CPU cycles.
+The default value is 0 to let hardware perform automatic padding.
 .El
 .Sh DIAGNOSTICS
 .Bl -diag
@@ -190,6 +204,7 @@ the card should be configured correctly.
 .Xr netintro 4 ,
 .Xr ng_ether 4 ,
 .Xr polling 4 ,
+.Xr vlan 4 ,
 .Xr ifconfig 8
 .Rs
 .%T SiS 900 and SiS 7016 datasheets

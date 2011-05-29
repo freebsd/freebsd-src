@@ -151,7 +151,7 @@ static int i915_dma_cleanup(struct drm_device * dev)
 	if (dev_priv->ring.virtual_start) {
 		drm_core_ioremapfree(&dev_priv->ring.map, dev);
 		dev_priv->ring.virtual_start = NULL;
-		dev_priv->ring.map.handle = NULL;
+		dev_priv->ring.map.virtual = NULL;
 		dev_priv->ring.map.size = 0;
 	}
 
@@ -174,7 +174,7 @@ static int i915_initialize(struct drm_device * dev, drm_i915_init_t * init)
 	}
 
 	dev_priv->sarea_priv = (drm_i915_sarea_t *)
-	    ((u8 *) dev_priv->sarea->handle + init->sarea_priv_offset);
+	    ((u8 *) dev_priv->sarea->virtual + init->sarea_priv_offset);
 
 	if (init->ring_size != 0) {
 		if (dev_priv->ring.ring_obj != NULL) {
@@ -195,7 +195,7 @@ static int i915_initialize(struct drm_device * dev, drm_i915_init_t * init)
 
 		drm_core_ioremap_wc(&dev_priv->ring.map, dev);
 
-		if (dev_priv->ring.map.handle == NULL) {
+		if (dev_priv->ring.map.virtual == NULL) {
 			i915_dma_cleanup(dev);
 			DRM_ERROR("can not ioremap virtual address for"
 				  " ring buffer\n");
@@ -203,7 +203,7 @@ static int i915_initialize(struct drm_device * dev, drm_i915_init_t * init)
 		}
 	}
 
-	dev_priv->ring.virtual_start = dev_priv->ring.map.handle;
+	dev_priv->ring.virtual_start = dev_priv->ring.map.virtual;
 
 	dev_priv->cpp = init->cpp;
 	dev_priv->back_offset = init->back_offset;
@@ -229,7 +229,7 @@ static int i915_dma_resume(struct drm_device * dev)
 		return -EINVAL;
 	}
 
-	if (dev_priv->ring.map.handle == NULL) {
+	if (dev_priv->ring.map.virtual == NULL) {
 		DRM_ERROR("can not ioremap virtual address for"
 			  " ring buffer\n");
 		return -ENOMEM;
@@ -823,14 +823,14 @@ static int i915_set_status_page(struct drm_device *dev, void *data,
 	dev_priv->hws_map.mtrr = 0;
 
 	drm_core_ioremap_wc(&dev_priv->hws_map, dev);
-	if (dev_priv->hws_map.handle == NULL) {
+	if (dev_priv->hws_map.virtual == NULL) {
 		i915_dma_cleanup(dev);
 		dev_priv->status_gfx_addr = 0;
 		DRM_ERROR("can not ioremap virtual address for"
 				" G33 hw status page\n");
 		return -ENOMEM;
 	}
-	dev_priv->hw_status_page = dev_priv->hws_map.handle;
+	dev_priv->hw_status_page = dev_priv->hws_map.virtual;
 
 	memset(dev_priv->hw_status_page, 0, PAGE_SIZE);
 	I915_WRITE(HWS_PGA, dev_priv->status_gfx_addr);

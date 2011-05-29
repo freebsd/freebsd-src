@@ -108,7 +108,7 @@ static void ipsec4_common_ctlinput(int, struct sockaddr *, void *, int);
 
 /*
  * ipsec_common_input gets called when an IPsec-protected packet
- * is received by IPv4 or IPv6.  It's job is to find the right SA
+ * is received by IPv4 or IPv6.  Its job is to find the right SA
  * and call the appropriate transform.  The transform callback
  * takes care of further processing (like ingress filtering).
  */
@@ -119,8 +119,10 @@ ipsec_common_input(struct mbuf *m, int skip, int protoff, int af, int sproto)
 	struct secasvar *sav;
 	u_int32_t spi;
 	int error;
+#ifdef INET
 #ifdef IPSEC_NAT_T
 	struct m_tag *tag;
+#endif
 #endif
 
 	IPSEC_ISTAT(sproto, V_espstat.esps_input, V_ahstat.ahs_input,
@@ -489,7 +491,7 @@ ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav,
 	/*
 	 * Re-dispatch via software interrupt.
 	 */
-	if ((error = netisr_queue_src(NETISR_IP, (uintptr_t)sav, m))) {
+	if ((error = netisr_queue_src(NETISR_IP, (uintptr_t)sav->spi, m))) {
 		IPSEC_ISTAT(sproto, V_espstat.esps_qfull, V_ahstat.ahs_qfull,
 			    V_ipcompstat.ipcomps_qfull);
 

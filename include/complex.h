@@ -49,6 +49,8 @@ long double	cabsl(long double complex);
 double		carg(double complex);
 float		cargf(float complex);
 long double	cargl(long double complex);
+double complex	cexp(double complex);
+float complex	cexpf(float complex);
 double		cimag(double complex) __pure2;
 float		cimagf(float complex) __pure2;
 long double	cimagl(long double complex) __pure2;

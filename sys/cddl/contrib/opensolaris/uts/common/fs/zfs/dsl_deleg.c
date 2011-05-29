@@ -19,8 +19,7 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
- * Use is subject to license terms.
+ * Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
  */
 
 /*
@@ -66,8 +65,6 @@
  * The ZAP OBJ is referred to as the jump object.
  */
 
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
-
 #include <sys/dmu.h>
 #include <sys/dmu_objset.h>
 #include <sys/dmu_tx.h>
@@ -77,8 +74,6 @@
 #include <sys/dsl_synctask.h>
 #include <sys/dsl_deleg.h>
 #include <sys/spa.h>
-#include <sys/spa_impl.h>
-#include <sys/zio_checksum.h> /* for the default checksum value */
 #include <sys/zap.h>
 #include <sys/fs/zfs.h>
 #include <sys/cred.h>
@@ -152,7 +147,7 @@ dsl_deleg_can_unallow(char *ddname, nvlist_t *nvp, cred_t *cr)
 }
 
 static void
-dsl_deleg_set_sync(void *arg1, void *arg2, cred_t *cr, dmu_tx_t *tx)
+dsl_deleg_set_sync(void *arg1, void *arg2, dmu_tx_t *tx)
 {
 	dsl_dir_t *dd = arg1;
 	nvlist_t *nvp = arg2;
@@ -187,8 +182,8 @@ dsl_deleg_set_sync(void *arg1, void *arg2, cred_t *cr, dmu_tx_t *tx)
 
 			VERIFY(zap_update(mos, jumpobj,
 			    perm, 8, 1, &n, tx) == 0);
-			spa_history_internal_log(LOG_DS_PERM_UPDATE,
-			    dd->dd_pool->dp_spa, tx, cr,
+			spa_history_log_internal(LOG_DS_PERM_UPDATE,
+			    dd->dd_pool->dp_spa, tx,
 			    "%s %s dataset = %llu", whokey, perm,
 			    dd->dd_phys->dd_head_dataset_obj);
 		}
@@ -196,7 +191,7 @@ dsl_deleg_set_sync(void *arg1, void *arg2, cred_t *cr, dmu_tx_t *tx)
 }
 
 static void
-dsl_deleg_unset_sync(void *arg1, void *arg2, cred_t *cr, dmu_tx_t *tx)
+dsl_deleg_unset_sync(void *arg1, void *arg2, dmu_tx_t *tx)
 {
 	dsl_dir_t *dd = arg1;
 	nvlist_t *nvp = arg2;
@@ -219,8 +214,8 @@ dsl_deleg_unset_sync(void *arg1, void *arg2, cred_t *cr, dmu_tx_t *tx)
 				(void) zap_remove(mos, zapobj, whokey, tx);
 				VERIFY(0 == zap_destroy(mos, jumpobj, tx));
 			}
-			spa_history_internal_log(LOG_DS_PERM_WHO_REMOVE,
-			    dd->dd_pool->dp_spa, tx, cr,
+			spa_history_log_internal(LOG_DS_PERM_WHO_REMOVE,
+			    dd->dd_pool->dp_spa, tx,
 			    "%s dataset = %llu", whokey,
 			    dd->dd_phys->dd_head_dataset_obj);
 			continue;
@@ -240,8 +235,8 @@ dsl_deleg_unset_sync(void *arg1, void *arg2, cred_t *cr, dmu_tx_t *tx)
 				VERIFY(0 == zap_destroy(mos,
 				    jumpobj, tx));
 			}
-			spa_history_internal_log(LOG_DS_PERM_REMOVE,
-			    dd->dd_pool->dp_spa, tx, cr,
+			spa_history_log_internal(LOG_DS_PERM_REMOVE,
+			    dd->dd_pool->dp_spa, tx,
 			    "%s %s dataset = %llu", whokey, perm,
 			    dd->dd_phys->dd_head_dataset_obj);
 		}
@@ -533,34 +528,35 @@ dsl_load_user_sets(objset_t *mos, uint64_t zapobj, avl_tree_t *avl,
  * Check if user has requested permission.
  */
 int
-dsl_deleg_access(const char *dsname, const char *perm, cred_t *cr)
+dsl_deleg_access_impl(dsl_dataset_t *ds, const char *perm, cred_t *cr)
 {
-	dsl_dataset_t *ds;
 	dsl_dir_t *dd;
 	dsl_pool_t *dp;
 	void *cookie;
 	int	error;
-	char	checkflag = ZFS_DELEG_LOCAL;
+	char	checkflag;
 	objset_t *mos;
 	avl_tree_t permsets;
 	perm_set_t *setnode;
 
-	error = dsl_dataset_hold(dsname, FTAG, &ds);
-	if (error)
-		return (error);
-
 	dp = ds->ds_dir->dd_pool;
 	mos = dp->dp_meta_objset;
 
-	if (dsl_delegation_on(mos) == B_FALSE) {
-		dsl_dataset_rele(ds, FTAG);
+	if (dsl_delegation_on(mos) == B_FALSE)
 		return (ECANCELED);
-	}
 
 	if (spa_version(dmu_objset_spa(dp->dp_meta_objset)) <
-	    SPA_VERSION_DELEGATED_PERMS) {
-		dsl_dataset_rele(ds, FTAG);
+	    SPA_VERSION_DELEGATED_PERMS)
 		return (EPERM);
+
+	if (dsl_dataset_is_snapshot(ds)) {
+		/*
+		 * Snapshots are treated as descendents only,
+		 * local permissions do not apply.
+		 */
+		checkflag = ZFS_DELEG_DESCENDENT;
+	} else {
+		checkflag = ZFS_DELEG_LOCAL;
 	}
 
 	avl_create(&permsets, perm_set_compare, sizeof (perm_set_t),
@@ -581,7 +577,7 @@ dsl_deleg_access(const char *dsname, const char *perm, cred_t *cr)
 
 			if (dsl_prop_get_dd(dd,
 			    zfs_prop_to_name(ZFS_PROP_ZONED),
-			    8, 1, &zoned, NULL) != 0)
+			    8, 1, &zoned, NULL, B_FALSE) != 0)
 				break;
 			if (!zoned)
 				break;
@@ -628,11 +624,26 @@ again:
 	error = EPERM;
 success:
 	rw_exit(&dp->dp_config_rwlock);
-	dsl_dataset_rele(ds, FTAG);
 
 	cookie = NULL;
 	while ((setnode = avl_destroy_nodes(&permsets, &cookie)) != NULL)
 		kmem_free(setnode, sizeof (perm_set_t));
+
+	return (error);
+}
+
+int
+dsl_deleg_access(const char *dsname, const char *perm, cred_t *cr)
+{
+	dsl_dataset_t *ds;
+	int error;
+
+	error = dsl_dataset_hold(dsname, FTAG, &ds);
+	if (error)
+		return (error);
+
+	error = dsl_deleg_access_impl(ds, perm, cr);
+	dsl_dataset_rele(ds, FTAG);
 
 	return (error);
 }
@@ -731,5 +742,5 @@ dsl_deleg_destroy(objset_t *mos, uint64_t zapobj, dmu_tx_t *tx)
 boolean_t
 dsl_delegation_on(objset_t *os)
 {
-	return (os->os->os_spa->spa_delegation);
+	return (!!spa_delegation(os->os_spa));
 }

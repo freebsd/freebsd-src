@@ -56,7 +56,7 @@ typedef struct fsid { int32_t val[2]; } fsid_t;	/* filesystem id type */
 
 struct fid {
 	u_short		fid_len;		/* length of data in bytes */
-	u_short		fid_reserved;		/* force longword alignment */
+	u_short		fid_data0;		/* force longword alignment */
 	char		fid_data[MAXFIDSZ];	/* data (variable length) */
 };
 
@@ -275,7 +275,8 @@ void          __mnt_vnode_markerfree(struct vnode **mvp, struct mount *mp);
 			MNT_ROOTFS	| MNT_NOATIME	| MNT_NOCLUSTERR| \
 			MNT_NOCLUSTERW	| MNT_SUIDDIR	| MNT_SOFTDEP	| \
 			MNT_IGNORE	| MNT_EXPUBLIC	| MNT_NOSYMFOLLOW | \
-			MNT_GJOURNAL	| MNT_MULTILABEL | MNT_ACLS | MNT_NFS4ACLS)
+			MNT_GJOURNAL	| MNT_MULTILABEL | MNT_ACLS	| \
+			MNT_NFS4ACLS)
 
 /* Mask of flags that can be updated. */
 #define	MNT_UPDATEMASK (MNT_NOSUID	| MNT_NOEXEC	| \
@@ -324,6 +325,7 @@ void          __mnt_vnode_markerfree(struct vnode **mvp, struct mount *mp);
 #define	MNTK_REFEXPIRE	0x00000020	/* refcount expiring is happening */
 #define MNTK_EXTENDED_SHARED	0x00000040 /* Allow shared locking for more ops */
 #define	MNTK_SHARED_WRITES	0x00000080 /* Allow shared locking for writes */
+#define	MNTK_SUJ	0x00000100	/* Softdep journaling enabled */
 #define MNTK_UNMOUNT	0x01000000	/* unmount in progress */
 #define	MNTK_MWAIT	0x02000000	/* waiting for unmount to finish */
 #define	MNTK_SUSPEND	0x08000000	/* request write suspension */
@@ -564,7 +566,8 @@ typedef	int vfs_statfs_t(struct mount *mp, struct statfs *sbp);
 typedef	int vfs_sync_t(struct mount *mp, int waitfor);
 typedef	int vfs_vget_t(struct mount *mp, ino_t ino, int flags,
 		    struct vnode **vpp);
-typedef	int vfs_fhtovp_t(struct mount *mp, struct fid *fhp, struct vnode **vpp);
+typedef	int vfs_fhtovp_t(struct mount *mp, struct fid *fhp,
+		    int flags, struct vnode **vpp);
 typedef	int vfs_checkexp_t(struct mount *mp, struct sockaddr *nam,
 		    int *extflagsp, struct ucred **credanonp,
 		    int *numsecflavors, int **secflavors);
@@ -608,8 +611,8 @@ vfs_statfs_t	__vfs_statfs;
 #define	VFS_SYNC(MP, WAIT)	(*(MP)->mnt_op->vfs_sync)(MP, WAIT)
 #define VFS_VGET(MP, INO, FLAGS, VPP) \
 	(*(MP)->mnt_op->vfs_vget)(MP, INO, FLAGS, VPP)
-#define VFS_FHTOVP(MP, FIDP, VPP) \
-	(*(MP)->mnt_op->vfs_fhtovp)(MP, FIDP, VPP)
+#define VFS_FHTOVP(MP, FIDP, FLAGS, VPP) \
+	(*(MP)->mnt_op->vfs_fhtovp)(MP, FIDP, FLAGS, VPP)
 #define VFS_CHECKEXP(MP, NAM, EXFLG, CRED, NUMSEC, SEC)	\
 	(*(MP)->mnt_op->vfs_checkexp)(MP, NAM, EXFLG, CRED, NUMSEC, SEC)
 #define	VFS_EXTATTRCTL(MP, C, FN, NS, N)				\
@@ -642,7 +645,11 @@ vfs_statfs_t	__vfs_statfs;
 		_locked = 0;						\
 	_locked;							\
 })
-#define	VFS_UNLOCK_GIANT(locked)	if ((locked)) mtx_unlock(&Giant);
+#define	VFS_UNLOCK_GIANT(locked) do					\
+{									\
+	if ((locked))							\
+		mtx_unlock(&Giant);					\
+} while (0)
 #define	VFS_ASSERT_GIANT(MP) do						\
 {									\
 	struct mount *_mp;						\
@@ -728,7 +735,8 @@ void	vfs_msync(struct mount *, int);
 int	vfs_busy(struct mount *, int);
 int	vfs_export			 /* process mount export info */
 	    (struct mount *, struct export_args *);
-int	vfs_allocate_syncvnode(struct mount *);
+void	vfs_allocate_syncvnode(struct mount *);
+void	vfs_deallocate_syncvnode(struct mount *);
 int	vfs_donmount(struct thread *td, int fsflags, struct uio *fsoptions);
 void	vfs_getnewfsid(struct mount *);
 struct cdev *vfs_getrootfsid(struct mount *);
@@ -738,6 +746,8 @@ int	vfs_modevent(module_t, int, void *);
 void	vfs_mount_error(struct mount *, const char *, ...);
 void	vfs_mountroot(void);			/* mount our root filesystem */
 void	vfs_mountedfrom(struct mount *, const char *from);
+void	vfs_oexport_conv(const struct oexport_args *oexp,
+	    struct export_args *exp);
 void	vfs_ref(struct mount *);
 void	vfs_rel(struct mount *);
 struct mount *vfs_mount_alloc(struct vnode *, struct vfsconf *, const char *,

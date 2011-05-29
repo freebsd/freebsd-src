@@ -311,6 +311,24 @@ windrv_unload(mod, img, len)
 
 #define WINDRV_LOADED		htonl(0x42534F44)
 
+#ifdef __amd64__
+static void
+patch_user_shared_data_address(vm_offset_t img, size_t len)
+{
+	unsigned long i, n, max_addr, *addr;
+
+	n = len - sizeof(unsigned long);
+	max_addr = KI_USER_SHARED_DATA + sizeof(kuser_shared_data);
+	for (i = 0; i < n; i++) {
+		addr = (unsigned long *)(img + i);
+		if (*addr >= KI_USER_SHARED_DATA && *addr < max_addr) {
+			*addr -= KI_USER_SHARED_DATA;
+			*addr += (unsigned long)&kuser_shared_data;
+		}
+	}
+}
+#endif
+
 /*
  * Loader routine for actual Windows driver modules, ultimately
  * calls the driver's DriverEntry() routine.
@@ -362,6 +380,10 @@ windrv_load(mod, img, len, bustype, devlist, regvals)
 		if (pe_patch_imports(img, "ntoskrnl", ntoskrnl_functbl))
 			return (ENOEXEC);
 	}
+
+#ifdef __amd64__
+	patch_user_shared_data_address(img, len);
+#endif
 
 	/* Dynamically link USBD.SYS -- optional */
 	if (pe_get_import_descriptor(img, &imp_desc, "USBD") == 0) {

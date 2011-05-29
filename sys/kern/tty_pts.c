@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/poll.h>
 #include <sys/proc.h>
+#include <sys/racct.h>
 #include <sys/resourcevar.h>
 #include <sys/serial.h>
 #include <sys/stat.h>
@@ -97,7 +98,7 @@ struct pts_softc {
 	struct cdev	*pts_cdev;	/* (c) Master device node. */
 #endif /* PTS_EXTERNAL */
 
-	struct uidinfo	*pts_uidinfo;	/* (c) Resource limit. */
+	struct ucred	*pts_cred;	/* (c) Resource limit. */
 };
 
 /*
@@ -556,9 +557,9 @@ ptsdev_stat(struct file *fp, struct stat *sb, struct ucred *active_cred,
 #endif /* PTS_EXTERNAL */
 		sb->st_ino = sb->st_rdev = tty_udev(tp);
 
-	sb->st_atimespec = dev->si_atime;
-	sb->st_ctimespec = dev->si_ctime;
-	sb->st_mtimespec = dev->si_mtime;
+	sb->st_atim = dev->si_atime;
+	sb->st_ctim = dev->si_ctime;
+	sb->st_mtim = dev->si_mtime;
 	sb->st_uid = dev->si_uid;
 	sb->st_gid = dev->si_gid;
 	sb->st_mode = dev->si_mode | S_IFCHR;
@@ -574,6 +575,15 @@ ptsdev_close(struct file *fp, struct thread *td)
 	/* Deallocate TTY device. */
 	tty_lock(tp);
 	tty_rel_gone(tp);
+
+	/*
+	 * Open of /dev/ptmx or /dev/ptyXX changes the type of file
+	 * from DTYPE_VNODE to DTYPE_PTS. vn_open() increases vnode
+	 * use count, we need to decrement it, and possibly do other
+	 * required cleanup.
+	 */
+	if (fp->f_vnode != NULL)
+		return (vnops.fo_close(fp, td));
 
 	return (0);
 }
@@ -672,8 +682,9 @@ ptsdrv_free(void *softc)
 	if (psc->pts_unit >= 0)
 		free_unr(pts_pool, psc->pts_unit);
 
-	chgptscnt(psc->pts_uidinfo, -1, 0);
-	uifree(psc->pts_uidinfo);
+	chgptscnt(psc->pts_cred->cr_ruidinfo, -1, 0);
+	racct_sub_cred(psc->pts_cred, RACCT_NPTS, 1);
+	crfree(psc->pts_cred);
 
 	knlist_destroy(&psc->pts_inpoll.si_note);
 	knlist_destroy(&psc->pts_outpoll.si_note);
@@ -703,23 +714,32 @@ static
 int
 pts_alloc(int fflags, struct thread *td, struct file *fp)
 {
-	int unit, ok;
+	int unit, ok, error;
 	struct tty *tp;
 	struct pts_softc *psc;
 	struct proc *p = td->td_proc;
-	struct uidinfo *uid = td->td_ucred->cr_ruidinfo;
+	struct ucred *cred = td->td_ucred;
 
 	/* Resource limiting. */
 	PROC_LOCK(p);
-	ok = chgptscnt(uid, 1, lim_cur(p, RLIMIT_NPTS));
-	PROC_UNLOCK(p);
-	if (!ok)
+	error = racct_add(p, RACCT_NPTS, 1);
+	if (error != 0) {
+		PROC_UNLOCK(p);
 		return (EAGAIN);
+	}
+	ok = chgptscnt(cred->cr_ruidinfo, 1, lim_cur(p, RLIMIT_NPTS));
+	if (!ok) {
+		racct_sub(p, RACCT_NPTS, 1);
+		PROC_UNLOCK(p);
+		return (EAGAIN);
+	}
+	PROC_UNLOCK(p);
 
 	/* Try to allocate a new pts unit number. */
 	unit = alloc_unr(pts_pool);
 	if (unit < 0) {
-		chgptscnt(uid, -1, 0);
+		racct_sub(p, RACCT_NPTS, 1);
+		chgptscnt(cred->cr_ruidinfo, -1, 0);
 		return (EAGAIN);
 	}
 
@@ -729,8 +749,7 @@ pts_alloc(int fflags, struct thread *td, struct file *fp)
 	cv_init(&psc->pts_outwait, "ptsout");
 
 	psc->pts_unit = unit;
-	psc->pts_uidinfo = uid;
-	uihold(uid);
+	psc->pts_cred = crhold(cred);
 
 	tp = tty_alloc(&pts_class, psc);
 	knlist_init_mtx(&psc->pts_inpoll.si_note, tp->t_mtx);
@@ -749,18 +768,26 @@ int
 pts_alloc_external(int fflags, struct thread *td, struct file *fp,
     struct cdev *dev, const char *name)
 {
-	int ok;
+	int ok, error;
 	struct tty *tp;
 	struct pts_softc *psc;
 	struct proc *p = td->td_proc;
-	struct uidinfo *uid = td->td_ucred->cr_ruidinfo;
+	struct ucred *cred = td->td_ucred;
 
 	/* Resource limiting. */
 	PROC_LOCK(p);
-	ok = chgptscnt(uid, 1, lim_cur(p, RLIMIT_NPTS));
-	PROC_UNLOCK(p);
-	if (!ok)
+	error = racct_add(p, RACCT_NPTS, 1);
+	if (error != 0) {
+		PROC_UNLOCK(p);
 		return (EAGAIN);
+	}
+	ok = chgptscnt(cred->cr_ruidinfo, 1, lim_cur(p, RLIMIT_NPTS));
+	if (!ok) {
+		racct_sub(p, RACCT_NPTS, 1);
+		PROC_UNLOCK(p);
+		return (EAGAIN);
+	}
+	PROC_UNLOCK(p);
 
 	/* Allocate TTY and softc. */
 	psc = malloc(sizeof(struct pts_softc), M_PTS, M_WAITOK|M_ZERO);
@@ -769,8 +796,7 @@ pts_alloc_external(int fflags, struct thread *td, struct file *fp,
 
 	psc->pts_unit = -1;
 	psc->pts_cdev = dev;
-	psc->pts_uidinfo = uid;
-	uihold(uid);
+	psc->pts_cred = crhold(cred);
 
 	tp = tty_alloc(&pts_class, psc);
 	knlist_init_mtx(&psc->pts_inpoll.si_note, tp->t_mtx);
@@ -798,7 +824,7 @@ posix_openpt(struct thread *td, struct posix_openpt_args *uap)
 	if (uap->flags & ~(O_RDWR|O_NOCTTY))
 		return (EINVAL);
 	
-	error = falloc(td, &fp, &fd);
+	error = falloc(td, &fp, &fd, 0);
 	if (error)
 		return (error);
 

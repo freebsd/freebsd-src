@@ -29,12 +29,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 15, 2005
+.Dd February 24, 2011
 .Dt SND_UAUDIO 4
 .Os
 .Sh NAME
 .Nm snd_uaudio
-.Nd USB audio device driver
+.Nd USB audio and MIDI device driver
 .Sh SYNOPSIS
 To compile this driver into the kernel, place the following lines in your
 kernel configuration file:
@@ -55,7 +55,9 @@ The
 .Nm
 driver provides support for
 .Tn USB
-audio class devices.
+audio class devices and
+.Tn USB
+MIDI class devices.
 .Pp
 A
 .Tn USB
@@ -94,8 +96,7 @@ as of this writing, does not handle device un-registrations in a properly
 abstracted manner, i.e., a detach request is refused by the
 .Tn PCM
 framework if the device is in use.
-For
-.Tn USB
-and supposedly other detach-able busses, it is necessary to allow the
-device un-registration to complete successfully, otherwise the driver
-leaves wild pointers to invalid data structures and thus leading to a panic.
+It is necessary to allow the device un-registration to complete
+successfully, otherwise the
+.Tn PCM
+layer will panic.

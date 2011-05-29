@@ -24,8 +24,8 @@
 .\" $FreeBSD$
 .\"
 .Dd February 5, 2008
-.Os
 .Dt GELF_FSIZE 3
+.Os
 .Sh NAME
 .Nm gelf_fsize ,
 .Nm elf32_fsize ,
@@ -47,6 +47,8 @@ These functions return the size in bytes of the file representation of
 .Ar count
 numbers of objects of ELF type
 .Ar type .
+For ELF types that are of variable length, these functions return a
+size of one byte.
 .Pp
 Functions
 .Fn elf32_fsize

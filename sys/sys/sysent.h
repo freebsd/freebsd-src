@@ -42,7 +42,8 @@ struct ksiginfo;
 typedef	int	sy_call_t(struct thread *, void *);
 
 /* Used by the machine dependent syscall() code. */
-typedef	void (*systrace_probe_func_t)(u_int32_t, int, struct sysent *, void *);
+typedef	void (*systrace_probe_func_t)(u_int32_t, int, struct sysent *, void *,
+    int);
 
 /*
  * Used by loaded syscalls to convert arguments to a DTrace array
@@ -61,10 +62,23 @@ struct sysent {			/* system call table */
 	u_int32_t sy_entry;	/* DTrace entry ID for systrace. */
 	u_int32_t sy_return;	/* DTrace return ID for systrace. */
 	u_int32_t sy_flags;	/* General flags for system calls. */
+	u_int32_t sy_thrcnt;
 };
+
+/*
+ * A system call is permitted in capability mode.
+ */
+#define	SYF_CAPENABLED	0x00000001
+
+#define	SY_THR_FLAGMASK	0x7
+#define	SY_THR_STATIC	0x1
+#define	SY_THR_DRAINING	0x2
+#define	SY_THR_ABSENT	0x4
+#define	SY_THR_INCR	0x8
 
 struct image_params;
 struct __sigset;
+struct syscall_args;
 struct trapframe;
 struct vnode;
 
@@ -98,20 +112,33 @@ struct sysentvec {
 	vm_offset_t	sv_psstrings;	/* PS_STRINGS */
 	int		sv_stackprot;	/* vm protection for stack */
 	register_t	*(*sv_copyout_strings)(struct image_params *);
-	void		(*sv_setregs)(struct thread *, u_long, u_long, u_long);
+	void		(*sv_setregs)(struct thread *, struct image_params *,
+			    u_long);
 	void		(*sv_fixlimit)(struct rlimit *, int);
 	u_long		*sv_maxssiz;
 	u_int		sv_flags;
+	void		(*sv_set_syscall_retval)(struct thread *, int);
+	int		(*sv_fetch_syscall_args)(struct thread *, struct
+			    syscall_args *);
+	const char	**sv_syscallnames;
+	vm_offset_t	sv_shared_page_base;
+	vm_offset_t	sv_shared_page_len;
+	vm_offset_t	sv_sigcode_base;
+	void		*sv_shared_page_obj;
+	void		(*sv_schedtail)(struct thread *);
 };
 
 #define	SV_ILP32	0x000100
 #define	SV_LP64		0x000200
 #define	SV_IA32		0x004000
 #define	SV_AOUT		0x008000
+#define	SV_SHP		0x010000
 
 #define	SV_ABI_MASK	0xff
-#define	SV_CURPROC_FLAG(x) (curproc->p_sysent->sv_flags & (x))
-#define	SV_CURPROC_ABI() (curproc->p_sysent->sv_flags & SV_ABI_MASK)
+#define	SV_PROC_FLAG(p, x)	((p)->p_sysent->sv_flags & (x))
+#define	SV_PROC_ABI(p)		((p)->p_sysent->sv_flags & SV_ABI_MASK)
+#define	SV_CURPROC_FLAG(x)	SV_PROC_FLAG(curproc, x)
+#define	SV_CURPROC_ABI()	SV_PROC_ABI(curproc)
 /* same as ELFOSABI_XXX, to prevent header pollution */
 #define	SV_ABI_LINUX	3
 #define	SV_ABI_FREEBSD 	9
@@ -122,6 +149,7 @@ extern struct sysentvec aout_sysvec;
 extern struct sysentvec elf_freebsd_sysvec;
 extern struct sysentvec null_sysvec;
 extern struct sysent sysent[];
+extern const char *syscallnames[];
 
 #define	NO_SYSCALL (-1)
 
@@ -149,7 +177,7 @@ static struct syscall_module_data name##_syscall_mod = {	\
 };								\
 								\
 static moduledata_t name##_mod = {				\
-	#name,							\
+	"sys/" #name,						\
 	syscall_module_handler,					\
 	&name##_syscall_mod					\
 };								\
@@ -166,16 +194,53 @@ SYSCALL_MODULE(syscallname,					\
 	(sysent[SYS_##syscallname].sy_call != (sy_call_t *)lkmnosys &&	\
 	sysent[SYS_##syscallname].sy_call != (sy_call_t *)lkmressys)
 
+/*
+ * Syscall registration helpers with resource allocation handling.
+ */
+struct syscall_helper_data {
+	struct sysent new_sysent;
+	struct sysent old_sysent;
+	int syscall_no;
+	int registered;
+};
+#define SYSCALL_INIT_HELPER(syscallname) {			\
+    .new_sysent = {						\
+	.sy_narg = (sizeof(struct syscallname ## _args )	\
+	    / sizeof(register_t)),				\
+	.sy_call = (sy_call_t *)& syscallname,			\
+	.sy_auevent = SYS_AUE_##syscallname			\
+    },								\
+    .syscall_no = SYS_##syscallname				\
+}
+#define SYSCALL_INIT_LAST {					\
+    .syscall_no = NO_SYSCALL					\
+}
+
 int	syscall_register(int *offset, struct sysent *new_sysent,
 	    struct sysent *old_sysent);
 int	syscall_deregister(int *offset, struct sysent *old_sysent);
 int	syscall_module_handler(struct module *mod, int what, void *arg);
+int	syscall_helper_register(struct syscall_helper_data *sd);
+int	syscall_helper_unregister(struct syscall_helper_data *sd);
+
+struct proc;
+const char *syscallname(struct proc *p, u_int code);
 
 /* Special purpose system call functions. */
 struct nosys_args;
 
 int	lkmnosys(struct thread *, struct nosys_args *);
 int	lkmressys(struct thread *, struct nosys_args *);
+
+int	syscall_thread_enter(struct thread *td, struct sysent *se);
+void	syscall_thread_exit(struct thread *td, struct sysent *se);
+
+int shared_page_fill(int size, int align, const char *data);
+void exec_sysvec_init(void *param);
+
+#define INIT_SYSENTVEC(name, sv)					\
+    SYSINIT(name, SI_SUB_EXEC, SI_ORDER_ANY,				\
+	(sysinit_cfunc_t)exec_sysvec_init, sv);
 
 #endif /* _KERNEL */
 

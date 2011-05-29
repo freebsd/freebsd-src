@@ -1,0 +1,27 @@
+Pass return code to caller in mlx4_close_xrc_domain.
+
+ibv_cmd_close_xrc_domain() can return a busy or invalid error code.
+Need to pass this upward to caller.
+(Bugzilla 999)
+
+Signed-off-by: Jack Morgenstein <jackm@dev.mellanox.co.il>
+
+Index: libmlx4/src/verbs.c
+===================================================================
+--- libmlx4.orig/src/verbs.c	2008-09-01 10:51:11.000000000 +0300
++++ libmlx4/src/verbs.c	2008-09-01 10:52:40.000000000 +0300
+@@ -774,9 +774,11 @@
+ 
+ int mlx4_close_xrc_domain(struct ibv_xrc_domain *d)
+ {
+-	ibv_cmd_close_xrc_domain(d);
+-	free(d);
+-	return 0;
++	int ret;
++	ret = ibv_cmd_close_xrc_domain(d);
++	if (!ret)
++		free(d);
++	return ret;
+ }
+ 
+ int mlx4_create_xrc_rcv_qp(struct ibv_qp_init_attr *init_attr,

@@ -15,15 +15,15 @@
 #include "includes.h"
 
 #include "common.h"
-#include "eap_peer/eap_i.h"
-#include "eap_peer/eap_tls_common.h"
-#include "eap_peer/eap_config.h"
-#include "ms_funcs.h"
-#include "sha1.h"
+#include "crypto/ms_funcs.h"
+#include "crypto/sha1.h"
+#include "crypto/tls.h"
 #include "eap_common/chap.h"
-#include "tls.h"
-#include "mschapv2.h"
 #include "eap_common/eap_ttls.h"
+#include "mschapv2.h"
+#include "eap_i.h"
+#include "eap_tls_common.h"
+#include "eap_config.h"
 
 
 /* Maximum supported TTLS version
@@ -691,10 +691,15 @@ static int eap_ttls_phase2_request_mschapv2(struct eap_sm *sm,
 	pos += EAP_TTLS_MSCHAPV2_CHALLENGE_LEN;
 	os_memset(pos, 0, 8); /* Reserved, must be zero */
 	pos += 8;
-	mschapv2_derive_response(identity, identity_len, password,
-				 password_len, pwhash, challenge,
-				 peer_challenge, pos, data->auth_response,
-				 data->master_key);
+	if (mschapv2_derive_response(identity, identity_len, password,
+				     password_len, pwhash, challenge,
+				     peer_challenge, pos, data->auth_response,
+				     data->master_key)) {
+		wpabuf_free(msg);
+		wpa_printf(MSG_ERROR, "EAP-TTLS/MSCHAPV2: Failed to derive "
+			   "response");
+		return -1;
+	}
 	data->auth_response_valid = 1;
 
 	eap_ttlsv1_permute_inner(sm, data);
@@ -842,7 +847,7 @@ static int eap_ttls_phase2_request_pap(struct eap_sm *sm,
 	/* User-Password; in RADIUS, this is encrypted, but EAP-TTLS encrypts
 	 * the data, so no separate encryption is used in the AVP itself.
 	 * However, the password is padded to obfuscate its length. */
-	pad = (16 - (password_len & 15)) & 15;
+	pad = password_len == 0 ? 16 : (16 - (password_len & 15)) & 15;
 	pos = eap_ttls_avp_hdr(pos, RADIUS_ATTR_USER_PASSWORD, 0, 1,
 			       password_len + pad);
 	os_memcpy(pos, password, password_len);
@@ -1026,27 +1031,25 @@ static int eap_ttls_phase2_request(struct eap_sm *sm,
 static struct wpabuf * eap_ttls_build_phase_finished(
 	struct eap_sm *sm, struct eap_ttls_data *data, int id, int final)
 {
-	int len;
-	struct wpabuf *req;
-	u8 *pos;
-	const int max_len = 300;
+	struct wpabuf *req, *buf;
 
-	req = eap_msg_alloc(EAP_VENDOR_IETF, EAP_TYPE_TTLS, 1 + max_len,
-			    EAP_CODE_RESPONSE, id);
-	if (req == NULL)
+	buf = tls_connection_ia_send_phase_finished(sm->ssl_ctx,
+						    data->ssl.conn,
+						    final);
+	if (buf == NULL)
 		return NULL;
 
-	wpabuf_put_u8(req, data->ttls_version);
-
-	pos = wpabuf_put(req, 0);
-	len = tls_connection_ia_send_phase_finished(sm->ssl_ctx,
-						    data->ssl.conn,
-						    final, pos, max_len);
-	if (len < 0) {
-		wpabuf_free(req);
+	req = eap_msg_alloc(EAP_VENDOR_IETF, EAP_TYPE_TTLS,
+			    1 + wpabuf_len(buf),
+			    EAP_CODE_RESPONSE, id);
+	if (req == NULL) {
+		wpabuf_free(buf);
 		return NULL;
 	}
-	wpabuf_put(req, len);
+
+	wpabuf_put_u8(req, data->ttls_version);
+	wpabuf_put_buf(req, buf);
+	wpabuf_free(buf);
 	eap_update_len(req);
 
 	return req;
@@ -1666,10 +1669,10 @@ static int eap_ttls_process_start(struct eap_sm *sm,
 	struct eap_peer_config *config = eap_get_config(sm);
 
 	wpa_printf(MSG_DEBUG, "EAP-TTLS: Start (server ver=%d, own ver=%d)",
-		   flags & EAP_PEAP_VERSION_MASK, data->ttls_version);
+		   flags & EAP_TLS_VERSION_MASK, data->ttls_version);
 #if EAP_TTLS_VERSION > 0
-	if ((flags & EAP_PEAP_VERSION_MASK) < data->ttls_version)
-		data->ttls_version = flags & EAP_PEAP_VERSION_MASK;
+	if ((flags & EAP_TLS_VERSION_MASK) < data->ttls_version)
+		data->ttls_version = flags & EAP_TLS_VERSION_MASK;
 	if (data->force_ttls_version >= 0 &&
 	    data->force_ttls_version != data->ttls_version) {
 		wpa_printf(MSG_WARNING, "EAP-TTLS: Failed to select "

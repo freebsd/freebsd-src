@@ -49,7 +49,7 @@
  * call sleepq_set_timeout() after sleepq_add() to setup a timeout.  It
  * should then use one of the sleepq_timedwait() functions to block.
  *
- * If the thread wants to the sleep to be interruptible by signals, it can
+ * If the thread wants the sleep to be interruptible by signals, it can
  * call sleepq_catch_signals() after sleepq_add().  It should then use
  * one of the sleepq_wait_sig() functions to block.  After the thread has
  * been resumed, it should call sleepq_calc_signal_retval() to determine
@@ -68,7 +68,7 @@
  * sleepq_signal().  These routines each return a boolean that will be true
  * if at least one swapped-out thread was resumed.  In that case, the caller
  * is responsible for waking up the swapper by calling kick_proc0() after
- * releasing the sleep queeu chain lock.
+ * releasing the sleep queue chain lock.
  *
  * Each thread allocates a sleep queue at thread creation via sleepq_alloc()
  * and releases it at thread destruction via sleepq_free().  Note that

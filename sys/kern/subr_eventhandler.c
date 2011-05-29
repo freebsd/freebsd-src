@@ -68,15 +68,15 @@ SYSINIT(eventhandlers, SI_SUB_EVENTHANDLER, SI_ORDER_FIRST, eventhandler_init,
  * Insertion is O(n) due to the priority scan, but optimises to O(1)
  * if all priorities are identical.
  */
-eventhandler_tag
-eventhandler_register(struct eventhandler_list *list, const char *name, 
-		      void *func, void *arg, int priority)
+static eventhandler_tag
+eventhandler_register_internal(struct eventhandler_list *list,
+    const char *name, eventhandler_tag epn)
 {
     struct eventhandler_list		*new_list;
-    struct eventhandler_entry_generic	*eg;
     struct eventhandler_entry		*ep;
     
     KASSERT(eventhandler_lists_initted, ("eventhandler registered too early"));
+    KASSERT(epn != NULL, ("%s: cannot register NULL event", __func__));
 
     /* lock the eventhandler lists */
     mtx_lock(&eventhandler_mutex);
@@ -117,31 +117,68 @@ eventhandler_register(struct eventhandler_list *list, const char *name,
     }
     mtx_unlock(&eventhandler_mutex);
 
+    KASSERT(epn->ee_priority != EHE_DEAD_PRIORITY,
+	("%s: handler for %s registered with dead priority", __func__, name));
+
+    /* sort it into the list */
+    CTR4(KTR_EVH, "%s: adding item %p (function %p) to \"%s\"", __func__, epn,
+	((struct eventhandler_entry_generic *)epn)->func, name);
+    EHL_LOCK(list);
+    TAILQ_FOREACH(ep, &list->el_entries, ee_link) {
+	if (ep->ee_priority != EHE_DEAD_PRIORITY &&
+	    epn->ee_priority < ep->ee_priority) {
+	    TAILQ_INSERT_BEFORE(ep, epn, ee_link);
+	    break;
+	}
+    }
+    if (ep == NULL)
+	TAILQ_INSERT_TAIL(&list->el_entries, epn, ee_link);
+    EHL_UNLOCK(list);
+    return(epn);
+}
+
+eventhandler_tag
+eventhandler_register(struct eventhandler_list *list, const char *name, 
+		      void *func, void *arg, int priority)
+{
+    struct eventhandler_entry_generic	*eg;
+    
     /* allocate an entry for this handler, populate it */
     eg = malloc(sizeof(struct eventhandler_entry_generic), M_EVENTHANDLER,
 	M_WAITOK | M_ZERO);
     eg->func = func;
     eg->ee.ee_arg = arg;
     eg->ee.ee_priority = priority;
-    KASSERT(priority != EHE_DEAD_PRIORITY,
-	("%s: handler for %s registered with dead priority", __func__, name));
 
-    /* sort it into the list */
-    CTR4(KTR_EVH, "%s: adding item %p (function %p) to \"%s\"", __func__, eg,
-	func, name);
-    EHL_LOCK(list);
-    TAILQ_FOREACH(ep, &list->el_entries, ee_link) {
-	if (ep->ee_priority != EHE_DEAD_PRIORITY &&
-	    eg->ee.ee_priority < ep->ee_priority) {
-	    TAILQ_INSERT_BEFORE(ep, &eg->ee, ee_link);
-	    break;
-	}
-    }
-    if (ep == NULL)
-	TAILQ_INSERT_TAIL(&list->el_entries, &eg->ee, ee_link);
-    EHL_UNLOCK(list);
-    return(&eg->ee);
+    return (eventhandler_register_internal(list, name, &eg->ee));
 }
+
+#ifdef VIMAGE
+struct eventhandler_entry_generic_vimage
+{
+    struct eventhandler_entry		ee;
+    vimage_iterator_func_t		func;		/* Vimage iterator function. */
+    struct eventhandler_entry_vimage	v_ee;		/* Original func, arg. */
+};
+
+eventhandler_tag
+vimage_eventhandler_register(struct eventhandler_list *list, const char *name, 
+    void *func, void *arg, int priority, vimage_iterator_func_t iterfunc)
+{
+    struct eventhandler_entry_generic_vimage	*eg;
+    
+    /* allocate an entry for this handler, populate it */
+    eg = malloc(sizeof(struct eventhandler_entry_generic_vimage),
+	M_EVENTHANDLER, M_WAITOK | M_ZERO);
+    eg->func = iterfunc;
+    eg->v_ee.func = func;
+    eg->v_ee.ee_arg = arg;
+    eg->ee.ee_arg = &eg->v_ee;
+    eg->ee.ee_priority = priority;
+
+    return (eventhandler_register_internal(list, name, &eg->ee));
+}
+#endif
 
 void
 eventhandler_deregister(struct eventhandler_list *list, eventhandler_tag tag)

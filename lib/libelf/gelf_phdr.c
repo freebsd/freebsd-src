@@ -155,6 +155,8 @@ gelf_update_phdr(Elf *e, int ndx, GElf_Phdr *s)
 		return (0);
 	}
 
+	(void) elf_flagphdr(e, ELF_C_SET, ELF_F_DIRTY);
+
 	if (ec == ELFCLASS64) {
 		ph64 = e->e_u.e_elf.e_phdr.e_phdr64 + ndx;
 		*ph64 = *s;
@@ -171,8 +173,6 @@ gelf_update_phdr(Elf *e, int ndx, GElf_Phdr *s)
 	LIBELF_COPY_U32(ph32, s, p_filesz);
 	LIBELF_COPY_U32(ph32, s, p_memsz);
 	LIBELF_COPY_U32(ph32, s, p_align);
-
-	(void) elf_flagphdr(e, ELF_C_SET, ELF_F_DIRTY);
 
 	return (1);
 }

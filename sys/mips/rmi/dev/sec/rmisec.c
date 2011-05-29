@@ -43,29 +43,27 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/sysctl.h>
+#include <sys/bus.h>
+#include <sys/random.h>
+#include <sys/rman.h>
+#include <sys/uio.h>
+#include <sys/kobj.h>
+#include <opencrypto/cryptodev.h>
+
+#include "cryptodev_if.h"
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-#include <machine/bus.h>
-#include <machine/resource.h>
-#include <sys/bus.h>
-#include <sys/rman.h>
-
-#include <opencrypto/cryptodev.h>
-#include <sys/random.h>
-
 #include <mips/rmi/dev/sec/rmilib.h>
 
-/*#define RMI_SEC_DEBUG */
-
+/* #define RMI_SEC_DEBUG  */
 
 void xlr_sec_print_data(struct cryptop *crp);
 
-static int xlr_sec_newsession(void *arg, uint32_t * sidp, struct cryptoini *cri);
-static int xlr_sec_freesession(void *arg, uint64_t tid);
-static int xlr_sec_process(void *arg, struct cryptop *crp, int hint);
-
+static int xlr_sec_newsession(device_t dev, uint32_t * sidp, struct cryptoini *cri);
+static int xlr_sec_freesession(device_t dev, uint64_t tid);
+static int xlr_sec_process(device_t dev, struct cryptop *crp, int hint);
 
 static int xlr_sec_probe(device_t);
 static int xlr_sec_attach(device_t);
@@ -82,6 +80,11 @@ static device_method_t xlr_sec_methods[] = {
 	DEVMETHOD(bus_print_child, bus_generic_print_child),
 	DEVMETHOD(bus_driver_added, bus_generic_driver_added),
 
+	/* crypto device methods */
+	DEVMETHOD(cryptodev_newsession, xlr_sec_newsession),
+	DEVMETHOD(cryptodev_freesession,xlr_sec_freesession),
+	DEVMETHOD(cryptodev_process,    xlr_sec_process),
+
 	{0, 0}
 };
 
@@ -95,15 +98,13 @@ static devclass_t xlr_sec_devclass;
 DRIVER_MODULE(rmisec, iodi, xlr_sec_driver, xlr_sec_devclass, 0, 0);
 MODULE_DEPEND(rmisec, crypto, 1, 1, 1);
 
-
-
 static int
 xlr_sec_probe(device_t dev)
 {
+
+	device_set_desc(dev, "XLR Security Accelerator");
 	return (BUS_PROBE_DEFAULT);
-
 }
-
 
 /*
  * Attach an interface that successfully probed.
@@ -111,64 +112,48 @@ xlr_sec_probe(device_t dev)
 static int
 xlr_sec_attach(device_t dev)
 {
-
 	struct xlr_sec_softc *sc = device_get_softc(dev);
 
-	bzero(sc, sizeof(*sc));
 	sc->sc_dev = dev;
-
-
-	mtx_init(&sc->sc_mtx, device_get_nameunit(dev), "rmi crypto driver", MTX_DEF);
-
-	sc->sc_cid = crypto_get_driverid(0);
+	mtx_init(&sc->sc_mtx, device_get_nameunit(dev), "rmi crypto driver",
+	    MTX_DEF);
+	sc->sc_cid = crypto_get_driverid(dev, CRYPTOCAP_F_HARDWARE);
 	if (sc->sc_cid < 0) {
 		printf("xlr_sec - error : could not get the driver id\n");
 		goto error_exit;
 	}
-	if (crypto_register(sc->sc_cid, CRYPTO_DES_CBC, 0, 0,
-	    xlr_sec_newsession, xlr_sec_freesession, xlr_sec_process, sc) != 0)
+	if (crypto_register(sc->sc_cid, CRYPTO_DES_CBC, 0, 0) != 0)
 		printf("register failed for CRYPTO_DES_CBC\n");
 
-	if (crypto_register(sc->sc_cid, CRYPTO_3DES_CBC, 0, 0,
-	    xlr_sec_newsession, xlr_sec_freesession, xlr_sec_process, sc) != 0)
+	if (crypto_register(sc->sc_cid, CRYPTO_3DES_CBC, 0, 0) != 0)
 		printf("register failed for CRYPTO_3DES_CBC\n");
 
-	if (crypto_register(sc->sc_cid, CRYPTO_AES_CBC, 0, 0,
-	    xlr_sec_newsession, xlr_sec_freesession,
-	    xlr_sec_process, sc) != 0)
+	if (crypto_register(sc->sc_cid, CRYPTO_AES_CBC, 0, 0) != 0)
 		printf("register failed for CRYPTO_AES_CBC\n");
 
-	if (crypto_register(sc->sc_cid, CRYPTO_ARC4, 0, 0,
-	    xlr_sec_newsession, xlr_sec_freesession, xlr_sec_process, sc) != 0)
+	if (crypto_register(sc->sc_cid, CRYPTO_ARC4, 0, 0) != 0)
 		printf("register failed for CRYPTO_ARC4\n");
 
-
-	if (crypto_register(sc->sc_cid, CRYPTO_MD5, 0, 0,
-	    xlr_sec_newsession, xlr_sec_freesession, xlr_sec_process, sc) != 0)
+	if (crypto_register(sc->sc_cid, CRYPTO_MD5, 0, 0) != 0)
 		printf("register failed for CRYPTO_MD5\n");
 
-	if (crypto_register(sc->sc_cid, CRYPTO_SHA1, 0, 0,
-	    xlr_sec_newsession, xlr_sec_freesession, xlr_sec_process, sc) != 0)
+	if (crypto_register(sc->sc_cid, CRYPTO_SHA1, 0, 0) != 0)
 		printf("register failed for CRYPTO_SHA1\n");
 
-	if (crypto_register(sc->sc_cid, CRYPTO_MD5_HMAC, 0, 0,
-	    xlr_sec_newsession, xlr_sec_freesession, xlr_sec_process, sc) != 0)
+	if (crypto_register(sc->sc_cid, CRYPTO_MD5_HMAC, 0, 0) != 0)
 		printf("register failed for CRYPTO_MD5_HMAC\n");
 
-	if (crypto_register(sc->sc_cid, CRYPTO_SHA1_HMAC, 0, 0,
-	    xlr_sec_newsession, xlr_sec_freesession, xlr_sec_process, sc) != 0)
+	if (crypto_register(sc->sc_cid, CRYPTO_SHA1_HMAC, 0, 0) != 0)
 		printf("register failed for CRYPTO_SHA1_HMAC\n");
 
-
 	xlr_sec_init(sc);
+	device_printf(dev, "Initialization complete!\n");
 	return (0);
-
 
 error_exit:
 	return (ENXIO);
 
 }
-
 
 /*
  * Detach an interface that successfully probed.
@@ -194,39 +179,28 @@ xlr_sec_detach(device_t dev)
 	return (0);
 }
 
-
-
-
 /*
  * Allocate a new 'session' and return an encoded session id.  'sidp'
  * contains our registration id, and should contain an encoded session
  * id on successful allocation.
  */
 static int
-xlr_sec_newsession(void *arg, u_int32_t * sidp, struct cryptoini *cri)
+xlr_sec_newsession(device_t dev, u_int32_t *sidp, struct cryptoini *cri)
 {
 	struct cryptoini *c;
-	struct xlr_sec_softc *sc = arg;
+	struct xlr_sec_softc *sc = device_get_softc(dev);
 	int mac = 0, cry = 0, sesn;
 	struct xlr_sec_session *ses = NULL;
 
-
 	if (sidp == NULL || cri == NULL || sc == NULL)
 		return (EINVAL);
-
 
 	if (sc->sc_sessions == NULL) {
 		ses = sc->sc_sessions = (struct xlr_sec_session *)malloc(
 		    sizeof(struct xlr_sec_session), M_DEVBUF, M_NOWAIT);
 		if (ses == NULL)
 			return (ENOMEM);
-
-		ses->desc_ptr = (void *)xlr_sec_allocate_desc((void *)ses);
-		if (ses->desc_ptr == NULL)
-			return (ENOMEM);
-
 		sesn = 0;
-		ses->sessionid = sesn;
 		sc->sc_nsessions = 1;
 	} else {
 		for (sesn = 0; sesn < sc->sc_nsessions; sesn++) {
@@ -242,23 +216,22 @@ xlr_sec_newsession(void *arg, u_int32_t * sidp, struct cryptoini *cri)
 			    sizeof(struct xlr_sec_session), M_DEVBUF, M_NOWAIT);
 			if (ses == NULL)
 				return (ENOMEM);
-			bcopy(sc->sc_sessions, ses, sesn * sizeof(struct xlr_sec_session));
-			bzero(sc->sc_sessions, sesn * sizeof(struct xlr_sec_session));
+			bcopy(sc->sc_sessions, ses, sesn * sizeof(*ses));
+			bzero(sc->sc_sessions, sesn * sizeof(*ses));
 			free(sc->sc_sessions, M_DEVBUF);
 			sc->sc_sessions = ses;
 			ses = &sc->sc_sessions[sesn];
-			ses->sessionid = sesn;
-			ses->desc_ptr = (void *)xlr_sec_allocate_desc((void *)ses);
-			if (ses->desc_ptr == NULL)
-				return (ENOMEM);
 			sc->sc_nsessions++;
 		}
 	}
+	bzero(ses, sizeof(*ses));
+	ses->sessionid = sesn;
+	ses->desc_ptr = xlr_sec_allocate_desc(ses);
+	if (ses->desc_ptr == NULL)
+		return (ENOMEM);
 	ses->hs_used = 1;
 
-
 	for (c = cri; c != NULL; c = c->cri_next) {
-
 		switch (c->cri_alg) {
 		case CRYPTO_MD5:
 		case CRYPTO_SHA1:
@@ -313,9 +286,9 @@ xlr_sec_newsession(void *arg, u_int32_t * sidp, struct cryptoini *cri)
  * XXX to blow away any keys already stored there.
  */
 static int
-xlr_sec_freesession(void *arg, u_int64_t tid)
+xlr_sec_freesession(device_t dev, u_int64_t tid)
 {
-	struct xlr_sec_softc *sc = arg;
+	struct xlr_sec_softc *sc = device_get_softc(dev);
 	int session;
 	u_int32_t sid = CRYPTO_SESID2LID(tid);
 
@@ -327,7 +300,6 @@ xlr_sec_freesession(void *arg, u_int64_t tid)
 		return (EINVAL);
 
 	sc->sc_sessions[session].hs_used = 0;
-
 	return (0);
 }
 
@@ -375,11 +347,10 @@ xlr_sec_print_data(struct cryptop *crp)
 
 #endif
 
-
 static int
-xlr_sec_process(void *arg, struct cryptop *crp, int hint)
+xlr_sec_process(device_t dev, struct cryptop *crp, int hint)
 {
-	struct xlr_sec_softc *sc = arg;
+	struct xlr_sec_softc *sc = device_get_softc(dev);
 	struct xlr_sec_command *cmd = NULL;
 	int session, err;
 	struct cryptodesc *crd1, *crd2, *maccrd, *enccrd;
@@ -466,7 +437,6 @@ xlr_sec_process(void *arg, struct cryptop *crp, int hint)
 	cmd->op.num_packets = 1;
 	cmd->op.num_fragments = 1;
 
-
 	if (cmd->op.source_buf_size > SEC_MAX_FRAG_LEN) {
 		ses->multi_frag_flag = 1;
 	} else {
@@ -499,7 +469,6 @@ xlr_sec_process(void *arg, struct cryptop *crp, int hint)
 			cmd->op.pkt_iv = XLR_SEC_PKT_IV_OLD;
 			cmd->op.pkt_lastword = XLR_SEC_LASTWORD_128;
 
-
 		default:
 			printf("currently not handled\n");
 		}
@@ -524,8 +493,10 @@ xlr_sec_process(void *arg, struct cryptop *crp, int hint)
 				memcpy(&cmd->op.crypt_key[0], enccrd->crd_key, XLR_SEC_DES_KEY_LENGTH);
 			} else {
 				cmd->op.cipher_type = XLR_SEC_CIPHER_TYPE_3DES;
-				//if (enccrd->crd_flags & CRD_F_KEY_EXPLICIT) {
-					memcpy(&cmd->op.crypt_key[0], enccrd->crd_key, XLR_SEC_3DES_KEY_LENGTH);
+				//if (enccrd->crd_flags & CRD_F_KEY_EXPLICIT)
+				{
+					memcpy(&cmd->op.crypt_key[0], enccrd->crd_key,
+					    XLR_SEC_3DES_KEY_LENGTH);
 				}
 			}
 
@@ -550,16 +521,19 @@ xlr_sec_process(void *arg, struct cryptop *crp, int hint)
 			cmd->op.pkt_lastword = XLR_SEC_LASTWORD_128;
 
 			//if ((!(enccrd->crd_flags & CRD_F_IV_PRESENT)) &&
-				    if ((enccrd->crd_flags & CRD_F_IV_EXPLICIT)) {
-				memcpy(&cmd->op.initial_vector[0], enccrd->crd_iv, XLR_SEC_DES_IV_LENGTH);
-				}
+			if ((enccrd->crd_flags & CRD_F_IV_EXPLICIT)) {
+				memcpy(&cmd->op.initial_vector[0], enccrd->crd_iv,
+				    XLR_SEC_DES_IV_LENGTH);
+			}
 			break;
 
 		case CRYPTO_AES_CBC:
 			if (enccrd->crd_alg == CRYPTO_AES_CBC) {
 				cmd->op.cipher_type = XLR_SEC_CIPHER_TYPE_AES128;
-				//if (enccrd->crd_flags & CRD_F_KEY_EXPLICIT) {
-					memcpy(&cmd->op.crypt_key[0], enccrd->crd_key, XLR_SEC_AES128_KEY_LENGTH);
+				//if (enccrd->crd_flags & CRD_F_KEY_EXPLICIT)
+				{
+					memcpy(&cmd->op.crypt_key[0], enccrd->crd_key,
+					    XLR_SEC_AES128_KEY_LENGTH);
 				}
 			}
 			cmd->op.cipher_mode = XLR_SEC_CIPHER_MODE_CBC;
@@ -583,11 +557,11 @@ xlr_sec_process(void *arg, struct cryptop *crp, int hint)
 			cmd->op.pkt_lastword = XLR_SEC_LASTWORD_128;
 
 			//if (!(enccrd->crd_flags & CRD_F_IV_PRESENT)) {
-				if ((enccrd->crd_flags & CRD_F_IV_EXPLICIT)) {
-					memcpy(&cmd->op.initial_vector[0], enccrd->crd_iv, XLR_SEC_AES_BLOCK_SIZE);
-				}
-				//
+			if ((enccrd->crd_flags & CRD_F_IV_EXPLICIT)) {
+				memcpy(&cmd->op.initial_vector[0], enccrd->crd_iv,
+				    XLR_SEC_AES_BLOCK_SIZE);
 			}
+			//}
 			break;
 		}
 	}

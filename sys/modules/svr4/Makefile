@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../${MACHINE_ARCH}/svr4 ${.CURDIR}/../../compat/svr4
+.PATH:	${.CURDIR}/../../${MACHINE_CPUARCH}/svr4 ${.CURDIR}/../../compat/svr4
 KMOD=	svr4
 SRCS=	svr4_sysent.c svr4_sysvec.c opt_compat.h opt_svr4.h \
 	vnode_if.h imgact_svr4.c svr4_signal.c svr4_fcntl.c \

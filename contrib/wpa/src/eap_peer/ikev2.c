@@ -15,7 +15,7 @@
 #include "includes.h"
 
 #include "common.h"
-#include "dh_groups.h"
+#include "crypto/dh_groups.h"
 #include "ikev2.h"
 
 

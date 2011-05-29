@@ -31,6 +31,12 @@
 #ifndef _LIBUSB20_INT_H_
 #define	_LIBUSB20_INT_H_
 
+#ifdef COMPAT_32BIT
+#define	libusb20_pass_ptr(ptr)	((uint64_t)(uintptr_t)(ptr))
+#else
+#define	libusb20_pass_ptr(ptr)	(ptr)
+#endif
+
 struct libusb20_device;
 struct libusb20_backend;
 struct libusb20_transfer;
@@ -104,7 +110,7 @@ typedef int (libusb20_set_config_index_t)(struct libusb20_device *pdev, uint8_t 
 typedef int (libusb20_check_connected_t)(struct libusb20_device *pdev);
 
 /* USB transfer specific */
-typedef int (libusb20_tr_open_t)(struct libusb20_transfer *xfer, uint32_t MaxBufSize, uint32_t MaxFrameCount, uint8_t ep_no);
+typedef int (libusb20_tr_open_t)(struct libusb20_transfer *xfer, uint32_t MaxBufSize, uint32_t MaxFrameCount, uint8_t ep_no, uint8_t pre_scale);
 typedef int (libusb20_tr_close_t)(struct libusb20_transfer *xfer);
 typedef int (libusb20_tr_clear_stall_sync_t)(struct libusb20_transfer *xfer);
 typedef void (libusb20_tr_submit_t)(struct libusb20_transfer *xfer);
@@ -146,7 +152,11 @@ struct libusb20_transfer {
 	/*
 	 * Pointer to a list of buffer pointers:
 	 */
+#ifdef COMPAT_32BIT
+	uint64_t *ppBuffer;
+#else
 	void  **ppBuffer;
+#endif
 	/*
 	 * Pointer to frame lengths, which are updated to actual length
 	 * after the USB transfer completes:

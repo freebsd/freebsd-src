@@ -38,25 +38,7 @@
 #ifndef _SYS_CALLOUT_H_
 #define _SYS_CALLOUT_H_
 
-#include <sys/queue.h>
-
-struct lock_object;
-
-SLIST_HEAD(callout_list, callout);
-TAILQ_HEAD(callout_tailq, callout);
-
-struct callout {
-	union {
-		SLIST_ENTRY(callout) sle;
-		TAILQ_ENTRY(callout) tqe;
-	} c_links;
-	int	c_time;				/* ticks to the event */
-	void	*c_arg;				/* function argument */
-	void	(*c_func)(void *);		/* function to call */
-	struct lock_object *c_lock;		/* lock to handle */
-	int	c_flags;			/* state of this entry */
-	volatile int c_cpu;			/* CPU we're scheduled on */
-};
+#include <sys/_callout.h>
 
 #define	CALLOUT_LOCAL_ALLOC	0x0001 /* was allocated from callfree */
 #define	CALLOUT_ACTIVE		0x0002 /* callout is currently active */
@@ -96,7 +78,8 @@ int	callout_schedule_on(struct callout *, int, int);
 #define	callout_stop(c)		_callout_stop_safe(c, 0)
 int	_callout_stop_safe(struct callout *, int);
 void	callout_tick(void);
-
+int	callout_tickstofirst(int limit);
+extern void (*callout_new_inserted)(int cpu, int ticks);
 
 #endif
 

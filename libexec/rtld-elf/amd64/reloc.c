@@ -69,23 +69,28 @@ do_copy_relocations(Obj_Entry *dstobj)
 	    void *dstaddr;
 	    const Elf_Sym *dstsym;
 	    const char *name;
-	    unsigned long hash;
 	    size_t size;
 	    const void *srcaddr;
 	    const Elf_Sym *srcsym;
-	    Obj_Entry *srcobj;
-	    const Ver_Entry *ve;
+	    const Obj_Entry *srcobj, *defobj;
+	    SymLook req;
+	    int res;
 
 	    dstaddr = (void *) (dstobj->relocbase + rela->r_offset);
 	    dstsym = dstobj->symtab + ELF_R_SYM(rela->r_info);
 	    name = dstobj->strtab + dstsym->st_name;
-	    hash = elf_hash(name);
 	    size = dstsym->st_size;
-	    ve = fetch_ventry(dstobj, ELF_R_SYM(rela->r_info));
+	    symlook_init(&req, name);
+	    req.ventry = fetch_ventry(dstobj, ELF_R_SYM(rela->r_info));
 
-	    for (srcobj = dstobj->next;  srcobj != NULL;  srcobj = srcobj->next)
-		if ((srcsym = symlook_obj(name, hash, srcobj, ve, 0)) != NULL)
+	    for (srcobj = dstobj->next;  srcobj != NULL;  srcobj = srcobj->next) {
+		res = symlook_obj(&req, srcobj);
+		if (res == 0) {
+		    srcsym = req.sym_out;
+		    defobj = req.defobj_out;
 		    break;
+		}
+	    }
 
 	    if (srcobj == NULL) {
 		_rtld_error("Undefined symbol \"%s\" referenced from COPY"
@@ -93,7 +98,7 @@ do_copy_relocations(Obj_Entry *dstobj)
 		return -1;
 	    }
 
-	    srcaddr = (const void *) (srcobj->relocbase + srcsym->st_value);
+	    srcaddr = (const void *) (defobj->relocbase + srcsym->st_value);
 	    memcpy(dstaddr, srcaddr, size);
 	}
     }
@@ -113,20 +118,21 @@ init_pltgot(Obj_Entry *obj)
 
 /* Process the non-PLT relocations. */
 int
-reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
+reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, RtldLockState *lockstate)
 {
 	const Elf_Rela *relalim;
 	const Elf_Rela *rela;
 	SymCache *cache;
-	int bytes = obj->nchains * sizeof(SymCache);
 	int r = -1;
 
 	/*
 	 * The dynamic loader may be called from a thread, we have
 	 * limited amounts of stack available so we cannot use alloca().
 	 */
-	cache = mmap(NULL, bytes, PROT_READ|PROT_WRITE, MAP_ANON, -1, 0);
-	if (cache == MAP_FAILED)
+	if (obj != obj_rtld) {
+	    cache = calloc(obj->nchains, sizeof(SymCache));
+	    /* No need to check for NULL here */
+	} else
 	    cache = NULL;
 
 	relalim = (const Elf_Rela *) ((caddr_t) obj->rela + obj->relasize);
@@ -145,7 +151,7 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
 		    const Obj_Entry *defobj;
 
 		    def = find_symdef(ELF_R_SYM(rela->r_info), obj, &defobj,
-		      false, cache);
+		      false, cache, lockstate);
 		    if (def == NULL)
 			goto done;
 
@@ -164,7 +170,7 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
 		    const Obj_Entry *defobj;
 
 		    def = find_symdef(ELF_R_SYM(rela->r_info), obj, &defobj,
-		      false, cache);
+		      false, cache, lockstate);
 		    if (def == NULL)
 			goto done;
 
@@ -194,7 +200,7 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
 		    const Obj_Entry *defobj;
 
 		    def = find_symdef(ELF_R_SYM(rela->r_info), obj, &defobj,
-		      false, cache);
+		      false, cache, lockstate);
 		    if (def == NULL)
 			goto done;
 
@@ -208,7 +214,7 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
 		    const Obj_Entry *defobj;
 
 		    def = find_symdef(ELF_R_SYM(rela->r_info), obj, &defobj,
-		      false, cache);
+		      false, cache, lockstate);
 		    if (def == NULL)
 			goto done;
 
@@ -239,7 +245,7 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
 		    const Obj_Entry *defobj;
 
 		    def = find_symdef(ELF_R_SYM(rela->r_info), obj, &defobj,
-		      false, cache);
+		      false, cache, lockstate);
 		    if (def == NULL)
 			goto done;
 
@@ -271,7 +277,7 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
 		    const Obj_Entry *defobj;
 
 		    def = find_symdef(ELF_R_SYM(rela->r_info), obj, &defobj,
-		      false, cache);
+		      false, cache, lockstate);
 		    if (def == NULL)
 			goto done;
 
@@ -285,7 +291,7 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
 		    const Obj_Entry *defobj;
 
 		    def = find_symdef(ELF_R_SYM(rela->r_info), obj, &defobj,
-		      false, cache);
+		      false, cache, lockstate);
 		    if (def == NULL)
 			goto done;
 
@@ -299,7 +305,7 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
 		    const Obj_Entry *defobj;
 
 		    def = find_symdef(ELF_R_SYM(rela->r_info), obj, &defobj,
-		      false, cache);
+		      false, cache, lockstate);
 		    if (def == NULL)
 			goto done;
 
@@ -322,8 +328,8 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
 	}
 	r = 0;
 done:
-	if (cache)
-	    munmap(cache, bytes);
+	if (cache != NULL)
+	    free(cache);
 	return(r);
 }
 
@@ -349,7 +355,7 @@ reloc_plt(Obj_Entry *obj)
 
 /* Relocate the jump slots in an object. */
 int
-reloc_jmpslots(Obj_Entry *obj)
+reloc_jmpslots(Obj_Entry *obj, RtldLockState *lockstate)
 {
     const Elf_Rela *relalim;
     const Elf_Rela *rela;
@@ -364,7 +370,8 @@ reloc_jmpslots(Obj_Entry *obj)
 
 	assert(ELF_R_TYPE(rela->r_info) == R_X86_64_JMP_SLOT);
 	where = (Elf_Addr *)(obj->relocbase + rela->r_offset);
-	def = find_symdef(ELF_R_SYM(rela->r_info), obj, &defobj, true, NULL);
+	def = find_symdef(ELF_R_SYM(rela->r_info), obj, &defobj, true, NULL,
+	    lockstate);
 	if (def == NULL)
 	    return -1;
 	target = (Elf_Addr)(defobj->relocbase + def->st_value + rela->r_addend);

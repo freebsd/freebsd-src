@@ -43,7 +43,6 @@
  */
 
 #include <sys/param.h>
-
 #include <signal.h>
 #include <stdlib.h>
 #include <time.h>
@@ -183,44 +182,88 @@ rtld_lock_t	rtld_bind_lock = &rtld_locks[0];
 rtld_lock_t	rtld_libc_lock = &rtld_locks[1];
 rtld_lock_t	rtld_phdr_lock = &rtld_locks[2];
 
-int
-rlock_acquire(rtld_lock_t lock)
+#define print_ebp(str) do {register long ebp asm("ebp"); printf("%s 0x%0lx\n", str, ebp);} while (0)
+
+void
+rlock_acquire(rtld_lock_t lock, RtldLockState *lockstate)
 {
+
+	if (lockstate == NULL)
+		return;
+
 	if (thread_mask_set(lock->mask) & lock->mask) {
-	    dbg("rlock_acquire: recursed");
-	    return (0);
+		dbg("rlock_acquire: recursed");
+		lockstate->lockstate = RTLD_LOCK_UNLOCKED;
+		return;
 	}
 	lockinfo.rlock_acquire(lock->handle);
-	return (1);
+	lockstate->lockstate = RTLD_LOCK_RLOCKED;
 }
 
-int
-wlock_acquire(rtld_lock_t lock)
+void
+wlock_acquire(rtld_lock_t lock, RtldLockState *lockstate)
 {
+
+	if (lockstate == NULL)
+		return;
+
 	if (thread_mask_set(lock->mask) & lock->mask) {
-	    dbg("wlock_acquire: recursed");
-	    return (0);
+		dbg("wlock_acquire: recursed");
+		lockstate->lockstate = RTLD_LOCK_UNLOCKED;
+		return;
 	}
 	lockinfo.wlock_acquire(lock->handle);
-	return (1);
+	lockstate->lockstate = RTLD_LOCK_WLOCKED;
 }
 
 void
-rlock_release(rtld_lock_t lock, int locked)
+lock_release(rtld_lock_t lock, RtldLockState *lockstate)
 {
-	if (locked == 0)
-	    return;
-	thread_mask_clear(lock->mask);
-	lockinfo.lock_release(lock->handle);
+
+	if (lockstate == NULL)
+		return;
+
+	switch (lockstate->lockstate) {
+	case RTLD_LOCK_UNLOCKED:
+		break;
+	case RTLD_LOCK_RLOCKED:
+	case RTLD_LOCK_WLOCKED:
+		thread_mask_clear(lock->mask);
+		lockinfo.lock_release(lock->handle);
+		break;
+	default:
+		assert(0);
+	}
 }
 
 void
-wlock_release(rtld_lock_t lock, int locked)
+lock_upgrade(rtld_lock_t lock, RtldLockState *lockstate)
 {
-	if (locked == 0)
-	    return;
-	thread_mask_clear(lock->mask);
-	lockinfo.lock_release(lock->handle);
+
+	if (lockstate == NULL)
+		return;
+
+	lock_release(lock, lockstate);
+	wlock_acquire(lock, lockstate);
+}
+
+void
+lock_restart_for_upgrade(RtldLockState *lockstate)
+{
+
+	if (lockstate == NULL)
+		return;
+
+	switch (lockstate->lockstate) {
+	case RTLD_LOCK_UNLOCKED:
+	case RTLD_LOCK_WLOCKED:
+		break;
+	case RTLD_LOCK_RLOCKED:
+		siglongjmp(lockstate->env, 1);
+		break;
+	default:
+		assert(0);
+	}
 }
 
 void
@@ -322,15 +365,24 @@ _rtld_thread_init(struct RtldLockInfo *pli)
 void
 _rtld_atfork_pre(int *locks)
 {
+	RtldLockState ls[2];
 
-	locks[2] = wlock_acquire(rtld_phdr_lock);
-	locks[0] = rlock_acquire(rtld_bind_lock);
+	wlock_acquire(rtld_phdr_lock, &ls[0]);
+	rlock_acquire(rtld_bind_lock, &ls[1]);
+
+	/* XXXKIB: I am really sorry for this. */
+	locks[0] = ls[1].lockstate;
+	locks[2] = ls[0].lockstate;
 }
 
 void
 _rtld_atfork_post(int *locks)
 {
+	RtldLockState ls[2];
 
-	rlock_release(rtld_bind_lock, locks[0]);
-	wlock_release(rtld_phdr_lock, locks[2]);
+	bzero(ls, sizeof(ls));
+	ls[0].lockstate = locks[2];
+	ls[1].lockstate = locks[0];
+	lock_release(rtld_bind_lock, &ls[1]);
+	lock_release(rtld_phdr_lock, &ls[0]);
 }

@@ -28,18 +28,19 @@
 .\"     @(#)tunefs.8	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd October 21, 2009
+.Dd May 8, 2011
 .Dt TUNEFS 8
 .Os
 .Sh NAME
 .Nm tunefs
-.Nd tune up an existing file system
+.Nd tune up an existing UFS file system
 .Sh SYNOPSIS
 .Nm
 .Op Fl A
 .Op Fl a Cm enable | disable
 .Op Fl e Ar maxbpg
 .Op Fl f Ar avgfilesize
+.Op Fl j Cm enable | disable
 .Op Fl J Cm enable | disable
 .Op Fl L Ar volname
 .Op Fl l Cm enable | disable
@@ -49,11 +50,13 @@
 .Op Fl o Cm space | time
 .Op Fl p
 .Op Fl s Ar avgfpdir
+.Op Fl S Ar size
+.Op Fl t Cm enable | disable
 .Ar special | filesystem
 .Sh DESCRIPTION
 The
 .Nm
-utility is designed to change the dynamic parameters of a file system
+utility is designed to change the dynamic parameters of a UFS file system
 which affect the layout policies.
 The
 .Nm
@@ -89,6 +92,8 @@ For file systems with exclusively large files,
 this parameter should be set higher.
 .It Fl f Ar avgfilesize
 Specify the expected average file size.
+.It Fl j Cm enable | disable
+Turn on/off soft updates journaling.
 .It Fl J Cm enable | disable
 Turn on/off gjournal flag.
 .It Fl L Ar volname
@@ -136,6 +141,17 @@ obtained from the
 utility.
 .It Fl s Ar avgfpdir
 Specify the expected number of files per directory.
+.It Fl S Ar size
+Specify the softdep journal size in bytes.
+The minimum is 4M.
+.It Fl t Cm enable | disable
+Turn on/off the TRIM enable flag.
+If enabled, and if the underlying device supports the BIO_DELETE
+command, the file system will send a delete request to the underlying
+device for each freed block.
+The trim enable flag is typically set when the underlying device
+uses flash-memory as the device can use the delete command to
+pre-zero or at least avoid copying blocks that have been deleted.
 .El
 .Pp
 At least one of the above flags is required.

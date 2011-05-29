@@ -126,7 +126,7 @@ int		 fork_privchld(int, int);
 	    ((a) > 0 ? (1 + (((a) - 1) | (sizeof(long) - 1))) : sizeof(long))
 #define	ADVANCE(x, n) (x += ROUNDUP((n)->sa_len))
 
-time_t	scripttime;
+static time_t	scripttime;
 
 int
 findproto(char *cp, int n)
@@ -204,7 +204,7 @@ disassoc(void *arg)
 void
 routehandler(struct protocol *p)
 {
-	char msg[2048];
+	char msg[2048], *addr;
 	struct rt_msghdr *rtm;
 	struct if_msghdr *ifm;
 	struct ifa_msghdr *ifam;
@@ -224,13 +224,6 @@ routehandler(struct protocol *p)
 
 	switch (rtm->rtm_type) {
 	case RTM_NEWADDR:
-		/*
-		 * XXX: If someone other than us adds our address,
-		 * we should assume they are taking over from us,
-		 * delete the lease record, and exit without modifying
-		 * the interface.
-		 */
-		break;
 	case RTM_DELADDR:
 		ifam = (struct ifa_msghdr *)rtm;
 
@@ -243,7 +236,7 @@ routehandler(struct protocol *p)
 
 		sa = get_ifa((char *)(ifam + 1), ifam->ifam_addrs);
 		if (sa == NULL)
-			goto die;
+			break;
 
 		if ((a.len = sizeof(struct in_addr)) > sizeof(a.iabuf))
 			error("king bula sez: len mismatch");
@@ -255,21 +248,42 @@ routehandler(struct protocol *p)
 			if (addr_eq(a, l->address))
 				break;
 
-		if (l == NULL)	/* deleted addr is not the one we set */
+		if (l == NULL)	/* added/deleted addr is not the one we set */
 			break;
-		goto die;
+
+		addr = inet_ntoa(((struct sockaddr_in *)sa)->sin_addr);
+		if (rtm->rtm_type == RTM_NEWADDR)  {
+			/*
+			 * XXX: If someone other than us adds our address,
+			 * should we assume they are taking over from us,
+			 * delete the lease record, and exit without modifying
+			 * the interface?
+			 */
+			warning("My address (%s) was re-added", addr);
+		} else {
+			warning("My address (%s) was deleted, dhclient exiting",
+			    addr);
+			goto die;
+		}
+		break;
 	case RTM_IFINFO:
 		ifm = (struct if_msghdr *)rtm;
 		if (ifm->ifm_index != ifi->index)
 			break;
-		if ((rtm->rtm_flags & RTF_UP) == 0)
+		if ((rtm->rtm_flags & RTF_UP) == 0) {
+			warning("Interface %s is down, dhclient exiting",
+			    ifi->name);
 			goto die;
+		}
 		break;
 	case RTM_IFANNOUNCE:
 		ifan = (struct if_announcemsghdr *)rtm;
 		if (ifan->ifan_what == IFAN_DEPARTURE &&
-		    ifan->ifan_index == ifi->index)
+		    ifan->ifan_index == ifi->index) {
+			warning("Interface %s is gone, dhclient exiting",
+			    ifi->name);
 			goto die;
+		}
 		break;
 	case RTM_IEEE80211:
 		ifan = (struct if_announcemsghdr *)rtm;
@@ -2110,8 +2124,6 @@ script_go(void)
 	struct buf	*buf;
 	int		 ret;
 
-	scripttime = time(NULL);
-
 	hdr.code = IMSG_SCRIPT_GO;
 	hdr.len = sizeof(struct imsg_hdr);
 
@@ -2131,6 +2143,8 @@ script_go(void)
 	if (hdr.len != sizeof(hdr) + sizeof(int))
 		error("received corrupted message");
 	buf_read(privfd, &ret, sizeof(ret));
+
+	scripttime = time(NULL);
 
 	return (ret);
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2007, 2010  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: print_p.h,v 1.4 2007/06/19 23:47:22 tbox Exp $ */
+/* $Id: print_p.h,v 1.4.332.2 2010-08-16 23:45:48 tbox Exp $ */
 
 #ifndef LWRES_PRINT_P_H
 #define LWRES_PRINT_P_H 1
@@ -47,7 +47,7 @@
 
 #ifdef __GNUC__
 #define LWRES_FORMAT_PRINTF(fmt, args) \
-        __attribute__((__format__(__printf__, fmt, args)))
+	__attribute__((__format__(__printf__, fmt, args)))
 #else
 #define LWRES_FORMAT_PRINTF(fmt, args)
 #endif
@@ -67,17 +67,26 @@ LWRES_LANG_BEGINDECLS
 int
 lwres__print_vsnprintf(char *str, size_t size, const char *format, va_list ap)
      LWRES_FORMAT_PRINTF(3, 0);
+#ifdef vsnprintf
+#undef vsnprintf
+#endif
 #define vsnprintf lwres__print_vsnprintf
 
 int
 lwres__print_snprintf(char *str, size_t size, const char *format, ...)
      LWRES_FORMAT_PRINTF(3, 4);
+#ifdef snprintf
+#undef snprintf
+#endif
 #define snprintf lwres__print_snprintf
 #endif /* LWRES_PLATFORM_NEEDVSNPRINTF */
 
 #ifdef LWRES_PLATFORM_NEEDSPRINTF
 int
 lwres__print_sprintf(char *str, const char *format, ...) LWRES_FORMAT_PRINTF(2, 3);
+#ifdef sprintf
+#undef sprintf
+#endif
 #define sprintf lwres__print_sprintf
 #endif
 

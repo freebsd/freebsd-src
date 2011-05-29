@@ -224,38 +224,38 @@ configFstab(dialogMenuItem *self)
     }
     chunk_list[nchunks] = 0;
     chunk_sort();
-    
+
     fstab = fopen("/etc/fstab", "w");
     if (!fstab) {
 	msgConfirm("Unable to create a new /etc/fstab file!  Manual intervention\n"
 		   "will be required.");
 	return DITEM_FAILURE;
     }
-    
+
     check_rootdev(chunk_list, nchunks);
-    
+
     /* Go for the burn */
     msgDebug("Generating /etc/fstab file\n");
     fprintf(fstab, "# Device\t\tMountpoint\tFStype\tOptions\t\tDump\tPass#\n");
     for (i = 0; i < nchunks; i++)
 	fprintf(fstab, "/dev/%s\t\t%s\t\t%s\t%s\t\t%d\t%d\n", name_of(chunk_list[i]), mount_point(chunk_list[i]),
 		fstype(chunk_list[i]), fstype_short(chunk_list[i]), seq_num(chunk_list[i]), seq_num(chunk_list[i]));
-    
+
     /* Now look for the CDROMs */
     devs = deviceFind(NULL, DEVICE_TYPE_CDROM);
     cnt = deviceCount(devs);
-    
+
     /* Write out the CDROM entries */
     for (i = 0; i < cnt; i++) {
 	char cdname[10];
-	
+
 	sprintf(cdname, "/cdrom%s", i ? itoa(i) : "");
 	if (Mkdir(cdname))
 	    msgConfirm("Unable to make mount point for: %s", cdname);
 	else
 	    fprintf(fstab, "/dev/%s\t\t%s\t\tcd9660\tro,noauto\t0\t0\n", devs[i]->name, cdname);
     }
-    
+
     fclose(fstab);
     if (isDebug())
 	msgDebug("Wrote out /etc/fstab file\n");
@@ -495,14 +495,14 @@ configNTP(dialogMenuItem *self)
 {
     int status;
 
-    status = variable_get_value(VAR_NTPDATE_FLAGS,
+    status = variable_get_value(VAR_NTPDATE_HOSTS,
 				"Enter the name of an NTP server", 1)
 	     ? DITEM_SUCCESS : DITEM_FAILURE;
     if (status == DITEM_SUCCESS) {
 	static char tmp[255];
 
-	snprintf(tmp, sizeof(tmp), "ntpdate_enable=YES,ntpdate_flags=%s",
-		 variable_get(VAR_NTPDATE_FLAGS));
+	snprintf(tmp, sizeof(tmp), "ntpdate_enable=YES,ntpdate_hosts=%s",
+		 variable_get(VAR_NTPDATE_HOSTS));
 	self->data = tmp;
 	dmenuSetVariables(self);
     }
@@ -530,7 +530,7 @@ configUsers(dialogMenuItem *self)
     WINDOW *w = savescr();
 
     dialog_clear_norefresh();
-    dmenuOpenSimple(&MenuUsermgmt, FALSE); 
+    dmenuOpenSimple(&MenuUsermgmt, FALSE);
     restorescr(w);
     return DITEM_SUCCESS;
 }
@@ -657,10 +657,10 @@ configRouter(dialogMenuItem *self)
 			     "the user intends to install themselves before rebooting\n"
 			     "the system.  If you don't want any routing daemon, choose NO", 1)
       ? DITEM_SUCCESS : DITEM_FAILURE;
-  
+
     if (ret == DITEM_SUCCESS) {
 	char *cp = variable_get(VAR_ROUTER);
-    
+
 	if (cp && strcmp(cp, "NO")) {
 	    variable_set2(VAR_ROUTER_ENABLE, "YES", 1);
 	    if (!strcmp(cp, "gated")) {
@@ -674,7 +674,7 @@ configRouter(dialogMenuItem *self)
 	    }
 	    if (cp) {
 		/* Now get the flags, if they chose a router */
-		ret = variable_get_value(VAR_ROUTERFLAGS, 
+		ret = variable_get_value(VAR_ROUTERFLAGS,
 					 "Please Specify the routing daemon flags; if you're running routed\n"
 					 "then -q is the right choice for nodes and -s for gateway hosts.\n", 1)
 		  ? DITEM_SUCCESS : DITEM_FAILURE;
@@ -747,7 +747,7 @@ configPackages(dialogMenuItem *self)
     tmp = Plist.kids;
     while (tmp) {
         PkgNodePtr tmp2 = tmp->next;
-           
+
         safe_free(tmp);
         tmp = tmp2;
     }
@@ -826,7 +826,7 @@ configNFSServer(dialogMenuItem *self)
 	    vsystem("echo '#and, /a to a network of privileged machines allowed to write on it as root.' >> /etc/exports");
 	    vsystem("echo '#/usr                   huey louie dewie' >> /etc/exports");
 	    vsystem("echo '#/usr/src /usr/obj -ro  calvin hobbes' >> /etc/exports");
-	    vsystem("echo '#/home   -alldirs       janice jimmy frank' >> /etc/exports");
+	    vsystem("echo '#/home   -alldirs       janis jimi frank' >> /etc/exports");
 	    vsystem("echo '#/a      -maproot=0  -network 10.0.1.0 -mask 255.255.248.0' >> /etc/exports");
 	    vsystem("echo '#' >> /etc/exports");
 	    vsystem("echo '# You should replace these lines with your actual exported filesystems.' >> /etc/exports");
@@ -936,7 +936,7 @@ configLoaderACPI(int disable)
     fclose(ldconf);
 
     return DITEM_SUCCESS;
-} 
+}
 #endif
 
 int

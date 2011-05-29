@@ -100,9 +100,6 @@ int MAIN(int, char **);
 
 int MAIN(int argc, char **argv)
 	{
-#ifndef OPENSSL_NO_ENGINE
-	ENGINE *e = NULL;
-#endif
 	static const char magic[]="Salted__";
 	char mbuf[sizeof magic-1];
 	char *strbuf=NULL;
@@ -226,7 +223,12 @@ int MAIN(int argc, char **argv)
 				goto bad;
 				}
 			buf[0]='\0';
-			fgets(buf,sizeof buf,infile);
+			if (!fgets(buf,sizeof buf,infile))
+				{
+				BIO_printf(bio_err,"unable to read key from '%s'\n",
+					file);
+				goto bad;
+				}
 			fclose(infile);
 			i=strlen(buf);
 			if ((i > 0) &&
@@ -306,7 +308,7 @@ bad:
 		}
 
 #ifndef OPENSSL_NO_ENGINE
-        e = setup_engine(bio_err, engine, 0);
+        setup_engine(bio_err, engine, 0);
 #endif
 
 	if (md && (dgst=EVP_get_digestbyname(md)) == NULL)

@@ -379,10 +379,10 @@ epic_attach(device_t dev)
 		device_printf(dev, "unknown card vendor %04xh\n", sc->cardvend);
 
 	/* Do ifmedia setup. */
-	if (mii_phy_probe(dev, &sc->miibus,
-	    epic_ifmedia_upd, epic_ifmedia_sts)) {
-		device_printf(dev, "ERROR! MII without any PHY!?\n");
-		error = ENXIO;
+	error = mii_attach(dev, &sc->miibus, ifp, epic_ifmedia_upd,
+	    epic_ifmedia_sts, BMSR_DEFCAPMASK, MII_PHY_ANY, MII_OFFSET_ANY, 0);
+	if (error != 0) {
+		device_printf(dev, "attaching PHYs failed\n");
 		goto fail;
 	}
 
@@ -1053,8 +1053,7 @@ epic_ifmedia_upd_locked(struct ifnet *ifp)
 		sc->phyid = EPIC_UNKN_PHY;
 
 		/* Lookup selected PHY. */
-		for (miisc = LIST_FIRST(&mii->mii_phys); miisc != NULL;
-		     miisc = LIST_NEXT(miisc, mii_list)) {
+		LIST_FOREACH(miisc, &mii->mii_phys, mii_list) {
 			if (IFM_INST(media) == miisc->mii_inst) {
 				sc->physc = miisc;
 				break;
@@ -1071,12 +1070,12 @@ epic_ifmedia_upd_locked(struct ifnet *ifp)
 			oui = MII_OUI(id1, id2);
 			model = MII_MODEL(id2);
 			switch (oui) {
-			case MII_OUI_QUALSEMI:
-				if (model == MII_MODEL_QUALSEMI_QS6612)
+			case MII_OUI_xxQUALSEMI:
+				if (model == MII_MODEL_xxQUALSEMI_QS6612)
 					sc->phyid = EPIC_QS6612_PHY;
 				break;
-			case MII_OUI_xxALTIMA:
-				if (model == MII_MODEL_xxALTIMA_AC101)
+			case MII_OUI_ALTIMA:
+				if (model == MII_MODEL_ALTIMA_AC101)
 					sc->phyid = EPIC_AC101_PHY;
 				break;
 			case MII_OUI_xxLEVEL1:

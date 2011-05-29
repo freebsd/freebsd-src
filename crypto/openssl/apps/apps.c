@@ -351,13 +351,12 @@ void program_name(char *in, char *out, int size)
 
 int chopup_args(ARGS *arg, char *buf, int *argc, char **argv[])
 	{
-	int num,len,i;
+	int num,i;
 	char *p;
 
 	*argc=0;
 	*argv=NULL;
 
-	len=strlen(buf);
 	i=0;
 	if (arg->count == 0)
 		{
@@ -866,10 +865,17 @@ EVP_PKEY *load_key(BIO *err, const char *file, int format, int maybe_stdin,
 	if (format == FORMAT_ENGINE)
 		{
 		if (!e)
-			BIO_printf(bio_err,"no engine specified\n");
+			BIO_printf(err,"no engine specified\n");
 		else
+			{
 			pkey = ENGINE_load_private_key(e, file,
 				ui_method, &cb_data);
+			if (!pkey) 
+				{
+				BIO_printf(err,"cannot load %s from engine\n",key_descrip);
+				ERR_print_errors(err);
+				}	
+			}
 		goto end;
 		}
 #endif
@@ -919,8 +925,11 @@ EVP_PKEY *load_key(BIO *err, const char *file, int format, int maybe_stdin,
 		}
  end:
 	if (key != NULL) BIO_free(key);
-	if (pkey == NULL)
+	if (pkey == NULL) 
+		{
 		BIO_printf(err,"unable to load %s\n", key_descrip);
+		ERR_print_errors(err);
+		}	
 	return(pkey);
 	}
 
@@ -2261,6 +2270,8 @@ int args_verify(char ***pargs, int *pargc,
 		flags |= X509_V_FLAG_X509_STRICT;
 	else if (!strcmp(arg, "-policy_print"))
 		flags |= X509_V_FLAG_NOTIFY_POLICY;
+	else if (!strcmp(arg, "-check_ss_sig"))
+		flags |= X509_V_FLAG_CHECK_SS_SIGNATURE;
 	else
 		return 0;
 

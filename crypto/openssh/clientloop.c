@@ -1,4 +1,4 @@
-/* $OpenBSD: clientloop.c,v 1.213 2009/07/05 19:28:33 stevesk Exp $ */
+/* $OpenBSD: clientloop.c,v 1.231 2011/01/16 12:05:59 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -121,7 +121,7 @@ extern int stdin_null_flag;
 extern int no_shell_flag;
 
 /* Control socket */
-extern int muxserver_sock;
+extern int muxserver_sock; /* XXX use mux_client_cleanup() instead */
 
 /*
  * Name of the host we are connecting to.  This is the name given on the
@@ -129,6 +129,9 @@ extern int muxserver_sock;
  * configuration file.
  */
 extern char *host;
+
+/* Force TTY allocation */
+extern int force_tty_flag;
 
 /*
  * Flag to indicate that we have received a window change signal which has
@@ -142,8 +145,11 @@ static volatile sig_atomic_t received_signal = 0;
 /* Flag indicating whether the user's terminal is in non-blocking mode. */
 static int in_non_blocking_mode = 0;
 
+/* Time when backgrounded control master using ControlPersist should exit */
+static time_t control_persist_exit_time = 0;
+
 /* Common data for the client loop code. */
-static volatile sig_atomic_t quit_pending; /* Set non-zero to quit the loop. */
+volatile sig_atomic_t quit_pending; /* Set non-zero to quit the loop. */
 static int escape_char1;	/* Escape character. (proto1 only) */
 static int escape_pending1;	/* Last character was an escape (proto1 only) */
 static int last_was_cr;		/* Last character was a newline. */
@@ -152,14 +158,17 @@ static int stdin_eof;		/* EOF has been encountered on stderr. */
 static Buffer stdin_buffer;	/* Buffer for stdin data. */
 static Buffer stdout_buffer;	/* Buffer for stdout data. */
 static Buffer stderr_buffer;	/* Buffer for stderr data. */
-static u_int buffer_high;/* Soft max buffer size. */
+static u_int buffer_high;	/* Soft max buffer size. */
 static int connection_in;	/* Connection to server (input). */
 static int connection_out;	/* Connection to server (output). */
 static int need_rekeying;	/* Set to non-zero if rekeying is requested. */
-static int session_closed = 0;	/* In SSH2: login session closed. */
+static int session_closed;	/* In SSH2: login session closed. */
+static int x11_refuse_time;	/* If >0, refuse x11 opens after this time. */
 
 static void client_init_dispatch(void);
 int	session_ident = -1;
+
+int	session_resumed = 0;
 
 /* Track escape per proto2 channel */
 struct escape_filter_ctx {
@@ -246,10 +255,38 @@ get_current_time(void)
 	return (double) tv.tv_sec + (double) tv.tv_usec / 1000000.0;
 }
 
+/*
+ * Sets control_persist_exit_time to the absolute time when the
+ * backgrounded control master should exit due to expiry of the
+ * ControlPersist timeout.  Sets it to 0 if we are not a backgrounded
+ * control master process, or if there is no ControlPersist timeout.
+ */
+static void
+set_control_persist_exit_time(void)
+{
+	if (muxserver_sock == -1 || !options.control_persist
+	    || options.control_persist_timeout == 0)
+		/* not using a ControlPersist timeout */
+		control_persist_exit_time = 0;
+	else if (channel_still_open()) {
+		/* some client connections are still open */
+		if (control_persist_exit_time > 0)
+			debug2("%s: cancel scheduled exit", __func__);
+		control_persist_exit_time = 0;
+	} else if (control_persist_exit_time <= 0) {
+		/* a client connection has recently closed */
+		control_persist_exit_time = time(NULL) +
+			(time_t)options.control_persist_timeout;
+		debug2("%s: schedule exit in %d seconds", __func__,
+		    options.control_persist_timeout);
+	}
+	/* else we are already counting down to the timeout */
+}
+
 #define SSH_X11_PROTO "MIT-MAGIC-COOKIE-1"
 void
 client_x11_get_proto(const char *display, const char *xauth_path,
-    u_int trusted, char **_proto, char **_data)
+    u_int trusted, u_int timeout, char **_proto, char **_data)
 {
 	char cmd[1024];
 	char line[512];
@@ -259,6 +296,7 @@ client_x11_get_proto(const char *display, const char *xauth_path,
 	int got_data = 0, generated = 0, do_unlink = 0, i;
 	char *xauthdir, *xauthfile;
 	struct stat st;
+	u_int now;
 
 	xauthdir = xauthfile = NULL;
 	*_proto = proto;
@@ -287,18 +325,25 @@ client_x11_get_proto(const char *display, const char *xauth_path,
 		if (trusted == 0) {
 			xauthdir = xmalloc(MAXPATHLEN);
 			xauthfile = xmalloc(MAXPATHLEN);
-			strlcpy(xauthdir, "/tmp/ssh-XXXXXXXXXX", MAXPATHLEN);
+			mktemp_proto(xauthdir, MAXPATHLEN);
 			if (mkdtemp(xauthdir) != NULL) {
 				do_unlink = 1;
 				snprintf(xauthfile, MAXPATHLEN, "%s/xauthfile",
 				    xauthdir);
 				snprintf(cmd, sizeof(cmd),
 				    "%s -f %s generate %s " SSH_X11_PROTO
-				    " untrusted timeout 1200 2>" _PATH_DEVNULL,
-				    xauth_path, xauthfile, display);
+				    " untrusted timeout %u 2>" _PATH_DEVNULL,
+				    xauth_path, xauthfile, display, timeout);
 				debug2("x11_get_proto: %s", cmd);
 				if (system(cmd) == 0)
 					generated = 1;
+				if (x11_refuse_time == 0) {
+					now = time(NULL) + 1;
+					if (UINT_MAX - timeout < now)
+						x11_refuse_time = UINT_MAX;
+					else
+						x11_refuse_time = now + timeout;
+				}
 			}
 		}
 
@@ -499,7 +544,7 @@ static void
 server_alive_check(void)
 {
 	if (packet_inc_alive_timeouts() > options.server_alive_count_max) {
-		logit("Timeout, server not responding.");
+		logit("Timeout, server %s not responding.", host);
 		cleanup_exit(255);
 	}
 	packet_start(SSH2_MSG_GLOBAL_REQUEST);
@@ -519,6 +564,7 @@ client_wait_until_can_do_something(fd_set **readsetp, fd_set **writesetp,
     int *maxfdp, u_int *nallocp, int rekeying)
 {
 	struct timeval tv, *tvp;
+	int timeout_secs;
 	int ret;
 
 	/* Add any selections by the channel mechanism. */
@@ -559,22 +605,30 @@ client_wait_until_can_do_something(fd_set **readsetp, fd_set **writesetp,
 	if (packet_have_data_to_write())
 		FD_SET(connection_out, *writesetp);
 
-	if (muxserver_sock != -1)
-		FD_SET(muxserver_sock, *readsetp);
-
 	/*
 	 * Wait for something to happen.  This will suspend the process until
 	 * some selected descriptor can be read, written, or has some other
-	 * event pending.
+	 * event pending, or a timeout expires.
 	 */
 
-	if (options.server_alive_interval == 0 || !compat20)
+	timeout_secs = INT_MAX; /* we use INT_MAX to mean no timeout */
+	if (options.server_alive_interval > 0 && compat20)
+		timeout_secs = options.server_alive_interval;
+	set_control_persist_exit_time();
+	if (control_persist_exit_time > 0) {
+		timeout_secs = MIN(timeout_secs,
+			control_persist_exit_time - time(NULL));
+		if (timeout_secs < 0)
+			timeout_secs = 0;
+	}
+	if (timeout_secs == INT_MAX)
 		tvp = NULL;
 	else {
-		tv.tv_sec = options.server_alive_interval;
+		tv.tv_sec = timeout_secs;
 		tv.tv_usec = 0;
 		tvp = &tv;
 	}
+
 	ret = select((*maxfdp)+1, *readsetp, *writesetp, NULL, tvp);
 	if (ret < 0) {
 		char buf[100];
@@ -608,7 +662,7 @@ client_suspend_self(Buffer *bin, Buffer *bout, Buffer *berr)
 		atomicio(vwrite, fileno(stderr), buffer_ptr(berr),
 		    buffer_len(berr));
 
-	leave_raw_mode();
+	leave_raw_mode(force_tty_flag);
 
 	/*
 	 * Free (and clear) the buffer to reduce the amount of data that gets
@@ -629,7 +683,7 @@ client_suspend_self(Buffer *bin, Buffer *bout, Buffer *berr)
 	buffer_init(bout);
 	buffer_init(berr);
 
-	enter_raw_mode();
+	enter_raw_mode(force_tty_flag);
 }
 
 static void
@@ -690,7 +744,7 @@ client_status_confirm(int type, Channel *c, void *ctx)
 
 	/* XXX supress on mux _client_ quietmode */
 	tochan = options.log_level >= SYSLOG_LEVEL_ERROR &&
-	    c->ctl_fd != -1 && c->extended_usage == CHAN_EXTENDED_WRITE;
+	    c->ctl_chan != -1 && c->extended_usage == CHAN_EXTENDED_WRITE;
 
 	if (type == SSH2_MSG_CHANNEL_SUCCESS) {
 		debug2("%s request accepted on channel %d",
@@ -772,7 +826,7 @@ process_cmdline(void)
 	bzero(&fwd, sizeof(fwd));
 	fwd.listen_host = fwd.connect_host = NULL;
 
-	leave_raw_mode();
+	leave_raw_mode(force_tty_flag);
 	handler = signal(SIGINT, SIG_IGN);
 	cmd = s = read_passphrase("\r\nssh> ", RP_ECHO);
 	if (s == NULL)
@@ -834,6 +888,7 @@ process_cmdline(void)
 	while (isspace(*++s))
 		;
 
+	/* XXX update list of forwards in options */
 	if (delete) {
 		cancel_port = 0;
 		cancel_host = hpdelim(&s);	/* may be NULL */
@@ -875,7 +930,7 @@ process_cmdline(void)
 
 out:
 	signal(SIGINT, handler);
-	enter_raw_mode();
+	enter_raw_mode(force_tty_flag);
 	if (cmd)
 		xfree(cmd);
 	if (fwd.listen_host != NULL)
@@ -931,7 +986,7 @@ process_escapes(Channel *c, Buffer *bin, Buffer *bout, Buffer *berr,
 				    escape_char);
 				buffer_append(berr, string, strlen(string));
 
-				if (c && c->ctl_fd != -1) {
+				if (c && c->ctl_chan != -1) {
 					chan_read_failed(c);
 					chan_write_failed(c);
 					return 0;
@@ -941,7 +996,7 @@ process_escapes(Channel *c, Buffer *bin, Buffer *bout, Buffer *berr,
 
 			case 'Z' - 64:
 				/* XXX support this for mux clients */
-				if (c && c->ctl_fd != -1) {
+				if (c && c->ctl_chan != -1) {
  noescape:
 					snprintf(string, sizeof string,
 					    "%c%c escape not available to "
@@ -986,7 +1041,7 @@ process_escapes(Channel *c, Buffer *bin, Buffer *bout, Buffer *berr,
 				continue;
 
 			case '&':
-				if (c && c->ctl_fd != -1)
+				if (c && c->ctl_chan != -1)
 					goto noescape;
 				/*
 				 * Detach the program (continue to serve
@@ -994,7 +1049,7 @@ process_escapes(Channel *c, Buffer *bin, Buffer *bout, Buffer *berr,
 				 * more new connections).
 				 */
 				/* Restore tty modes. */
-				leave_raw_mode();
+				leave_raw_mode(force_tty_flag);
 
 				/* Stop listening for new connections. */
 				channel_stop_listening();
@@ -1037,7 +1092,7 @@ process_escapes(Channel *c, Buffer *bin, Buffer *bout, Buffer *berr,
 				continue;
 
 			case '?':
-				if (c && c->ctl_fd != -1) {
+				if (c && c->ctl_chan != -1) {
 					snprintf(string, sizeof string,
 "%c?\r\n\
 Supported escape sequences:\r\n\
@@ -1086,7 +1141,7 @@ Supported escape sequences:\r\n\
 				continue;
 
 			case 'C':
-				if (c && c->ctl_fd != -1)
+				if (c && c->ctl_chan != -1)
 					goto noescape;
 				process_cmdline();
 				continue;
@@ -1289,7 +1344,7 @@ client_channel_closed(int id, void *arg)
 {
 	channel_cancel_cleanup(id);
 	session_closed = 1;
-	leave_raw_mode();
+	leave_raw_mode(force_tty_flag);
 }
 
 /*
@@ -1322,8 +1377,6 @@ client_loop(int have_pty, int escape_char_arg, int ssh2_chan_id)
 	connection_in = packet_get_connection_in();
 	connection_out = packet_get_connection_out();
 	max_fd = MAX(connection_in, connection_out);
-	if (muxserver_sock != -1)
-		max_fd = MAX(max_fd, muxserver_sock);
 
 	if (!compat20) {
 		/* enable nonblocking unless tty */
@@ -1362,7 +1415,7 @@ client_loop(int have_pty, int escape_char_arg, int ssh2_chan_id)
 	signal(SIGWINCH, window_change_handler);
 
 	if (have_pty)
-		enter_raw_mode();
+		enter_raw_mode(force_tty_flag);
 
 	if (compat20) {
 		session_ident = ssh2_chan_id;
@@ -1441,12 +1494,6 @@ client_loop(int have_pty, int escape_char_arg, int ssh2_chan_id)
 		/* Buffer input from the connection.  */
 		client_process_net_input(readset);
 
-		/* Accept control connections.  */
-		if (muxserver_sock != -1 &&FD_ISSET(muxserver_sock, readset)) {
-			if (muxserver_accept_control())
-				quit_pending = 1;
-		}
-
 		if (quit_pending)
 			break;
 
@@ -1460,12 +1507,32 @@ client_loop(int have_pty, int escape_char_arg, int ssh2_chan_id)
 			client_process_output(writeset);
 		}
 
+		if (session_resumed) {
+			connection_in = packet_get_connection_in();
+			connection_out = packet_get_connection_out();
+			max_fd = MAX(max_fd, connection_out);
+			max_fd = MAX(max_fd, connection_in);
+			session_resumed = 0;
+		}
+
 		/*
 		 * Send as much buffered packet data as possible to the
 		 * sender.
 		 */
 		if (FD_ISSET(connection_out, writeset))
 			packet_write_poll();
+
+		/*
+		 * If we are a backgrounded control master, and the
+		 * timeout has expired without any active client
+		 * connections, then quit.
+		 */
+		if (control_persist_exit_time > 0) {
+			if (time(NULL) >= control_persist_exit_time) {
+				debug("ControlPersist timeout expired");
+				break;
+			}
+		}
 	}
 	if (readset)
 		xfree(readset);
@@ -1481,6 +1548,7 @@ client_loop(int have_pty, int escape_char_arg, int ssh2_chan_id)
 		packet_start(SSH2_MSG_DISCONNECT);
 		packet_put_int(SSH2_DISCONNECT_BY_APPLICATION);
 		packet_put_cstring("disconnected by user");
+		packet_put_cstring(""); /* language tag */
 		packet_send();
 		packet_write_wait();
 	}
@@ -1488,7 +1556,7 @@ client_loop(int have_pty, int escape_char_arg, int ssh2_chan_id)
 	channel_free_all();
 
 	if (have_pty)
-		leave_raw_mode();
+		leave_raw_mode(force_tty_flag);
 
 	/* restore blocking io */
 	if (!isatty(fileno(stdin)))
@@ -1522,25 +1590,23 @@ client_loop(int have_pty, int escape_char_arg, int ssh2_chan_id)
 	}
 
 	/* Output any buffered data for stdout. */
-	while (buffer_len(&stdout_buffer) > 0) {
-		len = write(fileno(stdout), buffer_ptr(&stdout_buffer),
-		    buffer_len(&stdout_buffer));
-		if (len <= 0) {
+	if (buffer_len(&stdout_buffer) > 0) {
+		len = atomicio(vwrite, fileno(stdout),
+		    buffer_ptr(&stdout_buffer), buffer_len(&stdout_buffer));
+		if (len < 0 || (u_int)len != buffer_len(&stdout_buffer))
 			error("Write failed flushing stdout buffer.");
-			break;
-		}
-		buffer_consume(&stdout_buffer, len);
+		else
+			buffer_consume(&stdout_buffer, len);
 	}
 
 	/* Output any buffered data for stderr. */
-	while (buffer_len(&stderr_buffer) > 0) {
-		len = write(fileno(stderr), buffer_ptr(&stderr_buffer),
-		    buffer_len(&stderr_buffer));
-		if (len <= 0) {
+	if (buffer_len(&stderr_buffer) > 0) {
+		len = atomicio(vwrite, fileno(stderr),
+		    buffer_ptr(&stderr_buffer), buffer_len(&stderr_buffer));
+		if (len < 0 || (u_int)len != buffer_len(&stderr_buffer))
 			error("Write failed flushing stderr buffer.");
-			break;
-		}
-		buffer_consume(&stderr_buffer, len);
+		else
+			buffer_consume(&stderr_buffer, len);
 	}
 
 	/* Clear and free any buffers. */
@@ -1554,7 +1620,7 @@ client_loop(int have_pty, int escape_char_arg, int ssh2_chan_id)
 	packet_get_state(MODE_IN, NULL, NULL, NULL, &ibytes);
 	packet_get_state(MODE_OUT, NULL, NULL, NULL, &obytes);
 	verbose("Transferred: sent %llu, received %llu bytes, in %.1f seconds",
-	    obytes, ibytes, total_time);
+	    (unsigned long long)obytes, (unsigned long long)ibytes, total_time);
 	if (total_time > 0)
 		verbose("Bytes per second: sent %.1f, received %.1f",
 		    obytes / total_time, ibytes / total_time);
@@ -1680,6 +1746,11 @@ client_request_x11(const char *request_type, int rchan)
 		error("Warning: ssh server tried X11 forwarding.");
 		error("Warning: this is probably a break-in attempt by a "
 		    "malicious server.");
+		return NULL;
+	}
+	if (x11_refuse_time != 0 && time(NULL) >= x11_refuse_time) {
+		verbose("Rejected X11 connection after ForwardX11Timeout "
+		    "expired");
 		return NULL;
 	}
 	originator = packet_get_string(NULL);
@@ -1846,19 +1917,21 @@ client_input_channel_req(int type, u_int32_t seq, void *ctxt)
 		chan_rcvd_eow(c);
 	} else if (strcmp(rtype, "exit-status") == 0) {
 		exitval = packet_get_int();
-		if (id == session_ident) {
+		if (c->ctl_chan != -1) {
+			mux_exit_message(c, exitval);
+			success = 1;
+		} else if (id == session_ident) {
+			/* Record exit value of local session */
 			success = 1;
 			exit_status = exitval;
-		} else if (c->ctl_fd == -1) {
-			error("client_input_channel_req: unexpected channel %d",
-			    session_ident);
 		} else {
-			atomicio(vwrite, c->ctl_fd, &exitval, sizeof(exitval));
-			success = 1;
+			/* Probably for a mux channel that has already closed */
+			debug("%s: no sink for exit-status on channel %d",
+			    __func__, id);
 		}
 		packet_check_eom();
 	}
-	if (reply) {
+	if (reply && c != NULL) {
 		packet_start(success ?
 		    SSH2_MSG_CHANNEL_SUCCESS : SSH2_MSG_CHANNEL_FAILURE);
 		packet_put_int(c->remote_id);
@@ -1898,6 +1971,9 @@ client_session2_setup(int id, int want_tty, int want_subsystem,
 	if ((c = channel_lookup(id)) == NULL)
 		fatal("client_session2_setup: channel %d: unknown channel", id);
 
+	packet_set_interactive(want_tty,
+	    options.ip_qos_interactive, options.ip_qos_bulk);
+
 	if (want_tty) {
 		struct winsize ws;
 
@@ -1906,7 +1982,7 @@ client_session2_setup(int id, int want_tty, int want_subsystem,
 			memset(&ws, 0, sizeof(ws));
 
 		channel_request_start(id, "pty-req", 1);
-		client_expect_confirm(id, "PTY allocation", 0);
+		client_expect_confirm(id, "PTY allocation", 1);
 		packet_put_cstring(term != NULL ? term : "");
 		packet_put_int((u_int)ws.ws_col);
 		packet_put_int((u_int)ws.ws_row);
@@ -2050,9 +2126,10 @@ client_init_dispatch(void)
 void
 cleanup_exit(int i)
 {
-	leave_raw_mode();
+	leave_raw_mode(force_tty_flag);
 	leave_non_blocking();
 	if (options.control_path != NULL && muxserver_sock != -1)
 		unlink(options.control_path);
+	ssh_kill_proxy_command();
 	_exit(i);
 }

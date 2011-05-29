@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2010  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: adb.c,v 1.243.42.4 2009/02/03 22:34:28 jinmei Exp $ */
+/* $Id: adb.c,v 1.243.42.6 2010-08-11 23:45:49 tbox Exp $ */
 
 /*! \file
  *
@@ -118,7 +118,6 @@ struct dns_adb {
 
 	isc_taskmgr_t                  *taskmgr;
 	isc_task_t                     *task;
-	isc_boolean_t                   overmem;
 
 	isc_interval_t                  tick_interval;
 	int                             next_cleanbucket;
@@ -294,8 +293,8 @@ static inline void inc_adb_irefcnt(dns_adb_t *);
 static inline void inc_adb_erefcnt(dns_adb_t *);
 static inline void inc_entry_refcnt(dns_adb_t *, dns_adbentry_t *,
 				    isc_boolean_t);
-static inline isc_boolean_t dec_entry_refcnt(dns_adb_t *, dns_adbentry_t *,
-					     isc_boolean_t);
+static inline isc_boolean_t dec_entry_refcnt(dns_adb_t *, isc_boolean_t,
+					     dns_adbentry_t *, isc_boolean_t);
 static inline void violate_locking_hierarchy(isc_mutex_t *, isc_mutex_t *);
 static isc_boolean_t clean_namehooks(dns_adb_t *, dns_adbnamehooklist_t *);
 static void clean_target(dns_adb_t *, dns_name_t *);
@@ -777,7 +776,7 @@ link_entry(dns_adb_t *adb, int bucket, dns_adbentry_t *entry) {
 	int i;
 	dns_adbentry_t *e;
 
-	if (adb->overmem) {
+	if (isc_mem_isovermem(adb->mctx)) {
 		for (i = 0; i < 2; i++) {
 			e = ISC_LIST_TAIL(adb->entries[bucket]);
 			if (e == NULL)
@@ -943,6 +942,7 @@ clean_namehooks(dns_adb_t *adb, dns_adbnamehooklist_t *namehooks) {
 	dns_adbnamehook_t *namehook;
 	int addr_bucket;
 	isc_boolean_t result = ISC_FALSE;
+	isc_boolean_t overmem = isc_mem_isovermem(adb->mctx);
 
 	addr_bucket = DNS_ADB_INVALIDBUCKET;
 	namehook = ISC_LIST_HEAD(*namehooks);
@@ -963,7 +963,8 @@ clean_namehooks(dns_adb_t *adb, dns_adbnamehooklist_t *namehooks) {
 				LOCK(&adb->entrylocks[addr_bucket]);
 			}
 
-			result = dec_entry_refcnt(adb, entry, ISC_FALSE);
+			result = dec_entry_refcnt(adb, overmem, entry,
+						  ISC_FALSE);
 		}
 
 		/*
@@ -1235,7 +1236,9 @@ inc_entry_refcnt(dns_adb_t *adb, dns_adbentry_t *entry, isc_boolean_t lock) {
 }
 
 static inline isc_boolean_t
-dec_entry_refcnt(dns_adb_t *adb, dns_adbentry_t *entry, isc_boolean_t lock) {
+dec_entry_refcnt(dns_adb_t *adb, isc_boolean_t overmem, dns_adbentry_t *entry,
+		 isc_boolean_t lock)
+{
 	int bucket;
 	isc_boolean_t destroy_entry;
 	isc_boolean_t result = ISC_FALSE;
@@ -1250,7 +1253,7 @@ dec_entry_refcnt(dns_adb_t *adb, dns_adbentry_t *entry, isc_boolean_t lock) {
 
 	destroy_entry = ISC_FALSE;
 	if (entry->refcnt == 0 &&
-	    (adb->entry_sd[bucket] || entry->expires == 0 || adb->overmem ||
+	    (adb->entry_sd[bucket] || entry->expires == 0 || overmem ||
 	     (entry->flags & ENTRY_IS_DEAD) != 0)) {
 		destroy_entry = ISC_TRUE;
 		result = unlink_entry(adb, entry);
@@ -1852,7 +1855,7 @@ check_stale_name(dns_adb_t *adb, int bucket, isc_stdtime_t now) {
 	int victims, max_victims;
 	isc_boolean_t result;
 	dns_adbname_t *victim, *next_victim;
-	isc_boolean_t overmem = adb->overmem;
+	isc_boolean_t overmem = isc_mem_isovermem(adb->mctx);
 	int scans = 0;
 
 	INSIST(bucket != DNS_ADB_INVALIDBUCKET);
@@ -2049,7 +2052,6 @@ dns_adb_create(isc_mem_t *mem, dns_view_t *view, isc_timermgr_t *timermgr,
 		       adb, NULL, NULL);
 	adb->cevent_sent = ISC_FALSE;
 	adb->shutting_down = ISC_FALSE;
-	adb->overmem = ISC_FALSE;
 	ISC_LIST_INIT(adb->whenshutdown);
 
 	isc_mem_attach(mem, &adb->mctx);
@@ -2616,6 +2618,7 @@ dns_adb_destroyfind(dns_adbfind_t **findp) {
 	dns_adbaddrinfo_t *ai;
 	int bucket;
 	dns_adb_t *adb;
+	isc_boolean_t overmem;
 
 	REQUIRE(findp != NULL && DNS_ADBFIND_VALID(*findp));
 	find = *findp;
@@ -2640,13 +2643,14 @@ dns_adb_destroyfind(dns_adbfind_t **findp) {
 	 * Return the find to the memory pool, and decrement the adb's
 	 * reference count.
 	 */
+	overmem = isc_mem_isovermem(adb->mctx);
 	ai = ISC_LIST_HEAD(find->list);
 	while (ai != NULL) {
 		ISC_LIST_UNLINK(find->list, ai, publink);
 		entry = ai->entry;
 		ai->entry = NULL;
 		INSIST(DNS_ADBENTRY_VALID(entry));
-		RUNTIME_CHECK(dec_entry_refcnt(adb, entry, ISC_TRUE) ==
+		RUNTIME_CHECK(dec_entry_refcnt(adb, overmem, entry, ISC_TRUE) ==
 			      ISC_FALSE);
 		free_adbaddrinfo(adb, &ai);
 		ai = ISC_LIST_HEAD(find->list);
@@ -3509,6 +3513,7 @@ dns_adb_freeaddrinfo(dns_adb_t *adb, dns_adbaddrinfo_t **addrp) {
 	int bucket;
 	isc_stdtime_t now;
 	isc_boolean_t want_check_exit = ISC_FALSE;
+	isc_boolean_t overmem;
 
 	REQUIRE(DNS_ADB_VALID(adb));
 	REQUIRE(addrp != NULL);
@@ -3520,13 +3525,14 @@ dns_adb_freeaddrinfo(dns_adb_t *adb, dns_adbaddrinfo_t **addrp) {
 	isc_stdtime_get(&now);
 
 	*addrp = NULL;
+	overmem = isc_mem_isovermem(adb->mctx);
 
 	bucket = addr->entry->lock_bucket;
 	LOCK(&adb->entrylocks[bucket]);
 
 	entry->expires = now + ADB_ENTRY_WINDOW;
 
-	want_check_exit = dec_entry_refcnt(adb, entry, ISC_FALSE);
+	want_check_exit = dec_entry_refcnt(adb, overmem, entry, ISC_FALSE);
 
 	UNLOCK(&adb->entrylocks[bucket]);
 
@@ -3591,6 +3597,14 @@ dns_adb_flushname(dns_adb_t *adb, dns_name_t *name) {
 
 static void
 water(void *arg, int mark) {
+	/*
+	 * We're going to change the way to handle overmem condition: use
+	 * isc_mem_isovermem() instead of storing the state via this callback,
+	 * since the latter way tends to cause race conditions.
+	 * To minimize the change, and in case we re-enable the callback
+	 * approach, however, keep this function at the moment.
+	 */
+
 	dns_adb_t *adb = arg;
 	isc_boolean_t overmem = ISC_TF(mark == ISC_MEM_HIWATER);
 
@@ -3598,17 +3612,6 @@ water(void *arg, int mark) {
 
 	DP(ISC_LOG_DEBUG(1),
 	   "adb reached %s water mark", overmem ? "high" : "low");
-
-	/*
-	 * We can't use adb->lock as there is potential for water
-	 * to be called when adb->lock is held.
-	 */
-	LOCK(&adb->overmemlock);
-	if (adb->overmem != overmem) {
-		adb->overmem = overmem;
-		isc_mem_waterack(adb->mctx, mark);
-	}
-	UNLOCK(&adb->overmemlock);
 }
 
 void

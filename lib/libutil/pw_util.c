@@ -67,7 +67,7 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
-#include <libutil.h>
+#include "libutil.h"
 
 static pid_t editpid = -1;
 static int lockfd = -1;
@@ -557,43 +557,50 @@ pw_tempname(void)
 struct passwd *
 pw_dup(const struct passwd *pw)
 {
+	char *dst;
 	struct passwd *npw;
 	ssize_t len;
 
-	len = sizeof(*npw) +
-	    (pw->pw_name ? strlen(pw->pw_name) + 1 : 0) +
-	    (pw->pw_passwd ? strlen(pw->pw_passwd) + 1 : 0) +
-	    (pw->pw_class ? strlen(pw->pw_class) + 1 : 0) +
-	    (pw->pw_gecos ? strlen(pw->pw_gecos) + 1 : 0) +
-	    (pw->pw_dir ? strlen(pw->pw_dir) + 1 : 0) +
-	    (pw->pw_shell ? strlen(pw->pw_shell) + 1 : 0);
+	len = sizeof(*npw);
+	if (pw->pw_name != NULL)
+		len += strlen(pw->pw_name) + 1;
+	if (pw->pw_passwd != NULL)
+		len += strlen(pw->pw_passwd) + 1;
+	if (pw->pw_class != NULL)
+		len += strlen(pw->pw_class) + 1;
+	if (pw->pw_gecos != NULL)
+		len += strlen(pw->pw_gecos) + 1;
+	if (pw->pw_dir != NULL)
+		len += strlen(pw->pw_dir) + 1;
+	if (pw->pw_shell != NULL)
+		len += strlen(pw->pw_shell) + 1;
 	if ((npw = malloc((size_t)len)) == NULL)
 		return (NULL);
 	memcpy(npw, pw, sizeof(*npw));
-	len = sizeof(*npw);
-	if (pw->pw_name) {
-		npw->pw_name = ((char *)npw) + len;
-		len += sprintf(npw->pw_name, "%s", pw->pw_name) + 1;
+	dst = (char *)npw + sizeof(*npw);
+	if (pw->pw_name != NULL) {
+		npw->pw_name = dst;
+		dst = stpcpy(npw->pw_name, pw->pw_name) + 1;
 	}
-	if (pw->pw_passwd) {
-		npw->pw_passwd = ((char *)npw) + len;
-		len += sprintf(npw->pw_passwd, "%s", pw->pw_passwd) + 1;
+	if (pw->pw_passwd != NULL) {
+		npw->pw_passwd = dst;
+		dst = stpcpy(npw->pw_passwd, pw->pw_passwd) + 1;
 	}
-	if (pw->pw_class) {
-		npw->pw_class = ((char *)npw) + len;
-		len += sprintf(npw->pw_class, "%s", pw->pw_class) + 1;
+	if (pw->pw_class != NULL) {
+		npw->pw_class = dst;
+		dst = stpcpy(npw->pw_class, pw->pw_class) + 1;
 	}
-	if (pw->pw_gecos) {
-		npw->pw_gecos = ((char *)npw) + len;
-		len += sprintf(npw->pw_gecos, "%s", pw->pw_gecos) + 1;
+	if (pw->pw_gecos != NULL) {
+		npw->pw_gecos = dst;
+		dst = stpcpy(npw->pw_gecos, pw->pw_gecos) + 1;
 	}
-	if (pw->pw_dir) {
-		npw->pw_dir = ((char *)npw) + len;
-		len += sprintf(npw->pw_dir, "%s", pw->pw_dir) + 1;
+	if (pw->pw_dir != NULL) {
+		npw->pw_dir = dst;
+		dst = stpcpy(npw->pw_dir, pw->pw_dir) + 1;
 	}
-	if (pw->pw_shell) {
-		npw->pw_shell = ((char *)npw) + len;
-		len += sprintf(npw->pw_shell, "%s", pw->pw_shell) + 1;
+	if (pw->pw_shell != NULL) {
+		npw->pw_shell = dst;
+		dst = stpcpy(npw->pw_shell, pw->pw_shell) + 1;
 	}
 	return (npw);
 }

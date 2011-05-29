@@ -6,15 +6,22 @@ no=45
 sectors=100
 keyfile=`mktemp /tmp/$base.XXXXXX` || exit 1
 
-echo "1..660"
+echo "1..1380"
 
 i=1
-for cipher in aes:0 aes:128 aes:192 aes:256 \
+for cipher in aes:0 aes:128 aes:256 \
+    aes-xts:0 aes-xts:128 aes-xts:256 \
+    aes-cbc:0 aes-cbc:128 aes-cbc:192 aes-cbc:256 \
     3des:0 3des:192 \
+    3des-cbc:0 3des-cbc:192 \
     blowfish:0 blowfish:128 blowfish:160 blowfish:192 blowfish:224 \
     blowfish:256 blowfish:288 blowfish:320 blowfish:352 blowfish:384 \
     blowfish:416 blowfish:448 \
-    camellia:0 camellia:128 camellia:192 camellia:256; do
+    blowfish-cbc:0 blowfish-cbc:128 blowfish-cbc:160 blowfish-cbc:192 blowfish-cbc:224 \
+    blowfish-cbc:256 blowfish-cbc:288 blowfish-cbc:320 blowfish-cbc:352 blowfish-cbc:384 \
+    blowfish-cbc:416 blowfish-cbc:448 \
+    camellia:0 camellia:128 camellia:192 camellia:256 \
+    camellia-cbc:0 camellia-cbc:128 camellia-cbc:192 camellia-cbc:256; do
 	ealgo=${cipher%%:*}
 	keylen=${cipher##*:}
 	for aalgo in hmac/md5 hmac/sha1 hmac/ripemd160 hmac/sha256 hmac/sha384 hmac/sha512; do

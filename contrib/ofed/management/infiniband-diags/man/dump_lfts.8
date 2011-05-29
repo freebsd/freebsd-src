@@ -1,0 +1,50 @@
+.TH DUMP_LFTS.SH 8 "May 21, 2007" "OpenIB" "OpenIB Diagnostics"
+
+.SH NAME
+dump_lfts.sh \- dump InfiniBand unicast forwarding tables
+
+.SH SYNOPSIS
+.B dump_lfts.sh
+[\-h] [\-D] [\-C ca_name] [\-P ca_port] [\-t(imeout) timeout_ms] [>/path/to/dump-file]
+
+
+.SH DESCRIPTION
+.PP
+dump_lfts.sh is a script which dumps the InfiniBand unciast forwarding
+tables (MFTs) in the switch nodes in the subnet.
+
+The dump file format is compatible with loading into OpenSM using
+the -R file -U /path/to/dump-file syntax.
+
+.SH OPTIONS
+
+.PP
+.TP
+\fB\-D\fR
+dump forwarding tables using direct routed rather than LID routed SMPs
+.TP
+\fB\-h\fR
+show help
+.TP
+\fB\-C\fR <ca_name>
+use the specified ca_name.
+.TP
+\fB\-P\fR <ca_port>
+use the specified ca_port.
+.TP
+\fB\-t\fR <timeout_ms>
+override the default timeout for the solicited mads.
+
+.SH SEE ALSO
+.BR dump_mfts(8),
+.BR ibroute(8),
+.BR ibswitches(8),
+.BR opensm(8)
+
+.SH AUTHORS
+.TP
+Sasha Khapyorsky
+.RI < sashak@voltaire.com >
+.TP
+Hal Rosenstock
+.RI < halr@voltaire.com >

@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 6, 2008
+.Dd May 14, 2010
 .Dt EM 4
 .Os
 .Sh NAME
@@ -62,6 +62,11 @@ The driver supports Transmit/Receive checksum offload
 and Jumbo Frames on all but 82542-based adapters.
 Furthermore it supports TCP segmentation offload (TSO) on all adapters but
 those based on the 82543, 82544 and 82547 controller chips.
+The identification LEDs of the adapters supported by the
+.Nm
+driver can be controlled via the
+.Xr led 4
+API for localization purposes.
 For further hardware information, see the
 .Pa README
 included with the driver.
@@ -241,10 +246,25 @@ If an issue is identified with the released source code on the supported kernel
 with a supported adapter, email the specific information related to the
 issue to
 .Aq freebsdnic@mailbox.intel.com .
+.Sh FILES
+.Bl -tag -width /dev/led/em*
+.It Pa /dev/led/em*
+identification LED device nodes
+.El
+.Sh EXAMPLES
+Make the identification LED of em0 blink:
+.Pp
+.Dl "echo f2 > /dev/led/em0"
+.Pp
+Turn the identification LED of em0 off again:
+.Pp
+.Dl "echo 0 > /dev/led/em0"
+.Pp
 .Sh SEE ALSO
 .Xr altq 4 ,
 .Xr arp 4 ,
 .Xr igb 4 ,
+.Xr led 4 ,
 .Xr netintro 4 ,
 .Xr ng_ether 4 ,
 .Xr polling 4 ,

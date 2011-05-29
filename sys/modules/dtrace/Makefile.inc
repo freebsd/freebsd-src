@@ -5,7 +5,7 @@ IGNORE_PRAGMA=	1
 load	:
 	-kldload cyclic
 	-kldload dtrace
-.if ${MACHINE_ARCH} == "i386"
+.if ${MACHINE_CPUARCH} == "i386"
 	-kldload sdt
 	-kldload lockstat
 	-kldload fbt
@@ -18,7 +18,7 @@ load	:
 unload	:
 	-kldunload systrace
 	-kldunload profile
-.if ${MACHINE_ARCH} == "i386"
+.if ${MACHINE_CPUARCH} == "i386"
 	-kldunload prototype
 	-kldunload fbt
 	-kldunload lockstat

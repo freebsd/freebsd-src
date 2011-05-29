@@ -99,14 +99,18 @@ private size_t apprentice_magic_strength(const struct magic *);
 private int apprentice_sort(const void *, const void *);
 private int apprentice_load(struct magic_set *, struct magic **, uint32_t *,
     const char *, int);
+#ifndef COMPILE_ONLY
 private void byteswap(struct magic *, uint32_t);
 private void bs1(struct magic *);
 private uint16_t swap2(uint16_t);
 private uint32_t swap4(uint32_t);
 private uint64_t swap8(uint64_t);
+#endif
 private char *mkdbname(struct magic_set *, const char *, int);
+#ifndef COMPILE_ONLY
 private int apprentice_map(struct magic_set *, struct magic **, uint32_t *,
     const char *);
+#endif
 private int apprentice_compile(struct magic_set *, struct magic **, uint32_t *,
     const char *);
 private int check_format_type(const char *, int);
@@ -263,9 +267,13 @@ apprentice_1(struct magic_set *ms, const char *fn, int action,
 {
 	struct magic *magic = NULL;
 	uint32_t nmagic = 0;
+#ifndef COMPILE_ONLY
 	struct mlist *ml;
+#endif
 	int rv = -1;
+#ifndef COMPILE_ONLY
 	int mapped;
+#endif
 
 	if (magicsize != FILE_MAGICSIZE) {
 		file_error(ms, 0, "magic element size %lu != %lu",
@@ -314,8 +322,8 @@ apprentice_1(struct magic_set *ms, const char *fn, int action,
 	ml->next = mlist;
 	mlist->prev = ml;
 
-	return 0;
 #endif /* COMPILE_ONLY */
+	return 0;
 }
 
 protected void
@@ -2053,6 +2061,7 @@ eatsize(const char **p)
 	*p = l;
 }
 
+#ifndef COMPILE_ONLY
 /*
  * handle a compiled file.
  */
@@ -2150,6 +2159,7 @@ error2:
 	free(dbname);
 	return -1;
 }
+#endif /* COMPILE_ONLY */
 
 private const uint32_t ar[] = {
     MAGICNO, VERSIONNO
@@ -2244,6 +2254,7 @@ mkdbname(struct magic_set *ms, const char *fn, int strip)
 	return buf;
 }
 
+#ifndef COMPILE_ONLY
 /*
  * Byteswap an mmap'ed file if needed
  */
@@ -2335,3 +2346,4 @@ bs1(struct magic *m)
 		m->num_mask = swap8(m->num_mask);
 	}
 }
+#endif /* COMPILE_ONLY */

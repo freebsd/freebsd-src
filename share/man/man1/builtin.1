@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 14, 2006
+.Dd December 21, 2010
 .Dt BUILTIN 1
 .Os
 .Sh NAME
@@ -36,6 +36,7 @@
 .Nm \&. ,
 .Nm \&: ,
 .Nm @ ,
+.Nm \&[ ,
 .Nm { ,
 .Nm } ,
 .Nm alias ,
@@ -98,6 +99,7 @@
 .Nm onintr ,
 .Nm popd ,
 .Nm printenv ,
+.Nm printf ,
 .Nm pushd ,
 .Nm pwd ,
 .Nm read ,
@@ -192,14 +194,13 @@ under
 do exist externally,
 but are implemented as scripts using a builtin command of the same name.
 .Bl -column ".Ic uncomplete" ".Em External" ".Xr csh 1" ".Xr sh 1" -offset indent
-.It Xo
-.Em "Command	External" Ta Xr csh 1 Ta Xr sh 1
-.Xc
-.It Ic ! Ta \&No Ta \&No Ta Yes
+.It Em Command Ta Em External Ta Xr csh 1 Ta Xr sh 1
+.It Ic \&! Ta \&No Ta \&No Ta Yes
 .It Ic % Ta \&No Ta Yes Ta \&No
-.It Ic . Ta \&No Ta \&No Ta Yes
-.It Ic : Ta \&No Ta Yes Ta Yes
-.It Ic @ Ta \&No Ta Yes Ta Yes
+.It Ic \&. Ta \&No Ta \&No Ta Yes
+.It Ic \&: Ta \&No Ta Yes Ta Yes
+.It Ic @ Ta \&No Ta Yes Ta \&No
+.It Ic \&[ Ta Yes Ta \&No Ta Yes
 .It Ic { Ta \&No Ta \&No Ta Yes
 .It Ic } Ta \&No Ta \&No Ta Yes
 .It Ic alias Ta No** Ta Yes Ta Yes
@@ -243,14 +244,14 @@ but are implemented as scripts using a builtin command of the same name.
 .It Ic getopts Ta No** Ta \&No Ta Yes
 .It Ic glob Ta \&No Ta Yes Ta \&No
 .It Ic goto Ta \&No Ta Yes Ta \&No
-.It Ic hash Ta \&No Ta \&No Ta Yes
+.It Ic hash Ta No** Ta \&No Ta Yes
 .It Ic hashstat Ta \&No Ta Yes Ta \&No
 .It Ic history Ta \&No Ta Yes Ta \&No
 .It Ic hup Ta \&No Ta Yes Ta \&No
 .It Ic if Ta \&No Ta Yes Ta Yes
 .It Ic jobid Ta \&No Ta \&No Ta Yes
 .It Ic jobs Ta No** Ta Yes Ta Yes
-.It Ic kill Ta Yes Ta Yes Ta \&No
+.It Ic kill Ta Yes Ta Yes Ta Yes
 .It Ic limit Ta \&No Ta Yes Ta \&No
 .It Ic local Ta \&No Ta \&No Ta Yes
 .It Ic log Ta \&No Ta Yes Ta \&No
@@ -263,6 +264,7 @@ but are implemented as scripts using a builtin command of the same name.
 .It Ic onintr Ta \&No Ta Yes Ta \&No
 .It Ic popd Ta \&No Ta Yes Ta \&No
 .It Ic printenv Ta Yes Ta Yes Ta \&No
+.It Ic printf Ta Yes Ta \&No Ta Yes
 .It Ic pushd Ta \&No Ta Yes Ta \&No
 .It Ic pwd Ta Yes Ta \&No Ta Yes
 .It Ic read Ta No** Ta \&No Ta Yes
@@ -288,8 +290,8 @@ but are implemented as scripts using a builtin command of the same name.
 .It Ic times Ta \&No Ta \&No Ta Yes
 .It Ic trap Ta \&No Ta \&No Ta Yes
 .It Ic true Ta Yes Ta \&No Ta Yes
-.It Ic type Ta \&No Ta \&No Ta Yes
-.It Ic ulimit Ta \&No Ta \&No Ta Yes
+.It Ic type Ta No** Ta \&No Ta Yes
+.It Ic ulimit Ta No** Ta \&No Ta Yes
 .It Ic umask Ta No** Ta Yes Ta Yes
 .It Ic unalias Ta No** Ta Yes Ta Yes
 .It Ic uncomplete Ta \&No Ta Yes Ta \&No
@@ -313,6 +315,7 @@ but are implemented as scripts using a builtin command of the same name.
 .Xr nice 1 ,
 .Xr nohup 1 ,
 .Xr printenv 1 ,
+.Xr printf 1 ,
 .Xr pwd 1 ,
 .Xr sh 1 ,
 .Xr test 1 ,

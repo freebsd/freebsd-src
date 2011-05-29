@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 # sys sources
-.PATH: ${.CURDIR}/${MACHINE_ARCH}/sys ${.CURDIR}/sys
+.PATH: ${.CURDIR}/${LIBC_ARCH}/sys ${.CURDIR}/sys
 
 # Include the generated makefile containing the *complete* list
 # of syscall names in MIASM.
@@ -13,16 +13,20 @@
 # MDASM names override the default syscall names in MIASM.
 # NOASM will prevent the default syscall code from being generated.
 #
-.if exists(${.CURDIR}/${MACHINE_ARCH}/sys/Makefile.inc)
-.include "${.CURDIR}/${MACHINE_ARCH}/sys/Makefile.inc"
-.endif
+.sinclude "${.CURDIR}/${LIBC_ARCH}/sys/Makefile.inc"
 
 # Sources common to both syscall interfaces:
-SRCS+=	stack_protector.c __error.c
+SRCS+=	stack_protector.c stack_protector_compat.c __error.c
 .if !defined(WITHOUT_SYSCALL_COMPAT)
-SRCS+=	fcntl.c ftruncate.c lseek.c mmap.c pread.c pwrite.c truncate.c
+SYSCALL_COMPAT_SRCS=	fcntl.c ftruncate.c lseek.c mmap.c pread.c \
+	pwrite.c truncate.c
+SRCS+=	${SYSCALL_COMPAT_SRCS}
+NOASM+=	${SYSCALL_COMPAT_SRCS:S/.c/.o/}
 PSEUDO+= _fcntl.o
 .endif
+SRCS+= sigwait.c
+NOASM+= sigwait.o
+PSEUDO+= _sigwait.o
 
 # Add machine dependent asm sources:
 SRCS+=${MDASM}
@@ -52,26 +56,35 @@ SYM_MAPS+=	${.CURDIR}/sys/Symbol.map
 # Generated files
 CLEANFILES+=	${SASM} ${SPSEUDO}
 
+.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386" || \
+    ${MACHINE_CPUARCH} == "powerpc"
+NOTE_GNU_STACK='\t.section .note.GNU-stack,"",%%progbits\n'
+.else
+NOTE_GNU_STACK=''
+.endif
+
 ${SASM}:
 	printf '#include "compat.h"\n' > ${.TARGET}
 	printf '#include "SYS.h"\nRSYSCALL(${.PREFIX})\n' >> ${.TARGET}
+	printf  ${NOTE_GNU_STACK} >>${.TARGET}
 
 ${SPSEUDO}:
 	printf '#include "compat.h"\n' > ${.TARGET}
 	printf '#include "SYS.h"\nPSEUDO(${.PREFIX:S/_//})\n' \
 	    >> ${.TARGET}
+	printf ${NOTE_GNU_STACK} >>${.TARGET}
 
 MAN+=	abort2.2 accept.2 access.2 acct.2 adjtime.2 \
 	aio_cancel.2 aio_error.2 aio_read.2 aio_return.2 \
 	aio_suspend.2 aio_waitcomplete.2 aio_write.2 \
-	bind.2 brk.2 chdir.2 chflags.2 \
+	bind.2 brk.2 cap_enter.2 chdir.2 chflags.2 \
 	chmod.2 chown.2 chroot.2 clock_gettime.2 close.2 closefrom.2 \
 	connect.2 cpuset.2 cpuset_getaffinity.2 dup.2 execve.2 _exit.2 \
 	extattr_get_file.2 fcntl.2 fhopen.2 flock.2 fork.2 fsync.2 \
 	getdirentries.2 getdtablesize.2 \
 	getfh.2 getfsstat.2 getgid.2 getgroups.2 getitimer.2 getlogin.2 \
-	getpeername.2 getpgrp.2 getpid.2 getpriority.2 getrlimit.2 \
-	getrusage.2 getsid.2 getsockname.2 \
+	getloginclass.2 getpeername.2 getpgrp.2 getpid.2 getpriority.2 \
+	getrlimit.2 getrusage.2 getsid.2 getsockname.2 \
 	getsockopt.2 gettimeofday.2 getuid.2 \
 	intro.2 ioctl.2 issetugid.2 jail.2 kenv.2 kill.2 \
 	kldfind.2 kldfirstmod.2 kldload.2 kldnext.2 kldstat.2 kldsym.2 \
@@ -83,7 +96,7 @@ MAN+=	abort2.2 accept.2 access.2 acct.2 adjtime.2 \
 	mq_setattr.2 \
 	msgctl.2 msgget.2 msgrcv.2 msgsnd.2 \
 	msync.2 munmap.2 nanosleep.2 nfssvc.2 ntp_adjtime.2 open.2 \
-	pathconf.2 pipe.2 poll.2 posix_openpt.2 profil.2 \
+	pathconf.2 pipe.2 poll.2 posix_fallocate.2 posix_openpt.2 profil.2 \
 	pselect.2 ptrace.2 quotactl.2 \
 	read.2 readlink.2 reboot.2 recv.2 rename.2 revoke.2 rfork.2 rmdir.2 \
 	rtprio.2
@@ -105,6 +118,7 @@ MAN+=	sctp_generic_recvmsg.2 sctp_generic_sendmsg.2 sctp_peeloff.2 \
 
 MLINKS+=access.2 eaccess.2 access.2 faccessat.2
 MLINKS+=brk.2 sbrk.2
+MLINKS+=cap_enter.2 cap_getmode.2
 MLINKS+=chdir.2 fchdir.2
 MLINKS+=chflags.2 fchflags.2 chflags.2 lchflags.2
 MLINKS+=chmod.2 fchmod.2 chmod.2 fchmodat.2 chmod.2 lchmod.2
@@ -133,6 +147,7 @@ MLINKS+=getgid.2 getegid.2
 MLINKS+=getitimer.2 setitimer.2
 MLINKS+=getlogin.2 getlogin_r.3
 MLINKS+=getlogin.2 setlogin.2
+MLINKS+=getloginclass.2 setloginclass.2
 MLINKS+=getpgrp.2 getpgid.2
 MLINKS+=getpid.2 getppid.2
 MLINKS+=getpriority.2 setpriority.2

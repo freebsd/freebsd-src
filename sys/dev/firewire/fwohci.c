@@ -686,7 +686,7 @@ fwohci_init(struct fwohci_softc *sc, device_t dev)
 	sc->fc.dev = dev;
 
 	sc->fc.config_rom = fwdma_malloc(&sc->fc, CROMSIZE, CROMSIZE,
-						&sc->crom_dma, BUS_DMA_WAITOK);
+	    &sc->crom_dma, BUS_DMA_WAITOK | BUS_DMA_COHERENT);
 	if(sc->fc.config_rom == NULL){
 		device_printf(dev, "config_rom alloc failed.");
 		return ENOMEM;
@@ -708,7 +708,7 @@ fwohci_init(struct fwohci_softc *sc, device_t dev)
 /* SID recieve buffer must align 2^11 */
 #define	OHCI_SIDSIZE	(1 << 11)
 	sc->sid_buf = fwdma_malloc(&sc->fc, OHCI_SIDSIZE, OHCI_SIDSIZE,
-						&sc->sid_dma, BUS_DMA_WAITOK);
+	    &sc->sid_dma, BUS_DMA_WAITOK | BUS_DMA_COHERENT);
 	if (sc->sid_buf == NULL) {
 		device_printf(dev, "sid_buf alloc failed.");
 		return ENOMEM;
@@ -1971,8 +1971,8 @@ fwohci_intr_dma(struct fwohci_softc *sc, uint32_t stat, int count)
 			OWRITE(sc, OHCI_LNKCTLCLR, OHCI_CNTL_CYCTIMER);
 #endif
 			OWRITE(sc, FWOHCI_INTMASKCLR,  OHCI_INT_CYC_LOST);
-			device_printf(fc->dev, "too many cycle lost, "
-			 "no cycle master presents?\n");
+			device_printf(fc->dev, "too many cycles lost, "
+			 "no cycle master present?\n");
 		}
 	}
 	if (stat & OHCI_INT_DMA_ATRQ) {

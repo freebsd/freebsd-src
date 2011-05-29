@@ -352,6 +352,9 @@ EVENTHANDLER_DECLARE(ifnet_arrival_event, ifnet_arrival_event_handler_t);
 /* interface departure event */
 typedef void (*ifnet_departure_event_handler_t)(void *, struct ifnet *);
 EVENTHANDLER_DECLARE(ifnet_departure_event, ifnet_departure_event_handler_t);
+/* Interface link state change event */
+typedef void (*ifnet_link_event_handler_t)(void *, struct ifnet *, int);
+EVENTHANDLER_DECLARE(ifnet_link_event, ifnet_link_event_handler_t);
 
 /*
  * interface groups
@@ -645,7 +648,7 @@ drbr_dequeue_cond(struct ifnet *ifp, struct buf_ring *br,
 			IFQ_UNLOCK(&ifp->if_snd);
 			return (NULL);
 		}
-		IFQ_DEQUEUE(&ifp->if_snd, m);
+		IFQ_DEQUEUE_NOLOCK(&ifp->if_snd, m);
 		IFQ_UNLOCK(&ifp->if_snd);
 		return (m);
 	}
@@ -873,7 +876,7 @@ struct	ifaddr *ifa_ifwithaddr(struct sockaddr *);
 int		ifa_ifwithaddr_check(struct sockaddr *);
 struct	ifaddr *ifa_ifwithbroadaddr(struct sockaddr *);
 struct	ifaddr *ifa_ifwithdstaddr(struct sockaddr *);
-struct	ifaddr *ifa_ifwithnet(struct sockaddr *);
+struct	ifaddr *ifa_ifwithnet(struct sockaddr *, int);
 struct	ifaddr *ifa_ifwithroute(int, struct sockaddr *, struct sockaddr *);
 struct	ifaddr *ifa_ifwithroute_fib(int, struct sockaddr *, struct sockaddr *, u_int);
 

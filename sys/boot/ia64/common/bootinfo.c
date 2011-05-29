@@ -226,7 +226,7 @@ bi_copymodules(vm_offset_t addr)
  * - Module metadata are formatted and placed in kernel space.
  */
 int
-bi_load(struct preloaded_file *fp, uint64_t *bi_addr)
+ia64_bootinfo(struct preloaded_file *fp, struct bootinfo **res)
 {
 	struct bootinfo bi;
 	struct preloaded_file *xp;
@@ -234,7 +234,9 @@ bi_load(struct preloaded_file *fp, uint64_t *bi_addr)
 	struct devdesc *rootdev;
 	char *rootdevname;
 	vm_offset_t addr, ssym, esym;
+	int error;
 
+	*res = NULL;
 	bzero(&bi, sizeof(struct bootinfo));
 	bi.bi_magic = BOOTINFO_MAGIC;
 	bi.bi_version = 1;
@@ -289,8 +291,28 @@ bi_load(struct preloaded_file *fp, uint64_t *bi_addr)
 		bi.bi_envp = 0;
 	}
 
-	addr = (addr + PAGE_MASK) & ~PAGE_MASK;
+	addr = (addr + 15) & ~15;
 	bi.bi_kernend = addr;
 
-	return (ldr_bootinfo(&bi, bi_addr));
+	error = ia64_platform_bootinfo(&bi, res);
+	if (error)
+		return (error);
+
+	if (IS_LEGACY_KERNEL()) {
+		if (*res == NULL)
+			return (EDOOFUS);
+
+		bcopy(&bi, *res, sizeof(bi));
+		return (0);
+	}
+
+	bi.bi_pbvm_pgtbl = (uintptr_t)ia64_pgtbl;
+	bi.bi_pbvm_pgtblsz = ia64_pgtblsz;
+	ia64_copyin((void *)bi.bi_memmap, addr, bi.bi_memmap_size);
+	bi.bi_memmap = addr;
+	addr = (addr + bi.bi_memmap_size + 15) & ~15;
+	bi.bi_kernend = addr + sizeof(bi);	
+	ia64_copyin(&bi, addr, sizeof(bi));
+	*res = (void *)addr;
+	return (0);
 }

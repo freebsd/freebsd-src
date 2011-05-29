@@ -36,25 +36,19 @@ __FBSDID("$FreeBSD$");
 #include "local.h"
 
 int
-vasprintf(str, fmt, ap)
-	char **str;
-	const char *fmt;
-	__va_list ap;
+vasprintf(char **str, const char *fmt, __va_list ap)
 {
+	FILE f = FAKE_FILE;
 	int ret;
-	FILE f;
 
-	f._file = -1;
 	f._flags = __SWR | __SSTR | __SALC;
-	f._bf._base = f._p = (unsigned char *)malloc(128);
+	f._bf._base = f._p = malloc(128);
 	if (f._bf._base == NULL) {
 		*str = NULL;
 		errno = ENOMEM;
 		return (-1);
 	}
 	f._bf._size = f._w = 127;		/* Leave room for the NUL */
-	f._orientation = 0;
-	memset(&f._mbstate, 0, sizeof(mbstate_t));
 	ret = __vfprintf(&f, fmt, ap);
 	if (ret < 0) {
 		free(f._bf._base);

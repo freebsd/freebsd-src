@@ -41,10 +41,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 
 #include <machine/xen/xen-os.h>
-#include <machine/xen/xenfunc.h>
 #include <machine/xen/xenvar.h>
+#include <machine/xen/xenfunc.h>
 #include <xen/hypervisor.h>
-#include <xen/xenbus/xenbusvar.h>
+#include <xen/xenstore/xenstorevar.h>
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>
@@ -145,12 +145,6 @@ balloon_retrieve(void)
 	bs.balloon_low--;
 
 	return page;
-}
-
-static void 
-balloon_alarm(void *unused)
-{
-	wakeup(balloon_process);
 }
 
 static unsigned long 
@@ -378,6 +372,8 @@ balloon_process(void *unused)
 	
 	mtx_lock(&balloon_mutex);
 	for (;;) {
+		int sleep_time;
+
 		do {
 			credit = current_target() - bs.current_pages;
 			if (credit > 0)
@@ -389,9 +385,12 @@ balloon_process(void *unused)
 		
 		/* Schedule more work if there is some still to be done. */
 		if (current_target() != bs.current_pages)
-			timeout(balloon_alarm, NULL, ticks + hz);
+			sleep_time = hz;
+		else
+			sleep_time = 0;
 
-		msleep(balloon_process, &balloon_mutex, 0, "balloon", -1);
+		msleep(balloon_process, &balloon_mutex, 0, "balloon",
+		       sleep_time);
 	}
 	mtx_unlock(&balloon_mutex);
 }
@@ -406,20 +405,20 @@ set_new_target(unsigned long target)
 	wakeup(balloon_process);
 }
 
-static struct xenbus_watch target_watch =
+static struct xs_watch target_watch =
 {
 	.node = "memory/target"
 };
 
 /* React to a change in the target key */
 static void 
-watch_target(struct xenbus_watch *watch,
+watch_target(struct xs_watch *watch,
 	     const char **vec, unsigned int len)
 {
 	unsigned long long new_target;
 	int err;
 
-	err = xenbus_scanf(XBT_NIL, "memory", "target", NULL,
+	err = xs_scanf(XST_NIL, "memory", "target", NULL,
 	    "%llu", &new_target);
 	if (err) {
 		/* This is ok (for domain0 at least) - so just return */
@@ -438,7 +437,7 @@ balloon_init_watcher(void *arg)
 {
 	int err;
 
-	err = register_xenbus_watch(&target_watch);
+	err = xs_register_watch(&target_watch);
 	if (err)
 		printf("Failed to set balloon watcher\n");
 
@@ -474,9 +473,6 @@ balloon_init(void *arg)
 	bs.hard_limit    = ~0UL;
 
 	kproc_create(balloon_process, NULL, NULL, 0, 0, "balloon");
-//	init_timer(&balloon_timer);
-//	balloon_timer.data = 0;
-//	balloon_timer.function = balloon_alarm;
     
 #ifndef XENHVM
 	/* Initialise the balloon with excess memory space. */

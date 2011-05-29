@@ -152,7 +152,7 @@ Package Temp:  Where package temporary files should go
 
    Some packages, like emacs, can use a LOT of temporary space - up to
    20 or 30MB.  If you are going to configure a small / directory and no
-   seperate /var (and hence a small /var/tmp), then you may wish to set
+   separate /var (and hence a small /var/tmp), then you may wish to set
    this to point at another location (say, /usr/tmp).
 
 

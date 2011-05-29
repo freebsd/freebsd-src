@@ -84,7 +84,7 @@ arc4random_stir(void)
 }
 #endif /* !HAVE_ARC4RANDOM */
 
-#ifndef ARC4RANDOM_BUF
+#ifndef HAVE_ARC4RANDOM_BUF
 void
 arc4random_buf(void *_buf, size_t n)
 {
@@ -102,7 +102,7 @@ arc4random_buf(void *_buf, size_t n)
 }
 #endif /* !HAVE_ARC4RANDOM_BUF */
 
-#ifndef ARC4RANDOM_UNIFORM
+#ifndef HAVE_ARC4RANDOM_UNIFORM
 /*
  * Calculate a uniformly distributed random number less than upper_bound
  * avoiding "modulo bias".

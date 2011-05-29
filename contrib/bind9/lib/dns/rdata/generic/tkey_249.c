@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: tkey_249.c,v 1.57 2007/06/19 23:47:17 tbox Exp $ */
+/* $Id: tkey_249.c,v 1.57 2007-06-19 23:47:17 tbox Exp $ */
 
 /*
  * Reviewed: Thu Mar 16 17:35:30 PST 2000 by halley.

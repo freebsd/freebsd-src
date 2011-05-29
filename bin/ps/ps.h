@@ -62,12 +62,11 @@ typedef struct var {
 #define	COMM	0x01		/* needs exec arguments and environment (XXX) */
 #define	LJUST	0x02		/* left adjust on output (trailing blanks) */
 #define	USER	0x04		/* needs user structure */
-#define	DSIZ	0x08		/* field size is dynamic*/
 #define	INF127	0x10		/* values >127 displayed as 127 */
 	u_int	flag;
 				/* output routine */
 	void	(*oproc)(struct kinfo *, struct varent *);
-				/* sizing routine*/
+				/* sizing routine */
 	int	(*sproc)(struct kinfo *);
 	short	width;		/* printing width */
 	/*

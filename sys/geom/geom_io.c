@@ -265,6 +265,7 @@ g_io_flush(struct g_consumer *cp)
 	g_trace(G_T_BIO, "bio_flush(%s)", cp->provider->name);
 	bp = g_alloc_bio();
 	bp->bio_cmd = BIO_FLUSH;
+	bp->bio_flags |= BIO_ORDERED;
 	bp->bio_done = NULL;
 	bp->bio_attribute = NULL;
 	bp->bio_offset = cp->provider->mediasize;
@@ -309,8 +310,8 @@ g_io_check(struct bio *bp)
 	case BIO_READ:
 	case BIO_WRITE:
 	case BIO_DELETE:
-		/* Zero sectorsize is a probably lack of media */
-		if (pp->sectorsize == 0)
+		/* Zero sectorsize or mediasize is probably a lack of media. */
+		if (pp->sectorsize == 0 || pp->mediasize == 0)
 			return (ENXIO);
 		/* Reject I/O not on sector boundary */
 		if (bp->bio_offset % pp->sectorsize)
@@ -443,7 +444,10 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 	    ("Bio already on queue bp=%p", bp));
 	bp->bio_flags |= BIO_ONQUEUE;
 
-	binuptime(&bp->bio_t0);
+	if (g_collectstats)
+		binuptime(&bp->bio_t0);
+	else
+		getbinuptime(&bp->bio_t0);
 
 	/*
 	 * The statistics collection is lockless, as such, but we
@@ -776,19 +780,18 @@ g_print_bio(struct bio *bp)
 		return;
 	case BIO_READ:
 		cmd = "READ";
+		break;
 	case BIO_WRITE:
-		if (cmd == NULL)
-			cmd = "WRITE";
+		cmd = "WRITE";
+		break;
 	case BIO_DELETE:
-		if (cmd == NULL)
-			cmd = "DELETE";
-		printf("%s[%s(offset=%jd, length=%jd)]", pname, cmd,
-		    (intmax_t)bp->bio_offset, (intmax_t)bp->bio_length);
-		return;
+		cmd = "DELETE";
+		break;
 	default:
 		cmd = "UNKNOWN";
 		printf("%s[%s()]", pname, cmd);
 		return;
 	}
-	/* NOTREACHED */
+	printf("%s[%s(offset=%jd, length=%jd)]", pname, cmd,
+	    (intmax_t)bp->bio_offset, (intmax_t)bp->bio_length);
 }

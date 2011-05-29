@@ -19,10 +19,10 @@ CFLAGS+= -I${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libnvpair
 CFLAGS+= -I${.CURDIR}/../../../sys/cddl/contrib/opensolaris/uts/common
 CFLAGS+= -I${.CURDIR}/../../../sys/cddl/contrib/opensolaris/uts/common/fs/zfs
 CFLAGS+= -I${.CURDIR}/../../../sys/cddl/contrib/opensolaris/uts/common/sys
+CFLAGS+= -I${.CURDIR}/../../../sys/cddl/contrib/opensolaris/common/zfs
 
-DPADD=	${LIBZFS} ${LIBGEOM} ${LIBBSDXML} ${LIBSBUF} \
-	${LIBM} ${LIBNVPAIR} ${LIBUUTIL} ${LIBUTIL}
-LDADD=	-lzfs -lgeom -lbsdxml -lsbuf \
-	-lm -lnvpair -luutil -lutil
+DPADD=	${LIBBSDXML} ${LIBGEOM} ${LIBM} ${LIBNVPAIR} ${LIBSBUF} ${LIBUMEM} \
+	${LIBUTIL} ${LIBUUTIL} ${LIBZFS}
+LDADD=	-lbsdxml -lgeom -lm -lnvpair -lsbuf -lumem -lutil -luutil -lzfs
 
 .include <bsd.prog.mk>

@@ -72,6 +72,8 @@
         ..
     ..
     libexec
+        resolvconf
+        ..
     ..
     media
     ..

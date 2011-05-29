@@ -81,7 +81,8 @@ devfs_mount(struct mount *mp)
 
 	MNT_ILOCK(mp);
 	mp->mnt_flag |= MNT_LOCAL;
-	mp->mnt_kern_flag |= MNTK_MPSAFE;
+	mp->mnt_kern_flag |= MNTK_MPSAFE | MNTK_LOOKUP_SHARED |
+	    MNTK_EXTENDED_SHARED;
 #ifdef MAC
 	mp->mnt_flag |= MNT_MULTILABEL;
 #endif
@@ -155,7 +156,7 @@ devfs_root(struct mount *mp, int flags, struct vnode **vpp)
 
 	dmp = VFSTODEVFS(mp);
 	sx_xlock(&dmp->dm_lock);
-	error = devfs_allocv(dmp->dm_rootdir, mp, &vp);
+	error = devfs_allocv(dmp->dm_rootdir, mp, LK_EXCLUSIVE, &vp);
 	if (error)
 		return (error);
 	vp->v_vflag |= VV_ROOT;

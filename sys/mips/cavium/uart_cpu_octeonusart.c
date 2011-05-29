@@ -43,26 +43,10 @@ __FBSDID("$FreeBSD$");
 
 #include <mips/cavium/octeon_pcmap_regs.h>
 
+#include <contrib/octeon-sdk/cvmx.h>
+
 bus_space_tag_t uart_bus_space_io;
 bus_space_tag_t uart_bus_space_mem;
-
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
-#include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/bus.h>
-#include <sys/kernel.h>
-#include <sys/malloc.h>
-#include <sys/ktr.h>
-
-#include <vm/vm.h>
-#include <vm/pmap.h>
-#include <vm/vm_kern.h>
-#include <vm/vm_extern.h>
-
-#include <machine/bus.h>
-#include <machine/cache.h>
 
 /*
  * Specailized uart bus space.  We present a 1 apart byte oriented
@@ -74,56 +58,56 @@ static uint8_t
 ou_bs_r_1(void *t, bus_space_handle_t handle, bus_size_t offset)
 {
 
-	return (oct_read64(handle + (offset << 3)));
+	return (oct_read64(handle + offset));
 }
 
 static uint16_t
 ou_bs_r_2(void *t, bus_space_handle_t handle, bus_size_t offset)
 {
 
-	return (oct_read64(handle + (offset << 3)));
+	return (oct_read64(handle + offset));
 }
 
 static uint32_t
 ou_bs_r_4(void *t, bus_space_handle_t handle, bus_size_t offset)
 {
 
-	return (oct_read64(handle + (offset << 3)));
+	return (oct_read64(handle + offset));
 }
 
 static uint64_t
 ou_bs_r_8(void *t, bus_space_handle_t handle, bus_size_t offset)
 {
 
-	return (oct_read64(handle + (offset << 3)));
+	return (oct_read64(handle + offset));
 }
 
 static void
 ou_bs_w_1(void *t, bus_space_handle_t bsh, bus_size_t offset, uint8_t value)
 {
 
-	oct_write64(bsh + (offset << 3), value);
+	oct_write64(bsh + offset, value);
 }
 
 static void
 ou_bs_w_2(void *t, bus_space_handle_t bsh, bus_size_t offset, uint16_t value)
 {
 
-	oct_write64(bsh + (offset << 3), value);
+	oct_write64(bsh + offset, value);
 }
 
 static void
 ou_bs_w_4(void *t, bus_space_handle_t bsh, bus_size_t offset, uint32_t value)
 {
 
-	oct_write64(bsh + (offset << 3), value);
+	oct_write64(bsh + offset, value);
 }
 
 static void
 ou_bs_w_8(void *t, bus_space_handle_t bsh, bus_size_t offset, uint64_t value)
 {
 
-	oct_write64(bsh + (offset << 3), value);
+	oct_write64(bsh + offset, value);
 }
 
 struct bus_space octeon_uart_tag = {
@@ -175,10 +159,11 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	 */
 	di->ops = uart_getops(class);
 	di->bas.chan = 0;
-	if (bus_space_map(di->bas.bst, OCTEON_MIO_UART0, OCTEON_MIO_UART_SIZE,
-	    0, &di->bas.bsh) != 0)
+	/* XXX */
+	if (bus_space_map(di->bas.bst, CVMX_MIO_UARTX_RBR(0),
+	    uart_getrange(class), 0, &di->bas.bsh) != 0)
 		return (ENXIO);
-	di->bas.regshft = 0;
+	di->bas.regshft = 3;
 	di->bas.rclk = 0;
 	di->baudrate = 115200;
 	di->databits = 8;

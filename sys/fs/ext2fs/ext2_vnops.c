@@ -46,7 +46,6 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/resourcevar.h>
 #include <sys/kernel.h>
 #include <sys/fcntl.h>
 #include <sys/stat.h>
@@ -54,7 +53,6 @@
 #include <sys/buf.h>
 #include <sys/endian.h>
 #include <sys/priv.h>
-#include <sys/proc.h>
 #include <sys/mount.h>
 #include <sys/unistd.h>
 #include <sys/time.h>
@@ -71,15 +69,15 @@
 
 #include <fs/fifofs/fifo.h>
 
-#include <sys/signalvar.h>
 #include <ufs/ufs/dir.h>
 
-#include <fs/ext2fs/inode.h>
-#include <fs/ext2fs/ext2_mount.h>
 #include <fs/ext2fs/fs.h>
+#include <fs/ext2fs/inode.h>
 #include <fs/ext2fs/ext2_extern.h>
 #include <fs/ext2fs/ext2fs.h>
+#include <fs/ext2fs/ext2_dinode.h>
 #include <fs/ext2fs/ext2_dir.h>
+#include <fs/ext2fs/ext2_mount.h>
 
 static int ext2_makeinode(int mode, struct vnode *, struct vnode **, struct componentname *);
 static void ext2_itimes_locked(struct vnode *);
@@ -740,7 +738,7 @@ ext2_link(ap)
 	}
 	ip->i_nlink++;
 	ip->i_flag |= IN_CHANGE;
-	error = ext2_update(vp, 1);
+	error = ext2_update(vp, !DOINGASYNC(vp));
 	if (!error)
 		error = ext2_direnter(ip, tdvp, cnp);
 	if (error) {
@@ -886,7 +884,7 @@ abortit:
 	 */
 	ip->i_nlink++;
 	ip->i_flag |= IN_CHANGE;
-	if ((error = ext2_update(fvp, 1)) != 0) {
+	if ((error = ext2_update(fvp, !DOINGASYNC(fvp))) != 0) {
 		VOP_UNLOCK(fvp, 0);
 		goto bad;
 	}
@@ -945,7 +943,7 @@ abortit:
 			}
 			dp->i_nlink++;
 			dp->i_flag |= IN_CHANGE;
-			error = ext2_update(tdvp, 1);
+			error = ext2_update(tdvp, !DOINGASYNC(tdvp));
 			if (error)
 				goto bad;
 		}
@@ -1213,7 +1211,7 @@ ext2_mkdir(ap)
 	 */
 	dp->i_nlink++;
 	dp->i_flag |= IN_CHANGE;
-	error = ext2_update(dvp, 1);
+	error = ext2_update(dvp, !DOINGASYNC(dvp));
 	if (error)
 		goto bad;
 
@@ -1584,7 +1582,7 @@ ext2_vinit(mntp, fifoops, vpp)
 	if (vp->v_type == VFIFO)
 		vp->v_op = fifoops;
 
-	if (ip->i_number == ROOTINO)
+	if (ip->i_number == EXT2_ROOTINO)
 		vp->v_vflag |= VV_ROOT;
 	ip->i_modrev = init_va_filerev();
 	*vpp = vp;
@@ -1657,7 +1655,7 @@ ext2_makeinode(mode, dvp, vpp, cnp)
 	/*
 	 * Make sure inode goes to disk before directory entry.
 	 */
-	error = ext2_update(tvp, 1);
+	error = ext2_update(tvp, !DOINGASYNC(tvp));
 	if (error)
 		goto bad;
 	error = ext2_direnter(ip, dvp, cnp);

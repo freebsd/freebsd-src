@@ -52,8 +52,10 @@ __FBSDID("$FreeBSD$");
 #include <net/if_var.h>
 #include <net/bpf.h>
 
-#ifdef INET
+#if defined(INET) || defined(INET6)
 #include <netinet/in.h>
+#endif
+#ifdef INET
 #include <netinet/in_systm.h>
 #include <netinet/if_ether.h>
 #include <netinet/ip.h>
@@ -161,6 +163,14 @@ static const struct {
 	{ LAGG_PROTO_LACP,		lagg_lacp_attach },
 	{ LAGG_PROTO_NONE,		NULL }
 };
+
+SYSCTL_DECL(_net_link);
+SYSCTL_NODE(_net_link, OID_AUTO, lagg, CTLFLAG_RW, 0, "Link Aggregation");
+
+static int lagg_failover_rx_all = 0; /* Allow input on any failover links */
+SYSCTL_INT(_net_link_lagg, OID_AUTO, failover_rx_all, CTLFLAG_RW,
+    &lagg_failover_rx_all, 0,
+    "Accept input from any interface in a failover lagg");
 
 static int
 lagg_modevent(module_t mod, int type, void *data)
@@ -333,7 +343,8 @@ lagg_clone_destroy(struct ifnet *ifp)
 	while ((lp = SLIST_FIRST(&sc->sc_ports)) != NULL)
 		lagg_port_destroy(lp, 1);
 	/* Unhook the aggregation protocol */
-	(*sc->sc_detach)(sc);
+	if (sc->sc_detach != NULL)
+		(*sc->sc_detach)(sc);
 
 	LAGG_WUNLOCK(sc);
 
@@ -483,10 +494,6 @@ lagg_port_create(struct lagg_softc *sc, struct ifnet *ifp)
 	/* Limit the maximal number of lagg ports */
 	if (sc->sc_count >= LAGG_MAX_PORTS)
 		return (ENOSPC);
-
-	/* New lagg port has to be in an idle state */
-	if (ifp->if_drv_flags & IFF_DRV_OACTIVE)
-		return (EBUSY);
 
 	/* Check if port has already been associated to a lagg */
 	if (ifp->if_lagg != NULL)
@@ -1564,7 +1571,7 @@ lagg_fail_input(struct lagg_softc *sc, struct lagg_port *lp, struct mbuf *m)
 	struct ifnet *ifp = sc->sc_ifp;
 	struct lagg_port *tmp_tp;
 
-	if (lp == sc->sc_primary) {
+	if (lp == sc->sc_primary || lagg_failover_rx_all) {
 		m->m_pkthdr.rcvif = ifp;
 		return (m);
 	}
@@ -1787,7 +1794,7 @@ lagg_lacp_input(struct lagg_softc *sc, struct lagg_port *lp, struct mbuf *m)
 	etype = ntohs(eh->ether_type);
 
 	/* Tap off LACP control messages */
-	if (etype == ETHERTYPE_SLOW) {
+	if ((m->m_flags & M_VLANTAG) == 0 && etype == ETHERTYPE_SLOW) {
 		m = lacp_input(lp, m);
 		if (m == NULL)
 			return (NULL);

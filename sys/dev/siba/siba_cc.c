@@ -141,7 +141,7 @@ static device_method_t siba_cc_methods[] = {
 	DEVMETHOD(device_attach,	siba_cc_attach),
 	DEVMETHOD(device_probe,		siba_cc_probe),
 
-	{0, 0},
+	KOBJMETHOD_END
 };
 
 static driver_t siba_cc_driver = {

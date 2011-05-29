@@ -49,7 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -76,7 +75,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/input/usb_rdesc.h>
 #include <dev/usb/quirk/usb_quirk.h>
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 static int uhid_debug = 0;
 
 SYSCTL_NODE(_hw_usb, OID_AUTO, uhid, CTLFLAG_RW, 0, "USB uhid");
@@ -618,10 +617,6 @@ uhid_probe(device_t dev)
 	if (uaa->usb_mode != USB_MODE_HOST) {
 		return (ENXIO);
 	}
-	if (uaa->use_generic == 0) {
-		/* give Mouse and Keyboard drivers a try first */
-		return (ENXIO);
-	}
 	if (uaa->info.bInterfaceClass != UICLASS_HID) {
 
 		/* the Xbox 360 gamepad doesn't use the HID class */
@@ -672,7 +667,7 @@ uhid_attach(device_t dev)
 		if (uaa->info.idProduct == USB_PRODUCT_WACOM_GRAPHIRE) {
 
 			sc->sc_repdesc_size = sizeof(uhid_graphire_report_descr);
-			sc->sc_repdesc_ptr = &uhid_graphire_report_descr;
+			sc->sc_repdesc_ptr = (void *)&uhid_graphire_report_descr;
 			sc->sc_flags |= UHID_FLAG_STATIC_DESC;
 
 		} else if (uaa->info.idProduct == USB_PRODUCT_WACOM_GRAPHIRE3_4X5) {
@@ -693,7 +688,7 @@ uhid_attach(device_t dev)
 				    usbd_errstr(error));
 			}
 			sc->sc_repdesc_size = sizeof(uhid_graphire3_4x5_report_descr);
-			sc->sc_repdesc_ptr = &uhid_graphire3_4x5_report_descr;
+			sc->sc_repdesc_ptr = (void *)&uhid_graphire3_4x5_report_descr;
 			sc->sc_flags |= UHID_FLAG_STATIC_DESC;
 		}
 	} else if ((uaa->info.bInterfaceClass == UICLASS_VENDOR) &&
@@ -702,7 +697,7 @@ uhid_attach(device_t dev)
 
 		/* the Xbox 360 gamepad has no report descriptor */
 		sc->sc_repdesc_size = sizeof(uhid_xb360gp_report_descr);
-		sc->sc_repdesc_ptr = &uhid_xb360gp_report_descr;
+		sc->sc_repdesc_ptr = (void *)&uhid_xb360gp_report_descr;
 		sc->sc_flags |= UHID_FLAG_STATIC_DESC;
 	}
 	if (sc->sc_repdesc_ptr == NULL) {
@@ -801,3 +796,4 @@ static driver_t uhid_driver = {
 
 DRIVER_MODULE(uhid, uhub, uhid_driver, uhid_devclass, NULL, 0);
 MODULE_DEPEND(uhid, usb, 1, 1, 1);
+MODULE_VERSION(uhid, 1);

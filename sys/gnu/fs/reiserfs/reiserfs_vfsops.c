@@ -52,14 +52,16 @@ static int
 reiserfs_cmount(struct mntarg *ma, void *data, int flags)
 {
 	struct reiserfs_args args;
+	struct export_args exp;
 	int error;
 
 	error = copyin(data, &args, sizeof(args));
 	if (error)
 		return (error);
+	vfs_oexport_conv(&args.export, &exp);
 
 	ma = mount_argsu(ma, "from", args.fspec, MAXPATHLEN);
-	ma = mount_arg(ma, "export", &args.export, sizeof args.export);
+	ma = mount_arg(ma, "export", &exp, sizeof(exp));
 
 	error = kernel_mount(ma, flags);
 
@@ -333,7 +335,8 @@ reiserfs_statfs(struct mount *mp, struct statfs *sbp)
  *   those rights via. exflagsp and credanonp
  */
 static int
-reiserfs_fhtovp(struct mount *mp, struct fid *fhp, struct vnode **vpp)
+reiserfs_fhtovp(struct mount *mp, struct fid *fhp, int flags,
+    struct vnode **vpp)
 {
 	int error;
 	struct rfid *rfhp;

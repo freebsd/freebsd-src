@@ -305,6 +305,8 @@ main(int argc, char *argv[])
 		}
 		cp = ifa->ifa_name;
 
+		if ((ifa->ifa_flags & IFF_CANTCONFIG) != 0)
+			continue;
 		if (downonly && (ifa->ifa_flags & IFF_UP) != 0)
 			continue;
 		if (uponly && (ifa->ifa_flags & IFF_UP) == 0)
@@ -319,7 +321,9 @@ main(int argc, char *argv[])
 				/* special case for "ether" address family */
 				if (!strcmp(afp->af_name, "ether")) {
 					if (sdl == NULL ||
-					    sdl->sdl_type != IFT_ETHER ||
+					    (sdl->sdl_type != IFT_ETHER &&
+					    sdl->sdl_type != IFT_L2VLAN &&
+					    sdl->sdl_type != IFT_BRIDGE) ||
 					    sdl->sdl_alen != ETHER_ADDR_LEN)
 						continue;
 				} else {
@@ -881,7 +885,7 @@ unsetifdescr(const char *val, int value, int s, const struct afswtch *afp)
 #define	IFCAPBITS \
 "\020\1RXCSUM\2TXCSUM\3NETCONS\4VLAN_MTU\5VLAN_HWTAGGING\6JUMBO_MTU\7POLLING" \
 "\10VLAN_HWCSUM\11TSO4\12TSO6\13LRO\14WOL_UCAST\15WOL_MCAST\16WOL_MAGIC" \
-"\21VLAN_HWFILTER\23VLAN_HWTSO"
+"\21VLAN_HWFILTER\23VLAN_HWTSO\24LINKSTATE"
 
 /*
  * Print the status of the interface.  If an address family was
@@ -922,19 +926,20 @@ status(const struct afswtch *afp, const struct sockaddr_dl *sdl,
 			ifr.ifr_buffer.buffer = descr;
 			ifr.ifr_buffer.length = descrlen;
 			if (ioctl(s, SIOCGIFDESCR, &ifr) == 0) {
-				if (strlen(descr) > 0)
-					printf("\tdescription: %s\n", descr);
-				break;
-			} else if (errno == ENAMETOOLONG)
-				descrlen = ifr.ifr_buffer.length;
-			else
-				break;
-		} else {
+				if (ifr.ifr_buffer.buffer == descr) {
+					if (strlen(descr) > 0)
+						printf("\tdescription: %s\n",
+						    descr);
+				} else if (ifr.ifr_buffer.length > descrlen) {
+					descrlen = ifr.ifr_buffer.length;
+					continue;
+				}
+			}
+		} else
 			warn("unable to allocate memory for interface"
 			    "description");
-			break;
-		}
-	};
+		break;
+	}
 
 	if (ioctl(s, SIOCGIFCAP, (caddr_t)&ifr) == 0) {
 		if (ifr.ifr_curcap != 0) {

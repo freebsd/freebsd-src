@@ -171,13 +171,6 @@ acpi_pcib_attach(device_t dev, ACPI_BUFFER *prt, int busno)
     return_VALUE (bus_generic_attach(dev));
 }
 
-int
-acpi_pcib_resume(device_t dev)
-{
-
-    return (bus_generic_resume(dev));
-}
-
 static void
 prt_lookup_device(ACPI_PCI_ROUTING_TABLE *entry, void *arg)
 {
@@ -282,3 +275,14 @@ out:
 
     return_VALUE (interrupt);
 }
+
+int
+acpi_pcib_power_for_sleep(device_t pcib, device_t dev, int *pstate)
+{
+    device_t acpi_dev;
+
+    acpi_dev = devclass_get_device(devclass_find("acpi"), 0);
+    acpi_device_pwr_for_sleep(acpi_dev, dev, pstate);
+    return (0);
+}
+

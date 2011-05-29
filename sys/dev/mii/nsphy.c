@@ -16,13 +16,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the NetBSD
- *	Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -48,11 +41,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by Manuel Bouyer.
- * 4. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -120,8 +108,14 @@ static void	nsphy_status(struct mii_softc *);
 static void	nsphy_reset(struct mii_softc *);
 
 static const struct mii_phydesc nsphys[] = {
-	MII_PHY_DESC(NATSEMI, DP83840),
+	MII_PHY_DESC(xxNATSEMI, DP83840),
 	MII_PHY_END
+};
+
+static const struct mii_phy_funcs nsphy_funcs = {
+	nsphy_service,
+	nsphy_status,
+	nsphy_reset
 };
 
 static int
@@ -134,95 +128,30 @@ nsphy_probe(device_t dev)
 static int
 nsphy_attach(device_t dev)
 {
-	struct mii_softc *sc;
-	struct mii_attach_args *ma;
-	struct mii_data *mii;
 	const char *nic;
+	u_int flags;
 
-	sc = device_get_softc(dev);
-	ma = device_get_ivars(dev);
-	sc->mii_dev = device_get_parent(dev);
-	mii = device_get_softc(sc->mii_dev);
-	LIST_INSERT_HEAD(&mii->mii_phys, sc, mii_list);
-
-	sc->mii_inst = mii->mii_instance;
-	sc->mii_phy = ma->mii_phyno;
-	sc->mii_service = nsphy_service;
-	sc->mii_pdata = mii;
-
-	mii->mii_instance++;
-
-	nic = device_get_name(device_get_parent(sc->mii_dev));
+	nic = device_get_name(device_get_parent(device_get_parent(dev)));
+	flags = MIIF_NOMANPAUSE;
 	/*
-	 * Am79C971 and i82557 wedge when isolating all of their
-	 * (external) PHYs.
+	 * Am79C971 wedge when isolating all of their external PHYs.
 	 */
-	if (strcmp(nic, "fxp") == 0 || strcmp(nic, "pcn") == 0)
-		sc->mii_flags |= MIIF_NOISOLATE;
-
-	/*
-	 * DP83840A used with HME chips don't advertise their media
-	 * capabilities themselves properly so force writing the ANAR
-	 * according to the BMSR in mii_phy_setmedia().
-	 */
-	if (strcmp(nic, "hme") == 0)
-		sc->mii_flags |= MIIF_FORCEANEG;
-
-#define	ADD(m, c)	ifmedia_add(&mii->mii_media, (m), (c), NULL)
-
-	/*
-	 * In order for MII loopback to work Am79C971 and greater PCnet
-	 * chips additionally need to be placed into external loopback
-	 * mode which pcn(4) doesn't do so far.
-	 */
-	if (strcmp(nic, "pcn") != 0)
-#if 1
-		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_TX, IFM_LOOP,
-		    sc->mii_inst), MII_MEDIA_100_TX);
-#else
 	if (strcmp(nic, "pcn") == 0)
-		sc->mii_flags |= MIIF_NOLOOP;
-#endif
-
-	nsphy_reset(sc);
-
-	sc->mii_capabilities =
-	    PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
-	device_printf(dev, " ");
-	mii_phy_add_media(sc);
-	printf("\n");
-#undef ADD
-
-	MIIBUS_MEDIAINIT(sc->mii_dev);
+		flags |= MIIF_NOISOLATE;
+	mii_phy_dev_attach(dev, flags, &nsphy_funcs, 1);
 	return (0);
 }
 
 static int
 nsphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 {
-	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
 	int reg;
 
 	switch (cmd) {
 	case MII_POLLSTAT:
-		/*
-		 * If we're not polling our PHY instance, just return.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst)
-			return (0);
 		break;
 
 	case MII_MEDIACHG:
-		/*
-		 * If the media indicates a different PHY instance,
-		 * isolate ourselves.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst) {
-			reg = PHY_READ(sc, MII_BMCR);
-			PHY_WRITE(sc, MII_BMCR, reg | BMCR_ISO);
-			return (0);
-		}
-
 		/*
 		 * If the interface is not up, don't do anything.
 		 */
@@ -269,18 +198,13 @@ nsphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		break;
 
 	case MII_TICK:
-		/*
-		 * If we're not currently selected, just return.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst)
-			return (0);
 		if (mii_phy_tick(sc) == EJUSTRETURN)
 			return (0);
 		break;
 	}
 
 	/* Update the media status. */
-	nsphy_status(sc);
+	PHY_STATUS(sc);
 
 	/* Callback if something changed. */
 	mii_phy_update(sc, cmd);
@@ -334,15 +258,18 @@ nsphy_status(struct mii_softc *sc)
 			if (anlpar & ANLPAR_TX_FD)
 				mii->mii_media_active |= IFM_100_TX|IFM_FDX;
 			else if (anlpar & ANLPAR_T4)
-				mii->mii_media_active |= IFM_100_T4;
+				mii->mii_media_active |= IFM_100_T4|IFM_HDX;
 			else if (anlpar & ANLPAR_TX)
-				mii->mii_media_active |= IFM_100_TX;
+				mii->mii_media_active |= IFM_100_TX|IFM_HDX;
 			else if (anlpar & ANLPAR_10_FD)
 				mii->mii_media_active |= IFM_10_T|IFM_FDX;
 			else if (anlpar & ANLPAR_10)
-				mii->mii_media_active |= IFM_10_T;
+				mii->mii_media_active |= IFM_10_T|IFM_HDX;
 			else
 				mii->mii_media_active |= IFM_NONE;
+			if ((mii->mii_media_active & IFM_FDX) != 0)
+				mii->mii_media_active |=
+				    mii_phy_flowstatus(sc);
 			return;
 		}
 
@@ -356,10 +283,7 @@ nsphy_status(struct mii_softc *sc)
 			mii->mii_media_active |= IFM_10_T;
 		else
 			mii->mii_media_active |= IFM_100_TX;
-#if 0
-		if (par & PAR_FDX)
-			mii->mii_media_active |= IFM_FDX;
-#endif
+		mii->mii_media_active |= IFM_HDX;
 	} else
 		mii->mii_media_active = ife->ifm_media;
 }

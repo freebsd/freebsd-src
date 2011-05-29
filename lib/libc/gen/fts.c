@@ -100,6 +100,7 @@ struct _fts_private {
 
 static const char *ufslike_filesystems[] = {
 	"ufs",
+	"zfs",
 	"nfs",
 	"nfs4",
 	"ext2fs",

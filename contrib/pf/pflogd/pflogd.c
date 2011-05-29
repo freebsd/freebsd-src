@@ -583,11 +583,7 @@ main(int argc, char **argv)
 	pcap_handler phandler = dump_packet;
 	const char *errstr = NULL;
 
-#ifdef __FreeBSD__
-	/* another ?paranoid? safety measure we do not have */
-#else
 	closefrom(STDERR_FILENO + 1);
-#endif
 
 	while ((ch = getopt(argc, argv, "Dxd:f:i:s:")) != -1) {
 		switch (ch) {

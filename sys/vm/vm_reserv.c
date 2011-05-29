@@ -180,12 +180,12 @@ sysctl_vm_reserv_partpopq(SYSCTL_HANDLER_ARGS)
 {
 	struct sbuf sbuf;
 	vm_reserv_t rv;
-	char *cbuf;
-	const int cbufsize = (VM_NRESERVLEVEL + 1) * 81;
 	int counter, error, level, unused_pages;
 
-	cbuf = malloc(cbufsize, M_TEMP, M_WAITOK | M_ZERO);
-	sbuf_new(&sbuf, cbuf, cbufsize, SBUF_FIXEDLEN);
+	error = sysctl_wire_old_buffer(req, 0);
+	if (error != 0)
+		return (error);
+	sbuf_new_for_sysctl(&sbuf, NULL, 128, req);
 	sbuf_printf(&sbuf, "\nLEVEL     SIZE  NUMBER\n\n");
 	for (level = -1; level <= VM_NRESERVLEVEL - 2; level++) {
 		counter = 0;
@@ -196,13 +196,11 @@ sysctl_vm_reserv_partpopq(SYSCTL_HANDLER_ARGS)
 			unused_pages += VM_LEVEL_0_NPAGES - rv->popcnt;
 		}
 		mtx_unlock(&vm_page_queue_free_mtx);
-		sbuf_printf(&sbuf, "%5.5d: %6.6dK, %6.6d\n", level,
-		    unused_pages * (PAGE_SIZE / 1024), counter);
+		sbuf_printf(&sbuf, "%5d: %6dK, %6d\n", level,
+		    unused_pages * ((int)PAGE_SIZE / 1024), counter);
 	}
-	sbuf_finish(&sbuf);
-	error = SYSCTL_OUT(req, sbuf_data(&sbuf), sbuf_len(&sbuf));
+	error = sbuf_finish(&sbuf);
 	sbuf_delete(&sbuf);
-	free(cbuf, M_TEMP);
 	return (error);
 }
 
@@ -659,7 +657,8 @@ vm_reserv_reclaim_contig(vm_paddr_t size, vm_paddr_t low, vm_paddr_t high,
 					    ((pa ^ (pa + size - 1)) &
 					    ~(boundary - 1)) != 0)
 						pa_length = 0;
-				} else if (pa_length >= size) {
+				}
+				if (pa_length >= size) {
 					vm_reserv_reclaim(rv);
 					return (TRUE);
 				}

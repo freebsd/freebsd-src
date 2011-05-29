@@ -47,6 +47,13 @@ _thr_umutex_init(struct umutex *mtx)
 	*mtx = default_mtx;
 }
 
+void
+_thr_urwlock_init(struct urwlock *rwl)
+{
+	static struct urwlock default_rwl = DEFAULT_URWLOCK;
+	*rwl = default_rwl;
+}
+
 int
 __thr_umutex_lock(struct umutex *mtx, uint32_t id)
 {
@@ -61,6 +68,39 @@ __thr_umutex_lock(struct umutex *mtx, uint32_t id)
 			if ((owner & ~UMUTEX_CONTESTED) == 0 &&
 			     atomic_cmpset_acq_32(&mtx->m_owner, owner, id|owner))
 				return (0);
+		}
+	}
+
+	return	_umtx_op_err(mtx, UMTX_OP_MUTEX_LOCK, 0, 0, 0);
+}
+
+#define SPINLOOPS 1000
+
+int
+__thr_umutex_lock_spin(struct umutex *mtx, uint32_t id)
+{
+	uint32_t owner;
+
+	if (!_thr_is_smp)
+		return __thr_umutex_lock(mtx, id);
+
+	if ((mtx->m_flags & (UMUTEX_PRIO_PROTECT | UMUTEX_PRIO_INHERIT)) == 0) {
+		for (;;) {
+			int count = SPINLOOPS;
+			while (count--) {
+				owner = mtx->m_owner;
+				if ((owner & ~UMUTEX_CONTESTED) == 0) {
+					if (atomic_cmpset_acq_32(
+					    &mtx->m_owner,
+					    owner, id|owner)) {
+						return (0);
+					}
+				}
+				CPU_SPINWAIT;
+			}
+
+			/* wait in kernel */
+			_umtx_op_err(mtx, UMTX_OP_MUTEX_WAIT, 0, 0, 0);
 		}
 	}
 
@@ -157,6 +197,26 @@ _thr_umtx_wait_uint(volatile u_int *mtx, u_int id, const struct timespec *timeou
 }
 
 int
+_thr_umtx_timedwait_uint(volatile u_int *mtx, u_int id, int clockid,
+	const struct timespec *abstime, int shared)
+{
+	struct timespec ts, ts2, *tsp;
+
+	if (abstime != NULL) {
+		clock_gettime(clockid, &ts);
+		TIMESPEC_SUB(&ts2, abstime, &ts);
+		if (ts2.tv_sec < 0 || ts2.tv_nsec <= 0)
+			return (ETIMEDOUT);
+		tsp = &ts2;
+	} else {
+		tsp = NULL;
+	}
+	return _umtx_op_err(__DEVOLATILE(void *, mtx), 
+		shared ? UMTX_OP_WAIT_UINT : UMTX_OP_WAIT_UINT_PRIVATE, id, NULL,
+			tsp);
+}
+
+int
 _thr_umtx_wake(volatile void *mtx, int nr_wakeup, int shared)
 {
 	return _umtx_op_err(__DEVOLATILE(void *, mtx), shared ? UMTX_OP_WAKE : UMTX_OP_WAKE_PRIVATE,
@@ -216,4 +276,43 @@ int
 __thr_rwlock_unlock(struct urwlock *rwlock)
 {
 	return _umtx_op_err(rwlock, UMTX_OP_RW_UNLOCK, 0, NULL, NULL);
+}
+
+void
+_thr_rwl_rdlock(struct urwlock *rwlock)
+{
+	int ret;
+
+	for (;;) {
+		if (_thr_rwlock_tryrdlock(rwlock, URWLOCK_PREFER_READER) == 0)
+			return;
+		ret = __thr_rwlock_rdlock(rwlock, URWLOCK_PREFER_READER, NULL);
+		if (ret == 0)
+			return;
+		if (ret != EINTR)
+			PANIC("rdlock error");
+	}
+}
+
+void
+_thr_rwl_wrlock(struct urwlock *rwlock)
+{
+	int ret;
+
+	for (;;) {
+		if (_thr_rwlock_trywrlock(rwlock) == 0)
+			return;
+		ret = __thr_rwlock_wrlock(rwlock, NULL);
+		if (ret == 0)
+			return;
+		if (ret != EINTR)
+			PANIC("wrlock error");
+	}
+}
+
+void
+_thr_rwl_unlock(struct urwlock *rwlock)
+{
+	if (_thr_rwlock_unlock(rwlock))
+		PANIC("unlock error");
 }

@@ -41,8 +41,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/resource.h>
 
 #include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/openfirm.h>
 
 #include <machine/bus.h>
+#include <machine/ofw_machdep.h>
 #include <machine/resource.h>
 #include <sys/rman.h>
 #include <sparc64/sbus/sbusvar.h>
@@ -195,7 +197,7 @@ isp_sbus_attach(device_t dev)
 	isp->isp_revision = 0;	/* XXX */
 	isp->isp_dev = dev;
 	isp->isp_nchan = 1;
-	ISP_SET_PC(isp, 0, role, role);
+	ISP_SET_PC(isp, 0, def_role, role);
 
 	/*
 	 * Get the clock frequency and convert it from HZ to MHz,
@@ -264,11 +266,7 @@ isp_sbus_attach(device_t dev)
 		isp->isp_confopts |= ISP_CFG_OWNLOOPID;
 	}
 	if (default_id == -1) {
-		/*
-		 * XXX: should be a way to get properties w/o having
-		 * XXX: to call OF_xxx functions
-		 */
-		default_id = 7;
+		default_id = OF_getscsinitid(dev);
 	}
 	ISP_SPI_PC(isp, 0)->iid = default_id;
 
@@ -403,7 +401,7 @@ isp_sbus_wr_reg(ispsoftc_t *isp, int regoff, uint32_t val)
 	isp_prt(isp, ISP_LOGDEBUG3,
 	    "isp_sbus_wr_reg(off %x) = %x", regoff, val);
 	bus_space_write_2(isp->isp_bus_tag, isp->isp_bus_handle, offset, val);
-	MEMORYBARRIER(isp, SYNC_REG, offset, 2);
+	MEMORYBARRIER(isp, SYNC_REG, offset, 2, -1);
 }
 
 struct imush {
@@ -498,7 +496,7 @@ isp_sbus_mbxdma(ispsoftc_t *isp)
 		return (1);
 	}
 
-	if (bus_dmamem_alloc(isp->isp_osinfo.cdmat, (void **)&base, BUS_DMA_NOWAIT,
+	if (bus_dmamem_alloc(isp->isp_osinfo.cdmat, (void **)&base, BUS_DMA_NOWAIT | BUS_DMA_COHERENT,
 	    &isp->isp_osinfo.cdmap) != 0) {
 		isp_prt(isp, ISP_LOGERR,
 		    "cannot allocate %d bytes of CCB memory", len);

@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 19, 2006
+.Dd March 1, 2011
 .Dt NG_ONE2MANY 4
 .Os
 .Sh NAME
@@ -94,6 +94,10 @@ Packets are delivered out all the
 .Dv many
 hooks.
 Each packet goes out each
+.Dv many
+hook.
+.It Dv NG_ONE2MANY_XMIT_FAILOVER
+Packets are delivered out the first active
 .Dv many
 hook.
 .El

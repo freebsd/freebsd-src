@@ -13,10 +13,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -60,8 +56,7 @@ bucket *last_symbol;
 
 
 static int
-hash(name)
-const char *name;
+hash(const char *name)
 {
     const char *s;
     int c, k;
@@ -77,17 +72,16 @@ const char *name;
 
 
 bucket *
-make_bucket(name)
-const char *name;
+make_bucket(const char *name)
 {
     bucket *bp;
 
     assert(name);
-    bp = (bucket *) MALLOC(sizeof(bucket));
+    bp = malloc(sizeof(bucket));
     if (bp == 0) no_space();
     bp->link = 0;
     bp->next = 0;
-    bp->name = MALLOC(strlen(name) + 1);
+    bp->name = malloc(strlen(name) + 1);
     if (bp->name == 0) no_space();
     bp->tag = 0;
     bp->value = UNDEFINED;
@@ -104,8 +98,7 @@ const char *name;
 
 
 bucket *
-lookup(name)
-char *name;
+lookup(char *name)
 {
     bucket *bp, **bpp;
 
@@ -128,12 +121,12 @@ char *name;
 
 
 void
-create_symbol_table()
+create_symbol_table(void)
 {
     int i;
     bucket *bp;
 
-    symbol_table = (bucket **) MALLOC(TABLE_SIZE*sizeof(bucket *));
+    symbol_table = malloc(TABLE_SIZE*sizeof(bucket *));
     if (symbol_table == 0) no_space();
     for (i = 0; i < TABLE_SIZE; i++)
 	symbol_table[i] = 0;
@@ -149,21 +142,21 @@ create_symbol_table()
 
 
 void
-free_symbol_table()
+free_symbol_table(void)
 {
-    FREE(symbol_table);
+    free(symbol_table);
     symbol_table = 0;
 }
 
 
 void
-free_symbols()
+free_symbols(void)
 {
     bucket *p, *q;
 
     for (p = first_symbol; p; p = q)
     {
 	q = p->next;
-	FREE(p);
+	free(p);
     }
 }

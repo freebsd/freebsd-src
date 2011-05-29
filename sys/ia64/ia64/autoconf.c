@@ -26,7 +26,6 @@
  * $FreeBSD$
  */
 
-#include "opt_bootp.h"
 #include "opt_isa.h"
 
 #include <sys/param.h>
@@ -39,15 +38,8 @@
 #include <sys/bus.h>
 #include <sys/cons.h>
 
+#include <machine/intr.h>
 #include <machine/md_var.h>
-#include <machine/bootinfo.h>
-
-#include <cam/cam.h>
-#include <cam/cam_ccb.h>
-#include <cam/cam_sim.h>
-#include <cam/cam_periph.h>
-#include <cam/cam_xpt_sim.h>
-#include <cam/cam_debug.h>
 
 static void	configure_first(void *);
 static void	configure(void *);
@@ -58,10 +50,6 @@ SYSINIT(configure1, SI_SUB_CONFIGURE, SI_ORDER_FIRST, configure_first, NULL);
 SYSINIT(configure2, SI_SUB_CONFIGURE, SI_ORDER_THIRD, configure, NULL);
 /* SI_ORDER_MIDDLE is hookable */
 SYSINIT(configure3, SI_SUB_CONFIGURE, SI_ORDER_ANY, configure_final, NULL);
-
-#ifdef BOOTP
-void bootpc_init(void);
-#endif
 
 #ifdef DEV_ISA
 #include <isa/isavar.h>
@@ -97,12 +85,9 @@ static void
 configure_final(void *dummy)
 {
 
-	/*
-	 * Now we're ready to handle (pending) interrupts.
-	 * XXX this is slightly misplaced.
-	 */
-	enable_intr();
-
 	cninit_finish();
+
+	ia64_enable_intr();
+
 	cold = 0;
 }

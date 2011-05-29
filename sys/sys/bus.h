@@ -85,8 +85,11 @@ struct u_device {
  * included in case devctl_notify isn't sufficiently general.
  */
 boolean_t devctl_process_running(void);
+void devctl_notify_f(const char *__system, const char *__subsystem,
+    const char *__type, const char *__data, int __flags);
 void devctl_notify(const char *__system, const char *__subsystem,
     const char *__type, const char *__data);
+void devctl_queue_data_f(char *__data, int __flags);
 void devctl_queue_data(char *__data);
 
 /**
@@ -188,10 +191,13 @@ enum intr_type {
 	INTR_TYPE_MISC = 16,
 	INTR_TYPE_CLK = 32,
 	INTR_TYPE_AV = 64,
-	INTR_FAST = 128,
 	INTR_EXCL = 256,		/* exclusive interrupt */
 	INTR_MPSAFE = 512,		/* this interrupt is SMP safe */
-	INTR_ENTROPY = 1024		/* this interrupt provides entropy */
+	INTR_ENTROPY = 1024,		/* this interrupt provides entropy */
+	INTR_MD1 = 4096,		/* flag reserved for MD use */
+	INTR_MD2 = 8192,		/* flag reserved for MD use */
+	INTR_MD3 = 16384,		/* flag reserved for MD use */
+	INTR_MD4 = 32768		/* flag reserved for MD use */
 };
 
 enum intr_trigger {
@@ -253,6 +259,7 @@ int	resource_list_add_next(struct resource_list *rl,
 			  u_long start, u_long end, u_long count);
 int	resource_list_busy(struct resource_list *rl,
 			   int type, int rid);
+int	resource_list_reserved(struct resource_list *rl, int type, int rid);
 struct resource_list_entry*
 	resource_list_find(struct resource_list *rl,
 			   int type, int rid);
@@ -295,8 +302,11 @@ void	root_bus_configure(void);
 int	bus_generic_activate_resource(device_t dev, device_t child, int type,
 				      int rid, struct resource *r);
 device_t
-	bus_generic_add_child(device_t dev, int order, const char *name,
+	bus_generic_add_child(device_t dev, u_int order, const char *name,
 			      int unit);
+int	bus_generic_adjust_resource(device_t bus, device_t child, int type,
+				    struct resource *r, u_long start,
+				    u_long end);
 struct resource *
 	bus_generic_alloc_resource(device_t bus, device_t child, int type,
 				   int *rid, u_long start, u_long end,
@@ -367,6 +377,8 @@ int	bus_alloc_resources(device_t dev, struct resource_spec *rs,
 void	bus_release_resources(device_t dev, const struct resource_spec *rs,
 			      struct resource **res);
 
+int	bus_adjust_resource(device_t child, int type, struct resource *r,
+			    u_long start, u_long end);
 struct	resource *bus_alloc_resource(device_t dev, int type, int *rid,
 				     u_long start, u_long end, u_long count,
 				     u_int flags);
@@ -407,7 +419,7 @@ bus_alloc_resource_any(device_t dev, int type, int *rid, u_int flags)
  * Access functions for device.
  */
 device_t	device_add_child(device_t dev, const char *name, int unit);
-device_t	device_add_child_ordered(device_t dev, int order,
+device_t	device_add_child_ordered(device_t dev, u_int order,
 					 const char *name, int unit);
 void	device_busy(device_t dev);
 int	device_delete_child(device_t dev, device_t child);
@@ -457,7 +469,10 @@ void	device_verbose(device_t dev);
 /*
  * Access functions for devclass.
  */
+int		devclass_add_driver(devclass_t dc, driver_t *driver,
+				    int pass, devclass_t *dcp);
 devclass_t	devclass_create(const char *classname);
+int		devclass_delete_driver(devclass_t busclass, driver_t *driver);
 devclass_t	devclass_find(const char *classname);
 const char	*devclass_get_name(devclass_t dc);
 device_t	devclass_get_device(devclass_t dc, int unit);

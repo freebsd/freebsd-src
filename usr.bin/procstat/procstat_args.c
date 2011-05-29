@@ -32,6 +32,7 @@
 
 #include <err.h>
 #include <errno.h>
+#include <libprocstat.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -42,7 +43,7 @@
 static char args[ARG_MAX];
 
 void
-procstat_args(pid_t pid, struct kinfo_proc *kipp)
+procstat_args(struct kinfo_proc *kipp)
 {
 	int error, name[4];
 	size_t len;
@@ -54,11 +55,11 @@ procstat_args(pid_t pid, struct kinfo_proc *kipp)
 	name[0] = CTL_KERN;
 	name[1] = KERN_PROC;
 	name[2] = KERN_PROC_ARGS;
-	name[3] = pid;
+	name[3] = kipp->ki_pid;
 	len = sizeof(args);
 	error = sysctl(name, 4, args, &len, NULL, 0);
 	if (error < 0 && errno != ESRCH) {
-		warn("sysctl: kern.proc.args: %d", pid);
+		warn("sysctl: kern.proc.args: %d", kipp->ki_pid);
 		return;
 	}
 	if (error < 0)
@@ -68,7 +69,7 @@ procstat_args(pid_t pid, struct kinfo_proc *kipp)
 		len = strlen(args) + 1;
 	}
 
-	printf("%5d ", pid);
+	printf("%5d ", kipp->ki_pid);
 	printf("%-16s ", kipp->ki_comm);
 	for (cp = args; cp < args + len; cp += strlen(cp) + 1)
 		printf("%s%s", cp != args ? " " : "", cp);

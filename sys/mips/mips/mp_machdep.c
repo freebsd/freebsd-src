@@ -49,6 +49,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/hwfunc.h>
 #include <machine/intr_machdep.h>
 #include <machine/cache.h>
+#include <machine/tlb.h>
+
+struct pcb stoppcbs[MAXCPU];
 
 static void *dpcpu;
 static struct mtx ap_boot_mtx;
@@ -68,6 +71,13 @@ ipi_send(struct pcpu *pc, int ipi)
 	CTR1(KTR_SMP, "%s: sent", __func__);
 }
 
+void
+ipi_all_but_self(int ipi)
+{
+
+	ipi_selected(PCPU_GET(other_cpus), ipi);
+}
+
 /* Send an IPI to a set of cpus. */
 void
 ipi_selected(cpumask_t cpus, int ipi)
@@ -82,15 +92,28 @@ ipi_selected(cpumask_t cpus, int ipi)
 	}
 }
 
+/* Send an IPI to a specific CPU. */
+void
+ipi_cpu(int cpu, u_int ipi)
+{
+
+	CTR3(KTR_SMP, "%s: cpu: %d, ipi: %x\n", __func__, cpu, ipi);
+	ipi_send(cpuid_to_pcpu[cpu], ipi);
+}
+
 /*
  * Handle an IPI sent to this processor.
  */
 static int
 mips_ipi_handler(void *arg)
 {
+	int cpu;
 	cpumask_t cpumask;
 	u_int	ipi, ipi_bitmap;
 	int	bit;
+
+	cpu = PCPU_GET(cpuid);
+	cpumask = PCPU_GET(cpumask);
 
 	platform_ipi_clear();	/* quiesce the pending ipi interrupt */
 
@@ -120,13 +143,28 @@ mips_ipi_handler(void *arg)
 			 * necessary to add it in the switch.
 			 */
 			CTR0(KTR_SMP, "IPI_STOP or IPI_STOP_HARD");
-			cpumask = PCPU_GET(cpumask);
+
+			savectx(&stoppcbs[cpu]);
+			tlb_save();
+
+			/* Indicate we are stopped */
 			atomic_set_int(&stopped_cpus, cpumask);
+
+			/* Wait for restart */
 			while ((started_cpus & cpumask) == 0)
 				cpu_spinwait();
+
 			atomic_clear_int(&started_cpus, cpumask);
 			atomic_clear_int(&stopped_cpus, cpumask);
 			CTR0(KTR_SMP, "IPI_STOP (restart)");
+			break;
+		case IPI_PREEMPT:
+			CTR1(KTR_SMP, "%s: IPI_PREEMPT", __func__);
+			sched_preempt(curthread);
+			break;
+		case IPI_HARDCLOCK:
+			CTR1(KTR_SMP, "%s: IPI_HARDCLOCK", __func__);
+			hardclockintr();
 			break;
 		default:
 			panic("Unknown IPI 0x%0x on cpu %d", ipi, curcpu);
@@ -144,6 +182,8 @@ start_ap(int cpuid)
 	cpus = mp_naps;
 	dpcpu = (void *)kmem_alloc(kernel_map, DPCPU_SIZE);
 
+	mips_sync();
+
 	if (platform_start_ap(cpuid) != 0)
 		return (-1);			/* could not start AP */
 
@@ -160,12 +200,14 @@ start_ap(int cpuid)
 void
 cpu_mp_setmaxid(void)
 {
+	cpumask_t cpumask;
 
-	mp_ncpus = platform_num_processors();
+	cpumask = platform_cpu_mask();
+	mp_ncpus = bitcount32(cpumask);
 	if (mp_ncpus <= 0)
 		mp_ncpus = 1;
 
-	mp_maxid = min(mp_ncpus, MAXCPU) - 1;
+	mp_maxid = min(fls(cpumask), MAXCPU) - 1;
 }
 
 void
@@ -177,8 +219,7 @@ cpu_mp_announce(void)
 struct cpu_group *
 cpu_topo(void)
 {
-
-	return (smp_topo_none());
+	return (platform_smp_topo());
 }
 
 int
@@ -192,24 +233,30 @@ void
 cpu_mp_start(void)
 {
 	int error, cpuid;
+	cpumask_t cpumask;
 
 	mtx_init(&ap_boot_mtx, "ap boot", NULL, MTX_SPIN);
 
-	all_cpus = 1;		/* BSP */
-	for (cpuid = 1; cpuid < platform_num_processors(); ++cpuid) {
+	all_cpus = 0;
+	cpumask = platform_cpu_mask();
+
+	while (cpumask != 0) {
+		cpuid = ffs(cpumask) - 1;
+		cpumask &= ~(1 << cpuid);
+
 		if (cpuid >= MAXCPU) {
 			printf("cpu_mp_start: ignoring AP #%d.\n", cpuid);
 			continue;
 		}
 
-		if ((error = start_ap(cpuid)) != 0) {
-			printf("AP #%d failed to start: %d\n", cpuid, error);
-			continue;
+		if (cpuid != platform_processor_id()) {
+			if ((error = start_ap(cpuid)) != 0) {
+				printf("AP #%d failed to start: %d\n", cpuid, error);
+				continue;
+			}
+			if (bootverbose)
+				printf("AP #%d started!\n", cpuid);
 		}
-		
-		if (bootverbose)
-			printf("AP #%d started!\n", cpuid);
-
 		all_cpus |= 1 << cpuid;
 	}
 
@@ -219,12 +266,10 @@ cpu_mp_start(void)
 void
 smp_init_secondary(u_int32_t cpuid)
 {
-	int ipi_int_mask, clock_int_mask;
-
 	/* TLB */
-	Mips_SetWIRED(0);
-	Mips_TLBFlush(num_tlbentries);
-	Mips_SetWIRED(VMWIRED_ENTRIES);
+	mips_wr_wired(0);
+	tlb_invalidate_all();
+	mips_wr_wired(VMWIRED_ENTRIES);
 
 	/*
 	 * We assume that the L1 cache on the APs is identical to the one
@@ -233,7 +278,9 @@ smp_init_secondary(u_int32_t cpuid)
 	mips_dcache_wbinv_all();
 	mips_icache_sync_all();
 
-	MachSetPID(0);
+	mips_sync();
+
+	mips_wr_entryhi(0);
 
 	pcpu_init(PCPU_ADDR(cpuid), cpuid, sizeof(struct pcpu));
 	dpcpu_init(dpcpu, cpuid);
@@ -271,19 +318,8 @@ smp_init_secondary(u_int32_t cpuid)
 	while (smp_started == 0)
 		; /* nothing */
 
-	/*
-	 * Unmask the clock and ipi interrupts.
-	 */
-	clock_int_mask = hard_int_mask(5);
-	ipi_int_mask = hard_int_mask(platform_ipi_intrnum());
-	set_intr_mask(ALL_INT_MASK & ~(ipi_int_mask | clock_int_mask));
-
-	/*
-	 * Bootstrap the compare register.
-	 */
-	mips_wr_compare(mips_rd_count() + counter_freq / hz);
-
-	enableintr();
+	/* Start per-CPU event timers. */
+	cpu_initclocks_ap();
 
 	/* enter the scheduler */
 	sched_throw(NULL);
@@ -305,7 +341,7 @@ release_aps(void *dummy __unused)
 	 */
 	ipi_irq = platform_ipi_intrnum();
 	cpu_establish_hardintr("ipi", mips_ipi_handler, NULL, NULL, ipi_irq,
-			       INTR_TYPE_MISC | INTR_EXCL | INTR_FAST, NULL);
+			       INTR_TYPE_MISC | INTR_EXCL, NULL);
 
 	atomic_store_rel_int(&aps_ready, 1);
 

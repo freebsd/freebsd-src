@@ -41,10 +41,10 @@
 #include "libfifolog.h"
 
 const char *
-fifolog_create(const char *fn, off_t size, unsigned recsize)
+fifolog_create(const char *fn, off_t size, ssize_t recsize)
 {
 	int i, fd;
-	unsigned u;
+	ssize_t u;
 	off_t ms;
 	struct stat st;
 	char *buf;
@@ -91,7 +91,7 @@ fifolog_create(const char *fn, off_t size, unsigned recsize)
 	if (size == 0 && S_ISREG(st.st_mode))
 		size = st.st_size;
 
-	if (size == 0) 
+	if (size == 0)
 		size = recsize * (off_t)(24*60*60);
 
 	if (S_ISREG(st.st_mode) && ftruncate(fd, size) < 0)
@@ -103,7 +103,7 @@ fifolog_create(const char *fn, off_t size, unsigned recsize)
 
 	strcpy(buf, FIFOLOG_FMT_MAGIC);		/*lint !e64 */
 	be32enc(buf + FIFOLOG_OFF_BS, recsize);
-	if ((int)recsize != pwrite(fd, buf, recsize, 0)) {
+	if (recsize != pwrite(fd, buf, recsize, 0)) {
 		i = errno;
 		free(buf);
 		errno = i;

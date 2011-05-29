@@ -36,8 +36,11 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_capabilities.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/capability.h>
 #include <sys/proc.h>
 #include <sys/sysproto.h>
 #include <sys/syscall.h>
@@ -85,7 +88,7 @@ static int
 arm32_set_tp(struct thread *td, void *args)
 {
 
-	td->td_md.md_tp = args;
+	td->td_md.md_tp = (register_t)args;
 	return (0);
 }
 
@@ -93,7 +96,7 @@ static int
 arm32_get_tp(struct thread *td, void *args)
 {
 
-	td->td_retval[0] = (uint32_t)td->td_md.md_tp;
+	td->td_retval[0] = td->td_md.md_tp;
 	return (0);
 }
 
@@ -103,6 +106,24 @@ sysarch(td, uap)
 	register struct sysarch_args *uap;
 {
 	int error;
+
+#ifdef CAPABILITIES
+	/*
+	 * Whitelist of operations which are safe enough for capability mode.
+	 */
+	if (IN_CAPABILITY_MODE(td)) {
+		switch (uap->op) {
+			case ARM_SYNC_ICACHE:
+			case ARM_DRAIN_WRITEBUF:
+			case ARM_SET_TP:
+			case ARM_GET_TP:
+				break;
+
+			default:
+				return (ECAPMODE);
+		}
+	}
+#endif
 
 	switch (uap->op) {
 	case ARM_SYNC_ICACHE : 

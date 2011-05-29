@@ -1,5 +1,7 @@
 /*-
  * Copyright (c) 2001-2007, by Cisco Systems, Inc. All rights reserved.
+ * Copyright (c) 2008-2011, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2011, by Michael Tuexen. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -37,12 +39,11 @@ __FBSDID("$FreeBSD$");
 
 #if defined(_KERNEL) || defined(__Userspace__)
 
-#if defined(SCTP_USE_THREAD_BASED_ITERATOR)
+extern struct iterator_control sctp_it_ctl;
 void sctp_wakeup_iterator(void);
 
 void sctp_startup_iterator(void);
 
-#endif
 
 #ifdef INET6
 void sctp_gather_internal_ifa_flags(struct sctp_ifa *ifa);

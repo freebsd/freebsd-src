@@ -47,8 +47,8 @@
  *	sectorsize <= DESFRAGSIZE <= DESBLKSIZE
  *	DESBLKSIZE / DESFRAGSIZE <= 8
  */
-#define	DFL_FRAGSIZE	2048
-#define	DFL_BLKSIZE	16384
+#define	DFL_FRAGSIZE	4096
+#define	DFL_BLKSIZE	32768
 
 /*
  * Cylinder groups may have up to MAXBLKSPERCG blocks. The actual
@@ -85,20 +85,21 @@ extern int	Xflag;		/* exit in middle of newfs for testing */
 extern int	Jflag;		/* enable gjournal for file system */
 extern int	lflag;		/* enable multilabel MAC for file system */
 extern int	nflag;		/* do not create .snap directory */
+extern int	tflag;		/* enable TRIM */
 extern intmax_t	fssize;		/* file system size */
-extern int64_t	sectorsize;	/* bytes/sector */
+extern int	sectorsize;	/* bytes/sector */
 extern int	realsectorsize;	/* bytes/sector in hardware*/
-extern int64_t	fsize;		/* fragment size */
-extern int64_t	bsize;		/* block size */
-extern int64_t	maxbsize;	/* maximum clustering */
-extern int64_t	maxblkspercg;	/* maximum blocks per cylinder group */
+extern int	fsize;		/* fragment size */
+extern int	bsize;		/* block size */
+extern int	maxbsize;	/* maximum clustering */
+extern int	maxblkspercg;	/* maximum blocks per cylinder group */
 extern int	minfree;	/* free space threshold */
 extern int	opt;		/* optimization preference (space or time) */
-extern int64_t	density;	/* number of bytes per inode */
-extern int64_t	maxcontig;	/* max contiguous blocks to allocate */
-extern int64_t	maxbpg;		/* maximum blocks per file in a cyl group */
-extern int64_t	avgfilesize;	/* expected average file size */
-extern int64_t	avgfilesperdir;	/* expected number of files per directory */
+extern int	density;	/* number of bytes per inode */
+extern int	maxcontig;	/* max contiguous blocks to allocate */
+extern int	maxbpg;		/* maximum blocks per file in a cyl group */
+extern int	avgfilesize;	/* expected average file size */
+extern int	avgfilesperdir;	/* expected number of files per directory */
 extern u_char	*volumelabel;	/* volume label for filesystem */
 extern struct uufsd disk;	/* libufs disk structure */
 

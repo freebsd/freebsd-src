@@ -19,7 +19,7 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -650,6 +650,7 @@ wq_init(workqueue_t *wq, int nfiles)
 	wq->wq_wip = xcalloc(sizeof (wip_t) * nslots);
 	wq->wq_nwipslots = nslots;
 	wq->wq_nthreads = MIN(sysconf(_SC_NPROCESSORS_ONLN) * 3 / 2, nslots);
+	wq->wq_thread = xmalloc(sizeof (pthread_t) * wq->wq_nthreads);
 
 	if (getenv("CTFMERGE_INPUT_THROTTLE"))
 		throttle = atoi(getenv("CTFMERGE_INPUT_THROTTLE"));
@@ -692,7 +693,6 @@ wq_init(workqueue_t *wq, int nfiles)
 static void
 start_threads(workqueue_t *wq)
 {
-	pthread_t thrid;
 	sigset_t sets;
 	int i;
 
@@ -703,8 +703,8 @@ start_threads(workqueue_t *wq)
 	pthread_sigmask(SIG_BLOCK, &sets, NULL);
 
 	for (i = 0; i < wq->wq_nthreads; i++) {
-		pthread_create(&thrid, NULL, (void *(*)(void *))worker_thread,
-		    wq);
+		pthread_create(&wq->wq_thread[i], NULL,
+		    (void *(*)(void *))worker_thread, wq);
 	}
 
 #if defined(sun)
@@ -719,6 +719,16 @@ start_threads(workqueue_t *wq)
 	pthread_sigmask(SIG_UNBLOCK, &sets, NULL);
 }
 
+static void
+join_threads(workqueue_t *wq)
+{
+	int i;
+
+	for (i = 0; i < wq->wq_nthreads; i++) {
+		pthread_join(wq->wq_thread[i], NULL);
+	}
+}
+
 static int
 strcompare(const void *p1, const void *p2)
 {
@@ -728,10 +738,18 @@ strcompare(const void *p1, const void *p2)
 	return (strcmp(s1, s2));
 }
 
+/*
+ * Core work queue structure; passed to worker threads on thread creation
+ * as the main point of coordination.  Allocate as a static structure; we
+ * could have put this into a local variable in main, but passing a pointer
+ * into your stack to another thread is fragile at best and leads to some
+ * hard-to-debug failure modes.
+ */
+static workqueue_t wq;
+
 int
 main(int argc, char **argv)
 {
-	workqueue_t wq;
 	tdata_t *mstrtd, *savetd;
 	char *uniqfile = NULL, *uniqlabel = NULL;
 	char *withfile = NULL;
@@ -912,6 +930,8 @@ main(int argc, char **argv)
 	while (wq.wq_alldone == 0)
 		pthread_cond_wait(&wq.wq_alldone_cv, &wq.wq_queue_lock);
 	pthread_mutex_unlock(&wq.wq_queue_lock);
+
+	join_threads(&wq);
 
 	/*
 	 * All requested files have been merged, with the resulting tree in

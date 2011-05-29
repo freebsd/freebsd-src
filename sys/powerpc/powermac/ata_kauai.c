@@ -220,8 +220,9 @@ ata_kauai_probe(device_t dev)
 	if (compatstring != NULL && strcmp(compatstring,"shasta-ata") == 0)
 		sc->shasta = 1;
 
-	/* Regular Kauai controllers apparently need this hack */
-	if (!sc->shasta)
+	/* Pre-K2 controllers apparently need this hack */
+	if (!sc->shasta &&
+	    (compatstring == NULL || strcmp(compatstring, "K2-UATA") != 0))
 		bus_set_resource(dev, SYS_RES_IRQ, 0, 39, 1);
 
         rid = PCIR_BARS;
@@ -243,8 +244,11 @@ ata_kauai_probe(device_t dev)
         ch->r_io[ATA_CONTROL].offset = ATA_KAUAI_ALTOFFSET;
 	ata_default_registers(dev);
 
-        ch->unit = 0;
-        ch->flags |= ATA_USE_16BIT;
+	ch->unit = 0;
+	ch->flags |= ATA_USE_16BIT;
+	
+	/* XXX: ATAPI DMA is unreliable. We should find out why. */
+	ch->flags |= ATA_NO_ATAPI_DMA;
 	ata_generic_hw(dev);
 
         return (ata_probe(dev));

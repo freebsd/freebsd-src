@@ -1,4 +1,4 @@
-/* $Id: port-aix.h,v 1.31 2009/08/20 06:20:50 dtucker Exp $ */
+/* $Id: port-aix.h,v 1.32 2009/12/20 23:49:22 dtucker Exp $ */
 
 /*
  *
@@ -95,6 +95,10 @@ int sys_auth_record_login(const char *, const char *, const char *, Buffer *);
 # define CUSTOM_SYS_AUTH_GET_LASTLOGIN_MSG
 char *sys_auth_get_lastlogin_msg(const char *, uid_t);
 # define CUSTOM_FAILED_LOGIN 1
+# if defined(S_AUTHDOMAIN)  && defined (S_AUTHNAME)
+# define USE_AIX_KRB_NAME
+char *aix_krb5_get_principal_name(char *);
+# endif
 #endif
 
 void aix_setauthdb(const char *);

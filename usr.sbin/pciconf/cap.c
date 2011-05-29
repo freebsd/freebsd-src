@@ -45,6 +45,8 @@ static const char rcsid[] =
 
 #include "pciconf.h"
 
+static void	list_ecaps(int fd, struct pci_conf *p);
+
 static void
 cap_power(int fd, struct pci_conf *p, uint8_t ptr)
 {
@@ -458,20 +460,21 @@ cap_pciaf(int fd, struct pci_conf *p, uint8_t ptr)
 void
 list_caps(int fd, struct pci_conf *p)
 {
-	uint16_t cmd;
+	int express;
+	uint16_t sta;
 	uint8_t ptr, cap;
 
 	/* Are capabilities present for this device? */
-	cmd = read_config(fd, &p->pc_sel, PCIR_STATUS, 2);
-	if (!(cmd & PCIM_STATUS_CAPPRESENT))
+	sta = read_config(fd, &p->pc_sel, PCIR_STATUS, 2);
+	if (!(sta & PCIM_STATUS_CAPPRESENT))
 		return;
 
 	switch (p->pc_hdr & PCIM_HDRTYPE) {
-	case 0:
-	case 1:
+	case PCIM_HDRTYPE_NORMAL:
+	case PCIM_HDRTYPE_BRIDGE:
 		ptr = PCIR_CAP_PTR;
 		break;
-	case 2:
+	case PCIM_HDRTYPE_CARDBUS:
 		ptr = PCIR_CAP_PTR_2;
 		break;
 	default:
@@ -479,6 +482,7 @@ list_caps(int fd, struct pci_conf *p)
 	}
 
 	/* Walk the capability list. */
+	express = 0;
 	ptr = read_config(fd, &p->pc_sel, ptr, 1);
 	while (ptr != 0 && ptr != 0xff) {
 		cap = read_config(fd, &p->pc_sel, ptr + PCICAP_ID, 1);
@@ -512,6 +516,7 @@ list_caps(int fd, struct pci_conf *p)
 			cap_subvendor(fd, p, ptr);
 			break;
 		case PCIY_EXPRESS:
+			express = 1;
 			cap_express(fd, p, ptr);
 			break;
 		case PCIY_MSIX:
@@ -529,5 +534,99 @@ list_caps(int fd, struct pci_conf *p)
 		}
 		printf("\n");
 		ptr = read_config(fd, &p->pc_sel, ptr + PCICAP_NEXTPTR, 1);
+	}
+
+	if (express)
+		list_ecaps(fd, p);
+}
+
+/* From <sys/systm.h>. */
+static __inline uint32_t
+bitcount32(uint32_t x)
+{
+
+	x = (x & 0x55555555) + ((x & 0xaaaaaaaa) >> 1);
+	x = (x & 0x33333333) + ((x & 0xcccccccc) >> 2);
+	x = (x + (x >> 4)) & 0x0f0f0f0f;
+	x = (x + (x >> 8));
+	x = (x + (x >> 16)) & 0x000000ff;
+	return (x);
+}
+
+static void
+ecap_aer(int fd, struct pci_conf *p, uint16_t ptr, uint8_t ver)
+{
+	uint32_t sta, mask;
+
+	printf("AER %d", ver);
+	if (ver != 1)
+		return;
+	sta = read_config(fd, &p->pc_sel, ptr + PCIR_AER_UC_STATUS, 4);
+	mask = read_config(fd, &p->pc_sel, ptr + PCIR_AER_UC_SEVERITY, 4);
+	printf(" %d fatal", bitcount32(sta & mask));
+	printf(" %d non-fatal", bitcount32(sta & ~mask));
+	sta = read_config(fd, &p->pc_sel, ptr + PCIR_AER_COR_STATUS, 4);
+	printf(" %d corrected", bitcount32(sta));
+}
+
+static void
+ecap_vc(int fd, struct pci_conf *p, uint16_t ptr, uint8_t ver)
+{
+	uint32_t cap1;
+
+	printf("VC %d", ver);
+	if (ver != 1)
+		return;
+	cap1 = read_config(fd, &p->pc_sel, ptr + PCIR_VC_CAP1, 4);
+	printf(" max VC%d", cap1 & PCIM_VC_CAP1_EXT_COUNT);
+	if ((cap1 & PCIM_VC_CAP1_LOWPRI_EXT_COUNT) != 0)
+		printf(" lowpri VC0-VC%d",
+		    (cap1 & PCIM_VC_CAP1_LOWPRI_EXT_COUNT) >> 4);
+}
+
+static void
+ecap_sernum(int fd, struct pci_conf *p, uint16_t ptr, uint8_t ver)
+{
+	uint32_t high, low;
+
+	printf("Serial %d", ver);
+	if (ver != 1)
+		return;
+	low = read_config(fd, &p->pc_sel, ptr + PCIR_SERIAL_LOW, 4);
+	high = read_config(fd, &p->pc_sel, ptr + PCIR_SERIAL_HIGH, 4);
+	printf(" %08x%08x", high, low);
+}
+
+static void
+list_ecaps(int fd, struct pci_conf *p)
+{
+	uint32_t ecap;
+	uint16_t ptr;
+
+	ptr = PCIR_EXTCAP;
+	ecap = read_config(fd, &p->pc_sel, ptr, 4);
+	if (ecap == 0xffffffff || ecap == 0)
+		return;
+	for (;;) {
+		printf("ecap %04x[%03x] = ", PCI_EXTCAP_ID(ecap), ptr);
+		switch (PCI_EXTCAP_ID(ecap)) {
+		case PCIZ_AER:
+			ecap_aer(fd, p, ptr, PCI_EXTCAP_VER(ecap));
+			break;
+		case PCIZ_VC:
+			ecap_vc(fd, p, ptr, PCI_EXTCAP_VER(ecap));
+			break;
+		case PCIZ_SERNUM:
+			ecap_sernum(fd, p, ptr, PCI_EXTCAP_VER(ecap));
+			break;
+		default:
+			printf("unknown %d", PCI_EXTCAP_VER(ecap));
+			break;
+		}
+		printf("\n");
+		ptr = PCI_EXTCAP_NEXTPTR(ecap);
+		if (ptr == 0)
+			break;
+		ecap = read_config(fd, &p->pc_sel, ptr, 4);
 	}
 }

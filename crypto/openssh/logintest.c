@@ -264,7 +264,7 @@ showOptions(void)
 	printf("\tUSE_UTMP (UTMP_FILE=%s)\n", UTMP_FILE);
 #endif
 #ifdef USE_UTMPX
-	printf("\tUSE_UTMPX (UTMPX_FILE=%s)\n", UTMPX_FILE);
+	printf("\tUSE_UTMPX\n");
 #endif
 #ifdef USE_WTMP
 	printf("\tUSE_WTMP (WTMP_FILE=%s)\n", WTMP_FILE);

@@ -1,26 +1,27 @@
 /* DWARF 1 find nearest line (_bfd_dwarf1_find_nearest_line).
-   Copyright 1998, 1999, 2000, 2001, 2002 Free Software Foundation, Inc.
+   Copyright 1998, 1999, 2000, 2001, 2002, 2004, 2005, 2007
+   Free Software Foundation, Inc.
 
-Written by Gavin Romig-Koch of Cygnus Solutions (gavin@cygnus.com).
+   Written by Gavin Romig-Koch of Cygnus Solutions (gavin@cygnus.com).
 
-This file is part of BFD.
+   This file is part of BFD.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or (at
-your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or (at
+   your option) any later version.
 
-This program is distributed in the hope that it will be useful, but
-WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-General Public License for more details.
+   This program is distributed in the hope that it will be useful, but
+   WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+   General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libiberty.h"
 #include "libbfd.h"
 #include "elf-bfd.h"
@@ -28,8 +29,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 /* dwarf1_debug is the starting point for all dwarf1 info.  */
 
-struct dwarf1_debug {
-
+struct dwarf1_debug
+{
   /* The bfd we are working with.  */
   bfd* abfd;
 
@@ -55,7 +56,8 @@ struct dwarf1_debug {
 
 /* One dwarf1_unit for each parsed compilation unit die.  */
 
-struct dwarf1_unit {
+struct dwarf1_unit
+{
   /* Linked starting from stash->lastUnit.  */
   struct dwarf1_unit* prev;
 
@@ -66,7 +68,7 @@ struct dwarf1_unit {
   unsigned long low_pc;
   unsigned long high_pc;
 
-  /* Does this unit have a statement list? */
+  /* Does this unit have a statement list?  */
   int has_stmt_list;
 
   /* If any, the offset of the line number table in the .line section.  */
@@ -75,7 +77,7 @@ struct dwarf1_unit {
   /* If non-zero, a pointer to the first child of this unit.  */
   char* first_child;
 
-  /* How many line entries? */
+  /* How many line entries?  */
   unsigned long line_count;
 
   /* The decoded line number table (line_count entries).  */
@@ -87,7 +89,8 @@ struct dwarf1_unit {
 
 /* One dwarf1_func for each parsed function die.  */
 
-struct dwarf1_func {
+struct dwarf1_func
+{
   /* Linked starting from aUnit->func_list.  */
   struct dwarf1_func* prev;
 
@@ -100,7 +103,8 @@ struct dwarf1_func {
 };
 
 /* Used to return info about a parsed die.  */
-struct die_info {
+struct die_info
+{
   unsigned long length;
   unsigned long sibling;
   unsigned long low_pc;
@@ -115,7 +119,8 @@ struct die_info {
 };
 
 /* Parsed line number information.  */
-struct linenumber {
+struct linenumber
+{
   /* First address in the line.  */
   unsigned long addr;
 
@@ -124,32 +129,17 @@ struct linenumber {
 };
 
 /* Find the form of an attr, from the attr field.  */
-#define FORM_FROM_ATTR(attr)	((attr) & 0xF)	/* Implicitly specified */
-
-static struct dwarf1_unit *alloc_dwarf1_unit
-  PARAMS ((struct dwarf1_debug *));
-static struct dwarf1_func *alloc_dwarf1_func
-  PARAMS ((struct dwarf1_debug *, struct dwarf1_unit *));
-static bfd_boolean parse_die
-  PARAMS ((bfd *, struct die_info *, char *, char *));
-static bfd_boolean parse_line_table
-  PARAMS ((struct dwarf1_debug *, struct dwarf1_unit *));
-static bfd_boolean parse_functions_in_unit
-  PARAMS ((struct dwarf1_debug *, struct dwarf1_unit *));
-static bfd_boolean dwarf1_unit_find_nearest_line
-  PARAMS ((struct dwarf1_debug *, struct dwarf1_unit *, unsigned long,
-	   const char **, const char **, unsigned int *));
+#define FORM_FROM_ATTR(attr)	((attr) & 0xF)	/* Implicitly specified.  */
 
 /* Return a newly allocated dwarf1_unit.  It should be cleared and
    then attached into the 'stash' at 'stash->lastUnit'.  */
 
 static struct dwarf1_unit*
-alloc_dwarf1_unit (stash)
-  struct dwarf1_debug* stash;
+alloc_dwarf1_unit (struct dwarf1_debug* stash)
 {
   bfd_size_type amt = sizeof (struct dwarf1_unit);
 
-  struct dwarf1_unit* x = (struct dwarf1_unit*) bfd_zalloc (stash->abfd, amt);
+  struct dwarf1_unit* x = bfd_zalloc (stash->abfd, amt);
   x->prev = stash->lastUnit;
   stash->lastUnit = x;
 
@@ -159,14 +149,12 @@ alloc_dwarf1_unit (stash)
 /* Return a newly allocated dwarf1_func.  It must be cleared and
    attached into 'aUnit' at 'aUnit->func_list'.  */
 
-static struct dwarf1_func*
-alloc_dwarf1_func (stash, aUnit)
-     struct dwarf1_debug* stash;
-     struct dwarf1_unit* aUnit;
+static struct dwarf1_func *
+alloc_dwarf1_func (struct dwarf1_debug* stash, struct dwarf1_unit* aUnit)
 {
   bfd_size_type amt = sizeof (struct dwarf1_func);
 
-  struct dwarf1_func* x = (struct dwarf1_func*) bfd_zalloc (stash->abfd, amt);
+  struct dwarf1_func* x = bfd_zalloc (stash->abfd, amt);
   x->prev = aUnit->func_list;
   aUnit->func_list = x;
 
@@ -181,16 +169,15 @@ alloc_dwarf1_func (stash, aUnit)
    Return FALSE if the die is invalidly formatted; TRUE otherwise.  */
 
 static bfd_boolean
-parse_die (abfd, aDieInfo, aDiePtr, aDiePtrEnd)
-     bfd* abfd;
-     struct die_info* aDieInfo;
-     char*            aDiePtr;
-     char*            aDiePtrEnd;
+parse_die (bfd *             abfd,
+	   struct die_info * aDieInfo,
+	   char *            aDiePtr,
+	   char *            aDiePtrEnd)
 {
   char* this_die = aDiePtr;
   char* xptr = this_die;
 
-  memset (aDieInfo,0,sizeof (*aDieInfo));
+  memset (aDieInfo, 0, sizeof (* aDieInfo));
 
   /* First comes the length.  */
   aDieInfo->length = bfd_get_32 (abfd, (bfd_byte *) xptr);
@@ -217,7 +204,6 @@ parse_die (abfd, aDieInfo, aDiePtr, aDiePtrEnd)
       /* Parse the attribute based on its form.  This section
          must handle all dwarf1 forms, but need only handle the
 	 actual attributes that we care about.  */
-
       attr = bfd_get_16 (abfd, (bfd_byte *) xptr);
       xptr += 2;
 
@@ -269,9 +255,7 @@ parse_die (abfd, aDieInfo, aDiePtr, aDiePtrEnd)
    occurs; TRUE otherwise.  */
 
 static bfd_boolean
-parse_line_table (stash, aUnit)
-  struct dwarf1_debug* stash;
-  struct dwarf1_unit* aUnit;
+parse_line_table (struct dwarf1_debug* stash, struct dwarf1_unit* aUnit)
 {
   char* xptr;
 
@@ -285,14 +269,14 @@ parse_line_table (stash, aUnit)
       if (! msec)
 	return FALSE;
 
-      size = bfd_get_section_size_before_reloc (msec);
-      stash->line_section = (char *) bfd_alloc (stash->abfd, size);
+      size = msec->rawsize ? msec->rawsize : msec->size;
+      stash->line_section = bfd_alloc (stash->abfd, size);
 
       if (! stash->line_section)
 	return FALSE;
 
       if (! bfd_get_section_contents (stash->abfd, msec, stash->line_section,
-				      (bfd_vma) 0, size))
+				      0, size))
 	{
 	  stash->line_section = 0;
 	  return FALSE;
@@ -318,13 +302,12 @@ parse_line_table (stash, aUnit)
       xptr += 4;
 
       /* How many line entrys?
-	 10 = 4 (line number) + 2 (pos in line) + 4 (address in line) */
+	 10 = 4 (line number) + 2 (pos in line) + 4 (address in line).  */
       aUnit->line_count = (tblend - xptr) / 10;
 
       /* Allocate an array for the entries.  */
       amt = sizeof (struct linenumber) * aUnit->line_count;
-      aUnit->linenumber_table = ((struct linenumber *)
-				 bfd_alloc (stash->abfd, amt));
+      aUnit->linenumber_table = bfd_alloc (stash->abfd, amt);
 
       for (eachLine = 0; eachLine < aUnit->line_count; eachLine++)
 	{
@@ -352,15 +335,13 @@ parse_line_table (stash, aUnit)
    Return FALSE if error; TRUE otherwise.  */
 
 static bfd_boolean
-parse_functions_in_unit (stash, aUnit)
-     struct dwarf1_debug* stash;
-     struct dwarf1_unit* aUnit;
+parse_functions_in_unit (struct dwarf1_debug* stash, struct dwarf1_unit* aUnit)
 {
   char* eachDie;
 
   if (aUnit->first_child)
     for (eachDie = aUnit->first_child;
-	 eachDie < stash->debug_section_end;
+ 	 eachDie < stash->debug_section_end;
 	 )
       {
 	struct die_info eachDieInfo;
@@ -395,15 +376,12 @@ parse_functions_in_unit (stash, aUnit)
    Return whether we found the line (or a function) without error.  */
 
 static bfd_boolean
-dwarf1_unit_find_nearest_line (stash, aUnit, addr,
-		       filename_ptr, functionname_ptr,
-		       linenumber_ptr)
-  struct dwarf1_debug* stash;
-  struct dwarf1_unit* aUnit;
-  unsigned long addr;
-  const char **filename_ptr;
-  const char **functionname_ptr;
-  unsigned int *linenumber_ptr;
+dwarf1_unit_find_nearest_line (struct dwarf1_debug* stash,
+			       struct dwarf1_unit* aUnit,
+			       unsigned long addr,
+			       const char **filename_ptr,
+			       const char **functionname_ptr,
+			       unsigned int *linenumber_ptr)
 {
   int line_p = FALSE;
   int func_p = FALSE;
@@ -461,15 +439,13 @@ dwarf1_unit_find_nearest_line (stash, aUnit, addr,
    Return TRUE if the line is found without error.  */
 
 bfd_boolean
-_bfd_dwarf1_find_nearest_line (abfd, section, symbols, offset,
-                              filename_ptr, functionname_ptr, linenumber_ptr)
-     bfd *abfd;
-     asection *section;
-     asymbol **symbols ATTRIBUTE_UNUSED;
-     bfd_vma offset;
-     const char **filename_ptr;
-     const char **functionname_ptr;
-     unsigned int *linenumber_ptr;
+_bfd_dwarf1_find_nearest_line (bfd *abfd,
+			       asection *section,
+			       asymbol **symbols ATTRIBUTE_UNUSED,
+			       bfd_vma offset,
+			       const char **filename_ptr,
+			       const char **functionname_ptr,
+			       unsigned int *linenumber_ptr)
 {
   struct dwarf1_debug *stash = elf_tdata (abfd)->dwarf1_find_line_info;
 
@@ -488,28 +464,26 @@ _bfd_dwarf1_find_nearest_line (abfd, section, symbols, offset,
       bfd_size_type size = sizeof (struct dwarf1_debug);
 
       stash = elf_tdata (abfd)->dwarf1_find_line_info
-	= (struct dwarf1_debug *) bfd_zalloc (abfd, size);
+	= bfd_zalloc (abfd, size);
 
       if (! stash)
 	return FALSE;
 
       msec = bfd_get_section_by_name (abfd, ".debug");
       if (! msec)
-	{
-	  /* No dwarf1 info.  Note that at this point the stash
-	     has been allocated, but contains zeros, this lets
-	     future calls to this function fail quicker.  */
-	  return FALSE;
-	}
+	/* No dwarf1 info.  Note that at this point the stash
+	   has been allocated, but contains zeros, this lets
+	   future calls to this function fail quicker.  */
+	return FALSE;
 
-      size = bfd_get_section_size_before_reloc (msec);
-      stash->debug_section = (char *) bfd_alloc (abfd, size);
+      size = msec->rawsize ? msec->rawsize : msec->size;
+      stash->debug_section = bfd_alloc (abfd, size);
 
       if (! stash->debug_section)
 	return FALSE;
 
       if (! bfd_get_section_contents (abfd, msec, stash->debug_section,
-				      (bfd_vma) 0, size))
+				      0, size))
 	{
 	  stash->debug_section = 0;
 	  return FALSE;
@@ -529,13 +503,11 @@ _bfd_dwarf1_find_nearest_line (abfd, section, symbols, offset,
   /* Look at the previously parsed units to see if any contain
      the addr.  */
   for (eachUnit = stash->lastUnit; eachUnit; eachUnit = eachUnit->prev)
-    {
-      if (eachUnit->low_pc <= addr && addr < eachUnit->high_pc)
-	return dwarf1_unit_find_nearest_line (stash, eachUnit, addr,
-					      filename_ptr,
-					      functionname_ptr,
-					      linenumber_ptr);
-    }
+    if (eachUnit->low_pc <= addr && addr < eachUnit->high_pc)
+      return dwarf1_unit_find_nearest_line (stash, eachUnit, addr,
+					    filename_ptr,
+					    functionname_ptr,
+					    linenumber_ptr);
 
   while (stash->currentDie < stash->debug_section_end)
     {
@@ -582,5 +554,3 @@ _bfd_dwarf1_find_nearest_line (abfd, section, symbols, offset,
 
   return FALSE;
 }
-
-/* EOF */

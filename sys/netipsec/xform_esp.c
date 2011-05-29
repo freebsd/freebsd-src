@@ -85,8 +85,7 @@ SYSCTL_VNET_INT(_net_inet_esp, OID_AUTO,
 SYSCTL_VNET_STRUCT(_net_inet_esp, IPSECCTL_STATS,
 	stats,		CTLFLAG_RD,	&VNET_NAME(espstat),	espstat, "");
 
-/* max iv length over all algorithms */
-static VNET_DEFINE(int, esp_max_ivlen) = 0;
+static VNET_DEFINE(int, esp_max_ivlen);	/* max iv length over all algorithms */
 #define	V_esp_max_ivlen	VNET(esp_max_ivlen)
 
 static int esp_input_cb(struct cryptop *op);
@@ -304,7 +303,19 @@ esp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	else
 		hlen = sizeof (struct newesp) + sav->ivlen;
 	/* Authenticator hash size */
-	alen = esph ? AH_HMAC_HASHLEN : 0;
+	if (esph != NULL) {
+		switch (esph->type) {
+		case CRYPTO_SHA2_256_HMAC:
+		case CRYPTO_SHA2_384_HMAC:
+		case CRYPTO_SHA2_512_HMAC:
+			alen = esph->hashsize/2;
+			break;
+		default:
+			alen = AH_HMAC_HASHLEN;
+			break;
+		}
+	}else
+		alen = 0;
 
 	/*
 	 * Verify payload length is multiple of encryption algorithm
@@ -418,6 +429,8 @@ esp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	tc->tc_proto = sav->sah->saidx.proto;
 	tc->tc_protoff = protoff;
 	tc->tc_skip = skip;
+	KEY_ADDREFSA(sav);
+	tc->tc_sav = sav;
 
 	/* Decryption descriptor */
 	if (espx) {
@@ -438,27 +451,14 @@ esp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 		return esp_input_cb(crp);
 }
 
-#ifdef INET6
-#define	IPSEC_COMMON_INPUT_CB(m, sav, skip, protoff, mtag) do {		     \
-	if (saidx->dst.sa.sa_family == AF_INET6) {			     \
-		error = ipsec6_common_input_cb(m, sav, skip, protoff, mtag); \
-	} else {							     \
-		error = ipsec4_common_input_cb(m, sav, skip, protoff, mtag); \
-	}								     \
-} while (0)
-#else
-#define	IPSEC_COMMON_INPUT_CB(m, sav, skip, protoff, mtag)		     \
-	(error = ipsec4_common_input_cb(m, sav, skip, protoff, mtag))
-#endif
-
 /*
  * ESP input callback from the crypto driver.
  */
 static int
 esp_input_cb(struct cryptop *crp)
 {
-	u_int8_t lastthree[3], aalg[AH_HMAC_HASHLEN];
-	int hlen, skip, protoff, error;
+	u_int8_t lastthree[3], aalg[AH_HMAC_MAXHASHLEN];
+	int hlen, skip, protoff, error, alen;
 	struct mbuf *m;
 	struct cryptodesc *crd;
 	struct auth_hash *esph;
@@ -479,15 +479,8 @@ esp_input_cb(struct cryptop *crp)
 	mtag = (struct m_tag *) tc->tc_ptr;
 	m = (struct mbuf *) crp->crp_buf;
 
-	sav = KEY_ALLOCSA(&tc->tc_dst, tc->tc_proto, tc->tc_spi);
-	if (sav == NULL) {
-		V_espstat.esps_notdb++;
-		DPRINTF(("%s: SA gone during crypto (SA %s/%08lx proto %u)\n",
-		    __func__, ipsec_address(&tc->tc_dst),
-		    (u_long) ntohl(tc->tc_spi), tc->tc_proto));
-		error = ENOBUFS;		/*XXX*/
-		goto bad;
-	}
+	sav = tc->tc_sav;
+	IPSEC_ASSERT(sav != NULL, ("null SA!"));
 
 	saidx = &sav->sah->saidx;
 	IPSEC_ASSERT(saidx->dst.sa.sa_family == AF_INET ||
@@ -504,7 +497,6 @@ esp_input_cb(struct cryptop *crp)
 			sav->tdb_cryptoid = crp->crp_sid;
 
 		if (crp->crp_etype == EAGAIN) {
-			KEY_FREESAV(&sav);
 			error = crypto_dispatch(crp);
 			return error;
 		}
@@ -526,6 +518,16 @@ esp_input_cb(struct cryptop *crp)
 
 	/* If authentication was performed, check now. */
 	if (esph != NULL) {
+		switch (esph->type) {
+		case CRYPTO_SHA2_256_HMAC:
+		case CRYPTO_SHA2_384_HMAC:
+		case CRYPTO_SHA2_512_HMAC:
+			alen = esph->hashsize/2;
+			break;
+		default:
+			alen = AH_HMAC_HASHLEN;
+			break;
+		}
 		/*
 		 * If we have a tag, it means an IPsec-aware NIC did
 		 * the verification for us.  Otherwise we need to
@@ -534,13 +536,13 @@ esp_input_cb(struct cryptop *crp)
 		V_ahstat.ahs_hist[sav->alg_auth]++;
 		if (mtag == NULL) {
 			/* Copy the authenticator from the packet */
-			m_copydata(m, m->m_pkthdr.len - AH_HMAC_HASHLEN,
-				AH_HMAC_HASHLEN, aalg);
+			m_copydata(m, m->m_pkthdr.len - alen,
+				alen, aalg);
 
 			ptr = (caddr_t) (tc + 1);
 
 			/* Verify authenticator */
-			if (bcmp(ptr, aalg, AH_HMAC_HASHLEN) != 0) {
+			if (bcmp(ptr, aalg, alen) != 0) {
 				DPRINTF(("%s: "
 		    "authentication hash mismatch for packet in SA %s/%08lx\n",
 				    __func__,
@@ -553,7 +555,7 @@ esp_input_cb(struct cryptop *crp)
 		}
 
 		/* Remove trailing authenticator */
-		m_adj(m, -AH_HMAC_HASHLEN);
+		m_adj(m, -alen);
 	}
 
 	/* Release the crypto descriptors */
@@ -632,7 +634,21 @@ esp_input_cb(struct cryptop *crp)
 	/* Restore the Next Protocol field */
 	m_copyback(m, protoff, sizeof (u_int8_t), lastthree + 2);
 
-	IPSEC_COMMON_INPUT_CB(m, sav, skip, protoff, mtag);
+	switch (saidx->dst.sa.sa_family) {
+#ifdef INET6
+	case AF_INET6:
+		error = ipsec6_common_input_cb(m, sav, skip, protoff, mtag);
+		break;
+#endif
+#ifdef INET
+	case AF_INET:
+		error = ipsec4_common_input_cb(m, sav, skip, protoff, mtag);
+		break;
+#endif
+	default:
+		panic("%s: Unexpected address family: %d saidx=%p", __func__,
+		    saidx->dst.sa.sa_family, saidx);
+	}
 
 	KEY_FREESAV(&sav);
 	return error;
@@ -697,7 +713,16 @@ esp_output(
 	plen = rlen + padding;		/* Padded payload length. */
 
 	if (esph)
+		switch (esph->type) {
+		case CRYPTO_SHA2_256_HMAC:
+		case CRYPTO_SHA2_384_HMAC:
+		case CRYPTO_SHA2_512_HMAC:
+			alen = esph->hashsize/2;
+			break;
+		default:
 		alen = AH_HMAC_HASHLEN;
+			break;
+		}
 	else
 		alen = 0;
 
@@ -853,6 +878,8 @@ esp_output(
 
 	/* Callback parameters */
 	tc->tc_isr = isr;
+	KEY_ADDREFSA(sav);
+	tc->tc_sav = sav;
 	tc->tc_spi = sav->spi;
 	tc->tc_dst = saidx->dst;
 	tc->tc_proto = saidx->proto;
@@ -902,8 +929,9 @@ esp_output_cb(struct cryptop *crp)
 
 	isr = tc->tc_isr;
 	IPSECREQUEST_LOCK(isr);
-	sav = KEY_ALLOCSA(&tc->tc_dst, tc->tc_proto, tc->tc_spi);
-	if (sav == NULL) {
+	sav = tc->tc_sav;
+	/* With the isr lock released SA pointer can be updated. */
+	if (sav != isr->sav) {
 		V_espstat.esps_notdb++;
 		DPRINTF(("%s: SA gone during crypto (SA %s/%08lx proto %u)\n",
 		    __func__, ipsec_address(&tc->tc_dst),
@@ -911,8 +939,6 @@ esp_output_cb(struct cryptop *crp)
 		error = ENOBUFS;		/*XXX*/
 		goto bad;
 	}
-	IPSEC_ASSERT(isr->sav == sav,
-		("SA changed was %p now %p\n", isr->sav, sav));
 
 	/* Check for crypto errors. */
 	if (crp->crp_etype) {
@@ -921,7 +947,6 @@ esp_output_cb(struct cryptop *crp)
 			sav->tdb_cryptoid = crp->crp_sid;
 
 		if (crp->crp_etype == EAGAIN) {
-			KEY_FREESAV(&sav);
 			IPSECREQUEST_UNLOCK(isr);
 			error = crypto_dispatch(crp);
 			return error;
@@ -951,7 +976,7 @@ esp_output_cb(struct cryptop *crp)
 #ifdef REGRESSION
 	/* Emulate man-in-the-middle attack when ipsec_integrity is TRUE. */
 	if (V_ipsec_integrity) {
-		static unsigned char ipseczeroes[AH_HMAC_HASHLEN];
+		static unsigned char ipseczeroes[AH_HMAC_MAXHASHLEN];
 		struct auth_hash *esph;
 
 		/*
@@ -960,8 +985,20 @@ esp_output_cb(struct cryptop *crp)
 		 */
 		esph = sav->tdb_authalgxform;
 		if (esph !=  NULL) {
-			m_copyback(m, m->m_pkthdr.len - AH_HMAC_HASHLEN,
-			    AH_HMAC_HASHLEN, ipseczeroes);
+			int alen;
+
+			switch (esph->type) {
+			case CRYPTO_SHA2_256_HMAC:
+			case CRYPTO_SHA2_384_HMAC:
+			case CRYPTO_SHA2_512_HMAC:
+				alen = esph->hashsize/2;
+				break;
+			default:
+				alen = AH_HMAC_HASHLEN;
+				break;
+			}
+			m_copyback(m, m->m_pkthdr.len - alen,
+			    alen, ipseczeroes);
 		}
 	}
 #endif

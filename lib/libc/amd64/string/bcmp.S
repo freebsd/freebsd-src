@@ -23,3 +23,5 @@ L1:
 	movsbl	%al,%eax
 	ret
 END(bcmp)
+
+	.section .note.GNU-stack,"",%progbits

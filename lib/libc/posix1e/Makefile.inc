@@ -20,6 +20,7 @@ SRCS+=	acl_branding.c			\
 	acl_from_text.c			\
 	acl_from_text_nfs4.c		\
 	acl_get.c			\
+	acl_id_to_name.c		\
 	acl_init.c			\
 	acl_perm.c			\
 	acl_set.c			\

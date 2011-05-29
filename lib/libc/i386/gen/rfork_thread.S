@@ -116,3 +116,5 @@ ENTRY(rfork_thread)
 	PIC_PROLOGUE
 	jmp	PIC_PLT(HIDENAME(cerror))
 END(rfork_thread)
+
+	.section .note.GNU-stack,"",%progbits

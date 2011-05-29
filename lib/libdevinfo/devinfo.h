@@ -31,7 +31,7 @@
 #define _DEVINFO_H_INCLUDED
 
 #include <sys/cdefs.h>
-#include <sys/_types.h>
+#include <sys/types.h>
 #include <sys/bus.h>
 
 typedef __uintptr_t	devinfo_handle_t;

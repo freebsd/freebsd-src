@@ -982,7 +982,7 @@ ospf_decode_v2(register const struct ospfhdr *op,
                        bittok2str(ospf_dd_flag_values,"none",op->ospf_db.db_flags));
                 TCHECK(op->ospf_db.db_ifmtu);
                 if (op->ospf_db.db_ifmtu) {
-                        printf(", MTU: %u", ntohs(op->ospf_db.db_ifmtu));
+                        printf(", MTU: %u", EXTRACT_16BITS(&op->ospf_db.db_ifmtu));
                 }
                 TCHECK(op->ospf_db.db_seq);
                 printf(", Sequence: 0x%08x", EXTRACT_32BITS(&op->ospf_db.db_seq));

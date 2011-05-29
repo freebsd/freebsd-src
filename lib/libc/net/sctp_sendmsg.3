@@ -72,7 +72,7 @@ Data sent in such an instance will result in
 the data being sent on the third leg of the SCTP four-way handshake.
 Note that if
 the socket is a one-to-one type (SOCK_STREAM) socket then an association must
-be in existance (by use of the 
+be in existence (by use of the 
 .Xr connect 2
 system call).
 Calling 
@@ -180,9 +180,9 @@ to find the association but also as the actual address to send to.
 .Pp
 For a one-to-many type (SOCK_SEQPACKET) socket the flag
 .Dv SCTP_SENDALL
-can be used as a convient way to make one send call and have
+can be used as a convenient way to make one send call and have
 all associations that are under the socket get a copy of the message.
-Note that this mechanism is quite efficent and makes only one actual
+Note that this mechanism is quite efficient and makes only one actual
 copy of the data which is shared by all the associations for sending.
 .Pp
 The remaining flags are used for the partial reliability extension (RFC3758)
@@ -199,7 +199,7 @@ The
 .Fa timetolive
 argument is then a number of milliseconds for which the data is
 attempted to be transmitted.
-If that many milliseconds ellapse
+If that many milliseconds elapse
 and the peer has not acknowledged the data, the data will be
 skipped and no longer transmitted.
 Note that this policy does

@@ -123,13 +123,14 @@ driverFloppyCheck(void)
 int
 kldBrowser(dialogMenuItem *self)
 {
-    DMenu	*menu;
+    DMenu	*menu = NULL;
     int		i, what = DITEM_SUCCESS, msize, count;
     DIR		*dir;
     struct dirent *de;
     char	*err;
     
     err = NULL;
+    count = 0;
     
     if (DITEM_STATUS(mediaSetFloppy(NULL)) == DITEM_FAILURE) {
 	err = "Unable to set media device to floppy.";
@@ -142,7 +143,6 @@ kldBrowser(dialogMenuItem *self)
     }
 
     msize = sizeof(DMenu) + (sizeof(dialogMenuItem) * 2);
-    count = 0;
     if ((menu = malloc(msize)) == NULL) {
 	err = "Failed to allocate memory for menu";
 	goto errout;

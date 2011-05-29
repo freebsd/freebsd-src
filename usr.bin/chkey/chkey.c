@@ -203,6 +203,7 @@ main(int argc, char **argv)
 			    write(fd, &newline, sizeof(newline)) < 0)
 				warn("%s: write", ROOTKEY);
 		}
+		close(fd);
 	}
 
 	if (key_setsecret(secret) < 0)

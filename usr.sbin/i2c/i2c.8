@@ -25,7 +25,6 @@
 .\"
 .\" $FreeBSD$ 
 .\"
-
 .Dd January 23, 2009
 .Dt I2C 8
 .Os
@@ -79,7 +78,7 @@ transfer has been written to the device and before the actual read/write
 operation. rs - repeated start; ss - stop start; no - none.
 .It Fl n Ar skip_addr
 skip address - address(es) to be skipped during bus scan.
-The are two ways to specify addresses to ignore: by range 'a..b' or
+There are two ways to specify addresses to ignore: by range 'a..b' or
 using selected addresses 'a:b:c'. This option is available only when "-s" is
 used.
 .It Fl o Ar offset
@@ -115,7 +114,6 @@ talks to this I2C slave device again, the commands and other control info it
 sends are treated by the slave device as data or offset it was waiting for,
 and there's great potential for corruption if such a write is performed.
 .Sh EXAMPLES
-.Pp
 .Bl -bullet
 .It
 Scan the default bus (/dev/iic0) for devices:

@@ -274,7 +274,7 @@ indent(int amount, char *pfx, FILE *fp)
 
 FILE *tracefile;
 
-#if DEBUG == 2
+#if DEBUG >= 2
 int debug = 1;
 #else
 int debug = 0;

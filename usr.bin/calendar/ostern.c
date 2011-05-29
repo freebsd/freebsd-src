@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1996 Wolfram Schneider <wosch@FreeBSD.org>. Berlin.
  * All rights reserved.
  *
@@ -60,50 +60,8 @@ easter(int year) /* 0 ... abcd, NOT since 1900 */
 
 	L = I - J;
 
-	if (year % 400 == 0 || (year % 4 == 0 && year % 100 != 0))
+	if (isleap(year))
 		return 31 + 29 + 21 + L + 7;
 	else
 		return 31 + 28 + 21 + L + 7;
-}
-
-/* return year day for  Easter or easter depending days
- * Match: Easter([+-][0-9]+)?
- * e.g: Easter-2 is  Good Friday (2 days before Easter)
- */
-
-int
-geteaster(char *s, int year)
-{
-	int offset = 0;
-
-#define	EASTER "easter"
-#define	EASTERNAMELEN (sizeof(EASTER) - 1)
-
-	if (strncasecmp(s, EASTER, EASTERNAMELEN) == 0)
-		s += EASTERNAMELEN;
-	else if (neaster.name != NULL
-	    && strncasecmp(s, neaster.name, neaster.len) == 0)
-		s += neaster.len;
-	else
-		return (0);
-
-#ifdef DEBUG
-	printf("%s %d %d\n", s, year, EASTERNAMELEN);
-#endif
-
-	/* Easter+1  or Easter-2
-	 *       ^            ^   */
-
-	switch (*s) {
-
-	case '-':
-	case '+':
-		offset = atoi(s);
-		break;
-
-	default:
-		offset = 0;
-	}
-
-	return (easter(year) + offset);
 }

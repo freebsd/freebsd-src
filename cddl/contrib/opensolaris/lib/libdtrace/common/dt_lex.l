@@ -18,12 +18,11 @@
  * information: Portions Copyright [yyyy] [name of copyright owner]
  *
  * CDDL HEADER END
- *
- * Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
- * Use is subject to license terms.
  */
 
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
+/*
+ * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+ */
 
 #include <string.h>
 #include <stdlib.h>
@@ -45,7 +44,7 @@
 #undef input
 #undef unput
 #else
-/* 
+/*
  * Define YY_INPUT for flex since input() can't be re-defined.
  */
 #define YY_INPUT(buf,result,max_size) \
@@ -60,6 +59,19 @@
 			buf[n] = *yypcb->pcb_strptr++; \
 		result = n; \
 	}
+/*
+ * Do not EOF let tokens to be put back. This does not work with flex.
+ * On the other hand, leaving current buffer in same state it was when
+ * last EOF was received guarantees that input() will keep returning EOF
+ * for all subsequent invocations, which is the effect desired.
+ */
+#undef  unput
+#define unput(c)					\
+	do {						\
+		int _c = c;				\
+		if (_c != EOF)				\
+			yyunput(_c, yytext_ptr);	\
+	} while(0)
 #endif
 
 static int id_or_type(const char *);
@@ -826,7 +838,7 @@ input(void)
 	else if (yypcb->pcb_fileptr != NULL)
 		c = fgetc(yypcb->pcb_fileptr);
 	else if (yypcb->pcb_strptr < yypcb->pcb_string + yypcb->pcb_strlen)
-		c = *yypcb->pcb_strptr++;
+		c = *(unsigned char *)(yypcb->pcb_strptr++);
 	else
 		c = EOF;
 

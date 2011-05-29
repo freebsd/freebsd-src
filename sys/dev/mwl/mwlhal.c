@@ -279,7 +279,7 @@ mwl_hal_attach(device_t dev, uint16_t devid,
 	hvap->vap_type = MWL_HAL_STA;
 	hvap->bss_type = htole16(WL_MAC_TYPE_PRIMARY_CLIENT);
 	hvap->macid = i;
-	for (i++; i < MWL_MBSS_STA_MAX; i++) {
+	for (i++; i < MWL_MBSS_MAX; i++) {
 		hvap = &mh->mh_vaps[i];
 		hvap->vap_type = MWL_HAL_STA;
 		hvap->bss_type = htole16(WL_MAC_TYPE_SECONDARY_CLIENT);

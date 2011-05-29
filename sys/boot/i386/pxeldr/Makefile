@@ -23,6 +23,11 @@ CFLAGS+=-DPROBE_KEYBOARD
 CFLAGS+=-DALWAYS_SERIAL
 .endif
 
+.if ${CC:T:Mclang} == "clang"
+# XXX: clang integrated-as doesn't grok .codeNN directives yet
+CFLAGS+=${.IMPSRC:T:Mpxeldr.S:C/^.+$/-no-integrated-as/}
+.endif
+
 LOADERBIN= ${.OBJDIR}/../loader/loader.bin
 
 CLEANFILES+= ${BOOT}.tmp
@@ -32,7 +37,7 @@ ${BOOT}: ${LDR} ${LOADER}
 	dd if=${.TARGET}.tmp of=${.TARGET} obs=2k conv=osync
 	rm ${.TARGET}.tmp
 
-LDFLAGS+= -N -e start -Ttext ${ORG} -Wl,-S,--oformat,binary
+LDFLAGS+=-e start -Ttext ${ORG} -Wl,-N,-S,--oformat,binary
 
 CLEANFILES+= ${LOADER}
 

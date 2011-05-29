@@ -110,14 +110,16 @@ CTASSERT(EST_MAX_SETTINGS <= MAX_SETTINGS);
 #define EST_TRANS_LAT		1000
 
 /*
- * Frequency (MHz) and voltage (mV) settings.  Data from the
- * Intel Pentium M Processor Datasheet (Order Number 252612), Table 5.
+ * Frequency (MHz) and voltage (mV) settings.
  *
  * Dothan processors have multiple VID#s with different settings for
  * each VID#.  Since we can't uniquely identify this info
  * without undisclosed methods from Intel, we can't support newer
  * processors with this table method.  If ACPI Px states are supported,
  * we get info from them.
+ *
+ * Data from the "Intel Pentium M Processor Datasheet",
+ * Order Number 252612-003, Table 5.
  */
 static freq_info PM17_130[] = {
 	/* 130nm 1.70GHz Pentium M */
@@ -217,7 +219,7 @@ static freq_info PM10_ULV_130[] = {
 
 /*
  * Data from "Intel Pentium M Processor on 90nm Process with
- * 2-MB L2 Cache Datasheet", Order Number 302189, Table 5.
+ * 2-MB L2 Cache Datasheet", Order Number 302189-008, Table 5.
  */
 static freq_info PM_765A_90[] = {
 	/* 90 nm 2.10GHz Pentium M, VID #A */
@@ -945,8 +947,11 @@ static int
 est_features(driver_t *driver, u_int *features)
 {
 
-	/* Notify the ACPI CPU that we support direct access to MSRs */
-	*features = ACPI_CAP_PERF_MSRS;
+	/*
+	 * Notify the ACPI CPU that we support direct access to MSRs.
+	 * XXX C1 "I/O then Halt" seems necessary for some broken BIOS.
+	 */
+	*features = ACPI_CAP_PERF_MSRS | ACPI_CAP_C1_IO_HALT;
 	return (0);
 }
 
@@ -985,7 +990,7 @@ est_probe(device_t dev)
 	device_t perf_dev;
 	uint64_t msr;
 	int error, type;
-        
+
 	if (resource_disabled("est", 0))
 		return (ENXIO);
 
@@ -1123,16 +1128,12 @@ est_acpi_info(device_t dev, freq_info **freqs)
 		 * Confirm id16 value is correct.
 		 */
 		if (sets[i].freq > 0) {
-			error = est_set_id16(dev, sets[i].spec[0], 1);
-			if (error != 0 && strict) {
-				if (bootverbose) 
+			error = est_set_id16(dev, sets[i].spec[0], strict);
+			if (error != 0) {
+				if (bootverbose)
 					device_printf(dev, "Invalid freq %u, "
 					    "ignored.\n", sets[i].freq);
 				continue;
-			} else if (error != 0 && bootverbose) {
-				device_printf(dev, "Can't check freq %u, "
-				    "it may be invalid\n",
-				    sets[i].freq);
 			}
 			table[j].freq = sets[i].freq;
 			table[j].volts = sets[i].volts;
@@ -1214,7 +1215,7 @@ est_msr_info(device_t dev, uint64_t msr, freq_info **freqs)
 		return (EOPNOTSUPP);
 
 	/* Figure out the bus clock. */
-	freq = tsc_freq / 1000000;
+	freq = atomic_load_acq_64(&tsc_freq) / 1000000;
 	id = msr >> 32;
 	bus = freq / (id >> 8);
 	device_printf(dev, "Guessed bus clock (high) of %d MHz\n", bus);
@@ -1225,7 +1226,7 @@ est_msr_info(device_t dev, uint64_t msr, freq_info **freqs)
 		device_printf(dev, "Guessed bus clock (low) of %d MHz\n", bus);
 		if (!bus_speed_ok(bus))
 			return (EOPNOTSUPP);
-		
+
 		/* Calculate high frequency. */
 		id = msr >> 32;
 		freq = ((id >> 8) & 0xff) * bus;
@@ -1286,14 +1287,14 @@ est_set_id16(device_t dev, uint16_t id16, int need_check)
 	msr = rdmsr(MSR_PERF_CTL);
 	msr = (msr & ~0xffff) | id16;
 	wrmsr(MSR_PERF_CTL, msr);
-	
+
 	/* Wait a short while for the new setting.  XXX Is this necessary? */
 	DELAY(EST_TRANS_LAT);
-	
+
 	if  (need_check) {
-		est_get_id16(&new_id16);		
+		est_get_id16(&new_id16);
 		if (new_id16 != id16) {
-			if (bootverbose) 
+			if (bootverbose)
 				device_printf(dev, "Invalid id16 (set, cur) "
 				    "= (%u, %u)\n", id16, new_id16);
 			ret = ENXIO;

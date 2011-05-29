@@ -67,6 +67,7 @@ ar5416SetupRxDesc(struct ath_hal *ah, struct ath_desc *ds,
     uint32_t size, u_int flags)
 {
 	struct ar5416_desc *ads = AR5416DESC(ds);
+	HAL_CAPABILITIES *pCap = &AH_PRIVATE(ah)->ah_caps;
 
 	HALASSERT((size &~ AR_BufLen) == 0);
 
@@ -76,6 +77,10 @@ ar5416SetupRxDesc(struct ath_hal *ah, struct ath_desc *ds,
 
 	/* this should be enough */
 	ads->ds_rxstatus8 &= ~AR_RxDone;
+
+	/* clear the rest of the status fields */
+	if (! pCap->halAutoSleepSupport)
+        	OS_MEMZERO(&(ads->u), sizeof(ads->u));
 
 	return AH_TRUE;
 }
@@ -94,17 +99,8 @@ ar5416ProcRxDesc(struct ath_hal *ah, struct ath_desc *ds,
     struct ath_rx_status *rs)
 {
 	struct ar5416_desc *ads = AR5416DESC(ds);
-	struct ar5416_desc *ands = AR5416DESC(nds);
 
 	if ((ads->ds_rxstatus8 & AR_RxDone) == 0)
-		return HAL_EINPROGRESS;
-	/*
-	 * Given the use of a self-linked tail be very sure that the hw is
-	 * done with this descriptor; the hw may have done this descriptor
-	 * once and picked it up again...make sure the hw has moved on.
-	 */
-	if ((ands->ds_rxstatus8 & AR_RxDone) == 0
-	    && OS_REG_READ(ah, AR_RXDP) == pa)
 		return HAL_EINPROGRESS;
 
 	rs->rs_status = 0;

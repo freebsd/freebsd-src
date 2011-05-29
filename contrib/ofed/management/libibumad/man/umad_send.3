@@ -1,0 +1,37 @@
+.\" -*- nroff -*-
+.\"
+.TH UMAD_SEND 3  "May 11, 2007" "OpenIB" "OpenIB Programmer\'s Manual"
+.SH "NAME"
+umad_send \- send umad
+.SH "SYNOPSIS"
+.nf
+.B #include <infiniband/umad.h>
+.sp
+.BI "int umad_send(int " "portid" ", int " "agentid" ", void " "*umad" ", int " "timeout_ms" ", int " "retries");
+.fi
+.SH "DESCRIPTION"
+.B umad_send()
+sends the specified
+.I umad\fR
+buffer from the port specified by
+.I portid\fR,
+and using the agent specified by
+.I agentid\fR.
+.I timeout_ms\fR
+controls the solicited MADs behavior as follows:
+zero value means not solicited. Positive value makes kernel indicate timeout
+in milliseconds. If reply is not received within the specified value, the
+original buffer is returned in the read channel with the status field set (to
+non zero). Negative
+.I timeout_ms\fR
+makes kernel wait forever for the reply.
+.I retries\fR
+indicates the number of times the MAD will be retried before giving up.
+.SH "RETURN VALUE"
+.B umad_send()
+returns 0 on success, and a negative value on error as follows:
+ -EINVAL invalid port handle or agentid
+ -EIO    send operation failed
+.SH "AUTHOR"
+.TP
+Hal Rosenstock <halr@voltaire.com>

@@ -1,6 +1,6 @@
 /* Routines to link ECOFF debugging information.
-   Copyright 1993, 1994, 1995, 1996, 1997, 2000, 2001, 2002, 2003
-   Free Software Foundation, Inc.
+   Copyright 1993, 1994, 1995, 1996, 1997, 1999, 2000, 2001, 2002, 2003,
+   2004, 2005, 2006, 2007 Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support, <ian@cygnus.com>.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -17,10 +17,10 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "bfdlink.h"
 #include "libbfd.h"
 #include "objalloc.h"
@@ -501,8 +501,8 @@ bfd_ecoff_debug_init (output_bfd, output_debug, output_swap, info)
   ainfo = (struct accumulate *) bfd_malloc (amt);
   if (!ainfo)
     return NULL;
-  if (! bfd_hash_table_init_n (&ainfo->fdr_hash.table, string_hash_newfunc,
-			       1021))
+  if (!bfd_hash_table_init_n (&ainfo->fdr_hash.table, string_hash_newfunc,
+			      sizeof (struct string_hash_entry), 1021))
     return NULL;
 
   ainfo->line = NULL;
@@ -528,7 +528,8 @@ bfd_ecoff_debug_init (output_bfd, output_debug, output_swap, info)
 
   if (! info->relocatable)
     {
-      if (! bfd_hash_table_init (&ainfo->str_hash.table, string_hash_newfunc))
+      if (!bfd_hash_table_init (&ainfo->str_hash.table, string_hash_newfunc,
+				sizeof (struct string_hash_entry)))
 	return NULL;
 
       /* The first entry in the string table is the empty string.  */
@@ -781,7 +782,6 @@ bfd_ecoff_debug_accumulate (handle, output_bfd, output_debug, output_swap,
        fdr_ptr += fdr_add, i++)
     {
       FDR fdr;
-      bfd_vma fdr_adr;
       bfd_byte *sym_out;
       bfd_byte *lraw_src;
       bfd_byte *lraw_end;
@@ -797,22 +797,6 @@ bfd_ecoff_debug_accumulate (handle, output_bfd, output_debug, output_swap,
 	fdr = *(FDR *) fdr_ptr;
       else
 	(*input_swap->swap_fdr_in) (input_bfd, (PTR) fdr_ptr, &fdr);
-
-      fdr_adr = fdr.adr;
-
-      /* Adjust the FDR address for any changes that may have been
-	 made by relaxing.  */
-      if (input_debug->adjust != (struct ecoff_value_adjust *) NULL)
-	{
-	  struct ecoff_value_adjust *adjust;
-
-	  for (adjust = input_debug->adjust;
-	       adjust != (struct ecoff_value_adjust *) NULL;
-	       adjust = adjust->next)
-	    if (fdr_adr >= adjust->start
-		&& fdr_adr < adjust->end)
-	      fdr.adr += adjust->adjust;
-	}
 
       /* FIXME: It is conceivable that this FDR points to the .init or
 	 .fini section, in which case this will not do the right
@@ -856,19 +840,6 @@ bfd_ecoff_debug_accumulate (handle, output_bfd, output_debug, output_swap,
 	    case stLabel:
 	    case stProc:
 	    case stStaticProc:
-	      if (input_debug->adjust != (struct ecoff_value_adjust *) NULL)
-		{
-		  bfd_vma value;
-		  struct ecoff_value_adjust *adjust;
-
-		  value = internal_sym.value;
-		  for (adjust = input_debug->adjust;
-		       adjust != (struct ecoff_value_adjust *) NULL;
-		       adjust = adjust->next)
-		    if (value >= adjust->start
-			&& value < adjust->end)
-		      internal_sym.value += adjust->adjust;
-		}
 	      internal_sym.value += section_adjust[internal_sym.sc];
 	      break;
 
@@ -978,9 +949,8 @@ bfd_ecoff_debug_accumulate (handle, output_bfd, output_debug, output_swap,
 	  output_symhdr->issMax += fdr.cbSs;
 	}
 
-      if ((output_bfd->xvec->header_byteorder
-	   == input_bfd->xvec->header_byteorder)
-	  && input_debug->adjust == (struct ecoff_value_adjust *) NULL)
+      if (output_bfd->xvec->header_byteorder
+	  == input_bfd->xvec->header_byteorder)
 	{
 	  /* The two BFD's have the same endianness, and we don't have
 	     to adjust the PDR addresses, so simply copying the
@@ -1036,23 +1006,6 @@ bfd_ecoff_debug_accumulate (handle, output_bfd, output_debug, output_swap,
 	      PDR pdr;
 
 	      (*input_swap->swap_pdr_in) (input_bfd, (PTR) in, &pdr);
-
-	      /* If we have been relaxing, we may have to adjust the
-		 address.  */
-	      if (input_debug->adjust != (struct ecoff_value_adjust *) NULL)
-		{
-		  bfd_vma adr;
-		  struct ecoff_value_adjust *adjust;
-
-		  adr = fdr_adr + pdr.adr;
-		  for (adjust = input_debug->adjust;
-		       adjust != (struct ecoff_value_adjust *) NULL;
-		       adjust = adjust->next)
-		    if (adr >= adjust->start
-			&& adr < adjust->end)
-		      pdr.adr += adjust->adjust;
-		}
-
 	      (*output_swap->swap_pdr_out) (output_bfd, &pdr, (PTR) out);
 	    }
 
@@ -1199,7 +1152,7 @@ bfd_ecoff_debug_accumulate_other (handle, output_bfd, output_debug,
   fdr.issBase = output_symhdr->issMax;
   fdr.cbSs = 0;
   fdr.rss = ecoff_add_string (ainfo, info, output_debug, &fdr,
-			      bfd_archive_filename (input_bfd));
+			      input_bfd->filename);
   if (fdr.rss == -1)
     return FALSE;
   fdr.isymBase = output_symhdr->isymMax;
@@ -1383,10 +1336,14 @@ bfd_ecoff_debug_one_external (abfd, debug, swap, name, esym)
 		- (char *) debug->external_ext)
       < (symhdr->iextMax + 1) * external_ext_size)
     {
-      if (! ecoff_add_bytes ((char **) &debug->external_ext,
-			     (char **) &debug->external_ext_end,
+      char *external_ext = debug->external_ext;
+      char *external_ext_end = debug->external_ext_end;
+      if (! ecoff_add_bytes ((char **) &external_ext,
+			     (char **) &external_ext_end,
 			     (symhdr->iextMax + 1) * (size_t) external_ext_size))
 	return FALSE;
+      debug->external_ext = external_ext;
+      debug->external_ext_end = external_ext_end;
     }
 
   esym->asym.iss = symhdr->issExtMax;
@@ -1884,24 +1841,9 @@ mk_fdrtab (abfd, debug_info, debug_swap, line_info)
 	     addresses do not equal the FDR vma, but they (the PDR address)
 	     are still vma's and not offsets.  Cf. comments in
 	     'lookup_line'.  */
-#if 0
-	    bfd_size_type external_pdr_size;
-	    char *pdr_ptr;
-	    PDR pdr;
-	    
-	    external_pdr_size = debug_swap->external_pdr_size;
-	    
-	    pdr_ptr = ((char *) debug_info->external_pdr
-	              + fdr_ptr->ipdFirst * external_pdr_size);
-	    (*debug_swap->swap_pdr_in) (abfd, (PTR) pdr_ptr, &pdr);
-	  /* The address of the first PDR is the offset of that
-	     procedure relative to the beginning of file FDR.  */
-	    tab->base_addr = fdr_ptr->adr - pdr.adr;
-#else
 	  /* The address of the first PDR is the offset of that
 	     procedure relative to the beginning of file FDR.  */
 	  tab->base_addr = fdr_ptr->adr; 
-#endif
 	}
       else
 	{
@@ -2160,11 +2102,6 @@ lookup_line (abfd, debug_info, debug_swap, line_info)
          considerably, which is undesirable.  */
       external_pdr_size = debug_swap->external_pdr_size;
 
-#if 0 /* eraxxon: PDR addresses (pdr.adr) are not relative to FDRs!
-	 Leave 'offset' alone.  */
-      /* Make offset relative to object file's start-address.  */
-      offset -= tab[i].base_addr;
-#endif
       /* eraxxon: The Horrible Hack: Because of the problems above, set 'i'
 	 to 0 so we look through all FDRs.
 

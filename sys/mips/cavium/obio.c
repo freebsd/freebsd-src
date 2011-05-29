@@ -56,34 +56,42 @@ __FBSDID("$FreeBSD$");
 #include <mips/cavium/octeon_pcmap_regs.h>
 #include <mips/cavium/obiovar.h>
 
+#include <contrib/octeon-sdk/cvmx.h>
+#include <contrib/octeon-sdk/cvmx-interrupt.h>
+
 extern struct bus_space octeon_uart_tag;
 
-int	obio_probe(device_t);
-int	obio_attach(device_t);
+static void	obio_identify(driver_t *, device_t);
+static int	obio_probe(device_t);
+static int	obio_attach(device_t);
 
-/*
- * We need only one obio.  Any other device hanging off of it,
- * shouldn't cause multiple of these to be found.
- */
-static int have_one = 0;
-
-int
-obio_probe(device_t dev)
+static void
+obio_identify(driver_t *drv, device_t parent)
 {
-	if (!have_one) {
-		have_one = 1;
-		return 0;
-	}
-	return (ENXIO);
+	BUS_ADD_CHILD(parent, 0, "obio", 0);
 }
 
-int
+static int
+obio_probe(device_t dev)
+{
+	if (device_get_unit(dev) != 0)
+		return (ENXIO);
+	return (0);
+}
+
+static int
 obio_attach(device_t dev)
 {
 	struct obio_softc *sc = device_get_softc(dev);
 
 	sc->oba_st = mips_bus_space_generic;
-	sc->oba_addr = OCTEON_MIO_UART0;
+	/*
+	 * XXX
+	 * Here and elsewhere using RBR as a base address because it kind of
+	 * is, but that feels pretty sloppy.  Should consider adding a define
+	 * that's more semantic, at least.
+	 */
+	sc->oba_addr = CVMX_MIO_UARTX_RBR(0);
 	sc->oba_size = 0x10000;
 	sc->oba_rman.rm_type = RMAN_ARRAY;
 	sc->oba_rman.rm_descr = "OBIO I/O";
@@ -96,10 +104,10 @@ obio_attach(device_t dev)
 
 	/* 
 	 * This module is intended for UART purposes only and
-	 * it's IRQ is 0  corresponding to IP2.
+	 * manages IRQs for UART0 and UART1.
 	 */
 	if (rman_init(&sc->oba_irq_rman) != 0 ||
-	    rman_manage_region(&sc->oba_irq_rman, 0, 0) != 0)
+	    rman_manage_region(&sc->oba_irq_rman, CVMX_IRQ_UART0, CVMX_IRQ_UART1) != 0)
 		panic("obio_attach: failed to set up IRQ rman");
 
 	device_add_child(dev, "uart", 1);  /* Setup Uart-1 first. */
@@ -121,6 +129,16 @@ obio_alloc_resource(device_t bus, device_t child, int type, int *rid,
 
 	switch (type) {
 	case SYS_RES_IRQ:
+		switch (device_get_unit(child)) {
+		case 0:
+			start = end = CVMX_IRQ_UART0;
+			break;
+		case 1:
+			start = end = CVMX_IRQ_UART1;
+			break;
+		default:
+			return (NULL);
+		}
 		rm = &sc->oba_irq_rman;
 		break;
 	case SYS_RES_MEMORY:
@@ -128,8 +146,7 @@ obio_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	case SYS_RES_IOPORT:
 		rm = &sc->oba_rman;
 		bt = &octeon_uart_tag;
-		bh = device_get_unit(child) ?
-		    OCTEON_MIO_UART1 : OCTEON_MIO_UART0;
+		bh = CVMX_MIO_UARTX_RBR(device_get_unit(child));
 		start = bh;
 		break;
 	default:
@@ -164,13 +181,18 @@ obio_activate_resource(device_t bus, device_t child, int type, int rid,
 	return (0);
 }
 static device_method_t obio_methods[] = {
-	DEVMETHOD(device_probe, obio_probe),
-	DEVMETHOD(device_attach, obio_attach),
+	/* Device methods */
+	DEVMETHOD(device_identify,	obio_identify),
+	DEVMETHOD(device_probe,		obio_probe),
+	DEVMETHOD(device_attach,	obio_attach),
 
-	DEVMETHOD(bus_alloc_resource, obio_alloc_resource),
-	DEVMETHOD(bus_activate_resource, obio_activate_resource),
+	/* Bus methods */
+	DEVMETHOD(bus_alloc_resource,	obio_alloc_resource),
+	DEVMETHOD(bus_activate_resource,obio_activate_resource),
 	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
+
+	DEVMETHOD(bus_add_child,	bus_generic_add_child),
 
 	{0, 0},
 };
@@ -182,4 +204,4 @@ static driver_t obio_driver = {
 };
 static devclass_t obio_devclass;
 
-DRIVER_MODULE(obio, nexus, obio_driver, obio_devclass, 0, 0);
+DRIVER_MODULE(obio, ciu, obio_driver, obio_devclass, 0, 0);

@@ -65,11 +65,11 @@ dump_speed(uint8_t value)
 	case LIBUSB20_SPEED_VARIABLE:
 		return ("VARIABLE (52-480Mbps)");
 	case LIBUSB20_SPEED_SUPER:
-		return ("SUPER (4.8Gbps)");
+		return ("SUPER (5.0Gbps)");
 	default:
 		break;
 	}
-	return ("unknown");
+	return ("UNKNOWN ()");
 }
 
 const char *

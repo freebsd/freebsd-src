@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ktrace.h>
 #include <sys/sx.h>
 #include <sys/sysctl.h>
+#include <sys/sysent.h>
 #include <sys/syslog.h>
 #include <sys/sysproto.h>
 
@@ -83,6 +84,8 @@ static MALLOC_DEFINE(M_KTRACE, "KTRACE", "KTRACE");
 
 #ifdef KTRACE
 
+FEATURE(ktrace, "Kernel support for system-call tracing");
+
 #ifndef KTRACE_REQUEST_POOL
 #define	KTRACE_REQUEST_POOL	100
 #endif
@@ -91,6 +94,7 @@ struct ktr_request {
 	struct	ktr_header ktr_header;
 	void	*ktr_buffer;
 	union {
+		struct	ktr_proc_ctor ktr_proc_ctor;
 		struct	ktr_syscall ktr_syscall;
 		struct	ktr_sysret ktr_sysret;
 		struct	ktr_genio ktr_genio;
@@ -111,6 +115,8 @@ static int data_lengths[] = {
 	0,					/* KTR_USER */
 	0,					/* KTR_STRUCT */
 	0,					/* KTR_SYSCTL */
+	sizeof(struct ktr_proc_ctor),		/* KTR_PROCCTOR */
+	0,					/* KTR_PROCDTOR */
 };
 
 static STAILQ_HEAD(, ktr_request) ktr_free;
@@ -126,19 +132,24 @@ SYSCTL_UINT(_kern_ktrace, OID_AUTO, genio_size, CTLFLAG_RW, &ktr_geniosize,
     0, "Maximum size of genio event payload");
 
 static int print_message = 1;
-struct mtx ktrace_mtx;
+static struct mtx ktrace_mtx;
 static struct sx ktrace_sx;
 
 static void ktrace_init(void *dummy);
 static int sysctl_kern_ktrace_request_pool(SYSCTL_HANDLER_ARGS);
-static u_int ktrace_resize_pool(u_int newsize);
+static u_int ktrace_resize_pool(u_int oldsize, u_int newsize);
+static struct ktr_request *ktr_getrequest_entered(struct thread *td, int type);
 static struct ktr_request *ktr_getrequest(int type);
 static void ktr_submitrequest(struct thread *td, struct ktr_request *req);
+static void ktr_freeproc(struct proc *p, struct ucred **uc,
+    struct vnode **vp);
 static void ktr_freerequest(struct ktr_request *req);
+static void ktr_freerequest_locked(struct ktr_request *req);
 static void ktr_writerequest(struct thread *td, struct ktr_request *req);
 static int ktrcanset(struct thread *,struct proc *);
 static int ktrsetchildren(struct thread *,struct proc *,int,int,struct vnode *);
 static int ktrops(struct thread *,struct proc *,int,int,struct vnode *);
+static void ktrprocctor_entered(struct thread *, struct proc *);
 
 /*
  * ktrace itself generates events, such as context switches, which we do not
@@ -194,9 +205,7 @@ sysctl_kern_ktrace_request_pool(SYSCTL_HANDLER_ARGS)
 
 	/* Handle easy read-only case first to avoid warnings from GCC. */
 	if (!req->newptr) {
-		mtx_lock(&ktrace_mtx);
 		oldsize = ktr_requestpool;
-		mtx_unlock(&ktrace_mtx);
 		return (SYSCTL_OUT(req, &oldsize, sizeof(u_int)));
 	}
 
@@ -205,10 +214,8 @@ sysctl_kern_ktrace_request_pool(SYSCTL_HANDLER_ARGS)
 		return (error);
 	td = curthread;
 	ktrace_enter(td);
-	mtx_lock(&ktrace_mtx);
 	oldsize = ktr_requestpool;
-	newsize = ktrace_resize_pool(wantsize);
-	mtx_unlock(&ktrace_mtx);
+	newsize = ktrace_resize_pool(oldsize, wantsize);
 	ktrace_exit(td);
 	error = SYSCTL_OUT(req, &oldsize, sizeof(u_int));
 	if (error)
@@ -218,41 +225,44 @@ sysctl_kern_ktrace_request_pool(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 SYSCTL_PROC(_kern_ktrace, OID_AUTO, request_pool, CTLTYPE_UINT|CTLFLAG_RW,
-    &ktr_requestpool, 0, sysctl_kern_ktrace_request_pool, "IU", "");
+    &ktr_requestpool, 0, sysctl_kern_ktrace_request_pool, "IU",
+    "Pool buffer size for ktrace(1)");
 
 static u_int
-ktrace_resize_pool(u_int newsize)
+ktrace_resize_pool(u_int oldsize, u_int newsize)
 {
+	STAILQ_HEAD(, ktr_request) ktr_new;
 	struct ktr_request *req;
 	int bound;
 
-	mtx_assert(&ktrace_mtx, MA_OWNED);
 	print_message = 1;
-	bound = newsize - ktr_requestpool;
+	bound = newsize - oldsize;
 	if (bound == 0)
 		return (ktr_requestpool);
-	if (bound < 0)
+	if (bound < 0) {
+		mtx_lock(&ktrace_mtx);
 		/* Shrink pool down to newsize if possible. */
 		while (bound++ < 0) {
 			req = STAILQ_FIRST(&ktr_free);
 			if (req == NULL)
-				return (ktr_requestpool);
+				break;
 			STAILQ_REMOVE_HEAD(&ktr_free, ktr_list);
 			ktr_requestpool--;
-			mtx_unlock(&ktrace_mtx);
 			free(req, M_KTRACE);
-			mtx_lock(&ktrace_mtx);
 		}
-	else
+	} else {
 		/* Grow pool up to newsize. */
+		STAILQ_INIT(&ktr_new);
 		while (bound-- > 0) {
-			mtx_unlock(&ktrace_mtx);
 			req = malloc(sizeof(struct ktr_request), M_KTRACE,
 			    M_WAITOK);
-			mtx_lock(&ktrace_mtx);
-			STAILQ_INSERT_HEAD(&ktr_free, req, ktr_list);
-			ktr_requestpool++;
+			STAILQ_INSERT_HEAD(&ktr_new, req, ktr_list);
 		}
+		mtx_lock(&ktrace_mtx);
+		STAILQ_CONCAT(&ktr_free, &ktr_new);
+		ktr_requestpool += (newsize - oldsize);
+	}
+	mtx_unlock(&ktrace_mtx);
 	return (ktr_requestpool);
 }
 
@@ -261,18 +271,15 @@ CTASSERT(sizeof(((struct ktr_header *)NULL)->ktr_comm) ==
     (sizeof((struct thread *)NULL)->td_name));
 
 static struct ktr_request *
-ktr_getrequest(int type)
+ktr_getrequest_entered(struct thread *td, int type)
 {
 	struct ktr_request *req;
-	struct thread *td = curthread;
 	struct proc *p = td->td_proc;
 	int pm;
 
-	ktrace_enter(td);	/* XXX: In caller instead? */
 	mtx_lock(&ktrace_mtx);
 	if (!KTRCHECK(td, type)) {
 		mtx_unlock(&ktrace_mtx);
-		ktrace_exit(td);
 		return (NULL);
 	}
 	req = STAILQ_FIRST(&ktr_free);
@@ -298,8 +305,21 @@ ktr_getrequest(int type)
 		mtx_unlock(&ktrace_mtx);
 		if (pm)
 			printf("Out of ktrace request objects.\n");
-		ktrace_exit(td);
 	}
+	return (req);
+}
+
+static struct ktr_request *
+ktr_getrequest(int type)
+{
+	struct thread *td = curthread;
+	struct ktr_request *req;
+
+	ktrace_enter(td);
+	req = ktr_getrequest_entered(td, type);
+	if (req == NULL)
+		ktrace_exit(td);
+
 	return (req);
 }
 
@@ -316,7 +336,6 @@ ktr_enqueuerequest(struct thread *td, struct ktr_request *req)
 	mtx_lock(&ktrace_mtx);
 	STAILQ_INSERT_TAIL(&td->td_proc->p_ktr, req, ktr_list);
 	mtx_unlock(&ktrace_mtx);
-	ktrace_exit(td);
 }
 
 /*
@@ -335,7 +354,7 @@ ktr_drain(struct thread *td)
 	ktrace_assert(td);
 	sx_assert(&ktrace_sx, SX_XLOCKED);
 
-	STAILQ_INIT(&local_queue);	/* XXXRW: needed? */
+	STAILQ_INIT(&local_queue);
 
 	if (!STAILQ_EMPTY(&td->td_proc->p_ktr)) {
 		mtx_lock(&ktrace_mtx);
@@ -366,7 +385,6 @@ ktr_submitrequest(struct thread *td, struct ktr_request *req)
 	ktr_writerequest(td, req);
 	ktr_freerequest(req);
 	sx_xunlock(&ktrace_sx);
-
 	ktrace_exit(td);
 }
 
@@ -374,11 +392,43 @@ static void
 ktr_freerequest(struct ktr_request *req)
 {
 
+	mtx_lock(&ktrace_mtx);
+	ktr_freerequest_locked(req);
+	mtx_unlock(&ktrace_mtx);
+}
+
+static void
+ktr_freerequest_locked(struct ktr_request *req)
+{
+
+	mtx_assert(&ktrace_mtx, MA_OWNED);
 	if (req->ktr_buffer != NULL)
 		free(req->ktr_buffer, M_KTRACE);
-	mtx_lock(&ktrace_mtx);
 	STAILQ_INSERT_HEAD(&ktr_free, req, ktr_list);
-	mtx_unlock(&ktrace_mtx);
+}
+
+/*
+ * Disable tracing for a process and release all associated resources.
+ * The caller is responsible for releasing a reference on the returned
+ * vnode and credentials.
+ */
+static void
+ktr_freeproc(struct proc *p, struct ucred **uc, struct vnode **vp)
+{
+	struct ktr_request *req;
+
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	mtx_assert(&ktrace_mtx, MA_OWNED);
+	*uc = p->p_tracecred;
+	p->p_tracecred = NULL;
+	if (vp != NULL)
+		*vp = p->p_tracevp;
+	p->p_tracevp = NULL;
+	p->p_traceflag = 0;
+	while ((req = STAILQ_FIRST(&p->p_ktr)) != NULL) {
+		STAILQ_REMOVE_HEAD(&p->p_ktr, ktr_list);
+		ktr_freerequest_locked(req);
+	}
 }
 
 void
@@ -431,17 +481,112 @@ ktrsysret(code, error, retval)
 }
 
 /*
- * When a process exits, drain per-process asynchronous trace records.
+ * When a setuid process execs, disable tracing.
+ *
+ * XXX: We toss any pending asynchronous records.
+ */
+void
+ktrprocexec(struct proc *p, struct ucred **uc, struct vnode **vp)
+{
+
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	mtx_lock(&ktrace_mtx);
+	ktr_freeproc(p, uc, vp);
+	mtx_unlock(&ktrace_mtx);
+}
+
+/*
+ * When a process exits, drain per-process asynchronous trace records
+ * and disable tracing.
  */
 void
 ktrprocexit(struct thread *td)
 {
+	struct ktr_request *req;
+	struct proc *p;
+	struct ucred *cred;
+	struct vnode *vp;
+	int vfslocked;
+
+	p = td->td_proc;
+	if (p->p_traceflag == 0)
+		return;
 
 	ktrace_enter(td);
+	req = ktr_getrequest_entered(td, KTR_PROCDTOR);
+	if (req != NULL)
+		ktr_enqueuerequest(td, req);
 	sx_xlock(&ktrace_sx);
 	ktr_drain(td);
 	sx_xunlock(&ktrace_sx);
+	PROC_LOCK(p);
+	mtx_lock(&ktrace_mtx);
+	ktr_freeproc(p, &cred, &vp);
+	mtx_unlock(&ktrace_mtx);
+	PROC_UNLOCK(p);
+	if (vp != NULL) {
+		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
+		vrele(vp);
+		VFS_UNLOCK_GIANT(vfslocked);
+	}
+	if (cred != NULL)
+		crfree(cred);
 	ktrace_exit(td);
+}
+
+static void
+ktrprocctor_entered(struct thread *td, struct proc *p)
+{
+	struct ktr_proc_ctor *ktp;
+	struct ktr_request *req;
+	struct thread *td2;
+
+	ktrace_assert(td);
+	td2 = FIRST_THREAD_IN_PROC(p);
+	req = ktr_getrequest_entered(td2, KTR_PROCCTOR);
+	if (req == NULL)
+		return;
+	ktp = &req->ktr_data.ktr_proc_ctor;
+	ktp->sv_flags = p->p_sysent->sv_flags;
+	ktr_enqueuerequest(td2, req);
+}
+
+void
+ktrprocctor(struct proc *p)
+{
+	struct thread *td = curthread;
+
+	if ((p->p_traceflag & KTRFAC_MASK) == 0)
+		return;
+
+	ktrace_enter(td);
+	ktrprocctor_entered(td, p);
+	ktrace_exit(td);
+}
+
+/*
+ * When a process forks, enable tracing in the new process if needed.
+ */
+void
+ktrprocfork(struct proc *p1, struct proc *p2)
+{
+
+	PROC_LOCK(p1);
+	mtx_lock(&ktrace_mtx);
+	KASSERT(p2->p_tracevp == NULL, ("new process has a ktrace vnode"));
+	if (p1->p_traceflag & KTRFAC_INHERIT) {
+		p2->p_traceflag = p1->p_traceflag;
+		if ((p2->p_tracevp = p1->p_tracevp) != NULL) {
+			VREF(p2->p_tracevp);
+			KASSERT(p1->p_tracecred != NULL,
+			    ("ktrace vnode with no cred"));
+			p2->p_tracecred = crhold(p1->p_tracecred);
+		}
+	}
+	mtx_unlock(&ktrace_mtx);
+	PROC_UNLOCK(p1);
+
+	ktrprocctor(p2);
 }
 
 /*
@@ -565,6 +710,7 @@ ktrpsig(sig, action, mask, code)
 	sigset_t *mask;
 	int code;
 {
+	struct thread *td = curthread;
 	struct ktr_request *req;
 	struct ktr_psig	*kp;
 
@@ -576,13 +722,15 @@ ktrpsig(sig, action, mask, code)
 	kp->action = action;
 	kp->mask = *mask;
 	kp->code = code;
-	ktr_enqueuerequest(curthread, req);
+	ktr_enqueuerequest(td, req);
+	ktrace_exit(td);
 }
 
 void
 ktrcsw(out, user)
 	int out, user;
 {
+	struct thread *td = curthread;
 	struct ktr_request *req;
 	struct ktr_csw *kc;
 
@@ -592,13 +740,13 @@ ktrcsw(out, user)
 	kc = &req->ktr_data.ktr_csw;
 	kc->out = out;
 	kc->user = user;
-	ktr_enqueuerequest(curthread, req);
+	ktr_enqueuerequest(td, req);
+	ktrace_exit(td);
 }
 
 void
-ktrstruct(name, namelen, data, datalen)
+ktrstruct(name, data, datalen)
 	const char *name;
-	size_t namelen;
 	void *data;
 	size_t datalen;
 {
@@ -608,11 +756,10 @@ ktrstruct(name, namelen, data, datalen)
 
 	if (!data)
 		datalen = 0;
-	buflen = namelen + 1 + datalen;
+	buflen = strlen(name) + 1 + datalen;
 	buf = malloc(buflen, M_KTRACE, M_WAITOK);
-	bcopy(name, buf, namelen);
-	buf[namelen] = '\0';
-	bcopy(data, buf + namelen + 1, datalen);
+	strcpy(buf, name);
+	bcopy(data, buf + strlen(name) + 1, datalen);
 	if ((req = ktr_getrequest(KTR_STRUCT)) == NULL) {
 		free(buf, M_KTRACE);
 		return;
@@ -695,10 +842,7 @@ ktrace(td, uap)
 			if (p->p_tracevp == vp) {
 				if (ktrcanset(td, p)) {
 					mtx_lock(&ktrace_mtx);
-					cred = p->p_tracecred;
-					p->p_tracecred = NULL;
-					p->p_tracevp = NULL;
-					p->p_traceflag = 0;
+					ktr_freeproc(p, &cred, NULL);
 					mtx_unlock(&ktrace_mtx);
 					vrele_count++;
 					crfree(cred);
@@ -738,11 +882,11 @@ ktrace(td, uap)
 		nfound = 0;
 		LIST_FOREACH(p, &pg->pg_members, p_pglist) {
 			PROC_LOCK(p);
-			if (p_cansee(td, p) != 0) {
+			if (p->p_state == PRS_NEW ||
+			    p_cansee(td, p) != 0) {
 				PROC_UNLOCK(p); 
 				continue;
 			}
-			PROC_UNLOCK(p); 
 			nfound++;
 			if (descend)
 				ret |= ktrsetchildren(td, p, ops, facs, vp);
@@ -759,18 +903,13 @@ ktrace(td, uap)
 		 * by pid
 		 */
 		p = pfind(uap->pid);
-		if (p == NULL) {
-			sx_sunlock(&proctree_lock);
+		if (p == NULL)
 			error = ESRCH;
-			goto done;
-		}
-		error = p_cansee(td, p);
-		/*
-		 * The slock of the proctree lock will keep this process
-		 * from going away, so unlocking the proc here is ok.
-		 */
-		PROC_UNLOCK(p);
+		else
+			error = p_cansee(td, p);
 		if (error) {
+			if (p != NULL)
+				PROC_UNLOCK(p);
 			sx_sunlock(&proctree_lock);
 			goto done;
 		}
@@ -842,10 +981,15 @@ ktrops(td, p, ops, facs, vp)
 	struct vnode *tracevp = NULL;
 	struct ucred *tracecred = NULL;
 
-	PROC_LOCK(p);
+	PROC_LOCK_ASSERT(p, MA_OWNED);
 	if (!ktrcanset(td, p)) {
 		PROC_UNLOCK(p);
 		return (0);
+	}
+	if (p->p_flag & P_WEXIT) {
+		/* If the process is exiting, just ignore it. */
+		PROC_UNLOCK(p);
+		return (1);
 	}
 	mtx_lock(&ktrace_mtx);
 	if (ops == KTROP_SET) {
@@ -866,16 +1010,13 @@ ktrops(td, p, ops, facs, vp)
 			p->p_traceflag |= KTRFAC_ROOT;
 	} else {
 		/* KTROP_CLEAR */
-		if (((p->p_traceflag &= ~facs) & KTRFAC_MASK) == 0) {
+		if (((p->p_traceflag &= ~facs) & KTRFAC_MASK) == 0)
 			/* no more tracing */
-			p->p_traceflag = 0;
-			tracevp = p->p_tracevp;
-			p->p_tracevp = NULL;
-			tracecred = p->p_tracecred;
-			p->p_tracecred = NULL;
-		}
+			ktr_freeproc(p, &tracecred, &tracevp);
 	}
 	mtx_unlock(&ktrace_mtx);
+	if ((p->p_traceflag & KTRFAC_MASK) != 0)
+		ktrprocctor_entered(td, p);
 	PROC_UNLOCK(p);
 	if (tracevp != NULL) {
 		int vfslocked;
@@ -901,6 +1042,7 @@ ktrsetchildren(td, top, ops, facs, vp)
 	register int ret = 0;
 
 	p = top;
+	PROC_LOCK_ASSERT(p, MA_OWNED);
 	sx_assert(&proctree_lock, SX_LOCKED);
 	for (;;) {
 		ret |= ktrops(td, p, ops, facs, vp);
@@ -920,6 +1062,7 @@ ktrsetchildren(td, top, ops, facs, vp)
 			}
 			p = p->p_pptr;
 		}
+		PROC_LOCK(p);
 	}
 	/*NOTREACHED*/
 }
@@ -1036,10 +1179,7 @@ ktr_writerequest(struct thread *td, struct ktr_request *req)
 		PROC_LOCK(p);
 		if (p->p_tracevp == vp) {
 			mtx_lock(&ktrace_mtx);
-			p->p_tracevp = NULL;
-			p->p_traceflag = 0;
-			cred = p->p_tracecred;
-			p->p_tracecred = NULL;
+			ktr_freeproc(p, &cred, NULL);
 			mtx_unlock(&ktrace_mtx);
 			vrele_count++;
 		}
@@ -1051,11 +1191,6 @@ ktr_writerequest(struct thread *td, struct ktr_request *req)
 	}
 	sx_sunlock(&allproc_lock);
 
-	/*
-	 * We can't clear any pending requests in threads that have cached
-	 * them but not yet committed them, as those are per-thread.  The
-	 * thread will have to clear it itself on system call return.
-	 */
 	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	while (vrele_count-- > 0)
 		vrele(vp);

@@ -16,7 +16,7 @@ get_cyclecount(void)
 	struct bintime bt;
 
 	binuptime(&bt);
-	return (bt.frac ^ bt.sec);
+	return ((uint64_t)bt.sec << 56 | bt.frac >> 8);
 			
 }
 #endif

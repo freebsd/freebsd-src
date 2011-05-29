@@ -76,7 +76,8 @@ static MALLOC_DEFINE(M_IOCTLOPS, "ioctlops", "ioctl data buffer");
 static MALLOC_DEFINE(M_SELECT, "select", "select() buffer");
 MALLOC_DEFINE(M_IOV, "iov", "large iov's");
 
-static int	pollout(struct pollfd *, struct pollfd *, u_int);
+static int	pollout(struct thread *, struct pollfd *, struct pollfd *,
+		    u_int);
 static int	pollscan(struct thread *, struct pollfd *, u_int);
 static int	pollrescan(struct thread *);
 static int	selscan(struct thread *, fd_mask **, fd_mask **, int);
@@ -532,7 +533,7 @@ dofilewrite(td, fd, fp, auio, offset, flags)
 		/* Socket layer is responsible for issuing SIGPIPE. */
 		if (fp->f_type != DTYPE_SOCKET && error == EPIPE) {
 			PROC_LOCK(td->td_proc);
-			psignal(td->td_proc, SIGPIPE);
+			tdsignal(td, SIGPIPE);
 			PROC_UNLOCK(td->td_proc);
 		}
 	}
@@ -878,9 +879,10 @@ kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 	sbp = selbits;
 #define	getbits(name, x) \
 	do {								\
-		if (name == NULL)					\
+		if (name == NULL) {					\
 			ibits[x] = NULL;				\
-		else {							\
+			obits[x] = NULL;				\
+		} else {						\
 			ibits[x] = sbp + nbufbytes / 2 / sizeof *sbp;	\
 			obits[x] = sbp;					\
 			sbp += ncpbytes / sizeof *sbp;			\
@@ -895,6 +897,28 @@ kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 	getbits(fd_ou, 1);
 	getbits(fd_ex, 2);
 #undef	getbits
+
+#if BYTE_ORDER == BIG_ENDIAN && defined(__LP64__)
+	/*
+	 * XXX: swizzle_fdset assumes that if abi_nfdbits != NFDBITS,
+	 * we are running under 32-bit emulation. This should be more
+	 * generic.
+	 */
+#define swizzle_fdset(bits)						\
+	if (abi_nfdbits != NFDBITS && bits != NULL) {			\
+		int i;							\
+		for (i = 0; i < ncpbytes / sizeof *sbp; i++)		\
+			bits[i] = (bits[i] >> 32) | (bits[i] << 32);	\
+	}
+#else
+#define swizzle_fdset(bits)
+#endif
+
+	/* Make sure the bit order makes it through an ABI transition */
+	swizzle_fdset(ibits[0]);
+	swizzle_fdset(ibits[1]);
+	swizzle_fdset(ibits[2]);
+	
 	if (nbufbytes != 0)
 		bzero(selbits, nbufbytes / 2);
 
@@ -941,6 +965,13 @@ done:
 		error = EINTR;
 	if (error == EWOULDBLOCK)
 		error = 0;
+
+	/* swizzle bit order back, if necessary */
+	swizzle_fdset(obits[0]);
+	swizzle_fdset(obits[1]);
+	swizzle_fdset(obits[2]);
+#undef swizzle_fdset
+
 #define	putbits(name, x) \
 	if (name && (error2 = copyout(obits[x], name, ncpubytes))) \
 		error = error2;
@@ -966,7 +997,7 @@ done:
 static int select_flags[3] = {
     POLLRDNORM | POLLHUP | POLLERR,
     POLLWRNORM | POLLHUP | POLLERR,
-    POLLRDBAND | POLLHUP | POLLERR
+    POLLRDBAND | POLLERR
 };
 
 /*
@@ -1177,7 +1208,7 @@ done:
 	if (error == EWOULDBLOCK)
 		error = 0;
 	if (error == 0) {
-		error = pollout(bits, uap->fds, nfds);
+		error = pollout(td, bits, uap->fds, nfds);
 		if (error)
 			goto out;
 	}
@@ -1232,22 +1263,27 @@ pollrescan(struct thread *td)
 
 
 static int
-pollout(fds, ufds, nfd)
+pollout(td, fds, ufds, nfd)
+	struct thread *td;
 	struct pollfd *fds;
 	struct pollfd *ufds;
 	u_int nfd;
 {
 	int error = 0;
 	u_int i = 0;
+	u_int n = 0;
 
 	for (i = 0; i < nfd; i++) {
 		error = copyout(&fds->revents, &ufds->revents,
 		    sizeof(ufds->revents));
 		if (error)
 			return (error);
+		if (fds->revents != 0)
+			n++;
 		fds++;
 		ufds++;
 	}
+	td->td_retval[0] = n;
 	return (0);
 }
 

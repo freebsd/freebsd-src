@@ -42,6 +42,7 @@
 #include <sys/systm.h>
 #include <sys/debug.h>
 #include <sys/kmem.h>
+#include <sys/sunddi.h>
 #else
 #include <strings.h>
 #endif	/* _KERNEL */

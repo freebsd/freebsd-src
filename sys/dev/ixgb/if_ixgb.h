@@ -344,6 +344,8 @@ struct adapter {
 	struct sysctl_ctx_list sysctl_ctx;
 	struct sysctl_oid *sysctl_tree;
 
+	/* Multicast array memory */
+	u_int8_t	*mta;
 	/* Misc stats maintained by the driver */
 	unsigned long   dropped_pkts;
 	unsigned long   mbuf_alloc_failed;

@@ -358,6 +358,7 @@ struct siis_device {
 	u_int			bytecount;
 	u_int			atapi;
 	u_int			tags;
+	u_int			caps;
 };
 
 /* structure describing an ATA channel */
@@ -370,6 +371,7 @@ struct siis_channel {
 	struct ata_dma		dma;            /* DMA data */
 	struct cam_sim		*sim;
 	struct cam_path		*path;
+	struct cdev		*led;		/* Activity led led(4) cdev. */
 	int			quirks;
 	int			pm_level;	/* power management level */
 
@@ -385,8 +387,8 @@ struct siis_channel {
 	uint32_t		toslots;	/* Slots in timeout */
 	int			numrslots;	/* Number of running slots */
 	int			numtslots[SIIS_MAX_SLOTS]; /* Number of tagged slots */
-	int			numhslots;	/* Number of holden slots */
-	int			readlog;	/* Our READ LOG active */
+	int			numhslots;	/* Number of held slots */
+	int			recoverycmd;	/* Our READ LOG active */
 	int			fatalerr;	/* Fatal error happend */
 	int			recovery;	/* Some slots are in error */
 	union ccb		*frozen;	/* Frozen command */

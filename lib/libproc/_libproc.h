@@ -31,6 +31,7 @@
 #include <sys/types.h>
 #include <sys/event.h>
 #include <sys/ptrace.h>
+#include <rtld_db.h>
 
 #include "libproc.h"
 
@@ -39,5 +40,16 @@ struct proc_handle {
 	int	kq;			/* Kernel event queue ID. */
 	int	flags;			/* Process flags. */
 	int	status;			/* Process status (PS_*). */
+	int	wstat;			/* Process wait status. */
+	rd_agent_t *rdap;		/* librtld_db agent */
+	rd_loadobj_t *rdobjs;
+	size_t	rdobjsz;
+	size_t	nobjs;
+	struct lwpstatus lwps;
 };
 
+#ifdef DEBUG
+#define DPRINTF(fmt, ...) 	warn(fmt, __VA_ARGS__)
+#else
+#define DPRINTF(fmt, ...)
+#endif

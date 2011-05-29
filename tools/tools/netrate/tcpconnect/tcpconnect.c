@@ -31,6 +31,7 @@
 #include <sys/ioctl.h>
 #include <sys/select.h>
 #include <sys/socket.h>
+#include <sys/stdint.h>
 
 #include <netinet/in.h>
 
@@ -110,7 +111,7 @@ main(int argc, char *argv[])
 	u_int64_t counter;
 
 	if (argc != 2)
-		err(-1, "usage: tcpconnect [ip]");
+		errx(-1, "usage: tcpconnect [ip]");
 
 	bzero(&sin, sizeof(sin));
 	sin.sin_family = AF_INET;
@@ -128,8 +129,8 @@ main(int argc, char *argv[])
 		if (try_connect(&sin) == 0)
 			counter++;
 	}
-	printf("%llu count\n", counter);
-	printf("%llu connections/second\n", counter / SECONDS);
+	printf("%ju count\n", (uintmax_t)counter);
+	printf("%ju connections/second\n", (uintmax_t)(counter / SECONDS));
 
 	return (0);
 }

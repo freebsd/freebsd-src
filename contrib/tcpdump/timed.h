@@ -1,4 +1,4 @@
-/* @(#) $Header: /tcpdump/master/tcpdump/timed.h,v 1.5.6.1 2008-02-05 19:46:58 guy Exp $ (LBL) */
+/* @(#) $Header: /tcpdump/master/tcpdump/timed.h,v 1.6 2008-02-05 19:46:19 guy Exp $ (LBL) */
 /*
  * Copyright (c) 1983, 1993
  *	The Regents of the University of California.  All rights reserved.

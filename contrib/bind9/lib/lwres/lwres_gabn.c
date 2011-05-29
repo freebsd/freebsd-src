@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lwres_gabn.c,v 1.33 2007/06/19 23:47:22 tbox Exp $ */
+/* $Id: lwres_gabn.c,v 1.33 2007-06-19 23:47:22 tbox Exp $ */
 
 /*! \file lwres_gabn.c
    These are low-level routines for creating and parsing lightweight

@@ -81,9 +81,6 @@ struct addrinfo {
 
 extern void freeaddrinfo (struct addrinfo *);
 extern void freehostent (struct hostent *);
-extern char *gai_strerror (int);
-extern int getaddrinfo (const char *, const char *,
-			    const struct addrinfo *, struct addrinfo **);
 extern int getnameinfo (const struct sockaddr *, size_t, char *,
 			    size_t, char *, size_t, int);
 extern struct hostent *getipnodebyaddr (const void *, size_t, int, int *);

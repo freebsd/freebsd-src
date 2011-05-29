@@ -161,7 +161,6 @@ The last example is a simple
 mirror.
 The 2nd slice of /dev/da8 is mirrored with the 3rd slice of /dev/da9
 and assigned to ccd0.
-.Pp
 .Bd -literal
 # ccdconfig ccd0 64 none /dev/da0s1 /dev/da1s1 /dev/da2s1 /dev/da3s1
 # ccdconfig ccd0 128 CCDF_MIRROR /dev/da4 /dev/da5 /dev/da6 /dev/da7
@@ -203,7 +202,6 @@ partition such that it does not overlap the label area.
 For example, if
 you have A ccd disk with 10000 sectors you might create a 'd' partition
 with offset 16 and size 9984.
-.Pp
 .Bd -literal
 # disklabel ccd0 > /tmp/disklabel.ccd0
 # disklabel -Rr ccd0 /tmp/disklabel.ccd0

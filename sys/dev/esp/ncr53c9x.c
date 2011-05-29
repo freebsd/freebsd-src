@@ -2560,7 +2560,7 @@ again:
 				 * XXX This will cause a chip reset and will
 				 *     prevent us from finding out the real
 				 *     problem with the device.  However, it's
-				 *     neccessary until a way can be found to
+				 *     necessary until a way can be found to
 				 *     safely cancel the DMA that is in
 				 *     progress.
 				 */

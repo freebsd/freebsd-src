@@ -21,4 +21,4 @@ long percentages();
 char *errmsg();
 char *format_time();
 char *format_k();
-char *format_k2();
+char *format_k2(unsigned long long);

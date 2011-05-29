@@ -20,11 +20,8 @@
  */
 
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
- * Use is subject to license terms.
+ * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
  */
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 /*
  * DTrace D Language Compiler
@@ -2165,11 +2162,11 @@ dt_compile(dtrace_hdl_t *dtp, int context, dtrace_probespec_t pspec, void *arg,
 	if (dt_list_next(&dtp->dt_lib_path) != NULL && dt_load_libs(dtp) != 0)
 		return (NULL); /* errno is set for us */
 
-	(void) ctf_discard(dtp->dt_cdefs->dm_ctfp);
-	(void) ctf_discard(dtp->dt_ddefs->dm_ctfp);
+	if (dtp->dt_globals->dh_nelems != 0)
+		(void) dt_idhash_iter(dtp->dt_globals, dt_idreset, NULL);
 
-	(void) dt_idhash_iter(dtp->dt_globals, dt_idreset, NULL);
-	(void) dt_idhash_iter(dtp->dt_tls, dt_idreset, NULL);
+	if (dtp->dt_tls->dh_nelems != 0)
+		(void) dt_idhash_iter(dtp->dt_tls, dt_idreset, NULL);
 
 	if (fp && (cflags & DTRACE_C_CPP) && (fp = dt_preproc(dtp, fp)) == NULL)
 		return (NULL); /* errno is set for us */

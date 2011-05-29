@@ -52,7 +52,7 @@ __FBSDID("$FreeBSD$");
 #define	pmap_unmapbios		pmap_unmapdev
 #endif
 
-struct smbios_table_entry {
+struct smbios_table {
 	uint8_t		anchor_string[4];
 	uint8_t		checksum;
 	uint8_t		length;
@@ -108,27 +108,30 @@ struct ipmi_entry {
 #define	SMBIOS_LEN		4
 #define	SMBIOS_SIG		"_SM_"
 
-typedef void (*dispatchproc_t)(uint8_t *p, char **table,
-    struct ipmi_get_info *info);
+typedef void (*smbios_callback_t)(struct structure_header *, void *);
 
 static struct ipmi_get_info ipmi_info;
 static int ipmi_probed;
 static struct mtx ipmi_info_mtx;
 MTX_SYSINIT(ipmi_info, &ipmi_info_mtx, "ipmi info", MTX_DEF);
 
-static char	*get_strings(char *, char **);
 static void	ipmi_smbios_probe(struct ipmi_get_info *);
-static int	smbios_cksum	(struct smbios_table_entry *);
-static void	smbios_run_table(uint8_t *, int, dispatchproc_t *,
-		    struct ipmi_get_info *);
-static void	smbios_t38_proc_info(uint8_t *, char **,
-		    struct ipmi_get_info *);
+static int	smbios_cksum(struct smbios_table *);
+static void	smbios_walk_table(uint8_t *, int, smbios_callback_t,
+		    void *);
+static void	smbios_ipmi_info(struct structure_header *, void *);
 
 static void
-smbios_t38_proc_info(uint8_t *p, char **table, struct ipmi_get_info *info)
+smbios_ipmi_info(struct structure_header *h, void *arg)
 {
-	struct ipmi_entry *s = (struct ipmi_entry *)p;
+	struct ipmi_get_info *info;
+	struct ipmi_entry *s;
 
+	if (h->type != 38 || h->length <
+	    offsetof(struct ipmi_entry, interrupt_number))
+		return;
+	s = (struct ipmi_entry *)h;
+	info = arg;
 	bzero(info, sizeof(struct ipmi_get_info));
 	switch (s->interface_type) {
 	case KCS_MODE:
@@ -172,44 +175,28 @@ smbios_t38_proc_info(uint8_t *p, char **table, struct ipmi_get_info *info)
 	info->iface_type = s->interface_type;
 }
 
-static char *
-get_strings(char *p, char **table)
-{
-	/* Scan for strings, stoping at a single null byte */
-	while (*p != 0) {
-		*table++ = p;
-		p += strlen(p) + 1;
-	}
-	*table = 0;
-
-	/* Skip past terminating null byte */
-	return (p + 1);
-}
-
-
 static void
-smbios_run_table(uint8_t *p, int entries, dispatchproc_t *dispatchstatus,
-    struct ipmi_get_info *info)
+smbios_walk_table(uint8_t *p, int entries, smbios_callback_t cb, void *arg)
 {
 	struct structure_header *s;
-	char *table[20];
-	uint8_t *nextp;
 
-	while(entries--) {
-		s = (struct structure_header *) p;
-		nextp = get_strings(p + s->length, table);
+	while (entries--) {
+		s = (struct structure_header *)p;
+		cb(s, arg);
 
 		/*
-		 * No strings still has a double-null at the end,
-		 * skip over it
+		 * Look for a double-nul after the end of the
+		 * formatted area of this structure.
 		 */
-		if (table[0] == 0)
-			nextp++;
+		p += s->length;
+		while (!(p[0] == 0 && p[1] == 0))
+			p++;
 
-		if (dispatchstatus[*p]) {
-			(dispatchstatus[*p])(p, table, info);
-		}
-		p = nextp;
+		/*
+		 * Skip over the double-nul to the start of the next
+		 * structure.
+		 */
+		p += 2;
 	}
 }
 
@@ -221,8 +208,7 @@ smbios_run_table(uint8_t *p, int entries, dispatchproc_t *dispatchstatus,
 static void
 ipmi_smbios_probe(struct ipmi_get_info *info)
 {
-	dispatchproc_t dispatch_smbios_ipmi[256];
-	struct smbios_table_entry *header;
+	struct smbios_table *header;
 	void *table;
 	u_int32_t addr;
 
@@ -239,9 +225,9 @@ ipmi_smbios_probe(struct ipmi_get_info *info)
 	 * length and then map it a second time with the actual length so
 	 * we can verify the checksum.
 	 */
-	header = pmap_mapbios(addr, sizeof(struct smbios_table_entry));
+	header = pmap_mapbios(addr, sizeof(struct smbios_table));
 	table = pmap_mapbios(addr, header->length);
-	pmap_unmapbios((vm_offset_t)header, sizeof(struct smbios_table_entry));
+	pmap_unmapbios((vm_offset_t)header, sizeof(struct smbios_table));
 	header = table;
 	if (smbios_cksum(header) != 0) {
 		pmap_unmapbios((vm_offset_t)header, header->length);
@@ -251,9 +237,7 @@ ipmi_smbios_probe(struct ipmi_get_info *info)
 	/* Now map the actual table and walk it looking for an IPMI entry. */
 	table = pmap_mapbios(header->structure_table_address,
 	    header->structure_table_length);
-	bzero((void *)dispatch_smbios_ipmi, sizeof(dispatch_smbios_ipmi));
-	dispatch_smbios_ipmi[38] = (void *)smbios_t38_proc_info;
-	smbios_run_table(table, header->number_structures, dispatch_smbios_ipmi,
+	smbios_walk_table(table, header->number_structures, smbios_ipmi_info,
 	    info);
 
 	/* Unmap everything. */
@@ -298,7 +282,7 @@ ipmi_smbios_identify(struct ipmi_get_info *info)
 }
 
 static int
-smbios_cksum (struct smbios_table_entry *e)
+smbios_cksum(struct smbios_table *e)
 {
 	u_int8_t *ptr;
 	u_int8_t cksum;

@@ -37,7 +37,7 @@
 
 #include <sys/cdefs.h>
 
-#ifdef PIC
+#if defined(PIC) && !defined(__powerpc64__)
 #define	PIC_PROLOGUE	XXX
 #define	PIC_EPILOGUE	XXX
 #define	PIC_PLT(x)	x@plt
@@ -55,15 +55,27 @@
 
 #define	CNAME(csym)		csym
 #define	ASMNAME(asmsym)		asmsym
+#ifdef __powerpc64__
+#define	HIDENAME(asmsym)	__CONCAT(_,asmsym)
+#else
 #define	HIDENAME(asmsym)	__CONCAT(.,asmsym)
+#endif
 
 #define	_GLOBAL(x) \
 	.data; .align 2; .globl x; x:
 
+#ifdef __powerpc64__ 
+#define _ENTRY(x) \
+	.text; .align 2; .globl x; .section ".opd","aw"; \
+	.align 3; x: \
+	    .quad .L.x,.TOC.@tocbase,0; .size x,24; .previous; \
+	.align 4; .type x,@function; .L.x:
+#else
 #define	_ENTRY(x) \
 	.text; .align 4; .globl x; .type x,@function; x:
+#endif
 
-#ifdef GPROF
+#if defined(PROF) || (defined(_KERNEL) && defined(GPROF))
 # define	_PROF_PROLOGUE	mflr 0; stw 0,4(1); bl _mcount
 #else
 # define	_PROF_PROLOGUE

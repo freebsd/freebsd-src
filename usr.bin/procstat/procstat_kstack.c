@@ -32,6 +32,7 @@
 
 #include <err.h>
 #include <errno.h>
+#include <libprocstat.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -124,7 +125,7 @@ kinfo_kstack_sort(struct kinfo_kstack *kkstp, int count)
 
 
 void
-procstat_kstack(pid_t pid, struct kinfo_proc *kipp, int kflag)
+procstat_kstack(struct kinfo_proc *kipp, int kflag)
 {
 	struct kinfo_kstack *kkstp, *kkstp_free;
 	struct kinfo_proc *kip, *kip_free;
@@ -140,12 +141,12 @@ procstat_kstack(pid_t pid, struct kinfo_proc *kipp, int kflag)
 	name[0] = CTL_KERN;
 	name[1] = KERN_PROC;
 	name[2] = KERN_PROC_KSTACK;
-	name[3] = pid;
+	name[3] = kipp->ki_pid;
 
 	kstk_len = 0;
 	error = sysctl(name, 4, NULL, &kstk_len, NULL, 0);
 	if (error < 0 && errno != ESRCH && errno != EPERM && errno != ENOENT) {
-		warn("sysctl: kern.proc.kstack: %d", pid);
+		warn("sysctl: kern.proc.kstack: %d", kipp->ki_pid);
 		return;
 	}
 	if (error < 0 && errno == ENOENT) {
@@ -160,7 +161,7 @@ procstat_kstack(pid_t pid, struct kinfo_proc *kipp, int kflag)
 		err(-1, "malloc");
 
 	if (sysctl(name, 4, kkstp, &kstk_len, NULL, 0) < 0) {
-		warn("sysctl: kern.proc.pid: %d", pid);
+		warn("sysctl: kern.proc.pid: %d", kipp->ki_pid);
 		free(kkstp);
 		return;
 	}
@@ -171,12 +172,12 @@ procstat_kstack(pid_t pid, struct kinfo_proc *kipp, int kflag)
 	name[0] = CTL_KERN;
 	name[1] = KERN_PROC;
 	name[2] = KERN_PROC_PID | KERN_PROC_INC_THREAD;
-	name[3] = pid;
+	name[3] = kipp->ki_pid;
 
 	kip_len = 0;
 	error = sysctl(name, 4, NULL, &kip_len, NULL, 0);
 	if (error < 0 && errno != ESRCH) {
-		warn("sysctl: kern.proc.pid: %d", pid);
+		warn("sysctl: kern.proc.pid: %d", kipp->ki_pid);
 		return;
 	}
 	if (error < 0)
@@ -187,7 +188,7 @@ procstat_kstack(pid_t pid, struct kinfo_proc *kipp, int kflag)
 		err(-1, "malloc");
 
 	if (sysctl(name, 4, kip, &kip_len, NULL, 0) < 0) {
-		warn("sysctl: kern.proc.pid: %d", pid);
+		warn("sysctl: kern.proc.pid: %d", kipp->ki_pid);
 		free(kip);
 		return;
 	}
@@ -209,7 +210,7 @@ procstat_kstack(pid_t pid, struct kinfo_proc *kipp, int kflag)
 		if (kipp == NULL)
 			continue;
 
-		printf("%5d ", pid);
+		printf("%5d ", kipp->ki_pid);
 		printf("%6d ", kkstp->kkst_tid);
 		printf("%-16s ", kipp->ki_comm);
 		printf("%-16s ", (strlen(kipp->ki_ocomm) &&

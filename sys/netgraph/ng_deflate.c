@@ -36,6 +36,7 @@
 #include <sys/kernel.h>
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
+#include <sys/endian.h>
 #include <sys/errno.h>
 #include <sys/syslog.h>
 
@@ -505,8 +506,8 @@ ng_deflate_compress(node_p node, struct mbuf *m, struct mbuf **resultp)
 		priv->stats.OutOctets+=inlen;
 	} else {
 		/* Install header. */
-		((u_int16_t *)priv->outbuf)[0] = htons(PROT_COMPD);
-		((u_int16_t *)priv->outbuf)[1] = htons(priv->seqnum);
+		be16enc(priv->outbuf, PROT_COMPD);
+		be16enc(priv->outbuf + 2, priv->seqnum);
 
 		/* Return packet in an mbuf. */
 		m_copyback(m, 0, outlen, (caddr_t)priv->outbuf);
@@ -568,7 +569,7 @@ ng_deflate_decompress(node_p node, struct mbuf *m, struct mbuf **resultp)
 		proto = priv->inbuf[0];
 		offset = 1;
 	} else {
-		proto = ntohs(((uint16_t *)priv->inbuf)[0]);
+		proto = be16dec(priv->inbuf);
 		offset = 2;
 	}
 
@@ -579,7 +580,7 @@ ng_deflate_decompress(node_p node, struct mbuf *m, struct mbuf **resultp)
 		priv->stats.FramesComp++;
 
 		/* Check sequence number. */
-		rseqnum = ntohs(((uint16_t *)(priv->inbuf + offset))[0]);
+		rseqnum = be16dec(priv->inbuf + offset);
 		offset += 2;
 		if (rseqnum != priv->seqnum) {
 			priv->stats.Errors++;

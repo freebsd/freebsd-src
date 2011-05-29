@@ -4,8 +4,6 @@
 #
 
 # PROVIDE: sysctl
-# REQUIRE: root
-# BEFORE: FILESYSTEMS
 
 . /etc/rc.subr
 

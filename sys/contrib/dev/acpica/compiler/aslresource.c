@@ -1,118 +1,46 @@
 
 /******************************************************************************
  *
- * Module Name: aslresource - Resource templates and descriptors
+ * Module Name: aslresource - Resource template/descriptor utilities
  *
  *****************************************************************************/
 
-/******************************************************************************
- *
- * 1. Copyright Notice
- *
- * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
+/*
+ * Copyright (C) 2000 - 2011, Intel Corp.
  * All rights reserved.
  *
- * 2. License
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions, and the following disclaimer,
+ *    without modification.
+ * 2. Redistributions in binary form must reproduce at minimum a disclaimer
+ *    substantially similar to the "NO WARRANTY" disclaimer below
+ *    ("Disclaimer") and any redistribution must be conditioned upon
+ *    including a substantially similar Disclaimer requirement for further
+ *    binary redistribution.
+ * 3. Neither the names of the above-listed copyright holders nor the names
+ *    of any contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
  *
- * 2.1. This is your license from Intel Corp. under its intellectual property
- * rights.  You may have additional license terms from the party that provided
- * you this software, covering your right to use that party's intellectual
- * property rights.
+ * Alternatively, this software may be distributed under the terms of the
+ * GNU General Public License ("GPL") version 2 as published by the Free
+ * Software Foundation.
  *
- * 2.2. Intel grants, free of charge, to any person ("Licensee") obtaining a
- * copy of the source code appearing in this file ("Covered Code") an
- * irrevocable, perpetual, worldwide license under Intel's copyrights in the
- * base code distributed originally by Intel ("Original Intel Code") to copy,
- * make derivatives, distribute, use and display any portion of the Covered
- * Code in any form, with the right to sublicense such rights; and
- *
- * 2.3. Intel grants Licensee a non-exclusive and non-transferable patent
- * license (with the right to sublicense), under only those claims of Intel
- * patents that are infringed by the Original Intel Code, to make, use, sell,
- * offer to sell, and import the Covered Code and derivative works thereof
- * solely to the minimum extent necessary to exercise the above copyright
- * license, and in no event shall the patent license extend to any additions
- * to or modifications of the Original Intel Code.  No other license or right
- * is granted directly or by implication, estoppel or otherwise;
- *
- * The above copyright and patent license is granted only if the following
- * conditions are met:
- *
- * 3. Conditions
- *
- * 3.1. Redistribution of Source with Rights to Further Distribute Source.
- * Redistribution of source code of any substantial portion of the Covered
- * Code or modification with rights to further distribute source must include
- * the above Copyright Notice, the above License, this list of Conditions,
- * and the following Disclaimer and Export Compliance provision.  In addition,
- * Licensee must cause all Covered Code to which Licensee contributes to
- * contain a file documenting the changes Licensee made to create that Covered
- * Code and the date of any change.  Licensee must include in that file the
- * documentation of any changes made by any predecessor Licensee.  Licensee
- * must include a prominent statement that the modification is derived,
- * directly or indirectly, from Original Intel Code.
- *
- * 3.2. Redistribution of Source with no Rights to Further Distribute Source.
- * Redistribution of source code of any substantial portion of the Covered
- * Code or modification without rights to further distribute source must
- * include the following Disclaimer and Export Compliance provision in the
- * documentation and/or other materials provided with distribution.  In
- * addition, Licensee may not authorize further sublicense of source of any
- * portion of the Covered Code, and must include terms to the effect that the
- * license from Licensee to its licensee is limited to the intellectual
- * property embodied in the software Licensee provides to its licensee, and
- * not to intellectual property embodied in modifications its licensee may
- * make.
- *
- * 3.3. Redistribution of Executable. Redistribution in executable form of any
- * substantial portion of the Covered Code or modification must reproduce the
- * above Copyright Notice, and the following Disclaimer and Export Compliance
- * provision in the documentation and/or other materials provided with the
- * distribution.
- *
- * 3.4. Intel retains all right, title, and interest in and to the Original
- * Intel Code.
- *
- * 3.5. Neither the name Intel nor any other trademark owned or controlled by
- * Intel shall be used in advertising or otherwise to promote the sale, use or
- * other dealings in products derived from or relating to the Covered Code
- * without prior written authorization from Intel.
- *
- * 4. Disclaimer and Export Compliance
- *
- * 4.1. INTEL MAKES NO WARRANTY OF ANY KIND REGARDING ANY SOFTWARE PROVIDED
- * HERE.  ANY SOFTWARE ORIGINATING FROM INTEL OR DERIVED FROM INTEL SOFTWARE
- * IS PROVIDED "AS IS," AND INTEL WILL NOT PROVIDE ANY SUPPORT,  ASSISTANCE,
- * INSTALLATION, TRAINING OR OTHER SERVICES.  INTEL WILL NOT PROVIDE ANY
- * UPDATES, ENHANCEMENTS OR EXTENSIONS.  INTEL SPECIFICALLY DISCLAIMS ANY
- * IMPLIED WARRANTIES OF MERCHANTABILITY, NONINFRINGEMENT AND FITNESS FOR A
- * PARTICULAR PURPOSE.
- *
- * 4.2. IN NO EVENT SHALL INTEL HAVE ANY LIABILITY TO LICENSEE, ITS LICENSEES
- * OR ANY OTHER THIRD PARTY, FOR ANY LOST PROFITS, LOST DATA, LOSS OF USE OR
- * COSTS OF PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, OR FOR ANY INDIRECT,
- * SPECIAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THIS AGREEMENT, UNDER ANY
- * CAUSE OF ACTION OR THEORY OF LIABILITY, AND IRRESPECTIVE OF WHETHER INTEL
- * HAS ADVANCE NOTICE OF THE POSSIBILITY OF SUCH DAMAGES.  THESE LIMITATIONS
- * SHALL APPLY NOTWITHSTANDING THE FAILURE OF THE ESSENTIAL PURPOSE OF ANY
- * LIMITED REMEDY.
- *
- * 4.3. Licensee shall not export, either directly or indirectly, any of this
- * software or system incorporating such software without first obtaining any
- * required license or other approval from the U. S. Department of Commerce or
- * any other agency or department of the United States Government.  In the
- * event Licensee exports any such software from the United States or
- * re-exports any such software from a foreign destination, Licensee shall
- * ensure that the distribution and export/re-export of the software is in
- * compliance with all laws, regulations, orders, or other restrictions of the
- * U.S. Export Administration Regulations. Licensee agrees that neither it nor
- * any of its subsidiaries will export/re-export any technical data, process,
- * software, or service, directly or indirectly, to any country for which the
- * United States government or any agency thereof requires an export license,
- * other governmental approval, or letter of assurance, without first obtaining
- * such license, approval or letter.
- *
- *****************************************************************************/
+ * NO WARRANTY
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+ * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+ * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGES.
+ */
 
 
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
@@ -122,6 +50,356 @@
 
 #define _COMPONENT          ACPI_COMPILER
         ACPI_MODULE_NAME    ("aslresource")
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    RsSmallAddressCheck
+ *
+ * PARAMETERS:  Minimum             - Address Min value
+ *              Maximum             - Address Max value
+ *              Length              - Address range value
+ *              Alignment           - Address alignment value
+ *              MinOp               - Original Op for Address Min
+ *              MaxOp               - Original Op for Address Max
+ *              LengthOp            - Original Op for address range
+ *              AlignOp             - Original Op for address alignment. If
+ *                                    NULL, means "zero value for alignment is
+ *                                    OK, and means 64K alignment" (for
+ *                                    Memory24 descriptor)
+ *              Op                  - Parent Op for entire construct
+ *
+ * RETURN:      None. Adds error messages to error log if necessary
+ *
+ * DESCRIPTION: Perform common value checks for "small" address descriptors.
+ *              Currently:
+ *                  Io, Memory24, Memory32
+ *
+ ******************************************************************************/
+
+void
+RsSmallAddressCheck (
+    UINT8                   Type,
+    UINT32                  Minimum,
+    UINT32                  Maximum,
+    UINT32                  Length,
+    UINT32                  Alignment,
+    ACPI_PARSE_OBJECT       *MinOp,
+    ACPI_PARSE_OBJECT       *MaxOp,
+    ACPI_PARSE_OBJECT       *LengthOp,
+    ACPI_PARSE_OBJECT       *AlignOp,
+    ACPI_PARSE_OBJECT       *Op)
+{
+
+    if (Gbl_NoResourceChecking)
+    {
+        return;
+    }
+
+    /*
+     * Check for a so-called "null descriptor". These are descriptors that are
+     * created with most fields set to zero. The intent is that the descriptor
+     * will be updated/completed at runtime via a BufferField.
+     *
+     * If the descriptor does NOT have a resource tag, it cannot be referenced
+     * by a BufferField and we will flag this as an error. Conversely, if
+     * the descriptor has a resource tag, we will assume that a BufferField
+     * will be used to dynamically update it, so no error.
+     *
+     * A possible enhancement to this check would be to verify that in fact
+     * a BufferField is created using the resource tag, and perhaps even
+     * verify that a Store is performed to the BufferField.
+     *
+     * Note: for these descriptors, Alignment is allowed to be zero
+     */
+    if (!Minimum && !Maximum && !Length)
+    {
+        if (!Op->Asl.ExternalName)
+        {
+            /* No resource tag. Descriptor is fixed and is also illegal */
+
+            AslError (ASL_ERROR, ASL_MSG_NULL_DESCRIPTOR, Op, NULL);
+        }
+
+        return;
+    }
+
+    /* Special case for Memory24, values are compressed */
+
+    if (Type == ACPI_RESOURCE_NAME_MEMORY24)
+    {
+        if (!Alignment) /* Alignment==0 means 64K - no invalid alignment */
+        {
+            Alignment = ACPI_UINT16_MAX + 1;
+        }
+
+        Minimum <<= 8;
+        Maximum <<= 8;
+        Length *= 256;
+    }
+
+    /* IO descriptor has different definition of min/max, don't check */
+
+    if (Type != ACPI_RESOURCE_NAME_IO)
+    {
+        /* Basic checks on Min/Max/Length */
+
+        if (Minimum > Maximum)
+        {
+            AslError (ASL_ERROR, ASL_MSG_INVALID_MIN_MAX, MinOp, NULL);
+        }
+        else if (Length > (Maximum - Minimum + 1))
+        {
+            AslError (ASL_ERROR, ASL_MSG_INVALID_LENGTH, LengthOp, NULL);
+        }
+    }
+
+    /* Alignment of zero is not in ACPI spec, but is used to mean byte acc */
+
+    if (!Alignment)
+    {
+        Alignment = 1;
+    }
+
+    /* Addresses must be an exact multiple of the alignment value */
+
+    if (Minimum % Alignment)
+    {
+        AslError (ASL_ERROR, ASL_MSG_ALIGNMENT, MinOp, NULL);
+    }
+    if (Maximum % Alignment)
+    {
+        AslError (ASL_ERROR, ASL_MSG_ALIGNMENT, MaxOp, NULL);
+    }
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    RsLargeAddressCheck
+ *
+ * PARAMETERS:  Minimum             - Address Min value
+ *              Maximum             - Address Max value
+ *              Length              - Address range value
+ *              Granularity         - Address granularity value
+ *              Flags               - General flags for address descriptors:
+ *                                    _MIF, _MAF, _DEC
+ *              MinOp               - Original Op for Address Min
+ *              MaxOp               - Original Op for Address Max
+ *              LengthOp            - Original Op for address range
+ *              GranOp              - Original Op for address granularity
+ *              Op                  - Parent Op for entire construct
+ *
+ * RETURN:      None. Adds error messages to error log if necessary
+ *
+ * DESCRIPTION: Perform common value checks for "large" address descriptors.
+ *              Currently:
+ *                  WordIo,     WordBusNumber,  WordSpace
+ *                  DWordIo,    DWordMemory,    DWordSpace
+ *                  QWordIo,    QWordMemory,    QWordSpace
+ *                  ExtendedIo, ExtendedMemory, ExtendedSpace
+ *
+ * _MIF flag set means that the minimum address is fixed and is not relocatable
+ * _MAF flag set means that the maximum address is fixed and is not relocatable
+ * Length of zero means that the record size is variable
+ *
+ * This function implements the LEN/MIF/MAF/MIN/MAX/GRA rules within Table 6-40
+ * of the ACPI 4.0a specification. Added 04/2010.
+ *
+ ******************************************************************************/
+
+void
+RsLargeAddressCheck (
+    UINT64                  Minimum,
+    UINT64                  Maximum,
+    UINT64                  Length,
+    UINT64                  Granularity,
+    UINT8                   Flags,
+    ACPI_PARSE_OBJECT       *MinOp,
+    ACPI_PARSE_OBJECT       *MaxOp,
+    ACPI_PARSE_OBJECT       *LengthOp,
+    ACPI_PARSE_OBJECT       *GranOp,
+    ACPI_PARSE_OBJECT       *Op)
+{
+
+    if (Gbl_NoResourceChecking)
+    {
+        return;
+    }
+
+    /*
+     * Check for a so-called "null descriptor". These are descriptors that are
+     * created with most fields set to zero. The intent is that the descriptor
+     * will be updated/completed at runtime via a BufferField.
+     *
+     * If the descriptor does NOT have a resource tag, it cannot be referenced
+     * by a BufferField and we will flag this as an error. Conversely, if
+     * the descriptor has a resource tag, we will assume that a BufferField
+     * will be used to dynamically update it, so no error.
+     *
+     * A possible enhancement to this check would be to verify that in fact
+     * a BufferField is created using the resource tag, and perhaps even
+     * verify that a Store is performed to the BufferField.
+     */
+    if (!Minimum && !Maximum && !Length && !Granularity)
+    {
+        if (!Op->Asl.ExternalName)
+        {
+            /* No resource tag. Descriptor is fixed and is also illegal */
+
+            AslError (ASL_ERROR, ASL_MSG_NULL_DESCRIPTOR, Op, NULL);
+        }
+
+        return;
+    }
+
+    /* Basic checks on Min/Max/Length */
+
+    if (Minimum > Maximum)
+    {
+        AslError (ASL_ERROR, ASL_MSG_INVALID_MIN_MAX, MinOp, NULL);
+        return;
+    }
+    else if (Length > (Maximum - Minimum + 1))
+    {
+        AslError (ASL_ERROR, ASL_MSG_INVALID_LENGTH, LengthOp, NULL);
+        return;
+    }
+
+    /* If specified (non-zero), ensure granularity is a power-of-two minus one */
+
+    if (Granularity)
+    {
+        if ((Granularity + 1) &
+             Granularity)
+        {
+            AslError (ASL_ERROR, ASL_MSG_INVALID_GRANULARITY, GranOp, NULL);
+            return;
+        }
+    }
+
+    /*
+     * Check the various combinations of Length, MinFixed, and MaxFixed
+     */
+    if (Length)
+    {
+        /* Fixed non-zero length */
+
+        switch (Flags & (ACPI_RESOURCE_FLAG_MIF | ACPI_RESOURCE_FLAG_MAF))
+        {
+        case 0:
+            /*
+             * Fixed length, variable locations (both _MIN and _MAX).
+             * Length must be a multiple of granularity
+             */
+            if (Granularity & Length)
+            {
+                AslError (ASL_ERROR, ASL_MSG_ALIGNMENT, LengthOp, NULL);
+            }
+            break;
+
+        case (ACPI_RESOURCE_FLAG_MIF | ACPI_RESOURCE_FLAG_MAF):
+
+            /* Fixed length, fixed location. Granularity must be zero */
+
+            if (Granularity != 0)
+            {
+                AslError (ASL_ERROR, ASL_MSG_INVALID_GRAN_FIXED, GranOp, NULL);
+            }
+
+            /* Length must be exactly the size of the min/max window */
+
+            if (Length != (Maximum - Minimum + 1))
+            {
+                AslError (ASL_ERROR, ASL_MSG_INVALID_LENGTH_FIXED, LengthOp, NULL);
+            }
+            break;
+
+        /* All other combinations are invalid */
+
+        case ACPI_RESOURCE_FLAG_MIF:
+        case ACPI_RESOURCE_FLAG_MAF:
+        default:
+            AslError (ASL_ERROR, ASL_MSG_INVALID_ADDR_FLAGS, LengthOp, NULL);
+        }
+    }
+    else
+    {
+        /* Variable length (length==0) */
+
+        switch (Flags & (ACPI_RESOURCE_FLAG_MIF | ACPI_RESOURCE_FLAG_MAF))
+        {
+        case 0:
+            /*
+             * Both _MIN and _MAX are variable.
+             * No additional requirements, just exit
+             */
+            break;
+
+        case ACPI_RESOURCE_FLAG_MIF:
+
+            /* _MIN is fixed. _MIN must be multiple of _GRA */
+
+            /*
+             * The granularity is defined by the ACPI specification to be a
+             * power-of-two minus one, therefore the granularity is a
+             * bitmask which can be used to easily validate the addresses.
+             */
+            if (Granularity & Minimum)
+            {
+                AslError (ASL_ERROR, ASL_MSG_ALIGNMENT, MinOp, NULL);
+            }
+            break;
+
+        case ACPI_RESOURCE_FLAG_MAF:
+
+            /* _MAX is fixed. (_MAX + 1) must be multiple of _GRA */
+
+            if (Granularity & (Maximum + 1))
+            {
+                AslError (ASL_ERROR, ASL_MSG_ALIGNMENT, MaxOp, "-1");
+            }
+            break;
+
+        /* Both MIF/MAF set is invalid if length is zero */
+
+        case (ACPI_RESOURCE_FLAG_MIF | ACPI_RESOURCE_FLAG_MAF):
+        default:
+            AslError (ASL_ERROR, ASL_MSG_INVALID_ADDR_FLAGS, LengthOp, NULL);
+        }
+    }
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    RsGetStringDataLength
+ *
+ * PARAMETERS:  InitializerOp     - Start of a subtree of init nodes
+ *
+ * RETURN:      Valid string length if a string node is found (otherwise 0)
+ *
+ * DESCRIPTION: In a list of peer nodes, find the first one that contains a
+ *              string and return the length of the string.
+ *
+ ******************************************************************************/
+
+UINT16
+RsGetStringDataLength (
+    ACPI_PARSE_OBJECT       *InitializerOp)
+{
+
+    while (InitializerOp)
+    {
+        if (InitializerOp->Asl.ParseOpcode == PARSEOP_STRING_LITERAL)
+        {
+            return ((UINT16) (strlen (InitializerOp->Asl.Value.String) + 1));
+        }
+        InitializerOp = ASL_GET_PEER_NODE (InitializerOp);
+    }
+
+    return 0;
+}
 
 
 /*******************************************************************************

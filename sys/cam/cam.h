@@ -147,6 +147,7 @@ typedef enum {
 				 */
 	CAM_ATA_STATUS_ERROR,	/* ATA error, look at error code in CCB */
 	CAM_SCSI_IT_NEXUS_LOST,	/* Initiator/Target Nexus lost. */
+	CAM_SMP_STATUS_ERROR,	/* SMP error, look at error code in CCB */
 	CAM_IDE = 0x33,		/* Initiator Detected Error */
 	CAM_RESRC_UNAVAIL,	/* Resource Unavailable */
 	CAM_UNACKED_EVENT,	/* Unacknowledged Event by Host */
@@ -196,6 +197,12 @@ typedef enum {
 	CAM_ESF_PRINT_STATUS	= 0x10,
 	CAM_ESF_PRINT_SENSE	= 0x20
 } cam_error_scsi_flags;
+
+typedef enum {
+	CAM_ESMF_PRINT_NONE	= 0x00,
+	CAM_ESMF_PRINT_STATUS	= 0x10,
+	CAM_ESMF_PRINT_FULL_CMD	= 0x20,
+} cam_error_smp_flags;
 
 typedef enum {
 	CAM_EAF_PRINT_NONE	= 0x00,

@@ -89,7 +89,7 @@ bindresvport_sa(int sd, struct sockaddr *sa)
 
 	port = ntohs(*portp);
 	if (port == 0)
-		port = (arc4random() % NPORTS) + STARTPORT;
+		port = arc4random_uniform(NPORTS) + STARTPORT;
 
 	/* Avoid warning */
 	error = -1;

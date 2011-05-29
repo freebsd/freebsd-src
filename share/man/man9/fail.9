@@ -84,7 +84,7 @@ below.
 The remaining
 .Fn KFAIL_POINT_*
 macros are wrappers around common error injection paths:
-.Bl -tag -width 8
+.Bl -inset
 .It Fn KFAIL_POINT_RETURN parent name
 is the equivalent of
 .Sy KFAIL_POINT_CODE(..., return RETURN_VALUE)
@@ -96,8 +96,7 @@ is the equivalent of
 .Sy KFAIL_POINT_CODE(..., error_var = RETURN_VALUE)
 .It Fn KFAIL_POINT_GOTO parent name error_var label
 is the equivalent of
-.Sy KFAIL_POINT_CODE(...,
-  { error_var = RETURN_VALUE; goto label;})
+.Sy KFAIL_POINT_CODE(..., { error_var = RETURN_VALUE; goto label;})
 .El
 .Sh SYSCTL VARIABLES
 The
@@ -109,7 +108,6 @@ tree (referenced in code by
 .Sy DEBUG_FP ) .
 .Pp
 The sysctl variable may be set using the following grammar:
-.Pp
 .Bd -literal
   <fail_point> ::
       <term> ( "->" <term> )*
@@ -184,6 +182,10 @@ Return 5 for 1 in 1000 executions, but only 5 times total.
 .It Sy sysctl debug.fail_point.foobar="1%*sleep(50)"
 1/100th of the time, sleep 50ms.
 .El
+.Sh AUTHORS
+.An -nosplit
+This manual page was written by
+.An Zach Loafman Aq zml@FreeBSD.org .
 .Sh CAVEATS
 It is easy to shoot yourself in the foot by setting fail points too
 aggressively or setting too many in combination.
@@ -198,7 +200,3 @@ Currently,
 .Fn fail_point_eval
 does not verify whether the context is appropriate for calling
 .Fn msleep .
-.Sh AUTHORS
-.An -nosplit
-This manual page was written by
-.An Zach Loafman Aq zml@FreeBSD.org .

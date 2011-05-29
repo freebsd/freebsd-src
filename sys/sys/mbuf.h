@@ -523,6 +523,9 @@ m_getjcl(int how, short type, int flags, int size)
 	struct mbuf *m, *n;
 	uma_zone_t zone;
 
+	if (size == MCLBYTES)
+		return m_getcl(how, type, flags);
+
 	args.flags = flags;
 	args.type = type;
 
@@ -900,6 +903,7 @@ struct mbuf	*m_unshare(struct mbuf *, int how);
 #define	PACKET_TAG_IPOPTIONS			27 /* Saved IP options */
 #define	PACKET_TAG_CARP				28 /* CARP info */
 #define	PACKET_TAG_IPSEC_NAT_T_PORTS		29 /* two uint16_t */
+#define	PACKET_TAG_ND_OUTGOING			30 /* ND outgoing */
 
 /* Specific cookies and tags. */
 

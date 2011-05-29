@@ -40,14 +40,18 @@ u_int
 ar5416GetWirelessModes(struct ath_hal *ah)
 {
 	u_int mode;
+	struct ath_hal_private *ahpriv = AH_PRIVATE(ah);
+	HAL_CAPABILITIES *pCap = &ahpriv->ah_caps;
 
 	mode = ar5212GetWirelessModes(ah);
-	if (mode & HAL_MODE_11A)
+
+	/* Only enable HT modes if the NIC supports HT */
+	if (pCap->halHTSupport == AH_TRUE && (mode & HAL_MODE_11A))
 		mode |= HAL_MODE_11NA_HT20
 		     |  HAL_MODE_11NA_HT40PLUS
 		     |  HAL_MODE_11NA_HT40MINUS
 		     ;
-	if (mode & HAL_MODE_11G)
+	if (pCap->halHTSupport == AH_TRUE && (mode & HAL_MODE_11G))
 		mode |= HAL_MODE_11NG_HT20
 		     |  HAL_MODE_11NG_HT40PLUS
 		     |  HAL_MODE_11NG_HT40MINUS
@@ -72,6 +76,9 @@ ar5416SetLedState(struct ath_hal *ah, HAL_LED_STATE state)
 		AR_MAC_LED_ASSOC_NONE,
 	};
 	uint32_t bits;
+
+	if (AR_SREV_HOWL(ah))
+		return;
 
 	bits = OS_REG_READ(ah, AR_MAC_LED);
 	bits = (bits &~ AR_MAC_LED_MODE)
@@ -120,6 +127,7 @@ ar5416SetDecompMask(struct ath_hal *ah, uint16_t keyidx, int en)
 void
 ar5416SetCoverageClass(struct ath_hal *ah, uint8_t coverageclass, int now)
 {
+	AH_PRIVATE(ah)->ah_coverageClass = coverageclass;
 }
 
 /*
@@ -273,9 +281,9 @@ ar5416GetCapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 	case HAL_CAP_BB_HANG:
 		switch (capability) {
 		case HAL_BB_HANG_RIFS:
-			return AR_SREV_SOWL(ah) ? HAL_OK : HAL_ENOTSUPP;
+			return (AR_SREV_HOWL(ah) || AR_SREV_SOWL(ah)) ? HAL_OK : HAL_ENOTSUPP;
 		case HAL_BB_HANG_DFS:
-			return AR_SREV_SOWL(ah) ? HAL_OK : HAL_ENOTSUPP;
+			return (AR_SREV_HOWL(ah) || AR_SREV_SOWL(ah)) ? HAL_OK : HAL_ENOTSUPP;
 		case HAL_BB_HANG_RX_CLEAR:
 			return AR_SREV_MERLIN(ah) ? HAL_OK : HAL_ENOTSUPP;
 		}
@@ -283,8 +291,10 @@ ar5416GetCapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 	case HAL_CAP_MAC_HANG:
 		return ((ah->ah_macVersion == AR_XSREV_VERSION_OWL_PCI) ||
 		    (ah->ah_macVersion == AR_XSREV_VERSION_OWL_PCIE) ||
-		    AR_SREV_SOWL(ah)) ?
+		    AR_SREV_HOWL(ah) || AR_SREV_SOWL(ah)) ?
 			HAL_OK : HAL_ENOTSUPP;
+	case HAL_CAP_DIVERSITY:		/* disable classic fast diversity */
+		return HAL_ENXIO;
 	default:
 		break;
 	}
@@ -355,6 +365,59 @@ typedef struct {
 	uint8_t qcu_fetch_state;
 	uint8_t qcu_complete_state;
 } hal_mac_hang_check_t;
+
+HAL_BOOL
+ar5416SetRifsDelay(struct ath_hal *ah, const struct ieee80211_channel *chan,
+    HAL_BOOL enable)
+{
+	uint32_t val;
+	HAL_BOOL is_chan_2g = AH_FALSE;
+	HAL_BOOL is_ht40 = AH_FALSE;
+
+	if (chan)
+		is_chan_2g = IEEE80211_IS_CHAN_2GHZ(chan);
+
+	if (chan)
+		is_ht40 = IEEE80211_IS_CHAN_HT40(chan);
+
+	/* Only support disabling RIFS delay for now */
+	HALASSERT(enable == AH_FALSE);
+
+	if (enable == AH_TRUE)
+		return AH_FALSE;
+
+	/* Change RIFS init delay to 0 */
+	val = OS_REG_READ(ah, AR_PHY_HEAVY_CLIP_FACTOR_RIFS);
+	val &= ~AR_PHY_RIFS_INIT_DELAY;
+	OS_REG_WRITE(ah, AR_PHY_HEAVY_CLIP_FACTOR_RIFS, val);
+
+	/*
+	 * For Owl, RIFS RX parameters are controlled differently;
+	 * it isn't enabled in the inivals by default.
+	 *
+	 * For Sowl/Howl, RIFS RX is enabled in the inivals by default;
+	 * the following code sets them back to non-RIFS values.
+	 *
+	 * For > Sowl/Howl, RIFS RX can be left on by default and so
+	 * this function shouldn't be called.
+	 */
+	if ((! AR_SREV_SOWL(ah)) && (! AR_SREV_HOWL(ah)))
+		return AH_TRUE;
+
+	/* Reset search delay to default values */
+	if (is_chan_2g)
+		if (is_ht40)
+			OS_REG_WRITE(ah, AR_PHY_SEARCH_START_DELAY, 0x268);
+		else
+			OS_REG_WRITE(ah, AR_PHY_SEARCH_START_DELAY, 0x134);
+	else
+		if (is_ht40)
+			OS_REG_WRITE(ah, AR_PHY_SEARCH_START_DELAY, 0x370);
+		else
+			OS_REG_WRITE(ah, AR_PHY_SEARCH_START_DELAY, 0x1b8);
+
+	return AH_TRUE;
+}
 
 static HAL_BOOL
 ar5416CompareDbgHang(struct ath_hal *ah, const mac_dbg_regs_t *regs,
@@ -435,12 +498,12 @@ ar5416DetectMacHang(struct ath_hal *ah)
 	if (ar5416CompareDbgHang(ah, &mac_dbg, &hang_sig2))
 		return HAL_MAC_HANG_SIG2;
 
-	HALDEBUG(ah, HAL_DEBUG_ANY, "%s Found an unknown MAC hang signature "
+	HALDEBUG(ah, HAL_DEBUG_HANG, "%s Found an unknown MAC hang signature "
 	    "DMADBG_3=0x%x DMADBG_4=0x%x DMADBG_5=0x%x DMADBG_6=0x%x\n",
 	    __func__, mac_dbg.dma_dbg_3, mac_dbg.dma_dbg_4, mac_dbg.dma_dbg_5,
 	    mac_dbg.dma_dbg_6);
 
-	return HAL_MAC_HANG_UNKNOWN;
+	return 0;
 }
 
 /*
@@ -484,16 +547,16 @@ ar5416DetectBBHang(struct ath_hal *ah)
 	}
 	for (i = 0; i < N(hang_list); i++)
 		if ((hang_sig & hang_list[i].mask) == hang_list[i].val) {
-			HALDEBUG(ah, HAL_DEBUG_ANY,
+			HALDEBUG(ah, HAL_DEBUG_HANG,
 			    "%s BB hang, signature 0x%x, code 0x%x\n",
 			    __func__, hang_sig, hang_list[i].code);
 			return hang_list[i].code;
 		}
 
-	HALDEBUG(ah, HAL_DEBUG_ANY, "%s Found an unknown BB hang signature! "
+	HALDEBUG(ah, HAL_DEBUG_HANG, "%s Found an unknown BB hang signature! "
 	    "<0x806c>=0x%x\n", __func__, hang_sig);
 
-	return HAL_BB_HANG_UNKNOWN;
+	return 0;
 #undef N
 }
 #undef NUM_STATUS_READS

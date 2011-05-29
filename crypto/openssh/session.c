@@ -1,4 +1,4 @@
-/* $OpenBSD: session.c,v 1.246 2009/04/17 19:23:06 stevesk Exp $ */
+/* $OpenBSD: session.c,v 1.258 2010/11/25 04:10:09 djm Exp $ */
 /*
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
@@ -48,6 +48,7 @@ __RCSID("$FreeBSD$");
 #include <arpa/inet.h>
 
 #include <errno.h>
+#include <fcntl.h>
 #include <grp.h>
 #ifdef HAVE_PATHS_H
 #include <paths.h>
@@ -105,7 +106,7 @@ __RCSID("$FreeBSD$");
 /* func */
 
 Session *session_new(void);
-void	session_set_fds(Session *, int, int, int, int);
+void	session_set_fds(Session *, int, int, int, int, int);
 void	session_pty_cleanup(Session *);
 void	session_proctitle(Session *);
 int	session_setup_x11fwd(Session *);
@@ -143,9 +144,10 @@ static int sessions_first_unused = -1;
 static int sessions_nalloc = 0;
 static Session *sessions = NULL;
 
-#define SUBSYSTEM_NONE		0
-#define SUBSYSTEM_EXT		1
-#define SUBSYSTEM_INT_SFTP	2
+#define SUBSYSTEM_NONE			0
+#define SUBSYSTEM_EXT			1
+#define SUBSYSTEM_INT_SFTP		2
+#define SUBSYSTEM_INT_SFTP_ERROR	3
 
 #ifdef HAVE_LOGIN_CAP
 login_cap_t *lc;
@@ -270,6 +272,8 @@ do_authenticated(Authctxt *authctxt)
 	/* setup the channel layer */
 	if (!no_port_forwarding_flag && options.allow_tcp_forwarding)
 		channel_permit_all_opens();
+
+	auth_debug_send();
 
 	if (compat20)
 		do_authenticated2(authctxt);
@@ -445,6 +449,9 @@ do_exec_no_pty(Session *s, const char *command)
 #ifdef USE_PIPES
 	int pin[2], pout[2], perr[2];
 
+	if (s == NULL)
+		fatal("do_exec_no_pty: no session");
+
 	/* Allocate pipes for communicating with the program. */
 	if (pipe(pin) < 0) {
 		error("%s: pipe in: %.100s", __func__, strerror(errno));
@@ -457,7 +464,8 @@ do_exec_no_pty(Session *s, const char *command)
 		return -1;
 	}
 	if (pipe(perr) < 0) {
-		error("%s: pipe err: %.100s", __func__, strerror(errno));
+		error("%s: pipe err: %.100s", __func__,
+		    strerror(errno));
 		close(pin[0]);
 		close(pin[1]);
 		close(pout[0]);
@@ -467,21 +475,22 @@ do_exec_no_pty(Session *s, const char *command)
 #else
 	int inout[2], err[2];
 
+	if (s == NULL)
+		fatal("do_exec_no_pty: no session");
+
 	/* Uses socket pairs to communicate with the program. */
 	if (socketpair(AF_UNIX, SOCK_STREAM, 0, inout) < 0) {
 		error("%s: socketpair #1: %.100s", __func__, strerror(errno));
 		return -1;
 	}
 	if (socketpair(AF_UNIX, SOCK_STREAM, 0, err) < 0) {
-		error("%s: socketpair #2: %.100s", __func__, strerror(errno));
+		error("%s: socketpair #2: %.100s", __func__,
+		    strerror(errno));
 		close(inout[0]);
 		close(inout[1]);
 		return -1;
 	}
 #endif
-
-	if (s == NULL)
-		fatal("do_exec_no_pty: no session");
 
 	session_proctitle(s);
 
@@ -577,7 +586,8 @@ do_exec_no_pty(Session *s, const char *command)
 
 	s->pid = pid;
 	/* Set interactive/non-interactive mode. */
-	packet_set_interactive(s->display != NULL);
+	packet_set_interactive(s->display != NULL,
+	    options.ip_qos_interactive, options.ip_qos_bulk);
 
 	/*
 	 * Clear loginmsg, since it's the child's responsibility to display
@@ -593,11 +603,8 @@ do_exec_no_pty(Session *s, const char *command)
 	close(perr[1]);
 
 	if (compat20) {
-		if (s->is_subsystem) {
-			close(perr[0]);
-			perr[0] = -1;
-		}
-		session_set_fds(s, pin[1], pout[0], perr[0], 0);
+		session_set_fds(s, pin[1], pout[0], perr[0],
+		    s->is_subsystem, 0);
 	} else {
 		/* Enter the interactive session. */
 		server_loop(pid, pin[1], pout[0], perr[0]);
@@ -613,10 +620,8 @@ do_exec_no_pty(Session *s, const char *command)
 	 * handle the case that fdin and fdout are the same.
 	 */
 	if (compat20) {
-		session_set_fds(s, inout[1], inout[1],
-		    s->is_subsystem ? -1 : err[1], 0);
-		if (s->is_subsystem)
-			close(err[1]);
+		session_set_fds(s, inout[1], inout[1], err[1],
+		    s->is_subsystem, 0);
 	} else {
 		server_loop(pid, inout[1], inout[1], err[1]);
 		/* server_loop has closed inout[1] and err[1]. */
@@ -736,9 +741,10 @@ do_exec_pty(Session *s, const char *command)
 
 	/* Enter interactive session. */
 	s->ptymaster = ptymaster;
-	packet_set_interactive(1);
+	packet_set_interactive(1, 
+	    options.ip_qos_interactive, options.ip_qos_bulk);
 	if (compat20) {
-		session_set_fds(s, ptyfd, fdout, -1, 1);
+		session_set_fds(s, ptyfd, fdout, -1, 1, 1);
 	} else {
 		server_loop(pid, ptyfd, fdout, -1);
 		/* server_loop _has_ closed ptyfd and fdout. */
@@ -786,17 +792,19 @@ do_exec(Session *s, const char *command)
 	if (options.adm_forced_command) {
 		original_command = command;
 		command = options.adm_forced_command;
-		if (IS_INTERNAL_SFTP(command))
-			s->is_subsystem = SUBSYSTEM_INT_SFTP;
-		else if (s->is_subsystem)
+		if (IS_INTERNAL_SFTP(command)) {
+			s->is_subsystem = s->is_subsystem ?
+			    SUBSYSTEM_INT_SFTP : SUBSYSTEM_INT_SFTP_ERROR;
+		} else if (s->is_subsystem)
 			s->is_subsystem = SUBSYSTEM_EXT;
 		debug("Forced command (config) '%.900s'", command);
 	} else if (forced_command) {
 		original_command = command;
 		command = forced_command;
-		if (IS_INTERNAL_SFTP(command))
-			s->is_subsystem = SUBSYSTEM_INT_SFTP;
-		else if (s->is_subsystem)
+		if (IS_INTERNAL_SFTP(command)) {
+			s->is_subsystem = s->is_subsystem ?
+			    SUBSYSTEM_INT_SFTP : SUBSYSTEM_INT_SFTP_ERROR;
+		} else if (s->is_subsystem)
 			s->is_subsystem = SUBSYSTEM_EXT;
 		debug("Forced command (key option) '%.900s'", command);
 	}
@@ -888,24 +896,6 @@ do_motd(void)
 {
 	FILE *f;
 	char buf[256];
-#ifdef HAVE_LOGIN_CAP
-	const char *fname;
-#endif
-
-#ifdef HAVE_LOGIN_CAP
-	fname = login_getcapstr(lc, "copyright", NULL, NULL);
-	if (fname != NULL && (f = fopen(fname, "r")) != NULL) {
-		while (fgets(buf, sizeof(buf), f) != NULL)
-			fputs(buf, stdout);
-			fclose(f);
-	} else
-#endif /* HAVE_LOGIN_CAP */
-		(void)printf("%s\n\t%s %s\n",
-	"Copyright (c) 1980, 1983, 1986, 1988, 1990, 1991, 1993, 1994",
-	"The Regents of the University of California. ",
-	"All rights reserved.");
-
-	(void)printf("\n");
 
 	if (options.print_motd) {
 #ifdef HAVE_LOGIN_CAP
@@ -1404,26 +1394,32 @@ static void
 do_nologin(struct passwd *pw)
 {
 	FILE *f = NULL;
-	char buf[1024];
+	char buf[1024], *nl, *def_nl = _PATH_NOLOGIN;
+	struct stat sb;
 
 #ifdef HAVE_LOGIN_CAP
-	if (!login_getcapbool(lc, "ignorenologin", 0) && pw->pw_uid)
-		f = fopen(login_getcapstr(lc, "nologin", _PATH_NOLOGIN,
-		    _PATH_NOLOGIN), "r");
+	if (login_getcapbool(lc, "ignorenologin", 0) && pw->pw_uid)
+		return;
+	nl = login_getcapstr(lc, "nologin", def_nl, def_nl);
 #else
-	if (pw->pw_uid)
-		f = fopen(_PATH_NOLOGIN, "r");
+	if (pw->pw_uid == 0)
+		return;
+	nl = def_nl;
 #endif
-	if (f) {
-		/* /etc/nologin exists.  Print its contents and exit. */
-		logit("User %.100s not allowed because %s exists",
-		    pw->pw_name, _PATH_NOLOGIN);
-		while (fgets(buf, sizeof(buf), f))
-			fputs(buf, stderr);
-		fclose(f);
-		fflush(NULL);
-		exit(254);
+	if (stat(nl, &sb) == -1) {
+		if (nl != def_nl)
+			xfree(nl);
+		return;
 	}
+
+	/* /etc/nologin exists.  Print its contents if we can and exit. */
+	logit("User %.100s not allowed because %s exists", pw->pw_name, nl);
+	if ((f = fopen(nl, "r")) != NULL) {
+ 		while (fgets(buf, sizeof(buf), f))
+ 			fputs(buf, stderr);
+ 		fclose(f);
+ 	}
+	exit(254);
 }
 
 /*
@@ -1487,36 +1483,16 @@ do_setusercontext(struct passwd *pw)
 {
 	char *chroot_path, *tmp;
 
-#ifdef WITH_SELINUX
-	/* Cache selinux status for later use */
-	(void)ssh_selinux_enabled();
-#endif
+	platform_setusercontext(pw);
 
-#ifndef HAVE_CYGWIN
-	if (getuid() == 0 || geteuid() == 0)
-#endif /* HAVE_CYGWIN */
-	{
+	if (platform_privileged_uidswap()) {
 #ifdef HAVE_LOGIN_CAP
-# ifdef __bsdi__
-		setpgid(0, 0);
-# endif
-# ifdef USE_PAM
-		if (options.use_pam) {
-			do_pam_setcred(use_privsep);
-		}
-# endif /* USE_PAM */
 		if (setusercontext(lc, pw, pw->pw_uid,
 		    (LOGIN_SETALL & ~(LOGIN_SETENV|LOGIN_SETPATH|LOGIN_SETUSER))) < 0) {
 			perror("unable to set user context");
 			exit(1);
 		}
 #else
-# if defined(HAVE_GETLUID) && defined(HAVE_SETLUID)
-		/* Sets login uid for accounting */
-		if (getluid() == -1 && setluid(pw->pw_uid) == -1)
-			error("setluid: %s", strerror(errno));
-# endif /* defined(HAVE_GETLUID) && defined(HAVE_SETLUID) */
-
 		if (setlogin(pw->pw_name) < 0)
 			error("setlogin failed: %s", strerror(errno));
 		if (setgid(pw->pw_gid) < 0) {
@@ -1529,28 +1505,9 @@ do_setusercontext(struct passwd *pw)
 			exit(1);
 		}
 		endgrent();
-# ifdef USE_PAM
-		/*
-		 * PAM credentials may take the form of supplementary groups.
-		 * These will have been wiped by the above initgroups() call.
-		 * Reestablish them here.
-		 */
-		if (options.use_pam) {
-			do_pam_setcred(use_privsep);
-		}
-# endif /* USE_PAM */
-# if defined(WITH_IRIX_PROJECT) || defined(WITH_IRIX_JOBS) || defined(WITH_IRIX_ARRAY)
-		irix_setusercontext(pw);
-# endif /* defined(WITH_IRIX_PROJECT) || defined(WITH_IRIX_JOBS) || defined(WITH_IRIX_ARRAY) */
-# ifdef _AIX
-		aix_usrinfo(pw);
-# endif /* _AIX */
-# ifdef USE_LIBIAF
-		if (set_id(pw->pw_name) != 0) {
-			exit(1);
-		}
-# endif /* USE_LIBIAF */
 #endif
+
+		platform_setusercontext_post_groups(pw);
 
 		if (options.chroot_directory != NULL &&
 		    strcasecmp(options.chroot_directory, "none") != 0) {
@@ -1563,10 +1520,6 @@ do_setusercontext(struct passwd *pw)
 			free(chroot_path);
 		}
 
-#ifdef HAVE_SETPCRED
-		if (setpcred(pw->pw_name, (char **)NULL) == -1)
-			fatal("Failed to set process credentials");
-#endif /* HAVE_SETPCRED */
 #ifdef HAVE_LOGIN_CAP
 		if (setusercontext(lc, pw, pw->pw_uid, LOGIN_SETUSER) < 0) {
 			perror("unable to set user context (setuser)");
@@ -1580,10 +1533,6 @@ do_setusercontext(struct passwd *pw)
 
 	if (getuid() != pw->pw_uid || geteuid() != pw->pw_uid)
 		fatal("Failed to set uids to %u.", (u_int) pw->pw_uid);
-
-#ifdef WITH_SELINUX
-	ssh_selinux_setup_exec_context(pw->pw_name);
-#endif
 }
 
 static void
@@ -1632,8 +1581,6 @@ launch_login(struct passwd *pw, const char *hostname)
 static void
 child_close_fds(void)
 {
-	int i;
-
 	if (packet_get_connection_in() == packet_get_connection_out())
 		close(packet_get_connection_in());
 	else {
@@ -1659,8 +1606,7 @@ child_close_fds(void)
 	 * initgroups, because at least on Solaris 2.3 it leaves file
 	 * descriptors open.
 	 */
-	for (i = 3; i < 64; i++)
-		close(i);
+	closefrom(STDERR_FILENO + 1);
 }
 
 /*
@@ -1797,7 +1743,8 @@ do_child(Session *s, const char *command)
 #ifdef HAVE_LOGIN_CAP
 		r = login_getcapbool(lc, "requirehome", 0);
 #endif
-		if (r || options.chroot_directory == NULL)
+		if (r || options.chroot_directory == NULL ||
+		    strcasecmp(options.chroot_directory, "none") == 0)
 			fprintf(stderr, "Could not chdir to home "
 			    "directory %s: %s\n", pw->pw_dir,
 			    strerror(errno));
@@ -1813,7 +1760,11 @@ do_child(Session *s, const char *command)
 	/* restore SIGPIPE for child */
 	signal(SIGPIPE, SIG_DFL);
 
-	if (s->is_subsystem == SUBSYSTEM_INT_SFTP) {
+	if (s->is_subsystem == SUBSYSTEM_INT_SFTP_ERROR) {
+		printf("This service allows sftp connections only.\n");
+		fflush(NULL);
+		exit(1);
+	} else if (s->is_subsystem == SUBSYSTEM_INT_SFTP) {
 		extern int optind, optreset;
 		int i;
 		char *p, *args;
@@ -1826,8 +1777,13 @@ do_child(Session *s, const char *command)
 		argv[i] = NULL;
 		optind = optreset = 1;
 		__progname = argv[0];
+#ifdef WITH_SELINUX
+		ssh_selinux_change_context("sftpd_t");
+#endif
 		exit(sftp_server_main(i, argv, s->pw));
 	}
+
+	fflush(NULL);
 
 	if (options.use_login) {
 		launch_login(pw, hostname);
@@ -2133,22 +2089,23 @@ session_subsystem_req(Session *s)
 	u_int i;
 
 	packet_check_eom();
-	logit("subsystem request for %.100s", subsys);
+	logit("subsystem request for %.100s by user %s", subsys,
+	    s->pw->pw_name);
 
 	for (i = 0; i < options.num_subsystems; i++) {
 		if (strcmp(subsys, options.subsystem_name[i]) == 0) {
 			prog = options.subsystem_command[i];
 			cmd = options.subsystem_args[i];
-			if (!strcmp(INTERNAL_SFTP_NAME, prog)) {
+			if (strcmp(INTERNAL_SFTP_NAME, prog) == 0) {
 				s->is_subsystem = SUBSYSTEM_INT_SFTP;
-			} else if (stat(prog, &st) < 0) {
-				error("subsystem: cannot stat %s: %s", prog,
-				    strerror(errno));
-				break;
+				debug("subsystem: %s", prog);
 			} else {
+				if (stat(prog, &st) < 0)
+					debug("subsystem: cannot stat %s: %s",
+					    prog, strerror(errno));
 				s->is_subsystem = SUBSYSTEM_EXT;
+				debug("subsystem: exec() %s", cmd);
 			}
-			debug("subsystem: exec() %s", cmd);
 			success = do_exec(s, cmd) == 0;
 			break;
 		}
@@ -2315,7 +2272,8 @@ session_input_channel_req(Channel *c, const char *rtype)
 }
 
 void
-session_set_fds(Session *s, int fdin, int fdout, int fderr, int is_tty)
+session_set_fds(Session *s, int fdin, int fdout, int fderr, int ignore_fderr,
+    int is_tty)
 {
 	if (!compat20)
 		fatal("session_set_fds: called for proto != 2.0");
@@ -2327,7 +2285,7 @@ session_set_fds(Session *s, int fdin, int fdout, int fderr, int is_tty)
 		fatal("no channel for session %d", s->self);
 	channel_set_fds(s->chanid,
 	    fdout, fdin, fderr,
-	    fderr == -1 ? CHAN_EXTENDED_IGNORE : CHAN_EXTENDED_READ,
+	    ignore_fderr ? CHAN_EXTENDED_IGNORE : CHAN_EXTENDED_READ,
 	    1, is_tty, CHAN_SES_WINDOW_DEFAULT);
 }
 

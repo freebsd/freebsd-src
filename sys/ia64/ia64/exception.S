@@ -48,9 +48,16 @@ __FBSDID("$FreeBSD$");
  * ar.k4 = PCPU data
  */
 
+	.section .ivt.data, "aw"
+
+	.global pmap_ptc_g_sem
+pmap_ptc_g_sem:	data8	0
+
+	.global ia64_kptdir
+ia64_kptdir:	data8	0
+
 #ifdef EXCEPTION_TRACING
 
-	.data
 	.global xtrace, xhead
 xtrace:	.space	1024*5*8
 xhead:	data8	xtrace
@@ -101,7 +108,7 @@ xhead:	data8	xtrace
 
 #endif
 
-	.text
+	.section .ivt.text, "ax"
 
 /*
  * exception_save: save interrupted state
@@ -129,7 +136,7 @@ ENTRY_NOPROFILE(exception_save, 0)
 	;;
 }
 {	.mmi
-	cmp.le		p14,p15=5,r31
+	cmp.le		p14,p15=IA64_VM_MINKERN_REGION,r31
 	;;
 (p15)	mov		r23=ar.k7		// kernel memory stack
 (p14)	mov		r23=sp
@@ -170,17 +177,38 @@ ENTRY_NOPROFILE(exception_save, 0)
 	 *	r30,r31=trapframe pointers
 	 *	p14,p15=memory stack switch
 	 */
+
+	/* PTC.G enter non-exclusive */
+	mov	r24 = ar.ccv
+	movl	r25 = pmap_ptc_g_sem
+	;;
+.ptc_g_0:
+	ld8.acq	r26 = [r25]
+	;;
+	tbit.nz	p12, p0 = r26, 63
+(p12)	br.cond.spnt.few .ptc_g_0
+	;;
+	mov	ar.ccv = r26
+	adds	r27 = 1, r26
+	;;
+	cmpxchg8.rel	r27 = [r25], r27, ar.ccv
+	;;
+	cmp.ne	p12, p0 = r26, r27
+(p12)	br.cond.spnt.few .ptc_g_0
+	;;
+	mov	ar.ccv = r24
+
 exception_save_restart:
 {	.mmi
 	st8		[r30]=r19,16		// length
 	st8		[r31]=r0,16		// flags
-	add		r19=16,r19
+	add		r29=16,r19		// Clobber restart token
 	;;
 }
 {	.mmi
 	st8.spill	[r30]=sp,16		// sp
 	st8		[r31]=r20,16		// unat
-	sub		sp=r23,r19
+	sub		sp=r23,r29
 	;;
 }
 {	.mmi
@@ -212,7 +240,7 @@ exception_save_restart:
 {	.mmi
 	st8		[r30]=r19,16		// rnat
 	st8		[r31]=r0,16		// __spare
-	cmp.le		p12,p13=5,r24
+	cmp.le		p12,p13=IA64_VM_MINKERN_REGION,r24
 	;;
 }
 {	.mmi
@@ -407,6 +435,23 @@ exception_save_restart:
 	movl		gp=__gp
 	;;
 }
+
+	/* PTC.G leave non-exclusive */
+	srlz.d
+	movl	r25 = pmap_ptc_g_sem
+	;;
+.ptc_g_1:
+	ld8.acq r26 = [r25]
+	;;
+	mov	ar.ccv = r26
+	adds	r27 = -1, r26
+	;;
+	cmpxchg8.rel	r27 = [r25], r27, ar.ccv
+	;;
+	cmp.ne	p12, p0 = r26, r27
+(p12)	br.cond.spnt.few .ptc_g_1
+	;;
+
 {	.mib
 	srlz.d
 	nop		0
@@ -564,7 +609,7 @@ ENTRY_NOPROFILE(exception_restore, 0)
 {	.mmi
 	ld8.fill	r1=[r30],16		// gp
 	ld8		r27=[r31],16		// ndirty
-	cmp.le		p14,p15=5,r28
+	cmp.le		p14,p15=IA64_VM_MINKERN_REGION,r28
 	;;
 }
 {	.mmi
@@ -596,7 +641,7 @@ exception_restore_restart:
 	mov		r30=ar.bspstore
 	;;
 	loadrs					// load user regs
-	nop		0
+	mov		r29=0			// Clobber restart token
 	;;
 }
 {	.mmi
@@ -676,7 +721,7 @@ ivt_##name:					\
 #define	IVT_END(name)				\
 	.endp	ivt_##name
 
-#ifdef COMPAT_IA32
+#ifdef COMPAT_FREEBSD32
 #define	IA32_TRAP	ia32_trap
 #else
 #define	IA32_TRAP	trap
@@ -687,7 +732,7 @@ ivt_##name:					\
  * bundles per vector and 48 slots with 16 bundles per vector.
  */
 
-	.section .text.ivt,"ax"
+	.section .ivt, "ax"
 
 	.align	32768
 	.global ia64_vector_table
@@ -774,7 +819,7 @@ IVT_ENTRY(Instruction_TLB, 0x0400)
 3:	add	r20=24,r20		// next in chain
 	;;
 	ld8	r20=[r20]		// read chain
-	br.cond.sptk.few 2b		// loop
+	br.sptk	2b			// loop
 	;;
 9:	ssm	psr.dt
 	mov	pr=r17,0x1ffff		// restore predicates
@@ -860,7 +905,7 @@ IVT_ENTRY(Data_TLB, 0x0800)
 3:	add	r20=24,r20		// next in chain
 	;;
 	ld8	r20=[r20]		// read chain
-	br.cond.sptk.few 2b		// loop
+	br.sptk	2b			// loop
 	;;
 9:	ssm	psr.dt
 	mov	pr=r17,0x1ffff		// restore predicates
@@ -875,24 +920,39 @@ IVT_ENTRY(Alternate_Instruction_TLB, 0x0c00)
 	mov	r18=pr			// save predicates
 	;;
 	extr.u	r17=r16,61,3		// get region number
+	mov	r19=PTE_PRESENT+PTE_ACCESSED+PTE_DIRTY+PTE_PL_KERN+PTE_AR_RWX
+	;;
+	cmp.eq	p13,p0=IA64_PBVM_RR,r17		// RR4?
+(p13)	br.cond.sptk.few	4f
 	;;
 	cmp.ge	p13,p0=5,r17		// RR0-RR5?
-	cmp.eq	p15,p14=7,r17		// RR7->p15, RR6->p14
-(p13)	br.spnt	9f
+	cmp.eq	p14,p15=7,r17		// RR7?
+(p13)	br.cond.spnt.few	9f
 	;;
-(p15)	movl	r17=PTE_PRESENT+PTE_MA_WB+PTE_ACCESSED+PTE_DIRTY+PTE_PL_KERN+ \
-			PTE_AR_RX+PTE_ED
-(p14)	movl	r17=PTE_PRESENT+PTE_MA_UC+PTE_ACCESSED+PTE_DIRTY+PTE_PL_KERN+ \
-			PTE_AR_RX
+(p14)	add	r19=PTE_MA_WB,r19
+(p15)	add	r19=PTE_MA_UC,r19
+	dep	r17=0,r16,50,14		// clear bits above PPN
 	;;
-	dep	r16=0,r16,50,14		// clear bits above PPN
-	;;
-	dep	r16=r17,r16,0,12	// put pte bits in 0..11
+1:	dep	r16=r19,r17,0,12	// put pte bits in 0..11
 	;;
 	itc.i	r16
 	mov	pr=r18,0x1ffff		// restore predicates
 	;;
 	rfi
+	;;
+4:
+	add	r19=PTE_MA_WB,r19
+	movl	r17=IA64_PBVM_BASE
+	;;
+	sub	r17=r16,r17
+	movl	r16=IA64_PBVM_PGTBL
+	;;
+	extr.u	r17=r17,IA64_PBVM_PAGE_SHIFT,61-IA64_PBVM_PAGE_SHIFT
+	;;
+	shladd	r16=r17,3,r16
+	;;
+	ld8	r17=[r16]
+	br.sptk	1b
 	;;
 9:	mov	pr=r18,0x1ffff		// restore predicates
 	CALL(trap, 3, cr.ifa)
@@ -903,24 +963,39 @@ IVT_ENTRY(Alternate_Data_TLB, 0x1000)
 	mov	r18=pr			// save predicates
 	;;
 	extr.u	r17=r16,61,3		// get region number
+	mov	r19=PTE_PRESENT+PTE_ACCESSED+PTE_DIRTY+PTE_PL_KERN+PTE_AR_RWX
+	;;
+	cmp.eq	p13,p0=IA64_PBVM_RR,r17		// RR4?
+(p13)	br.cond.sptk.few	4f
 	;;
 	cmp.ge	p13,p0=5,r17		// RR0-RR5?
-	cmp.eq	p15,p14=7,r17		// RR7->p15, RR6->p14
-(p13)	br.spnt	9f
+	cmp.eq	p14,p15=7,r17		// RR7?
+(p13)	br.cond.spnt.few	9f
 	;;
-(p15)	movl	r17=PTE_PRESENT+PTE_MA_WB+PTE_ACCESSED+PTE_DIRTY+PTE_PL_KERN+ \
-			PTE_AR_RW+PTE_ED
-(p14)	movl	r17=PTE_PRESENT+PTE_MA_UC+PTE_ACCESSED+PTE_DIRTY+PTE_PL_KERN+ \
-			PTE_AR_RW
+(p14)	add	r19=PTE_MA_WB,r19
+(p15)	add	r19=PTE_MA_UC,r19
+	dep	r17=0,r16,50,14		// clear bits above PPN
 	;;
-	dep	r16=0,r16,50,14		// clear bits above PPN
-	;;
-	dep	r16=r17,r16,0,12	// put pte bits in 0..11
+1:	dep	r16=r19,r17,0,12	// put pte bits in 0..11
 	;;
 	itc.d	r16
 	mov	pr=r18,0x1ffff		// restore predicates
 	;;
 	rfi
+	;;
+4:
+	add	r19=PTE_MA_WB,r19
+	movl	r17=IA64_PBVM_BASE
+	;;
+	sub	r17=r16,r17
+	movl	r16=IA64_PBVM_PGTBL
+	;;
+	extr.u	r17=r17,IA64_PBVM_PAGE_SHIFT,61-IA64_PBVM_PAGE_SHIFT
+	;;
+	shladd	r16=r17,3,r16
+	;;
+	ld8	r17=[r16]
+	br.sptk	1b
 	;;
 9:	mov	pr=r18,0x1ffff		// restore predicates
 	CALL(trap, 4, cr.ifa)
@@ -939,21 +1014,22 @@ IVT_ENTRY(Data_Nested_TLB, 0x1400)
 	// double nested faults. Since all virtual addresses we encounter
 	// here are direct mapped region 7 addresses, we have no problem
 	// constructing physical addresses.
+
 {	.mlx
-	rsm		psr.dt
+	nop		0
 	movl		r27=ia64_kptdir
 	;;
 }
 {	.mii
-	srlz.d
-	dep		r27=0,r27,61,3
-	;;
+	ld8		r27=[r27]
 	extr.u		r28=r30,3*PAGE_SHIFT-8, PAGE_SHIFT-3	// dir L0 index
-}
-{	.mii
-	ld8		r27=[r27]				// dir L0 page
 	extr.u		r26=r30,2*PAGE_SHIFT-5, PAGE_SHIFT-3	// dir L1 index
 	;;
+}
+{	.mmi
+	rsm		psr.dt
+	;;
+	srlz.d
 	dep		r27=0,r27,61,3
 	;;
 }
@@ -1007,33 +1083,37 @@ IVT_ENTRY(Data_Nested_TLB, 0x1400)
 {	.mib
 	srlz.d
 	cmp.eq		p13,p0=r29,r27
-(p12)	br.sptk		exception_save_restart
+(p12)	br.cond.sptk.few	exception_save_restart
 	;;
 }
 {	.mib
 	nop		0
 	nop		0
-(p13)	br.sptk		exception_restore_restart
+(p13)	br.cond.sptk.few	exception_restore_restart
 	;;
 }
 {	.mlx
 	mov		r26=ar.bsp
-	movl		r27=kstack
+	movl		r29=kstack
 	;;
 }
-{	.mmi
+{	.mlx
 	mov		r28=sp
-	nop		0
-	addl		r27=KSTACK_PAGES*PAGE_SIZE-16,r0
+	movl		r27=kstack_top
 	;;
 }
 {	.mmi
-	mov		sp=r27
+	add		sp=-16,r27
 	;;
 	mov		r27=ar.bspstore
 	nop		0
 	;;
 }
+	mov		ar.rsc=0
+	dep		r29=r27,r29,0,9
+	;;
+	mov		ar.bspstore=r29
+	;;
 	CALL(trap, 5, r30)
 IVT_END(Data_Nested_TLB)
 
@@ -1109,7 +1189,7 @@ IVT_ENTRY(Dirty_Bit, 0x2000)
 2:	add	r20=24,r20		// next in chain
 	;;
 	ld8	r20=[r20]		// read chain
-	br.cond.sptk.few 1b		// loop
+	br.sptk	1b			// loop
 	;;
 9:	ssm	psr.dt
 	mov	pr=r17,0x1ffff		// restore predicates
@@ -1183,7 +1263,7 @@ IVT_ENTRY(Instruction_Access_Bit, 0x2400)
 2:	add	r20=24,r20		// next in chain
 	;;
 	ld8	r20=[r20]		// read chain
-	br.cond.sptk.few 1b		// loop
+	br.sptk	1b			// loop
 	;;
 9:	ssm	psr.dt
 	mov	pr=r17,0x1ffff		// restore predicates
@@ -1257,7 +1337,7 @@ IVT_ENTRY(Data_Access_Bit, 0x2800)
 2:	add	r20=24,r20		// next in chain
 	;;
 	ld8	r20=[r20]		// read chain
-	br.cond.sptk.few 1b		// loop
+	br.sptk	1b			// loop
 	;;
 9:	ssm	psr.dt
 	mov	pr=r17,0x1ffff		// restore predicates
@@ -1303,7 +1383,7 @@ IVT_END(Break_Instruction)
 
 IVT_ENTRY(External_Interrupt, 0x3000)
 {	.mib
-	mov		r17=cr.ivr	// Put the vector in the trap frame.
+	mov		r17=ar.itc	// Put the ITC in the trapframe.
 	mov		r16=ip
 	br.sptk		exception_save
 	;;
@@ -1317,7 +1397,7 @@ IVT_ENTRY(External_Interrupt, 0x3000)
 {	.mib
 	add		out0=16,sp
 	nop		0
-	br.call.sptk	rp=interrupt
+	br.call.sptk	rp=ia64_handle_intr
 	;;
 }
 {	.mib

@@ -149,6 +149,6 @@ script
 status=$?
 
 cd /tmp
-/usr/bin/rm -rf $DIR
+/bin/rm -rf $DIR
 
 exit $status

@@ -37,15 +37,16 @@
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/bus.h>
-#include <machine/bus.h>
 #include <sys/rman.h>
 
-#include <machine/vmparam.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
-#include <machine/pmap.h>
 
+#include <machine/bus.h>
+#include <machine/intr_machdep.h>
+#include <machine/pmap.h>
 #include <machine/resource.h>
+#include <machine/vmparam.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -64,6 +65,10 @@ struct macio_softc {
 	vm_offset_t  sc_base;
 	vm_offset_t  sc_size;
 	struct rman  sc_mem_rman;
+
+	/* FCR registers */
+	int          sc_memrid;
+	struct resource	*sc_memr;
 };
 
 static MALLOC_DEFINE(M_MACIO, "macio", "macio device information");
@@ -186,6 +191,7 @@ macio_get_quirks(const char *name)
 static void
 macio_add_intr(phandle_t devnode, struct macio_devinfo *dinfo)
 {
+	phandle_t iparent;
 	int	*intr;
 	int	i, nintr;
 	int 	icells;
@@ -211,11 +217,17 @@ macio_add_intr(phandle_t devnode, struct macio_devinfo *dinfo)
 	if (intr[0] == -1)
 		return;
 
-	for (i = 0; i < nintr; i+=icells) {
-		resource_list_add(&dinfo->mdi_resources, SYS_RES_IRQ,
-		    dinfo->mdi_ninterrupts, intr[i], intr[i], 1);
+	if (OF_getprop(devnode, "interrupt-parent", &iparent, sizeof(iparent))
+	    <= 0)
+		panic("Interrupt but no interrupt parent!\n");
 
-		dinfo->mdi_interrupts[dinfo->mdi_ninterrupts] = intr[i];
+	for (i = 0; i < nintr; i+=icells) {
+		u_int irq = MAP_IRQ(iparent, intr[i]);
+
+		resource_list_add(&dinfo->mdi_resources, SYS_RES_IRQ,
+		    dinfo->mdi_ninterrupts, irq, irq, 1);
+
+		dinfo->mdi_interrupts[dinfo->mdi_ninterrupts] = irq;
 		dinfo->mdi_ninterrupts++;
 	}
 }
@@ -288,6 +300,10 @@ macio_attach(device_t dev)
 	sc->sc_base = reg[2];
 	sc->sc_size = MACIO_REG_SIZE;
 
+	sc->sc_memrid = PCIR_BAR(0);
+	sc->sc_memr = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+	    &sc->sc_memrid, RF_ACTIVE);
+
 	sc->sc_mem_rman.rm_type = RMAN_ARRAY;
 	sc->sc_mem_rman.rm_descr = "MacIO Device Memory";
 	error = rman_init(&sc->sc_mem_rman);
@@ -339,6 +355,29 @@ macio_attach(device_t dev)
 			continue;
 		}
 		device_set_ivars(cdev, dinfo);
+
+		/* Set FCRs to enable some devices */
+		if (sc->sc_memr == NULL)
+			continue;
+
+		if (strcmp(ofw_bus_get_name(cdev), "bmac") == 0 ||
+		    strcmp(ofw_bus_get_compat(cdev), "bmac+") == 0) {
+			uint32_t fcr;
+
+			fcr = bus_read_4(sc->sc_memr, HEATHROW_FCR);
+
+			fcr |= FCR_ENET_ENABLE & ~FCR_ENET_RESET;
+			bus_write_4(sc->sc_memr, HEATHROW_FCR, fcr);
+			DELAY(50000);
+			fcr |= FCR_ENET_RESET;
+			bus_write_4(sc->sc_memr, HEATHROW_FCR, fcr);
+			DELAY(50000);
+			fcr &= ~FCR_ENET_RESET;
+			bus_write_4(sc->sc_memr, HEATHROW_FCR, fcr);
+			DELAY(50000);
+			
+			bus_write_4(sc->sc_memr, HEATHROW_FCR, fcr);
+		}
 	}
 
 	return (bus_generic_attach(dev));

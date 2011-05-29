@@ -112,22 +112,22 @@ getfutxent(struct futx *fu)
 	if (udb == UTXDB_LOG) {
 		uint16_t len;
 
-		if (fread(&len, sizeof len, 1, uf) != 1)
+		if (fread(&len, sizeof(len), 1, uf) != 1)
 			return (-1);
 		len = be16toh(len);
 		if (len > sizeof *fu) {
 			/* Forward compatibility. */
-			if (fread(fu, sizeof *fu, 1, uf) != 1)
+			if (fread(fu, sizeof(*fu), 1, uf) != 1)
 				return (-1);
-			fseek(uf, len - sizeof *fu, SEEK_CUR);
+			fseek(uf, len - sizeof(*fu), SEEK_CUR);
 		} else {
 			/* Partial record. */
-			memset(fu, 0, sizeof *fu);
+			memset(fu, 0, sizeof(*fu));
 			if (fread(fu, len, 1, uf) != 1)
 				return (-1);
 		}
 	} else {
-		if (fread(fu, sizeof *fu, 1, uf) != 1)
+		if (fread(fu, sizeof(*fu), 1, uf) != 1)
 			return (-1);
 	}
 	return (0);
@@ -163,7 +163,8 @@ getutxid(const struct utmpx *id)
 			case LOGIN_PROCESS:
 			case DEAD_PROCESS:
 				if (memcmp(fu.fu_id, id->ut_id,
-				    MIN(sizeof fu.fu_id, sizeof id->ut_id)) == 0)
+				    MIN(sizeof(fu.fu_id), sizeof(id->ut_id))) ==
+				    0)
 					goto found;
 			}
 			break;
@@ -191,7 +192,8 @@ getutxline(const struct utmpx *line)
 		case USER_PROCESS:
 		case LOGIN_PROCESS:
 			if (strncmp(fu.fu_line, line->ut_line,
-			    MIN(sizeof fu.fu_line, sizeof line->ut_line)) == 0)
+			    MIN(sizeof(fu.fu_line), sizeof(line->ut_line))) ==
+			    0)
 				goto found;
 			break;
 		}
@@ -212,7 +214,7 @@ getutxuser(const char *user)
 
 		switch (fu.fu_type) {
 		case USER_PROCESS:
-			if (strncmp(fu.fu_user, user, sizeof fu.fu_user) == 0)
+			if (strncmp(fu.fu_user, user, sizeof(fu.fu_user)) == 0)
 				goto found;
 			break;
 		}

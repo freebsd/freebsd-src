@@ -323,20 +323,20 @@ struct dn_ht {
         int ofs;	        /* offset of link field */
         uint32_t (*hash)(uintptr_t, int, void *arg);
         int (*match)(void *_el, uintptr_t key, int, void *);
-        void *(*new)(uintptr_t, int, void *);
+        void *(*newh)(uintptr_t, int, void *);
         void **ht;              /* bucket heads */
 };
 /*
  * Initialize, allocating bucket pointers inline.
  * Recycle previous record if possible.
- * If the 'new' function is not supplied, we assume that the
+ * If the 'newh' function is not supplied, we assume that the
  * key passed to ht_find is the same object to be stored in.
  */
 struct dn_ht *
 dn_ht_init(struct dn_ht *ht, int buckets, int ofs,
         uint32_t (*h)(uintptr_t, int, void *),
         int (*match)(void *, uintptr_t, int, void *),
-	void *(*new)(uintptr_t, int, void *))
+	void *(*newh)(uintptr_t, int, void *))
 {
 	int l;
 
@@ -410,7 +410,7 @@ dn_ht_init(struct dn_ht *ht, int buckets, int ofs,
 		ht->ofs = ofs;
 		ht->hash = h;
 		ht->match = match;
-		ht->new = new;
+		ht->newh = newh;
 	}
 	return ht;
 }
@@ -471,8 +471,8 @@ dn_ht_find(struct dn_ht *ht, uintptr_t key, int flags, void *arg)
 	} else if (flags & DNHT_INSERT) {
 		// printf("%s before calling new, bucket %d ofs %d\n",
 		//	__FUNCTION__, i, ht->ofs);
-		p = ht->new ? ht->new(key, flags, arg) : (void *)key;
-		// printf("%s new returns %p\n", __FUNCTION__, p);
+		p = ht->newh ? ht->newh(key, flags, arg) : (void *)key;
+		// printf("%s newh returns %p\n", __FUNCTION__, p);
 		if (p) {
 			ht->entries++;
 			*(void **)((char *)p + ht->ofs) = ht->ht[i];
@@ -514,9 +514,12 @@ dn_ht_scan(struct dn_ht *ht, int (*fn)(void *, void *), void *arg)
 }
 
 /*
- * Similar to dn_ht_scan(), except thah the scan is performed only
+ * Similar to dn_ht_scan(), except that the scan is performed only
  * in the bucket 'bucket'. The function returns a correct bucket number if
- * the original is invalid
+ * the original is invalid.
+ * If the callback returns DNHT_SCAN_END, the function move the ht->ht[i]
+ * pointer to the last entry processed. Moreover, the bucket number passed
+ * by caller is decremented, because usually the caller increment it.
  */
 int
 dn_ht_scan_bucket(struct dn_ht *ht, int *bucket, int (*fn)(void *, void *),
@@ -547,4 +550,3 @@ dn_ht_scan_bucket(struct dn_ht *ht, int *bucket, int (*fn)(void *, void *),
 	}
 	return found;
 }
-

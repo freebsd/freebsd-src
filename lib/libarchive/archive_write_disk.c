@@ -252,7 +252,7 @@ static ssize_t	write_data_block(struct archive_write_disk *,
 static struct archive_vtable *archive_write_disk_vtable(void);
 
 static int	_archive_write_close(struct archive *);
-static int	_archive_write_finish(struct archive *);
+static int	_archive_write_free(struct archive *);
 static int	_archive_write_header(struct archive *, struct archive_entry *);
 static int	_archive_write_finish_entry(struct archive *);
 static ssize_t	_archive_write_data(struct archive *, const void *, size_t);
@@ -291,7 +291,7 @@ archive_write_disk_vtable(void)
 
 	if (!inited) {
 		av.archive_close = _archive_write_close;
-		av.archive_finish = _archive_write_finish;
+		av.archive_free = _archive_write_free;
 		av.archive_write_header = _archive_write_header;
 		av.archive_write_finish_entry = _archive_write_finish_entry;
 		av.archive_write_data = _archive_write_data;
@@ -1295,7 +1295,7 @@ _archive_write_close(struct archive *_a)
 }
 
 static int
-_archive_write_finish(struct archive *_a)
+_archive_write_free(struct archive *_a)
 {
 	struct archive_write_disk *a = (struct archive_write_disk *)_a;
 	int ret;

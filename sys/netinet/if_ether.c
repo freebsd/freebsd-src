@@ -39,7 +39,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
-#include "opt_carp.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -65,13 +64,12 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_var.h>
 #include <net/if_llatbl.h>
 #include <netinet/if_ether.h>
+#if defined(INET) || defined(INET6)
+#include <netinet/ip_carp.h>
+#endif
 
 #include <net/if_arc.h>
 #include <net/iso88025.h>
-
-#ifdef DEV_CARP
-#include <netinet/ip_carp.h>
-#endif
 
 #include <security/mac/mac_framework.h>
 
@@ -82,28 +80,29 @@ SYSCTL_DECL(_net_link_ether);
 SYSCTL_NODE(_net_link_ether, PF_INET, inet, CTLFLAG_RW, 0, "");
 SYSCTL_NODE(_net_link_ether, PF_ARP, arp, CTLFLAG_RW, 0, "");
 
-VNET_DEFINE(int, useloopback) = 1;	/* use loopback interface for
-					 * local traffic */
-
 /* timer values */
 static VNET_DEFINE(int, arpt_keep) = (20*60);	/* once resolved, good for 20
 						 * minutes */
+static VNET_DEFINE(int, arp_maxtries) = 5;
+VNET_DEFINE(int, useloopback) = 1;	/* use loopback interface for
+					 * local traffic */
+static VNET_DEFINE(int, arp_proxyall) = 0;
 static VNET_DEFINE(int, arpt_down) = 20;      /* keep incomplete entries for
 					       * 20 seconds */
-static VNET_DEFINE(int, arp_maxtries) = 5;
-static VNET_DEFINE(int, arp_proxyall);
-static VNET_DEFINE(struct arpstat, arpstat);  /* ARP statistics, see if_arp.h */
+VNET_DEFINE(struct arpstat, arpstat);  /* ARP statistics, see if_arp.h */
+
+static VNET_DEFINE(int, arp_maxhold) = 1;
 
 #define	V_arpt_keep		VNET(arpt_keep)
 #define	V_arpt_down		VNET(arpt_down)
 #define	V_arp_maxtries		VNET(arp_maxtries)
 #define	V_arp_proxyall		VNET(arp_proxyall)
 #define	V_arpstat		VNET(arpstat)
+#define	V_arp_maxhold		VNET(arp_maxhold)
 
 SYSCTL_VNET_INT(_net_link_ether_inet, OID_AUTO, max_age, CTLFLAG_RW,
 	&VNET_NAME(arpt_keep), 0,
 	"ARP entry lifetime in seconds");
-
 SYSCTL_VNET_INT(_net_link_ether_inet, OID_AUTO, maxtries, CTLFLAG_RW,
 	&VNET_NAME(arp_maxtries), 0,
 	"ARP resolution attempts before returning error");
@@ -113,9 +112,15 @@ SYSCTL_VNET_INT(_net_link_ether_inet, OID_AUTO, useloopback, CTLFLAG_RW,
 SYSCTL_VNET_INT(_net_link_ether_inet, OID_AUTO, proxyall, CTLFLAG_RW,
 	&VNET_NAME(arp_proxyall), 0,
 	"Enable proxy ARP for all suitable requests");
+SYSCTL_VNET_INT(_net_link_ether_inet, OID_AUTO, wait, CTLFLAG_RW,
+	&VNET_NAME(arpt_down), 0,
+	"Incomplete ARP entry lifetime in seconds");
 SYSCTL_VNET_STRUCT(_net_link_ether_arp, OID_AUTO, stats, CTLFLAG_RW,
 	&VNET_NAME(arpstat), arpstat,
 	"ARP statistics (struct arpstat, net/if_arp.h)");
+SYSCTL_VNET_INT(_net_link_ether_inet, OID_AUTO, maxhold, CTLFLAG_RW,
+	&VNET_NAME(arp_maxhold), 0, 
+	"Number of packets to hold per ARP entry");
 
 static void	arp_init(void);
 void		arprequest(struct ifnet *,
@@ -149,12 +154,10 @@ arp_ifscrub(struct ifnet *ifp, uint32_t addr)
 	addr4.sin_len    = sizeof(addr4);
 	addr4.sin_family = AF_INET;
 	addr4.sin_addr.s_addr = addr;
-	CURVNET_SET(ifp->if_vnet);
 	IF_AFDATA_LOCK(ifp);
 	lla_lookup(LLTABLE(ifp), (LLE_DELETE | LLE_IFADDR),
 	    (struct sockaddr *)&addr4);
 	IF_AFDATA_UNLOCK(ifp);
-	CURVNET_RESTORE();
 }
 #endif
 
@@ -165,12 +168,11 @@ static void
 arptimer(void *arg)
 {
 	struct ifnet *ifp;
-	struct llentry   *lle = (struct llentry *)arg;
+	struct llentry   *lle;
+	int pkts_dropped;
 
-	if (lle == NULL) {
-		panic("%s: NULL entry!\n", __func__);
-		return;
-	}
+	KASSERT(arg != NULL, ("%s: arg NULL", __func__));
+	lle = (struct llentry *)arg;
 	ifp = lle->lle_tbl->llt_ifp;
 	CURVNET_SET(ifp->if_vnet);
 	IF_AFDATA_LOCK(ifp);
@@ -180,18 +182,21 @@ arptimer(void *arg)
 	else {
 		if (!callout_pending(&lle->la_timer) &&
 		    callout_active(&lle->la_timer)) {
-			(void) llentry_free(lle);
+			callout_stop(&lle->la_timer);
+			LLE_REMREF(lle);
+			pkts_dropped = llentry_free(lle);
+			ARPSTAT_ADD(dropped, pkts_dropped);
 			ARPSTAT_INC(timeouts);
-		} 
+		} else {
 #ifdef DIAGNOSTIC
-		else {
 			struct sockaddr *l3addr = L3_ADDR(lle);
 			log(LOG_INFO, 
 			    "arptimer issue: %p, IPv4 address: \"%s\"\n", lle,
 			    inet_ntoa(
 			        ((const struct sockaddr_in *)l3addr)->sin_addr));
-		}
 #endif
+			LLE_WUNLOCK(lle);
+		}
 	}
 	IF_AFDATA_UNLOCK(ifp);
 	CURVNET_RESTORE();
@@ -279,6 +284,8 @@ arpresolve(struct ifnet *ifp, struct rtentry *rt0, struct mbuf *m,
 {
 	struct llentry *la = 0;
 	u_int flags = 0;
+	struct mbuf *curr = NULL;
+	struct mbuf *next = NULL;
 	int error, renew;
 
 	*lle = NULL;
@@ -295,8 +302,6 @@ arpresolve(struct ifnet *ifp, struct rtentry *rt0, struct mbuf *m,
 			return (0);
 		}
 	}
-	/* XXXXX
-	 */
 retry:
 	IF_AFDATA_RLOCK(ifp);	
 	la = lla_lookup(LLTABLE(ifp), flags, dst);
@@ -318,7 +323,7 @@ retry:
 	} 
 
 	if ((la->la_flags & LLE_VALID) &&
-	    ((la->la_flags & LLE_STATIC) || la->la_expire > time_second)) {
+	    ((la->la_flags & LLE_STATIC) || la->la_expire > time_uptime)) {
 		bcopy(&la->ll_addr, desten, ifp->if_addrlen);
 		/*
 		 * If entry has an expiry time and it is approaching,
@@ -326,7 +331,7 @@ retry:
 		 * arpt_down interval.
 		 */
 		if (!(la->la_flags & LLE_STATIC) &&
-		    time_second + la->la_preempt > la->la_expire) {
+		    time_uptime + la->la_preempt > la->la_expire) {
 			arprequest(ifp, NULL,
 			    &SIN(dst)->sin_addr, IF_LLADDR(ifp));
 
@@ -346,7 +351,7 @@ retry:
 		goto done;
 	}
 
-	renew = (la->la_asked == 0 || la->la_expire != time_second);
+	renew = (la->la_asked == 0 || la->la_expire != time_uptime);
 	if ((renew || m != NULL) && (flags & LLE_EXCLUSIVE) == 0) {
 		flags |= LLE_EXCLUSIVE;
 		LLE_RUNLOCK(la);
@@ -354,15 +359,28 @@ retry:
 	}
 	/*
 	 * There is an arptab entry, but no ethernet address
-	 * response yet.  Replace the held mbuf with this
-	 * latest one.
+	 * response yet.  Add the mbuf to the list, dropping
+	 * the oldest packet if we have exceeded the system
+	 * setting.
 	 */
 	if (m != NULL) {
+		if (la->la_numheld >= V_arp_maxhold) {
+			if (la->la_hold != NULL) {
+				next = la->la_hold->m_nextpkt;
+				m_freem(la->la_hold);
+				la->la_hold = next;
+				la->la_numheld--;
+				ARPSTAT_INC(dropped);
+			}
+		} 
 		if (la->la_hold != NULL) {
-			m_freem(la->la_hold);
-			ARPSTAT_INC(dropped);
-		}
-		la->la_hold = m;
+			curr = la->la_hold;
+			while (curr->m_nextpkt != NULL)
+				curr = curr->m_nextpkt;
+			curr->m_nextpkt = m;
+		} else 
+			la->la_hold = m;
+		la->la_numheld++;
 		if (renew == 0 && (flags & LLE_EXCLUSIVE)) {
 			flags &= ~LLE_EXCLUSIVE;
 			LLE_DOWNGRADE(la);
@@ -382,9 +400,14 @@ retry:
 		    EHOSTUNREACH : EHOSTDOWN;
 
 	if (renew) {
+		int canceled;
+
 		LLE_ADDREF(la);
-		la->la_expire = time_second + V_arpt_down;
-		callout_reset(&la->la_timer, hz * V_arpt_down, arptimer, la);
+		la->la_expire = time_uptime;
+		canceled = callout_reset(&la->la_timer, hz * V_arpt_down,
+		    arptimer, la);
+		if (canceled)
+			LLE_REMREF(la);
 		la->la_asked++;
 		LLE_WUNLOCK(la);
 		arprequest(ifp, NULL, &SIN(dst)->sin_addr,
@@ -418,7 +441,8 @@ arpintr(struct mbuf *m)
 	if (ntohs(ar->ar_hrd) != ARPHRD_ETHER &&
 	    ntohs(ar->ar_hrd) != ARPHRD_IEEE802 &&
 	    ntohs(ar->ar_hrd) != ARPHRD_ARCNET &&
-	    ntohs(ar->ar_hrd) != ARPHRD_IEEE1394) {
+	    ntohs(ar->ar_hrd) != ARPHRD_IEEE1394 &&
+	    ntohs(ar->ar_hrd) != ARPHRD_INFINIBAND) {
 		log(LOG_ERR, "arp: unknown hardware address format (0x%2D)\n",
 		    (unsigned char *)&ar->ar_hrd, "");
 		m_freem(m);
@@ -484,16 +508,13 @@ in_arpinput(struct mbuf *m)
 	struct rtentry *rt;
 	struct ifaddr *ifa;
 	struct in_ifaddr *ia;
-	struct mbuf *hold;
 	struct sockaddr sa;
 	struct in_addr isaddr, itaddr, myaddr;
 	u_int8_t *enaddr = NULL;
 	int op, flags;
 	int req_len;
 	int bridged = 0, is_bridge = 0;
-#ifdef DEV_CARP
 	int carp_match = 0;
-#endif
 	struct sockaddr_in sin;
 	sin.sin_len = sizeof(struct sockaddr_in);
 	sin.sin_family = AF_INET;
@@ -511,6 +532,21 @@ in_arpinput(struct mbuf *m)
 	}
 
 	ah = mtod(m, struct arphdr *);
+	/* 
+	 * ARP is only for IPv4 so we can reject packets with
+	 * a protocol length not equal to an IPv4 address.
+	 */
+	if (ah->ar_pln != sizeof(struct in_addr)) {
+		log(LOG_ERR, "in_arp: requested protocol length != %zu\n",
+		    sizeof(struct in_addr));
+		return;
+	}
+
+	if (ETHER_IS_MULTICAST(ar_sha(ah))) {
+		log(LOG_ERR, "in_arp: source hardware address is multicast.");
+		return;
+	}
+
 	op = ntohs(ah->ar_op);
 	(void)memcpy(&isaddr, ar_spa(ah), sizeof (isaddr));
 	(void)memcpy(&itaddr, ar_tpa(ah), sizeof (itaddr));
@@ -529,26 +565,24 @@ in_arpinput(struct mbuf *m)
 	 */
 	IN_IFADDR_RLOCK();
 	LIST_FOREACH(ia, INADDR_HASH(itaddr.s_addr), ia_hash) {
-		if (((bridged && ia->ia_ifp->if_bridge != NULL) ||
+		if (((bridged && ia->ia_ifp->if_bridge == ifp->if_bridge) ||
 		    ia->ia_ifp == ifp) &&
 		    itaddr.s_addr == ia->ia_addr.sin_addr.s_addr) {
 			ifa_ref(&ia->ia_ifa);
 			IN_IFADDR_RUNLOCK();
 			goto match;
 		}
-#ifdef DEV_CARP
 		if (ifp->if_carp != NULL &&
-		    carp_iamatch(ifp->if_carp, ia, &isaddr, &enaddr) &&
+		    (*carp_iamatch_p)(ifp, ia, &isaddr, &enaddr) &&
 		    itaddr.s_addr == ia->ia_addr.sin_addr.s_addr) {
 			carp_match = 1;
 			ifa_ref(&ia->ia_ifa);
 			IN_IFADDR_RUNLOCK();
 			goto match;
 		}
-#endif
 	}
 	LIST_FOREACH(ia, INADDR_HASH(isaddr.s_addr), ia_hash)
-		if (((bridged && ia->ia_ifp->if_bridge != NULL) ||
+		if (((bridged && ia->ia_ifp->if_bridge == ifp->if_bridge) ||
 		    ia->ia_ifp == ifp) &&
 		    isaddr.s_addr == ia->ia_addr.sin_addr.s_addr) {
 			ifa_ref(&ia->ia_ifa);
@@ -645,11 +679,7 @@ match:
 	IF_AFDATA_UNLOCK(ifp);
 	if (la != NULL) {
 		/* the following is not an error when doing bridging */
-		if (!bridged && la->lle_tbl->llt_ifp != ifp
-#ifdef DEV_CARP
-		    && (ifp->if_type != IFT_CARP || !carp_match)
-#endif
-			) {
+		if (!bridged && la->lle_tbl->llt_ifp != ifp && !carp_match) {
 			if (log_arp_wrong_iface)
 				log(LOG_ERR, "arp: %s is on %s "
 				    "but got reply from %*D on %s\n",
@@ -688,7 +718,7 @@ match:
 			    "arp from %*D: addr len: new %d, i/f %d (ignored)",
 			    ifp->if_addrlen, (u_char *) ar_sha(ah), ":",
 			    ah->ar_hln, ifp->if_addrlen);
-			goto reply;
+			goto drop;
 		}
 		(void)memcpy(&la->ll_addr, ar_sha(ah), ifp->if_addrlen);
 		la->la_flags |= LLE_VALID;
@@ -696,21 +726,40 @@ match:
 		EVENTHANDLER_INVOKE(arp_update_event, la);
 
 		if (!(la->la_flags & LLE_STATIC)) {
-			la->la_expire = time_second + V_arpt_keep;
-			callout_reset(&la->la_timer, hz * V_arpt_keep,
-			    arptimer, la);
+			int canceled;
+
+			LLE_ADDREF(la);
+			la->la_expire = time_uptime + V_arpt_keep;
+			canceled = callout_reset(&la->la_timer,
+			    hz * V_arpt_keep, arptimer, la);
+			if (canceled)
+				LLE_REMREF(la);
 		}
 		la->la_asked = 0;
 		la->la_preempt = V_arp_maxtries;
-		hold = la->la_hold;
-		if (hold != NULL) {
+		/* 
+		 * The packets are all freed within the call to the output
+		 * routine.
+		 *
+		 * NB: The lock MUST be released before the call to the
+		 * output routine.
+		 */
+		if (la->la_hold != NULL) {
+			struct mbuf *m_hold, *m_hold_next;
+
+			m_hold = la->la_hold;
 			la->la_hold = NULL;
+			la->la_numheld = 0;
 			memcpy(&sa, L3_ADDR(la), sizeof(sa));
-		}
-		LLE_WUNLOCK(la);
-		if (hold != NULL)
-			(*ifp->if_output)(ifp, hold, &sa, NULL);
-	}
+			LLE_WUNLOCK(la);
+			for (; m_hold != NULL; m_hold = m_hold_next) {
+				m_hold_next = m_hold->m_nextpkt;
+				m_hold->m_nextpkt = NULL;
+				(*ifp->if_output)(ifp, m_hold, &sa, NULL);
+			}
+		} else
+			LLE_WUNLOCK(la);
+	} /* end of FIB loop */
 reply:
 	if (op != ARPOP_REQUEST)
 		goto drop;
@@ -762,7 +811,7 @@ reply:
 
 			/*
 			 * Also check that the node which sent the ARP packet
-			 * is on the the interface we expect it to be on. This
+			 * is on the interface we expect it to be on. This
 			 * avoids ARP chaos if an interface is connected to the
 			 * wrong network.
 			 */

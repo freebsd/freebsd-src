@@ -181,13 +181,13 @@ typeerr:		LABEL;
 	 * Catches nano-second differences, but doesn't display them.
 	 */
 	if ((s->flags & F_TIME) &&
-	     ((s->st_mtimespec.tv_sec != p->fts_statp->st_mtimespec.tv_sec) ||
-	     (s->st_mtimespec.tv_nsec != p->fts_statp->st_mtimespec.tv_nsec))) {
+	     ((s->st_mtimespec.tv_sec != p->fts_statp->st_mtim.tv_sec) ||
+	     (s->st_mtimespec.tv_nsec != p->fts_statp->st_mtim.tv_nsec))) {
 		LABEL;
 		(void)printf("%smodification time expected %.24s ",
 		    tab, ctime(&s->st_mtimespec.tv_sec));
 		(void)printf("found %.24s",
-		    ctime(&p->fts_statp->st_mtimespec.tv_sec));
+		    ctime(&p->fts_statp->st_mtim.tv_sec));
 		if (uflag) {
 			tv[0].tv_sec = s->st_mtimespec.tv_sec;
 			tv[0].tv_usec = s->st_mtimespec.tv_nsec / 1000;

@@ -45,9 +45,13 @@ __RCSID("$NetBSD: preen.c,v 1.18 1998/07/26 20:02:36 mycroft Exp $");
 #include <sys/wait.h>
 #include <sys/queue.h>
 
+#include <ufs/ufs/quota.h>
+
 #include <err.h>
 #include <ctype.h>
+#include <fcntl.h>
 #include <fstab.h>
+#include <libutil.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -58,9 +62,9 @@ __RCSID("$NetBSD: preen.c,v 1.18 1998/07/26 20:02:36 mycroft Exp $");
 struct partentry {
 	TAILQ_ENTRY(partentry)	 p_entries;
 	char			*p_devname;	/* device name */
-	char			*p_mntpt;	/* mount point */
-	char			*p_type;	/* file system type */
-	struct quotaname	*p_quota;	/* quota file info ptr */
+	const char		*p_mntpt;	/* mount point */
+	struct quotafile	*p_qfu;		/* user quota file info ptr */
+	struct quotafile	*p_qfg;		/* group quota file info */
 };
 
 TAILQ_HEAD(part, partentry) badh;
@@ -75,21 +79,19 @@ struct diskentry {
 TAILQ_HEAD(disk, diskentry) diskh;
 
 static struct diskentry *finddisk(const char *);
-static void addpart(const char *, const char *, const char *,
-    struct quotaname *);
+static void addpart(struct fstab *, struct quotafile *, struct quotafile *);
 static int startdisk(struct diskentry *);
 extern void *emalloc(size_t);
 extern char *estrdup(const char *);
 
 int
-checkfstab(void)
+checkfstab(int uflag, int gflag)
 {
 	struct fstab *fs;
 	struct diskentry *d, *nextdisk;
 	struct partentry *p;
 	int ret, pid, retcode, passno, sumstatus, status, nextpass;
-	char *name;
-	struct quotaname *qnp;
+	struct quotafile *qfu, *qfg;
 
 	TAILQ_INIT(&badh);
 	TAILQ_INIT(&diskh);
@@ -104,30 +106,32 @@ checkfstab(void)
 			return (8);
 		}
 		while ((fs = getfsent()) != 0) {
-			name = fs->fs_spec;
 			if (fs->fs_passno > passno && fs->fs_passno < nextpass)
 				nextpass = fs->fs_passno;
 
 			if (passno != fs->fs_passno)
 				continue;
 
-			if ((qnp = needchk(fs)) == NULL)
+			qfu = NULL;
+			if (uflag)
+				qfu = quota_open(fs, USRQUOTA, O_CREAT|O_RDWR);
+			qfg = NULL;
+			if (gflag)
+				qfg = quota_open(fs, GRPQUOTA, O_CREAT|O_RDWR);
+			if (qfu == NULL && qfg == NULL)
 				continue;
 
 			if (passno == 1) {
-				sumstatus = chkquota(name, fs->fs_file, qnp);
-
+				sumstatus = chkquota(fs->fs_spec, qfu, qfg);
+				if (qfu)
+					quota_close(qfu);
+				if (qfg)
+					quota_close(qfg);
 				if (sumstatus)
 					return (sumstatus);
 				continue;
 			}
-			if (name == NULL) {
-				(void) fprintf(stderr,
-				    "BAD DISK NAME %s\n", fs->fs_spec);
-				sumstatus |= 8;
-				continue;
-			}
-			addpart(fs->fs_vfstype, name, fs->fs_file, qnp);
+			addpart(fs, qfu, qfg);
 		}
 
 		if (passno == 1)
@@ -157,8 +161,8 @@ checkfstab(void)
 
 			if (WIFSIGNALED(status)) {
 				(void) fprintf(stderr,
-				    "%s: %s (%s): EXITED WITH SIGNAL %d\n",
-				    p->p_type, p->p_devname, p->p_mntpt,
+				    "%s: (%s): EXITED WITH SIGNAL %d\n",
+				    p->p_devname, p->p_mntpt,
 				    WTERMSIG(status));
 				retcode = 8;
 			}
@@ -169,8 +173,11 @@ checkfstab(void)
 				TAILQ_INSERT_TAIL(&badh, p, p_entries);
 				sumstatus |= retcode;
 			} else {
-				free(p->p_type);
 				free(p->p_devname);
+				if (p->p_qfu)
+					quota_close(p->p_qfu);
+				if (p->p_qfg)
+					quota_close(p->p_qfg);
 				free(p);
 			}
 			d->d_pid = 0;
@@ -196,8 +203,8 @@ checkfstab(void)
 
 		for (; p; p = TAILQ_NEXT(p, p_entries))
 			(void) fprintf(stderr,
-			    "%s: %s (%s)%s", p->p_type, p->p_devname,
-			    p->p_mntpt, TAILQ_NEXT(p, p_entries) ? ", " : "\n");
+			    "%s: (%s)%s", p->p_devname, p->p_mntpt,
+			    TAILQ_NEXT(p, p_entries) ? ", " : "\n");
 
 		return sumstatus;
 	}
@@ -242,23 +249,25 @@ finddisk(const char *name)
 }
 
 static void
-addpart(const char *type, const char *devname, const char *mntpt,
-    struct quotaname *qnp)
+addpart(struct fstab *fs, struct quotafile *qfu, struct quotafile *qfg)
 {
-	struct diskentry *d = finddisk(devname);
+	struct diskentry *d = finddisk(fs->fs_spec);
 	struct partentry *p;
 
 	TAILQ_FOREACH(p, &d->d_part, p_entries)
-		if (strcmp(p->p_devname, devname) == 0) {
-			warnx("%s in fstab more than once!\n", devname);
+		if (strcmp(p->p_devname, fs->fs_spec) == 0) {
+			warnx("%s in fstab more than once!\n", fs->fs_spec);
 			return;
 		}
 
 	p = emalloc(sizeof(*p));
-	p->p_devname = estrdup(devname);
-	p->p_mntpt = estrdup(mntpt);
-	p->p_type = estrdup(type);
-	p->p_quota = qnp;
+	p->p_devname = estrdup(blockcheck(fs->fs_spec));
+	if (qfu != NULL)
+		p->p_mntpt = quota_fsname(qfu);
+	else
+		p->p_mntpt = quota_fsname(qfg);
+	p->p_qfu = qfu;
+	p->p_qfg = qfg;
 
 	TAILQ_INSERT_TAIL(&d->d_part, p, p_entries);
 }
@@ -275,6 +284,6 @@ startdisk(struct diskentry *d)
 		return (8);
 	}
 	if (d->d_pid == 0)
-		exit(chkquota(p->p_devname, p->p_mntpt, p->p_quota));
+		exit(chkquota(p->p_devname, p->p_qfu, p->p_qfg));
 	return (0);
 }

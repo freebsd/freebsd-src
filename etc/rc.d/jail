@@ -18,6 +18,8 @@
 
 name="jail"
 rcvar=`set_rcvar`
+
+start_precmd="jail_prestart"
 start_cmd="jail_start"
 stop_cmd="jail_stop"
 
@@ -217,12 +219,12 @@ set_sysctl()
 	if checkyesno $_knob ; then
 		if [ "$_current" -ne 1 ]; then
 			echo -n " ${_msg}=YES"
-			${SYSCTL_W} 1>/dev/null ${_mib}=1
+			${SYSCTL} 1>/dev/null ${_mib}=1
 		fi
 	else
 		if [ "$_current" -ne 0 ]; then
 			echo -n " ${_msg}=NO"
-			${SYSCTL_W} 1>/dev/null ${_mib}=0
+			${SYSCTL} 1>/dev/null ${_mib}=0
 		fi
 	fi
 }
@@ -545,6 +547,13 @@ jail_ips()
 	done
 }
 
+jail_prestart()
+{
+	if checkyesno jail_parallel_start; then
+		command_args='&'
+	fi
+}
+
 jail_start()
 {
 	echo -n 'Configuring jails:'
@@ -730,18 +739,4 @@ if [ -n "$*" ]; then
 	jail_list="$*"
 fi
 
-# Only allow the parallel start of jails, other commands are not
-# safe to execute in parallel.
-case "${cmd}" in
-*start)
-	;;
-*)
-	jail_parallel_start=NO
-esac
-
-if checkyesno jail_parallel_start; then
-	run_rc_command "${cmd}" &
-else
-	run_rc_command "${cmd}"
-fi
-
+run_rc_command "${cmd}"

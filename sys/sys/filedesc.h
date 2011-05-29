@@ -111,7 +111,8 @@ struct thread;
 int	closef(struct file *fp, struct thread *td);
 int	dupfdopen(struct thread *td, struct filedesc *fdp, int indx, int dfd,
 	    int mode, int error);
-int	falloc(struct thread *td, struct file **resultfp, int *resultfd);
+int	falloc(struct thread *td, struct file **resultfp, int *resultfd,
+	    int flags);
 int	fdalloc(struct thread *td, int minfd, int *result);
 int	fdavail(struct thread *td, int n);
 int	fdcheckstd(struct thread *td);

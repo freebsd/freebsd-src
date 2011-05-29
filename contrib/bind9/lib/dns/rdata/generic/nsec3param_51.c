@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: nsec3param_51.c,v 1.4.48.2 2009/01/18 23:47:41 tbox Exp $ */
+/* $Id: nsec3param_51.c,v 1.4.48.2 2009-01-18 23:47:41 tbox Exp $ */
 
 /*
  * Copyright (C) 2004  Nominet, Ltd.

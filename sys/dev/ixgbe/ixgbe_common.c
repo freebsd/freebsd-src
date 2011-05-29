@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2009, Intel Corporation 
+  Copyright (c) 2001-2010, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -33,6 +33,7 @@
 /*$FreeBSD$*/
 
 #include "ixgbe_common.h"
+#include "ixgbe_phy.h"
 #include "ixgbe_api.h"
 
 static s32 ixgbe_acquire_eeprom(struct ixgbe_hw *hw);
@@ -50,6 +51,13 @@ static void ixgbe_release_eeprom(struct ixgbe_hw *hw);
 static s32 ixgbe_mta_vector(struct ixgbe_hw *hw, u8 *mc_addr);
 static s32 ixgbe_get_san_mac_addr_offset(struct ixgbe_hw *hw,
                                         u16 *san_mac_offset);
+static s32 ixgbe_fc_autoneg_fiber(struct ixgbe_hw *hw);
+static s32 ixgbe_fc_autoneg_backplane(struct ixgbe_hw *hw);
+static s32 ixgbe_fc_autoneg_copper(struct ixgbe_hw *hw);
+static s32 ixgbe_device_supports_autoneg_fc(struct ixgbe_hw *hw);
+static s32 ixgbe_negotiate_fc(struct ixgbe_hw *hw, u32 adv_reg, u32 lp_reg,
+			      u32 adv_sym, u32 adv_asm, u32 lp_sym, u32 lp_asm);
+
 s32 ixgbe_find_vlvf_slot(struct ixgbe_hw *hw, u32 vlan);
 
 /**
@@ -138,7 +146,6 @@ s32 ixgbe_init_ops_generic(struct ixgbe_hw *hw)
 s32 ixgbe_start_hw_generic(struct ixgbe_hw *hw)
 {
 	u32 ctrl_ext;
-	s32 ret_val = IXGBE_SUCCESS;
 
 	DEBUGFUNC("ixgbe_start_hw_generic");
 
@@ -165,7 +172,46 @@ s32 ixgbe_start_hw_generic(struct ixgbe_hw *hw)
 	/* Clear adapter stopped flag */
 	hw->adapter_stopped = FALSE;
 
-	return ret_val;
+	return IXGBE_SUCCESS;
+}
+
+/**
+ *  ixgbe_start_hw_gen2 - Init sequence for common device family
+ *  @hw: pointer to hw structure
+ *
+ * Performs the init sequence common to the second generation
+ * of 10 GbE devices.
+ * Devices in the second generation:
+ *     82599
+ *     X540
+ **/
+s32 ixgbe_start_hw_gen2(struct ixgbe_hw *hw)
+{
+	u32 i;
+	u32 regval;
+
+	/* Clear the rate limiters */
+	for (i = 0; i < hw->mac.max_tx_queues; i++) {
+		IXGBE_WRITE_REG(hw, IXGBE_RTTDQSEL, i);
+		IXGBE_WRITE_REG(hw, IXGBE_RTTBCNRC, 0);
+	}
+	IXGBE_WRITE_FLUSH(hw);
+
+	/* Disable relaxed ordering */
+	for (i = 0; i < hw->mac.max_tx_queues; i++) {
+		regval = IXGBE_READ_REG(hw, IXGBE_DCA_TXCTRL_82599(i));
+		regval &= ~IXGBE_DCA_TXCTRL_TX_WB_RO_EN;
+		IXGBE_WRITE_REG(hw, IXGBE_DCA_TXCTRL_82599(i), regval);
+	}
+
+	for (i = 0; i < hw->mac.max_rx_queues; i++) {
+		regval = IXGBE_READ_REG(hw, IXGBE_DCA_RXCTRL(i));
+		regval &= ~(IXGBE_DCA_RXCTRL_DESC_WRO_EN |
+					IXGBE_DCA_RXCTRL_DESC_HSRO_EN);
+		IXGBE_WRITE_REG(hw, IXGBE_DCA_RXCTRL(i), regval);
+	}
+
+	return IXGBE_SUCCESS;
 }
 
 /**
@@ -180,7 +226,7 @@ s32 ixgbe_start_hw_generic(struct ixgbe_hw *hw)
  **/
 s32 ixgbe_init_hw_generic(struct ixgbe_hw *hw)
 {
-	s32 status = IXGBE_SUCCESS;
+	s32 status;
 
 	DEBUGFUNC("ixgbe_init_hw_generic");
 
@@ -279,10 +325,189 @@ s32 ixgbe_clear_hw_cntrs_generic(struct ixgbe_hw *hw)
 	IXGBE_READ_REG(hw, IXGBE_BPTC);
 	for (i = 0; i < 16; i++) {
 		IXGBE_READ_REG(hw, IXGBE_QPRC(i));
-		IXGBE_READ_REG(hw, IXGBE_QBRC(i));
 		IXGBE_READ_REG(hw, IXGBE_QPTC(i));
-		IXGBE_READ_REG(hw, IXGBE_QBTC(i));
+		if (hw->mac.type >= ixgbe_mac_82599EB) {
+			IXGBE_READ_REG(hw, IXGBE_QBRC_L(i));
+			IXGBE_READ_REG(hw, IXGBE_QBRC_H(i));
+			IXGBE_READ_REG(hw, IXGBE_QBTC_L(i));
+			IXGBE_READ_REG(hw, IXGBE_QBTC_H(i));
+			IXGBE_READ_REG(hw, IXGBE_QPRDC(i));
+		} else {
+			IXGBE_READ_REG(hw, IXGBE_QBRC(i));
+			IXGBE_READ_REG(hw, IXGBE_QBTC(i));
+		}
 	}
+
+	return IXGBE_SUCCESS;
+}
+
+/**
+ *  ixgbe_read_pba_string_generic - Reads part number string from EEPROM
+ *  @hw: pointer to hardware structure
+ *  @pba_num: stores the part number string from the EEPROM
+ *  @pba_num_size: part number string buffer length
+ *
+ *  Reads the part number string from the EEPROM.
+ **/
+s32 ixgbe_read_pba_string_generic(struct ixgbe_hw *hw, u8 *pba_num,
+                                  u32 pba_num_size)
+{
+	s32 ret_val;
+	u16 data;
+	u16 pba_ptr;
+	u16 offset;
+	u16 length;
+
+	DEBUGFUNC("ixgbe_read_pba_string_generic");
+
+	if (pba_num == NULL) {
+		DEBUGOUT("PBA string buffer was null\n");
+		return IXGBE_ERR_INVALID_ARGUMENT;
+	}
+
+	ret_val = hw->eeprom.ops.read(hw, IXGBE_PBANUM0_PTR, &data);
+	if (ret_val) {
+		DEBUGOUT("NVM Read Error\n");
+		return ret_val;
+	}
+
+	ret_val = hw->eeprom.ops.read(hw, IXGBE_PBANUM1_PTR, &pba_ptr);
+	if (ret_val) {
+		DEBUGOUT("NVM Read Error\n");
+		return ret_val;
+	}
+
+	/*
+	 * if data is not ptr guard the PBA must be in legacy format which
+	 * means pba_ptr is actually our second data word for the PBA number
+	 * and we can decode it into an ascii string
+	 */
+	if (data != IXGBE_PBANUM_PTR_GUARD) {
+		DEBUGOUT("NVM PBA number is not stored as string\n");
+
+		/* we will need 11 characters to store the PBA */
+		if (pba_num_size < 11) {
+			DEBUGOUT("PBA string buffer too small\n");
+			return IXGBE_ERR_NO_SPACE;
+		}
+
+		/* extract hex string from data and pba_ptr */
+		pba_num[0] = (data >> 12) & 0xF;
+		pba_num[1] = (data >> 8) & 0xF;
+		pba_num[2] = (data >> 4) & 0xF;
+		pba_num[3] = data & 0xF;
+		pba_num[4] = (pba_ptr >> 12) & 0xF;
+		pba_num[5] = (pba_ptr >> 8) & 0xF;
+		pba_num[6] = '-';
+		pba_num[7] = 0;
+		pba_num[8] = (pba_ptr >> 4) & 0xF;
+		pba_num[9] = pba_ptr & 0xF;
+
+		/* put a null character on the end of our string */
+		pba_num[10] = '\0';
+
+		/* switch all the data but the '-' to hex char */
+		for (offset = 0; offset < 10; offset++) {
+			if (pba_num[offset] < 0xA)
+				pba_num[offset] += '0';
+			else if (pba_num[offset] < 0x10)
+				pba_num[offset] += 'A' - 0xA;
+		}
+
+		return IXGBE_SUCCESS;
+	}
+
+	ret_val = hw->eeprom.ops.read(hw, pba_ptr, &length);
+	if (ret_val) {
+		DEBUGOUT("NVM Read Error\n");
+		return ret_val;
+	}
+
+	if (length == 0xFFFF || length == 0) {
+		DEBUGOUT("NVM PBA number section invalid length\n");
+		return IXGBE_ERR_PBA_SECTION;
+	}
+
+	/* check if pba_num buffer is big enough */
+	if (pba_num_size  < (((u32)length * 2) - 1)) {
+		DEBUGOUT("PBA string buffer too small\n");
+		return IXGBE_ERR_NO_SPACE;
+	}
+
+	/* trim pba length from start of string */
+	pba_ptr++;
+	length--;
+
+	for (offset = 0; offset < length; offset++) {
+		ret_val = hw->eeprom.ops.read(hw, pba_ptr + offset, &data);
+		if (ret_val) {
+			DEBUGOUT("NVM Read Error\n");
+			return ret_val;
+		}
+		pba_num[offset * 2] = (u8)(data >> 8);
+		pba_num[(offset * 2) + 1] = (u8)(data & 0xFF);
+	}
+	pba_num[offset * 2] = '\0';
+
+	return IXGBE_SUCCESS;
+}
+
+/**
+ *  ixgbe_read_pba_length_generic - Reads part number length from EEPROM
+ *  @hw: pointer to hardware structure
+ *  @pba_num_size: part number string buffer length
+ *
+ *  Reads the part number length from the EEPROM.
+ *  Returns expected buffer size in pba_num_size
+ **/
+s32 ixgbe_read_pba_length_generic(struct ixgbe_hw *hw, u32 *pba_num_size)
+{
+	s32 ret_val;
+	u16 data;
+	u16 pba_ptr;
+	u16 length;
+
+	DEBUGFUNC("ixgbe_read_pba_length_generic");
+
+	if (pba_num_size == NULL) {
+		DEBUGOUT("PBA buffer size was null\n");
+		return IXGBE_ERR_INVALID_ARGUMENT;
+	}
+
+	ret_val = hw->eeprom.ops.read(hw, IXGBE_PBANUM0_PTR, &data);
+	if (ret_val) {
+		DEBUGOUT("NVM Read Error\n");
+		return ret_val;
+	}
+
+	ret_val = hw->eeprom.ops.read(hw, IXGBE_PBANUM1_PTR, &pba_ptr);
+	if (ret_val) {
+		DEBUGOUT("NVM Read Error\n");
+		return ret_val;
+	}
+
+	 /* if data is not ptr guard the PBA must be in legacy format */
+	if (data != IXGBE_PBANUM_PTR_GUARD) {
+		*pba_num_size = 11;
+		return IXGBE_SUCCESS;
+	}
+
+	ret_val = hw->eeprom.ops.read(hw, pba_ptr, &length);
+	if (ret_val) {
+		DEBUGOUT("NVM Read Error\n");
+		return ret_val;
+	}
+
+	if (length == 0xFFFF || length == 0) {
+		DEBUGOUT("NVM PBA number section invalid length\n");
+		return IXGBE_ERR_PBA_SECTION;
+	}
+
+	/*
+	 * Convert from length in u16 values to u8 chars, add 1 for NULL,
+	 * and subtract 2 because length field is included in length.
+	 */
+	*pba_num_size = ((u32)length * 2) - 1;
 
 	return IXGBE_SUCCESS;
 }
@@ -305,6 +530,9 @@ s32 ixgbe_read_pba_num_generic(struct ixgbe_hw *hw, u32 *pba_num)
 	if (ret_val) {
 		DEBUGOUT("NVM Read Error\n");
 		return ret_val;
+	} else if (data == IXGBE_PBANUM_PTR_GUARD) {
+		DEBUGOUT("NVM Not supported\n");
+		return IXGBE_NOT_IMPLEMENTED;
 	}
 	*pba_num = (u32)(data << 16);
 
@@ -474,8 +702,7 @@ s32 ixgbe_stop_adapter_generic(struct ixgbe_hw *hw)
 	 * Prevent the PCI-E bus from from hanging by disabling PCI-E master
 	 * access and verify no pending requests
 	 */
-	if (ixgbe_disable_pcie_master(hw) != IXGBE_SUCCESS)
-		DEBUGOUT("PCI-E Master disable polling has failed.\n");
+	ixgbe_disable_pcie_master(hw);
 
 	return IXGBE_SUCCESS;
 }
@@ -740,6 +967,49 @@ out:
 }
 
 /**
+ *  ixgbe_write_eewr_generic - Write EEPROM word using EEWR
+ *  @hw: pointer to hardware structure
+ *  @offset: offset of  word in the EEPROM to write
+ *  @data: word write to the EEPROM
+ *
+ *  Write a 16 bit word to the EEPROM using the EEWR register.
+ **/
+s32 ixgbe_write_eewr_generic(struct ixgbe_hw *hw, u16 offset, u16 data)
+{
+	u32 eewr;
+	s32 status;
+
+	DEBUGFUNC("ixgbe_write_eewr_generic");
+
+	hw->eeprom.ops.init_params(hw);
+
+	if (offset >= hw->eeprom.word_size) {
+		status = IXGBE_ERR_EEPROM;
+		goto out;
+	}
+
+	eewr = (offset << IXGBE_EEPROM_RW_ADDR_SHIFT) |
+	       (data << IXGBE_EEPROM_RW_REG_DATA) | IXGBE_EEPROM_RW_REG_START;
+
+	status = ixgbe_poll_eerd_eewr_done(hw, IXGBE_NVM_POLL_WRITE);
+	if (status != IXGBE_SUCCESS) {
+		DEBUGOUT("Eeprom write EEWR timed out\n");
+		goto out;
+	}
+
+	IXGBE_WRITE_REG(hw, IXGBE_EEWR, eewr);
+
+	status = ixgbe_poll_eerd_eewr_done(hw, IXGBE_NVM_POLL_WRITE);
+	if (status != IXGBE_SUCCESS) {
+		DEBUGOUT("Eeprom write EEWR timed out\n");
+		goto out;
+	}
+
+out:
+	return status;
+}
+
+/**
  *  ixgbe_poll_eerd_eewr_done - Poll EERD read or EEWR write status
  *  @hw: pointer to hardware structure
  *  @ee_reg: EEPROM flag for polling
@@ -811,15 +1081,15 @@ static s32 ixgbe_acquire_eeprom(struct ixgbe_hw *hw)
 			ixgbe_release_swfw_sync(hw, IXGBE_GSSR_EEP_SM);
 			status = IXGBE_ERR_EEPROM;
 		}
-	}
 
-	/* Setup EEPROM for Read/Write */
-	if (status == IXGBE_SUCCESS) {
-		/* Clear CS and SK */
-		eec &= ~(IXGBE_EEC_CS | IXGBE_EEC_SK);
-		IXGBE_WRITE_REG(hw, IXGBE_EEC, eec);
-		IXGBE_WRITE_FLUSH(hw);
-		usec_delay(1);
+		/* Setup EEPROM for Read/Write */
+		if (status == IXGBE_SUCCESS) {
+			/* Clear CS and SK */
+			eec &= ~(IXGBE_EEC_CS | IXGBE_EEC_SK);
+			IXGBE_WRITE_REG(hw, IXGBE_EEC, eec);
+			IXGBE_WRITE_FLUSH(hw);
+			usec_delay(1);
+		}
 	}
 	return status;
 }
@@ -838,6 +1108,7 @@ static s32 ixgbe_get_eeprom_semaphore(struct ixgbe_hw *hw)
 	u32 swsm;
 
 	DEBUGFUNC("ixgbe_get_eeprom_semaphore");
+
 
 	/* Get SMBI software semaphore between device drivers first */
 	for (i = 0; i < timeout; i++) {
@@ -1307,36 +1578,37 @@ s32 ixgbe_set_rar_generic(struct ixgbe_hw *hw, u32 index, u8 *addr, u32 vmdq,
 
 	DEBUGFUNC("ixgbe_set_rar_generic");
 
+	/* Make sure we are using a valid rar index range */
+	if (index >= rar_entries) {
+		DEBUGOUT1("RAR index %d is out of range.\n", index);
+		return IXGBE_ERR_INVALID_ARGUMENT;
+	}
+
 	/* setup VMDq pool selection before this RAR gets enabled */
 	hw->mac.ops.set_vmdq(hw, index, vmdq);
 
-	/* Make sure we are using a valid rar index range */
-	if (index < rar_entries) {
-		/*
-		 * HW expects these in little endian so we reverse the byte
-		 * order from network order (big endian) to little endian
-		 */
-		rar_low = ((u32)addr[0] |
-		           ((u32)addr[1] << 8) |
-		           ((u32)addr[2] << 16) |
-		           ((u32)addr[3] << 24));
-		/*
-		 * Some parts put the VMDq setting in the extra RAH bits,
-		 * so save everything except the lower 16 bits that hold part
-		 * of the address and the address valid bit.
-		 */
-		rar_high = IXGBE_READ_REG(hw, IXGBE_RAH(index));
-		rar_high &= ~(0x0000FFFF | IXGBE_RAH_AV);
-		rar_high |= ((u32)addr[4] | ((u32)addr[5] << 8));
+	/*
+	 * HW expects these in little endian so we reverse the byte
+	 * order from network order (big endian) to little endian
+	 */
+	rar_low = ((u32)addr[0] |
+	           ((u32)addr[1] << 8) |
+	           ((u32)addr[2] << 16) |
+	           ((u32)addr[3] << 24));
+	/*
+	 * Some parts put the VMDq setting in the extra RAH bits,
+	 * so save everything except the lower 16 bits that hold part
+	 * of the address and the address valid bit.
+	 */
+	rar_high = IXGBE_READ_REG(hw, IXGBE_RAH(index));
+	rar_high &= ~(0x0000FFFF | IXGBE_RAH_AV);
+	rar_high |= ((u32)addr[4] | ((u32)addr[5] << 8));
 
-		if (enable_addr != 0)
-			rar_high |= IXGBE_RAH_AV;
+	if (enable_addr != 0)
+		rar_high |= IXGBE_RAH_AV;
 
-		IXGBE_WRITE_REG(hw, IXGBE_RAL(index), rar_low);
-		IXGBE_WRITE_REG(hw, IXGBE_RAH(index), rar_high);
-	} else {
-		DEBUGOUT1("RAR index %d is out of range.\n", index);
-	}
+	IXGBE_WRITE_REG(hw, IXGBE_RAL(index), rar_low);
+	IXGBE_WRITE_REG(hw, IXGBE_RAH(index), rar_high);
 
 	return IXGBE_SUCCESS;
 }
@@ -1356,20 +1628,21 @@ s32 ixgbe_clear_rar_generic(struct ixgbe_hw *hw, u32 index)
 	DEBUGFUNC("ixgbe_clear_rar_generic");
 
 	/* Make sure we are using a valid rar index range */
-	if (index < rar_entries) {
-		/*
-		 * Some parts put the VMDq setting in the extra RAH bits,
-		 * so save everything except the lower 16 bits that hold part
-		 * of the address and the address valid bit.
-		 */
-		rar_high = IXGBE_READ_REG(hw, IXGBE_RAH(index));
-		rar_high &= ~(0x0000FFFF | IXGBE_RAH_AV);
-
-		IXGBE_WRITE_REG(hw, IXGBE_RAL(index), 0);
-		IXGBE_WRITE_REG(hw, IXGBE_RAH(index), rar_high);
-	} else {
+	if (index >= rar_entries) {
 		DEBUGOUT1("RAR index %d is out of range.\n", index);
+		return IXGBE_ERR_INVALID_ARGUMENT;
 	}
+
+	/*
+	 * Some parts put the VMDq setting in the extra RAH bits,
+	 * so save everything except the lower 16 bits that hold part
+	 * of the address and the address valid bit.
+	 */
+	rar_high = IXGBE_READ_REG(hw, IXGBE_RAH(index));
+	rar_high &= ~(0x0000FFFF | IXGBE_RAH_AV);
+
+	IXGBE_WRITE_REG(hw, IXGBE_RAL(index), 0);
+	IXGBE_WRITE_REG(hw, IXGBE_RAH(index), rar_high);
 
 	/* clear VMDq pool/queue selection for this RAR */
 	hw->mac.ops.clear_vmdq(hw, index, IXGBE_CLEAR_VMDQ_ALL);
@@ -1417,6 +1690,9 @@ s32 ixgbe_init_rx_addrs_generic(struct ixgbe_hw *hw)
 		          hw->mac.addr[4], hw->mac.addr[5]);
 
 		hw->mac.ops.set_rar(hw, 0, hw->mac.addr, 0, IXGBE_RAH_AV);
+
+		/* clear VMDq pool/queue selection for RAR 0 */
+		hw->mac.ops.clear_vmdq(hw, 0, IXGBE_CLEAR_VMDQ_ALL);
 	}
 	hw->addr_ctrl.overflow_promisc = 0;
 
@@ -1599,7 +1875,6 @@ void ixgbe_set_mta(struct ixgbe_hw *hw, u8 *mc_addr)
 	u32 vector;
 	u32 vector_bit;
 	u32 vector_reg;
-	u32 mta_reg;
 
 	DEBUGFUNC("ixgbe_set_mta");
 
@@ -1619,9 +1894,7 @@ void ixgbe_set_mta(struct ixgbe_hw *hw, u8 *mc_addr)
 	 */
 	vector_reg = (vector >> 5) & 0x7F;
 	vector_bit = vector & 0x1F;
-	mta_reg = IXGBE_READ_REG(hw, IXGBE_MTA(vector_reg));
-	mta_reg |= (1 << vector_bit);
-	IXGBE_WRITE_REG(hw, IXGBE_MTA(vector_reg), mta_reg);
+	hw->mac.mta_shadow[vector_reg] |= (1 << vector_bit);
 }
 
 /**
@@ -1651,18 +1924,21 @@ s32 ixgbe_update_mc_addr_list_generic(struct ixgbe_hw *hw, u8 *mc_addr_list,
 	hw->addr_ctrl.num_mc_addrs = mc_addr_count;
 	hw->addr_ctrl.mta_in_use = 0;
 
-	/* Clear the MTA */
+	/* Clear mta_shadow */
 	DEBUGOUT(" Clearing MTA\n");
-	for (i = 0; i < hw->mac.mcft_size; i++)
-		IXGBE_WRITE_REG(hw, IXGBE_MTA(i), 0);
+	memset(&hw->mac.mta_shadow, 0, sizeof(hw->mac.mta_shadow));
 
-	/* Add the new addresses */
+	/* Update mta_shadow */
 	for (i = 0; i < mc_addr_count; i++) {
 		DEBUGOUT(" Adding the multicast addresses:\n");
 		ixgbe_set_mta(hw, next(hw, &mc_addr_list, &vmdq));
 	}
 
 	/* Enable mta */
+	for (i = 0; i < hw->mac.mcft_size; i++)
+		IXGBE_WRITE_REG_ARRAY(hw, IXGBE_MTA(0), i,
+				      hw->mac.mta_shadow[i]);
+
 	if (hw->addr_ctrl.mta_in_use > 0)
 		IXGBE_WRITE_REG(hw, IXGBE_MCSTCTRL,
 		                IXGBE_MCSTCTRL_MFE | hw->mac.mc_filter_type);
@@ -1721,12 +1997,13 @@ s32 ixgbe_fc_enable_generic(struct ixgbe_hw *hw, s32 packetbuf_num)
 	u32 mflcn_reg, fccfg_reg;
 	u32 reg;
 	u32 rx_pba_size;
+	u32 fcrtl, fcrth;
 
 	DEBUGFUNC("ixgbe_fc_enable_generic");
 
 	/* Negotiate the fc mode to use */
 	ret_val = ixgbe_fc_autoneg(hw);
-	if (ret_val)
+	if (ret_val == IXGBE_ERR_FLOW_CONTROL)
 		goto out;
 
 	/* Disable any previous flow control settings */
@@ -1748,7 +2025,8 @@ s32 ixgbe_fc_enable_generic(struct ixgbe_hw *hw, s32 packetbuf_num)
 	 */
 	switch (hw->fc.current_mode) {
 	case ixgbe_fc_none:
-		/* Flow control is disabled by software override or autoneg.
+		/*
+		 * Flow control is disabled by software override or autoneg.
 		 * The code below will actually disable it in the HW.
 		 */
 		break;
@@ -1787,38 +2065,20 @@ s32 ixgbe_fc_enable_generic(struct ixgbe_hw *hw, s32 packetbuf_num)
 	IXGBE_WRITE_REG(hw, IXGBE_MFLCN, mflcn_reg);
 	IXGBE_WRITE_REG(hw, IXGBE_FCCFG, fccfg_reg);
 
-	reg = IXGBE_READ_REG(hw, IXGBE_MTQC);
-	/* Thresholds are different for link flow control when in DCB mode */
-	if (reg & IXGBE_MTQC_RT_ENA) {
-		rx_pba_size = IXGBE_READ_REG(hw, IXGBE_RXPBSIZE(packetbuf_num));
+	rx_pba_size = IXGBE_READ_REG(hw, IXGBE_RXPBSIZE(packetbuf_num));
+	rx_pba_size >>= IXGBE_RXPBSIZE_SHIFT;
 
-		/* Always disable XON for LFC when in DCB mode */
-		reg = (rx_pba_size >> 5) & 0xFFE0;
-		IXGBE_WRITE_REG(hw, IXGBE_FCRTL_82599(packetbuf_num), reg);
+	fcrth = (rx_pba_size - hw->fc.high_water) << 10;
+	fcrtl = (rx_pba_size - hw->fc.low_water) << 10;
 
-		reg = (rx_pba_size >> 2) & 0xFFE0;
-		if (hw->fc.current_mode & ixgbe_fc_tx_pause)
-			reg |= IXGBE_FCRTH_FCEN;
-		IXGBE_WRITE_REG(hw, IXGBE_FCRTH_82599(packetbuf_num), reg);
-	} else {
-		/* Set up and enable Rx high/low water mark thresholds,
-		 * enable XON. */
-		if (hw->fc.current_mode & ixgbe_fc_tx_pause) {
-			if (hw->fc.send_xon) {
-				IXGBE_WRITE_REG(hw,
-				              IXGBE_FCRTL_82599(packetbuf_num),
-				              (hw->fc.low_water |
-				              IXGBE_FCRTL_XONE));
-			} else {
-				IXGBE_WRITE_REG(hw,
-				              IXGBE_FCRTL_82599(packetbuf_num),
-				              hw->fc.low_water);
-			}
-
-			IXGBE_WRITE_REG(hw, IXGBE_FCRTH_82599(packetbuf_num),
-			               (hw->fc.high_water | IXGBE_FCRTH_FCEN));
-		}
+	if (hw->fc.current_mode & ixgbe_fc_tx_pause) {
+		fcrth |= IXGBE_FCRTH_FCEN;
+		if (hw->fc.send_xon)
+			fcrtl |= IXGBE_FCRTL_XONE;
 	}
+
+	IXGBE_WRITE_REG(hw, IXGBE_FCRTH_82599(packetbuf_num), fcrth);
+	IXGBE_WRITE_REG(hw, IXGBE_FCRTL_82599(packetbuf_num), fcrtl);
 
 	/* Configure pause time (2 TCs per register) */
 	reg = IXGBE_READ_REG(hw, IXGBE_FCTTV(packetbuf_num / 2));
@@ -1843,13 +2103,14 @@ out:
  **/
 s32 ixgbe_fc_autoneg(struct ixgbe_hw *hw)
 {
-	s32 ret_val = IXGBE_SUCCESS;
+	s32 ret_val = IXGBE_ERR_FC_NOT_NEGOTIATED;
 	ixgbe_link_speed speed;
-	u32 pcs_anadv_reg, pcs_lpab_reg, linkstat;
-	u32 links2, anlp1_reg, autoc_reg, links;
 	bool link_up;
 
 	DEBUGFUNC("ixgbe_fc_autoneg");
+
+	if (hw->fc.disable_fc_autoneg)
+		goto out;
 
 	/*
 	 * AN should have completed when the cable was plugged in.
@@ -1861,153 +2122,201 @@ s32 ixgbe_fc_autoneg(struct ixgbe_hw *hw)
 	 * So use link_up_wait_to_complete=FALSE.
 	 */
 	hw->mac.ops.check_link(hw, &speed, &link_up, FALSE);
-
-	if (hw->fc.disable_fc_autoneg || (!link_up)) {
-		hw->fc.fc_was_autonegged = FALSE;
-		hw->fc.current_mode = hw->fc.requested_mode;
+	if (!link_up) {
+		ret_val = IXGBE_ERR_FLOW_CONTROL;
 		goto out;
 	}
 
-	/*
-	 * On backplane, bail out if
-	 * - backplane autoneg was not completed, or if
-	 * - we are 82599 and link partner is not AN enabled
-	 */
-	if (hw->phy.media_type == ixgbe_media_type_backplane) {
-		links = IXGBE_READ_REG(hw, IXGBE_LINKS);
-		if ((links & IXGBE_LINKS_KX_AN_COMP) == 0) {
-			hw->fc.fc_was_autonegged = FALSE;
-			hw->fc.current_mode = hw->fc.requested_mode;
-			goto out;
-		}
+	switch (hw->phy.media_type) {
+	/* Autoneg flow control on fiber adapters */
+	case ixgbe_media_type_fiber:
+		if (speed == IXGBE_LINK_SPEED_1GB_FULL)
+			ret_val = ixgbe_fc_autoneg_fiber(hw);
+		break;
 
-		if (hw->mac.type == ixgbe_mac_82599EB) {
-			links2 = IXGBE_READ_REG(hw, IXGBE_LINKS2);
-			if ((links2 & IXGBE_LINKS2_AN_SUPPORTED) == 0) {
-				hw->fc.fc_was_autonegged = FALSE;
-				hw->fc.current_mode = hw->fc.requested_mode;
-				goto out;
-			}
-		}
+	/* Autoneg flow control on backplane adapters */
+	case ixgbe_media_type_backplane:
+		ret_val = ixgbe_fc_autoneg_backplane(hw);
+		break;
+
+	/* Autoneg flow control on copper adapters */
+	case ixgbe_media_type_copper:
+		if (ixgbe_device_supports_autoneg_fc(hw) == IXGBE_SUCCESS)
+			ret_val = ixgbe_fc_autoneg_copper(hw);
+		break;
+
+	default:
+		break;
 	}
+
+out:
+	if (ret_val == IXGBE_SUCCESS) {
+		hw->fc.fc_was_autonegged = TRUE;
+	} else {
+		hw->fc.fc_was_autonegged = FALSE;
+		hw->fc.current_mode = hw->fc.requested_mode;
+	}
+	return ret_val;
+}
+
+/**
+ *  ixgbe_fc_autoneg_fiber - Enable flow control on 1 gig fiber
+ *  @hw: pointer to hardware structure
+ *  @speed:
+ *  @link_up
+ *
+ *  Enable flow control according on 1 gig fiber.
+ **/
+static s32 ixgbe_fc_autoneg_fiber(struct ixgbe_hw *hw)
+{
+	u32 pcs_anadv_reg, pcs_lpab_reg, linkstat;
+	s32 ret_val;
 
 	/*
 	 * On multispeed fiber at 1g, bail out if
 	 * - link is up but AN did not complete, or if
 	 * - link is up and AN completed but timed out
 	 */
-	if (hw->phy.multispeed_fiber && (speed == IXGBE_LINK_SPEED_1GB_FULL)) {
-		linkstat = IXGBE_READ_REG(hw, IXGBE_PCS1GLSTA);
-		if (((linkstat & IXGBE_PCS1GLSTA_AN_COMPLETE) == 0) ||
-		    ((linkstat & IXGBE_PCS1GLSTA_AN_TIMED_OUT) == 1)) {
-			hw->fc.fc_was_autonegged = FALSE;
-			hw->fc.current_mode = hw->fc.requested_mode;
-			goto out;
-		}
-	}
 
-	/*
-	 * Bail out on
-	 * - copper or CX4 adapters
-	 * - fiber adapters running at 10gig
-	 */
-	if ((hw->phy.media_type == ixgbe_media_type_copper) ||
-	     (hw->phy.media_type == ixgbe_media_type_cx4) ||
-	     ((hw->phy.media_type == ixgbe_media_type_fiber) &&
-	     (speed == IXGBE_LINK_SPEED_10GB_FULL))) {
-		hw->fc.fc_was_autonegged = FALSE;
-		hw->fc.current_mode = hw->fc.requested_mode;
+	linkstat = IXGBE_READ_REG(hw, IXGBE_PCS1GLSTA);
+	if (((linkstat & IXGBE_PCS1GLSTA_AN_COMPLETE) == 0) ||
+	    ((linkstat & IXGBE_PCS1GLSTA_AN_TIMED_OUT) == 1)) {
+		ret_val = IXGBE_ERR_FC_NOT_NEGOTIATED;
 		goto out;
 	}
 
-	/*
-	 * Read the AN advertisement and LP ability registers and resolve
-	 * local flow control settings accordingly
-	 */
-	if ((speed == IXGBE_LINK_SPEED_1GB_FULL) &&
-	    (hw->phy.media_type != ixgbe_media_type_backplane)) {
-		pcs_anadv_reg = IXGBE_READ_REG(hw, IXGBE_PCS1GANA);
-		pcs_lpab_reg = IXGBE_READ_REG(hw, IXGBE_PCS1GANLP);
-		if ((pcs_anadv_reg & IXGBE_PCS1GANA_SYM_PAUSE) &&
-		    (pcs_lpab_reg & IXGBE_PCS1GANA_SYM_PAUSE)) {
-			/*
-			 * Now we need to check if the user selected Rx ONLY
-			 * of pause frames.  In this case, we had to advertise
-			 * FULL flow control because we could not advertise RX
-			 * ONLY. Hence, we must now check to see if we need to
-			 * turn OFF the TRANSMISSION of PAUSE frames.
-			 */
-			if (hw->fc.requested_mode == ixgbe_fc_full) {
-				hw->fc.current_mode = ixgbe_fc_full;
-				DEBUGOUT("Flow Control = FULL.\n");
-			} else {
-				hw->fc.current_mode = ixgbe_fc_rx_pause;
-				DEBUGOUT("Flow Control=RX PAUSE frames only\n");
-			}
-		} else if (!(pcs_anadv_reg & IXGBE_PCS1GANA_SYM_PAUSE) &&
-			   (pcs_anadv_reg & IXGBE_PCS1GANA_ASM_PAUSE) &&
-			   (pcs_lpab_reg & IXGBE_PCS1GANA_SYM_PAUSE) &&
-			   (pcs_lpab_reg & IXGBE_PCS1GANA_ASM_PAUSE)) {
-			hw->fc.current_mode = ixgbe_fc_tx_pause;
-			DEBUGOUT("Flow Control = TX PAUSE frames only.\n");
-		} else if ((pcs_anadv_reg & IXGBE_PCS1GANA_SYM_PAUSE) &&
-			   (pcs_anadv_reg & IXGBE_PCS1GANA_ASM_PAUSE) &&
-			   !(pcs_lpab_reg & IXGBE_PCS1GANA_SYM_PAUSE) &&
-			   (pcs_lpab_reg & IXGBE_PCS1GANA_ASM_PAUSE)) {
-			hw->fc.current_mode = ixgbe_fc_rx_pause;
-			DEBUGOUT("Flow Control = RX PAUSE frames only.\n");
-		} else {
-			hw->fc.current_mode = ixgbe_fc_none;
-			DEBUGOUT("Flow Control = NONE.\n");
-		}
-	}
+	pcs_anadv_reg = IXGBE_READ_REG(hw, IXGBE_PCS1GANA);
+	pcs_lpab_reg = IXGBE_READ_REG(hw, IXGBE_PCS1GANLP);
 
-	if (hw->phy.media_type == ixgbe_media_type_backplane) {
-		/*
-		 * Read the 10g AN autoc and LP ability registers and resolve
-		 * local flow control settings accordingly
-		 */
-		autoc_reg = IXGBE_READ_REG(hw, IXGBE_AUTOC);
-		anlp1_reg = IXGBE_READ_REG(hw, IXGBE_ANLP1);
-
-		if ((autoc_reg & IXGBE_AUTOC_SYM_PAUSE) &&
-		    (anlp1_reg & IXGBE_ANLP1_SYM_PAUSE)) {
-			/*
-			 * Now we need to check if the user selected Rx ONLY
-			 * of pause frames.  In this case, we had to advertise
-			 * FULL flow control because we could not advertise RX
-			 * ONLY. Hence, we must now check to see if we need to
-			 * turn OFF the TRANSMISSION of PAUSE frames.
-			 */
-			if (hw->fc.requested_mode == ixgbe_fc_full) {
-				hw->fc.current_mode = ixgbe_fc_full;
-				DEBUGOUT("Flow Control = FULL.\n");
-			} else {
-				hw->fc.current_mode = ixgbe_fc_rx_pause;
-				DEBUGOUT("Flow Control=RX PAUSE frames only\n");
-			}
-		} else if (!(autoc_reg & IXGBE_AUTOC_SYM_PAUSE) &&
-			   (autoc_reg & IXGBE_AUTOC_ASM_PAUSE) &&
-			   (anlp1_reg & IXGBE_ANLP1_SYM_PAUSE) &&
-			   (anlp1_reg & IXGBE_ANLP1_ASM_PAUSE)) {
-			hw->fc.current_mode = ixgbe_fc_tx_pause;
-			DEBUGOUT("Flow Control = TX PAUSE frames only.\n");
-		} else if ((autoc_reg & IXGBE_AUTOC_SYM_PAUSE) &&
-			   (autoc_reg & IXGBE_AUTOC_ASM_PAUSE) &&
-			   !(anlp1_reg & IXGBE_ANLP1_SYM_PAUSE) &&
-			   (anlp1_reg & IXGBE_ANLP1_ASM_PAUSE)) {
-			hw->fc.current_mode = ixgbe_fc_rx_pause;
-			DEBUGOUT("Flow Control = RX PAUSE frames only.\n");
-		} else {
-			hw->fc.current_mode = ixgbe_fc_none;
-			DEBUGOUT("Flow Control = NONE.\n");
-		}
-	}
-	/* Record that current_mode is the result of a successful autoneg */
-	hw->fc.fc_was_autonegged = TRUE;
+	ret_val =  ixgbe_negotiate_fc(hw, pcs_anadv_reg,
+			       pcs_lpab_reg, IXGBE_PCS1GANA_SYM_PAUSE,
+			       IXGBE_PCS1GANA_ASM_PAUSE,
+			       IXGBE_PCS1GANA_SYM_PAUSE,
+			       IXGBE_PCS1GANA_ASM_PAUSE);
 
 out:
 	return ret_val;
+}
+
+/**
+ *  ixgbe_fc_autoneg_backplane - Enable flow control IEEE clause 37
+ *  @hw: pointer to hardware structure
+ *
+ *  Enable flow control according to IEEE clause 37.
+ **/
+static s32 ixgbe_fc_autoneg_backplane(struct ixgbe_hw *hw)
+{
+	u32 links2, anlp1_reg, autoc_reg, links;
+	s32 ret_val;
+
+	/*
+	 * On backplane, bail out if
+	 * - backplane autoneg was not completed, or if
+	 * - we are 82599 and link partner is not AN enabled
+	 */
+	links = IXGBE_READ_REG(hw, IXGBE_LINKS);
+	if ((links & IXGBE_LINKS_KX_AN_COMP) == 0) {
+		hw->fc.fc_was_autonegged = FALSE;
+		hw->fc.current_mode = hw->fc.requested_mode;
+		ret_val = IXGBE_ERR_FC_NOT_NEGOTIATED;
+		goto out;
+	}
+
+	if (hw->mac.type == ixgbe_mac_82599EB) {
+		links2 = IXGBE_READ_REG(hw, IXGBE_LINKS2);
+		if ((links2 & IXGBE_LINKS2_AN_SUPPORTED) == 0) {
+			hw->fc.fc_was_autonegged = FALSE;
+			hw->fc.current_mode = hw->fc.requested_mode;
+			ret_val = IXGBE_ERR_FC_NOT_NEGOTIATED;
+			goto out;
+		}
+	}
+	/*
+	 * Read the 10g AN autoc and LP ability registers and resolve
+	 * local flow control settings accordingly
+	 */
+	autoc_reg = IXGBE_READ_REG(hw, IXGBE_AUTOC);
+	anlp1_reg = IXGBE_READ_REG(hw, IXGBE_ANLP1);
+
+	ret_val = ixgbe_negotiate_fc(hw, autoc_reg,
+		anlp1_reg, IXGBE_AUTOC_SYM_PAUSE, IXGBE_AUTOC_ASM_PAUSE,
+		IXGBE_ANLP1_SYM_PAUSE, IXGBE_ANLP1_ASM_PAUSE);
+
+out:
+	return ret_val;
+}
+
+/**
+ *  ixgbe_fc_autoneg_copper - Enable flow control IEEE clause 37
+ *  @hw: pointer to hardware structure
+ *
+ *  Enable flow control according to IEEE clause 37.
+ **/
+static s32 ixgbe_fc_autoneg_copper(struct ixgbe_hw *hw)
+{
+	u16 technology_ability_reg = 0;
+	u16 lp_technology_ability_reg = 0;
+
+	hw->phy.ops.read_reg(hw, IXGBE_MDIO_AUTO_NEG_ADVT,
+			     IXGBE_MDIO_AUTO_NEG_DEV_TYPE,
+			     &technology_ability_reg);
+	hw->phy.ops.read_reg(hw, IXGBE_MDIO_AUTO_NEG_LP,
+			     IXGBE_MDIO_AUTO_NEG_DEV_TYPE,
+			     &lp_technology_ability_reg);
+
+	return ixgbe_negotiate_fc(hw, (u32)technology_ability_reg,
+				  (u32)lp_technology_ability_reg,
+				  IXGBE_TAF_SYM_PAUSE, IXGBE_TAF_ASM_PAUSE,
+				  IXGBE_TAF_SYM_PAUSE, IXGBE_TAF_ASM_PAUSE);
+}
+
+/**
+ *  ixgbe_negotiate_fc - Negotiate flow control
+ *  @hw: pointer to hardware structure
+ *  @adv_reg: flow control advertised settings
+ *  @lp_reg: link partner's flow control settings
+ *  @adv_sym: symmetric pause bit in advertisement
+ *  @adv_asm: asymmetric pause bit in advertisement
+ *  @lp_sym: symmetric pause bit in link partner advertisement
+ *  @lp_asm: asymmetric pause bit in link partner advertisement
+ *
+ *  Find the intersection between advertised settings and link partner's
+ *  advertised settings
+ **/
+static s32 ixgbe_negotiate_fc(struct ixgbe_hw *hw, u32 adv_reg, u32 lp_reg,
+			      u32 adv_sym, u32 adv_asm, u32 lp_sym, u32 lp_asm)
+{
+	if ((!(adv_reg)) ||  (!(lp_reg)))
+		return IXGBE_ERR_FC_NOT_NEGOTIATED;
+
+	if ((adv_reg & adv_sym) && (lp_reg & lp_sym)) {
+		/*
+		 * Now we need to check if the user selected Rx ONLY
+		 * of pause frames.  In this case, we had to advertise
+		 * FULL flow control because we could not advertise RX
+		 * ONLY. Hence, we must now check to see if we need to
+		 * turn OFF the TRANSMISSION of PAUSE frames.
+		 */
+		if (hw->fc.requested_mode == ixgbe_fc_full) {
+			hw->fc.current_mode = ixgbe_fc_full;
+			DEBUGOUT("Flow Control = FULL.\n");
+		} else {
+			hw->fc.current_mode = ixgbe_fc_rx_pause;
+			DEBUGOUT("Flow Control=RX PAUSE frames only\n");
+		}
+	} else if (!(adv_reg & adv_sym) && (adv_reg & adv_asm) &&
+		   (lp_reg & lp_sym) && (lp_reg & lp_asm)) {
+		hw->fc.current_mode = ixgbe_fc_tx_pause;
+		DEBUGOUT("Flow Control = TX PAUSE frames only.\n");
+	} else if ((adv_reg & adv_sym) && (adv_reg & adv_asm) &&
+		   !(lp_reg & lp_sym) && (lp_reg & lp_asm)) {
+		hw->fc.current_mode = ixgbe_fc_rx_pause;
+		DEBUGOUT("Flow Control = RX PAUSE frames only.\n");
+	} else {
+		hw->fc.current_mode = ixgbe_fc_none;
+		DEBUGOUT("Flow Control = NONE.\n");
+	}
+	return IXGBE_SUCCESS;
 }
 
 /**
@@ -2019,10 +2328,10 @@ out:
 s32 ixgbe_setup_fc(struct ixgbe_hw *hw, s32 packetbuf_num)
 {
 	s32 ret_val = IXGBE_SUCCESS;
-	u32 reg;
+	u32 reg = 0, reg_bp = 0;
+	u16 reg_cu = 0;
 
 	DEBUGFUNC("ixgbe_setup_fc");
-
 
 	/* Validate the packetbuf configuration */
 	if (packetbuf_num < 0 || packetbuf_num > 7) {
@@ -2060,11 +2369,26 @@ s32 ixgbe_setup_fc(struct ixgbe_hw *hw, s32 packetbuf_num)
 		hw->fc.requested_mode = ixgbe_fc_full;
 
 	/*
-	 * Set up the 1G flow control advertisement registers so the HW will be
-	 * able to do fc autoneg once the cable is plugged in.  If we end up
-	 * using 10g instead, this is harmless.
+	 * Set up the 1G and 10G flow control advertisement registers so the
+	 * HW will be able to do fc autoneg once the cable is plugged in.  If
+	 * we link at 10G, the 1G advertisement is harmless and vice versa.
 	 */
-	reg = IXGBE_READ_REG(hw, IXGBE_PCS1GANA);
+
+	switch (hw->phy.media_type) {
+	case ixgbe_media_type_fiber:
+	case ixgbe_media_type_backplane:
+		reg = IXGBE_READ_REG(hw, IXGBE_PCS1GANA);
+		reg_bp = IXGBE_READ_REG(hw, IXGBE_AUTOC);
+		break;
+
+	case ixgbe_media_type_copper:
+		hw->phy.ops.read_reg(hw, IXGBE_MDIO_AUTO_NEG_ADVT,
+					IXGBE_MDIO_AUTO_NEG_DEV_TYPE, &reg_cu);
+		break;
+
+	default:
+		;
+	}
 
 	/*
 	 * The possible values of fc.requested_mode are:
@@ -2080,6 +2404,11 @@ s32 ixgbe_setup_fc(struct ixgbe_hw *hw, s32 packetbuf_num)
 	case ixgbe_fc_none:
 		/* Flow control completely disabled by software override. */
 		reg &= ~(IXGBE_PCS1GANA_SYM_PAUSE | IXGBE_PCS1GANA_ASM_PAUSE);
+		if (hw->phy.media_type == ixgbe_media_type_backplane)
+			reg_bp &= ~(IXGBE_AUTOC_SYM_PAUSE |
+				    IXGBE_AUTOC_ASM_PAUSE);
+		else if (hw->phy.media_type == ixgbe_media_type_copper)
+			reg_cu &= ~(IXGBE_TAF_SYM_PAUSE | IXGBE_TAF_ASM_PAUSE);
 		break;
 	case ixgbe_fc_rx_pause:
 		/*
@@ -2091,6 +2420,11 @@ s32 ixgbe_setup_fc(struct ixgbe_hw *hw, s32 packetbuf_num)
 		 * disable the adapter's ability to send PAUSE frames.
 		 */
 		reg |= (IXGBE_PCS1GANA_SYM_PAUSE | IXGBE_PCS1GANA_ASM_PAUSE);
+		if (hw->phy.media_type == ixgbe_media_type_backplane)
+			reg_bp |= (IXGBE_AUTOC_SYM_PAUSE |
+				   IXGBE_AUTOC_ASM_PAUSE);
+		else if (hw->phy.media_type == ixgbe_media_type_copper)
+			reg_cu |= (IXGBE_TAF_SYM_PAUSE | IXGBE_TAF_ASM_PAUSE);
 		break;
 	case ixgbe_fc_tx_pause:
 		/*
@@ -2099,10 +2433,22 @@ s32 ixgbe_setup_fc(struct ixgbe_hw *hw, s32 packetbuf_num)
 		 */
 		reg |= (IXGBE_PCS1GANA_ASM_PAUSE);
 		reg &= ~(IXGBE_PCS1GANA_SYM_PAUSE);
+		if (hw->phy.media_type == ixgbe_media_type_backplane) {
+			reg_bp |= (IXGBE_AUTOC_ASM_PAUSE);
+			reg_bp &= ~(IXGBE_AUTOC_SYM_PAUSE);
+		} else if (hw->phy.media_type == ixgbe_media_type_copper) {
+			reg_cu |= (IXGBE_TAF_ASM_PAUSE);
+			reg_cu &= ~(IXGBE_TAF_SYM_PAUSE);
+		}
 		break;
 	case ixgbe_fc_full:
 		/* Flow control (both Rx and Tx) is enabled by SW override. */
 		reg |= (IXGBE_PCS1GANA_SYM_PAUSE | IXGBE_PCS1GANA_ASM_PAUSE);
+		if (hw->phy.media_type == ixgbe_media_type_backplane)
+			reg_bp |= (IXGBE_AUTOC_SYM_PAUSE |
+				   IXGBE_AUTOC_ASM_PAUSE);
+		else if (hw->phy.media_type == ixgbe_media_type_copper)
+			reg_cu |= (IXGBE_TAF_SYM_PAUSE | IXGBE_TAF_ASM_PAUSE);
 		break;
 	default:
 		DEBUGOUT("Flow control param set incorrectly\n");
@@ -2111,6 +2457,10 @@ s32 ixgbe_setup_fc(struct ixgbe_hw *hw, s32 packetbuf_num)
 		break;
 	}
 
+	/*
+	 * Enable auto-negotiation between the MAC & PHY;
+	 * the MAC will advertise clause 37 flow control.
+	 */
 	IXGBE_WRITE_REG(hw, IXGBE_PCS1GANA, reg);
 	reg = IXGBE_READ_REG(hw, IXGBE_PCS1GLCTL);
 
@@ -2122,64 +2472,20 @@ s32 ixgbe_setup_fc(struct ixgbe_hw *hw, s32 packetbuf_num)
 	DEBUGOUT1("Set up FC; PCS1GLCTL = 0x%08X\n", reg);
 
 	/*
-	 * Set up the 10G flow control advertisement registers so the HW
-	 * can do fc autoneg once the cable is plugged in.  If we end up
-	 * using 1g instead, this is harmless.
+	 * AUTOC restart handles negotiation of 1G and 10G on backplane
+	 * and copper. There is no need to set the PCS1GCTL register.
+	 *
 	 */
-	reg = IXGBE_READ_REG(hw, IXGBE_AUTOC);
-
-	/*
-	 * The possible values of fc.requested_mode are:
-	 * 0: Flow control is completely disabled
-	 * 1: Rx flow control is enabled (we can receive pause frames,
-	 *    but not send pause frames).
-	 * 2: Tx flow control is enabled (we can send pause frames but
-	 *    we do not support receiving pause frames).
-	 * 3: Both Rx and Tx flow control (symmetric) are enabled.
-	 * other: Invalid.
-	 */
-	switch (hw->fc.requested_mode) {
-	case ixgbe_fc_none:
-		/* Flow control completely disabled by software override. */
-		reg &= ~(IXGBE_AUTOC_SYM_PAUSE | IXGBE_AUTOC_ASM_PAUSE);
-		break;
-	case ixgbe_fc_rx_pause:
-		/*
-		 * Rx Flow control is enabled and Tx Flow control is
-		 * disabled by software override. Since there really
-		 * isn't a way to advertise that we are capable of RX
-		 * Pause ONLY, we will advertise that we support both
-		 * symmetric and asymmetric Rx PAUSE.  Later, we will
-		 * disable the adapter's ability to send PAUSE frames.
-		 */
-		reg |= (IXGBE_AUTOC_SYM_PAUSE | IXGBE_AUTOC_ASM_PAUSE);
-		break;
-	case ixgbe_fc_tx_pause:
-		/*
-		 * Tx Flow control is enabled, and Rx Flow control is
-		 * disabled by software override.
-		 */
-		reg |= (IXGBE_AUTOC_ASM_PAUSE);
-		reg &= ~(IXGBE_AUTOC_SYM_PAUSE);
-		break;
-	case ixgbe_fc_full:
-		/* Flow control (both Rx and Tx) is enabled by SW override. */
-		reg |= (IXGBE_AUTOC_SYM_PAUSE | IXGBE_AUTOC_ASM_PAUSE);
-		break;
-	default:
-		DEBUGOUT("Flow control param set incorrectly\n");
-		ret_val = IXGBE_ERR_CONFIG;
-		goto out;
-		break;
+	if (hw->phy.media_type == ixgbe_media_type_backplane) {
+		reg_bp |= IXGBE_AUTOC_AN_RESTART;
+		IXGBE_WRITE_REG(hw, IXGBE_AUTOC, reg_bp);
+	} else if ((hw->phy.media_type == ixgbe_media_type_copper) &&
+		    (ixgbe_device_supports_autoneg_fc(hw) == IXGBE_SUCCESS)) {
+		hw->phy.ops.write_reg(hw, IXGBE_MDIO_AUTO_NEG_ADVT,
+				      IXGBE_MDIO_AUTO_NEG_DEV_TYPE, reg_cu);
 	}
-	/*
-	 * AUTOC restart handles negotiation of 1G and 10G. There is
-	 * no need to set the PCS1GCTL register.
-	 */
-	reg |= IXGBE_AUTOC_AN_RESTART;
-	IXGBE_WRITE_REG(hw, IXGBE_AUTOC, reg);
-	DEBUGOUT1("Set up FC; IXGBE_AUTOC = 0x%08X\n", reg);
 
+	DEBUGOUT1("Set up FC; IXGBE_AUTOC = 0x%08X\n", reg);
 out:
 	return ret_val;
 }
@@ -2198,9 +2504,13 @@ s32 ixgbe_disable_pcie_master(struct ixgbe_hw *hw)
 	u32 i;
 	u32 reg_val;
 	u32 number_of_queues;
-	s32 status = IXGBE_ERR_MASTER_REQUESTS_PENDING;
+	s32 status = IXGBE_SUCCESS;
 
 	DEBUGFUNC("ixgbe_disable_pcie_master");
+
+	/* Just jump out if bus mastering is already disabled */
+	if (!(IXGBE_READ_REG(hw, IXGBE_STATUS) & IXGBE_STATUS_GIO))
+		goto out;
 
 	/* Disable the receive unit by stopping each queue */
 	number_of_queues = hw->mac.max_rx_queues;
@@ -2217,13 +2527,42 @@ s32 ixgbe_disable_pcie_master(struct ixgbe_hw *hw)
 	IXGBE_WRITE_REG(hw, IXGBE_CTRL, reg_val);
 
 	for (i = 0; i < IXGBE_PCI_MASTER_DISABLE_TIMEOUT; i++) {
-		if (!(IXGBE_READ_REG(hw, IXGBE_STATUS) & IXGBE_STATUS_GIO)) {
-			status = IXGBE_SUCCESS;
-			break;
-		}
+		if (!(IXGBE_READ_REG(hw, IXGBE_STATUS) & IXGBE_STATUS_GIO))
+			goto check_device_status;
 		usec_delay(100);
 	}
 
+	DEBUGOUT("GIO Master Disable bit didn't clear - requesting resets\n");
+	status = IXGBE_ERR_MASTER_REQUESTS_PENDING;
+
+	/*
+	 * Before proceeding, make sure that the PCIe block does not have
+	 * transactions pending.
+	 */
+check_device_status:
+	for (i = 0; i < IXGBE_PCI_MASTER_DISABLE_TIMEOUT; i++) {
+		if (!(IXGBE_READ_PCIE_WORD(hw, IXGBE_PCI_DEVICE_STATUS) &
+			IXGBE_PCI_DEVICE_STATUS_TRANSACTION_PENDING))
+			break;
+		usec_delay(100);
+	}
+
+	if (i == IXGBE_PCI_MASTER_DISABLE_TIMEOUT)
+		DEBUGOUT("PCIe transaction pending bit also did not clear.\n");
+	else
+		goto out;
+
+	/*
+	 * Two consecutive resets are required via CTRL.RST per datasheet
+	 * 5.2.5.3.2 Master Disable.  We set a flag to inform the reset routine
+	 * of this need.  The first reset prevents new master requests from
+	 * being issued by our device.  We then must wait 1usec for any
+	 * remaining completions from the PCIe bus to trickle in, and then reset
+	 * again to clear out any effects they may have had on our device.
+	 */
+	 hw->mac.flags |= IXGBE_FLAGS_DOUBLE_RESET_REQUIRED;
+
+out:
 	return status;
 }
 
@@ -2339,7 +2678,6 @@ s32 ixgbe_blink_led_start_generic(struct ixgbe_hw *hw, u32 index)
 	hw->mac.ops.check_link(hw, &speed, &link_up, FALSE);
 
 	if (!link_up) {
-
 		autoc_reg |= IXGBE_AUTOC_AN_RESTART;
 		autoc_reg |= IXGBE_AUTOC_FLU;
 		IXGBE_WRITE_REG(hw, IXGBE_AUTOC, autoc_reg);
@@ -2600,37 +2938,38 @@ s32 ixgbe_clear_vmdq_generic(struct ixgbe_hw *hw, u32 rar, u32 vmdq)
 
 	DEBUGFUNC("ixgbe_clear_vmdq_generic");
 
-	if (rar < rar_entries) {
-		mpsar_lo = IXGBE_READ_REG(hw, IXGBE_MPSAR_LO(rar));
-		mpsar_hi = IXGBE_READ_REG(hw, IXGBE_MPSAR_HI(rar));
-
-		if (!mpsar_lo && !mpsar_hi)
-			goto done;
-
-		if (vmdq == IXGBE_CLEAR_VMDQ_ALL) {
-			if (mpsar_lo) {
-				IXGBE_WRITE_REG(hw, IXGBE_MPSAR_LO(rar), 0);
-				mpsar_lo = 0;
-			}
-			if (mpsar_hi) {
-				IXGBE_WRITE_REG(hw, IXGBE_MPSAR_HI(rar), 0);
-				mpsar_hi = 0;
-			}
-		} else if (vmdq < 32) {
-			mpsar_lo &= ~(1 << vmdq);
-			IXGBE_WRITE_REG(hw, IXGBE_MPSAR_LO(rar), mpsar_lo);
-		} else {
-			mpsar_hi &= ~(1 << (vmdq - 32));
-			IXGBE_WRITE_REG(hw, IXGBE_MPSAR_HI(rar), mpsar_hi);
-		}
-
-		/* was that the last pool using this rar? */
-		if (mpsar_lo == 0 && mpsar_hi == 0 && rar != 0)
-			hw->mac.ops.clear_rar(hw, rar);
-	} else {
+	/* Make sure we are using a valid rar index range */
+	if (rar >= rar_entries) {
 		DEBUGOUT1("RAR index %d is out of range.\n", rar);
+		return IXGBE_ERR_INVALID_ARGUMENT;
 	}
 
+	mpsar_lo = IXGBE_READ_REG(hw, IXGBE_MPSAR_LO(rar));
+	mpsar_hi = IXGBE_READ_REG(hw, IXGBE_MPSAR_HI(rar));
+
+	if (!mpsar_lo && !mpsar_hi)
+		goto done;
+
+	if (vmdq == IXGBE_CLEAR_VMDQ_ALL) {
+		if (mpsar_lo) {
+			IXGBE_WRITE_REG(hw, IXGBE_MPSAR_LO(rar), 0);
+			mpsar_lo = 0;
+		}
+		if (mpsar_hi) {
+			IXGBE_WRITE_REG(hw, IXGBE_MPSAR_HI(rar), 0);
+			mpsar_hi = 0;
+		}
+	} else if (vmdq < 32) {
+		mpsar_lo &= ~(1 << vmdq);
+		IXGBE_WRITE_REG(hw, IXGBE_MPSAR_LO(rar), mpsar_lo);
+	} else {
+		mpsar_hi &= ~(1 << (vmdq - 32));
+		IXGBE_WRITE_REG(hw, IXGBE_MPSAR_HI(rar), mpsar_hi);
+	}
+
+	/* was that the last pool using this rar? */
+	if (mpsar_lo == 0 && mpsar_hi == 0 && rar != 0)
+		hw->mac.ops.clear_rar(hw, rar);
 done:
 	return IXGBE_SUCCESS;
 }
@@ -2648,18 +2987,20 @@ s32 ixgbe_set_vmdq_generic(struct ixgbe_hw *hw, u32 rar, u32 vmdq)
 
 	DEBUGFUNC("ixgbe_set_vmdq_generic");
 
-	if (rar < rar_entries) {
-		if (vmdq < 32) {
-			mpsar = IXGBE_READ_REG(hw, IXGBE_MPSAR_LO(rar));
-			mpsar |= 1 << vmdq;
-			IXGBE_WRITE_REG(hw, IXGBE_MPSAR_LO(rar), mpsar);
-		} else {
-			mpsar = IXGBE_READ_REG(hw, IXGBE_MPSAR_HI(rar));
-			mpsar |= 1 << (vmdq - 32);
-			IXGBE_WRITE_REG(hw, IXGBE_MPSAR_HI(rar), mpsar);
-		}
-	} else {
+	/* Make sure we are using a valid rar index range */
+	if (rar >= rar_entries) {
 		DEBUGOUT1("RAR index %d is out of range.\n", rar);
+		return IXGBE_ERR_INVALID_ARGUMENT;
+	}
+
+	if (vmdq < 32) {
+		mpsar = IXGBE_READ_REG(hw, IXGBE_MPSAR_LO(rar));
+		mpsar |= 1 << vmdq;
+		IXGBE_WRITE_REG(hw, IXGBE_MPSAR_LO(rar), mpsar);
+	} else {
+		mpsar = IXGBE_READ_REG(hw, IXGBE_MPSAR_HI(rar));
+		mpsar |= 1 << (vmdq - 32);
+		IXGBE_WRITE_REG(hw, IXGBE_MPSAR_HI(rar), mpsar);
 	}
 	return IXGBE_SUCCESS;
 }
@@ -2695,6 +3036,10 @@ s32 ixgbe_find_vlvf_slot(struct ixgbe_hw *hw, u32 vlan)
 	u32 first_empty_slot = 0;
 	s32 regindex;
 
+	/* short cut the special case */
+	if (vlan == 0)
+		return 0;
+
 	/*
 	  * Search for the vlan id in the VLVF entries. Save off the first empty
 	  * slot found along the way
@@ -2717,7 +3062,7 @@ s32 ixgbe_find_vlvf_slot(struct ixgbe_hw *hw, u32 vlan)
 			regindex = first_empty_slot;
 		else {
 			DEBUGOUT("No space in VLVF.\n");
-			regindex = -1;
+			regindex = IXGBE_ERR_NO_SPACE;
 		}
 	}
 
@@ -2738,8 +3083,11 @@ s32 ixgbe_set_vfta_generic(struct ixgbe_hw *hw, u32 vlan, u32 vind,
 {
 	s32 regindex;
 	u32 bitindex;
+	u32 vfta;
 	u32 bits;
 	u32 vt;
+	u32 targetbit;
+	bool vfta_changed = FALSE;
 
 	DEBUGFUNC("ixgbe_set_vfta_generic");
 
@@ -2749,6 +3097,7 @@ s32 ixgbe_set_vfta_generic(struct ixgbe_hw *hw, u32 vlan, u32 vind,
 	/*
 	 * this is a 2 part operation - first the VFTA, then the
 	 * VLVF and VLVFB if VT Mode is set
+	 * We don't write the VFTA until we know the VLVF part succeeded.
 	 */
 
 	/* Part 1
@@ -2759,13 +3108,20 @@ s32 ixgbe_set_vfta_generic(struct ixgbe_hw *hw, u32 vlan, u32 vind,
 	 */
 	regindex = (vlan >> 5) & 0x7F;
 	bitindex = vlan & 0x1F;
-	bits = IXGBE_READ_REG(hw, IXGBE_VFTA(regindex));
-	if (vlan_on)
-		bits |= (1 << bitindex);
-	else
-		bits &= ~(1 << bitindex);
-	IXGBE_WRITE_REG(hw, IXGBE_VFTA(regindex), bits);
+	targetbit = (1 << bitindex);
+	vfta = IXGBE_READ_REG(hw, IXGBE_VFTA(regindex));
 
+	if (vlan_on) {
+		if (!(vfta & targetbit)) {
+			vfta |= targetbit;
+			vfta_changed = TRUE;
+		}
+	} else {
+		if ((vfta & targetbit)) {
+			vfta &= ~targetbit;
+			vfta_changed = TRUE;
+		}
+	}
 
 	/* Part 2
 	 * If VT Mode is set
@@ -2777,61 +3133,84 @@ s32 ixgbe_set_vfta_generic(struct ixgbe_hw *hw, u32 vlan, u32 vind,
 	 */
 	vt = IXGBE_READ_REG(hw, IXGBE_VT_CTL);
 	if (vt & IXGBE_VT_CTL_VT_ENABLE) {
-		if (vlan == 0) {
-			regindex = 0;
-		} else {
-			regindex = ixgbe_find_vlvf_slot(hw, vlan);
-			if (regindex < 0)
-				goto out;
-		}
+		s32 vlvf_index;
+
+		vlvf_index = ixgbe_find_vlvf_slot(hw, vlan);
+		if (vlvf_index < 0)
+			return vlvf_index;
 
 		if (vlan_on) {
 			/* set the pool bit */
 			if (vind < 32) {
 				bits = IXGBE_READ_REG(hw,
-						IXGBE_VLVFB(regindex*2));
+						IXGBE_VLVFB(vlvf_index*2));
 				bits |= (1 << vind);
 				IXGBE_WRITE_REG(hw,
-						IXGBE_VLVFB(regindex*2),
+						IXGBE_VLVFB(vlvf_index*2),
 						bits);
 			} else {
 				bits = IXGBE_READ_REG(hw,
-						IXGBE_VLVFB((regindex*2)+1));
-				bits |= (1 << vind);
+						IXGBE_VLVFB((vlvf_index*2)+1));
+				bits |= (1 << (vind-32));
 				IXGBE_WRITE_REG(hw,
-						IXGBE_VLVFB((regindex*2)+1),
+						IXGBE_VLVFB((vlvf_index*2)+1),
 						bits);
 			}
 		} else {
 			/* clear the pool bit */
 			if (vind < 32) {
 				bits = IXGBE_READ_REG(hw,
-						IXGBE_VLVFB(regindex*2));
+						IXGBE_VLVFB(vlvf_index*2));
 				bits &= ~(1 << vind);
 				IXGBE_WRITE_REG(hw,
-						IXGBE_VLVFB(regindex*2),
+						IXGBE_VLVFB(vlvf_index*2),
 						bits);
 				bits |= IXGBE_READ_REG(hw,
-						IXGBE_VLVFB((regindex*2)+1));
+						IXGBE_VLVFB((vlvf_index*2)+1));
 			} else {
 				bits = IXGBE_READ_REG(hw,
-						IXGBE_VLVFB((regindex*2)+1));
-				bits &= ~(1 << vind);
+						IXGBE_VLVFB((vlvf_index*2)+1));
+				bits &= ~(1 << (vind-32));
 				IXGBE_WRITE_REG(hw,
-						IXGBE_VLVFB((regindex*2)+1),
+						IXGBE_VLVFB((vlvf_index*2)+1),
 						bits);
 				bits |= IXGBE_READ_REG(hw,
-						IXGBE_VLVFB(regindex*2));
+						IXGBE_VLVFB(vlvf_index*2));
 			}
 		}
 
-		if (bits)
-			IXGBE_WRITE_REG(hw, IXGBE_VLVF(regindex),
+		/*
+		 * If there are still bits set in the VLVFB registers
+		 * for the VLAN ID indicated we need to see if the
+		 * caller is requesting that we clear the VFTA entry bit.
+		 * If the caller has requested that we clear the VFTA
+		 * entry bit but there are still pools/VFs using this VLAN
+		 * ID entry then ignore the request.  We're not worried
+		 * about the case where we're turning the VFTA VLAN ID
+		 * entry bit on, only when requested to turn it off as
+		 * there may be multiple pools and/or VFs using the
+		 * VLAN ID entry.  In that case we cannot clear the
+		 * VFTA bit until all pools/VFs using that VLAN ID have also
+		 * been cleared.  This will be indicated by "bits" being
+		 * zero.
+		 */
+		if (bits) {
+			IXGBE_WRITE_REG(hw, IXGBE_VLVF(vlvf_index),
 					(IXGBE_VLVF_VIEN | vlan));
+			if (!vlan_on) {
+				/* someone wants to clear the vfta entry
+				 * but some pools/VFs are still using it.
+				 * Ignore it. */
+				vfta_changed = FALSE;
+			}
+		}
 		else
-			IXGBE_WRITE_REG(hw, IXGBE_VLVF(regindex), 0);
+			IXGBE_WRITE_REG(hw, IXGBE_VLVF(vlvf_index), 0);
 	}
-out:
+
+	if (vfta_changed)
+		IXGBE_WRITE_REG(hw, IXGBE_VFTA(regindex), vfta);
+
 	return IXGBE_SUCCESS;
 }
 
@@ -2869,14 +3248,23 @@ s32 ixgbe_clear_vfta_generic(struct ixgbe_hw *hw)
  *  Reads the links register to determine if link is up and the current speed
  **/
 s32 ixgbe_check_mac_link_generic(struct ixgbe_hw *hw, ixgbe_link_speed *speed,
-                               bool *link_up, bool link_up_wait_to_complete)
+                                 bool *link_up, bool link_up_wait_to_complete)
 {
-	u32 links_reg;
+	u32 links_reg, links_orig;
 	u32 i;
 
 	DEBUGFUNC("ixgbe_check_mac_link_generic");
 
+	/* clear the old state */
+	links_orig = IXGBE_READ_REG(hw, IXGBE_LINKS);
+
 	links_reg = IXGBE_READ_REG(hw, IXGBE_LINKS);
+
+	if (links_orig != links_reg) {
+		DEBUGOUT2("LINKS changed from %08X to %08X\n",
+		          links_orig, links_reg);
+	}
+
 	if (link_up_wait_to_complete) {
 		for (i = 0; i < IXGBE_LINK_UP_TIME; i++) {
 			if (links_reg & IXGBE_LINKS_UP) {
@@ -2901,8 +3289,11 @@ s32 ixgbe_check_mac_link_generic(struct ixgbe_hw *hw, ixgbe_link_speed *speed,
 	else if ((links_reg & IXGBE_LINKS_SPEED_82599) ==
 	         IXGBE_LINKS_SPEED_1G_82599)
 		*speed = IXGBE_LINK_SPEED_1GB_FULL;
-	else
+	else if ((links_reg & IXGBE_LINKS_SPEED_82599) ==
+	         IXGBE_LINKS_SPEED_100_82599)
 		*speed = IXGBE_LINK_SPEED_100_FULL;
+	else
+		*speed = IXGBE_LINK_SPEED_UNKNOWN;
 
 	/* if link is down, zero out the current_mode */
 	if (*link_up == FALSE) {
@@ -2958,4 +3349,184 @@ s32 ixgbe_get_wwn_prefix_generic(struct ixgbe_hw *hw, u16 *wwnn_prefix,
 
 wwn_prefix_out:
 	return IXGBE_SUCCESS;
+}
+
+/**
+ *  ixgbe_get_fcoe_boot_status_generic - Get FCOE boot status from EEPROM
+ *  @hw: pointer to hardware structure
+ *  @bs: the fcoe boot status
+ *
+ *  This function will read the FCOE boot status from the iSCSI FCOE block
+ **/
+s32 ixgbe_get_fcoe_boot_status_generic(struct ixgbe_hw *hw, u16 *bs)
+{
+	u16 offset, caps, flags;
+	s32 status;
+
+	DEBUGFUNC("ixgbe_get_fcoe_boot_status_generic");
+
+	/* clear output first */
+	*bs = ixgbe_fcoe_bootstatus_unavailable;
+
+	/* check if FCOE IBA block is present */
+	offset = IXGBE_FCOE_IBA_CAPS_BLK_PTR;
+	status = hw->eeprom.ops.read(hw, offset, &caps);
+	if (status != IXGBE_SUCCESS)
+		goto out;
+
+	if (!(caps & IXGBE_FCOE_IBA_CAPS_FCOE))
+		goto out;
+
+	/* check if iSCSI FCOE block is populated */
+	status = hw->eeprom.ops.read(hw, IXGBE_ISCSI_FCOE_BLK_PTR, &offset);
+	if (status != IXGBE_SUCCESS)
+		goto out;
+
+	if ((offset == 0) || (offset == 0xFFFF))
+		goto out;
+
+	/* read fcoe flags in iSCSI FCOE block */
+	offset = offset + IXGBE_ISCSI_FCOE_FLAGS_OFFSET;
+	status = hw->eeprom.ops.read(hw, offset, &flags);
+	if (status != IXGBE_SUCCESS)
+		goto out;
+
+	if (flags & IXGBE_ISCSI_FCOE_FLAGS_ENABLE)
+		*bs = ixgbe_fcoe_bootstatus_enabled;
+	else
+		*bs = ixgbe_fcoe_bootstatus_disabled;
+
+out:
+	return status;
+}
+
+/**
+ *  ixgbe_device_supports_autoneg_fc - Check if phy supports autoneg flow
+ *  control
+ *  @hw: pointer to hardware structure
+ *
+ *  There are several phys that do not support autoneg flow control. This
+ *  function check the device id to see if the associated phy supports
+ *  autoneg flow control.
+ **/
+static s32 ixgbe_device_supports_autoneg_fc(struct ixgbe_hw *hw)
+{
+
+	DEBUGFUNC("ixgbe_device_supports_autoneg_fc");
+
+	switch (hw->device_id) {
+	case IXGBE_DEV_ID_82599_T3_LOM:
+		return IXGBE_SUCCESS;
+	default:
+		return IXGBE_ERR_FC_NOT_SUPPORTED;
+	}
+}
+
+/**
+ *  ixgbe_set_mac_anti_spoofing - Enable/Disable MAC anti-spoofing
+ *  @hw: pointer to hardware structure
+ *  @enable: enable or disable switch for anti-spoofing
+ *  @pf: Physical Function pool - do not enable anti-spoofing for the PF
+ *
+ **/
+void ixgbe_set_mac_anti_spoofing(struct ixgbe_hw *hw, bool enable, int pf)
+{
+	int j;
+	int pf_target_reg = pf >> 3;
+	int pf_target_shift = pf % 8;
+	u32 pfvfspoof = 0;
+
+	if (hw->mac.type == ixgbe_mac_82598EB)
+		return;
+
+	if (enable)
+		pfvfspoof = IXGBE_SPOOF_MACAS_MASK;
+
+	/*
+	 * PFVFSPOOF register array is size 8 with 8 bits assigned to
+	 * MAC anti-spoof enables in each register array element.
+	 */
+	for (j = 0; j < IXGBE_PFVFSPOOF_REG_COUNT; j++)
+		IXGBE_WRITE_REG(hw, IXGBE_PFVFSPOOF(j), pfvfspoof);
+
+	/* If not enabling anti-spoofing then done */
+	if (!enable)
+		return;
+
+	/*
+	 * The PF should be allowed to spoof so that it can support
+	 * emulation mode NICs.  Reset the bit assigned to the PF
+	 */
+	pfvfspoof = IXGBE_READ_REG(hw, IXGBE_PFVFSPOOF(pf_target_reg));
+	pfvfspoof ^= (1 << pf_target_shift);
+	IXGBE_WRITE_REG(hw, IXGBE_PFVFSPOOF(pf_target_reg), pfvfspoof);
+}
+
+/**
+ *  ixgbe_set_vlan_anti_spoofing - Enable/Disable VLAN anti-spoofing
+ *  @hw: pointer to hardware structure
+ *  @enable: enable or disable switch for VLAN anti-spoofing
+ *  @pf: Virtual Function pool - VF Pool to set for VLAN anti-spoofing
+ *
+ **/
+void ixgbe_set_vlan_anti_spoofing(struct ixgbe_hw *hw, bool enable, int vf)
+{
+	int vf_target_reg = vf >> 3;
+	int vf_target_shift = vf % 8 + IXGBE_SPOOF_VLANAS_SHIFT;
+	u32 pfvfspoof;
+
+	if (hw->mac.type == ixgbe_mac_82598EB)
+		return;
+
+	pfvfspoof = IXGBE_READ_REG(hw, IXGBE_PFVFSPOOF(vf_target_reg));
+	if (enable)
+		pfvfspoof |= (1 << vf_target_shift);
+	else
+		pfvfspoof &= ~(1 << vf_target_shift);
+	IXGBE_WRITE_REG(hw, IXGBE_PFVFSPOOF(vf_target_reg), pfvfspoof);
+}
+
+/**
+ *  ixgbe_get_device_caps_generic - Get additional device capabilities
+ *  @hw: pointer to hardware structure
+ *  @device_caps: the EEPROM word with the extra device capabilities
+ *
+ *  This function will read the EEPROM location for the device capabilities,
+ *  and return the word through device_caps.
+ **/
+s32 ixgbe_get_device_caps_generic(struct ixgbe_hw *hw, u16 *device_caps)
+{
+	DEBUGFUNC("ixgbe_get_device_caps_generic");
+
+	hw->eeprom.ops.read(hw, IXGBE_DEVICE_CAPS, device_caps);
+
+	return IXGBE_SUCCESS;
+}
+
+/**
+ *  ixgbe_enable_relaxed_ordering_gen2 - Enable relaxed ordering
+ *  @hw: pointer to hardware structure
+ *
+ **/
+void ixgbe_enable_relaxed_ordering_gen2(struct ixgbe_hw *hw)
+{
+	u32 regval;
+	u32 i;
+
+	DEBUGFUNC("ixgbe_enable_relaxed_ordering_gen2");
+
+	/* Enable relaxed ordering */
+	for (i = 0; i < hw->mac.max_tx_queues; i++) {
+		regval = IXGBE_READ_REG(hw, IXGBE_DCA_TXCTRL_82599(i));
+		regval |= IXGBE_DCA_TXCTRL_TX_WB_RO_EN;
+		IXGBE_WRITE_REG(hw, IXGBE_DCA_TXCTRL_82599(i), regval);
+	}
+
+	for (i = 0; i < hw->mac.max_rx_queues; i++) {
+		regval = IXGBE_READ_REG(hw, IXGBE_DCA_RXCTRL(i));
+		regval |= (IXGBE_DCA_RXCTRL_DESC_WRO_EN |
+		           IXGBE_DCA_RXCTRL_DESC_HSRO_EN);
+		IXGBE_WRITE_REG(hw, IXGBE_DCA_RXCTRL(i), regval);
+	}
+
 }

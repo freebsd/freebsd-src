@@ -2,9 +2,8 @@
  * CDDL HEADER START
  *
  * The contents of this file are subject to the terms of the
- * Common Development and Distribution License, Version 1.0 only
- * (the "License").  You may not use this file except in compliance
- * with the License.
+ * Common Development and Distribution License (the "License").
+ * You may not use this file except in compliance with the License.
  *
  * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
  * or http://www.opensolaris.org/os/licensing.
@@ -20,20 +19,18 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2005 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2010 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
 /*	Copyright (c) 1984, 1986, 1987, 1988, 1989 AT&T	*/
 /*	  All Rights Reserved	*/
 
-
 #ifndef _SYS_DEBUG_H
 #define	_SYS_DEBUG_H
 
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
-
 #include <sys/types.h>
+#include <sys/note.h>
 
 #ifdef	__cplusplus
 extern "C" {
@@ -50,7 +47,7 @@ extern "C" {
 extern int assfail(const char *, const char *, int);
 #define	VERIFY(EX) ((void)((EX) || assfail(#EX, __FILE__, __LINE__)))
 #ifdef DEBUG
-#define	ASSERT(EX) VERIFY(EX)
+#define	ASSERT(EX) ((void)((EX) || assfail(#EX, __FILE__, __LINE__)))
 #else
 #define	ASSERT(x)  ((void)0)
 #endif
@@ -58,7 +55,7 @@ extern int assfail(const char *, const char *, int);
 extern int assfail();
 #define	VERIFY(EX) ((void)((EX) || assfail("EX", __FILE__, __LINE__)))
 #ifdef DEBUG
-#define	ASSERT(EX) VERIFY(EX)
+#define	ASSERT(EX) ((void)((EX) || assfail("EX", __FILE__, __LINE__)))
 #else
 #define	ASSERT(x)  ((void)0)
 #endif
@@ -73,6 +70,25 @@ extern int assfail();
 #else
 #define	ASSERT64(x)
 #define	ASSERT32(x)	ASSERT(x)
+#endif
+
+/*
+ * IMPLY and EQUIV are assertions of the form:
+ *
+ *	if (a) then (b)
+ * and
+ *	if (a) then (b) *AND* if (b) then (a)
+ */
+#ifdef DEBUG
+#define	IMPLY(A, B) \
+	((void)(((!(A)) || (B)) || \
+	    assfail("(" #A ") implies (" #B ")", __FILE__, __LINE__)))
+#define	EQUIV(A, B) \
+	((void)((!!(A) == !!(B)) || \
+	    assfail("(" #A ") is equivalent to (" #B ")", __FILE__, __LINE__)))
+#else
+#define	IMPLY(A, B) ((void)0)
+#define	EQUIV(A, B) ((void)0)
 #endif
 
 /*
@@ -98,9 +114,9 @@ _NOTE(CONSTCOND) } while (0)
 #define	VERIFY3U(x, y, z)	VERIFY3_IMPL(x, y, z, uint64_t)
 #define	VERIFY3P(x, y, z)	VERIFY3_IMPL(x, y, z, uintptr_t)
 #ifdef DEBUG
-#define	ASSERT3S(x, y, z)	VERIFY3S(x, y, z)
-#define	ASSERT3U(x, y, z)	VERIFY3U(x, y, z)
-#define	ASSERT3P(x, y, z)	VERIFY3P(x, y, z)
+#define	ASSERT3S(x, y, z)	VERIFY3_IMPL(x, y, z, int64_t)
+#define	ASSERT3U(x, y, z)	VERIFY3_IMPL(x, y, z, uint64_t)
+#define	ASSERT3P(x, y, z)	VERIFY3_IMPL(x, y, z, uintptr_t)
 #else
 #define	ASSERT3S(x, y, z)	((void)0)
 #define	ASSERT3U(x, y, z)	((void)0)

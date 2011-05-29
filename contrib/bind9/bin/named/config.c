@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: config.c,v 1.93.14.2 2009/03/17 23:47:28 tbox Exp $ */
+/* $Id: config.c,v 1.93.14.2 2009-03-17 23:47:28 tbox Exp $ */
 
 /*! \file */
 

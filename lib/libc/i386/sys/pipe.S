@@ -45,3 +45,5 @@ SYSCALL(pipe)
 	movl	$0,%eax
 	ret
 END(__sys_pipe)
+
+	.section .note.GNU-stack,"",%progbits

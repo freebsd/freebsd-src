@@ -43,6 +43,7 @@
 #include <dev/pci/pcireg.h>
 
 #include <machine/bus.h>
+#include <machine/intr_machdep.h>
 #include <machine/md_var.h>
 #include <machine/pio.h>
 #include <machine/resource.h>
@@ -198,11 +199,14 @@ grackle_attach(device_t dev)
 		return (ENXIO);
 	}
 
+	sc->sc_nrange /= sizeof(sc->sc_range[0]);
+
 	sc->sc_range[6].pci_hi = 0;
 	io = NULL;
 	nmem = 0;
 
-	for (rp = sc->sc_range; rp->pci_hi != 0; rp++) {
+	for (rp = sc->sc_range; rp < sc->sc_range + sc->sc_nrange &&
+	       rp->pci_hi != 0; rp++) {
 		switch (rp->pci_hi & OFW_PCI_PHYS_HI_SPACEMASK) {
 		case OFW_PCI_PHYS_HI_SPACE_CONFIG:
 			break;
@@ -341,13 +345,15 @@ grackle_route_interrupt(device_t bus, device_t dev, int pin)
 	struct grackle_softc *sc;
 	struct ofw_pci_register reg;
 	uint32_t pintr, mintr;
+	phandle_t iparent;
 	uint8_t maskbuf[sizeof(reg) + sizeof(pintr)];
 
 	sc = device_get_softc(bus);
 	pintr = pin;
 	if (ofw_bus_lookup_imap(ofw_bus_get_node(dev), &sc->sc_pci_iinfo, &reg,
-	    sizeof(reg), &pintr, sizeof(pintr), &mintr, sizeof(mintr), maskbuf))
-		return (mintr);
+	    sizeof(reg), &pintr, sizeof(pintr), &mintr, sizeof(mintr),
+	    &iparent, maskbuf))
+		return (MAP_IRQ(iparent, mintr));
 
 	/* Maybe it's a real interrupt, not an intpin */
 	if (pin > 4)
@@ -469,7 +475,7 @@ grackle_activate_resource(device_t bus, device_t child, int type, int rid,
 			start += sc->sc_iostart;
 
 		if (bootverbose)
-			printf("grackle mapdev: start %x, len %ld\n", start,
+			printf("grackle mapdev: start %zx, len %ld\n", start,
 			    rman_get_size(res));
 
 		p = pmap_mapdev(start, (vm_size_t)rman_get_size(res));

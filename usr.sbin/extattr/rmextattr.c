@@ -231,9 +231,12 @@ main(int argc, char *argv[])
 				break;
 			if (!flag_quiet)
 				printf("%s\t", argv[arg_counter]);
-			for (i = 0; i < error; i += buf[i] + 1)
+			for (i = 0; i < error; i += ch + 1) {
+			    /* The attribute name length is unsigned. */
+			    ch = (unsigned char)buf[i];
 			    printf("%s%*.*s", i ? "\t" : "",
-				buf[i], buf[i], buf + i + 1);
+				ch, ch, buf + i + 1);
+			}
 			printf("\n");
 			continue;
 		case EAGET:

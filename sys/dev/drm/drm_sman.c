@@ -96,7 +96,8 @@ static void *drm_sman_mm_allocate(void *private, unsigned long size,
 	if (!tmp) {
 		return NULL;
 	}
-	tmp = drm_mm_get_block(tmp, size, alignment);
+	/* This could be non-atomic, but we are called from a locked path */
+	tmp = drm_mm_get_block_atomic(tmp, size, alignment);
 	return tmp;
 }
 
@@ -131,7 +132,7 @@ drm_sman_set_range(struct drm_sman * sman, unsigned int manager,
 	KASSERT(manager < sman->num_managers, ("Invalid manager"));
 
 	sman_mm = &sman->mm[manager];
-	mm = malloc(sizeof(*mm), DRM_MEM_MM, M_WAITOK | M_ZERO);
+	mm = malloc(sizeof(*mm), DRM_MEM_MM, M_NOWAIT | M_ZERO);
 	if (!mm) {
 		return -ENOMEM;
 	}
@@ -174,7 +175,7 @@ static struct drm_owner_item *drm_sman_get_owner_item(struct drm_sman * sman,
 				      owner_hash);
 	}
 
-	owner_item = malloc(sizeof(*owner_item), DRM_MEM_MM, M_WAITOK | M_ZERO);
+	owner_item = malloc(sizeof(*owner_item), DRM_MEM_MM, M_NOWAIT | M_ZERO);
 	if (!owner_item)
 		goto out;
 
@@ -206,12 +207,11 @@ struct drm_memblock_item *drm_sman_alloc(struct drm_sman *sman, unsigned int man
 
 	sman_mm = &sman->mm[manager];
 	tmp = sman_mm->allocate(sman_mm->private, size, alignment);
-
 	if (!tmp) {
 		return NULL;
 	}
 
-	memblock = malloc(sizeof(*memblock), DRM_MEM_MM, M_WAITOK | M_ZERO);
+	memblock = malloc(sizeof(*memblock), DRM_MEM_MM, M_NOWAIT | M_ZERO);
 	DRM_DEBUG("allocated mem_block %p\n", memblock);
 	if (!memblock)
 		goto out;

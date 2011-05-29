@@ -147,7 +147,6 @@ or in the User Configuration Menu at
 the boot time
 (see
 .Xr boot 8 ) .
-.Pp
 .Bl -tag -width MOUSE
 .It bit 4..7 ACCELERATION
 This flag controls the amount of acceleration effect.
@@ -373,10 +372,6 @@ Define the
 .Nm
 driver at the secondary port address with the IRQ 4 and the acceleration
 factor of 3.
-.Sh CAVEATS
-Some bus mouse interface cards generate interrupts at the fixed report rate
-when enabled, whether or not the mouse state is changing.
-The others generate interrupts only when the state is changing.
 .Sh SEE ALSO
 .Xr ioctl 2 ,
 .Xr mouse 4 ,
@@ -384,3 +379,7 @@ The others generate interrupts only when the state is changing.
 .Xr sysmouse 4 ,
 .Xr moused 8
 .\".Sh HISTORY
+.Sh CAVEATS
+Some bus mouse interface cards generate interrupts at the fixed report rate
+when enabled, whether or not the mouse state is changing.
+The others generate interrupts only when the state is changing.

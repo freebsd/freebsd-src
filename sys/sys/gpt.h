@@ -65,6 +65,9 @@ struct gpt_ent {
 	uint64_t	ent_lba_end;
 	uint64_t	ent_attr;
 #define	GPT_ENT_ATTR_PLATFORM		(1ULL << 0)
+#define	GPT_ENT_ATTR_BOOTME		(1ULL << 59)
+#define	GPT_ENT_ATTR_BOOTONCE		(1ULL << 58)
+#define	GPT_ENT_ATTR_BOOTFAILED		(1ULL << 57)
 	uint16_t	ent_name[36];		/* UTF-16. */
 };
 
@@ -146,5 +149,11 @@ struct gpt_ent {
 	{0x2db519c4,0xb10f,0x11dc,0xb9,0x9b,{0x00,0x19,0xd1,0x87,0x96,0x48}}
 #define	GPT_ENT_TYPE_NETBSD_CGD		\
 	{0x2db519ec,0xb10f,0x11dc,0xb9,0x9b,{0x00,0x19,0xd1,0x87,0x96,0x48}}
+
+/*
+ * Boot partition used by GRUB 2.
+ */
+#define	GPT_ENT_TYPE_BIOS_BOOT		\
+	{0x21686148,0x6449,0x6e6f,0x74,0x4e,{0x65,0x65,0x64,0x45,0x46,0x49}}
 
 #endif /* _SYS_GPT_H_ */

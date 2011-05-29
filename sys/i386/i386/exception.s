@@ -108,6 +108,8 @@ IDTVEC(nmi)
 	pushl $0; TRAP(T_NMI)
 IDTVEC(bpt)
 	pushl $0; TRAP(T_BPTFLT)
+IDTVEC(dtrace_ret)
+	pushl $0; TRAP(T_DTRACE_RET)
 IDTVEC(ofl)
 	pushl $0; TRAP(T_OFLOW)
 IDTVEC(bnd)
@@ -159,6 +161,7 @@ alltraps:
 	pushl	%fs
 alltraps_with_regs_pushed:
 	SET_KERNEL_SREGS
+	cld
 	FAKE_MCOUNT(TF_EIP(%esp))
 calltrap:
 	pushl	%esp
@@ -233,6 +236,7 @@ IDTVEC(lcall_syscall)
 	pushl	%es
 	pushl	%fs
 	SET_KERNEL_SREGS
+	cld
 	FAKE_MCOUNT(TF_EIP(%esp))
 	pushl	%esp
 	call	syscall
@@ -256,6 +260,7 @@ IDTVEC(int0x80_syscall)
 	pushl	%es
 	pushl	%fs
 	SET_KERNEL_SREGS
+	cld
 	FAKE_MCOUNT(TF_EIP(%esp))
 	pushl	%esp
 	call	syscall

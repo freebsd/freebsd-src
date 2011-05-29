@@ -130,7 +130,6 @@ void undefinedinstruction(trapframe_t *);
 #include <machine/machdep.h>
  
 extern char fusubailout[];
-extern char *syscallnames[];
 
 #ifdef DEBUG
 int last_fault_code;	/* For the benefit of pmap_fault_fixup() */

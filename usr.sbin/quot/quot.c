@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/stdint.h>
 #include <sys/mount.h>
 #include <sys/disklabel.h>
-#include <sys/time.h>
 #include <ufs/ufs/dinode.h>
 #include <ufs/ffs/fs.h>
 
@@ -49,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 
 /* some flags of what to do: */

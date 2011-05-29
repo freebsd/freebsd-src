@@ -47,13 +47,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/sdt.h>
 #include <sys/systm.h>
 #include <sys/sysctl.h>
-#include <sys/linker_set.h>
+#include <sys/eventhandler.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/socket.h>
 #include <sys/sx.h>
 #include <sys/sysctl.h>
+
+#include <machine/stdarg.h>
 
 #ifdef DDB
 #include <ddb/ddb.h>
@@ -76,6 +78,8 @@ __FBSDID("$FreeBSD$");
  *   to register startup/shutdown events to be run for each virtual network
  *   stack instance.
  */
+
+FEATURE(vimage, "VIMAGE kernel virtualization");
 
 MALLOC_DEFINE(M_VNET, "vnet", "network stack control block");
 
@@ -151,15 +155,6 @@ struct vnet *vnet0;
  */
 
 /*
- * Location of the kernel's 'set_vnet' linker set.
- */
-extern uintptr_t	*__start_set_vnet;
-extern uintptr_t	*__stop_set_vnet;
-
-#define	VNET_START	(uintptr_t)&__start_set_vnet
-#define	VNET_STOP	(uintptr_t)&__stop_set_vnet
-
-/*
  * Number of bytes of data in the 'set_vnet' linker set, and hence the total
  * size of all kernel virtualized global variables, and the malloc(9) type
  * that will be used to allocate it.
@@ -214,11 +209,15 @@ static TAILQ_HEAD(, vnet_data_free) vnet_data_free_head =
 static struct sx vnet_data_free_lock;
 
 SDT_PROVIDER_DEFINE(vnet);
-SDT_PROBE_DEFINE1(vnet, functions, vnet_alloc, entry, "int");
-SDT_PROBE_DEFINE2(vnet, functions, vnet_alloc, alloc, "int", "struct vnet *");
-SDT_PROBE_DEFINE2(vnet, functions, vnet_alloc, return, "int", "struct vnet *");
-SDT_PROBE_DEFINE2(vnet, functions, vnet_destroy, entry, "int", "struct vnet *");
-SDT_PROBE_DEFINE1(vnet, functions, vnet_destroy, return, "int");
+SDT_PROBE_DEFINE1(vnet, functions, vnet_alloc, entry, entry, "int");
+SDT_PROBE_DEFINE2(vnet, functions, vnet_alloc, alloc, alloc, "int",
+    "struct vnet *");
+SDT_PROBE_DEFINE2(vnet, functions, vnet_alloc, return, return,
+    "int", "struct vnet *");
+SDT_PROBE_DEFINE2(vnet, functions, vnet_destroy, entry, entry,
+    "int", "struct vnet *");
+SDT_PROBE_DEFINE1(vnet, functions, vnet_destroy, return, entry,
+    "int");
 
 #ifdef DDB
 static void db_show_vnet_print_vs(struct vnet_sysinit *, int);
@@ -354,7 +353,7 @@ vnet_data_startup(void *dummy __unused)
 
 	df = malloc(sizeof(*df), M_VNET_DATA_FREE, M_WAITOK | M_ZERO);
 	df->vnd_start = (uintptr_t)&VNET_NAME(modspace);
-	df->vnd_len = VNET_MODSIZE;
+	df->vnd_len = VNET_MODMIN;
 	TAILQ_INSERT_HEAD(&vnet_data_free_head, df, vnd_link);
 	sx_init(&vnet_data_free_lock, "vnet_data alloc lock");
 }
@@ -637,6 +636,39 @@ vnet_sysuninit(void)
 	VNET_SYSINIT_RUNLOCK();
 }
 
+/*
+ * EVENTHANDLER(9) extensions.
+ */
+/*
+ * Invoke the eventhandler function originally registered with the possibly
+ * registered argument for all virtual network stack instances.
+ *
+ * This iterator can only be used for eventhandlers that do not take any
+ * additional arguments, as we do ignore the variadic arguments from the
+ * EVENTHANDLER_INVOKE() call.
+ */
+void
+vnet_global_eventhandler_iterator_func(void *arg, ...)
+{
+	VNET_ITERATOR_DECL(vnet_iter);
+	struct eventhandler_entry_vimage *v_ee;
+
+	/*
+	 * There is a bug here in that we should actually cast things to
+	 * (struct eventhandler_entry_ ## name *)  but that's not easily
+	 * possible in here so just re-using the variadic version we
+	 * defined for the generic vimage case.
+	 */
+	v_ee = arg;
+	VNET_LIST_RLOCK();
+	VNET_FOREACH(vnet_iter) {
+		CURVNET_SET(vnet_iter);
+		((vimage_iterator_func_t)v_ee->func)(v_ee->ee_arg);
+		CURVNET_RESTORE();
+	}
+	VNET_LIST_RUNLOCK();
+}
+
 #ifdef VNET_DEBUG
 struct vnet_recursion {
 	SLIST_ENTRY(vnet_recursion)	 vnr_le;
@@ -696,6 +728,9 @@ vnet_log_recursion(struct vnet *old_vnet, const char *old_fn, int line)
 }
 #endif /* VNET_DEBUG */
 
+/*
+ * DDB(4).
+ */
 #ifdef DDB
 DB_SHOW_COMMAND(vnets, db_show_vnets)
 {

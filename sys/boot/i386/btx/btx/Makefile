@@ -13,6 +13,11 @@ BOOT_BTX_FLAGS=0x0
 
 CFLAGS+=-DBTX_FLAGS=${BOOT_BTX_FLAGS}
 
+.if ${CC:T:Mclang} == "clang"
+# XXX: clang integrated-as doesn't grok .codeNN directives yet
+CFLAGS+=${.IMPSRC:T:Mbtx.S:C/^.+$/-no-integrated-as/}
+.endif
+
 .if defined(BTX_SERIAL)
 BOOT_COMCONSOLE_PORT?= 0x3f8
 BOOT_COMCONSOLE_SPEED?= 9600
@@ -24,6 +29,6 @@ CFLAGS+=-DBTX_SERIAL -DSIOPRT=${BOOT_COMCONSOLE_PORT} \
 
 ORG=	0x9000
 
-LDFLAGS=-N -e start -Ttext ${ORG} -Wl,-S,--oformat,binary
+LDFLAGS=-e start -Ttext ${ORG} -Wl,-N,-S,--oformat,binary
 
 .include <bsd.prog.mk>

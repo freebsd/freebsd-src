@@ -713,6 +713,7 @@ const struct mips_cpu_info mips_cpu_info_table[] = {
   { "mips32", PROCESSOR_4KC, 32 },
   { "mips32r2", PROCESSOR_M4K, 33 },
   { "mips64", PROCESSOR_5KC, 64 },
+  { "mips64r2", PROCESSOR_5KC, 65 },
 
   /* MIPS I */
   { "r3000", PROCESSOR_R3000, 1 },
@@ -761,6 +762,9 @@ const struct mips_cpu_info mips_cpu_info_table[] = {
   { "sb1", PROCESSOR_SB1, 64 },
   { "sb1a", PROCESSOR_SB1A, 64 },
   { "sr71000", PROCESSOR_SR71000, 64 },
+
+  /* MIPS64R2 */
+  { "octeon", PROCESSOR_OCTEON, 65 },
 
   /* End marker */
   { 0, 0, 0 }
@@ -4829,7 +4833,7 @@ override_options (void)
 	 issue those instructions unless instructed to do so by
 	 -mbranch-likely.  */
       if (ISA_HAS_BRANCHLIKELY
-	  && !(ISA_MIPS32 || ISA_MIPS32R2 || ISA_MIPS64)
+	  && !(ISA_MIPS32 || ISA_MIPS32R2 || ISA_MIPS64 || ISA_MIPS64R2)
 	  && !(TUNE_MIPS5500 || TUNE_SB1))
 	target_flags |= MASK_BRANCHLIKELY;
       else
@@ -9943,6 +9947,7 @@ mips_issue_rate (void)
     case PROCESSOR_R5500:
     case PROCESSOR_R7000:
     case PROCESSOR_R9000:
+    case PROCESSOR_OCTEON:
       return 2;
 
     case PROCESSOR_SB1:

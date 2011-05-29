@@ -52,6 +52,8 @@
 
 #define	p0	proc0
 
+#define	t_tid	td_tid
+
 typedef	short		pri_t;
 typedef	struct thread	_kthread;
 typedef	struct thread	kthread_t;

@@ -122,18 +122,24 @@ struct devfs_rule {
 MALLOC_DECLARE(M_DEVFS);
 #endif
 
+struct componentname;
+
+TAILQ_HEAD(devfs_dlist_head, devfs_dirent);
+
 struct devfs_dirent {
 	struct cdev_priv	*de_cdp;
 	int			de_inode;
 	int			de_flags;
-#define	DE_WHITEOUT	0x1
-#define	DE_DOT		0x2
-#define	DE_DOTDOT	0x4
-#define DE_DOOMED	0x8
+#define	DE_WHITEOUT	0x01
+#define	DE_DOT		0x02
+#define	DE_DOTDOT	0x04
+#define	DE_DOOMED	0x08
+#define	DE_COVERED	0x10
+#define	DE_USER		0x20
 	int			de_holdcnt;
 	struct dirent 		*de_dirent;
 	TAILQ_ENTRY(devfs_dirent) de_list;
-	TAILQ_HEAD(, devfs_dirent) de_dlist;
+	struct devfs_dlist_head	de_dlist;
 	struct devfs_dirent	*de_dir;
 	int			de_links;
 	mode_t			de_mode;
@@ -169,19 +175,28 @@ extern unsigned devfs_rule_depth;
 #define DEVFS_DMP_HOLD(dmp)	((dmp)->dm_holdcnt++)
 #define DEVFS_DMP_DROP(dmp)	(--(dmp)->dm_holdcnt == 0)
 
-void devfs_rules_apply(struct devfs_mount *dm, struct devfs_dirent *de);
-void devfs_rules_cleanup (struct devfs_mount *dm);
-int devfs_rules_ioctl(struct devfs_mount *dm, u_long cmd, caddr_t data, struct thread *td);
-int devfs_allocv (struct devfs_dirent *de, struct mount *mp,
-    struct vnode **vpp);
-void devfs_delete(struct devfs_mount *dm, struct devfs_dirent *de, int vp_locked);
-void devfs_dirent_free(struct devfs_dirent *de);
-void devfs_populate (struct devfs_mount *dm);
-void devfs_cleanup (struct devfs_mount *dm);
-void devfs_unmount_final(struct devfs_mount *mp);
-struct devfs_dirent *devfs_newdirent (char *name, int namelen);
-struct devfs_dirent *devfs_vmkdir (struct devfs_mount *, char *name, int namelen, struct devfs_dirent *dotdot, u_int inode);
-struct devfs_dirent *devfs_find (struct devfs_dirent *dd, const char *name, int namelen);
+#define	DEVFS_DEL_VNLOCKED	0x01
+#define	DEVFS_DEL_NORECURSE	0x02
+
+void	devfs_rules_apply(struct devfs_mount *, struct devfs_dirent *);
+void	devfs_rules_cleanup(struct devfs_mount *);
+int	devfs_rules_ioctl(struct devfs_mount *, u_long, caddr_t,
+	    struct thread *);
+int	devfs_allocv(struct devfs_dirent *, struct mount *, int,
+	    struct vnode **);
+char	*devfs_fqpn(char *, struct devfs_mount *, struct devfs_dirent *,
+	    struct componentname *);
+void	devfs_delete(struct devfs_mount *, struct devfs_dirent *, int);
+void	devfs_dirent_free(struct devfs_dirent *);
+void	devfs_populate(struct devfs_mount *);
+void	devfs_cleanup(struct devfs_mount *);
+void	devfs_unmount_final(struct devfs_mount *);
+struct devfs_dirent	*devfs_newdirent(char *, int);
+struct devfs_dirent	*devfs_parent_dirent(struct devfs_dirent *);
+struct devfs_dirent	*devfs_vmkdir(struct devfs_mount *, char *, int,
+			    struct devfs_dirent *, u_int);
+struct devfs_dirent	*devfs_find(struct devfs_dirent *, const char *, int,
+			    int);
 
 #endif /* _KERNEL */
 

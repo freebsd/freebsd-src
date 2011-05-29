@@ -49,7 +49,6 @@
 #include <sys/resourcevar.h>
 #include <sys/ucontext.h>
 #include <machine/frame.h>
-#include <machine/mutex.h>
 #include <machine/elf.h>
 #include <machine/pal.h>
 #include <machine/pcb.h>
@@ -61,8 +60,8 @@
 #include <net/if.h>
 #include <netinet/in.h>
 
-#ifdef COMPAT_IA32
-ASSYM(COMPAT_IA32,	COMPAT_IA32);
+#ifdef COMPAT_FREEBSD32
+ASSYM(COMPAT_FREEBSD32,	COMPAT_FREEBSD32);
 #endif
 
 ASSYM(DT_NULL,		DT_NULL);
@@ -78,7 +77,12 @@ ASSYM(ERESTART,		ERESTART);
 
 ASSYM(FRAME_SYSCALL,	FRAME_SYSCALL);
 
-ASSYM(IA64_ID_PAGE_SHIFT, IA64_ID_PAGE_SHIFT);
+ASSYM(IA64_PBVM_BASE,	IA64_PBVM_BASE);
+ASSYM(IA64_PBVM_PAGE_SHIFT, IA64_PBVM_PAGE_SHIFT);
+ASSYM(IA64_PBVM_PGTBL,	IA64_PBVM_PGTBL);
+ASSYM(IA64_PBVM_RR,	IA64_PBVM_RR);
+
+ASSYM(IA64_VM_MINKERN_REGION, IA64_VM_MINKERN_REGION);
 
 ASSYM(KSTACK_PAGES,	KSTACK_PAGES);
 
@@ -117,4 +121,4 @@ ASSYM(TDF_NEEDRESCHED,	TDF_NEEDRESCHED);
 
 ASSYM(UC_MCONTEXT,	offsetof(ucontext_t, uc_mcontext));
 
-ASSYM(VM_MAX_ADDRESS,	VM_MAX_ADDRESS);
+ASSYM(VM_MAXUSER_ADDRESS, VM_MAXUSER_ADDRESS);

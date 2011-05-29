@@ -86,7 +86,7 @@ save_worklist(void)
 		if (file == NULL)
 			err(1, "Error opening file %s", wworklist);
 
-		TAILQ_FOREACH(llp, &lumps, list) 
+		TAILQ_FOREACH(llp, &lumps, list)
 			fprintf(file, "%jd %jd %d\n",
 			    (intmax_t)llp->start, (intmax_t)llp->len,
 			    llp->state);
@@ -134,8 +134,8 @@ read_worklist(off_t t)
 static void
 usage(void)
 {
-	(void)fprintf(stderr,
-    "usage: recoverdisk [-r worklist] [-w worklist] source-drive [destination]\n");
+	(void)fprintf(stderr, "usage: recoverdisk [-b bigsize] [-r readlist] "
+	    "[-s interval] [-w writelist] source [destination]\n");
 	exit(1);
 }
 
@@ -153,7 +153,7 @@ main(int argc, char * const argv[])
 	int fdr, fdw;
 	off_t t, d, start, len;
 	size_t i, j;
-	int error, flags, state;
+	int error, state;
 	u_char *buf;
 	u_int sectorsize;
 	time_t t1, t2;
@@ -196,7 +196,6 @@ main(int argc, char * const argv[])
 	error = fstat(fdr, &sb);
 	if (error < 0)
 		err(1, "fstat failed");
-	flags = O_WRONLY;
 	if (S_ISBLK(sb.st_mode) || S_ISCHR(sb.st_mode)) {
 		error = ioctl(fdr, DIOCGSECTORSIZE, &sectorsize);
 		if (error < 0)
@@ -210,7 +209,6 @@ main(int argc, char * const argv[])
 			err(1, "DIOCGMEDIASIZE failed");
 	} else {
 		t = sb.st_size;
-		flags |= O_CREAT | O_TRUNC;
 	}
 
 	if (bigsize < minsize)
@@ -229,9 +227,12 @@ main(int argc, char * const argv[])
 		err(1, "Cannot allocate %zu bytes buffer", bigsize);
 
 	if (argc > 1) {
-		fdw = open(argv[1], flags, DEFFILEMODE);
+		fdw = open(argv[1], O_WRONLY | O_CREAT, DEFFILEMODE);
 		if (fdw < 0)
 			err(1, "Cannot open write descriptor %s", argv[1]);
+		if (ftruncate(fdw, t) < 0)
+			err(1, "Cannot truncate output %s to %jd bytes",
+			    argv[1], (intmax_t)t);
 	} else
 		fdw = -1;
 
@@ -292,6 +293,10 @@ main(int argc, char * const argv[])
 			}
 			printf("\n%jd %zu failed (%s)\n",
 			    lp->start, i, strerror(errno));
+			if (errno == EINVAL) {
+				printf("read() size too big? Try with -b 131072");
+				aborting = 1;
+			}
 			if (errno == ENXIO)
 				aborting = 1;
 			new_lump(lp->start, i, lp->state + 1);

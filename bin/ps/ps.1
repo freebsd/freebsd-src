@@ -29,7 +29,7 @@
 .\"     @(#)ps.1	8.3 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd March 5, 2010
+.Dd April 18, 2011
 .Dt PS 1
 .Os
 .Sh NAME
@@ -130,7 +130,10 @@ If either of the
 and
 .Fl r
 options are also used, they control how sibling processes are sorted
-relative to eachother.
+relative to each other.
+Note that this option has no effect if the
+.Dq command
+column is not the last column displayed.
 .It Fl e
 Display the environment as well.
 .It Fl f
@@ -205,8 +208,8 @@ Display information about processes which match the specified process IDs.
 Sort by current CPU usage, instead of the combination of controlling
 terminal and process ID.
 .It Fl S
-Change the way the process time is calculated by summing all exited
-children to their parent process.
+Change the way the process times, namely cputime, systime, and usertime,
+are calculated by summing all exited children to their parent process.
 .It Fl T
 Display information about processes attached to the device associated
 with the standard input.
@@ -244,9 +247,13 @@ If the
 option is specified more than once,
 .Nm
 will use as many columns as necessary without regard for your window size.
+Note that this option has no effect if the
+.Dq command
+column is not the last column displayed.
 .It Fl X
 When displaying processes matched by other options, skip any processes
 which do not have a controlling terminal.
+This is the default behaviour.
 .It Fl x
 When displaying processes matched by other options, include processes
 which do not have a controlling terminal.
@@ -280,6 +287,8 @@ be very young) it is possible for the sum of all
 fields to exceed 100%.
 .It Cm %mem
 The percentage of real memory used by this process.
+.It Cm class
+Login class associated with the process.
 .It Cm flags
 The flags associated with the process as in
 the include file
@@ -288,9 +297,11 @@ the include file
 .It Dv "P_ADVLOCK" Ta No "0x00001	Process may hold a POSIX advisory lock"
 .It Dv "P_CONTROLT" Ta No "0x00002	Has a controlling terminal"
 .It Dv "P_KTHREAD" Ta No "0x00004	Kernel thread"
+.It Dv "P_FOLLOWFORK" Ta No "0x00008	Attach debugger to new children"
 .It Dv "P_PPWAIT" Ta No "0x00010	Parent is waiting for child to exec/exit"
 .It Dv "P_PROFIL" Ta No "0x00020	Has started profiling"
 .It Dv "P_STOPPROF" Ta No "0x00040	Has thread in requesting to stop prof"
+.It Dv "P_HADTHREADS" Ta No "0x00080	Has had threads (no cleanup shortcuts)"
 .It Dv "P_SUGID" Ta No "0x00100		Had set id privileges since last exec"
 .It Dv "P_SYSTEM" Ta No "0x00200	System proc: no sigs, stats or swapping"
 .It Dv "P_SINGLE_EXIT" Ta No "0x00400	Threads suspending should exit, not wait"
@@ -298,6 +309,7 @@ the include file
 .It Dv "P_WAITED" Ta No "0x01000	Someone is waiting for us"
 .It Dv "P_WEXIT" Ta No "0x02000		Working on exiting"
 .It Dv "P_EXEC" Ta No "0x04000		Process called exec"
+.It Dv "P_WKILLED" Ta No "0x08000	Killed, shall go to kernel/user boundary ASAP"
 .It Dv "P_CONTINUED" Ta No "0x10000	Proc has continued from a stopped state"
 .It Dv "P_STOPPED_SIG" Ta No "0x20000	Stopped due to SIGSTOP/SIGTSTP"
 .It Dv "P_STOPPED_TRACE" Ta No "0x40000	Stopped because of tracing"
@@ -472,6 +484,8 @@ accounting flag (alias
 .Cm acflg )
 .It Cm args
 command and arguments
+.It Cm class
+login class
 .It Cm comm
 command
 .It Cm command
@@ -479,7 +493,12 @@ command and arguments
 .It Cm cpu
 short-term CPU usage factor (for scheduling)
 .It Cm etime
-elapsed running time
+elapsed running time, format
+.Op days- Ns
+.Op hours: Ns
+minutes:seconds.
+.It Cm etimes
+elapsed running time, in decimal integer seconds
 .It Cm flags
 the process flags, in hexadecimal (alias
 .Cm f )
@@ -530,7 +549,7 @@ wait channel (as an address)
 total blocks written (alias
 .Cm oublock )
 .It Cm paddr
-swap address
+process pointer
 .It Cm pagein
 pageins (same as majflt)
 .It Cm pgid
@@ -584,6 +603,10 @@ symbolic process state (alias
 saved gid from a setgid executable
 .It Cm svuid
 saved UID from a setuid executable
+.It Cm systime
+accumulated system CPU time
+.It Cm tdaddr
+thread address
 .It Cm tdev
 control terminal device number
 .It Cm time
@@ -612,6 +635,8 @@ scheduling priority on return from system call (alias
 .Cm usrpri )
 .It Cm user
 user name (from UID)
+.It Cm usertime
+accumulated user CPU time
 .It Cm vsz
 virtual size in Kbytes (alias
 .Cm vsize )

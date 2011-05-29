@@ -85,13 +85,13 @@
  * to use a fixed 16-byte authenticator.  The new algorithm use 12-byte
  * authenticator.
  */
-#define	AUTHSIZE(sav) \
-	((sav->flags & SADB_X_EXT_OLD) ? 16 : AH_HMAC_HASHLEN)
+#define	AUTHSIZE(sav)	ah_authsize(sav)
 
 VNET_DEFINE(int, ah_enable) = 1;	/* control flow of packets with AH */
 VNET_DEFINE(int, ah_cleartos) = 1;	/* clear ip_tos when doing AH calc */
 VNET_DEFINE(struct ahstat, ahstat);
 
+#ifdef INET
 SYSCTL_DECL(_net_inet_ah);
 SYSCTL_VNET_INT(_net_inet_ah, OID_AUTO,
 	ah_enable,	CTLFLAG_RW,	&VNET_NAME(ah_enable),	0, "");
@@ -99,12 +99,34 @@ SYSCTL_VNET_INT(_net_inet_ah, OID_AUTO,
 	ah_cleartos,	CTLFLAG_RW,	&VNET_NAME(ah_cleartos), 0, "");
 SYSCTL_VNET_STRUCT(_net_inet_ah, IPSECCTL_STATS,
 	stats,		CTLFLAG_RD,	&VNET_NAME(ahstat), ahstat, "");
+#endif
 
 static unsigned char ipseczeroes[256];	/* larger than an ip6 extension hdr */
 
 static int ah_input_cb(struct cryptop*);
 static int ah_output_cb(struct cryptop*);
 
+static int
+ah_authsize(struct secasvar *sav)
+{
+
+	IPSEC_ASSERT(sav != NULL, ("%s: sav == NULL", __func__));
+
+	if (sav->flags & SADB_X_EXT_OLD)
+		return 16;
+
+	switch (sav->alg_auth) {
+	case SADB_X_AALG_SHA2_256:
+		return 16;
+	case SADB_X_AALG_SHA2_384:
+		return 24;
+	case SADB_X_AALG_SHA2_512:
+		return 32;
+	default:
+		return AH_HMAC_HASHLEN;
+	}
+	/* NOTREACHED */
+}
 /*
  * NB: this is public for use by the PF_KEY support.
  */
@@ -695,25 +717,14 @@ ah_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	tc->tc_protoff = protoff;
 	tc->tc_skip = skip;
 	tc->tc_ptr = (caddr_t) mtag; /* Save the mtag we've identified. */
+	KEY_ADDREFSA(sav);
+	tc->tc_sav = sav;
 
 	if (mtag == NULL)
 		return crypto_dispatch(crp);
 	else
 		return ah_input_cb(crp);
 }
-
-#ifdef INET6
-#define	IPSEC_COMMON_INPUT_CB(m, sav, skip, protoff, mtag) do {		     \
-	if (saidx->dst.sa.sa_family == AF_INET6) {			     \
-		error = ipsec6_common_input_cb(m, sav, skip, protoff, mtag); \
-	} else {							     \
-		error = ipsec4_common_input_cb(m, sav, skip, protoff, mtag); \
-	}								     \
-} while (0)
-#else
-#define	IPSEC_COMMON_INPUT_CB(m, sav, skip, protoff, mtag)		     \
-	(error = ipsec4_common_input_cb(m, sav, skip, protoff, mtag))
-#endif
 
 /*
  * AH input callback from the crypto driver.
@@ -744,13 +755,8 @@ ah_input_cb(struct cryptop *crp)
 	mtag = (struct m_tag *) tc->tc_ptr;
 	m = (struct mbuf *) crp->crp_buf;
 
-	sav = KEY_ALLOCSA(&tc->tc_dst, tc->tc_proto, tc->tc_spi);
-	if (sav == NULL) {
-		V_ahstat.ahs_notdb++;
-		DPRINTF(("%s: SA expired while in crypto\n", __func__));
-		error = ENOBUFS;		/*XXX*/
-		goto bad;
-	}
+	sav = tc->tc_sav;
+	IPSEC_ASSERT(sav != NULL, ("null SA!"));
 
 	saidx = &sav->sah->saidx;
 	IPSEC_ASSERT(saidx->dst.sa.sa_family == AF_INET ||
@@ -856,7 +862,21 @@ ah_input_cb(struct cryptop *crp)
 		goto bad;
 	}
 
-	IPSEC_COMMON_INPUT_CB(m, sav, skip, protoff, mtag);
+	switch (saidx->dst.sa.sa_family) {
+#ifdef INET6
+	case AF_INET6:
+		error = ipsec6_common_input_cb(m, sav, skip, protoff, mtag);
+		break;
+#endif
+#ifdef INET
+	case AF_INET:
+		error = ipsec4_common_input_cb(m, sav, skip, protoff, mtag);
+		break;
+#endif
+	default:
+		panic("%s: Unexpected address family: %d saidx=%p", __func__,
+		    saidx->dst.sa.sa_family, saidx);
+	}
 
 	KEY_FREESAV(&sav);
 	return error;
@@ -1090,6 +1110,8 @@ ah_output(
 
 	/* These are passed as-is to the callback. */
 	tc->tc_isr = isr;
+	KEY_ADDREFSA(sav);
+	tc->tc_sav = sav;
 	tc->tc_spi = sav->spi;
 	tc->tc_dst = sav->sah->saidx.dst;
 	tc->tc_proto = sav->sah->saidx.proto;
@@ -1126,14 +1148,14 @@ ah_output_cb(struct cryptop *crp)
 
 	isr = tc->tc_isr;
 	IPSECREQUEST_LOCK(isr);
-	sav = KEY_ALLOCSA(&tc->tc_dst, tc->tc_proto, tc->tc_spi);
-	if (sav == NULL) {
+	sav = tc->tc_sav;
+	/* With the isr lock released SA pointer can be updated. */
+	if (sav != isr->sav) {
 		V_ahstat.ahs_notdb++;
 		DPRINTF(("%s: SA expired while in crypto\n", __func__));
 		error = ENOBUFS;		/*XXX*/
 		goto bad;
 	}
-	IPSEC_ASSERT(isr->sav == sav, ("SA changed\n"));
 
 	/* Check for crypto errors. */
 	if (crp->crp_etype) {
@@ -1141,7 +1163,6 @@ ah_output_cb(struct cryptop *crp)
 			sav->tdb_cryptoid = crp->crp_sid;
 
 		if (crp->crp_etype == EAGAIN) {
-			KEY_FREESAV(&sav);
 			IPSECREQUEST_UNLOCK(isr);
 			error = crypto_dispatch(crp);
 			return error;

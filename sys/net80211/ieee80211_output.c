@@ -57,8 +57,11 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_wds.h>
 #include <net80211/ieee80211_mesh.h>
 
-#ifdef INET
+#if defined(INET) || defined(INET6)
 #include <netinet/in.h> 
+#endif
+
+#ifdef INET
 #include <netinet/if_ether.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
@@ -419,7 +422,8 @@ ieee80211_output(struct ifnet *ifp, struct mbuf *m,
 		    "block %s frame in CAC state\n", "raw data");
 		vap->iv_stats.is_tx_badstate++;
 		senderr(EIO);		/* XXX */
-	}
+	} else if (vap->iv_state == IEEE80211_S_SCAN)
+		senderr(EIO);
 	/* XXX bypass bridge, pfil, carp, etc. */
 
 	if (m->m_pkthdr.len < sizeof(struct ieee80211_frame_ack))
@@ -2922,13 +2926,13 @@ ieee80211_beacon_update(struct ieee80211_node *ni,
 				bo->bo_tim_trailer += adjust;
 				bo->bo_erp += adjust;
 				bo->bo_htinfo += adjust;
-#ifdef IEEE80211_SUPERG_SUPPORT
+#ifdef IEEE80211_SUPPORT_SUPERG
 				bo->bo_ath += adjust;
 #endif
-#ifdef IEEE80211_TDMA_SUPPORT
+#ifdef IEEE80211_SUPPORT_TDMA
 				bo->bo_tdma += adjust;
 #endif
-#ifdef IEEE80211_MESH_SUPPORT
+#ifdef IEEE80211_SUPPORT_MESH
 				bo->bo_meshconf += adjust;
 #endif
 				bo->bo_appie += adjust;
@@ -2976,13 +2980,13 @@ ieee80211_beacon_update(struct ieee80211_node *ni,
 				bo->bo_erp += sizeof(*csa);
 				bo->bo_htinfo += sizeof(*csa);
 				bo->bo_wme += sizeof(*csa);
-#ifdef IEEE80211_SUPERG_SUPPORT
+#ifdef IEEE80211_SUPPORT_SUPERG
 				bo->bo_ath += sizeof(*csa);
 #endif
-#ifdef IEEE80211_TDMA_SUPPORT
+#ifdef IEEE80211_SUPPORT_TDMA
 				bo->bo_tdma += sizeof(*csa);
 #endif
-#ifdef IEEE80211_MESH_SUPPORT
+#ifdef IEEE80211_SUPPORT_MESH
 				bo->bo_meshconf += sizeof(*csa);
 #endif
 				bo->bo_appie += sizeof(*csa);

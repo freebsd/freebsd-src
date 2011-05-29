@@ -43,7 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/openfirm.h>
 
 #include <machine/bus.h>
-#include <machine/intr.h>
 #include <machine/intr_machdep.h>
 #include <machine/md_var.h>
 #include <machine/pio.h>
@@ -63,11 +62,12 @@ __FBSDID("$FreeBSD$");
  * PSIM IOBus interface
  */
 static int	openpic_iobus_probe(device_t);
+static int	openpic_iobus_attach(device_t);
 
 static device_method_t  openpic_iobus_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		openpic_iobus_probe),
-	DEVMETHOD(device_attach,	openpic_attach),
+	DEVMETHOD(device_attach,	openpic_iobus_attach),
 
 	/* PIC interface */
 	DEVMETHOD(pic_config,		openpic_config),
@@ -109,4 +109,11 @@ openpic_iobus_probe(device_t dev)
 	sc->sc_psim = 1;
 
 	return (0);
+}
+
+static int
+openpic_iobus_attach(device_t dev)
+{
+
+	return (openpic_common_attach(dev, 0));
 }

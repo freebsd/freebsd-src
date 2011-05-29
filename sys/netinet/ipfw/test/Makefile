@@ -6,9 +6,10 @@
 
 SCHED_SRCS = test_dn_sched.c
 SCHED_SRCS += dn_sched_fifo.c
-SCHED_SRCS += dn_sched_wf2q.c
+SCHED_SRCS += dn_sched_prio.c
 SCHED_SRCS += dn_sched_qfq.c
 SCHED_SRCS += dn_sched_rr.c
+SCHED_SRCS += dn_sched_wf2q.c
 SCHED_SRCS += dn_heap.c
 SCHED_SRCS += main.c
 

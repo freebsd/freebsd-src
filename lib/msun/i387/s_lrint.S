@@ -34,3 +34,5 @@ ENTRY(lrint)
 	popl	%eax
 	ret
 END(lrint)
+
+	.section .note.GNU-stack,"",%progbits

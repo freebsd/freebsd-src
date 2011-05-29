@@ -233,7 +233,7 @@ static void	mb_zfini_pack(void *, int);
 
 static void	mb_reclaim(void *);
 static void	mbuf_init(void *);
-static void    *mbuf_jumbo_alloc(uma_zone_t, int, u_int8_t *, int);
+static void    *mbuf_jumbo_alloc(uma_zone_t, int, uint8_t *, int);
 
 /* Ensure that MSIZE doesn't break dtom() - it must be a power of 2 */
 CTASSERT((((MSIZE - 1) ^ MSIZE) + 1) >> 1 == MSIZE);
@@ -350,7 +350,7 @@ mbuf_init(void *dummy)
  * pages.
  */
 static void *
-mbuf_jumbo_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
+mbuf_jumbo_alloc(uma_zone_t zone, int bytes, uint8_t *flags, int wait)
 {
 
 	/* Inform UMA that this allocator uses kernel_map/object. */

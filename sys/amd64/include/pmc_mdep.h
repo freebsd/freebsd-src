@@ -43,17 +43,20 @@ struct pmc_mdep;
 #include <dev/hwpmc/hwpmc_core.h>
 #include <dev/hwpmc/hwpmc_piv.h>
 #include <dev/hwpmc/hwpmc_tsc.h>
+#include <dev/hwpmc/hwpmc_uncore.h>
 
 /*
  * Intel processors implementing V2 and later of the Intel performance
  * measurement architecture have PMCs of the following classes: TSC,
- * IAF and IAP.
+ * IAF, IAP, UCF and UCP.
  */
 #define	PMC_MDEP_CLASS_INDEX_TSC	0
 #define	PMC_MDEP_CLASS_INDEX_K8		1
 #define	PMC_MDEP_CLASS_INDEX_P4		1
 #define	PMC_MDEP_CLASS_INDEX_IAP	1
 #define	PMC_MDEP_CLASS_INDEX_IAF	2
+#define	PMC_MDEP_CLASS_INDEX_UCP	3
+#define	PMC_MDEP_CLASS_INDEX_UCF	4
 
 /*
  * On the amd64 platform we support the following PMCs.
@@ -63,12 +66,16 @@ struct pmc_mdep;
  * PIV		Intel P4/HTT and P4/EMT64
  * IAP		Intel Core/Core2/Atom CPUs in 64 bits mode.
  * IAF		Intel fixed-function PMCs in Core2 and later CPUs.
+ * UCP		Intel Uncore programmable PMCs.
+ * UCF		Intel Uncore fixed-function PMCs.
  */
 
 union pmc_md_op_pmcallocate  {
 	struct pmc_md_amd_op_pmcallocate	pm_amd;
 	struct pmc_md_iaf_op_pmcallocate	pm_iaf;
 	struct pmc_md_iap_op_pmcallocate	pm_iap;
+	struct pmc_md_ucf_op_pmcallocate	pm_ucf;
+	struct pmc_md_ucp_op_pmcallocate	pm_ucp;
 	struct pmc_md_p4_op_pmcallocate		pm_p4;
 	uint64_t				__pad[4];
 };
@@ -83,6 +90,8 @@ union pmc_md_pmc {
 	struct pmc_md_amd_pmc	pm_amd;
 	struct pmc_md_iaf_pmc	pm_iaf;
 	struct pmc_md_iap_pmc	pm_iap;
+	struct pmc_md_ucf_pmc	pm_ucf;
+	struct pmc_md_ucp_pmc	pm_ucp;
 	struct pmc_md_p4_pmc	pm_p4;
 };
 

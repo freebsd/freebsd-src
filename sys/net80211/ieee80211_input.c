@@ -57,8 +57,53 @@ __FBSDID("$FreeBSD$");
 #include <net/ethernet.h>
 #endif
 
+static void
+ieee80211_process_mimo(struct ieee80211_node *ni, struct ieee80211_rx_stats *rx)
+{
+	int i;
+
+	/* Verify the required MIMO bits are set */
+	if ((rx->r_flags & (IEEE80211_R_C_CHAIN | IEEE80211_R_C_NF | IEEE80211_R_C_RSSI)) !=
+	    (IEEE80211_R_C_CHAIN | IEEE80211_R_C_NF | IEEE80211_R_C_RSSI))
+		return;
+
+	/* XXX This assumes the MIMO radios have both ctl and ext chains */
+	for (i = 0; i < MIN(rx->c_chain, IEEE80211_MAX_CHAINS); i++) {
+		IEEE80211_RSSI_LPF(ni->ni_mimo_rssi_ctl[i], rx->c_rssi_ctl[i]);
+		IEEE80211_RSSI_LPF(ni->ni_mimo_rssi_ext[i], rx->c_rssi_ext[i]);
+	}
+
+	/* XXX This also assumes the MIMO radios have both ctl and ext chains */
+	for(i = 0; i < MIN(rx->c_chain, IEEE80211_MAX_CHAINS); i++) {
+		ni->ni_mimo_noise_ctl[i] = rx->c_nf_ctl[i];
+		ni->ni_mimo_noise_ext[i] = rx->c_nf_ext[i];
+	}
+	ni->ni_mimo_chains = rx->c_chain;
+}
+
+int
+ieee80211_input_mimo(struct ieee80211_node *ni, struct mbuf *m,
+    struct ieee80211_rx_stats *rx)
+{
+	/* XXX should assert IEEE80211_R_NF and IEEE80211_R_RSSI are set */
+	ieee80211_process_mimo(ni, rx);
+	return ieee80211_input(ni, m, rx->rssi, rx->nf);
+}
+
 int
 ieee80211_input_all(struct ieee80211com *ic, struct mbuf *m, int rssi, int nf)
+{
+	struct ieee80211_rx_stats rx;
+
+	rx.r_flags = IEEE80211_R_NF | IEEE80211_R_RSSI;
+	rx.nf = nf;
+	rx.rssi = rssi;
+	return ieee80211_input_mimo_all(ic, m, &rx);
+}
+
+int
+ieee80211_input_mimo_all(struct ieee80211com *ic, struct mbuf *m,
+    struct ieee80211_rx_stats *rx)
 {
 	struct ieee80211vap *vap;
 	int type = -1;
@@ -96,7 +141,7 @@ ieee80211_input_all(struct ieee80211com *ic, struct mbuf *m, int rssi, int nf)
 			m = NULL;
 		}
 		ni = ieee80211_ref_node(vap->iv_bss);
-		type = ieee80211_input(ni, mcopy, rssi, nf);
+		type = ieee80211_input_mimo(ni, mcopy, rx);
 		ieee80211_free_node(ni);
 	}
 	if (m != NULL)			/* no vaps, reclaim mbuf */
@@ -677,7 +722,6 @@ ieee80211_parse_action(struct ieee80211_node *ni, struct mbuf *m)
 	IEEE80211_NODE_STAT(ni, rx_action);
 
 	/* verify frame payloads but defer processing */
-	/* XXX maybe push this to method */
 	switch (ia->ia_category) {
 	case IEEE80211_ACTION_CAT_BA:
 		switch (ia->ia_action) {
@@ -734,7 +778,8 @@ ieee80211_ssid_mismatch(struct ieee80211vap *vap, const char *tag,
  * Return the bssid of a frame.
  */
 static const uint8_t *
-ieee80211_getbssid(struct ieee80211vap *vap, const struct ieee80211_frame *wh)
+ieee80211_getbssid(const struct ieee80211vap *vap,
+	const struct ieee80211_frame *wh)
 {
 	if (vap->iv_opmode == IEEE80211_M_STA)
 		return wh->i_addr2;
@@ -748,7 +793,7 @@ ieee80211_getbssid(struct ieee80211vap *vap, const struct ieee80211_frame *wh)
 #include <machine/stdarg.h>
 
 void
-ieee80211_note(struct ieee80211vap *vap, const char *fmt, ...)
+ieee80211_note(const struct ieee80211vap *vap, const char *fmt, ...)
 {
 	char buf[128];		/* XXX */
 	va_list ap;
@@ -761,7 +806,7 @@ ieee80211_note(struct ieee80211vap *vap, const char *fmt, ...)
 }
 
 void
-ieee80211_note_frame(struct ieee80211vap *vap,
+ieee80211_note_frame(const struct ieee80211vap *vap,
 	const struct ieee80211_frame *wh,
 	const char *fmt, ...)
 {
@@ -776,7 +821,7 @@ ieee80211_note_frame(struct ieee80211vap *vap,
 }
 
 void
-ieee80211_note_mac(struct ieee80211vap *vap,
+ieee80211_note_mac(const struct ieee80211vap *vap,
 	const uint8_t mac[IEEE80211_ADDR_LEN],
 	const char *fmt, ...)
 {
@@ -790,7 +835,7 @@ ieee80211_note_mac(struct ieee80211vap *vap,
 }
 
 void
-ieee80211_discard_frame(struct ieee80211vap *vap,
+ieee80211_discard_frame(const struct ieee80211vap *vap,
 	const struct ieee80211_frame *wh,
 	const char *type, const char *fmt, ...)
 {
@@ -811,7 +856,7 @@ ieee80211_discard_frame(struct ieee80211vap *vap,
 }
 
 void
-ieee80211_discard_ie(struct ieee80211vap *vap,
+ieee80211_discard_ie(const struct ieee80211vap *vap,
 	const struct ieee80211_frame *wh,
 	const char *type, const char *fmt, ...)
 {
@@ -830,7 +875,7 @@ ieee80211_discard_ie(struct ieee80211vap *vap,
 }
 
 void
-ieee80211_discard_mac(struct ieee80211vap *vap,
+ieee80211_discard_mac(const struct ieee80211vap *vap,
 	const uint8_t mac[IEEE80211_ADDR_LEN],
 	const char *type, const char *fmt, ...)
 {

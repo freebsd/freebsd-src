@@ -5,114 +5,42 @@
  *
  *****************************************************************************/
 
-/******************************************************************************
- *
- * 1. Copyright Notice
- *
- * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
+/*
+ * Copyright (C) 2000 - 2011, Intel Corp.
  * All rights reserved.
  *
- * 2. License
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions, and the following disclaimer,
+ *    without modification.
+ * 2. Redistributions in binary form must reproduce at minimum a disclaimer
+ *    substantially similar to the "NO WARRANTY" disclaimer below
+ *    ("Disclaimer") and any redistribution must be conditioned upon
+ *    including a substantially similar Disclaimer requirement for further
+ *    binary redistribution.
+ * 3. Neither the names of the above-listed copyright holders nor the names
+ *    of any contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
  *
- * 2.1. This is your license from Intel Corp. under its intellectual property
- * rights.  You may have additional license terms from the party that provided
- * you this software, covering your right to use that party's intellectual
- * property rights.
+ * Alternatively, this software may be distributed under the terms of the
+ * GNU General Public License ("GPL") version 2 as published by the Free
+ * Software Foundation.
  *
- * 2.2. Intel grants, free of charge, to any person ("Licensee") obtaining a
- * copy of the source code appearing in this file ("Covered Code") an
- * irrevocable, perpetual, worldwide license under Intel's copyrights in the
- * base code distributed originally by Intel ("Original Intel Code") to copy,
- * make derivatives, distribute, use and display any portion of the Covered
- * Code in any form, with the right to sublicense such rights; and
- *
- * 2.3. Intel grants Licensee a non-exclusive and non-transferable patent
- * license (with the right to sublicense), under only those claims of Intel
- * patents that are infringed by the Original Intel Code, to make, use, sell,
- * offer to sell, and import the Covered Code and derivative works thereof
- * solely to the minimum extent necessary to exercise the above copyright
- * license, and in no event shall the patent license extend to any additions
- * to or modifications of the Original Intel Code.  No other license or right
- * is granted directly or by implication, estoppel or otherwise;
- *
- * The above copyright and patent license is granted only if the following
- * conditions are met:
- *
- * 3. Conditions
- *
- * 3.1. Redistribution of Source with Rights to Further Distribute Source.
- * Redistribution of source code of any substantial portion of the Covered
- * Code or modification with rights to further distribute source must include
- * the above Copyright Notice, the above License, this list of Conditions,
- * and the following Disclaimer and Export Compliance provision.  In addition,
- * Licensee must cause all Covered Code to which Licensee contributes to
- * contain a file documenting the changes Licensee made to create that Covered
- * Code and the date of any change.  Licensee must include in that file the
- * documentation of any changes made by any predecessor Licensee.  Licensee
- * must include a prominent statement that the modification is derived,
- * directly or indirectly, from Original Intel Code.
- *
- * 3.2. Redistribution of Source with no Rights to Further Distribute Source.
- * Redistribution of source code of any substantial portion of the Covered
- * Code or modification without rights to further distribute source must
- * include the following Disclaimer and Export Compliance provision in the
- * documentation and/or other materials provided with distribution.  In
- * addition, Licensee may not authorize further sublicense of source of any
- * portion of the Covered Code, and must include terms to the effect that the
- * license from Licensee to its licensee is limited to the intellectual
- * property embodied in the software Licensee provides to its licensee, and
- * not to intellectual property embodied in modifications its licensee may
- * make.
- *
- * 3.3. Redistribution of Executable. Redistribution in executable form of any
- * substantial portion of the Covered Code or modification must reproduce the
- * above Copyright Notice, and the following Disclaimer and Export Compliance
- * provision in the documentation and/or other materials provided with the
- * distribution.
- *
- * 3.4. Intel retains all right, title, and interest in and to the Original
- * Intel Code.
- *
- * 3.5. Neither the name Intel nor any other trademark owned or controlled by
- * Intel shall be used in advertising or otherwise to promote the sale, use or
- * other dealings in products derived from or relating to the Covered Code
- * without prior written authorization from Intel.
- *
- * 4. Disclaimer and Export Compliance
- *
- * 4.1. INTEL MAKES NO WARRANTY OF ANY KIND REGARDING ANY SOFTWARE PROVIDED
- * HERE.  ANY SOFTWARE ORIGINATING FROM INTEL OR DERIVED FROM INTEL SOFTWARE
- * IS PROVIDED "AS IS," AND INTEL WILL NOT PROVIDE ANY SUPPORT,  ASSISTANCE,
- * INSTALLATION, TRAINING OR OTHER SERVICES.  INTEL WILL NOT PROVIDE ANY
- * UPDATES, ENHANCEMENTS OR EXTENSIONS.  INTEL SPECIFICALLY DISCLAIMS ANY
- * IMPLIED WARRANTIES OF MERCHANTABILITY, NONINFRINGEMENT AND FITNESS FOR A
- * PARTICULAR PURPOSE.
- *
- * 4.2. IN NO EVENT SHALL INTEL HAVE ANY LIABILITY TO LICENSEE, ITS LICENSEES
- * OR ANY OTHER THIRD PARTY, FOR ANY LOST PROFITS, LOST DATA, LOSS OF USE OR
- * COSTS OF PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, OR FOR ANY INDIRECT,
- * SPECIAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THIS AGREEMENT, UNDER ANY
- * CAUSE OF ACTION OR THEORY OF LIABILITY, AND IRRESPECTIVE OF WHETHER INTEL
- * HAS ADVANCE NOTICE OF THE POSSIBILITY OF SUCH DAMAGES.  THESE LIMITATIONS
- * SHALL APPLY NOTWITHSTANDING THE FAILURE OF THE ESSENTIAL PURPOSE OF ANY
- * LIMITED REMEDY.
- *
- * 4.3. Licensee shall not export, either directly or indirectly, any of this
- * software or system incorporating such software without first obtaining any
- * required license or other approval from the U. S. Department of Commerce or
- * any other agency or department of the United States Government.  In the
- * event Licensee exports any such software from the United States or
- * re-exports any such software from a foreign destination, Licensee shall
- * ensure that the distribution and export/re-export of the software is in
- * compliance with all laws, regulations, orders, or other restrictions of the
- * U.S. Export Administration Regulations. Licensee agrees that neither it nor
- * any of its subsidiaries will export/re-export any technical data, process,
- * software, or service, directly or indirectly, to any country for which the
- * United States government or any agency thereof requires an export license,
- * other governmental approval, or letter of assurance, without first obtaining
- * such license, approval or letter.
- *
- *****************************************************************************/
+ * NO WARRANTY
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+ * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+ * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGES.
+ */
 
 #define __TBXFACE_C__
 
@@ -150,7 +78,7 @@ AcpiAllocateRootTable (
     UINT32                  InitialTableCount)
 {
 
-    AcpiGbl_RootTableList.Size = InitialTableCount;
+    AcpiGbl_RootTableList.MaxTableCount = InitialTableCount;
     AcpiGbl_RootTableList.Flags = ACPI_ROOT_ALLOW_RESIZE;
 
     return (AcpiTbResizeRootTableList ());
@@ -216,7 +144,7 @@ AcpiInitializeTables (
             (ACPI_SIZE) InitialTableCount * sizeof (ACPI_TABLE_DESC));
 
         AcpiGbl_RootTableList.Tables = InitialTableArray;
-        AcpiGbl_RootTableList.Size = InitialTableCount;
+        AcpiGbl_RootTableList.MaxTableCount = InitialTableCount;
         AcpiGbl_RootTableList.Flags = ACPI_ROOT_ORIGIN_UNKNOWN;
         if (AllowResize)
         {
@@ -265,6 +193,7 @@ AcpiReallocateRootTable (
 {
     ACPI_TABLE_DESC         *Tables;
     ACPI_SIZE               NewSize;
+    ACPI_SIZE               CurrentSize;
 
 
     ACPI_FUNCTION_TRACE (AcpiReallocateRootTable);
@@ -279,9 +208,15 @@ AcpiReallocateRootTable (
         return_ACPI_STATUS (AE_SUPPORT);
     }
 
-    NewSize = ((ACPI_SIZE) AcpiGbl_RootTableList.Count +
-                    ACPI_ROOT_TABLE_SIZE_INCREMENT) *
-                sizeof (ACPI_TABLE_DESC);
+    /*
+     * Get the current size of the root table and add the default
+     * increment to create the new table size.
+     */
+    CurrentSize = (ACPI_SIZE)
+        AcpiGbl_RootTableList.CurrentTableCount * sizeof (ACPI_TABLE_DESC);
+
+    NewSize = CurrentSize +
+        (ACPI_ROOT_TABLE_SIZE_INCREMENT * sizeof (ACPI_TABLE_DESC));
 
     /* Create new array and copy the old array */
 
@@ -291,10 +226,16 @@ AcpiReallocateRootTable (
         return_ACPI_STATUS (AE_NO_MEMORY);
     }
 
-    ACPI_MEMCPY (Tables, AcpiGbl_RootTableList.Tables, NewSize);
+    ACPI_MEMCPY (Tables, AcpiGbl_RootTableList.Tables, CurrentSize);
 
-    AcpiGbl_RootTableList.Size = AcpiGbl_RootTableList.Count;
+    /*
+     * Update the root table descriptor. The new size will be the current
+     * number of tables plus the increment, independent of the reserved
+     * size of the original table list.
+     */
     AcpiGbl_RootTableList.Tables = Tables;
+    AcpiGbl_RootTableList.MaxTableCount =
+        AcpiGbl_RootTableList.CurrentTableCount + ACPI_ROOT_TABLE_SIZE_INCREMENT;
     AcpiGbl_RootTableList.Flags =
         ACPI_ROOT_ORIGIN_ALLOCATED | ACPI_ROOT_ALLOW_RESIZE;
 
@@ -341,7 +282,7 @@ AcpiGetTableHeader (
 
     /* Walk the root table list */
 
-    for (i = 0, j = 0; i < AcpiGbl_RootTableList.Count; i++)
+    for (i = 0, j = 0; i < AcpiGbl_RootTableList.CurrentTableCount; i++)
     {
         if (!ACPI_COMPARE_NAME (&(AcpiGbl_RootTableList.Tables[i].Signature),
                     Signature))
@@ -426,7 +367,7 @@ AcpiGetTable (
 
     /* Walk the root table list */
 
-    for (i = 0, j = 0; i < AcpiGbl_RootTableList.Count; i++)
+    for (i = 0, j = 0; i < AcpiGbl_RootTableList.CurrentTableCount; i++)
     {
         if (!ACPI_COMPARE_NAME (&(AcpiGbl_RootTableList.Tables[i].Signature),
                 Signature))
@@ -489,7 +430,7 @@ AcpiGetTableByIndex (
 
     /* Validate index */
 
-    if (TableIndex >= AcpiGbl_RootTableList.Count)
+    if (TableIndex >= AcpiGbl_RootTableList.CurrentTableCount)
     {
         (void) AcpiUtReleaseMutex (ACPI_MTX_TABLES);
         return_ACPI_STATUS (AE_BAD_PARAMETER);
@@ -534,6 +475,7 @@ AcpiTbLoadNamespace (
 {
     ACPI_STATUS             Status;
     UINT32                  i;
+    ACPI_TABLE_HEADER       *NewDsdt;
 
 
     ACPI_FUNCTION_TRACE (TbLoadNamespace);
@@ -542,29 +484,49 @@ AcpiTbLoadNamespace (
     (void) AcpiUtAcquireMutex (ACPI_MTX_TABLES);
 
     /*
-     * Load the namespace. The DSDT is required, but any SSDT and PSDT tables
-     * are optional.
+     * Load the namespace. The DSDT is required, but any SSDT and
+     * PSDT tables are optional. Verify the DSDT.
      */
-    if (!AcpiGbl_RootTableList.Count ||
+    if (!AcpiGbl_RootTableList.CurrentTableCount ||
         !ACPI_COMPARE_NAME (
             &(AcpiGbl_RootTableList.Tables[ACPI_TABLE_INDEX_DSDT].Signature),
             ACPI_SIG_DSDT) ||
-        ACPI_FAILURE (AcpiTbVerifyTable (
+         ACPI_FAILURE (AcpiTbVerifyTable (
             &AcpiGbl_RootTableList.Tables[ACPI_TABLE_INDEX_DSDT])))
     {
         Status = AE_NO_ACPI_TABLES;
         goto UnlockAndExit;
     }
 
-    /* A valid DSDT is required */
+    /*
+     * Save the DSDT pointer for simple access. This is the mapped memory
+     * address. We must take care here because the address of the .Tables
+     * array can change dynamically as tables are loaded at run-time. Note:
+     * .Pointer field is not validated until after call to AcpiTbVerifyTable.
+     */
+    AcpiGbl_DSDT = AcpiGbl_RootTableList.Tables[ACPI_TABLE_INDEX_DSDT].Pointer;
 
-    Status = AcpiTbVerifyTable (
-        &AcpiGbl_RootTableList.Tables[ACPI_TABLE_INDEX_DSDT]);
-    if (ACPI_FAILURE (Status))
+    /*
+     * Optionally copy the entire DSDT to local memory (instead of simply
+     * mapping it.) There are some BIOSs that corrupt or replace the original
+     * DSDT, creating the need for this option. Default is FALSE, do not copy
+     * the DSDT.
+     */
+    if (AcpiGbl_CopyDsdtLocally)
     {
-        Status = AE_NO_ACPI_TABLES;
-        goto UnlockAndExit;
+        NewDsdt = AcpiTbCopyDsdt (ACPI_TABLE_INDEX_DSDT);
+        if (NewDsdt)
+        {
+            AcpiGbl_DSDT = NewDsdt;
+        }
     }
+
+    /*
+     * Save the original DSDT header for detection of table corruption
+     * and/or replacement of the DSDT from outside the OS.
+     */
+    ACPI_MEMCPY (&AcpiGbl_OriginalDsdtHeader, AcpiGbl_DSDT,
+        sizeof (ACPI_TABLE_HEADER));
 
     (void) AcpiUtReleaseMutex (ACPI_MTX_TABLES);
 
@@ -579,7 +541,7 @@ AcpiTbLoadNamespace (
     /* Load any SSDT or PSDT tables. Note: Loop leaves tables locked */
 
     (void) AcpiUtAcquireMutex (ACPI_MTX_TABLES);
-    for (i = 2; i < AcpiGbl_RootTableList.Count; ++i)
+    for (i = 2; i < AcpiGbl_RootTableList.CurrentTableCount; ++i)
     {
         if ((!ACPI_COMPARE_NAME (&(AcpiGbl_RootTableList.Tables[i].Signature),
                     ACPI_SIG_SSDT) &&

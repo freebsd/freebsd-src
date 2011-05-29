@@ -319,8 +319,11 @@ ipcp_WriteDNS(struct ipcp *ipcp)
                  strerror(errno));
       return 0;
     }
-  } else
+  } else {
     umask(mask);
+    log_Printf(LogERROR,"fopen(\"%s\", \"w\") failed: %s\n", _PATH_RESCONF,
+                 strerror(errno));
+  }
 
   return 1;
 }

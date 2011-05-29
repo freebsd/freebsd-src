@@ -40,10 +40,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -153,7 +149,7 @@ int
 main(int argc, char *argv[])
 {
 	static char	*cleanenv;
-	struct passwd	*pwd;
+	struct passwd	*pwd = NULL;
 	struct pam_conv	conv = { openpam_ttyconv, NULL };
 	enum tristate	iscsh;
 	login_cap_t	*lc;
@@ -259,8 +255,9 @@ main(int argc, char *argv[])
 	/* get current login name, real uid and shell */
 	ruid = getuid();
 	username = getlogin();
-	pwd = getpwnam(username);
-	if (username == NULL || pwd == NULL || pwd->pw_uid != ruid)
+	if (username != NULL)
+		pwd = getpwnam(username);
+	if (pwd == NULL || pwd->pw_uid != ruid)
 		pwd = getpwuid(ruid);
 	if (pwd == NULL) {
 #ifdef USE_BSM_AUDIT

@@ -156,15 +156,13 @@ ngt_constructor(node_p node)
 	sc_p sc;
 
 	/* Allocate private structure */
-	sc = malloc(sizeof(*sc), M_NETGRAPH, M_NOWAIT | M_ZERO);
-	if (sc == NULL)
-		return (ENOMEM);
+	sc = malloc(sizeof(*sc), M_NETGRAPH, M_WAITOK | M_ZERO);
 
 	NG_NODE_SET_PRIVATE(node, sc);
 	sc->node = node;
 
 	mtx_init(&sc->outq.ifq_mtx, "ng_tty node+queue", NULL, MTX_DEF);
-	IFQ_SET_MAXLEN(&sc->outq, IFQ_MAXLEN);
+	IFQ_SET_MAXLEN(&sc->outq, ifqmaxlen);
 
 	return (0);
 }
@@ -211,7 +209,7 @@ ngt_disconnect(hook_p hook)
 	const sc_p sc = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 
 	if (hook != sc->hook)
-		panic(__func__);
+		panic("%s", __func__);
 
 	NGTLOCK(sc);
 	sc->hook = NULL;
@@ -317,7 +315,7 @@ ngt_rcvdata(hook_p hook, item_p item)
 	struct mbuf *m;
 
 	if (hook != sc->hook)
-		panic(__func__);
+		panic("%s", __func__);
 
 	NGI_GET_M(item, m);
 	NG_FREE_ITEM(item);

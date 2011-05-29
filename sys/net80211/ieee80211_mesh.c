@@ -82,6 +82,7 @@ static void	mesh_forward(struct ieee80211vap *, struct mbuf *,
 static int	mesh_input(struct ieee80211_node *, struct mbuf *, int, int);
 static void	mesh_recv_mgmt(struct ieee80211_node *, struct mbuf *, int,
 		    int, int);
+static void	mesh_recv_ctl(struct ieee80211_node *, struct mbuf *, int);
 static void	mesh_peer_timeout_setup(struct ieee80211_node *);
 static void	mesh_peer_timeout_backoff(struct ieee80211_node *);
 static void	mesh_peer_timeout_cb(void *);
@@ -520,6 +521,7 @@ mesh_vattach(struct ieee80211vap *vap)
 	vap->iv_input = mesh_input;
 	vap->iv_opdetach = mesh_vdetach;
 	vap->iv_recv_mgmt = mesh_recv_mgmt;
+	vap->iv_recv_ctl = mesh_recv_ctl;
 	ms = malloc(sizeof(struct ieee80211_mesh_state), M_80211_VAP,
 	    M_NOWAIT | M_ZERO);
 	if (ms == NULL) {
@@ -1038,7 +1040,6 @@ mesh_isucastforme(struct ieee80211vap *vap, const struct ieee80211_frame *wh,
 static int
 mesh_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 {
-#define	SEQ_LEQ(a,b)	((int)((a)-(b)) <= 0)
 #define	HAS_SEQ(type)	((type & 0x4) == 0)
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;
@@ -1092,9 +1093,7 @@ mesh_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 			    TID_TO_WME_AC(tid) >= WME_AC_VI)
 				ic->ic_wme.wme_hipri_traffic++;
 			rxseq = le16toh(*(uint16_t *)wh->i_seq);
-			if ((ni->ni_flags & IEEE80211_NODE_HT) == 0 &&
-			    (wh->i_fc[1] & IEEE80211_FC1_RETRY) &&
-			    SEQ_LEQ(rxseq, ni->ni_rxseqs[tid])) {
+			if (! ieee80211_check_rxseq(ni, wh)) {
 				/* duplicate, discard */
 				IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_INPUT,
 				    wh->i_addr1, "duplicate",
@@ -1461,7 +1460,7 @@ mesh_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0, int subtype,
 				meshid = frm;
 				break;
 			}
-			frm += frm[2] + 2;
+			frm += frm[1] + 2;
 		}
 		IEEE80211_VERIFY_ELEMENT(ssid, IEEE80211_NWID_LEN, return);
 		IEEE80211_VERIFY_ELEMENT(rates, IEEE80211_RATE_MAXSIZE, return);
@@ -1487,50 +1486,57 @@ mesh_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0, int subtype,
 		ieee80211_send_proberesp(vap, wh->i_addr2, 0);
 		break;
 	}
+
 	case IEEE80211_FC0_SUBTYPE_ACTION:
-		if (vap->iv_state != IEEE80211_S_RUN) {
-			vap->iv_stats.is_rx_mgtdiscard++;
-			break;
-		}
-		/*
-		 * We received an action for an unknown neighbor.
-		 * XXX: wait for it to beacon or create ieee80211_node?
-		 */
+	case IEEE80211_FC0_SUBTYPE_ACTION_NOACK:
 		if (ni == vap->iv_bss) {
-			IEEE80211_DISCARD(vap, IEEE80211_MSG_MESH,
+			IEEE80211_DISCARD(vap, IEEE80211_MSG_INPUT,
 			    wh, NULL, "%s", "unknown node");
 			vap->iv_stats.is_rx_mgtdiscard++;
-			break;
-		}
-		/*
-		 * Discard if not for us.
-		 */
-		if (!IEEE80211_ADDR_EQ(vap->iv_myaddr, wh->i_addr1) &&
+		} else if (!IEEE80211_ADDR_EQ(vap->iv_myaddr, wh->i_addr1) &&
 		    !IEEE80211_IS_MULTICAST(wh->i_addr1)) {
-			IEEE80211_DISCARD(vap, IEEE80211_MSG_MESH,
-			    wh, NULL, "%s", "not for me");
+			IEEE80211_DISCARD(vap, IEEE80211_MSG_INPUT,
+			    wh, NULL, "%s", "not for us");
 			vap->iv_stats.is_rx_mgtdiscard++;
-			break;
+		} else if (vap->iv_state != IEEE80211_S_RUN) {
+			IEEE80211_DISCARD(vap, IEEE80211_MSG_INPUT,
+			    wh, NULL, "wrong state %s",
+			    ieee80211_state_name[vap->iv_state]);
+			vap->iv_stats.is_rx_mgtdiscard++;
+		} else {
+			if (ieee80211_parse_action(ni, m0) == 0)
+				(void)ic->ic_recv_action(ni, wh, frm, efrm);
 		}
-		/* XXX parse_action is a bit useless now */
-		if (ieee80211_parse_action(ni, m0) == 0)
-			ic->ic_recv_action(ni, wh, frm, efrm);
 		break;
-	case IEEE80211_FC0_SUBTYPE_AUTH:
+
 	case IEEE80211_FC0_SUBTYPE_ASSOC_REQ:
-	case IEEE80211_FC0_SUBTYPE_REASSOC_REQ:
 	case IEEE80211_FC0_SUBTYPE_ASSOC_RESP:
+	case IEEE80211_FC0_SUBTYPE_REASSOC_REQ:
 	case IEEE80211_FC0_SUBTYPE_REASSOC_RESP:
-	case IEEE80211_FC0_SUBTYPE_DEAUTH:
+	case IEEE80211_FC0_SUBTYPE_ATIM:
 	case IEEE80211_FC0_SUBTYPE_DISASSOC:
+	case IEEE80211_FC0_SUBTYPE_AUTH:
+	case IEEE80211_FC0_SUBTYPE_DEAUTH:
 		IEEE80211_DISCARD(vap, IEEE80211_MSG_INPUT,
 		    wh, NULL, "%s", "not handled");
 		vap->iv_stats.is_rx_mgtdiscard++;
-		return;
+		break;
+
 	default:
 		IEEE80211_DISCARD(vap, IEEE80211_MSG_ANY,
 		    wh, "mgt", "subtype 0x%x not handled", subtype);
 		vap->iv_stats.is_rx_badsubtype++;
+		break;
+	}
+}
+
+static void
+mesh_recv_ctl(struct ieee80211_node *ni, struct mbuf *m, int subtype)
+{
+
+	switch (subtype) {
+	case IEEE80211_FC0_SUBTYPE_BAR:
+		ieee80211_recv_bar(ni, m);
 		break;
 	}
 }

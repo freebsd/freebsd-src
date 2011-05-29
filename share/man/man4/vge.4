@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 18, 2009
+.Dd November 23, 2010
 .Dt VGE 4
 .Os
 .Sh NAME
@@ -135,27 +135,6 @@ driver supports the following media options:
 Force full duplex operation.
 .It Cm half-duplex
 Force half duplex operation.
-.El
-.Pp
-The
-.Nm
-driver also supports one special link option for 1000baseTX cards:
-.Bl -tag -width ".Cm link0"
-.It Cm link0
-With 1000baseTX cards, establishing a link between two ports requires
-that one port be configured as a master and the other a slave.
-With autonegotiation,
-the master/slave settings will be chosen automatically.
-However when manually selecting the link state, it is necessary to
-force one side of the link to be a master and the other a slave.
-The
-.Nm
-driver configures the ports as slaves by default.
-Setting the
-.Cm link0
-flag with
-.Xr ifconfig 8
-will set a port as a master instead.
 .El
 .Pp
 For more information on configuring this device, see

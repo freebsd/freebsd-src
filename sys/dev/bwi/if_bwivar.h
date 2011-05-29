@@ -533,15 +533,8 @@ struct bwi_rx_radiotap_hdr {
 	/* TODO: sq */
 };
 
-struct bwi_node {
-	struct ieee80211_node		ni;	/* must be the first */
-	struct ieee80211_amrr_node	amn;
-};
-#define	BWI_NODE(ni)	((struct bwi_node *)(ni))
-
 struct bwi_vap {
 	struct ieee80211vap	bv_vap;
-	struct ieee80211_amrr	bv_amrr;
 	int			(*bv_newstate)(struct ieee80211vap *,
 				    enum ieee80211_state, int);
 };

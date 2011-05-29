@@ -1,5 +1,7 @@
 /*-
  * Copyright (c) 2001-2007, by Cisco Systems, Inc. All rights reserved.
+ * Copyright (c) 2008-2011, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2011, by Michael Tuexen. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -64,9 +66,6 @@ sctp_shutdown_timer(struct sctp_inpcb *, struct sctp_tcb *,
 int
 sctp_heartbeat_timer(struct sctp_inpcb *, struct sctp_tcb *,
     struct sctp_nets *, int);
-
-int sctp_is_hb_timer_running(struct sctp_tcb *stcb);
-int sctp_is_sack_timer_running(struct sctp_tcb *stcb);
 
 int
 sctp_cookie_timer(struct sctp_inpcb *, struct sctp_tcb *,

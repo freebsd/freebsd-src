@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -63,19 +59,18 @@ static const char sccsid[] = "@(#)script.c	8.1 (Berkeley) 6/6/93";
 #include <termios.h>
 #include <unistd.h>
 
-FILE	*fscript;
-int	master, slave;
-int	child;
-const char *fname;
-int	qflg, ttyflg;
+static FILE *fscript;
+static int master, slave;
+static int child;
+static const char *fname;
+static int qflg, ttyflg;
 
-struct	termios tt;
+static struct termios tt;
 
-void	done(int) __dead2;
-void	dooutput(void);
-void	doshell(char **);
-void	fail(void);
-void	finish(void);
+static void done(int) __dead2;
+static void doshell(char **);
+static void fail(void);
+static void finish(void);
 static void usage(void);
 
 int
@@ -158,6 +153,7 @@ main(int argc, char *argv[])
 	}
 	if (child == 0)
 		doshell(argv);
+	close(slave);
 
 	if (flushtime > 0)
 		tvp = &tv;
@@ -215,40 +211,41 @@ usage(void)
 	exit(1);
 }
 
-void
+static void
 finish(void)
 {
-	pid_t pid;
-	int die, e, status;
+	int e, status;
 
-	die = e = 0;
-	while ((pid = wait3(&status, WNOHANG, 0)) > 0)
-	        if (pid == child) {
-			die = 1;
-			if (WIFEXITED(status))
-				e = WEXITSTATUS(status);
-			else if (WIFSIGNALED(status))
-				e = WTERMSIG(status);
-			else /* can't happen */
-				e = 1;
-		}
-
-	if (die)
+	if (waitpid(child, &status, 0) == child) {
+		if (WIFEXITED(status))
+			e = WEXITSTATUS(status);
+		else if (WIFSIGNALED(status))
+			e = WTERMSIG(status);
+		else /* can't happen */
+			e = 1;
 		done(e);
+	}
 }
 
-void
+static void
 doshell(char **av)
 {
 	const char *shell;
+	int k;
 
 	shell = getenv("SHELL");
 	if (shell == NULL)
 		shell = _PATH_BSHELL;
 
+	if (av[0])
+		for (k = 0 ; av[k] ; ++k)
+			fprintf(fscript, "%s%s", k ? " " : "", av[k]);
+		fprintf(fscript, "\r\n");
+
 	(void)close(master);
 	(void)fclose(fscript);
 	login_tty(slave);
+	setenv("SCRIPT", fname, 1);
 	if (av[0]) {
 		execvp(av[0], av);
 		warn("%s", av[0]);
@@ -259,14 +256,14 @@ doshell(char **av)
 	fail();
 }
 
-void
+static void
 fail(void)
 {
 	(void)kill(0, SIGTERM);
 	done(1);
 }
 
-void
+static void
 done(int eno)
 {
 	time_t tvec;

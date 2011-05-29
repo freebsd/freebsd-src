@@ -54,7 +54,7 @@ cleanvar_prestart()
 	rm -f /var/run/clean_var /var/spool/lock/clean_var
 }
 
-cleanvar_start () 
+cleanvar_start ()
 {
 	if [ -d /var/run -a ! -f /var/run/clean_var ]; then
 		purgedir /var/run

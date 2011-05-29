@@ -251,7 +251,6 @@ Takes a descriptor as the identifier, and returns whenever
 there is data available to read.
 The behavior of the filter is slightly different depending
 on the descriptor type.
-.Pp
 .Bl -tag -width 2n
 .It Sockets
 Sockets which have previously been passed to
@@ -445,7 +444,7 @@ contains the events which triggered the filter.
 .It Dv EVFILT_USER
 Establishes a user event identified by
 .Va ident
-which is not assosicated with any kernel mechanism but is triggered by
+which is not associated with any kernel mechanism but is triggered by
 user level code.
 The lower 24 bits of the 
 .Va fflags

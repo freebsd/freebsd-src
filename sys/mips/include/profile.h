@@ -84,17 +84,17 @@
 #ifdef SMP
 extern int	mcount_lock;
 #define	MCOUNT_ENTER(s)	{					\
-	s = disable_intr();					\
+	s = intr_disable();					\
 	while (!atomic_cmpset_acq_int(&mcount_lock, 0, 1))	\
 		/* nothing */ ;					\
 }
 #define	MCOUNT_EXIT(s)	{					\
 	atomic_store_rel_int(&mcount_lock, 0);			\
-	enableintr(s);						\
+	intr_restore(s);						\
 }
 #else
-#define	MCOUNT_ENTER(s)	{ s = disable_intr(); }
-#define	MCOUNT_EXIT(s)	(enableintr(s))
+#define	MCOUNT_ENTER(s)	{ s = intr_disable(); }
+#define	MCOUNT_EXIT(s)	(intr_restore(s))
 #endif
 
 /* REVISIT for mips */
@@ -115,7 +115,11 @@ void	stopguprof __P((struct gmonparam *p));
 
 #define	FUNCTION_ALIGNMENT	4
 
-typedef unsigned int	uintfptr_t;
+#ifdef __mips_n64
+typedef u_long	uintfptr_t;
+#else
+typedef u_int	uintfptr_t;
+#endif
 
 #endif /* _KERNEL */
 
@@ -123,7 +127,11 @@ typedef unsigned int	uintfptr_t;
  * An unsigned integral type that can hold non-negative difference between
  * function pointers.
  */
+#ifdef __mips_n64
+typedef u_long	fptrdiff_t;
+#else
 typedef u_int	fptrdiff_t;
+#endif
 
 #ifdef _KERNEL
 

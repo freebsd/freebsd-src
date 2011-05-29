@@ -71,7 +71,6 @@ static u_int	acpi_timer_get_timecount_safe(struct timecounter *tc);
 static int	acpi_timer_sysctl_freq(SYSCTL_HANDLER_ARGS);
 static void	acpi_timer_boot_test(void);
 
-static u_int	acpi_timer_read(void);
 static int	acpi_timer_test(void);
 
 static device_method_t acpi_timer_methods[] = {
@@ -101,9 +100,10 @@ static struct timecounter acpi_timer_timecounter = {
 	-1				/* quality (chosen later) */
 };
 
-static u_int
-acpi_timer_read()
+static __inline uint32_t
+acpi_timer_read(void)
 {
+
     return (bus_space_read_4(acpi_timer_bst, acpi_timer_bsh, 0));
 }
 
@@ -130,9 +130,17 @@ acpi_timer_identify(driver_t *driver, device_t parent)
     }
     acpi_timer_dev = dev;
 
+    switch (AcpiGbl_FADT.XPmTimerBlock.SpaceId) {
+    case ACPI_ADR_SPACE_SYSTEM_MEMORY:
+	rtype = SYS_RES_MEMORY;
+	break;
+    case ACPI_ADR_SPACE_SYSTEM_IO:
+	rtype = SYS_RES_IOPORT;
+	break;
+    default:
+	return_VOID;
+    }
     rid = 0;
-    rtype = AcpiGbl_FADT.XPmTimerBlock.SpaceId ?
-	SYS_RES_IOPORT : SYS_RES_MEMORY;
     rlen = AcpiGbl_FADT.PmTimerLength;
     rstart = AcpiGbl_FADT.XPmTimerBlock.Address;
     if (bus_set_resource(dev, rtype, rid, rstart, rlen))
@@ -152,9 +160,17 @@ acpi_timer_probe(device_t dev)
     if (dev != acpi_timer_dev)
 	return (ENXIO);
 
+    switch (AcpiGbl_FADT.XPmTimerBlock.SpaceId) {
+    case ACPI_ADR_SPACE_SYSTEM_MEMORY:
+	rtype = SYS_RES_MEMORY;
+	break;
+    case ACPI_ADR_SPACE_SYSTEM_IO:
+	rtype = SYS_RES_IOPORT;
+	break;
+    default:
+	return (ENXIO);
+    }
     rid = 0;
-    rtype = AcpiGbl_FADT.XPmTimerBlock.SpaceId ?
-	SYS_RES_IOPORT : SYS_RES_MEMORY;
     acpi_timer_reg = bus_alloc_resource_any(dev, rtype, &rid, RF_ACTIVE);
     if (acpi_timer_reg == NULL) {
 	device_printf(dev, "couldn't allocate resource (%s 0x%lx)\n",
@@ -187,7 +203,7 @@ acpi_timer_probe(device_t dev)
     if (j == 10) {
 	acpi_timer_timecounter.tc_name = "ACPI-fast";
 	acpi_timer_timecounter.tc_get_timecount = acpi_timer_get_timecount;
-	acpi_timer_timecounter.tc_quality = 1000;
+	acpi_timer_timecounter.tc_quality = 900;
     } else {
 	acpi_timer_timecounter.tc_name = "ACPI-safe";
 	acpi_timer_timecounter.tc_get_timecount = acpi_timer_get_timecount_safe;
@@ -195,8 +211,9 @@ acpi_timer_probe(device_t dev)
     }
     tc_init(&acpi_timer_timecounter);
 
-    sprintf(desc, "%d-bit timer at 3.579545MHz",
-	(AcpiGbl_FADT.Flags & ACPI_FADT_32BIT_TIMER) ? 32 : 24);
+    sprintf(desc, "%d-bit timer at %u.%06uMHz",
+	(AcpiGbl_FADT.Flags & ACPI_FADT_32BIT_TIMER) != 0 ? 32 : 24,
+	acpi_timer_frequency / 1000000, acpi_timer_frequency % 1000000);
     device_set_desc_copy(dev, desc);
 
     /* Release the resource, we'll allocate it again during attach. */
@@ -211,9 +228,17 @@ acpi_timer_attach(device_t dev)
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
+    switch (AcpiGbl_FADT.XPmTimerBlock.SpaceId) {
+    case ACPI_ADR_SPACE_SYSTEM_MEMORY:
+	rtype = SYS_RES_MEMORY;
+	break;
+    case ACPI_ADR_SPACE_SYSTEM_IO:
+	rtype = SYS_RES_IOPORT;
+	break;
+    default:
+	return (ENXIO);
+    }
     rid = 0;
-    rtype = AcpiGbl_FADT.XPmTimerBlock.SpaceId ?
-	SYS_RES_IOPORT : SYS_RES_MEMORY;
     acpi_timer_reg = bus_alloc_resource_any(dev, rtype, &rid, RF_ACTIVE);
     if (acpi_timer_reg == NULL)
 	return (ENXIO);
@@ -276,7 +301,7 @@ acpi_timer_sysctl_freq(SYSCTL_HANDLER_ARGS)
 }
  
 SYSCTL_PROC(_machdep, OID_AUTO, acpi_timer_freq, CTLTYPE_INT | CTLFLAG_RW,
-	    0, sizeof(u_int), acpi_timer_sysctl_freq, "I", "");
+    0, sizeof(u_int), acpi_timer_sysctl_freq, "I", "ACPI timer frequency");
 
 /*
  * Some ACPI timers are known or believed to suffer from implementation
@@ -306,12 +331,12 @@ SYSCTL_PROC(_machdep, OID_AUTO, acpi_timer_freq, CTLTYPE_INT | CTLFLAG_RW,
 static int
 acpi_timer_test()
 {
-    uint32_t	last, this;
-    int		min, max, n, delta;
-    register_t	s;
+    uint32_t last, this;
+    int delta, max, max2, min, n;
+    register_t s;
 
-    min = 10000000;
-    max = 0;
+    min = INT32_MAX;
+    max = max2 = 0;
 
     /* Test the timer with interrupts disabled to get accurate results. */
     s = intr_disable();
@@ -319,22 +344,26 @@ acpi_timer_test()
     for (n = 0; n < N; n++) {
 	this = acpi_timer_read();
 	delta = acpi_TimerDelta(this, last);
-	if (delta > max)
+	if (delta > max) {
+	    max2 = max;
 	    max = delta;
-	else if (delta < min)
+	} else if (delta > max2)
+	    max2 = delta;
+	if (delta < min)
 	    min = delta;
 	last = this;
     }
     intr_restore(s);
 
-    if (max - min > 2)
+    delta = max2 - min;
+    if ((max - min > 8 || delta > 3) && vm_guest == VM_GUEST_NO)
 	n = 0;
-    else if (min < 0 || max == 0)
+    else if (min < 0 || max == 0 || max2 == 0)
 	n = 0;
     else
 	n = 1;
     if (bootverbose)
-	printf(" %d/%d", n, max-min);
+	printf(" %d/%d", n, delta);
 
     return (n);
 }

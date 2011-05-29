@@ -18,6 +18,7 @@ SRCS=		dt_aggregate.c \
 		dt_grammar.y \
 		dt_handle.c \
 		dt_ident.c \
+		dt_isadep.c \
 		dt_inttab.c \
 		dt_lex.l \
 		dt_link.c \
@@ -41,7 +42,8 @@ SRCS=		dt_aggregate.c \
 		dt_subr.c \
 		dt_work.c \
 		dt_xlator.c \
-		gmatch.c
+		gmatch.c \
+		dis_tables.c
 
 DSRCS=		errno.d			\
 		psinfo.d		\
@@ -50,7 +52,8 @@ DSRCS=		errno.d			\
 
 WARNS?=		1
 
-CFLAGS+=	-I${.OBJDIR} \
+CFLAGS+=	-I${.OBJDIR} -I${.CURDIR} \
+		-I${.CURDIR}/../../../sys/cddl/dev/dtrace/${MACHINE_ARCH} \
 		-I${.CURDIR}/../../../sys/cddl/compat/opensolaris \
 		-I${.CURDIR}/../../../cddl/compat/opensolaris/include \
 		-I${OPENSOLARIS_USR_DISTDIR}/head \
@@ -60,13 +63,20 @@ CFLAGS+=	-I${.OBJDIR} \
 
 #CFLAGS+=	-DYYDEBUG
 
-.if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "amd64"
-CFLAGS+=	-I${OPENSOLARIS_SYS_DISTDIR}/uts/intel
-.elif ${MACHINE_ARCH} == "sparc64"
+.if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
+CFLAGS+=	-I${OPENSOLARIS_SYS_DISTDIR}/uts/intel -DDIS_MEM
+.PATH:		${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libdtrace/i386
+.PATH:		${.CURDIR}/../../../sys/cddl/dev/dtrace/${MACHINE_ARCH}
+.elif ${MACHINE_CPUARCH} == "sparc64"
 CFLAGS+=	-I${OPENSOLARIS_SYS_DISTDIR}/uts/sparc
+.PATH:		${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libdtrace/sparc
 .else
 # temporary hack
 CFLAGS+=	-I${OPENSOLARIS_SYS_DISTDIR}/uts/intel
+.endif
+
+.if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "amd64"
+DSRCS+=		regs_x86.d
 .endif
 
 LFLAGS+=-l

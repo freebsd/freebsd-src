@@ -1,0 +1,23 @@
+.\" -*- nroff -*-
+.\"
+.TH UMAD_GET_PKEY 3  "Jan 15, 2008" "OpenIB" "OpenIB Programmer\'s Manual"
+.SH "NAME"
+umad_get_pkey \- get pkey index from umad buffer
+.SH "SYNOPSIS"
+.nf
+.B #include <infiniband/umad.h>
+.sp
+.BI "int umad_get_pkey(void " "*umad");
+.fi
+.SH "DESCRIPTION"
+.B umad_get_pkey()
+gets the pkey index from the specified
+.I umad\fR
+buffer.
+.SH "RETURN VALUE"
+.B umad_get_pkey()
+returns value of pkey index (or zero if pkey index is not supported by
+user_mad interface).
+.SH "AUTHOR"
+.TP
+Sasha Khapyorsky <sashak@voltaire.com>

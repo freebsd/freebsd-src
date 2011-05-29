@@ -82,7 +82,10 @@
 #define	ASI_DCACHE_SNOOP_TAG			0x44	/* US-III Cu */
 
 /* Named ASI_DCUCR on US-III, but is mostly identical except for added bits. */
-#define	ASI_LSU_CTL_REG				0x45
+#define	ASI_LSU_CTL_REG				0x45	/* US only */
+
+#define	ASI_MCNTL				0x45	/* SPARC64 only */
+#define		AA_MCNTL			0x08
 
 #define	ASI_DCACHE_DATA				0x46
 #define	ASI_DCACHE_TAG				0x47
@@ -166,6 +169,8 @@
 #define	ASI_ICACHE_SNOOP_TAG			0x68	/* US-III family */
 #define	ASI_ICACHE_PRE_DECODE			0x6e	/* US-I, II */
 #define	ASI_ICACHE_PRE_NEXT_FIELD		0x6f	/* US-I, II */
+
+#define	ASI_FLUSH_L1I				0x67	/* SPARC64 only */
 
 #define	ASI_BLK_AUIP				0x70
 #define	ASI_BLK_AIUS				0x71

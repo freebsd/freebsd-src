@@ -133,7 +133,7 @@ static struct dsk {
     unsigned start;
 } dsk;
 static char cmd[512], cmddup[512];
-static char kname[1024];
+static const char *kname = NULL;
 static uint32_t opts;
 static int comspeed = SIOSPD;
 static struct bootinfo bootinfo;
@@ -146,12 +146,11 @@ static int xfsread(ino_t, void *, size_t);
 static int dskread(void *, unsigned, unsigned);
 static void printf(const char *,...);
 static void putchar(int);
-static uint32_t memsize(void);
 static int drvread(void *, unsigned);
 static int keyhit(unsigned);
 static int xputc(int);
 static int xgetc(int);
-static int getc(int);
+static inline int getc(int);
 
 static void memcpy(void *, const void *, int);
 static void
@@ -182,14 +181,6 @@ xfsread(ino_t inode, void *buf, size_t nbyte)
 	return -1;
     }
     return 0;
-}
-
-static inline uint32_t
-memsize(void)
-{
-    u_char *p = (u_char *)PTOV(0);
-
-    return *(p + 0x401) * 128 * 1024 + *(u_int16_t *)(p + 0x594) * 1024 * 1024;
 }
 
 static inline void
@@ -361,7 +352,7 @@ main(void)
 #ifdef GET_BIOSGEOM
     int i;
 #endif
-    int autoboot;
+    uint8_t autoboot;
     ino_t ino;
 
     dmadat = (void *)(roundup2(__base + (int32_t)&_end, 0x10000) - __base);
@@ -383,9 +374,6 @@ main(void)
 #endif
     bootinfo.bi_version = BOOTINFO_VERSION;
     bootinfo.bi_size = sizeof(bootinfo);
-    bootinfo.bi_basemem = 0;	/* XXX will be filled by loader or kernel */
-    bootinfo.bi_extmem = memsize();
-    bootinfo.bi_memsizes_valid++;
 
     /* Process configuration file */
 
@@ -409,11 +397,11 @@ main(void)
      * or in case of failure, try to load a kernel directly instead.
      */
 
-    if (autoboot && !*kname) {
-	memcpy(kname, PATH_BOOT3, sizeof(PATH_BOOT3));
+    if (autoboot && !kname) {
+	kname = PATH_BOOT3;
 	if (!keyhit(3*SECOND)) {
 	    load();
-	    memcpy(kname, PATH_KERNEL, sizeof(PATH_KERNEL));
+	    kname = PATH_KERNEL;
 	}
     }
 
@@ -428,7 +416,7 @@ main(void)
 		   'a' + dsk.part, kname);
 	if (ioctrl & IO_SERIAL)
 	    sio_flush();
-	if (!autoboot || keyhit(5*SECOND))
+	if (!autoboot || keyhit(3*SECOND))
 	    getstr();
 	else if (!autoboot || !OPT_CHECK(RBX_QUIET))
 	    putchar('\n');
@@ -457,8 +445,8 @@ load(void)
     static Elf32_Shdr es[2];
     caddr_t p;
     ino_t ino;
-    uint32_t addr, x;
-    int fmt, i, j;
+    uint32_t addr;
+    int i, j;
 
     if (!(ino = lookup(kname))) {
 	if (!ls)
@@ -467,15 +455,8 @@ load(void)
     }
     if (xfsread(ino, &hdr, sizeof(hdr)))
 	return;
-    if (N_GETMAGIC(hdr.ex) == ZMAGIC)
-	fmt = 0;
-    else if (IS_ELF(hdr.eh))
-	fmt = 1;
-    else {
-	printf("Invalid %s\n", "format");
-	return;
-    }
-    if (fmt == 0) {
+
+    if (N_GETMAGIC(hdr.ex) == ZMAGIC) {
 	addr = hdr.ex.a_entry & 0xffffff;
 	p = PTOV(addr);
 	fs_off = PAGE_SIZE;
@@ -484,24 +465,7 @@ load(void)
 	p += roundup2(hdr.ex.a_text, PAGE_SIZE);
 	if (xfsread(ino, p, hdr.ex.a_data))
 	    return;
-	p += hdr.ex.a_data + roundup2(hdr.ex.a_bss, PAGE_SIZE);
-	bootinfo.bi_symtab = VTOP(p);
-	memcpy(p, &hdr.ex.a_syms, sizeof(hdr.ex.a_syms));
-	p += sizeof(hdr.ex.a_syms);
-	if (hdr.ex.a_syms) {
-	    if (xfsread(ino, p, hdr.ex.a_syms))
-		return;
-	    p += hdr.ex.a_syms;
-	    if (xfsread(ino, p, sizeof(int)))
-		return;
-	    x = *(uint32_t *)p;
-	    p += sizeof(int);
-	    x -= sizeof(int);
-	    if (xfsread(ino, p, x))
-		return;
-	    p += x;
-	}
-    } else {
+    } else if (IS_ELF(hdr.eh)) {
 	fs_off = hdr.eh.e_phoff;
 	for (j = i = 0; i < hdr.eh.e_phnum && j < 2; i++) {
 	    if (xfsread(ino, ep + j, sizeof(ep[0])))
@@ -523,7 +487,7 @@ load(void)
 	    if (xfsread(ino, &es, sizeof(es)))
 		return;
 	    for (i = 0; i < 2; i++) {
-		memcpy(p, &es[i].sh_size, sizeof(es[i].sh_size));
+		*(Elf32_Word *)p = es[i].sh_size;
 		p += sizeof(es[i].sh_size);
 		fs_off = es[i].sh_offset;
 		if (xfsread(ino, p, es[i].sh_size))
@@ -532,8 +496,12 @@ load(void)
 	    }
 	}
 	addr = hdr.eh.e_entry & 0xffffff;
+	bootinfo.bi_esymtab = VTOP(p);
+    } else {
+	printf("Invalid %s\n", "format");
+	return;
     }
-    bootinfo.bi_esymtab = VTOP(p);
+
     bootinfo.bi_kernelname = VTOP(kname);
     bootinfo.bi_bios_dev = dsk.daua;
     __exec((caddr_t)addr, RB_BOOTINFO | (opts & RBX_MASK),
@@ -628,11 +596,7 @@ parse()
 		dsk.daua = dsk.disk | dsk.unit;
 		dsk_meta = 0;
 	    }
-	    if ((i = ep - arg)) {
-		if ((size_t)i >= sizeof(kname))
-		    return -1;
-		memcpy(kname, arg, i + 1);
-	    }
+            kname = arg;
 	}
 	arg = p;
     }
@@ -704,7 +668,7 @@ static void
 printf(const char *fmt,...)
 {
     va_list ap;
-    char buf[10];
+    static char buf[10];
     char *s;
     unsigned u;
     int c;
@@ -815,6 +779,18 @@ xputc(int c)
 }
 
 static int
+getc(int fn)
+{
+    v86.addr = 0x18;
+    v86.eax = fn << 8;
+    v86int();
+    if (fn)
+	return (v86.ebx >> 8) & 0x01;
+    else
+	return v86.eax & 0xff;
+}
+
+static int
 xgetc(int fn)
 {
     if (OPT_CHECK(RBX_NOINTR))
@@ -827,16 +803,4 @@ xgetc(int fn)
 	if (fn)
 	    return 0;
     }
-}
-
-static int
-getc(int fn)
-{
-    v86.addr = 0x18;
-    v86.eax = fn << 8;
-    v86int();
-    if (fn)
-	return (v86.ebx >> 8) & 0x01;
-    else
-	return v86.eax & 0xff;
 }

@@ -90,11 +90,11 @@ ofwn_probe(struct netif *nif, void *machdep_hint)
 static int
 ofwn_put(struct iodesc *desc, void *pkt, size_t len)
 {
-	struct ether_header	*eh;
 	size_t			sendlen;
 	ssize_t			rv;
 
 #if defined(NETIF_DEBUG)
+	struct ether_header	*eh;
 	printf("netif_put: desc=0x%x pkt=0x%x len=%d\n", desc, pkt, len);
 	eh = pkt;
 	printf("dst: %s ", ether_sprintf(eh->ether_dhost));
@@ -230,7 +230,10 @@ punt:
 static void
 ofwn_end(struct netif *nif)
 {
+#ifdef BROKEN
+	/* dma-free freezes at least some Apple ethernet controllers */
 	OF_call_method("dma-free", netinstance, 2, 0, dmabuf, MAXPHYS);
+#endif
 	OF_close(netinstance);
 }
 

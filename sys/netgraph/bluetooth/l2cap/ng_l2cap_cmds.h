@@ -379,7 +379,7 @@ do {									\
 		break;							\
 									\
 	c = mtod((_m), struct _info_rsp *);				\
-	c->hdr.code = NG_L2CAP_INFO_REQ;				\
+	c->hdr.code = NG_L2CAP_INFO_RSP;				\
 	c->hdr.ident = (_ident);					\
 	c->hdr.length = sizeof(c->param);				\
 									\

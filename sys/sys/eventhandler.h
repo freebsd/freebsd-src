@@ -41,6 +41,14 @@ struct eventhandler_entry {
 	void				*ee_arg;
 };
 
+#ifdef VIMAGE
+struct eventhandler_entry_vimage {
+	void	(* func)(void);		/* Original function registered. */
+	void	*ee_arg;		/* Original argument registered. */
+	void	*sparep[2];
+};
+#endif
+
 struct eventhandler_list {
 	char				*el_name;
 	int				el_flags;
@@ -142,6 +150,14 @@ void	eventhandler_deregister(struct eventhandler_list *list,
 struct eventhandler_list *eventhandler_find_list(const char *name);
 void	eventhandler_prune_list(struct eventhandler_list *list);
 
+#ifdef VIMAGE
+typedef	void (*vimage_iterator_func_t)(void *, ...);
+
+eventhandler_tag vimage_eventhandler_register(struct eventhandler_list *list,
+	    const char *name, void *func, void *arg, int priority,
+	    vimage_iterator_func_t);
+#endif
+
 /*
  * Standard system event queues.
  */
@@ -162,14 +178,15 @@ EVENTHANDLER_DECLARE(shutdown_pre_sync, shutdown_fn);	/* before fs sync */
 EVENTHANDLER_DECLARE(shutdown_post_sync, shutdown_fn);	/* after fs sync */
 EVENTHANDLER_DECLARE(shutdown_final, shutdown_fn);
 
+/* Power state change events */
+typedef void (*power_change_fn)(void *);
+EVENTHANDLER_DECLARE(power_resume, power_change_fn);
+EVENTHANDLER_DECLARE(power_suspend, power_change_fn);
+
 /* Low memory event */
 typedef void (*vm_lowmem_handler_t)(void *, int);
 #define	LOWMEM_PRI_DEFAULT	EVENTHANDLER_PRI_FIRST
 EVENTHANDLER_DECLARE(vm_lowmem, vm_lowmem_handler_t);
-
-/* Low vnodes event */
-typedef void (*vfs_lowvnodes_handler_t)(void *, int);
-EVENTHANDLER_DECLARE(vfs_lowvnodes, vfs_lowvnodes_handler_t);
 
 /* Root mounted event */
 typedef void (*mountroot_handler_t)(void *);
@@ -238,6 +255,4 @@ typedef void (*uma_zone_chfn)(void *);
 EVENTHANDLER_DECLARE(nmbclusters_change, uma_zone_chfn);
 EVENTHANDLER_DECLARE(maxsockets_change, uma_zone_chfn);
 
-typedef void(*schedtail_fn)(void *, struct proc *);
-EVENTHANDLER_DECLARE(schedtail, schedtail_fn);
 #endif /* SYS_EVENTHANDLER_H */

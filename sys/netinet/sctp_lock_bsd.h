@@ -2,6 +2,8 @@
 #define __sctp_lock_bsd_h__
 /*-
  * Copyright (c) 2001-2007, by Cisco Systems, Inc. All rights reserved.
+ * Copyright (c) 2008-2011, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2011, by Michael Tuexen. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -97,6 +99,48 @@ extern int sctp_logoff_stuff;
              rw_rlock(&SCTP_BASE_INFO(ipi_ep_mtx));                         \
 } while (0)
 
+#define SCTP_MCORE_QLOCK_INIT(cpstr) do { \
+		mtx_init(&(cpstr)->que_mtx,	      \
+			 "sctp-mcore_queue","queue_lock",	\
+			 MTX_DEF|MTX_DUPOK);		\
+} while (0)
+
+#define SCTP_MCORE_QLOCK(cpstr)  do { \
+		mtx_lock(&(cpstr)->que_mtx);	\
+} while (0)
+
+#define SCTP_MCORE_QUNLOCK(cpstr)  do { \
+		mtx_unlock(&(cpstr)->que_mtx);	\
+} while (0)
+
+#define SCTP_MCORE_QDESTROY(cpstr)  do { \
+	if(mtx_owned(&(cpstr)->core_mtx)) {	\
+		mtx_unlock(&(cpstr)->que_mtx);	\
+        } \
+	mtx_destroy(&(cpstr)->que_mtx);	\
+} while (0)
+
+
+#define SCTP_MCORE_LOCK_INIT(cpstr) do { \
+		mtx_init(&(cpstr)->core_mtx,	      \
+			 "sctp-cpulck","cpu_proc_lock",	\
+			 MTX_DEF|MTX_DUPOK);		\
+} while (0)
+
+#define SCTP_MCORE_LOCK(cpstr)  do { \
+		mtx_lock(&(cpstr)->core_mtx);	\
+} while (0)
+
+#define SCTP_MCORE_UNLOCK(cpstr)  do { \
+		mtx_unlock(&(cpstr)->core_mtx);	\
+} while (0)
+
+#define SCTP_MCORE_DESTROY(cpstr)  do { \
+	if(mtx_owned(&(cpstr)->core_mtx)) {	\
+		mtx_unlock(&(cpstr)->core_mtx);	\
+        } \
+	mtx_destroy(&(cpstr)->core_mtx);	\
+} while (0)
 
 #define SCTP_INP_INFO_WLOCK()	do { 					\
             rw_wlock(&SCTP_BASE_INFO(ipi_ep_mtx));                         \
@@ -107,42 +151,36 @@ extern int sctp_logoff_stuff;
 #define SCTP_INP_INFO_WUNLOCK()		rw_wunlock(&SCTP_BASE_INFO(ipi_ep_mtx))
 
 
-#define SCTP_IPI_ADDR_INIT() \
+#define SCTP_IPI_ADDR_INIT()								\
         rw_init(&SCTP_BASE_INFO(ipi_addr_mtx), "sctp-addr")
-
 #define SCTP_IPI_ADDR_DESTROY() do  { \
         if(rw_wowned(&SCTP_BASE_INFO(ipi_addr_mtx))) { \
              rw_wunlock(&SCTP_BASE_INFO(ipi_addr_mtx)); \
         } \
 	rw_destroy(&SCTP_BASE_INFO(ipi_addr_mtx)); \
       }  while (0)
-
-
-
 #define SCTP_IPI_ADDR_RLOCK()	do { 					\
              rw_rlock(&SCTP_BASE_INFO(ipi_addr_mtx));                         \
 } while (0)
-
 #define SCTP_IPI_ADDR_WLOCK()	do { 					\
              rw_wlock(&SCTP_BASE_INFO(ipi_addr_mtx));                         \
 } while (0)
-
 
 #define SCTP_IPI_ADDR_RUNLOCK()		rw_runlock(&SCTP_BASE_INFO(ipi_addr_mtx))
 #define SCTP_IPI_ADDR_WUNLOCK()		rw_wunlock(&SCTP_BASE_INFO(ipi_addr_mtx))
 
 
 #define SCTP_IPI_ITERATOR_WQ_INIT() \
-        mtx_init(&SCTP_BASE_INFO(ipi_iterator_wq_mtx), "sctp-it-wq", "sctp_it_wq", MTX_DEF)
+        mtx_init(&sctp_it_ctl.ipi_iterator_wq_mtx, "sctp-it-wq", "sctp_it_wq", MTX_DEF)
 
 #define SCTP_IPI_ITERATOR_WQ_DESTROY() \
-	mtx_destroy(&SCTP_BASE_INFO(ipi_iterator_wq_mtx))
+	mtx_destroy(&sctp_it_ctl.ipi_iterator_wq_mtx)
 
 #define SCTP_IPI_ITERATOR_WQ_LOCK()	do { 					\
-             mtx_lock(&SCTP_BASE_INFO(ipi_iterator_wq_mtx));                \
+             mtx_lock(&sctp_it_ctl.ipi_iterator_wq_mtx);                \
 } while (0)
 
-#define SCTP_IPI_ITERATOR_WQ_UNLOCK()		mtx_unlock(&SCTP_BASE_INFO(ipi_iterator_wq_mtx))
+#define SCTP_IPI_ITERATOR_WQ_UNLOCK()		mtx_unlock(&sctp_it_ctl.ipi_iterator_wq_mtx)
 
 
 #define SCTP_IP_PKTLOG_INIT() \
@@ -190,6 +228,13 @@ extern int sctp_logoff_stuff;
 
 #define SCTP_INP_LOCK_DESTROY(_inp) \
 	mtx_destroy(&(_inp)->inp_mtx)
+
+#define SCTP_INP_LOCK_CONTENDED(_inp) ((_inp)->inp_mtx.mtx_lock & MTX_CONTESTED)
+
+#define SCTP_INP_READ_CONTENDED(_inp) ((_inp)->inp_rdata_mtx.mtx_lock & MTX_CONTESTED)
+
+#define SCTP_ASOC_CREATE_LOCK_CONTENDED(_inp) ((_inp)->inp_create_mtx.mtx_lock & MTX_CONTESTED)
+
 
 #define SCTP_ASOC_CREATE_LOCK_DESTROY(_inp) \
 	mtx_destroy(&(_inp)->inp_create_mtx)
@@ -300,25 +345,45 @@ extern int sctp_logoff_stuff;
 #endif
 
 #define SCTP_ITERATOR_LOCK_INIT() \
-        mtx_init(&SCTP_BASE_INFO(it_mtx), "sctp-it", "iterator", MTX_DEF)
+        mtx_init(&sctp_it_ctl.it_mtx, "sctp-it", "iterator", MTX_DEF)
 
 #ifdef INVARIANTS
 #define SCTP_ITERATOR_LOCK() \
 	do {								\
-		if (mtx_owned(&SCTP_BASE_INFO(it_mtx)))			\
+		if (mtx_owned(&sctp_it_ctl.it_mtx))			\
 			panic("Iterator Lock");				\
-		mtx_lock(&SCTP_BASE_INFO(it_mtx));				\
+		mtx_lock(&sctp_it_ctl.it_mtx);				\
 	} while (0)
 #else
 #define SCTP_ITERATOR_LOCK() \
 	do {								\
-		mtx_lock(&SCTP_BASE_INFO(it_mtx));				\
+		mtx_lock(&sctp_it_ctl.it_mtx);				\
 	} while (0)
 
 #endif
 
-#define SCTP_ITERATOR_UNLOCK()	        mtx_unlock(&SCTP_BASE_INFO(it_mtx))
-#define SCTP_ITERATOR_LOCK_DESTROY()	mtx_destroy(&SCTP_BASE_INFO(it_mtx))
+#define SCTP_ITERATOR_UNLOCK()	        mtx_unlock(&sctp_it_ctl.it_mtx)
+#define SCTP_ITERATOR_LOCK_DESTROY()	mtx_destroy(&sctp_it_ctl.it_mtx)
+
+
+#define SCTP_WQ_ADDR_INIT() do { \
+        mtx_init(&SCTP_BASE_INFO(wq_addr_mtx), "sctp-addr-wq","sctp_addr_wq",MTX_DEF); \
+ } while (0)
+
+#define SCTP_WQ_ADDR_DESTROY() do  { \
+        if(mtx_owned(&SCTP_BASE_INFO(wq_addr_mtx))) { \
+             mtx_unlock(&SCTP_BASE_INFO(wq_addr_mtx)); \
+        } \
+	    mtx_destroy(&SCTP_BASE_INFO(wq_addr_mtx)); \
+      }  while (0)
+
+#define SCTP_WQ_ADDR_LOCK()	do { \
+             mtx_lock(&SCTP_BASE_INFO(wq_addr_mtx));  \
+} while (0)
+#define SCTP_WQ_ADDR_UNLOCK() do { \
+		mtx_unlock(&SCTP_BASE_INFO(wq_addr_mtx)); \
+} while (0)
+
 
 
 #define SCTP_INCR_EP_COUNT() \

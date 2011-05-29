@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 27, 2010
+.Dd July 3, 2010
 .Dt VM_PAGE_ALLOC 9
 .Os
 .Sh NAME
@@ -38,7 +38,7 @@
 .In vm/vm.h
 .In vm/vm_page.h
 .Ft vm_page_t
-.Fn vm_page_alloc "vm_object_t object" "vm_pindex_t pindex" "int page_req"
+.Fn vm_page_alloc "vm_object_t object" "vm_pindex_t pindex" "int req"
 .Sh DESCRIPTION
 The
 .Fn vm_page_alloc
@@ -51,16 +51,15 @@ It is assumed that a page has not already been allocated at
 The page returned is inserted into the object, unless
 .Dv VM_ALLOC_NOOBJ
 is specified in the
-.Fa page_req ,
-but is not inserted into a pmap.
-The page may exists in the vm object cache, in which case it will
+.Fa req .
+The page may exist in the vm object cache, in which case it will
 be reactivated instead, moving from the cache into the object page list.
 .Pp
 .Fn vm_page_alloc
 will not sleep.
 .Pp
 Its arguments are:
-.Bl -tag -width ".Fa page_req"
+.Bl -tag -width ".Fa object"
 .It Fa object
 The VM object to allocate the page for.
 The
@@ -70,40 +69,48 @@ must be locked if
 is not specified.
 .It Fa pindex
 The index into the object at which the page should be inserted.
-.It Fa page_req
-A flag indicating how the page should be allocated.
+.It Fa req
+The bitwise-inclusive OR of a class and any optional flags indicating
+how the page should be allocated.
+.Pp
+Exactly one of the following classes must be specified:
 .Bl -tag -width ".Dv VM_ALLOC_INTERRUPT"
 .It Dv VM_ALLOC_NORMAL
 The page should be allocated with no special treatment.
 .It Dv VM_ALLOC_SYSTEM
-The page can be allocated if the cache queue is empty and the free
+The page can be allocated if the cache is empty and the free
 page count is above the interrupt reserved water mark.
-If
-.Dv VM_ALLOC_INTERRUPT
-is set, the page can be allocated as long as the free page count is
-greater than zero.
 This flag should be used only when the system really needs the page.
 .It Dv VM_ALLOC_INTERRUPT
 .Fn vm_page_alloc
-is being called during an interrupt and therefore the cache cannot
-be accessed.
-The page will only be returned successfully if the free count is greater
+is being called during an interrupt.
+A page will be returned successfully if the free page count is greater
 than zero.
+.El
+.Pp
+The optional flags are:
+.Bl -tag -width ".Dv VM_ALLOC_IFNOTCACHED"
 .It Dv VM_ALLOC_ZERO
 Indicate a preference for a pre-zeroed page.
-There is no guarantee that the page thus returned will be zeroed, but
-it will be marked by
+There is no guarantee that the returned page will be zeroed, but it
+will have the
 .Dv PG_ZERO
-flag if it is zeroed.
+flag set if it is zeroed.
 .It Dv VM_ALLOC_NOOBJ
 Do not associate the allocated page with a vm object.
 The
 .Fa object
 argument is ignored.
 .It Dv VM_ALLOC_NOBUSY
-The page returned will not be busied.
+The returned page will not have the
+.Dv VPO_BUSY
+flag set.
 .It Dv VM_ALLOC_WIRED
-The returned page is wired.
+The returned page will be wired.
+.It Dv VM_ALLOC_IFCACHED
+Allocate the page only if it is cached.
+Otherwise, return
+.Dv NULL .
 .It Dv VM_ALLOC_IFNOTCACHED
 Only allocate the page if it is not cached in the
 .Fa object .

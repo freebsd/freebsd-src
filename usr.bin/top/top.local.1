@@ -5,37 +5,40 @@
 The '-H' option will toggle the display of kernel visible thread contexts.
 At runtime the 'H' key will toggle this mode. The default is OFF.
 
-.SH DESCRIPTION OF MEMORY 
-Mem: 9220K Active, 1032K Inact, 3284K Wired, 1MB Cache, 2M Buf, 1320K Free
-Swap:   91M Total, 79M Free, 13% Inuse, 80K In, 104 K Out
-
+.SH DESCRIPTION OF MEMORY
+Mem: 9220K Active, 1M Inact, 3284K Wired, 1M Cache, 2M Buf, 1320K Free
+Swap: 91M Total, 79M Free, 13% Inuse, 80K In, 104K Out
+.TP
 .B K:
 Kilobyte
 .TP
 .B M:
 Megabyte
 .TP
+.B G:
+Gigabyte
+.TP
 .B %:
 1/100
 .TP
 .B Active:
-number of pages active
+number of bytes active
 .TP
 .B Inact:
-number of pages inactive
+number of bytes inactive
 .TP
 .B Wired:
-number of pages wired down, including cached file data pages
+number of bytes wired down, including cached file data pages
 .TP
 .B Cache:
-number of clean pages caching data that are available for
+number of clean bytes caching data that are available for
 immediate reallocation
 .TP
 .B Buf:
-number of pages used for BIO-level disk caching
+number of bytes used for BIO-level disk caching
 .TP
 .B Free: 
-number of pages free
+number of bytes free
 .TP
 .B Total: 
 total available swap usage
@@ -47,7 +50,7 @@ total free swap usage
 swap usage
 .TP 
 .B In: 
-pages paged in from swap devices (last interval)
+bytes paged in from swap devices (last interval)
 .TP
 .B Out: 
-pages paged out to swap devices (last interval)
+bytes paged out to swap devices (last interval)

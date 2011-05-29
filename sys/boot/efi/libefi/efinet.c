@@ -262,6 +262,7 @@ efinet_dev_init()
 	int err, i, nifs;
 
 	sz = 0;
+	handles = NULL;
 	status = BS->LocateHandle(ByProtocol, &sn_guid, 0, &sz, 0);
 	if (status == EFI_BUFFER_TOO_SMALL) {
 		handles = (EFI_HANDLE *)malloc(sz);

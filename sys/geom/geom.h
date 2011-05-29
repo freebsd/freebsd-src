@@ -43,6 +43,7 @@
 #include <sys/sx.h>
 #include <sys/queue.h>
 #include <sys/ioccom.h>
+#include <sys/conf.h>
 #include <sys/sbuf.h>
 #include <sys/module.h>
 
@@ -207,6 +208,12 @@ struct g_classifier_hook {
 	void			*arg;
 };
 
+/* BIO_GETATTR("GEOM::setstate") argument values. */
+#define G_STATE_FAILED		0
+#define G_STATE_REBUILD		1
+#define G_STATE_RESYNC		2
+#define G_STATE_ACTIVE		3
+
 /* geom_dev.c */
 struct cdev;
 void g_dev_print(void);
@@ -231,6 +238,7 @@ void g_waitidlelock(void);
 /* geom_subr.c */
 int g_access(struct g_consumer *cp, int nread, int nwrite, int nexcl);
 int g_attach(struct g_consumer *cp, struct g_provider *pp);
+int g_compare_names(const char *namea, const char *nameb);
 void g_destroy_consumer(struct g_consumer *cp);
 void g_destroy_geom(struct g_geom *pp);
 void g_destroy_provider(struct g_provider *pp);
@@ -303,6 +311,7 @@ extern struct sx topology_lock;
 struct g_kerneldump {
 	off_t		offset;
 	off_t		length;
+	struct dumperinfo di;
 };
 
 MALLOC_DECLARE(M_GEOM);
@@ -352,6 +361,9 @@ g_free(void *ptr)
 	do {							\
 		sx_assert(&topology_lock, SX_UNLOCKED);		\
 	} while (0)
+
+#define g_topology_sleep(chan, timo)				\
+	sx_sleep(chan, &topology_lock, 0, "gtopol", timo)
 
 #define DECLARE_GEOM_CLASS(class, name) 			\
 	static moduledata_t name##_mod = {			\

@@ -15,13 +15,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *        This product includes software developed by the NetBSD
- *        Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -35,7 +28,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- *	from: NetBSD: mdreloc.c,v 1.5 2001/04/25 12:24:51 kleink Exp
+ *	from: NetBSD: mdreloc.c,v 1.42 2008/04/28 20:23:04 martin Exp
  */
 
 #include <sys/cdefs.h>
@@ -47,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/exec.h>
 #include <sys/imgact.h>
 #include <sys/linker.h>
+#include <sys/proc.h>
 #include <sys/sysent.h>
 #include <sys/imgact_elf.h>
 #include <sys/syscall.h>
@@ -88,7 +82,11 @@ static struct sysentvec elf64_freebsd_sysvec = {
 	.sv_setregs	= exec_setregs,
 	.sv_fixlimit	= NULL,
 	.sv_maxssiz	= NULL,
-	.sv_flags	= SV_ABI_FREEBSD | SV_LP64
+	.sv_flags	= SV_ABI_FREEBSD | SV_LP64,
+	.sv_set_syscall_retval = cpu_set_syscall_retval,
+	.sv_fetch_syscall_args = cpu_fetch_syscall_args,
+	.sv_syscallnames = syscallnames,
+	.sv_schedtail	= NULL,
 };
 
 static Elf64_Brandinfo freebsd_brand_info = {
@@ -104,8 +102,7 @@ static Elf64_Brandinfo freebsd_brand_info = {
 };
 
 SYSINIT(elf64, SI_SUB_EXEC, SI_ORDER_FIRST,
-    (sysinit_cfunc_t) elf64_insert_brand_entry,
-    &freebsd_brand_info);
+    (sysinit_cfunc_t)elf64_insert_brand_entry, &freebsd_brand_info);
 
 static Elf64_Brandinfo freebsd_brand_oinfo = {
 	.brand		= ELFOSABI_FREEBSD,
@@ -120,16 +117,14 @@ static Elf64_Brandinfo freebsd_brand_oinfo = {
 };
 
 SYSINIT(oelf64, SI_SUB_EXEC, SI_ORDER_ANY,
-	(sysinit_cfunc_t) elf64_insert_brand_entry,
-	&freebsd_brand_oinfo);
-
+    (sysinit_cfunc_t)elf64_insert_brand_entry, &freebsd_brand_oinfo);
 
 void
 elf64_dump_thread(struct thread *td __unused, void *dst __unused,
     size_t *off __unused)
 {
-}
 
+}
 
 /*
  * The following table holds for each relocation type:
@@ -145,28 +140,32 @@ elf64_dump_thread(struct thread *td __unused, void *dst __unused,
  *		* the relocation is relative to the load address
  *
  */
-#define _RF_S		0x80000000		/* Resolve symbol */
-#define _RF_A		0x40000000		/* Use addend */
-#define _RF_P		0x20000000		/* Location relative */
-#define _RF_G		0x10000000		/* GOT offset */
-#define _RF_B		0x08000000		/* Load address relative */
-#define _RF_U		0x04000000		/* Unaligned */
-#define _RF_SZ(s)	(((s) & 0xff) << 8)	/* memory target size */
-#define _RF_RS(s)	( (s) & 0xff)		/* right shift */
+#define	_RF_S		0x80000000		/* Resolve symbol */
+#define	_RF_A		0x40000000		/* Use addend */
+#define	_RF_P		0x20000000		/* Location relative */
+#define	_RF_G		0x10000000		/* GOT offset */
+#define	_RF_B		0x08000000		/* Load address relative */
+#define	_RF_U		0x04000000		/* Unaligned */
+#define	_RF_X		0x02000000		/* Bare symbols, needs proc */
+#define	_RF_D		0x01000000		/* Use dynamic TLS offset */
+#define	_RF_O		0x00800000		/* Use static TLS offset */
+#define	_RF_I		0x00400000		/* Use TLS object ID */
+#define	_RF_SZ(s)	(((s) & 0xff) << 8)	/* memory target size */
+#define	_RF_RS(s)	( (s) & 0xff)		/* right shift */
 static const int reloc_target_flags[] = {
 	0,							/* NONE */
-	_RF_S|_RF_A|		_RF_SZ(8)  | _RF_RS(0),		/* RELOC_8 */
-	_RF_S|_RF_A|		_RF_SZ(16) | _RF_RS(0),		/* RELOC_16 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(0),		/* RELOC_32 */
+	_RF_S|_RF_A|		_RF_SZ(8)  | _RF_RS(0),		/* 8 */
+	_RF_S|_RF_A|		_RF_SZ(16) | _RF_RS(0),		/* 16 */
+	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(0),		/* 32 */
 	_RF_S|_RF_A|_RF_P|	_RF_SZ(8)  | _RF_RS(0),		/* DISP_8 */
 	_RF_S|_RF_A|_RF_P|	_RF_SZ(16) | _RF_RS(0),		/* DISP_16 */
 	_RF_S|_RF_A|_RF_P|	_RF_SZ(32) | _RF_RS(0),		/* DISP_32 */
 	_RF_S|_RF_A|_RF_P|	_RF_SZ(32) | _RF_RS(2),		/* WDISP_30 */
 	_RF_S|_RF_A|_RF_P|	_RF_SZ(32) | _RF_RS(2),		/* WDISP_22 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(10),	/* HI22 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(0),		/* 22 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(0),		/* 13 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(0),		/* LO10 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(10),	/* HI22 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(0),		/* 22 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(0),		/* 13 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(0),		/* LO10 */
 	_RF_G|			_RF_SZ(32) | _RF_RS(0),		/* GOT10 */
 	_RF_G|			_RF_SZ(32) | _RF_RS(0),		/* GOT13 */
 	_RF_G|			_RF_SZ(32) | _RF_RS(10),	/* GOT22 */
@@ -185,94 +184,138 @@ static const int reloc_target_flags[] = {
 	      _RF_A|_RF_P|	_RF_SZ(32) | _RF_RS(0),		/* PCPLT32 */
 	      _RF_A|_RF_P|	_RF_SZ(32) | _RF_RS(10),	/* PCPLT22 */
 	      _RF_A|_RF_P|	_RF_SZ(32) | _RF_RS(0),		/* PCPLT10 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(0),		/* 10 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(0),		/* 11 */
-	_RF_S|_RF_A|		_RF_SZ(64) | _RF_RS(0),		/* 64 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(0),		/* 10 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(0),		/* 11 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(64) | _RF_RS(0),		/* 64 */
 	_RF_S|_RF_A|/*extra*/	_RF_SZ(32) | _RF_RS(0),		/* OLO10 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(42),	/* HH22 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(32),	/* HM10 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(10),	/* LM22 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(42),	/* HH22 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(32),	/* HM10 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(10),	/* LM22 */
 	_RF_S|_RF_A|_RF_P|	_RF_SZ(32) | _RF_RS(42),	/* PC_HH22 */
 	_RF_S|_RF_A|_RF_P|	_RF_SZ(32) | _RF_RS(32),	/* PC_HM10 */
 	_RF_S|_RF_A|_RF_P|	_RF_SZ(32) | _RF_RS(10),	/* PC_LM22 */
 	_RF_S|_RF_A|_RF_P|	_RF_SZ(32) | _RF_RS(2),		/* WDISP16 */
 	_RF_S|_RF_A|_RF_P|	_RF_SZ(32) | _RF_RS(2),		/* WDISP19 */
 	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(0),		/* GLOB_JMP */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(0),		/* 7 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(0),		/* 5 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(0),		/* 6 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(0),		/* 7 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(0),		/* 5 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(0),		/* 6 */
 	_RF_S|_RF_A|_RF_P|	_RF_SZ(64) | _RF_RS(0),		/* DISP64 */
 	      _RF_A|		_RF_SZ(64) | _RF_RS(0),		/* PLT64 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(10),	/* HIX22 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(0),		/* LOX10 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(22),	/* H44 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(12),	/* M44 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(0),		/* L44 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(10),	/* HIX22 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(0),		/* LOX10 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(22),	/* H44 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(12),	/* M44 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(0),		/* L44 */
 	_RF_S|_RF_A|		_RF_SZ(64) | _RF_RS(0),		/* REGISTER */
 	_RF_S|_RF_A|	_RF_U|	_RF_SZ(64) | _RF_RS(0),		/* UA64 */
 	_RF_S|_RF_A|	_RF_U|	_RF_SZ(16) | _RF_RS(0),		/* UA16 */
+
+#if 0
+	/* TLS */
+	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(10),	/* GD_HI22 */
+	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(0),		/* GD_LO10 */
+	0,							/* GD_ADD */
+	      _RF_A|_RF_P|	_RF_SZ(32) | _RF_RS(2),		/* GD_CALL */
+	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(10),	/* LDM_HI22 */
+	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(0),		/* LDM_LO10 */
+	0,							/* LDM_ADD */
+	      _RF_A|_RF_P|	_RF_SZ(32) | _RF_RS(2),		/* LDM_CALL */
+	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(10),	/* LDO_HIX22 */
+	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(0),		/* LDO_LOX10 */
+	0,							/* LDO_ADD */
+	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(10),	/* IE_HI22 */
+	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(0),		/* IE_LO10 */
+	0,							/* IE_LD */
+	0,							/* IE_LDX */
+	0,							/* IE_ADD */
+	_RF_S|_RF_A|	_RF_O|	_RF_SZ(32) | _RF_RS(10),	/* LE_HIX22 */
+	_RF_S|_RF_A|	_RF_O|	_RF_SZ(32) | _RF_RS(0),		/* LE_LOX10 */
+	_RF_S|		_RF_I|	_RF_SZ(32) | _RF_RS(0),		/* DTPMOD32 */
+	_RF_S|		_RF_I|	_RF_SZ(64) | _RF_RS(0),		/* DTPMOD64 */
+	_RF_S|_RF_A|	_RF_D|	_RF_SZ(32) | _RF_RS(0),		/* DTPOFF32 */
+	_RF_S|_RF_A|	_RF_D|	_RF_SZ(64) | _RF_RS(0),		/* DTPOFF64 */
+	_RF_S|_RF_A|	_RF_O|	_RF_SZ(32) | _RF_RS(0),		/* TPOFF32 */
+	_RF_S|_RF_A|	_RF_O|	_RF_SZ(64) | _RF_RS(0)		/* TPOFF64 */
+#endif
 };
 
 #if 0
-static const char *reloc_names[] = {
-	"NONE", "RELOC_8", "RELOC_16", "RELOC_32", "DISP_8",
-	"DISP_16", "DISP_32", "WDISP_30", "WDISP_22", "HI22",
-	"22", "13", "LO10", "GOT10", "GOT13",
-	"GOT22", "PC10", "PC22", "WPLT30", "COPY",
-	"GLOB_DAT", "JMP_SLOT", "RELATIVE", "UA_32", "PLT32",
-	"HIPLT22", "LOPLT10", "LOPLT10", "PCPLT22", "PCPLT32",
-	"10", "11", "64", "OLO10", "HH22",
-	"HM10", "LM22", "PC_HH22", "PC_HM10", "PC_LM22", 
-	"WDISP16", "WDISP19", "GLOB_JMP", "7", "5", "6",
-	"DISP64", "PLT64", "HIX22", "LOX10", "H44", "M44", 
-	"L44", "REGISTER", "UA64", "UA16"
+static const char *const reloc_names[] = {
+	"NONE", "8", "16", "32", "DISP_8", "DISP_16", "DISP_32", "WDISP_30",
+	"WDISP_22", "HI22", "22", "13", "LO10", "GOT10", "GOT13", "GOT22",
+	"PC10", "PC22", "WPLT30", "COPY", "GLOB_DAT", "JMP_SLOT", "RELATIVE",
+	"UA_32", "PLT32", "HIPLT22", "LOPLT10", "LOPLT10", "PCPLT22",
+	"PCPLT32", "10", "11", "64", "OLO10", "HH22", "HM10", "LM22",
+	"PC_HH22", "PC_HM10", "PC_LM22", "WDISP16", "WDISP19", "GLOB_JMP",
+	"7", "5", "6", "DISP64", "PLT64", "HIX22", "LOX10", "H44", "M44",
+	"L44", "REGISTER", "UA64", "UA16", "GD_HI22", "GD_LO10", "GD_ADD",
+	"GD_CALL", "LDM_HI22", "LDMO10", "LDM_ADD", "LDM_CALL", "LDO_HIX22",
+	"LDO_LOX10", "LDO_ADD", "IE_HI22", "IE_LO10", "IE_LD", "IE_LDX",
+	"IE_ADD", "LE_HIX22", "LE_LOX10", "DTPMOD32", "DTPMOD64", "DTPOFF32",
+	"DTPOFF64", "TPOFF32", "TPOFF64"
 };
 #endif
 
-#define RELOC_RESOLVE_SYMBOL(t)		((reloc_target_flags[t] & _RF_S) != 0)
-#define RELOC_PC_RELATIVE(t)		((reloc_target_flags[t] & _RF_P) != 0)
-#define RELOC_BASE_RELATIVE(t)		((reloc_target_flags[t] & _RF_B) != 0)
-#define RELOC_UNALIGNED(t)		((reloc_target_flags[t] & _RF_U) != 0)
-#define RELOC_USE_ADDEND(t)		((reloc_target_flags[t] & _RF_A) != 0)
-#define RELOC_TARGET_SIZE(t)		((reloc_target_flags[t] >> 8) & 0xff)
-#define RELOC_VALUE_RIGHTSHIFT(t)	(reloc_target_flags[t] & 0xff)
+#define	RELOC_RESOLVE_SYMBOL(t)		((reloc_target_flags[t] & _RF_S) != 0)
+#define	RELOC_PC_RELATIVE(t)		((reloc_target_flags[t] & _RF_P) != 0)
+#define	RELOC_BASE_RELATIVE(t)		((reloc_target_flags[t] & _RF_B) != 0)
+#define	RELOC_UNALIGNED(t)		((reloc_target_flags[t] & _RF_U) != 0)
+#define	RELOC_USE_ADDEND(t)		((reloc_target_flags[t] & _RF_A) != 0)
+#define	RELOC_BARE_SYMBOL(t)		((reloc_target_flags[t] & _RF_X) != 0)
+#define	RELOC_USE_TLS_DOFF(t)		((reloc_target_flags[t] & _RF_D) != 0)
+#define	RELOC_USE_TLS_OFF(t)		((reloc_target_flags[t] & _RF_O) != 0)
+#define	RELOC_USE_TLS_ID(t)		((reloc_target_flags[t] & _RF_I) != 0)
+#define	RELOC_TARGET_SIZE(t)		((reloc_target_flags[t] >> 8) & 0xff)
+#define	RELOC_VALUE_RIGHTSHIFT(t)	(reloc_target_flags[t] & 0xff)
 
 static const long reloc_target_bitmask[] = {
-#define _BM(x)	(~(-(1ULL << (x))))
+#define	_BM(x)	(~(-(1ULL << (x))))
 	0,				/* NONE */
-	_BM(8), _BM(16), _BM(32),	/* RELOC_8, _16, _32 */
+	_BM(8), _BM(16), _BM(32),	/* 8, 16, 32 */
 	_BM(8), _BM(16), _BM(32),	/* DISP8, DISP16, DISP32 */
 	_BM(30), _BM(22),		/* WDISP30, WDISP22 */
-	_BM(22), _BM(22),		/* HI22, _22 */
-	_BM(13), _BM(10),		/* RELOC_13, _LO10 */
+	_BM(22), _BM(22),		/* HI22, 22 */
+	_BM(13), _BM(10),		/* 13, LO10 */
 	_BM(10), _BM(13), _BM(22),	/* GOT10, GOT13, GOT22 */
-	_BM(10), _BM(22),		/* _PC10, _PC22 */  
-	_BM(30), 0,			/* _WPLT30, _COPY */
-	_BM(32), _BM(32), _BM(32),	/* _GLOB_DAT, JMP_SLOT, _RELATIVE */
-	_BM(32), _BM(32),		/* _UA32, PLT32 */
-	_BM(22), _BM(10),		/* _HIPLT22, LOPLT10 */
-	_BM(32), _BM(22), _BM(10),	/* _PCPLT32, _PCPLT22, _PCPLT10 */
-	_BM(10), _BM(11), -1,		/* _10, _11, _64 */
-	_BM(13), _BM(22),		/* _OLO10, _HH22 */
-	_BM(10), _BM(22),		/* _HM10, _LM22 */
-	_BM(22), _BM(10), _BM(22),	/* _PC_HH22, _PC_HM10, _PC_LM22 */
-	_BM(16), _BM(19),		/* _WDISP16, _WDISP19 */
+	_BM(10), _BM(22),		/* PC10, PC22 */
+	_BM(30), 0,			/* WPLT30, COPY */
+	_BM(32), _BM(32), _BM(32),	/* GLOB_DAT, JMP_SLOT, RELATIVE */
+	_BM(32), _BM(32),		/* UA32, PLT32 */
+	_BM(22), _BM(10),		/* HIPLT22, LOPLT10 */
+	_BM(32), _BM(22), _BM(10),	/* PCPLT32, PCPLT22, PCPLT10 */
+	_BM(10), _BM(11), -1,		/* 10, 11, 64 */
+	_BM(13), _BM(22),		/* OLO10, HH22 */
+	_BM(10), _BM(22),		/* HM10, LM22 */
+	_BM(22), _BM(10), _BM(22),	/* PC_HH22, PC_HM10, PC_LM22 */
+	_BM(16), _BM(19),		/* WDISP16, WDISP19 */
 	-1,				/* GLOB_JMP */
-	_BM(7), _BM(5), _BM(6)		/* _7, _5, _6 */
+	_BM(7), _BM(5), _BM(6),		/* 7, 5, 6 */
 	-1, -1,				/* DISP64, PLT64 */
 	_BM(22), _BM(13),		/* HIX22, LOX10 */
 	_BM(22), _BM(10), _BM(13),	/* H44, M44, L44 */
 	-1, -1, _BM(16),		/* REGISTER, UA64, UA16 */
+#if 0
+	_BM(22), _BM(10), 0, _BM(30),	/* GD_HI22, GD_LO10, GD_ADD, GD_CALL */
+	_BM(22), _BM(10), 0,		/* LDM_HI22, LDMO10, LDM_ADD */
+	_BM(30),			/* LDM_CALL */
+	_BM(22), _BM(10), 0,		/* LDO_HIX22, LDO_LOX10, LDO_ADD */
+	_BM(22), _BM(10), 0, 0,		/* IE_HI22, IE_LO10, IE_LD, IE_LDX */
+	0,				/* IE_ADD */
+	_BM(22), _BM(13),		/* LE_HIX22, LE_LOX10 */
+	_BM(32), -1,			/* DTPMOD32, DTPMOD64 */
+	_BM(32), -1,			/* DTPOFF32, DTPOFF64 */
+	_BM(32), -1			/* TPOFF32, TPOFF64 */
+#endif
 #undef _BM
 };
-#define RELOC_VALUE_BITMASK(t)	(reloc_target_bitmask[t])
+#define	RELOC_VALUE_BITMASK(t)	(reloc_target_bitmask[t])
 
 int
 elf_reloc_local(linker_file_t lf, Elf_Addr relocbase, const void *data,
-    int type, elf_lookup_fn lookup)
+    int type, elf_lookup_fn lookup __unused)
 {
 	const Elf_Rela *rela;
-	Elf_Addr value;
 	Elf_Addr *where;
 
 	if (type != ELF_RELOC_RELA)
@@ -282,10 +325,8 @@ elf_reloc_local(linker_file_t lf, Elf_Addr relocbase, const void *data,
 	if (ELF64_R_TYPE_ID(rela->r_info) != R_SPARC_RELATIVE)
 		return (-1);
 
-	value = rela->r_addend + (Elf_Addr)lf->address;
-	where = (Elf_Addr *)((Elf_Addr)lf->address + rela->r_offset);
-
-	*where = elf_relocaddr(lf, value);
+	where = (Elf_Addr *)(relocbase + rela->r_offset);
+	*where = elf_relocaddr(lf, rela->r_addend + relocbase);
 
 	return (0);
 }
@@ -317,11 +358,15 @@ elf_reloc(linker_file_t lf, Elf_Addr relocbase, const void *data, int type,
 
 	if (rtype == R_SPARC_JMP_SLOT || rtype == R_SPARC_COPY ||
 	    rtype >= sizeof(reloc_target_bitmask) /
-	    sizeof(*reloc_target_bitmask))
+	    sizeof(*reloc_target_bitmask)) {
+		printf("kldload: unexpected relocation type %ld\n", rtype);
 		return (-1);
+	}
 
-	if (RELOC_UNALIGNED(rtype))
+	if (RELOC_UNALIGNED(rtype)) {
+		printf("kldload: unaligned relocation type %ld\n", rtype);
 		return (-1);
+	}
 
 	value = rela->r_addend;
 
@@ -330,21 +375,28 @@ elf_reloc(linker_file_t lf, Elf_Addr relocbase, const void *data, int type,
 		if (addr == 0)
 			return (-1);
 		value += addr;
+		if (RELOC_BARE_SYMBOL(rtype))
+			value = elf_relocaddr(lf, value);
 	}
 
 	if (rtype == R_SPARC_OLO10)
 		value = (value & 0x3ff) + ELF64_R_TYPE_DATA(rela->r_info);
 
+	if (rtype == R_SPARC_HIX22)
+		value ^= 0xffffffffffffffff;
+
 	if (RELOC_PC_RELATIVE(rtype))
 		value -= (Elf_Addr)where;
 
-	if (RELOC_BASE_RELATIVE(rtype)) {
+	if (RELOC_BASE_RELATIVE(rtype))
 		value = elf_relocaddr(lf, value + relocbase);
-	}
 
 	mask = RELOC_VALUE_BITMASK(rtype);
 	value >>= RELOC_VALUE_RIGHTSHIFT(rtype);
 	value &= mask;
+
+	if (rtype == R_SPARC_LOX10)
+		value |= 0x1c00;
 
 	if (RELOC_TARGET_SIZE(rtype) > 32) {
 		*where &= ~mask;

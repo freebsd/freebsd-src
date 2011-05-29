@@ -239,3 +239,6 @@ Boston, MA 02110-1301, USA.  */
 		 XSTR (XEXP (DECL_RTL (current_function_decl), 0), 0));	\
     fprintf (asm_out_file, "\n");					\
   } while (0)
+
+#undef NEED_INDICATE_EXEC_STACK
+#define NEED_INDICATE_EXEC_STACK 1

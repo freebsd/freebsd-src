@@ -31,7 +31,7 @@
 .\" $FreeBSD$
 .\"	$OpenBSD: wi.4tbl,v 1.14 2002/04/29 19:53:50 jsyn Exp $
 .\"
-.Dd August 2, 2008
+.Dd January 4, 2010
 .Dt WI 4
 .Os
 .Sh NAME
@@ -241,7 +241,6 @@ DLink DWL520
 .El
 .Sh EXAMPLES
 Join an existing BSS network (ie: connect to an access point):
-.Pp
 .Bd -literal -offset indent
 ifconfig wlan create wlandev wi0 inet 192.168.0.20 \e
     netmask 0xffffff00
@@ -249,7 +248,6 @@ ifconfig wlan create wlandev wi0 inet 192.168.0.20 \e
 .Pp
 Join a specific BSS network with network name
 .Dq Li my_net :
-.Pp
 .Bd -literal -offset indent
 ifconfig wlan create wlandev wi0 inet 192.168.0.20 \e
     netmask 0xffffff00 ssid my_net
@@ -377,21 +375,3 @@ Symbol	none	none	none	none
 Not all the new messages are documented here, and many of them are
 indications of transient errors that are not indications of serious
 problems.
-.Pp
-WL200 PCI wireless cards are based on a Cirrus Logic CL-PD6729 bridge
-chips glued to an Intersil Prism-II PCMCIA chipset w/o the PC Card
-form factor being present.
-These chips are special and require special care to use properly.
-One must set
-.Va hw.pcic.pd6729_intr_path Ns = Ns Qq Li 2
-in
-.Pa /boot/loader.conf .
-This tells the PC Card system to use PCI interrupts for this odd beast.
-It is not possible to know automatically which kind of interrupts to use.
-OLDCARD devices
-support this device.
-NEWCARD devices
-.Xr ( pccbb 4
-and
-.Xr pccard 4 )
-do not support it at this time.

@@ -110,7 +110,7 @@ zbpci_attach(device_t dev)
 		panic("%s: port_rman", __func__);
 
 	/*
-	 * Reserve the the physical memory that is used to read/write to the
+	 * Reserve the physical memory that is used to read/write to the
 	 * pci config space but don't activate it. We are using a page worth
 	 * of KVA as a window over this region.
 	 */
@@ -349,7 +349,7 @@ zbpci_config_space_va(int bus, int slot, int func, int reg, int bytes)
 		pa_page = pa & ~(PAGE_SIZE - 1);
 		if (zbpci_config_space[cpu].paddr != pa_page) {
 			pmap_kremove(va_page);
-			pmap_kenter(va_page, pa_page);
+			pmap_kenter_attr(va_page, pa_page, PTE_C_UNCACHED);
 			zbpci_config_space[cpu].paddr = pa_page;
 		}
 		return (va_page + (pa - pa_page));
@@ -457,7 +457,6 @@ static device_method_t zbpci_methods[] ={
  * consider drivers belonging to the "pcib" when probing children of
  * "zbpci".
  */
-DECLARE_CLASS(pcib_driver);
 DEFINE_CLASS_1(zbpci, zbpci_driver, zbpci_methods, 0, pcib_driver);
 
 static devclass_t zbpci_devclass;

@@ -11,6 +11,9 @@
 #ifndef WPS_UPNP_I_H
 #define WPS_UPNP_I_H
 
+#include "utils/list.h"
+#include "http.h"
+
 #define UPNP_MULTICAST_ADDRESS  "239.255.255.250" /* for UPnP multicasting */
 #define UPNP_MULTICAST_PORT 1900 /* UDP port to monitor for UPnP */
 
@@ -25,25 +28,11 @@
 #define UPNP_WPS_DEVICE_CONTROL_FILE "wps_control"
 #define UPNP_WPS_DEVICE_EVENT_FILE "wps_event"
 
+#define MULTICAST_MAX_READ 1600 /* max bytes we'll read for UPD request */
 
-struct web_connection;
-struct subscription;
+
 struct upnp_wps_device_sm;
-
-
-enum http_reply_code {
-	HTTP_OK = 200,
-	HTTP_BAD_REQUEST = 400,
-	UPNP_INVALID_ACTION = 401,
-	UPNP_INVALID_ARGS = 402,
-	HTTP_PRECONDITION_FAILED = 412,
-	HTTP_INTERNAL_SERVER_ERROR = 500,
-	HTTP_UNIMPLEMENTED = 501,
-	UPNP_ACTION_FAILED = 501,
-	UPNP_ARG_VALUE_INVALID = 600,
-	UPNP_ARG_VALUE_OUT_OF_RANGE = 601,
-	UPNP_OUT_OF_MEMORY = 603
-};
+struct wps_registrar;
 
 
 enum advertisement_type_enum {
@@ -60,10 +49,7 @@ enum advertisement_type_enum {
  * separate packets and spread out in time to avoid congestion.
  */
 struct advertisement_state_machine {
-	/* double-linked list */
-	struct advertisement_state_machine *next;
-	struct advertisement_state_machine *prev;
-	struct upnp_wps_device_sm *sm; /* parent */
+	struct dl_list list;
 	enum advertisement_type_enum type;
 	int state;
 	int nerrors;
@@ -77,10 +63,7 @@ struct advertisement_state_machine {
  * for a subscriber until we find one that seems to work.
  */
 struct subscr_addr {
-	/* double linked list */
-	struct subscr_addr *next;
-	struct subscr_addr *prev;
-	struct subscription *s; /* parent */
+	struct dl_list list;
 	char *domain_and_port; /* domain and port part of url */
 	char *path; /* "filepath" part of url (from "mem") */
 	struct sockaddr_in saddr; /* address for doing connect */
@@ -93,9 +76,7 @@ struct subscr_addr {
  * also have to age out subscribers unless they renew.
  */
 struct subscription {
-	/* double linked list */
-	struct subscription *next;
-	struct subscription *prev;
+	struct dl_list list;
 	struct upnp_wps_device_sm *sm; /* parent */
 	time_t timeout_time; /* when to age out the subscription */
 	unsigned next_subscriber_sequence; /* number our messages */
@@ -106,12 +87,16 @@ struct subscription {
 	 */
 	u8 uuid[UUID_LEN];
 	/* Linked list of address alternatives (rotate through on failure) */
-	struct subscr_addr *addr_list;
-	int n_addr; /* Number of addresses in list */
-	struct wps_event_ *event_queue; /* Queued event messages. */
-	int n_queue; /* How many events are queued */
+	struct dl_list addr_list;
+	struct dl_list event_queue; /* Queued event messages. */
 	struct wps_event_ *current_event; /* non-NULL if being sent (not in q)
 					   */
+
+	/* Information from SetSelectedRegistrar action */
+	u8 selected_registrar;
+	u16 dev_password_id;
+	u16 config_methods;
+	struct wps_registrar *reg;
 };
 
 
@@ -128,8 +113,6 @@ struct upnp_wps_device_sm {
 	char *root_dir;
 	char *desc_url;
 	int started; /* nonzero if we are active */
-	char *net_if; /* network interface we use */
-	char *mac_addr_text; /* mac addr of network i.f. we use */
 	u8 mac_addr[ETH_ALEN]; /* mac addr of network i.f. we use */
 	char *ip_addr_text; /* IP address of network i.f. we use */
 	unsigned ip_addr; /* IP address of network i.f. we use (host order) */
@@ -138,16 +121,11 @@ struct upnp_wps_device_sm {
 	int ssdp_sd_registered; /* nonzero if we must unregister */
 	unsigned advertise_count; /* how many advertisements done */
 	struct advertisement_state_machine advertisement;
-	struct advertisement_state_machine *msearch_replies;
-	int n_msearch_replies; /* no. of pending M-SEARCH replies */
+	struct dl_list msearch_replies;
 	int web_port; /* our port that others get xml files from */
-	int web_sd; /* socket to listen for web requests */
-	int web_sd_registered; /* nonzero if we must cancel registration */
-	struct web_connection *web_connections; /* linked list */
-	int n_web_connections; /* no. of pending web connections */
+	struct http_server *web_srv;
 	/* Note: subscriptions are kept in expiry order */
-	struct subscription *subscriptions; /* linked list */
-	int n_subscriptions; /* no of current subscriptions */
+	struct dl_list subscriptions;
 	int event_send_all_queued; /* if we are scheduled to send events soon
 				    */
 
@@ -160,34 +138,42 @@ struct upnp_wps_device_sm {
 /* wps_upnp.c */
 void format_date(struct wpabuf *buf);
 struct subscription * subscription_start(struct upnp_wps_device_sm *sm,
-					 char *callback_urls);
+					 const char *callback_urls);
 struct subscription * subscription_renew(struct upnp_wps_device_sm *sm,
 					 const u8 uuid[UUID_LEN]);
-void subscription_unlink(struct subscription *s);
 void subscription_destroy(struct subscription *s);
 struct subscription * subscription_find(struct upnp_wps_device_sm *sm,
 					const u8 uuid[UUID_LEN]);
 int send_wpabuf(int fd, struct wpabuf *buf);
+int get_netif_info(const char *net_if, unsigned *ip_addr, char **ip_addr_text,
+		   u8 mac[ETH_ALEN]);
 
 /* wps_upnp_ssdp.c */
 void msearchreply_state_machine_stop(struct advertisement_state_machine *a);
 int advertisement_state_machine_start(struct upnp_wps_device_sm *sm);
-void advertisement_state_machine_stop(struct upnp_wps_device_sm *sm);
+void advertisement_state_machine_stop(struct upnp_wps_device_sm *sm,
+				      int send_byebye);
 void ssdp_listener_stop(struct upnp_wps_device_sm *sm);
 int ssdp_listener_start(struct upnp_wps_device_sm *sm);
-int add_ssdp_network(char *net_if);
+int ssdp_listener_open(void);
+int add_ssdp_network(const char *net_if);
+int ssdp_open_multicast_sock(u32 ip_addr);
 int ssdp_open_multicast(struct upnp_wps_device_sm *sm);
 
 /* wps_upnp_web.c */
-void web_connection_stop(struct web_connection *c);
 int web_listener_start(struct upnp_wps_device_sm *sm);
 void web_listener_stop(struct upnp_wps_device_sm *sm);
 
 /* wps_upnp_event.c */
 int event_add(struct subscription *s, const struct wpabuf *data);
-void event_delete(struct wps_event_ *e);
 void event_delete_all(struct subscription *s);
 void event_send_all_later(struct upnp_wps_device_sm *sm);
 void event_send_stop_all(struct upnp_wps_device_sm *sm);
+
+/* wps_upnp_ap.c */
+int upnp_er_set_selected_registrar(struct wps_registrar *reg,
+				   struct subscription *s,
+				   const struct wpabuf *msg);
+void upnp_er_remove_notification(struct subscription *s);
 
 #endif /* WPS_UPNP_I_H */

@@ -43,6 +43,8 @@ unsigned char * base64_encode(const unsigned char *src, size_t len,
 	olen = len * 4 / 3 + 4; /* 3-byte blocks to 4-byte */
 	olen += olen / 72; /* line feeds */
 	olen++; /* nul termination */
+	if (olen < len)
+		return NULL; /* integer overflow */
 	out = os_malloc(olen);
 	if (out == NULL)
 		return NULL;
@@ -150,38 +152,3 @@ unsigned char * base64_decode(const unsigned char *src, size_t len,
 	*out_len = pos - out;
 	return out;
 }
-
-
-#ifdef TEST_MAIN
-
-int main(int argc, char *argv[])
-{
-	FILE *f;
-	size_t len, elen;
-	unsigned char *buf, *e;
-
-	if (argc != 4) {
-		printf("Usage: base64 <encode|decode> <in file> <out file>\n");
-		return -1;
-	}
-
-	buf = os_readfile(argv[2], &len);
-	if (buf == NULL)
-		return -1;
-
-	if (strcmp(argv[1], "encode") == 0)
-		e = base64_encode(buf, len, &elen);
-	else
-		e = base64_decode(buf, len, &elen);
-	if (e == NULL)
-		return -2;
-	f = fopen(argv[3], "w");
-	if (f == NULL)
-		return -3;
-	fwrite(e, 1, elen, f);
-	fclose(f);
-	free(e);
-
-	return 0;
-}
-#endif /* TEST_MAIN */

@@ -1,0 +1,21 @@
+2007-06-29  Hal Rosenstock <halr@voltaire.com>
+
+	* Release version 1.0.4
+
+2007-06-26  Hal Rosenstock <halr@voltaire.com>
+
+	* src/sysfs.c: Change uint to unsigned for strict ANSI
+
+2007-06-26  Michael S. Tsirkin <mst@dev.mellanox.co.il>
+
+	* include/infiniband/common.h: Change uint to unsigned
+	  for strict ANSI
+
+2007-01-25  Hal Rosenstock <halr@voltaire.com>
+
+	* Release version 1.0.2.
+
+2006-11-20  Sasha Khapyorsky <sashak@voltaire.com>
+
+	* include/infiniband/common.h: Enable strict format/args
+	  checking for printf() style functions

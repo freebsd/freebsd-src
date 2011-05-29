@@ -54,8 +54,8 @@
 				    l_int mode); }
 9	AUE_LINK	STD	{ int linux_link(char *path, char *to); }
 10	AUE_UNLINK	STD	{ int linux_unlink(char *path); }
-11	AUE_EXECVE	STD	{ int linux_execve(char *path, char **argp, \
-				    char **envp); }
+11	AUE_EXECVE	STD	{ int linux_execve(char *path, u_int32_t *argp, \
+				    u_int32_t *envp); }
 12	AUE_CHDIR	STD	{ int linux_chdir(char *path); }
 13	AUE_NULL	STD	{ int linux_time(l_time_t *tm); }
 14	AUE_MKNOD	STD	{ int linux_mknod(char *path, l_int mode, \
@@ -213,9 +213,8 @@
 118	AUE_FSYNC	NOPROTO	{ int fsync(int fd); }
 119	AUE_SIGRETURN	STD	{ int linux_sigreturn( \
 				    struct l_sigframe *sfp); }
-; linux uses some strange calling convention here so we have to use the dummy arg
 120	AUE_RFORK	STD	{ int linux_clone(l_int flags, void *stack, \
-				    void *parent_tidptr, int dummy, void * child_tidptr); }
+				    void *parent_tidptr, void *tls, void * child_tidptr); }
 121	AUE_SYSCTL	STD	{ int linux_setdomainname(char *name, \
 				    int len); }
 122	AUE_NULL	STD	{ int linux_newuname( \
@@ -292,7 +291,7 @@
 				    l_uid16_t *euid, l_uid16_t *suid); }
 166	AUE_NULL	UNIMPL	vm86
 167	AUE_NULL	STD	{ int linux_query_module(void); }
-168	AUE_POLL	NOPROTO	{ int poll(struct pollfd*, \
+168	AUE_POLL	NOPROTO	{ int poll(struct pollfd *fds, \
 				    unsigned int nfds, int timeout); }
 169	AUE_NULL	STD	{ int linux_nfsservctl(void); }
 170	AUE_SETRESGID	STD	{ int linux_setresgid16(l_gid16_t rgid, \
@@ -327,8 +326,10 @@
 				    l_uid16_t uid, l_gid16_t gid); }
 183	AUE_GETCWD	STD	{ int linux_getcwd(char *buf, \
 				    l_ulong bufsize); }
-184	AUE_CAPGET	STD	{ int linux_capget(void); }
-185	AUE_CAPSET	STD	{ int linux_capset(void); }
+184	AUE_CAPGET	STD	{ int linux_capget(struct l_user_cap_header *hdrp, \
+				    struct l_user_cap_data *datap); }
+185	AUE_CAPSET	STD	{ int linux_capset(struct l_user_cap_header *hdrp, \
+				    struct l_user_cap_data *datap); }
 186	AUE_NULL	STD	{ int linux_sigaltstack(l_stack_t *uss, \
 				    l_stack_t *uoss); }
 187	AUE_SENDFILE	STD	{ int linux_sendfile(void); }
@@ -405,8 +406,8 @@
 237	AUE_NULL	STD	{ int linux_fremovexattr(void); }
 238	AUE_NULL	STD	{ int linux_tkill(int tid, int sig); }
 239	AUE_SENDFILE	UNIMPL	linux_sendfile64
-240	AUE_NULL	STD	{ int linux_sys_futex(void *uaddr, int op, int val, \
-					struct l_timespec *timeout, void *uaddr2, int val3); }
+240	AUE_NULL	STD	{ int linux_sys_futex(void *uaddr, int op, uint32_t val, \
+					struct l_timespec *timeout, uint32_t *uaddr2, uint32_t val3); }
 241	AUE_NULL	STD	{ int linux_sched_setaffinity(l_pid_t pid, l_uint len, \
 					l_ulong *user_mask_ptr); }
 242	AUE_NULL	STD	{ int linux_sched_getaffinity(l_pid_t pid, l_uint len, \
@@ -416,7 +417,7 @@
 245	AUE_NULL	UNIMPL	linux_io_setup
 246	AUE_NULL	UNIMPL	linux_io_destroy
 247	AUE_NULL	UNIMPL	linux_io_getevents
-248	AUE_NULL	UNIMPL	inux_io_submit
+248	AUE_NULL	UNIMPL	linux_io_submit
 249	AUE_NULL	UNIMPL	linux_io_cancel
 250	AUE_NULL	STD	{ int linux_fadvise64(void); }
 251	AUE_NULL	UNIMPL

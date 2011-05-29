@@ -262,9 +262,7 @@ id(const char *name, const char *type)
 	 */
 	errno = 0;
 	val = strtoul(name, &ep, 10);
-	if (errno)
-		err(1, "%s", name);
-	if (*ep != '\0')
+	if (errno || *ep != '\0')
 		errx(1, "%s: illegal %s name", name, type);
 	return (val);
 }
@@ -292,6 +290,7 @@ chownerr(const char *file)
 			err(1, "malloc");
 		ngroups = getgroups(ngroups_max, groups);
 		while (--ngroups >= 0 && gid != groups[ngroups]);
+		free(groups);
 		if (ngroups < 0) {
 			warnx("you are not a member of group %s", gname);
 			return;

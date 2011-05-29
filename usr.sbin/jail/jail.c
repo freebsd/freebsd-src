@@ -511,6 +511,10 @@ set_param(const char *name, char *value)
 			*value++ = '\0';
 	}
 
+	/* jail_set won't chdir along with its chroot, so do it here. */
+	if (!strcmp(name, "path") && chdir(value) < 0)
+		err(1, "chdir: %s", value);
+
 	/* Check for repeat parameters */
 	for (i = 0; i < nparams; i++)
 		if (!strcmp(name, params[i].jp_name)) {

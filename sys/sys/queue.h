@@ -99,6 +99,7 @@
  * _REMOVE_AFTER		+	-	+	-
  * _REMOVE_HEAD			+	-	+	-
  * _REMOVE			+	+	+	+
+ * _SWAP			+	+	+	+
  *
  */
 #ifdef QUEUE_MACRO_DEBUG
@@ -213,6 +214,12 @@ struct {								\
 	SLIST_FIRST((head)) = SLIST_NEXT(SLIST_FIRST((head)), field);	\
 } while (0)
 
+#define SLIST_SWAP(head1, head2, type) do {				\
+	struct type *swap_first = SLIST_FIRST(head1);			\
+	SLIST_FIRST(head1) = SLIST_FIRST(head2);			\
+	SLIST_FIRST(head2) = swap_first;				\
+} while (0)
+
 /*
  * Singly-linked Tail queue declarations.
  */
@@ -301,16 +308,16 @@ struct {								\
 	TRASHIT(*oldnext);						\
 } while (0)
 
-#define	STAILQ_REMOVE_HEAD(head, field) do {				\
-	if ((STAILQ_FIRST((head)) =					\
-	     STAILQ_NEXT(STAILQ_FIRST((head)), field)) == NULL)		\
-		(head)->stqh_last = &STAILQ_FIRST((head));		\
-} while (0)
-
 #define STAILQ_REMOVE_AFTER(head, elm, field) do {			\
 	if ((STAILQ_NEXT(elm, field) =					\
 	     STAILQ_NEXT(STAILQ_NEXT(elm, field), field)) == NULL)	\
 		(head)->stqh_last = &STAILQ_NEXT((elm), field);		\
+} while (0)
+
+#define	STAILQ_REMOVE_HEAD(head, field) do {				\
+	if ((STAILQ_FIRST((head)) =					\
+	     STAILQ_NEXT(STAILQ_FIRST((head)), field)) == NULL)		\
+		(head)->stqh_last = &STAILQ_FIRST((head));		\
 } while (0)
 
 #define STAILQ_SWAP(head1, head2, type) do {				\

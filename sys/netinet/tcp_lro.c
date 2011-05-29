@@ -108,7 +108,7 @@ tcp_lro_free(struct lro_ctrl *cntl)
 
 	while (!SLIST_EMPTY(&cntl->lro_free)) {
 		entry = SLIST_FIRST(&cntl->lro_free);
-               	SLIST_REMOVE_HEAD(&cntl->lro_free, next);
+		SLIST_REMOVE_HEAD(&cntl->lro_free, next);
 		free(entry, M_DEVBUF);
 	}
 }
@@ -279,8 +279,10 @@ tcp_lro_rx(struct lro_ctrl *cntl, struct mbuf *m_head, uint32_t csum)
 		    lro->dest_ip == ip->ip_dst.s_addr) {
 			/* Try to append it */
 
-			if (__predict_false(seq != lro->next_seq)) {
-				/* out of order packet */
+			if (__predict_false(seq != lro->next_seq ||
+				    (tcp_data_len == 0 &&
+				    lro->ack_seq == tcp->th_ack))) {
+				/* out of order packet or dup ack */
 				SLIST_REMOVE(&cntl->lro_active, lro,
 					     lro_entry, next);
 				tcp_lro_flush(cntl, lro);

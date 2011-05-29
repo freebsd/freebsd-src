@@ -51,6 +51,7 @@ static int	 portable(const char *);
 static void	 usage(void);
 
 static int	 pflag;			/* Perform portability checks */
+static int	 Pflag;			/* Check for empty paths, leading '-' */
 
 int
 main(int argc, char *argv[])
@@ -58,10 +59,13 @@ main(int argc, char *argv[])
 	int ch, rval;
 	const char *arg;
 
-	while ((ch = getopt(argc, argv, "p")) > 0) {
+	while ((ch = getopt(argc, argv, "pP")) > 0) {
 		switch (ch) {
 		case 'p':
 			pflag = 1;
+			break;
+		case 'P':
+			Pflag = 1;
 			break;
 		default:
 			usage();
@@ -101,6 +105,15 @@ check(const char *path)
 		err(1, "strdup");
 
 	p = pathd;
+
+	if (Pflag && *p == '\0') {
+		warnx("%s: empty pathname", path);
+		goto bad;
+	}
+	if ((Pflag || pflag) && (*p == '-' || strstr(p, "/-") != NULL)) {
+		warnx("%s: contains a component starting with '-'", path);
+		goto bad;
+	}
 
 	if (!pflag) {
 		errno = 0;
@@ -181,9 +194,6 @@ portable(const char *path)
 	    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 	    "0123456789._-";
 	long s;
-
-	if (*path == '-')
-		return (*path);
 
 	s = strspn(path, charset);
 	if (path[s] != '\0')

@@ -23,6 +23,9 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <machine/asm.h>
+__FBSDID("$FreeBSD$");
+
 	.section .init,"ax",@progbits
 	.align	4
 	.globl	_init
@@ -37,5 +40,4 @@ _init:
 _fini:
 	sub	$12,%esp	/* re-align stack pointer */
 
-	.section .rodata
-.ascii "$FreeBSD$\0"
+	.section .note.GNU-stack,"",%progbits

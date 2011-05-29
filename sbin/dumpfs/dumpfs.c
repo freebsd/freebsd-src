@@ -238,7 +238,7 @@ dumpfs(const char *name)
 	if (fsflags & FS_UNCLEAN)
 		printf("unclean ");
 	if (fsflags & FS_DOSOFTDEP)
-		printf("soft-updates ");
+		printf("soft-updates%s ", (fsflags & FS_SUJ) ? "+journal" : "");
 	if (fsflags & FS_NEEDSFSCK)
 		printf("needs fsck run ");
 	if (fsflags & FS_INDEXDIRS)
@@ -253,9 +253,11 @@ dumpfs(const char *name)
 		printf("fs_flags expanded ");
 	if (fsflags & FS_NFS4ACLS)
 		printf("nfsv4acls ");
+	if (fsflags & FS_TRIM)
+		printf("trim ");
 	fsflags &= ~(FS_UNCLEAN | FS_DOSOFTDEP | FS_NEEDSFSCK | FS_INDEXDIRS |
 		     FS_ACLS | FS_MULTILABEL | FS_GJOURNAL | FS_FLAGS_UPDATED |
-		     FS_NFS4ACLS);
+		     FS_NFS4ACLS | FS_SUJ | FS_TRIM);
 	if (fsflags != 0)
 		printf("unknown flags (%#x)", fsflags);
 	putchar('\n');
@@ -400,7 +402,9 @@ marshal(const char *name)
 	printf("-g %d ", fs->fs_avgfilesize);
 	printf("-h %d ", fs->fs_avgfpdir);
 	/* -i is dumb */
-	/* -j..l unimplemented */
+	if (fs->fs_flags & FS_SUJ)
+		printf("-j ");
+	/* -k..l unimplemented */
 	printf("-m %d ", fs->fs_minfree);
 	/* -n unimplemented */
 	printf("-o ");
@@ -417,6 +421,8 @@ marshal(const char *name)
 	}
 	/* -p..r unimplemented */
 	printf("-s %jd ", (intmax_t)fsbtodb(fs, fs->fs_size));
+	if (fs->fs_flags & FS_TRIM)
+		printf("-t ");
 	printf("%s ", disk.d_name);
 	printf("\n");
 

@@ -40,6 +40,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 
 #include <errno.h>
+#include <string.h>
+#define	TTYDEFCHARS
 #include <termios.h>
 #include <unistd.h>
 #include "un-namespace.h"
@@ -171,6 +173,23 @@ cfmakeraw(struct termios *t)
 	t->c_cflag |= CS8|CREAD;
 	t->c_cc[VMIN] = 1;
 	t->c_cc[VTIME] = 0;
+}
+
+/*
+ * Obtain a termios structure which is similar to the one provided by
+ * the kernel.
+ */
+void
+cfmakesane(struct termios *t)
+{
+
+	t->c_cflag = TTYDEF_CFLAG;
+	t->c_iflag = TTYDEF_IFLAG;
+	t->c_lflag = TTYDEF_LFLAG;
+	t->c_oflag = TTYDEF_OFLAG;
+	t->c_ispeed = TTYDEF_SPEED;
+	t->c_ospeed = TTYDEF_SPEED;
+	memcpy(&t->c_cc, ttydefchars, sizeof ttydefchars);
 }
 
 int

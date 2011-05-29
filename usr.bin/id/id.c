@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -78,11 +74,13 @@ main(int argc, char *argv[])
 	struct group *gr;
 	struct passwd *pw;
 	int Gflag, Mflag, Pflag, ch, gflag, id, nflag, pflag, rflag, uflag;
-	int Aflag;
+	int Aflag, cflag;
+	int error;
 	const char *myname;
+	char loginclass[MAXLOGNAME];
 
 	Gflag = Mflag = Pflag = gflag = nflag = pflag = rflag = uflag = 0;
-	Aflag = 0;
+	Aflag = cflag = 0;
 
 	myname = strrchr(argv[0], '/');
 	myname = (myname != NULL) ? myname + 1 : argv[0];
@@ -96,7 +94,7 @@ main(int argc, char *argv[])
 	}
 
 	while ((ch = getopt(argc, argv,
-	    (isgroups || iswhoami) ? "" : "APGMagnpru")) != -1)
+	    (isgroups || iswhoami) ? "" : "APGMacgnpru")) != -1)
 		switch(ch) {
 #ifdef USE_BSM_AUDIT
 		case 'A':
@@ -113,6 +111,9 @@ main(int argc, char *argv[])
 			Pflag = 1;
 			break;
 		case 'a':
+			break;
+		case 'c':
+			cflag = 1;
 			break;
 		case 'g':
 			gflag = 1;
@@ -161,6 +162,14 @@ main(int argc, char *argv[])
 		exit(0);
 	}
 #endif
+
+	if (cflag) {
+		error = getloginclass(loginclass, sizeof(loginclass));
+		if (error != 0)
+			err(1, "loginclass");
+		(void)printf("%s\n", loginclass);
+		exit(0);
+	}
 
 	if (gflag) {
 		id = pw ? pw->pw_gid : rflag ? getgid() : getegid();
@@ -471,7 +480,7 @@ usage(void)
 	else if (iswhoami)
 		(void)fprintf(stderr, "usage: whoami\n");
 	else
-		(void)fprintf(stderr, "%s\n%s%s\n%s\n%s\n%s\n%s\n%s\n",
+		(void)fprintf(stderr, "%s\n%s%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
 		    "usage: id [user]",
 #ifdef USE_BSM_AUDIT
 		    "       id -A\n",
@@ -481,6 +490,7 @@ usage(void)
 		    "       id -G [-n] [user]",
 		    "       id -M",
 		    "       id -P [user]",
+		    "       id -c",
 		    "       id -g [-nr] [user]",
 		    "       id -p [user]",
 		    "       id -u [-nr] [user]");

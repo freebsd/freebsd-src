@@ -4,7 +4,7 @@
 
 KMOD=	arcnet
 SRCS=	if_arcsubr.c
-SRCS+=	opt_inet.h opt_inet6.h opt_ipx.h
+SRCS+=	opt_inet.h opt_inet6.h opt_ipx.h opt_ofed.h
 
 EXPORT_SYMS=	arc_frag_init	\
 		arc_frag_next	\

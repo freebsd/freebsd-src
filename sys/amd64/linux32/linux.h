@@ -47,7 +47,10 @@ extern u_char linux_debug_map[];
 MALLOC_DECLARE(M_LINUX);
 #endif
 
-#define	LINUX32_USRSTACK	((1ul << 32) - PAGE_SIZE)
+#define	LINUX32_MAXUSER		((1ul << 32) - PAGE_SIZE)
+#define	LINUX32_SHAREDPAGE	(LINUX32_MAXUSER - PAGE_SIZE)
+#define	LINUX32_USRSTACK	LINUX32_SHAREDPAGE
+
 /* XXX 16 = sizeof(linux32_ps_strings) */
 #define	LINUX32_PS_STRINGS	(LINUX32_USRSTACK - 16)
 #define	LINUX32_MAXDSIZ		(512 * 1024 * 1024)	/* 512MB */
@@ -203,9 +206,9 @@ struct l_newstat {
 	l_ulong		st_size;
 	l_ulong		st_blksize;
 	l_ulong		st_blocks;
-	struct l_timespec	st_atimespec;
-	struct l_timespec	st_mtimespec;
-	struct l_timespec	st_ctimespec;
+	struct l_timespec	st_atim;
+	struct l_timespec	st_mtim;
+	struct l_timespec	st_ctim;
 	l_ulong		__unused4;
 	l_ulong		__unused5;
 } __packed;
@@ -219,9 +222,9 @@ struct l_stat {
 	l_ushort	st_gid;
 	l_ushort	st_rdev;
 	l_long		st_size;
-	struct l_timespec	st_atimespec;
-	struct l_timespec	st_mtimespec;
-	struct l_timespec	st_ctimespec;
+	struct l_timespec	st_atim;
+	struct l_timespec	st_mtim;
+	struct l_timespec	st_ctim;
 	l_long		st_blksize;
 	l_long		st_blocks;
 	l_ulong		st_flags;
@@ -242,9 +245,9 @@ struct l_stat64 {
 	l_ulong		st_blksize;
 	l_ulong		st_blocks;
 	l_ulong		__pad4;
-	struct l_timespec	st_atimespec;
-	struct l_timespec	st_mtimespec;
-	struct l_timespec	st_ctimespec;
+	struct l_timespec	st_atim;
+	struct l_timespec	st_mtim;
+	struct l_timespec	st_ctim;
 	l_ulonglong	st_ino;
 } __packed;
 
@@ -306,6 +309,7 @@ struct l_new_utsname {
 #define	LINUX_SIGPOLL		LINUX_SIGIO
 #define	LINUX_SIGPWR		30
 #define	LINUX_SIGSYS		31
+#define	LINUX_SIGRTMIN		32
 
 #define	LINUX_SIGTBLSZ		31
 #define	LINUX_NSIG_WORDS	2
@@ -370,28 +374,28 @@ typedef struct {
 
 /* The Linux sigcontext, pretty much a standard 386 trapframe. */
 struct l_sigcontext {
-	l_int		sc_gs;
-	l_int		sc_fs;
-	l_int		sc_es;
-	l_int		sc_ds;
-	l_int		sc_edi;
-	l_int		sc_esi;
-	l_int		sc_ebp;
-	l_int		sc_esp;
-	l_int		sc_ebx;
-	l_int		sc_edx;
-	l_int		sc_ecx;
-	l_int		sc_eax;
-	l_int		sc_trapno;
-	l_int		sc_err;
-	l_int		sc_eip;
-	l_int		sc_cs;
-	l_int		sc_eflags;
-	l_int		sc_esp_at_signal;
-	l_int		sc_ss;
-	l_int		sc_387;
-	l_int		sc_mask;
-	l_int		sc_cr2;
+	l_uint		sc_gs;
+	l_uint		sc_fs;
+	l_uint		sc_es;
+	l_uint		sc_ds;
+	l_uint		sc_edi;
+	l_uint		sc_esi;
+	l_uint		sc_ebp;
+	l_uint		sc_esp;
+	l_uint		sc_ebx;
+	l_uint		sc_edx;
+	l_uint		sc_ecx;
+	l_uint		sc_eax;
+	l_uint		sc_trapno;
+	l_uint		sc_err;
+	l_uint		sc_eip;
+	l_uint		sc_cs;
+	l_uint		sc_eflags;
+	l_uint		sc_esp_at_signal;
+	l_uint		sc_ss;
+	l_uint		sc_387;
+	l_uint		sc_mask;
+	l_uint		sc_cr2;
 } __packed;
 
 struct l_ucontext {
@@ -919,5 +923,8 @@ struct linux_robust_list_head {
 	l_long				futex_offset;
 	l_uintptr_t			pending_list;
 };
+
+int linux_set_upcall_kse(struct thread *td, register_t stack);
+int linux_set_cloned_tls(struct thread *td, void *desc);
 
 #endif /* !_AMD64_LINUX_H_ */

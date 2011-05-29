@@ -190,9 +190,10 @@ at91_usart_param(struct uart_bas *bas, int baudrate, int databits,
 	WR4(bas, USART_MR, mr);
 
 	/*
-	 * Set the baud rate
+	 * Set the baud rate (only if we know our master clock rate)
 	 */
-	WR4(bas, USART_BRGR, BAUD2DIVISOR(baudrate));
+	if (DEFAULT_RCLK != 0)
+		WR4(bas, USART_BRGR, BAUD2DIVISOR(baudrate));
 
 	/* XXX Need to take possible synchronous mode into account */
 	return (0);
@@ -314,7 +315,6 @@ at91_usart_bus_probe(struct uart_softc *sc)
 	return (0);
 }
 
-#ifndef SKYEYE_WORKAROUNDS
 static void
 at91_getaddr(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 {
@@ -322,15 +322,12 @@ at91_getaddr(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 		return;
 	*(bus_addr_t *)arg = segs[0].ds_addr;
 }
-#endif
 
 static int
 at91_usart_bus_attach(struct uart_softc *sc)
 {
-#ifndef SKYEYE_WORKAROUNDS
 	int err;
 	int i;
-#endif
 	uint32_t cr;
 	struct at91_usart_softc *atsc;
 
@@ -348,7 +345,6 @@ at91_usart_bus_attach(struct uart_softc *sc)
 		atsc->flags |= HAS_TIMEOUT;
 	WR4(&sc->sc_bas, USART_IDR, 0xffffffff);
 
-#ifndef SKYEYE_WORKAROUNDS
 	/*
 	 * Allocate DMA tags and maps
 	 */
@@ -379,7 +375,6 @@ at91_usart_bus_attach(struct uart_softc *sc)
 		atsc->ping = &atsc->ping_pong[0];
 		atsc->pong = &atsc->ping_pong[1];
 	}
-#endif
 
 	/*
 	 * Prime the pump with the RX buffer.  We use two 64 byte bounce
@@ -413,34 +408,25 @@ at91_usart_bus_attach(struct uart_softc *sc)
 		WR4(&sc->sc_bas, USART_IER, USART_CSR_RXRDY);
 	}
 	WR4(&sc->sc_bas, USART_IER, USART_CSR_RXBRK);
-#ifndef SKYEYE_WORKAROUNDS
 errout:;
 	// XXX bad
 	return (err);
-#else
-	return (0);
-#endif
 }
 
 static int
 at91_usart_bus_transmit(struct uart_softc *sc)
 {
-#ifndef SKYEYE_WORKAROUNDS
 	bus_addr_t addr;
-#endif
 	struct at91_usart_softc *atsc;
 
 	atsc = (struct at91_usart_softc *)sc;
-#ifndef SKYEYE_WORKAROUNDS
 	if (bus_dmamap_load(atsc->dmatag, atsc->tx_map, sc->sc_txbuf,
 	    sc->sc_txdatasz, at91_getaddr, &addr, 0) != 0)
 		return (EAGAIN);
 	bus_dmamap_sync(atsc->dmatag, atsc->tx_map, BUS_DMASYNC_PREWRITE);
-#endif
 
 	uart_lock(sc->sc_hwmtx);
 	sc->sc_txbusy = 1;
-#ifndef SKYEYE_WORKAROUNDS
 	/*
 	 * Setup the PDC to transfer the data and interrupt us when it
 	 * is done.  We've already requested the interrupt.
@@ -450,15 +436,6 @@ at91_usart_bus_transmit(struct uart_softc *sc)
 	WR4(&sc->sc_bas, PDC_PTCR, PDC_PTCR_TXTEN);
 	WR4(&sc->sc_bas, USART_IER, USART_CSR_ENDTX);
 	uart_unlock(sc->sc_hwmtx);
-#else
-	for (int i = 0; i < sc->sc_txdatasz; i++)
-		at91_usart_putc(&sc->sc_bas, sc->sc_txbuf[i]);
-	/*
-	 * XXX: Gross hack : Skyeye doesn't raise an interrupt once the
-	 * transfer is done, so simulate it.
-	 */
-	WR4(&sc->sc_bas, USART_IER, USART_CSR_TXRDY);
-#endif
 	return (0);
 }
 static int
@@ -674,7 +651,10 @@ at91_usart_bus_ioctl(struct uart_softc *sc, int request, intptr_t data)
 	case UART_IOCTL_OFLOW:
 		break;
 	case UART_IOCTL_BAUD:
-		WR4(&sc->sc_bas, USART_BRGR, BAUD2DIVISOR(*(int *)data));
+		/* only if we know our master clock rate */
+		if (DEFAULT_RCLK != 0)
+			WR4(&sc->sc_bas, USART_BRGR,
+				BAUD2DIVISOR(*(int *)data));
 		return (0);
 	}
 	return (EINVAL);

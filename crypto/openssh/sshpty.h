@@ -1,4 +1,4 @@
-/* $OpenBSD: sshpty.h,v 1.11 2008/05/19 15:45:07 djm Exp $ */
+/* $OpenBSD: sshpty.h,v 1.12 2010/01/09 05:04:24 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -17,8 +17,8 @@
 #include <termios.h>
 
 struct termios *get_saved_tio(void);
-void	 leave_raw_mode(void);
-void	 enter_raw_mode(void);
+void	 leave_raw_mode(int);
+void	 enter_raw_mode(int);
 
 int	 pty_allocate(int *, int *, char *, size_t);
 void	 pty_release(const char *);

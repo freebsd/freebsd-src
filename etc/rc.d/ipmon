@@ -20,7 +20,7 @@ ipmon_precmd()
 	# Continue only if ipfilter or ipnat is enabled and the
 	# ipfilter module is loaded.
 	#
-	if ! checkyesno ipfilter_enable -o ! checkyesno ipnat_enable ; then
+	if ! checkyesno ipfilter_enable && ! checkyesno ipnat_enable ; then
 		err 1  "${name} requires either ipfilter or ipnat enabled"
 	fi
 	if ! sysctl net.inet.ipf.fr_pass >/dev/null 2>&1; then

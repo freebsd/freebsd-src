@@ -78,17 +78,17 @@ static int	nfs3_jukebox_delay = 10;
 static int	nfs_skip_wcc_data_onerr = 1;
 static int	nfs_keytab_enctype = ETYPE_DES_CBC_CRC;
 
-SYSCTL_DECL(_vfs_newnfs);
+SYSCTL_DECL(_vfs_nfs);
 
-SYSCTL_INT(_vfs_newnfs, OID_AUTO, bufpackets, CTLFLAG_RW, &nfs_bufpackets, 0,
+SYSCTL_INT(_vfs_nfs, OID_AUTO, bufpackets, CTLFLAG_RW, &nfs_bufpackets, 0,
     "Buffer reservation size 2 < x < 64");
-SYSCTL_INT(_vfs_newnfs, OID_AUTO, reconnects, CTLFLAG_RD, &nfs_reconnects, 0,
+SYSCTL_INT(_vfs_nfs, OID_AUTO, reconnects, CTLFLAG_RD, &nfs_reconnects, 0,
     "Number of times the nfs client has had to reconnect");
-SYSCTL_INT(_vfs_newnfs, OID_AUTO, nfs3_jukebox_delay, CTLFLAG_RW, &nfs3_jukebox_delay, 0,
+SYSCTL_INT(_vfs_nfs, OID_AUTO, nfs3_jukebox_delay, CTLFLAG_RW, &nfs3_jukebox_delay, 0,
     "Number of seconds to delay a retry after receiving EJUKEBOX");
-SYSCTL_INT(_vfs_newnfs, OID_AUTO, skip_wcc_data_onerr, CTLFLAG_RW, &nfs_skip_wcc_data_onerr, 0,
+SYSCTL_INT(_vfs_nfs, OID_AUTO, skip_wcc_data_onerr, CTLFLAG_RW, &nfs_skip_wcc_data_onerr, 0,
     "Disable weak cache consistency checking when server returns an error");
-SYSCTL_INT(_vfs_newnfs, OID_AUTO, keytab_enctype, CTLFLAG_RW, &nfs_keytab_enctype, 0,
+SYSCTL_INT(_vfs_nfs, OID_AUTO, keytab_enctype, CTLFLAG_RW, &nfs_keytab_enctype, 0,
     "Encryption type for the keytab entry used by nfs");
 
 static void	nfs_down(struct nfsmount *, struct thread *, const char *,
@@ -97,12 +97,35 @@ static void	nfs_up(struct nfsmount *, struct thread *, const char *,
     int, int);
 static int	nfs_msg(struct thread *, const char *, const char *, int);
 
-extern int nfsv2_procid[];
-
 struct nfs_cached_auth {
 	int		ca_refs; /* refcount, including 1 from the cache */
 	uid_t		ca_uid;	 /* uid that corresponds to this auth */
 	AUTH		*ca_auth; /* RPC auth handle */
+};
+
+static int nfsv2_procid[NFS_V3NPROCS] = {
+	NFSV2PROC_NULL,
+	NFSV2PROC_GETATTR,
+	NFSV2PROC_SETATTR,
+	NFSV2PROC_LOOKUP,
+	NFSV2PROC_NOOP,
+	NFSV2PROC_READLINK,
+	NFSV2PROC_READ,
+	NFSV2PROC_WRITE,
+	NFSV2PROC_CREATE,
+	NFSV2PROC_MKDIR,
+	NFSV2PROC_SYMLINK,
+	NFSV2PROC_CREATE,
+	NFSV2PROC_REMOVE,
+	NFSV2PROC_RMDIR,
+	NFSV2PROC_RENAME,
+	NFSV2PROC_LINK,
+	NFSV2PROC_READDIR,
+	NFSV2PROC_NOOP,
+	NFSV2PROC_STATFS,
+	NFSV2PROC_NOOP,
+	NFSV2PROC_NOOP,
+	NFSV2PROC_NOOP,
 };
 
 /*
@@ -120,7 +143,7 @@ newnfs_connect(struct nfsmount *nmp, struct nfssockreq *nrp,
 	CLIENT *client;
 	struct netconfig *nconf;
 	struct socket *so;
-	int one = 1, retries, error, printsbmax = 0;
+	int one = 1, retries, error;
 	struct thread *td = curthread;
 
 	/*
@@ -179,13 +202,8 @@ newnfs_connect(struct nfsmount *nmp, struct nfssockreq *nrp,
 		return (error);
 	}
 	do {
-	    if (error != 0 && pktscale > 2) {
+	    if (error != 0 && pktscale > 2)
 		pktscale--;
-		if (printsbmax == 0) {
-		    printf("nfscl: consider increasing kern.ipc.maxsockbuf\n");
-		    printsbmax = 1;
-		}
-	    }
 	    if (nrp->nr_sotype == SOCK_DGRAM) {
 		if (nmp != NULL) {
 			sndreserve = (NFS_MAXDGRAMDATA + NFS_MAXPKTHDR) *
@@ -533,6 +551,15 @@ newnfs_request(struct nfsrv_descript *nd, struct nfsmount *nmp,
 
 	if (nmp != NULL) {
 		NFSINCRGLOBAL(newnfsstats.rpcrequests);
+
+		/* Map the procnum to the old NFSv2 one, as required. */
+		if ((nd->nd_flag & ND_NFSV2) != 0) {
+			if (nd->nd_procnum < NFS_V3NPROCS)
+				procnum = nfsv2_procid[nd->nd_procnum];
+			else
+				procnum = NFSV2PROC_NOOP;
+		}
+
 		/*
 		 * Now only used for the R_DONTRECOVER case, but until that is
 		 * supported within the krpc code, I need to keep a queue of
@@ -650,7 +677,7 @@ tryagain:
 					trylater_delay = NFS_TRYLATERDEL;
 				waituntil = NFSD_MONOSEC + trylater_delay;
 				while (NFSD_MONOSEC < waituntil)
-					(void) nfs_catnap(PZERO, "nfstry");
+					(void) nfs_catnap(PZERO, 0, "nfstry");
 				trylater_delay *= 2;
 				goto tryagain;
 			}

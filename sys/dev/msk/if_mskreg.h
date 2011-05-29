@@ -144,7 +144,10 @@
 #define DEVICEID_MRVL_436A	0x436A
 #define DEVICEID_MRVL_436B	0x436B
 #define DEVICEID_MRVL_436C	0x436C
+#define DEVICEID_MRVL_436D	0x436D
+#define DEVICEID_MRVL_4370	0x4370
 #define DEVICEID_MRVL_4380	0x4380
+#define DEVICEID_MRVL_4381	0x4381
 
 /*
  * D-Link gigabit ethernet device ID
@@ -319,6 +322,9 @@
 #define PCI_OS_SPD_X66		1	/* PCI-X 66MHz Bus */
 #define PCI_OS_SPD_X100		2	/* PCI-X 100MHz Bus */
 #define PCI_OS_SPD_X133		3	/* PCI-X 133MHz Bus */
+
+/* PCI_OUR_REG_3	32 bit	Our Register 3 (Yukon-ECU only) */
+#define	PCI_CLK_MACSEC_DIS	BIT_17	/* Disable Clock MACSec. */
 
 /* PCI_OUR_REG_4	32 bit	Our Register 4 (Yukon-ECU only) */
 #define	PCI_TIMER_VALUE_MSK	(0xff<<16)	/* Bit 23..16:	Timer Value Mask */
@@ -621,8 +627,8 @@
 #define RX_GMF_FL_MSK	0x0c4c	/* 32 bit Rx GMAC FIFO Flush Mask */
 #define RX_GMF_FL_THR	0x0c50	/* 32 bit Rx GMAC FIFO Flush Threshold */
 #define RX_GMF_TR_THR	0x0c54	/* 32 bit Rx Truncation Threshold (Yukon-2) */
-#define	RX_GMF_UP_THR	0x0c58	/*  8 bit Rx Upper Pause Thr (Yukon-EC_U) */
-#define	RX_GMF_LP_THR	0x0c5a	/*  8 bit Rx Lower Pause Thr (Yukon-EC_U) */
+#define	RX_GMF_UP_THR	0x0c58	/* 16 bit Rx Upper Pause Thr (Yukon-EC_U) */
+#define	RX_GMF_LP_THR	0x0c5a	/* 16 bit Rx Lower Pause Thr (Yukon-EC_U) */
 #define RX_GMF_VLAN	0x0c5c	/* 32 bit Rx VLAN Type Register (Yukon-2) */
 #define RX_GMF_WP	0x0c60	/* 32 bit Rx GMAC FIFO Write Pointer */
 #define RX_GMF_WLEV	0x0c68	/* 32 bit Rx GMAC FIFO Write Level */
@@ -676,6 +682,7 @@
 /* ASF Subsystem Registers (Yukon-2 only) */
 #define B28_Y2_SMB_CONFIG	0x0e40	/* 32 bit ASF SMBus Config Register */
 #define B28_Y2_SMB_CSD_REG	0x0e44	/* 32 bit ASF SMB Control/Status/Data */
+#define B28_Y2_CPU_WDOG		0x0e48	/* 32 bit Watchdog Register */
 #define B28_Y2_ASF_IRQ_V_BASE	0x0e60	/* 32 bit ASF IRQ Vector Base */
 #define B28_Y2_ASF_STAT_CMD	0x0e68	/* 32 bit ASF Status and Command Reg */
 #define B28_Y2_ASF_HCU_CCSR	0x0e68	/* 32 bit ASF HCU CCSR (Yukon EX) */
@@ -828,6 +835,9 @@
 #define Y2_IS_CHK_RX2	BIT_10	/* Descriptor error Rx 2 */
 #define Y2_IS_CHK_TXS2	BIT_9	/* Descriptor error TXS 2 */
 #define Y2_IS_CHK_TXA2	BIT_8	/* Descriptor error TXA 2 */
+#define Y2_IS_PSM_ACK	BIT_7	/* PSM Ack (Yukon Optima) */
+#define Y2_IS_PTP_TIST	BIT_6	/* PTP TIme Stamp (Yukon Optima) */
+#define Y2_IS_PHY_QLNK	BIT_5	/* PHY Quick Link (Yukon Optima) */
 #define Y2_IS_IRQ_PHY1	BIT_4	/* Interrupt from PHY 1 */
 #define Y2_IS_IRQ_MAC1	BIT_3	/* Interrupt from MAC 1 */
 #define Y2_IS_CHK_RX1	BIT_2	/* Descriptor error Rx 1 */
@@ -894,6 +904,8 @@
 #define CHIP_ID_YUKON_FE_P	0xb8 /* Chip ID for YUKON-2 FE+ */
 #define CHIP_ID_YUKON_SUPR	0xb9 /* Chip ID for YUKON-2 Supreme */
 #define CHIP_ID_YUKON_UL_2	0xba /* Chip ID for YUKON-2 Ultra 2 */
+#define CHIP_ID_YUKON_UNKNOWN	0xbb
+#define CHIP_ID_YUKON_OPT	0xbc /* Chip ID for YUKON-2 Optima */
 
 #define	CHIP_REV_YU_XL_A0	0 /* Chip Rev. for Yukon-2 A0 */
 #define	CHIP_REV_YU_XL_A1	1 /* Chip Rev. for Yukon-2 A1 */
@@ -911,6 +923,10 @@
 
 #define	CHIP_REV_YU_EX_A0	1 /* Chip Rev. for Yukon-2 EX A0 */
 #define	CHIP_REV_YU_EX_B0	2 /* Chip Rev. for Yukon-2 EX B0 */
+
+#define	CHIP_REV_YU_SU_A0	0 /* Chip Rev. for Yukon-2 SUPR A0 */
+#define	CHIP_REV_YU_SU_B0	1 /* Chip Rev. for Yukon-2 SUPR B0 */
+#define	CHIP_REV_YU_SU_B1	3 /* Chip Rev. for Yukon-2 SUPR B1 */
 
 /*	B2_Y2_CLK_GATE	 8 bit	Clock Gating (Yukon-2 only) */
 #define Y2_STATUS_LNK2_INAC	BIT_7	/* Status Link 2 inactiv (0 = activ) */
@@ -1941,6 +1957,8 @@
 #define RX_TRUNC_OFF		BIT_26	/* disable packet truncation */
 #define RX_VLAN_STRIP_ON	BIT_25	/* enable  VLAN stripping */
 #define RX_VLAN_STRIP_OFF	BIT_24	/* disable VLAN stripping */
+#define GMF_RX_MACSEC_FLUSH_ON	BIT_23
+#define GMF_RX_MACSEC_FLUSH_OFF	BIT_22
 #define GMF_RX_OVER_ON		BIT_19	/* enable flushing on receive overrun */
 #define GMF_RX_OVER_OFF		BIT_18	/* disable flushing on receive overrun */
 #define GMF_ASF_RX_OVER_ON	BIT_17	/* enable flushing of ASF when overrun */
@@ -2547,6 +2565,7 @@ struct msk_if_softc {
 	struct msk_hw_stats	msk_stats;
 	int			msk_if_flags;
 	uint16_t		msk_vtag;	/* VLAN tag id. */
+	uint32_t		msk_csum;
 };
 
 #define MSK_TIMEOUT	1000

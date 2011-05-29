@@ -1,4 +1,4 @@
-/*	$OpenBSD: x86emu.c,v 1.4 2009/06/18 14:19:21 pirofti Exp $	*/
+/*	$OpenBSD: x86emu.c,v 1.5 2010/02/17 15:09:47 pirofti Exp $	*/
 /*	$NetBSD: x86emu.c,v 1.7 2009/02/03 19:26:29 joerg Exp $	*/
 
 /*
@@ -235,7 +235,8 @@ x86emu_exec(struct x86emu *emu)
 
 	for (;;) {
 		if (emu->x86.intr) {
-			if (((emu->x86.intr & INTR_SYNCH) && (emu->x86.intno == 0 || emu->x86.intno == 2)) ||
+			if (((emu->x86.intr & INTR_SYNCH) &&
+			    (emu->x86.intno == 0 || emu->x86.intno == 2)) ||
 			    !ACCESS_FLAG(F_IF)) {
 				x86emu_intr_handle(emu);
 			}
@@ -796,9 +797,9 @@ decode_rh_seg_register(struct x86emu *emu)
 		x86emu_halt_sys(emu);
 	}
 }
+
 /*
- *
- * return offset from the SIB Byte
+ * Return offset from the SIB Byte.
  */
 static uint32_t 
 decode_sib_address(struct x86emu *emu, int sib, int mod)
@@ -1107,7 +1108,8 @@ common_dec_word_long(struct x86emu *emu, union x86emu_register *reg)
 }
 
 static void
-common_binop_byte_rm_r(struct x86emu *emu, uint8_t (*binop)(struct x86emu *, uint8_t, uint8_t))
+common_binop_byte_rm_r(struct x86emu *emu, 
+    uint8_t (*binop)(struct x86emu *, uint8_t, uint8_t))
 {
 	uint32_t destoffset;
 	uint8_t *destreg, srcval;
@@ -1127,7 +1129,8 @@ common_binop_byte_rm_r(struct x86emu *emu, uint8_t (*binop)(struct x86emu *, uin
 }
 
 static void
-common_binop_ns_byte_rm_r(struct x86emu *emu, void (*binop)(struct x86emu *, uint8_t, uint8_t))
+common_binop_ns_byte_rm_r(struct x86emu *emu, 
+    void (*binop)(struct x86emu *, uint8_t, uint8_t))
 {
 	uint32_t destoffset;
 	uint8_t destval, srcval;
@@ -1144,7 +1147,8 @@ common_binop_ns_byte_rm_r(struct x86emu *emu, void (*binop)(struct x86emu *, uin
 }
 
 static void
-common_binop_word_rm_r(struct x86emu *emu, uint16_t (*binop)(struct x86emu *, uint16_t, uint16_t))
+common_binop_word_rm_r(struct x86emu *emu,
+    uint16_t (*binop)(struct x86emu *, uint16_t, uint16_t))
 {
 	uint32_t destoffset;
 	uint16_t destval, *destreg, srcval;
@@ -1163,7 +1167,8 @@ common_binop_word_rm_r(struct x86emu *emu, uint16_t (*binop)(struct x86emu *, ui
 }
 
 static void
-common_binop_byte_r_rm(struct x86emu *emu, uint8_t (*binop)(struct x86emu *, uint8_t, uint8_t))
+common_binop_byte_r_rm(struct x86emu *emu,
+    uint8_t (*binop)(struct x86emu *, uint8_t, uint8_t))
 {
 	uint8_t *destreg, srcval;
 	uint32_t srcoffset;
@@ -1180,7 +1185,8 @@ common_binop_byte_r_rm(struct x86emu *emu, uint8_t (*binop)(struct x86emu *, uin
 }
 
 static void
-common_binop_long_rm_r(struct x86emu *emu, uint32_t (*binop)(struct x86emu *, uint32_t, uint32_t))
+common_binop_long_rm_r(struct x86emu *emu,
+    uint32_t (*binop)(struct x86emu *, uint32_t, uint32_t))
 {
 	uint32_t destoffset;
 	uint32_t destval, *destreg, srcval;
@@ -1200,7 +1206,8 @@ common_binop_long_rm_r(struct x86emu *emu, uint32_t (*binop)(struct x86emu *, ui
 
 static void
 common_binop_word_long_rm_r(struct x86emu *emu,
-    uint16_t (*binop16)(struct x86emu *, uint16_t, uint16_t), uint32_t (*binop32)(struct x86emu *, uint32_t, uint32_t))
+    uint16_t (*binop16)(struct x86emu *, uint16_t, uint16_t),
+    uint32_t (*binop32)(struct x86emu *, uint32_t, uint32_t))
 {
 	if (emu->x86.mode & SYSMODE_PREFIX_DATA)
 		common_binop_long_rm_r(emu, binop32);
@@ -1209,7 +1216,8 @@ common_binop_word_long_rm_r(struct x86emu *emu,
 }
 
 static void
-common_binop_ns_word_rm_r(struct x86emu *emu, void (*binop)(struct x86emu *, uint16_t, uint16_t))
+common_binop_ns_word_rm_r(struct x86emu *emu,
+    void (*binop)(struct x86emu *, uint16_t, uint16_t))
 {
 	uint32_t destoffset;
 	uint16_t destval, srcval;
@@ -1227,7 +1235,8 @@ common_binop_ns_word_rm_r(struct x86emu *emu, void (*binop)(struct x86emu *, uin
 
 
 static void
-common_binop_ns_long_rm_r(struct x86emu *emu, void (*binop)(struct x86emu *, uint32_t, uint32_t))
+common_binop_ns_long_rm_r(struct x86emu *emu,
+    void (*binop)(struct x86emu *, uint32_t, uint32_t))
 {
 	uint32_t destoffset;
 	uint32_t destval, srcval;
@@ -1245,7 +1254,8 @@ common_binop_ns_long_rm_r(struct x86emu *emu, void (*binop)(struct x86emu *, uin
 
 static void
 common_binop_ns_word_long_rm_r(struct x86emu *emu,
-    void (*binop16)(struct x86emu *, uint16_t, uint16_t), void (*binop32)(struct x86emu *, uint32_t, uint32_t))
+    void (*binop16)(struct x86emu *, uint16_t, uint16_t),
+    void (*binop32)(struct x86emu *, uint32_t, uint32_t))
 {
 	if (emu->x86.mode & SYSMODE_PREFIX_DATA)
 		common_binop_ns_long_rm_r(emu, binop32);
@@ -1254,7 +1264,8 @@ common_binop_ns_word_long_rm_r(struct x86emu *emu,
 }
 
 static void
-common_binop_long_r_rm(struct x86emu *emu, uint32_t (*binop)(struct x86emu *, uint32_t, uint32_t))
+common_binop_long_r_rm(struct x86emu *emu,
+    uint32_t (*binop)(struct x86emu *, uint32_t, uint32_t))
 {
 	uint32_t srcoffset;
 	uint32_t *destreg, srcval;
@@ -1271,7 +1282,8 @@ common_binop_long_r_rm(struct x86emu *emu, uint32_t (*binop)(struct x86emu *, ui
 }
 
 static void
-common_binop_word_r_rm(struct x86emu *emu, uint16_t (*binop)(struct x86emu *, uint16_t, uint16_t))
+common_binop_word_r_rm(struct x86emu *emu,
+    uint16_t (*binop)(struct x86emu *, uint16_t, uint16_t))
 {
 	uint32_t srcoffset;
 	uint16_t *destreg, srcval;
@@ -1289,7 +1301,8 @@ common_binop_word_r_rm(struct x86emu *emu, uint16_t (*binop)(struct x86emu *, ui
 
 static void
 common_binop_word_long_r_rm(struct x86emu *emu,
-    uint16_t (*binop16)(struct x86emu *, uint16_t, uint16_t), uint32_t (*binop32)(struct x86emu *, uint32_t, uint32_t))
+    uint16_t (*binop16)(struct x86emu *, uint16_t, uint16_t),
+    uint32_t (*binop32)(struct x86emu *, uint32_t, uint32_t))
 {
 	if (emu->x86.mode & SYSMODE_PREFIX_DATA)
 		common_binop_long_r_rm(emu, binop32);
@@ -1298,7 +1311,8 @@ common_binop_word_long_r_rm(struct x86emu *emu,
 }
 
 static void
-common_binop_byte_imm(struct x86emu *emu, uint8_t (*binop)(struct x86emu *, uint8_t, uint8_t))
+common_binop_byte_imm(struct x86emu *emu,
+    uint8_t (*binop)(struct x86emu *, uint8_t, uint8_t))
 {
 	uint8_t srcval;
 
@@ -1308,7 +1322,8 @@ common_binop_byte_imm(struct x86emu *emu, uint8_t (*binop)(struct x86emu *, uint
 
 static void
 common_binop_word_long_imm(struct x86emu *emu,
-    uint16_t (*binop16)(struct x86emu *, uint16_t, uint16_t), uint32_t (*binop32)(struct x86emu *, uint32_t, uint32_t))
+    uint16_t (*binop16)(struct x86emu *, uint16_t, uint16_t),
+    uint32_t (*binop32)(struct x86emu *, uint32_t, uint32_t))
 {
 	if (emu->x86.mode & SYSMODE_PREFIX_DATA) {
 		uint32_t srcval;
@@ -1765,7 +1780,8 @@ x86emuOp_opc80_byte_RM_IMM(struct x86emu *emu)
 }
 
 static
-uint16_t(* const opc81_word_operation[]) (struct x86emu *, uint16_t d, uint16_t s) =
+uint16_t(* const opc81_word_operation[])
+    (struct x86emu *, uint16_t d, uint16_t s) =
 {
 	add_word,		/* 00 */
 	or_word,		/* 01 */
@@ -1778,7 +1794,8 @@ uint16_t(* const opc81_word_operation[]) (struct x86emu *, uint16_t d, uint16_t 
 };
 
 static
-uint32_t(* const opc81_long_operation[]) (struct x86emu *, uint32_t d, uint32_t s) =
+uint32_t(* const opc81_long_operation[])
+    (struct x86emu *, uint32_t d, uint32_t s) =
 {
 	add_long,		/* 00 */
 	or_long,		/* 01 */
@@ -1840,7 +1857,8 @@ x86emuOp_opc81_word_RM_IMM(struct x86emu *emu)
 }
 
 static
-uint8_t(* const opc82_byte_operation[]) (struct x86emu *, uint8_t s, uint8_t d) =
+uint8_t(* const opc82_byte_operation[])
+    (struct x86emu *, uint8_t s, uint8_t d) =
 {
 	add_byte,		/* 00 */
 	or_byte,		/* 01 *//* YYY UNUSED ???? */
@@ -1876,7 +1894,8 @@ x86emuOp_opc82_byte_RM_IMM(struct x86emu *emu)
 }
 
 static
-uint16_t(* const opc83_word_operation[]) (struct x86emu *, uint16_t s, uint16_t d) =
+uint16_t(* const opc83_word_operation[])
+    (struct x86emu *, uint16_t s, uint16_t d) =
 {
 	add_word,		/* 00 */
 	or_word,		/* 01 *//* YYY UNUSED ???? */
@@ -1889,7 +1908,8 @@ uint16_t(* const opc83_word_operation[]) (struct x86emu *, uint16_t s, uint16_t 
 };
 
 static
-uint32_t(* const opc83_long_operation[]) (struct x86emu *, uint32_t s, uint32_t d) =
+uint32_t(* const opc83_long_operation[])
+    (struct x86emu *, uint32_t s, uint32_t d) =
 {
 	add_long,		/* 00 */
 	or_long,		/* 01 *//* YYY UNUSED ???? */
@@ -2603,7 +2623,8 @@ x86emuOp_movs_word(struct x86emu *emu)
 			store_long(emu, emu->x86.R_ES, emu->x86.R_DI, val);
 		} else {
 			val = fetch_data_word(emu, emu->x86.R_SI);
-			store_word(emu, emu->x86.R_ES, emu->x86.R_DI, (uint16_t) val);
+			store_word(emu, emu->x86.R_ES, emu->x86.R_DI,
+			    (uint16_t) val);
 		}
 		emu->x86.R_SI += inc;
 		emu->x86.R_DI += inc;
@@ -2689,11 +2710,13 @@ x86emuOp_cmps_word(struct x86emu *emu)
 		while (emu->x86.R_CX != 0) {
 			if (emu->x86.mode & SYSMODE_PREFIX_DATA) {
 				val1 = fetch_data_long(emu, emu->x86.R_SI);
-				val2 = fetch_long(emu, emu->x86.R_ES, emu->x86.R_DI);
+				val2 = fetch_long(emu, emu->x86.R_ES,
+				    emu->x86.R_DI);
 				cmp_long(emu, val1, val2);
 			} else {
 				val1 = fetch_data_word(emu, emu->x86.R_SI);
-				val2 = fetch_word(emu, emu->x86.R_ES, emu->x86.R_DI);
+				val2 = fetch_word(emu, emu->x86.R_ES,
+				    emu->x86.R_DI);
 				cmp_word(emu, (uint16_t) val1, (uint16_t) val2);
 			}
 			emu->x86.R_CX -= 1;
@@ -2709,11 +2732,13 @@ x86emuOp_cmps_word(struct x86emu *emu)
 		while (emu->x86.R_CX != 0) {
 			if (emu->x86.mode & SYSMODE_PREFIX_DATA) {
 				val1 = fetch_data_long(emu, emu->x86.R_SI);
-				val2 = fetch_long(emu, emu->x86.R_ES, emu->x86.R_DI);
+				val2 = fetch_long(emu, emu->x86.R_ES,
+				    emu->x86.R_DI);
 				cmp_long(emu, val1, val2);
 			} else {
 				val1 = fetch_data_word(emu, emu->x86.R_SI);
-				val2 = fetch_word(emu, emu->x86.R_ES, emu->x86.R_DI);
+				val2 = fetch_word(emu, emu->x86.R_ES,
+				    emu->x86.R_DI);
 				cmp_word(emu, (uint16_t) val1, (uint16_t) val2);
 			}
 			emu->x86.R_CX -= 1;
@@ -2769,7 +2794,8 @@ x86emuOp_stos_byte(struct x86emu *emu)
 		/* dont care whether REPE or REPNE */
 		/* move them until CX is ZERO. */
 		while (emu->x86.R_CX != 0) {
-			store_byte(emu, emu->x86.R_ES, emu->x86.R_DI, emu->x86.R_AL);
+			store_byte(emu, emu->x86.R_ES, emu->x86.R_DI,
+			    emu->x86.R_AL);
 			emu->x86.R_CX -= 1;
 			emu->x86.R_DI += inc;
 		}
@@ -2808,9 +2834,11 @@ x86emuOp_stos_word(struct x86emu *emu)
 	}
 	while (count--) {
 		if (emu->x86.mode & SYSMODE_PREFIX_DATA) {
-			store_long(emu, emu->x86.R_ES, emu->x86.R_DI, emu->x86.R_EAX);
+			store_long(emu, emu->x86.R_ES, emu->x86.R_DI,
+			    emu->x86.R_EAX);
 		} else {
-			store_word(emu, emu->x86.R_ES, emu->x86.R_DI, emu->x86.R_AX);
+			store_word(emu, emu->x86.R_ES, emu->x86.R_DI,
+			    emu->x86.R_AX);
 		}
 		emu->x86.R_DI += inc;
 	}
@@ -2948,10 +2976,12 @@ x86emuOp_scas_word(struct x86emu *emu)
 		/* move them until CX is ZERO. */
 		while (emu->x86.R_CX != 0) {
 			if (emu->x86.mode & SYSMODE_PREFIX_DATA) {
-				val = fetch_long(emu, emu->x86.R_ES, emu->x86.R_DI);
+				val = fetch_long(emu, emu->x86.R_ES,
+				    emu->x86.R_DI);
 				cmp_long(emu, emu->x86.R_EAX, val);
 			} else {
-				val = fetch_word(emu, emu->x86.R_ES, emu->x86.R_DI);
+				val = fetch_word(emu, emu->x86.R_ES,
+				    emu->x86.R_DI);
 				cmp_word(emu, emu->x86.R_AX, (uint16_t) val);
 			}
 			emu->x86.R_CX -= 1;
@@ -2965,10 +2995,12 @@ x86emuOp_scas_word(struct x86emu *emu)
 		/* move them until CX is ZERO. */
 		while (emu->x86.R_CX != 0) {
 			if (emu->x86.mode & SYSMODE_PREFIX_DATA) {
-				val = fetch_long(emu, emu->x86.R_ES, emu->x86.R_DI);
+				val = fetch_long(emu, emu->x86.R_ES,
+				    emu->x86.R_DI);
 				cmp_long(emu, emu->x86.R_EAX, val);
 			} else {
-				val = fetch_word(emu, emu->x86.R_ES, emu->x86.R_DI);
+				val = fetch_word(emu, emu->x86.R_ES,
+				    emu->x86.R_DI);
 				cmp_word(emu, emu->x86.R_AX, (uint16_t) val);
 			}
 			emu->x86.R_CX -= 1;
@@ -3094,7 +3126,8 @@ x86emuOp_mov_word_DI_IMM(struct x86emu *emu)
 }
 /* used by opcodes c0, d0, and d2. */
 static
-uint8_t(* const opcD0_byte_operation[]) (struct x86emu *, uint8_t d, uint8_t s) =
+uint8_t(* const opcD0_byte_operation[])
+    (struct x86emu *, uint8_t d, uint8_t s) =
 {
 	rol_byte,
 	ror_byte,
@@ -3128,7 +3161,8 @@ x86emuOp_opcC0_byte_RM_MEM(struct x86emu *emu)
 }
 /* used by opcodes c1, d1, and d3. */
 static
-uint16_t(* const opcD1_word_operation[]) (struct x86emu *, uint16_t s, uint8_t d) =
+uint16_t(* const opcD1_word_operation[])
+    (struct x86emu *, uint16_t s, uint8_t d) =
 {
 	rol_word,
 	ror_word,
@@ -3141,7 +3175,8 @@ uint16_t(* const opcD1_word_operation[]) (struct x86emu *, uint16_t s, uint8_t d
 };
 /* used by opcodes c1, d1, and d3. */
 static
-uint32_t(* const opcD1_long_operation[]) (struct x86emu *, uint32_t s, uint8_t d) =
+uint32_t(* const opcD1_long_operation[])
+    (struct x86emu *, uint32_t s, uint8_t d) =
 {
 	rol_long,
 	ror_long,
@@ -3172,13 +3207,15 @@ x86emuOp_opcC1_word_RM_MEM(struct x86emu *emu)
 		uint32_t destval;
 
 		destval = decode_and_fetch_long_imm8(emu, &amt);
-		destval = (*opcD1_long_operation[emu->cur_rh]) (emu, destval, amt);
+		destval = (*opcD1_long_operation[emu->cur_rh])
+		    (emu, destval, amt);
 		write_back_long(emu, destval);
 	} else {
 		uint16_t destval;
 
 		destval = decode_and_fetch_word_imm8(emu, &amt);
-		destval = (*opcD1_word_operation[emu->cur_rh]) (emu, destval, amt);
+		destval = (*opcD1_word_operation[emu->cur_rh])
+		    (emu, destval, amt);
 		write_back_word(emu, destval);
 	}
 }
@@ -3295,7 +3332,8 @@ x86emuOp_enter(struct x86emu *emu)
 	if (nesting > 0) {
 		for (i = 1; i < nesting; i++) {
 			emu->x86.R_BP -= 2;
-			push_word(emu, fetch_word(emu, emu->x86.R_SS, emu->x86.R_BP));
+			push_word(emu, fetch_word(emu, emu->x86.R_SS,
+			    emu->x86.R_BP));
 		}
 		push_word(emu, frame_pointer);
 	}
@@ -3413,14 +3451,14 @@ x86emuOp_opcD1_word_RM_1(struct x86emu *emu)
 
 		fetch_decode_modrm(emu);
 		destval = decode_and_fetch_long(emu);
-		destval = (*opcD1_long_operation[emu->cur_rh]) (emu, destval, 1);
+		destval = (*opcD1_long_operation[emu->cur_rh])(emu, destval, 1);
 		write_back_long(emu, destval);
 	} else {
 		uint16_t destval;
 
 		fetch_decode_modrm(emu);
 		destval = decode_and_fetch_word(emu);
-		destval = (*opcD1_word_operation[emu->cur_rh]) (emu, destval, 1);
+		destval = (*opcD1_word_operation[emu->cur_rh])(emu, destval, 1);
 		write_back_word(emu, destval);
 	}
 }
@@ -3436,7 +3474,8 @@ x86emuOp_opcD2_byte_RM_CL(struct x86emu *emu)
 
 	fetch_decode_modrm(emu);
 	destval = decode_and_fetch_byte(emu);
-	destval = (*opcD0_byte_operation[emu->cur_rh]) (emu, destval, emu->x86.R_CL);
+	destval = (*opcD0_byte_operation[emu->cur_rh])
+	    (emu, destval, emu->x86.R_CL);
 	write_back_byte(emu, destval);
 }
 
@@ -3452,14 +3491,16 @@ x86emuOp_opcD3_word_RM_CL(struct x86emu *emu)
 
 		fetch_decode_modrm(emu);
 		destval = decode_and_fetch_long(emu);
-		destval = (*opcD1_long_operation[emu->cur_rh]) (emu, destval, emu->x86.R_CL);
+		destval = (*opcD1_long_operation[emu->cur_rh])
+		    (emu, destval, emu->x86.R_CL);
 		write_back_long(emu, destval);
 	} else {
 		uint16_t destval;
 
 		fetch_decode_modrm(emu);
 		destval = decode_and_fetch_word(emu);
-		destval = (*opcD1_word_operation[emu->cur_rh]) (emu, destval, emu->x86.R_CL);
+		destval = (*opcD1_word_operation[emu->cur_rh])
+		    (emu, destval, emu->x86.R_CL);
 		write_back_word(emu, destval);
 	}
 }
@@ -4118,7 +4159,8 @@ x86emuOp_opcFF_word_RM(struct x86emu *emu)
 
 	/* Yet another special case instruction. */
 	fetch_decode_modrm(emu);
-	if ((emu->cur_mod == 3 && (emu->cur_rh == 3 || emu->cur_rh == 5)) || emu->cur_rh == 7)
+	if ((emu->cur_mod == 3 && (emu->cur_rh == 3 || emu->cur_rh == 5)) ||
+	    emu->cur_rh == 7)
 		x86emu_halt_sys(emu);
 	if (emu->cur_rh == 0 || emu->cur_rh == 1 || emu->cur_rh == 6) {
 		if (emu->x86.mode & SYSMODE_PREFIX_DATA)
@@ -5153,7 +5195,9 @@ common_shift(struct x86emu *emu, int shift_left, int use_cl)
 		common_shift16(emu, shift_left, use_cl);
 }
 
-/*----------------------------- Implementation ----------------------------*/
+/*
+ * Implementation
+ */
 #define xorl(a,b)   ((a) && !(b)) || (!(a) && (b))
 
 
@@ -5669,18 +5713,21 @@ x86emu_exec_two_byte(struct x86emu * emu)
 		common_jmp_long(emu, !ACCESS_FLAG(F_PF));
 		break;
 	case 0x8c:
-		common_jmp_long(emu, xorl(ACCESS_FLAG(F_SF), ACCESS_FLAG(F_OF)));
+		common_jmp_long(emu, xorl(ACCESS_FLAG(F_SF),
+		    ACCESS_FLAG(F_OF)));
 		break;
 	case 0x8d:
-		common_jmp_long(emu, !(xorl(ACCESS_FLAG(F_SF), ACCESS_FLAG(F_OF))));
+		common_jmp_long(emu, !(xorl(ACCESS_FLAG(F_SF),
+		    ACCESS_FLAG(F_OF))));
 		break;
 	case 0x8e:
-		common_jmp_long(emu,
-		    (xorl(ACCESS_FLAG(F_SF), ACCESS_FLAG(F_OF)) || ACCESS_FLAG(F_ZF)));
+		common_jmp_long(emu, (xorl(ACCESS_FLAG(F_SF), ACCESS_FLAG(F_OF))
+		    || ACCESS_FLAG(F_ZF)));
 		break;
 	case 0x8f:
-		common_jmp_long(emu,
-		    !(xorl(ACCESS_FLAG(F_SF), ACCESS_FLAG(F_OF)) || ACCESS_FLAG(F_ZF)));
+		common_jmp_long(emu, 
+		    !(xorl(ACCESS_FLAG(F_SF), ACCESS_FLAG(F_OF)) ||
+		    ACCESS_FLAG(F_ZF)));
 		break;
 
 	case 0x90:
@@ -5720,10 +5767,12 @@ x86emu_exec_two_byte(struct x86emu * emu)
 		common_set_byte(emu, !ACCESS_FLAG(F_PF));
 		break;
 	case 0x9c:
-		common_set_byte(emu, xorl(ACCESS_FLAG(F_SF), ACCESS_FLAG(F_OF)));
+		common_set_byte(emu, xorl(ACCESS_FLAG(F_SF),
+		    ACCESS_FLAG(F_OF)));
 		break;
 	case 0x9d:
-		common_set_byte(emu, xorl(ACCESS_FLAG(F_SF), ACCESS_FLAG(F_OF)));
+		common_set_byte(emu, xorl(ACCESS_FLAG(F_SF),
+		    ACCESS_FLAG(F_OF)));
 		break;
 	case 0x9e:
 		common_set_byte(emu,
@@ -5830,69 +5879,71 @@ x86emu_exec_two_byte(struct x86emu * emu)
 }
 
 /*
-* Carry Chain Calculation
-*
-* This represents a somewhat expensive calculation which is
-* apparently required to emulate the setting of the OF and AF flag.
-* The latter is not so important, but the former is.  The overflow
-* flag is the XOR of the top two bits of the carry chain for an
-* addition (similar for subtraction).  Since we do not want to
-* simulate the addition in a bitwise manner, we try to calculate the
-* carry chain given the two operands and the result.
-*
-* So, given the following table, which represents the addition of two
-* bits, we can derive a formula for the carry chain.
-*
-* a   b   cin   r     cout
-* 0   0   0     0     0
-* 0   0   1     1     0
-* 0   1   0     1     0
-* 0   1   1     0     1
-* 1   0   0     1     0
-* 1   0   1     0     1
-* 1   1   0     0     1
-* 1   1   1     1     1
-*
-* Construction of table for cout:
-*
-* ab
-* r  \  00   01   11  10
-* |------------------
-* 0  |   0    1    1   1
-* 1  |   0    0    1   0
-*
-* By inspection, one gets:  cc = ab +  r'(a + b)
-*
-* That represents alot of operations, but NO CHOICE....
-*
-* Borrow Chain Calculation.
-*
-* The following table represents the subtraction of two bits, from
-* which we can derive a formula for the borrow chain.
-*
-* a   b   bin   r     bout
-* 0   0   0     0     0
-* 0   0   1     1     1
-* 0   1   0     1     1
-* 0   1   1     0     1
-* 1   0   0     1     0
-* 1   0   1     0     0
-* 1   1   0     0     0
-* 1   1   1     1     1
-*
-* Construction of table for cout:
-*
-* ab
-* r  \  00   01   11  10
-* |------------------
-* 0  |   0    1    0   0
-* 1  |   1    1    1   0
-*
-* By inspection, one gets:  bc = a'b +  r(a' + b)
-*
+ * Carry Chain Calculation
+ *
+ * This represents a somewhat expensive calculation which is
+ * apparently required to emulate the setting of the OF and AF flag.
+ * The latter is not so important, but the former is.  The overflow
+ * flag is the XOR of the top two bits of the carry chain for an
+ * addition (similar for subtraction).  Since we do not want to
+ * simulate the addition in a bitwise manner, we try to calculate the
+ * carry chain given the two operands and the result.
+ *
+ * So, given the following table, which represents the addition of two
+ * bits, we can derive a formula for the carry chain.
+ *
+ * a   b   cin   r     cout
+ * 0   0   0     0     0
+ * 0   0   1     1     0
+ * 0   1   0     1     0
+ * 0   1   1     0     1
+ * 1   0   0     1     0
+ * 1   0   1     0     1
+ * 1   1   0     0     1
+ * 1   1   1     1     1
+ *
+ * Construction of table for cout:
+ *
+ * ab
+ * r  \  00   01   11  10
+ * |------------------
+ * 0  |   0    1    1   1
+ * 1  |   0    0    1   0
+ *
+ * By inspection, one gets:  cc = ab +  r'(a + b)
+ *
+ * That represents alot of operations, but NO CHOICE....
+ *
+ * Borrow Chain Calculation.
+ *
+ * The following table represents the subtraction of two bits, from
+ * which we can derive a formula for the borrow chain.
+ *
+ * a   b   bin   r     bout
+ * 0   0   0     0     0
+ * 0   0   1     1     1
+ * 0   1   0     1     1
+ * 0   1   1     0     1
+ * 1   0   0     1     0
+ * 1   0   1     0     0
+ * 1   1   0     0     0
+ * 1   1   1     1     1
+ *
+ * Construction of table for cout:
+ *
+ * ab
+ * r  \  00   01   11  10
+ * |------------------
+ * 0  |   0    1    0   0
+ * 1  |   1    1    1   0
+ *
+ * By inspection, one gets:  bc = a'b +  r(a' + b)
+ *
  */
 
-/*------------------------- Global Variables ------------------------------*/
+/*
+ * Global Variables
+ */
 
 static uint32_t x86emu_parity_tab[8] =
 {
@@ -6654,33 +6705,38 @@ rcl_byte(struct x86emu *emu, uint8_t d, uint8_t s)
 	 * that's inefficient.  So the width is 9, and we split into three
 	 * parts:
 	 * 
-	 * The new carry flag   (was B_n) the stuff in B_n-1 .. B_0 the stuff in
-	 * B_7 .. B_n+1
+	 * The new carry flag   (was B_n) the stuff in B_n-1 .. B_0 the stuff
+	 * in B_7 .. B_n+1
 	 * 
-	 * The new rotate is done mod 9, and given this, for a rotation of n bits
-	 * (mod 9) the new carry flag is then located n bits from the MSB.
+	 * The new rotate is done mod 9, and given this, for a rotation of n
+	 * bits (mod 9) the new carry flag is then located n bits from the MSB.
 	 * The low part is then shifted up cnt bits, and the high part is or'd
 	 * in.  Using CAPS for new values, and lowercase for the original
 	 * values, this can be expressed as:
 	 * 
 	 * IF n > 0 1) CF <-  b_(8-n) 2) B_(7) .. B_(n)  <-  b_(8-(n+1)) .. b_0
-	 * 3) B_(n-1) <- cf 4) B_(n-2) .. B_0 <-  b_7 .. b_(8-(n-1)) */
+	 * 3) B_(n-1) <- cf 4) B_(n-2) .. B_0 <-  b_7 .. b_(8-(n-1))
+	 */
 	res = d;
 	if ((cnt = s % 9) != 0) {
 		/* extract the new CARRY FLAG. */
 		/* CF <-  b_(8-n)             */
 		cf = (d >> (8 - cnt)) & 0x1;
 
-		/* get the low stuff which rotated into the range B_7 .. B_cnt */
-		/* B_(7) .. B_(n)  <-  b_(8-(n+1)) .. b_0  */
-		/* note that the right hand side done by the mask */
+		/* 
+		 * Get the low stuff which rotated into the range B_7 .. B_cnt
+		 * B_(7) .. B_(n)  <-  b_(8-(n+1)) .. b_0
+		 * note that the right hand side done by the mask.
+		 */
 		res = (d << cnt) & 0xff;
 
-		/* now the high stuff which rotated around into the positions
-		 * B_cnt-2 .. B_0 */
-		/* B_(n-2) .. B_0 <-  b_7 .. b_(8-(n-1)) */
-		/* shift it downward, 7-(n-2) = 9-n positions. and mask off
-		 * the result before or'ing in. */
+		/* 
+		 * now the high stuff which rotated around into the positions
+		 * B_cnt-2 .. B_0
+		 * B_(n-2) .. B_0 <-  b_7 .. b_(8-(n-1))
+		 * shift it downward, 7-(n-2) = 9-n positions. and mask off
+		 * the result before or'ing in.
+		 */
 		mask = (1 << (cnt - 1)) - 1;
 		res |= (d >> (9 - cnt)) & mask;
 
@@ -6770,14 +6826,17 @@ rcr_byte(struct x86emu *emu, uint8_t d, uint8_t s)
 	 * 
 	 * CF  B_7 B_6 B_5 B_4 B_3 B_2 B_1 B_0
 	 * 
-	 * The new rotate is done mod 9, and given this, for a rotation of n bits
-	 * (mod 9) the new carry flag is then located n bits from the LSB.
+	 * The new rotate is done mod 9, and given this, for a rotation of n
+	 * bits (mod 9) the new carry flag is then located n bits from the LSB.
 	 * The low part is then shifted up cnt bits, and the high part is or'd
 	 * in.  Using CAPS for new values, and lowercase for the original
 	 * values, this can be expressed as:
 	 * 
-	 * IF n > 0 1) CF <-  b_(n-1) 2) B_(8-(n+1)) .. B_(0)  <-  b_(7) .. b_(n)
-	 * 3) B_(8-n) <- cf 4) B_(7) .. B_(8-(n-1)) <-  b_(n-2) .. b_(0) */
+	 * IF n > 0 
+	 *	1) CF <-  b_(n-1) 
+	 *	2) B_(8-(n+1)) .. B_(0)  <-  b_(7) .. b_(n)
+	 * 	3) B_(8-n) <- cf 4) B_(7) .. B_(8-(n-1)) <-  b_(n-2) .. b_(0)
+	 */
 	res = d;
 	if ((cnt = s % 9) != 0) {
 		/* extract the new CARRY FLAG. */
@@ -7193,8 +7252,8 @@ shl_long(struct x86emu *emu, uint32_t d, uint8_t s)
 			res = d;
 		}
 		if (cnt == 1) {
-			CONDITIONAL_SET_FLAG((((res & 0x80000000) == 0x80000000) ^
-				(ACCESS_FLAG(F_CF) != 0)), F_OF);
+			CONDITIONAL_SET_FLAG((((res & 0x80000000) == 0x80000000)
+			    ^ (ACCESS_FLAG(F_CF) != 0)), F_OF);
 		} else {
 			CLEAR_FLAG(F_OF);
 		}
@@ -7505,8 +7564,8 @@ shld_long(struct x86emu *emu, uint32_t d, uint32_t fill, uint8_t s)
 			res = d;
 		}
 		if (cnt == 1) {
-			CONDITIONAL_SET_FLAG((((res & 0x80000000) == 0x80000000) ^
-				(ACCESS_FLAG(F_CF) != 0)), F_OF);
+			CONDITIONAL_SET_FLAG((((res & 0x80000000) == 0x80000000)
+			    ^ (ACCESS_FLAG(F_CF) != 0)), F_OF);
 		} else {
 			CLEAR_FLAG(F_OF);
 		}
@@ -8232,7 +8291,8 @@ outs(struct x86emu *emu, int size)
 		case 1:
 			while (count--) {
 				(*emu->emu_outb) (emu, emu->x86.R_DX,
-				    fetch_byte(emu, emu->x86.R_ES, emu->x86.R_SI));
+				    fetch_byte(emu, emu->x86.R_ES,
+				    emu->x86.R_SI));
 				emu->x86.R_SI += inc;
 			}
 			break;
@@ -8240,14 +8300,16 @@ outs(struct x86emu *emu, int size)
 		case 2:
 			while (count--) {
 				(*emu->emu_outw) (emu, emu->x86.R_DX,
-				    fetch_word(emu, emu->x86.R_ES, emu->x86.R_SI));
+				    fetch_word(emu, emu->x86.R_ES,
+				    emu->x86.R_SI));
 				emu->x86.R_SI += inc;
 			}
 			break;
 		case 4:
 			while (count--) {
 				(*emu->emu_outl) (emu, emu->x86.R_DX,
-				    fetch_long(emu, emu->x86.R_ES, emu->x86.R_SI));
+				    fetch_long(emu, emu->x86.R_ES,
+				    emu->x86.R_SI));
 				emu->x86.R_SI += inc;
 				break;
 			}

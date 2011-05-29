@@ -38,7 +38,7 @@ IxNpeMicrocode.fwo			optional npe_fw			\
 	no-implicit-rule						\
 	clean		"IxNpeMicrocode.fwo"
 IxNpeMicrocode.dat			optional npe_fw			\
-	dependency	".PHONY"					\
+	dependency	"$S/contrib/dev/npe/IxNpeMicrocode.dat.uu"	\
 	compile-with	"uudecode < $S/contrib/dev/npe/IxNpeMicrocode.dat.uu" \
 	no-obj no-implicit-rule						\
 	clean		"IxNpeMicrocode.dat"

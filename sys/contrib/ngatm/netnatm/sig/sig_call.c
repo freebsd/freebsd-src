@@ -398,7 +398,7 @@ un0_setup(struct call *c, struct uni_msg *m, struct uni_all *u,
 		if (IE_ISGOOD(u->u.setup.epref) &&
 		   u->u.setup.epref.flag == 1) {
 			IE_SETERROR(u->u.setup.epref);
-			UNI_SAVE_IERR(&c->uni->cx, UNI_IE_EPREF,
+			(void)UNI_SAVE_IERR(&c->uni->cx, UNI_IE_EPREF,
 			    u->u.setup.epref.h.act, UNI_IERR_BAD);
 		}
 		uni_mandate_epref(c->uni, &u->u.setup.epref);
@@ -578,7 +578,7 @@ u1n6_call_proc(struct call *c, struct uni_msg *m, struct uni_all *u,
 		    (cp->epref.flag != 1 ||
 		     cp->epref.epref != c->msg_setup.epref.epref)) {
 			IE_SETERROR(cp->epref);
-			UNI_SAVE_IERR(&c->uni->cx, UNI_IE_EPREF,
+			(void)UNI_SAVE_IERR(&c->uni->cx, UNI_IE_EPREF,
 			    cp->epref.h.act, UNI_IERR_BAD);
 		}
 	}
@@ -763,7 +763,7 @@ unx_alerting(struct call *c, struct uni_msg *m, struct uni_all *u,
 		    (al->epref.flag != 1 ||
 		     al->epref.epref != c->msg_setup.epref.epref)) {
 			IE_SETERROR(al->epref);
-			UNI_SAVE_IERR(&c->uni->cx, UNI_IE_EPREF,
+			(void)UNI_SAVE_IERR(&c->uni->cx, UNI_IE_EPREF,
 			    al->epref.h.act, UNI_IERR_BAD);
 		}
 	}
@@ -1065,7 +1065,7 @@ unx_connect(struct call *c, struct uni_msg *m, struct uni_all *u,
 			if (IE_ISGOOD(co->epref) &&
 			    co->epref.flag != 1) {
 				IE_SETERROR(co->epref);
-				UNI_SAVE_IERR(&c->uni->cx, UNI_IE_EPREF,
+				(void)UNI_SAVE_IERR(&c->uni->cx, UNI_IE_EPREF,
 				    co->epref.h.act, UNI_IERR_BAD);
 			}
 		}
@@ -2757,7 +2757,7 @@ unx_add_party(struct call *c, struct uni_msg *m, struct uni_all *u,
 	if (IE_ISGOOD(u->u.add_party.epref) && p == NULL &&
 	    u->u.add_party.epref.flag) {
 		IE_SETERROR(u->u.add_party.epref);
-		UNI_SAVE_IERR(&c->uni->cx, UNI_IE_EPREF,
+		(void)UNI_SAVE_IERR(&c->uni->cx, UNI_IE_EPREF,
 		    u->u.add_party.epref.h.act, UNI_IERR_BAD);
 	}
 
@@ -2802,7 +2802,7 @@ un10n8_add_party_ack(struct call *c, struct uni_msg *m, struct uni_all *u,
 	if (IE_ISGOOD(u->u.add_party_ack.epref)) {
 		if (u->u.add_party_ack.epref.flag == 0) {
 			IE_SETERROR(u->u.add_party_ack.epref);
-			UNI_SAVE_IERR(&c->uni->cx, UNI_IE_EPREF,
+			(void)UNI_SAVE_IERR(&c->uni->cx, UNI_IE_EPREF,
 			    u->u.add_party_ack.epref.h.act, UNI_IERR_BAD);
 		} else {
 	    		p = uni_find_partyx(c, u->u.add_party_ack.epref.epref, 1);
@@ -2902,7 +2902,7 @@ unx_party_alerting(struct call *c, struct uni_msg *m, struct uni_all *u,
 	if (IE_ISGOOD(u->u.party_alerting.epref)) {
 		if (u->u.party_alerting.epref.flag == 0) {
 			IE_SETERROR(u->u.party_alerting.epref);
-			UNI_SAVE_IERR(&c->uni->cx, UNI_IE_EPREF,
+			(void)UNI_SAVE_IERR(&c->uni->cx, UNI_IE_EPREF,
 			    u->u.party_alerting.epref.h.act, UNI_IERR_BAD);
 		} else {
 	    		p = uni_find_partyx(c, u->u.party_alerting.epref.epref, 1);

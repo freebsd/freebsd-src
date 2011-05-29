@@ -1,6 +1,6 @@
 /* cond.c - conditional assembly pseudo-ops, and .include
-   Copyright 1990, 1991, 1992, 1993, 1995, 1997, 1998, 2000, 2001
-   Free Software Foundation, Inc.
+   Copyright 1990, 1991, 1992, 1993, 1995, 1997, 1998, 2000, 2001, 2002,
+   2003, 2006 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -16,10 +16,11 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 #include "as.h"
+#include "sb.h"
 #include "macro.h"
 
 #include "obstack.h"
@@ -102,7 +103,7 @@ s_ifdef (int test_defined)
 	 considered to be undefined.  */
       is_defined =
 	symbolP != NULL
-	&& S_IS_DEFINED (symbolP)
+	&& (S_IS_DEFINED (symbolP) || symbol_equated_p (symbolP))
 	&& S_GET_SEGMENT (symbolP) != reg_section;
 
       cframe.ignoring = ! (test_defined ^ is_defined);
@@ -144,7 +145,7 @@ s_if (int arg)
     }
   else
     {
-      expression (&operand);
+      expression_and_evaluate (&operand);
       if (operand.X_op != O_constant)
 	as_bad (_("non-constant expression in \".if\" statement"));
     }
@@ -179,6 +180,40 @@ s_if (int arg)
     mri_comment_end (stop, stopc);
 
   demand_empty_rest_of_line ();
+}
+
+/* Performs the .ifb (test_blank == 1) and
+   the .ifnb (test_blank == 0) pseudo op.  */
+
+void
+s_ifb (int test_blank)
+{
+  struct conditional_frame cframe;
+
+  initialize_cframe (&cframe);
+  
+  if (cframe.dead_tree)
+    cframe.ignoring = 1;
+  else
+    {
+      int is_eol;
+
+      SKIP_WHITESPACE ();
+      is_eol = is_end_of_line[(unsigned char) *input_line_pointer];
+      cframe.ignoring = (test_blank == !is_eol);
+    }
+
+  current_cframe = ((struct conditional_frame *)
+		    obstack_copy (&cond_obstack, &cframe,
+				  sizeof (cframe)));
+
+  if (LISTING_SKIP_COND ()
+      && cframe.ignoring
+      && (cframe.previous_cframe == NULL
+	  || ! cframe.previous_cframe->ignoring))
+    listing_list (2);
+
+  ignore_rest_of_line ();
 }
 
 /* Get a string for the MRI IFC or IFNC pseudo-ops.  */
@@ -306,7 +341,7 @@ s_elseif (int arg)
       /* Leading whitespace is part of operand.  */
       SKIP_WHITESPACE ();
 
-      expression (&operand);
+      expression_and_evaluate (&operand);
       if (operand.X_op != O_constant)
 	as_bad (_("non-constant expression in \".elseif\" statement"));
 

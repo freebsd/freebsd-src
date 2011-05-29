@@ -137,6 +137,7 @@ typedef	__uid_t		uid_t;
 #define	SO_LISTENQLEN	0x1012		/* socket's complete queue length */
 #define	SO_LISTENINCQLEN	0x1013	/* socket's incomplete queue length */
 #define	SO_SETFIB	0x1014		/* use this FIB to route */
+#define	SO_USER_COOKIE	0x1015		/* user cookie (dummynet etc.) */
 #endif
 
 /*
@@ -514,7 +515,7 @@ struct sockcred {
 	  _ALIGN(sizeof(struct cmsghdr)) > \
 	    (char *)(mhdr)->msg_control + (mhdr)->msg_controllen) ? \
 	    (struct cmsghdr *)0 : \
-	    (struct cmsghdr *)((char *)(cmsg) + \
+	    (struct cmsghdr *)(void *)((char *)(cmsg) + \
 	    _ALIGN(((struct cmsghdr *)(cmsg))->cmsg_len)))
 
 /*

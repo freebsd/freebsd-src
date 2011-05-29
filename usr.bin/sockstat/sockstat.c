@@ -621,6 +621,8 @@ display(void)
 		case AF_INET:
 		case AF_INET6:
 			pos += printaddr(s->family, &s->laddr);
+			if (s->family == AF_INET6 && pos >= 58)
+				pos += xprintf(" ");
 			while (pos < 58)
 				pos += xprintf(" ");
 			pos += printaddr(s->family, &s->faddr);

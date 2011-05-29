@@ -1,5 +1,7 @@
 /*-
  * Copyright (c) 2001-2007, by Cisco Systems, Inc. All rights reserved.
+ * Copyright (c) 2008-2011, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2011, by Michael Tuexen. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -79,8 +81,6 @@ extern void
 sctp_check_address_list(struct sctp_tcb *, struct mbuf *, int, int,
     struct sockaddr *, uint16_t, uint16_t, uint16_t, uint16_t);
 
-extern void
-     sctp_move_chunks_from_deleted_prim(struct sctp_tcb *, struct sctp_nets *);
 extern void
      sctp_assoc_immediate_retrans(struct sctp_tcb *, struct sctp_nets *);
 extern void

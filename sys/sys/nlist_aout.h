@@ -51,11 +51,11 @@
 struct nlist {
 #ifdef _AOUT_INCLUDE_
 	union {
-		char *n_name;	/* symbol name (in memory) */
+		const char *n_name; /* symbol name (in memory) */
 		long n_strx;	/* file string table offset (on disk) */
 	} n_un;
 #else
-	char *n_name;		/* symbol name (in memory) */
+	const char *n_name;	/* symbol name (in memory) */
 	int : 8 * (sizeof(long) > sizeof(char *) ?
 	    sizeof(long) - sizeof(char *) : sizeof(char *) - sizeof(long));
 #endif

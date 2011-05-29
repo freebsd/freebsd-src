@@ -6,7 +6,7 @@ __FBSDID("$FreeBSD$");
 	.globl	_init
 	.type	_init,%function
 _init:
-	.set nreoorder
+	.set noreorder
 #if defined(__ABICALLS__) && (defined(__mips_o32) || defined(__mips_o64))
 	SETUP_GP
 #endif

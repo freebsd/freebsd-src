@@ -17,7 +17,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: dnssec-dsfromkey.docbook,v 1.6 2008/11/07 13:54:11 jreed Exp $ -->
+<!-- $Id: dnssec-dsfromkey.docbook,v 1.6 2008-11-07 13:54:11 jreed Exp $ -->
 <refentry id="man.dnssec-dsfromkey">
   <refentryinfo>
     <date>November 29, 2008</date>

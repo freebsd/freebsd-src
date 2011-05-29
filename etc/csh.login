@@ -9,7 +9,7 @@
 # login.conf(5) and in particular the charset and lang options.
 # For full locales list check /usr/share/locale/*
 #
-# Read system messages
-# msgs -f
+# Check system messages
+# msgs -q
 # Allow terminal messages
 # mesg y

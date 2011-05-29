@@ -32,7 +32,7 @@
 .\"     @(#)rand.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd May 25, 1999
+.Dd October 6, 2010
 .Dt RAND 3
 .Os
 .Sh NAME
@@ -100,7 +100,16 @@ provides the same functionality as
 A pointer to the context value
 .Fa ctx
 must be supplied by the caller.
+.Pp
+For better generator quality, use
+.Xr random 3
+or
+.Xr lrand48 3 .
+Applications requiring cryptographic quality randomness should use
+.Xr arc4random 3 .
 .Sh SEE ALSO
+.Xr arc4random 3 ,
+.Xr lrand48 3 ,
 .Xr random 3 ,
 .Xr random 4
 .Sh STANDARDS

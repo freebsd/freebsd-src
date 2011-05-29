@@ -38,8 +38,6 @@
 
 typedef longlong_t	hrtime_t;
 
-#define	LBOLT	((gethrtime() * hz) / NANOSEC)
-
 #if defined(__i386__) || defined(__powerpc__)
 #define	TIMESPEC_OVERFLOW(ts)						\
 	((ts)->tv_sec < INT32_MIN || (ts)->tv_sec > INT32_MAX)
@@ -49,25 +47,23 @@ typedef longlong_t	hrtime_t;
 #endif
 
 #ifdef _KERNEL
-#define	lbolt64	(int64_t)(LBOLT)
-
 static __inline hrtime_t
 gethrtime(void) {
 
 	struct timespec ts;
 	hrtime_t nsec;
 
-#if 1
 	getnanouptime(&ts);
-#else
-	nanouptime(&ts);
-#endif
 	nsec = (hrtime_t)ts.tv_sec * NANOSEC + ts.tv_nsec;
 	return (nsec);
 }
 
 #define	gethrestime_sec()	(time_second)
 #define	gethrestime(ts)		getnanotime(ts)
+#define	gethrtime_waitfree()	gethrtime()
+
+#define	ddi_get_lbolt()		((gethrtime() * hz) / NANOSEC)
+#define	ddi_get_lbolt64()	(int64_t)((gethrtime() * hz) / NANOSEC)
 
 #else
 
@@ -76,7 +72,6 @@ static __inline hrtime_t gethrtime(void) {
 	clock_gettime(CLOCK_UPTIME,&ts);
 	return (((u_int64_t) ts.tv_sec) * NANOSEC + ts.tv_nsec);
 }
-
 
 #endif	/* _KERNEL */
 

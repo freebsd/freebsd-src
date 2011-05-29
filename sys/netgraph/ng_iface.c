@@ -286,12 +286,11 @@ static int
 ng_iface_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 {
 	struct ifreq *const ifr = (struct ifreq *) data;
-	int s, error = 0;
+	int error = 0;
 
 #ifdef DEBUG
 	ng_iface_print_ioctl(ifp, command, data);
 #endif
-	s = splimp();
 	switch (command) {
 
 	/* These two are mostly handled at a higher layer */
@@ -343,7 +342,6 @@ ng_iface_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		error = EINVAL;
 		break;
 	}
-	(void) splx(s);
 	return (error);
 }
 
@@ -533,9 +531,7 @@ ng_iface_constructor(node_p node)
 	priv_p priv;
 
 	/* Allocate node and interface private structures */
-	priv = malloc(sizeof(*priv), M_NETGRAPH_IFACE, M_NOWAIT|M_ZERO);
-	if (priv == NULL)
-		return (ENOMEM);
+	priv = malloc(sizeof(*priv), M_NETGRAPH_IFACE, M_WAITOK | M_ZERO);
 	ifp = if_alloc(IFT_PROPVIRTUAL);
 	if (ifp == NULL) {
 		free(priv, M_NETGRAPH_IFACE);
@@ -564,8 +560,8 @@ ng_iface_constructor(node_p node)
 	ifp->if_addrlen = 0;			/* XXX */
 	ifp->if_hdrlen = 0;			/* XXX */
 	ifp->if_baudrate = 64000;		/* XXX */
-	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
-	ifp->if_snd.ifq_drv_maxlen = IFQ_MAXLEN;
+	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
+	ifp->if_snd.ifq_drv_maxlen = ifqmaxlen;
 	IFQ_SET_READY(&ifp->if_snd);
 
 	/* Give this node the same name as the interface (if possible) */
@@ -821,7 +817,7 @@ ng_iface_disconnect(hook_p hook)
 	const iffam_p iffam = get_iffam_from_hook(priv, hook);
 
 	if (iffam == NULL)
-		panic(__func__);
+		panic("%s", __func__);
 	*get_hook_from_iffam(priv, iffam) = NULL;
 	return (0);
 }

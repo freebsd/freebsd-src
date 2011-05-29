@@ -94,7 +94,7 @@ extern int coda_vfsop_print_entry;
 struct cnode {
 	struct vnode	*c_vnode;
 	u_short		 c_flags;	/* flags (see below) */
-	CodaFid		 c_fid;		/* file handle */
+	struct CodaFid	 c_fid;		/* file handle */
 	struct vnode	*c_ovp;		/* open vnode pointer */
 	u_short		 c_ocount;	/* count of openers */
 	u_short		 c_owrite;	/* count of open for write */
@@ -196,7 +196,8 @@ void	coda_unmounting(struct mount *whoIam);
 int	coda_vmflush(struct cnode *cp);
 
 /* cfs_vnodeops.h */
-struct cnode	*make_coda_node(CodaFid *fid, struct mount *vfsp, short type);
+struct cnode	*make_coda_node(struct CodaFid *fid, struct mount *vfsp,
+		 short type);
 int		 coda_vnodeopstats_init(void);
 
 /* sigh */

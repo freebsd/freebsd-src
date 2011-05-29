@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-dss.c,v 1.24 2006/11/06 21:25:28 markus Exp $ */
+/* $OpenBSD: ssh-dss.c,v 1.27 2010/08/31 09:58:37 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -53,7 +53,8 @@ ssh_dss_sign(const Key *key, u_char **sigp, u_int *lenp,
 	u_int rlen, slen, len, dlen;
 	Buffer b;
 
-	if (key == NULL || key->type != KEY_DSA || key->dsa == NULL) {
+	if (key == NULL || key->dsa == NULL || (key->type != KEY_DSA &&
+	    key->type != KEY_DSA_CERT && key->type != KEY_DSA_CERT_V00)) {
 		error("ssh_dss_sign: no DSA key");
 		return -1;
 	}
@@ -116,7 +117,8 @@ ssh_dss_verify(const Key *key, const u_char *signature, u_int signaturelen,
 	int rlen, ret;
 	Buffer b;
 
-	if (key == NULL || key->type != KEY_DSA || key->dsa == NULL) {
+	if (key == NULL || key->dsa == NULL || (key->type != KEY_DSA &&
+	    key->type != KEY_DSA_CERT && key->type != KEY_DSA_CERT_V00)) {
 		error("ssh_dss_verify: no DSA key");
 		return -1;
 	}
@@ -131,7 +133,7 @@ ssh_dss_verify(const Key *key, const u_char *signature, u_int signaturelen,
 		char *ktype;
 		buffer_init(&b);
 		buffer_append(&b, signature, signaturelen);
-		ktype = buffer_get_string(&b, NULL);
+		ktype = buffer_get_cstring(&b, NULL);
 		if (strcmp("ssh-dss", ktype) != 0) {
 			error("ssh_dss_verify: cannot handle type %s", ktype);
 			buffer_free(&b);

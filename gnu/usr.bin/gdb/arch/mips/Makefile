@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 .if !defined(GDB_CROSS_DEBUGGER)
-LIBSRCS+= mipsfbsd-nat.c
+LIBSRCS+= mipsfbsd-nat.c fbsd-threads.c
 .endif
 LIBSRCS+= solib.c solib-svr4.c
 LIBSRCS+= mips-tdep.c mipsfbsd-tdep.c fbsd-proc.c

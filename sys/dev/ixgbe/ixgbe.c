@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2009, Intel Corporation 
+  Copyright (c) 2001-2011, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -33,7 +33,7 @@
 /*$FreeBSD$*/
 
 #ifdef HAVE_KERNEL_OPTION_HEADERS
-#include "opt_device_polling.h"
+#include "opt_inet.h"
 #endif
 
 #include "ixgbe.h"
@@ -46,7 +46,7 @@ int             ixgbe_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version
  *********************************************************************/
-char ixgbe_driver_version[] = "2.0.7";
+char ixgbe_driver_version[] = "2.3.10";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -76,7 +76,10 @@ static ixgbe_vendor_info_t ixgbe_vendor_info_array[] =
 	{IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82599_SFP, 0, 0, 0},
 	{IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82599_XAUI_LOM, 0, 0, 0},
 	{IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82599_CX4, 0, 0, 0},
+	{IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82599_T3_LOM, 0, 0, 0},
 	{IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82599_COMBO_BACKPLANE, 0, 0, 0},
+	{IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82599_BACKPLANE_FCOE, 0, 0, 0},
+	{IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82599_SFP_FCOE, 0, 0, 0},
 	/* required last entry */
 	{0, 0, 0, 0, 0}
 };
@@ -105,8 +108,8 @@ static int	ixgbe_mq_start_locked(struct ifnet *,
 static void	ixgbe_qflush(struct ifnet *);
 #endif
 static int      ixgbe_ioctl(struct ifnet *, u_long, caddr_t);
-static void     ixgbe_init(void *);
-static void     ixgbe_init_locked(struct adapter *);
+static void	ixgbe_init(void *);
+static void	ixgbe_init_locked(struct adapter *);
 static void     ixgbe_stop(void *);
 static void     ixgbe_media_status(struct ifnet *, struct ifmediareq *);
 static int      ixgbe_media_change(struct ifnet *);
@@ -117,9 +120,9 @@ static int      ixgbe_allocate_legacy(struct adapter *);
 static int	ixgbe_allocate_queues(struct adapter *);
 static int	ixgbe_setup_msix(struct adapter *);
 static void	ixgbe_free_pci_resources(struct adapter *);
-static void     ixgbe_local_timer(void *);
-static void     ixgbe_setup_interface(device_t, struct adapter *);
-static void     ixgbe_config_link(struct adapter *);
+static void	ixgbe_local_timer(void *);
+static int	ixgbe_setup_interface(device_t, struct adapter *);
+static void	ixgbe_config_link(struct adapter *);
 
 static int      ixgbe_allocate_transmit_buffers(struct tx_ring *);
 static int	ixgbe_setup_transmit_structures(struct adapter *);
@@ -136,24 +139,19 @@ static void     ixgbe_free_receive_structures(struct adapter *);
 static void     ixgbe_free_receive_buffers(struct rx_ring *);
 static void	ixgbe_setup_hw_rsc(struct rx_ring *);
 
-static void	ixgbe_init_moderation(struct adapter *);
 static void     ixgbe_enable_intr(struct adapter *);
 static void     ixgbe_disable_intr(struct adapter *);
 static void     ixgbe_update_stats_counters(struct adapter *);
 static bool	ixgbe_txeof(struct tx_ring *);
-static bool	ixgbe_rxeof(struct rx_ring *, int);
-static void	ixgbe_rx_checksum(u32, struct mbuf *);
+static bool	ixgbe_rxeof(struct ix_queue *, int);
+static void	ixgbe_rx_checksum(u32, struct mbuf *, u32);
 static void     ixgbe_set_promisc(struct adapter *);
-static void     ixgbe_disable_promisc(struct adapter *);
 static void     ixgbe_set_multi(struct adapter *);
-static void     ixgbe_print_hw_stats(struct adapter *);
-static void	ixgbe_print_debug_info(struct adapter *);
 static void     ixgbe_update_link_status(struct adapter *);
-static int	ixgbe_get_buf(struct rx_ring *, int, int);
+static void	ixgbe_refresh_mbufs(struct rx_ring *, int);
 static int      ixgbe_xmit(struct tx_ring *, struct mbuf **);
-static int      ixgbe_sysctl_stats(SYSCTL_HANDLER_ARGS);
-static int	ixgbe_sysctl_debug(SYSCTL_HANDLER_ARGS);
 static int	ixgbe_set_flowcntl(SYSCTL_HANDLER_ARGS);
+static int	ixgbe_set_advertise(SYSCTL_HANDLER_ARGS);
 static int	ixgbe_dma_malloc(struct adapter *, bus_size_t,
 		    struct ixgbe_dma_alloc *, int);
 static void     ixgbe_dma_free(struct adapter *, struct ixgbe_dma_alloc *);
@@ -169,22 +167,25 @@ static void	ixgbe_setup_vlan_hw_support(struct adapter *);
 static void	ixgbe_register_vlan(void *, struct ifnet *, u16);
 static void	ixgbe_unregister_vlan(void *, struct ifnet *, u16);
 
-static void	ixgbe_update_aim(struct rx_ring *);
+static void     ixgbe_add_hw_stats(struct adapter *adapter);
+
+static __inline void ixgbe_rx_discard(struct rx_ring *, int);
+static __inline void ixgbe_rx_input(struct rx_ring *, struct ifnet *,
+		    struct mbuf *, u32);
 
 /* Support for pluggable optic modules */
 static bool	ixgbe_sfp_probe(struct adapter *);
+static void	ixgbe_setup_optics(struct adapter *);
 
 /* Legacy (single vector interrupt handler */
 static void	ixgbe_legacy_irq(void *);
 
 /* The MSI/X Interrupt handlers */
-static void	ixgbe_msix_tx(void *);
-static void	ixgbe_msix_rx(void *);
+static void	ixgbe_msix_que(void *);
 static void	ixgbe_msix_link(void *);
 
 /* Deferred interrupt tasklets */
-static void	ixgbe_handle_tx(void *, int);
-static void	ixgbe_handle_rx(void *, int);
+static void	ixgbe_handle_que(void *, int);
 static void	ixgbe_handle_link(void *, int);
 static void	ixgbe_handle_msf(void *, int);
 static void	ixgbe_handle_mod(void *, int);
@@ -211,7 +212,7 @@ static driver_t ixgbe_driver = {
 	"ix", ixgbe_methods, sizeof(struct adapter),
 };
 
-static devclass_t ixgbe_devclass;
+devclass_t ixgbe_devclass;
 DRIVER_MODULE(ixgbe, pci, ixgbe_driver, ixgbe_devclass, 0, 0);
 
 MODULE_DEPEND(ixgbe, pci, 1, 1, 1);
@@ -222,23 +223,19 @@ MODULE_DEPEND(ixgbe, ether, 1, 1, 1);
 */
 
 /*
-** These  parameters are used in Adaptive 
-** Interrupt Moderation. The value is set
-** into EITR and controls the interrupt
-** frequency. They can be modified but 
-** be careful in tuning them.
+** AIM: Adaptive Interrupt Moderation
+** which means that the interrupt rate
+** is varied over time based on the
+** traffic for that interrupt vector
 */
 static int ixgbe_enable_aim = TRUE;
 TUNABLE_INT("hw.ixgbe.enable_aim", &ixgbe_enable_aim);
-static int ixgbe_low_latency = IXGBE_LOW_LATENCY;
-TUNABLE_INT("hw.ixgbe.low_latency", &ixgbe_low_latency);
-static int ixgbe_ave_latency = IXGBE_AVE_LATENCY;
-TUNABLE_INT("hw.ixgbe.ave_latency", &ixgbe_ave_latency);
-static int ixgbe_bulk_latency = IXGBE_BULK_LATENCY;
-TUNABLE_INT("hw.ixgbe.bulk_latency", &ixgbe_bulk_latency);
+
+static int ixgbe_max_interrupt_rate = (8000000 / IXGBE_LOW_LATENCY);
+TUNABLE_INT("hw.ixgbe.max_interrupt_rate", &ixgbe_max_interrupt_rate);
 
 /* How many packets rxeof tries to clean at a time */
-static int ixgbe_rx_process_limit = 100;
+static int ixgbe_rx_process_limit = 128;
 TUNABLE_INT("hw.ixgbe.rx_process_limit", &ixgbe_rx_process_limit);
 
 /* Flow control setting, default to full */
@@ -262,47 +259,37 @@ static int ixgbe_enable_msix = 1;
 TUNABLE_INT("hw.ixgbe.enable_msix", &ixgbe_enable_msix);
 
 /*
- * Header split has seemed to be beneficial in
- * all circumstances tested, so its on by default
- * however this variable will allow it to be disabled
- * for some debug purposes.
+ * Header split: this causes the hardware to DMA
+ * the header into a separate mbuf from the payload,
+ * it can be a performance win in some workloads, but
+ * in others it actually hurts, its off by default. 
  */
-static bool ixgbe_header_split = TRUE;
+static bool ixgbe_header_split = FALSE;
 TUNABLE_INT("hw.ixgbe.hdr_split", &ixgbe_header_split);
 
 /*
- * Number of Queues, should normally
- * be left at 0, it then autoconfigures to
- * the number of cpus. Each queue is a pair
- * of RX and TX rings with a dedicated interrupt
+ * Number of Queues, can be set to 0,
+ * it then autoconfigures based on the
+ * number of cpus with a max of 8. This
+ * can be overriden manually here.
  */
 static int ixgbe_num_queues = 0;
 TUNABLE_INT("hw.ixgbe.num_queues", &ixgbe_num_queues);
 
-/* Number of TX descriptors per ring */
-static int ixgbe_txd = DEFAULT_TXD;
+/*
+** Number of TX descriptors per ring,
+** setting higher than RX as this seems
+** the better performing choice.
+*/
+static int ixgbe_txd = PERFORM_TXD;
 TUNABLE_INT("hw.ixgbe.txd", &ixgbe_txd);
 
 /* Number of RX descriptors per ring */
-static int ixgbe_rxd = DEFAULT_RXD;
+static int ixgbe_rxd = PERFORM_RXD;
 TUNABLE_INT("hw.ixgbe.rxd", &ixgbe_rxd);
 
 /* Keep running tab on them for sanity check */
 static int ixgbe_total_ports;
-
-/*
-** Shadow VFTA table, this is needed because
-** the real filter table gets cleared during
-** a soft reset and we need to repopulate it.
-*/
-static u32 ixgbe_shadow_vfta[IXGBE_VFTA_SIZE];
-
-/*
-** The number of scatter-gather segments
-** differs for 82598 and 82599, default to
-** the former.
-*/
-static int ixgbe_num_segs = IXGBE_82598_SCATTER;
 
 #ifdef IXGBE_FDIR
 /*
@@ -393,7 +380,7 @@ ixgbe_attach(device_t dev)
 	struct adapter *adapter;
 	struct ixgbe_hw *hw;
 	int             error = 0;
-	u16		pci_device_id, csum;
+	u16		csum;
 	u32		ctrl_ext;
 
 	INIT_DEBUGOUT("ixgbe_attach: begin");
@@ -406,78 +393,22 @@ ixgbe_attach(device_t dev)
 	/* Core Lock Init*/
 	IXGBE_CORE_LOCK_INIT(adapter, device_get_nameunit(dev));
 
-	/* Keep track of optics */
-	pci_device_id = pci_get_device(dev);
-	switch (pci_device_id) {
-		case IXGBE_DEV_ID_82598_CX4_DUAL_PORT :
-		case IXGBE_DEV_ID_82598EB_CX4 :
-			adapter->optics = IFM_10G_CX4;
-			break;
-		case IXGBE_DEV_ID_82598 :
-		case IXGBE_DEV_ID_82598AF_DUAL_PORT :
-		case IXGBE_DEV_ID_82598_DA_DUAL_PORT :
-		case IXGBE_DEV_ID_82598AF_SINGLE_PORT :
-		case IXGBE_DEV_ID_82598_SR_DUAL_PORT_EM :
-		case IXGBE_DEV_ID_82598EB_SFP_LOM :
-		case IXGBE_DEV_ID_82598AT :
-		case IXGBE_DEV_ID_82598AT2 :
-			adapter->optics = IFM_10G_SR;
-			break;
-		case IXGBE_DEV_ID_82598EB_XF_LR :
-			adapter->optics = IFM_10G_LR;
-			break;
-		case IXGBE_DEV_ID_82599_SFP :
-			adapter->optics = IFM_10G_SR;
-			ixgbe_num_segs = IXGBE_82599_SCATTER;
-			break;
-		case IXGBE_DEV_ID_82599_KX4 :
-		case IXGBE_DEV_ID_82599_KX4_MEZZ:
-		case IXGBE_DEV_ID_82599_CX4 :
-			adapter->optics = IFM_10G_CX4;
-			ixgbe_num_segs = IXGBE_82599_SCATTER;
-			break;
-		case IXGBE_DEV_ID_82599_XAUI_LOM :
-		case IXGBE_DEV_ID_82599_COMBO_BACKPLANE :
-			ixgbe_num_segs = IXGBE_82599_SCATTER;
-		default:
-			break;
-	}
-
 	/* SYSCTL APIs */
-	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
-			SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-			OID_AUTO, "stats", CTLTYPE_INT | CTLFLAG_RW,
-			adapter, 0, ixgbe_sysctl_stats, "I", "Statistics");
-
-	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
-			SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-			OID_AUTO, "debug", CTLTYPE_INT | CTLFLAG_RW,
-			adapter, 0, ixgbe_sysctl_debug, "I", "Debug Info");
 
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 			SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
 			OID_AUTO, "flow_control", CTLTYPE_INT | CTLFLAG_RW,
 			adapter, 0, ixgbe_set_flowcntl, "I", "Flow Control");
 
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+			SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+			OID_AUTO, "advertise_gig", CTLTYPE_INT | CTLFLAG_RW,
+			adapter, 0, ixgbe_set_advertise, "I", "1G Link");
+
         SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
 			SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
 			OID_AUTO, "enable_aim", CTLTYPE_INT|CTLFLAG_RW,
 			&ixgbe_enable_aim, 1, "Interrupt Moderation");
-
-        SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
-			SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-			OID_AUTO, "low_latency", CTLTYPE_INT|CTLFLAG_RW,
-			&ixgbe_low_latency, 1, "Low Latency");
-
-        SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
-			SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-			OID_AUTO, "ave_latency", CTLTYPE_INT|CTLFLAG_RW,
-			&ixgbe_ave_latency, 1, "Average Latency");
-
-        SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
-			SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-			OID_AUTO, "bulk_latency", CTLTYPE_INT|CTLFLAG_RW,
-			&ixgbe_bulk_latency, 1, "Bulk Latency");
 
 	/* Set up the timer callout */
 	callout_init_mtx(&adapter->timer, &adapter->core_mtx, 0);
@@ -528,6 +459,15 @@ ixgbe_attach(device_t dev)
 		goto err_out;
 	}
 
+	/* Allocate multicast array memory. */
+	adapter->mta = malloc(sizeof(u8) * IXGBE_ETH_LENGTH_OF_ADDRESS *
+	    MAX_NUM_MULTICAST_ADDRESSES, M_DEVBUF, M_NOWAIT);
+	if (adapter->mta == NULL) {
+		device_printf(dev, "Can not allocate multicast setup array\n");
+		error = ENOMEM;
+		goto err_late;
+	}
+
 	/* Initialize the shared code */
 	error = ixgbe_init_shared_code(hw);
 	if (error == IXGBE_ERR_SFP_NOT_PRESENT) {
@@ -555,10 +495,6 @@ ixgbe_attach(device_t dev)
 		goto err_late;
 	}
 
-	/* Pick up the smart speed setting */
-	if (hw->mac.type == ixgbe_mac_82599EB)
-		hw->phy.smart_speed = ixgbe_smart_speed;
-
 	/* Get Hardware Flow Control setting */
 	hw->fc.requested_mode = ixgbe_fc_full;
 	hw->fc.pause_time = IXGBE_FC_PAUSE;
@@ -582,6 +518,9 @@ ixgbe_attach(device_t dev)
 		goto err_late;
 	}
 
+	/* Detect and set physical type */
+	ixgbe_setup_optics(adapter);
+
 	if ((adapter->msix > 1) && (ixgbe_enable_msix))
 		error = ixgbe_allocate_msix(adapter); 
 	else
@@ -590,23 +529,8 @@ ixgbe_attach(device_t dev)
 		goto err_late;
 
 	/* Setup OS specific network interface */
-	ixgbe_setup_interface(dev, adapter);
-
-#ifdef IXGBE_IEEE1588
-	/*
-	** Setup the timer: IEEE 1588 support
-	*/
-	adapter->cycles.read = ixgbe_read_clock;
-	adapter->cycles.mask = (u64)-1;
-	adapter->cycles.mult = 1;
-	adapter->cycles.shift = IXGBE_TSYNC_SHIFT;
-	IXGBE_WRITE_REG(hw, IXGBE_TIMINCA, (1<<24) |
-	    IXGBE_TSYNC_CYCLE_TIME * IXGBE_TSYNC_SHIFT);
-	IXGBE_WRITE_REG(hw, IXGBE_SYSTIML, 0x00000000);
-	IXGBE_WRITE_REG(hw, IXGBE_SYSTIMH, 0xFF800000);
-
-        // JFV - this is not complete yet
-#endif
+	if (ixgbe_setup_interface(dev, adapter) != 0)
+		goto err_late;
 
 	/* Sysctl for limiting the amount of work done in the taskqueue */
 	ixgbe_add_rx_process_limit(adapter, "rx_processing_limit",
@@ -632,12 +556,13 @@ ixgbe_attach(device_t dev)
 	    (hw->bus.width == ixgbe_bus_width_pcie_x1) ? "Width x1" :
 	    ("Unknown"));
 
-	if (hw->bus.width <= ixgbe_bus_width_pcie_x4) {
+	if ((hw->bus.width <= ixgbe_bus_width_pcie_x4) &&
+	    (hw->bus.speed == ixgbe_bus_speed_2500)) {
 		device_printf(dev, "PCI-Express bandwidth available"
 		    " for this card\n     is not sufficient for"
 		    " optimal performance.\n");
 		device_printf(dev, "For optimal performance a x8 "
-		    "PCI-Express slot is required.\n");
+		    "PCIE, or x4 PCIE 2 slot is required.\n");
         }
 
 	/* let hardware know driver is loaded */
@@ -645,13 +570,18 @@ ixgbe_attach(device_t dev)
 	ctrl_ext |= IXGBE_CTRL_EXT_DRV_LOAD;
 	IXGBE_WRITE_REG(hw, IXGBE_CTRL_EXT, ctrl_ext);
 
+	ixgbe_add_hw_stats(adapter);
+
 	INIT_DEBUGOUT("ixgbe_attach: end");
 	return (0);
 err_late:
 	ixgbe_free_transmit_structures(adapter);
 	ixgbe_free_receive_structures(adapter);
 err_out:
+	if (adapter->ifp != NULL)
+		if_free(adapter->ifp);
 	ixgbe_free_pci_resources(adapter);
+	free(adapter->mta, M_DEVBUF);
 	return (error);
 
 }
@@ -670,8 +600,7 @@ static int
 ixgbe_detach(device_t dev)
 {
 	struct adapter *adapter = device_get_softc(dev);
-	struct tx_ring *txr = adapter->tx_rings;
-	struct rx_ring *rxr = adapter->rx_rings;
+	struct ix_queue *que = adapter->queues;
 	u32	ctrl_ext;
 
 	INIT_DEBUGOUT("ixgbe_detach: begin");
@@ -686,17 +615,10 @@ ixgbe_detach(device_t dev)
 	ixgbe_stop(adapter);
 	IXGBE_CORE_UNLOCK(adapter);
 
-	for (int i = 0; i < adapter->num_queues; i++, txr++) {
-		if (txr->tq) {
-			taskqueue_drain(txr->tq, &txr->tx_task);
-			taskqueue_free(txr->tq);
-		}
-	}
-
-	for (int i = 0; i < adapter->num_queues; i++, rxr++) {
-		if (rxr->tq) {
-			taskqueue_drain(rxr->tq, &rxr->rx_task);
-			taskqueue_free(rxr->tq);
+	for (int i = 0; i < adapter->num_queues; i++, que++) {
+		if (que->tq) {
+			taskqueue_drain(que->tq, &que->que_task);
+			taskqueue_free(que->tq);
 		}
 	}
 
@@ -730,6 +652,7 @@ ixgbe_detach(device_t dev)
 
 	ixgbe_free_transmit_structures(adapter);
 	ixgbe_free_receive_structures(adapter);
+	free(adapter->mta, M_DEVBUF);
 
 	IXGBE_CORE_LOCK_DESTROY(adapter);
 	return (0);
@@ -793,7 +716,8 @@ ixgbe_start_locked(struct tx_ring *txr, struct ifnet * ifp)
 		ETHER_BPF_MTAP(ifp, m_head);
 
 		/* Set watchdog on */
-		txr->watchdog_check = TRUE;
+		txr->watchdog_time = ticks;
+		txr->queue_status = IXGBE_QUEUE_WORKING;
 
 	}
 	return;
@@ -827,19 +751,24 @@ static int
 ixgbe_mq_start(struct ifnet *ifp, struct mbuf *m)
 {
 	struct adapter	*adapter = ifp->if_softc;
+	struct ix_queue	*que;
 	struct tx_ring	*txr;
 	int 		i = 0, err = 0;
 
 	/* Which queue to use */
 	if ((m->m_flags & M_FLOWID) != 0)
 		i = m->m_pkthdr.flowid % adapter->num_queues;
+
 	txr = &adapter->tx_rings[i];
+	que = &adapter->queues[i];
 
 	if (IXGBE_TX_TRYLOCK(txr)) {
 		err = ixgbe_mq_start_locked(ifp, txr, m);
 		IXGBE_TX_UNLOCK(txr);
-	} else
+	} else {
 		err = drbr_enqueue(ifp, txr->br, m);
+		taskqueue_enqueue(que->tq, &que->que_task);
+	}
 
 	return (err);
 }
@@ -849,59 +778,52 @@ ixgbe_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr, struct mbuf *m)
 {
 	struct adapter  *adapter = txr->adapter;
         struct mbuf     *next;
-        int             err = 0;
+        int             enqueued, err = 0;
 
-	if (((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) ||
-	    (!adapter->link_active)) {
-		err = drbr_enqueue(ifp, txr->br, m);
+	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
+	    IFF_DRV_RUNNING || adapter->link_active == 0) {
+		if (m != NULL)
+			err = drbr_enqueue(ifp, txr->br, m);
 		return (err);
 	}
 
-	if (m == NULL) /* Called by tasklet */
-		goto process;
-
-	/* If nothing queued go right to xmit */
-	if (!drbr_needs_enqueue(ifp, txr->br)) {
-		if ((err = ixgbe_xmit(txr, &m)) != 0) {
-			if (m != NULL)
-				err = drbr_enqueue(ifp, txr->br, m);
+	enqueued = 0;
+	if (m == NULL) {
+		next = drbr_dequeue(ifp, txr->br);
+	} else if (drbr_needs_enqueue(ifp, txr->br)) {
+		if ((err = drbr_enqueue(ifp, txr->br, m)) != 0)
 			return (err);
-		} else {
-			/* Success, update stats */
-			drbr_stats_update(ifp, m->m_pkthdr.len, m->m_flags);
-			/* Send a copy of the frame to the BPF listener */
-			ETHER_BPF_MTAP(ifp, m);
-			/* Set the watchdog */
-			txr->watchdog_check = TRUE;
-                }
-
-        } else if ((err = drbr_enqueue(ifp, txr->br, m)) != 0)
-		return (err);
-
-process:
-	if (drbr_empty(ifp, txr->br))
-		return (err);
+		next = drbr_dequeue(ifp, txr->br);
+	} else
+		next = m;
 
 	/* Process the queue */
-	while (TRUE) {
-		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
-			break;
-		next = drbr_dequeue(ifp, txr->br);
-		if (next == NULL)
-			break;
+	while (next != NULL) {
 		if ((err = ixgbe_xmit(txr, &next)) != 0) {
 			if (next != NULL)
 				err = drbr_enqueue(ifp, txr->br, next);
 			break;
 		}
+		enqueued++;
 		drbr_stats_update(ifp, next->m_pkthdr.len, next->m_flags);
+		/* Send a copy of the frame to the BPF listener */
 		ETHER_BPF_MTAP(ifp, next);
-		/* Set the watchdog */
-		txr->watchdog_check = TRUE;
+		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+			break;
+		if (txr->tx_avail < IXGBE_TX_OP_THRESHOLD)
+			ixgbe_txeof(txr);
+		if (txr->tx_avail < IXGBE_TX_OP_THRESHOLD) {
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+			break;
+		}
+		next = drbr_dequeue(ifp, txr->br);
 	}
-		
-	if (txr->tx_avail <= IXGBE_TX_OP_THRESHOLD)
-		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+
+	if (enqueued > 0) {
+		/* Set watchdog on */
+		txr->queue_status = IXGBE_QUEUE_WORKING;
+		txr->watchdog_time = ticks;
+	}
 
 	return (err);
 }
@@ -938,11 +860,36 @@ ixgbe_qflush(struct ifnet *ifp)
 static int
 ixgbe_ioctl(struct ifnet * ifp, u_long command, caddr_t data)
 {
-	struct adapter *adapter = ifp->if_softc;
-	struct ifreq   *ifr = (struct ifreq *) data;
+	struct adapter	*adapter = ifp->if_softc;
+	struct ifreq	*ifr = (struct ifreq *) data;
+#ifdef INET
+	struct ifaddr *ifa = (struct ifaddr *)data;
+#endif
 	int             error = 0;
 
 	switch (command) {
+
+        case SIOCSIFADDR:
+#ifdef INET
+		if (ifa->ifa_addr->sa_family == AF_INET) {
+			/*
+			 * Since resetting hardware takes a very long time
+			 * and results in link renegotiation we only
+			 * initialize the hardware only when it is absolutely
+			 * required.
+			 */
+			ifp->if_flags |= IFF_UP;
+			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
+				IXGBE_CORE_LOCK(adapter);
+				ixgbe_init_locked(adapter);
+				IXGBE_CORE_UNLOCK(adapter);
+			}
+			if (!(ifp->if_flags & IFF_NOARP))
+				arp_ifinit(ifp, ifa);
+		} else
+#endif
+			error = ether_ioctl(ifp, command, data);
+		break;
 
 	case SIOCSIFMTU:
 		IOCTL_DEBUGOUT("ioctl: SIOCSIFMTU (Set Interface MTU)");
@@ -964,7 +911,6 @@ ixgbe_ioctl(struct ifnet * ifp, u_long command, caddr_t data)
 			if ((ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 				if ((ifp->if_flags ^ adapter->if_flags) &
 				    (IFF_PROMISC | IFF_ALLMULTI)) {
-					ixgbe_disable_promisc(adapter);
 					ixgbe_set_promisc(adapter);
                                 }
 			} else
@@ -999,25 +945,20 @@ ixgbe_ioctl(struct ifnet * ifp, u_long command, caddr_t data)
 			ifp->if_capenable ^= IFCAP_HWCSUM;
 		if (mask & IFCAP_TSO4)
 			ifp->if_capenable ^= IFCAP_TSO4;
-		/* Only allow changing when using header split */
-		if ((mask & IFCAP_LRO) && (ixgbe_header_split))
+		if (mask & IFCAP_LRO)
 			ifp->if_capenable ^= IFCAP_LRO;
 		if (mask & IFCAP_VLAN_HWTAGGING)
 			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
-		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-			ixgbe_init(adapter);
+		if (mask & IFCAP_VLAN_HWFILTER)
+			ifp->if_capenable ^= IFCAP_VLAN_HWFILTER;
+		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+			IXGBE_CORE_LOCK(adapter);
+			ixgbe_init_locked(adapter);
+			IXGBE_CORE_UNLOCK(adapter);
+		}
 		VLAN_CAPABILITIES(ifp);
 		break;
 	}
-
-#ifdef IXGBE_IEEE1588
-	/*
-	** IOCTL support for Precision Time (IEEE 1588) Support
-	*/
-	case SIOCSHWTSTAMP:
-		error = ixgbe_hwtstamp_ioctl(adapter, ifp);
-		break;
-#endif
 
 	default:
 		IOCTL_DEBUGOUT1("ioctl: UNKNOWN (0x%X)\n", (int)command);
@@ -1045,15 +986,18 @@ ixgbe_init_locked(struct adapter *adapter)
 {
 	struct ifnet   *ifp = adapter->ifp;
 	device_t 	dev = adapter->dev;
-	struct ixgbe_hw *hw;
+	struct ixgbe_hw *hw = &adapter->hw;
 	u32		k, txdctl, mhadd, gpie;
 	u32		rxdctl, rxctrl;
-	int		err;
 
-	INIT_DEBUGOUT("ixgbe_init: begin");
-
-	hw = &adapter->hw;
 	mtx_assert(&adapter->core_mtx, MA_OWNED);
+	INIT_DEBUGOUT("ixgbe_init: begin");
+	hw->adapter_stopped = FALSE;
+	ixgbe_stop_adapter(hw);
+        callout_stop(&adapter->timer);
+
+        /* reprogram the RAR[0] in case user changed it. */
+        ixgbe_set_rar(hw, 0, adapter->hw.mac.addr, 0, IXGBE_RAH_AV);
 
 	/* Get the latest mac address, User can use a LAA */
 	bcopy(IF_LLADDR(adapter->ifp), hw->mac.addr,
@@ -1061,8 +1005,17 @@ ixgbe_init_locked(struct adapter *adapter)
 	ixgbe_set_rar(hw, 0, hw->mac.addr, 0, 1);
 	hw->addr_ctrl.rar_used_count = 1;
 
-	/* Do a warm reset */
-	ixgbe_reset_hw(hw);
+	/* Set the various hardware offload abilities */
+	ifp->if_hwassist = 0;
+	if (ifp->if_capenable & IFCAP_TSO4)
+		ifp->if_hwassist |= CSUM_TSO;
+	if (ifp->if_capenable & IFCAP_TXCSUM) {
+		ifp->if_hwassist |= (CSUM_TCP | CSUM_UDP);
+#if __FreeBSD_version >= 800000
+		if (hw->mac.type != ixgbe_mac_82598EB)
+			ifp->if_hwassist |= CSUM_SCTP;
+#endif
+	}
 
 	/* Prepare transmit descriptors and buffers */
 	if (ixgbe_setup_transmit_structures(adapter)) {
@@ -1071,6 +1024,7 @@ ixgbe_init_locked(struct adapter *adapter)
 		return;
 	}
 
+	ixgbe_init_hw(hw);
 	ixgbe_initialize_transmit_units(adapter);
 
 	/* Setup Multicast table */
@@ -1080,10 +1034,14 @@ ixgbe_init_locked(struct adapter *adapter)
 	** Determine the correct mbuf pool
 	** for doing jumbo/headersplit
 	*/
-	if (ifp->if_mtu > ETHERMTU)
-		adapter->rx_mbuf_sz = MJUMPAGESIZE;
-	else
+	if (adapter->max_frame_size <= 2048)
 		adapter->rx_mbuf_sz = MCLBYTES;
+	else if (adapter->max_frame_size <= 4096)
+		adapter->rx_mbuf_sz = MJUMPAGESIZE;
+	else if (adapter->max_frame_size <= 9216)
+		adapter->rx_mbuf_sz = MJUM9BYTES;
+	else
+		adapter->rx_mbuf_sz = MJUM16BYTES;
 
 	/* Prepare receive descriptors and buffers */
 	if (ixgbe_setup_receive_structures(adapter)) {
@@ -1095,19 +1053,14 @@ ixgbe_init_locked(struct adapter *adapter)
 	/* Configure RX settings */
 	ixgbe_initialize_receive_units(adapter);
 
-	/* Configure Interrupt Moderation */
-	ixgbe_init_moderation(adapter);
-
 	gpie = IXGBE_READ_REG(&adapter->hw, IXGBE_GPIE);
 
-	if (hw->mac.type == ixgbe_mac_82599EB) {
-		gpie |= IXGBE_SDP1_GPIEN;
-		gpie |= IXGBE_SDP2_GPIEN;
-	}
-
 	/* Enable Fan Failure Interrupt */
-	if (hw->device_id == IXGBE_DEV_ID_82598AT)
-		gpie |= IXGBE_SDP1_GPIEN;
+	gpie |= IXGBE_SDP1_GPIEN;
+
+	/* Add for Thermal detection */
+	if (hw->mac.type == ixgbe_mac_82599EB)
+		gpie |= IXGBE_SDP2_GPIEN;
 
 	if (adapter->msix > 1) {
 		/* Enable Enhanced MSIX mode */
@@ -1116,13 +1069,6 @@ ixgbe_init_locked(struct adapter *adapter)
 		    IXGBE_GPIE_OCD;
 	}
 	IXGBE_WRITE_REG(hw, IXGBE_GPIE, gpie);
-
-	/* Set the various hardware offload abilities */
-	ifp->if_hwassist = 0;
-	if (ifp->if_capenable & IFCAP_TSO4)
-		ifp->if_hwassist |= CSUM_TSO;
-	if (ifp->if_capenable & IFCAP_TXCSUM)
-		ifp->if_hwassist = (CSUM_TCP | CSUM_UDP);
 
 	/* Set MTU size */
 	if (ifp->if_mtu > ETHERMTU) {
@@ -1166,7 +1112,7 @@ ixgbe_init_locked(struct adapter *adapter)
 		IXGBE_WRITE_REG(hw, IXGBE_RDT(i), adapter->num_rx_desc - 1);
 	}
 
-	/* Set up VLAN offloads and filter */
+	/* Set up VLAN support and filter */
 	ixgbe_setup_vlan_hw_support(adapter);
 
 	/* Enable Receive engine */
@@ -1174,21 +1120,29 @@ ixgbe_init_locked(struct adapter *adapter)
 	if (hw->mac.type == ixgbe_mac_82598EB)
 		rxctrl |= IXGBE_RXCTRL_DMBYPS;
 	rxctrl |= IXGBE_RXCTRL_RXEN;
-	IXGBE_WRITE_REG(hw, IXGBE_RXCTRL, rxctrl);
+	ixgbe_enable_rx_dma(hw, rxctrl);
 
 	callout_reset(&adapter->timer, hz, ixgbe_local_timer, adapter);
 
 	/* Set up MSI/X routing */
-	if (ixgbe_enable_msix)
+	if (ixgbe_enable_msix)  {
 		ixgbe_configure_ivars(adapter);
-	else {	/* Simple settings for Legacy/MSI */
+		/* Set up auto-mask */
+		if (hw->mac.type == ixgbe_mac_82598EB)
+			IXGBE_WRITE_REG(hw, IXGBE_EIAM, IXGBE_EICS_RTX_QUEUE);
+		else {
+			IXGBE_WRITE_REG(hw, IXGBE_EIAM_EX(0), 0xFFFFFFFF);
+			IXGBE_WRITE_REG(hw, IXGBE_EIAM_EX(1), 0xFFFFFFFF);
+		}
+	} else {  /* Simple settings for Legacy/MSI */
                 ixgbe_set_ivar(adapter, 0, 0, 0);
                 ixgbe_set_ivar(adapter, 0, 0, 1);
+		IXGBE_WRITE_REG(hw, IXGBE_EIAM, IXGBE_EICS_RTX_QUEUE);
 	}
 
 #ifdef IXGBE_FDIR
 	/* Init Flow director */
-	if (adapter->hw.mac.type == ixgbe_mac_82599EB)
+	if (hw->mac.type != ixgbe_mac_82598EB)
 		ixgbe_init_fdir_signature_82599(&adapter->hw, fdir_pballoc);
 #endif
 
@@ -1196,13 +1150,17 @@ ixgbe_init_locked(struct adapter *adapter)
 	** Check on any SFP devices that
 	** need to be kick-started
 	*/
-	err = hw->phy.ops.identify(hw);
-	if (err == IXGBE_ERR_SFP_NOT_SUPPORTED) {
-                device_printf(dev,
-		    "Unsupported SFP+ module type was detected.\n");
-		ixgbe_detach(dev);
-		return;
-        }
+	if (hw->phy.type == ixgbe_phy_none) {
+		int err = hw->phy.ops.identify(hw);
+		if (err == IXGBE_ERR_SFP_NOT_SUPPORTED) {
+                	device_printf(dev,
+			    "Unsupported SFP+ module type was detected.\n");
+			return;
+        	}
+	}
+
+	/* Set moderation on the Link interrupt */
+	IXGBE_WRITE_REG(hw, IXGBE_EITR(adapter->linkvec), IXGBE_LINK_ITR);
 
 	/* Config/Enable Link */
 	ixgbe_config_link(adapter);
@@ -1291,36 +1249,20 @@ ixgbe_rearm_queues(struct adapter *adapter, u64 queues)
 	}
 }
 
-static void
-ixgbe_handle_rx(void *context, int pending)
-{
-	struct rx_ring  *rxr = context;
-	struct adapter  *adapter = rxr->adapter;
-	u32		loop = MAX_LOOP;
-	bool		more;
-
-	do {
-		more = ixgbe_rxeof(rxr, -1);
-	} while (loop-- && more);
-        /* Reenable this interrupt */
-	ixgbe_enable_queue(adapter, rxr->msix);
-}
 
 static void
-ixgbe_handle_tx(void *context, int pending)
+ixgbe_handle_que(void *context, int pending)
 {
-	struct tx_ring  *txr = context;
-	struct adapter  *adapter = txr->adapter;
+	struct ix_queue *que = context;
+	struct adapter  *adapter = que->adapter;
+	struct tx_ring  *txr = que->txr;
 	struct ifnet    *ifp = adapter->ifp;
-	u32		loop = MAX_LOOP;
 	bool		more;
-
-	IXGBE_TX_LOCK(txr);
-	do {
-		more = ixgbe_txeof(txr);
-	} while (loop-- && more);
 
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+		more = ixgbe_rxeof(que, adapter->rx_process_limit);
+		IXGBE_TX_LOCK(txr);
+		ixgbe_txeof(txr);
 #if __FreeBSD_version >= 800000
 		if (!drbr_empty(ifp, txr->br))
 			ixgbe_mq_start_locked(ifp, txr, NULL);
@@ -1328,11 +1270,16 @@ ixgbe_handle_tx(void *context, int pending)
 		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 			ixgbe_start_locked(txr, ifp);
 #endif
+		IXGBE_TX_UNLOCK(txr);
+		if (more) {
+			taskqueue_enqueue(que->tq, &que->que_task);
+			return;
+		}
 	}
 
-	IXGBE_TX_UNLOCK(txr);
 	/* Reenable this interrupt */
-	ixgbe_enable_queue(adapter, txr->msix);
+	ixgbe_enable_queue(adapter, que->msix);
+	return;
 }
 
 
@@ -1345,33 +1292,32 @@ ixgbe_handle_tx(void *context, int pending)
 static void
 ixgbe_legacy_irq(void *arg)
 {
-	struct adapter	*adapter = arg;
+	struct ix_queue *que = arg;
+	struct adapter	*adapter = que->adapter;
 	struct ixgbe_hw	*hw = &adapter->hw;
 	struct 		tx_ring *txr = adapter->tx_rings;
-	struct		rx_ring *rxr = adapter->rx_rings;
-	bool		more;
+	bool		more_tx, more_rx;
 	u32       	reg_eicr, loop = MAX_LOOP;
 
 
 	reg_eicr = IXGBE_READ_REG(hw, IXGBE_EICR);
 
+	++que->irqs;
 	if (reg_eicr == 0) {
 		ixgbe_enable_intr(adapter);
 		return;
 	}
 
-	if (ixgbe_rxeof(rxr, adapter->rx_process_limit))
-		taskqueue_enqueue(rxr->tq, &rxr->rx_task);
+	more_rx = ixgbe_rxeof(que, adapter->rx_process_limit);
 
 	IXGBE_TX_LOCK(txr);
-	++txr->tx_irq;
 	do {
-		more = ixgbe_txeof(txr);
-	} while (loop-- && more);
+		more_tx = ixgbe_txeof(txr);
+	} while (loop-- && more_tx);
 	IXGBE_TX_UNLOCK(txr);
 
-	if (more)
-		taskqueue_enqueue(txr->tq, &txr->tx_task);
+	if (more_rx || more_tx)
+		taskqueue_enqueue(que->tq, &que->que_task);
 
 	/* Check for fan failure */
 	if ((hw->phy.media_type == ixgbe_media_type_copper) &&
@@ -1382,15 +1328,8 @@ ixgbe_legacy_irq(void *arg)
 	}
 
 	/* Link status change */
-	if (reg_eicr & IXGBE_EICR_LSC) {
-		ixgbe_check_link(&adapter->hw,
-		    &adapter->link_speed, &adapter->link_up, 0);
-        	ixgbe_update_link_status(adapter);
-	}
-
-	/* Update interrupt rate */
-	if (ixgbe_enable_aim == TRUE)
-		ixgbe_update_aim(rxr);
+	if (reg_eicr & IXGBE_EICR_LSC)
+		taskqueue_enqueue(adapter->tq, &adapter->link_task);
 
 	ixgbe_enable_intr(adapter);
 	return;
@@ -1399,55 +1338,82 @@ ixgbe_legacy_irq(void *arg)
 
 /*********************************************************************
  *
- *  MSI TX Interrupt Service routine
+ *  MSI Queue Interrupt Service routine
  *
  **********************************************************************/
 void
-ixgbe_msix_tx(void *arg)
+ixgbe_msix_que(void *arg)
 {
-	struct tx_ring	*txr = arg;
-	struct adapter  *adapter = txr->adapter;
-	bool		more;
+	struct ix_queue	*que = arg;
+	struct adapter  *adapter = que->adapter;
+	struct tx_ring	*txr = que->txr;
+	struct rx_ring	*rxr = que->rxr;
+	bool		more_tx, more_rx;
+	u32		newitr = 0;
 
-	ixgbe_disable_queue(adapter, txr->msix);
+	++que->irqs;
+
+	more_rx = ixgbe_rxeof(que, adapter->rx_process_limit);
 
 	IXGBE_TX_LOCK(txr);
-	++txr->tx_irq;
-	more = ixgbe_txeof(txr);
+	more_tx = ixgbe_txeof(txr);
 	IXGBE_TX_UNLOCK(txr);
-	if (more)
-		taskqueue_enqueue(txr->tq, &txr->tx_task);
-	else /* Reenable this interrupt */
-		ixgbe_enable_queue(adapter, txr->msix);
-	return;
-}
 
+	/* Do AIM now? */
 
-/*********************************************************************
- *
- *  MSIX RX Interrupt Service routine
- *
- **********************************************************************/
-static void
-ixgbe_msix_rx(void *arg)
-{
-	struct rx_ring	*rxr = arg;
-	struct adapter  *adapter = rxr->adapter;
-	bool		more;
+	if (ixgbe_enable_aim == FALSE)
+		goto no_calc;
+	/*
+	** Do Adaptive Interrupt Moderation:
+        **  - Write out last calculated setting
+	**  - Calculate based on average size over
+	**    the last interval.
+	*/
+        if (que->eitr_setting)
+                IXGBE_WRITE_REG(&adapter->hw,
+                    IXGBE_EITR(que->msix), que->eitr_setting);
+ 
+        que->eitr_setting = 0;
 
-	ixgbe_disable_queue(adapter, rxr->msix);
+        /* Idle, do nothing */
+        if ((txr->bytes == 0) && (rxr->bytes == 0))
+                goto no_calc;
+                                
+	if ((txr->bytes) && (txr->packets))
+               	newitr = txr->bytes/txr->packets;
+	if ((rxr->bytes) && (rxr->packets))
+		newitr = max(newitr,
+		    (rxr->bytes / rxr->packets));
+	newitr += 24; /* account for hardware frame, crc */
 
-	++rxr->rx_irq;
-	more = ixgbe_rxeof(rxr, adapter->rx_process_limit);
+	/* set an upper boundary */
+	newitr = min(newitr, 3000);
 
-	/* Update interrupt rate */
-	if (ixgbe_enable_aim == TRUE)
-		ixgbe_update_aim(rxr);
-
-	if (more)
-		taskqueue_enqueue(rxr->tq, &rxr->rx_task);
+	/* Be nice to the mid range */
+	if ((newitr > 300) && (newitr < 1200))
+		newitr = (newitr / 3);
 	else
-		ixgbe_enable_queue(adapter, rxr->msix);
+		newitr = (newitr / 2);
+
+        if (adapter->hw.mac.type == ixgbe_mac_82598EB)
+                newitr |= newitr << 16;
+        else
+                newitr |= IXGBE_EITR_CNT_WDIS;
+                 
+        /* save for next interrupt */
+        que->eitr_setting = newitr;
+
+        /* Reset state */
+        txr->bytes = 0;
+        txr->packets = 0;
+        rxr->bytes = 0;
+        rxr->packets = 0;
+
+no_calc:
+	if (more_tx || more_rx)
+		taskqueue_enqueue(que->tq, &que->que_task);
+	else /* Reenable this interrupt */
+		ixgbe_enable_queue(adapter, que->msix);
 	return;
 }
 
@@ -1470,7 +1436,7 @@ ixgbe_msix_link(void *arg)
 	if (reg_eicr & IXGBE_EICR_LSC)
 		taskqueue_enqueue(adapter->tq, &adapter->link_task);
 
-	if (adapter->hw.mac.type == ixgbe_mac_82599EB) {
+	if (adapter->hw.mac.type != ixgbe_mac_82598EB) {
 #ifdef IXGBE_FDIR
 		if (reg_eicr & IXGBE_EICR_FLOW_DIR) {
 			/* This is probably overkill :) */
@@ -1510,84 +1476,6 @@ ixgbe_msix_link(void *arg)
 
 	IXGBE_WRITE_REG(&adapter->hw, IXGBE_EIMS, IXGBE_EIMS_OTHER);
 	return;
-}
-
-/*
-** Routine to do adjust the RX EITR value based on traffic,
-** its a simple three state model, but seems to help.
-**
-** Note that the three EITR values are tuneable using
-** sysctl in real time. The feature can be effectively
-** nullified by setting them equal.
-*/
-#define BULK_THRESHOLD	10000
-#define AVE_THRESHOLD	1600
-
-static void
-ixgbe_update_aim(struct rx_ring *rxr)
-{
-	struct adapter  *adapter = rxr->adapter;
-	u32             olditr, newitr;
-
-	/* Update interrupt moderation based on traffic */
-	olditr = rxr->eitr_setting;
-	newitr = olditr;
-
-	/* Idle, don't change setting */
-	if (rxr->bytes == 0)   
-		return;
-                
-	if (olditr == ixgbe_low_latency) {
-		if (rxr->bytes > AVE_THRESHOLD)
-			newitr = ixgbe_ave_latency;
-	} else if (olditr == ixgbe_ave_latency) {
-		if (rxr->bytes < AVE_THRESHOLD)
-			newitr = ixgbe_low_latency;
-		else if (rxr->bytes > BULK_THRESHOLD)
-			newitr = ixgbe_bulk_latency;
-	} else if (olditr == ixgbe_bulk_latency) {
-		if (rxr->bytes < BULK_THRESHOLD)
-			newitr = ixgbe_ave_latency;
-	}
-
-	if (olditr != newitr) {
-		/* Change interrupt rate */
-		rxr->eitr_setting = newitr;
-		IXGBE_WRITE_REG(&adapter->hw, IXGBE_EITR(rxr->me),
-		    newitr | (newitr << 16));
-	}
-
-	rxr->bytes = 0;
-	return;
-}
-
-static void
-ixgbe_init_moderation(struct adapter *adapter)
-{
-	struct rx_ring *rxr = adapter->rx_rings;
-	struct tx_ring *txr = adapter->tx_rings;
-
-	/* Single interrupt - MSI or Legacy? */
-	if (adapter->msix < 2) {
-		IXGBE_WRITE_REG(&adapter->hw, IXGBE_EITR(0), 100);
-		return;
-	}
-
-	/* TX irq moderation rate is fixed */
-	for (int i = 0; i < adapter->num_queues; i++, txr++)
-		IXGBE_WRITE_REG(&adapter->hw,
-		    IXGBE_EITR(txr->msix), ixgbe_ave_latency);
-
-	/* RX moderation will be adapted over time, set default */
-	for (int i = 0; i < adapter->num_queues; i++, rxr++) {
-		IXGBE_WRITE_REG(&adapter->hw,
-		    IXGBE_EITR(rxr->msix), ixgbe_low_latency);
-	}
-
-	/* Set Link moderation */
-	IXGBE_WRITE_REG(&adapter->hw,
-	    IXGBE_EITR(adapter->linkvec), IXGBE_LINK_ITR);
-
 }
 
 /*********************************************************************
@@ -1665,11 +1553,10 @@ ixgbe_media_change(struct ifnet * ifp)
 
 /*********************************************************************
  *
- *  This routine maps the mbufs to tx descriptors.
- *    WARNING: while this code is using an MQ style infrastructure,
- *    it would NOT work as is with more than 1 queue.
+ *  This routine maps the mbufs to tx descriptors, allowing the
+ *  TX engine to transmit the packets. 
+ *  	- return 0 on success, positive on failure
  *
- *  return 0 on success, positive on failure
  **********************************************************************/
 
 static int
@@ -1681,7 +1568,7 @@ ixgbe_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 	int             i, j, error, nsegs;
 	int		first, last = 0;
 	struct mbuf	*m_head;
-	bus_dma_segment_t segs[ixgbe_num_segs];
+	bus_dma_segment_t segs[adapter->num_segs];
 	bus_dmamap_t	map;
 	struct ixgbe_tx_buf *txbuf, *txbuf_mapped;
 	union ixgbe_adv_tx_desc *txd = NULL;
@@ -1694,14 +1581,6 @@ ixgbe_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 
 	if (m_head->m_flags & M_VLANTAG)
         	cmd_type_len |= IXGBE_ADVTXD_DCMD_VLE;
-
-	/* Do a clean if descriptors are low */
-	if (txr->tx_avail <= IXGBE_TX_CLEANUP_THRESHOLD) {
-		ixgbe_txeof(txr);
-		/* Now do we at least have a minimal? */
-		if (txr->tx_avail <= IXGBE_TX_OP_THRESHOLD)
-			return (ENOBUFS);
-        }
 
         /*
          * Important to capture the first descriptor
@@ -1756,7 +1635,7 @@ ixgbe_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 
 	/* Make certain there are enough descriptors */
 	if (nsegs > txr->tx_avail - 2) {
-		txr->no_tx_desc_avail++;
+		txr->no_desc_avail++;
 		error = ENOBUFS;
 		goto xmit_fail;
 	}
@@ -1814,7 +1693,7 @@ ixgbe_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 		txd->read.cmd_type_len = htole32(txr->txd_cmd |
 		    cmd_type_len |seglen);
 		txd->read.olinfo_status = htole32(olinfo_status);
-		last = i; /* Next descriptor that will get completed */
+		last = i; /* descriptor that will get completion IRQ */
 
 		if (++i == adapter->num_tx_desc)
 			i = 0;
@@ -1844,6 +1723,7 @@ ixgbe_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 	 */
 	++txr->total_packets;
 	IXGBE_WRITE_REG(&adapter->hw, IXGBE_TDT(txr->me), i);
+
 	return (0);
 
 xmit_fail:
@@ -1855,11 +1735,13 @@ xmit_fail:
 static void
 ixgbe_set_promisc(struct adapter *adapter)
 {
-
 	u_int32_t       reg_rctl;
 	struct ifnet   *ifp = adapter->ifp;
 
 	reg_rctl = IXGBE_READ_REG(&adapter->hw, IXGBE_FCTRL);
+	reg_rctl &= (~IXGBE_FCTRL_UPE);
+	reg_rctl &= (~IXGBE_FCTRL_MPE);
+	IXGBE_WRITE_REG(&adapter->hw, IXGBE_FCTRL, reg_rctl);
 
 	if (ifp->if_flags & IFF_PROMISC) {
 		reg_rctl |= (IXGBE_FCTRL_UPE | IXGBE_FCTRL_MPE);
@@ -1869,20 +1751,6 @@ ixgbe_set_promisc(struct adapter *adapter)
 		reg_rctl &= ~IXGBE_FCTRL_UPE;
 		IXGBE_WRITE_REG(&adapter->hw, IXGBE_FCTRL, reg_rctl);
 	}
-	return;
-}
-
-static void
-ixgbe_disable_promisc(struct adapter * adapter)
-{
-	u_int32_t       reg_rctl;
-
-	reg_rctl = IXGBE_READ_REG(&adapter->hw, IXGBE_FCTRL);
-
-	reg_rctl &= (~IXGBE_FCTRL_UPE);
-	reg_rctl &= (~IXGBE_FCTRL_MPE);
-	IXGBE_WRITE_REG(&adapter->hw, IXGBE_FCTRL, reg_rctl);
-
 	return;
 }
 
@@ -1899,13 +1767,17 @@ static void
 ixgbe_set_multi(struct adapter *adapter)
 {
 	u32	fctrl;
-	u8	mta[MAX_NUM_MULTICAST_ADDRESSES * IXGBE_ETH_LENGTH_OF_ADDRESS];
+	u8	*mta;
 	u8	*update_ptr;
 	struct	ifmultiaddr *ifma;
 	int	mcnt = 0;
 	struct ifnet   *ifp = adapter->ifp;
 
 	IOCTL_DEBUGOUT("ixgbe_set_multi: begin");
+
+	mta = adapter->mta;
+	bzero(mta, sizeof(u8) * IXGBE_ETH_LENGTH_OF_ADDRESS *
+	    MAX_NUM_MULTICAST_ADDRESSES);
 
 	fctrl = IXGBE_READ_REG(&adapter->hw, IXGBE_FCTRL);
 	fctrl |= (IXGBE_FCTRL_UPE | IXGBE_FCTRL_MPE);
@@ -1975,10 +1847,8 @@ static void
 ixgbe_local_timer(void *arg)
 {
 	struct adapter *adapter = arg;
-	struct ifnet   *ifp = adapter->ifp;
 	device_t	dev = adapter->dev;
 	struct tx_ring *txr = adapter->tx_rings;
-	bool   tx_hung = FALSE;
 
 	mtx_assert(&adapter->core_mtx, MA_OWNED);
 
@@ -1989,21 +1859,23 @@ ixgbe_local_timer(void *arg)
 
 	ixgbe_update_link_status(adapter);
 	ixgbe_update_stats_counters(adapter);
-	if (ixgbe_display_debug_stats && ifp->if_drv_flags & IFF_DRV_RUNNING) {
-		ixgbe_print_hw_stats(adapter);
-	}
+
 	/*
-	** Check for time since any descriptor was cleaned
+	 * If the interface has been paused
+	 * then don't do the watchdog check
+	 */
+	if (IXGBE_READ_REG(&adapter->hw, IXGBE_TFCS) & IXGBE_TFCS_TXOFF)
+		goto out;
+
+	/*
+	** Check status on the TX queues for a hang
 	*/
-        for (int i = 0; i < adapter->num_queues; i++, txr++) {
-		if (txr->watchdog_check == FALSE)
-			continue;
-		if ((ticks - txr->watchdog_time) > IXGBE_WATCHDOG) {
-			tx_hung = TRUE;
+        for (int i = 0; i < adapter->num_queues; i++, txr++)
+		if (txr->queue_status == IXGBE_QUEUE_HUNG)
 			goto hung;
-		}
-	}
+
 out:
+	ixgbe_rearm_queues(adapter, adapter->que_mask);
 	callout_reset(&adapter->timer, hz, ixgbe_local_timer, adapter);
 	return;
 
@@ -2050,7 +1922,7 @@ ixgbe_update_link_status(struct adapter *adapter)
 			adapter->link_active = FALSE;
 			for (int i = 0; i < adapter->num_queues;
 			    i++, txr++)
-				txr->watchdog_check = FALSE;
+				txr->queue_status = IXGBE_QUEUE_IDLE;
 		}
 	}
 
@@ -2070,6 +1942,7 @@ ixgbe_stop(void *arg)
 {
 	struct ifnet   *ifp;
 	struct adapter *adapter = arg;
+	struct ixgbe_hw *hw = &adapter->hw;
 	ifp = adapter->ifp;
 
 	mtx_assert(&adapter->core_mtx, MA_OWNED);
@@ -2080,9 +1953,12 @@ ixgbe_stop(void *arg)
 	/* Tell the stack that the interface is no longer active */
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 
-	ixgbe_reset_hw(&adapter->hw);
-	adapter->hw.adapter_stopped = FALSE;
-	ixgbe_stop_adapter(&adapter->hw);
+	ixgbe_reset_hw(hw);
+	hw->adapter_stopped = FALSE;
+	ixgbe_stop_adapter(hw);
+	/* Turn off the laser */
+	if (hw->phy.multispeed_fiber)
+		ixgbe_disable_tx_laser(hw);
 	callout_stop(&adapter->timer);
 
 	/* reprogram the RAR[0] in case user changed it. */
@@ -2101,16 +1977,71 @@ static void
 ixgbe_identify_hardware(struct adapter *adapter)
 {
 	device_t        dev = adapter->dev;
+	struct ixgbe_hw *hw = &adapter->hw;
 
 	/* Save off the information about this board */
-	adapter->hw.vendor_id = pci_get_vendor(dev);
-	adapter->hw.device_id = pci_get_device(dev);
-	adapter->hw.revision_id = pci_read_config(dev, PCIR_REVID, 1);
-	adapter->hw.subsystem_vendor_id =
+	hw->vendor_id = pci_get_vendor(dev);
+	hw->device_id = pci_get_device(dev);
+	hw->revision_id = pci_read_config(dev, PCIR_REVID, 1);
+	hw->subsystem_vendor_id =
 	    pci_read_config(dev, PCIR_SUBVEND_0, 2);
-	adapter->hw.subsystem_device_id =
+	hw->subsystem_device_id =
 	    pci_read_config(dev, PCIR_SUBDEV_0, 2);
 
+	/* We need this here to set the num_segs below */
+	ixgbe_set_mac_type(hw);
+
+	/* Pick up the 82599 and VF settings */
+	if (hw->mac.type != ixgbe_mac_82598EB) {
+		hw->phy.smart_speed = ixgbe_smart_speed;
+		adapter->num_segs = IXGBE_82599_SCATTER;
+	} else
+		adapter->num_segs = IXGBE_82598_SCATTER;
+
+	return;
+}
+
+/*********************************************************************
+ *
+ *  Determine optic type
+ *
+ **********************************************************************/
+static void
+ixgbe_setup_optics(struct adapter *adapter)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	int		layer;
+	
+	layer = ixgbe_get_supported_physical_layer(hw);
+	switch (layer) {
+		case IXGBE_PHYSICAL_LAYER_10GBASE_T:
+			adapter->optics = IFM_10G_T;
+			break;
+		case IXGBE_PHYSICAL_LAYER_1000BASE_T:
+			adapter->optics = IFM_1000_T;
+			break;
+		case IXGBE_PHYSICAL_LAYER_10GBASE_LR:
+		case IXGBE_PHYSICAL_LAYER_10GBASE_LRM:
+			adapter->optics = IFM_10G_LR;
+			break;
+		case IXGBE_PHYSICAL_LAYER_10GBASE_SR:
+			adapter->optics = IFM_10G_SR;
+			break;
+		case IXGBE_PHYSICAL_LAYER_10GBASE_KX4:
+		case IXGBE_PHYSICAL_LAYER_10GBASE_CX4:
+			adapter->optics = IFM_10G_CX4;
+			break;
+		case IXGBE_PHYSICAL_LAYER_SFP_PLUS_CU:
+			adapter->optics = IFM_10G_TWINAX;
+			break;
+		case IXGBE_PHYSICAL_LAYER_1000BASE_KX:
+		case IXGBE_PHYSICAL_LAYER_10GBASE_KR:
+		case IXGBE_PHYSICAL_LAYER_10GBASE_XAUI:
+		case IXGBE_PHYSICAL_LAYER_UNKNOWN:
+		default:
+			adapter->optics = IFM_ETHER | IFM_AUTO;
+			break;
+	}
 	return;
 }
 
@@ -2123,8 +2054,7 @@ static int
 ixgbe_allocate_legacy(struct adapter *adapter)
 {
 	device_t dev = adapter->dev;
-	struct 		tx_ring *txr = adapter->tx_rings;
-	struct		rx_ring *rxr = adapter->rx_rings;
+	struct		ix_queue *que = adapter->queues;
 	int error, rid = 0;
 
 	/* MSI RID at 1 */
@@ -2144,15 +2074,10 @@ ixgbe_allocate_legacy(struct adapter *adapter)
 	 * Try allocating a fast interrupt and the associated deferred
 	 * processing contexts.
 	 */
-	TASK_INIT(&txr->tx_task, 0, ixgbe_handle_tx, txr);
-	TASK_INIT(&rxr->rx_task, 0, ixgbe_handle_rx, rxr);
-	txr->tq = taskqueue_create_fast("ixgbe_txq", M_NOWAIT,
-            taskqueue_thread_enqueue, &txr->tq);
-	rxr->tq = taskqueue_create_fast("ixgbe_rxq", M_NOWAIT,
-            taskqueue_thread_enqueue, &rxr->tq);
-	taskqueue_start_threads(&txr->tq, 1, PI_NET, "%s txq",
-            device_get_nameunit(adapter->dev));
-	taskqueue_start_threads(&rxr->tq, 1, PI_NET, "%s rxq",
+	TASK_INIT(&que->que_task, 0, ixgbe_handle_que, que);
+	que->tq = taskqueue_create_fast("ixgbe_que", M_NOWAIT,
+            taskqueue_thread_enqueue, &que->tq);
+	taskqueue_start_threads(&que->tq, 1, PI_NET, "%s ixq",
             device_get_nameunit(adapter->dev));
 
 	/* Tasklets for Link, SFP and Multispeed Fiber */
@@ -2169,15 +2094,17 @@ ixgbe_allocate_legacy(struct adapter *adapter)
 
 	if ((error = bus_setup_intr(dev, adapter->res,
             INTR_TYPE_NET | INTR_MPSAFE, NULL, ixgbe_legacy_irq,
-            adapter, &adapter->tag)) != 0) {
+            que, &adapter->tag)) != 0) {
 		device_printf(dev, "Failed to register fast interrupt "
 		    "handler: %d\n", error);
-		taskqueue_free(txr->tq);
-		taskqueue_free(rxr->tq);
-		txr->tq = NULL;
-		rxr->tq = NULL;
+		taskqueue_free(que->tq);
+		taskqueue_free(adapter->tq);
+		que->tq = NULL;
+		adapter->tq = NULL;
 		return (error);
 	}
+	/* For simplicity in the handlers */
+	adapter->que_mask = IXGBE_EIMS_ENABLE_MASK;
 
 	return (0);
 }
@@ -2192,83 +2119,47 @@ static int
 ixgbe_allocate_msix(struct adapter *adapter)
 {
 	device_t        dev = adapter->dev;
-	struct 		tx_ring *txr = adapter->tx_rings;
-	struct		rx_ring *rxr = adapter->rx_rings;
+	struct 		ix_queue *que = adapter->queues;
 	int 		error, rid, vector = 0;
 
-	/* TX setup: the code is here for multi tx,
-	   there are other parts of the driver not ready for it */
-	for (int i = 0; i < adapter->num_queues; i++, vector++, txr++) {
+	for (int i = 0; i < adapter->num_queues; i++, vector++, que++) {
 		rid = vector + 1;
-		txr->res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+		que->res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 		    RF_SHAREABLE | RF_ACTIVE);
-		if (!txr->res) {
+		if (que->res == NULL) {
 			device_printf(dev,"Unable to allocate"
-		    	    " bus resource: tx interrupt [%d]\n", vector);
+		    	    " bus resource: que interrupt [%d]\n", vector);
 			return (ENXIO);
 		}
 		/* Set the handler function */
-		error = bus_setup_intr(dev, txr->res,
+		error = bus_setup_intr(dev, que->res,
 		    INTR_TYPE_NET | INTR_MPSAFE, NULL,
-		    ixgbe_msix_tx, txr, &txr->tag);
+		    ixgbe_msix_que, que, &que->tag);
 		if (error) {
-			txr->res = NULL;
-			device_printf(dev, "Failed to register TX handler");
+			que->res = NULL;
+			device_printf(dev, "Failed to register QUE handler");
 			return (error);
 		}
-		txr->msix = vector;
+#if __FreeBSD_version >= 800504
+		bus_describe_intr(dev, que->res, que->tag, "que %d", i);
+#endif
+		que->msix = vector;
+        	adapter->que_mask |= (u64)(1 << que->msix);
 		/*
 		** Bind the msix vector, and thus the
 		** ring to the corresponding cpu.
 		*/
 		if (adapter->num_queues > 1)
-			bus_bind_intr(dev, txr->res, i);
+			bus_bind_intr(dev, que->res, i);
 
-		TASK_INIT(&txr->tx_task, 0, ixgbe_handle_tx, txr);
-		txr->tq = taskqueue_create_fast("ixgbe_txq", M_NOWAIT,
-		    taskqueue_thread_enqueue, &txr->tq);
-		taskqueue_start_threads(&txr->tq, 1, PI_NET, "%s txq",
+		TASK_INIT(&que->que_task, 0, ixgbe_handle_que, que);
+		que->tq = taskqueue_create_fast("ixgbe_que", M_NOWAIT,
+		    taskqueue_thread_enqueue, &que->tq);
+		taskqueue_start_threads(&que->tq, 1, PI_NET, "%s que",
 		    device_get_nameunit(adapter->dev));
 	}
 
-	/* RX setup */
-	for (int i = 0; i < adapter->num_queues; i++, vector++, rxr++) {
-		rid = vector + 1;
-		rxr->res = bus_alloc_resource_any(dev,
-	    	    SYS_RES_IRQ, &rid, RF_SHAREABLE | RF_ACTIVE);
-		if (!rxr->res) {
-			device_printf(dev,"Unable to allocate"
-		    	    " bus resource: rx interrupt [%d],"
-			    "rid = %d\n", i, rid);
-			return (ENXIO);
-		}
-		/* Set the handler function */
-		error = bus_setup_intr(dev, rxr->res,
-		    INTR_TYPE_NET | INTR_MPSAFE, NULL,
-		    ixgbe_msix_rx, rxr, &rxr->tag);
-		if (error) {
-			rxr->res = NULL;
-			device_printf(dev, "Failed to register RX handler");
-			return (error);
-		}
-		rxr->msix = vector;
-		/* used in local timer */
-		adapter->rx_mask |= (u64)(1 << vector);
-		/*
-		** Bind the msix vector, and thus the
-		** ring to the corresponding cpu.
-		*/
-		if (adapter->num_queues > 1)
-			bus_bind_intr(dev, rxr->res, i);
-
-		TASK_INIT(&rxr->rx_task, 0, ixgbe_handle_rx, rxr);
-		rxr->tq = taskqueue_create_fast("ixgbe_rxq", M_NOWAIT,
-		    taskqueue_thread_enqueue, &rxr->tq);
-		taskqueue_start_threads(&rxr->tq, 1, PI_NET, "%s rxq",
-		    device_get_nameunit(adapter->dev));
-	}
-
-	/* Now for Link changes */
+	/* and Link */
 	rid = vector + 1;
 	adapter->res = bus_alloc_resource_any(dev,
     	    SYS_RES_IRQ, &rid, RF_SHAREABLE | RF_ACTIVE);
@@ -2286,6 +2177,9 @@ ixgbe_allocate_msix(struct adapter *adapter)
 		device_printf(dev, "Failed to register LINK handler");
 		return (error);
 	}
+#if __FreeBSD_version >= 800504
+	bus_describe_intr(dev, adapter->res, adapter->tag, "link");
+#endif
 	adapter->linkvec = vector;
 	/* Tasklets for Link, SFP and Multispeed Fiber */
 	TASK_INIT(&adapter->link_task, 0, ixgbe_handle_link, adapter);
@@ -2340,15 +2234,19 @@ ixgbe_setup_msix(struct adapter *adapter)
 	}
 
 	/* Figure out a reasonable auto config value */
-	queues = (mp_ncpus > ((msgs-1)/2)) ? (msgs-1)/2 : mp_ncpus;
+	queues = (mp_ncpus > (msgs-1)) ? (msgs-1) : mp_ncpus;
 
-	if (ixgbe_num_queues == 0)
-		ixgbe_num_queues = queues;
+	if (ixgbe_num_queues != 0)
+		queues = ixgbe_num_queues;
+	/* Set max queues to 8 when autoconfiguring */
+	else if ((ixgbe_num_queues == 0) && (queues > 8))
+		queues = 8;
+
 	/*
-	** Want two vectors (RX/TX) per queue
+	** Want one vector (RX/TX pair) per queue
 	** plus an additional for Link.
 	*/
-	want = (ixgbe_num_queues * 2) + 1;
+	want = queues + 1;
 	if (msgs >= want)
 		msgs = want;
 	else {
@@ -2361,7 +2259,7 @@ ixgbe_setup_msix(struct adapter *adapter)
 	if ((msgs) && pci_alloc_msix(dev, &msgs) == 0) {
                	device_printf(adapter->dev,
 		    "Using MSIX interrupts with %d vectors\n", msgs);
-		adapter->num_queues = ixgbe_num_queues;
+		adapter->num_queues = queues;
 		return (msgs);
 	}
 msi:
@@ -2409,8 +2307,7 @@ ixgbe_allocate_pci_resources(struct adapter *adapter)
 static void
 ixgbe_free_pci_resources(struct adapter * adapter)
 {
-	struct 		tx_ring *txr = adapter->tx_rings;
-	struct		rx_ring *rxr = adapter->rx_rings;
+	struct 		ix_queue *que = adapter->queues;
 	device_t	dev = adapter->dev;
 	int		rid, memrid;
 
@@ -2431,29 +2328,18 @@ ixgbe_free_pci_resources(struct adapter * adapter)
 		goto mem;
 
 	/*
-	**  Release all the interrupt resources:
-	**  notice this is harmless for Legacy or
-	**  MSI since pointers will always be NULL
+	**  Release all msix queue resources:
 	*/
-	for (int i = 0; i < adapter->num_queues; i++, txr++) {
-		rid = txr->msix + 1;
-		if (txr->tag != NULL) {
-			bus_teardown_intr(dev, txr->res, txr->tag);
-			txr->tag = NULL;
+	for (int i = 0; i < adapter->num_queues; i++, que++) {
+		rid = que->msix + 1;
+		if (que->tag != NULL) {
+			bus_teardown_intr(dev, que->res, que->tag);
+			que->tag = NULL;
 		}
-		if (txr->res != NULL)
-			bus_release_resource(dev, SYS_RES_IRQ, rid, txr->res);
+		if (que->res != NULL)
+			bus_release_resource(dev, SYS_RES_IRQ, rid, que->res);
 	}
 
-	for (int i = 0; i < adapter->num_queues; i++, rxr++) {
-		rid = rxr->msix + 1;
-		if (rxr->tag != NULL) {
-			bus_teardown_intr(dev, rxr->res, rxr->tag);
-			rxr->tag = NULL;
-		}
-		if (rxr->res != NULL)
-			bus_release_resource(dev, SYS_RES_IRQ, rid, rxr->res);
-	}
 
 	/* Clean the Legacy or Link interrupt last */
 	if (adapter->linkvec) /* we are doing MSIX */
@@ -2467,6 +2353,7 @@ ixgbe_free_pci_resources(struct adapter * adapter)
 	}
 	if (adapter->res != NULL)
 		bus_release_resource(dev, SYS_RES_IRQ, rid, adapter->res);
+
 mem:
 	if (adapter->msix)
 		pci_release_msi(dev);
@@ -2487,7 +2374,7 @@ mem:
  *  Setup networking device structure and register an interface.
  *
  **********************************************************************/
-static void
+static int
 ixgbe_setup_interface(device_t dev, struct adapter *adapter)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
@@ -2496,8 +2383,10 @@ ixgbe_setup_interface(device_t dev, struct adapter *adapter)
 	INIT_DEBUGOUT("ixgbe_setup_interface: begin");
 
 	ifp = adapter->ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL)
-		panic("%s: can not if_alloc()\n", device_get_nameunit(dev));
+	if (ifp == NULL) {
+		device_printf(dev, "can not allocate ifnet structure\n");
+		return (-1);
+	}
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_baudrate = 1000000000;
@@ -2525,10 +2414,20 @@ ixgbe_setup_interface(device_t dev, struct adapter *adapter)
 	ifp->if_capabilities |= IFCAP_HWCSUM | IFCAP_TSO4 | IFCAP_VLAN_HWCSUM;
 	ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU;
 	ifp->if_capabilities |= IFCAP_JUMBO_MTU;
-	if (ixgbe_header_split)
-		ifp->if_capabilities |= IFCAP_LRO;
-
 	ifp->if_capenable = ifp->if_capabilities;
+
+	/* Don't enable LRO by default */
+	ifp->if_capabilities |= IFCAP_LRO;
+
+	/*
+	** Dont turn this on by default, if vlans are
+	** created on another pseudo device (eg. lagg)
+	** then vlan events are not passed thru, breaking
+	** operation, but with HW FILTER off it works. If
+	** using vlans directly on the em driver you can
+	** enable this and get full hardware tag filtering.
+	*/
+	ifp->if_capabilities |= IFCAP_VLAN_HWFILTER;
 
 	/*
 	 * Specify the media types supported by this adapter and register
@@ -2536,8 +2435,8 @@ ixgbe_setup_interface(device_t dev, struct adapter *adapter)
 	 */
 	ifmedia_init(&adapter->media, IFM_IMASK, ixgbe_media_change,
 		     ixgbe_media_status);
-	ifmedia_add(&adapter->media, IFM_ETHER | adapter->optics |
-	    IFM_FDX, 0, NULL);
+	ifmedia_add(&adapter->media, IFM_ETHER | adapter->optics, 0, NULL);
+	ifmedia_set(&adapter->media, IFM_ETHER | adapter->optics);
 	if (hw->device_id == IXGBE_DEV_ID_82598AT) {
 		ifmedia_add(&adapter->media,
 		    IFM_ETHER | IFM_1000_T | IFM_FDX, 0, NULL);
@@ -2546,7 +2445,8 @@ ixgbe_setup_interface(device_t dev, struct adapter *adapter)
 	}
 	ifmedia_add(&adapter->media, IFM_ETHER | IFM_AUTO, 0, NULL);
 	ifmedia_set(&adapter->media, IFM_ETHER | IFM_AUTO);
-	return;
+
+	return (0);
 }
 
 static void
@@ -2556,21 +2456,12 @@ ixgbe_config_link(struct adapter *adapter)
 	u32	autoneg, err = 0;
 	bool	sfp, negotiate;
 
-	switch (hw->phy.type) {
-	case ixgbe_phy_sfp_avago:
-	case ixgbe_phy_sfp_ftl:
-	case ixgbe_phy_sfp_intel:
-	case ixgbe_phy_sfp_unknown:
-	case ixgbe_phy_tw_tyco:
-	case ixgbe_phy_tw_unknown:
-                sfp = TRUE;
-	default:
-                sfp = FALSE;
-        }
+	sfp = ixgbe_is_sfp(hw);
 
 	if (sfp) { 
 		if (hw->phy.multispeed_fiber) {
 			hw->mac.ops.setup_sfp(hw);
+			ixgbe_enable_tx_laser(hw);
 			taskqueue_enqueue(adapter->tq, &adapter->msf_task);
 		} else
 			taskqueue_enqueue(adapter->tq, &adapter->mod_task);
@@ -2613,8 +2504,8 @@ ixgbe_dma_malloc(struct adapter *adapter, bus_size_t size,
 	device_t dev = adapter->dev;
 	int             r;
 
-	r = bus_dma_tag_create(NULL,	/* parent */
-			       1, 0,	/* alignment, bounds */
+	r = bus_dma_tag_create(bus_get_dma_tag(adapter->dev),	/* parent */
+			       DBA_ALIGN, 0,	/* alignment, bounds */
 			       BUS_SPACE_MAXADDR,	/* lowaddr */
 			       BUS_SPACE_MAXADDR,	/* highaddr */
 			       NULL, NULL,	/* filter, filterarg */
@@ -2679,11 +2570,21 @@ ixgbe_dma_free(struct adapter *adapter, struct ixgbe_dma_alloc *dma)
 static int
 ixgbe_allocate_queues(struct adapter *adapter)
 {
-	device_t dev = adapter->dev;
-	struct tx_ring *txr;
-	struct rx_ring *rxr;
+	device_t	dev = adapter->dev;
+	struct ix_queue	*que;
+	struct tx_ring	*txr;
+	struct rx_ring	*rxr;
 	int rsize, tsize, error = IXGBE_SUCCESS;
 	int txconf = 0, rxconf = 0;
+
+        /* First allocate the top level queue structs */
+        if (!(adapter->queues =
+            (struct ix_queue *) malloc(sizeof(struct ix_queue) *
+            adapter->num_queues, M_DEVBUF, M_NOWAIT | M_ZERO))) {
+                device_printf(dev, "Unable to allocate queue memory\n");
+                error = ENOMEM;
+                goto fail;
+        }
 
 	/* First allocate the TX ring struct memory */
 	if (!(adapter->tx_rings =
@@ -2691,9 +2592,8 @@ ixgbe_allocate_queues(struct adapter *adapter)
 	    adapter->num_queues, M_DEVBUF, M_NOWAIT | M_ZERO))) {
 		device_printf(dev, "Unable to allocate TX ring memory\n");
 		error = ENOMEM;
-		goto fail;
+		goto tx_fail;
 	}
-	txr = adapter->tx_rings;
 
 	/* Next allocate the RX */
 	if (!(adapter->rx_rings =
@@ -2703,11 +2603,10 @@ ixgbe_allocate_queues(struct adapter *adapter)
 		error = ENOMEM;
 		goto rx_fail;
 	}
-	rxr = adapter->rx_rings;
 
 	/* For the ring itself */
 	tsize = roundup2(adapter->num_tx_desc *
-	    sizeof(union ixgbe_adv_tx_desc), 4096);
+	    sizeof(union ixgbe_adv_tx_desc), DBA_ALIGN);
 
 	/*
 	 * Now set up the TX queues, txconf is needed to handle the
@@ -2746,6 +2645,12 @@ ixgbe_allocate_queues(struct adapter *adapter)
 		/* Allocate a buf ring */
 		txr->br = buf_ring_alloc(IXGBE_BR_SIZE, M_DEVBUF,
 		    M_WAITOK, &txr->tx_mtx);
+		if (txr->br == NULL) {
+			device_printf(dev,
+			    "Critical Failure setting up buf ring\n");
+			error = ENOMEM;
+			goto err_tx_desc;
+        	}
 #endif
 	}
 
@@ -2753,7 +2658,7 @@ ixgbe_allocate_queues(struct adapter *adapter)
 	 * Next the RX queues...
 	 */ 
 	rsize = roundup2(adapter->num_rx_desc *
-	    sizeof(union ixgbe_adv_rx_desc), 4096);
+	    sizeof(union ixgbe_adv_rx_desc), DBA_ALIGN);
 	for (int i = 0; i < adapter->num_queues; i++, rxconf++) {
 		rxr = &adapter->rx_rings[i];
 		/* Set up some basics */
@@ -2784,6 +2689,16 @@ ixgbe_allocate_queues(struct adapter *adapter)
 		}
 	}
 
+	/*
+	** Finally set up the queue holding structs
+	*/
+	for (int i = 0; i < adapter->num_queues; i++) {
+		que = &adapter->queues[i];
+		que->adapter = adapter;
+		que->txr = &adapter->tx_rings[i];
+		que->rxr = &adapter->rx_rings[i];
+	}
+
 	return (0);
 
 err_rx_desc:
@@ -2795,6 +2710,8 @@ err_tx_desc:
 	free(adapter->rx_rings, M_DEVBUF);
 rx_fail:
 	free(adapter->tx_rings, M_DEVBUF);
+tx_fail:
+	free(adapter->queues, M_DEVBUF);
 fail:
 	return (error);
 }
@@ -2823,7 +2740,7 @@ ixgbe_allocate_transmit_buffers(struct tx_ring *txr)
 			       BUS_SPACE_MAXADDR,	/* highaddr */
 			       NULL, NULL,		/* filter, filterarg */
 			       IXGBE_TSO_SIZE,		/* maxsize */
-			       ixgbe_num_segs,		/* nsegments */
+			       adapter->num_segs,	/* nsegments */
 			       PAGE_SIZE,		/* maxsegsize */
 			       0,			/* flags */
 			       NULL,			/* lockfunc */
@@ -2871,6 +2788,7 @@ ixgbe_setup_transmit_ring(struct tx_ring *txr)
 	int i;
 
 	/* Clear the old ring contents */
+	IXGBE_TX_LOCK(txr);
 	bzero((void *)txr->tx_base,
 	      (sizeof(union ixgbe_adv_tx_desc)) * adapter->num_tx_desc);
 	/* Reset indices */
@@ -2893,7 +2811,7 @@ ixgbe_setup_transmit_ring(struct tx_ring *txr)
 
 #ifdef IXGBE_FDIR
 	/* Set the rate at which we sample packets */
-	if (adapter->hw.mac.type == ixgbe_mac_82599EB)
+	if (adapter->hw.mac.type != ixgbe_mac_82598EB)
 		txr->atr_sample = atr_sample_rate;
 #endif
 
@@ -2902,6 +2820,7 @@ ixgbe_setup_transmit_ring(struct tx_ring *txr)
 
 	bus_dmamap_sync(txr->txdma.dma_tag, txr->txdma.dma_map,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+	IXGBE_TX_UNLOCK(txr);
 }
 
 /*********************************************************************
@@ -2949,7 +2868,7 @@ ixgbe_initialize_transmit_units(struct adapter *adapter)
 
 		/* Setup Transmit Descriptor Cmd Settings */
 		txr->txd_cmd = IXGBE_TXD_CMD_IFCS;
-		txr->watchdog_check = FALSE;
+		txr->queue_status = IXGBE_QUEUE_IDLE;
 
 		/* Disable Head Writeback */
 		switch (hw->mac.type) {
@@ -2974,7 +2893,7 @@ ixgbe_initialize_transmit_units(struct adapter *adapter)
 
 	}
 
-	if (hw->mac.type == ixgbe_mac_82599EB) {
+	if (hw->mac.type != ixgbe_mac_82598EB) {
 		u32 dmatxctl, rttdcs;
 		dmatxctl = IXGBE_READ_REG(hw, IXGBE_DMATXCTL);
 		dmatxctl |= IXGBE_DMATXCTL_TE;
@@ -3126,16 +3045,12 @@ ixgbe_tx_ctx_setup(struct tx_ring *txr, struct mbuf *mp)
 		case ETHERTYPE_IP:
 			ip = (struct ip *)(mp->m_data + ehdrlen);
 			ip_hlen = ip->ip_hl << 2;
-			if (mp->m_len < ehdrlen + ip_hlen)
-				return (FALSE);
 			ipproto = ip->ip_p;
 			type_tucmd_mlhl |= IXGBE_ADVTXD_TUCMD_IPV4;
 			break;
 		case ETHERTYPE_IPV6:
 			ip6 = (struct ip6_hdr *)(mp->m_data + ehdrlen);
 			ip_hlen = sizeof(struct ip6_hdr);
-			if (mp->m_len < ehdrlen + ip_hlen)
-				return (FALSE);
 			ipproto = ip6->ip6_nxt;
 			type_tucmd_mlhl |= IXGBE_ADVTXD_TUCMD_IPV6;
 			break;
@@ -3158,6 +3073,12 @@ ixgbe_tx_ctx_setup(struct tx_ring *txr, struct mbuf *mp)
 				type_tucmd_mlhl |= IXGBE_ADVTXD_TUCMD_L4T_UDP;
 			break;
 
+#if __FreeBSD_version >= 800000
+		case IPPROTO_SCTP:
+			if (mp->m_pkthdr.csum_flags & CSUM_SCTP)
+				type_tucmd_mlhl |= IXGBE_ADVTXD_TUCMD_L4T_SCTP;
+			break;
+#endif
 		default:
 			offload = FALSE;
 			break;
@@ -3281,71 +3202,68 @@ static void
 ixgbe_atr(struct tx_ring *txr, struct mbuf *mp)
 {
 	struct adapter			*adapter = txr->adapter;
-	struct ixgbe_atr_input		atr_input;
+	struct ix_queue			*que;
 	struct ip			*ip;
 	struct tcphdr			*th;
 	struct udphdr			*uh;
 	struct ether_vlan_header	*eh;
+	union ixgbe_atr_hash_dword	input = {.dword = 0}; 
+	union ixgbe_atr_hash_dword	common = {.dword = 0}; 
 	int  				ehdrlen, ip_hlen;
-	u16 etype, vlan_id, src_port, dst_port, flex_bytes;
-	u32 src_ipv4_addr, dst_ipv4_addr;
-	u8 l4type = 0, ipproto = 0;
+	u16				etype;
 
 	eh = mtod(mp, struct ether_vlan_header *);
-	if (eh->evl_encap_proto == htons(ETHERTYPE_VLAN)) 
+	if (eh->evl_encap_proto == htons(ETHERTYPE_VLAN)) {
 		ehdrlen = ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN;
-	else
+		etype = eh->evl_proto;
+	} else {
 		ehdrlen = ETHER_HDR_LEN;
-	etype = ntohs(eh->evl_proto);
+		etype = eh->evl_encap_proto;
+	}
 
 	/* Only handling IPv4 */
-	if (etype != ETHERTYPE_IP)
+	if (etype != htons(ETHERTYPE_IP))
 		return;
 
 	ip = (struct ip *)(mp->m_data + ehdrlen);
-	ipproto = ip->ip_p;
 	ip_hlen = ip->ip_hl << 2;
-	src_port = dst_port = 0;
 
 	/* check if we're UDP or TCP */
-	switch (ipproto) {
+	switch (ip->ip_p) {
 	case IPPROTO_TCP:
 		th = (struct tcphdr *)((caddr_t)ip + ip_hlen);
-		src_port = th->th_sport;
-		dst_port = th->th_dport;
-		l4type |= IXGBE_ATR_L4TYPE_TCP;
+		/* src and dst are inverted */
+		common.port.dst ^= th->th_sport;
+		common.port.src ^= th->th_dport;
+		input.formatted.flow_type ^= IXGBE_ATR_FLOW_TYPE_TCPV4;
 		break;
 	case IPPROTO_UDP:
 		uh = (struct udphdr *)((caddr_t)ip + ip_hlen);
-		src_port = uh->uh_sport;
-		dst_port = uh->uh_dport;
-		l4type |= IXGBE_ATR_L4TYPE_UDP;
+		/* src and dst are inverted */
+		common.port.dst ^= uh->uh_sport;
+		common.port.src ^= uh->uh_dport;
+		input.formatted.flow_type ^= IXGBE_ATR_FLOW_TYPE_UDPV4;
 		break;
 	default:
 		return;
 	}
 
-	memset(&atr_input, 0, sizeof(struct ixgbe_atr_input));
+	input.formatted.vlan_id = htobe16(mp->m_pkthdr.ether_vtag);
+	if (mp->m_pkthdr.ether_vtag)
+		common.flex_bytes ^= htons(ETHERTYPE_VLAN);
+	else
+		common.flex_bytes ^= etype;
+	common.ip ^= ip->ip_src.s_addr ^ ip->ip_dst.s_addr;
 
-	vlan_id = htole16(mp->m_pkthdr.ether_vtag);
-	src_ipv4_addr = ip->ip_src.s_addr;
-	dst_ipv4_addr = ip->ip_dst.s_addr;
-	flex_bytes = etype;
-
-	ixgbe_atr_set_vlan_id_82599(&atr_input, vlan_id);
-	ixgbe_atr_set_src_port_82599(&atr_input, dst_port);
-	ixgbe_atr_set_dst_port_82599(&atr_input, src_port);
-	ixgbe_atr_set_flex_byte_82599(&atr_input, flex_bytes);
-	ixgbe_atr_set_l4type_82599(&atr_input, l4type);
-	/* src and dst are inverted, think how the receiver sees them */
-	ixgbe_atr_set_src_ipv4_82599(&atr_input, dst_ipv4_addr);
-	ixgbe_atr_set_dst_ipv4_82599(&atr_input, src_ipv4_addr);
-
-	/* This assumes the Rx queue and Tx queue are bound to the same CPU */
+	que = &adapter->queues[txr->me];
+	/*
+	** This assumes the Rx queue and Tx
+	** queue are bound to the same CPU
+	*/
 	ixgbe_fdir_add_signature_filter_82599(&adapter->hw,
-	    &atr_input, txr->msix);
+	    input, common, que->msix);
 }
-#endif
+#endif /* IXGBE_FDIR */
 
 /**********************************************************************
  *
@@ -3359,15 +3277,18 @@ ixgbe_txeof(struct tx_ring *txr)
 {
 	struct adapter	*adapter = txr->adapter;
 	struct ifnet	*ifp = adapter->ifp;
-	u32	first, last, done;
+	u32	first, last, done, processed;
 	struct ixgbe_tx_buf *tx_buffer;
 	struct ixgbe_legacy_tx_desc *tx_desc, *eop_desc;
 
 	mtx_assert(&txr->tx_mtx, MA_OWNED);
 
-	if (txr->tx_avail == adapter->num_tx_desc)
+	if (txr->tx_avail == adapter->num_tx_desc) {
+		txr->queue_status = IXGBE_QUEUE_IDLE;
 		return FALSE;
+	}
 
+	processed = 0;
 	first = txr->next_to_clean;
 	tx_buffer = &txr->tx_buffers[first];
 	/* For cleanup we just use legacy struct */
@@ -3399,9 +3320,11 @@ ixgbe_txeof(struct tx_ring *txr)
 			tx_desc->lower.data = 0;
 			tx_desc->buffer_addr = 0;
 			++txr->tx_avail;
+			++processed;
 
 			if (tx_buffer->m_head) {
-				ifp->if_opackets++;
+				txr->bytes +=
+				    tx_buffer->m_head->m_pkthdr.len;
 				bus_dmamap_sync(txr->txtag,
 				    tx_buffer->map,
 				    BUS_DMASYNC_POSTWRITE);
@@ -3421,6 +3344,8 @@ ixgbe_txeof(struct tx_ring *txr)
 			tx_desc =
 			    (struct ixgbe_legacy_tx_desc *)&txr->tx_base[first];
 		}
+		++txr->packets;
+		++ifp->if_opackets;
 		/* See if there is more work now */
 		last = tx_buffer->eop_index;
 		if (last != -1) {
@@ -3438,6 +3363,15 @@ ixgbe_txeof(struct tx_ring *txr)
 	txr->next_to_clean = first;
 
 	/*
+	** Watchdog calculation, we know there's
+	** work outstanding or the first return
+	** would have been taken, so none processed
+	** for too long indicates a hang.
+	*/
+	if ((!processed) && ((ticks - txr->watchdog_time) > IXGBE_WATCHDOG))
+		txr->queue_status = IXGBE_QUEUE_HUNG;
+
+	/*
 	 * If we have enough room, clear IFF_DRV_OACTIVE to tell the stack that
 	 * it is OK to send packets. If there are no pending descriptors,
 	 * clear the timeout. Otherwise, if some descriptors have been freed,
@@ -3446,7 +3380,7 @@ ixgbe_txeof(struct tx_ring *txr)
 	if (txr->tx_avail > IXGBE_TX_CLEANUP_THRESHOLD) {
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 		if (txr->tx_avail == adapter->num_tx_desc) {
-			txr->watchdog_check = FALSE;
+			txr->queue_status = IXGBE_QUEUE_IDLE;
 			return FALSE;
 		}
 	}
@@ -3456,121 +3390,98 @@ ixgbe_txeof(struct tx_ring *txr)
 
 /*********************************************************************
  *
- *  Refresh mbuf buffers for a range of descriptors
+ *  Refresh mbuf buffers for RX descriptor rings
+ *   - now keeps its own state so discards due to resource
+ *     exhaustion are unnecessary, if an mbuf cannot be obtained
+ *     it just returns, keeping its placeholder, thus it can simply
+ *     be recalled to try again.
  *
  **********************************************************************/
-static int
-ixgbe_get_buf(struct rx_ring *rxr, int first, int limit)
+static void
+ixgbe_refresh_mbufs(struct rx_ring *rxr, int limit)
 {
 	struct adapter		*adapter = rxr->adapter;
-	bus_dma_segment_t	seg[2];
+	bus_dma_segment_t	hseg[1];
+	bus_dma_segment_t	pseg[1];
 	struct ixgbe_rx_buf	*rxbuf;
 	struct mbuf		*mh, *mp;
-	bus_dmamap_t		map;
-	int			i, nsegs, error;
+	int			i, j, nsegs, error;
+	bool			refreshed = FALSE;
 
-	i = first;
-	while (i != limit) {
+	i = j = rxr->next_to_refresh;
+	/* Control the loop with one beyond */
+	if (++j == adapter->num_rx_desc)
+		j = 0;
+
+	while (j != limit) {
 		rxbuf = &rxr->rx_buffers[i];
+		if (rxr->hdr_split == FALSE)
+			goto no_split;
 
 		if (rxbuf->m_head == NULL) {
 			mh = m_gethdr(M_DONTWAIT, MT_DATA);
 			if (mh == NULL)
-				goto failure;
-		} else  /* reuse */
+				goto update;
+		} else
 			mh = rxbuf->m_head;
 
+		mh->m_pkthdr.len = mh->m_len = MHLEN;
 		mh->m_len = MHLEN;
 		mh->m_flags |= M_PKTHDR;
+		/* Get the memory mapping */
+		error = bus_dmamap_load_mbuf_sg(rxr->htag,
+		    rxbuf->hmap, mh, hseg, &nsegs, BUS_DMA_NOWAIT);
+		if (error != 0) {
+			printf("Refresh mbufs: hdr dmamap load"
+			    " failure - %d\n", error);
+			m_free(mh);
+			rxbuf->m_head = NULL;
+			goto update;
+		}
+		rxbuf->m_head = mh;
+		bus_dmamap_sync(rxr->htag, rxbuf->hmap,
+		    BUS_DMASYNC_PREREAD);
+		rxr->rx_base[i].read.hdr_addr =
+		    htole64(hseg[0].ds_addr);
 
+no_split:
 		if (rxbuf->m_pack == NULL) {
 			mp = m_getjcl(M_DONTWAIT, MT_DATA,
 			    M_PKTHDR, adapter->rx_mbuf_sz);
 			if (mp == NULL)
-				goto failure;
-			mp->m_len = adapter->rx_mbuf_sz;
-			mp->m_flags &= ~M_PKTHDR;
-		} else {	/* reusing */
+				goto update;
+		} else
 			mp = rxbuf->m_pack;
-			mp->m_len = adapter->rx_mbuf_sz;
-			mp->m_flags &= ~M_PKTHDR;
-		}
 
-		/*
-		** Need to create a chain for the following
-		** dmamap call at this point.
-		*/
-		mh->m_next = mp;
-		mh->m_pkthdr.len = mh->m_len + mp->m_len;
-
+		mp->m_pkthdr.len = mp->m_len = adapter->rx_mbuf_sz;
 		/* Get the memory mapping */
-		error = bus_dmamap_load_mbuf_sg(rxr->rxtag,
-		    rxr->spare_map, mh, seg, &nsegs, BUS_DMA_NOWAIT);
+		error = bus_dmamap_load_mbuf_sg(rxr->ptag,
+		    rxbuf->pmap, mp, pseg, &nsegs, BUS_DMA_NOWAIT);
 		if (error != 0) {
-			printf("GET BUF: dmamap load failure - %d\n", error);
-			m_free(mh);
-			return (error);
+			printf("Refresh mbufs: payload dmamap load"
+			    " failure - %d\n", error);
+			m_free(mp);
+			rxbuf->m_pack = NULL;
+			goto update;
 		}
-
-		/* Unload old mapping and update buffer struct */
-		if (rxbuf->m_head != NULL)
-			bus_dmamap_unload(rxr->rxtag, rxbuf->map);
-		map = rxbuf->map;
-		rxbuf->map = rxr->spare_map;
-		rxr->spare_map = map;
-		rxbuf->m_head = mh;
 		rxbuf->m_pack = mp;
-		bus_dmamap_sync(rxr->rxtag,
-		    rxbuf->map, BUS_DMASYNC_PREREAD);
+		bus_dmamap_sync(rxr->ptag, rxbuf->pmap,
+		    BUS_DMASYNC_PREREAD);
+		rxr->rx_base[i].read.pkt_addr =
+		    htole64(pseg[0].ds_addr);
 
-		/* Update descriptor */
-		rxr->rx_base[i].read.hdr_addr = htole64(seg[0].ds_addr);
-		rxr->rx_base[i].read.pkt_addr = htole64(seg[1].ds_addr);
-
-		/* Calculate next index */
-		if (++i == adapter->num_rx_desc)
-			i = 0;
+		refreshed = TRUE;
+		/* Next is precalculated */
+		i = j;
+		rxr->next_to_refresh = i;
+		if (++j == adapter->num_rx_desc)
+			j = 0;
 	}
-
-	return (0);
-
-failure:
-	panic("GET BUF: ENOBUFS\n");
-
-#if 0
-	/*
-	** If we get here, we have an mbuf resource
-	** issue, so we discard the incoming packet
-	** and attempt to reuse existing mbufs next
-	** pass thru the ring, but to do so we must
-	** fix up the descriptor which had the address
-	** clobbered with writeback info.
-	*/
-remap:
-	adapter->mbuf_header_failed++;
-	merr = ENOBUFS;
-	/* Is there a reusable buffer? */
-	mh = rxr->rx_buffers[i].m_head;
-	if (mh == NULL) /* Nope, init error */
-		return (merr);
-	mp = rxr->rx_buffers[i].m_pack;
-	if (mp == NULL) /* Nope, init error */
-		return (merr);
-	/* Get our old mapping */
-	rxbuf = &rxr->rx_buffers[i];
-	error = bus_dmamap_load_mbuf_sg(rxr->rxtag,
-	    rxbuf->map, mh, seg, &nsegs, BUS_DMA_NOWAIT);
-	if (error != 0) {
-		/* We really have a problem */
-		m_free(mh);
-		return (error);
-	}
-	/* Now fix the descriptor as needed */
-	rxr->rx_base[i].read.hdr_addr = htole64(seg[0].ds_addr);
-	rxr->rx_base[i].read.pkt_addr = htole64(seg[1].ds_addr);
-
-	return (merr);
-#endif
+update:
+	if (refreshed) /* Update hardware tail index */
+		IXGBE_WRITE_REG(&adapter->hw,
+		    IXGBE_RDT(rxr->me), rxr->next_to_refresh);
+	return;
 }
 
 /*********************************************************************
@@ -3598,42 +3509,50 @@ ixgbe_allocate_receive_buffers(struct rx_ring *rxr)
 		goto fail;
 	}
 
-	/*
-	** The tag is made to accomodate the largest buffer size
-	** with packet split (hence the two segments, even though
-	** it may not always use this.
-	*/
-	if ((error = bus_dma_tag_create(NULL,		/* parent */
+	if ((error = bus_dma_tag_create(bus_get_dma_tag(dev),	/* parent */
+				   1, 0,	/* alignment, bounds */
+				   BUS_SPACE_MAXADDR,	/* lowaddr */
+				   BUS_SPACE_MAXADDR,	/* highaddr */
+				   NULL, NULL,		/* filter, filterarg */
+				   MSIZE,		/* maxsize */
+				   1,			/* nsegments */
+				   MSIZE,		/* maxsegsize */
+				   0,			/* flags */
+				   NULL,		/* lockfunc */
+				   NULL,		/* lockfuncarg */
+				   &rxr->htag))) {
+		device_printf(dev, "Unable to create RX DMA tag\n");
+		goto fail;
+	}
+
+	if ((error = bus_dma_tag_create(bus_get_dma_tag(dev),	/* parent */
 				   1, 0,	/* alignment, bounds */
 				   BUS_SPACE_MAXADDR,	/* lowaddr */
 				   BUS_SPACE_MAXADDR,	/* highaddr */
 				   NULL, NULL,		/* filter, filterarg */
 				   MJUM16BYTES,		/* maxsize */
-				   2,			/* nsegments */
-				   MJUMPAGESIZE,	/* maxsegsize */
+				   1,			/* nsegments */
+				   MJUM16BYTES,		/* maxsegsize */
 				   0,			/* flags */
 				   NULL,		/* lockfunc */
 				   NULL,		/* lockfuncarg */
-				   &rxr->rxtag))) {
+				   &rxr->ptag))) {
 		device_printf(dev, "Unable to create RX DMA tag\n");
-		goto fail;
-	}
-
-	/* Create the spare map (used by getbuf) */
-        error = bus_dmamap_create(rxr->rxtag, BUS_DMA_NOWAIT,
-	     &rxr->spare_map);
-	if (error) {
-		device_printf(dev, "%s: bus_dmamap_create failed: %d\n",
-		    __func__, error);
 		goto fail;
 	}
 
 	for (i = 0; i < adapter->num_rx_desc; i++, rxbuf++) {
 		rxbuf = &rxr->rx_buffers[i];
-		error = bus_dmamap_create(rxr->rxtag,
-		    BUS_DMA_NOWAIT, &rxbuf->map);
+		error = bus_dmamap_create(rxr->htag,
+		    BUS_DMA_NOWAIT, &rxbuf->hmap);
 		if (error) {
-			device_printf(dev, "Unable to create RX DMA map\n");
+			device_printf(dev, "Unable to create RX head map\n");
+			goto fail;
+		}
+		error = bus_dmamap_create(rxr->ptag,
+		    BUS_DMA_NOWAIT, &rxbuf->pmap);
+		if (error) {
+			device_printf(dev, "Unable to create RX pkt map\n");
 			goto fail;
 		}
 	}
@@ -3645,7 +3564,6 @@ fail:
 	ixgbe_free_receive_structures(adapter);
 	return (error);
 }
-
 
 /*
 ** Used to detect a descriptor that has
@@ -3670,11 +3588,12 @@ ixgbe_setup_hw_rsc(struct rx_ring *rxr)
 {
 	struct	adapter 	*adapter = rxr->adapter;
 	struct	ixgbe_hw	*hw = &adapter->hw;
-	u32	rscctrl, rdrxctl;
+	u32			rscctrl, rdrxctl;
 
 	rdrxctl = IXGBE_READ_REG(hw, IXGBE_RDRXCTL);
 	rdrxctl &= ~IXGBE_RDRXCTL_RSCFRSTSIZE;
 	rdrxctl |= IXGBE_RDRXCTL_CRCSTRIP;
+	rdrxctl |= IXGBE_RDRXCTL_RSCACKC;
 	IXGBE_WRITE_REG(hw, IXGBE_RDRXCTL, rdrxctl);
 
 	rscctrl = IXGBE_READ_REG(hw, IXGBE_RSCCTL(rxr->me));
@@ -3685,8 +3604,13 @@ ixgbe_setup_hw_rsc(struct rx_ring *rxr)
 	*/
 	if (adapter->rx_mbuf_sz == MCLBYTES)
 		rscctrl |= IXGBE_RSCCTL_MAXDESC_16;
-	else  /* using 4K clusters */
+	else if (adapter->rx_mbuf_sz == MJUMPAGESIZE)
 		rscctrl |= IXGBE_RSCCTL_MAXDESC_8;
+	else if (adapter->rx_mbuf_sz == MJUM9BYTES)
+		rscctrl |= IXGBE_RSCCTL_MAXDESC_4;
+	else  /* Using 16K cluster */
+		rscctrl |= IXGBE_RSCCTL_MAXDESC_1;
+
 	IXGBE_WRITE_REG(hw, IXGBE_RSCCTL(rxr->me), rscctrl);
 
 	/* Enable TCP header recognition */
@@ -3702,6 +3626,36 @@ ixgbe_setup_hw_rsc(struct rx_ring *rxr)
 }
 
 
+static void     
+ixgbe_free_receive_ring(struct rx_ring *rxr)
+{ 
+	struct  adapter         *adapter;
+	struct ixgbe_rx_buf       *rxbuf;
+	int i;
+
+	adapter = rxr->adapter;
+	for (i = 0; i < adapter->num_rx_desc; i++) {
+		rxbuf = &rxr->rx_buffers[i];
+		if (rxbuf->m_head != NULL) {
+			bus_dmamap_sync(rxr->htag, rxbuf->hmap,
+			    BUS_DMASYNC_POSTREAD);
+			bus_dmamap_unload(rxr->htag, rxbuf->hmap);
+			rxbuf->m_head->m_flags |= M_PKTHDR;
+			m_freem(rxbuf->m_head);
+		}
+		if (rxbuf->m_pack != NULL) {
+			bus_dmamap_sync(rxr->ptag, rxbuf->pmap,
+			    BUS_DMASYNC_POSTREAD);
+			bus_dmamap_unload(rxr->ptag, rxbuf->pmap);
+			rxbuf->m_pack->m_flags |= M_PKTHDR;
+			m_freem(rxbuf->m_pack);
+		}
+		rxbuf->m_head = NULL;
+		rxbuf->m_pack = NULL;
+	}
+}
+
+
 /*********************************************************************
  *
  *  Initialize a receive ring and its buffers.
@@ -3714,81 +3668,90 @@ ixgbe_setup_receive_ring(struct rx_ring *rxr)
 	struct ifnet		*ifp;
 	device_t		dev;
 	struct ixgbe_rx_buf	*rxbuf;
-	bus_dma_segment_t	seg[2];
+	bus_dma_segment_t	pseg[1], hseg[1];
 	struct lro_ctrl		*lro = &rxr->lro;
-	int			rsize, nsegs, error;
+	int			rsize, nsegs, error = 0;
 
 	adapter = rxr->adapter;
 	ifp = adapter->ifp;
 	dev = adapter->dev;
 
 	/* Clear the ring contents */
+	IXGBE_RX_LOCK(rxr);
 	rsize = roundup2(adapter->num_rx_desc *
 	    sizeof(union ixgbe_adv_rx_desc), DBA_ALIGN);
 	bzero((void *)rxr->rx_base, rsize);
 
-	/*
-	** Free current RX buffer structs and their mbufs
-	*/
-	for (int i = 0; i < adapter->num_rx_desc; i++) {
-		rxbuf = &rxr->rx_buffers[i];
-		if (rxbuf->m_head != NULL) {
-			bus_dmamap_sync(rxr->rxtag, rxbuf->map,
-			    BUS_DMASYNC_POSTREAD);
-			bus_dmamap_unload(rxr->rxtag, rxbuf->map);
-			if (rxbuf->m_head) {
-				rxbuf->m_head->m_next = rxbuf->m_pack;
-				m_freem(rxbuf->m_head);
-			}
-			rxbuf->m_head = NULL;
-			rxbuf->m_pack = NULL;
-		}
-	}
+	/* Free current RX buffer structs and their mbufs */
+	ixgbe_free_receive_ring(rxr);
+
+	/* Configure header split? */
+	if (ixgbe_header_split)
+		rxr->hdr_split = TRUE;
 
 	/* Now replenish the mbufs */
 	for (int j = 0; j != adapter->num_rx_desc; ++j) {
+		struct mbuf	*mh, *mp;
 
 		rxbuf = &rxr->rx_buffers[j];
-		rxbuf->m_head = m_gethdr(M_DONTWAIT, MT_DATA);
-		if (rxbuf->m_head == NULL)
-			panic("RX ring hdr initialization failed!\n");
-		rxbuf->m_head->m_len = MHLEN;
-		rxbuf->m_head->m_flags |= M_PKTHDR;
-		rxbuf->m_head->m_pkthdr.len = rxbuf->m_head->m_len;
+		/*
+		** Don't allocate mbufs if not
+		** doing header split, its wasteful
+		*/ 
+		if (rxr->hdr_split == FALSE)
+			goto skip_head;
 
-		rxbuf->m_pack = m_getjcl(M_DONTWAIT, MT_DATA,
-		    M_PKTHDR, adapter->rx_mbuf_sz);
-		if (rxbuf->m_pack == NULL)
-			panic("RX ring pkt initialization failed!\n");
-		rxbuf->m_pack->m_len = adapter->rx_mbuf_sz;
-		rxbuf->m_head->m_next = rxbuf->m_pack;
-		rxbuf->m_head->m_pkthdr.len += rxbuf->m_pack->m_len;
-
+		/* First the header */
+		rxbuf->m_head = m_gethdr(M_NOWAIT, MT_DATA);
+		if (rxbuf->m_head == NULL) {
+			error = ENOBUFS;
+			goto fail;
+		}
+		m_adj(rxbuf->m_head, ETHER_ALIGN);
+		mh = rxbuf->m_head;
+		mh->m_len = mh->m_pkthdr.len = MHLEN;
+		mh->m_flags |= M_PKTHDR;
 		/* Get the memory mapping */
-		error = bus_dmamap_load_mbuf_sg(rxr->rxtag,
-		    rxbuf->map, rxbuf->m_head, seg,
+		error = bus_dmamap_load_mbuf_sg(rxr->htag,
+		    rxbuf->hmap, rxbuf->m_head, hseg,
+		    &nsegs, BUS_DMA_NOWAIT);
+		if (error != 0) /* Nothing elegant to do here */
+			goto fail;
+		bus_dmamap_sync(rxr->htag,
+		    rxbuf->hmap, BUS_DMASYNC_PREREAD);
+		/* Update descriptor */
+		rxr->rx_base[j].read.hdr_addr = htole64(hseg[0].ds_addr);
+
+skip_head:
+		/* Now the payload cluster */
+		rxbuf->m_pack = m_getjcl(M_NOWAIT, MT_DATA,
+		    M_PKTHDR, adapter->rx_mbuf_sz);
+		if (rxbuf->m_pack == NULL) {
+			error = ENOBUFS;
+                        goto fail;
+		}
+		mp = rxbuf->m_pack;
+		mp->m_pkthdr.len = mp->m_len = adapter->rx_mbuf_sz;
+		/* Get the memory mapping */
+		error = bus_dmamap_load_mbuf_sg(rxr->ptag,
+		    rxbuf->pmap, mp, pseg,
 		    &nsegs, BUS_DMA_NOWAIT);
 		if (error != 0)
-			panic("RX ring dma initialization failed!\n");
-		bus_dmamap_sync(rxr->rxtag,
-		    rxbuf->map, BUS_DMASYNC_PREREAD);
-
+                        goto fail;
+		bus_dmamap_sync(rxr->ptag,
+		    rxbuf->pmap, BUS_DMASYNC_PREREAD);
 		/* Update descriptor */
-		rxr->rx_base[j].read.hdr_addr = htole64(seg[0].ds_addr);
-		rxr->rx_base[j].read.pkt_addr = htole64(seg[1].ds_addr);
+		rxr->rx_base[j].read.pkt_addr = htole64(pseg[0].ds_addr);
 	}
 
 
 	/* Setup our descriptor indices */
 	rxr->next_to_check = 0;
-	rxr->last_refreshed = 0;
+	rxr->next_to_refresh = 0;
 	rxr->lro_enabled = FALSE;
-
-	/* Use header split if configured */
-	if (ixgbe_header_split)
-		rxr->hdr_split = TRUE;
-	else
-		ifp->if_capabilities &= ~IFCAP_LRO;
+	rxr->rx_split_packets = 0;
+	rxr->rx_bytes = 0;
+	rxr->discard = FALSE;
 
 	bus_dmamap_sync(rxr->rxdma.dma_tag, rxr->rxdma.dma_map,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
@@ -3796,40 +3759,30 @@ ixgbe_setup_receive_ring(struct rx_ring *rxr)
 	/*
 	** Now set up the LRO interface:
 	** 82598 uses software LRO, the
-	** 82599 on the other hand uses a
-	** hardware assist to do the same.
-	** We only do LRO when header split
-	** is enabled, its simpler that way.
+	** 82599 uses a hardware assist.
 	*/
-	if ((ifp->if_capenable & IFCAP_LRO) && (rxr->hdr_split)) {
+	if ((adapter->hw.mac.type != ixgbe_mac_82598EB) &&
+	    (ifp->if_capenable & IFCAP_RXCSUM) &&
+	    (ifp->if_capenable & IFCAP_LRO))
+		ixgbe_setup_hw_rsc(rxr);
+	else if (ifp->if_capenable & IFCAP_LRO) {
 		int err = tcp_lro_init(lro);
-		if (err)
-			panic("LRO Initialization failed!\n");
+		if (err) {
+			device_printf(dev, "LRO Initialization failed!\n");
+			goto fail;
+		}
 		INIT_DEBUGOUT("RX Soft LRO Initialized\n");
 		rxr->lro_enabled = TRUE;
 		lro->ifp = adapter->ifp;
-		ixgbe_setup_hw_rsc(rxr);
 	}
 
+	IXGBE_RX_UNLOCK(rxr);
 	return (0);
-#if 0
+
 fail:
-	/*
-	 * We need to clean up any buffers allocated
-	 * so far, 'j' is the failing index.
-	 */
-	for (int i = 0; i < j; i++) {
-		rxbuf = &rxr->rx_buffers[i];
-		if (rxbuf->m_head != NULL) {
-			bus_dmamap_sync(rxr->rxtag, rxbuf->map,
-			    BUS_DMASYNC_POSTREAD);
-			bus_dmamap_unload(rxr->rxtag, rxbuf->map);
-			m_freem(rxbuf->m_head);
-			rxbuf->m_head = NULL;
-		}
-	}
-	return (ENOBUFS);
-#endif
+	ixgbe_free_receive_ring(rxr);
+	IXGBE_RX_UNLOCK(rxr);
+	return (error);
 }
 
 /*********************************************************************
@@ -3856,17 +3809,7 @@ fail:
 	 */
 	for (int i = 0; i < j; ++i) {
 		rxr = &adapter->rx_rings[i];
-		for (int n = 0; n < adapter->num_rx_desc; n++) {
-			struct ixgbe_rx_buf *rxbuf;
-			rxbuf = &rxr->rx_buffers[n];
-			if (rxbuf->m_head != NULL) {
-				bus_dmamap_sync(rxr->rxtag, rxbuf->map,
-			  	  BUS_DMASYNC_POSTREAD);
-				bus_dmamap_unload(rxr->rxtag, rxbuf->map);
-				m_freem(rxbuf->m_head);
-				rxbuf->m_head = NULL;
-			}
-		}
+		ixgbe_free_receive_ring(rxr);
 	}
 
 	return (ENOBUFS);
@@ -3906,14 +3849,13 @@ ixgbe_initialize_receive_units(struct adapter *adapter)
 
 	/* Set for Jumbo Frames? */
 	hlreg = IXGBE_READ_REG(hw, IXGBE_HLREG0);
-	if (ifp->if_mtu > ETHERMTU) {
+	if (ifp->if_mtu > ETHERMTU)
 		hlreg |= IXGBE_HLREG0_JUMBOEN;
-		bufsz = 4096 >> IXGBE_SRRCTL_BSIZEPKT_SHIFT;
-	} else {
+	else
 		hlreg &= ~IXGBE_HLREG0_JUMBOEN;
-		bufsz = 2048 >> IXGBE_SRRCTL_BSIZEPKT_SHIFT;
-	}
 	IXGBE_WRITE_REG(hw, IXGBE_HLREG0, hlreg);
+
+	bufsz = adapter->rx_mbuf_sz  >> IXGBE_SRRCTL_BSIZEPKT_SHIFT;
 
 	for (int i = 0; i < adapter->num_queues; i++, rxr++) {
 		u64 rdba = rxr->rxdma.dma_paddr;
@@ -3936,14 +3878,6 @@ ixgbe_initialize_receive_units(struct adapter *adapter)
 			    IXGBE_SRRCTL_BSIZEHDRSIZE_SHIFT)
 			    & IXGBE_SRRCTL_BSIZEHDR_MASK);
 			srrctl |= IXGBE_SRRCTL_DESCTYPE_HDR_SPLIT_ALWAYS;
-			if (adapter->hw.mac.type == ixgbe_mac_82599EB) {
-				/* PSRTYPE must be initialized in 82599 */
-				u32 psrtype = IXGBE_PSRTYPE_TCPHDR |
-					      IXGBE_PSRTYPE_UDPHDR |
-					      IXGBE_PSRTYPE_IPV4HDR |
-					      IXGBE_PSRTYPE_IPV6HDR;
-				IXGBE_WRITE_REG(hw, IXGBE_PSRTYPE(0), psrtype);
-			}
 		} else
 			srrctl |= IXGBE_SRRCTL_DESCTYPE_ADV_ONEBUF;
 		IXGBE_WRITE_REG(hw, IXGBE_SRRCTL(i), srrctl);
@@ -3951,6 +3885,14 @@ ixgbe_initialize_receive_units(struct adapter *adapter)
 		/* Setup the HW Rx Head and Tail Descriptor Pointers */
 		IXGBE_WRITE_REG(hw, IXGBE_RDH(i), 0);
 		IXGBE_WRITE_REG(hw, IXGBE_RDT(i), 0);
+	}
+
+	if (adapter->hw.mac.type != ixgbe_mac_82598EB) {
+		u32 psrtype = IXGBE_PSRTYPE_TCPHDR |
+			      IXGBE_PSRTYPE_UDPHDR |
+			      IXGBE_PSRTYPE_IPV4HDR |
+			      IXGBE_PSRTYPE_IPV6HDR;
+		IXGBE_WRITE_REG(hw, IXGBE_PSRTYPE(0), psrtype);
 	}
 
 	rxcsum = IXGBE_READ_REG(hw, IXGBE_RXCSUM);
@@ -4025,45 +3967,131 @@ ixgbe_free_receive_structures(struct adapter *adapter)
 	free(adapter->rx_rings, M_DEVBUF);
 }
 
+
 /*********************************************************************
  *
  *  Free receive ring data structures
  *
  **********************************************************************/
-void
+static void
 ixgbe_free_receive_buffers(struct rx_ring *rxr)
 {
-	struct adapter		*adapter = NULL;
-	struct ixgbe_rx_buf	*rxbuf = NULL;
+	struct adapter		*adapter = rxr->adapter;
+	struct ixgbe_rx_buf	*rxbuf;
 
-	INIT_DEBUGOUT("free_receive_buffers: begin");
-	adapter = rxr->adapter;
+	INIT_DEBUGOUT("free_receive_structures: begin");
+
+	/* Cleanup any existing buffers */
 	if (rxr->rx_buffers != NULL) {
-		rxbuf = &rxr->rx_buffers[0];
 		for (int i = 0; i < adapter->num_rx_desc; i++) {
-			if (rxbuf->map != NULL) {
-				bus_dmamap_sync(rxr->rxtag, rxbuf->map,
-				    BUS_DMASYNC_POSTREAD);
-				bus_dmamap_unload(rxr->rxtag, rxbuf->map);
-				bus_dmamap_destroy(rxr->rxtag, rxbuf->map);
-			}
+			rxbuf = &rxr->rx_buffers[i];
 			if (rxbuf->m_head != NULL) {
+				bus_dmamap_sync(rxr->htag, rxbuf->hmap,
+				    BUS_DMASYNC_POSTREAD);
+				bus_dmamap_unload(rxr->htag, rxbuf->hmap);
+				rxbuf->m_head->m_flags |= M_PKTHDR;
 				m_freem(rxbuf->m_head);
 			}
+			if (rxbuf->m_pack != NULL) {
+				bus_dmamap_sync(rxr->ptag, rxbuf->pmap,
+				    BUS_DMASYNC_POSTREAD);
+				bus_dmamap_unload(rxr->ptag, rxbuf->pmap);
+				rxbuf->m_pack->m_flags |= M_PKTHDR;
+				m_freem(rxbuf->m_pack);
+			}
 			rxbuf->m_head = NULL;
-			++rxbuf;
+			rxbuf->m_pack = NULL;
+			if (rxbuf->hmap != NULL) {
+				bus_dmamap_destroy(rxr->htag, rxbuf->hmap);
+				rxbuf->hmap = NULL;
+			}
+			if (rxbuf->pmap != NULL) {
+				bus_dmamap_destroy(rxr->ptag, rxbuf->pmap);
+				rxbuf->pmap = NULL;
+			}
+		}
+		if (rxr->rx_buffers != NULL) {
+			free(rxr->rx_buffers, M_DEVBUF);
+			rxr->rx_buffers = NULL;
 		}
 	}
-	if (rxr->rx_buffers != NULL) {
-		free(rxr->rx_buffers, M_DEVBUF);
-		rxr->rx_buffers = NULL;
+
+	if (rxr->htag != NULL) {
+		bus_dma_tag_destroy(rxr->htag);
+		rxr->htag = NULL;
 	}
-	if (rxr->rxtag != NULL) {
-		bus_dma_tag_destroy(rxr->rxtag);
-		rxr->rxtag = NULL;
+	if (rxr->ptag != NULL) {
+		bus_dma_tag_destroy(rxr->ptag);
+		rxr->ptag = NULL;
 	}
+
 	return;
 }
+
+static __inline void
+ixgbe_rx_input(struct rx_ring *rxr, struct ifnet *ifp, struct mbuf *m, u32 ptype)
+{
+                 
+        /*
+         * ATM LRO is only for IPv4/TCP packets and TCP checksum of the packet
+         * should be computed by hardware. Also it should not have VLAN tag in
+         * ethernet header.
+         */
+        if (rxr->lro_enabled &&
+            (ifp->if_capenable & IFCAP_VLAN_HWTAGGING) != 0 &&
+            (ptype & IXGBE_RXDADV_PKTTYPE_ETQF) == 0 &&
+            (ptype & (IXGBE_RXDADV_PKTTYPE_IPV4 | IXGBE_RXDADV_PKTTYPE_TCP)) ==
+            (IXGBE_RXDADV_PKTTYPE_IPV4 | IXGBE_RXDADV_PKTTYPE_TCP) &&
+            (m->m_pkthdr.csum_flags & (CSUM_DATA_VALID | CSUM_PSEUDO_HDR)) ==
+            (CSUM_DATA_VALID | CSUM_PSEUDO_HDR)) {
+                /*
+                 * Send to the stack if:
+                 **  - LRO not enabled, or
+                 **  - no LRO resources, or
+                 **  - lro enqueue fails
+                 */
+                if (rxr->lro.lro_cnt != 0)
+                        if (tcp_lro_rx(&rxr->lro, m, 0) == 0)
+                                return;
+        }
+	IXGBE_RX_UNLOCK(rxr);
+        (*ifp->if_input)(ifp, m);
+	IXGBE_RX_LOCK(rxr);
+}
+
+static __inline void
+ixgbe_rx_discard(struct rx_ring *rxr, int i)
+{
+	struct ixgbe_rx_buf	*rbuf;
+
+	rbuf = &rxr->rx_buffers[i];
+
+        if (rbuf->fmp != NULL) {/* Partial chain ? */
+		rbuf->fmp->m_flags |= M_PKTHDR;
+                m_freem(rbuf->fmp);
+                rbuf->fmp = NULL;
+	}
+
+	/*
+	** With advanced descriptors the writeback
+	** clobbers the buffer addrs, so its easier
+	** to just free the existing mbufs and take
+	** the normal refresh path to get new buffers
+	** and mapping.
+	*/
+	if (rbuf->m_head) {
+		m_free(rbuf->m_head);
+		rbuf->m_head = NULL;
+	}
+ 
+	if (rbuf->m_pack) {
+		m_free(rbuf->m_pack);
+		rbuf->m_pack = NULL;
+	}
+
+	return;
+}
+
 
 /*********************************************************************
  *
@@ -4077,154 +4105,177 @@ ixgbe_free_receive_buffers(struct rx_ring *rxr)
  *  Return TRUE for more work, FALSE for all clean.
  *********************************************************************/
 static bool
-ixgbe_rxeof(struct rx_ring *rxr, int count)
+ixgbe_rxeof(struct ix_queue *que, int count)
 {
-	struct adapter 		*adapter = rxr->adapter;
-	struct ifnet   		*ifp = adapter->ifp;
+	struct adapter		*adapter = que->adapter;
+	struct rx_ring		*rxr = que->rxr;
+	struct ifnet		*ifp = adapter->ifp;
 	struct lro_ctrl		*lro = &rxr->lro;
 	struct lro_entry	*queued;
-	int             	i, processed = 0;
-	u32			staterr;
+	int			i, nextp, processed = 0;
+	u32			staterr = 0;
 	union ixgbe_adv_rx_desc	*cur;
-
+	struct ixgbe_rx_buf	*rbuf, *nbuf;
 
 	IXGBE_RX_LOCK(rxr);
-	i = rxr->next_to_check;
-	cur = &rxr->rx_base[i];
-	staterr = cur->wb.upper.status_error;
 
-	if (!(staterr & IXGBE_RXD_STAT_DD)) {
-		IXGBE_RX_UNLOCK(rxr);
-		return FALSE;
-	}
+	for (i = rxr->next_to_check; count != 0;) {
+		struct mbuf	*sendmp, *mh, *mp;
+		u32		rsc, ptype;
+		u16		hlen, plen, hdr, vtag;
+		bool		eop;
+ 
+		/* Sync the ring. */
+		bus_dmamap_sync(rxr->rxdma.dma_tag, rxr->rxdma.dma_map,
+		    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 
-	/* Sync the ring */
-	bus_dmamap_sync(rxr->rxdma.dma_tag, rxr->rxdma.dma_map,
-	    BUS_DMASYNC_POSTREAD);
+		cur = &rxr->rx_base[i];
+		staterr = le32toh(cur->wb.upper.status_error);
 
-	while ((staterr & IXGBE_RXD_STAT_DD) && (count != 0) &&
-	    (ifp->if_drv_flags & IFF_DRV_RUNNING)) {
-		struct mbuf	*sendmp, *mh, *mp, *nh, *np;
-		struct ixgbe_rx_buf	*nxtbuf;
-		u32		rsc;
-		u16		hlen, plen, hdr, nextp, vtag;	
-		bool		accept_frame, eop;
+		if ((staterr & IXGBE_RXD_STAT_DD) == 0)
+			break;
+		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+			break;
 
+		count--;
+		sendmp = NULL;
+		nbuf = NULL;
+		rsc = 0;
+		cur->wb.upper.status_error = 0;
+		rbuf = &rxr->rx_buffers[i];
+		mh = rbuf->m_head;
+		mp = rbuf->m_pack;
 
-		accept_frame = TRUE;
-		hlen = plen = rsc = nextp = 0;
-		sendmp = mh = mp = nh = np = NULL;
-
-		/* Sync the buffers */
-		bus_dmamap_sync(rxr->rxtag, rxr->rx_buffers[i].map,
-			    BUS_DMASYNC_POSTREAD);
-		mh = rxr->rx_buffers[i].m_head;
-		mp = rxr->rx_buffers[i].m_pack;
+		plen = le16toh(cur->wb.upper.length);
+		ptype = le32toh(cur->wb.lower.lo_dword.data) &
+		    IXGBE_RXDADV_PKTTYPE_MASK;
+		hdr = le16toh(cur->wb.lower.lo_dword.hs_rss.hdr_info);
 		vtag = le16toh(cur->wb.upper.vlan);
 		eop = ((staterr & IXGBE_RXD_STAT_EOP) != 0);
 
+		/* Make sure bad packets are discarded */
+		if (((staterr & IXGBE_RXDADV_ERR_FRAME_ERR_MASK) != 0) ||
+		    (rxr->discard)) {
+			ifp->if_ierrors++;
+			rxr->rx_discarded++;
+			if (eop)
+				rxr->discard = FALSE;
+			else
+				rxr->discard = TRUE;
+			ixgbe_rx_discard(rxr, i);
+			goto next_desc;
+		}
+
+		/*
+		** On 82599 which supports a hardware
+		** LRO (called HW RSC), packets need
+		** not be fragmented across sequential
+		** descriptors, rather the next descriptor
+		** is indicated in bits of the descriptor.
+		** This also means that we might proceses
+		** more than one packet at a time, something
+		** that has never been true before, it
+		** required eliminating global chain pointers
+		** in favor of what we are doing here.  -jfv
+		*/
 		if (!eop) {
 			/*
-			** On 82599 which supports a hardware
-			** LRO (called HW RSC), packets need 
-			** not be fragmented across sequential
-			** descriptors, rather the next descriptor
-			** is indicated in bits of the current.
-			** This also means that we might proceses
-			** more than one packet at a time, something
-			** that has never been true before, it 
-			** required eliminating global chain pointers
-			** in favor of what we are doing here.  -jfv
+			** Figure out the next descriptor
+			** of this frame.
 			*/
 			if (rxr->hw_rsc == TRUE) {
 				rsc = ixgbe_rsc_count(cur);
 				rxr->rsc_num += (rsc - 1);
 			}
-			if (rsc) {
+			if (rsc) { /* Get hardware index */
 				nextp = ((staterr &
 				    IXGBE_RXDADV_NEXTP_MASK) >>
 				    IXGBE_RXDADV_NEXTP_SHIFT);
-			} else {
+			} else { /* Just sequential */
 				nextp = i + 1;
 				if (nextp == adapter->num_rx_desc)
 					nextp = 0;
 			}
-			nxtbuf = &rxr->rx_buffers[nextp];
-			prefetch(nxtbuf);
+			nbuf = &rxr->rx_buffers[nextp];
+			prefetch(nbuf);
 		}
-
 		/*
-		** The way the hardware is configured to
-		** split, it will ONLY use the header buffer
-		** when header split is enabled, otherwise we
-		** get legacy behavior, ie, both header and
-		** payload are DMA'd into JUST the payload buffer.
+		** The header mbuf is ONLY used when header 
+		** split is enabled, otherwise we get normal 
+		** behavior, ie, both header and payload
+		** are DMA'd into the payload buffer.
 		**
 		** Rather than using the fmp/lmp global pointers
 		** we now keep the head of a packet chain in the
-		** m_nextpkt pointer and pass this along from one
+		** buffer struct and pass this along from one
 		** descriptor to the next, until we get EOP.
-		**
 		*/
-		if ((rxr->hdr_split) && (mh->m_nextpkt == NULL)) {
-			hdr = le16toh(cur->
-			    wb.lower.lo_dword.hs_rss.hdr_info);
+		if (rxr->hdr_split && (rbuf->fmp == NULL)) {
+			/* This must be an initial descriptor */
 			hlen = (hdr & IXGBE_RXDADV_HDRBUFLEN_MASK) >>
 			    IXGBE_RXDADV_HDRBUFLEN_SHIFT;
 			if (hlen > IXGBE_RX_HDR)
 				hlen = IXGBE_RX_HDR;
-			plen = le16toh(cur->wb.upper.length);
 			mh->m_len = hlen;
 			mh->m_flags |= M_PKTHDR;
 			mh->m_next = NULL;
 			mh->m_pkthdr.len = mh->m_len;
-			/* Null this so getbuf replenishes */
-			rxr->rx_buffers[i].m_head = NULL;
+			/* Null buf pointer so it is refreshed */
+			rbuf->m_head = NULL;
 			/*
-			** Get the payload length, this
+			** Check the payload length, this
 			** could be zero if its a small
 			** packet.
 			*/
-			if (plen) {
+			if (plen > 0) {
 				mp->m_len = plen;
 				mp->m_next = NULL;
 				mp->m_flags &= ~M_PKTHDR;
 				mh->m_next = mp;
 				mh->m_pkthdr.len += mp->m_len;
-				/* Null this so getbuf replenishes */
-				rxr->rx_buffers[i].m_pack = NULL;
+				/* Null buf pointer so it is refreshed */
+				rbuf->m_pack = NULL;
 				rxr->rx_split_packets++;
 			}
-			/* Setup the forward chain */
-			if (eop == 0) {
-				nh = rxr->rx_buffers[nextp].m_head;
-				np = rxr->rx_buffers[nextp].m_pack;
-				nh->m_nextpkt = mh;
-				if (plen)
-					mp->m_next = np;
-				else
-					mh->m_next = np;
-			} else {
-				sendmp = mh;
-				if (staterr & IXGBE_RXD_STAT_VP) {
-					sendmp->m_pkthdr.ether_vtag = vtag;
-					sendmp->m_flags |= M_VLANTAG;
-				}
-			}
+			/*
+			** Now create the forward
+			** chain so when complete 
+			** we wont have to.
+			*/
+                        if (eop == 0) {
+				/* stash the chain head */
+                                nbuf->fmp = mh;
+				/* Make forward chain */
+                                if (plen)
+                                        mp->m_next = nbuf->m_pack;
+                                else
+                                        mh->m_next = nbuf->m_pack;
+                        } else {
+				/* Singlet, prepare to send */
+                                sendmp = mh;
+                                if ((adapter->num_vlans) &&
+				  (staterr & IXGBE_RXD_STAT_VP)) {
+                                        sendmp->m_pkthdr.ether_vtag = vtag;
+                                        sendmp->m_flags |= M_VLANTAG;
+                                }
+                        }
 		} else {
 			/*
 			** Either no header split, or a
 			** secondary piece of a fragmented
-			** packet.
+			** split packet.
 			*/
-			mp->m_len = le16toh(cur->wb.upper.length);
-			rxr->rx_buffers[i].m_pack = NULL;
-			/* stored head pointer */
-			sendmp = mh->m_nextpkt;
-			if (sendmp != NULL) {
+			mp->m_len = plen;
+			/*
+			** See if there is a stored head
+			** that determines what we are
+			*/
+			sendmp = rbuf->fmp;
+			rbuf->m_pack = rbuf->fmp = NULL;
+
+			if (sendmp != NULL) /* secondary frag */
 				sendmp->m_pkthdr.len += mp->m_len;
-				sendmp->m_nextpkt = NULL;
-			} else { 
+			else {
 				/* first desc of a non-ps chain */
 				sendmp = mp;
 				sendmp->m_flags |= M_PKTHDR;
@@ -4233,115 +4284,62 @@ ixgbe_rxeof(struct rx_ring *rxr, int count)
 					sendmp->m_pkthdr.ether_vtag = vtag;
 					sendmp->m_flags |= M_VLANTAG;
 				}
-			}
-			/* Carry head forward */
+                        }
+			/* Pass the head pointer on */
 			if (eop == 0) {
-				nh = rxr->rx_buffers[nextp].m_head;
-				np = rxr->rx_buffers[nextp].m_pack;
-				nh->m_nextpkt = sendmp;
-				mp->m_next = np;
+				nbuf->fmp = sendmp;
 				sendmp = NULL;
+				mp->m_next = nbuf->m_pack;
 			}
-			mh->m_nextpkt = NULL;
 		}
-
-		if (staterr & IXGBE_RXDADV_ERR_FRAME_ERR_MASK)
-			accept_frame = FALSE;
-
-		if (accept_frame) {
-			++processed;
-			if (eop) {
-				--count;
-				sendmp->m_pkthdr.rcvif = ifp;
-				ifp->if_ipackets++;
-				rxr->rx_packets++;
-				/* capture data for AIM */
-				rxr->bytes += sendmp->m_pkthdr.len;
-				rxr->rx_bytes += rxr->bytes;
-				if (ifp->if_capenable & IFCAP_RXCSUM)
-					ixgbe_rx_checksum(staterr, sendmp);
-				else
-					sendmp->m_pkthdr.csum_flags = 0;
+		++processed;
+		/* Sending this frame? */
+		if (eop) {
+			sendmp->m_pkthdr.rcvif = ifp;
+			ifp->if_ipackets++;
+			rxr->rx_packets++;
+			/* capture data for AIM */
+			rxr->bytes += sendmp->m_pkthdr.len;
+			rxr->rx_bytes += sendmp->m_pkthdr.len;
+			if ((ifp->if_capenable & IFCAP_RXCSUM) != 0)
+				ixgbe_rx_checksum(staterr, sendmp, ptype);
 #if __FreeBSD_version >= 800000
-				/* Get the RSS Hash */
-				sendmp->m_pkthdr.flowid =
-				    le16toh(cur->wb.lower.hi_dword.rss);
-				sendmp->m_flags |= M_FLOWID;
+			sendmp->m_pkthdr.flowid = que->msix;
+			sendmp->m_flags |= M_FLOWID;
 #endif
-			}
-		} else {
-			ifp->if_ierrors++;
-			/* Reuse loaded DMA map and just update mbuf chain */
-			mh->m_len = MHLEN;
-			mh->m_flags |= M_PKTHDR;
-			mh->m_next = NULL;
-			mp->m_len = mp->m_pkthdr.len = adapter->rx_mbuf_sz;
-			mp->m_data = mp->m_ext.ext_buf;
-			if (mp->m_next) { /* Free chain */
-				sendmp = mp->m_next;
-				m_free(sendmp);
-			}
-			mp->m_next = NULL;
-			if (adapter->max_frame_size <=
-			    (MCLBYTES - ETHER_ALIGN))
-				m_adj(mp, ETHER_ALIGN);
-			sendmp = NULL;
 		}
+next_desc:
 		bus_dmamap_sync(rxr->rxdma.dma_tag, rxr->rxdma.dma_map,
 		    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
-		rxr->last_refreshed = i; /* for updating tail */
+		/* Advance our pointers to the next descriptor. */
 		if (++i == adapter->num_rx_desc)
 			i = 0;
-		/* Prefetch next descriptor */
-		cur = &rxr->rx_base[i];
-		prefetch(cur);
 
-		/*
-		** Now send up to the stack,
-		** note that the RX lock is
-		** held thru this call.
-		*/
-                if (sendmp != NULL) {
-			/*
-			** Send to the stack if:
-			**  - Soft LRO not enabled, or
-			**  - no Soft LRO resources, or
-			**  - soft lro enqueue fails
-			*/
-			if ((!rxr->lro_enabled) ||
-			    ((!lro->lro_cnt) || (tcp_lro_rx(lro, sendmp, 0))))
-	                        (*ifp->if_input)(ifp, sendmp);
-                }
-
-		/* Replenish every 8 max */
-		if (processed == 8) {
-			ixgbe_get_buf(rxr, rxr->next_to_check, i);
-			processed = 0;
-			IXGBE_WRITE_REG(&adapter->hw,
-			    IXGBE_RDT(rxr->me), rxr->last_refreshed);
+		/* Now send to the stack or do LRO */
+		if (sendmp != NULL) {
 			rxr->next_to_check = i;
+			ixgbe_rx_input(rxr, ifp, sendmp, ptype);
+			i = rxr->next_to_check;
 		}
 
-		/* Next iteration */
-		staterr = cur->wb.upper.status_error;
+               /* Every 8 descriptors we go to refresh mbufs */
+		if (processed == 8) {
+			ixgbe_refresh_mbufs(rxr, i);
+			processed = 0;
+		}
 	}
 
-	/* Replenish remaining work */
-	if (processed != 0) {
-		ixgbe_get_buf(rxr, rxr->next_to_check, i);
-		processed = 0;
-		IXGBE_WRITE_REG(&adapter->hw,
-		    IXGBE_RDT(rxr->me), rxr->last_refreshed);
-	}
+	/* Refresh any remaining buf structs */
+	if (ixgbe_rx_unrefreshed(rxr))
+		ixgbe_refresh_mbufs(rxr, i);
 
 	rxr->next_to_check = i;
 
 	/*
 	 * Flush any outstanding LRO work
 	 */
-	while (!SLIST_EMPTY(&lro->lro_active)) {
-		queued = SLIST_FIRST(&lro->lro_active);
+	while ((queued = SLIST_FIRST(&lro->lro_active)) != NULL) {
 		SLIST_REMOVE_HEAD(&lro->lro_active, next);
 		tcp_lro_flush(lro, queued);
 	}
@@ -4349,16 +4347,17 @@ ixgbe_rxeof(struct rx_ring *rxr, int count)
 	IXGBE_RX_UNLOCK(rxr);
 
 	/*
-	** Leaving with more to clean?
-	** then schedule another interrupt.
+	** We still have cleaning to do?
+	** Schedule another interrupt if so.
 	*/
-	if (staterr & IXGBE_RXD_STAT_DD) {
-        	ixgbe_rearm_queues(adapter, (u64)(1 << rxr->msix));
-		return TRUE;
+	if ((staterr & IXGBE_RXD_STAT_DD) != 0) {
+		ixgbe_rearm_queues(adapter, (u64)(1 << que->msix));
+		return (TRUE);
 	}
 
-	return FALSE;
+	return (FALSE);
 }
+
 
 /*********************************************************************
  *
@@ -4368,13 +4367,17 @@ ixgbe_rxeof(struct rx_ring *rxr, int count)
  *
  *********************************************************************/
 static void
-ixgbe_rx_checksum(u32 staterr, struct mbuf * mp)
+ixgbe_rx_checksum(u32 staterr, struct mbuf * mp, u32 ptype)
 {
-	u16 status = (u16) staterr;
-	u8  errors = (u8) (staterr >> 24);
+	u16	status = (u16) staterr;
+	u8	errors = (u8) (staterr >> 24);
+	bool	sctp = FALSE;
+
+	if ((ptype & IXGBE_RXDADV_PKTTYPE_ETQF) == 0 &&
+	    (ptype & IXGBE_RXDADV_PKTTYPE_SCTP) != 0)
+		sctp = TRUE;
 
 	if (status & IXGBE_RXD_STAT_IPCS) {
-		/* Did it pass? */
 		if (!(errors & IXGBE_RXD_ERR_IPE)) {
 			/* IP Checksum Good */
 			mp->m_pkthdr.csum_flags = CSUM_IP_CHECKED;
@@ -4384,11 +4387,15 @@ ixgbe_rx_checksum(u32 staterr, struct mbuf * mp)
 			mp->m_pkthdr.csum_flags = 0;
 	}
 	if (status & IXGBE_RXD_STAT_L4CS) {
-		/* Did it pass? */
+		u16 type = (CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
+#if __FreeBSD_version >= 800000
+		if (sctp)
+			type = CSUM_SCTP_VALID;
+#endif
 		if (!(errors & IXGBE_RXD_ERR_TCPE)) {
-			mp->m_pkthdr.csum_flags |=
-				(CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
-			mp->m_pkthdr.csum_data = htons(0xffff);
+			mp->m_pkthdr.csum_flags |= type;
+			if (!sctp)
+				mp->m_pkthdr.csum_data = htons(0xffff);
 		} 
 	}
 	return;
@@ -4414,12 +4421,13 @@ ixgbe_register_vlan(void *arg, struct ifnet *ifp, u16 vtag)
 	if ((vtag == 0) || (vtag > 4095))	/* Invalid */
 		return;
 
+	IXGBE_CORE_LOCK(adapter);
 	index = (vtag >> 5) & 0x7F;
 	bit = vtag & 0x1F;
-	ixgbe_shadow_vfta[index] |= (1 << bit);
+	adapter->shadow_vfta[index] |= (1 << bit);
 	++adapter->num_vlans;
-	/* Re-init to load the changes */
-	ixgbe_init(adapter);
+	ixgbe_init_locked(adapter);
+	IXGBE_CORE_UNLOCK(adapter);
 }
 
 /*
@@ -4439,17 +4447,20 @@ ixgbe_unregister_vlan(void *arg, struct ifnet *ifp, u16 vtag)
 	if ((vtag == 0) || (vtag > 4095))	/* Invalid */
 		return;
 
+	IXGBE_CORE_LOCK(adapter);
 	index = (vtag >> 5) & 0x7F;
 	bit = vtag & 0x1F;
-	ixgbe_shadow_vfta[index] &= ~(1 << bit);
+	adapter->shadow_vfta[index] &= ~(1 << bit);
 	--adapter->num_vlans;
 	/* Re-init to load the changes */
-	ixgbe_init(adapter);
+	ixgbe_init_locked(adapter);
+	IXGBE_CORE_UNLOCK(adapter);
 }
 
 static void
 ixgbe_setup_vlan_hw_support(struct adapter *adapter)
 {
+	struct ifnet 	*ifp = adapter->ifp;
 	struct ixgbe_hw *hw = &adapter->hw;
 	u32		ctrl;
 
@@ -4468,20 +4479,22 @@ ixgbe_setup_vlan_hw_support(struct adapter *adapter)
 	** we need to repopulate it now.
 	*/
 	for (int i = 0; i < IXGBE_VFTA_SIZE; i++)
-		if (ixgbe_shadow_vfta[i] != 0)
+		if (adapter->shadow_vfta[i] != 0)
 			IXGBE_WRITE_REG(hw, IXGBE_VFTA(i),
-			    ixgbe_shadow_vfta[i]);
+			    adapter->shadow_vfta[i]);
 
-	/* Enable the Filter Table */
 	ctrl = IXGBE_READ_REG(hw, IXGBE_VLNCTRL);
-	ctrl &= ~IXGBE_VLNCTRL_CFIEN;
-	ctrl |= IXGBE_VLNCTRL_VFE;
+	/* Enable the Filter Table if enabled */
+	if (ifp->if_capenable & IFCAP_VLAN_HWFILTER) {
+		ctrl &= ~IXGBE_VLNCTRL_CFIEN;
+		ctrl |= IXGBE_VLNCTRL_VFE;
+	}
 	if (hw->mac.type == ixgbe_mac_82598EB)
 		ctrl |= IXGBE_VLNCTRL_VME;
 	IXGBE_WRITE_REG(hw, IXGBE_VLNCTRL, ctrl);
 
 	/* On 82599 the VLAN enable is per/queue in RXDCTL */
-	if (hw->mac.type == ixgbe_mac_82599EB)
+	if (hw->mac.type != ixgbe_mac_82598EB)
 		for (int i = 0; i < adapter->num_queues; i++) {
 			ctrl = IXGBE_READ_REG(hw, IXGBE_RXDCTL(i));
 				ctrl |= IXGBE_RXDCTL_VME;
@@ -4493,17 +4506,14 @@ static void
 ixgbe_enable_intr(struct adapter *adapter)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
-	struct tx_ring *txr = adapter->tx_rings;
-	struct rx_ring *rxr = adapter->rx_rings;
+	struct ix_queue *que = adapter->queues;
 	u32 mask = (IXGBE_EIMS_ENABLE_MASK & ~IXGBE_EIMS_RTX_QUEUE);
 
 
 	/* Enable Fan Failure detection */
 	if (hw->device_id == IXGBE_DEV_ID_82598AT)
 		    mask |= IXGBE_EIMS_GPI_SDP1;
-
-	/* 82599 specific interrupts */
-	if (adapter->hw.mac.type == ixgbe_mac_82599EB) {
+	else {
 		    mask |= IXGBE_EIMS_ECC;
 		    mask |= IXGBE_EIMS_GPI_SDP1;
 		    mask |= IXGBE_EIMS_GPI_SDP2;
@@ -4517,21 +4527,19 @@ ixgbe_enable_intr(struct adapter *adapter)
 	/* With RSS we use auto clear */
 	if (adapter->msix_mem) {
 		mask = IXGBE_EIMS_ENABLE_MASK;
-		/* Dont autoclear Link */
+		/* Don't autoclear Link */
 		mask &= ~IXGBE_EIMS_OTHER;
 		mask &= ~IXGBE_EIMS_LSC;
 		IXGBE_WRITE_REG(hw, IXGBE_EIAC, mask);
 	}
 
 	/*
-	** Now enable all queues, this is done seperately to
+	** Now enable all queues, this is done separately to
 	** allow for handling the extended (beyond 32) MSIX
 	** vectors that can be used by 82599
 	*/
-        for (int i = 0; i < adapter->num_queues; i++, rxr++)
-                ixgbe_enable_queue(adapter, rxr->msix);
-        for (int i = 0; i < adapter->num_queues; i++, txr++)
-		ixgbe_enable_queue(adapter, txr->msix);
+        for (int i = 0; i < adapter->num_queues; i++, que++)
+                ixgbe_enable_queue(adapter, que->msix);
 
 	IXGBE_WRITE_FLUSH(hw);
 
@@ -4626,14 +4634,23 @@ ixgbe_set_ivar(struct adapter *adapter, u8 entry, u8 vector, s8 type)
 static void
 ixgbe_configure_ivars(struct adapter *adapter)
 {
-	struct  tx_ring *txr = adapter->tx_rings;
-	struct  rx_ring *rxr = adapter->rx_rings;
+	struct  ix_queue *que = adapter->queues;
+	u32 newitr;
 
-        for (int i = 0; i < adapter->num_queues; i++, rxr++)
-                ixgbe_set_ivar(adapter, i, rxr->msix, 0);
+	if (ixgbe_max_interrupt_rate > 0)
+		newitr = (8000000 / ixgbe_max_interrupt_rate) & 0x0FF8;
+	else
+		newitr = 0;
 
-        for (int i = 0; i < adapter->num_queues; i++, txr++)
-		ixgbe_set_ivar(adapter, i, txr->msix, 1);
+        for (int i = 0; i < adapter->num_queues; i++, que++) {
+		/* First the RX queue entry */
+                ixgbe_set_ivar(adapter, i, que->msix, 0);
+		/* ... and the TX */
+		ixgbe_set_ivar(adapter, i, que->msix, 1);
+		/* Set an Initial EITR value */
+                IXGBE_WRITE_REG(&adapter->hw,
+                    IXGBE_EITR(que->msix), newitr);
+	}
 
 	/* For the Link interrupt */
         ixgbe_set_ivar(adapter, 1, adapter->linkvec, -1);
@@ -4664,6 +4681,8 @@ static bool ixgbe_sfp_probe(struct adapter *adapter)
 			device_printf(dev,"SFP+ module detected!\n");
 		/* We now have supported optics */
 		adapter->sfp_probe = FALSE;
+		/* Set the optics type so system reports correctly */
+		ixgbe_setup_optics(adapter);
 		result = TRUE;
 	}
 out:
@@ -4728,10 +4747,6 @@ ixgbe_handle_msf(void *context, int pending)
 		hw->mac.ops.get_link_capabilities(hw, &autoneg, &negotiate);
 	if (hw->mac.ops.setup_link)
 		hw->mac.ops.setup_link(hw, autoneg, negotiate, TRUE);
-#if 0
-	ixgbe_check_link(&adapter->hw, &speed, &adapter->link_up, 0);
-       	ixgbe_update_link_status(adapter);
-#endif
 	return;
 }
 
@@ -4769,6 +4784,9 @@ ixgbe_update_stats_counters(struct adapter *adapter)
 	u64  total_missed_rx = 0;
 
 	adapter->stats.crcerrs += IXGBE_READ_REG(hw, IXGBE_CRCERRS);
+	adapter->stats.illerrc += IXGBE_READ_REG(hw, IXGBE_ILLERRC);
+	adapter->stats.errbc += IXGBE_READ_REG(hw, IXGBE_ERRBC);
+	adapter->stats.mspdc += IXGBE_READ_REG(hw, IXGBE_MSPDC);
 
 	for (int i = 0; i < 8; i++) {
 		u32 mp;
@@ -4780,20 +4798,45 @@ ixgbe_update_stats_counters(struct adapter *adapter)
 		/* Running comprehensive total for stats display */
 		total_missed_rx += adapter->stats.mpc[i];
 		if (hw->mac.type == ixgbe_mac_82598EB)
-			adapter->stats.rnbc[i] += IXGBE_READ_REG(hw, IXGBE_RNBC(i));
+			adapter->stats.rnbc[i] +=
+			    IXGBE_READ_REG(hw, IXGBE_RNBC(i));
+		adapter->stats.pxontxc[i] +=
+		    IXGBE_READ_REG(hw, IXGBE_PXONTXC(i));
+		adapter->stats.pxonrxc[i] +=
+		    IXGBE_READ_REG(hw, IXGBE_PXONRXC(i));
+		adapter->stats.pxofftxc[i] +=
+		    IXGBE_READ_REG(hw, IXGBE_PXOFFTXC(i));
+		adapter->stats.pxoffrxc[i] +=
+		    IXGBE_READ_REG(hw, IXGBE_PXOFFRXC(i));
+		adapter->stats.pxon2offc[i] +=
+		    IXGBE_READ_REG(hw, IXGBE_PXON2OFFCNT(i));
 	}
+	for (int i = 0; i < 16; i++) {
+		adapter->stats.qprc[i] += IXGBE_READ_REG(hw, IXGBE_QPRC(i));
+		adapter->stats.qptc[i] += IXGBE_READ_REG(hw, IXGBE_QPTC(i));
+		adapter->stats.qbrc[i] += IXGBE_READ_REG(hw, IXGBE_QBRC(i));
+		adapter->stats.qbrc[i] += 
+		    ((u64)IXGBE_READ_REG(hw, IXGBE_QBRC(i)) << 32);
+		adapter->stats.qbtc[i] += IXGBE_READ_REG(hw, IXGBE_QBTC(i));
+		adapter->stats.qbtc[i] +=
+		    ((u64)IXGBE_READ_REG(hw, IXGBE_QBTC(i)) << 32);
+		adapter->stats.qprdc[i] += IXGBE_READ_REG(hw, IXGBE_QPRDC(i));
+	}
+	adapter->stats.mlfc += IXGBE_READ_REG(hw, IXGBE_MLFC);
+	adapter->stats.mrfc += IXGBE_READ_REG(hw, IXGBE_MRFC);
+	adapter->stats.rlec += IXGBE_READ_REG(hw, IXGBE_RLEC);
 
 	/* Hardware workaround, gprc counts missed packets */
 	adapter->stats.gprc += IXGBE_READ_REG(hw, IXGBE_GPRC);
 	adapter->stats.gprc -= missed_rx;
 
-	if (hw->mac.type == ixgbe_mac_82599EB) {
-		adapter->stats.gorc += IXGBE_READ_REG(hw, IXGBE_GORCL);
-		IXGBE_READ_REG(hw, IXGBE_GORCH); /* clears register */
-		adapter->stats.gotc += IXGBE_READ_REG(hw, IXGBE_GOTCL);
-		IXGBE_READ_REG(hw, IXGBE_GOTCH); /* clears register */
-		adapter->stats.tor += IXGBE_READ_REG(hw, IXGBE_TORL);
-		IXGBE_READ_REG(hw, IXGBE_TORH); /* clears register */
+	if (hw->mac.type != ixgbe_mac_82598EB) {
+		adapter->stats.gorc += IXGBE_READ_REG(hw, IXGBE_GORCL) +
+		    ((u64)IXGBE_READ_REG(hw, IXGBE_GORCH) << 32);
+		adapter->stats.gotc += IXGBE_READ_REG(hw, IXGBE_GOTCL) +
+		    ((u64)IXGBE_READ_REG(hw, IXGBE_GOTCH) << 32);
+		adapter->stats.tor += IXGBE_READ_REG(hw, IXGBE_TORL) +
+		    ((u64)IXGBE_READ_REG(hw, IXGBE_TORH) << 32);
 		adapter->stats.lxonrxc += IXGBE_READ_REG(hw, IXGBE_LXONRXCNT);
 		adapter->stats.lxoffrxc += IXGBE_READ_REG(hw, IXGBE_LXOFFRXCNT);
 	} else {
@@ -4801,7 +4844,7 @@ ixgbe_update_stats_counters(struct adapter *adapter)
 		adapter->stats.lxoffrxc += IXGBE_READ_REG(hw, IXGBE_LXOFFRXC);
 		/* 82598 only has a counter in the high register */
 		adapter->stats.gorc += IXGBE_READ_REG(hw, IXGBE_GORCH);
-		adapter->stats.gorc += IXGBE_READ_REG(hw, IXGBE_GOTCH);
+		adapter->stats.gotc += IXGBE_READ_REG(hw, IXGBE_GOTCH);
 		adapter->stats.tor += IXGBE_READ_REG(hw, IXGBE_TORH);
 	}
 
@@ -4812,16 +4855,15 @@ ixgbe_update_stats_counters(struct adapter *adapter)
 	bprc = IXGBE_READ_REG(hw, IXGBE_BPRC);
 	adapter->stats.bprc += bprc;
 	adapter->stats.mprc += IXGBE_READ_REG(hw, IXGBE_MPRC);
-	adapter->stats.mprc -= bprc;
+	if (hw->mac.type == ixgbe_mac_82598EB)
+		adapter->stats.mprc -= bprc;
 
-	adapter->stats.roc += IXGBE_READ_REG(hw, IXGBE_ROC);
 	adapter->stats.prc64 += IXGBE_READ_REG(hw, IXGBE_PRC64);
 	adapter->stats.prc127 += IXGBE_READ_REG(hw, IXGBE_PRC127);
 	adapter->stats.prc255 += IXGBE_READ_REG(hw, IXGBE_PRC255);
 	adapter->stats.prc511 += IXGBE_READ_REG(hw, IXGBE_PRC511);
 	adapter->stats.prc1023 += IXGBE_READ_REG(hw, IXGBE_PRC1023);
 	adapter->stats.prc1522 += IXGBE_READ_REG(hw, IXGBE_PRC1522);
-	adapter->stats.rlec += IXGBE_READ_REG(hw, IXGBE_RLEC);
 
 	lxon = IXGBE_READ_REG(hw, IXGBE_LXONTXC);
 	adapter->stats.lxontxc += lxon;
@@ -4839,15 +4881,30 @@ ixgbe_update_stats_counters(struct adapter *adapter)
 
 	adapter->stats.ruc += IXGBE_READ_REG(hw, IXGBE_RUC);
 	adapter->stats.rfc += IXGBE_READ_REG(hw, IXGBE_RFC);
+	adapter->stats.roc += IXGBE_READ_REG(hw, IXGBE_ROC);
 	adapter->stats.rjc += IXGBE_READ_REG(hw, IXGBE_RJC);
+	adapter->stats.mngprc += IXGBE_READ_REG(hw, IXGBE_MNGPRC);
+	adapter->stats.mngpdc += IXGBE_READ_REG(hw, IXGBE_MNGPDC);
+	adapter->stats.mngptc += IXGBE_READ_REG(hw, IXGBE_MNGPTC);
 	adapter->stats.tpr += IXGBE_READ_REG(hw, IXGBE_TPR);
+	adapter->stats.tpt += IXGBE_READ_REG(hw, IXGBE_TPT);
 	adapter->stats.ptc127 += IXGBE_READ_REG(hw, IXGBE_PTC127);
 	adapter->stats.ptc255 += IXGBE_READ_REG(hw, IXGBE_PTC255);
 	adapter->stats.ptc511 += IXGBE_READ_REG(hw, IXGBE_PTC511);
 	adapter->stats.ptc1023 += IXGBE_READ_REG(hw, IXGBE_PTC1023);
 	adapter->stats.ptc1522 += IXGBE_READ_REG(hw, IXGBE_PTC1522);
 	adapter->stats.bptc += IXGBE_READ_REG(hw, IXGBE_BPTC);
-
+	adapter->stats.xec += IXGBE_READ_REG(hw, IXGBE_XEC);
+	adapter->stats.fccrc += IXGBE_READ_REG(hw, IXGBE_FCCRC);
+	adapter->stats.fclast += IXGBE_READ_REG(hw, IXGBE_FCLAST);
+	/* Only read FCOE on 82599 */
+	if (hw->mac.type != ixgbe_mac_82598EB) {
+		adapter->stats.fcoerpdc += IXGBE_READ_REG(hw, IXGBE_FCOERPDC);
+		adapter->stats.fcoeprc += IXGBE_READ_REG(hw, IXGBE_FCOEPRC);
+		adapter->stats.fcoeptc += IXGBE_READ_REG(hw, IXGBE_FCOEPTC);
+		adapter->stats.fcoedwrc += IXGBE_READ_REG(hw, IXGBE_FCOEDWRC);
+		adapter->stats.fcoedwtc += IXGBE_READ_REG(hw, IXGBE_FCOEDWTC);
+	}
 
 	/* Fill out the OS statistics structure */
 	ifp->if_ipackets = adapter->stats.gprc;
@@ -4862,148 +4919,361 @@ ixgbe_update_stats_counters(struct adapter *adapter)
 		adapter->stats.rlec;
 }
 
-
-/**********************************************************************
- *
- *  This routine is called only when ixgbe_display_debug_stats is enabled.
- *  This routine provides a way to take a look at important statistics
- *  maintained by the driver and hardware.
- *
- **********************************************************************/
-static void
-ixgbe_print_hw_stats(struct adapter * adapter)
+/** ixgbe_sysctl_tdh_handler - Handler function
+ *  Retrieves the TDH value from the hardware
+ */
+static int 
+ixgbe_sysctl_tdh_handler(SYSCTL_HANDLER_ARGS)
 {
-	device_t dev = adapter->dev;
+	int error;
 
+	struct tx_ring *txr = ((struct tx_ring *)oidp->oid_arg1);
+	if (!txr) return 0;
 
-	device_printf(dev,"Std Mbuf Failed = %lu\n",
-	       adapter->mbuf_defrag_failed);
-	device_printf(dev,"Missed Packets = %llu\n",
-	       (long long)adapter->stats.mpc[0]);
-	device_printf(dev,"Receive length errors = %llu\n",
-	       ((long long)adapter->stats.roc +
-	       (long long)adapter->stats.ruc));
-	device_printf(dev,"Crc errors = %llu\n",
-	       (long long)adapter->stats.crcerrs);
-	device_printf(dev,"Driver dropped packets = %lu\n",
-	       adapter->dropped_pkts);
-	device_printf(dev, "watchdog timeouts = %ld\n",
-	       adapter->watchdog_events);
-
-	device_printf(dev,"XON Rcvd = %llu\n",
-	       (long long)adapter->stats.lxonrxc);
-	device_printf(dev,"XON Xmtd = %llu\n",
-	       (long long)adapter->stats.lxontxc);
-	device_printf(dev,"XOFF Rcvd = %llu\n",
-	       (long long)adapter->stats.lxoffrxc);
-	device_printf(dev,"XOFF Xmtd = %llu\n",
-	       (long long)adapter->stats.lxofftxc);
-
-	device_printf(dev,"Total Packets Rcvd = %llu\n",
-	       (long long)adapter->stats.tpr);
-	device_printf(dev,"Good Packets Rcvd = %llu\n",
-	       (long long)adapter->stats.gprc);
-	device_printf(dev,"Good Packets Xmtd = %llu\n",
-	       (long long)adapter->stats.gptc);
-	device_printf(dev,"TSO Transmissions = %lu\n",
-	       adapter->tso_tx);
-
-	return;
+	unsigned val = IXGBE_READ_REG(&txr->adapter->hw, IXGBE_TDH(txr->me));
+	error = sysctl_handle_int(oidp, &val, 0, req);
+	if (error || !req->newptr)
+		return error;
+	return 0;
 }
 
-/**********************************************************************
- *
- *  This routine is called only when em_display_debug_stats is enabled.
- *  This routine provides a way to take a look at important statistics
- *  maintained by the driver and hardware.
- *
- **********************************************************************/
-static void
-ixgbe_print_debug_info(struct adapter *adapter)
+/** ixgbe_sysctl_tdt_handler - Handler function
+ *  Retrieves the TDT value from the hardware
+ */
+static int 
+ixgbe_sysctl_tdt_handler(SYSCTL_HANDLER_ARGS)
 {
-	device_t dev = adapter->dev;
-	struct rx_ring *rxr = adapter->rx_rings;
-	struct tx_ring *txr = adapter->tx_rings;
-	struct ixgbe_hw *hw = &adapter->hw;
- 
-	device_printf(dev,"Error Byte Count = %u \n",
-	    IXGBE_READ_REG(hw, IXGBE_ERRBC));
+	int error;
 
-	for (int i = 0; i < adapter->num_queues; i++, rxr++) {
-		struct lro_ctrl		*lro = &rxr->lro;
-		device_printf(dev,"Queue[%d]: rdh = %d, hw rdt = %d\n",
-	    	    i, IXGBE_READ_REG(hw, IXGBE_RDH(i)),
-	    	    IXGBE_READ_REG(hw, IXGBE_RDT(i)));
-		device_printf(dev,"RX(%d) Packets Received: %lld\n",
-	    	    rxr->me, (long long)rxr->rx_packets);
-		device_printf(dev,"RX(%d) Split RX Packets: %lld\n",
-	    	    rxr->me, (long long)rxr->rx_split_packets);
-		device_printf(dev,"RX(%d) Bytes Received: %lu\n",
-	    	    rxr->me, (long)rxr->rx_bytes);
-		device_printf(dev,"RX(%d) IRQ Handled: %lu\n",
-	    	    rxr->me, (long)rxr->rx_irq);
-		device_printf(dev,"RX(%d) LRO Queued= %d\n",
-		    rxr->me, lro->lro_queued);
-		device_printf(dev,"RX(%d) LRO Flushed= %d\n",
-		    rxr->me, lro->lro_flushed);
-		device_printf(dev,"RX(%d) HW LRO Merges= %lu\n",
-		    rxr->me, (long)rxr->rsc_num);
-	}
+	struct tx_ring *txr = ((struct tx_ring *)oidp->oid_arg1);
+	if (!txr) return 0;
+
+	unsigned val = IXGBE_READ_REG(&txr->adapter->hw, IXGBE_TDT(txr->me));
+	error = sysctl_handle_int(oidp, &val, 0, req);
+	if (error || !req->newptr)
+		return error;
+	return 0;
+}
+
+/** ixgbe_sysctl_rdh_handler - Handler function
+ *  Retrieves the RDH value from the hardware
+ */
+static int 
+ixgbe_sysctl_rdh_handler(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+
+	struct rx_ring *rxr = ((struct rx_ring *)oidp->oid_arg1);
+	if (!rxr) return 0;
+
+	unsigned val = IXGBE_READ_REG(&rxr->adapter->hw, IXGBE_RDH(rxr->me));
+	error = sysctl_handle_int(oidp, &val, 0, req);
+	if (error || !req->newptr)
+		return error;
+	return 0;
+}
+
+/** ixgbe_sysctl_rdt_handler - Handler function
+ *  Retrieves the RDT value from the hardware
+ */
+static int 
+ixgbe_sysctl_rdt_handler(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+
+	struct rx_ring *rxr = ((struct rx_ring *)oidp->oid_arg1);
+	if (!rxr) return 0;
+
+	unsigned val = IXGBE_READ_REG(&rxr->adapter->hw, IXGBE_RDT(rxr->me));
+	error = sysctl_handle_int(oidp, &val, 0, req);
+	if (error || !req->newptr)
+		return error;
+	return 0;
+}
+
+static int
+ixgbe_sysctl_interrupt_rate_handler(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+	struct ix_queue *que = ((struct ix_queue *)oidp->oid_arg1);
+	unsigned int reg, usec, rate;
+
+	reg = IXGBE_READ_REG(&que->adapter->hw, IXGBE_EITR(que->msix));
+	usec = ((reg & 0x0FF8) >> 3);
+	if (usec > 0)
+		rate = 1000000 / usec;
+	else
+		rate = 0;
+	error = sysctl_handle_int(oidp, &rate, 0, req);
+	if (error || !req->newptr)
+		return error;
+	return 0;
+}
+
+/*
+ * Add sysctl variables, one per statistic, to the system.
+ */
+static void
+ixgbe_add_hw_stats(struct adapter *adapter)
+{
+
+	device_t dev = adapter->dev;
+
+	struct tx_ring *txr = adapter->tx_rings;
+	struct rx_ring *rxr = adapter->rx_rings;
+
+	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(dev);
+	struct sysctl_oid *tree = device_get_sysctl_tree(dev);
+	struct sysctl_oid_list *child = SYSCTL_CHILDREN(tree);
+	struct ixgbe_hw_stats *stats = &adapter->stats;
+
+	struct sysctl_oid *stat_node, *queue_node;
+	struct sysctl_oid_list *stat_list, *queue_list;
+
+#define QUEUE_NAME_LEN 32
+	char namebuf[QUEUE_NAME_LEN];
+
+	/* Driver Statistics */
+	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "dropped",
+			CTLFLAG_RD, &adapter->dropped_pkts,
+			"Driver dropped packets");
+	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "mbuf_defrag_failed",
+			CTLFLAG_RD, &adapter->mbuf_defrag_failed,
+			"m_defrag() failed");
+	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "no_tx_dma_setup",
+			CTLFLAG_RD, &adapter->no_tx_dma_setup,
+			"Driver tx dma failure in xmit");
+	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "watchdog_events",
+			CTLFLAG_RD, &adapter->watchdog_events,
+			"Watchdog timeouts");
+	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "tso_tx",
+			CTLFLAG_RD, &adapter->tso_tx,
+			"TSO");
+	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "link_irq",
+			CTLFLAG_RD, &adapter->link_irq,
+			"Link MSIX IRQ Handled");
 
 	for (int i = 0; i < adapter->num_queues; i++, txr++) {
-		device_printf(dev,"Queue(%d) tdh = %d, hw tdt = %d\n", i,
-		    IXGBE_READ_REG(hw, IXGBE_TDH(i)),
-		    IXGBE_READ_REG(hw, IXGBE_TDT(i)));
-		device_printf(dev,"TX(%d) Packets Sent: %lu\n",
-		    txr->me, (long)txr->total_packets);
-		device_printf(dev,"TX(%d) IRQ Handled: %lu\n",
-		    txr->me, (long)txr->tx_irq);
-		device_printf(dev,"TX(%d) NO Desc Avail: %lu\n",
-		    txr->me, (long)txr->no_tx_desc_avail);
+		snprintf(namebuf, QUEUE_NAME_LEN, "queue%d", i);
+		queue_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, namebuf,
+					    CTLFLAG_RD, NULL, "Queue Name");
+		queue_list = SYSCTL_CHILDREN(queue_node);
+
+		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "interrupt_rate",
+				CTLTYPE_UINT | CTLFLAG_RD, &adapter->queues[i],
+				sizeof(&adapter->queues[i]),
+				ixgbe_sysctl_interrupt_rate_handler, "IU",
+				"Interrupt Rate");
+		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "txd_head", 
+				CTLTYPE_UINT | CTLFLAG_RD, txr, sizeof(txr),
+				ixgbe_sysctl_tdh_handler, "IU",
+				"Transmit Descriptor Head");
+		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "txd_tail", 
+				CTLTYPE_UINT | CTLFLAG_RD, txr, sizeof(txr),
+				ixgbe_sysctl_tdt_handler, "IU",
+				"Transmit Descriptor Tail");
+		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "no_desc_avail",
+				CTLFLAG_RD, &txr->no_desc_avail,
+				"Queue No Descriptor Available");
+		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "tx_packets",
+				CTLFLAG_RD, &txr->total_packets,
+				"Queue Packets Transmitted");
 	}
 
-	device_printf(dev,"Link IRQ Handled: %lu\n",
-    	    (long)adapter->link_irq);
-	return;
-}
+	for (int i = 0; i < adapter->num_queues; i++, rxr++) {
+		snprintf(namebuf, QUEUE_NAME_LEN, "queue%d", i);
+		queue_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, namebuf, 
+					    CTLFLAG_RD, NULL, "Queue Name");
+		queue_list = SYSCTL_CHILDREN(queue_node);
 
-static int
-ixgbe_sysctl_stats(SYSCTL_HANDLER_ARGS)
-{
-	int             error;
-	int             result;
-	struct adapter *adapter;
+		struct lro_ctrl *lro = &rxr->lro;
 
-	result = -1;
-	error = sysctl_handle_int(oidp, &result, 0, req);
+		snprintf(namebuf, QUEUE_NAME_LEN, "queue%d", i);
+		queue_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, namebuf, 
+					    CTLFLAG_RD, NULL, "Queue Name");
+		queue_list = SYSCTL_CHILDREN(queue_node);
 
-	if (error || !req->newptr)
-		return (error);
-
-	if (result == 1) {
-		adapter = (struct adapter *) arg1;
-		ixgbe_print_hw_stats(adapter);
+		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "rxd_head", 
+				CTLTYPE_UINT | CTLFLAG_RD, rxr, sizeof(rxr),
+				ixgbe_sysctl_rdh_handler, "IU",
+				"Receive Descriptor Head");
+		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "rxd_tail", 
+				CTLTYPE_UINT | CTLFLAG_RD, rxr, sizeof(rxr),
+				ixgbe_sysctl_rdt_handler, "IU",
+				"Receive Descriptor Tail");
+		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "rx_packets",
+				CTLFLAG_RD, &rxr->rx_packets,
+				"Queue Packets Received");
+		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "rx_bytes",
+				CTLFLAG_RD, &rxr->rx_bytes,
+				"Queue Bytes Received");
+		SYSCTL_ADD_INT(ctx, queue_list, OID_AUTO, "lro_queued",
+				CTLFLAG_RD, &lro->lro_queued, 0,
+				"LRO Queued");
+		SYSCTL_ADD_INT(ctx, queue_list, OID_AUTO, "lro_flushed",
+				CTLFLAG_RD, &lro->lro_flushed, 0,
+				"LRO Flushed");
 	}
-	return error;
-}
 
-static int
-ixgbe_sysctl_debug(SYSCTL_HANDLER_ARGS)
-{
-	int error, result;
-	struct adapter *adapter;
+	/* MAC stats get the own sub node */
 
-	result = -1;
-	error = sysctl_handle_int(oidp, &result, 0, req);
+	stat_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "mac_stats", 
+				    CTLFLAG_RD, NULL, "MAC Statistics");
+	stat_list = SYSCTL_CHILDREN(stat_node);
 
-	if (error || !req->newptr)
-		return (error);
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "crc_errs",
+			CTLFLAG_RD, &stats->crcerrs,
+			"CRC Errors");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "ill_errs",
+			CTLFLAG_RD, &stats->illerrc,
+			"Illegal Byte Errors");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "byte_errs",
+			CTLFLAG_RD, &stats->errbc,
+			"Byte Errors");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "short_discards",
+			CTLFLAG_RD, &stats->mspdc,
+			"MAC Short Packets Discarded");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "local_faults",
+			CTLFLAG_RD, &stats->mlfc,
+			"MAC Local Faults");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "remote_faults",
+			CTLFLAG_RD, &stats->mrfc,
+			"MAC Remote Faults");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "rec_len_errs",
+			CTLFLAG_RD, &stats->rlec,
+			"Receive Length Errors");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "link_xon_txd",
+			CTLFLAG_RD, &stats->lxontxc,
+			"Link XON Transmitted");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "link_xon_rcvd",
+			CTLFLAG_RD, &stats->lxonrxc,
+			"Link XON Received");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "link_xoff_txd",
+			CTLFLAG_RD, &stats->lxofftxc,
+			"Link XOFF Transmitted");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "link_xoff_rcvd",
+			CTLFLAG_RD, &stats->lxoffrxc,
+			"Link XOFF Received");
 
-	if (result == 1) {
-		adapter = (struct adapter *) arg1;
-		ixgbe_print_debug_info(adapter);
-	}
-	return error;
+	/* Packet Reception Stats */
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "total_octets_rcvd",
+			CTLFLAG_RD, &stats->tor, 
+			"Total Octets Received"); 
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "good_octets_rcvd",
+			CTLFLAG_RD, &stats->gorc, 
+			"Good Octets Received"); 
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "total_pkts_rcvd",
+			CTLFLAG_RD, &stats->tpr,
+			"Total Packets Received");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "good_pkts_rcvd",
+			CTLFLAG_RD, &stats->gprc,
+			"Good Packets Received");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "mcast_pkts_rcvd",
+			CTLFLAG_RD, &stats->mprc,
+			"Multicast Packets Received");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "bcast_pkts_rcvd",
+			CTLFLAG_RD, &stats->bprc,
+			"Broadcast Packets Received");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "rx_frames_64",
+			CTLFLAG_RD, &stats->prc64,
+			"64 byte frames received ");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "rx_frames_65_127",
+			CTLFLAG_RD, &stats->prc127,
+			"65-127 byte frames received");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "rx_frames_128_255",
+			CTLFLAG_RD, &stats->prc255,
+			"128-255 byte frames received");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "rx_frames_256_511",
+			CTLFLAG_RD, &stats->prc511,
+			"256-511 byte frames received");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "rx_frames_512_1023",
+			CTLFLAG_RD, &stats->prc1023,
+			"512-1023 byte frames received");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "rx_frames_1024_1522",
+			CTLFLAG_RD, &stats->prc1522,
+			"1023-1522 byte frames received");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "recv_undersized",
+			CTLFLAG_RD, &stats->ruc,
+			"Receive Undersized");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "recv_fragmented",
+			CTLFLAG_RD, &stats->rfc,
+			"Fragmented Packets Received ");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "recv_oversized",
+			CTLFLAG_RD, &stats->roc,
+			"Oversized Packets Received");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "recv_jabberd",
+			CTLFLAG_RD, &stats->rjc,
+			"Received Jabber");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "management_pkts_rcvd",
+			CTLFLAG_RD, &stats->mngprc,
+			"Management Packets Received");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "management_pkts_drpd",
+			CTLFLAG_RD, &stats->mngptc,
+			"Management Packets Dropped");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "checksum_errs",
+			CTLFLAG_RD, &stats->xec,
+			"Checksum Errors");
+
+	/* Packet Transmission Stats */
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "good_octets_txd",
+			CTLFLAG_RD, &stats->gotc, 
+			"Good Octets Transmitted"); 
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "total_pkts_txd",
+			CTLFLAG_RD, &stats->tpt,
+			"Total Packets Transmitted");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "good_pkts_txd",
+			CTLFLAG_RD, &stats->gptc,
+			"Good Packets Transmitted");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "bcast_pkts_txd",
+			CTLFLAG_RD, &stats->bptc,
+			"Broadcast Packets Transmitted");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "mcast_pkts_txd",
+			CTLFLAG_RD, &stats->mptc,
+			"Multicast Packets Transmitted");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "management_pkts_txd",
+			CTLFLAG_RD, &stats->mngptc,
+			"Management Packets Transmitted");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "tx_frames_64",
+			CTLFLAG_RD, &stats->ptc64,
+			"64 byte frames transmitted ");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "tx_frames_65_127",
+			CTLFLAG_RD, &stats->ptc127,
+			"65-127 byte frames transmitted");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "tx_frames_128_255",
+			CTLFLAG_RD, &stats->ptc255,
+			"128-255 byte frames transmitted");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "tx_frames_256_511",
+			CTLFLAG_RD, &stats->ptc511,
+			"256-511 byte frames transmitted");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "tx_frames_512_1023",
+			CTLFLAG_RD, &stats->ptc1023,
+			"512-1023 byte frames transmitted");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "tx_frames_1024_1522",
+			CTLFLAG_RD, &stats->ptc1522,
+			"1024-1522 byte frames transmitted");
+
+	/* FC Stats */
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "fc_crc",
+		CTLFLAG_RD, &stats->fccrc,
+		"FC CRC Errors");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "fc_last",
+		CTLFLAG_RD, &stats->fclast,
+		"FC Last Error");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "fc_drpd",
+		CTLFLAG_RD, &stats->fcoerpdc,
+		"FCoE Packets Dropped");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "fc_pkts_rcvd",
+		CTLFLAG_RD, &stats->fcoeprc,
+		"FCoE Packets Received");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "fc_pkts_txd",
+		CTLFLAG_RD, &stats->fcoeptc,
+		"FCoE Packets Transmitted");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "fc_dword_rcvd",
+		CTLFLAG_RD, &stats->fcoedwrc,
+		"FCoE DWords Received");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "fc_dword_txd",
+		CTLFLAG_RD, &stats->fcoedwtc,
+		"FCoE DWords Transmitted");
 }
 
 /*
@@ -5018,12 +5288,16 @@ static int
 ixgbe_set_flowcntl(SYSCTL_HANDLER_ARGS)
 {
 	int error;
+	int last = ixgbe_flow_control;
 	struct adapter *adapter;
 
 	error = sysctl_handle_int(oidp, &ixgbe_flow_control, 0, req);
-
 	if (error)
 		return (error);
+
+	/* Don't bother if it's not changed */
+	if (ixgbe_flow_control == last)
+		return (0);
 
 	adapter = (struct adapter *) arg1;
 	switch (ixgbe_flow_control) {
@@ -5051,173 +5325,43 @@ ixgbe_add_rx_process_limit(struct adapter *adapter, const char *name,
             OID_AUTO, name, CTLTYPE_INT|CTLFLAG_RW, limit, value, description);
 }
 
-#ifdef IXGBE_IEEE1588
-
 /*
-** ixgbe_hwtstamp_ioctl - control hardware time stamping
-**
-** Outgoing time stamping can be enabled and disabled. Play nice and
-** disable it when requested, although it shouldn't case any overhead
-** when no packet needs it. At most one packet in the queue may be
-** marked for time stamping, otherwise it would be impossible to tell
-** for sure to which packet the hardware time stamp belongs.
-**
-** Incoming time stamping has to be configured via the hardware
-** filters. Not all combinations are supported, in particular event
-** type has to be specified. Matching the kind of event packet is
-** not supported, with the exception of "all V2 events regardless of
-** level 2 or 4".
-**
+** Control link advertise speed:
+** 	0 - normal
+**	1 - advertise only 1G
 */
 static int
-ixgbe_hwtstamp_ioctl(struct adapter *adapter, struct ifreq *ifr)
+ixgbe_set_advertise(SYSCTL_HANDLER_ARGS)
 {
-	struct ixgbe_hw *hw = &adapter->hw;
-	struct hwtstamp_ctrl *config;
-	u32 tsync_tx_ctl_bit = IXGBE_TSYNCTXCTL_ENABLED;
-	u32 tsync_rx_ctl_bit = IXGBE_TSYNCRXCTL_ENABLED;
-	u32 tsync_rx_ctl_type = 0;
-	u32 tsync_rx_cfg = 0;
-	int is_l4 = 0;
-	int is_l2 = 0;
-	u16 port = 319; /* PTP */
-	u32 regval;
+	int			error;
+	struct adapter		*adapter;
+	struct ixgbe_hw		*hw;
+	ixgbe_link_speed	speed, last;
 
-	config = (struct hwtstamp_ctrl *) ifr->ifr_data;
+	adapter = (struct adapter *) arg1;
+	hw = &adapter->hw;
+	last = hw->phy.autoneg_advertised;
 
-	/* reserved for future extensions */
-	if (config->flags)
-		return (EINVAL);
+	error = sysctl_handle_int(oidp, &adapter->advertise, 0, req);
 
-	switch (config->tx_type) {
-	case HWTSTAMP_TX_OFF:
-		tsync_tx_ctl_bit = 0;
-		break;
-	case HWTSTAMP_TX_ON:
-		tsync_tx_ctl_bit = IXGBE_TSYNCTXCTL_ENABLED;
-		break;
-	default:
-		return (ERANGE);
-	}
+	if ((error) || (adapter->advertise == -1))
+		return (error);
 
-	switch (config->rx_filter) {
-	case HWTSTAMP_FILTER_NONE:
-		tsync_rx_ctl_bit = 0;
-		break;
-	case HWTSTAMP_FILTER_PTP_V1_L4_EVENT:
-	case HWTSTAMP_FILTER_PTP_V2_L4_EVENT:
-	case HWTSTAMP_FILTER_PTP_V2_L2_EVENT:
-	case HWTSTAMP_FILTER_ALL:
-		/*
-		 * register TSYNCRXCFG must be set, therefore it is not
-		 * possible to time stamp both Sync and Delay_Req messages
-		 * => fall back to time stamping all packets
-		 */
-		tsync_rx_ctl_type = IXGBE_TSYNCRXCTL_TYPE_ALL;
-		config->rx_filter = HWTSTAMP_FILTER_ALL;
-		break;
-	case HWTSTAMP_FILTER_PTP_V1_L4_SYNC:
-		tsync_rx_ctl_type = IXGBE_TSYNCRXCTL_TYPE_L4_V1;
-		tsync_rx_cfg = IXGBE_TSYNCRXCFG_PTP_V1_SYNC_MESSAGE;
-		is_l4 = 1;
-		break;
-	case HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ:
-		tsync_rx_ctl_type = IXGBE_TSYNCRXCTL_TYPE_L4_V1;
-		tsync_rx_cfg = IXGBE_TSYNCRXCFG_PTP_V1_DELAY_REQ_MESSAGE;
-		is_l4 = 1;
-		break;
-	case HWTSTAMP_FILTER_PTP_V2_L2_SYNC:
-	case HWTSTAMP_FILTER_PTP_V2_L4_SYNC:
-		tsync_rx_ctl_type = IXGBE_TSYNCRXCTL_TYPE_L2_L4_V2;
-		tsync_rx_cfg = IXGBE_TSYNCRXCFG_PTP_V2_SYNC_MESSAGE;
-		is_l2 = 1;
-		is_l4 = 1;
-		config->rx_filter = HWTSTAMP_FILTER_SOME;
-		break;
-	case HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ:
-	case HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ:
-		tsync_rx_ctl_type = IXGBE_TSYNCRXCTL_TYPE_L2_L4_V2;
-		tsync_rx_cfg = IXGBE_TSYNCRXCFG_PTP_V2_DELAY_REQ_MESSAGE;
-		is_l2 = 1;
-		is_l4 = 1;
-		config->rx_filter = HWTSTAMP_FILTER_SOME;
-		break;
-	case HWTSTAMP_FILTER_PTP_V2_EVENT:
-	case HWTSTAMP_FILTER_PTP_V2_SYNC:
-	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
-		tsync_rx_ctl_type = IXGBE_TSYNCRXCTL_TYPE_EVENT_V2;
-		config->rx_filter = HWTSTAMP_FILTER_PTP_V2_EVENT;
-		is_l2 = 1;
-		break;
-	default:
-		return -ERANGE;
-	}
+	if (!((hw->phy.media_type == ixgbe_media_type_copper) ||
+            (hw->phy.multispeed_fiber)))
+		return (error);
 
-	/* enable/disable TX */
-	regval = IXGBE_READ_REG(hw, IXGBE_TSYNCTXCTL);
-	regval = (regval & ~IXGBE_TSYNCTXCTL_ENABLED) | tsync_tx_ctl_bit;
-	IXGBE_WRITE_REG(hw, IXGBE_TSYNCTXCTL, regval);
+	if (adapter->advertise == 1)
+                speed = IXGBE_LINK_SPEED_1GB_FULL;
+	else
+                speed = IXGBE_LINK_SPEED_1GB_FULL |
+			IXGBE_LINK_SPEED_10GB_FULL;
 
-	/* enable/disable RX, define which PTP packets are time stamped */
-	regval = IXGBE_READ_REG(hw, IXGBE_TSYNCRXCTL);
-	regval = (regval & ~IXGBE_TSYNCRXCTL_ENABLED) | tsync_rx_ctl_bit;
-	regval = (regval & ~0xE) | tsync_rx_ctl_type;
-	IXGBE_WRITE_REG(hw, IXGBE_TSYNCRXCTL, regval);
-	IXGBE_WRITE_REG(hw, IXGBE_TSYNCRXCFG, tsync_rx_cfg);
+	if (speed == last) /* no change */
+		return (error);
 
-	/*
-	 * Ethertype Filter Queue Filter[0][15:0] = 0x88F7
-	 *                                          (Ethertype to filter on)
-	 * Ethertype Filter Queue Filter[0][26] = 0x1 (Enable filter)
-	 * Ethertype Filter Queue Filter[0][30] = 0x1 (Enable Timestamping)
-	 */
-	IXGBE_WRITE_REG(hw, IXGBE_ETQF0, is_l2 ? 0x440088f7 : 0);
-
-	/* L4 Queue Filter[0]: only filter by source and destination port */
-	IXGBE_WRITE_REG(hw, IXGBE_SPQF0, htons(port));
-	IXGBE_WRITE_REG(hw, IXGBE_IMIREXT(0), is_l4 ?
-	     ((1<<12) | (1<<19) /* bypass size and control flags */) : 0);
-	IXGBE_WRITE_REG(hw, IXGBE_IMIR(0), is_l4 ?
-	     (htons(port)
-	      | (0<<16) /* immediate interrupt disabled */
-	      | 0 /* (1<<17) bit cleared: do not bypass
-		     destination port check */)
-		: 0);
-	IXGBE_WRITE_REG(hw, IXGBE_FTQF0, is_l4 ?
-	     (0x11 /* UDP */
-	      | (1<<15) /* VF not compared */
-	      | (1<<27) /* Enable Timestamping */
-	      | (7<<28) /* only source port filter enabled,
-			   source/target address and protocol
-			   masked */)
-	     : ((1<<15) | (15<<28) /* all mask bits set = filter not
-				      enabled */));
-
-	wrfl();
-
-	adapter->hwtstamp_ctrl = config;
-
-	/* clear TX/RX time stamp registers, just to be sure */
-	regval = IXGBE_READ_REG(hw, IXGBE_TXSTMPH);
-	regval = IXGBE_READ_REG(hw, IXGBE_RXSTMPH);
+	hw->mac.autotry_restart = TRUE;
+	hw->mac.ops.setup_link(hw, speed, TRUE, TRUE);
 
 	return (error);
 }
-
-/*
-** ixgbe_read_clock - read raw cycle counter (to be used by time counter)
-*/
-static cycle_t ixgbe_read_clock(const struct cyclecounter *tc)
-{
-       struct adapter *adapter =
-               container_of(tc, struct igb_adapter, cycles);
-       struct ixgbe_hw *hw = &adapter->hw;
-       u64 stamp;
-
-       stamp =  IXGBE_READ_REG(hw, IXGBE_SYSTIML);
-       stamp |= (u64)IXGBE_READ_REG(hw, IXGBE_SYSTIMH) << 32ULL;
-
-       return (stamp);
-}
-
-#endif /* IXGBE_IEEE1588 */

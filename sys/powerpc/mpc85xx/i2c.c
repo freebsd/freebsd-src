@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/resource.h>
-#include <machine/ocpbus.h>
 #include <sys/rman.h>
 
 #include <sys/lock.h>
@@ -46,7 +45,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/iicbus/iicbus.h>
 #include "iicbus_if.h"
 
-#include <powerpc/mpc85xx/ocpbus.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
 
 #define I2C_ADDR_REG		0x00 /* I2C slave address register */
 #define I2C_FDR_REG		0x04 /* I2C frequency divider register */
@@ -124,7 +124,7 @@ static driver_t i2c_driver = {
 };
 static devclass_t  i2c_devclass;
 
-DRIVER_MODULE(i2c, ocpbus, i2c_driver, i2c_devclass, 0, 0);
+DRIVER_MODULE(i2c, simplebus, i2c_driver, i2c_devclass, 0, 0);
 DRIVER_MODULE(iicbus, i2c, iicbus_driver, iicbus_devclass, 0, 0);
 
 static __inline void
@@ -157,7 +157,7 @@ i2c_do_wait(device_t dev, struct i2c_softc *sc, int write, int start)
 	int err;
 	uint8_t status;
 
-	status = i2c_read_reg(sc,I2C_STATUS_REG);
+	status = i2c_read_reg(sc, I2C_STATUS_REG);
 	if (status & I2CSR_MIF) {
 		if (write && start && (status & I2CSR_RXAK)) {
 			debugf("no ack %s", start ?
@@ -188,19 +188,9 @@ error:
 static int
 i2c_probe(device_t dev)
 {
-	device_t parent;
 	struct i2c_softc *sc;
-	uintptr_t devtype;
-	int error;
 
-	parent = device_get_parent(dev);
-
-	error = BUS_READ_IVAR(parent, dev, OCPBUS_IVAR_DEVTYPE, &devtype);
-
-	if (error)
-		return (error);
-
-	if (devtype != OCPBUS_DEVTYPE_I2C)
+	if (!ofw_bus_is_compatible(dev, "fsl-i2c"))
 		return (ENXIO);
 
 	sc = device_get_softc(dev);
@@ -209,7 +199,7 @@ i2c_probe(device_t dev)
 	sc->res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->rid,
 	    RF_ACTIVE);
 	if (sc->res == NULL) {
-		device_printf(dev, "could not allocate resources");
+		device_printf(dev, "could not allocate resources\n");
 		return (ENXIO);
 	}
 

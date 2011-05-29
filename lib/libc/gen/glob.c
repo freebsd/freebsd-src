@@ -433,9 +433,9 @@ static int
 glob0(const Char *pattern, glob_t *pglob, size_t *limit)
 {
 	const Char *qpatnext;
-	int c, err;
+	int err;
 	size_t oldpathc;
-	Char *bufnext, patbuf[MAXPATHLEN];
+	Char *bufnext, c, patbuf[MAXPATHLEN];
 
 	qpatnext = globtilde(pattern, patbuf, MAXPATHLEN, pglob);
 	oldpathc = pglob->gl_pathc;

@@ -1219,8 +1219,8 @@ igmp_input_v1_report(struct ifnet *ifp, /*const*/ struct ip *ip,
 	if (ifp->if_flags & IFF_LOOPBACK)
 		return (0);
 
-	if (!IN_MULTICAST(ntohl(igmp->igmp_group.s_addr) ||
-	    !in_hosteq(igmp->igmp_group, ip->ip_dst))) {
+	if (!IN_MULTICAST(ntohl(igmp->igmp_group.s_addr)) ||
+	    !in_hosteq(igmp->igmp_group, ip->ip_dst)) {
 		IGMPSTAT_INC(igps_rcv_badreports);
 		return (EINVAL);
 	}
@@ -1468,12 +1468,6 @@ igmp_input(struct mbuf *m, int off)
 	}
 	ip = mtod(m, struct ip *);
 
-	if (ip->ip_ttl != 1) {
-		IGMPSTAT_INC(igps_rcv_badttl);
-		m_freem(m);
-		return;
-	}
-
 	/*
 	 * Validate checksum.
 	 */
@@ -1487,6 +1481,17 @@ igmp_input(struct mbuf *m, int off)
 	}
 	m->m_data -= iphlen;
 	m->m_len += iphlen;
+
+	/*
+	 * IGMP control traffic is link-scope, and must have a TTL of 1.
+	 * DVMRP traffic (e.g. mrinfo, mtrace) is an exception;
+	 * probe packets may come from beyond the LAN.
+	 */
+	if (igmp->igmp_type != IGMP_DVMRP && ip->ip_ttl != 1) {
+		IGMPSTAT_INC(igps_rcv_badttl);
+		m_freem(m);
+		return;
+	}
 
 	switch (igmp->igmp_type) {
 	case IGMP_HOST_MEMBERSHIP_QUERY:

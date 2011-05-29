@@ -52,7 +52,6 @@
  * needs to be returned by nfsd_fhtovp().
  */
 struct nfsexstuff {
-	int	nes_vfslocked;			/* required for all ports */
 	int	nes_exflag;			/* export flags */
 	int	nes_numsecflavor;		/* # of security flavors */
 	int	nes_secflavors[MAXSECFLAVORS];	/* and the flavors */
@@ -70,11 +69,10 @@ struct nfsexstuff {
 #define	NFSVNO_CMPFH(f1, f2)						\
     ((f1)->fh_fsid.val[0] == (f2)->fh_fsid.val[0] &&			\
      (f1)->fh_fsid.val[1] == (f2)->fh_fsid.val[1] &&			\
-     !bcmp((f1)->fh_fid.fid_data, (f2)->fh_fid.fid_data,		\
-            (f1)->fh_fid.fid_len))
+     bcmp(&(f1)->fh_fid, &(f2)->fh_fid, sizeof(struct fid)) == 0)
 
 #define	NFSLOCKHASH(f) 							\
-	(&nfslockhash[(*((u_int32_t *)((f)->fh_fid.fid_data))) % NFSLOCKHASHSIZE])
+	(&nfslockhash[nfsrv_hashfh(f) % NFSLOCKHASHSIZE])
 
 #define	NFSFPVNODE(f)	((struct vnode *)((f)->f_data))
 #define	NFSFPCRED(f)	((f)->f_cred)

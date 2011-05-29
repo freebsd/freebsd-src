@@ -146,6 +146,8 @@ struct pmcstat_pmcrecord {
 	pmc_id_t			pr_pmcid;
 	int				pr_pmcin;
 	pmcstat_interned_string		pr_pmcname;
+	int				pr_samples;
+	int				pr_dubious_frames;
 	struct pmcstat_pmcrecord	*pr_merge;
 };
 extern LIST_HEAD(pmcstat_pmcs, pmcstat_pmcrecord) pmcstat_pmcs; /* PMC list */
@@ -162,6 +164,7 @@ struct pmcstat_stats {
 	int ps_samples_skipped; /* #samples filtered out for any reason */
 	int ps_samples_unknown_offset;	/* #samples of rank 0 not in a map */
 	int ps_samples_indeterminable;	/* #samples in indeterminable images */
+	int ps_samples_unknown_function;/* #samples with unknown function at offset */
 	int ps_callchain_dubious_frames;/* #dubious frame pointers seen */
 };
 extern struct pmcstat_stats pmcstat_stats; /* statistics */

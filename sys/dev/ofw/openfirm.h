@@ -83,7 +83,7 @@ MALLOC_DECLARE(M_OFWPROP);
  */
 
 boolean_t	OF_install(char *name, int prio);
-void		OF_init(void *cookie);
+int		OF_init(void *cookie);
 
 /*
  * Known Open Firmware interface names
@@ -91,6 +91,7 @@ void		OF_init(void *cookie);
 
 #define	OFW_STD_DIRECT	"ofw_std"	/* Standard OF interface */
 #define	OFW_STD_REAL	"ofw_real"	/* Real-mode OF interface */
+#define	OFW_STD_32BIT	"ofw_32bit"	/* 32-bit OF interface */
 #define	OFW_FDT		"ofw_fdt"	/* Flattened Device Tree */
 
 /* Generic functions */

@@ -21,7 +21,7 @@
 .\" the suitability of this software for any purpose.  It is
 .\" provided "as is" without express or implied warranty.
 .\"
-.Dd November 27, 2006
+.Dd February 25, 2011
 .Dt NEWSYSLOG.CONF 5
 .Os
 .Sh NAME
@@ -69,13 +69,18 @@ is treated as an ordinary character.
 The fields of the configuration file are as follows:
 .Bl -tag -width indent
 .It Ar logfile_name
-Name of the system log file to be archived, or the literal string
-.Dq Aq Li default .
+Name of the system log file to be archived,
+or one of the literal strings
+.Dq Aq Li default ,
+or
+.Dq Aq Li include .
 The special default entry will only be used if a log file
 name is given as a command line argument to
 .Xr newsyslog 8 ,
 and if that log file name is not matched by any other
 line in the configuration file.
+The include entry is used to include other configuration
+files and supports globbing.
 .It Ar owner : Ns Ar group
 This optional field specifies the owner and group for the archive file.
 The
@@ -287,12 +292,25 @@ indicates that
 should attempt to save disk space by compressing the rotated
 log file using
 .Xr bzip2 1 .
+.It Cm X
+indicates that
+.Xr newsyslog 8
+should attempt to save disk space by compressing the rotated
+log file using
+.Xr xz 1 .
 .It Cm N
 indicates that there is no process which needs to be signaled
 when this log file is rotated.
+.It Cm R
+if this flag is set the
+.Xr newsyslog 8
+will run shell command defined in 
+.Ar path_to_pid_cmd_file
+after rotation instead of trying to send signal to a process id
+stored in the file.
 .It Cm U
 indicates that the file specified by
-.Ar path_to_pid_file
+.Ar path_to_pid_cmd_file
 will contain the ID for a process group instead of a process.
 This option also requires that the first line in that file
 be a negative value to distinguish it from a process ID.
@@ -308,24 +326,33 @@ can be used as a placeholder to create a
 .Ar flags
 field when you need to specify any of the following fields.
 .El
-.It Ar path_to_pid_file
+.It Ar path_to_pid_cmd_file
 This optional field specifies the file name containing a daemon's
 process ID or to find a group process ID if the
 .Cm U
 flag was specified.
 If this field is present, a
 .Ar signal_number
-is sent the process ID contained in this file.
-If this field is not present, then a
+is sent to the process ID contained in this file.
+If this field is not present and the
+.Cm N
+flag has not been specified, then a
 .Dv SIGHUP
 signal will be sent to
-.Xr syslogd 8 ,
-unless the
-.Cm N
-flag has been specified.
+.Xr syslogd 8
+or to the process id found in the file specified by
+.Xr newsyslog 8 Ns 's
+.Fl S
+switch.
 This field must start with
 .Ql /
 in order to be recognized properly.
+When used with the
+.Cm R
+flag, the file is treated as a path to a binary to be executed
+by the
+.Xr newsyslog 8
+after rotation instead of sending the signal out.
 .It Ar signal_number
 This optional field specifies the signal number that will be sent
 to the daemon process (or to all processes in a process group, if the
@@ -335,9 +362,15 @@ If this field is not present, then a
 .Dv SIGHUP
 signal will be sent.
 .El
+.Sh EXAMPLES
+The following is an example of the
+.Dq Aq Li include
+entry:
+.Dl "<include> /etc/newsyslog-local.conf"
 .Sh SEE ALSO
 .Xr bzip2 1 ,
 .Xr gzip 1 ,
+.Xr xz 1 ,
 .Xr syslog 3 ,
 .Xr chown 8 ,
 .Xr newsyslog 8 ,

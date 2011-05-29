@@ -27,6 +27,7 @@
  */
 
 #include "_libproc.h"
+#include <stdio.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -40,11 +41,10 @@ int
 proc_attach(pid_t pid, int flags, struct proc_handle **pphdl)
 {
 	struct proc_handle *phdl;
-	struct kevent kev;
 	int error = 0;
 	int status;
 
-	if (pid == 0 || pphdl == NULL)
+	if (pid == 0 || pid == getpid())
 		return (EINVAL);
 
 	/*
@@ -58,26 +58,24 @@ proc_attach(pid_t pid, int flags, struct proc_handle **pphdl)
 	phdl->pid = pid;
 	phdl->flags = flags;
 	phdl->status = PS_RUN;
+	elf_version(EV_CURRENT);
 
-	EV_SET(&kev, pid, EVFILT_PROC, EV_ADD | EV_ONESHOT, NOTE_EXIT,
-	    0, NULL);
-
-	if ((phdl->kq = kqueue()) == -1)
-		err(1, "ERROR: cannot create kernel evet queue");
-
-	if (kevent(phdl->kq, &kev, 1, NULL, 0, NULL) < 0)
-		err(2, "ERROR: cannot monitor child process %d", pid);
-
-	if (ptrace(PT_ATTACH, phdl->pid, NULL, 0) != 0)
+	if (ptrace(PT_ATTACH, phdl->pid, 0, 0) != 0) {
 		error = errno;
+		DPRINTF("ERROR: cannot ptrace child process %d", pid);
+		goto out;
+	}
 
 	/* Wait for the child process to stop. */
-	else if (waitpid(pid, &status, WUNTRACED) == -1)
-		err(3, "ERROR: child process %d didn't stop as expected", pid);
+	if (waitpid(pid, &status, WUNTRACED) == -1) {
+		error = errno;
+		DPRINTF("ERROR: child process %d didn't stop as expected", pid);
+		goto out;
+	}
 
 	/* Check for an unexpected status. */
-	else if (WIFSTOPPED(status) == 0)
-		err(4, "ERROR: child process %d status 0x%x", pid, status);
+	if (WIFSTOPPED(status) == 0)
+		DPRINTF("ERROR: child process %d status 0x%x", pid, status);
 	else
 		phdl->status = PS_STOP;
 
@@ -85,7 +83,8 @@ proc_attach(pid_t pid, int flags, struct proc_handle **pphdl)
 		proc_free(phdl);
 	else
 		*pphdl = phdl;
-
+out:
+	proc_free(phdl);
 	return (error);
 }
 
@@ -94,7 +93,6 @@ proc_create(const char *file, char * const *argv, proc_child_func *pcf,
     void *child_arg, struct proc_handle **pphdl)
 {
 	struct proc_handle *phdl;
-	struct kevent kev;
 	int error = 0;
 	int status;
 	pid_t pid;
@@ -105,6 +103,8 @@ proc_create(const char *file, char * const *argv, proc_child_func *pcf,
 	 */
 	if ((phdl = malloc(sizeof(struct proc_handle))) == NULL)
 		return (ENOMEM);
+
+	elf_version(EV_CURRENT);
 
 	/* Fork a new process. */
 	if ((pid = vfork()) == -1)
@@ -128,31 +128,26 @@ proc_create(const char *file, char * const *argv, proc_child_func *pcf,
 		phdl->pid = pid;
 		phdl->status = PS_IDLE;
 
-		EV_SET(&kev, pid, EVFILT_PROC, EV_ADD | EV_ONESHOT, NOTE_EXIT,
-		    0, NULL);
-
-		if ((phdl->kq = kqueue()) == -1)
-                	err(1, "ERROR: cannot create kernel evet queue");
-
-        	if (kevent(phdl->kq, &kev, 1, NULL, 0, NULL) < 0)
-                	err(2, "ERROR: cannot monitor child process %d", pid);
-
 		/* Wait for the child process to stop. */
-		if (waitpid(pid, &status, WUNTRACED) == -1)
-                	err(3, "ERROR: child process %d didn't stop as expected", pid);
+		if (waitpid(pid, &status, WUNTRACED) == -1) {
+			error = errno;
+                	DPRINTF("ERROR: child process %d didn't stop as expected", pid);
+			goto bad;
+		}
 
 		/* Check for an unexpected status. */
-		if (WIFSTOPPED(status) == 0)
-                	err(4, "ERROR: child process %d status 0x%x", pid, status);
-		else
+		if (WIFSTOPPED(status) == 0) {
+			error = errno;
+                	DPRINTF("ERROR: child process %d status 0x%x", pid, status);
+			goto bad;
+		} else
 			phdl->status = PS_STOP;
 	}
-
+bad:
 	if (error)
 		proc_free(phdl);
 	else
 		*pphdl = phdl;
-
 	return (error);
 }
 

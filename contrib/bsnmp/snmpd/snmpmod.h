@@ -5,6 +5,12 @@
  *
  * Author: Harti Brandt <harti@freebsd.org>
  * 
+ * Copyright (c) 2010 The FreeBSD Foundation
+ * All rights reserved.
+ *
+ * Portions of this software were developed by Shteryana Sotirova Shopova
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -332,10 +338,204 @@ const char * comm_string(u_int);
 /* community for current packet */
 extern u_int community;
 
-/* 
+/*
+ * SNMP User-based Security Model data. Modified via the snmp_usm(3) module.
+ */
+struct snmpd_usmstat {
+	uint32_t	unsupported_seclevels;
+	uint32_t	not_in_time_windows;
+	uint32_t	unknown_users;
+	uint32_t	unknown_engine_ids;
+	uint32_t	wrong_digests;
+	uint32_t	decrypt_errors;
+};
+
+extern struct snmpd_usmstat snmpd_usmstats;
+struct snmpd_usmstat *bsnmpd_get_usm_stats(void);
+void bsnmpd_reset_usm_stats(void);
+
+struct usm_user {
+	struct snmp_user		suser;
+	uint8_t				user_engine_id[SNMP_ENGINE_ID_SIZ];
+	uint32_t			user_engine_len;
+	char				user_public[SNMP_ADM_STR32_SIZ];
+	uint32_t			user_public_len;
+	int32_t				status;
+	int32_t				type;
+	SLIST_ENTRY(usm_user)		up;
+};
+
+SLIST_HEAD(usm_userlist, usm_user);
+struct usm_user *usm_first_user(void);
+struct usm_user *usm_next_user(struct usm_user *);
+struct usm_user *usm_find_user(uint8_t *, uint32_t, char *);
+struct usm_user *usm_new_user(uint8_t *, uint32_t, char *);
+void usm_delete_user(struct usm_user *);
+void usm_flush_users(void);
+
+/* USM user for current packet */
+extern struct usm_user *usm_user;
+
+/*
+ * SNMP View-based Access Control Model data. Modified via the snmp_vacm(3) module.
+ */
+struct vacm_group;
+
+struct vacm_user {
+	/* Security user name from USM */
+	char				secname[SNMP_ADM_STR32_SIZ];
+	int32_t				sec_model;
+	/* Back pointer to user assigned group name */
+	struct vacm_group		*group;
+	int32_t				type;
+	int32_t				status;
+	SLIST_ENTRY(vacm_user)		vvu;
+	SLIST_ENTRY(vacm_user)		vvg;
+};
+
+SLIST_HEAD(vacm_userlist, vacm_user);
+
+struct vacm_group {
+	char				groupname[SNMP_ADM_STR32_SIZ];
+	struct vacm_userlist		group_users;
+	SLIST_ENTRY(vacm_group)		vge;
+};
+
+SLIST_HEAD(vacm_grouplist, vacm_group);
+
+struct vacm_access {
+	/* The group name is index, not a column in the table */
+	struct vacm_group		*group;
+	char				ctx_prefix[SNMP_ADM_STR32_SIZ];
+	int32_t				sec_model;
+	int32_t				sec_level;
+	int32_t				ctx_match;
+	struct vacm_view		*read_view;
+	struct vacm_view		*write_view;
+	struct vacm_view		*notify_view;
+	int32_t				type;
+	int32_t				status;
+	TAILQ_ENTRY(vacm_access)	vva;
+};
+
+TAILQ_HEAD(vacm_accesslist, vacm_access);
+
+struct vacm_view {
+	char				viewname[SNMP_ADM_STR32_SIZ]; /* key */
+	struct asn_oid			subtree; /* key */
+	uint8_t				mask[16];
+	uint8_t				exclude;
+	int32_t				type;
+	int32_t				status;
+	SLIST_ENTRY(vacm_view)		vvl;
+};
+
+SLIST_HEAD(vacm_viewlist, vacm_view);
+
+struct vacm_context {
+	/* The ID of the module that registered this context */
+	int32_t				regid;
+	char				ctxname[SNMP_ADM_STR32_SIZ];
+	SLIST_ENTRY(vacm_context)	vcl;
+};
+
+SLIST_HEAD(vacm_contextlist, vacm_context);
+
+void vacm_groups_init(void);
+struct vacm_user *vacm_first_user(void);
+struct vacm_user *vacm_next_user(struct vacm_user *);
+struct vacm_user *vacm_new_user(int32_t, char *);
+int vacm_delete_user(struct vacm_user *);
+int vacm_user_set_group(struct vacm_user *, u_char *, u_int);
+struct vacm_access *vacm_first_access_rule(void);
+struct vacm_access *vacm_next_access_rule(struct vacm_access *);
+struct vacm_access *vacm_new_access_rule(char *, char *, int32_t, int32_t);
+int vacm_delete_access_rule(struct vacm_access *);
+struct vacm_view *vacm_first_view(void);
+struct vacm_view *vacm_next_view(struct vacm_view *);
+struct vacm_view *vacm_new_view(char *, struct asn_oid *);
+int vacm_delete_view(struct vacm_view *);
+struct vacm_context *vacm_first_context(void);
+struct vacm_context *vacm_next_context(struct vacm_context *);
+struct vacm_context *vacm_add_context(char *, int32_t);
+void vacm_flush_contexts(int32_t);
+
+/*
+ * RFC 3413 SNMP Management Target & Notification MIB
+ */
+
+struct snmpd_target_stats {
+	uint32_t			unavail_contexts;
+	uint32_t			unknown_contexts;
+};
+
+#define	SNMP_UDP_ADDR_SIZ		6
+#define	SNMP_TAG_SIZ			(255 + 1)
+
+struct target_address {
+	char				name[SNMP_ADM_STR32_SIZ];
+	uint8_t				address[SNMP_UDP_ADDR_SIZ];
+	int32_t				timeout;
+	int32_t				retry;
+	char				taglist[SNMP_TAG_SIZ];
+	char				paramname[SNMP_ADM_STR32_SIZ];
+	int32_t				type;
+	int32_t				socket;
+	int32_t				status;
+	SLIST_ENTRY(target_address)	ta;
+};
+
+SLIST_HEAD(target_addresslist, target_address);
+
+struct target_param {
+	char				name[SNMP_ADM_STR32_SIZ];
+	int32_t				mpmodel;
+	int32_t				sec_model;
+	char				secname[SNMP_ADM_STR32_SIZ];
+	enum snmp_usm_level		sec_level;
+	int32_t				type;
+	int32_t				status;
+	SLIST_ENTRY(target_param)	tp;
+};
+
+SLIST_HEAD(target_paramlist, target_param);
+
+struct target_notify {
+	char				name[SNMP_ADM_STR32_SIZ];
+	char				taglist[SNMP_TAG_SIZ];
+	int32_t				notify_type;
+	int32_t				type;
+	int32_t				status;
+	SLIST_ENTRY(target_notify)	tn;
+};
+
+SLIST_HEAD(target_notifylist, target_notify);
+
+extern struct snmpd_target_stats snmpd_target_stats;
+struct snmpd_target_stats *bsnmpd_get_target_stats(void);
+struct target_address *target_first_address(void);
+struct target_address *target_next_address(struct target_address *);
+struct target_address *target_new_address(char *);
+int target_activate_address(struct target_address *);
+int target_delete_address(struct target_address *);
+struct target_param *target_first_param(void);
+struct target_param *target_next_param(struct target_param *);
+struct target_param *target_new_param(char *);
+int target_delete_param(struct target_param *);
+struct target_notify *target_first_notify(void);
+struct target_notify *target_next_notify(struct target_notify *);
+struct target_notify *target_new_notify(char *);
+int target_delete_notify (struct target_notify *);
+void target_flush_all(void);
+
+/*
  * Well known OIDs
  */
 extern const struct asn_oid oid_zeroDotZero;
+
+/* SNMPv3 Engine Discovery */
+extern const struct asn_oid oid_usmUnknownEngineIDs;
+extern const struct asn_oid oid_usmNotInTimeWindows;
 
 /*
  * Request ID ranges.
@@ -389,6 +589,7 @@ enum snmpd_input_err snmp_input_finish(struct snmp_pdu *, const u_char *,
 void snmp_output(struct snmp_pdu *, u_char *, size_t *, const char *);
 void snmp_send_port(void *, const struct asn_oid *, struct snmp_pdu *,
 	const struct sockaddr *, socklen_t);
+enum snmp_code snmp_pdu_auth_access(struct snmp_pdu *, int32_t *);
 
 /* sending traps */
 void snmp_send_trap(const struct asn_oid *, ...);

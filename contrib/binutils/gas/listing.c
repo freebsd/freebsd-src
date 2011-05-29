@@ -1,6 +1,6 @@
 /* listing.c - maintain assembly listings
    Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
-   2001, 2002, 2003
+   2001, 2002, 2003, 2005, 2006
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -17,8 +17,8 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 /* Contributed by Steve Chamberlain <sac@cygnus.com>
 
@@ -613,10 +613,6 @@ calc_hex (list_info_type *list)
 	      sprintf (data_buffer + data_buffer_size,
 		       "%02X",
 		       (frag_ptr->fr_literal[var_rep_idx]) & 0xff);
-#if 0
-	      data_buffer[data_buffer_size++] = '*';
-	      data_buffer[data_buffer_size++] = '*';
-#endif
 	      data_buffer_size += 2;
 
 	      var_rep_idx++;
@@ -753,11 +749,10 @@ list_symbol_table (void)
       if (SEG_NORMAL (S_GET_SEGMENT (ptr))
 	  || S_GET_SEGMENT (ptr) == absolute_section)
 	{
-#ifdef BFD_ASSEMBLER
 	  /* Don't report section symbols.  They are not interesting.  */
 	  if (symbol_section_p (ptr))
 	    continue;
-#endif
+
 	  if (S_GET_NAME (ptr))
 	    {
 	      char buf[30], fmt[8];
@@ -951,15 +946,6 @@ listing_listing (char *name ATTRIBUTE_UNUSED)
   buffer = xmalloc (listing_rhs_width);
   data_buffer = xmalloc (MAX_BYTES);
   eject = 1;
-  list = head;
-
-  while (list != (list_info_type *) NULL && 0)
-    {
-      if (list->next)
-	list->frag = list->next->frag;
-      list = list->next;
-    }
-
   list = head->next;
 
   while (list)
@@ -1090,10 +1076,7 @@ listing_print (char *name)
 	using_stdout = 0;
       else
 	{
-#ifdef BFD_ASSEMBLER
-      bfd_set_error (bfd_error_system_call);
-#endif
-	  as_perror (_("can't open list file: %s"), name);
+	  as_warn (_("can't open %s: %s"), name, xstrerror (errno));
 	  list_file = stdout;
 	  using_stdout = 1;
 	}
@@ -1111,12 +1094,7 @@ listing_print (char *name)
   if (! using_stdout)
     {
       if (fclose (list_file) == EOF)
-	{
-#ifdef BFD_ASSEMBLER
-	  bfd_set_error (bfd_error_system_call);
-#endif
-	  as_perror (_("error closing list file: %s"), name);
-	}
+	as_warn (_("can't close %s: %s"), name, xstrerror (errno));
     }
 
   if (last_open_file)

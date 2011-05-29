@@ -38,6 +38,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_param.h"
+#include "opt_msgbuf.h"
 #include "opt_maxusers.h"
 
 #include <sys/limits.h>
@@ -45,18 +46,21 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
+#include <sys/msgbuf.h>
 
+#include <vm/vm.h>
 #include <vm/vm_param.h>
+#include <vm/pmap.h>
 
 /*
  * System parameter formulae.
  */
 
 #ifndef HZ
-#  if defined(__amd64__) || defined(__i386__) || defined(__ia64__) || defined(__sparc64__)
-#    define	HZ 1000
-#  else
+#  if defined(__mips__) || defined(__arm__)
 #    define	HZ 100
+#  else
+#    define	HZ 1000
 #  endif
 #  ifndef HZ_VM
 #    define	HZ_VM 100
@@ -83,6 +87,7 @@ int	maxproc;			/* maximum # of processes */
 int	maxprocperuid;			/* max # of procs per user */
 int	maxfiles;			/* sys. wide open files limit */
 int	maxfilesperproc;		/* per-proc open files limit */
+int	msgbufsize;			/* size of kernel message buffer */
 int	ncallout;			/* maximum # of timer events */
 int	nbuf;
 int	ngroups_max;			/* max # groups per process */
@@ -106,6 +111,8 @@ SYSCTL_INT(_kern, OID_AUTO, nbuf, CTLFLAG_RDTUN, &nbuf, 0,
     "Number of buffers in the buffer cache");
 SYSCTL_INT(_kern, OID_AUTO, nswbuf, CTLFLAG_RDTUN, &nswbuf, 0,
     "Number of swap buffers");
+SYSCTL_INT(_kern, OID_AUTO, msgbufsize, CTLFLAG_RDTUN, &msgbufsize, 0,
+    "Size of the kernel message buffer");
 SYSCTL_LONG(_kern, OID_AUTO, maxswzone, CTLFLAG_RDTUN, &maxswzone, 0,
     "Maximum memory for swap metadata");
 SYSCTL_LONG(_kern, OID_AUTO, maxbcache, CTLFLAG_RDTUN, &maxbcache, 0,
@@ -149,6 +156,7 @@ static const char *const vm_bnames[] = {
 	"QEMU",				/* QEMU */
 	"Plex86",			/* Plex86 */
 	"Bochs",			/* Bochs */
+	"Xen",				/* Xen */
 	NULL
 };
 
@@ -217,6 +225,8 @@ init_param1(void)
 	maxbcache = VM_BCACHE_SIZE_MAX;
 #endif
 	TUNABLE_LONG_FETCH("kern.maxbcache", &maxbcache);
+	msgbufsize = MSGBUF_SIZE;
+	TUNABLE_INT_FETCH("kern.msgbufsize", &msgbufsize);
 
 	maxtsiz = MAXTSIZ;
 	TUNABLE_ULONG_FETCH("kern.maxtsiz", &maxtsiz);
@@ -285,22 +295,17 @@ init_param2(long physpages)
 
 	ncallout = 16 + maxproc + maxfiles;
 	TUNABLE_INT_FETCH("kern.ncallout", &ncallout);
-}
-
-/*
- * Boot time overrides that are scaled against the kmem map
- */
-void
-init_param3(long kmempages)
-{
 
 	/*
-	 * The default for maxpipekva is max(5% of the kmem map, 512KB).
-	 * See sys_pipe.c for more details.
+	 * The default for maxpipekva is min(1/64 of the kernel address space,
+	 * max(1/64 of main memory, 512KB)).  See sys_pipe.c for more details.
 	 */
-	maxpipekva = (kmempages / 20) * PAGE_SIZE;
+	maxpipekva = (physpages / 64) * PAGE_SIZE;
 	if (maxpipekva < 512 * 1024)
 		maxpipekva = 512 * 1024;
+	if (maxpipekva > (VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS) / 64)
+		maxpipekva = (VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS) /
+		    64;
 	TUNABLE_LONG_FETCH("kern.ipc.maxpipekva", &maxpipekva);
 }
 

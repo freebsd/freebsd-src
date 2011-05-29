@@ -98,23 +98,6 @@
 
 #define	_C_LABEL(x)	x
 
-/* 
- *  Endian-independent assembly-code aliases for unaligned memory accesses.
- */
-#if BYTE_ORDER == LITTLE_ENDIAN
-#define	LWLO	lwl
-#define	LWHI	lwr
-#define	SWLO	swl
-#define	SWHI	swr
-#endif
-
-#if BYTE_ORDER == BIG_ENDIAN
-#define	LWLO	lwr
-#define	LWHI	lwl
-#define	SWLO	swr
-#define	SWHI	swl
-#endif
-
 #ifdef USE_AENT
 #define	AENT(x)		\
 	.aent	x, 0
@@ -274,10 +257,6 @@ _C_LABEL(x):
 	EXPORT(x ## End);	\
 	END(x)
 
-#define	KSEG0TEXT_START
-#define	KSEG0TEXT_END
-#define	KSEG0TEXT	.text
-
 /*
  * Macros to panic and printf from assembly language.
  */
@@ -306,28 +285,32 @@ _C_LABEL(x):
 
 /*
  * Call ast if required
+ *
+ * XXX Do we really need to disable interrupts?
  */
 #define DO_AST				             \
 44:				                     \
-	PTR_LA	s0, _C_LABEL(disableintr)           ;\
-	jalr	s0                                  ;\
-	nop                                         ;\
-	move	a0, v0                              ;\
+	mfc0	t0, MIPS_COP_0_STATUS               ;\
+	and	a0, t0, MIPS_SR_INT_IE              ;\
+	xor	t0, a0, t0                          ;\
+	mtc0	t0, MIPS_COP_0_STATUS               ;\
+	COP0_SYNC                                   ;\
 	GET_CPU_PCPU(s1)                            ;\
-	lw	s3, PC_CURPCB(s1)                   ;\
-	lw	s1, PC_CURTHREAD(s1)                ;\
+	PTR_L	s3, PC_CURPCB(s1)                   ;\
+	PTR_L	s1, PC_CURTHREAD(s1)                ;\
 	lw	s2, TD_FLAGS(s1)                    ;\
 	li	s0, TDF_ASTPENDING | TDF_NEEDRESCHED;\
 	and	s2, s0                              ;\
-	PTR_LA	s0, _C_LABEL(restoreintr)           ;\
-	jalr	s0                                  ;\
-	nop                                         ;\
+	mfc0	t0, MIPS_COP_0_STATUS               ;\
+	or	t0, a0, t0                          ;\
+	mtc0	t0, MIPS_COP_0_STATUS               ;\
+	COP0_SYNC                                   ;\
 	beq	s2, zero, 4f                        ;\
 	nop                                         ;\
 	PTR_LA	s0, _C_LABEL(ast)                   ;\
 	jalr	s0                                  ;\
 	PTR_ADDU a0, s3, U_PCB_REGS                 ;\
-	j 44b			                    ;\
+	j	44b		                    ;\
         nop                                         ;\
 4:
 
@@ -383,6 +366,45 @@ _C_LABEL(x):
 #define	CALLFRAME_RA	(CALLFRAME_SIZ - 1 * SZREG)
 
 /*
+ *   Endian-independent assembly-code aliases for unaligned memory accesses.
+ */
+#if _BYTE_ORDER == _LITTLE_ENDIAN
+# define LWHI lwr
+# define LWLO lwl
+# define SWHI swr
+# define SWLO swl
+# if SZREG == 4
+#  define REG_LHI   lwr
+#  define REG_LLO   lwl
+#  define REG_SHI   swr
+#  define REG_SLO   swl
+# else
+#  define REG_LHI   ldr
+#  define REG_LLO   ldl
+#  define REG_SHI   sdr
+#  define REG_SLO   sdl
+# endif
+#endif
+
+#if _BYTE_ORDER == _BIG_ENDIAN
+# define LWHI lwl
+# define LWLO lwr
+# define SWHI swl
+# define SWLO swr
+# if SZREG == 4
+#  define REG_LHI   lwl
+#  define REG_LLO   lwr
+#  define REG_SHI   swl
+#  define REG_SLO   swr
+# else
+#  define REG_LHI   ldl
+#  define REG_LLO   ldr
+#  define REG_SHI   sdl
+#  define REG_SLO   sdr
+# endif
+#endif
+
+/*
  * While it would be nice to be compatible with the SGI
  * REG_L and REG_S macros, because they do not take parameters, it
  * is impossible to use them with the _MIPS_SIM_ABIX32 model.
@@ -402,6 +424,7 @@ _C_LABEL(x):
 #define	PTR_SUBIU	subu
 #define	PTR_L		lw
 #define	PTR_LA		la
+#define	PTR_LI		li
 #define	PTR_S		sw
 #define	PTR_SLL		sll
 #define	PTR_SLLV	sllv
@@ -424,6 +447,7 @@ _C_LABEL(x):
 #define	PTR_SUBIU	dsubu
 #define	PTR_L		ld
 #define	PTR_LA		dla
+#define	PTR_LI		dli
 #define	PTR_S		sd
 #define	PTR_SLL		dsll
 #define	PTR_SLLV	dsllv
@@ -765,7 +789,7 @@ _C_LABEL(x):
 #endif
 
 #define	GET_CPU_PCPU(reg)		\
-	lw	reg, _C_LABEL(pcpup);
+	PTR_L	reg, _C_LABEL(pcpup);
 
 /*
  * Description of the setjmp buffer
@@ -782,10 +806,11 @@ _C_LABEL(x):
  *       9	S7
  *       10	SP
  *       11	S8
- *       12	signal mask	(dependant on magic)
- *       13	(con't)
+ *       12	GP		(dependent on ABI)
+ *       13	signal mask	(dependant on magic)
  *       14	(con't)
  *       15	(con't)
+ *       16	(con't)
  *
  * The magic number number identifies the jmp_buf and
  * how the buffer was created as well as providing
@@ -810,9 +835,26 @@ _C_LABEL(x):
 #define _JB_REG_S7		9
 #define _JB_REG_SP		10
 #define _JB_REG_S8		11
+#if defined(__mips_n32) || defined(__mips_n64)
+#define	_JB_REG_GP		12
+#endif
 
 /* Only valid with the _JB_MAGIC_SETJMP magic */
 
-#define _JB_SIGMASK		12
+#define _JB_SIGMASK		13
 
+/*
+ * Various macros for dealing with TLB hazards
+ * (a) why so many?
+ * (b) when to use?
+ * (c) why not used everywhere?
+ */
+/*
+ * Assume that w alaways need nops to escape CP0 hazard
+ * TODO: Make hazard delays configurable. Stuck with 5 cycles on the moment
+ * For more info on CP0 hazards see Chapter 7 (p.99) of "MIPS32 Architecture 
+ *    For Programmers Volume III: The MIPS32 Privileged Resource Architecture"
+ */
+#define	ITLBNOPFIX	nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;
+#define	HAZARD_DELAY	nop;nop;nop;nop;nop;
 #endif /* !_MACHINE_ASM_H_ */

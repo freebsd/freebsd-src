@@ -31,6 +31,7 @@
 #include <sys/user.h>
 
 #include <err.h>
+#include <libprocstat.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -38,7 +39,7 @@
 #include "procstat.h"
 
 void
-procstat_cred(pid_t pid, struct kinfo_proc *kipp)
+procstat_cred(struct kinfo_proc *kipp)
 {
 	int i;
 	int mib[4];
@@ -51,7 +52,7 @@ procstat_cred(pid_t pid, struct kinfo_proc *kipp)
 		    "COMM", "EUID", "RUID", "SVUID", "EGID", "RGID", "SVGID",
 		    "GROUPS");
 
-	printf("%5d ", pid);
+	printf("%5d ", kipp->ki_pid);
 	printf("%-16s ", kipp->ki_comm);
 	printf("%5d ", kipp->ki_uid);
 	printf("%5d ", kipp->ki_ruid);
@@ -69,7 +70,7 @@ procstat_cred(pid_t pid, struct kinfo_proc *kipp)
 		mib[0] = CTL_KERN;
 		mib[1] = KERN_PROC;
 		mib[2] = KERN_PROC_GROUPS;
-		mib[3] = pid;
+		mib[3] = kipp->ki_pid;
 
 		ngroups = sysconf(_SC_NGROUPS_MAX) + 1;
 		len = ngroups * sizeof(gid_t);
@@ -78,7 +79,7 @@ procstat_cred(pid_t pid, struct kinfo_proc *kipp)
 
 		if (sysctl(mib, 4, groups, &len, NULL, 0) == -1) {
 			warn("sysctl: kern.proc.groups: %d "
-			    "group list truncated", pid);
+			    "group list truncated", kipp->ki_pid);
 			free(groups);
 			groups = NULL;
 		}

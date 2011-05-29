@@ -15,10 +15,10 @@
 #include "includes.h"
 
 #include "common.h"
-#include "md5.h"
-#include "sha1.h"
+#include "crypto/md5.h"
+#include "crypto/sha1.h"
+#include "crypto/tls.h"
 #include "x509v3.h"
-#include "tls.h"
 #include "tlsv1_common.h"
 #include "tlsv1_record.h"
 #include "tlsv1_server.h"
@@ -40,6 +40,7 @@ static int tls_process_client_hello(struct tlsv1_server *conn, u8 ct,
 	u16 cipher_suite;
 	u16 num_suites;
 	int compr_null_found;
+	u16 ext_type, ext_len;
 
 	if (ct != TLS_CONTENT_TYPE_HANDSHAKE) {
 		wpa_printf(MSG_DEBUG, "TLSv1: Expected Handshake; "
@@ -183,10 +184,7 @@ static int tls_process_client_hello(struct tlsv1_server *conn, u8 ct,
 	}
 
 	if (end - pos >= 2) {
-		u16 ext_len;
-
 		/* Extension client_hello_extension_list<0..2^16-1> */
-
 		ext_len = WPA_GET_BE16(pos);
 		pos += 2;
 
@@ -195,7 +193,7 @@ static int tls_process_client_hello(struct tlsv1_server *conn, u8 ct,
 		if (end - pos != ext_len) {
 			wpa_printf(MSG_DEBUG, "TLSv1: Invalid ClientHello "
 				   "extension list length %u (expected %u)",
-				   ext_len, end - pos);
+				   ext_len, (unsigned int) (end - pos));
 			goto decode_error;
 		}
 
@@ -207,8 +205,6 @@ static int tls_process_client_hello(struct tlsv1_server *conn, u8 ct,
 		 */
 
 		while (pos < end) {
-			u16 ext_type, ext_len;
-
 			if (end - pos < 2) {
 				wpa_printf(MSG_DEBUG, "TLSv1: Invalid "
 					   "extension_type field");
@@ -520,7 +516,7 @@ static int tls_process_client_key_exchange_rsa(
 						 out, &outlen) < 0) {
 		wpa_printf(MSG_DEBUG, "TLSv1: Failed to decrypt "
 			   "PreMasterSecret (encr_len=%d outlen=%lu)",
-			   end - pos, (unsigned long) outlen);
+			   (int) (end - pos), (unsigned long) outlen);
 		use_random = 1;
 	}
 
@@ -571,7 +567,6 @@ static int tls_process_client_key_exchange_rsa(
 static int tls_process_client_key_exchange_dh_anon(
 	struct tlsv1_server *conn, const u8 *pos, const u8 *end)
 {
-#ifdef EAP_FAST
 	const u8 *dh_yc;
 	u16 dh_yc_len;
 	u8 *shared;
@@ -669,9 +664,6 @@ static int tls_process_client_key_exchange_dh_anon(
 	}
 
 	return 0;
-#else /* EAP_FAST */
-	return -1;
-#endif /* EAP_FAST */
 }
 
 

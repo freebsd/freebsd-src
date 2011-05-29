@@ -15,9 +15,9 @@
 #undef LOCAL_INCLUDE_DIR		/* We don't wish to support one. */
 
 /* Look for the include files in the system-defined places.  */
-#define GPLUSPLUS_INCLUDE_DIR		PREFIX"/include/c++/4.2"
-#define	GPLUSPLUS_BACKWARD_INCLUDE_DIR	PREFIX"/include/c++/4.2/backward"
-#define GCC_INCLUDE_DIR			PREFIX"/include"
+#define GPLUSPLUS_INCLUDE_DIR		PREFIX"/include/c++/"GCCVER
+#define	GPLUSPLUS_BACKWARD_INCLUDE_DIR	PREFIX"/include/c++/"GCCVER"/backward"
+#define GCC_INCLUDE_DIR			PREFIX"/include/gcc/"GCCVER
 #ifdef CROSS_COMPILE
 #define CROSS_INCLUDE_DIR		PREFIX"/include"
 #else

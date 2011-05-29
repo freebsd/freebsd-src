@@ -201,7 +201,7 @@ throughput_start(struct pppThroughput *t, const char *name, int rolling)
   for (i = 0; i < t->SamplePeriod; i++)
     t->in.SampleOctets[i] = t->out.SampleOctets[i] = 0;
   t->nSample = 0;
-  t->OctetsIn = t->OctetsOut = 0;
+  t->OctetsIn = t->OctetsOut = t->PacketsIn = t->PacketsOut = 0;
   t->in.OctetsPerSecond = t->out.OctetsPerSecond = t->BestOctetsPerSecond = 0;
   time(&t->BestOctetsPerSecondTime);
   t->downtime = 0;
@@ -268,7 +268,7 @@ throughput_clear(struct pppThroughput *t, int clear_type, struct prompt *prompt)
       divisor = 1;
     prompt_Printf(prompt, "overall cleared (was %6qu bytes/sec)\n",
                   (t->OctetsIn + t->OctetsOut) / divisor);
-    t->OctetsIn = t->OctetsOut = 0;
+    t->OctetsIn = t->OctetsOut = t->PacketsIn = t->PacketsOut = 0;
     t->downtime = 0;
     time(&t->uptime);
   }

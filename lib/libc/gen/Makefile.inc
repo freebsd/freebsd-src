@@ -2,15 +2,15 @@
 # $FreeBSD$
 
 # machine-independent gen sources
-.PATH: ${.CURDIR}/${MACHINE_ARCH}/gen ${.CURDIR}/gen
+.PATH: ${.CURDIR}/${LIBC_ARCH}/gen ${.CURDIR}/gen
 
 SRCS+=  __getosreldate.c __xuname.c \
 	_once_stub.c _pthread_stubs.c _rand48.c _spinlock_stub.c \
 	_thread_init.c \
-	alarm.c arc4random.c assert.c basename.c check_utility_compat.c \
+	alarm.c arc4random.c assert.c aux.c basename.c check_utility_compat.c \
 	clock.c closedir.c confstr.c \
 	crypt.c ctermid.c daemon.c devname.c dirname.c disklabel.c \
-	dlfcn.c drand48.c erand48.c err.c errlst.c errno.c \
+	dlfcn.c drand48.c elf_utils.c erand48.c err.c errlst.c errno.c \
 	exec.c fdevname.c feature_present.c fmtcheck.c fmtmsg.c fnmatch.c \
 	fpclassify.c frexp.c fstab.c ftok.c fts.c fts-compat.c ftw.c \
 	getbootfile.c getbsize.c \
@@ -25,7 +25,7 @@ SRCS+=  __getosreldate.c __xuname.c \
 	pause.c pmadvise.c popen.c posix_spawn.c \
 	psignal.c pututxline.c pw_scan.c pwcache.c \
 	raise.c readdir.c readpassphrase.c rewinddir.c \
-	scandir.c seed48.c seekdir.c sem.c sem_new.c semctl.c \
+	scandir.c seed48.c seekdir.c semctl.c \
 	setdomainname.c sethostname.c setjmperr.c setmode.c \
 	setproctitle.c setprogname.c siginterrupt.c siglist.c signal.c \
 	sigsetops.c sleep.c srand48.c statvfs.c stringlist.c strtofflags.c \
@@ -35,12 +35,18 @@ SRCS+=  __getosreldate.c __xuname.c \
 	usleep.c utime.c utxdb.c valloc.c vis.c wait.c wait3.c waitpid.c \
 	wordexp.c
 
+CANCELPOINTS_SRCS=sem.c sem_new.c
+.for src in ${CANCELPOINTS_SRCS}
+SRCS+=cancelpoints_${src}
+CLEANFILES+=cancelpoints_${src}
+cancelpoints_${src}:
+	ln -sf ${.CURDIR}/gen/${src} ${.TARGET}
+.endfor
+
 SYM_MAPS+=${.CURDIR}/gen/Symbol.map
 
 # machine-dependent gen sources
-.if exists(${.CURDIR}/${MACHINE_ARCH}/gen/Makefile.inc)
-.include "${.CURDIR}/${MACHINE_ARCH}/gen/Makefile.inc"
-.endif
+.sinclude "${.CURDIR}/${LIBC_ARCH}/gen/Makefile.inc"
 
 MAN+=	alarm.3 arc4random.3 \
 	basename.3 check_utility_compat.3 clock.3 \
@@ -129,7 +135,7 @@ MLINKS+=getusershell.3 endusershell.3 getusershell.3 setusershell.3
 MLINKS+=getutxent.3 endutxent.3 getutxent.3 getutxid.3 \
 	getutxent.3 getutxline.3 getutxent.3 getutxuser.3 \
 	getutxent.3 pututxline.3 getutxent.3 setutxdb.3 \
-	getutxent.3 setutxent.3
+	getutxent.3 setutxent.3 getutxent.3 utmpx.3
 MLINKS+=glob.3 globfree.3
 MLINKS+=isgreater.3 isgreaterequal.3 isgreater.3 isless.3 \
 	isgreater.3 islessequal.3 isgreater.3 islessgreater.3 \
@@ -174,9 +180,9 @@ MLINKS+=syslog.3 closelog.3 syslog.3 openlog.3 syslog.3 setlogmask.3 \
 	syslog.3 vsyslog.3
 MLINKS+=tcsendbreak.3 tcdrain.3 tcsendbreak.3 tcflow.3 tcsendbreak.3 tcflush.3
 MLINKS+=tcsetattr.3 cfgetispeed.3 tcsetattr.3 cfgetospeed.3 \
-	tcsetattr.3 cfmakeraw.3 tcsetattr.3 cfsetispeed.3 \
-	tcsetattr.3 cfsetospeed.3 tcsetattr.3 cfsetspeed.3 \
-	tcsetattr.3 tcgetattr.3
+	tcsetattr.3 cfmakeraw.3 tcsetattr.3 cfmakesane.3 \
+	tcsetattr.3 cfsetispeed.3 tcsetattr.3 cfsetospeed.3 \
+	tcsetattr.3 cfsetspeed.3 tcsetattr.3 tcgetattr.3
 MLINKS+=ttyname.3 isatty.3 ttyname.3 ttyname_r.3
 MLINKS+=tzset.3 tzsetwall.3
 MLINKS+=unvis.3 strunvis.3 unvis.3 strunvisx.3

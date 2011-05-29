@@ -93,15 +93,14 @@ CTASSERT(sizeof(struct ia32_ucontext4) == 324);
 CTASSERT(sizeof(struct ia32_sigframe4) == 408);
 #endif
 
-static register_t *ia32_copyout_strings(struct image_params *imgp);
-static void ia32_fixlimit(struct rlimit *rl, int which);
+extern const char *freebsd32_syscallnames[];
 
 SYSCTL_NODE(_compat, OID_AUTO, ia32, CTLFLAG_RW, 0, "ia32 mode");
 
 static u_long	ia32_maxdsiz = IA32_MAXDSIZ;
 SYSCTL_ULONG(_compat_ia32, OID_AUTO, maxdsiz, CTLFLAG_RW, &ia32_maxdsiz, 0, "");
 TUNABLE_ULONG("compat.ia32.maxdsiz", &ia32_maxdsiz);
-static u_long	ia32_maxssiz = IA32_MAXSSIZ;
+u_long	ia32_maxssiz = IA32_MAXSSIZ;
 SYSCTL_ULONG(_compat_ia32, OID_AUTO, maxssiz, CTLFLAG_RW, &ia32_maxssiz, 0, "");
 TUNABLE_ULONG("compat.ia32.maxssiz", &ia32_maxssiz);
 static u_long	ia32_maxvmem = IA32_MAXVMEM;
@@ -128,17 +127,29 @@ struct sysentvec ia32_freebsd_sysvec = {
 	.sv_minsigstksz	= MINSIGSTKSZ,
 	.sv_pagesize	= IA32_PAGE_SIZE,
 	.sv_minuser	= 0,
-	.sv_maxuser	= FREEBSD32_USRSTACK,
+	.sv_maxuser	= FREEBSD32_MAXUSER,
 	.sv_usrstack	= FREEBSD32_USRSTACK,
 	.sv_psstrings	= FREEBSD32_PS_STRINGS,
 	.sv_stackprot	= VM_PROT_ALL,
-	.sv_copyout_strings	= ia32_copyout_strings,
+	.sv_copyout_strings	= freebsd32_copyout_strings,
 	.sv_setregs	= ia32_setregs,
 	.sv_fixlimit	= ia32_fixlimit,
 	.sv_maxssiz	= &ia32_maxssiz,
-	.sv_flags	= SV_ABI_FREEBSD | SV_IA32 | SV_ILP32
+	.sv_flags	= SV_ABI_FREEBSD | SV_IA32 | SV_ILP32 |
+#ifdef __amd64__
+		SV_SHP
+#else
+		0
+#endif
+	,
+	.sv_set_syscall_retval = ia32_set_syscall_retval,
+	.sv_fetch_syscall_args = ia32_fetch_syscall_args,
+	.sv_syscallnames = freebsd32_syscallnames,
+	.sv_shared_page_base = FREEBSD32_SHAREDPAGE,
+	.sv_shared_page_len = PAGE_SIZE,
+	.sv_schedtail	= NULL,
 };
-
+INIT_SYSENTVEC(elf_ia32_sysvec, &ia32_freebsd_sysvec);
 
 static Elf32_Brandinfo ia32_brand_info = {
 	.brand		= ELFOSABI_FREEBSD,
@@ -187,135 +198,13 @@ SYSINIT(kia32, SI_SUB_EXEC, SI_ORDER_ANY,
 	(sysinit_cfunc_t) elf32_insert_brand_entry,
 	&kia32_brand_info);
 
-
 void
 elf32_dump_thread(struct thread *td __unused, void *dst __unused,
     size_t *off __unused)
 {
 }
 
-
-/* XXX may be freebsd32 MI */
-static register_t *
-ia32_copyout_strings(struct image_params *imgp)
-{
-	int argc, envc;
-	u_int32_t *vectp;
-	char *stringp, *destp;
-	u_int32_t *stack_base;
-	struct freebsd32_ps_strings *arginfo;
-	size_t execpath_len;
-	int szsigcode;
-
-	/*
-	 * Calculate string base and vector table pointers.
-	 * Also deal with signal trampoline code for this exec type.
-	 */
-	if (imgp->execpath != NULL && imgp->auxargs != NULL)
-		execpath_len = strlen(imgp->execpath) + 1;
-	else
-		execpath_len = 0;
-	arginfo = (struct freebsd32_ps_strings *)FREEBSD32_PS_STRINGS;
-	szsigcode = *(imgp->proc->p_sysent->sv_szsigcode);
-	destp =	(caddr_t)arginfo - szsigcode - SPARE_USRSPACE -
-		roundup(execpath_len, sizeof(char *)) -
-		roundup((ARG_MAX - imgp->args->stringspace), sizeof(char *));
-
-	/*
-	 * install sigcode
-	 */
-	if (szsigcode)
-		copyout(imgp->proc->p_sysent->sv_sigcode,
-			((caddr_t)arginfo - szsigcode), szsigcode);
-
-	/*
-	 * Copy the image path for the rtld.
-	 */
-	if (execpath_len != 0) {
-		imgp->execpathp = (uintptr_t)arginfo - szsigcode - execpath_len;
-		copyout(imgp->execpath, (void *)imgp->execpathp,
-		    execpath_len);
-	}
-
-	/*
-	 * If we have a valid auxargs ptr, prepare some room
-	 * on the stack.
-	 */
-	if (imgp->auxargs) {
-		/*
-		 * 'AT_COUNT*2' is size for the ELF Auxargs data. This is for
-		 * lower compatibility.
-		 */
-		imgp->auxarg_size = (imgp->auxarg_size) ? imgp->auxarg_size
-			: (AT_COUNT * 2);
-		/*
-		 * The '+ 2' is for the null pointers at the end of each of
-		 * the arg and env vector sets,and imgp->auxarg_size is room
-		 * for argument of Runtime loader.
-		 */
-		vectp = (u_int32_t *) (destp - (imgp->args->argc +
-		    imgp->args->envc + 2 + imgp->auxarg_size + execpath_len) *
-		    sizeof(u_int32_t));
-	} else
-		/*
-		 * The '+ 2' is for the null pointers at the end of each of
-		 * the arg and env vector sets
-		 */
-		vectp = (u_int32_t *)
-			(destp - (imgp->args->argc + imgp->args->envc + 2) * sizeof(u_int32_t));
-
-	/*
-	 * vectp also becomes our initial stack base
-	 */
-	stack_base = vectp;
-
-	stringp = imgp->args->begin_argv;
-	argc = imgp->args->argc;
-	envc = imgp->args->envc;
-	/*
-	 * Copy out strings - arguments and environment.
-	 */
-	copyout(stringp, destp, ARG_MAX - imgp->args->stringspace);
-
-	/*
-	 * Fill in "ps_strings" struct for ps, w, etc.
-	 */
-	suword32(&arginfo->ps_argvstr, (u_int32_t)(intptr_t)vectp);
-	suword32(&arginfo->ps_nargvstr, argc);
-
-	/*
-	 * Fill in argument portion of vector table.
-	 */
-	for (; argc > 0; --argc) {
-		suword32(vectp++, (u_int32_t)(intptr_t)destp);
-		while (*stringp++ != 0)
-			destp++;
-		destp++;
-	}
-
-	/* a null vector table pointer separates the argp's from the envp's */
-	suword32(vectp++, 0);
-
-	suword32(&arginfo->ps_envstr, (u_int32_t)(intptr_t)vectp);
-	suword32(&arginfo->ps_nenvstr, envc);
-
-	/*
-	 * Fill in environment portion of vector table.
-	 */
-	for (; envc > 0; --envc) {
-		suword32(vectp++, (u_int32_t)(intptr_t)destp);
-		while (*stringp++ != 0)
-			destp++;
-		destp++;
-	}
-
-	/* end of vector table is a null pointer */
-	suword32(vectp, 0);
-
-	return ((register_t *)stack_base);
-}
-
-static void
+void
 ia32_fixlimit(struct rlimit *rl, int which)
 {
 

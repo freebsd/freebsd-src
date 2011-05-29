@@ -1,0 +1,36 @@
+.TH IBCHECKSTATE 8 "May 21, 2007" "OpenIB" "OpenIB Diagnostics"
+
+.SH NAME
+ibcheckstate \- find ports in IB subnet which are link up but not active
+
+.SH SYNOPSIS
+.B ibcheckstate
+[\-h] [\-v] [\-N | \-nocolor] [<topology-file> | \-C ca_name \-P ca_port
+\-t(imeout) timeout_ms]
+
+.SH DESCRIPTION
+.PP
+ibcheckstat is a script which uses a full topology file that was created by
+ibnetdiscover, scans the network to validate the port state and port physical
+state, and reports any ports which have a port state other than Active or
+a port physical state other than LinkUp.
+
+.SH OPTIONS
+.PP
+\-N | \-nocolor use mono rather than color mode
+.PP
+\-C <ca_name>    use the specified ca_name.
+.PP
+\-P <ca_port>    use the specified ca_port.
+.PP
+\-t <timeout_ms> override the default timeout for the solicited mads.
+
+.SH SEE ALSO
+.BR ibnetdiscover(8),
+.BR ibchecknode(8),
+.BR ibcheckportstate(8)
+
+.SH AUTHOR
+.TP
+Hal Rosenstock
+.RI < halr@voltaire.com >

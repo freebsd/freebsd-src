@@ -1190,7 +1190,7 @@ xge_interface_setup(device_t dev)
 	ifnetp->if_start    = xge_send;
 
 	/* TODO: Check and assign optimal value */
-	ifnetp->if_snd.ifq_maxlen = IFQ_MAXLEN;
+	ifnetp->if_snd.ifq_maxlen = ifqmaxlen;
 
 	ifnetp->if_capabilities = IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU |
 	    IFCAP_HWCSUM;

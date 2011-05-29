@@ -86,6 +86,13 @@
 #define	VM_NFREEORDER		9
 
 /*
+ * Only one memory domain.
+ */
+#ifndef VM_NDOMAIN
+#define	VM_NDOMAIN		1
+#endif
+
+/*
  * Disable superpage reservations.
  */
 #ifndef	VM_NRESERVLEVEL
@@ -139,9 +146,11 @@
 #define DFLSSIZ         (2*1024*1024)
 #define MAXSSIZ         (8*1024*1024)
 #define SGROWSIZ        (128*1024)
-#define MAXSLP		20
 
 #ifdef ARM_USE_SMALL_ALLOC
 #define UMA_MD_SMALL_ALLOC
 #endif /* ARM_USE_SMALL_ALLOC */
+
+#define	ZERO_REGION_SIZE	(64 * 1024)	/* 64KB */
+
 #endif	/* _MACHINE_VMPARAM_H_ */

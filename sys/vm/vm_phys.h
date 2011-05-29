@@ -40,10 +40,20 @@
 
 #ifdef _KERNEL
 
+/* Domains must be dense (non-sparse) and zero-based. */
+struct mem_affinity {
+	vm_paddr_t start;
+	vm_paddr_t end;
+	int domain;
+};
+
+extern struct mem_affinity *mem_affinity;
+
 void vm_phys_add_page(vm_paddr_t pa);
 vm_page_t vm_phys_alloc_contig(unsigned long npages,
     vm_paddr_t low, vm_paddr_t high,
     unsigned long alignment, unsigned long boundary);
+vm_page_t vm_phys_alloc_freelist_pages(int flind, int pool, int order);
 vm_page_t vm_phys_alloc_pages(int pool, int order);
 vm_paddr_t vm_phys_bootstrap_alloc(vm_size_t size, unsigned long alignment);
 void vm_phys_free_pages(vm_page_t m, int order);

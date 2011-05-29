@@ -19,7 +19,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 18, 2002
+.Dd April 10, 2011
 .Dt LIMITS 1
 .Os
 .Sh NAME
@@ -30,11 +30,11 @@
 .Op Fl C Ar class | Fl U Ar user
 .Op Fl SHB
 .Op Fl ea
-.Op Fl bcdflmnstuvp Op Ar val
+.Op Fl bcdflmnstuvpw Op Ar val
 .Nm
 .Op Fl C Ar class | Fl U Ar user
 .Op Fl SHB
-.Op Fl bcdflmnstuvp Op Ar val
+.Op Fl bcdflmnstuvpw Op Ar val
 .Op Fl E
 .Oo
 .Op Ar name Ns = Ns Ar value ...
@@ -266,6 +266,10 @@ space.
 Select or set the
 .Va pseudoterminals
 resource limit.
+.It Fl w Op Ar val
+Select or set the
+.Va swapuse
+resource limit.
 .El
 .Pp
 Valid values for
@@ -369,6 +373,7 @@ will be whatever the executed program returns.
 .Xr setrlimit 2 ,
 .Xr login_cap 3 ,
 .Xr login.conf 5 ,
+.Xr rctl 8 ,
 .Xr sysctl 8
 .Sh BUGS
 The

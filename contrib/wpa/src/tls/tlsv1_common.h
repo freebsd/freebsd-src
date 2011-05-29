@@ -15,7 +15,7 @@
 #ifndef TLSV1_COMMON_H
 #define TLSV1_COMMON_H
 
-#include "crypto.h"
+#include "crypto/crypto.h"
 
 #define TLS_VERSION 0x0301 /* TLSv1 */
 #define TLS_RANDOM_LEN 32

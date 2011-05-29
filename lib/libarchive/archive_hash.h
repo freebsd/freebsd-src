@@ -41,11 +41,11 @@
  * - OpenBSD 4.4 and earlier have SHA2 in libc with _ after algorithm name
  *
  * DragonFly and FreeBSD (XXX not used yet):
- * - MD5 and SHA1 in libmd: without _ after algorithm name
- * - SHA256: with _ after algorithm name
+ * - MD5 in libmd: without _ after algorithm name
+ * - SHA{1,256,512} in libmd: with _ after algorithm name (conflicts w/OpenSSL!)
  *
  * OpenSSL:
- * - MD5, SHA1 and SHA2 in libcrypto: with _ after algorithm name
+ * - MD5, SHA1, SHA2, SHA{256,384,512} in libcrypto: with _ after algorithm name
  */
 
 #if defined(HAVE_MD5_H) && defined(HAVE_MD5INIT)

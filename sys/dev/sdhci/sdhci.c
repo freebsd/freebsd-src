@@ -83,6 +83,8 @@ static const struct sdhci_device {
 } sdhci_devices[] = {
 	{ 0x08221180, 	0xffff,	"RICOH R5C822 SD",
 	    SDHCI_QUIRK_FORCE_DMA },
+	{ 0xe8221180, 	0xffff,	"RICOH SD",
+	    SDHCI_QUIRK_FORCE_DMA },
 	{ 0x8034104c, 	0xffff, "TI XX21/XX11 SD",
 	    SDHCI_QUIRK_FORCE_DMA },
 	{ 0x05501524, 	0xffff, "ENE CB712 SD",

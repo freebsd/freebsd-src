@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/cpufunc.h>
 #include <machine/intr_machdep.h>
+#include <x86/mca.h>
 #include <machine/segments.h>
 
 #include <contrib/dev/acpica/include/acpi.h>
@@ -52,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/acpica/acpivar.h>
 
 #include "acpi_wakecode.h"
+#include "acpi_wakedata.h"
 
 /* Make sure the code is less than one page and leave room for the stack. */
 CTASSERT(sizeof(wakecode) < PAGE_SIZE - 1024);
@@ -272,6 +274,7 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 		for (;;) ;
 	} else {
 		/* Execute Wakeup */
+		mca_resume();
 		intr_resume();
 
 		if (bootverbose) {

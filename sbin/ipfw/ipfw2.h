@@ -125,6 +125,7 @@ enum tokens {
 	TOK_IPLEN,
 	TOK_IPID,
 	TOK_IPPRECEDENCE,
+	TOK_DSCP,
 	TOK_IPTOS,
 	TOK_IPTTL,
 	TOK_IPVER,
@@ -182,7 +183,7 @@ enum tokens {
  	TOK_PROXY_ONLY,
 	TOK_REDIR_ADDR,
 	TOK_REDIR_PORT,
-	TOK_REDIR_PROTO,	
+	TOK_REDIR_PROTO,
 
 	TOK_IPV6,
 	TOK_FLOWID,
@@ -198,6 +199,7 @@ enum tokens {
 	TOK_FIB,
 	TOK_SETFIB,
 	TOK_LOOKUP,
+	TOK_SOCKARG,
 };
 /*
  * the following macro returns an error message if we run out of
@@ -206,7 +208,7 @@ enum tokens {
 #define NEED(_p, msg)      {if (!_p) errx(EX_USAGE, msg);}
 #define NEED1(msg)      {if (!(*av)) errx(EX_USAGE, msg);}
 
-unsigned long long align_uint64(const uint64_t *pll);
+int pr_u64(uint64_t *pd, int width);
 
 /* memory allocation support */
 void *safe_calloc(size_t number, size_t size);

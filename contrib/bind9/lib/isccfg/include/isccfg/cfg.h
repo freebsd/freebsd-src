@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: cfg.h,v 1.44 2007/10/12 04:17:18 each Exp $ */
+/* $Id: cfg.h,v 1.44 2007-10-12 04:17:18 each Exp $ */
 
 #ifndef ISCCFG_CFG_H
 #define ISCCFG_CFG_H 1

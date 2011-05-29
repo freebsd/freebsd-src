@@ -1,5 +1,5 @@
 # <pre>
-# @(#)europe	8.25
+# @(#)europe	8.32
 # This file is in the public domain, so clarified as of
 # 2009-05-17 by Arthur David Olson.
 
@@ -146,7 +146,7 @@
 # A monument to Willett was unveiled on 1927-05-21, in an open space in
 # a 45-acre wood near Chislehurst, Kent that was purchased by popular
 # subscription and open to the public.  On the south face of the monolith,
-# designed by G. W. Miller, is the the William Willett Memorial Sundial,
+# designed by G. W. Miller, is the...William Willett Memorial Sundial,
 # which is permanently set to Summer Time.
 
 # From Winston Churchill (1934-04-28):
@@ -1013,22 +1013,47 @@ Zone	Europe/Tallinn	1:39:00	-	LMT	1880
 			2:00	EU	EE%sT
 
 # Finland
-#
+
 # From Hannu Strang (1994-09-25 06:03:37 UTC):
 # Well, here in Helsinki we're just changing from summer time to regular one,
 # and it's supposed to change at 4am...
+
+# From Janne Snabb (2010-0715):
 #
-# From Paul Eggert (2006-03-22):
-# Shanks & Pottenger say Finland has switched at 02:00 standard time
-# since 1981.  Go with Strang instead.
+# I noticed that the Finland data is not accurate for years 1981 and 1982.
+# During these two first trial years the DST adjustment was made one hour
+# earlier than in forthcoming years. Starting 1983 the adjustment was made
+# according to the central European standards.
 #
+# This is documented in Heikki Oja: Aikakirja 2007, published by The Almanac
+# Office of University of Helsinki, ISBN 952-10-3221-9, available online (in
+# Finnish) at
+#
+# <a href="http://almanakka.helsinki.fi/aikakirja/Aikakirja2007kokonaan.pdf">
+# http://almanakka.helsinki.fi/aikakirja/Aikakirja2007kokonaan.pdf
+# </a>
+#
+# Page 105 (56 in PDF version) has a handy table of all past daylight savings
+# transitions. It is easy enough to interpret without Finnish skills.
+#
+# This is also confirmed by Finnish Broadcasting Company's archive at:
+#
+# <a href="http://www.yle.fi/elavaarkisto/?s=s&g=1&ag=5&t=&a=3401">
+# http://www.yle.fi/elavaarkisto/?s=s&g=1&ag=5&t=&a=3401
+# </a>
+#
+# The news clip from 1981 says that "the time between 2 and 3 o'clock does not
+# exist tonight."
+
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Finland	1942	only	-	Apr	3	0:00	1:00	S
 Rule	Finland	1942	only	-	Oct	3	0:00	0	-
+Rule	Finland	1981	1982	-	Mar	lastSun	2:00	1:00	S
+Rule	Finland	1981	1982	-	Sep	lastSun	3:00	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Europe/Helsinki	1:39:52 -	LMT	1878 May 31
 			1:39:52	-	HMT	1921 May    # Helsinki Mean Time
-			2:00	Finland	EE%sT	1981 Mar 29 2:00
+			2:00	Finland	EE%sT	1983
 			2:00	EU	EE%sT
 
 # Aaland Is
@@ -1761,7 +1786,7 @@ Zone	Europe/Oslo	0:43:00 -	LMT	1895 Jan  1
 #
 # All these events predate our cutoff date of 1970.  Unless we can
 # come up with more definitive info about the timekeeping during the
-# war years it's probably best just do do the following for now:
+# war years it's probably best just do...the following for now:
 Link	Europe/Oslo	Arctic/Longyearbyen
 
 # Poland
@@ -2041,7 +2066,9 @@ Zone Europe/Samara	 3:20:36 -	LMT	1919 Jul  1 2:00
 			 3:00	Russia	KUY%sT	1991 Mar 31 2:00s
 			 2:00	Russia	KUY%sT	1991 Sep 29 2:00s
 			 3:00	-	KUYT	1991 Oct 20 3:00
-			 4:00	Russia	SAM%sT	# Samara Time
+			 4:00	Russia	SAM%sT	2010 Mar 28 2:00s # Samara Time
+			 3:00	Russia	SAM%sT
+
 #
 # From Oscar van Vlijmen (2001-08-25): [This region consists of]
 # Respublika Bashkortostan, Komi-Permyatskij avtonomnyj okrug,
@@ -2194,7 +2221,8 @@ Zone Asia/Kamchatka	10:34:36 -	LMT	1922 Nov 10
 			11:00	-	PETT	1930 Jun 21 # P-K Time
 			12:00	Russia	PET%sT	1991 Mar 31 2:00s
 			11:00	Russia	PET%sT	1992 Jan 19 2:00s
-			12:00	Russia	PET%sT
+			12:00	Russia	PET%sT	2010 Mar 28 2:00s
+			11:00	Russia	PET%sT
 #
 # Chukotskij avtonomnyj okrug
 Zone Asia/Anadyr	11:49:56 -	LMT	1924 May  2
@@ -2202,7 +2230,8 @@ Zone Asia/Anadyr	11:49:56 -	LMT	1924 May  2
 			13:00	Russia	ANA%sT	1982 Apr  1 0:00s
 			12:00	Russia	ANA%sT	1991 Mar 31 2:00s
 			11:00	Russia	ANA%sT	1992 Jan 19 2:00s
-			12:00	Russia	ANA%sT
+			12:00	Russia	ANA%sT	2010 Mar 28 2:00s
+			11:00	Russia	ANA%sT
 
 # Serbia
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -2454,25 +2483,18 @@ Zone	Europe/Zurich	0:34:08 -	LMT	1848 Sep 12
 # (on a non-government server though) describing dates between 2002 and 2006:
 # http://www.alomaliye.com/bkk_2002_3769.htm
 
-# From Sue Williams (2008-08-11):
-# I spotted this news article about a potential change in Turkey.
-#
-# <a href="http://www.hurriyet.com.tr/english/domestic/9626174.asp?scr=1">
-# http://www.hurriyet.com.tr/english/domestic/9626174.asp?scr=1
+# From G&ouml;kdeniz Karada&#x011f; (2011-03-10):
+# 
+# According to the articles linked below, Turkey will change into summer
+# time zone (GMT+3) on March 28, 2011 at 3:00 a.m. instead of March 27.
+# This change is due to a nationwide exam on 27th.
+# 
+# <a href="http://www.worldbulletin.net/?aType=haber&ArticleID=70872">
+# http://www.worldbulletin.net/?aType=haber&ArticleID=70872
 # </a>
-
-# From Sue Williams (2008-08-20):
-# This article says that around the end of March 2011, Turkey wants to
-# adjust the clocks forward by 1/2 hour and stay that way permanently.
-# The article indicates that this is a change in timezone offset in addition
-# to stopping observance of DST.
-# This proposal has not yet been approved.
-#
-# Read more here...
-#
-# Turkey to abandon daylight saving time in 2011
-# <a href="http://www.turkishdailynews.com.tr/article.php?enewsid=112989">
-# http://www.turkishdailynews.com.tr/article.php?enewsid=112989
+# Turkish:
+# <a href="http://www.hurriyet.com.tr/ekonomi/17230464.asp?gid=373">
+# http://www.hurriyet.com.tr/ekonomi/17230464.asp?gid=373
 # </a>
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
@@ -2540,6 +2562,8 @@ Zone	Europe/Istanbul	1:55:52 -	LMT	1880
 			2:00	Turkey	EE%sT	1978 Oct 15
 			3:00	Turkey	TR%sT	1985 Apr 20 # Turkey Time
 			2:00	Turkey	EE%sT	2007
+			2:00	EU	EE%sT	2011 Mar 27 1:00u
+			2:00	-	EET	2011 Mar 28 1:00u
 			2:00	EU	EE%sT
 Link	Europe/Istanbul	Asia/Istanbul	# Istanbul is in both continents.
 

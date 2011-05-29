@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007 The DragonFly Project.  All rights reserved.
+ * Copyright (c) 2007 Sepherosa Ziehau.  All rights reserved.
  *
  * This code is derived from software contributed to The DragonFly Project
  * by Sepherosa Ziehau <sepherosa@gmail.com>

@@ -2908,8 +2908,8 @@ en_attach(struct en_softc *sc)
 		goto fail;
 
 	if (SYSCTL_ADD_PROC(&sc->sysctl_ctx, SYSCTL_CHILDREN(sc->sysctl_tree),
-	    OID_AUTO, "istats", CTLFLAG_RD, sc, 0, en_sysctl_istats,
-	    "S", "internal statistics") == NULL)
+	    OID_AUTO, "istats", CTLTYPE_OPAQUE | CTLFLAG_RD, sc, 0,
+	    en_sysctl_istats, "S", "internal statistics") == NULL)
 		goto fail;
 
 #ifdef EN_DEBUG

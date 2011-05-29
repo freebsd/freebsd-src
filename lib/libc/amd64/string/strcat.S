@@ -164,3 +164,5 @@ ENTRY(strcat)
 .Ldone:
 	ret
 END(strcat)
+
+	.section .note.GNU-stack,"",%progbits

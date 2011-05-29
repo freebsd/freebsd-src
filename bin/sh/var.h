@@ -45,11 +45,13 @@
 #define VSTACK		0x10	/* text is allocated on the stack */
 #define VUNSET		0x20	/* the variable is not set */
 #define VNOFUNC		0x40	/* don't call the callback function */
+#define VNOSET		0x80	/* do not set variable - just readonly test */
 
 
 struct var {
 	struct var *next;		/* next entry in hash list */
 	int flags;			/* flags are defined above */
+	int name_len;			/* length of name */
 	char *text;			/* name=value */
 	void (*func)(const char *);
 					/* function to be called when  */
@@ -77,7 +79,12 @@ extern struct var vps2;
 extern struct var vps4;
 #ifndef NO_HISTORY
 extern struct var vhistsize;
+extern struct var vterm;
 #endif
+
+extern int localeisutf8;
+/* The parser uses the locale that was in effect at startup. */
+extern int initial_localeisutf8;
 
 /*
  * The following macros access the values of the above variables.
@@ -96,6 +103,7 @@ extern struct var vhistsize;
 #define optindval()	(voptind.text + 7)
 #ifndef NO_HISTORY
 #define histsizeval()	(vhistsize.text + 9)
+#define termval()	(vterm.text + 5)
 #endif
 
 #define mpathset()	((vmpath.flags & VUNSET) == 0)
@@ -104,9 +112,13 @@ void initvar(void);
 void setvar(const char *, const char *, int);
 void setvareq(char *, int);
 struct strlist;
-void listsetvar(struct strlist *);
+void listsetvar(struct strlist *, int);
 char *lookupvar(const char *);
 char *bltinlookup(const char *, int);
+void bltinsetlocale(void);
+void bltinunsetlocale(void);
+void updatecharset(void);
+void initcharset(void);
 char **environment(void);
 int showvarscmd(int, char **);
 int exportcmd(int, char **);

@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-add.c,v 1.90 2007/09/09 11:38:01 sobrado Exp $ */
+/* $OpenBSD: ssh-add.c,v 1.100 2010/08/31 12:33:38 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -70,6 +70,9 @@ extern char *__progname;
 static char *default_files[] = {
 	_PATH_SSH_CLIENT_ID_RSA,
 	_PATH_SSH_CLIENT_ID_DSA,
+#ifdef OPENSSL_HAS_ECC
+	_PATH_SSH_CLIENT_ID_ECDSA,
+#endif
 	_PATH_SSH_CLIENT_IDENTITY,
 	NULL
 };
@@ -138,9 +141,9 @@ delete_all(AuthenticationConnection *ac)
 static int
 add_file(AuthenticationConnection *ac, const char *filename)
 {
-	Key *private;
+	Key *private, *cert;
 	char *comment = NULL;
-	char msg[1024];
+	char msg[1024], *certpath;
 	int fd, perms_ok, ret = -1;
 
 	if ((fd = open(filename, O_RDONLY)) < 0) {
@@ -194,14 +197,46 @@ add_file(AuthenticationConnection *ac, const char *filename)
 			    "Lifetime set to %d seconds\n", lifetime);
 		if (confirm != 0)
 			fprintf(stderr,
-			    "The user has to confirm each use of the key\n");
-	} else if (ssh_add_identity(ac, private, comment)) {
-		fprintf(stderr, "Identity added: %s (%s)\n", filename, comment);
-		ret = 0;
+			    "The user must confirm each use of the key\n");
 	} else {
 		fprintf(stderr, "Could not add identity: %s\n", filename);
 	}
 
+
+	/* Now try to add the certificate flavour too */
+	xasprintf(&certpath, "%s-cert.pub", filename);
+	if ((cert = key_load_public(certpath, NULL)) == NULL)
+		goto out;
+
+	if (!key_equal_public(cert, private)) {
+		error("Certificate %s does not match private key %s",
+		    certpath, filename);
+		key_free(cert);
+		goto out;
+	} 
+
+	/* Graft with private bits */
+	if (key_to_certified(private, key_cert_is_legacy(cert)) != 0) {
+		error("%s: key_to_certified failed", __func__);
+		key_free(cert);
+		goto out;
+	}
+	key_cert_copy(cert, private);
+	key_free(cert);
+
+	if (!ssh_add_identity_constrained(ac, private, comment,
+	    lifetime, confirm)) {
+		error("Certificate %s (%s) add failed", certpath,
+		    private->cert->key_id);
+	}
+	fprintf(stderr, "Certificate added: %s (%s)\n", certpath,
+	    private->cert->key_id);
+	if (lifetime != 0)
+		fprintf(stderr, "Lifetime set to %d seconds\n", lifetime);
+	if (confirm != 0)
+		fprintf(stderr, "The user must confirm each use of the key\n");
+ out:
+	xfree(certpath);
 	xfree(comment);
 	key_free(private);
 
@@ -214,7 +249,7 @@ update_card(AuthenticationConnection *ac, int add, const char *id)
 	char *pin;
 	int ret = -1;
 
-	pin = read_passphrase("Enter passphrase for smartcard: ", RP_ALLOW_STDIN);
+	pin = read_passphrase("Enter passphrase for PKCS#11: ", RP_ALLOW_STDIN);
 	if (pin == NULL)
 		return -1;
 
@@ -320,10 +355,8 @@ usage(void)
 	fprintf(stderr, "  -X          Unlock agent.\n");
 	fprintf(stderr, "  -t life     Set lifetime (in seconds) when adding identities.\n");
 	fprintf(stderr, "  -c          Require confirmation to sign using identities\n");
-#ifdef SMARTCARD
-	fprintf(stderr, "  -s reader   Add key in smartcard reader.\n");
-	fprintf(stderr, "  -e reader   Remove key in smartcard reader.\n");
-#endif
+	fprintf(stderr, "  -s pkcs11   Add keys from PKCS#11 provider.\n");
+	fprintf(stderr, "  -e pkcs11   Remove keys provided by PKCS#11 provider.\n");
 }
 
 int
@@ -332,7 +365,7 @@ main(int argc, char **argv)
 	extern char *optarg;
 	extern int optind;
 	AuthenticationConnection *ac = NULL;
-	char *sc_reader_id = NULL;
+	char *pkcs11provider = NULL;
 	int i, ch, deleting = 0, ret = 0;
 
 	/* Ensure that fds 0, 1 and 2 are open or directed to /dev/null */
@@ -342,7 +375,7 @@ main(int argc, char **argv)
 	init_rng();
 	seed_rng();
 
-	SSLeay_add_all_algorithms();
+	OpenSSL_add_all_algorithms();
 
 	/* At first, get a connection to the authentication agent. */
 	ac = ssh_get_authentication_connection();
@@ -374,11 +407,11 @@ main(int argc, char **argv)
 				ret = 1;
 			goto done;
 		case 's':
-			sc_reader_id = optarg;
+			pkcs11provider = optarg;
 			break;
 		case 'e':
 			deleting = 1;
-			sc_reader_id = optarg;
+			pkcs11provider = optarg;
 			break;
 		case 't':
 			if ((lifetime = convtime(optarg)) == -1) {
@@ -395,8 +428,8 @@ main(int argc, char **argv)
 	}
 	argc -= optind;
 	argv += optind;
-	if (sc_reader_id != NULL) {
-		if (update_card(ac, !deleting, sc_reader_id) == -1)
+	if (pkcs11provider != NULL) {
+		if (update_card(ac, !deleting, pkcs11provider) == -1)
 			ret = 1;
 		goto done;
 	}

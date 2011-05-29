@@ -1,0 +1,517 @@
+eval '(exit $?0)' &&
+  eval 'exec perl -S $0 ${1+"$@"}' &&
+  eval 'exec perl -S $0 $argv:q'
+  if 0;
+
+#!/usr/bin/perl -W
+#
+# Copyright (c) 2004, 2005 Voltaire, Inc. All rights reserved.
+# Copyright (c) 2002-2005 Mellanox Technologies LTD. All rights reserved.
+# Copyright (c) 1996-2003 Intel Corporation. All rights reserved.
+#
+# This software is available to you under a choice of one of two
+# licenses.  You may choose to be licensed under the terms of the GNU
+# General Public License (GPL) Version 2, available from the file
+# COPYING in the main directory of this source tree, or the
+# OpenIB.org BSD license below:
+#
+#     Redistribution and use in source and binary forms, with or
+#     without modification, are permitted provided that the following
+#     conditions are met:
+#
+#      - Redistributions of source code must retain the above
+#        copyright notice, this list of conditions and the following
+#        disclaimer.
+#
+#      - Redistributions in binary form must reproduce the above
+#        copyright notice, this list of conditions and the following
+#        disclaimer in the documentation and/or other materials
+#        provided with the distribution.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+# BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+# ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+# CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
+#########################################################################
+#
+#  Abstract:
+#     Perl script for simple source code error checking and fixing
+#
+#  Environment:
+#     Linux User Mode
+#
+#  Author:
+#     Eitan Zahavi, Mellanox Technologies LTD Yokneam Israel.
+#
+#  $Revision: 1.4 $
+#
+#
+#
+# DESCRIPTION:
+#
+# This script performs some simple conformance checks on the
+# OpenSM source code.  It does NOT attempt to act like a full
+# blown 'C' language parser, so it can be fooled.  Something
+# is better than nothing.
+#
+# The script starts by running the 'osm_indent' script on teh given files.
+#
+# We use an extra file for tracking error codes used by each file.
+# The name is osm_errors_codes.
+#
+# The following checks are performed:
+# 1) Verify that the function name provided in a log statement
+#    matches the name of the current function.
+#
+# 2) Verify that log statements are in the form that this script
+#    can readily parse.  Improvements to the regular expressions
+#    might make this unnecessary.
+#
+# 3) Verify that lower two digits of the error codes used in log
+#    statements are unique within that file.
+#
+# 4) Verify that upper two digits of the error codes used in log
+#    statements are not used by any other module.
+#
+# 5) Verify the lines do not have extra spaces.
+#
+# USAGE:
+#
+# In the OpenSM source directory, type:
+# osm_check_n_fix -f *.c
+#
+#########################################################################
+
+# Do necessary upfront initialization
+$verbose = 0;
+$in_c_comment = 0;
+$fix_mode = 0;
+$confirm_mode = 0;
+$re_assign_err_prefix = 0;
+
+if( !scalar(@ARGV) )
+{
+    print "ERROR: You must specify the files on which to operate, such as '*.c'\n";
+    osm_check_usage();
+    exit;
+}
+
+# loop through all the command line options
+do
+{
+    $doing_params = 0;
+
+    # First, look for command line options.
+    if( $ARGV[0] =~ /-[v|V]/ )
+    {
+        $verbose += 1;
+        shift;
+        print "Verbose mode on, level = $verbose.\n";
+        $doing_params = 1;
+    }
+
+    if( $ARGV[0] =~ /(-f|--fix)/ )
+    {
+        $fix_mode += 1;
+        shift;
+        print "Fix mode on.\n";
+        $doing_params = 1;
+    }
+
+    if( $ARGV[0] =~ /(-c|--confirm)/ )
+    {
+        $confirm_mode += 1;
+        shift;
+        print "Confirm mode on.\n";
+        $doing_params = 1;
+    }
+
+    if( $ARGV[0] =~ /(-r|--re-assign-mod-err-prefix)/ )
+    {
+        $re_assign_err_prefix += 1;
+        shift;
+        print "Allow Re-Assignment of Module Err Prefixes.\n";
+        $doing_params = 1;
+    }
+
+    if( !scalar(@ARGV))
+    {
+        print "ERROR: You must specify the files on which to operate, such as '*.c'\n";
+        osm_check_usage();
+        exit;
+    }
+} while( $doing_params == 1 );
+
+# parse the osm_error_codes file and define:
+# module_by_prefix
+# module_err_prefixes
+# module_last_err_used
+if (open(ERRS, "<osm_error_codes")) {
+  @ERR_DEFS = <ERRS>;
+  close(ERRS);
+  foreach $errDef (@ERR_DEFS) {
+    # the format should be <file name> <err prefix> <last err>
+    if ($errDef =~ m/^(\S+)\s+(\S+)\s+([0-9]+)$/) {
+      ($file_name,$mod_prefix,$last_err) = ($1,$2,$3);
+      if (defined($module_by_prefix{$mod_prefix})) {
+        print "ERROR: Double module prefix:$mod_prefix on:$module_by_prefix($mod_prefix) and $file_name\n";
+        exit 3;
+      }
+      $module_by_prefix{$mod_prefix} = $file_name;
+      $module_err_prefixes{$file_name} = $mod_prefix;
+      $module_last_err_used{$file_name} = $last_err;
+    } else {
+      print "ERROR: Fail to parse sm_error_codes: $errDef\n";
+      exit 3;
+    }
+  }
+}
+
+# do a file by file read into memory so we can tweek it:
+foreach $file_name (@ARGV) {
+	print "- $file_name ----------------------------------------------------\n";
+   # first step is to run indent
+	 $res=`osm_indent $file_name`;
+
+    open(INFILE, "<$file_name") || die("Fail to open $file_name");
+    @LINES = <INFILE>;
+    close(INFILE);
+    $any_fix = 0;
+    $needed_fixing = 0;
+    $need_indentation = 0;
+
+  LINE: for ($line_num = 0; $line_num <scalar(@LINES); $line_num++) {
+      $line = $LINES[$line_num];
+      $_ = $line;
+
+      # Skip C single line C style comments
+      # This line must come before the multi-line C comment check!
+      if( /\/\*.*\*\// )
+      {
+          $in_c_comment = 0;
+          next LINE;
+      }
+
+      # skip multi-line C style comments
+      if( /\/\*/ )
+      {
+          $in_c_comment = 1;
+          next LINE;
+      }
+
+      # end skipping of multi-line C style comments
+      if( /\*\// )
+      {
+          $in_c_comment = 0;
+          next LINE;
+      }
+
+      # We're still in a C comment, so ignore input
+      if( $in_c_comment == 1 )
+      {
+        next LINE;
+      }
+
+
+      # Error on C++ style comment lines
+      if( /\/\// )
+      {
+        print "C++ style comment on $file_name $line_num\n";
+        $needed_fixing++;
+        if ($fix_mode) {
+          $line =~ s=\/\/(.*)$=/* \1 */=;
+          if (confirm_change($line, $LINES[$line_num])) {
+            $LINES[$line_num] = $line;
+            $any_fix++;
+          }
+          $any_fix++;
+        }
+      }
+
+      # check for lines with trailing spaces:
+      if (/[ \t]+$/) {
+        $needed_fixing++;
+        if ($fix_mode) {
+          $line =~ s/\s+$/\n/;
+          if (confirm_change($line, $LINES[$line_num])) {
+            $LINES[$line_num] = $line;
+            $any_fix++;
+          }
+          $any_fix++;
+        }
+      }
+
+      # check for bad PRIx64 usage
+      # It's a common mistake to forget the % before the PRIx64
+      if (/[^%0-9][0-9]*\"\s*PRIx64/ ) {
+        $needed_fixing++;
+        print "No % sign before PRx64!!: $file_name $line_num\n";
+        if ($fix_mode) {
+          $line =~ s/([0-9]*)\"\s*PRIx64/%$1\" PRIx64/;
+          if (confirm_change($line, $LINES[$line_num])) {
+            $LINES[$line_num] = $line;
+            $any_fix++;
+          }
+        }
+      }
+
+      # This simple script doesn't handle checking PRIx64 usage
+      # when PRIx64 starts the line.  Just give a warning.
+      if( /^\s*PRIx64/ )
+      {
+        $needed_fixing++;
+        print "Warning: PRIx64 at start of line.  $file_name $line_num\n";
+#        if ($fix_mode) {
+#          print "Fatal: can not auto fix\n";
+#          exit 1;
+#        }
+      }
+
+      # Attempt to locate function names.
+      # Function names must start on the beginning of the line.
+      if( /^(\w+)\s*\(/ )
+      {
+        $current_func = $1;
+        if( $verbose == 1 )
+          {
+            print "Processing $file_name: $current_func\n";
+          }
+      }
+
+      # Attempt to find OSM_LOG_ENTER entries.
+      # When found, verify that the function name provided matches
+      # the actual function.
+      if( /OSM_LOG_ENTER\s*\(\s*([\-\.\>\w]+)\s*,\s*(\w+)\s*\)/ ) {
+        $log_func = $2;
+        if( $current_func ne $log_func ) {
+          printf "MISMATCH!! $file_name $line_num: $current_func != $log_func\n";
+          $needed_fixing++;
+          if ($fix_mode) {
+            $line =~
+              s/OSM_LOG_ENTER\s*\(\s*([\-\.\>\w]+)\s*,\s*(\w+)\s*\)/OSM_LOG_ENTER( $1, $current_func )/;
+            if (confirm_change($line, $LINES[$line_num])) {
+              $LINES[$line_num] = $line;
+              $any_fix++;
+            }
+          }
+        }
+      }
+
+      # Check for non-conforming log statements.
+      # Log statements must not start the log string on the same line
+      # as the osm_log function itself.
+      # Watch out for the #include "osm_log.h" statement as a false positive.
+      if (/osm_log\s*\(.*OSM_.*\"/ ) {
+        if (/Format Waved/) {
+          print "Skipping log format waiver at $file_name $line_num\n";
+        } else {
+          print "NON-CONFORMING LOG STATEMENT!! $file_name $line_num\n";
+          $needed_fixing++;
+          if ($fix_mode) {
+            print "Fatal: can not auto fix\n";
+            exit 1;
+          }
+        }
+      }
+
+      # Attempt to find osm_log entries.
+      if( /^\s*\"(\w+):/ )
+      {
+          $log_func = $1;
+          if( $current_func ne $log_func )
+          {
+              print "MISMATCHED LOG FUNCTION!! $file_name $line_num: $current_func != $log_func\n";
+              $needed_fixing++;
+              if ($fix_mode) {
+                  $line =~
+                      s/^(\s*)\"(\w+):/$1\"$current_func:/;
+                  if (confirm_change($line, $LINES[$line_num])) {
+                      $LINES[$line_num] = $line;
+                      $any_fix++;
+                  }
+              }
+          }
+      }
+
+      # Error logging must look like 'ERR 1234:'
+      # The upper two digits are error range assigned to that module.
+      # The lower two digits are the error code itself.
+      # Error codes are in hexadecimal.
+      if( /ERR(\s+)([0-9a-fA-F]{2})([0-9a-fA-F]{2})(..)/ )
+      {
+          # track any error for this exp:
+          $exp_err = 0;
+
+          # the parsed prefix and err code:
+          ($found_prefix,$found_code) = ($2,$3);
+
+          # Check if we already established the error prefix for this module
+          $err_prefix = $module_err_prefixes{$file_name};
+
+          # err prefix is not available for this file
+          if ( ! $err_prefix ) {
+            # make sure no other file uses this prefix:
+            if ($module_by_prefix{$found_prefix}) {
+              # some other file uses that prefix:
+
+              # two modes: either use a new one or abort
+              if ($re_assign_err_prefix) {
+                # scan the available module prefixes for an empty one:
+                $found = 0;
+                for ($new_prefix_idx = 1; $found == 0; $new_prefix_idx++) {
+                  $prefix = sprintf("%02X", $new_prefix_idx);
+                  if (!defined($module_by_prefix{$prefix})) {
+                    $module_err_prefixes{$file_name} = $prefix;
+                    $module_by_prefix{$prefix} = $file_name;
+                    $found = 1;
+                  }
+                  $exp_err = 1;
+                }
+              } else {
+                print "Fatal: File $module_by_prefix{$2} already uses same prefix:$2 used by: $file_name (line=$line_num)\n";
+                exit 1;
+              }
+            } else {
+              # the prefix found is unused:
+
+              # Create a new prefix for this module.
+              $module_err_prefixes{$file_name} = $found_prefix;
+              $module_by_prefix{$found_prefix} = $file_name;
+              $err_prefix = $found_prefix;
+            }
+          } else {
+            # we already have a prefix for this file
+
+            if( $err_prefix ne $found_prefix )
+            {
+              $needed_fixing++;
+              print "BAD ERR RANGE IN LOG ENTRY!! $file_name $line_num: $current_func\n";
+              print "\tExpected $err_prefix but found $found_prefix\n";
+              $exp_err = 1;
+            }
+          }
+
+          # now check for code duplicates
+          $err_base = $module_err_bases{$found_code};
+          if( $err_base ) {
+            $needed_fixing++;
+            print "DUPLICATE ERR NUMBER IN LOG ENTRY!! $file_name $line_num: $current_func: $3\n";
+            print "\tPrevious use on line $err_base.\n";
+
+            # use the last error code for this module:
+            $module_last_err_used{$file_name}++;
+            $err_code = sprintf("%02X", $module_last_err_used{$file_name});
+            print "\tUsing new err code:0x$err_code ($module_last_err_used{$file_name})\n";
+            $module_err_bases{$err_code} = $line_num;
+            $exp_err = 1;
+          } else {
+            # Add this error code to the list used by this module
+            # The data stored in the line number on which it is used.
+            $module_err_bases{$found_code} = $line_num;
+            # track the last code used
+            $err_code_num = eval("0x$found_code");
+            if ($module_last_err_used{$file_name} < $err_code_num) {
+              $module_last_err_used{$file_name} = $err_code_num;
+            }
+            $err_code = $found_code;
+
+            if( $verbose > 1 ) {
+              print "Adding new error: $err_prefix$found_code in $file_name.\n";
+            }
+          }
+
+          if( $4 ne ": " ) {
+            $needed_fixing++;
+            print "MALFORMED LOG STATEMENT!!  NEEDS ': ' $file_name $line_num\n";
+            $exp_err = 1;
+          }
+
+          if( $1 ne " " )
+          {
+            $needed_fixing++;
+            print "USE ONLY 1 SPACE AFTER ERR!! $file_name $line_num\n";
+            $exp_err = 1;
+          }
+
+          if ($exp_err && $fix_mode) {
+              $line =~
+                  s/ERR(\s+)([0-9a-fA-F]{2})([0-9a-fA-F]{2})([^\"]*\")/ERR ${err_prefix}$err_code: \" /;
+              if (confirm_change($line, $LINES[$line_num])) {
+                  $LINES[$line_num] = $line;
+                  $any_fix++;
+              }
+          }
+      }
+
+      # verify expected use of sizeof() with pointers
+      if( /sizeof\s*\(\s*[h|p]_[^-]+\)/ )
+      {
+          print "SUSPICIOUS USE OF SIZEOF(), DO YOU NEED AN '*' $file_name $line_num\n";
+          $needed_fixing++;
+          if ($fix_mode) {
+              $line =~
+                  s/sizeof\s*\(\s*([h|p])_/sizeof \(*$1_/;
+              if (confirm_change($line, $LINES[$line_num])) {
+                  $LINES[$line_num] = $line;
+                  $any_fix++;
+              }
+          }
+      }
+   }
+
+    # reset the base error value, since each module can
+    # repeat this range.
+    %module_err_bases = ();
+
+    # if any fix write out the fixed file:
+    if ($any_fix) {
+      open(OF,">$file_name.fix");
+      print OF @LINES;
+      close(OF);
+    } elsif ($needed_fixing) {
+      print "Found $needed_fixing Errors on file: $file_name\n";
+    }
+}
+
+# write out the error codes.
+# module_by_prefix
+# module_err_prefixes
+# module_last_err_used
+open(ERRS,">osm_error_codes");
+foreach $fn (sort(keys(%module_err_prefixes))) {
+  print ERRS "$fn $module_err_prefixes{$fn} $module_last_err_used{$fn}\n";
+}
+close(ERRS);
+
+sub osm_check_usage
+{
+    print "Usage:\n";
+    print "osm_check.pl [-v|V] [-f|--fix] [-c|--confirm] [-r|--re-assign-mod-err-prefix] <file list>\n";
+    print "[-v|V] - enable verbose mode.\n";
+    print "[-f|--fix] - enable auto fix mode.\n";
+    print "[-c|--confirm] - enable manual confirmation mode.\n";
+    print "[-r|--re-assign-mod-err-prefix] - enables re-assign error prefixes if the file does not have one.\n";
+}
+
+sub confirm_change {
+    local ($line, $orig_line) = @_;
+    if ($confirm_mode) {
+	print "In Line:".($line_num + 1)."\n";
+        print "From: ${orig_line}To:   ${line}Ok [y] ?";
+        $| = 1;
+        $ans = <STDIN>;
+        chomp $ans;
+
+        if ($ans && $ans ne "y") {
+            return 0;
+        }
+    } else {
+        print "From: ${orig_line}To:   ${line}";
+    }
+    return 1;
+}

@@ -41,11 +41,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/lock.h>
+#include <sys/sysctl.h>
+#include <sys/kernel.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/posix4.h>
 #include <sys/resource.h>
 #include <sys/sched.h>
+
+FEATURE(kposix_priority_scheduling, "POSIX P1003.1B realtime extensions");
 
 /* ksched: Real-time extension to support POSIX priority scheduling.
  */

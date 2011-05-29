@@ -55,7 +55,6 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -78,7 +77,7 @@
 
 #include <dev/usb/serial/usb_serial.h>
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 static int uvisor_debug = 0;
 
 SYSCTL_NODE(_hw_usb, OID_AUTO, uvisor, CTLFLAG_RW, 0, "USB uvisor");
@@ -252,10 +251,12 @@ static driver_t uvisor_driver = {
 DRIVER_MODULE(uvisor, uhub, uvisor_driver, uvisor_devclass, NULL, 0);
 MODULE_DEPEND(uvisor, ucom, 1, 1, 1);
 MODULE_DEPEND(uvisor, usb, 1, 1, 1);
+MODULE_VERSION(uvisor, 1);
 
 static const struct usb_device_id uvisor_devs[] = {
 #define	UVISOR_DEV(v,p,i) { USB_VPI(USB_VENDOR_##v, USB_PRODUCT_##v##_##p, i) }
 	UVISOR_DEV(ACEECA, MEZ1000, UVISOR_FLAG_PALM4),
+	UVISOR_DEV(ALPHASMART, DANA_SYNC, UVISOR_FLAG_PALM4),
 	UVISOR_DEV(GARMIN, IQUE_3600, UVISOR_FLAG_PALM4),
 	UVISOR_DEV(FOSSIL, WRISTPDA, UVISOR_FLAG_PALM4),
 	UVISOR_DEV(HANDSPRING, VISOR, UVISOR_FLAG_VISOR),
@@ -338,11 +339,6 @@ uvisor_attach(device_t dev)
 		DPRINTF("could not allocate all pipes\n");
 		goto detach;
 	}
-	/* clear stall at first run */
-	mtx_lock(&sc->sc_mtx);
-	usbd_xfer_set_stall(sc->sc_xfer[UVISOR_BULK_DT_WR]);
-	usbd_xfer_set_stall(sc->sc_xfer[UVISOR_BULK_DT_RD]);
-	mtx_unlock(&sc->sc_mtx);
 
 	error = ucom_attach(&sc->sc_super_ucom, &sc->sc_ucom, 1, sc,
 	    &uvisor_callback, &sc->sc_mtx);
@@ -350,6 +346,8 @@ uvisor_attach(device_t dev)
 		DPRINTF("ucom_attach failed\n");
 		goto detach;
 	}
+	ucom_set_pnpinfo_usb(&sc->sc_super_ucom, dev);
+
 	return (0);
 
 detach:
@@ -364,7 +362,7 @@ uvisor_detach(device_t dev)
 
 	DPRINTF("sc=%p\n", sc);
 
-	ucom_detach(&sc->sc_super_ucom, &sc->sc_ucom, 1);
+	ucom_detach(&sc->sc_super_ucom, &sc->sc_ucom);
 	usbd_transfer_unsetup(sc->sc_xfer, UVISOR_N_TRANSFER);
 	mtx_destroy(&sc->sc_mtx);
 
@@ -396,7 +394,7 @@ uvisor_init(struct uvisor_softc *sc, struct usb_device *udev, struct usb_config 
 			goto done;
 		}
 	}
-#if USB_DEBUG
+#ifdef USB_DEBUG
 	if (sc->sc_flag & UVISOR_FLAG_VISOR) {
 		uint16_t i, np;
 		const char *desc;

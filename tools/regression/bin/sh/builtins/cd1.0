@@ -6,12 +6,15 @@ cd $P
 T=$(mktemp -d sh-test.XXXXXX)
 
 chmod 0 $T
-cd -L $T 2>/dev/null && exit 1
-[ "$PWD" = "$P" ]
-[ "$(pwd)" = "$P" ]
-cd -P $T 2>/dev/null && exit 1
-[ "$PWD" = "$P" ]
-[ "$(pwd)" = "$P" ]
+if [ `id -u` -ne 0 ]; then
+	# Root can always cd, irregardless of directory permissions.
+	cd -L $T 2>/dev/null && exit 1
+	[ "$PWD" = "$P" ]
+	[ "$(pwd)" = "$P" ]
+	cd -P $T 2>/dev/null && exit 1
+	[ "$PWD" = "$P" ]
+	[ "$(pwd)" = "$P" ]
+fi
 
 chmod 755 $T
 cd $T

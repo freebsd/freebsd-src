@@ -41,6 +41,8 @@ __FBSDID("$FreeBSD$");
 	ASMSTR("$NetBSD: setjmp.S,v 1.17 2005/09/17 11:49:39 tsutsui Exp $")
 #endif /* LIBC_SCCS and not lint */
 
+#include "SYS.h"
+
 #ifdef __ABICALLS__
 	.abicalls
 #endif
@@ -61,100 +63,102 @@ __FBSDID("$FreeBSD$");
 
 NESTED(setjmp, SETJMP_FRAME_SIZE, ra)
 	.mask	0x80000000, (CALLFRAME_RA - CALLFRAME_SIZ)
-	.set	noreorder
-#ifdef __ABICALLS__
-	.cpload	t9
-#endif
-	subu	sp, sp, SETJMP_FRAME_SIZE	# allocate stack frame
-#ifdef __ABICALLS__
-	.cprestore 16
-#endif
-	sw	ra, CALLFRAME_RA(sp)		# save RA
-	sw	a0, CALLFRAME_SIZ(sp)		# store env
+	SETUP_GP
+	PTR_SUBU sp, sp, SETJMP_FRAME_SIZE	# allocate stack frame
+	SAVE_GP(CALLFRAME_GP)
+	SETUP_GP64(CALLFRAME_GP, setjmp)
+
+	REG_S	ra, CALLFRAME_RA(sp)		# save RA
+	REG_S	a0, CALLFRAME_SIZ(sp)		# store env
 
 	/* Get the signal mask. */
-	addu	a2, a0, _JB_SIGMASK * SZREG	# &oenv
+	PTR_ADDU a2, a0, _JB_SIGMASK * SZREG	# &oenv
 	li	a0, 1				# SIG_SETBLOCK
 	move	a1, zero			# &env == 0
-	la	t9, _C_LABEL(sigprocmask)	# get current signal mask
-	jal	t9
-	nop
+	PTR_LA	t9, _C_LABEL(sigprocmask)	# get current signal mask
+	jalr	t9
 
-	lw	a0, CALLFRAME_SIZ(sp)		# restore env pointer
-	lw	ra, CALLFRAME_RA(sp)		# restore RA
-	addu	sp, sp, SETJMP_FRAME_SIZE	# pop stack frame
+	RESTORE_GP64
+	REG_L	a0, CALLFRAME_SIZ(sp)		# restore env pointer
+	REG_L	ra, CALLFRAME_RA(sp)		# restore RA
+	PTR_ADDU sp, sp, SETJMP_FRAME_SIZE	# pop stack frame
 
-	li	v0, _JB_MAGIC_SETJMP
-	sw	v0, (_JB_MAGIC  * SZREG)(a0)
-	sw	ra, (_JB_REG_RA * SZREG)(a0)
-	sw	s0, (_JB_REG_S0 * SZREG)(a0)
-	sw	s1, (_JB_REG_S1 * SZREG)(a0)
-	sw	s2, (_JB_REG_S2 * SZREG)(a0)
-	sw	s3, (_JB_REG_S3 * SZREG)(a0)
-	sw	s4, (_JB_REG_S4 * SZREG)(a0)
-	sw	s5, (_JB_REG_S5 * SZREG)(a0)
-	sw	s6, (_JB_REG_S6 * SZREG)(a0)
-	sw	s7, (_JB_REG_S7 * SZREG)(a0)
-	sw	sp, (_JB_REG_SP * SZREG)(a0)
-	sw	s8, (_JB_REG_S8 * SZREG)(a0)
+	REG_LI	v0, _JB_MAGIC_SETJMP
+	REG_S	v0, (_JB_MAGIC  * SZREG)(a0)
+	REG_S	ra, (_JB_REG_RA * SZREG)(a0)
+	REG_S	s0, (_JB_REG_S0 * SZREG)(a0)
+	REG_S	s1, (_JB_REG_S1 * SZREG)(a0)
+	REG_S	s2, (_JB_REG_S2 * SZREG)(a0)
+	REG_S	s3, (_JB_REG_S3 * SZREG)(a0)
+	REG_S	s4, (_JB_REG_S4 * SZREG)(a0)
+	REG_S	s5, (_JB_REG_S5 * SZREG)(a0)
+	REG_S	s6, (_JB_REG_S6 * SZREG)(a0)
+	REG_S	s7, (_JB_REG_S7 * SZREG)(a0)
+	REG_S	sp, (_JB_REG_SP * SZREG)(a0)
+	REG_S	s8, (_JB_REG_S8 * SZREG)(a0)
+#if defined(__mips_n32) || defined(__mips_n64)
+	REG_S	gp, (_JB_REG_GP * SZREG)(a0)
+#endif
 
 	move	v0, zero
-	j	ra
+	jr	ra
 END(setjmp)
 
 #define LONGJMP_FRAME_SIZE	(CALLFRAME_SIZ + (SZREG * 2))
 
 NESTED(longjmp, LONGJMP_FRAME_SIZE, ra)
 	.mask	0x80000000, (CALLFRAME_RA - CALLFRAME_SIZ)
-	.set	noreorder
-#ifdef __ABICALLS__
-	.cpload	t9
-#endif
-	subu	sp, sp, LONGJMP_FRAME_SIZE	# allocate stack frame
-#ifdef __ABICALLS__
-	.cprestore 16
-#endif
-	sw	ra, CALLFRAME_RA(sp)		# save RA
-	lw	v0, (_JB_MAGIC  * SZREG)(a0)
-	li	t0, _JB_MAGIC_SETJMP
+	PIC_PROLOGUE(longjmp)
+	PTR_SUBU sp, sp, LONGJMP_FRAME_SIZE	# allocate stack frame
+	SAVE_GP(CALLFRAME_GP)
+
+	REG_S	ra, CALLFRAME_RA(sp)		# save RA
+	REG_L	v0, (_JB_MAGIC  * SZREG)(a0)
+	REG_LI	t0, _JB_MAGIC_SETJMP
 	bne	v0, t0, botch		# jump if error
 	nop
 
-	sw	a0, CALLFRAME_SIZ(sp)		# save env
-	sw	a1, (CALLFRAME_SIZ + SZREG)(sp)	# save return value
+	REG_S	a0, CALLFRAME_SIZ(sp)		# save env
+	REG_S	a1, (CALLFRAME_SIZ + SZREG)(sp)	# save return value
 
 	# set sigmask
-	addu	a1, a0, _JB_SIGMASK * SZREG	# &set
+	PTR_ADDU a1, a0, _JB_SIGMASK * SZREG	# &set
 	move	a2, zero			# &oset == NULL
 	li	a0, 3				# SIG_SETMASK
-	la	t9,_C_LABEL(sigprocmask)	# set current signal mask
+	PTR_LA	t9,_C_LABEL(sigprocmask)	# set current signal mask
 	jal	t9
 	nop
 
-	lw	a0, CALLFRAME_SIZ(sp)		# restore env
-	lw	a1, (CALLFRAME_SIZ + SZREG)(sp)	# restore return value
+	REG_L	a0, CALLFRAME_SIZ(sp)		# restore env
+	REG_L	a1, (CALLFRAME_SIZ + SZREG)(sp)	# restore return value
 
-	lw	ra, (_JB_REG_RA * SZREG)(a0)
-	lw	s0, (_JB_REG_S0 * SZREG)(a0)
-	lw	s1, (_JB_REG_S1 * SZREG)(a0)
-	lw	s2, (_JB_REG_S2 * SZREG)(a0)
-	lw	s3, (_JB_REG_S3 * SZREG)(a0)
-	lw	s4, (_JB_REG_S4 * SZREG)(a0)
-	lw	s5, (_JB_REG_S5 * SZREG)(a0)
-	lw	s6, (_JB_REG_S6 * SZREG)(a0)
-	lw	s7, (_JB_REG_S7 * SZREG)(a0)
-	lw	sp, (_JB_REG_SP * SZREG)(a0)
-	lw	s8, (_JB_REG_S8 * SZREG)(a0)
+	REG_L	ra, (_JB_REG_RA * SZREG)(a0)
+	REG_L	s0, (_JB_REG_S0 * SZREG)(a0)
+	REG_L	s1, (_JB_REG_S1 * SZREG)(a0)
+	REG_L	s2, (_JB_REG_S2 * SZREG)(a0)
+	REG_L	s3, (_JB_REG_S3 * SZREG)(a0)
+	REG_L	s4, (_JB_REG_S4 * SZREG)(a0)
+	REG_L	s5, (_JB_REG_S5 * SZREG)(a0)
+	REG_L	s6, (_JB_REG_S6 * SZREG)(a0)
+	REG_L	s7, (_JB_REG_S7 * SZREG)(a0)
+	REG_L	sp, (_JB_REG_SP * SZREG)(a0)
+	REG_L	s8, (_JB_REG_S8 * SZREG)(a0)
+#if defined(__mips_n32) || defined(__mips_n64)
+	REG_L	gp, (_JB_REG_GP * SZREG)(a0)
+#endif
+
 	move	v0, a1
 	j	ra
 	nop
 
 botch:
-	la	t9, _C_LABEL(longjmperror)
-	jal	t9
+	/*
+	 * We know we aren't returning so we don't care about restoring
+	 * our caller's GP.
+	 */
+	PTR_LA	t9, _C_LABEL(longjmperror)
+	jalr	t9
 	nop
 
-	la	t9, _C_LABEL(abort)
-	jal	t9
-	nop
+	PIC_TAILCALL(abort)
 END(longjmp)

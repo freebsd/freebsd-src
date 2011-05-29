@@ -17,10 +17,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -52,7 +48,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/kernel.h>
-#include <sys/linker_set.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
@@ -227,7 +222,7 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 
 void
 cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
-	stack_t *stack)
+    stack_t *stack)
 {
 	struct trapframe *tf;
 	uint64_t sp;
@@ -251,7 +246,7 @@ cpu_set_user_tls(struct thread *td, void *tls_base)
 
 	if (td == curthread)
 		flushw();
-	td->td_frame->tf_global[7] = (uint64_t) tls_base;
+	td->td_frame->tf_global[7] = (uint64_t)tls_base;
 	return (0);
 }
 
@@ -484,7 +479,7 @@ sf_buf_free(struct sf_buf *sf)
 	SLIST_INSERT_HEAD(&sf_freelist.sf_head, sf, free_list);
 	nsfbufsused--;
 	if (sf_buf_alloc_want > 0)
-		wakeup_one(&sf_freelist);
+		wakeup(&sf_freelist);
 	mtx_unlock(&sf_freelist.sf_lock);
 }
 
@@ -492,10 +487,7 @@ void
 swi_vm(void *v)
 {
 
-	/*
-	 * Nothing to do here yet - busdma bounce buffers are not yet
-	 * implemented.
-	 */
+	/* Nothing to do here - busdma bounce buffers are not implemented. */
 }
 
 void *
@@ -531,7 +523,7 @@ uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 	}
 
 	pa = VM_PAGE_TO_PHYS(m);
-	if (m->md.color != DCACHE_COLOR(pa)) {
+	if (dcache_color_ignore == 0 && m->md.color != DCACHE_COLOR(pa)) {
 		KASSERT(m->md.colors[0] == 0 && m->md.colors[1] == 0,
 		    ("uma_small_alloc: free page still has mappings!"));
 		PMAP_STATS_INC(uma_nsmall_alloc_oc);
@@ -540,7 +532,7 @@ uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 	}
 	va = (void *)TLB_PHYS_TO_DIRECT(pa);
 	if ((wait & M_ZERO) && (m->flags & PG_ZERO) == 0)
-		bzero(va, PAGE_SIZE);
+		cpu_block_zero(va, PAGE_SIZE);
 	return (va);
 }
 

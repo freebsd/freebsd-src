@@ -26,6 +26,8 @@
 # $FreeBSD$
 #
 
+#include <sys/types.h>
+#include <sys/systm.h>
 #include <sys/bus.h>
 
 /**
@@ -46,6 +48,23 @@ CODE {
 	    u_long count, u_int flags)
 	{
 	    return (0);
+	}
+
+	static int
+	null_remap_intr(device_t bus, device_t dev, u_int irq)
+	{
+
+		if (dev != NULL)
+			return (BUS_REMAP_INTR(dev, NULL, irq));
+		return (ENXIO);
+	}
+
+	static device_t
+	null_add_child(device_t bus, int order, const char *name,
+	    int unit)
+	{
+
+		panic("bus_add_child is not implemented");
 	}
 };
 
@@ -191,10 +210,10 @@ METHOD void driver_added {
  */
 METHOD device_t add_child {
 	device_t _dev;
-	int _order;
+	u_int _order;
 	const char *_name;
 	int _unit;
-};
+} DEFAULT null_add_child;
 
 /**
  * @brief Allocate a system resource
@@ -275,6 +294,30 @@ METHOD int deactivate_resource {
 	int		_type;
 	int		_rid;
 	struct resource *_r;
+};
+
+/**
+ * @brief Adjust a resource
+ *
+ * Adjust the start and/or end of a resource allocated by
+ * BUS_ALLOC_RESOURCE.  At least part of the new address range must overlap
+ * with the existing address range.  If the successful, the resource's range
+ * will be adjusted to [start, end] on return.
+ *
+ * @param _dev		the parent device of @p _child
+ * @param _child	the device which allocated the resource
+ * @param _type		the type of resource
+ * @param _res		the resource to adjust
+ * @param _start	the new starting address of the resource range
+ * @param _end		the new ending address of the resource range
+ */
+METHOD int adjust_resource {
+	device_t	_dev;
+	device_t	_child;
+	int		_type;
+	struct resource *_res;
+	u_long		_start;
+	u_long		_end;
 };
 
 /**
@@ -600,3 +643,16 @@ METHOD void hint_device_unit {
 METHOD void new_pass {
 	device_t	_dev;
 } DEFAULT bus_generic_new_pass;
+
+/**
+ * @brief Notify a bus that specified child's IRQ should be remapped.
+ *
+ * @param _dev		the bus device
+ * @param _child	the child device
+ * @param _irq		the irq number
+ */
+METHOD int remap_intr {
+	device_t	_dev;
+	device_t	_child;
+	u_int		_irq;
+} DEFAULT null_remap_intr;

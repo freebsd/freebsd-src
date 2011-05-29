@@ -92,6 +92,15 @@ x) */
 };
 int sz_ia32_sigcode = sizeof(ia32_sigcode);
 
+#ifdef COMPAT_43
+int
+ofreebsd32_sigreturn(struct thread *td, struct ofreebsd32_sigreturn_args *uap)
+{
+
+	return (EOPNOTSUPP);
+}
+#endif
+
 /*
  * Signal sending has not been implemented on ia64.  This causes
  * the sigtramp code to not understand the arguments and the application
@@ -120,7 +129,7 @@ freebsd32_sigreturn(struct thread *td, struct freebsd32_sigreturn_args *uap)
 
 
 void
-ia32_setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
+ia32_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 {
 	struct trapframe *tf = td->td_frame;
 	vm_offset_t gdt, ldt;
@@ -128,8 +137,10 @@ ia32_setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 	u_int64_t codeseg, dataseg, gdtseg, ldtseg;
 	struct segment_descriptor desc;
 	struct vmspace *vmspace = td->td_proc->p_vmspace;
+	struct sysentvec *sv;
 
-	exec_setregs(td, entry, stack, ps_strings);
+	sv = td->td_proc->p_sysent;
+	exec_setregs(td, imgp, stack);
 
 	/* Non-syscall frames are cleared by exec_setregs() */
 	if (tf->tf_flags & FRAME_SYSCALL) {
@@ -142,7 +153,7 @@ ia32_setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 	tf->tf_special.sp = stack;
 
 	/* Point the RSE backstore to something harmless. */
-	tf->tf_special.bspstore = (FREEBSD32_PS_STRINGS - sz_ia32_sigcode -
+	tf->tf_special.bspstore = (sv->sv_psstrings - sz_ia32_sigcode -
 	    SPARE_USRSPACE + 15) & ~15;
 
 	codesel = LSEL(LUCODE_SEL, SEL_UPL);
@@ -157,7 +168,7 @@ ia32_setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 	/*
 	 * Build the GDT and LDT.
 	 */
-	gdt = FREEBSD32_USRSTACK;
+	gdt = sv->sv_usrstack;
 	vm_map_find(&vmspace->vm_map, 0, 0, &gdt, IA32_PAGE_SIZE << 1, 0,
 	    VM_PROT_ALL, VM_PROT_ALL, 0);
 	ldt = gdt + IA32_PAGE_SIZE;
@@ -173,12 +184,12 @@ ia32_setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 	desc.sd_hibase = ldt >> 24;
 	copyout(&desc, (caddr_t) gdt + 8*GLDT_SEL, sizeof(desc));
 
-	desc.sd_lolimit = ((FREEBSD32_USRSTACK >> 12) - 1) & 0xffff;
+	desc.sd_lolimit = ((sv->sv_usrstack >> 12) - 1) & 0xffff;
 	desc.sd_lobase = 0;
 	desc.sd_type = SDT_MEMERA;
 	desc.sd_dpl = SEL_UPL;
 	desc.sd_p = 1;
-	desc.sd_hilimit = ((FREEBSD32_USRSTACK >> 12) - 1) >> 16;
+	desc.sd_hilimit = ((sv->sv_usrstack >> 12) - 1) >> 16;
 	desc.sd_def32 = 1;
 	desc.sd_gran = 1;
 	desc.sd_hibase = 0;
@@ -187,14 +198,14 @@ ia32_setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 	copyout(&desc, (caddr_t) ldt + 8*LUDATA_SEL, sizeof(desc));
 
 	codeseg = 0		/* base */
-		+ (((FREEBSD32_USRSTACK >> 12) - 1) << 32) /* limit */
+		+ (((sv->sv_usrstack >> 12) - 1) << 32) /* limit */
 		+ ((long)SDT_MEMERA << 52)
 		+ ((long)SEL_UPL << 57)
 		+ (1L << 59) /* present */
 		+ (1L << 62) /* 32 bits */
 		+ (1L << 63); /* page granularity */
 	dataseg = 0		/* base */
-		+ (((FREEBSD32_USRSTACK >> 12) - 1) << 32) /* limit */
+		+ (((sv->sv_usrstack >> 12) - 1) << 32) /* limit */
 		+ ((long)SDT_MEMRWA << 52)
 		+ ((long)SEL_UPL << 57)
 		+ (1L << 59) /* present */
@@ -231,7 +242,7 @@ ia32_setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 	ia64_set_eflag(PSL_USER);
 
 	/* PS_STRINGS value for BSD/OS binaries.  It is 0 for non-BSD/OS. */
-	tf->tf_scratch.gr11 = FREEBSD32_PS_STRINGS;
+	tf->tf_scratch.gr11 = td->td_proc->p_sysent->sv_psstrings;
 
 	/*
 	 * XXX - Linux emulator

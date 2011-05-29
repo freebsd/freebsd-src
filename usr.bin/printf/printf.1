@@ -12,10 +12,6 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 3. All advertising materials mentioning features or use of this software
-.\"    must display the following acknowledgement:
-.\"	This product includes software developed by the University of
-.\"	California, Berkeley and its contributors.
 .\" 4. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
@@ -35,7 +31,7 @@
 .\"	@(#)printf.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd April 14, 2005
+.Dd May 28, 2011
 .Dt PRINTF 1
 .Os
 .Sh NAME
@@ -72,8 +68,7 @@ otherwise it is evaluated as a C constant, with the following extensions:
 A leading plus or minus sign is allowed.
 .It
 If the leading character is a single or double quote, the value is the
-.Tn ASCII
-code of the next character.
+character code of the next character.
 .El
 .Pp
 The format string is reused as often as necessary to satisfy the
@@ -109,12 +104,13 @@ Write a <single quote> character.
 .It Cm \e\e
 Write a backslash character.
 .It Cm \e Ns Ar num
-.It Cm \e0 Ns Ar num
-Write an 8-bit character whose
-.Tn ASCII
+Write a byte whose
 value is the 1-, 2-, or 3-digit
 octal number
 .Ar num .
+Multibyte characters can be constructed using multiple
+.Cm \e Ns Ar num
+sequences.
 .El
 .Pp
 Each format specification is introduced by the percent character
@@ -128,9 +124,9 @@ in the following order:
 A `#' character
 specifying that the value should be printed in an ``alternate form''.
 For
-.Cm c , d ,
+.Cm b , c , d , s
 and
-.Cm s ,
+.Cm u
 formats, this option has no effect.
 For the
 .Cm o
@@ -144,9 +140,9 @@ format, a non-zero result has the string
 .Pq Li 0X
 prepended to it.
 For
-.Cm e , E , f , g ,
+.Cm a , A , e , E , f , F , g
 and
-.Cm G ,
+.Cm G
 formats, the result will always contain a decimal point, even if no
 digits follow the point (normally, a decimal point only appears in the
 results of those formats if a digit follows the decimal point).
@@ -175,7 +171,7 @@ A `\-' overrides a `0' if both are used;
 .It "Field Width:"
 An optional digit string specifying a
 .Em field width ;
-if the output string has fewer characters than the field width it will
+if the output string has fewer bytes than the field width it will
 be blank-padded on the left (or right, if the left-adjustment indicator
 has been given) to make up the field width (note that a leading zero
 is a flag, but an embedded zero is part of a field width);
@@ -189,7 +185,7 @@ for
 .Cm e
 and
 .Cm f
-formats, or the maximum number of characters to be printed
+formats, or the maximum number of bytes to be printed
 from a string; if the digit string is missing, the precision is treated
 as zero;
 .It Format:
@@ -275,20 +271,25 @@ and
 .Ql nan ,
 respectively.
 .It Cm c
-The first character of
+The first byte of
 .Ar argument
 is printed.
 .It Cm s
-Characters from the string
+Bytes from the string
 .Ar argument
-are printed until the end is reached or until the number of characters
+are printed until the end is reached or until the number of bytes
 indicated by the precision specification is reached; however if the
-precision is 0 or missing, all characters in the string are printed.
+precision is 0 or missing, the string is printed entirely.
 .It Cm b
 As for
 .Cm s ,
 but interpret character escapes in backslash notation in the string
 .Ar argument .
+The permitted escape sequences are slightly different in that
+octal escapes are
+.Cm \e0 Ns Ar num
+instead of
+.Cm \e Ns Ar num .
 .It Cm \&%
 Print a `%'; no argument is used.
 .El
@@ -300,6 +301,13 @@ character is defined in the program's locale (category
 In no case does a non-existent or small field width cause truncation of
 a field; padding takes place only if the specified field width exceeds
 the actual width.
+.Pp
+Some shells may provide a builtin
+.Nm
+command which is similar or identical to this utility.
+Consult the
+.Xr builtin 1
+manual page.
 .Sh EXIT STATUS
 .Ex -std
 .Sh COMPATIBILITY
@@ -310,7 +318,9 @@ with a digit to the
 .Tn ASCII
 code of the first character is not supported.
 .Sh SEE ALSO
+.Xr builtin 1 ,
 .Xr echo 1 ,
+.Xr sh 1 ,
 .Xr printf 3
 .Sh STANDARDS
 The
@@ -326,6 +336,27 @@ command appeared in
 It is modeled
 after the standard library function,
 .Xr printf 3 .
+.Sh CAVEATS
+.Tn ANSI
+hexadecimal character constants were deliberately not provided.
+.Pp
+Trying to print a dash ("-") as the first character causes
+.Nm
+to interpret the dash as a program argument.
+.Nm --
+must be used before 
+.Ar format .
+.Pp
+If the locale contains multibyte characters
+(such as UTF-8),
+the
+.Cm c
+format and
+.Cm b
+and
+.Cm s
+formats with a precision
+may not operate as expected.
 .Sh BUGS
 Since the floating point numbers are translated from
 .Tn ASCII
@@ -336,9 +367,6 @@ value before being printed.
 The
 .Cm L
 modifier may produce additional precision, depending on the hardware platform.)
-.Pp
-.Tn ANSI
-hexadecimal character constants were deliberately not provided.
 .Pp
 The escape sequence \e000 is the string terminator.
 When present in the argument for the

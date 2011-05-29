@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
 #define	ACTIVEMAP_MAGIC	0xac71e4
 struct activemap {
 	int		 am_magic;	/* Magic value. */
-	off_t	 	 am_mediasize;	/* Media size in bytes. */
+	off_t		 am_mediasize;	/* Media size in bytes. */
 	uint32_t	 am_extentsize;	/* Extent size in bytes,
 					   must be power of 2. */
 	uint8_t		 am_extentshift;/* 2 ^ extentbits == extentsize */
@@ -470,7 +470,7 @@ activemap_copyin(struct activemap *amp, const unsigned char *buf, size_t size)
 }
 
 /*
- * Function merges the given bitmap with existng one.
+ * Function merges the given bitmap with existing one.
  */
 void
 activemap_merge(struct activemap *amp, const unsigned char *buf, size_t size)

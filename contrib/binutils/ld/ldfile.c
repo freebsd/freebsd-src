@@ -1,6 +1,6 @@
 /* Linker file opening and searching.
    Copyright 1991, 1992, 1993, 1994, 1995, 1998, 1999, 2000, 2001, 2002,
-   2003, 2004 Free Software Foundation, Inc.
+   2003, 2004, 2005, 2007 Free Software Foundation, Inc.
 
    This file is part of GLD, the Gnu Linker.
 
@@ -16,13 +16,13 @@
 
    You should have received a copy of the GNU General Public License
    along with GLD; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 /* ldfile.c:  look after all the file stuff.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "bfdlink.h"
 #include "safe-ctype.h"
 #include "ld.h"
@@ -44,20 +44,15 @@ unsigned long ldfile_output_machine;
 enum bfd_architecture ldfile_output_architecture;
 search_dirs_type * search_head;
 
-#ifndef MPW
 #ifdef VMS
-char * slash = "";
+static char * slash = "";
 #else
 #if defined (_WIN32) && ! defined (__CYGWIN32__)
-char * slash = "\\";
+static char * slash = "\\";
 #else
-char * slash = "/";
+static char * slash = "/";
 #endif
 #endif
-#else /* MPW */
-/* The MPW path char is a colon.  */
-char * slash = ":";
-#endif /* MPW */
 
 typedef struct search_arch
 {
@@ -156,9 +151,10 @@ ldfile_try_open_bfd (const char *attempt,
   /* If we are searching for this file, see if the architecture is
      compatible with the output file.  If it isn't, keep searching.
      If we can't open the file as an object file, stop the search
-     here.  */
+     here.  If we are statically linking, ensure that we don't link
+     a dynamic object.  */
 
-  if (entry->search_dirs_flag)
+  if (entry->search_dirs_flag || !entry->dynamic)
     {
       bfd *check;
 
@@ -172,6 +168,7 @@ ldfile_try_open_bfd (const char *attempt,
 	  if (! bfd_check_format (check, bfd_object))
 	    {
 	      if (check == entry->the_bfd
+		  && entry->search_dirs_flag
 		  && bfd_get_error () == bfd_error_file_not_recognized
 		  && ! ldemul_unrecognized_file (entry))
 		{
@@ -255,8 +252,10 @@ ldfile_try_open_bfd (const char *attempt,
 		  yyin = NULL;
 		  if (skip)
 		    {
-		      einfo (_("%P: skipping incompatible %s when searching for %s\n"),
-			     attempt, entry->local_sym_name);
+		      if (command_line.warn_search_mismatch)
+			einfo (_("%P: skipping incompatible %s "
+				 "when searching for %s\n"),
+			       attempt, entry->local_sym_name);
 		      bfd_close (entry->the_bfd);
 		      entry->the_bfd = NULL;
 		      return FALSE;
@@ -265,15 +264,27 @@ ldfile_try_open_bfd (const char *attempt,
 	      return TRUE;
 	    }
 
-	  if ((bfd_arch_get_compatible (check, output_bfd,
-					command_line.accept_unknown_input_arch) == NULL)
+	  if (!entry->dynamic && (entry->the_bfd->flags & DYNAMIC) != 0)
+	    {
+	      einfo (_("%F%P: attempted static link of dynamic object `%s'\n"),
+		     attempt);
+	      bfd_close (entry->the_bfd);
+	      entry->the_bfd = NULL;
+	      return FALSE;
+	    }
+
+	  if (entry->search_dirs_flag
+	      && !bfd_arch_get_compatible (check, output_bfd,
+					   command_line.accept_unknown_input_arch)
 	      /* XCOFF archives can have 32 and 64 bit objects.  */
 	      && ! (bfd_get_flavour (check) == bfd_target_xcoff_flavour
 		    && bfd_get_flavour (output_bfd) == bfd_target_xcoff_flavour
 		    && bfd_check_format (entry->the_bfd, bfd_archive)))
 	    {
-	      einfo (_("%P: skipping incompatible %s when searching for %s\n"),
-		     attempt, entry->local_sym_name);
+	      if (command_line.warn_search_mismatch)
+		einfo (_("%P: skipping incompatible %s "
+			 "when searching for %s\n"),
+		       attempt, entry->local_sym_name);
 	      bfd_close (entry->the_bfd);
 	      entry->the_bfd = NULL;
 	      return FALSE;
@@ -455,7 +466,7 @@ try_open (const char *name, const char *exten)
 /* Try to open NAME; if that fails, look for it in any directories
    specified with -L, without and with EXTEND appended.  */
 
-FILE *
+static FILE *
 ldfile_find_command_file (const char *name, const char *extend)
 {
   search_dirs_type *search;
@@ -500,61 +511,6 @@ ldfile_open_command_file (const char *name)
   saved_script_handle = ldlex_input_stack;
 }
 
-#ifdef GNU960
-static char *
-gnu960_map_archname (char *name)
-{
-  struct tabentry { char *cmd_switch; char *arch; };
-  static struct tabentry arch_tab[] =
-  {
-	"",   "",
-	"KA", "ka",
-	"KB", "kb",
-	"KC", "mc",	/* Synonym for MC */
-	"MC", "mc",
-	"CA", "ca",
-	"SA", "ka",	/* Functionally equivalent to KA */
-	"SB", "kb",	/* Functionally equivalent to KB */
-	NULL, ""
-  };
-  struct tabentry *tp;
-
-  for (tp = arch_tab; tp->cmd_switch != NULL; tp++)
-    {
-      if (! strcmp (name,tp->cmd_switch))
-	break;
-    }
-
-  if (tp->cmd_switch == NULL)
-    einfo (_("%P%F: unknown architecture: %s\n"), name);
-
-  return tp->arch;
-}
-
-void
-ldfile_add_arch (char *name)
-{
-  search_arch_type *new = xmalloc (sizeof (search_arch_type));
-
-  if (*name != '\0')
-    {
-      if (ldfile_output_machine_name[0] != '\0')
-	{
-	  einfo (_("%P%F: target architecture respecified\n"));
-	  return;
-	}
-
-      ldfile_output_machine_name = name;
-    }
-
-  new->next = NULL;
-  new->name = gnu960_map_archname (name);
-  *search_arch_tail_ptr = new;
-  search_arch_tail_ptr = &new->next;
-}
-
-#else /* not GNU960 */
-
 void
 ldfile_add_arch (const char *in_name)
 {
@@ -574,7 +530,6 @@ ldfile_add_arch (const char *in_name)
   search_arch_tail_ptr = &new->next;
 
 }
-#endif
 
 /* Set the output architecture.  */
 

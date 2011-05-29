@@ -192,6 +192,7 @@ struct resource;
 typedef struct atkbdc_softc {
     struct resource *port0;	/* data port */
     struct resource *port1;	/* status port */
+    struct resource *irq;
     bus_space_tag_t iot;
     bus_space_handle_t ioh0;
     bus_space_handle_t ioh1;
@@ -200,6 +201,7 @@ typedef struct atkbdc_softc {
     int lock;			/* FIXME: XXX not quite a semaphore... */
     kqueue kbd;			/* keyboard data queue */
     kqueue aux;			/* auxiliary data queue */
+    int retry;
 } atkbdc_softc_t; 
 
 enum kbdc_device_ivar {

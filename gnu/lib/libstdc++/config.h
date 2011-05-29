@@ -371,7 +371,7 @@
 /* #undef HAVE_TANL */
 
 /* Define to 1 if the target supports thread-local storage. */
-#if !defined(__sparc64__) && !defined(__arm__) && !defined(__mips__)
+#if !defined(__arm__) && !defined(__mips__)
 #define HAVE_TLS 1
 #endif
 
@@ -671,7 +671,7 @@
 /* #undef VERSION */
 
 /* Define if builtin atomic operations are supported on this host. */
-#if defined(__amd64__)
+#if defined(__amd64__) || defined(__i386__)
 #define _GLIBCXX_ATOMIC_BUILTINS 1
 #endif
 

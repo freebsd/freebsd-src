@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /* $NetBSD: stack_protector.c,v 1.4 2006/11/22 17:23:25 christos Exp $	*/
 /* $OpenBSD: stack_protector.c,v 1.10 2006/03/31 05:34:44 deraadt Exp $	*/
 /*
@@ -34,10 +33,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/sysctl.h>
 #include <sys/types.h>
+#include <errno.h>
+#include <link.h>
 #include <signal.h>
 #include <string.h>
 #include <syslog.h>
 #include <unistd.h>
+#include "libc_private.h"
 
 extern int __sysctl(int *name, u_int namelen, void *oldp, size_t *oldlenp,
     void *newp, size_t newlen);
@@ -54,8 +56,13 @@ __guard_setup(void)
 {
 	int mib[2];
 	size_t len;
+	int error;
 
 	if (__stack_chk_guard[0] != 0)
+		return;
+	error = _elf_aux_info(AT_CANARY, __stack_chk_guard,
+	    sizeof(__stack_chk_guard));
+	if (error == 0 && __stack_chk_guard[0] != 0)
 		return;
 
 	mib[0] = CTL_KERN;
@@ -85,7 +92,7 @@ __fail(const char *msg)
 	(void)sigprocmask(SIG_BLOCK, &mask, NULL);
 
 	/* This may fail on a chroot jail... */
-	syslog(LOG_CRIT, msg);
+	syslog(LOG_CRIT, "%s", msg);
 
 	(void)memset(&sa, 0, sizeof(sa));
 	(void)sigemptyset(&sa.sa_mask);
@@ -108,8 +115,6 @@ __chk_fail(void)
 	__fail("buffer overflow detected; terminated");
 }
 
-#ifdef PIC
-__sym_compat(__stack_chk_fail_local, __stack_chk_fail, FBSD_1.0);
-#else
+#ifndef PIC
 __weak_reference(__stack_chk_fail, __stack_chk_fail_local);
 #endif

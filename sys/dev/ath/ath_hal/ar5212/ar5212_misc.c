@@ -264,6 +264,13 @@ ar5212GetTsf32(struct ath_hal *ah)
 	return OS_REG_READ(ah, AR_TSF_L32);
 }
 
+void
+ar5212SetTsf64(struct ath_hal *ah, uint64_t tsf64)
+{
+	OS_REG_WRITE(ah, AR_TSF_L32, tsf64 & 0xffffffff);
+	OS_REG_WRITE(ah, AR_TSF_U32, (tsf64 >> 32) & 0xffffffff);
+}
+
 /*
  * Reset the current hardware tsf for stamlme.
  */
@@ -451,7 +458,7 @@ ar5212SetSifsTime(struct ath_hal *ah, u_int us)
 	} else {
 		/* convert to system clocks */
 		OS_REG_WRITE(ah, AR_D_GBL_IFS_SIFS, ath_hal_mac_clks(ah, us-2));
-		ahp->ah_slottime = us;
+		ahp->ah_sifstime = us;
 		return AH_TRUE;
 	}
 }
@@ -850,7 +857,7 @@ ar5212GetCapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 	case HAL_CAP_MCAST_KEYSRCH:	/* multicast frame keycache search */
 		switch (capability) {
 		case 0:			/* hardware capability */
-			return HAL_OK;
+			return pCap->halMcastKeySrchSupport ? HAL_OK : HAL_ENXIO;
 		case 1:
 			return (ahp->ah_staId1Defaults &
 			    AR_STA_ID1_MCAST_KSRCH) ? HAL_OK : HAL_ENXIO;
@@ -873,16 +880,16 @@ ar5212GetCapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 		return HAL_OK;
 	case HAL_CAP_INTMIT:		/* interference mitigation */
 		switch (capability) {
-		case 0:			/* hardware capability */
+		case HAL_CAP_INTMIT_PRESENT:		/* hardware capability */
 			return HAL_OK;
-		case 1:
+		case HAL_CAP_INTMIT_ENABLE:
 			return (ahp->ah_procPhyErr & HAL_ANI_ENA) ?
 				HAL_OK : HAL_ENXIO;
-		case 2:			/* HAL_ANI_NOISE_IMMUNITY_LEVEL */
-		case 3:			/* HAL_ANI_OFDM_WEAK_SIGNAL_DETECTION */
-		case 4:			/* HAL_ANI_CCK_WEAK_SIGNAL_THR */
-		case 5:			/* HAL_ANI_FIRSTEP_LEVEL */
-		case 6:			/* HAL_ANI_SPUR_IMMUNITY_LEVEL */
+		case HAL_CAP_INTMIT_NOISE_IMMUNITY_LEVEL:
+		case HAL_CAP_INTMIT_OFDM_WEAK_SIGNAL_LEVEL:
+		case HAL_CAP_INTMIT_CCK_WEAK_SIGNAL_THR:
+		case HAL_CAP_INTMIT_FIRSTEP_LEVEL:
+		case HAL_CAP_INTMIT_SPUR_IMMUNITY_LEVEL:
 			ani = ar5212AniGetCurrentState(ah);
 			if (ani == AH_NULL)
 				return HAL_ENXIO;
@@ -927,7 +934,7 @@ ar5212SetCapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 		else
 			ahp->ah_miscMode |= AR_MISC_MODE_MIC_NEW_LOC_ENABLE;
 		/* NB: write here so keys can be setup w/o a reset */
-		OS_REG_WRITE(ah, AR_MISC_MODE, ahp->ah_miscMode);
+		OS_REG_WRITE(ah, AR_MISC_MODE, OS_REG_READ(ah, AR_MISC_MODE) | ahp->ah_miscMode);
 		return AH_TRUE;
 	case HAL_CAP_DIVERSITY:
 		if (ahp->ah_phyPowerOn) {
@@ -973,6 +980,8 @@ ar5212SetCapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 		OS_REG_WRITE(ah, AR_TPC, ahp->ah_macTPC);
 		return AH_TRUE;
 	case HAL_CAP_INTMIT: {		/* interference mitigation */
+		/* This maps the public ANI commands to the internal ANI commands */
+		/* Private: HAL_ANI_CMD; Public: HAL_CAP_INTMIT_CMD */
 		static const HAL_ANI_CMD cmds[] = {
 			HAL_ANI_PRESENT,
 			HAL_ANI_MODE,
@@ -983,7 +992,7 @@ ar5212SetCapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 			HAL_ANI_SPUR_IMMUNITY_LEVEL,
 		};
 		return capability < N(cmds) ?
-			ar5212AniControl(ah, cmds[capability], setting) :
+			AH5212(ah)->ah_aniControl(ah, cmds[capability], setting) :
 			AH_FALSE;
 	}
 	case HAL_CAP_TSF_ADJUST:	/* hardware has beacon tsf adjust */
@@ -1046,7 +1055,7 @@ ar5212GetDiagState(struct ath_hal *ah, int request,
 	case HAL_DIAG_ANI_CMD:
 		if (argsize != 2*sizeof(uint32_t))
 			return AH_FALSE;
-		ar5212AniControl(ah, ((const uint32_t *)args)[0],
+		AH5212(ah)->ah_aniControl(ah, ((const uint32_t *)args)[0],
 			((const uint32_t *)args)[1]);
 		return AH_TRUE;
 	case HAL_DIAG_ANI_PARAMS:
@@ -1068,6 +1077,41 @@ ar5212GetDiagState(struct ath_hal *ah, int request,
 				return AH_FALSE;
 			return ar5212AniSetParams(ah, args, args);
 		}
+	}
+	return AH_FALSE;
+}
+
+/*
+ * Check whether there's an in-progress NF completion.
+ *
+ * Returns AH_TRUE if there's a in-progress NF calibration, AH_FALSE
+ * otherwise.
+ */
+HAL_BOOL
+ar5212IsNFCalInProgress(struct ath_hal *ah)
+{
+	if (OS_REG_READ(ah, AR_PHY_AGC_CONTROL) & AR_PHY_AGC_CONTROL_NF)
+		return AH_TRUE;
+	return AH_FALSE;
+}
+
+/*
+ * Wait for an in-progress NF calibration to complete.
+ *
+ * The completion function waits "i" times 10uS.
+ * It returns AH_TRUE if the NF calibration completed (or was never
+ * in progress); AH_FALSE if it was still in progress after "i" checks.
+ */
+HAL_BOOL
+ar5212WaitNFCalComplete(struct ath_hal *ah, int i)
+{
+	int j;
+	if (i <= 0)
+		i = 1;	  /* it should run at least once */
+	for (j = 0; j < i; j++) {
+		if (! ar5212IsNFCalInProgress(ah))
+			return AH_TRUE;
+		OS_DELAY(10);
 	}
 	return AH_FALSE;
 }

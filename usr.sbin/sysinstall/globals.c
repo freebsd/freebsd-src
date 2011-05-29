@@ -76,13 +76,10 @@ globalsInit(void)
 {
     DebugFD = -1;
     ColorDisplay = FALSE;
-    Fake = FALSE;
-    Restarting = FALSE;
     OnVTY = FALSE;
     DialogActive = FALSE;
     VarHead = NULL;
     mediaDevice = NULL;
-    RunningAsInit = FALSE;
 
     HomeChunk = NULL;
     RootChunk = NULL;

@@ -19,12 +19,9 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
- * Use is subject to license terms.
+ * Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright 2010 Nexenta Systems, Inc. All rights reserved.
  */
-
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #if defined(_KERNEL)
 #include <sys/systm.h>
@@ -64,8 +61,15 @@ zfs_deleg_perm_tab_t zfs_deleg_perm_tab[] = {
 	{ZFS_DELEG_PERM_ROLLBACK, ZFS_DELEG_NOTE_ROLLBACK },
 	{ZFS_DELEG_PERM_SNAPSHOT, ZFS_DELEG_NOTE_SNAPSHOT },
 	{ZFS_DELEG_PERM_SHARE, ZFS_DELEG_NOTE_SHARE },
-	{ZFS_DELEG_PERM_SEND, ZFS_DELEG_NOTE_NONE },
+	{ZFS_DELEG_PERM_SEND, ZFS_DELEG_NOTE_SEND },
 	{ZFS_DELEG_PERM_USERPROP, ZFS_DELEG_NOTE_USERPROP },
+	{ZFS_DELEG_PERM_USERQUOTA, ZFS_DELEG_NOTE_USERQUOTA },
+	{ZFS_DELEG_PERM_GROUPQUOTA, ZFS_DELEG_NOTE_GROUPQUOTA },
+	{ZFS_DELEG_PERM_USERUSED, ZFS_DELEG_NOTE_USERUSED },
+	{ZFS_DELEG_PERM_GROUPUSED, ZFS_DELEG_NOTE_GROUPUSED },
+	{ZFS_DELEG_PERM_HOLD, ZFS_DELEG_NOTE_HOLD },
+	{ZFS_DELEG_PERM_RELEASE, ZFS_DELEG_NOTE_RELEASE },
+	{ZFS_DELEG_PERM_DIFF, ZFS_DELEG_NOTE_DIFF},
 	{NULL, ZFS_DELEG_NOTE_NONE }
 };
 

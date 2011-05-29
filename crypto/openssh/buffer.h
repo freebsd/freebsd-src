@@ -1,4 +1,4 @@
-/* $OpenBSD: buffer.h,v 1.17 2008/05/08 06:59:01 markus Exp $ */
+/* $OpenBSD: buffer.h,v 1.21 2010/08/31 11:54:45 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -27,8 +27,8 @@ void	 buffer_init(Buffer *);
 void	 buffer_clear(Buffer *);
 void	 buffer_free(Buffer *);
 
-u_int	 buffer_len(Buffer *);
-void	*buffer_ptr(Buffer *);
+u_int	 buffer_len(const Buffer *);
+void	*buffer_ptr(const Buffer *);
 
 void	 buffer_append(Buffer *, const void *, u_int);
 void	*buffer_append_space(Buffer *, u_int);
@@ -40,7 +40,7 @@ void	 buffer_get(Buffer *, void *, u_int);
 void	 buffer_consume(Buffer *, u_int);
 void	 buffer_consume_end(Buffer *, u_int);
 
-void     buffer_dump(Buffer *);
+void     buffer_dump(const Buffer *);
 
 int	 buffer_get_ret(Buffer *, void *, u_int);
 int	 buffer_consume_ret(Buffer *, u_int);
@@ -68,6 +68,7 @@ void    buffer_put_char(Buffer *, int);
 void   *buffer_get_string(Buffer *, u_int *);
 void   *buffer_get_string_ptr(Buffer *, u_int *);
 void    buffer_put_string(Buffer *, const void *, u_int);
+char   *buffer_get_cstring(Buffer *, u_int *);
 void	buffer_put_cstring(Buffer *, const char *);
 
 #define buffer_skip_string(b) \
@@ -81,6 +82,17 @@ int	buffer_get_short_ret(u_short *, Buffer *);
 int	buffer_get_int_ret(u_int *, Buffer *);
 int	buffer_get_int64_ret(u_int64_t *, Buffer *);
 void	*buffer_get_string_ret(Buffer *, u_int *);
+char	*buffer_get_cstring_ret(Buffer *, u_int *);
+void	*buffer_get_string_ptr_ret(Buffer *, u_int *);
 int	buffer_get_char_ret(char *, Buffer *);
+
+#ifdef OPENSSL_HAS_ECC
+#include <openssl/ec.h>
+
+int	buffer_put_ecpoint_ret(Buffer *, const EC_GROUP *, const EC_POINT *);
+void	buffer_put_ecpoint(Buffer *, const EC_GROUP *, const EC_POINT *);
+int	buffer_get_ecpoint_ret(Buffer *, const EC_GROUP *, EC_POINT *);
+void	buffer_get_ecpoint(Buffer *, const EC_GROUP *, EC_POINT *);
+#endif
 
 #endif				/* BUFFER_H */

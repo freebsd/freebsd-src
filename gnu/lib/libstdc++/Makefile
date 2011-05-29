@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+GCCVER=	4.2
 GCCDIR=	${.CURDIR}/../../../contrib/gcc
 GCCLIB=	${.CURDIR}/../../../contrib/gcclibs
 SRCDIR=	${.CURDIR}/../../../contrib/libstdc++
@@ -13,7 +14,7 @@ LIB=		stdc++
 SHLIB_MAJOR=	6
 
 CFLAGS+=	-DIN_GLIBCPP_V3 -DHAVE_CONFIG_H
-.if ${MACHINE_ARCH} == "arm"
+.if ${MACHINE_CPUARCH} == "arm"
 CFLAGS+=	-D_GLIBCXX_SJLJ_EXCEPTIONS=1
 .endif
 CFLAGS+=	-I${.CURDIR} -I${SUPDIR} -I${GCCDIR} -I${SRCDIR}/include
@@ -66,14 +67,14 @@ SRCS+=	del_op.cc del_opnt.cc del_opv.cc del_opvnt.cc eh_alloc.cc eh_arm.cc \
 SRCS+=	cp-demangle.c
 
 # MD headers location
-.if ${MACHINE_ARCH} == "sparc64"
+.if ${MACHINE_CPUARCH} == "sparc64"
 MARCHDIR=	sparc
-.elif ${MACHINE_ARCH} == "i386" && ${MACHINE_CPU} != 'i386'
+.elif ${MACHINE_CPUARCH} == "i386" && ${MACHINE_CPU} != 'i386'
 MARCHDIR=	i486
-.elif ${MACHINE_ARCH} == "amd64"
+.elif ${MACHINE_CPUARCH} == "amd64"
 MARCHDIR=	i486
 .else
-MARCHDIR=	${MACHINE_ARCH}
+MARCHDIR=	${MACHINE_CPUARCH}
 .endif
 
 .if exists(${SRCDIR}/config/cpu/${MARCHDIR}/atomicity.h)
@@ -82,7 +83,7 @@ ATOMICITY_H=	${SRCDIR}/config/cpu/${MARCHDIR}/atomicity.h
 ATOMICITY_H=	${SRCDIR}/config/cpu/generic/atomicity_mutex/atomicity.h
 .endif
 
-.if ${MACHINE_ARCH} == "amd64"
+.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
 .if exists(${SRCDIR}/config/cpu/generic/atomicity_builtins/atomicity.h)
 ATOMICITY_H=	${SRCDIR}/config/cpu/generic/atomicity_builtins/atomicity.h
 .endif
@@ -94,7 +95,7 @@ CLEANFILES+=	atomicity.cc
 
 INCSGROUPS=	BITSHDRS BKWHDRS EXTHDRS BASEHDRS BASEXHDRS STDHDRS \
 		TARGETHDRS THRHDRS DEBUGHDRS TR1HDRS PBHDRS0 PBHDRS1
-CXXINCLUDEDIR=	${INCLUDEDIR}/c++/4.2
+CXXINCLUDEDIR=	${INCLUDEDIR}/c++/${GCCVER}
 
 STDHDRS=	std_algorithm.h std_bitset.h std_complex.h std_deque.h \
 		std_fstream.h std_functional.h std_iomanip.h std_ios.h \

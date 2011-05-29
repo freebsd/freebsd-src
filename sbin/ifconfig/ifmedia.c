@@ -45,10 +45,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -272,12 +268,8 @@ setmedia(const char *val, int d, int s, const struct afswtch *afp)
 	subtype = get_media_subtype(IFM_TYPE(ifmr->ifm_ulist[0]), val);
 
 	strncpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
-	ifr.ifr_media = (ifmr->ifm_current & ~(IFM_NMASK|IFM_TMASK)) |
+	ifr.ifr_media = (ifmr->ifm_current & IFM_IMASK) |
 	    IFM_TYPE(ifmr->ifm_ulist[0]) | subtype;
-
-	if ((ifr.ifr_media & IFM_TMASK) == 0) {
-		ifr.ifr_media &= ~IFM_GMASK;
-	}
 
 	ifmr->ifm_current = ifr.ifr_media;
 	callback_register(setifmediacallback, (void *)ifmr);
@@ -425,6 +417,9 @@ static struct ifmedia_description ifm_subtype_shared_aliases[] =
 static struct ifmedia_description ifm_shared_option_descriptions[] =
     IFM_SHARED_OPTION_DESCRIPTIONS;
 
+static struct ifmedia_description ifm_shared_option_aliases[] =
+    IFM_SHARED_OPTION_ALIASES;
+
 struct ifmedia_type_to_subtype {
 	struct {
 		struct ifmedia_description *desc;
@@ -433,7 +428,7 @@ struct ifmedia_type_to_subtype {
 	struct {
 		struct ifmedia_description *desc;
 		int alias;
-	} options[3];
+	} options[4];
 	struct {
 		struct ifmedia_description *desc;
 		int alias;
@@ -452,6 +447,7 @@ static struct ifmedia_type_to_subtype ifmedia_types_to_subtypes[] = {
 		},
 		{
 			{ &ifm_shared_option_descriptions[0], 0 },
+			{ &ifm_shared_option_aliases[0], 1 },
 			{ &ifm_subtype_ethernet_option_descriptions[0], 0 },
 			{ NULL, 0 },
 		},
@@ -469,6 +465,7 @@ static struct ifmedia_type_to_subtype ifmedia_types_to_subtypes[] = {
 		},
 		{
 			{ &ifm_shared_option_descriptions[0], 0 },
+			{ &ifm_shared_option_aliases[0], 1 },
 			{ &ifm_subtype_tokenring_option_descriptions[0], 0 },
 			{ NULL, 0 },
 		},
@@ -486,6 +483,7 @@ static struct ifmedia_type_to_subtype ifmedia_types_to_subtypes[] = {
 		},
 		{
 			{ &ifm_shared_option_descriptions[0], 0 },
+			{ &ifm_shared_option_aliases[0], 1 },
 			{ &ifm_subtype_fddi_option_descriptions[0], 0 },
 			{ NULL, 0 },
 		},
@@ -503,6 +501,7 @@ static struct ifmedia_type_to_subtype ifmedia_types_to_subtypes[] = {
 		},
 		{
 			{ &ifm_shared_option_descriptions[0], 0 },
+			{ &ifm_shared_option_aliases[0], 1 },
 			{ &ifm_subtype_ieee80211_option_descriptions[0], 0 },
 			{ NULL, 0 },
 		},
@@ -522,6 +521,7 @@ static struct ifmedia_type_to_subtype ifmedia_types_to_subtypes[] = {
 		},
 		{
 			{ &ifm_shared_option_descriptions[0], 0 },
+			{ &ifm_shared_option_aliases[0], 1 },
 			{ &ifm_subtype_atm_option_descriptions[0], 0 },
 			{ NULL, 0 },
 		},
@@ -757,7 +757,7 @@ print_media_word_ifconfig(int ifmw)
 {
 	struct ifmedia_description *desc;
 	struct ifmedia_type_to_subtype *ttos;
-	int i;
+	int seen_option = 0, i;
 
 	/* Find the top-level interface type. */
 	desc = get_toptype_desc(ifmw);
@@ -792,7 +792,10 @@ print_media_word_ifconfig(int ifmw)
 		for (desc = ttos->options[i].desc;
 		    desc->ifmt_string != NULL; desc++) {
 			if (ifmw & desc->ifmt_word) {
-				printf(" mediaopt %s", desc->ifmt_string);
+				if (seen_option == 0)
+					printf(" mediaopt ");
+				printf("%s%s", seen_option++ ? "," : "",
+				    desc->ifmt_string);
 			}
 		}
 	}

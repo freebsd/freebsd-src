@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: if_altq.h,v 1.11 2003/07/10 12:07:50 kjc Exp $	*/
+/*	$KAME: if_altq.h,v 1.12 2005/04/13 03:44:25 suz Exp $	*/
 
 /*
  * Copyright (C) 1997-2003
@@ -29,7 +29,7 @@
 #ifndef _ALTQ_IF_ALTQ_H_
 #define	_ALTQ_IF_ALTQ_H_
 
-#if (defined(__FreeBSD__) && __FreeBSD_version >= 500000)
+#ifdef __FreeBSD__
 #include <sys/lock.h>		/* XXX */
 #include <sys/mutex.h>		/* XXX */
 #include <sys/event.h>		/* XXX */
@@ -51,7 +51,7 @@ struct	ifaltq {
 	int	ifq_len;
 	int	ifq_maxlen;
 	int	ifq_drops;
-#if (defined(__FreeBSD__) && __FreeBSD_version >= 500000)
+#ifdef __FreeBSD__
 	struct	mtx ifq_mtx;
 #endif
 

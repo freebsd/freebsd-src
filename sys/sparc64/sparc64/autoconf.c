@@ -66,9 +66,6 @@ static void
 configure(void *dummy)
 {
 
-#ifdef SUN4V
-	intr_restore_all(0x16);
-#endif
 	root_bus_configure();
 #ifdef DEV_ISA
 	/*

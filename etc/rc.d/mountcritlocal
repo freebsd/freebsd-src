@@ -4,14 +4,14 @@
 #
 
 # PROVIDE: mountcritlocal
-# REQUIRE: root
-# KEYWORD: nojail
+# REQUIRE: root hostid_save mdconfig
+# KEYWORD: nojail shutdown
 
 . /etc/rc.subr
 
 name="mountcritlocal"
 start_cmd="mountcritlocal_start"
-stop_cmd=":"
+stop_cmd=sync
 
 mountcritlocal_start()
 {

@@ -1,23 +1,23 @@
 /* A YACC grammar to parse a superset of the AT&T linker scripting language.
    Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
-   2001, 2002, 2003 Free Software Foundation, Inc.
+   2001, 2002, 2003, 2004, 2005, 2006, 2007 Free Software Foundation, Inc.
    Written by Steve Chamberlain of Cygnus Support (steve@cygnus.com).
 
-This file is part of GNU ld.
+   This file is part of GNU ld.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 %{
 /*
@@ -26,8 +26,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #define DONTDECLARE_MALLOC
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "bfdlink.h"
 #include "ld.h"
 #include "ldexp.h"
@@ -46,10 +46,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #endif
 
 static enum section_type sectype;
+static lang_memory_region_type *region;
 
-lang_memory_region_type *region;
-
-bfd_boolean ldgram_want_filename = TRUE;
 FILE *saved_script_handle = NULL;
 bfd_boolean force_make_executable = FALSE;
 
@@ -94,7 +92,7 @@ static int error_index;
 }
 
 %type <etree> exp opt_exp_with_type mustbe_exp opt_at phdr_type phdr_val
-%type <etree> opt_exp_without_type opt_subalign
+%type <etree> opt_exp_without_type opt_subalign opt_align
 %type <fill> fill_opt fill_exp
 %type <name_list> exclude_name_list
 %type <wildcard_list> file_NAME_list
@@ -128,33 +126,36 @@ static int error_index;
 %token END
 %left <token> '('
 %token <token> ALIGN_K BLOCK BIND QUAD SQUAD LONG SHORT BYTE
-%token SECTIONS PHDRS SORT DATA_SEGMENT_ALIGN DATA_SEGMENT_END
+%token SECTIONS PHDRS DATA_SEGMENT_ALIGN DATA_SEGMENT_RELRO_END DATA_SEGMENT_END
+%token SORT_BY_NAME SORT_BY_ALIGNMENT
 %token '{' '}'
 %token SIZEOF_HEADERS OUTPUT_FORMAT FORCE_COMMON_ALLOCATION OUTPUT_ARCH
 %token INHIBIT_COMMON_ALLOCATION
-%token SIZEOF_HEADERS
+%token SEGMENT_START
 %token INCLUDE
-%token MEMORY DEFSYMEND
+%token MEMORY
 %token NOLOAD DSECT COPY INFO OVERLAY
-%token NAME LNAME DEFINED TARGET_K SEARCH_DIR MAP ENTRY
+%token DEFINED TARGET_K SEARCH_DIR MAP ENTRY
 %token <integer> NEXT
-%token SIZEOF ADDR LOADADDR MAX_K MIN_K
+%token SIZEOF ALIGNOF ADDR LOADADDR MAX_K MIN_K
 %token STARTUP HLL SYSLIB FLOAT NOFLOAT NOCROSSREFS
 %token ORIGIN FILL
 %token LENGTH CREATE_OBJECT_SYMBOLS INPUT GROUP OUTPUT CONSTRUCTORS
-%token ALIGNMOD AT SUBALIGN PROVIDE
-%type <token> assign_op atype attributes_opt
+%token ALIGNMOD AT SUBALIGN PROVIDE PROVIDE_HIDDEN AS_NEEDED
+%type <token> assign_op atype attributes_opt sect_constraint
 %type <name>  filename
 %token CHIP LIST SECT ABSOLUTE  LOAD NEWLINE ENDWORD ORDER NAMEWORD ASSERT_K
 %token FORMAT PUBLIC DEFSYMEND BASE ALIAS TRUNCATE REL
 %token INPUT_SCRIPT INPUT_MRI_SCRIPT INPUT_DEFSYM CASE EXTERN START
 %token <name> VERS_TAG VERS_IDENTIFIER
 %token GLOBAL LOCAL VERSIONK INPUT_VERSION_SCRIPT
-%token KEEP
+%token KEEP ONLY_IF_RO ONLY_IF_RW SPECIAL
 %token EXCLUDE_FILE
+%token CONSTANT
 %type <versyms> vers_defns
 %type <versnode> vers_tag
 %type <deflist> verdep
+%token INPUT_DYNAMIC_LIST
 
 %%
 
@@ -162,6 +163,7 @@ file:
 		INPUT_SCRIPT script_file
 	|	INPUT_MRI_SCRIPT mri_script_file
 	|	INPUT_VERSION_SCRIPT version_script_file
+	|	INPUT_DYNAMIC_LIST dynamic_list_file
 	|	INPUT_DEFSYM defsym_expr
 	;
 
@@ -278,31 +280,31 @@ casesymlist:
 	| casesymlist ',' NAME
 	;
 
+/* Parsed as expressions so that commas separate entries */
 extern_name_list:
+	{ ldlex_expression (); }
+	extern_name_list_body
+	{ ldlex_popstate (); }
+
+extern_name_list_body:
 	  NAME
 			{ ldlang_add_undef ($1); }
-	| extern_name_list NAME
+	| extern_name_list_body NAME
 			{ ldlang_add_undef ($2); }
-	| extern_name_list ',' NAME
+	| extern_name_list_body ',' NAME
 			{ ldlang_add_undef ($3); }
 	;
 
 script_file:
-	{
-	 ldlex_both();
-	}
-       ifile_list
-	{
-	ldlex_popstate();
-	}
+	{ ldlex_both(); }
+	ifile_list
+	{ ldlex_popstate(); }
         ;
 
-
 ifile_list:
-       ifile_list ifile_p1
+	ifile_list ifile_p1
         |
 	;
-
 
 
 ifile_p1:
@@ -370,6 +372,18 @@ input_list:
 	|	input_list LNAME
 		{ lang_add_input_file($2,lang_input_file_is_l_enum,
 				 (char *)NULL); }
+	|	AS_NEEDED '('
+		  { $<integer>$ = as_needed; as_needed = TRUE; }
+		     input_list ')'
+		  { as_needed = $<integer>3; }
+	|	input_list ',' AS_NEEDED '('
+		  { $<integer>$ = as_needed; as_needed = TRUE; }
+		     input_list ')'
+		  { as_needed = $<integer>5; }
+	|	input_list AS_NEEDED '('
+		  { $<integer>$ = as_needed; as_needed = TRUE; }
+		     input_list ')'
+		  { as_needed = $<integer>4; }
 	;
 
 sections:
@@ -412,25 +426,55 @@ wildcard_spec:
 		wildcard_name
 			{
 			  $$.name = $1;
-			  $$.sorted = FALSE;
+			  $$.sorted = none;
 			  $$.exclude_name_list = NULL;
 			}
 	| 	EXCLUDE_FILE '(' exclude_name_list ')' wildcard_name
 			{
 			  $$.name = $5;
-			  $$.sorted = FALSE;
+			  $$.sorted = none;
 			  $$.exclude_name_list = $3;
 			}
-	|	SORT '(' wildcard_name ')'
+	|	SORT_BY_NAME '(' wildcard_name ')'
 			{
 			  $$.name = $3;
-			  $$.sorted = TRUE;
+			  $$.sorted = by_name;
 			  $$.exclude_name_list = NULL;
 			}
-	|	SORT '(' EXCLUDE_FILE '(' exclude_name_list ')' wildcard_name ')'
+	|	SORT_BY_ALIGNMENT '(' wildcard_name ')'
+			{
+			  $$.name = $3;
+			  $$.sorted = by_alignment;
+			  $$.exclude_name_list = NULL;
+			}
+	|	SORT_BY_NAME '(' SORT_BY_ALIGNMENT '(' wildcard_name ')' ')'
+			{
+			  $$.name = $5;
+			  $$.sorted = by_name_alignment;
+			  $$.exclude_name_list = NULL;
+			}
+	|	SORT_BY_NAME '(' SORT_BY_NAME '(' wildcard_name ')' ')'
+			{
+			  $$.name = $5;
+			  $$.sorted = by_name;
+			  $$.exclude_name_list = NULL;
+			}
+	|	SORT_BY_ALIGNMENT '(' SORT_BY_NAME '(' wildcard_name ')' ')'
+			{
+			  $$.name = $5;
+			  $$.sorted = by_alignment_name;
+			  $$.exclude_name_list = NULL;
+			}
+	|	SORT_BY_ALIGNMENT '(' SORT_BY_ALIGNMENT '(' wildcard_name ')' ')'
+			{
+			  $$.name = $5;
+			  $$.sorted = by_alignment;
+			  $$.exclude_name_list = NULL;
+			}
+	|	SORT_BY_NAME '(' EXCLUDE_FILE '(' exclude_name_list ')' wildcard_name ')'
 			{
 			  $$.name = $7;
-			  $$.sorted = TRUE;
+			  $$.sorted = by_name;
 			  $$.exclude_name_list = $5;
 			}
 	;
@@ -481,7 +525,7 @@ input_section_spec_no_keep:
 			  struct wildcard_spec tmp;
 			  tmp.name = $1;
 			  tmp.exclude_name_list = NULL;
-			  tmp.sorted = FALSE;
+			  tmp.sorted = none;
 			  lang_add_wild (&tmp, NULL, ldgram_had_keep);
 			}
         |	'[' file_NAME_list ']'
@@ -514,7 +558,7 @@ statement:
 
 		  lang_add_attribute(lang_constructors_statement_enum);
 		}
-	| SORT '(' CONSTRUCTORS ')'
+	| SORT_BY_NAME '(' CONSTRUCTORS ')'
 		{
 		  constructors_sorted = TRUE;
 		  lang_add_attribute (lang_constructors_statement_enum);
@@ -529,6 +573,9 @@ statement:
 			{
 			  lang_add_fill ($3);
 			}
+	| ASSERT_K  {ldlex_expression ();} '(' exp ',' NAME ')' end
+			{ ldlex_popstate ();
+			  lang_add_assignment (exp_assert ($4, $6)); }
 	;
 
 statement_list:
@@ -557,10 +604,7 @@ length:
 fill_exp:
 	mustbe_exp
 		{
-		  $$ = exp_get_fill ($1,
-				     0,
-				     "fill value",
-				     lang_first_phase_enum);
+		  $$ = exp_get_fill ($1, 0, "fill value");
 		}
 	;
 
@@ -609,7 +653,11 @@ assignment:
 		}
 	|	PROVIDE '(' NAME '=' mustbe_exp ')'
 		{
-		  lang_add_assignment (exp_provide ($3, $5));
+		  lang_add_assignment (exp_provide ($3, $5, FALSE));
+		}
+	|	PROVIDE_HIDDEN '(' NAME '=' mustbe_exp ')'
+		{
+		  lang_add_assignment (exp_provide ($3, $5, TRUE));
 		}
 	;
 
@@ -638,18 +686,16 @@ memory_spec: 	NAME
 
 origin_spec:
 	ORIGIN '=' mustbe_exp
-		{ region->current =
-		 region->origin =
-		 exp_get_vma($3, 0L,"origin", lang_first_phase_enum);
-}
+		{
+		  region->origin = exp_get_vma ($3, 0, "origin");
+		  region->current = region->origin;
+		}
 	;
 
 length_spec:
              LENGTH '=' mustbe_exp
-               { region->length = exp_get_vma($3,
-					       ~((bfd_vma)0),
-					       "length",
-					       lang_first_phase_enum);
+		{
+		  region->length = exp_get_vma ($3, -1, "length");
 		}
 	;
 
@@ -730,96 +776,115 @@ nocrossref_list:
 		}
 	;
 
-mustbe_exp:		 { ldlex_expression(); }
+mustbe_exp:		 { ldlex_expression (); }
 		exp
-			 { ldlex_popstate(); $$=$2;}
+			 { ldlex_popstate (); $$=$2;}
 	;
 
 exp	:
 		'-' exp %prec UNARY
-			{ $$ = exp_unop('-', $2); }
+			{ $$ = exp_unop ('-', $2); }
 	|	'(' exp ')'
 			{ $$ = $2; }
 	|	NEXT '(' exp ')' %prec UNARY
-			{ $$ = exp_unop((int) $1,$3); }
+			{ $$ = exp_unop ((int) $1,$3); }
 	|	'!' exp %prec UNARY
-			{ $$ = exp_unop('!', $2); }
+			{ $$ = exp_unop ('!', $2); }
 	|	'+' exp %prec UNARY
 			{ $$ = $2; }
 	|	'~' exp %prec UNARY
-			{ $$ = exp_unop('~', $2);}
+			{ $$ = exp_unop ('~', $2);}
 
 	|	exp '*' exp
-			{ $$ = exp_binop('*', $1, $3); }
+			{ $$ = exp_binop ('*', $1, $3); }
 	|	exp '/' exp
-			{ $$ = exp_binop('/', $1, $3); }
+			{ $$ = exp_binop ('/', $1, $3); }
 	|	exp '%' exp
-			{ $$ = exp_binop('%', $1, $3); }
+			{ $$ = exp_binop ('%', $1, $3); }
 	|	exp '+' exp
-			{ $$ = exp_binop('+', $1, $3); }
+			{ $$ = exp_binop ('+', $1, $3); }
 	|	exp '-' exp
-			{ $$ = exp_binop('-' , $1, $3); }
+			{ $$ = exp_binop ('-' , $1, $3); }
 	|	exp LSHIFT exp
-			{ $$ = exp_binop(LSHIFT , $1, $3); }
+			{ $$ = exp_binop (LSHIFT , $1, $3); }
 	|	exp RSHIFT exp
-			{ $$ = exp_binop(RSHIFT , $1, $3); }
+			{ $$ = exp_binop (RSHIFT , $1, $3); }
 	|	exp EQ exp
-			{ $$ = exp_binop(EQ , $1, $3); }
+			{ $$ = exp_binop (EQ , $1, $3); }
 	|	exp NE exp
-			{ $$ = exp_binop(NE , $1, $3); }
+			{ $$ = exp_binop (NE , $1, $3); }
 	|	exp LE exp
-			{ $$ = exp_binop(LE , $1, $3); }
+			{ $$ = exp_binop (LE , $1, $3); }
   	|	exp GE exp
-			{ $$ = exp_binop(GE , $1, $3); }
+			{ $$ = exp_binop (GE , $1, $3); }
 	|	exp '<' exp
-			{ $$ = exp_binop('<' , $1, $3); }
+			{ $$ = exp_binop ('<' , $1, $3); }
 	|	exp '>' exp
-			{ $$ = exp_binop('>' , $1, $3); }
+			{ $$ = exp_binop ('>' , $1, $3); }
 	|	exp '&' exp
-			{ $$ = exp_binop('&' , $1, $3); }
+			{ $$ = exp_binop ('&' , $1, $3); }
 	|	exp '^' exp
-			{ $$ = exp_binop('^' , $1, $3); }
+			{ $$ = exp_binop ('^' , $1, $3); }
 	|	exp '|' exp
-			{ $$ = exp_binop('|' , $1, $3); }
+			{ $$ = exp_binop ('|' , $1, $3); }
 	|	exp '?' exp ':' exp
-			{ $$ = exp_trinop('?' , $1, $3, $5); }
+			{ $$ = exp_trinop ('?' , $1, $3, $5); }
 	|	exp ANDAND exp
-			{ $$ = exp_binop(ANDAND , $1, $3); }
+			{ $$ = exp_binop (ANDAND , $1, $3); }
 	|	exp OROR exp
-			{ $$ = exp_binop(OROR , $1, $3); }
+			{ $$ = exp_binop (OROR , $1, $3); }
 	|	DEFINED '(' NAME ')'
-			{ $$ = exp_nameop(DEFINED, $3); }
+			{ $$ = exp_nameop (DEFINED, $3); }
 	|	INT
 			{ $$ = exp_bigintop ($1.integer, $1.str); }
         |	SIZEOF_HEADERS
-			{ $$ = exp_nameop(SIZEOF_HEADERS,0); }
+			{ $$ = exp_nameop (SIZEOF_HEADERS,0); }
 
+	|	ALIGNOF '(' NAME ')'
+			{ $$ = exp_nameop (ALIGNOF,$3); }
 	|	SIZEOF '(' NAME ')'
-			{ $$ = exp_nameop(SIZEOF,$3); }
+			{ $$ = exp_nameop (SIZEOF,$3); }
 	|	ADDR '(' NAME ')'
-			{ $$ = exp_nameop(ADDR,$3); }
+			{ $$ = exp_nameop (ADDR,$3); }
 	|	LOADADDR '(' NAME ')'
-			{ $$ = exp_nameop(LOADADDR,$3); }
+			{ $$ = exp_nameop (LOADADDR,$3); }
+	|	CONSTANT '(' NAME ')'
+			{ $$ = exp_nameop (CONSTANT,$3); }
 	|	ABSOLUTE '(' exp ')'
-			{ $$ = exp_unop(ABSOLUTE, $3); }
+			{ $$ = exp_unop (ABSOLUTE, $3); }
 	|	ALIGN_K '(' exp ')'
-			{ $$ = exp_unop(ALIGN_K,$3); }
+			{ $$ = exp_unop (ALIGN_K,$3); }
 	|	ALIGN_K '(' exp ',' exp ')'
-			{ $$ = exp_binop(ALIGN_K,$3,$5); }
+			{ $$ = exp_binop (ALIGN_K,$3,$5); }
 	|	DATA_SEGMENT_ALIGN '(' exp ',' exp ')'
 			{ $$ = exp_binop (DATA_SEGMENT_ALIGN, $3, $5); }
+	|	DATA_SEGMENT_RELRO_END '(' exp ',' exp ')'
+			{ $$ = exp_binop (DATA_SEGMENT_RELRO_END, $5, $3); }
 	|	DATA_SEGMENT_END '(' exp ')'
-			{ $$ = exp_unop(DATA_SEGMENT_END, $3); }
+			{ $$ = exp_unop (DATA_SEGMENT_END, $3); }
+        |       SEGMENT_START '(' NAME ',' exp ')'
+                        { /* The operands to the expression node are
+			     placed in the opposite order from the way
+			     in which they appear in the script as
+			     that allows us to reuse more code in
+			     fold_binary.  */
+			  $$ = exp_binop (SEGMENT_START,
+					  $5,
+					  exp_nameop (NAME, $3)); }
 	|	BLOCK '(' exp ')'
-			{ $$ = exp_unop(ALIGN_K,$3); }
+			{ $$ = exp_unop (ALIGN_K,$3); }
 	|	NAME
-			{ $$ = exp_nameop(NAME,$1); }
+			{ $$ = exp_nameop (NAME,$1); }
 	|	MAX_K '(' exp ',' exp ')'
 			{ $$ = exp_binop (MAX_K, $3, $5 ); }
 	|	MIN_K '(' exp ',' exp ')'
 			{ $$ = exp_binop (MIN_K, $3, $5 ); }
 	|	ASSERT_K '(' exp ',' NAME ')'
 			{ $$ = exp_assert ($3, $5); }
+	|	ORIGIN '(' NAME ')'
+			{ $$ = exp_nameop (ORIGIN, $3); }
+	|	LENGTH '(' NAME ')'
+			{ $$ = exp_nameop (LENGTH, $3); }
 	;
 
 
@@ -833,27 +898,41 @@ opt_at:
 	|	{ $$ = 0; }
 	;
 
+opt_align:
+		ALIGN_K '(' exp ')' { $$ = $3; }
+	|	{ $$ = 0; }
+	;
+
 opt_subalign:
 		SUBALIGN '(' exp ')' { $$ = $3; }
+	|	{ $$ = 0; }
+	;
+
+sect_constraint:
+		ONLY_IF_RO { $$ = ONLY_IF_RO; }
+	|	ONLY_IF_RW { $$ = ONLY_IF_RW; }
+	|	SPECIAL { $$ = SPECIAL; }
 	|	{ $$ = 0; }
 	;
 
 section:	NAME 		{ ldlex_expression(); }
 		opt_exp_with_type
 		opt_at
+		opt_align
 		opt_subalign	{ ldlex_popstate (); ldlex_script (); }
+		sect_constraint
 		'{'
 			{
 			  lang_enter_output_section_statement($1, $3,
 							      sectype,
-							      0, $5, $4);
+							      $5, $6, $4, $8);
 			}
 		statement_list_opt
  		'}' { ldlex_popstate (); ldlex_expression (); }
 		memspec_opt memspec_at_opt phdr_opt fill_opt
 		{
 		  ldlex_popstate ();
-		  lang_leave_output_section_statement ($15, $12, $14, $13);
+		  lang_leave_output_section_statement ($17, $14, $16, $15);
 		}
 		opt_comma
 		{}
@@ -890,10 +969,10 @@ section:	NAME 		{ ldlex_expression(); }
 
 type:
 	   NOLOAD  { sectype = noload_section; }
-	|  DSECT   { sectype = dsect_section; }
-	|  COPY    { sectype = copy_section; }
-	|  INFO    { sectype = info_section; }
-	|  OVERLAY { sectype = overlay_section; }
+	|  DSECT   { sectype = noalloc_section; }
+	|  COPY    { sectype = noalloc_section; }
+	|  INFO    { sectype = noalloc_section; }
+	|  OVERLAY { sectype = noalloc_section; }
 	;
 
 atype:
@@ -1066,6 +1145,34 @@ phdr_val:
 		}
 	;
 
+dynamic_list_file:
+		{
+		  ldlex_version_file ();
+		  PUSH_ERROR (_("dynamic list"));
+		}
+		dynamic_list_nodes
+		{
+		  ldlex_popstate ();
+		  POP_ERROR ();
+		}
+	;
+
+dynamic_list_nodes:
+		dynamic_list_node
+	|	dynamic_list_nodes dynamic_list_node
+	;
+
+dynamic_list_node:
+		'{' dynamic_list_tag '}' ';'
+	;
+
+dynamic_list_tag:
+		vers_defns ';'
+		{
+		  lang_append_dynamic_list ($1);
+		}
+	;
+
 /* This syntax is used within an external version script file.  */
 
 version_script_file:
@@ -1149,11 +1256,19 @@ vers_tag:
 vers_defns:
 		VERS_IDENTIFIER
 		{
-		  $$ = lang_new_vers_pattern (NULL, $1, ldgram_vers_current_lang);
+		  $$ = lang_new_vers_pattern (NULL, $1, ldgram_vers_current_lang, FALSE);
+		}
+        |       NAME
+		{
+		  $$ = lang_new_vers_pattern (NULL, $1, ldgram_vers_current_lang, TRUE);
 		}
 	|	vers_defns ';' VERS_IDENTIFIER
 		{
-		  $$ = lang_new_vers_pattern ($1, $3, ldgram_vers_current_lang);
+		  $$ = lang_new_vers_pattern ($1, $3, ldgram_vers_current_lang, FALSE);
+		}
+	|	vers_defns ';' NAME
+		{
+		  $$ = lang_new_vers_pattern ($1, $3, ldgram_vers_current_lang, TRUE);
 		}
 	|	vers_defns ';' EXTERN NAME '{'
 			{
@@ -1162,6 +1277,9 @@ vers_defns:
 			}
 		vers_defns opt_semicolon '}'
 			{
+			  struct bfd_elf_version_expr *pat;
+			  for (pat = $7; pat->next != NULL; pat = pat->next);
+			  pat->next = $1;
 			  $$ = $7;
 			  ldgram_vers_current_lang = $<name>6;
 			}
@@ -1175,6 +1293,30 @@ vers_defns:
 			  $$ = $5;
 			  ldgram_vers_current_lang = $<name>4;
 			}
+	|	GLOBAL
+		{
+		  $$ = lang_new_vers_pattern (NULL, "global", ldgram_vers_current_lang, FALSE);
+		}
+	|	vers_defns ';' GLOBAL
+		{
+		  $$ = lang_new_vers_pattern ($1, "global", ldgram_vers_current_lang, FALSE);
+		}
+	|	LOCAL
+		{
+		  $$ = lang_new_vers_pattern (NULL, "local", ldgram_vers_current_lang, FALSE);
+		}
+	|	vers_defns ';' LOCAL
+		{
+		  $$ = lang_new_vers_pattern ($1, "local", ldgram_vers_current_lang, FALSE);
+		}
+	|	EXTERN
+		{
+		  $$ = lang_new_vers_pattern (NULL, "extern", ldgram_vers_current_lang, FALSE);
+		}
+	|	vers_defns ';' EXTERN
+		{
+		  $$ = lang_new_vers_pattern ($1, "extern", ldgram_vers_current_lang, FALSE);
+		}
 	;
 
 opt_semicolon:

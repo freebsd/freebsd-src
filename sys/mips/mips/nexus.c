@@ -73,7 +73,6 @@ struct nexus_device {
 
 #define DEVTONX(dev)	((struct nexus_device *)device_get_ivars(dev))
 #define NUM_MIPS_IRQS	6
-#define MIPS_MEM_RID	0x20
 
 static struct rman irq_rman;
 static struct rman mem_rman;
@@ -83,7 +82,7 @@ static struct resource *
 		    u_long, u_long, u_int);
 static int	nexus_activate_resource(device_t, device_t, int, int,
 		    struct resource *);
-static device_t	nexus_add_child(device_t, int, const char *, int);
+static device_t	nexus_add_child(device_t, u_int, const char *, int);
 static int	nexus_attach(device_t);
 static int	nexus_deactivate_resource(device_t, device_t, int, int,
 		    struct resource *);
@@ -152,7 +151,7 @@ nexus_probe(device_t dev)
 	}
 
 	mem_rman.rm_start = 0;
-	mem_rman.rm_end = ~0u;
+	mem_rman.rm_end = ~0ul;
 	mem_rman.rm_type = RMAN_ARRAY;
 	mem_rman.rm_descr = "Memory addresses";
 	if (rman_init(&mem_rman) != 0 ||
@@ -167,16 +166,19 @@ static int
 nexus_setup_intr(device_t dev, device_t child, struct resource *res, int flags,
     driver_filter_t *filt, driver_intr_t *intr, void *arg, void **cookiep)
 {
+	register_t s;
 	int irq;
 
-	intrmask_t s = disableintr();
+	s = intr_disable();
 	irq = rman_get_start(res);
-	if (irq >= NUM_MIPS_IRQS)
+	if (irq >= NUM_MIPS_IRQS) {
+		intr_restore(s);
 		return (0);
+	}
 
 	cpu_establish_hardintr(device_get_nameunit(child), filt, intr, arg,
 	    irq, flags, cookiep);
-	restoreintr(s);
+	intr_restore(s);
 	return (0);
 }
 
@@ -280,7 +282,7 @@ nexus_hinted_child(device_t bus, const char *dname, int dunit)
 }
 
 static device_t
-nexus_add_child(device_t bus, int order, const char *name, int unit)
+nexus_add_child(device_t bus, u_int order, const char *name, int unit)
 {
 	device_t	child;
 	struct nexus_device *ndev;

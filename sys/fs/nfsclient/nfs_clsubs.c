@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysent.h>
 #include <sys/syscall.h>
 #include <sys/sysproto.h>
+#include <sys/taskqueue.h>
 
 #include <vm/vm.h>
 #include <vm/vm_object.h>
@@ -67,7 +68,6 @@ __FBSDID("$FreeBSD$");
 #include <fs/nfsclient/nfsnode.h>
 #include <fs/nfsclient/nfsmount.h>
 #include <fs/nfsclient/nfs.h>
-#include <fs/nfsclient/nfs_lock.h>
 
 #include <netinet/in.h>
 
@@ -78,11 +78,13 @@ __FBSDID("$FreeBSD$");
 #include <machine/stdarg.h>
 
 extern struct mtx ncl_iod_mutex;
-extern enum nfsiod_state ncl_iodwant[NFS_MAXRAHEAD];
-extern struct nfsmount *ncl_iodmount[NFS_MAXRAHEAD];
+extern enum nfsiod_state ncl_iodwant[NFS_MAXASYNCDAEMON];
+extern struct nfsmount *ncl_iodmount[NFS_MAXASYNCDAEMON];
 extern int ncl_numasync;
 extern unsigned int ncl_iodmax;
 extern struct nfsstats newnfsstats;
+
+struct task	ncl_nfsiodnew_task;
 
 int
 ncl_uninit(struct vfsconf *vfsp)
@@ -165,16 +167,16 @@ ncl_printf(const char *fmt, ...)
 
 	mtx_lock(&Giant);
 	va_start(ap, fmt);
-	printf(fmt, ap);
+	vprintf(fmt, ap);
 	va_end(ap);
 	mtx_unlock(&Giant);
 }
 
 #ifdef NFS_ACDEBUG
 #include <sys/sysctl.h>
-SYSCTL_DECL(_vfs_newnfs);
+SYSCTL_DECL(_vfs_nfs);
 static int nfs_acdebug;
-SYSCTL_INT(_vfs_newnfs, OID_AUTO, acdebug, CTLFLAG_RW, &nfs_acdebug, 0, "");
+SYSCTL_INT(_vfs_nfs, OID_AUTO, acdebug, CTLFLAG_RW, &nfs_acdebug, 0, "");
 #endif
 
 /*
@@ -188,11 +190,12 @@ ncl_getattrcache(struct vnode *vp, struct vattr *vaper)
 	struct nfsnode *np;
 	struct vattr *vap;
 	struct nfsmount *nmp;
-	int timeo;
+	int timeo, mustflush;
 	
 	np = VTONFS(vp);
 	vap = &np->n_vattr.na_vattr;
 	nmp = VFSTONFS(vp->v_mount);
+	mustflush = nfscl_mustflush(vp);	/* must be before mtx_lock() */
 #ifdef NFS_ACDEBUG
 	mtx_lock(&Giant);	/* ncl_printf() */
 #endif
@@ -228,9 +231,13 @@ ncl_getattrcache(struct vnode *vp, struct vattr *vaper)
 			   (time_second - np->n_attrstamp), timeo);
 #endif
 
-	if ((time_second - np->n_attrstamp) >= timeo) {
+	if ((time_second - np->n_attrstamp) >= timeo &&
+	    (mustflush != 0 || np->n_attrstamp == 0)) {
 		newnfsstats.attrcache_misses++;
 		mtx_unlock(&np->n_mtx);
+#ifdef NFS_ACDEBUG
+		mtx_unlock(&Giant);	/* ncl_printf() */
+#endif
 		return( ENOENT);
 	}
 	newnfsstats.attrcache_hits++;
@@ -277,10 +284,7 @@ ncl_getcookie(struct nfsnode *np, off_t off, int add)
 	
 	pos = (uoff_t)off / NFS_DIRBLKSIZ;
 	if (pos == 0 || off < 0) {
-#ifdef DIAGNOSTIC
-		if (add)
-			panic("nfs getcookie add at <= 0");
-#endif
+		KASSERT(!add, ("nfs getcookie add at <= 0"));
 		return (&nfs_nullcookie);
 	}
 	pos--;
@@ -331,10 +335,7 @@ ncl_invaldir(struct vnode *vp)
 {
 	struct nfsnode *np = VTONFS(vp);
 
-#ifdef DIAGNOSTIC
-	if (vp->v_type != VDIR)
-		panic("nfs: invaldir not dir");
-#endif
+	KASSERT(vp->v_type == VDIR, ("nfs: invaldir not dir"));
 	ncl_dircookie_lock(np);
 	np->n_direofoffset = 0;
 	np->n_cookieverf.nfsuquad[0] = 0;
@@ -395,10 +396,11 @@ ncl_init(struct vfsconf *vfsp)
 	int i;
 
 	/* Ensure async daemons disabled */
-	for (i = 0; i < NFS_MAXRAHEAD; i++) {
+	for (i = 0; i < NFS_MAXASYNCDAEMON; i++) {
 		ncl_iodwant[i] = NFSIOD_NOT_AVAILABLE;
 		ncl_iodmount[i] = NULL;
 	}
+	TASK_INIT(&ncl_nfsiodnew_task, 0, ncl_nfsiodnew_tq, NULL);
 	ncl_nhinit();			/* Init the nfsnode table */
 
 	return (0);

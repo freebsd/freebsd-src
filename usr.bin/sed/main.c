@@ -130,8 +130,9 @@ main(int argc, char *argv[])
 	fflag = 0;
 	inplace = NULL;
 
-	while ((c = getopt(argc, argv, "EI:ae:f:i:ln")) != -1)
+	while ((c = getopt(argc, argv, "EI:ae:f:i:lnr")) != -1)
 		switch (c) {
+		case 'r':		/* Gnu sed compat */
 		case 'E':
 			rflags = REG_EXTENDED;
 			break;
@@ -337,18 +338,35 @@ mf_fgets(SPACE *sp, enum e_spflag spflag)
 		if (infile != NULL) {
 			fclose(infile);
 			if (*oldfname != '\0') {
-				if (rename(fname, oldfname) != 0) {
+				/* if there was a backup file, remove it */
+				unlink(oldfname);
+				/*
+				 * Backup the original.  Note that hard links
+				 * are not supported on all filesystems.
+				 */
+				if ((link(fname, oldfname) != 0) &&
+				   (rename(fname, oldfname) != 0)) {
 					warn("rename()");
-					unlink(tmpfname);
+					if (*tmpfname)
+						unlink(tmpfname);
 					exit(1);
 				}
 				*oldfname = '\0';
 			}
 			if (*tmpfname != '\0') {
 				if (outfile != NULL && outfile != stdout)
-					fclose(outfile);
+					if (fclose(outfile) != 0) {
+						warn("fclose()");
+						unlink(tmpfname);
+						exit(1);
+					}
 				outfile = NULL;
-				rename(tmpfname, fname);
+				if (rename(tmpfname, fname) != 0) {
+					/* this should not happen really! */
+					warn("rename()");
+					unlink(tmpfname);
+					exit(1);
+				}
 				*tmpfname = '\0';
 			}
 			outfname = NULL;

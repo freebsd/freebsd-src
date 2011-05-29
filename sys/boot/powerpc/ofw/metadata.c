@@ -175,6 +175,9 @@ md_copyenv(vm_offset_t addr)
  * MOD_SIZE	sizeof(size_t)		module size
  * MOD_METADATA	(variable)		type-specific metadata
  */
+
+static int align;
+
 #define COPY32(v, a, c) {			\
     u_int32_t	x = (v);			\
     if (c)					\
@@ -187,7 +190,7 @@ md_copyenv(vm_offset_t addr)
     COPY32(strlen(s) + 1, a, c)			\
     if (c)					\
         archsw.arch_copyin(s, a, strlen(s) + 1);\
-    a += roundup(strlen(s) + 1, sizeof(u_long));\
+    a += roundup(strlen(s) + 1, align);		\
 }
 
 #define MOD_NAME(a, s, c)	MOD_STR(MODINFO_NAME, a, s, c)
@@ -199,7 +202,7 @@ md_copyenv(vm_offset_t addr)
     COPY32(sizeof(s), a, c);			\
     if (c)					\
         archsw.arch_copyin(&s, a, sizeof(s));	\
-    a += roundup(sizeof(s), sizeof(u_long));	\
+    a += roundup(sizeof(s), align);		\
 }
 
 #define MOD_ADDR(a, s, c)	MOD_VAR(MODINFO_ADDR, a, s, c)
@@ -210,7 +213,7 @@ md_copyenv(vm_offset_t addr)
     COPY32(mm->md_size, a, c);			\
     if (c)					\
         archsw.arch_copyin(mm->md_data, a, mm->md_size);\
-    a += roundup(mm->md_size, sizeof(u_long));	\
+    a += roundup(mm->md_size, align);		\
 }
 
 #define MOD_END(a, c) {				\
@@ -219,10 +222,11 @@ md_copyenv(vm_offset_t addr)
 }
 
 vm_offset_t
-md_copymodules(vm_offset_t addr)
+md_copymodules(vm_offset_t addr, int kern64)
 {
     struct preloaded_file	*fp;
     struct file_metadata	*md;
+    uint64_t			scratch64;
     int				c;
 
     c = addr != 0;
@@ -233,8 +237,15 @@ md_copymodules(vm_offset_t addr)
 	MOD_TYPE(addr, fp->f_type, c);
 	if (fp->f_args)
 	    MOD_ARGS(addr, fp->f_args, c);
-	MOD_ADDR(addr, fp->f_addr, c);
-	MOD_SIZE(addr, fp->f_size, c);
+	if (kern64) {
+		scratch64 = fp->f_addr;
+		MOD_ADDR(addr, scratch64, c);
+		scratch64 = fp->f_size;
+		MOD_SIZE(addr, scratch64, c);
+	} else {
+		MOD_ADDR(addr, fp->f_addr, c);
+		MOD_SIZE(addr, fp->f_size, c);
+	}
 	for (md = fp->f_metadata; md != NULL; md = md->md_next) {
 	    if (!(md->md_type & MODINFOMD_NOCOPY)) {
 		MOD_METADATA(addr, md, c);
@@ -254,7 +265,7 @@ md_copymodules(vm_offset_t addr)
  * - Module metadata are formatted and placed in kernel space.
  */
 int
-md_load(char *args, vm_offset_t *modulep)
+md_load_dual(char *args, vm_offset_t *modulep, int kern64)
 {
     struct preloaded_file	*kfp;
     struct preloaded_file	*xp;
@@ -263,11 +274,11 @@ md_load(char *args, vm_offset_t *modulep)
     vm_offset_t			addr;
     vm_offset_t			envp;
     vm_offset_t			size;
+    uint64_t			scratch64;
     char			*rootdevname;
     int				howto;
-    int				dtlb_slots;
-    int				itlb_slots;
 
+    align = kern64 ? 8 : 4;
     howto = md_getboothowto(args);
 
     /* 
@@ -298,23 +309,48 @@ md_load(char *args, vm_offset_t *modulep)
     addr = roundup(addr, PAGE_SIZE);
 
     kernend = 0;
-    kfp = file_findfile(NULL, "elf32 kernel");
+    kfp = file_findfile(NULL, kern64 ? "elf64 kernel" : "elf32 kernel");
     if (kfp == NULL)
 	kfp = file_findfile(NULL, "elf kernel");
     if (kfp == NULL)
 	panic("can't find kernel file");
     file_addmetadata(kfp, MODINFOMD_HOWTO, sizeof howto, &howto);
-    file_addmetadata(kfp, MODINFOMD_ENVP, sizeof envp, &envp);
-    file_addmetadata(kfp, MODINFOMD_KERNEND, sizeof kernend, &kernend);
+    if (kern64) {
+	scratch64 = envp;
+	file_addmetadata(kfp, MODINFOMD_ENVP, sizeof scratch64, &scratch64);
+	scratch64 = kernend;
+	file_addmetadata(kfp, MODINFOMD_KERNEND, sizeof scratch64, &scratch64);
+    } else {
+	file_addmetadata(kfp, MODINFOMD_ENVP, sizeof envp, &envp);
+	file_addmetadata(kfp, MODINFOMD_KERNEND, sizeof kernend, &kernend);
+    }
 
     *modulep = addr;
-    size = md_copymodules(0);
+    size = md_copymodules(0, kern64);
     kernend = roundup(addr + size, PAGE_SIZE);
 
     md = file_findmetadata(kfp, MODINFOMD_KERNEND);
-    bcopy(&kernend, md->md_data, sizeof kernend);
-
-    (void)md_copymodules(addr);
+    if (kern64) {
+	scratch64 = kernend;
+	bcopy(&scratch64, md->md_data, sizeof scratch64);
+    } else {
+	bcopy(&kernend, md->md_data, sizeof kernend);
+    }
+	
+    (void)md_copymodules(addr, kern64);
 
     return(0);
 }
+
+int
+md_load(char *args, vm_offset_t *modulep)
+{
+    return (md_load_dual(args, modulep, 0));
+}
+
+int
+md_load64(char *args, vm_offset_t *modulep)
+{
+    return (md_load_dual(args, modulep, 1));
+}
+

@@ -19,14 +19,12 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
 #ifndef	_SYS_FM_FS_ZFS_H
 #define	_SYS_FM_FS_ZFS_H
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #ifdef	__cplusplus
 extern "C" {
@@ -57,6 +55,7 @@ extern "C" {
 #define	FM_EREPORT_PAYLOAD_ZFS_VDEV_TYPE	"vdev_type"
 #define	FM_EREPORT_PAYLOAD_ZFS_VDEV_PATH	"vdev_path"
 #define	FM_EREPORT_PAYLOAD_ZFS_VDEV_DEVID	"vdev_devid"
+#define	FM_EREPORT_PAYLOAD_ZFS_VDEV_FRU		"vdev_fru"
 #define	FM_EREPORT_PAYLOAD_ZFS_PARENT_GUID	"parent_guid"
 #define	FM_EREPORT_PAYLOAD_ZFS_PARENT_TYPE	"parent_type"
 #define	FM_EREPORT_PAYLOAD_ZFS_PARENT_PATH	"parent_path"
@@ -69,6 +68,18 @@ extern "C" {
 #define	FM_EREPORT_PAYLOAD_ZFS_ZIO_OFFSET	"zio_offset"
 #define	FM_EREPORT_PAYLOAD_ZFS_ZIO_SIZE		"zio_size"
 #define	FM_EREPORT_PAYLOAD_ZFS_PREV_STATE	"prev_state"
+#define	FM_EREPORT_PAYLOAD_ZFS_CKSUM_EXPECTED	"cksum_expected"
+#define	FM_EREPORT_PAYLOAD_ZFS_CKSUM_ACTUAL	"cksum_actual"
+#define	FM_EREPORT_PAYLOAD_ZFS_CKSUM_ALGO	"cksum_algorithm"
+#define	FM_EREPORT_PAYLOAD_ZFS_CKSUM_BYTESWAP	"cksum_byteswap"
+#define	FM_EREPORT_PAYLOAD_ZFS_BAD_OFFSET_RANGES "bad_ranges"
+#define	FM_EREPORT_PAYLOAD_ZFS_BAD_RANGE_MIN_GAP "bad_ranges_min_gap"
+#define	FM_EREPORT_PAYLOAD_ZFS_BAD_RANGE_SETS	"bad_range_sets"
+#define	FM_EREPORT_PAYLOAD_ZFS_BAD_RANGE_CLEARS	"bad_range_clears"
+#define	FM_EREPORT_PAYLOAD_ZFS_BAD_SET_BITS	"bad_set_bits"
+#define	FM_EREPORT_PAYLOAD_ZFS_BAD_CLEARED_BITS	"bad_cleared_bits"
+#define	FM_EREPORT_PAYLOAD_ZFS_BAD_SET_HISTOGRAM "bad_set_histogram"
+#define	FM_EREPORT_PAYLOAD_ZFS_BAD_CLEARED_HISTOGRAM "bad_cleared_histogram"
 
 #define	FM_EREPORT_FAILMODE_WAIT		"wait"
 #define	FM_EREPORT_FAILMODE_CONTINUE		"continue"
@@ -76,6 +87,7 @@ extern "C" {
 
 #define	FM_RESOURCE_REMOVED			"removed"
 #define	FM_RESOURCE_AUTOREPLACE			"autoreplace"
+#define	FM_RESOURCE_STATECHANGE			"statechange"
 
 #ifdef	__cplusplus
 }

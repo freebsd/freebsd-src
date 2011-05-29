@@ -74,6 +74,7 @@ struct nfsclclient {
 #define	NFSCLFLAGS_EXPIREIT	0x0040
 #define	NFSCLFLAGS_FIRSTDELEG	0x0080
 #define	NFSCLFLAGS_GOTDELEG	0x0100
+#define	NFSCLFLAGS_RECVRINPROG	0x0200
 
 struct nfsclowner {
 	LIST_ENTRY(nfsclowner)	nfsow_list;
@@ -117,6 +118,7 @@ struct nfscldeleg {
 #define	NFSCLDL_NEEDRECLAIM	0x08
 #define	NFSCLDL_ZAPPED		0x10
 #define	NFSCLDL_MODTIMESET	0x20
+#define	NFSCLDL_DELEGRET	0x40
 
 /*
  * MALLOC'd to the correct length to accommodate the file handle.
@@ -140,6 +142,7 @@ struct nfsclopen {
 #define	NFSCLOPEN_OK		0
 #define	NFSCLOPEN_DOOPEN	1
 #define	NFSCLOPEN_DOOPENDOWNGRADE 2
+#define	NFSCLOPEN_SETCRED	3
 
 struct nfscllockowner {
 	LIST_ENTRY(nfscllockowner) nfsl_list;

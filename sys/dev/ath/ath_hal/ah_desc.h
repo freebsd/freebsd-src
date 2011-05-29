@@ -113,6 +113,8 @@ struct ath_rx_status {
 	uint32_t	rs_evm0;	/* evm bytes */
 	uint32_t	rs_evm1;
 	uint32_t	rs_evm2;	
+	uint32_t	rs_evm3;	/* needed for ar9300 and later */
+	uint32_t	rs_evm4;	/* needed for ar9300 and later */
 #endif /* AH_SUPPORT_AR5416 */
 };
 

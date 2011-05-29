@@ -106,16 +106,17 @@ void
 frag6_init(void)
 {
 
-	V_ip6q.ip6q_next = V_ip6q.ip6q_prev = &V_ip6q;
 	V_ip6_maxfragpackets = nmbclusters / 4;
 	V_ip6_maxfrags = nmbclusters / 4;
+	V_ip6q.ip6q_next = V_ip6q.ip6q_prev = &V_ip6q;
 
 	if (!IS_DEFAULT_VNET(curvnet))
 		return;
 
-	IP6Q_LOCK_INIT();
 	EVENTHANDLER_REGISTER(nmbclusters_change,
 	    frag6_change, NULL, EVENTHANDLER_PRI_ANY);
+
+	IP6Q_LOCK_INIT();
 }
 
 /*

@@ -122,11 +122,10 @@ static struct sx addrsel_sxlock;
 #define	ADDRSEL_XUNLOCK()	sx_xunlock(&addrsel_sxlock)
 
 #define ADDR_LABEL_NOTAPP (-1)
-
 static VNET_DEFINE(struct in6_addrpolicy, defaultaddrpolicy);
-VNET_DEFINE(int, ip6_prefer_tempaddr);
-
 #define	V_defaultaddrpolicy		VNET(defaultaddrpolicy)
+
+VNET_DEFINE(int, ip6_prefer_tempaddr) = 0;
 
 static int selectroute __P((struct sockaddr_in6 *, struct ip6_pktopts *,
 	struct ip6_moptions *, struct route_in6 *, struct ifnet **,
@@ -182,7 +181,7 @@ in6_selectsrc(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
     struct inpcb *inp, struct route_in6 *ro, struct ucred *cred,
     struct ifnet **ifpp, struct in6_addr *srcp)
 {
-	struct in6_addr dst;
+	struct in6_addr dst, tmp;
 	struct ifnet *ifp = NULL;
 	struct in6_ifaddr *ia = NULL, *ia_best = NULL;
 	struct in6_pktinfo *pi = NULL;
@@ -326,10 +325,9 @@ in6_selectsrc(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 		if (!V_ip6_use_deprecated && IFA6_IS_DEPRECATED(ia))
 			continue;
 
+		/* If jailed only take addresses of the jail into account. */
 		if (cred != NULL &&
-		    prison_local_ip6(cred, &ia->ia_addr.sin6_addr,
-			(inp != NULL &&
-			(inp->inp_flags & IN6P_IPV6_V6ONLY) != 0)) != 0)
+		    prison_check_ip6(cred, &ia->ia_addr.sin6_addr) != 0)
 			continue;
 
 		/* Rule 1: Prefer same address */
@@ -476,10 +474,26 @@ in6_selectsrc(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 		return (EADDRNOTAVAIL);
 	}
 
+	/*
+	 * At this point at least one of the addresses belonged to the jail
+	 * but it could still be, that we want to further restrict it, e.g.
+	 * theoratically IN6_IS_ADDR_LOOPBACK.
+	 * It must not be IN6_IS_ADDR_UNSPECIFIED anymore.
+	 * prison_local_ip6() will fix an IN6_IS_ADDR_LOOPBACK but should
+	 * let all others previously selected pass.
+	 * Use tmp to not change ::1 on lo0 to the primary jail address.
+	 */
+	tmp = ia->ia_addr.sin6_addr;
+	if (cred != NULL && prison_local_ip6(cred, &tmp, (inp != NULL &&
+	    (inp->inp_flags & IN6P_IPV6_V6ONLY) != 0)) != 0) {
+		IN6_IFADDR_RUNLOCK();
+		return (EADDRNOTAVAIL);
+	}
+
 	if (ifpp)
 		*ifpp = ifp;
 
-	bcopy(&ia->ia_addr.sin6_addr, srcp, sizeof(*srcp));
+	bcopy(&tmp, srcp, sizeof(*srcp));
 	IN6_IFADDR_RUNLOCK();
 	return (0);
 }
@@ -836,9 +850,11 @@ int
 in6_pcbsetport(struct in6_addr *laddr, struct inpcb *inp, struct ucred *cred)
 {
 	struct socket *so = inp->inp_socket;
-	u_int16_t lport = 0, first, last, *lastport;
-	int count, error, wild = 0, dorandom;
+	u_int16_t lport = 0;
+	int error, lookupflags = 0;
+#ifdef INVARIANTS
 	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
+#endif
 
 	INP_INFO_WLOCK_ASSERT(pcbinfo);
 	INP_WLOCK_ASSERT(inp);
@@ -850,78 +866,13 @@ in6_pcbsetport(struct in6_addr *laddr, struct inpcb *inp, struct ucred *cred)
 
 	/* XXX: this is redundant when called from in6_pcbbind */
 	if ((so->so_options & (SO_REUSEADDR|SO_REUSEPORT)) == 0)
-		wild = INPLOOKUP_WILDCARD;
+		lookupflags = INPLOOKUP_WILDCARD;
 
 	inp->inp_flags |= INP_ANONPORT;
 
-	if (inp->inp_flags & INP_HIGHPORT) {
-		first = V_ipport_hifirstauto;	/* sysctl */
-		last  = V_ipport_hilastauto;
-		lastport = &pcbinfo->ipi_lasthi;
-	} else if (inp->inp_flags & INP_LOWPORT) {
-		error = priv_check_cred(cred, PRIV_NETINET_RESERVEDPORT, 0);
-		if (error)
-			return error;
-		first = V_ipport_lowfirstauto;	/* 1023 */
-		last  = V_ipport_lowlastauto;	/* 600 */
-		lastport = &pcbinfo->ipi_lastlow;
-	} else {
-		first = V_ipport_firstauto;	/* sysctl */
-		last  = V_ipport_lastauto;
-		lastport = &pcbinfo->ipi_lastport;
-	}
-
-	/*
-	 * For UDP, use random port allocation as long as the user
-	 * allows it.  For TCP (and as of yet unknown) connections,
-	 * use random port allocation only if the user allows it AND
-	 * ipport_tick() allows it.
-	 */
-	if (V_ipport_randomized &&
-	    (!V_ipport_stoprandom || pcbinfo == &V_udbinfo))
-		dorandom = 1;
-	else
-		dorandom = 0;
-	/*
-	 * It makes no sense to do random port allocation if
-	 * we have the only port available.
-	 */
-	if (first == last)
-		dorandom = 0;
-	/* Make sure to not include UDP packets in the count. */
-	if (pcbinfo != &V_udbinfo)
-		V_ipport_tcpallocs++;
-
-	/*
-	 * Instead of having two loops further down counting up or down
-	 * make sure that first is always <= last and go with only one
-	 * code path implementing all logic.
-	 */
-	if (first > last) {
-		u_int16_t aux;
-
-		aux = first;
-		first = last;
-		last = aux;
-	}
-
-	if (dorandom)
-		*lastport = first + (arc4random() % (last - first));
-
-	count = last - first;
-
-	do {
-		if (count-- < 0) {	/* completely used? */
-			/* Undo an address bind that may have occurred. */
-			inp->in6p_laddr = in6addr_any;
-			return (EADDRNOTAVAIL);
-		}
-		++*lastport;
-		if (*lastport < first || *lastport > last)
-			*lastport = first;
-		lport = htons(*lastport);
-	} while (in6_pcblookup_local(pcbinfo, &inp->in6p_laddr,
-	    lport, wild, cred));
+	error = in_pcb_lport(inp, NULL, &lport, cred, lookupflags);
+	if (error != 0)
+		return (error);
 
 	inp->inp_lport = lport;
 	if (in_pcbinshash(inp) != 0) {
@@ -936,8 +887,6 @@ in6_pcbsetport(struct in6_addr *laddr, struct inpcb *inp, struct ucred *cred)
 void
 addrsel_policy_init(void)
 {
-
-	V_ip6_prefer_tempaddr = 0;
 
 	init_policy_queue();
 

@@ -50,7 +50,7 @@ usage(void)
 	    "usage: conscontrol [list]",
 	    "       conscontrol mute on | off",
 	    "       conscontrol add | delete console",
-	    "       conscontrol set console | unset");
+	    "       conscontrol set | unset console");
 	exit(1);
 }
 
@@ -153,28 +153,16 @@ consdel(char *devnam)
 }
 
 static void
-consset(char *devnam)
+consset(char *devnam, int flag)
 {
-	int ttyfd, flag = 1;
+	int ttyfd;
 
 	ttyfd = open(devnam, O_RDONLY);
 	if (ttyfd == -1)
 		err(1, "opening %s", devnam);
 	if (ioctl(ttyfd, TIOCCONS, &flag) == -1)
-		err(1, "could not set %s as virtual console", devnam);
-	close(ttyfd);
-}
-
-static void
-consunset(void)
-{
-	int ttyfd, flag = 0;
-
-	ttyfd = open(DEVDIR "console", O_RDONLY);
-	if (ttyfd == -1)
-		err(1, "opening virtual console");
-	if (ioctl(ttyfd, TIOCCONS, &flag) == -1)
-		err(1, "could not unset virtual console");
+		err(1, "could not %s %s as virtual console",
+		    flag ? "set" : "unset", devnam);
 	close(ttyfd);
 }
 
@@ -188,9 +176,7 @@ main(int argc, char **argv)
 	argv += optind;
 
 	if (argc > 0 && strcmp(argv[0], "list") != 0) {
-		if (argc == 1 && strcmp(argv[0], "unset") == 0)
-			consunset();
-		else if (argc != 2)
+		if (argc != 2)
 			usage();
 		else if (strcmp(argv[0], "mute") == 0)
 			consmute(argv[1]);
@@ -199,7 +185,9 @@ main(int argc, char **argv)
 		else if (strcmp(argv[0], "delete") == 0)
 			consdel(argv[1]);
 		else if (strcmp(argv[0], "set") == 0)
-			consset(argv[1]);
+			consset(argv[1], 1);
+		else if (strcmp(argv[0], "unset") == 0)
+			consset(argv[1], 0);
 		else
 			usage();
 	}

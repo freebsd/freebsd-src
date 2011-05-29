@@ -94,11 +94,16 @@ enum {
 	AR_EEP_RXMASK,		/* uint8_t* */
 	AR_EEP_RXGAIN_TYPE,	/* uint8_t* */
 	AR_EEP_TXGAIN_TYPE,	/* uint8_t* */
+	AR_EEP_DAC_HPWR_5G,	/* uint8_t* */
 	AR_EEP_OL_PWRCTRL,	/* use ath_hal_eepromGetFlag */
 	AR_EEP_FSTCLK_5G,	/* use ath_hal_eepromGetFlag */
 	AR_EEP_ANTGAINMAX_5,	/* int8_t* */
 	AR_EEP_ANTGAINMAX_2,	/* int8_t* */
 	AR_EEP_WRITEPROTECT,	/* use ath_hal_eepromGetFlag */
+	AR_EEP_PWR_TABLE_OFFSET,/* int8_t* */
+	AR_EEP_PWDCLKIND,	/* uint8_t* */
+	AR_EEP_TEMPSENSE_SLOPE,	/* int8_t* */
+	AR_EEP_TEMPSENSE_SLOPE_PAL_ON,	/* int8_t* */
 };
 
 typedef struct {
@@ -130,4 +135,5 @@ HAL_STATUS	ath_hal_v1EepromAttach(struct ath_hal *ah);
 HAL_STATUS	ath_hal_legacyEepromAttach(struct ath_hal *ah);
 HAL_STATUS	ath_hal_v14EepromAttach(struct ath_hal *ah);
 HAL_STATUS	ath_hal_v4kEepromAttach(struct ath_hal *ah);
+HAL_STATUS	ath_hal_9287EepromAttach(struct ath_hal *ah);
 #endif /* _ATH_AH_EEPROM_H_ */

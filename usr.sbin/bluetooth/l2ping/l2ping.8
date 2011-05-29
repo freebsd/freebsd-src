@@ -25,7 +25,7 @@
 .\" $Id: l2ping.8,v 1.3 2003/05/21 01:00:19 max Exp $
 .\" $FreeBSD$
 .\"
-.Dd June 14, 2002
+.Dd March 29, 2011
 .Dt L2PING 8
 .Os
 .Sh NAME
@@ -36,7 +36,7 @@
 .Op Fl fhn
 .Fl a Ar remote
 .Op Fl c Ar count
-.Op Fl i Ar delay
+.Op Fl i Ar wait
 .Op Fl S Ar source
 .Op Fl s Ar size
 .Sh DESCRIPTION
@@ -63,8 +63,7 @@ If this option is not specified,
 .Nm
 will operate until interrupted.
 .It Fl f
-.Dq Flood
-ping, i.e., no delay between packets.
+Don't wait between sending each packet.
 .It Fl h
 Display usage message and exit.
 .It Fl i Ar wait
@@ -109,7 +108,7 @@ Some implementations may not like large sizes and may hang or even crash.
 .Xr ng_l2cap 4 ,
 .Xr l2control 8
 .Sh AUTHORS
-.An Maksim Yevmenkin Aq m_evmenkin@yahoo.com
+.An Maksim Yevmenkin Aq emax@FreeBSD.org
 .Sh BUGS
 Could collect more statistic.
 Could check for duplicated, corrupted and lost packets.

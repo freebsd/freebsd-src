@@ -63,7 +63,7 @@ testapps:
 all:
 	@if [ -z "$(FIPSLIBDIR)" ]; then \
 		$(MAKE) -e subdirs lib fips_premain_dso$(EXE_EXT); \
-	else \
+	else  \
 		$(MAKE) -e lib fips_premain_dso$(EXE_EXT) fips_standalone_sha1$(EXE_EXT); \
 	fi
 
@@ -109,7 +109,7 @@ fipscanister.o: fips_start.o $(LIBOBJ) $(FIPS_OBJ_LISTS) fips_end.o
 		HP-UX|OSF1|SunOS) set -x; /usr/ccs/bin/ld -r -o $@ $$objs ;; \
 		*) set -x; $(CC) $$cflags -r -o $@ $$objs ;; \
 	esac fi
-	./fips_standalone_sha1 fipscanister.o > fipscanister.o.sha1
+	./fips_standalone_sha1$(EXE_EXT) fipscanister.o > fipscanister.o.sha1
 
 # If another exception is immediately required, assign approprite
 # site-specific ld command to FIPS_SITE_LD environment variable.
@@ -123,7 +123,11 @@ fips_premain_dso$(EXE_EXT): fips_premain.c
 		$(FIPSLIBDIR)fipscanister.o ../libcrypto.a $(EX_LIBS)
 # this is executed only when linking with external fipscanister.o
 fips_standalone_sha1$(EXE_EXT):	sha/fips_standalone_sha1.c
-	$(CC) $(CFLAGS) -DFIPSCANISTER_O -o $@ sha/fips_standalone_sha1.c $(FIPSLIBDIR)fipscanister.o $(EX_LIBS)
+	if [ -z "$(HOSTCC)" ] ; then \
+		$(CC) $(CFLAGS) -DFIPSCANISTER_O -o $@ sha/fips_standalone_sha1.c $(FIPSLIBDIR)fipscanister.o $(EX_LIBS) ; \
+	else \
+		$(HOSTCC) $(HOSTCFLAGS) -o $ $@ -I../include -I../crypto sha/fips_standalone_sha1.c ../crypto/sha/sha1dgst.c ; \
+	fi
 
 subdirs:
 	@target=all; $(RECURSIVE_MAKE)
@@ -188,8 +192,8 @@ install:
 	done
 	cp -p -f $(FIPSLIBDIR)fipscanister.o $(FIPSLIBDIR)fipscanister.o.sha1 \
 		$(FIPSLIBDIR)fips_premain.c $(FIPSLIBDIR)fips_premain.c.sha1 \
-		$(INSTALL_PREFIX)$(INSTALLTOP)/lib/; \
-	chmod 0444 $(INSTALL_PREFIX)$(INSTALLTOP)/lib/fips*
+		$(INSTALL_PREFIX)$(INSTALLTOP)/$(LIBDIR)/; \
+	chmod 0444 $(INSTALL_PREFIX)$(INSTALLTOP)/$(LIBDIR)/fips*
 
 lint:
 	@target=lint; $(RECURSIVE_MAKE)

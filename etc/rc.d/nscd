@@ -34,7 +34,7 @@ _nscd_set_option() {
 
 	_nscd_opt_val=$(eval "echo \$nscd_${_optname}")
 	_cached_opt_val=$(eval "echo \$cached_${_optname}")
-	
+
 	if [ -n "$_cached_opt_val" -a "$_nscd_opt_val" != "$_defoptval" ]; then
 		warn "You should use nscd_${_optname} instead of" \
 		    "cached_${_optname}"

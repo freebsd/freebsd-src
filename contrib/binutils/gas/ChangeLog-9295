@@ -248,7 +248,7 @@ Wed Nov 15 03:52:00 1995  Ken Raeburn  <raeburn@cygnus.com>
 	Mon Jul 31 14:53:19 1995  Alan Modra  <alan@spri.levels.unisa.edu.au>
 
 	* config/tc-i386.h (md_do_align): cast fill and 0x90 to char
- 	before comparing
+	before comparing
 
 	Mon May  1 10:91:49 1995  Alan Modra  <alan@spri.levels.unisa.edu.au>
 
@@ -506,9 +506,9 @@ Mon Oct 23 16:20:04 1995  Ken Raeburn  <raeburn@cygnus.com>
 Mon Oct 23 11:15:44 1995  James G. Smith  <jsmith@pasanda.cygnus.co.uk>
 
 	* config/tc-mips.c: Added mips_4100 control, and support for
- 	accepting the 4100 as a MIPS architecture variant (md_begin,
- 	macro_build, mips_ip, md_parse_option). Adding suitable
- 	command-line OPTIONs, and updating the help text (md_show_usage).
+	accepting the 4100 as a MIPS architecture variant (md_begin,
+	macro_build, mips_ip, md_parse_option). Adding suitable
+	command-line OPTIONs, and updating the help text (md_show_usage).
 	
 Wed Oct 18 13:20:32 1995  Ken Raeburn  <raeburn@cygnus.com>
 
@@ -840,11 +840,11 @@ Wed Sep 27 10:29:13 1995  Kim Knuttila  <krk@nellie>
 	(md_assemble): Initial [toc]x(rtoc) support
 	(ppc_frob_label): Removed some xcoff specific processing from TE_PE
 	(ppc_frob_symbol): Removed some xcoff specific processing from TE_PE
-                           Added support for more predefined sections
-        (ppc_frob_section): Removed some xcoff specific processing from TE_PE
+	Added support for more predefined sections
+	(ppc_frob_section): Removed some xcoff specific processing from TE_PE
 	(ppc_fix_adjustable): Removed from TE_PE mainline
 	(md_apply_fix3): For TE_PE toc entries, we don't need to mess 
-        with fx_addnumber. Removed for the time being.
+	with fx_addnumber. Removed for the time being.
 	(lots): Put back missing assignments to ppc_current_csect.
 
 Tue Sep 26 14:57:59 1995  Michael Meissner  <meissner@tiktok.cygnus.com>
@@ -1066,7 +1066,7 @@ Thu Sep  7 12:33:58 1995  Ian Lance Taylor  <ian@cygnus.com>
 
 	* expr.c (operand): Handle 08 and 09 in MRI mode.
 	* macro.c (ISSEP): Remove duplicated `"' character.
- 	(get_any_string): Copy some characters for which ISSEP is true:
+	(get_any_string): Copy some characters for which ISSEP is true:
 	';', '>', '(', ')'.  Otherwise we can get in an infinite loop.
 	* read.c (s_space): In MRI mode, the expressions stop at the first
 	unquoted space.
@@ -1146,7 +1146,7 @@ Fri Sep  1 17:02:15 1995  steve chamberlain  <sac@slash.cygnus.com>
 
 Fri Sep  1 08:20:19 1995  James G. Smith  <jsmith@beauty.cygnus.com>
 
-        * config/tc-mips.c (md_parse_option, md_begin, md_show_usage):
+	* config/tc-mips.c (md_parse_option, md_begin, md_show_usage):
 	Add support for "-mcpu=vr4300" as processor identifier.
 
 Thu Aug 31 16:41:06 1995  steve chamberlain  <sac@slash.cygnus.com>
@@ -1157,8 +1157,8 @@ Thu Aug 31 16:41:06 1995  steve chamberlain  <sac@slash.cygnus.com>
 Tue Aug 29 19:42:58 1995  Andreas Schwab  <schwab@issan.informatik.uni-dortmund.de>
 
 	* config/tc-m68k.c (m68k_ip) [case POST/PRE/BASE]: Fix typo when
- 	looking at outer displacement.  Don't set the postindex bit if the
- 	index suppress bit is set (for memory indirect addressing mode).
+	looking at outer displacement.  Don't set the postindex bit if the
+	index suppress bit is set (for memory indirect addressing mode).
 
 Thu Aug 31 06:49:37 1995  Doug Evans  <dje@canuck.cygnus.com>
 
@@ -1539,7 +1539,7 @@ Fri Aug 11 19:16:08 1995  Ian Lance Taylor  <ian@cygnus.com>
 	* doc/gasp.texi: Document -M/--mri.
 
 	* gasp.c: Include ansidecl.h.  Make all local functions static.
-        Add prototypes for all static functions.
+	Add prototypes for all static functions.
 	(mri): New global variable.
 	(sb_add_char): Change parameter c from char to int.
 	(sb_add_string): Make parameter s into a const pointer.
@@ -1843,7 +1843,7 @@ Mon Aug  7 02:54:20 1995  Jeff Law  (law@snake.cs.utah.edu)
 Fri Aug  4 12:29:21 1995  Ian Lance Taylor  <ian@cygnus.com>
 
 	* expr.c (op_encoding): Make non-const.  Don't set '"' to
-        O_bit_not.
+	O_bit_not.
 	(expr_begin): Set op_encoding['"'] in MRI mode.
 
 Wed Aug  2 18:39:43 1995  Ian Lance Taylor  <ian@cygnus.com>
@@ -2471,7 +2471,7 @@ Wed Jun 21 18:07:59 1995  Ken Raeburn  <raeburn@cujo.cygnus.com>
 	(md_estimate_size_before_relax) [case TAB (FBRANCH, SZ_UNDEF)]:
 	Turn on long bit.
 	(m68k_ip) [case 'C']: Don't set set long bit, set it in the opcode
- 	table.
+	table.
 	(md_estimate_size_before_relax) [case TAB (PCINDEX, SZ_UNDEF)]:
 	Variable part increases by four, not six.
 	* write.c (fixup_segment) [TC_M68K]: Don't do further pcrel
@@ -4143,7 +4143,7 @@ Tue Dec 13 08:04:15 1994  Ian Lance Taylor  <ian@cygnus.com>
 
 	* config/tc-mips.c (macro_build): Accept BFD_RELOC_PCREL* without
 	requiring that the X_op_symbol be in the text_section.
-	(macro): Change the test for a legel expression difference to
+	(macro): Change the test for a legal expression difference to
 	correspond to changes in pseudo_set in read.c.
 
 Fri Dec  9 21:04:17 1994  Ken Raeburn  <raeburn@cujo.cygnus.com>
@@ -13115,3 +13115,10 @@ Mon Feb 17 07:51:06 1992  K. Richard Pixley  (rich at cygnus.com)
 	* nearly everything.  flush ChangeLog, package as gas-1.92.1.
 	  ChangeLog's prior to this are sketchy at best.  I have logs.
 	  They just aren't ChangeLogs.
+
+Local Variables:
+mode: change-log
+left-margin: 8
+fill-column: 74
+version-control: never
+End:

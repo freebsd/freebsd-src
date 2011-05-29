@@ -56,7 +56,7 @@ kdb_getarea_size(void *res, unsigned long addr, size_t size)
 }
 
 int
-db_putarea_size(unsigned long addr, void *res, size_t size)
+kdb_putarea_size(unsigned long addr, void *res, size_t size)
 {
 	return 0;
 }

@@ -4,14 +4,12 @@
 MAN=	crash.8 \
 	diskless.8 \
 	intro.8 \
-	MAKEDEV.8 \
 	nanobsd.8 \
 	picobsd.8 \
 	rc.8 \
 	rc.sendmail.8 \
 	rc.subr.8 \
 	rescue.8 \
-	sticky.8 \
 	yp.8
 
 MLINKS=	rc.8 rc.atm.8 \

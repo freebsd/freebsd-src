@@ -45,15 +45,15 @@
 
 struct region_descriptor;
 
-#define readb(va)	(*(volatile u_int8_t *) (va))
-#define readw(va)	(*(volatile u_int16_t *) (va))
-#define readl(va)	(*(volatile u_int32_t *) (va))
-#define readq(va)	(*(volatile u_int64_t *) (va))
+#define readb(va)	(*(volatile uint8_t *) (va))
+#define readw(va)	(*(volatile uint16_t *) (va))
+#define readl(va)	(*(volatile uint32_t *) (va))
+#define readq(va)	(*(volatile uint64_t *) (va))
 
-#define writeb(va, d)	(*(volatile u_int8_t *) (va) = (d))
-#define writew(va, d)	(*(volatile u_int16_t *) (va) = (d))
-#define writel(va, d)	(*(volatile u_int32_t *) (va) = (d))
-#define writeq(va, d)	(*(volatile u_int64_t *) (va) = (d))
+#define writeb(va, d)	(*(volatile uint8_t *) (va) = (d))
+#define writew(va, d)	(*(volatile uint16_t *) (va) = (d))
+#define writel(va, d)	(*(volatile uint32_t *) (va) = (d))
+#define writeq(va, d)	(*(volatile uint64_t *) (va) = (d))
 
 #if defined(__GNUCLIKE_ASM) && defined(__CC_SUPPORTS___INLINE)
 
@@ -176,7 +176,7 @@ inb(u_int port)
 {
 	u_char	data;
 
-	__asm volatile("inb %w1, %0" : "=a" (data) : "Nd" (port));
+	__asm __volatile("inb %w1, %0" : "=a" (data) : "Nd" (port));
 	return (data);
 }
 
@@ -185,7 +185,7 @@ inl(u_int port)
 {
 	u_int	data;
 
-	__asm volatile("inl %w1, %0" : "=a" (data) : "Nd" (port));
+	__asm __volatile("inl %w1, %0" : "=a" (data) : "Nd" (port));
 	return (data);
 }
 
@@ -227,20 +227,20 @@ inw(u_int port)
 {
 	u_short	data;
 
-	__asm volatile("inw %w1, %0" : "=a" (data) : "Nd" (port));
+	__asm __volatile("inw %w1, %0" : "=a" (data) : "Nd" (port));
 	return (data);
 }
 
 static __inline void
 outb(u_int port, u_char data)
 {
-	__asm volatile("outb %0, %w1" : : "a" (data), "Nd" (port));
+	__asm __volatile("outb %0, %w1" : : "a" (data), "Nd" (port));
 }
 
 static __inline void
 outl(u_int port, u_int data)
 {
-	__asm volatile("outl %0, %w1" : : "a" (data), "Nd" (port));
+	__asm __volatile("outl %0, %w1" : : "a" (data), "Nd" (port));
 }
 
 static __inline void
@@ -270,7 +270,7 @@ outsl(u_int port, const void *addr, size_t count)
 static __inline void
 outw(u_int port, u_short data)
 {
-	__asm volatile("outw %0, %w1" : : "a" (data), "Nd" (port));
+	__asm __volatile("outw %0, %w1" : : "a" (data), "Nd" (port));
 }
 
 static __inline void
@@ -295,31 +295,40 @@ read_rflags(void)
 	return (rf);
 }
 
-static __inline u_int64_t
+static __inline uint64_t
 rdmsr(u_int msr)
 {
-	u_int32_t low, high;
+	uint32_t low, high;
 
 	__asm __volatile("rdmsr" : "=a" (low), "=d" (high) : "c" (msr));
-	return (low | ((u_int64_t)high << 32));
+	return (low | ((uint64_t)high << 32));
 }
 
-static __inline u_int64_t
+static __inline uint64_t
 rdpmc(u_int pmc)
 {
-	u_int32_t low, high;
+	uint32_t low, high;
 
 	__asm __volatile("rdpmc" : "=a" (low), "=d" (high) : "c" (pmc));
-	return (low | ((u_int64_t)high << 32));
+	return (low | ((uint64_t)high << 32));
 }
 
-static __inline u_int64_t
+static __inline uint64_t
 rdtsc(void)
 {
-	u_int32_t low, high;
+	uint32_t low, high;
 
 	__asm __volatile("rdtsc" : "=a" (low), "=d" (high));
-	return (low | ((u_int64_t)high << 32));
+	return (low | ((uint64_t)high << 32));
+}
+
+static __inline uint32_t
+rdtsc32(void)
+{
+	uint32_t rv;
+
+	__asm __volatile("rdtsc" : "=a" (rv) : : "edx");
+	return (rv);
 }
 
 static __inline void
@@ -335,9 +344,9 @@ write_rflags(u_long rf)
 }
 
 static __inline void
-wrmsr(u_int msr, u_int64_t newval)
+wrmsr(u_int msr, uint64_t newval)
 {
-	u_int32_t low, high;
+	uint32_t low, high;
 
 	low = newval;
 	high = newval >> 32;
@@ -421,40 +430,40 @@ invlpg(u_long addr)
 	__asm __volatile("invlpg %0" : : "m" (*(char *)addr) : "memory");
 }
 
-static __inline u_int
+static __inline u_short
 rfs(void)
 {
-	u_int sel;
-	__asm __volatile("mov %%fs,%0" : "=rm" (sel));
+	u_short sel;
+	__asm __volatile("movw %%fs,%0" : "=rm" (sel));
 	return (sel);
 }
 
-static __inline u_int
+static __inline u_short
 rgs(void)
 {
-	u_int sel;
-	__asm __volatile("mov %%gs,%0" : "=rm" (sel));
+	u_short sel;
+	__asm __volatile("movw %%gs,%0" : "=rm" (sel));
 	return (sel);
 }
 
-static __inline u_int
+static __inline u_short
 rss(void)
 {
-	u_int sel;
-	__asm __volatile("mov %%ss,%0" : "=rm" (sel));
+	u_short sel;
+	__asm __volatile("movw %%ss,%0" : "=rm" (sel));
 	return (sel);
 }
 
 static __inline void
-load_ds(u_int sel)
+load_ds(u_short sel)
 {
-	__asm __volatile("mov %0,%%ds" : : "rm" (sel));
+	__asm __volatile("movw %0,%%ds" : : "rm" (sel));
 }
 
 static __inline void
-load_es(u_int sel)
+load_es(u_short sel)
 {
-	__asm __volatile("mov %0,%%es" : : "rm" (sel));
+	__asm __volatile("movw %0,%%es" : : "rm" (sel));
 }
 
 static __inline void
@@ -476,10 +485,10 @@ cpu_mwait(int extensions, int hints)
 #define	MSR_FSBASE	0xc0000100
 #endif
 static __inline void
-load_fs(u_int sel)
+load_fs(u_short sel)
 {
 	/* Preserve the fsbase value across the selector load */
-	__asm __volatile("rdmsr; mov %0,%%fs; wrmsr"
+	__asm __volatile("rdmsr; movw %0,%%fs; wrmsr"
 	    : : "rm" (sel), "c" (MSR_FSBASE) : "eax", "edx");
 }
 
@@ -487,28 +496,28 @@ load_fs(u_int sel)
 #define	MSR_GSBASE	0xc0000101
 #endif
 static __inline void
-load_gs(u_int sel)
+load_gs(u_short sel)
 {
 	/*
 	 * Preserve the gsbase value across the selector load.
 	 * Note that we have to disable interrupts because the gsbase
 	 * being trashed happens to be the kernel gsbase at the time.
 	 */
-	__asm __volatile("pushfq; cli; rdmsr; mov %0,%%gs; wrmsr; popfq"
+	__asm __volatile("pushfq; cli; rdmsr; movw %0,%%gs; wrmsr; popfq"
 	    : : "rm" (sel), "c" (MSR_GSBASE) : "eax", "edx");
 }
 #else
 /* Usable by userland */
 static __inline void
-load_fs(u_int sel)
+load_fs(u_short sel)
 {
-	__asm __volatile("mov %0,%%fs" : : "rm" (sel));
+	__asm __volatile("movw %0,%%fs" : : "rm" (sel));
 }
 
 static __inline void
-load_gs(u_int sel)
+load_gs(u_short sel)
 {
-	__asm __volatile("mov %0,%%gs" : : "rm" (sel));
+	__asm __volatile("movw %0,%%gs" : : "rm" (sel));
 }
 #endif
 
@@ -530,114 +539,114 @@ ltr(u_short sel)
 	__asm __volatile("ltr %0" : : "r" (sel));
 }
 
-static __inline u_int64_t
+static __inline uint64_t
 rdr0(void)
 {
-	u_int64_t data;
+	uint64_t data;
 	__asm __volatile("movq %%dr0,%0" : "=r" (data));
 	return (data);
 }
 
 static __inline void
-load_dr0(u_int64_t dr0)
+load_dr0(uint64_t dr0)
 {
 	__asm __volatile("movq %0,%%dr0" : : "r" (dr0));
 }
 
-static __inline u_int64_t
+static __inline uint64_t
 rdr1(void)
 {
-	u_int64_t data;
+	uint64_t data;
 	__asm __volatile("movq %%dr1,%0" : "=r" (data));
 	return (data);
 }
 
 static __inline void
-load_dr1(u_int64_t dr1)
+load_dr1(uint64_t dr1)
 {
 	__asm __volatile("movq %0,%%dr1" : : "r" (dr1));
 }
 
-static __inline u_int64_t
+static __inline uint64_t
 rdr2(void)
 {
-	u_int64_t data;
+	uint64_t data;
 	__asm __volatile("movq %%dr2,%0" : "=r" (data));
 	return (data);
 }
 
 static __inline void
-load_dr2(u_int64_t dr2)
+load_dr2(uint64_t dr2)
 {
 	__asm __volatile("movq %0,%%dr2" : : "r" (dr2));
 }
 
-static __inline u_int64_t
+static __inline uint64_t
 rdr3(void)
 {
-	u_int64_t data;
+	uint64_t data;
 	__asm __volatile("movq %%dr3,%0" : "=r" (data));
 	return (data);
 }
 
 static __inline void
-load_dr3(u_int64_t dr3)
+load_dr3(uint64_t dr3)
 {
 	__asm __volatile("movq %0,%%dr3" : : "r" (dr3));
 }
 
-static __inline u_int64_t
+static __inline uint64_t
 rdr4(void)
 {
-	u_int64_t data;
+	uint64_t data;
 	__asm __volatile("movq %%dr4,%0" : "=r" (data));
 	return (data);
 }
 
 static __inline void
-load_dr4(u_int64_t dr4)
+load_dr4(uint64_t dr4)
 {
 	__asm __volatile("movq %0,%%dr4" : : "r" (dr4));
 }
 
-static __inline u_int64_t
+static __inline uint64_t
 rdr5(void)
 {
-	u_int64_t data;
+	uint64_t data;
 	__asm __volatile("movq %%dr5,%0" : "=r" (data));
 	return (data);
 }
 
 static __inline void
-load_dr5(u_int64_t dr5)
+load_dr5(uint64_t dr5)
 {
 	__asm __volatile("movq %0,%%dr5" : : "r" (dr5));
 }
 
-static __inline u_int64_t
+static __inline uint64_t
 rdr6(void)
 {
-	u_int64_t data;
+	uint64_t data;
 	__asm __volatile("movq %%dr6,%0" : "=r" (data));
 	return (data);
 }
 
 static __inline void
-load_dr6(u_int64_t dr6)
+load_dr6(uint64_t dr6)
 {
 	__asm __volatile("movq %0,%%dr6" : : "r" (dr6));
 }
 
-static __inline u_int64_t
+static __inline uint64_t
 rdr7(void)
 {
-	u_int64_t data;
+	uint64_t data;
 	__asm __volatile("movq %%dr7,%0" : "=r" (data));
 	return (data);
 }
 
 static __inline void
-load_dr7(u_int64_t dr7)
+load_dr7(uint64_t dr7)
 {
 	__asm __volatile("movq %0,%%dr7" : : "r" (dr7));
 }
@@ -684,16 +693,16 @@ void	lldt(u_short sel);
 void	load_cr0(u_long cr0);
 void	load_cr3(u_long cr3);
 void	load_cr4(u_long cr4);
-void	load_dr0(u_int64_t dr0);
-void	load_dr1(u_int64_t dr1);
-void	load_dr2(u_int64_t dr2);
-void	load_dr3(u_int64_t dr3);
-void	load_dr4(u_int64_t dr4);
-void	load_dr5(u_int64_t dr5);
-void	load_dr6(u_int64_t dr6);
-void	load_dr7(u_int64_t dr7);
-void	load_fs(u_int sel);
-void	load_gs(u_int sel);
+void	load_dr0(uint64_t dr0);
+void	load_dr1(uint64_t dr1);
+void	load_dr2(uint64_t dr2);
+void	load_dr3(uint64_t dr3);
+void	load_dr4(uint64_t dr4);
+void	load_dr5(uint64_t dr5);
+void	load_dr6(uint64_t dr6);
+void	load_dr7(uint64_t dr7);
+void	load_fs(u_short sel);
+void	load_gs(u_short sel);
 void	ltr(u_short sel);
 void	outb(u_int port, u_char data);
 void	outl(u_int port, u_int data);
@@ -705,23 +714,23 @@ u_long	rcr0(void);
 u_long	rcr2(void);
 u_long	rcr3(void);
 u_long	rcr4(void);
-u_int64_t rdmsr(u_int msr);
-u_int64_t rdpmc(u_int pmc);
-u_int64_t rdr0(void);
-u_int64_t rdr1(void);
-u_int64_t rdr2(void);
-u_int64_t rdr3(void);
-u_int64_t rdr4(void);
-u_int64_t rdr5(void);
-u_int64_t rdr6(void);
-u_int64_t rdr7(void);
-u_int64_t rdtsc(void);
+uint64_t rdmsr(u_int msr);
+uint64_t rdpmc(u_int pmc);
+uint64_t rdr0(void);
+uint64_t rdr1(void);
+uint64_t rdr2(void);
+uint64_t rdr3(void);
+uint64_t rdr4(void);
+uint64_t rdr5(void);
+uint64_t rdr6(void);
+uint64_t rdr7(void);
+uint64_t rdtsc(void);
 u_int	read_rflags(void);
 u_int	rfs(void);
 u_int	rgs(void);
 void	wbinvd(void);
 void	write_rflags(u_int rf);
-void	wrmsr(u_int msr, u_int64_t newval);
+void	wrmsr(u_int msr, uint64_t newval);
 
 #endif	/* __GNUCLIKE_ASM && __CC_SUPPORTS___INLINE */
 

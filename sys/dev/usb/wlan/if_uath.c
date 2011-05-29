@@ -438,8 +438,8 @@ uath_attach(device_t dev)
 	ifp->if_ioctl = uath_ioctl;
 	ifp->if_start = uath_start;
 	/* XXX UATH_TX_DATA_LIST_COUNT */
-	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
-	ifp->if_snd.ifq_drv_maxlen = IFQ_MAXLEN;
+	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
+	ifp->if_snd.ifq_drv_maxlen = ifqmaxlen;
 	IFQ_SET_READY(&ifp->if_snd);
 
 	ic = ifp->if_l2com;
@@ -1968,9 +1968,10 @@ uath_create_connection(struct uath_softc *sc, uint32_t connid)
 	const struct ieee80211_rateset *rs;
 	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
-	struct ieee80211_node *ni = vap->iv_bss;
+	struct ieee80211_node *ni;
 	struct uath_cmd_create_connection create;
 
+	ni = ieee80211_ref_node(vap->iv_bss);
 	bzero(&create, sizeof create);
 	create.connid = htobe32(connid);
 	create.bssid = htobe32(0);
@@ -1989,6 +1990,7 @@ uath_create_connection(struct uath_softc *sc, uint32_t connid)
 		create.connattr.wlanmode = htobe32(WLAN_MODE_11g);
 	else
 		create.connattr.wlanmode = htobe32(WLAN_MODE_11b);
+	ieee80211_free_node(ni);
 
 	return uath_cmd_write(sc, WDCMSG_CREATE_CONNECTION, &create,
 	    sizeof create, 0);
@@ -2017,14 +2019,16 @@ uath_write_associd(struct uath_softc *sc)
 {
 	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
-	struct ieee80211_node *ni = vap->iv_bss;
+	struct ieee80211_node *ni;
 	struct uath_cmd_set_associd associd;
 
+	ni = ieee80211_ref_node(vap->iv_bss);
 	bzero(&associd, sizeof associd);
 	associd.defaultrateix = htobe32(1);	/* XXX */
 	associd.associd = htobe32(ni->ni_associd);
 	associd.timoffset = htobe32(0x3b);	/* XXX */
 	IEEE80211_ADDR_COPY(associd.bssid, ni->ni_bssid);
+	ieee80211_free_node(ni);
 	return uath_cmd_write(sc, WDCMSG_WRITE_ASSOCID, &associd,
 	    sizeof associd, 0);
 }
@@ -2065,7 +2069,7 @@ uath_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 {
 	enum ieee80211_state ostate = vap->iv_state;
 	int error;
-	struct ieee80211_node *ni = vap->iv_bss;
+	struct ieee80211_node *ni;
 	struct ieee80211com *ic = vap->iv_ic;
 	struct uath_softc *sc = ic->ic_ifp->if_softc;
 	struct uath_vap *uvp = UATH_VAP(vap);
@@ -2078,6 +2082,7 @@ uath_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	UATH_LOCK(sc);
 	callout_stop(&sc->stat_ch);
 	callout_stop(&sc->watchdog_ch);
+	ni = ieee80211_ref_node(vap->iv_bss);
 
 	switch (nstate) {
 	case IEEE80211_S_INIT:
@@ -2150,6 +2155,7 @@ uath_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	default:
 		break;
 	}
+	ieee80211_free_node(ni);
 	UATH_UNLOCK(sc);
 	IEEE80211_LOCK(ic);
 	return (uvp->newstate(vap, nstate, arg));
@@ -2892,3 +2898,4 @@ static devclass_t uath_devclass;
 DRIVER_MODULE(uath, uhub, uath_driver, uath_devclass, NULL, 0);
 MODULE_DEPEND(uath, wlan, 1, 1, 1);
 MODULE_DEPEND(uath, usb, 1, 1, 1);
+MODULE_VERSION(uath, 1);

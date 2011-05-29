@@ -324,6 +324,7 @@ read_config_file(ctx, filename)
 			    ? &ctx->lhs : &ctx->rhs;
 			*which = strdup(data);
 			if (!*which) {
+				fclose(fp);
 				errno = ENOMEM;
 				return -1;
 			}

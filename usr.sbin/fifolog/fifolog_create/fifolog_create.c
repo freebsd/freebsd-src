@@ -78,11 +78,11 @@ main(int argc, char * const *argv)
 	}
 	argc -= optind;
 	argv += optind;
-	if (argc != 1) 
+	if (argc != 1)
 		usage();
 
 	if (size != 0 && reccnt != 0 && recsize != 0) {		/* N N N */
-		if (size !=  reccnt * recsize) 
+		if (size !=  reccnt * recsize)
 			errx(1, "Inconsistent -l, -r and -s values");
 	} else if (size != 0 && reccnt != 0 && recsize == 0) {	/* N N Z */
 		if (size % reccnt)

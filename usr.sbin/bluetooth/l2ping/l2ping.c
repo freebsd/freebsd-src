@@ -37,6 +37,7 @@
 #include <bluetooth.h>
 #include <err.h>
 #include <errno.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -60,11 +61,11 @@ int
 main(int argc, char *argv[])
 {
 	bdaddr_t		 src, dst;
-	struct hostent		*he = NULL;
-	uint8_t			*echo_data = NULL;
+	struct hostent		*he;
+	uint8_t			*echo_data;
 	struct sockaddr_l2cap	 sa;
 	int32_t			 n, s, count, wait, flood, echo_size, numeric;
-	char			*rname = NULL;
+	char			*endp, *rname;
 
 	/* Set defaults */
 	memcpy(&src, NG_HCI_BDADDR_ANY, sizeof(src));
@@ -100,8 +101,8 @@ main(int argc, char *argv[])
 			break;
 
 		case 'c':
-			count = atoi(optarg);
-			if (count <= 0)
+			count = strtol(optarg, &endp, 10);
+			if (count <= 0 || *endp != '\0')
 				usage();
 			break;
 
@@ -110,8 +111,8 @@ main(int argc, char *argv[])
 			break;
 
 		case 'i':
-			wait = atoi(optarg);
-			if (wait <= 0)
+			wait = strtol(optarg, &endp, 10);
+			if (wait <= 0 || *endp != '\0')
 				usage();
 			break;
 
@@ -129,9 +130,10 @@ main(int argc, char *argv[])
 			break;
 
 		case 's':
-			echo_size = atoi(optarg);
-			if (echo_size < sizeof(int32_t) ||
-			    echo_size > NG_L2CAP_MAX_ECHO_SIZE)
+                        echo_size = strtol(optarg, &endp, 10);
+                        if (echo_size < sizeof(int32_t) ||
+			    echo_size > NG_L2CAP_MAX_ECHO_SIZE ||
+			    *endp != '\0')
 				usage();
 			break;
 
@@ -272,12 +274,12 @@ tv2msec(struct timeval const *tvp)
 static void
 usage(void)
 {
-	fprintf(stderr, "Usage: l2ping -a bd_addr " \
-		"[-S bd_addr -c count -i wait -n -s size -h]\n");
+	fprintf(stderr, "Usage: l2ping [-fhn] -a remote " \
+		"[-c count] [-i wait] [-S source] [-s size]\n");
 	fprintf(stderr, "Where:\n");
 	fprintf(stderr, "  -a remote  Specify remote device to ping\n");
 	fprintf(stderr, "  -c count   Number of packets to send\n");
-	fprintf(stderr, "  -f         No delay (sort of flood)\n");
+	fprintf(stderr, "  -f         No delay between packets\n");
 	fprintf(stderr, "  -h         Display this message\n");
 	fprintf(stderr, "  -i wait    Delay between packets (sec)\n");
 	fprintf(stderr, "  -n         Numeric output only\n");

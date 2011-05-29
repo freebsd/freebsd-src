@@ -42,23 +42,6 @@
 #define IDXSHIFT	10
 
 	.data
-	.globl	bcopy_vector
-bcopy_vector:
-	.long	generic_bcopy
-	.globl	bzero_vector
-bzero_vector:
-	.long	generic_bzero
-	.globl	copyin_vector
-copyin_vector:
-	.long	generic_copyin
-	.globl	copyout_vector
-copyout_vector:
-	.long	generic_copyout
-#if defined(I586_CPU) && defined(DEV_NPX)
-kernel_fpu_lock:
-	.byte	0xfe
-	.space	3
-#endif
 	ALIGN_DATA
 	.globl	intrcnt, eintrcnt
 intrcnt:
@@ -76,13 +59,7 @@ eintrnames:
  * bcopy family
  * void bzero(void *buf, u_int len)
  */
-
 ENTRY(bzero)
-	MEXITCOUNT
-	jmp	*bzero_vector
-END(bzero)
-
-ENTRY(generic_bzero)
 	pushl	%edi
 	movl	8(%esp),%edi
 	movl	12(%esp),%ecx
@@ -97,270 +74,8 @@ ENTRY(generic_bzero)
 	stosb
 	popl	%edi
 	ret
-END(generic_bzero)	
+END(bzero)	
 	
-#ifdef I486_CPU
-ENTRY(i486_bzero)
-	movl	4(%esp),%edx
-	movl	8(%esp),%ecx
-	xorl	%eax,%eax
-/*
- * do 64 byte chunks first
- *
- * XXX this is probably over-unrolled at least for DX2's
- */
-2:
-	cmpl	$64,%ecx
-	jb	3f
-	movl	%eax,(%edx)
-	movl	%eax,4(%edx)
-	movl	%eax,8(%edx)
-	movl	%eax,12(%edx)
-	movl	%eax,16(%edx)
-	movl	%eax,20(%edx)
-	movl	%eax,24(%edx)
-	movl	%eax,28(%edx)
-	movl	%eax,32(%edx)
-	movl	%eax,36(%edx)
-	movl	%eax,40(%edx)
-	movl	%eax,44(%edx)
-	movl	%eax,48(%edx)
-	movl	%eax,52(%edx)
-	movl	%eax,56(%edx)
-	movl	%eax,60(%edx)
-	addl	$64,%edx
-	subl	$64,%ecx
-	jnz	2b
-	ret
-
-/*
- * do 16 byte chunks
- */
-	SUPERALIGN_TEXT
-3:
-	cmpl	$16,%ecx
-	jb	4f
-	movl	%eax,(%edx)
-	movl	%eax,4(%edx)
-	movl	%eax,8(%edx)
-	movl	%eax,12(%edx)
-	addl	$16,%edx
-	subl	$16,%ecx
-	jnz	3b
-	ret
-
-/*
- * do 4 byte chunks
- */
-	SUPERALIGN_TEXT
-4:
-	cmpl	$4,%ecx
-	jb	5f
-	movl	%eax,(%edx)
-	addl	$4,%edx
-	subl	$4,%ecx
-	jnz	4b
-	ret
-
-/*
- * do 1 byte chunks
- * a jump table seems to be faster than a loop or more range reductions
- *
- * XXX need a const section for non-text
- */
-	.data
-jtab:
-	.long	do0
-	.long	do1
-	.long	do2
-	.long	do3
-
-	.text
-	SUPERALIGN_TEXT
-5:
-	jmp	*jtab(,%ecx,4)
-
-	SUPERALIGN_TEXT
-do3:
-	movw	%ax,(%edx)
-	movb	%al,2(%edx)
-	ret
-
-	SUPERALIGN_TEXT
-do2:
-	movw	%ax,(%edx)
-	ret
-
-	SUPERALIGN_TEXT
-do1:
-	movb	%al,(%edx)
-	ret
-
-	SUPERALIGN_TEXT
-do0:
-	ret
-END(i486_bzero)
-#endif
-
-#if defined(I586_CPU) && defined(DEV_NPX)
-ENTRY(i586_bzero)
-	movl	4(%esp),%edx
-	movl	8(%esp),%ecx
-
-	/*
-	 * The FPU register method is twice as fast as the integer register
-	 * method unless the target is in the L1 cache and we pre-allocate a
-	 * cache line for it (then the integer register method is 4-5 times
-	 * faster).  However, we never pre-allocate cache lines, since that
-	 * would make the integer method 25% or more slower for the common
-	 * case when the target isn't in either the L1 cache or the L2 cache.
-	 * Thus we normally use the FPU register method unless the overhead
-	 * would be too large.
-	 */
-	cmpl	$256,%ecx	/* empirical; clts, fninit, smsw cost a lot */
-	jb	intreg_i586_bzero
-
-	/*
-	 * The FPU registers may belong to an application or to fastmove()
-	 * or to another invocation of bcopy() or ourself in a higher level
-	 * interrupt or trap handler.  Preserving the registers is
-	 * complicated since we avoid it if possible at all levels.  We
-	 * want to localize the complications even when that increases them.
-	 * Here the extra work involves preserving CR0_TS in TS.
-	 * `fpcurthread != NULL' is supposed to be the condition that all the
-	 * FPU resources belong to an application, but fpcurthread and CR0_TS
-	 * aren't set atomically enough for this condition to work in
-	 * interrupt handlers.
-	 *
-	 * Case 1: FPU registers belong to the application: we must preserve
-	 * the registers if we use them, so we only use the FPU register
-	 * method if the target size is large enough to amortize the extra
-	 * overhead for preserving them.  CR0_TS must be preserved although
-	 * it is very likely to end up as set.
-	 *
-	 * Case 2: FPU registers belong to fastmove(): fastmove() currently
-	 * makes the registers look like they belong to an application so
-	 * that cpu_switch() and savectx() don't have to know about it, so
-	 * this case reduces to case 1.
-	 *
-	 * Case 3: FPU registers belong to the kernel: don't use the FPU
-	 * register method.  This case is unlikely, and supporting it would
-	 * be more complicated and might take too much stack.
-	 *
-	 * Case 4: FPU registers don't belong to anyone: the FPU registers
-	 * don't need to be preserved, so we always use the FPU register
-	 * method.  CR0_TS must be preserved although it is very likely to
-	 * always end up as clear.
-	 */
-	cmpl	$0,PCPU(FPCURTHREAD)
-	je	i586_bz1
-
-	/*
-	 * XXX don't use the FPU for cases 1 and 2, since preemptive
-	 * scheduling of ithreads broke these cases.  Note that we can
-	 * no longer get here from an interrupt handler, since the
-	 * context sitch to the interrupt handler will have saved the
-	 * FPU state.
-	 */
-	jmp	intreg_i586_bzero
-
-	cmpl	$256+184,%ecx		/* empirical; not quite 2*108 more */
-	jb	intreg_i586_bzero
-	sarb	$1,kernel_fpu_lock
-	jc	intreg_i586_bzero
-	smsw	%ax
-	clts
-	subl	$108,%esp
-	fnsave	0(%esp)
-	jmp	i586_bz2
-
-i586_bz1:
-	sarb	$1,kernel_fpu_lock
-	jc	intreg_i586_bzero
-	smsw	%ax
-	clts
-	fninit				/* XXX should avoid needing this */
-i586_bz2:
-	fldz
-
-	/*
-	 * Align to an 8 byte boundary (misalignment in the main loop would
-	 * cost a factor of >= 2).  Avoid jumps (at little cost if it is
-	 * already aligned) by always zeroing 8 bytes and using the part up
-	 * to the _next_ alignment position.
-	 */
-	fstl	0(%edx)
-	addl	%edx,%ecx		/* part of %ecx -= new_%edx - %edx */
-	addl	$8,%edx
-	andl	$~7,%edx
-	subl	%edx,%ecx
-
-	/*
-	 * Similarly align `len' to a multiple of 8.
-	 */
-	fstl	-8(%edx,%ecx)
-	decl	%ecx
-	andl	$~7,%ecx
-
-	/*
-	 * This wouldn't be any faster if it were unrolled, since the loop
-	 * control instructions are much faster than the fstl and/or done
-	 * in parallel with it so their overhead is insignificant.
-	 */
-fpureg_i586_bzero_loop:
-	fstl	0(%edx)
-	addl	$8,%edx
-	subl	$8,%ecx
-	cmpl	$8,%ecx
-	jae	fpureg_i586_bzero_loop
-
-	cmpl	$0,PCPU(FPCURTHREAD)
-	je	i586_bz3
-
-	/* XXX check that the condition for cases 1-2 stayed false. */
-i586_bzero_oops:
-	int	$3
-	jmp	i586_bzero_oops
-
-	frstor	0(%esp)
-	addl	$108,%esp
-	lmsw	%ax
-	movb	$0xfe,kernel_fpu_lock
-	ret
-
-i586_bz3:
-	fstp	%st(0)
-	lmsw	%ax
-	movb	$0xfe,kernel_fpu_lock
-	ret
-
-intreg_i586_bzero:
-	/*
-	 * `rep stos' seems to be the best method in practice for small
-	 * counts.  Fancy methods usually take too long to start up due
-	 * to cache and BTB misses.
-	 */
-	pushl	%edi
-	movl	%edx,%edi
-	xorl	%eax,%eax
-	shrl	$2,%ecx
-	cld
-	rep
-	stosl
-	movl	12(%esp),%ecx
-	andl	$3,%ecx
-	jne	1f
-	popl	%edi
-	ret
-
-1:
-	rep
-	stosb
-	popl	%edi
-	ret
-END(i586_bzero)
-#endif /* I586_CPU && defined(DEV_NPX) */
-
 ENTRY(sse2_pagezero)
 	pushl	%ebx
 	movl	8(%esp),%ecx
@@ -473,16 +188,11 @@ ENTRY(bcopyb)
 	ret
 END(bcopyb)
 
-ENTRY(bcopy)
-	MEXITCOUNT
-	jmp	*bcopy_vector
-END(bcopy)
-
 /*
- * generic_bcopy(src, dst, cnt)
+ * bcopy(src, dst, cnt)
  *  ws@tools.de     (Wolfgang Solfrank, TooLs GmbH) +49-228-985800
  */
-ENTRY(generic_bcopy)
+ENTRY(bcopy)
 	pushl	%esi
 	pushl	%edi
 	movl	12(%esp),%esi
@@ -526,157 +236,7 @@ ENTRY(generic_bcopy)
 	popl	%esi
 	cld
 	ret
-END(generic_bcopy)
-
-#if defined(I586_CPU) && defined(DEV_NPX)
-ENTRY(i586_bcopy)
-	pushl	%esi
-	pushl	%edi
-	movl	12(%esp),%esi
-	movl	16(%esp),%edi
-	movl	20(%esp),%ecx
-
-	movl	%edi,%eax
-	subl	%esi,%eax
-	cmpl	%ecx,%eax			/* overlapping && src < dst? */
-	jb	1f
-
-	cmpl	$1024,%ecx
-	jb	small_i586_bcopy
-
-	sarb	$1,kernel_fpu_lock
-	jc	small_i586_bcopy
-	cmpl	$0,PCPU(FPCURTHREAD)
-	je	i586_bc1
-
-	/* XXX turn off handling of cases 1-2, as above. */
-	movb	$0xfe,kernel_fpu_lock
-	jmp	small_i586_bcopy
-
-	smsw	%dx
-	clts
-	subl	$108,%esp
-	fnsave	0(%esp)
-	jmp	4f
-
-i586_bc1:
-	smsw	%dx
-	clts
-	fninit				/* XXX should avoid needing this */
-
-	ALIGN_TEXT
-4:
-	pushl	%ecx
-#define	DCACHE_SIZE	8192
-	cmpl	$(DCACHE_SIZE-512)/2,%ecx
-	jbe	2f
-	movl	$(DCACHE_SIZE-512)/2,%ecx
-2:
-	subl	%ecx,0(%esp)
-	cmpl	$256,%ecx
-	jb	5f			/* XXX should prefetch if %ecx >= 32 */
-	pushl	%esi
-	pushl	%ecx
-	ALIGN_TEXT
-3:
-	movl	0(%esi),%eax
-	movl	32(%esi),%eax
-	movl	64(%esi),%eax
-	movl	96(%esi),%eax
-	movl	128(%esi),%eax
-	movl	160(%esi),%eax
-	movl	192(%esi),%eax
-	movl	224(%esi),%eax
-	addl	$256,%esi
-	subl	$256,%ecx
-	cmpl	$256,%ecx
-	jae	3b
-	popl	%ecx
-	popl	%esi
-5:
-	ALIGN_TEXT
-large_i586_bcopy_loop:
-	fildq	0(%esi)
-	fildq	8(%esi)
-	fildq	16(%esi)
-	fildq	24(%esi)
-	fildq	32(%esi)
-	fildq	40(%esi)
-	fildq	48(%esi)
-	fildq	56(%esi)
-	fistpq	56(%edi)
-	fistpq	48(%edi)
-	fistpq	40(%edi)
-	fistpq	32(%edi)
-	fistpq	24(%edi)
-	fistpq	16(%edi)
-	fistpq	8(%edi)
-	fistpq	0(%edi)
-	addl	$64,%esi
-	addl	$64,%edi
-	subl	$64,%ecx
-	cmpl	$64,%ecx
-	jae	large_i586_bcopy_loop
-	popl	%eax
-	addl	%eax,%ecx
-	cmpl	$64,%ecx
-	jae	4b
-
-	cmpl	$0,PCPU(FPCURTHREAD)
-	je	i586_bc2
-
-	/* XXX check that the condition for cases 1-2 stayed false. */
-i586_bcopy_oops:
-	int	$3
-	jmp	i586_bcopy_oops
-
-	frstor	0(%esp)
-	addl	$108,%esp
-i586_bc2:
-	lmsw	%dx
-	movb	$0xfe,kernel_fpu_lock
-
-/*
- * This is a duplicate of the main part of generic_bcopy.  See the comments
- * there.  Jumping into generic_bcopy would cost a whole 0-1 cycles and
- * would mess up high resolution profiling.
- */
-	ALIGN_TEXT
-small_i586_bcopy:
-	shrl	$2,%ecx
-	cld
-	rep
-	movsl
-	movl	20(%esp),%ecx
-	andl	$3,%ecx
-	rep
-	movsb
-	popl	%edi
-	popl	%esi
-	ret
-
-	ALIGN_TEXT
-1:
-	addl	%ecx,%edi
-	addl	%ecx,%esi
-	decl	%edi
-	decl	%esi
-	andl	$3,%ecx
-	std
-	rep
-	movsb
-	movl	20(%esp),%ecx
-	shrl	$2,%ecx
-	subl	$3,%esi
-	subl	$3,%edi
-	rep
-	movsl
-	popl	%edi
-	popl	%esi
-	cld
-	ret
-END(i586_bcopy)
-#endif /* I586_CPU && defined(DEV_NPX) */
+END(bcopy)
 
 /*
  * Note: memcpy does not support overlapping copies
@@ -723,11 +283,6 @@ END(memcpy)
  * copyout(from_kernel, to_user, len)  - MP SAFE
  */
 ENTRY(copyout)
-	MEXITCOUNT
-	jmp	*copyout_vector
-END(copyout)
-
-ENTRY(generic_copyout)
 	movl	PCPU(CURPCB),%eax
 	movl	$copyout_fault,PCB_ONFAULT(%eax)
 	pushl	%esi
@@ -764,10 +319,6 @@ ENTRY(generic_copyout)
 	/* bcopy(%esi, %edi, %ebx) */
 	movl	%ebx,%ecx
 
-#if defined(I586_CPU) && defined(DEV_NPX)
-	ALIGN_TEXT
-slow_copyout:
-#endif
 	shrl	$2,%ecx
 	cld
 	rep
@@ -785,7 +336,7 @@ done_copyout:
 	movl	PCPU(CURPCB),%edx
 	movl	%eax,PCB_ONFAULT(%edx)
 	ret
-END(generic_copyout)
+END(copyout)
 
 	ALIGN_TEXT
 copyout_fault:
@@ -797,70 +348,10 @@ copyout_fault:
 	movl	$EFAULT,%eax
 	ret
 
-#if defined(I586_CPU) && defined(DEV_NPX)
-ENTRY(i586_copyout)
-	/*
-	 * Duplicated from generic_copyout.  Could be done a bit better.
-	 */
-	movl	PCPU(CURPCB),%eax
-	movl	$copyout_fault,PCB_ONFAULT(%eax)
-	pushl	%esi
-	pushl	%edi
-	pushl	%ebx
-	movl	16(%esp),%esi
-	movl	20(%esp),%edi
-	movl	24(%esp),%ebx
-	testl	%ebx,%ebx			/* anything to do? */
-	jz	done_copyout
-
-	/*
-	 * Check explicitly for non-user addresses.  If 486 write protection
-	 * is being used, this check is essential because we are in kernel
-	 * mode so the h/w does not provide any protection against writing
-	 * kernel addresses.
-	 */
-
-	/*
-	 * First, prevent address wrapping.
-	 */
-	movl	%edi,%eax
-	addl	%ebx,%eax
-	jc	copyout_fault
-/*
- * XXX STOP USING VM_MAXUSER_ADDRESS.
- * It is an end address, not a max, so every time it is used correctly it
- * looks like there is an off by one error, and of course it caused an off
- * by one error in several places.
- */
-	cmpl	$VM_MAXUSER_ADDRESS,%eax
-	ja	copyout_fault
-
-	/* bcopy(%esi, %edi, %ebx) */
-3:
-	movl	%ebx,%ecx
-	/*
-	 * End of duplicated code.
-	 */
-
-	cmpl	$1024,%ecx
-	jb	slow_copyout
-
-	pushl	%ecx
-	call	fastmove
-	addl	$4,%esp
-	jmp	done_copyout
-END(i586_copyout)
-#endif /* I586_CPU && defined(DEV_NPX) */
-
 /*
  * copyin(from_user, to_kernel, len) - MP SAFE
  */
 ENTRY(copyin)
-	MEXITCOUNT
-	jmp	*copyin_vector
-END(copyin)
-
-ENTRY(generic_copyin)
 	movl	PCPU(CURPCB),%eax
 	movl	$copyin_fault,PCB_ONFAULT(%eax)
 	pushl	%esi
@@ -878,10 +369,6 @@ ENTRY(generic_copyin)
 	cmpl	$VM_MAXUSER_ADDRESS,%edx
 	ja	copyin_fault
 
-#if defined(I586_CPU) && defined(DEV_NPX)
-	ALIGN_TEXT
-slow_copyin:
-#endif
 	movb	%cl,%al
 	shrl	$2,%ecx				/* copy longword-wise */
 	cld
@@ -892,17 +379,13 @@ slow_copyin:
 	rep
 	movsb
 
-#if defined(I586_CPU) && defined(DEV_NPX)
-	ALIGN_TEXT
-done_copyin:
-#endif
 	popl	%edi
 	popl	%esi
 	xorl	%eax,%eax
 	movl	PCPU(CURPCB),%edx
 	movl	%eax,PCB_ONFAULT(%edx)
 	ret
-END(generic_copyin)
+END(copyin)
 
 	ALIGN_TEXT
 copyin_fault:
@@ -912,250 +395,6 @@ copyin_fault:
 	movl	$0,PCB_ONFAULT(%edx)
 	movl	$EFAULT,%eax
 	ret
-
-#if defined(I586_CPU) && defined(DEV_NPX)
-ENTRY(i586_copyin)
-	/*
-	 * Duplicated from generic_copyin.  Could be done a bit better.
-	 */
-	movl	PCPU(CURPCB),%eax
-	movl	$copyin_fault,PCB_ONFAULT(%eax)
-	pushl	%esi
-	pushl	%edi
-	movl	12(%esp),%esi			/* caddr_t from */
-	movl	16(%esp),%edi			/* caddr_t to */
-	movl	20(%esp),%ecx			/* size_t  len */
-
-	/*
-	 * make sure address is valid
-	 */
-	movl	%esi,%edx
-	addl	%ecx,%edx
-	jc	copyin_fault
-	cmpl	$VM_MAXUSER_ADDRESS,%edx
-	ja	copyin_fault
-	/*
-	 * End of duplicated code.
-	 */
-
-	cmpl	$1024,%ecx
-	jb	slow_copyin
-
-	pushl	%ebx			/* XXX prepare for fastmove_fault */
-	pushl	%ecx
-	call	fastmove
-	addl	$8,%esp
-	jmp	done_copyin
-END(i586_copyin)
-#endif /* I586_CPU && defined(DEV_NPX) */
-
-#if defined(I586_CPU) && defined(DEV_NPX)
-/* fastmove(src, dst, len)
-	src in %esi
-	dst in %edi
-	len in %ecx		XXX changed to on stack for profiling
-	uses %eax and %edx for tmp. storage
- */
-/* XXX use ENTRY() to get profiling.  fastmove() is actually a non-entry. */
-ENTRY(fastmove)
-	pushl	%ebp
-	movl	%esp,%ebp
-	subl	$PCB_SAVEFPU_SIZE+3*4,%esp
-
-	movl	8(%ebp),%ecx
-	cmpl	$63,%ecx
-	jbe	fastmove_tail
-
-	testl	$7,%esi	/* check if src addr is multiple of 8 */
-	jnz	fastmove_tail
-
-	testl	$7,%edi	/* check if dst addr is multiple of 8 */
-	jnz	fastmove_tail
-
-	/* XXX grab FPU context atomically. */
-	cli
-
-/* if (fpcurthread != NULL) { */
-	cmpl	$0,PCPU(FPCURTHREAD)
-	je	6f
-/*    fnsave(&curpcb->pcb_savefpu); */
-	movl	PCPU(CURPCB),%eax
-	fnsave	PCB_SAVEFPU(%eax)
-/*   FPCURTHREAD = NULL; */
-	movl	$0,PCPU(FPCURTHREAD)
-/* } */
-6:
-/* now we own the FPU. */
-
-/*
- * The process' FP state is saved in the pcb, but if we get
- * switched, the cpu_switch() will store our FP state in the
- * pcb.  It should be possible to avoid all the copying for
- * this, e.g., by setting a flag to tell cpu_switch() to
- * save the state somewhere else.
- */
-/* tmp = curpcb->pcb_savefpu; */
-	movl	%ecx,-12(%ebp)
-	movl	%esi,-8(%ebp)
-	movl	%edi,-4(%ebp)
-	movl	%esp,%edi
-	movl	PCPU(CURPCB),%esi
-	addl	$PCB_SAVEFPU,%esi
-	cld
-	movl	$PCB_SAVEFPU_SIZE>>2,%ecx
-	rep
-	movsl
-	movl	-12(%ebp),%ecx
-	movl	-8(%ebp),%esi
-	movl	-4(%ebp),%edi
-/* stop_emulating(); */
-	clts
-/* fpcurthread = curthread; */
-	movl	PCPU(CURTHREAD),%eax
-	movl	%eax,PCPU(FPCURTHREAD)
-	movl	PCPU(CURPCB),%eax
-
-	/* XXX end of atomic FPU context grab. */
-	sti
-
-	movl	$fastmove_fault,PCB_ONFAULT(%eax)
-4:
-	movl	%ecx,-12(%ebp)
-	cmpl	$1792,%ecx
-	jbe	2f
-	movl	$1792,%ecx
-2:
-	subl	%ecx,-12(%ebp)
-	cmpl	$256,%ecx
-	jb	5f
-	movl	%ecx,-8(%ebp)
-	movl	%esi,-4(%ebp)
-	ALIGN_TEXT
-3:
-	movl	0(%esi),%eax
-	movl	32(%esi),%eax
-	movl	64(%esi),%eax
-	movl	96(%esi),%eax
-	movl	128(%esi),%eax
-	movl	160(%esi),%eax
-	movl	192(%esi),%eax
-	movl	224(%esi),%eax
-	addl	$256,%esi
-	subl	$256,%ecx
-	cmpl	$256,%ecx
-	jae	3b
-	movl	-8(%ebp),%ecx
-	movl	-4(%ebp),%esi
-5:
-	ALIGN_TEXT
-fastmove_loop:
-	fildq	0(%esi)
-	fildq	8(%esi)
-	fildq	16(%esi)
-	fildq	24(%esi)
-	fildq	32(%esi)
-	fildq	40(%esi)
-	fildq	48(%esi)
-	fildq	56(%esi)
-	fistpq	56(%edi)
-	fistpq	48(%edi)
-	fistpq	40(%edi)
-	fistpq	32(%edi)
-	fistpq	24(%edi)
-	fistpq	16(%edi)
-	fistpq	8(%edi)
-	fistpq	0(%edi)
-	addl	$-64,%ecx
-	addl	$64,%esi
-	addl	$64,%edi
-	cmpl	$63,%ecx
-	ja	fastmove_loop
-	movl	-12(%ebp),%eax
-	addl	%eax,%ecx
-	cmpl	$64,%ecx
-	jae	4b
-
-	/* XXX ungrab FPU context atomically. */
-	cli
-
-/* curpcb->pcb_savefpu = tmp; */
-	movl	%ecx,-12(%ebp)
-	movl	%esi,-8(%ebp)
-	movl	%edi,-4(%ebp)
-	movl	PCPU(CURPCB),%edi
-	addl	$PCB_SAVEFPU,%edi
-	movl	%esp,%esi
-	cld
-	movl	$PCB_SAVEFPU_SIZE>>2,%ecx
-	rep
-	movsl
-	movl	-12(%ebp),%ecx
-	movl	-8(%ebp),%esi
-	movl	-4(%ebp),%edi
-
-/* start_emulating(); */
-	smsw	%ax
-	orb	$CR0_TS,%al
-	lmsw	%ax
-/* fpcurthread = NULL; */
-	movl	$0,PCPU(FPCURTHREAD)
-
-	/* XXX end of atomic FPU context ungrab. */
-	sti
-
-	ALIGN_TEXT
-fastmove_tail:
-	movl	PCPU(CURPCB),%eax
-	movl	$fastmove_tail_fault,PCB_ONFAULT(%eax)
-
-	movb	%cl,%al
-	shrl	$2,%ecx				/* copy longword-wise */
-	cld
-	rep
-	movsl
-	movb	%al,%cl
-	andb	$3,%cl				/* copy remaining bytes */
-	rep
-	movsb
-
-	movl	%ebp,%esp
-	popl	%ebp
-	ret
-
-	ALIGN_TEXT
-fastmove_fault:
-	/* XXX ungrab FPU context atomically. */
-	cli
-
-	movl	PCPU(CURPCB),%edi
-	addl	$PCB_SAVEFPU,%edi
-	movl	%esp,%esi
-	cld
-	movl	$PCB_SAVEFPU_SIZE>>2,%ecx
-	rep
-	movsl
-
-	smsw	%ax
-	orb	$CR0_TS,%al
-	lmsw	%ax
-	movl	$0,PCPU(FPCURTHREAD)
-
-	/* XXX end of atomic FPU context ungrab. */
-	sti
-
-fastmove_tail_fault:
-	movl	%ebp,%esp
-	popl	%ebp
-	addl	$8,%esp
-	popl	%ebx
-	popl	%edi
-	popl	%esi
-	movl	PCPU(CURPCB),%edx
-	movl	$0,PCB_ONFAULT(%edx)
-	movl	$EFAULT,%eax
-	ret
-END(fastmove)
-#endif /* I586_CPU && defined(DEV_NPX) */
 
 /*
  * casuword.  Compare and set user word.  Returns -1 or the current value.
@@ -1184,7 +423,6 @@ ENTRY(casuword)
 	 */
 
 	movl	PCPU(CURPCB),%ecx
-	movl	$fusufault,PCB_ONFAULT(%ecx)
 	movl	$0,PCB_ONFAULT(%ecx)
 	ret
 END(casuword32)
@@ -1550,26 +788,6 @@ ENTRY(longjmp)
 	incl	%eax
 	ret
 END(longjmp)
-
-/*
- * Support for BB-profiling (gcc -a).  The kernbb program will extract
- * the data from the kernel.
- */
-
-	.data
-	ALIGN_DATA
-	.globl bbhead
-bbhead:
-	.long 0
-
-	.text
-NON_GPROF_ENTRY(__bb_init_func)
-	movl	4(%esp),%eax
-	movl	$1,(%eax)
-	movl	bbhead,%edx
-	movl	%edx,16(%eax)
-	movl	%eax,bbhead
-	NON_GPROF_RET
 
 /*
  * Support for reading MSRs in the safe manner.

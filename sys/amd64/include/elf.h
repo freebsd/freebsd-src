@@ -42,6 +42,7 @@
 #include <sys/elf_generic.h>
 
 #define	ELF_ARCH	EM_X86_64
+#define	ELF_ARCH32	EM_386
 
 #define	ELF_MACHINE_OK(x) ((x) == EM_X86_64)
 
@@ -87,8 +88,15 @@ __ElfType(Auxinfo);
 #define	AT_GID		13	/* Real gid. */
 #define	AT_EGID		14	/* Effective gid. */
 #define	AT_EXECPATH	15	/* Path to the executable. */
+#define	AT_CANARY	16	/* Canary for SSP */
+#define	AT_CANARYLEN	17	/* Length of the canary. */
+#define	AT_OSRELDATE	18	/* OSRELDATE. */
+#define	AT_NCPUS	19	/* Number of CPUs. */
+#define	AT_PAGESIZES	20	/* Pagesizes. */
+#define	AT_PAGESIZESLEN	21	/* Number of pagesizes. */
+#define	AT_STACKPROT	23	/* Initial stack protection. */
 
-#define	AT_COUNT	16	/* Count of defined aux entry types. */
+#define	AT_COUNT	24	/* Count of defined aux entry types. */
 
 /*
  * Relocation types.

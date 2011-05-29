@@ -76,9 +76,10 @@ __FBSDID("$FreeBSD$");
 int rootpid;
 int rootshell;
 struct jmploc main_handler;
+int localeisutf8, initial_localeisutf8;
 
-STATIC void read_profile(const char *);
-STATIC char *find_dot_file(char *);
+static void read_profile(const char *);
+static char *find_dot_file(char *);
 
 /*
  * Main routine.  We initialize things, parse the arguments, execute
@@ -96,21 +97,10 @@ main(int argc, char *argv[])
 	char *shinit;
 
 	(void) setlocale(LC_ALL, "");
+	initcharset();
 	state = 0;
 	if (setjmp(main_handler.loc)) {
-		/*
-		 * When a shell procedure is executed, we raise the
-		 * exception EXSHELLPROC to clean up before executing
-		 * the shell procedure.
-		 */
 		switch (exception) {
-		case EXSHELLPROC:
-			rootpid = getpid();
-			rootshell = 1;
-			minusc = NULL;
-			state = 3;
-			break;
-
 		case EXEXEC:
 			exitstatus = exerrno;
 			break;
@@ -123,15 +113,12 @@ main(int argc, char *argv[])
 			break;
 		}
 
-		if (exception != EXSHELLPROC) {
-		    if (state == 0 || iflag == 0 || ! rootshell)
-			    exitshell(exitstatus);
-		}
+		if (state == 0 || iflag == 0 || ! rootshell ||
+		    exception == EXEXIT)
+			exitshell(exitstatus);
 		reset();
-		if (exception == EXINT) {
-			out2c('\n');
-			flushout(&errout);
-		}
+		if (exception == EXINT)
+			out2fmt_flush("\n");
 		popstackmark(&smark);
 		FORCEINTON;				/* enable interrupts */
 		if (state == 1)
@@ -153,10 +140,7 @@ main(int argc, char *argv[])
 	init();
 	setstackmark(&smark);
 	procargs(argc, argv);
-	if (getpwd() == NULL && iflag)
-		out2fmt_flush("sh: cannot determine working directory\n");
-	if (getpwd() != NULL)
-		setvar ("PWD", getpwd(), VEXPORT);
+	pwd_init(iflag);
 	if (iflag)
 		chkmail(1);
 	if (argv[0] && argv[0][0] == '-') {
@@ -235,8 +219,9 @@ cmdloop(int top)
 		}
 		popstackmark(&smark);
 		setstackmark(&smark);
-		if (evalskip == SKIPFILE) {
-			evalskip = 0;
+		if (evalskip != 0) {
+			if (evalskip == SKIPFILE)
+				evalskip = 0;
 			break;
 		}
 	}
@@ -249,7 +234,7 @@ cmdloop(int top)
  * Read /etc/profile or .profile.  Return on error.
  */
 
-STATIC void
+static void
 read_profile(const char *name)
 {
 	int fd;
@@ -293,10 +278,9 @@ readcmdfile(const char *name)
  */
 
 
-STATIC char *
+static char *
 find_dot_file(char *basename)
 {
-	static char localname[FILENAME_MAX+1];
 	char *fullname;
 	const char *path = pathval();
 	struct stat statb;
@@ -306,10 +290,14 @@ find_dot_file(char *basename)
 		return basename;
 
 	while ((fullname = padvance(&path, basename)) != NULL) {
-		strcpy(localname, fullname);
+		if ((stat(fullname, &statb) == 0) && S_ISREG(statb.st_mode)) {
+			/*
+			 * Don't bother freeing here, since it will
+			 * be freed by the caller.
+			 */
+			return fullname;
+		}
 		stunalloc(fullname);
-		if ((stat(fullname, &statb) == 0) && S_ISREG(statb.st_mode))
-			return localname;
 	}
 	return basename;
 }
@@ -317,14 +305,20 @@ find_dot_file(char *basename)
 int
 dotcmd(int argc, char **argv)
 {
-	char *fullname;
+	char *filename, *fullname;
 
 	if (argc < 2)
 		error("missing filename");
 
 	exitstatus = 0;
 
-	fullname = find_dot_file(argv[1]);
+	/*
+	 * Because we have historically not supported any options,
+	 * only treat "--" specially.
+	 */
+	filename = argc > 2 && strcmp(argv[1], "--") == 0 ? argv[2] : argv[1];
+
+	fullname = find_dot_file(filename);
 	setinputfile(fullname, 1);
 	commandname = fullname;
 	cmdloop(0);
@@ -339,10 +333,7 @@ exitcmd(int argc, char **argv)
 	if (stoppedjobs())
 		return 0;
 	if (argc > 1)
-		exitstatus = number(argv[1]);
+		exitshell(number(argv[1]));
 	else
-		exitstatus = oexitstatus;
-	exitshell(exitstatus);
-	/*NOTREACHED*/
-	return 0;
+		exitshell_savedstatus();
 }

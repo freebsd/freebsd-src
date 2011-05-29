@@ -12,10 +12,6 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 3. All advertising materials mentioning features or use of this software
-.\"    must display the following acknowledgement:
-.\"	This product includes software developed by the University of
-.\"	California, Berkeley and its contributors.
 .\" 4. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
@@ -35,7 +31,7 @@
 .\"	@(#)find.1	8.7 (Berkeley) 5/9/95
 .\" $FreeBSD$
 .\"
-.Dd February 24, 2008
+.Dd March 17, 2010
 .Dt FIND 1
 .Os
 .Sh NAME
@@ -181,6 +177,18 @@ This option is equivalent to the deprecated
 primary.
 .El
 .Sh PRIMARIES
+.Pp
+All primaries which take a numeric argument allow the number to be
+preceded by a plus sign
+.Pq Dq Li +
+or a minus sign
+.Pq Dq Li - .
+A preceding plus sign means
+.Dq more than n ,
+a preceding minus sign means
+.Dq less than n
+and neither means
+.Dq exactly n .
 .Bl -tag -width indent
 .It Ic -Bmin Ar n
 True if the difference between the time of a file's inode creation
@@ -429,12 +437,9 @@ bits match those of
 True if the file is contained in a file system of type
 .Ar type .
 The
-.Xr sysctl 8
+.Xr lsvfs 1
 command can be used to find out the types of file systems
-that are available on the system:
-.Pp
-.Dl "sysctl vfs"
-.Pp
+that are available on the system.
 In addition, there are two pseudo-types,
 .Dq Li local
 and
@@ -822,18 +827,6 @@ The same thing as
 .Ic -path ,
 for GNU find compatibility.
 .El
-.Pp
-All primaries which take a numeric argument allow the number to be
-preceded by a plus sign
-.Pq Dq Li +
-or a minus sign
-.Pq Dq Li - .
-A preceding plus sign means
-.Dq more than n ,
-a preceding minus sign means
-.Dq less than n
-and neither means
-.Dq exactly n .
 .Sh OPERATORS
 The primaries may be combined using the following operators.
 The operators are listed in order of decreasing precedence.
@@ -947,6 +940,7 @@ section below for details.
 .Xr chmod 1 ,
 .Xr cvs 1 ,
 .Xr locate 1 ,
+.Xr lsvfs 1 ,
 .Xr whereis 1 ,
 .Xr which 1 ,
 .Xr xargs 1 ,

@@ -96,6 +96,7 @@ ddb_readfile(char *filename)
 #endif
 		ddb_main(argc, argv);
 	}
+	fclose(f);
 }
 
 void

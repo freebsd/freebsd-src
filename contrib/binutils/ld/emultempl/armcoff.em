@@ -5,7 +5,7 @@ cat >e${EMULATION_NAME}.c <<EOF
 
 /* emulate the original gld for the given ${EMULATION_NAME}
    Copyright 1991, 1993, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003,
-   2004 Free Software Foundation, Inc.
+   2004, 2005, 2007 Free Software Foundation, Inc.
    Written by Steve Chamberlain steve@cygnus.com
 
 This file is part of GLD, the Gnu Linker.
@@ -22,12 +22,12 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #define TARGET_IS_${EMULATION_NAME}
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "bfdlink.h"
 #include "getopt.h"
 
@@ -125,6 +125,8 @@ gld${EMULATION_NAME}_before_allocation (void)
 
   /* We have seen it all. Allocate it, and carry on */
   bfd_arm_allocate_interworking_sections (& link_info);
+
+  before_allocation_default ();
 }
 
 static void
@@ -152,45 +154,48 @@ gld${EMULATION_NAME}_after_open (void)
 static void
 gld${EMULATION_NAME}_finish (void)
 {
-  struct bfd_link_hash_entry * h;
-
-  if (thumb_entry_symbol == NULL)
-    return;
-
-  h = bfd_link_hash_lookup (link_info.hash, thumb_entry_symbol,
-			    FALSE, FALSE, TRUE);
-
-  if (h != (struct bfd_link_hash_entry *) NULL
-      && (h->type == bfd_link_hash_defined
-	  || h->type == bfd_link_hash_defweak)
-      && h->u.def.section->output_section != NULL)
+  if (thumb_entry_symbol != NULL)
     {
-      static char buffer[32];
-      bfd_vma val;
+      struct bfd_link_hash_entry * h;
 
-      /* Special procesing is required for a Thumb entry symbol.  The
-	 bottom bit of its address must be set.  */
-      val = (h->u.def.value
-	     + bfd_get_section_vma (output_bfd,
-				    h->u.def.section->output_section)
-	     + h->u.def.section->output_offset);
+      h = bfd_link_hash_lookup (link_info.hash, thumb_entry_symbol,
+				FALSE, FALSE, TRUE);
 
-      val |= 1;
+      if (h != (struct bfd_link_hash_entry *) NULL
+	  && (h->type == bfd_link_hash_defined
+	      || h->type == bfd_link_hash_defweak)
+	  && h->u.def.section->output_section != NULL)
+	{
+	  static char buffer[32];
+	  bfd_vma val;
 
-      /* Now convert this value into a string and store it in entry_symbol
-	 where the lang_finish() function will pick it up.  */
-      buffer[0] = '0';
-      buffer[1] = 'x';
+	  /* Special procesing is required for a Thumb entry symbol.  The
+	     bottom bit of its address must be set.  */
+	  val = (h->u.def.value
+		 + bfd_get_section_vma (output_bfd,
+					h->u.def.section->output_section)
+		 + h->u.def.section->output_offset);
 
-      sprintf_vma (buffer + 2, val);
+	  val |= 1;
 
-      if (entry_symbol.name != NULL && entry_from_cmdline)
-	einfo (_("%P: warning: '--thumb-entry %s' is overriding '-e %s'\n"),
-	       thumb_entry_symbol, entry_symbol.name);
-      entry_symbol.name = buffer;
+	  /* Now convert this value into a string and store it in entry_symbol
+	     where the lang_finish() function will pick it up.  */
+	  buffer[0] = '0';
+	  buffer[1] = 'x';
+
+	  sprintf_vma (buffer + 2, val);
+
+	  if (entry_symbol.name != NULL && entry_from_cmdline)
+	    einfo (_("%P: warning: '--thumb-entry %s' is overriding '-e %s'\n"),
+		   thumb_entry_symbol, entry_symbol.name);
+	  entry_symbol.name = buffer;
+	}
+      else
+	einfo (_("%P: warning: connot find thumb start symbol %s\n"),
+	       thumb_entry_symbol);
     }
-  else
-    einfo (_("%P: warning: connot find thumb start symbol %s\n"), thumb_entry_symbol);
+
+  finish_default ();
 }
 
 static char *

@@ -510,15 +510,6 @@ next:	if (v_event_get(sp, evp, 0, ec_flags))
 	case E_EOF:
 		F_SET(sp, SC_EXIT_FORCE);
 		return (1);
-	case E_INTERRUPT:
-		/*
-		 * !!!
-		 * Historically, <interrupt> exited the user from text input
-		 * mode or cancelled a colon command, and returned to command
-		 * mode.  It also beeped the terminal, but that seems a bit
-		 * excessive.
-		 */
-		goto k_escape;
 	case E_REPAINT:
 		if (vs_repaint(sp, &ev))
 			return (1);
@@ -526,10 +517,37 @@ next:	if (v_event_get(sp, evp, 0, ec_flags))
 	case E_WRESIZE:
 		/* <resize> interrupts the input mode. */
 		v_emsg(sp, NULL, VIM_WRESIZE);
-		goto k_escape;
+		/* FALLTHROUGH */
 	default:
-		v_event_err(sp, evp);
-		goto k_escape;
+		if (evp->e_event != E_INTERRUPT && evp->e_event != E_WRESIZE)
+			v_event_err(sp, evp);
+		/*
+		 * !!!
+		 * Historically, <interrupt> exited the user from text input
+		 * mode or cancelled a colon command, and returned to command
+		 * mode.  It also beeped the terminal, but that seems a bit
+		 * excessive.
+		 */
+		/*
+		 * If we are recording, morph into <escape> key so that
+		 * we can repeat the command safely: there is no way to
+		 * invalidate the repetition of an instance of a command,
+		 * which would be the alternative possibility.
+		 * If we are not recording (most likely on the command line),
+		 * simply discard the input and return to command mode
+		 * so that an INTERRUPT doesn't become for example a file
+		 * completion request. -aymeric
+		 */
+		if (LF_ISSET(TXT_RECORD)) {
+			evp->e_event = E_CHARACTER;
+			evp->e_c = 033;
+			evp->e_flags = 0;
+			evp->e_value = K_ESCAPE;
+			break;
+		} else {
+			tp->term = TERM_ESC;
+			goto k_escape;
+		}
 	}
 
 	/*
@@ -539,7 +557,7 @@ next:	if (v_event_get(sp, evp, 0, ec_flags))
 	 * This was not documented as far as I know, and is a great test of vi
 	 * clones.
 	 */
-	if (rcol == 0 && !LF_ISSET(TXT_REPLAY) && evp->e_c == '\0') {
+	if (LF_ISSET(TXT_RECORD) && rcol == 0 && evp->e_c == '\0') {
 		if (vip->rep == NULL)
 			goto done;
 
@@ -1456,6 +1474,7 @@ done:	/* Leave input mode. */
 
 err:
 alloc_err:
+	F_CLR(sp, SC_TINPUT);
 	txt_err(sp, &sp->tiq);
 	return (1);
 }
@@ -2216,8 +2235,8 @@ txt_fc_col(sp, argc, argv)
 
 	/* If the largest file name is too large, just print them. */
 	if (colwidth > sp->cols) {
-		p = msg_print(sp, av[0]->bp + prefix, &nf);
 		for (ac = argc, av = argv; ac > 0; --ac, ++av) {
+			p = msg_print(sp, av[0]->bp + prefix, &nf);
 			(void)ex_printf(sp, "%s\n", p);
 			if (F_ISSET(gp, G_INTERRUPTED))
 				break;

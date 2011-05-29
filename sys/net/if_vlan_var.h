@@ -131,7 +131,25 @@ struct	vlanreq {
 		(*vlan_trunk_cap_p)(_ifp);			\
 } while (0)
 
+#define	VLAN_TRUNKDEV(_ifp)					\
+	(_ifp)->if_type == IFT_L2VLAN ? (*vlan_trunkdev_p)((_ifp)) : NULL
+#define	VLAN_TAG(_ifp, _tag)					\
+	(_ifp)->if_type == IFT_L2VLAN ? (*vlan_tag_p)((_ifp), (_tag)) : EINVAL
+#define	VLAN_COOKIE(_ifp)					\
+	(_ifp)->if_type == IFT_L2VLAN ? (*vlan_cookie_p)((_ifp)) : NULL
+#define	VLAN_SETCOOKIE(_ifp, _cookie)				\
+	(_ifp)->if_type == IFT_L2VLAN ?				\
+	    (*vlan_setcookie_p)((_ifp), (_cookie)) : EINVAL
+#define	VLAN_DEVAT(_ifp, _tag)					\
+	(_ifp)->if_vlantrunk != NULL ? (*vlan_devat_p)((_ifp), (_tag)) : NULL
+
 extern	void (*vlan_trunk_cap_p)(struct ifnet *);
+extern	struct ifnet *(*vlan_trunkdev_p)(struct ifnet *);
+extern	struct ifnet *(*vlan_devat_p)(struct ifnet *, uint16_t);
+extern	int (*vlan_tag_p)(struct ifnet *, uint16_t *);
+extern	int (*vlan_setcookie_p)(struct ifnet *, void *);
+extern	void *(*vlan_cookie_p)(struct ifnet *);
+
 #endif /* _KERNEL */
 
 #endif /* _NET_IF_VLAN_VAR_H_ */

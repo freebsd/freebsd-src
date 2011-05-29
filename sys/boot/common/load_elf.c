@@ -97,7 +97,6 @@ __elfN(loadfile)(char *filename, u_int64_t dest, struct preloaded_file **result)
     struct elf_file		ef;
     Elf_Ehdr 			*ehdr;
     int				err;
-    u_int			pad;
     ssize_t			bytes_read;
 
     fp = NULL;
@@ -157,12 +156,6 @@ __elfN(loadfile)(char *filename, u_int64_t dest, struct preloaded_file **result)
 	/* Looks OK, got ahead */
 	ef.kernel = 0;
 
-	/* Page-align the load address */
-	pad = (u_int)dest & PAGE_MASK;
-	if (pad != 0) {
-	    pad = PAGE_SIZE - pad;
-	    dest += pad;
-	}
     } else if (ehdr->e_type == ET_EXEC) {
 	/* Looks like a kernel */
 	if (kfp != NULL) {
@@ -173,7 +166,7 @@ __elfN(loadfile)(char *filename, u_int64_t dest, struct preloaded_file **result)
 	/* 
 	 * Calculate destination address based on kernel entrypoint 	
 	 */
-	dest = ehdr->e_entry;
+	dest = (ehdr->e_entry & ~PAGE_MASK);
 	if (dest == 0) {
 	    printf("elf" __XSTRING(__ELF_WORD_SIZE) "_loadfile: not a kernel (maybe static binary?)\n");
 	    err = EPERM;
@@ -185,6 +178,11 @@ __elfN(loadfile)(char *filename, u_int64_t dest, struct preloaded_file **result)
 	err = EFTYPE;
 	goto oerr;
     }
+
+    if (archsw.arch_loadaddr != NULL)
+	dest = archsw.arch_loadaddr(LOAD_ELF, ehdr, dest);
+    else
+	dest = roundup(dest, PAGE_SIZE);
 
     /* 
      * Ok, we think we should handle this.
@@ -202,7 +200,7 @@ __elfN(loadfile)(char *filename, u_int64_t dest, struct preloaded_file **result)
 
 #ifdef ELF_VERBOSE
     if (ef.kernel)
-	printf("%s entry at 0x%jx\n", filename, (uintmax_t)dest);
+	printf("%s entry at 0x%jx\n", filename, (uintmax_t)ehdr->e_entry);
 #else
     printf("%s ", filename);
 #endif
@@ -362,6 +360,9 @@ __elfN(loadimage)(struct preloaded_file *fp, elf_file_t ef, u_int64_t off)
 	printf("\n");
 #endif
 
+	if (archsw.arch_loadseg != NULL)
+	    archsw.arch_loadseg(ehdr, phdr + i, off);
+
 	if (firstaddr == 0 || firstaddr > (phdr[i].p_vaddr + off))
 	    firstaddr = phdr[i].p_vaddr + off;
 	if (lastaddr == 0 || lastaddr < (phdr[i].p_vaddr + off + phdr[i].p_memsz))
@@ -453,7 +454,8 @@ __elfN(loadimage)(struct preloaded_file *fp, elf_file_t ef, u_int64_t off)
 	}
 	result = archsw.arch_readin(ef->fd, lastaddr, shdr[i].sh_size);
 	if (result < 0 || (size_t)result != shdr[i].sh_size) {
-	    printf("\nelf" __XSTRING(__ELF_WORD_SIZE) "_loadimage: could not read symbols - skipped!");
+	    printf("\nelf" __XSTRING(__ELF_WORD_SIZE) "_loadimage: could not read symbols - skipped! (%ju != %ju)", (uintmax_t)result,
+		(uintmax_t)shdr[i].sh_size);
 	    lastaddr = ssym;
 	    ssym = 0;
 	    goto nosyms;

@@ -2039,7 +2039,9 @@ pf_send_icmp(struct mbuf *m, u_int8_t type, u_int8_t code, sa_family_t af,
 	struct pf_mtag	*pf_mtag;
 	struct mbuf	*m0;
 #ifdef __FreeBSD__
+#ifdef INET
 	struct ip *ip;
+#endif
 #endif
 
 #ifdef __FreeBSD__
@@ -6375,6 +6377,7 @@ pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 	m0->m_pkthdr.csum_flags &= ifp->if_hwassist;
 
 	if (ntohs(ip->ip_len) <= ifp->if_mtu ||
+	    (m0->m_pkthdr.csum_flags & ifp->if_hwassist & CSUM_TSO) != 0 ||
 	    (ifp->if_hwassist & CSUM_FRAGMENT &&
 		((ip->ip_off & htons(IP_DF)) == 0))) {
 		/*
@@ -6449,7 +6452,7 @@ pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 	 * Too large for interface; fragment if possible.
 	 * Must be able to put at least 8 bytes per fragment.
 	 */
-	if (ip->ip_off & htons(IP_DF)) {
+	if (ip->ip_off & htons(IP_DF) || (m0->m_pkthdr.csum_flags & CSUM_TSO)) {
 		KMOD_IPSTAT_INC(ips_cantfrag);
 		if (r->rt != PF_DUPTO) {
 #ifdef __FreeBSD__

@@ -76,8 +76,30 @@ static void print_via_padlock_info(void);
 
 int	cpu_class;
 char machine[] = "amd64";
-SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD, 
-    machine, 0, "Machine class");
+
+#ifdef SCTL_MASK32
+extern int adaptive_machine_arch;
+#endif
+
+static int
+sysctl_hw_machine(SYSCTL_HANDLER_ARGS)
+{
+#ifdef SCTL_MASK32
+	static const char machine32[] = "i386";
+#endif
+	int error;
+
+#ifdef SCTL_MASK32
+	if ((req->flags & SCTL_MASK32) != 0 && adaptive_machine_arch)
+		error = SYSCTL_OUT(req, machine32, sizeof(machine32));
+	else
+#endif
+		error = SYSCTL_OUT(req, machine, sizeof(machine));
+	return (error);
+
+}
+SYSCTL_PROC(_hw, HW_MACHINE, machine, CTLTYPE_STRING | CTLFLAG_RD,
+    NULL, 0, sysctl_hw_machine, "A", "Machine class");
 
 static char cpu_model[128];
 SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD, 
@@ -86,6 +108,8 @@ SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD,
 static int hw_clockrate;
 SYSCTL_INT(_hw, OID_AUTO, clockrate, CTLFLAG_RD, 
     &hw_clockrate, 0, "CPU instruction clock rate");
+
+static eventhandler_tag tsc_post_tag;
 
 static char cpu_brand[48];
 
@@ -169,10 +193,12 @@ printcpuinfo(void)
 	printf("%s (", cpu_model);
 	switch(cpu_class) {
 	case CPUCLASS_K8:
-		hw_clockrate = (tsc_freq + 5000) / 1000000;
-		printf("%jd.%02d-MHz ",
-		       (intmax_t)(tsc_freq + 4999) / 1000000,
-		       (u_int)((tsc_freq + 4999) / 10000) % 100);
+		if (tsc_freq != 0) {
+			hw_clockrate = (tsc_freq + 5000) / 1000000;
+			printf("%jd.%02d-MHz ",
+			       (intmax_t)(tsc_freq + 4999) / 1000000,
+			       (u_int)((tsc_freq + 4999) / 10000) % 100);
+		}
 		printf("K8");
 		break;
 	default:
@@ -187,7 +213,17 @@ printcpuinfo(void)
 	if (cpu_vendor_id == CPU_VENDOR_INTEL ||
 	    cpu_vendor_id == CPU_VENDOR_AMD ||
 	    cpu_vendor_id == CPU_VENDOR_CENTAUR) {
-		printf("  Stepping = %u", cpu_id & 0xf);
+		printf("  Family = %x", CPUID_TO_FAMILY(cpu_id));
+		printf("  Model = %x", CPUID_TO_MODEL(cpu_id));
+		printf("  Stepping = %u", cpu_id & CPUID_STEPPING);
+
+		/*
+		 * AMD CPUID Specification
+		 * http://support.amd.com/us/Embedded_TechDocs/25481.pdf
+		 *
+		 * Intel Processor Identification and CPUID Instruction
+		 * http://www.intel.com/assets/pdf/appnote/241618.pdf
+		 */
 		if (cpu_high > 0) {
 
 			/*
@@ -238,7 +274,7 @@ printcpuinfo(void)
 				printf("\n  Features2=0x%b", cpu_feature2,
 				"\020"
 				"\001SSE3"	/* SSE3 */
-				"\002<b1>"
+				"\002PCLMULQDQ"	/* Carry-Less Mul Quadword */
 				"\003DTES64"	/* 64-bit Debug Trace */
 				"\004MON"	/* MONITOR/MWAIT Instructions */
 				"\005DS_CPL"	/* CPL Qualified Debug Store */
@@ -249,38 +285,29 @@ printcpuinfo(void)
 				"\012SSSE3"	/* SSSE3 */
 				"\013CNXT-ID"	/* L1 context ID available */
 				"\014<b11>"
-				"\015<b12>"
+				"\015FMA"	/* Fused Multiply Add */
 				"\016CX16"	/* CMPXCHG16B Instruction */
 				"\017xTPR"	/* Send Task Priority Messages*/
 				"\020PDCM"	/* Perf/Debug Capability MSR */
 				"\021<b16>"
-				"\022<b17>"
+				"\022PCID"	/* Process-context Identifiers*/
 				"\023DCA"	/* Direct Cache Access */
-				"\024SSE4.1"
-				"\025SSE4.2"
+				"\024SSE4.1"	/* SSE 4.1 */
+				"\025SSE4.2"	/* SSE 4.2 */
 				"\026x2APIC"	/* xAPIC Extensions */
-				"\027MOVBE"
-				"\030POPCNT"
-				"\031<b24>"
-				"\032<b25>"
-				"\033XSAVE"
-				"\034OSXSAVE"
-				"\035<b28>"
-				"\036<b29>"
+				"\027MOVBE"	/* MOVBE Instruction */
+				"\030POPCNT"	/* POPCNT Instruction */
+				"\031TSCDLT"	/* TSC-Deadline Timer */
+				"\032AESNI"	/* AES Crypto */
+				"\033XSAVE"	/* XSAVE/XRSTOR States */
+				"\034OSXSAVE"	/* OS-Enabled State Management*/
+				"\035AVX"	/* Advanced Vector Extensions */
+				"\036F16C"	/* Half-precision conversions */
 				"\037<b30>"
-				"\040<b31>"
+				"\040HV"	/* Hypervisor */
 				);
 			}
 
-			/*
-			 * AMD64 Architecture Programmer's Manual Volume 3:
-			 * General-Purpose and System Instructions
-			 * http://www.amd.com/us-en/assets/content_type/white_papers_and_tech_docs/24594.pdf
-			 *
-			 * IA-32 Intel Architecture Software Developer's Manual,
-			 * Volume 2A: Instruction Set Reference, A-M
-			 * ftp://download.intel.com/design/Pentium4/manuals/25366617.pdf
-			 */
 			if (amd_feature != 0) {
 				printf("\n  AMD Features=0x%b", amd_feature,
 				"\020"		/* in hex */
@@ -333,18 +360,18 @@ printcpuinfo(void)
 				"\011Prefetch"	/* 3DNow! Prefetch/PrefetchW */
 				"\012OSVW"	/* OS visible workaround */
 				"\013IBS"	/* Instruction based sampling */
-				"\014SSE5"	/* SSE5 */
+				"\014XOP"	/* XOP extended instructions */
 				"\015SKINIT"	/* SKINIT/STGI */
 				"\016WDT"	/* Watchdog timer */
 				"\017<b14>"
-				"\020<b15>"
-				"\021<b16>"
+				"\020LWP"	/* Lightweight Profiling */
+				"\021FMA4"	/* 4-operand FMA instructions */
 				"\022<b17>"
 				"\023<b18>"
-				"\024<b19>"
+				"\024NodeId"	/* NodeId MSR support */
 				"\025<b20>"
-				"\026<b21>"
-				"\027<b22>"
+				"\026TBM"	/* Trailing Bit Manipulation */
+				"\027Topology"	/* Topology Extensions */
 				"\030<b23>"
 				"\031<b24>"
 				"\032<b25>"
@@ -357,7 +384,7 @@ printcpuinfo(void)
 				);
 			}
 
-			if (cpu_vendor_id == CPU_VENDOR_CENTAUR)
+			if (via_feature_rng != 0 || via_feature_xcrypt != 0)
 				print_via_padlock_info();
 
 			if ((cpu_feature & CPUID_HTT) &&
@@ -368,30 +395,11 @@ printcpuinfo(void)
 			 * If this CPU supports P-state invariant TSC then
 			 * mention the capability.
 			 */
-			switch (cpu_vendor_id) {
-			case CPU_VENDOR_AMD:
-				if ((amd_pminfo & AMDPM_TSC_INVARIANT) ||
-				    CPUID_TO_FAMILY(cpu_id) >= 0x10 ||
-				    cpu_id == 0x60fb2)
-					tsc_is_invariant = 1;
-				break;
-			case CPU_VENDOR_INTEL:
-				if ((amd_pminfo & AMDPM_TSC_INVARIANT) ||
-				    (CPUID_TO_FAMILY(cpu_id) == 0x6 &&
-				    CPUID_TO_MODEL(cpu_id) >= 0xe) ||
-				    (CPUID_TO_FAMILY(cpu_id) == 0xf &&
-				    CPUID_TO_MODEL(cpu_id) >= 0x3))
-					tsc_is_invariant = 1;
-				break;
-			case CPU_VENDOR_CENTAUR:
-				if (CPUID_TO_FAMILY(cpu_id) == 0x6 &&
-				    CPUID_TO_MODEL(cpu_id) >= 0xf &&
-				    (rdmsr(0x1203) & 0x100000000ULL) == 0)
-					tsc_is_invariant = 1;
-				break;
-			}
-			if (tsc_is_invariant)
+			if (tsc_is_invariant) {
 				printf("\n  TSC: P-state invariant");
+				if (tsc_perf_stat)
+					printf(", performance statistics");
+			}
 
 		}
 	}
@@ -431,21 +439,29 @@ panicifcpuunsupported(void)
 
 /* Update TSC freq with the value indicated by the caller. */
 static void
-tsc_freq_changed(void *arg, const struct cf_level *level, int status)
+tsc_freq_changed(void *arg __unused, const struct cf_level *level, int status)
 {
-	/*
-	 * If there was an error during the transition or
-	 * TSC is P-state invariant, don't do anything.
-	 */
-	if (status != 0 || tsc_is_invariant)
+
+	/* If there was an error during the transition, don't do anything. */
+	if (status != 0)
 		return;
 
 	/* Total setting for this level gives the new frequency in MHz. */
 	hw_clockrate = level->total_set.freq;
 }
 
-EVENTHANDLER_DEFINE(cpufreq_post_change, tsc_freq_changed, NULL,
-    EVENTHANDLER_PRI_ANY);
+static void
+hook_tsc_freq(void *arg __unused)
+{
+
+	if (tsc_is_invariant)
+		return;
+
+	tsc_post_tag = EVENTHANDLER_REGISTER(cpufreq_post_change,
+	    tsc_freq_changed, NULL, EVENTHANDLER_PRI_ANY);
+}
+
+SYSINIT(hook_tsc_freq, SI_SUB_CONFIGURE, SI_ORDER_ANY, hook_tsc_freq, NULL);
 
 /*
  * Final stage of CPU identification.
@@ -629,25 +645,7 @@ print_via_padlock_info(void)
 {
 	u_int regs[4];
 
-	/* Check for supported models. */
-	switch (cpu_id & 0xff0) {
-	case 0x690:
-		if ((cpu_id & 0xf) < 3)
-			return;
-	case 0x6a0:
-	case 0x6d0:
-	case 0x6f0:
-		break;
-	default:
-		return;
-	}
-	
-	do_cpuid(0xc0000000, regs);
-	if (regs[0] >= 0xc0000001)
-		do_cpuid(0xc0000001, regs);
-	else
-		return;
-
+	do_cpuid(0xc0000001, regs);
 	printf("\n  VIA Padlock Features=0x%b", regs[3],
 	"\020"
 	"\003RNG"		/* RNG */

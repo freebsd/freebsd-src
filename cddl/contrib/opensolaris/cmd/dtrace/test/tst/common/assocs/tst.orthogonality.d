@@ -39,13 +39,13 @@ BEGIN
 }
 
 BEGIN
-/b[curthread->t_did] == 0/
+/b[curthread->td_flags] == 0/
 {
 	exit(0);
 }
 
 BEGIN
 {
-	printf("value should be 0; value is %x!", b[curthread->t_did]);
+	printf("value should be 0; value is %x!", b[curthread->td_flags]);
 	exit(1);
 }

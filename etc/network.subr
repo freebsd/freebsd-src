@@ -100,7 +100,7 @@ ifconfig_up()
 				_ipv6_opts="-accept_rtadv"
 			fi
 		else
-			if checkyesno ipv6_prefer; then
+			if checkyesno ipv6_activate_all_interfaces; then
 				_ipv6_opts="-ifdisabled"
 			else
 				_ipv6_opts="ifdisabled"
@@ -108,7 +108,7 @@ ifconfig_up()
 
 			# backward compatibility: $ipv6_enable
 			case $ipv6_enable in
-			[Yy][Ee][Ss])
+			[Yy][Ee][Ss]|[Tt][Rr][Uu][Ee]|[Oo][Nn]|1)
 				_ipv6_opts="${_ipv6_opts} accept_rtadv"
 				;;
 			esac
@@ -194,7 +194,7 @@ ifconfig_down()
 #	$default if given.
 get_if_var()
 {
-	local _if _punct _var _default prefix suffix
+	local _if _punct _punct_c _var _default prefix suffix
 
 	if [ $# -ne 2 -a $# -ne 3 ]; then
 		err 3 'USAGE: get_if_var name var [default]'
@@ -385,6 +385,7 @@ noafif()
 	an[0-9]*|\
 	ath[0-9]*|\
 	ipw[0-9]*|\
+	ipfw[0-9]*|\
 	iwi[0-9]*|\
 	iwn[0-9]*|\
 	ral[0-9]*|\
@@ -417,32 +418,21 @@ ipv6if()
 		;;
 	esac
 
-	# True if $ifconfig_IF_ipv6 is defined.
-	_tmpargs=`_ifconfig_getargs $_if ipv6`
-	if [ -n "${_tmpargs}" ]; then
-		return 0
-	fi
-
-	# backward compatibility: True if $ipv6_ifconfig_IF is defined.
-	_tmpargs=`get_if_var $_if ipv6_ifconfig_IF`
-	if [ -n "${_tmpargs}" ]; then
-		return 0
-	fi
-
 	case "${ipv6_network_interfaces}" in
-	[Aa][Uu][Tt][Oo])
-		return 0
-		;;
-	''|[Nn][Oo][Nn][Ee])
-		return 1
-		;;
-	esac
-
-	for i in ${ipv6_network_interfaces}; do
-		if [ "$i" = "$_if" ]; then
+	$_if|"$_if "*|*" $_if"|*" $_if "*|[Aa][Uu][Tt][Oo])
+		# True if $ifconfig_IF_ipv6 is defined.
+		_tmpargs=`_ifconfig_getargs $_if ipv6`
+		if [ -n "${_tmpargs}" ]; then
 			return 0
 		fi
-	done
+
+		# backward compatibility: True if $ipv6_ifconfig_IF is defined.
+		_tmpargs=`get_if_var $_if ipv6_ifconfig_IF`
+		if [ -n "${_tmpargs}" ]; then
+			return 0
+		fi
+		;;
+	esac
 
 	return 1
 }
@@ -455,10 +445,19 @@ ipv6_autoconfif()
 	local _if _tmpargs _arg
 	_if=$1
 
-	if ! ipv6if $_if; then
+	case $_if in
+	lo0|\
+	stf[0-9]*|\
+	faith[0-9]*|\
+	lp[0-9]*|\
+	sl[0-9]*)
+		return 1
+		;;
+	esac
+	if noafif $_if; then
 		return 1
 	fi
-	if noafif $_if; then
+	if ! ipv6if $_if; then
 		return 1
 	fi
 	if checkyesno ipv6_gateway_enable; then
@@ -468,24 +467,11 @@ ipv6_autoconfif()
 	if [ -n "${_tmpargs}" ]; then
 		return 1
 	fi
-
-	case $_if in
-	lo0|\
-	stf[0-9]*|\
-	faith[0-9]*|\
-	lp[0-9]*|\
-	sl[0-9]*|\
-	pflog[0-9]*|\
-	pfsync[0-9]*)
-		return 1
-		;;
-	esac
-
 	# backward compatibility: $ipv6_enable
 	case $ipv6_enable in
-	[Yy][Ee][Ss])
+	[Yy][Ee][Ss]|[Tt][Rr][Uu][Ee]|[Oo][Nn]|1)
 		return 0
-		;;
+	;;
 	esac
 
 	_tmpargs=`_ifconfig_getargs $_if ipv6`
@@ -519,7 +505,7 @@ ifexists()
 }
 
 # ipv4_up if
-#	add IPv4 addresses to the interface $if 
+#	add IPv4 addresses to the interface $if
 ipv4_up()
 {
 	local _if _ret
@@ -629,14 +615,14 @@ ipv6_down()
 ipv4_addrs_common()
 {
 	local _ret _if _action _cidr _cidr_addr
-	local _ipaddr _netmask _range _ipnet _iplow _iphigh _ipcount 
+	local _ipaddr _netmask _range _ipnet _iplow _iphigh _ipcount
 	_ret=1
 	_if=$1
 	_action=$2
-    
+
 	# get ipv4-addresses
 	cidr_addr=`get_if_var $_if ipv4_addrs_IF`
-    
+
 	for _cidr in ${cidr_addr}; do
 		_ipaddr=${_cidr%%/*}
 		_netmask="/"${_cidr##*/}
@@ -649,7 +635,7 @@ ipv4_addrs_common()
 		if [ "${_action}" = "-alias" ]; then
 			_netmask=""
 		fi
-        
+
 		_ipcount=${_iplow}
 		while [ "${_ipcount}" -le "${_iphigh}" ]; do
 			eval "ifconfig ${_if} ${_action} ${_ipnet}.${_ipcount}${_netmask}"
@@ -958,7 +944,7 @@ clone_down()
 	_list=
 
 	for ifn in ${cloned_interfaces}; do
-		ifconfig ${ifn} destroy
+		ifconfig -n ${ifn} destroy
 		if [ $? -eq 0 ]; then
 			_list="${_list}${_prefix}${ifn}"
 			[ -z "$_prefix" ] && _prefix=' '
@@ -1043,10 +1029,7 @@ childif_destroy()
 		if ! ifexists $child; then
 			continue
 		fi
-		if autoif $child; then
-			ifn_stop $child
-		fi
-		ifconfig $child destroy && cfg=0
+		ifconfig -n $child destroy && cfg=0
 	done
 
 	child_vlans=`get_if_var $ifn vlans_IF`
@@ -1057,10 +1040,7 @@ childif_destroy()
 		if ! ifexists $child; then
 			continue
 		fi
-		if autoif $child; then
-			ifn_stop $child
-		fi
-		ifconfig $child destroy && cfg=0
+		ifconfig -n $child destroy && cfg=0
 	done
 
 	return ${cfg}
@@ -1353,38 +1333,14 @@ get_default_if()
 #	Echo decimal number $arg (single digit) in hexadecimal format.
 hexdigit()
 {
-	if [ $1 -lt 10 ]; then
-		echo $1
-	else
-		case $1 in
-		10)	echo a ;;
-		11)	echo b ;;
-		12)	echo c ;;
-		13)	echo d ;;
-		14)	echo e ;;
-		15)	echo f ;;
-		esac
-	fi
+	printf '%x\n' "$1"
 }
 
 # hexprint arg
 #	Echo decimal number $arg (multiple digits) in hexadecimal format.
 hexprint()
 {
-	local val str dig
-	val=$1
-	str=''
-	dig=`hexdigit $((${val} & 15))`
-	str=${dig}${str}
-	val=$((${val} >> 4))
-
-	while [ ${val} -gt 0 ]; do
-		dig=`hexdigit $((${val} & 15))`
-		str=${dig}${str}
-		val=$((${val} >> 4))
-	done
-
-	echo ${str}
+	printf '%x\n' "$1"
 }
 
 is_wired_interface()

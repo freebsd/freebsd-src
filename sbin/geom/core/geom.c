@@ -75,20 +75,26 @@ static void std_load(struct gctl_req *req, unsigned flags);
 static void std_unload(struct gctl_req *req, unsigned flags);
 
 struct g_command std_commands[] = {
-	{ "help", 0, std_help, G_NULL_OPTS, NULL, NULL },
-	{ "list", 0, std_list, G_NULL_OPTS, NULL, 
-	    "[name ...]"
+	{ "help", 0, std_help, G_NULL_OPTS, NULL },
+	{ "list", 0, std_list,
+	    {
+		{ 'a', "all", NULL, G_TYPE_BOOL },
+		G_OPT_SENTINEL
+	    },
+	    "[-a] [name ...]"
 	},
 	{ "status", 0, std_status,
 	    {
+		{ 'a', "all", NULL, G_TYPE_BOOL },
+		{ 'g', "geoms", NULL, G_TYPE_BOOL },
 		{ 's', "script", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
 	    },
-	    NULL, "[-s] [name ...]"
+	    "[-ags] [name ...]"
 	},
 	{ "load", G_FLAG_VERBOSE | G_FLAG_LOADKLD, std_load, G_NULL_OPTS,
-	    NULL, NULL },
-	{ "unload", G_FLAG_VERBOSE, std_unload, G_NULL_OPTS, NULL, NULL },
+	    NULL },
+	{ "unload", G_FLAG_VERBOSE, std_unload, G_NULL_OPTS, NULL },
 	G_CMD_SENTINEL
 };
 
@@ -129,8 +135,6 @@ usage_command(struct g_command *cmd, const char *prefix)
 		if (opt->go_val != NULL || G_OPT_TYPE(opt) == G_TYPE_BOOL)
 			fprintf(stderr, "]");
 	}
-	if (cmd->gc_argname)
-		fprintf(stderr, " %s", cmd->gc_argname);
 	fprintf(stderr, "\n");
 }
 
@@ -236,128 +240,57 @@ find_option(struct g_command *cmd, char ch)
 static void
 set_option(struct gctl_req *req, struct g_option *opt, const char *val)
 {
-	char *s;
-	intmax_t number;
+	const char *optname;
+	uint64_t number;
+	void *ptr;
 
-	if (G_OPT_TYPE(opt) == G_TYPE_NUMBER ||
-	    G_OPT_TYPE(opt) == G_TYPE_ASCNUM) {
-		if (expand_number(val, &number) == -1) {
-			err(EXIT_FAILURE, "Invalid value for '%c' argument.",
-			    opt->go_char);
-		}
-		if (G_OPT_TYPE(opt) == G_TYPE_NUMBER)
-			opt->go_val = malloc(sizeof(intmax_t));
-		else {
-			asprintf(&s, "%jd", number);
-			opt->go_val = s;
-		}
-		if (opt->go_val == NULL)
-			errx(EXIT_FAILURE, "No memory.");
-		if (G_OPT_TYPE(opt) == G_TYPE_NUMBER) {
-			*(intmax_t *)opt->go_val = number;
-			gctl_ro_param(req, opt->go_name, sizeof(intmax_t),
-			    opt->go_val);
-		} else
-			gctl_ro_param(req, opt->go_name, -1, opt->go_val);
-	} else if (G_OPT_TYPE(opt) == G_TYPE_ASCLBA) {
+	if (G_OPT_ISMULTI(opt)) {
+		size_t optnamesize;
+
+		if (G_OPT_NUM(opt) == UCHAR_MAX)
+			errx(EXIT_FAILURE, "Too many -%c options.", opt->go_char);
+
 		/*
-		 * LBAs are ugly. The argument is a sector. The size of a
-		 * sector is context specific (i.e. determined by the media),
-		 * which we don't know here. But when users enter a value
-		 * with a SI unit, they really mean the byte-size or byte-
-		 * offset and not the size or offset in sectors.
-		 * So how can we map the byte-oriented value into a sector-
-		 * oriented value if we don't know the sector size in bytes?
-		 * The approach taken here is:
-		 * o  Sectors are 512 bytes in size. Mostly the case anyway.
-		 * o  When no SI unit is specified the value is in sectors.
-		 * o  With an SI unit the value is in bytes.
-		 * o  The 'b' suffix forces byte interpretation and the 's'
-		 *    suffix forces sector interpretation.
-		 *
-		 * Thus:
-		 * o  2 and 2s mean 2 sectors, and 2b means 2 bytes.
-		 * o  4k and 4kb mean 4096 bytes, and 4ks means 4096 sectors.
-		 *
-		 * "This seemed like a good idea at the time"
+		 * Base option name length plus 3 bytes for option number
+		 * (max. 255 options) plus 1 byte for terminating '\0'.
 		 */
-		intmax_t mult, unit;
-
-		number = strtoimax(val, &s, 0);
-		if (s == val)
-			errc(EXIT_FAILURE, EINVAL, "argument '%c'",
-			    opt->go_char);
-		mult = 1;
-		unit = 512;	/* sector */
-		if (*s == '\0')
-			goto done;
-		switch (*s) {
-		case 'e': case 'E':
-			mult *= 1024;
-			/*FALLTHROUGH*/
-		case 'p': case 'P':
-			mult *= 1024;
-			/*FALLTHROUGH*/
-		case 't': case 'T':
-			mult *= 1024;
-			/*FALLTHROUGH*/
-		case 'g': case 'G':
-			mult *= 1024;
-			/*FALLTHROUGH*/
-		case 'm': case 'M':
-			mult *= 1024;
-			/*FALLTHROUGH*/
-		case 'k': case 'K':
-			mult *= 1024;
-			break;
-		default:
-			goto sfx;
-		}
-		unit = 1;	/* bytes */
-		s++;
-		if (*s == '\0')
-			goto done;
-sfx:
-		switch (*s) {
-		case 's': case 'S':
-			unit = 512;	/* sector */
-			break;
-		case 'b': case 'B':
-			unit = 1;	/* bytes */
-			break;
-		default:
-			errc(EXIT_FAILURE, EINVAL, "argument '%c': suffix '%c'",
-			    opt->go_char, *s);
-		}
-		s++;
-		if (*s != '\0')
-			errx(EXIT_FAILURE, "argument '%c': junk at end (%s)",
-			    opt->go_char, s);
-done:
-		if (mult * unit < mult || number * mult * unit < number)
-			errc(EXIT_FAILURE, ERANGE, "argument '%c'",
-			    opt->go_char);
-		number *= mult * unit;
-		if (number % 512)
-			errx(EXIT_FAILURE, "argument '%c': "
-			    "not a valid block address", opt->go_char);
-		number /= 512;
-		asprintf(&s, "%jd", number);
-		if (s == NULL)
-			err(EXIT_FAILURE, NULL);
-		opt->go_val = s;
-		gctl_ro_param(req, opt->go_name, -1, s);
-	} else if (G_OPT_TYPE(opt) == G_TYPE_STRING) {
-		gctl_ro_param(req, opt->go_name, -1, val);
-	} else if (G_OPT_TYPE(opt) == G_TYPE_BOOL) {
-		opt->go_val = malloc(sizeof(int));
-		if (opt->go_val == NULL)
+		optnamesize = strlen(opt->go_name) + 3 + 1;
+		ptr = malloc(optnamesize);
+		if (ptr == NULL)
 			errx(EXIT_FAILURE, "No memory.");
-		*(int *)opt->go_val = *val - '0';
-		gctl_ro_param(req, opt->go_name, sizeof(int), opt->go_val);
+		snprintf(ptr, optnamesize, "%s%u", opt->go_name, G_OPT_NUM(opt));
+		G_OPT_NUMINC(opt);
+		optname = ptr;
+	} else {
+		optname = opt->go_name;
+	}
+
+	if (G_OPT_TYPE(opt) == G_TYPE_NUMBER) {
+		if (expand_number(val, &number) == -1) {
+			err(EXIT_FAILURE, "Invalid value for '%c' argument",
+			    opt->go_char);
+		}
+		ptr = malloc(sizeof(intmax_t));
+		if (ptr == NULL)
+			errx(EXIT_FAILURE, "No memory.");
+		*(intmax_t *)ptr = number;
+		opt->go_val = ptr;
+		gctl_ro_param(req, optname, sizeof(intmax_t), opt->go_val);
+	} else if (G_OPT_TYPE(opt) == G_TYPE_STRING) {
+		gctl_ro_param(req, optname, -1, val);
+	} else if (G_OPT_TYPE(opt) == G_TYPE_BOOL) {
+		ptr = malloc(sizeof(int));
+		if (ptr == NULL)
+			errx(EXIT_FAILURE, "No memory.");
+		*(int *)ptr = *val - '0';
+		opt->go_val = ptr;
+		gctl_ro_param(req, optname, sizeof(int), opt->go_val);
 	} else {
 		assert(!"Invalid type");
 	}
+
+	if (G_OPT_ISMULTI(opt))
+		free(__DECONST(char *, optname));
 }
 
 /*
@@ -382,7 +315,10 @@ parse_arguments(struct g_command *cmd, struct gctl_req *req, int *argc,
 		if (opt->go_name == NULL)
 			break;
 		assert(G_OPT_TYPE(opt) != 0);
-		assert((opt->go_type & ~G_TYPE_MASK) == 0);
+		assert((opt->go_type & ~(G_TYPE_MASK | G_TYPE_MULTI)) == 0);
+		/* Multiple bool arguments makes no sense. */
+		assert(G_OPT_TYPE(opt) != G_TYPE_BOOL ||
+		    (opt->go_type & G_TYPE_MULTI) == 0);
 		strlcatf(opts, sizeof(opts), "%c", opt->go_char);
 		if (G_OPT_TYPE(opt) != G_TYPE_BOOL)
 			strlcat(opts, ":", sizeof(opts));
@@ -402,7 +338,7 @@ parse_arguments(struct g_command *cmd, struct gctl_req *req, int *argc,
 		opt = find_option(cmd, ch);
 		if (opt == NULL)
 			usage();
-		if (G_OPT_ISDONE(opt)) {
+		if (!G_OPT_ISMULTI(opt) && G_OPT_ISDONE(opt)) {
 			warnx("Option '%c' specified twice.", opt->go_char);
 			usage();
 		}
@@ -434,40 +370,23 @@ parse_arguments(struct g_command *cmd, struct gctl_req *req, int *argc,
 				warnx("Option '%c' not specified.",
 				    opt->go_char);
 				usage();
+			} else if (opt->go_val == G_VAL_OPTIONAL) {
+				/* add nothing. */
 			} else {
-				if (G_OPT_TYPE(opt) == G_TYPE_NUMBER) {
-					gctl_ro_param(req, opt->go_name,
-					    sizeof(intmax_t), opt->go_val);
-				} else if (G_OPT_TYPE(opt) == G_TYPE_STRING ||
-				    G_OPT_TYPE(opt) == G_TYPE_ASCNUM ||
-				    G_OPT_TYPE(opt) == G_TYPE_ASCLBA) {
-					if (cmd->gc_argname == NULL ||
-					    opt->go_val == NULL ||
-					    *(char *)opt->go_val != '\0')
-						gctl_ro_param(req, opt->go_name,
-						    -1, opt->go_val);
-				} else {
-					assert(!"Invalid type");
-				}
+				set_option(req, opt, opt->go_val);
 			}
 		}
 	}
 
-	if (cmd->gc_argname == NULL) {
-		/*
-		 * Add rest of given arguments.
-		 */
-		gctl_ro_param(req, "nargs", sizeof(int), argc);
-		for (i = 0; i < (unsigned)*argc; i++) {
-			char argname[16];
+	/*
+	 * Add rest of given arguments.
+	 */
+	gctl_ro_param(req, "nargs", sizeof(int), argc);
+	for (i = 0; i < (unsigned)*argc; i++) {
+		char argname[16];
 
-			snprintf(argname, sizeof(argname), "arg%u", i);
-			gctl_ro_param(req, argname, -1, (*argv)[i]);
-		}
-	} else {
-		if (*argc != 1)
-			usage();
-		gctl_ro_param(req, cmd->gc_argname, -1, (*argv)[0]);
+		snprintf(argname, sizeof(argname), "arg%u", i);
+		gctl_ro_param(req, argname, -1, (*argv)[i]);
 	}
 }
 
@@ -587,7 +506,7 @@ library_path(void)
 
 	path = getenv("GEOM_LIBRARY_PATH");
 	if (path == NULL)
-		path = CLASS_DIR;
+		path = GEOM_CLASS_DIR;
 	return (path);
 }
 
@@ -873,7 +792,7 @@ std_list(struct gctl_req *req, unsigned flags __unused)
 	struct gclass *classp;
 	struct ggeom *gp;
 	const char *name;
-	int error, i, nargs;
+	int all, error, i, nargs;
 
 	error = geom_gettree(&mesh);
 	if (error != 0)
@@ -884,18 +803,18 @@ std_list(struct gctl_req *req, unsigned flags __unused)
 		errx(EXIT_FAILURE, "Class %s not found.", gclass_name);
 	}
 	nargs = gctl_get_int(req, "nargs");
+	all = gctl_get_int(req, "all");
 	if (nargs > 0) {
 		for (i = 0; i < nargs; i++) {
 			name = gctl_get_ascii(req, "arg%d", i);
 			gp = find_geom(classp, name);
-			if (gp != NULL)
-				list_one_geom(gp);
-			else
+			if (gp == NULL)
 				errx(EXIT_FAILURE, "No such geom: %s.", name);
+			list_one_geom(gp);
 		}
 	} else {
 		LIST_FOREACH(gp, &classp->lg_geom, lg_geom) {
-			if (LIST_EMPTY(&gp->lg_provider))
+			if (LIST_EMPTY(&gp->lg_provider) && !all)
 				continue;
 			list_one_geom(gp);
 		}
@@ -914,7 +833,6 @@ std_status_available(void)
 static void
 status_update_len(struct ggeom *gp, int *name_len, int *status_len)
 {
-	struct gprovider *pp;
 	struct gconfig *conf;
 	int len;
 
@@ -922,11 +840,7 @@ status_update_len(struct ggeom *gp, int *name_len, int *status_len)
 	assert(name_len != NULL);
 	assert(status_len != NULL);
 
-	pp = LIST_FIRST(&gp->lg_provider);
-	if (pp != NULL)
-		len = strlen(pp->lg_name);
-	else
-		len = strlen(gp->lg_name);
+	len = strlen(gp->lg_name);
 	if (*name_len < len)
 		*name_len = len;
 	LIST_FOREACH(conf, &gp->lg_config, lg_config) {
@@ -938,25 +852,67 @@ status_update_len(struct ggeom *gp, int *name_len, int *status_len)
 	}
 }
 
+static void
+status_update_len_prs(struct ggeom *gp, int *name_len, int *status_len)
+{
+	struct gprovider *pp;
+	struct gconfig *conf;
+	int len, glen;
+
+	assert(gp != NULL);
+	assert(name_len != NULL);
+	assert(status_len != NULL);
+
+	glen = 0;
+	LIST_FOREACH(conf, &gp->lg_config, lg_config) {
+		if (strcasecmp(conf->lg_name, "state") == 0) {
+			glen = strlen(conf->lg_val);
+			break;
+		}
+	}
+	LIST_FOREACH(pp, &gp->lg_provider, lg_provider) {
+		len = strlen(pp->lg_name);
+		if (*name_len < len)
+			*name_len = len;
+		len = glen;
+		LIST_FOREACH(conf, &pp->lg_config, lg_config) {
+			if (strcasecmp(conf->lg_name, "state") == 0) {
+				len = strlen(conf->lg_val);
+				break;
+			}
+		}
+		if (*status_len < len)
+			*status_len = len;
+	}
+}
+
 static char *
 status_one_consumer(struct gconsumer *cp)
 {
 	static char buf[256];
 	struct gprovider *pp;
 	struct gconfig *conf;
+	const char *state, *syncr;
 
 	pp = cp->lg_provider;
 	if (pp == NULL)
 		return (NULL);
+	state = NULL;
+	syncr = NULL;
 	LIST_FOREACH(conf, &cp->lg_config, lg_config) {
+		if (strcasecmp(conf->lg_name, "state") == 0)
+			state = conf->lg_val;
 		if (strcasecmp(conf->lg_name, "synchronized") == 0)
-			break;
+			syncr = conf->lg_val;
 	}
-	if (conf == NULL)
+	if (state == NULL && syncr == NULL)
 		snprintf(buf, sizeof(buf), "%s", pp->lg_name);
-	else {
+	else if (state != NULL && syncr != NULL) {
+		snprintf(buf, sizeof(buf), "%s (%s, %s)", pp->lg_name,
+		    state, syncr);
+	} else {
 		snprintf(buf, sizeof(buf), "%s (%s)", pp->lg_name,
-		    conf->lg_val);
+		    state ? state : syncr);
 	}
 	return (buf);
 }
@@ -964,25 +920,19 @@ status_one_consumer(struct gconsumer *cp)
 static void
 status_one_geom(struct ggeom *gp, int script, int name_len, int status_len)
 {
-	struct gprovider *pp;
 	struct gconsumer *cp;
 	struct gconfig *conf;
 	const char *name, *status, *component;
 	int gotone;
 
-	pp = LIST_FIRST(&gp->lg_provider);
-	if (pp != NULL)
-		name = pp->lg_name;
-	else
-		name = gp->lg_name;
+	name = gp->lg_name;
+	status = "N/A";
 	LIST_FOREACH(conf, &gp->lg_config, lg_config) {
-		if (strcasecmp(conf->lg_name, "state") == 0)
+		if (strcasecmp(conf->lg_name, "state") == 0) {
+			status = conf->lg_val;
 			break;
+		}
 	}
-	if (conf == NULL)
-		status = "N/A";
-	else
-		status = conf->lg_val;
 	gotone = 0;
 	LIST_FOREACH(cp, &gp->lg_consumer, lg_consumer) {
 		component = status_one_consumer(cp);
@@ -1001,6 +951,48 @@ status_one_geom(struct ggeom *gp, int script, int name_len, int status_len)
 }
 
 static void
+status_one_geom_prs(struct ggeom *gp, int script, int name_len, int status_len)
+{
+	struct gprovider *pp;
+	struct gconsumer *cp;
+	struct gconfig *conf;
+	const char *name, *status, *component;
+	int gotone;
+
+	LIST_FOREACH(pp, &gp->lg_provider, lg_provider) {
+		name = pp->lg_name;
+		status = "N/A";
+		LIST_FOREACH(conf, &gp->lg_config, lg_config) {
+			if (strcasecmp(conf->lg_name, "state") == 0) {
+				status = conf->lg_val;
+				break;
+			}
+		}
+		LIST_FOREACH(conf, &pp->lg_config, lg_config) {
+			if (strcasecmp(conf->lg_name, "state") == 0) {
+				status = conf->lg_val;
+				break;
+			}
+		}
+		gotone = 0;
+		LIST_FOREACH(cp, &gp->lg_consumer, lg_consumer) {
+			component = status_one_consumer(cp);
+			if (component == NULL)
+				continue;
+			gotone = 1;
+			printf("%*s  %*s  %s\n", name_len, name,
+			    status_len, status, component);
+			if (!script)
+				name = status = "";
+		}
+		if (!gotone) {
+			printf("%*s  %*s  %s\n", name_len, name,
+			    status_len, status, "N/A");
+		}
+	}
+}
+
+static void
 std_status(struct gctl_req *req, unsigned flags __unused)
 {
 	struct gmesh mesh;
@@ -1008,7 +1000,7 @@ std_status(struct gctl_req *req, unsigned flags __unused)
 	struct ggeom *gp;
 	const char *name;
 	int name_len, status_len;
-	int error, i, n, nargs, script;
+	int all, error, geoms, i, n, nargs, script;
 
 	error = geom_gettree(&mesh);
 	if (error != 0)
@@ -1017,28 +1009,45 @@ std_status(struct gctl_req *req, unsigned flags __unused)
 	if (classp == NULL)
 		errx(EXIT_FAILURE, "Class %s not found.", gclass_name);
 	nargs = gctl_get_int(req, "nargs");
+	all = gctl_get_int(req, "all");
+	geoms = gctl_get_int(req, "geoms");
 	script = gctl_get_int(req, "script");
-	name_len = strlen("Name");
-	status_len = strlen("Status");
+	if (script) {
+		name_len = 0;
+		status_len = 0;
+	} else {
+		name_len = strlen("Name");
+		status_len = strlen("Status");
+	}
 	if (nargs > 0) {
 		for (i = 0, n = 0; i < nargs; i++) {
 			name = gctl_get_ascii(req, "arg%d", i);
 			gp = find_geom(classp, name);
 			if (gp == NULL)
 				errx(EXIT_FAILURE, "No such geom: %s.", name);
-			else {
-				status_update_len(gp, &name_len, &status_len);
-				n++;
+			if (geoms) {
+				status_update_len(gp,
+				    &name_len, &status_len);
+			} else {
+				status_update_len_prs(gp,
+				    &name_len, &status_len);
 			}
+			n++;
 		}
 		if (n == 0)
 			goto end;
 	} else {
 		n = 0;
 		LIST_FOREACH(gp, &classp->lg_geom, lg_geom) {
-			if (LIST_EMPTY(&gp->lg_provider))
+			if (LIST_EMPTY(&gp->lg_provider) && !all)
 				continue;
-			status_update_len(gp, &name_len, &status_len);
+			if (geoms) {
+				status_update_len(gp,
+				    &name_len, &status_len);
+			} else {
+				status_update_len_prs(gp,
+				    &name_len, &status_len);
+			}
 			n++;
 		}
 		if (n == 0)
@@ -1052,16 +1061,27 @@ std_status(struct gctl_req *req, unsigned flags __unused)
 		for (i = 0; i < nargs; i++) {
 			name = gctl_get_ascii(req, "arg%d", i);
 			gp = find_geom(classp, name);
-			if (gp != NULL) {
+			if (gp == NULL)
+				continue;
+			if (geoms) {
 				status_one_geom(gp, script, name_len,
+				    status_len);
+			} else {
+				status_one_geom_prs(gp, script, name_len,
 				    status_len);
 			}
 		}
 	} else {
 		LIST_FOREACH(gp, &classp->lg_geom, lg_geom) {
-			if (LIST_EMPTY(&gp->lg_provider))
+			if (LIST_EMPTY(&gp->lg_provider) && !all)
 				continue;
-			status_one_geom(gp, script, name_len, status_len);
+			if (geoms) {
+				status_one_geom(gp, script, name_len,
+				    status_len);
+			} else {
+				status_one_geom_prs(gp, script, name_len,
+				    status_len);
+			}
 		}
 	}
 end:

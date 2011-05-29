@@ -7,9 +7,9 @@ SHLIBDIR?= /lib
 
 LIB=	pcap
 SRCS=	grammar.y tokdefs.h version.h pcap-bpf.c \
-	pcap.c inet.c fad-getad.c gencode.c optimize.c nametoaddr.c \
+	pcap.c pcap-common.c inet.c fad-getad.c gencode.c optimize.c nametoaddr.c \
 	etherent.c savefile.c bpf_filter.c bpf_image.c bpf_dump.c \
-	scanner.l version.c
+	scanner.l sf-pcap.c sf-pcap-ng.c version.c
 
 # Old compatibility headers
 INCS=	pcap.h pcap-int.h pcap-namedb.h pcap-bpf.h

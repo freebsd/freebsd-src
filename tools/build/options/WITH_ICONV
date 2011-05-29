@@ -1,0 +1,2 @@
+.\" $FreeBSD$
+Set to build iconv as part of libc.

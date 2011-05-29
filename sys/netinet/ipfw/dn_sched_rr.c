@@ -94,7 +94,7 @@ rr_remove_head(struct rr_si *si)
 	if (si->head == NULL)
 		return; /* empty queue */
 	si->head->status = 0;
-	
+
 	if (si->head == si->tail) {
 		si->head = si->tail = NULL;
 		return;
@@ -141,7 +141,7 @@ next_pointer(struct rr_si *si)
 	si->tail = si->tail->qnext;
 }
 
-static int 
+static int
 rr_enqueue(struct dn_sch_inst *_si, struct dn_queue *q, struct mbuf *m)
 {
 	struct rr_si *si;
@@ -154,7 +154,7 @@ rr_enqueue(struct dn_sch_inst *_si, struct dn_queue *q, struct mbuf *m)
 			return 0;
 	}
 
-	/* If reach this point, queue q was idle */ 
+	/* If reach this point, queue q was idle */
 	si = (struct rr_si *)(_si + 1);
 	rrq = (struct rr_queue *)q;
 

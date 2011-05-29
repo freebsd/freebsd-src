@@ -49,6 +49,7 @@ void
 $name (int arg)
 {
 	int	or = 0;
+	printf("%#x<", arg);
 _EOF_
 	egrep "^#[[:space:]]*define[[:space:]]+"${grep}"[[:space:]]*" \
 		$include_dir/$file | \
@@ -58,6 +59,7 @@ _EOF_
 		++i; \
 		printf "\tif(!((arg>0)^((%s)>0)))\n\t\tif_print_or(arg, %s, or);\n", $i, $i }'
 cat <<_EOF_
+	printf(">");
 	if (or == 0)
 		(void)printf("<invalid>%ld", (long)arg);
 }
@@ -252,6 +254,8 @@ shmctlname (int cmd) {
 void
 semgetname (int flag) {
 	int	or = 0;
+	if_print_or(flag, IPC_CREAT, or);
+	if_print_or(flag, IPC_EXCL, or);
 	if_print_or(flag, SEM_R, or);
 	if_print_or(flag, SEM_A, or);
 	if_print_or(flag, (SEM_R>>3), or);
@@ -322,7 +326,7 @@ auto_or_type "nfssvcname" "NFSSVC_[A-Z]+[[:space:]]+0x[0-9]+" "nfsserver/nfs.h"
 
 auto_switch_type "whencename" "SEEK_[A-Z]+[[:space:]]+[0-9]+" "sys/unistd.h"
 auto_switch_type "rlimitname" "RLIMIT_[A-Z]+[[:space:]]+[0-9]+" "sys/resource.h"
-auto_switch_type "shutdownhowname" "SHUT_[A-Z]+[[:space:]]+0x[0-9]+" "sys/socket.h"
+auto_switch_type "shutdownhowname" "SHUT_[A-Z]+[[:space:]]+[0-9]+" "sys/socket.h"
 auto_switch_type "prioname" "PRIO_[A-Z]+[[:space:]]+[0-9]" "sys/resource.h"
 auto_switch_type "madvisebehavname" "_?MADV_[A-Z]+[[:space:]]+[0-9]+" "sys/mman.h"
 auto_switch_type "msyncflagsname" "MS_[A-Z]+[[:space:]]+0x[0-9]+" "sys/mman.h"
@@ -331,7 +335,7 @@ auto_switch_type "kldunloadfflagsname" "LINKER_UNLOAD_[A-Z]+[[:space:]]+[0-9]+" 
 auto_switch_type "extattrctlname" "EXTATTR_NAMESPACE_[A-Z]+[[:space:]]+0x[0-9]+" "sys/extattr.h"
 auto_switch_type "kldsymcmdname" "KLDSYM_[A-Z]+[[:space:]]+[0-9]+" "sys/linker.h"
 auto_switch_type "sendfileflagsname" "SF_[A-Z]+[[:space:]]+[0-9]+" "sys/socket.h"
-auto_switch_type "acltypename" "ACL_TYPE_[A-Z]+[[:space:]]+0x[0-9]+" "sys/acl.h"
+auto_switch_type "acltypename" "ACL_TYPE_[A-Z4_]+[[:space:]]+0x[0-9]+" "sys/acl.h"
 auto_switch_type "sigprocmaskhowname" "SIG_[A-Z]+[[:space:]]+[0-9]+" "sys/signal.h"
 auto_switch_type "lio_listioname" "LIO_(NO)?WAIT[[:space:]]+[0-9]+" "aio.h"
 auto_switch_type "minheritname" "INHERIT_[A-Z]+[[:space:]]+[0-9]+" "sys/mman.h"
@@ -432,6 +436,8 @@ sendrecvflagsname (int flags)
 		(void)printf("0");
 		return;
 	}
+
+	printf("%#x<", flags);
 _EOF_
 egrep "^#[[:space:]]*define[[:space:]]+MSG_[A-Z]+[[:space:]]+0x[0-9]+[[:space:]]*" $include_dir/sys/socket.h | \
 	awk '{ for (i = 1; i <= NF; i++) \
@@ -440,6 +446,7 @@ egrep "^#[[:space:]]*define[[:space:]]+MSG_[A-Z]+[[:space:]]+0x[0-9]+[[:space:]]
 		++i; \
 		printf "\tif(!((flags>0)^((%s)>0)))\n\t\tif_print_or(flags, %s, or);\n", $i, $i }'
 cat <<_EOF_
+	printf(">");
 }
 
 _EOF_

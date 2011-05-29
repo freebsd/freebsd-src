@@ -6099,7 +6099,8 @@ ahd_alloc_scbs(struct ahd_softc *ahd)
 		/* Allocate the next batch of hardware SCBs */
 		if (aic_dmamem_alloc(ahd, scb_data->hscb_dmat,
 				     (void **)&hscb_map->vaddr,
-				     BUS_DMA_NOWAIT, &hscb_map->dmamap) != 0) {
+				     BUS_DMA_NOWAIT | BUS_DMA_COHERENT,
+				     &hscb_map->dmamap) != 0) {
 			free(hscb_map, M_DEVBUF);
 			return (0);
 		}
@@ -6132,7 +6133,8 @@ ahd_alloc_scbs(struct ahd_softc *ahd)
 		/* Allocate the next batch of S/G lists */
 		if (aic_dmamem_alloc(ahd, scb_data->sg_dmat,
 				     (void **)&sg_map->vaddr,
-				     BUS_DMA_NOWAIT, &sg_map->dmamap) != 0) {
+				     BUS_DMA_NOWAIT | BUS_DMA_COHERENT,
+				     &sg_map->dmamap) != 0) {
 			free(sg_map, M_DEVBUF);
 			return (0);
 		}
@@ -6397,7 +6399,7 @@ ahd_init(struct ahd_softc *ahd)
 	/* Allocation of driver data */
 	if (aic_dmamem_alloc(ahd, ahd->shared_data_dmat,
 			     (void **)&ahd->shared_data_map.vaddr,
-			     BUS_DMA_NOWAIT,
+			     BUS_DMA_NOWAIT | BUS_DMA_COHERENT,
 			     &ahd->shared_data_map.dmamap) != 0) {
 		return (ENOMEM);
 	}

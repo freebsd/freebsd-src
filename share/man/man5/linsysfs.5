@@ -55,14 +55,6 @@ registered driver name for these devices.
 .It Pa device
 A symlink to the PCI device directory.
 .El
-.Sh EXAMPLES
-The most common usage follows:
-.Pp
-.Dl "mount -t linsysfs linsys /compat/linux/sys"
-.Pp
-where
-.Pa /compat/linux/sys
-is a mount point.
 .Sh FILES
 .Bl -tag -width ".Pa /compat/linux/sys/devices/pci0000:00" -compact
 .It Pa /compat/linux/sys
@@ -73,6 +65,14 @@ The storage host node.
 .It Pa /compat/linux/sys/devices/pci0000:00
 The PCI device hierarchy node.
 .El
+.Sh EXAMPLES
+The most common usage follows:
+.Pp
+.Dl "mount -t linsysfs linsys /compat/linux/sys"
+.Pp
+where
+.Pa /compat/linux/sys
+is a mount point.
 .Sh SEE ALSO
 .Xr nmount 2 ,
 .Xr unmount 2 ,

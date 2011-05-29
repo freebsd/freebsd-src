@@ -219,10 +219,10 @@ shm_stat(struct file *fp, struct stat *sb, struct ucred *active_cred,
 	sb->st_blksize = PAGE_SIZE;
 	sb->st_size = shmfd->shm_size;
 	sb->st_blocks = (sb->st_size + sb->st_blksize - 1) / sb->st_blksize;
-	sb->st_atimespec = shmfd->shm_atime;
-	sb->st_ctimespec = shmfd->shm_ctime;
-	sb->st_mtimespec = shmfd->shm_mtime;
-	sb->st_birthtimespec = shmfd->shm_birthtime;	
+	sb->st_atim = shmfd->shm_atime;
+	sb->st_ctim = shmfd->shm_ctime;
+	sb->st_mtim = shmfd->shm_mtime;
+	sb->st_birthtim = shmfd->shm_birthtime;	
 	sb->st_uid = shmfd->shm_uid;
 	sb->st_gid = shmfd->shm_gid;
 
@@ -271,7 +271,7 @@ shm_dotruncate(struct shmfd *shmfd, off_t length)
 			swap_pager_freespace(object, nobjsize, delta);
 
 		/* Free the swap accounted for shm */
-		swap_release_by_uid(delta, object->uip);
+		swap_release_by_cred(delta, object->cred);
 		object->charge -= delta;
 
 		/*
@@ -304,9 +304,7 @@ shm_dotruncate(struct shmfd *shmfd, off_t length)
 			 */
 			base = roundup2(base, DEV_BSIZE);
 
-			vm_page_lock_queues();
 			vm_page_clear_dirty(m, base, PAGE_SIZE - base);
-			vm_page_unlock_queues();
 		} else if ((length & PAGE_MASK) &&
 		    __predict_false(object->cache != NULL)) {
 			vm_page_cache_free(object, OFF_TO_IDX(length),
@@ -316,7 +314,7 @@ shm_dotruncate(struct shmfd *shmfd, off_t length)
 
 		/* Attempt to reserve the swap */
 		delta = ptoa(nobjsize - object->size);
-		if (!swap_reserve_by_uid(delta, object->uip)) {
+		if (!swap_reserve_by_cred(delta, object->cred)) {
 			VM_OBJECT_UNLOCK(object);
 			return (ENOMEM);
 		}
@@ -498,7 +496,7 @@ shm_open(struct thread *td, struct shm_open_args *uap)
 	fdp = td->td_proc->p_fd;
 	cmode = (uap->mode & ~fdp->fd_cmask) & ACCESSPERMS;
 
-	error = falloc(td, &fp, &fd);
+	error = falloc(td, &fp, &fd, 0);
 	if (error)
 		return (error);
 

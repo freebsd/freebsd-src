@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <net80211/ieee80211_wds.h>
 #include <net80211/ieee80211_mesh.h>
+#include <net80211/ieee80211_ratectl.h>
 
 #include <net/bpf.h>
 
@@ -284,10 +285,7 @@ ieee80211_node_set_chan(struct ieee80211_node *ni,
 	mode = ieee80211_chan2mode(chan);
 	if (IEEE80211_IS_CHAN_HT(chan)) {
 		/*
-		 * XXX Gotta be careful here; the rate set returned by
-		 * ieee80211_get_suprates is actually any HT rate
-		 * set so blindly copying it will be bad.  We must
-		 * install the legacy rate est in ni_rates and the
+		 * We must install the legacy rate est in ni_rates and the
 		 * HT rate set in ni_htrates.
 		 */
 		ni->ni_htrates = *ieee80211_get_suphtrates(ic, chan);
@@ -431,7 +429,7 @@ ieee80211_reset_bss(struct ieee80211vap *vap)
 	ieee80211_reset_erp(ic);
 
 	ni = ieee80211_alloc_node(&ic->ic_sta, vap, vap->iv_myaddr);
-	KASSERT(ni != NULL, ("unable to setup inital BSS node"));
+	KASSERT(ni != NULL, ("unable to setup initial BSS node"));
 	obss = vap->iv_bss;
 	vap->iv_bss = ieee80211_ref_node(ni);
 	if (obss != NULL) {
@@ -816,6 +814,7 @@ ieee80211_sta_join(struct ieee80211vap *vap, struct ieee80211_channel *chan,
 	if (ieee80211_iserp_rateset(&ni->ni_rates))
 		ni->ni_flags |= IEEE80211_NODE_ERP;
 	ieee80211_node_setuptxparms(ni);
+	ieee80211_ratectl_node_init(ni);
 
 	return ieee80211_sta_join1(ieee80211_ref_node(ni));
 }
@@ -1035,6 +1034,7 @@ node_free(struct ieee80211_node *ni)
 {
 	struct ieee80211com *ic = ni->ni_ic;
 
+	ieee80211_ratectl_node_deinit(ni);
 	ic->ic_node_cleanup(ni);
 	ieee80211_ies_cleanup(&ni->ni_ies);
 	ieee80211_psq_cleanup(&ni->ni_psq);
@@ -1085,7 +1085,26 @@ static void
 node_getmimoinfo(const struct ieee80211_node *ni,
 	struct ieee80211_mimo_info *info)
 {
-	/* XXX zero data? */
+	int i;
+	uint32_t avgrssi;
+	int32_t rssi;
+
+	bzero(info, sizeof(*info));
+
+	for (i = 0; i < ni->ni_mimo_chains; i++) {
+		avgrssi = ni->ni_mimo_rssi_ctl[i];
+		if (avgrssi == IEEE80211_RSSI_DUMMY_MARKER) {
+			info->rssi[i] = 0;
+		} else {
+			rssi = IEEE80211_RSSI_GET(avgrssi);
+			info->rssi[i] = rssi < 0 ? 0 : rssi > 127 ? 127 : rssi;
+		}
+		info->noise[i] = ni->ni_mimo_noise_ctl[i];
+	}
+
+	/* XXX ext radios? */
+
+	/* XXX EVM? */
 }
 
 struct ieee80211_node *
@@ -1134,6 +1153,8 @@ ieee80211_alloc_node(struct ieee80211_node_table *nt,
 	IEEE80211_NOTE(vap, IEEE80211_MSG_INACT, ni,
 	    "%s: inact_reload %u", __func__, ni->ni_inact_reload);
 
+	ieee80211_ratectl_node_init(ni);
+
 	return ni;
 }
 
@@ -1171,6 +1192,8 @@ ieee80211_tmp_node(struct ieee80211vap *vap,
 		ni->ni_txpower = bss->ni_txpower;
 		/* XXX optimize away */
 		ieee80211_psq_init(&ni->ni_psq, "unknown");
+
+		ieee80211_ratectl_node_init(ni);
 	} else {
 		/* XXX msg */
 		vap->iv_stats.is_rx_nodealloc++;
@@ -1399,6 +1422,7 @@ ieee80211_fakeup_adhoc_node(struct ieee80211vap *vap,
 #endif
 		}
 		ieee80211_node_setuptxparms(ni);
+		ieee80211_ratectl_node_init(ni);
 		if (ic->ic_newassoc != NULL)
 			ic->ic_newassoc(ni, 1);
 		/* XXX not right for 802.1x/WPA */
@@ -1468,6 +1492,7 @@ ieee80211_add_neighbor(struct ieee80211vap *vap,
 		if (ieee80211_iserp_rateset(&ni->ni_rates))
 			ni->ni_flags |= IEEE80211_NODE_ERP;
 		ieee80211_node_setuptxparms(ni);
+		ieee80211_ratectl_node_init(ni);
 		if (ic->ic_newassoc != NULL)
 			ic->ic_newassoc(ni, 1);
 		/* XXX not right for 802.1x/WPA */
@@ -2336,6 +2361,7 @@ ieee80211_node_join(struct ieee80211_node *ni, int resp)
 	);
 
 	ieee80211_node_setuptxparms(ni);
+	ieee80211_ratectl_node_init(ni);
 	/* give driver a chance to setup state like ni_txrate */
 	if (ic->ic_newassoc != NULL)
 		ic->ic_newassoc(ni, newassoc);

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dnskey_48.c,v 1.8 2007/06/19 23:47:17 tbox Exp $ */
+/* $Id: dnskey_48.c,v 1.8 2007-06-19 23:47:17 tbox Exp $ */
 
 /*
  * Reviewed: Wed Mar 15 16:47:10 PST 2000 by halley.

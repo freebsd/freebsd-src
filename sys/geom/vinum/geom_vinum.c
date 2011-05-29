@@ -186,7 +186,7 @@ gv_init(struct g_class *mp)
 	mtx_init(&sc->config_mtx, "gv_config", NULL, MTX_DEF);
 	mtx_init(&sc->equeue_mtx, "gv_equeue", NULL, MTX_DEF);
 	mtx_init(&sc->bqueue_mtx, "gv_bqueue", NULL, MTX_DEF);
-	kproc_create(gv_worker, sc, NULL, 0, 0, "gv_worker");
+	kproc_create(gv_worker, sc, &sc->worker, 0, 0, "gv_worker");
 }
 
 static int
@@ -200,10 +200,9 @@ gv_unload(struct gctl_req *req, struct g_class *mp, struct g_geom *gp)
 	sc = gp->softc;
 
 	if (sc != NULL) {
-		gv_post_event(sc, GV_EVENT_THREAD_EXIT, NULL, NULL, 0, 0);
+		gv_worker_exit(sc);
 		gp->softc = NULL;
 		g_wither_geom(gp, ENXIO);
-		return (EAGAIN);
 	}
 
 	return (0);
@@ -788,7 +787,15 @@ gv_worker(void *arg)
 					    "completely accessible", p->name);
 					break;
 				}
+				if (p->flags & GV_PLEX_SYNCING ||
+				    p->flags & GV_PLEX_REBUILDING ||
+				    p->flags & GV_PLEX_GROWING) {
+					G_VINUM_DEBUG(0, "plex %s is busy with "
+					    "syncing or parity build", p->name);
+					break;
+				}
 				p->synced = 0;
+				p->flags |= GV_PLEX_REBUILDING;
 				g_topology_assert_not();
 				g_topology_lock();
 				err = gv_access(p->vol_sc->provider, 1, 1, 0);
@@ -809,6 +816,13 @@ gv_worker(void *arg)
 				if (p->state != GV_PLEX_UP) {
 					G_VINUM_DEBUG(0, "plex %s is not "
 					    "completely accessible", p->name);
+					break;
+				}
+				if (p->flags & GV_PLEX_SYNCING ||
+				    p->flags & GV_PLEX_REBUILDING ||
+				    p->flags & GV_PLEX_GROWING) {
+					G_VINUM_DEBUG(0, "plex %s is busy with "
+					    "syncing or parity build", p->name);
 					break;
 				}
 				p->synced = 0;
@@ -969,8 +983,8 @@ gv_worker(void *arg)
 				g_free(sc->bqueue_down);
 				g_free(sc->bqueue_up);
 				g_free(sc);
-				kproc_exit(ENXIO);
-				break;			/* not reached */
+				kproc_exit(0);
+				/* NOTREACHED */
 
 			default:
 				G_VINUM_DEBUG(1, "unknown event %d", ev->type);

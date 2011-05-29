@@ -96,6 +96,7 @@ static int new_lword;
 #define	STDOUT	1
 #define	STDERR	2
 
+void
 init_termcap(interactive)
 
 int interactive;

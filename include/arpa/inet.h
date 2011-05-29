@@ -58,7 +58,7 @@
 #ifndef _ARPA_INET_H_
 #define	_ARPA_INET_H_
 
-/* External definitions for functions in inet(3), addr2ascii(3) */
+/* External definitions for functions in inet(3). */
 
 #include <sys/cdefs.h>
 #include <sys/_types.h>

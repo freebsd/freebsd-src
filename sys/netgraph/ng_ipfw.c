@@ -221,20 +221,21 @@ ng_ipfw_findhook1(node_p node, u_int16_t rulenum)
 static int
 ng_ipfw_rcvdata(hook_p hook, item_p item)
 {
-	struct ipfw_rule_ref	*tag;
+	struct m_tag *tag;
+	struct ipfw_rule_ref *r;
 	struct mbuf *m;
 
 	NGI_GET_M(item, m);
 	NG_FREE_ITEM(item);
 
-	tag = (struct ipfw_rule_ref *)
-		m_tag_locate(m, MTAG_IPFW_RULE, 0, NULL);
+	tag = m_tag_locate(m, MTAG_IPFW_RULE, 0, NULL);
 	if (tag == NULL) {
 		NG_FREE_M(m);
 		return (EINVAL);	/* XXX: find smth better */
 	};
 
-	if (tag->info & IPFW_INFO_IN) {
+	r = (struct ipfw_rule_ref *)(tag + 1);
+	if (r->info & IPFW_INFO_IN) {
 		ip_input(m);
 		return (0);
 	} else {
@@ -264,11 +265,8 @@ ng_ipfw_input(struct mbuf **m0, int dir, struct ip_fw_args *fwa, int tee)
 	 * Node must be loaded and corresponding hook must be present.
 	 */
 	if (fw_node == NULL || 
-	   (hook = ng_ipfw_findhook1(fw_node, fwa->rule.info)) == NULL) {
-		if (tee == 0)
-			m_freem(*m0);
+	   (hook = ng_ipfw_findhook1(fw_node, fwa->rule.info)) == NULL)
 		return (ESRCH);		/* no hook associated with this rule */
-	}
 
 	/*
 	 * We have two modes: in normal mode we add a tag to packet, which is
@@ -289,7 +287,8 @@ ng_ipfw_input(struct mbuf **m0, int dir, struct ip_fw_args *fwa, int tee)
 		}
 		r = (struct ipfw_rule_ref *)(tag + 1);
 		*r = fwa->rule;
-		r->info = dir ? IPFW_INFO_IN : IPFW_INFO_OUT;
+		r->info &= IPFW_ONEPASS;  /* keep this info */
+		r->info |= dir ? IPFW_INFO_IN : IPFW_INFO_OUT;
 		m_tag_prepend(m, tag);
 
 	} else

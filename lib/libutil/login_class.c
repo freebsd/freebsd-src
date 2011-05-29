@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <login_cap.h>
 #include <paths.h>
 #include <pwd.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -425,6 +426,7 @@ setusercontext(login_cap_t *lc, const struct passwd *pwd, uid_t uid, unsigned in
     quad_t	p;
     mode_t	mymask;
     login_cap_t *llc = NULL;
+    struct sigaction sa, prevsa;
     struct rtprio rtp;
     int error;
 
@@ -512,6 +514,27 @@ setusercontext(login_cap_t *lc, const struct passwd *pwd, uid_t uid, unsigned in
 	return (-1);
     }
 
+    /* Inform the kernel about current login class */
+    if (lc != NULL && lc->lc_class != NULL && (flags & LOGIN_SETLOGINCLASS)) {
+	/*
+	 * XXX: This is a workaround to fail gracefully in case the kernel
+	 *      does not support setloginclass(2).
+	 */
+	bzero(&sa, sizeof(sa));
+	sa.sa_handler = SIG_IGN;
+	sigfillset(&sa.sa_mask);
+	sigaction(SIGSYS, &sa, &prevsa);
+	error = setloginclass(lc->lc_class);
+	sigaction(SIGSYS, &prevsa, NULL);
+	if (error != 0) {
+	    syslog(LOG_ERR, "setloginclass(%s): %m", lc->lc_class);
+#ifdef notyet
+	    login_close(llc);
+	    return (-1);
+#endif
+	}
+    }
+
     mymask = (flags & LOGIN_SETUMASK) ? umask(LOGIN_DEFUMASK) : 0;
     mymask = setlogincontext(lc, pwd, mymask, flags);
     login_close(llc);
@@ -525,7 +548,7 @@ setusercontext(login_cap_t *lc, const struct passwd *pwd, uid_t uid, unsigned in
     /*
      * Now, we repeat some of the above for the user's private entries
      */
-    if ((lc = login_getuserclass(pwd)) != NULL) {
+    if (getuid() == uid && (lc = login_getuserclass(pwd)) != NULL) {
 	mymask = setlogincontext(lc, pwd, mymask, flags);
 	login_close(lc);
     }

@@ -572,7 +572,7 @@ fetch_setup_verboselevel () {
 # running *-p[0-9]+, strip off the last part; if the
 # user is running -SECURITY, call it -RELEASE.  Chdir
 # into the working directory.
-fetch_check_params () {
+fetchupgrade_check_params () {
 	export HTTP_USER_AGENT="freebsd-update (${COMMAND}, `uname -r`)"
 
 	_SERVERNAME_z=\
@@ -655,9 +655,21 @@ fetch_check_params () {
 	BDHASH=`echo ${BASEDIR} | sha256 -q`
 }
 
+# Perform sanity checks etc. before fetching updates.
+fetch_check_params () {
+	fetchupgrade_check_params
+
+	if ! [ -z "${TARGETRELEASE}" ]; then
+		echo -n "`basename $0`: "
+		echo -n "-r option is meaningless with 'fetch' command.  "
+		echo "(Did you mean 'upgrade' instead?)"
+		exit 1
+	fi
+}
+
 # Perform sanity checks etc. before fetching upgrades.
 upgrade_check_params () {
-	fetch_check_params
+	fetchupgrade_check_params
 
 	# Unless set otherwise, we're upgrading to the same kernel config.
 	NKERNCONF=${KERNCONF}
@@ -1458,7 +1470,7 @@ fetch_inspect_system () {
 	    sort -k 3,3 -t '|' > $2.tmp
 	rm filelist
 
-	# Check if an error occured during system inspection
+	# Check if an error occurred during system inspection
 	if [ -f .err ]; then
 		return 1
 	fi
@@ -1863,7 +1875,7 @@ fetch_create_manifest () {
 		echo -n "been downloaded because the files have been "
 		echo "modified locally:"
 		cat modifiedfiles
-	fi | more
+	fi | $PAGER
 	rm modifiedfiles
 
 	# If no files will be updated, tell the user and exit
@@ -1893,7 +1905,7 @@ fetch_create_manifest () {
 		echo -n "The following files will be removed "
 		echo "as part of updating to ${RELNUM}-p${RELPATCHNUM}:"
 		cat files.removed
-	fi | more
+	fi | $PAGER
 	rm files.removed
 
 	# Report added files, if any
@@ -1902,7 +1914,7 @@ fetch_create_manifest () {
 		echo -n "The following files will be added "
 		echo "as part of updating to ${RELNUM}-p${RELPATCHNUM}:"
 		cat files.added
-	fi | more
+	fi | $PAGER
 	rm files.added
 
 	# Report updated files, if any
@@ -1912,7 +1924,7 @@ fetch_create_manifest () {
 		echo "as part of updating to ${RELNUM}-p${RELPATCHNUM}:"
 
 		cat files.updated
-	fi | more
+	fi | $PAGER
 	rm files.updated
 
 	# Create a directory for the install manifest.
@@ -2242,6 +2254,19 @@ upgrade_oldall_to_oldnew () {
 	mv $2 $3
 }
 
+# Helper for upgrade_merge: Return zero true iff the two files differ only
+# in the contents of their $FreeBSD$ tags.
+samef () {
+	X=`sed -E 's/\\$FreeBSD.*\\$/\$FreeBSD\$/' < $1 | ${SHA256}`
+	Y=`sed -E 's/\\$FreeBSD.*\\$/\$FreeBSD\$/' < $2 | ${SHA256}`
+
+	if [ $X = $Y ]; then
+		return 0;
+	else
+		return 1;
+	fi
+}
+
 # From the list of "old" files in $1, merge changes in $2 with those in $3,
 # and update $3 to reflect the hashes of merged files.
 upgrade_merge () {
@@ -2325,6 +2350,14 @@ upgrade_merge () {
 
 		# Ask the user to handle any files which didn't merge.
 		while read F; do
+			# If the installed file differs from the version in
+			# the old release only due to $FreeBSD$ tag expansion
+			# then just use the version in the new release.
+			if samef merge/old/${F} merge/${OLDRELNUM}/${F}; then
+				cp merge/${RELNUM}/${F} merge/new/${F}
+				continue
+			fi
+
 			cat <<-EOF
 
 The following file could not be merged automatically: ${F}
@@ -2339,9 +2372,18 @@ manually...
 		# Ask the user to confirm that he likes how the result
 		# of merging files.
 		while read F; do
-			# Skip files which haven't changed.
-			if [ -f merge/new/${F} ] &&
-			    cmp -s merge/old/${F} merge/new/${F}; then
+			# Skip files which haven't changed except possibly
+			# in their $FreeBSD$ tags.
+			if [ -f merge/old/${F} ] && [ -f merge/new/${F} ] &&
+			    samef merge/old/${F} merge/new/${F}; then
+				continue
+			fi
+
+			# Skip files where the installed file differs from
+			# the old file only due to $FreeBSD$ tags.
+			if [ -f merge/old/${F} ] &&
+			    [ -f merge/${OLDRELNUM}/${F} ] &&
+			    samef merge/old/${F} merge/${OLDRELNUM}/${F}; then
 				continue
 			fi
 
@@ -2528,6 +2570,10 @@ upgrade_run () {
 	# Leave a note behind to tell the "install" command that the kernel
 	# needs to be installed before the world.
 	touch ${BDHASH}-install/kernelfirst
+
+	# Remind the user that they need to run "freebsd-update install"
+	# to install the downloaded bits, in case they didn't RTFM.
+	echo "To install the downloaded upgrades, run \"$0 install\"."
 }
 
 # Make sure that all the file hashes mentioned in $@ have corresponding
@@ -2622,11 +2668,13 @@ backup_kernel () {
 	# "not ours", backup_kernel_finddir would have exited, so
 	# deleting the directory content is as safe as we can make it.
 	if [ -d $BACKUPKERNELDIR ]; then
-		rm -f $BACKUPKERNELDIR/*
+		rm -fr $BACKUPKERNELDIR
 	fi
 
-	# Create directory for backup if it doesn't exist.
+	# Create directories for backup.
 	mkdir -p $BACKUPKERNELDIR
+	mtree -cdn -p "${KERNELDIR}" | \
+	    mtree -Ue -p "${BACKUPKERNELDIR}" > /dev/null
 
 	# Mark the directory as having been created by freebsd-update.
 	touch $BACKUPKERNELDIR/.freebsd-update
@@ -2647,9 +2695,8 @@ backup_kernel () {
 	fi
 
 	# Backup all the kernel files using hardlinks.
-	find $KERNELDIR -type f $FINDFILTER | \
-		sed -Ee "s,($KERNELDIR)/?(.*),\1/\2 ${BACKUPKERNELDIR}/\2," | \
-		xargs -n 2 cp -pl
+	(cd $KERNELDIR && find . -type f $FINDFILTER -exec \
+	    cp -pl '{}' ${BACKUPKERNELDIR}/'{}' \;)
 
 	# Re-enable patchname expansion.
 	set +f
@@ -3184,6 +3231,11 @@ cmd_IDS () {
 
 # Make sure we find utilities from the base system
 export PATH=/sbin:/bin:/usr/sbin:/usr/bin:${PATH}
+
+# Set a pager if the user doesn't
+if [ -z "$PAGER" ]; then
+	PAGER=/usr/bin/more
+fi
 
 # Set LC_ALL in order to avoid problems with character ranges like [A-Z].
 export LC_ALL=C

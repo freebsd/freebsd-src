@@ -285,12 +285,14 @@ typedef struct ehci_fstn ehci_fstn_t;
 
 struct ehci_hw_softc {
 	struct usb_page_cache pframes_pc;
+	struct usb_page_cache terminate_pc;
 	struct usb_page_cache async_start_pc;
 	struct usb_page_cache intr_start_pc[EHCI_VIRTUAL_FRAMELIST_COUNT];
 	struct usb_page_cache isoc_hs_start_pc[EHCI_VIRTUAL_FRAMELIST_COUNT];
 	struct usb_page_cache isoc_fs_start_pc[EHCI_VIRTUAL_FRAMELIST_COUNT];
 
 	struct usb_page pframes_pg;
+	struct usb_page terminate_pg;
 	struct usb_page async_start_pg;
 	struct usb_page intr_start_pg[EHCI_VIRTUAL_FRAMELIST_COUNT];
 	struct usb_page isoc_hs_start_pg[EHCI_VIRTUAL_FRAMELIST_COUNT];
@@ -329,6 +331,7 @@ typedef struct ehci_softc {
 	bus_space_tag_t sc_io_tag;
 	bus_space_handle_t sc_io_hdl;
 
+	uint32_t sc_terminate_self;	/* TD short packet termination pointer */
 	uint32_t sc_eintrs;
 	uint32_t sc_cmd;		/* shadow of cmd register during
 					 * suspend */

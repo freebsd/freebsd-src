@@ -292,6 +292,7 @@ irint(double x)
 #define	__ieee754_acos	acos
 #define	__ieee754_acosh	acosh
 #define	__ieee754_log	log
+#define	__ieee754_log2	log2
 #define	__ieee754_atanh	atanh
 #define	__ieee754_asin	asin
 #define	__ieee754_atan2	atan2
@@ -330,6 +331,7 @@ irint(double x)
 #define	__ieee754_lgammaf_r lgammaf_r
 #define	__ieee754_gammaf_r gammaf_r
 #define	__ieee754_log10f log10f
+#define	__ieee754_log2f log2f
 #define	__ieee754_sinhf	sinhf
 #define	__ieee754_hypotf hypotf
 #define	__ieee754_j0f	j0f

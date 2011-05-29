@@ -90,13 +90,9 @@ extern struct pagerops sgpagerops;
 
 #define	VM_PAGER_PUT_SYNC		0x0001
 #define	VM_PAGER_PUT_INVAL		0x0002
-#define VM_PAGER_IGNORE_CLEANCHK	0x0004
 #define VM_PAGER_CLUSTER_OK		0x0008
 
 #ifdef _KERNEL
-#ifdef MALLOC_DECLARE
-MALLOC_DECLARE(M_VMPGDATA);
-#endif
 
 extern vm_map_t pager_map;
 extern struct pagerops *pagertab[];

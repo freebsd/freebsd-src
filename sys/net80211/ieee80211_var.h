@@ -137,6 +137,7 @@ struct ieee80211com {
 	uint32_t		ic_flags_ven;	/* vendor state flags */
 	uint32_t		ic_caps;	/* capabilities */
 	uint32_t		ic_htcaps;	/* HT capabilities */
+	uint32_t		ic_htextcaps;	/* HT extended capabilities */
 	uint32_t		ic_cryptocaps;	/* crypto capabilities */
 	uint8_t			ic_modecaps[2];	/* set of mode capabilities */
 	uint8_t			ic_promisc;	/* vap's needing promisc mode */
@@ -212,6 +213,8 @@ struct ieee80211com {
 	enum ieee80211_protmode	ic_htprotmode;	/* HT protection mode */
 	int			ic_lastnonerp;	/* last time non-ERP sta noted*/
 	int			ic_lastnonht;	/* last time non-HT sta noted */
+	uint8_t			ic_rxstream;    /* # RX streams */
+	uint8_t			ic_txstream;    /* # TX streams */
 
 	/* optional state for Atheros SuperG protocol extensions */
 	struct ieee80211_superg	*ic_superg;
@@ -313,7 +316,7 @@ struct ieee80211com {
 				    int batimeout, int baseqctl);
 	void			(*ic_ampdu_rx_stop)(struct ieee80211_node *,
 				    struct ieee80211_rx_ampdu *);
-	uint64_t		ic_spare[8];
+	uint64_t		ic_spare[7];
 };
 
 struct ieee80211_aclator;
@@ -340,6 +343,7 @@ struct ieee80211vap {
 	uint32_t		iv_flags_ven;	/* vendor state flags */
 	uint32_t		iv_caps;	/* capabilities */
 	uint32_t		iv_htcaps;	/* HT capabilities */
+	uint32_t		iv_htextcaps;	/* HT extended capabilities */
 	enum ieee80211_opmode	iv_opmode;	/* operation mode */
 	enum ieee80211_state	iv_state;	/* state machine state */
 	enum ieee80211_state	iv_nstate;	/* pending state */
@@ -433,6 +437,9 @@ struct ieee80211vap {
 	const struct ieee80211_aclator *iv_acl;	/* acl glue */
 	void			*iv_as;		/* private aclator state */
 
+	const struct ieee80211_ratectl *iv_rate;
+	void			*iv_rs;		/* private ratectl state */
+
 	struct ieee80211_tdma_state *iv_tdma;	/* tdma state */
 	struct ieee80211_mesh_state *iv_mesh;	/* MBSS state */
 	struct ieee80211_hwmp_state *iv_hwmp;	/* HWMP state */
@@ -468,7 +475,7 @@ struct ieee80211vap {
 	/* 802.3 output method for raw frame xmit */
 	int			(*iv_output)(struct ifnet *, struct mbuf *,
 				    struct sockaddr *, struct route *);
-	uint64_t		iv_spare[8];
+	uint64_t		iv_spare[6];
 };
 MALLOC_DECLARE(M_80211_VAP);
 
@@ -571,7 +578,7 @@ MALLOC_DECLARE(M_80211_VAP);
 
 #define	IEEE80211_FHT_BITS \
 	"\20\1NONHT_PR" \
-	"\23GF\24HT\25AMDPU_TX\26AMPDU_TX" \
+	"\23GF\24HT\25AMPDU_TX\26AMPDU_TX" \
 	"\27AMSDU_TX\30AMSDU_RX\31USEHT40\32PUREN\33SHORTGI20\34SHORTGI40" \
 	"\35HTCOMPAT\36RIFS\37STBC_TX\40STBC_RX"
 
@@ -630,6 +637,10 @@ MALLOC_DECLARE(M_80211_VAP);
 #define	IEEE80211_HTC_HT	0x00040000	/* CAPABILITY: HT operation */
 #define	IEEE80211_HTC_SMPS	0x00080000	/* CAPABILITY: MIMO power save*/
 #define	IEEE80211_HTC_RIFS	0x00100000	/* CAPABILITY: RIFS support */
+#define	IEEE80211_HTC_RXUNEQUAL	0x00200000	/* CAPABILITY: RX unequal MCS */
+#define	IEEE80211_HTC_RXMCS32	0x00400000	/* CAPABILITY: MCS32 support */
+#define	IEEE80211_HTC_TXUNEQUAL	0x00800000	/* CAPABILITY: TX unequal MCS */
+#define	IEEE80211_HTC_TXMCS32	0x01000000	/* CAPABILITY: MCS32 suport */
 
 #define	IEEE80211_C_HTCAP_BITS \
 	"\20\1LDPC\2CHWIDTH40\5GREENFIELD\6SHORTGI20\7SHORTGI40\10TXSTBC" \
@@ -849,10 +860,10 @@ ieee80211_htchanflags(const struct ieee80211_channel *c)
 	if (ieee80211_msg(_vap, _m))					\
 		ieee80211_note_frame(_vap, _wh, _fmt, __VA_ARGS__);	\
 } while (0)
-void	ieee80211_note(struct ieee80211vap *, const char *, ...);
-void	ieee80211_note_mac(struct ieee80211vap *,
+void	ieee80211_note(const struct ieee80211vap *, const char *, ...);
+void	ieee80211_note_mac(const struct ieee80211vap *,
 		const uint8_t mac[IEEE80211_ADDR_LEN], const char *, ...);
-void	ieee80211_note_frame(struct ieee80211vap *,
+void	ieee80211_note_frame(const struct ieee80211vap *,
 		const struct ieee80211_frame *, const char *, ...);
 #define	ieee80211_msg_debug(_vap) \
 	((_vap)->iv_debug & IEEE80211_MSG_DEBUG)
@@ -890,11 +901,11 @@ void	ieee80211_note_frame(struct ieee80211vap *,
 		ieee80211_discard_mac(_vap, _mac, _type, _fmt, __VA_ARGS__);\
 } while (0)
 
-void ieee80211_discard_frame(struct ieee80211vap *,
+void ieee80211_discard_frame(const struct ieee80211vap *,
 	const struct ieee80211_frame *, const char *type, const char *fmt, ...);
-void ieee80211_discard_ie(struct ieee80211vap *,
+void ieee80211_discard_ie(const struct ieee80211vap *,
 	const struct ieee80211_frame *, const char *type, const char *fmt, ...);
-void ieee80211_discard_mac(struct ieee80211vap *,
+void ieee80211_discard_mac(const struct ieee80211vap *,
 	const uint8_t mac[IEEE80211_ADDR_LEN], const char *type,
 	const char *fmt, ...);
 #else

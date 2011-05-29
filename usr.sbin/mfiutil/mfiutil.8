@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 16, 2009
+.Dd April 29, 2011
 .Dt MFIUTIL 8
 .Os
 .Sh NAME
@@ -65,6 +65,9 @@
 .Nm
 .Op Fl u Ar unit
 .Cm show patrol
+.Nm
+.Op Fl u Ar unit
+.Cm show progress
 .Nm
 .Op Fl u Ar unit
 .Cm show volumes
@@ -254,7 +257,7 @@ The default locale is
 The available locales are
 .Dq volume ,
 .Dq drive ,
-.Dq enclousure ,
+.Dq enclosure ,
 .Dq battery ,
 .Dq sas ,
 .Dq controller ,
@@ -296,6 +299,9 @@ Lists all of the firmware images present on the controller.
 Display the various sequence numbers associated with the event log.
 .It Cm show patrol
 Display the status of the controller's patrol read operation.
+.It Cm show progress
+Report the current progress and estimated completion time for active
+operations on all volumes and drives.
 .It Cm show volumes
 Lists all of the logical volumes managed by the controller.
 .El
@@ -367,7 +373,7 @@ Enable caching only for write I/O operations.
 Use write-back policy for cached writes.
 .It Cm write-through
 Use write-through policy for cached writes.
-.It Cm read-ahead Op Ar value
+.It Cm read-ahead Ar value
 Set the read ahead policy for cached reads.
 The
 .Ar value
@@ -376,7 +382,18 @@ argument can be set to either
 .Dq adaptive ,
 or
 .Dq always .
-.It Cm write-cache Op Ar value
+.It Cm bad-bbu-write-cache Ar value
+Control the behavior of I/O write caching if the battery is dead or
+missing.
+The
+.Ar value
+argument can be set to either
+.Dq disable
+or
+.Dq enable .
+In general this setting should be left disabled to avoid data loss when
+the system loses power.
+.It Cm write-cache Ar value
 Control the write caches on the physical drives backing
 .Ar volume .
 The
@@ -503,7 +520,7 @@ Enable periodic patrol reads initiated by the firmware.
 The optional
 .Ar interval
 argument specifies the interval in seconds between patrol reads.
-If patrol reads should be run continously,
+If patrol reads should be run continuously,
 then
 .Ar interval
 should consist of the word

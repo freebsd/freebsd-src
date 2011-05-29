@@ -950,10 +950,11 @@ show_adapter_info(void)
 static void
 show_mode_info(void)
 {
-	struct video_info _info;
 	char buf[80];
-	int mode;
+	struct video_info _info;
 	int c;
+	int mm;
+	int mode;
 
 	printf("    mode#     flags   type    size       "
 	       "font      window      linear buffer\n");
@@ -972,9 +973,35 @@ show_mode_info(void)
 		if (_info.vi_flags & V_INFO_GRAPHICS) {
 			c = 'G';
 
-			snprintf(buf, sizeof(buf), "%dx%dx%d %d",
-				 _info.vi_width, _info.vi_height, 
-				 _info.vi_depth, _info.vi_planes);
+			if (_info.vi_mem_model == V_INFO_MM_PLANAR)
+				snprintf(buf, sizeof(buf), "%dx%dx%d %d",
+				    _info.vi_width, _info.vi_height, 
+				    _info.vi_depth, _info.vi_planes);
+			else {
+				switch (_info.vi_mem_model) {
+				case V_INFO_MM_PACKED:
+					mm = 'P';
+					break;
+				case V_INFO_MM_DIRECT:
+					mm = 'D';
+					break;
+				case V_INFO_MM_CGA:
+					mm = 'C';
+					break;
+				case V_INFO_MM_HGC:
+					mm = 'H';
+					break;
+				case V_INFO_MM_VGAX:
+					mm = 'V';
+					break;
+				default:
+					mm = ' ';
+					break;
+				}
+				snprintf(buf, sizeof(buf), "%dx%dx%d %c",
+				    _info.vi_width, _info.vi_height, 
+				    _info.vi_depth, mm);
+			}
 		} else {
 			c = 'T';
 

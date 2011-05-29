@@ -13,8 +13,8 @@ Page InstFiles
 section -Prerequisites
 	SetOutPath $INSTDIR\Prerequisites
 	MessageBox MB_YESNO "Install WinPcap?" /SD IDYES IDNO endWinPcap
-		File "/opt/Qt-Win/files/WinPcap_4_0_2.exe"
-		ExecWait "$INSTDIR\Prerequisites\WinPcap_4_0_2.exe"
+		File "/opt/Qt-Win/files/WinPcap_4_1_2.exe"
+		ExecWait "$INSTDIR\Prerequisites\WinPcap_4_1_2.exe"
 		Goto endWinPcap
 	endWinPcap:
 sectionEnd
@@ -24,6 +24,7 @@ section
 	setOutPath $INSTDIR
 
 	File wpa_gui.exe
+	File wpa_gui_de.qm
 	File wpa_cli.exe
 	File COPYING
 	File README
@@ -36,6 +37,7 @@ section
 	File wpasvc.exe
 
 	File /opt/Qt-Win/files/mingwm10.dll
+	File /opt/Qt-Win/files/libgcc_s_dw2-1.dll
 	File /opt/Qt-Win/files/QtCore4.dll
 	File /opt/Qt-Win/files/QtGui4.dll
 
@@ -82,6 +84,7 @@ section "uninstall"
 	DeleteRegKey HKLM "Software\wpa_supplicant"
 
 	delete "$INSTDIR\wpa_gui.exe"
+	delete "$INSTDIR\wpa_gui_de.qm"
 	delete "$INSTDIR\wpa_cli.exe"
 	delete "$INSTDIR\COPYING"
 	delete "$INSTDIR\README"
@@ -94,10 +97,11 @@ section "uninstall"
 	delete "$INSTDIR\wpasvc.exe"
 
 	delete "$INSTDIR\mingwm10.dll"
+	delete "$INSTDIR\libgcc_s_dw2-1.dll"
 	delete "$INSTDIR\QtCore4.dll"
 	delete "$INSTDIR\QtGui4.dll"
 
-	delete "$INSTDIR\Prerequisites\WinPcap_4_0_2.exe"
+	delete "$INSTDIR\Prerequisites\WinPcap_4_1_2.exe"
 	rmdir "$INSTDIR\Prerequisites"
 
 	rmdir "$INSTDIR"

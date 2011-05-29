@@ -216,7 +216,7 @@ machine dependent of trap code
 address of faulting instruction
 .It Ta Va si_trapno Ta
 machine dependent of trap code
-.It Dv SIGCHLD Ta Vt Va si_pid Ta
+.It Dv SIGCHLD Ta Va si_pid Ta
 child process ID
 .It Ta Va si_status Ta
 exit value or signal; if
@@ -272,10 +272,6 @@ the ID of the message queue which generated the signal
 Currently, the kernel never generates the
 .Dv SIGPOLL
 signal.
-Also, the
-.Xr kill 2
-system call does not queue signals, so you will not get code
-.Dv SI_USER .
 .Dv SIGCHLD
 signal is queued when a process changed its status or exited.
 .Tn POSIX

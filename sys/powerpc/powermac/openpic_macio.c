@@ -40,7 +40,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/openfirm.h>
 
 #include <machine/bus.h>
-#include <machine/intr.h>
 #include <machine/intr_machdep.h>
 #include <machine/md_var.h>
 #include <machine/pio.h>
@@ -59,13 +58,15 @@ __FBSDID("$FreeBSD$");
  * MacIO interface
  */
 static int	openpic_macio_probe(device_t);
+static int	openpic_macio_attach(device_t);
 
 static device_method_t  openpic_macio_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		openpic_macio_probe),
-	DEVMETHOD(device_attach,	openpic_attach),
+	DEVMETHOD(device_attach,	openpic_macio_attach),
 
 	/* PIC interface */
+	DEVMETHOD(pic_bind,		openpic_bind),
 	DEVMETHOD(pic_config,		openpic_config),
 	DEVMETHOD(pic_dispatch,		openpic_dispatch),
 	DEVMETHOD(pic_enable,		openpic_enable),
@@ -95,4 +96,11 @@ openpic_macio_probe(device_t dev)
 
 	device_set_desc(dev, OPENPIC_DEVSTR);
 	return (0);
+}
+
+static int
+openpic_macio_attach(device_t dev)
+{
+ 
+	return (openpic_common_attach(dev, ofw_bus_get_node(dev)));
 }

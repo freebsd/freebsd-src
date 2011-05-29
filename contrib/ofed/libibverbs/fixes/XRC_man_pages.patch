@@ -1,0 +1,686 @@
+commit b7c5820ce48a4fc3c8464872f0a554df6e7bbb47
+Author: Dotan Barak <dotanb@mellanox.co.il>
+Date:   Mon Feb 25 16:50:38 2008 +0200
+
+    Add XRC (eXtended Reliable Connection) support to all of the relevant man pages
+    and add new man pages to new XRC verbs.
+    
+    Signed-off-by: Dotan Barak <dotanb@dev.mellanox.co.il>
+    Signed-off-by: Jack Morgenstein <jackm@dev.mellanox.co.il>
+
+diff --git a/man/ibv_create_qp.3 b/man/ibv_create_qp.3
+index abd5449..fb6f041 100644
+Index: libibverbs/man/ibv_create_qp.3
+===================================================================
+--- libibverbs.orig/man/ibv_create_qp.3	2008-06-05 15:21:54.000000000 +0300
++++ libibverbs/man/ibv_create_qp.3	2008-06-05 16:25:21.000000000 +0300
+@@ -28,8 +28,9 @@ struct ibv_cq          *send_cq;        
+ struct ibv_cq          *recv_cq;        /* CQ to be associated with the Receive Queue (RQ) */
+ struct ibv_srq         *srq;            /* SRQ handle if QP is to be associated with an SRQ, otherwise NULL */
+ struct ibv_qp_cap       cap;            /* QP capabilities */
+-enum ibv_qp_type        qp_type;        /* QP Transport Service Type: IBV_QPT_RC, IBV_QPT_UC, or IBV_QPT_UD */
++enum ibv_qp_type        qp_type;        /* QP Transport Service Type: IBV_QPT_RC, IBV_QPT_UC, IBV_QPT_UD or IBV_QPT_XRC */
+ int                     sq_sig_all;     /* If set, each Work Request (WR) submitted to the SQ generates a completion entry */
++struct ibv_xrc_domain  *xrc_domain;     /* XRC domain the QP will be associated with (valid only for IBV_QPT_XRC QP), otherwise NULL */
+ .in -8
+ };
+ .sp
+Index: libibverbs/man/ibv_create_srq.3
+===================================================================
+--- libibverbs.orig/man/ibv_create_srq.3	2008-06-05 15:21:54.000000000 +0300
++++ libibverbs/man/ibv_create_srq.3	2008-06-05 16:25:21.000000000 +0300
+@@ -10,12 +10,26 @@ ibv_create_srq, ibv_destroy_srq \- creat
+ .BI "struct ibv_srq *ibv_create_srq(struct ibv_pd " "*pd" ", struct "
+ .BI "                               ibv_srq_init_attr " "*srq_init_attr" );
+ .sp
++.BI "struct ibv_srq *ibv_create_xrc_srq(struct ibv_pd " "*pd" ",
++.BI "                                   struct ibv_xrc_domain " "*xrc_domain" ",
++.BI "                                   struct ibv_cq " "*xrc_cq" ",
++.BI "                                   struct ibv_srq_init_attr " "*srq_init_attr" );
++.sp
+ .BI "int ibv_destroy_srq(struct ibv_srq " "*srq" );
+ .fi
+ .SH "DESCRIPTION"
+ .B ibv_create_srq()
+ creates a shared receive queue (SRQ) associated with the protection domain
+ .I pd\fR.
++.PP
++.B ibv_create_xrc_srq()
++creates an XRC shared receive queue (SRQ) associated with the protection domain
++.I pd\fR,
++the XRC domain
++.I xrc_domain
++and the CQ which will hold the XRC completion
++.I xrc_cq\fR.
++.PP
+ The argument
+ .I srq_init_attr
+ is an ibv_srq_init_attr struct, as defined in <infiniband/verbs.h>.
+Index: libibverbs/man/ibv_create_xrc_rcv_qp.3
+===================================================================
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ libibverbs/man/ibv_create_xrc_rcv_qp.3	2008-06-05 16:25:21.000000000 +0300
+@@ -0,0 +1,70 @@
++.\" -*- nroff -*-
++.\"
++.TH IBV_CREATE_XRC_RCV_QP 3 2008-02-10 libibverbs "Libibverbs Programmer's Manual"
++.SH "NAME"
++ibv_create_xrc_rcv_qp \- create an XRC queue pair (QP) for serving as a receive-side only QP
++.SH "SYNOPSIS"
++.nf
++.B #include <infiniband/verbs.h>
++.sp
++.BI "int ibv_create_xrc_rcv_qp(struct ibv_qp_init_attr " "*init_attr" ,
++.BI "                          uint32_t " "*xrc_rcv_qpn" );
++.fi
++.SH "DESCRIPTION"
++.B ibv_create_xrc_rcv_qp()
++creates an XRC queue pair (QP) for serving as a receive-side only QP and returns its number through the pointer
++.I xrc_rcv_qpn\fR.
++This QP number should be passed to the remote node (sender).
++The remote node will use 
++.I xrc_rcv_qpn
++in
++.B ibv_post_send()
++when sending to an XRC SRQ on this host in the same xrc domain as the XRC receive QP.
++This QP is created in kernel space, and persists until the last process registered for the QP
++calls 
++.B ibv_unreg_xrc_rcv_qp()
++(at which time the QP is destroyed).
++.PP
++The process which creates this QP is automatically registered for it, and should also call
++.B ibv_unreg_xrc_rcv_qp()
++at some point, to unregister.
++
++Processes which wish to receive on an XRC SRQ via this QP should call
++.B ibv_reg_xrc_rcv_qp()
++for this QP, to guarantee that the QP will not be destroyed while they are still using it for receiving on the XRC SRQ.
++.PP
++The argument
++.I qp_init_attr
++is an ibv_qp_init_attr struct, as defined in <infiniband/verbs.h>.
++.PP
++.nf
++struct ibv_qp_init_attr {
++.in +8
++void                   *qp_context;     /* value is being ignored */
++struct ibv_cq          *send_cq;        /* value is being ignored */ 
++struct ibv_cq          *recv_cq;        /* value is being ignored */
++struct ibv_srq         *srq;            /* value is being ignored */
++struct ibv_qp_cap       cap;            /* value is being ignored */
++enum ibv_qp_type        qp_type;        /* value is being ignored */
++int                     sq_sig_all;     /* value is being ignored */
++struct ibv_xrc_domain  *xrc_domain;     /* XRC domain the QP will be associated with */
++.in -8
++};
++.fi
++.PP
++Most of the attributes in
++.I qp_init_attr
++are being ignored because this QP is a receive only QP and all RR are being posted to an SRQ.
++.SH "RETURN VALUE"
++.B ibv_create_xrc_rcv_qp()
++returns 0 on success, or the value of errno on failure (which indicates the failure reason).
++.SH "SEE ALSO"
++.BR ibv_open_xrc_domain (3),
++.BR ibv_modify_xrc_rcv_qp (3),
++.BR ibv_query_xrc_rcv_qp (3),
++.BR ibv_reg_xrc_rcv_qp (3),
++.BR ibv_unreg_xrc_rcv_qp (3),
++.BR ibv_post_send (3)
++.SH "AUTHORS"
++.TP
++Dotan Barak <dotanb@mellanox.co.il>
+Index: libibverbs/man/ibv_modify_xrc_rcv_qp.3
+===================================================================
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ libibverbs/man/ibv_modify_xrc_rcv_qp.3	2008-06-05 16:25:21.000000000 +0300
+@@ -0,0 +1,141 @@
++.\" -*- nroff -*-
++.\"
++.TH IBV_MODIFY_XRC_RCV_QP 3 2008-02-10 libibverbs "Libibverbs Programmer's Manual"
++.SH "NAME"
++ibv_modify_xrc_rcv_qp \- modify the attributes of an XRC receive queue pair (QP)
++.SH "SYNOPSIS"
++.nf
++.B #include <infiniband/verbs.h>
++.sp
++.BI "int ibv_modify_xrc_rcv_qp(struct ibv_xrc_domain " "*xrc_domain" ", uint32_t " "xrc_qp_num" ,
++.BI "                          struct ibv_qp_attr " "*attr" ", int " "attr_mask" );
++.fi
++.SH "DESCRIPTION"
++.B ibv_modify_qp()
++modifies the attributes of an XRC receive QP with the number
++.I xrc_qp_num
++which is associated with the XRC domain
++.I xrc_domain
++with the attributes in
++.I attr
++according to the mask
++.I attr_mask
++and move the QP state through the following transitions: Reset -> Init -> RTR.
++.I attr_mask
++should indicate all of the attributes which will be used in this QP transition and the following masks (at least) should be set:
++.PP
++.nf
++Next state     Required attributes
++\-\-\-\-\-\-\-\-\-\-     \-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-
++Init \fB          IBV_QP_STATE, IBV_QP_PKEY_INDEX, IBV_QP_PORT, \fR
++     \fB          IBV_QP_ACCESS_FLAGS \fR
++RTR  \fB          IBV_QP_STATE, IBV_QP_AV, IBV_QP_PATH_MTU, \fR
++     \fB          IBV_QP_DEST_QPN, IBV_QP_RQ_PSN, \fR
++     \fB          IBV_QP_MAX_DEST_RD_ATOMIC, IBV_QP_MIN_RNR_TIMER \fR
++.fi
++.PP
++The user can add optional attributes as well.
++.PP
++The argument \fIattr\fR is an ibv_qp_attr struct, as defined in <infiniband/verbs.h>.
++.PP
++.nf
++struct ibv_qp_attr {
++.in +8
++enum ibv_qp_state       qp_state;               /* Move the QP to this state */
++enum ibv_qp_state       cur_qp_state;           /* Assume this is the current QP state */
++enum ibv_mtu            path_mtu;               /* Path MTU (valid only for RC/UC QPs) */
++enum ibv_mig_state      path_mig_state;         /* Path migration state (valid if HCA supports APM) */
++uint32_t                qkey;                   /* Q_Key for the QP (valid only for UD QPs) */
++uint32_t                rq_psn;                 /* PSN for receive queue (valid only for RC/UC QPs) */
++uint32_t                sq_psn;                 /* PSN for send queue (valid only for RC/UC QPs) */
++uint32_t                dest_qp_num;            /* Destination QP number (valid only for RC/UC QPs) */
++int                     qp_access_flags;        /* Mask of enabled remote access operations (valid only for RC/UC QPs) */
++struct ibv_qp_cap       cap;                    /* QP capabilities (valid if HCA supports QP resizing) */
++struct ibv_ah_attr      ah_attr;                /* Primary path address vector (valid only for RC/UC QPs) */
++struct ibv_ah_attr      alt_ah_attr;            /* Alternate path address vector (valid only for RC/UC QPs) */
++uint16_t                pkey_index;             /* Primary P_Key index */
++uint16_t                alt_pkey_index;         /* Alternate P_Key index */
++uint8_t                 en_sqd_async_notify;    /* Enable SQD.drained async notification (Valid only if qp_state is SQD) */
++uint8_t                 sq_draining;            /* Is the QP draining? Irrelevant for ibv_modify_qp() */
++uint8_t                 max_rd_atomic;          /* Number of outstanding RDMA reads & atomic operations on the destination QP (valid only for RC QPs) */
++uint8_t                 max_dest_rd_atomic;     /* Number of responder resources for handling incoming RDMA reads & atomic operations (valid only for RC QPs) */
++uint8_t                 min_rnr_timer;          /* Minimum RNR NAK timer (valid only for RC QPs) */
++uint8_t                 port_num;               /* Primary port number */
++uint8_t                 timeout;                /* Local ack timeout for primary path (valid only for RC QPs) */
++uint8_t                 retry_cnt;              /* Retry count (valid only for RC QPs) */
++uint8_t                 rnr_retry;              /* RNR retry (valid only for RC QPs) */
++uint8_t                 alt_port_num;           /* Alternate port number */
++uint8_t                 alt_timeout;            /* Local ack timeout for alternate path (valid only for RC QPs) */
++.in -8
++};
++.fi
++.PP
++For details on struct ibv_qp_cap see the description of 
++.B ibv_create_qp()\fR.
++For details on struct ibv_ah_attr see the description of
++.B ibv_create_ah()\fR.
++.PP
++The argument
++.I attr_mask
++specifies the QP attributes to be modified.
++The argument is either 0 or the bitwise OR of one or more of the following flags:
++.PP
++.TP
++.B IBV_QP_STATE \fR Modify qp_state
++.TP
++.B IBV_QP_CUR_STATE \fR Set cur_qp_state
++.TP
++.B IBV_QP_EN_SQD_ASYNC_NOTIFY \fR Set en_sqd_async_notify
++.TP
++.B IBV_QP_ACCESS_FLAGS \fR Set qp_access_flags
++.TP
++.B IBV_QP_PKEY_INDEX \fR Set pkey_index
++.TP
++.B IBV_QP_PORT \fR Set port_num
++.TP
++.B IBV_QP_QKEY \fR Set qkey
++.TP
++.B IBV_QP_AV \fR Set ah_attr
++.TP
++.B IBV_QP_PATH_MTU \fR Set path_mtu
++.TP
++.B IBV_QP_TIMEOUT \fR Set timeout
++.TP
++.B IBV_QP_RETRY_CNT \fR Set retry_cnt
++.TP
++.B IBV_QP_RNR_RETRY \fR Set rnr_retry
++.TP
++.B IBV_QP_RQ_PSN \fR Set rq_psn
++.TP
++.B IBV_QP_MAX_QP_RD_ATOMIC \fR Set max_rd_atomic
++.TP
++.B IBV_QP_ALT_PATH \fR Set the alternative path via: alt_ah_attr, alt_pkey_index, alt_port_num, alt_timeout
++.TP
++.B IBV_QP_MIN_RNR_TIMER \fR Set min_rnr_timer
++.TP
++.B IBV_QP_SQ_PSN \fR Set sq_psn
++.TP
++.B IBV_QP_MAX_DEST_RD_ATOMIC \fR Set max_dest_rd_atomic
++.TP
++.B IBV_QP_PATH_MIG_STATE \fR Set path_mig_state
++.TP
++.B IBV_QP_CAP \fR Set cap
++.TP
++.B IBV_QP_DEST_QPN \fR Set dest_qp_num
++.SH "RETURN VALUE"
++.B ibv_modify_xrc_rcv_qp()
++returns 0 on success, or the value of errno on failure (which indicates the failure reason).
++.SH "NOTES"
++If any of the modify attributes or the modify mask are invalid, none
++of the attributes will be modified (including the QP state).
++.PP
++Not all devices support alternate paths.  To check if a device supports it, check if the
++.B IBV_DEVICE_AUTO_PATH_MIG
++bit is set in the device capabilities flags.
++.SH "SEE ALSO"
++.BR ibv_open_xrc_domain (3),
++.BR ibv_create_xrc_rcv_qp (3),
++.BR ibv_query_xrc_rcv_qp (3)
++.SH "AUTHORS"
++.TP
++Dotan Barak <dotanb@mellanox.co.il>
+Index: libibverbs/man/ibv_open_xrc_domain.3
+===================================================================
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ libibverbs/man/ibv_open_xrc_domain.3	2008-06-05 16:25:21.000000000 +0300
+@@ -0,0 +1,80 @@
++.\" -*- nroff -*-
++.\"
++.TH IBV_OPEN_XRC_DOMAIN 3 2008-02-10 libibverbs "Libibverbs Programmer's Manual"
++.SH "NAME"
++ibv_open_xrc_domain, ibv_close_xrc_domain \- open or close an eXtended Reliable Connection (XRC) domain
++.SH "SYNOPSIS"
++.nf
++.B #include <fcntl.h>
++.B #include <infiniband/verbs.h>
++.sp
++.BI "struct ibv_xrc_domain *ibv_open_xrc_domain(struct ibv_context " "*context" ","
++.BI "                                           int " "fd" ", int " "oflag" );
++.nl
++.BI "int ibv_close_xrc_domain(struct ibv_xrc_domain " "*d" );
++.fi
++.SH "DESCRIPTION"
++.B ibv_open_xrc_domain()
++open an XRC domain for the InfiniBand device context 
++.I context
++or return a reference to an opened one\fR.
++.I fd
++is the file descriptor to be associated with the XRC domain.
++The argument
++.I oflag
++describes the desired file creation attributes;  it  is either 0 or the bitwise OR of one or more of the following flags:
++.PP
++.TP
++.B O_CREAT
++If a domain belonging to device named by context is already associated with the inode, this flag has
++no effect, except as noted under
++.BR O_EXCL
++below. Otherwise, a new XRC domain is created and is associated with inode specified by
++.IR fd\fR.
++.TP
++.B O_EXCL
++If 
++.BR O_EXCL
++and
++.BR O_CREAT
++are set, open will fail if a domain associated with the inode exists.
++The check for the existence of the domain and creation
++of the domain if it does not exist is atomic with respect to other
++processes executing open with
++.IR fd
++naming the same inode.
++.PP
++If 
++.I fd
++equals -1, no inode is is associated with the domain, and the only valid value for
++.I oflag
++is
++.B O_CREAT\fR.
++.PP
++.B ibv_close_xrc_domain()
++closes the XRC domain
++.I d\fR.
++If this is the last reference, the XRC domain will be destroyed.
++.SH "RETURN VALUE"
++.B ibv_open_xrc_domain()
++returns a pointer to an opened XRC, or NULL if the request fails.
++.PP
++.B ibv_close_xrc_domain()
++returns 0 on success, or the value of errno on failure (which indicates the failure reason).
++.SH "NOTES"
++Not all devices support XRC. To check if a device supports it, check if the
++.B IBV_DEVICE_XRC
++bit is set in the device capabilities flags.
++.PP
++.B ibv_close_xrc_domain()
++may fail if any QP or SRQ are still associated with the XRC domain being closed.
++.SH "SEE ALSO"
++.BR ibv_create_xrc_srq (3),
++.BR ibv_create_qp (3),
++.BR ibv_create_xrc_rcv_qp (3),
++.BR ibv_modify_xrc_rcv_qp (3),
++.BR ibv_query_xrc_rcv_qp (3),
++.BR ibv_reg_xrc_rcv_qp (3)
++.SH "AUTHORS"
++.TP
++Dotan Barak <dotanb@mellanox.co.il>
+Index: libibverbs/man/ibv_post_send.3
+===================================================================
+--- libibverbs.orig/man/ibv_post_send.3	2008-06-05 15:21:55.000000000 +0300
++++ libibverbs/man/ibv_post_send.3	2008-06-05 16:25:21.000000000 +0300
+@@ -60,6 +60,7 @@ uint32_t        remote_qkey;    /* Q_Key
+ } ud;
+ .in -8
+ } wr;
++uint32_t                xrc_remote_srq_num;     /* SRQ number of the destination XRC */
+ .in -8
+ };
+ .sp
+@@ -76,15 +77,15 @@ uint32_t                lkey;           
+ Each QP Transport Service Type supports a specific set of opcodes, as shown in the following table:
+ .PP
+ .nf
+-OPCODE                      | IBV_QPT_UD | IBV_QPT_UC | IBV_QPT_RC
+-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-
+-IBV_WR_SEND                 |     X      |     X      |     X
+-IBV_WR_SEND_WITH_IMM        |     X      |     X      |     X
+-IBV_WR_RDMA_WRITE           |            |     X      |     X
+-IBV_WR_RDMA_WRITE_WITH_IMM  |            |     X      |     X
+-IBV_WR_RDMA_READ            |            |            |     X
+-IBV_WR_ATOMIC_CMP_AND_SWP   |            |            |     X
+-IBV_WR_ATOMIC_FETCH_AND_ADD |            |            |     X
++OPCODE                      | IBV_QPT_UD | IBV_QPT_UC | IBV_QPT_RC | IBV_QPT_XRC
++\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-\-
++IBV_WR_SEND                 |     X      |     X      |     X      |     X
++IBV_WR_SEND_WITH_IMM        |     X      |     X      |     X      |     X
++IBV_WR_RDMA_WRITE           |            |     X      |     X      |     X
++IBV_WR_RDMA_WRITE_WITH_IMM  |            |     X      |     X      |     X
++IBV_WR_RDMA_READ            |            |            |     X      |     X
++IBV_WR_ATOMIC_CMP_AND_SWP   |            |            |     X      |     X
++IBV_WR_ATOMIC_FETCH_AND_ADD |            |            |     X      |     X
+ .fi
+ .PP
+ The attribute send_flags describes the properties of the \s-1WR\s0. It is either 0 or the bitwise \s-1OR\s0 of one or more of the following flags:
+@@ -114,6 +115,7 @@ IBV_SEND_INLINE flag was set, the buffer
+ after the call returns.
+ .SH "SEE ALSO"
+ .BR ibv_create_qp (3),
++.BR ibv_create_xrc_rcv_qp (3),
+ .BR ibv_create_ah (3),
+ .BR ibv_post_recv (3),
+ .BR ibv_post_srq_recv (3),
+Index: libibverbs/man/ibv_query_xrc_rcv_qp.3
+===================================================================
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ libibverbs/man/ibv_query_xrc_rcv_qp.3	2008-06-05 16:25:21.000000000 +0300
+@@ -0,0 +1,89 @@
++.\" -*- nroff -*-
++.\"
++.TH IBV_QUERY_XRC_RCV_QP 3 2008-02-10 libibverbs "Libibverbs Programmer's Manual"
++.SH "NAME"
++ibv_query_xrc_rcv_qp \- get the attributes of an XRC receive queue pair (QP)
++.SH "SYNOPSIS"
++.nf
++.B #include <infiniband/verbs.h>
++.sp
++.BI "int ibv_query_xrc_rcv_qp(struct ibv_xrc_domain " "*xrc_domain" ", uint32_t " "xrc_qp_num" ,
++.BI "                         struct ibv_qp_attr " "*attr" ", int " "attr_mask" ,
++.BI "                         struct ibv_qp_init_attr " "*init_attr" );
++.fi
++.SH "DESCRIPTION"
++.B ibv_query_xrc_rcv_qp()
++gets the attributes specified in
++.I attr_mask
++for the XRC receive QP with the number
++.I xrc_qp_num
++which is associated with the XRC domain
++.I xrc_domain
++and returns them through the pointers
++.I attr
++and
++.I init_attr\fR.
++The argument
++.I attr
++is an ibv_qp_attr struct, as defined in <infiniband/verbs.h>.
++.PP
++.nf
++struct ibv_qp_attr {
++.in +8
++enum ibv_qp_state       qp_state;            /* Current QP state */
++enum ibv_qp_state       cur_qp_state;        /* Current QP state - irrelevant for ibv_query_qp */
++enum ibv_mtu            path_mtu;            /* Path MTU (valid only for RC/UC QPs) */
++enum ibv_mig_state      path_mig_state;      /* Path migration state (valid if HCA supports APM) */
++uint32_t                qkey;                /* Q_Key of the QP (valid only for UD QPs) */
++uint32_t                rq_psn;              /* PSN for receive queue (valid only for RC/UC QPs) */
++uint32_t                sq_psn;              /* PSN for send queue (valid only for RC/UC QPs) */
++uint32_t                dest_qp_num;         /* Destination QP number (valid only for RC/UC QPs) */
++int                     qp_access_flags;     /* Mask of enabled remote access operations (valid only for RC/UC QPs) */
++struct ibv_qp_cap       cap;                 /* QP capabilities */
++struct ibv_ah_attr      ah_attr;             /* Primary path address vector (valid only for RC/UC QPs) */
++struct ibv_ah_attr      alt_ah_attr;         /* Alternate path address vector (valid only for RC/UC QPs) */
++uint16_t                pkey_index;          /* Primary P_Key index */
++uint16_t                alt_pkey_index;      /* Alternate P_Key index */
++uint8_t                 en_sqd_async_notify; /* Enable SQD.drained async notification - irrelevant for ibv_query_qp */
++uint8_t                 sq_draining;         /* Is the QP draining? (Valid only if qp_state is SQD) */
++uint8_t                 max_rd_atomic;       /* Number of outstanding RDMA reads & atomic operations on the destination QP (valid only for RC QPs) */
++uint8_t                 max_dest_rd_atomic;  /* Number of responder resources for handling incoming RDMA reads & atomic operations (valid only for RC QPs) */
++uint8_t                 min_rnr_timer;       /* Minimum RNR NAK timer (valid only for RC QPs) */
++uint8_t                 port_num;            /* Primary port number */
++uint8_t                 timeout;             /* Local ack timeout for primary path (valid only for RC QPs) */
++uint8_t                 retry_cnt;           /* Retry count (valid only for RC QPs) */
++uint8_t                 rnr_retry;           /* RNR retry (valid only for RC QPs) */
++uint8_t                 alt_port_num;        /* Alternate port number */
++uint8_t                 alt_timeout;         /* Local ack timeout for alternate path (valid only for RC QPs) */
++.in -8
++};
++.fi
++.PP
++For details on struct ibv_qp_cap see the description of
++.B ibv_create_qp()\fR.
++For details on struct ibv_ah_attr see the description of
++.B ibv_create_ah()\fR.
++.SH "RETURN VALUE"
++.B ibv_query_xrc_rcv_qp()
++returns 0 on success, or the value of errno on failure (which indicates the failure reason).
++.SH "NOTES"
++The argument
++.I attr_mask
++is a hint that specifies the minimum list of attributes to retrieve.
++Some InfiniBand devices may return extra attributes not requested, for
++example if the value can be returned cheaply.
++.PP
++Attribute values are valid if they have been set using
++.B ibv_modify_xrc_rcv_qp()\fR.
++The exact list of valid attributes depends on the QP state.
++.PP
++Multiple calls to
++.B ibv_query_xrc_rcv_qp()
++may yield some differences in the values returned for the following attributes: qp_state, path_mig_state, sq_draining, ah_attr (if APM is enabled).
++.SH "SEE ALSO"
++.BR ibv_open_xrc_domain (3),
++.BR ibv_create_xrc_rcv_qp (3),
++.BR ibv_modify_xrc_rcv_qp (3)
++.SH "AUTHORS"
++.TP
++Dotan Barak <dotanb@mellanox.co.il>
+Index: libibverbs/man/ibv_reg_xrc_rcv_qp.3
+===================================================================
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ libibverbs/man/ibv_reg_xrc_rcv_qp.3	2008-06-05 16:25:21.000000000 +0300
+@@ -0,0 +1,57 @@
++.\" -*- nroff -*-
++.\"
++.TH IBV_REG_XRC_RCV_QP 3 2008-10-02 libibverbs "Libibverbs Programmer's Manual"
++.SH "NAME"
++ibv_reg_xrc_rcv_qp, ibv_unreg_xrc_rcv_qp \- register and unregister a user process with an XRC receive queue pair (QP)
++.SH "SYNOPSIS"
++.nf
++.B #include <infiniband/verbs.h>
++.sp
++.BI "int ibv_reg_xrc_rcv_qp(struct ibv_xrc_domain " "*xrc_domain" ", uint32_t " "xrc_qp_num" ");
++.nl
++.BI "int ibv_unreg_xrc_rcv_qp(struct ibv_xrc_domain " "*xrc_domain" ", uint32_t " "xrc_qp_num" ");
++.fi
++.SH "DESCRIPTION"
++.B ibv_reg_xrc_rcv_qp()
++registers a user process with the XRC receive QP (created via
++.B ibv_create_xrc_rcv_qp()
++) whose number is
++.I xrc_qp_num\fR,
++and which is associated with the XRC domain
++.I xrc_domain\fR.
++.PP
++.B ibv_unreg_xrc_rcv_qp()
++unregisters a user process from the XRC receive QP number
++.I xrc_qp_num\fR,
++which is associated with the XRC domain
++.I xrc_domain\fR.
++When the number of user processes registered with this XRC receive QP drops to zero, the QP is destroyed.
++.SH "RETURN VALUE"
++.B ibv_reg_xrc_rcv_qp()
++and
++.B ibv_unreg_xrc_rcv_qp()
++returns 0 on success, or the value of errno on failure (which indicates the failure reason).
++.SH "NOTES"
++.B ibv_reg_xrc_rcv_qp()
++and
++.B ibv_unreg_xrc_rcv_qp()
++may fail if the number
++.I xrc_qp_num
++is not a number of a valid XRC receive QP (the QP is not allocated or it is the number of a non-XRC QP), or
++the XRC receive QP was created with an XRC domain other than
++.I xrc_domain\fR.
++
++If a process is still registered with any XRC RCV QPs belonging to some domain, 
++.B ibv_close_xrc_domain()
++will return failure if called for that domain in that process.
++
++.B ibv_create_xrc_rcv_qp()
++performs an implicit registration for the creating process;  when that process is finished with the XRC RCV QP, it should call
++.B ibv_unreg_xrc_rcv_qp()
++for that QP. Note that if no other processes are registered with the QP at this time, its registration count will drop to zero and it will be destroyed.
++.SH "SEE ALSO"
++.BR ibv_open_xrc_domain (3),
++.BR ibv_create_xrc_rcv_qp (3)
++.SH "AUTHORS"
++.TP
++Dotan Barak <dotanb@mellanox.co.il>
+Index: libibverbs/man/verbs.7
+===================================================================
+--- libibverbs.orig/man/verbs.7	2008-06-05 15:24:00.000000000 +0300
++++ libibverbs/man/verbs.7	2008-06-05 16:25:21.000000000 +0300
+@@ -1,6 +1,6 @@
+ .\" -*- nroff -*-
+ .\"
+-.TH VERBS 7 2008-01-17 libibverbs "Libibverbs Programmer's Manual"
++.TH VERBS 7 2008-02-25 libibverbs "Libibverbs Programmer's Manual"
+ .SH "NAME"
+ verbs \- Infiniband verbs library
+ .SH "SYNOPSIS"
+@@ -8,7 +8,7 @@ verbs \- Infiniband verbs library
+ .B #include <infiniband/verbs.h>
+ .fi
+ .SH "DESCRIPTION"
+-This library is an implementation of the verbs according to the Infiniband specification volume 1.2. It handles the control path of creating, modifying, querying and destroying resources such as Protection Domains (PD), Completion Queues (CQ), Queue-Pairs (QP), Shared Receive Queues (SRQ), Address Handles (AH), Memory Regions (MR). It also handles sending and receiving data posted to QPs and SRQs, getting completions from CQs using polling and completions events.
++This library is an implementation of the verbs based on the Infiniband specification volume 1.2 chapter 11. It handles the control path of creating, modifying, querying and destroying resources such as Protection Domains (PD), Completion Queues (CQ), Queue-Pairs (QP), Shared Receive Queues (SRQ), Address Handles (AH), Memory Regions (MR). It also handles sending and receiving data posted to QPs and SRQs, getting completions from CQs using polling and completions events.
+ 
+ The control path is implemented through system calls to the uverbs kernel module which further calls the low level HW driver. The data path is implemented through calls made to low level HW library which in most cases interacts directly with the HW providing kernel and network stack bypass (saving context/mode switches) along with zero copy and an asynchronous I/O model.
+ 
+@@ -117,6 +117,25 @@ int ibv_modify_srq(struct ibv_srq *srq,
+                    enum ibv_srq_attr_mask srq_attr_mask);
+ int ibv_query_srq(struct ibv_srq *srq, struct ibv_srq_attr *srq_attr);
+ 
++.B eXtended Reliable Connection control
++
++struct ibv_xrc_domain *ibv_open_xrc_domain(struct ibv_context *context,
++                                           int fd, int oflag);
++int ibv_close_xrc_domain(struct ibv_xrc_domain *d);
++struct ibv_srq *ibv_create_xrc_srq(struct ibv_pd *pd,
++                                   struct ibv_xrc_domain *xrc_domain,
++                                   struct ibv_cq *xrc_cq,
++                                   struct ibv_srq_init_attr *srq_init_attr);
++int ibv_create_xrc_rcv_qp(struct ibv_qp_init_attr *init_attr,
++                          uint32_t *xrc_rcv_qpn);
++int ibv_modify_xrc_rcv_qp(struct ibv_xrc_domain *xrc_domain, uint32_t xrc_qp_num,
++                          struct ibv_qp_attr *attr, int attr_mask);
++int ibv_query_xrc_rcv_qp(struct ibv_xrc_domain *xrc_domain, uint32_t xrc_qp_num,
++                         struct ibv_qp_attr *attr, int attr_mask,
++                         struct ibv_qp_init_attr *init_attr);
++int ibv_reg_xrc_rcv_qp(struct ibv_xrc_domain *xrc_domain, uint32_t xrc_qp_num);
++int ibv_unreg_xrc_rcv_qp(struct ibv_xrc_domain *xrc_domain, uint32_t xrc_qp_num);
++ 
+ .B Queue Pair control
+ 
+ struct ibv_qp *ibv_create_qp(struct ibv_pd *pd,
+@@ -183,6 +202,14 @@ enum ibv_rate mult_to_ibv_rate(int mult)
+ \fIibv_destroy_srq\fP(),
+ \fIibv_modify_srq\fP(),
+ \fIibv_query_srq\fP(),
++\fIibv_open_xrc_domain\fP(),
++\fIibv_close_xrc_domain\fP(),
++\fIibv_create_xrc_srq\fP(),
++\fIibv_create_xrc_rcv_qp\fP(),
++\fIibv_modify_xrc_rcv_qp\fP(),
++\fIibv_query_xrc_rcv_qp\fP(),
++\fIibv_reg_xrc_rcv_qp\fP(),
++\fIibv_unreg_xrc_rcv_qp\fP(),
+ \fIibv_post_srq_recv\fP(),
+ \fIibv_create_qp\fP(),
+ \fIibv_destroy_qp\fP(),
+Index: libibverbs/Makefile.am
+===================================================================
+--- libibverbs.orig/Makefile.am	2008-06-05 15:24:00.000000000 +0300
++++ libibverbs/Makefile.am	2008-06-05 16:39:27.000000000 +0300
+@@ -44,15 +44,18 @@ man_MANS = man/ibv_asyncwatch.1 man/ibv_
+     man/ibv_srq_pingpong.1 man/ibv_alloc_pd.3 man/ibv_attach_mcast.3	\
+     man/ibv_create_ah.3 man/ibv_create_ah_from_wc.3			\
+     man/ibv_create_comp_channel.3 man/ibv_create_cq.3			\
+-    man/ibv_create_qp.3 man/ibv_create_srq.3 man/ibv_event_type_str.3	\
++    man/ibv_create_qp.3 man/ibv_create_srq.3				\
++    man/ibv_create_xrc_rcv_qp.3 man/ibv_event_type_str.3		\
+     man/ibv_fork_init.3 man/ibv_get_async_event.3			\
+     man/ibv_get_cq_event.3 man/ibv_get_device_guid.3			\
+     man/ibv_get_device_list.3 man/ibv_get_device_name.3			\
+-    man/ibv_modify_qp.3 man/ibv_modify_srq.3 man/ibv_open_device.3	\
++    man/ibv_modify_qp.3 man/ibv_modify_srq.3 man/ibv_modify_xrc_rcv_qp.3 \
++    man/ibv_open_device.3 man/ibv_open_xrc_domain.3			\
+     man/ibv_poll_cq.3 man/ibv_post_recv.3 man/ibv_post_send.3		\
+     man/ibv_post_srq_recv.3 man/ibv_query_device.3 man/ibv_query_gid.3	\
+     man/ibv_query_pkey.3 man/ibv_query_port.3 man/ibv_query_qp.3	\
+-    man/ibv_query_srq.3 man/ibv_rate_to_mult.3 man/ibv_reg_mr.3		\
++    man/ibv_query_srq.3 man/ibv_query_xrc_rcv_qp.3			\
++    man/ibv_rate_to_mult.3 man/ibv_reg_mr.3 man/ibv_reg_xrc_rcv_qp.3	\
+     man/ibv_req_notify_cq.3 man/ibv_resize_cq.3 man/verbs.7
+ 
+ DEBIAN = debian/changelog debian/compat debian/control debian/copyright \
+@@ -74,6 +77,8 @@ install-data-hook:
+ 	$(RM) ibv_ack_async_event.3 && \
+ 	$(RM) ibv_ack_cq_events.3 && \
+ 	$(RM) ibv_close_device.3 && \
++	$(RM) ibv_close_xrc_domain.3 && \
++	$(RM) ibv_create_xrc_srq.3 && \
+ 	$(RM) ibv_dealloc_pd.3 && \
+ 	$(RM) ibv_dereg_mr.3 && \
+ 	$(RM) ibv_destroy_ah.3 && \
+@@ -84,12 +89,15 @@ install-data-hook:
+ 	$(RM) ibv_detach_mcast.3 && \
+ 	$(RM) ibv_free_device_list.3 && \
+ 	$(RM) ibv_init_ah_from_wc.3 && \
++	$(RM) ibv_unreg_xrc_rcv_qp.3 && \
+ 	$(RM) mult_to_ibv_rate.3 && \
+ 	$(RM) ibv_node_type_str.3 && \
+ 	$(RM) ibv_port_state_str.3 && \
+ 	$(LN_S) ibv_get_async_event.3 ibv_ack_async_event.3 && \
+ 	$(LN_S) ibv_get_cq_event.3 ibv_ack_cq_events.3 && \
+ 	$(LN_S) ibv_open_device.3 ibv_close_device.3 && \
++	$(LN_S) ibv_open_xrc_domain.3 ibv_close_xrc_domain.3 && \
++	$(LN_S) ibv_create_srq.3 ibv_create_xrc_srq.3 && \
+ 	$(LN_S) ibv_alloc_pd.3 ibv_dealloc_pd.3 && \
+ 	$(LN_S) ibv_reg_mr.3 ibv_dereg_mr.3 && \
+ 	$(LN_S) ibv_create_ah.3 ibv_destroy_ah.3 && \
+@@ -100,6 +108,7 @@ install-data-hook:
+ 	$(LN_S) ibv_attach_mcast.3 ibv_detach_mcast.3 && \
+ 	$(LN_S) ibv_get_device_list.3 ibv_free_device_list.3 && \
+ 	$(LN_S) ibv_create_ah_from_wc.3 ibv_init_ah_from_wc.3 && \
++	$(LN_S) ibv_reg_xrc_rcv_qp.3 ibv_unreg_xrc_rcv_qp.3 && \
+ 	$(LN_S) ibv_rate_to_mult.3 mult_to_ibv_rate.3 && \
+ 	$(LN_S) ibv_event_type_str.3 ibv_node_type_str.3 && \
+ 	$(LN_S) ibv_event_type_str.3 ibv_port_state_str.3

@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 20, 2008
+.Dd January 16, 2011
 .Dt AXE 4
 .Os
 .Sh NAME
@@ -169,6 +169,10 @@ AX88178:
 .It
 Belkin F5D5055
 .It
+Logitec LAN-GTJ/U2A
+.It
+Buffalo (Melco Inc.) LUA3-U2-AGT
+.It
 Planex Communications GU1000T
 .It
 Sitecom Europe LN-028
@@ -177,9 +181,15 @@ Sitecom Europe LN-028
 AX88772:
 .Bl -bullet -compact
 .It
+Buffalo (Melco Inc.) LUA3-U2-ATX
+.It
 Cisco-Linksys USB200Mv2
 .It
 D-Link DUBE100B1
+.It
+Planex UE-200TX-G
+.It
+Planex UE-200TX-G2
 .El
 .Sh DIAGNOSTICS
 .Bl -diag
@@ -196,6 +206,7 @@ The driver failed to allocate an mbuf for the receiver ring.
 .Xr miibus 4 ,
 .Xr netintro 4 ,
 .Xr ng_ether 4 ,
+.Xr rgephy 4 ,
 .Xr ifconfig 8
 .Rs
 .%T "ASIX AX88172 AX88178 and AX88772 data sheets"

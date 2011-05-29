@@ -497,8 +497,8 @@ Key_List::merge (List_Node *list1, List_Node *list2)
           *resultp = list1;
           break;
         }
-      if (occurrence_sort && list1->occurrence < list2->occurrence
-          || hash_sort && list1->hash_value > list2->hash_value)
+      if ((occurrence_sort && list1->occurrence < list2->occurrence)
+	    || (hash_sort && list1->hash_value > list2->hash_value))
         {
           *resultp = list2;
           resultp = &list2->next; list2 = list1; list1 = *resultp;
@@ -1035,17 +1035,16 @@ Key_List::output_hash_function (void)
   if (option[CPLUSPLUS])
     printf ("%s::", option.get_class_name ());
   printf ("%s ", option.get_hash_name ());
-  printf (option[KRC] ?
-                 "(str, len)\n"
-            "     register char *str;\n"
-            "     register unsigned int len;\n" :
-          option[C] ?
-                 "(str, len)\n"
-            "     register const char *str;\n"
-            "     register unsigned int len;\n" :
-          option[ANSIC] | option[CPLUSPLUS] ?
-                 "(register const char *str, register unsigned int len)\n" :
-          "");
+  if (option[KRC] || option[C] || option [ANSIC] || option[CPLUSPLUS])
+    printf (option[KRC] ?
+	      "(str, len)\n"
+              "     register char *str;\n"
+              "     register unsigned int len;\n" :
+	    option[C] ?
+	      "(str, len)\n"
+              "     register const char *str;\n"
+              "     register unsigned int len;\n" :
+	      "(register const char *str, register unsigned int len)\n");
 
   /* Note that when the hash function is called, it has already been verified
      that  min_key_len <= len <= max_key_len. */
@@ -1442,7 +1441,7 @@ Key_List::output_lookup_array (void)
 
           if (option[DEBUG])
             fprintf (stderr,
-                     "dup_ptr[%d]: hash_value = %d, index = %d, count = %d\n",
+                     "dup_ptr[%zd]: hash_value = %d, index = %d, count = %d\n",
                      dup_ptr - duplicates,
                      dup_ptr->hash_value, dup_ptr->index, dup_ptr->count);
 
@@ -1986,17 +1985,16 @@ Key_List::output_lookup_function (void)
   if (option[CPLUSPLUS])
     printf ("%s::", option.get_class_name ());
   printf ("%s ", option.get_function_name ());
-  printf (option[KRC] ?
-                 "(str, len)\n"
-            "     register char *str;\n"
-            "     register unsigned int len;\n" :
-          option[C] ?
-                 "(str, len)\n"
-            "     register const char *str;\n"
-            "     register unsigned int len;\n" :
-          option[ANSIC] | option[CPLUSPLUS] ?
-                 "(register const char *str, register unsigned int len)\n" :
-          "");
+  if (option[KRC] || option[C] || option[ANSIC] || option[CPLUSPLUS])
+    printf (option[KRC] ?
+	      "(str, len)\n"
+              "     register char *str;\n"
+              "     register unsigned int len;\n" :
+	    option[C] ?
+	      "(str, len)\n"
+              "     register const char *str;\n"
+              "     register unsigned int len;\n" :
+	    "(register const char *str, register unsigned int len)\n");
 
   /* Output the function's body. */
   printf ("{\n");

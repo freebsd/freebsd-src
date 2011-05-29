@@ -81,14 +81,3 @@ delay_tick(int usec)
 	sched_unpin();
 }
 
-void
-cpu_startprofclock(void)
-{
-
-}
-
-void
-cpu_stopprofclock(void)
-{
-
-}

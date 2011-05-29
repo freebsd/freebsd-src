@@ -38,6 +38,9 @@
 
 #ifndef	LOCORE
 
+#include <sys/proc.h>
+#include <sys/sched.h>
+
 #include <machine/intr_machdep.h>
 #include <machine/pcb.h>
 #include <machine/tte.h>
@@ -55,6 +58,7 @@
 #define	IPI_AST		PIL_AST
 #define	IPI_RENDEZVOUS	PIL_RENDEZVOUS
 #define	IPI_PREEMPT	PIL_PREEMPT
+#define	IPI_HARDCLOCK	PIL_HARDCLOCK
 #define	IPI_STOP	PIL_STOP
 #define	IPI_STOP_HARD	PIL_STOP
 
@@ -72,12 +76,17 @@ struct cpu_start_args {
 };
 
 struct ipi_cache_args {
-	u_int	ica_mask;
+	cpumask_t ica_mask;
 	vm_paddr_t ica_pa;
 };
 
+struct ipi_rd_args {
+	cpumask_t ira_mask;
+	register_t *ira_val;
+};
+
 struct ipi_tlb_args {
-	u_int	ita_mask;
+	cpumask_t ita_mask;
 	struct	pmap *ita_pmap;
 	u_long	ita_start;
 	u_long	ita_end;
@@ -93,11 +102,14 @@ void	cpu_mp_shutdown(void);
 
 typedef	void cpu_ipi_selected_t(u_int, u_long, u_long, u_long);
 extern	cpu_ipi_selected_t *cpu_ipi_selected;
+typedef	void cpu_ipi_single_t(u_int, u_long, u_long, u_long);
+extern	cpu_ipi_single_t *cpu_ipi_single;
 
 void	mp_init(u_int cpu_impl);
 
 extern	struct mtx ipi_mtx;
 extern	struct ipi_cache_args ipi_cache_args;
+extern	struct ipi_rd_args ipi_rd_args;
 extern	struct ipi_tlb_args ipi_tlb_args;
 
 extern	char *mp_tramp_code;
@@ -112,6 +124,10 @@ extern	char tl_ipi_spitfire_dcache_page_inval[];
 extern	char tl_ipi_spitfire_icache_page_inval[];
 
 extern	char tl_ipi_level[];
+
+extern	char tl_ipi_stick_rd[];
+extern	char tl_ipi_tick_rd[];
+
 extern	char tl_ipi_tlb_context_demap[];
 extern	char tl_ipi_tlb_page_demap[];
 extern	char tl_ipi_tlb_range_demap[];
@@ -130,6 +146,13 @@ ipi_selected(u_int cpus, u_int ipi)
 	cpu_ipi_selected(cpus, 0, (u_long)tl_ipi_level, ipi);
 }
 
+static __inline void
+ipi_cpu(int cpu, u_int ipi)
+{
+
+	cpu_ipi_single(cpu, 0, (u_long)tl_ipi_level, ipi);
+}
+
 #if defined(_MACHINE_PMAP_H_) && defined(_SYS_MUTEX_H_)
 
 static __inline void *
@@ -139,6 +162,7 @@ ipi_dcache_page_inval(void *func, vm_paddr_t pa)
 
 	if (smp_cpus == 1)
 		return (NULL);
+	sched_pin();
 	ica = &ipi_cache_args;
 	mtx_lock_spin(&ipi_mtx);
 	ica->ica_mask = all_cpus;
@@ -154,6 +178,7 @@ ipi_icache_page_inval(void *func, vm_paddr_t pa)
 
 	if (smp_cpus == 1)
 		return (NULL);
+	sched_pin();
 	ica = &ipi_cache_args;
 	mtx_lock_spin(&ipi_mtx);
 	ica->ica_mask = all_cpus;
@@ -163,15 +188,34 @@ ipi_icache_page_inval(void *func, vm_paddr_t pa)
 }
 
 static __inline void *
-ipi_tlb_context_demap(struct pmap *pm)
+ipi_rd(u_int cpu, void *func, u_long *val)
 {
-	struct ipi_tlb_args *ita;
-	u_int cpus;
+	struct ipi_rd_args *ira;
 
 	if (smp_cpus == 1)
 		return (NULL);
-	if ((cpus = (pm->pm_active & PCPU_GET(other_cpus))) == 0)
+	sched_pin();
+	ira = &ipi_rd_args;
+	mtx_lock_spin(&ipi_mtx);
+	ira->ira_mask = 1 << cpu | PCPU_GET(cpumask);
+	ira->ira_val = val;
+	cpu_ipi_single(cpu, 0, (u_long)func, (u_long)ira);
+	return (&ira->ira_mask);
+}
+
+static __inline void *
+ipi_tlb_context_demap(struct pmap *pm)
+{
+	struct ipi_tlb_args *ita;
+	cpumask_t cpus;
+
+	if (smp_cpus == 1)
 		return (NULL);
+	sched_pin();
+	if ((cpus = (pm->pm_active & PCPU_GET(other_cpus))) == 0) {
+		sched_unpin();
+		return (NULL);
+	}
 	ita = &ipi_tlb_args;
 	mtx_lock_spin(&ipi_mtx);
 	ita->ita_mask = cpus | PCPU_GET(cpumask);
@@ -185,12 +229,15 @@ static __inline void *
 ipi_tlb_page_demap(struct pmap *pm, vm_offset_t va)
 {
 	struct ipi_tlb_args *ita;
-	u_int cpus;
+	cpumask_t cpus;
 
 	if (smp_cpus == 1)
 		return (NULL);
-	if ((cpus = (pm->pm_active & PCPU_GET(other_cpus))) == 0)
+	sched_pin();
+	if ((cpus = (pm->pm_active & PCPU_GET(other_cpus))) == 0) {
+		sched_unpin();
 		return (NULL);
+	}
 	ita = &ipi_tlb_args;
 	mtx_lock_spin(&ipi_mtx);
 	ita->ita_mask = cpus | PCPU_GET(cpumask);
@@ -204,32 +251,37 @@ static __inline void *
 ipi_tlb_range_demap(struct pmap *pm, vm_offset_t start, vm_offset_t end)
 {
 	struct ipi_tlb_args *ita;
-	u_int cpus;
+	cpumask_t cpus;
 
 	if (smp_cpus == 1)
 		return (NULL);
-	if ((cpus = (pm->pm_active & PCPU_GET(other_cpus))) == 0)
+	sched_pin();
+	if ((cpus = (pm->pm_active & PCPU_GET(other_cpus))) == 0) {
+		sched_unpin();
 		return (NULL);
+	}
 	ita = &ipi_tlb_args;
 	mtx_lock_spin(&ipi_mtx);
 	ita->ita_mask = cpus | PCPU_GET(cpumask);
 	ita->ita_pmap = pm;
 	ita->ita_start = start;
 	ita->ita_end = end;
-	cpu_ipi_selected(cpus, 0, (u_long)tl_ipi_tlb_range_demap, (u_long)ita);
+	cpu_ipi_selected(cpus, 0, (u_long)tl_ipi_tlb_range_demap,
+	    (u_long)ita);
 	return (&ita->ita_mask);
 }
 
 static __inline void
 ipi_wait(void *cookie)
 {
-	volatile u_int *mask;
+	volatile cpumask_t *mask;
 
 	if ((mask = cookie) != NULL) {
 		atomic_clear_int(mask, PCPU_GET(cpumask));
 		while (*mask != 0)
 			;
 		mtx_unlock_spin(&ipi_mtx);
+		sched_unpin();
 	}
 }
 
@@ -242,35 +294,43 @@ ipi_wait(void *cookie)
 #ifndef	LOCORE
 
 static __inline void *
-ipi_dcache_page_inval(void *func, vm_paddr_t pa)
+ipi_dcache_page_inval(void *func __unused, vm_paddr_t pa __unused)
 {
 
 	return (NULL);
 }
 
 static __inline void *
-ipi_icache_page_inval(void *func, vm_paddr_t pa)
+ipi_icache_page_inval(void *func __unused, vm_paddr_t pa __unused)
 {
 
 	return (NULL);
 }
 
 static __inline void *
-ipi_tlb_context_demap(struct pmap *pm)
+ipi_rd(u_int cpu __unused, void *func __unused, u_long *val __unused)
 {
 
 	return (NULL);
 }
 
 static __inline void *
-ipi_tlb_page_demap(struct pmap *pm, vm_offset_t va)
+ipi_tlb_context_demap(struct pmap *pm __unused)
 {
 
 	return (NULL);
 }
 
 static __inline void *
-ipi_tlb_range_demap(struct pmap *pm, vm_offset_t start, vm_offset_t end)
+ipi_tlb_page_demap(struct pmap *pm __unused, vm_offset_t va __unused)
+{
+
+	return (NULL);
+}
+
+static __inline void *
+ipi_tlb_range_demap(struct pmap *pm __unused, vm_offset_t start __unused,
+    __unused vm_offset_t end)
 {
 
 	return (NULL);

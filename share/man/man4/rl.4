@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 1, 2008
+.Dd August 22, 2010
 .Dt RL 4
 .Os
 .Sh NAME
@@ -84,7 +84,6 @@ driver.
 The
 .Nm
 driver supports the following media types:
-.Pp
 .Bl -tag -width xxxxxxxxxxxxxxxxxxxx
 .It autoselect
 Enable autoselection of the media type and options.
@@ -118,7 +117,6 @@ modes.
 The
 .Nm
 driver supports the following media options:
-.Pp
 .Bl -tag -width xxxxxxxxxxxxxxxxxxxx
 .It full-duplex
 Force full duplex operation
@@ -203,6 +201,13 @@ SOHO (PRAGMATIC) UE-1211C
 .El
 .Sh LOADER TUNABLES
 .Bl -tag -width indent
+.It Va dev.rl.%unit.prefer_iomap
+This tunable controls which register mapping should be used on the
+specified device.
+A non-zero value enables I/O space register mapping.
+For controllers that have no I/O space register mapping this tunable
+should be set to 0 to use memory space register mapping.
+The default value is 1 to use I/O space register mapping.
 .It Va dev.rl.%unit.twister_enable
 Non-zero value enables the long cable tuning on the specified device.
 Disabled by default.

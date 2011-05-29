@@ -2,10 +2,10 @@
 # $FreeBSD$
 
 SOFTFLOAT_BITS?=64
-.PATH:		${MACHINE_ARCH}/softfloat \
+.PATH:		${LIBC_ARCH}/softfloat \
 		${.CURDIR}/softfloat/bits${SOFTFLOAT_BITS} ${.CURDIR}/softfloat
 
-CFLAGS+=	-I${.CURDIR}/${MACHINE_ARCH}/softfloat -I${.CURDIR}/softfloat
+CFLAGS+=	-I${.CURDIR}/${LIBC_ARCH}/softfloat -I${.CURDIR}/softfloat
 CFLAGS+=	-DSOFTFLOAT_FOR_GCC
 
 SRCS+=		softfloat.c

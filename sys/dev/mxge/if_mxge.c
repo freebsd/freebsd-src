@@ -553,7 +553,7 @@ mxge_firmware_probe(mxge_softc_t *sc)
 	 * Verify the max read request size was set to 4KB
 	 * before trying the test with 4KB.
 	 */
-	if (pci_find_extcap(dev, PCIY_EXPRESS, &reg) == 0) {
+	if (pci_find_cap(dev, PCIY_EXPRESS, &reg) == 0) {
 		pectl = pci_read_config(dev, reg + 0x8, 2);
 		if ((pectl & (5 << 12)) != (5 << 12)) {
 			device_printf(dev, "Max Read Req. size != 4k (0x%x\n",
@@ -882,6 +882,9 @@ mxge_send_cmd(mxge_softc_t *sc, uint32_t cmd, mxge_cmd_t *data)
 			break;
 		case MXGEFW_CMD_ERROR_BUSY:
 			err = EBUSY;
+			break;
+		case MXGEFW_CMD_ERROR_I2C_ABSENT:
+			err = ENXIO;
 			break;
 		default:
 			device_printf(sc->dev, 
@@ -1852,9 +1855,20 @@ mxge_encap_tso(struct mxge_slice_state *ss, struct mbuf *m,
 
 	tcp = (struct tcphdr *)((char *)ip + (ip->ip_hl << 2));
 	cum_len = -(ip_off + ((ip->ip_hl + tcp->th_off) << 2));
+	cksum_offset = ip_off + (ip->ip_hl << 2);
 
 	/* TSO implies checksum offload on this hardware */
-	cksum_offset = ip_off + (ip->ip_hl << 2);
+	if (__predict_false((m->m_pkthdr.csum_flags & (CSUM_TCP)) == 0)) {
+		/*
+		 * If packet has full TCP csum, replace it with pseudo hdr
+		 * sum that the NIC expects, otherwise the NIC will emit
+		 * packets with bad TCP checksums.
+		 */
+		m->m_pkthdr.csum_flags = CSUM_TCP;
+		m->m_pkthdr.csum_data = offsetof(struct tcphdr, th_sum);
+		tcp->th_sum = in_pseudo(ip->ip_src.s_addr, ip->ip_dst.s_addr,
+			htons(IPPROTO_TCP + (m->m_pkthdr.len - cksum_offset)));		
+	}
 	flags = MXGEFW_FLAGS_TSO_HDR | MXGEFW_FLAGS_FIRST;
 
 	
@@ -2397,10 +2411,7 @@ mxge_get_buf_big(struct mxge_slice_state *ss, bus_dmamap_t map, int idx)
 	mxge_rx_ring_t *rx = &ss->rx_big;
 	int cnt, err, i;
 
-	if (rx->cl_size == MCLBYTES)
-		m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
-	else
-		m = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, rx->cl_size);
+	m = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, rx->cl_size);
 	if (m == NULL) {
 		rx->alloc_fail++;
 		err = ENOBUFS;
@@ -2778,41 +2789,30 @@ static struct mxge_media_type mxge_sfp_media_types[] =
 	{0,		(1 << 7),	"Reserved"},
 	{IFM_10G_LRM,	(1 << 6),	"10GBASE-LRM"},
 	{IFM_10G_LR, 	(1 << 5),	"10GBASE-LR"},
-	{IFM_10G_SR,	(1 << 4),	"10GBASE-SR"}
+	{IFM_10G_SR,	(1 << 4),	"10GBASE-SR"},
+	{IFM_10G_TWINAX,(1 << 0),	"10GBASE-Twinax"}
 };
 
 static void
-mxge_set_media(mxge_softc_t *sc, int type)
+mxge_media_set(mxge_softc_t *sc, int media_type)
 {
-	sc->media_flags |= type;
-	ifmedia_add(&sc->media, sc->media_flags, 0, NULL);
-	ifmedia_set(&sc->media, sc->media_flags);
+
+	
+	ifmedia_add(&sc->media, IFM_ETHER | IFM_FDX | media_type, 
+		    0, NULL);
+	ifmedia_set(&sc->media, IFM_ETHER | IFM_FDX | media_type);
+	sc->current_media = media_type;
+	sc->media.ifm_media = sc->media.ifm_cur->ifm_media;
 }
 
-
-/*
- * Determine the media type for a NIC.  Some XFPs will identify
- * themselves only when their link is up, so this is initiated via a
- * link up interrupt.  However, this can potentially take up to
- * several milliseconds, so it is run via the watchdog routine, rather
- * than in the interrupt handler itself.   This need only be done
- * once, not each time the link is up.
- */
 static void
-mxge_media_probe(mxge_softc_t *sc)
+mxge_media_init(mxge_softc_t *sc)
 {
-	mxge_cmd_t cmd;
-	char *cage_type;
 	char *ptr;
-	struct mxge_media_type *mxge_media_types = NULL;
-	int i, err, ms, mxge_media_type_entries;
-	uint32_t byte;
+	int i;
 
-	sc->need_media_probe = 0;
-
-	/* if we've already set a media type, we're done */
-	if (sc->media_flags  != (IFM_ETHER | IFM_AUTO))
-		return;
+	ifmedia_removeall(&sc->media);
+	mxge_media_set(sc, IFM_AUTO);
 
 	/* 
 	 * parse the product code to deterimine the interface type
@@ -2823,6 +2823,7 @@ mxge_media_probe(mxge_softc_t *sc)
 	ptr = sc->product_code_string;
 	if (ptr == NULL) {
 		device_printf(sc->dev, "Missing product code\n");
+		return;
 	}
 
 	for (i = 0; i < 3; i++, ptr++) {
@@ -2835,17 +2836,44 @@ mxge_media_probe(mxge_softc_t *sc)
 	}
 	if (*ptr == 'C') {
 		/* -C is CX4 */
-		mxge_set_media(sc, IFM_10G_CX4);
-		return;
-	}
-	else if (*ptr == 'Q') {
+		sc->connector = MXGE_CX4;
+		mxge_media_set(sc, IFM_10G_CX4);
+	} else if (*ptr == 'Q') {
 		/* -Q is Quad Ribbon Fiber */
+		sc->connector = MXGE_QRF;
 		device_printf(sc->dev, "Quad Ribbon Fiber Media\n");
 		/* FreeBSD has no media type for Quad ribbon fiber */
-		return;
+	} else if (*ptr == 'R') {
+		/* -R is XFP */
+		sc->connector = MXGE_XFP;
+	} else if (*ptr == 'S' || *(ptr +1) == 'S') {
+		/* -S or -2S is SFP+ */
+		sc->connector = MXGE_SFP;
+	} else {
+		device_printf(sc->dev, "Unknown media type: %c\n", *ptr);
 	}
+}
 
-	if (*ptr == 'R') {
+/*
+ * Determine the media type for a NIC.  Some XFPs will identify
+ * themselves only when their link is up, so this is initiated via a
+ * link up interrupt.  However, this can potentially take up to
+ * several milliseconds, so it is run via the watchdog routine, rather
+ * than in the interrupt handler itself. 
+ */
+static void
+mxge_media_probe(mxge_softc_t *sc)
+{
+	mxge_cmd_t cmd;
+	char *cage_type;
+
+	struct mxge_media_type *mxge_media_types = NULL;
+	int i, err, ms, mxge_media_type_entries;
+	uint32_t byte;
+
+	sc->need_media_probe = 0;
+
+	if (sc->connector == MXGE_XFP) {
 		/* -R is XFP */
 		mxge_media_types = mxge_xfp_media_types;
 		mxge_media_type_entries = 
@@ -2853,9 +2881,7 @@ mxge_media_probe(mxge_softc_t *sc)
 			sizeof (mxge_xfp_media_types[0]);
 		byte = MXGE_XFP_COMPLIANCE_BYTE;
 		cage_type = "XFP";
-	}
-
-	if (*ptr == 'S' || *(ptr +1) == 'S') {
+	} else 	if (sc->connector == MXGE_SFP) {
 		/* -S or -2S is SFP+ */
 		mxge_media_types = mxge_sfp_media_types;
 		mxge_media_type_entries = 
@@ -2863,10 +2889,8 @@ mxge_media_probe(mxge_softc_t *sc)
 			sizeof (mxge_sfp_media_types[0]);
 		cage_type = "SFP+";
 		byte = 3;
-	}
-
-	if (mxge_media_types == NULL) {
-		device_printf(sc->dev, "Unknown media type: %c\n", *ptr);
+	} else {
+		/* nothing to do; media type cannot change */
 		return;
 	}
 
@@ -2909,7 +2933,10 @@ mxge_media_probe(mxge_softc_t *sc)
 		if (mxge_verbose)
 			device_printf(sc->dev, "%s:%s\n", cage_type,
 				      mxge_media_types[0].name);
-		mxge_set_media(sc, mxge_media_types[0].flag);
+		if (sc->current_media != mxge_media_types[0].flag) {
+			mxge_media_init(sc);
+			mxge_media_set(sc, mxge_media_types[0].flag);
+		}
 		return;
 	}
 	for (i = 1; i < mxge_media_type_entries; i++) {
@@ -2919,12 +2946,16 @@ mxge_media_probe(mxge_softc_t *sc)
 					      cage_type,
 					      mxge_media_types[i].name);
 
-			mxge_set_media(sc, mxge_media_types[i].flag);
+			if (sc->current_media != mxge_media_types[i].flag) {
+				mxge_media_init(sc);
+				mxge_media_set(sc, mxge_media_types[i].flag);
+			}
 			return;
 		}
 	}
-	device_printf(sc->dev, "%s media 0x%x unknown\n", cage_type,
-		      cmd.data0);
+	if (mxge_verbose)
+		device_printf(sc->dev, "%s media 0x%x unknown\n",
+			      cage_type, cmd.data0);
 
 	return;
 }
@@ -2988,10 +3019,12 @@ mxge_intr(void *arg)
 			sc->link_state = stats->link_up;
 			if (sc->link_state) {
 				if_link_state_change(sc->ifp, LINK_STATE_UP);
+				 sc->ifp->if_baudrate = IF_Gbps(10UL);
 				if (mxge_verbose)
 					device_printf(sc->dev, "link up\n");
 			} else {
 				if_link_state_change(sc->ifp, LINK_STATE_DOWN);
+				sc->ifp->if_baudrate = 0;
 				if (mxge_verbose)
 					device_printf(sc->dev, "link down\n");
 			}
@@ -3021,6 +3054,14 @@ mxge_intr(void *arg)
 static void
 mxge_init(void *arg)
 {
+	mxge_softc_t *sc = arg;
+	struct ifnet *ifp = sc->ifp;
+
+
+	mtx_lock(&sc->driver_mtx);
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+		(void) mxge_open(sc);
+	mtx_unlock(&sc->driver_mtx);
 }
 
 
@@ -3698,7 +3739,7 @@ mxge_setup_cfg_space(mxge_softc_t *sc)
 	uint16_t cmd, lnk, pectl;
 
 	/* find the PCIe link width and set max read request to 4KB*/
-	if (pci_find_extcap(dev, PCIY_EXPRESS, &reg) == 0) {
+	if (pci_find_cap(dev, PCIY_EXPRESS, &reg) == 0) {
 		lnk = pci_read_config(dev, reg + 0x12, 2);
 		sc->link_width = (lnk >> 4) & 0x3f;
 
@@ -3727,7 +3768,7 @@ mxge_read_reboot(mxge_softc_t *sc)
 	uint32_t vs;
 
 	/* find the vendor specific offset */
-	if (pci_find_extcap(dev, PCIY_VENDOR, &vs) != 0) {
+	if (pci_find_cap(dev, PCIY_VENDOR, &vs) != 0) {
 		device_printf(sc->dev,
 			      "could not find vendor specific offset\n");
 		return (uint32_t)-1;
@@ -4026,9 +4067,9 @@ mxge_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 	if (sc == NULL)
 		return;
 	ifmr->ifm_status = IFM_AVALID;
+	ifmr->ifm_active = IFM_ETHER | IFM_FDX;
 	ifmr->ifm_status |= sc->link_state ? IFM_ACTIVE : 0;
-	ifmr->ifm_active = IFM_AUTO | IFM_ETHER;
-	ifmr->ifm_active |= sc->link_state ? IFM_FDX : 0;
+	ifmr->ifm_active |= sc->current_media;
 }
 
 static int
@@ -4135,6 +4176,9 @@ mxge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		break;
 
 	case SIOCGIFMEDIA:
+		mtx_lock(&sc->driver_mtx);
+		mxge_media_probe(sc);
+		mtx_unlock(&sc->driver_mtx);
 		err = ifmedia_ioctl(ifp, (struct ifreq *)data, 
 				    &sc->media, command);
                 break;
@@ -4451,6 +4495,8 @@ mxge_add_msix_irqs(mxge_softc_t *sc)
 				      "message %d\n", i);
 			goto abort_with_intr;
 		}
+		bus_describe_intr(sc->dev, sc->msix_irq_res[i],
+				  sc->msix_ih[i], "s%d", i);
 	}
 
 	if (mxge_verbose) {
@@ -4609,15 +4655,12 @@ mxge_attach(device_t dev)
 	mxge_fetch_tunables(sc);
 
 	TASK_INIT(&sc->watchdog_task, 1, mxge_watchdog_task, sc);
-	sc->tq = taskqueue_create_fast("mxge_taskq", M_WAITOK,
-				       taskqueue_thread_enqueue,
-				       &sc->tq);
+	sc->tq = taskqueue_create("mxge_taskq", M_WAITOK,
+				  taskqueue_thread_enqueue, &sc->tq);
 	if (sc->tq == NULL) {
 		err = ENOMEM;
 		goto abort_with_nothing;
 	}
-	taskqueue_start_threads(&sc->tq, 1, PI_NET, "%s taskq",
-				device_get_nameunit(sc->dev));
 
 	err = bus_dma_tag_create(NULL,			/* parent */
 				 1,			/* alignment */
@@ -4723,7 +4766,7 @@ mxge_attach(device_t dev)
 	err = mxge_alloc_rings(sc);
 	if (err != 0) {
 		device_printf(sc->dev, "failed to allocate rings\n");
-		goto abort_with_dmabench;
+		goto abort_with_slices;
 	}
 
 	err = mxge_add_irq(sc);
@@ -4734,7 +4777,7 @@ mxge_attach(device_t dev)
 
 	ifp->if_baudrate = IF_Gbps(10UL);
 	ifp->if_capabilities = IFCAP_RXCSUM | IFCAP_TXCSUM | IFCAP_TSO4 |
-		IFCAP_VLAN_MTU;
+		IFCAP_VLAN_MTU | IFCAP_LINKSTATE;
 #ifdef INET
 	ifp->if_capabilities |= IFCAP_LRO;
 #endif
@@ -4768,7 +4811,7 @@ mxge_attach(device_t dev)
 	/* Initialise the ifmedia structure */
 	ifmedia_init(&sc->media, 0, mxge_media_change, 
 		     mxge_media_status);
-	mxge_set_media(sc, IFM_ETHER | IFM_AUTO);
+	mxge_media_init(sc);
 	mxge_media_probe(sc);
 	sc->dying = 0;
 	ether_ifattach(ifp, sc->mac_addr);
@@ -4781,6 +4824,8 @@ mxge_attach(device_t dev)
 	ifp->if_transmit = mxge_transmit;
 	ifp->if_qflush = mxge_qflush;
 #endif
+	taskqueue_start_threads(&sc->tq, 1, PI_NET, "%s taskq",
+				device_get_nameunit(sc->dev));
 	callout_reset(&sc->co_hdl, mxge_ticks, mxge_tick, sc);
 	return 0;
 

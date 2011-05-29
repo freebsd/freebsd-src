@@ -1,6 +1,6 @@
 .\" Copyright (c) 1999 Mitsuru IWASAKI <iwasaki@FreeBSD.org>
 .\" Copyright (c) 1999 KOIE Hidetaka <koie@suri.co.jp>
-.\" Copyright (c) 1999 Yoshihiko SARUMARU Aq <mistral@imasy.or.jp>
+.\" Copyright (c) 1999 Yoshihiko SARUMARU <mistral@imasy.or.jp>
 .\" Copyright (c) 1999 Norihiro Kumagai <kuma@nk.rim.or.jp>
 .\" All rights reserved.
 .\"
@@ -99,7 +99,9 @@ monitored events.
 .Pp
 If the
 .Nm
-process receives a SIGHUP, it will reread its configuration file and
+process receives a
+.Dv SIGHUP ,
+it will reread its configuration file and
 notify the APM device driver of any changes to its configuration.
 .Pp
 The
@@ -141,7 +143,6 @@ The structure of the
 .Nm
 configuration file is quite simple.
 For example:
-.Pp
 .Bd -literal
 apm_event SUSPENDREQ {
        exec "sync && sync && sync";
@@ -159,14 +160,13 @@ to receive the APM event
 command 3 times and wait for a while, then execute
 .Nm zzz ( Ns Nm apm Fl z )
 to put the system in the suspend state.
-.Pp
 .Bl -bullet
 .It
 The apm_event keyword
 .Bd -ragged -offset indent
 .Ql apm_event
 is the keyword which indicates the start of configuration for
-each events.
+each event.
 .Ed
 .It
 APM events

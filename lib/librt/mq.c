@@ -39,6 +39,7 @@
 #include <signal.h>
 #include "sigev_thread.h"
 #include "un-namespace.h"
+#include "libc_private.h"
 
 extern int	__sys_kmq_notify(int, const struct sigevent *);
 extern int	__sys_kmq_open(const char *, int, mode_t,
@@ -200,12 +201,11 @@ ssize_t
 __mq_timedreceive_cancel(mqd_t mqd, char *buf, size_t len,
 	unsigned *prio, const struct timespec *timeout)
 {
-	int oldtype;
 	int ret;
 
-	_pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, &oldtype);
+	_pthread_cancel_enter(1);
 	ret = __sys_kmq_timedreceive(mqd->oshandle, buf, len, prio, timeout);
-	_pthread_setcanceltype(oldtype, NULL);
+	_pthread_cancel_leave(ret == -1);
 	return (ret);
 }
 
@@ -219,12 +219,11 @@ __mq_receive(mqd_t mqd, char *buf, size_t len, unsigned *prio)
 ssize_t
 __mq_receive_cancel(mqd_t mqd, char *buf, size_t len, unsigned *prio)
 {
-	int oldtype;
 	int ret;
 
-	_pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, &oldtype);
+	_pthread_cancel_enter(1);
 	ret = __sys_kmq_timedreceive(mqd->oshandle, buf, len, prio, NULL);
-	_pthread_setcanceltype(oldtype, NULL);
+	_pthread_cancel_leave(ret == -1);
 	return (ret);
 }
 ssize_t
@@ -239,12 +238,11 @@ ssize_t
 __mq_timedsend_cancel(mqd_t mqd, char *buf, size_t len,
 	unsigned prio, const struct timespec *timeout)
 {
-	int oldtype;
 	int ret;
 
-	_pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, &oldtype);
+	_pthread_cancel_enter(1);
 	ret = __sys_kmq_timedsend(mqd->oshandle, buf, len, prio, timeout);
-	_pthread_setcanceltype(oldtype, NULL);
+	_pthread_cancel_leave(ret == -1);
 	return (ret);
 }
 
@@ -259,12 +257,11 @@ __mq_send(mqd_t mqd, char *buf, size_t len, unsigned prio)
 ssize_t
 __mq_send_cancel(mqd_t mqd, char *buf, size_t len, unsigned prio)
 {
-	int oldtype;
 	int ret;
 
-	_pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, &oldtype);
+	_pthread_cancel_enter(1);
 	ret = __sys_kmq_timedsend(mqd->oshandle, buf, len, prio, NULL);
-	_pthread_setcanceltype(oldtype, NULL);
+	_pthread_cancel_leave(ret == -1);
 	return (ret);
 }
 

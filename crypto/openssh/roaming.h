@@ -1,4 +1,4 @@
-/* $OpenBSD: roaming.h,v 1.4 2009/06/27 09:32:43 andreas Exp $ */
+/* $OpenBSD: roaming.h,v 1.5 2009/10/24 11:11:58 andreas Exp $ */
 /*
  * Copyright (c) 2004-2009 AppGate Network Security AB
  *
@@ -19,12 +19,17 @@
 #define ROAMING_H
 
 #define DEFAULT_ROAMBUF 65536
+#define ROAMING_REQUEST "roaming@appgate.com"
 
+extern int roaming_enabled;
 extern int resume_in_progress;
 
+void	request_roaming(void);
 int	get_snd_buf_size(void);
 int	get_recv_buf_size(void);
 void	add_recv_bytes(u_int64_t);
+int	wait_for_roaming_reconnect(void);
+void	roaming_reply(int, u_int32_t, void *);
 void	set_out_buffer_size(size_t);
 ssize_t	roaming_write(int, const void *, size_t, int *);
 ssize_t	roaming_read(int, void *, size_t, int *);
@@ -33,6 +38,7 @@ u_int64_t	get_recv_bytes(void);
 u_int64_t	get_sent_bytes(void);
 void	roam_set_bytes(u_int64_t, u_int64_t);
 void	resend_bytes(int, u_int64_t *);
+void	calculate_new_key(u_int64_t *, u_int64_t, u_int64_t);
 int	resume_kex(void);
 
 #endif /* ROAMING */

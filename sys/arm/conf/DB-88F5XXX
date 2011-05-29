@@ -74,6 +74,7 @@ device		iicbus
 device		ds133x
 
 # USB
+options 	USB_DEBUG	# enable debug msgs
 device		usb
 device		ehci
 device		umass
@@ -82,5 +83,8 @@ device		pass
 device		da
 
 # SATA
-device		ata
-device		atadisk
+device		mvs
+
+# Flattened Device Tree
+options 	FDT
+makeoptions	FDT_DTS_FILE=db88f5281.dts

@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_panic.h"
 #include "opt_show_busybufs.h"
 #include "opt_sched.h"
+#include "opt_watchdog.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -62,9 +63,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/reboot.h>
 #include <sys/resourcevar.h>
 #include <sys/sched.h>
-#include <sys/smp.h>		/* smp_active */
+#include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/sysproto.h>
+#ifdef SW_WATCHDOG
+#include <sys/watchdog.h>
+#endif
 
 #include <ddb/ddb.h>
 
@@ -98,21 +102,24 @@ int debugger_on_panic = 0;
 #else
 int debugger_on_panic = 1;
 #endif
-SYSCTL_INT(_debug, OID_AUTO, debugger_on_panic, CTLFLAG_RW,
+SYSCTL_INT(_debug, OID_AUTO, debugger_on_panic, CTLFLAG_RW | CTLFLAG_TUN,
 	&debugger_on_panic, 0, "Run debugger on kernel panic");
+TUNABLE_INT("debug.debugger_on_panic", &debugger_on_panic);
 
 #ifdef KDB_TRACE
-int trace_on_panic = 1;
+static int trace_on_panic = 1;
 #else
-int trace_on_panic = 0;
+static int trace_on_panic = 0;
 #endif
-SYSCTL_INT(_debug, OID_AUTO, trace_on_panic, CTLFLAG_RW,
+SYSCTL_INT(_debug, OID_AUTO, trace_on_panic, CTLFLAG_RW | CTLFLAG_TUN,
 	&trace_on_panic, 0, "Print stack trace on kernel panic");
+TUNABLE_INT("debug.trace_on_panic", &trace_on_panic);
 #endif /* KDB */
 
-int sync_on_panic = 0;
-SYSCTL_INT(_kern, OID_AUTO, sync_on_panic, CTLFLAG_RW,
+static int sync_on_panic = 0;
+SYSCTL_INT(_kern, OID_AUTO, sync_on_panic, CTLFLAG_RW | CTLFLAG_TUN,
 	&sync_on_panic, 0, "Do a sync before rebooting from a panic");
+TUNABLE_INT("kern.sync_on_panic", &sync_on_panic);
 
 SYSCTL_NODE(_kern, OID_AUTO, shutdown, CTLFLAG_RW, 0, "Shutdown environment");
 
@@ -130,7 +137,6 @@ static struct dumperinfo dumper;	/* our selected dumper */
 static struct pcb dumppcb;		/* Registers. */
 static lwpid_t dumptid;			/* Thread ID. */
 
-static void boot(int) __dead2;
 static void poweroff_wait(void *, int);
 static void shutdown_halt(void *junk, int howto);
 static void shutdown_panic(void *junk, int howto);
@@ -142,7 +148,7 @@ shutdown_conf(void *unused)
 {
 
 	EVENTHANDLER_REGISTER(shutdown_final, poweroff_wait, NULL,
-	    SHUTDOWN_PRI_FIRST + 100);
+	    SHUTDOWN_PRI_FIRST);
 	EVENTHANDLER_REGISTER(shutdown_final, shutdown_halt, NULL,
 	    SHUTDOWN_PRI_LAST + 100);
 	EVENTHANDLER_REGISTER(shutdown_final, shutdown_panic, NULL,
@@ -170,7 +176,7 @@ reboot(struct thread *td, struct reboot_args *uap)
 		error = priv_check(td, PRIV_REBOOT);
 	if (error == 0) {
 		mtx_lock(&Giant);
-		boot(uap->opt);
+		kern_reboot(uap->opt);
 		mtx_unlock(&Giant);
 	}
 	return (error);
@@ -194,7 +200,7 @@ shutdown_nice(int howto)
 		PROC_UNLOCK(initproc);
 	} else {
 		/* No init(8) running, so simply reboot */
-		boot(RB_NOSYNC);
+		kern_reboot(RB_NOSYNC);
 	}
 	return;
 }
@@ -266,8 +272,8 @@ isbufbusy(struct buf *bp)
 /*
  * Shutdown the system cleanly to prepare for reboot, halt, or power off.
  */
-static void
-boot(int howto)
+void
+kern_reboot(int howto)
 {
 	static int first_buf_printf = 1;
 
@@ -280,7 +286,7 @@ boot(int howto)
 	thread_lock(curthread);
 	sched_bind(curthread, 0);
 	thread_unlock(curthread);
-	KASSERT(PCPU_GET(cpuid) == 0, ("boot: not running on cpu 0"));
+	KASSERT(PCPU_GET(cpuid) == 0, ("%s: not running on cpu 0", __func__));
 #endif
 	/* We're in the process of rebooting. */
 	rebooting = 1;
@@ -308,6 +314,9 @@ boot(int howto)
 
 		waittime = 0;
 
+#ifdef SW_WATCHDOG
+		wdog_kern_pat(WD_LASTVAL);
+#endif
 		sync(curthread, NULL);
 
 		/*
@@ -333,6 +342,9 @@ boot(int howto)
 			if (nbusy < pbusy)
 				iter = 0;
 			pbusy = nbusy;
+#ifdef SW_WATCHDOG
+			wdog_kern_pat(WD_LASTVAL);
+#endif
 			sync(curthread, NULL);
 
 #ifdef PREEMPTION
@@ -485,23 +497,30 @@ static void
 shutdown_reset(void *junk, int howto)
 {
 
-	/*
-	 * Disable interrupts on CPU0 in order to avoid fast handlers
-	 * to preempt the stopping process and to deadlock against other
-	 * CPUs.
-	 */
-	spinlock_enter();
-
 	printf("Rebooting...\n");
 	DELAY(1000000);	/* wait 1 sec for printf's to complete and be read */
+
+	/*
+	 * Acquiring smp_ipi_mtx here has a double effect:
+	 * - it disables interrupts avoiding CPU0 preemption
+	 *   by fast handlers (thus deadlocking  against other CPUs)
+	 * - it avoids deadlocks against smp_rendezvous() or, more 
+	 *   generally, threads busy-waiting, with this spinlock held,
+	 *   and waiting for responses by threads on other CPUs
+	 *   (ie. smp_tlb_shootdown()).
+	 *
+	 * For the !SMP case it just needs to handle the former problem.
+	 */
+#ifdef SMP
+	mtx_lock_spin(&smp_ipi_mtx);
+#else
+	spinlock_enter();
+#endif
+
 	/* cpu_boot(howto); */ /* doesn't do anything at the moment */
 	cpu_reset();
 	/* NOTREACHED */ /* assuming reset worked */
 }
-
-#ifdef SMP
-static u_int panic_cpu = NOCPU;
-#endif
 
 /*
  * Panic is called on unresolvable fatal errors.  It prints "panic: mesg",
@@ -511,6 +530,9 @@ static u_int panic_cpu = NOCPU;
 void
 panic(const char *fmt, ...)
 {
+#ifdef SMP
+	static volatile u_int panic_cpu = NOCPU;
+#endif
 	struct thread *td = curthread;
 	int bootopt, newpanic;
 	va_list ap;
@@ -576,7 +598,7 @@ panic(const char *fmt, ...)
 	if (!sync_on_panic)
 		bootopt |= RB_NOSYNC;
 	critical_exit();
-	boot(bootopt);
+	kern_reboot(bootopt);
 }
 
 /*

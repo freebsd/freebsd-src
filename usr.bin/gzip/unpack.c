@@ -40,7 +40,7 @@
  * tree levels, each level would consume 1 byte (See [1]).
  *
  * After the symbol count table, there is the symbol table, storing
- * symbols represented by coresponding leaf node.  EOB is not being
+ * symbols represented by corresponding leaf node.  EOB is not being
  * explicitly transmitted (not necessary anyway) in the symbol table.
  *
  * Compressed data goes after the symbol table.
@@ -61,7 +61,7 @@
 /*
  * unpack descriptor
  *
- * Represent the huffman tree in a similiar way that pack(1) would
+ * Represent the huffman tree in a similar way that pack(1) would
  * store in a packed file.  We store all symbols in a linear table,
  * and store pointers to each level's first symbol.  In addition to
  * that, maintain two counts for each level: inner nodes count and
@@ -92,7 +92,7 @@ typedef struct {
  * Caller is responsible to make sure that all of these pointers are
  * initialized (in our case, they all point to valid memory block).
  * We don't zero out pointers here because nobody else would ever
- * reference the memory block without scrubing them.
+ * reference the memory block without scrubbing them.
  */
 static void
 unpack_descriptor_fini(unpack_descriptor_t *unpackd)
@@ -117,7 +117,7 @@ unpackd_fill_inodesin(const unpack_descriptor_t *unpackd, int level)
 	/*
 	 * The internal nodes would be 1/2 of total internal nodes and
 	 * leaf nodes in the next level.  For the last level there
-	 * would be no internal node by defination.
+	 * would be no internal node by definition.
 	 */
 	if (level < unpackd->treelevels) {
 		unpackd_fill_inodesin(unpackd, level + 1);
@@ -140,7 +140,7 @@ accepted_bytes(off_t *bytes_in, off_t newbytes)
 
 /*
  * Read file header and construct the tree.  Also, prepare the buffered I/O
- * for decode rountine.
+ * for decode routine.
  *
  * Return value is uncompressed size.
  */
@@ -195,7 +195,7 @@ unpack_parse_header(int in, int out, char *pre, size_t prelen, off_t *bytes_in,
 	/* We count from 0 so adjust to match array upper bound */
 	unpackd->treelevels--;
 
-	/* Read the levels symbol count table and caculate total */
+	/* Read the levels symbol count table and calculate total */
 	unpackd->symbol_size = 1;		/* EOB */
 	for (i = 0; i <= unpackd->treelevels; i++) {
 		if ((thisbyte = fgetc(unpackd->fpIn)) == EOF)
@@ -237,7 +237,7 @@ unpack_parse_header(int in, int out, char *pre, size_t prelen, off_t *bytes_in,
 
 	/*
 	 * The symbolsin table has been constructed now.
-	 * Caculate the internal nodes count table based on it.
+	 * Calculate the internal nodes count table based on it.
 	 */
 	unpackd_fill_inodesin(unpackd, 0);
 }
@@ -312,7 +312,14 @@ unpack(int in, int out, char *pre, size_t prelen, off_t *bytes_in)
 {
 	unpack_descriptor_t	unpackd;
 
-	unpack_parse_header(dup(in), dup(out), pre, prelen, bytes_in, &unpackd);
+	in = dup(in);
+	if (in == -1)
+		maybe_err("dup");
+	out = dup(out);
+	if (out == -1)
+		maybe_err("dup");
+
+	unpack_parse_header(in, out, pre, prelen, bytes_in, &unpackd);
 	unpack_decode(&unpackd, bytes_in);
 	unpack_descriptor_fini(&unpackd);
 

@@ -106,12 +106,6 @@ struct wpi_amrr {
 	int	recovery;
 };
 
-struct wpi_node {
-        struct  ieee80211_node ni;      /* must be the first */
-        struct  ieee80211_amrr_node     amn;
-};
-#define	WPI_NODE(ni)	((struct wpi_node *)(ni))
-
 struct wpi_power_sample {
 	uint8_t	index;
 	int8_t	power;
@@ -127,7 +121,6 @@ struct wpi_power_group {
 
 struct wpi_vap {
 	struct ieee80211vap	vap;
-	struct ieee80211_amrr	amrr;
 
 	int			(*newstate)(struct ieee80211vap *,
 				    enum ieee80211_state, int);

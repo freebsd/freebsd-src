@@ -26,26 +26,5 @@
  * $FreeBSD$
  */
 
-#include "bfd.h"
-#include "sysdep.h"
-#include "elf-bfd.h"
-
-/* The kernel recognizes executables as valid only if they carry a
-   "FreeBSD" label in the ELF header.  So we put this label on all
-   executables and (for simplicity) also all other object files.  */
-
-static void elf_fbsd_post_process_headers
-  PARAMS ((bfd *, struct bfd_link_info *));
-
-static void
-elf_fbsd_post_process_headers (abfd, link_info)
-     bfd * abfd;
-     struct bfd_link_info * link_info ATTRIBUTE_UNUSED;
-{
-  Elf_Internal_Ehdr * i_ehdrp;	/* ELF file header, internal form.  */
-
-  i_ehdrp = elf_elfheader (abfd);
-
-  /* Put an ABI label supported by FreeBSD >= 4.1.  */
-  i_ehdrp->e_ident[EI_OSABI] = ELFOSABI_FREEBSD;
-}
+#define ELF_OSABI				ELFOSABI_FREEBSD
+#define elf_backend_post_process_headers	_bfd_elf_set_osabi

@@ -19,11 +19,9 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2010 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 /*
  * Common routines used by zfs and zpool property management.
@@ -67,7 +65,7 @@ zprop_get_numprops(zfs_type_t type)
 }
 
 void
-register_impl(int prop, const char *name, zprop_type_t type,
+zprop_register_impl(int prop, const char *name, zprop_type_t type,
     uint64_t numdefault, const char *strdefault, zprop_attr_t attr,
     int objset_types, const char *values, const char *colname,
     boolean_t rightalign, boolean_t visible, const zprop_index_t *idx_tbl)
@@ -78,6 +76,8 @@ register_impl(int prop, const char *name, zprop_type_t type,
 	pd = &prop_tbl[prop];
 
 	ASSERT(pd->pd_name == NULL || pd->pd_name == name);
+	ASSERT(name != NULL);
+	ASSERT(colname != NULL);
 
 	pd->pd_name = name;
 	pd->pd_propnum = prop;
@@ -91,40 +91,44 @@ register_impl(int prop, const char *name, zprop_type_t type,
 	pd->pd_rightalign = rightalign;
 	pd->pd_visible = visible;
 	pd->pd_table = idx_tbl;
+	pd->pd_table_size = 0;
+	while (idx_tbl && (idx_tbl++)->pi_name != NULL)
+		pd->pd_table_size++;
 }
 
 void
-register_string(int prop, const char *name, const char *def,
+zprop_register_string(int prop, const char *name, const char *def,
     zprop_attr_t attr, int objset_types, const char *values,
     const char *colname)
 {
-	register_impl(prop, name, PROP_TYPE_STRING, 0, def, attr,
+	zprop_register_impl(prop, name, PROP_TYPE_STRING, 0, def, attr,
 	    objset_types, values, colname, B_FALSE, B_TRUE, NULL);
 
 }
 
 void
-register_number(int prop, const char *name, uint64_t def, zprop_attr_t attr,
-    int objset_types, const char *values, const char *colname)
+zprop_register_number(int prop, const char *name, uint64_t def,
+    zprop_attr_t attr, int objset_types, const char *values,
+    const char *colname)
 {
-	register_impl(prop, name, PROP_TYPE_NUMBER, def, NULL, attr,
+	zprop_register_impl(prop, name, PROP_TYPE_NUMBER, def, NULL, attr,
 	    objset_types, values, colname, B_TRUE, B_TRUE, NULL);
 }
 
 void
-register_index(int prop, const char *name, uint64_t def, zprop_attr_t attr,
-    int objset_types, const char *values, const char *colname,
-    const zprop_index_t *idx_tbl)
+zprop_register_index(int prop, const char *name, uint64_t def,
+    zprop_attr_t attr, int objset_types, const char *values,
+    const char *colname, const zprop_index_t *idx_tbl)
 {
-	register_impl(prop, name, PROP_TYPE_INDEX, def, NULL, attr,
+	zprop_register_impl(prop, name, PROP_TYPE_INDEX, def, NULL, attr,
 	    objset_types, values, colname, B_TRUE, B_TRUE, idx_tbl);
 }
 
 void
-register_hidden(int prop, const char *name, zprop_type_t type,
+zprop_register_hidden(int prop, const char *name, zprop_type_t type,
     zprop_attr_t attr, int objset_types, const char *colname)
 {
-	register_impl(prop, name, type, 0, NULL, attr,
+	zprop_register_impl(prop, name, type, 0, NULL, attr,
 	    objset_types, NULL, colname, B_FALSE, B_FALSE, NULL);
 }
 
@@ -205,9 +209,6 @@ propname_match(const char *p, size_t len, zprop_desc_t *prop_entry)
 #ifndef _KERNEL
 	const char *colname = prop_entry->pd_colname;
 	int c;
-
-	if (colname == NULL)
-		return (B_FALSE);
 #endif
 
 	if (len == strlen(propname) &&
@@ -215,7 +216,7 @@ propname_match(const char *p, size_t len, zprop_desc_t *prop_entry)
 		return (B_TRUE);
 
 #ifndef _KERNEL
-	if (len != strlen(colname))
+	if (colname == NULL || len != strlen(colname))
 		return (B_FALSE);
 
 	for (c = 0; c < len; c++)
@@ -310,6 +311,25 @@ zprop_index_to_string(int prop, uint64_t index, const char **string,
 	}
 
 	return (-1);
+}
+
+/*
+ * Return a random valid property value.  Used by ztest.
+ */
+uint64_t
+zprop_random_value(int prop, uint64_t seed, zfs_type_t type)
+{
+	zprop_desc_t *prop_tbl;
+	const zprop_index_t *idx_tbl;
+
+	ASSERT((uint_t)prop < zprop_get_numprops(type));
+	prop_tbl = zprop_get_proptable(type);
+	idx_tbl = prop_tbl[prop].pd_table;
+
+	if (idx_tbl == NULL)
+		return (seed);
+
+	return (idx_tbl[seed % prop_tbl[prop].pd_table_size].pi_value);
 }
 
 const char *

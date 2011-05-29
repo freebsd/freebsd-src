@@ -28,60 +28,10 @@
 
 #include <machine/asm.h>
 #include <machine/cpuregs.h>
-#include <machine/endian.h>
-
-/*
- * We compile a 32-bit kernel to run on the SB-1 processor which is a 64-bit
- * processor. It has some registers that must be accessed using 64-bit load
- * and store instructions.
- *
- * So we have to resort to assembly because the compiler does not emit the
- * 'ld' and 'sd' instructions since it thinks that it is compiling for a
- * 32-bit mips processor.
- */
 
 .set	mips64
 .set	noat
 .set	noreorder
-
-/*
- * Parameters:		uint32_t ptr
- * Return value: 	*(uint64_t *)ptr
- */
-LEAF(sb_load64)
-	ld      v1, 0(a0)	/* result = *(uint64_t *)ptr */
-	move	v0, v1
-#if _BYTE_ORDER == _BIG_ENDIAN
-	dsll32	v1, v1, 0
-	dsrl32	v1, v1, 0	/* v1 = lower_uint32(result) */
-	jr	ra
-	dsrl32	v0, v0, 0	/* v0 = upper_uint32(result) */
-#else
-	dsll32	v0, v0, 0
-	dsrl32	v0, v0, 0	/* v0 = lower_uint32(result) */
-	jr	ra
-	dsrl32	v1, v1, 0	/* v1 = upper_uint32(result) */
-#endif
-END(sb_load64)
-
-/*
- * Parameters:		uint32_t ptr, uint64_t val
- * Return value:	void
- */
-LEAF(sb_store64)
-#if _BYTE_ORDER == _BIG_ENDIAN
-	dsll32	a2, a2, 0	/* a2 = upper_uint32(val) */
-	dsll32	a3, a3, 0	/* a3 = lower_uint32(val) */
-	dsrl32	a3, a3, 0
-#else
-	dsll32	a3, a3, 0	/* a3 = upper_uint32(val) */
-	dsll32	a2, a2, 0	/* a2 = lower_uint32(val) */
-	dsrl32	a2, a2, 0
-#endif
-	or	t0, a2, a3
-	jr	ra
-	sd	t0, 0(a0)
-END(sb_store64)
 
 #ifdef SMP
 /*

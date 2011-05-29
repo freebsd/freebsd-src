@@ -142,7 +142,8 @@ struct ieee80211_rx_ampdu {
 	int		rxa_age;	/* age of oldest frame in window */
 	int		rxa_nframes;	/* frames since ADDBA */
 	struct mbuf *rxa_m[IEEE80211_AGGR_BAWMAX];
-	uint64_t	rxa_pad[4];
+	void		*rxa_private;
+	uint64_t	rxa_pad[3];
 };
 
 void	ieee80211_ht_attach(struct ieee80211com *);
@@ -158,7 +159,7 @@ struct ieee80211_mcs_rates {
 	uint16_t	ht40_rate_800ns;
 	uint16_t	ht40_rate_400ns;
 };
-extern const struct ieee80211_mcs_rates ieee80211_htrates[16];
+extern const struct ieee80211_mcs_rates ieee80211_htrates[];
 const struct ieee80211_htrateset *ieee80211_get_suphtrates(
 		struct ieee80211com *, const struct ieee80211_channel *);
 

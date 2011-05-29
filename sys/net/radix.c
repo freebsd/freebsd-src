@@ -50,8 +50,8 @@
 #include <stdio.h>
 #include <strings.h>
 #include <stdlib.h>
-#define log(x, arg...)  fprintf(stderr, ## arg)
-#define panic(x)        fprintf(stderr, "PANIC: %s", x), exit(1)
+#define log(x, arg...)	fprintf(stderr, ## arg)
+#define panic(x)	fprintf(stderr, "PANIC: %s", x), exit(1)
 #define min(a, b) ((a) < (b) ? (a) : (b) )
 #include <net/radix.h>
 #endif /* !_KERNEL */
@@ -761,8 +761,10 @@ on2:
 		if (m->rm_flags & RNF_NORMAL) {
 			mmask = m->rm_leaf->rn_mask;
 			if (tt->rn_flags & RNF_NORMAL) {
+#if !defined(RADIX_MPATH)
 			    log(LOG_ERR,
 			        "Non-unique normal route, mask not entered\n");
+#endif
 				return tt;
 			}
 		} else
@@ -1158,6 +1160,22 @@ rn_inithead(head, off)
 	rnh->rnh_walktree = rn_walktree;
 	rnh->rnh_walktree_from = rn_walktree_from;
 	rnh->rnh_treetop = t;
+	return (1);
+}
+
+int
+rn_detachhead(void **head)
+{
+	struct radix_node_head *rnh;
+
+	KASSERT((head != NULL && *head != NULL),
+	    ("%s: head already freed", __func__));
+	rnh = *head;
+	
+	/* Free <left,root,right> nodes. */
+	Free(rnh);
+
+	*head = NULL;
 	return (1);
 }
 

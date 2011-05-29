@@ -1,5 +1,5 @@
 /*
- * Copryight 1997 Sean Eric Fagan
+ * Copyright 1997 Sean Eric Fagan
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -518,7 +518,7 @@ get_string(pid_t pid, void *offset, int max)
 			buf = realloc(buf, totalsize);
 			size = BLOCKSIZE;
 		} else {
-			buf[totalsize] = '\0';
+			buf[totalsize - 1] = '\0';
 			return (buf);
 		}
 	}

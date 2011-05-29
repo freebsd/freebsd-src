@@ -15,7 +15,9 @@ LDIRS=	BSD_daemon \
 	find_interface \
 	hast \
 	ibcs2 \
+	indent \
 	ipfw \
+	jails \
 	kld \
 	libvgl \
 	mdoc \
@@ -77,7 +79,9 @@ XFILES=	BSD_daemon/FreeBSD.pfa \
 	hast/vip-up.sh \
 	ibcs2/README \
 	ibcs2/hello.uu \
+	indent/indent.pro \
 	ipfw/change_rules.sh \
+	jails/README \
 	kld/Makefile \
 	kld/cdev/Makefile \
 	kld/cdev/README \
@@ -95,7 +99,10 @@ XFILES=	BSD_daemon/FreeBSD.pfa \
 	kld/firmware/fwconsumer/Makefile \
 	kld/firmware/fwconsumer/fw_consumer.c \
 	kld/firmware/fwimage/Makefile \
-	kld/firmware/fwimage/firmware.img \
+	kld/firmware/fwimage/firmware.img.uu \
+	kld/khelp/Makefile \
+	kld/khelp/README \
+	kld/khelp/h_example.c \
 	kld/syscall/Makefile \
 	kld/syscall/module/Makefile \
 	kld/syscall/module/syscall.c \
@@ -114,6 +121,8 @@ XFILES=	BSD_daemon/FreeBSD.pfa \
 	netgraph/ngctl \
 	netgraph/raw \
 	netgraph/udp.tunnel \
+	netgraph/virtual.chain \
+	netgraph/virtual.lan \
 	nwclient/dot.nwfsrc \
 	nwclient/nwfs.sh.sample \
 	perfmon/Makefile \
@@ -166,6 +175,7 @@ XFILES=	BSD_daemon/FreeBSD.pfa \
 	ses/setobjstat/setobjstat.0 \
 	ses/srcs/chpmon.c \
 	ses/srcs/eltsub.c \
+	ses/srcs/eltsub.h \
 	ses/srcs/getencstat.c \
 	ses/srcs/getnobj.c \
 	ses/srcs/getobjmap.c \

@@ -2,10 +2,6 @@
 
 # Where to find the libarchive sources
 LA_SRCDIR=${.CURDIR}/..
-.PATH: ${LA_SRCDIR}
-
-# Get a list of all libarchive source files
-LA_SRCS!=make -f ${LA_SRCDIR}/Makefile -V SRCS
 
 TESTS= \
 	test_acl_basic.c			\
@@ -113,8 +109,8 @@ TESTS= \
 	test_write_open_memory.c
 
 
-# Build the test program using all libarchive sources + the test sources.
-SRCS= ${LA_SRCS}				\
+# Build the test program.
+SRCS= \
 	${TESTS}				\
 	list.h					\
 	main.c					\
@@ -125,14 +121,11 @@ NO_MAN=yes
 PROG=libarchive_test
 INTERNALPROG=yes  # Don't install this; it's just for testing
 DPADD=${LIBBZ2} ${LIBZ} ${LIBMD} ${LIBCRYPTO} ${LIBBSDXML}
-CFLAGS+= -DPLATFORM_CONFIG_H=\"config_freebsd.h\"
-LDADD= -lz -lbz2 -lmd -lcrypto -lbsdxml
+LDADD= -L ${.OBJDIR}/.. -larchive
+LDADD+= -lz -lbz2 -llzma -lmd -lcrypto -lbsdxml
 CFLAGS+= -g
 CFLAGS+= -I${LA_SRCDIR} -I.
-
-# Uncomment to build and test lzma and xz support via liblzma
-#CFLAGS+= -I/usr/local/include -DHAVE_LIBLZMA=1 -DHAVE_LZMA_H=1
-#LDADD+= -L/usr/local/lib -llzma
+CFLAGS+= -DHAVE_LIBLZMA=1 -DHAVE_LZMA_H=1
 
 # Uncomment to link against dmalloc
 #LDADD+= -L/usr/local/lib -ldmalloc

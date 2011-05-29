@@ -10,6 +10,7 @@ SUBDIR=	${_3dfx} \
 	accf_http \
 	${_acpi} \
 	ae \
+	${_aesni} \
 	age \
 	${_agp} \
 	aha \
@@ -20,6 +21,7 @@ SUBDIR=	${_3dfx} \
 	aio \
 	alc \
 	ale \
+	alq \
 	${_amd} \
 	${_amdsbwd} \
 	${_amdtemp} \
@@ -33,10 +35,12 @@ SUBDIR=	${_3dfx} \
 	${_asr} \
 	ata \
 	ath \
+	ath_pci \
 	${_auxio} \
 	bce \
 	bfe \
 	bge \
+	${_bxe} \
 	${_bios} \
 	${_bktr} \
 	${_bm} \
@@ -49,6 +53,7 @@ SUBDIR=	${_3dfx} \
 	${_cardbus} \
 	cas \
 	${_cbb} \
+	cc \
 	cd9660 \
 	cd9660_iconv \
 	${_ce} \
@@ -66,7 +71,8 @@ SUBDIR=	${_3dfx} \
 	${_cryptodev} \
 	${_cs} \
 	${_ctau} \
-	cxgb \
+	${_cxgb} \
+	cxgbe \
 	${_cyclic} \
 	dc \
 	dcons \
@@ -96,6 +102,7 @@ SUBDIR=	${_3dfx} \
 	fxp \
 	gem \
 	geom \
+	${_glxiic} \
 	${_glxsb} \
 	hatm \
 	hifn \
@@ -110,13 +117,14 @@ SUBDIR=	${_3dfx} \
 	${_ida} \
 	${_ie} \
 	if_bridge \
+	${_if_carp} \
 	if_disc \
 	if_edsc \
 	if_ef \
 	if_epair \
 	if_faith \
 	if_gif \
-	if_gre \
+	${_if_gre} \
 	if_lagg \
 	${_if_ndis} \
 	if_stf \
@@ -143,9 +151,11 @@ SUBDIR=	${_3dfx} \
 	${_iwn} \
 	${_iwnfw} \
 	${_ixgb} \
+	${_ixgbe} \
 	jme \
 	joy \
 	kbdmux \
+	khelp \
 	krpc \
 	ksyms \
 	le \
@@ -178,16 +188,23 @@ SUBDIR=	${_3dfx} \
 	mfi \
 	mii \
 	mlx \
+	${_mlx4} \
+	${_mlx4ib} \
+	${_mlxen} \
 	${_mly} \
 	mmc \
 	mmcsd \
+	mps \
 	mpt \
 	mqueue \
 	msdosfs \
 	msdosfs_iconv \
 	${_mse} \
 	msk \
+	${_mthca} \
+	mvs \
 	mwl \
+	mwlfw \
 	mxge \
 	my \
 	${_ncp} \
@@ -200,6 +217,7 @@ SUBDIR=	${_3dfx} \
 	nfsclient \
 	nfscommon \
 	nfsd \
+	nfslock \
 	nfslockd \
 	nfsserver \
 	nfssvc \
@@ -250,8 +268,11 @@ SUBDIR=	${_3dfx} \
 	${_scsi_low} \
 	sdhci \
 	sem \
+	send \
 	sf \
+	sge \
 	siba_bwn \
+	siftr \
 	siis \
 	sis \
 	sk \
@@ -268,12 +289,13 @@ SUBDIR=	${_3dfx} \
 	stge \
 	${_streams} \
 	${_svr4} \
-	sym \
+	${_sym} \
 	${_syscons} \
 	sysvipc \
 	ti \
 	tl \
-	${_tmpfs} \
+	tmpfs \
+	${_tpm} \
 	trm \
 	${_twa} \
 	twe \
@@ -292,6 +314,7 @@ SUBDIR=	${_3dfx} \
 	vkbd \
 	${_vpo} \
 	vr \
+	vte \
 	vx \
 	wb \
 	${_wi} \
@@ -312,9 +335,18 @@ SUBDIR=	${_3dfx} \
 	${_zfs} \
 	zlib \
 
-.if ${MACHINE_ARCH} != "powerpc"
+.if ${MACHINE_CPUARCH} != "powerpc" && ${MACHINE_CPUARCH} != "arm" && \
+	${MACHINE_CPUARCH} != "mips"
 _syscons=	syscons
 _vpo=		vpo
+.endif
+
+.if ${MACHINE_CPUARCH} != "arm" && ${MACHINE_CPUARCH} != "mips"
+# no BUS_SPACE_UNSPECIFIED
+# No barrier instruction support (specific to this driver)
+_sym=		sym
+# intr_disable() is a macro, causes problems
+_cxgb=		cxgb
 .endif
 
 .if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
@@ -327,6 +359,15 @@ _random=	random
 .endif
 .endif
 
+.if ${MK_INET_SUPPORT} != "no" || defined(ALL_MODULES)
+_if_gre=	if_gre
+.endif
+
+.if (${MK_INET_SUPPORT} != "no" || ${MK_INET6_SUPPORT} != "no") || \
+	defined(ALL_MODULES)
+_if_carp=	if_carp
+.endif
+
 .if ${MK_IPFILTER} != "no" || defined(ALL_MODULES)
 _ipfilter=	ipfilter
 .endif
@@ -335,12 +376,13 @@ _ipfilter=	ipfilter
 _netgraph=	netgraph
 .endif
 
-.if ${MK_PF} != "no" || defined(ALL_MODULES)
+.if (${MK_PF} != "no" && (${MK_INET_SUPPORT} != "no" || \
+	${MK_INET6_SUPPORT} != "no")) || defined(ALL_MODULES)
 _pf=		pf
 _pflog=		pflog
 .endif
 
-.if ${MACHINE_ARCH} == "i386"
+.if ${MACHINE_CPUARCH} == "i386"
 # XXX some of these can move to the general case when de-i386'ed
 # XXX some of these can move now, but are untested on other architectures.
 _3dfx=		3dfx
@@ -353,6 +395,7 @@ _aout=		aout
 _apm=		apm
 _arcnet=	arcnet
 _bktr=		bktr
+_bxe=		bxe
 _cardbus=	cardbus
 _cbb=		cbb
 _ce=		ce
@@ -377,6 +420,7 @@ _et=		et
 _exca=		exca
 _ext2fs=	ext2fs
 _fe=		fe
+_glxiic=	glxiic
 _glxsb=		glxsb
 _i2c=		i2c
 _ibcs2=		ibcs2
@@ -389,6 +433,12 @@ _linprocfs=	linprocfs
 _linsysfs=	linsysfs
 _linux=		linux
 _mse=		mse
+.if ${MK_OFED} != "no" || defined(ALL_MODULES)
+_mlx4=		mlx4
+_mlx4ib=	mlx4ib
+_mlxen=		mlxen
+_mthca=		mthca
+.endif
 .if ${MK_NCP} != "no"
 _ncp=		ncp
 .endif
@@ -416,7 +466,6 @@ _sppp=		sppp
 _stg=		stg
 _streams=	streams
 _svr4=		svr4
-_tmpfs=		tmpfs
 _wi=		wi
 _xe=		xe
 .if ${MK_ZFS} != "no" || defined(ALL_MODULES)
@@ -425,6 +474,9 @@ _zfs=		zfs
 .if ${MACHINE} == "i386"
 _aac=		aac
 _acpi=		acpi
+.if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
+_aesni=		aesni
+.endif
 _ahb=		ahb
 _amdsbwd=	amdsbwd
 _amdtemp=	amdtemp
@@ -454,17 +506,17 @@ _iwifw=		iwifw
 _iwn=		iwn
 _iwnfw=		iwnfw
 _ixgb=		ixgb
+_ixgbe=		ixgbe
 _mly=		mly
 _nfe=		nfe
 _nve=		nve
 _nvram=		nvram
 _nxge=		nxge
+_tpm=		tpm
 _wpi=		wpi
 _wpifw=		wpifw
 .if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
-.if exists(${.CURDIR}/../crypto/via)
 _padlock=	padlock
-.endif
 .endif
 _s3=		s3
 _twa=		twa
@@ -478,15 +530,20 @@ _snc=		snc
 .endif
 .endif
 
-.if ${MACHINE_ARCH} == "amd64"
+.if ${MACHINE_CPUARCH} == "amd64"
 _aac=		aac
+_aout=		aout
 _acpi=		acpi
+.if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
+_aesni=		aesni
+.endif
 _agp=		agp
 _an=		an
 _amdsbwd=	amdsbwd
 _amdtemp=	amdtemp
 _arcmsr=	arcmsr
 _asmc=		asmc
+_bxe=		bxe
 _cardbus=	cardbus
 _cbb=		cbb
 _cmx=		cmx
@@ -526,11 +583,18 @@ _iwifw=		iwifw
 _iwn=		iwn
 _iwnfw=		iwnfw
 _ixgb=		ixgb
+_ixgbe=		ixgbe
 _lindev=	lindev
 _linprocfs=	linprocfs
 _linsysfs=	linsysfs
 _linux=		linux
 _mly=		mly
+.if ${MK_OFED} != "no" || defined(ALL_MODULES)
+_mlx4=		mlx4
+_mlx4ib=	mlx4ib
+_mlxen=		mlxen
+_mthca=		mthca
+.endif
 _ndis=		ndis
 _nfe=		nfe
 _nve=		nve
@@ -540,9 +604,7 @@ _nxge=		nxge
 _opensolaris=	opensolaris
 .endif
 .if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
-.if exists(${.CURDIR}/../crypto/via)
 _padlock=	padlock
-.endif
 .endif
 _pccard=	pccard
 _rdma=		rdma	
@@ -554,7 +616,7 @@ _sound=		sound
 _speaker=	speaker
 _splash=	splash
 _sppp=		sppp
-_tmpfs=		tmpfs
+_tpm=		tpm
 _twa=		twa
 _vesa=		vesa
 _x86bios=	x86bios
@@ -566,11 +628,8 @@ _zfs=		zfs
 .endif
 .endif
 
-.if ${MACHINE_ARCH} == "ia64"
-# Modules not enabled on ia64 (as compared to i386) include:
-#	aac acpi aout apm atspeaker drm ibcs2 linprocfs linux ncv
-#	nsp s3 sbni stg vesa
-# acpi is not enabled because it is broken as a module on ia64
+.if ${MACHINE_CPUARCH} == "ia64"
+_aac=		aac
 _aic=		aic
 _an=		an
 _arcnet=	arcnet
@@ -583,12 +642,17 @@ _cm=		cm
 _cmx=		cmx
 _coff=		coff
 _cpufreq=	cpufreq
+_dpt=		dpt
 _em=		em
 _ep=		ep
+_et=		et
 _exca=		exca
 _fe=		fe
+_hptiop=	hptiop
+_ida=		ida
 _igb=		igb
 _iir=		iir
+_ips=		ips
 _mly=		mly
 _pccard=	pccard
 _scsi_low=	scsi_low
@@ -597,11 +661,14 @@ _sound=		sound
 _splash=	splash
 _sppp=		sppp
 _streams=	streams
+_tpm=		tpm
+_twa=		twa
 _wi=		wi
 _xe=		xe
 .endif
 
-.if ${MACHINE_ARCH} == "powerpc"
+.if ${MACHINE_CPUARCH} == "powerpc"
+_agp=		agp
 _an=		an
 _bm=		bm
 _cpufreq=	cpufreq
@@ -610,7 +677,16 @@ _smbfs=		smbfs
 _sound=		sound
 .endif
 
-.if ${MACHINE_ARCH} == "sparc64"
+.if ${MACHINE_ARCH} == "powerpc64"
+.if ${MK_CDDL} != "no" || defined(ALL_MODULES)
+_opensolaris=	opensolaris
+.endif
+.if ${MK_ZFS} != "no" || defined(ALL_MODULES)
+_zfs=		zfs
+.endif
+.endif
+
+.if ${MACHINE_CPUARCH} == "sparc64"
 _auxio=		auxio
 _em=		em
 _epic=		epic

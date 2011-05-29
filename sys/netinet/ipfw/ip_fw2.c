@@ -113,6 +113,7 @@ static int default_to_accept;
 #endif
 
 VNET_DEFINE(int, autoinc_step);
+VNET_DEFINE(int, fw_one_pass) = 1;
 
 /*
  * Each rule belongs to one of 32 different sets (0..31).
@@ -351,7 +352,7 @@ iface_match(struct ifnet *ifp, ipfw_insn_if *cmd)
 				return(1);
 		}
 	} else {
-#ifdef	__FreeBSD__	/* and OSX too ? */
+#ifdef __FreeBSD__	/* and OSX too ? */
 		struct ifaddr *ia;
 
 		if_addr_rlock(ifp);
@@ -886,10 +887,13 @@ ipfw_chk(struct ip_fw_args *args)
 	 * ulp is NULL if not found.
 	 */
 	void *ulp = NULL;		/* upper layer protocol pointer. */
+
 	/* XXX ipv6 variables */
 	int is_ipv6 = 0;
-	u_int16_t ext_hd = 0;	/* bits vector for extension header filtering */
+	uint8_t	icmp6_type = 0;
+	uint16_t ext_hd = 0;	/* bits vector for extension header filtering */
 	/* end of ipv6 variables */
+
 	int is_ipv4 = 0;
 
 	int done = 0;		/* flag to exit the outer loop */
@@ -910,9 +914,10 @@ ipfw_chk(struct ip_fw_args *args)
  * pointer might become stale after other pullups (but we never use it
  * this way).
  */
-#define PULLUP_TO(_len, p, T)					\
+#define PULLUP_TO(_len, p, T)	PULLUP_LEN(_len, p, sizeof(T))
+#define PULLUP_LEN(_len, p, T)					\
 do {								\
-	int x = (_len) + sizeof(T);				\
+	int x = (_len) + T;					\
 	if ((m)->m_len < x) {					\
 		args->m = m = m_pullup(m, x);			\
 		if (m == NULL)					\
@@ -941,14 +946,15 @@ do {								\
 			switch (proto) {
 			case IPPROTO_ICMPV6:
 				PULLUP_TO(hlen, ulp, struct icmp6_hdr);
-				args->f_id.flags = ICMP6(ulp)->icmp6_type;
+				icmp6_type = ICMP6(ulp)->icmp6_type;
 				break;
 
 			case IPPROTO_TCP:
 				PULLUP_TO(hlen, ulp, struct tcphdr);
 				dst_port = TCP(ulp)->th_dport;
 				src_port = TCP(ulp)->th_sport;
-				args->f_id.flags = TCP(ulp)->th_flags;
+				/* save flags for dynamic rules */
+				args->f_id._flags = TCP(ulp)->th_flags;
 				break;
 
 			case IPPROTO_SCTP:
@@ -1012,7 +1018,7 @@ do {								\
 					    return (IP_FW_DENY);
 					break;
 				}
-				args->f_id.frag_id6 =
+				args->f_id.extra =
 				    ntohl(((struct ip6_frag *)ulp)->ip6f_ident);
 				ulp = NULL;
 				break;
@@ -1115,7 +1121,14 @@ do {								\
 				PULLUP_TO(hlen, ulp, struct tcphdr);
 				dst_port = TCP(ulp)->th_dport;
 				src_port = TCP(ulp)->th_sport;
-				args->f_id.flags = TCP(ulp)->th_flags;
+				/* save flags for dynamic rules */
+				args->f_id._flags = TCP(ulp)->th_flags;
+				break;
+
+			case IPPROTO_SCTP:
+				PULLUP_TO(hlen, ulp, struct sctphdr);
+				src_port = SCTP(ulp)->src_port;
+				dst_port = SCTP(ulp)->dest_port;
 				break;
 
 			case IPPROTO_UDP:
@@ -1126,7 +1139,7 @@ do {								\
 
 			case IPPROTO_ICMP:
 				PULLUP_TO(hlen, ulp, struct icmphdr);
-				args->f_id.flags = ICMP(ulp)->icmp_type;
+				//args->f_id.flags = ICMP(ulp)->icmp_type;
 				break;
 
 			default:
@@ -1324,7 +1337,7 @@ do {								\
 				/* For diverted packets, args->rule.info
 				 * contains the divert port (in host format)
 				 * reason and direction.
-	 			 */
+				 */
 				uint32_t i = args->rule.info;
 				match = (i&IPFW_IS_MASK) == IPFW_IS_DIVERT &&
 				    cmd->arg1 & ((i & IPFW_INFO_IN) ? 1 : 2);
@@ -1362,6 +1375,8 @@ do {								\
 					    key = dst_ip.s_addr;
 					else if (v == 1)
 					    key = src_ip.s_addr;
+					else if (v == 6) /* dscp */
+					    key = (ip->ip_tos >> 2) & 0x3f;
 					else if (offset != 0)
 					    break;
 					else if (proto != IPPROTO_TCP &&
@@ -1587,6 +1602,7 @@ do {								\
 				break;
 
 			case O_TCPOPTS:
+				PULLUP_LEN(hlen, ulp, (TCP(ulp)->th_off << 2));
 				match = (proto == IPPROTO_TCP && offset == 0 &&
 				    tcpopts_match(TCP(ulp), cmd));
 				break;
@@ -1780,10 +1796,13 @@ do {								\
 					if (mtag != NULL)
 						m_tag_delete(m, mtag);
 					match = 0;
-				} else if (mtag == NULL) {
-					if ((mtag = m_tag_alloc(MTAG_IPFW,
-					    tag, 0, M_NOWAIT)) != NULL)
-						m_tag_prepend(m, mtag);
+				} else {
+					if (mtag == NULL) {
+						mtag = m_tag_alloc( MTAG_IPFW,
+						    tag, 0, M_NOWAIT);
+						if (mtag != NULL)
+							m_tag_prepend(m, mtag);
+					}
 					match = 1;
 				}
 				break;
@@ -1793,6 +1812,39 @@ do {								\
 				if (args->f_id.fib == cmd->arg1)
 					match = 1;
 				break;
+
+			case O_SOCKARG:	{
+				struct inpcb *inp = args->inp;
+				struct inpcbinfo *pi;
+				
+				if (is_ipv6) /* XXX can we remove this ? */
+					break;
+
+				if (proto == IPPROTO_TCP)
+					pi = &V_tcbinfo;
+				else if (proto == IPPROTO_UDP)
+					pi = &V_udbinfo;
+				else
+					break;
+
+				/* For incomming packet, lookup up the 
+				inpcb using the src/dest ip/port tuple */
+				if (inp == NULL) {
+					INP_INFO_RLOCK(pi);
+					inp = in_pcblookup_hash(pi, 
+						src_ip, htons(src_port),
+						dst_ip, htons(dst_port),
+						0, NULL);
+					INP_INFO_RUNLOCK(pi);
+				}
+				
+				if (inp && inp->inp_socket) {
+					tablearg = inp->inp_socket->so_user_cookie;
+					if (tablearg)
+						match = 1;
+				}
+				break;
+			}
 
 			case O_TAGGED: {
 				struct m_tag *mtag;
@@ -2005,14 +2057,15 @@ do {								\
 				     (1 << chain->map[f_pos]->set));
 				    f_pos++)
 				;
-			    /* prepare to enter the inner loop */
+			    /* Re-enter the inner loop at the skipto rule. */
 			    f = chain->map[f_pos];
 			    l = f->cmd_len;
 			    cmd = f->cmd;
 			    match = 1;
 			    cmdlen = 0;
 			    skip_or = 0;
-			    break;
+			    continue;
+			    break;	/* not reached */
 
 			case O_REJECT:
 				/*
@@ -2034,7 +2087,7 @@ do {								\
 				if (hlen > 0 && is_ipv6 &&
 				    ((offset & IP6F_OFF_MASK) == 0) &&
 				    (proto != IPPROTO_ICMPV6 ||
-				     (is_icmp6_query(args->f_id.flags) == 1)) &&
+				     (is_icmp6_query(icmp6_type) == 1)) &&
 				    !(m->m_flags & (M_BCAST|M_MCAST)) &&
 				    !IN6_IS_ADDR_MULTICAST(&args->f_id.dst_ip6)) {
 					send_reject6(
@@ -2076,6 +2129,8 @@ do {								\
 				set_match(args, f_pos, chain);
 				args->rule.info = (cmd->arg1 == IP_FW_TABLEARG) ?
 					tablearg : cmd->arg1;
+				if (V_fw_one_pass)
+					args->rule.info |= IPFW_ONEPASS;
 				retval = (cmd->opcode == O_NETGRAPH) ?
 				    IP_FW_NETGRAPH : IP_FW_NGTEE;
 				l = 0;          /* exit inner loop */
@@ -2181,6 +2236,7 @@ do {								\
 			}
 
 		}	/* end of inner loop, scan opcodes */
+#undef PULLUP_LEN
 
 		if (done)
 			break;
@@ -2392,7 +2448,7 @@ vnet_ipfw_uninit(const void *unused)
 	IPFW_WLOCK(chain);
 
 	ipfw_dyn_uninit(0);	/* run the callout_drain */
-	ipfw_flush_tables(chain);
+	ipfw_destroy_tables(chain);
 	reap = NULL;
 	for (i = 0; i < chain->n_rules; i++) {
 		rule = chain->map[i];

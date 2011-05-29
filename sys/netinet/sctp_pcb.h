@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 2001-2007, by Cisco Systems, Inc. All rights reserved.
- *
+ * Copyright (c) 2008-2011, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2011, by Michael Tuexen. All rights reserved.
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
@@ -177,8 +178,6 @@ struct sctp_epinfo {
 	struct sctppcbhead listhead;
 	struct sctpladdr addr_wq;
 
-	struct sctpiterators iteratorhead;
-	int threads_must_exit;
 	/* ep zone info */
 	sctp_zone_t ipi_zone_ep;
 	sctp_zone_t ipi_zone_asoc;
@@ -191,10 +190,10 @@ struct sctp_epinfo {
 	sctp_zone_t ipi_zone_asconf_ack;
 
 	struct rwlock ipi_ep_mtx;
-	struct mtx it_mtx;
 	struct mtx ipi_iterator_wq_mtx;
 	struct rwlock ipi_addr_mtx;
 	struct mtx ipi_pktlog_mtx;
+	struct mtx wq_addr_mtx;
 	uint32_t ipi_count_ep;
 
 	/* assoc/tcb zone info */
@@ -228,14 +227,9 @@ struct sctp_epinfo {
 	uint32_t ipi_free_chunks;
 	uint32_t ipi_free_strmoq;
 
-
 	struct sctpvtaghead vtag_timewait[SCTP_STACK_VTAG_HASH_SIZE];
 
 	/* address work queue handling */
-#if defined(SCTP_USE_THREAD_BASED_ITERATOR)
-	uint32_t iterator_running;
-	SCTP_PROCESS_STRUCT thread_proc;
-#endif
 	struct sctp_timer addr_wq_timer;
 
 };
@@ -246,7 +240,11 @@ struct sctp_base_info {
 	 * All static structures that anchor the system must be here.
 	 */
 	struct sctp_epinfo sctppcbinfo;
+#if defined(__FreeBSD__) && defined(SMP) && defined(SCTP_USE_PERCPU_STAT)
+	struct sctpstat *sctpstat;
+#else
 	struct sctpstat sctpstat;
+#endif
 	struct sctp_sysctl sctpsysctl;
 	uint8_t first_time;
 	char sctp_pcb_initialized;
@@ -279,6 +277,7 @@ struct sctp_pcb {
 	uint32_t sctp_sws_receiver;
 
 	uint32_t sctp_default_cc_module;
+	uint32_t sctp_default_ss_module;
 	/* authentication related fields */
 	struct sctp_keyhead shared_keys;
 	sctp_auth_chklist_t *local_auth_chunks;
@@ -319,7 +318,8 @@ struct sctp_pcb {
 	uint32_t initial_sequence_debug;
 	uint32_t adaptation_layer_indicator;
 	uint32_t store_at;
-	uint8_t max_burst;
+	uint32_t max_burst;
+	uint32_t fr_max_burst;
 	char current_secret_number;
 	char last_secret_number;
 };
@@ -392,6 +392,8 @@ struct sctp_inpcb {
 	uint32_t sctp_frag_point;
 	uint32_t partial_delivery_point;
 	uint32_t sctp_context;
+	uint32_t sctp_cmt_on_off;
+	uint32_t sctp_ecn_enable;
 	struct sctp_nonpad_sndrcvinfo def_send;
 	/*-
 	 * These three are here for the sosend_dgram
@@ -560,7 +562,7 @@ void sctp_inpcb_free(struct sctp_inpcb *, int, int);
 
 struct sctp_tcb *
 sctp_aloc_assoc(struct sctp_inpcb *, struct sockaddr *,
-    int, int *, uint32_t, uint32_t, struct thread *);
+    int *, uint32_t, uint32_t, struct thread *);
 
 int sctp_free_assoc(struct sctp_inpcb *, struct sctp_tcb *, int, int);
 
@@ -623,6 +625,18 @@ sctp_initiate_iterator(inp_func inpf,
     end_func ef,
     struct sctp_inpcb *,
     uint8_t co_off);
+
+#if defined(__FreeBSD__) && defined(SCTP_MCORE_INPUT) && defined(SMP)
+void
+     sctp_queue_to_mcore(struct mbuf *m, int off, int cpu_to_use);
+
+#endif
+
+#ifdef INVARIANTS
+void
+     sctp_validate_no_locks(struct sctp_inpcb *inp);
+
+#endif
 
 #endif				/* _KERNEL */
 #endif				/* !__sctp_pcb_h__ */

@@ -267,7 +267,7 @@ matchallbyorigin(const char **origins, int *retval)
 	 */
 	if (isemptydir(tmp))
 	    continue;
-	snprintf(tmp, PATH_MAX, "%s/%s", tmp, CONTENTS_FNAME);
+	strncat(tmp, "/" CONTENTS_FNAME, PATH_MAX);
 	fp = fopen(tmp, "r");
 	if (fp == NULL) {
 	    warnx("the package info for package '%s' is corrupt", installed[i]);

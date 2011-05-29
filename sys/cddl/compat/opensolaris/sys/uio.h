@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2010 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -46,10 +46,31 @@ struct uio {
 };
 #endif
 
+#define	uio_loffset	uio_offset
+
 typedef	struct uio	uio_t;
 typedef	struct iovec	iovec_t;
 
-#define	uio_loffset	uio_offset
+typedef enum xuio_type {
+	UIOTYPE_ASYNCIO,
+	UIOTYPE_ZEROCOPY
+} xuio_type_t;
+
+typedef struct xuio {
+	uio_t	xu_uio;
+
+	/* Extended uio fields */
+	enum xuio_type xu_type; /* What kind of uio structure? */
+	union {
+		struct {
+			int xu_zc_rw;
+			void *xu_zc_priv;
+		} xu_zc;
+	} xu_ext;
+} xuio_t;
+
+#define	XUIO_XUZC_PRIV(xuio)	xuio->xu_ext.xu_zc.xu_zc_priv
+#define	XUIO_XUZC_RW(xuio)	xuio->xu_ext.xu_zc.xu_zc_rw
 
 #ifdef BUILDING_ZFS
 static __inline int
@@ -60,6 +81,9 @@ zfs_uiomove(void *cp, size_t n, enum uio_rw dir, uio_t *uio)
 	return (uiomove(cp, (int)n, uio));
 }
 #define	uiomove(cp, n, dir, uio)	zfs_uiomove((cp), (n), (dir), (uio))
+
+int uiocopy(void *p, size_t n, enum uio_rw rw, struct uio *uio, size_t *cbytes);
+void uioskip(uio_t *uiop, size_t n);
 #endif	/* BUILDING_ZFS */
 
 #endif	/* !_OPENSOLARIS_SYS_UIO_H_ */

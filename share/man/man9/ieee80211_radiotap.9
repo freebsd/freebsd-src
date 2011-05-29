@@ -104,7 +104,6 @@ this is checked with one of
 and
 .Fn ieee80211_radiotap_active .
 In the transmit path capture work looks like this:
-.Pp
 .Bd -literal -offset indent
 if (ieee80211_radiotap_active_vap(vap)) {
 	... /* record transmit state */
@@ -115,7 +114,6 @@ if (ieee80211_radiotap_active_vap(vap)) {
 While in the receive path capture is handled in
 .Nm net80211
 but state must be captured before dispatching a frame:
-.Pp
 .Bd -literal -offset indent
 if (ieee80211_radiotap_active(ic)) {
 	... /* record receive state */

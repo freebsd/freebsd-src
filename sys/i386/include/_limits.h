@@ -40,8 +40,6 @@
  * type converted according to the integral promotions.  The subtraction for
  * INT_MIN, etc., is so the value is not unsigned; e.g., 0x80000000 is an
  * unsigned int for 32-bit two's complement ANSI compilers (section 3.1.3.2).
- * These numbers are for the default configuration of gcc.  They work for
- * some other compilers as well, but this should not be depended on.
  */
 
 #define	__CHAR_BIT	8		/* number of bits in a char */
@@ -55,20 +53,13 @@
 #define	__SHRT_MAX	0x7fff		/* max value for a short */
 #define	__SHRT_MIN	(-0x7fff - 1)	/* min value for a short */
 
-#define	__UINT_MAX	0xffffffffU	/* max value for an unsigned int */
+#define	__UINT_MAX	0xffffffff	/* max value for an unsigned int */
 #define	__INT_MAX	0x7fffffff	/* max value for an int */
 #define	__INT_MIN	(-0x7fffffff - 1)	/* min value for an int */
 
-/* Bad hack for gcc configured to give 64-bit longs. */
-#ifdef _LARGE_LONG
-#define	__ULONG_MAX	0xffffffffffffffffUL
-#define	__LONG_MAX	0x7fffffffffffffffL
-#define	__LONG_MIN	(-0x7fffffffffffffffL - 1)
-#else
 #define	__ULONG_MAX	0xffffffffUL	/* max value for an unsigned long */
 #define	__LONG_MAX	0x7fffffffL	/* max value for a long */
 #define	__LONG_MIN	(-0x7fffffffL - 1)	/* min value for a long */
-#endif
 
 			/* max value for an unsigned long long */
 #define	__ULLONG_MAX	0xffffffffffffffffULL
@@ -87,17 +78,10 @@
 #define	__QUAD_MAX	__LLONG_MAX	/* max value for a quad_t */
 #define	__QUAD_MIN	__LLONG_MIN	/* min value for a quad_t */
 
-#ifdef _LARGE_LONG
-#define	__LONG_BIT	64
-#else
 #define	__LONG_BIT	32
-#endif
 #define	__WORD_BIT	32
 
-/*
- * Minimum signal stack size. The current signal frame
- * for i386 is 408 bytes large.
- */
+/* Minimum signal stack size. */
 #define	__MINSIGSTKSZ	(512 * 4)
 
 #endif /* !_MACHINE__LIMITS_H_ */

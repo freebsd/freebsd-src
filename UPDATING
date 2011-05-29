@@ -22,6 +22,297 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 9.x IS SLOW:
 	machines to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20110513:
+	Support for sun4v architecture is officially dropped
+
+20110430:
+	Users of the Atheros AR71xx SoC code now need to add 'device ar71xx_pci'
+	into their kernel configurations along with 'device pci'.
+
+20110427:
+	The default NFS client is now the new NFS client, so fstype "newnfs"
+	is now "nfs" and the regular/old NFS client is now fstype "oldnfs".
+	Although mounts via fstype "nfs" will usually work without userland
+	changes, it is recommended that the mount(8) and mount_nfs(8)
+	commands be rebuilt from sources and that a link to mount_nfs called
+	mount_oldnfs be created. The new client is compiled into the
+	kernel with "options NFSCL" and this is needed for diskless root
+	file systems. The GENERIC kernel configs have been changed to use
+	NFSCL and NFSD (the new server) instead of NFSCLIENT and NFSSERVER.
+	To use the regular/old client, you can "mount -t oldnfs ...". For
+	a diskless root file system, you must also include a line like:
+	
+	vfs.root.mountfrom="oldnfs:"
+
+	in the boot/loader.conf on the root fs on the NFS server to make
+	a diskless root fs use the old client.
+
+20110424:
+	The GENERIC kernels for all architectures now default to the new
+	CAM-based ATA stack. It means that all legacy ATA drivers were
+	removed and replaced by respective CAM drivers. If you are using
+	ATA device names in /etc/fstab or other places, make sure to update
+	them respectively (adX -> adaY, acdX -> cdY, afdX -> daY, astX -> saY,
+	where 'Y's are the sequential numbers starting from zero for each type
+	in order of detection, unless configured otherwise with tunables,
+	see cam(4)). There will be symbolic links created in /dev/ to map
+	old adX devices to the respective adaY. They should provide basic
+	compatibility for file systems mounting in most cases, but they do
+	not support old user-level APIs and do not have respective providers
+	in GEOM. Consider using updated management tools with new device names.
+
+	It is possible to load devices ahci, ata, siis and mvs as modules,
+	but option ATA_CAM should remain in kernel configuration to make ata
+	module work as CAM driver supporting legacy ATA controllers. Device ata
+	still can be used in modular fashion (atacore + ...). Modules atadisk
+	and atapi* are not used and won't affect operation in ATA_CAM mode.
+	Note that to use CAM-based ATA kernel should include CAM devices
+	scbus, pass, da (or explicitly ada), cd and optionally others. All of
+	them are parts of the cam module.
+
+	ataraid(4) functionality is now supported by the RAID GEOM class.
+	To use it you can load geom_raid kernel module and use graid(8) tool
+	for management. Instead of /dev/arX device names, use /dev/raid/rX.
+
+	No kernel config options or code have been removed, so if a problem
+	arises, please report it and optionally revert to the old ATA stack.
+	In order to do it you can remove from the kernel config:
+	    options        ATA_CAM
+	    device         ahci
+	    device         mvs
+	    device         siis
+	, and instead add back:
+	    device         atadisk         # ATA disk drives
+	    device         ataraid         # ATA RAID drives
+	    device         atapicd         # ATAPI CDROM drives
+	    device         atapifd         # ATAPI floppy drives
+	    device         atapist         # ATAPI tape drives
+
+20110423:
+	The default NFS server has been changed to the new server, which
+	was referred to as the experimental server. If you need to switch
+	back to the old NFS server, you must now put the "-o" option on
+	both the mountd and nfsd commands. This can be done using the
+	mountd_flags and nfs_server_flags rc.conf variables until an
+	update to the rc scripts is committed, which is coming soon.
+
+20110418:
+	The GNU Objective-C runtime library (libobjc), and other Objective-C
+	related components have been removed from the base system.  If you
+	require an Objective-C library, please use one of the available ports.
+
+20110331:
+	ath(4) has been split into bus- and device- modules. if_ath contains
+	the HAL, the TX rate control and the network device code. if_ath_pci
+	contains the PCI bus glue. For Atheros MIPS embedded systems, if_ath_ahb
+	contains the AHB glue. Users need to load both if_ath_pci and if_ath
+	in order to use ath on everything else.
+
+	TO REPEAT: if_ath_ahb is not needed for normal users. Normal users only
+	need to load if_ath and if_ath_pci for ath(4) operation.
+
+20110314:
+	As part of the replacement of sysinstall, the process of building
+	release media has changed significantly. For details, please re-read
+	release(7), which has been updated to reflect the new build process.
+
+20110218:
+	GNU binutils 2.17.50 (as of 2007-07-03) has been merged to -HEAD.  This
+	is the last available version under GPLv2.  It brings a number of new
+	features, such as support for newer x86 CPU's (with SSE-3, SSSE-3, SSE
+	4.1 and SSE 4.2), better support for powerpc64, a number of new
+	directives, and lots of other small improvements.  See the ChangeLog
+	file in contrib/binutils for the full details.
+
+20110218:
+	IPsec's HMAC_SHA256-512 support has been fixed to be RFC4868
+	compliant, and will now use half of hash for authentication.
+	This will break interoperability with all stacks (including all
+	actual FreeBSD versions) who implement
+	draft-ietf-ipsec-ciph-sha-256-00 (they use 96 bits of hash for
+	authentication).
+	The only workaround with such peers is to use another HMAC
+	algorithm for IPsec ("phase 2") authentication.
+
+20110207:
+	Remove the uio_yield prototype and symbol.  This function has
+	been misnamed since it was introduced and should not be
+	globally exposed with this name.  The equivalent functionality
+	is now available using kern_yield(curthread->td_user_pri).
+	The function remains undocumented.
+
+20110112:
+	A SYSCTL_[ADD_]UQUAD was added for unsigned uint64_t pointers,
+	symmetric with the existing SYSCTL_[ADD_]QUAD.  Type checking
+	for scalar sysctls is defined but disabled.  Code that needs
+	UQUAD to pass the type checking that must compile on older
+	systems where the define is not present can check against
+	__FreeBSD_version >= 900030.
+
+	The system dialog(1) has been replaced with a new version previously
+	in ports as devel/cdialog. dialog(1) is mostly command-line compatible
+	with the previous version, but the libdialog associated with it has
+	a largely incompatible API. As such, the original version of libdialog
+	will be kept temporarily as libodialog, until its base system consumers
+	are replaced or updated. Bump __FreeBSD_version to 900030.
+
+20110103:
+	If you are trying to run make universe on a -stable system, and you get
+	the following warning:
+	"Makefile", line 356: "Target architecture for i386/conf/GENERIC 
+	unknown.  config(8) likely too old."
+	or something similar to it, then you must upgrade your -stable system
+	to 8.2-Release or newer (really, any time after r210146 7/15/2010 in
+	stable/8) or build the config from the latest stable/8 branch and
+	install it on your system.
+
+	Prior to this date, building a current universe on 8-stable system from
+	between 7/15/2010 and 1/2/2011 would result in a weird shell parsing
+	error in the first kernel build phase.  A new config on those old 
+	systems will fix that problem for older versions of -current.
+
+20101228:
+	The TCP stack has been modified to allow Khelp modules to interact with
+	it via helper hook points and store per-connection data in the TCP
+	control block. Bump __FreeBSD_version to 900029. User space tools that
+	rely on the size of struct tcpcb in tcp_var.h (e.g. sockstat) need to
+	be recompiled.
+
+20101114:
+	Generic IEEE 802.3 annex 31B full duplex flow control support has been
+	added to mii(4) and bge(4), bce(4), msk(4), nfe(4) and stge(4) along
+	with brgphy(4), e1000phy(4) as well as ip1000phy() have been converted
+	to take advantage of it instead of using custom implementations.  This
+	means that these drivers now no longer unconditionally advertise
+	support for flow control but only do so if flow control is a selected
+	media option.  This was implemented in the generic support that way in
+	order to allow flow control to be switched on and off via ifconfig(8)
+	with the PHY specific default to typically off in order to protect
+	from unwanted effects.  Consequently, if you used flow control with
+	one of the above mentioned drivers you now need to explicitly enable
+	it, for example via:
+		ifconfig bge0 media auto mediaopt flowcontrol
+
+	Along with the above mentioned changes generic support for setting
+	1000baseT master mode also has been added and brgphy(4), ciphy(4),
+	e1000phy(4) as well as ip1000phy(4) have been converted to take
+	advantage of it.  This means that these drivers now no longer take the
+	link0 parameter for selecting master mode but the master media option
+	has to be used instead, for example like in the following:
+		ifconfig bge0 media 1000baseT mediaopt full-duplex,master
+
+	Selection of master mode now is also available with all other PHY
+	drivers supporting 1000baseT.
+
+20101111:
+	The TCP stack has received a significant update to add support for
+	modularised congestion control and generally improve the clarity of
+	congestion control decisions. Bump __FreeBSD_version to 900025. User
+	space tools that rely on the size of struct tcpcb in tcp_var.h (e.g.
+	sockstat) need to be recompiled.
+
+20101002:
+	The man(1) utility has been replaced by a new version that no longer
+	uses /etc/manpath.config. Please consult man.conf(5) for how to
+	migrate local entries to the new format.
+
+20100928:
+	The copyright strings printed by login(1) and sshd(8) at the time of a
+	new connection have been removed to follow other operating systems and
+	upstream sshd.
+
+20100915:
+	A workaround for a fixed ld bug has been removed in kernel code,
+	so make sure that your system ld is built from sources after
+	revision 210245 from 2010-07-19 (r211583 if building head kernel
+	on stable/8, r211584 for stable/7; both from 2010-08-21).
+	A symptom of incorrect ld version is different addresses for
+	set_pcpu section and __start_set_pcpu symbol in kernel and/or modules.
+
+20100913:
+	The $ipv6_prefer variable in rc.conf(5) has been split into
+	$ip6addrctl_policy and $ipv6_activate_all_interfaces.
+
+	The $ip6addrctl_policy is a variable to choose a pre-defined
+	address selection policy set by ip6addrctl(8).  A value
+	"ipv4_prefer", "ipv6_prefer" or "AUTO" can be specified.  The
+	default is "AUTO".
+
+	The $ipv6_activate_all_interfaces specifies whether IFDISABLED
+	flag (see an entry of 20090926) is set on an interface with no
+	corresponding $ifconfig_IF_ipv6 line.  The default is "NO" for
+	security reason.  If you want IPv6 link-local address on all
+	interfaces by default, set this to "YES".
+
+	The old ipv6_prefer="YES" is equivalent to
+	ipv6_activate_all_interfaces="YES" and
+	ip6addrctl_policy="ipv6_prefer".
+
+20100913:
+	DTrace has grown support for userland tracing. Due to this, DTrace is
+	now i386 and amd64 only.
+	dtruss(1) is now installed by default on those systems and a new
+	kernel module is needed for userland tracing: fasttrap.
+	No changes to your kernel config file are necessary to enable
+	userland tracing, but you might consider adding 'STRIP=' and
+	'CFLAGS+=-fno-omit-frame-pointer' to your make.conf if you want
+	to have informative userland stack traces in DTrace (ustack).
+
+20100725:
+	The acpi_aiboost(4) driver has been removed in favor of the new
+	aibs(4) driver. You should update your kernel configuration file.
+
+20100722:
+	BSD grep has been imported to the base system and it is built by
+	default.  It is completely BSD licensed, highly GNU-compatible, uses
+	less memory than its GNU counterpart and has a small codebase.
+	However, it is slower than its GNU counterpart, which is mostly
+	noticeable for larger searches, for smaller ones it is measurable
+	but not significant.  The reason is complex, the most important factor
+	is that we lack a modern and efficient regex library and GNU
+	overcomes this by optimizing the searches internally.  Future work
+	on improving the regex performance is planned, for the meantime,
+	users that need better performance, can build GNU grep instead by
+	setting the WITH_GNU_GREP knob.
+
+20100713:
+	Due to the import of powerpc64 support, all existing powerpc kernel
+	configuration files must be updated with a machine directive like this:
+	    machine powerpc powerpc
+
+	In addition, an updated config(8) is required to build powerpc kernels
+	after this change.
+
+20100713:
+	A new version of ZFS (version 15) has been merged to -HEAD.
+	This version uses a python library for the following subcommands:
+	zfs allow, zfs unallow, zfs groupspace, zfs userspace.
+	For full functionality of these commands the following port must
+	be installed: sysutils/py-zfs
+
+20100429:
+	'vm_page's are now hashed by physical address to an array of mutexes.
+	Currently this is only used to serialize access to hold_count. Over 
+	time the page queue mutex will be peeled away. This changes the size
+	of pmap on every architecture. And requires all callers of vm_page_hold
+	and vm_page_unhold to be updated. 
+ 
+20100402:
+	WITH_CTF can now be specified in src.conf (not recommended, there
+	are some problems with static executables), make.conf (would also
+	affect ports which do not use GNU make and do not override the
+	compile targets) or in the kernel config (via "makeoptions
+	WITH_CTF=yes").
+	When WITH_CTF was specified there before this was silently ignored,
+	so make sure that WITH_CTF is not used in places which could lead
+	to unwanted behavior.
+
+20100311:
+	The kernel option COMPAT_IA32 has been replaced with COMPAT_FREEBSD32
+	to allow 32-bit compatibility on non-x86 platforms. All kernel
+	configurations on amd64 and ia64 platforms using these options must
+	be modified accordingly.
+
 20100113:
 	The utmp user accounting database has been replaced with utmpx,
 	the user accounting interface standardized by POSIX.
@@ -58,6 +349,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 9.x IS SLOW:
 		firewall_simple_onet_ipv6, firewall_trusted_ipv6
 
 	The meanings correspond to the relevant IPv4 variables.
+
+20091125:
+	8.0-RELEASE.
 
 20091113:
 	The default terminal emulation for syscons(4) has been changed
@@ -497,7 +791,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 9.x IS SLOW:
 
 20090313:
 	The k8temp(4) driver has been renamed to amdtemp(4) since
-	support for K10 and K11 CPU families was added.
+	support for Family 10 and Family 11 CPU families was added.
 
 20090309:
 	IGMPv3 and Source-Specific Multicast (SSM) have been merged
@@ -937,6 +1231,22 @@ COMMON ITEMS:
 	path, and has the highest probability of being successful.  Please try
 	this approach before reporting problems with a major version upgrade.
 
+	ZFS notes
+	---------
+	When upgrading the boot ZFS pool to a new version, always follow
+	these two steps:
+
+	1.) recompile and reinstall the ZFS boot loader and boot block
+	(this is part of "make buildworld" and "make installworld")
+
+	2.) update the ZFS boot block on your boot drive
+
+	The following example updates the ZFS boot block on the first
+	partition (freebsd-boot) of a GPT partitioned drive ad0:
+	"gpart bootcode -p /boot/gptzfsboot -i 1 ad0"
+
+	Non-boot pools do not need these updates.
+
 	To build a kernel
 	-----------------
 	If you are updating from a prior version of FreeBSD (even one just
@@ -982,8 +1292,8 @@ COMMON ITEMS:
 	<reboot in single user>				[3]
 	mergemaster -p					[5]
 	make installworld
-	make delete-old
-	mergemaster					[4]
+	mergemaster -i					[4]
+	make delete-old					[6]
 	<reboot>
 
 
@@ -1020,8 +1330,8 @@ COMMON ITEMS:
 	<reboot in single user>				[3]
 	mergemaster -p					[5]
 	make installworld
-	make delete-old
 	mergemaster -i					[4]
+	make delete-old					[6]
 	<reboot>
 
 	Make sure that you've read the UPDATING file to understand the
@@ -1054,7 +1364,8 @@ COMMON ITEMS:
 	system.  Attempting to do it by hand is not recommended and those
 	that pursue this avenue should read this file carefully, as well
 	as the archives of freebsd-current and freebsd-hackers mailing lists
-	for potential gotchas.
+	for potential gotchas.  The -U option is also useful to consider.
+	See mergemaster(8) for more information.
 
 	[5] Usually this step is a noop.  However, from time to time
 	you may need to do this if you get unknown user in the following
@@ -1062,6 +1373,10 @@ COMMON ITEMS:
 	install a new mergemaster (cd src/usr.sbin/mergemaster && make
 	install) after the buildworld before this step if you last updated
 	from current before 20020224 or from -stable before 20020408.
+
+	[6] This only deletes old files and directories. Old libraries
+	can be deleted by "make delete-old-libs", but you have to make
+	sure that no program is using those libraries anymore.
 
 	[8] In order to have a kernel that can run the 4.x binaries needed to
 	do an installworld, you must include the COMPAT_FREEBSD4 option in

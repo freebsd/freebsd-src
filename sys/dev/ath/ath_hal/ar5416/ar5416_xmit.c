@@ -149,8 +149,10 @@ ar5416StopTxDma(struct ath_hal *ah, u_int q)
 #define VALID_TX_RATES \
         ((1<<0x0b)|(1<<0x0f)|(1<<0x0a)|(1<<0x0e)|(1<<0x09)|(1<<0x0d)|\
          (1<<0x08)|(1<<0x0c)|(1<<0x1b)|(1<<0x1a)|(1<<0x1e)|(1<<0x19)|\
-         (1<<0x1d)|(1<<0x18)|(1<<0x1c))
-#define isValidTxRate(_r)       ((1<<(_r)) & VALID_TX_RATES)
+	 (1<<0x1d)|(1<<0x18)|(1<<0x1c)|(1<<0x01)|(1<<0x02)|(1<<0x03)|\
+	 (1<<0x04)|(1<<0x05)|(1<<0x06)|(1<<0x07)|(1<<0x00))
+/* NB: accept HT rates */
+#define	isValidTxRate(_r)	((1<<((_r) & 0x7f)) & VALID_TX_RATES)
 
 HAL_BOOL
 ar5416SetupTxDesc(struct ath_hal *ah, struct ath_desc *ds,
@@ -206,10 +208,11 @@ ar5416SetupTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 		     | SM(ahp->ah_tx_chainmask, AR_ChainSel2) 
 		     | SM(ahp->ah_tx_chainmask, AR_ChainSel3)
 		     ;
-	ads->ds_ctl8 = 0;
-	ads->ds_ctl9 = (txPower << 24);		/* XXX? */
-	ads->ds_ctl10 = (txPower << 24);	/* XXX? */
-	ads->ds_ctl11 = (txPower << 24);	/* XXX? */
+	ads->ds_ctl8 = SM(0, AR_AntCtl0);
+	ads->ds_ctl9 = SM(0, AR_AntCtl1) | SM(txPower, AR_XmitPower1);
+	ads->ds_ctl10 = SM(0, AR_AntCtl2) | SM(txPower, AR_XmitPower2);
+	ads->ds_ctl11 = SM(0, AR_AntCtl3) | SM(txPower, AR_XmitPower3);
+
 	if (keyIx != HAL_TXKEYIX_INVALID) {
 		/* XXX validate key index */
 		ads->ds_ctl1 |= SM(keyIx, AR_DestIdx);
@@ -227,8 +230,19 @@ ar5416SetupTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 		ads->ds_ctl0 |= (flags & HAL_TXDESC_CTSENA ? AR_CTSEnable : 0)
 			     | (flags & HAL_TXDESC_RTSENA ? AR_RTSEnable : 0)
 			     ;
-		ads->ds_ctl2 |= SM(rtsctsDuration, AR_BurstDur);
 		ads->ds_ctl7 |= (rtsctsRate << AR_RTSCTSRate_S);
+	}
+
+	/*
+	 * Set the TX antenna to 0 for Kite
+	 * To preserve existing behaviour, also set the TPC bits to 0;
+	 * when TPC is enabled these should be filled in appropriately.
+	 */
+	if (AR_SREV_KITE(ah)) {
+		ads->ds_ctl8 = SM(0, AR_AntCtl0);
+		ads->ds_ctl9 = SM(0, AR_AntCtl1) | SM(0, AR_XmitPower1);
+		ads->ds_ctl10 = SM(0, AR_AntCtl2) | SM(0, AR_XmitPower2);
+		ads->ds_ctl11 = SM(0, AR_AntCtl3) | SM(0, AR_XmitPower3);
 	}
 	return AH_TRUE;
 #undef RTSCTS
@@ -304,8 +318,6 @@ ar5416FillTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 	return AH_TRUE;
 }
 
-#if 0
-
 HAL_BOOL
 ar5416ChainTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 	u_int pktLen,
@@ -320,6 +332,7 @@ ar5416ChainTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 {
 	struct ar5416_desc *ads = AR5416DESC(ds);
 	uint32_t *ds_txstatus = AR5416_DS_TXSTATUS(ah,ads);
+	struct ath_hal_5416 *ahp = AH5416(ah);
 
 	int isaggr = 0;
 	
@@ -335,7 +348,7 @@ ar5416ChainTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 	}
 
 	if (!firstSeg) {
-		ath_hal_memzero(ds->ds_hw, AR5416_DESC_TX_CTL_SZ);
+		OS_MEMZERO(ds->ds_hw, AR5416_DESC_TX_CTL_SZ);
 	}
 
 	ads->ds_ctl0 = (pktLen & AR_FrameLen);
@@ -349,7 +362,7 @@ ar5416ChainTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 		ads->ds_ctl0 |= AR_DestIdxValid;
 	}
 
-	ads->ds_ctl6 = SM(keyType[cipher], AR_EncrType);
+	ads->ds_ctl6 = SM(ahp->ah_keytype[cipher], AR_EncrType);
 	if (isaggr) {
 		ads->ds_ctl6 |= SM(delims, AR_PadDelim);
 	}
@@ -403,10 +416,10 @@ ar5416SetupFirstTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 		| SM(AH5416(ah)->ah_tx_chainmask, AR_ChainSel3);
 	
 	/* NB: no V1 WAR */
-	ads->ds_ctl8 = 0;
-	ads->ds_ctl9 = (txPower << 24);
-	ads->ds_ctl10 = (txPower << 24);
-	ads->ds_ctl11 = (txPower << 24);
+	ads->ds_ctl8 = SM(0, AR_AntCtl0);
+	ads->ds_ctl9 = SM(0, AR_AntCtl1) | SM(txPower, AR_XmitPower1);
+	ads->ds_ctl10 = SM(0, AR_AntCtl2) | SM(txPower, AR_XmitPower2);
+	ads->ds_ctl11 = SM(0, AR_AntCtl3) | SM(txPower, AR_XmitPower3);
 
 	ads->ds_ctl6 &= ~(0xffff);
 	ads->ds_ctl6 |= SM(aggrLen, AR_AggrLen);
@@ -415,7 +428,18 @@ ar5416SetupFirstTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 		/* XXX validate rtsctsDuration */
 		ads->ds_ctl0 |= (flags & HAL_TXDESC_CTSENA ? AR_CTSEnable : 0)
 			| (flags & HAL_TXDESC_RTSENA ? AR_RTSEnable : 0);
-		ads->ds_ctl2 |= SM(rtsctsDuration, AR_BurstDur);
+	}
+
+	/*
+	 * Set the TX antenna to 0 for Kite
+	 * To preserve existing behaviour, also set the TPC bits to 0;
+	 * when TPC is enabled these should be filled in appropriately.
+	 */
+	if (AR_SREV_KITE(ah)) {
+		ads->ds_ctl8 = SM(0, AR_AntCtl0);
+		ads->ds_ctl9 = SM(0, AR_AntCtl1) | SM(0, AR_XmitPower1);
+		ads->ds_ctl10 = SM(0, AR_AntCtl2) | SM(0, AR_XmitPower2);
+		ads->ds_ctl11 = SM(0, AR_AntCtl3) | SM(0, AR_XmitPower3);
 	}
 	
 	return AH_TRUE;
@@ -442,7 +466,6 @@ ar5416SetupLastTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 	
 	return AH_TRUE;
 }
-#endif /* 0 */
 
 #ifdef AH_NEED_DESC_SWAP
 /* Swap transmit descriptor */
@@ -574,7 +597,6 @@ ar5416ProcTxDesc(struct ath_hal *ah,
 	return HAL_OK;
 }
 
-#if 0
 HAL_BOOL
 ar5416SetGlobalTxTimeout(struct ath_hal *ah, u_int tu)
 {
@@ -601,13 +623,49 @@ ar5416GetGlobalTxTimeout(struct ath_hal *ah)
 void
 ar5416Set11nRateScenario(struct ath_hal *ah, struct ath_desc *ds,
         u_int durUpdateEn, u_int rtsctsRate,
-	HAL_11N_RATE_SERIES series[], u_int nseries)
+	HAL_11N_RATE_SERIES series[], u_int nseries, u_int flags)
 {
 	struct ar5416_desc *ads = AR5416DESC(ds);
+	uint32_t ds_ctl0;
 
 	HALASSERT(nseries == 4);
 	(void)nseries;
 
+	/*
+	 * XXX since the upper layers doesn't know the current chainmask
+	 * XXX setup, just override its decisions here.
+	 * XXX The upper layers need to be taught this!
+	 */
+	if (series[0].Tries != 0)
+		series[0].ChSel = AH5416(ah)->ah_tx_chainmask;
+	if (series[1].Tries != 0)
+		series[1].ChSel = AH5416(ah)->ah_tx_chainmask;
+	if (series[2].Tries != 0)
+		series[2].ChSel = AH5416(ah)->ah_tx_chainmask;
+	if (series[3].Tries != 0)
+		series[3].ChSel = AH5416(ah)->ah_tx_chainmask;
+
+	/*
+	 * Only one of RTS and CTS enable must be set.
+	 * If a frame has both set, just do RTS protection -
+	 * that's enough to satisfy legacy protection.
+	 */
+	if (flags & (HAL_TXDESC_RTSENA | HAL_TXDESC_CTSENA)) {
+		ds_ctl0 = ads->ds_ctl0;
+
+		if (flags & HAL_TXDESC_RTSENA) {
+			ds_ctl0 &= ~AR_CTSEnable;
+			ds_ctl0 |= AR_RTSEnable;
+		} else {
+			ds_ctl0 &= ~AR_RTSEnable;
+			ds_ctl0 |= AR_CTSEnable;
+		}
+
+		ads->ds_ctl0 = ds_ctl0;
+	} else {
+		ads->ds_ctl0 =
+		    (ads->ds_ctl0 & ~(AR_RTSEnable | AR_CTSEnable));
+	}
 
 	ads->ds_ctl2 = set11nTries(series, 0)
 		     | set11nTries(series, 1)
@@ -631,27 +689,6 @@ ar5416Set11nRateScenario(struct ath_hal *ah, struct ath_desc *ds,
 		     | set11nRateFlags(series, 2)
 		     | set11nRateFlags(series, 3)
 		     | SM(rtsctsRate, AR_RTSCTSRate);
-
-	/*
-	 * Enable RTSCTS if any of the series is flagged for RTSCTS,
-	 * but only if CTS is not enabled.
-	 */
-	/*
-	 * FIXME : the entire RTS/CTS handling should be moved to this
-	 * function (by passing the global RTS/CTS flags to this function).
-	 * currently it is split between this function and the
-	 * setupFiirstDescriptor. with this current implementation there
-	 * is an implicit assumption that setupFirstDescriptor is called
-	 * before this function. 
-	 */
-	if (((series[0].RateFlags & HAL_RATESERIES_RTS_CTS) ||
-	     (series[1].RateFlags & HAL_RATESERIES_RTS_CTS) ||
-	     (series[2].RateFlags & HAL_RATESERIES_RTS_CTS) ||
-	     (series[3].RateFlags & HAL_RATESERIES_RTS_CTS) )  &&
-	    (ads->ds_ctl0 & AR_CTSEnable) == 0) {
-		ads->ds_ctl0 |= AR_RTSEnable;
-		ads->ds_ctl0 &= ~AR_CTSEnable;
-	}
 }
 
 void
@@ -692,4 +729,380 @@ ar5416Set11nBurstDuration(struct ath_hal *ah, struct ath_desc *ds,
 	ads->ds_ctl2 &= ~AR_BurstDur;
 	ads->ds_ctl2 |= SM(burstDuration, AR_BurstDur);
 }
-#endif
+
+/*
+ * Retrieve the rate table from the given TX completion descriptor
+ */
+HAL_BOOL
+ar5416GetTxCompletionRates(struct ath_hal *ah, const struct ath_desc *ds0, int *rates, int *tries)
+{
+	const struct ar5416_desc *ads = AR5416DESC_CONST(ds0);
+
+	rates[0] = MS(ads->ds_ctl3, AR_XmitRate0);
+	rates[1] = MS(ads->ds_ctl3, AR_XmitRate1);
+	rates[2] = MS(ads->ds_ctl3, AR_XmitRate2);
+	rates[3] = MS(ads->ds_ctl3, AR_XmitRate3);
+
+	tries[0] = MS(ads->ds_ctl2, AR_XmitDataTries0);
+	tries[1] = MS(ads->ds_ctl2, AR_XmitDataTries1);
+	tries[2] = MS(ads->ds_ctl2, AR_XmitDataTries2);
+	tries[3] = MS(ads->ds_ctl2, AR_XmitDataTries3);
+
+	return AH_TRUE;
+}
+
+
+/*
+ * TX queue management routines - AR5416 and later chipsets
+ */
+
+/*
+ * Allocate and initialize a tx DCU/QCU combination.
+ */
+int
+ar5416SetupTxQueue(struct ath_hal *ah, HAL_TX_QUEUE type,
+	const HAL_TXQ_INFO *qInfo)
+{
+	struct ath_hal_5212 *ahp = AH5212(ah);
+	HAL_TX_QUEUE_INFO *qi;
+	HAL_CAPABILITIES *pCap = &AH_PRIVATE(ah)->ah_caps;
+	int q, defqflags;
+
+	/* by default enable OK+ERR+DESC+URN interrupts */
+	defqflags = HAL_TXQ_TXOKINT_ENABLE
+		  | HAL_TXQ_TXERRINT_ENABLE
+		  | HAL_TXQ_TXDESCINT_ENABLE
+		  | HAL_TXQ_TXURNINT_ENABLE;
+	/* XXX move queue assignment to driver */
+	switch (type) {
+	case HAL_TX_QUEUE_BEACON:
+		q = pCap->halTotalQueues-1;	/* highest priority */
+		defqflags |= HAL_TXQ_DBA_GATED
+		       | HAL_TXQ_CBR_DIS_QEMPTY
+		       | HAL_TXQ_ARB_LOCKOUT_GLOBAL
+		       | HAL_TXQ_BACKOFF_DISABLE;
+		break;
+	case HAL_TX_QUEUE_CAB:
+		q = pCap->halTotalQueues-2;	/* next highest priority */
+		defqflags |= HAL_TXQ_DBA_GATED
+		       | HAL_TXQ_CBR_DIS_QEMPTY
+		       | HAL_TXQ_CBR_DIS_BEMPTY
+		       | HAL_TXQ_ARB_LOCKOUT_GLOBAL
+		       | HAL_TXQ_BACKOFF_DISABLE;
+		break;
+	case HAL_TX_QUEUE_PSPOLL:
+		q = 1;				/* lowest priority */
+		defqflags |= HAL_TXQ_DBA_GATED
+		       | HAL_TXQ_CBR_DIS_QEMPTY
+		       | HAL_TXQ_CBR_DIS_BEMPTY
+		       | HAL_TXQ_ARB_LOCKOUT_GLOBAL
+		       | HAL_TXQ_BACKOFF_DISABLE;
+		break;
+	case HAL_TX_QUEUE_UAPSD:
+		q = pCap->halTotalQueues-3;	/* nextest highest priority */
+		if (ahp->ah_txq[q].tqi_type != HAL_TX_QUEUE_INACTIVE) {
+			HALDEBUG(ah, HAL_DEBUG_ANY,
+			    "%s: no available UAPSD tx queue\n", __func__);
+			return -1;
+		}
+		break;
+	case HAL_TX_QUEUE_DATA:
+		for (q = 0; q < pCap->halTotalQueues; q++)
+			if (ahp->ah_txq[q].tqi_type == HAL_TX_QUEUE_INACTIVE)
+				break;
+		if (q == pCap->halTotalQueues) {
+			HALDEBUG(ah, HAL_DEBUG_ANY,
+			    "%s: no available tx queue\n", __func__);
+			return -1;
+		}
+		break;
+	default:
+		HALDEBUG(ah, HAL_DEBUG_ANY,
+		    "%s: bad tx queue type %u\n", __func__, type);
+		return -1;
+	}
+
+	HALDEBUG(ah, HAL_DEBUG_TXQUEUE, "%s: queue %u\n", __func__, q);
+
+	qi = &ahp->ah_txq[q];
+	if (qi->tqi_type != HAL_TX_QUEUE_INACTIVE) {
+		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: tx queue %u already active\n",
+		    __func__, q);
+		return -1;
+	}
+	OS_MEMZERO(qi, sizeof(HAL_TX_QUEUE_INFO));
+	qi->tqi_type = type;
+	if (qInfo == AH_NULL) {
+		qi->tqi_qflags = defqflags;
+		qi->tqi_aifs = INIT_AIFS;
+		qi->tqi_cwmin = HAL_TXQ_USEDEFAULT;	/* NB: do at reset */
+		qi->tqi_cwmax = INIT_CWMAX;
+		qi->tqi_shretry = INIT_SH_RETRY;
+		qi->tqi_lgretry = INIT_LG_RETRY;
+		qi->tqi_physCompBuf = 0;
+	} else {
+		qi->tqi_physCompBuf = qInfo->tqi_compBuf;
+		(void) ar5212SetTxQueueProps(ah, q, qInfo);
+	}
+	/* NB: must be followed by ar5212ResetTxQueue */
+	return q;
+}
+
+/*
+ * Update the h/w interrupt registers to reflect a tx q's configuration.
+ */
+static void
+setTxQInterrupts(struct ath_hal *ah, HAL_TX_QUEUE_INFO *qi)
+{
+	struct ath_hal_5212 *ahp = AH5212(ah);
+
+	HALDEBUG(ah, HAL_DEBUG_TXQUEUE,
+	    "%s: tx ok 0x%x err 0x%x desc 0x%x eol 0x%x urn 0x%x\n", __func__,
+	    ahp->ah_txOkInterruptMask, ahp->ah_txErrInterruptMask,
+	    ahp->ah_txDescInterruptMask, ahp->ah_txEolInterruptMask,
+	    ahp->ah_txUrnInterruptMask);
+
+	OS_REG_WRITE(ah, AR_IMR_S0,
+		  SM(ahp->ah_txOkInterruptMask, AR_IMR_S0_QCU_TXOK)
+		| SM(ahp->ah_txDescInterruptMask, AR_IMR_S0_QCU_TXDESC)
+	);
+	OS_REG_WRITE(ah, AR_IMR_S1,
+		  SM(ahp->ah_txErrInterruptMask, AR_IMR_S1_QCU_TXERR)
+		| SM(ahp->ah_txEolInterruptMask, AR_IMR_S1_QCU_TXEOL)
+	);
+	OS_REG_RMW_FIELD(ah, AR_IMR_S2,
+		AR_IMR_S2_QCU_TXURN, ahp->ah_txUrnInterruptMask);
+}
+
+/*
+ * Set the retry, aifs, cwmin/max, readyTime regs for specified queue
+ * Assumes:
+ *  phwChannel has been set to point to the current channel
+ */
+HAL_BOOL
+ar5416ResetTxQueue(struct ath_hal *ah, u_int q)
+{
+	struct ath_hal_5212 *ahp = AH5212(ah);
+	HAL_CAPABILITIES *pCap = &AH_PRIVATE(ah)->ah_caps;
+	const struct ieee80211_channel *chan = AH_PRIVATE(ah)->ah_curchan;
+	HAL_TX_QUEUE_INFO *qi;
+	uint32_t cwMin, chanCwMin, value, qmisc, dmisc;
+
+	if (q >= pCap->halTotalQueues) {
+		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: invalid queue num %u\n",
+		    __func__, q);
+		return AH_FALSE;
+	}
+	qi = &ahp->ah_txq[q];
+	if (qi->tqi_type == HAL_TX_QUEUE_INACTIVE) {
+		HALDEBUG(ah, HAL_DEBUG_TXQUEUE, "%s: inactive queue %u\n",
+		    __func__, q);
+		return AH_TRUE;		/* XXX??? */
+	}
+
+	HALDEBUG(ah, HAL_DEBUG_TXQUEUE, "%s: reset queue %u\n", __func__, q);
+
+	if (qi->tqi_cwmin == HAL_TXQ_USEDEFAULT) {
+		/*
+		 * Select cwmin according to channel type.
+		 * NB: chan can be NULL during attach
+		 */
+		if (chan && IEEE80211_IS_CHAN_B(chan))
+			chanCwMin = INIT_CWMIN_11B;
+		else
+			chanCwMin = INIT_CWMIN;
+		/* make sure that the CWmin is of the form (2^n - 1) */
+		for (cwMin = 1; cwMin < chanCwMin; cwMin = (cwMin << 1) | 1)
+			;
+	} else
+		cwMin = qi->tqi_cwmin;
+
+	/* set cwMin/Max and AIFS values */
+	OS_REG_WRITE(ah, AR_DLCL_IFS(q),
+		  SM(cwMin, AR_D_LCL_IFS_CWMIN)
+		| SM(qi->tqi_cwmax, AR_D_LCL_IFS_CWMAX)
+		| SM(qi->tqi_aifs, AR_D_LCL_IFS_AIFS));
+
+	/* Set retry limit values */
+	OS_REG_WRITE(ah, AR_DRETRY_LIMIT(q), 
+		   SM(INIT_SSH_RETRY, AR_D_RETRY_LIMIT_STA_SH)
+		 | SM(INIT_SLG_RETRY, AR_D_RETRY_LIMIT_STA_LG)
+		 | SM(qi->tqi_lgretry, AR_D_RETRY_LIMIT_FR_LG)
+		 | SM(qi->tqi_shretry, AR_D_RETRY_LIMIT_FR_SH)
+	);
+
+	/* NB: always enable early termination on the QCU */
+	qmisc = AR_Q_MISC_DCU_EARLY_TERM_REQ
+	      | SM(AR_Q_MISC_FSP_ASAP, AR_Q_MISC_FSP);
+
+	/* NB: always enable DCU to wait for next fragment from QCU */
+	dmisc = AR_D_MISC_FRAG_WAIT_EN;
+
+	/* Enable exponential backoff window */
+	dmisc |= AR_D_MISC_BKOFF_PERSISTENCE;
+
+	/* 
+	 * The chip reset default is to use a DCU backoff threshold of 0x2.
+	 * Restore this when programming the DCU MISC register.
+	 */
+	dmisc |= 0x2;
+
+	/* multiqueue support */
+	if (qi->tqi_cbrPeriod) {
+		OS_REG_WRITE(ah, AR_QCBRCFG(q), 
+			  SM(qi->tqi_cbrPeriod,AR_Q_CBRCFG_CBR_INTERVAL)
+			| SM(qi->tqi_cbrOverflowLimit, AR_Q_CBRCFG_CBR_OVF_THRESH));
+		qmisc = (qmisc &~ AR_Q_MISC_FSP) | AR_Q_MISC_FSP_CBR;
+		if (qi->tqi_cbrOverflowLimit)
+			qmisc |= AR_Q_MISC_CBR_EXP_CNTR_LIMIT;
+	}
+	if (qi->tqi_readyTime) {
+		OS_REG_WRITE(ah, AR_QRDYTIMECFG(q),
+			  SM(qi->tqi_readyTime, AR_Q_RDYTIMECFG_INT)
+			| AR_Q_RDYTIMECFG_ENA);
+	}
+	
+	OS_REG_WRITE(ah, AR_DCHNTIME(q),
+		  SM(qi->tqi_burstTime, AR_D_CHNTIME_DUR)
+		| (qi->tqi_burstTime ? AR_D_CHNTIME_EN : 0));
+
+	if (qi->tqi_readyTime &&
+	    (qi->tqi_qflags & HAL_TXQ_RDYTIME_EXP_POLICY_ENABLE))
+		qmisc |= AR_Q_MISC_RDYTIME_EXP_POLICY;
+	if (qi->tqi_qflags & HAL_TXQ_DBA_GATED)
+		qmisc = (qmisc &~ AR_Q_MISC_FSP) | AR_Q_MISC_FSP_DBA_GATED;
+	if (MS(qmisc, AR_Q_MISC_FSP) != AR_Q_MISC_FSP_ASAP) {
+		/*
+		 * These are meangingful only when not scheduled asap.
+		 */
+		if (qi->tqi_qflags & HAL_TXQ_CBR_DIS_BEMPTY)
+			qmisc |= AR_Q_MISC_CBR_INCR_DIS0;
+		else
+			qmisc &= ~AR_Q_MISC_CBR_INCR_DIS0;
+		if (qi->tqi_qflags & HAL_TXQ_CBR_DIS_QEMPTY)
+			qmisc |= AR_Q_MISC_CBR_INCR_DIS1;
+		else
+			qmisc &= ~AR_Q_MISC_CBR_INCR_DIS1;
+	}
+
+	if (qi->tqi_qflags & HAL_TXQ_BACKOFF_DISABLE)
+		dmisc |= AR_D_MISC_POST_FR_BKOFF_DIS;
+	if (qi->tqi_qflags & HAL_TXQ_FRAG_BURST_BACKOFF_ENABLE)
+		dmisc |= AR_D_MISC_FRAG_BKOFF_EN;
+	if (qi->tqi_qflags & HAL_TXQ_ARB_LOCKOUT_GLOBAL)
+		dmisc |= SM(AR_D_MISC_ARB_LOCKOUT_CNTRL_GLOBAL,
+			    AR_D_MISC_ARB_LOCKOUT_CNTRL);
+	else if (qi->tqi_qflags & HAL_TXQ_ARB_LOCKOUT_INTRA)
+		dmisc |= SM(AR_D_MISC_ARB_LOCKOUT_CNTRL_INTRA_FR,
+			    AR_D_MISC_ARB_LOCKOUT_CNTRL);
+	if (qi->tqi_qflags & HAL_TXQ_IGNORE_VIRTCOL)
+		dmisc |= SM(AR_D_MISC_VIR_COL_HANDLING_IGNORE,
+			    AR_D_MISC_VIR_COL_HANDLING);
+	if (qi->tqi_qflags & HAL_TXQ_SEQNUM_INC_DIS)
+		dmisc |= AR_D_MISC_SEQ_NUM_INCR_DIS;
+
+	/*
+	 * Fillin type-dependent bits.  Most of this can be
+	 * removed by specifying the queue parameters in the
+	 * driver; it's here for backwards compatibility.
+	 */
+	switch (qi->tqi_type) {
+	case HAL_TX_QUEUE_BEACON:		/* beacon frames */
+		qmisc |= AR_Q_MISC_FSP_DBA_GATED
+		      |  AR_Q_MISC_BEACON_USE
+		      |  AR_Q_MISC_CBR_INCR_DIS1;
+
+		dmisc |= SM(AR_D_MISC_ARB_LOCKOUT_CNTRL_GLOBAL,
+			    AR_D_MISC_ARB_LOCKOUT_CNTRL)
+		      |  AR_D_MISC_BEACON_USE
+		      |  AR_D_MISC_POST_FR_BKOFF_DIS;
+		break;
+	case HAL_TX_QUEUE_CAB:			/* CAB  frames */
+		/* 
+		 * No longer Enable AR_Q_MISC_RDYTIME_EXP_POLICY,
+		 * There is an issue with the CAB Queue
+		 * not properly refreshing the Tx descriptor if
+		 * the TXE clear setting is used.
+		 */
+		qmisc |= AR_Q_MISC_FSP_DBA_GATED
+		      |  AR_Q_MISC_CBR_INCR_DIS1
+		      |  AR_Q_MISC_CBR_INCR_DIS0;
+
+		if (!qi->tqi_readyTime) {
+			/*
+			 * NB: don't set default ready time if driver
+			 * has explicitly specified something.  This is
+			 * here solely for backwards compatibility.
+			 */
+			value = (ahp->ah_beaconInterval
+				- (ath_hal_sw_beacon_response_time -
+					ath_hal_dma_beacon_response_time)
+				- ath_hal_additional_swba_backoff) * 1024;
+			OS_REG_WRITE(ah, AR_QRDYTIMECFG(q), value | AR_Q_RDYTIMECFG_ENA);
+		}
+		dmisc |= SM(AR_D_MISC_ARB_LOCKOUT_CNTRL_GLOBAL,
+			    AR_D_MISC_ARB_LOCKOUT_CNTRL);
+		break;
+	case HAL_TX_QUEUE_PSPOLL:
+		qmisc |= AR_Q_MISC_CBR_INCR_DIS1;
+		break;
+	case HAL_TX_QUEUE_UAPSD:
+		dmisc |= AR_D_MISC_POST_FR_BKOFF_DIS;
+		break;
+	default:			/* NB: silence compiler */
+		break;
+	}
+
+	OS_REG_WRITE(ah, AR_QMISC(q), qmisc);
+	OS_REG_WRITE(ah, AR_DMISC(q), dmisc);
+
+	/* Setup compression scratchpad buffer */
+	/* 
+	 * XXX: calling this asynchronously to queue operation can
+	 *      cause unexpected behavior!!!
+	 */
+	if (qi->tqi_physCompBuf) {
+		HALASSERT(qi->tqi_type == HAL_TX_QUEUE_DATA ||
+			  qi->tqi_type == HAL_TX_QUEUE_UAPSD);
+		OS_REG_WRITE(ah, AR_Q_CBBS, (80 + 2*q));
+		OS_REG_WRITE(ah, AR_Q_CBBA, qi->tqi_physCompBuf);
+		OS_REG_WRITE(ah, AR_Q_CBC,  HAL_COMP_BUF_MAX_SIZE/1024);
+		OS_REG_WRITE(ah, AR_Q0_MISC + 4*q,
+			     OS_REG_READ(ah, AR_Q0_MISC + 4*q)
+			     | AR_Q_MISC_QCU_COMP_EN);
+	}
+	
+	/*
+	 * Always update the secondary interrupt mask registers - this
+	 * could be a new queue getting enabled in a running system or
+	 * hw getting re-initialized during a reset!
+	 *
+	 * Since we don't differentiate between tx interrupts corresponding
+	 * to individual queues - secondary tx mask regs are always unmasked;
+	 * tx interrupts are enabled/disabled for all queues collectively
+	 * using the primary mask reg
+	 */
+	if (qi->tqi_qflags & HAL_TXQ_TXOKINT_ENABLE)
+		ahp->ah_txOkInterruptMask |= 1 << q;
+	else
+		ahp->ah_txOkInterruptMask &= ~(1 << q);
+	if (qi->tqi_qflags & HAL_TXQ_TXERRINT_ENABLE)
+		ahp->ah_txErrInterruptMask |= 1 << q;
+	else
+		ahp->ah_txErrInterruptMask &= ~(1 << q);
+	if (qi->tqi_qflags & HAL_TXQ_TXDESCINT_ENABLE)
+		ahp->ah_txDescInterruptMask |= 1 << q;
+	else
+		ahp->ah_txDescInterruptMask &= ~(1 << q);
+	if (qi->tqi_qflags & HAL_TXQ_TXEOLINT_ENABLE)
+		ahp->ah_txEolInterruptMask |= 1 << q;
+	else
+		ahp->ah_txEolInterruptMask &= ~(1 << q);
+	if (qi->tqi_qflags & HAL_TXQ_TXURNINT_ENABLE)
+		ahp->ah_txUrnInterruptMask |= 1 << q;
+	else
+		ahp->ah_txUrnInterruptMask &= ~(1 << q);
+	setTxQInterrupts(ah, qi);
+
+	return AH_TRUE;
+}

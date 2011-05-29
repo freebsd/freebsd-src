@@ -90,12 +90,10 @@ static int
 ata_national_ch_attach(device_t dev)
 {
 	struct ata_channel *ch = device_get_softc(dev);
-	int error;
  
-	error = ata_pci_ch_attach(dev);
 	ch->dma.alignment = 16;
 	ch->dma.max_iosize = 64 * DEV_BSIZE;
-	return (error);
+	return (ata_pci_ch_attach(dev));
 }
 
 static int

@@ -1,7 +1,7 @@
 .\" Copyright (c) 2007 Seccuris Inc.
 .\" All rights reserved.
 .\"
-.\" This sofware was developed by Robert N. M. Watson under contract to
+.\" This software was developed by Robert N. M. Watson under contract to
 .\" Seccuris Inc.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -49,7 +49,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 26, 2007
+.Dd June 15, 2010
 .Dt BPF 4
 .Os
 .Sh NAME
@@ -253,7 +253,7 @@ As in the buffered read mode,
 .Xr poll 2 ,
 and
 .Xr select 2
-may be used to sleep awaiting the availbility of a completed buffer.
+may be used to sleep awaiting the availability of a completed buffer.
 They will return a readable file descriptor when ownership of the next buffer
 is assigned to user space.
 .Pp
@@ -513,6 +513,64 @@ to see only outgoing packets on the interface.
 This setting is initialized to
 .Dv BPF_D_INOUT
 by default.
+.It Dv BIOCSTSTAMP
+.It Dv BIOCGTSTAMP
+.Pq Li u_int
+Set or get format and resolution of the time stamps returned by BPF.
+Set to
+.Dv BPF_T_MICROTIME ,
+.Dv BPF_T_MICROTIME_FAST ,
+.Dv BPF_T_MICROTIME_MONOTONIC ,
+or
+.Dv BPF_T_MICROTIME_MONOTONIC_FAST
+to get time stamps in 64-bit
+.Vt struct timeval
+format.
+Set to
+.Dv BPF_T_NANOTIME ,
+.Dv BPF_T_NANOTIME_FAST ,
+.Dv BPF_T_NANOTIME_MONOTONIC ,
+or
+.Dv BPF_T_NANOTIME_MONOTONIC_FAST
+to get time stamps in 64-bit
+.Vt struct timespec
+format.
+Set to
+.Dv BPF_T_BINTIME ,
+.Dv BPF_T_BINTIME_FAST ,
+.Dv BPF_T_NANOTIME_MONOTONIC ,
+or
+.Dv BPF_T_BINTIME_MONOTONIC_FAST
+to get time stamps in 64-bit
+.Vt struct bintime
+format.
+Set to
+.Dv BPF_T_NONE
+to ignore time stamp.
+All 64-bit time stamp formats are wrapped in
+.Vt struct bpf_ts .
+The
+.Dv BPF_T_MICROTIME_FAST ,
+.Dv BPF_T_NANOTIME_FAST ,
+.Dv BPF_T_BINTIME_FAST ,
+.Dv BPF_T_MICROTIME_MONOTONIC_FAST ,
+.Dv BPF_T_NANOTIME_MONOTONIC_FAST ,
+and
+.Dv BPF_T_BINTIME_MONOTONIC_FAST
+are analogs of corresponding formats without _FAST suffix but do not perform
+a full time counter query, so their accuracy is one timer tick.
+The
+.Dv BPF_T_MICROTIME_MONOTONIC ,
+.Dv BPF_T_NANOTIME_MONOTONIC ,
+.Dv BPF_T_BINTIME_MONOTONIC ,
+.Dv BPF_T_MICROTIME_MONOTONIC_FAST ,
+.Dv BPF_T_NANOTIME_MONOTONIC_FAST ,
+and
+.Dv BPF_T_BINTIME_MONOTONIC_FAST
+store the time elapsed since kernel boot.
+This setting is initialized to
+.Dv BPF_T_MICROTIME
+by default.
 .It Dv BIOCFEEDBACK
 .Pq Li u_int
 Set packet feedback mode.
@@ -575,16 +633,24 @@ against
 .Vt bzh_user_gen .
 .El
 .Sh BPF HEADER
-The following structure is prepended to each packet returned by
+One of the following structures is prepended to each packet returned by
 .Xr read 2
 or via a zero-copy buffer:
 .Bd -literal
+struct bpf_xhdr {
+	struct bpf_ts	bh_tstamp;     /* time stamp */
+	uint32_t	bh_caplen;     /* length of captured portion */
+	uint32_t	bh_datalen;    /* original length of packet */
+	u_short		bh_hdrlen;     /* length of bpf header (this struct
+					  plus alignment padding */
+};
+
 struct bpf_hdr {
-        struct timeval bh_tstamp;     /* time stamp */
-        u_long bh_caplen;             /* length of captured portion */
-        u_long bh_datalen;            /* original length of packet */
-        u_short bh_hdrlen;            /* length of bpf header (this struct
-					 plus alignment padding */
+	struct timeval	bh_tstamp;     /* time stamp */
+	uint32_t	bh_caplen;     /* length of captured portion */
+	uint32_t	bh_datalen;    /* original length of packet */
+	u_short		bh_hdrlen;     /* length of bpf header (this struct
+					  plus alignment padding */
 };
 .Ed
 .Pp
@@ -605,6 +671,8 @@ The length of the
 .Nm
 header, which may not be equal to
 .\" XXX - not really a function call
+.Fn sizeof "struct bpf_xhdr"
+or
 .Fn sizeof "struct bpf_hdr" .
 .El
 .Pp
@@ -615,10 +683,25 @@ padding between the header and the link level protocol.
 The purpose here is to guarantee proper alignment of the packet
 data structures, which is required on alignment sensitive
 architectures and improves performance on many other architectures.
-The packet filter insures that the
-.Li bpf_hdr
+The packet filter ensures that the
+.Vt bpf_xhdr ,
+.Vt bpf_hdr
 and the network layer
 header will be word aligned.
+Currently,
+.Vt bpf_hdr
+is used when the time stamp is set to
+.Dv BPF_T_MICROTIME ,
+.Dv BPF_T_MICROTIME_FAST ,
+.Dv BPF_T_MICROTIME_MONOTONIC ,
+.Dv BPF_T_MICROTIME_MONOTONIC_FAST ,
+or
+.Dv BPF_T_NONE
+for backward compatibility reasons.  Otherwise,
+.Vt bpf_xhdr
+is used.  However,
+.Vt bpf_hdr
+may be deprecated in the near future.
 Suitable precautions
 must be taken when accessing the link layer protocol fields on alignment
 restricted machines.
@@ -721,7 +804,6 @@ are the corresponding fields in the
 instruction definition.
 .Dq len
 refers to the length of the packet.
-.Pp
 .Bl -tag -width BPF_STXx
 .It Dv BPF_LD
 These instructions copy a value into the accumulator.
@@ -750,7 +832,6 @@ or byte
 The semantics of all the recognized
 .Dv BPF_LD
 instructions follow.
-.Pp
 .Bd -literal
 BPF_LD+BPF_W+BPF_ABS	A <- P[k:4]
 BPF_LD+BPF_H+BPF_ABS	A <- P[k:2]
@@ -769,7 +850,6 @@ the addressing modes are more restrictive than those of the accumulator loads,
 but they include
 .Dv BPF_MSH ,
 a hack for efficiently loading the IP header length.
-.Pp
 .Bd -literal
 BPF_LDX+BPF_W+BPF_IMM	X <- k
 BPF_LDX+BPF_W+BPF_MEM	X <- M[k]
@@ -780,13 +860,11 @@ BPF_LDX+BPF_B+BPF_MSH	X <- 4*(P[k:1]&0xf)
 This instruction stores the accumulator into the scratch memory.
 We do not need an addressing mode since there is only one possibility
 for the destination.
-.Pp
 .Bd -literal
 BPF_ST			M[k] <- A
 .Ed
 .It Dv BPF_STX
 This instruction stores the index register in the scratch memory store.
-.Pp
 .Bd -literal
 BPF_STX			M[k] <- X
 .Ed
@@ -797,7 +875,6 @@ For binary operations, a source mode is required
 .Dv ( BPF_K
 or
 .Dv BPF_X ) .
-.Pp
 .Bd -literal
 BPF_ALU+BPF_ADD+BPF_K	A <- A + k
 BPF_ALU+BPF_SUB+BPF_K	A <- A - k
@@ -833,7 +910,6 @@ opcode uses the 32 bit
 .Li k
 field as the offset, allowing arbitrarily distant destinations.
 All conditionals use unsigned comparison conventions.
-.Pp
 .Bd -literal
 BPF_JMP+BPF_JA		pc += k
 BPF_JMP+BPF_JGT+BPF_K	pc += (A > k) ? jt : jf
@@ -853,7 +929,6 @@ The return value is either a constant
 .Pq Dv BPF_K
 or the accumulator
 .Pq Dv BPF_A .
-.Pp
 .Bd -literal
 BPF_RET+BPF_A		accept A bytes
 BPF_RET+BPF_K		accept k bytes
@@ -864,7 +939,6 @@ fit into the above classes, and for any new instructions that might need to
 be added.
 Currently, these are the register transfer instructions
 that copy the index register to the accumulator or vice versa.
-.Pp
 .Bd -literal
 BPF_MISC+BPF_TAX	X <- A
 BPF_MISC+BPF_TXA	A <- X

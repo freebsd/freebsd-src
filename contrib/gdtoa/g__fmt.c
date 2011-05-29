@@ -56,7 +56,7 @@ g__fmt(char *b, char *s, char *se, int decpt, ULong sign, size_t blen)
 	if (!(s0 = decimalpoint_cache)) {
 		s0 = localeconv()->decimal_point;
 		dlen = strlen(s0);
-		if ((decimalpoint_cache = (char*)malloc(strlen(s0) + 1))) {
+		if ((decimalpoint_cache = (char*)MALLOC(strlen(s0) + 1))) {
 			strcpy(decimalpoint_cache, s0);
 			s0 = decimalpoint_cache;
 			}

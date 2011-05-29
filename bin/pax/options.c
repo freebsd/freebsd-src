@@ -887,7 +887,7 @@ tar_options(int argc, char **argv)
 					sawpat = 1;
 			}
 			/*
-			 * if patterns were added, we are doing	chdir()
+			 * if patterns were added, we are doing chdir()
 			 * on a file-by-file basis, else, just one
 			 * global chdir (if any) after opening input.
 			 */

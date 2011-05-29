@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007 The DragonFly Project.  All rights reserved.
+ * Copyright (c) 2007 Sepherosa Ziehau.  All rights reserved.
  *
  * This code is derived from software contributed to The DragonFly Project
  * by Sepherosa Ziehau <sepherosa@gmail.com>
@@ -63,8 +63,8 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
+#include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
-#include <dev/mii/truephyreg.h>
 
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
@@ -275,7 +275,7 @@ et_attach(device_t dev)
 	}
 
 	msic = 0;
-	if (pci_find_extcap(dev, PCIY_EXPRESS, &cap) == 0) {
+	if (pci_find_cap(dev, PCIY_EXPRESS, &cap) == 0) {
 		sc->sc_expcap = cap;
 		sc->sc_flags |= ET_FLAG_PCIE;
 		msic = pci_msi_count(dev);
@@ -343,10 +343,10 @@ et_attach(device_t dev)
 
 	et_chip_attach(sc);
 
-	error = mii_phy_probe(dev, &sc->sc_miibus,
-			      et_ifmedia_upd, et_ifmedia_sts);
+	error = mii_attach(dev, &sc->sc_miibus, ifp, et_ifmedia_upd,
+	    et_ifmedia_sts, BMSR_DEFCAPMASK, MII_PHY_ANY, MII_OFFSET_ANY, 0);
 	if (error) {
-		device_printf(dev, "can't probe any PHY\n");
+		device_printf(dev, "attaching PHYs failed\n");
 		goto fail;
 	}
 
@@ -515,13 +515,10 @@ et_ifmedia_upd_locked(struct ifnet *ifp)
 {
 	struct et_softc *sc = ifp->if_softc;
 	struct mii_data *mii = device_get_softc(sc->sc_miibus);
+	struct mii_softc *miisc;
 
-	if (mii->mii_instance != 0) {
-		struct mii_softc *miisc;
-
-		LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
-			mii_phy_reset(miisc);
-	}
+	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
+		PHY_RESET(miisc);
 	mii_mediachg(mii);
 
 	return (0);
@@ -1320,6 +1317,8 @@ et_watchdog(struct et_softc *sc)
 
 	if_printf(sc->ifp, "watchdog timed out\n");
 
+	sc->ifp->if_oerrors++;
+	sc->ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	et_init_locked(sc);
 	et_start_locked(sc->ifp);
 }

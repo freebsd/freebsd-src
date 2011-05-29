@@ -49,3 +49,5 @@ ENTRY(__sys_getcontext)
 	PIC_PROLOGUE
 	jmp	PIC_PLT(HIDENAME(cerror))
 END(__sys_getcontext)
+
+	.section .note.GNU-stack,"",%progbits

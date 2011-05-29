@@ -57,9 +57,15 @@ the possibility of a GCC built-in function.
 
 /* These variables are used by the ASTRDUP implementation that relies
    on C_alloca.  */
+#ifdef __cplusplus
+extern "C" {
+#endif /* __cplusplus */
 const char *libiberty_optr;
 char *libiberty_nptr;
 unsigned long libiberty_len;
+#ifdef __cplusplus
+}
+#endif /* __cplusplus */
 
 /* If your stack is a linked list of frames, you have to
    provide an "address metric" ADDRESS_FUNCTION macro.  */
@@ -97,7 +103,7 @@ static int stack_dir;		/* 1 or -1 once known.  */
 #define	STACK_DIR	stack_dir
 
 static void
-find_stack_direction ()
+find_stack_direction (void)
 {
   static char *addr = NULL;	/* Address of first `dummy', once known.  */
   auto char dummy;		/* To get stack address.  */
@@ -153,8 +159,7 @@ static header *last_alloca_header = NULL;	/* -> last alloca header.  */
 /* @undocumented C_alloca */
 
 PTR
-C_alloca (size)
-     size_t size;
+C_alloca (size_t size)
 {
   auto char probe;		/* Probes stack depth: */
   register char *depth = ADDRESS_FUNCTION (probe);
@@ -192,20 +197,20 @@ C_alloca (size)
   /* Allocate combined header + user data storage.  */
 
   {
-    register PTR new = xmalloc (sizeof (header) + size);
+    register void *new_storage = XNEWVEC (char, sizeof (header) + size);
     /* Address of header.  */
 
-    if (new == 0)
+    if (new_storage == 0)
       abort();
 
-    ((header *) new)->h.next = last_alloca_header;
-    ((header *) new)->h.deep = depth;
+    ((header *) new_storage)->h.next = last_alloca_header;
+    ((header *) new_storage)->h.deep = depth;
 
-    last_alloca_header = (header *) new;
+    last_alloca_header = (header *) new_storage;
 
     /* User storage begins just after header.  */
 
-    return (PTR) ((char *) new + sizeof (header));
+    return (PTR) ((char *) new_storage + sizeof (header));
   }
 }
 

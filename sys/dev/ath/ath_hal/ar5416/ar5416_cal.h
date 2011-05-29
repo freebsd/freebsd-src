@@ -102,6 +102,7 @@ struct ar5416PerCal {
 	}								\
 } while (0)
 
+HAL_BOOL	ar5416InitCalHardware(struct ath_hal *ah, const struct ieee80211_channel *chan);
 HAL_BOOL ar5416InitCal(struct ath_hal *, const struct ieee80211_channel *);
 HAL_BOOL ar5416PerCalibration(struct ath_hal *,  struct ieee80211_channel *,
 	    HAL_BOOL *isIQdone);

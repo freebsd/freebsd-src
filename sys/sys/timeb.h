@@ -38,6 +38,10 @@
 #ifndef _SYS_TIMEB_H_
 #define _SYS_TIMEB_H_
 
+#ifdef __GNUC__
+#warning "this file includes <sys/timeb.h> which is deprecated"
+#endif
+
 #include <sys/_types.h>
 
 #ifndef _TIME_T_DECLARED

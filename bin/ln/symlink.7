@@ -29,7 +29,7 @@
 .\"	@(#)symlink.7	8.3 (Berkeley) 3/31/94
 .\" $FreeBSD$
 .\"
-.Dd March 31, 1994
+.Dd April 25, 2010
 .Dt SYMLINK 7
 .Os
 .Sh NAME
@@ -103,19 +103,23 @@ the system call
 would return a file descriptor to the file
 .Dq afile .
 .Pp
-There are nine system calls that do not follow links, and which operate
+There are thirteen system calls that do not follow links, and which operate
 on the symbolic link itself.
 They are:
 .Xr lchflags 2 ,
 .Xr lchmod 2 ,
 .Xr lchown 2 ,
+.Xr lpathconf 2 ,
 .Xr lstat 2 ,
 .Xr lutimes 2 ,
 .Xr readlink 2 ,
+.Xr readlinkat 2 ,
 .Xr rename 2 ,
+.Xr renameat 2 ,
 .Xr rmdir 2 ,
+.Xr unlink 2 ,
 and
-.Xr unlink 2 .
+.Xr unlinkat 2 .
 Because
 .Xr remove 3
 is an alias for
@@ -123,8 +127,29 @@ is an alias for
 it also does not follow symbolic links.
 When
 .Xr rmdir 2
+or
+.Xr unlinkat 2
+with the
+.Dv AT_REMOVEDIR
+flag
 is applied to a symbolic link, it fails with the error
 .Er ENOTDIR .
+.Pp
+The
+.Xr linkat 2
+system call does not follow symbolic links
+unless given the
+.Dv AT_SYMLINK_FOLLOW
+flag.
+.Pp
+The following system calls follow symbolic links
+unless given the
+.Dv AT_SYMLINK_NOFOLLOW
+flag:
+.Xr fchmodat 2 ,
+.Xr fchownat 2
+and
+.Xr fstatat 2 .
 .Pp
 The owner and group of an existing symbolic link can be changed by
 means of the
@@ -138,8 +163,8 @@ an existing symbolic link can be changed by means of the
 and
 .Xr lutimes 2
 system calls, respectively.
-Of these, only the flags are used by the system;
-the access permissions and ownership are ignored.
+Of these, only the flags and ownership are used by the system;
+the access permissions are ignored.
 .Pp
 The
 .Bx 4.4

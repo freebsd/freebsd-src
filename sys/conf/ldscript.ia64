@@ -1,14 +1,30 @@
 /* $FreeBSD$ */
-OUTPUT_FORMAT("elf64-ia64-little", "elf64-ia64-little", "elf64-ia64-little")
+OUTPUT_FORMAT("elf64-ia64-freebsd", "elf64-ia64-freebsd", "elf64-ia64-freebsd")
 OUTPUT_ARCH(ia64)
 ENTRY(__start)
 SEARCH_DIR(/usr/lib);
-kernel_text = 0xe000000004000000;
+kernel_text = 0x9ffc000000000000;
 SECTIONS
 {
   /* Read-only sections, merged into text segment: */
   . = kernel_text + SIZEOF_HEADERS;
   .interp         : { *(.interp) }
+
+  PROVIDE (btext = .);
+  .text           :
+  {
+    *(.ivt)
+    *(.ivt.text)
+    *(.text .stub .text.* .gnu.linkonce.t.*)
+    /* .gnu.warning sections are handled specially by elf32.em.  */
+    *(.gnu.warning)
+  } = 0x00300000010070000002000001000400
+  .init           : { *(.init) } = 0x00300000010070000002000001000400
+  .plt            : { *(.plt) }
+  .fini           : { *(.fini) } = 0x00300000010070000002000001000400
+  _etext = .;
+  PROVIDE (etext = .);
+
   .hash           : { *(.hash) }
   .dynsym         : { *(.dynsym) }
   .dynstr         : { *(.dynstr) }
@@ -30,37 +46,25 @@ SECTIONS
   .rela.bss       : { *(.rela.bss .rela.bss.* .rela.gnu.linkonce.b.*) }
   .rela.plt       : { *(.rela.plt) }
   .rela.IA_64.pltoff   : { *(.rela.IA_64.pltoff) }
-  PROVIDE (btext = .);
-  .init           :
-  {
-    *(.init)
-  } =0x00300000010070000002000001000400
-  .plt            : { *(.plt) }
-  .text           :
-  {
-    *(.text .stub .text.* .gnu.linkonce.t.*)
-    /* .gnu.warning sections are handled specially by elf32.em.  */
-    *(.gnu.warning)
-  } =0x00300000010070000002000001000400
-  .fini           :
-  {
-    *(.fini)
-  } =0x00300000010070000002000001000400
-  _etext = .;
-  PROVIDE (etext = .);
+
+  .IA_64.unwind_info   : { *(.IA_64.unwind_info* .gnu.linkonce.ia64unwi.*) }
+  .IA_64.unwind   : { *(.IA_64.unwind* .gnu.linkonce.ia64unw.*) }
+
   .rodata         : { *(.rodata .rodata.* .gnu.linkonce.r.*) }
   .rodata1        : { *(.rodata1) }
   .sdata2         : { *(.sdata2 .sdata2.* .gnu.linkonce.s2.*) }
   .sbss2          : { *(.sbss2 .sbss2.* .gnu.linkonce.sb2.*) }
   .opd            : { *(.opd) }
-  .IA_64.unwind_info   : { *(.IA_64.unwind_info* .gnu.linkonce.ia64unwi.*) }
-  .IA_64.unwind   : { *(.IA_64.unwind* .gnu.linkonce.ia64unw.*) }
-  /* Adjust the address for the data segment.  We want to adjust up to
-     the same address within the page on the next page up.  */
-  . = . + 8192;
+
+  /* Adjust the address for the data segment.  We want to start in the next
+     page in the loader virtual memory. */
+  . = ALIGN(65536);
+
+  PROVIDE (bdata = .);
   .data           :
   {
-    *(.data.proc0 .data .data.* .gnu.linkonce.d.*)
+    *(.ivt.data)
+    *(.data .data.* .gnu.linkonce.d.*)
     SORT(CONSTRUCTORS)
   }
   .data1          : { *(.data1) }

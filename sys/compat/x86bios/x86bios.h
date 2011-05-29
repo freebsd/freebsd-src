@@ -138,11 +138,11 @@ typedef struct x86regs	x86regs_t;
 #define	R_FS		register_fs
 #define	R_GS		register_gs
 
-#define	X86BIOS_PHYSTOSEG(x)	(((x) >> 4) & 0xffff)
-#define	X86BIOS_PHYSTOOFF(x)	((x) & 0x000f)
+#define	X86BIOS_PHYSTOSEG(x)	(((x) >> 4) & 0xff00)
+#define	X86BIOS_PHYSTOOFF(x)	((x) & 0x0fff)
 
 __BEGIN_DECLS
-void	*x86bios_alloc(uint32_t *offset, size_t size);
+void	*x86bios_alloc(uint32_t *offset, size_t size, int flags);
 void	 x86bios_call(struct x86regs *regs, uint16_t seg, uint16_t off);
 void	 x86bios_free(void *addr, size_t size);
 uint32_t x86bios_get_intr(int intno);
@@ -151,6 +151,7 @@ void	 x86bios_init_regs(struct x86regs *regs);
 void	 x86bios_intr(struct x86regs *regs, int intno);
 int	 x86bios_match_device(uint32_t offset, device_t dev);
 void	*x86bios_offset(uint32_t offset);
+void	 x86bios_set_intr(int intno, uint32_t saddr);
 __END_DECLS
 
 #endif /* !_X86BIOS_H_ */

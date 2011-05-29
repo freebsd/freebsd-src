@@ -4,11 +4,11 @@ test "$(trap 'echo trapped' EXIT; :)" = trapped || exit 1
 
 test "$(trap 'echo trapped' EXIT; /usr/bin/true)" = trapped || exit 1
 
-result=$(sh -c 'trap "echo trapped" EXIT; /usr/bin/false')
+result=$(${SH} -c 'trap "echo trapped" EXIT; /usr/bin/false')
 test $? -eq 1 || exit 1
 test "$result" = trapped || exit 1
 
-result=$(sh -c 'trap "echo trapped" EXIT; exec /usr/bin/false')
+result=$(${SH} -c 'trap "echo trapped" EXIT; exec /usr/bin/false')
 test $? -eq 1 || exit 1
 test -z "$result" || exit 1
 

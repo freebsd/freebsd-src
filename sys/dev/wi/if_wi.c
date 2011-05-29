@@ -295,7 +295,7 @@ wi_attach(device_t dev)
 		SYSCTL_ADD_INT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO,
 		    "pri_version", CTLFLAG_RD, &sc->sc_pri_firmware_ver, 0,
 		    "Primary Firmware version");
-	SYSCTL_ADD_XINT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "nic_id",
+	SYSCTL_ADD_UINT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "nic_id",
 	    CTLFLAG_RD, &sc->sc_nic_id, 0, "NIC id");
 	SYSCTL_ADD_STRING(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "nic_name",
 	    CTLFLAG_RD, sc->sc_nic_name, 0, "NIC name");
@@ -333,8 +333,8 @@ wi_attach(device_t dev)
 	ifp->if_ioctl = wi_ioctl;
 	ifp->if_start = wi_start;
 	ifp->if_init = wi_init;
-	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
-	ifp->if_snd.ifq_drv_maxlen = IFQ_MAXLEN;
+	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
+	ifp->if_snd.ifq_drv_maxlen = ifqmaxlen;
 	IFQ_SET_READY(&ifp->if_snd);
 
 	ic->ic_ifp = ifp;

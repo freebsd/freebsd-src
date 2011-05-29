@@ -73,8 +73,9 @@ struct espstat {
 
 #ifdef _KERNEL
 VNET_DECLARE(int, esp_enable);
-#define	V_esp_enable	VNET(esp_enable)
 VNET_DECLARE(struct espstat, espstat);
+
+#define	V_esp_enable	VNET(esp_enable)
 #define	V_espstat	VNET(espstat)
 #endif /* _KERNEL */
 #endif /*_NETIPSEC_ESP_VAR_H_*/

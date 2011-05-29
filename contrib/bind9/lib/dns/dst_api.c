@@ -31,7 +31,7 @@
 
 /*
  * Principal Author: Brian Wellington
- * $Id: dst_api.c,v 1.16.12.10 2010/01/15 19:38:53 each Exp $
+ * $Id: dst_api.c,v 1.16.12.12 2010-12-09 01:12:55 marka Exp $
  */
 
 /*! \file */
@@ -49,6 +49,7 @@
 #include <isc/mem.h>
 #include <isc/once.h>
 #include <isc/print.h>
+#include <isc/refcount.h>
 #include <isc/random.h>
 #include <isc/string.h>
 #include <isc/time.h>
@@ -503,6 +504,7 @@ dst_key_fromnamedfile(const char *filename, int type, isc_mem_t *mctx,
 
 	*keyp = key;
 	return (ISC_R_SUCCESS);
+
  out:
 	if (newfilename != NULL)
 		isc_mem_put(mctx, newfilename, newfilenamelen);
@@ -800,9 +802,21 @@ dst_key_paramcompare(const dst_key_t *key1, const dst_key_t *key2) {
 }
 
 void
+dst_key_attach(dst_key_t *source, dst_key_t **target) {
+
+	REQUIRE(dst_initialized == ISC_TRUE);
+	REQUIRE(target != NULL && *target == NULL);
+	REQUIRE(VALID_KEY(source));
+
+	isc_refcount_increment(&source->refs, NULL);
+	*target = source;
+}
+
+void
 dst_key_free(dst_key_t **keyp) {
 	isc_mem_t *mctx;
 	dst_key_t *key;
+	unsigned int refs;
 
 	REQUIRE(dst_initialized == ISC_TRUE);
 	REQUIRE(keyp != NULL && VALID_KEY(*keyp));
@@ -810,6 +824,11 @@ dst_key_free(dst_key_t **keyp) {
 	key = *keyp;
 	mctx = key->mctx;
 
+	isc_refcount_decrement(&key->refs, &refs);
+	if (refs != 0)
+		return;
+
+	isc_refcount_destroy(&key->refs);
 	if (key->keydata.generic != NULL) {
 		INSIST(key->func->destroy != NULL);
 		key->func->destroy(key);
@@ -927,14 +946,22 @@ get_key_struct(dns_name_t *name, unsigned int alg,
 	memset(key, 0, sizeof(dst_key_t));
 	key->magic = KEY_MAGIC;
 
+	result = isc_refcount_init(&key->refs, 1);
+	if (result != ISC_R_SUCCESS) {
+		isc_mem_put(mctx, key, sizeof(dst_key_t));
+		return (NULL);
+	}
+
 	key->key_name = isc_mem_get(mctx, sizeof(dns_name_t));
 	if (key->key_name == NULL) {
+		isc_refcount_destroy(&key->refs);
 		isc_mem_put(mctx, key, sizeof(dst_key_t));
 		return (NULL);
 	}
 	dns_name_init(key->key_name, NULL);
 	result = dns_name_dup(name, mctx, key->key_name);
 	if (result != ISC_R_SUCCESS) {
+		isc_refcount_destroy(&key->refs);
 		isc_mem_put(mctx, key->key_name, sizeof(dns_name_t));
 		isc_mem_put(mctx, key, sizeof(dst_key_t));
 		return (NULL);

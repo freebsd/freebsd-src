@@ -179,22 +179,6 @@ The driver has an internal variable which governs the effect of
 the acceleration.
 Its value can be modified via the driver flag
 or via an ioctl call.
-.Ss Device Number
-The minor device number of the
-.Nm
-is made up of:
-.Bd -literal -offset indent
-minor = (`unit' << 1) | `non-blocking'
-.Ed
-.Pp
-where `unit' is the device number (usually 0) and the `non-blocking' bit
-is set to indicate ``do not block waiting for mouse input,
-return immediately''.
-The `non-blocking' bit should be set for \fIXFree86\fP,
-therefore the minor device number usually used for \fIXFree86\fP is 1.
-See
-.Sx FILES
-for device node names.
 .Sh DRIVER CONFIGURATION
 .Ss Kernel Configuration Options
 There are following kernel configuration options to control the
@@ -242,7 +226,6 @@ Set them in
 (see
 .Sx EXAMPLES
 below).
-.Pp
 .Bl -tag -width MOUSE
 .It bit 0..3 RESOLUTION
 This flag specifies the resolution of the pointing device.
@@ -682,8 +665,7 @@ movement counts as described in
 .It Pa /dev/psm0
 `non-blocking' device node
 .It Pa /dev/bpsm0
-`blocking' device node under
-.Em devfs .
+`blocking' device node
 .El
 .Sh EXAMPLES
 In order to install the
@@ -817,36 +799,6 @@ The rest of the lines show the device ID code, the number of detected
 buttons and internal variables.
 .Pp
 At debug level 2, much more detailed information is logged.
-.Sh CAVEATS
-Many pad devices behave as if the first (left) button were pressed if
-the user `taps' the surface of the pad.
-In contrast, some pad products, e.g.\& some versions of ALPS GlidePoint
-and Interlink VersaPad, treat the tapping action
-as fourth button events.
-.Pp
-It is reported that Interlink VersaPad requires both
-.Em HOOKRESUME
-and
-.Em INITAFTERSUSPEND
-flags in order to recover from suspended state.
-These flags are automatically set when VersaPad is detected by the
-.Nm
-driver.
-.Pp
-Some PS/2 mouse models from MouseSystems require to be put in the
-high resolution mode to work properly.
-Use the driver flag to
-set resolution.
-.Pp
-There is not a guaranteed way to re-synchronize with the first byte
-of the packet once we are out of synchronization with the data
-stream.
-However, if you are using the \fIXFree86\fP server and experiencing
-the problem, you may be able to make the X server synchronize with the mouse
-by switching away to a virtual terminal and getting back to the X server,
-unless the X server is accessing the mouse via
-.Xr moused 8 .
-Clicking any button without moving the mouse may also work.
 .Sh SEE ALSO
 .Xr ioctl 2 ,
 .Xr syslog 3 ,
@@ -878,6 +830,36 @@ to name the few.
 .Pp
 This manual page was written by
 .An Kazutaka Yokota Aq yokota@FreeBSD.org .
+.Sh CAVEATS
+Many pad devices behave as if the first (left) button were pressed if
+the user `taps' the surface of the pad.
+In contrast, some pad products, e.g.\& some versions of ALPS GlidePoint
+and Interlink VersaPad, treat the tapping action
+as fourth button events.
+.Pp
+It is reported that Interlink VersaPad requires both
+.Em HOOKRESUME
+and
+.Em INITAFTERSUSPEND
+flags in order to recover from suspended state.
+These flags are automatically set when VersaPad is detected by the
+.Nm
+driver.
+.Pp
+Some PS/2 mouse models from MouseSystems require to be put in the
+high resolution mode to work properly.
+Use the driver flag to
+set resolution.
+.Pp
+There is not a guaranteed way to re-synchronize with the first byte
+of the packet once we are out of synchronization with the data
+stream.
+However, if you are using the \fIXFree86\fP server and experiencing
+the problem, you may be able to make the X server synchronize with the mouse
+by switching away to a virtual terminal and getting back to the X server,
+unless the X server is accessing the mouse via
+.Xr moused 8 .
+Clicking any button without moving the mouse may also work.
 .Sh BUGS
 The ioctl command
 .Dv MOUSEIOCREAD

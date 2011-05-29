@@ -1,6 +1,6 @@
 /*-
- * Copyright (C) 2007-2008 Semihalf, Rafal Jaworowski <raj@semihalf.com>
- * Copyright (C) 2006-2007 Semihalf, Piotr Kruszynski <ppk@semihalf.com>
+ * Copyright (C) 2007-2008 Semihalf, Rafal Jaworowski
+ * Copyright (C) 2006-2007 Semihalf, Piotr Kruszynski
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -268,11 +268,12 @@ tsec_attach(struct tsec_softc *sc)
 	ifp->if_capabilities |= IFCAP_POLLING;
 #endif
 	
-	/* Probe PHY(s) */
-	error = mii_phy_probe(sc->dev, &sc->tsec_miibus, tsec_ifmedia_upd,
-	    tsec_ifmedia_sts);
+	/* Attach PHY(s) */
+	error = mii_attach(sc->dev, &sc->tsec_miibus, ifp, tsec_ifmedia_upd,
+	    tsec_ifmedia_sts, BMSR_DEFCAPMASK, sc->phyaddr, MII_OFFSET_ANY,
+	    0);
 	if (error) {
-		device_printf(sc->dev, "MII failed to find PHY!\n");
+		device_printf(sc->dev, "attaching PHYs failed\n");
 		if_free(ifp);
 		sc->tsec_ifp = NULL;
 		tsec_detach(sc);
@@ -1561,11 +1562,6 @@ tsec_miibus_readreg(device_t dev, int phy, int reg)
 	struct tsec_softc *sc;
 	uint32_t timeout;
 
-	sc = device_get_softc(dev);
-
-	if (device_get_unit(dev) != phy)
-		return (0);
-
 	sc = tsec0_sc;
 
 	TSEC_WRITE(sc, TSEC_REG_MIIMADD, (phy << 8) | reg);
@@ -1588,12 +1584,6 @@ tsec_miibus_writereg(device_t dev, int phy, int reg, int value)
 {
 	struct tsec_softc *sc;
 	uint32_t timeout;
-
-	sc = device_get_softc(dev);
-
-	if (device_get_unit(dev) != phy)
-		device_printf(dev, "Trying to write to an alien PHY(%d)\n",
-		    phy);
 
 	sc = tsec0_sc;
 

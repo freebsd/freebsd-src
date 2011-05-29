@@ -770,7 +770,6 @@ updater_docoll(struct updater *up, struct file_update *fup, int isfixups)
 			if (sr->sr_serverattr == NULL)
 				return (UPDATER_ERR_PROTO);
 
-			error = 0;
 			error = updater_rcsedit(up, fup, name, rcsopt);
 			if (error)
 				return (error);

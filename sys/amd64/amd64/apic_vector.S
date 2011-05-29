@@ -36,8 +36,10 @@
  * as well as IPI handlers.
  */
 
+#include "opt_smp.h"
+
 #include <machine/asmacros.h>
-#include <machine/apicreg.h>
+#include <x86/apicreg.h>
 
 #include "assym.s"
 
@@ -56,17 +58,15 @@ IDTVEC(vec_name) ;							\
 	FAKE_MCOUNT(TF_RIP(%rsp)) ;					\
 	movq	lapic, %rdx ;	/* pointer to local APIC */		\
 	movl	LA_ISR + 16 * (index)(%rdx), %eax ;	/* load ISR */	\
-	bsrl	%eax, %eax ;	/* index of highset set bit in ISR */	\
-	jz	2f ;							\
+	bsrl	%eax, %eax ;	/* index of highest set bit in ISR */	\
+	jz	1f ;							\
 	addl	$(32 * index),%eax ;					\
-1: ;									\
 	movq	%rsp, %rsi	;                                       \
 	movl	%eax, %edi ;	/* pass the IRQ */			\
 	call	lapic_handle_intr ;					\
+1: ;									\
 	MEXITCOUNT ;							\
-	jmp	doreti ;						\
-2:	movl	$-1, %eax ;	/* send a vector of -1 */		\
-	jmp	1b
+	jmp	doreti
 
 /*
  * Handle "spurious INTerrupts".
@@ -81,7 +81,7 @@ IDTVEC(spuriousint)
 
 	/* No EOI cycle used here */
 
-	iretq
+	jmp	doreti_iret
 
 	ISR_VEC(1, apic_isr1)
 	ISR_VEC(2, apic_isr2)
@@ -104,6 +104,30 @@ IDTVEC(timerint)
 	MEXITCOUNT
 	jmp	doreti
 
+/*
+ * Local APIC CMCI handler.
+ */
+	.text
+	SUPERALIGN_TEXT
+IDTVEC(cmcint)
+	PUSH_FRAME
+	FAKE_MCOUNT(TF_RIP(%rsp))
+	call	lapic_handle_cmc
+	MEXITCOUNT
+	jmp	doreti
+
+/*
+ * Local APIC error interrupt handler.
+ */
+	.text
+	SUPERALIGN_TEXT
+IDTVEC(errorint)
+	PUSH_FRAME
+	FAKE_MCOUNT(TF_RIP(%rsp))
+	call	lapic_handle_error
+	MEXITCOUNT
+	jmp	doreti
+
 #ifdef SMP
 /*
  * Global address space TLB shootdown.
@@ -111,6 +135,19 @@ IDTVEC(timerint)
 	.text
 	SUPERALIGN_TEXT
 IDTVEC(invltlb)
+#if defined(COUNT_XINVLTLB_HITS) || defined(COUNT_IPIS)
+	PUSH_FRAME
+	movl	PCPU(CPUID), %eax
+#ifdef COUNT_XINVLTLB_HITS
+	incl	xhits_gbl(,%rax,4)
+#endif
+#ifdef COUNT_IPIS
+	movq	ipi_invltlb_counts(,%rax,8),%rax
+	incq	(%rax)
+#endif
+	POP_FRAME
+#endif
+
 	pushq	%rax
 
 	movq	%cr3, %rax		/* invalidate the TLB */
@@ -123,7 +160,7 @@ IDTVEC(invltlb)
 	incl	smp_tlb_wait
 
 	popq	%rax
-	iretq
+	jmp	doreti_iret
 
 /*
  * Single page TLB shootdown
@@ -131,6 +168,19 @@ IDTVEC(invltlb)
 	.text
 	SUPERALIGN_TEXT
 IDTVEC(invlpg)
+#if defined(COUNT_XINVLTLB_HITS) || defined(COUNT_IPIS)
+	PUSH_FRAME
+	movl	PCPU(CPUID), %eax
+#ifdef COUNT_XINVLTLB_HITS
+	incl	xhits_pg(,%rax,4)
+#endif
+#ifdef COUNT_IPIS
+	movq	ipi_invlpg_counts(,%rax,8),%rax
+	incq	(%rax)
+#endif
+	POP_FRAME
+#endif
+
 	pushq	%rax
 
 	movq	smp_tlb_addr1, %rax
@@ -143,7 +193,7 @@ IDTVEC(invlpg)
 	incl	smp_tlb_wait
 
 	popq	%rax
-	iretq
+	jmp	doreti_iret
 
 /*
  * Page range TLB shootdown.
@@ -151,6 +201,19 @@ IDTVEC(invlpg)
 	.text
 	SUPERALIGN_TEXT
 IDTVEC(invlrng)
+#if defined(COUNT_XINVLTLB_HITS) || defined(COUNT_IPIS)
+	PUSH_FRAME
+	movl	PCPU(CPUID), %eax
+#ifdef COUNT_XINVLTLB_HITS
+	incl	xhits_rng(,%rax,4)
+#endif
+#ifdef COUNT_IPIS
+	movq	ipi_invlrng_counts(,%rax,8),%rax
+	incq	(%rax)
+#endif
+	POP_FRAME
+#endif
+
 	pushq	%rax
 	pushq	%rdx
 
@@ -169,7 +232,7 @@ IDTVEC(invlrng)
 
 	popq	%rdx
 	popq	%rax
-	iretq
+	jmp	doreti_iret
 
 /*
  * Invalidate cache.
@@ -177,6 +240,14 @@ IDTVEC(invlrng)
 	.text
 	SUPERALIGN_TEXT
 IDTVEC(invlcache)
+#ifdef COUNT_IPIS
+	PUSH_FRAME
+	movl	PCPU(CPUID), %eax
+	movq	ipi_invlcache_counts(,%rax,8),%rax
+	incq	(%rax)
+	POP_FRAME
+#endif
+
 	pushq	%rax
 
 	wbinvd
@@ -188,7 +259,7 @@ IDTVEC(invlcache)
 	incl	smp_tlb_wait
 
 	popq	%rax
-	iretq
+	jmp	doreti_iret
 
 /*
  * Handler for IPIs sent via the per-cpu IPI bitmap.
@@ -235,7 +306,7 @@ IDTVEC(cpususpend)
 	call	cpususpend_handler
 
 	POP_FRAME
-	iretq
+	jmp	doreti_iret
 
 /*
  * Executed by a CPU when it receives a RENDEZVOUS IPI from another CPU.
@@ -246,6 +317,11 @@ IDTVEC(cpususpend)
 	SUPERALIGN_TEXT
 IDTVEC(rendezvous)
 	PUSH_FRAME
+#ifdef COUNT_IPIS
+	movl	PCPU(CPUID), %eax
+	movq	ipi_rendezvous_counts(,%rax,8), %rax
+	incq	(%rax)
+#endif
 	call	smp_rendezvous_action
 	movq	lapic, %rax
 	movl	$0, LA_EOI(%rax)	/* End Of Interrupt to APIC */

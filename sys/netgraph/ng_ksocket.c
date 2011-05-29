@@ -523,10 +523,7 @@ ng_ksocket_constructor(node_p node)
 	priv_p priv;
 
 	/* Allocate private structure */
-	priv = malloc(sizeof(*priv),
-	    M_NETGRAPH_KSOCKET, M_NOWAIT | M_ZERO);
-	if (priv == NULL)
-		return (ENOMEM);
+	priv = malloc(sizeof(*priv), M_NETGRAPH_KSOCKET, M_WAITOK | M_ZERO);
 
 	LIST_INIT(&priv->embryos);
 	/* cross link them */
@@ -902,12 +899,24 @@ ng_ksocket_rcvdata(hook_p hook, item_p item)
 	struct sockaddr *sa = NULL;
 	int error;
 	struct mbuf *m;
+#ifdef ALIGNED_POINTER
+	struct mbuf *n;
+#endif /* ALIGNED_POINTER */
 	struct sa_tag *stag;
 
 	/* Extract data */
 	NGI_GET_M(item, m);
 	NG_FREE_ITEM(item);
-
+#ifdef ALIGNED_POINTER
+	if (!ALIGNED_POINTER(mtod(m, caddr_t), uint32_t)) {
+		n = m_defrag(m, M_NOWAIT);
+		if (n == NULL) {
+			m_freem(m);
+			return (ENOBUFS);
+		}
+		m = n;
+	}
+#endif /* ALIGNED_POINTER */
 	/*
 	 * Look if socket address is stored in packet tags.
 	 * If sockaddr is ours, or provided by a third party (zero id),
@@ -1260,7 +1269,7 @@ ng_ksocket_finish_accept(priv_p priv)
 	soupcall_set(so, SO_RCV, ng_ksocket_incoming, node);
 	SOCKBUF_UNLOCK(&so->so_rcv);
 	SOCKBUF_LOCK(&so->so_snd);
-	soupcall_set(so, SO_RCV, ng_ksocket_incoming, node);
+	soupcall_set(so, SO_SND, ng_ksocket_incoming, node);
 	SOCKBUF_UNLOCK(&so->so_snd);
 
 	/* Fill in the response data and send it or return it to the caller */

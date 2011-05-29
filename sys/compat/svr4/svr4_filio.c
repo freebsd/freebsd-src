@@ -40,8 +40,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/poll.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
-#include <sys/resource.h>
-#include <sys/resourcevar.h>
 
 #include <sys/sysproto.h>
 
@@ -66,13 +64,8 @@ svr4_sys_poll(td, uap)
      int idx = 0, cerr;
      u_long siz;
 
-     PROC_LOCK(td->td_proc);
-     if (uap->nfds > lim_cur(td->td_proc, RLIMIT_NOFILE) &&
-       uap->nfds > FD_SETSIZE) {
-       PROC_UNLOCK(td->td_proc);
+     if (uap->nfds > maxfilesperproc && uap->nfds > FD_SETSIZE)
        return (EINVAL);
-     }
-     PROC_UNLOCK(td->td_proc);
 
      pa.fds = uap->fds;
      pa.nfds = uap->nfds;

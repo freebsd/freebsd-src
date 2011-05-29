@@ -35,7 +35,7 @@
  * THIS SOFTWARE, EVEN IF SANDVINE IS ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  *
- * Author: Dave Chapeskie <dchapeskie@sandvine.com>
+ * Author: Dave Chapeskie
  */
 
 #include <sys/cdefs.h>
@@ -273,9 +273,7 @@ ng_source_constructor(node_p node)
 {
 	sc_p sc;
 
-	sc = malloc(sizeof(*sc), M_NETGRAPH, M_NOWAIT | M_ZERO);
-	if (sc == NULL)
-		return (ENOMEM);
+	sc = malloc(sizeof(*sc), M_NETGRAPH, M_WAITOK | M_ZERO);
 
 	NG_NODE_SET_PRIVATE(node, sc);
 	sc->node = node;
@@ -604,7 +602,7 @@ ng_source_disconnect(hook_p hook)
 }
 
 /*
- * Set sc->output_ifp to point to the the struct ifnet of the interface
+ * Set sc->output_ifp to point to the struct ifnet of the interface
  * reached via our output hook.
  */
 static int

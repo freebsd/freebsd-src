@@ -47,6 +47,7 @@
 #include <semaphore.h>
 #include <unistd.h>
 #include "un-namespace.h"
+#include "libc_private.h"
 
 __weak_reference(_sem_close, sem_close);
 __weak_reference(_sem_destroy, sem_destroy);
@@ -364,15 +365,6 @@ _sem_trywait(sem_t *sem)
 	return (-1);
 }
 
-static void
-sem_cancel_handler(void *arg)
-{
-	sem_t *sem = arg;
-
-	if (sem->_kern._has_waiters && sem->_kern._count)
-		usem_wake(&sem->_kern);
-}
-
 #define TIMESPEC_SUB(dst, src, val)                             \
         do {                                                    \
                 (dst)->tv_sec = (src)->tv_sec - (val)->tv_sec;  \
@@ -384,27 +376,12 @@ sem_cancel_handler(void *arg)
         } while (0)
 
 
-static __inline int
-enable_async_cancel(void)
-{
-	int old;
-
-	_pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, &old);
-	return (old);
-}
-
-static __inline void
-restore_async_cancel(int val)
-{
-	_pthread_setcanceltype(val, NULL);
-}
-
 int
 _sem_timedwait(sem_t * __restrict sem,
 	const struct timespec * __restrict abstime)
 {
 	struct timespec ts, ts2;
-	int val, retval, saved_cancel;
+	int val, retval;
 
 	if (sem_check_validity(sem) != 0)
 		return (-1);
@@ -416,8 +393,10 @@ _sem_timedwait(sem_t * __restrict sem,
 				return (0);
 		}
 
-		if (retval)
+		if (retval) {
+			_pthread_testcancel();
 			break;
+		}
 
 		/*
 		 * The timeout argument is only supposed to
@@ -431,11 +410,9 @@ _sem_timedwait(sem_t * __restrict sem,
 			clock_gettime(CLOCK_REALTIME, &ts);
 			TIMESPEC_SUB(&ts2, abstime, &ts);
 		}
-		pthread_cleanup_push(sem_cancel_handler, sem);
-		saved_cancel = enable_async_cancel();
+		_pthread_cancel_enter(1);
 		retval = usem_wait(&sem->_kern, abstime ? &ts2 : NULL);
-		restore_async_cancel(saved_cancel);
-		pthread_cleanup_pop(0);
+		_pthread_cancel_leave(0);
 	}
 	return (retval);
 }

@@ -43,6 +43,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <unistd.h>
+#include <ctype.h>
 
 int		ath_hal_debug = 0;
 HAL_CTRY_CODE	cc = CTRY_DEFAULT;
@@ -1663,12 +1664,10 @@ ath_hal_printf(struct ath_hal *ah, const char* fmt, ...)
 }
 
 void
-HALDEBUG(struct ath_hal *ah, u_int mask, const char* fmt, ...)
+DO_HALDEBUG(struct ath_hal *ah, u_int mask, const char* fmt, ...)
 {
-	if (ath_hal_debug & mask) {
-		__va_list ap;
-		va_start(ap, fmt);
-		ath_hal_vprintf(ah, fmt, ap);
-		va_end(ap);
-	}
+	__va_list ap;
+	va_start(ap, fmt);
+	ath_hal_vprintf(ah, fmt, ap);
+	va_end(ap);
 }

@@ -47,6 +47,7 @@
 typedef	u_int			model_t;
 #define	DATAMODEL_NATIVE	0
 int dtrace_instr_size(uchar_t *);
+int dtrace_instr_size_isa(uchar_t *, model_t, int *);
 #endif
 
 #include <dis_tables.h>
@@ -122,6 +123,12 @@ dtrace_dis_isize(uchar_t *instr, dis_isize_t which, model_t model, int *rmindex)
 	if (rmindex != NULL)
 		*rmindex = x.d86_rmindex;
 	return (sz);
+}
+
+int
+dtrace_instr_size_isa(uchar_t *instr, model_t model, int *rmindex)
+{
+	return (dtrace_dis_isize(instr, DIS_ISIZE_INSTR, model, rmindex));
 }
 
 int

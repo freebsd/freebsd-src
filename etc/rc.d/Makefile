@@ -11,7 +11,7 @@ FILES=	DAEMON FILESYSTEMS LOGIN NETWORKING SERVERS \
 	dmesg dumpon \
 	encswap \
 	faith fsck ftp-proxy ftpd \
-	gbde geli geli2 gssd \
+	gbde geli geli2 gptboot gssd \
 	hastd hcsecd \
 	hostapd hostid hostid_save hostname \
 	inetd initrandom \
@@ -29,7 +29,7 @@ FILES=	DAEMON FILESYSTEMS LOGIN NETWORKING SERVERS \
 	pf pflog pfsync \
 	powerd power_profile ppp pppoed pwcheck \
 	quota \
-	random rarpd resolv rfcomm_pppd_server root \
+	random rarpd rctl resolv rfcomm_pppd_server root \
 	route6d routed routing rpcbind rtadvd rtsold rwho \
 	savecore sdpd securelevel sendmail \
 	serial sppp statd static_arp stf swap1 \
@@ -42,12 +42,20 @@ FILES=	DAEMON FILESYSTEMS LOGIN NETWORKING SERVERS \
 	ypset ypupdated ypxfrd \
 	zfs zvol
 
+.if ${MK_OFED} != "no"
+FILES+= opensm
+.endif
+
 .if ${MK_OPENSSH} != "no"
 FILES+=	sshd
 .endif
 
 .if ${MK_NS_CACHING} != "no"
 FILES+= nscd
+.endif
+
+.if ${MK_BLUETOOTH} != "no"
+FILES+=	ubthidhci
 .endif
 
 FILESDIR=	/etc/rc.d

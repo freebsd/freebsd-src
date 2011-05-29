@@ -1,5 +1,7 @@
 /*-
  * Copyright (c) 2001-2008, by Cisco Systems, Inc. All rights reserved.
+ * Copyright (c) 2008-2011, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2011, by Michael Tuexen. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -85,9 +87,9 @@ extern struct pr_usrreqs sctp_usrreqs;
 	} \
 }
 
-#define sctp_free_a_strmoq(_stcb, _strmoq) { \
+#define sctp_free_a_strmoq(_stcb, _strmoq, _so_locked) { \
 	if ((_strmoq)->holds_key_ref) { \
-		sctp_auth_key_release(stcb, sp->auth_keyid); \
+		sctp_auth_key_release(stcb, sp->auth_keyid, _so_locked); \
 		(_strmoq)->holds_key_ref = 0; \
 	} \
 	SCTP_ZONE_FREE(SCTP_BASE_INFO(ipi_zone_strmoq), (_strmoq)); \
@@ -103,12 +105,12 @@ extern struct pr_usrreqs sctp_usrreqs;
  	} \
 }
 
-#define sctp_free_a_chunk(_stcb, _chk) { \
+#define sctp_free_a_chunk(_stcb, _chk, _so_locked) { \
 	if ((_chk)->holds_key_ref) {\
-		sctp_auth_key_release((_stcb), (_chk)->auth_keyid); \
+		sctp_auth_key_release((_stcb), (_chk)->auth_keyid, _so_locked); \
 		(_chk)->holds_key_ref = 0; \
 	} \
-        if(_stcb) { \
+        if (_stcb) { \
           SCTP_TCB_LOCK_ASSERT((_stcb)); \
           if ((_chk)->whoTo) { \
                   sctp_free_remote_addr((_chk)->whoTo); \
@@ -231,7 +233,7 @@ extern struct pr_usrreqs sctp_usrreqs;
 
 #ifdef SCTP_FS_SPEC_LOG
 #define sctp_total_flight_decrease(stcb, tp1) do { \
-        if(stcb->asoc.fs_index > SCTP_FS_SPEC_LOG_SIZE) \
+        if (stcb->asoc.fs_index > SCTP_FS_SPEC_LOG_SIZE) \
 		stcb->asoc.fs_index = 0;\
 	stcb->asoc.fslog[stcb->asoc.fs_index].total_flight = stcb->asoc.total_flight; \
 	stcb->asoc.fslog[stcb->asoc.fs_index].tsn = tp1->rec.data.TSN_seq; \
@@ -252,7 +254,7 @@ extern struct pr_usrreqs sctp_usrreqs;
 } while (0)
 
 #define sctp_total_flight_increase(stcb, tp1) do { \
-        if(stcb->asoc.fs_index > SCTP_FS_SPEC_LOG_SIZE) \
+        if (stcb->asoc.fs_index > SCTP_FS_SPEC_LOG_SIZE) \
 		stcb->asoc.fs_index = 0;\
 	stcb->asoc.fslog[stcb->asoc.fs_index].total_flight = stcb->asoc.total_flight; \
 	stcb->asoc.fslog[stcb->asoc.fs_index].tsn = tp1->rec.data.TSN_seq; \
@@ -298,8 +300,15 @@ int sctp_disconnect(struct socket *so);
 
 void sctp_ctlinput __P((int, struct sockaddr *, void *));
 int sctp_ctloutput __P((struct socket *, struct sockopt *));
+
+#ifdef INET
 void sctp_input_with_port __P((struct mbuf *, int, uint16_t));
+
+#endif
+#ifdef INET
 void sctp_input __P((struct mbuf *, int));
+
+#endif
 void sctp_pathmtu_adjustment __P((struct sctp_inpcb *, struct sctp_tcb *, struct sctp_nets *, uint16_t));
 void sctp_drain __P((void));
 void sctp_init __P((void));

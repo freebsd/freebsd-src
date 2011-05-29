@@ -1,4 +1,4 @@
-/* $OpenBSD: readconf.h,v 1.79 2009/06/27 09:35:06 andreas Exp $ */
+/* $OpenBSD: readconf.h,v 1.88 2010/11/13 23:27:50 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -23,6 +23,7 @@ typedef struct {
 	int	  listen_port;		/* Port to forward. */
 	char	 *connect_host;		/* Host to connect. */
 	int	  connect_port;		/* Port to connect on connect_host. */
+	int	  allocated_port;	/* Dynamically allocated listen port */
 }       Forward;
 /* Data structure for representing option data. */
 
@@ -31,6 +32,7 @@ typedef struct {
 typedef struct {
 	int     forward_agent;	/* Forward authentication agent. */
 	int     forward_x11;	/* Forward X11 display. */
+	int     forward_x11_timeout;	/* Expiration for Cookies */
 	int     forward_x11_trusted;	/* Trust Forward X11 display. */
 	int     exit_on_forward_failure;	/* Exit if bind(2) fails for -L/-R */
 	char   *xauth_location;	/* Location for xauth program */
@@ -57,6 +59,8 @@ typedef struct {
 	int     compression_level;	/* Compression level 1 (fast) to 9
 					 * (best). */
 	int     tcp_keep_alive;	/* Set SO_KEEPALIVE. */
+	int	ip_qos_interactive;	/* IP ToS/DSCP/class for interactive */
+	int	ip_qos_bulk;		/* IP ToS/DSCP/class for bulk traffic */
 	LogLevel log_level;	/* Level for logging. */
 
 	int     port;		/* Port to connect. */
@@ -71,6 +75,7 @@ typedef struct {
 	char   *ciphers;	/* SSH2 ciphers in order of preference. */
 	char   *macs;		/* SSH2 macs in order of preference. */
 	char   *hostkeyalgorithms;	/* SSH2 server key types in order of preference. */
+	char   *kex_algorithms;	/* SSH2 kex methods in order of preference. */
 	int	protocol;	/* Protocol in order of preference. */
 	char   *hostname;	/* Real host to connect. */
 	char   *host_key_alias;	/* hostname alias for .ssh/known_hosts */
@@ -84,7 +89,7 @@ typedef struct {
 	char   *user_hostfile2;
 	char   *preferred_authentications;
 	char   *bind_address;	/* local socket address for connection to sshd */
-	char   *smartcard_device; /* Smartcard reader device */
+	char   *pkcs11_provider; /* PKCS#11 provider */
 	int	verify_host_key_dns;	/* Verify host key using DNS */
 
 	int     num_identity_files;	/* Number of files for RSA/DSA identities. */
@@ -93,11 +98,11 @@ typedef struct {
 
 	/* Local TCP/IP forward requests. */
 	int     num_local_forwards;
-	Forward local_forwards[SSH_MAX_FORWARDS_PER_DIRECTION];
+	Forward *local_forwards;
 
 	/* Remote TCP/IP forward requests. */
 	int     num_remote_forwards;
-	Forward remote_forwards[SSH_MAX_FORWARDS_PER_DIRECTION];
+	Forward *remote_forwards;
 	int	clear_forwardings;
 
 	int	enable_ssh_keysign;
@@ -112,6 +117,8 @@ typedef struct {
 
 	char	*control_path;
 	int	control_master;
+	int     control_persist; /* ControlPersist flag */
+	int     control_persist_timeout; /* ControlPersist timeout (seconds) */
 
 	int	hash_known_hosts;
 

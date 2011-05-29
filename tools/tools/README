@@ -66,4 +66,5 @@ vimage		An interim utility for managing the virtualized network
 		stack infrastructure.
 vop_table	Generates a HTML document that shows all the VOP's in
 		the kernel.
+vxge		A diagnostic tool for the vxge(4) driver
 whereintheworld	Summarizes "make world" output.

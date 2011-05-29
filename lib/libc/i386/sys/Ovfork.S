@@ -53,3 +53,5 @@ ENTRY(__sys_vfork)
 	PIC_PROLOGUE
 	jmp     PIC_PLT(HIDENAME(cerror))
 END(__sys_vfork)
+
+	.section .note.GNU-stack,"",%progbits

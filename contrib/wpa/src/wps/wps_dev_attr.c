@@ -113,14 +113,10 @@ static int wps_build_serial_number(struct wps_device_data *dev,
 
 int wps_build_primary_dev_type(struct wps_device_data *dev, struct wpabuf *msg)
 {
-	struct wps_dev_type *d;
 	wpa_printf(MSG_DEBUG, "WPS:  * Primary Device Type");
 	wpabuf_put_be16(msg, ATTR_PRIMARY_DEV_TYPE);
-	wpabuf_put_be16(msg, sizeof(*d));
-	d = wpabuf_put(msg, sizeof(*d));
-	WPA_PUT_BE16(d->categ_id, dev->categ);
-	WPA_PUT_BE32(d->oui, dev->oui);
-	WPA_PUT_BE16(d->sub_categ_id, dev->sub_categ);
+	wpabuf_put_be16(msg, WPS_DEV_TYPE_LEN);
+	wpabuf_put_data(msg, dev->pri_dev_type, WPS_DEV_TYPE_LEN);
 	return 0;
 }
 
@@ -288,21 +284,19 @@ static int wps_process_dev_name(struct wps_device_data *dev, const u8 *str,
 static int wps_process_primary_dev_type(struct wps_device_data *dev,
 					const u8 *dev_type)
 {
-	struct wps_dev_type *d;
+#ifndef CONFIG_NO_STDOUT_DEBUG
+	char devtype[WPS_DEV_TYPE_BUFSIZE];
+#endif /* CONFIG_NO_STDOUT_DEBUG */
 
 	if (dev_type == NULL) {
 		wpa_printf(MSG_DEBUG, "WPS: No Primary Device Type received");
 		return -1;
 	}
 
-	d = (struct wps_dev_type *) dev_type;
-	dev->categ = WPA_GET_BE16(d->categ_id);
-	dev->oui = WPA_GET_BE32(d->oui);
-	dev->sub_categ = WPA_GET_BE16(d->sub_categ_id);
-
-	wpa_printf(MSG_DEBUG, "WPS: Primary Device Type: category %d "
-		   "OUI %08x sub-category %d",
-		   dev->categ, dev->oui, dev->sub_categ);
+	os_memcpy(dev->pri_dev_type, dev_type, WPS_DEV_TYPE_LEN);
+	wpa_printf(MSG_DEBUG, "WPS: Primary Device Type: %s",
+		   wps_dev_type_bin2str(dev->pri_dev_type, devtype,
+					sizeof(devtype)));
 
 	return 0;
 }
@@ -367,9 +361,7 @@ void wps_device_data_dup(struct wps_device_data *dst,
 		dst->model_number = os_strdup(src->model_number);
 	if (src->serial_number)
 		dst->serial_number = os_strdup(src->serial_number);
-	dst->categ = src->categ;
-	dst->oui = src->oui;
-	dst->sub_categ = src->sub_categ;
+	os_memcpy(dst->pri_dev_type, src->pri_dev_type, WPS_DEV_TYPE_LEN);
 	dst->os_version = src->os_version;
 	dst->rf_bands = src->rf_bands;
 }

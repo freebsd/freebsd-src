@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 
 #include <mips/atheros/apbvar.h>
 #include <mips/atheros/ar71xxreg.h>
+#include <mips/atheros/ar71xx_setup.h>
 
 #undef APB_DEBUG
 #ifdef APB_DEBUG
@@ -52,7 +53,7 @@ __FBSDID("$FreeBSD$");
 
 static int	apb_activate_resource(device_t, device_t, int, int,
 		    struct resource *);
-static device_t	apb_add_child(device_t, int, const char *, int);
+static device_t	apb_add_child(device_t, u_int, const char *, int);
 static struct resource *
 		apb_alloc_resource(device_t, device_t, int, int *, u_long,
 		    u_long, u_long, u_int);
@@ -337,6 +338,20 @@ apb_intr(void *arg)
 	reg = ATH_READ_REG(AR71XX_MISC_INTR_STATUS);
 	for (irq = 0; irq < APB_NIRQS; irq++) {
 		if (reg & (1 << irq)) {
+
+			switch (ar71xx_soc) {
+			case AR71XX_SOC_AR7240:
+			case AR71XX_SOC_AR7241:
+			case AR71XX_SOC_AR7242:
+				/* Ack/clear the irq on status register for AR724x */
+				ATH_WRITE_REG(AR71XX_MISC_INTR_STATUS,
+				    reg & ~(1 << irq));
+				break;
+			default:
+				/* fallthrough */
+				break;
+			}
+
 			event = sc->sc_eventstab[irq];
 			if (!event || TAILQ_EMPTY(&event->ie_handlers)) {
 				/* Ignore timer interrupts */
@@ -397,7 +412,7 @@ apb_hinted_child(device_t bus, const char *dname, int dunit)
 }
 
 static device_t
-apb_add_child(device_t bus, int order, const char *name, int unit)
+apb_add_child(device_t bus, u_int order, const char *name, int unit)
 {
 	device_t		child;
 	struct apb_ivar	*ivar;

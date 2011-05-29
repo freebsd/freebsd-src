@@ -265,10 +265,10 @@ kr_attach(device_t dev)
 	CSR_WRITE_4(sc, KR_MIIMCFG, 0);
 
 	/* Do MII setup. */
-	if (mii_phy_probe(dev, &sc->kr_miibus,
-	    kr_ifmedia_upd, kr_ifmedia_sts)) {
-		device_printf(dev, "MII without any phy!\n");
-		error = ENXIO;
+	error = mii_attach(dev, &sc->kr_miibus, ifp, kr_ifmedia_upd,
+	    kr_ifmedia_sts, BMSR_DEFCAPMASK, MII_PHY_ANY, MII_OFFSET_ANY, 0);
+	if (error != 0) {
+		device_printf(dev, "attaching PHYs failed\n");
 		goto fail;
 	}
 
@@ -925,10 +925,8 @@ kr_ifmedia_upd(struct ifnet *ifp)
 	sc = ifp->if_softc;
 	KR_LOCK(sc);
 	mii = device_get_softc(sc->kr_miibus);
-	if (mii->mii_instance) {
-		LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
-			mii_phy_reset(miisc);
-	}
+	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
+		PHY_RESET(miisc);
 	error = mii_mediachg(mii);
 	KR_UNLOCK(sc);
 

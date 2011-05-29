@@ -198,14 +198,14 @@ static struct bus_space generic_space = {
 
 /* Ultra-gross kludge */
 #include "opt_cputype.h"
-#if defined(TARGET_OCTEON) && defined(ISA_MIPS32)
-#include <mips/cavium/octeon_pcmap_regs.h>
-#define rd8(a) oct_read8(a)
-#define rd16(a) oct_read16(a)
-#define rd32(a) oct_read32(a)
-#define wr8(a, v) oct_write8(a, v)
-#define wr16(a, v) oct_write16(a, v)
-#define wr32(a, v) oct_write32(a, v)
+#if defined(CPU_CNMIPS) && (defined(__mips_n32) || defined(__mips_o32))
+#include <contrib/octeon-sdk/cvmx.h>
+#define rd8(a) cvmx_read64_uint8(a)
+#define rd16(a) cvmx_read64_uint16(a)
+#define rd32(a) cvmx_read64_uint32(a)
+#define wr8(a, v) cvmx_write64_uint8(a, v)
+#define wr16(a, v) cvmx_write64_uint16(a, v)
+#define wr32(a, v) cvmx_write64_uint32(a, v)
 #elif defined(CPU_SB1) && _BYTE_ORDER == _BIG_ENDIAN
 #include <mips/sibyte/sb_bus_space.h>
 #define rd8(a) sb_big_endian_read8(a)

@@ -100,9 +100,9 @@ u_int	cpu_vendor_id = 0;	/* CPU vendor ID */
 u_int	cpu_clflush_line_size = 32;
 
 SYSCTL_UINT(_hw, OID_AUTO, via_feature_rng, CTLFLAG_RD,
-	&via_feature_rng, 0, "VIA C3/C7 RNG feature available in CPU");
+	&via_feature_rng, 0, "VIA RNG feature available in CPU");
 SYSCTL_UINT(_hw, OID_AUTO, via_feature_xcrypt, CTLFLAG_RD,
-	&via_feature_xcrypt, 0, "VIA C3/C7 xcrypt feature available in CPU");
+	&via_feature_xcrypt, 0, "VIA xcrypt feature available in CPU");
 
 #ifdef CPU_ENABLE_SSE
 u_int	cpu_fxsr;		/* SSE enabled */
@@ -116,14 +116,13 @@ u_int	cpu_mxcsr_mask;		/* valid bits in mxcsr */
 static void
 init_bluelightning(void)
 {
-	u_long	eflags;
+	register_t saveintr;
 
 #if defined(PC98) && !defined(CPU_UPGRADE_HW_CACHE)
 	need_post_dma_flush = 1;
 #endif
 
-	eflags = read_eflags();
-	disable_intr();
+	saveintr = intr_disable();
 
 	load_cr0(rcr0() | CR0_CD | CR0_NW);
 	invd();
@@ -144,7 +143,7 @@ init_bluelightning(void)
 	/* Enable caching in CR0. */
 	load_cr0(rcr0() & ~(CR0_CD | CR0_NW));	/* CD = 0 and NW = 0 */
 	invd();
-	write_eflags(eflags);
+	intr_restore(saveintr);
 }
 
 /*
@@ -153,11 +152,10 @@ init_bluelightning(void)
 static void
 init_486dlc(void)
 {
-	u_long	eflags;
+	register_t saveintr;
 	u_char	ccr0;
 
-	eflags = read_eflags();
-	disable_intr();
+	saveintr = intr_disable();
 	invd();
 
 	ccr0 = read_cyrix_reg(CCR0);
@@ -189,7 +187,7 @@ init_486dlc(void)
 	load_cr0(rcr0() & ~(CR0_CD | CR0_NW));	/* CD = 0 and NW = 0 */
 	invd();
 #endif /* !CYRIX_CACHE_WORKS */
-	write_eflags(eflags);
+	intr_restore(saveintr);
 }
 
 
@@ -199,11 +197,10 @@ init_486dlc(void)
 static void
 init_cy486dx(void)
 {
-	u_long	eflags;
+	register_t saveintr;
 	u_char	ccr2;
 
-	eflags = read_eflags();
-	disable_intr();
+	saveintr = intr_disable();
 	invd();
 
 	ccr2 = read_cyrix_reg(CCR2);
@@ -220,7 +217,7 @@ init_cy486dx(void)
 #endif
 
 	write_cyrix_reg(CCR2, ccr2);
-	write_eflags(eflags);
+	intr_restore(saveintr);
 }
 
 
@@ -230,11 +227,10 @@ init_cy486dx(void)
 static void
 init_5x86(void)
 {
-	u_long	eflags;
+	register_t saveintr;
 	u_char	ccr2, ccr3, ccr4, pcr0;
 
-	eflags = read_eflags();
-	disable_intr();
+	saveintr = intr_disable();
 
 	load_cr0(rcr0() | CR0_CD | CR0_NW);
 	wbinvd();
@@ -320,29 +316,28 @@ init_5x86(void)
 	/* Lock NW bit in CR0. */
 	write_cyrix_reg(CCR2, read_cyrix_reg(CCR2) | CCR2_LOCK_NW);
 
-	write_eflags(eflags);
+	intr_restore(saveintr);
 }
 
 #ifdef CPU_I486_ON_386
 /*
  * There are i486 based upgrade products for i386 machines.
- * In this case, BIOS doesn't enables CPU cache.
+ * In this case, BIOS doesn't enable CPU cache.
  */
 static void
 init_i486_on_386(void)
 {
-	u_long	eflags;
+	register_t saveintr;
 
 #if defined(PC98) && !defined(CPU_UPGRADE_HW_CACHE)
 	need_post_dma_flush = 1;
 #endif
 
-	eflags = read_eflags();
-	disable_intr();
+	saveintr = intr_disable();
 
 	load_cr0(rcr0() & ~(CR0_CD | CR0_NW));	/* CD = 0, NW = 0 */
 
-	write_eflags(eflags);
+	intr_restore(saveintr);
 }
 #endif
 
@@ -354,11 +349,10 @@ init_i486_on_386(void)
 static void
 init_6x86(void)
 {
-	u_long	eflags;
+	register_t saveintr;
 	u_char	ccr3, ccr4;
 
-	eflags = read_eflags();
-	disable_intr();
+	saveintr = intr_disable();
 
 	load_cr0(rcr0() | CR0_CD | CR0_NW);
 	wbinvd();
@@ -422,9 +416,41 @@ init_6x86(void)
 	/* Lock NW bit in CR0. */
 	write_cyrix_reg(CCR2, read_cyrix_reg(CCR2) | CCR2_LOCK_NW);
 
-	write_eflags(eflags);
+	intr_restore(saveintr);
 }
 #endif /* I486_CPU */
+
+#ifdef I586_CPU
+/*
+ * IDT WinChip C6/2/2A/2B/3
+ *
+ * http://www.centtech.com/winchip_bios_writers_guide_v4_0.pdf
+ */
+static void
+init_winchip(void)
+{
+	u_int regs[4];
+	uint64_t fcr;
+
+	fcr = rdmsr(0x0107);
+
+	/*
+	 * Set ECX8, DSMC, DTLOCK/EDCTLB, EMMX, and ERETSTK and clear DPDC.
+	 */
+	fcr |= (1 << 1) | (1 << 7) | (1 << 8) | (1 << 9) | (1 << 16);
+	fcr &= ~(1ULL << 11);
+
+	/*
+	 * Additioanlly, set EBRPRED, E2MMX and EAMD3D for WinChip 2 and 3.
+	 */
+	if (CPUID_TO_MODEL(cpu_id) >= 8)
+		fcr |= (1 << 12) | (1 << 19) | (1 << 20);
+
+	wrmsr(0x0107, fcr);
+	do_cpuid(1, regs);
+	cpu_feature = regs[3];
+}
+#endif
 
 #ifdef I686_CPU
 /*
@@ -435,11 +461,10 @@ init_6x86(void)
 static void
 init_6x86MX(void)
 {
-	u_long	eflags;
+	register_t saveintr;
 	u_char	ccr3, ccr4;
 
-	eflags = read_eflags();
-	disable_intr();
+	saveintr = intr_disable();
 
 	load_cr0(rcr0() | CR0_CD | CR0_NW);
 	wbinvd();
@@ -489,7 +514,7 @@ init_6x86MX(void)
 	/* Lock NW bit in CR0. */
 	write_cyrix_reg(CCR2, read_cyrix_reg(CCR2) | CCR2_LOCK_NW);
 
-	write_eflags(eflags);
+	intr_restore(saveintr);
 }
 
 static void
@@ -513,11 +538,10 @@ static void
 init_mendocino(void)
 {
 #ifdef CPU_PPRO2CELERON
-	u_long	eflags;
+	register_t	saveintr;
 	u_int64_t	bbl_cr_ctl3;
 
-	eflags = read_eflags();
-	disable_intr();
+	saveintr = intr_disable();
 
 	load_cr0(rcr0() | CR0_CD | CR0_NW);
 	wbinvd();
@@ -541,75 +565,76 @@ init_mendocino(void)
 	}
 
 	load_cr0(rcr0() & ~(CR0_CD | CR0_NW));
-	write_eflags(eflags);
+	intr_restore(saveintr);
 #endif /* CPU_PPRO2CELERON */
 }
 
 /*
- * Initialize special VIA C3/C7 features
+ * Initialize special VIA features
  */
 static void
 init_via(void)
 {
 	u_int regs[4], val;
-	u_int64_t msreg;
+	uint64_t fcr;
 
+	/*
+	 * Explicitly enable CX8 and PGE on C3.
+	 *
+	 * http://www.via.com.tw/download/mainboards/6/13/VIA_C3_EBGA%20datasheet110.pdf
+	 */
+	if (CPUID_TO_MODEL(cpu_id) <= 9)
+		fcr = (1 << 1) | (1 << 7);
+	else
+		fcr = 0;
+
+	/*
+	 * Check extended CPUID for PadLock features.
+	 *
+	 * http://www.via.com.tw/en/downloads/whitepapers/initiatives/padlock/programming_guide.pdf
+	 */
 	do_cpuid(0xc0000000, regs);
-	val = regs[0];
-	if (val >= 0xc0000001) {
+	if (regs[0] >= 0xc0000001) {
 		do_cpuid(0xc0000001, regs);
 		val = regs[3];
 	} else
 		val = 0;
 
-	/* Enable RNG if present and disabled */
-	if (val & VIA_CPUID_HAS_RNG) {
-		if (!(val & VIA_CPUID_DO_RNG)) {
-			msreg = rdmsr(0x110B);
-			msreg |= 0x40;
-			wrmsr(0x110B, msreg);
-		}
+	/* Enable RNG if present. */
+	if ((val & VIA_CPUID_HAS_RNG) != 0) {
 		via_feature_rng = VIA_HAS_RNG;
+		wrmsr(0x110B, rdmsr(0x110B) | VIA_CPUID_DO_RNG);
 	}
-	/* Enable AES engine if present and disabled */
-	if (val & VIA_CPUID_HAS_ACE) {
-		if (!(val & VIA_CPUID_DO_ACE)) {
-			msreg = rdmsr(0x1107);
-			msreg |= (0x01 << 28);
-			wrmsr(0x1107, msreg);
-		}
+
+	/* Enable PadLock if present. */
+	if ((val & VIA_CPUID_HAS_ACE) != 0)
 		via_feature_xcrypt |= VIA_HAS_AES;
-	}
-	/* Enable ACE2 engine if present and disabled */
-	if (val & VIA_CPUID_HAS_ACE2) {
-		if (!(val & VIA_CPUID_DO_ACE2)) {
-			msreg = rdmsr(0x1107);
-			msreg |= (0x01 << 28);
-			wrmsr(0x1107, msreg);
-		}
+	if ((val & VIA_CPUID_HAS_ACE2) != 0)
 		via_feature_xcrypt |= VIA_HAS_AESCTR;
-	}
-	/* Enable SHA engine if present and disabled */
-	if (val & VIA_CPUID_HAS_PHE) {
-		if (!(val & VIA_CPUID_DO_PHE)) {
-			msreg = rdmsr(0x1107);
-			msreg |= (0x01 << 28/**/);
-			wrmsr(0x1107, msreg);
-		}
+	if ((val & VIA_CPUID_HAS_PHE) != 0)
 		via_feature_xcrypt |= VIA_HAS_SHA;
-	}
-	/* Enable MM engine if present and disabled */
-	if (val & VIA_CPUID_HAS_PMM) {
-		if (!(val & VIA_CPUID_DO_PMM)) {
-			msreg = rdmsr(0x1107);
-			msreg |= (0x01 << 28/**/);
-			wrmsr(0x1107, msreg);
-		}
+	if ((val & VIA_CPUID_HAS_PMM) != 0)
 		via_feature_xcrypt |= VIA_HAS_MM;
-	}
+	if (via_feature_xcrypt != 0)
+		fcr |= 1 << 28;
+
+	wrmsr(0x1107, rdmsr(0x1107) | fcr);
 }
 
 #endif /* I686_CPU */
+
+#if defined(I586_CPU) || defined(I686_CPU)
+static void
+init_transmeta(void)
+{
+	u_int regs[0];
+
+	/* Expose all hidden features. */
+	wrmsr(0x80860004, rdmsr(0x80860004) | ~0UL);
+	do_cpuid(1, regs);
+	cpu_feature = regs[3];
+}
+#endif
 
 /*
  * Initialize CR4 (Control register 4) to enable SSE instructions.
@@ -652,12 +677,25 @@ initializecpu(void)
 		init_6x86();
 		break;
 #endif /* I486_CPU */
+#ifdef I586_CPU
+	case CPU_586:
+		switch (cpu_vendor_id) {
+		case CPU_VENDOR_CENTAUR:
+			init_winchip();
+			break;
+		case CPU_VENDOR_TRANSMETA:
+			init_transmeta();
+			break;
+		}
+		break;
+#endif
 #ifdef I686_CPU
 	case CPU_M2:
 		init_6x86MX();
 		break;
 	case CPU_686:
-		if (cpu_vendor_id == CPU_VENDOR_INTEL) {
+		switch (cpu_vendor_id) {
+		case CPU_VENDOR_INTEL:
 			switch (cpu_id & 0xff0) {
 			case 0x610:
 				init_ppro();
@@ -666,8 +704,9 @@ initializecpu(void)
 				init_mendocino();
 				break;
 			}
-		} else if (cpu_vendor_id == CPU_VENDOR_AMD) {
-#if defined(I686_CPU) && defined(CPU_ATHLON_SSE_HACK)
+			break;
+#ifdef CPU_ATHLON_SSE_HACK
+		case CPU_VENDOR_AMD:
 			/*
 			 * Sometimes the BIOS doesn't enable SSE instructions.
 			 * According to AMD document 20734, the mobile
@@ -680,25 +719,18 @@ initializecpu(void)
 			     (cpu_id & ~0xf) == 0x670 ||
 			     (cpu_id & ~0xf) == 0x680)) {
 				u_int regs[4];
-				wrmsr(0xC0010015, rdmsr(0xC0010015) & ~0x08000);
+				wrmsr(MSR_HWCR, rdmsr(MSR_HWCR) & ~0x08000);
 				do_cpuid(1, regs);
 				cpu_feature = regs[3];
 			}
+			break;
 #endif
-		} else if (cpu_vendor_id == CPU_VENDOR_CENTAUR) {
-			switch (cpu_id & 0xff0) {
-			case 0x690:
-				if ((cpu_id & 0xf) < 3)
-					break;
-				/* fall through. */
-			case 0x6a0:
-			case 0x6d0:
-			case 0x6f0:
-				init_via();
-				break;
-			default:
-				break;
-			}
+		case CPU_VENDOR_CENTAUR:
+			init_via();
+			break;
+		case CPU_VENDOR_TRANSMETA:
+			init_transmeta();
+			break;
 		}
 #ifdef PAE
 		if ((amd_feature & AMDID_NX) != 0) {
@@ -724,17 +756,17 @@ initializecpu(void)
 	if ((cpu_feature & CPUID_CLFSH) != 0)
 		cpu_clflush_line_size = ((cpu_procinfo >> 8) & 0xff) * 8;
 	/*
-	 * XXXKIB: (temporary) hack to work around traps generated when
-	 * CLFLUSHing APIC registers window.
+	 * XXXKIB: (temporary) hack to work around traps generated
+	 * when CLFLUSHing APIC register window under virtualization
+	 * environments.  These environments tend to disable the
+	 * CPUID_SS feature even though the native CPU supports it.
 	 */
 	TUNABLE_INT_FETCH("hw.clflush_disable", &hw_clflush_disable);
-	if (cpu_vendor_id == CPU_VENDOR_INTEL && !(cpu_feature & CPUID_SS) &&
-	    hw_clflush_disable == -1)
+	if (vm_guest != VM_GUEST_NO && hw_clflush_disable == -1)
 		cpu_feature &= ~CPUID_CLFSH;
 	/*
 	 * Allow to disable CLFLUSH feature manually by
-	 * hw.clflush_disable tunable.  This may help Xen guest on some AMD
-	 * CPUs.
+	 * hw.clflush_disable tunable.
 	 */
 	if (hw_clflush_disable == 1)
 		cpu_feature &= ~CPUID_CLFSH;
@@ -795,14 +827,14 @@ void
 enable_K5_wt_alloc(void)
 {
 	u_int64_t	msr;
-	register_t	savecrit;
+	register_t	saveintr;
 
 	/*
 	 * Write allocate is supported only on models 1, 2, and 3, with
 	 * a stepping of 4 or greater.
 	 */
 	if (((cpu_id & 0xf0) > 0) && ((cpu_id & 0x0f) > 3)) {
-		savecrit = intr_disable();
+		saveintr = intr_disable();
 		msr = rdmsr(0x83);		/* HWCR */
 		wrmsr(0x83, msr & !(0x10));
 
@@ -833,7 +865,7 @@ enable_K5_wt_alloc(void)
 
 		msr=rdmsr(0x83);
 		wrmsr(0x83, msr|0x10); /* enable write allocate */
-		intr_restore(savecrit);
+		intr_restore(saveintr);
 	}
 }
 
@@ -842,10 +874,9 @@ enable_K6_wt_alloc(void)
 {
 	quad_t	size;
 	u_int64_t	whcr;
-	u_long	eflags;
+	register_t	saveintr;
 
-	eflags = read_eflags();
-	disable_intr();
+	saveintr = intr_disable();
 	wbinvd();
 
 #ifdef CPU_DISABLE_CACHE
@@ -895,7 +926,7 @@ enable_K6_wt_alloc(void)
 #endif
 	wrmsr(0x0c0000082, whcr);
 
-	write_eflags(eflags);
+	intr_restore(saveintr);
 }
 
 void
@@ -903,10 +934,9 @@ enable_K6_2_wt_alloc(void)
 {
 	quad_t	size;
 	u_int64_t	whcr;
-	u_long	eflags;
+	register_t	saveintr;
 
-	eflags = read_eflags();
-	disable_intr();
+	saveintr = intr_disable();
 	wbinvd();
 
 #ifdef CPU_DISABLE_CACHE
@@ -956,7 +986,7 @@ enable_K6_2_wt_alloc(void)
 #endif
 	wrmsr(0x0c0000082, whcr);
 
-	write_eflags(eflags);
+	intr_restore(saveintr);
 }
 #endif /* I585_CPU && CPU_WT_ALLOC */
 
@@ -966,15 +996,14 @@ enable_K6_2_wt_alloc(void)
 
 DB_SHOW_COMMAND(cyrixreg, cyrixreg)
 {
-	u_long	eflags;
+	register_t saveintr;
 	u_int	cr0;
 	u_char	ccr1, ccr2, ccr3;
 	u_char	ccr0 = 0, ccr4 = 0, ccr5 = 0, pcr0 = 0;
 
 	cr0 = rcr0();
 	if (cpu_vendor_id == CPU_VENDOR_CYRIX) {
-		eflags = read_eflags();
-		disable_intr();
+		saveintr = intr_disable();
 
 
 		if ((cpu != CPU_M1SC) && (cpu != CPU_CY486DX)) {
@@ -992,7 +1021,7 @@ DB_SHOW_COMMAND(cyrixreg, cyrixreg)
 				pcr0 = read_cyrix_reg(PCR0);
 			write_cyrix_reg(CCR3, ccr3);		/* Restore CCR3. */
 		}
-		write_eflags(eflags);
+		intr_restore(saveintr);
 
 		if ((cpu != CPU_M1SC) && (cpu != CPU_CY486DX))
 			printf("CCR0=%x, ", (u_int)ccr0);

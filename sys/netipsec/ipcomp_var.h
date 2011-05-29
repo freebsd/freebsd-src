@@ -66,8 +66,9 @@ struct ipcompstat {
 
 #ifdef _KERNEL
 VNET_DECLARE(int, ipcomp_enable);
-#define	V_ipcomp_enable		VNET(ipcomp_enable)
 VNET_DECLARE(struct ipcompstat, ipcompstat);
+
+#define	V_ipcomp_enable		VNET(ipcomp_enable)
 #define	V_ipcompstat		VNET(ipcompstat)
 #endif /* _KERNEL */
 #endif /*_NETIPSEC_IPCOMP_VAR_H_*/

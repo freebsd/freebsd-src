@@ -340,7 +340,7 @@ daemon_main(int argc, char **argv)
 	snprintf(logname, sizeof(logname), "faithd %s", service);
 	snprintf(procname, sizeof(procname), "accepting port %s", service);
 	openlog(logname, LOG_PID | LOG_NOWAIT, LOG_DAEMON);
-	syslog(LOG_INFO, "Staring faith daemon for %s port", service);
+	syslog(LOG_INFO, "Starting faith daemon for %s port", service);
 
 	play_service(s_wld);
 	/* NOTREACHED */

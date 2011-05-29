@@ -45,8 +45,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/mii/miivar.h>
 #include "miidevs.h"
 
-#include <dev/mii/axphyreg.h>
-
 #include "miibus_if.h"
 
 static int 	axphy_probe(device_t dev);
@@ -75,8 +73,14 @@ static int	axphy_service(struct mii_softc *, struct mii_data *, int);
 static void	axphy_status(struct mii_softc *);
 
 static const struct mii_phydesc axphys[] = {
-	MII_PHY_DESC(ASIX, AX88X9X),
+	MII_PHY_DESC(xxASIX, AX88X9X),
 	MII_PHY_END
+};
+
+static const struct mii_phy_funcs axphy_funcs = {
+	axphy_service,
+	axphy_status,
+	mii_phy_reset
 };
 
 static int
@@ -90,30 +94,11 @@ static int
 axphy_attach(device_t dev)
 {
 	struct mii_softc *sc;
-	struct mii_attach_args *ma;
-	struct mii_data *mii;
 
 	sc = device_get_softc(dev);
-	ma = device_get_ivars(dev);
-	sc->mii_dev = device_get_parent(dev);
-	mii = device_get_softc(sc->mii_dev);
-	LIST_INSERT_HEAD(&mii->mii_phys, sc, mii_list);
 
-	sc->mii_inst = mii->mii_instance;
-	sc->mii_phy = ma->mii_phyno;
-	sc->mii_service = axphy_service;
-	sc->mii_pdata = mii;
-	sc->mii_flags |= MIIF_NOISOLATE;
-	mii->mii_instance++;
-
-	mii_phy_reset(sc);
-
-	sc->mii_capabilities = PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
-	device_printf(dev, " ");
-	mii_phy_add_media(sc);
-	printf("\n");
-
-	MIIBUS_MEDIAINIT(sc->mii_dev);
+	mii_phy_dev_attach(dev, MIIF_NOISOLATE | MIIF_NOMANPAUSE,
+	    &axphy_funcs, 1);
 	mii_phy_setmedia(sc);
 
 	return (0);
@@ -122,22 +107,12 @@ axphy_attach(device_t dev)
 static int
 axphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 {
-	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
-	int reg;
 
 	switch (cmd) {
 	case MII_POLLSTAT:
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst)
-			return (0);
 		break;
 
 	case MII_MEDIACHG:
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst) {
-			reg = PHY_READ(sc, MII_BMCR);
-			PHY_WRITE(sc, MII_BMCR, reg | BMCR_ISO);
-			return (0);
-		}
-
 		/*
 		 * If the interface is not up, don't do anything.
 		 */
@@ -148,15 +123,13 @@ axphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		break;
 
 	case MII_TICK:
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst)
-			return (0);
 		if (mii_phy_tick(sc) == EJUSTRETURN)
 			return (0);
 		break;
 	}
 
 	/* Update the media status. */
-	axphy_status(sc);
+	PHY_STATUS(sc);
 
 	/* Callback if something changed. */
 	mii_phy_update(sc, cmd);
@@ -200,7 +173,10 @@ axphy_status(struct mii_softc *sc)
 		else
 			mii->mii_media_active |= IFM_10_T;
 		if (scr & SCR_FDX)
-			mii->mii_media_active |= IFM_FDX;
+			mii->mii_media_active |=
+			    IFM_FDX | mii_phy_flowstatus(sc);
+		else
+			mii->mii_media_active |= IFM_HDX;
 #endif
 	} else
 		mii->mii_media_active = ife->ifm_media;

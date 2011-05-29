@@ -108,7 +108,7 @@ static int      ixgb_allocate_pci_resources(struct adapter *);
 static void     ixgb_free_pci_resources(struct adapter *);
 static void     ixgb_local_timer(void *);
 static int      ixgb_hardware_init(struct adapter *);
-static void     ixgb_setup_interface(device_t, struct adapter *);
+static int      ixgb_setup_interface(device_t, struct adapter *);
 static int      ixgb_setup_transmit_structures(struct adapter *);
 static void     ixgb_initialize_transmit_unit(struct adapter *);
 static int      ixgb_setup_receive_structures(struct adapter *);
@@ -324,6 +324,15 @@ ixgb_attach(device_t dev)
 	}
 	adapter->rx_desc_base = (struct ixgb_rx_desc *) adapter->rxdma.dma_vaddr;
 
+	/* Allocate multicast array memory. */
+	adapter->mta = malloc(sizeof(u_int8_t) * IXGB_ETH_LENGTH_OF_ADDRESS *
+	    MAX_NUM_MULTICAST_ADDRESSES, M_DEVBUF, M_NOWAIT);
+	if (adapter->mta == NULL) {
+		device_printf(dev, "Can not allocate multicast setup array\n");
+		error = ENOMEM;
+		goto err_hw_init;
+	}
+
 	/* Initialize the hardware */
 	if (ixgb_hardware_init(adapter)) {
 		device_printf(dev, "Unable to initialize the hardware\n");
@@ -331,7 +340,8 @@ ixgb_attach(device_t dev)
 		goto err_hw_init;
 	}
 	/* Setup OS specific network interface */
-	ixgb_setup_interface(dev, adapter);
+	if (ixgb_setup_interface(dev, adapter) != 0)
+		goto err_hw_init;
 
 	/* Initialize statistics */
 	ixgb_clear_hw_cntrs(&adapter->hw);
@@ -346,8 +356,11 @@ err_rx_desc:
 	ixgb_dma_free(adapter, &adapter->txdma);
 err_tx_desc:
 err_pci:
+	if (adapter->ifp != NULL)
+		if_free(adapter->ifp);
 	ixgb_free_pci_resources(adapter);
 	sysctl_ctx_free(&adapter->sysctl_ctx);
+	free(adapter->mta, M_DEVBUF);
 	return (error);
 
 }
@@ -409,6 +422,7 @@ ixgb_detach(device_t dev)
 		adapter->next->prev = adapter->prev;
 	if (adapter->prev != NULL)
 		adapter->prev->next = adapter->next;
+	free(adapter->mta, M_DEVBUF);
 
 	IXGB_LOCK_DESTROY(adapter);
 	return (0);
@@ -1066,12 +1080,16 @@ static void
 ixgb_set_multi(struct adapter * adapter)
 {
 	u_int32_t       reg_rctl = 0;
-	u_int8_t        mta[MAX_NUM_MULTICAST_ADDRESSES * IXGB_ETH_LENGTH_OF_ADDRESS];
+	u_int8_t        *mta;
 	struct ifmultiaddr *ifma;
 	int             mcnt = 0;
 	struct ifnet   *ifp = adapter->ifp;
 
 	IOCTL_DEBUGOUT("ixgb_set_multi: begin");
+
+	mta = adapter->mta;
+	bzero(mta, sizeof(u_int8_t) * IXGB_ETH_LENGTH_OF_ADDRESS *
+	    MAX_NUM_MULTICAST_ADDRESSES);
 
 	if_maddr_rlock(ifp);
 #if __FreeBSD_version < 500000
@@ -1319,15 +1337,17 @@ ixgb_hardware_init(struct adapter * adapter)
  *  Setup networking device structure and register an interface.
  *
  **********************************************************************/
-static void
+static int
 ixgb_setup_interface(device_t dev, struct adapter * adapter)
 {
 	struct ifnet   *ifp;
 	INIT_DEBUGOUT("ixgb_setup_interface: begin");
 
 	ifp = adapter->ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL)
-		panic("%s: can not if_alloc()\n", device_get_nameunit(dev));
+	if (ifp == NULL) {
+		device_printf(dev, "can not allocate ifnet structure\n");
+		return (-1);
+	}
 #if __FreeBSD_version >= 502000
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 #else
@@ -1379,7 +1399,7 @@ ixgb_setup_interface(device_t dev, struct adapter * adapter)
 	ifmedia_add(&adapter->media, IFM_ETHER | IFM_AUTO, 0, NULL);
 	ifmedia_set(&adapter->media, IFM_ETHER | IFM_AUTO);
 
-	return;
+	return (0);
 }
 
 /********************************************************************

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 24, 2009
+.Dd August 31, 2010
 .Dt JAIL 3
 .Os
 .Sh NAME
@@ -248,6 +248,8 @@ jailparam_init(&params[1], "host.hostname");
 jailparam_get(params, 2, 0);
 hostname = jailparam_export(&params[1]);
 jailparam_free(params, 2);
+\&...
+free(hostname);
 .Ed
 .Sh ERRORS
 The

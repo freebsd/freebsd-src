@@ -55,7 +55,6 @@ __FBSDID("$FreeBSD$");
 #ifdef SMP
 volatile cpumask_t stopped_cpus;
 volatile cpumask_t started_cpus;
-cpumask_t idle_cpus_mask;
 cpumask_t hlt_cpus_mask;
 cpumask_t logical_cpus_mask;
 
@@ -73,7 +72,7 @@ u_int mp_maxid;
 
 SYSCTL_NODE(_kern, OID_AUTO, smp, CTLFLAG_RD, NULL, "Kernel SMP");
 
-SYSCTL_INT(_kern_smp, OID_AUTO, maxid, CTLFLAG_RD, &mp_maxid, 0,
+SYSCTL_UINT(_kern_smp, OID_AUTO, maxid, CTLFLAG_RD, &mp_maxid, 0,
     "Max CPU ID.");
 
 SYSCTL_INT(_kern_smp, OID_AUTO, maxcpus, CTLFLAG_RD, &mp_maxcpus, 0,
@@ -111,6 +110,7 @@ static void (*volatile smp_rv_action_func)(void *arg);
 static void (*volatile smp_rv_teardown_func)(void *arg);
 static void *volatile smp_rv_func_arg;
 static volatile int smp_rv_waiters[3];
+static volatile int smp_rv_generation;
 
 /* 
  * Shared mutex to restrict busywaits between smp_rendezvous() and
@@ -137,6 +137,8 @@ static void
 mp_start(void *dummy)
 {
 
+	mtx_init(&smp_ipi_mtx, "smp rendezvous", NULL, MTX_SPIN);
+
 	/* Probe for MP hardware. */
 	if (smp_disabled != 0 || cpu_mp_probe() == 0) {
 		mp_ncpus = 1;
@@ -144,7 +146,6 @@ mp_start(void *dummy)
 		return;
 	}
 
-	mtx_init(&smp_ipi_mtx, "smp rendezvous", NULL, MTX_SPIN);
 	cpu_mp_start();
 	printf("FreeBSD/SMP: Multiprocessor System Detected: %d CPUs\n",
 	    mp_ncpus);
@@ -180,7 +181,7 @@ forward_signal(struct thread *td)
 	id = td->td_oncpu;
 	if (id == NOCPU)
 		return;
-	ipi_selected(1 << id, IPI_AST);
+	ipi_cpu(id, IPI_AST);
 }
 
 /*
@@ -197,21 +198,31 @@ forward_signal(struct thread *td)
  *   0: NA
  *   1: ok
  *
- * XXX FIXME: this is not MP-safe, needs a lock to prevent multiple CPUs
- *            from executing at same time.
  */
 static int
 generic_stop_cpus(cpumask_t map, u_int type)
 {
+	static volatile u_int stopping_cpu = NOCPU;
 	int i;
 
-	KASSERT(type == IPI_STOP || type == IPI_STOP_HARD,
+	KASSERT(
+#if defined(__amd64__)
+	    type == IPI_STOP || type == IPI_STOP_HARD || type == IPI_SUSPEND,
+#else
+	    type == IPI_STOP || type == IPI_STOP_HARD,
+#endif
 	    ("%s: invalid stop type", __func__));
 
 	if (!smp_started)
-		return 0;
+		return (0);
 
 	CTR2(KTR_SMP, "stop_cpus(%x) with %u type", map, type);
+
+	if (stopping_cpu != PCPU_GET(cpuid))
+		while (atomic_cmpset_int(&stopping_cpu, NOCPU,
+		    PCPU_GET(cpuid)) == 0)
+			while (stopping_cpu != NOCPU)
+				cpu_spinwait(); /* spin */
 
 	/* send the stop IPI to all CPUs in map */
 	ipi_selected(map, type);
@@ -229,7 +240,8 @@ generic_stop_cpus(cpumask_t map, u_int type)
 #endif
 	}
 
-	return 1;
+	stopping_cpu = NOCPU;
+	return (1);
 }
 
 int
@@ -247,50 +259,11 @@ stop_cpus_hard(cpumask_t map)
 }
 
 #if defined(__amd64__)
-/*
- * When called the executing CPU will send an IPI to all other CPUs
- *  requesting that they halt execution.
- *
- * Usually (but not necessarily) called with 'other_cpus' as its arg.
- *
- *  - Signals all CPUs in map to suspend.
- *  - Waits for each to suspend.
- *
- * Returns:
- *  -1: error
- *   0: NA
- *   1: ok
- *
- * XXX FIXME: this is not MP-safe, needs a lock to prevent multiple CPUs
- *            from executing at same time.
- */
 int
 suspend_cpus(cpumask_t map)
 {
-	int i;
 
-	if (!smp_started)
-		return (0);
-
-	CTR1(KTR_SMP, "suspend_cpus(%x)", map);
-
-	/* send the suspend IPI to all CPUs in map */
-	ipi_selected(map, IPI_SUSPEND);
-
-	i = 0;
-	while ((stopped_cpus & map) != map) {
-		/* spin */
-		cpu_spinwait();
-		i++;
-#ifdef DIAGNOSTIC
-		if (i == 100000) {
-			printf("timeout suspending cpus\n");
-			break;
-		}
-#endif
-	}
-
-	return (1);
+	return (generic_stop_cpus(map, IPI_SUSPEND));
 }
 #endif
 
@@ -338,41 +311,101 @@ restart_cpus(cpumask_t map)
 void
 smp_rendezvous_action(void)
 {
-	void* local_func_arg = smp_rv_func_arg;
-	void (*local_setup_func)(void*)   = smp_rv_setup_func;
-	void (*local_action_func)(void*)   = smp_rv_action_func;
-	void (*local_teardown_func)(void*) = smp_rv_teardown_func;
+	struct thread *td;
+	void *local_func_arg;
+	void (*local_setup_func)(void*);
+	void (*local_action_func)(void*);
+	void (*local_teardown_func)(void*);
+	int generation;
+#ifdef INVARIANTS
+	int owepreempt;
+#endif
 
 	/* Ensure we have up-to-date values. */
 	atomic_add_acq_int(&smp_rv_waiters[0], 1);
 	while (smp_rv_waiters[0] < smp_rv_ncpus)
 		cpu_spinwait();
 
-	/* setup function */
+	/* Fetch rendezvous parameters after acquire barrier. */
+	local_func_arg = smp_rv_func_arg;
+	local_setup_func = smp_rv_setup_func;
+	local_action_func = smp_rv_action_func;
+	local_teardown_func = smp_rv_teardown_func;
+	generation = smp_rv_generation;
+
+	/*
+	 * Use a nested critical section to prevent any preemptions
+	 * from occurring during a rendezvous action routine.
+	 * Specifically, if a rendezvous handler is invoked via an IPI
+	 * and the interrupted thread was in the critical_exit()
+	 * function after setting td_critnest to 0 but before
+	 * performing a deferred preemption, this routine can be
+	 * invoked with td_critnest set to 0 and td_owepreempt true.
+	 * In that case, a critical_exit() during the rendezvous
+	 * action would trigger a preemption which is not permitted in
+	 * a rendezvous action.  To fix this, wrap all of the
+	 * rendezvous action handlers in a critical section.  We
+	 * cannot use a regular critical section however as having
+	 * critical_exit() preempt from this routine would also be
+	 * problematic (the preemption must not occur before the IPI
+	 * has been acknowledged via an EOI).  Instead, we
+	 * intentionally ignore td_owepreempt when leaving the
+	 * critical section.  This should be harmless because we do
+	 * not permit rendezvous action routines to schedule threads,
+	 * and thus td_owepreempt should never transition from 0 to 1
+	 * during this routine.
+	 */
+	td = curthread;
+	td->td_critnest++;
+#ifdef INVARIANTS
+	owepreempt = td->td_owepreempt;
+#endif
+	
+	/*
+	 * If requested, run a setup function before the main action
+	 * function.  Ensure all CPUs have completed the setup
+	 * function before moving on to the action function.
+	 */
 	if (local_setup_func != smp_no_rendevous_barrier) {
 		if (smp_rv_setup_func != NULL)
 			smp_rv_setup_func(smp_rv_func_arg);
-
-		/* spin on entry rendezvous */
 		atomic_add_int(&smp_rv_waiters[1], 1);
 		while (smp_rv_waiters[1] < smp_rv_ncpus)
                 	cpu_spinwait();
 	}
 
-	/* action function */
 	if (local_action_func != NULL)
 		local_action_func(local_func_arg);
 
-	/* spin on exit rendezvous */
+	/*
+	 * Signal that the main action has been completed.  If a
+	 * full exit rendezvous is requested, then all CPUs will
+	 * wait here until all CPUs have finished the main action.
+	 *
+	 * Note that the write by the last CPU to finish the action
+	 * may become visible to different CPUs at different times.
+	 * As a result, the CPU that initiated the rendezvous may
+	 * exit the rendezvous and drop the lock allowing another
+	 * rendezvous to be initiated on the same CPU or a different
+	 * CPU.  In that case the exit sentinel may be cleared before
+	 * all CPUs have noticed causing those CPUs to hang forever.
+	 * Workaround this by using a generation count to notice when
+	 * this race occurs and to exit the rendezvous in that case.
+	 */
+	MPASS(generation == smp_rv_generation);
 	atomic_add_int(&smp_rv_waiters[2], 1);
-	if (local_teardown_func == smp_no_rendevous_barrier)
-                return;
-	while (smp_rv_waiters[2] < smp_rv_ncpus)
-		cpu_spinwait();
+	if (local_teardown_func != smp_no_rendevous_barrier) {
+		while (smp_rv_waiters[2] < smp_rv_ncpus &&
+		    generation == smp_rv_generation)
+			cpu_spinwait();
 
-	/* teardown function */
-	if (local_teardown_func != NULL)
-		local_teardown_func(local_func_arg);
+		if (local_teardown_func != NULL)
+			local_teardown_func(local_func_arg);
+	}
+
+	td->td_critnest--;
+	KASSERT(owepreempt == td->td_owepreempt,
+	    ("rendezvous action changed td_owepreempt"));
 }
 
 void
@@ -394,16 +427,18 @@ smp_rendezvous_cpus(cpumask_t map,
 		return;
 	}
 
-	for (i = 0; i <= mp_maxid; i++)
-		if (((1 << i) & map) != 0 && !CPU_ABSENT(i))
+	CPU_FOREACH(i) {
+		if (((1 << i) & map) != 0)
 			ncpus++;
+	}
 	if (ncpus == 0)
 		panic("ncpus is 0 with map=0x%x", map);
 
-	/* obtain rendezvous lock */
 	mtx_lock_spin(&smp_ipi_mtx);
 
-	/* set static function pointers */
+	atomic_add_acq_int(&smp_rv_generation, 1);
+
+	/* Pass rendezvous parameters via global variables. */
 	smp_rv_ncpus = ncpus;
 	smp_rv_setup_func = setup_func;
 	smp_rv_action_func = action_func;
@@ -413,18 +448,25 @@ smp_rendezvous_cpus(cpumask_t map,
 	smp_rv_waiters[2] = 0;
 	atomic_store_rel_int(&smp_rv_waiters[0], 0);
 
-	/* signal other processors, which will enter the IPI with interrupts off */
+	/*
+	 * Signal other processors, which will enter the IPI with
+	 * interrupts off.
+	 */
 	ipi_selected(map & ~(1 << curcpu), IPI_RENDEZVOUS);
 
 	/* Check if the current CPU is in the map */
 	if ((map & (1 << curcpu)) != 0)
 		smp_rendezvous_action();
 
+	/*
+	 * If the caller did not request an exit barrier to be enforced
+	 * on each CPU, ensure that this CPU waits for all the other
+	 * CPUs to finish the rendezvous.
+	 */
 	if (teardown_func == smp_no_rendevous_barrier)
 		while (atomic_load_acq_int(&smp_rv_waiters[2]) < ncpus)
 			cpu_spinwait();
 
-	/* release lock */
 	mtx_unlock_spin(&smp_ipi_mtx);
 }
 
@@ -502,7 +544,7 @@ smp_topo_none(void)
 	top = &group[0];
 	top->cg_parent = NULL;
 	top->cg_child = NULL;
-	top->cg_mask = (1 << mp_ncpus) - 1;
+	top->cg_mask = all_cpus;
 	top->cg_count = mp_ncpus;
 	top->cg_children = 0;
 	top->cg_level = CG_SHARE_NONE;

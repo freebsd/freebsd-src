@@ -144,3 +144,13 @@ METHOD int map_msi {
 	uint64_t	*addr;
 	uint32_t	*data;
 };
+
+#
+# Return the device power state to be used during a system sleep state
+# transition such as suspend and resume.
+#
+METHOD int power_for_sleep {
+	device_t	pcib;
+	device_t	dev;
+	int		*pstate;
+};

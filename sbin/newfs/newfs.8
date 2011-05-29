@@ -28,7 +28,7 @@
 .\"     @(#)newfs.8	8.6 (Berkeley) 5/3/95
 .\" $FreeBSD$
 .\"
-.Dd March 21, 2008
+.Dd May 25, 2011
 .Dt NEWFS 8
 .Os
 .Sh NAME
@@ -36,7 +36,7 @@
 .Nd construct a new UFS1/UFS2 file system
 .Sh SYNOPSIS
 .Nm
-.Op Fl EJNUln
+.Op Fl EJNUjlnt
 .Op Fl L Ar volname
 .Op Fl O Ar filesystem-type
 .Op Fl S Ar sector-size
@@ -78,11 +78,11 @@ The following options define the general layout policies:
 .It Fl E
 Erase the content of the disk before making the filesystem.
 The reserved area in front of the superblock (for bootcode) will not be erased.
-
-This is a relevant option for flash based storage devices that use
-wear levelling algorithms.
-
-NB: Erasing may take as long time as writing every sector on the disk.
+.Pp
+This option is only relevant for flash based storage devices that use
+wear-leveling algorithms.
+.Pp
+Erasing may take a long time as it writes to every sector on the disk.
 .It Fl J
 Enable journaling on the new file system via gjournal.
 See
@@ -112,7 +112,7 @@ for more details on how to set this option.
 The block size of the file system, in bytes.
 It must be a power of 2.
 The
-default size is 16384 bytes, and the smallest allowable size is 4096 bytes.
+default size is 32768 bytes, and the smallest allowable size is 4096 bytes.
 The optimal block:fragment ratio is 8:1.
 Other ratios are possible, but are not recommended,
 and may produce poor results.
@@ -125,8 +125,9 @@ and the number of bytes per inode.
 .It Fl d Ar max-extent-size
 The file system may choose to store large files using extents.
 This parameter specifies the largest extent size that may be used.
-It is presently limited to its default value which is 16 times
-the file system blocksize.
+The default value is the file system blocksize.
+It is presently limited to a maximum value of 16 times the
+file system blocksize and a minimum value of the file system blocksize.
 .It Fl e Ar maxbpg
 Indicate the maximum number of blocks any single file can
 allocate out of a cylinder group before it is forced to begin
@@ -142,7 +143,7 @@ ranging in value between
 .Ar blocksize Ns /8
 and
 .Ar blocksize .
-The default is 2048 bytes.
+The default is 4096 bytes.
 .It Fl g Ar avgfilesize
 The expected average file size for the file system.
 .It Fl h Ar avgfpdir
@@ -156,6 +157,12 @@ If fewer inodes are desired, a larger number should be used;
 to create more inodes a smaller number should be given.
 One inode is required for each distinct file, so this value effectively
 specifies the average file size on the file system.
+.It Fl j
+Enable soft updates journaling on the new file system.
+This flag is implemented by running the
+.Xr tunefs 8
+utility found in the user's
+.Dv $PATH .
 .It Fl l
 Enable multilabel MAC on the new file system.
 .It Fl m Ar free-space
@@ -240,6 +247,14 @@ A valid
 .Ar size
 value cannot be larger than the default one,
 which means that the file system cannot extend into the reserved space.
+.It Fl t
+Turn on the TRIM enable flag.
+If enabled, and if the underlying device supports the BIO_DELETE
+command, the file system will send a delete request to the underlying
+device for each freed block.
+The trim enable flag is typically set when the underlying device
+uses flash-memory as the device can use the delete command to
+pre-zero or at least avoid copying blocks that have been deleted.
 .El
 .Pp
 The following options override the standard sizes for the disk geometry.
@@ -264,7 +279,7 @@ Creates a new ufs file system on
 .Pa ad3s1a .
 The
 .Nm
-utility will use a block size of 16384 bytes, a fragment size of 2048 bytes
+utility will use a block size of 32768 bytes, a fragment size of 4096 bytes
 and the largest possible number of blocks per cylinders group.
 These values tend to produce better performance for most applications
 than the historical defaults
@@ -282,6 +297,7 @@ on file systems that contain many small files.
 .Xr dumpfs 8 ,
 .Xr fsck 8 ,
 .Xr gjournal 8 ,
+.Xr makefs 8 ,
 .Xr mount 8 ,
 .Xr tunefs 8 ,
 .Xr gvinum 8

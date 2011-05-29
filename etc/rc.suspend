@@ -43,6 +43,18 @@ fi
 
 echo $$ 2> /dev/null > /var/run/rc.suspend.pid
 
+_t=`/sbin/sysctl -n kern.timecounter.hardware 2> /dev/null`
+case ${_t#ACPI-} in
+fast|safe)
+	/bin/rm -f /var/run/rc.suspend.tch
+	;;
+*)
+	{ /sbin/sysctl -n kern.timecounter.hardware=ACPI-fast || \
+	    /sbin/sysctl -n kern.timecounter.hardware=ACPI-safe; } \
+	    > /dev/null 2>&1 && echo $_t > /var/run/rc.suspend.tch
+	;;
+esac
+
 # If you have troubles on suspending with PC-CARD modem, try this.
 # See also contrib/pccardq.c (Only for PAO users).
 # pccardq | awk -F '~' '$5 == "filled" && $4 ~ /uart/ \
@@ -52,11 +64,11 @@ echo $$ 2> /dev/null > /var/run/rc.suspend.pid
 # suspend and reloading it on resume.  Example:
 # kldunload usb
 
-logger -t $subsystem suspend at `date +'%Y%m%d %H:%M:%S'`
-sync && sync && sync
-sleep 3
+/usr/bin/logger -t $subsystem suspend at `/bin/date +'%Y%m%d %H:%M:%S'`
+/bin/sync && /bin/sync && /bin/sync
+/bin/sleep 3
 
-rm -f /var/run/rc.suspend.pid
+/bin/rm -f /var/run/rc.suspend.pid
 if [ $subsystem = "apm" ]; then
 	/usr/sbin/zzz
 else

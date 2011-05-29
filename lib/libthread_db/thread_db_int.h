@@ -32,6 +32,25 @@
 #include <sys/types.h>
 #include <sys/queue.h>
 
+typedef struct {
+	const td_thragent_t *ti_ta_p;
+	thread_t	ti_tid;
+	psaddr_t	ti_thread;
+	td_thr_state_e	ti_state;
+	td_thr_type_e	ti_type;
+	td_thr_events_t	ti_events;
+	int		ti_pri;
+	lwpid_t		ti_lid;
+	char		ti_db_suspended;
+	char		ti_traceme;
+	sigset_t	ti_sigmask;
+	sigset_t	ti_pending;
+	psaddr_t	ti_tls;
+	psaddr_t	ti_startfunc;
+	psaddr_t	ti_stkbase;
+	size_t		ti_stksize;
+} td_old_thrinfo_t;
+
 #define	TD_THRAGENT_FIELDS			\
 	struct ta_ops		*ta_ops;	\
 	TAILQ_ENTRY(td_thragent) ta_next;	\
@@ -65,6 +84,8 @@ struct ta_ops {
 	td_err_e (*to_thr_event_enable)(const td_thrhandle_t *, int);
 	td_err_e (*to_thr_event_getmsg)(const td_thrhandle_t *,
 	    td_event_msg_t *);
+	td_err_e (*to_thr_old_get_info)(const td_thrhandle_t *,
+	    td_old_thrinfo_t *);
 	td_err_e (*to_thr_get_info)(const td_thrhandle_t *, td_thrinfo_t *);
 	td_err_e (*to_thr_getfpregs)(const td_thrhandle_t *, prfpregset_t *);
 	td_err_e (*to_thr_getgregs)(const td_thrhandle_t *, prgregset_t);
@@ -102,5 +123,7 @@ int thr_pread_ptr(const struct td_thragent *, psaddr_t, psaddr_t *);
 int thr_pwrite_int(const struct td_thragent *, psaddr_t, uint32_t);
 int thr_pwrite_long(const struct td_thragent *, psaddr_t, uint64_t);
 int thr_pwrite_ptr(const struct td_thragent *, psaddr_t, psaddr_t);
+
+td_err_e td_thr_old_get_info(const td_thrhandle_t *th, td_old_thrinfo_t *info);
 
 #endif /* _THREAD_DB_INT_H_ */

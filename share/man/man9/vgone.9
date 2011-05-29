@@ -26,24 +26,21 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 21, 2001
+.Dd November 12, 2010
 .Dt VGONE 9
 .Os
 .Sh NAME
-.Nm vgone , vgonel
+.Nm vgone
 .Nd "prepare a vnode for reuse"
 .Sh SYNOPSIS
 .In sys/param.h
 .In sys/vnode.h
 .Ft void
 .Fn vgone "struct vnode *vp"
-.Ft void
-.Fn vgonel "struct vnode *vp" "struct thread *td"
 .Sh DESCRIPTION
+The
 .Fn vgone
-and
-.Fn vgonel
-prepare a vnode for reuse by another file system.
+function prepares the vnode to be destroyed.
 The preparation includes the cleaning of all file system specific data and
 the removal from its mount point vnode list.
 .Pp
@@ -55,17 +52,12 @@ flag is not set, it is moved to the head of the free list
 as in most cases the vnode
 is about to be reused, or its file system is being unmounted.
 .Pp
-The difference between
+The
 .Fn vgone
-and
-.Fn vgonel
-is that
-.Fn vgone
-locks the vnode interlock and then calls
-.Fn vgonel
-while
-.Fn vgonel
-expects the interlock to already be locked.
+function takes an exclusively locked vnode, and returns with the vnode
+exclusively locked.
+.Sh SEE ALSO
+.Xr vnode 9
 .Sh AUTHORS
 This manual page was written by
 .An Chad David Aq davidc@acns.ab.ca .

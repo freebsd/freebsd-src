@@ -29,25 +29,98 @@
 #
 # Except it appears bind needs to be compiled last
 
-SUBDIR=	${_csu} libc libbsm libauditd libcom_err libcrypt libelf libkvm \
-	msun libmd ncurses ${_libnetgraph} libradius librpcsvc libsbuf \
-	libtacplus libutil ${_libypclnt}
-SUBDIR+=libalias libarchive ${_libatm} libbegemot ${_libbluetooth} \
-	${_libbsnmp} libbz2 libcalendar libcam libcompat libdevinfo \
-	libdevstat libdisk libdwarf libedit ${_libefi} libexpat libfetch \
-	libftpio libgeom ${_libgpib} ${_libgssapi} ${_librpcsec_gss} libipsec \
-	${_libipx} libjail libkiconv libmagic libmemstat ${_libmilter} \
-	${_libmp} ${_libncp} ${_libngatm} libopie libpam libpcap \
-	${_libpmc} libproc librt ${_libsdp} ${_libsm} ${_libsmb} \
-	${_libsmdb} ${_libsmutil} libstand \
-	${_libtelnet} ${_libthr} libthread_db libufs libugidfw libulog \
-	${_libusbhid} ${_libusb} ${_libvgl} libwrap liby libz \
-	${_bind}
+SUBDIR_ORDERED=	${_csu} \
+	libc \
+	libbsm \
+	libauditd \
+	libcom_err \
+	libcompiler_rt \
+	libcrypt \
+	libelf \
+	${_libiconv_modules} \
+	libkvm \
+	msun \
+	libmd \
+	ncurses \
+	${_libnetgraph} \
+	libradius \
+	librpcsvc \
+	libsbuf \
+	libtacplus \
+	libutil \
+	${_libypclnt}
+
+SUBDIR=	${SUBDIR_ORDERED} \
+	libalias \
+	libarchive \
+	${_libatm} \
+	libbegemot \
+	libblocksruntime \
+	${_libbluetooth} \
+	${_libbsnmp} \
+	libbz2 \
+	libcalendar \
+	libcam \
+	libcompat \
+	libdevinfo \
+	libdevstat \
+	libdisk \
+	libdwarf \
+	libedit \
+	${_libefi} \
+	libexpat \
+	libfetch \
+	libftpio \
+	libgeom \
+	${_libgpib} \
+	${_libgssapi} \
+	${_librpcsec_gss} \
+	libipsec \
+	${_libipx} \
+	libjail \
+	libkiconv \
+	liblzma \
+	libmagic \
+	libmemstat \
+	${_libmilter} \
+	${_libmp} \
+	${_libncp} \
+	${_libngatm} \
+	libopie \
+	libpam \
+	libpcap \
+	${_libpmc} \
+	${_libproc} \
+	libprocstat \
+	librt \
+	${_librtld_db} \
+	${_libsdp} \
+	${_libsm} \
+	${_libsmb} \
+	${_libsmdb} \
+	${_libsmutil} \
+	libstand \
+	${_libtelnet} \
+	${_libthr} \
+	libthread_db \
+	libufs \
+	libugidfw \
+	libulog \
+	${_libusbhid} \
+	${_libusb} \
+	${_libvgl} \
+	libwrap \
+	liby \
+	libz \
+	${_bind} \
+	${_clang}
 
 .if exists(${.CURDIR}/csu/${MACHINE_ARCH}-elf)
 _csu=csu/${MACHINE_ARCH}-elf
-.elif exists(${.CURDIR}/csu/${MACHINE_ARCH}/Makefile)
+.elif exists(${.CURDIR}/csu/${MACHINE_ARCH})
 _csu=csu/${MACHINE_ARCH}
+.elif exists(${.CURDIR}/csu/${MACHINE_CPUARCH}/Makefile)
+_csu=csu/${MACHINE_CPUARCH}
 .else
 _csu=csu
 .endif
@@ -71,6 +144,10 @@ _libsdp=	libsdp
 _libbsnmp=	libbsnmp
 .endif
 
+.if ${MK_CLANG} != "no" && !defined(COMPAT_32BIT)
+_clang=		clang
+.endif
+
 .if ${MK_GPIB} != "no"
 _libgpib=	libgpib
 .endif
@@ -78,6 +155,10 @@ _libgpib=	libgpib
 .if ${MK_GSSAPI} != "no"
 _libgssapi=	libgssapi
 _librpcsec_gss=	librpcsec_gss
+.endif
+
+.if ${MK_ICONV} != "no"
+_libiconv_modules=	libiconv_modules
 .endif
 
 .if ${MK_IPX} != "no"
@@ -96,32 +177,32 @@ _libnetgraph=	libnetgraph
 _libypclnt=	libypclnt
 .endif
 
-.if ${MACHINE_ARCH} == "i386"
+.if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
 .if ${MK_NCP} != "no"
 _libncp=	libncp
 .endif
 _libsmb=	libsmb
 _libvgl=	libvgl
+_libproc=	libproc
+_librtld_db=	librtld_db
 .endif
 
-.if ${MACHINE_ARCH} == "ia64"
+.if ${MACHINE_CPUARCH} == "ia64"
 _libefi=	libefi
 _libsmb=	libsmb
 .endif
 
-.if ${MACHINE_ARCH} == "amd64"
+.if ${MACHINE_CPUARCH} == "amd64"
 .if ${MK_NCP} != "no"
 _libncp=	libncp
 .endif
-_libsmb=	libsmb
-_libvgl=	libvgl
 .endif
 
-.if ${MACHINE_ARCH} == "powerpc"
+.if ${MACHINE_CPUARCH} == "powerpc"
 _libsmb=	libsmb
 .endif
 
-.if ${MACHINE_ARCH} == "sparc64"
+.if ${MACHINE_CPUARCH} == "sparc64"
 _libsmb=	libsmb
 .endif
 

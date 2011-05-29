@@ -236,6 +236,7 @@ __END_DECLS
 #define	IPPROTO_GMTP		100		/* GMTP*/
 #define	IPPROTO_IPCOMP		108		/* payload compression (IPComp) */
 #define	IPPROTO_SCTP		132		/* SCTP */
+#define	IPPROTO_MH		135		/* IPv6 Mobility Header */
 /* 101-254: Partly Unassigned */
 #define	IPPROTO_PIM		103		/* Protocol Independent Mcast */
 #define	IPPROTO_CARP		112		/* CARP */
@@ -251,6 +252,7 @@ __END_DECLS
 
 /* Only used internally, so can be outside the range of valid IP protocols. */
 #define	IPPROTO_DIVERT		258		/* divert pseudo-protocol */
+#define	IPPROTO_SEND		259		/* SeND pseudo-protocol */
 
 /*
  * Defined to avoid confusion.  The master value is defined by
@@ -724,6 +726,8 @@ int	 in_localip(struct in_addr);
 int	 inet_aton(const char *, struct in_addr *); /* in libkern */
 char	*inet_ntoa(struct in_addr); /* in libkern */
 char	*inet_ntoa_r(struct in_addr ina, char *buf); /* in libkern */
+char	*inet_ntop(int, const void *, char *, socklen_t); /* in libkern */
+int	 inet_pton(int af, const char *, void *); /* in libkern */
 void	 in_ifdetach(struct ifnet *);
 
 #define	in_hosteq(s, t)	((s).s_addr == (t).s_addr)

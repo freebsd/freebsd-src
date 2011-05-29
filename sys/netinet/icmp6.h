@@ -652,7 +652,6 @@ struct	rtentry;
 struct	rttimer;
 struct	in6_multi;
 # endif
-void	icmp6_init(void);
 void	icmp6_paramerror(struct mbuf *, int);
 void	icmp6_error(struct mbuf *, int, int, int);
 void	icmp6_error2(struct mbuf *, int, int, int, struct ifnet *);

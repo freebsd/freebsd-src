@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -38,7 +34,9 @@
 		    KTRFAC_GENIO | KTRFAC_PSIG | KTRFAC_USER | \
 		    KTRFAC_STRUCT | KTRFAC_SYSCTL)
 
-#define ALL_POINTS (DEF_POINTS | KTRFAC_CSW)
+#define PROC_ABI_POINTS (KTRFAC_PROCCTOR | KTRFAC_PROCDTOR)
+
+#define ALL_POINTS (DEF_POINTS | KTRFAC_CSW | PROC_ABI_POINTS)
 
 #define DEF_TRACEFILE	"ktrace.out"
 

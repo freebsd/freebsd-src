@@ -25,9 +25,9 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 30, 2007
-.Os
+.Dd March 21, 2010
 .Dt UIO 9
+.Os
 .Sh NAME
 .Nm uio ,
 .Nm uiomove
@@ -35,13 +35,12 @@
 .Sh SYNOPSIS
 .In sys/types.h
 .In sys/uio.h
-.Pp
 .Bd -literal
 struct uio {
 	struct	iovec *uio_iov;		/* scatter/gather list */
 	int	uio_iovcnt;		/* length of scatter/gather list */
 	off_t	uio_offset;		/* offset in target object */
-	int	uio_resid;		/* remaining bytes to copy */
+	ssize_t	uio_resid;		/* remaining bytes to copy */
 	enum	uio_seg uio_segflg;	/* address space */
 	enum	uio_rw uio_rw;		/* operation */
 	struct	thread *uio_td;		/* owner */
@@ -115,18 +114,6 @@ space.
 On success
 .Fn uiomove
 will return 0, on error it will return an appropriate errno.
-.Sh ERRORS
-.Fn uiomove
-will fail and return the following error code if:
-.Bl -tag -width Er
-.It Bq Er EFAULT
-The invoked
-.Xr copyin 9
-or
-.Xr copyout 9
-returned
-.Er EFAULT
-.El
 .Sh EXAMPLES
 The idea is that the driver maintains a private buffer for its data,
 and processes the request in chunks of maximal the size of this
@@ -167,6 +154,18 @@ fooread(dev_t dev, struct uio *uio, int flag)
 	return (rv);
 }
 .Ed
+.Sh ERRORS
+.Fn uiomove
+will fail and return the following error code if:
+.Bl -tag -width Er
+.It Bq Er EFAULT
+The invoked
+.Xr copyin 9
+or
+.Xr copyout 9
+returned
+.Er EFAULT
+.El
 .Sh SEE ALSO
 .Xr read 2 ,
 .Xr readv 2 ,

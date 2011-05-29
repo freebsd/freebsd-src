@@ -2,7 +2,8 @@
 
 /*-
  * Copyright (c) 2008,2009 Damien Bergamini <damien.bergamini@free.fr>
- *	ported to FreeBSD by Akinori Furukoshi <moonlightakkiy@yahoo.ca>
+ * ported to FreeBSD by Akinori Furukoshi <moonlightakkiy@yahoo.ca>
+ * USB Consulting, Hans Petter Selasky <hselasky@freebsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -43,8 +44,10 @@
 #define RUN_TX_RING_COUNT	32
 #define RUN_RX_RING_COUNT	1
 
-#define RT2870_WCID_MAX		253
+#define RT2870_WCID_MAX		64
 #define RUN_AID2WCID(aid)	((aid) & 0xff)
+
+#define RUN_VAP_MAX		8
 
 struct run_rx_radiotap_header {
 	struct ieee80211_radiotap_header wr_ihdr;
@@ -52,7 +55,7 @@ struct run_rx_radiotap_header {
 	uint8_t		wr_rate;
 	uint16_t	wr_chan_freq;
 	uint16_t	wr_chan_flags;
-	uint8_t		wr_dbm_antsignal;
+	int8_t		wr_dbm_antsignal;
 	uint8_t		wr_antenna;
 	uint8_t		wr_antsignal;
 } __packed;
@@ -92,8 +95,7 @@ struct run_tx_data {
 	uint32_t align[0];	/* dummy field */
 	uint8_t	desc[sizeof(struct rt2870_txd) +
 		     sizeof(struct rt2860_txwi)];
-	int			ridx;
-	uint8_t			mcs;
+	uint8_t			ridx;
 };
 STAILQ_HEAD(run_tx_data_head, run_tx_data);
 
@@ -101,21 +103,30 @@ struct run_node {
 	struct ieee80211_node	ni;
 	uint8_t			ridx[IEEE80211_RATE_MAXSIZE];
 	uint8_t			ctl_ridx[IEEE80211_RATE_MAXSIZE];
+	uint8_t			amrr_ridx;
+	uint8_t			mgt_ridx;
+	uint8_t			fix_ridx;
+};
+
+struct run_cmdq {
+	void			*arg0;
+	void			*arg1;
+	void			(*func)(void *);
+	struct ieee80211_key	*k;
+	struct ieee80211_key	key;
+	uint8_t			mac[IEEE80211_ADDR_LEN];
+	uint8_t			wcid;
 };
 
 struct run_vap {
 	struct ieee80211vap             vap;
 	struct ieee80211_beacon_offsets bo;
-	struct ieee80211_amrr           amrr;
-	struct ieee80211_amrr_node	amn[RT2870_WCID_MAX + 1];
-	struct usb_callout              amrr_ch;
-	struct task                     amrr_task;
-	uint8_t				amrr_run;
-#define RUN_AMRR_ON	1
-#define RUN_AMRR_OFF	0
+	struct mbuf			*beacon_mbuf;
 
 	int                             (*newstate)(struct ieee80211vap *,
                                             enum ieee80211_state, int);
+
+	uint8_t				rvp_id;
 };
 #define RUN_VAP(vap)    ((struct run_vap *)(vap))
 
@@ -149,26 +160,35 @@ struct run_softc {
 	device_t			sc_dev;
 	struct usb_device		*sc_udev;
 	struct ifnet			*sc_ifp;
-	struct run_vap			*sc_rvp;
+	uint16_t			wcid_stats[RT2870_WCID_MAX + 1][3];
+#define	RUN_TXCNT	0
+#define	RUN_SUCCESS	1
+#define	RUN_RETRY	2
 
 	int				(*sc_srom_read)(struct run_softc *,
 					    uint16_t, uint16_t *);
 
-	uint32_t			mac_rev;
+	uint16_t			mac_ver;
+	uint16_t			mac_rev;
 	uint8_t				rf_rev;
 	uint8_t				freq;
 	uint8_t				ntxchains;
 	uint8_t				nrxchains;
-	int				fixed_ridx;
 
+	uint8_t				bbp25;
+	uint8_t				bbp26;
 	uint8_t				rf24_20mhz;
 	uint8_t				rf24_40mhz;
+	uint8_t				patch_dac;
+	uint8_t				rfswitch;
 	uint8_t				ext_2ghz_lna;
 	uint8_t				ext_5ghz_lna;
 	uint8_t				calib_2ghz;
 	uint8_t				calib_5ghz;
-	int8_t				txpow1[50];
-	int8_t				txpow2[50];
+	uint8_t				txmixgain_2ghz;
+	uint8_t				txmixgain_5ghz;
+	int8_t				txpow1[54];
+	int8_t				txpow2[54];
 	int8_t				rssi_2ghz[3];
 	int8_t				rssi_5ghz[3];
 	uint8_t				lna[4];
@@ -176,7 +196,7 @@ struct run_softc {
 	struct {
 		uint8_t	reg;
 		uint8_t	val;
-	}				bbp[8];
+	}				bbp[10], rf[10];
 	uint8_t				leds;
 	uint16_t			led[3];
 	uint32_t			txpow20mhz[5];
@@ -189,14 +209,36 @@ struct run_softc {
 
 	struct run_endpoint_queue	sc_epq[RUN_EP_QUEUES];
 
-	struct task			wme_task;
-	struct task			usb_timeout_task;
+	struct task                     ratectl_task;
+	struct usb_callout              ratectl_ch;
+	uint8_t				ratectl_run;
+#define RUN_RATECTL_OFF	0
+
+/* need to be power of 2, otherwise RUN_CMDQ_GET fails */
+#define RUN_CMDQ_MAX	16
+#define RUN_CMDQ_MASQ	(RUN_CMDQ_MAX - 1)
+	struct run_cmdq			cmdq[RUN_CMDQ_MAX];
+	struct task			cmdq_task;
+	uint32_t			cmdq_store;
+	uint8_t				cmdq_exec;
+	uint8_t				cmdq_run;
+	uint8_t				cmdq_key_set;
+#define RUN_CMDQ_ABORT	0
+#define RUN_CMDQ_GO	1
 
 	struct usb_xfer			*sc_xfer[RUN_N_XFER];
 
 	struct mbuf			*rx_m;
 
-	int				sifs;
+	uint8_t				fifo_cnt;
+
+	uint8_t				running;
+	uint8_t				runbmap;
+	uint8_t				ap_running;
+	uint8_t				adhoc_running;
+	uint8_t				sta_running;
+	uint8_t				rvp_cnt;
+	uint8_t				rvp_bmap;
 
 	union {
 		struct run_rx_radiotap_header th;

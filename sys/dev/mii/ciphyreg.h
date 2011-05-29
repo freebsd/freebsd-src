@@ -68,7 +68,7 @@
 #define CIPHY_BMSR_EXTSTS	0x0100	/* Extended status present */
 #define CIPHY_BMSR_PRESUB	0x0040	/* Preamble surpression */
 #define CIPHY_BMSR_ACOMP	0x0020	/* Autoneg complete */
-#define CIPHY_BMSR_RFAULT	0x0010	/* Remote fault condition occured */
+#define CIPHY_BMSR_RFAULT	0x0010	/* Remote fault condition occurred */
 #define CIPHY_BMSR_ANEG		0x0008	/* Autoneg capable */
 #define CIPHY_BMSR_LINK		0x0004	/* Link status */
 #define CIPHY_BMSR_JABBER	0x0002	/* Jabber detected */
@@ -170,7 +170,7 @@
 
 /* Vendor-specific PHY registers */
 
-/* 100baseTX status extention register */
+/* 100baseTX status extension register */
 #define CIPHY_MII_100STS	0x10
 #define CIPHY_100STS_DESLCK	0x8000	/* descrambler locked */
 #define CIPHY_100STS_LKCERR	0x4000	/* lock error detected/lock lost */
@@ -181,7 +181,7 @@
 #define CIPHY_100STS_SSDERR	0x0200	/* false carrier error detected */
 #define CIPHY_100STS_ESDERR	0x0100	/* premature end of stream error */
 
-/* 1000BT status extention register #2 */
+/* 1000BT status extension register #2 */
 #define CIPHY_MII_1000STS2	0x11
 #define CIPHY_1000STS2_DESLCK	0x8000	/* descrambler locked */
 #define CIPHY_1000STS2_LKCERR	0x4000	/* lock error detected/lock lost */
@@ -191,7 +191,7 @@
 #define CIPHY_1000STS2_TXERR	0x0400	/* transmit error detected */
 #define CIPHY_1000STS2_SSDERR	0x0200	/* false carrier error detected */
 #define CIPHY_1000STS2_ESDERR	0x0100	/* premature end of stream error */
-#define CIPHY_1000STS2_CARREXT	0x0080	/* carrier extention err detected */
+#define CIPHY_1000STS2_CARREXT	0x0080	/* carrier extension err detected */
 #define CIPHY_1000STS2_BCM5400	0x0040	/* non-complient BCM5400 detected */
 
 /* Bypass control register */
@@ -332,7 +332,7 @@
 #define CIPHY_LED_LINKACTBLINK	0x0004	/* enable link/activity LED blink */
 #define CIPHY_LED_BLINKRATE	0x0002	/* blink rate 0=10hz, 1=5hz */
 
-/* Auxilliary control and status register */
+/* Auxiliary control and status register */
 #define CIPHY_MII_AUXCSR	0x1C
 #define CIPHY_AUXCSR_ANEGDONE	0x8000	/* Autoneg complete */
 #define CIPHY_AUXCSR_ANEGOFF	0x4000	/* Autoneg disabled */

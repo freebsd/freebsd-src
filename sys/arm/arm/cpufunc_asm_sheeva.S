@@ -392,3 +392,10 @@ ENTRY(sheeva_control_ext)
 	mcrne	p15, 1, r2, c15, c1, 0	/* Write new control register */
 	mov	r0, r3			/* Return old value */
 	RET
+
+ENTRY(sheeva_cpu_sleep)
+	mov	r0, #0
+	mcr	p15, 0, r0, c7, c10, 4	/* Drain write buffer */
+	mcr	p15, 0, r0, c7, c0, 4	/* Wait for interrupt */
+	mov	pc, lr
+

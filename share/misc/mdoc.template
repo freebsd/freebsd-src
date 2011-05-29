@@ -2,8 +2,8 @@
 .\"
 .\" The following requests are required for all man pages.
 .Dd Month day, year
-.Os [OPERATING_SYSTEM] [version/release]
 .Dt DOCUMENT_TITLE [section number] [architecture/volume]
+.Os [OPERATING_SYSTEM] [version/release]
 .Sh NAME
 .Nm name
 .Nd one line description of name

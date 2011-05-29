@@ -85,6 +85,15 @@ struct eap_peer_config {
 	 * Alternatively, a named configuration blob can be used by setting
 	 * this to blob://blob_name.
 	 *
+	 * Alternatively, this can be used to only perform matching of the
+	 * server certificate (SHA-256 hash of the DER encoded X.509
+	 * certificate). In this case, the possible CA certificates in the
+	 * server certificate chain are ignored and only the server certificate
+	 * is verified. This is configured with the following format:
+	 * hash:://server/sha256/cert_hash_in_hex
+	 * For example: "hash://server/sha256/
+	 * 5a1bc1296205e6fdbe3979728efe3920798885c1c4590b5f90f43222d239ca6a"
+	 *
 	 * On Windows, trusted CA certificates can be loaded from the system
 	 * certificate store by setting this to cert_store://name, e.g.,
 	 * ca_cert="cert_store://CA" or ca_cert="cert_store://ROOT".

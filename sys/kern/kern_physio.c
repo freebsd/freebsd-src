@@ -57,10 +57,13 @@ physio(struct cdev *dev, struct uio *uio, int ioflag)
 	for (i = 0; i < uio->uio_iovcnt; i++) {
 		while (uio->uio_iov[i].iov_len) {
 			bp->b_flags = 0;
-			if (uio->uio_rw == UIO_READ)
+			if (uio->uio_rw == UIO_READ) {
 				bp->b_iocmd = BIO_READ;
-			else 
+				curthread->td_ru.ru_inblock++;
+			} else {
 				bp->b_iocmd = BIO_WRITE;
+				curthread->td_ru.ru_oublock++;
+			}
 			bp->b_iodone = bdone;
 			bp->b_data = uio->uio_iov[i].iov_base;
 			bp->b_bcount = uio->uio_iov[i].iov_len;

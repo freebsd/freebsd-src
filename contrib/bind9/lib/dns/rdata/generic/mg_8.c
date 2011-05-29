@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: mg_8.c,v 1.43 2007/06/19 23:47:17 tbox Exp $ */
+/* $Id: mg_8.c,v 1.43 2007-06-19 23:47:17 tbox Exp $ */
 
 /* reviewed: Wed Mar 15 17:49:21 PST 2000 by brister */
 

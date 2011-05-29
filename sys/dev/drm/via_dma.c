@@ -158,6 +158,9 @@ static inline uint32_t *via_check_dma(drm_via_private_t * dev_priv,
 
 int via_dma_cleanup(struct drm_device * dev)
 {
+	drm_via_blitq_t *blitq;
+	int i;
+
 	if (dev->dev_private) {
 		drm_via_private_t *dev_priv =
 		    (drm_via_private_t *) dev->dev_private;
@@ -169,6 +172,10 @@ int via_dma_cleanup(struct drm_device * dev)
 			dev_priv->ring.virtual_start = NULL;
 		}
 
+		for (i=0; i< VIA_NUM_BLIT_ENGINES; ++i) {
+			blitq = dev_priv->blit_queues + i;
+			mtx_destroy(&blitq->blit_lock);
+		}
 	}
 
 	return 0;
@@ -206,14 +213,14 @@ static int via_initialize(struct drm_device * dev,
 
 	drm_core_ioremap_wc(&dev_priv->ring.map, dev);
 
-	if (dev_priv->ring.map.handle == NULL) {
+	if (dev_priv->ring.map.virtual == NULL) {
 		via_dma_cleanup(dev);
 		DRM_ERROR("can not ioremap virtual address for"
 			  " ring buffer\n");
 		return -ENOMEM;
 	}
 
-	dev_priv->ring.virtual_start = dev_priv->ring.map.handle;
+	dev_priv->ring.virtual_start = dev_priv->ring.map.virtual;
 
 	dev_priv->dma_ptr = dev_priv->ring.virtual_start;
 	dev_priv->dma_low = 0;
@@ -222,7 +229,7 @@ static int via_initialize(struct drm_device * dev,
 	dev_priv->dma_offset = init->offset;
 	dev_priv->last_pause_ptr = NULL;
 	dev_priv->hw_addr_ptr =
-		(volatile uint32_t *)((char *)dev_priv->mmio->handle +
+		(volatile uint32_t *)((char *)dev_priv->mmio->virtual +
 		init->reg_pause_addr);
 
 	via_cmdbuf_start(dev_priv);

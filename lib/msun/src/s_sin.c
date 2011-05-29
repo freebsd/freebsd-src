@@ -63,7 +63,7 @@ sin(double x)
     /* |x| ~< pi/4 */
 	ix &= 0x7fffffff;
 	if(ix <= 0x3fe921fb) {
-	    if(ix<0x3e400000)			/* |x| < 2**-27 */
+	    if(ix<0x3e500000)			/* |x| < 2**-26 */
 	       {if((int)x==0) return x;}	/* generate inexact */
 	    return __kernel_sin(x,z,0);
 	}

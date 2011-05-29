@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rt_21.c,v 1.46 2007/06/19 23:47:17 tbox Exp $ */
+/* $Id: rt_21.c,v 1.46 2007-06-19 23:47:17 tbox Exp $ */
 
 /* reviewed: Thu Mar 16 15:02:31 PST 2000 by brister */
 

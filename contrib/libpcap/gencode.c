@@ -23,7 +23,7 @@
  */
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/libpcap/gencode.c,v 1.290.2.16 2008-09-22 20:16:01 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/libpcap/gencode.c,v 1.309 2008-12-23 20:13:29 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -33,6 +33,14 @@ static const char rcsid[] _U_ =
 #ifdef WIN32
 #include <pcap-stdinc.h>
 #else /* WIN32 */
+#if HAVE_INTTYPES_H
+#include <inttypes.h>
+#elif HAVE_STDINT_H
+#include <stdint.h>
+#endif
+#ifdef HAVE_SYS_BITYPES_H
+#include <sys/bitypes.h>
+#endif
 #include <sys/types.h>
 #include <sys/socket.h>
 #endif /* WIN32 */
@@ -51,6 +59,7 @@ static const char rcsid[] _U_ =
 #endif
 
 #include <netinet/in.h>
+#include <arpa/inet.h>
 
 #endif /* WIN32 */
 
@@ -75,6 +84,7 @@ static const char rcsid[] _U_ =
 #include "sunatmpos.h"
 #include "ppp.h"
 #include "pcap/sll.h"
+#include "pcap/ipnet.h"
 #include "arcnet.h"
 #ifdef HAVE_NET_PFVAR_H
 #include <sys/socket.h>
@@ -157,6 +167,17 @@ enum e_offrel {
 	OR_TRAN_IPV6	/* relative to the transport-layer header, with IPv6 network layer */
 };
 
+#ifdef INET6
+/*
+ * As errors are handled by a longjmp, anything allocated must be freed
+ * in the longjmp handler, so it must be reachable from that handler.
+ * One thing that's allocated is the result of pcap_nametoaddrinfo();
+ * it must be freed with freeaddrinfo().  This variable points to any
+ * addrinfo structure that would need to be freed.
+ */
+static struct addrinfo *ai;
+#endif
+
 /*
  * We divy out chunks of memory rather than call malloc each time so
  * we don't have to worry about leaking memory.  It's probably
@@ -202,6 +223,7 @@ static struct block *gen_uncond(int);
 static inline struct block *gen_true(void);
 static inline struct block *gen_false(void);
 static struct block *gen_ether_linktype(int);
+static struct block *gen_ipnet_linktype(int);
 static struct block *gen_linux_sll_linktype(int);
 static struct slist *gen_load_prism_llprefixlen(void);
 static struct slist *gen_load_avs_llprefixlen(void);
@@ -367,10 +389,34 @@ syntax()
 static bpf_u_int32 netmask;
 static int snaplen;
 int no_optimize;
+#ifdef WIN32
+static int
+pcap_compile_unsafe(pcap_t *p, struct bpf_program *program,
+	     const char *buf, int optimize, bpf_u_int32 mask);
 
 int
 pcap_compile(pcap_t *p, struct bpf_program *program,
 	     const char *buf, int optimize, bpf_u_int32 mask)
+{
+	int result;
+
+	EnterCriticalSection(&g_PcapCompileCriticalSection);
+
+	result = pcap_compile_unsafe(p, program, buf, optimize, mask);
+
+	LeaveCriticalSection(&g_PcapCompileCriticalSection);
+	
+	return result;
+}
+
+static int
+pcap_compile_unsafe(pcap_t *p, struct bpf_program *program,
+	     const char *buf, int optimize, bpf_u_int32 mask)
+#else /* WIN32 */
+int
+pcap_compile(pcap_t *p, struct bpf_program *program,
+	     const char *buf, int optimize, bpf_u_int32 mask)
+#endif /* WIN32 */
 {
 	extern int n_errors;
 	const char * volatile xbuf = buf;
@@ -382,6 +428,12 @@ pcap_compile(pcap_t *p, struct bpf_program *program,
 	bpf_pcap = p;
 	init_regs();
 	if (setjmp(top_ctx)) {
+#ifdef INET6
+		if (ai != NULL) {
+			freeaddrinfo(ai);
+			ai = NULL;
+		}
+#endif
 		lex_cleanup();
 		freechunks();
 		return (-1);
@@ -1114,6 +1166,8 @@ init_linktype(p)
 		return;
 
 	case DLT_RAW:
+	case DLT_IPV4:
+	case DLT_IPV6:
 		off_linktype = -1;
 		off_macpl = 0;
 		off_nl = 0;
@@ -1497,6 +1551,43 @@ init_linktype(p)
 		off_linktype = -1;
 		off_macpl = -1;
 		off_nl = -1;
+		off_nl_nosnap = -1;
+		return;
+
+	case DLT_MPLS:
+		/*
+		 * Currently, only raw "link[N:M]" filtering is supported.
+		 */
+		off_linktype = -1;
+		off_macpl = -1;
+		off_nl = -1;
+		off_nl_nosnap = -1;
+		return;
+
+	case DLT_USB_LINUX_MMAPPED:
+		/*
+		 * Currently, only raw "link[N:M]" filtering is supported.
+		 */
+		off_linktype = -1;
+		off_macpl = -1;
+		off_nl = -1;
+		off_nl_nosnap = -1;
+		return;
+
+	case DLT_CAN_SOCKETCAN:
+		/*
+		 * Currently, only raw "link[N:M]" filtering is supported.
+		 */
+		off_linktype = -1;
+		off_macpl = -1;
+		off_nl = -1;
+		off_nl_nosnap = -1;
+		return;
+
+	case DLT_IPNET:
+		off_linktype = 1;
+		off_macpl = 24;		/* ipnet header length */
+		off_nl = 0;
 		off_nl_nosnap = -1;
 		return;
 	}
@@ -1930,6 +2021,33 @@ gen_ether_linktype(proto)
 			    (bpf_int32)proto);
 		}
 	}
+}
+
+/*
+ * "proto" is an Ethernet type value and for IPNET, if it is not IPv4
+ * or IPv6 then we have an error.
+ */
+static struct block *
+gen_ipnet_linktype(proto)
+	register int proto;
+{
+	switch (proto) {
+
+	case ETHERTYPE_IP:
+		return gen_cmp(OR_LINK, off_linktype, BPF_B,
+		    (bpf_int32)IPH_AF_INET);
+		/* NOTREACHED */
+
+	case ETHERTYPE_IPV6:
+		return gen_cmp(OR_LINK, off_linktype, BPF_B,
+		    (bpf_int32)IPH_AF_INET6);
+		/* NOTREACHED */
+
+	default:
+		break;
+	}
+
+	return gen_false();
 }
 
 /*
@@ -3073,6 +3191,32 @@ gen_linktype(proto)
 		/*NOTREACHED*/
 		break;
 
+	case DLT_IPV4:
+		/*
+		 * Raw IPv4, so no type field.
+		 */
+		if (proto == ETHERTYPE_IP)
+			return gen_true();		/* always true */
+
+		/* Checking for something other than IPv4; always false */
+		return gen_false();
+		/*NOTREACHED*/
+		break;
+
+	case DLT_IPV6:
+		/*
+		 * Raw IPv6, so no type field.
+		 */
+#ifdef INET6
+		if (proto == ETHERTYPE_IPV6)
+			return gen_true();		/* always true */
+#endif
+
+		/* Checking for something other than IPv6; always false */
+		return gen_false();
+		/*NOTREACHED*/
+		break;
+
 	case DLT_PPP:
 	case DLT_PPP_PPPD:
 	case DLT_PPP_SERIAL:
@@ -3329,6 +3473,9 @@ gen_linktype(proto)
 		 */
 		return gen_mcmp(OR_LINK, 0, BPF_W, 0x4d474300, 0xffffff00); /* compare the magic number */
 
+	case DLT_IPNET:
+		return gen_ipnet_linktype(proto);
+
 	case DLT_LINUX_IRDA:
 		bpf_error("IrDA link-layer type filtering not implemented");
 
@@ -3352,6 +3499,7 @@ gen_linktype(proto)
 
 	case DLT_USB:
 	case DLT_USB_LINUX:
+	case DLT_USB_LINUX_MMAPPED:
 		bpf_error("USB link-layer type filtering not implemented");
 
 	case DLT_BLUETOOTH_HCI_H4:
@@ -3359,7 +3507,8 @@ gen_linktype(proto)
 		bpf_error("Bluetooth link-layer type filtering not implemented");
 
 	case DLT_CAN20B:
-		bpf_error("CAN20B link-layer type filtering not implemented");
+	case DLT_CAN_SOCKETCAN:
+		bpf_error("CAN link-layer type filtering not implemented");
 
 	case DLT_IEEE802_15_4:
 	case DLT_IEEE802_15_4_LINUX:
@@ -4516,29 +4665,30 @@ gen_gateway(eaddr, alist, proto, dir)
 			b0 = gen_wlanhostop(eaddr, Q_OR);
 			break;
 		case DLT_SUNATM:
-			if (is_lane) {
-				/*
-				 * Check that the packet doesn't begin with an
-				 * LE Control marker.  (We've already generated
-				 * a test for LANE.)
-				 */
-				b1 = gen_cmp(OR_LINK, SUNATM_PKT_BEGIN_POS,
-				    BPF_H, 0xFF00);
-				gen_not(b1);
+			if (!is_lane)
+				bpf_error(
+				    "'gateway' supported only on ethernet/FDDI/token ring/802.11/ATM LANE/Fibre Channel");
+			/*
+			 * Check that the packet doesn't begin with an
+			 * LE Control marker.  (We've already generated
+			 * a test for LANE.)
+			 */
+			b1 = gen_cmp(OR_LINK, SUNATM_PKT_BEGIN_POS,
+			    BPF_H, 0xFF00);
+			gen_not(b1);
 
-				/*
-				 * Now check the MAC address.
-				 */
-				b0 = gen_ehostop(eaddr, Q_OR);
-				gen_and(b1, b0);
-			}
+			/*
+			 * Now check the MAC address.
+			 */
+			b0 = gen_ehostop(eaddr, Q_OR);
+			gen_and(b1, b0);
 			break;
 		case DLT_IP_OVER_FC:
 			b0 = gen_ipfchostop(eaddr, Q_OR);
 			break;
 		default:
 			bpf_error(
-			    "'gateway' supported only on ethernet/FDDI/token ring/802.11/Fibre Channel");
+			    "'gateway' supported only on ethernet/FDDI/token ring/802.11/ATM LANE/Fibre Channel");
 		}
 		b1 = gen_host(**alist++, 0xffffffff, proto, Q_OR, Q_HOST);
 		while (*alist) {
@@ -5968,6 +6118,7 @@ gen_scode(name, q)
 			res0 = res = pcap_nametoaddrinfo(name);
 			if (res == NULL)
 				bpf_error("unknown host '%s'", name);
+			ai = res;
 			b = tmp = NULL;
 			tproto = tproto6 = proto;
 			if (off_linktype == -1 && tproto == Q_DEFAULT) {
@@ -6001,6 +6152,7 @@ gen_scode(name, q)
 					gen_or(b, tmp);
 				b = tmp;
 			}
+			ai = NULL;
 			freeaddrinfo(res0);
 			if (b == NULL) {
 				bpf_error("unknown host '%s'%s", name,
@@ -6313,6 +6465,7 @@ gen_mcode6(s1, s2, masklen, q)
 	res = pcap_nametoaddrinfo(s1);
 	if (!res)
 		bpf_error("invalid ip6 address %s", s1);
+	ai = res;
 	if (res->ai_next)
 		bpf_error("%s resolved to multiple address", s1);
 	addr = &((struct sockaddr_in6 *)res->ai_addr)->sin6_addr;
@@ -6343,6 +6496,7 @@ gen_mcode6(s1, s2, masklen, q)
 
 	case Q_NET:
 		b = gen_host6(addr, &mask, q.proto, q.dir, q.addr);
+		ai = NULL;
 		freeaddrinfo(res);
 		return b;
 
@@ -7005,6 +7159,13 @@ gen_broadcast(proto)
 		break;
 
 	case Q_IP:
+		/*
+		 * We treat a netmask of PCAP_NETMASK_UNKNOWN (0xffffffff)
+		 * as an indication that we don't know the netmask, and fail
+		 * in that case.
+		 */
+		if (netmask == PCAP_NETMASK_UNKNOWN)
+			bpf_error("netmask not known, so 'ip broadcast' not supported");
 		b0 = gen_linktype(ETHERTYPE_IP);
 		hostmask = ~netmask;
 		b1 = gen_mcmp(OR_NET, 16, BPF_W, (bpf_int32)0, hostmask);
@@ -7250,6 +7411,16 @@ gen_inbound(dir)
 			  gen_load(Q_LINK, gen_loadi(0), 1),
 			  gen_loadi(0),
 			  dir);
+		break;
+
+	case DLT_IPNET:
+		if (dir) {
+			/* match outgoing packets */
+			b0 = gen_cmp(OR_LINK, 2, BPF_H, IPNET_OUTBOUND);
+		} else {
+			/* match incoming packets */
+			b0 = gen_cmp(OR_LINK, 2, BPF_H, IPNET_INBOUND);
+		}
 		break;
 
 	case DLT_LINUX_SLL:

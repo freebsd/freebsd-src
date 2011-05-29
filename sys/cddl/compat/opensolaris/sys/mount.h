@@ -29,6 +29,8 @@
 #ifndef _OPENSOLARIS_SYS_MOUNT_H_
 #define	_OPENSOLARIS_SYS_MOUNT_H_
 
+#include <sys/param.h>
+
 #include_next <sys/mount.h>
 
 #define	MS_FORCE	MNT_FORCE

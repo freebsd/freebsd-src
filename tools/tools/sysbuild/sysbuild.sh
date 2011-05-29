@@ -163,29 +163,51 @@ log_it() (
 
 ports_recurse() (
 	set +x
+	t=$1
+	shift
+	if [ "x$t" = "x." ] ; then
+		true > /tmp/_.plist
+		true > /tmp/_.plist.tdone
+		echo 'digraph {' > /tmp/_.plist.dot
+	fi
+	if grep -q "^$t\$" /tmp/_.plist.tdone ; then
+		return
+	fi
+	echo "$t" >> /tmp/_.plist.tdone
 	for d
 	do
 		if [ ! -d $d ] ; then
 			echo "Missing port $d" 1>&2
-			exit 2
+			continue
+		fi
+		if [ ! -f $d/Makefile ] ; then
+			echo "Missing port $d" 1>&2
+			continue
+		fi
+		if [ "x$t" != "x." ] ; then
+			echo "\"$t\" -> \"$d\"" >> /tmp/_.plist.dot
 		fi
 		if grep -q "^$d\$" /tmp/_.plist ; then
+			true
+		elif grep -q "^$d\$" /tmp/_.plist.tdone ; then
 			true
 		else
 			(
 			cd $d
-			ports_recurse `make -V _DEPEND_DIRS ${PORTS_OPTS}`
+			ports_recurse $d `make -V _DEPEND_DIRS ${PORTS_OPTS}`
 			)
-			echo $d >> /tmp/_.plist
+			echo "$d" >> /tmp/_.plist
 		fi
 	done
+	if [ "x$t" = "x." ] ; then
+		echo '}' >> /tmp/_.plist.dot
+	fi
 )
 
 ports_build() (
 	set +x
 
-	true > /tmp/_.plist
-	ports_recurse $PORTS_WE_WANT 
+	ports_recurse . $PORTS_WE_WANT 
 
 	# Now build & install them
 	for p in `cat /tmp/_.plist`
@@ -211,6 +233,7 @@ ports_build() (
 				if make install ${PORTS_OPTS} ; then
 					if [ "x${PKG_DIR}" != "x" ] ; then
 						make package ${PORTS_OPTS}
+						mkdir -p ${PKG_DIR}
 						mv *.tbz ${PKG_DIR}
 					fi
 				else
@@ -226,22 +249,31 @@ ports_build() (
 ports_prefetch() (
 	(
 	set +x
-	true > /tmp/_.plist
-	ports_recurse $PORTS_WE_WANT
-
 	true > /mnt/_.prefetch
+	echo "Building /tmp/_.plist" >> /mnt/_.prefetch
+
+	ports_recurse . $PORTS_WE_WANT
+
+	echo "Completed /tmp/_.plist" >> /mnt/_.prefetch
 	# Now checksump/fetch them
 	for p in `cat /tmp/_.plist`
 	do
-		echo "Prefetching $p" >> /mnt/_.prefetch
 		b=`echo $p | tr / _`
 		(
 			cd $p
 			if make checksum $PORTS_OPTS ; then
-				true
+				rm -f /mnt/_.prefetch.$b
+				echo "OK $p" >> /mnt/_.prefetch
+				exit 0
+			fi
+			make distclean
+			make checksum $PORTS_OPTS || true
+
+			if make checksum $PORTS_OPTS > /dev/null 2>&1 ; then
+				rm -f /mnt/_.prefetch.$b
+				echo "OK $p" >> /mnt/_.prefetch
 			else
-				make distclean
-				make checksum $PORTS_OPTS || true
+				echo "BAD $p" >> /mnt/_.prefetch
 			fi
 		) > /mnt/_.prefetch.$b 2>&1
 	done
@@ -410,6 +442,9 @@ if [ "x${REMOTEDISTFILES}" != "x" ] ; then
 	mount  ${REMOTEDISTFILES} /freebsd/distfiles
 fi
 
+log_it copy ports config files
+(cd / ; find var/db/ports -print | cpio -dumpv /mnt > /dev/null 2>&1)
+
 log_it "Start prefetch of ports distfiles"
 ports_prefetch &
 
@@ -482,9 +517,6 @@ if [ -f /etc/localtime ] ; then
 	log_it copy localtime
 	cp /etc/localtime /mnt/etc
 fi
-
-log_it copy ports config files
-(cd / ; find var/db/ports -print | cpio -dumpv /mnt )
 
 log_it ldconfig in chroot
 chroot /mnt sh /etc/rc.d/ldconfig start

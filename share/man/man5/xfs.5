@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 16, 2007
+.Dd January 16, 2011
 .Dt XFS 5
 .Os
 .Sh NAME
@@ -53,7 +53,7 @@ To mount a
 volume located on
 .Pa /dev/ad1s1 :
 .Pp
-.Dl "mount -t xfs /dev/ad1s1 /mnt"
+.Dl "mount -t xfs -o ro /dev/ad1s1 /mnt"
 .Sh SEE ALSO
 .Xr nmount 2 ,
 .Xr unmount 2 ,
@@ -67,22 +67,6 @@ port contains the
 utility for
 creating XFS file systems, and also other utilities for analyzing,
 and repairing XFS file systems.
-.Sh CAVEATS
-The port of XFS to
-.Fx
-is currently incomplete.
-Only read-only access is supported for XFS volumes.
-Writing to a volume is not supported.
-.Pp
-The
-.Fl p
-flag to
-.Cm mkfs.xfs
-can be used to create an XFS file system which is populated with files
-and other metadata.
-This can be used to quickly create a read-only file system which
-can be tested on
-.Fx .
 .Sh HISTORY
 XFS was originally written by SGI for the IRIX operating system.
 SGI ported XFS to Linux, and released the source code under the GNU
@@ -106,3 +90,19 @@ first appeared in
 .Sh AUTHORS
 This manual page was written by
 .An Craig Rodrigues Aq rodrigc@FreeBSD.org .
+.Sh CAVEATS
+The port of XFS to
+.Fx
+is currently incomplete.
+Only read-only access is supported for XFS volumes.
+Writing to a volume is not supported.
+.Pp
+The
+.Fl p
+flag to
+.Cm mkfs.xfs
+can be used to create an XFS file system which is populated with files
+and other metadata.
+This can be used to quickly create a read-only file system which
+can be tested on
+.Fx .

@@ -64,7 +64,7 @@ __FBSDID("$FreeBSD$");
 #if 0
 #define HMEDEBUG
 #endif
-#define	KTR_HME		KTR_CT2		/* XXX */
+#define	KTR_HME		KTR_SPARE2	/* XXX */
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -203,7 +203,7 @@ hme_config(struct hme_softc *sc)
 	 * the DMA bus tag:
 	 *	sc_dmatag
 	 *
-	 * the bus handles, tags and offsets (splitted for SBus compatability):
+	 * the bus handles, tags and offsets (splitted for SBus compatibility):
 	 *	sc_seb{t,h,o}	(Shared Ethernet Block registers)
 	 *	sc_erx{t,h,o}	(Receiver Unit registers)
 	 *	sc_etx{t,h,o}	(Transmitter Unit registers)
@@ -315,9 +315,20 @@ hme_config(struct hme_softc *sc)
 
 	hme_mifinit(sc);
 
-	if ((error = mii_phy_probe(sc->sc_dev, &sc->sc_miibus, hme_mediachange,
-	    hme_mediastatus)) != 0) {
-		device_printf(sc->sc_dev, "phy probe failed: %d\n", error);
+	/*
+	 * DP83840A used with HME chips don't advertise their media
+	 * capabilities themselves properly so force writing the ANAR
+	 * according to the BMSR in mii_phy_setmedia().
+ 	 */
+	error = mii_attach(sc->sc_dev, &sc->sc_miibus, ifp, hme_mediachange,
+	    hme_mediastatus, BMSR_DEFCAPMASK, HME_PHYAD_EXTERNAL,
+	    MII_OFFSET_ANY, MIIF_FORCEANEG);
+	i = mii_attach(sc->sc_dev, &sc->sc_miibus, ifp, hme_mediachange,
+	    hme_mediastatus, BMSR_DEFCAPMASK, HME_PHYAD_INTERNAL,
+	    MII_OFFSET_ANY, MIIF_FORCEANEG);
+	if (error != 0 && i != 0) {
+		error = ENXIO;
+		device_printf(sc->sc_dev, "attaching PHYs failed\n");
 		goto fail_rxdesc;
 	}
 	sc->sc_mii = device_get_softc(sc->sc_miibus);
@@ -1404,10 +1415,6 @@ hme_mii_readreg(device_t dev, int phy, int reg)
 	int n;
 	u_int32_t v;
 
-	/* We can at most have two PHYs. */
-	if (phy != HME_PHYAD_EXTERNAL && phy != HME_PHYAD_INTERNAL)
-		return (0);
-
 	sc = device_get_softc(dev);
 	/* Select the desired PHY in the MIF configuration register */
 	v = HME_MIF_READ_4(sc, HME_MIFI_CFG);
@@ -1444,10 +1451,6 @@ hme_mii_writereg(device_t dev, int phy, int reg, int val)
 	struct hme_softc *sc;
 	int n;
 	u_int32_t v;
-
-	/* We can at most have two PHYs. */
-	if (phy != HME_PHYAD_EXTERNAL && phy != HME_PHYAD_INTERNAL)
-		return (0);
 
 	sc = device_get_softc(dev);
 	/* Select the desired PHY in the MIF configuration register */
@@ -1556,14 +1559,14 @@ hme_mediachange_locked(struct hme_softc *sc)
 	 * If both PHYs are present reset them. This is required for
 	 * unisolating the previously isolated PHY when switching PHYs.
 	 * As the above hme_mifinit() call will set the MII drivers in
-	 * the XIF configuration register accoring to the currently
+	 * the XIF configuration register according to the currently
 	 * selected media, there should be no window during which the
 	 * data paths of both transceivers are open at the same time,
 	 * even if the PHY device drivers use MIIF_NOISOLATE.
 	 */
 	if (sc->sc_phys[0] != -1 && sc->sc_phys[1] != -1)
 		LIST_FOREACH(child, &sc->sc_mii->mii_phys, mii_list)
-			mii_phy_reset(child);
+			PHY_RESET(child);
 	return (mii_mediachg(sc->sc_mii));
 }
 

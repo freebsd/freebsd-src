@@ -319,7 +319,7 @@ allocsb(void)
 		if ((sb = malloc(sizeof (sbuf_t))) == NULL)
 			nomem();
 	}
-	(void)memset(sb, 0, sizeof (sb));
+	(void)memset(sb, 0, sizeof (*sb));
 	return (sb);
 }
 

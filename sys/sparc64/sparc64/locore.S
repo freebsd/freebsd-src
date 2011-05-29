@@ -29,7 +29,9 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/asi.h>
 #include <machine/asmacros.h>
+#include <machine/intr_machdep.h>
 #include <machine/pstate.h>
+#include <machine/wstate.h>
 
 #include "assym.s"
 
@@ -46,7 +48,7 @@ ENTRY(btext)
 ENTRY(_start)
 	/*
 	 * Initialize misc. state to known values: interrupts disabled, normal
-	 * globals, windows flushed (cr = 0, cs = nwindows - 1), PIL 0 and
+	 * globals, windows flushed (cr = 0, cs = nwindows - 1), PIL_TICK and
 	 * floating point disabled.
 	 * Note that some firmware versions don't implement a clean window
 	 * trap handler so we unfortunately can't clear the windows by setting
@@ -54,7 +56,7 @@ ENTRY(_start)
 	 */
 	wrpr	%g0, PSTATE_NORMAL, %pstate
 	flushw
-	wrpr	%g0, 0, %pil
+	wrpr	%g0, PIL_TICK, %pil
 	wr	%g0, 0, %fprs
 
 	/*
@@ -63,11 +65,6 @@ ENTRY(_start)
 	 */
 	SET(pcpu0 + (PCPU_PAGES * PAGE_SIZE) - PC_SIZEOF, %l1, %l0)
 	sub	%l0, SPOFF + CCFSZ, %sp
-
-	/*
-	 * Enable interrupts.
-	 */
-	wrpr	%g0, PSTATE_KERNEL, %pstate
 
 	/*
 	 * Do initial bootstrap to setup pmap and thread0.
@@ -96,7 +93,7 @@ ENTRY(cpu_setregs)
 	ldx	[%o0 + PC_CURPCB], %o1
 
 	/*
-	 * Disable interrupts, normal globals.
+	 * Ensure we are on normal globals.
 	 */
 	wrpr	%g0, PSTATE_NORMAL, %pstate
 
@@ -139,13 +136,12 @@ ENTRY(cpu_setregs)
 	 * Force trap level 1 and take over the trap table.
 	 */
 	SET(tl0_base, %o2, %o1)
+	SET(tba_taken_over, %o3, %o2)
+	mov	1, %o3
+	wrpr	%g0, WSTATE_KERNEL, %wstate
 	wrpr	%g0, 1, %tl
 	wrpr	%o1, 0, %tba
-
-	/*
-	 * Re-enable interrupts.
-	 */
-	wrpr	%g0, PSTATE_KERNEL, %pstate
+	stw	%o3, [%o2]
 
 	retl
 	 nop

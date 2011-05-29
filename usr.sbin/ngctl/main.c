@@ -34,9 +34,11 @@
  * THIS SOFTWARE, EVEN IF WHISTLE COMMUNICATIONS IS ADVISED OF THE POSSIBILITY
  * OF SUCH DAMAGE.
  *
- * $FreeBSD$
  * $Whistle: main.c,v 1.12 1999/11/29 19:17:46 archie Exp $
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/socket.h>
@@ -225,7 +227,7 @@ ReadFile(FILE *fp)
 #ifdef EDITLINE
 /* Signal handler for Monitor() thread. */
 static void
-Unblock(int signal)
+Unblock(int signal __unused)
 {
 
 	unblock = 1;
@@ -236,7 +238,7 @@ Unblock(int signal)
  * can be blocked in el_gets().
  */
 static void *
-Monitor(void *v)
+Monitor(void *v __unused)
 {
 	struct sigaction act;
 	const int maxfd = MAX(csock, dsock) + 1;
@@ -270,7 +272,7 @@ Monitor(void *v)
 }
 
 static char *
-Prompt(EditLine *el)
+Prompt(EditLine *el __unused)
 {
 
 	return (PROMPT);

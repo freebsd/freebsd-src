@@ -1,5 +1,7 @@
 /*-
  * Copyright (c) 2001-2008, by Cisco Systems, Inc. All rights reserved.
+ * Copyright (c) 2008-2011, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2011, by Michael Tuexen. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -596,7 +598,11 @@ sctp_auth_key_acquire(struct sctp_tcb *stcb, uint16_t key_id)
 }
 
 void
-sctp_auth_key_release(struct sctp_tcb *stcb, uint16_t key_id)
+sctp_auth_key_release(struct sctp_tcb *stcb, uint16_t key_id, int so_locked
+#if !defined(__APPLE__) && !defined(SCTP_SO_LOCK_TESTING)
+    SCTP_UNUSED
+#endif
+)
 {
 	sctp_sharedkey_t *skey;
 
@@ -614,7 +620,7 @@ sctp_auth_key_release(struct sctp_tcb *stcb, uint16_t key_id)
 		if ((skey->refcount <= 1) && (skey->deactivated)) {
 			/* notify ULP that key is no longer used */
 			sctp_ulp_notify(SCTP_NOTIFY_AUTH_FREE_KEY, stcb,
-			    key_id, 0, SCTP_SO_NOT_LOCKED);
+			    key_id, 0, so_locked);
 			SCTPDBG(SCTP_DEBUG_AUTH2,
 			    "%s: stcb %p key %u no longer used, %d\n",
 			    __FUNCTION__, stcb, key_id, skey->refcount);
@@ -895,9 +901,9 @@ static inline int
 sctp_get_hmac_block_len(uint16_t hmac_algo)
 {
 	switch (hmac_algo) {
-		case SCTP_AUTH_HMAC_ID_SHA1:
+	case SCTP_AUTH_HMAC_ID_SHA1:
 #ifdef HAVE_SHA224
-		case SCTP_AUTH_HMAC_ID_SHA224:
+	case SCTP_AUTH_HMAC_ID_SHA224:
 #endif
 		return (64);
 #ifdef HAVE_SHA2
@@ -918,7 +924,7 @@ static void
 sctp_hmac_init(uint16_t hmac_algo, sctp_hash_context_t * ctx)
 {
 	switch (hmac_algo) {
-		case SCTP_AUTH_HMAC_ID_SHA1:
+	case SCTP_AUTH_HMAC_ID_SHA1:
 		SHA1_Init(&ctx->sha1);
 		break;
 #ifdef HAVE_SHA224
@@ -948,7 +954,7 @@ sctp_hmac_update(uint16_t hmac_algo, sctp_hash_context_t * ctx,
     uint8_t * text, uint32_t textlen)
 {
 	switch (hmac_algo) {
-		case SCTP_AUTH_HMAC_ID_SHA1:
+	case SCTP_AUTH_HMAC_ID_SHA1:
 		SHA1_Update(&ctx->sha1, text, textlen);
 		break;
 #ifdef HAVE_SHA224
@@ -978,7 +984,7 @@ sctp_hmac_final(uint16_t hmac_algo, sctp_hash_context_t * ctx,
     uint8_t * digest)
 {
 	switch (hmac_algo) {
-		case SCTP_AUTH_HMAC_ID_SHA1:
+	case SCTP_AUTH_HMAC_ID_SHA1:
 		SHA1_Final(digest, &ctx->sha1);
 		break;
 #ifdef HAVE_SHA224
@@ -1946,9 +1952,6 @@ sctp_validate_init_auth_params(struct mbuf *m, int offset, int limit)
 				case SCTP_ASCONF:
 				case SCTP_ASCONF_ACK:
 					peer_supports_asconf = 1;
-					break;
-				case SCTP_AUTHENTICATION:
-					peer_supports_auth = 1;
 					break;
 				default:
 					/* one we don't care about */

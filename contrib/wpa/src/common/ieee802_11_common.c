@@ -1,6 +1,6 @@
 /*
  * IEEE 802.11 Common routines
- * Copyright (c) 2002-2008, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2002-2009, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -19,7 +19,7 @@
 #include "ieee802_11_common.h"
 
 
-static int ieee802_11_parse_vendor_specific(u8 *pos, size_t elen,
+static int ieee802_11_parse_vendor_specific(const u8 *pos, size_t elen,
 					    struct ieee802_11_elems *elems,
 					    int show_errors)
 {
@@ -49,26 +49,33 @@ static int ieee802_11_parse_vendor_specific(u8 *pos, size_t elen,
 			elems->wpa_ie = pos;
 			elems->wpa_ie_len = elen;
 			break;
-		case WME_OUI_TYPE: /* this is a Wi-Fi WME info. element */
+		case WMM_OUI_TYPE:
+			/* WMM information element */
 			if (elen < 5) {
-				wpa_printf(MSG_MSGDUMP, "short WME "
+				wpa_printf(MSG_MSGDUMP, "short WMM "
 					   "information element ignored "
 					   "(len=%lu)",
 					   (unsigned long) elen);
 				return -1;
 			}
 			switch (pos[4]) {
-			case WME_OUI_SUBTYPE_INFORMATION_ELEMENT:
-			case WME_OUI_SUBTYPE_PARAMETER_ELEMENT:
-				elems->wme = pos;
-				elems->wme_len = elen;
+			case WMM_OUI_SUBTYPE_INFORMATION_ELEMENT:
+			case WMM_OUI_SUBTYPE_PARAMETER_ELEMENT:
+				/*
+				 * Share same pointer since only one of these
+				 * is used and they start with same data.
+				 * Length field can be used to distinguish the
+				 * IEs.
+				 */
+				elems->wmm = pos;
+				elems->wmm_len = elen;
 				break;
-			case WME_OUI_SUBTYPE_TSPEC_ELEMENT:
-				elems->wme_tspec = pos;
-				elems->wme_tspec_len = elen;
+			case WMM_OUI_SUBTYPE_TSPEC_ELEMENT:
+				elems->wmm_tspec = pos;
+				elems->wmm_tspec_len = elen;
 				break;
 			default:
-				wpa_printf(MSG_MSGDUMP, "unknown WME "
+				wpa_printf(MSG_MSGDUMP, "unknown WMM "
 					   "information element ignored "
 					   "(subtype=%d len=%lu)",
 					   pos[4], (unsigned long) elen);
@@ -124,12 +131,12 @@ static int ieee802_11_parse_vendor_specific(u8 *pos, size_t elen,
  * @show_errors: Whether to show parsing errors in debug log
  * Returns: Parsing result
  */
-ParseRes ieee802_11_parse_elems(u8 *start, size_t len,
+ParseRes ieee802_11_parse_elems(const u8 *start, size_t len,
 				struct ieee802_11_elems *elems,
 				int show_errors)
 {
 	size_t left = len;
-	u8 *pos = start;
+	const u8 *pos = start;
 	int unknown = 0;
 
 	os_memset(elems, 0, sizeof(*elems));
@@ -249,4 +256,71 @@ ParseRes ieee802_11_parse_elems(u8 *start, size_t len,
 		return ParseFailed;
 
 	return unknown ? ParseUnknown : ParseOK;
+}
+
+
+int ieee802_11_ie_count(const u8 *ies, size_t ies_len)
+{
+	int count = 0;
+	const u8 *pos, *end;
+
+	if (ies == NULL)
+		return 0;
+
+	pos = ies;
+	end = ies + ies_len;
+
+	while (pos + 2 <= end) {
+		if (pos + 2 + pos[1] > end)
+			break;
+		count++;
+		pos += 2 + pos[1];
+	}
+
+	return count;
+}
+
+
+struct wpabuf * ieee802_11_vendor_ie_concat(const u8 *ies, size_t ies_len,
+					    u32 oui_type)
+{
+	struct wpabuf *buf;
+	const u8 *end, *pos, *ie;
+
+	pos = ies;
+	end = ies + ies_len;
+	ie = NULL;
+
+	while (pos + 1 < end) {
+		if (pos + 2 + pos[1] > end)
+			return NULL;
+		if (pos[0] == WLAN_EID_VENDOR_SPECIFIC && pos[1] >= 4 &&
+		    WPA_GET_BE32(&pos[2]) == oui_type) {
+			ie = pos;
+			break;
+		}
+		pos += 2 + pos[1];
+	}
+
+	if (ie == NULL)
+		return NULL; /* No specified vendor IE found */
+
+	buf = wpabuf_alloc(ies_len);
+	if (buf == NULL)
+		return NULL;
+
+	/*
+	 * There may be multiple vendor IEs in the message, so need to
+	 * concatenate their data fields.
+	 */
+	while (pos + 1 < end) {
+		if (pos + 2 + pos[1] > end)
+			break;
+		if (pos[0] == WLAN_EID_VENDOR_SPECIFIC && pos[1] >= 4 &&
+		    WPA_GET_BE32(&pos[2]) == oui_type)
+			wpabuf_put_data(buf, pos + 6, pos[1] - 4);
+		pos += 2 + pos[1];
+	}
+
+	return buf;
 }

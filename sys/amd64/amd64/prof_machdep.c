@@ -63,9 +63,7 @@ static u_int	cputime_clock_pmc_conf = I586_PMC_GUPROF;
 static int	cputime_clock_pmc_init;
 static struct gmonparam saved_gmp;
 #endif
-#if defined(I586_CPU) || defined(I686_CPU)
 static int	cputime_prof_active;
-#endif
 #endif /* GUPROF */
 
 #ifdef __GNUCLIKE_ASM
@@ -200,14 +198,12 @@ cputime()
 {
 	u_int count;
 	int delta;
-#if (defined(I586_CPU) || defined(I686_CPU)) && !defined(SMP) && \
-    defined(PERFMON) && defined(I586_PMC_GUPROF)
+#if defined(PERFMON) && defined(I586_PMC_GUPROF) && !defined(SMP)
 	u_quad_t event_count;
 #endif
 	u_char high, low;
 	static u_int prev_count;
 
-#if defined(I586_CPU) || defined(I686_CPU)
 	if (cputime_clock == CPUTIME_CLOCK_TSC) {
 		/*
 		 * Scale the TSC a little to make cputime()'s frequency
@@ -236,7 +232,6 @@ cputime()
 		return (delta);
 	}
 #endif /* PERFMON && I586_PMC_GUPROF && !SMP */
-#endif /* I586_CPU || I686_CPU */
 
 	/*
 	 * Read the current value of the 8254 timer counter 0.
@@ -316,21 +311,22 @@ void
 startguprof(gp)
 	struct gmonparam *gp;
 {
+	uint64_t freq;
+
+	freq = atomic_load_acq_64(&tsc_freq);
 	if (cputime_clock == CPUTIME_CLOCK_UNINITIALIZED) {
-		cputime_clock = CPUTIME_CLOCK_I8254;
-#if defined(I586_CPU) || defined(I686_CPU)
-		if (tsc_freq != 0 && !tsc_is_broken && mp_ncpus == 1)
+		if (freq != 0 && mp_ncpus == 1)
 			cputime_clock = CPUTIME_CLOCK_TSC;
-#endif
+		else
+			cputime_clock = CPUTIME_CLOCK_I8254;
 	}
-	gp->profrate = i8254_freq << CPUTIME_CLOCK_I8254_SHIFT;
-#if defined(I586_CPU) || defined(I686_CPU)
 	if (cputime_clock == CPUTIME_CLOCK_TSC) {
-		gp->profrate = tsc_freq >> 1;
+		gp->profrate = freq >> 1;
 		cputime_prof_active = 1;
-	}
+	} else
+		gp->profrate = i8254_freq << CPUTIME_CLOCK_I8254_SHIFT;
 #if defined(PERFMON) && defined(I586_PMC_GUPROF)
-	else if (cputime_clock == CPUTIME_CLOCK_I586_PMC) {
+	if (cputime_clock == CPUTIME_CLOCK_I586_PMC) {
 		if (perfmon_avail() &&
 		    perfmon_setup(0, cputime_clock_pmc_conf) == 0) {
 			if (perfmon_start(0) != 0)
@@ -355,7 +351,6 @@ startguprof(gp)
 		}
 	}
 #endif /* PERFMON && I586_PMC_GUPROF */
-#endif /* I586_CPU || I686_CPU */
 	cputime_bias = 0;
 	cputime();
 }
@@ -371,13 +366,10 @@ stopguprof(gp)
 		cputime_clock_pmc_init = FALSE;
 	}
 #endif
-#if defined(I586_CPU) || defined(I686_CPU)
 	if (cputime_clock == CPUTIME_CLOCK_TSC)
 		cputime_prof_active = 0;
-#endif
 }
 
-#if defined(I586_CPU) || defined(I686_CPU)
 /* If the cpu frequency changed while profiling, report a warning. */
 static void
 tsc_freq_changed(void *arg, const struct cf_level *level, int status)
@@ -395,6 +387,5 @@ tsc_freq_changed(void *arg, const struct cf_level *level, int status)
 
 EVENTHANDLER_DEFINE(cpufreq_post_change, tsc_freq_changed, NULL,
     EVENTHANDLER_PRI_ANY);
-#endif /* I586_CPU || I686_CPU */
 
 #endif /* GUPROF */

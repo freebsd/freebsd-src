@@ -34,10 +34,18 @@
  *
  */
 
-#include "sysinstall.h"
-#include <stdarg.h>
 #include <sys/ioctl.h>
 #include <sys/consio.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+
+#include <netinet/in.h>
+#include <netdb.h>
+
+#include <stdarg.h>
+#include <syslog.h>
+
+#include "sysinstall.h"
 
 Boolean
 isDebug(void)
@@ -45,6 +53,50 @@ isDebug(void)
     char *cp;
 
     return (cp = variable_get(VAR_DEBUG)) && strcmp(cp, "no");
+}
+
+static Boolean
+isNetworkUp(void)
+{
+	if (!(RunningAsInit) || 
+	    (variable_check("NETWORK_CONFIGURED=NO")) != TRUE) {
+	    return TRUE;
+	}
+
+	return FALSE;
+}
+
+void
+msgSyslog(const char *errstr)
+{
+	struct sockaddr_in server;
+	struct hostent *hp;
+	char *host, *line;
+	int sock;
+
+	if (!isNetworkUp())
+	    return;
+
+	if (!(host = variable_get(VAR_SYSLOG_SERVER)))
+	    return;
+
+	if (!(hp = gethostbyname2(host, AF_INET)))
+	    return;
+
+	if (!(sock = socket(AF_INET, SOCK_DGRAM, 0)))
+	    return;
+	
+	bzero(&server, sizeof(struct sockaddr_in));
+	server.sin_family = AF_INET;
+	server.sin_port = htons(514);
+	bcopy((char *)hp->h_addr, (char *)&server.sin_addr, hp->h_length);
+
+	asprintf(&line, "<%d>%s", LOG_NOTICE, errstr);
+	sendto(sock, line, strlen(line), 0, (struct sockaddr *)&server, 
+	    sizeof(struct sockaddr_in));
+
+	close(sock);
+	free(line);
 }
 
 /* Whack up an informational message on the status line, in stand-out */
@@ -99,6 +151,8 @@ msgInfo(char *fmt, ...)
     attrset(attrs);
     move(StatusLine, 79);
     refresh();
+
+    msgSyslog(errstr);
 }
 
 /* Whack up a warning on the status line */
@@ -120,8 +174,15 @@ msgWarn(char *fmt, ...)
     mvaddstr(StatusLine, 0, errstr);
     attrset(attrs);
     refresh();
-    if (OnVTY && isDebug())
-	msgDebug("Warning message `%s'\n", errstr);
+
+    /* we don't want this hitting syslog twice */
+    if (isDebug()) {
+	if (OnVTY)
+		msgDebug("Warning message `%s'\n", errstr);
+	else
+		msgSyslog(errstr);
+    }
+
 }
 
 /* Whack up an error on the status line */
@@ -143,8 +204,14 @@ msgError(char *fmt, ...)
     mvaddstr(StatusLine, 0, errstr);
     attrset(attrs);
     refresh();
-    if (OnVTY && isDebug())
-	msgDebug("Error message `%s'\n", errstr);
+
+    /* we don't want this hitting syslog twice */
+    if (isDebug()) {
+	if (OnVTY)
+		msgDebug("Error message `%s'\n", errstr);
+	else
+		msgSyslog(errstr);
+    }
 }
 
 /* Whack up a fatal error on the status line */
@@ -166,7 +233,7 @@ msgFatal(char *fmt, ...)
     mvaddstr(StatusLine, 0, errstr);
     addstr(" - ");
     addstr("PRESS ANY KEY TO ");
-    if (getpid() == 1)
+    if (RunningAsInit)
 	addstr("REBOOT");
     else
 	addstr("QUIT");
@@ -174,6 +241,8 @@ msgFatal(char *fmt, ...)
     refresh();
     if (OnVTY)
 	msgDebug("Fatal error `%s'!\n", errstr);
+    else
+    	msgSyslog(errstr);
     getch();
     systemShutdown(1);
 }
@@ -316,6 +385,9 @@ msgDebug(char *fmt, ...)
     va_start(args, fmt);
     vsnprintf((char *)(dbg + strlen(dbg)), FILENAME_MAX, fmt, args);
     va_end(args);
+
+    msgSyslog(dbg);
+
     write(DebugFD, dbg, strlen(dbg));
 }
 

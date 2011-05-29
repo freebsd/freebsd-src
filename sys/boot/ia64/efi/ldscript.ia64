@@ -1,5 +1,5 @@
 /* $FreeBSD$ */
-OUTPUT_FORMAT("elf64-ia64-little", "elf64-ia64-little", "elf64-ia64-little")
+OUTPUT_FORMAT("elf64-ia64-freebsd", "elf64-ia64-freebsd", "elf64-ia64-freebsd")
 OUTPUT_ARCH(ia64)
 ENTRY(_start_plabel)
 SECTIONS
@@ -16,17 +16,15 @@ SECTIONS
     *(.plt)
   } =0x00300000010070000002000001000400
   . = ALIGN(4096);
+  __start_set_Xcommand_set = .;
+  set_Xcommand_set      : { *(set_Xcommand_set) }
+  __stop_set_Xcommand_set = .;
   .data		: {
     *(.rodata .rodata.* .gnu.linkonce.r.*)
     *(.rodata1)
     *(.sdata2 .sdata2.* .gnu.linkonce.s2.*)
     *(.sbss2 .sbss2.* .gnu.linkonce.sb2.*)
     *(.opd)
-    *(.IA_64.unwind_info* .gnu.linkonce.ia64unwi.*)
-    *(.IA_64.unwind* .gnu.linkonce.ia64unw.*)
-    __start_set_Xcommand_set = .;
-    *(set_Xcommand_set)
-    __stop_set_Xcommand_set = .;
     *(.data .data.* .gnu.linkonce.d.*)
     *(.data1)
     *(.plabel)
@@ -34,6 +32,8 @@ SECTIONS
     *(.bss .bss.* .gnu.linkonce.b.*)
     *(COMMON)
   }
+  .IA_64.unwind_info	: { *(.IA_64.unwind_info* .gnu.linkonce.ia64unwi.*) }
+  .IA_64.unwind	: { *(.IA_64.unwind* .gnu.linkonce.ia64unw.*) }
   . = ALIGN(4096);
   __gp = .;
   .sdata	: {

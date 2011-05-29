@@ -33,7 +33,7 @@
  */
 
 #ifndef _NFS_NFSPORT_H_
-#define	_NFSPORT_NFS_H_
+#define	_NFS_NFSPORT_H_
 
 /*
  * In general, I'm not fond of #includes in .h files, but this seems
@@ -143,21 +143,21 @@
 #define	NFSMGET(m)	do { 					\
 		MGET((m), M_TRYWAIT, MT_DATA); 			\
 		while ((m) == NULL ) { 				\
-			(void) nfs_catnap(PZERO, "nfsmget");	\
+			(void) nfs_catnap(PZERO, 0, "nfsmget");	\
 			MGET((m), M_TRYWAIT, MT_DATA); 		\
 		} 						\
 	} while (0)
 #define	NFSMGETHDR(m)	do { 					\
 		MGETHDR((m), M_TRYWAIT, MT_DATA);		\
 		while ((m) == NULL ) { 				\
-			(void) nfs_catnap(PZERO, "nfsmget");	\
+			(void) nfs_catnap(PZERO, 0, "nfsmget");	\
 			MGETHDR((m), M_TRYWAIT, MT_DATA); 	\
 		} 						\
 	} while (0)
 #define	NFSMCLGET(m, w)	do { 					\
 		MGET((m), M_TRYWAIT, MT_DATA); 			\
 		while ((m) == NULL ) { 				\
-			(void) nfs_catnap(PZERO, "nfsmget");	\
+			(void) nfs_catnap(PZERO, 0, "nfsmget");	\
 			MGET((m), M_TRYWAIT, MT_DATA); 		\
 		} 						\
 		MCLGET((m), (w));				\
@@ -165,7 +165,7 @@
 #define	NFSMCLGETHDR(m, w) do { 				\
 		MGETHDR((m), M_TRYWAIT, MT_DATA);		\
 		while ((m) == NULL ) { 				\
-			(void) nfs_catnap(PZERO, "nfsmget");	\
+			(void) nfs_catnap(PZERO, 0, "nfsmget");	\
 			MGETHDR((m), M_TRYWAIT, MT_DATA); 	\
 		} 						\
 	} while (0)
@@ -372,7 +372,7 @@ struct ext_nfsstats {
 #include <fs/nfs/xdr_subs.h>
 #include <fs/nfs/nfscl.h>
 #include <fs/nfs/nfsclstate.h>
-#include <fs/nfsclient/nfsargs.h>
+#include <nfsclient/nfsargs.h>
 #include <fs/nfsclient/nfsmount.h>
 
 /*
@@ -539,6 +539,7 @@ void nfsrvd_rcv(struct socket *, void *, int);
 #define	NFSSTATESPINLOCK	extern struct mtx nfs_state_mutex
 #define	NFSLOCKSTATE()		mtx_lock(&nfs_state_mutex)
 #define	NFSUNLOCKSTATE()	mtx_unlock(&nfs_state_mutex)
+#define	NFSSTATEMUTEXPTR	(&nfs_state_mutex)
 #define	NFSREQSPINLOCK		extern struct mtx nfs_req_mutex
 #define	NFSLOCKREQ()		mtx_lock(&nfs_req_mutex)
 #define	NFSUNLOCKREQ()		mtx_unlock(&nfs_req_mutex)
@@ -595,13 +596,6 @@ int nfsmsleep(void *, void *, int, const char *, struct timespec *);
 #define	MAX_COMMIT_COUNT	(1024 * 1024)
 
 /*
- * These macros are called at the start and end of operations that
- * might modify the underlying file system.
- */
-#define	NFS_STARTWRITE(v, m)	vn_start_write((v), (m), V_WAIT)
-#define	NFS_ENDWRITE(m)		vn_finished_write(m)
-
-/*
  * Define these to handle the type of va_rdev.
  */
 #define	NFSMAKEDEV(m, n)	makedev((m), (n))
@@ -645,9 +639,9 @@ int nfsmsleep(void *, void *, int, const char *, struct timespec *);
 #define	TAILQ_END(head)		NULL
 
 /*
- * This must be defined to be a global variable the increments once
+ * This must be defined to be a global variable that increments once
  * per second, but never stops or goes backwards, even when a "date"
- * command changes the tod clock. It is used for delta times for
+ * command changes the TOD clock. It is used for delta times for
  * leases, etc.
  */
 #define	NFSD_MONOSEC		time_uptime
@@ -674,6 +668,7 @@ MALLOC_DECLARE(M_NEWNFSDIROFF);
 MALLOC_DECLARE(M_NEWNFSV4NODE);
 MALLOC_DECLARE(M_NEWNFSDIRECTIO);
 MALLOC_DECLARE(M_NEWNFSMNT);
+MALLOC_DECLARE(M_NEWNFSDROLLBACK);
 #define	M_NFSRVCACHE	M_NEWNFSRVCACHE
 #define	M_NFSDCLIENT	M_NEWNFSDCLIENT
 #define	M_NFSDSTATE	M_NEWNFSDSTATE
@@ -692,6 +687,7 @@ MALLOC_DECLARE(M_NEWNFSMNT);
 #define	M_NFSDIROFF	M_NEWNFSDIROFF
 #define	M_NFSV4NODE	M_NEWNFSV4NODE
 #define	M_NFSDIRECTIO	M_NEWNFSDIRECTIO
+#define	M_NFSDROLLBACK	M_NEWNFSDROLLBACK
 
 #define	NFSINT_SIGMASK(set) 						\
 	(SIGISMEMBER(set, SIGINT) || SIGISMEMBER(set, SIGTERM) ||	\
@@ -782,12 +778,6 @@ void newnfs_realign(struct mbuf **);
 #define	NFSHASPRIVACY(n)	((n)->nm_flag & NFSMNT_PRIVACY)
 #define	NFSSETWRITEVERF(n)	((n)->nm_state |= NFSSTA_HASWRITEVERF)
 #define	NFSSETHASSETFSID(n)	((n)->nm_state |= NFSSTA_HASSETFSID)
-#ifdef NFS4_ACL_EXTATTR_NAME
-#define	NFSHASNFS4ACL(m)	nfs_supportsnfsv4acls(m)
-int nfs_supportsnfsv4acls(struct mount *);
-#else
-#define	NFSHASNFS4ACL(m)	0
-#endif
 
 /*
  * Gets the stats field out of the mount structure.
@@ -915,4 +905,4 @@ struct nfsreq {
 
 #endif	/* _KERNEL */
 
-#endif	/* _NFSPORT_NFS_H */
+#endif	/* _NFS_NFSPORT_H */

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004-2008 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2004-2010 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,6 +27,10 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/types.h>
+#include <sys/sysctl.h>
+
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -55,15 +59,7 @@ uint32_t lib_version = G_LIB_VERSION;
 uint32_t version = G_ELI_VERSION;
 
 #define	GELI_BACKUP_DIR	"/var/backups/"
-
-static char aalgo[] = "none";
-static char ealgo[] = "aes";
-static intmax_t keylen = 0;
-static intmax_t keyno = -1;
-static intmax_t iterations = -1;
-static intmax_t sectorsize = 0;
-static char keyfile[] = "", newkeyfile[] = "";
-static char backupfile[] = "";
+#define	GELI_ENC_ALGO	"aes"
 
 static void eli_main(struct gctl_req *req, unsigned flags);
 static void eli_init(struct gctl_req *req);
@@ -71,9 +67,11 @@ static void eli_attach(struct gctl_req *req);
 static void eli_configure(struct gctl_req *req);
 static void eli_setkey(struct gctl_req *req);
 static void eli_delkey(struct gctl_req *req);
+static void eli_resume(struct gctl_req *req);
 static void eli_kill(struct gctl_req *req);
 static void eli_backup(struct gctl_req *req);
 static void eli_restore(struct gctl_req *req);
+static void eli_resize(struct gctl_req *req);
 static void eli_clear(struct gctl_req *req);
 static void eli_dump(struct gctl_req *req);
 
@@ -83,61 +81,67 @@ static int eli_backup_create(struct gctl_req *req, const char *prov,
 /*
  * Available commands:
  *
- * init [-bhPv] [-a aalgo] [-B backupfile] [-e ealgo] [-i iterations] [-l keylen] [-K newkeyfile] prov
+ * init [-bhPv] [-a aalgo] [-B backupfile] [-e ealgo] [-i iterations] [-l keylen] [-J newpassfile] [-K newkeyfile] prov
  * label - alias for 'init'
- * attach [-dprv] [-k keyfile] prov
+ * attach [-dprv] [-j passfile] [-k keyfile] prov
  * detach [-fl] prov ...
  * stop - alias for 'detach'
  * onetime [-d] [-a aalgo] [-e ealgo] [-l keylen] prov
  * configure [-bB] prov ...
- * setkey [-pPv] [-n keyno] [-k keyfile] [-K newkeyfile] prov
+ * setkey [-pPv] [-n keyno] [-j passfile] [-J newpassfile] [-k keyfile] [-K newkeyfile] prov
  * delkey [-afv] [-n keyno] prov
+ * suspend [-v] -a | prov ...
+ * resume [-pv] [-j passfile] [-k keyfile] prov
  * kill [-av] [prov ...]
  * backup [-v] prov file
- * restore [-v] file prov
+ * restore [-fv] file prov
+ * resize [-v] -s oldsize prov
  * clear [-v] prov ...
  * dump [-v] prov ...
  */
 struct g_command class_commands[] = {
 	{ "init", G_FLAG_VERBOSE, eli_main,
 	    {
-		{ 'a', "aalgo", aalgo, G_TYPE_STRING },
+		{ 'a', "aalgo", "", G_TYPE_STRING },
 		{ 'b', "boot", NULL, G_TYPE_BOOL },
-		{ 'B', "backupfile", backupfile, G_TYPE_STRING },
-		{ 'e', "ealgo", ealgo, G_TYPE_STRING },
-		{ 'i', "iterations", &iterations, G_TYPE_NUMBER },
-		{ 'K', "newkeyfile", newkeyfile, G_TYPE_STRING },
-		{ 'l', "keylen", &keylen, G_TYPE_NUMBER },
+		{ 'B', "backupfile", "", G_TYPE_STRING },
+		{ 'e', "ealgo", GELI_ENC_ALGO, G_TYPE_STRING },
+		{ 'i', "iterations", "-1", G_TYPE_NUMBER },
+		{ 'J', "newpassfile", G_VAL_OPTIONAL, G_TYPE_STRING | G_TYPE_MULTI },
+		{ 'K', "newkeyfile", G_VAL_OPTIONAL, G_TYPE_STRING | G_TYPE_MULTI },
+		{ 'l', "keylen", "0", G_TYPE_NUMBER },
 		{ 'P', "nonewpassphrase", NULL, G_TYPE_BOOL },
-		{ 's', "sectorsize", &sectorsize, G_TYPE_NUMBER },
+		{ 's', "sectorsize", "0", G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
-	    NULL, "[-bPv] [-a aalgo] [-B backupfile] [-e ealgo] [-i iterations] [-l keylen] [-K newkeyfile] [-s sectorsize] prov"
+	    "[-bPv] [-a aalgo] [-B backupfile] [-e ealgo] [-i iterations] [-l keylen] [-J newpassfile] [-K newkeyfile] [-s sectorsize] prov"
 	},
 	{ "label", G_FLAG_VERBOSE, eli_main,
 	    {
-		{ 'a', "aalgo", aalgo, G_TYPE_STRING },
+		{ 'a', "aalgo", "", G_TYPE_STRING },
 		{ 'b', "boot", NULL, G_TYPE_BOOL },
-		{ 'B', "backupfile", backupfile, G_TYPE_STRING },
-		{ 'e', "ealgo", ealgo, G_TYPE_STRING },
-		{ 'i', "iterations", &iterations, G_TYPE_NUMBER },
-		{ 'K', "newkeyfile", newkeyfile, G_TYPE_STRING },
-		{ 'l', "keylen", &keylen, G_TYPE_NUMBER },
+		{ 'B', "backupfile", "", G_TYPE_STRING },
+		{ 'e', "ealgo", GELI_ENC_ALGO, G_TYPE_STRING },
+		{ 'i', "iterations", "-1", G_TYPE_NUMBER },
+		{ 'J', "newpassfile", G_VAL_OPTIONAL, G_TYPE_STRING | G_TYPE_MULTI },
+		{ 'K', "newkeyfile", G_VAL_OPTIONAL, G_TYPE_STRING | G_TYPE_MULTI },
+		{ 'l', "keylen", "0", G_TYPE_NUMBER },
 		{ 'P', "nonewpassphrase", NULL, G_TYPE_BOOL },
-		{ 's', "sectorsize", &sectorsize, G_TYPE_NUMBER },
+		{ 's', "sectorsize", "0", G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
-	    NULL, "- an alias for 'init'"
+	    "- an alias for 'init'"
 	},
 	{ "attach", G_FLAG_VERBOSE | G_FLAG_LOADKLD, eli_main,
 	    {
 		{ 'd', "detach", NULL, G_TYPE_BOOL },
-		{ 'k', "keyfile", keyfile, G_TYPE_STRING },
+		{ 'j', "passfile", G_VAL_OPTIONAL, G_TYPE_STRING | G_TYPE_MULTI },
+		{ 'k', "keyfile", G_VAL_OPTIONAL, G_TYPE_STRING | G_TYPE_MULTI },
 		{ 'p', "nopassphrase", NULL, G_TYPE_BOOL },
 		{ 'r', "readonly", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
 	    },
-	    NULL, "[-dprv] [-k keyfile] prov"
+	    "[-dprv] [-j passfile] [-k keyfile] prov"
 	},
 	{ "detach", 0, NULL,
 	    {
@@ -145,7 +149,7 @@ struct g_command class_commands[] = {
 		{ 'l', "last", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
 	    },
-	    NULL, "[-fl] prov ..."
+	    "[-fl] prov ..."
 	},
 	{ "stop", 0, NULL,
 	    {
@@ -153,18 +157,18 @@ struct g_command class_commands[] = {
 		{ 'l', "last", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
 	    },
-	    NULL, "- an alias for 'detach'"
+	    "- an alias for 'detach'"
 	},
 	{ "onetime", G_FLAG_VERBOSE | G_FLAG_LOADKLD, NULL,
 	    {
-		{ 'a', "aalgo", aalgo, G_TYPE_STRING },
+		{ 'a', "aalgo", "", G_TYPE_STRING },
 		{ 'd', "detach", NULL, G_TYPE_BOOL },
-		{ 'e', "ealgo", ealgo, G_TYPE_STRING },
-		{ 'l', "keylen", &keylen, G_TYPE_NUMBER },
-		{ 's', "sectorsize", &sectorsize, G_TYPE_NUMBER },
+		{ 'e', "ealgo", GELI_ENC_ALGO, G_TYPE_STRING },
+		{ 'l', "keylen", "0", G_TYPE_NUMBER },
+		{ 's', "sectorsize", "0", G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
-	    NULL, "[-d] [-a aalgo] [-e ealgo] [-l keylen] [-s sectorsize] prov"
+	    "[-d] [-a aalgo] [-e ealgo] [-l keylen] [-s sectorsize] prov"
 	},
 	{ "configure", G_FLAG_VERBOSE, eli_main,
 	    {
@@ -172,46 +176,75 @@ struct g_command class_commands[] = {
 		{ 'B', "noboot", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
 	    },
-	    NULL, "[-bB] prov ..."
+	    "[-bB] prov ..."
 	},
 	{ "setkey", G_FLAG_VERBOSE, eli_main,
 	    {
-		{ 'i', "iterations", &iterations, G_TYPE_NUMBER },
-		{ 'k', "keyfile", keyfile, G_TYPE_STRING },
-		{ 'K', "newkeyfile", newkeyfile, G_TYPE_STRING },
-		{ 'n', "keyno", &keyno, G_TYPE_NUMBER },
+		{ 'i', "iterations", "-1", G_TYPE_NUMBER },
+		{ 'j', "passfile", G_VAL_OPTIONAL, G_TYPE_STRING | G_TYPE_MULTI },
+		{ 'J', "newpassfile", G_VAL_OPTIONAL, G_TYPE_STRING | G_TYPE_MULTI },
+		{ 'k', "keyfile", G_VAL_OPTIONAL, G_TYPE_STRING | G_TYPE_MULTI },
+		{ 'K', "newkeyfile", G_VAL_OPTIONAL, G_TYPE_STRING | G_TYPE_MULTI },
+		{ 'n', "keyno", "-1", G_TYPE_NUMBER },
 		{ 'p', "nopassphrase", NULL, G_TYPE_BOOL },
 		{ 'P', "nonewpassphrase", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
 	    },
-	    NULL, "[-pPv] [-n keyno] [-i iterations] [-k keyfile] [-K newkeyfile] prov"
+	    "[-pPv] [-n keyno] [-i iterations] [-j passfile] [-J newpassfile] [-k keyfile] [-K newkeyfile] prov"
 	},
 	{ "delkey", G_FLAG_VERBOSE, eli_main,
 	    {
 		{ 'a', "all", NULL, G_TYPE_BOOL },
 		{ 'f', "force", NULL, G_TYPE_BOOL },
-		{ 'n', "keyno", &keyno, G_TYPE_NUMBER },
+		{ 'n', "keyno", "-1", G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
-	    NULL, "[-afv] [-n keyno] prov"
+	    "[-afv] [-n keyno] prov"
+	},
+	{ "suspend", G_FLAG_VERBOSE, NULL,
+	    {
+		{ 'a', "all", NULL, G_TYPE_BOOL },
+		G_OPT_SENTINEL
+	    },
+	    "[-v] -a | prov ..."
+	},
+	{ "resume", G_FLAG_VERBOSE, eli_main,
+	    {
+		{ 'j', "passfile", G_VAL_OPTIONAL, G_TYPE_STRING | G_TYPE_MULTI },
+		{ 'k', "keyfile", G_VAL_OPTIONAL, G_TYPE_STRING | G_TYPE_MULTI },
+		{ 'p', "nopassphrase", NULL, G_TYPE_BOOL },
+		G_OPT_SENTINEL
+	    },
+	    "[-pv] [-j passfile] [-k keyfile] prov"
 	},
 	{ "kill", G_FLAG_VERBOSE, eli_main,
 	    {
 		{ 'a', "all", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
 	    },
-	    NULL, "[-av] [prov ...]"
+	    "[-av] [prov ...]"
 	},
-	{ "backup", G_FLAG_VERBOSE, eli_main, G_NULL_OPTS, NULL,
+	{ "backup", G_FLAG_VERBOSE, eli_main, G_NULL_OPTS,
 	    "[-v] prov file"
 	},
-	{ "restore", G_FLAG_VERBOSE, eli_main, G_NULL_OPTS, NULL,
-	    "[-v] file prov"
+	{ "restore", G_FLAG_VERBOSE, eli_main,
+	    {
+		{ 'f', "force", NULL, G_TYPE_BOOL },
+		G_OPT_SENTINEL
+	    },
+	    "[-fv] file prov"
 	},
-	{ "clear", G_FLAG_VERBOSE, eli_main, G_NULL_OPTS, NULL,
+	{ "resize", G_FLAG_VERBOSE, eli_main,
+	    {
+		{ 's', "oldsize", NULL, G_TYPE_NUMBER },
+		G_OPT_SENTINEL
+	    },
+	    "[-v] -s oldsize prov"
+	},
+	{ "clear", G_FLAG_VERBOSE, eli_main, G_NULL_OPTS,
 	    "[-v] prov ..."
 	},
-	{ "dump", G_FLAG_VERBOSE, eli_main, G_NULL_OPTS, NULL,
+	{ "dump", G_FLAG_VERBOSE, eli_main, G_NULL_OPTS,
 	    "[-v] prov ..."
 	},
 	G_CMD_SENTINEL
@@ -241,7 +274,7 @@ eli_protect(struct gctl_req *req)
 }
 
 static void
-eli_main(struct gctl_req *req, unsigned flags)
+eli_main(struct gctl_req *req, unsigned int flags)
 {
 	const char *name;
 
@@ -266,12 +299,16 @@ eli_main(struct gctl_req *req, unsigned flags)
 		eli_setkey(req);
 	else if (strcmp(name, "delkey") == 0)
 		eli_delkey(req);
+	else if (strcmp(name, "resume") == 0)
+		eli_resume(req);
 	else if (strcmp(name, "kill") == 0)
 		eli_kill(req);
 	else if (strcmp(name, "backup") == 0)
 		eli_backup(req);
 	else if (strcmp(name, "restore") == 0)
 		eli_restore(req);
+	else if (strcmp(name, "resize") == 0)
+		eli_resize(req);
 	else if (strcmp(name, "dump") == 0)
 		eli_dump(req);
 	else if (strcmp(name, "clear") == 0)
@@ -285,7 +322,7 @@ arc4rand(unsigned char *buf, size_t size)
 {
 	uint32_t *buf4;
 	size_t size4;
-	unsigned i;
+	unsigned int i;
 
 	buf4 = (uint32_t *)buf;
 	size4 = size / 4;
@@ -314,123 +351,216 @@ eli_is_attached(const char *prov)
 	return (0);
 }
 
+static int
+eli_genkey_files(struct gctl_req *req, bool new, const char *type,
+    struct hmac_ctx *ctxp, char *passbuf, size_t passbufsize)
+{
+	char *p, buf[MAXPHYS], argname[16];
+	const char *file;
+	int error, fd, i;
+	ssize_t done;
+
+	assert((strcmp(type, "keyfile") == 0 && ctxp != NULL &&
+	    passbuf == NULL && passbufsize == 0) ||
+	    (strcmp(type, "passfile") == 0 && ctxp == NULL &&
+	    passbuf != NULL && passbufsize > 0));
+	assert(strcmp(type, "keyfile") == 0 || passbuf[0] == '\0');
+
+	for (i = 0; ; i++) {
+		snprintf(argname, sizeof(argname), "%s%s%d",
+		    new ? "new" : "", type, i);
+
+		/* No more {key,pass}files? */
+		if (!gctl_has_param(req, argname))
+			return (i);
+
+		file = gctl_get_ascii(req, "%s", argname);
+		assert(file != NULL);
+
+		if (strcmp(file, "-") == 0)
+			fd = STDIN_FILENO;
+		else {
+			fd = open(file, O_RDONLY);
+			if (fd == -1) {
+				gctl_error(req, "Cannot open %s %s: %s.",
+				    type, file, strerror(errno));
+				return (-1);
+			}
+		}
+		if (strcmp(type, "keyfile") == 0) {
+			while ((done = read(fd, buf, sizeof(buf))) > 0)
+				g_eli_crypto_hmac_update(ctxp, buf, done);
+		} else /* if (strcmp(type, "passfile") == 0) */ {
+			while ((done = read(fd, buf, sizeof(buf) - 1)) > 0) {
+				buf[done] = '\0';
+				p = strchr(buf, '\n');
+				if (p != NULL) {
+					*p = '\0';
+					done = p - buf;
+				}
+				if (strlcat(passbuf, buf, passbufsize) >=
+				    passbufsize) {
+					gctl_error(req,
+					    "Passphrase in %s too long.", file);
+					bzero(buf, sizeof(buf));
+					return (-1);
+				}
+				if (p != NULL)
+					break;
+			}
+		}
+		error = errno;
+		if (strcmp(file, "-") != 0)
+			close(fd);
+		bzero(buf, sizeof(buf));
+		if (done == -1) {
+			gctl_error(req, "Cannot read %s %s: %s.",
+			    type, file, strerror(error));
+			return (-1);
+		}
+	}
+	/* NOTREACHED */
+}
+
+static int
+eli_genkey_passphrase_prompt(struct gctl_req *req, bool new, char *passbuf,
+    size_t passbufsize)
+{
+	char *p;
+
+	for (;;) {
+		p = readpassphrase(
+		    new ? "Enter new passphrase:" : "Enter passphrase:",
+		    passbuf, passbufsize, RPP_ECHO_OFF | RPP_REQUIRE_TTY);
+		if (p == NULL) {
+			bzero(passbuf, passbufsize);
+			gctl_error(req, "Cannot read passphrase: %s.",
+			    strerror(errno));
+			return (-1);
+		}
+
+		if (new) {
+			char tmpbuf[BUFSIZ];
+
+			p = readpassphrase("Reenter new passphrase: ",
+			    tmpbuf, sizeof(tmpbuf),
+			    RPP_ECHO_OFF | RPP_REQUIRE_TTY);
+			if (p == NULL) {
+				bzero(passbuf, passbufsize);
+				gctl_error(req,
+				    "Cannot read passphrase: %s.",
+				    strerror(errno));
+				return (-1);
+			}
+
+			if (strcmp(passbuf, tmpbuf) != 0) {
+				bzero(passbuf, passbufsize);
+				fprintf(stderr, "They didn't match.\n");
+				continue;
+			}
+			bzero(tmpbuf, sizeof(tmpbuf));
+		}
+		return (0);
+	}
+	/* NOTREACHED */
+}
+
+static int
+eli_genkey_passphrase(struct gctl_req *req, struct g_eli_metadata *md, bool new,
+    struct hmac_ctx *ctxp)
+{
+	char passbuf[MAXPHYS];
+	bool nopassphrase;
+	int nfiles;
+
+	nopassphrase =
+	    gctl_get_int(req, new ? "nonewpassphrase" : "nopassphrase");
+	if (nopassphrase) {
+		if (gctl_has_param(req, new ? "newpassfile0" : "passfile0")) {
+			gctl_error(req,
+			    "Options -%c and -%c are mutually exclusive.",
+			    new ? 'J' : 'j', new ? 'P' : 'p');
+			return (-1);
+		}
+		return (0);
+	}
+
+	if (!new && md->md_iterations == -1) {
+		gctl_error(req, "Missing -p flag.");
+		return (-1);
+	}
+	passbuf[0] = '\0';
+	nfiles = eli_genkey_files(req, new, "passfile", NULL, passbuf,
+	    sizeof(passbuf));
+	if (nfiles == -1)
+		return (-1);
+	else if (nfiles == 0) {
+		if (eli_genkey_passphrase_prompt(req, new, passbuf,
+		    sizeof(passbuf)) == -1) {
+			return (-1);
+		}
+	}
+	/*
+	 * Field md_iterations equal to -1 means "choose some sane
+	 * value for me".
+	 */
+	if (md->md_iterations == -1) {
+		assert(new);
+		if (verbose)
+			printf("Calculating number of iterations...\n");
+		md->md_iterations = pkcs5v2_calculate(2000000);
+		assert(md->md_iterations > 0);
+		if (verbose) {
+			printf("Done, using %d iterations.\n",
+			    md->md_iterations);
+		}
+	}
+	/*
+	 * If md_iterations is equal to 0, user doesn't want PKCS#5v2.
+	 */
+	if (md->md_iterations == 0) {
+		g_eli_crypto_hmac_update(ctxp, md->md_salt,
+		    sizeof(md->md_salt));
+		g_eli_crypto_hmac_update(ctxp, passbuf, strlen(passbuf));
+	} else /* if (md->md_iterations > 0) */ {
+		unsigned char dkey[G_ELI_USERKEYLEN];
+
+		pkcs5v2_genkey(dkey, sizeof(dkey), md->md_salt,
+		    sizeof(md->md_salt), passbuf, md->md_iterations);
+		g_eli_crypto_hmac_update(ctxp, dkey, sizeof(dkey));
+		bzero(dkey, sizeof(dkey));
+	}
+	bzero(passbuf, sizeof(passbuf));
+
+	return (0);
+}
+
 static unsigned char *
 eli_genkey(struct gctl_req *req, struct g_eli_metadata *md, unsigned char *key,
-    int new)
+    bool new)
 {
 	struct hmac_ctx ctx;
-	const char *str;
-	int error, nopassphrase;
+	bool nopassphrase;
+	int nfiles;
 
 	nopassphrase =
 	    gctl_get_int(req, new ? "nonewpassphrase" : "nopassphrase");
 
 	g_eli_crypto_hmac_init(&ctx, NULL, 0);
 
-	str = gctl_get_ascii(req, new ? "newkeyfile" : "keyfile");
-	if (str[0] == '\0' && nopassphrase) {
+	nfiles = eli_genkey_files(req, new, "keyfile", &ctx, NULL, 0);
+	if (nfiles == -1)
+		return (NULL);
+	else if (nfiles == 0 && nopassphrase) {
 		gctl_error(req, "No key components given.");
 		return (NULL);
-	} else if (str[0] != '\0') {
-		char buf[MAXPHYS];
-		ssize_t done;
-		int fd;
-
-		if (strcmp(str, "-") == 0)
-			fd = STDIN_FILENO;
-		else {
-			fd = open(str, O_RDONLY);
-			if (fd == -1) {
-				gctl_error(req, "Cannot open keyfile %s: %s.",
-				    str, strerror(errno));
-				return (NULL);
-			}
-		}
-		while ((done = read(fd, buf, sizeof(buf))) > 0)
-			g_eli_crypto_hmac_update(&ctx, buf, done);
-		error = errno;
-		if (strcmp(str, "-") != 0)
-			close(fd);
-		bzero(buf, sizeof(buf));
-		if (done == -1) {
-			gctl_error(req, "Cannot read keyfile %s: %s.", str,
-			    strerror(error));
-			return (NULL);
-		}
 	}
 
-	if (!nopassphrase) {
-		char buf1[BUFSIZ], buf2[BUFSIZ], *p;
+	if (eli_genkey_passphrase(req, md, new, &ctx) == -1)
+		return (NULL);
 
-		if (!new && md->md_iterations == -1) {
-			gctl_error(req, "Missing -p flag.");
-			return (NULL);
-		}
-		for (;;) {
-			p = readpassphrase(
-			    new ? "Enter new passphrase:" : "Enter passphrase:",
-			    buf1, sizeof(buf1), RPP_ECHO_OFF | RPP_REQUIRE_TTY);
-			if (p == NULL) {
-				bzero(buf1, sizeof(buf1));
-				gctl_error(req, "Cannot read passphrase: %s.",
-				    strerror(errno));
-				return (NULL);
-			}
-	
-			if (new) {
-				p = readpassphrase("Reenter new passphrase: ",
-				    buf2, sizeof(buf2),
-				    RPP_ECHO_OFF | RPP_REQUIRE_TTY);
-				if (p == NULL) {
-					bzero(buf1, sizeof(buf1));
-					gctl_error(req,
-					    "Cannot read passphrase: %s.",
-					    strerror(errno));
-					return (NULL);
-				}
-	
-				if (strcmp(buf1, buf2) != 0) {
-					bzero(buf2, sizeof(buf2));
-					fprintf(stderr, "They didn't match.\n");
-					continue;
-				}
-				bzero(buf2, sizeof(buf2));
-			}
-			break;
-		}
-		/*
-		 * Field md_iterations equal to -1 means "choose some sane
-		 * value for me".
-		 */
-		if (md->md_iterations == -1) {
-			assert(new);
-			if (verbose)
-				printf("Calculating number of iterations...\n");
-			md->md_iterations = pkcs5v2_calculate(2000000);
-			assert(md->md_iterations > 0);
-			if (verbose) {
-				printf("Done, using %d iterations.\n",
-				    md->md_iterations);
-			}
-		}
-		/*
-		 * If md_iterations is equal to 0, user don't want PKCS#5v2.
-		 */
-		if (md->md_iterations == 0) {
-			g_eli_crypto_hmac_update(&ctx, md->md_salt,
-			    sizeof(md->md_salt));
-			g_eli_crypto_hmac_update(&ctx, buf1, strlen(buf1));
-		} else /* if (md->md_iterations > 0) */ {
-			unsigned char dkey[G_ELI_USERKEYLEN];
-
-			pkcs5v2_genkey(dkey, sizeof(dkey), md->md_salt,
-			    sizeof(md->md_salt), buf1, md->md_iterations);
-			g_eli_crypto_hmac_update(&ctx, dkey, sizeof(dkey));
-			bzero(dkey, sizeof(dkey));
-		}
-		bzero(buf1, sizeof(buf1));
-	}
 	g_eli_crypto_hmac_final(&ctx, key, 0);
+
 	return (key);
 }
 
@@ -551,7 +681,7 @@ eli_init(struct gctl_req *req)
 		md.md_flags |= G_ELI_FLAG_BOOT;
 	md.md_ealgo = CRYPTO_ALGORITHM_MIN - 1;
 	str = gctl_get_ascii(req, "aalgo");
-	if (strcmp(str, "none") != 0) {
+	if (*str != '\0') {
 		md.md_aalgo = g_eli_str2aalgo(str);
 		if (md.md_aalgo >= CRYPTO_ALGORITHM_MIN &&
 		    md.md_aalgo <= CRYPTO_ALGORITHM_MAX) {
@@ -619,8 +749,8 @@ eli_init(struct gctl_req *req)
 			return;
 		}
 		if (val > sysconf(_SC_PAGE_SIZE)) {
-			gctl_error(req, "warning: Using sectorsize bigger than "
-			    "the page size!");
+			fprintf(stderr,
+			    "warning: Using sectorsize bigger than the page size!\n");
 		}
 		md.md_sectorsize = val;
 	}
@@ -630,7 +760,7 @@ eli_init(struct gctl_req *req)
 	arc4rand(md.md_mkeys, sizeof(md.md_mkeys));
 
 	/* Generate user key. */
-	if (eli_genkey(req, &md, key, 1) == NULL) {
+	if (eli_genkey(req, &md, key, true) == NULL) {
 		bzero(key, sizeof(key));
 		bzero(&md, sizeof(md));
 		return;
@@ -667,8 +797,8 @@ eli_init(struct gctl_req *req)
 		const char *p = prov;
 		unsigned int i;
 
-		if (strncmp(p, _PATH_DEV, strlen(_PATH_DEV)) == 0)
-			p += strlen(_PATH_DEV);
+		if (strncmp(p, _PATH_DEV, sizeof(_PATH_DEV) - 1) == 0)
+			p += sizeof(_PATH_DEV) - 1;
 		snprintf(backfile, sizeof(backfile), "%s%s.eli",
 		    GELI_BACKUP_DIR, p);
 		/* Replace all / with _. */
@@ -691,6 +821,7 @@ eli_attach(struct gctl_req *req)
 	struct g_eli_metadata md;
 	unsigned char key[G_ELI_USERKEYLEN];
 	const char *prov;
+	off_t mediasize;
 	int nargs;
 
 	nargs = gctl_get_int(req, "nargs");
@@ -703,7 +834,13 @@ eli_attach(struct gctl_req *req)
 	if (eli_metadata_read(req, prov, &md) == -1)
 		return;
 
-	if (eli_genkey(req, &md, key, 0) == NULL) {
+	mediasize = g_get_mediasize(prov);
+	if (md.md_provsize != (uint64_t)mediasize) {
+		gctl_error(req, "Provider size mismatch.");
+		return;
+	}
+
+	if (eli_genkey(req, &md, key, false) == NULL) {
 		bzero(key, sizeof(key));
 		return;
 	}
@@ -717,7 +854,7 @@ eli_attach(struct gctl_req *req)
 }
 
 static void
-eli_configure_detached(struct gctl_req *req, const char *prov, int boot)
+eli_configure_detached(struct gctl_req *req, const char *prov, bool boot)
 {
 	struct g_eli_metadata md;
 
@@ -744,7 +881,8 @@ static void
 eli_configure(struct gctl_req *req)
 {
 	const char *prov;
-	int i, nargs, boot, noboot;
+	bool boot, noboot;
+	int i, nargs;
 
 	nargs = gctl_get_int(req, "nargs");
 	if (nargs == 0) {
@@ -789,7 +927,7 @@ eli_setkey_attached(struct gctl_req *req, struct g_eli_metadata *md)
 		old = md->md_iterations;
 
 	/* Generate key for Master Key encryption. */
-	if (eli_genkey(req, md, key, 1) == NULL) {
+	if (eli_genkey(req, md, key, true) == NULL) {
 		bzero(key, sizeof(key));
 		return;
 	}
@@ -814,8 +952,8 @@ eli_setkey_detached(struct gctl_req *req, const char *prov,
 {
 	unsigned char key[G_ELI_USERKEYLEN], mkey[G_ELI_DATAIVKEYLEN];
 	unsigned char *mkeydst;
+	unsigned int nkey;
 	intmax_t val;
-	unsigned nkey;
 	int error;
 
 	if (md->md_keys == 0) {
@@ -824,7 +962,7 @@ eli_setkey_detached(struct gctl_req *req, const char *prov,
 	}
 
 	/* Generate key for Master Key decryption. */
-	if (eli_genkey(req, md, key, 0) == NULL) {
+	if (eli_genkey(req, md, key, false) == NULL) {
 		bzero(key, sizeof(key));
 		return;
 	}
@@ -880,7 +1018,7 @@ eli_setkey_detached(struct gctl_req *req, const char *prov,
 	bzero(mkey, sizeof(mkey));
 
 	/* Generate key for Master Key encryption. */
-	if (eli_genkey(req, md, key, 1) == NULL) {
+	if (eli_genkey(req, md, key, true) == NULL) {
 		bzero(key, sizeof(key));
 		bzero(md, sizeof(*md));
 		return;
@@ -942,9 +1080,9 @@ eli_delkey_detached(struct gctl_req *req, const char *prov)
 {
 	struct g_eli_metadata md;
 	unsigned char *mkeydst;
+	unsigned int nkey;
 	intmax_t val;
-	unsigned nkey;
-	int all, force;
+	bool all, force;
 
 	if (eli_metadata_read(req, prov, &md) == -1)
 		return;
@@ -1002,10 +1140,91 @@ eli_delkey(struct gctl_req *req)
 }
 
 static void
-eli_kill_detached(struct gctl_req *req, const char *prov)
+eli_resume(struct gctl_req *req)
 {
 	struct g_eli_metadata md;
+	unsigned char key[G_ELI_USERKEYLEN];
+	const char *prov;
+	off_t mediasize;
+	int nargs;
+
+	nargs = gctl_get_int(req, "nargs");
+	if (nargs != 1) {
+		gctl_error(req, "Invalid number of arguments.");
+		return;
+	}
+	prov = gctl_get_ascii(req, "arg0");
+
+	if (eli_metadata_read(req, prov, &md) == -1)
+		return;
+
+	mediasize = g_get_mediasize(prov);
+	if (md.md_provsize != (uint64_t)mediasize) {
+		gctl_error(req, "Provider size mismatch.");
+		return;
+	}
+
+	if (eli_genkey(req, &md, key, false) == NULL) {
+		bzero(key, sizeof(key));
+		return;
+	}
+
+	gctl_ro_param(req, "key", sizeof(key), key);
+	if (gctl_issue(req) == NULL) {
+		if (verbose)
+			printf("Resumed %s.\n", prov);
+	}
+	bzero(key, sizeof(key));
+}
+
+static int
+eli_trash_metadata(struct gctl_req *req, const char *prov, int fd, off_t offset)
+{
+	unsigned int overwrites;
+	unsigned char *sector;
+	ssize_t size;
 	int error;
+
+	size = sizeof(overwrites);
+	if (sysctlbyname("kern.geom.eli.overwrites", &overwrites, &size,
+	    NULL, 0) == -1 || overwrites == 0) {
+		overwrites = G_ELI_OVERWRITES;
+	}
+
+	size = g_sectorsize(fd);
+	if (size <= 0) {
+		gctl_error(req, "Cannot obtain provider sector size %s: %s.",
+		    prov, strerror(errno));
+		return (-1);
+	}
+	sector = malloc(size);
+	if (sector == NULL) {
+		gctl_error(req, "Cannot allocate %zd bytes of memory.", size);
+		return (-1);
+	}
+
+	error = 0;
+	do {
+		arc4rand(sector, size);
+		if (pwrite(fd, sector, size, offset) != size) {
+			if (error == 0)
+				error = errno;
+		}
+		(void)g_flush(fd);
+	} while (--overwrites > 0);
+	if (error != 0) {
+		gctl_error(req, "Cannot trash metadata on provider %s: %s.",
+		    prov, strerror(error));
+		return (-1);
+	}
+	return (0);
+}
+
+static void
+eli_kill_detached(struct gctl_req *req, const char *prov)
+{
+	off_t offset;
+	int fd;
 
 	/*
 	 * NOTE: Maybe we should verify if this is geli provider first,
@@ -1022,12 +1241,22 @@ eli_kill_detached(struct gctl_req *req, const char *prov)
 	}
 #endif
 
-	arc4rand((unsigned char *)&md, sizeof(md));
-	error = g_metadata_store(prov, (unsigned char *)&md, sizeof(md));
-	if (error != 0) {
-		gctl_error(req, "Cannot write metadata to %s: %s.", prov,
-		    strerror(error));
+	fd = g_open(prov, 1);
+	if (fd == -1) {
+		gctl_error(req, "Cannot open provider %s: %s.", prov,
+		    strerror(errno));
+		return;
 	}
+	offset = g_mediasize(fd) - g_sectorsize(fd);
+	if (offset <= 0) {
+		gctl_error(req,
+		    "Cannot obtain media size or sector size for provider %s: %s.",
+		    prov, strerror(errno));
+		(void)g_close(fd);
+		return;
+	}
+	(void)eli_trash_metadata(req, prov, fd, offset);
+	(void)g_close(fd);
 }
 
 static void
@@ -1067,8 +1296,8 @@ static int
 eli_backup_create(struct gctl_req *req, const char *prov, const char *file)
 {
 	struct g_eli_metadata md;
-	unsigned secsize;
 	unsigned char *sector;
+	ssize_t secsize;
 	off_t mediasize;
 	int filefd, provfd, ret;
 
@@ -1077,13 +1306,7 @@ eli_backup_create(struct gctl_req *req, const char *prov, const char *file)
 	sector = NULL;
 	secsize = 0;
 
-	provfd = open(prov, O_RDONLY);
-	if (provfd == -1 && errno == ENOENT && prov[0] != '/') {
-		char devprov[MAXPATHLEN];
-
-		snprintf(devprov, sizeof(devprov), "%s%s", _PATH_DEV, prov);
-		provfd = open(devprov, O_RDONLY);
-	}
+	provfd = g_open(prov, 0);
 	if (provfd == -1) {
 		gctl_error(req, "Cannot open %s: %s.", prov, strerror(errno));
 		goto out;
@@ -1094,9 +1317,9 @@ eli_backup_create(struct gctl_req *req, const char *prov, const char *file)
 		goto out;
 	}
 
-	mediasize = g_get_mediasize(prov);
-	secsize = g_get_sectorsize(prov);
-	if (mediasize == 0 || secsize == 0) {
+	mediasize = g_mediasize(provfd);
+	secsize = g_sectorsize(provfd);
+	if (mediasize == -1 || secsize == -1) {
 		gctl_error(req, "Cannot get informations about %s: %s.", prov,
 		    strerror(errno));
 		goto out;
@@ -1109,8 +1332,7 @@ eli_backup_create(struct gctl_req *req, const char *prov, const char *file)
 	}
 
 	/* Read metadata from the provider. */
-	if (pread(provfd, sector, secsize, mediasize - secsize) !=
-	    (ssize_t)secsize) {
+	if (pread(provfd, sector, secsize, mediasize - secsize) != secsize) {
 		gctl_error(req, "Cannot read metadata: %s.", strerror(errno));
 		goto out;
 	}
@@ -1120,18 +1342,19 @@ eli_backup_create(struct gctl_req *req, const char *prov, const char *file)
 		goto out;
 	}
 	/* Write metadata to the destination file. */
-	if (write(filefd, sector, secsize) != (ssize_t)secsize) {
+	if (write(filefd, sector, secsize) != secsize) {
 		gctl_error(req, "Cannot write to %s: %s.", file,
 		    strerror(errno));
 		goto out;
 	}
+	(void)fsync(filefd);
 	/* Success. */
 	ret = 0;
 out:
-	if (provfd > 0)
-		close(provfd);
-	if (filefd > 0)
-		close(filefd);
+	if (provfd >= 0)
+		(void)g_close(provfd);
+	if (filefd >= 0)
+		(void)close(filefd);
 	if (sector != NULL) {
 		bzero(sector, secsize);
 		free(sector);
@@ -1162,7 +1385,7 @@ eli_restore(struct gctl_req *req)
 	struct g_eli_metadata md;
 	const char *file, *prov;
 	unsigned char *sector;
-	unsigned secsize;
+	ssize_t secsize;
 	off_t mediasize;
 	int nargs, filefd, provfd;
 
@@ -1183,21 +1406,15 @@ eli_restore(struct gctl_req *req)
 		gctl_error(req, "Cannot open %s: %s.", file, strerror(errno));
 		goto out;
 	}
-	provfd = open(prov, O_WRONLY);
-	if (provfd == -1 && errno == ENOENT && prov[0] != '/') {
-		char devprov[MAXPATHLEN];
-
-		snprintf(devprov, sizeof(devprov), "%s%s", _PATH_DEV, prov);
-		provfd = open(devprov, O_WRONLY);
-	}
+	provfd = g_open(prov, 1);
 	if (provfd == -1) {
 		gctl_error(req, "Cannot open %s: %s.", prov, strerror(errno));
 		goto out;
 	}
 
-	mediasize = g_get_mediasize(prov);
-	secsize = g_get_sectorsize(prov);
-	if (mediasize == 0 || secsize == 0) {
+	mediasize = g_mediasize(provfd);
+	secsize = g_sectorsize(provfd);
+	if (mediasize == -1 || secsize == -1) {
 		gctl_error(req, "Cannot get informations about %s: %s.", prov,
 		    strerror(errno));
 		goto out;
@@ -1210,7 +1427,7 @@ eli_restore(struct gctl_req *req)
 	}
 
 	/* Read metadata from the backup file. */
-	if (read(filefd, sector, secsize) != (ssize_t)secsize) {
+	if (read(filefd, sector, secsize) != secsize) {
 		gctl_error(req, "Cannot read from %s: %s.", file,
 		    strerror(errno));
 		goto out;
@@ -1220,17 +1437,125 @@ eli_restore(struct gctl_req *req)
 		gctl_error(req, "MD5 hash mismatch: not a geli backup file?");
 		goto out;
 	}
+	/* Check if the provider size has changed since we did the backup. */
+	if (md.md_provsize != (uint64_t)mediasize) {
+		if (gctl_get_int(req, "force")) {
+			md.md_provsize = mediasize;
+			eli_metadata_encode(&md, sector);
+		} else {
+			gctl_error(req, "Provider size mismatch: "
+			    "wrong backup file?");
+			goto out;
+		}
+	}
 	/* Write metadata from the provider. */
-	if (pwrite(provfd, sector, secsize, mediasize - secsize) !=
-	    (ssize_t)secsize) {
+	if (pwrite(provfd, sector, secsize, mediasize - secsize) != secsize) {
 		gctl_error(req, "Cannot write metadata: %s.", strerror(errno));
 		goto out;
 	}
+	(void)g_flush(provfd);
 out:
-	if (provfd > 0)
-		close(provfd);
-	if (filefd > 0)
-		close(filefd);
+	if (provfd >= 0)
+		(void)g_close(provfd);
+	if (filefd >= 0)
+		(void)close(filefd);
+	if (sector != NULL) {
+		bzero(sector, secsize);
+		free(sector);
+	}
+}
+
+static void
+eli_resize(struct gctl_req *req)
+{
+	struct g_eli_metadata md;
+	const char *prov;
+	unsigned char *sector;
+	ssize_t secsize;
+	off_t mediasize, oldsize;
+	int nargs, provfd;
+
+	nargs = gctl_get_int(req, "nargs");
+	if (nargs != 1) {
+		gctl_error(req, "Invalid number of arguments.");
+		return;
+	}
+	prov = gctl_get_ascii(req, "arg0");
+
+	provfd = -1;
+	sector = NULL;
+	secsize = 0;
+
+	provfd = g_open(prov, 1);
+	if (provfd == -1) {
+		gctl_error(req, "Cannot open %s: %s.", prov, strerror(errno));
+		goto out;
+	}
+
+	mediasize = g_mediasize(provfd);
+	secsize = g_sectorsize(provfd);
+	if (mediasize == -1 || secsize == -1) {
+		gctl_error(req, "Cannot get information about %s: %s.", prov,
+		    strerror(errno));
+		goto out;
+	}
+
+	sector = malloc(secsize);
+	if (sector == NULL) {
+		gctl_error(req, "Cannot allocate memory.");
+		goto out;
+	}
+
+	oldsize = gctl_get_intmax(req, "oldsize");
+	if (oldsize < 0 || oldsize > mediasize) {
+		gctl_error(req, "Invalid oldsize: Out of range.");
+		goto out;
+	}
+	if (oldsize == mediasize) {
+		gctl_error(req, "Size hasn't changed.");
+		goto out;
+	}
+
+	/* Read metadata from the 'oldsize' offset. */
+	if (pread(provfd, sector, secsize, oldsize - secsize) != secsize) {
+		gctl_error(req, "Cannot read old metadata: %s.",
+		    strerror(errno));
+		goto out;
+	}
+
+	/* Check if this sector contains geli metadata. */
+	if (eli_metadata_decode(sector, &md) != 0) {
+		gctl_error(req, "MD5 hash mismatch: no metadata for oldsize.");
+		goto out;
+	}
+
+	/*
+	 * If the old metadata doesn't have a correct provider size, refuse
+	 * to resize.
+	 */
+	if (md.md_provsize != (uint64_t)oldsize) {
+		gctl_error(req, "Provider size mismatch at oldsize.");
+		goto out;
+	}
+
+	/*
+	 * Update the old metadata with the current provider size and write
+	 * it back to the correct place on the provider.
+	 */
+	md.md_provsize = mediasize;
+	eli_metadata_encode(&md, sector);
+	if (pwrite(provfd, sector, secsize, mediasize - secsize) != secsize) {
+		gctl_error(req, "Cannot write metadata: %s.", strerror(errno));
+		goto out;
+	}
+	(void)g_flush(provfd);
+
+	/* Now trash the old metadata. */
+	if (eli_trash_metadata(req, prov, provfd, oldsize - secsize) == -1)
+		goto out;
+out:
+	if (provfd >= 0)
+		(void)g_close(provfd);
 	if (sector != NULL) {
 		bzero(sector, secsize);
 		free(sector);

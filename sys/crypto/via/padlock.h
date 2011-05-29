@@ -32,6 +32,12 @@
 #include <opencrypto/cryptodev.h>
 #include <crypto/rijndael/rijndael.h>
 
+#if defined(__i386__)
+#include <machine/npx.h>
+#elif defined(__amd64__)
+#include <machine/fpu.h>
+#endif
+
 union padlock_cw {
 	uint64_t raw;
 	struct {
@@ -70,6 +76,7 @@ struct padlock_session {
 	int		ses_used;
 	uint32_t	ses_id;
 	TAILQ_ENTRY(padlock_session) ses_next;
+	struct fpu_kern_ctx ses_fpu_ctx;
 };
 
 #define	PADLOCK_ALIGN(p)	(void *)(roundup2((uintptr_t)(p), 16))
