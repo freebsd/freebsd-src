@@ -125,7 +125,6 @@
 		(d)->__bits[__i] &= ~(s)->__bits[__i];	\
 } while (0)
 
-#ifdef _KERNEL
 #define	CPU_CLR_ATOMIC(n, p)						\
 	atomic_clear_long(&(p)->__bits[(n)/_NCPUBITS], __cpuset_mask(n))
 
@@ -152,7 +151,6 @@
 		atomic_store_rel_long(&(t)->__bits[__i],	\
 		    (f)->__bits[__i]);				\
 } while (0)
-#endif /* !_KERNEL */
 
 /*
  * Valid cpulevel_t values.
