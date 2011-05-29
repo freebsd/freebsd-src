@@ -32,15 +32,16 @@
  * $FreeBSD$
  */
 
+#include <sys/cdefs.h>
+#include <sys/param.h>
+#include <sys/types.h>
+#include <rpc/rpc.h>
+#include <rpcsvc/yp.h>
 #include <db.h>
 #include <limits.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
-#include <sys/cdefs.h>
-#include <sys/types.h>
-#include <rpc/rpc.h>
-#include <rpcsvc/yp.h>
 
 #ifndef _PATH_YP
 #define _PATH_YP "/var/yp/"
@@ -57,6 +58,8 @@
 #define YP_SECURE 0x1
 #define YP_INTERDOMAIN 0x2
 
+#define SECURENETS_FNAME	"securenets"
+
 /*
  * External functions and variables.
  */
@@ -69,6 +72,10 @@ extern int	resfd;
 extern char 	*progname;
 extern char	*yp_dir;
 extern pid_t	yp_pid;
+extern char	securenets_path[MAXPATHLEN];
+extern enum yp_snf_format {
+	YP_SNF_NATIVE,
+	YP_SNF_SOLARIS } securenets_format;
 
 extern enum ypstat	yp_errno;
 extern void	yp_error(const char *, ...) __printflike(1, 2);
@@ -86,13 +93,26 @@ extern int	yp_access(const char *, const char *, const struct svc_req *);
 #else
 extern int	yp_access(const char *, const struct svc_req *);
 #endif
+extern void	yp_debug_sa(const struct sockaddr *);
+#ifdef AF_INET
+extern int	yp_mask2prefixlen_in(const struct sockaddr *, int *);
+extern int	yp_prefixlen2mask_in(struct sockaddr *, const int *);
+extern struct sockaddr *yp_mask_in(const struct sockaddr *, const struct sockaddr *);
+extern int	yp_compare_subnet_in(const struct sockaddr *, const struct sockaddr *);
+#endif
+#ifdef AF_INET6
+extern int	yp_mask2prefixlen_in6(const struct sockaddr *, int *);
+extern int	yp_prefixlen2mask_in6(struct sockaddr *, const int *);
+extern struct sockaddr *yp_mask_in6(const struct sockaddr *, const struct sockaddr *);
+extern int	yp_compare_subnet_in6(const struct sockaddr *, const struct sockaddr *);
+#endif
 extern int	yp_validdomain(const char *);
 extern DB	*yp_open_db(const char *, const char *);
 extern DB	*yp_open_db_cache(const char *, const char *, const char *, int);
 extern void	yp_flush_all(void);
 extern void	yp_init_dbs(void);
 extern int	yp_testflag(char *, char *, int);
-extern void	load_securenets(void);
+extern int	load_securenets(void);
 
 #ifdef DB_CACHE
 extern ypstat	yp_select_map(char *, char *, keydat *, int);
