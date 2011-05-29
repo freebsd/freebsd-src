@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: null_10.c,v 1.42 2007/06/19 23:47:17 tbox Exp $ */
+/* $Id: null_10.c,v 1.42 2007-06-19 23:47:17 tbox Exp $ */
 
 /* Reviewed: Thu Mar 16 13:57:50 PST 2000 by explorer */
 

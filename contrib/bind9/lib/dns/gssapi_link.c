@@ -16,7 +16,7 @@
  */
 
 /*
- * $Id: gssapi_link.c,v 1.12 2008/11/11 03:55:01 marka Exp $
+ * $Id: gssapi_link.c,v 1.12 2008-11-11 03:55:01 marka Exp $
  */
 
 #include <config.h>

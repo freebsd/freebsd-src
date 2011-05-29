@@ -100,7 +100,6 @@ static struct dict subjectnames[] = {
 
 static struct dict resourcenames[] = {
 	{ "cpu", RACCT_CPU },
-	{ "fsize", RACCT_FSIZE },
 	{ "data", RACCT_DATA },
 	{ "stack", RACCT_STACK },
 	{ "core", RACCT_CORE },
@@ -108,7 +107,6 @@ static struct dict resourcenames[] = {
 	{ "memlock", RACCT_MEMLOCK },
 	{ "nproc", RACCT_NPROC },
 	{ "nofile", RACCT_NOFILE },
-	{ "sbsize", RACCT_SBSIZE },
 	{ "vmem", RACCT_VMEM },
 	{ "npts", RACCT_NPTS },
 	{ "swap", RACCT_SWAP },

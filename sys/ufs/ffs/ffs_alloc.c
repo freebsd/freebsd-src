@@ -1022,7 +1022,7 @@ dup_alloc:
 		(*vpp)->v_op = &ffs_vnodeops1;
 	return (0);
 noinodes:
-	if (fs->fs_pendinginodes > 0 && reclaimed == 0) {
+	if (reclaimed == 0) {
 		reclaimed = 1;
 		softdep_request_cleanup(fs, pvp, cred, FLUSH_INODES_WAIT);
 		goto retry;

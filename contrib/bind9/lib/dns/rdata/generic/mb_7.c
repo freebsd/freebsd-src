@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: mb_7.c,v 1.45 2007/06/19 23:47:17 tbox Exp $ */
+/* $Id: mb_7.c,v 1.45 2007-06-19 23:47:17 tbox Exp $ */
 
 /* Reviewed: Wed Mar 15 17:31:26 PST 2000 by bwelling */
 

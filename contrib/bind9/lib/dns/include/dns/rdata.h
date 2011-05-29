@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rdata.h,v 1.70.120.3 2009/02/16 00:29:27 marka Exp $ */
+/* $Id: rdata.h,v 1.70.120.3 2009-02-16 00:29:27 marka Exp $ */
 
 #ifndef DNS_RDATA_H
 #define DNS_RDATA_H 1

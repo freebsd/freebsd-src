@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: xfrout.h,v 1.12 2007/06/19 23:46:59 tbox Exp $ */
+/* $Id: xfrout.h,v 1.12 2007-06-19 23:46:59 tbox Exp $ */
 
 #ifndef NAMED_XFROUT_H
 #define NAMED_XFROUT_H 1

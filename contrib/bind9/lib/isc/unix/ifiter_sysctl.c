@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ifiter_sysctl.c,v 1.25 2007/06/19 23:47:18 tbox Exp $ */
+/* $Id: ifiter_sysctl.c,v 1.25 2007-06-19 23:47:18 tbox Exp $ */
 
 /*! \file
  * \brief

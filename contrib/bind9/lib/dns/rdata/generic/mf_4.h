@@ -19,7 +19,7 @@
 #ifndef GENERIC_MF_4_H
 #define GENERIC_MF_4_H 1
 
-/* $Id: mf_4.h,v 1.26 2007/06/19 23:47:17 tbox Exp $ */
+/* $Id: mf_4.h,v 1.26 2007-06-19 23:47:17 tbox Exp $ */
 
 typedef struct dns_rdata_mf {
 	dns_rdatacommon_t	common;

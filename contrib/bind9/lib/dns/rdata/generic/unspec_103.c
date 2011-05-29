@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: unspec_103.c,v 1.35 2007/06/19 23:47:17 tbox Exp $ */
+/* $Id: unspec_103.c,v 1.35 2007-06-19 23:47:17 tbox Exp $ */
 
 #ifndef RDATA_GENERIC_UNSPEC_103_C
 #define RDATA_GENERIC_UNSPEC_103_C

@@ -169,7 +169,7 @@ nfsrv_setclient(struct nfsrv_descript *nd, struct nfsclient **new_clpp,
 	nfsv4_relref(&nfsv4rootfs_lock);
 	do {
 		igotlock = nfsv4_lock(&nfsv4rootfs_lock, 1, NULL,
-		    NFSV4ROOTLOCKMUTEXPTR);
+		    NFSV4ROOTLOCKMUTEXPTR, NULL);
 	} while (!igotlock);
 	NFSUNLOCKV4ROOTMUTEX();
 
@@ -419,7 +419,7 @@ nfsrv_getclient(nfsquad_t clientid, int opflags, struct nfsclient **clpp,
 		nfsv4_relref(&nfsv4rootfs_lock);
 		do {
 			igotlock = nfsv4_lock(&nfsv4rootfs_lock, 1, NULL,
-			    NFSV4ROOTLOCKMUTEXPTR);
+			    NFSV4ROOTLOCKMUTEXPTR, NULL);
 		} while (!igotlock);
 		NFSUNLOCKV4ROOTMUTEX();
 	} else if (opflags != CLOPS_RENEW) {
@@ -548,7 +548,7 @@ nfsrv_adminrevoke(struct nfsd_clid *revokep, NFSPROC_T *p)
 	NFSLOCKV4ROOTMUTEX();
 	do {
 		igotlock = nfsv4_lock(&nfsv4rootfs_lock, 1, NULL,
-		    NFSV4ROOTLOCKMUTEXPTR);
+		    NFSV4ROOTLOCKMUTEXPTR, NULL);
 	} while (!igotlock);
 	NFSUNLOCKV4ROOTMUTEX();
 
@@ -608,7 +608,7 @@ nfsrv_dumpclients(struct nfsd_dumpclients *dumpp, int maxcnt)
 	 * exclusive lock cannot be acquired while dumping the clients.
 	 */
 	NFSLOCKV4ROOTMUTEX();
-	nfsv4_getref(&nfsv4rootfs_lock, NULL, NFSV4ROOTLOCKMUTEXPTR);
+	nfsv4_getref(&nfsv4rootfs_lock, NULL, NFSV4ROOTLOCKMUTEXPTR, NULL);
 	NFSUNLOCKV4ROOTMUTEX();
 	NFSLOCKSTATE();
 	/*
@@ -709,7 +709,7 @@ nfsrv_dumplocks(vnode_t vp, struct nfsd_dumplocks *ldumpp, int maxcnt,
 	 * exclusive lock on it cannot be acquired while dumping the locks.
 	 */
 	NFSLOCKV4ROOTMUTEX();
-	nfsv4_getref(&nfsv4rootfs_lock, NULL, NFSV4ROOTLOCKMUTEXPTR);
+	nfsv4_getref(&nfsv4rootfs_lock, NULL, NFSV4ROOTLOCKMUTEXPTR, NULL);
 	NFSUNLOCKV4ROOTMUTEX();
 	NFSLOCKSTATE();
 	if (!ret)
@@ -4254,7 +4254,7 @@ nfsrv_clientconflict(struct nfsclient *clp, int *haslockp, vnode_t vp,
 		nfsv4_relref(&nfsv4rootfs_lock);
 		do {
 			gotlock = nfsv4_lock(&nfsv4rootfs_lock, 1, NULL,
-			    NFSV4ROOTLOCKMUTEXPTR);
+			    NFSV4ROOTLOCKMUTEXPTR, NULL);
 		} while (!gotlock);
 		NFSUNLOCKV4ROOTMUTEX();
 		*haslockp = 1;
@@ -4422,7 +4422,7 @@ nfsrv_delegconflict(struct nfsstate *stp, int *haslockp, NFSPROC_T *p,
 		nfsv4_relref(&nfsv4rootfs_lock);
 		do {
 			gotlock = nfsv4_lock(&nfsv4rootfs_lock, 1, NULL,
-			    NFSV4ROOTLOCKMUTEXPTR);
+			    NFSV4ROOTLOCKMUTEXPTR, NULL);
 		} while (!gotlock);
 		NFSUNLOCKV4ROOTMUTEX();
 		*haslockp = 1;
@@ -4616,7 +4616,7 @@ nfsd_recalldelegation(vnode_t vp, NFSPROC_T *p)
 	 * exclusive lock cannot be acquired by another thread.
 	 */
 	NFSLOCKV4ROOTMUTEX();
-	nfsv4_getref(&nfsv4rootfs_lock, NULL, NFSV4ROOTLOCKMUTEXPTR);
+	nfsv4_getref(&nfsv4rootfs_lock, NULL, NFSV4ROOTLOCKMUTEXPTR, NULL);
 	NFSUNLOCKV4ROOTMUTEX();
 
 	/*
@@ -5179,7 +5179,7 @@ nfsrv_locklf(struct nfslockfile *lfp)
 	lfp->lf_usecount++;
 	do {
 		gotlock = nfsv4_lock(&lfp->lf_locallock_lck, 1, NULL,
-		    NFSSTATEMUTEXPTR);
+		    NFSSTATEMUTEXPTR, NULL);
 	} while (gotlock == 0);
 	lfp->lf_usecount--;
 }

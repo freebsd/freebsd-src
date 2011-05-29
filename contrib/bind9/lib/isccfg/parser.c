@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: parser.c,v 1.129 2008/09/25 04:02:39 tbox Exp $ */
+/* $Id: parser.c,v 1.129 2008-09-25 04:02:39 tbox Exp $ */
 
 /*! \file */
 
