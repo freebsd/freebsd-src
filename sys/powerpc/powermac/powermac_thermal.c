@@ -121,6 +121,8 @@ pmac_therm_manage_fans(void)
 			    sensor->sensor->target_temp)*100 /
 			    (sensor->sensor->max_temp -
 			    sensor->sensor->target_temp);
+			if (frac_excess < 0)
+				frac_excess = 0;
 			if (sensor->sensor->zone == fan->fan->zone) {
 				max_excess_zone = imax(max_excess_zone,
 				    frac_excess);
