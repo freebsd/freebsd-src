@@ -548,7 +548,7 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 			 * is the same as before, then the call is 
 			 * un-necessarily executed here.
 			 */
-			in_ifscrub(ifp, ia, 0);
+			in_ifscrub(ifp, ia, LLE_STATIC);
 			ia->ia_sockmask = ifra->ifra_mask;
 			ia->ia_sockmask.sin_family = AF_INET;
 			ia->ia_subnetmask =
@@ -557,7 +557,7 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		}
 		if ((ifp->if_flags & IFF_POINTOPOINT) &&
 		    (ifra->ifra_dstaddr.sin_family == AF_INET)) {
-			in_ifscrub(ifp, ia, 0);
+			in_ifscrub(ifp, ia, LLE_STATIC);
 			ia->ia_dstaddr = ifra->ifra_dstaddr;
 			maskIsNew  = 1; /* We lie; but the effect's the same */
 		}
@@ -1179,14 +1179,20 @@ in_scrubprefix(struct in_ifaddr *target, u_int flags)
 		    && (ia->ia_ifp->if_type != IFT_CARP)) {
 			ifa_ref(&ia->ia_ifa);
 			IN_IFADDR_RUNLOCK();
-			rtinit(&(target->ia_ifa), (int)RTM_DELETE,
+			error = rtinit(&(target->ia_ifa), (int)RTM_DELETE,
 			    rtinitflags(target));
-			target->ia_flags &= ~IFA_ROUTE;
-
+			if (error == 0)
+				target->ia_flags &= ~IFA_ROUTE;
+			else
+				log(LOG_INFO, "in_scrubprefix: err=%d, old prefix delete failed\n",
+					error);
 			error = rtinit(&ia->ia_ifa, (int)RTM_ADD,
 			    rtinitflags(ia) | RTF_UP);
 			if (error == 0)
 				ia->ia_flags |= IFA_ROUTE;
+			else
+				log(LOG_INFO, "in_scrubprefix: err=%d, new prefix add failed\n",
+					error);
 			ifa_free(&ia->ia_ifa);
 			return (error);
 		}
@@ -1210,9 +1216,12 @@ in_scrubprefix(struct in_ifaddr *target, u_int flags)
 	/*
 	 * As no-one seem to have this prefix, we can remove the route.
 	 */
-	rtinit(&(target->ia_ifa), (int)RTM_DELETE, rtinitflags(target));
-	target->ia_flags &= ~IFA_ROUTE;
-	return (0);
+	error = rtinit(&(target->ia_ifa), (int)RTM_DELETE, rtinitflags(target));
+	if (error == 0)
+		target->ia_flags &= ~IFA_ROUTE;
+	else
+		log(LOG_INFO, "in_scrubprefix: err=%d, prefix delete failed\n", error);
+	return (error);
 }
 
 #undef rtinitflags
