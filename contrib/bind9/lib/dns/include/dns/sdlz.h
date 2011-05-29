@@ -50,7 +50,7 @@
  * USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: sdlz.h,v 1.7.332.2 2009/01/18 23:47:41 tbox Exp $ */
+/* $Id: sdlz.h,v 1.7.332.2 2009-01-18 23:47:41 tbox Exp $ */
 
 /*! \file dns/sdlz.h */
 

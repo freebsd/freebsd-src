@@ -19,7 +19,7 @@
  */
 #if defined(LIBC_SCCS) && !defined(lint)
 static char rcsid[] =
-	"$Id: lwinetntop.c,v 1.18 2007/06/19 23:47:22 tbox Exp $";
+	"$Id: lwinetntop.c,v 1.18 2007-06-19 23:47:22 tbox Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <config.h>

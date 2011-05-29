@@ -16,7 +16,7 @@
  */
 
 /*
- * $Id: assertions.h,v 1.26 2008/10/15 23:47:31 tbox Exp $
+ * $Id: assertions.h,v 1.26 2008-10-15 23:47:31 tbox Exp $
  */
 /*! \file isc/assertions.h
  */

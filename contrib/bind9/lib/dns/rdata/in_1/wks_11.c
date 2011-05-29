@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: wks_11.c,v 1.54.332.2 2009/02/16 23:47:15 tbox Exp $ */
+/* $Id: wks_11.c,v 1.54.332.2 2009-02-16 23:47:15 tbox Exp $ */
 
 /* Reviewed: Fri Mar 17 15:01:49 PST 2000 by explorer */
 

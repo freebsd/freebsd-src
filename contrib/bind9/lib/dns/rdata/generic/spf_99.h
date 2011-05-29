@@ -18,7 +18,7 @@
 #ifndef GENERIC_SPF_99_H
 #define GENERIC_SPF_99_H 1
 
-/* $Id: spf_99.h,v 1.4 2007/06/19 23:47:17 tbox Exp $ */
+/* $Id: spf_99.h,v 1.4 2007-06-19 23:47:17 tbox Exp $ */
 
 typedef struct dns_rdata_spf_string {
                 isc_uint8_t    length;

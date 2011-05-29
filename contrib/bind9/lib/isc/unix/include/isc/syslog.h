@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: syslog.h,v 1.7 2007/06/19 23:47:19 tbox Exp $ */
+/* $Id: syslog.h,v 1.7 2007-06-19 23:47:19 tbox Exp $ */
 
 #ifndef ISC_SYSLOG_H
 #define ISC_SYSLOG_H 1

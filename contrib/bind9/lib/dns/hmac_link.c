@@ -31,7 +31,7 @@
 
 /*
  * Principal Author: Brian Wellington
- * $Id: hmac_link.c,v 1.11 2008/04/01 23:47:10 tbox Exp $
+ * $Id: hmac_link.c,v 1.11 2008-04-01 23:47:10 tbox Exp $
  */
 
 #include <config.h>

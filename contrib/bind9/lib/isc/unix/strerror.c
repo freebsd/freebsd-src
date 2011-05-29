@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: strerror.c,v 1.8.332.2 2009/02/16 23:47:15 tbox Exp $ */
+/* $Id: strerror.c,v 1.8.332.2 2009-02-16 23:47:15 tbox Exp $ */
 
 /*! \file */
 

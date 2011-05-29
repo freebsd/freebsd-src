@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: mr_9.c,v 1.42 2007/06/19 23:47:17 tbox Exp $ */
+/* $Id: mr_9.c,v 1.42 2007-06-19 23:47:17 tbox Exp $ */
 
 /* Reviewed: Wed Mar 15 21:30:35 EST 2000 by tale */
 

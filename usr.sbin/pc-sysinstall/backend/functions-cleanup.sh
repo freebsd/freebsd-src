@@ -219,9 +219,9 @@ setup_fstab()
       # Echo out the fstab entry now
       if [ "${PARTFS}" = "SWAP" ]
       then
-        echo "/dev/${DEVICE}	none			swap		${MNTOPTS}		0	0" >> ${FSTAB}
+        echo "/dev/${DEVICE}	none		swap	${MNTOPTS}	0	0" >> ${FSTAB}
       else
-        echo "/dev/${DEVICE}  	${PARTMNT}			ufs		${MNTOPTS}	1	1" >> ${FSTAB}
+        echo "/dev/${DEVICE}	${PARTMNT}		ufs	${MNTOPTS}	1	1" >> ${FSTAB}
       fi
 
     fi # End of ZFS Check

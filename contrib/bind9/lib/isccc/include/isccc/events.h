@@ -29,7 +29,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: events.h,v 1.10 2007/08/28 07:20:43 tbox Exp $ */
+/* $Id: events.h,v 1.10 2007-08-28 07:20:43 tbox Exp $ */
 
 #ifndef ISCCC_EVENTS_H
 #define ISCCC_EVENTS_H 1

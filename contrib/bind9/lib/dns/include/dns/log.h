@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: log.h,v 1.42.332.2 2009/01/18 23:47:41 tbox Exp $ */
+/* $Id: log.h,v 1.42.332.2 2009-01-18 23:47:41 tbox Exp $ */
 
 /*! \file dns/log.h
  * \author  Principal Authors: DCL */

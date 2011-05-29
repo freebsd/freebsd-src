@@ -687,11 +687,14 @@ nfscl_getcl(vnode_t vp, struct ucred *cred, NFSPROC_T *p,
 	struct nfsclclient *clp;
 	struct nfsclclient *newclp = NULL;
 	struct nfscllockowner *lp, *nlp;
-	struct nfsmount *nmp = VFSTONFS(vnode_mount(vp));
+	struct mount *mp;
+	struct nfsmount *nmp;
 	char uuid[HOSTUUIDLEN];
 	int igotlock = 0, error, trystalecnt, clidinusedelay, i;
 	u_int16_t idlen = 0;
 
+	mp = vnode_mount(vp);
+	nmp = VFSTONFS(mp);
 	if (cred != NULL) {
 		getcredhostuuid(cred, uuid, sizeof uuid);
 		idlen = strlen(uuid);
@@ -704,6 +707,17 @@ nfscl_getcl(vnode_t vp, struct ucred *cred, NFSPROC_T *p,
 		    M_WAITOK);
 	}
 	NFSLOCKCLSTATE();
+	/*
+	 * If a forced dismount is already in progress, don't
+	 * allocate a new clientid and get out now. For the case where
+	 * clp != NULL, this is a harmless optimization.
+	 */
+	if ((mp->mnt_kern_flag & MNTK_UNMOUNTF) != 0) {
+		NFSUNLOCKCLSTATE();
+		if (newclp != NULL)
+			free(newclp, M_NFSCLCLIENT);
+		return (EBADF);
+	}
 	clp = nmp->nm_clp;
 	if (clp == NULL) {
 		if (newclp == NULL) {
@@ -736,9 +750,21 @@ nfscl_getcl(vnode_t vp, struct ucred *cred, NFSPROC_T *p,
 	NFSLOCKCLSTATE();
 	while ((clp->nfsc_flags & NFSCLFLAGS_HASCLIENTID) == 0 && !igotlock)
 		igotlock = nfsv4_lock(&clp->nfsc_lock, 1, NULL,
-		    NFSCLSTATEMUTEXPTR);
+		    NFSCLSTATEMUTEXPTR, mp);
 	if (!igotlock)
-		nfsv4_getref(&clp->nfsc_lock, NULL, NFSCLSTATEMUTEXPTR);
+		nfsv4_getref(&clp->nfsc_lock, NULL, NFSCLSTATEMUTEXPTR, mp);
+	if (igotlock == 0 && (mp->mnt_kern_flag & MNTK_UNMOUNTF) != 0) {
+		/*
+		 * Both nfsv4_lock() and nfsv4_getref() know to check
+		 * for MNTK_UNMOUNTF and return without sleeping to
+		 * wait for the exclusive lock to be released, since it
+		 * might be held by nfscl_umount() and we need to get out
+		 * now for that case and not wait until nfscl_umount()
+		 * releases it.
+		 */
+		NFSUNLOCKCLSTATE();
+		return (EBADF);
+	}
 	NFSUNLOCKCLSTATE();
 
 	/*
@@ -1713,6 +1739,7 @@ nfscl_cleanupkext(struct nfsclclient *clp)
 }
 #endif	/* APPLEKEXT || __FreeBSD__ */
 
+static int	fake_global;	/* Used to force visibility of MNTK_UNMOUNTF */
 /*
  * Called from nfs umount to free up the clientid.
  */
@@ -1722,6 +1749,33 @@ nfscl_umount(struct nfsmount *nmp, NFSPROC_T *p)
 	struct nfsclclient *clp;
 	struct ucred *cred;
 	int igotlock;
+
+	/*
+	 * For the case that matters, this is the thread that set
+	 * MNTK_UNMOUNTF, so it will see it set. The code that follows is
+	 * done to ensure that any thread executing nfscl_getcl() after
+	 * this time, will see MNTK_UNMOUNTF set. nfscl_getcl() uses the
+	 * mutex for NFSLOCKCLSTATE(), so it is "m" for the following
+	 * explanation, courtesy of Alan Cox.
+	 * What follows is a snippet from Alan Cox's email at:
+	 * http://docs.FreeBSD.org/cgi/
+	 *     mid.cgi?BANLkTikR3d65zPHo9==08ZfJ2vmqZucEvw
+	 * 
+	 * 1. Set MNTK_UNMOUNTF
+	 * 2. Acquire a standard FreeBSD mutex "m".
+	 * 3. Update some data structures.
+	 * 4. Release mutex "m".
+	 * 
+	 * Then, other threads that acquire "m" after step 4 has occurred will
+	 * see MNTK_UNMOUNTF as set.  But, other threads that beat thread X to
+	 * step 2 may or may not see MNTK_UNMOUNTF as set.
+	 */
+	NFSLOCKCLSTATE();
+	if ((nmp->nm_mountp->mnt_kern_flag & MNTK_UNMOUNTF) != 0) {
+		fake_global++;
+		NFSUNLOCKCLSTATE();
+		NFSLOCKCLSTATE();
+	}
 
 	clp = nmp->nm_clp;
 	if (clp != NULL) {
@@ -1734,12 +1788,16 @@ nfscl_umount(struct nfsmount *nmp, NFSPROC_T *p)
 		 */
 		clp->nfsc_flags |= NFSCLFLAGS_UMOUNT;
 		while (clp->nfsc_flags & NFSCLFLAGS_HASTHREAD)
-			(void) tsleep((caddr_t)clp, PWAIT, "nfsclumnt", hz);
+			(void)mtx_sleep(clp, NFSCLSTATEMUTEXPTR, PWAIT,
+			    "nfsclumnt", hz);
 	
-		NFSLOCKCLSTATE();
+		/*
+		 * Now, get the exclusive lock on the client state, so
+		 * that no uses of the state are still in progress.
+		 */
 		do {
 			igotlock = nfsv4_lock(&clp->nfsc_lock, 1, NULL,
-			    NFSCLSTATEMUTEXPTR);
+			    NFSCLSTATEMUTEXPTR, NULL);
 		} while (!igotlock);
 		NFSUNLOCKCLSTATE();
 	
@@ -1756,8 +1814,8 @@ nfscl_umount(struct nfsmount *nmp, NFSPROC_T *p)
 		nmp->nm_clp = NULL;
 		NFSFREECRED(cred);
 		FREE((caddr_t)clp, M_NFSCLCLIENT);
-	}
-
+	} else
+		NFSUNLOCKCLSTATE();
 }
 
 /*
@@ -1790,7 +1848,7 @@ nfscl_recover(struct nfsclclient *clp, struct ucred *cred, NFSPROC_T *p)
 	clp->nfsc_flags |= NFSCLFLAGS_RECVRINPROG;
 	do {
 		igotlock = nfsv4_lock(&clp->nfsc_lock, 1, NULL,
-		    NFSCLSTATEMUTEXPTR);
+		    NFSCLSTATEMUTEXPTR, NULL);
 	} while (!igotlock);
 	NFSUNLOCKCLSTATE();
 
@@ -2105,7 +2163,7 @@ nfscl_hasexpired(struct nfsclclient *clp, u_int32_t clidrev, NFSPROC_T *p)
 	clp->nfsc_flags |= NFSCLFLAGS_EXPIREIT;
 	do {
 		igotlock = nfsv4_lock(&clp->nfsc_lock, 1, NULL,
-		    NFSCLSTATEMUTEXPTR);
+		    NFSCLSTATEMUTEXPTR, NULL);
 	} while (!igotlock && (clp->nfsc_flags & NFSCLFLAGS_EXPIREIT));
 	if ((clp->nfsc_flags & NFSCLFLAGS_EXPIREIT) == 0) {
 		if (igotlock)
@@ -2464,7 +2522,7 @@ tryagain:
 				}
 				while (!igotlock) {
 				    igotlock = nfsv4_lock(&clp->nfsc_lock, 1,
-					&islept, NFSCLSTATEMUTEXPTR);
+					&islept, NFSCLSTATEMUTEXPTR, NULL);
 				    if (islept)
 					goto tryagain;
 				}
@@ -2556,14 +2614,18 @@ tryagain:
 		}
 #endif	/* APPLEKEXT || __FreeBSD__ */
 
+		NFSLOCKCLSTATE();
 		if ((clp->nfsc_flags & NFSCLFLAGS_RECOVER) == 0)
-		    (void) tsleep((caddr_t)clp, PWAIT, "nfscl", hz);
+			(void)mtx_sleep(clp, NFSCLSTATEMUTEXPTR, PWAIT, "nfscl",
+			    hz);
 		if (clp->nfsc_flags & NFSCLFLAGS_UMOUNT) {
-			NFSFREECRED(cred);
 			clp->nfsc_flags &= ~NFSCLFLAGS_HASTHREAD;
+			NFSUNLOCKCLSTATE();
+			NFSFREECRED(cred);
 			wakeup((caddr_t)clp);
 			return;
 		}
+		NFSUNLOCKCLSTATE();
 	}
 }
 
@@ -3864,7 +3926,7 @@ nfscl_removedeleg(vnode_t vp, NFSPROC_T *p, nfsv4stateid_t *stp)
 			islept = 0;
 			while (!igotlock) {
 			    igotlock = nfsv4_lock(&clp->nfsc_lock, 1,
-				&islept, NFSCLSTATEMUTEXPTR);
+				&islept, NFSCLSTATEMUTEXPTR, NULL);
 			    if (islept)
 				break;
 			}
@@ -3963,7 +4025,7 @@ nfscl_renamedeleg(vnode_t fvp, nfsv4stateid_t *fstp, int *gotfdp, vnode_t tvp,
 			islept = 0;
 			while (!igotlock) {
 			    igotlock = nfsv4_lock(&clp->nfsc_lock, 1,
-				&islept, NFSCLSTATEMUTEXPTR);
+				&islept, NFSCLSTATEMUTEXPTR, NULL);
 			    if (islept)
 				break;
 			}
@@ -4043,7 +4105,7 @@ nfscl_getref(struct nfsmount *nmp)
 		NFSUNLOCKCLSTATE();
 		return (0);
 	}
-	nfsv4_getref(&clp->nfsc_lock, NULL, NFSCLSTATEMUTEXPTR);
+	nfsv4_getref(&clp->nfsc_lock, NULL, NFSCLSTATEMUTEXPTR, NULL);
 	NFSUNLOCKCLSTATE();
 	return (1);
 }

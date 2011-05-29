@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: builtin.h,v 1.6 2007/06/19 23:46:59 tbox Exp $ */
+/* $Id: builtin.h,v 1.6 2007-06-19 23:46:59 tbox Exp $ */
 
 #ifndef NAMED_BUILTIN_H
 #define NAMED_BUILTIN_H 1

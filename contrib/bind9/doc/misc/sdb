@@ -166,4 +166,4 @@ Future Directions
 A future release may support dynamic loading of sdb drivers.
 
 
-$Id: sdb,v 1.6 2004/03/05 05:04:54 marka Exp $
+$Id: sdb,v 1.6 2004-03-05 05:04:54 marka Exp $

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: netaddr.h,v 1.35.332.2 2009/01/18 23:47:41 tbox Exp $ */
+/* $Id: netaddr.h,v 1.35.332.2 2009-01-18 23:47:41 tbox Exp $ */
 
 #ifndef ISC_NETADDR_H
 #define ISC_NETADDR_H 1
