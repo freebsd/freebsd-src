@@ -192,8 +192,6 @@ nd6_status(int s)
 		}
 	}
 	free(buf);
-	if (!isinet6)
-		return;
 
 	memset(&nd, 0, sizeof(nd));
 	strncpy(nd.ifname, ifr.ifr_name, sizeof(nd.ifname));
@@ -209,7 +207,15 @@ nd6_status(int s)
 	}
 	isdefif = isnd6defif(s6);
 	close(s6);
+	/*
+	 * Display an nd6 line only for cases of IPv6 address + non-zero flag
+	 * or accept_rtadv flag.
+	 */
 	if (nd.ndi.flags == 0 && !isdefif)
+		return;
+	if (nd.ndi.flags & ND6_IFF_ACCEPT_RTADV)
+		isinet6 = 1;
+	if (!isinet6)
 		return;
 	printb("\tnd6 options",
 	    (unsigned int)(nd.ndi.flags | (isdefif << 15)), ND6BITS);
@@ -225,5 +231,6 @@ static struct afswtch af_nd6 = {
 static __constructor void
 nd6_ctor(void)
 {
+
 	af_register(&af_nd6);
 }
