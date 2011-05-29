@@ -44,10 +44,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -66,7 +62,7 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1990, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
@@ -322,7 +318,7 @@ void	send_probe(int, u_long);
 void	*get_uphdr(struct ip6_hdr *, u_char *);
 int	get_hoplim(struct msghdr *);
 double	deltaT(struct timeval *, struct timeval *);
-char	*pr_type(int);
+const char *pr_type(int);
 int	packet_ok(struct msghdr *, int, int);
 void	print(struct msghdr *, int);
 const char *inetname(struct sockaddr *);
@@ -372,12 +368,12 @@ main(argc, argv)
 {
 	int mib[4] = { CTL_NET, PF_INET6, IPPROTO_IPV6, IPV6CTL_DEFHLIM };
 	char hbuf[NI_MAXHOST], src0[NI_MAXHOST], *ep;
-	int ch, i, on = 1, seq, rcvcmsglen, error, minlen;
+	int ch, i, on = 1, seq, rcvcmsglen, error;
 	struct addrinfo hints, *res;
 	static u_char *rcvcmsgbuf;
 	u_long probe, hops, lport;
 	struct hostent *hp;
-	size_t size;
+	size_t size, minlen;
 	uid_t uid;
 
 	/*
@@ -671,11 +667,11 @@ main(argc, argv)
 		datalen = minlen;
 	else if (datalen >= MAXPACKET) {
 		fprintf(stderr,
-		    "traceroute6: packet size must be %d <= s < %ld.\n",
-		    minlen, (long)MAXPACKET);
+		    "traceroute6: packet size must be %zu <= s < %d.\n",
+		    minlen, MAXPACKET);
 		exit(1);
 	}
-	outpacket = (struct opacket *)malloc((unsigned)datalen);
+	outpacket = malloc(datalen);
 	if (!outpacket) {
 		perror("malloc");
 		exit(1);
@@ -913,7 +909,7 @@ main(argc, argv)
 	for (hops = first_hop; hops <= max_hops; ++hops) {
 		struct in6_addr lastaddr;
 		int got_there = 0;
-		int unreachable = 0;
+		unsigned unreachable = 0;
 
 		printf("%2lu ", hops);
 		bzero(&lastaddr, sizeof(lastaddr));
@@ -1089,7 +1085,7 @@ send_probe(seq, hops)
 
 	i = sendto(sndsock, (char *)outpacket, datalen, 0,
 	    (struct sockaddr *)&Dst, Dst.sin6_len);
-	if (i < 0 || i != datalen)  {
+	if (i < 0 || (u_long)i != datalen)  {
 		if (i < 0)
 			perror("sendto");
 		printf("traceroute6: wrote %s %lu chars, ret=%d\n",
@@ -1129,12 +1125,11 @@ deltaT(t1p, t2p)
 /*
  * Convert an ICMP "type" field to a printable string.
  */
-char *
-pr_type(t0)
-	int t0;
+const char *
+pr_type(int t0)
 {
 	u_char t = t0 & 0xff;
-	char *cp;
+	const char *cp;
 
 	switch (t) {
 	case ICMP6_DST_UNREACH:
@@ -1221,7 +1216,7 @@ packet_ok(mhdr, cc, seq)
 	cc -= hlen;
 	icp = (struct icmp6_hdr *)(buf + hlen);
 #else
-	if (cc < sizeof(struct icmp6_hdr)) {
+	if (cc < (int)sizeof(struct icmp6_hdr)) {
 		if (verbose) {
 			if (getnameinfo((struct sockaddr *)from, from->sin6_len,
 			    hbuf, sizeof(hbuf), NULL, 0, NI_NUMERICHOST) != 0)

@@ -157,11 +157,6 @@ struct rue_intrpkt {
 	uint8_t	rue_col_cnt;
 } __packed;
 
-struct rue_type {
-	uint16_t rue_vid;
-	uint16_t rue_did;
-};
-
 enum {
 	RUE_BULK_DT_WR,
 	RUE_BULK_DT_RD,

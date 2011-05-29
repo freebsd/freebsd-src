@@ -113,8 +113,7 @@ typedef struct  dl_serinfo {
 __BEGIN_DECLS
 /* XSI functions first. */
 int	 dlclose(void *);
-const char *
-	 dlerror(void);
+char	*dlerror(void);
 void	*dlopen(const char *, int);
 void	*dlsym(void * __restrict, const char * __restrict);
 

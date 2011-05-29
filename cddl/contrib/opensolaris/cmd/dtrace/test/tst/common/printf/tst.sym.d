@@ -38,6 +38,6 @@
 
 BEGIN
 {
-	printf("symbol = %a", &`kmem_flags);
+	printf("symbol = %a", &`kmem_alloc);
 	exit(0);
 }

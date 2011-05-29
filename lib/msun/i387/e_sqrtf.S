@@ -13,3 +13,5 @@ ENTRY(sqrtf)
 	fsqrt
 	ret
 END(sqrtf)
+
+	.section .note.GNU-stack,"",%progbits

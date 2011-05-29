@@ -139,7 +139,7 @@ static void nfscl_freedeleg(struct nfscldeleghead *, struct nfscldeleg *);
 static int nfscl_errmap(struct nfsrv_descript *);
 static void nfscl_cleanup_common(struct nfsclclient *, u_int8_t *);
 static int nfscl_recalldeleg(struct nfsclclient *, struct nfsmount *,
-    struct nfscldeleg *, vnode_t, struct ucred *, NFSPROC_T *);
+    struct nfscldeleg *, vnode_t, struct ucred *, NFSPROC_T *, int);
 static void nfscl_freeopenowner(struct nfsclowner *, int);
 static void nfscl_cleandeleg(struct nfscldeleg *);
 static int nfscl_trydelegreturn(struct nfscldeleg *, struct ucred *,
@@ -274,8 +274,13 @@ nfscl_open(vnode_t vp, u_int8_t *nfhp, int fhlen, u_int32_t amode, int usedeleg,
 		*owpp = owp;
 	if (opp != NULL)
 		*opp = op;
-	if (retp != NULL)
-		*retp = NFSCLOPEN_OK;
+	if (retp != NULL) {
+		if (nfhp != NULL && dp != NULL && nop == NULL)
+			/* new local open on delegation */
+			*retp = NFSCLOPEN_SETCRED;
+		else
+			*retp = NFSCLOPEN_OK;
+	}
 
 	/*
 	 * Now, check the mode on the open and return the appropriate
@@ -474,6 +479,13 @@ nfscl_getstateid(vnode_t vp, u_int8_t *nfhp, int fhlen, u_int32_t mode,
 		NFSUNLOCKCLSTATE();
 		return (EACCES);
 	}
+
+	/*
+	 * Wait for recovery to complete.
+	 */
+	while ((clp->nfsc_flags & NFSCLFLAGS_RECVRINPROG))
+		(void) nfsmsleep(&clp->nfsc_flags, NFSCLSTATEMUTEXPTR,
+		    PZERO, "nfsrecvr", NULL);
 
 	/*
 	 * First, look for a delegation.
@@ -675,11 +687,14 @@ nfscl_getcl(vnode_t vp, struct ucred *cred, NFSPROC_T *p,
 	struct nfsclclient *clp;
 	struct nfsclclient *newclp = NULL;
 	struct nfscllockowner *lp, *nlp;
-	struct nfsmount *nmp = VFSTONFS(vnode_mount(vp));
+	struct mount *mp;
+	struct nfsmount *nmp;
 	char uuid[HOSTUUIDLEN];
 	int igotlock = 0, error, trystalecnt, clidinusedelay, i;
 	u_int16_t idlen = 0;
 
+	mp = vnode_mount(vp);
+	nmp = VFSTONFS(mp);
 	if (cred != NULL) {
 		getcredhostuuid(cred, uuid, sizeof uuid);
 		idlen = strlen(uuid);
@@ -692,6 +707,17 @@ nfscl_getcl(vnode_t vp, struct ucred *cred, NFSPROC_T *p,
 		    M_WAITOK);
 	}
 	NFSLOCKCLSTATE();
+	/*
+	 * If a forced dismount is already in progress, don't
+	 * allocate a new clientid and get out now. For the case where
+	 * clp != NULL, this is a harmless optimization.
+	 */
+	if ((mp->mnt_kern_flag & MNTK_UNMOUNTF) != 0) {
+		NFSUNLOCKCLSTATE();
+		if (newclp != NULL)
+			free(newclp, M_NFSCLCLIENT);
+		return (EBADF);
+	}
 	clp = nmp->nm_clp;
 	if (clp == NULL) {
 		if (newclp == NULL) {
@@ -724,9 +750,21 @@ nfscl_getcl(vnode_t vp, struct ucred *cred, NFSPROC_T *p,
 	NFSLOCKCLSTATE();
 	while ((clp->nfsc_flags & NFSCLFLAGS_HASCLIENTID) == 0 && !igotlock)
 		igotlock = nfsv4_lock(&clp->nfsc_lock, 1, NULL,
-		    NFSCLSTATEMUTEXPTR);
+		    NFSCLSTATEMUTEXPTR, mp);
 	if (!igotlock)
-		nfsv4_getref(&clp->nfsc_lock, NULL, NFSCLSTATEMUTEXPTR);
+		nfsv4_getref(&clp->nfsc_lock, NULL, NFSCLSTATEMUTEXPTR, mp);
+	if (igotlock == 0 && (mp->mnt_kern_flag & MNTK_UNMOUNTF) != 0) {
+		/*
+		 * Both nfsv4_lock() and nfsv4_getref() know to check
+		 * for MNTK_UNMOUNTF and return without sleeping to
+		 * wait for the exclusive lock to be released, since it
+		 * might be held by nfscl_umount() and we need to get out
+		 * now for that case and not wait until nfscl_umount()
+		 * releases it.
+		 */
+		NFSUNLOCKCLSTATE();
+		return (EBADF);
+	}
 	NFSUNLOCKCLSTATE();
 
 	/*
@@ -772,7 +810,7 @@ nfscl_getcl(vnode_t vp, struct ucred *cred, NFSPROC_T *p,
 			if (error == NFSERR_STALECLIENTID ||
 			    error == NFSERR_STALEDONTRECOVER ||
 			    error == NFSERR_CLIDINUSE) {
-				(void) nfs_catnap(PZERO, "nfs_setcl");
+				(void) nfs_catnap(PZERO, error, "nfs_setcl");
 			}
 		} while (((error == NFSERR_STALECLIENTID ||
 		     error == NFSERR_STALEDONTRECOVER) && --trystalecnt > 0) ||
@@ -917,8 +955,10 @@ nfscl_getbytelock(vnode_t vp, u_int64_t off, u_int64_t len,
 		ldp = dp = nfscl_finddeleg(clp, np->n_fhp->nfh_fh,
 		    np->n_fhp->nfh_len);
 		/* Just sanity check for correct type of delegation */
-		if (dp != NULL && ((dp->nfsdl_flags & NFSCLDL_RECALL) ||
-		    (type == F_WRLCK && !(dp->nfsdl_flags & NFSCLDL_WRITE))))
+		if (dp != NULL && ((dp->nfsdl_flags &
+		    (NFSCLDL_RECALL | NFSCLDL_DELEGRET)) != 0 ||
+		     (type == F_WRLCK &&
+		      (dp->nfsdl_flags & NFSCLDL_WRITE) == 0)))
 			dp = NULL;
 	}
 	if (dp != NULL) {
@@ -1699,6 +1739,7 @@ nfscl_cleanupkext(struct nfsclclient *clp)
 }
 #endif	/* APPLEKEXT || __FreeBSD__ */
 
+static int	fake_global;	/* Used to force visibility of MNTK_UNMOUNTF */
 /*
  * Called from nfs umount to free up the clientid.
  */
@@ -1708,6 +1749,33 @@ nfscl_umount(struct nfsmount *nmp, NFSPROC_T *p)
 	struct nfsclclient *clp;
 	struct ucred *cred;
 	int igotlock;
+
+	/*
+	 * For the case that matters, this is the thread that set
+	 * MNTK_UNMOUNTF, so it will see it set. The code that follows is
+	 * done to ensure that any thread executing nfscl_getcl() after
+	 * this time, will see MNTK_UNMOUNTF set. nfscl_getcl() uses the
+	 * mutex for NFSLOCKCLSTATE(), so it is "m" for the following
+	 * explanation, courtesy of Alan Cox.
+	 * What follows is a snippet from Alan Cox's email at:
+	 * http://docs.FreeBSD.org/cgi/
+	 *     mid.cgi?BANLkTikR3d65zPHo9==08ZfJ2vmqZucEvw
+	 * 
+	 * 1. Set MNTK_UNMOUNTF
+	 * 2. Acquire a standard FreeBSD mutex "m".
+	 * 3. Update some data structures.
+	 * 4. Release mutex "m".
+	 * 
+	 * Then, other threads that acquire "m" after step 4 has occurred will
+	 * see MNTK_UNMOUNTF as set.  But, other threads that beat thread X to
+	 * step 2 may or may not see MNTK_UNMOUNTF as set.
+	 */
+	NFSLOCKCLSTATE();
+	if ((nmp->nm_mountp->mnt_kern_flag & MNTK_UNMOUNTF) != 0) {
+		fake_global++;
+		NFSUNLOCKCLSTATE();
+		NFSLOCKCLSTATE();
+	}
 
 	clp = nmp->nm_clp;
 	if (clp != NULL) {
@@ -1720,12 +1788,16 @@ nfscl_umount(struct nfsmount *nmp, NFSPROC_T *p)
 		 */
 		clp->nfsc_flags |= NFSCLFLAGS_UMOUNT;
 		while (clp->nfsc_flags & NFSCLFLAGS_HASTHREAD)
-			(void) tsleep((caddr_t)clp, PWAIT, "nfsclumnt", hz);
+			(void)mtx_sleep(clp, NFSCLSTATEMUTEXPTR, PWAIT,
+			    "nfsclumnt", hz);
 	
-		NFSLOCKCLSTATE();
+		/*
+		 * Now, get the exclusive lock on the client state, so
+		 * that no uses of the state are still in progress.
+		 */
 		do {
 			igotlock = nfsv4_lock(&clp->nfsc_lock, 1, NULL,
-			    NFSCLSTATEMUTEXPTR);
+			    NFSCLSTATEMUTEXPTR, NULL);
 		} while (!igotlock);
 		NFSUNLOCKCLSTATE();
 	
@@ -1742,8 +1814,8 @@ nfscl_umount(struct nfsmount *nmp, NFSPROC_T *p)
 		nmp->nm_clp = NULL;
 		NFSFREECRED(cred);
 		FREE((caddr_t)clp, M_NFSCLCLIENT);
-	}
-
+	} else
+		NFSUNLOCKCLSTATE();
 }
 
 /*
@@ -1773,9 +1845,10 @@ nfscl_recover(struct nfsclclient *clp, struct ucred *cred, NFSPROC_T *p)
 	 * block when trying to use state.
 	 */
 	NFSLOCKCLSTATE();
+	clp->nfsc_flags |= NFSCLFLAGS_RECVRINPROG;
 	do {
 		igotlock = nfsv4_lock(&clp->nfsc_lock, 1, NULL,
-		    NFSCLSTATEMUTEXPTR);
+		    NFSCLSTATEMUTEXPTR, NULL);
 	} while (!igotlock);
 	NFSUNLOCKCLSTATE();
 
@@ -1789,9 +1862,10 @@ nfscl_recover(struct nfsclclient *clp, struct ucred *cred, NFSPROC_T *p)
 	     error == NFSERR_STALEDONTRECOVER) && --trycnt > 0);
 	if (error) {
 		nfscl_cleanclient(clp);
-		clp->nfsc_flags &= ~(NFSCLFLAGS_HASCLIENTID |
-		    NFSCLFLAGS_RECOVER);
 		NFSLOCKCLSTATE();
+		clp->nfsc_flags &= ~(NFSCLFLAGS_HASCLIENTID |
+		    NFSCLFLAGS_RECOVER | NFSCLFLAGS_RECVRINPROG);
+		wakeup(&clp->nfsc_flags);
 		nfsv4_unlock(&clp->nfsc_lock, 0);
 		NFSUNLOCKCLSTATE();
 		return;
@@ -2032,7 +2106,7 @@ nfscl_recover(struct nfsclclient *clp, struct ucred *cred, NFSPROC_T *p)
 			newnfs_copycred(&op->nfso_cred, tcred);
 			error = nfscl_tryclose(op, tcred, nmp, p);
 			if (error == NFSERR_GRACE)
-				(void) nfs_catnap(PZERO, "nfsexcls");
+				(void) nfs_catnap(PZERO, error, "nfsexcls");
 		} while (error == NFSERR_GRACE);
 		LIST_REMOVE(op, nfso_list);
 		FREE((caddr_t)op, M_NFSCLOPEN);
@@ -2045,13 +2119,15 @@ nfscl_recover(struct nfsclclient *clp, struct ucred *cred, NFSPROC_T *p)
 			newnfs_copycred(&dp->nfsdl_cred, tcred);
 			error = nfscl_trydelegreturn(dp, tcred, nmp, p);
 			if (error == NFSERR_GRACE)
-				(void) nfs_catnap(PZERO, "nfsexdlg");
+				(void) nfs_catnap(PZERO, error, "nfsexdlg");
 		} while (error == NFSERR_GRACE);
 		TAILQ_REMOVE(&extra_deleg, dp, nfsdl_list);
 		FREE((caddr_t)dp, M_NFSCLDELEG);
 	}
 
 	NFSLOCKCLSTATE();
+	clp->nfsc_flags &= ~NFSCLFLAGS_RECVRINPROG;
+	wakeup(&clp->nfsc_flags);
 	nfsv4_unlock(&clp->nfsc_lock, 0);
 	NFSUNLOCKCLSTATE();
 	NFSFREECRED(tcred);
@@ -2087,7 +2163,7 @@ nfscl_hasexpired(struct nfsclclient *clp, u_int32_t clidrev, NFSPROC_T *p)
 	clp->nfsc_flags |= NFSCLFLAGS_EXPIREIT;
 	do {
 		igotlock = nfsv4_lock(&clp->nfsc_lock, 1, NULL,
-		    NFSCLSTATEMUTEXPTR);
+		    NFSCLSTATEMUTEXPTR, NULL);
 	} while (!igotlock && (clp->nfsc_flags & NFSCLFLAGS_EXPIREIT));
 	if ((clp->nfsc_flags & NFSCLFLAGS_EXPIREIT) == 0) {
 		if (igotlock)
@@ -2095,6 +2171,7 @@ nfscl_hasexpired(struct nfsclclient *clp, u_int32_t clidrev, NFSPROC_T *p)
 		NFSUNLOCKCLSTATE();
 		return (0);
 	}
+	clp->nfsc_flags |= NFSCLFLAGS_RECVRINPROG;
 	NFSUNLOCKCLSTATE();
 
 	nmp = clp->nfsc_nmp;
@@ -2111,6 +2188,7 @@ nfscl_hasexpired(struct nfsclclient *clp, u_int32_t clidrev, NFSPROC_T *p)
 		 * Clear out any state.
 		 */
 		nfscl_cleanclient(clp);
+		NFSLOCKCLSTATE();
 		clp->nfsc_flags &= ~(NFSCLFLAGS_HASCLIENTID |
 		    NFSCLFLAGS_RECOVER);
 	} else {
@@ -2124,14 +2202,15 @@ nfscl_hasexpired(struct nfsclclient *clp, u_int32_t clidrev, NFSPROC_T *p)
 		 * Expire the state for the client.
 		 */
 		nfscl_expireclient(clp, nmp, cred, p);
+		NFSLOCKCLSTATE();
 		clp->nfsc_flags |= NFSCLFLAGS_HASCLIENTID;
 		clp->nfsc_flags &= ~NFSCLFLAGS_RECOVER;
 	}
-	NFSFREECRED(cred);
-	clp->nfsc_flags &= ~NFSCLFLAGS_EXPIREIT;
-	NFSLOCKCLSTATE();
+	clp->nfsc_flags &= ~(NFSCLFLAGS_EXPIREIT | NFSCLFLAGS_RECVRINPROG);
+	wakeup(&clp->nfsc_flags);
 	nfsv4_unlock(&clp->nfsc_lock, 0);
 	NFSUNLOCKCLSTATE();
+	NFSFREECRED(cred);
 	return (error);
 }
 
@@ -2311,14 +2390,30 @@ nfscl_renewthread(struct nfsclclient *clp, NFSPROC_T *p)
 	struct ucred *cred;
 	u_int32_t clidrev;
 	int error, cbpathdown, islept, igotlock, ret, clearok;
+	uint32_t recover_done_time = 0;
 
 	cred = newnfs_getcred();
+	NFSLOCKCLSTATE();
 	clp->nfsc_flags |= NFSCLFLAGS_HASTHREAD;
+	NFSUNLOCKCLSTATE();
 	for(;;) {
 		newnfs_setroot(cred);
 		cbpathdown = 0;
-		if (clp->nfsc_flags & NFSCLFLAGS_RECOVER)
-			nfscl_recover(clp, cred, p);
+		if (clp->nfsc_flags & NFSCLFLAGS_RECOVER) {
+			/*
+			 * Only allow one recover within 1/2 of the lease
+			 * duration (nfsc_renew).
+			 */
+			if (recover_done_time < NFSD_MONOSEC) {
+				recover_done_time = NFSD_MONOSEC +
+				    clp->nfsc_renew;
+				nfscl_recover(clp, cred, p);
+			} else {
+				NFSLOCKCLSTATE();
+				clp->nfsc_flags &= ~NFSCLFLAGS_RECOVER;
+				NFSUNLOCKCLSTATE();
+			}
+		}
 		if (clp->nfsc_expire <= NFSD_MONOSEC &&
 		    (clp->nfsc_flags & NFSCLFLAGS_HASCLIENTID)) {
 			clp->nfsc_expire = NFSD_MONOSEC + clp->nfsc_renew;
@@ -2326,9 +2421,11 @@ nfscl_renewthread(struct nfsclclient *clp, NFSPROC_T *p)
 			error = nfsrpc_renew(clp, cred, p);
 			if (error == NFSERR_CBPATHDOWN)
 			    cbpathdown = 1;
-			else if (error == NFSERR_STALECLIENTID)
+			else if (error == NFSERR_STALECLIENTID) {
+			    NFSLOCKCLSTATE();
 			    clp->nfsc_flags |= NFSCLFLAGS_RECOVER;
-			else if (error == NFSERR_EXPIRED)
+			    NFSUNLOCKCLSTATE();
+			} else if (error == NFSERR_EXPIRED)
 			    (void) nfscl_hasexpired(clp, clidrev, p);
 		}
 
@@ -2425,14 +2522,14 @@ tryagain:
 				}
 				while (!igotlock) {
 				    igotlock = nfsv4_lock(&clp->nfsc_lock, 1,
-					&islept, NFSCLSTATEMUTEXPTR);
+					&islept, NFSCLSTATEMUTEXPTR, NULL);
 				    if (islept)
 					goto tryagain;
 				}
 				NFSUNLOCKCLSTATE();
 				newnfs_copycred(&dp->nfsdl_cred, cred);
 				ret = nfscl_recalldeleg(clp, clp->nfsc_nmp, dp,
-				    NULL, cred, p);
+				    NULL, cred, p, 1);
 				if (!ret) {
 				    nfscl_cleandeleg(dp);
 				    TAILQ_REMOVE(&clp->nfsc_deleg, dp,
@@ -2458,8 +2555,8 @@ tryagain:
 		    if (dp->nfsdl_rwlock.nfslock_usecnt == 0 &&
 			dp->nfsdl_rwlock.nfslock_lock == 0 &&
 			dp->nfsdl_timestamp < NFSD_MONOSEC &&
-			!(dp->nfsdl_flags & (NFSCLDL_RECALL | NFSCLDL_ZAPPED |
-			  NFSCLDL_NEEDRECLAIM))) {
+			(dp->nfsdl_flags & (NFSCLDL_RECALL | NFSCLDL_ZAPPED |
+			  NFSCLDL_NEEDRECLAIM | NFSCLDL_DELEGRET)) == 0) {
 			clearok = 1;
 			LIST_FOREACH(owp, &dp->nfsdl_owner, nfsow_list) {
 			    op = LIST_FIRST(&owp->nfsow_open);
@@ -2517,14 +2614,18 @@ tryagain:
 		}
 #endif	/* APPLEKEXT || __FreeBSD__ */
 
+		NFSLOCKCLSTATE();
 		if ((clp->nfsc_flags & NFSCLFLAGS_RECOVER) == 0)
-		    (void) tsleep((caddr_t)clp, PWAIT, "nfscl", hz);
+			(void)mtx_sleep(clp, NFSCLSTATEMUTEXPTR, PWAIT, "nfscl",
+			    hz);
 		if (clp->nfsc_flags & NFSCLFLAGS_UMOUNT) {
-			NFSFREECRED(cred);
 			clp->nfsc_flags &= ~NFSCLFLAGS_HASTHREAD;
+			NFSUNLOCKCLSTATE();
+			NFSFREECRED(cred);
 			wakeup((caddr_t)clp);
 			return;
 		}
+		NFSUNLOCKCLSTATE();
 	}
 }
 
@@ -3022,8 +3123,9 @@ nfscl_docb(struct nfsrv_descript *nd, NFSPROC_T *p)
 					NFSSETBIT_ATTRBIT(&rattrbits,
 					    NFSATTRBIT_CHANGE);
 				}
-				(void) nfsv4_fillattr(nd, NULL, NULL, &va,
-				    NULL, 0, &rattrbits, NULL, NULL, 0, 0);
+				(void) nfsv4_fillattr(nd, NULL, NULL, NULL, &va,
+				    NULL, 0, &rattrbits, NULL, NULL, 0, 0, 0, 0,
+				    (uint64_t)0);
 				if (!ret)
 					vrele(vp);
 			}
@@ -3049,7 +3151,8 @@ nfscl_docb(struct nfsrv_descript *nd, NFSPROC_T *p)
 				if (clp != NULL) {
 					dp = nfscl_finddeleg(clp, nfhp->nfh_fh,
 					    nfhp->nfh_len);
-					if (dp != NULL) {
+					if (dp != NULL && (dp->nfsdl_flags &
+					    NFSCLDL_DELEGRET) == 0) {
 						dp->nfsdl_flags |=
 						    NFSCLDL_RECALL;
 						wakeup((caddr_t)clp);
@@ -3272,7 +3375,8 @@ nfscl_lockt(vnode_t vp, struct nfsclclient *clp, u_int64_t off,
  */
 static int
 nfscl_recalldeleg(struct nfsclclient *clp, struct nfsmount *nmp,
-    struct nfscldeleg *dp, vnode_t vp, struct ucred *cred, NFSPROC_T *p)
+    struct nfscldeleg *dp, vnode_t vp, struct ucred *cred, NFSPROC_T *p,
+    int called_from_renewthread)
 {
 	struct nfsclowner *owp, *lowp, *nowp;
 	struct nfsclopen *op, *lop;
@@ -3300,29 +3404,33 @@ nfscl_recalldeleg(struct nfsclclient *clp, struct nfsmount *nmp,
 		np = VTONFS(vp);
 	}
 	dp->nfsdl_flags &= ~NFSCLDL_MODTIMESET;
-	NFSINVALATTRCACHE(np);
 
 	/*
 	 * Ok, if it's a write delegation, flush data to the server, so
 	 * that close/open consistency is retained.
 	 */
+	ret = 0;
 	NFSLOCKNODE(np);
 	if ((dp->nfsdl_flags & NFSCLDL_WRITE) && (np->n_flag & NMODIFIED)) {
-#ifdef APPLE
-		OSBitOrAtomic((u_int32_t)NDELEGRECALL, (UInt32 *)&np->n_flag);
-#else
 		np->n_flag |= NDELEGRECALL;
-#endif
 		NFSUNLOCKNODE(np);
-		(void) ncl_flush(vp, MNT_WAIT, cred, p, 1);
+		ret = ncl_flush(vp, MNT_WAIT, cred, p, 1,
+		    called_from_renewthread);
 		NFSLOCKNODE(np);
-#ifdef APPLE
-		OSBitAndAtomic((int32_t)~(NMODIFIED | NDELEGRECALL), (UInt32 *)&np->n_flag);
-#else
-		np->n_flag &= ~(NMODIFIED | NDELEGRECALL);
-#endif
+		np->n_flag &= ~NDELEGRECALL;
 	}
+	NFSINVALATTRCACHE(np);
 	NFSUNLOCKNODE(np);
+	if (ret == EIO && called_from_renewthread != 0) {
+		/*
+		 * If the flush failed with EIO for the renew thread,
+		 * return now, so that the dirty buffer will be flushed
+		 * later.
+		 */
+		if (gotvp != 0)
+			vrele(vp);
+		return (ret);
+	}
 
 	/*
 	 * Now, for each openowner with opens issued locally, move them
@@ -3484,8 +3592,10 @@ nfscl_totalrecall(struct nfsclclient *clp)
 {
 	struct nfscldeleg *dp;
 
-	TAILQ_FOREACH(dp, &clp->nfsc_deleg, nfsdl_list)
-		dp->nfsdl_flags |= NFSCLDL_RECALL;
+	TAILQ_FOREACH(dp, &clp->nfsc_deleg, nfsdl_list) {
+		if ((dp->nfsdl_flags & NFSCLDL_DELEGRET) == 0)
+			dp->nfsdl_flags |= NFSCLDL_RECALL;
+	}
 }
 
 /*
@@ -3569,7 +3679,7 @@ nfscl_tryopen(struct nfsmount *nmp, vnode_t vp, u_int8_t *fhp, int fhlen,
 		    mode, op, name, namelen, ndpp, reclaim, delegtype, cred, p,
 		    0, 0);
 		if (error == NFSERR_DELAY)
-			(void) nfs_catnap(PZERO, "nfstryop");
+			(void) nfs_catnap(PZERO, error, "nfstryop");
 	} while (error == NFSERR_DELAY);
 	if (error == EAUTH || error == EACCES) {
 		/* Try again using system credentials */
@@ -3579,7 +3689,7 @@ nfscl_tryopen(struct nfsmount *nmp, vnode_t vp, u_int8_t *fhp, int fhlen,
 			newfhlen, mode, op, name, namelen, ndpp, reclaim,
 			delegtype, cred, p, 1, 0);
 		    if (error == NFSERR_DELAY)
-			(void) nfs_catnap(PZERO, "nfstryop");
+			(void) nfs_catnap(PZERO, error, "nfstryop");
 		} while (error == NFSERR_DELAY);
 	}
 	return (error);
@@ -3602,7 +3712,8 @@ nfscl_trylock(struct nfsmount *nmp, vnode_t vp, u_int8_t *fhp,
 		error = nfsrpc_lock(nd, nmp, vp, fhp, fhlen, nlp, newone,
 		    reclaim, off, len, type, cred, p, 0);
 		if (!error && nd->nd_repstat == NFSERR_DELAY)
-			(void) nfs_catnap(PZERO, "nfstrylck");
+			(void) nfs_catnap(PZERO, (int)nd->nd_repstat,
+			    "nfstrylck");
 	} while (!error && nd->nd_repstat == NFSERR_DELAY);
 	if (!error)
 		error = nd->nd_repstat;
@@ -3613,7 +3724,8 @@ nfscl_trylock(struct nfsmount *nmp, vnode_t vp, u_int8_t *fhp,
 			error = nfsrpc_lock(nd, nmp, vp, fhp, fhlen, nlp,
 			    newone, reclaim, off, len, type, cred, p, 1);
 			if (!error && nd->nd_repstat == NFSERR_DELAY)
-				(void) nfs_catnap(PZERO, "nfstrylck");
+				(void) nfs_catnap(PZERO, (int)nd->nd_repstat,
+				    "nfstrylck");
 		} while (!error && nd->nd_repstat == NFSERR_DELAY);
 		if (!error)
 			error = nd->nd_repstat;
@@ -3635,7 +3747,7 @@ nfscl_trydelegreturn(struct nfscldeleg *dp, struct ucred *cred,
 	do {
 		error = nfsrpc_delegreturn(dp, cred, nmp, p, 0);
 		if (error == NFSERR_DELAY)
-			(void) nfs_catnap(PZERO, "nfstrydp");
+			(void) nfs_catnap(PZERO, error, "nfstrydp");
 	} while (error == NFSERR_DELAY);
 	if (error == EAUTH || error == EACCES) {
 		/* Try again using system credentials */
@@ -3643,7 +3755,7 @@ nfscl_trydelegreturn(struct nfscldeleg *dp, struct ucred *cred,
 		do {
 			error = nfsrpc_delegreturn(dp, cred, nmp, p, 1);
 			if (error == NFSERR_DELAY)
-				(void) nfs_catnap(PZERO, "nfstrydp");
+				(void) nfs_catnap(PZERO, error, "nfstrydp");
 		} while (error == NFSERR_DELAY);
 	}
 	return (error);
@@ -3664,7 +3776,7 @@ nfscl_tryclose(struct nfsclopen *op, struct ucred *cred,
 	do {
 		error = nfsrpc_closerpc(nd, nmp, op, cred, p, 0);
 		if (error == NFSERR_DELAY)
-			(void) nfs_catnap(PZERO, "nfstrycl");
+			(void) nfs_catnap(PZERO, error, "nfstrycl");
 	} while (error == NFSERR_DELAY);
 	if (error == EAUTH || error == EACCES) {
 		/* Try again using system credentials */
@@ -3672,7 +3784,7 @@ nfscl_tryclose(struct nfsclopen *op, struct ucred *cred,
 		do {
 			error = nfsrpc_closerpc(nd, nmp, op, cred, p, 1);
 			if (error == NFSERR_DELAY)
-				(void) nfs_catnap(PZERO, "nfstrycl");
+				(void) nfs_catnap(PZERO, error, "nfstrycl");
 		} while (error == NFSERR_DELAY);
 	}
 	return (error);
@@ -3702,8 +3814,9 @@ nfscl_mustflush(vnode_t vp)
 		return (1);
 	}
 	dp = nfscl_finddeleg(clp, np->n_fhp->nfh_fh, np->n_fhp->nfh_len);
-	if (dp != NULL && (dp->nfsdl_flags & (NFSCLDL_WRITE | NFSCLDL_RECALL))
-	     == NFSCLDL_WRITE &&
+	if (dp != NULL && (dp->nfsdl_flags &
+	    (NFSCLDL_WRITE | NFSCLDL_RECALL | NFSCLDL_DELEGRET)) ==
+	     NFSCLDL_WRITE &&
 	    (dp->nfsdl_sizelimit >= np->n_size ||
 	     !NFSHASSTRICT3530(nmp))) {
 		NFSUNLOCKCLSTATE();
@@ -3735,9 +3848,10 @@ nfscl_nodeleg(vnode_t vp, int writedeleg)
 		return (1);
 	}
 	dp = nfscl_finddeleg(clp, np->n_fhp->nfh_fh, np->n_fhp->nfh_len);
-	if (dp != NULL && (dp->nfsdl_flags & NFSCLDL_RECALL) == 0 &&
-	    (writedeleg == 0 || (dp->nfsdl_flags & NFSCLDL_WRITE)
-	     == NFSCLDL_WRITE)) {
+	if (dp != NULL &&
+	    (dp->nfsdl_flags & (NFSCLDL_RECALL | NFSCLDL_DELEGRET)) == 0 &&
+	    (writedeleg == 0 || (dp->nfsdl_flags & NFSCLDL_WRITE) ==
+	     NFSCLDL_WRITE)) {
 		NFSUNLOCKCLSTATE();
 		return (0);
 	}
@@ -3808,10 +3922,11 @@ nfscl_removedeleg(vnode_t vp, NFSPROC_T *p, nfsv4stateid_t *stp)
 			}
 		    }
 		    if (needsrecall && !triedrecall) {
+			dp->nfsdl_flags |= NFSCLDL_DELEGRET;
 			islept = 0;
 			while (!igotlock) {
 			    igotlock = nfsv4_lock(&clp->nfsc_lock, 1,
-				&islept, NFSCLSTATEMUTEXPTR);
+				&islept, NFSCLSTATEMUTEXPTR, NULL);
 			    if (islept)
 				break;
 			}
@@ -3820,7 +3935,7 @@ nfscl_removedeleg(vnode_t vp, NFSPROC_T *p, nfsv4stateid_t *stp)
 			NFSUNLOCKCLSTATE();
 			cred = newnfs_getcred();
 			newnfs_copycred(&dp->nfsdl_cred, cred);
-			(void) nfscl_recalldeleg(clp, nmp, dp, vp, cred, p);
+			(void) nfscl_recalldeleg(clp, nmp, dp, vp, cred, p, 0);
 			NFSFREECRED(cred);
 			triedrecall = 1;
 			NFSLOCKCLSTATE();
@@ -3906,10 +4021,11 @@ nfscl_renamedeleg(vnode_t fvp, nfsv4stateid_t *fstp, int *gotfdp, vnode_t tvp,
 			}
 		    }
 		    if (needsrecall && !triedrecall) {
+			dp->nfsdl_flags |= NFSCLDL_DELEGRET;
 			islept = 0;
 			while (!igotlock) {
 			    igotlock = nfsv4_lock(&clp->nfsc_lock, 1,
-				&islept, NFSCLSTATEMUTEXPTR);
+				&islept, NFSCLSTATEMUTEXPTR, NULL);
 			    if (islept)
 				break;
 			}
@@ -3918,7 +4034,7 @@ nfscl_renamedeleg(vnode_t fvp, nfsv4stateid_t *fstp, int *gotfdp, vnode_t tvp,
 			NFSUNLOCKCLSTATE();
 			cred = newnfs_getcred();
 			newnfs_copycred(&dp->nfsdl_cred, cred);
-			(void) nfscl_recalldeleg(clp, nmp, dp, fvp, cred, p);
+			(void) nfscl_recalldeleg(clp, nmp, dp, fvp, cred, p, 0);
 			NFSFREECRED(cred);
 			triedrecall = 1;
 			NFSLOCKCLSTATE();
@@ -3989,7 +4105,7 @@ nfscl_getref(struct nfsmount *nmp)
 		NFSUNLOCKCLSTATE();
 		return (0);
 	}
-	nfsv4_getref(&clp->nfsc_lock, NULL, NFSCLSTATEMUTEXPTR);
+	nfsv4_getref(&clp->nfsc_lock, NULL, NFSCLSTATEMUTEXPTR, NULL);
 	NFSUNLOCKCLSTATE();
 	return (1);
 }

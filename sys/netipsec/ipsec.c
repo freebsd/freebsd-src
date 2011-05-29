@@ -102,6 +102,7 @@ VNET_DEFINE(int, ipsec_debug) = 1;
 #else
 VNET_DEFINE(int, ipsec_debug) = 0;
 #endif
+
 /* NB: name changed so netstat doesn't use it. */
 VNET_DEFINE(struct ipsecstat, ipsec4stat);
 VNET_DEFINE(int, ip4_ah_offsetmask) = 0;	/* maybe IP_DF? */
@@ -124,6 +125,11 @@ VNET_DEFINE(int, ip4_esp_randpad) = -1;
  *  0	take anything
  */
 VNET_DEFINE(int, crypto_support) = CRYPTOCAP_F_HARDWARE | CRYPTOCAP_F_SOFTWARE;
+
+FEATURE(ipsec, "Internet Protocol Security (IPsec)");
+#ifdef IPSEC_NAT_T
+FEATURE(ipsec_natt, "UDP Encapsulation of IPsec ESP Packets ('NAT-T')");
+#endif
 
 SYSCTL_DECL(_net_inet_ipsec);
 
@@ -592,7 +598,7 @@ ipsec4_get_ulp(struct mbuf *m, struct secpolicyindex *spidx, int needport)
 	IPSEC_ASSERT(m->m_pkthdr.len >= sizeof(struct ip),("packet too short"));
 
 	/* NB: ip_input() flips it into host endian. XXX Need more checking. */
-	if (m->m_len < sizeof (struct ip)) {
+	if (m->m_len >= sizeof (struct ip)) {
 		struct ip *ip = mtod(m, struct ip *);
 		if (ip->ip_off & (IP_MF | IP_OFFMASK))
 			goto done;

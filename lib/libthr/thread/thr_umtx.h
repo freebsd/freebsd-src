@@ -32,9 +32,11 @@
 #include <strings.h>
 #include <sys/umtx.h>
 
-#define DEFAULT_UMUTEX	{0,0, {0,0},{0,0,0,0}}
+#define DEFAULT_UMUTEX	{0,0,{0,0},{0,0,0,0}}
+#define DEFAULT_URWLOCK {0,0,0,0,{0,0,0,0}}
 
 int __thr_umutex_lock(struct umutex *mtx, uint32_t id) __hidden;
+int __thr_umutex_lock_spin(struct umutex *mtx, uint32_t id) __hidden;
 int __thr_umutex_timedlock(struct umutex *mtx, uint32_t id,
 	const struct timespec *timeout) __hidden;
 int __thr_umutex_unlock(struct umutex *mtx, uint32_t id) __hidden;
@@ -43,9 +45,13 @@ int __thr_umutex_set_ceiling(struct umutex *mtx, uint32_t ceiling,
 	uint32_t *oldceiling) __hidden;
 
 void _thr_umutex_init(struct umutex *mtx) __hidden;
+void _thr_urwlock_init(struct urwlock *rwl) __hidden;
+
 int _thr_umtx_wait(volatile long *mtx, long exp,
 	const struct timespec *timeout) __hidden;
 int _thr_umtx_wait_uint(volatile u_int *mtx, u_int exp,
+	const struct timespec *timeout, int shared) __hidden;
+int _thr_umtx_timedwait_uint(volatile u_int *mtx, u_int exp, int clockid,
 	const struct timespec *timeout, int shared) __hidden;
 int _thr_umtx_wake(volatile void *mtx, int count, int shared) __hidden;
 int _thr_ucond_wait(struct ucond *cv, struct umutex *m,
@@ -57,6 +63,11 @@ int _thr_ucond_broadcast(struct ucond *cv) __hidden;
 int __thr_rwlock_rdlock(struct urwlock *rwlock, int flags, struct timespec *tsp) __hidden;
 int __thr_rwlock_wrlock(struct urwlock *rwlock, struct timespec *tsp) __hidden;
 int __thr_rwlock_unlock(struct urwlock *rwlock) __hidden;
+
+/* Internal used only */
+void _thr_rwl_rdlock(struct urwlock *rwlock) __hidden;
+void _thr_rwl_wrlock(struct urwlock *rwlock) __hidden;
+void _thr_rwl_unlock(struct urwlock *rwlock) __hidden;
 
 static inline int
 _thr_umutex_trylock(struct umutex *mtx, uint32_t id)
@@ -86,6 +97,14 @@ _thr_umutex_lock(struct umutex *mtx, uint32_t id)
     if (_thr_umutex_trylock2(mtx, id) == 0)
 	return (0);
     return (__thr_umutex_lock(mtx, id));
+}
+
+static inline int
+_thr_umutex_lock_spin(struct umutex *mtx, uint32_t id)
+{
+    if (_thr_umutex_trylock2(mtx, id) == 0)
+	return (0);
+    return (__thr_umutex_lock_spin(mtx, id));
 }
 
 static inline int

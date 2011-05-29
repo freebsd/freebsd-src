@@ -211,7 +211,8 @@ pr_fact(BIGNUM *val)
 
 			bnfact = BN_new();
 			BN_set_word(bnfact, *(fact - 1));
-			BN_sqr(bnfact, bnfact, ctx);
+			if (!BN_sqr(bnfact, bnfact, ctx))
+				errx(1, "error in BN_sqr()");
 			if (BN_cmp(bnfact, val) > 0 ||
 			    BN_is_prime(val, PRIME_CHECKS,
 					NULL, NULL, NULL) == 1)
@@ -271,7 +272,8 @@ pollard_pminus1(BIGNUM *val)
 
 	BN_set_word(rbase, 1);
 newbase:
-	BN_add_word(rbase, 1);
+	if (!BN_add_word(rbase, 1))
+		errx(1, "error in BN_add_word()");
 	BN_set_word(i, 2);
 	BN_copy(base, rbase);
 
@@ -282,7 +284,8 @@ newbase:
 
 		BN_copy(x, base);
 		BN_sub_word(x, 1);
-		BN_gcd(x, x, val, ctx);
+		if (!BN_gcd(x, x, val, ctx))
+			errx(1, "error in BN_gcd()");
 
 		if (!BN_is_one(x)) {
 			if (BN_is_prime(x, PRIME_CHECKS, NULL, NULL,
@@ -303,7 +306,8 @@ newbase:
 			}
 			BN_copy(val, num);
 		}
-		BN_add_word(i, 1);
+		if (!BN_add_word(i, 1))
+			errx(1, "error in BN_add_word()");
 	}
 }
 

@@ -81,6 +81,17 @@
 #define XL_CAPS_100MBPS		0x1000
 #define XL_CAPS_PWRMGMT		0x2000
 
+/*
+ * Bits in the software information 2 word
+ */
+#define	XL_SINFO2_FIXED_BCAST_RX_BUG	0x0002
+#define	XL_SINFO2_FIXED_ENDEC_LOOP_BUG	0x0004
+#define	XL_SINFO2_AUX_WOL_CON		0x0008
+#define	XL_SINFO2_PME_PULSED		0x0010
+#define	XL_SINFO2_FIXED_MWI_BUG		0x0020
+#define	XL_SINFO2_WOL_AFTER_PWR_LOSS	0x0040
+#define	XL_SINFO2_AUTO_RST_TO_D0	0x0080
+
 #define XL_PACKET_SIZE 1540
 #define XL_MAX_FRAMELEN	(ETHER_MAX_LEN + ETHER_VLAN_ENCAP_LEN)
 
@@ -113,6 +124,11 @@
 #define XL_DMACTL_DOWN_INPROG		0x00000080
 #define XL_DMACTL_COUNTER_SPEED		0x00000100
 #define XL_DMACTL_DOWNDOWN_MODE		0x00000200
+#define XL_DMACTL_UP_ALTSEQ_DIS		0x00010000	/* 3c90xB/3c90xC */
+#define XL_DMACTL_DOWN_ALTSEQ_DIS	0x00020000	/* 3c90xC only */
+#define XL_DMACTL_DEFEAT_MWI		0x00100000	/* 3c90xB/3c90xC */
+#define XL_DMACTL_DEFEAT_MRL		0x00100000	/* 3c90xB/3c90xC */
+#define XL_DMACTL_UP_OVERRUN_DISC_DIS	0x00200000	/* 3c90xB/3c90xC */
 #define XL_DMACTL_TARGET_ABORT		0x40000000
 #define XL_DMACTL_MASTER_ABORT		0x80000000
 
@@ -408,7 +424,12 @@
 #define XL_W7_BM_LEN		0x06
 #define XL_W7_BM_STATUS		0x0B
 #define XL_W7_BM_TIMEr		0x0A
+#define XL_W7_BM_PME		0x0C
 
+#define	XL_BM_PME_WAKE		0x0001
+#define	XL_BM_PME_MAGIC		0x0002
+#define	XL_BM_PME_LINKCHG	0x0004
+#define	XL_BM_PME_WAKETIMER	0x0008
 /*
  * bus master control registers
  */
@@ -452,8 +473,8 @@ struct xl_list {
 
 struct xl_list_onefrag {
 	u_int32_t		xl_next;	/* final entry has 0 nextptr */
-	u_int32_t		xl_status;
-	struct xl_frag		xl_frag;
+	volatile u_int32_t	xl_status;
+	volatile struct xl_frag	xl_frag;
 };
 
 struct xl_list_data {
@@ -577,6 +598,7 @@ struct xl_mii_frame {
 #define XL_FLAG_NO_XCVR_PWR		0x0080
 #define XL_FLAG_USE_MMIO		0x0100
 #define	XL_FLAG_NO_MMIO			0x0200
+#define	XL_FLAG_WOL			0x0400
 
 #define XL_NO_XCVR_PWR_MAGICBITS	0x0900
 
@@ -597,12 +619,12 @@ struct xl_softc {
 	u_int32_t		xl_xcvr;
 	u_int16_t		xl_media;
 	u_int16_t		xl_caps;
-	u_int8_t		xl_stats_no_timeout;
 	u_int16_t		xl_tx_thresh;
+	int			xl_pmcap;
 	int			xl_if_flags;
 	struct xl_list_data	xl_ldata;
 	struct xl_chain_data	xl_cdata;
-	struct callout		xl_stat_callout;
+	struct callout		xl_tick_callout;
 	int			xl_wdog_timer;
 	int			xl_flags;
 	struct resource		*xl_fres;

@@ -4,8 +4,7 @@
 #
 
 # PROVIDE: savecore
-# REQUIRE: syslogd
-# BEFORE:  SERVERS
+# REQUIRE: dumpon ddb syslogd
 # KEYWORD: nojail
 
 . /etc/rc.subr

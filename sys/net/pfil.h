@@ -69,7 +69,11 @@ struct pfil_head {
 	pfil_list_t	ph_out;
 	int		ph_type;
 	int		ph_nhooks;
+#if defined( __linux__ ) || defined( _WIN32 )
+	rwlock_t	ph_mtx;
+#else
 	struct rmlock	ph_lock;
+#endif
 	union {
 		u_long		phu_val;
 		void		*phu_ptr;

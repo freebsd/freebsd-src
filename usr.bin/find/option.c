@@ -13,10 +13,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -55,7 +51,7 @@ __FBSDID("$FreeBSD$");
 
 #include "find.h"
 
-int typecompare(const void *, const void *);
+static int typecompare(const void *, const void *);
 
 /* NB: the following table must be sorted lexically. */
 /* Options listed with C++ comments are in gnu find, but not our find */
@@ -176,7 +172,7 @@ find_create(char ***argvp)
 	argv = *argvp;
 
 	if ((p = lookup_option(*argv)) == NULL)
-		errx(1, "%s: unknown option", *argv);
+		errx(1, "%s: unknown primary or operator", *argv);
 	++argv;
 
 	new = (p->create)(p, &argv);
@@ -194,7 +190,7 @@ lookup_option(const char *name)
 	    sizeof(options)/sizeof(OPTION), sizeof(OPTION), typecompare));
 }
 
-int
+static int
 typecompare(const void *a, const void *b)
 {
 	return (strcmp(((const OPTION *)a)->name, ((const OPTION *)b)->name));

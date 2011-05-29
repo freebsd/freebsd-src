@@ -16,18 +16,22 @@
 
 #include "common.h"
 #include "eapol_supp/eapol_supp_sm.h"
-#include "wpa.h"
+#include "rsn_supp/wpa.h"
 #include "eloop.h"
 #include "config.h"
 #include "l2_packet/l2_packet.h"
-#include "wpa_common.h"
+#include "common/wpa_common.h"
 #include "wpa_supplicant_i.h"
-#include "pmksa_cache.h"
+#include "driver_i.h"
+#include "rsn_supp/pmksa_cache.h"
 #include "mlme.h"
-#include "ieee802_11_defs.h"
-#include "wpa_ctrl.h"
+#include "sme.h"
+#include "common/ieee802_11_defs.h"
+#include "common/wpa_ctrl.h"
 #include "wpas_glue.h"
 #include "wps_supplicant.h"
+#include "bss.h"
+#include "scan.h"
 
 
 #ifndef CONFIG_NO_CONFIG_BLOBS
@@ -241,7 +245,7 @@ static void wpa_supplicant_eapol_cb(struct eapol_sm *eapol, int success,
 		wpa_supplicant_req_auth_timeout(wpa_s, 2, 0);
 	}
 
-	if (!success || !wpa_s->driver_4way_handshake)
+	if (!success || !(wpa_s->drv_flags & WPA_DRIVER_FLAGS_4WAY_HANDSHAKE))
 		return;
 
 	if (!wpa_key_mgmt_wpa_ieee8021x(wpa_s->key_mgmt))
@@ -298,35 +302,29 @@ static void wpa_supplicant_notify_eapol_done(void *ctx)
 
 static int wpa_get_beacon_ie(struct wpa_supplicant *wpa_s)
 {
-	size_t i;
 	int ret = 0;
-	struct wpa_scan_res *curr = NULL;
+	struct wpa_bss *curr = NULL, *bss;
 	struct wpa_ssid *ssid = wpa_s->current_ssid;
 	const u8 *ie;
 
-	if (wpa_s->scan_res == NULL)
-		return -1;
-
-	for (i = 0; i < wpa_s->scan_res->num; i++) {
-		struct wpa_scan_res *r = wpa_s->scan_res->res[i];
-		if (os_memcmp(r->bssid, wpa_s->bssid, ETH_ALEN) != 0)
+	dl_list_for_each(bss, &wpa_s->bss, struct wpa_bss, list) {
+		if (os_memcmp(bss->bssid, wpa_s->bssid, ETH_ALEN) != 0)
 			continue;
-		ie = wpa_scan_get_ie(r, WLAN_EID_SSID);
 		if (ssid == NULL ||
-		    ((ie && ie[1] == ssid->ssid_len &&
-		      os_memcmp(ie + 2, ssid->ssid, ssid->ssid_len) == 0) ||
+		    ((bss->ssid_len == ssid->ssid_len &&
+		      os_memcmp(bss->ssid, ssid->ssid, ssid->ssid_len) == 0) ||
 		     ssid->ssid_len == 0)) {
-			curr = r;
+			curr = bss;
 			break;
 		}
 	}
 
 	if (curr) {
-		ie = wpa_scan_get_vendor_ie(curr, WPA_IE_VENDOR_TYPE);
+		ie = wpa_bss_get_vendor_ie(curr, WPA_IE_VENDOR_TYPE);
 		if (wpa_sm_set_ap_wpa_ie(wpa_s->wpa, ie, ie ? 2 + ie[1] : 0))
 			ret = -1;
 
-		ie = wpa_scan_get_ie(curr, WLAN_EID_RSN);
+		ie = wpa_bss_get_ie(curr, WLAN_EID_RSN);
 		if (wpa_sm_set_ap_rsn_ie(wpa_s->wpa, ie, ie ? 2 + ie[1] : 0))
 			ret = -1;
 	} else {
@@ -346,9 +344,8 @@ static int wpa_supplicant_get_beacon_ie(void *ctx)
 
 	/* No WPA/RSN IE found in the cached scan results. Try to get updated
 	 * scan results from the driver. */
-	if (wpa_supplicant_get_scan_results(wpa_s) < 0) {
+	if (wpa_supplicant_update_scan_results(wpa_s) < 0)
 		return -1;
-	}
 
 	return wpa_get_beacon_ie(wpa_s);
 }
@@ -375,7 +372,7 @@ static void _wpa_supplicant_cancel_auth_timeout(void *wpa_s)
 }
 
 
-static void _wpa_supplicant_set_state(void *wpa_s, wpa_states state)
+static void _wpa_supplicant_set_state(void *wpa_s, enum wpa_states state)
 {
 	wpa_supplicant_set_state(wpa_s, state);
 }
@@ -386,13 +383,13 @@ static void _wpa_supplicant_set_state(void *wpa_s, wpa_states state)
  * @wpa_s: Pointer to wpa_supplicant data
  * Returns: The current connection state (WPA_*)
  */
-static wpa_states wpa_supplicant_get_state(struct wpa_supplicant *wpa_s)
+static enum wpa_states wpa_supplicant_get_state(struct wpa_supplicant *wpa_s)
 {
 	return wpa_s->wpa_state;
 }
 
 
-static wpa_states _wpa_supplicant_get_state(void *wpa_s)
+static enum wpa_states _wpa_supplicant_get_state(void *wpa_s)
 {
 	return wpa_supplicant_get_state(wpa_s);
 }
@@ -402,7 +399,7 @@ static void _wpa_supplicant_disassociate(void *wpa_s, int reason_code)
 {
 	wpa_supplicant_disassociate(wpa_s, reason_code);
 	/* Schedule a scan to make sure we continue looking for networks */
-	wpa_supplicant_req_scan(wpa_s, 0, 0);
+	wpa_supplicant_req_scan(wpa_s, 5, 0);
 }
 
 
@@ -410,7 +407,7 @@ static void _wpa_supplicant_deauthenticate(void *wpa_s, int reason_code)
 {
 	wpa_supplicant_deauthenticate(wpa_s, reason_code);
 	/* Schedule a scan to make sure we continue looking for networks */
-	wpa_supplicant_req_scan(wpa_s, 0, 0);
+	wpa_supplicant_req_scan(wpa_s, 5, 0);
 }
 
 
@@ -423,7 +420,7 @@ static void * wpa_supplicant_get_network_ctx(void *wpa_s)
 static int wpa_supplicant_get_bssid(void *ctx, u8 *bssid)
 {
 	struct wpa_supplicant *wpa_s = ctx;
-	if (wpa_s->use_client_mlme) {
+	if (wpa_s->drv_flags & WPA_DRIVER_FLAGS_USER_SPACE_MLME) {
 		os_memcpy(bssid, wpa_s->bssid, ETH_ALEN);
 		return 0;
 	}
@@ -431,7 +428,7 @@ static int wpa_supplicant_get_bssid(void *ctx, u8 *bssid)
 }
 
 
-static int wpa_supplicant_set_key(void *_wpa_s, wpa_alg alg,
+static int wpa_supplicant_set_key(void *_wpa_s, enum wpa_alg alg,
 				  const u8 *addr, int key_idx, int set_tx,
 				  const u8 *seq, size_t seq_len,
 				  const u8 *key, size_t key_len)
@@ -474,8 +471,10 @@ static int wpa_supplicant_update_ft_ies(void *ctx, const u8 *md,
 					const u8 *ies, size_t ies_len)
 {
 	struct wpa_supplicant *wpa_s = ctx;
-	if (wpa_s->use_client_mlme)
+	if (wpa_s->drv_flags & WPA_DRIVER_FLAGS_USER_SPACE_MLME)
 		return ieee80211_sta_update_ft_ies(wpa_s, md, ies, ies_len);
+	if (wpa_s->drv_flags & WPA_DRIVER_FLAGS_SME)
+		return sme_update_ft_ies(wpa_s, md, ies, ies_len);
 	return wpa_drv_update_ft_ies(wpa_s, md, ies, ies_len);
 }
 
@@ -485,16 +484,41 @@ static int wpa_supplicant_send_ft_action(void *ctx, u8 action,
 					 const u8 *ies, size_t ies_len)
 {
 	struct wpa_supplicant *wpa_s = ctx;
-	if (wpa_s->use_client_mlme)
+	if (wpa_s->drv_flags & WPA_DRIVER_FLAGS_USER_SPACE_MLME)
 		return ieee80211_sta_send_ft_action(wpa_s, action, target_ap,
 						    ies, ies_len);
 	return wpa_drv_send_ft_action(wpa_s, action, target_ap, ies, ies_len);
+}
+
+
+static int wpa_supplicant_mark_authenticated(void *ctx, const u8 *target_ap)
+{
+	struct wpa_supplicant *wpa_s = ctx;
+	struct wpa_driver_auth_params params;
+	struct wpa_bss *bss;
+
+	if (wpa_s->drv_flags & WPA_DRIVER_FLAGS_USER_SPACE_MLME)
+		return -1;
+
+	bss = wpa_bss_get_bssid(wpa_s, target_ap);
+	if (bss == NULL)
+		return -1;
+
+	os_memset(&params, 0, sizeof(params));
+	params.bssid = target_ap;
+	params.freq = bss->freq;
+	params.ssid = bss->ssid;
+	params.ssid_len = bss->ssid_len;
+	params.auth_alg = WPA_AUTH_ALG_FT;
+	params.local_state_change = 1;
+	return wpa_drv_authenticate(wpa_s, &params);
 }
 #endif /* CONFIG_IEEE80211R */
 
 #endif /* CONFIG_NO_WPA */
 
 
+#ifdef IEEE8021X_EAPOL
 #if defined(CONFIG_CTRL_IFACE) || !defined(CONFIG_NO_STDOUT_DEBUG)
 static void wpa_supplicant_eap_param_needed(void *ctx, const char *field,
 					    const char *txt)
@@ -533,6 +557,24 @@ static void wpa_supplicant_eap_param_needed(void *ctx, const char *field,
 #endif /* CONFIG_CTRL_IFACE || !CONFIG_NO_STDOUT_DEBUG */
 
 
+static void wpa_supplicant_port_cb(void *ctx, int authorized)
+{
+	struct wpa_supplicant *wpa_s = ctx;
+#ifdef CONFIG_AP
+	if (wpa_s->ap_iface) {
+		wpa_printf(MSG_DEBUG, "AP mode active - skip EAPOL Supplicant "
+			   "port status: %s",
+			   authorized ? "Authorized" : "Unauthorized");
+		return;
+	}
+#endif /* CONFIG_AP */
+	wpa_printf(MSG_DEBUG, "EAPOL: Supplicant port status: %s",
+		   authorized ? "Authorized" : "Unauthorized");
+	wpa_drv_set_supp_port(wpa_s, authorized);
+}
+#endif /* IEEE8021X_EAPOL */
+
+
 int wpa_supplicant_init_eapol(struct wpa_supplicant *wpa_s)
 {
 #ifdef IEEE8021X_EAPOL
@@ -553,13 +595,12 @@ int wpa_supplicant_init_eapol(struct wpa_supplicant *wpa_s)
 	ctx->set_config_blob = wpa_supplicant_set_config_blob;
 	ctx->get_config_blob = wpa_supplicant_get_config_blob;
 	ctx->aborted_cached = wpa_supplicant_aborted_cached;
-#ifdef EAP_TLS_OPENSSL
 	ctx->opensc_engine_path = wpa_s->conf->opensc_engine_path;
 	ctx->pkcs11_engine_path = wpa_s->conf->pkcs11_engine_path;
 	ctx->pkcs11_module_path = wpa_s->conf->pkcs11_module_path;
-#endif /* EAP_TLS_OPENSSL */
 	ctx->wps = wpa_s->wps;
 	ctx->eap_param_needed = wpa_supplicant_eap_param_needed;
+	ctx->port_cb = wpa_supplicant_port_cb;
 	ctx->cb = wpa_supplicant_eapol_cb;
 	ctx->cb_ctx = wpa_s;
 	wpa_s->eapol = eapol_sm_init(ctx);
@@ -586,6 +627,7 @@ int wpa_supplicant_init_wpa(struct wpa_supplicant *wpa_s)
 	}
 
 	ctx->ctx = wpa_s;
+	ctx->msg_ctx = wpa_s;
 	ctx->set_state = _wpa_supplicant_set_state;
 	ctx->get_state = _wpa_supplicant_get_state;
 	ctx->deauthenticate = _wpa_supplicant_deauthenticate;
@@ -607,6 +649,7 @@ int wpa_supplicant_init_wpa(struct wpa_supplicant *wpa_s)
 #ifdef CONFIG_IEEE80211R
 	ctx->update_ft_ies = wpa_supplicant_update_ft_ies;
 	ctx->send_ft_action = wpa_supplicant_send_ft_action;
+	ctx->mark_authenticated = wpa_supplicant_mark_authenticated;
 #endif /* CONFIG_IEEE80211R */
 
 	wpa_s->wpa = wpa_sm_init(ctx);

@@ -139,7 +139,7 @@ iq80321_attach(device_t dev)
 		    device_get_name(dev));
 
 	/*
-	 * We have mapped the the PCI I/O windows in the early
+	 * We have mapped the PCI I/O windows in the early
 	 * bootstrap phase.
 	 */
 	sc->sc_iow_vaddr = IQ80321_IOW_VBASE;

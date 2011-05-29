@@ -76,6 +76,7 @@ struct cpufreq_softc {
 	device_t			dev;
 	struct sysctl_ctx_list		sysctl_ctx;
 	struct task			startup_task;
+	struct cf_level			*levels_buf;
 };
 
 struct cf_setting_array {
@@ -180,6 +181,8 @@ cpufreq_attach(device_t dev)
 
 	CF_DEBUG("initializing one-time data for %s\n",
 	    device_get_nameunit(dev));
+	sc->levels_buf = malloc(CF_MAX_LEVELS * sizeof(*sc->levels_buf),
+	    M_DEVBUF, M_WAITOK);
 	SYSCTL_ADD_PROC(&sc->sysctl_ctx,
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(parent)),
 	    OID_AUTO, "freq", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
@@ -227,6 +230,7 @@ cpufreq_detach(device_t dev)
 	numdevs = devclass_get_count(cpufreq_dc);
 	if (numdevs == 1) {
 		CF_DEBUG("final shutdown for %s\n", device_get_nameunit(dev));
+		free(sc->levels_buf, M_DEVBUF);
 	}
 
 	return (0);
@@ -870,9 +874,7 @@ cpufreq_curr_sysctl(SYSCTL_HANDLER_ARGS)
 
 	devs = NULL;
 	sc = oidp->oid_arg1;
-	levels = malloc(CF_MAX_LEVELS * sizeof(*levels), M_TEMP, M_NOWAIT);
-	if (levels == NULL)
-		return (ENOMEM);
+	levels = sc->levels_buf;
 
 	error = CPUFREQ_GET(sc->dev, &levels[0]);
 	if (error)
@@ -915,8 +917,6 @@ cpufreq_curr_sysctl(SYSCTL_HANDLER_ARGS)
 out:
 	if (devs)
 		free(devs, M_TEMP);
-	if (levels)
-		free(levels, M_TEMP);
 	return (error);
 }
 
@@ -934,7 +934,7 @@ cpufreq_levels_sysctl(SYSCTL_HANDLER_ARGS)
 
 	/* Get settings from the device and generate the output string. */
 	count = CF_MAX_LEVELS;
-	levels = malloc(count * sizeof(*levels), M_TEMP, M_NOWAIT);
+	levels = sc->levels_buf;
 	if (levels == NULL) {
 		sbuf_delete(&sb);
 		return (ENOMEM);
@@ -957,7 +957,6 @@ cpufreq_levels_sysctl(SYSCTL_HANDLER_ARGS)
 	error = sysctl_handle_string(oidp, sbuf_data(&sb), sbuf_len(&sb), req);
 
 out:
-	free(levels, M_TEMP);
 	sbuf_delete(&sb);
 	return (error);
 }

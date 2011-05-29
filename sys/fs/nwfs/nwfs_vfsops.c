@@ -10,12 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *    This product includes software developed by Boris Popov.
- * 4. Neither the name of the author nor the names of any co-contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -192,8 +186,7 @@ static int nwfs_mount(struct mount *mp)
 	ncp_conn_unlock(conn, td);	/* we keep the ref */
 	mp->mnt_stat.f_iosize = conn->buffer_size;
         /* We must malloc our own mount info */
-        nmp = malloc(sizeof(struct nwmount),M_NWFSDATA,
-	    M_WAITOK | M_USE_RESERVE | M_ZERO);
+        nmp = malloc(sizeof(struct nwmount), M_NWFSDATA, M_WAITOK | M_ZERO);
         if (nmp == NULL) {
                 nwfs_printf("could not alloc nwmount\n");
                 error = ENOMEM;

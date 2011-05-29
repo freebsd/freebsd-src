@@ -32,6 +32,8 @@
 #include <sys/libkern.h>
 
 char	*strpbrk(const char *, const char *);
-void	 strident_canon(char *s, size_t n);
+void	 strident_canon(char *, size_t);
+char	*kmem_asprintf(const char *, ...);
+void	 strfree(char *);
 
 #endif	/* _OPENSOLARIS_SYS_STRING_H_ */

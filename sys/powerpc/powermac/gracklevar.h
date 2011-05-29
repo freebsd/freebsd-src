@@ -45,7 +45,7 @@ struct grackle_softc {
 	vm_offset_t		sc_addr;
 	vm_offset_t		sc_data;
 	int			sc_bus;
-	struct			grackle_range sc_range[6];
+	struct			grackle_range sc_range[7];
 	int			sc_nrange;
 	int			sc_iostart;
 	struct			rman sc_io_rman;

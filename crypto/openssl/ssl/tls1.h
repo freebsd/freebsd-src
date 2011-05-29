@@ -115,6 +115,9 @@ extern "C" {
 #define TLSEXT_TYPE_ec_point_formats		11
 #define TLSEXT_TYPE_session_ticket		35
 
+/* Temporary extension type */
+#define TLSEXT_TYPE_renegotiate                 0xff01
+
 /* NameType value from RFC 3546 */
 #define TLSEXT_NAMETYPE_host_name 0
 /* status request value from RFC 3546 */
@@ -169,9 +172,9 @@ SSL_CTX_callback_ctrl(ctx,SSL_CTRL_SET_TLSEXT_SERVERNAME_CB,(void (*)(void))cb)
 SSL_CTX_ctrl(ctx,SSL_CTRL_SET_TLSEXT_SERVERNAME_ARG,0, (void *)arg)
 
 #define SSL_CTX_get_tlsext_ticket_keys(ctx, keys, keylen) \
-	SSL_CTX_ctrl((ctx),SSL_CTRL_GET_TLXEXT_TICKET_KEYS,(keylen),(keys))
+	SSL_CTX_ctrl((ctx),SSL_CTRL_GET_TLSEXT_TICKET_KEYS,(keylen),(keys))
 #define SSL_CTX_set_tlsext_ticket_keys(ctx, keys, keylen) \
-	SSL_CTX_ctrl((ctx),SSL_CTRL_SET_TLXEXT_TICKET_KEYS,(keylen),(keys))
+	SSL_CTX_ctrl((ctx),SSL_CTRL_SET_TLSEXT_TICKET_KEYS,(keylen),(keys))
 
 #define SSL_CTX_set_tlsext_status_cb(ssl, cb) \
 SSL_CTX_callback_ctrl(ssl,SSL_CTRL_SET_TLSEXT_STATUS_REQ_CB,(void (*)(void))cb)

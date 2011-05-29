@@ -63,6 +63,7 @@ struct asn1_oid {
 
 
 int asn1_get_next(const u8 *buf, size_t len, struct asn1_hdr *hdr);
+int asn1_parse_oid(const u8 *buf, size_t len, struct asn1_oid *oid);
 int asn1_get_oid(const u8 *buf, size_t len, struct asn1_oid *oid,
 		 const u8 **next);
 void asn1_oid_to_str(struct asn1_oid *oid, char *buf, size_t len);

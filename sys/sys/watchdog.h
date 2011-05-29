@@ -50,6 +50,12 @@
 	 * right to the kernel.
  	 */
 
+#define WD_LASTVAL	0x0200000
+	/*
+	 * Use the already last used timeout value.
+	 * The kernel will use as timeout the last valid timeout provided.
+ 	 */
+
 #define WD_INTERVAL	0x00000ff
 	/*
 	 * Mask for duration bits.
@@ -78,6 +84,9 @@
 typedef void (*watchdog_fn)(void *, u_int, int *);
 
 EVENTHANDLER_DECLARE(watchdog_list, watchdog_fn);
+
+u_int	wdog_kern_last_timeout(void);
+int	wdog_kern_pat(u_int utim);
 #endif
 
 #endif /* _SYS_WATCHDOG_H */

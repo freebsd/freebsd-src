@@ -43,6 +43,23 @@ fletcher_2_native(const void *buf, uint64_t size, zio_cksum_t *zcp)
 }
 
 static void
+fletcher_2_byteswap(const void *buf, uint64_t size, zio_cksum_t *zcp)
+{
+	const uint64_t *ip = buf;
+	const uint64_t *ipend = ip + (size / sizeof (uint64_t));
+	uint64_t a0, b0, a1, b1;
+
+	for (a0 = b0 = a1 = b1 = 0; ip < ipend; ip += 2) {
+		a0 += BSWAP_64(ip[0]);
+		a1 += BSWAP_64(ip[1]);
+		b0 += a0;
+		b1 += a1;
+	}
+
+	ZIO_SET_CHECKSUM(zcp, a0, a1, b0, b1);
+}
+
+static void
 fletcher_4_native(const void *buf, uint64_t size, zio_cksum_t *zcp)
 {
 	const uint32_t *ip = buf;
@@ -51,6 +68,23 @@ fletcher_4_native(const void *buf, uint64_t size, zio_cksum_t *zcp)
 
 	for (a = b = c = d = 0; ip < ipend; ip++) {
 		a += ip[0];
+		b += a;
+		c += b;
+		d += c;
+	}
+
+	ZIO_SET_CHECKSUM(zcp, a, b, c, d);
+}
+
+static void
+fletcher_4_byteswap(const void *buf, uint64_t size, zio_cksum_t *zcp)
+{
+	const uint32_t *ip = buf;
+	const uint32_t *ipend = ip + (size / sizeof (uint32_t));
+	uint64_t a, b, c, d;
+
+	for (a = b = c = d = 0; ip < ipend; ip++) {
+		a += BSWAP_32(ip[0]);
 		b += a;
 		c += b;
 		d += c;

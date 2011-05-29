@@ -173,9 +173,11 @@ sys_tun_open(int tun, int mode)
 
 	if (ioctl(sock, SIOCGIFFLAGS, &ifr) == -1)
 		goto failed;
-	ifr.ifr_flags |= IFF_UP;
-	if (ioctl(sock, SIOCSIFFLAGS, &ifr) == -1)
-		goto failed;
+	if ((ifr.ifr_flags & IFF_UP) == 0) {
+		ifr.ifr_flags |= IFF_UP;
+		if (ioctl(sock, SIOCSIFFLAGS, &ifr) == -1)
+			goto failed;
+	}
 
 	close(sock);
 	return (fd);

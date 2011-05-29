@@ -1,7 +1,7 @@
 /*
  * Copyright 2006 Peter Grehan <grehan@freebsd.org>
- * Copryight 2005 Orlando Bassotto <orlando@break.net>
- * Copryight 1998 Sean Eric Fagan
+ * Copyright 2005 Orlando Bassotto <orlando@break.net>
+ * Copyright 1998 Sean Eric Fagan
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -63,7 +63,12 @@ static const char rcsid[] =
 
 static int cpid = -1;
 
+#ifdef __powerpc64__	/* 32-bit compatibility */
+#include "freebsd32_syscalls.h"
+#define  syscallnames freebsd32_syscallnames
+#else			/* native 32-bit */
 #include "syscalls.h"
+#endif
 
 static int nsyscalls = sizeof(syscallnames) / sizeof(syscallnames[0]);
 
@@ -132,7 +137,7 @@ powerpc_syscall_entry(struct trussinfo *trussinfo, int nargs) {
   /*
    * FreeBSD has two special kinds of system call redirctions --
    * SYS_syscall, and SYS___syscall.  The former is the old syscall()
-   * routine, basicly; the latter is for quad-aligned arguments.
+   * routine, basically; the latter is for quad-aligned arguments.
    */
   regargs = NARGREG;
   syscall_num = regs.fixreg[0];
@@ -257,7 +262,7 @@ powerpc_syscall_entry(struct trussinfo *trussinfo, int nargs) {
  * And when the system call is done, we handle it here.
  * Currently, no attempt is made to ensure that the system calls
  * match -- this needs to be fixed (and is, in fact, why S_SCX includes
- * the sytem call number instead of, say, an error status).
+ * the system call number instead of, say, an error status).
  */
 
 long

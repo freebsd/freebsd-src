@@ -33,6 +33,7 @@ static const char rcsid[] =
 #include <ctype.h>
 #include <err.h>
 #include <langinfo.h>
+#include <libgen.h>
 #include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -60,7 +61,7 @@ struct monthlines {
 	wchar_t name[MAX_WIDTH + 1];
 	char lines[7][MAX_WIDTH + 1];
 	char weeks[MAX_WIDTH + 1];
-	unsigned int linelen[7];
+	unsigned int extralen[7];
 };
 
 struct weekdays {
@@ -159,28 +160,29 @@ char jdaystr[] = "       1   2   3   4   5   6   7   8   9"
 		 " 350 351 352 353 354 355 356 357 358 359"
 		 " 360 361 362 363 364 365 366";
 
+int	flag_nohighlight;	/* user doesn't want a highlighted today */
 int     flag_weeks;		/* user wants number of week */
 int     nswitch;		/* user defined switch date */
 int	nswitchb;		/* switch date for backward compatibility */
-const char	*term_so, *term_se;
-int	today;
+int	highlightdate;
 
 char	*center(char *s, char *t, int w);
 wchar_t *wcenter(wchar_t *s, wchar_t *t, int w);
+int	firstday(int y, int m);
+void	highlight(char *dst, char *src, int len, int *extraletters);
 void	mkmonthr(int year, int month, int jd_flag, struct monthlines * monthl);
 void	mkmonthb(int year, int month, int jd_flag, struct monthlines * monthl);
 void	mkweekdays(struct weekdays * wds);
+void	monthranger(int year, int m, int jd_flag, int before, int after);
+void	monthrangeb(int year, int m, int jd_flag, int before, int after);
 int	parsemonth(const char *s, int *m, int *y);
 void	printcc(void);
 void	printeaster(int year, int julian, int orthodox);
-int	firstday(int y, int m);
 date	*sdater(int ndays, struct date * d);
 date	*sdateb(int ndays, struct date * d);
 int	sndaysr(struct date * d);
 int	sndaysb(struct date * d);
 static void	usage(void);
-void	monthranger(int year, int jd_flag, int m, int before, int after);
-void	monthrangeb(int year, int jd_flag, int m, int before, int after);
 
 int
 main(int argc, char *argv[])
@@ -193,26 +195,26 @@ main(int argc, char *argv[])
 	int     m = 0;			/* month */
 	int	y = 0;			/* year */
 	int     flag_backward = 0;	/* user called cal--backward compat. */
-	int     flag_hole_year = 0;	/* user wants the whole year */
+	int     flag_wholeyear = 0;	/* user wants the whole year */
 	int	flag_julian_cal = 0;	/* user wants Julian Calendar */
-	int     flag_julian_day = 0;	/* user wants the Julian day
-					 * numbers */
-	int	flag_orthodox = 0;	/* use wants Orthodox easter */
-	int	flag_easter = 0;	/* use wants easter date */
+	int     flag_julian_day = 0;	/* user wants the Julian day numbers */
+	int	flag_orthodox = 0;	/* user wants Orthodox easter */
+	int	flag_easter = 0;	/* user wants easter date */
+	int	flag_3months = 0;	/* user wants 3 month display (-3) */
+	int	flag_after = 0;		/* user wants to see months after */
+	int	flag_before = 0;	/* user wants to see months before */
+	int	flag_specifiedmonth = 0;/* user wants to see this month (-m) */
+	int	flag_givenmonth = 0;	/* user has specified month [n] */
+	int	flag_givenyear = 0;	/* user has specified year [n] */
 	char	*cp;			/* character pointer */
+	char	*flag_today = NULL;	/* debug: use date as being today */
 	char	*flag_month = NULL;	/* requested month as string */
-	char	*flag_highlightdate = NULL;
+	char	*flag_highlightdate = NULL; /* debug: date to highlight */
 	int	before, after;
 	const char    *locale;		/* locale to get country code */
-	char tbuf[1024], cbuf[512], *b;
 
-	/* On how to highlight on this terminal */
-	term_se = term_so = NULL;
-	if (isatty(STDOUT_FILENO) && tgetent(tbuf, NULL) == 1) {
-		b = cbuf;
-		term_so = tgetstr("so", &b);
-		term_se = tgetstr("se", &b);
-	}
+	flag_nohighlight = 0;
+	flag_weeks = 0;
 
 	/*
 	 * Use locale to determine the country code,
@@ -244,9 +246,7 @@ main(int argc, char *argv[])
 	 * Get the filename portion of argv[0] and set flag_backward if
 	 * this program is called "cal".
 	 */
-	cp = strrchr(argv[0], '/');
-	cp = (cp == NULL) ? argv[0] : cp + 1;
-	if (strcmp("cal", cp) == 0)
+	if (strncmp(basename(argv[0]), "cal", strlen("cal")) == 0)
 		flag_backward = 1;
 
 	/* Set the switch date to United Kingdom if backwards compatible */
@@ -255,20 +255,26 @@ main(int argc, char *argv[])
 
 	before = after = -1;
 
-	while ((ch = getopt(argc, argv, "A:B:3Jbd:ehjm:ops:wy")) != -1)
+	while ((ch = getopt(argc, argv, "3A:B:Cd:eH:hjJm:Nops:wy")) != -1)
 		switch (ch) {
 		case '3':
-			before = after = 1;
+			flag_3months = 1;
 			break;
 		case 'A':
-			after = strtol(optarg, NULL, 10);
-			if (after < 0)
-				errx(1, "Argument to -A must be positive");
+			if (flag_after > 0)
+				errx(EX_USAGE, "Double -A specified");
+			flag_after = strtol(optarg, NULL, 10);
+			if (flag_after <= 0)
+				errx(EX_USAGE,
+				    "Argument to -A must be positive");
 			break;
 		case 'B':
-			before = strtol(optarg, NULL, 10);
-			if (before < 0)
-				errx(1, "Argument to -B must be positive");
+			if (flag_before > 0)
+				errx(EX_USAGE, "Double -A specified");
+			flag_before = strtol(optarg, NULL, 10);
+			if (flag_before <= 0)
+				errx(EX_USAGE,
+				    "Argument to -B must be positive");
 			break;
 		case 'J':
 			if (flag_backward)
@@ -276,14 +282,20 @@ main(int argc, char *argv[])
 			nswitch = ndaysj(&never);
 			flag_julian_cal = 1;
 			break;
-		case 'b':
+		case 'C':
 			flag_backward = 1;
 			break;
+		case 'N':
+			flag_backward = 0;
+			break;
 		case 'd':
+			flag_today = optarg;
+			break;
+		case 'H':
 			flag_highlightdate = optarg;
 			break;
 		case 'h':
-			term_so = term_se = NULL;
+			flag_nohighlight = 1;
 			break;
 		case 'e':
 			if (flag_backward)
@@ -294,7 +306,10 @@ main(int argc, char *argv[])
 			flag_julian_day = 1;
 			break;
 		case 'm':
+			if (flag_specifiedmonth)
+				errx(EX_USAGE, "Double -m specified");
 			flag_month = optarg;
+			flag_specifiedmonth = 1;
 			break;
 		case 'o':
 			if (flag_backward)
@@ -327,7 +342,7 @@ main(int argc, char *argv[])
 			flag_weeks = 1;
 			break;
 		case 'y':
-			flag_hole_year = 1;
+			flag_wholeyear = 1;
 			break;
 		default:
 			usage();
@@ -341,17 +356,21 @@ main(int argc, char *argv[])
 		if (flag_easter)
 			usage();
 		flag_month = *argv++;
+		flag_givenmonth = 1;
+		m = strtol(flag_month, NULL, 10);
 		/* FALLTHROUGH */
 	case 1:
-		y = atoi(*argv++);
+		y = atoi(*argv);
 		if (y < 1 || y > 9999)
-			errx(EX_USAGE, "year %d not in range 1..9999", y);
-		before = 0;
-		after = 11;
-		m = 1;
+			errx(EX_USAGE, "year `%s' not in range 1..9999", *argv);
+		argv++;
+		flag_givenyear = 1;
 		break;
 	case 0:
-		{
+		if (flag_today != NULL) {
+			y = strtol(flag_today, NULL, 10);
+			m = strtol(flag_today + 5, NULL, 10);
+		} else {
 			time_t t;
 			struct tm *tm;
 
@@ -359,10 +378,6 @@ main(int argc, char *argv[])
 			tm = localtime(&t);
 			y = tm->tm_year + 1900;
 			m = tm->tm_mon + 1;
-			if (before == -1)
-				before = 0;
-			if (after == -1)
-				after = 0;
 		}
 		break;
 	default:
@@ -377,6 +392,84 @@ main(int argc, char *argv[])
 		}
 	}
 
+	/*
+	 * What is not supported:
+	 * -3 with -A or -B
+	 *	-3 displays 3 months, -A and -B change that behaviour.
+	 * -3 with -y
+	 *	-3 displays 3 months, -y says display a whole year.
+	 * -3 with a given year but no given month or without -m
+	 *	-3 displays 3 months, no month specified doesn't make clear
+	 *      which three months.
+	 * -m with a given month
+	 *	conflicting arguments, both specify the same field.
+	 * -y with -m
+	 *	-y displays the whole year, -m displays a single month.
+	 * -y with a given month
+	 *	-y displays the whole year, the given month displays a single
+	 *	month.
+	 * -y with -A or -B
+	 *	-y displays the whole year, -A and -B display extra months.
+	 */
+
+	/* -3 together with -A or -B. */
+	if (flag_3months && (flag_after || flag_before))
+		errx(EX_USAGE, "-3 together with -A and -B is not supported.");
+	/* -3 together with -y. */
+	if (flag_3months && flag_wholeyear)
+		errx(EX_USAGE, "-3 together with -y is not supported.");
+	/* -3 together with givenyear but no givenmonth. */
+	if (flag_3months && flag_givenyear &&
+	    !(flag_givenmonth || flag_specifiedmonth))
+		errx(EX_USAGE,
+		    "-3 together with a given year but no given month is "
+		    "not supported.");
+	/* -m together with xx xxxx. */
+	if (flag_specifiedmonth && flag_givenmonth)
+		errx(EX_USAGE,
+		    "-m together with a given month is not supported.");
+	/* -y together with -m. */
+	if (flag_wholeyear && flag_specifiedmonth)
+		errx(EX_USAGE, "-y together with -m is not supported.");
+	/* -y together with xx xxxx. */
+	if (flag_wholeyear && flag_givenmonth)
+		errx(EX_USAGE, "-y together a given month is not supported.");
+	/* -y together with -A or -B. */
+	if (flag_wholeyear && (flag_before > 0 || flag_after > 0))
+		errx(EX_USAGE, "-y together a -A or -B is not supported.");
+	/* The rest should be fine. */
+
+	/* Select the period to display, in order of increasing priority .*/
+	if (flag_wholeyear ||
+	    (flag_givenyear && !(flag_givenmonth || flag_specifiedmonth))) {
+		m = 1;
+		before = 0;
+		after = 11;
+	}
+	if (flag_givenyear && flag_givenmonth) {
+		before = 0;
+		after = 0;
+	}
+	if (flag_specifiedmonth) {
+		before = 0;
+		after = 0;
+	}
+	if (flag_before) {
+		before = flag_before;
+	}
+	if (flag_after) {
+		after = flag_after;
+	}
+	if (flag_3months) {
+		before = 1;
+		after = 1;
+	}
+	if (after == -1)
+		after = 0;
+	if (before == -1)
+		before = 0;
+
+	/* Highlight a specified day or today .*/
 	if (flag_highlightdate != NULL) {
 		dt.y = strtol(flag_highlightdate, NULL, 10);
 		dt.m = strtol(flag_highlightdate + 5, NULL, 10);
@@ -391,15 +484,16 @@ main(int argc, char *argv[])
 		dt.m = tm1->tm_mon + 1;
 		dt.d = tm1->tm_mday;
 	}
-	today = sndaysb(&dt);
+	highlightdate = sndaysb(&dt);
 
+	/* And now we finally start to calculate and output calendars. */
 	if (flag_easter)
 		printeaster(y, flag_julian_cal, flag_orthodox);
 	else
 		if (flag_backward)
-			monthrangeb(y, flag_julian_day, m, before, after);
+			monthrangeb(y, m, flag_julian_day, before, after);
 		else
-			monthranger(y, flag_julian_day, m, before, after);
+			monthranger(y, m, flag_julian_day, before, after);
 	return (0);
 }
 
@@ -408,16 +502,17 @@ usage(void)
 {
 
 	fputs(
-	    "usage: cal [-hjy] [[month] year]\n"
-	    "       cal [-hj] [-m month] [year]\n"
-	    "       ncal [-hJjpwy] [-s country_code] [[month] year]\n"
-	    "       ncal [-hJeo] [year]\n"
-	    "for debug the highlighting: [-b] [-d yyyy-mm-dd]\n",
+"Usage: cal [general options] [-hjy] [[month] year]\n"
+"       cal [general options] [-hj] [-m month] [year]\n"
+"       ncal [general options] [-hJjpwy] [-s country_code] [[month] year]\n"
+"       ncal [general options] [-hJeo] [year]\n"
+"General options: [-NC3] [-A months] [-B months]\n"
+"For debug the highlighting: [-H yyyy-mm-dd] [-d yyyy-mm]\n",
 	    stderr);
 	exit(EX_USAGE);
 }
 
-/* print the assumed switches for all countries */
+/* Print the assumed switches for all countries. */
 void
 printcc(void)
 {
@@ -438,7 +533,7 @@ printcc(void)
 		printf(FSTR"\n", FSTRARG(p));
 }
 
-/* print the date of easter sunday */
+/* Print the date of easter sunday. */
 void
 printeaster(int y, int julian, int orthodox)
 {
@@ -469,8 +564,7 @@ printeaster(int y, int julian, int orthodox)
 	printf("%s\n", buf);
 }
 
-#define MW(mw, ms, ml) \
-	strlen(ms) > (ml) ? (mw) + 9 : (mw)
+#define MW(mw, me)		((mw) + me)
 #define	DECREASEMONTH(m, y) 		\
 		if (--m == 0) {		\
 			m = 12;		\
@@ -484,8 +578,9 @@ printeaster(int y, int julian, int orthodox)
 #define	M2Y(m)	((m) / 12)
 #define	M2M(m)	(1 + (m) % 12) 
 
+/* Print all months for the period in the range [ before .. y-m .. after ]. */
 void
-monthrangeb(int y, int jd_flag, int m, int before, int after)
+monthrangeb(int y, int m, int jd_flag, int before, int after)
 {
 	struct monthlines year[12];
 	struct weekdays wds;
@@ -532,14 +627,14 @@ monthrangeb(int y, int jd_flag, int m, int before, int after)
 		if (m != m1)
 			printf("\n");
 
-		/* Year at the top */
+		/* Year at the top. */
 		if (printyearheader && M2Y(m) != prevyear) {
 			sprintf(s, "%d", M2Y(m));
 			printf("%s\n", center(t, s, mpl * mw));
 			prevyear = M2Y(m);
 		}
 
-		/* Month names */
+		/* Month names. */
 		for (i = 0; i < count; i++)
 			if (printyearheader)
 				wprintf(L"%-*ls  ",
@@ -551,7 +646,7 @@ monthrangeb(int y, int jd_flag, int m, int before, int after)
 			}
 		printf("\n");
 
-		/* Day of the week names */
+		/* Day of the week names. */
 		for (i = 0; i < count; i++) {
 			wprintf(L"%s%ls%s%ls%s%ls%s%ls%s%ls%s%ls%s%ls ",
 				wdss, wds.names[6], wdss, wds.names[0],
@@ -561,9 +656,12 @@ monthrangeb(int y, int jd_flag, int m, int before, int after)
 		}
 		printf("\n");
 
+		/* And the days of the month. */
 		for (i = 0; i != 6; i++) {
 			for (j = 0; j < count; j++)
-				printf("%-*s  ", mw, year[j].lines[i]+1);
+				printf("%-*s  ",
+				    MW(mw, year[j].extralen[i]),
+					year[j].lines[i]+1);
 			printf("\n");
 		}
 
@@ -572,7 +670,7 @@ monthrangeb(int y, int jd_flag, int m, int before, int after)
 }
 
 void
-monthranger(int y, int jd_flag, int m, int before, int after)
+monthranger(int y, int m, int jd_flag, int before, int after)
 {
 	struct monthlines year[12];
 	struct weekdays wds;
@@ -612,18 +710,18 @@ monthranger(int y, int jd_flag, int m, int before, int after)
 			count++;
 		}
 
-		/* Empty line between two rows of months */
+		/* Empty line between two rows of months. */
 		if (m != m1)
 			printf("\n");
 
-		/* Year at the top */
+		/* Year at the top. */
 		if (printyearheader && M2Y(m) != prevyear) {
 			sprintf(s, "%d", M2Y(m));
 			printf("%s\n", center(t, s, mpl * mw));
 			prevyear = M2Y(m);
 		}
 
-		/* Month names */
+		/* Month names. */
 		wprintf(L"    ");
 		for (i = 0; i < count; i++)
 			if (printyearheader)
@@ -633,6 +731,7 @@ monthranger(int y, int jd_flag, int m, int before, int after)
 				    mw - wcslen(year[i].name) - 1, M2Y(m + i));
 		printf("\n");
 
+		/* And the days of the month. */
 		for (i = 0; i != 7; i++) {
 			/* Week day */
 			wprintf(L"%.2ls", wds.names[i]);
@@ -640,11 +739,12 @@ monthranger(int y, int jd_flag, int m, int before, int after)
 			/* Full months */
 			for (j = 0; j < count; j++)
 				printf("%-*s",
-				    MW(mw, year[j].lines[i],
-					year[j].linelen[i]), year[j].lines[i]);
+				    MW(mw, year[j].extralen[i]),
+					year[j].lines[i]);
 			printf("\n");
 		}
 
+		/* Week numbers. */
 		if (flag_weeks) {
 			printf("  ");
 			for (i = 0; i < count; i++)
@@ -700,7 +800,7 @@ mkmonthr(int y, int m, int jd_flag, struct monthlines *mlines)
 	 */
 	firstm = first - weekday(first);
 
-	/* Set ds (daystring) and dw (daywidth) according to the jd_flag */
+	/* Set ds (daystring) and dw (daywidth) according to the jd_flag. */
 	if (jd_flag) {
 		ds = jdaystr;
 		dw = 4;
@@ -717,41 +817,25 @@ mkmonthr(int y, int m, int jd_flag, struct monthlines *mlines)
 	for (i = 0; i != 7; i++) {
 		l = 0;
 		for (j = firstm + i, k = 0; j < last; j += 7, k += dw) {
-			if (j == today &&
-			    (term_so != NULL && term_se != NULL)) {
-				l = strlen(term_so);
-				if (jd_flag)
-					dt.d = j - jan1 + 1;
-				else
-					sdateb(j, &dt);
-				/* separator */
-				mlines->lines[i][k] = ' ';
-				/* the actual text */
-				memcpy(mlines->lines[i] + k + l,
-				    ds + dt.d * dw, dw);
-				/* highlight on */
-				memcpy(mlines->lines[i] + k + 1, term_so, l);
-				/* highlight off */
-				memcpy(mlines->lines[i] + k + l + dw, term_se,
-				    strlen(term_se));
-				l = strlen(term_se) + strlen(term_so);
-				continue;
-			}
 			if (j >= first) {
 				if (jd_flag)
 					dt.d = j - jan1 + 1;
 				else
 					sdater(j, &dt);
-				memcpy(mlines->lines[i] + k + l,
-				       ds + dt.d * dw, dw);
+				if (j == highlightdate && !flag_nohighlight)
+					highlight(mlines->lines[i] + k,
+					    ds + dt.d * dw, dw, &l);
+				else
+					memcpy(mlines->lines[i] + k + l,
+					       ds + dt.d * dw, dw);
 			} else
 				memcpy(mlines->lines[i] + k + l, "    ", dw);
 		}
 		mlines->lines[i][k + l] = '\0';
-		mlines->linelen[i] = k;
+		mlines->extralen[i] = l;
 	}
 
-	/* fill the weeknumbers */
+	/* fill the weeknumbers. */
 	if (flag_weeks) {
 		for (j = firstm, k = 0; j < last;  k += dw, j += 7)
 			if (j <= nswitch)
@@ -788,7 +872,7 @@ mkmonthb(int y, int m, int jd_flag, struct monthlines *mlines)
 		dw = 3;
 	}
 
-	/* Set name of month centered */
+	/* Set name of month centered. */
 	memset(&tm, 0, sizeof(tm));
 	tm.tm_mon = m;
 	wcsftime(mlines->name, sizeof(mlines->name) / sizeof(mlines->name[0]),
@@ -837,33 +921,17 @@ mkmonthb(int y, int m, int jd_flag, struct monthlines *mlines)
 		l = 0;
 		for (j = firsts + 7 * i, k = 0; j < last && k != dw * 7;
 		    j++, k += dw) { 
-			if (j == today &&
-			    (term_so != NULL && term_se != NULL)) {
-				l = strlen(term_so);
-				if (jd_flag)
-					dt.d = j - jan1 + 1;
-				else
-					sdateb(j, &dt);
-				/* separator */
-				mlines->lines[i][k] = ' ';
-				/* the actual text */
-				memcpy(mlines->lines[i] + k + l,
-				    ds + dt.d * dw, dw);
-				/* highlight on */
-				memcpy(mlines->lines[i] + k + 1, term_so, l);
-				/* highlight off */
-				memcpy(mlines->lines[i] + k + l + dw, term_se,
-				    strlen(term_se));
-				l = strlen(term_se) + strlen(term_so);
-				continue;
-			}
 			if (j >= first) {
 				if (jd_flag)
 					dt.d = j - jan1 + 1;
 				else
 					sdateb(j, &dt);
-				memcpy(mlines->lines[i] + k + l,
-				       ds + dt.d * dw, dw);
+				if (j == highlightdate && !flag_nohighlight)
+					highlight(mlines->lines[i] + k,
+					    ds + dt.d * dw, dw, &l);
+				else
+					memcpy(mlines->lines[i] + k + l,
+					       ds + dt.d * dw, dw);
 			} else
 				memcpy(mlines->lines[i] + k + l, "    ", dw);
 		}
@@ -871,10 +939,11 @@ mkmonthb(int y, int m, int jd_flag, struct monthlines *mlines)
 			mlines->lines[i][1] = '\0';
 		else
 			mlines->lines[i][k + l] = '\0';
+		mlines->extralen[i] = l;
 	}
 }
 
-/* Put the local names of weekdays into the wds */
+/* Put the local names of weekdays into the wds. */
 void
 mkweekdays(struct weekdays *wds)
 {
@@ -900,9 +969,8 @@ mkweekdays(struct weekdays *wds)
 }
 
 /*
- * Compute the day number of the first
- * existing date after the first day in month.
- * (the first day in month and even the month might not exist!)
+ * Compute the day number of the first existing date after the first day in
+ * month. (the first day in month and even the month might not exist!)
  */
 int
 firstday(int y, int m)
@@ -955,7 +1023,7 @@ sndaysb(struct date *d)
 		return (ndaysj(d));
 }
 
-/* Inverse of sndays */
+/* Inverse of sndays. */
 struct date *
 sdater(int nd, struct date *d)
 {
@@ -966,7 +1034,7 @@ sdater(int nd, struct date *d)
 		return (jdate(nd, d));
 }
 
-/* Inverse of sndaysb */
+/* Inverse of sndaysb. */
 struct date *
 sdateb(int nd, struct date *d)
 {
@@ -977,7 +1045,7 @@ sdateb(int nd, struct date *d)
 		return (jdate(nd, d));
 }
 
-/* Center string t in string s of length w by putting enough leading blanks */
+/* Center string t in string s of length w by putting enough leading blanks. */
 char *
 center(char *s, char *t, int w)
 {
@@ -988,7 +1056,7 @@ center(char *s, char *t, int w)
 	return (s);
 }
 
-/* Center string t in string s of length w by putting enough leading blanks */
+/* Center string t in string s of length w by putting enough leading blanks. */
 wchar_t *
 wcenter(wchar_t *s, wchar_t *t, int w)
 {
@@ -1030,4 +1098,77 @@ parsemonth(const char *s, int *m, int *y)
 		return (0);
 	}
 	return (1);
+}
+
+void
+highlight(char *dst, char *src, int len, int *extralen)
+{
+	static int first = 1;
+	static const char *term_so, *term_se;
+
+	if (first) {
+		char tbuf[1024], cbuf[512], *b;
+
+		term_se = term_so = NULL;
+
+		/* On how to highlight on this type of terminal (if any). */
+		if (isatty(STDOUT_FILENO) && tgetent(tbuf, NULL) == 1) {
+			b = cbuf;
+			term_so = tgetstr("so", &b);
+			term_se = tgetstr("se", &b);
+		}
+
+		first = 0;
+	}
+
+	/*
+	 * This check is not necessary, should have been handled before calling
+	 * this function.
+	 */
+	if (flag_nohighlight) {
+		memcpy(dst, src, len);
+		return;
+	}
+
+	/*
+	 * If it is a real terminal, use the data from the termcap database.
+	 */
+	if (term_so != NULL && term_se != NULL) {
+		/* separator. */
+		dst[0] = ' ';
+		dst++;
+		/* highlight on. */
+		memcpy(dst, term_so, strlen(term_so));
+		dst += strlen(term_so);
+		/* the actual text. (minus leading space) */
+		len--;
+		src++;
+		memcpy(dst, src, len);
+		dst += len;
+		/* highlight off. */
+		memcpy(dst, term_se, strlen(term_se));
+		*extralen = strlen(term_so) + strlen(term_se);
+		return;
+	}
+
+	/*
+	 * Otherwise, print a _, backspace and the letter.
+	 */
+	*extralen = 0;
+	/* skip leading space. */
+	src++;
+	len--;
+	/* separator. */
+	dst[0] = ' ';
+	dst++;
+	while (len > 0) {
+		/* _ and backspace. */
+		memcpy(dst, "_\010", 2);
+		dst += 2;
+		*extralen += 2;
+		/* the character. */
+		*dst++ = *src++;
+		len--;
+	}
+	return;
 }

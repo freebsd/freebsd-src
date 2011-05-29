@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007-2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007-2010  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: journal.c,v 1.103.48.6 2009/11/04 23:47:25 tbox Exp $ */
+/* $Id: journal.c,v 1.103.48.8 2010-11-17 23:45:45 tbox Exp $ */
 
 #include <config.h>
 
@@ -2173,6 +2173,12 @@ dns_journal_compact(isc_mem_t *mctx, char *filename, isc_uint32_t serial,
 
 		indexend = new->header.end.offset;
 	}
+
+	/*
+	 * Close both journals before trying to rename files (this is
+	 * necessary on WIN32).
+	 */
+	dns_journal_destroy(&j);
 	dns_journal_destroy(&new);
 
 	/*
@@ -2180,12 +2186,14 @@ dns_journal_compact(isc_mem_t *mctx, char *filename, isc_uint32_t serial,
 	 * Any IXFR outs will just continue and the old journal will be
 	 * removed on final close.
 	 *
-	 * With MSDOS / NTFS we need to do a two stage rename triggered
-	 * bu EEXISTS.  Hopefully all IXFR's that were active at the last
-	 * rename are now complete.
+	 * With MSDOS / NTFS we need to do a two stage rename, triggered
+	 * by EEXIST.  (If any IXFR's are running in other threads, however,
+	 * this will fail, and the journal will not be compacted.  But
+	 * if so, hopefully they'll be finished by the next time we
+	 * compact.)
 	 */
 	if (rename(newname, filename) == -1) {
-		if (errno == EACCES && !is_backup) {
+		if (errno == EEXIST && !is_backup) {
 			result = isc_file_remove(backup);
 			if (result != ISC_R_SUCCESS &&
 			    result != ISC_R_FILENOTFOUND)
@@ -2202,7 +2210,6 @@ dns_journal_compact(isc_mem_t *mctx, char *filename, isc_uint32_t serial,
 		}
 	}
 
-	dns_journal_destroy(&j);
 	result = ISC_R_SUCCESS;
 
  failure:

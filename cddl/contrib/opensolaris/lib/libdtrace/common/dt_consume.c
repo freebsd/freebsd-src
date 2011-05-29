@@ -19,11 +19,9 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <stdlib.h>
 #include <strings.h>
@@ -36,6 +34,9 @@
 #include <alloca.h>
 #endif
 #include <dt_impl.h>
+#if !defined(sun)
+#include <libproc_compat.h>
+#endif
 
 #define	DT_MASK_LO 0x00000000FFFFFFFFULL
 
@@ -954,17 +955,9 @@ dt_print_ustack(dtrace_hdl_t *dtp, FILE *fp, const char *format,
 		if ((err = dt_printf(dtp, fp, "%*s", indent, "")) < 0)
 			break;
 
-#if defined(sun)
 		if (P != NULL && Plookup_by_addr(P, pc[i],
-#else
-		if (P != NULL && proc_addr2sym(P, pc[i],
-#endif
 		    name, sizeof (name), &sym) == 0) {
-#if defined(sun)
 			(void) Pobjname(P, pc[i], objname, sizeof (objname));
-#else
-			(void) proc_objname(P, pc[i], objname, sizeof (objname));
-#endif
 
 			if (pc[i] > sym.st_value) {
 				(void) snprintf(c, sizeof (c),
@@ -975,12 +968,8 @@ dt_print_ustack(dtrace_hdl_t *dtp, FILE *fp, const char *format,
 				    "%s`%s", dt_basename(objname), name);
 			}
 		} else if (str != NULL && str[0] != '\0' && str[0] != '@' &&
-#if defined(sun)
 		    (P != NULL && ((map = Paddr_to_map(P, pc[i])) == NULL ||
 		    (map->pr_mflags & MA_WRITE)))) {
-#else
-		    (P != NULL && ((map = proc_addr2map(P, pc[i])) == NULL))) {
-#endif
 			/*
 			 * If the current string pointer in the string table
 			 * does not point to an empty string _and_ the program
@@ -996,11 +985,7 @@ dt_print_ustack(dtrace_hdl_t *dtp, FILE *fp, const char *format,
 			 */
 			(void) snprintf(c, sizeof (c), "%s", str);
 		} else {
-#if defined(sun)
 			if (P != NULL && Pobjname(P, pc[i], objname,
-#else
-			if (P != NULL && proc_objname(P, pc[i], objname,
-#endif
 			    sizeof (objname)) != 0) {
 				(void) snprintf(c, sizeof (c), "%s`0x%llx",
 				    dt_basename(objname), (u_longlong_t)pc[i]);
@@ -1070,11 +1055,7 @@ dt_print_usym(dtrace_hdl_t *dtp, FILE *fp, caddr_t addr, dtrace_actkind_t act)
 
 			dt_proc_lock(dtp, P);
 
-#if defined(sun)
 			if (Plookup_by_addr(P, pc, NULL, 0, &sym) == 0)
-#else
-			if (proc_addr2sym(P, pc, NULL, 0, &sym) == 0)
-#endif
 				pc = sym.st_value;
 
 			dt_proc_unlock(dtp, P);
@@ -1085,7 +1066,7 @@ dt_print_usym(dtrace_hdl_t *dtp, FILE *fp, caddr_t addr, dtrace_actkind_t act)
 	do {
 		n = len;
 		s = alloca(n);
-	} while ((len = dtrace_uaddr2str(dtp, pid, pc, s, n)) >= n);
+	} while ((len = dtrace_uaddr2str(dtp, pid, pc, s, n)) > n);
 
 	return (dt_printf(dtp, fp, format, s));
 }
@@ -1117,11 +1098,7 @@ dt_print_umod(dtrace_hdl_t *dtp, FILE *fp, const char *format, caddr_t addr)
 	if (P != NULL)
 		dt_proc_lock(dtp, P); /* lock handle while we perform lookups */
 
-#if defined(sun)
 	if (P != NULL && Pobjname(P, pc, objname, sizeof (objname)) != 0) {
-#else
-	if (P != NULL && proc_objname(P, pc, objname, sizeof (objname)) != 0) {
-#endif
 		(void) snprintf(c, sizeof (c), "%s", dt_basename(objname));
 	} else {
 		(void) snprintf(c, sizeof (c), "0x%llx", (u_longlong_t)pc);

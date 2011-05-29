@@ -36,10 +36,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/bio.h>
 #include <sys/malloc.h>
 #include <sys/libkern.h>
+#include <sys/sysctl.h>
 #include <geom/geom.h>
 #include <geom/geom_slice.h>
 #include <geom/label/g_label.h>
 
+FEATURE(geom_label, "GEOM labeling support");
 
 SYSCTL_DECL(_kern_geom);
 SYSCTL_NODE(_kern_geom, OID_AUTO, label, CTLFLAG_RW, 0, "GEOM_LABEL stuff");
@@ -124,13 +126,13 @@ g_label_is_name_ok(const char *label)
 {
 	const char *s;
 
-	/* Check is the label starts from ../ */
+	/* Check if the label starts from ../ */
 	if (strncmp(label, "../", 3) == 0)
 		return (0);
-	/* Check is the label contains /../ */
+	/* Check if the label contains /../ */
 	if (strstr(label, "/../") != NULL)
 		return (0);
-	/* Check is the label ends at ../ */
+	/* Check if the label ends at ../ */
 	if ((s = strstr(label, "/..")) != NULL && s[3] == '\0')
 		return (0);
 	return (1);
@@ -151,6 +153,8 @@ g_label_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
 		G_LABEL_DEBUG(0, "%s contains suspicious label, skipping.",
 		    pp->name);
 		G_LABEL_DEBUG(1, "%s suspicious label is: %s", pp->name, label);
+		if (req != NULL)
+			gctl_error(req, "Label name %s is invalid.", label);
 		return (NULL);
 	}
 	gp = NULL;
@@ -159,6 +163,8 @@ g_label_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
 	LIST_FOREACH(gp, &mp->geom, geom) {
 		pp2 = LIST_FIRST(&gp->provider);
 		if (pp2 == NULL)
+			continue;
+		if ((pp2->flags & G_PF_ORPHAN) != 0)
 			continue;
 		if (strcmp(pp2->name, name) == 0) {
 			G_LABEL_DEBUG(1, "Label %s(%s) already exists (%s).",
@@ -203,10 +209,8 @@ g_label_destroy(struct g_geom *gp, boolean_t force)
 			    pp->acr, pp->acw, pp->ace);
 			return (EBUSY);
 		}
-	} else {
-		G_LABEL_DEBUG(1, "Label %s removed.",
-		    LIST_FIRST(&gp->provider)->name);
-	}
+	} else if (pp != NULL)
+		G_LABEL_DEBUG(1, "Label %s removed.", pp->name);
 	g_slice_spoiled(LIST_FIRST(&gp->consumer));
 	return (0);
 }
@@ -348,7 +352,7 @@ g_label_ctl_create(struct gctl_req *req, struct g_class *mp)
 		return;
 	}
 	if (*nargs != 2) {
-		gctl_error(req, "Invalid number of argument.");
+		gctl_error(req, "Invalid number of arguments.");
 		return;
 	}
 	/*

@@ -30,12 +30,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 9, 2009
+.Dd January 26, 2011
 .Dt RE 4
 .Os
 .Sh NAME
 .Nm re
-.Nd "RealTek 8139C+/8169/816xS/811xS/8101E PCI/PCIe Ethernet adapter driver"
+.Nd "RealTek 8139C+/8169/816xS/811xS/8168/810xE/8111 PCI/PCIe Ethernet adapter driver"
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your
@@ -55,13 +55,13 @@ if_re_load="YES"
 The
 .Nm
 driver provides support for various NICs based on the RealTek RTL8139C+,
-RTL8169, RTL8169S, RTL8110S, RTL8168S, RTL8111S and RTL8101E PCI and
+RTL8169, RTL816xS, RTL811xS, RTL8168, RTL810xE and RTL8111 PCI and
 PCIe Ethernet controllers.
 .Pp
-NICs based on the 8139C+ and 8101E are capable of 10 and 100Mbps speeds
+NICs based on the 8139C+ and 810xE are capable of 10 and 100Mbps speeds
 over CAT5 cable.
-NICs based on the 8169, 816xS and 811xS are capable of 10, 100 and
-1000Mbps operation.
+NICs based on the 8169, 816xS, 811xS, 8168 and 8111 are capable of 10, 100
+and 1000Mbps operation.
 .Pp
 All NICs supported by the
 .Nm
@@ -72,8 +72,8 @@ capable of TCP large send (TCP segmentation offload).
 .Pp
 The 8139C+ is a single-chip solution combining both a 10/100 MAC and PHY.
 The 8169 is a 10/100/1000 MAC only, requiring a GMII or TBI external PHY.
-The 8169S and 8110S are single-chip devices containing both a 10/100/1000
-MAC and 10/100/1000 copper PHY.
+The 816xS, 811xS, 8168 and 8111 are single-chip devices containing both a
+10/100/1000 MAC and 10/100/1000 copper PHY.
 Standalone 10/100/1000 cards are available
 in both 32-bit PCI and 64-bit PCI models.
 The 8110S is designed for
@@ -144,8 +144,8 @@ For more information on configuring this device, see
 .Sh HARDWARE
 The
 .Nm
-driver supports RealTek RTL8139C+, RTL8169, RTL816xS, RTL811xS,
-and RTL8101E based Fast Ethernet and Gigabit Ethernet adapters including:
+driver supports RealTek RTL8139C+, RTL8169, RTL816xS, RTL811xS, RTL8168,
+RTL810xE and RTL8111 based Fast Ethernet and Gigabit Ethernet adapters including:
 .Pp
 .Bl -bullet -compact
 .It
@@ -175,9 +175,38 @@ Tunables can be set at the
 prompt before booting the kernel or stored in
 .Xr loader.conf 5 .
 .Bl -tag -width "xxxxxx"
+.It Va hw.re.intr_filter
+This tunable makes driver use interrupt filter handler on
+controllers that support MSI/MSI-X capability.
+If MSI/MSI-X is disabled by administrator this tunable has no
+effect and driver will use interrupt filter handler.
+The default value is 0 to use interrupt thread handler.
 .It Va hw.re.msi_disable
 This tunable disables MSI support on the Ethernet hardware.
 The default value is 0.
+.It Va hw.re.msix_disable
+This tunable disables MSI-X support on the Ethernet hardware.
+The default value is 0.
+.It Va hw.re.prefer_iomap
+This tunable controls which register mapping should be used on the
+specified device.
+A non-zero value enables I/O space register mapping.
+The default value is 0 to use memory space register mapping.
+.El
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables:
+.Bl -tag -width "xxxxxx"
+.It Va dev.re.%d.int_rx_mod
+Maximum amount of time to delay receive interrupt processing in
+units of 1us.
+The accepted range is 0 to 65, the default is 65(65us).
+Value 0 completely disables the interrupt moderation.
+The interface need to be brought down and up again before a change
+takes effect.
 .El
 .Sh DIAGNOSTICS
 .Bl -diag
@@ -208,6 +237,7 @@ the network connection (cable).
 .Xr netintro 4 ,
 .Xr ng_ether 4 ,
 .Xr polling 4 ,
+.Xr rgephy 4 ,
 .Xr vlan 4 ,
 .Xr ifconfig 8
 .Rs
@@ -248,7 +278,7 @@ be echoed back unmodified.
 If the echoed data is corrupt, the driver
 will print an error message on the console and abort the device attach.
 The
-user should insure the NIC is installed in a 32-bit PCI slot to
+user should ensure the NIC is installed in a 32-bit PCI slot to
 avoid this problem.
 .Pp
 The RealTek 8169, 8169S and 8110S chips appear to only be capable of

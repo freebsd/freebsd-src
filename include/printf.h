@@ -29,6 +29,7 @@
 #ifndef _PRINTF_H_
 #define _PRINTF_H_
 
+#include <stdio.h>
 #include <wchar.h>
 
 /*

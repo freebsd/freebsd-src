@@ -269,7 +269,7 @@ init_tid_tabs(struct tid_info *t, unsigned int ntids,
 	t->atid_base = atid_base;
 	t->afree = NULL;
 	t->stids_in_use = t->atids_in_use = 0;
-	atomic_set_int(&t->tids_in_use, 0);
+	t->tids_in_use = 0;
 	mtx_init(&t->stid_lock, "stid", NULL, MTX_DUPOK|MTX_DEF);
 	mtx_init(&t->atid_lock, "atid", NULL, MTX_DUPOK|MTX_DEF);
 

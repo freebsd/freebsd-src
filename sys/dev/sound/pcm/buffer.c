@@ -93,7 +93,7 @@ sndbuf_alloc(struct snd_dbuf *b, bus_dma_tag_t dmatag, int dmaflags,
 	int ret;
 
 	b->dmatag = dmatag;
-	b->dmaflags = dmaflags | BUS_DMA_NOWAIT;
+	b->dmaflags = dmaflags | BUS_DMA_NOWAIT | BUS_DMA_COHERENT;
 	b->maxsize = size;
 	b->bufsize = b->maxsize;
 	b->buf_addr = 0;
@@ -566,30 +566,6 @@ sndbuf_updateprevtotal(struct snd_dbuf *b)
 }
 
 unsigned int
-snd_xbytes(unsigned int v, unsigned int from, unsigned int to)
-{
-	unsigned int w, x, y;
-
-	if (from == to)
-		return v;
-
-	if (from == 0 || to == 0 || v == 0)
-		return 0;
-
-	x = from;
-	y = to;
-	while (y != 0) {
-		w = x % y;
-		x = y;
-		y = w;
-	}
-	from /= x;
-	to /= x;
-
-	return (unsigned int)(((u_int64_t)v * to) / from);
-}
-
-unsigned int
 sndbuf_xbytes(unsigned int v, struct snd_dbuf *from, struct snd_dbuf *to)
 {
 	if (from == NULL || to == NULL || v == 0)
@@ -690,11 +666,11 @@ sndbuf_dispose(struct snd_dbuf *b, u_int8_t *to, unsigned int count)
 
 #ifdef SND_DIAGNOSTIC
 static uint32_t snd_feeder_maxfeed = 0;
-SYSCTL_INT(_hw_snd, OID_AUTO, feeder_maxfeed, CTLFLAG_RD,
+SYSCTL_UINT(_hw_snd, OID_AUTO, feeder_maxfeed, CTLFLAG_RD,
     &snd_feeder_maxfeed, 0, "maximum feeder count request");
 
 static uint32_t snd_feeder_maxcycle = 0;
-SYSCTL_INT(_hw_snd, OID_AUTO, feeder_maxcycle, CTLFLAG_RD,
+SYSCTL_UINT(_hw_snd, OID_AUTO, feeder_maxcycle, CTLFLAG_RD,
     &snd_feeder_maxcycle, 0, "maximum feeder cycle");
 #endif
 

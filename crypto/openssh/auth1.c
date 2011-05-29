@@ -1,4 +1,4 @@
-/* $OpenBSD: auth1.c,v 1.73 2008/07/04 23:30:16 djm Exp $ */
+/* $OpenBSD: auth1.c,v 1.75 2010/08/31 09:58:37 djm Exp $ */
 /*
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
@@ -167,7 +167,7 @@ auth1_process_rhosts_rsa(Authctxt *authctxt, char *info, size_t infolen)
 	 * trust the client; root on the client machine can
 	 * claim to be any user.
 	 */
-	client_user = packet_get_string(&ulen);
+	client_user = packet_get_cstring(&ulen);
 
 	/* Get the client host key. */
 	client_host_key = key_new(KEY_RSA1);
@@ -244,7 +244,7 @@ do_authloop(Authctxt *authctxt)
 	    authctxt->valid ? "" : "invalid user ", authctxt->user);
 
 	/* If the user has no password, accept authentication immediately. */
-	if (options.password_authentication &&
+	if (options.permit_empty_passwd && options.password_authentication &&
 #ifdef KRB5
 	    (!options.kerberos_authentication || options.kerberos_or_local_passwd) &&
 #endif
@@ -389,7 +389,7 @@ do_authentication(Authctxt *authctxt)
 	packet_read_expect(SSH_CMSG_USER);
 
 	/* Get the user name. */
-	user = packet_get_string(&ulen);
+	user = packet_get_cstring(&ulen);
 	packet_check_eom();
 
 	if ((style = strchr(user, ':')) != NULL)

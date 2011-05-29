@@ -1,5 +1,5 @@
 /*
- * Copryight 1997 Sean Eric Fagan
+ * Copyright 1997 Sean Eric Fagan
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -128,7 +128,7 @@ amd64_syscall_entry(struct trussinfo *trussinfo, int nargs) {
   /*
    * FreeBSD has two special kinds of system call redirctions --
    * SYS_syscall, and SYS___syscall.  The former is the old syscall()
-   * routine, basicly; the latter is for quad-aligned arguments.
+   * routine, basically; the latter is for quad-aligned arguments.
    */
   reg = 0;
   syscall_num = regs.r_rax;
@@ -257,7 +257,7 @@ amd64_syscall_entry(struct trussinfo *trussinfo, int nargs) {
  * And when the system call is done, we handle it here.
  * Currently, no attempt is made to ensure that the system calls
  * match -- this needs to be fixed (and is, in fact, why S_SCX includes
- * the sytem call number instead of, say, an error status).
+ * the system call number instead of, say, an error status).
  */
 
 long

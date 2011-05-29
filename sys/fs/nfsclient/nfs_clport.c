@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
  * generally, I don't like #includes inside .h files, but it seems to
  * be the easiest way to handle the port.
  */
+#include <sys/hash.h>
 #include <fs/nfs/nfsport.h>
 #include <netinet/if_ether.h>
 #include <net/if_types.h>
@@ -84,7 +85,7 @@ newnfs_vncmpf(struct vnode *vp, void *arg)
 int
 nfscl_nget(struct mount *mntp, struct vnode *dvp, struct nfsfh *nfhp,
     struct componentname *cnp, struct thread *td, struct nfsnode **npp,
-    void *stuff)
+    void *stuff, int lkflags)
 {
 	struct nfsnode *np, *dnp;
 	struct vnode *vp, *nvp;
@@ -99,7 +100,7 @@ nfscl_nget(struct mount *mntp, struct vnode *dvp, struct nfsfh *nfhp,
 
 	hash = fnv_32_buf(nfhp->nfh_fh, nfhp->nfh_len, FNV1_32_INIT);
 
-	error = vfs_hash_get(mntp, hash, LK_EXCLUSIVE,
+	error = vfs_hash_get(mntp, hash, lkflags,
 	    td, &nvp, newnfs_vncmpf, nfhp);
 	if (error == 0 && nvp != NULL) {
 		/*
@@ -230,9 +231,9 @@ nfscl_nget(struct mount *mntp, struct vnode *dvp, struct nfsfh *nfhp,
 	/*
 	 * NFS supports recursive and shared locking.
 	 */
+	lockmgr(vp->v_vnlock, LK_EXCLUSIVE | LK_NOWITNESS, NULL);
 	VN_LOCK_AREC(vp);
 	VN_LOCK_ASHARE(vp);
-	lockmgr(vp->v_vnlock, LK_EXCLUSIVE | LK_NOWITNESS, NULL);
 	error = insmntque(vp, mntp);
 	if (error != 0) {
 		*npp = NULL;
@@ -243,7 +244,7 @@ nfscl_nget(struct mount *mntp, struct vnode *dvp, struct nfsfh *nfhp,
 		uma_zfree(newnfsnode_zone, np);
 		return (error);
 	}
-	error = vfs_hash_insert(vp, hash, LK_EXCLUSIVE, 
+	error = vfs_hash_insert(vp, hash, lkflags, 
 	    td, &nvp, newnfs_vncmpf, nfhp);
 	if (error)
 		return (error);
@@ -340,7 +341,6 @@ nfscl_loadattrcache(struct vnode **vpp, struct nfsvattr *nap, void *nvaper,
 	struct nfsnode *np;
 	struct nfsmount *nmp;
 	struct timespec mtime_save;
-	struct thread *td = curthread;
 
 	/*
 	 * If v_type == VNON it is a new node, so fill in the v_type,
@@ -378,22 +378,25 @@ nfscl_loadattrcache(struct vnode **vpp, struct nfsvattr *nap, void *nvaper,
 	 * be the same as a local fs, but since this is in an NFS mount
 	 * point, I don't think that will cause any problems?
 	 */
-	if ((nmp->nm_flag & (NFSMNT_NFSV4 | NFSMNT_HASSETFSID)) ==
-	    (NFSMNT_NFSV4 | NFSMNT_HASSETFSID) &&
+	if (NFSHASNFSV4(nmp) && NFSHASHASSETFSID(nmp) &&
 	    (nmp->nm_fsid[0] != np->n_vattr.na_filesid[0] ||
-	     nmp->nm_fsid[1] != np->n_vattr.na_filesid[1]))
-		vap->va_fsid = np->n_vattr.na_filesid[0];
-	else
+	     nmp->nm_fsid[1] != np->n_vattr.na_filesid[1])) {
+		/*
+		 * va_fsid needs to be set to some value derived from
+		 * np->n_vattr.na_filesid that is not equal
+		 * vp->v_mount->mnt_stat.f_fsid[0], so that it changes
+		 * from the value used for the top level server volume
+		 * in the mounted subtree.
+		 */
+		if (vp->v_mount->mnt_stat.f_fsid.val[0] !=
+		    (uint32_t)np->n_vattr.na_filesid[0])
+			vap->va_fsid = (uint32_t)np->n_vattr.na_filesid[0];
+		else
+			vap->va_fsid = (uint32_t)hash32_buf(
+			    np->n_vattr.na_filesid, 2 * sizeof(uint64_t), 0);
+	} else
 		vap->va_fsid = vp->v_mount->mnt_stat.f_fsid.val[0];
 	np->n_attrstamp = time_second;
-	/* Timestamp the NFS otw getattr fetch */
-	if (td->td_proc) {
-		np->n_ac_ts_tid = td->td_tid;
-		np->n_ac_ts_pid = td->td_proc->p_pid;
-		np->n_ac_ts_syscalls = td->td_syscalls;
-	} else
-		bzero(&np->n_ac_ts, sizeof(struct nfs_attrcache_timestamp));
-	
 	if (vap->va_size != np->n_size) {
 		if (vap->va_type == VREG) {
 			if (dontshrink && vap->va_size < np->n_size) {
@@ -800,8 +803,8 @@ nfscl_fillsattr(struct nfsrv_descript *nd, struct vattr *vap,
 			NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_TIMEACCESSSET);
 		if (vap->va_mtime.tv_sec != VNOVAL)
 			NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_TIMEMODIFYSET);
-		(void) nfsv4_fillattr(nd, vp, NULL, vap, NULL, 0, &attrbits,
-		    NULL, NULL, 0, 0);
+		(void) nfsv4_fillattr(nd, vp->v_mount, vp, NULL, vap, NULL, 0,
+		    &attrbits, NULL, NULL, 0, 0, 0, 0, (uint64_t)0);
 		break;
 	};
 }
@@ -835,21 +838,33 @@ void
 nfscl_loadsbinfo(struct nfsmount *nmp, struct nfsstatfs *sfp, void *statfs)
 {
 	struct statfs *sbp = (struct statfs *)statfs;
-	nfsquad_t tquad;
 
 	if (nmp->nm_flag & (NFSMNT_NFSV3 | NFSMNT_NFSV4)) {
 		sbp->f_bsize = NFS_FABLKSIZE;
-		tquad.qval = sfp->sf_tbytes;
-		sbp->f_blocks = (long)(tquad.qval / ((u_quad_t)NFS_FABLKSIZE));
-		tquad.qval = sfp->sf_fbytes;
-		sbp->f_bfree = (long)(tquad.qval / ((u_quad_t)NFS_FABLKSIZE));
-		tquad.qval = sfp->sf_abytes;
-		sbp->f_bavail = (long)(tquad.qval / ((u_quad_t)NFS_FABLKSIZE));
-		tquad.qval = sfp->sf_tfiles;
-		sbp->f_files = (tquad.lval[0] & 0x7fffffff);
-		tquad.qval = sfp->sf_ffiles;
-		sbp->f_ffree = (tquad.lval[0] & 0x7fffffff);
+		sbp->f_blocks = sfp->sf_tbytes / NFS_FABLKSIZE;
+		sbp->f_bfree = sfp->sf_fbytes / NFS_FABLKSIZE;
+		/*
+		 * Although sf_abytes is uint64_t and f_bavail is int64_t,
+		 * the value after dividing by NFS_FABLKSIZE is small
+		 * enough that it will fit in 63bits, so it is ok to
+		 * assign it to f_bavail without fear that it will become
+		 * negative.
+		 */
+		sbp->f_bavail = sfp->sf_abytes / NFS_FABLKSIZE;
+		sbp->f_files = sfp->sf_tfiles;
+		/* Since f_ffree is int64_t, clip it to 63bits. */
+		if (sfp->sf_ffiles > INT64_MAX)
+			sbp->f_ffree = INT64_MAX;
+		else
+			sbp->f_ffree = sfp->sf_ffiles;
 	} else if ((nmp->nm_flag & NFSMNT_NFSV4) == 0) {
+		/*
+		 * The type casts to (int32_t) ensure that this code is
+		 * compatible with the old NFS client, in that it will
+		 * propagate bit31 to the high order bits. This may or may
+		 * not be correct for NFSv2, but since it is a legacy
+		 * environment, I'd rather retain backwards compatibility.
+		 */
 		sbp->f_bsize = (int32_t)sfp->sf_bsize;
 		sbp->f_blocks = (int32_t)sfp->sf_blocks;
 		sbp->f_bfree = (int32_t)sfp->sf_bfree;
@@ -978,6 +993,8 @@ newnfs_copyincred(struct ucred *cr, struct nfscred *nfscr)
 {
 	int i;
 
+	KASSERT(cr->cr_ngroups >= 0,
+	    ("newnfs_copyincred: negative cr_ngroups"));
 	nfscr->nfsc_uid = cr->cr_uid;
 	nfscr->nfsc_ngroups = MIN(cr->cr_ngroups, NFS_MAXGRPS + 1);
 	for (i = 0; i < nfscr->nfsc_ngroups; i++)
@@ -1109,11 +1126,11 @@ pfind_locked(pid_t pid)
 
 	LIST_FOREACH(p, PIDHASH(pid), p_hash)
 		if (p->p_pid == pid) {
-			if (p->p_state == PRS_NEW) {
-				p = NULL;
-				break;
-			}
 			PROC_LOCK(p);
+			if (p->p_state == PRS_NEW) {
+				PROC_UNLOCK(p);
+				p = NULL;
+			}
 			break;
 		}
 	return (p);
@@ -1273,4 +1290,7 @@ DECLARE_MODULE(nfscl, nfscl_mod, SI_SUB_VFS, SI_ORDER_FIRST);
 /* So that loader and kldload(2) can find us, wherever we are.. */
 MODULE_VERSION(nfscl, 1);
 MODULE_DEPEND(nfscl, nfscommon, 1, 1, 1);
+MODULE_DEPEND(nfscl, krpc, 1, 1, 1);
+MODULE_DEPEND(nfscl, nfssvc, 1, 1, 1);
+MODULE_DEPEND(nfscl, nfslock, 1, 1, 1);
 

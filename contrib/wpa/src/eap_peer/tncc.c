@@ -1106,6 +1106,7 @@ static struct tnc_if_imc * tncc_parse_imc(char *start, char *end, int *error)
 	if (pos >= end || *pos != ' ') {
 		wpa_printf(MSG_ERROR, "TNC: Ignoring invalid IMC line '%s' "
 			   "(no space after name)", start);
+		os_free(imc->name);
 		os_free(imc);
 		return NULL;
 	}

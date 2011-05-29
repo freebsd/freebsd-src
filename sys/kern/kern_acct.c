@@ -494,7 +494,7 @@ encode_timeval(struct timeval tv)
 			val = 1000000 * tv.tv_sec + tv.tv_usec;
 		} else {
 			exp = log2_s + LOG2_1M - CALC_BITS;
-			val = (unsigned int)(((u_int64_t)1000000 * tv.tv_sec +
+			val = (unsigned int)(((uint64_t)1000000 * tv.tv_sec +
 			    tv.tv_usec) >> exp);
 		}
 	}

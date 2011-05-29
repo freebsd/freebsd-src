@@ -39,7 +39,7 @@
 #include "opt_smp.h"
 
 #include <machine/asmacros.h>
-#include <machine/apicreg.h>
+#include <x86/apicreg.h>
 
 #include "assym.s"
 
@@ -56,21 +56,20 @@
 IDTVEC(vec_name) ;							\
 	PUSH_FRAME ;							\
 	SET_KERNEL_SREGS ;						\
+	cld ;								\
 	FAKE_MCOUNT(TF_EIP(%esp)) ;					\
 	movl	lapic, %edx ;	/* pointer to local APIC */		\
 	movl	LA_ISR + 16 * (index)(%edx), %eax ;	/* load ISR */	\
-	bsrl	%eax, %eax ;	/* index of highset set bit in ISR */	\
-	jz	2f ;							\
+	bsrl	%eax, %eax ;	/* index of highest set bit in ISR */	\
+	jz	1f ;							\
 	addl	$(32 * index),%eax ;					\
-1: ;									\
 	pushl	%esp		;                                       \
 	pushl	%eax ;		/* pass the IRQ */			\
 	call	lapic_handle_intr ;					\
 	addl	$8, %esp ;	/* discard parameter */			\
+1: ;									\
 	MEXITCOUNT ;							\
-	jmp	doreti ;						\
-2:	movl	$-1, %eax ;	/* send a vector of -1 */		\
-	jmp	1b
+	jmp	doreti
 
 /*
  * Handle "spurious INTerrupts".
@@ -103,10 +102,39 @@ IDTVEC(spuriousint)
 IDTVEC(timerint)
 	PUSH_FRAME
 	SET_KERNEL_SREGS
+	cld
 	FAKE_MCOUNT(TF_EIP(%esp))
 	pushl	%esp
 	call	lapic_handle_timer
 	add	$4, %esp
+	MEXITCOUNT
+	jmp	doreti
+
+/*
+ * Local APIC CMCI handler.
+ */
+	.text
+	SUPERALIGN_TEXT
+IDTVEC(cmcint)
+	PUSH_FRAME
+	SET_KERNEL_SREGS
+	cld
+	FAKE_MCOUNT(TF_EIP(%esp))
+	call	lapic_handle_cmc
+	MEXITCOUNT
+	jmp	doreti
+
+/*
+ * Local APIC error interrupt handler.
+ */
+	.text
+	SUPERALIGN_TEXT
+IDTVEC(errorint)
+	PUSH_FRAME
+	SET_KERNEL_SREGS
+	cld
+	FAKE_MCOUNT(TF_EIP(%esp))
+	call	lapic_handle_error
 	MEXITCOUNT
 	jmp	doreti
 
@@ -276,6 +304,7 @@ IDTVEC(invlcache)
 IDTVEC(ipi_intr_bitmap_handler)	
 	PUSH_FRAME
 	SET_KERNEL_SREGS
+	cld
 
 	movl	lapic, %edx
 	movl	$0, LA_EOI(%edx)	/* End Of Interrupt to APIC */
@@ -294,6 +323,7 @@ IDTVEC(ipi_intr_bitmap_handler)
 IDTVEC(cpustop)
 	PUSH_FRAME
 	SET_KERNEL_SREGS
+	cld
 
 	movl	lapic, %eax
 	movl	$0, LA_EOI(%eax)	/* End Of Interrupt to APIC */
@@ -313,6 +343,7 @@ IDTVEC(cpustop)
 IDTVEC(rendezvous)
 	PUSH_FRAME
 	SET_KERNEL_SREGS
+	cld
 
 #ifdef COUNT_IPIS
 	movl	PCPU(CPUID), %eax
@@ -334,6 +365,7 @@ IDTVEC(rendezvous)
 IDTVEC(lazypmap)
 	PUSH_FRAME
 	SET_KERNEL_SREGS
+	cld
 
 	call	pmap_lazyfix_action
 

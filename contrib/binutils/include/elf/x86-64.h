@@ -1,5 +1,6 @@
 /* x86_64 ELF support for BFD.
-   Copyright (C) 2000, 2002 Free Software Foundation, Inc.
+   Copyright (C) 2000, 2001, 2002, 2004, 2005, 2006
+   Free Software Foundation, Inc.
    Contributed by Jan Hubicka <jh@suse.cz>
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -16,7 +17,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software Foundation,
-   Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #ifndef _ELF_X86_64_H
 #define _ELF_X86_64_H
@@ -34,7 +35,7 @@ START_RELOC_NUMBERS (elf_x86_64_reloc_type)
      RELOC_NUMBER (R_X86_64_JUMP_SLOT,7)      /* Create PLT entry */
      RELOC_NUMBER (R_X86_64_RELATIVE, 8)      /* Adjust by program base */
      RELOC_NUMBER (R_X86_64_GOTPCREL, 9)      /* 32 bit signed pc relative
-                                                 offset to GOT */
+                                                 offset to GOT entry */
      RELOC_NUMBER (R_X86_64_32,       10)     /* Direct 32 bit zero extended */
      RELOC_NUMBER (R_X86_64_32S,      11)     /* Direct 32 bit sign extended */
      RELOC_NUMBER (R_X86_64_16,       12)     /* Direct 16 bit zero extended */
@@ -49,8 +50,38 @@ START_RELOC_NUMBERS (elf_x86_64_reloc_type)
      RELOC_NUMBER (R_X86_64_DTPOFF32, 21)     /* Offset in TLS block */
      RELOC_NUMBER (R_X86_64_GOTTPOFF, 22)     /* PC relative offset to IE GOT entry */
      RELOC_NUMBER (R_X86_64_TPOFF32,  23)     /* Offset in initial TLS block */
+     RELOC_NUMBER (R_X86_64_PC64,     24)     /* PC relative 64 bit */
+     RELOC_NUMBER (R_X86_64_GOTOFF64, 25)     /* 64 bit offset to GOT */
+     RELOC_NUMBER (R_X86_64_GOTPC32,  26)     /* 32 bit signed pc relative
+                                                 offset to GOT */
+     RELOC_NUMBER (R_X86_64_GOT64,    27)     /* 64 bit GOT entry offset */
+     RELOC_NUMBER (R_X86_64_GOTPCREL64, 28)   /* 64 bit signed pc relative
+     						 offset to GOT entry */
+     RELOC_NUMBER (R_X86_64_GOTPC64,  29)     /* 64 bit signed pc relative
+     						 offset to GOT */
+     RELOC_NUMBER (R_X86_64_GOTPLT64, 30)     /* like GOT64, but indicates
+     						 that PLT entry is needed */
+     RELOC_NUMBER (R_X86_64_PLTOFF64, 31)     /* 64 bit GOT relative offset
+     						 to PLT entry */
+     /* 32 .. 33 */
+     RELOC_NUMBER (R_X86_64_GOTPC32_TLSDESC, 34)
+					      /* 32 bit signed pc relative
+						 offset to TLS descriptor
+						 in the GOT.  */
+     RELOC_NUMBER (R_X86_64_TLSDESC_CALL, 35) /* Relaxable call through TLS
+						 descriptor.  */
+     RELOC_NUMBER (R_X86_64_TLSDESC, 36)      /* 2x64-bit TLS descriptor.  */
      RELOC_NUMBER (R_X86_64_GNU_VTINHERIT, 250)       /* GNU C++ hack  */
      RELOC_NUMBER (R_X86_64_GNU_VTENTRY, 251)         /* GNU C++ hack  */
 END_RELOC_NUMBERS (R_X86_64_max)
 
+/* Processor specific section types.  */
+
+#define SHT_X86_64_UNWIND	0x70000001	/* unwind information */
+
+/* Like SHN_COMMON but the symbol will be allocated in the .lbss
+   section.  */
+#define SHN_X86_64_LCOMMON 	0xff02
+
+#define SHF_X86_64_LARGE	0x10000000
 #endif

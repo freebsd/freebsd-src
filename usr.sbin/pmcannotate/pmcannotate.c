@@ -356,7 +356,7 @@ fqueue_insertent(struct entry *entry)
 		}
 
 	/*
-	 * If the firt-level aggregation object alredy exist,
+	 * If the first-level aggregation object already exists,
 	 * just aggregate the samples and, if needed, resort
 	 * it.
 	 */

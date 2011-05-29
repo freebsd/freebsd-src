@@ -43,30 +43,12 @@
 #include "libfifolog_int.h"
 
 /*
- * Memory handling for zlib
- */
-
-static voidpf
-fifo_zalloc(voidpf opaque __unused, uInt items, uInt size)
-{
-
-	return calloc(items,size);
-}
-
-static void
-fifo_zfree(voidpf opaque __unused, voidpf address)
-{
-
-	free(address);
-}
-
-/*
  * Open a fifolog file or partition for reading or writing.
  *
  * Return value is NULL for success or a error description string to
  * be augmented by errno if non-zero.
  *
- * The second function is just an error-handling wrapper around the 
+ * The second function is just an error-handling wrapper around the
  * first which, does the actual work.
  */
 
@@ -74,7 +56,7 @@ static const char *
 fifolog_int_open_i(struct fifolog_file *f, const char *fname, int mode)
 {
 	struct stat st;
-	unsigned u;
+	ssize_t u;
 	int i;
 
 	f->fd = open(fname, mode ? O_RDWR : O_RDONLY);
@@ -88,7 +70,8 @@ fifolog_int_open_i(struct fifolog_file *f, const char *fname, int mode)
 
 	if (i != 0) {
 		i = fstat(f->fd, &st);
-		if (!S_ISREG(st.st_mode)) 
+		assert(i == 0);
+		if (!S_ISREG(st.st_mode))
 			return ("Neither disk nor regular file");
 		f->recsize = 512;
 		f->logsize = st.st_size;
@@ -145,8 +128,6 @@ fifolog_int_open_i(struct fifolog_file *f, const char *fname, int mode)
 	f->zs = calloc(sizeof *f->zs, 1);
 	if (f->zs == NULL)
 		return ("cannot malloc");
-	f->zs->zalloc = fifo_zalloc;
-	f->zs->zfree = fifo_zfree;
 
 	return (NULL);
 }

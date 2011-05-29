@@ -75,7 +75,9 @@ struct ia64_init_return {
 extern uint64_t ia64_lapic_addr;
 
 extern long Maxmem;
+extern u_int busdma_swi_pending;
 
+void	*acpi_find_table(const char *sig);
 void	busdma_swi(void);
 int	copyout_regstack(struct thread *, uint64_t *, uint64_t *);
 void	cpu_mp_add(u_int, u_int, u_int);

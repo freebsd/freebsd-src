@@ -1,5 +1,5 @@
 /*
- * Portions Copyright (C) 2005-2009  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 2005-2010  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -50,7 +50,7 @@
  * USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: sdlz.c,v 1.18.50.3 2009/06/26 06:25:44 marka Exp $ */
+/* $Id: sdlz.c,v 1.18.50.6 2010-08-16 05:21:42 marka Exp $ */
 
 /*! \file */
 
@@ -801,13 +801,6 @@ find(dns_db_t *db, dns_name_t *name, dns_dbversion_t *version,
 
 	for (i = olabels; i <= nlabels; i++) {
 		/*
-		 * Unless this is an explicit lookup at the origin, don't
-		 * look at the origin.
-		 */
-		if (i == olabels && i != nlabels)
-			continue;
-
-		/*
 		 * Look up the next label.
 		 */
 		dns_name_getlabelsequence(name, nlabels - i, i, xname);
@@ -1207,6 +1200,8 @@ static dns_rdatasetmethods_t rdataset_methods = {
 	isc__rdatalist_count,
 	isc__rdatalist_addnoqname,
 	isc__rdatalist_getnoqname,
+	NULL,
+	NULL,
 	NULL,
 	NULL,
 	NULL,

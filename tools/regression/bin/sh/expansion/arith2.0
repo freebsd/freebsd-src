@@ -72,6 +72,6 @@ check "v" 10
 check "(v=42)&&(v|=32)==42" 1
 check "v" 42
 
-# missing: ternary, comma
+# missing: ternary
 
 exit $((failures != 0))

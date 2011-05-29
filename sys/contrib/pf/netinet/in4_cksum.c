@@ -75,7 +75,7 @@
 #include <machine/in_cksum.h>
 
 #define ADDCARRY(x)  (x > 65535 ? x -= 65535 : x)
-#define REDUCE {l_util.l = sum; sum = l_util.s[0] + l_util.s[1]; ADDCARRY(sum);}
+#define REDUCE {l_util.l = sum; sum = l_util.s[0] + l_util.s[1]; (void)ADDCARRY(sum);}
 
 int in4_cksum(struct mbuf *, u_int8_t, int, int);
 

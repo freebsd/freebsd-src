@@ -779,7 +779,7 @@ The entry points to the device driver are stored in the specinfo
 structure, removing the need for the devsw[] array and allowing
 device drivers to use separate entrypoints for various minor numbers.
 .lp
-This is is very convenient for devices which have a ``control''
+This is very convenient for devices which have a ``control''
 device for management and tuning.  The control device, almost always
 have entirely separate open/close/ioctl implementations [MD.C].
 .lp

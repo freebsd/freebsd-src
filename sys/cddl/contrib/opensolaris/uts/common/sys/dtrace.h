@@ -1322,15 +1322,24 @@ typedef struct {
  * helpers and should no longer be used.  No other ioctls are valid on the
  * helper minor node.
  */
+#if defined(sun)
 #define	DTRACEHIOC		(('d' << 24) | ('t' << 16) | ('h' << 8))
 #define	DTRACEHIOC_ADD		(DTRACEHIOC | 1)	/* add helper */
 #define	DTRACEHIOC_REMOVE	(DTRACEHIOC | 2)	/* remove helper */
 #define	DTRACEHIOC_ADDDOF	(DTRACEHIOC | 3)	/* add helper DOF */
+#else
+#define	DTRACEHIOC_ADD		_IOWR('z', 1, dof_hdr_t)/* add helper */
+#define	DTRACEHIOC_REMOVE	_IOW('z', 2, int)	/* remove helper */
+#define	DTRACEHIOC_ADDDOF	_IOWR('z', 3, dof_helper_t)/* add helper DOF */
+#endif
 
 typedef struct dof_helper {
 	char dofhp_mod[DTRACE_MODNAMELEN];	/* executable or library name */
 	uint64_t dofhp_addr;			/* base address of object */
 	uint64_t dofhp_dof;			/* address of helper DOF */
+#if !defined(sun)
+	int gen;
+#endif
 } dof_helper_t;
 
 #define	DTRACEMNR_DTRACE	"dtrace"	/* node for DTrace ops */
@@ -2219,10 +2228,11 @@ extern void dtrace_vtime_enable(void);
 extern void dtrace_vtime_disable(void);
 
 struct regs;
+struct reg;
 
 #if defined(sun)
-extern int (*dtrace_pid_probe_ptr)(struct regs *);
-extern int (*dtrace_return_probe_ptr)(struct regs *);
+extern int (*dtrace_pid_probe_ptr)(struct reg *);
+extern int (*dtrace_return_probe_ptr)(struct reg *);
 extern void (*dtrace_fasttrap_fork_ptr)(proc_t *, proc_t *);
 extern void (*dtrace_fasttrap_exec_ptr)(proc_t *);
 extern void (*dtrace_fasttrap_exit_ptr)(proc_t *);
@@ -2277,6 +2287,11 @@ extern void dtrace_invop_callsite(void);
 #ifdef __sparc
 extern int dtrace_blksuword32(uintptr_t, uint32_t *, int);
 extern void dtrace_getfsr(uint64_t *);
+#endif
+
+#if !defined(sun)
+extern void dtrace_helpers_duplicate(proc_t *, proc_t *);
+extern void dtrace_helpers_destroy(proc_t *);
 #endif
 
 #define	DTRACE_CPUFLAG_ISSET(flag) \

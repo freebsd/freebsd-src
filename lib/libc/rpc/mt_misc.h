@@ -42,7 +42,6 @@
 #define	proglst_lock		__proglst_lock
 #define	rpcsoc_lock		__rpcsoc_lock
 #define	svcraw_lock		__svcraw_lock
-#define	tsd_lock		__tsd_lock
 #define	xprtlist_lock		__xprtlist_lock
 
 extern pthread_rwlock_t	svc_lock;

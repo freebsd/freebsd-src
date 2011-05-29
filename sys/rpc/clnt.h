@@ -433,10 +433,11 @@ extern CLIENT *clnt_dg_create(struct socket *so,
  *	rpcvers_t vers;				-- version number
  *	size_t sendsz;				-- buffer recv size
  *	size_t recvsz;				-- buffer send size
+ *	int intrflag;				-- is it interruptible
  */
 extern CLIENT *clnt_vc_create(struct socket *so,
     struct sockaddr *svcaddr, rpcprog_t program, rpcvers_t version,
-    size_t sendsz, size_t recvsz);
+    size_t sendsz, size_t recvsz, int intrflag);
 
 /*
  *	struct netconfig *nconf;		-- network type

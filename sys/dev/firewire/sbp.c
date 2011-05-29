@@ -562,7 +562,8 @@ END_DEBUG
 
 		fwdma_malloc(sbp->fd.fc, 
 			/* alignment */ sizeof(uint32_t),
-			SBP_DMA_SIZE, &sdev->dma, BUS_DMA_NOWAIT);
+			SBP_DMA_SIZE, &sdev->dma, BUS_DMA_NOWAIT |
+			BUS_DMA_COHERENT);
 		if (sdev->dma.v_addr == NULL) {
 			printf("%s: dma space allocation failed\n",
 							__func__);
@@ -2698,7 +2699,7 @@ SBP_DEBUG(0)
 #else
 					"segment length(%zd) is less than 16."
 #endif
-					"(seg=%d/%d)\n", s->ds_len, i+1, seg);
+					"(seg=%d/%d)\n", (size_t)s->ds_len, i+1, seg);
 END_DEBUG
 			if (s->ds_len > SBP_SEG_MAX)
 				panic("ds_len > SBP_SEG_MAX, fix busdma code");

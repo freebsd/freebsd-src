@@ -57,23 +57,19 @@ __FBSDID("$FreeBSD$");
 #include <net/vnet.h>
 
 #include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
-#ifdef INET6
-#include <netinet/ip6.h>
-#endif
 #include <netinet/in_pcb.h>
-#ifdef INET6
-#include <netinet6/in6_pcb.h>
-#endif
+#include <netinet/in_systm.h>
 #include <netinet/in_var.h>
+#include <netinet/ip.h>
+#include <netinet/ip_icmp.h>
 #include <netinet/ip_var.h>
 #ifdef INET6
+#include <netinet/ip6.h>
+#include <netinet6/in6_pcb.h>
 #include <netinet6/ip6_var.h>
 #include <netinet6/scope6_var.h>
 #include <netinet6/nd6.h>
 #endif
-#include <netinet/ip_icmp.h>
 #include <netinet/tcp.h>
 #include <netinet/tcp_fsm.h>
 #include <netinet/tcp_seq.h>
@@ -86,12 +82,16 @@ __FBSDID("$FreeBSD$");
 #ifdef TCPDEBUG
 #include <netinet/tcp_debug.h>
 #endif
+#ifdef INET6
 #include <netinet6/ip6protosw.h>
+#endif
 
 #include <machine/in_cksum.h>
 
 #include <security/mac/mac_framework.h>
 
+static VNET_DEFINE(uma_zone_t, tcptw_zone);
+#define	V_tcptw_zone			VNET(tcptw_zone)
 static int	maxtcptw;
 
 /*
@@ -100,11 +100,7 @@ static int	maxtcptw;
  * queue pointers in each tcptw structure, are protected using the global
  * tcbinfo lock, which must be held over queue iteration and modification.
  */
-static VNET_DEFINE(uma_zone_t, tcptw_zone);
 static VNET_DEFINE(TAILQ_HEAD(, tcptw), twq_2msl);
-VNET_DEFINE(int, nolocaltimewait);
-
-#define	V_tcptw_zone			VNET(tcptw_zone)
 #define	V_twq_2msl			VNET(twq_2msl)
 
 static void	tcp_tw_2msl_reset(struct tcptw *, int);
@@ -149,6 +145,8 @@ SYSCTL_PROC(_net_inet_tcp, OID_AUTO, maxtcptw, CTLTYPE_INT|CTLFLAG_RW,
     &maxtcptw, 0, sysctl_maxtcptw, "IU",
     "Maximum number of compressed TCP TIME_WAIT entries");
 
+VNET_DEFINE(int, nolocaltimewait) = 0;
+#define	V_nolocaltimewait	VNET(nolocaltimewait)
 SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, nolocaltimewait, CTLFLAG_RW,
     &VNET_NAME(nolocaltimewait), 0,
     "Do not create compressed TCP TIME_WAIT entries for local connections");
@@ -185,6 +183,8 @@ tcp_tw_destroy(void)
 	while((tw = TAILQ_FIRST(&V_twq_2msl)) != NULL)
 		tcp_twclose(tw, 0);
 	INP_INFO_WUNLOCK(&V_tcbinfo);
+
+	uma_zdestroy(V_tcptw_zone);
 }
 #endif
 
@@ -200,15 +200,31 @@ tcp_twstart(struct tcpcb *tp)
 	struct inpcb *inp = tp->t_inpcb;
 	int acknow;
 	struct socket *so;
+#ifdef INET6
+	int isipv6 = inp->inp_inc.inc_flags & INC_ISIPV6;
+#endif
 
 	INP_INFO_WLOCK_ASSERT(&V_tcbinfo);	/* tcp_tw_2msl_reset(). */
 	INP_WLOCK_ASSERT(inp);
 
-	if (V_nolocaltimewait && in_localip(inp->inp_faddr)) {
-		tp = tcp_close(tp);
-		if (tp != NULL)
-			INP_WUNLOCK(inp);
-		return;
+	if (V_nolocaltimewait) {
+		int error = 0;
+#ifdef INET6
+		if (isipv6)
+			error = in6_localaddr(&inp->in6p_faddr);
+#endif
+#if defined(INET6) && defined(INET)
+		else
+#endif
+#ifdef INET
+			error = in_localip(inp->inp_faddr);
+#endif
+		if (error) {
+			tp = tcp_close(tp);
+			if (tp != NULL)
+				INP_WUNLOCK(inp);
+			return;
+		}
 	}
 
 	tw = uma_zalloc(V_tcptw_zone, M_NOWAIT);
@@ -226,6 +242,9 @@ tcp_twstart(struct tcpcb *tp)
 	/*
 	 * Recover last window size sent.
 	 */
+	KASSERT(SEQ_GEQ(tp->rcv_adv, tp->rcv_nxt),
+	    ("tcp_twstart negative window: tp %p rcv_nxt %u rcv_adv %u", tp,
+	    tp->rcv_nxt, tp->rcv_adv));
 	tw->last_win = (tp->rcv_adv - tp->rcv_nxt) >> tp->rcv_scale;
 
 	/*
@@ -395,7 +414,7 @@ tcp_twcheck(struct inpcb *inp, struct tcpopt *to, struct tcphdr *th,
 	}
 
 	/*
-	 * Drop the the segment if it does not contain an ACK.
+	 * Drop the segment if it does not contain an ACK.
 	 */
 	if ((thflags & TH_ACK) == 0)
 		goto drop;
@@ -486,11 +505,15 @@ int
 tcp_twrespond(struct tcptw *tw, int flags)
 {
 	struct inpcb *inp = tw->tw_inpcb;
-	struct tcphdr *th;
+#if defined(INET6) || defined(INET)
+	struct tcphdr *th = NULL;
+#endif
 	struct mbuf *m;
+#ifdef INET
 	struct ip *ip = NULL;
+#endif
 	u_int hdrlen, optlen;
-	int error;
+	int error = 0;			/* Keep compiler happy */
 	struct tcpopt to;
 #ifdef INET6
 	struct ip6_hdr *ip6 = NULL;
@@ -514,14 +537,19 @@ tcp_twrespond(struct tcptw *tw, int flags)
 		ip6 = mtod(m, struct ip6_hdr *);
 		th = (struct tcphdr *)(ip6 + 1);
 		tcpip_fillheaders(inp, ip6, th);
-	} else
+	}
 #endif
+#if defined(INET6) && defined(INET)
+	else
+#endif
+#ifdef INET
 	{
 		hdrlen = sizeof(struct tcpiphdr);
 		ip = mtod(m, struct ip *);
 		th = (struct tcphdr *)(ip + 1);
 		tcpip_fillheaders(inp, ip, th);
 	}
+#endif
 	to.to_flags = 0;
 
 	/*
@@ -553,8 +581,12 @@ tcp_twrespond(struct tcptw *tw, int flags)
 		ip6->ip6_hlim = in6_selecthlim(inp, NULL);
 		error = ip6_output(m, inp->in6p_outputopts, NULL,
 		    (tw->tw_so_options & SO_DONTROUTE), NULL, NULL, inp);
-	} else
+	}
 #endif
+#if defined(INET6) && defined(INET)
+	else
+#endif
+#ifdef INET
 	{
 		th->th_sum = in_pseudo(ip->ip_src.s_addr, ip->ip_dst.s_addr,
 		    htons(sizeof(struct tcphdr) + optlen + IPPROTO_TCP));
@@ -567,6 +599,7 @@ tcp_twrespond(struct tcptw *tw, int flags)
 		    ((tw->tw_so_options & SO_DONTROUTE) ? IP_ROUTETOIF : 0),
 		    NULL, inp);
 	}
+#endif
 	if (flags & TH_ACK)
 		TCPSTAT_INC(tcps_sndacks);
 	else

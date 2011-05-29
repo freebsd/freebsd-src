@@ -116,7 +116,7 @@ isa_init(device_t dev)
 }
 
 static const struct {
-	const char	*name;
+	const char	*const name;
 	uint32_t	id;
 } const ofw_isa_pnp_map[] = {
 	{ "SUNW,lomh",	0x0000ae4e }, /* SUN0000 */
@@ -126,6 +126,7 @@ static const struct {
 	{ "flashprom",	0x0100ae4e }, /* SUN0001 */
 	{ "parallel",	0x0104d041 }, /* PNP0401 */
 	{ "serial",	0x0105d041 }, /* PNP0501 */
+	{ "su",		0x0105d041 }, /* PNP0501 */
 	{ "i2c",	0x0200ae4e }, /* SUN0002 */
 	{ "rmc-comm",	0x0300ae4e }, /* SUN0003 */
 	{ "kb_ps2",	0x0303d041 }, /* PNP0303 */
@@ -357,27 +358,4 @@ isa_release_resource(device_t bus, device_t child, int type, int rid,
 {
 
 	return (bus_generic_rl_release_resource(bus, child, type, rid, res));
-}
-
-int
-isa_setup_intr(device_t dev, device_t child, struct resource *irq, int flags,
-    driver_filter_t *filter, driver_intr_t *intr, void *arg, void **cookiep)
-{
-
-	/*
-	 * Just pass through. This is going to be handled by either
-	 * one of the parent PCI buses or the nexus device.
-	 * The interrupt had been routed before it was added to the
-	 * resource list of the child.
-	 */
-	return (bus_generic_setup_intr(dev, child, irq, flags, filter, intr,
-	    arg, cookiep));
-}
-
-int
-isa_teardown_intr(device_t dev, device_t child, struct resource *irq,
-    void *cookie)
-{
-
-	return (bus_generic_teardown_intr(dev, child, irq, cookie));
 }

@@ -1,5 +1,7 @@
 /*-
  * Copyright (c) 2001-2007, by Cisco Systems, Inc. All rights reserved.
+ * Copyright (c) 2008-2011, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2011, by Michael Tuexen. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -51,7 +53,7 @@ sctp_reset_in_stream(struct sctp_tcb *stcb, int number_entries,
     uint16_t * list);
 
 
-int sctp_is_there_unsent_data(struct sctp_tcb *stcb);
+int sctp_is_there_unsent_data(struct sctp_tcb *stcb, int so_locked);
 
 #endif
 #endif

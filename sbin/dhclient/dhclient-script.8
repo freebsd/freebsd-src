@@ -38,7 +38,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 1, 1997
+.Dd September 6, 2010
 .Dt DHCLIENT-SCRIPT 8
 .Os
 .Sh NAME
@@ -218,6 +218,29 @@ if it has reason to believe they are valid, should exit with a value of zero.
 If not, it should exit with a nonzero value.
 .El
 .Pp
+Before taking action according to
+.Va $reason ,
+.Nm
+will check for the existence of
+.Pa /etc/dhclient-enter-hooks .
+If found, it will be sourced
+.Pq see Xr sh 1 .
+After taking action according to
+.Va $reason ,
+.Nm
+will check for the existence of
+.Pa /etc/dhclient-exit-hooks .
+If found, it will be sourced
+.Pq see Xr sh 1 .
+These hooks scripts can be used to dynamically modify the enviornment at
+appropriate times during the DHCP negotiations.
+For example, if the administrator wishes to disable alias IP numbers on
+the DHCP interface, they might want to put the following in
+.Pa /etc/dhclient-enter-hooks :
+.Bd -literal -offset indent
+[ ."$reason" = .PREINIT ] && ifconfig $interface 0.0.0.0
+.Ed
+.Pp
 The usual way to test a lease is to set up the network as with
 .Li REBIND
 (since this may be called to test more than one lease) and then ping
@@ -239,6 +262,7 @@ but current scripts do not do this.
 .\" and bear the names of the operating systems on which they are intended
 .\" to work.
 .Sh SEE ALSO
+.Xr sh 1 ,
 .Xr dhclient.conf 5 ,
 .Xr dhclient.leases 5 ,
 .Xr dhclient 8 ,

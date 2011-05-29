@@ -1,10 +1,13 @@
 # $FreeBSD$
 
+SRCDIR=	${.CURDIR}/../../lib/libz
+.PATH:	${SRCDIR}
+
 PROG=	minigzip
-LDADD=	-lz
-DPADD=	${LIBZ}
-.PATH:	${.CURDIR}/../../lib/libz
 
 WARNS?=	5
+CFLAGS+=-DUSE_MMAP
+DPADD=	${LIBZ}
+LDADD=	-lz
 
 .include <bsd.prog.mk>

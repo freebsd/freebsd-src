@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 16, 2009
+.Dd May 20, 2010
 .Dt NANOBSD 8
 .Os
 .Sh NAME
@@ -203,6 +203,9 @@ Build name (used to construct the working directory names).
 Path to the source tree used to build the image.
 .It Va NANO_KERNEL
 Name of the kernel configuration file used to build the kernel.
+.It Va NANO_ARCH
+Machine processor architecture to build. Defaults to output of
+.Cm uname -p .
 .It Va NANO_BOOT0CFG
 Controls the options passed to
 .Xr boot0cfg 8 ;

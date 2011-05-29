@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/bus.h>
+#include <sys/rman.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/openfirm.h>
@@ -81,25 +82,11 @@ static device_method_t apb_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		apb_probe),
 	DEVMETHOD(device_attach,	apb_attach),
-	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
-	DEVMETHOD(device_suspend,	bus_generic_suspend),
-	DEVMETHOD(device_resume,	bus_generic_resume),
 
 	/* Bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_read_ivar,	pcib_read_ivar),
-	DEVMETHOD(bus_write_ivar,	pcib_write_ivar),
 	DEVMETHOD(bus_alloc_resource,	apb_alloc_resource),
-	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
-	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
-	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
-	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
-	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 
 	/* pcib interface */
-	DEVMETHOD(pcib_maxslots,	pcib_maxslots),
-	DEVMETHOD(pcib_read_config,	pcib_read_config),
-	DEVMETHOD(pcib_write_config,	pcib_write_config),
 	DEVMETHOD(pcib_route_interrupt,	ofw_pcib_gen_route_interrupt),
 
 	/* ofw_bus interface */
@@ -110,7 +97,8 @@ static device_method_t apb_methods[] = {
 
 static devclass_t pcib_devclass;
 
-DEFINE_CLASS_0(pcib, apb_driver, apb_methods, sizeof(struct apb_softc));
+DEFINE_CLASS_1(pcib, apb_driver, apb_methods, sizeof(struct apb_softc),
+    pcib_driver);
 EARLY_DRIVER_MODULE(apb, pci, apb_driver, pcib_devclass, 0, 0, BUS_PASS_BUS);
 MODULE_DEPEND(apb, pci, 1, 1, 1);
 
@@ -223,8 +211,7 @@ apb_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	 */
 	if (start == 0 && end == ~0) {
 		device_printf(dev, "can't decode default resource id %d for "
-		    "%s%d, bypassing\n", *rid, device_get_name(child),
-		    device_get_unit(child));
+		    "%s, bypassing\n", *rid, device_get_nameunit(child));
 		goto passup;
 	}
 
@@ -236,31 +223,28 @@ apb_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	switch (type) {
 	case SYS_RES_IOPORT:
 		if (!apb_checkrange(sc->sc_iomap, APB_IO_SCALE, start, end)) {
-			device_printf(dev, "device %s%d requested unsupported "
-			    "I/O range 0x%lx-0x%lx\n", device_get_name(child),
-			    device_get_unit(child), start, end);
+			device_printf(dev, "device %s requested unsupported "
+			    "I/O range 0x%lx-0x%lx\n",
+			    device_get_nameunit(child), start, end);
 			return (NULL);
 		}
 		if (bootverbose)
 			device_printf(sc->sc_bsc.ops_pcib_sc.dev, "device "
-			    "%s%d requested decoded I/O range 0x%lx-0x%lx\n",
-			    device_get_name(child), device_get_unit(child),
-			    start, end);
+			    "%s requested decoded I/O range 0x%lx-0x%lx\n",
+			    device_get_nameunit(child), start, end);
 		break;
 
 	case SYS_RES_MEMORY:
 		if (!apb_checkrange(sc->sc_memmap, APB_MEM_SCALE, start, end)) {
-			device_printf(dev, "device %s%d requested unsupported "
+			device_printf(dev, "device %s requested unsupported "
 			    "memory range 0x%lx-0x%lx\n",
-			    device_get_name(child), device_get_unit(child),
-			    start, end);
+			    device_get_nameunit(child), start, end);
 			return (NULL);
 		}
 		if (bootverbose)
 			device_printf(sc->sc_bsc.ops_pcib_sc.dev, "device "
-			    "%s%d requested decoded memory range 0x%lx-0x%lx\n",
-			    device_get_name(child), device_get_unit(child),
-			    start, end);
+			    "%s requested decoded memory range 0x%lx-0x%lx\n",
+			    device_get_nameunit(child), start, end);
 		break;
 
 	default:

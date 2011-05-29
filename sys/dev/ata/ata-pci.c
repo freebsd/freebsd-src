@@ -544,6 +544,16 @@ ata_pci_dmafini(device_t dev)
     ata_dmafini(dev);
 }
 
+int
+ata_pci_child_location_str(device_t dev, device_t child, char *buf,
+    size_t buflen)
+{
+
+	snprintf(buf, buflen, "channel=%d",
+	    (int)(intptr_t)device_get_ivars(child));
+	return (0);
+}
+
 static device_method_t ata_pci_methods[] = {
     /* device interface */
     DEVMETHOD(device_probe,             ata_pci_probe),
@@ -564,6 +574,7 @@ static device_method_t ata_pci_methods[] = {
     DEVMETHOD(bus_teardown_intr,        ata_pci_teardown_intr),
     DEVMETHOD(pci_read_config,		ata_pci_read_config),
     DEVMETHOD(pci_write_config,		ata_pci_write_config),
+    DEVMETHOD(bus_child_location_str,	ata_pci_child_location_str),
 
     { 0, 0 }
 };
@@ -604,6 +615,7 @@ ata_pcichannel_attach(device_t dev)
 	return (0);
     ch->attached = 1;
 
+    ch->dev = dev;
     ch->unit = (intptr_t)device_get_ivars(dev);
 
     resource_int_value(device_get_name(dev),
@@ -758,7 +770,8 @@ DRIVER_MODULE(ata, atapci, ata_pcichannel_driver, ata_devclass, 0, 0);
 int
 ata_legacy(device_t dev)
 {
-    return (((pci_read_config(dev, PCIR_PROGIF, 1)&PCIP_STORAGE_IDE_MASTERDEV)&&
+    return (((pci_read_config(dev, PCIR_SUBCLASS, 1) == PCIS_STORAGE_IDE) &&
+	     (pci_read_config(dev, PCIR_PROGIF, 1)&PCIP_STORAGE_IDE_MASTERDEV)&&
 	     ((pci_read_config(dev, PCIR_PROGIF, 1) &
 	       (PCIP_STORAGE_IDE_MODEPRIM | PCIP_STORAGE_IDE_MODESEC)) !=
 	      (PCIP_STORAGE_IDE_MODEPRIM | PCIP_STORAGE_IDE_MODESEC))) ||
@@ -795,17 +808,23 @@ ata_setup_interrupt(device_t dev, void *intr_func)
 	if (msi && pci_msi_count(dev) > 0 && pci_alloc_msi(dev, &msi) == 0) {
 	    ctlr->r_irq_rid = 0x1;
 	} else {
+	    msi = 0;
 	    ctlr->r_irq_rid = ATA_IRQ_RID;
 	}
 	if (!(ctlr->r_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ,
 		&ctlr->r_irq_rid, RF_SHAREABLE | RF_ACTIVE))) {
 	    device_printf(dev, "unable to map interrupt\n");
+	    if (msi)
+		    pci_release_msi(dev);
 	    return ENXIO;
 	}
 	if ((bus_setup_intr(dev, ctlr->r_irq, ATA_INTR_FLAGS, NULL,
 			    intr_func, ctlr, &ctlr->handle))) {
-	    /* SOS XXX release r_irq */
 	    device_printf(dev, "unable to setup interrupt\n");
+	    bus_release_resource(dev,
+		SYS_RES_IRQ, ctlr->r_irq_rid, ctlr->r_irq);
+	    if (msi)
+		    pci_release_msi(dev);
 	    return ENXIO;
 	}
     }

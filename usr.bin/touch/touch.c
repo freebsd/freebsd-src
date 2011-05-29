@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -187,9 +183,9 @@ main(int argc, char *argv[])
 		}
 
 		if (!aflag)
-			TIMESPEC_TO_TIMEVAL(&tv[0], &sb.st_atimespec);
+			TIMESPEC_TO_TIMEVAL(&tv[0], &sb.st_atim);
 		if (!mflag)
-			TIMESPEC_TO_TIMEVAL(&tv[1], &sb.st_mtimespec);
+			TIMESPEC_TO_TIMEVAL(&tv[1], &sb.st_mtim);
 
 		/*
 		 * We're adjusting the times based on the file times, not a
@@ -197,11 +193,11 @@ main(int argc, char *argv[])
 		 */
 		if (Aflag) {
 			if (aflag) {
-				TIMESPEC_TO_TIMEVAL(&tv[0], &sb.st_atimespec);
+				TIMESPEC_TO_TIMEVAL(&tv[0], &sb.st_atim);
 				tv[0].tv_sec += Aflag;
 			}
 			if (mflag) {
-				TIMESPEC_TO_TIMEVAL(&tv[1], &sb.st_mtimespec);
+				TIMESPEC_TO_TIMEVAL(&tv[1], &sb.st_mtim);
 				tv[1].tv_sec += Aflag;
 			}
 		}
@@ -368,8 +364,8 @@ stime_file(char *fname, struct timeval *tvp)
 
 	if (stat(fname, &sb))
 		err(1, "%s", fname);
-	TIMESPEC_TO_TIMEVAL(tvp, &sb.st_atimespec);
-	TIMESPEC_TO_TIMEVAL(tvp + 1, &sb.st_mtimespec);
+	TIMESPEC_TO_TIMEVAL(tvp, &sb.st_atim);
+	TIMESPEC_TO_TIMEVAL(tvp + 1, &sb.st_mtim);
 }
 
 int

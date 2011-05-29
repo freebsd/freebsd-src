@@ -129,7 +129,7 @@ ef_attach(struct efnet *sc)
 
 	ifp->if_start = ef_start;
 	ifp->if_init = ef_init;
-	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
+	ifp->if_snd.ifq_maxlen = ifqmaxlen;
 	ifp->if_flags = (IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
 	/*
 	 * Attach the interface

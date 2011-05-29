@@ -85,9 +85,7 @@ ng_split_constructor(node_p node)
 	priv_p		priv;
 
 	/* Allocate node */
-	priv = malloc(sizeof(*priv), M_NETGRAPH, M_ZERO | M_NOWAIT);
-	if (priv == NULL)
-		return (ENOMEM);
+	priv = malloc(sizeof(*priv), M_NETGRAPH, M_ZERO | M_WAITOK);
 
 	/* Link together node and private info */
 	NG_NODE_SET_PRIVATE(node, priv);

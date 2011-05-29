@@ -412,8 +412,10 @@ ipip_output(
 	u_int8_t tp, otos;
 	struct secasindex *saidx;
 	int error;
-#ifdef INET
+#if defined(INET) || defined(INET6)
 	u_int8_t itos;
+#endif
+#ifdef INET
 	struct ip *ipo;
 #endif /* INET */
 #ifdef INET6
@@ -466,7 +468,8 @@ ipip_output(
 		ipo->ip_id = ip_newid();
 
 		/* If the inner protocol is IP... */
-		if (tp == IPVERSION) {
+		switch (tp) {
+		case IPVERSION:
 			/* Save ECN notification */
 			m_copydata(m, sizeof(struct ip) +
 			    offsetof(struct ip, ip_tos),
@@ -484,9 +487,10 @@ ipip_output(
 			ipo->ip_off = ntohs(ipo->ip_off);
 			ipo->ip_off &= ~(IP_DF | IP_MF | IP_OFFMASK);
 			ipo->ip_off = htons(ipo->ip_off);
-		}
+			break;
 #ifdef INET6
-		else if (tp == (IPV6_VERSION >> 4)) {
+		case (IPV6_VERSION >> 4):
+		{
 			u_int32_t itos32;
 
 			/* Save ECN notification. */
@@ -496,9 +500,10 @@ ipip_output(
 			itos = ntohl(itos32) >> 20;
 			ipo->ip_p = IPPROTO_IPV6;
 			ipo->ip_off = 0;
+			break;
 		}
 #endif /* INET6 */
-		else {
+		default:
 			goto nofamily;
 		}
 
@@ -547,8 +552,9 @@ ipip_output(
 		ip6o->ip6_dst = saidx->dst.sin6.sin6_addr;
 		ip6o->ip6_src = saidx->src.sin6.sin6_addr;
 
+		switch (tp) {
 #ifdef INET
-		if (tp == IPVERSION) {
+		case IPVERSION:
 			/* Save ECN notification */
 			m_copydata(m, sizeof(struct ip6_hdr) +
 			    offsetof(struct ip, ip_tos), sizeof(u_int8_t),
@@ -556,21 +562,23 @@ ipip_output(
 
 			/* This is really IPVERSION. */
 			ip6o->ip6_nxt = IPPROTO_IPIP;
-		} else
+			break;
 #endif /* INET */
-			if (tp == (IPV6_VERSION >> 4)) {
-				u_int32_t itos32;
+		case (IPV6_VERSION >> 4):
+		{
+			u_int32_t itos32;
 
-				/* Save ECN notification. */
-				m_copydata(m, sizeof(struct ip6_hdr) +
-				    offsetof(struct ip6_hdr, ip6_flow),
-				    sizeof(u_int32_t), (caddr_t) &itos32);
-				itos = ntohl(itos32) >> 20;
+			/* Save ECN notification. */
+			m_copydata(m, sizeof(struct ip6_hdr) +
+			    offsetof(struct ip6_hdr, ip6_flow),
+			    sizeof(u_int32_t), (caddr_t) &itos32);
+			itos = ntohl(itos32) >> 20;
 
-				ip6o->ip6_nxt = IPPROTO_IPV6;
-			} else {
-				goto nofamily;
-			}
+			ip6o->ip6_nxt = IPPROTO_IPV6;
+		}
+		default:
+			goto nofamily;
+		}
 
 		otos = 0;
 		ip_ecn_ingress(ECN_ALLOWED, &otos, &itos);
@@ -622,6 +630,7 @@ bad:
 }
 
 #ifdef IPSEC
+#if defined(INET) || defined(INET6)
 static int
 ipe4_init(struct secasvar *sav, struct xformsw *xsp)
 {
@@ -652,6 +661,8 @@ static struct xformsw ipe4_xformsw = {
 };
 
 extern struct domain inetdomain;
+#endif /* INET || INET6 */
+#ifdef INET
 static struct protosw ipe4_protosw = {
 	.pr_type =	SOCK_RAW,
 	.pr_domain =	&inetdomain,
@@ -661,7 +672,8 @@ static struct protosw ipe4_protosw = {
 	.pr_ctloutput =	rip_ctloutput,
 	.pr_usrreqs =	&rip_usrreqs
 };
-#ifdef INET6
+#endif /* INET */
+#if defined(INET6) && defined(INET)
 static struct ip6protosw ipe6_protosw = {
 	.pr_type =	SOCK_RAW,
 	.pr_domain =	&inetdomain,
@@ -671,8 +683,9 @@ static struct ip6protosw ipe6_protosw = {
 	.pr_ctloutput =	rip_ctloutput,
 	.pr_usrreqs =	&rip_usrreqs
 };
-#endif
+#endif /* INET6 && INET */
 
+#if defined(INET)
 /*
  * Check the encapsulated packet to see if we want it
  */
@@ -687,6 +700,7 @@ ipe4_encapcheck(const struct mbuf *m, int off, int proto, void *arg)
 	 */
 	return ((m->m_flags & M_IPSEC) != 0 ? 1 : 0);
 }
+#endif /* INET */
 
 static void
 ipe4_attach(void)
@@ -695,9 +709,11 @@ ipe4_attach(void)
 	xform_register(&ipe4_xformsw);
 	/* attach to encapsulation framework */
 	/* XXX save return cookie for detach on module remove */
+#ifdef INET
 	(void) encap_attach_func(AF_INET, -1,
 		ipe4_encapcheck, &ipe4_protosw, NULL);
-#ifdef INET6
+#endif
+#if defined(INET6) && defined(INET)
 	(void) encap_attach_func(AF_INET6, -1,
 		ipe4_encapcheck, (struct protosw *)&ipe6_protosw, NULL);
 #endif

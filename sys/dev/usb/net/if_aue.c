@@ -76,7 +76,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -100,7 +99,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/net/usb_ethernet.h>
 #include <dev/usb/net/if_auereg.h>
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 static int aue_debug = 0;
 
 SYSCTL_NODE(_hw_usb, OID_AUTO, aue, CTLFLAG_RW, 0, "USB aue");
@@ -281,6 +280,7 @@ MODULE_DEPEND(aue, uether, 1, 1, 1);
 MODULE_DEPEND(aue, usb, 1, 1, 1);
 MODULE_DEPEND(aue, ether, 1, 1, 1);
 MODULE_DEPEND(aue, miibus, 1, 1, 1);
+MODULE_VERSION(aue, 1);
 
 static const struct usb_ether_methods aue_ue_methods = {
 	.ue_attach_post = aue_attach_post,
@@ -1011,16 +1011,13 @@ aue_ifmedia_upd(struct ifnet *ifp)
 {
 	struct aue_softc *sc = ifp->if_softc;
 	struct mii_data *mii = GET_MII(sc);
+	struct mii_softc *miisc;
 
 	AUE_LOCK_ASSERT(sc, MA_OWNED);
 
         sc->sc_flags &= ~AUE_FLAG_LINK;
-	if (mii->mii_instance) {
-		struct mii_softc *miisc;
-
-		LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
-			mii_phy_reset(miisc);
-	}
+	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
+		PHY_RESET(miisc);
 	mii_mediachg(mii);
 	return (0);
 }

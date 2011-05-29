@@ -43,7 +43,8 @@ struct auth_hash {
 	void (*Final) (u_int8_t *, void *);
 };
 
-#define	AH_ALEN_MAX	20	/* max authenticator hash length */
+/* XXX use a define common with other hash stuff ! */
+#define	AH_ALEN_MAX	64	/* max authenticator hash length */
 
 struct enc_xform {
 	int type;
@@ -54,6 +55,7 @@ struct enc_xform {
 	void (*decrypt) (caddr_t, u_int8_t *);
 	int (*setkey) (u_int8_t **, u_int8_t *, int len);
 	void (*zerokey) (u_int8_t **);
+	void (*reinit) (caddr_t, u_int8_t *);
 };
 
 struct comp_algo {
@@ -80,6 +82,7 @@ extern struct enc_xform enc_xform_blf;
 extern struct enc_xform enc_xform_cast5;
 extern struct enc_xform enc_xform_skipjack;
 extern struct enc_xform enc_xform_rijndael128;
+extern struct enc_xform enc_xform_aes_xts;
 extern struct enc_xform enc_xform_arc4;
 extern struct enc_xform enc_xform_camellia;
 

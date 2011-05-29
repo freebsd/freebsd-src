@@ -74,6 +74,7 @@ struct intr_thread {
 
 /* Interrupt thread flags kept in it_flags */
 #define	IT_DEAD		0x000001	/* Thread is waiting to exit. */
+#define	IT_WAIT		0x000002	/* Thread is waiting for completion. */
 
 struct	intr_entropy {
 	struct	thread *td;
@@ -130,22 +131,18 @@ intr_priority(enum intr_type flags)
 	    INTR_TYPE_CAM | INTR_TYPE_MISC | INTR_TYPE_CLK | INTR_TYPE_AV);
 	switch (flags) {
 	case INTR_TYPE_TTY:
-		pri = PI_TTYLOW;
+		pri = PI_TTY;
 		break;
 	case INTR_TYPE_BIO:
-		/*
-		 * XXX We need to refine this.  BSD/OS distinguishes
-		 * between tape and disk priorities.
-		 */
 		pri = PI_DISK;
 		break;
 	case INTR_TYPE_NET:
 		pri = PI_NET;
 		break;
 	case INTR_TYPE_CAM:
-		pri = PI_DISK;          /* XXX or PI_CAM? */
+		pri = PI_DISK;
 		break;
-	case INTR_TYPE_AV:		/* Audio/video */
+	case INTR_TYPE_AV:
 		pri = PI_AV;
 		break;
 	case INTR_TYPE_CLK:
@@ -739,6 +736,46 @@ intr_handler_source(void *cookie)
 	return (ie->ie_source);
 }
 
+/*
+ * Sleep until an ithread finishes executing an interrupt handler.
+ *
+ * XXX Doesn't currently handle interrupt filters or fast interrupt
+ * handlers.  This is intended for compatibility with linux drivers
+ * only.  Do not use in BSD code.
+ */
+void
+_intr_drain(int irq)
+{
+	struct intr_event *ie;
+	struct intr_thread *ithd;
+	struct thread *td;
+
+	ie = intr_lookup(irq);
+	if (ie == NULL)
+		return;
+	if (ie->ie_thread == NULL)
+		return;
+	ithd = ie->ie_thread;
+	td = ithd->it_thread;
+	/*
+	 * We set the flag and wait for it to be cleared to avoid
+	 * long delays with potentially busy interrupt handlers
+	 * were we to only sample TD_AWAITING_INTR() every tick.
+	 */
+	thread_lock(td);
+	if (!TD_AWAITING_INTR(td)) {
+		ithd->it_flags |= IT_WAIT;
+		while (ithd->it_flags & IT_WAIT) {
+			thread_unlock(td);
+			pause("idrain", 1);
+			thread_lock(td);
+		}
+	}
+	thread_unlock(td);
+	return;
+}
+
+
 #ifndef INTR_FILTER
 int
 intr_event_remove_handler(void *cookie)
@@ -1082,7 +1119,7 @@ swi_add(struct intr_event **eventp, const char *name, driver_intr_t handler,
 			*eventp = ie;
 	}
 	error = intr_event_add_handler(ie, name, NULL, handler, arg,
-	    (pri * RQ_PPQ) + PI_SOFT, flags, cookiep);
+	    PI_SWI(pri), flags, cookiep);
 	if (error)
 		return (error);
 	if (pri == SWI_CLOCK) {
@@ -1275,6 +1312,7 @@ ithread_loop(void *arg)
 	struct intr_event *ie;
 	struct thread *td;
 	struct proc *p;
+	int wake;
 
 	td = curthread;
 	p = td->td_proc;
@@ -1283,6 +1321,7 @@ ithread_loop(void *arg)
 	    ("%s: ithread and proc linkage out of sync", __func__));
 	ie = ithd->it_event;
 	ie->ie_count = 0;
+	wake = 0;
 
 	/*
 	 * As long as we have interrupts outstanding, go through the
@@ -1323,12 +1362,20 @@ ithread_loop(void *arg)
 		 * set again, so we have to check it again.
 		 */
 		thread_lock(td);
-		if (!ithd->it_need && !(ithd->it_flags & IT_DEAD)) {
+		if (!ithd->it_need && !(ithd->it_flags & (IT_DEAD | IT_WAIT))) {
 			TD_SET_IWAIT(td);
 			ie->ie_count = 0;
 			mi_switch(SW_VOL | SWT_IWAIT, NULL);
 		}
+		if (ithd->it_flags & IT_WAIT) {
+			wake = 1;
+			ithd->it_flags &= ~IT_WAIT;
+		}
 		thread_unlock(td);
+		if (wake) {
+			wakeup(ithd);
+			wake = 0;
+		}
 	}
 }
 
@@ -1347,6 +1394,7 @@ int
 intr_event_handle(struct intr_event *ie, struct trapframe *frame)
 {
 	struct intr_handler *ih;
+	struct trapframe *oldframe;
 	struct thread *td;
 	int error, ret, thread;
 
@@ -1366,6 +1414,8 @@ intr_event_handle(struct intr_event *ie, struct trapframe *frame)
 	thread = 0;
 	ret = 0;
 	critical_enter();
+	oldframe = td->td_intr_frame;
+	td->td_intr_frame = frame;
 	TAILQ_FOREACH(ih, &ie->ie_handlers, ih_next) {
 		if (ih->ih_filter == NULL) {
 			thread = 1;
@@ -1403,6 +1453,7 @@ intr_event_handle(struct intr_event *ie, struct trapframe *frame)
 				thread = 1;
 		}
 	}
+	td->td_intr_frame = oldframe;
 
 	if (thread) {
 		if (ie->ie_pre_ithread != NULL)
@@ -1439,6 +1490,7 @@ ithread_loop(void *arg)
 	struct thread *td;
 	struct proc *p;
 	int priv;
+	int wake;
 
 	td = curthread;
 	p = td->td_proc;
@@ -1449,6 +1501,7 @@ ithread_loop(void *arg)
 	    ("%s: ithread and proc linkage out of sync", __func__));
 	ie = ithd->it_event;
 	ie->ie_count = 0;
+	wake = 0;
 
 	/*
 	 * As long as we have interrupts outstanding, go through the
@@ -1492,12 +1545,20 @@ ithread_loop(void *arg)
 		 * set again, so we have to check it again.
 		 */
 		thread_lock(td);
-		if (!ithd->it_need && !(ithd->it_flags & IT_DEAD)) {
+		if (!ithd->it_need && !(ithd->it_flags & (IT_DEAD | IT_WAIT))) {
 			TD_SET_IWAIT(td);
 			ie->ie_count = 0;
 			mi_switch(SW_VOL | SWT_IWAIT, NULL);
 		}
+		if (ithd->it_flags & IT_WAIT) {
+			wake = 1;
+			ithd->it_flags &= ~IT_WAIT;
+		}
 		thread_unlock(td);
+		if (wake) {
+			wakeup(ithd);
+			wake = 0;
+		}
 	}
 }
 
@@ -1592,6 +1653,7 @@ int
 intr_event_handle(struct intr_event *ie, struct trapframe *frame)
 {
 	struct intr_thread *ithd;
+	struct trapframe *oldframe;
 	struct thread *td;
 	int thread;
 
@@ -1604,6 +1666,8 @@ intr_event_handle(struct intr_event *ie, struct trapframe *frame)
 	td->td_intr_nesting_level++;
 	thread = 0;
 	critical_enter();
+	oldframe = td->td_intr_frame;
+	td->td_intr_frame = frame;
 	thread = intr_filter_loop(ie, frame, &ithd);	
 	if (thread & FILTER_HANDLED) {
 		if (ie->ie_post_filter != NULL)
@@ -1612,6 +1676,7 @@ intr_event_handle(struct intr_event *ie, struct trapframe *frame)
 		if (ie->ie_pre_ithread != NULL)
 			ie->ie_pre_ithread(ie->ie_source);
 	}
+	td->td_intr_frame = oldframe;
 	critical_exit();
 	
 	/* Interrupt storm logic */
@@ -1648,18 +1713,13 @@ db_dump_intrhand(struct intr_handler *ih)
 	case PI_AV:
 		db_printf("AV  ");
 		break;
-	case PI_TTYHIGH:
-	case PI_TTYLOW:
+	case PI_TTY:
 		db_printf("TTY ");
-		break;
-	case PI_TAPE:
-		db_printf("TAPE");
 		break;
 	case PI_NET:
 		db_printf("NET ");
 		break;
 	case PI_DISK:
-	case PI_DISKLOW:
 		db_printf("DISK");
 		break;
 	case PI_DULL:

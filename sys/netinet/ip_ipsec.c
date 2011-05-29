@@ -239,7 +239,7 @@ ip_ipsec_mtu(struct mbuf *m, int mtu)
 		if (sp->req != NULL &&
 		    sp->req->sav != NULL &&
 		    sp->req->sav->sah != NULL) {
-			ro = &sp->req->sav->sah->sa_route;
+			ro = &sp->req->sav->sah->route_cache.sa_route;
 			if (ro->ro_rt && ro->ro_rt->rt_ifp) {
 				mtu =
 				    ro->ro_rt->rt_rmx.rmx_mtu ?
@@ -342,7 +342,7 @@ ip_ipsec_output(struct mbuf **m, struct inpcb *inp, int *flags, int *error)
 		}
 #ifdef SCTP
 		if ((*m)->m_pkthdr.csum_flags & CSUM_SCTP) {
-			sctp_delayed_cksum(*m);
+			sctp_delayed_cksum(*m, (uint32_t)(ip->ip_hl << 2));
 			(*m)->m_pkthdr.csum_flags &= ~CSUM_SCTP;
 		}
 #endif

@@ -74,7 +74,7 @@ typedef	__useconds_t	useconds_t;
 #define	_USECONDS_T_DECLARED
 #endif
 
-#define	 STDIN_FILENO	0	/* standard input file descriptor */
+#define	STDIN_FILENO	0	/* standard input file descriptor */
 #define	STDOUT_FILENO	1	/* standard output file descriptor */
 #define	STDERR_FILENO	2	/* standard error file descriptor */
 
@@ -288,6 +288,7 @@ typedef	__useconds_t	useconds_t;
 #if __BSD_VISIBLE
 #define	_SC_NPROCESSORS_CONF	57
 #define	_SC_NPROCESSORS_ONLN	58
+#define	_SC_CPUSET_SIZE		122
 #endif
 
 /* Extensions found in Solaris and Linux. */
@@ -499,6 +500,7 @@ int	 feature_present(const char *);
 char	*fflagstostr(u_long);
 int	 getdomainname(char *, int);
 int	 getgrouplist(const char *, gid_t, gid_t *, int *);
+int	 getloginclass(char *, size_t);
 mode_t	 getmode(const void *, mode_t);
 int	 getosreldate(void);
 int	 getpeereid(int, uid_t *, gid_t *);
@@ -528,6 +530,7 @@ char	*mktemp(char *);
 #define	_MKTEMP_DECLARED
 #endif
 int	 nfssvc(int, void *);
+int	 nlm_syscall(int, int, int, char **);
 int	 profil(char *, size_t, vm_offset_t, int);
 int	 rcmd(char **, int, const char *, const char *, const char *, int *);
 int	 rcmd_af(char **, int, const char *,
@@ -558,6 +561,7 @@ int	 setkey(const char *);
 #define	_SETKEY_DECLARED
 #endif
 int	 setlogin(const char *);
+int	 setloginclass(const char *);
 void	*setmode(const char *);
 void	 setproctitle(const char *_fmt, ...) __printf0like(1, 2);
 int	 setresgid(gid_t, gid_t, gid_t);

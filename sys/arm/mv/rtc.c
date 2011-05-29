@@ -45,6 +45,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/resource.h>
 
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+
 #include "clock_if.h"
 
 #define MV_RTC_TIME_REG		0x00
@@ -88,14 +91,17 @@ static driver_t mv_rtc_driver = {
 };
 static devclass_t mv_rtc_devclass;
 
-DRIVER_MODULE(mv_rtc, mbus, mv_rtc_driver, mv_rtc_devclass, 0, 0);
+DRIVER_MODULE(mv_rtc, simplebus, mv_rtc_driver, mv_rtc_devclass, 0, 0);
 
 static int
 mv_rtc_probe(device_t dev)
 {
 
+	if (!ofw_bus_is_compatible(dev, "mrvl,rtc"))
+		return (ENXIO);
+
 	device_set_desc(dev, "Marvell Integrated RTC");
-	return (0);
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int

@@ -67,7 +67,7 @@ struct kthr *kgdb_thr_next(struct kthr *);
 struct kthr *kgdb_thr_select(struct kthr *);
 char        *kgdb_thr_extra_thread_info(int);
 
-uintptr_t kgdb_lookup(const char *sym);
+CORE_ADDR kgdb_lookup(const char *sym);
 CORE_ADDR kgdb_parse_1(const char *, int);
 
 #define	kgdb_parse(exp)		kgdb_parse_1((exp), 0)

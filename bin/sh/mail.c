@@ -57,8 +57,8 @@ __FBSDID("$FreeBSD$");
 #define MAXMBOXES 10
 
 
-STATIC int nmboxes;			/* number of mailboxes */
-STATIC time_t mailtime[MAXMBOXES];	/* times of mailboxes */
+static int nmboxes;			/* number of mailboxes */
+static time_t mailtime[MAXMBOXES];	/* times of mailboxes */
 
 
 

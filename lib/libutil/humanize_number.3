@@ -28,7 +28,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd May 25, 2004
+.Dd Apr 12, 2011
 .Dt HUMANIZE_NUMBER 3
 .Os
 .Sh NAME
@@ -49,12 +49,12 @@ The
 function formats the signed 64-bit quantity given in
 .Fa number
 into
-.Fa buffer .
+.Fa buf .
 A space and then
 .Fa suffix
 is appended to the end.
 The buffer pointed to by
-.Fa buffer
+.Fa buf
 must be at least
 .Fa len
 bytes long.
@@ -62,23 +62,30 @@ bytes long.
 If the formatted number (including
 .Fa suffix )
 would be too long to fit into
-.Fa buffer ,
+.Fa buf ,
 then divide
 .Fa number
 by 1024 until it will.
 In this case, prefix
 .Fa suffix
-with the appropriate SI designator.
+with the appropriate designator.
 The
 .Fn humanize_number
-function
-follows the traditional computer science conventions rather than the proposed
-SI power of two convention.
+function follows the traditional computer science conventions by
+default, rather than the IEE/IEC (and now also SI) power of two
+convention or the power of ten notion.
+This behaviour however can be altered by specifying the
+.Dv HN_DIVISOR_1000
+and
+.Dv HN_IEC_PREFIXES
+flags.
 .Pp
-The prefixes are:
+The traditional
+.Pq default
+prefixes are:
 .Bl -column "Prefix" "Description" "1000000000000000000" -offset indent
 .It Sy "Prefix" Ta Sy "Description" Ta Sy "Multiplier" Ta Sy "Multiplier 1000x"
-.It Li k Ta No kilo Ta 1024 Ta 1000
+.It Li (note) Ta No kilo Ta 1024 Ta 1000
 .It Li M Ta No mega Ta 1048576 Ta 1000000
 .It Li G Ta No giga Ta 1073741824 Ta 1000000000
 .It Li T Ta No tera Ta 1099511627776 Ta 1000000000000
@@ -86,15 +93,34 @@ The prefixes are:
 .It Li E Ta No exa Ta 1152921504606846976 Ta 1000000000000000000
 .El
 .Pp
+Note:
+An uppercase K indicates a power of two, a lowercase k a power of ten.
+.Pp
+The IEE/IEC (and now also SI) power of two prefixes are:
+.Bl -column "Prefix" "Description" "1000000000000000000" -offset indent
+.It Sy "Prefix" Ta Sy "Description" Ta Sy "Multiplier"
+.It Li Ki Ta No kibi Ta 1024
+.It Li Mi Ta No mebi Ta 1048576
+.It Li Gi Ta No gibi Ta 1073741824
+.It Li Ti Ta No tebi Ta 1099511627776
+.It Li Pi Ta No pebi Ta 1125899906842624
+.It Li Ei Ta No exbi Ta 1152921504606846976
+.El
+.Pp
 The
 .Fa len
 argument must be at least 4 plus the length of
 .Fa suffix ,
 in order to ensure a useful result is generated into
-.Fa buffer .
+.Fa buf .
 To use a specific prefix, specify this as
 .Fa scale
-(multiplier = 1024 ^ scale).
+.Po multiplier = 1024 ^ scale;
+when
+.Dv HN_DIVISOR_1000
+is specified,
+multiplier = 1000 ^ scale
+.Pc .
 This cannot be combined with any of the
 .Fa scale
 flags below.
@@ -127,12 +153,17 @@ Use
 Divide
 .Fa number
 with 1000 instead of 1024.
+.It Dv HN_IEC_PREFIXES
+Use the IEE/IEC notion of prefixes (Ki, Mi, Gi...).
+This flag has no effect when
+.Dv HN_DIVISOR_1000
+is also specified.
 .El
 .Sh RETURN VALUES
 The
 .Fn humanize_number
 function returns the number of characters stored in
-.Fa buffer
+.Fa buf
 (excluding the terminating
 .Dv NUL )
 upon success, or \-1 upon failure.
@@ -141,6 +172,18 @@ If
 is specified, the prefix index number will be returned instead.
 .Sh SEE ALSO
 .Xr expand_number 3
+.Sh STANDARDS
+The
+.Dv HN_DIVISOR_1000
+and
+.Dv HN_IEC_PREFIXES
+flags
+conform to
+.Tn ISO/IEC
+Std\~80000-13:2008
+and
+.Tn IEEE
+Std\~1541-2002.
 .Sh HISTORY
 The
 .Fn humanize_number
@@ -148,3 +191,7 @@ function first appeared in
 .Nx 2.0
 and then in
 .Fx 5.3 .
+The
+.Dv HN_IEC_PREFIXES
+flag was introduced in
+.Fx 9.0 .

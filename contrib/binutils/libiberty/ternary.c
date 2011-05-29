@@ -15,7 +15,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301,
    USA.  */
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -34,11 +34,7 @@
    insertions. */
 
 PTR
-ternary_insert (root, s, data, replace)
-     ternary_tree *root;
-     const char *s;
-     PTR data;
-     int replace;
+ternary_insert (ternary_tree *root, const char *s, PTR data, int replace)
 {
   int diff;
   ternary_tree curr, *pcurr;
@@ -78,7 +74,7 @@ ternary_insert (root, s, data, replace)
   for (;;)
     {
       /* Allocate the memory for the node, and fill it in */
-      *pcurr = (ternary_tree) xmalloc (sizeof (ternary_node));
+      *pcurr = XNEW (ternary_node);
       curr = *pcurr;
       curr->splitchar = *s;
       curr->lokid = curr->hikid = curr->eqkid = 0;
@@ -98,8 +94,7 @@ ternary_insert (root, s, data, replace)
 
 /* Free the ternary search tree rooted at p. */
 void
-ternary_cleanup (p)
-     ternary_tree p;
+ternary_cleanup (ternary_tree p)
 {
   if (p)
     {
@@ -113,9 +108,7 @@ ternary_cleanup (p)
 
 /* Non-recursive find of a string in the ternary tree */
 PTR
-ternary_search (p, s)
-     const ternary_node *p;
-     const char *s;
+ternary_search (const ternary_node *p, const char *s)
 {
   const ternary_node *curr;
   int diff, spchar;
@@ -147,9 +140,7 @@ ternary_search (p, s)
 /* For those who care, the recursive version of the search. Useful if
    you want a starting point for pmsearch or nearsearch. */
 static PTR
-ternary_recursivesearch (p, s)
-     const ternary_node *p;
-     const char *s;
+ternary_recursivesearch (const ternary_node *p, const char *s)
 {
   if (!p)
     return 0;

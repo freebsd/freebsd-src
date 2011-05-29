@@ -3552,6 +3552,34 @@ scsi_calc_syncparam(u_int period)
 	return (period/400);
 }
 
+uint8_t *
+scsi_get_sas_addr(struct scsi_vpd_device_id *id, uint32_t len)
+{
+	uint8_t *bufp, *buf_end;
+	struct scsi_vpd_id_descriptor *descr;
+	struct scsi_vpd_id_naa_basic *naa;
+
+	bufp = buf_end = (uint8_t *)id;
+	bufp += SVPD_DEVICE_ID_HDR_LEN;
+	buf_end += len;
+	while (bufp < buf_end) {
+		descr = (struct scsi_vpd_id_descriptor *)bufp;
+		bufp += SVPD_DEVICE_ID_DESC_HDR_LEN;
+		/* Right now, we only care about SAS NAA IEEE Reg addrs */
+		if (((descr->id_type & SVPD_ID_PIV) != 0)
+		 && (descr->proto_codeset >> SVPD_ID_PROTO_SHIFT) ==
+		     SCSI_PROTO_SAS
+		 && (descr->id_type & SVPD_ID_TYPE_MASK) == SVPD_ID_TYPE_NAA){
+			naa = (struct scsi_vpd_id_naa_basic *)bufp;
+			if ((naa->naa >> 4) == SVPD_ID_NAA_IEEE_REG)
+				return bufp;
+		}
+		bufp += descr->length;
+	}
+
+	return NULL;
+}
+
 void
 scsi_test_unit_ready(struct ccb_scsiio *csio, u_int32_t retries,
 		     void (*cbfcnp)(struct cam_periph *, union ccb *),
@@ -3951,6 +3979,57 @@ scsi_report_luns(struct ccb_scsiio *csio, u_int32_t retries,
 	bzero(scsi_cmd, sizeof(*scsi_cmd));
 	scsi_cmd->opcode = REPORT_LUNS;
 	scsi_cmd->select_report = select_report;
+	scsi_ulto4b(alloc_len, scsi_cmd->length);
+}
+
+void
+scsi_report_target_group(struct ccb_scsiio *csio, u_int32_t retries,
+		 void (*cbfcnp)(struct cam_periph *, union ccb *),
+		 u_int8_t tag_action, u_int8_t pdf,
+		 void *buf, u_int32_t alloc_len,
+		 u_int8_t sense_len, u_int32_t timeout)
+{
+	struct scsi_target_group *scsi_cmd;
+
+	cam_fill_csio(csio,
+		      retries,
+		      cbfcnp,
+		      /*flags*/CAM_DIR_IN,
+		      tag_action,
+		      /*data_ptr*/(u_int8_t *)buf,
+		      /*dxfer_len*/alloc_len,
+		      sense_len,
+		      sizeof(*scsi_cmd),
+		      timeout);
+	scsi_cmd = (struct scsi_target_group *)&csio->cdb_io.cdb_bytes;
+	bzero(scsi_cmd, sizeof(*scsi_cmd));
+	scsi_cmd->opcode = MAINTENANCE_IN;
+	scsi_cmd->service_action = REPORT_TARGET_PORT_GROUPS | pdf;
+	scsi_ulto4b(alloc_len, scsi_cmd->length);
+}
+
+void
+scsi_set_target_group(struct ccb_scsiio *csio, u_int32_t retries,
+		 void (*cbfcnp)(struct cam_periph *, union ccb *),
+		 u_int8_t tag_action, void *buf, u_int32_t alloc_len,
+		 u_int8_t sense_len, u_int32_t timeout)
+{
+	struct scsi_target_group *scsi_cmd;
+
+	cam_fill_csio(csio,
+		      retries,
+		      cbfcnp,
+		      /*flags*/CAM_DIR_OUT,
+		      tag_action,
+		      /*data_ptr*/(u_int8_t *)buf,
+		      /*dxfer_len*/alloc_len,
+		      sense_len,
+		      sizeof(*scsi_cmd),
+		      timeout);
+	scsi_cmd = (struct scsi_target_group *)&csio->cdb_io.cdb_bytes;
+	bzero(scsi_cmd, sizeof(*scsi_cmd));
+	scsi_cmd->opcode = MAINTENANCE_OUT;
+	scsi_cmd->service_action = SET_TARGET_PORT_GROUPS;
 	scsi_ulto4b(alloc_len, scsi_cmd->length);
 }
 

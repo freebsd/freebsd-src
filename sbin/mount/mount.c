@@ -91,7 +91,7 @@ char   *flags2opts(int);
 
 /* Map from mount options to printable formats. */
 static struct opt {
-	int o_opt;
+	uint64_t o_opt;
 	const char *o_name;
 } optnames[] = {
 	{ MNT_ASYNC,		"asynchronous" },
@@ -141,8 +141,8 @@ use_mountprog(const char *vfstype)
 	 */
 	unsigned int i;
 	const char *fs[] = {
-	"cd9660", "mfs", "msdosfs", "newnfs", "nfs", "ntfs",
-	"nwfs", "nullfs", "portalfs", "smbfs", "udf", "unionfs",
+	"cd9660", "mfs", "msdosfs", "nfs", "ntfs",
+	"nwfs", "nullfs", "oldnfs", "portalfs", "smbfs", "udf", "unionfs",
 	NULL
 	};
 
@@ -612,7 +612,7 @@ mountfs(const char *vfstype, const char *spec, const char *name, int flags,
 void
 prmount(struct statfs *sfp)
 {
-	int flags;
+	uint64_t flags;
 	unsigned int i;
 	struct opt *o;
 	struct passwd *pw;
@@ -621,7 +621,7 @@ prmount(struct statfs *sfp)
 	    sfp->f_fstypename);
 
 	flags = sfp->f_flags & MNT_VISFLAGMASK;
-	for (o = optnames; flags && o->o_opt; o++)
+	for (o = optnames; flags != 0 && o->o_opt != 0; o++)
 		if (flags & o->o_opt) {
 			(void)printf(", %s", o->o_name);
 			flags &= ~o->o_opt;
@@ -850,10 +850,18 @@ void
 putfsent(struct statfs *ent)
 {
 	struct fstab *fst;
-	char *opts;
+	char *opts, *rw;
 	int l;
 
+	opts = NULL;
+	/* flags2opts() doesn't return the "rw" option. */
+	if ((ent->f_flags & MNT_RDONLY) != 0)
+		rw = NULL;
+	else
+		rw = catopt(NULL, "rw");
+
 	opts = flags2opts(ent->f_flags);
+	opts = catopt(rw, opts);
 
 	if (strncmp(ent->f_mntfromname, "<below>", 7) == 0 ||
 	    strncmp(ent->f_mntfromname, "<above>", 7) == 0) {
@@ -861,10 +869,6 @@ putfsent(struct statfs *ent)
 		    +1));
 	}
 
-	/*
-	 * "rw" is not a real mount option; this is why we print NULL as "rw"
-	 * if opts is still NULL here.
-	 */
 	l = strlen(ent->f_mntfromname);
 	printf("%s%s%s%s", ent->f_mntfromname,
 	    l < 8 ? "\t" : "",
@@ -876,13 +880,9 @@ putfsent(struct statfs *ent)
 	    l < 16 ? "\t" : "",
 	    l < 24 ? "\t" : " ");
 	printf("%s\t", ent->f_fstypename);
-	if (opts == NULL) {
-		printf("%s\t", "rw");
-	} else {
-		l = strlen(opts);
-		printf("%s%s", opts,
-		    l < 8 ? "\t" : " ");
-	}
+	l = strlen(opts);
+	printf("%s%s", opts,
+	    l < 8 ? "\t" : " ");
 	free(opts);
 
 	if ((fst = getfsspec(ent->f_mntfromname)))

@@ -489,6 +489,7 @@ inline_struct(definition *def, int flag)
 			}
 			size = 0;
 			i = 0;
+			free(sizestr);
 			sizestr = NULL;
 			print_stat(indent + 1, &dl->decl);
 		}

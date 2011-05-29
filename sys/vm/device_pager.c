@@ -67,13 +67,6 @@ static struct pagerlst dev_pager_object_list;
 /* protect list manipulation */
 static struct mtx dev_pager_mtx;
 
-
-static uma_zone_t fakepg_zone;
-
-static vm_page_t dev_pager_getfake(vm_paddr_t, vm_memattr_t);
-static void dev_pager_putfake(vm_page_t);
-static void dev_pager_updatefake(vm_page_t, vm_paddr_t, vm_memattr_t);
-
 struct pagerops devicepagerops = {
 	.pgo_init =	dev_pager_init,
 	.pgo_alloc =	dev_pager_alloc,
@@ -88,9 +81,6 @@ dev_pager_init()
 {
 	TAILQ_INIT(&dev_pager_object_list);
 	mtx_init(&dev_pager_mtx, "dev_pager list", NULL, MTX_DEF);
-	fakepg_zone = uma_zcreate("DP fakepg", sizeof(struct vm_page),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR,
-	    UMA_ZONE_NOFREE|UMA_ZONE_VM); 
 }
 
 /*
@@ -108,6 +98,7 @@ dev_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 	vm_ooffset_t off;
 	vm_memattr_t dummy;
 	struct cdevsw *csw;
+	int ref;
 
 	/*
 	 * Offset should be page aligned.
@@ -122,7 +113,7 @@ dev_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 	 * Make sure this device can be mapped.
 	 */
 	dev = handle;
-	csw = dev_refthread(dev);
+	csw = dev_refthread(dev, &ref);
 	if (csw == NULL)
 		return (NULL);
 
@@ -135,7 +126,7 @@ dev_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 	npages = OFF_TO_IDX(size);
 	for (off = foff; npages--; off += PAGE_SIZE)
 		if (csw->d_mmap(dev, off, &paddr, (int)prot, &dummy) != 0) {
-			dev_relthread(dev);
+			dev_relthread(dev, ref);
 			return (NULL);
 		}
 
@@ -177,7 +168,7 @@ dev_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 			object->size = pindex;
 	}
 	mtx_unlock(&dev_pager_mtx);
-	dev_relthread(dev);
+	dev_relthread(dev, ref);
 	vm_object_deallocate(object1);
 	return (object);
 }
@@ -198,7 +189,7 @@ dev_pager_dealloc(object)
 	 */
 	while ((m = TAILQ_FIRST(&object->un_pager.devp.devp_pglist)) != NULL) {
 		TAILQ_REMOVE(&object->un_pager.devp.devp_pglist, m, pageq);
-		dev_pager_putfake(m);
+		vm_page_putfake(m);
 	}
 }
 
@@ -214,7 +205,7 @@ dev_pager_getpages(object, m, count, reqpage)
 	vm_page_t m_paddr, page;
 	vm_memattr_t memattr;
 	struct cdev *dev;
-	int i, ret;
+	int i, ref, ret;
 	struct cdevsw *csw;
 	struct thread *td;
 	struct file *fpop;
@@ -225,7 +216,7 @@ dev_pager_getpages(object, m, count, reqpage)
 	offset = page->pindex;
 	memattr = object->memattr;
 	VM_OBJECT_UNLOCK(object);
-	csw = dev_refthread(dev);
+	csw = dev_refthread(dev, &ref);
 	if (csw == NULL)
 		panic("dev_pager_getpage: no cdevsw");
 	td = curthread;
@@ -235,7 +226,7 @@ dev_pager_getpages(object, m, count, reqpage)
 	    PROT_READ, &memattr);
 	KASSERT(ret == 0, ("dev_pager_getpage: map function returns error"));
 	td->td_fpop = fpop;
-	dev_relthread(dev);
+	dev_relthread(dev, ref);
 	/* If "paddr" is a real page, perform a sanity check on "memattr". */
 	if ((m_paddr = vm_phys_paddr_to_vm_page(paddr)) != NULL &&
 	    pmap_page_get_memattr(m_paddr) != memattr) {
@@ -249,27 +240,30 @@ dev_pager_getpages(object, m, count, reqpage)
 		 * the new physical address.
 		 */
 		VM_OBJECT_LOCK(object);
-		dev_pager_updatefake(page, paddr, memattr);
+		vm_page_updatefake(page, paddr, memattr);
 		if (count > 1) {
-			vm_page_lock_queues();
+
 			for (i = 0; i < count; i++) {
-				if (i != reqpage)
+				if (i != reqpage) {
+					vm_page_lock(m[i]);
 					vm_page_free(m[i]);
+					vm_page_unlock(m[i]);
+				}
 			}
-			vm_page_unlock_queues();
 		}
 	} else {
 		/*
 		 * Replace the passed in reqpage page with our own fake page and
 		 * free up the all of the original pages.
 		 */
-		page = dev_pager_getfake(paddr, memattr);
+		page = vm_page_getfake(paddr, memattr);
 		VM_OBJECT_LOCK(object);
 		TAILQ_INSERT_TAIL(&object->un_pager.devp.devp_pglist, page, pageq);
-		vm_page_lock_queues();
-		for (i = 0; i < count; i++)
+		for (i = 0; i < count; i++) {
+			vm_page_lock(m[i]);
 			vm_page_free(m[i]);
-		vm_page_unlock_queues();
+			vm_page_unlock(m[i]);
+		}
 		vm_page_insert(page, object, offset);
 		m[reqpage] = page;
 	}
@@ -300,51 +294,4 @@ dev_pager_haspage(object, pindex, before, after)
 	if (after != NULL)
 		*after = 0;
 	return (TRUE);
-}
-
-/*
- * Create a fictitious page with the specified physical address and memory
- * attribute.  The memory attribute is the only the machine-dependent aspect
- * of a fictitious page that must be initialized.
- */
-static vm_page_t
-dev_pager_getfake(vm_paddr_t paddr, vm_memattr_t memattr)
-{
-	vm_page_t m;
-
-	m = uma_zalloc(fakepg_zone, M_WAITOK | M_ZERO);
-	m->phys_addr = paddr;
-	/* Fictitious pages don't use "segind". */
-	m->flags = PG_FICTITIOUS;
-	/* Fictitious pages don't use "order" or "pool". */
-	m->oflags = VPO_BUSY;
-	m->wire_count = 1;
-	pmap_page_set_memattr(m, memattr);
-	return (m);
-}
-
-/*
- * Release a fictitious page.
- */
-static void
-dev_pager_putfake(vm_page_t m)
-{
-
-	if (!(m->flags & PG_FICTITIOUS))
-		panic("dev_pager_putfake: bad page");
-	uma_zfree(fakepg_zone, m);
-}
-
-/*
- * Update the given fictitious page to the specified physical address and
- * memory attribute.
- */
-static void
-dev_pager_updatefake(vm_page_t m, vm_paddr_t paddr, vm_memattr_t memattr)
-{
-
-	if (!(m->flags & PG_FICTITIOUS))
-		panic("dev_pager_updatefake: bad page");
-	m->phys_addr = paddr;
-	pmap_page_set_memattr(m, memattr);
 }

@@ -47,15 +47,18 @@ The options are as follows:
 .It Fl o
 Displays a summary of Clients for NFSv4. Each line lists a Client with
 the ClientID being the last field of the line.
-.sp
-.nf
+.Pp
 The following are the client flag values displayed:
-NC - Needs Confirmation
-CB - Callbacks are enabled
-GSS - Using RPCSEC_GSS
-REV - Administratively Revoked, via nfsrevoke(8)
-.fi
-.sp
+.Bl -tag -compact -offset 2n -width MMMM
+.It NC
+Needs Confirmation
+.It CB
+Callbacks are enabled
+.It GSS
+Using RPCSEC_GSS
+.It REV
+Administratively Revoked, via nfsrevoke(8)
+.El
 .It Fl l Ar filename
 Displays a list of all NFSv4 Opens and Locks on the file specified by
 the

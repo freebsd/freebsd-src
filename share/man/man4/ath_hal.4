@@ -57,8 +57,8 @@ or
 .Sh DESCRIPTION
 The hal provides hardware support for wireless network adapters based on
 the Atheros AR5210, AR5211, AR5212, AR5213, AR2413, AR2417, AR2425,
-AR5413, AR5416, AR5418, AR5424, AR9160, and AR9280 chips (and companion
-RF/baseband parts).
+AR5413, AR5416, AR5418, AR5424, AR9160, AR9220, AR9280, and AR9285 chips
+(and companion RF/baseband parts).
 This code is part of the
 .Xr ath 4
 driver but configured separately to allow fine-grained control
@@ -66,13 +66,14 @@ over the set of chips supported.
 Selecting
 .Nm
 enables support for all PCI and Cardbus devices.
-Note this includes AR5416, AR9160, and AR9280 devices and
-must be accompanied by the
+Note this includes AR5416, AR9160, AR9220, AR9280 and AR9285 devices
+and must be accompanied by the
 AH_SUPPORT_AR5416
 option to enable the extended hardware descriptor format used by
 AR5416 and later devices.
 .Pp
-Devices supported come in either Cardbus or mini-PCI packages.
+Some devices come in Cardbus/MiniPCI/PCI format.
+Others (AR9280, AR9285) come in PCIe, Mini-PCIe or ExpressCard format.
 .Pp
 Historically this code has been released in a binary-only form
 and packaged as a separate module.
@@ -109,7 +110,9 @@ module:
 .It "Netgear WAG311	AR5212	PCI	a/b/g"
 .It "Netgear WAB501	AR5211	CardBus	a/b"
 .It "Netgear WAG511	AR5212	CardBus	a/b/g"
-.It "Netgear WG311	AR5212	PCI	b/g"
+.It "Netgear WG311 (aka WG311v1)	AR5212	PCI	b/g"
+.It "Netgear WG311v2	AR5212	PCI	b/g"
+.It "Netgear WG311T	AR5212	PCI	b/g"
 .It "Netgear WG511T	AR5212	CardBus	b/g"
 .It "Orinoco 8480	AR5212	CardBus	a/b/g"
 .It "Orinoco 8470WD	AR5212	CardBus	a/b/g"

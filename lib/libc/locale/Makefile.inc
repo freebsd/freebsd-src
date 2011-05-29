@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 # locale sources
-.PATH: ${.CURDIR}/${MACHINE_ARCH}/locale ${.CURDIR}/locale
+.PATH: ${.CURDIR}/${LIBC_ARCH}/locale ${.CURDIR}/locale
 
 SRCS+=	ascii.c big5.c btowc.c collate.c collcmp.c euc.c fix_grouping.c \
 	gb18030.c gb2312.c gbk.c isctype.c iswctype.c \

@@ -107,9 +107,9 @@ __FBSDID("$FreeBSD$");
 #define TCP_HOSTCACHE_PRUNE		5*60	/* every 5 minutes */
 
 static VNET_DEFINE(struct tcp_hostcache, tcp_hostcache);
-static VNET_DEFINE(struct callout, tcp_hc_callout);
-
 #define	V_tcp_hostcache		VNET(tcp_hostcache)
+
+static VNET_DEFINE(struct callout, tcp_hc_callout);
 #define	V_tcp_hc_callout	VNET(tcp_hc_callout)
 
 static struct hc_metrics *tcp_hc_lookup(struct in_conninfo *);
@@ -121,19 +121,19 @@ static void tcp_hc_purge(void *);
 SYSCTL_NODE(_net_inet_tcp, OID_AUTO, hostcache, CTLFLAG_RW, 0,
     "TCP Host cache");
 
-SYSCTL_VNET_INT(_net_inet_tcp_hostcache, OID_AUTO, cachelimit, CTLFLAG_RDTUN,
+SYSCTL_VNET_UINT(_net_inet_tcp_hostcache, OID_AUTO, cachelimit, CTLFLAG_RDTUN,
     &VNET_NAME(tcp_hostcache.cache_limit), 0,
     "Overall entry limit for hostcache");
 
-SYSCTL_VNET_INT(_net_inet_tcp_hostcache, OID_AUTO, hashsize, CTLFLAG_RDTUN,
+SYSCTL_VNET_UINT(_net_inet_tcp_hostcache, OID_AUTO, hashsize, CTLFLAG_RDTUN,
     &VNET_NAME(tcp_hostcache.hashsize), 0,
     "Size of TCP hostcache hashtable");
 
-SYSCTL_VNET_INT(_net_inet_tcp_hostcache, OID_AUTO, bucketlimit,
+SYSCTL_VNET_UINT(_net_inet_tcp_hostcache, OID_AUTO, bucketlimit,
     CTLFLAG_RDTUN, &VNET_NAME(tcp_hostcache.bucket_limit), 0,
     "Per-bucket hash limit for hostcache");
 
-SYSCTL_VNET_INT(_net_inet_tcp_hostcache, OID_AUTO, count, CTLFLAG_RD,
+SYSCTL_VNET_UINT(_net_inet_tcp_hostcache, OID_AUTO, count, CTLFLAG_RD,
      &VNET_NAME(tcp_hostcache.cache_count), 0,
     "Current number of entries in hostcache");
 

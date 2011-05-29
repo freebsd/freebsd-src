@@ -549,8 +549,10 @@ pmclog_open(int fd)
 
 	/* allocate space for a work area */
 	if (ps->ps_fd != PMCLOG_FD_NONE) {
-		if ((ps->ps_buffer = malloc(PMCLOG_BUFFER_SIZE)) == NULL)
+		if ((ps->ps_buffer = malloc(PMCLOG_BUFFER_SIZE)) == NULL) {
+			free(ps);
 			return NULL;
+		}
 	}
 
 	return ps;

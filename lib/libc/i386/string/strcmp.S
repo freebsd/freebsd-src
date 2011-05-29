@@ -118,3 +118,5 @@ L3:     movzbl  (%eax),%eax             /* unsigned comparison */
 	subl	%edx,%eax
 	ret
 END(strcmp)
+
+	.section .note.GNU-stack,"",%progbits

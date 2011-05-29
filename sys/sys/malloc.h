@@ -90,6 +90,7 @@ struct malloc_type_stats {
 struct malloc_type_internal {
 	uint32_t	mti_probes[DTMALLOC_PROBE_MAX];
 					/* DTrace probe ID array. */
+	u_char		mti_zone;
 	struct malloc_type_stats	mti_stats[MAXCPU];
 };
 

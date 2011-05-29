@@ -87,9 +87,13 @@ device		ad7418		# AD7418 on I2C bus
 
 device		avila_led
 
+device		gpio
+device		gpioled
+device		avila_gpio	# GPIO pins on J8
+
 device		ata
-device		atadisk         # ATA disk drives
 device		avila_ata	# Gateworks CF/IDE support
+options 	ATA_CAM
 
 device		npe		# Network Processing Engine
 device		npe_fw
@@ -116,7 +120,8 @@ device		wlan_ccmp	# 802.11 CCMP support
 device		wlan_tkip	# 802.11 TKIP support
 device		wlan_xauth
 
-device		ath		# Atheros pci/cardbus NIC's
+device		ath		# Atheros NIC's
+device		ath_pci		# Atheros pci/cardbus glue
 options 	ATH_DEBUG
 options 	ATH_DIAGAPI
 #options 	ATH_TX99_DIAG
@@ -144,8 +149,9 @@ device		usb
 device		ohci
 device		ehci
 device		umass
-device		scbus		# SCSI bus (required for SCSI)
+device		scbus		# SCSI bus (required for ATA/SCSI)
 device		da		# Direct Access (disks)
+device		pass		# Passthrough device (direct ATA/SCSI access)
 
 #device		ural
 #device		zyd

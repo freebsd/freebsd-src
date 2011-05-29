@@ -169,7 +169,11 @@ passcleanup(struct cam_periph *periph)
 		xpt_print(periph->path, "removing device entry\n");
 	devstat_remove_entry(softc->device_stats);
 	cam_periph_unlock(periph);
-	destroy_dev(softc->dev);
+	/*
+	 * passcleanup() is indirectly a d_close method via passclose,
+	 * so using destroy_dev(9) directly can result in deadlock.
+	 */
+	destroy_dev_sched(softc->dev);
 	cam_periph_lock(periph);
 	free(softc, M_DEVBUF);
 }
@@ -226,6 +230,7 @@ passregister(struct cam_periph *periph, void *arg)
 {
 	struct pass_softc *softc;
 	struct ccb_getdev *cgd;
+	struct ccb_pathinq cpi;
 	int    no_tags;
 
 	cgd = (struct ccb_getdev *)arg;
@@ -250,9 +255,19 @@ passregister(struct cam_periph *periph, void *arg)
 
 	bzero(softc, sizeof(*softc));
 	softc->state = PASS_STATE_NORMAL;
-	softc->pd_type = SID_TYPE(&cgd->inq_data);
+	if (cgd->protocol == PROTO_SCSI || cgd->protocol == PROTO_ATAPI)
+		softc->pd_type = SID_TYPE(&cgd->inq_data);
+	else if (cgd->protocol == PROTO_SATAPM)
+		softc->pd_type = T_ENCLOSURE;
+	else
+		softc->pd_type = T_DIRECT;
 
 	periph->softc = softc;
+
+	bzero(&cpi, sizeof(cpi));
+	xpt_setup_ccb(&cpi.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
+	cpi.ccb_h.func_code = XPT_PATH_INQ;
+	xpt_action((union ccb *)&cpi);
 
 	/*
 	 * We pass in 0 for a blocksize, since we don't 
@@ -266,7 +281,7 @@ passregister(struct cam_periph *periph, void *arg)
 			  DEVSTAT_NO_BLOCKSIZE
 			  | (no_tags ? DEVSTAT_NO_ORDERED_TAGS : 0),
 			  softc->pd_type |
-			  DEVSTAT_TYPE_IF_SCSI |
+			  XPORT_DEVSTAT_TYPE(cpi.transport) |
 			  DEVSTAT_TYPE_PASS,
 			  DEVSTAT_PRIORITY_PASS);
 
@@ -520,10 +535,10 @@ passsendccb(struct cam_periph *periph, union ccb *ccb, union ccb *inccb)
 	 * We only attempt to map the user memory into kernel space
 	 * if they haven't passed in a physical memory pointer,
 	 * and if there is actually an I/O operation to perform.
-	 * Right now cam_periph_mapmem() only supports SCSI and device
-	 * match CCBs.  For the SCSI CCBs, we only pass the CCB in if
-	 * there's actually data to map.  cam_periph_mapmem() will do the
-	 * right thing, even if there isn't data to map, but since CCBs
+	 * cam_periph_mapmem() supports SCSI, ATA, SMP, ADVINFO and device
+	 * match CCBs.  For the SCSI, ATA and ADVINFO CCBs, we only pass the
+	 * CCB in if there's actually data to map.  cam_periph_mapmem() will
+	 * do the right thing, even if there isn't data to map, but since CCBs
 	 * without data are a reasonably common occurance (e.g. test unit
 	 * ready), it will save a few cycles if we check for it here.
 	 */
@@ -531,7 +546,10 @@ passsendccb(struct cam_periph *periph, union ccb *ccb, union ccb *inccb)
 	 && (((ccb->ccb_h.func_code == XPT_SCSI_IO ||
 	       ccb->ccb_h.func_code == XPT_ATA_IO)
 	    && ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE))
-	  || (ccb->ccb_h.func_code == XPT_DEV_MATCH))) {
+	  || (ccb->ccb_h.func_code == XPT_DEV_MATCH)
+	  || (ccb->ccb_h.func_code == XPT_SMP_IO)
+	  || ((ccb->ccb_h.func_code == XPT_GDEV_ADVINFO)
+	   && (ccb->cgdai.bufsiz > 0)))) {
 
 		bzero(&mapinfo, sizeof(mapinfo));
 

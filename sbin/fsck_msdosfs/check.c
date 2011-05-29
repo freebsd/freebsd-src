@@ -98,7 +98,7 @@ checkfilesys(const char *fname)
 	}
 
 	if (boot.ValidFat < 0)
-		for (i = 1; i < (int)boot.bpbFATs; i++) {
+		for (i = 1; i < boot.bpbFATs; i++) {
 			struct fatEntry *currentFat;
 
 			mod |= readfat(dosfs, &boot, i, &currentFat);

@@ -119,7 +119,7 @@ acpi_get_rsdp(u_long addr)
 
 	/* If the revision is 0, assume a version 1 length. */
 	if (rsdp.Revision == 0)
-		len = ACPI_RSDP_REV0_SIZE;
+		len = sizeof(ACPI_RSDP_COMMON);
 	else
 		len = rsdp.Length;
 

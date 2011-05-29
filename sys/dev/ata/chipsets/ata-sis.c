@@ -228,8 +228,12 @@ ata_sis_ch_attach(device_t dev)
 static void
 ata_sis_reset(device_t dev)
 {
+    struct ata_channel *ch = device_get_softc(dev);
+
     if (ata_sata_phy_reset(dev, -1, 1))
 	ata_generic_reset(dev);
+    else
+	ch->devices = 0;
 }
 
 static int
@@ -243,13 +247,13 @@ ata_sis_setmode(device_t dev, int target, int mode)
 	mode = min(mode, ctlr->chip->max_dma);
 
 	if (ctlr->chip->cfg1 == SIS_133NEW) {
-		if (mode > ATA_UDMA2 &&
+		if (ata_dma_check_80pin && mode > ATA_UDMA2 &&
 		        pci_read_config(parent, ch->unit ? 0x52 : 0x50,2) & 0x8000) {
 		        ata_print_cable(dev, "controller");
 		        mode = ATA_UDMA2;
 		}
 	} else {
-		if (mode > ATA_UDMA2 &&
+		if (ata_dma_check_80pin && mode > ATA_UDMA2 &&
 		    pci_read_config(parent, 0x48, 1)&(ch->unit ? 0x20 : 0x10)) {
 		    ata_print_cable(dev, "controller");
 		    mode = ATA_UDMA2;

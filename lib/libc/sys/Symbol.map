@@ -360,6 +360,19 @@ FBSD_1.1 {
 	unlinkat;
 };
 
+FBSD_1.2 {
+	cap_enter;
+	cap_getmode;
+	getloginclass;
+	posix_fallocate;
+	rctl_get_racct;
+	rctl_get_rules;
+	rctl_get_limits;
+	rctl_add_rule;
+	rctl_remove_rule;
+	setloginclass;
+};
+
 FBSDprivate_1.0 {
 	___acl_aclcheck_fd;
 	__sys___acl_aclcheck_fd;
@@ -919,6 +932,7 @@ FBSDprivate_1.0 {
 	_sigtimedwait;
 	__sys_sigtimedwait;
 	_sigwait;
+	__sigwait;
 	__sys_sigwait;
 	_sigwaitinfo;
 	__sys_sigwaitinfo;

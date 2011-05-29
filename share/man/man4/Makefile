@@ -3,7 +3,6 @@
 
 MAN=	aac.4 \
 	acpi.4 \
-	${_acpi_aiboost.4} \
 	${_acpi_asus.4} \
 	${_acpi_dock.4} \
 	${_acpi_fujitsu.4} \
@@ -19,6 +18,7 @@ MAN=	aac.4 \
 	adv.4 \
 	adw.4 \
 	ae.4 \
+	${_aesni.4} \
 	age.4 \
 	agp.4 \
 	aha.4 \
@@ -26,6 +26,7 @@ MAN=	aac.4 \
 	ahc.4 \
 	ahci.4 \
 	ahd.4 \
+	${_aibs.4} \
 	aio.4 \
 	alc.4 \
 	ale.4 \
@@ -49,6 +50,8 @@ MAN=	aac.4 \
 	atkbd.4 \
 	atkbdc.4 \
 	${_atp.4} \
+	${_atrtc.4} \
+	${_attimer.4} \
 	audit.4 \
 	auditpipe.4 \
 	aue.4 \
@@ -66,6 +69,13 @@ MAN=	aac.4 \
 	cardbus.4 \
 	carp.4 \
 	cas.4 \
+	cc.4 \
+	cc_chd.4 \
+	cc_cubic.4 \
+	cc_hd.4 \
+	cc_htcp.4 \
+	cc_newreno.4 \
+	cc_vegas.4 \
 	ccd.4 \
 	cd.4 \
 	cdce.4 \
@@ -80,6 +90,7 @@ MAN=	aac.4 \
 	crypto.4 \
 	cue.4 \
 	cxgb.4 \
+	cxgbe.4 \
 	cy.4 \
 	da.4 \
 	dc.4 \
@@ -109,6 +120,8 @@ MAN=	aac.4 \
 	fatm.4 \
 	fd.4 \
 	fdc.4 \
+	fdt.4 \
+	fdtbus.4 \
 	firewire.4 \
 	fpa.4 \
 	fwe.4 \
@@ -121,15 +134,18 @@ MAN=	aac.4 \
 	geom.4 \
 	geom_fox.4 \
 	geom_linux_lvm.4 \
+	geom_map.4 \
 	geom_uzip.4 \
 	gif.4 \
 	gpib.4 \
 	gre.4 \
+	h_ertt.4 \
 	harp.4 \
 	hatm.4 \
 	hfa.4 \
 	hifn.4 \
 	hme.4 \
+	hpet.4 \
 	${_hptiop.4} \
 	${_hptmv.4} \
 	${_hptrr.4} \
@@ -215,11 +231,14 @@ MAN=	aac.4 \
 	mmc.4 \
 	mmcsd.4 \
 	mn.4 \
+	mos.4 \
 	mouse.4 \
+	mps.4 \
 	mpt.4 \
 	msk.4 \
 	mtio.4 \
 	multicast.4 \
+	mvs.4 \
 	mwl.4 \
 	mwlfw.4 \
 	mxge.4 \
@@ -273,6 +292,7 @@ MAN=	aac.4 \
 	ng_nat.4 \
 	ng_netflow.4 \
 	ng_one2many.4 \
+	ng_patch.4 \
 	ng_ppp.4 \
 	ng_pppoe.4 \
 	ng_pptpgre.4 \
@@ -298,6 +318,7 @@ MAN=	aac.4 \
 	null.4 \
 	${_nve.4} \
 	${_nvram.4} \
+	${_nvram2env.4} \
 	${_nxge.4} \
 	ohci.4 \
 	orm.4 \
@@ -328,6 +349,7 @@ MAN=	aac.4 \
 	random.4 \
 	rc.4 \
 	re.4 \
+	rgephy.4 \
 	rl.4 \
 	rndtest.4 \
 	route.4 \
@@ -335,6 +357,7 @@ MAN=	aac.4 \
 	rue.4 \
 	rum.4 \
 	run.4 \
+	runfw.4 \
 	sa.4 \
 	safe.4 \
 	sbp.4 \
@@ -348,12 +371,16 @@ MAN=	aac.4 \
 	sctp.4 \
 	sdhci.4 \
 	sem.4 \
+	send.4 \
 	ses.4 \
 	sf.4 \
+	sge.4 \
 	si.4 \
 	siba.4 \
-	sio.4 \
+	siftr.4 \
 	siis.4 \
+	simplebus.4 \
+	sio.4 \
 	sis.4 \
 	sk.4 \
 	smb.4 \
@@ -412,6 +439,7 @@ MAN=	aac.4 \
 	ti.4 \
 	tl.4 \
 	tnt4882.4 \
+	${_tpm.4} \
 	trm.4 \
 	tty.4 \
 	tun.4 \
@@ -433,6 +461,7 @@ MAN=	aac.4 \
 	udav.4 \
 	udbp.4 \
 	udp.4 \
+	uep.4 \
 	ufm.4 \
 	ufoma.4 \
 	uftdi.4 \
@@ -454,6 +483,7 @@ MAN=	aac.4 \
 	urio.4 \
 	${_urtw.4} \
 	usb.4 \
+	usb_quirk.4 \
 	uslcom.4 \
 	utopia.4 \
 	uvisor.4 \
@@ -466,6 +496,7 @@ MAN=	aac.4 \
 	vlan.4 \
 	vpo.4 \
 	vr.4 \
+	vte.4 \
 	watchdog.4 \
 	wb.4 \
 	wi.4 \
@@ -479,6 +510,8 @@ MAN=	aac.4 \
 	wlan_xauth.4 \
 	${_wpi.4} \
 	xe.4 \
+	${_xen.4} \
+	xhci.4 \
 	xl.4 \
 	xpt.4 \
 	zero.4 \
@@ -521,6 +554,7 @@ MLINKS+=fatm.4 if_fatm.4
 MLINKS+=fd.4 stderr.4 \
 	fd.4 stdin.4 \
 	fd.4 stdout.4
+MLINKS+=fdt.4 FDT.4
 MLINKS+=firewire.4 ieee1394.4
 MLINKS+=fpa.4 fea.4
 MLINKS+=fwe.4 if_fwe.4
@@ -532,7 +566,9 @@ MLINKS+=gif.4 if_gif.4
 MLINKS+=gre.4 if_gre.4
 MLINKS+=hatm.4 if_hatm.4
 MLINKS+=hme.4 if_hme.4
+MLINKS+=hpet.4 acpi_hpet.4
 MLINKS+=${_hptrr.4} ${_rr232x.4}
+MLINKS+=${_attimer.4} ${_i8254.4}
 MLINKS+=idt.4 if_idt.4
 MLINKS+=igb.4 if_igb.4
 MLINKS+=ip.4 rawip.4
@@ -618,8 +654,7 @@ MLINKS+=xe.4 if_xe.4
 MLINKS+=xl.4 if_xl.4
 MLINKS+=zyd.4 if_zyd.4
 
-.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"
-_acpi_aiboost.4=acpi_aiboost.4
+.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
 _acpi_asus.4=	acpi_asus.4
 _acpi_dock.4=	acpi_dock.4
 _acpi_fujitsu.4=acpi_fujitsu.4
@@ -629,6 +664,10 @@ _acpi_panasonic.4=acpi_panasonic.4
 _acpi_sony.4=	acpi_sony.4
 _acpi_toshiba.4=acpi_toshiba.4
 _acpi_wmi.4=	acpi_wmi.4
+_aesni.4=	aesni.4
+_atrtc.4=	atrtc.4
+_attimer.4=	attimer.4
+_aibs.4=	aibs.4
 _amdsbwd.4=	amdsbwd.4
 _amdsmb.4=	amdsmb.4
 _amdtemp.4=	amdtemp.4
@@ -640,6 +679,7 @@ _dpms.4=	dpms.4
 _hptiop.4=	hptiop.4
 _hptmv.4=	hptmv.4
 _hptrr.4=	hptrr.4
+_i8254.4=	i8254.4
 _ichwd.4=	ichwd.4
 _if_ndis.4=	if_ndis.4
 _if_nfe.4=	if_nfe.4
@@ -661,18 +701,23 @@ _padlock.4=	padlock.4
 _rr232x.4=	rr232x.4
 _speaker.4=	speaker.4
 _spkr.4=	spkr.4
+_tpm.4=		tpm.4
 _urtw.4=	urtw.4
 _wpi.4=		wpi.4
+_xen.4=		xen.4
 
 MLINKS+=lindev.4 full.4
 .endif
 
-.if ${MACHINE_ARCH} == "powerpc"
+.if ${MACHINE_CPUARCH} == "powerpc"
 _atp.4=		atp.4
 .endif
+.if ${MACHINE_CPUARCH} == "mips"
+_nvram2env.4=	nvram2env.4
+.endif
 
-.if exists(${.CURDIR}/man4.${MACHINE_ARCH})
-SUBDIR=	man4.${MACHINE_ARCH}
+.if exists(${.CURDIR}/man4.${MACHINE_CPUARCH})
+SUBDIR=	man4.${MACHINE_CPUARCH}
 .endif
 
 .include <bsd.prog.mk>

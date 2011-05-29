@@ -235,7 +235,7 @@ sbni_attach(struct sbni_softc *sc, int unit, struct sbni_flags flags)
 	ifp->if_init	= sbni_init;
 	ifp->if_start	= sbni_start;
 	ifp->if_ioctl	= sbni_ioctl;
-	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
+	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
 
 	/* report real baud rate */
 	csr0 = sbni_inb(sc, CSR0);

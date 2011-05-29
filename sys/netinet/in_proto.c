@@ -35,9 +35,9 @@ __FBSDID("$FreeBSD$");
 #include "opt_ipx.h"
 #include "opt_mrouting.h"
 #include "opt_ipsec.h"
+#include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_pf.h"
-#include "opt_carp.h"
 #include "opt_sctp.h"
 #include "opt_mpath.h"
 
@@ -51,14 +51,26 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/sysctl.h>
 
+/*
+ * While this file provides the domain and protocol switch tables for IPv4, it
+ * also provides the sysctl node declarations for net.inet.* often shared with
+ * IPv6 for common features or by upper layer protocols.  In case of no IPv4
+ * support compile out everything but these sysctl nodes.
+ */
+#ifdef INET
 #include <net/if.h>
 #include <net/route.h>
 #ifdef RADIX_MPATH
 #include <net/radix_mpath.h>
 #endif
 #include <net/vnet.h>
+#endif /* INET */
 
+#if defined(INET) || defined(INET6)
 #include <netinet/in.h>
+#endif
+
+#ifdef INET
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
@@ -94,9 +106,7 @@ static struct pr_usrreqs nousrreqs;
 #include <net/if_pfsync.h>
 #endif
 
-#ifdef DEV_CARP
-#include <netinet/ip_carp.h>
-#endif
+FEATURE(inet, "Internet Protocol version 4");
 
 extern	struct domain inetdomain;
 
@@ -208,7 +218,6 @@ struct protosw inetsw[] = {
 	.pr_flags =		PR_ATOMIC|PR_ADDR|PR_LASTHDR,
 	.pr_input =		icmp_input,
 	.pr_ctloutput =		rip_ctloutput,
-	.pr_init =		icmp_init,
 	.pr_usrreqs =		&rip_usrreqs
 },
 {
@@ -331,18 +340,6 @@ struct protosw inetsw[] = {
 	.pr_usrreqs =		&rip_usrreqs
 },
 #endif	/* DEV_PFSYNC */
-#ifdef DEV_CARP
-{
-	.pr_type =		SOCK_RAW,
-	.pr_domain =		&inetdomain,
-	.pr_protocol =		IPPROTO_CARP,
-	.pr_flags =		PR_ATOMIC|PR_ADDR,
-	.pr_input =		carp_input,
-	.pr_output =		(pr_output_t*)rip_output,
-	.pr_ctloutput =		rip_ctloutput,
-	.pr_usrreqs =		&rip_usrreqs
-},
-#endif /* DEV_CARP */
 /* Spacer n-times for loadable protocols. */
 IPPROTOSPACER,
 IPPROTOSPACER,
@@ -390,6 +387,7 @@ struct domain inetdomain = {
 };
 
 VNET_DOMAIN_SET(inet);
+#endif /* INET */
 
 SYSCTL_NODE(_net,      PF_INET,		inet,	CTLFLAG_RW, 0,
 	"Internet Family");
@@ -413,7 +411,4 @@ SYSCTL_NODE(_net_inet, IPPROTO_IPIP,	ipip,	CTLFLAG_RW, 0,	"IPIP");
 SYSCTL_NODE(_net_inet, IPPROTO_RAW,	raw,	CTLFLAG_RW, 0,	"RAW");
 #ifdef DEV_PFSYNC
 SYSCTL_NODE(_net_inet, IPPROTO_PFSYNC,	pfsync,	CTLFLAG_RW, 0,	"PFSYNC");
-#endif
-#ifdef DEV_CARP
-SYSCTL_NODE(_net_inet, IPPROTO_CARP,	carp,	CTLFLAG_RW, 0,	"CARP");
 #endif

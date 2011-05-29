@@ -177,11 +177,10 @@ do_single(int argc, char **argv, int action)
 	 */
 	if (action == CCD_UNCONFIG || action == CCD_UNCONFIGALL) {
 		ex = 0;
-		for (i = 0; argc != 0; ) {
+		for (; argc != 0;) {
 			cp = *argv++; --argc;
 			if ((ccd = resolve_ccdname(cp)) < 0) {
 				warnx("invalid ccd name: %s", cp);
-				i = 1;
 				continue;
 			}
 			grq = gctl_get_handle();

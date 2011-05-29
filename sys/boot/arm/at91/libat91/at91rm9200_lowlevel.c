@@ -136,7 +136,7 @@ _init(void)
 	AT91C_BASE_EBI->EBI_CSA = value;
 
 	AT91C_BASE_SDRC->SDRC_CR =
-#ifdef KB9202_B
+#if defined(KB9202_B) || defined(SDRAM_128M)
 	    AT91C_SDRC_NC_10 |
 #else
 	    AT91C_SDRC_NC_9 |

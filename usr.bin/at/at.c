@@ -524,6 +524,7 @@ list_jobs(long *joblist, int len)
 	       jobno);
     }
     PRIV_END
+    closedir(spool);
 }
 
 static void
@@ -594,6 +595,7 @@ process_jobs(int argc, char **argv, int what)
 			while((ch = getc(fp)) != EOF) {
 			    putchar(ch);
 			}
+			fclose(fp);
 		    }
 		    break;
 
@@ -604,6 +606,7 @@ process_jobs(int argc, char **argv, int what)
 	    }
 	}
     }
+    closedir(spool);
 } /* delete_jobs */
 
 #define	ATOI2(ar)	((ar)[0] - '0') * 10 + ((ar)[1] - '0'); (ar) += 2;

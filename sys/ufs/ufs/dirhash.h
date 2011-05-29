@@ -98,7 +98,6 @@ struct dirhash {
 	int	dh_dirblks;	/* number of DIRBLKSIZ blocks in dir */
 	int	dh_firstfree[DH_NFSTATS + 1]; /* first blk with N words free */
 
-	int	dh_seqopt;	/* sequential access optimisation enabled */
 	doff_t	dh_seqoff;	/* sequential access optimisation offset */
 
 	int	dh_score;	/* access count for this dirhash */

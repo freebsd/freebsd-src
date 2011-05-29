@@ -575,9 +575,6 @@ hpfs_inactive(ap)
 			return (error);
 	}
 
-	if (prtactive && vrefcnt(vp) != 0)
-		vprint("hpfs_inactive: pushing active", vp);
-
 	if (hp->h_flag & H_INVAL) {
 		vrecycle(vp, ap->a_td);
 		return (0);

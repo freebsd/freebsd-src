@@ -174,7 +174,7 @@ options {
             <quoted_string> ] <string> <string>; ... };
         serial-queries <integer>; // obsolete
         serial-query-rate <integer>;
-        server-id ( <quoted_string> | none |;
+        server-id ( <quoted_string> | none | hostname );
         sig-signing-nodes <integer>;
         sig-signing-signatures <integer>;
         sig-signing-type <integer>;

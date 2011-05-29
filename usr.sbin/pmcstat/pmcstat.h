@@ -51,6 +51,7 @@
 #define	FLAG_DO_ANNOTATE		0x00008000	/* -m */
 #define	FLAG_DO_TOP			0x00010000	/* -T */
 #define	FLAG_DO_ANALYSIS		0x00020000	/* -g or -G or -m or -T */
+#define	FLAGS_HAS_CPUMASK		0x00040000	/* -c */
 
 #define	DEFAULT_SAMPLE_COUNT		65536
 #define	DEFAULT_WAIT_INTERVAL		5.0

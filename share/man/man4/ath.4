@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"/
-.Dd July 8, 2009
+.Dd March 21, 2010
 .Dt ATH 4
 .Os
 .Sh NAME
@@ -145,15 +145,6 @@ except those that are based on the AR5005VL chipset.
 A list of cards that are supported can be found at
 .Pa http://customerproducts.atheros.com/customerproducts/default.asp .
 .Sh EXAMPLES
-Join an existing BSS network (ie: connect to an access point):
-.Pp
-.Dl "ifconfig ath0 inet 192.168.0.20 netmask 0xffffff00"
-.Pp
-Join a specific BSS network with network name
-.Dq Li my_net :
-.Pp
-.Dl "ifconfig ath0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net"
-.Pp
 Join a specific BSS network with WEP encryption:
 .Bd -literal -offset indent
 ifconfig wlan0 create wlandev ath0
@@ -207,7 +198,7 @@ ifconfig wlan0 create wlandev ath0 wlanmode tdma \e
 The Atheros Hardware Access Layer was unable to configure the hardware
 as requested.
 The status code is explained in the HAL include file
-.Pa sys/contrib/dev/ath/ah.h .
+.Pa sys/dev/ath/ath_hal/ah.h .
 .It "ath%d: failed to allocate descriptors: %d"
 The driver was unable to allocate contiguous memory for the transmit
 and receive descriptors.
@@ -236,7 +227,7 @@ The driver will reset the hardware and continue.
 The Atheros Hardware Access Layer was unable to reset the hardware
 as requested.
 The status code is explained in the HAL include file
-.Pa sys/contrib/dev/ath/ah.h .
+.Pa sys/dev/ath/ath_hal/ah.h .
 This should not happen.
 .It "ath%d: unable to start recv logic"
 The driver was unable to restart frame reception.

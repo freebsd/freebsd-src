@@ -49,7 +49,8 @@
 #define LOGIN_SETENV		0x0080		/* set user environment */
 #define LOGIN_SETMAC		0x0100		/* set user default MAC label */
 #define LOGIN_SETCPUMASK	0x0200		/* set user cpumask */
-#define LOGIN_SETALL		0x03ff		/* set everything */
+#define LOGIN_SETLOGINCLASS	0x0400		/* set login class in the kernel */
+#define LOGIN_SETALL		0x07ff		/* set everything */
 
 #define BI_AUTH		"authorize"		/* accepted authentication */
 #define BI_REJECT	"reject"		/* rejected authentication */

@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/unistd.h>
 
+#include <machine/asm.h>
 #include <machine/cache.h>
 #include <machine/clock.h>
 #include <machine/cpu.h>
@@ -63,12 +64,15 @@ __FBSDID("$FreeBSD$");
 #include <machine/pcb.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <sys/lock.h>
-#include <vm/vm_kern.h>
-#include <vm/vm_page.h>
-#include <vm/vm_map.h>
 #include <vm/vm_extern.h>
+#include <vm/pmap.h>
+#include <vm/vm_kern.h>
+#include <vm/vm_map.h>
+#include <vm/vm_page.h>
+#include <vm/vm_pageout.h>
+#include <vm/vm_param.h>
+#include <vm/uma.h>
+#include <vm/uma_int.h>
 
 #include <sys/user.h>
 #include <sys/mbuf.h>
@@ -78,27 +82,21 @@ __FBSDID("$FreeBSD$");
 #define	NSFBUFS		(512 + maxusers * 16)
 #endif
 
+#ifndef __mips_n64
 static void	sf_buf_init(void *arg);
 SYSINIT(sock_sf, SI_SUB_MBUF, SI_ORDER_ANY, sf_buf_init, NULL);
 
-LIST_HEAD(sf_head, sf_buf);
-
-
 /*
- * A hash table of active sendfile(2) buffers
+ * Expanded sf_freelist head.  Really an SLIST_HEAD() in disguise, with the
+ * sf_freelist head with the sf_lock mutex.
  */
-static struct sf_head *sf_buf_active;
-static u_long sf_buf_hashmask;
+static struct {
+	SLIST_HEAD(, sf_buf) sf_head;
+	struct mtx sf_lock;
+} sf_freelist;
 
-#define	SF_BUF_HASH(m)	(((m) - vm_page_array) & sf_buf_hashmask)
-
-static TAILQ_HEAD(, sf_buf) sf_buf_freelist;
 static u_int	sf_buf_alloc_want;
-
-/*
- * A lock used to synchronize access to the hash table and free list
- */
-static struct mtx sf_buf_lock;
+#endif
 
 /*
  * Finish a fork operation, with process p2 nearly set up.
@@ -125,8 +123,8 @@ cpu_fork(register struct thread *td1,register struct proc *p2,
 	/* Copy p1's pcb, note that in this case
 	 * our pcb also includes the td_frame being copied
 	 * too. The older mips2 code did an additional copy
-	 * of the td_frame, for us thats not needed any
-	 * longer (this copy does them both 
+	 * of the td_frame, for us that's not needed any
+	 * longer (this copy does them both) 
 	 */
 	bcopy(td1->td_pcb, pcb2, sizeof(*pcb2));
 
@@ -145,14 +143,15 @@ cpu_fork(register struct thread *td1,register struct proc *p2,
 	if (td1 == PCPU_GET(fpcurthread))
 		MipsSaveCurFPState(td1);
 
-	pcb2->pcb_context[PCB_REG_RA] = (register_t)fork_trampoline;
+	pcb2->pcb_context[PCB_REG_RA] = (register_t)(intptr_t)fork_trampoline;
 	/* Make sp 64-bit aligned */
 	pcb2->pcb_context[PCB_REG_SP] = (register_t)(((vm_offset_t)td2->td_pcb &
-	    ~(sizeof(__int64_t) - 1)) - STAND_FRAME_SIZE);
-	pcb2->pcb_context[PCB_REG_S0] = (register_t)fork_return;
-	pcb2->pcb_context[PCB_REG_S1] = (register_t)td2;
-	pcb2->pcb_context[PCB_REG_S2] = (register_t)td2->td_frame;
-	pcb2->pcb_context[PCB_REG_SR] = SR_INT_MASK & mips_rd_status();
+	    ~(sizeof(__int64_t) - 1)) - CALLFRAME_SIZ);
+	pcb2->pcb_context[PCB_REG_S0] = (register_t)(intptr_t)fork_return;
+	pcb2->pcb_context[PCB_REG_S1] = (register_t)(intptr_t)td2;
+	pcb2->pcb_context[PCB_REG_S2] = (register_t)(intptr_t)td2->td_frame;
+	pcb2->pcb_context[PCB_REG_SR] = mips_rd_status() &
+	    (MIPS_SR_KX | MIPS_SR_UX | MIPS_SR_INT_MASK);
 	/*
 	 * FREEBSD_DEVELOPERS_FIXME:
 	 * Setup any other CPU-Specific registers (Not MIPS Standard)
@@ -163,10 +162,9 @@ cpu_fork(register struct thread *td1,register struct proc *p2,
 	td2->td_md.md_tls = td1->td_md.md_tls;
 	td2->td_md.md_saved_intr = MIPS_SR_INT_IE;
 	td2->td_md.md_spinlock_count = 1;
-#ifdef TARGET_OCTEON
-	pcb2->pcb_context[PCB_REG_SR] |= MIPS_SR_COP_2_BIT | MIPS32_SR_PX | MIPS_SR_UX | MIPS_SR_KX | MIPS_SR_SX;
+#ifdef CPU_CNMIPS
+	pcb2->pcb_context[PCB_REG_SR] |= MIPS_SR_COP_2_BIT | MIPS_SR_PX | MIPS_SR_UX | MIPS_SR_KX | MIPS_SR_SX;
 #endif
-
 }
 
 /*
@@ -182,8 +180,8 @@ cpu_set_fork_handler(struct thread *td, void (*func) __P((void *)), void *arg)
 	 * Note that the trap frame follows the args, so the function
 	 * is really called like this:	func(arg, frame);
 	 */
-	td->td_pcb->pcb_context[PCB_REG_S0] = (register_t) func;
-	td->td_pcb->pcb_context[PCB_REG_S1] = (register_t) arg;
+	td->td_pcb->pcb_context[PCB_REG_S0] = (register_t)(intptr_t)func;
+	td->td_pcb->pcb_context[PCB_REG_S1] = (register_t)(intptr_t)arg;
 }
 
 void
@@ -221,13 +219,9 @@ cpu_thread_swapin(struct thread *td)
 	 * part of the thread struct so cpu_switch() can quickly map in
 	 * the pcb struct and kernel stack.
 	 */
-	if (!(pte = pmap_segmap(kernel_pmap, td->td_md.md_realstack)))
-		panic("cpu_thread_swapin: invalid segmap");
-	pte += ((vm_offset_t)td->td_md.md_realstack >> PGSHIFT) & (NPTEPG - 1);
-
-	for (i = 0; i < KSTACK_PAGES - 1; i++) {
-		td->td_md.md_upte[i] = *pte & ~(PTE_RO|PTE_WIRED);
-		pte++;
+	for (i = 0; i < KSTACK_PAGES; i++) {
+		pte = pmap_pte(kernel_pmap, td->td_kstack + i * PAGE_SIZE);
+		td->td_md.md_upte[i] = *pte & ~TLBLO_SWBITS_MASK;
 	}
 }
 
@@ -242,22 +236,14 @@ cpu_thread_alloc(struct thread *td)
 	pt_entry_t *pte;
 	int i;
 
-	if(td->td_kstack & (1 << PAGE_SHIFT))
-		td->td_md.md_realstack = td->td_kstack + PAGE_SIZE;
-	else
-		td->td_md.md_realstack = td->td_kstack;
-
-	td->td_pcb = (struct pcb *)(td->td_md.md_realstack +
-	    (td->td_kstack_pages - 1) * PAGE_SIZE) - 1;
+	KASSERT((td->td_kstack & (1 << PAGE_SHIFT)) == 0, ("kernel stack must be aligned."));
+	td->td_pcb = (struct pcb *)(td->td_kstack +
+	    td->td_kstack_pages * PAGE_SIZE) - 1;
 	td->td_frame = &td->td_pcb->pcb_regs;
 
-	if (!(pte = pmap_segmap(kernel_pmap, td->td_md.md_realstack)))
-		panic("cpu_thread_alloc: invalid segmap");
-	pte += ((vm_offset_t)td->td_md.md_realstack >> PGSHIFT) & (NPTEPG - 1);
-
-	for (i = 0; i < KSTACK_PAGES - 1; i++) {
-		td->td_md.md_upte[i] = *pte & ~(PTE_RO|PTE_WIRED);
-		pte++;
+	for (i = 0; i < KSTACK_PAGES; i++) {
+		pte = pmap_pte(kernel_pmap, td->td_kstack + i * PAGE_SIZE);
+		td->td_md.md_upte[i] = *pte & ~TLBLO_SWBITS_MASK;
 	}
 }
 
@@ -270,11 +256,18 @@ cpu_set_syscall_retval(struct thread *td, int error)
 
 	code = locr0->v0;
 	quad_syscall = 0;
+#if defined(__mips_o32)
+	if (code == SYS___syscall)
+		quad_syscall = 1;
+#endif
+
 	if (code == SYS_syscall)
 		code = locr0->a0;
 	else if (code == SYS___syscall) {
-		code = _QUAD_LOWWORD ? locr0->a1 : locr0->a0;
-		quad_syscall = 1;
+		if (quad_syscall)
+			code = _QUAD_LOWWORD ? locr0->a1 : locr0->a0;
+		else
+			code = locr0->a0;
 	}
 
 	switch (error) {
@@ -321,7 +314,7 @@ cpu_set_syscall_retval(struct thread *td, int error)
  * Initialize machine state (pcb and trap frame) for a new thread about to
  * upcall. Put enough state in the new thread's PCB to get it to go back
  * userret(), where we can intercept it again to set the return (upcall)
- * Address and stack, along with those from upcals that are from other sources
+ * Address and stack, along with those from upcalls that are from other sources
  * such as those generated in thread_userret() itself.
  */
 void
@@ -343,7 +336,7 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 	 * at this time (see the matching comment below for
 	 * more analysis) (need a good safe default).
 	 * In MIPS, the trapframe is the first element of the PCB
-	 * and gets copied when we copy the PCB. No seperate copy
+	 * and gets copied when we copy the PCB. No separate copy
 	 * is needed.
 	 */
 	bcopy(td0->td_pcb, pcb2, sizeof(*pcb2));
@@ -352,19 +345,20 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 	 * Set registers for trampoline to user mode.
 	 */
 
-	pcb2->pcb_context[PCB_REG_RA] = (register_t)fork_trampoline;
+	pcb2->pcb_context[PCB_REG_RA] = (register_t)(intptr_t)fork_trampoline;
 	/* Make sp 64-bit aligned */
 	pcb2->pcb_context[PCB_REG_SP] = (register_t)(((vm_offset_t)td->td_pcb &
-	    ~(sizeof(__int64_t) - 1)) - STAND_FRAME_SIZE);
-	pcb2->pcb_context[PCB_REG_S0] = (register_t)fork_return;
-	pcb2->pcb_context[PCB_REG_S1] = (register_t)td;
-	pcb2->pcb_context[PCB_REG_S2] = (register_t)td->td_frame;
+	    ~(sizeof(__int64_t) - 1)) - CALLFRAME_SIZ);
+	pcb2->pcb_context[PCB_REG_S0] = (register_t)(intptr_t)fork_return;
+	pcb2->pcb_context[PCB_REG_S1] = (register_t)(intptr_t)td;
+	pcb2->pcb_context[PCB_REG_S2] = (register_t)(intptr_t)td->td_frame;
 	/* Dont set IE bit in SR. sched lock release will take care of it */
-	pcb2->pcb_context[PCB_REG_SR] = SR_INT_MASK & mips_rd_status();
+	pcb2->pcb_context[PCB_REG_SR] = mips_rd_status() &
+	    (MIPS_SR_KX | MIPS_SR_UX | MIPS_SR_INT_MASK);
 
-#ifdef TARGET_OCTEON
+#ifdef CPU_CNMIPS
 	pcb2->pcb_context[PCB_REG_SR] |= MIPS_SR_COP_2_BIT | MIPS_SR_COP_0_BIT |
-	  MIPS32_SR_PX | MIPS_SR_UX | MIPS_SR_KX | MIPS_SR_SX;
+	  MIPS_SR_PX | MIPS_SR_UX | MIPS_SR_KX | MIPS_SR_SX;
 #endif
 
 	/*
@@ -379,7 +373,7 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 #if 0
 	    /* Maybe we need to fix this? */
 	td->td_md.md_saved_sr = ( (MIPS_SR_COP_2_BIT | MIPS_SR_COP_0_BIT) |
-	                          (MIPS32_SR_PX | MIPS_SR_UX | MIPS_SR_KX | MIPS_SR_SX) |
+	                          (MIPS_SR_PX | MIPS_SR_UX | MIPS_SR_KX | MIPS_SR_SX) |
 	                          (MIPS_SR_INT_IE | MIPS_HARD_INT_MASK));
 #endif
 }
@@ -401,8 +395,8 @@ cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
 	* byte aligned[for compatibility with 64-bit CPUs]
 	* in ``See MIPS Run'' by D. Sweetman, p. 269
 	* align stack */
-	sp = ((register_t)(stack->ss_sp + stack->ss_size) & ~0x7) -
-	    STAND_FRAME_SIZE;
+	sp = ((register_t)(intptr_t)(stack->ss_sp + stack->ss_size) & ~0x7) -
+	    CALLFRAME_SIZ;
 
 	/*
 	 * Set the trap frame to point at the beginning of the uts
@@ -410,22 +404,27 @@ cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
 	 */
 	tf = td->td_frame;
 	bzero(tf, sizeof(struct trapframe));
-	tf->sp = (register_t)sp;
-	tf->pc = (register_t)entry;
+	tf->sp = sp;
+	tf->pc = (register_t)(intptr_t)entry;
 	/* 
 	 * MIPS ABI requires T9 to be the same as PC 
 	 * in subroutine entry point
 	 */
-	tf->t9 = (register_t)entry; 
-	tf->a0 = (register_t)arg;
+	tf->t9 = (register_t)(intptr_t)entry; 
+	tf->a0 = (register_t)(intptr_t)arg;
 
 	/*
 	 * Keep interrupt mask
 	 */
-	tf->sr = SR_KSU_USER | SR_EXL | (SR_INT_MASK & mips_rd_status()) |
-	    MIPS_SR_INT_IE;
-#ifdef TARGET_OCTEON
-	tf->sr |=  MIPS_SR_INT_IE | MIPS_SR_COP_0_BIT | MIPS_SR_UX |
+	td->td_frame->sr = MIPS_SR_KSU_USER | MIPS_SR_EXL | MIPS_SR_INT_IE |
+	    (mips_rd_status() & MIPS_SR_INT_MASK);
+#if defined(__mips_n32) 
+	td->td_frame->sr |= MIPS_SR_PX;
+#elif  defined(__mips_n64)
+	td->td_frame->sr |= MIPS_SR_PX | MIPS_SR_UX | MIPS_SR_KX;
+#endif
+#ifdef CPU_CNMIPS
+	tf->sr |=  MIPS_SR_INT_IE | MIPS_SR_COP_0_BIT | MIPS_SR_PX | MIPS_SR_UX |
 	  MIPS_SR_KX;
 #endif
 /*	tf->sr |= (ALL_INT_MASK & idle_mask) | SR_INT_ENAB; */
@@ -447,7 +446,7 @@ kvtop(void *addr)
 	va = pmap_kextract((vm_offset_t)addr);
 	if (va == 0)
 		panic("kvtop: zero page frame");
-	return((int)va);
+	return((intptr_t)va);
 }
 
 /*
@@ -461,6 +460,7 @@ kvtop(void *addr)
 /*
  * Allocate a pool of sf_bufs (sendfile(2) or "super-fast" if you prefer. :-))
  */
+#ifndef __mips_n64
 static void
 sf_buf_init(void *arg)
 {
@@ -471,56 +471,36 @@ sf_buf_init(void *arg)
 	nsfbufs = NSFBUFS;
 	TUNABLE_INT_FETCH("kern.ipc.nsfbufs", &nsfbufs);
 
-	sf_buf_active = hashinit(nsfbufs, M_TEMP, &sf_buf_hashmask);
-	TAILQ_INIT(&sf_buf_freelist);
+	mtx_init(&sf_freelist.sf_lock, "sf_bufs list lock", NULL, MTX_DEF);
+	SLIST_INIT(&sf_freelist.sf_head);
 	sf_base = kmem_alloc_nofault(kernel_map, nsfbufs * PAGE_SIZE);
 	sf_bufs = malloc(nsfbufs * sizeof(struct sf_buf), M_TEMP,
 	    M_NOWAIT | M_ZERO);
 	for (i = 0; i < nsfbufs; i++) {
 		sf_bufs[i].kva = sf_base + i * PAGE_SIZE;
-		TAILQ_INSERT_TAIL(&sf_buf_freelist, &sf_bufs[i], free_entry);
+		SLIST_INSERT_HEAD(&sf_freelist.sf_head, &sf_bufs[i], free_list);
 	}
 	sf_buf_alloc_want = 0;
-	mtx_init(&sf_buf_lock, "sf_buf", NULL, MTX_DEF);
 }
+#endif
 
 /*
- * Allocate an sf_buf for the given vm_page.  On this machine, however, there
- * is no sf_buf object.	 Instead, an opaque pointer to the given vm_page is
- * returned.
+ * Get an sf_buf from the freelist.  Will block if none are available.
  */
 struct sf_buf *
 sf_buf_alloc(struct vm_page *m, int flags)
 {
-	struct sf_head *hash_list;
+#ifndef __mips_n64
 	struct sf_buf *sf;
 	int error;
 
-	hash_list = &sf_buf_active[SF_BUF_HASH(m)];
-	mtx_lock(&sf_buf_lock);
-	LIST_FOREACH(sf, hash_list, list_entry) {
-		if (sf->m == m) {
-			sf->ref_count++;
-			if (sf->ref_count == 1) {
-				TAILQ_REMOVE(&sf_buf_freelist, sf, free_entry);
-				nsfbufsused++;
-				nsfbufspeak = imax(nsfbufspeak, nsfbufsused);
-			}
-			/*
-			 * Flush all mappings in order to have up to date 
-			 * physycal memory
-			 */
-			pmap_flush_pvcache(sf->m);
-			mips_dcache_inv_range(sf->kva, PAGE_SIZE);
-			goto done;
-		}
-	}
-	while ((sf = TAILQ_FIRST(&sf_buf_freelist)) == NULL) {
+	mtx_lock(&sf_freelist.sf_lock);
+	while ((sf = SLIST_FIRST(&sf_freelist.sf_head)) == NULL) {
 		if (flags & SFB_NOWAIT)
-			goto done;
+			break;
 		sf_buf_alloc_want++;
 		mbstat.sf_allocwait++;
-		error = msleep(&sf_buf_freelist, &sf_buf_lock,
+		error = msleep(&sf_freelist, &sf_freelist.sf_lock,
 		    (flags & SFB_CATCH) ? PCATCH | PVM : PVM, "sfbufa", 0);
 		sf_buf_alloc_want--;
 
@@ -528,42 +508,37 @@ sf_buf_alloc(struct vm_page *m, int flags)
 		 * If we got a signal, don't risk going back to sleep.
 		 */
 		if (error)
-			goto done;
+			break;
 	}
-	TAILQ_REMOVE(&sf_buf_freelist, sf, free_entry);
-	if (sf->m != NULL)
-		LIST_REMOVE(sf, list_entry);
-	LIST_INSERT_HEAD(hash_list, sf, list_entry);
-	sf->ref_count = 1;
-	sf->m = m;
-	nsfbufsused++;
-	nsfbufspeak = imax(nsfbufspeak, nsfbufsused);
-	pmap_qenter(sf->kva, &sf->m, 1);
-done:
-	mtx_unlock(&sf_buf_lock);
+	if (sf != NULL) {
+		SLIST_REMOVE_HEAD(&sf_freelist.sf_head, free_list);
+		sf->m = m;
+		nsfbufsused++;
+		nsfbufspeak = imax(nsfbufspeak, nsfbufsused);
+		pmap_qenter(sf->kva, &sf->m, 1);
+	}
+	mtx_unlock(&sf_freelist.sf_lock);
 	return (sf);
+#else
+	return ((struct sf_buf *)m);
+#endif
 }
 
 /*
- * Free the sf_buf.  In fact, do nothing because there are no resources
- * associated with the sf_buf.
+ * Release resources back to the system.
  */
 void
 sf_buf_free(struct sf_buf *sf)
 {
-	mtx_lock(&sf_buf_lock);
-	sf->ref_count--;
-	/*
-	 * Make sure all changes in KVA end up in physical memory
-	 */
-	mips_dcache_wbinv_range(sf->kva, PAGE_SIZE);
-	if (sf->ref_count == 0) {
-		TAILQ_INSERT_TAIL(&sf_buf_freelist, sf, free_entry);
-		nsfbufsused--;
-		if (sf_buf_alloc_want > 0)
-			wakeup_one(&sf_buf_freelist);
-	}
-	mtx_unlock(&sf_buf_lock);
+#ifndef __mips_n64
+	pmap_qremove(sf->kva, 1);
+	mtx_lock(&sf_freelist.sf_lock);
+	SLIST_INSERT_HEAD(&sf_freelist.sf_head, sf, free_list);
+	nsfbufsused--;
+	if (sf_buf_alloc_want > 0)
+		wakeup(&sf_freelist);
+	mtx_unlock(&sf_freelist.sf_lock);
+#endif
 }
 
 /*
@@ -572,6 +547,9 @@ sf_buf_free(struct sf_buf *sf)
 void
 swi_vm(void *dummy)
 {
+
+	if (busdma_swi_pending)
+		busdma_swi();
 }
 
 int
@@ -582,22 +560,14 @@ cpu_set_user_tls(struct thread *td, void *tls_base)
 	return (0);
 }
 
-void
-cpu_throw(struct thread *old, struct thread *new)
-{
-
-	func_2args_asmmacro(&mips_cpu_throw, old, new);
-	panic("mips_cpu_throw() returned");
-}
-
 #ifdef DDB
 #include <ddb/ddb.h>
 
 #define DB_PRINT_REG(ptr, regname)			\
-	db_printf("  %-12s 0x%lx\n", #regname, (long)((ptr)->regname))
+	db_printf("  %-12s %p\n", #regname, (void *)(intptr_t)((ptr)->regname))
 
 #define DB_PRINT_REG_ARRAY(ptr, arrname, regname)	\
-	db_printf("  %-12s 0x%lx\n", #regname, (long)((ptr)->arrname[regname]))
+	db_printf("  %-12s %p\n", #regname, (void *)(intptr_t)((ptr)->arrname[regname]))
 
 static void
 dump_trapframe(struct trapframe *trapframe)
@@ -682,7 +652,7 @@ DB_SHOW_COMMAND(pcb, ddb_dump_pcb)
 	DB_PRINT_REG_ARRAY(pcb, pcb_context, PCB_REG_GP);
 	DB_PRINT_REG_ARRAY(pcb, pcb_context, PCB_REG_PC);
 
-	db_printf("PCB onfault = %d\n", pcb->pcb_onfault);
+	db_printf("PCB onfault = %p\n", pcb->pcb_onfault);
 	db_printf("md_saved_intr = 0x%0lx\n", (long)td->td_md.md_saved_intr);
 	db_printf("md_spinlock_count = %d\n", td->td_md.md_spinlock_count);
 

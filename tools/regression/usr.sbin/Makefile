@@ -1,5 +1,5 @@
 # $FreeBSD$
 
-SUBDIR=	sa
+SUBDIR=	newsyslog sa
 
 .include <bsd.subdir.mk>

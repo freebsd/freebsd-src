@@ -26,18 +26,24 @@
  */
 
 /* 
+ * Prerequisities:
+ * - AIO support must be compiled into the kernel (see sys/<arch>/NOTES for
+ *   more details).
+ *
  * Note: it is a good idea to run this against a physical drive to 
  * exercise the physio fast path (ie. aio_kqueue /dev/<something safe>)
  */
 
-#include <aio.h>
-#include <fcntl.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <errno.h>
 #include <sys/types.h>
 #include <sys/event.h>
 #include <sys/time.h>
+#include <aio.h>
+#include <err.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
 #include <unistd.h>
 
 #define PATH_TEMPLATE   "/tmp/aio.XXXXXXXXXX"
@@ -46,7 +52,9 @@
 #define MAX_RUNS 300
 /* #define DEBUG */
 
-main(int argc, char *argv[]){
+int
+main (int argc, char *argv[])
+{
 	int fd;
 	struct aiocb *iocb[MAX], *kq_iocb;
 	int i, result, run, error, j;
@@ -55,7 +63,7 @@ main(int argc, char *argv[]){
 	struct kevent ke, kq_returned;
 	struct timespec ts;
 	int cancel, pending, tmp_file = 0, failed = 0;
-	char *file, pathname[sizeof(PATH_TEMPLATE)-1];
+	char *file, pathname[sizeof(PATH_TEMPLATE)+1];
 
 	if (kq < 0) {
 		perror("No kqeueue\n");
@@ -71,23 +79,22 @@ main(int argc, char *argv[]){
 		file = argv[1];
 		fd = open(file, O_RDWR|O_CREAT, 0666);
 	}
-	if (fd < 0){
-		fprintf(stderr, "Can't open %s\n", file);
-		perror("");
-		exit(1);
-	}
+	if (fd == -1)
+		err(1, "Can't open %s\n", file);
 
 	for (run = 0; run < MAX_RUNS; run++){
 #ifdef DEBUG
 		printf("Run %d\n", run);
 #endif
-		for(i = 0; i < MAX; i++) {
-			iocb[i] = (struct aiocb *)malloc(sizeof(struct aiocb));
-			bzero(iocb[i], sizeof(struct aiocb));
+		for (i = 0; i < MAX; i++) {
+			iocb[i] = (struct aiocb *)calloc(1,
+			    sizeof(struct aiocb));
+			if (iocb[i] == NULL)
+				err(1, "calloc");
 		}
 		
 		pending = 0;	
-		for(i = 0; i < MAX; i++) {
+		for (i = 0; i < MAX; i++) {
 			pending++;
 			iocb[i]->aio_nbytes = sizeof(buffer);
 			iocb[i]->aio_buf = buffer;
@@ -101,7 +108,7 @@ main(int argc, char *argv[]){
 			result = aio_write(iocb[i]);
 			if (result != 0) {
 				perror("aio_write");
-				printf("Result %d iteration %d\n",result, i);
+				printf("Result %d iteration %d\n", result, i);
 				exit(1);
 			}
 #ifdef DEBUG
@@ -116,7 +123,7 @@ main(int argc, char *argv[]){
 #endif
 					if (result == AIO_CANCELED) {
 						aio_return(iocb[i]);
-						iocb[i]=NULL;
+						iocb[i] = NULL;
 						pending--;
 					}
 				}
@@ -125,8 +132,10 @@ main(int argc, char *argv[]){
 		cancel = MAX - pending;
 		
 		i = 0;
-		while(pending) {
-			for(;;) {
+		while (pending) {
+
+			for (;;) {
+
 				bzero(&ke, sizeof(ke));
 				bzero(&kq_returned, sizeof(ke));
 				ts.tv_sec = 0;
@@ -134,9 +143,8 @@ main(int argc, char *argv[]){
 				result = kevent(kq, NULL, 0, 
 						&kq_returned, 1, &ts);
 				error = errno;
-				if (result < 0) {
+				if (result < 0)
 					perror("kevent error: ");
-				}
 				kq_iocb = kq_returned.udata;
 #ifdef DEBUG
 				printf("kevent %d %d errno %d return.ident %p "
@@ -147,51 +155,53 @@ main(int argc, char *argv[]){
 				       kq_iocb);
 #endif
 				
-				if(kq_iocb)
+				if (kq_iocb)
 					break;
 #ifdef DEBUG
-				printf("Try again left %d out of %d %d\n",pending, MAX, cancel);
+				printf("Try again left %d out of %d %d\n",
+				    pending, MAX, cancel);
 #endif
 			}			
 			
-			for(j = 0; j < MAX; j++) {
-				if (iocb[j] == kq_iocb) {
-					break;
-				}
-			}
+			for (j = 0; j < MAX && iocb[j] != kq_iocb;
+			   j++) ;
 #ifdef DEBUG
 			printf("kq_iocb %p\n", kq_iocb);
 			
-			printf("Error Result for %d is %d pending %d\n", j, result, pending);
+			printf("Error Result for %d is %d pending %d\n",
+			    j, result, pending);
 #endif
 			result = aio_return(kq_iocb);
 #ifdef DEBUG
-			printf("Return Result for %d is %d\n", j, result);
-			printf("\n");
+			printf("Return Result for %d is %d\n\n", j, result);
 #endif
 			if (result != sizeof(buffer)) {
-				printf("FAIL: run %d, operation %d, result %d (errno=%d) should be %d\n", run, pending, result, errno, sizeof(buffer));
-				failed = 1;
-			} else {
-				printf("PASS: run %d, left %d\n", run, pending - 1);
-			}
+				printf("FAIL: run %d, operation %d, result %d "
+				    " (errno=%d) should be %d\n", run, pending,
+				    result, errno, sizeof(buffer));
+				failed++;
+			} else
+				printf("PASS: run %d, left %d\n", run,
+				    pending - 1);
 
 			free(kq_iocb);
 			iocb[j] = NULL;
 			pending--;
 			i++;
 		}	
+
+		for (i = 0; i < MAX; i++)
+			free(iocb[i]);
+
 	}
 
-	if (tmp_file) {
+	if (tmp_file)
 		unlink(pathname);
-	}
 
-	if (failed) {
-		printf("FAIL: Atleast one\n");
-		exit(1);
-	} else {
-		printf("PASS: All\n");
-		exit(0);
-	}
+	if (failed != 0)
+		printf("FAIL: %d tests failed\n", failed);
+	else
+		printf("PASS: All tests passed\n");
+
+	exit (failed == 0 ? 0 : 1);
 }

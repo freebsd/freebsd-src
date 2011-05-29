@@ -1,6 +1,6 @@
 /*
- * WPA Supplicant / SSL/TLS interface functions for Microsoft Schannel
- * Copyright (c) 2005, Jouni Malinen <j@w1.fi>
+ * SSL/TLS interface functions for Microsoft Schannel
+ * Copyright (c) 2005-2009, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -215,9 +215,8 @@ int tls_connection_prf(void *tls_ctx, struct tls_connection *conn,
 }
 
 
-static u8 * tls_conn_hs_clienthello(struct tls_global *global,
-				    struct tls_connection *conn,
-				    size_t *out_len)
+static struct wpabuf * tls_conn_hs_clienthello(struct tls_global *global,
+					       struct tls_connection *conn)
 {
 	DWORD sspi_flags, sspi_flags_out;
 	SecBufferDesc outbuf;
@@ -260,15 +259,14 @@ static u8 * tls_conn_hs_clienthello(struct tls_global *global,
 	}
 
 	if (outbufs[0].cbBuffer != 0 && outbufs[0].pvBuffer) {
-		u8 *buf;
+		struct wpabuf *buf;
 		wpa_hexdump(MSG_MSGDUMP, "SChannel - ClientHello",
 			    outbufs[0].pvBuffer, outbufs[0].cbBuffer);
 		conn->start = 0;
-		*out_len = outbufs[0].cbBuffer;
-		buf = os_malloc(*out_len);
+		buf = wpabuf_alloc_copy(outbufs[0].pvBuffer,
+					outbufs[0].cbBuffer);
 		if (buf == NULL)
 			return NULL;
-		os_memcpy(buf, outbufs[0].pvBuffer, *out_len);
 		global->sspi->FreeContextBuffer(outbufs[0].pvBuffer);
 		return buf;
 	}
@@ -316,28 +314,27 @@ static int tls_get_eap(struct tls_global *global, struct tls_connection *conn)
 }
 
 
-u8 * tls_connection_handshake(void *ssl_ctx, struct tls_connection *conn,
-			      const u8 *in_data, size_t in_len,
-			      size_t *out_len, u8 **appl_data,
-			      size_t *appl_data_len)
+struct wpabuf * tls_connection_handshake(void *tls_ctx,
+					 struct tls_connection *conn,
+					 const struct wpabuf *in_data,
+					 struct wpabuf **appl_data)
 {
-	struct tls_global *global = ssl_ctx;
+	struct tls_global *global = tls_ctx;
 	DWORD sspi_flags, sspi_flags_out;
 	SecBufferDesc inbuf, outbuf;
 	SecBuffer inbufs[2], outbufs[1];
 	SECURITY_STATUS status;
 	TimeStamp ts_expiry;
-	u8 *out_buf = NULL;
+	struct wpabuf *out_buf = NULL;
 
 	if (appl_data)
 		*appl_data = NULL;
 
-	if (conn->start) {
-		return tls_conn_hs_clienthello(global, conn, out_len);
-	}
+	if (conn->start)
+		return tls_conn_hs_clienthello(global, conn);
 
 	wpa_printf(MSG_DEBUG, "SChannel: %d bytes handshake data to process",
-		   in_len);
+		   (int) wpabuf_len(in_data));
 
 	sspi_flags = ISC_REQ_REPLAY_DETECT |
 		ISC_REQ_CONFIDENTIALITY |
@@ -346,8 +343,8 @@ u8 * tls_connection_handshake(void *ssl_ctx, struct tls_connection *conn,
 		ISC_REQ_MANUAL_CRED_VALIDATION;
 
 	/* Input buffer for Schannel */
-	inbufs[0].pvBuffer = (u8 *) in_data;
-	inbufs[0].cbBuffer = in_len;
+	inbufs[0].pvBuffer = (u8 *) wpabuf_head(in_data);
+	inbufs[0].cbBuffer = wpabuf_len(in_data);
 	inbufs[0].BufferType = SECBUFFER_TOKEN;
 
 	/* Place for leftover data from Schannel */
@@ -392,11 +389,8 @@ u8 * tls_connection_handshake(void *ssl_ctx, struct tls_connection *conn,
 		if (outbufs[0].cbBuffer != 0 && outbufs[0].pvBuffer) {
 			wpa_hexdump(MSG_MSGDUMP, "SChannel - output",
 				    outbufs[0].pvBuffer, outbufs[0].cbBuffer);
-			*out_len = outbufs[0].cbBuffer;
-			out_buf = os_malloc(*out_len);
-			if (out_buf)
-				os_memcpy(out_buf, outbufs[0].pvBuffer,
-					  *out_len);
+			out_buf = wpabuf_alloc_copy(outbufs[0].pvBuffer,
+						    outbufs[0].cbBuffer);
 			global->sspi->FreeContextBuffer(outbufs[0].pvBuffer);
 			outbufs[0].pvBuffer = NULL;
 			if (out_buf == NULL)
@@ -420,19 +414,16 @@ u8 * tls_connection_handshake(void *ssl_ctx, struct tls_connection *conn,
 
 		/* Need to return something to get final TLS ACK. */
 		if (out_buf == NULL)
-			out_buf = os_malloc(1);
+			out_buf = wpabuf_alloc(0);
 
 		if (inbufs[1].BufferType == SECBUFFER_EXTRA) {
 			wpa_hexdump(MSG_MSGDUMP, "SChannel - Encrypted "
 				    "application data",
 				    inbufs[1].pvBuffer, inbufs[1].cbBuffer);
 			if (appl_data) {
-				*appl_data_len = outbufs[1].cbBuffer;
-				appl_data = os_malloc(*appl_data_len);
-				if (appl_data)
-					os_memcpy(appl_data,
-						  outbufs[1].pvBuffer,
-						  *appl_data_len);
+				*appl_data = wpabuf_alloc_copy(
+					outbufs[1].pvBuffer,
+					outbufs[1].cbBuffer);
 			}
 			global->sspi->FreeContextBuffer(inbufs[1].pvBuffer);
 			inbufs[1].pvBuffer = NULL;
@@ -470,26 +461,26 @@ u8 * tls_connection_handshake(void *ssl_ctx, struct tls_connection *conn,
 }
 
 
-u8 * tls_connection_server_handshake(void *ssl_ctx,
-				     struct tls_connection *conn,
-				     const u8 *in_data, size_t in_len,
-				     size_t *out_len)
+struct wpabuf * tls_connection_server_handshake(void *tls_ctx,
+						struct tls_connection *conn,
+						const struct wpabuf *in_data,
+						struct wpabuf **appl_data)
 {
 	return NULL;
 }
 
 
-int tls_connection_encrypt(void *ssl_ctx, struct tls_connection *conn,
-			   const u8 *in_data, size_t in_len,
-			   u8 *out_data, size_t out_len)
+struct wpabuf * tls_connection_encrypt(void *tls_ctx,
+				       struct tls_connection *conn,
+				       const struct wpabuf *in_data)
 {
-	struct tls_global *global = ssl_ctx;
+	struct tls_global *global = tls_ctx;
 	SECURITY_STATUS status;
 	SecBufferDesc buf;
 	SecBuffer bufs[4];
 	SecPkgContext_StreamSizes sizes;
 	int i;
-	size_t total_len;
+	struct wpabuf *out;
 
 	status = global->sspi->QueryContextAttributes(&conn->context,
 						      SECPKG_ATTR_STREAM_SIZES,
@@ -497,34 +488,27 @@ int tls_connection_encrypt(void *ssl_ctx, struct tls_connection *conn,
 	if (status != SEC_E_OK) {
 		wpa_printf(MSG_DEBUG, "%s: QueryContextAttributes failed",
 			   __func__);
-		return -1;
+		return NULL;
 	}
 	wpa_printf(MSG_DEBUG, "%s: Stream sizes: header=%u trailer=%u",
 		   __func__,
 		   (unsigned int) sizes.cbHeader,
 		   (unsigned int) sizes.cbTrailer);
 
-	total_len = sizes.cbHeader + in_len + sizes.cbTrailer;
-
-	if (out_len < total_len) {
-		wpa_printf(MSG_DEBUG, "%s: too short out_data (out_len=%lu "
-			   "in_len=%lu total_len=%lu)", __func__,
-			   (unsigned long) out_len, (unsigned long) in_len,
-			   (unsigned long) total_len);
-		return -1;
-	}
+	out = wpabuf_alloc(sizes.cbHeader + wpabuf_len(in_data) +
+			   sizes.cbTrailer);
 
 	os_memset(&bufs, 0, sizeof(bufs));
-	bufs[0].pvBuffer = out_data;
+	bufs[0].pvBuffer = wpabuf_put(out, sizes.cbHeader);
 	bufs[0].cbBuffer = sizes.cbHeader;
 	bufs[0].BufferType = SECBUFFER_STREAM_HEADER;
 
-	os_memcpy(out_data + sizes.cbHeader, in_data, in_len);
-	bufs[1].pvBuffer = out_data + sizes.cbHeader;
-	bufs[1].cbBuffer = in_len;
+	bufs[1].pvBuffer = wpabuf_put(out, 0);
+	wpabuf_put_buf(out, in_data);
+	bufs[1].cbBuffer = wpabuf_len(in_data);
 	bufs[1].BufferType = SECBUFFER_DATA;
 
-	bufs[2].pvBuffer = out_data + sizes.cbHeader + in_len;
+	bufs[2].pvBuffer = wpabuf_put(out, sizes.cbTrailer);
 	bufs[2].cbBuffer = sizes.cbTrailer;
 	bufs[2].BufferType = SECBUFFER_STREAM_TRAILER;
 
@@ -543,7 +527,7 @@ int tls_connection_encrypt(void *ssl_ctx, struct tls_connection *conn,
 		   (int) bufs[2].cbBuffer, (int) bufs[2].BufferType);
 	wpa_printf(MSG_MSGDUMP, "Schannel: EncryptMessage pointers: "
 		   "out_data=%p bufs %p %p %p",
-		   out_data, bufs[0].pvBuffer, bufs[1].pvBuffer,
+		   wpabuf_head(out), bufs[0].pvBuffer, bufs[1].pvBuffer,
 		   bufs[2].pvBuffer);
 
 	for (i = 0; i < 3; i++) {
@@ -556,39 +540,37 @@ int tls_connection_encrypt(void *ssl_ctx, struct tls_connection *conn,
 
 	if (status == SEC_E_OK) {
 		wpa_printf(MSG_DEBUG, "%s: SEC_E_OK", __func__);
-		wpa_hexdump_key(MSG_MSGDUMP, "Schannel: Encrypted data from "
-				"EncryptMessage", out_data, total_len);
-		return total_len;
+		wpa_hexdump_buf_key(MSG_MSGDUMP, "Schannel: Encrypted data "
+				    "from EncryptMessage", out);
+		return out;
 	}
 
 	wpa_printf(MSG_DEBUG, "%s: Failed - status=%d",
 		   __func__, (int) status);
-	return -1;
+	wpabuf_free(out);
+	return NULL;
 }
 
 
-int tls_connection_decrypt(void *ssl_ctx, struct tls_connection *conn,
-			   const u8 *in_data, size_t in_len,
-			   u8 *out_data, size_t out_len)
+struct wpabuf * tls_connection_decrypt(void *tls_ctx,
+				       struct tls_connection *conn,
+				       const struct wpabuf *in_data)
 {
-	struct tls_global *global = ssl_ctx;
+	struct tls_global *global = tls_ctx;
 	SECURITY_STATUS status;
 	SecBufferDesc buf;
 	SecBuffer bufs[4];
 	int i;
+	struct wpabuf *out, *tmp;
 
-	if (out_len < in_len) {
-		wpa_printf(MSG_DEBUG, "%s: out_len=%lu < in_len=%lu", __func__,
-			   (unsigned long) out_len, (unsigned long) in_len);
-		return -1;
-	}
-
-	wpa_hexdump(MSG_MSGDUMP, "Schannel: Encrypted data to DecryptMessage",
-		    in_data, in_len);
+	wpa_hexdump_buf(MSG_MSGDUMP,
+			"Schannel: Encrypted data to DecryptMessage", in_data);
 	os_memset(&bufs, 0, sizeof(bufs));
-	os_memcpy(out_data, in_data, in_len);
-	bufs[0].pvBuffer = out_data;
-	bufs[0].cbBuffer = in_len;
+	tmp = wpabuf_dup(in_data);
+	if (tmp == NULL)
+		return NULL;
+	bufs[0].pvBuffer = wpabuf_mhead(tmp);
+	bufs[0].cbBuffer = wpabuf_len(in_data);
 	bufs[0].BufferType = SECBUFFER_DATA;
 
 	bufs[1].BufferType = SECBUFFER_EMPTY;
@@ -611,7 +593,7 @@ int tls_connection_decrypt(void *ssl_ctx, struct tls_connection *conn,
 		   (int) bufs[3].cbBuffer, (int) bufs[3].BufferType);
 	wpa_printf(MSG_MSGDUMP, "Schannel: DecryptMessage pointers: "
 		   "out_data=%p bufs %p %p %p %p",
-		   out_data, bufs[0].pvBuffer, bufs[1].pvBuffer,
+		   wpabuf_head(tmp), bufs[0].pvBuffer, bufs[1].pvBuffer,
 		   bufs[2].pvBuffer, bufs[3].pvBuffer);
 
 	switch (status) {
@@ -628,23 +610,21 @@ int tls_connection_decrypt(void *ssl_ctx, struct tls_connection *conn,
 		if (i == 4) {
 			wpa_printf(MSG_DEBUG, "%s: No output data from "
 				   "DecryptMessage", __func__);
-			return -1;
+			wpabuf_free(tmp);
+			return NULL;
 		}
 		wpa_hexdump_key(MSG_MSGDUMP, "Schannel: Decrypted data from "
 				"DecryptMessage",
 				bufs[i].pvBuffer, bufs[i].cbBuffer);
-		if (bufs[i].cbBuffer > out_len) {
-			wpa_printf(MSG_DEBUG, "%s: Too long output data",
-				   __func__);
-			return -1;
-		}
-		os_memmove(out_data, bufs[i].pvBuffer, bufs[i].cbBuffer);
-		return bufs[i].cbBuffer;
+		out = wpabuf_alloc_copy(bufs[i].pvBuffer, bufs[i].cbBuffer);
+		wpabuf_free(tmp);
+		return out;
 	}
 
 	wpa_printf(MSG_DEBUG, "%s: Failed - status=%d",
 		   __func__, (int) status);
-	return -1;
+	wpabuf_free(tmp);
+	return NULL;
 }
 
 
@@ -765,12 +745,10 @@ int tls_connection_set_ia(void *tls_ctx, struct tls_connection *conn,
 }
 
 
-int tls_connection_ia_send_phase_finished(void *tls_ctx,
-					  struct tls_connection *conn,
-					  int final,
-					  u8 *out_data, size_t out_len)
+struct wpabuf * tls_connection_ia_send_phase_finished(
+	void *tls_ctx, struct tls_connection *conn, int final);
 {
-	return -1;
+	return NULL;
 }
 
 

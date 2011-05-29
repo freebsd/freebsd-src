@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$OpenBSD: if_iwnvar.h,v 1.16 2009/11/04 17:46:52 damien Exp $	*/
+/*	$OpenBSD: if_iwnvar.h,v 1.18 2010/04/30 16:06:46 damien Exp $	*/
 
 /*-
  * Copyright (c) 2007, 2008
@@ -78,6 +78,7 @@ struct iwn_tx_ring {
 	int			qid;
 	int			queued;
 	int			cur;
+	int			read;
 };
 
 struct iwn_softc;
@@ -99,10 +100,14 @@ struct iwn_rx_ring {
 
 struct iwn_node {
 	struct	ieee80211_node		ni;	/* must be the first */
-	struct	ieee80211_amrr_node	amn;
 	uint16_t			disable_tid;
 	uint8_t				id;
-	uint8_t				ridx[IEEE80211_RATE_MAXSIZE];
+	uint32_t			ridx[256];
+	struct {
+		uint64_t		bitmap;
+		int			startidx;
+		int			nframes;
+	} agg[IEEE80211_TID_SIZE];
 };
 
 struct iwn_calib_state {
@@ -151,13 +156,14 @@ struct iwn_fw_part {
 };
 
 struct iwn_fw_info {
-	u_char			*data;
+	const uint8_t		*data;
+	size_t			size;
 	struct iwn_fw_part	init;
 	struct iwn_fw_part	main;
 	struct iwn_fw_part	boot;
 };
 
-struct iwn_hal {
+struct iwn_ops {
 	int		(*load_firmware)(struct iwn_softc *);
 	void		(*read_eeprom)(struct iwn_softc *);
 	int		(*post_alive)(struct iwn_softc *);
@@ -174,27 +180,14 @@ struct iwn_hal {
 			    int);
 	void		(*tx_done)(struct iwn_softc *, struct iwn_rx_desc *,
 			    struct iwn_rx_data *);
-#if 0	/* HT */
 	void		(*ampdu_tx_start)(struct iwn_softc *,
-			    struct ieee80211_node *, uint8_t, uint16_t);
-	void		(*ampdu_tx_stop)(struct iwn_softc *, uint8_t,
+			    struct ieee80211_node *, int, uint8_t, uint16_t);
+	void		(*ampdu_tx_stop)(struct iwn_softc *, int, uint8_t,
 			    uint16_t);
-#endif
-	int		ntxqs;
-	int		ndmachnls;
-	uint8_t		broadcast_id;
-	int		rxonsz;
-	int		schedsz;
-	uint32_t	fw_text_maxsz;
-	uint32_t	fw_data_maxsz;
-	uint32_t	fwsz;
-	bus_size_t	sched_txfact_addr;
 };
 
 struct iwn_vap {
 	struct ieee80211vap	iv_vap;
-	struct ieee80211_amrr	iv_amrr;
-	struct callout		iv_amrr_to;
 	uint8_t			iv_ridx;
 
 	int			(*iv_newstate)(struct ieee80211vap *,
@@ -203,31 +196,40 @@ struct iwn_vap {
 #define	IWN_VAP(_vap)	((struct iwn_vap *)(_vap))
 
 struct iwn_softc {
+	device_t		sc_dev;
+
 	struct ifnet		*sc_ifp;
 	int			sc_debug;
 
-	/* Locks */
 	struct mtx		sc_mtx;
 
-	/* Bus */
-	device_t 		sc_dev;
-	int			mem_rid;
-	int			irq_rid;
-	struct resource 	*mem;
-	struct resource		*irq;
-
 	u_int			sc_flags;
-#define IWN_FLAG_HAS_5GHZ	(1 << 0)
 #define IWN_FLAG_HAS_OTPROM	(1 << 1)
 #define IWN_FLAG_CALIB_DONE	(1 << 2)
 #define IWN_FLAG_USE_ICT	(1 << 3)
 #define IWN_FLAG_INTERNAL_PA	(1 << 4)
+#define IWN_FLAG_HAS_11N	(1 << 6)
+#define IWN_FLAG_ENH_SENS	(1 << 7)
+#define IWN_FLAG_ADV_BTCOEX	(1 << 8)
 
 	uint8_t 		hw_type;
-	const struct iwn_hal	*sc_hal;
+
+	struct iwn_ops		ops;
 	const char		*fwname;
 	const struct iwn_sensitivity_limits
 				*limits;
+	int			ntxqs;
+	int			firstaggqueue;
+	int			ndmachnls;
+	uint8_t			broadcast_id;
+	int			rxonsz;
+	int			schedsz;
+	uint32_t		fw_text_maxsz;
+	uint32_t		fw_data_maxsz;
+	uint32_t		fwsz;
+	bus_size_t		sched_txfact_addr;
+	uint32_t		reset_noise_gain;
+	uint32_t		noise_gain;
 
 	/* TX scheduler rings. */
 	struct iwn_dma_info	sched_dma;
@@ -252,19 +254,25 @@ struct iwn_softc {
 	struct iwn_tx_ring	txq[IWN5000_NTXQUEUES];
 	struct iwn_rx_ring	rxq;
 
+	int			mem_rid;
+	struct resource		*mem;
 	bus_space_tag_t		sc_st;
 	bus_space_handle_t	sc_sh;
+	int			irq_rid;
+	struct resource		*irq;
 	void 			*sc_ih;
 	bus_size_t		sc_sz;
 	int			sc_cap_off;	/* PCIe Capabilities. */
 
 	/* Tasks used by the driver */
-	struct task             sc_reinit_task;
+	struct task		sc_reinit_task;
 	struct task		sc_radioon_task;
 	struct task		sc_radiooff_task;
 
+	struct callout		calib_to;
 	int			calib_cnt;
 	struct iwn_calib_state	calib;
+	struct callout		watchdog_to;
 
 	struct iwn_fw_info	fw;
 	struct iwn_calib_info	calibcmd[5];
@@ -284,13 +292,14 @@ struct iwn_softc {
 				bands[IWN_NBANDS];
 	struct iwn_eeprom_chan	eeprom_channels[IWN_NBANDS][IWN_MAX_CHAN_PER_BAND];
 	uint16_t		rfcfg;
+	uint8_t			calib_ver;
 	char			eeprom_domain[4];
 	uint32_t		eeprom_crystal;
+	int16_t			eeprom_temp;
 	int16_t			eeprom_voltage;
 	int8_t			maxpwr2GHz;
 	int8_t			maxpwr5GHz;
 	int8_t			maxpwr[IEEE80211_CHAN_MAX];
-	int8_t			enh_maxpwr[35];
 
 	int32_t			temp_off;
 	uint32_t		int_mask;
@@ -300,8 +309,21 @@ struct iwn_softc {
 	uint8_t			rxchainmask;
 	uint8_t			chainmask;
 
-	struct callout		sc_timer_to;
 	int			sc_tx_timer;
+
+	struct ieee80211_tx_ampdu *qid2tap[IWN5000_NTXQUEUES];
+
+	int			(*sc_ampdu_rx_start)(struct ieee80211_node *,
+				    struct ieee80211_rx_ampdu *, int, int, int);
+	void			(*sc_ampdu_rx_stop)(struct ieee80211_node *,
+				    struct ieee80211_rx_ampdu *);
+	int			(*sc_addba_request)(struct ieee80211_node *,
+				    struct ieee80211_tx_ampdu *, int, int, int);
+	int			(*sc_addba_response)(struct ieee80211_node *,
+				    struct ieee80211_tx_ampdu *, int, int, int);
+	void			(*sc_addba_stop)(struct ieee80211_node *,
+				    struct ieee80211_tx_ampdu *);
+
 
 	struct iwn_rx_radiotap_header sc_rxtap;
 	struct iwn_tx_radiotap_header sc_txtap;
@@ -309,7 +331,7 @@ struct iwn_softc {
 
 #define IWN_LOCK_INIT(_sc) \
 	mtx_init(&(_sc)->sc_mtx, device_get_nameunit((_sc)->sc_dev), \
-	     MTX_NETWORK_LOCK, MTX_DEF)
+	    MTX_NETWORK_LOCK, MTX_DEF)
 #define IWN_LOCK(_sc)			mtx_lock(&(_sc)->sc_mtx)
 #define IWN_LOCK_ASSERT(_sc)		mtx_assert(&(_sc)->sc_mtx, MA_OWNED)
 #define IWN_UNLOCK(_sc)			mtx_unlock(&(_sc)->sc_mtx)

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2010  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rdataset.c,v 1.82.50.2 2009/01/18 23:47:40 tbox Exp $ */
+/* $Id: rdataset.c,v 1.82.50.4.6.1 2011-05-27 00:19:19 each Exp $ */
 
 /*! \file */
 
@@ -33,6 +33,26 @@
 #include <dns/rdata.h>
 #include <dns/rdataset.h>
 #include <dns/compress.h>
+
+static const char *trustnames[] = {
+	"none",
+	"pending-additional",
+	"pending-answer",
+	"additional",
+	"glue",
+	"answer",
+	"authauthority",
+	"authanswer",
+	"secure",
+	"local" /* aka ultimate */
+};
+
+const char *
+dns_trust_totext(dns_trust_t trust) {
+	if (trust >= sizeof(trustnames)/sizeof(*trustnames))
+		return ("bad");
+	return (trustnames[trust]);
+}
 
 void
 dns_rdataset_init(dns_rdataset_t *rdataset) {
@@ -176,6 +196,8 @@ static dns_rdatasetmethods_t question_methods = {
 	question_current,
 	question_clone,
 	question_count,
+	NULL,
+	NULL,
 	NULL,
 	NULL,
 	NULL,
@@ -732,3 +754,22 @@ dns_rdataset_putadditional(dns_acache_t *acache,
 	return (ISC_R_FAILURE);
 }
 
+void
+dns_rdataset_settrust(dns_rdataset_t *rdataset, dns_trust_t trust) {
+	REQUIRE(DNS_RDATASET_VALID(rdataset));
+	REQUIRE(rdataset->methods != NULL);
+
+	if (rdataset->methods->settrust != NULL)
+		(rdataset->methods->settrust)(rdataset, trust);
+	else
+		rdataset->trust = trust;
+}
+
+void
+dns_rdataset_expire(dns_rdataset_t *rdataset) {
+	REQUIRE(DNS_RDATASET_VALID(rdataset));
+	REQUIRE(rdataset->methods != NULL);
+
+	if (rdataset->methods->expire != NULL)
+		(rdataset->methods->expire)(rdataset);
+}

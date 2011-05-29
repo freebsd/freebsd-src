@@ -85,10 +85,10 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma.h>
 
 SDT_PROVIDER_DEFINE(vfs);
-SDT_PROBE_DEFINE(vfs, , stat, mode);
+SDT_PROBE_DEFINE(vfs, , stat, mode, mode);
 SDT_PROBE_ARGTYPE(vfs, , stat, mode, 0, "char *");
 SDT_PROBE_ARGTYPE(vfs, , stat, mode, 1, "int");
-SDT_PROBE_DEFINE(vfs, , stat, reg);
+SDT_PROBE_DEFINE(vfs, , stat, reg, reg);
 SDT_PROBE_ARGTYPE(vfs, , stat, reg, 0, "char *");
 SDT_PROBE_ARGTYPE(vfs, , stat, reg, 1, "int");
 
@@ -1047,8 +1047,6 @@ kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 	struct filedesc *fdp = p->p_fd;
 	struct file *fp;
 	struct vnode *vp;
-	struct vattr vat;
-	struct mount *mp;
 	int cmode;
 	struct file *nfp;
 	int type, indx, error;
@@ -1060,8 +1058,8 @@ kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 	AUDIT_ARG_MODE(mode);
 	/* XXX: audit dirfd */
 	/*
-	 * Only one of the O_EXEC, O_RDONLY, O_WRONLY and O_RDWR may
-	 * be specified.
+	 * Only one of the O_EXEC, O_RDONLY, O_WRONLY and O_RDWR flags
+	 * may be specified.
 	 */
 	if (flags & O_EXEC) {
 		if (flags & O_ACCMODE)
@@ -1071,7 +1069,7 @@ kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 	else
 		flags = FFLAGS(flags);
 
-	error = falloc(td, &nfp, &indx);
+	error = falloc(td, &nfp, &indx, flags);
 	if (error)
 		return (error);
 	/* An extra reference on `nfp' has been held for us by falloc(). */
@@ -1124,7 +1122,12 @@ kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vp = nd.ni_vp;
 
-	fp->f_vnode = vp;	/* XXX Does devfs need this? */
+	/*
+	 * Store the vnode, for any f_type. Typically, the vnode use
+	 * count is decremented by direct call to vn_closefile() for
+	 * files that switched type in the cdevsw fdopen() method.
+	 */
+	fp->f_vnode = vp;
 	/*
 	 * If the file wasn't claimed by devfs bind it to the normal
 	 * vnode operations here.
@@ -1136,7 +1139,7 @@ kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 	}
 
 	VOP_UNLOCK(vp, 0);
-	if (flags & (O_EXLOCK | O_SHLOCK)) {
+	if (fp->f_type == DTYPE_VNODE && (flags & (O_EXLOCK | O_SHLOCK)) != 0) {
 		lf.l_whence = SEEK_SET;
 		lf.l_start = 0;
 		lf.l_len = 0;
@@ -1153,18 +1156,7 @@ kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 		atomic_set_int(&fp->f_flag, FHASLOCK);
 	}
 	if (flags & O_TRUNC) {
-		if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
-			goto bad;
-		VATTR_NULL(&vat);
-		vat.va_size = 0;
-		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
-#ifdef MAC
-		error = mac_vnode_check_write(td->td_ucred, fp->f_cred, vp);
-		if (error == 0)
-#endif
-			error = VOP_SETATTR(vp, &vat, td->td_ucred);
-		VOP_UNLOCK(vp, 0);
-		vn_finished_write(mp);
+		error = fo_truncate(fp, 0, td->td_ucred, td);
 		if (error)
 			goto bad;
 	}
@@ -2269,9 +2261,9 @@ cvtstat(st, ost)
 		ost->st_size = st->st_size;
 	else
 		ost->st_size = -2;
-	ost->st_atime = st->st_atime;
-	ost->st_mtime = st->st_mtime;
-	ost->st_ctime = st->st_ctime;
+	ost->st_atim = st->st_atim;
+	ost->st_mtim = st->st_mtim;
+	ost->st_ctim = st->st_ctim;
 	ost->st_blksize = st->st_blksize;
 	ost->st_blocks = st->st_blocks;
 	ost->st_flags = st->st_flags;
@@ -2431,15 +2423,15 @@ cvtnstat(sb, nsb)
 	nsb->st_uid = sb->st_uid;
 	nsb->st_gid = sb->st_gid;
 	nsb->st_rdev = sb->st_rdev;
-	nsb->st_atimespec = sb->st_atimespec;
-	nsb->st_mtimespec = sb->st_mtimespec;
-	nsb->st_ctimespec = sb->st_ctimespec;
+	nsb->st_atim = sb->st_atim;
+	nsb->st_mtim = sb->st_mtim;
+	nsb->st_ctim = sb->st_ctim;
 	nsb->st_size = sb->st_size;
 	nsb->st_blocks = sb->st_blocks;
 	nsb->st_blksize = sb->st_blksize;
 	nsb->st_flags = sb->st_flags;
 	nsb->st_gen = sb->st_gen;
-	nsb->st_birthtimespec = sb->st_birthtimespec;
+	nsb->st_birthtim = sb->st_birthtim;
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -3906,14 +3898,20 @@ struct ogetdirentries_args {
 };
 #endif
 int
-ogetdirentries(td, uap)
-	struct thread *td;
-	register struct ogetdirentries_args /* {
-		int fd;
-		char *buf;
-		u_int count;
-		long *basep;
-	} */ *uap;
+ogetdirentries(struct thread *td, struct ogetdirentries_args *uap)
+{
+	long loff;
+	int error;
+
+	error = kern_ogetdirentries(td, uap, &loff);
+	if (error == 0)
+		error = copyout(&loff, uap->basep, sizeof(long));
+	return (error);
+}
+
+int
+kern_ogetdirentries(struct thread *td, struct ogetdirentries_args *uap,
+    long *ploff)
 {
 	struct vnode *vp;
 	struct file *fp;
@@ -4032,9 +4030,10 @@ unionread:
 	}
 	VOP_UNLOCK(vp, 0);
 	VFS_UNLOCK_GIANT(vfslocked);
-	error = copyout(&loff, uap->basep, sizeof(long));
 	fdrop(fp, td);
 	td->td_retval[0] = uap->count - auio.uio_resid;
+	if (error == 0)
+		*ploff = loff;
 	return (error);
 }
 #endif /* COMPAT_43 */
@@ -4223,7 +4222,7 @@ revoke(td, uap)
 	vfslocked = NDHASGIANT(&nd);
 	vp = nd.ni_vp;
 	NDFREE(&nd, NDF_ONLY_PNBUF);
-	if (vp->v_type != VCHR) {
+	if (vp->v_type != VCHR || vp->v_rdev == NULL) {
 		error = EINVAL;
 		goto out;
 	}
@@ -4406,7 +4405,7 @@ fhopen(td, uap)
 		return (ESTALE);
 	vfslocked = VFS_LOCK_GIANT(mp);
 	/* now give me my vnode, it gets returned to me locked */
-	error = VFS_FHTOVP(mp, &fhp.fh_fid, &vp);
+	error = VFS_FHTOVP(mp, &fhp.fh_fid, LK_EXCLUSIVE, &vp);
 	vfs_unbusy(mp);
 	if (error)
 		goto out;
@@ -4426,6 +4425,10 @@ fhopen(td, uap)
 	}
 	if (vp->v_type == VSOCK) {
 		error = EOPNOTSUPP;
+		goto bad;
+	}
+	if (vp->v_type != VDIR && fmode & O_DIRECTORY) {
+		error = ENOTDIR;
 		goto bad;
 	}
 	accmode = 0;
@@ -4492,7 +4495,7 @@ fhopen(td, uap)
 	 * end of vn_open code
 	 */
 
-	if ((error = falloc(td, &nfp, &indx)) != 0) {
+	if ((error = falloc(td, &nfp, &indx, fmode)) != 0) {
 		if (fmode & FWRITE)
 			vp->v_writecount--;
 		goto bad;
@@ -4578,7 +4581,7 @@ fhstat(td, uap)
 	if ((mp = vfs_busyfs(&fh.fh_fsid)) == NULL)
 		return (ESTALE);
 	vfslocked = VFS_LOCK_GIANT(mp);
-	error = VFS_FHTOVP(mp, &fh.fh_fid, &vp);
+	error = VFS_FHTOVP(mp, &fh.fh_fid, LK_EXCLUSIVE, &vp);
 	vfs_unbusy(mp);
 	if (error) {
 		VFS_UNLOCK_GIANT(vfslocked);
@@ -4638,7 +4641,7 @@ kern_fhstatfs(struct thread *td, fhandle_t fh, struct statfs *buf)
 	if ((mp = vfs_busyfs(&fh.fh_fsid)) == NULL)
 		return (ESTALE);
 	vfslocked = VFS_LOCK_GIANT(mp);
-	error = VFS_FHTOVP(mp, &fh.fh_fid, &vp);
+	error = VFS_FHTOVP(mp, &fh.fh_fid, LK_EXCLUSIVE, &vp);
 	if (error) {
 		vfs_unbusy(mp);
 		VFS_UNLOCK_GIANT(vfslocked);
@@ -4667,4 +4670,99 @@ out:
 	vfs_unbusy(mp);
 	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
+}
+
+static int
+kern_posix_fallocate(struct thread *td, int fd, off_t offset, off_t len)
+{
+	struct file *fp;
+	struct mount *mp;
+	struct vnode *vp;
+	off_t olen, ooffset;
+	int error, vfslocked;
+
+	fp = NULL;
+	vfslocked = 0;
+	error = fget(td, fd, &fp);
+	if (error != 0)
+		goto out;
+
+	switch (fp->f_type) {
+	case DTYPE_VNODE:
+		break;
+	case DTYPE_PIPE:
+	case DTYPE_FIFO:
+		error = ESPIPE;
+		goto out;
+	default:
+		error = ENODEV;
+		goto out;
+	}
+	if ((fp->f_flag & FWRITE) == 0) {
+		error = EBADF;
+		goto out;
+	}
+	vp = fp->f_vnode;
+	if (vp->v_type != VREG) {
+		error = ENODEV;
+		goto out;
+	}
+	if (offset < 0 || len <= 0) {
+		error = EINVAL;
+		goto out;
+	}
+	/* Check for wrap. */
+	if (offset > OFF_MAX - len) {
+		error = EFBIG;
+		goto out;
+	}
+
+	/* Allocating blocks may take a long time, so iterate. */
+	for (;;) {
+		olen = len;
+		ooffset = offset;
+
+		bwillwrite();
+		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
+		mp = NULL;
+		error = vn_start_write(vp, &mp, V_WAIT | PCATCH);
+		if (error != 0) {
+			VFS_UNLOCK_GIANT(vfslocked);
+			break;
+		}
+		error = vn_lock(vp, LK_EXCLUSIVE);
+		if (error != 0) {
+			vn_finished_write(mp);
+			VFS_UNLOCK_GIANT(vfslocked);
+			break;
+		}
+#ifdef MAC
+		error = mac_vnode_check_write(td->td_ucred, fp->f_cred, vp);
+		if (error == 0)
+#endif
+			error = VOP_ALLOCATE(vp, &offset, &len);
+		VOP_UNLOCK(vp, 0);
+		vn_finished_write(mp);
+		VFS_UNLOCK_GIANT(vfslocked);
+
+		if (olen + ooffset != offset + len) {
+			panic("offset + len changed from %jx/%jx to %jx/%jx",
+			    ooffset, olen, offset, len);
+		}
+		if (error != 0 || len == 0)
+			break;
+		KASSERT(olen > len, ("Iteration did not make progress?"));
+		maybe_yield();
+	}
+ out:
+	if (fp != NULL)
+		fdrop(fp, td);
+	return (error);
+}
+
+int
+posix_fallocate(struct thread *td, struct posix_fallocate_args *uap)
+{
+
+	return (kern_posix_fallocate(td, uap->fd, uap->offset, uap->len));
 }

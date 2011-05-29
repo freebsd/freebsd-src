@@ -440,6 +440,12 @@ swissgerman.cp850.kbd:fr:Suisse-Allemand Code Page 850
 swissgerman.cp850.kbd:pt:SuiÁo-Alem„o Codepage 850
 swissgerman.cp850.kbd:es:Germanosuizo Codepage 850
 
+swissgerman.macbook.acc.kbd:en:Swiss-German Macbook/Macbook Pro (accent keys)
+swissgerman.macbook.acc.kbd:de:Schweiz-Deutsch Macbook/Macbook Pro (mit Akzenten)
+swissgerman.macbook.acc.kbd:fr:Suisse-Allemand  Macbook/Macbook Pro (avec accents)
+swissgerman.macbook.acc.kbd:pt:SuiÁo-Alem„o Macbook/Macbook Pro (com acentos)
+swissgerman.macbook.acc.kbd:es:Germanosuizo  Macbook/Macbook Pro (con acentos)
+
 tr.iso9.q.kbd:en:Turkish ISO-8859-9
 tr.iso9.q.kbd:fr:Turc ISO-8859-9
 tr.iso9.q.kbd:uk:Ù’“≈√ÿÀ¡ ISO-8859-9

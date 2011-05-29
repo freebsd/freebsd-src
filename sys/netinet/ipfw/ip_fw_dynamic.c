@@ -191,37 +191,37 @@ static VNET_DEFINE(u_int32_t, dyn_max);		/* max # of dynamic rules */
 SYSBEGIN(f2)
 
 SYSCTL_DECL(_net_inet_ip_fw);
-SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, dyn_buckets,
+SYSCTL_VNET_UINT(_net_inet_ip_fw, OID_AUTO, dyn_buckets,
     CTLFLAG_RW, &VNET_NAME(dyn_buckets), 0,
     "Number of dyn. buckets");
-SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, curr_dyn_buckets,
+SYSCTL_VNET_UINT(_net_inet_ip_fw, OID_AUTO, curr_dyn_buckets,
     CTLFLAG_RD, &VNET_NAME(curr_dyn_buckets), 0,
     "Current Number of dyn. buckets");
-SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, dyn_count,
+SYSCTL_VNET_UINT(_net_inet_ip_fw, OID_AUTO, dyn_count,
     CTLFLAG_RD, &VNET_NAME(dyn_count), 0,
     "Number of dyn. rules");
-SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, dyn_max,
+SYSCTL_VNET_UINT(_net_inet_ip_fw, OID_AUTO, dyn_max,
     CTLFLAG_RW, &VNET_NAME(dyn_max), 0,
     "Max number of dyn. rules");
-SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, dyn_ack_lifetime,
+SYSCTL_VNET_UINT(_net_inet_ip_fw, OID_AUTO, dyn_ack_lifetime,
     CTLFLAG_RW, &VNET_NAME(dyn_ack_lifetime), 0,
     "Lifetime of dyn. rules for acks");
-SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, dyn_syn_lifetime,
+SYSCTL_VNET_UINT(_net_inet_ip_fw, OID_AUTO, dyn_syn_lifetime,
     CTLFLAG_RW, &VNET_NAME(dyn_syn_lifetime), 0,
     "Lifetime of dyn. rules for syn");
-SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, dyn_fin_lifetime,
+SYSCTL_VNET_UINT(_net_inet_ip_fw, OID_AUTO, dyn_fin_lifetime,
     CTLFLAG_RW, &VNET_NAME(dyn_fin_lifetime), 0,
     "Lifetime of dyn. rules for fin");
-SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, dyn_rst_lifetime,
+SYSCTL_VNET_UINT(_net_inet_ip_fw, OID_AUTO, dyn_rst_lifetime,
     CTLFLAG_RW, &VNET_NAME(dyn_rst_lifetime), 0,
     "Lifetime of dyn. rules for rst");
-SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, dyn_udp_lifetime,
+SYSCTL_VNET_UINT(_net_inet_ip_fw, OID_AUTO, dyn_udp_lifetime,
     CTLFLAG_RW, &VNET_NAME(dyn_udp_lifetime), 0,
     "Lifetime of dyn. rules for UDP");
-SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, dyn_short_lifetime,
+SYSCTL_VNET_UINT(_net_inet_ip_fw, OID_AUTO, dyn_short_lifetime,
     CTLFLAG_RW, &VNET_NAME(dyn_short_lifetime), 0,
     "Lifetime of dyn. rules for other situations");
-SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, dyn_keepalive,
+SYSCTL_VNET_UINT(_net_inet_ip_fw, OID_AUTO, dyn_keepalive,
     CTLFLAG_RW, &VNET_NAME(dyn_keepalive), 0,
     "Enable keepalives for dyn. rules");
 
@@ -476,7 +476,7 @@ next:
 		V_ipfw_dyn_v[i] = q;
 	}
 	if (pkt->proto == IPPROTO_TCP) { /* update state according to flags */
-		u_char flags = pkt->flags & (TH_FIN|TH_SYN|TH_RST);
+		u_char flags = pkt->_flags & (TH_FIN|TH_SYN|TH_RST);
 
 #define BOTH_SYN	(TH_SYN | (TH_SYN << 8))
 #define BOTH_FIN	(TH_FIN | (TH_FIN << 8))
@@ -894,10 +894,7 @@ struct mbuf *
 ipfw_send_pkt(struct mbuf *replyto, struct ipfw_flow_id *id, u_int32_t seq,
     u_int32_t ack, int flags)
 {
-#ifndef __FreeBSD__
-	return NULL;
-#else
-	struct mbuf *m;
+	struct mbuf *m = NULL;		/* stupid compiler */
 	int len, dir;
 	struct ip *h = NULL;		/* stupid compiler */
 #ifdef INET6
@@ -1033,7 +1030,6 @@ ipfw_send_pkt(struct mbuf *replyto, struct ipfw_flow_id *id, u_int32_t seq,
 	}
 
 	return (m);
-#endif /* __FreeBSD__ */
 }
 
 /*
@@ -1131,8 +1127,8 @@ ipfw_tick(void * vnetx)
 	}
 #endif
 done:
-	callout_reset(&V_ipfw_timeout, V_dyn_keepalive_period * hz,
-		      ipfw_tick, vnetx);
+	callout_reset_on(&V_ipfw_timeout, V_dyn_keepalive_period * hz,
+		      ipfw_tick, vnetx, 0);
 	CURVNET_RESTORE();
 }
 
@@ -1173,7 +1169,7 @@ ipfw_dyn_init(void)
         
         V_dyn_max = 4096;       /* max # of dynamic rules */
         callout_init(&V_ipfw_timeout, CALLOUT_MPSAFE);
-        callout_reset(&V_ipfw_timeout, hz, ipfw_tick, curvnet);
+        callout_reset_on(&V_ipfw_timeout, hz, ipfw_tick, curvnet, 0);
 }
 
 void

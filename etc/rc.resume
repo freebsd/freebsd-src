@@ -39,8 +39,14 @@ state=$2
 
 if [ -r /var/run/rc.suspend.pid ]; then
 	kill -9 `cat /var/run/rc.suspend.pid`
-	rm -f /var/run/rc.suspend.pid
+	/bin/rm -f /var/run/rc.suspend.pid
 	echo 'rc.resume: killed rc.suspend that was still around'
+fi
+
+if [ -r /var/run/rc.suspend.tch ]; then
+	_t=`cat /var/run/rc.suspend.tch`
+	/sbin/sysctl -n kern.timecounter.hardware=$_t > /dev/null 2>&1
+	/bin/rm -f /var/run/rc.suspend.tch
 fi
 
 # Turns on a power supply of a card in the slot inactivated.
@@ -56,7 +62,7 @@ fi
 # the following to signal it to reassociate.
 # /usr/sbin/wpa_cli reassociate
 
-logger -t $subsystem resumed at `date +'%Y%m%d %H:%M:%S'`
-sync && sync && sync
+/usr/bin/logger -t $subsystem resumed at `/bin/date +'%Y%m%d %H:%M:%S'`
+/bin/sync && /bin/sync && /bin/sync
 
 exit 0

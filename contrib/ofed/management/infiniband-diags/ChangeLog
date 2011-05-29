@@ -1,0 +1,470 @@
+2007-08-09 Ira Weiny <weiny2@llnl.gov>
+
+	* scripts/set_mthca_nodedesc.sh: change to set_nodedesc.sh
+	* scripts/set_mthca_nodedesc.sh: attempt to set nodedesc on all
+	  HCA's found in sysfs
+
+2007-07-10 Hal Rosenstock <halr@voltaire.com>
+
+	* 1.3.1 release of infiniband-diags
+
+2007-06-20 Hal Rosenstock <halr@voltaire.com>
+
+	* src/ibaddr.c, src/ibping.c, src/ibportstate.c,
+	  src/ibsysstat.c, src/perfquery.c, src/sminfo.c,
+	  src/smpquery.c, src/vendstat.c, Makefile.am:
+	  Use diag common code ib_error routine
+
+2007-06-18 Hal Rosenstock <halr@voltaire.com>
+
+	* man/ibaddr.8: Improve description
+
+2007-06-04 Hal Rosenstock <halr@voltaire.com>
+
+	* include/ibnetdiscover.h, src/ibnetdiscover.c,
+	  man/ibnetdiscover.8: Add link width and speed to topology
+	  file output
+
+2007-06-02 Hal Rosenstock <halr@voltaire.com>
+
+	* man/ibnetdiscover.8: Add topology file format section
+
+2007-06-01 Hal Rosenstock <halr@voltaire.com>
+
+	* man/ibnetdiscover.8: Add grouping information
+
+	* include/ibnetdiscover.h, src/ibnetdiscover.c: Fix
+	  list by nodetype operations
+
+	* src/ibnetdiscover.c, man/ibnetdiscover.8: Add support
+	  for -R(outer_list)
+
+	* Makefile.am: Add ibidsverify
+
+	* scripts/ibidsverify.pl, man/ibidsverify.8: Add script
+	  and man page for ibidsverify
+
+2007-05-31 Hal Rosenstock <halr@voltaire.com>
+
+	* man/ibprintca.8, man/ibprintswitch.8, man/ibprintrt.8:
+	  Add description of list capability
+
+	* Makefile.am, configure.in: Add ibdatacounters
+
+	* scripts/ibdatacounters.in, man/ibdatacounters.8: Add
+	  script and man page for subnet wide data counters
+
+	* configure.in: Change IBSCRIPTPATH from bindir to sbindir
+
+2007-05-30 Hal Rosenstock <halr@voltaire.com>
+
+	* Makefile.am, configure.in: Add ibrouters and ibprintrt.pl
+
+	* scripts/ibrouters.in, scripts/ibprintrt.pl,
+	  man/ibrouters.8, man/ibprintrt.8: Add scripts and man pages
+	  for display of IB routers
+
+	* scripts/ibqueryerrors.pl: Add GUID to output line for ports
+
+	* scripts/ibcheckerrs.in, scripts/ibcheckport.in,
+	  scripts/ibcheckportstate.in, scripts/ibcheckportwidth.in,
+	  scripts/ibdatacounts.in: Add lid and port into verbose output
+
+	* scripts/ibcheckerrs.in, scripts/ibcheckport.in,
+	  scripts/ibdatacounts.in: Change portnum to port in output
+
+	* Makefile.am, configure.in: Add ibdatacounts
+
+	* scripts/ibdatacounts.in, man/ibdatacounts.8: Add script
+	  to display only data counters and associated man page
+
+2007-05-26 Hal Rosenstock <halr@voltaire.com>
+
+	* scripts/IBswcountlimits.pm: Fix node description parsing
+	  for switches
+
+	* scripts/iblinkinfo.pl: Add peer port link width and speed
+	  validation
+
+2007-05-25 Hal Rosenstock <halr@voltaire.com>
+
+	* scripts/IBswcountlimits.pm: Add support for routers
+
+	* scripts/iblinkinfo.pl: Display remote LID with peer port info
+
+	* scripts/IBswcountlimits.pm: Add support for rem_lid in
+	  get_link_ends subroutine
+
+	* src/ibportstate.c: Handle peer ports at 1x that
+	  should be wider and 2.5 Gbps that should be faster
+
+	* src/ibportstate.c: Add LinkSpeed/Width related components
+	  to output
+
+2007-05-24 Hal Rosenstock <halr@voltaire.com>
+
+	* scripts/ibprintca.pl: Add support for routers
+
+2007-05-23 Hal Rosenstock <halr@voltaire.com>
+
+	* scripts/ibcheckerrors.in, scripts/ibchecknet.in,
+	  scripts/ibcheckstate.in, scripts/ibcheckwidth.in,
+	  scripts/ibclearcounters.in, scripts/ibclearerrors.in,
+	  scripts/ibfindnodesusing.in, scripts/IBswcountlimits.pm:
+	  Add support for routers
+
+2007-05-09 Hal Rosenstock <halr@voltaire.com>
+
+	* src/grouping.c: Eliminate conditional compilation
+	  based on WORDSIZE
+
+2007-05-08 Hal Rosenstock <halr@voltaire.com>
+
+	* src/ibnetdiscover.c: Bumped build version
+
+	* include/grouping.h, src/grouping.c: Added support
+	  for ISR2012 and ISR2004
+
+2007-04-27 Ira K. Weiny <weiny2@llnl.gov>
+
+	* scripts/IBswcountlimits.pm, scripts/ibfindnodesusing.pl,
+	  scripts/ibprintca.pl, scripts/ibprintswitch.pl,
+	  scripts/ibqueryerrors.pl, scripts/ibswportwatch.pl:
+	  Remove all uses of "/tmp" from perl diags
+
+2007-04-14 Albert L. Chu <chu11@llnl.gov>
+
+	* src/saquery.c, man/saquery.8: Add switch map support
+	  (for -O and -U options)
+
+	* man/ibtracert.8: Improve man page formatting
+
+2007-04-04 Hal Rosenstock <halr@voltaire.com>
+
+	* src/saquery.c, man/saquery.8: Add support for isSMdisabled
+	  into -s query
+
+2007-04-02 Albert L. Chu <chu11@llnl.gov>
+
+	* src/saquery.c, man/saquery.8: Add get name queries (-O and -U)
+
+	* src/saquery.c: Add name input checks
+
+2007-03-29 Hal Rosenstock <halr@voltaire.com>
+
+	* man/perfquery.8: Add note on Data components being octets
+	  divided by 4 rather than just octets
+
+	* scripts/IBswcountlimits.pm, scripts/ibcheckerrs.in: Changed
+	  due to libibmad change (Xmt/RcvBytes now being Xmt/RcvData)
+
+2007-03-29 Hal Rosenstock <halr@voltaire.com>
+
+	* 1.3.0 release of openib-diags
+
+2007-03-21 Albert L. Chu <chu11@llnl.gov>
+
+	* scripts/IBswcountlimits.pm: Add some extra debug information
+
+2007-03-21 Hal Rosenstock <halr@voltaire.com>
+
+	* src/ibtracert.c: Send normal output to stdout rather than stderr
+
+	* src/ibdiag_common.c: Don't truncate NodeDescriptions with
+	  ctl characters
+
+2007=03-20 Hal Rosenstock <halr@voltaire.com>
+
+	* src/ibnetdiscover.c: Chassis 0 is not a chassis
+	  Caused Cisco SFS7000 to be reported as a chassis
+
+2007-03-15 Hal Rosenstock <halr@voltaire.com>
+
+	* src/smpquery.c: Modified guid_info to not use port number
+	  and not query unneeded SM attributes; also added guid to
+	  operations supported in help
+
+	* man/smpquery.8: Add guid to list of supported operations
+
+2007-03-14 Dotan Barak <dotanb@mellanox.co.il>
+
+	* src/smpquery.c: Add support to query the GUIDInfo
+	  table
+
+2007-03-12 Ira K. Weiny <weiny2@llnl.gov>
+
+	* configure.in, diags.spec.in, ibdiag_common.c:
+	  Allow user to specify a default switch map file
+
+2007-03-09 Hal Rosenstock <halr@voltaire.com>
+
+	* 1.2.5 release of openib-diags
+
+2007-03-09 Albert L. Chu <chu11@llnl.gov>
+
+	* configure.in, scripts/ibcheck*, scripts/ibclear*,
+	  scripts/ibhosts, scripts/ibnodes, scripts/ibswitches:
+	  autoconf support for default pathname in scripts
+
+2007-03-05 Sasha Khapyorsky <sashak@voltaire.com>
+
+	* include/ibdiag_common.h, src/ibdiag_common.c,
+	  src/saquery.c: Clean gcc-4.1 warnings
+
+2007-03-03 Hal Rosenstock <halr@voltaire.com>
+
+	* 1.2.4 release of openib-diags
+
+2007-03-02 Ira K. Weiny <weiny2@llnl.gov>
+
+	* diags.spec.in: Include set_mthca_nodedesc.sh and dump_lfts.sh
+	  in the rpm
+
+	* Makefile.am, configure.in, diags.spec.in: Fix rpmbuild from make dist
+
+2007-03-01 Hal Rosenstock <halr@voltaire.com>
+
+	* 1.2.3 release of openib-diags
+
+	* src/saquery.c: Fixed timeout handling
+	  Also, changed default timeout to 1000 msec
+
+2007-02-27 Hal Rosenstock <halr@voltaire.com>
+
+	* 1.2.2 release of openib-diags
+
+	* scripts/ibswitches, scripts/ibhosts: Removed extra quotes
+	  around display of NodeDescription
+
+2007-02-15 Hal Rosenstock <halr@voltaire.com>
+
+	* 1.2.1 release of openib-diags
+
+	* src/vendstat.c, man/vendstat.8: Initial release
+
+	* Makefile.am: Updated for vendstat
+
+2007-02-12 Hal Rosenstock <halr@voltaire.com>
+
+	* 1.2.0 release of openib-diags
+
+2007-02-02  Ira Weiny <weiny2@llnl.gov>
+
+	* scripts/ibcheckerrors, scripts/ibcheckerrs: Added
+	  brief option
+	* man/ibcheckerrors.8, man/ibcheckerrs.8: Updated
+	  man pages for brief option
+
+2007-02-02  Hal Rosenstock <halr@voltaire.com>
+
+	* src/ibportstate.c, src/sminfo.c, src/smpquery.c:
+	  Update build version tags
+
+2007-02-01  Hal Rosenstock <halr@voltaire.com>
+
+	* src/saquery.c: Add build version option
+
+2007-02-01  Hal Rosenstock <halr@voltaire.com>
+
+	* scripts/ibcheckerrors, scripts/ibcheckerrs,
+	  scripts/ibchecknet, scripts/ibchecknode, scripts/ibcheckport,
+	  scripts/ibcheckportstate, scripts/ibcheckportwidth,
+	  scripts/ibcheckstate, scripts/ibcheckwidth,
+	  scripts/ibclearcounters, scripts/ibclearerrors: Added -N |
+	  -nocolor to usage displays
+
+	* man/ibcheckerrors.8, man/ibcheckerrs.8,
+	  man/ibchecknet.8, man/ibchecknode.8, man/ibcheckport.8,
+	  man/ibcheckportstate.8, man/ibcheckportwidth.8,
+	  man/ibcheckstate.8, man/ibcheckwidth.8,
+	  man/ibclearcounters.8, man/ibclearerrors.8: Updated
+	  man pages for nocolor option
+
+2007-02-01  Ira Weiny <weiny2@llnl.gov>
+
+	* scripts/ibcheckportwidth, scripts/ibcheckportstate,
+	  scripts/ibcheckport, scripts/ibcheckerrs: Fix -nocolor
+	  and -G options
+
+	* scripts/ibchecknode: Fix -G option
+
+	* scripts/ibchecknet: Fix error return status
+
+	* scripts/ibcheckerrors: Add exit code
+
+	* scripts/ibcheckerrs: Add nodename to output
+
+	* scripts/ibqueryerrors.pl: Reduce the "common" errors
+	  supressed by -c option; Fix -d option; Remove the use
+	  of tmp files
+
+	* scripts/ibfindnodeusing.pl: Remove use of tmpfile
+	  for ibroute data
+
+	* scripts/ibswportwatch.pl, scripts/IBswcountlimits.pm:
+	  Add data rate option
+
+	* scripts/IBswcountlimits.pm: Fix undefined subroutine error
+	  in iblinkinfo.pl
+
+2007-01-31  Ira Weiny <weiny2@llnl.gov>
+
+	* src/ibtracert.c, man/ibtracert.8,
+	  src/ibnetdiscover.c, man/ibnetdiscover.8: Add switch-map option
+
+	* src/saquery.c: Clean up node descriptions before printing
+
+2007-01-31  Hal Rosenstock <halr@voltaire.com>
+
+	* src/saquery.c, man/saquery.8: Clarifications for
+	  --src-to-dst option
+
+	* src/saquery.c: Fix minor memory leak with --src-to-dst option
+
+2007-01-29  Hal Rosenstock <halr@voltaire.com>
+
+	* src/ibnetdiscover.c: Add non Voltaire chassis listing back
+	  into dump_topology
+
+2007-01-29  Ira Weiny <weiny2@llnl.gov>
+
+	* src/ibnetdiscover.c: Add peer NodeDescription and LID to output
+	  Also, for grouping, order Spind and Line Nodes (for Voltaire
+	  chassis)
+
+2007-01-28  Ira Weiny <weiny2@llnl.gov>
+
+	* include/grouping.h, src/grouping.c: Change group_nodes API
+	  signature to return point to ChassisList rather than void
+
+2007-01-27  Ira Weiny <weiny2@llnl.gov>
+
+	* src/ibtracert.c, src/ibroute.c: Add clean_nodedesc function
+
+	* src/saquery.c, man/saquery.8: Add additional semantics to -m option
+
+2007-01-26  Hal Rosenstock <halr@voltaire.com>
+
+	* src/ibnetdiscover.c: Cosmetic change to some router strings
+
+2007-01-24  Sasha Khapyorsky <sashak@voltaire.com>
+
+	* src/ibnetdiscover.c: Minor clean_nodedesc simplification
+
+2007-01-18  Hal Rosenstock <halr@voltaire.com>
+
+	* src/perfquery.c: Minor code reorder
+
+2007-01-17  Ira Weiny <weiny2@llnl.gov>
+
+	* scripts/iblinkinfo.pl: Add better error handling
+
+	* src/saquery.c: Add timeout option to command line
+
+2007-01-16  Hal Rosenstock <halr@voltaire.com>
+
+	* man/perfquery.8: Removed unneeded DR description in common options
+
+2007-01-13  Hal Rosenstock <halr@voltaire.com>
+
+	* scripts/dump_mfts.sh, man/dump_mfts.8: Add dump_mfts similar
+	  to dump_lfts
+
+2007-01-12  Hal Rosenstock <halr@voltaire.com>
+
+	* man/dump_lfts.8: Minor changes based on existence of dump_mfts
+
+2007-01-04  Hal Rosenstock <halr@voltaire.com>
+
+	* scripts/iblinkspeed.pl, man/iblinkspeed.8: Removed as no
+	  longer needed
+
+2007-01-03  Sasha Khapyorsky <sashak@voltaire.com>
+
+	* src/ibnetdiscover.c: Discover improvements
+	(memory leaks, ports moving, etc.)
+
+2007-01-02  Ira Weiny <weiny2@llnl.gov>
+
+	* scripts/iblinkinfo.pl: Convert iblinkspeed.pl into
+	  iblinkinfo.pl and add additional capabilities
+
+2006-12-28  Hal Rosenstock <halr@voltaire.com>
+
+	* src/ibtracert.c: Add 0x in front of GUID printing
+
+2006-12-28  Sasha Khapyorsky <sashak@voltaire.com>
+
+	* src/ibnetdiscover.c: Fix loopback handling
+
+	* src/ibnetdiscover.c, src/ibroute.c,
+	  src/ibtracert.c, src/sminfo.c:
+	  Eliminate __WORDSIZE ifdefs for printing
+
+2006-12-07  Hal Rosenstock <halr@voltaire.com>
+
+	* src/saquery.c, man/saquery.8: Add support for
+	  querying ServiceRecords
+
+2006-11-21  Hal Rosenstock <halr@voltaire.com>
+
+	* src/perfquery.c: Add support for PerfMgt ClassPortInfo:
+	  CapabilityMask IsExtendedWidthSupported IBA 1.2 erratum
+
+2006-11-20  Sasha Khapyorsky <sashak@voltaire.com>
+
+	* src/ibnetdiscover.c, src/ibtracert.c: Fix various
+	  uses of printf() style functions
+
+2006-10-20  Hal Rosenstock <halr@voltaire.com>
+
+	* man/ibportstate.8, man/smpquery.8: Updated man
+	  pages for DrSLID support.
+
+	* src/ibportstate.c: For query operations, add peer
+	  port checking of link width and speed active.
+
+	* src/smpquery.c: Add support for DrSLID.
+
+2006-10-19  Sasha Khapyorsky <sashak@voltaire.com>
+
+	* src/ibroute.c: Fix double calculated block value.
+
+2006-10-16  Hal Rosenstock <halr@voltaire.com>
+
+	* src/ibnetdiscover.c, src/ibtracert.c: IB router support.
+
+2006-10-09  Ira Weiny <weiny2@llnl.gov>
+
+	* man/iblinkspeed.8, man/ibqueryerrors.8,
+	  man/ibswportwatch.8, man/ibprintswitch.8,
+	  man/ibprintca.8, man/ibfindnodesusing.8:
+	  Add man pages for new diag scripts.
+
+	* scripts/iblinkspeed.pl, scripts/ibqueryerrors.pl,
+	  scripts/ibswportwatch.pl, scripts/ibprintswitch.pl,
+	  scripts/ibprintca.pl, scripts/ibfindnodesusing.pl:
+	  Add some new diag scripts.
+
+	* src/saquery.c: Add additional options for
+	  NodeDescriptions of CAs only, Unique LID of name specified,
+	  SA's ClassPortInfo, and PathRecord by src/dest name.
+
+2006-10-03  Hal Rosenstock <halr@voltaire.com>
+
+	* man/ibportstate.8: Update ibportstate man page for
+	  speed operations.
+
+	* src/ibportstate.c: Support changing LinkSpeedEnabled
+	  on any IB port.
+
+	* man/ibportstate.8: Update ibportstate man page for
+	  port reset, enable, and disable operations.
+
+	* src/ibportstate.c: Support explicit port reset in
+	  addition to disable and enable.
+
+2006-09-28  Dotan Barak <dotanb@mellanox.co.il>
+
+	* src/saquery.c: Fix compile warning.
+

@@ -457,6 +457,11 @@ usb_parse_configuration(struct usb_config_descriptor *config,
 
 	/* allocate memory for our configuration */
 	ptr = malloc(a + b + c + d);
+	if (ptr == NULL) {
+		/* free config structure */
+		free(ps.a.currcfg);
+		return (-1);
+	}
 
 	/* "currifcw" must be first, hence this pointer is freed */
 	ps.b.currifcw = (void *)(ptr);
@@ -795,6 +800,19 @@ usb_reset(usb_dev_handle * dev)
 	return (usb_close(dev));
 }
 
+int
+usb_check_connected(usb_dev_handle * dev)
+{
+	int err;
+
+	err = libusb20_dev_check_connected((void *)dev);
+
+	if (err)
+		return (-1);
+
+	return (0);
+}
+
 const char *
 usb_strerror(void)
 {
@@ -820,7 +838,7 @@ int
 usb_find_busses(void)
 {
 	usb_busses = &usb_global_bus;
-	return (0);
+	return (1);
 }
 
 int
@@ -907,7 +925,7 @@ usb_find_devices(void)
 		LIST_ADD(usb_global_bus.devices, udev);
 	}
 
-	return (0);			/* success */
+	return (devnum - 1);			/* success */
 }
 
 struct usb_device *

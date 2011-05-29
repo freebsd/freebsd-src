@@ -21,7 +21,7 @@ static void DS1672_Init();
 
 static void
 DS1672_Init() {
-	uint8_t buf[] = {0x00, 0xa9};
+	char buf[] = {0x00, 0xa9};
 
 	EEWrite(0xd0, buf, sizeof(buf));
 }
@@ -90,7 +90,11 @@ board_init(void)
 	printf("BWCT FSB-A920-1\n");
 	printf("http://www.bwct.de\n");
 	printf("\n");
-	printf("AT92RM9200 180MHz\n");
+#if defined(SDRAM_128M)
+	printf("AT92RM9200 180MHz 128MB\n");
+#else
+	printf("AT92RM9200 180MHz 64MB\n");
+#endif
 	printf("Initialising USART0\n");
 	USART0_Init();
 	printf("Initialising USART1\n");

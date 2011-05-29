@@ -51,6 +51,9 @@
 #include <wait.h>
 #else
 #include <sys/wait.h>
+#include <libelf.h>
+#include <gelf.h>
+#include <sys/mman.h>
 #endif
 #include <assert.h>
 #include <sys/ipc.h>
@@ -412,7 +415,6 @@ prepare_elf64(dtrace_hdl_t *dtp, const dof_hdr_t *dof, dof_elf64_t *dep)
 		s = &dofs[dofrh->dofr_tgtsec];
 
 		for (j = 0; j < nrel; j++) {
-printf("%s:%s(%d): DOODAD\n",__FUNCTION__,__FILE__,__LINE__);
 #ifdef DOODAD
 #if defined(__arm__)
 /* XXX */
@@ -1519,14 +1521,29 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 
 			off = rela.r_offset - fsym.st_value;
 			if (dt_modtext(dtp, data_tgt->d_buf, eprobe,
-			    &rela, &off) != 0) {
+			    &rela, &off) != 0)
 				goto err;
-			}
 
 			if (dt_probe_define(pvp, prp, s, r, off, eprobe) != 0) {
 				return (dt_link_error(dtp, elf, fd, bufs,
 				    "failed to allocate space for probe"));
 			}
+#if !defined(sun)
+			/*
+			 * Our linker doesn't understand the SUNW_IGNORE ndx and
+			 * will try to use this relocation when we build the
+			 * final executable. Since we are done processing this
+			 * relocation, mark it as inexistant and let libelf
+			 * remove it from the file.
+			 * If this wasn't done, we would have garbage added to
+			 * the executable file as the symbol is going to be
+			 * change from UND to ABS.
+			 */
+			rela.r_offset = 0;
+			rela.r_info  = 0;
+			rela.r_addend = 0;
+			(void) gelf_update_rela(data_rel, i, &rela);
+#endif
 
 			mod = 1;
 			(void) elf_flagdata(data_tgt, ELF_C_SET, ELF_F_DIRTY);
@@ -1538,13 +1555,13 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 			 * already been processed by an earlier link
 			 * invocation.
 			 */
-printf("%s:%s(%d): DOODAD\n",__FUNCTION__,__FILE__,__LINE__);
-#ifdef DOODAD
+#if !defined(sun)
+#define SHN_SUNW_IGNORE	SHN_ABS
+#endif
 			if (rsym.st_shndx != SHN_SUNW_IGNORE) {
 				rsym.st_shndx = SHN_SUNW_IGNORE;
 				(void) gelf_update_sym(data_sym, ndx, &rsym);
 			}
-#endif
 		}
 	}
 
@@ -1554,6 +1571,9 @@ printf("%s:%s(%d): DOODAD\n",__FUNCTION__,__FILE__,__LINE__);
 	(void) elf_end(elf);
 	(void) close(fd);
 
+#if !defined(sun)
+	if (nsym > 0)
+#endif
 	while ((pair = bufs) != NULL) {
 		bufs = pair->dlp_next;
 		dt_free(dtp, pair->dlp_str);
@@ -1574,6 +1594,19 @@ dtrace_program_link(dtrace_hdl_t *dtp, dtrace_prog_t *pgp, uint_t dflags,
 {
 #if !defined(sun)
 	char tfile[PATH_MAX];
+	Elf *e;
+	Elf_Scn *scn;
+	Elf_Data *data;
+	GElf_Shdr shdr;
+	int efd;
+	size_t stridx;
+	unsigned char *buf;
+	char *s;
+	int loc;
+	GElf_Ehdr ehdr;
+	Elf_Scn *scn0;
+	GElf_Shdr shdr0;
+	uint64_t off, rc;
 #endif
 	char drti[PATH_MAX];
 	dof_hdr_t *dof;
@@ -1583,6 +1616,18 @@ dtrace_program_link(dtrace_hdl_t *dtp, dtrace_prog_t *pgp, uint_t dflags,
 	int eprobes = 0, ret = 0;
 
 #if !defined(sun)
+	if (access(file, R_OK) == 0) {
+		fprintf(stderr, "dtrace: target object (%s) already exists. "
+		    "Please remove the target\ndtrace: object and rebuild all "
+		    "the source objects if you wish to run the DTrace\n"
+		    "dtrace: linking process again\n", file);
+		/*
+		 * Several build infrastructures run DTrace twice (e.g.
+		 * postgres) and we don't want the build to fail. Return
+		 * 0 here since this isn't really a fatal error.
+		 */
+		return (0);
+	}
 	/* XXX Should get a temp file name here. */
 	snprintf(tfile, sizeof(tfile), "%s.tmp", file);
 #endif
@@ -1697,12 +1742,17 @@ dtrace_program_link(dtrace_hdl_t *dtp, dtrace_prog_t *pgp, uint_t dflags,
 		(void) unlink(file);
 #endif
 
+#if defined(sun)
 	if (dtp->dt_oflags & DTRACE_O_LP64)
 		status = dump_elf64(dtp, dof, fd);
 	else
 		status = dump_elf32(dtp, dof, fd);
 
 	if (status != 0 || lseek(fd, 0, SEEK_SET) != 0) {
+#else
+	/* We don't write the ELF header, just the DOF section */
+	if (dt_write(dtp, fd, dof, dof->dofh_filesz) < dof->dofh_filesz) {
+#endif
 		return (dt_link_error(dtp, NULL, -1, NULL,
 		    "failed to write %s: %s", file, strerror(errno)));
 	}
@@ -1726,7 +1776,7 @@ dtrace_program_link(dtrace_hdl_t *dtp, dtrace_prog_t *pgp, uint_t dflags,
 
 		(void) snprintf(cmd, len, fmt, dtp->dt_ld_path, file, fd, drti);
 #else
-		const char *fmt = "%s -o %s -r %s %s";
+		const char *fmt = "%s -o %s -r %s";
 
 #if defined(__amd64__)
 		/*
@@ -1748,19 +1798,20 @@ dtrace_program_link(dtrace_hdl_t *dtp, dtrace_prog_t *pgp, uint_t dflags,
 		len = snprintf(&tmp, 1, fmt, dtp->dt_ld_path, file, tfile,
 		    drti) + 1;
 
+#if !defined(sun)
+		len *= 2;
+#endif
 		cmd = alloca(len);
 
-		(void) snprintf(cmd, len, fmt, dtp->dt_ld_path, file, tfile, drti);
+		(void) snprintf(cmd, len, fmt, dtp->dt_ld_path, file,
+		    drti);
 #endif
-
 		if ((status = system(cmd)) == -1) {
 			ret = dt_link_error(dtp, NULL, -1, NULL,
 			    "failed to run %s: %s", dtp->dt_ld_path,
 			    strerror(errno));
 			goto done;
 		}
-
-		(void) close(fd); /* release temporary file */
 
 		if (WIFSIGNALED(status)) {
 			ret = dt_link_error(dtp, NULL, -1, NULL,
@@ -1775,6 +1826,138 @@ dtrace_program_link(dtrace_hdl_t *dtp, dtrace_prog_t *pgp, uint_t dflags,
 			    file, dtp->dt_ld_path, WEXITSTATUS(status));
 			goto done;
 		}
+#if !defined(sun)
+#define BROKEN_LIBELF
+		/*
+		 * FreeBSD's ld(1) is not instructed to interpret and add
+		 * correctly the SUNW_dof section present in tfile.
+		 * We use libelf to add this section manually and hope the next
+		 * ld invocation won't remove it.
+		 */
+		elf_version(EV_CURRENT);
+		if ((efd = open(file, O_RDWR, 0)) < 0) {
+			ret = dt_link_error(dtp, NULL, -1, NULL,
+			    "failed to open file %s: %s",
+			    file, strerror(errno));
+			goto done;
+		}
+		if ((e = elf_begin(efd, ELF_C_RDWR, NULL)) == NULL) {
+			close(efd);
+			ret = dt_link_error(dtp, NULL, -1, NULL,
+			    "failed to open elf file: %s",
+			    elf_errmsg(elf_errno()));
+			goto done;
+		}
+		/*
+		 * Add the string '.SUWN_dof' to the shstrtab section.
+		 */
+#ifdef BROKEN_LIBELF
+		elf_flagelf(e, ELF_C_SET, ELF_F_LAYOUT);
+#endif
+		elf_getshdrstrndx(e, &stridx);
+		scn = elf_getscn(e, stridx);
+		gelf_getshdr(scn, &shdr);
+		data = elf_newdata(scn);
+		data->d_off = shdr.sh_size;
+		data->d_buf = ".SUNW_dof";
+		data->d_size = 10;
+		data->d_type = ELF_T_BYTE;
+		loc = shdr.sh_size;
+		shdr.sh_size += data->d_size;
+		gelf_update_shdr(scn, &shdr);
+#ifdef BROKEN_LIBELF
+		off = shdr.sh_offset;
+		rc = shdr.sh_offset + shdr.sh_size;
+		gelf_getehdr(e, &ehdr);
+		if (ehdr.e_shoff > off) {
+			off = ehdr.e_shoff + ehdr.e_shnum * ehdr.e_shentsize;
+			rc = roundup(rc, 8);
+			ehdr.e_shoff = rc;
+			gelf_update_ehdr(e, &ehdr);
+			rc += ehdr.e_shnum * ehdr.e_shentsize;
+		}
+		for (;;) {
+			scn0 = NULL;
+			scn = NULL;
+			while ((scn = elf_nextscn(e, scn)) != NULL) {
+				gelf_getshdr(scn, &shdr);
+				if (shdr.sh_type == SHT_NOBITS ||
+				    shdr.sh_offset < off)
+					continue;
+				/* Find the immediately adjcent section. */
+				if (scn0 == NULL ||
+				    shdr.sh_offset < shdr0.sh_offset) {
+					scn0 = scn;
+					gelf_getshdr(scn0, &shdr0);
+				}
+			}
+			if (scn0 == NULL)
+				break;
+			/* Load section data to work around another bug */
+			elf_getdata(scn0, NULL);
+			/* Update section header, assure section alignment */
+			off = shdr0.sh_offset + shdr0.sh_size;
+			rc = roundup(rc, shdr0.sh_addralign);
+			shdr0.sh_offset = rc;
+			gelf_update_shdr(scn0, &shdr0);
+			rc += shdr0.sh_size;
+		}
+		if (elf_update(e, ELF_C_WRITE) < 0) {
+			ret = dt_link_error(dtp, NULL, -1, NULL,
+			    "failed to add append the shstrtab section: %s",
+			    elf_errmsg(elf_errno()));
+			elf_end(e);
+			close(efd);
+			goto done;
+		}
+		elf_end(e);
+		e = elf_begin(efd, ELF_C_RDWR, NULL);
+#endif
+		/*
+		 * Construct the .SUNW_dof section.
+		 */
+		scn = elf_newscn(e);
+		data = elf_newdata(scn);
+		buf = mmap(NULL, dof->dofh_filesz, PROT_READ, MAP_SHARED,
+		    fd, 0);
+		if (buf == MAP_FAILED) {
+			ret = dt_link_error(dtp, NULL, -1, NULL,
+			    "failed to mmap buffer %s", strerror(errno));
+			elf_end(e);
+			close(efd);
+			goto done;
+		}
+		data->d_buf = buf;
+		data->d_align = 4;
+		data->d_size = dof->dofh_filesz;
+		data->d_version = EV_CURRENT;
+		gelf_getshdr(scn, &shdr);
+		shdr.sh_name = loc;
+		shdr.sh_flags = SHF_ALLOC;
+		/*
+		 * Actually this should be SHT_SUNW_dof, but FreeBSD's ld(1)
+		 * will remove this 'unknown' section when we try to create an
+		 * executable using the object we are modifying, so we stop
+		 * playing by the rules and use SHT_PROGBITS.
+		 * Also, note that our drti has modifications to handle this.
+		 */
+		shdr.sh_type = SHT_PROGBITS;
+		shdr.sh_addralign = 4;
+		gelf_update_shdr(scn, &shdr);
+		if (elf_update(e, ELF_C_WRITE) < 0) {
+			ret = dt_link_error(dtp, NULL, -1, NULL,
+			    "failed to add the SUNW_dof section: %s",
+			    elf_errmsg(elf_errno()));
+			munmap(buf, dof->dofh_filesz);
+			elf_end(e);
+			close(efd);
+			goto done;
+		}
+		munmap(buf, dof->dofh_filesz);
+		elf_end(e);
+		close(efd);
+#endif
+		(void) close(fd); /* release temporary file */
 	} else {
 		(void) close(fd);
 	}

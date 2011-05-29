@@ -121,7 +121,6 @@ struct vnode {
 		struct socket	*vu_socket;	/* v unix domain net (VSOCK) */
 		struct cdev	*vu_cdev; 	/* v device (VCHR, VBLK) */
 		struct fifoinfo	*vu_fifoinfo;	/* v fifo (VFIFO) */
-		int		vu_yield;	/*   yield count (VMARKER) */
 	} v_un;
 
 	/*
@@ -177,7 +176,6 @@ struct vnode {
 #define	v_socket	v_un.vu_socket
 #define	v_rdev		v_un.vu_cdev
 #define	v_fifoinfo	v_un.vu_fifoinfo
-#define	v_yield		v_un.vu_yield
 
 /* XXX: These are temporary to avoid a source sweep at this time */
 #define v_object	v_bufobj.bo_object
@@ -243,6 +241,7 @@ struct xvnode {
 #define	VV_ROOT		0x0001	/* root of its filesystem */
 #define	VV_ISTTY	0x0002	/* vnode represents a tty */
 #define	VV_NOSYNC	0x0004	/* unlinked, stop syncing */
+#define	VV_ETERNALDEV	0x0008	/* device that is never destroyed */
 #define	VV_CACHEDLABEL	0x0010	/* Vnode has valid cached MAC label */
 #define	VV_TEXT		0x0020	/* vnode is a pure text prototype */
 #define	VV_COPYONWRITE	0x0040	/* vnode is doing copy-on-write */
@@ -409,7 +408,6 @@ extern	struct vnode *rootvnode;	/* root (i.e. "/") vnode */
 extern	int async_io_version;		/* 0 or POSIX version of AIO i'face */
 extern	int desiredvnodes;		/* number of vnodes desired */
 extern	struct uma_zone *namei_zone;
-extern	int prtactive;			/* nonzero to call vprint() */
 extern	struct vattr va_null;		/* predefined null vattr structure */
 
 #define	VI_LOCK(vp)	mtx_lock(&(vp)->v_interlock)
@@ -418,10 +416,8 @@ extern	struct vattr va_null;		/* predefined null vattr structure */
 #define	VI_UNLOCK(vp)	mtx_unlock(&(vp)->v_interlock)
 #define	VI_MTX(vp)	(&(vp)->v_interlock)
 
-#define	VN_LOCK_AREC(vp)						\
-	((vp)->v_vnlock->lock_object.lo_flags |= LO_RECURSABLE)
-#define	VN_LOCK_ASHARE(vp)						\
-	((vp)->v_vnlock->lock_object.lo_flags &= ~LK_NOSHARE)
+#define	VN_LOCK_AREC(vp)	lockallowrecurse((vp)->v_vnlock)
+#define	VN_LOCK_ASHARE(vp)	lockallowshare((vp)->v_vnlock)
 
 #endif /* _KERNEL */
 
@@ -524,17 +520,17 @@ void	assert_vop_unlocked(struct vnode *vp, const char *str);
 
 #else /* !DEBUG_VFS_LOCKS */
 
-#define	ASSERT_VI_LOCKED(vp, str)
-#define	ASSERT_VI_UNLOCKED(vp, str)
-#define	ASSERT_VOP_ELOCKED(vp, str)
+#define	ASSERT_VI_LOCKED(vp, str)	((void)0)
+#define	ASSERT_VI_UNLOCKED(vp, str)	((void)0)
+#define	ASSERT_VOP_ELOCKED(vp, str)	((void)0)
 #if 0
 #define	ASSERT_VOP_ELOCKED_OTHER(vp, str)
 #endif
-#define	ASSERT_VOP_LOCKED(vp, str)
+#define	ASSERT_VOP_LOCKED(vp, str)	((void)0)
 #if 0
 #define	ASSERT_VOP_SLOCKED(vp, str)
 #endif
-#define	ASSERT_VOP_UNLOCKED(vp, str)
+#define	ASSERT_VOP_UNLOCKED(vp, str)	((void)0)
 #endif /* DEBUG_VFS_LOCKS */
 
 
@@ -655,6 +651,8 @@ int	vn_rdwr_inchunks(enum uio_rw rw, struct vnode *vp, void *base,
 	    size_t len, off_t offset, enum uio_seg segflg, int ioflg,
 	    struct ucred *active_cred, struct ucred *file_cred, size_t *aresid,
 	    struct thread *td);
+int	vn_rlimit_fsize(const struct vnode *vn, const struct uio *uio,
+	    const struct thread *td);
 int	vn_stat(struct vnode *vp, struct stat *sb, struct ucred *active_cred,
 	    struct ucred *file_cred, struct thread *td);
 int	vn_start_write(struct vnode *vp, struct mount **mpp, int flags);
@@ -669,6 +667,7 @@ int	vn_extattr_rm(struct vnode *vp, int ioflg, int attrnamespace,
 	    const char *attrname, struct thread *td);
 int	vn_vget_ino(struct vnode *vp, ino_t ino, int lkflags,
 	    struct vnode **rvp);
+
 
 int	vfs_cache_lookup(struct vop_lookup_args *ap);
 void	vfs_timestamp(struct timespec *);
@@ -689,6 +688,8 @@ int	vop_stdaccess(struct vop_access_args *ap);
 int	vop_stdaccessx(struct vop_accessx_args *ap);
 int	vop_stdadvlock(struct vop_advlock_args *ap);
 int	vop_stdadvlockasync(struct vop_advlockasync_args *ap);
+int	vop_stdadvlockpurge(struct vop_advlockpurge_args *ap);
+int	vop_stdallocate(struct vop_allocate_args *ap);
 int	vop_stdpathconf(struct vop_pathconf_args *);
 int	vop_stdpoll(struct vop_poll_args *);
 int	vop_stdvptocnp(struct vop_vptocnp_args *ap);
@@ -719,6 +720,8 @@ void	vop_strategy_pre(void *a);
 void	vop_symlink_post(void *a, int rc);
 void	vop_unlock_post(void *a, int rc);
 void	vop_unlock_pre(void *a);
+
+void	vop_rename_fail(struct vop_rename_args *ap);
 
 #define	VOP_WRITE_PRE(ap)						\
 	struct vattr va;						\

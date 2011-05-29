@@ -1,4 +1,4 @@
-/* $OpenBSD: jpake.c,v 1.2 2009/03/05 07:18:19 djm Exp $ */
+/* $OpenBSD: jpake.c,v 1.6 2010/09/20 04:54:07 djm Exp $ */
 /*
  * Copyright (c) 2008 Damien Miller.  All rights reserved.
  *
@@ -45,6 +45,7 @@
 #include "packet.h"
 #include "dispatch.h"
 #include "log.h"
+#include "misc.h"
 
 #include "jpake.h"
 #include "schnorr.h"
@@ -257,8 +258,12 @@ jpake_step2(struct modp_group *grp, BIGNUM *s,
 	/* Validate peer's step 1 values */
 	if (BN_cmp(theirpub1, BN_value_one()) <= 0)
 		fatal("%s: theirpub1 <= 1", __func__);
+	if (BN_cmp(theirpub1, grp->p) >= 0)
+		fatal("%s: theirpub1 >= p", __func__);
 	if (BN_cmp(theirpub2, BN_value_one()) <= 0)
 		fatal("%s: theirpub2 <= 1", __func__);
+	if (BN_cmp(theirpub2, grp->p) >= 0)
+		fatal("%s: theirpub2 >= p", __func__);
 
 	if (schnorr_verify_buf(grp->p, grp->q, grp->g, theirpub1,
 	    theirid, theirid_len, theirpub1_proof, theirpub1_proof_len) != 1)
@@ -363,6 +368,8 @@ jpake_key_confirm(struct modp_group *grp, BIGNUM *s, BIGNUM *step2_val,
 	/* Validate step 2 values */
 	if (BN_cmp(step2_val, BN_value_one()) <= 0)
 		fatal("%s: step2_val <= 1", __func__);
+	if (BN_cmp(step2_val, grp->p) >= 0)
+		fatal("%s: step2_val >= p", __func__);
 
 	/*
 	 * theirpriv2_s_proof is calculated with a different generator:
@@ -434,7 +441,7 @@ jpake_check_confirm(const BIGNUM *k,
 	if (peer_confirm_hash_len != expected_confirm_hash_len)
 		error("%s: confirmation length mismatch (my %u them %u)",
 		    __func__, expected_confirm_hash_len, peer_confirm_hash_len);
-	else if (memcmp(peer_confirm_hash, expected_confirm_hash,
+	else if (timingsafe_bcmp(peer_confirm_hash, expected_confirm_hash,
 	    expected_confirm_hash_len) == 0)
 		success = 1;
 	bzero(expected_confirm_hash, expected_confirm_hash_len);

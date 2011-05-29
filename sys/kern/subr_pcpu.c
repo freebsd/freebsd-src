@@ -53,7 +53,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysctl.h>
-#include <sys/linker_set.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/pcpu.h>
@@ -125,7 +124,7 @@ dpcpu_startup(void *dummy __unused)
 
 	df = malloc(sizeof(*df), M_PCPU, M_WAITOK | M_ZERO);
 	df->df_start = (uintptr_t)&DPCPU_NAME(modspace);
-	df->df_len = DPCPU_MODSIZE;
+	df->df_len = DPCPU_MODMIN;
 	TAILQ_INSERT_HEAD(&dpcpu_head, df, df_link);
 	sx_init(&dpcpu_lock, "dpcpu alloc lock");
 }
@@ -317,9 +316,7 @@ DB_SHOW_COMMAND(dpcpu_off, db_show_dpcpu_off)
 {
 	int id;
 
-	for (id = 0; id <= mp_maxid; id++) {
-		if (CPU_ABSENT(id))
-			continue;
+	CPU_FOREACH(id) {
 		db_printf("dpcpu_off[%2d] = 0x%jx (+ DPCPU_START = %p)\n",
 		    id, (uintmax_t)dpcpu_off[id],
 		    (void *)(uintptr_t)(dpcpu_off[id] + DPCPU_START));
@@ -332,7 +329,7 @@ show_pcpu(struct pcpu *pc)
 	struct thread *td;
 
 	db_printf("cpuid        = %d\n", pc->pc_cpuid);
-	db_printf("dynamic pcpu	= %p\n", (void *)pc->pc_dynamic);
+	db_printf("dynamic pcpu = %p\n", (void *)pc->pc_dynamic);
 	db_printf("curthread    = ");
 	td = pc->pc_curthread;
 	if (td != NULL)
@@ -351,19 +348,18 @@ show_pcpu(struct pcpu *pc)
 	db_printf("idlethread   = ");
 	td = pc->pc_idlethread;
 	if (td != NULL)
-		db_printf("%p: pid %d \"%s\"\n", td, td->td_proc->p_pid,
-		    td->td_name);
+		db_printf("%p: tid %d \"%s\"\n", td, td->td_tid, td->td_name);
 	else
 		db_printf("none\n");
 	db_show_mdpcpu(pc);
-		
+
 #ifdef VIMAGE
 	db_printf("curvnet      = %p\n", pc->pc_curthread->td_vnet);
 #endif
 
 #ifdef WITNESS
 	db_printf("spin locks held:\n");
-	witness_list_locks(&pc->pc_spinlocks);
+	witness_list_locks(&pc->pc_spinlocks, db_printf);
 #endif
 }
 

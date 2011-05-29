@@ -50,7 +50,7 @@ struct mdthread {
 	register_t md_saved_cspr;	/* (k) */
 	int md_ptrace_instr;
 	int md_ptrace_addr;
-	void *md_tp;
+	register_t md_tp;
 	void *md_ras_start;
 	void *md_ras_end;
 };
@@ -59,5 +59,7 @@ struct mdproc {
 	struct	md_utrap *md_utrap;
 	void	*md_sigtramp;
 };
+
+#define	KINFO_PROC_SIZE 792
 
 #endif /* !_MACHINE_PROC_H_ */

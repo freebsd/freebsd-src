@@ -445,7 +445,7 @@ nfsrv_setacl(vnode_t vp, NFSACL_T *aclp, struct ucred *cred,
 {
 	int error;
 
-	if (nfsrv_useacl == 0 || !NFSHASNFS4ACL(vnode_mount(vp)))
+	if (nfsrv_useacl == 0 || nfs_supportsnfsv4acls(vp) == 0)
 		return (NFSERR_ATTRNOTSUPP);
 	/*
 	 * With NFSv4 ACLs, chmod(2) may need to add additional entries.

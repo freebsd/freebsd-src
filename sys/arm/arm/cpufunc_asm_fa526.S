@@ -32,7 +32,11 @@
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
+#ifdef CPU_FA526
 #define	CACHELINE_SIZE	16
+#else
+#define	CACHELINE_SIZE	32
+#endif
 
 ENTRY(fa526_setttb)
 	mov	r1, #0

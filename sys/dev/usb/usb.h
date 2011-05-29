@@ -208,6 +208,7 @@ typedef struct usb_device_request usb_device_request_t;
 #define	UDESC_CS_INTERFACE	0x24
 #define	UDESC_CS_ENDPOINT	0x25
 #define	UDESC_HUB		0x29
+#define	UDESC_SS_HUB		0x2A	/* super speed */
 #define	UDESC_ENDPOINT_SS_COMP	0x30	/* super speed */
 #define	UR_SET_DESCRIPTOR	0x07
 #define	UR_GET_CONFIG		0x08
@@ -225,6 +226,7 @@ typedef struct usb_device_request usb_device_request_t;
 #define	UR_GET_TT_STATE		0x0a
 #define	UR_STOP_TT		0x0b
 #define	UR_SET_HUB_DEPTH	0x0c
+#define	USB_SS_HUB_DEPTH_MAX	5
 #define	UR_GET_PORT_ERR_COUNT	0x0d
 
 /* Feature numbers */
@@ -332,7 +334,7 @@ struct usb_devcap_ss_descriptor {
 	uByte	bDevCapabilityType;
 	uByte	bmAttributes;
 	uWord	wSpeedsSupported;
-	uByte	bFunctionaltySupport;
+	uByte	bFunctionalitySupport;
 	uByte	bU1DevExitLat;
 	uByte	bU2DevExitLat;
 } __packed;
@@ -343,7 +345,7 @@ struct usb_devcap_container_id_descriptor {
 	uByte	bDescriptorType;
 	uByte	bDevCapabilityType;
 	uByte	bReserved;
-	uByte	ContainerID;
+	uByte	bContainerID;
 } __packed;
 typedef struct usb_devcap_container_id_descriptor
 		usb_devcap_container_id_descriptor_t;
@@ -356,6 +358,7 @@ typedef struct usb_devcap_container_id_descriptor
 #define	UDPROTO_FSHUB		0x00
 #define	UDPROTO_HSHUBSTT	0x01
 #define	UDPROTO_HSHUBMTT	0x02
+#define	UDPROTO_SSHUB		0x03
 #define	UDCLASS_DIAGNOSTIC	0xdc
 #define	UDCLASS_WIRELESS	0xe0
 #define	UDSUBCLASS_RF		0x01
@@ -533,7 +536,7 @@ typedef struct usb_endpoint_descriptor usb_endpoint_descriptor_t;
 struct usb_endpoint_ss_comp_descriptor {
 	uByte	bLength;
 	uByte	bDescriptorType;
-	uWord	bMaxBurst;
+	uByte	bMaxBurst;
 	uByte	bmAttributes;
 	uWord	wBytesPerInterval;
 } __packed;
@@ -591,15 +594,15 @@ struct usb_hub_descriptor {
 typedef struct usb_hub_descriptor usb_hub_descriptor_t;
 
 struct usb_hub_ss_descriptor {
-	uByte	bDescLength;
+	uByte	bLength;
 	uByte	bDescriptorType;
-	uByte	bNbrPorts;		/* max 15 */
+	uByte	bNbrPorts;
 	uWord	wHubCharacteristics;
 	uByte	bPwrOn2PwrGood;		/* delay in 2 ms units */
 	uByte	bHubContrCurrent;
 	uByte	bHubHdrDecLat;
 	uWord	wHubDelay;
-	uByte	DeviceRemovable[2];	/* max 15 ports */
+	uByte	DeviceRemovable[32];	/* max 255 ports */
 } __packed;
 typedef struct usb_hub_ss_descriptor usb_hub_ss_descriptor_t;
 
@@ -668,9 +671,25 @@ struct usb_port_status {
 #define	UPS_SUSPEND			0x0004
 #define	UPS_OVERCURRENT_INDICATOR	0x0008
 #define	UPS_RESET			0x0010
+/* The link-state bits are valid for Super-Speed USB HUBs */
+#define	UPS_PORT_LINK_STATE_GET(x)	(((x) >> 5) & 0xF)
+#define	UPS_PORT_LINK_STATE_SET(x)	(((x) & 0xF) << 5)
+#define	UPS_PORT_LS_U0		0x00
+#define	UPS_PORT_LS_U1		0x01
+#define	UPS_PORT_LS_U2		0x02
+#define	UPS_PORT_LS_U3		0x03
+#define	UPS_PORT_LS_SS_DIS	0x04
+#define	UPS_PORT_LS_RX_DET	0x05
+#define	UPS_PORT_LS_SS_INA	0x06
+#define	UPS_PORT_LS_POLL	0x07
+#define	UPS_PORT_LS_RECOVER	0x08
+#define	UPS_PORT_LS_HOT_RST	0x09
+#define	UPS_PORT_LS_COMP_MODE	0x0A
+#define	UPS_PORT_LS_LOOPBACK	0x0B
 #define	UPS_PORT_POWER			0x0100
 #define	UPS_LOW_SPEED			0x0200
 #define	UPS_HIGH_SPEED			0x0400
+#define	UPS_OTHER_SPEED			0x0600	/* currently FreeBSD specific */
 #define	UPS_PORT_TEST			0x0800
 #define	UPS_PORT_INDICATOR		0x1000
 #define	UPS_PORT_MODE_DEVICE		0x8000	/* currently FreeBSD specific */
@@ -680,6 +699,9 @@ struct usb_port_status {
 #define	UPS_C_SUSPEND			0x0004
 #define	UPS_C_OVERCURRENT_INDICATOR	0x0008
 #define	UPS_C_PORT_RESET		0x0010
+#define	UPS_C_BH_PORT_RESET		0x0020
+#define	UPS_C_PORT_LINK_STATE		0x0040
+#define	UPS_C_PORT_CONFIG_ERROR		0x0080
 } __packed;
 typedef struct usb_port_status usb_port_status_t;
 

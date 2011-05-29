@@ -17,13 +17,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the NetBSD
- *	Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -49,11 +42,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by Manuel Bouyer.
- * 4. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -118,12 +106,19 @@ DRIVER_MODULE(lxtphy, miibus, lxtphy_driver, lxtphy_devclass, 0, 0);
 
 static int	lxtphy_service(struct mii_softc *, struct mii_data *, int);
 static void	lxtphy_status(struct mii_softc *);
+static void	lxtphy_reset(struct mii_softc *);
 static void	lxtphy_set_tp(struct mii_softc *);
 static void	lxtphy_set_fx(struct mii_softc *);
 
 static const struct mii_phydesc lxtphys[] = {
 	MII_PHY_DESC(xxLEVEL1, LXT970),
 	MII_PHY_END
+};
+
+static const struct mii_phy_funcs lxtphy_funcs = {
+	lxtphy_service,
+	lxtphy_status,
+	lxtphy_reset
 };
 
 static int
@@ -137,39 +132,17 @@ static int
 lxtphy_attach(device_t dev)
 {
 	struct mii_softc *sc;
-	struct mii_attach_args *ma;
-	struct mii_data *mii;
-	const char *nic;
 
 	sc = device_get_softc(dev);
-	ma = device_get_ivars(dev);
-	sc->mii_dev = device_get_parent(dev);
-	mii = device_get_softc(sc->mii_dev);
-	LIST_INSERT_HEAD(&mii->mii_phys, sc, mii_list);
 
-	sc->mii_inst = mii->mii_instance;
-	sc->mii_phy = ma->mii_phyno;
-	sc->mii_service = lxtphy_service;
-	sc->mii_pdata = mii;
+	mii_phy_dev_attach(dev, MIIF_NOMANPAUSE, &lxtphy_funcs, 0);
 
-	mii->mii_instance++;
+	PHY_RESET(sc);
 
-	mii_phy_reset(sc);
-
-	sc->mii_capabilities =
-	    PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
+	sc->mii_capabilities = PHY_READ(sc, MII_BMSR) & sc->mii_capmask;
 	device_printf(dev, " ");
 
-	/*
-	 * On Apple BMAC controllers, we end up in a weird state
-	 * of partially-completed autonegotiation on boot. So
-	 * force autonegotation to try again.
-	 */
-	nic = device_get_name(device_get_parent(sc->mii_dev));
-	if (strcmp(nic, "bm") == 0)
-		sc->mii_flags |= MIIF_FORCEANEG | MIIF_NOISOLATE;
-
-#define	ADD(m, c)	ifmedia_add(&mii->mii_media, (m), (c), NULL)
+#define	ADD(m, c)	ifmedia_add(&sc->mii_pdata->mii_media, (m), (c), NULL)
 	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_FX, 0, sc->mii_inst),
 	    MII_MEDIA_100_TX);
 	printf("100baseFX, ");
@@ -189,28 +162,12 @@ static int
 lxtphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 {
 	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
-	int reg;
 
 	switch (cmd) {
 	case MII_POLLSTAT:
-		/*
-		 * If we're not polling our PHY instance, just return.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst)
-			return (0);
 		break;
 
 	case MII_MEDIACHG:
-		/*
-		 * If the media indicates a different PHY instance,
-		 * isolate ourselves.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst) {
-			reg = PHY_READ(sc, MII_BMCR);
-			PHY_WRITE(sc, MII_BMCR, reg | BMCR_ISO);
-			return (0);
-		}
-
 		/*
 		 * If the interface is not up, don't do anything.
 		 */
@@ -226,18 +183,13 @@ lxtphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		break;
 
 	case MII_TICK:
-		/*
-		 * If we're not currently selected, just return.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst)
-			return (0);
 		if (mii_phy_tick(sc) == EJUSTRETURN)
 			return (0);
 		break;
 	}
 
 	/* Update the media status. */
-	lxtphy_status(sc);
+	PHY_STATUS(sc);
 
 	/* Callback if something changed. */
 	mii_phy_update(sc, cmd);
@@ -285,9 +237,21 @@ lxtphy_status(struct mii_softc *sc)
 		else
 			mii->mii_media_active |= IFM_10_T;
 		if (csr & CSR_DUPLEX)
-			mii->mii_media_active |= IFM_FDX;
+			mii->mii_media_active |=
+			    IFM_FDX | mii_phy_flowstatus(sc);
+		else
+			mii->mii_media_active |= IFM_HDX;
 	} else
 		mii->mii_media_active = ife->ifm_media;
+}
+
+static void
+lxtphy_reset(struct mii_softc *sc)
+{
+
+	mii_phy_reset(sc);
+	PHY_WRITE(sc, MII_LXTPHY_IER,
+	    PHY_READ(sc, MII_LXTPHY_IER) & ~IER_INTEN);
 }
 
 static void

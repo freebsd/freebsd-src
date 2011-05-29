@@ -1,6 +1,6 @@
 /*
- * hostapd / RADIUS message processing
- * Copyright (c) 2002-2007, Jouni Malinen <j@w1.fi>
+ * RADIUS message processing
+ * Copyright (c) 2002-2009, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -173,21 +173,7 @@ struct radius_ms_mppe_keys {
 };
 
 
-/* RADIUS message structure for new and parsed messages */
-struct radius_msg {
-	unsigned char *buf;
-	size_t buf_size; /* total size allocated for buf */
-	size_t buf_used; /* bytes used in buf */
-
-	struct radius_hdr *hdr;
-
-	size_t *attr_pos; /* array of indexes to attributes (number of bytes
-			   * from buf to the beginning of
-			   * struct radius_attr_hdr). */
-	size_t attr_size; /* total size of the attribute pointer array */
-	size_t attr_used; /* total number of attributes in the array */
-};
-
+struct radius_msg;
 
 /* Default size to be allocated for new RADIUS messages */
 #define RADIUS_DEFAULT_MSG_SIZE 1024
@@ -202,9 +188,9 @@ struct radius_msg {
 /* MAC address ASCII format for non-802.1X use */
 #define RADIUS_ADDR_FORMAT "%02x%02x%02x%02x%02x%02x"
 
-struct radius_msg *radius_msg_new(u8 code, u8 identifier);
-int radius_msg_initialize(struct radius_msg *msg, size_t init_len);
-void radius_msg_set_hdr(struct radius_msg *msg, u8 code, u8 identifier);
+struct radius_hdr * radius_msg_get_hdr(struct radius_msg *msg);
+struct wpabuf * radius_msg_get_buf(struct radius_msg *msg);
+struct radius_msg * radius_msg_new(u8 code, u8 identifier);
 void radius_msg_free(struct radius_msg *msg);
 void radius_msg_dump(struct radius_msg *msg);
 int radius_msg_finish(struct radius_msg *msg, const u8 *secret,
@@ -213,9 +199,9 @@ int radius_msg_finish_srv(struct radius_msg *msg, const u8 *secret,
 			  size_t secret_len, const u8 *req_authenticator);
 void radius_msg_finish_acct(struct radius_msg *msg, const u8 *secret,
 			    size_t secret_len);
-struct radius_attr_hdr *radius_msg_add_attr(struct radius_msg *msg, u8 type,
-					    const u8 *data, size_t data_len);
-struct radius_msg *radius_msg_parse(const u8 *data, size_t len);
+struct radius_attr_hdr * radius_msg_add_attr(struct radius_msg *msg, u8 type,
+					     const u8 *data, size_t data_len);
+struct radius_msg * radius_msg_parse(const u8 *data, size_t len);
 int radius_msg_add_eap(struct radius_msg *msg, const u8 *data,
 		       size_t data_len);
 u8 *radius_msg_get_eap(struct radius_msg *msg, size_t *len);
@@ -268,5 +254,20 @@ static inline int radius_msg_get_attr_int32(struct radius_msg *msg, u8 type,
 int radius_msg_get_attr_ptr(struct radius_msg *msg, u8 type, u8 **buf,
 			    size_t *len, const u8 *start);
 int radius_msg_count_attr(struct radius_msg *msg, u8 type, int min_len);
+
+
+struct radius_attr_data {
+	u8 *data;
+	size_t len;
+};
+
+struct radius_class_data {
+	struct radius_attr_data *attr;
+	size_t count;
+};
+
+void radius_free_class(struct radius_class_data *c);
+int radius_copy_class(struct radius_class_data *dst,
+		      const struct radius_class_data *src);
 
 #endif /* RADIUS_H */

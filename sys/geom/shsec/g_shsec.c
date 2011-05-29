@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <geom/geom.h>
 #include <geom/shsec/g_shsec.h>
 
+FEATURE(geom_shsec, "GEOM shared secret device support");
 
 static MALLOC_DEFINE(M_SHSEC, "shsec_data", "GEOM_SHSEC Data");
 
@@ -545,8 +546,6 @@ g_shsec_create(struct g_class *mp, const struct g_shsec_metadata *md)
 		}
 	}
 	gp = g_new_geomf(mp, "%s", md->md_name);
-	gp->softc = NULL;	/* for a moment */
-
 	sc = malloc(sizeof(*sc), M_SHSEC, M_WAITOK | M_ZERO);
 	gp->start = g_shsec_start;
 	gp->spoiled = g_shsec_orphan;
@@ -672,7 +671,8 @@ g_shsec_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	if (md.md_version < 1)
 		md.md_provsize = pp->mediasize;
 
-	if (md.md_provider[0] != '\0' && strcmp(md.md_provider, pp->name) != 0)
+	if (md.md_provider[0] != '\0' &&
+	    !g_compare_names(md.md_provider, pp->name))
 		return (NULL);
 	if (md.md_provsize != pp->mediasize)
 		return (NULL);

@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 21, 2008
+.Dd March 13, 2011
 .Dt IP6 4
 .Os
 .Sh NAME
@@ -232,12 +232,13 @@ The following values are available:
 .Bl -tag -width IPV6_PORTRANGE_DEFAULT -compact
 .It Dv IPV6_PORTRANGE_DEFAULT
 Use the regular range of non-reserved ports (varies, see
-.Xr sysctl 8 ) .
+.Xr ip 4 ) .
 .It Dv IPV6_PORTRANGE_HIGH
 Use a high range (varies, see
-.Xr sysctl 8 ) .
+.Xr ip 4 ) .
 .It Dv IPV6_PORTRANGE_LOW
-Use a low, reserved range (600\-1023).
+Use a low, reserved range (600\-1023, see
+.Xr ip 4 ) .
 .El
 .It Dv IPV6_PKTINFO Fa "int *"
 Get or set whether additional information about subsequent packets will
@@ -655,6 +656,7 @@ An ancillary data object was improperly formed.
 .Xr if_nametoindex 3 ,
 .Xr bpf 4 ,
 .Xr icmp6 4 ,
+.Xr ip 4 ,
 .Xr inet6 4 ,
 .Xr netintro 4 ,
 .Xr tcp 4 ,

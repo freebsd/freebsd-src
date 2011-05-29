@@ -39,7 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -259,13 +258,6 @@ ehci_ixp_detach(device_t self)
 	}
 	/* during module unload there are lots of children leftover */
 	device_delete_all_children(self);
-
-	/*
-	 * disable interrupts that might have been switched on in ehci_init
-	 */
-	if (sc->sc_io_res) {
-		EWRITE4(sc, EHCI_USBINTR, 0);
-	}
 
  	if (sc->sc_irq_res && sc->sc_intr_hdl) {
 		/*

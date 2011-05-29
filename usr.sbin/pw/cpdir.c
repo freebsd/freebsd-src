@@ -41,6 +41,7 @@ static const char rcsid[] =
 #include <sys/param.h>
 #include <dirent.h>
 
+#include "pw.h"
 #include "pwupd.h"
 
 void
@@ -81,7 +82,7 @@ copymkdir(char const * dir, char const * skel, mode_t mode, uid_t uid, gid_t gid
 						else {
 						    if (S_ISDIR(st.st_mode)) {	/* Recurse for this */
 							if (strcmp(e->d_name, ".") != 0 && strcmp(e->d_name, "..") != 0)
-								copymkdir(dst, src, (st.st_mode & 0777), uid, gid);
+								copymkdir(dst, src, st.st_mode & _DEF_DIRMODE, uid, gid);
 								chflags(dst, st.st_flags);	/* propogate flags */
 						    } else if (S_ISLNK(st.st_mode) && (len = readlink(src, lnk, sizeof(lnk))) != -1) {
 							lnk[len] = '\0';

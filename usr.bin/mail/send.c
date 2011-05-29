@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -56,11 +52,8 @@ __FBSDID("$FreeBSD$");
  * prefix is a string to prepend to each output line.
  */
 int
-sendmessage(mp, obuf, doign, prefix)
-	struct message *mp;
-	FILE *obuf;
-	struct ignoretab *doign;
-	char *prefix;
+sendmessage(struct message *mp, FILE *obuf, struct ignoretab *doign,
+	char *prefix)
 {
 	long count;
 	FILE *ibuf;
@@ -231,10 +224,7 @@ sendmessage(mp, obuf, doign, prefix)
  * Output a reasonable looking status field.
  */
 void
-statusput(mp, obuf, prefix)
-	struct message *mp;
-	FILE *obuf;
-	char *prefix;
+statusput(struct message *mp, FILE *obuf, char *prefix)
 {
 	char statout[3];
 	char *cp = statout;
@@ -254,9 +244,8 @@ statusput(mp, obuf, prefix)
  * which does all the dirty work.
  */
 int
-mail(to, cc, bcc, smopts, subject, replyto)
-	struct name *to, *cc, *bcc, *smopts;
-	char *subject, *replyto;
+mail(struct name *to, struct name *cc, struct name *bcc, struct name *smopts,
+	char *subject, char *replyto)
 {
 	struct header head;
 
@@ -277,8 +266,7 @@ mail(to, cc, bcc, smopts, subject, replyto)
  * the mail routine below.
  */
 int
-sendmail(str)
-	char *str;
+sendmail(char *str)
 {
 	struct header head;
 
@@ -298,9 +286,7 @@ sendmail(str)
  * in the passed header.  (Internal interface).
  */
 void
-mail1(hp, printheaders)
-	struct header *hp;
-	int printheaders;
+mail1(struct header *hp, int printheaders)
 {
 	char *cp;
 	char *nbuf;
@@ -437,9 +423,7 @@ out:
  * the distribution list into the appropriate fields.
  */
 void
-fixhead(hp, tolist)
-	struct header *hp;
-	struct name *tolist;
+fixhead(struct header *hp, struct name *tolist)
 {
 	struct name *np;
 
@@ -467,9 +451,7 @@ fixhead(hp, tolist)
  * and return the new file.
  */
 FILE *
-infix(hp, fi)
-	struct header *hp;
-	FILE *fi;
+infix(struct header *hp, FILE *fi)
 {
 	FILE *nfo, *nfi;
 	int c, fd;
@@ -520,10 +502,7 @@ infix(hp, fi)
  * passed file buffer.
  */
 int
-puthead(hp, fo, w)
-	struct header *hp;
-	FILE *fo;
-	int w;
+puthead(struct header *hp, FILE *fo, int w)
 {
 	int gotcha;
 
@@ -549,11 +528,7 @@ puthead(hp, fo, w)
  * Format the given header line to not exceed 72 characters.
  */
 void
-fmt(str, np, fo, comma)
-	const char *str;
-	struct name *np;
-	FILE *fo;
-	int comma;
+fmt(const char *str, struct name *np, FILE *fo, int comma)
 {
 	int col, len;
 
@@ -585,9 +560,7 @@ fmt(str, np, fo, comma)
 
 /*ARGSUSED*/
 int
-savemail(name, fi)
-	char name[];
-	FILE *fi;
+savemail(char name[], FILE *fi)
 {
 	FILE *fo;
 	char buf[BUFSIZ];

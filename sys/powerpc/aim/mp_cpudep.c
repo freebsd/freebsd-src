@@ -55,6 +55,31 @@ static register_t bsp_state[8] __aligned(8);
 static void cpudep_save_config(void *dummy);
 SYSINIT(cpu_save_config, SI_SUB_CPU, SI_ORDER_ANY, cpudep_save_config, NULL);
 
+void
+cpudep_ap_early_bootstrap(void)
+{
+	register_t reg;
+
+	__asm __volatile("mtsprg 0, %0" :: "r"(ap_pcpu));
+	powerpc_sync();
+
+	switch (mfpvr() >> 16) {
+	case IBM970:
+	case IBM970FX:
+	case IBM970MP:
+		/* Restore HID4 and HID5, which are necessary for the MMU */
+
+		__asm __volatile("ld %0, 16(%2); sync; isync;	\
+		    mtspr %1, %0; sync; isync;"
+		    : "=r"(reg) : "K"(SPR_HID4), "r"(bsp_state));
+		__asm __volatile("ld %0, 24(%2); sync; isync;	\
+		    mtspr %1, %0; sync; isync;"
+		    : "=r"(reg) : "K"(SPR_HID5), "r"(bsp_state));
+		powerpc_sync();
+		break;
+	}
+}
+
 uintptr_t
 cpudep_ap_bootstrap(void)
 {
@@ -64,9 +89,6 @@ cpudep_ap_bootstrap(void)
 	mtmsr(msr);
 	isync();
 
-	__asm __volatile("mtsprg 0, %0" :: "r"(ap_pcpu));
-	powerpc_sync();
-
 	pcpup->pc_curthread = pcpup->pc_idlethread;
 	pcpup->pc_curpcb = pcpup->pc_curthread->td_pcb;
 	sp = pcpup->pc_curpcb->pcb_sp;
@@ -75,9 +97,21 @@ cpudep_ap_bootstrap(void)
 }
 
 static register_t
-mpc745x_l2_enable(register_t l2cr_config)
+mpc74xx_l2_enable(register_t l2cr_config)
 {
-	register_t ccr;
+	register_t ccr, bit;
+	uint16_t	vers;
+
+	vers = mfpvr() >> 16;
+	switch (vers) {
+	case MPC7400:
+	case MPC7410:
+		bit = L2CR_L2IP;
+		break;
+	default:
+		bit = L2CR_L2I;
+		break;
+	}
 
 	ccr = mfspr(SPR_L2CR);
 	if (ccr & L2CR_L2E)
@@ -88,7 +122,7 @@ mpc745x_l2_enable(register_t l2cr_config)
 	mtspr(SPR_L2CR, ccr | L2CR_L2I);
 	do {
 		ccr = mfspr(SPR_L2CR);
-	} while (ccr & L2CR_L2I);
+	} while (ccr & bit);
 	powerpc_sync();
 	mtspr(SPR_L2CR, l2cr_config);
 	powerpc_sync();
@@ -129,7 +163,7 @@ mpc745x_l3_enable(register_t l3cr_config)
 }
 
 static register_t
-mpc745x_l1d_enable(void)
+mpc74xx_l1d_enable(void)
 {
 	register_t hid;
 
@@ -147,7 +181,7 @@ mpc745x_l1d_enable(void)
 }
 
 static register_t
-mpc745x_l1i_enable(void)
+mpc74xx_l1i_enable(void)
 {
 	register_t hid;
 
@@ -175,6 +209,12 @@ cpudep_save_config(void *dummy)
 	case IBM970:
 	case IBM970FX:
 	case IBM970MP:
+		#ifdef __powerpc64__
+		bsp_state[0] = mfspr(SPR_HID0);
+		bsp_state[1] = mfspr(SPR_HID1);
+		bsp_state[2] = mfspr(SPR_HID4);
+		bsp_state[3] = mfspr(SPR_HID5);
+		#else
 		__asm __volatile ("mfspr %0,%2; mr %1,%0; srdi %0,%0,32"
 		    : "=r" (bsp_state[0]),"=r" (bsp_state[1]) : "K" (SPR_HID0));
 		__asm __volatile ("mfspr %0,%2; mr %1,%0; srdi %0,%0,32"
@@ -183,8 +223,24 @@ cpudep_save_config(void *dummy)
 		    : "=r" (bsp_state[4]),"=r" (bsp_state[5]) : "K" (SPR_HID4));
 		__asm __volatile ("mfspr %0,%2; mr %1,%0; srdi %0,%0,32"
 		    : "=r" (bsp_state[6]),"=r" (bsp_state[7]) : "K" (SPR_HID5));
+		#endif
 
 		powerpc_sync();
+
+		break;
+	case IBMCELLBE:
+		#ifdef NOTYET /* Causes problems if in instruction stream on 970 */
+		if (mfmsr() & PSL_HV) {
+			bsp_state[0] = mfspr(SPR_HID0);
+			bsp_state[1] = mfspr(SPR_HID1);
+			bsp_state[2] = mfspr(SPR_HID4);
+			bsp_state[3] = mfspr(SPR_HID6);
+
+			bsp_state[4] = mfspr(SPR_CELL_TSCR);
+		}
+		#endif
+
+		bsp_state[5] = mfspr(SPR_CELL_TSRL);
 
 		break;
 	case MPC7450:
@@ -247,6 +303,21 @@ cpudep_ap_setup()
 
 		powerpc_sync();
 		break;
+	case IBMCELLBE:
+		#ifdef NOTYET /* Causes problems if in instruction stream on 970 */
+		if (mfmsr() & PSL_HV) {
+			mtspr(SPR_HID0, bsp_state[0]);
+			mtspr(SPR_HID1, bsp_state[1]);
+			mtspr(SPR_HID4, bsp_state[2]);
+			mtspr(SPR_HID6, bsp_state[3]);
+
+			mtspr(SPR_CELL_TSCR, bsp_state[4]);
+		}
+		#endif
+
+		mtspr(SPR_CELL_TSRL, bsp_state[5]);
+
+		break;
 	case MPC7450:
 	case MPC7455:
 	case MPC7457:
@@ -267,9 +338,9 @@ cpudep_ap_setup()
 		mtspr(SPR_HID0, bsp_state[0]); isync();
 		mtspr(SPR_HID1, bsp_state[1]); isync();
 
-		reg = mpc745x_l2_enable(bsp_state[2]);
-		reg = mpc745x_l1d_enable();
-		reg = mpc745x_l1i_enable();
+		reg = mpc74xx_l2_enable(bsp_state[2]);
+		reg = mpc74xx_l1d_enable();
+		reg = mpc74xx_l1i_enable();
 
 		break;
 	default:

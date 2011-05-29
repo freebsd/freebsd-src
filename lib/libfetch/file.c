@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 
 #include <dirent.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -57,6 +58,7 @@ fetchXGetFile(struct url *u, struct url_stat *us, const char *flags)
 		fetch_syserr();
 	}
 
+	fcntl(fileno(f), F_SETFD, FD_CLOEXEC);
 	return (f);
 }
 
@@ -84,6 +86,7 @@ fetchPutFile(struct url *u, const char *flags)
 		fetch_syserr();
 	}
 
+	fcntl(fileno(f), F_SETFD, FD_CLOEXEC);
 	return (f);
 }
 

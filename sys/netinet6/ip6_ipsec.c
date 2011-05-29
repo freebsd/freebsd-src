@@ -30,6 +30,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
 
@@ -43,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
+#include <sys/syslog.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -291,7 +293,11 @@ ip6_ipsec_output(struct mbuf **m, struct inpcb *inp, int *flags, int *error,
 		 * this is done in the normal processing path.
 		 */
 		if ((*m)->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
+			ipseclog((LOG_DEBUG,
+			    "%s: we do not support IPv4 over IPv6", __func__));
+#ifdef INET
 			in_delayed_cksum(*m);
+#endif
 			(*m)->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
 		}
 
@@ -366,7 +372,7 @@ ip6_ipsec_mtu(struct mbuf *m)
 		if (sp->req != NULL &&
 		    sp->req->sav != NULL &&
 		    sp->req->sav->sah != NULL) {
-			ro = &sp->req->sav->sah->sa_route;
+			ro = &sp->req->sav->sah->route_cache.sa_route;
 			if (ro->ro_rt && ro->ro_rt->rt_ifp) {
 				mtu =
 				    ro->ro_rt->rt_rmx.rmx_mtu ?

@@ -128,6 +128,19 @@ may also fail and set
 .Va errno
 for any of the errors specified for the routine
 .Xr getchar 3 .
+.Sh SEE ALSO
+.Xr feof 3 ,
+.Xr ferror 3 ,
+.Xr fgetln 3 ,
+.Xr fgetws 3 ,
+.Xr getline 3
+.Sh STANDARDS
+The functions
+.Fn fgets
+and
+.Fn gets
+conform to
+.St -isoC-99 .
 .Sh SECURITY CONSIDERATIONS
 The
 .Fn gets
@@ -143,16 +156,3 @@ It is strongly suggested that the
 function be used in all cases.
 (See
 the FSA.)
-.Sh SEE ALSO
-.Xr feof 3 ,
-.Xr ferror 3 ,
-.Xr fgetln 3 ,
-.Xr fgetws 3 ,
-.Xr getline 3
-.Sh STANDARDS
-The functions
-.Fn fgets
-and
-.Fn gets
-conform to
-.St -isoC-99 .

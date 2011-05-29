@@ -1,10 +1,11 @@
 # $FreeBSD$
 
+GCCVER=	4.2
 GCCDIR=	${.CURDIR}/../../../contrib/gcc
 GCCLIB=	${.CURDIR}/../../../contrib/gcclibs
 SRCDIR=	${.CURDIR}/../../../contrib/libstdc++/libsupc++
 
-.PATH: ${SRCDIR} ${GCCLIB}/libiberty 
+.PATH: ${SRCDIR} ${GCCLIB}/libiberty
 
 # Static only.
 LIB=	supc++
@@ -27,7 +28,7 @@ PO_CXXFLAGS=    ${CXXFLAGS:N-ffunction-sections}
 
 HDRS=	exception new typeinfo cxxabi.h exception_defines.h
 INCS=	${HDRS:S;^;${SRCDIR}/;}
-INCSDIR=${INCLUDEDIR}/c++/4.2
+INCSDIR=${INCLUDEDIR}/c++/${GCCVER}
 
 unwind.h: ${GCCDIR}/unwind-generic.h
 	ln -sf ${.ALLSRC} ${.TARGET}

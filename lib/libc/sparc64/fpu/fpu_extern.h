@@ -34,7 +34,6 @@
 #define _SPARC64_FPU_FPU_EXTERN_H_
 
 struct utrapframe;
-union instr;
 struct fpemu;
 struct fpn;
 
@@ -54,9 +53,9 @@ struct fpn *__fpu_div(struct fpemu *);
 int __fpu_itof(struct fpn *, u_int);
 int __fpu_xtof(struct fpn *, u_int64_t);
 int __fpu_stof(struct fpn *, u_int);
-int __fpu_dtof(struct fpn *, u_int, u_int );
-int __fpu_qtof(struct fpn *, u_int, u_int , u_int , u_int );
-void __fpu_explode(struct fpemu *, struct fpn *, int, int );
+int __fpu_dtof(struct fpn *, u_int, u_int);
+int __fpu_qtof(struct fpn *, u_int, u_int, u_int, u_int);
+void __fpu_explode(struct fpemu *, struct fpn *, int, int);
 
 /* fpu_implode.c */
 u_int __fpu_ftoi(struct fpemu *, struct fpn *);

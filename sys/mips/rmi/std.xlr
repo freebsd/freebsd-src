@@ -1,10 +1,5 @@
 # $FreeBSD$
 files	"../rmi/files.xlr"
 
-#
-# XXXMIPS: It's a stub, isn't it?
-#
-cpu     CPU_MIPS4KC
+cpu	CPU_RMI
 option	NOFPU
-# Kludge for now
-options TARGET_XLR_XLS

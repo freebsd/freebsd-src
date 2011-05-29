@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_cpu.h"
 #include "opt_kstack_pages.h"
 #include "opt_mp_watchdog.h"
+#include "opt_pmap.h"
 #include "opt_sched.h"
 #include "opt_smp.h"
 
@@ -73,7 +74,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/vm_page.h>
 
-#include <machine/apicreg.h>
+#include <x86/apicreg.h>
 #include <machine/md_var.h>
 #include <machine/mp_watchdog.h>
 #include <machine/pcb.h>
@@ -469,7 +470,7 @@ xen_smp_intr_init(unsigned int cpu)
 				    cpu,
 				    resched_name[cpu],
 				    smp_reschedule_interrupt,
-	    INTR_FAST|INTR_TYPE_TTY|INTR_MPSAFE, &irq);
+	    INTR_TYPE_TTY, &irq);
 
 	printf("[XEN] IPI cpu=%d irq=%d vector=RESCHEDULE_VECTOR (%d)\n",
 	    cpu, irq, RESCHEDULE_VECTOR);
@@ -481,7 +482,7 @@ xen_smp_intr_init(unsigned int cpu)
 				    cpu,
 				    callfunc_name[cpu],
 				    smp_call_function_interrupt,
-	    INTR_FAST|INTR_TYPE_TTY|INTR_MPSAFE, &irq);
+	    INTR_TYPE_TTY, &irq);
 	if (rc < 0)
 		goto fail;
 	per_cpu(callfunc_irq, cpu) = irq;
@@ -627,8 +628,11 @@ init_secondary(void)
 	while (smp_started == 0)
 		ia32_pause();
 
-	
 	PCPU_SET(curthread, PCPU_GET(idlethread));
+
+	/* Start per-CPU event timers. */
+	cpu_initclocks_ap();
+
 	/* enter the scheduler */
 	sched_throw(NULL);
 
@@ -748,7 +752,7 @@ start_all_aps(void)
 		gdt_segs[GPRIV_SEL].ssd_base = (int) pc;
 		gdt_segs[GPROC0_SEL].ssd_base = (int) &pc->pc_common_tss;
 		
-		PT_SET_MA(bootAPgdt, xpmap_ptom(VTOP(bootAPgdt)) | PG_V | PG_RW);
+		PT_SET_MA(bootAPgdt, VTOM(bootAPgdt) | PG_V | PG_RW);
 		bzero(bootAPgdt, PAGE_SIZE);
 		for (x = 0; x < NGDT; x++)
 			ssdtosd(&gdt_segs[x], &bootAPgdt[x].sd);
@@ -832,14 +836,13 @@ cpu_initialize_context(unsigned int cpu)
 	}
 	boot_stack = kmem_alloc_nofault(kernel_map, 1);
 	newPTD = kmem_alloc_nofault(kernel_map, NPGPTD);
-	ma[0] = xpmap_ptom(VM_PAGE_TO_PHYS(m[0]))|PG_V;
+	ma[0] = VM_PAGE_TO_MACH(m[0])|PG_V;
 
 #ifdef PAE	
 	pmap_kenter(boot_stack, VM_PAGE_TO_PHYS(m[NPGPTD + 1]));
 	for (i = 0; i < NPGPTD; i++) {
 		((vm_paddr_t *)boot_stack)[i] =
-		ma[i] = 
-		    xpmap_ptom(VM_PAGE_TO_PHYS(m[i]))|PG_V;
+		ma[i] = VM_PAGE_TO_MACH(m[i])|PG_V;
 	}
 #endif	
 
@@ -861,7 +864,7 @@ cpu_initialize_context(unsigned int cpu)
 	pmap_kenter(boot_stack, VM_PAGE_TO_PHYS(m[NPGPTD]));
 
 
-	xen_pgdpt_pin(xpmap_ptom(VM_PAGE_TO_PHYS(m[NPGPTD + 1])));
+	xen_pgdpt_pin(VM_PAGE_TO_MACH(m[NPGPTD + 1]));
 	vm_page_lock_queues();
 	for (i = 0; i < 4; i++) {
 		int pdir = (PTDPTDI + i) / NPDEPG;
@@ -904,7 +907,7 @@ cpu_initialize_context(unsigned int cpu)
 	ctxt.failsafe_callback_cs  = GSEL(GCODE_SEL, SEL_KPL);
 	ctxt.failsafe_callback_eip = (unsigned long)failsafe_callback;
 
-	ctxt.ctrlreg[3] = xpmap_ptom(VM_PAGE_TO_PHYS(m[NPGPTD + 1]));
+	ctxt.ctrlreg[3] = VM_PAGE_TO_MACH(m[NPGPTD + 1]);
 #else /* __x86_64__ */
 	ctxt.user_regs.esp = idle->thread.rsp0 - sizeof(struct pt_regs);
 	ctxt.kernel_ss = GSEL(GDATA_SEL, SEL_KPL);
@@ -954,6 +957,30 @@ start_ap(int apic_id)
 		DELAY(1000);
 	}
 	return 0;		/* return FAILURE */
+}
+
+/*
+ * send an IPI to a specific CPU.
+ */
+static void
+ipi_send_cpu(int cpu, u_int ipi)
+{
+	u_int bitmap, old_pending, new_pending;
+
+	if (IPI_IS_BITMAPED(ipi)) { 
+		bitmap = 1 << ipi;
+		ipi = IPI_BITMAP_VECTOR;
+		do {
+			old_pending = cpu_ipi_pending[cpu];
+			new_pending = old_pending | bitmap;
+		} while  (!atomic_cmpset_int(&cpu_ipi_pending[cpu],
+		    old_pending, new_pending));	
+		if (!old_pending)
+			ipi_pcpu(cpu, RESCHEDULE_VECTOR);
+	} else {
+		KASSERT(call_data != NULL, ("call_data not set"));
+		ipi_pcpu(cpu, CALL_FUNCTION_VECTOR);
+	}
 }
 
 /*
@@ -1098,14 +1125,6 @@ void
 ipi_selected(cpumask_t cpus, u_int ipi)
 {
 	int cpu;
-	u_int bitmap = 0;
-	u_int old_pending;
-	u_int new_pending;
-	
-	if (IPI_IS_BITMAPED(ipi)) { 
-		bitmap = 1 << ipi;
-		ipi = IPI_BITMAP_VECTOR;
-	} 
 
 	/*
 	 * IPI_STOP_HARD maps to a NMI and the trap handler needs a bit
@@ -1115,29 +1134,31 @@ ipi_selected(cpumask_t cpus, u_int ipi)
 	if (ipi == IPI_STOP_HARD)
 		atomic_set_int(&ipi_nmi_pending, cpus);
 
-	CTR3(KTR_SMP, "%s: cpus: %x ipi: %x", __func__, cpus, ipi);
 	while ((cpu = ffs(cpus)) != 0) {
 		cpu--;
 		cpus &= ~(1 << cpu);
-
-		KASSERT(cpu_apic_ids[cpu] != -1,
-		    ("IPI to non-existent CPU %d", cpu));
-
-		if (bitmap) {
-			do {
-				old_pending = cpu_ipi_pending[cpu];
-				new_pending = old_pending | bitmap;
-			} while  (!atomic_cmpset_int(&cpu_ipi_pending[cpu],old_pending, new_pending));	
-
-			if (!old_pending)
-				ipi_pcpu(cpu, RESCHEDULE_VECTOR);
-			continue;
-			
-		} else {
-			KASSERT(call_data != NULL, ("call_data not set"));
-			ipi_pcpu(cpu, CALL_FUNCTION_VECTOR);
-		}
+		CTR3(KTR_SMP, "%s: cpu: %d ipi: %x", __func__, cpu, ipi);
+		ipi_send_cpu(cpu, ipi);
 	}
+}
+
+/*
+ * send an IPI to a specific CPU.
+ */
+void
+ipi_cpu(int cpu, u_int ipi)
+{
+
+	/*
+	 * IPI_STOP_HARD maps to a NMI and the trap handler needs a bit
+	 * of help in order to understand what is the source.
+	 * Set the mask of receiving CPUs for this purpose.
+	 */
+	if (ipi == IPI_STOP_HARD)
+		atomic_set_int(&ipi_nmi_pending, 1 << cpu);
+
+	CTR3(KTR_SMP, "%s: cpu: %d ipi: %x", __func__, cpu, ipi);
+	ipi_send_cpu(cpu, ipi);
 }
 
 /*

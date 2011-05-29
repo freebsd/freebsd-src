@@ -37,6 +37,8 @@
 					 * Second arg is a ptr to return the
 					 * signal.
 					 */
+#define	LINUX_PR_GET_KEEPCAPS	7	/* Get drop capabilities on setuid */
+#define	LINUX_PR_SET_KEEPCAPS	8	/* Set drop capabilities on setuid */
 #define	LINUX_PR_SET_NAME	15	/* Set process name. */
 #define	LINUX_PR_GET_NAME	16	/* Get process name. */
 
@@ -66,5 +68,10 @@ extern const char *linux_platform;
 #endif
 
 extern int stclohz;
+
+#define __WCLONE 0x80000000
+
+int linux_common_wait(struct thread *td, int pid, int *status,
+			int options, struct rusage *ru);
 
 #endif	/* _LINUX_MISC_H_ */

@@ -1,6 +1,6 @@
 /*
  * WPA Supplicant / wrapper functions for crypto libraries
- * Copyright (c) 2004-2007, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2004-2009, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -33,8 +33,9 @@
  * @addr: Pointers to the data areas
  * @len: Lengths of the data blocks
  * @mac: Buffer for the hash
+ * Returns: 0 on success, -1 on failure
  */
-void md4_vector(size_t num_elem, const u8 *addr[], const size_t *len, u8 *mac);
+int md4_vector(size_t num_elem, const u8 *addr[], const size_t *len, u8 *mac);
 
 /**
  * md5_vector - MD5 hash for data vector
@@ -42,8 +43,25 @@ void md4_vector(size_t num_elem, const u8 *addr[], const size_t *len, u8 *mac);
  * @addr: Pointers to the data areas
  * @len: Lengths of the data blocks
  * @mac: Buffer for the hash
+ * Returns: 0 on success, -1 on failure
  */
-void md5_vector(size_t num_elem, const u8 *addr[], const size_t *len, u8 *mac);
+int md5_vector(size_t num_elem, const u8 *addr[], const size_t *len, u8 *mac);
+
+#ifdef CONFIG_FIPS
+/**
+ * md5_vector_non_fips_allow - MD5 hash for data vector (non-FIPS use allowed)
+ * @num_elem: Number of elements in the data vector
+ * @addr: Pointers to the data areas
+ * @len: Lengths of the data blocks
+ * @mac: Buffer for the hash
+ * Returns: 0 on success, -1 on failure
+ */
+int md5_vector_non_fips_allow(size_t num_elem, const u8 *addr[],
+			      const size_t *len, u8 *mac);
+#else /* CONFIG_FIPS */
+#define md5_vector_non_fips_allow md5_vector
+#endif /* CONFIG_FIPS */
+
 
 /**
  * sha1_vector - SHA-1 hash for data vector
@@ -51,9 +69,10 @@ void md5_vector(size_t num_elem, const u8 *addr[], const size_t *len, u8 *mac);
  * @addr: Pointers to the data areas
  * @len: Lengths of the data blocks
  * @mac: Buffer for the hash
+ * Returns: 0 on success, -1 on failure
  */
-void sha1_vector(size_t num_elem, const u8 *addr[], const size_t *len,
-		 u8 *mac);
+int sha1_vector(size_t num_elem, const u8 *addr[], const size_t *len,
+		u8 *mac);
 
 /**
  * fips186_2-prf - NIST FIPS Publication 186-2 change notice 1 PRF
@@ -76,9 +95,10 @@ int __must_check fips186_2_prf(const u8 *seed, size_t seed_len, u8 *x,
  * @addr: Pointers to the data areas
  * @len: Lengths of the data blocks
  * @mac: Buffer for the hash
+ * Returns: 0 on success, -1 on failure
  */
-void sha256_vector(size_t num_elem, const u8 *addr[], const size_t *len,
-		   u8 *mac);
+int sha256_vector(size_t num_elem, const u8 *addr[], const size_t *len,
+		  u8 *mac);
 
 /**
  * des_encrypt - Encrypt one block with DES
@@ -275,6 +295,7 @@ struct crypto_public_key * crypto_public_key_import(const u8 *key, size_t len);
  * crypto_private_key_import - Import an RSA private key
  * @key: Key buffer (DER encoded RSA private key)
  * @len: Key buffer length in bytes
+ * @passwd: Key encryption password or %NULL if key is not encrypted
  * Returns: Pointer to the private key or %NULL on failure
  *
  * This function is only used with internal TLSv1 implementation
@@ -282,7 +303,8 @@ struct crypto_public_key * crypto_public_key_import(const u8 *key, size_t len);
  * to implement this.
  */
 struct crypto_private_key * crypto_private_key_import(const u8 *key,
-						      size_t len);
+						      size_t len,
+						      const char *passwd);
 
 /**
  * crypto_public_key_from_cert - Import an RSA public key from a certificate
@@ -427,5 +449,21 @@ int __must_check crypto_mod_exp(const u8 *base, size_t base_len,
 				const u8 *power, size_t power_len,
 				const u8 *modulus, size_t modulus_len,
 				u8 *result, size_t *result_len);
+
+/**
+ * rc4_skip - XOR RC4 stream to given data with skip-stream-start
+ * @key: RC4 key
+ * @keylen: RC4 key length
+ * @skip: number of bytes to skip from the beginning of the RC4 stream
+ * @data: data to be XOR'ed with RC4 stream
+ * @data_len: buf length
+ * Returns: 0 on success, -1 on failure
+ *
+ * Generate RC4 pseudo random stream for the given key, skip beginning of the
+ * stream, and XOR the end result with the data buffer to perform RC4
+ * encryption/decryption.
+ */
+int rc4_skip(const u8 *key, size_t keylen, size_t skip,
+	     u8 *data, size_t data_len);
 
 #endif /* CRYPTO_H */

@@ -10,6 +10,10 @@ SRCS=	devicename.c elf_freebsd.c console.c copy.c disk.c \
 CFLAGS+=	-ffreestanding -msoft-float
 
 CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand/
+
+# Pick up FDT includes
+CFLAGS+=	-I${.CURDIR}/../../../../sys/contrib/libfdt/
+
 # Pick up the bootstrap header for some interface items
 CFLAGS+=	-I${.CURDIR}/../../common -I${.CURDIR}/../../.. -I.
 
@@ -19,7 +23,7 @@ CFLAGS+= -DDISK_DEBUG
 .endif
 
 machine:
-	ln -sf ${.CURDIR}/../../../${MACHINE_ARCH}/include machine
+	ln -sf ${.CURDIR}/../../../${MACHINE_CPUARCH}/include machine
 
 CLEANFILES+=	machine
 

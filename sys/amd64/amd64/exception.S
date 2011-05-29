@@ -50,14 +50,14 @@
 	.bss
 	.globl	dtrace_invop_jump_addr
 	.align	8
-	.type	dtrace_invop_jump_addr, @object
-        .size	dtrace_invop_jump_addr, 8
+	.type	dtrace_invop_jump_addr,@object
+	.size	dtrace_invop_jump_addr,8
 dtrace_invop_jump_addr:
 	.zero	8
 	.globl	dtrace_invop_calltrap_addr
 	.align	8
-	.type	dtrace_invop_calltrap_addr, @object
-        .size	dtrace_invop_calltrap_addr, 8
+	.type	dtrace_invop_calltrap_addr,@object
+	.size	dtrace_invop_calltrap_addr,8
 dtrace_invop_calltrap_addr:
 	.zero	8
 #endif
@@ -108,6 +108,10 @@ IDTVEC(dbg)
 	TRAP_NOEN(T_TRCTRAP)
 IDTVEC(bpt)
 	TRAP_NOEN(T_BPTFLT)
+#ifdef KDTRACE_HOOKS
+IDTVEC(dtrace_ret)
+	TRAP_NOEN(T_DTRACE_RET)
+#endif
 
 /* Regular traps; The cpu does not supply tf_err for these. */
 #define	TRAP(a)	 \
@@ -157,7 +161,6 @@ IDTVEC(align)
 	 * kernel from userland.  Reenable interrupts if they were enabled
 	 * before the trap.  This approximates SDT_SYS386TGT on the i386 port.
 	 */
-
 	SUPERALIGN_TEXT
 	.globl	alltraps
 	.type	alltraps,@function
@@ -167,7 +170,7 @@ alltraps:
 	jz	alltraps_testi		/* already running with kernel GS.base */
 	swapgs
 	movq	PCPU(CURPCB),%rdi
-	movb	$0,PCB_FULL_IRET(%rdi)
+	andl	$~PCB_FULL_IRET,PCB_FLAGS(%rdi)
 	movw	%fs,TF_FS(%rsp)
 	movw	%gs,TF_GS(%rsp)
 	movw	%es,TF_ES(%rsp)
@@ -192,6 +195,7 @@ alltraps_pushregs_no_rdi:
 	movq	%r14,TF_R14(%rsp)
 	movq	%r15,TF_R15(%rsp)
 	movl	$TF_HASSEGS,TF_FLAGS(%rsp)
+	cld
 	FAKE_MCOUNT(TF_RIP(%rsp))
 #ifdef KDTRACE_HOOKS
 	/*
@@ -211,16 +215,16 @@ alltraps_pushregs_no_rdi:
 	 * Set our jump address for the jump back in the event that
 	 * the breakpoint wasn't caused by DTrace at all.
 	 */
-	movq	$calltrap, dtrace_invop_calltrap_addr(%rip)
+	movq	$calltrap,dtrace_invop_calltrap_addr(%rip)
 
 	/* Jump to the code hooked in by DTrace. */
-	movq	dtrace_invop_jump_addr, %rax
+	movq	dtrace_invop_jump_addr,%rax
 	jmpq	*dtrace_invop_jump_addr
 #endif
 	.globl	calltrap
 	.type	calltrap,@function
 calltrap:
-	movq	%rsp, %rdi
+	movq	%rsp,%rdi
 	call	trap
 	MEXITCOUNT
 	jmp	doreti			/* Handle any pending ASTs */
@@ -239,7 +243,7 @@ alltraps_noen:
 	jz	1f	/* already running with kernel GS.base */
 	swapgs
 	movq	PCPU(CURPCB),%rdi
-	movb	$0,PCB_FULL_IRET(%rdi)
+	andl	$~PCB_FULL_IRET,PCB_FLAGS(%rdi)
 1:	movw	%fs,TF_FS(%rsp)
 	movw	%gs,TF_GS(%rsp)
 	movw	%es,TF_ES(%rsp)
@@ -271,12 +275,15 @@ IDTVEC(dblfault)
 	movw	%es,TF_ES(%rsp)
 	movw	%ds,TF_DS(%rsp)
 	movl	$TF_HASSEGS,TF_FLAGS(%rsp)
+	cld
 	testb	$SEL_RPL_MASK,TF_CS(%rsp) /* Did we come from kernel? */
 	jz	1f			/* already running with kernel GS.base */
 	swapgs
-1:	movq	%rsp, %rdi
+1:
+	movq	%rsp,%rdi
 	call	dblfault_handler
-2:	hlt
+2:
+	hlt
 	jmp	2b
 
 IDTVEC(page)
@@ -287,7 +294,7 @@ IDTVEC(page)
 	jz	1f			/* already running with kernel GS.base */
 	swapgs
 	movq	PCPU(CURPCB),%rdi
-	movb	$0,PCB_FULL_IRET(%rdi)
+	andl	$~PCB_FULL_IRET,PCB_FLAGS(%rdi)
 1:	movq	%cr2,%rdi		/* preserve %cr2 before ..  */
 	movq	%rdi,TF_ADDR(%rsp)	/* enabling interrupts. */
 	movw	%fs,TF_FS(%rsp)
@@ -317,7 +324,7 @@ IDTVEC(prot)
 	jz	2f			/* already running with kernel GS.base */
 1:	swapgs
 2:	movq	PCPU(CURPCB),%rdi
-	movb	$1,PCB_FULL_IRET(%rdi)	/* always full iret from GPF */
+	orl	$PCB_FULL_IRET,PCB_FLAGS(%rdi)	/* always full iret from GPF */
 	movw	%fs,TF_FS(%rsp)
 	movw	%gs,TF_GS(%rsp)
 	movw	%es,TF_ES(%rsp)
@@ -332,6 +339,9 @@ IDTVEC(prot)
  * and the new privilige level.  We are still running on the old user stack
  * pointer.  We have to juggle a few things around to find our stack etc.
  * swapgs gives us access to our PCPU space only.
+ *
+ * We do not support invoking this from a custom %cs or %ss (e.g. using
+ * entries from an LDT).
  */
 IDTVEC(fast_syscall)
 	swapgs
@@ -349,7 +359,7 @@ IDTVEC(fast_syscall)
 	movw	%es,TF_ES(%rsp)
 	movw	%ds,TF_DS(%rsp)
 	movq	PCPU(CURPCB),%r11
-	movb	$0,PCB_FULL_IRET(%r11)
+	andl	$~PCB_FULL_IRET,PCB_FLAGS(%r11)
 	sti
 	movq	$KUDSEL,TF_SS(%rsp)
 	movq	$KUCSEL,TF_CS(%rsp)
@@ -368,11 +378,42 @@ IDTVEC(fast_syscall)
 	movq	%r14,TF_R14(%rsp)	/* C preserved */
 	movq	%r15,TF_R15(%rsp)	/* C preserved */
 	movl	$TF_HASSEGS,TF_FLAGS(%rsp)
+	cld
 	FAKE_MCOUNT(TF_RIP(%rsp))
-	movq	%rsp, %rdi
+	movq	%rsp,%rdi
 	call	syscall
-	movq	PCPU(CURPCB),%rax
-	andq	$~PCB_FULLCTX,PCB_FLAGS(%rax)
+1:	movq	PCPU(CURPCB),%rax
+	/* Disable interrupts before testing PCB_FULL_IRET. */
+	cli
+	testl	$PCB_FULL_IRET,PCB_FLAGS(%rax)
+	jnz	3f
+	/* Check for and handle AST's on return to userland. */
+	movq	PCPU(CURTHREAD),%rax
+	testl	$TDF_ASTPENDING | TDF_NEEDRESCHED,TD_FLAGS(%rax)
+	je	2f
+	sti
+	movq	%rsp, %rdi
+	call	ast
+	jmp	1b
+2:	/* Restore preserved registers. */
+	MEXITCOUNT
+	movq	TF_RDI(%rsp),%rdi	/* bonus; preserve arg 1 */
+	movq	TF_RSI(%rsp),%rsi	/* bonus: preserve arg 2 */
+	movq	TF_RDX(%rsp),%rdx	/* return value 2 */
+	movq	TF_RAX(%rsp),%rax	/* return value 1 */
+	movq	TF_RBX(%rsp),%rbx	/* C preserved */
+	movq	TF_RBP(%rsp),%rbp	/* C preserved */
+	movq	TF_R12(%rsp),%r12	/* C preserved */
+	movq	TF_R13(%rsp),%r13	/* C preserved */
+	movq	TF_R14(%rsp),%r14	/* C preserved */
+	movq	TF_R15(%rsp),%r15	/* C preserved */
+	movq	TF_RFLAGS(%rsp),%r11	/* original %rflags */
+	movq	TF_RIP(%rsp),%rcx	/* original %rip */
+	movq	TF_RSP(%rsp),%r9	/* user stack pointer */
+	movq	%r9,%rsp		/* original %rsp */
+	swapgs
+	sysretq
+3:	/* Requested full context restore, use doreti for that. */
 	MEXITCOUNT
 	jmp	doreti
 
@@ -433,6 +474,7 @@ IDTVEC(nmi)
 	movw	%es,TF_ES(%rsp)
 	movw	%ds,TF_DS(%rsp)
 	movl	$TF_HASSEGS,TF_FLAGS(%rsp)
+	cld
 	xorl	%ebx,%ebx
 	testb	$SEL_RPL_MASK,TF_CS(%rsp)
 	jnz	nmi_fromuserspace
@@ -456,7 +498,7 @@ nmi_fromuserspace:
 /* Note: this label is also used by ddb and gdb: */
 nmi_calltrap:
 	FAKE_MCOUNT(TF_RIP(%rsp))
-	movq	%rsp, %rdi
+	movq	%rsp,%rdi
 	call	trap
 	MEXITCOUNT
 #ifdef HWPMC_HOOKS
@@ -552,12 +594,12 @@ nmi_restoreregs:
 	movq	TF_R14(%rsp),%r14
 	movq	TF_R15(%rsp),%r15
 	addq	$TF_RIP,%rsp
-	iretq
+	jmp	doreti_iret
 
 ENTRY(fork_trampoline)
-	movq	%r12, %rdi		/* function */
-	movq	%rbx, %rsi		/* arg1 */
-	movq	%rsp, %rdx		/* trapframe pointer */
+	movq	%r12,%rdi		/* function */
+	movq	%rbx,%rsi		/* arg1 */
+	movq	%rsp,%rdx		/* trapframe pointer */
 	call	fork_exit
 	MEXITCOUNT
 	jmp	doreti			/* Handle any ASTs */
@@ -572,7 +614,7 @@ ENTRY(fork_trampoline)
  * included.
  */
 
-#ifdef COMPAT_IA32
+#ifdef COMPAT_FREEBSD32
 	.data
 	.p2align 4
 	.text
@@ -620,7 +662,7 @@ doreti:
 doreti_ast:
 	/*
 	 * Check for ASTs atomically with returning.  Disabling CPU
-	 * interrupts provides sufficient locking eve in the SMP case,
+	 * interrupts provides sufficient locking even in the SMP case,
 	 * since we will be informed of any new ASTs by an IPI.
 	 */
 	cli
@@ -628,7 +670,7 @@ doreti_ast:
 	testl	$TDF_ASTPENDING | TDF_NEEDRESCHED,TD_FLAGS(%rax)
 	je	doreti_exit
 	sti
-	movq	%rsp, %rdi			/* pass a pointer to the trapframe */
+	movq	%rsp,%rdi	/* pass a pointer to the trapframe */
 	call	ast
 	jmp	doreti_ast
 
@@ -641,20 +683,19 @@ doreti_ast:
 	 */
 doreti_exit:
 	MEXITCOUNT
-	movq	PCPU(CURTHREAD),%r8
-	movq	TD_PCB(%r8),%r8
+	movq	PCPU(CURPCB),%r8
 
 	/*
 	 * Do not reload segment registers for kernel.
 	 * Since we do not reload segments registers with sane
 	 * values on kernel entry, descriptors referenced by
-	 * segments registers may be not valid. This is fatal
-	 * for the usermode, but is innocent for the kernel.
+	 * segments registers might be not valid.  This is fatal
+	 * for user mode, but is not a problem for the kernel.
 	 */
 	testb	$SEL_RPL_MASK,TF_CS(%rsp)
 	jz	ld_regs
-	cmpb	$0,PCB_FULL_IRET(%r8)
-	je	ld_regs
+	testl	$PCB_FULL_IRET,PCB_FLAGS(%r8)
+	jz	ld_regs
 	testl	$TF_HASSEGS,TF_FLAGS(%rsp)
 	je	set_segs
 
@@ -662,12 +703,15 @@ do_segs:
 	/* Restore %fs and fsbase */
 	movw	TF_FS(%rsp),%ax
 	.globl	ld_fs
-ld_fs:	movw	%ax,%fs
+ld_fs:
+	movw	%ax,%fs
 	cmpw	$KUF32SEL,%ax
 	jne	1f
 	movl	$MSR_FSBASE,%ecx
 	movl	PCB_FSBASE(%r8),%eax
 	movl	PCB_FSBASE+4(%r8),%edx
+	.globl	ld_fsbase
+ld_fsbase:
 	wrmsr
 1:
 	/* Restore %gs and gsbase */
@@ -677,7 +721,8 @@ ld_fs:	movw	%ax,%fs
 	movl	$MSR_GSBASE,%ecx
 	rdmsr
 	.globl	ld_gs
-ld_gs:	movw	%si,%gs
+ld_gs:
+	movw	%si,%gs
 	wrmsr
 	popfq
 	cmpw	$KUG32SEL,%si
@@ -685,12 +730,18 @@ ld_gs:	movw	%si,%gs
 	movl	$MSR_KGSBASE,%ecx
 	movl	PCB_GSBASE(%r8),%eax
 	movl	PCB_GSBASE+4(%r8),%edx
+	.globl	ld_gsbase
+ld_gsbase:
 	wrmsr
-1:	.globl	ld_es
-ld_es:	movw	TF_ES(%rsp),%es
+1:
+	.globl	ld_es
+ld_es:
+	movw	TF_ES(%rsp),%es
 	.globl	ld_ds
-ld_ds:	movw	TF_DS(%rsp),%ds
-ld_regs:movq	TF_RDI(%rsp),%rdi
+ld_ds:
+	movw	TF_DS(%rsp),%ds
+ld_regs:
+	movq	TF_RDI(%rsp),%rdi
 	movq	TF_RSI(%rsp),%rsi
 	movq	TF_RDX(%rsp),%rdx
 	movq	TF_RCX(%rsp),%rcx
@@ -709,7 +760,8 @@ ld_regs:movq	TF_RDI(%rsp),%rdi
 	jz	1f			/* keep running with kernel GS.base */
 	cli
 	swapgs
-1:	addq	$TF_RIP,%rsp		/* skip over tf_err, tf_trapno */
+1:
+	addq	$TF_RIP,%rsp		/* skip over tf_err, tf_trapno */
 	.globl	doreti_iret
 doreti_iret:
 	iretq
@@ -736,7 +788,8 @@ doreti_iret_fault:
 	testl	$PSL_I,TF_RFLAGS(%rsp)
 	jz	1f
 	sti
-1:	movw	%fs,TF_FS(%rsp)
+1:
+	movw	%fs,TF_FS(%rsp)
 	movw	%gs,TF_GS(%rsp)
 	movw	%es,TF_ES(%rsp)
 	movw	%ds,TF_DS(%rsp)
@@ -766,7 +819,7 @@ doreti_iret_fault:
 	.globl	ds_load_fault
 ds_load_fault:
 	movl	$T_PROTFLT,TF_TRAPNO(%rsp)
-	movq	%rsp, %rdi
+	movq	%rsp,%rdi
 	call	trap
 	movw	$KUDSEL,TF_DS(%rsp)
 	jmp	doreti
@@ -775,7 +828,7 @@ ds_load_fault:
 	.globl	es_load_fault
 es_load_fault:
 	movl	$T_PROTFLT,TF_TRAPNO(%rsp)
-	movq	%rsp, %rdi
+	movq	%rsp,%rdi
 	call	trap
 	movw	$KUDSEL,TF_ES(%rsp)
 	jmp	doreti
@@ -784,7 +837,7 @@ es_load_fault:
 	.globl	fs_load_fault
 fs_load_fault:
 	movl	$T_PROTFLT,TF_TRAPNO(%rsp)
-	movq	%rsp, %rdi
+	movq	%rsp,%rdi
 	call	trap
 	movw	$KUF32SEL,TF_FS(%rsp)
 	jmp	doreti
@@ -794,10 +847,33 @@ fs_load_fault:
 gs_load_fault:
 	popfq
 	movl	$T_PROTFLT,TF_TRAPNO(%rsp)
-	movq	%rsp, %rdi
+	movq	%rsp,%rdi
 	call	trap
 	movw	$KUG32SEL,TF_GS(%rsp)
 	jmp	doreti
+
+	ALIGN_TEXT
+	.globl	fsbase_load_fault
+fsbase_load_fault:
+	movl	$T_PROTFLT,TF_TRAPNO(%rsp)
+	movq	%rsp,%rdi
+	call	trap
+	movq	PCPU(CURTHREAD),%r8
+	movq	TD_PCB(%r8),%r8
+	movq	$0,PCB_FSBASE(%r8)
+	jmp	doreti
+
+	ALIGN_TEXT
+	.globl	gsbase_load_fault
+gsbase_load_fault:
+	movl	$T_PROTFLT,TF_TRAPNO(%rsp)
+	movq	%rsp,%rdi
+	call	trap
+	movq	PCPU(CURTHREAD),%r8
+	movq	TD_PCB(%r8),%r8
+	movq	$0,PCB_GSBASE(%r8)
+	jmp	doreti
+
 #ifdef HWPMC_HOOKS
 	ENTRY(end_exceptions)
 #endif

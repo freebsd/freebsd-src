@@ -29,6 +29,8 @@
 #ifndef _OPENSOLARIS_SYS_VNODE_H_
 #define	_OPENSOLARIS_SYS_VNODE_H_
 
+#ifdef _KERNEL
+
 struct vnode;
 struct vattr;
 
@@ -49,6 +51,7 @@ enum symfollow { NO_FOLLOW = NOFOLLOW };
 #include <sys/syscallsubr.h>
 
 typedef	struct vop_vector	vnodeops_t;
+#define	VOP_FID		VOP_VPTOFH
 #define	vop_fid		vop_vptofh
 #define	vop_fid_args	vop_vptofh_args
 #define	a_fid		a_fhp
@@ -59,6 +62,8 @@ typedef	struct vop_vector	vnodeops_t;
 
 #define	V_APPEND	VAPPEND
 
+#define	rootvfs		(rootvnode == NULL ? NULL : rootvnode->v_mount)
+
 static __inline int
 vn_is_readonly(vnode_t *vp)
 {
@@ -68,11 +73,15 @@ vn_is_readonly(vnode_t *vp)
 #define	vn_vfsunlock(vp)	do { } while (0)
 #define	vn_ismntpt(vp)		((vp)->v_type == VDIR && (vp)->v_mountedhere != NULL)
 #define	vn_mountedvfs(vp)	((vp)->v_mountedhere)
-#define	vn_has_cached_data(vp)	((vp)->v_object != NULL && (vp)->v_object->resident_page_count > 0)
+#define	vn_has_cached_data(vp)	\
+	((vp)->v_object != NULL && \
+	 ((vp)->v_object->resident_page_count > 0 || \
+	  (vp)->v_object->cache != NULL))
 #define	vn_exists(vp)		do { } while (0)
 #define	vn_invalid(vp)		do { } while (0)
 #define	vn_renamepath(tdvp, svp, tnm, lentnm)	do { } while (0)
 #define	vn_free(vp)		do { } while (0)
+#define	vn_matchops(vp, vops)	((vp)->v_op == &(vops))
 
 #define	VN_HOLD(v)	vref(v)
 #define	VN_RELE(v)	vrele(v)
@@ -89,7 +98,8 @@ vn_is_readonly(vnode_t *vp)
 #define	vnevent_rename_dest_dir(vp, ct)		do { } while (0)
 
 #define	specvp(vp, rdev, type, cr)	(VN_HOLD(vp), (vp))
-#define	MANDMODE(mode)	(0)
+#define	MANDMODE(mode)		(0)
+#define	MANDLOCK(vp, mode)	(0)
 #define	chklock(vp, op, offset, size, mode, ct)	(0)
 #define	cleanlocks(vp, pid, foo)	do { } while (0)
 #define	cleanshares(vp, pid)		do { } while (0)
@@ -139,6 +149,7 @@ vattr_init_mask(vattr_t *vap)
 
 #define	FCREAT		O_CREAT
 #define	FTRUNC		O_TRUNC
+#define	FEXCL		O_EXCL
 #define	FDSYNC		FFSYNC
 #define	FRSYNC		FFSYNC
 #define	FSYNC		FFSYNC
@@ -161,7 +172,8 @@ vn_openat(char *pnamep, enum uio_seg seg, int filemode, int createmode,
 		ASSERT(crwhy == CRCREAT);
 		operation = CREATE;
 	} else {
-		ASSERT(filemode == (FREAD | FWRITE | FOFFMAX));
+		ASSERT(filemode == (FREAD | FOFFMAX) ||
+		    filemode == (FREAD | FWRITE | FOFFMAX));
 		ASSERT(crwhy == 0);
 		operation = LOOKUP;
 	}
@@ -287,5 +299,7 @@ vn_remove(char *fnamep, enum uio_seg seg, enum rm dirflag)
 
 	return (kern_unlink(curthread, fnamep, seg));
 }
+
+#endif	/* _KERNEL */
 
 #endif	/* _OPENSOLARIS_SYS_VNODE_H_ */

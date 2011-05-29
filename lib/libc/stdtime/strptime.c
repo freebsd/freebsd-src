@@ -408,6 +408,14 @@ label:
 					if (strncasecmp(buf, tptr->month[i],
 							len) == 0)
 						break;
+				}
+			}
+			/*
+			 * Try the abbreviated month name if the full name
+			 * wasn't found and Oalternative was not requested.
+			 */
+			if (i == asizeof(tptr->month) && !Oalternative) {
+				for (i = 0; i < asizeof(tptr->month); i++) {
 					len = strlen(tptr->mon[i]);
 					if (strncasecmp(buf, tptr->mon[i],
 							len) == 0)

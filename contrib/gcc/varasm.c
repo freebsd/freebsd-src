@@ -126,7 +126,6 @@ static unsigned HOST_WIDE_INT array_size_for_constructor (tree);
 static unsigned min_align (unsigned, unsigned);
 static void output_constructor (tree, unsigned HOST_WIDE_INT, unsigned int);
 static void globalize_decl (tree);
-static void maybe_assemble_visibility (tree);
 #ifdef BSS_SECTION_ASM_OP
 #ifdef ASM_OUTPUT_BSS
 static void asm_output_bss (FILE *, tree, const char *,
@@ -1957,11 +1956,10 @@ assemble_external (tree decl ATTRIBUTE_UNUSED)
   if (!DECL_P (decl) || !DECL_EXTERNAL (decl) || !TREE_PUBLIC (decl))
     return;
 
-  if (flag_unit_at_a_time)
-    pending_assemble_externals = tree_cons (0, decl,
-					    pending_assemble_externals);
-  else
-    assemble_external_real (decl);
+  /* We want to output external symbols at very last to check if they
+     are references or not.  */
+  pending_assemble_externals = tree_cons (0, decl,
+					  pending_assemble_externals);
 #endif
 }
 
@@ -5064,13 +5062,18 @@ default_assemble_visibility (tree decl, int vis)
 
 /* A helper function to call assemble_visibility when needed for a decl.  */
 
-static void
+int
 maybe_assemble_visibility (tree decl)
 {
   enum symbol_visibility vis = DECL_VISIBILITY (decl);
 
   if (vis != VISIBILITY_DEFAULT)
-    targetm.asm_out.visibility (decl, vis);
+    {
+      targetm.asm_out.visibility (decl, vis);
+      return 1;
+    }
+  else
+    return 0;
 }
 
 /* Returns 1 if the target configuration supports defining public symbols
@@ -6222,6 +6225,21 @@ void
 output_object_blocks (void)
 {
   htab_traverse (object_block_htab, output_object_block_htab, NULL);
+}
+
+/* Emit text to declare externally defined symbols. It is needed to
+   properly support non-default visibility.  */
+void
+default_elf_asm_output_external (FILE *file ATTRIBUTE_UNUSED,
+				 tree decl,
+				 const char *name ATTRIBUTE_UNUSED)
+{
+  /* We output the name if and only if TREE_SYMBOL_REFERENCED is
+     set in order to avoid putting out names that are never really
+     used. */
+  if (TREE_SYMBOL_REFERENCED (DECL_ASSEMBLER_NAME (decl))
+      && targetm.binds_local_p (decl))
+    maybe_assemble_visibility (decl);
 }
 
 #include "gt-varasm.h"

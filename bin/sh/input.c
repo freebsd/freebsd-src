@@ -98,13 +98,13 @@ MKINIT int parselleft;		/* copy of parsefile->lleft */
 char *parsenextc;		/* copy of parsefile->nextc */
 MKINIT struct parsefile basepf;	/* top level input file */
 char basebuf[BUFSIZ];		/* buffer for top level input file */
-STATIC struct parsefile *parsefile = &basepf;	/* current input file */
+static struct parsefile *parsefile = &basepf;	/* current input file */
 int init_editline = 0;		/* editline library initialized? */
 int whichprompt;		/* 1 == PS1, 2 == PS2 */
 
 EditLine *el;			/* cookie for editline package */
 
-STATIC void pushfile(void);
+static void pushfile(void);
 static int preadfd(void);
 
 #ifdef mkinit
@@ -119,12 +119,7 @@ INIT {
 
 RESET {
 	popallfiles();
-	if (exception != EXSHELLPROC)
-		parselleft = parsenleft = 0;	/* clear input buffer */
-}
-
-SHELLPROC {
-	popallfiles();
+	parselleft = parsenleft = 0;	/* clear input buffer */
 }
 #endif
 
@@ -468,7 +463,7 @@ setinputstring(char *string, int push)
  * adds a new entry to the stack and popfile restores the previous level.
  */
 
-STATIC void
+static void
 pushfile(void)
 {
 	struct parsefile *pf;

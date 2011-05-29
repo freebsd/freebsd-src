@@ -14,8 +14,8 @@ Library General Public License for more details.
 
 You should have received a copy of the GNU Library General Public
 License along with libiberty; see the file COPYING.LIB.  If
-not, write to the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+not, write to the Free Software Foundation, Inc., 51 Franklin Street - Fifth Floor,
+Boston, MA 02110-1301, USA.  */
 
 
 /*
@@ -41,14 +41,15 @@ BUGS
 
 */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
 #include "ansidecl.h"
 #include "libiberty.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 
-int fdmatch (fd1, fd2)
-	int fd1;
-	int fd2;
+int fdmatch (int fd1, int fd2)
 {
   struct stat sbuf1;
   struct stat sbuf2;

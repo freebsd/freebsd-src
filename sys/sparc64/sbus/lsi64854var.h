@@ -1,4 +1,4 @@
-/*	$NetBSD: lsi64854var.h,v 1.6 2005/02/04 02:10:36 perry Exp $ */
+/*	$NetBSD: lsi64854var.h,v 1.12 2008/04/28 20:23:50 martin Exp $ */
 
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.

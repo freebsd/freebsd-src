@@ -63,6 +63,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_compat.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
 
@@ -176,6 +177,14 @@ in6_mask2len(struct in6_addr *mask, u_char *lim0)
 #define ifa2ia6(ifa)	((struct in6_ifaddr *)(ifa))
 #define ia62ifa(ia6)	(&((ia6)->ia_ifa))
 
+#ifdef COMPAT_FREEBSD32
+struct in6_ndifreq32 {
+        char ifname[IFNAMSIZ];
+        uint32_t ifindex;
+};
+#define	SIOCGDEFIFACE32_IN6     _IOWR('i', 86, struct in6_ndifreq32)
+#endif
+
 int
 in6_control(struct socket *so, u_long cmd, caddr_t data,
     struct ifnet *ifp, struct thread *td)
@@ -226,6 +235,22 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 	case SIOCGNBRINFO_IN6:
 	case SIOCGDEFIFACE_IN6:
 		return (nd6_ioctl(cmd, data, ifp));
+
+#ifdef COMPAT_FREEBSD32
+	case SIOCGDEFIFACE32_IN6:
+		{
+			struct in6_ndifreq ndif;
+			struct in6_ndifreq32 *ndif32;
+
+			error = nd6_ioctl(SIOCGDEFIFACE_IN6, (caddr_t)&ndif,
+			    ifp);
+			if (error)
+				return (error);
+			ndif32 = (struct in6_ndifreq32 *)data;
+			ndif32->ifindex = ndif.ifindex;
+			return (0);
+		}
+#endif
 	}
 
 	switch (cmd) {
@@ -1873,13 +1898,30 @@ static char digits[] = "0123456789abcdef";
 char *
 ip6_sprintf(char *ip6buf, const struct in6_addr *addr)
 {
-	int i;
+	int i, cnt = 0, maxcnt = 0, idx = 0, index = 0;
 	char *cp;
 	const u_int16_t *a = (const u_int16_t *)addr;
 	const u_int8_t *d;
 	int dcolon = 0, zero = 0;
 
 	cp = ip6buf;
+
+	for (i = 0; i < 8; i++) {
+		if (*(a + i) == 0) {
+			cnt++;
+			if (cnt == 1)
+				idx = i;
+		}
+		else if (maxcnt < cnt) {
+			maxcnt = cnt;
+			index = idx;
+			cnt = 0;
+		}
+	}
+	if (maxcnt < cnt) {
+		maxcnt = cnt;
+		index = idx;
+	}
 
 	for (i = 0; i < 8; i++) {
 		if (dcolon == 1) {
@@ -1892,7 +1934,7 @@ ip6_sprintf(char *ip6buf, const struct in6_addr *addr)
 				dcolon = 2;
 		}
 		if (*a == 0) {
-			if (dcolon == 0 && *(a + 1) == 0) {
+			if (dcolon == 0 && *(a + 1) == 0 && i == index) {
 				if (i == 0)
 					*cp++ = ':';
 				*cp++ = ':';
@@ -2256,6 +2298,7 @@ in6_if2idlen(struct ifnet *ifp)
 #ifdef IFT_MIP
 	case IFT_MIP:	/* ditto */
 #endif
+	case IFT_INFINIBAND:
 		return (64);
 	case IFT_FDDI:		/* RFC2467 */
 		return (64);
@@ -2307,10 +2350,12 @@ in6_lltable_new(const struct sockaddr *l3addr, u_int flags)
 	if (lle == NULL)		/* NB: caller generates msg */
 		return NULL;
 
-	callout_init(&lle->base.ln_timer_ch, CALLOUT_MPSAFE);
 	lle->l3_addr6 = *(const struct sockaddr_in6 *)l3addr;
 	lle->base.lle_refcnt = 1;
 	LLE_LOCK_INIT(&lle->base);
+	callout_init_rw(&lle->base.ln_timer_ch, &lle->base.lle_lock,
+	    CALLOUT_RETURNUNLOCKED);
+
 	return &lle->base;
 }
 
@@ -2331,21 +2376,31 @@ in6_lltable_free(struct lltable *llt, struct llentry *lle)
 static void
 in6_lltable_prefix_free(struct lltable *llt, 
 			const struct sockaddr *prefix,
-			const struct sockaddr *mask)
+			const struct sockaddr *mask,
+			u_int flags)
 {
 	const struct sockaddr_in6 *pfx = (const struct sockaddr_in6 *)prefix;
 	const struct sockaddr_in6 *msk = (const struct sockaddr_in6 *)mask;
 	struct llentry *lle, *next;
 	register int i;
 
+	/*
+	 * (flags & LLE_STATIC) means deleting all entries 
+	 * including static ND6 entries
+	 */
 	for (i=0; i < LLTBL_HASHTBL_SIZE; i++) {
 		LIST_FOREACH_SAFE(lle, &llt->lle_head[i], lle_next, next) {
 			if (IN6_ARE_MASKED_ADDR_EQUAL(
 				    &((struct sockaddr_in6 *)L3_ADDR(lle))->sin6_addr, 
 				    &pfx->sin6_addr, 
-				    &msk->sin6_addr)) {
-				callout_drain(&lle->la_timer);
+				    &msk->sin6_addr) &&
+			    ((flags & LLE_STATIC) || !(lle->la_flags & LLE_STATIC))) {
+				int canceled;
+
+				canceled = callout_drain(&lle->la_timer);
 				LLE_WLOCK(lle);
+				if (canceled)
+					LLE_REMREF(lle);
 				llentry_free(lle);
 			}
 		}

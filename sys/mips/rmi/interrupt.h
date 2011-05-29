@@ -25,28 +25,26 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *__FBSDID("$FreeBSD$")
- * RMI_BSD */
+ *
+ * RMI_BSD
+ * $FreeBSD$
+ */
 #ifndef _RMI_INTERRUPT_H_
 #define _RMI_INTERRUPT_H_
 
 /* Defines for the IRQ numbers */
 
-#define IRQ_DUMMY_UART           2
-#define IRQ_IPI_SMP_FUNCTION     3
-#define IRQ_IPI_SMP_RESCHEDULE   4
-#define IRQ_REMOTE_DEBUG         5
-#define IRQ_MSGRING              6
-#define IRQ_TIMER                7
+#define IRQ_IPI			41  /* 8-39 are mapped by PIC intr 0-31 */
+#define IRQ_MSGRING             6
+#define IRQ_TIMER               7
 
 /*
  * XLR needs custom pre and post handlers for PCI/PCI-e interrupts
  * XXX: maybe follow i386 intsrc model
  */
-void xlr_cpu_establish_hardintr(const char *, driver_filter_t *,
-    driver_intr_t *, void *, int, int, void **, void (*)(void *),
-    void (*)(void *), void (*)(void *), int (*)(void *, u_char));
-void xlr_mask_hard_irq(void *);
-void xlr_unmask_hard_irq(void *);
+void xlr_establish_intr(const char *name, driver_filter_t filt,
+    driver_intr_t handler, void *arg, int irq, int flags,
+    void **cookiep, void (*busack)(int));
+void xlr_enable_irq(int irq);
 
 #endif				/* _RMI_INTERRUPT_H_ */

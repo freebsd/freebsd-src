@@ -9,7 +9,7 @@ SRCS=	_start.s boot1.c
 BOOTBLOCKBASE= 0x4000
 
 CFLAGS=	-mcmodel=medlow -Os -I${.CURDIR}/../../common
-LDFLAGS=-N -Ttext ${BOOTBLOCKBASE}
+LDFLAGS=-Ttext ${BOOTBLOCKBASE} -Wl,-N
 
 # Construct boot1. sunlabel expects it to contain zeroed-out space for the
 # label, and to be of the correct size.

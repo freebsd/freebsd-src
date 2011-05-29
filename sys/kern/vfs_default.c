@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vnode_pager.h>
 
 static int	vop_nolookup(struct vop_lookup_args *);
+static int	vop_norename(struct vop_rename_args *);
 static int	vop_nostrategy(struct vop_strategy_args *);
 static int	get_next_dirent(struct vnode *vp, struct dirent **dpp,
 				char *dirbuf, int dirbuflen, off_t *off,
@@ -97,6 +98,8 @@ struct vop_vector default_vnodeops = {
 	.vop_accessx =		vop_stdaccessx,
 	.vop_advlock =		vop_stdadvlock,
 	.vop_advlockasync =	vop_stdadvlockasync,
+	.vop_advlockpurge =	vop_stdadvlockpurge,
+	.vop_allocate =		vop_stdallocate,
 	.vop_bmap =		vop_stdbmap,
 	.vop_close =		VOP_NULL,
 	.vop_fsync =		VOP_NULL,
@@ -113,6 +116,7 @@ struct vop_vector default_vnodeops = {
 	.vop_poll =		vop_nopoll,
 	.vop_putpages =		vop_stdputpages,
 	.vop_readlink =		VOP_EINVAL,
+	.vop_rename =		vop_norename,
 	.vop_revoke =		VOP_PANIC,
 	.vop_strategy =		vop_nostrategy,
 	.vop_unlock =		vop_stdunlock,
@@ -206,6 +210,20 @@ vop_nolookup(ap)
 }
 
 /*
+ * vop_norename:
+ *
+ * Handle unlock and reference counting for arguments of vop_rename
+ * for filesystems that do not implement rename operation.
+ */
+static int
+vop_norename(struct vop_rename_args *ap)
+{
+
+	vop_rename_fail(ap);
+	return (EOPNOTSUPP);
+}
+
+/*
  *	vop_nostrategy:
  *
  *	Strategy routine for VFS devices that have none.
@@ -268,6 +286,9 @@ get_next_dirent(struct vnode *vp, struct dirent **dpp, char *dirbuf,
 
 		*cpos = dirbuf;
 		*len = (dirbuflen - uio.uio_resid);
+
+		if (*len == 0)
+			return (ENOENT);
 	}
 
 	dp = (struct dirent *)(*cpos);
@@ -395,6 +416,16 @@ vop_stdadvlockasync(struct vop_advlockasync_args *ap)
 		return (error);
 
 	return (lf_advlockasync(ap, &(vp->v_lockf), vattr.va_size));
+}
+
+int
+vop_stdadvlockpurge(struct vop_advlockpurge_args *ap)
+{
+	struct vnode *vp;
+
+	vp = ap->a_vp;
+	lf_purgelocks(vp, &vp->v_lockf);
+	return (0);
 }
 
 /*
@@ -825,6 +856,134 @@ out:
 	return (error);
 }
 
+int
+vop_stdallocate(struct vop_allocate_args *ap)
+{
+#ifdef __notyet__
+	struct statfs sfs;
+#endif
+	struct iovec aiov;
+	struct vattr vattr, *vap;
+	struct uio auio;
+	off_t fsize, len, cur, offset;
+	uint8_t *buf;
+	struct thread *td;
+	struct vnode *vp;
+	size_t iosize;
+	int error;
+
+	buf = NULL;
+	error = 0;
+	td = curthread;
+	vap = &vattr;
+	vp = ap->a_vp;
+	len = *ap->a_len;
+	offset = *ap->a_offset;
+
+	error = VOP_GETATTR(vp, vap, td->td_ucred);
+	if (error != 0)
+		goto out;
+	fsize = vap->va_size;
+	iosize = vap->va_blocksize;
+	if (iosize == 0)
+		iosize = BLKDEV_IOSIZE;
+	if (iosize > MAXPHYS)
+		iosize = MAXPHYS;
+	buf = malloc(iosize, M_TEMP, M_WAITOK);
+
+#ifdef __notyet__
+	/*
+	 * Check if the filesystem sets f_maxfilesize; if not use
+	 * VOP_SETATTR to perform the check.
+	 */
+	error = VFS_STATFS(vp->v_mount, &sfs, td);
+	if (error != 0)
+		goto out;
+	if (sfs.f_maxfilesize) {
+		if (offset > sfs.f_maxfilesize || len > sfs.f_maxfilesize ||
+		    offset + len > sfs.f_maxfilesize) {
+			error = EFBIG;
+			goto out;
+		}
+	} else
+#endif
+	if (offset + len > vap->va_size) {
+		/*
+		 * Test offset + len against the filesystem's maxfilesize.
+		 */
+		VATTR_NULL(vap);
+		vap->va_size = offset + len;
+		error = VOP_SETATTR(vp, vap, td->td_ucred);
+		if (error != 0)
+			goto out;
+		VATTR_NULL(vap);
+		vap->va_size = fsize;
+		error = VOP_SETATTR(vp, vap, td->td_ucred);
+		if (error != 0)
+			goto out;
+	}
+
+	for (;;) {
+		/*
+		 * Read and write back anything below the nominal file
+		 * size.  There's currently no way outside the filesystem
+		 * to know whether this area is sparse or not.
+		 */
+		cur = iosize;
+		if ((offset % iosize) != 0)
+			cur -= (offset % iosize);
+		if (cur > len)
+			cur = len;
+		if (offset < fsize) {
+			aiov.iov_base = buf;
+			aiov.iov_len = cur;
+			auio.uio_iov = &aiov;
+			auio.uio_iovcnt = 1;
+			auio.uio_offset = offset;
+			auio.uio_resid = cur;
+			auio.uio_segflg = UIO_SYSSPACE;
+			auio.uio_rw = UIO_READ;
+			auio.uio_td = td;
+			error = VOP_READ(vp, &auio, 0, td->td_ucred);
+			if (error != 0)
+				break;
+			if (auio.uio_resid > 0) {
+				bzero(buf + cur - auio.uio_resid,
+				    auio.uio_resid);
+			}
+		} else {
+			bzero(buf, cur);
+		}
+
+		aiov.iov_base = buf;
+		aiov.iov_len = cur;
+		auio.uio_iov = &aiov;
+		auio.uio_iovcnt = 1;
+		auio.uio_offset = offset;
+		auio.uio_resid = cur;
+		auio.uio_segflg = UIO_SYSSPACE;
+		auio.uio_rw = UIO_WRITE;
+		auio.uio_td = td;
+
+		error = VOP_WRITE(vp, &auio, 0, td->td_ucred);
+		if (error != 0)
+			break;
+
+		len -= cur;
+		offset += cur;
+		if (len == 0)
+			break;
+		if (should_yield())
+			break;
+	}
+
+ out:
+	*ap->a_len = len;
+	*ap->a_offset = offset;
+	free(buf, M_TEMP);
+	return (error);
+}
+
 /*
  * vfs default ops
  * used to fill the vfs function table to get reasonable default return values.
@@ -922,9 +1081,10 @@ vfs_stdvget (mp, ino, flags, vpp)
 }
 
 int
-vfs_stdfhtovp (mp, fhp, vpp)
+vfs_stdfhtovp (mp, fhp, flags, vpp)
 	struct mount *mp;
 	struct fid *fhp;
+	int flags;
 	struct vnode **vpp;
 {
 

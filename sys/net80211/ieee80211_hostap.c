@@ -472,7 +472,6 @@ doprint(struct ieee80211vap *vap, int subtype)
 static int
 hostap_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 {
-#define	SEQ_LEQ(a,b)	((int)((a)-(b)) <= 0)
 #define	HAS_SEQ(type)	((type & 0x4) == 0)
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;
@@ -572,9 +571,7 @@ hostap_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 			    TID_TO_WME_AC(tid) >= WME_AC_VI)
 				ic->ic_wme.wme_hipri_traffic++;
 			rxseq = le16toh(*(uint16_t *)wh->i_seq);
-			if ((ni->ni_flags & IEEE80211_NODE_HT) == 0 &&
-			    (wh->i_fc[1] & IEEE80211_FC1_RETRY) &&
-			    SEQ_LEQ(rxseq, ni->ni_rxseqs[tid])) {
+			if (! ieee80211_check_rxseq(ni, wh)) {
 				/* duplicate, discard */
 				IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_INPUT,
 				    bssid, "duplicate",
@@ -883,6 +880,14 @@ hostap_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 			wh = mtod(m, struct ieee80211_frame *);
 			wh->i_fc[1] &= ~IEEE80211_FC1_WEP;
 		}
+		/*
+		 * Pass the packet to radiotap before calling iv_recv_mgmt().
+		 * Otherwise iv_recv_mgmt() might pass another packet to
+		 * radiotap, resulting in out of order packet captures.
+		 */
+		if (ieee80211_radiotap_active_vap(vap))
+			ieee80211_radiotap_rx(vap, m);
+		need_tap = 0;
 		vap->iv_recv_mgmt(ni, m, subtype, rssi, nf);
 		goto out;
 
@@ -906,7 +911,6 @@ out:
 		m_freem(m);
 	}
 	return type;
-#undef SEQ_LEQ
 }
 
 static void
@@ -2186,18 +2190,38 @@ hostap_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 	}
 
 	case IEEE80211_FC0_SUBTYPE_ACTION:
-		if (vap->iv_state == IEEE80211_S_RUN) {
-			if (ieee80211_parse_action(ni, m0) == 0)
-				ic->ic_recv_action(ni, wh, frm, efrm);
-		} else
+	case IEEE80211_FC0_SUBTYPE_ACTION_NOACK:
+		if (ni == vap->iv_bss) {
+			IEEE80211_DISCARD(vap, IEEE80211_MSG_INPUT,
+			    wh, NULL, "%s", "unknown node");
 			vap->iv_stats.is_rx_mgtdiscard++;
+		} else if (!IEEE80211_ADDR_EQ(vap->iv_myaddr, wh->i_addr1) &&
+		    !IEEE80211_IS_MULTICAST(wh->i_addr1)) {
+			IEEE80211_DISCARD(vap, IEEE80211_MSG_INPUT,
+			    wh, NULL, "%s", "not for us");
+			vap->iv_stats.is_rx_mgtdiscard++;
+		} else if (vap->iv_state != IEEE80211_S_RUN) {
+			IEEE80211_DISCARD(vap, IEEE80211_MSG_INPUT,
+			    wh, NULL, "wrong state %s",
+			    ieee80211_state_name[vap->iv_state]);
+			vap->iv_stats.is_rx_mgtdiscard++;
+		} else {
+			if (ieee80211_parse_action(ni, m0) == 0)
+				(void)ic->ic_recv_action(ni, wh, frm, efrm);
+		}
 		break;
 
 	case IEEE80211_FC0_SUBTYPE_ASSOC_RESP:
 	case IEEE80211_FC0_SUBTYPE_REASSOC_RESP:
+	case IEEE80211_FC0_SUBTYPE_ATIM:
+		IEEE80211_DISCARD(vap, IEEE80211_MSG_INPUT,
+		    wh, NULL, "%s", "not handled");
+		vap->iv_stats.is_rx_mgtdiscard++;
+		break;
+
 	default:
 		IEEE80211_DISCARD(vap, IEEE80211_MSG_ANY,
-		     wh, "mgt", "subtype 0x%x not handled", subtype);
+		    wh, "mgt", "subtype 0x%x not handled", subtype);
 		vap->iv_stats.is_rx_badsubtype++;
 		break;
 	}

@@ -24,6 +24,9 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
 #ifndef __GNUC__
 #error "GCC is needed to compile this file"
@@ -92,5 +95,3 @@ __asm__("eprol:");
 	_init();
 	exit( main(argc, argv, env) );
 }
-
-__asm__(".ident\t\"$FreeBSD$\"");

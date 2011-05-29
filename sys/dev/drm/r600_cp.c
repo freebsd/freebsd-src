@@ -180,7 +180,7 @@ int r600_page_table_init(struct drm_device *dev)
 		entry_addr = entry->busaddr[i];
 		for (j = 0; j < (PAGE_SIZE / ATI_PCIGART_PAGE_SIZE); j++) {
 			page_base = (u64) entry_addr & ATI_PCIGART_PAGE_MASK;
-			page_base |= R600_PTE_VALID | R600_PTE_SYSTEM | R600_PTE_SNOOPED;
+			page_base |= R600_PTE_VALID | R600_PTE_SYSTEM;
 			page_base |= R600_PTE_READABLE | R600_PTE_WRITEABLE;
 
 			*pci_gart = page_base;
@@ -1670,9 +1670,8 @@ static void r600_cp_init_ring_buffer(struct drm_device *dev,
 	} else
 #endif
 	{
-		rptr_addr = dev_priv->ring_rptr->offset
-			- ((unsigned long) dev->sg->virtual)
-			+ dev_priv->gart_vm_start;
+		rptr_addr = dev_priv->ring_rptr->offset - dev->sg->vaddr +
+		    dev_priv->gart_vm_start;
 	}
 	RADEON_WRITE(R600_CP_RB_RPTR_ADDR,
 		     rptr_addr & 0xffffffff);
@@ -1706,9 +1705,8 @@ static void r600_cp_init_ring_buffer(struct drm_device *dev,
 			      + dev_priv->gart_vm_start);
 	} else
 #endif
-		ring_start = (dev_priv->cp_ring->offset
-			      - (unsigned long)dev->sg->virtual
-			      + dev_priv->gart_vm_start);
+		ring_start = dev_priv->cp_ring->offset - dev->sg->vaddr +
+		    dev_priv->gart_vm_start;
 
 	RADEON_WRITE(R600_CP_RB_BASE, ring_start >> 8);
 
@@ -1914,7 +1912,7 @@ int r600_do_init_cp(struct drm_device *dev, drm_radeon_init_t *init,
 	}
 
 	dev_priv->sarea_priv =
-	    (drm_radeon_sarea_t *) ((u8 *) dev_priv->sarea->handle +
+	    (drm_radeon_sarea_t *) ((u8 *) dev_priv->sarea->virtual +
 				    init->sarea_priv_offset);
 
 #if __OS_HAS_AGP
@@ -1923,9 +1921,9 @@ int r600_do_init_cp(struct drm_device *dev, drm_radeon_init_t *init,
 		drm_core_ioremap_wc(dev_priv->cp_ring, dev);
 		drm_core_ioremap_wc(dev_priv->ring_rptr, dev);
 		drm_core_ioremap_wc(dev->agp_buffer_map, dev);
-		if (!dev_priv->cp_ring->handle ||
-		    !dev_priv->ring_rptr->handle ||
-		    !dev->agp_buffer_map->handle) {
+		if (!dev_priv->cp_ring->virtual ||
+		    !dev_priv->ring_rptr->virtual ||
+		    !dev->agp_buffer_map->virtual) {
 			DRM_ERROR("could not find ioremap agp regions!\n");
 			r600_do_cleanup_cp(dev);
 			return -EINVAL;
@@ -1933,18 +1931,19 @@ int r600_do_init_cp(struct drm_device *dev, drm_radeon_init_t *init,
 	} else
 #endif
 	{
-		dev_priv->cp_ring->handle = (void *)dev_priv->cp_ring->offset;
-		dev_priv->ring_rptr->handle =
+		dev_priv->cp_ring->virtual =
+		    (void *)dev_priv->cp_ring->offset;
+		dev_priv->ring_rptr->virtual =
 		    (void *)dev_priv->ring_rptr->offset;
-		dev->agp_buffer_map->handle =
+		dev->agp_buffer_map->virtual =
 		    (void *)dev->agp_buffer_map->offset;
 
-		DRM_DEBUG("dev_priv->cp_ring->handle %p\n",
-			  dev_priv->cp_ring->handle);
-		DRM_DEBUG("dev_priv->ring_rptr->handle %p\n",
-			  dev_priv->ring_rptr->handle);
-		DRM_DEBUG("dev->agp_buffer_map->handle %p\n",
-			  dev->agp_buffer_map->handle);
+		DRM_DEBUG("dev_priv->cp_ring->virtual %p\n",
+			  dev_priv->cp_ring->virtual);
+		DRM_DEBUG("dev_priv->ring_rptr->virtual %p\n",
+			  dev_priv->ring_rptr->virtual);
+		DRM_DEBUG("dev->agp_buffer_map->virtual %p\n",
+			  dev->agp_buffer_map->virtual);
 	}
 
 	dev_priv->fb_location = (radeon_read_fb_location(dev_priv) & 0xffff) << 24;
@@ -2011,9 +2010,8 @@ int r600_do_init_cp(struct drm_device *dev, drm_radeon_init_t *init,
 						 + dev_priv->gart_vm_start);
 	else
 #endif
-		dev_priv->gart_buffers_offset = (dev->agp_buffer_map->offset
-						 - (unsigned long)dev->sg->virtual
-						 + dev_priv->gart_vm_start);
+		dev_priv->gart_buffers_offset = dev->agp_buffer_map->offset -
+		    dev->sg->vaddr + dev_priv->gart_vm_start;
 
 	DRM_DEBUG("fb 0x%08x size %d\n",
 		  (unsigned int) dev_priv->fb_location,
@@ -2024,8 +2022,8 @@ int r600_do_init_cp(struct drm_device *dev, drm_radeon_init_t *init,
 	DRM_DEBUG("dev_priv->gart_buffers_offset 0x%08lx\n",
 		  dev_priv->gart_buffers_offset);
 
-	dev_priv->ring.start = (u32 *) dev_priv->cp_ring->handle;
-	dev_priv->ring.end = ((u32 *) dev_priv->cp_ring->handle
+	dev_priv->ring.start = (u32 *) dev_priv->cp_ring->virtual;
+	dev_priv->ring.end = ((u32 *) dev_priv->cp_ring->virtual
 			      + init->ring_size / sizeof(u32));
 	dev_priv->ring.size = init->ring_size;
 	dev_priv->ring.size_l2qw = drm_order(init->ring_size / 8);
@@ -2064,14 +2062,14 @@ int r600_do_init_cp(struct drm_device *dev, drm_radeon_init_t *init,
 			dev_priv->gart_info.table_size;
 
 		drm_core_ioremap_wc(&dev_priv->gart_info.mapping, dev);
-		if (!dev_priv->gart_info.mapping.handle) {
+		if (!dev_priv->gart_info.mapping.virtual) {
 			DRM_ERROR("ioremap failed.\n");
 			r600_do_cleanup_cp(dev);
 			return -EINVAL;
 		}
 
 		dev_priv->gart_info.addr =
-			dev_priv->gart_info.mapping.handle;
+			dev_priv->gart_info.mapping.virtual;
 
 		DRM_DEBUG("Setting phys_pci_gart to %p %08lX\n",
 			  dev_priv->gart_info.addr,
@@ -2219,7 +2217,7 @@ int r600_cp_dispatch_indirect(struct drm_device *dev,
 		 */
 		while (dwords & 0xf) {
 			u32 *data = (u32 *)
-			    ((char *)dev->agp_buffer_map->handle
+			    ((char *)dev->agp_buffer_map->virtual
 			     + buf->offset + start);
 			data[dwords++] = RADEON_CP_PACKET2;
 		}
@@ -2343,7 +2341,8 @@ int r600_cp_dispatch_texture(struct drm_device * dev,
 		/* Dispatch the indirect buffer.
 		 */
 		buffer =
-		    (u32 *) ((char *)dev->agp_buffer_map->handle + buf->offset);
+		    (u32 *) ((char *)dev->agp_buffer_map->virtual +
+		    buf->offset);
 
 		if (DRM_COPY_FROM_USER(buffer, data, pass_size)) {
 			DRM_ERROR("EFAULT on pad, %d bytes\n", pass_size);

@@ -51,13 +51,10 @@ struct acpi_softc {
     device_t		acpi_dev;
     struct cdev		*acpi_dev_t;
 
-    struct resource	*acpi_irq;
-    int			acpi_irq_rid;
-    void		*acpi_irq_handle;
-
     int			acpi_enabled;
     int			acpi_sstate;
     int			acpi_sleep_disabled;
+    int			acpi_resources_reserved;
 
     struct sysctl_ctx_list acpi_sysctl_ctx;
     struct sysctl_oid	*acpi_sysctl_tree;
@@ -189,18 +186,20 @@ extern struct mtx			acpi_mutex;
 /*
  * Various features and capabilities for the acpi_get_features() method.
  * In particular, these are used for the ACPI 3.0 _PDC and _OSC methods.
- * See the Intel document titled "Processor Driver Capabilities Bit
- * Definitions", number 302223-002.
+ * See the Intel document titled "Intel Processor Vendor-Specific ACPI",
+ * number 302223-005.
  */
-#define ACPI_CAP_PERF_MSRS	(1 << 0) /* Intel SpeedStep PERF_CTL MSRs */
-#define ACPI_CAP_C1_IO_HALT	(1 << 1) /* Intel C1 "IO then halt" sequence */
-#define ACPI_CAP_THR_MSRS	(1 << 2) /* Intel OnDemand throttling MSRs */
-#define ACPI_CAP_SMP_SAME	(1 << 3) /* MP C1, Px, and Tx (all the same) */
-#define ACPI_CAP_SMP_SAME_C3	(1 << 4) /* MP C2 and C3 (all the same) */
-#define ACPI_CAP_SMP_DIFF_PX	(1 << 5) /* MP Px (different, using _PSD) */
-#define ACPI_CAP_SMP_DIFF_CX	(1 << 6) /* MP Cx (different, using _CSD) */
-#define ACPI_CAP_SMP_DIFF_TX	(1 << 7) /* MP Tx (different, using _TSD) */
-#define ACPI_CAP_SMP_C1_NATIVE	(1 << 8) /* MP C1 support other than halt */
+#define	ACPI_CAP_PERF_MSRS	(1 << 0)  /* Intel SpeedStep PERF_CTL MSRs */
+#define	ACPI_CAP_C1_IO_HALT	(1 << 1)  /* Intel C1 "IO then halt" sequence */
+#define	ACPI_CAP_THR_MSRS	(1 << 2)  /* Intel OnDemand throttling MSRs */
+#define	ACPI_CAP_SMP_SAME	(1 << 3)  /* MP C1, Px, and Tx (all the same) */
+#define	ACPI_CAP_SMP_SAME_C3	(1 << 4)  /* MP C2 and C3 (all the same) */
+#define	ACPI_CAP_SMP_DIFF_PX	(1 << 5)  /* MP Px (different, using _PSD) */
+#define	ACPI_CAP_SMP_DIFF_CX	(1 << 6)  /* MP Cx (different, using _CSD) */
+#define	ACPI_CAP_SMP_DIFF_TX	(1 << 7)  /* MP Tx (different, using _TSD) */
+#define	ACPI_CAP_SMP_C1_NATIVE	(1 << 8)  /* MP C1 support other than halt */
+#define	ACPI_CAP_SMP_C3_NATIVE	(1 << 9)  /* MP C2 and C3 support */
+#define	ACPI_CAP_PX_HW_COORD	(1 << 11) /* Intel P-state HW coordination */
 
 /*
  * Quirk flags.
@@ -274,6 +273,16 @@ acpi_get_type(device_t dev)
     return (t);
 }
 
+/* Find the difference between two PM tick counts. */
+static __inline uint32_t
+acpi_TimerDelta(uint32_t end, uint32_t start)
+{
+
+	if (end < start && (AcpiGbl_FADT.Flags & ACPI_FADT_32BIT_TIMER) == 0)
+		end |= 0x01000000;
+	return (end - start);
+}
+
 #ifdef ACPI_DEBUGGER
 void		acpi_EnterDebugger(void);
 #endif
@@ -312,7 +321,6 @@ BOOLEAN		acpi_DeviceIsPresent(device_t dev);
 BOOLEAN		acpi_BatteryIsPresent(device_t dev);
 ACPI_STATUS	acpi_GetHandleInScope(ACPI_HANDLE parent, char *path,
 		    ACPI_HANDLE *result);
-uint32_t	acpi_TimerDelta(uint32_t end, uint32_t start);
 ACPI_BUFFER	*acpi_AllocBuffer(int size);
 ACPI_STATUS	acpi_ConvertBufferToInteger(ACPI_BUFFER *bufp,
 		    UINT32 *number);
@@ -332,7 +340,6 @@ int		acpi_ReqSleepState(struct acpi_softc *sc, int state);
 int		acpi_AckSleepState(struct apm_clone_data *clone, int error);
 ACPI_STATUS	acpi_SetSleepState(struct acpi_softc *sc, int state);
 void		acpi_resync_clock(struct acpi_softc *sc);
-int		acpi_wake_init(device_t dev, int type);
 int		acpi_wake_set_enable(device_t dev, int enable);
 int		acpi_parse_prw(ACPI_HANDLE h, struct acpi_prw_data *prw);
 ACPI_STATUS	acpi_Startup(void);
@@ -343,6 +350,7 @@ int		acpi_bus_alloc_gas(device_t dev, int *type, int *rid,
 		    u_int flags);
 void		acpi_walk_subtables(void *first, void *end,
 		    acpi_subtable_handler *handler, void *arg);
+BOOLEAN		acpi_MatchHid(ACPI_HANDLE h, const char *hid);
 
 struct acpi_parse_resource_set {
     void	(*set_init)(device_t dev, void *arg, void **context);
@@ -393,6 +401,11 @@ EVENTHANDLER_DECLARE(acpi_wakeup_event, acpi_event_handler_t);
 /* Device power control. */
 ACPI_STATUS	acpi_pwr_wake_enable(ACPI_HANDLE consumer, int enable);
 ACPI_STATUS	acpi_pwr_switch_consumer(ACPI_HANDLE consumer, int state);
+int		acpi_device_pwr_for_sleep(device_t bus, device_t dev,
+		    int *dstate);
+
+/* APM emulation */
+void		acpi_apm_init(struct acpi_softc *);
 
 /* Misc. */
 static __inline struct acpi_softc *

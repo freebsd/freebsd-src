@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 
 /* External tools reserve first few grant table entries. */
 #define NR_RESERVED_ENTRIES 8
-#define GNTTAB_LIST_END 0xffffffff
 #define GREFS_PER_GRANT_FRAME (PAGE_SIZE / sizeof(grant_entry_t))
 
 static grant_ref_t **gnttab_list;
@@ -66,7 +65,7 @@ get_free_entries(int count, int *entries)
 {
 	int ref, error;
 	grant_ref_t head;
-	
+
 	mtx_lock(&gnttab_list_lock);
 	if ((gnttab_free_count < count) &&
 	    ((error = gnttab_expand(count - gnttab_free_count)) != 0)) {
@@ -79,7 +78,7 @@ get_free_entries(int count, int *entries)
 		head = gnttab_entry(head);
 	gnttab_free_head = gnttab_entry(head);
 	gnttab_entry(head) = GNTTAB_LIST_END;
-	mtx_unlock(&gnttab_list_lock);	
+	mtx_unlock(&gnttab_list_lock);
 
 	*entries = ref;
 	return (0);
@@ -122,7 +121,7 @@ put_free_entry(grant_ref_t ref)
 	gnttab_free_head = ref;
 	gnttab_free_count++;
 	check_free_callbacks();
-	mtx_unlock(&gnttab_list_lock);	
+	mtx_unlock(&gnttab_list_lock);
 }
 
 /*
@@ -136,7 +135,7 @@ gnttab_grant_foreign_access(domid_t domid, unsigned long frame, int readonly,
 	int error, ref;
 
 	error = get_free_entries(1, &ref);
-	
+
 	if (unlikely(error))
 		return (error);
 
@@ -166,9 +165,9 @@ int
 gnttab_query_foreign_access(grant_ref_t ref)
 {
 	uint16_t nflags;
-	
+
 	nflags = shared[ref].flags;
-	
+
 	return (nflags & (GTF_reading|GTF_writing));
 }
 
@@ -180,7 +179,7 @@ gnttab_end_foreign_access_ref(grant_ref_t ref)
 	nflags = shared[ref].flags;
 	do {
 		if ( (flags = nflags) & (GTF_reading|GTF_writing) ) {
-			printf("WARNING: g.e. still in use!\n");
+			printf("%s: WARNING: g.e. still in use!\n", __func__);
 			return (0);
 		}
 	} while ((nflags = synch_cmpxchg(&shared[ref].flags, flags, 0)) !=
@@ -201,7 +200,44 @@ gnttab_end_foreign_access(grant_ref_t ref, void *page)
 	else {
 		/* XXX This needs to be fixed so that the ref and page are
 		   placed on a list to be freed up later. */
-		printf("WARNING: leaking g.e. and page still in use!\n");
+		printf("%s: WARNING: leaking g.e. and page still in use!\n",
+		       __func__);
+	}
+}
+
+void
+gnttab_end_foreign_access_references(u_int count, grant_ref_t *refs)
+{
+	grant_ref_t *last_ref;
+	grant_ref_t  head;
+	grant_ref_t  tail;
+
+	head = GNTTAB_LIST_END;
+	tail = *refs;
+	last_ref = refs + count;
+	while (refs != last_ref) {
+
+		if (gnttab_end_foreign_access_ref(*refs)) {
+			gnttab_entry(*refs) = head;
+			head = *refs;
+		} else {
+			/*
+			 * XXX This needs to be fixed so that the ref 
+			 * is placed on a list to be freed up later.
+			 */
+			printf("%s: WARNING: leaking g.e. still in use!\n",
+			       __func__);
+			count--;
+		}
+		refs++;
+	}
+
+	if (count != 0) {
+		mtx_lock(&gnttab_list_lock);
+		gnttab_free_count += count;
+		gnttab_entry(tail) = gnttab_free_head;
+		gnttab_free_head = head;
+		mtx_unlock(&gnttab_list_lock);
 	}
 }
 
@@ -216,7 +252,7 @@ gnttab_grant_foreign_transfer(domid_t domid, unsigned long pfn,
 		return (error);
 
 	gnttab_grant_foreign_transfer_ref(ref, domid, pfn);
-	
+
 	*result = ref;
 	return (0);
 }
@@ -282,16 +318,16 @@ gnttab_free_grant_references(grant_ref_t head)
 {
 	grant_ref_t ref;
 	int count = 1;
-	
+
 	if (head == GNTTAB_LIST_END)
 		return;
-	
-	mtx_lock(&gnttab_list_lock);
+
 	ref = head;
 	while (gnttab_entry(ref) != GNTTAB_LIST_END) {
 		ref = gnttab_entry(ref);
 		count++;
 	}
+	mtx_lock(&gnttab_list_lock);
 	gnttab_entry(ref) = gnttab_free_head;
 	gnttab_free_head = head;
 	gnttab_free_count += count;
@@ -403,7 +439,7 @@ grow_gnttab_list(unsigned int more_frames)
 	check_free_callbacks();
 
 	return (0);
-	
+
 grow_nomem:
 	for ( ; i >= nr_grant_frames; i--)
 		free(gnttab_list[i], M_DEVBUF);
@@ -490,7 +526,7 @@ gnttab_map(unsigned int start_idx, unsigned int end_idx)
 
 	if (shared == NULL) {
 		vm_offset_t area;
-		
+
 		area = kmem_alloc_nofault(kernel_map,
 		    PAGE_SIZE * max_nr_grant_frames());
 		KASSERT(area, ("can't allocate VM space for grant table"));
@@ -502,7 +538,7 @@ gnttab_map(unsigned int start_idx, unsigned int end_idx)
 		    ((vm_paddr_t)frames[i]) << PAGE_SHIFT | PG_RW | PG_V);
 
 	free(frames, M_DEVBUF);
-	
+
 	return (0);
 }
 
@@ -517,7 +553,7 @@ gnttab_resume(void)
 
 int
 gnttab_suspend(void)
-{	
+{
 	int i;
 
 	for (i = 0; i < nr_grant_frames; i++)
@@ -532,7 +568,8 @@ gnttab_suspend(void)
 
 static vm_paddr_t resume_frames;
 
-static int gnttab_map(unsigned int start_idx, unsigned int end_idx)
+static int
+gnttab_map(unsigned int start_idx, unsigned int end_idx)
 {
 	struct xen_add_to_physmap xatp;
 	unsigned int i = end_idx;
@@ -552,7 +589,7 @@ static int gnttab_map(unsigned int start_idx, unsigned int end_idx)
 
 	if (shared == NULL) {
 		vm_offset_t area;
-		
+
 		area = kmem_alloc_nofault(kernel_map,
 		    PAGE_SIZE * max_nr_grant_frames());
 		KASSERT(area, ("can't allocate VM space for grant table"));
@@ -643,10 +680,10 @@ gnttab_init()
 		if (gnttab_list[i] == NULL)
 			goto ini_nomem;
 	}
-	
+
 	if (gnttab_resume())
 		return (ENODEV);
-	
+
 	nr_init_grefs = nr_grant_frames * GREFS_PER_GRANT_FRAME;
 
 	for (i = NR_RESERVED_ENTRIES; i < nr_init_grefs - 1; i++)
@@ -670,4 +707,3 @@ ini_nomem:
 }
 
 MTX_SYSINIT(gnttab, &gnttab_list_lock, "GNTTAB LOCK", MTX_DEF); 
-//SYSINIT(gnttab, SI_SUB_PSEUDO, SI_ORDER_FIRST, gnttab_init, NULL);

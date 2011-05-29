@@ -1,5 +1,5 @@
 /*
- * Copryight 1998 Sean Eric Fagan
+ * Copyright 1998 Sean Eric Fagan
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -276,7 +276,7 @@ mips_syscall_entry(struct trussinfo *trussinfo, int nargs) {
  * And when the system call is done, we handle it here.
  * Currently, no attempt is made to ensure that the system calls
  * match -- this needs to be fixed (and is, in fact, why S_SCX includes
- * the sytem call number instead of, say, an error status).
+ * the system call number instead of, say, an error status).
  */
 
 long

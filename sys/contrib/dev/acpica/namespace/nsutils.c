@@ -5,114 +5,42 @@
  *
  *****************************************************************************/
 
-/******************************************************************************
- *
- * 1. Copyright Notice
- *
- * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
+/*
+ * Copyright (C) 2000 - 2011, Intel Corp.
  * All rights reserved.
  *
- * 2. License
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions, and the following disclaimer,
+ *    without modification.
+ * 2. Redistributions in binary form must reproduce at minimum a disclaimer
+ *    substantially similar to the "NO WARRANTY" disclaimer below
+ *    ("Disclaimer") and any redistribution must be conditioned upon
+ *    including a substantially similar Disclaimer requirement for further
+ *    binary redistribution.
+ * 3. Neither the names of the above-listed copyright holders nor the names
+ *    of any contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
  *
- * 2.1. This is your license from Intel Corp. under its intellectual property
- * rights.  You may have additional license terms from the party that provided
- * you this software, covering your right to use that party's intellectual
- * property rights.
+ * Alternatively, this software may be distributed under the terms of the
+ * GNU General Public License ("GPL") version 2 as published by the Free
+ * Software Foundation.
  *
- * 2.2. Intel grants, free of charge, to any person ("Licensee") obtaining a
- * copy of the source code appearing in this file ("Covered Code") an
- * irrevocable, perpetual, worldwide license under Intel's copyrights in the
- * base code distributed originally by Intel ("Original Intel Code") to copy,
- * make derivatives, distribute, use and display any portion of the Covered
- * Code in any form, with the right to sublicense such rights; and
- *
- * 2.3. Intel grants Licensee a non-exclusive and non-transferable patent
- * license (with the right to sublicense), under only those claims of Intel
- * patents that are infringed by the Original Intel Code, to make, use, sell,
- * offer to sell, and import the Covered Code and derivative works thereof
- * solely to the minimum extent necessary to exercise the above copyright
- * license, and in no event shall the patent license extend to any additions
- * to or modifications of the Original Intel Code.  No other license or right
- * is granted directly or by implication, estoppel or otherwise;
- *
- * The above copyright and patent license is granted only if the following
- * conditions are met:
- *
- * 3. Conditions
- *
- * 3.1. Redistribution of Source with Rights to Further Distribute Source.
- * Redistribution of source code of any substantial portion of the Covered
- * Code or modification with rights to further distribute source must include
- * the above Copyright Notice, the above License, this list of Conditions,
- * and the following Disclaimer and Export Compliance provision.  In addition,
- * Licensee must cause all Covered Code to which Licensee contributes to
- * contain a file documenting the changes Licensee made to create that Covered
- * Code and the date of any change.  Licensee must include in that file the
- * documentation of any changes made by any predecessor Licensee.  Licensee
- * must include a prominent statement that the modification is derived,
- * directly or indirectly, from Original Intel Code.
- *
- * 3.2. Redistribution of Source with no Rights to Further Distribute Source.
- * Redistribution of source code of any substantial portion of the Covered
- * Code or modification without rights to further distribute source must
- * include the following Disclaimer and Export Compliance provision in the
- * documentation and/or other materials provided with distribution.  In
- * addition, Licensee may not authorize further sublicense of source of any
- * portion of the Covered Code, and must include terms to the effect that the
- * license from Licensee to its licensee is limited to the intellectual
- * property embodied in the software Licensee provides to its licensee, and
- * not to intellectual property embodied in modifications its licensee may
- * make.
- *
- * 3.3. Redistribution of Executable. Redistribution in executable form of any
- * substantial portion of the Covered Code or modification must reproduce the
- * above Copyright Notice, and the following Disclaimer and Export Compliance
- * provision in the documentation and/or other materials provided with the
- * distribution.
- *
- * 3.4. Intel retains all right, title, and interest in and to the Original
- * Intel Code.
- *
- * 3.5. Neither the name Intel nor any other trademark owned or controlled by
- * Intel shall be used in advertising or otherwise to promote the sale, use or
- * other dealings in products derived from or relating to the Covered Code
- * without prior written authorization from Intel.
- *
- * 4. Disclaimer and Export Compliance
- *
- * 4.1. INTEL MAKES NO WARRANTY OF ANY KIND REGARDING ANY SOFTWARE PROVIDED
- * HERE.  ANY SOFTWARE ORIGINATING FROM INTEL OR DERIVED FROM INTEL SOFTWARE
- * IS PROVIDED "AS IS," AND INTEL WILL NOT PROVIDE ANY SUPPORT,  ASSISTANCE,
- * INSTALLATION, TRAINING OR OTHER SERVICES.  INTEL WILL NOT PROVIDE ANY
- * UPDATES, ENHANCEMENTS OR EXTENSIONS.  INTEL SPECIFICALLY DISCLAIMS ANY
- * IMPLIED WARRANTIES OF MERCHANTABILITY, NONINFRINGEMENT AND FITNESS FOR A
- * PARTICULAR PURPOSE.
- *
- * 4.2. IN NO EVENT SHALL INTEL HAVE ANY LIABILITY TO LICENSEE, ITS LICENSEES
- * OR ANY OTHER THIRD PARTY, FOR ANY LOST PROFITS, LOST DATA, LOSS OF USE OR
- * COSTS OF PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, OR FOR ANY INDIRECT,
- * SPECIAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THIS AGREEMENT, UNDER ANY
- * CAUSE OF ACTION OR THEORY OF LIABILITY, AND IRRESPECTIVE OF WHETHER INTEL
- * HAS ADVANCE NOTICE OF THE POSSIBILITY OF SUCH DAMAGES.  THESE LIMITATIONS
- * SHALL APPLY NOTWITHSTANDING THE FAILURE OF THE ESSENTIAL PURPOSE OF ANY
- * LIMITED REMEDY.
- *
- * 4.3. Licensee shall not export, either directly or indirectly, any of this
- * software or system incorporating such software without first obtaining any
- * required license or other approval from the U. S. Department of Commerce or
- * any other agency or department of the United States Government.  In the
- * event Licensee exports any such software from the United States or
- * re-exports any such software from a foreign destination, Licensee shall
- * ensure that the distribution and export/re-export of the software is in
- * compliance with all laws, regulations, orders, or other restrictions of the
- * U.S. Export Administration Regulations. Licensee agrees that neither it nor
- * any of its subsidiaries will export/re-export any technical data, process,
- * software, or service, directly or indirectly, to any country for which the
- * United States government or any agency thereof requires an export license,
- * other governmental approval, or letter of assurance, without first obtaining
- * such license, approval or letter.
- *
- *****************************************************************************/
+ * NO WARRANTY
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+ * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+ * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGES.
+ */
 
 #define __NSUTILS_C__
 
@@ -135,118 +63,6 @@ ACPI_NAME
 AcpiNsFindParentName (
     ACPI_NAMESPACE_NODE     *NodeToSearch);
 #endif
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiNsReportError
- *
- * PARAMETERS:  ModuleName          - Caller's module name (for error output)
- *              LineNumber          - Caller's line number (for error output)
- *              InternalName        - Name or path of the namespace node
- *              LookupStatus        - Exception code from NS lookup
- *
- * RETURN:      None
- *
- * DESCRIPTION: Print warning message with full pathname
- *
- ******************************************************************************/
-
-void
-AcpiNsReportError (
-    const char              *ModuleName,
-    UINT32                  LineNumber,
-    const char              *InternalName,
-    ACPI_STATUS             LookupStatus)
-{
-    ACPI_STATUS             Status;
-    UINT32                  BadName;
-    char                    *Name = NULL;
-
-
-    AcpiOsPrintf ("ACPI Error (%s-%04d): ", ModuleName, LineNumber);
-
-    if (LookupStatus == AE_BAD_CHARACTER)
-    {
-        /* There is a non-ascii character in the name */
-
-        ACPI_MOVE_32_TO_32 (&BadName, ACPI_CAST_PTR (UINT32, InternalName));
-        AcpiOsPrintf ("[0x%4.4X] (NON-ASCII)", BadName);
-    }
-    else
-    {
-        /* Convert path to external format */
-
-        Status = AcpiNsExternalizeName (ACPI_UINT32_MAX,
-                    InternalName, NULL, &Name);
-
-        /* Print target name */
-
-        if (ACPI_SUCCESS (Status))
-        {
-            AcpiOsPrintf ("[%s]", Name);
-        }
-        else
-        {
-            AcpiOsPrintf ("[COULD NOT EXTERNALIZE NAME]");
-        }
-
-        if (Name)
-        {
-            ACPI_FREE (Name);
-        }
-    }
-
-    AcpiOsPrintf (" Namespace lookup failure, %s\n",
-        AcpiFormatException (LookupStatus));
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiNsReportMethodError
- *
- * PARAMETERS:  ModuleName          - Caller's module name (for error output)
- *              LineNumber          - Caller's line number (for error output)
- *              Message             - Error message to use on failure
- *              PrefixNode          - Prefix relative to the path
- *              Path                - Path to the node (optional)
- *              MethodStatus        - Execution status
- *
- * RETURN:      None
- *
- * DESCRIPTION: Print warning message with full pathname
- *
- ******************************************************************************/
-
-void
-AcpiNsReportMethodError (
-    const char              *ModuleName,
-    UINT32                  LineNumber,
-    const char              *Message,
-    ACPI_NAMESPACE_NODE     *PrefixNode,
-    const char              *Path,
-    ACPI_STATUS             MethodStatus)
-{
-    ACPI_STATUS             Status;
-    ACPI_NAMESPACE_NODE     *Node = PrefixNode;
-
-
-    AcpiOsPrintf ("ACPI Error (%s-%04d): ", ModuleName, LineNumber);
-
-    if (Path)
-    {
-        Status = AcpiNsGetNode (PrefixNode, Path, ACPI_NS_NO_UPSEARCH,
-                    &Node);
-        if (ACPI_FAILURE (Status))
-        {
-            AcpiOsPrintf ("[Could not get node by pathname]");
-        }
-    }
-
-    AcpiNsPrintNodePathname (Node, Message);
-    AcpiOsPrintf (", %s\n", AcpiFormatException (MethodStatus));
-}
 
 
 /*******************************************************************************
@@ -1057,128 +873,3 @@ Cleanup:
     ACPI_FREE (InternalPath);
     return_ACPI_STATUS (Status);
 }
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiNsGetParentNode
- *
- * PARAMETERS:  Node       - Current table entry
- *
- * RETURN:      Parent entry of the given entry
- *
- * DESCRIPTION: Obtain the parent entry for a given entry in the namespace.
- *
- ******************************************************************************/
-
-ACPI_NAMESPACE_NODE *
-AcpiNsGetParentNode (
-    ACPI_NAMESPACE_NODE     *Node)
-{
-    ACPI_FUNCTION_ENTRY ();
-
-
-    if (!Node)
-    {
-        return (NULL);
-    }
-
-    /*
-     * Walk to the end of this peer list. The last entry is marked with a flag
-     * and the peer pointer is really a pointer back to the parent. This saves
-     * putting a parent back pointer in each and every named object!
-     */
-    while (!(Node->Flags & ANOBJ_END_OF_PEER_LIST))
-    {
-        Node = Node->Peer;
-    }
-
-    return (Node->Peer);
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiNsGetNextValidNode
- *
- * PARAMETERS:  Node       - Current table entry
- *
- * RETURN:      Next valid Node in the linked node list. NULL if no more valid
- *              nodes.
- *
- * DESCRIPTION: Find the next valid node within a name table.
- *              Useful for implementing NULL-end-of-list loops.
- *
- ******************************************************************************/
-
-ACPI_NAMESPACE_NODE *
-AcpiNsGetNextValidNode (
-    ACPI_NAMESPACE_NODE     *Node)
-{
-
-    /* If we are at the end of this peer list, return NULL */
-
-    if (Node->Flags & ANOBJ_END_OF_PEER_LIST)
-    {
-        return NULL;
-    }
-
-    /* Otherwise just return the next peer */
-
-    return (Node->Peer);
-}
-
-
-#ifdef ACPI_OBSOLETE_FUNCTIONS
-/*******************************************************************************
- *
- * FUNCTION:    AcpiNsFindParentName
- *
- * PARAMETERS:  *ChildNode             - Named Obj whose name is to be found
- *
- * RETURN:      The ACPI name
- *
- * DESCRIPTION: Search for the given obj in its parent scope and return the
- *              name segment, or "????" if the parent name can't be found
- *              (which "should not happen").
- *
- ******************************************************************************/
-
-ACPI_NAME
-AcpiNsFindParentName (
-    ACPI_NAMESPACE_NODE     *ChildNode)
-{
-    ACPI_NAMESPACE_NODE     *ParentNode;
-
-
-    ACPI_FUNCTION_TRACE (NsFindParentName);
-
-
-    if (ChildNode)
-    {
-        /* Valid entry.  Get the parent Node */
-
-        ParentNode = AcpiNsGetParentNode (ChildNode);
-        if (ParentNode)
-        {
-            ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
-                "Parent of %p [%4.4s] is %p [%4.4s]\n",
-                ChildNode,  AcpiUtGetNodeName (ChildNode),
-                ParentNode, AcpiUtGetNodeName (ParentNode)));
-
-            if (ParentNode->Name.Integer)
-            {
-                return_VALUE ((ACPI_NAME) ParentNode->Name.Integer);
-            }
-        }
-
-        ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
-            "Unable to find parent of %p (%4.4s)\n",
-            ChildNode, AcpiUtGetNodeName (ChildNode)));
-    }
-
-    return_VALUE (ACPI_UNKNOWN_NAME);
-}
-#endif
-
-

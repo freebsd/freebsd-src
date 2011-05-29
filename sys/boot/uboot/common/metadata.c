@@ -36,11 +36,14 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/elf.h>
 #include <machine/metadata.h>
-#include <machine/bootinfo.h>
 
 #include "api_public.h"
 #include "bootstrap.h"
 #include "glue.h"
+
+#if defined(LOADER_FDT_SUPPORT)
+extern int fdt_fixup(void);
+#endif
 
 /*
  * Return a 'boothowto' value corresponding to the kernel arguments in
@@ -254,113 +257,7 @@ md_copymodules(vm_offset_t addr)
 }
 
 /*
- * Prepare the bootinfo structure. Put a ptr to the allocated struct in addr,
- * return size.
- */
-static int
-md_bootinfo(struct bootinfo **addr)
-{
-#define	TMP_MAX_ETH	8
-#define	TMP_MAX_MR	8
-	struct bootinfo		*bi;
-	struct bi_mem_region	tmp_mr[TMP_MAX_MR];
-	struct bi_eth_addr	tmp_eth[TMP_MAX_ETH];
-	struct sys_info		*si;
-	char			*str, *end;
-	const char		*env;
-	void			*ptr;
-	u_int8_t		tmp_addr[6];
-	int			i, n, mr_no, eth_no, size;
-
-	if ((si = ub_get_sys_info()) == NULL)
-		panic("can't retrieve U-Boot sysinfo");
-
-	/*
-	 * Handle mem regions (we only care about DRAM)
-	 */
-	for (i = 0, mr_no = 0; i < si->mr_no; i++) {
-		if (si->mr[i].flags == MR_ATTR_DRAM) {
-			if (mr_no >= TMP_MAX_MR) {
-				printf("too many memory regions: %d\n", mr_no);
-				break;
-			}
-			tmp_mr[mr_no].mem_base = si->mr[i].start;
-			tmp_mr[mr_no].mem_size = si->mr[i].size;
-			mr_no++;
-			continue;
-		}
-	}
-	if (mr_no == 0)
-		panic("can't retrieve RAM info");
-
-	size = (mr_no * sizeof(struct bi_mem_region) - sizeof(bi->bi_data));
-
-	/*
-	 * Handle Ethernet addresses: parse u-boot env for eth%daddr
-	 */
-	env = NULL;
-	eth_no = 0;
-	while ((env = ub_env_enum(env)) != NULL) {
-		if (strncmp(env, "eth", 3) == 0 &&
-		    strncmp(env + (strlen(env) - 4), "addr", 4) == 0) {
-
-			/* Extract interface number */
-			i = strtol(env + 3, &end, 10);
-			if (end == (env + 3))
-				/* 'ethaddr' means interface 0 address */
-				n = 0;
-			else
-				n = i;
-
-			if (n >= TMP_MAX_MR) {
-				printf("Ethernet interface number too high: %d. "
-				    "Skipping...\n");
-				continue;
-			}
-
-			str = ub_env_get(env);
-			for (i = 0; i < 6; i++) {
-				tmp_addr[i] = str ? strtol(str, &end, 16) : 0;
-				if (str)
-					str = (*end) ? end + 1 : end;
-
-				tmp_eth[n].mac_addr[i] = tmp_addr[i];
-			}
-
-			/* eth_no is 1-based number of all interfaces defined */
-			if (n + 1 > eth_no)
-				eth_no = n + 1;
-		}
-	}
-
-	size += (eth_no * sizeof(struct bi_eth_addr)) + sizeof(struct bootinfo);
-
-	/*
-	 * Once its whole size is calculated, allocate space for the bootinfo
-	 * and copy over the contents from temp containers.
-	 */
-	if ((bi = malloc(size)) == NULL)
-		panic("can't allocate mem for bootinfo");
-
-	ptr = (struct bi_mem_region *)bi->bi_data;
-	bcopy(tmp_mr, ptr, mr_no * sizeof(struct bi_mem_region));
-	ptr += mr_no * sizeof(struct bi_mem_region);
-	bcopy(tmp_eth, ptr, eth_no * sizeof(struct bi_eth_addr));
-
-	bi->bi_mem_reg_no = mr_no;
-	bi->bi_eth_addr_no = eth_no;
-	bi->bi_version = BI_VERSION;
-	bi->bi_bar_base = si->bar;
-	bi->bi_cpu_clk = si->clk_cpu;
-	bi->bi_bus_clk = si->clk_bus;
-
-	*addr = bi;
-
-	return (size);
-}
-
-/*
- * Load the information expected by a powerpc kernel.
+ * Load the information expected by a kernel.
  *
  * - The 'boothowto' argument is constructed
  * - The 'bootdev' argument is constructed
@@ -370,7 +267,7 @@ md_bootinfo(struct bootinfo **addr)
 int
 md_load(char *args, vm_offset_t *modulep)
 {
-	struct preloaded_file	*kfp;
+	struct preloaded_file	*kfp, *bfp;
 	struct preloaded_file	*xp;
 	struct file_metadata	*md;
 	struct bootinfo		*bip;
@@ -379,9 +276,9 @@ md_load(char *args, vm_offset_t *modulep)
 	vm_offset_t		envp;
 	vm_offset_t		size;
 	vm_offset_t		vaddr;
+	vm_offset_t		dtbp;
 	char			*rootdevname;
 	int			howto;
-	int			bisize;
 	int			i;
 
 	/*
@@ -389,7 +286,11 @@ md_load(char *args, vm_offset_t *modulep)
 	 * relocation.
 	 */
 	uint32_t		mdt[] = {
-	    MODINFOMD_SSYM, MODINFOMD_ESYM, MODINFOMD_KERNEND, MODINFOMD_ENVP
+	    MODINFOMD_SSYM, MODINFOMD_ESYM, MODINFOMD_KERNEND,
+	    MODINFOMD_ENVP,
+#if defined(LOADER_FDT_SUPPORT)
+	    MODINFOMD_DTBP
+#endif
 	};
 
 	howto = md_getboothowto(args);
@@ -405,24 +306,21 @@ md_load(char *args, vm_offset_t *modulep)
 	/* Try reading the /etc/fstab file to select the root device */
 	getrootmount(rootdevname);
 
-	/* find the last module in the chain */
+	/* Find the last module in the chain */
 	addr = 0;
 	for (xp = file_findfile(NULL, NULL); xp != NULL; xp = xp->f_next) {
 		if (addr < (xp->f_addr + xp->f_size))
 			addr = xp->f_addr + xp->f_size;
 	}
-	/* pad to a page boundary */
+	/* Pad to a page boundary */
 	addr = roundup(addr, PAGE_SIZE);
 
-	/* copy our environment */
+	/* Copy our environment */
 	envp = addr;
 	addr = md_copyenv(addr);
 
-	/* pad to a page boundary */
+	/* Pad to a page boundary */
 	addr = roundup(addr, PAGE_SIZE);
-
-	/* prepare bootinfo */
-	bisize = md_bootinfo(&bip);
 
 	kernend = 0;
 	kfp = file_findfile(NULL, "elf32 kernel");
@@ -431,14 +329,27 @@ md_load(char *args, vm_offset_t *modulep)
 	if (kfp == NULL)
 		panic("can't find kernel file");
 	file_addmetadata(kfp, MODINFOMD_HOWTO, sizeof howto, &howto);
-	file_addmetadata(kfp, MODINFOMD_BOOTINFO, bisize, bip);
 	file_addmetadata(kfp, MODINFOMD_ENVP, sizeof envp, &envp);
+
+#if defined(LOADER_FDT_SUPPORT)
+	/* Handle device tree blob */
+	fdt_fixup();
+	if ((bfp = file_findfile(NULL, "dtb")) == NULL &&
+	    (howto & RB_VERBOSE))
+		printf("**WARNING** Booting with no DTB loaded!\n");
+
+	dtbp = bfp == NULL ? 0 : bfp->f_addr;
+	file_addmetadata(kfp, MODINFOMD_DTBP, sizeof dtbp, &dtbp);
+#endif
+
 	file_addmetadata(kfp, MODINFOMD_KERNEND, sizeof kernend, &kernend);
 
+	/* Figure out the size and location of the metadata */
 	*modulep = addr;
 	size = md_copymodules(0);
 	kernend = roundup(addr + size, PAGE_SIZE);
 
+	/* Provide MODINFOMD_KERNEND */
 	md = file_findmetadata(kfp, MODINFOMD_KERNEND);
 	bcopy(&kernend, md->md_data, sizeof kernend);
 
@@ -453,7 +364,9 @@ md_load(char *args, vm_offset_t *modulep)
 			bcopy(&vaddr, md->md_data, sizeof vaddr);
 		}
 	}
+
+	/* Only now copy actual modules and metadata */
 	(void)md_copymodules(addr);
 
-	return(0);
+	return (0);
 }

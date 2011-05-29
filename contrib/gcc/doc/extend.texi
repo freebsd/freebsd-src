@@ -16,9 +16,9 @@ any of these features is used.)  To test for the availability of these
 features in conditional compilation, check for a predefined macro
 @code{__GNUC__}, which is always defined under GCC@.
 
-These extensions are available in C and Objective-C@.  Most of them are
-also available in C++.  @xref{C++ Extensions,,Extensions to the
-C++ Language}, for extensions that apply @emph{only} to C++.
+These extensions are available in C.  Most of them are also available
+in C++.  @xref{C++ Extensions,,Extensions to the C++ Language}, for
+extensions that apply @emph{only} to C++.
 
 Some features that are in ISO C99 but not C89 or C++ are also, as
 extensions, accepted by GCC in C89 mode and in C++.
@@ -1716,8 +1716,6 @@ been called.  Functions with these attributes are useful for
 initializing data that will be used implicitly during the execution of
 the program.
 
-These attributes are not currently implemented for Objective-C@.
-
 @item deprecated
 @cindex @code{deprecated} attribute.
 The @code{deprecated} attribute results in a warning if the function
@@ -2605,9 +2603,9 @@ Preprocessing Directives, cpp, The GNU C Preprocessor}.
 
 This section describes the syntax with which @code{__attribute__} may be
 used, and the constructs to which attribute specifiers bind, for the C
-language.  Some details may vary for C++ and Objective-C@.  Because of
-infelicities in the grammar for attributes, some forms described here
-may not be successfully parsed in all cases.
+language.  Some details may vary for C++.  Because of infelicities in
+the grammar for attributes, some forms described here may not be
+successfully parsed in all cases.
 
 There are some problems with the semantics of attributes in C++.  For
 example, there are no manglings for attributes, although they may affect
@@ -7211,6 +7209,52 @@ The following built-in functions are available when @option{-msse3} is used.
 Generates the @code{movddup} machine instruction as a load from memory.
 @end table
 
+The following built-in functions are available when @option{-mssse3} is used.
+All of them generate the machine instruction that is part of the name
+with MMX registers.
+
+@smallexample
+v2si __builtin_ia32_phaddd (v2si, v2si)
+v4hi __builtin_ia32_phaddw (v4hi, v4hi)
+v4hi __builtin_ia32_phaddsw (v4hi, v4hi)
+v2si __builtin_ia32_phsubd (v2si, v2si)
+v4hi __builtin_ia32_phsubw (v4hi, v4hi)
+v4hi __builtin_ia32_phsubsw (v4hi, v4hi)
+v8qi __builtin_ia32_pmaddubsw (v8qi, v8qi)
+v4hi __builtin_ia32_pmulhrsw (v4hi, v4hi)
+v8qi __builtin_ia32_pshufb (v8qi, v8qi)
+v8qi __builtin_ia32_psignb (v8qi, v8qi)
+v2si __builtin_ia32_psignd (v2si, v2si)
+v4hi __builtin_ia32_psignw (v4hi, v4hi)
+long long __builtin_ia32_palignr (long long, long long, int)
+v8qi __builtin_ia32_pabsb (v8qi)
+v2si __builtin_ia32_pabsd (v2si)
+v4hi __builtin_ia32_pabsw (v4hi)
+@end smallexample
+
+The following built-in functions are available when @option{-mssse3} is used.
+All of them generate the machine instruction that is part of the name
+with SSE registers.
+
+@smallexample
+v4si __builtin_ia32_phaddd128 (v4si, v4si)
+v8hi __builtin_ia32_phaddw128 (v8hi, v8hi)
+v8hi __builtin_ia32_phaddsw128 (v8hi, v8hi)
+v4si __builtin_ia32_phsubd128 (v4si, v4si)
+v8hi __builtin_ia32_phsubw128 (v8hi, v8hi)
+v8hi __builtin_ia32_phsubsw128 (v8hi, v8hi)
+v16qi __builtin_ia32_pmaddubsw128 (v16qi, v16qi)
+v8hi __builtin_ia32_pmulhrsw128 (v8hi, v8hi)
+v16qi __builtin_ia32_pshufb128 (v16qi, v16qi)
+v16qi __builtin_ia32_psignb128 (v16qi, v16qi)
+v4si __builtin_ia32_psignd128 (v4si, v4si)
+v8hi __builtin_ia32_psignw128 (v8hi, v8hi)
+v2di __builtin_ia32_palignr (v2di, v2di, int)
+v16qi __builtin_ia32_pabsb128 (v16qi)
+v4si __builtin_ia32_pabsd128 (v4si)
+v8hi __builtin_ia32_pabsw128 (v8hi)
+@end smallexample
+
 The following built-in functions are available when @option{-m3dnow} is used.
 All of them generate the machine instruction that is part of the name.
 
@@ -9850,9 +9894,8 @@ The Solaris target supports @code{#pragma redefine_extname}
 Increase the minimum alignment of each @var{variable} to @var{alignment}.
 This is the same as GCC's @code{aligned} attribute @pxref{Variable
 Attributes}).  Macro expansion occurs on the arguments to this pragma
-when compiling C and Objective-C.  It does not currently occur when
-compiling C++, but this is a bug which may be fixed in a future
-release.
+when compiling C.  It does not currently occur when compiling C++, but
+this is a bug which may be fixed in a future release.
 
 @item fini (@var{function} [, @var{function}]...)
 @cindex pragma, fini

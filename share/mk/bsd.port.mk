@@ -7,5 +7,10 @@ BSDPORTMK?=	${PORTSDIR}/Mk/bsd.port.mk
 # and setting MK_* variables when building ports.
 _WITHOUT_SRCCONF=
 
+# Enable CTF conversion on request.
+.if defined(WITH_CTF)
+.undef NO_CTF
+.endif
+
 .include <bsd.own.mk>
 .include "${BSDPORTMK}"

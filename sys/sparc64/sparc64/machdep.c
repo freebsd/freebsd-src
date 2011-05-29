@@ -41,7 +41,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_compat.h"
 #include "opt_ddb.h"
 #include "opt_kstack_pages.h"
-#include "opt_msgbuf.h"
 
 #include <sys/param.h>
 #include <sys/malloc.h>
@@ -68,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/reboot.h>
 #include <sys/signalvar.h>
 #include <sys/smp.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <sys/timetc.h>
@@ -138,6 +138,7 @@ struct kva_md_info kmi;
 
 u_long ofw_vec;
 u_long ofw_tba;
+u_int tba_taken_over;
 
 char sparc64_model[32];
 
@@ -222,9 +223,10 @@ spinlock_enter(void)
 	if (td->td_md.md_spinlock_count == 0) {
 		pil = rdpr(pil);
 		wrpr(pil, 0, PIL_TICK);
+		td->td_md.md_spinlock_count = 1;
 		td->td_md.md_saved_pil = pil;
-	}
-	td->td_md.md_spinlock_count++;
+	} else
+		td->td_md.md_spinlock_count++;
 	critical_enter();
 }
 
@@ -232,12 +234,14 @@ void
 spinlock_exit(void)
 {
 	struct thread *td;
+	register_t pil;
 
 	td = curthread;
 	critical_exit();
+	pil = td->td_md.md_saved_pil;
 	td->td_md.md_spinlock_count--;
 	if (td->td_md.md_spinlock_count == 0)
-		wrpr(pil, td->td_md.md_saved_pil, 0);
+		wrpr(pil, pil, 0);
 }
 
 static phandle_t
@@ -275,6 +279,7 @@ cpu_cpuid_prop(u_int cpu_impl)
 
 	switch (cpu_impl) {
 	case CPU_IMPL_SPARC64:
+	case CPU_IMPL_SPARC64V:
 	case CPU_IMPL_ULTRASPARCI:
 	case CPU_IMPL_ULTRASPARCII:
 	case CPU_IMPL_ULTRASPARCIIi:
@@ -299,6 +304,7 @@ cpu_get_mid(u_int cpu_impl)
 
 	switch (cpu_impl) {
 	case CPU_IMPL_SPARC64:
+	case CPU_IMPL_SPARC64V:
 	case CPU_IMPL_ULTRASPARCI:
 	case CPU_IMPL_ULTRASPARCII:
 	case CPU_IMPL_ULTRASPARCIIi:
@@ -340,9 +346,10 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	cpu_impl = VER_IMPL(rdpr(ver));
 
 	/*
-	 * Do CPU-specific Initialization.
+	 * Do CPU-specific initialization.
 	 */
-	if (cpu_impl >= CPU_IMPL_ULTRASPARCIII)
+	if (cpu_impl == CPU_IMPL_SPARC64V ||
+	    cpu_impl >= CPU_IMPL_ULTRASPARCIII)
 		cheetah_init(cpu_impl);
 
 	/*
@@ -466,7 +473,7 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	/*
 	 * Determine the TLB slot maxima, which are expected to be
 	 * equal across all CPUs.
-	 * NB: for Cheetah-class CPUs, these properties only refer
+	 * NB: for cheetah-class CPUs, these properties only refer
 	 * to the t16s.
 	 */
 	if (OF_getprop(pc->pc_node, "#dtlb-entries", &dtlb_slots,
@@ -476,6 +483,10 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	    sizeof(itlb_slots)) == -1)
 		panic("sparc64_init: cannot determine number of iTLB slots");
 
+	/*
+	 * Initialize and enable the caches.  Note that his may include
+	 * applying workarounds.
+	 */
 	cache_init(pc);
 	cache_enable(cpu_impl);
 	uma_set_align(pc->pc_cache.dc_linesize - 1);
@@ -498,6 +509,10 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 		case CPU_IMPL_ULTRASPARCIIIip:
 			cpu_block_copy = spitfire_block_copy;
 			cpu_block_zero = spitfire_block_zero;
+			break;
+		case CPU_IMPL_SPARC64V:
+			cpu_block_copy = zeus_block_copy;
+			cpu_block_zero = zeus_block_zero;
 			break;
 		}
 	}
@@ -533,6 +548,7 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	proc0.p_md.md_sigtramp = NULL;
 	proc0.p_md.md_utrap = NULL;
 	thread0.td_kstack = kstack0;
+	thread0.td_kstack_pages = KSTACK_PAGES;
 	thread0.td_pcb = (struct pcb *)
 	    (thread0.td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
 	frame0.tf_tstate = TSTATE_IE | TSTATE_PEF | TSTATE_PRIV;
@@ -550,7 +566,7 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	 * is necessary in order to set obp-control-relinquished to true
 	 * within the PROM so obtaining /virtual-memory/translations doesn't
 	 * trigger a fatal reset error or worse things further down the road.
-	 * XXX it should be possible to use this soley instead of writing
+	 * XXX it should be possible to use this solely instead of writing
 	 * %tba in cpu_setregs().  Doing so causes a hang however.
 	 */
 	sun4u_set_traptable(tl0_base);
@@ -565,10 +581,20 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	 * buffer (after setting the trap table).
 	 */
 	dpcpu_init(dpcpu0, 0);
-	msgbufinit(msgbufp, MSGBUF_SIZE);
+	msgbufinit(msgbufp, msgbufsize);
 
+	/*
+	 * Initialize mutexes.
+	 */
 	mutex_init();
+
+	/*
+	 * Finish the interrupt initialization now that mutexes work and
+	 * enable them.
+	 */
 	intr_init2();
+	wrpr(pil, 0, 0);
+	wrpr(pstate, 0, PSTATE_KERNEL);
 
 	/*
 	 * Finish pmap initialization now that we're ready for mutexes.
@@ -939,7 +965,7 @@ int
 cpu_idle_wakeup(int cpu)
 {
 
-	return (0);
+	return (1);
 }
 
 int
@@ -968,7 +994,7 @@ ptrace_clear_single_step(struct thread *td)
 }
 
 void
-exec_setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
+exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 {
 	struct trapframe *tf;
 	struct pcb *pcb;
@@ -991,8 +1017,8 @@ exec_setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 	tf->tf_out[0] = stack;
 	tf->tf_out[3] = p->p_sysent->sv_psstrings;
 	tf->tf_out[6] = sp - SPOFF - sizeof(struct frame);
-	tf->tf_tnpc = entry + 4;
-	tf->tf_tpc = entry;
+	tf->tf_tnpc = imgp->entry_addr + 4;
+	tf->tf_tpc = imgp->entry_addr;
 	tf->tf_tstate = TSTATE_IE | TSTATE_PEF | TSTATE_MM_TSO;
 
 	td->td_retval[0] = tf->tf_out[0];

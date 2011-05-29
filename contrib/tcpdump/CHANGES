@@ -1,4 +1,45 @@
-$Header: /tcpdump/master/tcpdump/CHANGES,v 1.98.2.2 2008-10-15 23:26:30 ken Exp $
+Thu.	April 1, 2010.  guy@alum.mit.edu.
+  Summary for 4.1.1 tcpdump release
+	Fix build on systems with PF, such as FreeBSD and OpenBSD.
+	Don't blow up if a zero-length link-layer address is passed to
+	  linkaddr_string(). 
+
+Thu.	March 11, 2010.  ken@netfunctional.ca/guy@alum.mit.edu.
+  Summary for 4.1.0 tcpdump release
+	Fix printing of MAC addresses for VLAN frames with a length
+	  field
+	Add some additional bounds checks and use the EXTRACT_ macros
+	  more
+	Add a -b flag to print the AS number in BGP packets in ASDOT
+	  notation rather than ASPLAIN notation
+	Add ICMPv6 RFC 5006 support
+	Decode the access flags in NFS access requests
+	Handle the new DLT_ for memory-mapped USB captures on Linux
+	Make the default snapshot (-s) the maximum
+	Print name of device (when -L is used)
+	Support for OpenSolaris (and SXCE build 125 and later)
+	Print new TCP flags
+	Add support for RPL DIO
+	Add support for TCP User Timeout (UTO)
+	Add support for non-standard Ethertypes used by 3com PPPoE gear
+	Add support for 802.11n and 802.11s
+	Add support for Transparent Ethernet Bridge ethertype in GRE
+	Add 4 byte AS support for BGP printer
+	Add support for the MDT SAFI 66 BG printer
+	Add basic IPv6 support to print-olsr
+	Add USB printer
+	Add printer for ForCES
+	Handle frames with an FCS
+	Handle 802.11n Control Wrapper, Block Acq Req and Block Ack frames
+	Fix TCP sequence number printing 
+	Report 802.2 packets as 802.2 instead of 802.3
+	Don't include -L/usr/lib in LDFLAGS
+	On x86_64 Linux, look in lib64 directory too
+	Lots of code clean ups
+	Autoconf clean ups
+	Update testcases to make output changes
+	Fix compiling with/out smi (--with{,out}-smi)
+	Fix compiling without IPv6 support (--disable-ipv6)
 
 Mon.    October 27, 2008.  ken@netfunctional.ca.  Summary for 4.0.0 tcpdump release
         Add support for Bluetooth Sniffing

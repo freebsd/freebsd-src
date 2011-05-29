@@ -53,6 +53,7 @@ struct file_list {
 	char	*f_depends;		/* additional dependancies */
 	char	*f_clean;		/* File list to add to clean rule */
 	char	*f_warn;		/* warning message */
+	const char *f_objprefix;	/* prefix string for object name */
 };
 
 struct files_name {
@@ -129,6 +130,8 @@ SLIST_HEAD(opt_head, opt) opt, mkopt, rmopts;
 struct opt_list {
 	char *o_name;
 	char *o_file;
+	int o_flags;
+#define OL_ALIAS	1
 	SLIST_ENTRY(opt_list) o_next;
 };
 
@@ -177,6 +180,7 @@ void	makehints(void);
 void	headers(void);
 void	cfgfile_add(const char *);
 void	cfgfile_removeall(void);
+FILE	*open_makefile_template(void);
 
 extern STAILQ_HEAD(device_head, device) dtab;
 

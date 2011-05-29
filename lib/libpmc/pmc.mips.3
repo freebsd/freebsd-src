@@ -24,8 +24,8 @@
 .\" $FreeBSD$
 .\"
 .Dd February 11, 2010
-.Os
 .Dt PMC.MIPS 3
+.Os
 .Sh NAME
 .Nm pmc.mips
 .Nd measurement events for
@@ -123,7 +123,6 @@ Counts every time the instruction cache is accessed. All replays,
 wasted fetches etc. are counted.
 For example, following a branch, even though the prediction is taken,
 the fall through access is counted.
-
 .It Li IC_MISS
 .Pq Event 9, Counter 1
 Counts all instruction cache misses that result in a bus request.
@@ -153,7 +152,7 @@ Floating point instructions completed.
 Integer and co-processor loads completed.
 .It Li STORE_COMPLETED
 .Pq Event 15, Counter 1
-Integer and co-porocessor stores completed.
+Integer and co-processor stores completed.
 .It Li BARRIER_COMPLETED
 .Pq Event 16, Counter 0
 Direct jump (and link) instructions completed.
@@ -225,10 +224,10 @@ valid instruction to the ALU.
 Counts the number of cycles where the ALU pipeline cannot advance.
 .It Li UNCACHED_LOAD
 .Pq Event 33, Counter 0
-Counts uncached and uncached acclerated loads.
+Counts uncached and uncached accelerated loads.
 .It Li UNCACHED_STORE
 .Pq Event 33, Counter 1
-Counts uncached and uncached acclerated stores.
+Counts uncached and uncached accelerated stores.
 .It Li CP2_REG_TO_REG_COMPLETED
 .Pq Event 35, Counter 0
 Co-processor 2 register to register instructions completed.
@@ -392,8 +391,6 @@ and the underlying hardware events used.
 .Xr pmc_cpuinfo 3 ,
 .Xr pmclog 3 ,
 .Xr hwpmc 4
-.Sh CAVEATS
-The MIPS code does not yet support sampling.
 .Sh HISTORY
 The
 .Nm pmc
@@ -408,3 +405,5 @@ library was written by
 MIPS support was added by
 .An "George Neville-Neil"
 .Aq gnn@FreeBSD.org .
+.Sh CAVEATS
+The MIPS code does not yet support sampling.

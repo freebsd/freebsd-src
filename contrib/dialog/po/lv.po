@@ -1,0 +1,114 @@
+# Dialog
+# Copyright 2003-2007,2008 # Thomas Dickey
+#
+# This file is distributed under the same license as the dialog package.
+#
+# Rihards Prieditis <RPrieditis@inbox.lv>, 2009.
+msgid ""
+msgstr ""
+"Project-Id-Version: dialog 1.1.20080819\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2011-01-16 17:57-0500\n"
+"PO-Revision-Date: 2009-04-11 20:50+0300\n"
+"Last-Translator: Rihards Prieditis <RPrieditis@inbox.lv>\n"
+"Language-Team: Latvian <translation-team-lv@lists.sourceforge.net>\n"
+"Language: lv\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Lokalize 0.3\n"
+"Plural-Forms:  nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n != 0 ? 1 : 2);\n"
+
+#: buttons.c:387
+msgid "Yes"
+msgstr "Jā"
+
+#: buttons.c:395
+msgid "No"
+msgstr "Nē"
+
+#: buttons.c:403
+msgid "OK"
+msgstr "Labi"
+
+#: buttons.c:411
+msgid "Cancel"
+msgstr "Atcelt"
+
+#: buttons.c:419
+msgid "EXIT"
+msgstr "IZIET"
+
+#: buttons.c:427
+msgid "Extra"
+msgstr "Papildus"
+
+#: buttons.c:435
+msgid "Help"
+msgstr "Palīdzība"
+
+#. Headline "Month"
+#: calendar.c:298
+msgid "Month"
+msgstr "Mēnesis"
+
+#. Headline "Year"
+#: calendar.c:318
+msgid "Year"
+msgstr "Gads"
+
+#: dialog.c:756
+msgid "Rename"
+msgstr "Pārdēvēt"
+
+#: fselect.c:571
+msgid "Directories"
+msgstr "Direktorijas"
+
+#: fselect.c:572
+msgid "Files"
+msgstr "Faili"
+
+#: mixedgauge.c:58
+msgid "Succeeded"
+msgstr "Izdevies"
+
+#: mixedgauge.c:61
+msgid "Failed"
+msgstr "Neizdevies"
+
+#: mixedgauge.c:64
+msgid "Passed"
+msgstr "Iziets"
+
+#: mixedgauge.c:67
+msgid "Completed"
+msgstr "Pabeigts"
+
+#: mixedgauge.c:70
+msgid "Checked"
+msgstr "Pārbaudīts"
+
+#: mixedgauge.c:73
+msgid "Done"
+msgstr "Pabeigts"
+
+#: mixedgauge.c:76
+msgid "Skipped"
+msgstr "Izlaists"
+
+#: mixedgauge.c:79
+msgid "In Progress"
+msgstr "Tiek apstrādāts"
+
+#: mixedgauge.c:85
+msgid "N/A"
+msgstr "n/z"
+
+#: mixedgauge.c:193
+msgid "Overall Progress"
+msgstr "Vispārējais progress"
+
+#: textbox.c:468
+msgid "Search"
+msgstr "Meklēt"

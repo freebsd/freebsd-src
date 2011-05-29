@@ -24,9 +24,8 @@
 # Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
 #
-# ident	"%Z%%M%	%I%	%E% SMI"
 
-require 5.6.1;
+require 5.8.4;
 
 use File::Find;
 use File::Basename;
@@ -40,10 +39,11 @@ $OPTSTR = 'abd:fghi:jlnqsx:';
 $USAGE = "Usage: $PNAME [-abfghjlnqs] [-d dir] [-i isa] "
     . "[-x opt[=arg]] [file | dir ...]\n";
 ($MACH = `uname -p`) =~ s/\W*\n//;
+($PLATFORM = `uname -i`) =~ s/\W*\n//;
 
 @dtrace_argv = ();
 
-$ksh_path = '/bin/sh';
+$ksh_path = '/usr/local/bin/ksh';
 
 @files = ();
 %exceptions = ();
@@ -215,17 +215,17 @@ sub is_exception {
 }
 
 #
-# Iterate over the set of test files specified on the command-line or by
-# a find on "$defdir/common" and "$defdir/$MACH" and execute each one.
-# If the test file is executable, we fork and exec it. If the test is a
-# .ksh file, we run it with $ksh_path. Otherwise we run dtrace -s on it.
-# If the file is named tst.* we assume it should return exit status 0.
-# If the file is named err.* we assume it should return exit status 1.
-# If the file is named err.D_[A-Z0-9]+[.*].d we use dtrace -xerrtags and
-# examine stderr to ensure that a matching error tag was produced.
-# If the file is named drp.[A-Z0-9]+[.*].d we use dtrace -xdroptags and
-# examine stderr to ensure that a matching drop tag was produced.
-# If any *.out or *.err files are found we perform output comparisons.
+# Iterate over the set of test files specified on the command-line or by a find
+# on "$defdir/common", "$defdir/$MACH" and "$defdir/$PLATFORM" and execute each
+# one.  If the test file is executable, we fork and exec it. If the test is a
+# .ksh file, we run it with $ksh_path. Otherwise we run dtrace -s on it.  If
+# the file is named tst.* we assume it should return exit status 0.  If the
+# file is named err.* we assume it should return exit status 1.  If the file is
+# named err.D_[A-Z0-9]+[.*].d we use dtrace -xerrtags and examine stderr to
+# ensure that a matching error tag was produced.  If the file is named
+# drp.[A-Z0-9]+[.*].d we use dtrace -xdroptags and examine stderr to ensure
+# that a matching drop tag was produced.  If any *.out or *.err files are found
+# we perform output comparisons.
 #
 # run_tests takes two arguments: The first is the pathname of the dtrace
 # command to invoke when running the tests. The second is the pathname
@@ -548,6 +548,7 @@ $bindir = -d $dt_bin ? $dt_bin : '.';
 
 find(\&wanted, "$defdir/common") if (scalar(@ARGV) == 0);
 find(\&wanted, "$defdir/$MACH") if (scalar(@ARGV) == 0);
+find(\&wanted, "$defdir/$PLATFORM") if (scalar(@ARGV) == 0);
 die $USAGE if (scalar(@files) == 0);
 
 $dtrace_path = '/usr/sbin/dtrace';

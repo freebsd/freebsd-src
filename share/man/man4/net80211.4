@@ -230,7 +230,7 @@ Return the MAC address for the current BSS identifier via
 .Va i_data .
 When the interface is running, the bssid is either the value
 configured locally (e.g. for an IBSS network started by the local station)
-or the value adopted when joing an existing network.
+or the value adopted when joining an existing network.
 For WDS interfaces this value is the address of the remote station.
 When the interface is not running, the bssid returned is the desired
 bssid, if any, that has been configured.
@@ -283,7 +283,7 @@ according to a least-congested criteria.
 DFS support is mandatory for some 5Ghz frequencies in certain
 locales (e.g. ETSI).
 By default DFS is enabled according to the regulatory definitions
-and the curent country code, regdomain, and channel.
+and the current country code, regdomain, and channel.
 .It Dv IEEE80211_IOC_DOTD
 Return whether or not 802.11d support is enabled in
 .Va i_val .
@@ -308,7 +308,7 @@ By default 802.11h is enabled if the device is capable.
 Return, in
 .Va i_val ,
 whether unencrypted packets transmit/received should be discarded.
-This value will be zero if unecrypted packets will be accepted and
+This value will be zero if unencrypted packets will be accepted and
 non-zero if they are to be discarded.
 .It Dv IEEE80211_IOC_DTIM_PERIOD
 Return the period (in beacon intervals) between DTIM events in
@@ -397,7 +397,7 @@ and
 Return whether or not the system handles inactivity processing in
 .Va i_val .
 When inactivity processing is enabled the system will track stations
-that have not trasmitted frames and periodically probe them to
+that have not transmitted frames and periodically probe them to
 check if they are still present.
 Stations that are inactive and do not respond to probes are dropped.
 .It Dv IEEE80211_IOC_MACCMD
@@ -485,12 +485,12 @@ and
 .It Dv IEEE80211_IOC_PUREG
 Return whether ``pure 11g'' mode is enabled in
 .Va i_val .
-This setting is meaningful only for acces point operation;
+This setting is meaningful only for access point operation;
 when non-zero, 802.11b stations will not be allowed to associate.
 .It Dv IEEE80211_IOC_PUREN
 Return whether ``pure 11n'' mode is enabled in
 .Va i_val .
-This setting is meaningful only for acces point operation;
+This setting is meaningful only for access point operation;
 when non-zero, legacy (non-11n capable) stations will not be
 allowed to associate.
 .It Dv IEEE80211_IOC_REGDOMAIN
@@ -595,7 +595,7 @@ Return whether Atheros Dynamic Turbo mode is enabled in
 Dynamic Turbo mode is a non-standard protocol extension available only
 on Atheros devices where channel width is dynamically
 changed between 20MHz and 40MHz.
-Note tht enabling Dynamic Turbo mode support does not guarantee use;
+Note that enabling Dynamic Turbo mode support does not guarantee use;
 both client and access point must use Atheros devices and support must
 be enabled on both sides.
 .It Dv IEEE80211_IOC_TXPARAMS
@@ -654,7 +654,7 @@ together with an optional IEEE80211_WMEPARAM_BSS flag to indicate if the
 parameter for the BSS or the channel is desired.
 If WME is not supported then
 .Er EINVAL
-wil be returned.
+will be returned.
 .It Dv IEEE80211_IOC_WME_CWMAX
 Return the WME CWmax setting (log2) for the specified Access Class (AC) in
 .Va i_val .
@@ -1002,7 +1002,7 @@ and
 Set whether or not the system handles inactivity processing using the value in
 .Va i_val .
 When inactivity processing is enabled the system will track stations
-that have not trasmitted frames and periodically probe them to
+that have not transmitted frames and periodically probe them to
 check if they are still present.
 Stations that are inactive and do not respond to probes are dropped.
 .It Dv IEEE80211_IOC_MACCMD
@@ -1073,7 +1073,7 @@ There are several MLME operations supported:
 .Dv IEEE80211_MLME_DEAUTH
 (deauthenticate the specified station),
 .Dv IEEE80211_MLME_AUHORIZE
-(mark the specifed station authorized to pass data frames),
+(mark the specified station authorized to pass data frames),
 .Dv IEEE80211_MLME_UNAUTHORIZE
 (revoke the specified station's ability to pass data frames),
 and

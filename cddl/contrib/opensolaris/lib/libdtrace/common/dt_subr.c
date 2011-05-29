@@ -2,9 +2,8 @@
  * CDDL HEADER START
  *
  * The contents of this file are subject to the terms of the
- * Common Development and Distribution License, Version 1.0 only
- * (the "License").  You may not use this file except in compliance
- * with the License.
+ * Common Development and Distribution License (the "License").
+ * You may not use this file except in compliance with the License.
  *
  * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
  * or http://www.opensolaris.org/os/licensing.
@@ -19,12 +18,11 @@
  *
  * CDDL HEADER END
  */
+
 /*
- * Copyright 2005 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2010 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #if defined(sun)
 #include <sys/sysmacros.h>
@@ -42,6 +40,7 @@
 #include <alloca.h>
 #else
 #include <sys/sysctl.h>
+#include <libproc_compat.h>
 #endif
 #include <assert.h>
 #include <libgen.h>
@@ -63,8 +62,8 @@ int
 dtrace_xstr2desc(dtrace_hdl_t *dtp, dtrace_probespec_t spec,
     const char *s, int argc, char *const argv[], dtrace_probedesc_t *pdp)
 {
-	size_t off, len, vlen;
-	const char *p, *q, *v;
+	size_t off, len, vlen, wlen;
+	const char *p, *q, *v, *w;
 
 	char buf[32]; /* for id_t as %d (see below) */
 
@@ -80,6 +79,8 @@ dtrace_xstr2desc(dtrace_hdl_t *dtp, dtrace_probespec_t spec,
 
 		q = p + 1;
 		vlen = 0;
+		w = NULL;
+		wlen = 0;
 
 		if ((v = strchr(q, '$')) != NULL && v < q + len) {
 			/*
@@ -104,14 +105,14 @@ dtrace_xstr2desc(dtrace_hdl_t *dtp, dtrace_probespec_t spec,
 			}
 
 			if (isdigit(v[1])) {
-				char *end;
 				long i;
 
 				errno = 0;
-				i = strtol(v + 1, &end, 10);
+				i = strtol(v + 1, (char **)&w, 10);
 
-				if (i < 0 || i >= argc ||
-				    errno != 0 || end != v + vlen)
+				wlen = vlen - (w - v);
+
+				if (i < 0 || i >= argc || errno != 0)
 					return (dt_set_errno(dtp, EDT_BADSPCV));
 
 				v = argv[i];
@@ -147,7 +148,7 @@ dtrace_xstr2desc(dtrace_hdl_t *dtp, dtrace_probespec_t spec,
 		off = dtrace_probespecs[spec--].dtps_offset;
 		bcopy(q, (char *)pdp + off, len);
 		bcopy(v, (char *)pdp + off + len, vlen);
-
+		bcopy(w, (char *)pdp + off + len + vlen, wlen);
 	} while (--p >= s);
 
 	pdp->dtpd_id = DTRACE_IDNONE;
@@ -963,13 +964,8 @@ dtrace_uaddr2str(dtrace_hdl_t *dtp, pid_t pid,
 
 	dt_proc_lock(dtp, P);
 
-#if defined(sun)
 	if (Plookup_by_addr(P, addr, name, sizeof (name), &sym) == 0) {
 		(void) Pobjname(P, addr, objname, sizeof (objname));
-#else
-	if (proc_addr2sym(P, addr, name, sizeof (name), &sym) == 0) {
-		(void) proc_objname(P, addr, objname, sizeof (objname));
-#endif
 
 		obj = dt_basename(objname);
 
@@ -979,11 +975,7 @@ dtrace_uaddr2str(dtrace_hdl_t *dtp, pid_t pid,
 		} else {
 			(void) snprintf(c, sizeof (c), "%s`%s", obj, name);
 		}
-#if defined(sun)
 	} else if (Pobjname(P, addr, objname, sizeof (objname)) != 0) {
-#else
-	} else if (proc_objname(P, addr, objname, sizeof (objname)) != 0) {
-#endif
 		(void) snprintf(c, sizeof (c), "%s`0x%llx",
 		    dt_basename(objname), addr);
 	} else {

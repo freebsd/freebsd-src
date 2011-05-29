@@ -597,7 +597,7 @@ isa_probe_children(device_t dev)
  * Add a new child with default ivars.
  */
 static device_t
-isa_add_child(device_t dev, int order, const char *name, int unit)
+isa_add_child(device_t dev, u_int order, const char *name, int unit)
 {
 	device_t child;
 	struct	isa_device *idev;
@@ -1071,8 +1071,8 @@ static device_method_t isa_methods[] = {
 	DEVMETHOD(bus_write_ivar,	isa_write_ivar),
 	DEVMETHOD(bus_child_detached,	isa_child_detached),
 	DEVMETHOD(bus_driver_added,	isa_driver_added),
-	DEVMETHOD(bus_setup_intr,	isa_setup_intr),
-	DEVMETHOD(bus_teardown_intr,	isa_teardown_intr),
+	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 
 	DEVMETHOD(bus_get_resource_list,isa_get_resource_list),
 	DEVMETHOD(bus_alloc_resource,	isa_alloc_resource),

@@ -110,13 +110,21 @@
 /* If this is set to 'unsigned int' on a DEC Alpha, this gives about a
  * %20 speed up (longs are 8 bytes, int's are 4). */
 #ifndef DES_LONG
+#ifdef __mips_n64
+#define DES_LONG unsigned int
+#else
 #define DES_LONG unsigned long
+#endif
 #endif
 #endif
 
 #if defined(HEADER_BN_H) && !defined(CONFIG_HEADER_BN_H)
 #define CONFIG_HEADER_BN_H
+#ifdef __mips_n64
+#undef BN_LLONG
+#else
 #define BN_LLONG
+#endif
 
 /* Should we define BN_DIV2W here? */
 
@@ -124,9 +132,15 @@
 /* The prime number generation stuff may not work when
  * EIGHT_BIT but I don't care since I've only used this mode
  * for debuging the bignum libraries */
+#ifdef __mips_n64
+#define SIXTY_FOUR_BIT_LONG
+#undef SIXTY_FOUR_BIT
+#undef THIRTY_TWO_BIT
+#else
 #undef SIXTY_FOUR_BIT_LONG
 #undef SIXTY_FOUR_BIT
 #define THIRTY_TWO_BIT
+#endif
 #undef SIXTEEN_BIT
 #undef EIGHT_BIT
 #endif

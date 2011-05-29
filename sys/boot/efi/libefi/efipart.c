@@ -69,6 +69,7 @@ efipart_init(void)
 	int err;
 
 	sz = 0;
+	hin = NULL;
 	status = BS->LocateHandle(ByProtocol, &blkio_guid, 0, &sz, 0);
 	if (status == EFI_BUFFER_TOO_SMALL) {
 		hin = (EFI_HANDLE *)malloc(sz * 2);
@@ -203,7 +204,7 @@ efipart_readwrite(EFI_BLOCK_IO *blkio, int rw, daddr_t blk, daddr_t nblks,
 	}
 
 	if (EFI_ERROR(status))
-		printf("%s: rw=%d, status=%lu\n", __func__, rw, status);
+		printf("%s: rw=%d, status=%lu\n", __func__, rw, (u_long)status);
 	return (efi_status_to_errno(status));
 }
 

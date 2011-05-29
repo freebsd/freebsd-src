@@ -1,5 +1,6 @@
 /* debug.c -- Handle generic debugging information.
-   Copyright 1995, 1996, 1997, 1998, 2000, 2002, 2003 Free Software Foundation, Inc.
+   Copyright 1995, 1996, 1997, 1998, 1999, 2000, 2002, 2003, 2007
+   Free Software Foundation, Inc.
    Written by Ian Lance Taylor <ian@cygnus.com>.
 
    This file is part of GNU Binutils.
@@ -16,8 +17,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 /* This file implements a generic debugging format.  We may eventually
    have readers which convert different formats into this generic
@@ -25,11 +26,9 @@
    this was writing a converter from stabs to HP IEEE-695 debugging
    format.  */
 
-#include <stdio.h>
+#include "sysdep.h"
 #include <assert.h>
-
 #include "bfd.h"
-#include "bucomm.h"
 #include "libiberty.h"
 #include "debug.h"
 

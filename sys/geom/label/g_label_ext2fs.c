@@ -53,6 +53,7 @@ g_label_ext2fs_taste(struct g_consumer *cp, char *label, size_t size)
 {
 	struct g_provider *pp;
 	e2sb_t *fs;
+	char *s_volume_name;
 
 	g_topology_assert_not();
 	pp = cp->provider;
@@ -74,13 +75,18 @@ g_label_ext2fs_taste(struct g_consumer *cp, char *label, size_t size)
 		goto exit_free;
 	}
 
+	s_volume_name = fs->s_volume_name;
+	/* Terminate label */
+	s_volume_name[sizeof(fs->s_volume_name) - 1] = '\0';
+
+	if (s_volume_name[0] == '/')
+		s_volume_name += 1;
+
 	/* Check for volume label */
-	if (fs->s_volume_name[0] == '\0')
+	if (s_volume_name[0] == '\0')
 		goto exit_free;
 
-	/* Terminate label */
-	fs->s_volume_name[sizeof(fs->s_volume_name) - 1] = '\0';
-	strlcpy(label, fs->s_volume_name, size);
+	strlcpy(label, s_volume_name, size);
 
 exit_free:
 	g_free(fs);

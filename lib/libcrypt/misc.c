@@ -45,3 +45,19 @@ _crypt_to64(char *s, u_long v, int n)
 		v >>= 6;
 	}
 }
+
+void
+b64_from_24bit(uint8_t B2, uint8_t B1, uint8_t B0, int n, int *buflen, char **cp)
+{
+	uint32_t w;
+	int i;
+
+	w = (B2 << 16) | (B1 << 8) | B0;
+	for (i = 0; i < n; i++) {
+		**cp = itoa64[w&0x3f];
+		(*cp)++;
+		if ((*buflen)-- < 0)
+			break;
+		w >>= 6;
+	}
+}

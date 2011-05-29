@@ -129,12 +129,6 @@ The parameters obtained via PnP were not accepted by the driver.
 The adapter
 may not function.
 .El
-.Sh CAVEATS
-The CS89x0 family of adapters have a very small RAM buffer (4K).
-This may
-cause problems with extremely high network loads or bursty network traffic.
-In particular, NFS operations should be limited to 1k read/write transactions
-in order to avoid overruns.
 .Sh SEE ALSO
 .Xr arp 4 ,
 .Xr netintro 4 ,
@@ -150,3 +144,9 @@ and
 .An Oleg Sharoiko .
 This manpage was written by
 .An Michael Smith .
+.Sh CAVEATS
+The CS89x0 family of adapters have a very small RAM buffer (4K).
+This may
+cause problems with extremely high network loads or bursty network traffic.
+In particular, NFS operations should be limited to 1k read/write transactions
+in order to avoid overruns.

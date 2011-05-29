@@ -69,12 +69,14 @@ void (*ncl_call_invalcaches)(struct vnode *) = NULL;
 static int nfs_realign_test;
 static int nfs_realign_count;
 
-SYSCTL_NODE(_vfs, OID_AUTO, newnfs, CTLFLAG_RW, 0, "New NFS filesystem");
-SYSCTL_INT(_vfs_newnfs, OID_AUTO, newnfs_realign_test, CTLFLAG_RW, &nfs_realign_test, 0, "");
-SYSCTL_INT(_vfs_newnfs, OID_AUTO, newnfs_realign_count, CTLFLAG_RW, &nfs_realign_count, 0, "");
-SYSCTL_INT(_vfs_newnfs, OID_AUTO, nfs4acl_enable, CTLFLAG_RW, &nfsrv_useacl, 0, "");
-SYSCTL_STRING(_vfs_newnfs, OID_AUTO, callback_addr, CTLFLAG_RW,
-    nfsv4_callbackaddr, sizeof(nfsv4_callbackaddr), "");
+SYSCTL_NODE(_vfs, OID_AUTO, nfs, CTLFLAG_RW, 0, "New NFS filesystem");
+SYSCTL_INT(_vfs_nfs, OID_AUTO, realign_test, CTLFLAG_RW, &nfs_realign_test,
+    0, "Number of realign tests done");
+SYSCTL_INT(_vfs_nfs, OID_AUTO, realign_count, CTLFLAG_RW, &nfs_realign_count,
+    0, "Number of mbuf realignments done");
+SYSCTL_STRING(_vfs_nfs, OID_AUTO, callback_addr, CTLFLAG_RW,
+    nfsv4_callbackaddr, sizeof(nfsv4_callbackaddr),
+    "NFSv4 callback addr for server to use");
 
 /*
  * Defines for malloc
@@ -82,7 +84,8 @@ SYSCTL_STRING(_vfs_newnfs, OID_AUTO, callback_addr, CTLFLAG_RW,
  */
 MALLOC_DEFINE(M_NEWNFSRVCACHE, "NFSD srvcache", "NFSD Server Request Cache");
 MALLOC_DEFINE(M_NEWNFSDCLIENT, "NFSD V4client", "NFSD V4 Client Id");
-MALLOC_DEFINE(M_NEWNFSDSTATE, "NFSD V4state", "NFSD V4 State (Openowner, Open, Lockowner, Delegation");
+MALLOC_DEFINE(M_NEWNFSDSTATE, "NFSD V4state",
+    "NFSD V4 State (Openowner, Open, Lockowner, Delegation");
 MALLOC_DEFINE(M_NEWNFSDLOCK, "NFSD V4lock", "NFSD V4 byte range lock");
 MALLOC_DEFINE(M_NEWNFSDLOCKFILE, "NFSD lckfile", "NFSD Open/Lock file");
 MALLOC_DEFINE(M_NEWNFSSTRING, "NFSD string", "NFSD V4 long string");
@@ -97,7 +100,10 @@ MALLOC_DEFINE(M_NEWNFSCLLOCKOWNER, "NFSCL lckown", "NFSCL Lock Owner");
 MALLOC_DEFINE(M_NEWNFSCLLOCK, "NFSCL lck", "NFSCL Lock");
 MALLOC_DEFINE(M_NEWNFSV4NODE, "NEWNFSnode", "New nfs vnode");
 MALLOC_DEFINE(M_NEWNFSDIRECTIO, "NEWdirectio", "New nfs Direct IO buffer");
-MALLOC_DEFINE(M_NEWNFSDIROFF, "Newnfscl_diroff", "New NFS directory offset data");
+MALLOC_DEFINE(M_NEWNFSDIROFF, "NFSCL diroffdiroff",
+    "New NFS directory offset data");
+MALLOC_DEFINE(M_NEWNFSDROLLBACK, "NFSD rollback",
+    "New NFS local lock rollback");
 
 /*
  * Definition of mutex locks.
@@ -117,7 +123,7 @@ struct mtx nfs_slock_mutex;
 /* local functions */
 static int nfssvc_call(struct thread *, struct nfssvc_args *, struct ucred *);
 
-#if defined(__i386__)
+#ifdef __NO_STRICT_ALIGNMENT
 /*
  * These architectures don't need re-alignment, so just return.
  */
@@ -127,7 +133,7 @@ newnfs_realign(struct mbuf **pm)
 
 	return;
 }
-#else
+#else	/* !__NO_STRICT_ALIGNMENT */
 /*
  *	newnfs_realign:
  *
@@ -185,7 +191,7 @@ newnfs_realign(struct mbuf **pm)
 		pm = &m->m_next;
 	}
 }
-#endif	/* !__i386__ */
+#endif	/* __NO_STRICT_ALIGNMENT */
 
 #ifdef notdef
 static void
@@ -206,7 +212,8 @@ nfsrv_lookupfilename(struct nameidata *ndp, char *fname, NFSPROC_T *p)
 {
 	int error;
 
-	NDINIT(ndp, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE, fname, p);
+	NDINIT(ndp, LOOKUP, FOLLOW | LOCKLEAF | MPSAFE, UIO_USERSPACE, fname,
+	    p);
 	error = namei(ndp);
 	if (!error) {
 		NDFREE(ndp, NDF_ONLY_PNBUF);
@@ -221,6 +228,8 @@ void
 newnfs_copycred(struct nfscred *nfscr, struct ucred *cr)
 {
 
+	KASSERT(nfscr->nfsc_ngroups >= 0,
+	    ("newnfs_copycred: negative nfsc_ngroups"));
 	cr->cr_uid = nfscr->nfsc_uid;
 	crsetgroups(cr, nfscr->nfsc_ngroups, nfscr->nfsc_groups);
 }
@@ -339,17 +348,21 @@ newnfs_timer(void *arg)
 
 
 /*
- * sleep for a short period of time.
+ * Sleep for a short period of time unless errval == NFSERR_GRACE, where
+ * the sleep should be for 5 seconds.
  * Since lbolt doesn't exist in FreeBSD-CURRENT, just use a timeout on
  * an event that never gets a wakeup. Only return EINTR or 0.
  */
 int
-nfs_catnap(int prio, const char *wmesg)
+nfs_catnap(int prio, int errval, const char *wmesg)
 {
 	static int non_event;
 	int ret;
 
-	ret = tsleep(&non_event, prio, wmesg, 1);
+	if (errval == NFSERR_GRACE)
+		ret = tsleep(&non_event, prio, wmesg, 5 * hz);
+	else
+		ret = tsleep(&non_event, prio, wmesg, 1);
 	if (ret != EINTR)
 		ret = 0;
 	return (ret);
@@ -389,6 +402,64 @@ nfssvc_call(struct thread *p, struct nfssvc_args *uap, struct ucred *cred)
 	} else if (uap->flag & NFSSVC_GETSTATS) {
 		error = copyout(&newnfsstats,
 		    CAST_USER_ADDR_T(uap->argp), sizeof (newnfsstats));
+		if (error == 0) {
+			if ((uap->flag & NFSSVC_ZEROCLTSTATS) != 0) {
+				newnfsstats.attrcache_hits = 0;
+				newnfsstats.attrcache_misses = 0;
+				newnfsstats.lookupcache_hits = 0;
+				newnfsstats.lookupcache_misses = 0;
+				newnfsstats.direofcache_hits = 0;
+				newnfsstats.direofcache_misses = 0;
+				newnfsstats.accesscache_hits = 0;
+				newnfsstats.accesscache_misses = 0;
+				newnfsstats.biocache_reads = 0;
+				newnfsstats.read_bios = 0;
+				newnfsstats.read_physios = 0;
+				newnfsstats.biocache_writes = 0;
+				newnfsstats.write_bios = 0;
+				newnfsstats.write_physios = 0;
+				newnfsstats.biocache_readlinks = 0;
+				newnfsstats.readlink_bios = 0;
+				newnfsstats.biocache_readdirs = 0;
+				newnfsstats.readdir_bios = 0;
+				newnfsstats.rpcretries = 0;
+				newnfsstats.rpcrequests = 0;
+				newnfsstats.rpctimeouts = 0;
+				newnfsstats.rpcunexpected = 0;
+				newnfsstats.rpcinvalid = 0;
+				bzero(newnfsstats.rpccnt,
+				    sizeof(newnfsstats.rpccnt));
+			}
+			if ((uap->flag & NFSSVC_ZEROSRVSTATS) != 0) {
+				newnfsstats.srvrpc_errs = 0;
+				newnfsstats.srv_errs = 0;
+				newnfsstats.srvcache_inproghits = 0;
+				newnfsstats.srvcache_idemdonehits = 0;
+				newnfsstats.srvcache_nonidemdonehits = 0;
+				newnfsstats.srvcache_misses = 0;
+				newnfsstats.srvcache_tcppeak = 0;
+				newnfsstats.srvcache_size = 0;
+				newnfsstats.srvclients = 0;
+				newnfsstats.srvopenowners = 0;
+				newnfsstats.srvopens = 0;
+				newnfsstats.srvlockowners = 0;
+				newnfsstats.srvlocks = 0;
+				newnfsstats.srvdelegates = 0;
+				newnfsstats.clopenowners = 0;
+				newnfsstats.clopens = 0;
+				newnfsstats.cllockowners = 0;
+				newnfsstats.cllocks = 0;
+				newnfsstats.cldelegates = 0;
+				newnfsstats.cllocalopenowners = 0;
+				newnfsstats.cllocalopens = 0;
+				newnfsstats.cllocallockowners = 0;
+				newnfsstats.cllocallocks = 0;
+				bzero(newnfsstats.srvrpccnt,
+				    sizeof(newnfsstats.srvrpccnt));
+				bzero(newnfsstats.cbrpccnt,
+				    sizeof(newnfsstats.cbrpccnt));
+			}
+		}
 		return (error);
 	} else if (uap->flag & NFSSVC_NFSUSERDPORT) {
 		u_short sockport;
@@ -426,18 +497,18 @@ newnfs_portinit(void)
  * Return 1 if it does, 0 otherwise.
  */
 int
-nfs_supportsnfsv4acls(struct mount *mp)
+nfs_supportsnfsv4acls(struct vnode *vp)
 {
+	int error;
+	register_t retval;
 
-	if (mp->mnt_stat.f_fstypename == NULL)
+	ASSERT_VOP_LOCKED(vp, "nfs supports nfsv4acls");
+
+	if (nfsrv_useacl == 0)
 		return (0);
-	if (strcmp(mp->mnt_stat.f_fstypename, "ufs") == 0) {
-		/* Not yet */
-		return (0);
-	} else if (strcmp(mp->mnt_stat.f_fstypename, "zfs") == 0) {
-		/* Always supports them */
+	error = VOP_PATHCONF(vp, _PC_ACL_NFS4, &retval);
+	if (error == 0 && retval != 0)
 		return (1);
-	}
 	return (0);
 }
 

@@ -49,6 +49,8 @@ struct pmc_mdep;
  * PENTIUM	Intel Pentium MMX.
  * IAP		Intel Core/Core2/Atom programmable PMCs.
  * IAF		Intel fixed-function PMCs.
+ * UCP		Intel Uncore programmable PMCs.
+ * UCF		Intel Uncore fixed-function PMCs.
  */
 
 #include <dev/hwpmc/hwpmc_amd.h> /* K7 and K8 */
@@ -57,11 +59,12 @@ struct pmc_mdep;
 #include <dev/hwpmc/hwpmc_ppro.h>
 #include <dev/hwpmc/hwpmc_pentium.h>
 #include <dev/hwpmc/hwpmc_tsc.h>
+#include <dev/hwpmc/hwpmc_uncore.h>
 
 /*
  * Intel processors implementing V2 and later of the Intel performance
  * measurement architecture have PMCs of the following classes: TSC,
- * IAF and IAP.
+ * IAF, IAP, UCF and UCP.
  */
 #define	PMC_MDEP_CLASS_INDEX_TSC	0
 #define	PMC_MDEP_CLASS_INDEX_K7		1
@@ -71,6 +74,8 @@ struct pmc_mdep;
 #define	PMC_MDEP_CLASS_INDEX_P6		1
 #define	PMC_MDEP_CLASS_INDEX_IAP	1
 #define	PMC_MDEP_CLASS_INDEX_IAF	2
+#define PMC_MDEP_CLASS_INDEX_UCP	3
+#define PMC_MDEP_CLASS_INDEX_UCF	4
 
 /*
  * Architecture specific extensions to <sys/pmc.h> structures.
@@ -80,6 +85,8 @@ union pmc_md_op_pmcallocate  {
 	struct pmc_md_amd_op_pmcallocate	pm_amd;
 	struct pmc_md_iaf_op_pmcallocate	pm_iaf;
 	struct pmc_md_iap_op_pmcallocate	pm_iap;
+	struct pmc_md_ucf_op_pmcallocate	pm_ucf;
+	struct pmc_md_ucp_op_pmcallocate	pm_ucp;
 	struct pmc_md_p4_op_pmcallocate		pm_p4;
 	struct pmc_md_pentium_op_pmcallocate	pm_pentium;
 	struct pmc_md_ppro_op_pmcallocate	pm_ppro;
@@ -97,6 +104,8 @@ union pmc_md_pmc  {
 	struct pmc_md_amd_pmc	pm_amd;
 	struct pmc_md_iaf_pmc	pm_iaf;
 	struct pmc_md_iap_pmc	pm_iap;
+	struct pmc_md_ucf_pmc	pm_ucf;
+	struct pmc_md_ucp_pmc	pm_ucp;
 	struct pmc_md_p4_pmc	pm_p4;
 	struct pmc_md_pentium_pmc pm_pentium;
 	struct pmc_md_ppro_pmc	pm_ppro;

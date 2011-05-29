@@ -390,8 +390,8 @@ syserr:			run_err("%s: %s", name, strerror(errno));
 			 * versions expecting microseconds.
 			 */
 			(void)snprintf(buf, sizeof(buf), "T%ld 0 %ld 0\n",
-			    (long)stb.st_mtimespec.tv_sec,
-			    (long)stb.st_atimespec.tv_sec);
+			    (long)stb.st_mtim.tv_sec,
+			    (long)stb.st_atim.tv_sec);
 			(void)write(rem, buf, strlen(buf));
 			if (response() < 0)
 				goto next;
@@ -454,8 +454,8 @@ rsource(char *name, struct stat *statp)
 		last++;
 	if (pflag) {
 		(void)snprintf(path, sizeof(path), "T%ld 0 %ld 0\n",
-		    (long)statp->st_mtimespec.tv_sec,
-		    (long)statp->st_atimespec.tv_sec);
+		    (long)statp->st_mtim.tv_sec,
+		    (long)statp->st_atim.tv_sec);
 		(void)write(rem, path, strlen(path));
 		if (response() < 0) {
 			closedir(dirp);

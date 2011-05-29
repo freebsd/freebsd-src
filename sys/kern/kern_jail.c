@@ -49,6 +49,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/jail.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/racct.h>
+#include <sys/refcount.h>
 #include <sys/sx.h>
 #include <sys/sysent.h>
 #include <sys/namei.h>
@@ -76,6 +78,7 @@ __FBSDID("$FreeBSD$");
 #define	DEFAULT_HOSTUUID	"00000000-0000-0000-0000-000000000000"
 
 MALLOC_DEFINE(M_PRISON, "prison", "Prison structures");
+MALLOC_DEFINE(M_PRISON_RACCT, "prison_racct", "Prison racct structures");
 
 /* Keep struct prison prison0 and some code in kern_jail_set() readable. */
 #ifdef INET
@@ -112,10 +115,11 @@ struct prison prison0 = {
 };
 MTX_SYSINIT(prison0, &prison0.pr_mtx, "jail mutex", MTX_DEF);
 
-/* allprison and lastprid are protected by allprison_lock. */
+/* allprison, allprison_racct and lastprid are protected by allprison_lock. */
 struct	sx allprison_lock;
 SX_SYSINIT(allprison_lock, &allprison_lock, "allprison");
 struct	prisonlist allprison = TAILQ_HEAD_INITIALIZER(allprison);
+LIST_HEAD(, prison_racct) allprison_racct;
 int	lastprid = 0;
 
 static int do_jail_attach(struct thread *td, struct prison *pr);
@@ -123,6 +127,10 @@ static void prison_complete(void *context, int pending);
 static void prison_deref(struct prison *pr, int flags);
 static char *prison_path(struct prison *pr1, struct prison *pr2);
 static void prison_remove_one(struct prison *pr);
+#ifdef RACCT
+static void prison_racct_attach(struct prison *pr);
+static void prison_racct_detach(struct prison *pr);
+#endif
 #ifdef INET
 static int _prison_check_ip4(struct prison *pr, struct in_addr *ia);
 static int prison_restrict_ip4(struct prison *pr, struct in_addr *newip4);
@@ -140,7 +148,9 @@ static int prison_restrict_ip6(struct prison *pr, struct in6_addr *newip6);
 #define	PD_LIST_XLOCKED	0x10
 
 /*
- * Parameter names corresponding to PR_* flag values
+ * Parameter names corresponding to PR_* flag values.  Size values are for kvm
+ * as we cannot figure out the size of a sparse array, or an array without a
+ * terminating entry.
  */
 static char *pr_flag_names[] = {
 	[0] = "persist",
@@ -151,6 +161,7 @@ static char *pr_flag_names[] = {
 	[8] = "ip6.saddrsel",
 #endif
 };
+const size_t pr_flag_names_size = sizeof(pr_flag_names);
 
 static char *pr_flag_nonames[] = {
 	[0] = "nopersist",
@@ -161,6 +172,7 @@ static char *pr_flag_nonames[] = {
 	[8] = "ip6.nosaddrsel",
 #endif
 };
+const size_t pr_flag_nonames_size = sizeof(pr_flag_nonames);
 
 struct jailsys_flags {
 	const char	*name;
@@ -178,6 +190,7 @@ struct jailsys_flags {
 	{ "ip6", PR_IP6_USER | PR_IP6_DISABLE, PR_IP6_USER },
 #endif
 };
+const size_t pr_flag_jailsys_size = sizeof(pr_flag_jailsys);
 
 static char *pr_allow_names[] = {
 	"allow.set_hostname",
@@ -188,6 +201,7 @@ static char *pr_allow_names[] = {
 	"allow.quotas",
 	"allow.socket_af",
 };
+const size_t pr_allow_names_size = sizeof(pr_allow_names);
 
 static char *pr_allow_nonames[] = {
 	"allow.noset_hostname",
@@ -198,6 +212,7 @@ static char *pr_allow_nonames[] = {
 	"allow.noquotas",
 	"allow.nosocket_af",
 };
+const size_t pr_allow_nonames_size = sizeof(pr_allow_nonames);
 
 #define	JAIL_DEFAULT_ALLOW		PR_ALLOW_SET_HOSTNAME
 #define	JAIL_DEFAULT_ENFORCE_STATFS	2
@@ -584,12 +599,15 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 		gotchildmax = 1;
 
 	error = vfs_copyopt(opts, "enforce_statfs", &enforce, sizeof(enforce));
-	gotenforce = (error == 0);
-	if (gotenforce) {
-		if (enforce < 0 || enforce > 2)
-			return (EINVAL);
-	} else if (error != ENOENT)
+	if (error == ENOENT)
+		gotenforce = 0;
+	else if (error != 0)
 		goto done_free;
+	else if (enforce < 0 || enforce > 2) {
+		error = EINVAL;
+		goto done_free;
+	} else
+		gotenforce = 1;
 
 	pr_flags = ch_flags = 0;
 	for (fi = 0; fi < sizeof(pr_flag_names) / sizeof(pr_flag_names[0]);
@@ -734,8 +752,8 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 		}
 	}
 
-#ifdef COMPAT_IA32
-	if (td->td_proc->p_sysent->sv_flags & SV_IA32) {
+#ifdef COMPAT_FREEBSD32
+	if (SV_PROC_FLAG(td->td_proc, SV_ILP32)) {
 		uint32_t hid32;
 
 		error = vfs_copyopt(opts, "host.hostid", &hid32, sizeof(hid32));
@@ -1644,6 +1662,11 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 	pr->pr_flags = (pr->pr_flags & ~ch_flags) | pr_flags;
 	mtx_unlock(&pr->pr_mtx);
 
+#ifdef RACCT
+	if (created)
+		prison_racct_attach(pr);
+#endif
+
 	/* Locks may have prevented a complete restriction of child IP
 	 * addresses.  If so, allocate some more memory and try again.
 	 */
@@ -1961,8 +1984,8 @@ kern_jail_get(struct thread *td, struct uio *optuio, int flags)
 	error = vfs_setopts(opts, "host.hostuuid", pr->pr_hostuuid);
 	if (error != 0 && error != ENOENT)
 		goto done_deref;
-#ifdef COMPAT_IA32
-	if (td->td_proc->p_sysent->sv_flags & SV_IA32) {
+#ifdef COMPAT_FREEBSD32
+	if (SV_PROC_FLAG(td->td_proc, SV_ILP32)) {
 		uint32_t hid32 = pr->pr_hostid;
 
 		error = vfs_setopt(opts, "host.hostid", &hid32, sizeof(hid32));
@@ -2285,6 +2308,9 @@ do_jail_attach(struct thread *td, struct prison *pr)
 	newcred->cr_prison = pr;
 	p->p_ucred = newcred;
 	PROC_UNLOCK(p);
+#ifdef RACCT
+	racct_proc_ucred_changed(p, oldcred, newcred);
+#endif
 	crfree(oldcred);
 	prison_deref(ppr, PD_DEREF | PD_DEUREF);
 	return (0);
@@ -2517,6 +2543,9 @@ prison_deref(struct prison *pr, int flags)
 		if (pr->pr_cpuset != NULL)
 			cpuset_rel(pr->pr_cpuset);
 		osd_jail_exit(pr);
+#ifdef RACCT
+		prison_racct_detach(pr);
+#endif
 		free(pr, M_PRISON);
 
 		/* Removing a prison frees a reference on its parent. */
@@ -3864,6 +3893,12 @@ prison_priv_check(struct ucred *cred, int priv)
 	case PRIV_NETINET_GETCRED:
 		return (0);
 
+		/*
+		 * Allow jailed root to set loginclass.
+		 */
+	case PRIV_PROC_SETLOGINCLASS:
+		return (0);
+
 	default:
 		/*
 		 * In all remaining cases, deny the privilege request.  This
@@ -3941,7 +3976,7 @@ sysctl_jail_list(SYSCTL_HANDLER_ARGS)
 	int ip4s = 0;
 #endif
 #ifdef INET6
-	struct in_addr *ip6 = NULL;
+	struct in6_addr *ip6 = NULL;
 	int ip6s = 0;
 #endif
 	int descend, error;
@@ -4166,7 +4201,7 @@ sysctl_jail_param(SYSCTL_HANDLER_ARGS)
 		i = 0;
 		return (SYSCTL_OUT(req, &i, sizeof(i)));
 	case CTLTYPE_STRING:
-		snprintf(numbuf, sizeof(numbuf), "%d", arg2);
+		snprintf(numbuf, sizeof(numbuf), "%jd", (intmax_t)arg2);
 		return
 		    (sysctl_handle_string(oidp, numbuf, sizeof(numbuf), req));
 	case CTLTYPE_STRUCT:
@@ -4247,6 +4282,106 @@ SYSCTL_JAIL_PARAM(_allow, quotas, CTLTYPE_INT | CTLFLAG_RW,
 SYSCTL_JAIL_PARAM(_allow, socket_af, CTLTYPE_INT | CTLFLAG_RW,
     "B", "Jail may create sockets other than just UNIX/IPv4/IPv6/route");
 
+void
+prison_racct_foreach(void (*callback)(struct racct *racct,
+    void *arg2, void *arg3), void *arg2, void *arg3)
+{
+	struct prison_racct *prr;
+
+	sx_slock(&allprison_lock);
+	LIST_FOREACH(prr, &allprison_racct, prr_next)
+		(callback)(prr->prr_racct, arg2, arg3);
+	sx_sunlock(&allprison_lock);
+}
+
+static struct prison_racct *
+prison_racct_find_locked(const char *name)
+{
+	struct prison_racct *prr;
+
+	sx_assert(&allprison_lock, SA_XLOCKED);
+
+	if (name[0] == '\0' || strlen(name) >= MAXHOSTNAMELEN)
+		return (NULL);
+
+	LIST_FOREACH(prr, &allprison_racct, prr_next) {
+		if (strcmp(name, prr->prr_name) != 0)
+			continue;
+
+		/* Found prison_racct with a matching name? */
+		prison_racct_hold(prr);
+		return (prr);
+	}
+
+	/* Add new prison_racct. */
+	prr = malloc(sizeof(*prr), M_PRISON_RACCT, M_ZERO | M_WAITOK);
+	racct_create(&prr->prr_racct);
+
+	strcpy(prr->prr_name, name);
+	refcount_init(&prr->prr_refcount, 1);
+	LIST_INSERT_HEAD(&allprison_racct, prr, prr_next);
+
+	return (prr);
+}
+
+struct prison_racct *
+prison_racct_find(const char *name)
+{
+	struct prison_racct *prr;
+
+	sx_xlock(&allprison_lock);
+	prr = prison_racct_find_locked(name);
+	sx_xunlock(&allprison_lock);
+	return (prr);
+}
+
+void
+prison_racct_hold(struct prison_racct *prr)
+{
+
+	refcount_acquire(&prr->prr_refcount);
+}
+
+void
+prison_racct_free(struct prison_racct *prr)
+{
+	int old;
+
+	old = prr->prr_refcount;
+	if (old > 1 && atomic_cmpset_int(&prr->prr_refcount, old, old - 1))
+		return;
+
+	sx_xlock(&allprison_lock);
+	if (refcount_release(&prr->prr_refcount)) {
+		racct_destroy(&prr->prr_racct);
+		LIST_REMOVE(prr, prr_next);
+		sx_xunlock(&allprison_lock);
+		free(prr, M_PRISON_RACCT);
+
+		return;
+	}
+	sx_xunlock(&allprison_lock);
+}
+
+#ifdef RACCT
+static void
+prison_racct_attach(struct prison *pr)
+{
+	struct prison_racct *prr;
+
+	prr = prison_racct_find_locked(pr->pr_name);
+	KASSERT(prr != NULL, ("cannot find prison_racct"));
+
+	pr->pr_prison_racct = prr;
+}
+
+static void
+prison_racct_detach(struct prison *pr)
+{
+	prison_racct_free(pr->pr_prison_racct);
+	pr->pr_prison_racct = NULL;
+}
+#endif /* RACCT */
 
 #ifdef DDB
 

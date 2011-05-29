@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2008 Daniel Braniss <danny@cs.huji.ac.il>
+ * Copyright (c) 2005-2010 Daniel Braniss <danny@cs.huji.ac.il>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,7 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <stdarg.h>
 #include <camlib.h>
 
-#include "iscsi.h"
+#include <dev/iscsi/initiator/iscsi.h>
 #include "iscontrol.h"
 
 static void	pukeText(char *it, pdu_t *pp);
@@ -85,7 +85,7 @@ sendPDU(isess_t *sess, pdu_t *pp, handler_t *hdlr)
 	  int res;
 
 	  pp->ahs_size = 8 * 1024;
-	  if((pp->ahs = malloc(pp->ahs_size)) == NULL) {
+	  if((pp->ahs_addr = malloc(pp->ahs_size)) == NULL) {
 	       fprintf(stderr, "out of mem!");
 	       return -1;
 	  }
@@ -126,16 +126,16 @@ addText(pdu_t *pp, char *fmt, ...)
      if((pp->ds_len + len) > pp->ds_size) {
 	  u_char	*np;
 
-	  np = realloc(pp->ds, pp->ds_size + len + FUDGE);
+	  np = realloc(pp->ds_addr, pp->ds_size + len + FUDGE);
 	  if(np == NULL) {
 	       free(str);
 	       //XXX: out of memory!
 	       return -1;
 	  }
-	  pp->ds = np;
+	  pp->ds_addr = np;
 	  pp->ds_size += len + FUDGE;
      }
-     memcpy(pp->ds + pp->ds_len, str, len);
+     memcpy(pp->ds_addr + pp->ds_len, str, len);
      pp->ds_len += len;
      free(str);
      return len;
@@ -145,12 +145,12 @@ void
 freePDU(pdu_t *pp)
 {
      if(pp->ahs_size)
-	  free(pp->ahs);
+	  free(pp->ahs_addr);
      if(pp->ds_size)
-	  free(pp->ds);
+	  free(pp->ds_addr);
      bzero(&pp->ipdu, sizeof(union ipdu_u));
-     pp->ahs = NULL;
-     pp->ds = NULL;
+     pp->ahs_addr = NULL;
+     pp->ds_addr = NULL;
      pp->ahs_size = 0;
      pp->ds_size = pp->ds_len = 0;
 }
@@ -163,7 +163,7 @@ pukeText(char *it, pdu_t *pp)
      size_t	len, n;
 
      len = pp->ds_len;
-     ptr = (char *)pp->ds;
+     ptr = (char *)pp->ds_addr;
      cmd = pp->ipdu.bhs.opcode;
 
      printf("%s: cmd=0x%x len=%d\n", it, cmd, (int)len);

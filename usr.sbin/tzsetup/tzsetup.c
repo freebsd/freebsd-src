@@ -66,10 +66,13 @@ static int usedialog = 1;
 static char *chrootenv = NULL;
 
 static void	usage(void);
+static int	confirm_zone(const char *filename);
 static int	continent_country_menu(dialogMenuItem *);
+static int	install_zoneinfo_file(const char *zoneinfo_file);
 static int	set_zone_multi(dialogMenuItem *);
 static int	set_zone_whole_country(dialogMenuItem *);
 static int	set_zone_menu(dialogMenuItem *);
+static int	set_zone_utc(void);
 
 struct continent {
 	dialogMenuItem *menu;
@@ -79,7 +82,7 @@ struct continent {
 };
 
 static struct continent	africa, america, antarctica, arctic, asia, atlantic;
-static struct continent	australia, europe, indian, pacific;
+static struct continent	australia, europe, indian, pacific, utc;
 
 static struct continent_names {
 	const char	*name;
@@ -94,7 +97,8 @@ static struct continent_names {
 	{ "Australia",	&australia },
 	{ "Europe",	&europe },
 	{ "Indian",	&indian },
-	{ "Pacific",	&pacific }
+	{ "Pacific",	&pacific },
+	{ "UTC", 	&utc }
 };
 
 static struct continent_items {
@@ -110,7 +114,8 @@ static struct continent_items {
 	{ "7",	"Australia" },
 	{ "8",	"Europe" },
 	{ "9",	"Indian Ocean" },
-	{ "0",	"Pacific Ocean" }
+	{ "0",	"Pacific Ocean" },
+	{ "a",	"UTC" }
 };
 
 #define	NCONTINENTS	\
@@ -127,6 +132,9 @@ continent_country_menu(dialogMenuItem *continent)
 	int		isocean = OCEANP(continent - continents);
 	int		menulen;
 	int		rv;
+
+	if (strcmp(continent->title, "UTC") == 0)
+	        return set_zone_utc();	
 
 	/* Short cut -- if there's only one country, don't post a menu. */
 	if (contp->nitems == 1)
@@ -204,7 +212,7 @@ read_iso3166_table(void)
 
 	fp = fopen(path_iso3166, "r");
 	if (!fp)
-		err(1, path_iso3166);
+		err(1, "%s", path_iso3166);
 	lineno = 0;
 
 	while ((s = fgetln(fp, &len)) != 0) {
@@ -343,7 +351,7 @@ read_zones(void)
 
 	fp = fopen(path_zonetab, "r");
 	if (!fp)
-		err(1, path_zonetab);
+		err(1, "%s", path_zonetab);
 	lineno = 0;
 
 	while ((line = fgetln(fp, &len)) != 0) {
@@ -358,7 +366,7 @@ read_zones(void)
 		if (strlen(tlc) != 2)
 			errx(1, "%s:%d: invalid country code `%s'",
 			    path_zonetab, lineno, tlc);
-		coord = strsep(&line, "\t");
+		coord = strsep(&line, "\t");	 /* Unused */
 		file = strsep(&line, "\t");
 		p = strchr(file, '/');
 		if (p == 0)
@@ -502,6 +510,15 @@ set_zone_menu(dialogMenuItem *dmi)
 	return (DITEM_LEAVE_MENU);
 }
 
+int
+set_zone_utc(void)
+{
+	if (!confirm_zone(NULL))
+		return (DITEM_FAILURE | DITEM_RECREATE);
+		
+	return (install_zoneinfo_file(NULL));
+}
+
 static int
 install_zoneinfo_file(const char *zoneinfo_file)
 {
@@ -526,7 +543,8 @@ install_zoneinfo_file(const char *zoneinfo_file)
 	else
 		snprintf(prompt, sizeof(prompt),
 		    "Creating symbolic link %s to %s",
-		    path_localtime, zoneinfo_file);
+		    path_localtime,
+		    zoneinfo_file == NULL ? "(UTC)" : zoneinfo_file);
 	if (usedialog)
 		dialog_notify(prompt);
 	else
@@ -534,6 +552,22 @@ install_zoneinfo_file(const char *zoneinfo_file)
 #endif
 
 	if (reallydoit) {
+		if (zoneinfo_file == NULL) {
+			if (unlink(path_localtime) < 0 && errno != ENOENT) {
+				snprintf(title, sizeof(title), "Error");
+				snprintf(prompt, sizeof(prompt),
+				     "Could not delete %s: %s", path_localtime,
+				     strerror(errno));
+				if (usedialog)
+					dialog_mesgbox(title, prompt, 8, 72);
+				else
+					fprintf(stderr, "%s\n", prompt);
+
+				return (DITEM_FAILURE | DITEM_RECREATE);
+			}
+			return (DITEM_LEAVE_MENU);
+		}
+		
 		if (copymode) {
 			fd1 = open(zoneinfo_file, O_RDONLY, 0);
 			if (fd1 < 0) {
@@ -564,7 +598,8 @@ install_zoneinfo_file(const char *zoneinfo_file)
 			}
 
 			while ((len = read(fd1, buf, sizeof(buf))) > 0)
-				len = write(fd2, buf, len);
+				if ((len = write(fd2, buf, len)) < 0)
+					break;
 
 			if (len == -1) {
 				snprintf(title, sizeof(title), "Error");
@@ -655,7 +690,7 @@ confirm_zone(const char *filename)
 	struct tm	*tm;
 	int		rv;
 	
-	setenv("TZ", filename, 1);
+	setenv("TZ", filename == NULL ? "" : filename, 1);
 	tzset();
 	tm = localtime(&t);
 
@@ -696,7 +731,8 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: tzsetup [-nrs] [zoneinfo file]\n");
+	fprintf(stderr, "usage: tzsetup [-nrs] [-C chroot_directory]"
+	    " [zoneinfo_file | zoneinfo_name]\n");
 	exit(1);
 }
 
@@ -820,16 +856,16 @@ main(int argc, char **argv)
 		    "or you don't know, please choose NO here!");
 		if (!DIALOG_UTC(title, prompt, 7, 72)) {
 			if (reallydoit)
-				unlink(_PATH_WALL_CMOS_CLOCK);
+				unlink(path_wall_cmos_clock);
 		} else {
 			if (reallydoit) {
-				fd = open(_PATH_WALL_CMOS_CLOCK,
+				fd = open(path_wall_cmos_clock,
 				    O_WRONLY | O_CREAT | O_TRUNC,
 				    S_IRUSR | S_IRGRP | S_IROTH);
 				if (fd < 0) {
 					end_dialog();
 					err(1, "create %s",
-					    _PATH_WALL_CMOS_CLOCK);
+					    path_wall_cmos_clock);
 				}
 				close(fd);
 			}

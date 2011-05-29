@@ -166,7 +166,7 @@ gzFile gz_open (path, mode, vp)
              0 /*xflags*/, OS_CODE);
 
     if ((error = vn_rdwr(UIO_WRITE, s->file, buf, GZ_HEADER_LEN, s->outoff,
-                         UIO_SYSSPACE, IO_NODELOCKED|IO_UNIT, curproc->p_ucred,
+                         UIO_SYSSPACE, IO_UNIT, curproc->p_ucred,
                          NOCRED, &resid, curthread))) {
         s->outoff += GZ_HEADER_LEN - resid;
         return destroy(s), (gzFile)Z_NULL;
@@ -234,7 +234,7 @@ int ZEXPORT gzwrite (file, buf, len)
             s->stream.next_out = s->outbuf;
             vfslocked = VFS_LOCK_GIANT(s->file->v_mount);
             error = vn_rdwr_inchunks(UIO_WRITE, s->file, s->outbuf, Z_BUFSIZE,
-                        curoff, UIO_SYSSPACE, IO_NODELOCKED|IO_UNIT,
+                        curoff, UIO_SYSSPACE, IO_UNIT,
                         curproc->p_ucred, NOCRED, &resid, curthread);
             VFS_UNLOCK_GIANT(vfslocked);
             if (error) {
@@ -291,7 +291,7 @@ local int do_flush (file, flush)
         if (len != 0) {
             vfslocked = VFS_LOCK_GIANT(s->file->v_mount);
             error = vn_rdwr_inchunks(UIO_WRITE, s->file, s->outbuf, len, curoff,
-                        UIO_SYSSPACE, IO_NODELOCKED|IO_UNIT, curproc->p_ucred,
+                        UIO_SYSSPACE, IO_UNIT, curproc->p_ucred,
                         NOCRED, &resid, curthread);
             VFS_UNLOCK_GIANT(vfslocked);
 	    if (error) {
@@ -350,7 +350,7 @@ local void putU32 (s, x)
     xx = x;
 #endif
     vn_rdwr(UIO_WRITE, s->file, (caddr_t)&xx, sizeof(xx), curoff,
-            UIO_SYSSPACE, IO_NODELOCKED|IO_UNIT, curproc->p_ucred,
+            UIO_SYSSPACE, IO_UNIT, curproc->p_ucred,
             NOCRED, &resid, curthread);
     s->outoff += sizeof(xx) - resid;
 }

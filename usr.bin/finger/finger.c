@@ -13,10 +13,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -168,11 +164,15 @@ main(int argc, char **argv)
 	if (getuid() == 0 || geteuid() == 0) {
 		invoker_root = 1;
 		if ((pw = getpwnam(UNPRIV_NAME)) && pw->pw_uid > 0) {
-			 setgid(pw->pw_gid);
-			 setuid(pw->pw_uid);
+			if (setgid(pw->pw_gid) != 0)
+				err(1, "setgid()");
+			if (setuid(pw->pw_uid) != 0)
+				err(1, "setuid()");
 		} else {
-			 setgid(UNPRIV_UGID);
-			 setuid(UNPRIV_UGID);
+			if (setgid(UNPRIV_UGID) != 0)
+				err(1, "setgid()");
+			if (setuid(UNPRIV_UGID) != 0)
+				err(1, "setuid()");
 		}
 	}
 

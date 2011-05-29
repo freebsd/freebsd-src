@@ -19,8 +19,8 @@
 
 ident		MALTA
 
-#makeoptions	ARCH_FLAGS=-march=mips32
-makeoptions	MIPS_LITTLE_ENDIAN=defined
+machine		mips mipsel	# Malta supports both, so it isn't in std.malta
+
 makeoptions	KERNLOADADDR=0x80100000
 
 options 	YAMON
@@ -44,8 +44,8 @@ options 	KDB
 
 options 	SCHED_4BSD		#4BSD scheduler
 options 	INET			#InterNETworking
-options 	NFSCLIENT		#Network Filesystem Client
-options 	NFS_ROOT		#NFS usable as /, requires NFSCLIENT
+options 	NFSCL			#Network Filesystem Client
+options 	NFS_ROOT		#NFS usable as /, requires NFSCL
 options 	PSEUDOFS		#Pseudo-filesystem framework
 options 	_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
 
@@ -53,7 +53,7 @@ options 	FFS			#Berkeley Fast Filesystem
 options 	SOFTUPDATES		#Enable FFS soft updates support
 options 	UFS_ACL			#Support for access control lists
 options 	UFS_DIRHASH		#Improve performance on big directories
-options 	ROOTDEVNAME=\"ufs:ad0s1a\"
+options 	ROOTDEVNAME=\"ufs:ada0s1a\"
 
 
 # Debugging for use in -current

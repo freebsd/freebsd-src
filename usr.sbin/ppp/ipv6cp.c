@@ -148,6 +148,7 @@ SetInterfaceID(u_char *ifid, int userandom)
     switch(sdl->sdl_type) {
     case IFT_ETHER:
     case IFT_FDDI:
+    case IFT_L2VLAN:
       /* XXX need more cases? */
       break;
     default:

@@ -70,11 +70,6 @@ struct file;
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
-#if !defined(_KERNEL) && defined(__FreeBSD_version) && \
-    __FreeBSD_version >= 800049
-# define V_ip_do_randomid	ip_do_randomid
-# define V_ip_id		ip_id
-#endif
 #if !defined(_KERNEL) && !defined(__osf__) && !defined(__sgi)
 # define	KERNEL
 # define	_KERNEL

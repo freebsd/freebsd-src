@@ -50,25 +50,25 @@ of a page.
 .Pp
 .Fn vm_page_busy
 sets the
-.Dv PG_BUSY
+.Dv VPO_BUSY
 flag in the page.
 .Pp
 .Fn vm_page_flash
 checks to see if there is anybody waiting on the page
-.Dv ( PG_WANTED
+.Dv ( VPO_WANTED
 will be set), and if so, clears the
-.Dv PG_WANTED
+.Dv VPO_WANTED
 flag and notifies whoever is waiting via
 .Fn wakeup .
 .Pp
 .Fn vm_page_wakeup
 clears the
-.Dv PG_BUSY
+.Dv VPO_BUSY
 flag on the page, and calls
 .Fn vm_page_flash
 in case somebody has been waiting for it.
 .Sh SEE ALSO
-.Xr vm_page_sleep_busy 9 ,
+.Xr vm_page_sleep_if_busy 9 ,
 .Xr wakeup 9
 .Sh AUTHORS
 This manual page was written by

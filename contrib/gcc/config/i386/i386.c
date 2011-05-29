@@ -336,6 +336,60 @@ struct processor_costs pentiumpro_cost = {
 };
 
 static const
+struct processor_costs geode_cost = {
+  COSTS_N_INSNS (1),			/* cost of an add instruction */
+  COSTS_N_INSNS (1),			/* cost of a lea instruction */
+  COSTS_N_INSNS (2),			/* variable shift costs */
+  COSTS_N_INSNS (1),			/* constant shift costs */
+  {COSTS_N_INSNS (3),			/* cost of starting multiply for QI */
+   COSTS_N_INSNS (4),			/*                               HI */
+   COSTS_N_INSNS (7),			/*                               SI */
+   COSTS_N_INSNS (7),			/*                               DI */
+   COSTS_N_INSNS (7)},			/*                               other */
+  0,					/* cost of multiply per each bit set */
+  {COSTS_N_INSNS (15),			/* cost of a divide/mod for QI */
+   COSTS_N_INSNS (23),			/*                          HI */
+   COSTS_N_INSNS (39),			/*                          SI */
+   COSTS_N_INSNS (39),			/*                          DI */
+   COSTS_N_INSNS (39)},			/*                          other */
+  COSTS_N_INSNS (1),			/* cost of movsx */
+  COSTS_N_INSNS (1),			/* cost of movzx */
+  8,					/* "large" insn */
+  4,					/* MOVE_RATIO */
+  1,					/* cost for loading QImode using movzbl */
+  {1, 1, 1},				/* cost of loading integer registers
+					   in QImode, HImode and SImode.
+					   Relative to reg-reg move (2).  */
+  {1, 1, 1},				/* cost of storing integer registers */
+  1,					/* cost of reg,reg fld/fst */
+  {1, 1, 1},				/* cost of loading fp registers
+					   in SFmode, DFmode and XFmode */
+  {4, 6, 6},				/* cost of storing fp registers
+					   in SFmode, DFmode and XFmode */
+
+  1,					/* cost of moving MMX register */
+  {1, 1},				/* cost of loading MMX registers
+					   in SImode and DImode */
+  {1, 1},				/* cost of storing MMX registers
+					   in SImode and DImode */
+  1,					/* cost of moving SSE register */
+  {1, 1, 1},				/* cost of loading SSE registers
+					   in SImode, DImode and TImode */
+  {1, 1, 1},				/* cost of storing SSE registers
+					   in SImode, DImode and TImode */
+  1,					/* MMX or SSE register to integer */
+  32,					/* size of prefetch block */
+  1,					/* number of parallel prefetches */
+  1,					/* Branch cost */
+  COSTS_N_INSNS (6),			/* cost of FADD and FSUB insns.  */
+  COSTS_N_INSNS (11),			/* cost of FMUL instruction.  */
+  COSTS_N_INSNS (47),			/* cost of FDIV instruction.  */
+  COSTS_N_INSNS (1),			/* cost of FABS instruction.  */
+  COSTS_N_INSNS (1),			/* cost of FCHS instruction.  */
+  COSTS_N_INSNS (54),			/* cost of FSQRT instruction.  */
+};
+
+static const
 struct processor_costs k6_cost = {
   COSTS_N_INSNS (1),			/* cost of an add instruction */
   COSTS_N_INSNS (2),			/* cost of a lea instruction */
@@ -600,6 +654,58 @@ struct processor_costs nocona_cost = {
   COSTS_N_INSNS (44),			/* cost of FSQRT instruction.  */
 };
 
+static const
+struct processor_costs core2_cost = {
+  COSTS_N_INSNS (1),			/* cost of an add instruction */
+  COSTS_N_INSNS (1) + 1,		/* cost of a lea instruction */
+  COSTS_N_INSNS (1),			/* variable shift costs */
+  COSTS_N_INSNS (1),			/* constant shift costs */
+  {COSTS_N_INSNS (3),			/* cost of starting multiply for QI */
+   COSTS_N_INSNS (3),			/*                               HI */
+   COSTS_N_INSNS (3),			/*                               SI */
+   COSTS_N_INSNS (3),			/*                               DI */
+   COSTS_N_INSNS (3)},			/*                               other */
+  0,					/* cost of multiply per each bit set */
+  {COSTS_N_INSNS (22),			/* cost of a divide/mod for QI */
+   COSTS_N_INSNS (22),			/*                          HI */
+   COSTS_N_INSNS (22),			/*                          SI */
+   COSTS_N_INSNS (22),			/*                          DI */
+   COSTS_N_INSNS (22)},			/*                          other */
+  COSTS_N_INSNS (1),			/* cost of movsx */
+  COSTS_N_INSNS (1),			/* cost of movzx */
+  8,					/* "large" insn */
+  16,					/* MOVE_RATIO */
+  2,					/* cost for loading QImode using movzbl */
+  {6, 6, 6},				/* cost of loading integer registers
+					   in QImode, HImode and SImode.
+					   Relative to reg-reg move (2).  */
+  {4, 4, 4},				/* cost of storing integer registers */
+  2,					/* cost of reg,reg fld/fst */
+  {6, 6, 6},				/* cost of loading fp registers
+					   in SFmode, DFmode and XFmode */
+  {4, 4, 4},				/* cost of loading integer registers */
+  2,					/* cost of moving MMX register */
+  {6, 6},				/* cost of loading MMX registers
+					   in SImode and DImode */
+  {4, 4},				/* cost of storing MMX registers
+					   in SImode and DImode */
+  2,					/* cost of moving SSE register */
+  {6, 6, 6},				/* cost of loading SSE registers
+					   in SImode, DImode and TImode */
+  {4, 4, 4},				/* cost of storing SSE registers
+					   in SImode, DImode and TImode */
+  2,					/* MMX or SSE register to integer */
+  128,					/* size of prefetch block */
+  8,					/* number of parallel prefetches */
+  3,					/* Branch cost */
+  COSTS_N_INSNS (3),			/* cost of FADD and FSUB insns.  */
+  COSTS_N_INSNS (5),			/* cost of FMUL instruction.  */
+  COSTS_N_INSNS (32),			/* cost of FDIV instruction.  */
+  COSTS_N_INSNS (1),			/* cost of FABS instruction.  */
+  COSTS_N_INSNS (1),			/* cost of FCHS instruction.  */
+  COSTS_N_INSNS (58),			/* cost of FSQRT instruction.  */
+};
+
 /* Generic64 should produce code tuned for Nocona and K8.  */
 static const
 struct processor_costs generic64_cost = {
@@ -721,38 +827,41 @@ const struct processor_costs *ix86_cost = &pentium_cost;
 #define m_486 (1<<PROCESSOR_I486)
 #define m_PENT (1<<PROCESSOR_PENTIUM)
 #define m_PPRO (1<<PROCESSOR_PENTIUMPRO)
+#define m_GEODE  (1<<PROCESSOR_GEODE)
+#define m_K6_GEODE  (m_K6 | m_GEODE)
 #define m_K6  (1<<PROCESSOR_K6)
 #define m_ATHLON  (1<<PROCESSOR_ATHLON)
 #define m_PENT4  (1<<PROCESSOR_PENTIUM4)
 #define m_K8  (1<<PROCESSOR_K8)
 #define m_ATHLON_K8  (m_K8 | m_ATHLON)
 #define m_NOCONA  (1<<PROCESSOR_NOCONA)
+#define m_CORE2  (1<<PROCESSOR_CORE2)
 #define m_GENERIC32 (1<<PROCESSOR_GENERIC32)
 #define m_GENERIC64 (1<<PROCESSOR_GENERIC64)
 #define m_GENERIC (m_GENERIC32 | m_GENERIC64)
 
 /* Generic instruction choice should be common subset of supported CPUs
-   (PPro/PENT4/NOCONA/Athlon/K8).  */
+   (PPro/PENT4/NOCONA/CORE2/Athlon/K8).  */
 
 /* Leave is not affecting Nocona SPEC2000 results negatively, so enabling for
    Generic64 seems like good code size tradeoff.  We can't enable it for 32bit
    generic because it is not working well with PPro base chips.  */
-const int x86_use_leave = m_386 | m_K6 | m_ATHLON_K8 | m_GENERIC64;
-const int x86_push_memory = m_386 | m_K6 | m_ATHLON_K8 | m_PENT4 | m_NOCONA | m_GENERIC;
+const int x86_use_leave = m_386 | m_K6_GEODE | m_ATHLON_K8 | m_CORE2 | m_GENERIC64;
+const int x86_push_memory = m_386 | m_K6_GEODE | m_ATHLON_K8 | m_PENT4 | m_NOCONA | m_CORE2 | m_GENERIC;
 const int x86_zero_extend_with_and = m_486 | m_PENT;
-const int x86_movx = m_ATHLON_K8 | m_PPRO | m_PENT4 | m_NOCONA | m_GENERIC /* m_386 | m_K6 */;
+const int x86_movx = m_ATHLON_K8 | m_PPRO | m_PENT4 | m_NOCONA | m_CORE2 | m_GENERIC | m_GEODE /* m_386 | m_K6 */;
 const int x86_double_with_add = ~m_386;
 const int x86_use_bit_test = m_386;
-const int x86_unroll_strlen = m_486 | m_PENT | m_PPRO | m_ATHLON_K8 | m_K6 | m_GENERIC;
-const int x86_cmove = m_PPRO | m_ATHLON_K8 | m_PENT4 | m_NOCONA;
+const int x86_unroll_strlen = m_486 | m_PENT | m_PPRO | m_ATHLON_K8 | m_K6 | m_CORE2 | m_GENERIC;
+const int x86_cmove = m_PPRO | m_GEODE | m_ATHLON_K8 | m_PENT4 | m_NOCONA;
 const int x86_3dnow_a = m_ATHLON_K8;
-const int x86_deep_branch = m_PPRO | m_K6 | m_ATHLON_K8 | m_PENT4 | m_NOCONA | m_GENERIC;
+const int x86_deep_branch = m_PPRO | m_K6_GEODE | m_ATHLON_K8 | m_PENT4 | m_NOCONA | m_CORE2 | m_GENERIC;
 /* Branch hints were put in P4 based on simulation result. But
    after P4 was made, no performance benefit was observed with
    branch hints. It also increases the code size. As the result,
    icc never generates branch hints.  */
 const int x86_branch_hints = 0;
-const int x86_use_sahf = m_PPRO | m_K6 | m_PENT4 | m_NOCONA | m_GENERIC32; /*m_GENERIC | m_ATHLON_K8 ? */
+const int x86_use_sahf = m_PPRO | m_K6_GEODE | m_PENT4 | m_NOCONA | m_GENERIC32; /*m_GENERIC | m_ATHLON_K8 ? */
 /* We probably ought to watch for partial register stalls on Generic32
    compilation setting as well.  However in current implementation the
    partial register stalls are not eliminated very well - they can
@@ -762,15 +871,15 @@ const int x86_use_sahf = m_PPRO | m_K6 | m_PENT4 | m_NOCONA | m_GENERIC32; /*m_G
    with partial reg. dependencies used by Athlon/P4 based chips, it is better
    to leave it off for generic32 for now.  */
 const int x86_partial_reg_stall = m_PPRO;
-const int x86_partial_flag_reg_stall = m_GENERIC;
-const int x86_use_himode_fiop = m_386 | m_486 | m_K6;
-const int x86_use_simode_fiop = ~(m_PPRO | m_ATHLON_K8 | m_PENT | m_GENERIC);
+const int x86_partial_flag_reg_stall =  m_CORE2 | m_GENERIC;
+const int x86_use_himode_fiop = m_386 | m_486 | m_K6_GEODE;
+const int x86_use_simode_fiop = ~(m_PPRO | m_ATHLON_K8 | m_PENT | m_CORE2 | m_GENERIC);
 const int x86_use_mov0 = m_K6;
-const int x86_use_cltd = ~(m_PENT | m_K6 | m_GENERIC);
+const int x86_use_cltd = ~(m_PENT | m_K6 | m_CORE2 | m_GENERIC);
 const int x86_read_modify_write = ~m_PENT;
 const int x86_read_modify = ~(m_PENT | m_PPRO);
 const int x86_split_long_moves = m_PPRO;
-const int x86_promote_QImode = m_K6 | m_PENT | m_386 | m_486 | m_ATHLON_K8 | m_GENERIC; /* m_PENT4 ? */
+const int x86_promote_QImode = m_K6_GEODE | m_PENT | m_386 | m_486 | m_ATHLON_K8 | m_CORE2 | m_GENERIC; /* m_PENT4 ? */
 const int x86_fast_prefix = ~(m_PENT | m_486 | m_386);
 const int x86_single_stringop = m_386 | m_PENT4 | m_NOCONA;
 const int x86_qimode_math = ~(0);
@@ -780,18 +889,18 @@ const int x86_promote_qi_regs = 0;
    if our scheme for avoiding partial stalls was more effective.  */
 const int x86_himode_math = ~(m_PPRO);
 const int x86_promote_hi_regs = m_PPRO;
-const int x86_sub_esp_4 = m_ATHLON_K8 | m_PPRO | m_PENT4 | m_NOCONA | m_GENERIC;
-const int x86_sub_esp_8 = m_ATHLON_K8 | m_PPRO | m_386 | m_486 | m_PENT4 | m_NOCONA | m_GENERIC;
-const int x86_add_esp_4 = m_ATHLON_K8 | m_K6 | m_PENT4 | m_NOCONA | m_GENERIC;
-const int x86_add_esp_8 = m_ATHLON_K8 | m_PPRO | m_K6 | m_386 | m_486 | m_PENT4 | m_NOCONA | m_GENERIC;
-const int x86_integer_DFmode_moves = ~(m_ATHLON_K8 | m_PENT4 | m_NOCONA | m_PPRO | m_GENERIC);
-const int x86_partial_reg_dependency = m_ATHLON_K8 | m_PENT4 | m_NOCONA | m_GENERIC;
-const int x86_memory_mismatch_stall = m_ATHLON_K8 | m_PENT4 | m_NOCONA | m_GENERIC;
-const int x86_accumulate_outgoing_args = m_ATHLON_K8 | m_PENT4 | m_NOCONA | m_PPRO | m_GENERIC;
-const int x86_prologue_using_move = m_ATHLON_K8 | m_PPRO | m_GENERIC;
-const int x86_epilogue_using_move = m_ATHLON_K8 | m_PPRO | m_GENERIC;
+const int x86_sub_esp_4 = m_ATHLON_K8 | m_PPRO | m_PENT4 | m_NOCONA | m_CORE2 | m_GENERIC;
+const int x86_sub_esp_8 = m_ATHLON_K8 | m_PPRO | m_386 | m_486 | m_PENT4 | m_NOCONA | m_CORE2 | m_GENERIC;
+const int x86_add_esp_4 = m_ATHLON_K8 | m_K6_GEODE | m_PENT4 | m_NOCONA | m_CORE2 | m_GENERIC;
+const int x86_add_esp_8 = m_ATHLON_K8 | m_PPRO | m_K6_GEODE | m_386 | m_486 | m_PENT4 | m_NOCONA | m_CORE2 | m_GENERIC;
+const int x86_integer_DFmode_moves = ~(m_ATHLON_K8 | m_PENT4 | m_NOCONA | m_PPRO | m_CORE2 | m_GENERIC | m_GEODE);
+const int x86_partial_reg_dependency = m_ATHLON_K8 | m_PENT4 | m_NOCONA | m_CORE2 | m_GENERIC;
+const int x86_memory_mismatch_stall = m_ATHLON_K8 | m_PENT4 | m_NOCONA | m_CORE2 | m_GENERIC;
+const int x86_accumulate_outgoing_args = m_ATHLON_K8 | m_PENT4 | m_NOCONA | m_PPRO | m_CORE2 | m_GENERIC;
+const int x86_prologue_using_move = m_ATHLON_K8 | m_PPRO | m_CORE2 | m_GENERIC;
+const int x86_epilogue_using_move = m_ATHLON_K8 | m_PPRO | m_CORE2 | m_GENERIC;
 const int x86_shift1 = ~m_486;
-const int x86_arch_always_fancy_math_387 = m_PENT | m_PPRO | m_ATHLON_K8 | m_PENT4 | m_NOCONA | m_GENERIC;
+const int x86_arch_always_fancy_math_387 = m_PENT | m_PPRO | m_ATHLON_K8 | m_PENT4 | m_NOCONA | m_CORE2 | m_GENERIC;
 /* In Generic model we have an conflict here in between PPro/Pentium4 based chips
    that thread 128bit SSE registers as single units versus K8 based chips that
    divide SSE registers to two 64bit halves.
@@ -801,7 +910,7 @@ const int x86_arch_always_fancy_math_387 = m_PENT | m_PPRO | m_ATHLON_K8 | m_PEN
    this option on P4 brings over 20% SPECfp regression, while enabling it on
    K8 brings roughly 2.4% regression that can be partly masked by careful scheduling
    of moves.  */
-const int x86_sse_partial_reg_dependency = m_PENT4 | m_NOCONA | m_PPRO | m_GENERIC;
+const int x86_sse_partial_reg_dependency = m_PENT4 | m_NOCONA | m_PPRO | m_CORE2 | m_GENERIC;
 /* Set for machines where the type and dependencies are resolved on SSE
    register parts instead of whole registers, so we may maintain just
    lower part of scalar values in proper format leaving the upper part
@@ -810,28 +919,28 @@ const int x86_sse_split_regs = m_ATHLON_K8;
 const int x86_sse_typeless_stores = m_ATHLON_K8;
 const int x86_sse_load0_by_pxor = m_PPRO | m_PENT4 | m_NOCONA;
 const int x86_use_ffreep = m_ATHLON_K8;
-const int x86_rep_movl_optimal = m_386 | m_PENT | m_PPRO | m_K6;
-const int x86_use_incdec = ~(m_PENT4 | m_NOCONA | m_GENERIC);
+const int x86_rep_movl_optimal = m_386 | m_PENT | m_PPRO | m_K6_GEODE | m_CORE2;
+const int x86_use_incdec = ~(m_PENT4 | m_NOCONA | m_CORE2 | m_GENERIC);
 
 /* ??? Allowing interunit moves makes it all too easy for the compiler to put
    integer data in xmm registers.  Which results in pretty abysmal code.  */
 const int x86_inter_unit_moves = 0 /* ~(m_ATHLON_K8) */;
 
-const int x86_ext_80387_constants = m_K6 | m_ATHLON | m_PENT4 | m_NOCONA | m_PPRO | m_GENERIC32;
+const int x86_ext_80387_constants = m_K6_GEODE | m_ATHLON | m_PENT4 | m_NOCONA | m_CORE2 | m_PPRO | m_GENERIC32;
 /* Some CPU cores are not able to predict more than 4 branch instructions in
    the 16 byte window.  */
-const int x86_four_jump_limit = m_PPRO | m_ATHLON_K8 | m_PENT4 | m_NOCONA | m_GENERIC;
-const int x86_schedule = m_PPRO | m_ATHLON_K8 | m_K6 | m_PENT | m_GENERIC;
+const int x86_four_jump_limit = m_PPRO | m_ATHLON_K8 | m_PENT4 | m_NOCONA | m_CORE2 | m_GENERIC;
+const int x86_schedule = m_PPRO | m_ATHLON_K8 | m_K6_GEODE | m_PENT | m_CORE2 | m_GENERIC;
 const int x86_use_bt = m_ATHLON_K8;
 /* Compare and exchange was added for 80486.  */
 const int x86_cmpxchg = ~m_386;
 /* Compare and exchange 8 bytes was added for pentium.  */
 const int x86_cmpxchg8b = ~(m_386 | m_486);
 /* Compare and exchange 16 bytes was added for nocona.  */
-const int x86_cmpxchg16b = m_NOCONA;
+const int x86_cmpxchg16b = m_NOCONA | m_CORE2;
 /* Exchange and add was added for 80486.  */
 const int x86_xadd = ~m_386;
-const int x86_pad_returns = m_ATHLON_K8 | m_GENERIC;
+const int x86_pad_returns = m_ATHLON_K8 | m_CORE2 | m_GENERIC;
 
 /* In case the average insn count for single function invocation is
    lower than this constant, emit fast (but longer) prologue and
@@ -1402,16 +1511,24 @@ ix86_handle_option (size_t code, const char *arg ATTRIBUTE_UNUSED, int value)
     case OPT_msse:
       if (!value)
 	{
-	  target_flags &= ~(MASK_SSE2 | MASK_SSE3);
-	  target_flags_explicit |= MASK_SSE2 | MASK_SSE3;
+	  target_flags &= ~(MASK_SSE2 | MASK_SSE3 | MASK_SSSE3);
+	  target_flags_explicit |= MASK_SSE2 | MASK_SSE3 | MASK_SSSE3;
 	}
       return true;
 
     case OPT_msse2:
       if (!value)
 	{
-	  target_flags &= ~MASK_SSE3;
-	  target_flags_explicit |= MASK_SSE3;
+	  target_flags &= ~(MASK_SSE3 | MASK_SSSE3);
+	  target_flags_explicit |= MASK_SSE3 | MASK_SSSE3;
+	}
+      return true;
+
+    case OPT_msse3:
+      if (!value)
+	{
+	  target_flags &= ~MASK_SSSE3;
+	  target_flags_explicit |= MASK_SSSE3;
 	}
       return true;
 
@@ -1455,11 +1572,13 @@ override_options (void)
       {&i486_cost, 0, 0, 16, 15, 16, 15, 16},
       {&pentium_cost, 0, 0, 16, 7, 16, 7, 16},
       {&pentiumpro_cost, 0, 0, 16, 15, 16, 7, 16},
+      {&geode_cost, 0, 0, 0, 0, 0, 0, 0},
       {&k6_cost, 0, 0, 32, 7, 32, 7, 32},
       {&athlon_cost, 0, 0, 16, 7, 16, 7, 16},
       {&pentium4_cost, 0, 0, 0, 0, 0, 0, 0},
       {&k8_cost, 0, 0, 16, 7, 16, 7, 16},
       {&nocona_cost, 0, 0, 0, 0, 0, 0, 0},
+      {&core2_cost, 0, 0, 16, 7, 16, 7, 16},
       {&generic32_cost, 0, 0, 16, 7, 16, 7, 16},
       {&generic64_cost, 0, 0, 16, 7, 16, 7, 16}
     };
@@ -1478,7 +1597,8 @@ override_options (void)
 	  PTA_PREFETCH_SSE = 16,
 	  PTA_3DNOW = 32,
 	  PTA_3DNOW_A = 64,
-	  PTA_64BIT = 128
+	  PTA_64BIT = 128,
+	  PTA_SSSE3 = 256
 	} flags;
     }
   const processor_alias_table[] =
@@ -1506,6 +1626,11 @@ override_options (void)
 				        | PTA_MMX | PTA_PREFETCH_SSE},
       {"nocona", PROCESSOR_NOCONA, PTA_SSE | PTA_SSE2 | PTA_SSE3 | PTA_64BIT
 				        | PTA_MMX | PTA_PREFETCH_SSE},
+      {"core2", PROCESSOR_CORE2, PTA_SSE | PTA_SSE2 | PTA_SSE3 | PTA_SSSE3
+                                        | PTA_64BIT | PTA_MMX
+                                        | PTA_PREFETCH_SSE},
+      {"geode", PROCESSOR_GEODE, PTA_MMX | PTA_PREFETCH_SSE | PTA_3DNOW
+				   | PTA_3DNOW_A},
       {"k6", PROCESSOR_K6, PTA_MMX},
       {"k6-2", PROCESSOR_K6, PTA_MMX | PTA_3DNOW},
       {"k6-3", PROCESSOR_K6, PTA_MMX | PTA_3DNOW},
@@ -1523,10 +1648,19 @@ override_options (void)
 			       | PTA_SSE | PTA_SSE2 },
       {"k8", PROCESSOR_K8, PTA_MMX | PTA_PREFETCH_SSE | PTA_3DNOW | PTA_64BIT
 				      | PTA_3DNOW_A | PTA_SSE | PTA_SSE2},
+      {"k8-sse3", PROCESSOR_K8, PTA_MMX | PTA_PREFETCH_SSE | PTA_3DNOW | PTA_64BIT
+				      | PTA_3DNOW_A | PTA_SSE | PTA_SSE2
+				      | PTA_SSE3 },
       {"opteron", PROCESSOR_K8, PTA_MMX | PTA_PREFETCH_SSE | PTA_3DNOW | PTA_64BIT
 				      | PTA_3DNOW_A | PTA_SSE | PTA_SSE2},
+      {"opteron-sse3", PROCESSOR_K8, PTA_MMX | PTA_PREFETCH_SSE | PTA_3DNOW | PTA_64BIT
+				      | PTA_3DNOW_A | PTA_SSE | PTA_SSE2
+				      | PTA_SSE3 },
       {"athlon64", PROCESSOR_K8, PTA_MMX | PTA_PREFETCH_SSE | PTA_3DNOW | PTA_64BIT
 				      | PTA_3DNOW_A | PTA_SSE | PTA_SSE2},
+      {"athlon64-sse3", PROCESSOR_K8, PTA_MMX | PTA_PREFETCH_SSE | PTA_3DNOW | PTA_64BIT
+				      | PTA_3DNOW_A | PTA_SSE | PTA_SSE2
+				      | PTA_SSE3 },
       {"athlon-fx", PROCESSOR_K8, PTA_MMX | PTA_PREFETCH_SSE | PTA_3DNOW | PTA_64BIT
 				      | PTA_3DNOW_A | PTA_SSE | PTA_SSE2},
       {"generic32", PROCESSOR_GENERIC32, 0 /* flags are only used for -march switch.  */ },
@@ -1686,6 +1820,9 @@ override_options (void)
 	if (processor_alias_table[i].flags & PTA_SSE3
 	    && !(target_flags_explicit & MASK_SSE3))
 	  target_flags |= MASK_SSE3;
+	if (processor_alias_table[i].flags & PTA_SSSE3
+	    && !(target_flags_explicit & MASK_SSSE3))
+	  target_flags |= MASK_SSSE3;
 	if (processor_alias_table[i].flags & PTA_PREFETCH_SSE)
 	  x86_prefetch_sse = true;
 	if (TARGET_64BIT && !(processor_alias_table[i].flags & PTA_64BIT))
@@ -1861,6 +1998,10 @@ override_options (void)
      software floating point, don't use 387 inline intrinsics.  */
   if (!TARGET_80387)
     target_flags |= MASK_NO_FANCY_MATH_387;
+
+  /* Turn on SSE3 builtins for -mssse3.  */
+  if (TARGET_SSSE3)
+    target_flags |= MASK_SSE3;
 
   /* Turn on SSE2 builtins for -msse3.  */
   if (TARGET_SSE3)
@@ -13697,6 +13838,9 @@ ix86_issue_rate (void)
     case PROCESSOR_GENERIC64:
       return 3;
 
+    case PROCESSOR_CORE2:
+      return 4;
+
     default:
       return 1;
     }
@@ -14565,6 +14709,41 @@ enum ix86_builtins
   IX86_BUILTIN_MONITOR,
   IX86_BUILTIN_MWAIT,
 
+  /* SSSE3.  */
+  IX86_BUILTIN_PHADDW,
+  IX86_BUILTIN_PHADDD,
+  IX86_BUILTIN_PHADDSW,
+  IX86_BUILTIN_PHSUBW,
+  IX86_BUILTIN_PHSUBD,
+  IX86_BUILTIN_PHSUBSW,
+  IX86_BUILTIN_PMADDUBSW,
+  IX86_BUILTIN_PMULHRSW,
+  IX86_BUILTIN_PSHUFB,
+  IX86_BUILTIN_PSIGNB,
+  IX86_BUILTIN_PSIGNW,
+  IX86_BUILTIN_PSIGND,
+  IX86_BUILTIN_PALIGNR,
+  IX86_BUILTIN_PABSB,
+  IX86_BUILTIN_PABSW,
+  IX86_BUILTIN_PABSD,
+
+  IX86_BUILTIN_PHADDW128,
+  IX86_BUILTIN_PHADDD128,
+  IX86_BUILTIN_PHADDSW128,
+  IX86_BUILTIN_PHSUBW128,
+  IX86_BUILTIN_PHSUBD128,
+  IX86_BUILTIN_PHSUBSW128,
+  IX86_BUILTIN_PMADDUBSW128,
+  IX86_BUILTIN_PMULHRSW128,
+  IX86_BUILTIN_PSHUFB128,
+  IX86_BUILTIN_PSIGNB128,
+  IX86_BUILTIN_PSIGNW128,
+  IX86_BUILTIN_PSIGND128,
+  IX86_BUILTIN_PALIGNR128,
+  IX86_BUILTIN_PABSB128,
+  IX86_BUILTIN_PABSW128,
+  IX86_BUILTIN_PABSD128,
+
   IX86_BUILTIN_VEC_INIT_V2SI,
   IX86_BUILTIN_VEC_INIT_V4HI,
   IX86_BUILTIN_VEC_INIT_V8QI,
@@ -14906,7 +15085,33 @@ static const struct builtin_description bdesc_2arg[] =
   { MASK_SSE3, CODE_FOR_sse3_haddv4sf3, "__builtin_ia32_haddps", IX86_BUILTIN_HADDPS, 0, 0 },
   { MASK_SSE3, CODE_FOR_sse3_haddv2df3, "__builtin_ia32_haddpd", IX86_BUILTIN_HADDPD, 0, 0 },
   { MASK_SSE3, CODE_FOR_sse3_hsubv4sf3, "__builtin_ia32_hsubps", IX86_BUILTIN_HSUBPS, 0, 0 },
-  { MASK_SSE3, CODE_FOR_sse3_hsubv2df3, "__builtin_ia32_hsubpd", IX86_BUILTIN_HSUBPD, 0, 0 }
+  { MASK_SSE3, CODE_FOR_sse3_hsubv2df3, "__builtin_ia32_hsubpd", IX86_BUILTIN_HSUBPD, 0, 0 },
+
+  /* SSSE3 */
+  { MASK_SSSE3, CODE_FOR_ssse3_phaddwv8hi3, "__builtin_ia32_phaddw128", IX86_BUILTIN_PHADDW128, 0, 0 },
+  { MASK_SSSE3, CODE_FOR_ssse3_phaddwv4hi3, "__builtin_ia32_phaddw", IX86_BUILTIN_PHADDW, 0, 0 },
+  { MASK_SSSE3, CODE_FOR_ssse3_phadddv4si3, "__builtin_ia32_phaddd128", IX86_BUILTIN_PHADDD128, 0, 0 },
+  { MASK_SSSE3, CODE_FOR_ssse3_phadddv2si3, "__builtin_ia32_phaddd", IX86_BUILTIN_PHADDD, 0, 0 },
+  { MASK_SSSE3, CODE_FOR_ssse3_phaddswv8hi3, "__builtin_ia32_phaddsw128", IX86_BUILTIN_PHADDSW128, 0, 0 },
+  { MASK_SSSE3, CODE_FOR_ssse3_phaddswv4hi3, "__builtin_ia32_phaddsw", IX86_BUILTIN_PHADDSW, 0, 0 },
+  { MASK_SSSE3, CODE_FOR_ssse3_phsubwv8hi3, "__builtin_ia32_phsubw128", IX86_BUILTIN_PHSUBW128, 0, 0 },
+  { MASK_SSSE3, CODE_FOR_ssse3_phsubwv4hi3, "__builtin_ia32_phsubw", IX86_BUILTIN_PHSUBW, 0, 0 },
+  { MASK_SSSE3, CODE_FOR_ssse3_phsubdv4si3, "__builtin_ia32_phsubd128", IX86_BUILTIN_PHSUBD128, 0, 0 },
+  { MASK_SSSE3, CODE_FOR_ssse3_phsubdv2si3, "__builtin_ia32_phsubd", IX86_BUILTIN_PHSUBD, 0, 0 },
+  { MASK_SSSE3, CODE_FOR_ssse3_phsubswv8hi3, "__builtin_ia32_phsubsw128", IX86_BUILTIN_PHSUBSW128, 0, 0 },
+  { MASK_SSSE3, CODE_FOR_ssse3_phsubswv4hi3, "__builtin_ia32_phsubsw", IX86_BUILTIN_PHSUBSW, 0, 0 },
+  { MASK_SSSE3, CODE_FOR_ssse3_pmaddubswv8hi3, "__builtin_ia32_pmaddubsw128", IX86_BUILTIN_PMADDUBSW128, 0, 0 },
+  { MASK_SSSE3, CODE_FOR_ssse3_pmaddubswv4hi3, "__builtin_ia32_pmaddubsw", IX86_BUILTIN_PMADDUBSW, 0, 0 },
+  { MASK_SSSE3, CODE_FOR_ssse3_pmulhrswv8hi3, "__builtin_ia32_pmulhrsw128", IX86_BUILTIN_PMULHRSW128, 0, 0 },
+  { MASK_SSSE3, CODE_FOR_ssse3_pmulhrswv4hi3, "__builtin_ia32_pmulhrsw", IX86_BUILTIN_PMULHRSW, 0, 0 },
+  { MASK_SSSE3, CODE_FOR_ssse3_pshufbv16qi3, "__builtin_ia32_pshufb128", IX86_BUILTIN_PSHUFB128, 0, 0 },
+  { MASK_SSSE3, CODE_FOR_ssse3_pshufbv8qi3, "__builtin_ia32_pshufb", IX86_BUILTIN_PSHUFB, 0, 0 },
+  { MASK_SSSE3, CODE_FOR_ssse3_psignv16qi3, "__builtin_ia32_psignb128", IX86_BUILTIN_PSIGNB128, 0, 0 },
+  { MASK_SSSE3, CODE_FOR_ssse3_psignv8qi3, "__builtin_ia32_psignb", IX86_BUILTIN_PSIGNB, 0, 0 },
+  { MASK_SSSE3, CODE_FOR_ssse3_psignv8hi3, "__builtin_ia32_psignw128", IX86_BUILTIN_PSIGNW128, 0, 0 },
+  { MASK_SSSE3, CODE_FOR_ssse3_psignv4hi3, "__builtin_ia32_psignw", IX86_BUILTIN_PSIGNW, 0, 0 },
+  { MASK_SSSE3, CODE_FOR_ssse3_psignv4si3, "__builtin_ia32_psignd128", IX86_BUILTIN_PSIGND128, 0, 0 },
+  { MASK_SSSE3, CODE_FOR_ssse3_psignv2si3, "__builtin_ia32_psignd", IX86_BUILTIN_PSIGND, 0, 0 }
 };
 
 static const struct builtin_description bdesc_1arg[] =
@@ -14953,6 +15158,14 @@ static const struct builtin_description bdesc_1arg[] =
   /* SSE3 */
   { MASK_SSE3, CODE_FOR_sse3_movshdup, 0, IX86_BUILTIN_MOVSHDUP, 0, 0 },
   { MASK_SSE3, CODE_FOR_sse3_movsldup, 0, IX86_BUILTIN_MOVSLDUP, 0, 0 },
+
+  /* SSSE3 */
+  { MASK_SSSE3, CODE_FOR_absv16qi2, "__builtin_ia32_pabsb128", IX86_BUILTIN_PABSB128, 0, 0 },
+  { MASK_SSSE3, CODE_FOR_absv8qi2, "__builtin_ia32_pabsb", IX86_BUILTIN_PABSB, 0, 0 },
+  { MASK_SSSE3, CODE_FOR_absv8hi2, "__builtin_ia32_pabsw128", IX86_BUILTIN_PABSW128, 0, 0 },
+  { MASK_SSSE3, CODE_FOR_absv4hi2, "__builtin_ia32_pabsw", IX86_BUILTIN_PABSW, 0, 0 },
+  { MASK_SSSE3, CODE_FOR_absv4si2, "__builtin_ia32_pabsd128", IX86_BUILTIN_PABSD128, 0, 0 },
+  { MASK_SSSE3, CODE_FOR_absv2si2, "__builtin_ia32_pabsd", IX86_BUILTIN_PABSD, 0, 0 },
 };
 
 static void
@@ -15087,6 +15300,16 @@ ix86_init_mmx_sse_builtins (void)
   /* Normal vector unops.  */
   tree v4sf_ftype_v4sf
     = build_function_type_list (V4SF_type_node, V4SF_type_node, NULL_TREE);
+  tree v16qi_ftype_v16qi
+    = build_function_type_list (V16QI_type_node, V16QI_type_node, NULL_TREE);
+  tree v8hi_ftype_v8hi
+    = build_function_type_list (V8HI_type_node, V8HI_type_node, NULL_TREE);
+  tree v4si_ftype_v4si
+    = build_function_type_list (V4SI_type_node, V4SI_type_node, NULL_TREE);
+  tree v8qi_ftype_v8qi
+    = build_function_type_list (V8QI_type_node, V8QI_type_node, NULL_TREE);
+  tree v4hi_ftype_v4hi
+    = build_function_type_list (V4HI_type_node, V4HI_type_node, NULL_TREE);
 
   /* Normal vector binops.  */
   tree v4sf_ftype_v4sf_v4sf
@@ -15105,6 +15328,12 @@ ix86_init_mmx_sse_builtins (void)
     = build_function_type_list (long_long_unsigned_type_node,
 				long_long_unsigned_type_node,
 				long_long_unsigned_type_node, NULL_TREE);
+
+  tree di_ftype_di_di_int
+    = build_function_type_list (long_long_unsigned_type_node,
+				long_long_unsigned_type_node,
+				long_long_unsigned_type_node,
+				integer_type_node, NULL_TREE);
 
   tree v2si_ftype_v2sf
     = build_function_type_list (V2SI_type_node, V2SF_type_node, NULL_TREE);
@@ -15206,6 +15435,9 @@ ix86_init_mmx_sse_builtins (void)
     = build_function_type_list (V2DF_type_node, V2DF_type_node, NULL_TREE);
   tree v2di_ftype_v2di_int
     = build_function_type_list (V2DI_type_node,
+				V2DI_type_node, integer_type_node, NULL_TREE);
+  tree v2di_ftype_v2di_v2di_int
+    = build_function_type_list (V2DI_type_node, V2DI_type_node,
 				V2DI_type_node, integer_type_node, NULL_TREE);
   tree v4si_ftype_v4si_int
     = build_function_type_list (V4SI_type_node,
@@ -15319,6 +15551,50 @@ ix86_init_mmx_sse_builtins (void)
       if (d->icode == CODE_FOR_sse2_maskcmpv2df3
 	  || d->icode == CODE_FOR_sse2_vmmaskcmpv2df3)
 	type = v2di_ftype_v2df_v2df;
+
+      def_builtin (d->mask, d->name, type, d->code);
+    }
+
+  /* Add all builtins that are more or less simple operations on 1 operand.  */
+  for (i = 0, d = bdesc_1arg; i < ARRAY_SIZE (bdesc_1arg); i++, d++)
+    {
+      enum machine_mode mode;
+      tree type;
+
+      if (d->name == 0)
+	continue;
+      mode = insn_data[d->icode].operand[1].mode;
+
+      switch (mode)
+	{
+	case V16QImode:
+	  type = v16qi_ftype_v16qi;
+	  break;
+	case V8HImode:
+	  type = v8hi_ftype_v8hi;
+	  break;
+	case V4SImode:
+	  type = v4si_ftype_v4si;
+	  break;
+	case V2DFmode:
+	  type = v2df_ftype_v2df;
+	  break;
+	case V4SFmode:
+	  type = v4sf_ftype_v4sf;
+	  break;
+	case V8QImode:
+	  type = v8qi_ftype_v8qi;
+	  break;
+	case V4HImode:
+	  type = v4hi_ftype_v4hi;
+	  break;
+	case V2SImode:
+	  type = v2si_ftype_v2si;
+	  break;
+
+	default:
+	  abort ();
+	}
 
       def_builtin (d->mask, d->name, type, d->code);
     }
@@ -15521,6 +15797,12 @@ ix86_init_mmx_sse_builtins (void)
 	       IX86_BUILTIN_MOVSLDUP);
   def_builtin (MASK_SSE3, "__builtin_ia32_lddqu",
 	       v16qi_ftype_pcchar, IX86_BUILTIN_LDDQU);
+
+  /* SSSE3.  */
+  def_builtin (MASK_SSSE3, "__builtin_ia32_palignr128",
+	       v2di_ftype_v2di_v2di_int, IX86_BUILTIN_PALIGNR128);
+  def_builtin (MASK_SSSE3, "__builtin_ia32_palignr", di_ftype_di_di_int,
+	       IX86_BUILTIN_PALIGNR);
 
   /* Access to the vec_init patterns.  */
   ftype = build_function_type_list (V2SI_type_node, integer_type_node,
@@ -16020,7 +16302,7 @@ ix86_expand_builtin (tree exp, rtx target, rtx subtarget ATTRIBUTE_UNUSED,
   tree arglist = TREE_OPERAND (exp, 1);
   tree arg0, arg1, arg2;
   rtx op0, op1, op2, pat;
-  enum machine_mode tmode, mode0, mode1, mode2;
+  enum machine_mode tmode, mode0, mode1, mode2, mode3;
   unsigned int fcode = DECL_FUNCTION_CODE (fndecl);
 
   switch (fcode)
@@ -16489,6 +16771,52 @@ ix86_expand_builtin (tree exp, rtx target, rtx subtarget ATTRIBUTE_UNUSED,
     case IX86_BUILTIN_LDDQU:
       return ix86_expand_unop_builtin (CODE_FOR_sse3_lddqu, arglist,
 				       target, 1);
+
+    case IX86_BUILTIN_PALIGNR:
+    case IX86_BUILTIN_PALIGNR128:
+      if (fcode == IX86_BUILTIN_PALIGNR)
+	{
+	  icode = CODE_FOR_ssse3_palignrdi;
+	  mode = DImode;
+	}
+      else
+	{
+	  icode = CODE_FOR_ssse3_palignrti;
+	  mode = V2DImode;
+	}
+      arg0 = TREE_VALUE (arglist);
+      arg1 = TREE_VALUE (TREE_CHAIN (arglist));
+      arg2 = TREE_VALUE (TREE_CHAIN (TREE_CHAIN (arglist)));
+      op0 = expand_expr (arg0, NULL_RTX, VOIDmode, 0);
+      op1 = expand_expr (arg1, NULL_RTX, VOIDmode, 0);
+      op2 = expand_expr (arg2, NULL_RTX, VOIDmode, 0);
+      tmode = insn_data[icode].operand[0].mode;
+      mode1 = insn_data[icode].operand[1].mode;
+      mode2 = insn_data[icode].operand[2].mode;
+      mode3 = insn_data[icode].operand[3].mode;
+
+      if (! (*insn_data[icode].operand[1].predicate) (op0, mode1))
+	{
+	  op0 = copy_to_reg (op0);
+	  op0 = simplify_gen_subreg (mode1, op0, GET_MODE (op0), 0);
+	}
+      if (! (*insn_data[icode].operand[2].predicate) (op1, mode2))
+	{
+	  op1 = copy_to_reg (op1);
+	  op1 = simplify_gen_subreg (mode2, op1, GET_MODE (op1), 0);
+	}
+      if (! (*insn_data[icode].operand[3].predicate) (op2, mode3))
+	{
+	  error ("shift must be an immediate");
+	  return const0_rtx;
+	}
+      target = gen_reg_rtx (mode);
+      pat = GEN_FCN (icode) (simplify_gen_subreg (tmode, target, mode, 0),
+			     op0, op1, op2);
+      if (! pat)
+	return 0;
+      emit_insn (pat);
+      return target;
 
     case IX86_BUILTIN_VEC_INIT_V2SI:
     case IX86_BUILTIN_VEC_INIT_V4HI:

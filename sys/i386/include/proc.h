@@ -57,6 +57,8 @@ struct mdproc {
 	struct proc_ldt *md_ldt;	/* (t) per-process ldt */
 };
 
+#define	KINFO_PROC_SIZE 768
+
 #ifdef	_KERNEL
 
 /* Get the current kernel thread stack usage. */
@@ -74,6 +76,14 @@ void 	user_ldt_free(struct thread *);
 void	user_ldt_deref(struct proc_ldt *pldt);
 
 extern struct mtx dt_lock;
+
+struct syscall_args {
+	u_int code;
+	struct sysent *callp;
+	register_t args[8];
+	int narg;
+};
+#define	HAVE_SYSCALL_ARGS_DEF 1
 
 #endif	/* _KERNEL */
 

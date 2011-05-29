@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2003-2004  Sean M. Kelly <smkelly@FreeBSD.org>
  * All rights reserved.
  *
@@ -31,6 +31,7 @@
 #include <sys/types.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/mman.h>
 #include <sys/param.h>
 #include <sys/rtprio.h>
 #include <sys/stat.h>
@@ -58,17 +59,15 @@ static int	watchdog_onoff(int onoff);
 static int	watchdog_patpat(u_int timeout);
 static void	usage(void);
 
-int debugging = 0;
-int end_program = 0;
-const char *pidfile = _PATH_VARRUN "watchdogd.pid";
-int reset_mib[3];
-size_t reset_miblen = 3;
-u_int timeout = WD_TO_16SEC;
-u_int passive = 0;
-int is_daemon = 0;
-int fd = -1;
-int nap = 1;
-char *test_cmd = NULL;
+static int debugging = 0;
+static int end_program = 0;
+static const char *pidfile = _PATH_VARRUN "watchdogd.pid";
+static u_int timeout = WD_TO_16SEC;
+static u_int passive = 0;
+static int is_daemon = 0;
+static int fd = -1;
+static int nap = 1;
+static char *test_cmd = NULL;
 
 /*
  * Periodically pat the watchdog, preventing it from firing.
@@ -117,6 +116,8 @@ main(int argc, char *argv[])
 		signal(SIGTERM, sighandler);
 
 		pidfile_write(pfh);
+		if (madvise(0, 0, MADV_PROTECT) != 0)
+			warn("madvise failed");
 
 		watchdog_loop();
 
@@ -195,7 +196,7 @@ watchdog_loop(void)
  * Reset the watchdog timer. This function must be called periodically
  * to keep the watchdog from firing.
  */
-int
+static int
 watchdog_patpat(u_int t)
 {
 

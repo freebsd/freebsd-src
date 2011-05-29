@@ -88,6 +88,8 @@ cache_flush_t *cache_flush;
 dcache_page_inval_t *dcache_page_inval;
 icache_page_inval_t *icache_page_inval;
 
+u_int dcache_color_ignore;
+
 #define	OF_GET(h, n, v)	OF_getprop((h), (n), &(v), sizeof(v))
 
 static u_int cache_new_prop(u_int cpu_impl);
@@ -113,6 +115,13 @@ cache_init(struct pcpu *pcpu)
 {
 	u_long set;
 	u_int use_new_prop;
+
+	/*
+	 * For CPUs which ignore TD_CV and support hardware unaliasing don't
+	 * bother doing page coloring.  This is equal across all CPUs.
+	 */
+	if (pcpu->pc_cpuid == 0 && pcpu->pc_impl == CPU_IMPL_SPARC64V)
+		dcache_color_ignore = 1;
 
 	use_new_prop = cache_new_prop(pcpu->pc_impl);
 	if (OF_GET(pcpu->pc_node, !use_new_prop ? "icache-size" :
@@ -141,8 +150,12 @@ cache_init(struct pcpu *pcpu)
 	if ((pcpu->pc_cache.dc_size &
 	    ~(1UL << (ffs(pcpu->pc_cache.dc_size) - 1))) != 0)
 		panic("cache_init: D$ size not a power of 2");
-	if (((pcpu->pc_cache.dc_size / pcpu->pc_cache.dc_assoc) /
-	    PAGE_SIZE) != DCACHE_COLORS)
+	/*
+	 * For CPUs which don't support unaliasing in hardware ensure that
+	 * the data cache doesn't have too many virtual colors.
+	 */
+	if (dcache_color_ignore == 0 && ((pcpu->pc_cache.dc_size /
+	    pcpu->pc_cache.dc_assoc) / PAGE_SIZE) != DCACHE_COLORS)
 		panic("cache_init: too many D$ colors");
 	set = pcpu->pc_cache.ec_size / pcpu->pc_cache.ec_assoc;
 	if ((set & ~(1UL << (ffs(set) - 1))) != 0)
@@ -155,12 +168,21 @@ cache_init(struct pcpu *pcpu)
 		icache_page_inval = cheetah_icache_page_inval;
 		tlb_flush_nonlocked = cheetah_tlb_flush_nonlocked;
 		tlb_flush_user = cheetah_tlb_flush_user;
-	} else {
+	} else if (pcpu->pc_impl == CPU_IMPL_SPARC64V) {
+		cache_enable = cheetah_cache_enable;
+		cache_flush = zeus_cache_flush;
+		dcache_page_inval = zeus_dcache_page_inval;
+		icache_page_inval = zeus_icache_page_inval;
+		tlb_flush_nonlocked = cheetah_tlb_flush_nonlocked;
+		tlb_flush_user = cheetah_tlb_flush_user;
+	} else if (pcpu->pc_impl >= CPU_IMPL_ULTRASPARCI &&
+	    pcpu->pc_impl < CPU_IMPL_ULTRASPARCIII) {
 		cache_enable = spitfire_cache_enable;
 		cache_flush = spitfire_cache_flush;
 		dcache_page_inval = spitfire_dcache_page_inval;
 		icache_page_inval = spitfire_icache_page_inval;
 		tlb_flush_nonlocked = spitfire_tlb_flush_nonlocked;
 		tlb_flush_user = spitfire_tlb_flush_user;
-	}
+	} else
+		panic("cache_init: unknown CPU");
 }

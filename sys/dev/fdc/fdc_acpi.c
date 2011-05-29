@@ -96,6 +96,7 @@ fdc_acpi_attach(device_t dev)
 {
 	struct fdc_data *sc;
 	ACPI_BUFFER buf;
+	ACPI_OBJECT *obj;
 	device_t bus;
 	int error;
 
@@ -131,7 +132,8 @@ fdc_acpi_attach(device_t dev)
 	}
 
 	/* Add fd child devices as specified. */
-	error = fdc_acpi_probe_children(bus, dev, buf.Pointer);
+	obj = buf.Pointer;
+	error = fdc_acpi_probe_children(bus, dev, obj->Buffer.Pointer);
 
 out:
 	if (buf.Pointer)

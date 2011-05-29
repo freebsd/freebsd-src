@@ -37,11 +37,11 @@
 #include <arpa/inet.h>
 
 #include <err.h>
+#include <libprocstat.h>
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <libutil.h>
 
 #include "procstat.h"
 
@@ -132,162 +132,165 @@ print_address(struct sockaddr_storage *ss)
 }
 
 void
-procstat_files(pid_t pid, struct kinfo_proc *kipp)
-{
-	struct kinfo_file *freep, *kif;
-	int i, cnt;
+procstat_files(struct procstat *procstat, struct kinfo_proc *kipp)
+{ 
+	struct sockstat sock;
+	struct filestat_list *head;
+	struct filestat *fst;
 	const char *str;
+	struct vnstat vn;
+	int error;
 
 	if (!hflag)
 		printf("%5s %-16s %4s %1s %1s %-8s %3s %7s %-3s %-12s\n",
 		    "PID", "COMM", "FD", "T", "V", "FLAGS", "REF", "OFFSET",
 		    "PRO", "NAME");
 
-	freep = kinfo_getfile(pid, &cnt);
-	if (freep == NULL)
+	head = procstat_getfiles(procstat, kipp, 0);
+	if (head == NULL)
 		return;
-	for (i = 0; i < cnt; i++) {
-		kif = &freep[i];
-		
-		printf("%5d ", pid);
+	STAILQ_FOREACH(fst, head, next) {
+		printf("%5d ", kipp->ki_pid);
 		printf("%-16s ", kipp->ki_comm);
-		switch (kif->kf_fd) {
-		case KF_FD_TYPE_CWD:
+		if (fst->fs_uflags & PS_FST_UFLAG_CTTY)
+			printf("ctty ");
+		else if (fst->fs_uflags & PS_FST_UFLAG_CDIR)
 			printf(" cwd ");
-			break;
-
-		case KF_FD_TYPE_ROOT:
-			printf("root ");
-			break;
-
-		case KF_FD_TYPE_JAIL:
+		else if (fst->fs_uflags & PS_FST_UFLAG_JAIL)
 			printf("jail ");
-			break;
+		else if (fst->fs_uflags & PS_FST_UFLAG_RDIR)
+			printf("root ");
+		else if (fst->fs_uflags & PS_FST_UFLAG_TEXT)
+			printf("text ");
+		else if (fst->fs_uflags & PS_FST_UFLAG_TRACE)
+			printf("trace ");
+		else
+			printf("%4d ", fst->fs_fd);
 
-		default:
-			printf("%4d ", kif->kf_fd);
-			break;
-		}
-		switch (kif->kf_type) {
-		case KF_TYPE_VNODE:
+		switch (fst->fs_type) {
+		case PS_FST_TYPE_VNODE:
 			str = "v";
 			break;
 
-		case KF_TYPE_SOCKET:
+		case PS_FST_TYPE_SOCKET:
 			str = "s";
 			break;
 
-		case KF_TYPE_PIPE:
+		case PS_FST_TYPE_PIPE:
 			str = "p";
 			break;
 
-		case KF_TYPE_FIFO:
+		case PS_FST_TYPE_FIFO:
 			str = "f";
 			break;
 
-		case KF_TYPE_KQUEUE:
+		case PS_FST_TYPE_KQUEUE:
 			str = "k";
 			break;
 
-		case KF_TYPE_CRYPTO:
+		case PS_FST_TYPE_CRYPTO:
 			str = "c";
 			break;
 
-		case KF_TYPE_MQUEUE:
+		case PS_FST_TYPE_MQUEUE:
 			str = "m";
 			break;
 
-		case KF_TYPE_SHM:
+		case PS_FST_TYPE_SHM:
 			str = "h";
 			break;
 
-		case KF_TYPE_PTS:
+		case PS_FST_TYPE_PTS:
 			str = "t";
 			break;
 
-		case KF_TYPE_SEM:
+		case PS_FST_TYPE_SEM:
 			str = "e";
 			break;
 
-		case KF_TYPE_NONE:
-		case KF_TYPE_UNKNOWN:
+		case PS_FST_TYPE_NONE:
+		case PS_FST_TYPE_UNKNOWN:
 		default:
 			str = "?";
 			break;
 		}
 		printf("%1s ", str);
 		str = "-";
-		if (kif->kf_type == KF_TYPE_VNODE) {
-			switch (kif->kf_vnode_type) {
-			case KF_VTYPE_VREG:
+		if (fst->fs_type == PS_FST_TYPE_VNODE) {
+			error = procstat_get_vnode_info(procstat, fst, &vn, NULL);
+			switch (vn.vn_type) {
+			case PS_FST_VTYPE_VREG:
 				str = "r";
 				break;
 
-			case KF_VTYPE_VDIR:
+			case PS_FST_VTYPE_VDIR:
 				str = "d";
 				break;
 
-			case KF_VTYPE_VBLK:
+			case PS_FST_VTYPE_VBLK:
 				str = "b";
 				break;
 
-			case KF_VTYPE_VCHR:
+			case PS_FST_VTYPE_VCHR:
 				str = "c";
 				break;
 
-			case KF_VTYPE_VLNK:
+			case PS_FST_VTYPE_VLNK:
 				str = "l";
 				break;
 
-			case KF_VTYPE_VSOCK:
+			case PS_FST_VTYPE_VSOCK:
 				str = "s";
 				break;
 
-			case KF_VTYPE_VFIFO:
+			case PS_FST_VTYPE_VFIFO:
 				str = "f";
 				break;
 
-			case KF_VTYPE_VBAD:
+			case PS_FST_VTYPE_VBAD:
 				str = "x";
 				break;
 
-			case KF_VTYPE_VNON:
-			case KF_VTYPE_UNKNOWN:
+			case PS_FST_VTYPE_VNON:
+			case PS_FST_VTYPE_UNKNOWN:
 			default:
 				str = "?";
 				break;
 			}
 		}
 		printf("%1s ", str);
-		printf("%s", kif->kf_flags & KF_FLAG_READ ? "r" : "-");
-		printf("%s", kif->kf_flags & KF_FLAG_WRITE ? "w" : "-");
-		printf("%s", kif->kf_flags & KF_FLAG_APPEND ? "a" : "-");
-		printf("%s", kif->kf_flags & KF_FLAG_ASYNC ? "s" : "-");
-		printf("%s", kif->kf_flags & KF_FLAG_FSYNC ? "f" : "-");
-		printf("%s", kif->kf_flags & KF_FLAG_NONBLOCK ? "n" : "-");
-		printf("%s", kif->kf_flags & KF_FLAG_DIRECT ? "d" : "-");
-		printf("%s ", kif->kf_flags & KF_FLAG_HASLOCK ? "l" : "-");
-		if (kif->kf_ref_count > -1)
-			printf("%3d ", kif->kf_ref_count);
+		printf("%s", fst->fs_fflags & PS_FST_FFLAG_READ ? "r" : "-");
+		printf("%s", fst->fs_fflags & PS_FST_FFLAG_WRITE ? "w" : "-");
+		printf("%s", fst->fs_fflags & PS_FST_FFLAG_APPEND ? "a" : "-");
+		printf("%s", fst->fs_fflags & PS_FST_FFLAG_ASYNC ? "s" : "-");
+		printf("%s", fst->fs_fflags & PS_FST_FFLAG_SYNC ? "f" : "-");
+		printf("%s", fst->fs_fflags & PS_FST_FFLAG_NONBLOCK ? "n" : "-");
+		printf("%s", fst->fs_fflags & PS_FST_FFLAG_DIRECT ? "d" : "-");
+		printf("%s ", fst->fs_fflags & PS_FST_FFLAG_HASLOCK ? "l" : "-");
+		if (fst->fs_ref_count > -1)
+			printf("%3d ", fst->fs_ref_count);
 		else
 			printf("%3c ", '-');
-		if (kif->kf_offset > -1)
-			printf("%7jd ", (intmax_t)kif->kf_offset);
+		if (fst->fs_offset > -1)
+			printf("%7jd ", (intmax_t)fst->fs_offset);
 		else
 			printf("%7c ", '-');
 
-		switch (kif->kf_type) {
-		case KF_TYPE_VNODE:
-		case KF_TYPE_FIFO:
-		case KF_TYPE_PTS:
+		switch (fst->fs_type) {
+		case PS_FST_TYPE_VNODE:
+		case PS_FST_TYPE_FIFO:
+		case PS_FST_TYPE_PTS:
 			printf("%-3s ", "-");
-			printf("%-18s", kif->kf_path);
+			printf("%-18s", fst->fs_path != NULL ? fst->fs_path : "-");
 			break;
 
-		case KF_TYPE_SOCKET:
+		case PS_FST_TYPE_SOCKET:
+			error = procstat_get_socket_info(procstat, fst, &sock, NULL);
+			if (error != 0)
+				break;
 			printf("%-3s ",
-			    protocol_to_string(kif->kf_sock_domain,
-			    kif->kf_sock_type, kif->kf_sock_protocol));
+			    protocol_to_string(sock.dom_family,
+			    sock.type, sock.proto));
 			/*
 			 * While generally we like to print two addresses,
 			 * local and peer, for sockets, it turns out to be
@@ -295,18 +298,18 @@ procstat_files(pid_t pid, struct kinfo_proc *kipp)
 			 * local sockets, as typically they aren't bound and
 			 *  connected, and the path strings can get long.
 			 */
-			if (kif->kf_sock_domain == AF_LOCAL) {
+			if (sock.dom_family == AF_LOCAL) {
 				struct sockaddr_un *sun =
-				    (struct sockaddr_un *)&kif->kf_sa_local;
+				    (struct sockaddr_un *)&sock.sa_local;
 
 				if (sun->sun_path[0] != 0)
-					print_address(&kif->kf_sa_local);
+					print_address(&sock.sa_local);
 				else
-					print_address(&kif->kf_sa_peer);
+					print_address(&sock.sa_peer);
 			} else {
-				print_address(&kif->kf_sa_local);
+				print_address(&sock.sa_local);
 				printf(" ");
-				print_address(&kif->kf_sa_peer);
+				print_address(&sock.sa_peer);
 			}
 			break;
 
@@ -317,5 +320,4 @@ procstat_files(pid_t pid, struct kinfo_proc *kipp)
 
 		printf("\n");
 	}
-	free(freep);
 }

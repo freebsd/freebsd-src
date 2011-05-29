@@ -585,11 +585,11 @@ static int mga_do_agp_dma_bootstrap(struct drm_device *dev,
 	drm_core_ioremap(dev_priv->primary, dev);
 	drm_core_ioremap(dev->agp_buffer_map, dev);
 
-	if (!dev_priv->warp->handle ||
-	    !dev_priv->primary->handle || !dev->agp_buffer_map->handle) {
+	if (!dev_priv->warp->virtual ||
+	    !dev_priv->primary->virtual || !dev->agp_buffer_map->virtual) {
 		DRM_ERROR("failed to ioremap agp regions! (%p, %p, %p)\n",
-			  dev_priv->warp->handle, dev_priv->primary->handle,
-			  dev->agp_buffer_map->handle);
+			  dev_priv->warp->virtual, dev_priv->primary->virtual,
+			  dev->agp_buffer_map->virtual);
 		return -ENOMEM;
 	}
 
@@ -878,14 +878,14 @@ static int mga_do_init_dma(struct drm_device * dev, drm_mga_init_t * init)
 	}
 
 	dev_priv->sarea_priv =
-	    (drm_mga_sarea_t *) ((u8 *) dev_priv->sarea->handle +
+	    (drm_mga_sarea_t *) ((u8 *) dev_priv->sarea->virtual +
 				 init->sarea_priv_offset);
 
-	if (!dev_priv->warp->handle ||
-	    !dev_priv->primary->handle ||
+	if (!dev_priv->warp->virtual ||
+	    !dev_priv->primary->virtual ||
 	    ((dev_priv->dma_access != 0) &&
 	     ((dev->agp_buffer_map == NULL) ||
-	      (dev->agp_buffer_map->handle == NULL)))) {
+	      (dev->agp_buffer_map->virtual == NULL)))) {
 		DRM_ERROR("failed to ioremap agp regions!\n");
 		return -ENOMEM;
 	}
@@ -902,7 +902,7 @@ static int mga_do_init_dma(struct drm_device * dev, drm_mga_init_t * init)
 		return ret;
 	}
 
-	dev_priv->prim.status = (u32 *) dev_priv->status->handle;
+	dev_priv->prim.status = (u32 *) dev_priv->status->virtual;
 
 	mga_do_wait_for_idle(dev_priv);
 
@@ -910,8 +910,8 @@ static int mga_do_init_dma(struct drm_device * dev, drm_mga_init_t * init)
 	 */
 	MGA_WRITE(MGA_PRIMADDRESS, dev_priv->primary->offset | MGA_DMA_GENERAL);
 
-	dev_priv->prim.start = (u8 *) dev_priv->primary->handle;
-	dev_priv->prim.end = ((u8 *) dev_priv->primary->handle
+	dev_priv->prim.start = (u8 *) dev_priv->primary->virtual;
+	dev_priv->prim.end = ((u8 *) dev_priv->primary->virtual
 			      + dev_priv->primary->size);
 	dev_priv->prim.size = dev_priv->primary->size;
 

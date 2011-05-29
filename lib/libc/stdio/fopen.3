@@ -104,7 +104,7 @@ This is strictly for compatibility with
 and has no effect; the ``b'' is ignored.
 .Pp
 Any created files will have mode
-.Pf \\*q Dv S_IRUSR
+.Do Dv S_IRUSR
 \&|
 .Dv S_IWUSR
 \&|
@@ -114,7 +114,7 @@ Any created files will have mode
 \&|
 .Dv S_IROTH
 \&|
-.Dv S_IWOTH Ns \\*q
+.Dv S_IWOTH Dc
 .Pq Li 0666 ,
 as modified by the process'
 umask value (see

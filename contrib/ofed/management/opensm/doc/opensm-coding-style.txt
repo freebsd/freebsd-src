@@ -1,0 +1,34 @@
+This short (hopefully) memo is about to define the coding style
+recommended for OpenSM development.
+
+The goal of this is to make OpenSM code base to be standard in terms of
+the rest of OpenIB management software, OpenIB projects and Linux in
+general. And in this way to make OpenSM more developer friendly and to
+involve more open source programmers to be part of OpenSM development
+process.
+
+The goal of this is not to provide long and boring list of coding style
+paradigms, but rather to define general coding style concept and to
+suggest a way for such a concept to be implemented in the existing
+OpenSM code base.
+
+The OpenSM project is an OpenIB and Linux centric project, so we think
+it is reasonable to use the coding style most popular with OpenIB
+projects (linux/Documentation/CodingStyle) as the starting point rather
+than reinventing one more coding style rule-set.
+
+Some things from there in short: tab character for indentation and space
+character for alignment, K&R style braces, short local and meanful
+global names, please no confused Hungary style, short functions. And of
+course to be reasonable about all above.
+
+
+Some ideas about existing OpenSM code improvements in terms of the
+Coding style:
+
+* When writing new code, please try to follow the new Coding style.
+* Coding style improvement patches are desired and accepted, but please
+  try to not mix coding style improvement with functional and other
+  changes in one patch.
+* When you are going to improve coding style for existing code, please
+  try to do it for entire file(s).

@@ -1,5 +1,7 @@
 /*-
  * Copyright (c) 2001-2007, by Cisco Systems, Inc. All rights reserved.
+ * Copyright (c) 2008-2011, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2011, by Michael Tuexen. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -81,7 +83,7 @@ uint32_t sctp_select_initial_TSN(struct sctp_pcb *);
 
 uint32_t sctp_select_a_tag(struct sctp_inpcb *, uint16_t lport, uint16_t rport, int);
 
-int sctp_init_asoc(struct sctp_inpcb *, struct sctp_tcb *, int, uint32_t, uint32_t);
+int sctp_init_asoc(struct sctp_inpcb *, struct sctp_tcb *, uint32_t, uint32_t);
 
 void sctp_fill_random_store(struct sctp_pcb *);
 
@@ -124,14 +126,15 @@ sctp_append_to_readq(struct sctp_inpcb *inp,
 
 void sctp_iterator_worker(void);
 
-int find_next_best_mtu(int);
+uint32_t sctp_get_prev_mtu(uint32_t);
+uint32_t sctp_get_next_mtu(struct sctp_inpcb *, uint32_t);
 
 void
      sctp_timeout_handler(void *);
 
 uint32_t
 sctp_calculate_rto(struct sctp_tcb *, struct sctp_association *,
-    struct sctp_nets *, struct timeval *, int);
+    struct sctp_nets *, struct timeval *, int, int);
 
 uint32_t sctp_calculate_len(struct mbuf *);
 
@@ -169,8 +172,6 @@ sctp_report_all_outbound(struct sctp_tcb *, int, int
 
 int sctp_expand_mapping_array(struct sctp_association *, uint32_t);
 
-/* EY nr_sack version of the above method, expands nr_mapping_array */
-int sctp_expand_nr_mapping_array(struct sctp_association *, uint32_t);
 void 
 sctp_abort_notification(struct sctp_tcb *, int, int
 #if !defined(__APPLE__) && !defined(SCTP_SO_LOCK_TESTING)
@@ -312,9 +313,13 @@ do { \
 	} \
 } while (0)
 
-/* new functions to start/stop udp tunneling */
+/* functions to start/stop udp tunneling */
+/* XXX: Remove the #ifdef after tunneling over IPv6 works also on FreeBSD. */
+#ifdef INET
 void sctp_over_udp_stop(void);
 int sctp_over_udp_start(void);
+
+#endif
 
 int
 sctp_soreceive(struct socket *so, struct sockaddr **psa,
@@ -376,7 +381,7 @@ int sctp_fill_stat_log(void *, size_t *);
 void sctp_log_fr(uint32_t, uint32_t, uint32_t, int);
 void sctp_log_sack(uint32_t, uint32_t, uint32_t, uint16_t, uint16_t, int);
 void sctp_log_map(uint32_t, uint32_t, uint32_t, int);
-
+void sctp_print_mapping_array(struct sctp_association *asoc);
 void sctp_clr_stat_log(void);
 
 

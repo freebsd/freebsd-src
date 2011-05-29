@@ -1,7 +1,7 @@
 WPA Supplicant
 ==============
 
-Copyright (c) 2003-2009, Jouni Malinen <j@w1.fi> and contributors
+Copyright (c) 2003-2010, Jouni Malinen <j@w1.fi> and contributors
 All Rights Reserved.
 
 This program is dual-licensed under both the GPL version 2 and BSD
@@ -397,10 +397,8 @@ CONFIG_PCSC=y
 
 Following options can be added to .config to select which driver
 interfaces are included. Hermes driver interface needs to be downloaded
-from Agere (see above). CONFIG_WIRELESS_EXTENSION will be used
-automatically if any of the selected drivers need it.
+from Agere (see above).
 
-CONFIG_WIRELESS_EXTENSION=y
 CONFIG_DRIVER_HOSTAP=y
 CONFIG_DRIVER_HERMES=y
 CONFIG_DRIVER_MADWIFI=y
@@ -426,7 +424,6 @@ CONFIG_DRIVER_BROADCOM=y
 CONFIG_DRIVER_IPW=y
 CONFIG_DRIVER_BSD=y
 CONFIG_DRIVER_NDIS=y
-CONFIG_WIRELESS_EXTENSION=y
 CONFIG_IEEE8021X_EAPOL=y
 CONFIG_EAP_MD5=y
 CONFIG_EAP_MSCHAPV2=y
@@ -500,7 +497,7 @@ options:
   -C = ctrl_interface parameter (only used if -c is not)
   -i = interface name
   -d = increase debugging verbosity (-dd even more)
-  -D = driver name
+  -D = driver name (can be multiple drivers: nl80211,wext)
   -f = Log output to default log location (normally /tmp)
   -g = global ctrl_interface
   -K = include keys (passwords, etc.) in debug output
@@ -520,11 +517,11 @@ drivers:
   hostap = Host AP driver (Intersil Prism2/2.5/3) [default]
 	(this can also be used with Linuxant DriverLoader)
   hermes = Agere Systems Inc. driver (Hermes-I/Hermes-II)
-  madwifi = MADWIFI 802.11 support (Atheros, etc.)
+  madwifi = MADWIFI 802.11 support (Atheros, etc.) (deprecated; use wext)
   atmel = ATMEL AT76C5XXx (USB, PCMCIA)
   wext = Linux wireless extensions (generic)
   ralink = Ralink Client driver
-  ndiswrapper = Linux ndiswrapper
+  ndiswrapper = Linux ndiswrapper (deprecated; use wext)
   broadcom = Broadcom wl.o driver
   ipw = Intel ipw2100/2200 driver (old; use wext with Linux 2.6.13 or newer)
   wired = wpa_supplicant wired Ethernet driver
@@ -543,6 +540,13 @@ reports, is to start wpa_supplicant on foreground with debugging
 enabled:
 
 wpa_supplicant -c/etc/wpa_supplicant.conf -iwlan0 -d
+
+If the specific driver wrapper is not known beforehand, it is possible
+to specify multiple comma separated driver wrappers on the command
+line. wpa_supplicant will use the first driver wrapper that is able to
+initialize the interface.
+
+wpa_supplicant -Dnl80211,wext -c/etc/wpa_supplicant.conf -iwlan0
 
 
 wpa_supplicant can control multiple interfaces (radios) either by

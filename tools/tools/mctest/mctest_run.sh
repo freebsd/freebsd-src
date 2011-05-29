@@ -7,19 +7,19 @@
 # Defaults
 size=1024
 number=100
-base=""
-group=""
+base=9999
+group="239.255.255.101"
 interface="cxgb0"
 remote="ssh"
-command="/sources/FreeBSD.CURRENT/src/tools/tools/mctest/mctest"
+command="/zoo/tank/users/gnn/svn/Projects/head-exar/src/tools/tools/mctest/mctest"
 gap=1000
 
 # Arguments are s (size), g (group), n (number), and c (command) followed
 # by a set of hostnames.
-args=`getopt s:g:n:c:i:b: $*`
+args=`getopt s:g:n:c:l:f:b: $*`
 if [ $? != 0 ]
 then
-    echo 'Usage: mctest_run -s size -g group -n number -c remote command host1 host2 hostN'
+    echo 'Usage: mctest_run -l local_interface -f foreign_interface -s size -g group -n number -c remote command host1 host2 hostN'
     exit 2
 fi
 set == $args
@@ -40,8 +40,11 @@ do
       -c)
 	  command=$3;
 	  shift 2;;
-      -i)
-	  interface=$3;
+      -l)
+	  local_interface=$3;
+	  shift 2;;
+      -f)
+	  foreign_interface=$3;
 	  shift 2;;
       -b) 
 	  base=$3;
@@ -60,7 +63,7 @@ now=`date "+%Y%m%d%H%M"`
 for host in $*
 do
   output=$host\_$interface\_$size\_$number\.$now
-  $remote $host $command -r -M $# -b $base -g $group -m $current -n $number -s $size -i $interface > $output &
+  $remote $host $command -r -M $# -b $base -g $group -m $current -n $number -s $size -i $foreign_interface > $output &
   sleep 1
   current=`expr $current + 1 `;
 done
@@ -68,4 +71,4 @@ done
 #
 # Start the source/collector on this machine
 #
-$command -M $# -b $base -g $group -n $number -s $size -i $interface -t $gap > `uname -n`\_$size\_$number\.$now
+$command -M $# -b $base -g $group -n $number -s $size -i $local_interface -t $gap > `uname -n`\_$size\_$number\.$now

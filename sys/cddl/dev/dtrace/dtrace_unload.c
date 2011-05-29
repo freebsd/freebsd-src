@@ -43,6 +43,7 @@ dtrace_unload()
 	}
 #else
 	destroy_dev(dtrace_dev);
+	destroy_dev(helper_dev);
 #endif
 
 	mutex_enter(&dtrace_provider_lock);

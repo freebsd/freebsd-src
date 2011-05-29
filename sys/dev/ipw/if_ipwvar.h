@@ -164,13 +164,6 @@ struct ipw_softc {
  * NB.: This models the only instance of async locking in ipw_init_locked
  *	and must be kept in sync.
  */
-#define	IPW_LOCK_DECL	int	__waslocked = 0
-#define IPW_LOCK(sc)	do {				\
-	if (!(__waslocked = mtx_owned(&(sc)->sc_mtx)))	\
-		mtx_lock(&sc->sc_mtx);			\
-} while (0)
-#define IPW_UNLOCK(sc)	do {				\
-	if (!__waslocked)				\
-		mtx_unlock(&sc->sc_mtx);		\
-} while (0)
+#define IPW_LOCK(sc)		mtx_lock(&sc->sc_mtx);
+#define IPW_UNLOCK(sc)		mtx_unlock(&sc->sc_mtx);
 #define IPW_LOCK_ASSERT(sc)	mtx_assert(&(sc)->sc_mtx, MA_OWNED)

@@ -61,9 +61,36 @@ void	ieee80211_syncflag(struct ieee80211vap *, int flag);
 void	ieee80211_syncflag_ht(struct ieee80211vap *, int flag);
 void	ieee80211_syncflag_ext(struct ieee80211vap *, int flag);
 
+#define	IEEE80211_R_NF		0x0000001	/* global NF value valid */
+#define	IEEE80211_R_RSSI	0x0000002	/* global RSSI value valid */
+#define	IEEE80211_R_C_CHAIN	0x0000004	/* RX chain count valid */
+#define	IEEE80211_R_C_NF	0x0000008	/* per-chain NF value valid */
+#define	IEEE80211_R_C_RSSI	0x0000010	/* per-chain RSSI value valid */
+#define	IEEE80211_R_C_EVM	0x0000020	/* per-chain EVM valid */
+#define	IEEE80211_R_C_HT40	0x0000040	/* RX'ed packet is 40mhz, pilots 4,5 valid */
+
+struct ieee80211_rx_stats {
+	uint32_t r_flags;		/* IEEE80211_R_* flags */
+	uint8_t c_chain;		/* number of RX chains involved */
+	int16_t	c_nf_ctl[IEEE80211_MAX_CHAINS];	/* per-chain NF */
+	int16_t	c_nf_ext[IEEE80211_MAX_CHAINS];	/* per-chain NF */
+	int16_t	c_rssi_ctl[IEEE80211_MAX_CHAINS];	/* per-chain RSSI */
+	int16_t	c_rssi_ext[IEEE80211_MAX_CHAINS];	/* per-chain RSSI */
+	uint8_t nf;			/* global NF */
+	uint8_t rssi;			/* global RSSI */
+	uint8_t evm[IEEE80211_MAX_CHAINS][IEEE80211_MAX_EVM_PILOTS];
+					/* per-chain, per-pilot EVM values */
+};
+
 #define	ieee80211_input(ni, m, rssi, nf) \
 	((ni)->ni_vap->iv_input(ni, m, rssi, nf))
 int	ieee80211_input_all(struct ieee80211com *, struct mbuf *, int, int);
+
+int	ieee80211_input_mimo(struct ieee80211_node *, struct mbuf *,
+	    struct ieee80211_rx_stats *);
+int	ieee80211_input_mimo_all(struct ieee80211com *, struct mbuf *,
+	    struct ieee80211_rx_stats *);
+
 struct ieee80211_bpf_params;
 int	ieee80211_mgmt_output(struct ieee80211_node *, struct mbuf *, int,
 		struct ieee80211_bpf_params *);

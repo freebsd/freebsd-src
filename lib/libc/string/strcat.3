@@ -80,6 +80,23 @@ and
 functions
 return the pointer
 .Fa s .
+.Sh SEE ALSO
+.Xr bcopy 3 ,
+.Xr memccpy 3 ,
+.Xr memcpy 3 ,
+.Xr memmove 3 ,
+.Xr strcpy 3 ,
+.Xr strlcat 3 ,
+.Xr strlcpy 3 ,
+.Xr wcscat 3
+.Sh STANDARDS
+The
+.Fn strcat
+and
+.Fn strncat
+functions
+conform to
+.St -isoC .
 .Sh SECURITY CONSIDERATIONS
 The
 .Fn strcat
@@ -138,20 +155,3 @@ foo(const char *arbitrary_string)
 #endif
 }
 .Ed
-.Sh SEE ALSO
-.Xr bcopy 3 ,
-.Xr memccpy 3 ,
-.Xr memcpy 3 ,
-.Xr memmove 3 ,
-.Xr strcpy 3 ,
-.Xr strlcat 3 ,
-.Xr strlcpy 3 ,
-.Xr wcscat 3
-.Sh STANDARDS
-The
-.Fn strcat
-and
-.Fn strncat
-functions
-conform to
-.St -isoC .

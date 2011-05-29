@@ -1,10 +1,6 @@
 /* IBM RS/6000 "XCOFF" file definitions for BFD.
-   Copyright (C) 1990, 1991 Free Software Foundation, Inc.
-   FIXME: Can someone provide a transliteration of this name into ASCII?
-   Using the following chars caused a compiler warning on HIUX (so I replaced
-   them with octal escapes), and isn't useful without an understanding of what
-   character set it is.
-   Written by Mimi Ph\373\364ng-Th\345o V\365 of IBM
+   Copyright (C) 1990, 1991, 2001 Free Software Foundation, Inc.
+   Written by Mimi Phuong-Thao Vo of IBM
    and John Gilmore of Cygnus Support.  */
 
 /********************** FILE HEADER **********************/

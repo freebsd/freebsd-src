@@ -46,7 +46,8 @@ struct umutex {
 struct ucond {
 	volatile __uint32_t	c_has_waiters;	/* Has waiters in kernel */
 	__uint32_t		c_flags;	/* Flags of the condition variable */
-	__uint32_t		c_spare[2];	/* Spare space */
+	__uint32_t              c_clockid;	/* Clock id */
+	__uint32_t              c_spare[1];	/* Spare space */
 };
 
 struct urwlock {

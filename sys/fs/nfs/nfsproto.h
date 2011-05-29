@@ -66,6 +66,14 @@
 #define	NFSV4_SMALLSTR	50		/* Strings small enough for stack */
 
 /* Stat numbers for rpc returns (version 2, 3 and 4) */
+/*
+ * These numbers are hard-wired in the RFCs, so they can't be changed.
+ * The code currently assumes that the ones < 10000 are the same as
+ * sys/errno.h and that sys/errno.h will never go as high as 10000.
+ * If the value in sys/errno.h of any entry listed below is changed,
+ * the NFS code must be modified to do the mapping between them.
+ * (You can ignore NFSERR_WFLUSH, since it is never actually used.)
+ */
 #define	NFSERR_OK		0
 #define	NFSERR_PERM		1
 #define	NFSERR_NOENT		2

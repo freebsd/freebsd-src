@@ -1,5 +1,7 @@
 /*-
  * Copyright (c) 2001-2007, by Cisco Systems, Inc. All rights reserved.
+ * Copyright (c) 2008-2011, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2011, by Michael Tuexen. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -43,6 +45,7 @@ __FBSDID("$FreeBSD$");
 
 struct mbuf *
 sctp_add_addresses_to_i_ia(struct sctp_inpcb *inp,
+    struct sctp_tcb *stcb,
     struct sctp_scoping *scope,
     struct mbuf *m_at,
     int cnt_inits_to);
@@ -129,14 +132,11 @@ void sctp_toss_old_asconf(struct sctp_tcb *);
 
 void sctp_fix_ecn_echo(struct sctp_association *);
 
+void sctp_move_chunks_from_net(struct sctp_tcb *stcb, struct sctp_nets *net);
+
 int
 sctp_output(struct sctp_inpcb *, struct mbuf *, struct sockaddr *,
     struct mbuf *, struct thread *, int);
-
-void
-sctp_insert_on_wheel(struct sctp_tcb *stcb,
-    struct sctp_association *asoc,
-    struct sctp_stream_out *strq, int holdslock);
 
 void 
 sctp_chunk_output(struct sctp_inpcb *, struct sctp_tcb *, int, int
@@ -153,12 +153,9 @@ sctp_send_abort_tcb(struct sctp_tcb *, struct mbuf *, int
 
 void send_forward_tsn(struct sctp_tcb *, struct sctp_association *);
 
-void sctp_send_sack(struct sctp_tcb *);
+void sctp_send_sack(struct sctp_tcb *, int);
 
-/* EY 05/07/08 if nr_sacks used, the following function will be called instead of sctp_send_sack */
-void sctp_send_nr_sack(struct sctp_tcb *);
-
-int sctp_send_hb(struct sctp_tcb *, int, struct sctp_nets *);
+int sctp_send_hb(struct sctp_tcb *, int, struct sctp_nets *, int);
 
 void sctp_send_ecn_echo(struct sctp_tcb *, struct sctp_nets *, uint32_t);
 
@@ -169,7 +166,7 @@ sctp_send_packet_dropped(struct sctp_tcb *, struct sctp_nets *, struct mbuf *,
 
 
 
-void sctp_send_cwr(struct sctp_tcb *, struct sctp_nets *, uint32_t);
+void sctp_send_cwr(struct sctp_tcb *, struct sctp_nets *, uint32_t, uint8_t);
 
 
 void

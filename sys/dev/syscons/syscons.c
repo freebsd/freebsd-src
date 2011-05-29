@@ -104,7 +104,8 @@ static	scr_stat	main_console;
 static	struct tty 	*main_devs[MAXCONS];
 
 static  char        	init_done = COLD;
-static  char		shutdown_in_progress = FALSE;
+static	int		shutdown_in_progress = FALSE;
+static	int		suspend_in_progress = FALSE;
 static	char		sc_malloc = FALSE;
 
 static	int		saver_mode = CONS_NO_SAVER; /* LKM/user saver */
@@ -128,6 +129,13 @@ static	void		none_saver(sc_softc_t *sc, int blank) { }
 static	void		(*current_saver)(sc_softc_t *, int) = none_saver;
 #endif
 
+#ifdef SC_NO_SUSPEND_VTYSWITCH
+static	int		sc_no_suspend_vtswitch = 1;
+#else
+static	int		sc_no_suspend_vtswitch = 0;
+#endif
+static	int		sc_susp_scr;
+
 SYSCTL_NODE(_hw, OID_AUTO, syscons, CTLFLAG_RD, 0, "syscons");
 SYSCTL_NODE(_hw_syscons, OID_AUTO, saver, CTLFLAG_RD, 0, "saver");
 SYSCTL_INT(_hw_syscons_saver, OID_AUTO, keybonly, CTLFLAG_RW,
@@ -142,6 +150,9 @@ SYSCTL_INT(_hw_syscons, OID_AUTO, kbd_reboot, CTLFLAG_RW|CTLFLAG_SECURE, &enable
 SYSCTL_INT(_hw_syscons, OID_AUTO, kbd_debug, CTLFLAG_RW|CTLFLAG_SECURE, &enable_kdbkey,
     0, "enable keyboard debug");
 #endif
+TUNABLE_INT("hw.syscons.sc_no_suspend_vtswitch", &sc_no_suspend_vtswitch);
+SYSCTL_INT(_hw_syscons, OID_AUTO, sc_no_suspend_vtswitch, CTLFLAG_RW,
+    &sc_no_suspend_vtswitch, 0, "Disable VT switch before suspend.");
 #if !defined(SC_NO_FONT_LOADING) && defined(SC_DFLT_FONT)
 #include "font.h"
 #endif
@@ -170,7 +181,9 @@ static kbd_callback_func_t sckbdevent;
 static void scinit(int unit, int flags);
 static scr_stat *sc_get_stat(struct tty *tp);
 static void scterm(int unit, int flags);
-static void scshutdown(void *arg, int howto);
+static void scshutdown(void *, int);
+static void scsuspend(void *);
+static void scresume(void *);
 static u_int scgetc(sc_softc_t *sc, u_int flags);
 #define SCGETC_CN	1
 #define SCGETC_NONBLOCK	2
@@ -348,7 +361,9 @@ static void
 sc_set_vesa_mode(scr_stat *scp, sc_softc_t *sc, int unit)
 {
 	video_info_t info;
+	u_char *font;
 	int depth;
+	int fontsize;
 	int i;
 	int vmode;
 
@@ -377,9 +392,37 @@ sc_set_vesa_mode(scr_stat *scp, sc_softc_t *sc, int unit)
 		vidd_get_info(sc->adp, vmode, &info);
 	}
 
+#if !defined(SC_NO_FONT_LOADING) && defined(SC_DFLT_FONT)
+	fontsize = info.vi_cheight;
+#else
+	fontsize = scp->font_size;
+#endif
+	if (fontsize < 14)
+		fontsize = 8;
+	else if (fontsize >= 16)
+		fontsize = 16;
+	else
+		fontsize = 14;
 #ifndef SC_NO_FONT_LOADING
-	if ((sc->fonts_loaded & FONT_16) == 0)
-		return;
+	switch (fontsize) {
+	case 8:
+		if ((sc->fonts_loaded & FONT_8) == 0)
+			return;
+		font = sc->font_8;
+		break;
+	case 14:
+		if ((sc->fonts_loaded & FONT_14) == 0)
+			return;
+		font = sc->font_14;
+		break;
+	case 16:
+		if ((sc->fonts_loaded & FONT_16) == 0)
+			return;
+		font = sc->font_16;
+		break;
+	}
+#else
+	font = NULL;
 #endif
 #ifdef DEV_SPLASH
 	if ((sc->flags & SC_SPLASH_SCRN) != 0)
@@ -398,16 +441,12 @@ sc_set_vesa_mode(scr_stat *scp, sc_softc_t *sc, int unit)
 	scp->xpixel = info.vi_width;
 	scp->ypixel = info.vi_height;
 	scp->xsize = scp->xpixel / 8;
-	scp->ysize = scp->ypixel / 16;
+	scp->ysize = scp->ypixel / fontsize;
 	scp->xpos = 0;
 	scp->ypos = scp->ysize - 1;
 	scp->xoff = scp->yoff = 0;
-#ifndef SC_NO_FONT_LOADING
-	scp->font = sc->font_16;
-#else
-	scp->font = NULL;
-#endif
-	scp->font_size = 16;
+	scp->font = font;
+	scp->font_size = fontsize;
 	scp->font_width = 8;
 	scp->start = scp->xsize * scp->ysize - 1;
 	scp->end = 0;
@@ -475,7 +514,7 @@ sc_attach_unit(int unit, int flags)
     scrn_timer(sc);
 
     /* set up the keyboard */
-    kbdd_ioctl(sc->kbd, KDSKBMODE, (caddr_t)&scp->kbd_mode);
+    (void)kbdd_ioctl(sc->kbd, KDSKBMODE, (caddr_t)&scp->kbd_mode);
     update_kbd_state(scp, scp->status, LOCK_MASK);
 
     printf("%s%d: %s <%d virtual consoles, flags=0x%x>\n",
@@ -492,10 +531,15 @@ sc_attach_unit(int unit, int flags)
 	printf("\n");
     }
 
-    /* register a shutdown callback for the kernel console */
-    if (sc_console_unit == unit)
-	EVENTHANDLER_REGISTER(shutdown_pre_sync, scshutdown, 
-			      (void *)(uintptr_t)unit, SHUTDOWN_PRI_DEFAULT);
+    /* Register suspend/resume/shutdown callbacks for the kernel console. */
+    if (sc_console_unit == unit) {
+	EVENTHANDLER_REGISTER(power_suspend, scsuspend, NULL,
+			      EVENTHANDLER_PRI_ANY);
+	EVENTHANDLER_REGISTER(power_resume, scresume, NULL,
+			      EVENTHANDLER_PRI_ANY);
+	EVENTHANDLER_REGISTER(shutdown_pre_sync, scshutdown, NULL,
+			      SHUTDOWN_PRI_DEFAULT);
+    }
 
     for (vc = 0; vc < sc->vtys; vc++) {
 	if (sc->dev[vc] == NULL) {
@@ -584,7 +628,7 @@ sctty_open(struct tty *tp)
 #ifndef __sparc64__
 	if (sc->kbd != NULL) {
 	    key.keynum = KEYCODE_BS;
-	    kbdd_ioctl(sc->kbd, GIO_KEYMAPENT, (caddr_t)&key);
+	    (void)kbdd_ioctl(sc->kbd, GIO_KEYMAPENT, (caddr_t)&key);
             tp->t_termios.c_cc[VERASE] = key.key.map[0];
 	}
 #endif
@@ -643,7 +687,7 @@ sctty_close(struct tty *tp)
 #endif
 	scp->kbd_mode = K_XLATE;
 	if (scp == scp->sc->cur_scp)
-	    kbdd_ioctl(scp->sc->kbd, KDSKBMODE, (caddr_t)&scp->kbd_mode);
+	    (void)kbdd_ioctl(scp->sc->kbd, KDSKBMODE, (caddr_t)&scp->kbd_mode);
 	DPRINTF(5, ("done.\n"));
     }
 }
@@ -1222,7 +1266,7 @@ sctty_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
 	case K_CODE: 		/* switch to CODE mode */
 	    scp->kbd_mode = *(int *)data;
 	    if (scp == sc->cur_scp)
-		kbdd_ioctl(sc->kbd, KDSKBMODE, data);
+		(void)kbdd_ioctl(sc->kbd, KDSKBMODE, data);
 	    return 0;
 	default:
 	    return EINVAL;
@@ -1336,7 +1380,7 @@ sctty_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
 		    }
 		    sc->kbd = kbd_get_keyboard(i); /* sc->kbd == newkbd */
 		    sc->keyboard = i;
-		    kbdd_ioctl(sc->kbd, KDSKBMODE,
+		    (void)kbdd_ioctl(sc->kbd, KDSKBMODE,
 			      (caddr_t)&sc->cur_scp->kbd_mode);
 		    update_kbd_state(sc->cur_scp, sc->cur_scp->status,
 				     LOCK_MASK);
@@ -1649,14 +1693,14 @@ sc_cngetc(struct consdev *cd)
     /* we shall always use the keyboard in the XLATE mode here */
     cur_mode = scp->kbd_mode;
     scp->kbd_mode = K_XLATE;
-    kbdd_ioctl(scp->sc->kbd, KDSKBMODE, (caddr_t)&scp->kbd_mode);
+    (void)kbdd_ioctl(scp->sc->kbd, KDSKBMODE, (caddr_t)&scp->kbd_mode);
 
     kbdd_poll(scp->sc->kbd, TRUE);
     c = scgetc(scp->sc, SCGETC_CN | SCGETC_NONBLOCK);
     kbdd_poll(scp->sc->kbd, FALSE);
 
     scp->kbd_mode = cur_mode;
-    kbdd_ioctl(scp->sc->kbd, KDSKBMODE, (caddr_t)&scp->kbd_mode);
+    (void)kbdd_ioctl(scp->sc->kbd, KDSKBMODE, (caddr_t)&scp->kbd_mode);
     kbdd_disable(scp->sc->kbd);
     splx(s);
 
@@ -1692,7 +1736,7 @@ sccnupdate(scr_stat *scp)
 {
     /* this is a cut-down version of scrn_timer()... */
 
-    if (scp->sc->font_loading_in_progress)
+    if (suspend_in_progress || scp->sc->font_loading_in_progress)
 	return;
 
     if (debugger > 0 || panicstr || shutdown_in_progress) {
@@ -1742,7 +1786,7 @@ scrn_timer(void *arg)
 	return;
 
     /* don't do anything when we are performing some I/O operations */
-    if (sc->font_loading_in_progress) {
+    if (suspend_in_progress || sc->font_loading_in_progress) {
 	if (again)
 	    timeout(scrn_timer, sc, hz / 10);
 	return;
@@ -1756,7 +1800,7 @@ scrn_timer(void *arg)
 	    sc->keyboard = sc_allocate_keyboard(sc, -1);
 	    if (sc->keyboard >= 0) {
 		sc->kbd = kbd_get_keyboard(sc->keyboard);
-		kbdd_ioctl(sc->kbd, KDSKBMODE,
+		(void)kbdd_ioctl(sc->kbd, KDSKBMODE,
 			  (caddr_t)&sc->cur_scp->kbd_mode);
 		update_kbd_state(sc->cur_scp, sc->cur_scp->status,
 				 LOCK_MASK);
@@ -2131,7 +2175,7 @@ restore_scrn_saver_mode(scr_stat *scp, int changemode)
     if (set_mode(scp) == 0) {
 #ifndef SC_NO_PALETTE_LOADING
 #ifdef SC_PIXEL_MODE
-	if ((scp->sc->adp->va_flags & V_ADP_DAC8) != 0)
+	if (scp->sc->adp->va_info.vi_mem_model == V_INFO_MM_DIRECT)
 	    vidd_load_palette(scp->sc->adp, scp->sc->palette2);
 	else
 #endif
@@ -2540,7 +2584,7 @@ exchange_scr(sc_softc_t *sc)
 #ifndef SC_NO_PALETTE_LOADING
     if (ISGRAPHSC(sc->old_scp)) {
 #ifdef SC_PIXEL_MODE
-	if ((sc->adp->va_flags & V_ADP_DAC8) != 0)
+	if (sc->adp->va_info.vi_mem_model == V_INFO_MM_DIRECT)
 	    vidd_load_palette(sc->adp, sc->palette2);
 	else
 #endif
@@ -2551,7 +2595,7 @@ exchange_scr(sc_softc_t *sc)
 
     /* set up the keyboard for the new screen */
     if (sc->old_scp->kbd_mode != scp->kbd_mode)
-	kbdd_ioctl(sc->kbd, KDSKBMODE, (caddr_t)&scp->kbd_mode);
+	(void)kbdd_ioctl(sc->kbd, KDSKBMODE, (caddr_t)&scp->kbd_mode);
     update_kbd_state(scp, scp->status, LOCK_MASK);
 
     mark_all(scp);
@@ -2981,16 +3025,64 @@ scterm(int unit, int flags)
 }
 
 static void
-scshutdown(void *arg, int howto)
+scshutdown(__unused void *arg, __unused int howto)
 {
-    /* assert(sc_console != NULL) */
 
-    sc_touch_scrn_saver();
-    if (!cold && sc_console
-	&& sc_console->sc->cur_scp->smode.mode == VT_AUTO 
-	&& sc_console->smode.mode == VT_AUTO)
-	sc_switch_scr(sc_console->sc, sc_console->index);
-    shutdown_in_progress = TRUE;
+	KASSERT(sc_console != NULL, ("sc_console != NULL"));
+	KASSERT(sc_console->sc != NULL, ("sc_console->sc != NULL"));
+	KASSERT(sc_console->sc->cur_scp != NULL,
+	    ("sc_console->sc->cur_scp != NULL"));
+
+	sc_touch_scrn_saver();
+	if (!cold &&
+	    sc_console->sc->cur_scp->index != sc_console->index &&
+	    sc_console->sc->cur_scp->smode.mode == VT_AUTO &&
+	    sc_console->smode.mode == VT_AUTO)
+		sc_switch_scr(sc_console->sc, sc_console->index);
+	shutdown_in_progress = TRUE;
+}
+
+static void
+scsuspend(__unused void *arg)
+{
+	int retry;
+
+	KASSERT(sc_console != NULL, ("sc_console != NULL"));
+	KASSERT(sc_console->sc != NULL, ("sc_console->sc != NULL"));
+	KASSERT(sc_console->sc->cur_scp != NULL,
+	    ("sc_console->sc->cur_scp != NULL"));
+
+	sc_susp_scr = sc_console->sc->cur_scp->index;
+	if (sc_no_suspend_vtswitch ||
+	    sc_susp_scr == sc_console->index) {
+		sc_touch_scrn_saver();
+		sc_susp_scr = -1;
+		return;
+	}
+	for (retry = 0; retry < 10; retry++) {
+		sc_switch_scr(sc_console->sc, sc_console->index);
+		if (!sc_console->sc->switch_in_progress)
+			break;
+		pause("scsuspend", hz);
+	}
+	suspend_in_progress = TRUE;
+}
+
+static void
+scresume(__unused void *arg)
+{
+
+	KASSERT(sc_console != NULL, ("sc_console != NULL"));
+	KASSERT(sc_console->sc != NULL, ("sc_console->sc != NULL"));
+	KASSERT(sc_console->sc->cur_scp != NULL,
+	    ("sc_console->sc->cur_scp != NULL"));
+
+	suspend_in_progress = FALSE;
+	if (sc_susp_scr < 0) {
+		mark_all(sc_console->sc->cur_scp);
+		return;
+	}
+	sc_switch_scr(sc_console->sc, sc_susp_scr);
 }
 
 int
@@ -3093,27 +3185,18 @@ init_scp(sc_softc_t *sc, int vty, scr_stat *scp)
 	scp->ypixel = scp->ysize*info.vi_cheight;
     }
 
-	scp->font_size = info.vi_cheight;
-	scp->font_width = info.vi_cwidth;
-	if (info.vi_cheight < 14) {
+    scp->font_size = info.vi_cheight;
+    scp->font_width = info.vi_cwidth;
 #ifndef SC_NO_FONT_LOADING
-	    scp->font = sc->font_8;
+    if (info.vi_cheight < 14)
+	scp->font = sc->font_8;
+    else if (info.vi_cheight >= 16)
+	scp->font = sc->font_16;
+    else
+	scp->font = sc->font_14;
 #else
-	    scp->font = NULL;
+    scp->font = NULL;
 #endif
-	} else if (info.vi_cheight >= 16) {
-#ifndef SC_NO_FONT_LOADING
-	    scp->font = sc->font_16;
-#else
-	    scp->font = NULL;
-#endif
-	} else {
-#ifndef SC_NO_FONT_LOADING
-	    scp->font = sc->font_14;
-#else
-	    scp->font = NULL;
-#endif
-	}
 
     sc_vtb_init(&scp->vtb, VTB_MEMORY, 0, 0, NULL, FALSE);
 #ifndef __sparc64__
@@ -3334,7 +3417,7 @@ next_code:
 	    case NLK: case CLK: case ALK:
 		break;
 	    case SLK:
-		kbdd_ioctl(sc->kbd, KDGKBSTATE, (caddr_t)&f);
+		(void)kbdd_ioctl(sc->kbd, KDGKBSTATE, (caddr_t)&f);
 		if (f & SLKED) {
 		    scp->status |= SLKED;
 		} else {
@@ -3764,7 +3847,7 @@ sc_allocate_keyboard(sc_softc_t *sc, int unit)
 			strcpy(ki.kb_name, k->kb_name);
 			ki.kb_unit = k->kb_unit;
 
-			kbdd_ioctl(k0, KBADDKBD, (caddr_t) &ki);
+			(void)kbdd_ioctl(k0, KBADDKBD, (caddr_t) &ki);
 		}
 	} else
 		idx0 = kbd_allocate("*", unit, (void *)&sc->keyboard, sckbdevent, sc);

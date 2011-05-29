@@ -42,10 +42,18 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/sbuf.h>
 #include <sys/systm.h>
+#include <sys/sysctl.h>
 #include <geom/geom.h>
 #include <geom/part/g_part.h>
 
 #include "g_part_if.h"
+
+FEATURE(geom_part_ebr,
+    "GEOM partitioning class for extended boot records support");
+#if defined(GEOM_PART_EBR_COMPAT)
+FEATURE(geom_part_ebr_compat,
+    "GEOM EBR partitioning class: backward-compatible partition names");
+#endif
 
 #define	EBRSIZE		512
 
@@ -113,6 +121,19 @@ static struct g_part_scheme g_part_ebr_scheme = {
 };
 G_PART_SCHEME_DECLARE(g_part_ebr);
 
+static struct g_part_ebr_alias {
+	u_char		typ;
+	int		alias;
+} ebr_alias_match[] = {
+	{ DOSPTYP_386BSD,	G_PART_ALIAS_FREEBSD },
+	{ DOSPTYP_NTFS,		G_PART_ALIAS_MS_NTFS },
+	{ DOSPTYP_FAT32,	G_PART_ALIAS_MS_FAT32 },
+	{ DOSPTYP_LINSWP,	G_PART_ALIAS_LINUX_SWAP },
+	{ DOSPTYP_LINUX,	G_PART_ALIAS_LINUX_DATA },
+	{ DOSPTYP_LINLVM,	G_PART_ALIAS_LINUX_LVM },
+	{ DOSPTYP_LINRAID,	G_PART_ALIAS_LINUX_RAID },
+};
+
 static void ebr_set_chs(struct g_part_table *, uint32_t, u_char *, u_char *,
     u_char *);
 
@@ -152,6 +173,7 @@ ebr_parse_type(const char *type, u_char *dp_typ)
 	const char *alias;
 	char *endp;
 	long lt;
+	int i;
 
 	if (type[0] == '!') {
 		lt = strtol(type + 1, &endp, 0);
@@ -160,13 +182,17 @@ ebr_parse_type(const char *type, u_char *dp_typ)
 		*dp_typ = (u_char)lt;
 		return (0);
 	}
-	alias = g_part_alias_name(G_PART_ALIAS_FREEBSD);
-	if (!strcasecmp(type, alias)) {
-		*dp_typ = DOSPTYP_386BSD;
-		return (0);
+	for (i = 0;
+	    i < sizeof(ebr_alias_match) / sizeof(ebr_alias_match[0]); i++) {
+		alias = g_part_alias_name(ebr_alias_match[i].alias);
+		if (strcasecmp(type, alias) == 0) {
+			*dp_typ = ebr_alias_match[i].typ;
+			return (0);
+		}
 	}
 	return (EINVAL);
 }
+
 
 static void
 ebr_set_chs(struct g_part_table *table, uint32_t lba, u_char *cylp, u_char *hdp,
@@ -221,8 +247,8 @@ g_part_ebr_add(struct g_part_table *basetable, struct g_part_entry *baseentry,
 	if (baseentry->gpe_deleted)
 		bzero(&entry->ent, sizeof(entry->ent));
 
-	KASSERT(baseentry->gpe_start <= start, (__func__));
-	KASSERT(baseentry->gpe_end >= start + size - 1, (__func__));
+	KASSERT(baseentry->gpe_start <= start, ("%s", __func__));
+	KASSERT(baseentry->gpe_end >= start + size - 1, ("%s", __func__));
 	baseentry->gpe_index = (start / sectors) + 1;
 	baseentry->gpe_offset = (off_t)(start + sectors) * pp->sectorsize;
 	baseentry->gpe_start = start;
@@ -262,8 +288,7 @@ g_part_ebr_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 	if (strcmp(psn, "MBR"))
 		return (ENXIO);
 
-	msize = MIN(pp->mediasize / pp->sectorsize, 0xffffffff);
-	msize -= msize % basetable->gpt_sectors;
+	msize = MIN(pp->mediasize / pp->sectorsize, UINT32_MAX);
 	basetable->gpt_first = 0;
 	basetable->gpt_last = msize - 1;
 	basetable->gpt_entries = msize / basetable->gpt_sectors;
@@ -357,6 +382,8 @@ g_part_ebr_precheck(struct g_part_table *table, enum g_part_ctl req,
     struct g_part_parms *gpp)
 {
 #if defined(GEOM_PART_EBR_COMPAT)
+	if (req == G_PART_CTL_DESTROY)
+		return (0);
 	return (ECANCELED);
 #else
 	/*
@@ -377,7 +404,7 @@ g_part_ebr_probe(struct g_part_table *table, struct g_consumer *cp)
 	char psn[8];
 	struct g_provider *pp;
 	u_char *buf, *p;
-	int error, index, res, sum;
+	int error, index, res;
 	uint16_t magic;
 
 	pp = cp->provider;
@@ -409,29 +436,11 @@ g_part_ebr_probe(struct g_part_table *table, struct g_consumer *cp)
 	if (magic != DOSMAGIC)
 		goto out;
 
-	/*
-	 * The sector is all zeroes, except for the partition entries,
-	 * pseudo boot code and some signatures or disk serial number.
-	 * The latter can be found in the 9 bytes immediately in front
-	 * of the partition table.
-	 */
-	sum = 0;
-	for (index = 96; index < DOSPARTOFF - 9; index++)
-		sum += buf[index];
-	if (sum != 0)
-		goto out;
-
-	for (index = 0; index < NDOSPART; index++) {
+	for (index = 0; index < 2; index++) {
 		p = buf + DOSPARTOFF + index * DOSPARTSIZE;
 		if (p[0] != 0 && p[0] != 0x80)
 			goto out;
-		if (index < 2)
-			continue;
-		/* The 3rd & 4th entries are always zero. */
-		if ((le64dec(p+0) + le64dec(p+8)) != 0)
-			goto out;
 	}
-
 	res = G_PART_PROBE_PRI_NORM;
 
  out:
@@ -450,11 +459,11 @@ g_part_ebr_read(struct g_part_table *basetable, struct g_consumer *cp)
 	u_char *buf;
 	off_t ofs, msize;
 	u_int lba;
-	int error, index;
+	int error, index, sum;
 
 	pp = cp->provider;
 	table = (struct g_part_ebr_table *)basetable;
-	msize = pp->mediasize / pp->sectorsize;
+	msize = MIN(pp->mediasize / pp->sectorsize, UINT32_MAX);
 
 	lba = 0;
 	while (1) {
@@ -465,6 +474,28 @@ g_part_ebr_read(struct g_part_table *basetable, struct g_consumer *cp)
 
 		ebr_entry_decode(buf + DOSPARTOFF + 0 * DOSPARTSIZE, ent + 0);
 		ebr_entry_decode(buf + DOSPARTOFF + 1 * DOSPARTSIZE, ent + 1);
+
+		/* The 3rd & 4th entries should be zeroes. */
+		if (le64dec(buf + DOSPARTOFF + 2 * DOSPARTSIZE) +
+		    le64dec(buf + DOSPARTOFF + 3 * DOSPARTSIZE) != 0) {
+			basetable->gpt_corrupt = 1;
+			printf("GEOM: %s: invalid entries in the EBR ignored.\n",
+			    pp->name);
+		}
+		/* We do not support bootcode for EBR. If bootcode area is
+		 * not zeroes, then mark this EBR as corrupt to do not break
+		 * anything for another OS'es.
+		 */
+		if (lba == 0) {
+			sum = 0;
+			for (index = 0; index < DOSPARTOFF; index++)
+				sum += buf[index];
+			if (sum != 0) {
+				basetable->gpt_corrupt = 1;
+				printf("GEOM: %s: EBR has non empty bootcode.\n",
+				    pp->name);
+			}
+		}
 		g_free(buf);
 
 		if (ent[0].dp_typ == 0)
@@ -491,7 +522,7 @@ g_part_ebr_read(struct g_part_table *basetable, struct g_consumer *cp)
 
 	basetable->gpt_entries = msize / basetable->gpt_sectors;
 	basetable->gpt_first = 0;
-	basetable->gpt_last = msize - (msize % basetable->gpt_sectors) - 1;
+	basetable->gpt_last = msize - 1;
 	return (0);
 }
 
@@ -537,13 +568,15 @@ g_part_ebr_type(struct g_part_table *basetable, struct g_part_entry *baseentry,
     char *buf, size_t bufsz)
 {
 	struct g_part_ebr_entry *entry;
-	int type;
+	int i;
 
 	entry = (struct g_part_ebr_entry *)baseentry;
-	type = entry->ent.dp_typ;
-	if (type == DOSPTYP_386BSD)
-		return (g_part_alias_name(G_PART_ALIAS_FREEBSD));
-	snprintf(buf, bufsz, "!%d", type);
+	for (i = 0;
+	    i < sizeof(ebr_alias_match) / sizeof(ebr_alias_match[0]); i++) {
+		if (ebr_alias_match[i].typ == entry->ent.dp_typ)
+			return (g_part_alias_name(ebr_alias_match[i].alias));
+	}
+	snprintf(buf, bufsz, "!%d", entry->ent.dp_typ);
 	return (buf);
 }
 
@@ -565,7 +598,7 @@ g_part_ebr_write(struct g_part_table *basetable, struct g_consumer *cp)
 	while (baseentry != NULL && baseentry->gpe_deleted)
 		baseentry = LIST_NEXT(baseentry, gpe_entry);
 
-	/* Wipe-out the the first EBR when there are no slices. */
+	/* Wipe-out the first EBR when there are no slices. */
 	if (baseentry == NULL) {
 		error = g_write_data(cp, 0, buf, pp->sectorsize);
 		goto out;

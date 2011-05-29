@@ -3,7 +3,7 @@
 hostapd_cli \- hostapd command-line interface
 .SH SYNOPSIS
 .B hostapd_cli
-[-p<path>] [-i<ifname>] [-hv] [command..]
+[\-p<path>] [\-i<ifname>] [\-a<path>] [\-hvB] [command..]
 .SH DESCRIPTION
 This manual page documents briefly the
 .B hostapd_cli
@@ -37,6 +37,12 @@ Default: /var/run/hostapd
 Interface to listen on.
 
 Default: first interface found in socket path.
+.TP
+.B \-a<path>
+Run in daemon mode executing the action file based on events from hostapd.
+.TP
+.B \-B
+Run a daemon in the background.
 .TP
 .B \-h
 Show usage.

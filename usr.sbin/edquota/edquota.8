@@ -39,7 +39,7 @@
 .Nd edit user quotas
 .Sh SYNOPSIS
 .Nm
-.Op Fl u
+.Op Fl uh
 .Op Fl f Ar fspath
 .Op Fl p Ar proto-username
 .Ar username ...
@@ -53,6 +53,7 @@
 .Ar username ...
 .Nm
 .Fl g
+.Op Fl h
 .Op Fl f Ar fspath
 .Op Fl p Ar proto-groupname
 .Ar groupname ...
@@ -97,6 +98,17 @@ unless the environment variable
 specifies otherwise.
 .Pp
 The quotas may then be modified, new quotas added, etc.
+Block quotas can be specified in bytes (B), kilobytes (K),
+megabytes (M), terabytes (T), petabytes (P), or exabytes (E).
+If no units are specified, kilobytes are assumed.
+Inode quotas can be specified in kiloinodes (K),
+megainodes (M), terainodes (T), petainodes (P), or exainodes (E).
+If no units are specified, the number of inodes specified are used.
+If the
+.Fl h
+flag is specified, the editor will always display the 
+block usage and limits in a more human readable format
+rather than displaying them in the historic kilobyte format.
 Setting a quota to zero indicates that no quota should be imposed.
 Setting a hard limit to one indicates that no allocations should
 be permitted.
@@ -159,6 +171,12 @@ and
 .Ar ihlim
 values is omitted, it is assumed to be zero, therefore
 indicating that no particular quota should be imposed.
+Block quotas can be specified in bytes (B), kilobytes (K),
+megabytes (M), terabytes (T), petabytes (P), or exabytes (E).
+If no units are specified, kilobytes are assumed.
+Inode quotas can be specified in kiloinodes (K),
+megainodes (M), terainodes (T), petainodes (P), or exainodes (E).
+If no units are specified, the number of inodes specified are used.
 .Pp
 If invoked with the
 .Fl f

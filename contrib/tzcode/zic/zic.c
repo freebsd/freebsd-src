@@ -3,7 +3,7 @@
 ** 2006-07-17 by Arthur David Olson.
 */
 
-static const char	elsieid[] = "@(#)zic.c	8.20";
+static const char	elsieid[] = "@(#)zic.c	8.22";
 
 #ifndef lint
 static const char rcsid[] =
@@ -1588,6 +1588,53 @@ const char * const	string;
 			if (thistimei == 0)
 				writetype[0] = TRUE;
 		}
+#ifndef LEAVE_SOME_PRE_2011_SYSTEMS_IN_THE_LURCH
+		/*
+		** For some pre-2011 systems: if the last-to-be-written
+		** standard (or daylight) type has an offset different from the
+		** most recently used offset,
+		** append an (unused) copy of the most recently used type
+		** (to help get global "altzone" and "timezone" variables
+		** set correctly).
+		*/
+		{
+			register int	mrudst, mrustd, hidst, histd, type;
+
+			hidst = histd = mrudst = mrustd = -1;
+			for (i = thistimei; i < thistimelim; ++i)
+				if (isdsts[types[i]])
+					mrudst = types[i];
+				else	mrustd = types[i];
+			for (i = 0; i < typecnt; ++i)
+				if (writetype[i]) {
+					if (isdsts[i])
+						hidst = i;
+					else	histd = i;
+				}
+			if (hidst >= 0 && mrudst >= 0 && hidst != mrudst &&
+				gmtoffs[hidst] != gmtoffs[mrudst]) {
+					isdsts[mrudst] = -1;
+					type = addtype(gmtoffs[mrudst],
+						&chars[abbrinds[mrudst]],
+						TRUE,
+						ttisstds[mrudst],
+						ttisgmts[mrudst]);
+					isdsts[mrudst] = TRUE;
+					writetype[type] = TRUE;
+			}
+			if (histd >= 0 && mrustd >= 0 && histd != mrustd &&
+				gmtoffs[histd] != gmtoffs[mrustd]) {
+					isdsts[mrustd] = -1;
+					type = addtype(gmtoffs[mrustd],
+						&chars[abbrinds[mrustd]],
+						FALSE,
+						ttisstds[mrustd],
+						ttisgmts[mrustd]);
+					isdsts[mrustd] = FALSE;
+					writetype[type] = TRUE;
+			}
+		}
+#endif /* !defined LEAVE_SOME_PRE_2011_SYSTEMS_IN_THE_LURCH */
 		thistypecnt = 0;
 		for (i = 0; i < typecnt; ++i)
 			typemap[i] = writetype[i] ?  thistypecnt++ : -1;

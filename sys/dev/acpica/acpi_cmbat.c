@@ -279,6 +279,12 @@ acpi_cmbat_get_bst(void *arg)
 	goto end;
     acpi_cmbat_info_updated(&sc->bst_lastupdated);
 
+    /* Clear out undefined/extended bits that might be set by hardware. */
+    sc->bst.state &= ACPI_BATT_STAT_BST_MASK;
+    if ((sc->bst.state & ACPI_BATT_STAT_INVALID) == ACPI_BATT_STAT_INVALID)
+	ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
+	    "battery reports simultaneous charging and discharging\n");
+
     /* XXX If all batteries are critical, perhaps we should suspend. */
     if (sc->bst.state & ACPI_BATT_STAT_CRITICAL) {
     	if ((sc->flags & ACPI_BATT_STAT_CRITICAL) == 0) {

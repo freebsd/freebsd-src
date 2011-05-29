@@ -129,6 +129,8 @@ typedef enum {
 	PJT_TESTCANCEL,
 	PJT_CLEANUP_POP_IMP,
 	PJT_CLEANUP_PUSH_IMP,
+	PJT_CANCEL_ENTER,
+	PJT_CANCEL_LEAVE,
 	PJT_MAX
 } pjt_index_t;
 
@@ -212,5 +214,12 @@ extern int	__sys_fcntl(int, int, ...);
 
 /* execve() with PATH processing to implement posix_spawnp() */
 int _execvpe(const char *, char * const *, char * const *);
+
+int _elf_aux_info(int aux, void *buf, int buflen);
+struct dl_phdr_info;
+int __elf_phdr_match_addr(struct dl_phdr_info *, void *);
+
+void	_pthread_cancel_enter(int);
+void	_pthread_cancel_leave(int);
 
 #endif /* _LIBC_PRIVATE_H_ */

@@ -1,4 +1,4 @@
-/*	$NetBSD: zuncompress.c,v 1.7 2009/04/12 10:31:14 lukem Exp $ */
+/*	$NetBSD: zuncompress.c,v 1.8 2010/11/06 21:42:32 mrg Exp $ */
 
 /*-
  * Copyright (c) 1985, 1986, 1992, 1993
@@ -115,7 +115,7 @@ struct s_zstate {
 			code_int zs_ent;
 			code_int zs_hsize_reg;
 			int zs_hshift;
-		} w;			/* Write paramenters */
+		} w;			/* Write parameters */
 		struct {
 			char_type *zs_stackp;
 			int zs_finchar;

@@ -130,7 +130,6 @@ static MALLOC_DEFINE(M_MRTABLE6, "mf6c", "multicast forwarding cache entry");
 
 static int	ip6_mdq(struct mbuf *, struct ifnet *, struct mf6c *);
 static void	phyint_send(struct ip6_hdr *, struct mif6 *, struct mbuf *);
-static void	pim6_init(void);
 static int	register_send(struct ip6_hdr *, struct mif6 *, struct mbuf *);
 static int	set_pim6(int *);
 static int	socket_send(struct socket *, struct mbuf *,
@@ -148,12 +147,11 @@ static const struct ip6protosw in6_pim_protosw = {
 	.pr_input =		pim6_input,
 	.pr_output =		rip6_output,
 	.pr_ctloutput =		rip6_ctloutput,
-	.pr_init =		pim6_init,
 	.pr_usrreqs =		&rip6_usrreqs
 };
 static int pim6_encapcheck(const struct mbuf *, int, int, void *);
 
-static VNET_DEFINE(int, ip6_mrouter_ver);
+static VNET_DEFINE(int, ip6_mrouter_ver) = 0;
 #define	V_ip6_mrouter_ver	VNET(ip6_mrouter_ver)
 
 SYSCTL_DECL(_net_inet6);
@@ -212,7 +210,7 @@ static struct mtx mif6_mtx;
 #define	MIF6_LOCK_DESTROY()	mtx_destroy(&mif6_mtx)
 
 #ifdef MRT6DEBUG
-static VNET_DEFINE(u_int, mrt6debug);		/* debug level */
+static VNET_DEFINE(u_int, mrt6debug) = 0;	/* debug level */
 #define	V_mrt6debug		VNET(mrt6debug)
 #define DEBUG_MFC	0x02
 #define DEBUG_FORWARD	0x04
@@ -337,15 +335,6 @@ int X_ip6_mrouter_done(void);
 int X_ip6_mrouter_set(struct socket *, struct sockopt *);
 int X_ip6_mrouter_get(struct socket *, struct sockopt *);
 int X_mrt6_ioctl(u_long, caddr_t);
-
-static void
-pim6_init(void)
-{
-
-#ifdef MRT6DEBUG
-	V_mrt6debug = 0;	/* debug level */
-#endif
-}
 
 /*
  * Handle MRT setsockopt commands to modify the multicast routing tables.
@@ -533,11 +522,7 @@ static int
 ip6_mrouter_init(struct socket *so, int v, int cmd)
 {
 
-	V_ip6_mrouter_ver = 0;
-
 #ifdef MRT6DEBUG
-	V_mrt6debug = 0;
-
 	if (V_mrt6debug)
 		log(LOG_DEBUG,
 		    "ip6_mrouter_init: so_type = %d, pr_protocol = %d\n",

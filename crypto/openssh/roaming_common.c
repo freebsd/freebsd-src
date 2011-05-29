@@ -1,4 +1,4 @@
-/* $OpenBSD: roaming_common.c,v 1.5 2009/06/27 09:32:43 andreas Exp $ */
+/* $OpenBSD: roaming_common.c,v 1.8 2010/01/12 00:59:29 djm Exp $ */
 /*
  * Copyright (c) 2004-2009 AppGate Network Security AB
  *
@@ -52,9 +52,9 @@ int
 get_snd_buf_size()
 {
 	int fd = packet_get_connection_out();
-	int optval, optvallen;
+	int optval;
+	socklen_t optvallen = sizeof(optval);
 
-	optvallen = sizeof(optval);
 	if (getsockopt(fd, SOL_SOCKET, SO_SNDBUF, &optval, &optvallen) != 0)
 		optval = DEFAULT_ROAMBUF;
 	return optval;
@@ -64,9 +64,9 @@ int
 get_recv_buf_size()
 {
 	int fd = packet_get_connection_in();
-	int optval, optvallen;
+	int optval;
+	socklen_t optvallen = sizeof(optval);
 
-	optvallen = sizeof(optval);
 	if (getsockopt(fd, SOL_SOCKET, SO_RCVBUF, &optval, &optvallen) != 0)
 		optval = DEFAULT_ROAMBUF;
 	return optval;
@@ -145,8 +145,16 @@ roaming_write(int fd, const void *buf, size_t count, int *cont)
 		if (out_buf_size > 0)
 			buf_append(buf, ret);
 	}
-	debug3("Wrote %ld bytes for a total of %llu", (long)ret,
-	    (unsigned long long)write_bytes);
+	if (out_buf_size > 0 &&
+	    (ret == 0 || (ret == -1 && errno == EPIPE))) {
+		if (wait_for_roaming_reconnect() != 0) {
+			ret = 0;
+			*cont = 1;
+		} else {
+			ret = -1;
+			errno = EAGAIN;
+		}
+	}
 	return ret;
 }
 
@@ -158,6 +166,15 @@ roaming_read(int fd, void *buf, size_t count, int *cont)
 		if (!resume_in_progress) {
 			read_bytes += ret;
 		}
+	} else if (out_buf_size > 0 &&
+	    (ret == 0 || (ret == -1 && (errno == ECONNRESET
+	    || errno == ECONNABORTED || errno == ETIMEDOUT
+	    || errno == EHOSTUNREACH)))) {
+		debug("roaming_read failed for %d  ret=%ld  errno=%d",
+		    fd, (long)ret, errno);
+		ret = 0;
+		if (wait_for_roaming_reconnect() == 0)
+			*cont = 1;
 	}
 	return ret;
 }
@@ -198,4 +215,30 @@ resend_bytes(int fd, u_int64_t *offset)
 	} else {
 		atomicio(vwrite, fd, out_buf + (out_last - needed), needed);
 	}
+}
+
+/*
+ * Caclulate a new key after a reconnect
+ */
+void
+calculate_new_key(u_int64_t *key, u_int64_t cookie, u_int64_t challenge)
+{
+	const EVP_MD *md = EVP_sha1();
+	EVP_MD_CTX ctx;
+	char hash[EVP_MAX_MD_SIZE];
+	Buffer b;
+
+	buffer_init(&b);
+	buffer_put_int64(&b, *key);
+	buffer_put_int64(&b, cookie);
+	buffer_put_int64(&b, challenge);
+
+	EVP_DigestInit(&ctx, md);
+	EVP_DigestUpdate(&ctx, buffer_ptr(&b), buffer_len(&b));
+	EVP_DigestFinal(&ctx, hash, NULL);
+
+	buffer_clear(&b);
+	buffer_append(&b, hash, EVP_MD_size(md));
+	*key = buffer_get_int64(&b);
+	buffer_free(&b);
 }

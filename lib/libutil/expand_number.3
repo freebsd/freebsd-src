@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 16, 2007
+.Dd August 15, 2010
 .Dt EXPAND_NUMBER 3
 .Os
 .Sh NAME
@@ -37,14 +37,14 @@
 .In libutil.h
 .Ft int
 .Fo expand_number
-.Fa "const char *buf" "int64_t *num"
+.Fa "const char *buf" "uint64_t *num"
 .Fc
 .Sh DESCRIPTION
 The
 .Fn expand_number
 function unformats the
 .Fa buf
-string and stores a signed 64-bit quantity at address pointed out by the
+string and stores a unsigned 64-bit quantity at address pointed out by the
 .Fa num
 argument.
 .Pp

@@ -1,6 +1,6 @@
 /* Binutils emulation layer.
    Copyright 2002, 2003 Free Software Foundation, Inc.
-   Written by Tom Rix, Redhat.
+   Written by Tom Rix, Red Hat Inc.
 
    This file is part of GNU Binutils.
 
@@ -16,7 +16,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #include "binemul.h"
 
@@ -58,7 +58,7 @@ ar_emul_default_append (bfd **after_bfd, char *file_name,
   AR_EMUL_ELEMENT_CHECK (*after_bfd, file_name);
   AR_EMUL_APPEND_PRINT_VERBOSE (verbose, file_name);
 
-  (*after_bfd)->next = temp;
+  (*after_bfd)->archive_next = temp;
 
   return TRUE;
 }
@@ -84,48 +84,7 @@ ar_emul_default_replace (bfd **after_bfd, char *file_name,
   AR_EMUL_ELEMENT_CHECK (*after_bfd, file_name);
   AR_EMUL_REPLACE_PRINT_VERBOSE (verbose, file_name);
 
-  (*after_bfd)->next = temp;
-
-  return TRUE;
-}
-
-bfd_boolean
-ar_emul_create (bfd **abfd_out, char *archive_file_name, char *file_name)
-{
-  if (bin_dummy_emulation.ar_create)
-    return bin_dummy_emulation.ar_create (abfd_out, archive_file_name,
-					  file_name);
-
-  return FALSE;
-}
-
-bfd_boolean
-ar_emul_default_create (bfd **abfd_out, char *archive_file_name,
-			char *file_name)
-{
-  char *target = NULL;
-
-  /* Try to figure out the target to use for the archive from the
-     first object on the list.  */
-  if (file_name != NULL)
-    {
-      bfd *obj;
-
-      obj = bfd_openr (file_name, NULL);
-      if (obj != NULL)
-	{
-	  if (bfd_check_format (obj, bfd_object))
-	    target = bfd_get_target (obj);
-	  (void) bfd_close (obj);
-	}
-    }
-
-  /* Create an empty archive.  */
-  *abfd_out = bfd_openw (archive_file_name, target);
-  if (*abfd_out == NULL
-      || ! bfd_set_format (*abfd_out, bfd_archive)
-      || ! bfd_close (*abfd_out))
-    bfd_fatal (archive_file_name);
+  (*after_bfd)->archive_next = temp;
 
   return TRUE;
 }

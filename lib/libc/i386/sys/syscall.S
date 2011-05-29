@@ -51,3 +51,5 @@ ENTRY(syscall)
 	PIC_PROLOGUE
 	jmp	PIC_PLT(HIDENAME(cerror))
 END(syscall)
+
+	.section .note.GNU-stack,"",%progbits

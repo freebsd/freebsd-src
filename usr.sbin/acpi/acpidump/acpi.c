@@ -68,6 +68,7 @@ static void	acpi_print_srat_cpu(uint32_t apic_id, uint32_t proximity_domain,
 static void	acpi_print_srat_memory(ACPI_SRAT_MEM_AFFINITY *mp);
 static void	acpi_print_srat(ACPI_SUBTABLE_HEADER *srat);
 static void	acpi_handle_srat(ACPI_TABLE_HEADER *sdp);
+static void	acpi_handle_tcpa(ACPI_TABLE_HEADER *sdp);
 static void	acpi_print_sdt(ACPI_TABLE_HEADER *sdp);
 static void	acpi_print_fadt(ACPI_TABLE_HEADER *sdp);
 static void	acpi_print_facs(ACPI_TABLE_FACS *facs);
@@ -80,6 +81,46 @@ static void	acpi_walk_subtables(ACPI_TABLE_HEADER *table, void *first,
 
 /* Size of an address. 32-bit for ACPI 1.0, 64-bit for ACPI 2.0 and up. */
 static int addr_size;
+
+/* Strings used in the TCPA table */
+static const char *tcpa_event_type_strings[] = {
+	"PREBOOT Certificate",
+	"POST Code",
+	"Unused",
+	"No Action",
+	"Separator",
+	"Action",
+	"Event Tag",
+	"S-CRTM Contents",
+	"S-CRTM Version",
+	"CPU Microcode",
+	"Platform Config Flags",
+	"Table of Devices",
+	"Compact Hash",
+	"IPL",
+	"IPL Partition Data",
+	"Non-Host Code",
+	"Non-Host Config",
+	"Non-Host Info"
+};
+
+static const char *TCPA_pcclient_strings[] = {
+	"<undefined>",
+	"SMBIOS",
+	"BIS Certificate",
+	"POST BIOS ROM Strings",
+	"ESCD",
+	"CMOS",
+	"NVRAM",
+	"Option ROM Execute",
+	"Option ROM Configurateion",
+	"<undefined>",
+	"Option ROM Microcode Update ",
+	"S-CRTM Version String",
+	"S-CRTM Contents",
+	"POST Contents",
+	"Table of Devices",
+};
 
 static void
 acpi_print_string(char *s, size_t length)
@@ -492,6 +533,165 @@ acpi_print_srat_cpu(uint32_t apic_id, uint32_t proximity_domain,
 	printf("\tProximity Domain=%d\n", proximity_domain);
 }
 
+static char *
+acpi_tcpa_evname(struct TCPAevent *event)
+{
+	struct TCPApc_event *pc_event;
+	char *eventname = NULL;
+
+	pc_event = (struct TCPApc_event *)(event + 1);
+
+	switch(event->event_type) {
+	case PREBOOT:
+	case POST_CODE:
+	case UNUSED:
+	case NO_ACTION:
+	case SEPARATOR:
+	case SCRTM_CONTENTS:
+	case SCRTM_VERSION:
+	case CPU_MICROCODE:
+	case PLATFORM_CONFIG_FLAGS:
+	case TABLE_OF_DEVICES:
+	case COMPACT_HASH:
+	case IPL:
+	case IPL_PARTITION_DATA:
+	case NONHOST_CODE:
+	case NONHOST_CONFIG:
+	case NONHOST_INFO:
+		asprintf(&eventname, "%s",
+		    tcpa_event_type_strings[event->event_type]);
+		break;
+
+	case ACTION:
+		eventname = calloc(event->event_size + 1, sizeof(char));
+		memcpy(eventname, pc_event, event->event_size);
+		break;
+
+	case EVENT_TAG:
+		switch (pc_event->event_id) {
+		case SMBIOS:
+		case BIS_CERT:
+		case CMOS:
+		case NVRAM:
+		case OPTION_ROM_EXEC:
+		case OPTION_ROM_CONFIG:
+		case S_CRTM_VERSION:
+		case POST_BIOS_ROM:
+		case ESCD:
+		case OPTION_ROM_MICROCODE:
+		case S_CRTM_CONTENTS:
+		case POST_CONTENTS:
+			asprintf(&eventname, "%s",
+			    TCPA_pcclient_strings[pc_event->event_id]);
+			break;
+
+		default:
+			asprintf(&eventname, "<unknown tag 0x%02x>",
+			    pc_event->event_id);
+			break;
+		}
+		break;
+
+	default:
+		asprintf(&eventname, "<unknown 0x%02x>", event->event_type);
+		break;
+	}
+
+	return eventname;
+}
+
+static void
+acpi_print_tcpa(struct TCPAevent *event)
+{
+	int i;
+	char *eventname;
+
+	eventname = acpi_tcpa_evname(event);
+
+	printf("\t%d", event->pcr_index);
+	printf(" 0x");
+	for (i = 0; i < 20; i++)
+		printf("%02x", event->pcr_value[i]);
+	printf(" [%s]\n", eventname ? eventname : "<unknown>");
+
+	free(eventname);
+}
+
+static void
+acpi_handle_tcpa(ACPI_TABLE_HEADER *sdp)
+{
+	struct TCPAbody *tcpa;
+	struct TCPAevent *event;
+	uintmax_t len, paddr;
+	unsigned char *vaddr = NULL;
+	unsigned char *vend = NULL;
+
+	printf(BEGIN_COMMENT);
+	acpi_print_sdt(sdp);
+	tcpa = (struct TCPAbody *) sdp;
+
+	switch (tcpa->platform_class) {
+	case ACPI_TCPA_BIOS_CLIENT:
+		len = tcpa->client.log_max_len;
+		paddr = tcpa->client.log_start_addr;
+		break;
+
+	case ACPI_TCPA_BIOS_SERVER:
+		len = tcpa->server.log_max_len;
+		paddr = tcpa->server.log_start_addr;
+		break;
+
+	default:
+		printf("XXX");
+		printf(END_COMMENT);
+		return;
+	}
+	printf("\tClass %u Base Address 0x%jx Length %ju\n\n",
+	    tcpa->platform_class, paddr, len);
+
+	if (len == 0) {
+		printf("\tEmpty TCPA table\n");
+		printf(END_COMMENT);
+		return;
+	}
+
+	vaddr = (unsigned char *)acpi_map_physical(paddr, len);
+	vend = vaddr + len;
+
+	while (vaddr != NULL) {
+		if (vaddr + sizeof(struct TCPAevent) >= vend)
+			break;
+		event = (struct TCPAevent *)(void *)vaddr;
+		if (vaddr + event->event_size >= vend)
+			break;
+		if (event->event_type == 0 && event->event_size == 0)
+			break;
+#if 0
+		{
+		unsigned int i, j, k;
+
+		printf("\n\tsize %d\n\t\t%p ", event->event_size, vaddr);
+		for (j = 0, i = 0; i <
+		    sizeof(struct TCPAevent) + event->event_size; i++) {
+			printf("%02x ", vaddr[i]);
+			if ((i+1) % 8 == 0) {
+				for (k = 0; k < 8; k++)
+					printf("%c", isprint(vaddr[j+k]) ?
+					    vaddr[j+k] : '.');
+				printf("\n\t\t%p ", &vaddr[i + 1]);
+				j = i + 1;
+			}
+		}
+		printf("\n"); }
+#endif
+		acpi_print_tcpa(event);
+
+		vaddr += sizeof(struct TCPAevent) + event->event_size;
+	}
+
+	printf(END_COMMENT);
+}
+
 static void
 acpi_print_srat_memory(ACPI_SRAT_MEM_AFFINITY *mp)
 {
@@ -886,6 +1086,8 @@ acpi_handle_rsdt(ACPI_TABLE_HEADER *rsdp)
 			acpi_handle_mcfg(sdp);
 		else if (!memcmp(sdp->Signature, ACPI_SIG_SRAT, 4))
 			acpi_handle_srat(sdp);
+		else if (!memcmp(sdp->Signature, ACPI_SIG_TCPA, 4))
+			acpi_handle_tcpa(sdp);
 		else {
 			printf(BEGIN_COMMENT);
 			acpi_print_sdt(sdp);

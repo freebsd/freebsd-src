@@ -62,22 +62,18 @@ __FBSDID("$FreeBSD$");
 #include <net/route.h>
 #include <net/vnet.h>
 
+#include <netinet/cc.h>
 #include <netinet/in.h>
-#include <netinet/in_systm.h>
-#ifdef INET6
-#include <netinet/ip6.h>
-#endif
 #include <netinet/in_pcb.h>
-#ifdef INET6
-#include <netinet6/in6_pcb.h>
-#endif
+#include <netinet/in_systm.h>
 #include <netinet/in_var.h>
 #include <netinet/ip_var.h>
 #ifdef INET6
+#include <netinet/ip6.h>
+#include <netinet6/in6_pcb.h>
 #include <netinet6/ip6_var.h>
 #include <netinet6/scope6_var.h>
 #endif
-#include <netinet/tcp.h>
 #include <netinet/tcp_fsm.h>
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_timer.h>
@@ -92,8 +88,10 @@ __FBSDID("$FreeBSD$");
  * TCP protocol interface to socket abstraction.
  */
 static int	tcp_attach(struct socket *);
+#ifdef INET
 static int	tcp_connect(struct tcpcb *, struct sockaddr *,
 		    struct thread *td);
+#endif /* INET */
 #ifdef INET6
 static int	tcp6_connect(struct tcpcb *, struct sockaddr *,
 		    struct thread *td);
@@ -229,6 +227,7 @@ tcp_usr_detach(struct socket *so)
 	INP_INFO_WUNLOCK(&V_tcbinfo);
 }
 
+#ifdef INET
 /*
  * Give the socket an address.
  */
@@ -270,6 +269,7 @@ out:
 
 	return (error);
 }
+#endif /* INET */
 
 #ifdef INET6
 static int
@@ -304,6 +304,7 @@ tcp6_usr_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	TCPDEBUG1();
 	inp->inp_vflag &= ~INP_IPV4;
 	inp->inp_vflag |= INP_IPV6;
+#ifdef INET
 	if ((inp->inp_flags & IN6P_IPV6_V6ONLY) == 0) {
 		if (IN6_IS_ADDR_UNSPECIFIED(&sin6p->sin6_addr))
 			inp->inp_vflag |= INP_IPV4;
@@ -318,6 +319,7 @@ tcp6_usr_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 			goto out;
 		}
 	}
+#endif
 	error = in6_pcbbind(inp, nam, td->td_ucred);
 out:
 	TCPDEBUG2(PRU_BIND);
@@ -327,6 +329,7 @@ out:
 }
 #endif /* INET6 */
 
+#ifdef INET
 /*
  * Prepare to accept connections.
  */
@@ -365,6 +368,7 @@ out:
 	INP_INFO_WUNLOCK(&V_tcbinfo);
 	return (error);
 }
+#endif /* INET */
 
 #ifdef INET6
 static int
@@ -407,6 +411,7 @@ out:
 }
 #endif /* INET6 */
 
+#ifdef INET
 /*
  * Initiate connection to peer.
  * Create a template for use in transmissions on this connection.
@@ -454,6 +459,7 @@ out:
 	INP_INFO_WUNLOCK(&V_tcbinfo);
 	return (error);
 }
+#endif /* INET */
 
 #ifdef INET6
 static int
@@ -486,6 +492,7 @@ tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	}
 	tp = intotcpcb(inp);
 	TCPDEBUG1();
+#ifdef INET
 	if (IN6_IS_ADDR_V4MAPPED(&sin6p->sin6_addr)) {
 		struct sockaddr_in sin;
 
@@ -505,6 +512,7 @@ tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		error = tcp_output_connect(so, nam);
 		goto out;
 	}
+#endif
 	inp->inp_vflag &= ~INP_IPV4;
 	inp->inp_vflag |= INP_IPV6;
 	inp->inp_inc.inc_flags |= INC_ISIPV6;
@@ -559,10 +567,17 @@ out:
 	return (error);
 }
 
+#ifdef INET
 /*
- * Accept a connection.  Essentially all the work is
- * done at higher levels; just return the address
- * of the peer, storing through addr.
+ * Accept a connection.  Essentially all the work is done at higher levels;
+ * just return the address of the peer, storing through addr.
+ *
+ * The rationale for acquiring the tcbinfo lock here is somewhat complicated,
+ * and is described in detail in the commit log entry for r175612.  Acquiring
+ * it delays an accept(2) racing with sonewconn(), which inserts the socket
+ * before the inpcb address/port fields are initialized.  A better fix would
+ * prevent the socket from being placed in the listen queue until all fields
+ * are fully initialized.
  */
 static int
 tcp_usr_accept(struct socket *so, struct sockaddr **nam)
@@ -604,6 +619,7 @@ out:
 		*nam = in_sockaddr(port, &addr);
 	return error;
 }
+#endif /* INET */
 
 #ifdef INET6
 static int
@@ -793,9 +809,13 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 #ifdef INET6
 			if (isipv6)
 				error = tcp6_connect(tp, nam, td);
-			else
 #endif /* INET6 */
-			error = tcp_connect(tp, nam, td);
+#if defined(INET6) && defined(INET)
+			else
+#endif
+#ifdef INET
+				error = tcp_connect(tp, nam, td);
+#endif
 			if (error)
 				goto out;
 			tp->snd_wnd = TTCP_CLIENT_SND_WND;
@@ -853,9 +873,13 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 #ifdef INET6
 			if (isipv6)
 				error = tcp6_connect(tp, nam, td);
-			else
 #endif /* INET6 */
-			error = tcp_connect(tp, nam, td);
+#if defined(INET6) && defined(INET)
+			else
+#endif
+#ifdef INET
+				error = tcp_connect(tp, nam, td);
+#endif
 			if (error)
 				goto out;
 			tp->snd_wnd = TTCP_CLIENT_SND_WND;
@@ -999,6 +1023,7 @@ out:
 	return (error);
 }
 
+#ifdef INET
 struct pr_usrreqs tcp_usrreqs = {
 	.pru_abort =		tcp_usr_abort,
 	.pru_accept =		tcp_usr_accept,
@@ -1018,6 +1043,7 @@ struct pr_usrreqs tcp_usrreqs = {
 	.pru_sosetlabel =	in_pcbsosetlabel,
 	.pru_close =		tcp_usr_close,
 };
+#endif /* INET */
 
 #ifdef INET6
 struct pr_usrreqs tcp6_usrreqs = {
@@ -1036,11 +1062,12 @@ struct pr_usrreqs tcp6_usrreqs = {
 	.pru_send =		tcp_usr_send,
 	.pru_shutdown =		tcp_usr_shutdown,
 	.pru_sockaddr =		in6_mapped_sockaddr,
- 	.pru_sosetlabel =	in_pcbsosetlabel,
+	.pru_sosetlabel =	in_pcbsosetlabel,
 	.pru_close =		tcp_usr_close,
 };
 #endif /* INET6 */
 
+#ifdef INET
 /*
  * Common subroutine to open a TCP connection to remote host specified
  * by struct sockaddr_in in mbuf *nam.  Call in_pcbbind to assign a local
@@ -1099,11 +1126,11 @@ tcp_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
 	tp->t_state = TCPS_SYN_SENT;
 	tcp_timer_activate(tp, TT_KEEP, tcp_keepinit);
 	tp->iss = tcp_new_isn(tp);
-	tp->t_bw_rtseq = tp->iss;
 	tcp_sendseqinit(tp);
 
 	return 0;
 }
+#endif /* INET */
 
 #ifdef INET6
 static int
@@ -1162,7 +1189,6 @@ tcp6_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
 	tp->t_state = TCPS_SYN_SENT;
 	tcp_timer_activate(tp, TT_KEEP, tcp_keepinit);
 	tp->iss = tcp_new_isn(tp);
-	tp->t_bw_rtseq = tp->iss;
 	tcp_sendseqinit(tp);
 
 	return 0;
@@ -1208,12 +1234,15 @@ tcp_fill_info(struct tcpcb *tp, struct tcp_info *ti)
 	ti->tcpi_rcv_space = tp->rcv_wnd;
 	ti->tcpi_rcv_nxt = tp->rcv_nxt;
 	ti->tcpi_snd_wnd = tp->snd_wnd;
-	ti->tcpi_snd_bwnd = tp->snd_bwnd;
+	ti->tcpi_snd_bwnd = 0;		/* Unused, kept for compat. */
 	ti->tcpi_snd_nxt = tp->snd_nxt;
 	ti->tcpi_snd_mss = tp->t_maxseg;
 	ti->tcpi_rcv_mss = tp->t_maxseg;
 	if (tp->t_flags & TF_TOE)
 		ti->tcpi_options |= TCPI_OPT_TOE;
+	ti->tcpi_snd_rexmitpack = tp->t_sndrexmitpack;
+	ti->tcpi_rcv_ooopack = tp->t_rcvoopack;
+	ti->tcpi_snd_zerowin = tp->t_sndzerowin;
 }
 
 /*
@@ -1238,6 +1267,8 @@ tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 	struct	inpcb *inp;
 	struct	tcpcb *tp;
 	struct	tcp_info ti;
+	char buf[TCP_CA_NAME_MAX];
+	struct cc_algo *algo;
 
 	error = 0;
 	inp = sotoinpcb(so);
@@ -1248,11 +1279,15 @@ tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 		if (inp->inp_vflag & INP_IPV6PROTO) {
 			INP_WUNLOCK(inp);
 			error = ip6_ctloutput(so, sopt);
-		} else {
+		}
 #endif /* INET6 */
+#if defined(INET6) && defined(INET)
+		else
+#endif
+#ifdef INET
+		{
 			INP_WUNLOCK(inp);
 			error = ip_ctloutput(so, sopt);
-#ifdef INET6
 		}
 #endif
 		return (error);
@@ -1319,9 +1354,10 @@ tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 			INP_WLOCK_RECHECK(inp);
 			if (optval)
 				tp->t_flags |= TF_NOPUSH;
-			else {
+			else if (tp->t_flags & TF_NOPUSH) {
 				tp->t_flags &= ~TF_NOPUSH;
-				error = tcp_output(tp);
+				if (TCPS_HAVEESTABLISHED(tp->t_state))
+					error = tcp_output(tp);
 			}
 			INP_WUNLOCK(inp);
 			break;
@@ -1345,6 +1381,54 @@ tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 		case TCP_INFO:
 			INP_WUNLOCK(inp);
 			error = EINVAL;
+			break;
+
+		case TCP_CONGESTION:
+			INP_WUNLOCK(inp);
+			bzero(buf, sizeof(buf));
+			error = sooptcopyin(sopt, &buf, sizeof(buf), 1);
+			if (error)
+				break;
+			INP_WLOCK_RECHECK(inp);
+			/*
+			 * Return EINVAL if we can't find the requested cc algo.
+			 */
+			error = EINVAL;
+			CC_LIST_RLOCK();
+			STAILQ_FOREACH(algo, &cc_list, entries) {
+				if (strncmp(buf, algo->name, TCP_CA_NAME_MAX)
+				    == 0) {
+					/* We've found the requested algo. */
+					error = 0;
+					/*
+					 * We hold a write lock over the tcb
+					 * so it's safe to do these things
+					 * without ordering concerns.
+					 */
+					if (CC_ALGO(tp)->cb_destroy != NULL)
+						CC_ALGO(tp)->cb_destroy(tp->ccv);
+					CC_ALGO(tp) = algo;
+					/*
+					 * If something goes pear shaped
+					 * initialising the new algo,
+					 * fall back to newreno (which
+					 * does not require initialisation).
+					 */
+					if (algo->cb_init != NULL)
+						if (algo->cb_init(tp->ccv) > 0) {
+							CC_ALGO(tp) = &newreno_cc_algo;
+							/*
+							 * The only reason init
+							 * should fail is
+							 * because of malloc.
+							 */
+							error = ENOMEM;
+						}
+					break; /* Break the STAILQ_FOREACH. */
+				}
+			}
+			CC_LIST_RUNLOCK();
+			INP_WUNLOCK(inp);
 			break;
 
 		default:
@@ -1389,6 +1473,12 @@ tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 			tcp_fill_info(tp, &ti);
 			INP_WUNLOCK(inp);
 			error = sooptcopyout(sopt, &ti, sizeof ti);
+			break;
+		case TCP_CONGESTION:
+			bzero(buf, sizeof(buf));
+			strlcpy(buf, CC_ALGO(tp)->name, TCP_CA_NAME_MAX);
+			INP_WUNLOCK(inp);
+			error = sooptcopyout(sopt, buf, TCP_CA_NAME_MAX);
 			break;
 		default:
 			INP_WUNLOCK(inp);
@@ -1679,10 +1769,6 @@ db_print_tflags(u_int t_flags)
 		db_printf("%sTF_NOPUSH", comma ? ", " : "");
 		comma = 1;
 	}
-	if (t_flags & TF_NOPUSH) {
-		db_printf("%sTF_NOPUSH", comma ? ", " : "");
-		comma = 1;
-	}
 	if (t_flags & TF_MORETOCOME) {
 		db_printf("%sTF_MORETOCOME", comma ? ", " : "");
 		comma = 1;
@@ -1701,6 +1787,10 @@ db_print_tflags(u_int t_flags)
 	}
 	if (t_flags & TF_FASTRECOVERY) {
 		db_printf("%sTF_FASTRECOVERY", comma ? ", " : "");
+		comma = 1;
+	}
+	if (t_flags & TF_CONGRECOVERY) {
+		db_printf("%sTF_CONGRECOVERY", comma ? ", " : "");
 		comma = 1;
 	}
 	if (t_flags & TF_WASFRECOVERY) {
@@ -1789,26 +1879,24 @@ db_print_tcpcb(struct tcpcb *tp, const char *name, int indent)
 	    tp->rcv_adv, tp->rcv_wnd, tp->rcv_up);
 
 	db_print_indent(indent);
-	db_printf("snd_wnd: %lu   snd_cwnd: %lu   snd_bwnd: %lu\n",
-	   tp->snd_wnd, tp->snd_cwnd, tp->snd_bwnd);
+	db_printf("snd_wnd: %lu   snd_cwnd: %lu\n",
+	   tp->snd_wnd, tp->snd_cwnd);
 
 	db_print_indent(indent);
-	db_printf("snd_ssthresh: %lu   snd_bandwidth: %lu   snd_recover: "
-	    "0x%08x\n", tp->snd_ssthresh, tp->snd_bandwidth,
-	    tp->snd_recover);
+	db_printf("snd_ssthresh: %lu   snd_recover: "
+	    "0x%08x\n", tp->snd_ssthresh, tp->snd_recover);
 
 	db_print_indent(indent);
 	db_printf("t_maxopd: %u   t_rcvtime: %u   t_startime: %u\n",
 	    tp->t_maxopd, tp->t_rcvtime, tp->t_starttime);
 
 	db_print_indent(indent);
-	db_printf("t_rttime: %u   t_rtsq: 0x%08x   t_bw_rtttime: %u\n",
-	    tp->t_rtttime, tp->t_rtseq, tp->t_bw_rtttime);
+	db_printf("t_rttime: %u   t_rtsq: 0x%08x\n",
+	    tp->t_rtttime, tp->t_rtseq);
 
 	db_print_indent(indent);
-	db_printf("t_bw_rtseq: 0x%08x   t_rxtcur: %d   t_maxseg: %u   "
-	    "t_srtt: %d\n", tp->t_bw_rtseq, tp->t_rxtcur, tp->t_maxseg,
-	    tp->t_srtt);
+	db_printf("t_rxtcur: %d   t_maxseg: %u   t_srtt: %d\n",
+	    tp->t_rxtcur, tp->t_maxseg, tp->t_srtt);
 
 	db_print_indent(indent);
 	db_printf("t_rttvar: %d   t_rxtshift: %d   t_rttmin: %u   "

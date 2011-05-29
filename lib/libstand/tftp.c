@@ -110,11 +110,7 @@ static const int tftperrors[8] = {
 };
 
 static ssize_t 
-recvtftp(d, pkt, len, tleft)
-	struct iodesc *d;
-	void  *pkt;
-	ssize_t len;
-	time_t          tleft;
+recvtftp(struct iodesc *d, void *pkt, ssize_t len, time_t tleft)
 {
 	struct tftphdr *t;
 
@@ -152,14 +148,14 @@ recvtftp(d, pkt, len, tleft)
 			printf("illegal tftp error %d\n", ntohs(t->th_code));
 			errno = EIO;
 		} else {
-#ifdef DEBUG
+#ifdef TFTP_DEBUG
 			printf("tftp-error %d\n", ntohs(t->th_code));
 #endif
 			errno = tftperrors[ntohs(t->th_code)];
 		}
 		return (-1);
 	default:
-#ifdef DEBUG
+#ifdef TFTP_DEBUG
 		printf("tftp type %d not handled\n", ntohs(t->th_opcode));
 #endif
 		return (-1);
@@ -168,8 +164,7 @@ recvtftp(d, pkt, len, tleft)
 
 /* send request, expect first block (or error) */
 static int 
-tftp_makereq(h)
-	struct tftp_handle *h;
+tftp_makereq(struct tftp_handle *h)
 {
 	struct {
 		u_char header[HEADER_SIZE];
@@ -212,8 +207,7 @@ tftp_makereq(h)
 
 /* ack block, expect next */
 static int 
-tftp_getnextblock(h)
-	struct tftp_handle *h;
+tftp_getnextblock(struct tftp_handle *h)
 {
 	struct {
 		u_char header[HEADER_SIZE];
@@ -246,9 +240,7 @@ tftp_getnextblock(h)
 }
 
 static int 
-tftp_open(path, f)
-	const char *path;
-	struct open_file *f;
+tftp_open(const char *path, struct open_file *f)
 {
 	struct tftp_handle *tftpfile;
 	struct iodesc  *io;
@@ -287,11 +279,8 @@ tftp_open(path, f)
 }
 
 static int 
-tftp_read(f, addr, size, resid)
-	struct open_file *f;
-	void           *addr;
-	size_t          size;
-	size_t         *resid;	/* out */
+tftp_read(struct open_file *f, void *addr, size_t size,
+    size_t *resid /* out */)
 {
 	struct tftp_handle *tftpfile;
 	static int      tc = 0;
@@ -314,7 +303,7 @@ tftp_read(f, addr, size, resid)
 
 			res = tftp_getnextblock(tftpfile);
 			if (res) {	/* no answer */
-#ifdef DEBUG
+#ifdef TFTP_DEBUG
 				printf("tftp: read error\n");
 #endif
 				return (res);
@@ -330,7 +319,7 @@ tftp_read(f, addr, size, resid)
 
 			inbuffer = tftpfile->validsize - offinblock;
 			if (inbuffer < 0) {
-#ifdef DEBUG
+#ifdef TFTP_DEBUG
 				printf("tftp: invalid offset %d\n",
 				    tftpfile->off);
 #endif
@@ -347,7 +336,7 @@ tftp_read(f, addr, size, resid)
 			if ((tftpfile->islastblock) && (count == inbuffer))
 				break;	/* EOF */
 		} else {
-#ifdef DEBUG
+#ifdef TFTP_DEBUG
 			printf("tftp: block %d not found\n", needblock);
 #endif
 			return (EINVAL);
@@ -361,8 +350,7 @@ tftp_read(f, addr, size, resid)
 }
 
 static int 
-tftp_close(f)
-	struct open_file *f;
+tftp_close(struct open_file *f)
 {
 	struct tftp_handle *tftpfile;
 	tftpfile = (struct tftp_handle *) f->f_fsdata;
@@ -377,19 +365,14 @@ tftp_close(f)
 }
 
 static int 
-tftp_write(f, start, size, resid)
-	struct open_file *f;
-	void           *start;
-	size_t          size;
-	size_t         *resid;	/* out */
+tftp_write(struct open_file *f __unused, void *start __unused, size_t size __unused,
+    size_t *resid /* out */ __unused)
 {
 	return (EROFS);
 }
 
 static int 
-tftp_stat(f, sb)
-	struct open_file *f;
-	struct stat    *sb;
+tftp_stat(struct open_file *f, struct stat    *sb)
 {
 	struct tftp_handle *tftpfile;
 	tftpfile = (struct tftp_handle *) f->f_fsdata;
@@ -403,10 +386,7 @@ tftp_stat(f, sb)
 }
 
 static off_t 
-tftp_seek(f, offset, where)
-	struct open_file *f;
-	off_t           offset;
-	int             where;
+tftp_seek(struct open_file *f, off_t offset, int where)
 {
 	struct tftp_handle *tftpfile;
 	tftpfile = (struct tftp_handle *) f->f_fsdata;

@@ -12,7 +12,7 @@
 #define CONFIG_X86_PAE
 #endif
 
-#if defined(XEN) && !defined(__XEN_INTERFACE_VERSION__) 
+#if !defined(__XEN_INTERFACE_VERSION__) 
 /* 
  * Can update to a more recent version when we implement 
  * the hypercall page 
@@ -95,6 +95,8 @@ void printk(const char *fmt, ...);
 /* some function prototypes */
 void trap_init(void);
 
+#ifndef XENHVM
+
 /*
  * STI/CLI equivalents. These basically set and clear the virtual
  * event_enable flag in teh shared_info structure. Note that when
@@ -164,6 +166,7 @@ do {                                                                    \
 #define spin_lock_irqsave mtx_lock_irqsave
 #define spin_unlock_irqrestore mtx_unlock_irqrestore
 
+#endif
 
 #ifdef SMP
 #define smp_mb() mb() 

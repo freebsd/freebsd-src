@@ -249,8 +249,8 @@ VGLFilledBox(VGLBitmap *object, int x1, int y1, int x2, int y2, u_long color)
   for (y=y1; y<=y2; y++) VGLLine(object, x1, y, x2, y, color);
 }
 
-void
-inline set4pixels(VGLBitmap *object, int x, int y, int xc, int yc, u_long color) 
+static inline void
+set4pixels(VGLBitmap *object, int x, int y, int xc, int yc, u_long color)
 {
   if (x!=0) { 
     VGLSetXY(object, xc+x, yc+y, color); 
@@ -290,8 +290,8 @@ VGLEllipse(VGLBitmap *object, int xc, int yc, int a, int b, u_long color)
   }
 }
 
-void
-inline set2lines(VGLBitmap *object, int x, int y, int xc, int yc, u_long color) 
+static inline void
+set2lines(VGLBitmap *object, int x, int y, int xc, int yc, u_long color)
 {
   if (x!=0) { 
     VGLLine(object, xc+x, yc+y, xc-x, yc+y, color); 

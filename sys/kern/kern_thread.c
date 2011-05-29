@@ -40,12 +40,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
 #include <sys/smp.h>
-#include <sys/sysctl.h>
 #include <sys/sched.h>
 #include <sys/sleepqueue.h>
 #include <sys/selinfo.h>
 #include <sys/turnstile.h>
 #include <sys/ktr.h>
+#include <sys/rwlock.h>
 #include <sys/umtx.h>
 #include <sys/cpuset.h>
 #ifdef	HWPMC_HOOKS
@@ -64,24 +64,59 @@ __FBSDID("$FreeBSD$");
  */
 static uma_zone_t thread_zone;
 
-SYSCTL_NODE(_kern, OID_AUTO, threads, CTLFLAG_RW, 0, "thread allocation");
-
-int max_threads_per_proc = 1500;
-SYSCTL_INT(_kern_threads, OID_AUTO, max_threads_per_proc, CTLFLAG_RW,
-	&max_threads_per_proc, 0, "Limit on threads per proc");
-
-int max_threads_hits;
-SYSCTL_INT(_kern_threads, OID_AUTO, max_threads_hits, CTLFLAG_RD,
-	&max_threads_hits, 0, "");
-
 TAILQ_HEAD(, thread) zombie_threads = TAILQ_HEAD_INITIALIZER(zombie_threads);
 static struct mtx zombie_lock;
 MTX_SYSINIT(zombie_lock, &zombie_lock, "zombie lock", MTX_SPIN);
 
 static void thread_zombie(struct thread *);
 
+#define TID_BUFFER_SIZE	1024
+
 struct mtx tid_lock;
 static struct unrhdr *tid_unrhdr;
+static lwpid_t tid_buffer[TID_BUFFER_SIZE];
+static int tid_head, tid_tail;
+static MALLOC_DEFINE(M_TIDHASH, "tidhash", "thread hash");
+
+struct	tidhashhead *tidhashtbl;
+u_long	tidhash;
+struct	rwlock tidhash_lock;
+
+static lwpid_t
+tid_alloc(void)
+{
+	lwpid_t	tid;
+
+	tid = alloc_unr(tid_unrhdr);
+	if (tid != -1)
+		return (tid);
+	mtx_lock(&tid_lock);
+	if (tid_head == tid_tail) {
+		mtx_unlock(&tid_lock);
+		return (-1);
+	}
+	tid = tid_buffer[tid_head++];
+	tid_head %= TID_BUFFER_SIZE;
+	mtx_unlock(&tid_lock);
+	return (tid);
+}
+
+static void
+tid_free(lwpid_t tid)
+{
+	lwpid_t tmp_tid = -1;
+
+	mtx_lock(&tid_lock);
+	if ((tid_tail + 1) % TID_BUFFER_SIZE == tid_head) {
+		tmp_tid = tid_buffer[tid_head++];
+		tid_head = (tid_head + 1) % TID_BUFFER_SIZE;
+	}
+	tid_buffer[tid_tail++] = tid;
+	tid_tail %= TID_BUFFER_SIZE;
+	mtx_unlock(&tid_lock);
+	if (tmp_tid != -1)
+		free_unr(tid_unrhdr, tmp_tid);
+}
 
 /*
  * Prepare a thread for use.
@@ -95,8 +130,7 @@ thread_ctor(void *mem, int size, void *arg, int flags)
 	td->td_state = TDS_INACTIVE;
 	td->td_oncpu = NOCPU;
 
-	td->td_tid = alloc_unr(tid_unrhdr);
-	td->td_syscalls = 0;
+	td->td_tid = tid_alloc();
 
 	/*
 	 * Note that td_critnest begins life as 1 because the thread is not
@@ -104,6 +138,7 @@ thread_ctor(void *mem, int size, void *arg, int flags)
 	 * end of a context switch.
 	 */
 	td->td_critnest = 1;
+	td->td_lend_user_pri = PRI_MAX;
 	EVENTHANDLER_INVOKE(thread_ctor, td);
 #ifdef AUDIT
 	audit_thread_alloc(td);
@@ -149,7 +184,7 @@ thread_dtor(void *mem, int size, void *arg)
 	osd_thread_exit(td);
 
 	EVENTHANDLER_INVOKE(thread_dtor, td);
-	free_unr(tid_unrhdr, td->td_tid);
+	tid_free(td->td_tid);
 }
 
 /*
@@ -231,6 +266,8 @@ threadinit(void)
 	thread_zone = uma_zcreate("THREAD", sched_sizeof_thread(),
 	    thread_ctor, thread_dtor, thread_init, thread_fini,
 	    16 - 1, 0);
+	tidhashtbl = hashinit(maxproc / 2, M_TIDHASH, &tidhash);
+	rw_init(&tidhash_lock, "tidhash");
 }
 
 /*
@@ -398,7 +435,7 @@ thread_exit(void)
 
 			/*
 			 * The test below is NOT true if we are the
-			 * sole exiting thread. P_STOPPED_SNGL is unset
+			 * sole exiting thread. P_STOPPED_SINGLE is unset
 			 * in exit1() after it is the only survivor.
 			 */
 			if (P_SHOULDSTOP(p) == P_STOPPED_SINGLE) {
@@ -430,9 +467,8 @@ thread_exit(void)
 		PMC_SWITCH_CONTEXT(td, PMC_FN_CSW_OUT);
 #endif
 	PROC_UNLOCK(p);
+	ruxagg(p, td);
 	thread_lock(td);
-	/* Save our tick information with both the thread and proc locked */
-	ruxagg(&p->p_rux, td);
 	PROC_SUNLOCK(p);
 	td->td_state = TDS_INACTIVE;
 #ifdef WITNESS
@@ -739,19 +775,23 @@ thread_suspend_check(int return_instead)
 		    (p->p_flag & P_SINGLE_BOUNDARY) && return_instead)
 			return (ERESTART);
 
-		/* If thread will exit, flush its pending signals */
-		if ((p->p_flag & P_SINGLE_EXIT) && (p->p_singlethread != td))
-			sigqueue_flush(&td->td_sigqueue);
-
-		PROC_SLOCK(p);
-		thread_stopped(p);
 		/*
 		 * If the process is waiting for us to exit,
 		 * this thread should just suicide.
 		 * Assumes that P_SINGLE_EXIT implies P_STOPPED_SINGLE.
 		 */
-		if ((p->p_flag & P_SINGLE_EXIT) && (p->p_singlethread != td))
+		if ((p->p_flag & P_SINGLE_EXIT) && (p->p_singlethread != td)) {
+			PROC_UNLOCK(p);
+			tidhash_remove(td);
+			PROC_LOCK(p);
+			tdsigcleanup(td);
+			PROC_SLOCK(p);
+			thread_stopped(p);
 			thread_exit();
+		}
+
+		PROC_SLOCK(p);
+		thread_stopped(p);
 		if (P_SHOULDSTOP(p) == P_STOPPED_SINGLE) {
 			if (p->p_numthreads == p->p_suspcount + 1) {
 				thread_lock(p->p_singlethread);
@@ -924,4 +964,58 @@ thread_find(struct proc *p, lwpid_t tid)
 			break;
 	}
 	return (td);
+}
+
+/* Locate a thread by number; return with proc lock held. */
+struct thread *
+tdfind(lwpid_t tid, pid_t pid)
+{
+#define RUN_THRESH	16
+	struct thread *td;
+	int run = 0;
+
+	rw_rlock(&tidhash_lock);
+	LIST_FOREACH(td, TIDHASH(tid), td_hash) {
+		if (td->td_tid == tid) {
+			if (pid != -1 && td->td_proc->p_pid != pid) {
+				td = NULL;
+				break;
+			}
+			PROC_LOCK(td->td_proc);
+			if (td->td_proc->p_state == PRS_NEW) {
+				PROC_UNLOCK(td->td_proc);
+				td = NULL;
+				break;
+			}
+			if (run > RUN_THRESH) {
+				if (rw_try_upgrade(&tidhash_lock)) {
+					LIST_REMOVE(td, td_hash);
+					LIST_INSERT_HEAD(TIDHASH(td->td_tid),
+						td, td_hash);
+					rw_wunlock(&tidhash_lock);
+					return (td);
+				}
+			}
+			break;
+		}
+		run++;
+	}
+	rw_runlock(&tidhash_lock);
+	return (td);
+}
+
+void
+tidhash_add(struct thread *td)
+{
+	rw_wlock(&tidhash_lock);
+	LIST_INSERT_HEAD(TIDHASH(td->td_tid), td, td_hash);
+	rw_wunlock(&tidhash_lock);
+}
+
+void
+tidhash_remove(struct thread *td)
+{
+	rw_wlock(&tidhash_lock);
+	LIST_REMOVE(td, td_hash);
+	rw_wunlock(&tidhash_lock);
 }

@@ -33,9 +33,9 @@ THIS SOFTWARE.
 
  char *
 #ifdef KR_headers
-g_ddfmt(buf, dd, ndig, bufsize) char *buf; double *dd; int ndig; size_t bufsize;
+g_ddfmt(buf, dd0, ndig, bufsize) char *buf; double *dd0; int ndig; size_t bufsize;
 #else
-g_ddfmt(char *buf, double *dd, int ndig, size_t bufsize)
+g_ddfmt(char *buf, double *dd0, int ndig, size_t bufsize)
 #endif
 {
 	FPI fpi;
@@ -43,7 +43,7 @@ g_ddfmt(char *buf, double *dd, int ndig, size_t bufsize)
 	ULong *L, bits0[4], *bits, *zx;
 	int bx, by, decpt, ex, ey, i, j, mode;
 	Bigint *x, *y, *z;
-	double ddx[2];
+	U *dd, ddx[2];
 #ifdef Honor_FLT_ROUNDS /*{{*/
 	int Rounding;
 #ifdef Trust_FLT_ROUNDS /*{{ only define this if FLT_ROUNDS really works! */
@@ -63,7 +63,8 @@ g_ddfmt(char *buf, double *dd, int ndig, size_t bufsize)
 	if (bufsize < 10 || bufsize < ndig + 8)
 		return 0;
 
-	L = (ULong*)dd;
+	dd = (U*)dd0;
+	L = dd->L;
 	if ((L[_0] & 0x7ff00000L) == 0x7ff00000L) {
 		/* Infinity or NaN */
 		if (L[_0] & 0xfffff || L[_1]) {
@@ -88,7 +89,7 @@ g_ddfmt(char *buf, double *dd, int ndig, size_t bufsize)
 			goto nanret;
 		goto infret;
 		}
-	if (dd[0] + dd[1] == 0.) {
+	if (dval(&dd[0]) + dval(&dd[1]) == 0.) {
 		b = buf;
 #ifndef IGNORE_ZERO_SIGN
 		if (L[_0] & L[2+_0] & 0x80000000L)
@@ -99,16 +100,16 @@ g_ddfmt(char *buf, double *dd, int ndig, size_t bufsize)
 		return b;
 		}
 	if ((L[_0] & 0x7ff00000L) < (L[2+_0] & 0x7ff00000L)) {
-		ddx[1] = dd[0];
-		ddx[0] = dd[1];
+		dval(&ddx[1]) = dval(&dd[0]);
+		dval(&ddx[0]) = dval(&dd[1]);
 		dd = ddx;
-		L = (ULong*)dd;
+		L = dd->L;
 		}
-	z = d2b(dd[0], &ex, &bx);
-	if (dd[1] == 0.)
+	z = d2b(dval(&dd[0]), &ex, &bx);
+	if (dval(&dd[1]) == 0.)
 		goto no_y;
 	x = z;
-	y = d2b(dd[1], &ey, &by);
+	y = d2b(dval(&dd[1]), &ey, &by);
 	if ( (i = ex - ey) !=0) {
 		if (i > 0) {
 			x = lshift(x, i);

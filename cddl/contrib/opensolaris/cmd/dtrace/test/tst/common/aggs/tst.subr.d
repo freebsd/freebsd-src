@@ -26,7 +26,6 @@
 
 #pragma ident	"%Z%%M%	%I%	%E% SMI"
 
-#include <sys/dtrace.h>
 
 #define INTFUNC(x)			\
 	BEGIN				\

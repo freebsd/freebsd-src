@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/controller/ehci.h>
 #include <dev/usb/controller/ehcireg.h>
 
+#include <mips/atheros/ar71xx_setup.h>
 #include <mips/atheros/ar71xx_bus_space_reversed.h>
 
 #define EHCI_HC_DEVSTR		"AR71XX Integrated USB 2.0 controller"
@@ -192,6 +193,26 @@ ar71xx_ehci_attach(device_t self)
 	 * register following a port enable.
 	 */
 	sc->sc_flags = EHCI_SCFLG_SETMODE;
+
+	switch (ar71xx_soc) {
+		case AR71XX_SOC_AR7241:
+		case AR71XX_SOC_AR7242:
+		case AR71XX_SOC_AR9130:
+		case AR71XX_SOC_AR9132:
+			sc->sc_flags |= EHCI_SCFLG_TT | EHCI_SCFLG_NORESTERM;
+			break;
+		default:
+			/* fallthrough */
+			break;
+	}
+
+	/*
+	 * ehci_reset() needs the correct offset to access the host controller
+	 * registers. The AR724x/AR913x offsets aren't 0.
+	*/
+	sc->sc_offs = EHCI_CAPLENGTH(EREAD4(sc, EHCI_CAPLEN_HCIVERSION));
+
+
 	(void) ehci_reset(sc);
 
 	err = ehci_init(sc);
@@ -224,13 +245,6 @@ ar71xx_ehci_detach(device_t self)
 	}
 	/* during module unload there are lots of children leftover */
 	device_delete_all_children(self);
-
-	/*
-	 * disable interrupts that might have been switched on in ehci_init
-	 */
-	if (sc->sc_io_res) {
-		EWRITE4(sc, EHCI_USBINTR, 0);
-	}
 
  	if (sc->sc_irq_res && sc->sc_intr_hdl) {
 		/*

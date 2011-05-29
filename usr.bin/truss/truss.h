@@ -1,5 +1,5 @@
 /*
- * Copryight 2001 Jamey Wood
+ * Copyright 2001 Jamey Wood
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions

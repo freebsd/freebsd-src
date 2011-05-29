@@ -484,28 +484,31 @@ apm_do_suspend(void)
 	apm_op_inprog = 0;
 	sc->suspends = sc->suspend_countdown = 0;
 
+	EVENTHANDLER_INVOKE(power_suspend);
+
 	/*
 	 * Be sure to hold Giant across DEVICE_SUSPEND/RESUME since
 	 * non-MPSAFE drivers need this.
 	 */
 	mtx_lock(&Giant);
 	error = DEVICE_SUSPEND(root_bus);
-	if (error) {
-		mtx_unlock(&Giant);
-		return;
-	}
+	if (error)
+		goto backout;
 
 	apm_execute_hook(hook[APM_HOOK_SUSPEND]);
 	if (apm_suspend_system(PMST_SUSPEND) == 0) {
 		sc->suspending = 1;
 		apm_processevent();
-	} else {
-		/* Failure, 'resume' the system again */
-		apm_execute_hook(hook[APM_HOOK_RESUME]);
-		DEVICE_RESUME(root_bus);
+		mtx_unlock(&Giant);
+		return;
 	}
+
+	/* Failure, 'resume' the system again */
+	apm_execute_hook(hook[APM_HOOK_RESUME]);
+	DEVICE_RESUME(root_bus);
+backout:
 	mtx_unlock(&Giant);
-	return;
+	EVENTHANDLER_INVOKE(power_resume);
 }
 
 static void
@@ -612,7 +615,7 @@ apm_resume(void)
 	mtx_lock(&Giant);
 	DEVICE_RESUME(root_bus);
 	mtx_unlock(&Giant);
-	return;
+	EVENTHANDLER_INVOKE(power_resume);
 }
 
 
@@ -1389,6 +1392,23 @@ apmioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td
 			return (EPERM);
 		/* XXX compatibility with the old interface */
 		args = (struct apm_bios_arg *)addr;
+#ifdef PC98
+		if (((args->eax >> 8) & 0xff) == 0x53) {
+			sc->bios.r.eax = args->eax & ~0xffff;
+			sc->bios.r.eax |= APM_BIOS << 8;
+			switch (args->eax & 0xff) {
+			case 0x0a:
+				sc->bios.r.eax |= APM_GETPWSTATUS;
+				break;
+			case 0x0e:
+				sc->bios.r.eax |= APM_DRVVERSION;
+				break;
+			default:
+				sc->bios.r.eax |= args->eax & 0xff;
+				break;
+			}
+		} else
+#endif
 		sc->bios.r.eax = args->eax;
 		sc->bios.r.ebx = args->ebx;
 		sc->bios.r.ecx = args->ecx;

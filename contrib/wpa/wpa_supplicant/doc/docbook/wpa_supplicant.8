@@ -3,7 +3,7 @@
 .\" <http://shell.ipoline.com/~elmert/comp/docbook2X/> 
 .\" Please send any bug reports, improvements, comments, patches, 
 .\" etc. to Steve Cheng <steve@ggi-project.org>.
-.TH "WPA_SUPPLICANT" "8" "15 February 2009" "" ""
+.TH "WPA_SUPPLICANT" "8" "07 September 2010" "" ""
 
 .SH NAME
 wpa_supplicant \- Wi-Fi Protected Access client and IEEE 802.1X supplicant
@@ -283,8 +283,8 @@ Increase debugging verbosity (\fB-dd\fR even
 more).
 .TP
 \fB-D driver\fR
-Driver to use. (Per interface, see the available options
-below.)
+Driver to use (can be multiple drivers: nl80211,wext).
+(Per interface, see the available options below.)
 .TP
 \fB-f output file\fR
 Log output to specified file instead of stdout.
@@ -349,6 +349,18 @@ foreground with debugging enabled:
 
 .nf
 wpa_supplicant -c/etc/wpa_supplicant.conf -iwlan0 -d
+.fi
+.RE
+.PP
+If the specific driver wrapper is not known beforehand, it is
+possible to specify multiple comma separated driver wrappers on the command
+line. \fBwpa_supplicant\fR will use the first driver
+wrapper that is able to initialize the interface.
+.sp
+.RS
+
+.nf
+wpa_supplicant -Dnl80211,wext -c/etc/wpa_supplicant.conf -iwlan0
 .fi
 .RE
 .PP

@@ -28,11 +28,12 @@
 
 #include <sys/param.h>
 #include <sys/bus.h>
+#include <machine/md_var.h>
+#include <machine/pal.h>
 
 #include <contrib/dev/acpica/include/acpi.h>
-
+#include <contrib/dev/acpica/include/actables.h>
 #include <dev/acpica/acpivar.h>
-#include <machine/pal.h>
 
 int
 acpi_machdep_init(device_t dev)
@@ -56,4 +57,38 @@ void
 acpi_cpu_c1()
 {
 	ia64_call_pal_static(PAL_HALT_LIGHT, 0, 0, 0);
+}
+
+void *
+acpi_find_table(const char *sig)
+{
+	ACPI_PHYSICAL_ADDRESS rsdp_ptr;
+	ACPI_TABLE_RSDP *rsdp;
+	ACPI_TABLE_XSDT *xsdt;
+	ACPI_TABLE_HEADER *table;
+	UINT64 addr;
+	u_int i, count;
+
+	if ((rsdp_ptr = AcpiOsGetRootPointer()) == 0)
+		return (NULL);
+
+	rsdp = (ACPI_TABLE_RSDP *)IA64_PHYS_TO_RR7(rsdp_ptr);
+	xsdt = (ACPI_TABLE_XSDT *)IA64_PHYS_TO_RR7(rsdp->XsdtPhysicalAddress);
+
+	count = (UINT64 *)((char *)xsdt + xsdt->Header.Length) -
+	    xsdt->TableOffsetEntry;
+
+	for (i = 0; i < count; i++) {
+		addr = xsdt->TableOffsetEntry[i];
+		table = (ACPI_TABLE_HEADER *)IA64_PHYS_TO_RR7(addr);
+
+		if (strncmp(table->Signature, sig, ACPI_NAME_SIZE) != 0)
+			continue;
+		if (ACPI_FAILURE(AcpiTbChecksum((void *)table, table->Length)))
+			continue;
+
+		return (table);
+	}
+
+	return (NULL);
 }

@@ -78,7 +78,7 @@
 
 /*
  * IPv6 port allocation rules should mirror the IPv4 rules and are controlled
- * by the the net.inet.ip.portrange sysctl tree. The following defines exist
+ * by the net.inet.ip.portrange sysctl tree. The following defines exist
  * for compatibility with userland applications that need them.
  */
 #if __BSD_VISIBLE
@@ -397,8 +397,8 @@ struct route_in6 {
 #define IPV6_MULTICAST_IF	9  /* u_int; set/get IP6 multicast i/f  */
 #define IPV6_MULTICAST_HOPS	10 /* int; set/get IP6 multicast hops */
 #define IPV6_MULTICAST_LOOP	11 /* u_int; set/get IP6 multicast loopback */
-#define IPV6_JOIN_GROUP		12 /* ip6_mreq; join a group membership */
-#define IPV6_LEAVE_GROUP	13 /* ip6_mreq; leave a group membership */
+#define IPV6_JOIN_GROUP		12 /* ipv6_mreq; join a group membership */
+#define IPV6_LEAVE_GROUP	13 /* ipv6_mreq; leave a group membership */
 #define IPV6_PORTRANGE		14 /* int; range to choose for unspec port */
 #define ICMP6_FILTER		18 /* icmp6_filter; icmp6 filter */
 /* RFC2292 options */

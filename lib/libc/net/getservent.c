@@ -37,7 +37,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#include <db.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <limits.h>
 #include <netdb.h>
 #include <nsswitch.h>
@@ -93,6 +95,19 @@ NSS_TLS_HANDLING(files);
 
 static int files_servent(void *, void *, va_list);
 static int files_setservent(void *, void *, va_list);
+
+/* db backend declarations */
+struct db_state
+{
+        DB *db;
+	int stayopen;
+	int keynum;
+};
+static void db_endstate(void *);
+NSS_TLS_HANDLING(db);
+
+static int db_servent(void *, void *, va_list);
+static int db_setservent(void *, void *, va_list);
 
 #ifdef YP
 /* nis backend declarations */
@@ -207,6 +222,32 @@ servent_unpack(char *p, struct servent *serv, char **aliases,
 	return 0;
 }
 
+static int
+parse_result(struct servent *serv, char *buffer, size_t bufsize,
+    char *resultbuf, size_t resultbuflen, int *errnop)
+{
+	char **aliases;
+	int aliases_size;
+
+	if (bufsize <= resultbuflen + _ALIGNBYTES + sizeof(char *)) {
+		*errnop = ERANGE;
+		return (NS_RETURN);
+	}
+	aliases = (char **)_ALIGN(&buffer[resultbuflen + 1]);
+	aliases_size = (buffer + bufsize - (char *)aliases) / sizeof(char *);
+	if (aliases_size < 1) {
+		*errnop = ERANGE;
+		return (NS_RETURN);
+	}
+
+	memcpy(buffer, resultbuf, resultbuflen);
+	buffer[resultbuflen] = '\0';
+
+	if (servent_unpack(buffer, serv, aliases, aliases_size, errnop) != 0)
+		return ((*errnop == 0) ? NS_NOTFOUND : NS_RETURN);
+	return (NS_SUCCESS);
+}
+
 /* files backend implementation */
 static	void
 files_endstate(void *p)
@@ -237,6 +278,8 @@ files_servent(void *retval, void *mdata, va_list ap)
 		{ NULL, 0 }
 	};
 	ns_dtab compat_dtab[] = {
+		{ NSSRC_DB, db_servent,
+			(void *)((struct servent_mdata *)mdata)->how },
 #ifdef YP
 		{ NSSRC_NIS, nis_servent,
 			(void *)((struct servent_mdata *)mdata)->how },
@@ -258,8 +301,6 @@ files_servent(void *retval, void *mdata, va_list ap)
 	size_t bufsize;
 	int *errnop;
 
-	char **aliases;
-	int aliases_size;
 	size_t linesize;
 	char *line;
 	char **cp;
@@ -315,28 +356,8 @@ files_servent(void *retval, void *mdata, va_list ap)
 				break;
 			}
 
-			if (*line=='+') {
-				if (serv_mdata->compat_mode != 0)
-					st->compat_mode_active = 1;
-			} else {
-				if (bufsize <= linesize + _ALIGNBYTES +
-				    sizeof(char *)) {
-					*errnop = ERANGE;
-					rv = NS_RETURN;
-					break;
-				}
-				aliases = (char **)_ALIGN(&buffer[linesize+1]);
-				aliases_size = (buffer + bufsize -
-				    (char *)aliases) / sizeof(char *);
-				if (aliases_size < 1) {
-					*errnop = ERANGE;
-					rv = NS_RETURN;
-					break;
-				}
-
-				memcpy(buffer, line, linesize);
-				buffer[linesize] = '\0';
-			}
+			if (*line=='+' && serv_mdata->compat_mode != 0)
+				st->compat_mode_active = 1;
 		}
 
 		if (st->compat_mode_active != 0) {
@@ -367,18 +388,12 @@ files_servent(void *retval, void *mdata, va_list ap)
 			continue;
 		}
 
-		rv = servent_unpack(buffer, serv, aliases, aliases_size,
+		rv = parse_result(serv, buffer, bufsize, line, linesize,
 		    errnop);
-		if (rv !=0 ) {
-			if (*errnop == 0) {
-				rv = NS_NOTFOUND;
-				continue;
-			}
-			else {
-				rv = NS_RETURN;
-				break;
-			}
-		}
+		if (rv == NS_NOTFOUND)
+			continue;
+		if (rv == NS_RETURN)
+			break;
 
 		rv = NS_NOTFOUND;
 		switch (serv_mdata->how) {
@@ -454,6 +469,183 @@ files_setservent(void *retval, void *mdata, va_list ap)
 	return (NS_UNAVAIL);
 }
 
+/* db backend implementation */
+static	void
+db_endstate(void *p)
+{
+	DB *db;
+
+	if (p == NULL)
+		return;
+
+	db = ((struct db_state *)p)->db;
+	if (db != NULL)
+		db->close(db);
+
+	free(p);
+}
+
+static int
+db_servent(void *retval, void *mdata, va_list ap)
+{
+	char buf[BUFSIZ];
+	DBT key, data, *result;
+	DB *db;
+
+	struct db_state *st;
+	int rv;
+	int stayopen;
+
+	enum nss_lookup_type how;
+	char *name;
+	char *proto;
+	int port;
+
+	struct servent *serv;
+	char *buffer;
+	size_t bufsize;
+	int *errnop;
+
+	name = NULL;
+	proto = NULL;
+	how = (enum nss_lookup_type)mdata;
+	switch (how) {
+	case nss_lt_name:
+		name = va_arg(ap, char *);
+		proto = va_arg(ap, char *);
+		break;
+	case nss_lt_id:
+		port = va_arg(ap, int);
+		proto = va_arg(ap, char *);
+		break;
+	case nss_lt_all:
+		break;
+	default:
+		return NS_NOTFOUND;
+	};
+
+	serv = va_arg(ap, struct servent *);
+	buffer  = va_arg(ap, char *);
+	bufsize = va_arg(ap, size_t);
+	errnop = va_arg(ap,int *);
+
+	*errnop = db_getstate(&st);
+	if (*errnop != 0)
+		return (NS_UNAVAIL);
+
+	if (how == nss_lt_all && st->keynum < 0)
+		return (NS_NOTFOUND);
+
+	if (st->db == NULL) {
+		st->db = dbopen(_PATH_SERVICES_DB, O_RDONLY, 0, DB_HASH, NULL);
+		if (st->db == NULL) {
+			*errnop = errno;
+			return (NS_UNAVAIL);
+		}
+	}
+
+	stayopen = (how == nss_lt_all) ? 1 : st->stayopen;
+	db = st->db;
+
+	do {
+		switch (how) {
+		case nss_lt_name:
+			key.data = buf;
+			if (proto == NULL)
+				key.size = snprintf(buf, sizeof(buf),
+				    "\376%s", name);
+			else
+				key.size = snprintf(buf, sizeof(buf),
+				    "\376%s/%s", name, proto);
+			key.size++;
+			if (db->get(db, &key, &data, 0) != 0 ||
+			    db->get(db, &data, &key, 0) != 0) {
+				rv = NS_NOTFOUND;
+				goto db_fin;
+			}
+			result = &key;
+			break;
+		case nss_lt_id:
+			key.data = buf;
+			port = htons(port);
+			if (proto == NULL)
+				key.size = snprintf(buf, sizeof(buf),
+				    "\377%d", port);
+			else
+				key.size = snprintf(buf, sizeof(buf),
+				    "\377%d/%s", port, proto);
+			key.size++;
+			if (db->get(db, &key, &data, 0) != 0 ||
+			    db->get(db, &data, &key, 0) != 0) {
+				rv = NS_NOTFOUND;
+				goto db_fin;
+			}
+			result = &key;
+			break;
+		case nss_lt_all:
+			key.data = buf;
+			key.size = snprintf(buf, sizeof(buf), "%d",
+			    st->keynum++);
+			key.size++;
+			if (db->get(db, &key, &data, 0) != 0) {
+				st->keynum = -1;
+				rv = NS_NOTFOUND;
+				goto db_fin;
+			}
+			result = &data;
+			break;
+		}
+
+		rv = parse_result(serv, buffer, bufsize, result->data,
+		    result->size - 1, errnop);
+
+	} while (!(rv & NS_TERMINATE) && how == nss_lt_all);
+
+db_fin:
+	if (!stayopen && st->db != NULL) {
+		db->close(db);
+		st->db = NULL;
+	}
+
+	if (rv == NS_SUCCESS && retval != NULL)
+		*(struct servent **)retval = serv;
+
+	return (rv);
+}
+
+static int
+db_setservent(void *retval, void *mdata, va_list ap)
+{
+	DB *db;
+	struct db_state *st;
+	int rv;
+	int f;
+
+	rv = db_getstate(&st);
+	if (rv != 0)
+		return (NS_UNAVAIL);
+
+	switch ((enum constants)mdata) {
+	case SETSERVENT:
+		f = va_arg(ap, int);
+		st->stayopen |= f;
+		st->keynum = 0;
+		break;
+	case ENDSERVENT:
+		db = st->db;
+		if (db != NULL) {
+			db->close(db);
+			st->db = NULL;
+		}
+		st->stayopen = 0;
+		break;
+	default:
+		break;
+	};
+
+	return (NS_UNAVAIL);
+}
+
 /* nis backend implementation */
 #ifdef YP
 static 	void
@@ -485,9 +677,6 @@ nis_servent(void *retval, void *mdata, va_list ap)
 	char *buffer;
 	size_t bufsize;
 	int *errnop;
-
-	char **aliases;
-	int aliases_size;
 
 	name = NULL;
 	proto = NULL;
@@ -594,39 +783,8 @@ nis_servent(void *retval, void *mdata, va_list ap)
 			break;
 		};
 
-		/* we need a room for additional \n symbol */
-		if (bufsize <=
-		    resultbuflen + 1 + _ALIGNBYTES + sizeof(char *)) {
-			*errnop = ERANGE;
-			rv = NS_RETURN;
-			break;
-		}
-
-		aliases = (char **)_ALIGN(&buffer[resultbuflen + 2]);
-		aliases_size =
-		    (buffer + bufsize - (char *)aliases) / sizeof(char *);
-		if (aliases_size < 1) {
-			*errnop = ERANGE;
-			rv = NS_RETURN;
-			break;
-		}
-
-		/*
-		 * servent_unpack expects lines terminated with \n --
-		 * make it happy
-		 */
-		memcpy(buffer, resultbuf, resultbuflen);
-		buffer[resultbuflen] = '\n';
-		buffer[resultbuflen + 1] = '\0';
-
-		if (servent_unpack(buffer, serv, aliases, aliases_size,
-		    errnop) != 0) {
-			if (*errnop == 0)
-				rv = NS_NOTFOUND;
-			else
-				rv = NS_RETURN;
-		} else
-			rv = NS_SUCCESS;
+		rv = parse_result(serv, buffer, bufsize, resultbuf,
+		    resultbuflen, errnop);
 		free(resultbuf);
 
 	} while (!(rv & NS_TERMINATE) && how == nss_lt_all);
@@ -674,6 +832,7 @@ compat_setservent(void *retval, void *mdata, va_list ap)
 		{ NULL, 0 }
 	};
 	ns_dtab compat_dtab[] = {
+		{ NSSRC_DB, db_setservent, mdata },
 #ifdef YP
 		{ NSSRC_NIS, nis_setservent, mdata },
 #endif
@@ -960,6 +1119,7 @@ getservbyname_r(const char *name, const char *proto, struct servent *serv,
 #endif /* NS_CACHING */
 	static const ns_dtab dtab[] = {
 		{ NSSRC_FILES, files_servent, (void *)&mdata },
+		{ NSSRC_DB, db_servent, (void *)nss_lt_name },
 #ifdef YP
 		{ NSSRC_NIS, nis_servent, (void *)nss_lt_name },
 #endif
@@ -996,6 +1156,7 @@ getservbyport_r(int port, const char *proto, struct servent *serv,
 #endif
 	static const ns_dtab dtab[] = {
 		{ NSSRC_FILES, files_servent, (void *)&mdata },
+		{ NSSRC_DB, db_servent, (void *)nss_lt_id },
 #ifdef YP
 		{ NSSRC_NIS, nis_servent, (void *)nss_lt_id },
 #endif
@@ -1031,6 +1192,7 @@ getservent_r(struct servent *serv, char *buffer, size_t bufsize,
 #endif
 	static const ns_dtab dtab[] = {
 		{ NSSRC_FILES, files_servent, (void *)&mdata },
+		{ NSSRC_DB, db_servent, (void *)nss_lt_all },
 #ifdef YP
 		{ NSSRC_NIS, nis_servent, (void *)nss_lt_all },
 #endif
@@ -1063,6 +1225,7 @@ setservent(int stayopen)
 #endif
 	static const ns_dtab dtab[] = {
 		{ NSSRC_FILES, files_setservent, (void *)SETSERVENT },
+		{ NSSRC_DB, db_setservent, (void *)SETSERVENT },
 #ifdef YP
 		{ NSSRC_NIS, nis_setservent, (void *)SETSERVENT },
 #endif
@@ -1087,6 +1250,7 @@ endservent()
 #endif
 	static const ns_dtab dtab[] = {
 		{ NSSRC_FILES, files_setservent, (void *)ENDSERVENT },
+		{ NSSRC_DB, db_setservent, (void *)ENDSERVENT },
 #ifdef YP
 		{ NSSRC_NIS, nis_setservent, (void *)ENDSERVENT },
 #endif

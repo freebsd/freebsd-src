@@ -42,6 +42,8 @@ __FBSDID("$FreeBSD$");
 
 #include <geom/linux_lvm/g_linux_lvm.h>
 
+FEATURE(geom_linux_lvm, "GEOM Linux LVM partitioning support");
+
 /* Declare malloc(9) label */
 static MALLOC_DEFINE(M_GLLVM, "gllvm", "GEOM_LINUX_LVM Data");
 

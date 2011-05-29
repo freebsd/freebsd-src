@@ -74,7 +74,7 @@ strtoIg(CONST char *s00, char **se, FPI *fpi, Long *exp, Bigint **B, int *rvp)
 			goto swapcheck;
 			}
 		if (b1->wds > nw
-		 || nb1 && b1->x[nw1] & 1L << nb1) {
+		 || (nb1 && b1->x[nw1] & 1L << nb1)) {
 			if (++e1 > fpi->emax)
 				rv1 = STRTOG_Infinite | STRTOG_Inexhi;
 			rshift(b1, 1);

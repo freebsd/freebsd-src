@@ -1,7 +1,7 @@
 .\"
 .\" $Id: pam_krb5.5,v 1.5 2000/01/05 00:59:56 fcusack Exp $
 .\" $FreeBSD$
-.Dd January 15, 1999
+.Dd May 3, 2010
 .Dt PAM_KRB5 8
 .Os
 .Sh NAME
@@ -108,6 +108,10 @@ and
 .Ql %p ,
 to designate the current process ID; can be used in
 .Ar name .
+.It Cm no_user_check
+Do not verify if a user exists on the local system. This option implies the
+.Cm no_ccache
+option because there is no secure local uid/gid for the cache file.
 .El
 .Ss Kerberos 5 Account Management Module
 The Kerberos 5 account management component

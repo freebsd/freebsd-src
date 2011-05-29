@@ -26,3 +26,5 @@ ENTRY(floorl)
 	leave
 	ret
 END(floorl)
+
+	.section .note.GNU-stack,"",%progbits

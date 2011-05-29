@@ -194,10 +194,7 @@ nfsm_uiombuf(struct nfsrv_descript *nd, struct uio *uiop, int siz)
 	int uiosiz, clflg, rem;
 	char *cp, *tcp;
 
-#ifdef DIAGNOSTIC
-	if (uiop->uio_iovcnt != 1)
-		panic("nfsm_uiotombuf: iovcnt != 1");
-#endif
+	KASSERT(uiop->uio_iovcnt == 1, ("nfsm_uiotombuf: iovcnt != 1"));
 
 	if (siz > ncl_mbuf_mlen)	/* or should it >= MCLBYTES ?? */
 		clflg = 1;
@@ -292,8 +289,7 @@ nfsm_loadattr(struct nfsrv_descript *nd, struct nfsvattr *nap)
 		nap->na_size = fxdr_hyper(&fp->fa3_size);
 		nap->na_blocksize = NFS_FABLKSIZE;
 		nap->na_bytes = fxdr_hyper(&fp->fa3_used);
-		nap->na_fileid = fxdr_unsigned(int32_t,
-		    fp->fa3_fileid.nfsuquad[1]);
+		nap->na_fileid = fxdr_hyper(&fp->fa3_fileid);
 		fxdr_nfsv3time(&fp->fa3_atime, &nap->na_atime);
 		fxdr_nfsv3time(&fp->fa3_ctime, &nap->na_ctime);
 		fxdr_nfsv3time(&fp->fa3_mtime, &nap->na_mtime);
@@ -320,7 +316,7 @@ nfsm_loadattr(struct nfsrv_descript *nd, struct nfsvattr *nap)
 		nap->na_bytes =
 		    (u_quad_t)fxdr_unsigned(int32_t, fp->fa2_blocks) *
 		    NFS_FABLKSIZE;
-		nap->na_fileid = fxdr_unsigned(int32_t, fp->fa2_fileid);
+		nap->na_fileid = fxdr_unsigned(uint64_t, fp->fa2_fileid);
 		fxdr_nfsv2time(&fp->fa2_atime, &nap->na_atime);
 		fxdr_nfsv2time(&fp->fa2_mtime, &nap->na_mtime);
 		nap->na_flags = 0;
@@ -346,10 +342,7 @@ nfscl_getcookie(struct nfsnode *np, off_t off, int add)
 
 	pos = off / NFS_DIRBLKSIZ;
 	if (pos == 0) {
-#ifdef DIAGNOSTIC
-		if (add)
-			panic("nfs getcookie add at 0");
-#endif
+		KASSERT(!add, ("nfs getcookie add at 0"));
 		return (&nfs_nullcookie);
 	}
 	pos--;
@@ -489,7 +482,7 @@ nfscl_lockexcl(struct nfsv4lock *lckp, void *mutex)
 	int igotlock;
 
 	do {
-		igotlock = nfsv4_lock(lckp, 1, NULL, mutex);
+		igotlock = nfsv4_lock(lckp, 1, NULL, mutex, NULL);
 	} while (!igotlock);
 }
 

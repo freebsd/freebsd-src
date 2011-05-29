@@ -179,18 +179,22 @@ acpi_pci_set_powerstate_method(device_t dev, device_t child, int state)
 	 */
 	ACPI_SERIAL_BEGIN(pci_powerstate);
 	old_state = pci_get_powerstate(child);
-	if (old_state < state) {
+	if (old_state < state && pci_do_power_suspend) {
 		error = pci_set_powerstate_method(dev, child, state);
 		if (error)
 			goto out;
 	}
 	h = acpi_get_handle(child);
 	status = acpi_pwr_switch_consumer(h, state);
-	if (ACPI_FAILURE(status) && status != AE_NOT_FOUND)
+	if (ACPI_SUCCESS(status)) {
+		if (bootverbose)
+			device_printf(dev, "set ACPI power state D%d on %s\n",
+			    state, acpi_name(h));
+	} else if (status != AE_NOT_FOUND)
 		device_printf(dev,
-		    "Failed to set ACPI power state D%d on %s: %s\n",
+		    "failed to set ACPI power state D%d on %s: %s\n",
 		    state, acpi_name(h), AcpiFormatException(status));
-	if (old_state > state)
+	if (old_state > state && pci_do_power_resume)
 		error = pci_set_powerstate_method(dev, child, state);
 
 out:
@@ -277,8 +281,6 @@ static int
 acpi_pci_probe(device_t dev)
 {
 
-	if (pcib_get_bus(dev) < 0)
-		return (ENXIO);
 	if (acpi_get_handle(dev) == NULL)
 		return (ENXIO);
 	device_set_desc(dev, "ACPI PCI bus");

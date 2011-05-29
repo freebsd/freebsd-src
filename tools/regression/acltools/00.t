@@ -44,7 +44,7 @@ if [ `whoami` != "root" ]; then
 	exit 1
 fi
 
-TESTDIR=`dirname $0`
+TESTDIR=$(dirname $(realpath $0))
 
 # Set up the test filesystem.
 MD=`mdconfig -at swap -s 10m`

@@ -89,7 +89,7 @@ lafe_exclude_from_file(struct lafe_matching **matching, const char *pathname)
 	const char *p;
 	int ret = 0;
 
-	lr = lafe_line_reader(pathname, '\n');
+	lr = lafe_line_reader(pathname, 0);
 	while ((p = lafe_line_reader_next(lr)) != NULL) {
 		if (lafe_exclude(matching, p) != 0)
 			ret = -1;
@@ -156,39 +156,40 @@ lafe_excluded(struct lafe_matching *matching, const char *pathname)
 	if (matching == NULL)
 		return (0);
 
+	/* Mark off any unmatched inclusions. */
+	/* In particular, if a filename does appear in the archive and
+	 * is explicitly included and excluded, then we don't report
+	 * it as missing even though we don't extract it.
+	 */
+	matched = NULL;
+	for (match = matching->inclusions; match != NULL; match = match->next){
+		if (match->matches == 0
+		    && match_inclusion(match, pathname)) {
+			matching->inclusions_unmatched_count--;
+			match->matches++;
+			matched = match;
+		}
+	}
+
 	/* Exclusions take priority */
 	for (match = matching->exclusions; match != NULL; match = match->next){
 		if (match_exclusion(match, pathname))
 			return (1);
 	}
 
-	/* Then check for inclusions */
-	matched = NULL;
-	for (match = matching->inclusions; match != NULL; match = match->next){
-		if (match_inclusion(match, pathname)) {
-			/*
-			 * If this pattern has never been matched,
-			 * then we're done.
-			 */
-			if (match->matches == 0) {
-				match->matches++;
-				matching->inclusions_unmatched_count--;
-				return (0);
-			}
-			/*
-			 * Otherwise, remember the match but keep checking
-			 * in case we can tick off an unmatched pattern.
-			 */
-			matched = match;
-		}
-	}
-	/*
-	 * We didn't find a pattern that had never been matched, but
-	 * we did find a match, so count it and exit.
-	 */
-	if (matched != NULL) {
-		matched->matches++;
+	/* It's not excluded and we found an inclusion above, so it's included. */
+	if (matched != NULL)
 		return (0);
+
+
+	/* We didn't find an unmatched inclusion, check the remaining ones. */
+	for (match = matching->inclusions; match != NULL; match = match->next){
+		/* We looked at previously-unmatched inclusions already. */
+		if (match->matches > 0
+		    && match_inclusion(match, pathname)) {
+			match->matches++;
+			return (0);
+		}
 	}
 
 	/* If there were inclusions, default is to exclude. */

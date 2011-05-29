@@ -19,10 +19,12 @@ cpu		I586_CPU
 cpu		I686_CPU
 ident		PICOBSD
 
-#options		SMP
-#device	apic
+# SMP seems to be needed for kern_et
+options		SMP
+device	apic
 
-options		SCHED_4BSD		# mandatory to have one scheduler
+options		SCHED_ULE	# mandatory to have one scheduler
+options		PREEMPTION	# needed for decent interrupt processing
 #options	MATH_EMULATE		#Support for x87 emulation
 options 	INET			#InterNETworking
 #options	INET6
@@ -115,6 +117,7 @@ device		md		# Memory "disks"
 #device		faith	1	# IPv6-to-IPv4 relaying (translation)
 device		tap
 
+#options 	VIMAGE		# soner or later we may want to test this
 #options               DEVICE_POLLING
 
 # The `bpf' device enables the Berkeley Packet Filter.

@@ -17,6 +17,8 @@
 #include "common.h"
 #include "wps_i.h"
 
+#define WPS_WORKAROUNDS
+
 
 static int wps_set_attr(struct wps_parse_attr *attr, u16 type,
 			const u8 *pos, u16 len)
@@ -111,7 +113,7 @@ static int wps_set_attr(struct wps_parse_attr *attr, u16 type,
 		attr->sel_reg_config_methods = pos;
 		break;
 	case ATTR_PRIMARY_DEV_TYPE:
-		if (len != sizeof(struct wps_dev_type)) {
+		if (len != WPS_DEV_TYPE_LEN) {
 			wpa_printf(MSG_DEBUG, "WPS: Invalid Primary Device "
 				   "Type length %u", len);
 			return -1;
@@ -149,6 +151,14 @@ static int wps_set_attr(struct wps_parse_attr *attr, u16 type,
 			return -1;
 		}
 		attr->dev_password_id = pos;
+		break;
+	case ATTR_OOB_DEVICE_PASSWORD:
+		if (len != WPS_OOB_DEVICE_PASSWORD_ATTR_LEN) {
+			wpa_printf(MSG_DEBUG, "WPS: Invalid OOB Device "
+				   "Password length %u", len);
+			return -1;
+		}
+		attr->oob_dev_password = pos;
 		break;
 	case ATTR_OS_VERSION:
 		if (len != 4) {
@@ -324,7 +334,7 @@ static int wps_set_attr(struct wps_parse_attr *attr, u16 type,
 				   "length %u", len);
 			return -1;
 		}
-		attr->request_type = pos;
+		attr->response_type = pos;
 		break;
 	case ATTR_MANUFACTURER:
 		attr->manufacturer = pos;
@@ -381,6 +391,14 @@ static int wps_set_attr(struct wps_parse_attr *attr, u16 type,
 		attr->eap_identity = pos;
 		attr->eap_identity_len = len;
 		break;
+	case ATTR_AP_SETUP_LOCKED:
+		if (len != 1) {
+			wpa_printf(MSG_DEBUG, "WPS: Invalid AP Setup Locked "
+				   "length %u", len);
+			return -1;
+		}
+		attr->ap_setup_locked = pos;
+		break;
 	default:
 		wpa_printf(MSG_DEBUG, "WPS: Unsupported attribute type 0x%x "
 			   "len=%u", type, len);
@@ -418,6 +436,25 @@ int wps_parse_msg(const struct wpabuf *msg, struct wps_parse_attr *attr)
 			wpa_printf(MSG_DEBUG, "WPS: Attribute overflow");
 			return -1;
 		}
+
+#ifdef WPS_WORKAROUNDS
+		if (type == 0 && len == 0) {
+			/*
+			 * Mac OS X 10.6 seems to be adding 0x00 padding to the
+			 * end of M1. Skip those to avoid interop issues.
+			 */
+			int i;
+			for (i = 0; i < end - pos; i++) {
+				if (pos[i])
+					break;
+			}
+			if (i == end - pos) {
+				wpa_printf(MSG_DEBUG, "WPS: Workaround - skip "
+					   "unexpected message padding");
+				break;
+			}
+		}
+#endif /* WPS_WORKAROUNDS */
 
 		if (wps_set_attr(attr, type, pos, len) < 0)
 			return -1;

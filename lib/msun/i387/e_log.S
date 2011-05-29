@@ -34,8 +34,7 @@
  */
 
 #include <machine/asm.h>
-
-RCSID("$FreeBSD$")
+__FBSDID("$FreeBSD$")
 
 ENTRY(log)
 	fldln2
@@ -43,3 +42,5 @@ ENTRY(log)
 	fyl2x
 	ret
 END(log)
+
+	.section .note.GNU-stack,"",%progbits

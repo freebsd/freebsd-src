@@ -1,10 +1,108 @@
 ChangeLog for hostapd
 
-2009-02-15 - v0.6.8
+2010-09-07 - v0.7.3
+	* fixed re-association after WPS not initializing WPA state machine in
+	  some cases
+	* fixed WPS IE update on reconfiguration
+	* fixed WPS code not to proxy Probe Request frames for foreign SSIDs
+	* added WPS workaround for open networks and some known interop issues
+	* fixed WPS Diffie-Hellman derivation to use correct public key length
+	* fixed FT RRB messages on big endian CPUs
+	* changed WPS protection for brute force AP PIN attacks to disable AP
+	  PIN only temporarily (but with increasing time) to avoid usability
+	  issues on Label-only devices
+	* added wps_ap_pin command for more secure handling of AP PIN
+	  operations (e.g., to generate a random AP PIN and only use it for
+	  short amount of time)
+	* fixed HT STBC negotiation
+
+2010-04-18 - v0.7.2
+	* fix WPS internal Registrar use when an external Registrar is also
+	  active
+	* bsd: Cleaned up driver wrapper and added various low-level
+	  configuration options
+	* TNC: fixed issues with fragmentation
+	* EAP-TNC: add Flags field into fragment acknowledgement (needed to
+	  interoperate with other implementations; may potentially breaks
+	  compatibility with older wpa_supplicant/hostapd versions)
+	* cleaned up driver wrapper API for multi-BSS operations
+	* nl80211: fix multi-BSS and VLAN operations
+	* fix number of issues with IEEE 802.11r/FT; this version is not
+	  backwards compatible with old versions
+	* add SA Query Request processing in AP mode (IEEE 802.11w)
+	* fix IGTK PN in group rekeying (IEEE 802.11w)
+	* fix WPS PBC session overlap detection to use correct attribute
+	* hostapd_notif_Assoc() can now be called with all IEs to simplify
+	  driver wrappers
+	* work around interoperability issue with some WPS External Registrar
+	  implementations
+	* nl80211: fix WPS IE update
+	* hostapd_cli: add support for action script operations (run a script
+	  on hostapd events)
+	* fix DH padding with internal crypto code (mainly, for WPS)
+	* fix WPS association with both WPS IE and WPA/RSN IE present with
+	  driver wrappers that use hostapd MLME (e.g., nl80211)
+
+2010-01-16 - v0.7.1
+	* cleaned up driver wrapper API (struct wpa_driver_ops); the new API
+	  is not fully backwards compatible, so out-of-tree driver wrappers
+	  will need modifications
+	* cleaned up various module interfaces
+	* merge hostapd and wpa_supplicant developers' documentation into a
+	  single document
+	* fixed HT Capabilities IE with nl80211 drivers
+	* moved generic AP functionality code into src/ap
+	* WPS: handle Selected Registrar as union of info from all Registrars
+	* remove obsolte Prism54.org driver wrapper
+	* added internal debugging mechanism with backtrace support and memory
+	  allocation/freeing validation, etc. tests (CONFIG_WPA_TRACE=y)
+	* EAP-FAST server: piggyback Phase 2 start with the end of Phase 1
+	* WPS: add support for dynamically selecting whether to provision the
+	  PSK as an ASCII passphrase or PSK
+	* added support for WDS (4-address frame) mode with per-station virtual
+	  interfaces (wds_sta=1 in config file; only supported with
+	  driver=nl80211 for now)
+	* fixed WPS Probe Request processing to handle missing required
+	  attribute
+	* fixed PKCS#12 use with OpenSSL 1.0.0
+	* detect bridge interface automatically so that bridge parameter in
+	  hostapd.conf becomes optional (though, it may now be used to
+	  automatically add then WLAN interface into a bridge with
+	  driver=nl80211)
+
+2009-11-21 - v0.7.0
 	* increased hostapd_cli ping interval to 5 seconds and made this
 	  configurable with a new command line options (-G<seconds>)
 	* driver_nl80211: use Linux socket filter to improve performance
 	* added support for external Registrars with WPS (UPnP transport)
+	* 802.11n: scan for overlapping BSSes before starting 20/40 MHz channel
+	* driver_nl80211: fixed STA accounting data collection (TX/RX bytes
+	  reported correctly; TX/RX packets not yet available from kernel)
+	* added support for WPS USBA out-of-band mechanism with USB Flash
+	  Drives (UFD) (CONFIG_WPS_UFD=y)
+	* fixed EAPOL/EAP reauthentication when using an external RADIUS
+	  authentication server
+	* fixed TNC with EAP-TTLS
+	* fixed IEEE 802.11r key derivation function to match with the standard
+	  (note: this breaks interoperability with previous version) [Bug 303]
+	* fixed SHA-256 based key derivation function to match with the
+	  standard when using CCMP (for IEEE 802.11r and IEEE 802.11w)
+	  (note: this breaks interoperability with previous version) [Bug 307]
+	* added number of code size optimizations to remove unnecessary
+	  functionality from the program binary based on build configuration
+	  (part of this automatic; part configurable with CONFIG_NO_* build
+	  options)
+	* use shared driver wrapper files with wpa_supplicant
+	* driver_nl80211: multiple updates to provide support for new Linux
+	  nl80211/mac80211 functionality
+	* updated management frame protection to use IEEE Std 802.11w-2009
+	* fixed number of small WPS issues and added workarounds to
+	  interoperate with common deployed broken implementations
+	* added some IEEE 802.11n co-existance rules to disable 40 MHz channels
+	  or modify primary/secondary channels if needed based on neighboring
+	  networks
+	* added support for NFC out-of-band mechanism with WPS
+	* added preliminary support for IEEE 802.11r RIC processing
 
 2009-01-06 - v0.6.7
 	* added support for Wi-Fi Protected Setup (WPS)

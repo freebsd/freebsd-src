@@ -15,21 +15,18 @@
  */
 
 #include <err.h>
-#include <time.h>
-#include <signal.h>
 #include <ncurses.h>
+#include <signal.h>
 #include <stdlib.h>
-#ifndef NONPOSIX
+#include <time.h>
 #include <unistd.h>
-#endif
 
 #define YBASE	10
 #define XBASE	10
 #define XLENGTH 58
 #define YDEPTH  7
 
-/* it won't be */
-time_t now; /* yeah! */
+struct timespec now;
 struct tm *tm;
 
 short disp[11] = {
@@ -57,7 +54,8 @@ sighndl(int signo)
 int
 main(int argc, char *argv[])
 {
-	struct timespec ts;
+	struct timespec delay;
+	time_t prev_sec;
 	long t, a;
 	int i, j, s, k;
 	int n;
@@ -88,9 +86,14 @@ main(int argc, char *argv[])
 		/* NOTREACHED */
 	}
 
-	if (argc > 0)
-		n = atoi(*argv);
-	else
+	if (argc > 0) {
+		n = atoi(*argv) + 1;
+		if (n < 1) {
+			warnx("number of seconds is out of range");
+			usage();
+			/* NOTREACHED */
+		}
+	} else
 		n = 0;
 
 	initscr();
@@ -135,10 +138,11 @@ main(int argc, char *argv[])
 
 		attrset(COLOR_PAIR(2));
 	}
-	time(&now);
+	clock_gettime(CLOCK_REALTIME_FAST, &now);
+	prev_sec = now.tv_sec;
 	do {
 		mask = 0;
-		tm = localtime(&now);
+		tm = localtime(&now.tv_sec);
 		set(tm->tm_sec%10, 0);
 		set(tm->tm_sec/10, 4);
 		set(tm->tm_min%10, 10);
@@ -192,19 +196,20 @@ main(int argc, char *argv[])
 		}
 		movto(6, 0);
 		refresh();
-		clock_gettime(CLOCK_REALTIME_FAST, &ts);
-		if (ts.tv_sec == now) {
-			if (ts.tv_nsec > 0) {
-				ts.tv_sec = 0;
-				ts.tv_nsec = 1000000000 - ts.tv_nsec;
+		clock_gettime(CLOCK_REALTIME_FAST, &now);
+		if (now.tv_sec == prev_sec) {
+			if (delay.tv_nsec > 0) {
+				delay.tv_sec = 0;
+				delay.tv_nsec = 1000000000 - now.tv_nsec;
 			} else {
-				ts.tv_sec = 1;
-				ts.tv_nsec = 0;
+				delay.tv_sec = 1;
+				delay.tv_nsec = 0;
 			}
-			nanosleep(&ts, NULL);
-			now = ts.tv_sec + 1;
-		} else
-			now = ts.tv_sec;
+			nanosleep(&delay, NULL);
+			clock_gettime(CLOCK_REALTIME_FAST, &now);
+		}
+		n -= now.tv_sec - prev_sec;
+		prev_sec = now.tv_sec;
 		if (sigtermed) {
 			standend();
 			clear();
@@ -212,7 +217,7 @@ main(int argc, char *argv[])
 			endwin();
 			errx(1, "terminated by signal %d", (int)sigtermed);
 		}
-	} while(--n);
+	} while (n);
 	standend();
 	clear();
 	refresh();

@@ -477,7 +477,7 @@ local_rpcb()
 
 	tsize = __rpc_get_t_size(AF_LOCAL, 0, 0);
 	client = clnt_vc_create(so, (struct sockaddr *)&sun, (rpcprog_t)RPCBPROG,
-	    (rpcvers_t)RPCBVERS, tsize, tsize);
+	    (rpcvers_t)RPCBVERS, tsize, tsize, 1);
 
 	if (client != NULL) {
 		/* Mark the socket to be closed in destructor */

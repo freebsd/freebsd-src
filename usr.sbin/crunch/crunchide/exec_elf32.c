@@ -60,10 +60,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/elf32.h>
 #define	xewtoh(x)	((data == ELFDATA2MSB) ? be32toh(x) : le32toh(x))
 #define	htoxew(x)	((data == ELFDATA2MSB) ? htobe32(x) : htole32(x))
+#define	wewtoh(x)	((data == ELFDATA2MSB) ? be32toh(x) : le32toh(x))
+#define	htowew(x)	((data == ELFDATA2MSB) ? htobe32(x) : htole32(x))
 #elif (ELFSIZE == 64)
 #include <sys/elf64.h>
 #define	xewtoh(x)	((data == ELFDATA2MSB) ? be64toh(x) : le64toh(x))
 #define	htoxew(x)	((data == ELFDATA2MSB) ? htobe64(x) : htole64(x))
+/* elf64 Elf64_Word are 32 bits */
+#define	wewtoh(x)	((data == ELFDATA2MSB) ? be32toh(x) : le32toh(x))
+#define	htowew(x)	((data == ELFDATA2MSB) ? htobe32(x) : htole32(x))
 #endif
 #include <sys/elf_generic.h>
 
@@ -130,6 +135,20 @@ xmalloc(size_t size, const char *fn, const char *use)
 	return (rv);
 }
 
+static void *
+xrealloc(void *ptr, size_t size, const char *fn, const char *use)
+{
+	void *rv;
+		
+	rv = realloc(ptr, size);
+	if (rv == NULL) {
+		free(ptr);
+		fprintf(stderr, "%s: out of memory (reallocating for %s)\n",
+		    fn, use);
+	}
+	return (rv);
+} 
+
 int
 ELFNAMEEND(check)(int fd, const char *fn)
 {
@@ -176,6 +195,10 @@ ELFNAMEEND(check)(int fd, const char *fn)
 #define	EM_PPC		20
 #endif
 	case EM_PPC: break;
+#ifndef EM_PPC64
+#define	EM_PPC64	21
+#endif
+	case EM_PPC64: break;
 #ifndef EM_SPARCV9
 #define	EM_SPARCV9	43
 #endif
@@ -193,6 +216,21 @@ ELFNAMEEND(check)(int fd, const char *fn)
 	return 1;
 }
 
+/*
+ * This function 'hides' (some of) ELF executable file's symbols.
+ * It hides them by renaming them to "_$$hide$$ <filename> <symbolname>".
+ * Symbols in the global keep list, or which are marked as being undefined,
+ * are left alone.
+ *
+ * An old version of this code shuffled various tables around, turning
+ * global symbols to be hidden into local symbols.  That lost on the
+ * mips, because CALL16 relocs must reference global symbols, and, if
+ * those symbols were being hidden, they were no longer global.
+ *
+ * The new renaming behaviour doesn't take global symbols out of the
+ * namespace.  However, it's ... unlikely that there will ever be
+ * any collisions in practice because of the new method.
+ */
 int
 ELFNAMEEND(hide)(int fd, const char *fn)
 {
@@ -200,11 +238,14 @@ ELFNAMEEND(hide)(int fd, const char *fn)
 	Elf_Shdr *shdrp = NULL, *symtabshdr, *strtabshdr;
 	Elf_Sym *symtabp = NULL;
 	char *strtabp = NULL;
-	Elf_Size *symfwmap = NULL, *symrvmap = NULL, nsyms, nlocalsyms, ewi;
-	struct listelem *relalist = NULL, *rellist = NULL, *tmpl;
+	Elf_Size  nsyms, nlocalsyms, ewi;
 	ssize_t shdrsize;
 	int rv, i, weird;
+	size_t nstrtab_size, nstrtab_nextoff, fn_size;
+	char *nstrtabp = NULL;
 	unsigned char data;
+	Elf_Off maxoff, stroff;
+	const char *weirdreason = NULL;
 
 	rv = 0;
 	if (xreadatoff(fd, &ehdr, 0, sizeof ehdr, fn) != sizeof ehdr)
@@ -221,42 +262,38 @@ ELFNAMEEND(hide)(int fd, const char *fn)
 
 	symtabshdr = strtabshdr = NULL;
 	weird = 0;
+	maxoff = stroff = 0;
 	for (i = 0; i < xe16toh(ehdr.e_shnum); i++) {
+		if (xewtoh(shdrp[i].sh_offset) > maxoff)
+			maxoff = xewtoh(shdrp[i].sh_offset);
 		switch (xe32toh(shdrp[i].sh_type)) {
 		case SHT_SYMTAB:
 			if (symtabshdr != NULL)
 				weird = 1;
 			symtabshdr = &shdrp[i];
 			strtabshdr = &shdrp[xe32toh(shdrp[i].sh_link)];
-			break;
-		case SHT_RELA:
-			tmpl = xmalloc(sizeof *tmpl, fn, "rela list element");
-			if (tmpl == NULL)
-				goto bad;
-			tmpl->mem = NULL;
-			tmpl->file = xewtoh(shdrp[i].sh_offset);
-			tmpl->size = xewtoh(shdrp[i].sh_size);
-			tmpl->next = relalist;
-			relalist = tmpl;
-			break;
-		case SHT_REL:
-			tmpl = xmalloc(sizeof *tmpl, fn, "rel list element");
-			if (tmpl == NULL)
-				goto bad;
-			tmpl->mem = NULL;
-			tmpl->file = xewtoh(shdrp[i].sh_offset);
-			tmpl->size = xewtoh(shdrp[i].sh_size);
-			tmpl->next = rellist;
-			rellist = tmpl;
+
+			/* Check whether the string table is the last section */
+			stroff = xewtoh(shdrp[xe32toh(shdrp[i].sh_link)].sh_offset);
+			if (!weird && xe32toh(shdrp[i].sh_link) != (xe16toh(ehdr.e_shnum) - 1)) {
+				weird = 1;
+				weirdreason = "string table not last section";
+			}
 			break;
 		}
 	}
+	if (! weirdreason)
+		weirdreason = "unsupported";
 	if (symtabshdr == NULL)
 		goto out;
 	if (strtabshdr == NULL)
 		weird = 1;
+	if (!weird && stroff != maxoff) {
+		weird = 1;
+		weirdreason = "string table section not last in file";
+	}   
 	if (weird) {
-		fprintf(stderr, "%s: weird executable (unsupported)\n", fn);
+		fprintf(stderr, "%s: weird executable (%s)\n", fn, weirdreason);
 		goto bad;
 	}
 
@@ -280,105 +317,53 @@ ELFNAMEEND(hide)(int fd, const char *fn)
 	    xewtoh(strtabshdr->sh_size), fn) != xewtoh(strtabshdr->sh_size))
 		goto bad;
 
-	/* any rela tables */
-	for (tmpl = relalist; tmpl != NULL; tmpl = tmpl->next) {
-		if ((tmpl->mem = xmalloc(tmpl->size, fn, "rela table"))
-		    == NULL)
-			goto bad;
-		if (xreadatoff(fd, tmpl->mem, tmpl->file,
-		    tmpl->size, fn) != tmpl->size)
-			goto bad;
-	}
+	nstrtab_size = 256;
+	nstrtabp = xmalloc(nstrtab_size, fn, "new string table");
+	if (nstrtabp == NULL)
+		goto bad;
+	nstrtab_nextoff = 0;
 
-	/* any rel tables */
-	for (tmpl = rellist; tmpl != NULL; tmpl = tmpl->next) {
-		if ((tmpl->mem = xmalloc(tmpl->size, fn, "rel table"))
-		    == NULL)
-			goto bad;
-		if (xreadatoff(fd, tmpl->mem, tmpl->file,
-		    tmpl->size, fn) != tmpl->size)
-			goto bad;
-	}
+	fn_size = strlen(fn);
 
 	/* Prepare data structures for symbol movement. */
 	nsyms = xewtoh(symtabshdr->sh_size) / xewtoh(symtabshdr->sh_entsize);
 	nlocalsyms = xe32toh(symtabshdr->sh_info);
-	if ((symfwmap = xmalloc(nsyms * sizeof (Elf_Size), fn,
-	    "symbol forward mapping table")) == NULL)
-		goto bad;
-	if ((symrvmap = xmalloc(nsyms * sizeof (Elf_Size), fn,
-	    "symbol reverse mapping table")) == NULL)
-		goto bad;
-
-	/* init location -> symbol # table */
-	for (ewi = 0; ewi < nsyms; ewi++)
-		symrvmap[ewi] = ewi;
 
 	/* move symbols, making them local */
-	for (ewi = nlocalsyms; ewi < nsyms; ewi++) {
-		Elf_Sym *sp, symswap;
-		Elf_Size mapswap;
-
-		sp = &symtabp[ewi];
-
-		/* if it's on our keep list, don't move it */
-		if (in_keep_list(strtabp + xe32toh(sp->st_name)))
-			continue;
-
-		/* if it's an undefined symbol, keep it */
-		if (xe16toh(sp->st_shndx) == SHN_UNDEF)
-			continue;
-
-		/* adjust the symbol so that it's local */
-		sp->st_info =
-		    ELF_ST_INFO(STB_LOCAL, sp->st_info);
-/*		    (STB_LOCAL << 4) | ELF_SYM_TYPE(sp->st_info); *//* XXX */
-
+	for (ewi = 0; ewi < nsyms; ewi++) {
+		Elf_Sym *sp = &symtabp[ewi];
+		const char *symname = strtabp + xe32toh(sp->st_name);
+		size_t newent_len;
 		/*
-		 * move the symbol to its new location
+		 * make sure there's size for the next entry, even if it's
+		 * as large as it can be.
+		 *
+		 * "_$$hide$$ <filename> <symname><NUL>" ->
+		 *    9 + 3 + sizes of fn and sym name
 		 */
-
-		/* note that symbols in those locations have been swapped */
-		mapswap = symrvmap[ewi];
-		symrvmap[ewi] = symrvmap[nlocalsyms];
-		symrvmap[nlocalsyms] = mapswap;
-
-		/* and swap the symbols */
-		symswap = *sp;
-		*sp = symtabp[nlocalsyms];
-		symtabp[nlocalsyms] = symswap;
-
-		nlocalsyms++;			/* note new local sym */
-	}
-	symtabshdr->sh_info = htoxe32(nlocalsyms);
-
-	/* set up symbol # -> location mapping table */
-	for (ewi = 0; ewi < nsyms; ewi++)
-		symfwmap[symrvmap[ewi]] = ewi;
-
-	/* any rela tables */
-	for (tmpl = relalist; tmpl != NULL; tmpl = tmpl->next) {
-		Elf_Rela *relap = tmpl->mem;
-
-		for (ewi = 0; ewi < tmpl->size / sizeof(*relap); ewi++) {
-			relap[ewi].r_info = htoxew(ELF_R_INFO(
-			    symfwmap[ELF_R_SYM(xewtoh(relap[ewi].r_info))],
-			    ELF_R_TYPE(xewtoh(relap[ewi].r_info))
-			));
+		while ((nstrtab_size - nstrtab_nextoff) <
+		    strlen(symname) + fn_size + 12) {
+			nstrtab_size *= 2;
+			nstrtabp = xrealloc(nstrtabp, nstrtab_size, fn,
+			    "new string table");
+			if (nstrtabp == NULL)
+				goto bad;
 		}
-	}
 
-	/* any rel tables */
-	for (tmpl = rellist; tmpl != NULL; tmpl = tmpl->next) {
-		Elf_Rel *relp = tmpl->mem;
+		sp->st_name = htowew(nstrtab_nextoff);
 
-		for (ewi = 0; ewi < tmpl->size / sizeof *relp; ewi++) {
-			relp[ewi].r_info = htoxew(ELF_R_INFO(
-			    symfwmap[ELF_R_SYM(xewtoh(relp[ewi].r_info))],
-			    ELF_R_TYPE(xewtoh(relp[ewi].r_info))
-			));
+		/* if it's a keeper or is undefined, don't rename it. */
+		if (in_keep_list(symname) ||
+		    (xe16toh(sp->st_shndx) == SHN_UNDEF)) {
+			newent_len = sprintf(nstrtabp + nstrtab_nextoff,
+			    "%s", symname) + 1;
+		} else {
+			newent_len = sprintf(nstrtabp + nstrtab_nextoff,
+			    "_$$hide$$ %s %s", fn, symname) + 1;
 		}
+		nstrtab_nextoff += newent_len;
 	}
+	strtabshdr->sh_size = htoxew(nstrtab_nextoff);
 
 	/*
 	 * write new tables to the file
@@ -389,16 +374,10 @@ ELFNAMEEND(hide)(int fd, const char *fn)
 	if (xwriteatoff(fd, symtabp, xewtoh(symtabshdr->sh_offset),
 	    xewtoh(symtabshdr->sh_size), fn) != xewtoh(symtabshdr->sh_size))
 		goto bad;
-	for (tmpl = relalist; tmpl != NULL; tmpl = tmpl->next) {
-		if (xwriteatoff(fd, tmpl->mem, tmpl->file,
-		    tmpl->size, fn) != tmpl->size)
-			goto bad;
-	}
-	for (tmpl = rellist; tmpl != NULL; tmpl = tmpl->next) {
-		if (xwriteatoff(fd, tmpl->mem, tmpl->file,
-		    tmpl->size, fn) != tmpl->size)
-			goto bad;
-	}
+	/* write new symbol table strings */
+	if ((size_t)xwriteatoff(fd, nstrtabp, xewtoh(strtabshdr->sh_offset),
+	    xewtoh(strtabshdr->sh_size), fn) != xewtoh(strtabshdr->sh_size))
+		goto bad;
 
 out:
 	if (shdrp != NULL)
@@ -407,22 +386,6 @@ out:
 		free(symtabp);
 	if (strtabp != NULL)
 		free(strtabp);
-	if (symfwmap != NULL)
-		free(symfwmap);
-	if (symrvmap != NULL)
-		free(symrvmap);
-	while ((tmpl = relalist) != NULL) {
-		relalist = tmpl->next;
-		if (tmpl->mem != NULL)
-			free(tmpl->mem);
-		free(tmpl);
-	}
-	while ((tmpl = rellist) != NULL) {
-		rellist = tmpl->next;
-		if (tmpl->mem != NULL)
-			free(tmpl->mem);
-		free(tmpl);
-	}
 	return (rv);
 
 bad:

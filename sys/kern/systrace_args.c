@@ -7,7 +7,7 @@
  */
 
 static void
-systrace_args(int sysnum, void *params, u_int64_t *uarg, int *n_args)
+systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 {
 	int64_t *iarg  = (int64_t *) uarg;
 	switch (sysnum) {
@@ -1770,6 +1770,17 @@ systrace_args(int sysnum, void *params, u_int64_t *uarg, int *n_args)
 		*n_args = 1;
 		break;
 	}
+	/* nnpfs_syscall */
+	case 339: {
+		struct nnpfs_syscall_args *p = params;
+		iarg[0] = p->operation; /* int */
+		uarg[1] = (intptr_t) p->a_pathP; /* char * */
+		iarg[2] = p->a_opcode; /* int */
+		uarg[3] = (intptr_t) p->a_paramsP; /* void * */
+		iarg[4] = p->a_followSymlinks; /* int */
+		*n_args = 5;
+		break;
+	}
 	/* sigprocmask */
 	case 340: {
 		struct sigprocmask_args *p = params;
@@ -2009,6 +2020,19 @@ systrace_args(int sysnum, void *params, u_int64_t *uarg, int *n_args)
 		uarg[0] = (intptr_t) p->path; /* char * */
 		iarg[1] = p->flags; /* int */
 		*n_args = 2;
+		break;
+	}
+	/* afs3_syscall */
+	case 377: {
+		struct afs3_syscall_args *p = params;
+		iarg[0] = p->syscall; /* long */
+		iarg[1] = p->parm1; /* long */
+		iarg[2] = p->parm2; /* long */
+		iarg[3] = p->parm3; /* long */
+		iarg[4] = p->parm4; /* long */
+		iarg[5] = p->parm5; /* long */
+		iarg[6] = p->parm6; /* long */
+		*n_args = 7;
 		break;
 	}
 	/* nmount */
@@ -3072,6 +3096,18 @@ systrace_args(int sysnum, void *params, u_int64_t *uarg, int *n_args)
 		*n_args = 2;
 		break;
 	}
+	/* cap_enter */
+	case 516: {
+		*n_args = 0;
+		break;
+	}
+	/* cap_getmode */
+	case 517: {
+		struct cap_getmode_args *p = params;
+		uarg[0] = (intptr_t) p->modep; /* u_int * */
+		*n_args = 1;
+		break;
+	}
 	/* pselect */
 	case 522: {
 		struct pselect_args *p = params;
@@ -3082,6 +3118,80 @@ systrace_args(int sysnum, void *params, u_int64_t *uarg, int *n_args)
 		uarg[4] = (intptr_t) p->ts; /* const struct timespec * */
 		uarg[5] = (intptr_t) p->sm; /* const sigset_t * */
 		*n_args = 6;
+		break;
+	}
+	/* getloginclass */
+	case 523: {
+		struct getloginclass_args *p = params;
+		uarg[0] = (intptr_t) p->namebuf; /* char * */
+		uarg[1] = p->namelen; /* size_t */
+		*n_args = 2;
+		break;
+	}
+	/* setloginclass */
+	case 524: {
+		struct setloginclass_args *p = params;
+		uarg[0] = (intptr_t) p->namebuf; /* const char * */
+		*n_args = 1;
+		break;
+	}
+	/* rctl_get_racct */
+	case 525: {
+		struct rctl_get_racct_args *p = params;
+		uarg[0] = (intptr_t) p->inbufp; /* const void * */
+		uarg[1] = p->inbuflen; /* size_t */
+		uarg[2] = (intptr_t) p->outbufp; /* void * */
+		uarg[3] = p->outbuflen; /* size_t */
+		*n_args = 4;
+		break;
+	}
+	/* rctl_get_rules */
+	case 526: {
+		struct rctl_get_rules_args *p = params;
+		uarg[0] = (intptr_t) p->inbufp; /* const void * */
+		uarg[1] = p->inbuflen; /* size_t */
+		uarg[2] = (intptr_t) p->outbufp; /* void * */
+		uarg[3] = p->outbuflen; /* size_t */
+		*n_args = 4;
+		break;
+	}
+	/* rctl_get_limits */
+	case 527: {
+		struct rctl_get_limits_args *p = params;
+		uarg[0] = (intptr_t) p->inbufp; /* const void * */
+		uarg[1] = p->inbuflen; /* size_t */
+		uarg[2] = (intptr_t) p->outbufp; /* void * */
+		uarg[3] = p->outbuflen; /* size_t */
+		*n_args = 4;
+		break;
+	}
+	/* rctl_add_rule */
+	case 528: {
+		struct rctl_add_rule_args *p = params;
+		uarg[0] = (intptr_t) p->inbufp; /* const void * */
+		uarg[1] = p->inbuflen; /* size_t */
+		uarg[2] = (intptr_t) p->outbufp; /* void * */
+		uarg[3] = p->outbuflen; /* size_t */
+		*n_args = 4;
+		break;
+	}
+	/* rctl_remove_rule */
+	case 529: {
+		struct rctl_remove_rule_args *p = params;
+		uarg[0] = (intptr_t) p->inbufp; /* const void * */
+		uarg[1] = p->inbuflen; /* size_t */
+		uarg[2] = (intptr_t) p->outbufp; /* void * */
+		uarg[3] = p->outbuflen; /* size_t */
+		*n_args = 4;
+		break;
+	}
+	/* posix_fallocate */
+	case 530: {
+		struct posix_fallocate_args *p = params;
+		iarg[0] = p->fd; /* int */
+		iarg[1] = p->offset; /* off_t */
+		iarg[2] = p->len; /* off_t */
+		*n_args = 3;
 		break;
 	}
 	default:
@@ -5900,6 +6010,28 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
+	/* nnpfs_syscall */
+	case 339:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "char *";
+			break;
+		case 2:
+			p = "int";
+			break;
+		case 3:
+			p = "void *";
+			break;
+		case 4:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
 	/* sigprocmask */
 	case 340:
 		switch(ndx) {
@@ -6320,6 +6452,34 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		case 1:
 			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* afs3_syscall */
+	case 377:
+		switch(ndx) {
+		case 0:
+			p = "long";
+			break;
+		case 1:
+			p = "long";
+			break;
+		case 2:
+			p = "long";
+			break;
+		case 3:
+			p = "long";
+			break;
+		case 4:
+			p = "long";
+			break;
+		case 5:
+			p = "long";
+			break;
+		case 6:
+			p = "long";
 			break;
 		default:
 			break;
@@ -8166,6 +8326,19 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
+	/* cap_enter */
+	case 516:
+		break;
+	/* cap_getmode */
+	case 517:
+		switch(ndx) {
+		case 0:
+			p = "u_int *";
+			break;
+		default:
+			break;
+		};
+		break;
 	/* pselect */
 	case 522:
 		switch(ndx) {
@@ -8186,6 +8359,140 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		case 5:
 			p = "const sigset_t *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* getloginclass */
+	case 523:
+		switch(ndx) {
+		case 0:
+			p = "char *";
+			break;
+		case 1:
+			p = "size_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* setloginclass */
+	case 524:
+		switch(ndx) {
+		case 0:
+			p = "const char *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* rctl_get_racct */
+	case 525:
+		switch(ndx) {
+		case 0:
+			p = "const void *";
+			break;
+		case 1:
+			p = "size_t";
+			break;
+		case 2:
+			p = "void *";
+			break;
+		case 3:
+			p = "size_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* rctl_get_rules */
+	case 526:
+		switch(ndx) {
+		case 0:
+			p = "const void *";
+			break;
+		case 1:
+			p = "size_t";
+			break;
+		case 2:
+			p = "void *";
+			break;
+		case 3:
+			p = "size_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* rctl_get_limits */
+	case 527:
+		switch(ndx) {
+		case 0:
+			p = "const void *";
+			break;
+		case 1:
+			p = "size_t";
+			break;
+		case 2:
+			p = "void *";
+			break;
+		case 3:
+			p = "size_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* rctl_add_rule */
+	case 528:
+		switch(ndx) {
+		case 0:
+			p = "const void *";
+			break;
+		case 1:
+			p = "size_t";
+			break;
+		case 2:
+			p = "void *";
+			break;
+		case 3:
+			p = "size_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* rctl_remove_rule */
+	case 529:
+		switch(ndx) {
+		case 0:
+			p = "const void *";
+			break;
+		case 1:
+			p = "size_t";
+			break;
+		case 2:
+			p = "void *";
+			break;
+		case 3:
+			p = "size_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* posix_fallocate */
+	case 530:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "off_t";
+			break;
+		case 2:
+			p = "off_t";
 			break;
 		default:
 			break;

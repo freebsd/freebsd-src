@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mac.h>
 #include <sys/user.h>
 #include <sys/sysctl.h>
+#include <sys/vmmeter.h>
 
 #include <err.h>
 #include <grp.h>
@@ -54,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <nlist.h>
 #include <pwd.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -548,12 +550,11 @@ vsize(KINFO *k, VARENT *ve)
 	(void)printf("%*lu", v->width, (u_long)(k->ki_p->ki_size / 1024));
 }
 
-void
-cputime(KINFO *k, VARENT *ve)
+static void
+printtime(KINFO *k, VARENT *ve, long secs, long psecs)
+/* psecs is "parts" of a second. first micro, then centi */
 {
 	VAR *v;
-	long secs;
-	long psecs;	/* "parts" of a second. first micro, then centi */
 	char obuff[128];
 	static char decimal_point;
 
@@ -564,27 +565,70 @@ cputime(KINFO *k, VARENT *ve)
 		secs = 0;
 		psecs = 0;
 	} else {
-		/*
-		 * This counts time spent handling interrupts.  We could
-		 * fix this, but it is not 100% trivial (and interrupt
-		 * time fractions only work on the sparc anyway).	XXX
-		 */
-		secs = k->ki_p->ki_runtime / 1000000;
-		psecs = k->ki_p->ki_runtime % 1000000;
-		if (sumrusage) {
-			secs += k->ki_p->ki_childtime.tv_sec;
-			psecs += k->ki_p->ki_childtime.tv_usec;
-		}
-		/*
-		 * round and scale to 100's
-		 */
+		/* round and scale to 100's */
 		psecs = (psecs + 5000) / 10000;
 		secs += psecs / 100;
 		psecs = psecs % 100;
 	}
-	(void)snprintf(obuff, sizeof(obuff), "%3ld:%02ld%c%02ld",
+	(void)snprintf(obuff, sizeof(obuff), "%ld:%02ld%c%02ld",
 	    secs / 60, secs % 60, decimal_point, psecs);
 	(void)printf("%*s", v->width, obuff);
+}
+
+static int
+sizetime(long secs)
+{
+
+	if (secs < 60)
+		return (7);
+	return (log10(secs / 60) + 7);
+}
+
+void
+cputime(KINFO *k, VARENT *ve)
+{
+	long secs, psecs;
+
+	/*
+	 * This counts time spent handling interrupts.  We could
+	 * fix this, but it is not 100% trivial (and interrupt
+	 * time fractions only work on the sparc anyway).	XXX
+	 */
+	secs = k->ki_p->ki_runtime / 1000000;
+	psecs = k->ki_p->ki_runtime % 1000000;
+	if (sumrusage) {
+		secs += k->ki_p->ki_childtime.tv_sec;
+		psecs += k->ki_p->ki_childtime.tv_usec;
+	}
+	printtime(k, ve, secs, psecs);
+}
+
+void
+systime(KINFO *k, VARENT *ve)
+{
+	long secs, psecs;
+
+	secs = k->ki_p->ki_rusage.ru_stime.tv_sec;
+	psecs = k->ki_p->ki_rusage.ru_stime.tv_usec;
+	if (sumrusage) {
+		secs += k->ki_p->ki_childstime.tv_sec;
+		psecs += k->ki_p->ki_childstime.tv_usec;
+	}
+	printtime(k, ve, secs, psecs);
+}
+
+void
+usertime(KINFO *k, VARENT *ve)
+{
+	long secs, psecs;
+
+	secs = k->ki_p->ki_rusage.ru_utime.tv_sec;
+	psecs = k->ki_p->ki_rusage.ru_utime.tv_usec;
+	if (sumrusage) {
+		secs += k->ki_p->ki_childutime.tv_sec;
+		psecs += k->ki_p->ki_childutime.tv_usec;
+	}
+	printtime(k, ve, secs, psecs);
 }
 
 void
@@ -616,6 +660,21 @@ elapsed(KINFO *k, VARENT *ve)
 	else
 		(void)snprintf(obuff, sizeof(obuff), "%02d:%02d", mins, secs);
 	(void)printf("%*s", v->width, obuff);
+}
+
+void
+elapseds(KINFO *k, VARENT *ve)
+{
+	VAR *v;
+	time_t val;
+
+	v = ve->var;
+	if (!k->ki_valid) {
+		(void)printf("%-*s", v->width, "-");
+		return;
+	}
+	val = now - k->ki_p->ki_start.tv_sec;
+	(void)printf("%*jd", v->width, (intmax_t)val);
 }
 
 double
@@ -845,6 +904,26 @@ out:
 	return;
 }
 
+void
+loginclass(KINFO *k, VARENT *ve)
+{
+	VAR *v;
+	char *s;
+
+	v = ve->var;
+	/*
+	 * Don't display login class for system processes;
+	 * login classes are used for resource limits,
+	 * and limits don't apply to system processes.
+	 */
+	if (k->ki_p->ki_flag & P_SYSTEM) {
+		(void)printf("%-*s", v->width, "-");
+		return;
+	}
+	s = k->ki_p->ki_loginclass;
+	(void)printf("%-*s", v->width, *s ? s : "-");
+}
+
 int
 s_comm(KINFO *k)
 {
@@ -857,6 +936,17 @@ s_comm(KINFO *k)
 	else
 		sprintf(tmpbuff, "%s", k->ki_p->ki_comm);
 	return (strlen(tmpbuff));
+}
+
+int
+s_cputime(KINFO *k)
+{
+	long secs;
+
+	secs = k->ki_p->ki_runtime / 1000000;
+	if (sumrusage)
+		secs += k->ki_p->ki_childtime.tv_sec;
+	return (sizetime(secs));
 }
 
 int
@@ -877,4 +967,53 @@ s_label(KINFO *k)
 	}
 	mac_free(proclabel);
 	return (size);
+}
+
+int
+s_loginclass(KINFO *k)
+{
+	char *s;
+
+	if (k->ki_p->ki_flag & P_SYSTEM)
+		return (1);
+
+	s = k->ki_p->ki_loginclass;
+	if (s == NULL)
+		return (1);
+
+	return (strlen(s));
+}
+
+int
+s_logname(KINFO *k)
+{
+	char *s;
+
+	s = k->ki_p->ki_login;
+	if (s == NULL)
+		return (1);
+
+	return (strlen(s));
+}
+
+int
+s_systime(KINFO *k)
+{
+	long secs;
+
+	secs = k->ki_p->ki_rusage.ru_stime.tv_sec;
+	if (sumrusage)
+		secs += k->ki_p->ki_childstime.tv_sec;
+	return (sizetime(secs));
+}
+
+int
+s_usertime(KINFO *k)
+{
+	long secs;
+
+	secs = k->ki_p->ki_rusage.ru_utime.tv_sec;
+	if (sumrusage)
+		secs += k->ki_p->ki_childutime.tv_sec;
+	return (sizetime(secs));
 }

@@ -443,7 +443,7 @@ dumpsymtable(char *filename, long checkpt)
 	FILE *fd;
 	struct symtableheader hdr;
 
-	vprintf(stdout, "Check pointing the restore\n");
+	vprintf(stdout, "Checkpointing the restore\n");
 	if (Nflag)
 		return;
 	if ((fd = fopen(filename, "w")) == NULL) {

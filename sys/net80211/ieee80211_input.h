@@ -142,6 +142,104 @@ ishtinfooui(const uint8_t *frm)
 	return frm[1] > 3 && LE_READ_4(frm+2) == ((BCM_OUI_HTINFO<<24)|BCM_OUI);
 }
 
+#include <sys/endian.h>		/* For le16toh() */
+
+/*
+ * Check the current frame sequence number against the current TID
+ * state and return whether it's in sequence or should be dropped.
+ *
+ * Since out of order packet and duplicate packet eliminations should
+ * be done by the AMPDU RX code, this routine blindly accepts all
+ * frames from a HT station w/ a TID that is currently doing AMPDU-RX.
+ * HT stations without WME or where the TID is not doing AMPDU-RX
+ * are checked like non-HT stations.
+ *
+ * The routine only eliminates packets whose sequence/fragment
+ * match or are less than the last seen sequence/fragment number
+ * AND are retransmits It doesn't try to eliminate out of order packets.
+ *
+ * Since all frames after sequence number 4095 will be less than 4095
+ * (as the seqnum wraps), handle that special case so packets aren't
+ * incorrectly dropped - ie, if the next packet is sequence number 0
+ * but a retransmit since the initial packet didn't make it.
+ */
+static __inline int
+ieee80211_check_rxseq(struct ieee80211_node *ni, struct ieee80211_frame *wh)
+{
+#define	SEQ_LEQ(a,b)	((int)((a)-(b)) <= 0)
+#define	SEQ_EQ(a,b)	((int)((a)-(b)) == 0)
+#define	HAS_SEQ(type)	((type & 0x4) == 0)
+#define	SEQNO(a)	((a) >> IEEE80211_SEQ_SEQ_SHIFT)
+#define	FRAGNO(a)	((a) & IEEE80211_SEQ_FRAG_MASK)
+	uint16_t rxseq;
+	uint8_t type;
+	uint8_t tid;
+	struct ieee80211_rx_ampdu *rap;
+
+	rxseq = le16toh(*(uint16_t *)wh->i_seq);
+	type = wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
+
+	/* Types with no sequence number are always treated valid */
+	if (! HAS_SEQ(type))
+		return 1;
+
+	tid = ieee80211_gettid(wh);
+
+	/*
+	 * Only do the HT AMPDU check for WME stations; non-WME HT stations
+	 * shouldn't exist outside of debugging. We should at least
+	 * handle that.
+	 */
+	if (tid < WME_NUM_TID) {
+		rap = &ni->ni_rx_ampdu[tid];
+		/* HT nodes currently doing RX AMPDU are always valid */
+		if ((ni->ni_flags & IEEE80211_NODE_HT) &&
+		    (rap->rxa_flags & IEEE80211_AGGR_RUNNING))
+			return 1;
+	}
+
+	/*	
+	 * Otherwise, retries for packets below or equal to the last
+	 * seen sequence number should be dropped.
+	 */
+
+	/*
+	 * Treat frame seqnum 4095 as special due to boundary
+	 * wrapping conditions.
+	 */
+	if (SEQNO(ni->ni_rxseqs[tid]) == 4095) {
+		/*
+		 * Drop retransmits on seqnum 4095/current fragment for itself.
+		 */
+		if (SEQ_EQ(rxseq, ni->ni_rxseqs[tid]) &&
+		    (wh->i_fc[1] & IEEE80211_FC1_RETRY))
+			return 0;
+		/*
+		 * Treat any subsequent frame as fine if the last seen frame
+		 * is 4095 and it's not a retransmit for the same sequence
+		 * number. However, this doesn't capture incorrectly ordered
+	 	 * fragments w/ sequence number 4095. It shouldn't be seen
+		 * in practice, but see the comment above for further info.
+		 */
+		return 1;
+	}
+
+	/*
+	 * At this point we assume that retransmitted seq/frag numbers below
+	 * the current can simply be eliminated.
+	 */
+	if ((wh->i_fc[1] & IEEE80211_FC1_RETRY) &&
+	    SEQ_LEQ(rxseq, ni->ni_rxseqs[tid]))
+		return 0;
+
+	return 1;
+#undef	SEQ_LEQ
+#undef	SEQ_EQ
+#undef	HAS_SEQ
+#undef	SEQNO
+#undef	FRAGNO
+}
+
 void	ieee80211_deliver_data(struct ieee80211vap *,
 		struct ieee80211_node *, struct mbuf *);
 struct mbuf *ieee80211_defrag(struct ieee80211_node *,

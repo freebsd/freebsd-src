@@ -24,12 +24,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 28, 2008
+.Dd November 25, 2010
 .Dt ARCMSR 4
 .Os
 .Sh NAME
 .Nm arcmsr
-.Nd Areca SATA II RAID Controller driver
+.Nd Areca RAID Controller driver
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your
@@ -50,11 +50,11 @@ arcmsr_load="YES"
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for the Areca ARC-11xx and ARC-12xx series of SATA II
-RAID controllers.
+driver provides support for the Areca ARC-11xx, ARC-12xx, ARC-13xx,
+ARC-16xx and ARC-18xx series of SAS and SATA RAID controllers.
 These controllers feature RAID-0, 1, 3, 5, 6, and 10 and
 JBOD acceleration for up to 16 SATA drives.
-Raid level and stripe level
+RAID level and stripe level
 migration, online capacity expansion, hot insertion/removal, automatic failover
 and rebuild, and SMART are also supported.
 Access to the arrays is provided
@@ -82,8 +82,6 @@ ARC-1160
 .It
 ARC-1170
 .It
-ARC-1180
-.It
 ARC-1110ML
 .It
 ARC-1120ML
@@ -92,13 +90,27 @@ ARC-1130ML
 .It
 ARC-1160ML
 .It
+ARC-1200
+.It
+ARC-1201
+.It
 ARC-1210
+.It
+ARC-1212
 .It
 ARC-1220
 .It
+ARC-1222
+.It
 ARC-1230
 .It
+ARC-1231
+.It
 ARC-1260
+.It
+ARC-1261
+.It
+ARC-1270
 .It
 ARC-1280
 .It
@@ -111,6 +123,16 @@ ARC-1231ML
 ARC-1261ML
 .It
 ARC-1280ML
+.It
+ARC-1380
+.It
+ARC-1381
+.It
+ARC-1680
+.It
+ARC-1681
+.It
+ARC-1880
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /dev/arcmsr?" -compact

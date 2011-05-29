@@ -20,8 +20,7 @@
  */
 
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
- * Use is subject to license terms.
+ * Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
  */
 
 	.file	"atomic.s"
@@ -30,14 +29,10 @@
 #include <sys/asm_linkage.h>
 
 	ENTRY(atomic_add_64_nv)
-	movq	(%rdi), %rax
-1:
-	movq	%rsi, %rcx
-	addq	%rax, %rcx
+	mov	%rsi, %rax		// %rax = delta addend
 	lock
-	cmpxchgq %rcx, (%rdi)
-	jne	1b
-	movq	%rcx, %rax
+	  xaddq	%rsi, (%rdi)		// %rsi = old value, (%rdi) = sum
+	addq	%rsi, %rax		// new value = original value + delta
 	ret
 	SET_SIZE(atomic_add_64_nv)
 
@@ -52,6 +47,13 @@
 	movzbl	%cl, %eax	// return new value
 	ret
 	SET_SIZE(atomic_or_8_nv)
+
+	ENTRY(atomic_cas_32)
+	movl	%esi, %eax
+	lock
+	cmpxchgl %edx, (%rdi)
+	ret
+	SET_SIZE(atomic_cas_32)
 
 	ENTRY(atomic_cas_64)
 	movq	%rsi, %rax

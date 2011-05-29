@@ -231,7 +231,7 @@ is returned.
 .It Pa /dev/openfirm
 Open Firmware interface node
 .El
-.Sh ERRORS
+.Sh DIAGNOSTICS
 The following may result in rejection of an operation:
 .Bl -tag -width Er
 .It Bq Er EBADF
@@ -251,25 +251,6 @@ The kernel could not allocate memory to copy in data from user-space or to
 retrieve data from the
 .Tn Open Firmware .
 .El
-.Sh CAVEATS
-Due to limitations within
-.Tn Open Firmware
-itself,
-these functions run at elevated priority and may adversely affect system
-performance.
-.Pp
-For at least the
-.Pa /options
-node the property value passed in to the
-.Dv OFIOCSET
-call has to be null-terminated and the value length passed in has to include
-the terminating
-.Ql \e0 .
-However, as with the
-.Dv OFIOCGET
-call,
-the returned value length does not include the terminating
-.Ql \e0 .
 .Sh SEE ALSO
 .Xr ioctl 2 ,
 .Xr openprom 4 ,
@@ -298,3 +279,22 @@ interface was ported to
 .Fx
 by
 .An "Thomas Moestl" Aq tmm@FreeBSD.org .
+.Sh CAVEATS
+Due to limitations within
+.Tn Open Firmware
+itself,
+these functions run at elevated priority and may adversely affect system
+performance.
+.Pp
+For at least the
+.Pa /options
+node the property value passed in to the
+.Dv OFIOCSET
+call has to be null-terminated and the value length passed in has to include
+the terminating
+.Ql \e0 .
+However, as with the
+.Dv OFIOCGET
+call,
+the returned value length does not include the terminating
+.Ql \e0 .

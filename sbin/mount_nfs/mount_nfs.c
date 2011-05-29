@@ -177,7 +177,7 @@ main(int argc, char *argv[])
 			mountmode = V3;
 			break;
 		case 'a':
-			printf("-a deprecated, use -o readhead=<value>\n");
+			printf("-a deprecated, use -o readahead=<value>\n");
 			build_iovec(&iov, &iovlen, "readahead", optarg, (size_t)-1);
 			break;
 		case 'b':
@@ -213,7 +213,7 @@ main(int argc, char *argv[])
 			build_iovec(&iov, &iovlen, "intr", NULL, 0);
 			break;
 		case 'L':
-			printf("-i deprecated, use -o nolockd\n");
+			printf("-L deprecated, use -o nolockd\n");
 			build_iovec(&iov, &iovlen, "nolockd", NULL, 0);
 			break;
 		case 'l':
@@ -273,7 +273,7 @@ main(int argc, char *argv[])
 				} else if (strcmp(opt, "nfsv4") == 0) {
 					pass_flag_to_nmount=0;
 					mountmode = V4;
-					fstype = "newnfs";
+					fstype = "nfs";
 					nfsproto = IPPROTO_TCP;
 					if (portspec == NULL)
 						portspec = "2049";
@@ -381,14 +381,10 @@ main(int argc, char *argv[])
 		retrycnt = 0;
 
 	/*
-	 * If the experimental nfs subsystem is loaded into the kernel
-	 * and the regular one is not, use it. Otherwise, use it if the
-	 * fstype is set to "newnfs", either via "mount -t newnfs ..."
-	 * or by specifying an nfsv4 mount.
+	 * If the fstye is "oldnfs", run the old NFS client unless the
+	 * "nfsv4" option was specified.
 	 */
-	if (modfind("nfscl") >= 0 && modfind("nfs") < 0) {
-		fstype = "newnfs";
-	} else if (strcmp(fstype, "newnfs") == 0) {
+	if (strcmp(fstype, "nfs") == 0) {
 		if (modfind("nfscl") < 0) {
 			/* Not present in kernel, try loading it */
 			if (kldload("nfscl") < 0 ||
@@ -866,6 +862,7 @@ nfs_tryproto(struct addrinfo *ai, char *hostp, char *spec, char **errstr,
 	enum clnt_stat stat;
 	enum mountmode trymntmode;
 
+	sotype = 0;
 	trymntmode = mountmode;
 	errbuf[0] = '\0';
 	*errstr = errbuf;

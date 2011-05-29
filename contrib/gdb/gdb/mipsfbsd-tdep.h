@@ -34,7 +34,7 @@ void mipsfbsd_fill_reg (char *, int);
 void mipsfbsd_supply_fpreg (char *, int);
 void mipsfbsd_fill_fpreg (char *, int);
 
-#define SIZEOF_STRUCT_REG	(38 * mips_regsize (current_gdbarch))
-#define SIZEOF_STRUCT_FPREG	(33 * mips_regsize (current_gdbarch))
+#define SIZEOF_STRUCT_REG	(40 * mips_regsize (current_gdbarch))
+#define SIZEOF_STRUCT_FPREG	(34 * mips_regsize (current_gdbarch))
 
 #endif /* mipsfbsd_TDEP_H */

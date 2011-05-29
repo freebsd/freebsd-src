@@ -29,6 +29,9 @@
  * $FreeBSD$
  */
 
+#ifndef	_COMPAT_IA32_IA32_SIGNAL_H
+#define	_COMPAT_IA32_IA32_SIGNAL_H
+
 struct ia32_mcontext {
 	u_int32_t	mc_onstack;		/* XXX - sigcontext compat. */
 	u_int32_t	mc_gs;			/* machine state (struct trapframe) */
@@ -109,7 +112,7 @@ struct ia32_ucontext4 {
 };
 #endif
 
-#ifdef COMPAT_FREEBSD3
+#ifdef COMPAT_43
 struct ia32_sigcontext3 {
 	u_int32_t	sc_onstack;
 	u_int32_t	sc_mask;
@@ -162,7 +165,7 @@ struct ia32_sigframe {
 	struct siginfo32	sf_si;		/* = *sf_siginfo (SA_SIGINFO case) */
 };
 
-#ifdef COMPAT_FREEBSD3
+#ifdef COMPAT_43
 struct ia32_siginfo3 {
 	struct ia32_sigcontext3 si_sc;
 	int			si_signo;
@@ -180,10 +183,18 @@ struct ia32_sigframe3 {
 #endif
 
 struct ksiginfo;
+struct image_params;
 extern char ia32_sigcode[];
 extern char freebsd4_ia32_sigcode[];
+extern char ia32_osigcode[];
+extern char lcall_tramp;
 extern int sz_ia32_sigcode;
 extern int sz_freebsd4_ia32_sigcode;
-extern void ia32_sendsig(sig_t, struct ksiginfo *, sigset_t *);
-extern void ia32_setregs(struct thread *td, u_long entry, u_long stack,
-    u_long ps_strings);
+extern int sz_ia32_osigcode;
+extern int sz_lcall_tramp;
+void ia32_sendsig(sig_t, struct ksiginfo *, sigset_t *);
+void ia32_setregs(struct thread *td, struct image_params *imgp,
+    u_long stack);
+int setup_lcall_gate(void);
+
+#endif

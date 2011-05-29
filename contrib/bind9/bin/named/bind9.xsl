@@ -15,7 +15,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: bind9.xsl,v 1.19.82.2 2009/01/29 23:47:43 tbox Exp $ -->
+<!-- $Id: bind9.xsl,v 1.19.82.2 2009-01-29 23:47:43 tbox Exp $ -->
 
 <xsl:stylesheet version="1.0"
    xmlns:xsl="http://www.w3.org/1999/XSL/Transform"

@@ -1,4 +1,4 @@
-dnl @(#) $Header: /tcpdump/master/tcpdump/configure.in,v 1.196.2.6 2008-09-25 21:50:04 guy Exp $ (LBL)
+dnl @(#) $Header: /tcpdump/master/tcpdump/configure.in,v 1.204 2008-11-18 07:39:20 guy Exp $ (LBL)
 dnl
 dnl Copyright (c) 1994, 1995, 1996, 1997
 dnl	The Regents of the University of California.  All rights reserved.
@@ -6,15 +6,29 @@ dnl
 dnl Process this file with autoconf to produce a configure script.
 dnl
 
-AC_REVISION($Revision: 1.196.2.6 $)
+#
+# See
+#
+#	http://ftp.gnu.org/gnu/config/README
+#
+# for the URLs to use to fetch new versions of config.guess and
+# config.sub.
+#
+
+AC_REVISION($Revision: 1.204 $)
 AC_PREREQ(2.50)
 AC_INIT(tcpdump.c)
 
 AC_CANONICAL_HOST
 
+AC_LBL_C_INIT_BEFORE_CC(V_CCOPT, V_INCLS)
+AC_PROG_CC
 AC_LBL_C_INIT(V_CCOPT, V_INCLS)
 AC_LBL_C_INLINE
 AC_C___ATTRIBUTE__
+if test "$ac_cv___attribute__" = "yes"; then
+	AC_C___ATTRIBUTE___FORMAT_FUNCTION_POINTER
+fi
 AC_CHECK_HEADERS(fcntl.h rpc/rpcent.h netdnet/dnetdb.h)
 AC_CHECK_HEADERS(net/pfvar.h, , , [#include <sys/types.h>
 #include <sys/socket.h>
@@ -70,6 +84,12 @@ linux*)
 esac
 
 
+AC_ARG_WITH(smi,
+[  --with-smi              link with libsmi (allows to load MIBs on the fly to decode SNMP packets. [default=yes]
+  --without-smi           don't link with libsmi],,
+   with_smi=yes)
+
+if test "x$with_smi" != "xno" ; then
 AC_CHECK_HEADERS(smi.h)
 AC_CHECK_LIB(smi, smiInit)
 if test "$ac_cv_header_smi_h" = yes -a "$ac_cv_lib_smi_smiInit" = yes
@@ -111,6 +131,7 @@ dnl autoconf ever comes back to match the documentation.
   libsmi=no]
 )
 fi
+fi
 
 AC_MSG_CHECKING([whether to enable the possibly-buggy SMB printer])
 AC_ARG_ENABLE(smb,
@@ -138,7 +159,7 @@ fi
 
 AC_ARG_WITH(chroot, [  --with-chroot=DIRECTORY when dropping privileges, chroot to DIRECTORY])
 AC_MSG_CHECKING([whether to chroot])
-if test ! -z "$with_chroot" ; then
+if test ! -z "$with_chroot" && test "$with_chroot" != "no" ; then
         AC_DEFINE_UNQUOTED(WITH_CHROOT, "$withval")
        AC_MSG_RESULT(to \"$withval\")
 else
@@ -434,7 +455,7 @@ main()
 		fi
 	fi
 	])
-	AC_REPLACE_FUNCS(getaddrinfo getnameinfo)
+	AC_REPLACE_FUNCS(getnameinfo)
 fi
 
 AC_CACHE_CHECK([for dnet_htoa declaration in netdnet/dnetdb.h],
@@ -454,13 +475,6 @@ AC_CHECK_SIZEOF(short, 2)
 AC_CHECK_SIZEOF(int, 4)
 AC_CHECK_SIZEOF(long, 4)
 AC_CHECK_SIZEOF(long long, 8)
-
-dnl
-dnl Checks for u_intXX_t
-dnl AC_CHECK_BITTYPES(ac_cv_bittypes)
-dnl if test "$ac_cv_bittypes" = no; then
-dnl 	missing_includes=yes
-dnl fi
 
 dnl
 dnl Checks for addrinfo structure
@@ -779,6 +793,12 @@ V_GROUP=0
 if test -f /etc/group -a ! -z "`grep '^wheel:' /etc/group`" ; then
 	V_GROUP=wheel
 fi
+#
+# Assume V7/BSD convention for man pages (file formats in section 5,
+# miscellaneous info in section 7).
+#
+MAN_FILE_FORMATS=5
+MAN_MISC_INFO=7
 case "$host_os" in
 
 aix*)
@@ -786,16 +806,42 @@ aix*)
 	AC_DEFINE(_SUN)
 	;;
 
+hpux*)
+	#
+	# Use System V conventions for man pages.
+	#
+	MAN_FILE_FORMATS=4
+	MAN_MISC_INFO=5
+	;;
+
 irix*)
 	V_GROUP=sys
+
+	#
+	# Use System V conventions for man pages.
+	#
+	MAN_FILE_FORMATS=4
+	MAN_MISC_INFO=5
 	;;
 
 osf*)
 	V_GROUP=system
+
+	#
+	# Use System V conventions for man pages.
+	#
+	MAN_FILE_FORMATS=4
+	MAN_MISC_INFO=5
 	;;
 
 solaris*)
 	V_GROUP=sys
+
+	#
+	# Use System V conventions for man pages.
+	#
+	MAN_FILE_FORMATS=4
+	MAN_MISC_INFO=5
 	;;
 esac
 
@@ -810,13 +856,18 @@ fi
 savedcppflags="$CPPFLAGS"
 CPPFLAGS="$CPPFLAGS $V_INCLS"
 AC_CHECK_HEADERS(pcap/bluetooth.h)
+AC_CHECK_HEADERS(pcap/usb.h)
 CPPFLAGS="$savedcppflags"
 
 AC_CHECK_HEADERS(sys/bitypes.h)
 
 AC_CHECK_TYPE([int8_t], ,
 	[AC_DEFINE([int8_t], [signed char],
-	[Define to `signed char' if int8_t not defined.])])
+	[Define to `signed char' if int8_t not defined.])],
+	[AC_INCLUDES_DEFAULT
+#ifdef HAVE_SYS_BITYPES_H
+#include <sys/bitypes.h>
+#endif])
 AC_CHECK_TYPE([u_int8_t], ,
 	[AC_DEFINE([u_int8_t], [unsigned char],
 	[Define to `unsigned char' if u_int8_t not defined.])],
@@ -826,7 +877,11 @@ AC_CHECK_TYPE([u_int8_t], ,
 #endif])
 AC_CHECK_TYPE([int16_t], ,
 	[AC_DEFINE([int16_t], [short],
-	[Define to `short' if int16_t not defined.])])
+	[Define to `short' if int16_t not defined.])]
+	[AC_INCLUDES_DEFAULT
+#ifdef HAVE_SYS_BITYPES_H
+#include <sys/bitypes.h>
+#endif])
 AC_CHECK_TYPE([u_int16_t], ,
 	[AC_DEFINE([u_int16_t], [unsigned short],
 	[Define to `unsigned short' if u_int16_t not defined.])],
@@ -836,7 +891,11 @@ AC_CHECK_TYPE([u_int16_t], ,
 #endif])
 AC_CHECK_TYPE([int32_t], ,
 	[AC_DEFINE([int32_t], [int],
-	[Define to `int' if int32_t not defined.])])
+	[Define to `int' if int32_t not defined.])],
+	[AC_INCLUDES_DEFAULT
+#ifdef HAVE_SYS_BITYPES_H
+#include <sys/bitypes.h>
+#endif])
 AC_CHECK_TYPE([u_int32_t], ,
 	[AC_DEFINE([u_int32_t], [unsigned int],
 	[Define to `unsigned int' if u_int32_t not defined.])],
@@ -846,7 +905,11 @@ AC_CHECK_TYPE([u_int32_t], ,
 #endif])
 AC_CHECK_TYPE([int64_t], ,
 	[AC_DEFINE([int64_t], [long long],
-	[Define to `long long' if int64_t not defined.])])
+	[Define to `long long' if int64_t not defined.])],
+	[AC_INCLUDES_DEFAULT
+#ifdef HAVE_SYS_BITYPES_H
+#include <sys/bitypes.h>
+#endif])
 AC_CHECK_TYPE([u_int64_t], ,
 	[AC_DEFINE([u_int64_t], [unsigned long long],
 	[Define to `unsigned long long' if u_int64_t not defined.])],
@@ -989,7 +1052,9 @@ if test "$want_libcrypto" != "no"; then
 	fi
 	if test "$ac_cv_ssleay_path" != no; then
 		V_INCLS="$V_INCLS $incdir"
-		LDFLAGS="-L$dir/lib $LDFLAGS"
+		if test "$dir" != "/usr"; then
+			LDFLAGS="-L$dir/lib $LDFLAGS"
+		fi
 		if test -f $ac_cv_ssleay_path/lib/libRSAglue.a; then
 			LIBS="$LIBS -lRSAglue"
 		fi
@@ -1024,6 +1089,8 @@ AC_SUBST(V_GROUP)
 AC_SUBST(V_INCLS)
 AC_SUBST(V_PCAPDEP)
 AC_SUBST(LOCALSRC)
+AC_SUBST(MAN_FILE_FORMATS)
+AC_SUBST(MAN_MISC_INFO)
 
 AC_PROG_INSTALL
 
@@ -1034,5 +1101,5 @@ AC_OUTPUT_COMMANDS([if test -f .devel; then
 	cat Makefile-devel-adds >> Makefile
 	make depend
 fi])
-AC_OUTPUT(Makefile)
+AC_OUTPUT(Makefile tcpdump.1)
 exit 0

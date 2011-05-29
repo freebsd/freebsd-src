@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/racct.h>
 #include <sys/resourcevar.h>
 #include <sys/sched.h>
 #include <sys/sf_buf.h>
@@ -94,17 +95,9 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pager.h>
 #include <vm/swap_pager.h>
 
-extern int maxslp;
-
 /*
  * System initialization
  *
- * Note: proc0 from proc.h
- */
-static void vm_init_limits(void *);
-SYSINIT(vm_limits, SI_SUB_VM_CONF, SI_ORDER_FIRST, vm_init_limits, &proc0);
-
-/*
  * THIS MUST BE THE LAST INITIALIZATION ITEM!!!
  *
  * Note: run scheduling should be divorced from the vm system.
@@ -115,6 +108,8 @@ SYSINIT(scheduler, SI_SUB_RUN_SCHEDULER, SI_ORDER_ANY, scheduler, NULL);
 #ifndef NO_SWAPPING
 static int swapout(struct proc *);
 static void swapclear(struct proc *);
+static void vm_thread_swapin(struct thread *td);
+static void vm_thread_swapout(struct thread *td);
 #endif
 
 /*
@@ -188,6 +183,7 @@ int
 vslock(void *addr, size_t len)
 {
 	vm_offset_t end, last, start;
+	unsigned long nsize;
 	vm_size_t npages;
 	int error;
 
@@ -200,9 +196,13 @@ vslock(void *addr, size_t len)
 	if (npages > vm_page_max_wired)
 		return (ENOMEM);
 	PROC_LOCK(curproc);
-	if (ptoa(npages +
-	    pmap_wired_count(vm_map_pmap(&curproc->p_vmspace->vm_map))) >
-	    lim_cur(curproc, RLIMIT_MEMLOCK)) {
+	nsize = ptoa(npages +
+	    pmap_wired_count(vm_map_pmap(&curproc->p_vmspace->vm_map)));
+	if (nsize > lim_cur(curproc, RLIMIT_MEMLOCK)) {
+		PROC_UNLOCK(curproc);
+		return (ENOMEM);
+	}
+	if (racct_set(curproc, RACCT_MEMLOCK, nsize)) {
 		PROC_UNLOCK(curproc);
 		return (ENOMEM);
 	}
@@ -222,6 +222,12 @@ vslock(void *addr, size_t len)
 #endif
 	error = vm_map_wire(&curproc->p_vmspace->vm_map, start, end,
 	    VM_MAP_WIRE_SYSTEM | VM_MAP_WIRE_NOHOLES);
+	if (error != KERN_SUCCESS) {
+		PROC_LOCK(curproc);
+		racct_set(curproc, RACCT_MEMLOCK, 
+		    ptoa(pmap_wired_count(vm_map_pmap(&curproc->p_vmspace->vm_map))));
+		PROC_UNLOCK(curproc);
+	}
 	/*
 	 * Return EFAULT on error to match copy{in,out}() behaviour
 	 * rather than returning ENOMEM like mlock() would.
@@ -237,6 +243,11 @@ vsunlock(void *addr, size_t len)
 	(void)vm_map_unwire(&curproc->p_vmspace->vm_map,
 	    trunc_page((vm_offset_t)addr), round_page((vm_offset_t)addr + len),
 	    VM_MAP_WIRE_SYSTEM | VM_MAP_WIRE_NOHOLES);
+
+	PROC_LOCK(curproc);
+	racct_set(curproc, RACCT_MEMLOCK,
+	    ptoa(pmap_wired_count(vm_map_pmap(&curproc->p_vmspace->vm_map))));
+	PROC_UNLOCK(curproc);
 }
 
 /*
@@ -261,16 +272,16 @@ vm_imgact_hold_page(vm_object_t object, vm_ooffset_t offset)
 		if (m == NULL)
 			goto out;
 		if (rv != VM_PAGER_OK) {
-			vm_page_lock_queues();
+			vm_page_lock(m);
 			vm_page_free(m);
-			vm_page_unlock_queues();
+			vm_page_unlock(m);
 			m = NULL;
 			goto out;
 		}
 	}
-	vm_page_lock_queues();
+	vm_page_lock(m);
 	vm_page_hold(m);
-	vm_page_unlock_queues();
+	vm_page_unlock(m);
 	vm_page_wakeup(m);
 out:
 	VM_OBJECT_UNLOCK(object);
@@ -304,9 +315,9 @@ vm_imgact_unmap_page(struct sf_buf *sf)
 	m = sf_buf_page(sf);
 	sf_buf_free(sf);
 	sched_unpin();
-	vm_page_lock_queues();
+	vm_page_lock(m);
 	vm_page_unhold(m);
-	vm_page_unlock_queues();
+	vm_page_unlock(m);
 }
 
 void
@@ -377,8 +388,17 @@ vm_thread_new(struct thread *td, int pages)
 	/*
 	 * Get a kernel virtual address for this thread's kstack.
 	 */
+#if defined(__mips__)
+	/*
+	 * We need to align the kstack's mapped address to fit within
+	 * a single TLB entry.
+	 */
+	ks = kmem_alloc_nofault_space(kernel_map,
+	    (pages + KSTACK_GUARD_PAGES) * PAGE_SIZE, VMFS_TLB_ALIGNED_SPACE);
+#else
 	ks = kmem_alloc_nofault(kernel_map,
 	   (pages + KSTACK_GUARD_PAGES) * PAGE_SIZE);
+#endif
 	if (ks == 0) {
 		printf("vm_thread_new: kstack allocation failed\n");
 		vm_object_deallocate(ksobj);
@@ -429,10 +449,10 @@ vm_thread_stack_dispose(vm_object_t ksobj, vm_offset_t ks, int pages)
 		m = vm_page_lookup(ksobj, i);
 		if (m == NULL)
 			panic("vm_thread_dispose: kstack already missing?");
-		vm_page_lock_queues();
+		vm_page_lock(m);
 		vm_page_unwire(m, 0);
 		vm_page_free(m);
-		vm_page_unlock_queues();
+		vm_page_unlock(m);
 	}
 	VM_OBJECT_UNLOCK(ksobj);
 	vm_object_deallocate(ksobj);
@@ -498,10 +518,11 @@ kstack_cache_init(void *nulll)
 MTX_SYSINIT(kstack_cache, &kstack_cache_mtx, "kstkch", MTX_DEF);
 SYSINIT(vm_kstacks, SI_SUB_KTHREAD_INIT, SI_ORDER_ANY, kstack_cache_init, NULL);
 
+#ifndef NO_SWAPPING
 /*
  * Allow a thread's kernel stack to be paged out.
  */
-void
+static void
 vm_thread_swapout(struct thread *td)
 {
 	vm_object_t ksobj;
@@ -517,10 +538,10 @@ vm_thread_swapout(struct thread *td)
 		m = vm_page_lookup(ksobj, i);
 		if (m == NULL)
 			panic("vm_thread_swapout: kstack already missing?");
-		vm_page_lock_queues();
 		vm_page_dirty(m);
+		vm_page_lock(m);
 		vm_page_unwire(m, 0);
-		vm_page_unlock_queues();
+		vm_page_unlock(m);
 	}
 	VM_OBJECT_UNLOCK(ksobj);
 }
@@ -528,34 +549,47 @@ vm_thread_swapout(struct thread *td)
 /*
  * Bring the kernel stack for a specified thread back in.
  */
-void
+static void
 vm_thread_swapin(struct thread *td)
 {
 	vm_object_t ksobj;
-	vm_page_t m, ma[KSTACK_MAX_PAGES];
-	int i, pages, rv;
+	vm_page_t ma[KSTACK_MAX_PAGES];
+	int i, j, k, pages, rv;
 
 	pages = td->td_kstack_pages;
 	ksobj = td->td_kstack_obj;
 	VM_OBJECT_LOCK(ksobj);
+	for (i = 0; i < pages; i++)
+		ma[i] = vm_page_grab(ksobj, i, VM_ALLOC_NORMAL | VM_ALLOC_RETRY |
+		    VM_ALLOC_WIRED);
 	for (i = 0; i < pages; i++) {
-		m = vm_page_grab(ksobj, i, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
-		if (m->valid != VM_PAGE_BITS_ALL) {
-			rv = vm_pager_get_pages(ksobj, &m, 1, 0);
+		if (ma[i]->valid != VM_PAGE_BITS_ALL) {
+			KASSERT(ma[i]->oflags & VPO_BUSY,
+			    ("lost busy 1"));
+			vm_object_pip_add(ksobj, 1);
+			for (j = i + 1; j < pages; j++) {
+				KASSERT(ma[j]->valid == VM_PAGE_BITS_ALL ||
+				    (ma[j]->oflags & VPO_BUSY),
+				    ("lost busy 2"));
+				if (ma[j]->valid == VM_PAGE_BITS_ALL)
+					break;
+			}
+			rv = vm_pager_get_pages(ksobj, ma + i, j - i, 0);
 			if (rv != VM_PAGER_OK)
-				panic("vm_thread_swapin: cannot get kstack for proc: %d", td->td_proc->p_pid);
-			m = vm_page_lookup(ksobj, i);
-		}
-		ma[i] = m;
-		vm_page_lock_queues();
-		vm_page_wire(m);
-		vm_page_unlock_queues();
-		vm_page_wakeup(m);
+	panic("vm_thread_swapin: cannot get kstack for proc: %d",
+				    td->td_proc->p_pid);
+			vm_object_pip_wakeup(ksobj);
+			for (k = i; k < j; k++)
+				ma[k] = vm_page_lookup(ksobj, k);
+			vm_page_wakeup(ma[i]);
+		} else if (ma[i]->oflags & VPO_BUSY)
+			vm_page_wakeup(ma[i]);
 	}
 	VM_OBJECT_UNLOCK(ksobj);
 	pmap_qenter(td->td_kstack, ma, pages);
 	cpu_thread_swapin(td);
 }
+#endif /* !NO_SWAPPING */
 
 /*
  * Implement fork's actions on an address space.
@@ -627,38 +661,6 @@ vm_waitproc(p)
 {
 
 	vmspace_exitfree(p);		/* and clean-out the vmspace */
-}
-
-/*
- * Set default limits for VM system.
- * Called for proc 0, and then inherited by all others.
- *
- * XXX should probably act directly on proc0.
- */
-static void
-vm_init_limits(udata)
-	void *udata;
-{
-	struct proc *p = udata;
-	struct plimit *limp;
-	int rss_limit;
-
-	/*
-	 * Set up the initial limits on process VM. Set the maximum resident
-	 * set size to be half of (reasonably) available memory.  Since this
-	 * is a soft limit, it comes into effect only when the system is out
-	 * of memory - half of main memory helps to favor smaller processes,
-	 * and reduces thrashing of the object cache.
-	 */
-	limp = p->p_limit;
-	limp->pl_rlimit[RLIMIT_STACK].rlim_cur = dflssiz;
-	limp->pl_rlimit[RLIMIT_STACK].rlim_max = maxssiz;
-	limp->pl_rlimit[RLIMIT_DATA].rlim_cur = dfldsiz;
-	limp->pl_rlimit[RLIMIT_DATA].rlim_max = maxdsiz;
-	/* limit the limit to no less than 2MB */
-	rss_limit = max(cnt.v_free_count, 512);
-	limp->pl_rlimit[RLIMIT_RSS].rlim_cur = ptoa(rss_limit);
-	limp->pl_rlimit[RLIMIT_RSS].rlim_max = RLIM_INFINITY;
 }
 
 void
@@ -745,7 +747,8 @@ loop:
 	sx_slock(&allproc_lock);
 	FOREACH_PROC_IN_SYSTEM(p) {
 		PROC_LOCK(p);
-		if (p->p_flag & (P_SWAPPINGOUT | P_SWAPPINGIN | P_INMEM)) {
+		if (p->p_state == PRS_NEW ||
+		    p->p_flag & (P_SWAPPINGOUT | P_SWAPPINGIN | P_INMEM)) {
 			PROC_UNLOCK(p);
 			continue;
 		}
@@ -783,7 +786,7 @@ loop:
 	 * Nothing to do, back to sleep.
 	 */
 	if ((p = pp) == NULL) {
-		tsleep(&proc0, PVM, "sched", maxslp * hz / 2);
+		tsleep(&proc0, PVM, "sched", MAXSLP * hz / 2);
 		goto loop;
 	}
 	PROC_LOCK(p);
@@ -832,12 +835,12 @@ SYSCTL_INT(_vm, OID_AUTO, swap_idle_threshold2, CTLFLAG_RW,
     &swap_idle_threshold2, 0, "Time before a process will be swapped out");
 
 /*
- * Swapout is driven by the pageout daemon.  Very simple, we find eligible
- * procs and swap out their stacks.  We try to always "swap" at least one
- * process in case we need the room for a swapin.
- * If any procs have been sleeping/stopped for at least maxslp seconds,
- * they are swapped.  Else, we swap the longest-sleeping or stopped process,
- * if any, otherwise the longest-resident process.
+ * First, if any processes have been sleeping or stopped for at least
+ * "swap_idle_threshold1" seconds, they are swapped out.  If, however,
+ * no such processes exist, then the longest-sleeping or stopped
+ * process is swapped out.  Finally, and only as a last resort, if
+ * there are no sleeping or stopped processes, the longest-resident
+ * process is swapped out.
  */
 void
 swapout_procs(action)

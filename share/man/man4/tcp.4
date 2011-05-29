@@ -1,5 +1,11 @@
 .\" Copyright (c) 1983, 1991, 1993
-.\"	The Regents of the University of California.  All rights reserved.
+.\"	The Regents of the University of California.
+.\" Copyright (c) 2010-2011 The FreeBSD Foundation
+.\" All rights reserved.
+.\"
+.\" Portions of this documentation were written at the Centre for Advanced
+.\" Internet Architectures, Swinburne University of Technology, Melbourne,
+.\" Australia by David Hayes under sponsorship from the FreeBSD Foundation.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -32,7 +38,7 @@
 .\"     From: @(#)tcp.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd August 16, 2008
+.Dd February 15, 2011
 .Dt TCP 4
 .Os
 .Sh NAME
@@ -116,7 +122,7 @@ supports a number of socket options which can be set with
 .Xr setsockopt 2
 and tested with
 .Xr getsockopt 2 :
-.Bl -tag -width ".Dv TCP_NODELAY"
+.Bl -tag -width ".Dv TCP_CONGESTION"
 .It Dv TCP_INFO
 Information about a socket's underlying TCP session may be retrieved
 by passing the read-only option
@@ -134,6 +140,12 @@ send window size,
 receive window size,
 and
 bandwidth-controlled window space.
+.It Dv TCP_CONGESTION
+Select or query the congestion control algorithm that TCP will use for the
+connection.
+See
+.Xr cc 4
+for details.
 .It Dv TCP_NODELAY
 Under most circumstances,
 .Tn TCP
@@ -231,6 +243,14 @@ see
 .Xr ip 4 .
 Incoming connection requests that are source-routed are noted,
 and the reverse source route is used in responding.
+.Pp
+The default congestion control algorithm for
+.Tn TCP
+is
+.Xr cc_newreno 4 .
+Other congestion control algorithms can be made available using the
+.Xr cc 4
+framework.
 .Ss MIB Variables
 The
 .Tn TCP
@@ -289,7 +309,9 @@ Amount of time, in milliseconds, that the connection must be idle
 before keepalive probes (if enabled) are sent.
 .It Va keepintvl
 The interval, in milliseconds, between keepalive probes sent to remote
-machines.
+machines, when no response is received on a
+.Va keepidle
+probe.
 After
 .Dv TCPTV_KEEPCNT
 (default 8) probes are sent, with no response, the connection is dropped.
@@ -320,11 +342,6 @@ See
 Delay ACK to try and piggyback it onto a data packet.
 .It Va delacktime
 Maximum amount of time, in milliseconds, before a delayed ACK is sent.
-.It Va newreno
-Enable
-.Tn TCP
-NewReno Fast Recovery algorithm,
-as described in RFC 2582.
 .It Va path_mtu_discovery
 Enable Path MTU Discovery.
 .It Va tcbhashsize
@@ -383,72 +400,6 @@ code.
 For this reason, we use 200ms of slop and a near-0
 minimum, which gives us an effective minimum of 200ms (similar to
 .Tn Linux ) .
-.It Va inflight.enable
-Enable
-.Tn TCP
-bandwidth-delay product limiting.
-An attempt will be made to calculate
-the bandwidth-delay product for each individual
-.Tn TCP
-connection, and limit
-the amount of inflight data being transmitted, to avoid building up
-unnecessary packets in the network.
-This option is recommended if you
-are serving a lot of data over connections with high bandwidth-delay
-products, such as modems, GigE links, and fast long-haul WANs, and/or
-you have configured your machine to accommodate large
-.Tn TCP
-windows.
-In such
-situations, without this option, you may experience high interactive
-latencies or packet loss due to the overloading of intermediate routers
-and switches.
-Note that bandwidth-delay product limiting only effects
-the transmit side of a
-.Tn TCP
-connection.
-.It Va inflight.debug
-Enable debugging for the bandwidth-delay product algorithm.
-.It Va inflight.min
-This puts a lower bound on the bandwidth-delay product window, in bytes.
-A value of 1024 is typically used for debugging.
-6000-16000 is more typical in a production installation.
-Setting this value too low may result in
-slow ramp-up times for bursty connections.
-Setting this value too high effectively disables the algorithm.
-.It Va inflight.max
-This puts an upper bound on the bandwidth-delay product window, in bytes.
-This value should not generally be modified, but may be used to set a
-global per-connection limit on queued data, potentially allowing you to
-intentionally set a less than optimum limit, to smooth data flow over a
-network while still being able to specify huge internal
-.Tn TCP
-buffers.
-.It Va inflight.stab
-The bandwidth-delay product algorithm requires a slightly larger window
-than it otherwise calculates for stability.
-This parameter determines the extra window in maximal packets / 10.
-The default value of 20 represents 2 maximal packets.
-Reducing this value is not recommended, but you may
-come across a situation with very slow links where the
-.Xr ping 8
-time
-reduction of the default inflight code is not sufficient.
-If this case occurs, you should first try reducing
-.Va inflight.min
-and, if that does not
-work, reduce both
-.Va inflight.min
-and
-.Va inflight.stab ,
-trying values of
-15, 10, or 5 for the latter.
-Never use a value less than 5.
-Reducing
-.Va inflight.stab
-can lead to upwards of a 20% underutilization of the link
-as well as reducing the algorithm's ability to adapt to changing
-situations and should only be done as a last resort.
 .It Va rfc3042
 Enable the Limited Transmit algorithm as described in RFC 3042.
 It helps avoid timeouts on lossy links and also when the congestion window
@@ -559,6 +510,7 @@ address.
 .Xr socket 2 ,
 .Xr sysctl 3 ,
 .Xr blackhole 4 ,
+.Xr cc 4 ,
 .Xr inet 4 ,
 .Xr intro 4 ,
 .Xr ip 4 ,

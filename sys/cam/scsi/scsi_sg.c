@@ -258,6 +258,7 @@ sgregister(struct cam_periph *periph, void *arg)
 {
 	struct sg_softc *softc;
 	struct ccb_getdev *cgd;
+	struct ccb_pathinq cpi;
 	int no_tags;
 
 	cgd = (struct ccb_getdev *)arg;
@@ -284,6 +285,11 @@ sgregister(struct cam_periph *periph, void *arg)
 	TAILQ_INIT(&softc->rdwr_done);
 	periph->softc = softc;
 
+	bzero(&cpi, sizeof(cpi));
+	xpt_setup_ccb(&cpi.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
+	cpi.ccb_h.func_code = XPT_PATH_INQ;
+	xpt_action((union ccb *)&cpi);
+
 	/*
 	 * We pass in 0 for all blocksize, since we don't know what the
 	 * blocksize of the device is, if it even has a blocksize.
@@ -295,7 +301,7 @@ sgregister(struct cam_periph *periph, void *arg)
 			DEVSTAT_NO_BLOCKSIZE
 			| (no_tags ? DEVSTAT_NO_ORDERED_TAGS : 0),
 			softc->pd_type |
-			DEVSTAT_TYPE_IF_SCSI |
+			XPORT_DEVSTAT_TYPE(cpi.transport) |
 			DEVSTAT_TYPE_PASS,
 			DEVSTAT_PRIORITY_PASS);
 
@@ -303,7 +309,14 @@ sgregister(struct cam_periph *periph, void *arg)
 	softc->dev = make_dev(&sg_cdevsw, periph->unit_number,
 			      UID_ROOT, GID_OPERATOR, 0600, "%s%d",
 			      periph->periph_name, periph->unit_number);
-	(void)make_dev_alias(softc->dev, "sg%c", 'a' + periph->unit_number);
+	if (periph->unit_number < 26) {
+		(void)make_dev_alias(softc->dev, "sg%c",
+		    periph->unit_number + 'a');
+	} else {
+		(void)make_dev_alias(softc->dev, "sg%c%c",
+		    ((periph->unit_number / 26) - 1) + 'a',
+		    (periph->unit_number % 26) + 'a');
+	}
 	cam_periph_lock(periph);
 	softc->dev->si_drv1 = periph;
 
@@ -586,7 +599,7 @@ sgioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 	{
 		struct sg_scsi_id id;
 
-		id.host_no = 0; /* XXX */
+		id.host_no = cam_sim_path(xpt_path_sim(periph->path));
 		id.channel = xpt_path_path_id(periph->path);
 		id.scsi_id = xpt_path_target_id(periph->path);
 		id.lun = xpt_path_lun_id(periph->path);

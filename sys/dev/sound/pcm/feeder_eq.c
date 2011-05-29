@@ -93,7 +93,7 @@ SND_DECLARE_FILE("$FreeBSD$");
 static int feeder_eq_exact_rate = 0;
 
 #ifdef _KERNEL
-static const char feeder_eq_presets[] = FEEDER_EQ_PRESETS;
+static char feeder_eq_presets[] = FEEDER_EQ_PRESETS;
 SYSCTL_STRING(_hw_snd, OID_AUTO, feeder_eq_presets, CTLFLAG_RD,
     &feeder_eq_presets, 0, "compile-time eq presets");
 

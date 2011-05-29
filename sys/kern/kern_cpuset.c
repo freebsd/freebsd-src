@@ -107,6 +107,10 @@ static struct setlist cpuset_ids;
 static struct unrhdr *cpuset_unr;
 static struct cpuset *cpuset_zero;
 
+/* Return the size of cpuset_t at the kernel level */
+SYSCTL_INT(_kern_sched, OID_AUTO, cpusetsize, CTLFLAG_RD,
+	0, sizeof(cpuset_t), "sizeof(cpuset_t)");
+
 cpuset_t *cpuset_root;
 
 /*
@@ -245,7 +249,7 @@ cpuset_lookup(cpusetid_t setid, struct thread *td)
  * will have no valid cpu based on restrictions from the parent.
  */
 static int
-_cpuset_create(struct cpuset *set, struct cpuset *parent, cpuset_t *mask,
+_cpuset_create(struct cpuset *set, struct cpuset *parent, const cpuset_t *mask,
     cpusetid_t id)
 {
 
@@ -256,7 +260,7 @@ _cpuset_create(struct cpuset *set, struct cpuset *parent, cpuset_t *mask,
 	refcount_init(&set->cs_ref, 1);
 	set->cs_flags = 0;
 	mtx_lock_spin(&cpuset_lock);
-	CPU_AND(mask, &parent->cs_mask);
+	CPU_AND(&set->cs_mask, &parent->cs_mask);
 	set->cs_id = id;
 	set->cs_parent = cpuset_ref(parent);
 	LIST_INSERT_HEAD(&parent->cs_children, set, cs_siblings);
@@ -273,7 +277,7 @@ _cpuset_create(struct cpuset *set, struct cpuset *parent, cpuset_t *mask,
  * allocated.
  */
 static int
-cpuset_create(struct cpuset **setp, struct cpuset *parent, cpuset_t *mask)
+cpuset_create(struct cpuset **setp, struct cpuset *parent, const cpuset_t *mask)
 {
 	struct cpuset *set;
 	cpusetid_t id;
@@ -416,19 +420,10 @@ cpuset_which(cpuwhich_t which, id_t id, struct proc **pp, struct thread **tdp,
 			td = curthread;
 			break;
 		}
-		sx_slock(&allproc_lock);
-		FOREACH_PROC_IN_SYSTEM(p) {
-			PROC_LOCK(p);
-			FOREACH_THREAD_IN_PROC(p, td)
-				if (td->td_tid == id)
-					break;
-			if (td != NULL)
-				break;
-			PROC_UNLOCK(p);
-		}
-		sx_sunlock(&allproc_lock);
+		td = tdfind(id, -1);
 		if (td == NULL)
 			return (ESRCH);
+		p = td->td_proc;
 		break;
 	case CPU_WHICH_CPUSET:
 		if (id == -1) {
@@ -480,7 +475,7 @@ cpuset_which(cpuwhich_t which, id_t id, struct proc **pp, struct thread **tdp,
  * the new set is a child of 'set'.
  */
 static int
-cpuset_shadow(struct cpuset *set, struct cpuset *fset, cpuset_t *mask)
+cpuset_shadow(struct cpuset *set, struct cpuset *fset, const cpuset_t *mask)
 {
 	struct cpuset *parent;
 
@@ -681,7 +676,7 @@ cpuset_thread0(void)
 	 * cpuset_create() due to NULL parent.
 	 */
 	set = uma_zalloc(cpuset_zone, M_WAITOK | M_ZERO);
-	set->cs_mask.__bits[0] = -1;
+	CPU_FILL(&set->cs_mask);
 	LIST_INIT(&set->cs_children);
 	LIST_INSERT_HEAD(&cpuset_ids, set, cs_link);
 	set->cs_ref = 1;

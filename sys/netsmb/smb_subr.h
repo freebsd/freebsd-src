@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000-2001, Boris Popov
+ * Copyright (c) 2000-2001 Boris Popov
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -10,12 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *    This product includes software developed by Boris Popov.
- * 4. Neither the name of the author nor the names of any co-contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -107,19 +101,19 @@ void smb_makescred(struct smb_cred *scred, struct thread *td, struct ucred *cred
 int  smb_td_intr(struct thread *);
 char *smb_strdup(const char *s);
 void *smb_memdup(const void *umem, int len);
-char *smb_strdupin(char *s, int maxlen);
-void *smb_memdupin(void *umem, int len);
+char *smb_strdupin(char *s, size_t maxlen);
+void *smb_memdupin(void *umem, size_t len);
 void smb_strtouni(u_int16_t *dst, const char *src);
 void smb_strfree(char *s);
 void smb_memfree(void *s);
-void *smb_zmalloc(unsigned long size, struct malloc_type *type, int flags);
+void *smb_zmalloc(size_t size, struct malloc_type *type, int flags);
 
 int  smb_calcmackey(struct smb_vc *vcp);
 int  smb_encrypt(const u_char *apwd, u_char *C8, u_char *RN);
 int  smb_ntencrypt(const u_char *apwd, u_char *C8, u_char *RN);
 int  smb_maperror(int eclass, int eno);
 int  smb_put_dmem(struct mbchain *mbp, struct smb_vc *vcp,
-	const char *src, int len, int caseopt);
+	const char *src, size_t len, int caseopt);
 int  smb_put_dstring(struct mbchain *mbp, struct smb_vc *vcp,
 	const char *src, int caseopt);
 int  smb_put_string(struct smb_rq *rqp, const char *src);

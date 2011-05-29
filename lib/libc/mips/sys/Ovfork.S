@@ -49,21 +49,16 @@ __FBSDID("$FreeBSD$");
  */
 
 LEAF(__sys_vfork)
-#ifdef __ABICALLS__
-	.set	noreorder
-	.cpload	t9
-	.set	reorder
-#endif
 	WEAK_ALIAS(vfork, __sys_vfork)
 	WEAK_ALIAS(_vfork, __sys_vfork)
+	PIC_PROLOGUE(__sys_vfork)
 	li	v0, SYS_vfork		# system call number for vfork
 	syscall
 	beq	a3, zero, 1f		# jump if no errors
-	la	t9, __cerror
-	jr	t9
+	PIC_TAILCALL(__cerror)
 1:
 	beq	v1, zero, 2f		# parent process ?
 	move	v0, zero		# return zero in child
 2:
-	j	ra
+	PIC_RETURN()
 END(__sys_vfork)

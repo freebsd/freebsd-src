@@ -26,8 +26,8 @@
 .\"
 .\" $FreeBSD$
 .Dd October 16, 2002
-.Os
 .Dt FMTCHECK 3
+.Os
 .Sh NAME
 .Nm fmtcheck
 .Nd sanitizes user-supplied
@@ -87,6 +87,12 @@ will return
 .Fa fmt_suspect .
 Otherwise, it will return
 .Fa fmt_default .
+.Sh SEE ALSO
+.Xr printf 3
+.Sh BUGS
+The
+.Fn fmtcheck
+function does not recognize positional parameters.
 .Sh SECURITY CONSIDERATIONS
 Note that the formats may be quite different as long as they accept the
 same arguments.
@@ -100,9 +106,3 @@ is not equivalent to
 .Qq Li %lx
 because
 the first requires an integer and the second requires a long.
-.Sh SEE ALSO
-.Xr printf 3
-.Sh BUGS
-The
-.Fn fmtcheck
-function does not recognize positional parameters.

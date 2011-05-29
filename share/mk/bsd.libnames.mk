@@ -82,6 +82,7 @@ LIBLN?=		"don't use LIBLN, use LIBL"
 .if ${MK_BIND} != "no"
 LIBLWRES?=	${DESTDIR}${LIBDIR}/liblwres.a
 .endif
+LIBLZMA?=	${DESTDIR}${LIBDIR}/liblzma.a
 LIBM?=		${DESTDIR}${LIBDIR}/libm.a
 LIBMAGIC?=	${DESTDIR}${LIBDIR}/libmagic.a
 LIBMD?=		${DESTDIR}${LIBDIR}/libmd.a
@@ -99,7 +100,7 @@ LIBNCURSESW?=	${DESTDIR}${LIBDIR}/libncursesw.a
 LIBNETGRAPH?=	${DESTDIR}${LIBDIR}/libnetgraph.a
 LIBNGATM?=	${DESTDIR}${LIBDIR}/libngatm.a
 LIBNVPAIR?=	${DESTDIR}${LIBDIR}/libnvpair.a
-LIBOBJC?=	${DESTDIR}${LIBDIR}/libobjc.a
+LIBODIALOG?=	${DESTDIR}${LIBDIR}/libodialog.a
 LIBOPIE?=	${DESTDIR}${LIBDIR}/libopie.a
 
 # The static PAM library doesn't know its secondary dependencies,
@@ -137,6 +138,7 @@ LIBROKEN?=	${DESTDIR}${LIBDIR}/libroken.a
 LIBRPCSVC?=	${DESTDIR}${LIBDIR}/librpcsvc.a
 LIBRPCSEC_GSS?=	${DESTDIR}${LIBDIR}/librpcsec_gss.a
 LIBRT?=		${DESTDIR}${LIBDIR}/librt.a
+LIBRTLD_DB?=	${DESTDIR}${LIBDIR}/librtld_db.a
 LIBSBUF?=	${DESTDIR}${LIBDIR}/libsbuf.a
 LIBSDP?=	${DESTDIR}${LIBDIR}/libsdp.a
 LIBSMB?=	${DESTDIR}${LIBDIR}/libsmb.a

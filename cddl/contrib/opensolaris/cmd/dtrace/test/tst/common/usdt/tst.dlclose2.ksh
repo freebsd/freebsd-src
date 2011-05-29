@@ -136,7 +136,7 @@ main(int argc, char **argv)
 }
 EOF
 
-/usr/ccs/bin/make > /dev/null
+/usr/bin/make > /dev/null
 if [ $? -ne 0 ]; then
 	print -u2 "failed to build"
 	exit 1
@@ -155,6 +155,6 @@ script
 status=$?
 
 cd /
-/usr/bin/rm -rf $DIR
+/bin/rm -rf $DIR
 
 exit $status

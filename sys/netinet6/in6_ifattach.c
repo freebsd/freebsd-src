@@ -67,10 +67,15 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/mld6_var.h>
 #include <netinet6/scope6_var.h>
 
-VNET_DEFINE(unsigned long, in6_maxmtu);
-VNET_DEFINE(int, ip6_auto_linklocal);
-VNET_DEFINE(struct callout, in6_tmpaddrtimer_ch);
+VNET_DEFINE(unsigned long, in6_maxmtu) = 0;
 
+#ifdef IP6_AUTO_LINKLOCAL
+VNET_DEFINE(int, ip6_auto_linklocal) = IP6_AUTO_LINKLOCAL;
+#else
+VNET_DEFINE(int, ip6_auto_linklocal) = 1;	/* enabled by default */
+#endif
+
+VNET_DEFINE(struct callout, in6_tmpaddrtimer_ch);
 #define	V_in6_tmpaddrtimer_ch		VNET(in6_tmpaddrtimer_ch)
 
 VNET_DECLARE(struct inpcbinfo, ripcbinfo);
@@ -262,6 +267,7 @@ found:
 	/* get EUI64 */
 	switch (ifp->if_type) {
 	case IFT_ETHER:
+	case IFT_L2VLAN:
 	case IFT_FDDI:
 	case IFT_ISO88025:
 	case IFT_ATM:

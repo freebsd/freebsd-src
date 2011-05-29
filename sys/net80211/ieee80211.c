@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #ifdef IEEE80211_SUPPORT_SUPERG
 #include <net80211/ieee80211_superg.h>
 #endif
+#include <net80211/ieee80211_ratectl.h>
 
 #include <net/bpf.h>
 
@@ -203,6 +204,15 @@ ieee80211_chan_init(struct ieee80211com *ic)
 	DEFAULTRATES(IEEE80211_MODE_QUARTER,	 ieee80211_rateset_quarter);
 	DEFAULTRATES(IEEE80211_MODE_11NA,	 ieee80211_rateset_11a);
 	DEFAULTRATES(IEEE80211_MODE_11NG,	 ieee80211_rateset_11g);
+
+	/*
+	 * Setup required information to fill the mcsset field, if driver did
+	 * not. Assume a 2T2R setup for historic reasons.
+	 */
+	if (ic->ic_rxstream == 0)
+		ic->ic_rxstream = 2;
+	if (ic->ic_txstream == 0)
+		ic->ic_txstream = 2;
 
 	/*
 	 * Set auto mode to reset active channel state and any desired channel.
@@ -393,8 +403,8 @@ ieee80211_vap_setup(struct ieee80211com *ic, struct ieee80211vap *vap,
 	ifp->if_ioctl = ieee80211_ioctl;
 	ifp->if_init = ieee80211_init;
 	/* NB: input+output filled in by ether_ifattach */
-	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
-	ifp->if_snd.ifq_drv_maxlen = IFQ_MAXLEN;
+	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
+	ifp->if_snd.ifq_drv_maxlen = ifqmaxlen;
 	IFQ_SET_READY(&ifp->if_snd);
 
 	vap->iv_ifp = ifp;
@@ -404,6 +414,7 @@ ieee80211_vap_setup(struct ieee80211com *ic, struct ieee80211vap *vap,
 	vap->iv_flags_ven = ic->ic_flags_ven;
 	vap->iv_caps = ic->ic_caps &~ IEEE80211_C_OPMODE;
 	vap->iv_htcaps = ic->ic_htcaps;
+	vap->iv_htextcaps = ic->ic_htextcaps;
 	vap->iv_opmode = opmode;
 	vap->iv_caps |= ieee80211_opcap[opmode];
 	switch (opmode) {
@@ -484,6 +495,7 @@ ieee80211_vap_setup(struct ieee80211com *ic, struct ieee80211vap *vap,
 	ieee80211_scan_vattach(vap);
 	ieee80211_regdomain_vattach(vap);
 	ieee80211_radiotap_vattach(vap);
+	ieee80211_ratectl_set(vap, IEEE80211_RATECTL_NONE);
 
 	return 0;
 }
@@ -1064,10 +1076,18 @@ ieee80211_media_setup(struct ieee80211com *ic,
 	    isset(ic->ic_modecaps, IEEE80211_MODE_11NG)) {
 		addmedia(media, caps, addsta,
 		    IEEE80211_MODE_AUTO, IFM_IEEE80211_MCS);
-		/* XXX could walk htrates */
-		/* XXX known array size */
-		if (ieee80211_htrates[15].ht40_rate_400ns > maxrate)
-			maxrate = ieee80211_htrates[15].ht40_rate_400ns;
+		i = ic->ic_txstream * 8 - 1;
+		if ((ic->ic_htcaps & IEEE80211_HTCAP_CHWIDTH40) &&
+		    (ic->ic_htcaps & IEEE80211_HTCAP_SHORTGI40))
+			rate = ieee80211_htrates[i].ht40_rate_400ns;
+		else if ((ic->ic_htcaps & IEEE80211_HTCAP_CHWIDTH40))
+			rate = ieee80211_htrates[i].ht40_rate_800ns;
+		else if ((ic->ic_htcaps & IEEE80211_HTCAP_SHORTGI20))
+			rate = ieee80211_htrates[i].ht20_rate_400ns;
+		else
+			rate = ieee80211_htrates[i].ht20_rate_800ns;
+		if (rate > maxrate)
+			maxrate = rate;
 	}
 	return maxrate;
 }
@@ -1510,6 +1530,67 @@ ieee80211_rate2media(struct ieee80211com *ic, int rate, enum ieee80211_phymode m
 		{  13, IFM_IEEE80211_MCS },
 		{  14, IFM_IEEE80211_MCS },
 		{  15, IFM_IEEE80211_MCS },
+		{  16, IFM_IEEE80211_MCS },
+		{  17, IFM_IEEE80211_MCS },
+		{  18, IFM_IEEE80211_MCS },
+		{  19, IFM_IEEE80211_MCS },
+		{  20, IFM_IEEE80211_MCS },
+		{  21, IFM_IEEE80211_MCS },
+		{  22, IFM_IEEE80211_MCS },
+		{  23, IFM_IEEE80211_MCS },
+		{  24, IFM_IEEE80211_MCS },
+		{  25, IFM_IEEE80211_MCS },
+		{  26, IFM_IEEE80211_MCS },
+		{  27, IFM_IEEE80211_MCS },
+		{  28, IFM_IEEE80211_MCS },
+		{  29, IFM_IEEE80211_MCS },
+		{  30, IFM_IEEE80211_MCS },
+		{  31, IFM_IEEE80211_MCS },
+		{  32, IFM_IEEE80211_MCS },
+		{  33, IFM_IEEE80211_MCS },
+		{  34, IFM_IEEE80211_MCS },
+		{  35, IFM_IEEE80211_MCS },
+		{  36, IFM_IEEE80211_MCS },
+		{  37, IFM_IEEE80211_MCS },
+		{  38, IFM_IEEE80211_MCS },
+		{  39, IFM_IEEE80211_MCS },
+		{  40, IFM_IEEE80211_MCS },
+		{  41, IFM_IEEE80211_MCS },
+		{  42, IFM_IEEE80211_MCS },
+		{  43, IFM_IEEE80211_MCS },
+		{  44, IFM_IEEE80211_MCS },
+		{  45, IFM_IEEE80211_MCS },
+		{  46, IFM_IEEE80211_MCS },
+		{  47, IFM_IEEE80211_MCS },
+		{  48, IFM_IEEE80211_MCS },
+		{  49, IFM_IEEE80211_MCS },
+		{  50, IFM_IEEE80211_MCS },
+		{  51, IFM_IEEE80211_MCS },
+		{  52, IFM_IEEE80211_MCS },
+		{  53, IFM_IEEE80211_MCS },
+		{  54, IFM_IEEE80211_MCS },
+		{  55, IFM_IEEE80211_MCS },
+		{  56, IFM_IEEE80211_MCS },
+		{  57, IFM_IEEE80211_MCS },
+		{  58, IFM_IEEE80211_MCS },
+		{  59, IFM_IEEE80211_MCS },
+		{  60, IFM_IEEE80211_MCS },
+		{  61, IFM_IEEE80211_MCS },
+		{  62, IFM_IEEE80211_MCS },
+		{  63, IFM_IEEE80211_MCS },
+		{  64, IFM_IEEE80211_MCS },
+		{  65, IFM_IEEE80211_MCS },
+		{  66, IFM_IEEE80211_MCS },
+		{  67, IFM_IEEE80211_MCS },
+		{  68, IFM_IEEE80211_MCS },
+		{  69, IFM_IEEE80211_MCS },
+		{  70, IFM_IEEE80211_MCS },
+		{  71, IFM_IEEE80211_MCS },
+		{  72, IFM_IEEE80211_MCS },
+		{  73, IFM_IEEE80211_MCS },
+		{  74, IFM_IEEE80211_MCS },
+		{  75, IFM_IEEE80211_MCS },
+		{  76, IFM_IEEE80211_MCS },
 	};
 	int m;
 

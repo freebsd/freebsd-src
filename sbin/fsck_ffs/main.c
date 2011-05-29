@@ -42,11 +42,10 @@ static char sccsid[] = "@(#)main.c	8.6 (Berkeley) 5/14/95";
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/stat.h>
 #include <sys/file.h>
-#include <sys/time.h>
 #include <sys/mount.h>
 #include <sys/resource.h>
+#include <sys/stat.h>
 #include <sys/sysctl.h>
 #include <sys/uio.h>
 #include <sys/disklabel.h>
@@ -62,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <paths.h>
 #include <stdint.h>
 #include <string.h>
+#include <time.h>
 
 #include "fsck.h"
 
@@ -82,7 +82,7 @@ main(int argc, char *argv[])
 	sync();
 	skipclean = 1;
 	inoopt = 0;
-	while ((ch = getopt(argc, argv, "b:Bc:CdfFm:npry")) != -1) {
+	while ((ch = getopt(argc, argv, "b:Bc:CdEfFm:npry")) != -1) {
 		switch (ch) {
 		case 'b':
 			skipclean = 0;
@@ -104,6 +104,10 @@ main(int argc, char *argv[])
 
 		case 'd':
 			debug++;
+			break;
+
+		case 'E':
+			Eflag++;
 			break;
 
 		case 'f':
@@ -242,8 +246,9 @@ checkfilesys(char *filesys)
 		if ((fsreadfd = open(filesys, O_RDONLY)) < 0 || readsb(0) == 0)
 			exit(3);	/* Cannot read superblock */
 		close(fsreadfd);
-		if (sblock.fs_flags & FS_NEEDSFSCK)
-			exit(4);	/* Earlier background failed */
+		/* Earlier background failed or journaled */
+		if (sblock.fs_flags & (FS_NEEDSFSCK | FS_SUJ))
+			exit(4);
 		if ((sblock.fs_flags & FS_DOSOFTDEP) == 0)
 			exit(5);	/* Not running soft updates */
 		size = MIBSIZE;
@@ -299,7 +304,7 @@ checkfilesys(char *filesys)
 			pfatal("MOUNTED READ-ONLY, CANNOT RUN IN BACKGROUND\n");
 		} else if ((fsreadfd = open(filesys, O_RDONLY)) >= 0) {
 			if (readsb(0) != 0) {
-				if (sblock.fs_flags & FS_NEEDSFSCK) {
+				if (sblock.fs_flags & (FS_NEEDSFSCK | FS_SUJ)) {
 					bkgrdflag = 0;
 					pfatal("UNEXPECTED INCONSISTENCY, %s\n",
 					    "CANNOT RUN IN BACKGROUND\n");
@@ -384,7 +389,29 @@ checkfilesys(char *filesys)
 		    sblock.fs_cstotal.cs_nffree * 100.0 / sblock.fs_dsize);
 		return (0);
 	}
-	
+	/*
+	 * Determine if we can and should do journal recovery.
+	 */
+	if ((sblock.fs_flags & FS_SUJ) == FS_SUJ) {
+		if ((sblock.fs_flags & FS_NEEDSFSCK) != FS_NEEDSFSCK && skipclean) {
+			if (preen || reply("USE JOURNAL")) {
+				if (suj_check(filesys) == 0) {
+					printf("\n***** FILE SYSTEM MARKED CLEAN *****\n");
+					if (chkdoreload(mntp) == 0)
+						exit(0);
+					exit(4);
+				}
+			}
+			printf("** Skipping journal, falling through to full fsck\n\n");
+		}
+		/*
+		 * Write the superblock so we don't try to recover the
+		 * journal on another pass.
+		 */
+		sblock.fs_mtime = time(NULL);
+		sbdirty();
+	}
+
 	/*
 	 * Cleared if any questions answered no. Used to decide if
 	 * the superblock should be marked clean.
@@ -553,7 +580,7 @@ chkdoreload(struct statfs *mntp)
 		/*
 		 * XX: We need the following line until we clean up
 		 * nmount parsing of root mounts and NFS root mounts.
-		 */ 
+		 */
 		build_iovec(&iov, &iovlen, "ro", NULL, 0);
 		if (nmount(iov, iovlen, mntp->f_flags) == 0) {
 			return (0);
@@ -608,9 +635,9 @@ getmntpt(const char *name)
 static void
 usage(void)
 {
-        (void) fprintf(stderr,
-            "usage: %s [-BFprfny] [-b block] [-c level] [-m mode] "
-                        "filesystem ...\n",
-            getprogname());
-        exit(1);
+	(void) fprintf(stderr,
+	    "usage: %s [-BEFprfny] [-b block] [-c level] [-m mode] "
+			"filesystem ...\n",
+	    getprogname());
+	exit(1);
 }

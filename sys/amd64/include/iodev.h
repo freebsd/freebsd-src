@@ -25,7 +25,22 @@
  *
  * $FreeBSD$
  */
+#ifndef _MACHINE_IODEV_H_
+#define	_MACHINE_IODEV_H_
 
-d_open_t	ioopen;
-d_close_t	ioclose;
-d_ioctl_t	ioioctl;
+#ifdef _KERNEL
+#include <machine/cpufunc.h>
+
+#define	iodev_read_1	inb
+#define	iodev_read_2	inw
+#define	iodev_read_4	inl
+#define	iodev_write_1	outb
+#define	iodev_write_2	outw
+#define	iodev_write_4	outl
+
+int	 iodev_open(struct thread *td);
+int	 iodev_close(struct thread *td);
+int	 iodev_ioctl(u_long cmd, caddr_t data);
+
+#endif /* _KERNEL */
+#endif /* _MACHINE_IODEV_H_ */

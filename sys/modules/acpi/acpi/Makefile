@@ -1,11 +1,15 @@
 # $FreeBSD$
 
-.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "ia64"
-.error "ACPI can only be compiled into the kernel on the amd64 and ia64 platforms"
+.if !defined(FORCE_BUILD)
+.error "The ACPI module is deprecated, set FORCE_BUILD to force it"
 .endif
 
-.if ${MACHINE} != "i386"
-.error "The ACPI module is only for i386"
+.if ${MACHINE_CPUARCH} == "ia64"
+.error "ACPI can only be compiled into the kernel on the ia64 platform"
+.endif
+
+.if ${MACHINE} != "amd64" && ${MACHINE} != "i386"
+.error "The ACPI module is only for amd64 and i386"
 .endif
 
 .PATH:	${.CURDIR}/../../../contrib/dev/acpica/debugger \
@@ -22,24 +26,27 @@
 	${.CURDIR}/../../../pci \
 	${.CURDIR}/../../../dev/acpica \
 	${.CURDIR}/../../../dev/acpica/Osd \
-	${.CURDIR}/../../../${MACHINE_ARCH}/acpica
+	${.CURDIR}/../../../${MACHINE_CPUARCH}/acpica \
+	${.CURDIR}/../../../x86/acpica
 
 KMOD=	acpi
 
 # ACPI CA sources
-SRCS+=	dbcmds.c dbdisply.c dbexec.c dbfileio.c dbhistry.c dbinput.c dbstats.c
-SRCS+=	dbutils.c dbxface.c
+SRCS+=	dbcmds.c dbdisply.c dbexec.c dbfileio.c dbhistry.c dbinput.c dbmethod.c
+SRCS+=	dbnames.c dbstats.c dbutils.c dbxface.c
 SRCS+=	dmbuffer.c dmnames.c dmopcode.c dmobject.c dmresrc.c dmresrcl.c
 SRCS+=	dmresrcs.c dmutils.c dmwalk.c
-SRCS+=	dsfield.c dsinit.c dsmethod.c dsmthdat.c dsobject.c dsopcode.c
-SRCS+=	dsutils.c dswexec.c dswload.c dswscope.c dswstate.c
-SRCS+=	evevent.c evgpe.c evgpeblk.c evmisc.c evregion.c evrgnini.c evsci.c
-SRCS+=	evxface.c evxfevnt.c evxfregn.c
-SRCS+=	exconfig.c exconvrt.c excreate.c exdump.c exfield.c exfldio.c exmisc.c
-SRCS+=	exmutex.c exnames.c exoparg1.c exoparg2.c exoparg3.c exoparg6.c
-SRCS+=	exprep.c exregion.c exresnte.c exresolv.c exresop.c exstore.c
-SRCS+=	exstoren.c exstorob.c exsystem.c exutils.c
-SRCS+=	hwacpi.c hwgpe.c hwregs.c hwsleep.c hwtimer.c hwvalid.c hwxface.c
+SRCS+=	dsargs.c dscontrol.c dsfield.c dsinit.c dsmethod.c dsmthdat.c
+SRCS+=	dsobject.c dsopcode.c dsutils.c dswexec.c dswload.c dswload2.c
+SRCS+=	dswscope.c dswstate.c
+SRCS+=	evevent.c evglock.c evgpe.c evgpeblk.c evgpeinit.c evgpeutil.c evmisc.c
+SRCS+=	evregion.c evrgnini.c evsci.c evxface.c evxfevnt.c evxfgpe.c evxfregn.c
+SRCS+=	exconfig.c exconvrt.c excreate.c exdebug.c exdump.c exfield.c
+SRCS+=	exfldio.c exmisc.c exmutex.c exnames.c exoparg1.c exoparg2.c
+SRCS+=	exoparg3.c exoparg6.c exprep.c exregion.c exresnte.c exresolv.c
+SRCS+=	exresop.c exstore.c exstoren.c exstorob.c exsystem.c exutils.c
+SRCS+=	hwacpi.c hwgpe.c hwpci.c hwregs.c hwsleep.c hwtimer.c hwvalid.c
+SRCS+=	hwxface.c
 SRCS+=	nsaccess.c nsalloc.c nsdump.c nseval.c nsinit.c nsload.c nsnames.c
 SRCS+=	nsobject.c nsparse.c nspredef.c nsrepair.c nsrepair2.c nssearch.c
 SRCS+=	nsutils.c nswalk.c nsxfeval.c nsxfname.c nsxfobj.c
@@ -48,9 +55,9 @@ SRCS+=	pswalk.c psxface.c
 SRCS+=	rsaddr.c rscalc.c rscreate.c rsdump.c rsinfo.c rsio.c rsirq.c rslist.c
 SRCS+=	rsmemory.c rsmisc.c rsutils.c rsxface.c
 SRCS+=	tbfadt.c tbfind.c tbinstal.c tbutils.c tbxface.c tbxfroot.c
-SRCS+=	utalloc.c utcache.c utcopy.c utdebug.c utdelete.c uteval.c utglobal.c
-SRCS+=	utids.c utinit.c utlock.c utmath.c utmisc.c utmutex.c utobject.c
-SRCS+=	utresrc.c utstate.c utxface.c
+SRCS+=	utalloc.c utcache.c utcopy.c utdebug.c utdecode.c utdelete.c uteval.c
+SRCS+=	utglobal.c utids.c utinit.c utlock.c utmath.c utmisc.c utmutex.c
+SRCS+=	utobject.c utosi.c utresrc.c utstate.c utxface.c utxferror.c
 
 # OSPM layer and core hardware drivers
 SRCS+=	acpi.c acpi_button.c acpi_isab.c acpi_package.c acpi_pci.c acpi_pcib.c
@@ -94,16 +101,35 @@ opt_ddb.h: Makefile
 .endif
 
 # Machine-specific code such as sleep/wakeup
-SRCS+=	acpi_machdep.c acpi_wakecode.h acpi_wakeup.c
+SRCS+=	acpi_apm.c acpi_machdep.c acpi_wakecode.h acpi_wakedata.h acpi_wakeup.c
 SRCS+=	assym.s madt.c
-CLEANFILES+=	acpi_wakecode.bin acpi_wakecode.h acpi_wakecode.o
-.if ${MACHINE_ARCH} == "amd64"
-SRCS+=	opt_global.h
-CLEANFILES+=	acpi_wakedata.h
-.endif
+CLEANFILES+=acpi_wakecode.bin acpi_wakecode.h acpi_wakecode.o acpi_wakedata.h
 
-acpi_wakecode.h: acpi_wakecode.S assym.s
-	${MAKE} -f ${.CURDIR}/../../../${MACHINE_ARCH}/acpica/Makefile \
-		MAKESRCPATH=${.CURDIR}/../../../${MACHINE_ARCH}/acpica
+SRCS+=	opt_global.h
+
+ASM_CFLAGS=	-x assembler-with-cpp -DLOCORE ${CFLAGS}
+NORMAL_S=	${CC} -c ${ASM_CFLAGS} ${WERROR} ${.IMPSRC}
+NM?=		nm
+
+.if ${MACHINE_CPUARCH} == "amd64"
+.if !defined(KERNBUILDDIR)
+CFLAGS+=-DSMP
+.endif
+SRCS+=	acpi_switch.S
+acpi_switch.o:	acpi_switch.S
+	${NORMAL_S}
+.endif
+acpi_wakecode.o: acpi_wakecode.S assym.s
+	${NORMAL_S}
+acpi_wakecode.bin: acpi_wakecode.o
+	objcopy -S -O binary acpi_wakecode.o ${.TARGET}
+acpi_wakecode.h: acpi_wakecode.bin
+	file2c -sx 'static char wakecode[] = {' '};' < acpi_wakecode.bin > \
+	    ${.TARGET}
+acpi_wakedata.h: acpi_wakecode.o
+	${NM} -n --defined-only acpi_wakecode.o | \
+	    while read offset dummy what; do \
+	    echo "#define	$${what}	0x$${offset}"; \
+	    done > ${.TARGET}
 
 .include <bsd.kmod.mk>

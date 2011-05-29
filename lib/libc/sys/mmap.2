@@ -28,7 +28,7 @@
 .\"	@(#)mmap.2	8.4 (Berkeley) 5/11/95
 .\" $FreeBSD$
 .\"
-.Dd November 6, 2009
+.Dd August 28, 2010
 .Dt MMAP 2
 .Os
 .Sh NAME
@@ -105,7 +105,7 @@ The file descriptor used for creating
 must be \-1.
 The
 .Fa offset
-argument is ignored.
+argument must be 0.
 .\".It Dv MAP_FILE
 .\"Mapped from a regular file or character-special device memory.
 .It Dv MAP_ANONYMOUS
@@ -211,6 +211,19 @@ implements a coherent file system buffer cache.
 However, it may be
 used to associate dirty VM pages with file system buffers and thus cause
 them to be flushed to physical media sooner rather than later.
+.It Dv MAP_PREFAULT_READ
+Immediately update the calling process's lowest-level virtual address
+translation structures, such as its page table, so that every memory
+resident page within the region is mapped for read access.
+Ordinarily these structures are updated lazily.
+The effect of this option is to eliminate any soft faults that would
+otherwise occur on the initial read accesses to the region.
+Although this option does not preclude
+.Fa prot
+from including
+.Dv PROT_WRITE ,
+it does not eliminate soft faults on the initial write accesses to the
+region.
 .It Dv MAP_PRIVATE
 Modifications are private.
 .It Dv MAP_SHARED
@@ -316,6 +329,11 @@ was equal to zero.
 was specified and the
 .Fa fd
 argument was not -1.
+.It Bq Er EINVAL
+.Dv MAP_ANON
+was specified and the
+.Fa offset
+argument was not 0.
 .It Bq Er ENODEV
 .Dv MAP_ANON
 has not been specified and
@@ -328,9 +346,6 @@ was specified and the
 argument was not available.
 .Dv MAP_ANON
 was specified and insufficient memory was available.
-The system has reached the per-process mmap limit specified in the
-.Va vm.max_proc_mmap
-sysctl.
 .El
 .Sh SEE ALSO
 .Xr madvise 2 ,

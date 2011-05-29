@@ -2,6 +2,6 @@
 
 .PATH: ${.CURDIR}/../../misc
 
-CLASS=	cache
+GEOM_CLASS=	cache
 
 .include <bsd.lib.mk>

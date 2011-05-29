@@ -6,11 +6,15 @@
 	${WPA_DISTDIR}/src/drivers \
 	${WPA_DISTDIR}/src/eap_peer \
 	${WPA_DISTDIR}/src/rsn_supp
+	${WPA_DISTDIR}/src/crypto
 
 PROG=	wpa_supplicant
-SRCS=	aes.c aes_wrap.c blacklist.c common.c config.c ctrl_iface.c \
-	ctrl_iface_unix.c drivers.c eloop.c events.c l2_packet.c main.c \
-	md5.c preauth.c pmksa_cache.c rc4.c scan.c scan_helpers.c sha1.c \
+SRCS=	aes-cbc.c aes-ctr.c aes-eax.c aes-encblock.c \
+	aes-internal.c aes-omac1.c aes-unwrap.c \
+	aes-wrap.c bss.c blacklist.c common.c config.c ctrl_iface.c \
+	ctrl_iface_unix.c drivers.c eloop.c events.c l2_packet_freebsd.c main.c\
+	md5.c notify.c preauth.c pmksa_cache.c scan.c \
+	sha1-pbkdf2.c sha1-tlsprf.c sha1-tprf.c sha1.c \
 	wpa.c wpa_common.c wpa_debug.c wpa_ie.c wpa_supplicant.c \
 	wpabuf.c wpas_glue.c \
 	driver_ndis.c Packet32.c \
@@ -34,7 +38,7 @@ CFLAGS+= -DCONFIG_DRIVER_NDIS
 CFLAGS+= -DCONFIG_DRIVER_WIRED
 CFLAGS+= -DCONFIG_TERMINATE_ONLASTIF
 CFLAGS+= -DCONFIG_DEBUG_SYSLOG
-CFLAGS+= -g
+#CFLAGS+= -g
 DPADD+=	${LIBPCAP}
 LDADD+=	-lpcap
 
@@ -49,7 +53,7 @@ LDADD+=${WPA_SUPPLICANT_LDADD}
 #LDFLAGS+=${WPA_SUPPLICANT_LDFLAGS}
 
 .if ${MK_WPA_SUPPLICANT_EAPOL} != "no"
-SRCS+=	eapol_supp_sm.c eap.c eap_common.c eap_methods.c
+SRCS+=	eapol_supp_sm.c eap.c eap_common.c eap_methods.c eap_register.c
 CFLAGS+= -DIEEE8021X_EAPOL
 
 .if ${MK_OPENSSL} != "no" && !defined(RELEASE_CRUNCH)

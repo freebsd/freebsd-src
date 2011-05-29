@@ -281,7 +281,7 @@ ata_nvidia_status(device_t dev)
 
     /* do we have any PHY events ? */
     if (istatus & (0x0c << shift))
-	ata_sata_phy_check_events(dev);
+	ata_sata_phy_check_events(dev, -1);
 
     /* clear interrupt(s) */
     if (ctlr->chip->cfg1 & NVQ)
@@ -296,8 +296,12 @@ ata_nvidia_status(device_t dev)
 static void
 ata_nvidia_reset(device_t dev)
 {
+    struct ata_channel *ch = device_get_softc(dev);
+
     if (ata_sata_phy_reset(dev, -1, 1))
 	ata_generic_reset(dev);
+    else
+	ch->devices = 0;
 }
 
 static int

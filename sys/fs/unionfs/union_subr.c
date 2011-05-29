@@ -775,6 +775,10 @@ unionfs_mkshadowdir(struct unionfs_mount *ump, struct vnode *udvp,
 	/* Authority change to root */
 	rootinfo = uifind((uid_t)0);
 	cred = crdup(cnp->cn_cred);
+	/*
+	 * The calls to chgproccnt() are needed to compensate for change_ruid()
+	 * calling chgproccnt().
+	 */
 	chgproccnt(cred->cr_ruidinfo, 1, 0);
 	change_euid(cred, rootinfo);
 	change_ruid(cred, rootinfo);

@@ -74,6 +74,13 @@ struct	user_segment_descriptor {
 	u_int64_t sd_hibase:8;		/* segment base address  (msb) */
 } __packed;
 
+#define	USD_GETBASE(sd)		(((sd)->sd_lobase) | (sd)->sd_hibase << 24) 
+#define	USD_SETBASE(sd, b)	(sd)->sd_lobase = (b); 	\
+				(sd)->sd_hibase = ((b) >> 24);
+#define	USD_GETLIMIT(sd)	(((sd)->sd_lolimit) | (sd)->sd_hilimit << 16)
+#define	USD_SETLIMIT(sd, l)	(sd)->sd_lolimit = (l);	\
+				(sd)->sd_hilimit = ((l) >> 16);
+
 /*
  * System segment descriptors (128 bit wide)
  */
@@ -207,6 +214,7 @@ struct region_descriptor {
 #define	IDT_XF		19	/* #XF: SIMD Floating-Point Exception */
 #define	IDT_IO_INTS	NRSVIDT	/* Base of IDT entries for I/O interrupts. */
 #define	IDT_SYSCALL	0x80	/* System Call Interrupt Vector */
+#define	IDT_DTRACE_RET	0x92	/* DTrace pid provider Interrupt Vector */
 
 /*
  * Entries in the Global Descriptor Table (GDT)

@@ -1,5 +1,5 @@
 # <pre>
-# @(#)africa	8.23
+# @(#)africa	8.31
 # This file is in the public domain, so clarified as of
 # 2009-05-17 by Arthur David Olson.
 
@@ -212,7 +212,21 @@ Rule	Egypt	1989	only	-	May	 6	1:00	1:00	S
 Rule	Egypt	1990	1994	-	May	 1	1:00	1:00	S
 # IATA (after 1990) says transitions are at 0:00.
 # Go with IATA starting in 1995, except correct 1995 entry from 09-30 to 09-29.
-Rule	Egypt	1995	max	-	Apr	lastFri	 0:00s	1:00	S
+
+# From Alexander Krivenyshev (2011-04-20):
+# "...Egypt's interim cabinet decided on Wednesday to cancel daylight
+# saving time after a poll posted on its website showed the majority of
+# Egyptians would approve the cancellation."
+#
+# Egypt to cancel daylight saving time
+# <a href="http://www.almasryalyoum.com/en/node/407168">
+# http://www.almasryalyoum.com/en/node/407168
+# </a>
+# or
+# <a href="http://www.worldtimezone.com/dst_news/dst_news_egypt04.html">
+# http://www.worldtimezone.com/dst_news/dst_news_egypt04.html
+# </a>
+Rule	Egypt	1995	2010	-	Apr	lastFri	 0:00s	1:00	S
 Rule	Egypt	1995	2005	-	Sep	lastThu	23:00s	0	-
 # From Steffen Thorsen (2006-09-19):
 # The Egyptian Gazette, issue 41,090 (2006-09-18), page 1, reports:
@@ -294,9 +308,26 @@ Rule	Egypt	2007	only	-	Sep	Thu>=1	23:00s	0	-
 # and can be found by searching for "winter" in their search engine
 # (at least today).
 
+# From Alexander Krivenyshev (2010-07-20):
+# According to News from Egypt -  Al-Masry Al-Youm Egypt's cabinet has
+# decided that Daylight Saving Time will not be used in Egypt during
+# Ramadan.
+#
+# Arabic translation:
+# "Clocks to go back during Ramadan--and then forward again"
+# <a href="http://www.almasryalyoum.com/en/news/clocks-go-back-during-ramadan-and-then-forward-again">
+# http://www.almasryalyoum.com/en/news/clocks-go-back-during-ramadan-and-then-forward-again
+# </a>
+# or
+# <a href="http://www.worldtimezone.com/dst_news/dst_news_egypt02.html">
+# http://www.worldtimezone.com/dst_news/dst_news_egypt02.html
+# </a>
+
 Rule	Egypt	2008	only	-	Aug	lastThu	23:00s	0	-
 Rule	Egypt	2009	only	-	Aug	20	23:00s	0	-
-Rule	Egypt	2010	max	-	Sep	lastThu	23:00s	0	-
+Rule	Egypt	2010	only	-	Aug	11	0:00	0	-
+Rule	Egypt	2010	only	-	Sep	10	0:00	1:00	S
+Rule	Egypt	2010	only	-	Sep	lastThu	23:00s	0	-
 
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Cairo	2:05:00 -	LMT	1900 Oct
@@ -680,6 +711,63 @@ Zone	Indian/Mayotte	3:00:56 -	LMT	1911 Jul	# Mamoutzou
 # http://www.worldtimezone.com/dst_news/dst_news_morocco03.html
 # </a>
 
+# From Steffen Thorsen (2010-04-13):
+# Several news media in Morocco report that the Ministry of Modernization
+# of Public Sectors has announced that Morocco will have DST from
+# 2010-05-02 to 2010-08-08.
+#
+# Example:
+# <a href="http://www.lavieeco.com/actualites/4099-le-maroc-passera-a-l-heure-d-ete-gmt1-le-2-mai.html">
+# http://www.lavieeco.com/actualites/4099-le-maroc-passera-a-l-heure-d-ete-gmt1-le-2-mai.html
+# </a>
+# (French)
+# Our page:
+# <a href="http://www.timeanddate.com/news/time/morocco-starts-dst-2010.html">
+# http://www.timeanddate.com/news/time/morocco-starts-dst-2010.html
+# </a>
+
+# From Dan Abitol (2011-03-30):
+# ...Rules for Africa/Casablanca are the following (24h format)
+# The 3rd april 2011 at 00:00:00, [it] will be 3rd april 1:00:00
+# The 31th july 2011 at 00:59:59,  [it] will be 31th July 00:00:00
+# ...Official links of change in morocco
+# The change was broadcast on the FM Radio
+# I ve called ANRT (telecom regulations in Morocco) at
+# +212.537.71.84.00
+# <a href="http://www.anrt.net.ma/fr/">
+# http://www.anrt.net.ma/fr/
+# </a>
+# They said that
+# <a href="http://www.map.ma/fr/sections/accueil/l_heure_legale_au_ma/view">
+# http://www.map.ma/fr/sections/accueil/l_heure_legale_au_ma/view
+# </a>
+# is the official publication to look at.
+# They said that the decision was already taken.
+#
+# More articles in the press
+# <a href="http://www.yabiladi.com/articles/details/5058/secret-l-heure-d-ete-maroc-lev">
+# http://www.yabiladi.com/articles/details/5058/secret-l-heure-d-ete-maroc-lev
+# </a>
+# e.html
+# <a href="http://www.lematin.ma/Actualite/Express/Article.asp?id=148923">
+# http://www.lematin.ma/Actualite/Express/Article.asp?id=148923
+# </a>
+# <a href="http://www.lavieeco.com/actualite/Le-Maroc-passe-sur-GMT%2B1-a-partir-de-dim">
+# http://www.lavieeco.com/actualite/Le-Maroc-passe-sur-GMT%2B1-a-partir-de-dim
+# anche-prochain-5538.html
+# </a>
+
+# From Petr Machata (2011-03-30):
+# They have it written in English here:
+# <a href="http://www.map.ma/eng/sections/home/morocco_to_spring_fo/view">
+# http://www.map.ma/eng/sections/home/morocco_to_spring_fo/view
+# </a>
+#
+# It says there that "Morocco will resume its standard time on July 31,
+# 2011 at midnight." Now they don't say whether they mean midnight of
+# wall clock time (i.e. 11pm UTC), but that's what I would assume. It has
+# also been like that in the past.
+
 # RULE	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 
 Rule	Morocco	1939	only	-	Sep	12	 0:00	1:00	S
@@ -701,6 +789,10 @@ Rule	Morocco	2008	only	-	Jun	 1	 0:00	1:00	S
 Rule	Morocco	2008	only	-	Sep	 1	 0:00	0	-
 Rule	Morocco	2009	only	-	Jun	 1	 0:00	1:00	S
 Rule	Morocco	2009	only	-	Aug	 21	 0:00	0	-
+Rule	Morocco	2010	only	-	May	 2	 0:00	1:00	S
+Rule	Morocco	2010	only	-	Aug	 8	 0:00	0	-
+Rule	Morocco	2011	only	-	Apr	 3	 0:00	1:00	S
+Rule	Morocco	2011	only	-	Jul	 31	 0	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Africa/Casablanca	-0:30:20 -	LMT	1913 Oct 26
 			 0:00	Morocco	WE%sT	1984 Mar 16
@@ -942,6 +1034,24 @@ Zone	Africa/Lome	0:04:52 -	LMT	1893
 # Therefore, the standard time will be kept unchanged the whole year long."
 # So foregoing DST seems to be an exception (albeit one that may be repeated in the  future).
 
+# From Alexander Krivenyshev (2010-03-27):
+# According to some news reports Tunis confirmed not to use DST in 2010
+#
+# (translation):
+# "The Tunisian government has decided to abandon DST, which was scheduled on
+# Sunday...
+# Tunisian authorities had suspended the DST for the first time last year also
+# coincided with the month of Ramadan..."
+#
+# (in Arabic)
+# <a href="http://www.moheet.com/show_news.aspx?nid=358861&pg=1">
+# http://www.moheet.com/show_news.aspx?nid=358861&pg=1
+# <a href="http://www.almadenahnews.com/newss/news.php?c=118&id=38036">
+# http://www.almadenahnews.com/newss/news.php?c=118&id=38036
+# or
+# <a href="http://www.worldtimezone.com/dst_news/dst_news_tunis02.html">
+# http://www.worldtimezone.com/dst_news/dst_news_tunis02.html
+
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Tunisia	1939	only	-	Apr	15	23:00s	1:00	S
 Rule	Tunisia	1939	only	-	Nov	18	23:00s	0	-
@@ -968,8 +1078,7 @@ Rule	Tunisia	2005	only	-	May	 1	 0:00s	1:00	S
 Rule	Tunisia	2005	only	-	Sep	30	 1:00s	0	-
 Rule	Tunisia	2006	2008	-	Mar	lastSun	 2:00s	1:00	S
 Rule	Tunisia	2006	2008	-	Oct	lastSun	 2:00s	0	-
-Rule	Tunisia	2010	max	-	Mar	lastSun	 2:00s	1:00	S
-Rule	Tunisia	2010	max	-	Oct	lastSun	 2:00s	0	-
+
 # Shanks & Pottenger give 0:09:20 for Paris Mean Time; go with Howse's
 # more precise 0:09:21.
 # Shanks & Pottenger say the 1911 switch was on Mar 9; go with Howse's Mar 11.

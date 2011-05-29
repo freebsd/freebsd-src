@@ -559,7 +559,7 @@ wlattach(device_t device)
     ifp->if_init = wlinit;
     ifp->if_start = wlstart;
     ifp->if_ioctl = wlioctl;
-    ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
+    ifp->if_snd.ifq_maxlen = ifqmaxlen;
     /* no entries
        ifp->if_done
        ifp->if_reset

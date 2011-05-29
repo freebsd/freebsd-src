@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2005-2011 Pawel Jakub Dawidek <pawel@dawidek.net>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,6 +43,9 @@ __FBSDID("$FreeBSD$");
 
 #include <geom/eli/g_eli.h>
 
+#ifdef _KERNEL
+MALLOC_DECLARE(M_ELI);
+#endif
 
 /*
  * Verify if the given 'key' is correct.
@@ -193,16 +196,42 @@ g_eli_mkey_propagate(struct g_eli_softc *sc, const unsigned char *mkey)
 	bcopy(mkey, sc->sc_ivkey, sizeof(sc->sc_ivkey));
 	mkey += sizeof(sc->sc_ivkey);
 
-	if (!(sc->sc_flags & G_ELI_FLAG_AUTH)) {
-		bcopy(mkey, sc->sc_ekey, sizeof(sc->sc_ekey));
+	/*
+	 * The authentication key is: akey = HMAC_SHA512(Master-Key, 0x11)
+	 */
+	if ((sc->sc_flags & G_ELI_FLAG_AUTH) != 0) {
+		g_eli_crypto_hmac(mkey, G_ELI_MAXKEYLEN, "\x11", 1,
+		    sc->sc_akey, 0);
 	} else {
-		/*
-		 * The encryption key is: ekey = HMAC_SHA512(Master-Key, 0x10)
-		 * The authentication key is: akey = HMAC_SHA512(Master-Key, 0x11)
-		 */
-		g_eli_crypto_hmac(mkey, G_ELI_MAXKEYLEN, "\x10", 1, sc->sc_ekey, 0);
-		g_eli_crypto_hmac(mkey, G_ELI_MAXKEYLEN, "\x11", 1, sc->sc_akey, 0);
+		arc4rand(sc->sc_akey, sizeof(sc->sc_akey), 0);
 	}
 
+	/* Initialize encryption keys. */
+	g_eli_key_init(sc);
+
+	if (sc->sc_flags & G_ELI_FLAG_AUTH) {
+		/*
+		 * Precalculate SHA256 for HMAC key generation.
+		 * This is expensive operation and we can do it only once now or
+		 * for every access to sector, so now will be much better.
+		 */
+		SHA256_Init(&sc->sc_akeyctx);
+		SHA256_Update(&sc->sc_akeyctx, sc->sc_akey,
+		    sizeof(sc->sc_akey));
+	}
+	/*
+	 * Precalculate SHA256 for IV generation.
+	 * This is expensive operation and we can do it only once now or for
+	 * every access to sector, so now will be much better.
+	 */
+	switch (sc->sc_ealgo) {
+	case CRYPTO_AES_XTS:
+		break;
+	default:
+		SHA256_Init(&sc->sc_ivctx);
+		SHA256_Update(&sc->sc_ivctx, sc->sc_ivkey,
+		    sizeof(sc->sc_ivkey));
+		break;
+	}
 }
 #endif

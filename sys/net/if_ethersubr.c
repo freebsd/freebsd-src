@@ -35,7 +35,6 @@
 #include "opt_inet6.h"
 #include "opt_ipx.h"
 #include "opt_netgraph.h"
-#include "opt_carp.h"
 #include "opt_mbuf_profiling.h"
 
 #include <sys/param.h>
@@ -70,18 +69,13 @@
 #include <netinet/in.h>
 #include <netinet/in_var.h>
 #include <netinet/if_ether.h>
+#include <netinet/ip_carp.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_fw.h>
 #include <netinet/ipfw/ip_fw_private.h>
 #endif
 #ifdef INET6
 #include <netinet6/nd6.h>
-#endif
-
-#if defined(INET) || defined(INET6)
-#ifdef DEV_CARP
-#include <netinet/ip_carp.h>
-#endif
 #endif
 
 #ifdef IPX
@@ -135,6 +129,9 @@ static const u_char etherbroadcastaddr[ETHER_ADDR_LEN] =
 
 static	int ether_resolvemulti(struct ifnet *, struct sockaddr **,
 		struct sockaddr *);
+#ifdef VIMAGE
+static	void ether_reassign(struct ifnet *, struct vnet *, char *);
+#endif
 
 /* XXX: should be in an arp support file, not here */
 MALLOC_DEFINE(M_ARPCOM, "arpcom", "802.* interface internals");
@@ -399,11 +396,9 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 	}
 
 #if defined(INET) || defined(INET6)
-#ifdef DEV_CARP
 	if (ifp->if_carp &&
-	    (error = carp_output(ifp, m, dst, NULL)))
+	    (error = (*carp_output_p)(ifp, m, dst, NULL)))
 		goto bad;
-#endif
 #endif
 
 	/* Handle ng_ether(4) processing, if any */
@@ -724,7 +719,6 @@ ether_input(struct ifnet *ifp, struct mbuf *m)
 	}
 
 #if defined(INET) || defined(INET6)
-#ifdef DEV_CARP
 	/*
 	 * Clear M_PROMISC on frame so that carp(4) will see it when the
 	 * mbuf flows up to Layer 3.
@@ -735,10 +729,9 @@ ether_input(struct ifnet *ifp, struct mbuf *m)
 	 * TODO: Maintain a hash table of ethernet addresses other than
 	 * ether_dhost which may be active on this ifp.
 	 */
-	if (ifp->if_carp && carp_forus(ifp->if_carp, eh->ether_dhost)) {
+	if (ifp->if_carp && (*carp_forus_p)(ifp, eh->ether_dhost)) {
 		m->m_flags &= ~M_PROMISC;
 	} else
-#endif
 #endif
 	{
 		/*
@@ -954,6 +947,9 @@ ether_ifattach(struct ifnet *ifp, const u_int8_t *lla)
 	ifp->if_output = ether_output;
 	ifp->if_input = ether_input;
 	ifp->if_resolvemulti = ether_resolvemulti;
+#ifdef VIMAGE
+	ifp->if_reassign = ether_reassign;
+#endif
 	if (ifp->if_baudrate == 0)
 		ifp->if_baudrate = IF_Mbps(10);		/* just a default */
 	ifp->if_broadcastaddr = etherbroadcastaddr;
@@ -992,6 +988,25 @@ ether_ifdetach(struct ifnet *ifp)
 	bpfdetach(ifp);
 	if_detach(ifp);
 }
+
+#ifdef VIMAGE
+void
+ether_reassign(struct ifnet *ifp, struct vnet *new_vnet, char *unused __unused)
+{
+
+	if (IFP2AC(ifp)->ac_netgraph != NULL) {
+		KASSERT(ng_ether_detach_p != NULL,
+		    ("ng_ether_detach_p is NULL"));
+		(*ng_ether_detach_p)(ifp);
+	}
+
+	if (ng_ether_attach_p != NULL) {
+		CURVNET_SET_QUIET(new_vnet);
+		(*ng_ether_attach_p)(ifp);
+		CURVNET_RESTORE();
+	}
+}
+#endif
 
 SYSCTL_DECL(_net_link);
 SYSCTL_NODE(_net_link, IFT_ETHER, ether, CTLFLAG_RW, 0, "Ethernet");

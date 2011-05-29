@@ -13,10 +13,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -559,7 +555,7 @@ f_empty(PLAN *plan __unused, FTSENT *entry)
 		empty = 1;
 		dir = opendir(entry->fts_accpath);
 		if (dir == NULL)
-			err(1, "%s", entry->fts_accpath);
+			return 0;
 		for (dp = readdir(dir); dp; dp = readdir(dir))
 			if (dp->d_name[0] != '.' ||
 			    (dp->d_name[1] != '\0' &&

@@ -368,7 +368,7 @@ media:
 	       "Next comes stage 2, where we attempt to resurrect your /etc\n"
 	       "directory!");
 
-    if (saved_etc && chdir(saved_etc)) {
+    if (chdir(saved_etc)) {
 	msgConfirm("Unable to go to your saved /etc directory in %s?!  Argh!\n"
 		   "Something went seriously wrong!  It's quite possible that\n"
 		   "your former /etc is toast.  I hope you didn't have any\n"

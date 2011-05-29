@@ -59,3 +59,5 @@ L1:	rep
 
 	ret
 END(memset)
+
+	.section .note.GNU-stack,"",%progbits

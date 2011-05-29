@@ -21,19 +21,11 @@
 
 #include "common.h"
 #include "eloop.h"
-#include "version.h"
+#include "common/version.h"
 #include "drivers/driver.h"
 #include "l2_packet/l2_packet.h"
-#include "privsep_commands.h"
-#include "ieee802_11_defs.h"
-
-#ifndef ETH_P_EAPOL
-#define ETH_P_EAPOL 0x888e
-#endif
-
-#ifndef ETH_P_RSN_PREAUTH
-#define ETH_P_RSN_PREAUTH 0x88c7
-#endif
+#include "common/privsep_commands.h"
+#include "common/ieee802_11_defs.h"
 
 
 struct wpa_priv_interface {
@@ -59,8 +51,6 @@ static void wpa_priv_cmd_register(struct wpa_priv_interface *iface,
 {
 	if (iface->drv_priv) {
 		wpa_printf(MSG_DEBUG, "Cleaning up forgotten driver instance");
-		if (iface->driver->set_wpa)
-			iface->driver->set_wpa(iface->drv_priv, 0);
 		if (iface->driver->deinit)
 			iface->driver->deinit(iface->drv_priv);
 		iface->drv_priv = NULL;
@@ -93,9 +83,6 @@ static void wpa_priv_cmd_register(struct wpa_priv_interface *iface,
 	    iface->driver->set_param(iface->drv_priv, NULL) < 0) {
 		wpa_printf(MSG_ERROR, "Driver interface rejected param");
 	}
-
-	if (iface->driver->set_wpa)
-		iface->driver->set_wpa(iface->drv_priv, 1);
 }
 
 
@@ -103,8 +90,6 @@ static void wpa_priv_cmd_unregister(struct wpa_priv_interface *iface,
 				    struct sockaddr_un *from)
 {
 	if (iface->drv_priv) {
-		if (iface->driver->set_wpa)
-			iface->driver->set_wpa(iface->drv_priv, 0);
 		if (iface->driver->deinit)
 			iface->driver->deinit(iface->drv_priv);
 		iface->drv_priv = NULL;
@@ -113,26 +98,23 @@ static void wpa_priv_cmd_unregister(struct wpa_priv_interface *iface,
 }
 
 
-static void wpa_priv_cmd_set_wpa(struct wpa_priv_interface *iface,
-				 char *buf, size_t len)
-{
-	if (iface->drv_priv == NULL || len != sizeof(int))
-		return;
-
-	if (iface->driver->set_wpa)
-		iface->driver->set_wpa(iface->drv_priv, *((int *) buf));
-}
-
-
 static void wpa_priv_cmd_scan(struct wpa_priv_interface *iface,
 			      char *buf, size_t len)
 {
+	struct wpa_driver_scan_params params;
+
 	if (iface->drv_priv == NULL)
 		return;
 
-	if (iface->driver->scan)
-		iface->driver->scan(iface->drv_priv, len ? (u8 *) buf : NULL,
-				    len);
+	os_memset(&params, 0, sizeof(params));
+	if (len) {
+		params.ssids[0].ssid = (u8 *) buf;
+		params.ssids[0].ssid_len = len;
+		params.num_ssids = 1;
+	}
+
+	if (iface->driver->scan2)
+		iface->driver->scan2(iface->drv_priv, &params);
 }
 
 
@@ -172,110 +154,12 @@ static void wpa_priv_get_scan_results2(struct wpa_priv_interface *iface,
 	       sizeof(*from));
 
 	os_free(buf);
-	os_free(res);
+	wpa_scan_results_free(res);
 	return;
 
 fail:
 	os_free(buf);
-	os_free(res);
-	sendto(iface->fd, "", 0, 0, (struct sockaddr *) from, sizeof(*from));
-}
-
-
-static void wpa_priv_send_old_scan_results(struct wpa_priv_interface *iface,
-					   struct sockaddr_un *from)
-{
-#define SCAN_AP_LIMIT 128
-	int i, res, val;
-	struct wpa_scan_result *results = NULL;
-	u8 *buf = NULL, *pos, *end;
-	struct wpa_scan_res nres;
-
-	results = os_malloc(SCAN_AP_LIMIT * sizeof(*results));
-	if (results == NULL)
-		goto fail;
-
-	res = iface->driver->get_scan_results(iface->drv_priv, results,
-					      SCAN_AP_LIMIT);
-	if (res < 0 || res > SCAN_AP_LIMIT)
-		goto fail;
-
-	buf = os_malloc(60000);
-	if (buf == NULL)
-		goto fail;
-	pos = buf;
-	end = buf + 60000;
-	os_memcpy(pos, &res, sizeof(int));
-	pos += sizeof(int);
-
-	os_memset(&nres, 0, sizeof(nres));
-	for (i = 0; i < res; i++) {
-		struct wpa_scan_result *r = &results[i];
-		size_t ie_len;
-
-		ie_len = 2 + r->ssid_len + r->rsn_ie_len + r->wpa_ie_len;
-		if (r->maxrate)
-			ie_len += 3;
-		if (r->mdie_present)
-			ie_len += 5;
-
-		val = sizeof(nres) + ie_len;
-		if (end - pos < (int) sizeof(int) + val)
-			break;
-		os_memcpy(pos, &val, sizeof(int));
-		pos += sizeof(int);
-
-		os_memcpy(nres.bssid, r->bssid, ETH_ALEN);
-		nres.freq = r->freq;
-		nres.caps = r->caps;
-		nres.qual = r->qual;
-		nres.noise = r->noise;
-		nres.level = r->level;
-		nres.tsf = r->tsf;
-		nres.ie_len = ie_len;
-
-		os_memcpy(pos, &nres, sizeof(nres));
-		pos += sizeof(nres);
-
-		/* SSID IE */
-		*pos++ = WLAN_EID_SSID;
-		*pos++ = r->ssid_len;
-		os_memcpy(pos, r->ssid, r->ssid_len);
-		pos += r->ssid_len;
-
-		if (r->maxrate) {
-			/* Fake Supported Rate IE to include max rate */
-			*pos++ = WLAN_EID_SUPP_RATES;
-			*pos++ = 1;
-			*pos++ = r->maxrate;
-		}
-
-		if (r->rsn_ie_len) {
-			os_memcpy(pos, r->rsn_ie, r->rsn_ie_len);
-			pos += r->rsn_ie_len;
-		}
-
-		if (r->mdie_present) {
-			os_memcpy(pos, r->mdie, 5);
-			pos += 5;
-		}
-
-		if (r->wpa_ie_len) {
-			os_memcpy(pos, r->wpa_ie, r->wpa_ie_len);
-			pos += r->wpa_ie_len;
-		}
-	}
-
-	sendto(iface->fd, buf, pos - buf, 0, (struct sockaddr *) from,
-	       sizeof(*from));
-
-	os_free(buf);
-	os_free(results);
-	return;
-
-fail:
-	os_free(buf);
-	os_free(results);
+	wpa_scan_results_free(res);
 	sendto(iface->fd, "", 0, 0, (struct sockaddr *) from, sizeof(*from));
 }
 
@@ -288,8 +172,6 @@ static void wpa_priv_cmd_get_scan_results(struct wpa_priv_interface *iface,
 
 	if (iface->driver->get_scan_results2)
 		wpa_priv_get_scan_results2(iface, from);
-	else if (iface->driver->get_scan_results)
-		wpa_priv_send_old_scan_results(iface, from);
 	else
 		sendto(iface->fd, "", 0, 0, (struct sockaddr *) from,
 		       sizeof(*from));
@@ -405,7 +287,8 @@ static void wpa_priv_cmd_set_key(struct wpa_priv_interface *iface,
 
 	params = buf;
 
-	res = iface->driver->set_key(iface->drv_priv, params->alg,
+	res = iface->driver->set_key(iface->ifname, iface->drv_priv,
+				     params->alg,
 				     params->addr, params->key_idx,
 				     params->set_tx,
 				     params->seq_len ? params->seq : NULL,
@@ -564,17 +447,6 @@ static void wpa_priv_cmd_l2_send(struct wpa_priv_interface *iface,
 }
 
 
-static void wpa_priv_cmd_set_mode(struct wpa_priv_interface *iface,
-				  void *buf, size_t len)
-{
-	if (iface->drv_priv == NULL || iface->driver->set_mode == NULL ||
-	    len != sizeof(int))
-		return;
-
-	iface->driver->set_mode(iface->drv_priv, *((int *) buf));
-}
-
-
 static void wpa_priv_cmd_set_country(struct wpa_priv_interface *iface,
 				     char *buf)
 {
@@ -621,9 +493,6 @@ static void wpa_priv_receive(int sock, void *eloop_ctx, void *sock_ctx)
 	case PRIVSEP_CMD_UNREGISTER:
 		wpa_priv_cmd_unregister(iface, &from);
 		break;
-	case PRIVSEP_CMD_SET_WPA:
-		wpa_priv_cmd_set_wpa(iface, cmd_buf, cmd_len);
-		break;
 	case PRIVSEP_CMD_SCAN:
 		wpa_priv_cmd_scan(iface, cmd_buf, cmd_len);
 		break;
@@ -657,9 +526,6 @@ static void wpa_priv_receive(int sock, void *eloop_ctx, void *sock_ctx)
 	case PRIVSEP_CMD_L2_SEND:
 		wpa_priv_cmd_l2_send(iface, &from, cmd_buf, cmd_len);
 		break;
-	case PRIVSEP_CMD_SET_MODE:
-		wpa_priv_cmd_set_mode(iface, cmd_buf, cmd_len);
-		break;
 	case PRIVSEP_CMD_SET_COUNTRY:
 		pos = cmd_buf;
 		if (pos + cmd_len >= buf + sizeof(buf))
@@ -692,7 +558,7 @@ static void wpa_priv_interface_deinit(struct wpa_priv_interface *iface)
 }
 
 
-extern struct wpa_driver_ops *wpa_supplicant_drivers[];
+extern struct wpa_driver_ops *wpa_drivers[];
 
 static struct wpa_priv_interface *
 wpa_priv_interface_init(const char *dir, const char *params)
@@ -721,10 +587,10 @@ wpa_priv_interface_init(const char *dir, const char *params)
 	os_memcpy(iface->driver_name, params, len);
 	iface->driver_name[len] = '\0';
 
-	for (i = 0; wpa_supplicant_drivers[i]; i++) {
+	for (i = 0; wpa_drivers[i]; i++) {
 		if (os_strcmp(iface->driver_name,
-			      wpa_supplicant_drivers[i]->name) == 0) {
-			iface->driver = wpa_supplicant_drivers[i];
+			      wpa_drivers[i]->name) == 0) {
+			iface->driver = wpa_drivers[i];
 			break;
 		}
 	}
@@ -1049,52 +915,6 @@ void wpa_supplicant_rx_eapol(void *ctx, const u8 *src_addr,
 }
 
 
-#ifdef CONFIG_CLIENT_MLME
-void wpa_supplicant_sta_free_hw_features(struct wpa_hw_modes *hw_features,
-					 size_t num_hw_features)
-{
-	size_t i;
-
-	if (hw_features == NULL)
-		return;
-
-	for (i = 0; i < num_hw_features; i++) {
-		os_free(hw_features[i].channels);
-		os_free(hw_features[i].rates);
-	}
-
-	os_free(hw_features);
-}
-
-
-void wpa_supplicant_sta_rx(void *ctx, const u8 *buf, size_t len,
-			   struct ieee80211_rx_status *rx_status)
-{
-	struct wpa_priv_interface *iface = ctx;
-	struct msghdr msg;
-	struct iovec io[3];
-	int event = PRIVSEP_EVENT_STA_RX;
-
-	wpa_printf(MSG_DEBUG, "STA RX from driver");
-	io[0].iov_base = &event;
-	io[0].iov_len = sizeof(event);
-	io[1].iov_base = (u8 *) rx_status;
-	io[1].iov_len = sizeof(*rx_status);
-	io[2].iov_base = (u8 *) buf;
-	io[2].iov_len = len;
-
-	os_memset(&msg, 0, sizeof(msg));
-	msg.msg_iov = io;
-	msg.msg_iovlen = 3;
-	msg.msg_name = &iface->drv_addr;
-	msg.msg_namelen = sizeof(iface->drv_addr);
-
-	if (sendmsg(iface->fd, &msg, 0) < 0)
-		perror("sendmsg(wpas_socket)");
-}
-#endif /* CONFIG_CLIENT_MLME */
-
-
 static void wpa_priv_terminate(int sig, void *eloop_ctx, void *signal_ctx)
 {
 	wpa_printf(MSG_DEBUG, "wpa_priv termination requested");
@@ -1180,7 +1000,7 @@ int main(int argc, char *argv[])
 
 	wpa_printf(MSG_DEBUG, "wpa_priv control directory: '%s'", ctrl_dir);
 
-	if (eloop_init(NULL)) {
+	if (eloop_init()) {
 		wpa_printf(MSG_ERROR, "Failed to initialize event loop");
 		goto out;
 	}

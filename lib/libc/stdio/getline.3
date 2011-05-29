@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 29, 2009
+.Dd November 30, 2010
 .Dt GETLINE 3
 .Os
 .Sh NAME
@@ -54,23 +54,23 @@ function is equivalent to
 with the newline character as the delimiter.
 The delimiter character is included as part of the line, unless
 the end of the file is reached.
-The caller may provide a pointer to a malloc buffer for the line in
+.Pp
+The caller may provide a pointer to a malloced buffer for the line in
 .Fa *linep ,
 and the capacity of that buffer in
-.Fa *linecapp ;
-if
-.Fa *linecapp
-is 0, then
-.Fa *linep
-is treated as
-.Dv NULL .
-These functions may expand the buffer as needed, as if via
-.Fn realloc ,
-and update
+.Fa *linecapp .
+These functions expand the buffer as needed, as if via
+.Fn realloc .
+If
+.Fa linep
+points to a
+.Dv NULL
+pointer, a new buffer will be allocated.
+In either case,
 .Fa *linep
 and
 .Fa *linecapp
-accordingly.
+will be updated accordingly.
 .Sh RETURN VALUES
 The
 .Fn getdelim
@@ -140,7 +140,7 @@ No delimiter was found in the first
 characters.
 .El
 .Pp
-These functions may also fail for any of the errors specified for
+These functions may also fail due to any of the errors specified for
 .Fn fgets
 and
 .Fn malloc .

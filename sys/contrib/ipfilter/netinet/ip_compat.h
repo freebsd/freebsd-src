@@ -975,7 +975,6 @@ typedef	u_int32_t	u_32_t;
 #   define	SPL_NET(x)	;
 #   define	SPL_IMP(x)	;
 #   define	SPL_SCHED(x)	;
-extern	int	in_cksum __P((struct mbuf *, int));
 #  else
 #   define	SPL_SCHED(x)	x = splhigh()
 #  endif /* __FreeBSD_version >= 500043 */

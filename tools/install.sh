@@ -29,14 +29,30 @@
 # $FreeBSD$
 
 # parse install's options and ignore them completely.
+dirmode=""
 while [ $# -gt 0 ]; do
     case $1 in
-    -[bCcMpSs]) shift;;
+    -d) dirmode="YES"; shift;;
+    -[bCcMpSsv]) shift;;
     -[Bfgmo]) shift; shift;;
     -[Bfgmo]*) shift;;
     *) break;
     esac
 done
 
+if [ "$#" -eq 0 ]; then
+	echo "$0: no files/dirs specified" >&2
+	exit 1
+fi
+
+if [ -z "$dirmode" ] && [ "$#" -lt 2 ]; then
+	echo "$0: no target specified" >&2
+	exit 1
+fi
+
 # the remaining arguments are assumed to be files/dirs only.
-exec install -p $*
+if [ -z "$dirmode" ]; then
+	exec install -p "$@"
+else
+	exec install -d "$@"
+fi

@@ -115,13 +115,13 @@ gv_move_sd(struct gv_softc *sc, struct gv_sd *cursd,
 
 	if ((gv_consumer_is_open(d->consumer) ||
 	    gv_consumer_is_open(destination->consumer)) &&
-	    !(flags && GV_FLAG_F)) {
+	    !(flags & GV_FLAG_F)) {
 		G_VINUM_DEBUG(0, "consumers on current and destination drive "
 		    " still open");
 		return (GV_ERR_ISBUSY);
 	}
 
-	if (!(flags && GV_FLAG_F)) {
+	if (!(flags & GV_FLAG_F)) {
 		G_VINUM_DEBUG(1, "-f flag not passed; move would be "
 		    "destructive");
 		return (GV_ERR_INVFLAG);

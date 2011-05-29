@@ -46,7 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -239,10 +238,10 @@ ehci_ebus_detach(device_t self)
 	device_delete_all_children(self);
 
 	/*
-	 * disable interrupts that might have been switched on in ehci_init
+	 * disable interrupts that might have been switched on in
+	 * ehci_ebus_attach()
 	 */
 	if (sc->sc_io_res) {
-		EWRITE4(sc, EHCI_USBINTR, 0);
 		EWRITE4(sc, USB_BRIDGE_INTR_MASK, 0);
 	}
 	if (sc->sc_irq_res && sc->sc_intr_hdl) {

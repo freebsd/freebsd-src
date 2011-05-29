@@ -31,7 +31,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_compat.h"
 #include "opt_ddb.h"
 #include "opt_kstack_pages.h"
-#include "opt_msgbuf.h"
 #include "opt_sched.h"
 
 #include <sys/param.h>
@@ -59,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sched.h>
 #include <sys/signalvar.h>
 #include <sys/syscall.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <sys/sysproto.h>
 #include <sys/ucontext.h>
@@ -80,7 +80,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pager.h>
 
 #include <machine/bootinfo.h>
-#include <machine/clock.h>
 #include <machine/cpu.h>
 #include <machine/efi.h>
 #include <machine/elf.h>
@@ -88,7 +87,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr.h>
 #include <machine/mca.h>
 #include <machine/md_var.h>
-#include <machine/mutex.h>
 #include <machine/pal.h>
 #include <machine/pcb.h>
 #include <machine/reg.h>
@@ -99,8 +97,6 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <machine/unwind.h>
 #include <machine/vmparam.h>
-
-#include <i386/include/specialreg.h>
 
 SYSCTL_NODE(_hw, OID_AUTO, freq, CTLFLAG_RD, 0, "");
 SYSCTL_NODE(_machdep, OID_AUTO, cpu, CTLFLAG_RD, 0, "");
@@ -119,8 +115,7 @@ SYSCTL_UINT(_hw_freq, OID_AUTO, itc, CTLFLAG_RD, &itc_freq, 0,
 
 int cold = 1;
 
-u_int64_t pa_bootinfo;
-struct bootinfo bootinfo;
+struct bootinfo *bootinfo;
 
 struct pcpu pcpu0;
 
@@ -132,8 +127,9 @@ extern u_int64_t epc_sigtramp[];
 
 struct fpswa_iface *fpswa_iface;
 
-u_int64_t ia64_pal_base;
-u_int64_t ia64_port_base;
+vm_size_t ia64_pal_size;
+vm_paddr_t ia64_pal_base;
+vm_offset_t ia64_port_base;
 
 u_int64_t ia64_lapic_addr = PAL_PIB_DEFAULT_ADDR;
 
@@ -374,7 +370,7 @@ cpu_startup(void *dummy)
 		SYSCTL_ADD_ULONG(&pc->pc_md.sysctl_ctx,
 		    SYSCTL_CHILDREN(pc->pc_md.sysctl_tree), OID_AUTO,
 		    "nstrays", CTLFLAG_RD, &pcs->pcs_nstrays,
-		    "Number of stray vectors");
+		    "Number of stray interrupts");
 	}
 }
 SYSINIT(cpu_startup, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL);
@@ -443,25 +439,29 @@ cpu_switch(struct thread *old, struct thread *new, struct mtx *mtx)
 	struct pcb *oldpcb, *newpcb;
 
 	oldpcb = old->td_pcb;
-#ifdef COMPAT_IA32
+#ifdef COMPAT_FREEBSD32
 	ia32_savectx(oldpcb);
 #endif
 	if (PCPU_GET(fpcurthread) == old)
 		old->td_frame->tf_special.psr |= IA64_PSR_DFH;
 	if (!savectx(oldpcb)) {
 		atomic_store_rel_ptr(&old->td_lock, mtx);
-#if defined(SCHED_ULE) && defined(SMP)
-		/* td_lock is volatile */
-		while (new->td_lock == &blocked_lock)
-			;
-#endif
+
 		newpcb = new->td_pcb;
 		oldpcb->pcb_current_pmap =
 		    pmap_switch(newpcb->pcb_current_pmap);
+
+#if defined(SCHED_ULE) && defined(SMP)
+		while (atomic_load_acq_ptr(&new->td_lock) == &blocked_lock)
+			cpu_spinwait();
+#endif
+
 		PCPU_SET(curthread, new);
-#ifdef COMPAT_IA32
+
+#ifdef COMPAT_FREEBSD32
 		ia32_restorectx(newpcb);
 #endif
+
 		if (PCPU_GET(fpcurthread) == new)
 			new->td_frame->tf_special.psr &= ~IA64_PSR_DFH;
 		restorectx(newpcb);
@@ -478,10 +478,18 @@ cpu_throw(struct thread *old __unused, struct thread *new)
 
 	newpcb = new->td_pcb;
 	(void)pmap_switch(newpcb->pcb_current_pmap);
+
+#if defined(SCHED_ULE) && defined(SMP)
+	while (atomic_load_acq_ptr(&new->td_lock) == &blocked_lock)
+		cpu_spinwait();
+#endif
+
 	PCPU_SET(curthread, new);
-#ifdef COMPAT_IA32
+
+#ifdef COMPAT_FREEBSD32
 	ia32_restorectx(newpcb);
 #endif
+
 	restorectx(newpcb);
 	/* We should not get here. */
 	panic("cpu_throw: restorectx() returned");
@@ -503,11 +511,15 @@ void
 spinlock_enter(void)
 {
 	struct thread *td;
+	int intr;
 
 	td = curthread;
-	if (td->td_md.md_spinlock_count == 0)
-		td->td_md.md_saved_intr = intr_disable();
-	td->td_md.md_spinlock_count++;
+	if (td->td_md.md_spinlock_count == 0) {
+		intr = intr_disable();
+		td->td_md.md_spinlock_count = 1;
+		td->td_md.md_saved_intr = intr;
+	} else
+		td->td_md.md_spinlock_count++;
 	critical_enter();
 }
 
@@ -515,12 +527,14 @@ void
 spinlock_exit(void)
 {
 	struct thread *td;
+	int intr;
 
 	td = curthread;
 	critical_exit();
+	intr = td->td_md.md_saved_intr;
 	td->td_md.md_spinlock_count--;
 	if (td->td_md.md_spinlock_count == 0)
-		intr_restore(td->td_md.md_saved_intr);
+		intr_restore(intr);
 }
 
 void
@@ -534,15 +548,15 @@ map_vhpt(uintptr_t vhpt)
 	pte |= vhpt & PTE_PPN_MASK;
 
 	__asm __volatile("ptr.d %0,%1" :: "r"(vhpt),
-	    "r"(IA64_ID_PAGE_SHIFT<<2));
+	    "r"(pmap_vhpt_log2size << 2));
 
 	__asm __volatile("mov   %0=psr" : "=r"(psr));
 	__asm __volatile("rsm   psr.ic|psr.i");
 	ia64_srlz_i();
 	ia64_set_ifa(vhpt);
-	ia64_set_itir(IA64_ID_PAGE_SHIFT << 2);
+	ia64_set_itir(pmap_vhpt_log2size << 2);
 	ia64_srlz_d();
-	__asm __volatile("itr.d dtr[%0]=%1" :: "r"(2), "r"(pte));
+	__asm __volatile("itr.d dtr[%0]=%1" :: "r"(3), "r"(pte));
 	__asm __volatile("mov   psr.l=%0" :: "r" (psr));
 	ia64_srlz_i();
 }
@@ -551,25 +565,36 @@ void
 map_pal_code(void)
 {
 	pt_entry_t pte;
+	vm_offset_t va;
+	vm_size_t sz;
 	uint64_t psr;
+	u_int shft;
 
-	if (ia64_pal_base == 0)
+	if (ia64_pal_size == 0)
 		return;
+
+	va = IA64_PHYS_TO_RR7(ia64_pal_base);
+
+	sz = ia64_pal_size;
+	shft = 0;
+	while (sz > 1) {
+		shft++;
+		sz >>= 1;
+	}
 
 	pte = PTE_PRESENT | PTE_MA_WB | PTE_ACCESSED | PTE_DIRTY |
 	    PTE_PL_KERN | PTE_AR_RWX;
 	pte |= ia64_pal_base & PTE_PPN_MASK;
 
-	__asm __volatile("ptr.d %0,%1; ptr.i %0,%1" ::
-	    "r"(IA64_PHYS_TO_RR7(ia64_pal_base)), "r"(IA64_ID_PAGE_SHIFT<<2));
+	__asm __volatile("ptr.d %0,%1; ptr.i %0,%1" :: "r"(va), "r"(shft<<2));
 
 	__asm __volatile("mov	%0=psr" : "=r"(psr));
 	__asm __volatile("rsm	psr.ic|psr.i");
 	ia64_srlz_i();
-	ia64_set_ifa(IA64_PHYS_TO_RR7(ia64_pal_base));
-	ia64_set_itir(IA64_ID_PAGE_SHIFT << 2);
+	ia64_set_ifa(va);
+	ia64_set_itir(shft << 2);
 	ia64_srlz_d();
-	__asm __volatile("itr.d	dtr[%0]=%1" :: "r"(1), "r"(pte));
+	__asm __volatile("itr.d	dtr[%0]=%1" :: "r"(4), "r"(pte));
 	ia64_srlz_d();
 	__asm __volatile("itr.i	itr[%0]=%1" :: "r"(1), "r"(pte));
 	__asm __volatile("mov	psr.l=%0" :: "r" (psr));
@@ -584,25 +609,25 @@ map_gateway_page(void)
 
 	pte = PTE_PRESENT | PTE_MA_WB | PTE_ACCESSED | PTE_DIRTY |
 	    PTE_PL_KERN | PTE_AR_X_RX;
-	pte |= (uint64_t)ia64_gateway_page & PTE_PPN_MASK;
+	pte |= ia64_tpa((uint64_t)ia64_gateway_page) & PTE_PPN_MASK;
 
 	__asm __volatile("ptr.d %0,%1; ptr.i %0,%1" ::
-	    "r"(VM_MAX_ADDRESS), "r"(PAGE_SHIFT << 2));
+	    "r"(VM_MAXUSER_ADDRESS), "r"(PAGE_SHIFT << 2));
 
 	__asm __volatile("mov	%0=psr" : "=r"(psr));
 	__asm __volatile("rsm	psr.ic|psr.i");
 	ia64_srlz_i();
-	ia64_set_ifa(VM_MAX_ADDRESS);
+	ia64_set_ifa(VM_MAXUSER_ADDRESS);
 	ia64_set_itir(PAGE_SHIFT << 2);
 	ia64_srlz_d();
-	__asm __volatile("itr.d	dtr[%0]=%1" :: "r"(3), "r"(pte));
+	__asm __volatile("itr.d	dtr[%0]=%1" :: "r"(5), "r"(pte));
 	ia64_srlz_d();
-	__asm __volatile("itr.i	itr[%0]=%1" :: "r"(3), "r"(pte));
+	__asm __volatile("itr.i	itr[%0]=%1" :: "r"(2), "r"(pte));
 	__asm __volatile("mov	psr.l=%0" :: "r" (psr));
 	ia64_srlz_i();
 
 	/* Expose the mapping to userland in ar.k5 */
-	ia64_set_k5(VM_MAX_ADDRESS);
+	ia64_set_k5(VM_MAXUSER_ADDRESS);
 }
 
 static u_int
@@ -667,17 +692,6 @@ ia64_init(void)
 	 */
 
 	/*
-	 * pa_bootinfo is the physical address of the bootinfo block as
-	 * passed to us by the loader and set in locore.s.
-	 */
-	bootinfo = *(struct bootinfo *)(IA64_PHYS_TO_RR7(pa_bootinfo));
-
-	if (bootinfo.bi_magic != BOOTINFO_MAGIC || bootinfo.bi_version != 1) {
-		bzero(&bootinfo, sizeof(bootinfo));
-		bootinfo.bi_kernend = (vm_offset_t) round_page(_end);
-	}
-
-	/*
 	 * Look for the I/O ports first - we need them for console
 	 * probing.
 	 */
@@ -688,36 +702,27 @@ ia64_init(void)
 			    md->md_pages * EFI_PAGE_SIZE);
 			break;
 		case EFI_MD_TYPE_PALCODE:
+			ia64_pal_size = md->md_pages * EFI_PAGE_SIZE;
 			ia64_pal_base = md->md_phys;
 			break;
 		}
 	}
 
 	metadata_missing = 0;
-	if (bootinfo.bi_modulep)
-		preload_metadata = (caddr_t)bootinfo.bi_modulep;
+	if (bootinfo->bi_modulep)
+		preload_metadata = (caddr_t)bootinfo->bi_modulep;
 	else
 		metadata_missing = 1;
 
-	if (envmode == 0 && bootinfo.bi_envp)
-		kern_envp = (caddr_t)bootinfo.bi_envp;
+	if (envmode == 0 && bootinfo->bi_envp)
+		kern_envp = (caddr_t)bootinfo->bi_envp;
 	else
 		kern_envp = static_env;
 
 	/*
 	 * Look at arguments passed to us and compute boothowto.
 	 */
-	boothowto = bootinfo.bi_boothowto;
-
-	/*
-	 * Catch case of boot_verbose set in environment.
-	 */
-	if ((p = getenv("boot_verbose")) != NULL) {
-		if (strcmp(p, "yes") == 0 || strcmp(p, "YES") == 0) {
-			boothowto |= RB_VERBOSE;
-		}
-		freeenv(p);
-	}
+	boothowto = bootinfo->bi_boothowto;
 
 	if (boothowto & RB_VERBOSE)
 		bootverbose = 1;
@@ -727,15 +732,34 @@ ia64_init(void)
 	 */
 	kernstart = trunc_page(kernel_text);
 #ifdef DDB
-	ksym_start = bootinfo.bi_symtab;
-	ksym_end = bootinfo.bi_esymtab;
+	ksym_start = bootinfo->bi_symtab;
+	ksym_end = bootinfo->bi_esymtab;
 	kernend = (vm_offset_t)round_page(ksym_end);
 #else
 	kernend = (vm_offset_t)round_page(_end);
 #endif
 	/* But if the bootstrap tells us otherwise, believe it! */
-	if (bootinfo.bi_kernend)
-		kernend = round_page(bootinfo.bi_kernend);
+	if (bootinfo->bi_kernend)
+		kernend = round_page(bootinfo->bi_kernend);
+
+	/*
+	 * Region 6 is direct mapped UC and region 7 is direct mapped
+	 * WC. The details of this is controlled by the Alt {I,D}TLB
+	 * handlers. Here we just make sure that they have the largest
+	 * possible page size to minimise TLB usage.
+	 */
+	ia64_set_rr(IA64_RR_BASE(6), (6 << 8) | (PAGE_SHIFT << 2));
+	ia64_set_rr(IA64_RR_BASE(7), (7 << 8) | (PAGE_SHIFT << 2));
+	ia64_srlz_d();
+
+	/*
+	 * Wire things up so we can call the firmware.
+	 */
+	map_pal_code();
+	efi_boot_minimal(bootinfo->bi_systab);
+	ia64_xiv_init();
+	ia64_sal_init();
+	calculate_frequencies();
 
 	/*
 	 * Setup the PCPU data for the bootstrap processor. It is needed
@@ -746,6 +770,7 @@ ia64_init(void)
 	ia64_set_k4((u_int64_t)pcpup);
 	pcpu_init(pcpup, 0, sizeof(pcpu0));
 	dpcpu_init((void *)kernend, 0);
+	PCPU_SET(md.lid, ia64_get_lid());
 	kernend += DPCPU_SIZE;
 	PCPU_SET(curthread, &thread0);
 
@@ -756,38 +781,19 @@ ia64_init(void)
 
 	/* OUTPUT NOW ALLOWED */
 
-	if (ia64_pal_base != 0) {
-		ia64_pal_base &= ~IA64_ID_PAGE_MASK;
-		/*
-		 * We use a TR to map the first 256M of memory - this might
-		 * cover the palcode too.
-		 */
-		if (ia64_pal_base == 0)
-			printf("PAL code mapped by the kernel's TR\n");
-	} else
-		printf("PAL code not found\n");
-
-	/*
-	 * Wire things up so we can call the firmware.
-	 */
-	map_pal_code();
-	efi_boot_minimal(bootinfo.bi_systab);
-	ia64_sal_init();
-	calculate_frequencies();
-
 	if (metadata_missing)
 		printf("WARNING: loader(8) metadata is missing!\n");
 
 	/* Get FPSWA interface */
-	fpswa_iface = (bootinfo.bi_fpswa == 0) ? NULL :
-	    (struct fpswa_iface *)IA64_PHYS_TO_RR7(bootinfo.bi_fpswa);
+	fpswa_iface = (bootinfo->bi_fpswa == 0) ? NULL :
+	    (struct fpswa_iface *)IA64_PHYS_TO_RR7(bootinfo->bi_fpswa);
 
 	/* Init basic tunables, including hz */
 	init_param1();
 
 	p = getenv("kernelname");
-	if (p) {
-		strncpy(kernelname, p, sizeof(kernelname) - 1);
+	if (p != NULL) {
+		strlcpy(kernelname, p, sizeof(kernelname));
 		freeenv(p);
 	}
 
@@ -882,8 +888,8 @@ ia64_init(void)
 	/*
 	 * Initialize error message buffer (at end of core).
 	 */
-	msgbufp = (struct msgbuf *)pmap_steal_memory(MSGBUF_SIZE);
-	msgbufinit(msgbufp, MSGBUF_SIZE);
+	msgbufp = (struct msgbuf *)pmap_steal_memory(msgbufsize);
+	msgbufinit(msgbufp, msgbufsize);
 
 	proc_linkup0(&proc0, &thread0);
 	/*
@@ -935,7 +941,7 @@ uint64_t
 ia64_get_hcdp(void)
 {
 
-	return (bootinfo.bi_hcdp);
+	return (bootinfo->bi_hcdp);
 }
 
 void
@@ -1328,7 +1334,7 @@ set_mcontext(struct thread *td, const mcontext_t *mc)
  * Clear registers on exec.
  */
 void
-exec_setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
+exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 {
 	struct trapframe *tf;
 	uint64_t *ksttop, *kst;
@@ -1366,7 +1372,7 @@ exec_setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 		*kst-- = 0;
 		if (((uintptr_t)kst & 0x1ff) == 0x1f8)
 			*kst-- = 0;
-		*kst-- = ps_strings;
+		*kst-- = imgp->ps_strings;
 		if (((uintptr_t)kst & 0x1ff) == 0x1f8)
 			*kst-- = 0;
 		*kst = stack;
@@ -1381,11 +1387,11 @@ exec_setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 		 * Assumes that (bspstore & 0x1f8) < 0x1e0.
 		 */
 		suword((caddr_t)tf->tf_special.bspstore - 24, stack);
-		suword((caddr_t)tf->tf_special.bspstore - 16, ps_strings);
+		suword((caddr_t)tf->tf_special.bspstore - 16, imgp->ps_strings);
 		suword((caddr_t)tf->tf_special.bspstore -  8, 0);
 	}
 
-	tf->tf_special.iip = entry;
+	tf->tf_special.iip = imgp->entry_addr;
 	tf->tf_special.sp = (stack & ~15) - 16;
 	tf->tf_special.rsc = 0xf;
 	tf->tf_special.fpsr = IA64_FPSR_DEFAULT;

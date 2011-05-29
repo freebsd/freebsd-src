@@ -244,18 +244,18 @@ when it is called by the new process.
 The
 .Fa procptr
 pointer points to a
-.Vt "struct proc "
+.Vt "struct proc"
 pointer that is the location to be updated with the new proc pointer
 if a new process is created, or if not
 .Dv NULL ,
-must contain the process pointer for the already exisiting process.
+must contain the process pointer for the already existing process.
 If this argument points to
 .Dv NULL ,
 then a new process is created and the field updated.
 If not NULL, the
 .Fa tdptr
 pointer points to a
-.Vt "struct thread "
+.Vt "struct thread"
 pointer that is the location to be updated with the new thread pointer.
 The
 .Fa flags

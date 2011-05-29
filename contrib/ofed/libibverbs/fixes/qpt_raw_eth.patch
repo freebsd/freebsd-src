@@ -1,0 +1,28 @@
+libibverbs: add raw ethernet QP type IBV_QPT_RAW_ETH=7
+
+The patch enables usage of L2 raw ethernet QP type for user-space 
+applications.
+
+Miroslaw Walukiewicz
+
+
+Signed-off-by: Mirek Walukiewicz <miroslaw.walukiewicz@intel.com>
+---
+ include/infiniband/verbs.h |    3 ++-
+ 1 files changed, 2 insertions(+), 1 deletions(-)
+
+
+diff --git a/include/infiniband/verbs.h b/include/infiniband/verbs.h
+index fe9ab62..a340ffb 100644
+--- a/include/infiniband/verbs.h
++++ b/include/infiniband/verbs.h
+@@ -397,7 +397,8 @@ enum ibv_qp_type {
+ 	IBV_QPT_RC = 2,
+ 	IBV_QPT_UC,
+ 	IBV_QPT_UD,
+-	IBV_QPT_XRC
++	IBV_QPT_XRC,
++	IBV_QPT_RAW_ETH = 8
+ };
+ 
+ struct ibv_qp_cap {

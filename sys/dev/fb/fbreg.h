@@ -34,16 +34,7 @@
 #define V_MAX_ADAPTERS		8		/* XXX */
 
 /* some macros */
-#ifdef __i386__
-#define bcopy_io(s, d, c)	generic_bcopy((void *)(s), (void *)(d), (c))
-#define bcopy_toio(s, d, c)	generic_bcopy((void *)(s), (void *)(d), (c))
-#define bcopy_fromio(s, d, c)	generic_bcopy((void *)(s), (void *)(d), (c))
-#define bzero_io(d, c)		generic_bzero((void *)(d), (c))
-#define fill_io(p, d, c)	fill((p), (void *)(d), (c))
-#define fillw_io(p, d, c)	fillw((p), (void *)(d), (c))
-void generic_bcopy(const void *s, void *d, size_t c);
-void generic_bzero(void *d, size_t c);
-#elif defined(__amd64__)
+#if defined(__amd64__) || defined(__i386__)
 #define bcopy_io(s, d, c)	bcopy((void *)(s), (void *)(d), (c))
 #define bcopy_toio(s, d, c)	bcopy((void *)(s), (void *)(d), (c))
 #define bcopy_fromio(s, d, c)	bcopy((void *)(s), (void *)(d), (c))

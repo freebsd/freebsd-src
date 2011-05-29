@@ -1823,6 +1823,10 @@ scsi_done:
 		strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
 		strncpy(cpi->hba_vid, "HPT   ", HBA_IDLEN);
 		strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
+		cpi->transport = XPORT_SPI;
+		cpi->transport_version = 2;
+		cpi->protocol = PROTO_SCSI;
+		cpi->protocol_version = SCSI_REV_2;
 		cpi->ccb_h.status = CAM_REQ_CMP;
 		break;
 	}

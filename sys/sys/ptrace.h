@@ -33,7 +33,9 @@
 #ifndef	_SYS_PTRACE_H_
 #define	_SYS_PTRACE_H_
 
-#include <sys/_sigset.h>
+#include <sys/signal.h>
+#include <sys/param.h>
+#include <machine/reg.h>
 
 #define	PT_TRACE_ME	0	/* child declares it's being traced */
 #define	PT_READ_I	1	/* read word in child's I space */
@@ -60,6 +62,8 @@
 #define	PT_TO_SCE	20
 #define	PT_TO_SCX	21
 #define	PT_SYSCALL	22
+
+#define	PT_FOLLOW_FORK	23
 
 #define PT_GETREGS      33	/* get general-purpose registers */
 #define PT_SETREGS      34	/* set general-purpose registers */
@@ -98,8 +102,16 @@ struct ptrace_lwpinfo {
 	int	pl_flags;	/* LWP flags. */
 #define	PL_FLAG_SA	0x01	/* M:N thread */
 #define	PL_FLAG_BOUND	0x02	/* M:N bound thread */
+#define	PL_FLAG_SCE	0x04	/* syscall enter point */
+#define	PL_FLAG_SCX	0x08	/* syscall leave point */
+#define	PL_FLAG_EXEC	0x10	/* exec(2) succeeded */
+#define	PL_FLAG_SI	0x20	/* siginfo is valid */
+#define	PL_FLAG_FORKED	0x40	/* new child */
 	sigset_t	pl_sigmask;	/* LWP signal mask */
 	sigset_t	pl_siglist;	/* LWP pending signal */
+	struct __siginfo pl_siginfo;	/* siginfo for signal */
+	char		pl_tdname[MAXCOMLEN + 1]; /* LWP name */
+	int		pl_child_pid;	/* New child pid */
 };
 
 /* Argument structure for PT_VM_ENTRY. */
@@ -157,7 +169,7 @@ int	proc_read_dbregs(struct thread *_td, struct dbreg *_dbreg);
 int	proc_write_dbregs(struct thread *_td, struct dbreg *_dbreg);
 int	proc_sstep(struct thread *_td);
 int	proc_rwmem(struct proc *_p, struct uio *_uio);
-#ifdef COMPAT_IA32
+#ifdef COMPAT_FREEBSD32
 struct reg32;
 struct fpreg32;
 struct dbreg32;

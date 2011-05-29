@@ -129,7 +129,7 @@ EX COMMANDS:
 	  ^D: scroll lines
 	   !: filter lines through commands or run commands
 	   #: display numbered lines
-	   &: repeat the last subsitution
+	   &: repeat the last substitution
 	   *: execute a buffer
 	   <: shift lines left
 	   =: display line number

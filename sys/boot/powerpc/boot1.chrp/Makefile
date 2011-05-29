@@ -13,7 +13,7 @@ SRCS=		boot1.c ashldi3.c
 INTERNALPROG=
 NO_MAN=
 
-CFLAGS= -ffreestanding -msoft-float -Os -D_KERNEL \
+CFLAGS= -ffreestanding -msoft-float -Os \
 	-I${.CURDIR}/../../common -I${.CURDIR}/../../../
 LDFLAGS=-nostdlib -static -N
 

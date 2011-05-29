@@ -48,10 +48,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -166,6 +162,8 @@ Config_spec:
 	CPU Save_id {
 		struct cputype *cp =
 		    (struct cputype *)calloc(1, sizeof (struct cputype));
+		if (cp == NULL)
+			err(EXIT_FAILURE, "calloc");
 		cp->cpu_name = $2;
 		SLIST_INSERT_HEAD(&cputype, cp, cpu_next);
 	      } |
@@ -197,6 +195,8 @@ Config_spec:
 		struct hint *hint;
 
 		hint = (struct hint *)calloc(1, sizeof (struct hint));
+		if (hint == NULL)
+			err(EXIT_FAILURE, "calloc");	
 		hint->hint_name = $2;
 		STAILQ_INSERT_TAIL(&hints, hint, hint_next);
 		hintmode = 1;
@@ -257,6 +257,7 @@ Mkopt_list:
 
 Mkoption:
 	Save_id { newopt(&mkopt, $1, ns(""), 0); } |
+	Save_id EQUALS { newopt(&mkopt, $1, ns(""), 0); } |
 	Save_id EQUALS Opt_value { newopt(&mkopt, $1, $3, 0); } |
 	Save_id PLUSEQUALS Opt_value { newopt(&mkopt, $1, $3, 1); } ;
 
@@ -331,6 +332,8 @@ newfile(char *name)
 	struct files_name *nl;
 	
 	nl = (struct files_name *) calloc(1, sizeof *nl);
+	if (nl == NULL)
+		err(EXIT_FAILURE, "calloc");
 	nl->f_name = name;
 	STAILQ_INSERT_TAIL(&fntab, nl, f_next);
 }
@@ -359,11 +362,14 @@ newdev(char *name)
 	struct device *np;
 
 	if (finddev(&dtab, name)) {
-		printf("WARNING: duplicate device `%s' encountered.\n", name);
+		fprintf(stderr,
+		    "WARNING: duplicate device `%s' encountered.\n", name);
 		return;
 	}
 
 	np = (struct device *) calloc(1, sizeof *np);
+	if (np == NULL)
+		err(EXIT_FAILURE, "calloc");
 	np->d_name = name;
 	STAILQ_INSERT_TAIL(&dtab, np, d_next);
 }
@@ -417,11 +423,14 @@ newopt(struct opt_head *list, char *name, char *value, int append)
 
 	op2 = findopt(list, name);
 	if (op2 != NULL && !append) {
-		printf("WARNING: duplicate option `%s' encountered.\n", name);
+		fprintf(stderr,
+		    "WARNING: duplicate option `%s' encountered.\n", name);
 		return;
 	}
 
 	op = (struct opt *)calloc(1, sizeof (struct opt));
+	if (op == NULL)
+		err(EXIT_FAILURE, "calloc");
 	op->op_name = name;
 	op->op_ownfile = 0;
 	op->op_value = value;

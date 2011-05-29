@@ -635,12 +635,14 @@ pcn_attach(dev)
 
 	/*
 	 * Do MII setup.
+	 * See the comment in pcn_miibus_readreg() for why we can't
+	 * universally pass MIIF_NOISOLATE here.
 	 */
 	sc->pcn_extphyaddr = -1;
-	if (mii_phy_probe(dev, &sc->pcn_miibus,
-	    pcn_ifmedia_upd, pcn_ifmedia_sts)) {
-		device_printf(dev, "MII without any PHY!\n");
-		error = ENXIO;
+	error = mii_attach(dev, &sc->pcn_miibus, ifp, pcn_ifmedia_upd,
+	   pcn_ifmedia_sts, BMSR_DEFCAPMASK, MII_PHY_ANY, MII_OFFSET_ANY, 0);
+	if (error != 0) {
+		device_printf(dev, "attaching PHYs failed\n");
 		goto fail;
 	}
 	/*

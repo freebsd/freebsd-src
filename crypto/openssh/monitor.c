@@ -1,4 +1,4 @@
-/* $OpenBSD: monitor.c,v 1.104 2009/06/12 20:43:22 andreas Exp $ */
+/* $OpenBSD: monitor.c,v 1.110 2010/09/09 10:45:45 djm Exp $ */
 /*
  * Copyright 2002 Niels Provos <provos@citi.umich.edu>
  * Copyright 2002 Markus Friedl <markus@openbsd.org>
@@ -518,7 +518,7 @@ monitor_allowed_key(u_char *blob, u_int bloblen)
 {
 	/* make sure key is allowed */
 	if (key_blob == NULL || key_bloblen != bloblen ||
-	    memcmp(key_blob, blob, key_bloblen))
+	    timingsafe_bcmp(key_blob, blob, key_bloblen))
 		return (0);
 	return (1);
 }
@@ -590,10 +590,10 @@ mm_answer_sign(int sock, Buffer *m)
 	p = buffer_get_string(m, &datlen);
 
 	/*
-	 * Supported KEX types will only return SHA1 (20 byte) or
-	 * SHA256 (32 byte) hashes
+	 * Supported KEX types use SHA1 (20 bytes), SHA256 (32 bytes),
+	 * SHA384 (48 bytes) and SHA512 (64 bytes).
 	 */
-	if (datlen != 20 && datlen != 32)
+	if (datlen != 20 && datlen != 32 && datlen != 48 && datlen != 64)
 		fatal("%s: data length incorrect: %u", __func__, datlen);
 
 	/* save session id, it will be passed on the first call */
@@ -922,8 +922,8 @@ mm_answer_pam_init_ctx(int sock, Buffer *m)
 int
 mm_answer_pam_query(int sock, Buffer *m)
 {
-	char *name, *info, **prompts;
-	u_int i, num, *echo_on;
+	char *name = NULL, *info = NULL, **prompts = NULL;
+	u_int i, num = 0, *echo_on = 0;
 	int ret;
 
 	debug3("%s", __func__);
@@ -996,17 +996,6 @@ mm_answer_pam_free_ctx(int sock, Buffer *m)
 	return (sshpam_authok == sshpam_ctxt);
 }
 #endif
-
-static void
-mm_append_debug(Buffer *m)
-{
-	if (auth_debug_init && buffer_len(&auth_debug)) {
-		debug3("%s: Appending debug messages for child", __func__);
-		buffer_append(m, buffer_ptr(&auth_debug),
-		    buffer_len(&auth_debug));
-		buffer_clear(&auth_debug);
-	}
-}
 
 int
 mm_answer_keyallowed(int sock, Buffer *m)
@@ -1090,8 +1079,6 @@ mm_answer_keyallowed(int sock, Buffer *m)
 	buffer_put_int(m, allowed);
 	buffer_put_int(m, forced_command != NULL);
 
-	mm_append_debug(m);
-
 	mm_request_send(sock, MONITOR_ANS_KEYALLOWED, m);
 
 	if (type == MM_RSAHOSTKEY)
@@ -1116,14 +1103,14 @@ monitor_valid_userblob(u_char *data, u_int datalen)
 		len = buffer_len(&b);
 		if ((session_id2 == NULL) ||
 		    (len < session_id2_len) ||
-		    (memcmp(p, session_id2, session_id2_len) != 0))
+		    (timingsafe_bcmp(p, session_id2, session_id2_len) != 0))
 			fail++;
 		buffer_consume(&b, session_id2_len);
 	} else {
 		p = buffer_get_string(&b, &len);
 		if ((session_id2 == NULL) ||
 		    (len != session_id2_len) ||
-		    (memcmp(p, session_id2, session_id2_len) != 0))
+		    (timingsafe_bcmp(p, session_id2, session_id2_len) != 0))
 			fail++;
 		xfree(p);
 	}
@@ -1171,7 +1158,7 @@ monitor_valid_hostbasedblob(u_char *data, u_int datalen, char *cuser,
 	p = buffer_get_string(&b, &len);
 	if ((session_id2 == NULL) ||
 	    (len != session_id2_len) ||
-	    (memcmp(p, session_id2, session_id2_len) != 0))
+	    (timingsafe_bcmp(p, session_id2, session_id2_len) != 0))
 		fail++;
 	xfree(p);
 
@@ -1475,8 +1462,6 @@ mm_answer_rsa_keyallowed(int sock, Buffer *m)
 	if (key != NULL)
 		key_free(key);
 
-	mm_append_debug(m);
-
 	mm_request_send(sock, MONITOR_ANS_RSAKEYALLOWED, m);
 
 	monitor_permit(mon_dispatch, MONITOR_REQ_RSACHALLENGE, allowed);
@@ -1697,15 +1682,16 @@ mm_get_kex(Buffer *m)
 
 	kex = xcalloc(1, sizeof(*kex));
 	kex->session_id = buffer_get_string(m, &kex->session_id_len);
-	if ((session_id2 == NULL) ||
-	    (kex->session_id_len != session_id2_len) ||
-	    (memcmp(kex->session_id, session_id2, session_id2_len) != 0))
+	if (session_id2 == NULL ||
+	    kex->session_id_len != session_id2_len ||
+	    timingsafe_bcmp(kex->session_id, session_id2, session_id2_len) != 0)
 		fatal("mm_get_get: internal error: bad session id");
 	kex->we_need = buffer_get_int(m);
 	kex->kex[KEX_DH_GRP1_SHA1] = kexdh_server;
 	kex->kex[KEX_DH_GRP14_SHA1] = kexdh_server;
 	kex->kex[KEX_DH_GEX_SHA1] = kexgex_server;
 	kex->kex[KEX_DH_GEX_SHA256] = kexgex_server;
+	kex->kex[KEX_ECDH_SHA2] = kexecdh_server;
 	kex->server = 1;
 	kex->hostkey_type = buffer_get_int(m);
 	kex->kex_type = buffer_get_int(m);
@@ -1721,7 +1707,8 @@ mm_get_kex(Buffer *m)
 	kex->flags = buffer_get_int(m);
 	kex->client_version_string = buffer_get_string(m, NULL);
 	kex->server_version_string = buffer_get_string(m, NULL);
-	kex->load_host_key=&get_hostkey_by_type;
+	kex->load_host_public_key=&get_hostkey_public_by_type;
+	kex->load_host_private_key=&get_hostkey_private_by_type;
 	kex->host_key_index=&get_hostkey_index;
 
 	return (kex);

@@ -28,13 +28,14 @@
 
 #include <spawn.h>
 #include <signal.h>
+#include <stdio.h>
 
 void
 go(void)
 {
 	pid_t pid;
 
-	(void) posix_spawn(&pid, "/usr/bin/ls", NULL, NULL, NULL, NULL);
+	(void) posix_spawn(&pid, "/bin/ls", NULL, NULL, NULL, NULL);
 
 	(void) waitpid(pid, NULL, 0);
 }

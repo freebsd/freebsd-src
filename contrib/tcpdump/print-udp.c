@@ -570,7 +570,7 @@ udp_print(register const u_char *bp, u_int length,
 	}
 	udpipaddr_print(ip, sport, dport);
 
-	if (IP_V(ip) == 4 && (vflag > 1) && !fragmented) {
+	if (IP_V(ip) == 4 && (vflag > 1) && !Kflag && !fragmented) {
 		int sum = up->uh_sum;
 		if (sum == 0) {
 			(void)printf("[no cksum] ");
@@ -583,7 +583,7 @@ udp_print(register const u_char *bp, u_int length,
 		}
 	}
 #ifdef INET6
-	if (IP_V(ip) == 6 && ip6->ip6_plen && vflag && !fragmented) {
+	if (IP_V(ip) == 6 && ip6->ip6_plen && vflag && !Kflag && !fragmented) {
 		int sum = up->uh_sum;
 		/* for IPv6, UDP checksum is mandatory */
 		if (TTEST2(cp[0], length)) {
@@ -674,11 +674,16 @@ udp_print(register const u_char *bp, u_int length,
 			hsrp_print((const u_char *)(up + 1), length);
 		else if (ISPORT(LWRES_PORT))
 			lwres_print((const u_char *)(up + 1), length);
-                else if (ISPORT(LDP_PORT))
+		else if (ISPORT(LDP_PORT))
 			ldp_print((const u_char *)(up + 1), length);
-                else if (ISPORT(OLSR_PORT))
-			olsr_print((const u_char *)(up + 1), length);
-                else if (ISPORT(MPLS_LSP_PING_PORT))
+		else if (ISPORT(OLSR_PORT))
+			olsr_print((const u_char *)(up + 1), length,
+#if INET6
+					(IP_V(ip) == 6) ? 1 : 0);
+#else
+					0);
+#endif
+		else if (ISPORT(MPLS_LSP_PING_PORT))
 			lspping_print((const u_char *)(up + 1), length);
 		else if (dport == BFD_CONTROL_PORT ||
 			 dport == BFD_ECHO_PORT )

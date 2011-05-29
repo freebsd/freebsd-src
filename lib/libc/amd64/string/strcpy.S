@@ -110,3 +110,5 @@ ENTRY(strcpy)
 .Ldone:
 	ret
 END(strcpy)
+
+	.section .note.GNU-stack,"",%progbits

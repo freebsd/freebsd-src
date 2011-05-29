@@ -242,8 +242,14 @@ ns8250_probe(struct uart_bas *bas)
 	val = uart_getreg(bas, REG_IIR);
 	if (val & 0x30)
 		return (ENXIO);
+	/*
+	 * Bit 6 of the MCR (= 0x40) appears to be 1 for the Sun1699
+	 * chip, but otherwise doesn't seem to have a function. In
+	 * other words, uart(4) works regardless. Ignore that bit so
+	 * the probe succeeds.
+	 */
 	val = uart_getreg(bas, REG_MCR);
-	if (val & 0xe0)
+	if (val & 0xa0)
 		return (ENXIO);
 
 	return (0);
@@ -604,7 +610,7 @@ ns8250_bus_ipend(struct uart_softc *sc)
 	if (ipend == 0)
 		ns8250_clrint(bas);
 	uart_unlock(sc->sc_hwmtx);
-	return ((sc->sc_leaving) ? 0 : ipend);
+	return (ipend);
 }
 
 static int
@@ -693,7 +699,7 @@ ns8250_bus_probe(struct uart_softc *sc)
 	/*
 	 * We should have a sufficiently clean "pipe" to determine the
 	 * size of the FIFOs. We send as much characters as is reasonable
-	 * and wait for the the overflow bit in the LSR register to be
+	 * and wait for the overflow bit in the LSR register to be
 	 * asserted, counting the characters as we send them. Based on
 	 * that count we know the FIFO size.
 	 */

@@ -1,0 +1,25 @@
+From 8f2b7717984fe025d357023bdd2e1b17cd7bcb0b Mon Sep 17 00:00:00 2001
+From: Jack Morgenstein <jackm@dev.mellanox.co.il>
+Date: Mon, 7 Jun 2010 18:21:53 +0300
+Subject: configure.in -- add AC_PROG_LIBTOOL for earlier versions of automake.
+
+Signed-off-by: Jack Morgenstein <jackm@dev.mellanox.co.il>
+---
+ configure.in |    1 +
+ 1 files changed, 1 insertions(+), 0 deletions(-)
+
+diff --git a/configure.in b/configure.in
+index 83368a9..d0678c8 100644
+--- a/configure.in
++++ b/configure.in
+@@ -13,6 +13,7 @@ AC_PROG_CC
+ AC_GNU_SOURCE
+ AC_PROG_LN_S
+ 
++AC_PROG_LIBTOOL
+ LT_INIT
+ 
+ AC_ARG_WITH([valgrind],
+-- 
+1.6.3.2
+

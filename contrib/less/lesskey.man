@@ -13,7 +13,7 @@ LESSKEY(1)                                                          LESSKEY(1)
 
 [1mDESCRIPTION[0m
        [4mLesskey[24m  is  used  to specify a set of key bindings to be used by [4mless.[0m
-       The input file is a text file which describes the key bindings, If  the
+       The input file is a text file which describes the key bindings.  If the
        input  file is "-", standard input is read.  If no input file is speci-
        fied, a standard filename is used as the name of the input file,  which
        depends  on  the  system being used: On Unix systems, $HOME/.lesskey is
@@ -105,7 +105,7 @@ LESSKEY(1)                                                          LESSKEY(1)
        can  be used in certain cases to extend the functionality of a command.
        For example, see the "{" and ":t" commands in the example  below.   The
        extra  string  has  a  special meaning for the "quit" action: when [4mless[0m
-       quits, first character of the extra string is used as its exit  status.
+       quits, first character of the extra string is used as its exit status.
 
 
 [1mEXAMPLE[0m
@@ -225,12 +225,12 @@ LESSKEY(1)                                                          LESSKEY(1)
 
 
 [1mPRECEDENCE[0m
-       Commands specified by [4mlesskey[24m take precedence  over  the  default  com-
-       mands.   A  default  command key may be disabled by including it in the
-       input file with the action "invalid".   Alternatively,  a  key  may  be
-       defined  to  do  nothing by using the action "noaction".  "noaction" is
+       Commands  specified  by  [4mlesskey[24m  take precedence over the default com-
+       mands.  A default command key may be disabled by including  it  in  the
+       input  file  with  the  action  "invalid".  Alternatively, a key may be
+       defined to do nothing by using the action  "noaction".   "noaction"  is
        similar to "invalid", but [4mless[24m will give an error beep for an "invalid"
-       command,  but  not  for a "noaction" command.  In addition, ALL default
+       command, but not for a "noaction" command.  In  addition,  ALL  default
        commands may be disabled by adding this control line to the input file:
 
        #stop
@@ -287,6 +287,7 @@ LESSKEY(1)                                                          LESSKEY(1)
             \ek       up
             \ku       up
             \ej       down
+            ^G        abort
 
 
 
@@ -322,27 +323,22 @@ LESSKEY(1)                                                          LESSKEY(1)
 
 
 [1mWARNINGS[0m
-       It  is not possible to specify special keys, such as uparrow, in a key-
-       board-independent manner.  The only way to  specify  such  keys  is  to
-       specify the escape sequence which a particular keyboard sends when such
-       a key is pressed.
-
-       On MS-DOS and OS/2 systems, certain keys send a sequence of  characters
-       which  start  with  a  NUL character (0).  This NUL character should be
+       On  MS-DOS and OS/2 systems, certain keys send a sequence of characters
+       which start with a NUL character (0).  This  NUL  character  should  be
        represented as \340 in a lesskey file.
 
 
 [1mCOPYRIGHT[0m
-       Copyright (C) 2000-2009  Mark Nudelman
+       Copyright (C) 2000-2011  Mark Nudelman
 
        lesskey is part of the GNU project and is free software; you can redis-
-       tribute  it  and/or modify it under the terms of the GNU General Public
+       tribute it and/or modify it under the terms of the GNU  General  Public
        License as published by the Free Software Foundation; either version 2,
        or (at your option) any later version.
 
-       lesskey  is distributed in the hope that it will be useful, but WITHOUT
-       ANY WARRANTY; without even the implied warranty of  MERCHANTABILITY  or
-       FITNESS  FOR  A PARTICULAR PURPOSE.  See the GNU General Public License
+       lesskey is distributed in the hope that it will be useful, but  WITHOUT
+       ANY  WARRANTY;  without even the implied warranty of MERCHANTABILITY or
+       FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General  Public  License
        for more details.
 
        You should have received a copy of the GNU General Public License along
@@ -358,4 +354,4 @@ LESSKEY(1)                                                          LESSKEY(1)
 
 
 
-                           Version 436: 07 Jul 2009                 LESSKEY(1)
+                           Version 443: 09 Apr 2011                 LESSKEY(1)

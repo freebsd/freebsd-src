@@ -30,6 +30,8 @@
 #
 # LIBDATADIR	Base path for misc. utility data files. [/usr/libdata]
 #
+# LIBEXECDIR	Base path for system daemons and utilities. [/usr/libexec]
+#
 # LINTLIBDIR	Base path for lint libraries. [/usr/libdata/lint]
 #
 # SHLIBDIR	Base path for shared libraries. [${LIBDIR}]
@@ -129,6 +131,7 @@ KMODMODE?=	${BINMODE}
 LIBDIR?=	/usr/lib
 LIBCOMPATDIR?=	/usr/lib/compat
 LIBDATADIR?=	/usr/libdata
+LIBEXECDIR?=	/usr/libexec
 LINTLIBDIR?=	/usr/libdata/lint
 SHLIBDIR?=	${LIBDIR}
 LIBOWN?=	${BINOWN}
@@ -245,7 +248,6 @@ WITHOUT_${var}=
     NLS \
     NLS_CATALOGS \
     NS_CACHING \
-    OBJC \
     OPENSSH \
     OPENSSL \
     PAM \
@@ -278,10 +280,7 @@ WITH_HESIOD=
 WITH_IDEA=
 .endif
 
-#
-# MK_* options which default to "yes".
-#
-.for var in \
+__DEFAULT_YES_OPTIONS = \
     ACCT \
     ACPI \
     AMD \
@@ -298,6 +297,7 @@ WITH_IDEA=
     BIND_MTREE \
     BIND_NAMED \
     BIND_UTILS \
+    BINUTILS \
     BLUETOOTH \
     BOOT \
     BSD_CPIO \
@@ -318,13 +318,15 @@ WITH_IDEA=
     FP_LIBC \
     FREEBSD_UPDATE \
     GAMES \
+    GCC \
     GCOV \
     GDB \
     GNU \
-    GNU_GREP \
     GPIB \
+    GPIO \
     GROFF \
     HTML \
+    INET \
     INET6 \
     INFO \
     INSTALLLIB \
@@ -333,6 +335,7 @@ WITH_IDEA=
     IPX \
     JAIL \
     KERBEROS \
+    KERNEL_SYMBOLS \
     KVM \
     LEGACY_CONSOLE \
     LIB32 \
@@ -354,7 +357,6 @@ WITH_IDEA=
     NLS_CATALOGS \
     NS_CACHING \
     NTP \
-    OBJC \
     OPENSSH \
     OPENSSL \
     PAM \
@@ -385,6 +387,50 @@ WITH_IDEA=
     WPA_SUPPLICANT_EAPOL \
     ZFS \
     ZONEINFO
+
+__DEFAULT_NO_OPTIONS = \
+    BSD_GREP \
+    BIND_IDN \
+    BIND_LARGE_FILE \
+    BIND_LIBS \
+    BIND_SIGCHASE \
+    BIND_XML \
+    HESIOD \
+    ICONV \
+    IDEA \
+    OFED
+
+#
+# Default behaviour of some options depends on the architecture.  Unfortunately
+# this means that we have to test TARGET_ARCH (the buildworld case) as well
+# as MACHINE_ARCH (the non-buildworld case).  Normally TARGET_ARCH is not
+# used at all in bsd.*.mk, but we have to make an exception here if we want
+# to allow defaults for some things like clang and fdt to vary by target
+# architecture.
+#
+.if defined(TARGET_ARCH)
+__T=${TARGET_ARCH}
+.else
+__T=${MACHINE_ARCH}
+.endif
+# Clang is only for x86 and 32-bit powerpc right now, by default.
+.if ${__T} == "amd64" || ${__T} == "i386" || ${__T} == "powerpc"
+__DEFAULT_YES_OPTIONS+=CLANG
+.else
+__DEFAULT_NO_OPTIONS+=CLANG
+.endif
+# FDT is needed only for arm and powerpc (and not powerpc64)
+.if ${__T} == "arm" || ${__T} == "armeb" || ${__T} == "powerpc"
+__DEFAULT_YES_OPTIONS+=FDT
+.else
+__DEFAULT_NO_OPTIONS+=FDT
+.endif
+.undef __T
+
+#
+# MK_* options which default to "yes".
+#
+.for var in ${__DEFAULT_YES_OPTIONS}
 .if defined(WITH_${var}) && defined(WITHOUT_${var})
 .error WITH_${var} and WITHOUT_${var} can't both be set.
 .endif
@@ -397,19 +443,12 @@ MK_${var}:=	no
 MK_${var}:=	yes
 .endif
 .endfor
+.undef __DEFAULT_YES_OPTIONS
 
 #
 # MK_* options which default to "no".
 #
-.for var in \
-    BIND_IDN \
-    BIND_LARGE_FILE \
-    BIND_LIBS \
-    BIND_SIGCHASE \
-    BIND_XML \
-    GNU_CPIO \
-    HESIOD \
-    IDEA
+.for var in ${__DEFAULT_NO_OPTIONS}
 .if defined(WITH_${var}) && defined(WITHOUT_${var})
 .error WITH_${var} and WITHOUT_${var} can't both be set.
 .endif
@@ -422,6 +461,7 @@ MK_${var}:=	yes
 MK_${var}:=	no
 .endif
 .endfor
+.undef __DEFAULT_NO_OPTIONS
 
 #
 # Force some options off if their dependencies are off.
@@ -459,6 +499,11 @@ MK_OPENSSH:=	no
 MK_KERBEROS:=	no
 .endif
 
+.if ${MK_CXX} == "no"
+MK_CLANG:=	no
+MK_GROFF:=	no
+.endif
+
 .if ${MK_IPX} == "no"
 MK_NCP:=	no
 .endif
@@ -487,6 +532,9 @@ MK_GROFF:=	no
 .endif
 
 .if ${MK_TOOLCHAIN} == "no"
+MK_BINUTILS:=	no
+MK_CLANG:=	no
+MK_GCC:=	no
 MK_GDB:=	no
 .endif
 
@@ -501,6 +549,7 @@ MK_GDB:=	no
 .for var in \
     BZIP2 \
     GNU \
+    INET \
     INET6 \
     IPX \
     KERBEROS \
@@ -525,7 +574,8 @@ MK_${var}_SUPPORT:= yes
 # MK_* options whose default value depends on another option.
 #
 .for vv in \
-    GSSAPI/KERBEROS
+    GSSAPI/KERBEROS \
+    MAN_UTILS/MAN
 .if defined(WITH_${vv:H}) && defined(WITHOUT_${vv:H})
 .error WITH_${vv:H} and WITHOUT_${vv:H} can't both be set.
 .endif

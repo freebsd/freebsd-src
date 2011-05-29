@@ -38,7 +38,7 @@ __FBSDID("$FreeBSD$");
 /*
  * Load an ELF section table and create a list of Elf_Scn structures.
  */
-static int
+int
 _libelf_load_scn(Elf *e, void *ehdr)
 {
 	int ec, swapbytes;
@@ -48,7 +48,7 @@ _libelf_load_scn(Elf *e, void *ehdr)
 	Elf32_Ehdr *eh32;
 	Elf64_Ehdr *eh64;
 	Elf_Scn *scn;
-	void (*xlator)(char *_d, char *_s, size_t _c, int _swap);
+	int (*xlator)(char *_d, size_t _dsz, char *_s, size_t _c, int _swap);
 
 	assert(e != NULL);
 	assert(ehdr != NULL);
@@ -101,7 +101,8 @@ _libelf_load_scn(Elf *e, void *ehdr)
 		if ((scn = _libelf_allocate_scn(e, i)) == NULL)
 			return (0);
 
-		(*xlator)((char *) &scn->s_shdr, src, (size_t) 1, swapbytes);
+		(*xlator)((char *) &scn->s_shdr, sizeof(scn->s_shdr), src,
+		    (size_t) 1, swapbytes);
 
 		if (ec == ELFCLASS32) {
 			scn->s_offset = scn->s_rawoff =

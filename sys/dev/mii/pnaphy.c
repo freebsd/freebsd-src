@@ -85,8 +85,14 @@ DRIVER_MODULE(pnaphy, miibus, pnaphy_driver, pnaphy_devclass, 0, 0);
 static int	pnaphy_service(struct mii_softc *, struct mii_data *,int);
 
 static const struct mii_phydesc pnaphys[] = {
-	MII_PHY_DESC(AMD, 79c978),
+	MII_PHY_DESC(yyAMD, 79c901home),
 	MII_PHY_END
+};
+
+static const struct mii_phy_funcs pnaphy_funcs = {
+	pnaphy_service,
+	ukphy_status,
+	mii_phy_reset
 };
 
 static int
@@ -99,50 +105,9 @@ pnaphy_probe(device_t dev)
 static int
 pnaphy_attach(device_t dev)
 {
-	struct mii_softc *sc;
-	struct mii_attach_args *ma;
-	struct mii_data *mii;
-	const char *sep = "";
 
-	sc = device_get_softc(dev);
-	ma = device_get_ivars(dev);
-	sc->mii_dev = device_get_parent(dev);
-	mii = device_get_softc(sc->mii_dev);
-	LIST_INSERT_HEAD(&mii->mii_phys, sc, mii_list);
-
-	sc->mii_inst = mii->mii_instance;
-	sc->mii_phy = ma->mii_phyno;
-	sc->mii_service = pnaphy_service;
-	sc->mii_pdata = mii;
-
-	mii->mii_instance++;
-
-	sc->mii_flags |= MIIF_NOISOLATE;
-
-#define	ADD(m, c)	ifmedia_add(&mii->mii_media, (m), (c), NULL)
-#define PRINT(s)	printf("%s%s", sep, s); sep = ", "
-
-	mii_phy_reset(sc);
-
-	sc->mii_capabilities =
-	    PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
-	device_printf(dev, " ");
-	if ((sc->mii_capabilities & BMSR_MEDIAMASK) == 0)
-		printf("no media present");
-	else {
-		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_HPNA_1, 0, sc->mii_inst), 0);
-		PRINT("HomePNA");
-	}
-	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_NONE, 0, sc->mii_inst),
-	    BMCR_ISO);
-
-	printf("\n");
-
-#undef ADD
-#undef PRINT
-
-	MIIBUS_MEDIAINIT(sc->mii_dev);
-
+	mii_phy_dev_attach(dev, MIIF_NOISOLATE | MIIF_IS_HPNA |
+	   MIIF_NOMANPAUSE, &pnaphy_funcs, 1);
 	return (0);
 }
 
@@ -150,28 +115,12 @@ static int
 pnaphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 {
 	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
-	int reg;
 
 	switch (cmd) {
 	case MII_POLLSTAT:
-		/*
-		 * If we're not polling our PHY instance, just return.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst)
-			return (0);
 		break;
 
 	case MII_MEDIACHG:
-		/*
-		 * If the media indicates a different PHY instance,
-		 * isolate ourselves.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst) {
-			reg = PHY_READ(sc, MII_BMCR);
-			PHY_WRITE(sc, MII_BMCR, reg | BMCR_ISO);
-			return (0);
-		}
-
 		/*
 		 * If the interface is not up, don't do anything.
 		 */
@@ -179,36 +128,24 @@ pnaphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 			break;
 
 		switch (IFM_SUBTYPE(ife->ifm_media)) {
-		case IFM_AUTO:
-		case IFM_10_T:
-		case IFM_100_TX:
-		case IFM_100_T4:
-			return (EINVAL);
+		case IFM_HPNA_1:
+			mii_phy_setmedia(sc);
+			break;
 		default:
-			/*
-			 * BMCR data is stored in the ifmedia entry.
-			 */
-			PHY_WRITE(sc, MII_ANAR,
-			    mii_anar(ife->ifm_media));
-			PHY_WRITE(sc, MII_BMCR, ife->ifm_data);
+			return (EINVAL);
 		}
 		break;
 
 	case MII_TICK:
-		/*
-		 * If we're not currently selected, just return.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst)
-			return (0);
 		if (mii_phy_tick(sc) == EJUSTRETURN)
 			return (0);
 		break;
 	}
 
 	/* Update the media status. */
-	ukphy_status(sc);
+	PHY_STATUS(sc);
 	if (IFM_SUBTYPE(mii->mii_media_active) == IFM_10_T)
-		mii->mii_media_active = IFM_ETHER|IFM_HPNA_1;
+		mii->mii_media_active = IFM_ETHER | IFM_HPNA_1;
 
 	/* Callback if something changed. */
 	mii_phy_update(sc, cmd);

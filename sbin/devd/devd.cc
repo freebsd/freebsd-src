@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002-2003 M. Warner Losh.
+ * Copyright (c) 2002-2010 M. Warner Losh.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -15,6 +15,35 @@
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
  * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ * my_system is a variation on lib/libc/stdlib/system.c:
+ *
+ * Copyright (c) 1988, 1993
+ *	The Regents of the University of California.  All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 4. Neither the name of the University nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -41,6 +70,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <sys/sysctl.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <sys/un.h>
 
 #include <ctype.h>
@@ -49,6 +79,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <fcntl.h>
 #include <libutil.h>
+#include <paths.h>
 #include <regex.h>
 #include <signal.h>
 #include <stdlib.h>
@@ -152,20 +183,73 @@ action::~action()
 	// nothing
 }
 
+static int
+my_system(const char *command)
+{
+	pid_t pid, savedpid;
+	int pstat;
+	struct sigaction ign, intact, quitact;
+	sigset_t newsigblock, oldsigblock;
+
+	if (!command)		/* just checking... */
+		return(1);
+
+	/*
+	 * Ignore SIGINT and SIGQUIT, block SIGCHLD. Remember to save
+	 * existing signal dispositions.
+	 */
+	ign.sa_handler = SIG_IGN;
+	::sigemptyset(&ign.sa_mask);
+	ign.sa_flags = 0;
+	::sigaction(SIGINT, &ign, &intact);
+	::sigaction(SIGQUIT, &ign, &quitact);
+	::sigemptyset(&newsigblock);
+	::sigaddset(&newsigblock, SIGCHLD);
+	::sigprocmask(SIG_BLOCK, &newsigblock, &oldsigblock);
+	switch (pid = ::fork()) {
+	case -1:			/* error */
+		break;
+	case 0:				/* child */
+		/*
+		 * Restore original signal dispositions and exec the command.
+		 */
+		::sigaction(SIGINT, &intact, NULL);
+		::sigaction(SIGQUIT,  &quitact, NULL);
+		::sigprocmask(SIG_SETMASK, &oldsigblock, NULL);
+		/*
+		 * Close the PID file, and all other open descriptors.
+		 * Inherit std{in,out,err} only.
+		 */
+		cfg.close_pidfile();
+		::closefrom(3);
+		::execl(_PATH_BSHELL, "sh", "-c", command, (char *)NULL);
+		::_exit(127);
+	default:			/* parent */
+		savedpid = pid;
+		do {
+			pid = ::wait4(savedpid, &pstat, 0, (struct rusage *)0);
+		} while (pid == -1 && errno == EINTR);
+		break;
+	}
+	::sigaction(SIGINT, &intact, NULL);
+	::sigaction(SIGQUIT,  &quitact, NULL);
+	::sigprocmask(SIG_SETMASK, &oldsigblock, NULL);
+	return (pid == -1 ? -1 : pstat);
+}
+
 bool
 action::do_action(config &c)
 {
 	string s = c.expand_string(_cmd);
 	if (Dflag)
 		fprintf(stderr, "Executing '%s'\n", s.c_str());
-	::system(s.c_str());
+	my_system(s.c_str());
 	return (true);
 }
 
 match::match(config &c, const char *var, const char *re)
 	: _var(var)
 {
-	string pattern = re;
 	_re = "^";
 	_re.append(c.expand_string(string(re)));
 	_re.append("$");
@@ -180,7 +264,7 @@ match::~match()
 bool
 match::do_match(config &c)
 {
-	string value = c.get_variable(_var);
+	const string &value = c.get_variable(_var);
 	bool retval;
 
 	if (Dflag)
@@ -338,6 +422,7 @@ config::parse_files_in_dir(const char *dirname)
 			parse_one_file(path);
 		}
 	}
+	closedir(dirp);
 }
 
 class epv_greater {
@@ -388,6 +473,13 @@ config::write_pidfile()
 {
 	
 	pidfile_write(pfh);
+}
+
+void
+config::close_pidfile()
+{
+	
+	pidfile_close(pfh);
 }
 
 void
@@ -486,7 +578,7 @@ void
 config::expand_one(const char *&src, string &dst)
 {
 	int count;
-	string buffer, varstr;
+	string buffer;
 
 	src++;
 	// $$ -> $
@@ -524,8 +616,7 @@ config::expand_one(const char *&src, string &dst)
 		buffer.append(src++, 1);
 	} while (is_id_char(*src));
 	buffer.append("", 1);
-	varstr = get_variable(buffer.c_str());
-	dst.append(varstr);
+	dst.append(get_variable(buffer.c_str()));
 }
 
 const string
@@ -659,9 +750,13 @@ process_event(char *buffer)
 		if (sp == NULL)
 			return;	/* Can't happen? */
 		*sp++ = '\0';
+		while (isspace(*sp))
+			sp++;
 		if (strncmp(sp, "at ", 3) == 0)
 			sp += 3;
 		sp = cfg.set_vars(sp);
+		while (isspace(*sp))
+			sp++;
 		if (strncmp(sp, "on ", 3) == 0)
 			cfg.set_variable("bus", sp + 3);
 		break;
@@ -672,9 +767,13 @@ process_event(char *buffer)
 			return;	/* Can't happen? */
 		*sp++ = '\0';
 		cfg.set_variable("device-name", buffer);
+		while (isspace(*sp))
+			sp++;
 		if (strncmp(sp, "at ", 3) == 0)
 			sp += 3;
 		sp = cfg.set_vars(sp);
+		while (isspace(*sp))
+			sp++;
 		if (strncmp(sp, "on ", 3) == 0)
 			cfg.set_variable("bus", sp + 3);
 		break;

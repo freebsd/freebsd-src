@@ -40,35 +40,73 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 
 static struct cdev *wd_dev;
+static volatile u_int wd_last_u;
 
 static int
-wd_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t data,
-    int flags __unused, struct thread *td)
+kern_do_pat(u_int utim)
 {
 	int error;
-	u_int u;
 
-	if (cmd != WDIOCPATPAT)
-		return (ENOIOCTL);
-	u = *(u_int *)data;
-	if (u & ~(WD_ACTIVE | WD_PASSIVE | WD_INTERVAL))
+	if ((utim & WD_LASTVAL) != 0 && (utim & WD_INTERVAL) > 0)
 		return (EINVAL);
-	if ((u & (WD_ACTIVE | WD_PASSIVE)) == (WD_ACTIVE | WD_PASSIVE))
-		return (EINVAL);
-	if ((u & (WD_ACTIVE | WD_PASSIVE)) == 0 && (u & WD_INTERVAL) > 0)
-		return (EINVAL);
-	if (u & WD_PASSIVE)
-		return (ENOSYS);	/* XXX Not implemented yet */
-	if ((u & WD_INTERVAL) == WD_TO_NEVER) {
-		u = 0;
+
+	if ((utim & WD_LASTVAL) != 0) {
+		MPASS((wd_last_u & ~WD_INTERVAL) == 0);
+		utim &= ~WD_LASTVAL;
+		utim |= wd_last_u;
+	} else
+		wd_last_u = (utim & WD_INTERVAL);
+	if ((utim & WD_INTERVAL) == WD_TO_NEVER) {
+		utim = 0;
+
 		/* Assume all is well; watchdog signals failure. */
 		error = 0;
 	} else {
 		/* Assume no watchdog available; watchdog flags success */
 		error = EOPNOTSUPP;
 	}
-	EVENTHANDLER_INVOKE(watchdog_list, u, &error);
+	EVENTHANDLER_INVOKE(watchdog_list, utim, &error);
 	return (error);
+}
+
+static int
+wd_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t data,
+    int flags __unused, struct thread *td)
+{
+	u_int u;
+
+	if (cmd != WDIOCPATPAT)
+		return (ENOIOCTL);
+	u = *(u_int *)data;
+	if (u & ~(WD_ACTIVE | WD_PASSIVE | WD_LASTVAL | WD_INTERVAL))
+		return (EINVAL);
+	if ((u & (WD_ACTIVE | WD_PASSIVE)) == (WD_ACTIVE | WD_PASSIVE))
+		return (EINVAL);
+	if ((u & (WD_ACTIVE | WD_PASSIVE)) == 0 && ((u & WD_INTERVAL) > 0 ||
+	    (u & WD_LASTVAL) != 0))
+		return (EINVAL);
+	if (u & WD_PASSIVE)
+		return (ENOSYS);	/* XXX Not implemented yet */
+	u &= ~(WD_ACTIVE | WD_PASSIVE);
+
+	return (kern_do_pat(u));
+}
+
+u_int
+wdog_kern_last_timeout(void)
+{
+
+	return (wd_last_u);
+}
+
+int
+wdog_kern_pat(u_int utim)
+{
+
+	if (utim & ~(WD_LASTVAL | WD_INTERVAL))
+		return (EINVAL);
+
+	return (kern_do_pat(utim));
 }
 
 static struct cdevsw wd_cdevsw = {

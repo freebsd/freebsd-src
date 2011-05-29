@@ -125,15 +125,21 @@
 #define	NUPDPE		(NUPML4E*NPDPEPG)/* number of userland PDP pages */
 #define	NUPDE		(NUPDPE*NPDEPG)	/* number of userland PD entries */
 
-#define	NDMPML4E	1		/* number of dmap PML4 slots */
+/*
+ * NDMPML4E is the number of PML4 entries that are used to implement the
+ * direct map.  It must be a power of two.
+ */
+#define	NDMPML4E	2
 
 /*
- * The *PDI values control the layout of virtual memory
+ * The *PDI values control the layout of virtual memory.  The starting address
+ * of the direct map, which is controlled by DMPML4I, must be a multiple of
+ * its size.  (See the PHYS_TO_DMAP() and DMAP_TO_PHYS() macros.)
  */
 #define	PML4PML4I	(NPML4EPG/2)	/* Index of recursive pml4 mapping */
 
 #define	KPML4I		(NPML4EPG-1)	/* Top 512GB for KVM */
-#define	DMPML4I		(KPML4I-1)	/* Next 512GB down for direct map */
+#define	DMPML4I		rounddown(KPML4I - NDMPML4E, NDMPML4E) /* Below KVM */
 
 #define	KPDPI		(NPDPEPG-2)	/* kernbase at -2GB */
 
@@ -174,6 +180,7 @@ typedef u_int64_t pml4_entry_t;
 #define	PML4map		((pd_entry_t *)(addr_PML4map))
 #define	PML4pml4e	((pd_entry_t *)(addr_PML4pml4e))
 
+extern u_int64_t KPDPphys;	/* physical address of kernel level 3 */
 extern u_int64_t KPML4phys;	/* physical address of kernel level 4 */
 
 /*
@@ -244,7 +251,7 @@ struct pmap {
 	struct mtx		pm_mtx;
 	pml4_entry_t		*pm_pml4;	/* KVA of level 4 page table */
 	TAILQ_HEAD(,pv_chunk)	pm_pvchunk;	/* list of mappings in pmap */
-	u_int			pm_active;	/* active on cpus */
+	cpumask_t		pm_active;	/* active on cpus */
 	/* spare u_int here due to padding */
 	struct pmap_statistics	pm_stats;	/* pmap statistics */
 	vm_page_t		pm_root;	/* spare page table pages */
@@ -305,6 +312,7 @@ extern vm_offset_t virtual_end;
 
 void	pmap_bootstrap(vm_paddr_t *);
 int	pmap_change_attr(vm_offset_t, vm_size_t, int);
+void	pmap_demote_DMAP(vm_paddr_t base, vm_size_t len, boolean_t invalidate);
 void	pmap_init_pat(void);
 void	pmap_kenter(vm_offset_t va, vm_paddr_t pa);
 void	*pmap_kenter_temporary(vm_paddr_t pa, int i);
@@ -320,6 +328,8 @@ void	pmap_invalidate_page(pmap_t, vm_offset_t);
 void	pmap_invalidate_range(pmap_t, vm_offset_t, vm_offset_t);
 void	pmap_invalidate_all(pmap_t);
 void	pmap_invalidate_cache(void);
+void	pmap_invalidate_cache_pages(vm_page_t *pages, int count);
+void	pmap_invalidate_cache_range(vm_offset_t sva, vm_offset_t eva);
 
 #endif /* _KERNEL */
 

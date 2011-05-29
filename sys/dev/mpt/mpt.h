@@ -130,6 +130,11 @@
 #include <machine/clock.h>
 #endif
 
+#ifdef __sparc64__
+#include <dev/ofw/openfirm.h>
+#include <machine/ofw_machdep.h>
+#endif
+
 #include <sys/rman.h>
 
 #if __FreeBSD_version < 500000  
@@ -171,6 +176,8 @@
 #define	MPT_ROLE_TARGET		2
 #define	MPT_ROLE_BOTH		3
 #define	MPT_ROLE_DEFAULT	MPT_ROLE_INITIATOR
+
+#define	MPT_INI_ID_NONE		-1
 
 /**************************** Forward Declarations ****************************/
 struct mpt_softc;
@@ -364,7 +371,7 @@ struct req_entry {
 	mpt_req_state_t	state;		/* Request State Information */
 	uint16_t	index;		/* Index of this entry */
 	uint16_t	IOCStatus;	/* Completion status */
-	uint16_t	ResponseCode;	/* TMF Reponse Code */
+	uint16_t	ResponseCode;	/* TMF Response Code */
 	uint16_t	serno;		/* serial number */
 	union ccb      *ccb;		/* CAM request */
 	void	       *req_vbuf;	/* Virtual Address of Entry */
@@ -637,7 +644,6 @@ struct mpt_softc {
 	 * Port Facts
 	 */
 	MSG_PORT_FACTS_REPLY *	port_facts;
-#define	mpt_ini_id	port_facts[0].PortSCSIID
 #define	mpt_max_tgtcmds	port_facts[0].MaxPostedCmdBuffers
 
 	/*
@@ -650,6 +656,7 @@ struct mpt_softc {
 			CONFIG_PAGE_SCSI_PORT_2		_port_page2;
 			CONFIG_PAGE_SCSI_DEVICE_0	_dev_page0[16];
 			CONFIG_PAGE_SCSI_DEVICE_1	_dev_page1[16];
+			int				_ini_id;
 			uint16_t			_tag_enable;
 			uint16_t			_disc_enable;
 		} spi;
@@ -658,6 +665,7 @@ struct mpt_softc {
 #define	mpt_port_page2		cfg.spi._port_page2
 #define	mpt_dev_page0		cfg.spi._dev_page0
 #define	mpt_dev_page1		cfg.spi._dev_page1
+#define	mpt_ini_id		cfg.spi._ini_id
 #define	mpt_tag_enable		cfg.spi._tag_enable
 #define	mpt_disc_enable		cfg.spi._disc_enable
 		struct mpi_fc_cfg {
@@ -706,7 +714,7 @@ struct mpt_softc {
 	 */
 	int			pci_msi_count;
 	struct resource *	pci_irq;	/* Interrupt map for chip */
-	void *			ih;		/* Interupt handle */
+	void *			ih;		/* Interrupt handle */
 	struct mpt_pci_cfg	pci_cfg;	/* saved PCI conf registers */
 
 	/*
@@ -735,6 +743,7 @@ struct mpt_softc {
 	bus_addr_t		request_phys;	/* BusAddr of request memory */
 
 	uint32_t		max_seg_cnt;	/* calculated after IOC facts */
+	uint32_t		max_cam_seg_cnt;/* calculated from MAXPHYS*/
 
 	/*
 	 * Hardware management
@@ -987,9 +996,6 @@ mpt_pio_read(struct mpt_softc *mpt, int offset)
 /* Max MPT Reply we are willing to accept (must be power of 2) */
 #define MPT_REPLY_SIZE   	256
 
-/* Max i/o size, based on legacy MAXPHYS.  Can be increased. */
-#define MPT_MAXPHYS		(128 * 1024)
-
 /*
  * Must be less than 16384 in order for target mode to work
  */
@@ -1046,7 +1052,7 @@ mpt_pop_reply_queue(struct mpt_softc *mpt)
 void
 mpt_complete_request_chain(struct mpt_softc *, struct req_queue *, u_int);
 
-/************************** Scatter Gather Managment **************************/
+/************************** Scatter Gather Management **************************/
 /* MPT_RQSL- size of request frame, in bytes */
 #define	MPT_RQSL(mpt)		(mpt->ioc_facts.RequestFrameSize << 2)
 
@@ -1106,10 +1112,10 @@ do {						\
 		mpt_prt(mpt, __VA_ARGS__);	\
 } while (0)
 
-#define mpt_lprtc(mpt, level, ...)		 \
-do {						 \
-	if (level <= (mpt)->debug_level)	 \
-		mpt_prtc(mpt, __VA_ARGS__);	 \
+#define mpt_lprtc(mpt, level, ...)		\
+do {						\
+	if (level <= (mpt)->verbose)		\
+		mpt_prtc(mpt, __VA_ARGS__);	\
 } while (0)
 #else
 void mpt_lprt(struct mpt_softc *, int, const char *, ...)
@@ -1151,18 +1157,12 @@ mpt_tag_2_req(struct mpt_softc *mpt, uint32_t tag)
 	KASSERT(mpt->tgt_cmd_ptrs[rtg], ("no cmd backpointer"));
 	return (mpt->tgt_cmd_ptrs[rtg]);
 }
-
+#endif
 
 static __inline int
 mpt_req_on_free_list(struct mpt_softc *, request_t *);
 static __inline int
 mpt_req_on_pending_list(struct mpt_softc *, request_t *);
-
-static __inline void
-mpt_req_spcl(struct mpt_softc *, request_t *, const char *, int);
-static __inline void
-mpt_req_not_spcl(struct mpt_softc *, request_t *, const char *, int);
-
 
 /*
  * Is request on freelist?
@@ -1195,6 +1195,12 @@ mpt_req_on_pending_list(struct mpt_softc *mpt, request_t *req)
 	}
 	return (0);
 }
+
+#ifdef	INVARIANTS
+static __inline void
+mpt_req_spcl(struct mpt_softc *, request_t *, const char *, int);
+static __inline void
+mpt_req_not_spcl(struct mpt_softc *, request_t *, const char *, int);
 
 /*
  * Make sure that req *is* part of one of the special lists

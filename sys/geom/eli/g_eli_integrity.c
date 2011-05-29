@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2006 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2005-2011 Pawel Jakub Dawidek <pawel@dawidek.net>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -129,6 +129,7 @@ g_eli_auth_keygen(struct g_eli_softc *sc, off_t offset, u_char *key)
 static int
 g_eli_auth_read_done(struct cryptop *crp)
 {
+	struct g_eli_softc *sc;
 	struct bio *bp;
 
 	if (crp->crp_etype == EAGAIN) {
@@ -147,13 +148,14 @@ g_eli_auth_read_done(struct cryptop *crp)
 		if (bp->bio_error == 0)
 			bp->bio_error = crp->crp_etype;
 	}
+	sc = bp->bio_to->geom->softc;
+	g_eli_key_drop(sc, crp->crp_desc->crd_next->crd_key);
 	/*
 	 * Do we have all sectors already?
 	 */
 	if (bp->bio_inbed < bp->bio_children)
 		return (0);
 	if (bp->bio_error == 0) {
-		struct g_eli_softc *sc;
 		u_int i, lsec, nsec, data_secsize, decr_secsize, encr_secsize;
 		u_char *srcdata, *dstdata, *auth;
 		off_t coroff, corsize;
@@ -161,7 +163,6 @@ g_eli_auth_read_done(struct cryptop *crp)
 		/*
 		 * Verify data integrity based on calculated and read HMACs.
 		 */
-		sc = bp->bio_to->geom->softc;
 		/* Sectorsize of decrypted provider eg. 4096. */
 		decr_secsize = bp->bio_to->sectorsize;
 		/* The real sectorsize of encrypted provider, eg. 512. */
@@ -240,6 +241,7 @@ g_eli_auth_read_done(struct cryptop *crp)
 	 * Read is finished, send it up.
 	 */
 	g_io_deliver(bp, bp->bio_error);
+	atomic_subtract_int(&sc->sc_inflight, 1);
 	return (0);
 }
 
@@ -271,6 +273,8 @@ g_eli_auth_write_done(struct cryptop *crp)
 		if (bp->bio_error == 0)
 			bp->bio_error = crp->crp_etype;
 	}
+	sc = bp->bio_to->geom->softc;
+	g_eli_key_drop(sc, crp->crp_desc->crd_key);
 	/*
 	 * All sectors are already encrypted?
 	 */
@@ -285,9 +289,9 @@ g_eli_auth_write_done(struct cryptop *crp)
 		bp->bio_driver1 = NULL;
 		g_destroy_bio(cbp);
 		g_io_deliver(bp, bp->bio_error);
+		atomic_subtract_int(&sc->sc_inflight, 1);
 		return (0);
 	}
-	sc = bp->bio_to->geom->softc;
 	cp = LIST_FIRST(&sc->sc_geom->consumer);
 	cbp = bp->bio_driver1;
 	bp->bio_driver1 = NULL;
@@ -392,6 +396,11 @@ g_eli_auth_read(struct g_eli_softc *sc, struct bio *bp)
 /*
  * This is the main function responsible for cryptography (ie. communication
  * with crypto(9) subsystem).
+ *
+ * BIO_READ:
+ *	g_eli_start -> g_eli_auth_read -> g_io_request -> g_eli_read_done -> G_ELI_AUTH_RUN -> g_eli_auth_read_done -> g_io_deliver
+ * BIO_WRITE:
+ *	g_eli_start -> G_ELI_AUTH_RUN -> g_eli_auth_write_done -> g_io_request -> g_eli_write_done -> g_io_deliver
  */
 void
 g_eli_auth_run(struct g_eli_worker *wr, struct bio *bp)
@@ -504,11 +513,15 @@ g_eli_auth_run(struct g_eli_worker *wr, struct bio *bp)
 		crde->crd_skip = sc->sc_alen;
 		crde->crd_len = data_secsize;
 		crde->crd_flags = CRD_F_IV_EXPLICIT | CRD_F_IV_PRESENT;
+		if ((sc->sc_flags & G_ELI_FLAG_FIRST_KEY) == 0)
+			crde->crd_flags |= CRD_F_KEY_EXPLICIT;
 		if (bp->bio_cmd == BIO_WRITE)
 			crde->crd_flags |= CRD_F_ENCRYPT;
 		crde->crd_alg = sc->sc_ealgo;
-		crde->crd_key = sc->sc_ekey;
+		crde->crd_key = g_eli_key_hold(sc, dstoff, encr_secsize);
 		crde->crd_klen = sc->sc_ekeylen;
+		if (sc->sc_ealgo == CRYPTO_AES_XTS)
+			crde->crd_klen <<= 1;
 		g_eli_crypto_ivgen(sc, dstoff, crde->crd_iv,
 		    sizeof(crde->crd_iv));
 

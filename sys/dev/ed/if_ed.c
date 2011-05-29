@@ -283,8 +283,8 @@ ed_attach(device_t dev)
 	ifp->if_start = ed_start;
 	ifp->if_ioctl = ed_ioctl;
 	ifp->if_init = ed_init;
-	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
-	ifp->if_snd.ifq_drv_maxlen = IFQ_MAXLEN;
+	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
+	ifp->if_snd.ifq_drv_maxlen = ifqmaxlen;
 	IFQ_SET_READY(&ifp->if_snd);
 	ifp->if_linkmib = &sc->mibdata;
 	ifp->if_linkmiblen = sizeof sc->mibdata;
@@ -323,19 +323,19 @@ ed_attach(device_t dev)
 	sc->rx_mem = (sc->rec_page_stop - sc->rec_page_start) * ED_PAGE_SIZE;
 	SYSCTL_ADD_STRING(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    0, "type", CTLTYPE_STRING | CTLFLAG_RD, sc->type_str, 0,
+	    0, "type", CTLFLAG_RD, sc->type_str, 0,
 	    "Type of chip in card");
 	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    1, "TxMem", CTLTYPE_STRING | CTLFLAG_RD, &sc->tx_mem, 0,
+	    1, "TxMem", CTLFLAG_RD, &sc->tx_mem, 0,
 	    "Memory set aside for transmitting packets");
 	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    2, "RxMem", CTLTYPE_STRING | CTLFLAG_RD, &sc->rx_mem, 0,
+	    2, "RxMem", CTLFLAG_RD, &sc->rx_mem, 0,
 	    "Memory  set aside for receiving packets");
-	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
+	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    3, "Mem", CTLTYPE_STRING | CTLFLAG_RD, &sc->mem_size, 0,
+	    3, "Mem", CTLFLAG_RD, &sc->mem_size, 0,
 	    "Total Card Memory");
 	if (bootverbose) {
 		if (sc->type_str && (*sc->type_str != 0))
@@ -1476,9 +1476,12 @@ ed_pio_write_mbufs(struct ed_softc *sc, struct mbuf *m, bus_size_t dst)
 		}
 	} else {
 		/* NE2000s are a pain */
-		unsigned char *data;
+		uint8_t *data;
 		int len, wantbyte;
-		unsigned char savebyte[2];
+		union {
+			uint16_t w;
+			uint8_t b[2];
+		} saveword;
 
 		wantbyte = 0;
 
@@ -1488,9 +1491,9 @@ ed_pio_write_mbufs(struct ed_softc *sc, struct mbuf *m, bus_size_t dst)
 				data = mtod(m, caddr_t);
 				/* finish the last word */
 				if (wantbyte) {
-					savebyte[1] = *data;
+					saveword.b[1] = *data;
 					ed_asic_outw(sc, ED_NOVELL_DATA,
-						     *(u_short *)savebyte);
+					    saveword.w);
 					data++;
 					len--;
 					wantbyte = 0;
@@ -1504,7 +1507,7 @@ ed_pio_write_mbufs(struct ed_softc *sc, struct mbuf *m, bus_size_t dst)
 				}
 				/* save last byte, if necessary */
 				if (len == 1) {
-					savebyte[0] = *data;
+					saveword.b[0] = *data;
 					wantbyte = 1;
 				}
 			}
@@ -1512,7 +1515,7 @@ ed_pio_write_mbufs(struct ed_softc *sc, struct mbuf *m, bus_size_t dst)
 		}
 		/* spit last byte */
 		if (wantbyte)
-			ed_asic_outw(sc, ED_NOVELL_DATA, *(u_short *)savebyte);
+			ed_asic_outw(sc, ED_NOVELL_DATA, saveword.w);
 	}
 
 	/*

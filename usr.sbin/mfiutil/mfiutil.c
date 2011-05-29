@@ -60,6 +60,7 @@ usage(void)
 	fprintf(stderr, "    show firmware             - list firmware images\n");
 	fprintf(stderr, "    show volumes              - list logical volumes\n");
 	fprintf(stderr, "    show patrol               - display patrol read status\n");
+	fprintf(stderr, "    show progress             - display status of active operations\n");
 	fprintf(stderr, "    fail <drive>              - fail a physical drive\n");
 	fprintf(stderr, "    good <drive>              - mark a bad physical drive as good\n");
 	fprintf(stderr, "    rebuild <drive>           - mark failed drive ready for rebuild\n");
@@ -125,10 +126,12 @@ main(int ac, char **av)
 
 	SET_FOREACH(cmd, MFI_DATASET(top)) {
 		if (strcmp((*cmd)->name, av[0]) == 0) {
-			(*cmd)->handler(ac, av);
-			return (0);
+			if ((*cmd)->handler(ac, av))
+				return (1);
+			else
+				return (0);
 		}
 	}
 	warnx("Unknown command %s.", av[0]);
-	return (0);
+	return (1);
 }

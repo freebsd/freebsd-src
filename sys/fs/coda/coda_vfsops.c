@@ -113,8 +113,8 @@ coda_mount(struct mount *vfsp)
 	struct cdev *dev;
 	struct coda_mntinfo *mi;
 	struct vnode *rootvp;
-	CodaFid rootfid = INVAL_FID;
-	CodaFid ctlfid = CTL_FID;
+	struct CodaFid rootfid = INVAL_FID;
+	struct CodaFid ctlfid = CTL_FID;
 	int error;
 	struct nameidata ndp;
 	ENTRY;
@@ -268,8 +268,8 @@ coda_root(struct mount *vfsp, int flags, struct vnode **vpp)
 	int error;
 	struct proc *p;
 	struct thread *td;
-	CodaFid VFid;
-	static const CodaFid invalfid = INVAL_FID;
+	struct CodaFid VFid;
+	static const struct CodaFid invalfid = INVAL_FID;
 
 	td = curthread;
 	p = td->td_proc;
@@ -288,7 +288,7 @@ coda_root(struct mount *vfsp, int flags, struct vnode **vpp)
 		 * but not in any released versions as of 6 Mar 2003.
 		 */
 		if (memcmp(&VTOC(mi->mi_rootvp)->c_fid, &invalfid,
-		    sizeof(CodaFid)) != 0 || mi->mi_started == 0) {
+		    sizeof(struct CodaFid)) != 0 || mi->mi_started == 0) {
 			/*
 			 * Found valid root.
 			 */
@@ -407,7 +407,7 @@ coda_fhtovp(struct mount *vfsp, struct fid *fhp, struct mbuf *nam,
 	int error;
 	struct thread *td = curthread; /* XXX -mach */
 	struct proc *p = td->td_proc;
-	CodaFid VFid;
+	struct CodaFid VFid;
 	int vtype;
 
 	ENTRY;

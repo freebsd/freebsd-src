@@ -73,7 +73,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -163,7 +162,7 @@ static int	kue_ctl(struct kue_softc *, uint8_t, uint8_t, uint16_t,
 static int	kue_load_fw(struct kue_softc *);
 static void	kue_reset(struct kue_softc *);
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 static int kue_debug = 0;
 
 SYSCTL_NODE(_hw_usb, OID_AUTO, kue, CTLFLAG_RW, 0, "USB kue");
@@ -215,6 +214,7 @@ DRIVER_MODULE(kue, uhub, kue_driver, kue_devclass, NULL, 0);
 MODULE_DEPEND(kue, uether, 1, 1, 1);
 MODULE_DEPEND(kue, usb, 1, 1, 1);
 MODULE_DEPEND(kue, ether, 1, 1, 1);
+MODULE_VERSION(kue, 1);
 
 static const struct usb_ether_methods kue_ue_methods = {
 	.ue_attach_post = kue_attach_post,

@@ -121,7 +121,7 @@ syscons_configure_keyboard()
 syscons_setkeyboard()
 {
 	kbd=$1
-                
+
 	if [ -z "${kbd}" ]; then
 		return 1
 	fi

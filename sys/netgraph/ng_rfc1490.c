@@ -165,9 +165,7 @@ ng_rfc1490_constructor(node_p node)
 	priv_p priv;
 
 	/* Allocate private structure */
-	priv = malloc(sizeof(*priv), M_NETGRAPH, M_NOWAIT | M_ZERO);
-	if (priv == NULL)
-		return (ENOMEM);
+	priv = malloc(sizeof(*priv), M_NETGRAPH, M_WAITOK | M_ZERO);
 
 	/* Initialize to default encapsulation method - ietf-ip */
 	priv->enc = ng_rfc1490_encaps;
@@ -440,7 +438,7 @@ switch_on_etype:		etype = ntohs(*((const u_int16_t *)ptr));
 		mtod(m, u_char *)[7] = 0x07;
 		NG_FWD_NEW_DATA(error, item, priv->downlink, m);
 	} else
-		panic(__func__);
+		panic("%s", __func__);
 
 done:
 	if (item)
@@ -485,7 +483,7 @@ ng_rfc1490_disconnect(hook_p hook)
 	else if (hook == priv->ethernet)
 		priv->ethernet = NULL;
 	else
-		panic(__func__);
+		panic("%s", __func__);
 	return (0);
 }
 

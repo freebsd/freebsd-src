@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007, 2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2009, 2010  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: named-checkconf.c,v 1.46.222.2 2009/02/16 23:47:15 tbox Exp $ */
+/* $Id: named-checkconf.c,v 1.46.222.4 2010-09-07 23:46:05 tbox Exp $ */
 
 /*! \file */
 
@@ -453,6 +453,10 @@ main(int argc, char **argv) {
 	if (conffile == NULL || conffile[0] == '\0')
 		conffile = NAMED_CONFFILE;
 
+#ifdef _WIN32
+	InitSockets();
+#endif
+
 	RUNTIME_CHECK(isc_mem_create(0, 0, &mctx) == ISC_R_SUCCESS);
 
 	RUNTIME_CHECK(setup_logging(mctx, stdout, &logc) == ISC_R_SUCCESS);
@@ -493,6 +497,10 @@ main(int argc, char **argv) {
 	isc_entropy_detach(&ectx);
 
 	isc_mem_destroy(&mctx);
+
+#ifdef _WIN32
+	DestroySockets();
+#endif
 
 	return (exit_status);
 }

@@ -2,7 +2,7 @@
  * Copyright (c) 2001 Takanori Watanabe <takawata@jp.freebsd.org>
  * Copyright (c) 2001 Mitsuru IWASAKI <iwasaki@jp.freebsd.org>
  * Copyright (c) 2003 Peter Wemm
- * Copyright (c) 2008-2009 Jung-uk Kim <jkim@FreeBSD.org>
+ * Copyright (c) 2008-2010 Jung-uk Kim <jkim@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,8 +28,6 @@
  *
  * $FreeBSD$
  */
-
-#define LOCORE
 
 #include <machine/asmacros.h>
 #include <machine/specialreg.h>
@@ -212,8 +210,8 @@ wakeup_64:
 	mov	%ax, %ds
 
 	/* Restore arguments and return. */
-	movq	wakeup_ctx - wakeup_start(%rbx), %rdi
-	movq	wakeup_kpml4 - wakeup_start(%rbx), %rsi
+	movq	wakeup_kpml4 - wakeup_start(%rbx), %rdi
+	movq	wakeup_ctx - wakeup_start(%rbx), %rsi
 	movq	wakeup_retaddr - wakeup_start(%rbx), %rax
 	jmp	*%rax
 
@@ -267,7 +265,7 @@ wakeup_kpml4:
 
 wakeup_ctx:
 	.quad	0
-wakeup_xpcb:
+wakeup_pcb:
 	.quad	0
 wakeup_gdt:
 	.word	0
@@ -275,8 +273,6 @@ wakeup_gdt:
 
 	ALIGN_DATA
 wakeup_efer:
-	.quad	0
-wakeup_pat:
 	.quad	0
 wakeup_star:
 	.quad	0

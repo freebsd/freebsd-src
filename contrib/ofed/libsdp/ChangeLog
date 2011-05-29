@@ -1,0 +1,96 @@
+2010-12-26 18:14:02 +0200 Amir Vadai <amirv@mellanox.co.il>
+         * 9c2ad15 libsdp: full ipv6 support
+
+2010-11-29 11:43:51 +0200 Amir Vadai <amirv@mellanox.co.il>
+         * 0a3d5c3 libsdp: BUG2130 - libsdp.so is not installed + version
+	                   1.1.106
+2010-11-08 14:41:27 +0200 Amir Vadai <amirv@mellanox.co.il>
+         * 7a1880f libsdp: updated version to 1.1.105
+
+2010-11-08 14:31:13 +0200 Amir Vadai <amirv@mellanox.co.il>
+         * c6efc06 libsdp: fix security issues with log file
+
+2010-11-02 15:28:06 +0200 Amir Vadai <amirv@mellanox.co.il>
+         * 09343d1 libsdp: fix bad permissions
+
+2010-10-28 13:46:39 +0200 root <root@swv300.lab.mtl.com>
+         * 46d845d libsdp: fixed indentation
+
+2010-10-04 11:49:46 +0200 Amir Vadai <amirv@mellanox.co.il>
+         * 59b6a36 libsdp: updated version to 1.1.104
+
+2010-10-04 11:22:23 +0200 Amir Vadai <amirv@mellanox.co.il>
+         * 21b63e0 libsdp: fix libsdp.so permissions
+
+2010-10-04 11:20:49 +0200 Amir Vadai <amirv@mellanox.co.il>
+         * 3180e25 libsdp: fix "make dist"
+
+2010-09-13 10:31:52 +0200 Amir Vadai <amirv@mellanox.co.il>
+         * df744a5 libsdp: updated version to 1.1.103
+
+2010-09-13 10:45:40 +0200 Amir Vadai <amirv@mellanox.co.il>
+         * e3ce469 libsdp: don't make libsdp depend on sdp_socket.h from ib-kernel
+
+2010-08-03 15:35:11 +0300 Amir Vadai <amirv@mellanox.co.il>
+         * c5ff8e2 libsdp: updated version to 1.1.102
+
+2010-08-03 15:33:57 +0300 Amir Vadai <amirv@mellanox.co.il>
+         * 82fe3f9 libsdp: search openib headers according to 'prefix'
+
+2010-04-11 11:38:47 +0300 Amir Vadai <amirv@mellanox.co.il>
+         * 76060c5 libsdp: changed version to 1.1.101
+
+2010-04-08 09:33:29 +0300 Eldad Zinger <eldadz@mellanox.co.il>
+         * 8bf57aa libsdp: added differentiation between bind failures of sdp.
+
+2010-03-23 10:13:45 +0200 Eldad Zinger <eldadz@mellanox.co.il>
+         * 93706ed sdp: BUG1984 - fix for bad memory access.
+
+2010-04-08 15:40:55 +0300 Amir Vadai <amirv@mellanox.co.il>
+         * dadef4b libsdp: add path to openib include's
+
+2010-02-18 11:04:29 +0200 Amir Vadai <amirv@mellanox.co.il>
+         * 920ea31 libsdp: changed version to 1.1.100
+
+2010-02-18 11:02:20 +0200 Amir Vadai <amirv@mellanox.co.il>
+         * 0fe8a11 libsdp: updated changelog from git + script to get change log
+
+2010-02-18 10:49:42 +0200 Amir Vadai <amirv@mellanox.co.il>
+         * a298098 libsdp: Fix memory leak. free libsdp_fd_attributes
+
+2010-02-18 10:49:00 +0200 Amir Vadai <amirv@mellanox.co.il>
+         * cf4ceab libsdp: make libsdp.so have gid bit on
+
+2008-11-26 13:44:26 +0200 Amir Vadai <amirv@mellanox.co.il>
+         * b1eaecb libsdp: Enable building libsdp on Solaris
+
+2008-11-23 Amir Vadai <amirv@mellanox.co.il>
+	* BUG1405 - conflict when running an application that use yacc.
+
+2008-12-08 18:29:09 +0200 Yossi Etigin <yossi.openib@gmail.com>
+         * dcfca98 libsdp: BUG1256 - Add epoll support
+
+2008-11-23 16:09:21 +0200 Amir Vadai <amirv@mellanox.co.il>
+         * 02404fb libsdp: BUG1405 - conflict when running an application that use yacc.
+
+2008-09-02 15:13:22 +0300 Yossi Etigin <[yossi.openib@gmail.com]>
+         * 64adc0e libsdp: enable fallback to TCP for nonblocking sockets
+
+2008-08-21 10:52:19 +0300 Yossi Etigin <[yossi.openib@gmail.com]>
+         * cee8053 libsdp: write fcntl argument in debug prints
+
+2008-07-21 22:01:21 +0300 Amir Vadai <amirv@mellanox.co.il>
+         * 81d6ec3 removed not unnecessary use of va_copy.
+
+2008-06-12 14:13:07 +0300 Amir Vadai <amirv@mellanox.co.il>
+         * 90f25b7 Fixed compilation error on Fedora Release 9
+
+2006-05-29  Eitan Zahavi  <eitan@mellanox.co.il>
+
+	* Support IPv4 embedded in IPv6 addresses. Since SDP currently does 
+	  not support IPv6 we need to convert to IPv4 and back on queries.
+
+	* port.c - cleanup abnd re-written for clearer flow. Added verbose 
+	  messages.
+
+	* Major re-write of the parser to support new syntax and using BNF

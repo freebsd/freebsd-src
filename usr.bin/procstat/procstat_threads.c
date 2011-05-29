@@ -32,6 +32,7 @@
 
 #include <err.h>
 #include <errno.h>
+#include <libprocstat.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -39,7 +40,7 @@
 #include "procstat.h"
 
 void
-procstat_threads(pid_t pid, struct kinfo_proc *kipp)
+procstat_threads(struct kinfo_proc *kipp)
 {
 	struct kinfo_proc *kip;
 	int error, name[4];
@@ -57,12 +58,12 @@ procstat_threads(pid_t pid, struct kinfo_proc *kipp)
 	name[0] = CTL_KERN;
 	name[1] = KERN_PROC;
 	name[2] = KERN_PROC_PID | KERN_PROC_INC_THREAD;
-	name[3] = pid;
+	name[3] = kipp->ki_pid;
 
 	len = 0;
 	error = sysctl(name, 4, NULL, &len, NULL, 0);
 	if (error < 0 && errno != ESRCH) {
-		warn("sysctl: kern.proc.pid: %d", pid);
+		warn("sysctl: kern.proc.pid: %d", kipp->ki_pid);
 		return;
 	}
 	if (error < 0)
@@ -73,7 +74,7 @@ procstat_threads(pid_t pid, struct kinfo_proc *kipp)
 		err(-1, "malloc");
 
 	if (sysctl(name, 4, kip, &len, NULL, 0) < 0) {
-		warn("sysctl: kern.proc.pid: %d", pid);
+		warn("sysctl: kern.proc.pid: %d", kipp->ki_pid);
 		free(kip);
 		return;
 	}
@@ -81,7 +82,7 @@ procstat_threads(pid_t pid, struct kinfo_proc *kipp)
 	kinfo_proc_sort(kip, len / sizeof(*kipp));
 	for (i = 0; i < len / sizeof(*kipp); i++) {
 		kipp = &kip[i];
-		printf("%5d ", pid);
+		printf("%5d ", kipp->ki_pid);
 		printf("%6d ", kipp->ki_tid);
 		printf("%-16s ", strlen(kipp->ki_comm) ?
 		    kipp->ki_comm : "-");

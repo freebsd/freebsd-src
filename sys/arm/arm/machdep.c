@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/pcpu.h>
 #include <sys/ptrace.h>
 #include <sys/signalvar.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <sys/uio.h>
@@ -492,11 +493,15 @@ void
 spinlock_enter(void)
 {
 	struct thread *td;
+	register_t cspr;
 
 	td = curthread;
-	if (td->td_md.md_spinlock_count == 0)
-		td->td_md.md_saved_cspr = disable_interrupts(I32_bit | F32_bit);
-	td->td_md.md_spinlock_count++;
+	if (td->td_md.md_spinlock_count == 0) {
+		cspr = disable_interrupts(I32_bit | F32_bit);
+		td->td_md.md_spinlock_count = 1;
+		td->td_md.md_saved_cspr = cspr;
+	} else
+		td->td_md.md_spinlock_count++;
 	critical_enter();
 }
 
@@ -504,27 +509,29 @@ void
 spinlock_exit(void)
 {
 	struct thread *td;
+	register_t cspr;
 
 	td = curthread;
 	critical_exit();
+	cspr = td->td_md.md_saved_cspr;
 	td->td_md.md_spinlock_count--;
 	if (td->td_md.md_spinlock_count == 0)
-		restore_interrupts(td->td_md.md_saved_cspr);
+		restore_interrupts(cspr);
 }
 
 /*
  * Clear registers on exec
  */
 void
-exec_setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
+exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 {
 	struct trapframe *tf = td->td_frame;
 
 	memset(tf, 0, sizeof(*tf));
 	tf->tf_usr_sp = stack;
-	tf->tf_usr_lr = entry;
+	tf->tf_usr_lr = imgp->entry_addr;
 	tf->tf_svc_lr = 0x77777777;
-	tf->tf_pc = entry;
+	tf->tf_pc = imgp->entry_addr;
 	tf->tf_spsr = PSR_USR32_MODE;
 }
 

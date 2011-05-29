@@ -30,7 +30,7 @@ struct fifolog_file {
 	unsigned			magic;
 #define FIFOLOG_FILE_MAGIC		0x307ea50d
 
-	unsigned			recsize;
+	ssize_t				recsize;
 	off_t				logsize;
 	int				fd;
 

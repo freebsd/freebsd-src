@@ -1,6 +1,6 @@
 # $FreeBSD$
 set -e
-trap 'echo Broken pipe -- test failed' pipe
+trap 'echo Broken pipe -- test failed' PIPE
 
 P=${TMPDIR:-/tmp}
 cd $P
@@ -8,7 +8,7 @@ T=$(mktemp -d sh-test.XXXXXX)
 cd $T
 
 mkfifo input output error
-HISTFILE=/dev/null sh +m -i <input >output 2>error &
+HISTFILE=/dev/null ${SH} +m -i <input >output 2>error &
 exec 3>input
 {
 	# Command not found, containing slash

@@ -1,0 +1,59 @@
+#                                               -*- Autoconf -*-
+# Process this file with autoconf to produce a configure script.
+
+
+AC_PREREQ(2.57)
+AC_INIT(libsdp, 1.1.108, openib-general@openib.org)
+AC_CONFIG_SRCDIR([src/port.c])
+AC_CONFIG_AUX_DIR(config)
+AM_CONFIG_HEADER(config.h)
+AM_INIT_AUTOMAKE(libsdp, 1.1.108)
+
+AC_CANONICAL_HOST
+AM_MAINTAINER_MODE
+
+AC_DISABLE_STATIC
+AC_PROG_LIBTOOL
+
+# Checks for programs.
+AC_PROG_CC
+AM_PROG_LEX 
+AC_PROG_YACC
+
+# Checks for libraries.
+
+# Checks for header files.
+AC_HEADER_STDC
+AC_CHECK_HEADERS([arpa/inet.h netinet/in.h stdlib.h string.h sys/socket.h syslog.h unistd.h])
+
+# Checks for typedefs, structures, and compiler characteristics.
+AC_C_CONST
+
+# Checks for library functions.
+AC_REPLACE_FNMATCH
+AC_PROG_GCC_TRADITIONAL
+AC_FUNC_MALLOC
+AC_FUNC_VPRINTF
+AC_CHECK_FUNCS([dup2 memset socket strcasecmp strchr strdup strpbrk strrchr strtoul])
+
+# check OS
+case "${host}" in
+i[[3456]]86-*-linux*) AC_DEFINE(LINUX_BUILD, 1, [OS is linux]) ac_cv_linux_build="yes" ;;
+sparc*-sun-solaris*) AC_DEFINE(SOLARIS_BUILD, 1, [OS is sparc solaris]) ac_cv_solaris_build="yes";;
+esac
+
+AM_CONDITIONAL(LINUX_BUILD, test "$ac_cv_linux_build" = "yes")
+AM_CONDITIONAL(SOLARIS_BUILD, test "$ac_cv_solaris_build" = "yes")
+
+# Check if we should build libsdp_sys
+AC_CACHE_CHECK(whether to build i386-specific libsdp_sys, ac_cv_libsdp_sys,
+	AC_TRY_COMPILE(,[
+		#if !i386
+		#error Not i386
+		#endif
+		], ac_cv_libsdp_sys="yes", ac_cv_libsdp_sys="no"))
+
+AM_CONDITIONAL(WANT_LIBSDP_SYS, test "$ac_cv_libsdp_sys" = "yes")
+
+AC_CONFIG_FILES([Makefile src/Makefile libsdp.spec])
+AC_OUTPUT

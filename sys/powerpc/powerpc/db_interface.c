@@ -79,7 +79,7 @@ void
 db_show_mdpcpu(struct pcpu *pc)
 {
 
-	db_printf("PPC: hwref   = %#x\n", pc->pc_hwref);
+	db_printf("PPC: hwref   = %#zx\n", pc->pc_hwref);
 	db_printf("PPC: ipimask = %#x\n", pc->pc_ipimask);
 	db_printf("PPC: pir     = %#x\n", pc->pc_pir);
 }

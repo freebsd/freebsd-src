@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 8, 2007
+.Dd April 10, 2010
 .Dt WPA_SUPPLICANT.CONF 5
 .Os
 .Sh NAME
@@ -153,7 +153,27 @@ Note that IBSS (adhoc) mode can only be used with
 .Va key_mgmt
 set to
 .Li NONE
-(plaintext and static WEP).
+(plaintext and static WEP), or
+.Va key_mgmt
+set to
+.Li WPA-NONE
+(fixed group key TKIP/CCMP).
+In addition,
+.Va ap_scan
+has to be set to 2 for IBSS.
+.Li WPA-NONE
+requires
+.Va proto
+set to WPA,
+.Va key_mgmt
+set to WPA-NONE,
+.Va pairwise
+set to NONE,
+.Va group
+set to either
+CCMP or TKIP (but not both), and
+.Va psk
+must also be set.
 .It Va proto
 List of acceptable protocols; one or more of:
 .Li WPA
@@ -404,6 +424,16 @@ Enable/disable EAP workarounds for various interoperability issues
 with misbehaving authentication servers.
 By default these workarounds are enabled.
 Strict EAP conformance can be configured by setting this to 0.
+.It Va wep_tx_keyidx
+which key to use for transmission of packets.
+.It Va wep_keyN key
+An
+.Tn ASCII
+string enclosed in quotation marks to encode the WEP key.
+Without quotes this is a hex string of the actual key.
+WEP is considered insecure and should be avoided.
+The exact translation from an ASCII key to a hex key varies.
+Use hex keys where possible.
 .El
 .Sh CERTIFICATES
 Some EAP authentication methods require use of certificates.
@@ -436,6 +466,11 @@ openssl pkcs12 -in example.pfx -out user.pem -clcerts
 # convert CA certificate (if included in PFX file) to PEM format
 openssl pkcs12 -in example.pfx -out ca.pem -cacerts -nokeys
 .Ed
+.Sh FILES
+.Bl -tag -width ".Pa /usr/share/examples/etc/wpa_supplicant.conf" -compact
+.It Pa /etc/wpa_supplicant.conf
+.It Pa /usr/share/examples/etc/wpa_supplicant.conf
+.El
 .Sh EXAMPLES
 WPA-Personal (PSK) as a home network and WPA-Enterprise with EAP-TLS
 as a work network:
@@ -515,14 +550,12 @@ network={
         scan_ssid=1
         key_mgmt=NONE
         wep_tx_keyidx=0
+	# hex keys denoted without quotes
         wep_key0=42FEEDDEAFBABEDEAFBEEFAA55
+	# ASCII keys denoted with quotes.
+	wep_key1="FreeBSDr0cks!"
 }
 .Ed
-.Sh FILES
-.Bl -tag -width ".Pa /usr/share/examples/etc/wpa_supplicant.conf" -compact
-.It Pa /etc/wpa_supplicant.conf
-.It Pa /usr/share/examples/etc/wpa_supplicant.conf
-.El
 .Sh SEE ALSO
 .Xr wpa_cli 8 ,
 .Xr wpa_passphrase 8 ,

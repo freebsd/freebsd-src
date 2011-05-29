@@ -97,9 +97,38 @@ void t3b_pcs_reset(struct cmac *mac)
 {
 	t3_set_reg_field(mac->adapter, A_XGM_RESET_CTRL + mac->offset,
 			 F_PCS_RESET_, 0);
-	udelay(20);
+
+	/* No delay required */
+
 	t3_set_reg_field(mac->adapter, A_XGM_RESET_CTRL + mac->offset, 0,
 			 F_PCS_RESET_);
+}
+
+void t3c_pcs_force_los(struct cmac *mac)
+{
+	t3_set_reg_field(mac->adapter, A_XGM_SERDES_STAT0 + mac->offset,
+	    F_LOWSIGFORCEEN0 | F_LOWSIGFORCEVALUE0,
+	    F_LOWSIGFORCEEN0 | F_LOWSIGFORCEVALUE0);
+	t3_set_reg_field(mac->adapter, A_XGM_SERDES_STAT1 + mac->offset,
+	    F_LOWSIGFORCEEN1 | F_LOWSIGFORCEVALUE1,
+	    F_LOWSIGFORCEEN1 | F_LOWSIGFORCEVALUE1);
+	t3_set_reg_field(mac->adapter, A_XGM_SERDES_STAT2 + mac->offset,
+	    F_LOWSIGFORCEEN2 | F_LOWSIGFORCEVALUE2,
+	    F_LOWSIGFORCEEN2 | F_LOWSIGFORCEVALUE2);
+	t3_set_reg_field(mac->adapter, A_XGM_SERDES_STAT3 + mac->offset,
+	    F_LOWSIGFORCEEN3 | F_LOWSIGFORCEVALUE3,
+	    F_LOWSIGFORCEEN3 | F_LOWSIGFORCEVALUE3);
+
+	/* No delay required */
+
+	t3_set_reg_field(mac->adapter, A_XGM_SERDES_STAT0 + mac->offset,
+	    F_LOWSIGFORCEEN0, 0);
+	t3_set_reg_field(mac->adapter, A_XGM_SERDES_STAT1 + mac->offset,
+	    F_LOWSIGFORCEEN1, 0);
+	t3_set_reg_field(mac->adapter, A_XGM_SERDES_STAT2 + mac->offset,
+	    F_LOWSIGFORCEEN2, 0);
+	t3_set_reg_field(mac->adapter, A_XGM_SERDES_STAT3 + mac->offset,
+	    F_LOWSIGFORCEEN3, 0);
 }
 
 /**
@@ -433,7 +462,7 @@ static int rx_fifo_hwm(int mtu)
  */
 int t3_mac_set_mtu(struct cmac *mac, unsigned int mtu)
 {
-	int hwm, lwm, divisor;
+	int hwm, lwm;
 	int ipg;
 	unsigned int thres, v, reg;
 	adapter_t *adap = mac->adapter;
@@ -512,16 +541,6 @@ int t3_mac_set_mtu(struct cmac *mac, unsigned int mtu)
 	t3_set_reg_field(adap, A_XGM_TXFIFO_CFG + mac->offset,
 			 V_TXFIFOTHRESH(M_TXFIFOTHRESH) | V_TXIPG(M_TXIPG),
 			 V_TXFIFOTHRESH(thres) | V_TXIPG(ipg));
-
-	/* Assuming a minimum drain rate of 2.5Gbps...
-	 */
-	if (adap->params.rev > 0) {
-		divisor = (adap->params.rev == T3_REV_C) ? 64 : 8;
-		t3_write_reg(adap, A_XGM_PAUSE_TIMER + mac->offset,
-			     (hwm - lwm) * 4 / divisor);
-	}
-	t3_write_reg(adap, A_XGM_TX_PAUSE_QUANTA + mac->offset,
-		     MAC_RXFIFO_SIZE * 4 * 8 / 512);
 	return 0;
 }
 
@@ -541,9 +560,17 @@ int t3_mac_set_speed_duplex_fc(struct cmac *mac, int speed, int duplex, int fc)
 	u32 val;
 	adapter_t *adap = mac->adapter;
 	unsigned int oft = mac->offset;
+	unsigned int pause_bits;
 
 	if (duplex >= 0 && duplex != DUPLEX_FULL)
 		return -EINVAL;
+
+	pause_bits = MAC_RXFIFO_SIZE * 4 * 8;
+	t3_write_reg(adap, A_XGM_TX_PAUSE_QUANTA + mac->offset,
+		     pause_bits / 512);
+	t3_write_reg(adap, A_XGM_PAUSE_TIMER + mac->offset,
+		     (pause_bits >> (adap->params.rev == T3_REV_C ? 10 : 7)));
+
 	if (mac->multiport) {
 		u32 rx_max_pkt_size =
 		    G_RXMAXPKTSIZE(t3_read_reg(adap,
@@ -552,9 +579,9 @@ int t3_mac_set_speed_duplex_fc(struct cmac *mac, int speed, int duplex, int fc)
 		val &= ~V_RXFIFOPAUSEHWM(M_RXFIFOPAUSEHWM);
 		val |= V_RXFIFOPAUSEHWM(rx_fifo_hwm(rx_max_pkt_size) / 8);
 		t3_write_reg(adap, A_XGM_RXFIFO_CFG + oft, val);
-
 		t3_set_reg_field(adap, A_XGM_TX_CFG + oft, F_TXPAUSEEN,
 			  		F_TXPAUSEEN);
+
 		return t3_vsc7323_set_speed_fc(adap, speed, fc, mac->ext_port);
 	}
 	if (speed >= 0) {

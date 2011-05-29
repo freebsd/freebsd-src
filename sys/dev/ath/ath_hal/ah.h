@@ -31,6 +31,14 @@
 #include "ah_osdep.h"
 
 /*
+ * The maximum number of TX/RX chains supported.
+ * This is intended to be used by various statistics gathering operations
+ * (NF, RSSI, EVM).
+ */
+#define	AH_MIMO_MAX_CHAINS		3
+#define	AH_MIMO_MAX_EVM_PILOTS		6
+
+/*
  * __ahdecl is analogous to _cdecl; it defines the calling
  * convention used within the HAL.  For most systems this
  * can just default to be empty and the compiler will (should)
@@ -101,16 +109,41 @@ typedef enum {
 	HAL_CAP_TPC_ACK		= 26,	/* ack txpower with per-packet tpc */
 	HAL_CAP_TPC_CTS		= 27,	/* cts txpower with per-packet tpc */
 	HAL_CAP_11D		= 28,   /* 11d beacon support for changing cc */
-	HAL_CAP_INTMIT		= 29,	/* interference mitigation */
-	HAL_CAP_RXORN_FATAL	= 30,	/* HAL_INT_RXORN treated as fatal */
-	HAL_CAP_HT		= 31,   /* hardware can support HT */
-	HAL_CAP_TX_CHAINMASK	= 32,	/* mask of TX chains supported */
-	HAL_CAP_RX_CHAINMASK	= 33,	/* mask of RX chains supported */
-	HAL_CAP_RXTSTAMP_PREC	= 34,	/* rx desc tstamp precision (bits) */
-	HAL_CAP_BB_HANG		= 35,	/* can baseband hang */
-	HAL_CAP_MAC_HANG	= 36,	/* can MAC hang */
-	HAL_CAP_INTRMASK	= 37,	/* bitmask of supported interrupts */
-	HAL_CAP_BSSIDMATCH	= 38,	/* hardware has disable bssid match */
+
+	HAL_CAP_HT		= 30,   /* hardware can support HT */
+	HAL_CAP_GTXTO		= 31,	/* hardware supports global tx timeout */
+	HAL_CAP_FAST_CC		= 32,	/* hardware supports fast channel change */
+	HAL_CAP_TX_CHAINMASK	= 33,	/* mask of TX chains supported */
+	HAL_CAP_RX_CHAINMASK	= 34,	/* mask of RX chains supported */
+	HAL_CAP_NUM_GPIO_PINS	= 36,	/* number of GPIO pins */
+
+	HAL_CAP_CST		= 38,	/* hardware supports carrier sense timeout */
+
+	HAL_CAP_RTS_AGGR_LIMIT	= 42,	/* aggregation limit with RTS */
+	HAL_CAP_4ADDR_AGGR	= 43,	/* hardware is capable of 4addr aggregation */
+
+	HAL_CAP_AUTO_SLEEP	= 48,	/* hardware can go to network sleep
+					   automatically after waking up to receive TIM */
+	HAL_CAP_MBSSID_AGGR_SUPPORT	= 49, /* Support for mBSSID Aggregation */
+	HAL_CAP_SPLIT_4KB_TRANS	= 50,	/* hardware supports descriptors straddling a 4k page boundary */
+	HAL_CAP_REG_FLAG	= 51,	/* Regulatory domain flags */
+
+	HAL_CAP_BT_COEX		= 60,	/* hardware is capable of bluetooth coexistence */
+
+	HAL_CAP_HT20_SGI	= 96,	/* hardware supports HT20 short GI */
+
+	HAL_CAP_RXTSTAMP_PREC	= 100,	/* rx desc tstamp precision (bits) */
+
+	/* The following are private to the FreeBSD HAL (224 onward) */
+
+	HAL_CAP_INTMIT		= 229,	/* interference mitigation */
+	HAL_CAP_RXORN_FATAL	= 230,	/* HAL_INT_RXORN treated as fatal */
+	HAL_CAP_BB_HANG		= 235,	/* can baseband hang */
+	HAL_CAP_MAC_HANG	= 236,	/* can MAC hang */
+	HAL_CAP_INTRMASK	= 237,	/* bitmask of supported interrupts */
+	HAL_CAP_BSSIDMATCH	= 238,	/* hardware has disable bssid match */
+	HAL_CAP_STREAMS		= 239,	/* how many 802.11n spatial streams are available */
+	HAL_CAP_RXDESC_SELFLINK	= 242,	/* support a self-linked tail RX descriptor */
 } HAL_CAPABILITY_TYPE;
 
 /* 
@@ -139,6 +172,7 @@ typedef enum {
 	HAL_TX_QUEUE_BEACON	= 2,		/* beacon xmit q */
 	HAL_TX_QUEUE_CAB	= 3,		/* "crap after beacon" xmit q */
 	HAL_TX_QUEUE_UAPSD	= 4,		/* u-apsd power save xmit q */
+	HAL_TX_QUEUE_PSPOLL	= 5,		/* power save poll xmit q */
 } HAL_TX_QUEUE;
 
 #define	HAL_NUM_TX_QUEUES	10		/* max possible # of queues */
@@ -287,6 +321,10 @@ typedef enum {
 
 /* Rx Filter Frame Types */
 typedef enum {
+	/*
+	 * These bits correspond to AR_RX_FILTER for all chips.
+	 * Not all bits are supported by all chips.
+	 */
 	HAL_RX_FILTER_UCAST	= 0x00000001,	/* Allow unicast frames */
 	HAL_RX_FILTER_MCAST	= 0x00000002,	/* Allow multicast frames */
 	HAL_RX_FILTER_BCAST	= 0x00000004,	/* Allow broadcast frames */
@@ -295,9 +333,19 @@ typedef enum {
 	HAL_RX_FILTER_PROM	= 0x00000020,	/* Promiscuous mode */
 	HAL_RX_FILTER_PROBEREQ	= 0x00000080,	/* Allow probe request frames */
 	HAL_RX_FILTER_PHYERR	= 0x00000100,	/* Allow phy errors */
-	HAL_RX_FILTER_PHYRADAR	= 0x00000200,	/* Allow phy radar errors */
 	HAL_RX_FILTER_COMPBAR	= 0x00000400,	/* Allow compressed BAR */
-	HAL_RX_FILTER_BSSID	= 0x00000800,	/* Disable BSSID match */
+	HAL_RX_FILTER_COMP_BA	= 0x00000800,	/* Allow compressed blockack */
+	HAL_RX_FILTER_PHYRADAR	= 0x00002000,	/* Allow phy radar errors */
+	HAL_RX_FILTER_PSPOLL	= 0x00004000,	/* Allow PS-POLL frames */
+	HAL_RX_FILTER_MCAST_BCAST_ALL	= 0x00008000,
+						/* Allow all mcast/bcast frames */
+
+	/*
+	 * Magic RX filter flags that aren't targetting hardware bits
+	 * but instead the HAL sets individual bits - eg PHYERR will result
+	 * in OFDM/CCK timing error frames being received.
+	 */
+	HAL_RX_FILTER_BSSID	= 0x40000000,	/* Disable BSSID match */
 } HAL_RX_FILTER;
 
 typedef enum {
@@ -324,6 +372,7 @@ typedef enum {
 	HAL_INT_RXORN	= 0x00000020,
 	HAL_INT_TX	= 0x00000040,	/* Non-common mapping */
 	HAL_INT_TXDESC	= 0x00000080,
+	HAL_INT_TIM_TIMER= 0x00000100,
 	HAL_INT_TXURN	= 0x00000800,
 	HAL_INT_MIB	= 0x00001000,
 	HAL_INT_RXPHY	= 0x00004000,
@@ -593,6 +642,68 @@ struct ath_rx_status;
 struct ieee80211_channel;
 
 /*
+ * This is a channel survey sample entry.
+ *
+ * The AR5212 ANI routines fill these samples. The ANI code then uses it
+ * when calculating listen time; it is also exported via a diagnostic
+ * API.
+ */
+typedef struct {
+	uint32_t        seq_num;
+	uint32_t        tx_busy;
+	uint32_t        rx_busy;
+	uint32_t        chan_busy;
+	uint32_t        cycle_count;
+} HAL_SURVEY_SAMPLE;
+
+/*
+ * This provides 3.2 seconds of sample space given an
+ * ANI time of 1/10th of a second. This may not be enough!
+ */
+#define	CHANNEL_SURVEY_SAMPLE_COUNT	32
+
+typedef struct {
+	HAL_SURVEY_SAMPLE samples[CHANNEL_SURVEY_SAMPLE_COUNT];
+	uint32_t cur_sample;	/* current sample in sequence */
+	uint32_t cur_seq;	/* current sequence number */
+} HAL_CHANNEL_SURVEY;
+
+/*
+ * ANI commands.
+ *
+ * These are used both internally and externally via the diagnostic
+ * API.
+ *
+ * Note that this is NOT the ANI commands being used via the INTMIT
+ * capability - that has a different mapping for some reason.
+ */
+typedef enum {
+	HAL_ANI_PRESENT = 0,			/* is ANI support present */
+	HAL_ANI_NOISE_IMMUNITY_LEVEL = 1,	/* set level */
+	HAL_ANI_OFDM_WEAK_SIGNAL_DETECTION = 2,	/* enable/disable */
+	HAL_ANI_CCK_WEAK_SIGNAL_THR = 3,	/* enable/disable */
+	HAL_ANI_FIRSTEP_LEVEL = 4,		/* set level */
+	HAL_ANI_SPUR_IMMUNITY_LEVEL = 5,	/* set level */
+	HAL_ANI_MODE = 6,			/* 0 => manual, 1 => auto (XXX do not change) */
+	HAL_ANI_PHYERR_RESET = 7,		/* reset phy error stats */
+} HAL_ANI_CMD;
+
+/*
+ * This is the layout of the ANI INTMIT capability.
+ *
+ * Notice that the command values differ to HAL_ANI_CMD.
+ */
+typedef enum {
+	HAL_CAP_INTMIT_PRESENT = 0,
+	HAL_CAP_INTMIT_ENABLE = 1,
+	HAL_CAP_INTMIT_NOISE_IMMUNITY_LEVEL = 2,
+	HAL_CAP_INTMIT_OFDM_WEAK_SIGNAL_LEVEL = 3,
+	HAL_CAP_INTMIT_CCK_WEAK_SIGNAL_THR = 4,
+	HAL_CAP_INTMIT_FIRSTEP_LEVEL = 5,
+	HAL_CAP_INTMIT_SPUR_IMMUNITY_LEVEL = 6
+} HAL_CAP_INTMIT_CMD;
+
+/*
  * Hardware Access Layer (HAL) API.
  *
  * Clients of the HAL call ath_hal_attach to obtain a reference to an
@@ -617,6 +728,8 @@ struct ath_hal {
 	/* NB: when only one radio is present the rev is in 5Ghz */
 	uint16_t	ah_analog5GhzRev;/* 5GHz radio revision */
 	uint16_t	ah_analog2GhzRev;/* 2GHz radio revision */
+
+	uint16_t	*ah_eepromdata;	/* eeprom buffer, if needed */
 
 	const HAL_RATE_TABLE *__ahdecl(*ah_getRateTable)(struct ath_hal *,
 				u_int mode);
@@ -679,6 +792,8 @@ struct ath_hal {
 				struct ath_desc *, struct ath_tx_status *);
 	void	   __ahdecl(*ah_getTxIntrQueue)(struct ath_hal *, uint32_t *);
 	void	   __ahdecl(*ah_reqTxIntrDesc)(struct ath_hal *, struct ath_desc*);
+	HAL_BOOL	__ahdecl(*ah_getTxCompletionRates)(struct ath_hal *,
+				const struct ath_desc *ds, int *rates, int *tries);
 
 	/* Receive Functions */
 	uint32_t __ahdecl(*ah_getRxDP)(struct ath_hal*);
@@ -704,8 +819,13 @@ struct ath_hal {
 	void	  __ahdecl(*ah_rxMonitor)(struct ath_hal *,
 				const HAL_NODE_STATS *,
 				const struct ieee80211_channel *);
+	void      __ahdecl(*ah_aniPoll)(struct ath_hal *,
+				const struct ieee80211_channel *);
 	void	  __ahdecl(*ah_procMibEvent)(struct ath_hal *,
 				const HAL_NODE_STATS *);
+	void	  __ahdecl(*ah_rxAntCombDiversity)(struct ath_hal *,
+				struct ath_rx_status *,
+				unsigned long, int);
 
 	/* Misc Functions */
 	HAL_STATUS __ahdecl(*ah_getCapability)(struct ath_hal *,
@@ -786,6 +906,32 @@ struct ath_hal {
 				const HAL_BEACON_STATE *);
 	void	  __ahdecl(*ah_resetStationBeaconTimers)(struct ath_hal*);
 
+	/* 802.11n Functions */
+	HAL_BOOL  __ahdecl(*ah_chainTxDesc)(struct ath_hal *,
+				struct ath_desc *, u_int, u_int, HAL_PKT_TYPE,
+				u_int, HAL_CIPHER, uint8_t, u_int, HAL_BOOL,
+				HAL_BOOL);
+	HAL_BOOL  __ahdecl(*ah_setupFirstTxDesc)(struct ath_hal *,
+				struct ath_desc *, u_int, u_int, u_int,
+				u_int, u_int, u_int, u_int, u_int);
+	HAL_BOOL  __ahdecl(*ah_setupLastTxDesc)(struct ath_hal *,
+				struct ath_desc *, const struct ath_desc *);
+	void	  __ahdecl(*ah_set11nRateScenario)(struct ath_hal *,
+	    			struct ath_desc *, u_int, u_int,
+				HAL_11N_RATE_SERIES [], u_int, u_int);
+	void	  __ahdecl(*ah_set11nAggrMiddle)(struct ath_hal *,
+	    			struct ath_desc *, u_int);
+	void	  __ahdecl(*ah_clr11nAggr)(struct ath_hal *,
+	    			struct ath_desc *);
+	void	  __ahdecl(*ah_set11nBurstDuration)(struct ath_hal *,
+	    			struct ath_desc *, u_int);
+	uint32_t  __ahdecl(*ah_get11nExtBusy)(struct ath_hal *);
+	void      __ahdecl(*ah_set11nMac2040)(struct ath_hal *,
+				HAL_HT_MACMODE);
+	HAL_HT_RXCLEAR __ahdecl(*ah_get11nRxClear)(struct ath_hal *ah);
+	void	  __ahdecl(*ah_set11nRxClear)(struct ath_hal *,
+	    			HAL_HT_RXCLEAR);
+
 	/* Interrupt functions */
 	HAL_BOOL  __ahdecl(*ah_isInterruptPending)(struct ath_hal*);
 	HAL_BOOL  __ahdecl(*ah_getPendingInterrupts)(struct ath_hal*, HAL_INT*);
@@ -814,7 +960,7 @@ extern	const char *__ahdecl ath_hal_probe(uint16_t vendorid, uint16_t devid);
  * be returned if the status parameter is non-zero.
  */
 extern	struct ath_hal * __ahdecl ath_hal_attach(uint16_t devid, HAL_SOFTC,
-		HAL_BUS_TAG, HAL_BUS_HANDLE, HAL_STATUS* status);
+		HAL_BUS_TAG, HAL_BUS_HANDLE, uint16_t *eepromdata, HAL_STATUS* status);
 
 extern	const char *ath_hal_mac_name(struct ath_hal *);
 extern	const char *ath_hal_rf_name(struct ath_hal *);
@@ -864,6 +1010,14 @@ extern	HAL_STATUS __ahdecl ath_hal_set_channels(struct ath_hal *,
     HAL_CTRY_CODE cc, HAL_REG_DOMAIN regDmn);
 
 /*
+ * Fetch the ctl/ext noise floor values reported by a MIMO
+ * radio. Returns 1 for valid results, 0 for invalid channel.
+ */
+extern int __ahdecl ath_hal_get_mimo_chan_noise(struct ath_hal *ah,
+    const struct ieee80211_channel *chan, int16_t *nf_ctl,
+    int16_t *nf_ext);
+
+/*
  * Calibrate noise floor data following a channel scan or similar.
  * This must be called prior retrieving noise floor data.
  */
@@ -875,7 +1029,20 @@ extern	void __ahdecl ath_hal_process_noisefloor(struct ath_hal *ah);
 extern	u_int __ahdecl ath_hal_getwirelessmodes(struct ath_hal*);
 
 /*
- * Calculate the transmit duration of a frame.
+ * Calculate the packet TX time for a legacy or 11n frame
+ */
+extern uint32_t __ahdecl ath_hal_pkt_txtime(struct ath_hal *ah,
+    const HAL_RATE_TABLE *rates, uint32_t frameLen,
+    uint16_t rateix, HAL_BOOL isht40, HAL_BOOL shortPreamble);
+
+/*
+ * Calculate the duration of an 11n frame.
+ */
+extern uint32_t __ahdecl ath_computedur_ht(uint32_t frameLen, uint16_t rate,
+    int streams, HAL_BOOL isht40, HAL_BOOL isShortGI);
+
+/*
+ * Calculate the transmit duration of a legacy frame.
  */
 extern uint16_t __ahdecl ath_hal_computetxtime(struct ath_hal *,
 		const HAL_RATE_TABLE *rates, uint32_t frameLen,

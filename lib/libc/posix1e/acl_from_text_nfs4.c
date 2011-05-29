@@ -79,16 +79,14 @@ parse_tag(const char *str, acl_entry_t entry, int *need_qualifier)
 /*
  * Parse the qualifier field of ACL entry passed as "str".
  * If user or group name cannot be resolved, then the variable
- * referenced by "need_qualifier" is set to 1.
+ * referenced by "need_qualifier" is set to 1; it will be checked
+ * later to figure out whether the appended_id is required.
  */
 static int
 parse_qualifier(char *str, acl_entry_t entry, int *need_qualifier)
 {
 	int qualifier_length, error;
-	id_t id;
-	char *end;
-	struct passwd *pwd;
-	struct group *grp;
+	uid_t id;
 	acl_tag_t tag;
 
 	assert(need_qualifier != NULL);
@@ -101,44 +99,17 @@ parse_qualifier(char *str, acl_entry_t entry, int *need_qualifier)
 		return (-1);
 	}
 
-	/* XXX: Can we assume that valid username never begins with a digit? */
-	if (isdigit(str[0])) {
-		id = strtod(str, &end);
-
-		if (end - str != qualifier_length) {
-			warnx("malformed ACL: trailing characters "
-			    "after numerical id");
-			return (-1);
-		}
-
-		return (acl_set_qualifier(entry, &id));
-	}
-
 	error = acl_get_tag_type(entry, &tag);
 	if (error)
 		return (error);
 
-	assert(tag == ACL_USER || tag == ACL_GROUP);
-
-	if (tag == ACL_USER) {
-		/* XXX: Thread-unsafe. */
-		pwd = getpwnam(str);
-		if (pwd == NULL) {
-			*need_qualifier = 1;
-			return (0);
-		}
-
-		return (acl_set_qualifier(entry, &(pwd->pw_uid)));
-	}
-
-	/* XXX: Thread-unsafe. */
-	grp = getgrnam(str);
-	if (grp == NULL) {
+	error = _acl_name_to_id(tag, str, &id);
+	if (error) {
 		*need_qualifier = 1;
 		return (0);
 	}
 
-	return (acl_set_qualifier(entry, &(grp->gr_gid)));
+	return (acl_set_qualifier(entry, &id));
 }
 
 static int

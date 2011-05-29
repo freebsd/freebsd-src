@@ -1,0 +1,144 @@
+#!/bin/bash
+
+TMPDIR=`pwd`/dist
+if [ ! -d $TMPDIR ]; then mkdir $TMPDIR; fi
+
+usage() {
+echo "$0 daily | release [ signed | <key-id> ]"
+echo
+echo "	You must specify either release or daily in order for this script"
+echo "to make tarballs.  If this is a daily release, the tarballs will"
+echo "be named <component>-git.tar.gz and will overwrite existing tarballs."
+echo "If this is a release build, then the tarball will be named"
+echo "<component>-<version>.tar.gz and must be a new file.  In addition,"
+echo "the script will add a new set of symbolic tags to the git repo"
+echo "that correspond to the <component>-<version> of each tarball."
+echo
+echo "	If the TARGETS environment variable is not NULL, then it is taken"
+echo "as the list of components in the management tree that should be"
+echo "included in this release.  If it's NULL, then do all the components."
+echo
+echo "	If the script detects that the tag on any component already exists,"
+echo "it will abort the release and prompt you to update the version on"
+echo "the already tagged component.  This enforces the proper behavior of"
+echo "treating any released tarball as set in stone so that in the future"
+echo "you will always be able to get to any given release tarball by"
+echo "checking out the git tag and know with certainty that it is the same"
+echo "code as released before even if you no longer have the same tarball"
+echo "around."
+echo
+echo "	As part of this process, the script will parse the <target>.spec.in"
+echo "file and output a <target>.spec file.  Since this script isn't smart"
+echo "enough to deal with other random changes that should have their own"
+echo "checkin the script will refuse to run if the current repo state is not"
+echo "clean."
+echo
+echo "	NOTE: the script has no clue if you are tagging on the right branch,"
+echo "it will however show you the git branch output so you can confirm it"
+echo "is on the right branch before proceeding with the release."
+echo
+echo "	In addition to just tagging the git repo, whenever creating a release"
+echo "there is an optional argument of either signed or a hex gpg key-id."
+echo "If you do not pass an argument to release, then the tag will be a"
+echo "simple git annotated tag.  If you pass signed as the argument, the"
+echo "git tag operation will use your default signing key to sign the tag."
+echo "Or you can pass an actual gpg key id in hex format and git will sign"
+echo "the tag with that key."
+echo
+}
+
+if [ -z "$1" ]; then usage; exit 1; fi
+
+if [ "$1" != "daily" -a "$1" != "release" ]; then usage; exit 1; fi
+
+if [ -z "$TARGETS" ]; then
+	TARGETS="libibcommon libibumad libibmad opensm infiniband-diags"
+fi
+
+# Is the repo clean?
+git diff-index --quiet HEAD -- $package > /dev/null 2>&1
+if [ $? -ne 0 ]; then
+	echo "Git tree is dirty.  Please commit or undo any changes before proceeding."
+	exit 4
+fi
+
+# make sure we are on the right branch
+git branch
+echo -n "Is the active branch the right one to tag this release on [y/N]? "
+read answer
+if [ "$answer" = y -o "$answer" = Y ]; then
+	echo "Proceeding..."
+else
+	echo "Please check out the right branch and run make.dist again"
+	exit 0
+fi
+
+for target in $TARGETS; do
+	VERSION=`grep "AC_INIT.*$target" $target/configure.in | cut -f 2 -d ',' | sed -e 's/ //g'`
+	if [ "$1" = "release" ]; then
+		# Check versions to make sure that we can proceed
+		if [ -f $TMPDIR/$target-$VERSION.tar.gz ]; then
+			echo "Target $target-$VERSION.tar.gz already exists, please update the version on"
+			echo "component $target"
+			exit 2
+		fi
+		if [ ! -z "`git tag -l $target-$VERSION`" ]; then
+			echo "A git tag already exists for $target-$VERSION.  Please change the version"
+			echo "of $target so a tag replacement won't occur."
+			exit 3
+		fi
+# On a real release, this resets the daily release starting point, on the
+# assumption that any new daily builds will have a version number that is
+# incrementally higher than the last officially released tarball.
+		RELEASE=1
+		echo $RELEASE > $TMPDIR/$target.release
+
+		if [ ! -z "$2" ]; then
+			if [ $2 = "signed" ]; then
+				git tag -s -m "Auto tag by make.dist on release tarball creation" $target-$VERSION
+			else
+				git tag -u "$2" -m "Auto tag by make.dist on release tarball creation" $target-$VERSION
+			fi
+		elif [ $1 = "release" ]; then
+			git tag -a -m "Auto tag by make.dist on release tarball creation" $target-$VERSION
+		fi
+	elif [ "$1" = "daily" ]; then
+		DATE=`date +%Y%m%d`
+		git_rev=`./gen_ver.sh $target | sed -e 's/^'$VERSION'_//'`
+		if [ "$git_rev" = "$VERSION" ] ; then
+			VERSION=${VERSION}_${DATE}
+		else
+			VERSION=${VERSION}_${DATE}_${git_rev}
+		fi
+		if [ -f $TMPDIR/$target.gitrev ]; then
+			old_rev=`cat $TMPDIR/$target.gitrev`
+		fi
+		echo $git_rev > $TMPDIR/$target.gitrev
+		if [ "$old_rev" = "$git_rev" ] ; then
+			echo "No daily build is needed for '$target' ($git_rev)"
+			continue
+		fi
+		if [ -f $TMPDIR/$target.release ]; then
+			RELEASE=`cat $TMPDIR/$target.release`
+			RELEASE=`expr $RELEASE + 1`
+		else
+			RELEASE=1
+		fi
+		echo $RELEASE > $TMPDIR/$target.release
+		RELEASE=0.${RELEASE}
+		cat $target/configure.in \
+		  | sed -e '/AC_INIT/s/'$target', .*,/'$target', '$VERSION',/' \
+		  > configure.in.new
+		diff $target/configure.in configure.in.new > /dev/null \
+		  || cat configure.in.new > $target/configure.in
+	fi
+
+	TARBALL=$target-$VERSION.tar.gz
+
+	echo "Creating $TMPDIR/$TARBALL"
+	( export RELEASE=$RELEASE && export TARBALL=$TARBALL &&
+	  cd $target && ./autogen.sh && ./configure &&
+	  make dist && mv $target-$VERSION.tar.gz $TMPDIR/$TARBALL ) ||
+	exit $?
+	git checkout $target/configure.in
+done

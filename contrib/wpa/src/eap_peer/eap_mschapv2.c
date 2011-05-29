@@ -22,11 +22,11 @@
 #include "includes.h"
 
 #include "common.h"
+#include "crypto/ms_funcs.h"
+#include "common/wpa_ctrl.h"
+#include "mschapv2.h"
 #include "eap_i.h"
 #include "eap_config.h"
-#include "ms_funcs.h"
-#include "wpa_ctrl.h"
-#include "mschapv2.h"
 
 
 #ifdef _MSC_VER
@@ -209,10 +209,15 @@ static struct wpabuf * eap_mschapv2_challenge_reply(
 			   "in Phase 1");
 		auth_challenge = data->auth_challenge;
 	}
-	mschapv2_derive_response(identity, identity_len, password,
-				 password_len, pwhash, auth_challenge,
-				 peer_challenge, r->nt_response,
-				 data->auth_response, data->master_key);
+	if (mschapv2_derive_response(identity, identity_len, password,
+				     password_len, pwhash, auth_challenge,
+				     peer_challenge, r->nt_response,
+				     data->auth_response, data->master_key)) {
+		wpa_printf(MSG_ERROR, "EAP-MSCHAPV2: Failed to derive "
+			   "response");
+		wpabuf_free(resp);
+		return NULL;
+	}
 	data->auth_response_valid = 1;
 	data->master_key_valid = 1;
 

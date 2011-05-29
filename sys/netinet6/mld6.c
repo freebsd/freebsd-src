@@ -195,8 +195,10 @@ static int	sysctl_mld_ifinfo(SYSCTL_HANDLER_ARGS);
 static struct mtx		 mld_mtx;
 MALLOC_DEFINE(M_MLD, "mld", "mld state");
 
-#define	MLD_EMBEDSCOPE(pin6, zoneid) \
-	(pin6)->s6_addr16[1] = htons((zoneid) & 0xFFFF)
+#define	MLD_EMBEDSCOPE(pin6, zoneid)					\
+	if (IN6_IS_SCOPE_LINKLOCAL(pin6) ||				\
+	    IN6_IS_ADDR_MC_INTFACELOCAL(pin6))				\
+		(pin6)->s6_addr16[1] = htons((zoneid) & 0xFFFF)		\
 
 /*
  * VIMAGE-wide globals.

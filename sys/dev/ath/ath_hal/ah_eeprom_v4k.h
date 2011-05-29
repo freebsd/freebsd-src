@@ -23,6 +23,14 @@
 #include "ah_eeprom.h"
 #include "ah_eeprom_v14.h"
 
+#if	_BYTE_ORDER == _BIG_ENDIAN
+#define	__BIG_ENDIAN_BITFIELD
+#endif
+
+#define	AR9285_RDEXT_DEFAULT	0x1F
+
+#define	AR5416_4K_EEP_PD_GAIN_BOUNDARY_DEFAULT	58
+
 #undef owl_eep_start_loc
 #ifdef __LINUX_ARM_ARCH__ /* AP71 */
 #define owl_eep_start_loc		0
@@ -68,15 +76,15 @@ typedef struct BaseEepHeader4k {
 } __packed BASE_EEP4K_HEADER; // 32 B
 
 typedef struct ModalEepHeader4k {
-	uint32_t	antCtrlChain[AR5416_4K_MAX_CHAINS];	// 12
+	uint32_t	antCtrlChain[AR5416_4K_MAX_CHAINS];	// 4
 	uint32_t	antCtrlCommon;				// 4
 	int8_t		antennaGainCh[AR5416_4K_MAX_CHAINS];	// 1
 	uint8_t		switchSettling;				// 1
-	uint8_t		txRxAttenCh[AR5416_4K_MAX_CHAINS];		// 1
+	uint8_t		txRxAttenCh[AR5416_4K_MAX_CHAINS];	// 1
 	uint8_t		rxTxMarginCh[AR5416_4K_MAX_CHAINS];	// 1
 	uint8_t		adcDesiredSize;				// 1
 	int8_t		pgaDesiredSize;				// 1
-	uint8_t		xlnaGainCh[AR5416_4K_MAX_CHAINS];		// 1
+	uint8_t		xlnaGainCh[AR5416_4K_MAX_CHAINS];	// 1
 	uint8_t		txEndToXpaOff;				// 1
 	uint8_t		txEndToRxOn;				// 1
 	uint8_t		txFrameToXpaOn;				// 1
@@ -86,14 +94,18 @@ typedef struct ModalEepHeader4k {
 	uint8_t		xpd;					// 1
 	int8_t		iqCalICh[AR5416_4K_MAX_CHAINS];		// 1
 	int8_t		iqCalQCh[AR5416_4K_MAX_CHAINS];		// 1
+
 	uint8_t		pdGainOverlap;				// 1
-	uint8_t		ob;					// 1
-	uint8_t		db;					// 1
-	uint8_t		xpaBiasLvl;				// 1
-#if 0
-	uint8_t		pwrDecreaseFor2Chain;			// 1
-	uint8_t		pwrDecreaseFor3Chain;			// 1 -> 48 B
+
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint8_t		ob_1:4, ob_0:4;				// 1
+	uint8_t		db1_1:4, db1_0:4;			// 1
+#else
+	uint8_t		ob_0:4, ob_1:4;
+	uint8_t		db1_0:4, db1_1:4;
 #endif
+
+	uint8_t		xpaBiasLvl;				// 1
 	uint8_t		txFrameToDataStart;			// 1
 	uint8_t		txFrameToPaOn;				// 1
 	uint8_t		ht40PowerIncForPdadc;			// 1
@@ -102,23 +114,38 @@ typedef struct ModalEepHeader4k {
 	uint8_t		swSettleHt40;				// 1	
 	uint8_t		xatten2Db[AR5416_4K_MAX_CHAINS];    	// 1
 	uint8_t		xatten2Margin[AR5416_4K_MAX_CHAINS];	// 1
-	uint8_t		ob_ch1;				// 1 -> ob and db become chain specific from AR9280
-	uint8_t		db_ch1;				// 1
-	uint8_t		flagBits;			// 1
-#define	AR5416_EEP_FLAG_USEANT1		0x01	/* +1 configured antenna */
-#define	AR5416_EEP_FLAG_FORCEXPAON	0x02	/* force XPA bit for 5G */
-#define	AR5416_EEP_FLAG_LOCALBIAS	0x04	/* enable local bias */
-#define	AR5416_EEP_FLAG_FEMBANDSELECT	0x08	/* FEM band select used */
-#define	AR5416_EEP_FLAG_XLNABUFIN	0x10
-#define	AR5416_EEP_FLAG_XLNAISEL	0x60
-#define	AR5416_EEP_FLAG_XLNAISEL_S	5
-#define	AR5416_EEP_FLAG_XLNABUFMODE	0x80
-	uint8_t		miscBits;			// [0..1]: bb_tx_dac_scale_cck
-	uint16_t	xpaBiasLvlFreq[3];		// 6
-	uint8_t		futureModal[2];			// 2
+
+#ifdef __BIG_ENDIAN_BITFIELD
+        uint8_t		db2_1:4, db2_0:4;			// 1
+#else
+	uint8_t		db2_0:4, db2_1:4;			// 1
+#endif
+
+	uint8_t		version;				// 1
+
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint8_t		ob_3:4, ob_2:4;				// 1
+	uint8_t		antdiv_ctl1:4, ob_4:4;			// 1
+	uint8_t		db1_3:4, db1_2:4;			// 1
+	uint8_t		antdiv_ctl2:4, db1_4:4;			// 1
+	uint8_t		db2_2:4, db2_3:4;			// 1
+	uint8_t		reserved:4, db2_4:4;			// 1
+#else
+	uint8_t		ob_2:4, ob_3:4;
+	uint8_t		ob_4:4, antdiv_ctl1:4;
+	uint8_t		db1_2:4, db1_3:4;
+	uint8_t		db1_4:4, antdiv_ctl2:4;
+	uint8_t		db2_2:4, db2_3:4;
+	uint8_t		db2_4:4, reserved:4;
+#endif
+	uint8_t		tx_diversity;
+	uint8_t		flc_pwr_thresh;
+	uint8_t		bb_scale_smrt_antenna;
+#define	EEP_4K_BB_DESIRED_SCALE_MASK	0x1f
+	uint8_t		futureModal[1];
 
 	SPUR_CHAN spurChans[AR5416_EEPROM_MODAL_SPURS];	// 20 B
-} __packed MODAL_EEP4K_HEADER;				// == 68 B    
+} __packed MODAL_EEP4K_HEADER;				// == 68 B
 
 typedef struct CalCtlData4k {
 	CAL_CTL_EDGES		ctlEdges[AR5416_4K_MAX_CHAINS][AR5416_4K_NUM_BAND_EDGES];
@@ -150,6 +177,6 @@ typedef struct {
 	uint16_t	ee_numCtls;
 	RD_EDGES_POWER	ee_rdEdgesPower[NUM_EDGES*AR5416_4K_NUM_CTLS];
 	/* XXX these are dynamically calculated for use by shared code */
-	int8_t		ee_antennaGainMax[2];
+	int8_t		ee_antennaGainMax;
 } HAL_EEPROM_v4k;
 #endif /* _AH_EEPROM_V4K_H_ */

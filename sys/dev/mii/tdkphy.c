@@ -88,8 +88,14 @@ static int tdkphy_service(struct mii_softc *, struct mii_data *, int);
 static void tdkphy_status(struct mii_softc *);
 
 static const struct mii_phydesc tdkphys[] = {
-	MII_PHY_DESC(TDK, 78Q2120),
+	MII_PHY_DESC(xxTSC, 78Q2120),
 	MII_PHY_END
+};
+
+static const struct mii_phy_funcs tdkphy_funcs = {
+	tdkphy_service,
+	tdkphy_status,
+	mii_phy_reset
 };
 
 static int
@@ -102,70 +108,20 @@ tdkphy_probe(device_t dev)
 static int
 tdkphy_attach(device_t dev)
 {
-	struct mii_softc *sc;
-	struct mii_attach_args *ma;
-	struct mii_data *mii;
-	sc = device_get_softc(dev);
-	ma = device_get_ivars(dev);
-	sc->mii_dev = device_get_parent(dev);
-	mii = device_get_softc(sc->mii_dev);
-	LIST_INSERT_HEAD(&mii->mii_phys, sc, mii_list);
 
-	if (bootverbose)
-		device_printf(dev, "OUI 0x%06x, model 0x%04x, rev. %d\n",
-		    MII_OUI(ma->mii_id1, ma->mii_id2),
-		    MII_MODEL(ma->mii_id2), MII_REV(ma->mii_id2));
-
-	sc->mii_inst = mii->mii_instance;
-	sc->mii_phy = ma->mii_phyno;
-	sc->mii_service = tdkphy_service;
-	sc->mii_pdata = mii;
-
-	mii->mii_instance++;
-
-	/*
-	 * Apparently, we can't do loopback on this PHY.
-	 */
-	sc->mii_flags |= MIIF_NOLOOP;
-
-	mii_phy_reset(sc);
-
-	sc->mii_capabilities =
-	    PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
-	device_printf(dev, " ");
-	mii_phy_add_media(sc);
-	printf("\n");
-
-	MIIBUS_MEDIAINIT(sc->mii_dev);
+	mii_phy_dev_attach(dev, MIIF_NOMANPAUSE, &tdkphy_funcs, 1);
 	return (0);
 }
 
 static int
 tdkphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 {
-	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
-	int reg;
 
 	switch (cmd) {
 	case MII_POLLSTAT:
-		/*
-		 * If we're not polling our PHY instance, just return.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst)
-			return (0);
 		break;
 
 	case MII_MEDIACHG:
-		/*
-		 * If the media indicates a different PHY instance,
-		 * isolate ourselves.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst) {
-			reg = PHY_READ(sc, MII_BMCR);
-			PHY_WRITE(sc, MII_BMCR, reg | BMCR_ISO);
-			return (0);
-		}
-
 		/*
 		 * If the interface is not up, don't do anything.
 		 */
@@ -176,18 +132,13 @@ tdkphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		break;
 
 	case MII_TICK:
-		/*
-		 * If we're not currently selected, just return.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst)
-			return (0);
 		if (mii_phy_tick(sc) == EJUSTRETURN)
 			return (0);
 		break;
 	}
 
 	/* Update the media status. */
-	tdkphy_status(sc);
+	PHY_STATUS(sc);
 	if (sc->mii_pdata->mii_media_active & IFM_FDX)
 		PHY_WRITE(sc, MII_BMCR, PHY_READ(sc, MII_BMCR) | BMCR_FDX);
 	else
@@ -242,13 +193,13 @@ tdkphy_status(struct mii_softc *phy)
 		if (anlpar & ANLPAR_TX_FD)
 			mii->mii_media_active |= IFM_100_TX|IFM_FDX;
 		else if (anlpar & ANLPAR_T4)
-			mii->mii_media_active |= IFM_100_T4;
+			mii->mii_media_active |= IFM_100_T4|IFM_HDX;
 		else if (anlpar & ANLPAR_TX)
-			mii->mii_media_active |= IFM_100_TX;
+			mii->mii_media_active |= IFM_100_TX|IFM_HDX;
 		else if (anlpar & ANLPAR_10_FD)
 			mii->mii_media_active |= IFM_10_T|IFM_FDX;
 		else if (anlpar & ANLPAR_10)
-			mii->mii_media_active |= IFM_10_T;
+			mii->mii_media_active |= IFM_10_T|IFM_HDX;
 		else {
 			/*
 			 * ANLPAR isn't set, which leaves two possibilities:
@@ -259,16 +210,20 @@ tdkphy_status(struct mii_softc *phy)
 			 */
 			diag = PHY_READ(phy, MII_DIAG);
 			if (diag & DIAG_NEGFAIL) /* assume 10baseT if no neg */
-				mii->mii_media_active |= IFM_10_T;
+				mii->mii_media_active |= IFM_10_T|IFM_HDX;
 			else {
 				if (diag & DIAG_DUPLEX)
 					mii->mii_media_active |= IFM_FDX;
+				else
+					mii->mii_media_active |= IFM_HDX;
 				if (diag & DIAG_RATE_100)
 					mii->mii_media_active |= IFM_100_TX;
 				else
 					mii->mii_media_active |= IFM_10_T;
 			}
 		}
+		if ((mii->mii_media_active & IFM_FDX) != 0)
+			mii->mii_media_active |= mii_phy_flowstatus(phy);
 	} else
 		mii->mii_media_active = ife->ifm_media;
 }

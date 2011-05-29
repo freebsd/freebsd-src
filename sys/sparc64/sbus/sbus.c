@@ -1,10 +1,7 @@
 /*-
- * Copyright (c) 1998 The NetBSD Foundation, Inc.
+ * Copyright (c) 1999-2002 Eduardo Horvath
  * All rights reserved.
  *
- * This code is derived from software contributed to The NetBSD Foundation
- * by Paul Kranenburg.
- *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -13,65 +10,24 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *        This product includes software developed by the NetBSD
- *        Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
+ * 3. The name of the author may not be used to endorse or promote products
+ *    derived from this software without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
- * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
- * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
-/*-
- * Copyright (c) 1992, 1993
- *	The Regents of the University of California.  All rights reserved.
- *
- * This software was developed by the Computer Systems Engineering group
- * at Lawrence Berkeley Laboratory under DARPA contract BG 91-66 and
- * contributed to Berkeley.
- *
- * All advertising materials mentioning features or use of this software
- * must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Lawrence Berkeley Laboratory.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+ * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *	from: NetBSD: sbus.c,v 1.50 2002/06/20 18:26:24 eeh Exp
  */
 /*-
- * Copyright (c) 1999 Eduardo Horvath
  * Copyright (c) 2002 by Thomas Moestl <tmm@FreeBSD.org>.
  * Copyright (c) 2005 Marius Strobl <marius@FreeBSD.org>
  * All rights reserved.
@@ -93,9 +49,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	from: @(#)sbus.c	8.1 (Berkeley) 6/11/93
- *	from: NetBSD: sbus.c,v 1.46 2001/10/07 20:30:41 eeh Exp
  */
 
 #include <sys/cdefs.h>
@@ -171,9 +124,9 @@ struct sbus_softc {
 	void			*sc_pf_ihand;
 };
 
-#define	SYSIO_READ8(sc, off) \
+#define	SYSIO_READ8(sc, off)						\
 	bus_read_8((sc)->sc_sysio_res, (off))
-#define	SYSIO_WRITE8(sc, off, v) \
+#define	SYSIO_WRITE8(sc, off, v)					\
 	bus_write_8((sc)->sc_sysio_res, (off), (v))
 
 static device_probe_t sbus_probe;
@@ -459,7 +412,7 @@ sbus_attach(device_t dev)
 	    INTIGN(vec = rman_get_start(sc->sc_ot_ires)) != sc->sc_ign ||
 	    INTVEC(SYSIO_READ8(sc, SBR_THERM_INT_MAP)) != vec ||
 	    intr_vectors[vec].iv_ic != &sbus_ic ||
-	    bus_setup_intr(dev, sc->sc_ot_ires, INTR_TYPE_MISC | INTR_FAST,
+	    bus_setup_intr(dev, sc->sc_ot_ires, INTR_TYPE_MISC | INTR_BRIDGE,
 	    NULL, sbus_overtemp, sc, &sc->sc_ot_ihand) != 0)
 		panic("%s: failed to set up temperature interrupt", __func__);
 	i = 3;
@@ -469,7 +422,7 @@ sbus_attach(device_t dev)
 	    INTIGN(vec = rman_get_start(sc->sc_pf_ires)) != sc->sc_ign ||
 	    INTVEC(SYSIO_READ8(sc, SBR_POWER_INT_MAP)) != vec ||
 	    intr_vectors[vec].iv_ic != &sbus_ic ||
-	    bus_setup_intr(dev, sc->sc_pf_ires, INTR_TYPE_MISC | INTR_FAST,
+	    bus_setup_intr(dev, sc->sc_pf_ires, INTR_TYPE_MISC | INTR_BRIDGE,
 	    NULL, sbus_pwrfail, sc, &sc->sc_pf_ihand) != 0)
 		panic("%s: failed to set up power fail interrupt", __func__);
 
@@ -697,7 +650,7 @@ sbus_intr_clear(void *arg)
 	struct intr_vector *iv = arg;
 	struct sbus_icarg *sica = iv->iv_icarg;
 
-	SYSIO_WRITE8(sica->sica_sc, sica->sica_clr, 0);
+	SYSIO_WRITE8(sica->sica_sc, sica->sica_clr, INTCLR_IDLE);
 }
 
 static int

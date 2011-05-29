@@ -60,7 +60,6 @@ enum {
 	/* skip 25 */
 	SUPPORTED_MISC_IRQ = 1 << 26,
 	SUPPORTED_IRQ      = (SUPPORTED_LINK_IRQ | SUPPORTED_MISC_IRQ),
-	POLL_LINK_1ST_TIME = 1 << 27
 };
 
 enum {                            /* adapter interrupt-maintained statistics */
@@ -97,7 +96,7 @@ enum {
 
 enum {
 	FW_VERSION_MAJOR = 7,
-	FW_VERSION_MINOR = 8,
+	FW_VERSION_MINOR = 11,
 	FW_VERSION_MICRO = 0
 };
 
@@ -314,6 +313,7 @@ struct qset_params {                   /* SGE queue set parameters */
 	unsigned int rspq_size;        /* # of entries in response queue */
 	unsigned int fl_size;          /* # of entries in regular free list */
 	unsigned int jumbo_size;       /* # of entries in jumbo free list */
+	unsigned int jumbo_buf_size;   /* buffer size of jumbo entry */
 	unsigned int txq_size[SGE_TXQ_PER_SET];  /* Tx queue sizes */
 	unsigned int cong_thres;       /* FL congestion threshold */
 	unsigned int vector;           /* Interrupt (line or vector) number */
@@ -700,7 +700,6 @@ void t3_port_intr_enable(adapter_t *adapter, int idx);
 void t3_port_intr_disable(adapter_t *adapter, int idx);
 void t3_port_intr_clear(adapter_t *adapter, int idx);
 int t3_slow_intr_handler(adapter_t *adapter);
-int t3_phy_intr_handler(adapter_t *adapter);
 
 void t3_link_changed(adapter_t *adapter, int port_id);
 int t3_link_start(struct cphy *phy, struct cmac *mac, struct link_config *lc);
@@ -746,6 +745,7 @@ int t3_mc7_bd_read(struct mc7 *mc7, unsigned int start, unsigned int n,
 
 int t3_mac_init(struct cmac *mac);
 void t3b_pcs_reset(struct cmac *mac);
+void t3c_pcs_force_los(struct cmac *mac);
 void t3_mac_disable_exact_filters(struct cmac *mac);
 void t3_mac_enable_exact_filters(struct cmac *mac);
 int t3_mac_enable(struct cmac *mac, int which);

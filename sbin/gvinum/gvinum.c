@@ -50,6 +50,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <paths.h>
 #include <readline/readline.h>
 #include <readline/history.h>
@@ -644,6 +645,7 @@ gvinum_detach(int argc, char **argv)
 	struct gctl_req *req;
 	int flags, i;
 
+	flags = 0;
 	optreset = 1;
 	optind = 1;
 	while ((i = getopt(argc, argv, "f")) != -1) {
@@ -1426,5 +1428,5 @@ printconfig(FILE *of, char *comment)
 	if (*comment != '\0')
 	    fprintf(of, "# Current configuration:\n");
 
-	fprintf(of, buf);
+	fprintf(of, "%s", buf);
 }

@@ -477,7 +477,7 @@ protocol(int f, int p)
 }
 
 void
-cleanup(int signo)
+cleanup(int signo __unused)
 {
 
 	shutdown(netf, SHUT_RDWR);
@@ -545,7 +545,7 @@ setup_term(int fd)
 {
 	char *cp = index(term+ENVSIZE, '/');
 	char *speed;
-	struct termios tt;
+	struct termios tt, def;
 
 #ifndef notyet
 	tcgetattr(fd, &tt);
@@ -558,9 +558,10 @@ setup_term(int fd)
 		cfsetspeed(&tt, atoi(speed));
 	}
 
-	tt.c_iflag = TTYDEF_IFLAG;
-	tt.c_oflag = TTYDEF_OFLAG;
-	tt.c_lflag = TTYDEF_LFLAG;
+	cfmakesane(&def);
+	tt.c_iflag = def.c_iflag;
+	tt.c_oflag = def.c_oflag;
+	tt.c_lflag = def.c_lflag;
 	tcsetattr(fd, TCSAFLUSH, &tt);
 #else
 	if (cp) {

@@ -4,114 +4,42 @@
  *
  ******************************************************************************/
 
-/******************************************************************************
- *
- * 1. Copyright Notice
- *
- * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
+/*
+ * Copyright (C) 2000 - 2011, Intel Corp.
  * All rights reserved.
  *
- * 2. License
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions, and the following disclaimer,
+ *    without modification.
+ * 2. Redistributions in binary form must reproduce at minimum a disclaimer
+ *    substantially similar to the "NO WARRANTY" disclaimer below
+ *    ("Disclaimer") and any redistribution must be conditioned upon
+ *    including a substantially similar Disclaimer requirement for further
+ *    binary redistribution.
+ * 3. Neither the names of the above-listed copyright holders nor the names
+ *    of any contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
  *
- * 2.1. This is your license from Intel Corp. under its intellectual property
- * rights.  You may have additional license terms from the party that provided
- * you this software, covering your right to use that party's intellectual
- * property rights.
+ * Alternatively, this software may be distributed under the terms of the
+ * GNU General Public License ("GPL") version 2 as published by the Free
+ * Software Foundation.
  *
- * 2.2. Intel grants, free of charge, to any person ("Licensee") obtaining a
- * copy of the source code appearing in this file ("Covered Code") an
- * irrevocable, perpetual, worldwide license under Intel's copyrights in the
- * base code distributed originally by Intel ("Original Intel Code") to copy,
- * make derivatives, distribute, use and display any portion of the Covered
- * Code in any form, with the right to sublicense such rights; and
- *
- * 2.3. Intel grants Licensee a non-exclusive and non-transferable patent
- * license (with the right to sublicense), under only those claims of Intel
- * patents that are infringed by the Original Intel Code, to make, use, sell,
- * offer to sell, and import the Covered Code and derivative works thereof
- * solely to the minimum extent necessary to exercise the above copyright
- * license, and in no event shall the patent license extend to any additions
- * to or modifications of the Original Intel Code.  No other license or right
- * is granted directly or by implication, estoppel or otherwise;
- *
- * The above copyright and patent license is granted only if the following
- * conditions are met:
- *
- * 3. Conditions
- *
- * 3.1. Redistribution of Source with Rights to Further Distribute Source.
- * Redistribution of source code of any substantial portion of the Covered
- * Code or modification with rights to further distribute source must include
- * the above Copyright Notice, the above License, this list of Conditions,
- * and the following Disclaimer and Export Compliance provision.  In addition,
- * Licensee must cause all Covered Code to which Licensee contributes to
- * contain a file documenting the changes Licensee made to create that Covered
- * Code and the date of any change.  Licensee must include in that file the
- * documentation of any changes made by any predecessor Licensee.  Licensee
- * must include a prominent statement that the modification is derived,
- * directly or indirectly, from Original Intel Code.
- *
- * 3.2. Redistribution of Source with no Rights to Further Distribute Source.
- * Redistribution of source code of any substantial portion of the Covered
- * Code or modification without rights to further distribute source must
- * include the following Disclaimer and Export Compliance provision in the
- * documentation and/or other materials provided with distribution.  In
- * addition, Licensee may not authorize further sublicense of source of any
- * portion of the Covered Code, and must include terms to the effect that the
- * license from Licensee to its licensee is limited to the intellectual
- * property embodied in the software Licensee provides to its licensee, and
- * not to intellectual property embodied in modifications its licensee may
- * make.
- *
- * 3.3. Redistribution of Executable. Redistribution in executable form of any
- * substantial portion of the Covered Code or modification must reproduce the
- * above Copyright Notice, and the following Disclaimer and Export Compliance
- * provision in the documentation and/or other materials provided with the
- * distribution.
- *
- * 3.4. Intel retains all right, title, and interest in and to the Original
- * Intel Code.
- *
- * 3.5. Neither the name Intel nor any other trademark owned or controlled by
- * Intel shall be used in advertising or otherwise to promote the sale, use or
- * other dealings in products derived from or relating to the Covered Code
- * without prior written authorization from Intel.
- *
- * 4. Disclaimer and Export Compliance
- *
- * 4.1. INTEL MAKES NO WARRANTY OF ANY KIND REGARDING ANY SOFTWARE PROVIDED
- * HERE.  ANY SOFTWARE ORIGINATING FROM INTEL OR DERIVED FROM INTEL SOFTWARE
- * IS PROVIDED "AS IS," AND INTEL WILL NOT PROVIDE ANY SUPPORT,  ASSISTANCE,
- * INSTALLATION, TRAINING OR OTHER SERVICES.  INTEL WILL NOT PROVIDE ANY
- * UPDATES, ENHANCEMENTS OR EXTENSIONS.  INTEL SPECIFICALLY DISCLAIMS ANY
- * IMPLIED WARRANTIES OF MERCHANTABILITY, NONINFRINGEMENT AND FITNESS FOR A
- * PARTICULAR PURPOSE.
- *
- * 4.2. IN NO EVENT SHALL INTEL HAVE ANY LIABILITY TO LICENSEE, ITS LICENSEES
- * OR ANY OTHER THIRD PARTY, FOR ANY LOST PROFITS, LOST DATA, LOSS OF USE OR
- * COSTS OF PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, OR FOR ANY INDIRECT,
- * SPECIAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THIS AGREEMENT, UNDER ANY
- * CAUSE OF ACTION OR THEORY OF LIABILITY, AND IRRESPECTIVE OF WHETHER INTEL
- * HAS ADVANCE NOTICE OF THE POSSIBILITY OF SUCH DAMAGES.  THESE LIMITATIONS
- * SHALL APPLY NOTWITHSTANDING THE FAILURE OF THE ESSENTIAL PURPOSE OF ANY
- * LIMITED REMEDY.
- *
- * 4.3. Licensee shall not export, either directly or indirectly, any of this
- * software or system incorporating such software without first obtaining any
- * required license or other approval from the U. S. Department of Commerce or
- * any other agency or department of the United States Government.  In the
- * event Licensee exports any such software from the United States or
- * re-exports any such software from a foreign destination, Licensee shall
- * ensure that the distribution and export/re-export of the software is in
- * compliance with all laws, regulations, orders, or other restrictions of the
- * U.S. Export Administration Regulations. Licensee agrees that neither it nor
- * any of its subsidiaries will export/re-export any technical data, process,
- * software, or service, directly or indirectly, to any country for which the
- * United States government or any agency thereof requires an export license,
- * other governmental approval, or letter of assurance, without first obtaining
- * such license, approval or letter.
- *
- *****************************************************************************/
+ * NO WARRANTY
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+ * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+ * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGES.
+ */
 
 
 #include <contrib/dev/acpica/include/acpi.h>
@@ -139,6 +67,50 @@ AcpiDbDumpParserDescriptor (
 static void *
 AcpiDbGetPointer (
     void                    *Target);
+
+
+/*
+ * System handler information.
+ * Used for Handlers command, in AcpiDbDisplayHandlers.
+ */
+#define ACPI_PREDEFINED_PREFIX          "%25s (%.2X) : "
+#define ACPI_HANDLER_NAME_STRING               "%30s : "
+#define ACPI_HANDLER_PRESENT_STRING                    "%-9s (%p)\n"
+#define ACPI_HANDLER_NOT_PRESENT_STRING                "%-9s\n"
+
+/* All predefined Address Space IDs */
+
+static ACPI_ADR_SPACE_TYPE  AcpiGbl_SpaceIdList[] =
+{
+    ACPI_ADR_SPACE_SYSTEM_MEMORY,
+    ACPI_ADR_SPACE_SYSTEM_IO,
+    ACPI_ADR_SPACE_PCI_CONFIG,
+    ACPI_ADR_SPACE_EC,
+    ACPI_ADR_SPACE_SMBUS,
+    ACPI_ADR_SPACE_CMOS,
+    ACPI_ADR_SPACE_PCI_BAR_TARGET,
+    ACPI_ADR_SPACE_IPMI,
+    ACPI_ADR_SPACE_DATA_TABLE,
+    ACPI_ADR_SPACE_FIXED_HARDWARE
+};
+
+/* Global handler information */
+
+typedef struct acpi_handler_info
+{
+    void                    *Handler;
+    char                    *Name;
+
+} ACPI_HANDLER_INFO;
+
+static ACPI_HANDLER_INFO    AcpiGbl_HandlerList[] =
+{
+    {&AcpiGbl_SystemNotify.Handler,     "System Notifications"},
+    {&AcpiGbl_DeviceNotify.Handler,     "Device Notifications"},
+    {&AcpiGbl_TableHandler,             "ACPI Table Events"},
+    {&AcpiGbl_ExceptionHandler,         "Control Method Exceptions"},
+    {&AcpiGbl_InterfaceHandler,         "OSI Invocations"}
+};
 
 
 /*******************************************************************************
@@ -612,7 +584,7 @@ AcpiDbDisplayResults (
     for (i = 0; i < ResultCount; i++)
     {
         ObjDesc = Frame->Results.ObjDesc[Index];
-        AcpiOsPrintf ("Result%d: ", i);
+        AcpiOsPrintf ("Result%u: ", i);
         AcpiDmDisplayInternalObject (ObjDesc, WalkState);
         if (Index == 0)
         {
@@ -722,7 +694,7 @@ AcpiDbDisplayObjectType (
     {
         for (i = 0; i < Info->CompatibleIdList.Count; i++)
         {
-            AcpiOsPrintf ("CID %d: %s\n", i,
+            AcpiOsPrintf ("CID %u: %s\n", i,
                 Info->CompatibleIdList.Ids[i].String);
         }
     }
@@ -816,6 +788,7 @@ AcpiDbDisplayGpes (
     ACPI_GPE_XRUPT_INFO     *GpeXruptInfo;
     ACPI_GPE_EVENT_INFO     *GpeEventInfo;
     ACPI_GPE_REGISTER_INFO  *GpeRegisterInfo;
+    char                    *GpeType;
     UINT32                  GpeIndex;
     UINT32                  Block = 0;
     UINT32                  i;
@@ -844,17 +817,25 @@ AcpiDbDisplayGpes (
                 AcpiOsPrintf ("Could not convert name to pathname\n");
             }
 
-            AcpiOsPrintf ("\nBlock %d - Info %p  DeviceNode %p [%s]\n",
-                Block, GpeBlock, GpeBlock->Node, Buffer);
+            if (GpeBlock->Node == AcpiGbl_FadtGpeDevice)
+            {
+                GpeType = "FADT-defined GPE block";
+            }
+            else
+            {
+                GpeType = "GPE Block Device";
+            }
+
+            AcpiOsPrintf ("\nBlock %u - Info %p  DeviceNode %p [%s] - %s\n",
+                Block, GpeBlock, GpeBlock->Node, Buffer, GpeType);
 
             AcpiOsPrintf ("    Registers:    %u (%u GPEs)\n",
-                GpeBlock->RegisterCount,
-                ACPI_MUL_8 (GpeBlock->RegisterCount));
+                GpeBlock->RegisterCount, GpeBlock->GpeCount);
 
-            AcpiOsPrintf ("    GPE range:    0x%X to 0x%X\n",
+            AcpiOsPrintf ("    GPE range:    0x%X to 0x%X on interrupt %u\n",
                 GpeBlock->BlockBaseNumber,
-                GpeBlock->BlockBaseNumber +
-                    (GpeBlock->RegisterCount * 8) -1);
+                GpeBlock->BlockBaseNumber + (GpeBlock->GpeCount - 1),
+                GpeXruptInfo->InterruptNumber);
 
             AcpiOsPrintf (
                 "    RegisterInfo: %p  Status %8.8X%8.8X Enable %8.8X%8.8X\n",
@@ -871,9 +852,12 @@ AcpiDbDisplayGpes (
                 GpeRegisterInfo = &GpeBlock->RegisterInfo[i];
 
                 AcpiOsPrintf (
-                    "    Reg %u:  WakeEnable %2.2X, RunEnable %2.2X  Status %8.8X%8.8X Enable %8.8X%8.8X\n",
-                    i, GpeRegisterInfo->EnableForWake,
+                    "    Reg %u: (GPE %.2X-%.2X)  RunEnable %2.2X WakeEnable %2.2X"
+                    " Status %8.8X%8.8X Enable %8.8X%8.8X\n",
+                    i, GpeRegisterInfo->BaseGpeNumber,
+                    GpeRegisterInfo->BaseGpeNumber + (ACPI_GPE_REGISTER_WIDTH - 1),
                     GpeRegisterInfo->EnableForRun,
+                    GpeRegisterInfo->EnableForWake,
                     ACPI_FORMAT_UINT64 (GpeRegisterInfo->StatusAddress.Address),
                     ACPI_FORMAT_UINT64 (GpeRegisterInfo->EnableAddress.Address));
 
@@ -884,18 +868,20 @@ AcpiDbDisplayGpes (
                     GpeIndex = (i * ACPI_GPE_REGISTER_WIDTH) + j;
                     GpeEventInfo = &GpeBlock->EventInfo[GpeIndex];
 
-                    if (!(GpeEventInfo->Flags & ACPI_GPE_DISPATCH_MASK))
+                    if ((GpeEventInfo->Flags & ACPI_GPE_DISPATCH_MASK) ==
+                        ACPI_GPE_DISPATCH_NONE)
                     {
-                        /* This GPE is not used (no method or handler) */
+                        /* This GPE is not used (no method or handler), ignore it */
 
                         continue;
                     }
 
                     AcpiOsPrintf (
-                        "        GPE %.3X: %p Flags %2.2X: ",
-                        GpeBlock->BlockBaseNumber + GpeIndex,
-                        GpeEventInfo,
-                        GpeEventInfo->Flags);
+                        "        GPE %.2X: %p  RunRefs %2.2X Flags %2.2X (",
+                        GpeBlock->BlockBaseNumber + GpeIndex, GpeEventInfo,
+                        GpeEventInfo->RuntimeCount, GpeEventInfo->Flags);
+
+                    /* Decode the flags byte */
 
                     if (GpeEventInfo->Flags & ACPI_GPE_LEVEL_TRIGGERED)
                     {
@@ -906,50 +892,28 @@ AcpiDbDisplayGpes (
                         AcpiOsPrintf ("Edge,  ");
                     }
 
-                    switch (GpeEventInfo->Flags & ACPI_GPE_TYPE_MASK)
+                    if (GpeEventInfo->Flags & ACPI_GPE_CAN_WAKE)
                     {
-                    case ACPI_GPE_TYPE_WAKE:
-                        AcpiOsPrintf ("WakeOnly: ");
-                        break;
-                    case ACPI_GPE_TYPE_RUNTIME:
-                        AcpiOsPrintf (" RunOnly: ");
-                        break;
-                    case ACPI_GPE_TYPE_WAKE_RUN:
-                        AcpiOsPrintf (" WakeRun: ");
-                        break;
-                    default:
-                        AcpiOsPrintf (" NotUsed: ");
-                        break;
-                    }
-
-                    if (GpeEventInfo->Flags & ACPI_GPE_WAKE_ENABLED)
-                    {
-                        AcpiOsPrintf ("[Wake 1 ");
+                        AcpiOsPrintf ("CanWake, ");
                     }
                     else
                     {
-                        AcpiOsPrintf ("[Wake 0 ");
-                    }
-
-                    if (GpeEventInfo->Flags & ACPI_GPE_RUN_ENABLED)
-                    {
-                        AcpiOsPrintf ("Run 1], ");
-                    }
-                    else
-                    {
-                        AcpiOsPrintf ("Run 0], ");
+                        AcpiOsPrintf ("RunOnly, ");
                     }
 
                     switch (GpeEventInfo->Flags & ACPI_GPE_DISPATCH_MASK)
                     {
-                    case ACPI_GPE_DISPATCH_NOT_USED:
+                    case ACPI_GPE_DISPATCH_NONE:
                         AcpiOsPrintf ("NotUsed");
+                        break;
+                    case ACPI_GPE_DISPATCH_METHOD:
+                        AcpiOsPrintf ("Method");
                         break;
                     case ACPI_GPE_DISPATCH_HANDLER:
                         AcpiOsPrintf ("Handler");
                         break;
-                    case ACPI_GPE_DISPATCH_METHOD:
-                        AcpiOsPrintf ("Method");
+                    case ACPI_GPE_DISPATCH_NOTIFY:
+                        AcpiOsPrintf ("Notify");
                         break;
                     default:
                         AcpiOsPrintf ("UNKNOWN: %X",
@@ -957,7 +921,7 @@ AcpiDbDisplayGpes (
                         break;
                     }
 
-                    AcpiOsPrintf ("\n");
+                    AcpiOsPrintf (")\n");
                 }
             }
             Block++;
@@ -967,5 +931,101 @@ AcpiDbDisplayGpes (
     }
 }
 
-#endif /* ACPI_DEBUGGER */
 
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDbDisplayHandlers
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Display the currently installed global handlers
+ *
+ ******************************************************************************/
+
+void
+AcpiDbDisplayHandlers (
+    void)
+{
+    ACPI_OPERAND_OBJECT     *ObjDesc;
+    ACPI_OPERAND_OBJECT     *HandlerObj;
+    ACPI_ADR_SPACE_TYPE     SpaceId;
+    UINT32                  i;
+
+
+    /* Operation region handlers */
+
+    AcpiOsPrintf ("\nOperation Region Handlers:\n");
+
+    ObjDesc = AcpiNsGetAttachedObject (AcpiGbl_RootNode);
+    if (ObjDesc)
+    {
+        for (i = 0; i < ACPI_ARRAY_LENGTH (AcpiGbl_SpaceIdList); i++)
+        {
+            SpaceId = AcpiGbl_SpaceIdList[i];
+            HandlerObj = ObjDesc->Device.Handler;
+
+            AcpiOsPrintf (ACPI_PREDEFINED_PREFIX,
+                AcpiUtGetRegionName ((UINT8) SpaceId), SpaceId);
+
+            while (HandlerObj)
+            {
+                if (i == HandlerObj->AddressSpace.SpaceId)
+                {
+                    AcpiOsPrintf (ACPI_HANDLER_PRESENT_STRING,
+                        (HandlerObj->AddressSpace.HandlerFlags &
+                            ACPI_ADDR_HANDLER_DEFAULT_INSTALLED) ? "Default" : "User",
+                        HandlerObj->AddressSpace.Handler);
+                    goto FoundHandler;
+                }
+
+                HandlerObj = HandlerObj->AddressSpace.Next;
+            }
+
+            /* There is no handler for this SpaceId */
+
+            AcpiOsPrintf ("None\n");
+
+        FoundHandler:;
+        }
+    }
+
+    /* Fixed event handlers */
+
+    AcpiOsPrintf ("\nFixed Event Handlers:\n");
+
+    for (i = 0; i < ACPI_NUM_FIXED_EVENTS; i++)
+    {
+        AcpiOsPrintf (ACPI_PREDEFINED_PREFIX, AcpiUtGetEventName (i), i);
+        if (AcpiGbl_FixedEventHandlers[i].Handler)
+        {
+            AcpiOsPrintf (ACPI_HANDLER_PRESENT_STRING, "User",
+                AcpiGbl_FixedEventHandlers[i].Handler);
+        }
+        else
+        {
+            AcpiOsPrintf (ACPI_HANDLER_NOT_PRESENT_STRING, "None");
+        }
+    }
+
+    /* Miscellaneous global handlers */
+
+    AcpiOsPrintf ("\nMiscellaneous Global Handlers:\n");
+
+    for (i = 0; i < ACPI_ARRAY_LENGTH (AcpiGbl_HandlerList); i++)
+    {
+        AcpiOsPrintf (ACPI_HANDLER_NAME_STRING, AcpiGbl_HandlerList[i].Name);
+        if (AcpiGbl_HandlerList[i].Handler)
+        {
+            AcpiOsPrintf (ACPI_HANDLER_PRESENT_STRING, "User",
+                AcpiGbl_HandlerList[i].Handler);
+        }
+        else
+        {
+            AcpiOsPrintf (ACPI_HANDLER_NOT_PRESENT_STRING, "None");
+        }
+    }
+}
+
+#endif /* ACPI_DEBUGGER */

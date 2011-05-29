@@ -20,10 +20,6 @@
 cpu		CPU_MIPS32
 ident		QEMU
 
-# XXX: These two options must be defined in MIPS kernel configs.
-makeoptions	MIPS_LITTLE_ENDIAN=defined
-makeoptions	ARCH_FLAGS=-march=mips32
-
 # Don't build any modules yet.
 makeoptions	MODULES_OVERRIDE=""
 
@@ -36,8 +32,8 @@ options 	KDB
 
 options 	SCHED_4BSD		#4BSD scheduler
 options 	INET			#InterNETworking
-options 	NFSCLIENT		#Network Filesystem Client
-options 	NFS_ROOT		#NFS usable as /, requires NFSCLIENT
+options 	NFSCL			#Network Filesystem Client
+options 	NFS_ROOT		#NFS usable as /, requires NFSCL
 options 	PSEUDOFS		#Pseudo-filesystem framework
 options 	_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
 

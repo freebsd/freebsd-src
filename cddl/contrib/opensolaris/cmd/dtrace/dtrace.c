@@ -773,19 +773,27 @@ compile_str(dtrace_cmd_t *dcp)
 static void
 prochandler(struct ps_prochandle *P, const char *msg, void *arg)
 {
-fatal("DOODAD in function %s, file %s, line %d\n",__FUNCTION__,__FILE__,__LINE__);
-#ifdef DOODAD
+#if defined(sun)
 	const psinfo_t *prp = Ppsinfo(P);
 	int pid = Pstatus(P)->pr_pid;
 	char name[SIG2STR_MAX];
+#else
+	int wstatus = proc_getwstat(P);
+	int pid = proc_getpid(P);
+#endif
 
 	if (msg != NULL) {
 		notice("pid %d: %s\n", pid, msg);
 		return;
 	}
 
+#if defined(sun)
 	switch (Pstate(P)) {
+#else
+	switch (proc_state(P)) {
+#endif
 	case PS_UNDEAD:
+#if defined(sun)
 		/*
 		 * Ideally we would like to always report pr_wstat here, but it
 		 * isn't possible given current /proc semantics.  If we grabbed
@@ -798,9 +806,20 @@ fatal("DOODAD in function %s, file %s, line %d\n",__FUNCTION__,__FILE__,__LINE__
 			notice("pid %d terminated by %s\n", pid,
 			    proc_signame(WTERMSIG(prp->pr_wstat),
 			    name, sizeof (name)));
+#else
+		if (WIFSIGNALED(wstatus)) {
+			notice("pid %d terminated by %d\n", pid,
+			    WTERMSIG(wstatus));
+#endif
+#if defined(sun)
 		} else if (prp != NULL && WEXITSTATUS(prp->pr_wstat) != 0) {
 			notice("pid %d exited with status %d\n",
 			    pid, WEXITSTATUS(prp->pr_wstat));
+#else
+		} else if (WEXITSTATUS(wstatus) != 0) {
+			notice("pid %d exited with status %d\n",
+			    pid, WEXITSTATUS(wstatus));
+#endif
 		} else {
 			notice("pid %d has exited\n", pid);
 		}
@@ -812,7 +831,6 @@ fatal("DOODAD in function %s, file %s, line %d\n",__FUNCTION__,__FILE__,__LINE__
 		g_pslive--;
 		break;
 	}
-#endif
 }
 
 /*ARGSUSED*/

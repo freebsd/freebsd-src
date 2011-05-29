@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 14, 2008
+.Dd November 25, 2010
 .Dt ET 4
 .Os
 .Sh NAME
@@ -122,6 +122,11 @@ Note that the 1000baseT media type is only available
 if it is supported by the adapter.
 For more information on configuring this device, see
 .Xr ifconfig 8 .
+.Sh HARDWARE
+The
+.Nm
+driver supports Agere ET1310 10/100/Gigabit
+Ethernet adapters.
 .Sh TUNABLES
 .Bl -tag -width ".Va hw.et.rx_intr_npkts"
 .It Va hw.et.rx_intr_npkts

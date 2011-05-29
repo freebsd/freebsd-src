@@ -197,8 +197,9 @@ struct libusb20_quirk {
 	char	quirkname[64 - 12];
 };
 
-/* USB transfer operations */
+#define	LIBUSB20_MAX_FRAME_PRE_SCALE	(1U << 31)
 
+/* USB transfer operations */
 int	libusb20_tr_close(struct libusb20_transfer *xfer);
 int	libusb20_tr_open(struct libusb20_transfer *xfer, uint32_t max_buf_size, uint32_t max_frame_count, uint8_t ep_no);
 struct libusb20_transfer *libusb20_tr_get_pointer(struct libusb20_device *pdev, uint16_t tr_index);

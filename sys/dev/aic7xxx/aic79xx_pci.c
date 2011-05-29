@@ -353,7 +353,7 @@ ahd_pci_config(struct ahd_softc *ahd, struct ahd_pci_identity *entry)
 	 * Find the PCI-X cap pointer.  If we don't find it,
 	 * pcix_ptr will be 0.
 	 */
-	pci_find_extcap(ahd->dev_softc, PCIY_PCIX, &ahd->pcix_ptr);
+	pci_find_cap(ahd->dev_softc, PCIY_PCIX, &ahd->pcix_ptr);
 	devconfig = aic_pci_read_config(ahd->dev_softc, DEVCONFIG, /*bytes*/4);
 	if ((devconfig & PCIXINITPAT) == PCIXINIT_PCI33_66) {
 		ahd->chip |= AHD_PCI;

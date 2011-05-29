@@ -43,6 +43,7 @@
 #include "../mystring.h"
 #ifdef SHELL
 #include "../output.h"
+#define FILE struct output
 #undef stdout
 #define stdout out1
 #undef stderr
@@ -54,23 +55,12 @@
 #define putchar(c)	out1c(c)
 #define fprintf outfmt
 #define fputs outstr
+#define fwrite(ptr, size, nmemb, file) outbin(ptr, (size) * (nmemb), file)
 #define fflush flushout
 #define INITARGS(argv)
-#define warnx1(a, b, c) {				\
-	char buf[64];					\
-	(void)snprintf(buf, sizeof(buf), a);		\
-	error("%s", buf);				\
-}
-#define warnx2(a, b, c) {				\
-	char buf[64];					\
-	(void)snprintf(buf, sizeof(buf), a, b);		\
-	error("%s", buf);				\
-}
-#define warnx3(a, b, c) {				\
-	char buf[64];					\
-	(void)snprintf(buf, sizeof(buf), a, b, c);	\
-	error("%s", buf);				\
-}
+#define warnx warning
+#define warn(fmt, ...) warning(fmt ": %s", __VA_ARGS__, strerror(errno))
+#define errx(exitstatus, ...) error(__VA_ARGS__)
 
 #else
 #undef NULL
@@ -79,8 +69,11 @@
 #define INITARGS(argv)	if ((commandname = argv[0]) == NULL) {fputs("Argc is zero\n", stderr); exit(2);} else
 #endif
 
+#include <unistd.h>
+
 pointer stalloc(int);
 void error(const char *, ...) __printf0like(1, 2);
+pid_t getjobpgrp(char *);
 
 int echocmd(int, char **);
 int testcmd(int, char **);

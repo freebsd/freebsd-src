@@ -1,4 +1,4 @@
-/* @(#) $Header: /tcpdump/master/tcpdump/tcp.h,v 1.13.2.1 2007-12-09 00:31:35 guy Exp $ (LBL) */
+/* @(#) $Header: /tcpdump/master/tcpdump/tcp.h,v 1.14 2007-12-09 00:30:47 guy Exp $ (LBL) */
 /*
  * Copyright (c) 1982, 1986, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -85,6 +85,7 @@ struct tcphdr {
 #define TCPOPT_AUTH             20      /* Enhanced AUTH option */
 #define	TCPOPT_UTO		28	/* tcp user timeout (rfc5482) */
 #define	   TCPOLEN_UTO			4
+
 
 #define TCPOPT_TSTAMP_HDR	\
     (TCPOPT_NOP<<24|TCPOPT_NOP<<16|TCPOPT_TIMESTAMP<<8|TCPOLEN_TIMESTAMP)

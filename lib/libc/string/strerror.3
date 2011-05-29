@@ -32,7 +32,7 @@
 .\"     @(#)strerror.3	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd October 12, 2004
+.Dd April 5, 2011
 .Dt STRERROR 3
 .Os
 .Sh NAME
@@ -114,6 +114,9 @@ the range 0 <
 .Fa errnum
 <
 .Fa sys_nerr .
+The number 0 is also recognized, although applications that take advantage of
+this are likely to use unspecified values of
+.Va errno .
 .Pp
 If insufficient storage is provided in
 .Fa strerrbuf

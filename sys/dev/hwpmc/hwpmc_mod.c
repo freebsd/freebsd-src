@@ -1248,7 +1248,7 @@ pmc_process_csw_in(struct thread *td)
 			continue;
 
 		/* increment PMC runcount */
-		atomic_add_rel_32(&pm->pm_runcount, 1);
+		atomic_add_rel_int(&pm->pm_runcount, 1);
 
 		/* configure the HWPMC we are going to use. */
 		pcd = pmc_ri_to_classdep(md, ri, &adjri);
@@ -1387,7 +1387,7 @@ pmc_process_csw_out(struct thread *td)
 			pcd->pcd_stop_pmc(cpu, adjri);
 
 		/* reduce this PMC's runcount */
-		atomic_subtract_rel_32(&pm->pm_runcount, 1);
+		atomic_subtract_rel_int(&pm->pm_runcount, 1);
 
 		/*
 		 * If this PMC is associated with this process,
@@ -2675,16 +2675,16 @@ pmc_start(struct pmc *pm)
 			PMCDBG(PMC,OPS,1, "po=%p in global list", po);
 		}
 		po->po_sscount++;
-	}
 
-	/*
-	 * Log mapping information for all existing processes in the
-	 * system.  Subsequent mappings are logged as they happen;
-	 * see pmc_process_mmap().
-	 */
-	if (po->po_logprocmaps == 0) {
-		pmc_log_all_process_mappings(po);
-		po->po_logprocmaps = 1;
+		/*
+		 * Log mapping information for all existing processes in the
+		 * system.  Subsequent mappings are logged as they happen;
+		 * see pmc_process_mmap().
+		 */
+		if (po->po_logprocmaps == 0) {
+			pmc_log_all_process_mappings(po);
+			po->po_logprocmaps = 1;
+		}
 	}
 
 	/*
@@ -3251,9 +3251,6 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 					break;
 			}
 		}
-
-		if (error)
-			break;
 
 		/*
 		 * Look for valid values for 'pm_flags'
@@ -3972,9 +3969,11 @@ pmc_post_callchain_callback(void)
 
 	td = curthread;
 
-	KASSERT((td->td_pflags & TDP_CALLCHAIN) == 0,
-	    ("[pmc,%d] thread %p already marked for callchain capture",
-		__LINE__, (void *) td));
+	/*
+	 * If there is multiple PMCs for the same interrupt ignore new post
+	 */
+	if (td->td_pflags & TDP_CALLCHAIN)
+		return;
 
 	/*
 	 * Mark this thread as needing callchain capture.
@@ -4043,7 +4042,7 @@ pmc_process_interrupt(int cpu, struct pmc *pm, struct trapframe *tf,
 	    ("[pmc,%d] pm=%p runcount %d", __LINE__, (void *) pm,
 		pm->pm_runcount));
 
-	atomic_add_rel_32(&pm->pm_runcount, 1);	/* hold onto PMC */
+	atomic_add_rel_int(&pm->pm_runcount, 1);	/* hold onto PMC */
 	ps->ps_pmc = pm;
 	if ((td = curthread) && td->td_proc)
 		ps->ps_pid = td->td_proc->p_pid;
@@ -4084,7 +4083,7 @@ pmc_process_interrupt(int cpu, struct pmc *pm, struct trapframe *tf,
 
  done:
 	/* mark CPU as needing processing */
-	atomic_set_rel_int(&pmc_cpumask, (1 << cpu));
+	atomic_set_int(&pmc_cpumask, (1 << cpu));
 
 	return (error);
 }
@@ -4194,7 +4193,7 @@ pmc_process_samples(int cpu)
 			break;
 		if (ps->ps_nsamples == PMC_SAMPLE_INUSE) {
 			/* Need a rescan at a later time. */
-			atomic_set_rel_int(&pmc_cpumask, (1 << cpu));
+			atomic_set_int(&pmc_cpumask, (1 << cpu));
 			break;
 		}
 
@@ -4244,7 +4243,7 @@ pmc_process_samples(int cpu)
 
 	entrydone:
 		ps->ps_nsamples = 0;	/* mark entry as free */
-		atomic_subtract_rel_32(&pm->pm_runcount, 1);
+		atomic_subtract_rel_int(&pm->pm_runcount, 1);
 
 		/* increment read pointer, modulo sample size */
 		if (++ps == psb->ps_fence)
@@ -4416,7 +4415,7 @@ pmc_process_exit(void *arg __unused, struct proc *p)
 				mtx_pool_unlock_spin(pmc_mtxpool, pm);
 			}
 
-			atomic_subtract_rel_32(&pm->pm_runcount,1);
+			atomic_subtract_rel_int(&pm->pm_runcount,1);
 
 			KASSERT((int) pm->pm_runcount >= 0,
 			    ("[pmc,%d] runcount is %d", __LINE__, ri));
@@ -4783,7 +4782,7 @@ pmc_cleanup(void)
 	PMCDBG(MOD,INI,0, "%s", "cleanup");
 
 	/* switch off sampling */
-	atomic_store_rel_int(&pmc_cpumask, 0);
+	pmc_cpumask = 0;
 	pmc_intr = NULL;
 
 	sx_xlock(&pmc_sx);

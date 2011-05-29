@@ -54,7 +54,7 @@ show_adapter(int ac, char **av)
 {
 	struct mfi_ctrl_info info;
 	char stripe[5];
-	int fd, comma;
+	int error, fd, comma;
 
 	if (ac != 1) {
 		warnx("show adapter: extra arguments");
@@ -63,13 +63,15 @@ show_adapter(int ac, char **av)
 
 	fd = mfi_open(mfi_unit);
 	if (fd < 0) {
+		error = errno;
 		warn("mfi_open");
-		return (errno);
+		return (error);
 	}
 
 	if (mfi_ctrl_get_info(fd, &info, NULL) < 0) {
+		error = errno;
 		warn("Failed to get controller info");
-		return (errno);
+		return (error);
 	}
 	printf("mfi%d Adapter:\n", mfi_unit);
 	printf("    Product Name: %.80s\n", info.product_name);
@@ -136,8 +138,9 @@ show_battery(int ac, char **av)
 {
 	struct mfi_bbu_capacity_info cap;
 	struct mfi_bbu_design_info design;
+	struct mfi_bbu_status stat;
 	uint8_t status;
-	int fd;
+	int comma, error, fd;
 
 	if (ac != 1) {
 		warnx("show battery: extra arguments");
@@ -146,8 +149,9 @@ show_battery(int ac, char **av)
 
 	fd = mfi_open(mfi_unit);
 	if (fd < 0) {
+		error = errno;
 		warn("mfi_open");
-		return (errno);
+		return (error);
 	}
 
 	if (mfi_dcmd_command(fd, MFI_DCMD_BBU_GET_CAPACITY_INFO, &cap,
@@ -156,26 +160,70 @@ show_battery(int ac, char **av)
 			printf("mfi%d: No battery present\n", mfi_unit);
 			return (0);
 		}
+		error = errno;
 		warn("Failed to get capacity info");
-		return (errno);
+		return (error);
 	}
 
 	if (mfi_dcmd_command(fd, MFI_DCMD_BBU_GET_DESIGN_INFO, &design,
 	    sizeof(design), NULL, 0, NULL) < 0) {
+		error = errno;
 		warn("Failed to get design info");
-		return (errno);
+		return (error);
+	}
+
+	if (mfi_dcmd_command(fd, MFI_DCMD_BBU_GET_STATUS, &stat, sizeof(stat),
+	    NULL, 0, NULL) < 0) {
+		error = errno;
+		warn("Failed to get status");
+		return (error);
 	}
 
 	printf("mfi%d: Battery State:\n", mfi_unit);
-	printf(" Manufacture Date: %d/%d/%d\n", design.mfg_date >> 5 & 0x0f,
+	printf("     Manufacture Date: %d/%d/%d\n", design.mfg_date >> 5 & 0x0f,
 	    design.mfg_date & 0x1f, design.mfg_date >> 9 & 0xffff);
-	printf("    Serial Number: %d\n", design.serial_number);
-	printf("     Manufacturer: %s\n", design.mfg_name);
-	printf("            Model: %s\n", design.device_name);
-	printf("        Chemistry: %s\n", design.device_chemistry);
-	printf("  Design Capacity: %d mAh\n", design.design_capacity);
-	printf("   Design Voltage: %d mV\n", design.design_voltage);
-	printf("   Current Charge: %d%%\n", cap.relative_charge);
+	printf("        Serial Number: %d\n", design.serial_number);
+	printf("         Manufacturer: %s\n", design.mfg_name);
+	printf("                Model: %s\n", design.device_name);
+	printf("            Chemistry: %s\n", design.device_chemistry);
+	printf("      Design Capacity: %d mAh\n", design.design_capacity);
+	printf(" Full Charge Capacity: %d mAh\n", cap.full_charge_capacity);
+	printf("     Current Capacity: %d mAh\n", cap.remaining_capacity);
+	printf("        Charge Cycles: %d\n", cap.cycle_count);
+	printf("       Current Charge: %d%%\n", cap.relative_charge);
+	printf("       Design Voltage: %d mV\n", design.design_voltage);
+	printf("      Current Voltage: %d mV\n", stat.voltage);
+	printf("          Temperature: %d C\n", stat.temperature);
+	printf("               Status:");
+	comma = 0;
+	if (stat.fw_status & MFI_BBU_STATE_PACK_MISSING) {
+		printf(" PACK_MISSING");
+		comma = 1;
+	}
+	if (stat.fw_status & MFI_BBU_STATE_VOLTAGE_LOW) {
+		printf("%s VOLTAGE_LOW", comma ? "," : "");
+		comma = 1;
+	}
+	if (stat.fw_status & MFI_BBU_STATE_TEMPERATURE_HIGH) {
+		printf("%s TEMPERATURE_HIGH", comma ? "," : "");
+		comma = 1;
+	}
+	if (stat.fw_status & MFI_BBU_STATE_CHARGE_ACTIVE) {
+		printf("%s CHARGING", comma ? "," : "");
+		comma = 1;
+	}
+	if (stat.fw_status & MFI_BBU_STATE_DISCHARGE_ACTIVE) {
+		printf("%s DISCHARGING", comma ? "," : "");
+	}
+	if (!comma)
+		printf(" normal");
+	printf("\n");
+	switch (stat.battery_type) {
+	case MFI_BBU_TYPE_BBU:
+		printf("      State of Health: %s\n",
+		    stat.detail.bbu.is_SOH_good ? "good" : "bad");
+		break;
+	}
 
 	close(fd);
 
@@ -242,7 +290,7 @@ show_config(int ac, char **av)
 	struct mfi_pd_info pinfo;
 	uint16_t device_id;
 	char *p;
-	int fd, i, j;
+	int error, fd, i, j;
 
 	if (ac != 1) {
 		warnx("show config: extra arguments");
@@ -251,14 +299,16 @@ show_config(int ac, char **av)
 
 	fd = mfi_open(mfi_unit);
 	if (fd < 0) {
+		error = errno;
 		warn("mfi_open");
-		return (errno);
+		return (error);
 	}
 
 	/* Get the config from the controller. */
 	if (mfi_config_read(fd, &config) < 0) {
+		error = errno;
 		warn("Failed to get config");
-		return (errno);
+		return (error);
 	}
 
 	/* Dump out the configuration. */
@@ -337,8 +387,8 @@ show_volumes(int ac, char **av)
 {
 	struct mfi_ld_list list;
 	struct mfi_ld_info info;
+	int error, fd;
 	u_int i, len, state_len;
-	int fd;
 
 	if (ac != 1) {
 		warnx("show volumes: extra arguments");
@@ -347,14 +397,16 @@ show_volumes(int ac, char **av)
 
 	fd = mfi_open(mfi_unit);
 	if (fd < 0) {
+		error = errno;
 		warn("mfi_open");
-		return (errno);
+		return (error);
 	}
 
 	/* Get the logical drive list from the controller. */
 	if (mfi_ld_get_list(fd, &list, NULL) < 0) {
+		error = errno;
 		warn("Failed to get volume list");
-		return (errno);
+		return (error);
 	}
 
 	/* List the volumes. */
@@ -376,9 +428,10 @@ show_volumes(int ac, char **av)
 	for (i = 0; i < list.ld_count; i++) {
 		if (mfi_ld_get_info(fd, list.ld_list[i].ld.v.target_id, &info,
 		    NULL) < 0) {
+			error = errno;
 			warn("Failed to get info for volume %d",
 			    list.ld_list[i].ld.v.target_id);
-			return (errno);
+			return (error);
 		}
 		printf("%6s ",
 		    mfi_volume_name(fd, list.ld_list[i].ld.v.target_id));
@@ -416,7 +469,7 @@ show_drives(int ac, char **av)
 	struct mfi_pd_list *list;
 	struct mfi_pd_info info;
 	u_int i, len, state_len;
-	int fd;
+	int error, fd;
 
 	if (ac != 1) {
 		warnx("show drives: extra arguments");
@@ -425,13 +478,15 @@ show_drives(int ac, char **av)
 
 	fd = mfi_open(mfi_unit);
 	if (fd < 0) {
+		error = errno;
 		warn("mfi_open");
-		return (errno);
+		return (error);
 	}
 
 	if (mfi_pd_get_list(fd, &list, NULL) < 0) {
+		error = errno;
 		warn("Failed to get drive list");
-		return (errno);
+		return (error);
 	}
 
 	/* Walk the list of drives to determine width of state column. */
@@ -442,9 +497,10 @@ show_drives(int ac, char **av)
 
 		if (mfi_pd_get_info(fd, list->addr[i].device_id, &info,
 		    NULL) < 0) {
+			error = errno;
 			warn("Failed to fetch info for drive %u",
 			    list->addr[i].device_id);
-			return (errno);
+			return (error);
 		}
 		len = strlen(mfi_pdstate(info.fw_state));
 		if (len > state_len)
@@ -462,9 +518,10 @@ show_drives(int ac, char **av)
 		/* Fetch details for this drive. */
 		if (mfi_pd_get_info(fd, list->addr[i].device_id, &info,
 		    NULL) < 0) {
+			error = errno;
 			warn("Failed to fetch info for drive %u",
 			    list->addr[i].device_id);
-			return (errno);
+			return (error);
 		}
 
 		print_pd(&info, state_len, 1);
@@ -511,23 +568,25 @@ show_firmware(int ac, char **av)
 {
 	struct mfi_ctrl_info info;
 	struct mfi_info_component header;
-	int fd;
+	int error, fd;
 	u_int i;
 
 	if (ac != 1) {
-		warnx("show drives: extra arguments");
+		warnx("show firmware: extra arguments");
 		return (EINVAL);
 	}
 
 	fd = mfi_open(mfi_unit);
 	if (fd < 0) {
+		error = errno;
 		warn("mfi_open");
-		return (errno);
+		return (error);
 	}
 
 	if (mfi_ctrl_get_info(fd, &info, NULL) < 0) {
+		error = errno;
 		warn("Failed to get controller info");
-		return (errno);
+		return (error);
 	}
 
 	if (info.package_version[0] != '\0')
@@ -558,3 +617,112 @@ show_firmware(int ac, char **av)
 	return (0);
 }
 MFI_COMMAND(show, firmware, show_firmware);
+
+static int
+show_progress(int ac, char **av)
+{
+	struct mfi_ld_list llist;
+	struct mfi_pd_list *plist;
+	struct mfi_ld_info linfo;
+	struct mfi_pd_info pinfo;
+	int busy, error, fd;
+	u_int i;
+	
+	uint16_t device_id;
+	uint8_t target_id;
+
+	if (ac != 1) {
+		warnx("show progress: extra arguments");
+		return (EINVAL);
+	}
+
+	fd = mfi_open(mfi_unit);
+	if (fd < 0) {
+		error = errno;
+		warn("mfi_open");
+		return (error);
+	}
+	busy = 0;
+
+	if (mfi_ld_get_list(fd, &llist, NULL) < 0) {
+		error = errno;
+		warn("Failed to get volume list");
+		return (error);
+	}
+	if (mfi_pd_get_list(fd, &plist, NULL) < 0) {
+		error = errno;
+		warn("Failed to get drive list");
+		return (error);
+	}
+
+	for (i = 0; i < llist.ld_count; i++) {
+		target_id = llist.ld_list[i].ld.v.target_id;
+		if (mfi_ld_get_info(fd, target_id, &linfo, NULL) < 0) {
+			error = errno;
+			warn("Failed to get info for volume %s",
+			    mfi_volume_name(fd, target_id));
+			return (error);
+		}
+		if (linfo.progress.active & MFI_LD_PROGRESS_CC) {
+			printf("volume %s ", mfi_volume_name(fd, target_id));
+			mfi_display_progress("Consistency Check",
+			    &linfo.progress.cc);
+			busy = 1;
+		}
+		if (linfo.progress.active & MFI_LD_PROGRESS_BGI) {
+			printf("volume %s ", mfi_volume_name(fd, target_id));
+			mfi_display_progress("Background Init",
+			    &linfo.progress.bgi);
+			busy = 1;
+		}
+		if (linfo.progress.active & MFI_LD_PROGRESS_FGI) {
+			printf("volume %s ", mfi_volume_name(fd, target_id));
+			mfi_display_progress("Foreground Init",
+			    &linfo.progress.fgi);
+			busy = 1;
+		}
+		if (linfo.progress.active & MFI_LD_PROGRESS_RECON) {
+			printf("volume %s ", mfi_volume_name(fd, target_id));
+			mfi_display_progress("Reconstruction",
+			    &linfo.progress.recon);
+			busy = 1;
+		}
+	}
+
+	for (i = 0; i < plist->count; i++) {
+		if (plist->addr[i].scsi_dev_type != 0)
+			continue;
+
+		device_id = plist->addr[i].device_id;
+		if (mfi_pd_get_info(fd, device_id, &pinfo, NULL) < 0) {
+			error = errno;
+			warn("Failed to fetch info for drive %u", device_id);
+			return (error);
+		}
+
+		if (pinfo.prog_info.active & MFI_PD_PROGRESS_REBUILD) {
+			printf("drive %u ", device_id);
+			mfi_display_progress("Rebuild", &pinfo.prog_info.rbld);
+			busy = 1;
+		}
+		if (pinfo.prog_info.active & MFI_PD_PROGRESS_PATROL) {
+			printf("drive %u ", device_id);
+			mfi_display_progress("Patrol Read",
+			    &pinfo.prog_info.patrol);
+			busy = 1;
+		}
+		if (pinfo.prog_info.active & MFI_PD_PROGRESS_CLEAR) {
+			printf("drive %u ", device_id);
+			mfi_display_progress("Clear", &pinfo.prog_info.clear);
+			busy = 1;
+		}
+	}
+
+	close(fd);
+
+	if (!busy)
+		printf("No activity in progress for adapter mfi%d\n", mfi_unit);
+
+	return (0);
+}
+MFI_COMMAND(show, progress, show_progress);

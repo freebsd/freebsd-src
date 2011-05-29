@@ -50,7 +50,6 @@
 .Sh SYNOPSIS
 .In sys/types.h
 .In sys/systm.h
-.Pp
 .Bd -literal
 typedef void timeout_t (void *);
 .Ed
@@ -58,7 +57,6 @@ typedef void timeout_t (void *);
 .Fn timeout "timeout_t *func" "void *arg" "int ticks"
 .Ft void
 .Fn callout_handle_init "struct callout_handle *handle"
-.Pp
 .Bd -literal
 struct callout_handle handle = CALLOUT_HANDLE_INITIALIZER(&handle)
 .Ed
@@ -234,7 +232,7 @@ after the callout function returns.
 .Pp
 The
 .Fn callout_init_rw
-function serves the need of using rwlocks in conujunction with callouts.
+function serves the need of using rwlocks in conjunction with callouts.
 The function does basically the same as
 .Fn callout_init_mtx
 with the possibility of specifying an extra
@@ -249,7 +247,7 @@ may be specified:
 .Bl -tag -width ".Dv CALLOUT_SHAREDLOCK"
 .It Dv CALLOUT_SHAREDLOCK
 The lock is only acquired in read mode when running the callout handler.
-It has no effects when used in conjuction with
+It has no effects when used in conjunction with
 .Fa mtx .
 .El
 .Pp

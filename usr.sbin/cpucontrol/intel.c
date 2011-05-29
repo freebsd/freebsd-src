@@ -104,7 +104,6 @@ intel_update(const char *dev, const char *path)
 	assert(dev);
 
 	fd = -1;
-	devfd = -1;
 	fw_image = MAP_FAILED;
 	ext_table = NULL;
 	ext_header = NULL;

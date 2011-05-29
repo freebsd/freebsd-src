@@ -1177,12 +1177,6 @@ struct zyd_rx_data {
 	int				rssi;
 };
 
-struct zyd_node {
-	struct ieee80211_node	ni;	/* must be the first */
-	struct ieee80211_amrr_node	amn;
-};
-#define	ZYD_NODE(ni)	((struct zyd_node *)(ni))
-
 struct zyd_rx_radiotap_header {
 	struct ieee80211_radiotap_header wr_ihdr;
 	uint8_t			wr_flags;
@@ -1243,7 +1237,6 @@ struct zyd_vap {
 	struct ieee80211vap	vap;
 	int			(*newstate)(struct ieee80211vap *,
 				    enum ieee80211_state, int);
-	struct ieee80211_amrr	amrr;
 };
 #define	ZYD_VAP(vap)	((struct zyd_vap *)(vap))
 

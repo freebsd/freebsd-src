@@ -14,3 +14,5 @@ ENTRY(lldiv)
 	idivq	%rsi
 	ret
 END(lldiv)
+
+	.section .note.GNU-stack,"",%progbits

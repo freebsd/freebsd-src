@@ -59,6 +59,10 @@ __BEGIN_DECLS
 #define	bacpy(dst, src)	memcpy((dst), (src), sizeof(bdaddr_t))
 #define ba2str(ba, str)	bt_ntoa((ba), (str))
 #define str2ba(str, ba)	(bt_aton((str), (ba)) == 1? 0 : -1)
+#define htobs(d)	htole16(d)
+#define htobl(d)	htole32(d)
+#define btohs(d)	le16toh(d)
+#define btohl(d)	le32toh(d)
 
 /*
  * Interface to the outside world

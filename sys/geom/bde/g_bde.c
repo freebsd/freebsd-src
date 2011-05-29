@@ -41,12 +41,15 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
+#include <sys/sysctl.h>
 
 #include <crypto/rijndael/rijndael-api-fst.h>
 #include <crypto/sha2/sha2.h>
 #include <geom/geom.h>
 #include <geom/bde/g_bde.h>
 #define BDE_CLASS_NAME "BDE"
+
+FEATURE(geom_bde, "GEOM-based Disk Encryption");
 
 static void
 g_bde_start(struct bio *bp)

@@ -57,9 +57,7 @@ __FBSDID("$FreeBSD$");
 #include "miibus_if.h"
 
 #include <machine/bus.h>
-/*
-#include <dev/vge/if_vgereg.h>
-*/
+
 static int ciphy_probe(device_t);
 static int ciphy_attach(device_t);
 
@@ -88,14 +86,20 @@ static void	ciphy_reset(struct mii_softc *);
 static void	ciphy_fixup(struct mii_softc *);
 
 static const struct mii_phydesc ciphys[] = {
-	MII_PHY_DESC(CICADA, CS8201),
-	MII_PHY_DESC(CICADA, CS8201A),
-	MII_PHY_DESC(CICADA, CS8201B),
-	MII_PHY_DESC(CICADA, CS8204),
-	MII_PHY_DESC(CICADA, VSC8211),
-	MII_PHY_DESC(CICADA, CS8244),
-	MII_PHY_DESC(VITESSE, VSC8601),
+	MII_PHY_DESC(xxCICADA, CS8201),
+	MII_PHY_DESC(xxCICADA, CS8201A),
+	MII_PHY_DESC(xxCICADA, CS8201B),
+	MII_PHY_DESC(xxCICADA, CS8204),
+	MII_PHY_DESC(xxCICADA, VSC8211),
+	MII_PHY_DESC(xxCICADA, CS8244),
+	MII_PHY_DESC(xxVITESSE, VSC8601),
 	MII_PHY_END
+};
+
+static const struct mii_phy_funcs ciphy_funcs = {
+	ciphy_service,
+	ciphy_status,
+	ciphy_reset
 };
 
 static int
@@ -108,35 +112,9 @@ ciphy_probe(device_t dev)
 static int
 ciphy_attach(device_t dev)
 {
-	struct mii_softc *sc;
-	struct mii_attach_args *ma;
-	struct mii_data *mii;
 
-	sc = device_get_softc(dev);
-	ma = device_get_ivars(dev);
-	sc->mii_dev = device_get_parent(dev);
-	mii = device_get_softc(sc->mii_dev);
-	LIST_INSERT_HEAD(&mii->mii_phys, sc, mii_list);
-
-	sc->mii_inst = mii->mii_instance;
-	sc->mii_phy = ma->mii_phyno;
-	sc->mii_service = ciphy_service;
-	sc->mii_pdata = mii;
-
-	sc->mii_flags |= MIIF_NOISOLATE;
-	mii->mii_instance++;
-
-	ciphy_reset(sc);
-
-	sc->mii_capabilities =
-	    PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
-	if (sc->mii_capabilities & BMSR_EXTSTAT)
-		sc->mii_extcapabilities = PHY_READ(sc, MII_EXTSR);
-	device_printf(dev, " ");
-	mii_phy_add_media(sc);
-	printf("\n");
-
-	MIIBUS_MEDIAINIT(sc->mii_dev);
+	mii_phy_dev_attach(dev, MIIF_NOISOLATE | MIIF_NOMANPAUSE,
+	    &ciphy_funcs, 1);
 	return (0);
 }
 
@@ -148,24 +126,9 @@ ciphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 
 	switch (cmd) {
 	case MII_POLLSTAT:
-		/*
-		 * If we're not polling our PHY instance, just return.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst)
-			return (0);
 		break;
 
 	case MII_MEDIACHG:
-		/*
-		 * If the media indicates a different PHY instance,
-		 * isolate ourselves.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst) {
-			reg = PHY_READ(sc, MII_BMCR);
-			PHY_WRITE(sc, MII_BMCR, reg | BMCR_ISO);
-			return (0);
-		}
-
 		/*
 		 * If the interface is not up, don't do anything.
 		 */
@@ -183,7 +146,7 @@ ciphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 			if (PHY_READ(sc, CIPHY_MII_BMCR) & CIPHY_BMCR_AUTOEN)
 				return (0);
 #endif
-			(void) mii_phy_auto(sc);
+			(void)mii_phy_auto(sc);
 			break;
 		case IFM_1000_T:
 			speed = CIPHY_S1000;
@@ -194,56 +157,33 @@ ciphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		case IFM_10_T:
 			speed = CIPHY_S10;
 setit:
-			if ((ife->ifm_media & IFM_GMASK) == IFM_FDX) {
+			if ((ife->ifm_media & IFM_FDX) != 0) {
 				speed |= CIPHY_BMCR_FDX;
 				gig = CIPHY_1000CTL_AFD;
-			} else {
+			} else
 				gig = CIPHY_1000CTL_AHD;
-			}
 
-			PHY_WRITE(sc, CIPHY_MII_1000CTL, 0);
+			if (IFM_SUBTYPE(ife->ifm_media) == IFM_1000_T) {
+				gig |= CIPHY_1000CTL_MSE;
+				if ((ife->ifm_media & IFM_ETH_MASTER) != 0)
+					gig |= CIPHY_1000CTL_MSC;
+				speed |=
+				    CIPHY_BMCR_AUTOEN | CIPHY_BMCR_STARTNEG;
+			} else
+				gig = 0;
+			PHY_WRITE(sc, CIPHY_MII_1000CTL, gig);
 			PHY_WRITE(sc, CIPHY_MII_BMCR, speed);
 			PHY_WRITE(sc, CIPHY_MII_ANAR, CIPHY_SEL_TYPE);
-
-			if (IFM_SUBTYPE(ife->ifm_media) != IFM_1000_T)
-				break;
-
-			PHY_WRITE(sc, CIPHY_MII_1000CTL, gig);
-			PHY_WRITE(sc, CIPHY_MII_BMCR,
-			    speed|CIPHY_BMCR_AUTOEN|CIPHY_BMCR_STARTNEG);
-
-			/*
-			 * When setting the link manually, one side must
-			 * be the master and the other the slave. However
-			 * ifmedia doesn't give us a good way to specify
-			 * this, so we fake it by using one of the LINK
-			 * flags. If LINK0 is set, we program the PHY to
-			 * be a master, otherwise it's a slave.
-			 */
-			if ((mii->mii_ifp->if_flags & IFF_LINK0)) {
-				PHY_WRITE(sc, CIPHY_MII_1000CTL,
-				    gig|CIPHY_1000CTL_MSE|CIPHY_1000CTL_MSC);
-			} else {
-				PHY_WRITE(sc, CIPHY_MII_1000CTL,
-				    gig|CIPHY_1000CTL_MSE);
-			}
 			break;
 		case IFM_NONE:
-			PHY_WRITE(sc, MII_BMCR, BMCR_ISO|BMCR_PDOWN);
+			PHY_WRITE(sc, MII_BMCR, BMCR_ISO | BMCR_PDOWN);
 			break;
-		case IFM_100_T4:
 		default:
 			return (EINVAL);
 		}
 		break;
 
 	case MII_TICK:
-		/*
-		 * If we're not currently selected, just return.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst)
-			return (0);
-
 		/*
 		 * Is the interface even up?
 		 */
@@ -280,7 +220,7 @@ setit:
 	}
 
 	/* Update the media status. */
-	ciphy_status(sc);
+	PHY_STATUS(sc);
 
 	/*
 	 * Callback if something changed. Note that we need to poke
@@ -340,9 +280,13 @@ ciphy_status(struct mii_softc *sc)
 	}
 
 	if (bmsr & CIPHY_AUXCSR_FDX)
-		mii->mii_media_active |= IFM_FDX;
+		mii->mii_media_active |= IFM_FDX | mii_phy_flowstatus(sc);
 	else
 		mii->mii_media_active |= IFM_HDX;
+
+	if ((IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_T) &&
+	   (PHY_READ(sc, CIPHY_MII_1000STS) & CIPHY_1000STS_MSR) != 0)
+		mii->mii_media_active |= IFM_ETH_MASTER;
 }
 
 static void
@@ -386,8 +330,8 @@ ciphy_fixup(struct mii_softc *sc)
 	}
 
 	switch (model) {
-	case MII_MODEL_CICADA_CS8204:
-	case MII_MODEL_CICADA_CS8201:
+	case MII_MODEL_xxCICADA_CS8204:
+	case MII_MODEL_xxCICADA_CS8201:
 
 		/* Turn off "aux mode" (whatever that means) */
 		PHY_SETBIT(sc, CIPHY_MII_AUXCSR, CIPHY_AUXCSR_MDPPS);
@@ -408,8 +352,8 @@ ciphy_fixup(struct mii_softc *sc)
 
 		break;
 
-	case MII_MODEL_CICADA_CS8201A:
-	case MII_MODEL_CICADA_CS8201B:
+	case MII_MODEL_xxCICADA_CS8201A:
+	case MII_MODEL_xxCICADA_CS8201B:
 
 		/*
 		 * Work around speed polling bug in VT3119/VT3216
@@ -423,9 +367,9 @@ ciphy_fixup(struct mii_softc *sc)
 		}
 
 		break;
-	case MII_MODEL_CICADA_VSC8211:
-	case MII_MODEL_CICADA_CS8244:
-	case MII_MODEL_VITESSE_VSC8601:
+	case MII_MODEL_xxCICADA_VSC8211:
+	case MII_MODEL_xxCICADA_CS8244:
+	case MII_MODEL_xxVITESSE_VSC8601:
 		break;
 	default:
 		device_printf(sc->mii_dev, "unknown CICADA PHY model %x\n",

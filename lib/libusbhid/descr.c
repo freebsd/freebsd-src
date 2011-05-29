@@ -38,7 +38,6 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <sys/time.h>
 #include <sys/ioctl.h>
-
 #include <dev/usb/usb_ioctl.h>
 
 #include "usbhid.h"
@@ -59,9 +58,30 @@ hid_set_immed(int fd, int enable)
 int
 hid_get_report_id(int fd)
 {
+	report_desc_t rep;
+	hid_data_t d;
+	hid_item_t h;
+	int kindset;
 	int temp = -1;
 	int ret;
 
+	if ((rep = hid_get_report_desc(fd)) == NULL)
+		goto use_ioctl;
+	kindset = 1 << hid_input | 1 << hid_output | 1 << hid_feature;
+	for (d = hid_start_parse(rep, kindset, 0); hid_get_item(d, &h); ) {
+		/* Return the first report ID we met. */
+		if (h.report_ID != 0) {
+			temp = h.report_ID;
+			break;
+		}
+	}
+	hid_end_parse(d);
+	hid_dispose_report_desc(rep);
+
+	if (temp > 0)
+		return (temp);
+
+use_ioctl:
 	ret = ioctl(fd, USB_GET_REPORT_ID, &temp);
 #ifdef HID_COMPAT7
 	if (ret < 0)
@@ -83,7 +103,7 @@ hid_get_report_desc(int fd)
 	memset(&ugd, 0, sizeof(ugd));
 
 	/* get actual length first */
-	ugd.ugd_data = NULL;
+	ugd.ugd_data = hid_pass_ptr(NULL);
 	ugd.ugd_maxlen = 65535;
 	if (ioctl(fd, USB_GET_REPORT_DESC, &ugd) < 0) {
 #ifdef HID_COMPAT7
@@ -104,7 +124,7 @@ hid_get_report_desc(int fd)
 		return (NULL);
 
 	/* fetch actual descriptor */
-	ugd.ugd_data = data;
+	ugd.ugd_data = hid_pass_ptr(data);
 	ugd.ugd_maxlen = ugd.ugd_actlen;
 	if (ioctl(fd, USB_GET_REPORT_DESC, &ugd) < 0) {
 		/* could not read descriptor */
@@ -112,8 +132,15 @@ hid_get_report_desc(int fd)
 		return (NULL);
 	}
 
+	/* sanity check */
+	if (ugd.ugd_actlen < 1) {
+		/* invalid report descriptor */
+		free(data);
+		return (NULL);
+	}
+
 	/* check END_COLLECTION */
-	if (((unsigned char *)ugd.ugd_data)[ugd.ugd_actlen -1] != 0xC0) {
+	if (((unsigned char *)data)[ugd.ugd_actlen -1] != 0xC0) {
 		/* invalid end byte */
 		free(data);
 		return (NULL);

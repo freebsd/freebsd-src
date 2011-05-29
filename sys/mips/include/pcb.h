@@ -51,27 +51,27 @@ struct pcb
 {
 	struct trapframe pcb_regs;	/* saved CPU and registers */
 	__register_t pcb_context[14];	/* kernel context for resume */
-	int	pcb_onfault;		/* for copyin/copyout faults */
+	void *pcb_onfault;		/* for copyin/copyout faults */
 	register_t pcb_tpc;
 };
 
 /* these match the regnum's in regnum.h
  * used by switch.S
  */
-#define PCB_REG_S0   0
-#define PCB_REG_S1   1
-#define PCB_REG_S2   2
-#define PCB_REG_S3   3
-#define PCB_REG_S4   4
-#define PCB_REG_S5   5
-#define PCB_REG_S6   6
-#define PCB_REG_S7   7
-#define PCB_REG_SP   8
-#define PCB_REG_S8   9
-#define PCB_REG_RA   10
-#define PCB_REG_SR   11
-#define PCB_REG_GP   12
-#define PCB_REG_PC   13
+#define	PCB_REG_S0	0
+#define	PCB_REG_S1	1
+#define	PCB_REG_S2	2
+#define	PCB_REG_S3	3
+#define	PCB_REG_S4	4
+#define	PCB_REG_S5	5
+#define	PCB_REG_S6	6
+#define	PCB_REG_S7	7
+#define	PCB_REG_SP	8
+#define	PCB_REG_S8	9
+#define	PCB_REG_RA	10
+#define	PCB_REG_SR	11
+#define	PCB_REG_GP	12
+#define	PCB_REG_PC	13
 
 
 #ifdef _KERNEL

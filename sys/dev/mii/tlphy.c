@@ -16,13 +16,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the NetBSD
- *	Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -48,11 +41,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by Manuel Bouyer.
- * 4. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -125,17 +113,26 @@ DRIVER_MODULE(tlphy, miibus, tlphy_driver, tlphy_devclass, 0, 0);
 static int	tlphy_service(struct mii_softc *, struct mii_data *, int);
 static int	tlphy_auto(struct tlphy_softc *);
 static void	tlphy_acomp(struct tlphy_softc *);
-static void	tlphy_status(struct tlphy_softc *);
+static void	tlphy_status(struct mii_softc *);
 
 static const struct mii_phydesc tlphys[] = {
-	MII_PHY_DESC(xxTI, TLAN10T),
+	MII_PHY_DESC(TI, TLAN10T),
 	MII_PHY_END
+};
+
+static const struct mii_phy_funcs tlphy_funcs = {
+	tlphy_service,
+	tlphy_status,
+	mii_phy_reset
 };
 
 static int
 tlphy_probe(device_t dev)
 {
 
+	if (strcmp(device_get_name(device_get_parent(device_get_parent(dev))),
+	    "tl") != 0)
+		return (ENXIO);
 	return (mii_phy_dev_probe(dev, tlphys, BUS_PROBE_DEFAULT));
 }
 
@@ -143,29 +140,25 @@ static int
 tlphy_attach(device_t dev)
 {
 	device_t *devlist;
-	struct tlphy_softc *sc;
-	struct mii_softc *other;
-	struct mii_attach_args *ma;
-	struct mii_data *mii;
+	struct mii_softc *other, *sc_mii;
 	const char *sep = "";
 	int capmask, devs, i;
 
-	sc = device_get_softc(dev);
-	ma = device_get_ivars(dev);
-	sc->sc_mii.mii_dev = device_get_parent(dev);
-	mii = device_get_softc(sc->sc_mii.mii_dev);
-	LIST_INSERT_HEAD(&mii->mii_phys, &sc->sc_mii, mii_list);
+	sc_mii = device_get_softc(dev);
 
-	sc->sc_mii.mii_inst = mii->mii_instance;
-	sc->sc_mii.mii_phy = ma->mii_phyno;
-	sc->sc_mii.mii_service = tlphy_service;
-	sc->sc_mii.mii_pdata = mii;
+	mii_phy_dev_attach(dev, MIIF_NOMANPAUSE, &tlphy_funcs, 0);
 
-	capmask = 0xFFFFFFFF;
-	if (mii->mii_instance &&
-	    device_get_children(sc->sc_mii.mii_dev, &devlist, &devs) == 0) {
+	/*
+	 * Note that if we're on a device that also supports 100baseTX,
+	 * we are not going to want to use the built-in 10baseT port,
+	 * since there will be another PHY on the MII wired up to the
+	 * UTP connector.
+	 */
+	capmask = BMSR_DEFCAPMASK;
+	if (sc_mii->mii_inst &&
+	    device_get_children(sc_mii->mii_dev, &devlist, &devs) == 0) {
 		for (i = 0; i < devs; i++) {
-			if (strcmp(device_get_name(devlist[i]), "tlphy")) {
+			if (devlist[i] != dev) {
 				other = device_get_softc(devlist[i]);
 				capmask &= ~other->mii_capabilities;
 				break;
@@ -174,47 +167,38 @@ tlphy_attach(device_t dev)
 		free(devlist, M_TEMP);
 	}
 
-	mii->mii_instance++;
+	PHY_RESET(sc_mii);
 
-	sc->sc_mii.mii_flags &= ~MIIF_NOISOLATE;
-	mii_phy_reset(&sc->sc_mii);
-	sc->sc_mii.mii_flags |= MIIF_NOISOLATE;
+	sc_mii->mii_capabilities = PHY_READ(sc_mii, MII_BMSR) & capmask;
 
-	/*
-	 * Note that if we're on a device that also supports 100baseTX,
-	 * we are not going to want to use the built-in 10baseT port,
-	 * since there will be another PHY on the MII wired up to the
-	 * UTP connector.  The parent indicates this to us by specifying
-	 * the TLPHY_MEDIA_NO_10_T bit.
-	 */
-	sc->sc_mii.mii_capabilities =
-	    PHY_READ(&sc->sc_mii, MII_BMSR) & capmask /*ma->mii_capmask*/;
-
-#define	ADD(m, c)	ifmedia_add(&mii->mii_media, (m), (c), NULL)
-
-	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_NONE, 0, sc->sc_mii.mii_inst),
-	    BMCR_ISO);
-
-	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_10_T, IFM_LOOP,
-	    sc->sc_mii.mii_inst), BMCR_LOOP);
-
+#define	ADD(m, c)							\
+    ifmedia_add(&sc_mii->mii_pdata->mii_media, (m), (c), NULL)
 #define	PRINT(s)	printf("%s%s", sep, s); sep = ", "
 
-	device_printf(dev, " ");
-	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_10_2, 0, sc->sc_mii.mii_inst), 0);
-	PRINT("10base2/BNC");
-	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_10_5, 0, sc->sc_mii.mii_inst), 0);
-	PRINT("10base5/AUI");
-
-	if (sc->sc_mii.mii_capabilities & BMSR_MEDIAMASK) {
-		printf("%s", sep);
-		mii_add_media(&sc->sc_mii);
+	if ((sc_mii->mii_flags & (MIIF_MACPRIV0 | MIIF_MACPRIV1)) != 0 &&
+	    (sc_mii->mii_capabilities & BMSR_MEDIAMASK) != 0)
+		device_printf(dev, " ");
+	if ((sc_mii->mii_flags & MIIF_MACPRIV0) != 0) {
+		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_10_2, 0, sc_mii->mii_inst),
+		    0);
+		PRINT("10base2/BNC");
 	}
-
-	printf("\n");
+	if ((sc_mii->mii_flags & MIIF_MACPRIV1) != 0) {
+		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_10_5, 0, sc_mii->mii_inst),
+		    0);
+		PRINT("10base5/AUI");
+	}
+	if ((sc_mii->mii_capabilities & BMSR_MEDIAMASK) != 0) {
+		printf("%s", sep);
+		mii_phy_add_media(sc_mii);
+	}
+	if ((sc_mii->mii_flags & (MIIF_MACPRIV0 | MIIF_MACPRIV1)) != 0 &&
+	    (sc_mii->mii_capabilities & BMSR_MEDIAMASK) != 0)
+		printf("\n");
 #undef ADD
 #undef PRINT
-	MIIBUS_MEDIAINIT(sc->sc_mii.mii_dev);
+
+	MIIBUS_MEDIAINIT(sc_mii->mii_dev);
 	return (0);
 }
 
@@ -230,24 +214,9 @@ tlphy_service(struct mii_softc *self, struct mii_data *mii, int cmd)
 
 	switch (cmd) {
 	case MII_POLLSTAT:
-		/*
-		 * If we're not polling our PHY instance, just return.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->sc_mii.mii_inst)
-			return (0);
 		break;
 
 	case MII_MEDIACHG:
-		/*
-		 * If the media indicates a different PHY instance,
-		 * isolate ourselves.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->sc_mii.mii_inst) {
-			reg = PHY_READ(&sc->sc_mii, MII_BMCR);
-			PHY_WRITE(&sc->sc_mii, MII_BMCR, reg | BMCR_ISO);
-			return (0);
-		}
-
 		/*
 		 * If the interface is not up, don't do anything.
 		 */
@@ -261,7 +230,7 @@ tlphy_service(struct mii_softc *self, struct mii_data *mii, int cmd)
 			 * an autonegotiation cycle, so there's no such
 			 * thing as "already in auto mode".
 			 */
-			(void) tlphy_auto(sc);
+			(void)tlphy_auto(sc);
 			break;
 		case IFM_10_2:
 		case IFM_10_5:
@@ -272,19 +241,11 @@ tlphy_service(struct mii_softc *self, struct mii_data *mii, int cmd)
 		default:
 			PHY_WRITE(&sc->sc_mii, MII_TLPHY_CTRL, 0);
 			DELAY(100000);
-			PHY_WRITE(&sc->sc_mii, MII_ANAR,
-			    mii_anar(ife->ifm_media));
-			PHY_WRITE(&sc->sc_mii, MII_BMCR, ife->ifm_data);
+			mii_phy_setmedia(&sc->sc_mii);
 		}
 		break;
 
 	case MII_TICK:
-		/*
-		 * If we're not currently selected, just return.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->sc_mii.mii_inst)
-			return (0);
-
 		/*
 		 * Is the interface even up?
 		 */
@@ -316,13 +277,13 @@ tlphy_service(struct mii_softc *self, struct mii_data *mii, int cmd)
 			break;
 
 		sc->sc_mii.mii_ticks = 0;
-		mii_phy_reset(&sc->sc_mii);
-		tlphy_auto(sc);
+		PHY_RESET(&sc->sc_mii);
+		(void)tlphy_auto(sc);
 		return (0);
 	}
 
 	/* Update the media status. */
-	tlphy_status(sc);
+	PHY_STATUS(self);
 
 	/* Callback if something changed. */
 	mii_phy_update(&sc->sc_mii, cmd);
@@ -330,8 +291,9 @@ tlphy_service(struct mii_softc *self, struct mii_data *mii, int cmd)
 }
 
 static void
-tlphy_status(struct tlphy_softc *sc)
+tlphy_status(struct mii_softc *self)
 {
+	struct tlphy_softc *sc = (struct tlphy_softc *)self;
 	struct mii_data *mii = sc->sc_mii.mii_pdata;
 	int bmsr, bmcr, tlctrl;
 
@@ -367,7 +329,9 @@ tlphy_status(struct tlphy_softc *sc)
 	 * just have to report what's in the BMCR.
 	 */
 	if (bmcr & BMCR_FDX)
-		mii->mii_media_active |= IFM_FDX;
+		mii->mii_media_active |= IFM_FDX | mii_phy_flowstatus(self);
+	else
+		mii->mii_media_active |= IFM_HDX;
 	mii->mii_media_active |= IFM_10_T;
 }
 

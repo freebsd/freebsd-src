@@ -222,9 +222,6 @@ must be the absolute path from root to the script file, be a regular
 file, and be created by the same owner who runs
 .Nm .
 .El
-.Sh EXIT STATUS
-.Ex -std
-.\"
 .Sh FILES
 .Bl -tag -width /var/run/rtsold.dump -compact
 .It Pa /var/run/rtsold.pid
@@ -233,6 +230,9 @@ the pid of the currently running
 .It Pa /var/run/rtsold.dump
 dumps internal state on.
 .El
+.\"
+.Sh EXIT STATUS
+.Ex -std
 .\"
 .Sh SEE ALSO
 .Xr rtadvd 8 ,

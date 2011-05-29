@@ -25,7 +25,7 @@
 #ifndef _DEFINES_H
 #define _DEFINES_H
 
-/* $Id: defines.h,v 1.156 2009/08/28 01:21:07 dtucker Exp $ */
+/* $Id: defines.h,v 1.165 2011/05/05 01:19:15 djm Exp $ */
 
 
 /* Constants */
@@ -42,6 +42,11 @@ enum
 # define SHUT_RDWR SHUT_RDWR
 #endif
 
+/*
+ * Definitions for IP type of service (ip_tos)
+ */
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
 #ifndef IPTOS_LOWDELAY
 # define IPTOS_LOWDELAY          0x10
 # define IPTOS_THROUGHPUT        0x08
@@ -49,6 +54,38 @@ enum
 # define IPTOS_LOWCOST           0x02
 # define IPTOS_MINCOST           IPTOS_LOWCOST
 #endif /* IPTOS_LOWDELAY */
+
+/*
+ * Definitions for DiffServ Codepoints as per RFC2474
+ */
+#ifndef IPTOS_DSCP_AF11
+# define	IPTOS_DSCP_AF11		0x28
+# define	IPTOS_DSCP_AF12		0x30
+# define	IPTOS_DSCP_AF13		0x38
+# define	IPTOS_DSCP_AF21		0x48
+# define	IPTOS_DSCP_AF22		0x50
+# define	IPTOS_DSCP_AF23		0x58
+# define	IPTOS_DSCP_AF31		0x68
+# define	IPTOS_DSCP_AF32		0x70
+# define	IPTOS_DSCP_AF33		0x78
+# define	IPTOS_DSCP_AF41		0x88
+# define	IPTOS_DSCP_AF42		0x90
+# define	IPTOS_DSCP_AF43		0x98
+# define	IPTOS_DSCP_EF		0xb8
+#endif /* IPTOS_DSCP_AF11 */
+#ifndef IPTOS_DSCP_CS0
+# define	IPTOS_DSCP_CS0		0x00
+# define	IPTOS_DSCP_CS1		0x20
+# define	IPTOS_DSCP_CS2		0x40
+# define	IPTOS_DSCP_CS3		0x60
+# define	IPTOS_DSCP_CS4		0x80
+# define	IPTOS_DSCP_CS5		0xa0
+# define	IPTOS_DSCP_CS6		0xc0
+# define	IPTOS_DSCP_CS7		0xe0
+#endif /* IPTOS_DSCP_CS0 */
+#ifndef IPTOS_DSCP_EF
+# define	IPTOS_DSCP_EF		0xb8
+#endif /* IPTOS_DSCP_EF */
 
 #ifndef MAXPATHLEN
 # ifdef PATH_MAX
@@ -255,6 +292,10 @@ typedef unsigned int size_t;
 # define HAVE_SIZE_T
 # define SIZE_T_MAX UINT_MAX
 #endif /* HAVE_SIZE_T */
+
+#ifndef SIZE_MAX
+#define SIZE_MAX SIZE_T_MAX
+#endif
 
 #ifndef HAVE_SSIZE_T
 typedef int ssize_t;
@@ -566,6 +607,11 @@ struct winsize {
 # define CUSTOM_SSH_AUDIT_EVENTS
 #endif
 
+#ifdef USE_LINUX_AUDIT
+# define SSH_AUDIT_EVENTS
+# define CUSTOM_SSH_AUDIT_EVENTS
+#endif
+
 #if !defined(HAVE___func__) && defined(HAVE___FUNCTION__)
 #  define __func__ __FUNCTION__
 #elif !defined(HAVE___func__)
@@ -751,6 +797,14 @@ struct winsize {
 
 #ifndef SSH_IOBUFSZ
 # define SSH_IOBUFSZ 8192
+#endif
+
+#ifndef _NSIG
+# ifdef NSIG
+#  define _NSIG NSIG
+# else
+#  define _NSIG 128
+# endif
 #endif
 
 #endif /* _DEFINES_H */

@@ -1,40 +1,33 @@
 %{
 
 /* Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001, 2002, 2003  Free Software Foundation, Inc.
+   2000, 2001, 2002, 2003, 2004, 2005, 2007
+   Free Software Foundation, Inc.
 
-This file is part of GLD, the Gnu Linker.
+   This file is part of GLD, the Gnu Linker.
 
-GLD is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2, or (at your option)
-any later version.
+   GLD is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2, or (at your option)
+   any later version.
 
-GLD is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   GLD is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with GLD; see the file COPYING.  If not, write to the Free
-Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with GLD; see the file COPYING.  If not, write to the Free
+   Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 /*
 This was written by steve chamberlain
                     sac@cygnus.com
 */
 
-
-#include <stdio.h>
-
-#ifdef MPW
-/* Prevent enum redefinition problems. */
-#define TRUE_FALSE_ALREADY_DEFINED
-#endif /* MPW */
-
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "safe-ctype.h"
 #include "bfdlink.h"
 #include "ld.h"
@@ -69,6 +62,8 @@ const char *lex_string = NULL;
 
 #undef YY_INPUT
 #define YY_INPUT(buf,result,max_size) yy_input (buf, &result, max_size)
+
+#define YY_NO_UNPUT
 
 #define MAX_INCLUDE_DEPTH 10
 static YY_BUFFER_STATE include_stack[MAX_INCLUDE_DEPTH];
@@ -135,6 +130,7 @@ V_IDENTIFIER [*?.$_a-zA-Z\[\]\-\!\^\\]([*?.$_a-zA-Z0-9\[\]\-\!\^\\]|::)*
 	case input_script: return INPUT_SCRIPT; break;
 	case input_mri_script: return INPUT_MRI_SCRIPT; break;
 	case input_version_script: return INPUT_VERSION_SCRIPT; break;
+	case input_dynamic_list: return INPUT_DYNAMIC_LIST; break;
 	case input_defsym: return INPUT_DEFSYM; break;
 	default: abort ();
 	}
@@ -239,88 +235,99 @@ V_IDENTIFIER [*?.$_a-zA-Z\[\]\-\!\^\\]([*?.$_a-zA-Z0-9\[\]\-\!\^\\]|::)*
 <BOTH,SCRIPT,EXPRESSION,MRI>"/"		{ RTOKEN('/');}
 <BOTH,SCRIPT,EXPRESSION,MRI>"%"		{ RTOKEN('%');}
 <BOTH,SCRIPT,EXPRESSION,MRI>"<"		{ RTOKEN('<');}
-<BOTH,SCRIPT,EXPRESSION,MRI>"="          { RTOKEN('=');}
-<BOTH,SCRIPT,EXPRESSION,MRI>"}"			{ RTOKEN('}') ; }
-<BOTH,SCRIPT,EXPRESSION,MRI>"{"			{ RTOKEN('{'); }
-<BOTH,SCRIPT,EXPRESSION,MRI>")"			{ RTOKEN(')');}
-<BOTH,SCRIPT,EXPRESSION,MRI>"("			{ RTOKEN('(');}
+<BOTH,SCRIPT,EXPRESSION,MRI>"="         { RTOKEN('=');}
+<BOTH,SCRIPT,EXPRESSION,MRI>"}"		{ RTOKEN('}') ; }
+<BOTH,SCRIPT,EXPRESSION,MRI>"{"		{ RTOKEN('{'); }
+<BOTH,SCRIPT,EXPRESSION,MRI>")"		{ RTOKEN(')');}
+<BOTH,SCRIPT,EXPRESSION,MRI>"("		{ RTOKEN('(');}
 <BOTH,SCRIPT,EXPRESSION,MRI>":"		{ RTOKEN(':'); }
 <BOTH,SCRIPT,EXPRESSION,MRI>";"		{ RTOKEN(';');}
-<BOTH,SCRIPT>"MEMORY"		{ RTOKEN(MEMORY);}
-<BOTH,SCRIPT>"ORIGIN"		{ RTOKEN(ORIGIN);}
-<BOTH,SCRIPT>"VERSION"		{ RTOKEN(VERSIONK);}
+<BOTH,SCRIPT>"MEMORY"			{ RTOKEN(MEMORY);}
+<BOTH,SCRIPT,EXPRESSION>"ORIGIN"	{ RTOKEN(ORIGIN);}
+<BOTH,SCRIPT>"VERSION"			{ RTOKEN(VERSIONK);}
 <EXPRESSION,BOTH,SCRIPT>"BLOCK"		{ RTOKEN(BLOCK);}
 <EXPRESSION,BOTH,SCRIPT>"BIND"		{ RTOKEN(BIND);}
-<BOTH,SCRIPT>"LENGTH"		{ RTOKEN(LENGTH);}
-<EXPRESSION,BOTH,SCRIPT>"ALIGN"			{ RTOKEN(ALIGN_K);}
+<BOTH,SCRIPT,EXPRESSION>"LENGTH"	{ RTOKEN(LENGTH);}
+<EXPRESSION,BOTH,SCRIPT>"ALIGN"		{ RTOKEN(ALIGN_K);}
 <EXPRESSION,BOTH,SCRIPT>"DATA_SEGMENT_ALIGN"	{ RTOKEN(DATA_SEGMENT_ALIGN);}
+<EXPRESSION,BOTH,SCRIPT>"DATA_SEGMENT_RELRO_END"	{ RTOKEN(DATA_SEGMENT_RELRO_END);}
 <EXPRESSION,BOTH,SCRIPT>"DATA_SEGMENT_END"	{ RTOKEN(DATA_SEGMENT_END);}
-<EXPRESSION,BOTH,SCRIPT>"ADDR"			{ RTOKEN(ADDR);}
-<EXPRESSION,BOTH,SCRIPT>"LOADADDR"		{ RTOKEN(LOADADDR);}
+<EXPRESSION,BOTH,SCRIPT>"ADDR"		{ RTOKEN(ADDR);}
+<EXPRESSION,BOTH,SCRIPT>"LOADADDR"	{ RTOKEN(LOADADDR);}
+<EXPRESSION,BOTH,SCRIPT>"ALIGNOF"	{ RTOKEN(ALIGNOF); }
 <EXPRESSION,BOTH>"MAX"			{ RTOKEN(MAX_K); }
 <EXPRESSION,BOTH>"MIN"			{ RTOKEN(MIN_K); }
-<EXPRESSION,BOTH>"ASSERT"		{ RTOKEN(ASSERT_K); }
+<EXPRESSION,BOTH,SCRIPT>"ASSERT"	{ RTOKEN(ASSERT_K); }
 <BOTH,SCRIPT>"ENTRY"			{ RTOKEN(ENTRY);}
 <BOTH,SCRIPT,MRI>"EXTERN"		{ RTOKEN(EXTERN);}
-<EXPRESSION,BOTH,SCRIPT>"NEXT"			{ RTOKEN(NEXT);}
+<EXPRESSION,BOTH,SCRIPT>"NEXT"		{ RTOKEN(NEXT);}
 <EXPRESSION,BOTH,SCRIPT>"sizeof_headers"	{ RTOKEN(SIZEOF_HEADERS);}
 <EXPRESSION,BOTH,SCRIPT>"SIZEOF_HEADERS"	{ RTOKEN(SIZEOF_HEADERS);}
+<EXPRESSION,BOTH,SCRIPT>"SEGMENT_START" { RTOKEN(SEGMENT_START);}
 <BOTH,SCRIPT>"MAP"			{ RTOKEN(MAP);}
-<EXPRESSION,BOTH,SCRIPT>"SIZEOF"		{ RTOKEN(SIZEOF);}
-<BOTH,SCRIPT>"TARGET"		{ RTOKEN(TARGET_K);}
+<EXPRESSION,BOTH,SCRIPT>"SIZEOF"	{ RTOKEN(SIZEOF);}
+<BOTH,SCRIPT>"TARGET"			{ RTOKEN(TARGET_K);}
 <BOTH,SCRIPT>"SEARCH_DIR"		{ RTOKEN(SEARCH_DIR);}
-<BOTH,SCRIPT>"OUTPUT"		{ RTOKEN(OUTPUT);}
+<BOTH,SCRIPT>"OUTPUT"			{ RTOKEN(OUTPUT);}
 <BOTH,SCRIPT>"INPUT"			{ RTOKEN(INPUT);}
 <EXPRESSION,BOTH,SCRIPT>"GROUP"		{ RTOKEN(GROUP);}
-<EXPRESSION,BOTH,SCRIPT>"DEFINED"		{ RTOKEN(DEFINED);}
+<EXPRESSION,BOTH,SCRIPT>"AS_NEEDED"	{ RTOKEN(AS_NEEDED);}
+<EXPRESSION,BOTH,SCRIPT>"DEFINED"	{ RTOKEN(DEFINED);}
 <BOTH,SCRIPT>"CREATE_OBJECT_SYMBOLS"	{ RTOKEN(CREATE_OBJECT_SYMBOLS);}
 <BOTH,SCRIPT>"CONSTRUCTORS"		{ RTOKEN( CONSTRUCTORS);}
-<BOTH,SCRIPT>"FORCE_COMMON_ALLOCATION" { RTOKEN(FORCE_COMMON_ALLOCATION);}
+<BOTH,SCRIPT>"FORCE_COMMON_ALLOCATION"	{ RTOKEN(FORCE_COMMON_ALLOCATION);}
 <BOTH,SCRIPT>"INHIBIT_COMMON_ALLOCATION" { RTOKEN(INHIBIT_COMMON_ALLOCATION);}
-<BOTH,SCRIPT>"SECTIONS"		{ RTOKEN(SECTIONS);}
+<BOTH,SCRIPT>"SECTIONS"			{ RTOKEN(SECTIONS);}
 <BOTH,SCRIPT>"FILL"			{ RTOKEN(FILL);}
-<BOTH,SCRIPT>"STARTUP"		{ RTOKEN(STARTUP);}
+<BOTH,SCRIPT>"STARTUP"			{ RTOKEN(STARTUP);}
 <BOTH,SCRIPT>"OUTPUT_FORMAT"		{ RTOKEN(OUTPUT_FORMAT);}
 <BOTH,SCRIPT>"OUTPUT_ARCH"		{ RTOKEN( OUTPUT_ARCH);}
 <BOTH,SCRIPT>"HLL"			{ RTOKEN(HLL);}
-<BOTH,SCRIPT>"SYSLIB"		{ RTOKEN(SYSLIB);}
+<BOTH,SCRIPT>"SYSLIB"			{ RTOKEN(SYSLIB);}
 <BOTH,SCRIPT>"FLOAT"			{ RTOKEN(FLOAT);}
 <BOTH,SCRIPT>"QUAD"			{ RTOKEN( QUAD);}
 <BOTH,SCRIPT>"SQUAD"			{ RTOKEN( SQUAD);}
 <BOTH,SCRIPT>"LONG"			{ RTOKEN( LONG);}
 <BOTH,SCRIPT>"SHORT"			{ RTOKEN( SHORT);}
 <BOTH,SCRIPT>"BYTE"			{ RTOKEN( BYTE);}
-<BOTH,SCRIPT>"NOFLOAT"		{ RTOKEN(NOFLOAT);}
+<BOTH,SCRIPT>"NOFLOAT"			{ RTOKEN(NOFLOAT);}
 <EXPRESSION,BOTH,SCRIPT>"NOCROSSREFS"	{ RTOKEN(NOCROSSREFS);}
 <BOTH,SCRIPT>"OVERLAY"			{ RTOKEN(OVERLAY); }
-<BOTH,SCRIPT>"SORT"			{ RTOKEN(SORT); }
+<BOTH,SCRIPT>"SORT_BY_NAME"		{ RTOKEN(SORT_BY_NAME); }
+<BOTH,SCRIPT>"SORT_BY_ALIGNMENT"	{ RTOKEN(SORT_BY_ALIGNMENT); }
+<BOTH,SCRIPT>"SORT"			{ RTOKEN(SORT_BY_NAME); }
 <EXPRESSION,BOTH,SCRIPT>"NOLOAD"	{ RTOKEN(NOLOAD);}
 <EXPRESSION,BOTH,SCRIPT>"DSECT"		{ RTOKEN(DSECT);}
 <EXPRESSION,BOTH,SCRIPT>"COPY"		{ RTOKEN(COPY);}
 <EXPRESSION,BOTH,SCRIPT>"INFO"		{ RTOKEN(INFO);}
 <EXPRESSION,BOTH,SCRIPT>"OVERLAY"	{ RTOKEN(OVERLAY);}
+<EXPRESSION,BOTH,SCRIPT>"ONLY_IF_RO"	{ RTOKEN(ONLY_IF_RO); }
+<EXPRESSION,BOTH,SCRIPT>"ONLY_IF_RW"	{ RTOKEN(ONLY_IF_RW); }
+<EXPRESSION,BOTH,SCRIPT>"SPECIAL"	{ RTOKEN(SPECIAL); }
 <BOTH,SCRIPT>"o"			{ RTOKEN(ORIGIN);}
 <BOTH,SCRIPT>"org"			{ RTOKEN(ORIGIN);}
 <BOTH,SCRIPT>"l"			{ RTOKEN( LENGTH);}
 <BOTH,SCRIPT>"len"			{ RTOKEN( LENGTH);}
 <BOTH,SCRIPT>"INCLUDE"			{ RTOKEN(INCLUDE);}
 <BOTH,SCRIPT>"PHDRS"			{ RTOKEN (PHDRS); }
-<EXPRESSION,BOTH,SCRIPT>"AT"			{ RTOKEN(AT);}
-<EXPRESSION,BOTH,SCRIPT>"SUBALIGN"		{ RTOKEN(SUBALIGN);}
-<EXPRESSION,BOTH,SCRIPT>"PROVIDE"		{ RTOKEN(PROVIDE); }
+<EXPRESSION,BOTH,SCRIPT>"AT"		{ RTOKEN(AT);}
+<EXPRESSION,BOTH,SCRIPT>"SUBALIGN"	{ RTOKEN(SUBALIGN);}
+<EXPRESSION,BOTH,SCRIPT>"PROVIDE"	{ RTOKEN(PROVIDE); }
+<EXPRESSION,BOTH,SCRIPT>"PROVIDE_HIDDEN" { RTOKEN(PROVIDE_HIDDEN); }
 <EXPRESSION,BOTH,SCRIPT>"KEEP"		{ RTOKEN(KEEP); }
-<EXPRESSION,BOTH,SCRIPT>"EXCLUDE_FILE"        { RTOKEN(EXCLUDE_FILE); }
+<EXPRESSION,BOTH,SCRIPT>"EXCLUDE_FILE"  { RTOKEN(EXCLUDE_FILE); }
+<EXPRESSION,BOTH,SCRIPT>"CONSTANT"	{ RTOKEN(CONSTANT);}
 <MRI>"#".*\n?			{ ++ lineno; }
 <MRI>"\n"	                { ++ lineno;  RTOKEN(NEWLINE); }
 <MRI>"*".*			{ /* Mri comment line */ }
 <MRI>";".*			{ /* Mri comment line */ }
 <MRI>"END"                      { RTOKEN(ENDWORD); }
-<MRI>"ALIGNMOD"		{ RTOKEN(ALIGNMOD);}
-<MRI>"ALIGN"		{ RTOKEN(ALIGN_K);}
+<MRI>"ALIGNMOD"			{ RTOKEN(ALIGNMOD);}
+<MRI>"ALIGN"			{ RTOKEN(ALIGN_K);}
 <MRI>"CHIP"                     { RTOKEN(CHIP); }
 <MRI>"BASE"                     { RTOKEN(BASE); }
-<MRI>"ALIAS"                     { RTOKEN(ALIAS); }
-<MRI>"TRUNCATE"                     { RTOKEN(TRUNCATE); }
+<MRI>"ALIAS"                    { RTOKEN(ALIAS); }
+<MRI>"TRUNCATE"                 { RTOKEN(TRUNCATE); }
 <MRI>"LOAD"                     { RTOKEN(LOAD); }
 <MRI>"PUBLIC"                   { RTOKEN(PUBLIC); }
 <MRI>"ORDER"                    { RTOKEN(ORDER); }
@@ -332,12 +339,12 @@ V_IDENTIFIER [*?.$_a-zA-Z\[\]\-\!\^\\]([*?.$_a-zA-Z0-9\[\]\-\!\^\\]|::)*
 <MRI>"SECT"			{ RTOKEN(SECT); }
 <EXPRESSION,BOTH,SCRIPT,MRI>"ABSOLUTE"			{ RTOKEN(ABSOLUTE); }
 <MRI>"end"                      { RTOKEN(ENDWORD); }
-<MRI>"alignmod"		{ RTOKEN(ALIGNMOD);}
-<MRI>"align"		{ RTOKEN(ALIGN_K);}
+<MRI>"alignmod"			{ RTOKEN(ALIGNMOD);}
+<MRI>"align"			{ RTOKEN(ALIGN_K);}
 <MRI>"chip"                     { RTOKEN(CHIP); }
 <MRI>"base"                     { RTOKEN(BASE); }
-<MRI>"alias"                     { RTOKEN(ALIAS); }
-<MRI>"truncate"                     { RTOKEN(TRUNCATE); }
+<MRI>"alias"                    { RTOKEN(ALIAS); }
+<MRI>"truncate"                 { RTOKEN(TRUNCATE); }
 <MRI>"load"                     { RTOKEN(LOAD); }
 <MRI>"public"                   { RTOKEN(PUBLIC); }
 <MRI>"order"                    { RTOKEN(ORDER); }
@@ -357,11 +364,19 @@ V_IDENTIFIER [*?.$_a-zA-Z\[\]\-\!\^\\]([*?.$_a-zA-Z0-9\[\]\-\!\^\\]|::)*
 				}
 
 
-<BOTH,EXPRESSION>{FILENAMECHAR1}{FILENAMECHAR}*	{
+<BOTH>{FILENAMECHAR1}{FILENAMECHAR}*	{
 				 yylval.name = xstrdup (yytext);
 				  return NAME;
 				}
-<BOTH,EXPRESSION>"-l"{FILENAMECHAR}+ {
+<BOTH>"-l"{FILENAMECHAR}+ {
+				  yylval.name = xstrdup (yytext + 2);
+				  return LNAME;
+				}
+<EXPRESSION>{FILENAMECHAR1}{NOCFILENAMECHAR}*	{
+				 yylval.name = xstrdup (yytext);
+				  return NAME;
+				}
+<EXPRESSION>"-l"{NOCFILENAMECHAR}+ {
 				  yylval.name = xstrdup (yytext + 2);
 				  return LNAME;
 				}

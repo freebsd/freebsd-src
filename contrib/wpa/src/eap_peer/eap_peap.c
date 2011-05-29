@@ -16,12 +16,12 @@
 
 #include "common.h"
 #include "crypto/sha1.h"
+#include "crypto/tls.h"
+#include "eap_common/eap_tlv_common.h"
+#include "eap_common/eap_peap_common.h"
 #include "eap_i.h"
 #include "eap_tls_common.h"
 #include "eap_config.h"
-#include "tls.h"
-#include "eap_common/eap_tlv_common.h"
-#include "eap_common/eap_peap_common.h"
 #include "tncc.h"
 
 
@@ -1048,10 +1048,10 @@ static struct wpabuf * eap_peap_process(struct eap_sm *sm, void *priv,
 
 	if (flags & EAP_TLS_FLAGS_START) {
 		wpa_printf(MSG_DEBUG, "EAP-PEAP: Start (server ver=%d, own "
-			   "ver=%d)", flags & EAP_PEAP_VERSION_MASK,
+			   "ver=%d)", flags & EAP_TLS_VERSION_MASK,
 			data->peap_version);
-		if ((flags & EAP_PEAP_VERSION_MASK) < data->peap_version)
-			data->peap_version = flags & EAP_PEAP_VERSION_MASK;
+		if ((flags & EAP_TLS_VERSION_MASK) < data->peap_version)
+			data->peap_version = flags & EAP_TLS_VERSION_MASK;
 		if (data->force_peap_version >= 0 &&
 		    data->force_peap_version != data->peap_version) {
 			wpa_printf(MSG_WARNING, "EAP-PEAP: Failed to select "

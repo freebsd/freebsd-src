@@ -95,6 +95,10 @@ __FBSDID("$FreeBSD$");
 /* Fixed size of uname/gname caches. */
 #define	name_cache_size 101
 
+#ifndef O_BINARY
+#define O_BINARY 0
+#endif
+
 static const char * const NO_NAME = "(noname)";
 
 struct archive_dir_entry {
@@ -256,9 +260,9 @@ tar_mode_r(struct bsdtar *bsdtar)
 	format = ARCHIVE_FORMAT_TAR_PAX_RESTRICTED;
 
 #if defined(__BORLANDC__)
-	bsdtar->fd = open(bsdtar->filename, O_RDWR | O_CREAT);
+	bsdtar->fd = open(bsdtar->filename, O_RDWR | O_CREAT | O_BINARY);
 #else
-	bsdtar->fd = open(bsdtar->filename, O_RDWR | O_CREAT, 0666);
+	bsdtar->fd = open(bsdtar->filename, O_RDWR | O_CREAT | O_BINARY, 0666);
 #endif
 	if (bsdtar->fd < 0)
 		bsdtar_errc(1, errno,
@@ -353,7 +357,7 @@ tar_mode_u(struct bsdtar *bsdtar)
 	/* Sanity-test some arguments and the file. */
 	test_for_append(bsdtar);
 
-	bsdtar->fd = open(bsdtar->filename, O_RDWR);
+	bsdtar->fd = open(bsdtar->filename, O_RDWR | O_BINARY);
 	if (bsdtar->fd < 0)
 		bsdtar_errc(1, errno,
 		    "Cannot open %s", bsdtar->filename);
@@ -843,7 +847,7 @@ write_hierarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 #if defined(EXT2_IOC_GETFLAGS) && defined(EXT2_NODUMP_FL)
 		/* Linux uses ioctl to read flags. */
 		if (bsdtar->option_honor_nodump) {
-			int fd = open(name, O_RDONLY | O_NONBLOCK);
+			int fd = open(name, O_RDONLY | O_NONBLOCK | O_BINARY);
 			if (fd >= 0) {
 				unsigned long fflags;
 				int r = ioctl(fd, EXT2_IOC_GETFLAGS, &fflags);
@@ -913,7 +917,7 @@ write_entry_backend(struct bsdtar *bsdtar, struct archive *a,
 
 	if (archive_entry_size(entry) > 0) {
 		const char *pathname = archive_entry_sourcepath(entry);
-		fd = open(pathname, O_RDONLY);
+		fd = open(pathname, O_RDONLY | O_BINARY);
 		if (fd == -1) {
 			if (!bsdtar->verbose)
 				bsdtar_warnc(errno,
@@ -961,15 +965,21 @@ report_write(struct bsdtar *bsdtar, struct archive *a,
     struct archive_entry *entry, int64_t progress)
 {
 	uint64_t comp, uncomp;
+	int compression;
+
 	if (bsdtar->verbose)
 		fprintf(stderr, "\n");
 	comp = archive_position_compressed(a);
 	uncomp = archive_position_uncompressed(a);
 	fprintf(stderr, "In: %d files, %s bytes;",
 	    archive_file_count(a), tar_i64toa(uncomp));
+	if (comp > uncomp)
+		compression = 0;
+	else
+		compression = (int)((uncomp - comp) * 100 / uncomp);
 	fprintf(stderr,
 	    " Out: %s bytes, compression %d%%\n",
-	    tar_i64toa(comp), (int)((uncomp - comp) * 100 / uncomp));
+	    tar_i64toa(comp), compression);
 	/* Can't have two calls to tar_i64toa() pending, so split the output. */
 	safe_fprintf(stderr, "Current: %s (%s",
 	    archive_entry_pathname(entry),

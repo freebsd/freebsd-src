@@ -94,7 +94,6 @@ as it is the most likely to have been tested with this driver.
 Cards supported by the
 .Nm
 driver include:
-.Pp
 .Bl -tag -width xxxxxx -offset indent
 .It ISP1000
 SBus Fast Wide, Ultra Fast Wide cards, Single Ended or Differential
@@ -201,13 +200,12 @@ A hint value for a driver debug level (see the file
 for the values.
 .El
 .Sh SYSCTL OPTIONS
-.Pp
 .Bl -tag -width indent
 .It Va dev.isp.N.loop_down_limit
 This value says how long to wait in seconds after loop has gone down before
 giving up and expiring all of the devices that were visible.
 The default is 300 seconds (5 minutes).
-A seperate (nonadjustable) timeout is used when
+A separate (nonadjustable) timeout is used when
 booting to not stop booting on lack of FC connectivity.
 .It Va dev.isp.N.gone_device_time
 This value says how long to wait for devices to reappear if they (temporarily)

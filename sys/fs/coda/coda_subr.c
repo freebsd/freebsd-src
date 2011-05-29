@@ -164,7 +164,7 @@ coda_unsave(struct cnode *cp)
  * NOTE: this allows multiple cnodes with same fid -- dcs 1/25/95
  */
 struct cnode *
-coda_find(CodaFid *fid)
+coda_find(struct CodaFid *fid)
 {
 	struct cnode *cp;
 

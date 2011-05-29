@@ -124,39 +124,6 @@ The system calls will fail if:
 The user is not the super user and the ID
 specified is not the real, effective ID, or saved ID.
 .El
-.Sh SECURITY CONSIDERATIONS
-Read and write permissions to files are determined upon a call to
-.Xr open 2 .
-Once a file descriptor is open, dropping privilege does not affect
-the process's read/write permissions, even if the user ID specified
-has no read or write permissions to the file.
-These files normally remain open in any new process executed,
-resulting in a user being able to read or modify
-potentially sensitive data.
-.Pp
-To prevent these files from remaining open after an
-.Xr exec 3
-call, be sure to set the close-on-exec flag is set:
-.Bd -literal
-void
-pseudocode(void)
-{
-	int fd;
-	/* ... */
-
-	fd = open("/path/to/sensitive/data", O_RDWR);
-	if (fd == -1)
-		err(1, "open");
-
-	/*
-	 * Set close-on-exec flag; see fcntl(2) for more information.
-	 */
-	if (fcntl(fd, F_SETFD, FD_CLOEXEC) == -1)
-		err(1, "fcntl(F_SETFD)");
-	/* ... */
-	execve(path, argv, environ);
-}
-.Ed
 .Sh SEE ALSO
 .Xr getgid 2 ,
 .Xr getuid 2 ,
@@ -191,3 +158,36 @@ and
 .Fn setgid
 functions appeared in
 .At v7 .
+.Sh SECURITY CONSIDERATIONS
+Read and write permissions to files are determined upon a call to
+.Xr open 2 .
+Once a file descriptor is open, dropping privilege does not affect
+the process's read/write permissions, even if the user ID specified
+has no read or write permissions to the file.
+These files normally remain open in any new process executed,
+resulting in a user being able to read or modify
+potentially sensitive data.
+.Pp
+To prevent these files from remaining open after an
+.Xr exec 3
+call, be sure to set the close-on-exec flag is set:
+.Bd -literal
+void
+pseudocode(void)
+{
+	int fd;
+	/* ... */
+
+	fd = open("/path/to/sensitive/data", O_RDWR);
+	if (fd == -1)
+		err(1, "open");
+
+	/*
+	 * Set close-on-exec flag; see fcntl(2) for more information.
+	 */
+	if (fcntl(fd, F_SETFD, FD_CLOEXEC) == -1)
+		err(1, "fcntl(F_SETFD)");
+	/* ... */
+	execve(path, argv, environ);
+}
+.Ed

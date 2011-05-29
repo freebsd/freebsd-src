@@ -91,7 +91,7 @@ static struct _devname {
     DISK("ipsd%d",	"IBM ServeRAID RAID array",		4),
     DISK("mfid%d",	"LSI MegaRAID SAS array",		4),
     FLOPPY("fd%d",	"floppy drive unit A",			4),
-    SERIAL("cuad%d",	"%s on device %s (COM%d)",		16),
+    SERIAL("cuau%d",	"%s on device %s (COM%d)",		16),
     USB("da%da",	"USB Mass Storage Device",		16),
     NETWORK("ae",	"Attansic/Atheros L2 Fast Ethernet"),
     NETWORK("age",	"Attansic/Atheros L1 Gigabit Ethernet"),
@@ -106,9 +106,11 @@ static struct _devname {
     NETWORK("bge",	"Broadcom BCM570x PCI Gigabit Ethernet card"),
     NETWORK("bm",	"Apple BMAC Built-in Ethernet"),
     NETWORK("bwn",	"Broadcom BCM43xx IEEE 802.11 wireless adapter"),
+    NETWORK("bxe",	"Broadcom NetXtreme II 10Gb Ethernet card"),
     NETWORK("cas",	"Sun Cassini/Cassini+ or NS DP83065 Saturn Ethernet"),
     NETWORK("cue",	"CATC USB Ethernet adapter"),
     NETWORK("cxgb",	"Chelsio T3 10Gb Ethernet card"),
+    NETWORK("cxgbe",	"Chelsio T4 10Gb Ethernet card"),
     NETWORK("fpa",	"DEC DEFPA PCI FDDI card"),
     NETWORK("sr",	"SDL T1/E1 sync serial PCI card"),
     NETWORK("cc3i",	"SDL HSSI sync serial PCI card"),
@@ -150,6 +152,7 @@ static struct _devname {
     NETWORK("rue",	"RealTek USB Ethernet card"),
     NETWORK("rum",	"Ralink Technology USB IEEE 802.11 wireless adapter"),
     NETWORK("sf",	"Adaptec AIC-6915 PCI Ethernet card"),
+    NETWORK("sge",	"Silicon Integrated Systems SiS190/191 Ethernet"),
     NETWORK("sis",	"SiS 900/SiS 7016 PCI Ethernet card"),
 #ifdef PC98
     NETWORK("snc",	"SONIC Ethernet card"),
@@ -168,6 +171,7 @@ static struct _devname {
     NETWORK("urtw",	"Realtek 8187L USB wireless adapter"),
     NETWORK("vge",	"VIA VT612x PCI Gigabit Ethernet card"),
     NETWORK("vr",	"VIA VT3043/VT86C100A Rhine PCI Ethernet card"),
+    NETWORK("vte",	"DM&P Vortex86 RDC R6040 Fast Ethernet"),
     NETWORK("vlan",	"IEEE 802.1Q VLAN network interface"),
     NETWORK("vx",	"3COM 3c590 / 3c595 Ethernet card"),
     NETWORK("wb",	"Winbond W89C840F PCI Ethernet card"),
@@ -294,6 +298,8 @@ deviceGetAll(void)
 
     msgNotify("Probing devices, please wait (this can take a while)...");
     /* First go for the network interfaces.  Stolen shamelessly from ifconfig! */
+    memset(&ifc, 0, sizeof(ifc));
+    memset(buffer, 0, INTERFACE_MAX * sizeof(struct ifreq));
     ifc.ifc_len = sizeof(buffer);
     ifc.ifc_buf = buffer;
 
@@ -318,14 +324,6 @@ deviceGetAll(void)
 	if (!strncmp(ifptr->ifr_name, "lo", 2))
 	    goto loopend;
 
-	/* If we have a slip device, don't register it */
-	if (!strncmp(ifptr->ifr_name, "sl", 2)) {
-	    goto loopend;
-	}
-	/* And the same for ppp */
-	if (!strncmp(ifptr->ifr_name, "tun", 3) || !strncmp(ifptr->ifr_name, "ppp", 3)) {
-	    goto loopend;
-	}
 	/* Try and find its description */
 	for (i = 0, descr = NULL; device_names[i].name; i++) {
 	    int len = strlen(device_names[i].name);
@@ -370,7 +368,7 @@ skipif:
 
 		    if (fd >= 0) close(fd);
 		    snprintf(n, sizeof n, device_names[i].name, j);
-		    deviceRegister(strdup(n), device_names[i].description, strdup(try),
+		    deviceRegister(n, device_names[i].description, strdup(try),
 					 DEVICE_TYPE_CDROM, TRUE, mediaInitCDROM, mediaGetCDROM,
 					 mediaShutdownCDROM, NULL);
 		    if (isDebug())
@@ -389,7 +387,7 @@ skipif:
 
 		    close(fd);
 		    snprintf(n, sizeof n, device_names[i].name, j);
-		    deviceRegister(strdup(n), device_names[i].description, strdup(try),
+		    deviceRegister(n, device_names[i].description, strdup(try),
 				   DEVICE_TYPE_FLOPPY, TRUE, mediaInitFloppy, mediaGetFloppy,
 				   mediaShutdownFloppy, NULL);
 		    if (isDebug())
@@ -404,35 +402,12 @@ skipif:
 
 			close(fd);
 			snprintf(n, sizeof(n), device_names[i].name, j);
-			deviceRegister(strdup(n), device_names[i].description,
+			deviceRegister(n, device_names[i].description,
 			    strdup(try), DEVICE_TYPE_USB, TRUE, mediaInitUSB,
 			    mediaGetUSB, mediaShutdownUSB, NULL);
 
 			if (isDebug())
 				msgDebug("Found a USB disk for %s\n", try);
-		}
-		break;
-
-	    case DEVICE_TYPE_NETWORK:
-		fd = deviceTry(device_names[i], try, j);
-		/* The only network devices that you can open this way are serial ones */
-		if (fd >= 0) {
-		    char *newdesc, *cp;
-
-		    close(fd);
-		    cp = device_names[i].description;
-		    /* Serial devices get a slip and ppp device each, if supported */
-		    newdesc = safe_malloc(strlen(cp) + 40);
-		    sprintf(newdesc, cp, "SLIP interface", try, j + 1);
-		    deviceRegister("sl0", newdesc, strdup(try), DEVICE_TYPE_NETWORK, TRUE, mediaInitNetwork,
-				   NULL, mediaShutdownNetwork, NULL);
-		    msgDebug("Add mapping for %s to sl0\n", try);
-		    newdesc = safe_malloc(strlen(cp) + 50);
-		    sprintf(newdesc, cp, "PPP interface", try, j + 1);
-		    deviceRegister("ppp0", newdesc, strdup(try), DEVICE_TYPE_NETWORK, TRUE, mediaInitNetwork,
-				   NULL, mediaShutdownNetwork, NULL);
-		    if (isDebug())
-			msgDebug("Add mapping for %s to ppp0\n", try);
 		}
 		break;
 

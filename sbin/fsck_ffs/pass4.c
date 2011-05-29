@@ -97,6 +97,9 @@ pass4(void)
 				break;
 
 			case DCLEAR:
+				/* if on snapshot, already cleared */
+				if (cursnapshot != 0)
+					break;
 				dp = ginode(inumber);
 				if (DIP(dp, di_size) == 0) {
 					clri(&idesc, "ZERO LENGTH", 1);

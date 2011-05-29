@@ -60,7 +60,7 @@ struct pimstat {
 };
 
 #ifdef _KERNEL
-#define	PIMSTAT_ADD(name, val)	pimstat.name += (val)
+#define	PIMSTAT_ADD(name, val)	V_pimstat.name += (val)
 #define	PIMSTAT_INC(name)	PIMSTAT_ADD(name, 1)
 #endif
 

@@ -87,31 +87,14 @@
 #define MV_BASE			MV_PHYS_BASE	/* VA == PA mapping */
 #define MV_DDR_CADR_BASE	(MV_BASE + 0x1500)
 #define MV_MPP_BASE		(MV_BASE + 0x10000)
-#define MV_GPIO_BASE		(MV_BASE + 0x10100)
-#define MV_GPIO_SIZE		0x20
-#define MV_RTC_BASE		(MV_BASE + 0x10300)
-#define MV_RTC_SIZE		0x08
-#define MV_TWSI0_BASE		(MV_BASE + 0x11000)
-#define MV_TWSI1_BASE		(MV_BASE + 0x11100)
-#define MV_TWSI_SIZE		0x20
-#define MV_UART0_BASE		(MV_BASE + 0x12000)
-#define MV_UART1_BASE		(MV_BASE + 0x12100)
-#define MV_UART_SIZE		0x20
+
 #define MV_MBUS_BRIDGE_BASE	(MV_BASE + 0x20000)
 #define MV_INTREGS_BASE		(MV_MBUS_BRIDGE_BASE + 0x80)
 #define MV_CPU_CONTROL_BASE	(MV_MBUS_BRIDGE_BASE + 0x100)
-#define MV_IC_BASE		(MV_MBUS_BRIDGE_BASE + 0x200)
-#define MV_IC_SIZE		0x3C
-#define MV_TIMERS_BASE		(MV_MBUS_BRIDGE_BASE + 0x300)
-#define MV_TIMERS_SIZE		0x30
+
 #define MV_PCI_BASE		(MV_BASE + 0x30000)
 #define MV_PCI_SIZE		0x2000
-#if defined (SOC_MV_KIRKWOOD)
-#define MV_CESA_BASE		(MV_BASE + 0x30000) /* CESA,PCI don't coexist */
-#elif defined (SOC_MV_ORION) || defined(SOC_MV_DISCOVERY)
-#define MV_CESA_BASE		(MV_BASE + 0x90000)
-#endif
-#define MV_CESA_SIZE		0x10000
+
 #define MV_PCIE_BASE		(MV_BASE + 0x40000)
 #define MV_PCIE_SIZE		0x2000
 
@@ -124,27 +107,7 @@
 #define MV_PCIE12_BASE		(MV_PCIE_BASE + 0x48000)
 #define MV_PCIE13_BASE		(MV_PCIE_BASE + 0x4C000)
 
-#define MV_USB0_BASE		(MV_BASE + 0x50000)
-#define MV_USB1_BASE		(MV_USB0_BASE + 0x1000)
-#define MV_USB2_BASE		(MV_USB0_BASE + 0x2000)
-#define MV_USB_SIZE		0x1000
-#define MV_USB_AWR_BASE		(MV_USB0_BASE + 0x320)
-#define MV_IDMA_BASE		(MV_BASE + 0x60000)
-#define MV_IDMA_SIZE		0x1000
-#define MV_XOR_BASE		(MV_BASE + 0x60000)
-#define MV_XOR_SIZE		0x1000
-#define MV_ETH0_BASE		(MV_BASE + 0x72000)
-#define MV_ETH1_BASE		(MV_BASE + 0x76000)
-#define MV_ETH_SIZE		0x2000
-#if defined(SOC_MV_ORION) || defined(SOC_MV_KIRKWOOD)
-#define MV_SATAHC_BASE		(MV_BASE + 0x80000)
-#define MV_SATAHC_SIZE		0x6000
-#elif defined(SOC_MV_DISCOVERY)
-#define MV_SATAHC_BASE		(MV_BASE + 0xA0000)
-#define MV_SATAHC_SIZE		0x6000
-#endif
-
-#define MV_DEV_CS0_BASE	MV_DEV_CS0_PHYS_BASE
+#define MV_DEV_CS0_BASE		MV_DEV_CS0_PHYS_BASE
 
 /*
  * Decode windows definitions and macros
@@ -167,8 +130,16 @@
 #define MV_WIN_CESA_BASE(n)		(0x8 * (n) + 0xa00)
 #define MV_WIN_CESA_MAX			4
 
-#define MV_WIN_USB_CTRL(n, m)		(0x10 * (n) + (m) * 0x1000 + 0x0)
-#define MV_WIN_USB_BASE(n, m)		(0x10 * (n) + (m) * 0x1000 + 0x4)
+#if defined(SOC_MV_DISCOVERY)
+#define MV_WIN_CESA_TARGET		9
+#define MV_WIN_CESA_ATTR		1
+#else
+#define MV_WIN_CESA_TARGET		3
+#define MV_WIN_CESA_ATTR		0
+#endif
+
+#define MV_WIN_USB_CTRL(n)		(0x10 * (n) + 0x0)
+#define MV_WIN_USB_BASE(n)		(0x10 * (n) + 0x4)
 #define MV_WIN_USB_MAX			4
 
 #define MV_WIN_ETH_BASE(n)		(0x8 * (n) + 0x200)
@@ -192,6 +163,27 @@
 #define MV_XOR_CHAN_MAX			2
 #define MV_XOR_NON_REMAP		4
 
+#if defined(SOC_MV_DISCOVERY)
+#define MV_WIN_PCIE_MEM_TARGET		4
+#define MV_WIN_PCIE_MEM_ATTR		0xE8
+#define MV_WIN_PCIE_IO_TARGET		4
+#define MV_WIN_PCIE_IO_ATTR		0xE0
+#elif defined(SOC_MV_KIRKWOOD)
+#define MV_WIN_PCIE_MEM_TARGET		4
+#define MV_WIN_PCIE_MEM_ATTR		0xE8
+#define MV_WIN_PCIE_IO_TARGET		4
+#define MV_WIN_PCIE_IO_ATTR		0xE0
+#elif defined(SOC_MV_ORION)
+#define MV_WIN_PCIE_MEM_TARGET		4
+#define MV_WIN_PCIE_MEM_ATTR		0x59
+#define MV_WIN_PCIE_IO_TARGET		4
+#define MV_WIN_PCIE_IO_ATTR		0x51
+#define MV_WIN_PCI_MEM_TARGET		3
+#define MV_WIN_PCI_MEM_ATTR		0x59
+#define MV_WIN_PCI_IO_TARGET		3
+#define MV_WIN_PCI_IO_ATTR		0x51
+#endif
+
 #define MV_WIN_PCIE_CTRL(n)		(0x10 * (((n) < 5) ? (n) : \
 					    (n) + 1) + 0x1820)
 #define MV_WIN_PCIE_BASE(n)		(0x10 * (((n) < 5) ? (n) : \
@@ -211,70 +203,84 @@
 	static __inline uint32_t						\
 	pre ## _ ## reg ## _read(int i)						\
 	{									\
-		return (bus_space_read_4(obio_tag, base, off(i)));		\
+		return (bus_space_read_4(fdtbus_bs_tag, base, off(i)));		\
 	}
 
 #define WIN_REG_IDX_RD2(pre,reg,off,base)					\
 	static  __inline uint32_t						\
 	pre ## _ ## reg ## _read(int i, int j)					\
 	{									\
-		return (bus_space_read_4(obio_tag, base, off(i, j)));		\
+		return (bus_space_read_4(fdtbus_bs_tag, base, off(i, j)));		\
 	}									\
 
 #define WIN_REG_BASE_IDX_RD(pre,reg,off)					\
 	static __inline uint32_t						\
 	pre ## _ ## reg ## _read(uint32_t base, int i)				\
 	{									\
-		return (bus_space_read_4(obio_tag, base, off(i)));		\
+		return (bus_space_read_4(fdtbus_bs_tag, base, off(i)));		\
+	}
+
+#define WIN_REG_BASE_IDX_RD2(pre,reg,off)					\
+	static __inline uint32_t						\
+	pre ## _ ## reg ## _read(uint32_t base, int i, int j)				\
+	{									\
+		return (bus_space_read_4(fdtbus_bs_tag, base, off(i, j)));		\
 	}
 
 #define WIN_REG_IDX_WR(pre,reg,off,base)					\
 	static __inline void							\
 	pre ## _ ## reg ## _write(int i, uint32_t val)				\
 	{									\
-		bus_space_write_4(obio_tag, base, off(i), val);			\
+		bus_space_write_4(fdtbus_bs_tag, base, off(i), val);			\
 	}
 
 #define WIN_REG_IDX_WR2(pre,reg,off,base)					\
 	static __inline void							\
 	pre ## _ ## reg ## _write(int i, int j, uint32_t val)			\
 	{									\
-		bus_space_write_4(obio_tag, base, off(i, j), val);		\
+		bus_space_write_4(fdtbus_bs_tag, base, off(i, j), val);		\
 	}
 
 #define WIN_REG_BASE_IDX_WR(pre,reg,off)					\
 	static __inline void							\
 	pre ## _ ## reg ## _write(uint32_t base, int i, uint32_t val)		\
 	{									\
-		bus_space_write_4(obio_tag, base, off(i), val);			\
+		bus_space_write_4(fdtbus_bs_tag, base, off(i), val);			\
+	}
+
+#define WIN_REG_BASE_IDX_WR2(pre,reg,off)					\
+	static __inline void							\
+	pre ## _ ## reg ## _write(uint32_t base, int i, int j, uint32_t val)		\
+	{									\
+		bus_space_write_4(fdtbus_bs_tag, base, off(i, j), val);			\
 	}
 
 #define WIN_REG_RD(pre,reg,off,base)						\
 	static __inline uint32_t						\
 	pre ## _ ## reg ## _read(void)						\
 	{									\
-		return (bus_space_read_4(obio_tag, base, off));			\
+		return (bus_space_read_4(fdtbus_bs_tag, base, off));			\
 	}
 
 #define WIN_REG_BASE_RD(pre,reg,off)						\
 	static __inline uint32_t						\
 	pre ## _ ## reg ## _read(uint32_t base)					\
 	{									\
-		return (bus_space_read_4(obio_tag, base, off));			\
+		return (bus_space_read_4(fdtbus_bs_tag, base, off));			\
 	}
 
 #define WIN_REG_WR(pre,reg,off,base)						\
 	static __inline void							\
 	pre ## _ ## reg ## _write(uint32_t val)					\
 	{									\
-		bus_space_write_4(obio_tag, base, off, val);			\
+		bus_space_write_4(fdtbus_bs_tag, base, off, val);			\
 	}
 
 #define WIN_REG_BASE_WR(pre,reg,off)						\
 	static __inline void							\
 	pre ## _ ## reg ## _write(uint32_t base, uint32_t val)			\
 	{									\
-		bus_space_write_4(obio_tag, base, off, val);			\
+		bus_space_write_4(fdtbus_bs_tag, base, off, val);			\
 	}
 
 #endif /* _MVWIN_H_ */

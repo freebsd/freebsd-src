@@ -35,13 +35,13 @@
 #include "gdb_assert.h"
 #include "solib-svr4.h"
 
-#define REG_FIXREG_OFFSET(x)	((x) * 4)
-#define REG_LR_OFFSET		(32 * 4)
-#define REG_CR_OFFSET		(33 * 4)
-#define REG_XER_OFFSET		(34 * 4)
-#define REG_CTR_OFFSET		(35 * 4)
-#define REG_PC_OFFSET		(36 * 4)
-#define SIZEOF_STRUCT_REG	(37 * 4)
+#define REG_FIXREG_OFFSET(x)	((x) * sizeof(register_t))
+#define REG_LR_OFFSET		(32 * sizeof(register_t))
+#define REG_CR_OFFSET		(33 * sizeof(register_t))
+#define REG_XER_OFFSET		(34 * sizeof(register_t))
+#define REG_CTR_OFFSET		(35 * sizeof(register_t))
+#define REG_PC_OFFSET		(36 * sizeof(register_t))
+#define SIZEOF_STRUCT_REG	(37 * sizeof(register_t))
 
 #define FPREG_FPR_OFFSET(x)	((x) * 8)
 #define FPREG_FPSCR_OFFSET	(32 * 8)
@@ -274,8 +274,13 @@ ppcfbsd_init_abi (struct gdbarch_info info,
   /* For NetBSD, this is an on again, off again thing.  Some systems
      do use the broken struct convention, and some don't.  */
   set_gdbarch_return_value (gdbarch, ppcfbsd_return_value);
+#ifdef __powerpc64__
+  set_solib_svr4_fetch_link_map_offsets (gdbarch,
+                                svr4_lp64_fetch_link_map_offsets);
+#else
   set_solib_svr4_fetch_link_map_offsets (gdbarch,
                                 svr4_ilp32_fetch_link_map_offsets);
+#endif
 }
 
 void

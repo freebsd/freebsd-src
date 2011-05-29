@@ -188,6 +188,7 @@ _memstat_mt_reset_stats(struct memory_type *mtp)
 	mtp->mt_count = 0;
 	mtp->mt_free = 0;
 	mtp->mt_failures = 0;
+	mtp->mt_sleeps = 0;
 
 	mtp->mt_zonefree = 0;
 	mtp->mt_kegfree = 0;
@@ -302,6 +303,13 @@ memstat_get_failures(const struct memory_type *mtp)
 {
 
 	return (mtp->mt_failures);
+}
+
+uint64_t
+memstat_get_sleeps(const struct memory_type *mtp)
+{
+
+	return (mtp->mt_sleeps);
 }
 
 void *

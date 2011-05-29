@@ -57,6 +57,7 @@
 #define ADDR	5
 #define SUBADDR	6
 #define DATA	7
+#define REV	8
 
 /* MODE */
 #define I2C_SPEED	0x03	/* Speed mask */
@@ -107,6 +108,7 @@ struct kiic_softc {
 	u_int 			 sc_flags;
 	u_char			*sc_data;
 	int 			 sc_resid;
+	uint16_t		 sc_i2c_base;
 	device_t 		 sc_iicbus;
 };
 
@@ -114,6 +116,7 @@ static int 	kiic_probe(device_t dev);
 static int 	kiic_attach(device_t dev);
 static void 	kiic_writereg(struct kiic_softc *sc, u_int, u_int);
 static u_int 	kiic_readreg(struct kiic_softc *, u_int);
+static void 	kiic_setport(struct kiic_softc *, u_int);
 static void 	kiic_setmode(struct kiic_softc *, u_int);
 static void 	kiic_setspeed(struct kiic_softc *, u_int);
 static void 	kiic_intr(void *xsc);
@@ -144,6 +147,7 @@ static driver_t kiic_driver = {
 static devclass_t kiic_devclass;
 
 DRIVER_MODULE(kiic, macio, kiic_driver, kiic_devclass, 0, 0);
+DRIVER_MODULE(kiic, unin, kiic_driver, kiic_devclass, 0, 0);
 
 static int
 kiic_probe(device_t self)
@@ -196,12 +200,25 @@ kiic_attach(device_t self)
 	 * underneath them.  Some have a single 'iicbus' child with the
 	 * devices underneath that.  Sort this out, and make sure that the
 	 * OFW I2C layer has the correct node.
+	 *
+	 * Note: the I2C children of the Uninorth bridges have two ports.
+	 *  In general, the port is designated in the 9th bit of the I2C
+	 *  address. However, for kiic devices with children attached below
+	 *  an i2c-bus node, the port is indicated in the 'reg' property
+	 *  of the i2c-bus node.
 	 */
 
-	sc->sc_node = OF_child(node);
-	if (OF_getprop(sc->sc_node,"name",name,sizeof(name)) > 0) {
-		if (strcmp(name,"i2c-bus") != 0)
+	sc->sc_node = node;
+
+	node = OF_child(node);
+	if (OF_getprop(node, "name", name, sizeof(name)) > 0) {
+		if (strcmp(name,"i2c-bus") == 0) {
+			phandle_t reg;
+			if (OF_getprop(node, "reg", &reg, sizeof(reg)) > 0)
+				sc->sc_i2c_base = reg << 8;
+
 			sc->sc_node = node;
+		}
 	}
 
 	mtx_init(&sc->sc_mutex, "kiic", NULL, MTX_DEF);
@@ -211,14 +228,17 @@ kiic_attach(device_t self)
 	bus_setup_intr(self, sc->sc_irq, INTR_TYPE_MISC | INTR_MPSAFE, NULL,
 	    kiic_intr, sc, &sc->sc_ih);
 
+	kiic_writereg(sc, ISR, kiic_readreg(sc, ISR));
 	kiic_writereg(sc, STATUS, 0);
-	kiic_writereg(sc, ISR, 0);
 	kiic_writereg(sc, IER, 0);
 
 	kiic_setmode(sc, I2C_STDMODE);
 	kiic_setspeed(sc, I2C_100kHz);		/* XXX rate */
 	
 	kiic_writereg(sc, IER, I2C_INT_DATA | I2C_INT_ADDR | I2C_INT_STOP);
+
+	if (bootverbose)
+		device_printf(self, "Revision: %02X\n", kiic_readreg(sc, REV));
 
 	/* Add the IIC bus layer */
 	sc->sc_iicbus = device_add_child(self, "iicbus", -1);
@@ -229,14 +249,14 @@ kiic_attach(device_t self)
 static void
 kiic_writereg(struct kiic_softc *sc, u_int reg, u_int val)
 {
-	bus_write_1(sc->sc_reg, sc->sc_regstep * reg, val);
-	DELAY(10); /* register access delay */
+	bus_write_4(sc->sc_reg, sc->sc_regstep * reg, val);
+	DELAY(100); /* register access delay */
 }
 
 static u_int
 kiic_readreg(struct kiic_softc *sc, u_int reg)
 {
-	return bus_read_1(sc->sc_reg, sc->sc_regstep * reg);
+	return bus_read_4(sc->sc_reg, sc->sc_regstep * reg) & 0xff;
 }
 
 static void
@@ -248,6 +268,18 @@ kiic_setmode(struct kiic_softc *sc, u_int mode)
 	x = kiic_readreg(sc, MODE);
 	x &= ~I2C_MODE;
 	x |= mode;
+	kiic_writereg(sc, MODE, x);
+}
+
+static void
+kiic_setport(struct kiic_softc *sc, u_int port)
+{
+	u_int x;
+
+	KASSERT(port == 1 || port == 0, ("bad port"));
+	x = kiic_readreg(sc, MODE);
+	x &= ~I2C_PORT;
+	x |= (port << 4);
 	kiic_writereg(sc, MODE, x);
 }
 
@@ -294,7 +326,8 @@ kiic_intr(void *xsc)
 				*sc->sc_data++ = kiic_readreg(sc, DATA);
 				sc->sc_resid--;
 			}
-
+			if (sc->sc_resid == 0)  /* done */
+				kiic_writereg(sc, CONTROL, 0);
 		} else {
 			if (sc->sc_resid == 0) {
 				x = kiic_readreg(sc, CONTROL);
@@ -322,10 +355,12 @@ kiic_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 {
 	struct kiic_softc *sc;
 	int i, x, timo, err;
-	uint8_t addr;
+	uint16_t addr;
+	uint8_t subaddr;
 
 	sc = device_get_softc(dev);
 	timo = 100;
+	subaddr = 0;
 
 	mtx_lock(&sc->sc_mutex);
 
@@ -339,7 +374,23 @@ kiic_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 		
 	sc->sc_flags = I2C_BUSY;
 
+	/* Clear pending interrupts, and reset controller */
+	kiic_writereg(sc, ISR, kiic_readreg(sc, ISR));
+	kiic_writereg(sc, STATUS, 0);
+
 	for (i = 0; i < nmsgs; i++) {
+		if (msgs[i].flags & IIC_M_NOSTOP) {
+			if (msgs[i+1].flags & IIC_M_RD)
+				kiic_setmode(sc, I2C_COMBMODE);
+			else
+				kiic_setmode(sc, I2C_STDSUBMODE);
+			KASSERT(msgs[i].len == 1, ("oversize I2C message"));
+			subaddr = msgs[i].buf[0];
+			i++;
+		} else {
+			kiic_setmode(sc, I2C_STDMODE);
+		}
+
 		sc->sc_data = msgs[i].buf;
 		sc->sc_resid = msgs[i].len;
 		sc->sc_flags = I2C_BUSY;
@@ -352,8 +403,11 @@ kiic_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 			addr |= 1;
 		}
 
-		kiic_writereg(sc, ADDR, addr);
-		kiic_writereg(sc, SUBADDR, 0x04);
+		addr |= sc->sc_i2c_base;
+
+		kiic_setport(sc, (addr & 0x100) >> 8);
+		kiic_writereg(sc, ADDR, addr & 0xff);
+		kiic_writereg(sc, SUBADDR, subaddr);
 
 		x = kiic_readreg(sc, CONTROL) | I2C_CT_ADDR;
 		kiic_writereg(sc, CONTROL, x);

@@ -19,11 +19,9 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2010 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 /*
  * Routines for manipulating tdesc and tdata structures
@@ -86,9 +84,10 @@ tdesc_layouthash(int nbuckets, void *node)
 			 * Unnamed structures, which cannot have forward
 			 * declarations pointing to them.  We can therefore
 			 * incorporate the name of the first member into
-			 * the hash value.
+			 * the hash value, assuming there are any.
 			 */
-			name = tdp->t_members->ml_name;
+			if (tdp->t_members != NULL)
+				name = tdp->t_members->ml_name;
 			break;
 		case ENUM:
 			/* Use the first element in the hash value */

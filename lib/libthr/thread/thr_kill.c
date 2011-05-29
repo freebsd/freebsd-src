@@ -54,11 +54,15 @@ _pthread_kill(pthread_t pthread, int sig)
 	 * signal is valid (signal 0 specifies error checking only) and
 	 * not being ignored:
 	 */
-	else if ((ret = _thr_ref_add(curthread, pthread, /*include dead*/0))
+	else if (curthread == pthread) {
+		if (sig > 0)
+			_thr_send_sig(pthread, sig);
+		ret = 0;
+	} if ((ret = _thr_find_thread(curthread, pthread, /*include dead*/0))
 	    == 0) {
 		if (sig > 0)
 			_thr_send_sig(pthread, sig);
-		_thr_ref_delete(curthread, pthread);
+		THR_THREAD_UNLOCK(curthread, pthread);
 	}
 
 	/* Return the completion status: */

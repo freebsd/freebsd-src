@@ -76,11 +76,10 @@ ufs_inactive(ap)
 	struct thread *td = ap->a_td;
 	mode_t mode;
 	int error = 0;
+	off_t isize;
 	struct mount *mp;
 
 	mp = NULL;
-	if (prtactive && vp->v_usecount != 0)
-		vprint("ufs_inactive: pushing active", vp);
 	/*
 	 * Ignore inodes related to stale file handles.
 	 */
@@ -118,18 +117,21 @@ ufs_inactive(ap)
 			}
 		}
 	}
-	if (ip->i_effnlink == 0 && DOINGSOFTDEP(vp))
-		softdep_releasefile(ip);
-	if (ip->i_nlink <= 0 && !UFS_RDONLY(ip)) {
+	isize = ip->i_size;
+	if (ip->i_ump->um_fstype == UFS2)
+		isize += ip->i_din2->di_extsize;
+	if (ip->i_effnlink <= 0 && isize && !UFS_RDONLY(ip)) {
 #ifdef QUOTA
 		if (!getinoquota(ip))
 			(void)chkiq(ip, -1, NOCRED, FORCE);
 #endif
+		error = UFS_TRUNCATE(vp, (off_t)0, IO_EXT | IO_NORMAL,
+		    NOCRED, td);
+	}
+	if (ip->i_nlink <= 0 && ip->i_mode && !UFS_RDONLY(ip)) {
 #ifdef UFS_EXTATTR
 		ufs_extattr_vnode_inactive(vp, td);
 #endif
-		error = UFS_TRUNCATE(vp, (off_t)0, IO_EXT | IO_NORMAL,
-		    NOCRED, td);
 		/*
 		 * Setting the mode to zero needs to wait for the inode
 		 * to be written just as does a change to the link count.
@@ -170,6 +172,31 @@ out:
 	return (error);
 }
 
+void
+ufs_prepare_reclaim(struct vnode *vp)
+{
+	struct inode *ip;
+#ifdef QUOTA
+	int i;
+#endif
+
+	ip = VTOI(vp);
+
+	vnode_destroy_vobject(vp);
+#ifdef QUOTA
+	for (i = 0; i < MAXQUOTAS; i++) {
+		if (ip->i_dquot[i] != NODQUOT) {
+			dqrele(vp, ip->i_dquot[i]);
+			ip->i_dquot[i] = NODQUOT;
+		}
+	}
+#endif
+#ifdef UFS_DIRHASH
+	if (ip->i_dirhash != NULL)
+		ufsdirhash_free(ip);
+#endif
+}
+
 /*
  * Reclaim an inode so that it can be used for other purposes.
  */
@@ -183,16 +210,9 @@ ufs_reclaim(ap)
 	struct vnode *vp = ap->a_vp;
 	struct inode *ip = VTOI(vp);
 	struct ufsmount *ump = ip->i_ump;
-#ifdef QUOTA
-	int i;
-#endif
 
-	if (prtactive && vp->v_usecount != 0)
-		vprint("ufs_reclaim: pushing active", vp);
-	/*
-	 * Destroy the vm object and flush associated pages.
-	 */
-	vnode_destroy_vobject(vp);
+	ufs_prepare_reclaim(vp);
+
 	if (ip->i_flag & IN_LAZYMOD)
 		ip->i_flag |= IN_MODIFIED;
 	UFS_UPDATE(vp, 0);
@@ -200,21 +220,7 @@ ufs_reclaim(ap)
 	 * Remove the inode from its hash chain.
 	 */
 	vfs_hash_remove(vp);
-	/*
-	 * Purge old data structures associated with the inode.
-	 */
-#ifdef QUOTA
-	for (i = 0; i < MAXQUOTAS; i++) {
-		if (ip->i_dquot[i] != NODQUOT) {
-			dqrele(vp, ip->i_dquot[i]);
-			ip->i_dquot[i] = NODQUOT;
-		}
-	}
-#endif
-#ifdef UFS_DIRHASH
-	if (ip->i_dirhash != NULL)
-		ufsdirhash_free(ip);
-#endif
+
 	/*
 	 * Lock the clearing of v_data so ffs_lock() can inspect it
 	 * prior to obtaining the lock.

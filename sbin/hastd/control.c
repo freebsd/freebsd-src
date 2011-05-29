@@ -32,17 +32,21 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <signal.h>
 
 #include <assert.h>
 #include <errno.h>
 #include <pthread.h>
+#include <signal.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "hast.h"
 #include "hastd.h"
+#include "hast_checksum.h"
+#include "hast_compression.h"
 #include "hast_proto.h"
+#include "hooks.h"
 #include "nv.h"
 #include "pjdlog.h"
 #include "proto.h"
@@ -50,19 +54,37 @@ __FBSDID("$FreeBSD$");
 
 #include "control.h"
 
-static void
-control_set_role(struct hastd_config *cfg, struct nv *nvout, uint8_t role,
-    struct hast_resource *res, const char *name, unsigned int no)
+void
+child_cleanup(struct hast_resource *res)
 {
 
-	assert(cfg != NULL);
-	assert(nvout != NULL);
-	assert(name != NULL);
+	proto_close(res->hr_ctrl);
+	res->hr_ctrl = NULL;
+	if (res->hr_event != NULL) {
+		proto_close(res->hr_event);
+		res->hr_event = NULL;
+	}
+	if (res->hr_conn != NULL) {
+		proto_close(res->hr_conn);
+		res->hr_conn = NULL;
+	}
+	res->hr_workerpid = 0;
+}
+
+static void
+control_set_role_common(struct hastd_config *cfg, struct nv *nvout,
+    uint8_t role, struct hast_resource *res, const char *name, unsigned int no)
+{
+	int oldrole;
 
 	/* Name is always needed. */
-	nv_add_string(nvout, name, "resource%u", no);
+	if (name != NULL)
+		nv_add_string(nvout, name, "resource%u", no);
 
 	if (res == NULL) {
+		assert(cfg != NULL);
+		assert(name != NULL);
+
 		TAILQ_FOREACH(res, &cfg->hc_resources, hr_next) {
 			if (strcmp(res->hr_name, name) == 0)
 				break;
@@ -85,6 +107,7 @@ control_set_role(struct hastd_config *cfg, struct nv *nvout, uint8_t role,
 	pjdlog_info("Role changed to %s.", role2str(role));
 
 	/* Change role to the new one. */
+	oldrole = res->hr_role;
 	res->hr_role = role;
 	pjdlog_prefix_set("[%s] (%s) ", res->hr_name, role2str(res->hr_role));
 
@@ -106,13 +129,22 @@ control_set_role(struct hastd_config *cfg, struct nv *nvout, uint8_t role,
 			pjdlog_debug(1, "Worker process %u stopped.",
 			    (unsigned int)res->hr_workerpid);
 		}
-		res->hr_workerpid = 0;
+		child_cleanup(res);
 	}
 
 	/* Start worker process if we are changing to primary. */
 	if (role == HAST_ROLE_PRIMARY)
 		hastd_primary(res);
 	pjdlog_prefix_set("%s", "");
+	hook_exec(res->hr_exec, "role", res->hr_name, role2str(oldrole),
+	    role2str(res->hr_role), NULL);
+}
+
+void
+control_set_role(struct hast_resource *res, uint8_t role)
+{
+
+	control_set_role_common(NULL, NULL, role, res, NULL, 0);
 }
 
 static void
@@ -130,15 +162,16 @@ control_status_worker(struct hast_resource *res, struct nv *nvout,
 	 * Prepare and send command to worker process.
 	 */
 	cnvout = nv_alloc();
-	nv_add_uint8(cnvout, HASTCTL_STATUS, "cmd");
+	nv_add_uint8(cnvout, CONTROL_STATUS, "cmd");
 	error = nv_error(cnvout);
 	if (error != 0) {
-		/* LOG */
+		pjdlog_common(LOG_ERR, 0, error,
+		    "Unable to prepare control header");
 		goto end;
 	}
 	if (hast_proto_send(res, res->hr_ctrl, cnvout, NULL, 0) < 0) {
 		error = errno;
-		/* LOG */
+		pjdlog_errno(LOG_ERR, "Unable to send control header");
 		goto end;
 	}
 
@@ -147,17 +180,17 @@ control_status_worker(struct hast_resource *res, struct nv *nvout,
 	 */
 	if (hast_proto_recv_hdr(res->hr_ctrl, &cnvin) < 0) {
 		error = errno;
-		/* LOG */
+		pjdlog_errno(LOG_ERR, "Unable to receive control header");
 		goto end;
 	}
 
-	error = nv_get_int64(cnvin, "error");
+	error = nv_get_int16(cnvin, "error");
 	if (error != 0)
 		goto end;
 
 	if ((str = nv_get_string(cnvin, "status")) == NULL) {
 		error = ENOENT;
-		/* LOG */
+		pjdlog_errno(LOG_ERR, "Field 'status' is missing.");
 		goto end;
 	}
 	nv_add_string(nvout, str, "status%u", no);
@@ -166,6 +199,16 @@ control_status_worker(struct hast_resource *res, struct nv *nvout,
 	    "extentsize%u", no);
 	nv_add_uint32(nvout, nv_get_uint32(cnvin, "keepdirty"),
 	    "keepdirty%u", no);
+	nv_add_uint64(nvout, nv_get_uint64(cnvin, "stat_read"),
+	    "stat_read%u", no);
+	nv_add_uint64(nvout, nv_get_uint64(cnvin, "stat_write"),
+	    "stat_write%u", no);
+	nv_add_uint64(nvout, nv_get_uint64(cnvin, "stat_delete"),
+	    "stat_delete%u", no);
+	nv_add_uint64(nvout, nv_get_uint64(cnvin, "stat_flush"),
+	    "stat_flush%u", no);
+	nv_add_uint64(nvout, nv_get_uint64(cnvin, "stat_activemap_update"),
+	    "stat_activemap_update%u", no);
 end:
 	if (cnvin != NULL)
 		nv_free(cnvin);
@@ -201,6 +244,8 @@ control_status(struct hastd_config *cfg, struct nv *nvout,
 	nv_add_string(nvout, res->hr_provname, "provname%u", no);
 	nv_add_string(nvout, res->hr_localpath, "localpath%u", no);
 	nv_add_string(nvout, res->hr_remoteaddr, "remoteaddr%u", no);
+	if (res->hr_sourceaddr[0] != '\0')
+		nv_add_string(nvout, res->hr_sourceaddr, "sourceaddr%u", no);
 	switch (res->hr_replication) {
 	case HAST_REPLICATION_FULLSYNC:
 		nv_add_string(nvout, "fullsync", "replication%u", no);
@@ -215,6 +260,10 @@ control_status(struct hastd_config *cfg, struct nv *nvout,
 		nv_add_string(nvout, "unknown", "replication%u", no);
 		break;
 	}
+	nv_add_string(nvout, checksum_name(res->hr_checksum),
+	    "checksum%u", no);
+	nv_add_string(nvout, compression_name(res->hr_compression),
+	    "compression%u", no);
 	nv_add_string(nvout, role2str(res->hr_role), "role%u", no);
 
 	switch (res->hr_role) {
@@ -251,6 +300,7 @@ control_handle(struct hastd_config *cfg)
 		return;
 	}
 
+	cfg->hc_controlin = conn;
 	nvin = nvout = NULL;
 	role = HAST_ROLE_UNDEF;
 
@@ -284,10 +334,10 @@ control_handle(struct hastd_config *cfg)
 		error = EHAST_INVALID;
 		goto fail;
 	}
-	if (cmd == HASTCTL_SET_ROLE) {
+	if (cmd == HASTCTL_CMD_SETROLE) {
 		role = nv_get_uint8(nvin, "role");
 		switch (role) {
-		case HAST_ROLE_INIT:	/* Is that valid to set, hmm? */
+		case HAST_ROLE_INIT:
 		case HAST_ROLE_PRIMARY:
 		case HAST_ROLE_SECONDARY:
 			break;
@@ -305,11 +355,11 @@ control_handle(struct hastd_config *cfg)
 		ii = 0;
 		TAILQ_FOREACH(res, &cfg->hc_resources, hr_next) {
 			switch (cmd) {
-			case HASTCTL_SET_ROLE:
-				control_set_role(cfg, nvout, role, res,
+			case HASTCTL_CMD_SETROLE:
+				control_set_role_common(cfg, nvout, role, res,
 				    res->hr_name, ii++);
 				break;
-			case HASTCTL_STATUS:
+			case HASTCTL_CMD_STATUS:
 				control_status(cfg, nvout, res, res->hr_name,
 				    ii++);
 				break;
@@ -328,11 +378,11 @@ control_handle(struct hastd_config *cfg)
 			if (str == NULL)
 				break;
 			switch (cmd) {
-			case HASTCTL_SET_ROLE:
-				control_set_role(cfg, nvout, role, NULL, str,
-				    ii);
+			case HASTCTL_CMD_SETROLE:
+				control_set_role_common(cfg, nvout, role, NULL,
+				    str, ii);
 				break;
-			case HASTCTL_STATUS:
+			case HASTCTL_CMD_STATUS:
 				control_status(cfg, nvout, NULL, str, ii);
 				break;
 			default:
@@ -357,6 +407,7 @@ close:
 	if (nvout != NULL)
 		nv_free(nvout);
 	proto_close(conn);
+	cfg->hc_controlin = NULL;
 }
 
 /*
@@ -375,7 +426,8 @@ ctrl_thread(void *arg)
 				pthread_exit(NULL);
 			pjdlog_errno(LOG_ERR,
 			    "Unable to receive control message");
-			continue;
+			kill(getpid(), SIGTERM);
+			pthread_exit(NULL);
 		}
 		cmd = nv_get_uint8(nvin, "cmd");
 		if (cmd == 0) {
@@ -383,10 +435,9 @@ ctrl_thread(void *arg)
 			nv_free(nvin);
 			continue;
 		}
-		nv_free(nvin);
 		nvout = nv_alloc();
 		switch (cmd) {
-		case HASTCTL_STATUS:
+		case CONTROL_STATUS:
 			if (res->hr_remotein != NULL &&
 			    res->hr_remoteout != NULL) {
 				nv_add_string(nvout, "complete", "status");
@@ -405,11 +456,30 @@ ctrl_thread(void *arg)
 				nv_add_uint32(nvout, (uint32_t)0, "keepdirty");
 				nv_add_uint64(nvout, (uint64_t)0, "dirty");
 			}
+			nv_add_uint64(nvout, res->hr_stat_read, "stat_read");
+			nv_add_uint64(nvout, res->hr_stat_write, "stat_write");
+			nv_add_uint64(nvout, res->hr_stat_delete,
+			    "stat_delete");
+			nv_add_uint64(nvout, res->hr_stat_flush, "stat_flush");
+			nv_add_uint64(nvout, res->hr_stat_activemap_update,
+			    "stat_activemap_update");
+			nv_add_int16(nvout, 0, "error");
+			break;
+		case CONTROL_RELOAD:
+			/*
+			 * When parent receives SIGHUP and discovers that
+			 * something related to us has changes, it sends reload
+			 * message to us.
+			 */
+			assert(res->hr_role == HAST_ROLE_PRIMARY);
+			primary_config_reload(res, nvin);
+			nv_add_int16(nvout, 0, "error");
 			break;
 		default:
 			nv_add_int16(nvout, EINVAL, "error");
 			break;
 		}
+		nv_free(nvin);
 		if (nv_error(nvout) != 0) {
 			pjdlog_error("Unable to create answer on control message.");
 			nv_free(nvout);

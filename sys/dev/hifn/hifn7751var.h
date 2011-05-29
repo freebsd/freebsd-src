@@ -81,7 +81,8 @@
 #define MAX_SCATTER 64
 
 /*
- * Data structure to hold all 4 rings and any other ring related data.
+ * Data structure to hold all 4 rings and any other ring related data
+ * that should reside in DMA.
  */
 struct hifn_dma {
 	/*
@@ -93,22 +94,13 @@ struct hifn_dma {
 	struct hifn_desc	dstr[HIFN_D_DST_RSIZE+1];
 	struct hifn_desc	resr[HIFN_D_RES_RSIZE+1];
 
-	struct hifn_command	*hifn_commands[HIFN_D_RES_RSIZE];
 
 	u_char			command_bufs[HIFN_D_CMD_RSIZE][HIFN_MAX_COMMAND];
 	u_char			result_bufs[HIFN_D_CMD_RSIZE][HIFN_MAX_RESULT];
 	u_int32_t		slop[HIFN_D_CMD_RSIZE];
-
 	u_int64_t		test_src, test_dst;
+} ;
 
-	/*
-	 *  Our current positions for insertion and removal from the desriptor
-	 *  rings. 
-	 */
-	int			cmdi, srci, dsti, resi;
-	volatile int		cmdu, srcu, dstu, resu;
-	int			cmdk, srck, dstk, resk;
-};
 
 struct hifn_session {
 	int hs_used;
@@ -157,6 +149,15 @@ struct hifn_softc {
 	bus_dma_segment_t 	sc_dmasegs[1];
 	bus_addr_t		sc_dma_physaddr;/* physical address of sc_dma */
 	int			sc_dmansegs;
+	struct hifn_command	*sc_hifn_commands[HIFN_D_RES_RSIZE];
+	/*
+	 *  Our current positions for insertion and removal from the desriptor
+	 *  rings. 
+	 */
+	int			sc_cmdi, sc_srci, sc_dsti, sc_resi;
+	volatile int		sc_cmdu, sc_srcu, sc_dstu, sc_resu;
+	int			sc_cmdk, sc_srck, sc_dstk, sc_resk;
+
 	int32_t			sc_cid;
 	int			sc_maxses;
 	int			sc_nsessions;

@@ -1,0 +1,57 @@
+.\" -*- nroff -*-
+.\"
+.TH IBV_REG_XRC_RCV_QP 3 2008-10-02 libibverbs "Libibverbs Programmer's Manual"
+.SH "NAME"
+ibv_reg_xrc_rcv_qp, ibv_unreg_xrc_rcv_qp \- register and unregister a user process with an XRC receive queue pair (QP)
+.SH "SYNOPSIS"
+.nf
+.B #include <infiniband/verbs.h>
+.sp
+.BI "int ibv_reg_xrc_rcv_qp(struct ibv_xrc_domain " "*xrc_domain" ", uint32_t " "xrc_qp_num" ");
+.nl
+.BI "int ibv_unreg_xrc_rcv_qp(struct ibv_xrc_domain " "*xrc_domain" ", uint32_t " "xrc_qp_num" ");
+.fi
+.SH "DESCRIPTION"
+.B ibv_reg_xrc_rcv_qp()
+registers a user process with the XRC receive QP (created via
+.B ibv_create_xrc_rcv_qp()
+) whose number is
+.I xrc_qp_num\fR,
+and which is associated with the XRC domain
+.I xrc_domain\fR.
+.PP
+.B ibv_unreg_xrc_rcv_qp()
+unregisters a user process from the XRC receive QP number
+.I xrc_qp_num\fR,
+which is associated with the XRC domain
+.I xrc_domain\fR.
+When the number of user processes registered with this XRC receive QP drops to zero, the QP is destroyed.
+.SH "RETURN VALUE"
+.B ibv_reg_xrc_rcv_qp()
+and
+.B ibv_unreg_xrc_rcv_qp()
+returns 0 on success, or the value of errno on failure (which indicates the failure reason).
+.SH "NOTES"
+.B ibv_reg_xrc_rcv_qp()
+and
+.B ibv_unreg_xrc_rcv_qp()
+may fail if the number
+.I xrc_qp_num
+is not a number of a valid XRC receive QP (the QP is not allocated or it is the number of a non-XRC QP), or
+the XRC receive QP was created with an XRC domain other than
+.I xrc_domain\fR.
+
+If a process is still registered with any XRC RCV QPs belonging to some domain, 
+.B ibv_close_xrc_domain()
+will return failure if called for that domain in that process.
+
+.B ibv_create_xrc_rcv_qp()
+performs an implicit registration for the creating process;  when that process is finished with the XRC RCV QP, it should call
+.B ibv_unreg_xrc_rcv_qp()
+for that QP. Note that if no other processes are registered with the QP at this time, its registration count will drop to zero and it will be destroyed.
+.SH "SEE ALSO"
+.BR ibv_open_xrc_domain (3),
+.BR ibv_create_xrc_rcv_qp (3)
+.SH "AUTHORS"
+.TP
+Dotan Barak <dotanb@mellanox.co.il>

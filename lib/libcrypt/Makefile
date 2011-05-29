@@ -12,7 +12,9 @@ LIB=		crypt
 .PATH:		${.CURDIR}/../libmd
 SRCS=		crypt.c misc.c \
 		crypt-md5.c md5c.c \
-		crypt-nthash.c md4c.c
+		crypt-nthash.c md4c.c \
+		crypt-sha256.c sha256c.c \
+		crypt-sha512.c sha512c.c
 MAN=		crypt.3
 MLINKS=		crypt.3 crypt_get_format.3 crypt.3 crypt_set_format.3
 CFLAGS+=	-I${.CURDIR}/../libmd -I${.CURDIR}/../libutil
@@ -29,7 +31,9 @@ CFLAGS+=	-I${.CURDIR} -DHAS_DES -DHAS_BLOWFISH
 SRCS+=		auth.c property.c
 .for sym in auth_getval property_find properties_read properties_free \
 	    MD4Init MD4Final MD4Update MD4Pad \
-	    MD5Init MD5Final MD5Update MD5Pad
+	    MD5Init MD5Final MD5Update MD5Pad \
+	    SHA256_Init SHA256_Final SHA256_Update \
+	    SHA512_Init SHA512_Final SHA512_Update
 CFLAGS+=	-D${sym}=__${sym}
 .endfor
 

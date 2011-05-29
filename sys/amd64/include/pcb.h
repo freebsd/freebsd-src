@@ -44,7 +44,6 @@
 #include <machine/segments.h>
 
 struct pcb {
-	register_t	pcb_cr3;
 	register_t	pcb_r15;
 	register_t	pcb_r14;
 	register_t	pcb_r13;
@@ -55,50 +54,82 @@ struct pcb {
 	register_t	pcb_rip;
 	register_t	pcb_fsbase;
 	register_t	pcb_gsbase;
-	u_long		pcb_flags;
+	register_t	pcb_kgsbase;
+	register_t	pcb_cr0;
+	register_t	pcb_cr2;
+	register_t	pcb_cr3;
+	register_t	pcb_cr4;
+	register_t	pcb_dr0;
+	register_t	pcb_dr1;
+	register_t	pcb_dr2;
+	register_t	pcb_dr3;
+	register_t	pcb_dr6;
+	register_t	pcb_dr7;
+
+	struct region_descriptor pcb_gdt;
+	struct region_descriptor pcb_idt;
+	struct region_descriptor pcb_ldt;
+	uint16_t	pcb_tr;
+
+	u_int		pcb_flags;
+#define	PCB_FULL_IRET	0x01	/* full iret is required */
 #define	PCB_DBREGS	0x02	/* process using debug registers */
+#define	PCB_KERNFPU	0x04	/* kernel uses fpu */
 #define	PCB_FPUINITDONE	0x08	/* fpu state is initialized */
+#define	PCB_USERFPUINITDONE 0x10 /* fpu user state is initialized */
 #define	PCB_GS32BIT	0x20	/* linux gs switch */
 #define	PCB_32BIT	0x40	/* process has 32 bit context (segs etc) */
-#define	PCB_FULLCTX	0x80	/* full context restore on sysret */
 
-	u_int64_t	pcb_dr0;
-	u_int64_t	pcb_dr1;
-	u_int64_t	pcb_dr2;
-	u_int64_t	pcb_dr3;
-	u_int64_t	pcb_dr6;
-	u_int64_t	pcb_dr7;
-
-	struct	savefpu	pcb_save;
 	uint16_t	pcb_initial_fpucw;
 
-	caddr_t		pcb_onfault; /* copyin/out fault recovery */
+	/* copyin/out fault recovery */
+	caddr_t		pcb_onfault;
 
 	/* 32-bit segment descriptor */
-	struct user_segment_descriptor	pcb_gs32sd;
+	struct user_segment_descriptor pcb_gs32sd;
+
 	/* local tss, with i/o bitmap; NULL for common */
 	struct amd64tss *pcb_tssp;
-	char		pcb_full_iret;
-};
 
-struct xpcb {
-	struct pcb	xpcb_pcb;
-	register_t	xpcb_cr0;
-	register_t	xpcb_cr2;
-	register_t	xpcb_cr4;
-	register_t	xpcb_kgsbase;
-	struct region_descriptor xpcb_gdt;
-	struct region_descriptor xpcb_idt;
-	struct region_descriptor xpcb_ldt;
-	uint16_t	xpcb_tr;
+	struct savefpu	*pcb_save;
+	struct savefpu	pcb_user_save;
 };
 
 #ifdef _KERNEL
 struct trapframe;
 
+/*
+ * The pcb_flags is only modified by current thread, or by other threads
+ * when current thread is stopped.  However, current thread may change it
+ * from the interrupt context in cpu_switch(), or in the trap handler.
+ * When we read-modify-write pcb_flags from C sources, compiler may generate
+ * code that is not atomic regarding the interrupt handler.  If a trap or
+ * interrupt happens and any flag is modified from the handler, it can be
+ * clobbered with the cached value later.  Therefore, we implement setting
+ * and clearing flags with single-instruction functions, which do not race
+ * with possible modification of the flags from the trap or interrupt context,
+ * because traps and interrupts are executed only on instruction boundary.
+ */
+static __inline void
+set_pcb_flags(struct pcb *pcb, const u_int flags)
+{
+
+	__asm __volatile("orl %1,%0"
+	    : "=m" (pcb->pcb_flags) : "ir" (flags), "m" (pcb->pcb_flags)
+	    : "cc");
+}
+
+static __inline void
+clear_pcb_flags(struct pcb *pcb, const u_int flags)
+{
+
+	__asm __volatile("andl %1,%0"
+	    : "=m" (pcb->pcb_flags) : "ir" (~flags), "m" (pcb->pcb_flags)
+	    : "cc");
+}
+
 void	makectx(struct trapframe *, struct pcb *);
-void	savectx(struct pcb *);
-int	savectx2(struct xpcb *);
+int	savectx(struct pcb *);
 #endif
 
 #endif /* _AMD64_PCB_H_ */

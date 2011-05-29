@@ -54,17 +54,16 @@
  *
  * $FreeBSD$
  */
-#include "opt_psim.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/module.h>
 #include <sys/bus.h>
-#include <sys/clock.h>
 #include <sys/cons.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 
+#include <dev/ofw/ofw_bus_subr.h>
 #include <dev/ofw/openfirm.h>
 
 #include <machine/bus.h>
@@ -74,7 +73,6 @@
 
 #include <sys/rman.h>
 
-#include "clock_if.h"
 #include "ofw_bus_if.h"
 #include "pic_if.h"
 
@@ -117,10 +115,16 @@ static int	nexus_attach(device_t);
 /*
  * Bus interface
  */
-static device_t nexus_add_child(device_t, int, const char *, int);
+static device_t nexus_add_child(device_t, u_int, const char *, int);
 static void	nexus_probe_nomatch(device_t, device_t);
 static int	nexus_read_ivar(device_t, device_t, int, uintptr_t *);
 static int	nexus_write_ivar(device_t, device_t, int, uintptr_t);
+#ifdef SMP
+static int	nexus_bind_intr(device_t dev, device_t child,
+		    struct resource *irq, int cpu);
+#endif
+static int	nexus_config_intr(device_t dev, int irq, enum intr_trigger trig,
+		    enum intr_polarity pol);
 static int	nexus_setup_intr(device_t, device_t, struct resource *, int,
 		    driver_filter_t *, driver_intr_t *, void *, void **);
 static int	nexus_teardown_intr(device_t, device_t, struct resource *,
@@ -143,12 +147,6 @@ static const char	*nexus_ofw_get_type(device_t, device_t);
 static const char	*nexus_ofw_get_compat(device_t, device_t);
 
 /*
- * Clock interface.
- */
-static int nexus_gettime(device_t, struct timespec *);
-static int nexus_settime(device_t, struct timespec *);
-
-/*
  * Local routines
  */
 static device_t	nexus_device_from_node(device_t, phandle_t);
@@ -165,11 +163,16 @@ static device_method_t nexus_methods[] = {
 	/* Bus interface. Resource management is business of the children... */
 	DEVMETHOD(bus_add_child,	nexus_add_child),
 	DEVMETHOD(bus_print_child,	bus_generic_print_child),
+	DEVMETHOD(bus_child_pnpinfo_str, ofw_bus_gen_child_pnpinfo_str),
 	DEVMETHOD(bus_probe_nomatch,	nexus_probe_nomatch),
 	DEVMETHOD(bus_read_ivar,	nexus_read_ivar),
 	DEVMETHOD(bus_write_ivar,	nexus_write_ivar),
 	DEVMETHOD(bus_setup_intr,	nexus_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	nexus_teardown_intr),
+#ifdef SMP
+	DEVMETHOD(bus_bind_intr,	nexus_bind_intr),
+#endif
+	DEVMETHOD(bus_config_intr,	nexus_config_intr),
 	DEVMETHOD(bus_alloc_resource,	nexus_alloc_resource),
 	DEVMETHOD(bus_activate_resource,	nexus_activate_resource),
 	DEVMETHOD(bus_deactivate_resource,	nexus_deactivate_resource),
@@ -180,10 +183,6 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD(ofw_bus_get_name, nexus_ofw_get_name),
 	DEVMETHOD(ofw_bus_get_type, nexus_ofw_get_type),
 	DEVMETHOD(ofw_bus_get_compat, nexus_ofw_get_compat),
-
-	/* Clock interface */
-	DEVMETHOD(clock_gettime,	nexus_gettime),
-	DEVMETHOD(clock_settime,	nexus_settime),
 
 	{ 0, 0 }
 };
@@ -214,13 +213,10 @@ nexus_attach(device_t dev)
 	struct		nexus_softc *sc;
 	u_long		start, end;
 
-	if ((root = OF_peer(0)) == -1)
-		panic("nexus_probe: OF_peer failed.");
-
 	sc = device_get_softc(dev);
 
 	start = 0;
-	end = INTR_VECTORS - 1;
+	end = MAX_PICS*INTR_VECTORS - 1;
 
 	sc->sc_rman.rm_start = start;
 	sc->sc_rman.rm_end = end;
@@ -230,6 +226,9 @@ nexus_attach(device_t dev)
 	    rman_manage_region(&sc->sc_rman, start, end))
 		panic("nexus_probe IRQ rman");
 
+	if ((root = OF_peer(0)) == 0)
+		return (bus_generic_attach(dev));
+		
 	/*
 	 * Now walk the OFW tree to locate top-level devices
 	 */
@@ -240,7 +239,6 @@ nexus_attach(device_t dev)
 
 	}
 
-	clock_register(dev, 1000);
 	return (bus_generic_attach(dev));
 }
 
@@ -264,7 +262,7 @@ nexus_probe_nomatch(device_t dev, device_t child)
 }
 
 static device_t
-nexus_add_child(device_t dev, int order, const char *name, int unit)
+nexus_add_child(device_t dev, u_int order, const char *name, int unit)
 {
 	device_t child;
 	struct nexus_devinfo *dinfo;
@@ -342,7 +340,6 @@ static int
 nexus_setup_intr(device_t dev, device_t child, struct resource *res, int flags,
     driver_filter_t *filter, driver_intr_t *ihand, void *arg, void **cookiep)
 {
-	driver_t	*driver;
 	int		error;
 
 	/* somebody tried to setup an irq that failed to allocate! */
@@ -352,8 +349,6 @@ nexus_setup_intr(device_t dev, device_t child, struct resource *res, int flags,
 	*cookiep = 0;
 	if ((rman_get_flags(res) & RF_SHAREABLE) == 0)
 		flags |= INTR_EXCL;
-
-	driver = device_get_driver(child);
 
 	/*
 	 * We depend here on rman_activate_resource() being idempotent.
@@ -374,6 +369,23 @@ nexus_teardown_intr(device_t dev, device_t child, struct resource *res,
 {
 
 	return (powerpc_teardown_intr(cookie));
+}
+
+#ifdef SMP
+static int
+nexus_bind_intr(device_t dev, device_t child, struct resource *irq, int cpu)
+{
+
+        return (powerpc_bind_intr(rman_get_start(irq), cpu));
+}
+#endif
+        
+static int
+nexus_config_intr(device_t dev, int irq, enum intr_trigger trig,
+    enum intr_polarity pol)
+{
+
+        return (powerpc_config_intr(irq, trig, pol));
 }
 
 /*
@@ -512,50 +524,3 @@ nexus_ofw_get_compat(device_t bus, device_t dev)
 	return (dinfo->ndi_compatible);
 }
 
-#define	DIFF19041970	2082844800
-
-static int
-nexus_gettime(device_t dev, struct timespec *ts)
-{
-	char path[128];
-	ihandle_t ih;
-	phandle_t ph;
-	u_int rtc;
-
-	ph = OF_finddevice("rtc");
-	if (ph == -1)
-		return (ENOENT);
-
-	OF_package_to_path(ph, path, sizeof(path));
-	ih = OF_open(path);
-	if (ih == -1)
-		return (ENXIO);
-
-	if (OF_call_method("read-rtc", ih, 0, 1, &rtc))
-		return (EIO);
-
-	ts->tv_sec = rtc - DIFF19041970;
-	ts->tv_nsec = 0;
-	return (0);
-}
-
-static int
-nexus_settime(device_t dev, struct timespec *ts)
-{
-	char path[128];
-	ihandle_t ih;
-	phandle_t ph;     
-	u_int rtc;
-
-	ph = OF_finddevice("rtc");     
-	if (ph == -1)     
-		return (ENOENT);
-
-	OF_package_to_path(ph, path, sizeof(path));                   
-	ih = OF_open(path);
-	if (ih == -1)
-		return (ENXIO);
-
-	rtc = ts->tv_sec + DIFF19041970;
-	return ((OF_call_method("write-rtc", ih, 1, 0, rtc) != 0) ? EIO : 0);
-}

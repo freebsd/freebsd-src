@@ -1,5 +1,7 @@
 /*-
  * Copyright (c) 2001-2007, by Cisco Systems, Inc. All rights reserved.
+ * Copyright (c) 2008-2011, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2011, by Michael Tuexen. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -112,6 +114,8 @@ sctp_do_peeloff(struct socket *head, struct socket *so, sctp_assoc_t assoc_id)
 	n_inp->sctp_features = inp->sctp_features;
 	n_inp->sctp_mobility_features = inp->sctp_mobility_features;
 	n_inp->sctp_frag_point = inp->sctp_frag_point;
+	n_inp->sctp_cmt_on_off = inp->sctp_cmt_on_off;
+	n_inp->sctp_ecn_enable = inp->sctp_ecn_enable;
 	n_inp->partial_delivery_point = inp->partial_delivery_point;
 	n_inp->sctp_context = inp->sctp_context;
 	n_inp->inp_starting_point_for_iterator = NULL;
@@ -163,8 +167,10 @@ sctp_get_peeloff(struct socket *head, sctp_assoc_t assoc_id, int *error)
 	}
 	atomic_add_int(&stcb->asoc.refcnt, 1);
 	SCTP_TCB_UNLOCK(stcb);
+	CURVNET_SET(head->so_vnet);
 	newso = sonewconn(head, SS_ISCONNECTED
 	    );
+	CURVNET_RESTORE();
 	if (newso == NULL) {
 		SCTPDBG(SCTP_DEBUG_PEEL1, "sctp_peeloff:sonewconn failed\n");
 		SCTP_LTRACE_ERR_RET(NULL, stcb, NULL, SCTP_FROM_SCTP_PEELOFF, ENOMEM);
@@ -183,6 +189,8 @@ sctp_get_peeloff(struct socket *head, sctp_assoc_t assoc_id, int *error)
 	    (SCTP_PCB_COPY_FLAGS & inp->sctp_flags));
 	n_inp->sctp_features = inp->sctp_features;
 	n_inp->sctp_frag_point = inp->sctp_frag_point;
+	n_inp->sctp_cmt_on_off = inp->sctp_cmt_on_off;
+	n_inp->sctp_ecn_enable = inp->sctp_ecn_enable;
 	n_inp->partial_delivery_point = inp->partial_delivery_point;
 	n_inp->sctp_context = inp->sctp_context;
 	n_inp->inp_starting_point_for_iterator = NULL;

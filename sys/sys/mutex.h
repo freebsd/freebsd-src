@@ -32,7 +32,6 @@
 #ifndef _SYS_MUTEX_H_
 #define _SYS_MUTEX_H_
 
-#ifndef LOCORE
 #include <sys/queue.h>
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
@@ -43,12 +42,6 @@
 #include <sys/lockstat.h>
 #include <machine/atomic.h>
 #include <machine/cpufunc.h>
-#endif	/* _KERNEL_ */
-#endif	/* !LOCORE */
-
-#include <machine/mutex.h>
-
-#ifdef _KERNEL
 
 /*
  * Mutex types and options passed to mtx_init().  MTX_QUIET and MTX_DUPOK
@@ -80,18 +73,6 @@
  * Value stored in mutex->mtx_lock to denote a destroyed mutex.
  */
 #define	MTX_DESTROYED	(MTX_CONTESTED | MTX_UNOWNED)
-
-#endif	/* _KERNEL */
-
-#ifndef LOCORE
-
-/*
- * XXX: Friendly reminder to fix things in MP code that is presently being
- * XXX: worked on.
- */
-#define mp_fixme(string)
-
-#ifdef _KERNEL
 
 /*
  * Prototypes
@@ -137,68 +118,59 @@ void	_thread_lock_flags(struct thread *, int, const char *, int);
 
 #define	mtx_recurse	lock_object.lo_data
 
-/*
- * We define our machine-independent (unoptimized) mutex micro-operations
- * here, if they are not already defined in the machine-dependent mutex.h 
- */
+/* Very simple operations on mtx_lock. */
 
 /* Try to obtain mtx_lock once. */
-#ifndef _obtain_lock
-#define _obtain_lock(mp, tid)						\
+#define _mtx_obtain_lock(mp, tid)					\
 	atomic_cmpset_acq_ptr(&(mp)->mtx_lock, MTX_UNOWNED, (tid))
-#endif
 
 /* Try to release mtx_lock if it is unrecursed and uncontested. */
-#ifndef _release_lock
-#define _release_lock(mp, tid)						\
+#define _mtx_release_lock(mp, tid)					\
 	atomic_cmpset_rel_ptr(&(mp)->mtx_lock, (tid), MTX_UNOWNED)
-#endif
 
 /* Release mtx_lock quickly, assuming we own it. */
-#ifndef _release_lock_quick
-#define _release_lock_quick(mp)						\
+#define _mtx_release_lock_quick(mp)					\
 	atomic_store_rel_ptr(&(mp)->mtx_lock, MTX_UNOWNED)
-#endif
 
 /*
- * Obtain a sleep lock inline, or call the "hard" function if we can't get it
- * easy.
+ * Full lock operations that are suitable to be inlined in non-debug
+ * kernels.  If the lock cannot be acquired or released trivially then
+ * the work is deferred to another function.
  */
-#ifndef _get_sleep_lock
-#define _get_sleep_lock(mp, tid, opts, file, line) do {			\
+
+/* Lock a normal mutex. */
+#define __mtx_lock(mp, tid, opts, file, line) do {			\
 	uintptr_t _tid = (uintptr_t)(tid);				\
-	if (!_obtain_lock((mp), _tid)) 					\
+									\
+	if (!_mtx_obtain_lock((mp), _tid))				\
 		_mtx_lock_sleep((mp), _tid, (opts), (file), (line));	\
 	else								\
               	LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(LS_MTX_LOCK_ACQUIRE, \
 		    mp, 0, 0, (file), (line));				\
 } while (0)
-#endif
 
 /*
- * Obtain a spin lock inline, or call the "hard" function if we can't get it
- * easy. For spinlocks, we handle recursion inline (it turns out that function
- * calls can be significantly expensive on some architectures).
- * Since spin locks are not _too_ common, inlining this code is not too big 
- * a deal.
+ * Lock a spin mutex.  For spinlocks, we handle recursion inline (it
+ * turns out that function calls can be significantly expensive on
+ * some architectures).  Since spin locks are not _too_ common,
+ * inlining this code is not too big a deal.
  */
-#ifndef _get_spin_lock
 #ifdef SMP
-#define _get_spin_lock(mp, tid, opts, file, line) do {	\
+#define __mtx_lock_spin(mp, tid, opts, file, line) do {			\
 	uintptr_t _tid = (uintptr_t)(tid);				\
+									\
 	spinlock_enter();						\
-	if (!_obtain_lock((mp), _tid)) {				\
+	if (!_mtx_obtain_lock((mp), _tid)) {				\
 		if ((mp)->mtx_lock == _tid)				\
 			(mp)->mtx_recurse++;				\
-		else {							\
+		else							\
 			_mtx_lock_spin((mp), _tid, (opts), (file), (line)); \
-		}							\
 	} else 								\
               	LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(LS_MTX_SPIN_LOCK_ACQUIRE, \
 		    mp, 0, 0, (file), (line));				\
 } while (0)
 #else /* SMP */
-#define _get_spin_lock(mp, tid, opts, file, line) do {			\
+#define __mtx_lock_spin(mp, tid, opts, file, line) do {			\
 	uintptr_t _tid = (uintptr_t)(tid);				\
 									\
 	spinlock_enter();						\
@@ -206,57 +178,52 @@ void	_thread_lock_flags(struct thread *, int, const char *, int);
 		(mp)->mtx_recurse++;					\
 	else {								\
 		KASSERT((mp)->mtx_lock == MTX_UNOWNED, ("corrupt spinlock")); \
-		(mp)->mtx_lock = _tid;				\
+		(mp)->mtx_lock = _tid;					\
 	}								\
 } while (0)
 #endif /* SMP */
-#endif
 
-/*
- * Release a sleep lock inline, or call the "hard" function if we can't do it
- * easy.
- */
-#ifndef _rel_sleep_lock
-#define _rel_sleep_lock(mp, tid, opts, file, line) do {			\
+/* Unlock a normal mutex. */
+#define __mtx_unlock(mp, tid, opts, file, line) do {			\
 	uintptr_t _tid = (uintptr_t)(tid);				\
 									\
-	if (!_release_lock((mp), _tid))					\
+	if (!_mtx_release_lock((mp), _tid))				\
 		_mtx_unlock_sleep((mp), (opts), (file), (line));	\
 } while (0)
-#endif
 
 /*
- * For spinlocks, we can handle everything inline, as it's pretty simple and
- * a function call would be too expensive (at least on some architectures).
- * Since spin locks are not _too_ common, inlining this code is not too big 
- * a deal.
+ * Unlock a spin mutex.  For spinlocks, we can handle everything
+ * inline, as it's pretty simple and a function call would be too
+ * expensive (at least on some architectures).  Since spin locks are
+ * not _too_ common, inlining this code is not too big a deal.
  *
  * Since we always perform a spinlock_enter() when attempting to acquire a
  * spin lock, we need to always perform a matching spinlock_exit() when
  * releasing a spin lock.  This includes the recursion cases.
  */
-#ifndef _rel_spin_lock
 #ifdef SMP
-#define _rel_spin_lock(mp) do {						\
+#define __mtx_unlock_spin(mp) do {					\
 	if (mtx_recursed((mp)))						\
 		(mp)->mtx_recurse--;					\
 	else {								\
 		LOCKSTAT_PROFILE_RELEASE_LOCK(LS_MTX_SPIN_UNLOCK_RELEASE, \
 			mp);						\
-		_release_lock_quick((mp));				\
+		_mtx_release_lock_quick((mp));				\
 	}                                                               \
 	spinlock_exit();				                \
 } while (0)
 #else /* SMP */
-#define _rel_spin_lock(mp) do {						\
+#define __mtx_unlock_spin(mp) do {					\
 	if (mtx_recursed((mp)))						\
 		(mp)->mtx_recurse--;					\
-	else								\
+	else {								\
+		LOCKSTAT_PROFILE_RELEASE_LOCK(LS_MTX_SPIN_UNLOCK_RELEASE, \
+			mp);						\
 		(mp)->mtx_lock = MTX_UNOWNED;				\
+	}                                                               \
 	spinlock_exit();						\
 } while (0)
 #endif /* SMP */
-#endif
 
 /*
  * Exported lock manipulation interface.
@@ -333,13 +300,13 @@ extern struct mtx_pool *mtxpool_sleep;
 	_mtx_unlock_spin_flags((m), (opts), LOCK_FILE, LOCK_LINE)
 #else	/* LOCK_DEBUG == 0 && !MUTEX_NOINLINE */
 #define	mtx_lock_flags(m, opts)						\
-	_get_sleep_lock((m), curthread, (opts), LOCK_FILE, LOCK_LINE)
+	__mtx_lock((m), curthread, (opts), LOCK_FILE, LOCK_LINE)
 #define	mtx_unlock_flags(m, opts)					\
-	_rel_sleep_lock((m), curthread, (opts), LOCK_FILE, LOCK_LINE)
+	__mtx_unlock((m), curthread, (opts), LOCK_FILE, LOCK_LINE)
 #define	mtx_lock_spin_flags(m, opts)					\
-	_get_spin_lock((m), curthread, (opts), LOCK_FILE, LOCK_LINE)
+	__mtx_lock_spin((m), curthread, (opts), LOCK_FILE, LOCK_LINE)
 #define	mtx_unlock_spin_flags(m, opts)					\
-	_rel_spin_lock((m))
+	__mtx_unlock_spin((m))
 #endif	/* LOCK_DEBUG > 0 || MUTEX_NOINLINE */
 
 #define mtx_trylock_flags(m, opts)					\
@@ -448,5 +415,4 @@ struct mtx_args {
 #define	MTX_NETWORK_LOCK	"network driver"
 
 #endif	/* _KERNEL */
-#endif	/* !LOCORE */
 #endif	/* _SYS_MUTEX_H_ */

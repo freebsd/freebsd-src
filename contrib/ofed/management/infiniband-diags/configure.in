@@ -1,0 +1,170 @@
+dnl Process this file with autoconf to produce a configure script.
+
+AC_PREREQ(2.57)
+AC_INIT(infiniband-diags, 1.5.0, general@lists.openfabrics.org)
+AC_CONFIG_AUX_DIR(config)
+AM_CONFIG_HEADER(config.h)
+AM_INIT_AUTOMAKE
+
+AC_SUBST(RELEASE, ${RELEASE:-unknown})
+AC_SUBST(TARBALL, ${TARBALL:-${PACKAGE}-${VERSION}.tar.gz})
+
+AC_ARG_ENABLE(libcheck, [  --disable-libcheck      do not test for presence of ib libraries],
+[       if test x$enableval = xno ; then
+                disable_libcheck=yes
+        fi
+])
+
+dnl support debug mode
+AC_ARG_ENABLE(debug,
+[  --enable-debug Turn on debug mode],
+[case "${enableval}" in
+  yes) debug=true ;;
+  no)  debug=false ;;
+  *) AC_MSG_ERROR(bad value ${enableval} for --enable-debug) ;;
+esac],[debug=false])
+AM_CONDITIONAL(DEBUG, test x$debug = xtrue)
+
+dnl Checks for programs
+AC_PROG_CC
+AC_PROG_LIBTOOL
+
+if test "$disable_libcheck" != "yes"
+then
+dnl Checks for libraries
+AC_CHECK_LIB(ibcommon, sys_read_string, [],
+	AC_MSG_ERROR([sys_read_string() not found. diags require libibcommon.]))
+AC_CHECK_LIB(ibumad, umad_init, [],
+	AC_MSG_ERROR([umad_init() not found. diags require libibumad.]))
+AC_CHECK_LIB(ibmad, mad_dump_int, [],
+	AC_MSG_ERROR([mad_dump_int() not found. diags require libibmad.]))
+AC_CHECK_LIB(ibmad, port_performance_ext_query, [],
+	AC_MSG_ERROR([port_performance_ext_query() not found. diags require more recent libibmad.]))
+AC_CHECK_LIB(osmcomp, cl_thread_init, [],
+	AC_MSG_ERROR([cl_thread_init() not found. diags require libosmcomp.]))
+AC_CHECK_LIB(osmvendor, osmv_query_sa, [],
+	AC_MSG_ERROR([osmv_query_sa() not found. diags require libosmvendor.]), [-lopensm])
+AC_CHECK_LIB(opensm, osm_log_init_v2, [],
+	AC_MSG_ERROR([osm_log_init_v2() not found. diags require libopensm.]))
+fi
+
+dnl Checks for header files.
+AC_HEADER_STDC
+AC_CHECK_HEADERS([stdlib.h string.h unistd.h fcntl.h inttypes.h netinet/in.h sys/ioctl.h syslog.h])
+if test "$disable_libcheck" != "yes"
+then
+AC_CHECK_HEADER(infiniband/common.h, [],
+	AC_MSG_ERROR([<infiniband/common.h> not found. diags require libibcommon.])
+)
+AC_CHECK_HEADER(infiniband/umad.h, [],
+	AC_MSG_ERROR([<infiniband/umad.h> not found. diags require libibumad.])
+)
+AC_CHECK_HEADER(infiniband/mad.h, [],
+	AC_MSG_ERROR([<infiniband/mad.h> not found. diags require libibmad.])
+)
+fi
+
+dnl Checks for library functions
+AC_FUNC_ERROR_AT_LINE
+AC_FUNC_VPRINTF
+AC_CHECK_FUNCS([strchr strrchr strtol strtoul memset])
+
+dnl Checks for typedefs, structures, and compiler characteristics.
+AC_C_CONST
+
+dnl Check if we should include test utilities
+AC_MSG_CHECKING(for --enable-test-utils)
+AC_ARG_ENABLE(test-utils,
+[  --enable-test-utils build additional test utilities],
+[case "${enableval}" in
+  yes) tutils=yes ;;
+  no)  tutils=no ;;
+  *) AC_MSG_ERROR(bad value ${enableval} for --enable-test-utils) ;;
+esac],[tutils=no])
+AM_CONDITIONAL(ENABLE_TEST_UTILS, test x$tutils = xyes)
+AC_MSG_RESULT(${tutils=no})
+
+dnl Check for perl and perl install location
+AC_MSG_CHECKING(for --with-perl-path )
+AC_ARG_WITH(perl-path,
+    AC_HELP_STRING([--with-perl-path=path],
+                   [define perl location]),
+    [ case "$withval" in
+    no)
+        ;;
+    *)
+        withperlpath=yes
+        PERL=$withval
+        ;;
+    esac ]
+)
+AC_MSG_RESULT(${withperlpath=no})
+AC_SUBST(PERL)
+
+if test $withperlpath = "no"
+then
+    AC_PATH_PROG([PERL], [perl])
+fi
+AC_SUBST(PERL)
+
+AC_MSG_CHECKING(for --with-perl-installdir )
+AC_ARG_WITH(perl-installdir,
+    AC_HELP_STRING([--with-perl-installdir=path],
+                   [define perl install path]),
+    [ case "$withval" in
+    no)
+        ;;
+    *)
+        withperlinstalldir=yes
+        PERL_INSTALLDIR=$withval
+        ;;
+    esac ]
+)
+AC_MSG_RESULT(${withperlinstalldir=no})
+AC_SUBST(PERL_INSTALLDIR)
+
+if test $withperlinstalldir = "no"
+then
+    PERL_INSTALLDIR=`$PERL -e 'use Config; $T=$Config{installsitearch}; print $T;'`
+fi
+AC_SUBST(PERL_INSTALLDIR)
+
+AC_CACHE_CHECK(whether ld accepts --version-script, ac_cv_version_script,
+    if test -n "`$LD --help < /dev/null 2>/dev/null | grep version-script`"; then
+        ac_cv_version_script=yes
+    else
+        ac_cv_version_script=no
+    fi)
+
+AM_CONDITIONAL(HAVE_LD_VERSION_SCRIPT, test "$ac_cv_version_script" = "yes")
+
+dnl Make appropriate substitution for IB script path
+dnl Must expand nested unquoting
+IBSCRIPTPATH_TMP1="`eval echo ${sbindir}`"
+IBSCRIPTPATH_TMP2="`echo $IBSCRIPTPATH_TMP1 | sed 's/^NONE/$ac_default_prefix/'`"
+IBSCRIPTPATH="`eval echo $IBSCRIPTPATH_TMP2`"
+AC_SUBST(IBSCRIPTPATH)
+
+AC_CONFIG_FILES([\
+        Makefile \
+        infiniband-diags.spec \
+        include/ibdiag_version.h \
+        scripts/ibcheckerrors \
+        scripts/ibcheckerrs \
+        scripts/ibchecknet \
+        scripts/ibchecknode \
+        scripts/ibcheckport \
+        scripts/ibcheckportstate \
+        scripts/ibcheckportwidth \
+        scripts/ibcheckstate \
+        scripts/ibcheckwidth \
+        scripts/ibclearcounters \
+        scripts/ibclearerrors \
+	scripts/ibdatacounts \
+	scripts/ibdatacounters \
+        scripts/ibhosts \
+        scripts/ibnodes \
+        scripts/ibswitches \
+	scripts/ibrouters
+])
+AC_OUTPUT

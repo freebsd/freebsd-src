@@ -100,6 +100,8 @@ static int hw_clockrate;
 SYSCTL_INT(_hw, OID_AUTO, clockrate, CTLFLAG_RD, 
     &hw_clockrate, 0, "CPU instruction clock rate");
 
+static eventhandler_tag tsc_post_tag;
+
 static char cpu_brand[48];
 
 #define	MAX_BRAND_INDEX	8
@@ -370,7 +372,7 @@ printcpuinfo(void)
 			break;
 		case 0x500:
 			strcat(cpu_model, "K5 model 0");
-			tsc_is_broken = 1;
+			tsc_freq = 0;
 			break;
 		case 0x510:
 			strcat(cpu_model, "K5 model 1");
@@ -558,7 +560,8 @@ printcpuinfo(void)
 	} else if (cpu_vendor_id == CPU_VENDOR_RISE) {
 		strcpy(cpu_model, "Rise ");
 		switch (cpu_id & 0xff0) {
-		case 0x500:
+		case 0x500:	/* 6401 and 6441 (Kirin) */
+		case 0x520:	/* 6510 (Lynx) */
 			strcat(cpu_model, "mP6");
 			break;
 		default:
@@ -568,10 +571,19 @@ printcpuinfo(void)
 		switch (cpu_id & 0xff0) {
 		case 0x540:
 			strcpy(cpu_model, "IDT WinChip C6");
-			tsc_is_broken = 1;
+			/*
+			 * http://www.centtech.com/c6_data_sheet.pdf
+			 *
+			 * I-12 RDTSC may return incoherent values in EDX:EAX
+			 * I-13 RDTSC hangs when certain event counters are used
+			 */
+			tsc_freq = 0;
 			break;
 		case 0x580:
 			strcpy(cpu_model, "IDT WinChip 2");
+			break;
+		case 0x590:
+			strcpy(cpu_model, "IDT WinChip 3");
 			break;
 		case 0x660:
 			strcpy(cpu_model, "VIA C3 Samuel");
@@ -601,11 +613,12 @@ printcpuinfo(void)
 	} else if (cpu_vendor_id == CPU_VENDOR_IBM) {
 		strcpy(cpu_model, "Blue Lightning CPU");
 	} else if (cpu_vendor_id == CPU_VENDOR_NSC) {
-		switch (cpu_id & 0xfff) {
+		switch (cpu_id & 0xff0) {
 		case 0x540:
 			strcpy(cpu_model, "Geode SC1100");
 			cpu = CPU_GEODE1100;
-			tsc_is_broken = 1;
+			if ((cpu_id & CPUID_STEPPING) == 0)
+				tsc_freq = 0;
 			break;
 		default:
 			strcpy(cpu_model, "Geode/NSC unknown");
@@ -634,24 +647,27 @@ printcpuinfo(void)
 #if defined(I486_CPU)
 	case CPUCLASS_486:
 		printf("486");
-		bzero_vector = i486_bzero;
 		break;
 #endif
 #if defined(I586_CPU)
 	case CPUCLASS_586:
-		hw_clockrate = (tsc_freq + 5000) / 1000000;
-		printf("%jd.%02d-MHz ",
-		       (intmax_t)(tsc_freq + 4999) / 1000000,
-		       (u_int)((tsc_freq + 4999) / 10000) % 100);
+		if (tsc_freq != 0) {
+			hw_clockrate = (tsc_freq + 5000) / 1000000;
+			printf("%jd.%02d-MHz ",
+			       (intmax_t)(tsc_freq + 4999) / 1000000,
+			       (u_int)((tsc_freq + 4999) / 10000) % 100);
+		}
 		printf("586");
 		break;
 #endif
 #if defined(I686_CPU)
 	case CPUCLASS_686:
-		hw_clockrate = (tsc_freq + 5000) / 1000000;
-		printf("%jd.%02d-MHz ",
-		       (intmax_t)(tsc_freq + 4999) / 1000000,
-		       (u_int)((tsc_freq + 4999) / 10000) % 100);
+		if (tsc_freq != 0) {
+			hw_clockrate = (tsc_freq + 5000) / 1000000;
+			printf("%jd.%02d-MHz ",
+			       (intmax_t)(tsc_freq + 4999) / 1000000,
+			       (u_int)((tsc_freq + 4999) / 10000) % 100);
+		}
 		printf("686");
 		break;
 #endif
@@ -672,9 +688,18 @@ printcpuinfo(void)
 	    cpu_vendor_id == CPU_VENDOR_NSC ||
 		(cpu_vendor_id == CPU_VENDOR_CYRIX &&
 		 ((cpu_id & 0xf00) > 0x500))) {
-		printf("  Stepping = %u", cpu_id & 0xf);
+		printf("  Family = %x", CPUID_TO_FAMILY(cpu_id));
+		printf("  Model = %x", CPUID_TO_MODEL(cpu_id));
+		printf("  Stepping = %u", cpu_id & CPUID_STEPPING);
 		if (cpu_vendor_id == CPU_VENDOR_CYRIX)
-			printf("  DIR=0x%04x", cyrix_did);
+			printf("\n  DIR=0x%04x", cyrix_did);
+		/*
+		 * AMD CPUID Specification
+		 * http://support.amd.com/us/Embedded_TechDocs/25481.pdf
+		 *
+		 * Intel Processor Identification and CPUID Instruction
+		 * http://www.intel.com/assets/pdf/appnote/241618.pdf
+		 */
 		if (cpu_high > 0) {
 
 			/*
@@ -725,7 +750,7 @@ printcpuinfo(void)
 				printf("\n  Features2=0x%b", cpu_feature2,
 				"\020"
 				"\001SSE3"	/* SSE3 */
-				"\002<b1>"
+				"\002PCLMULQDQ"	/* Carry-Less Mul Quadword */
 				"\003DTES64"	/* 64-bit Debug Trace */
 				"\004MON"	/* MONITOR/MWAIT Instructions */
 				"\005DS_CPL"	/* CPL Qualified Debug Store */
@@ -736,38 +761,29 @@ printcpuinfo(void)
 				"\012SSSE3"	/* SSSE3 */
 				"\013CNXT-ID"	/* L1 context ID available */
 				"\014<b11>"
-				"\015<b12>"
+				"\015FMA"	/* Fused Multiply Add */
 				"\016CX16"	/* CMPXCHG16B Instruction */
 				"\017xTPR"	/* Send Task Priority Messages*/
 				"\020PDCM"	/* Perf/Debug Capability MSR */
 				"\021<b16>"
-				"\022<b17>"
+				"\022PCID"	/* Process-context Identifiers*/
 				"\023DCA"	/* Direct Cache Access */
-				"\024SSE4.1"
-				"\025SSE4.2"
+				"\024SSE4.1"	/* SSE 4.1 */
+				"\025SSE4.2"	/* SSE 4.2 */
 				"\026x2APIC"	/* xAPIC Extensions */
-				"\027MOVBE"
-				"\030POPCNT"
-				"\031<b24>"
-				"\032<b25>"
-				"\033XSAVE"
-				"\034OSXSAVE"
-				"\035<b28>"
-				"\036<b29>"
+				"\027MOVBE"	/* MOVBE Instruction */
+				"\030POPCNT"	/* POPCNT Instruction */
+				"\031TSCDLT"	/* TSC-Deadline Timer */
+				"\032AESNI"	/* AES Crypto */
+				"\033XSAVE"	/* XSAVE/XRSTOR States */
+				"\034OSXSAVE"	/* OS-Enabled State Management*/
+				"\035AVX"	/* Advanced Vector Extensions */
+				"\036F16C"	/* Half-precision conversions */
 				"\037<b30>"
-				"\040<b31>"
+				"\040HV"	/* Hypervisor */
 				);
 			}
 
-			/*
-			 * AMD64 Architecture Programmer's Manual Volume 3:
-			 * General-Purpose and System Instructions
-			 * http://www.amd.com/us-en/assets/content_type/white_papers_and_tech_docs/24594.pdf
-			 *
-			 * IA-32 Intel Architecture Software Developer's Manual,
-			 * Volume 2A: Instruction Set Reference, A-M
-			 * ftp://download.intel.com/design/Pentium4/manuals/25366617.pdf
-			 */
 			if (amd_feature != 0) {
 				printf("\n  AMD Features=0x%b", amd_feature,
 				"\020"		/* in hex */
@@ -820,18 +836,18 @@ printcpuinfo(void)
 				"\011Prefetch"	/* 3DNow! Prefetch/PrefetchW */
 				"\012OSVW"	/* OS visible workaround */
 				"\013IBS"	/* Instruction based sampling */
-				"\014SSE5"	/* SSE5 */
+				"\014XOP"	/* XOP extended instructions */
 				"\015SKINIT"	/* SKINIT/STGI */
 				"\016WDT"	/* Watchdog timer */
 				"\017<b14>"
-				"\020<b15>"
-				"\021<b16>"
+				"\020LWP"	/* Lightweight Profiling */
+				"\021FMA4"	/* 4-operand FMA instructions */
 				"\022<b17>"
 				"\023<b18>"
-				"\024<b19>"
+				"\024NodeId"	/* NodeId MSR support */
 				"\025<b20>"
-				"\026<b21>"
-				"\027<b22>"
+				"\026TBM"	/* Trailing Bit Manipulation */
+				"\027Topology"	/* Topology Extensions */
 				"\030<b23>"
 				"\031<b24>"
 				"\032<b25>"
@@ -844,7 +860,7 @@ printcpuinfo(void)
 				);
 			}
 
-			if (cpu_vendor_id == CPU_VENDOR_CENTAUR)
+			if (via_feature_rng != 0 || via_feature_xcrypt != 0)
 				print_via_padlock_info();
 
 			if ((cpu_feature & CPUID_HTT) &&
@@ -855,30 +871,11 @@ printcpuinfo(void)
 			 * If this CPU supports P-state invariant TSC then
 			 * mention the capability.
 			 */
-			switch (cpu_vendor_id) {
-			case CPU_VENDOR_AMD:
-				if ((amd_pminfo & AMDPM_TSC_INVARIANT) ||
-				    CPUID_TO_FAMILY(cpu_id) >= 0x10 ||
-				    cpu_id == 0x60fb2)
-					tsc_is_invariant = 1;
-				break;
-			case CPU_VENDOR_INTEL:
-				if ((amd_pminfo & AMDPM_TSC_INVARIANT) ||
-				    (CPUID_TO_FAMILY(cpu_id) == 0x6 &&
-				    CPUID_TO_MODEL(cpu_id) >= 0xe) ||
-				    (CPUID_TO_FAMILY(cpu_id) == 0xf &&
-				    CPUID_TO_MODEL(cpu_id) >= 0x3))
-					tsc_is_invariant = 1;
-				break;
-			case CPU_VENDOR_CENTAUR:
-				if (CPUID_TO_FAMILY(cpu_id) == 0x6 &&
-				    CPUID_TO_MODEL(cpu_id) >= 0xf &&
-				    (rdmsr(0x1203) & 0x100000000ULL) == 0)
-					tsc_is_invariant = 1;
-				break;
-			}
-			if (tsc_is_invariant)
+			if (tsc_is_invariant) {
 				printf("\n  TSC: P-state invariant");
+				if (tsc_perf_stat)
+					printf(", performance statistics");
+			}
 
 		}
 	} else if (cpu_vendor_id == CPU_VENDOR_CYRIX) {
@@ -1036,12 +1033,11 @@ identblue(void)
 static void
 identifycyrix(void)
 {
-	u_int	eflags;
+	register_t saveintr;
 	int	ccr2_test = 0, dir_test = 0;
 	u_char	ccr2, ccr3;
 
-	eflags = read_eflags();
-	disable_intr();
+	saveintr = intr_disable();
 
 	ccr2 = read_cyrix_reg(CCR2);
 	write_cyrix_reg(CCR2, ccr2 ^ CCR2_LOCK_NW);
@@ -1066,26 +1062,34 @@ identifycyrix(void)
 	else
 		cyrix_did = 0x00ff;		/* Old 486SLC/DLC and TI486SXLC/SXL */
 
-	write_eflags(eflags);
+	intr_restore(saveintr);
 }
 
 /* Update TSC freq with the value indicated by the caller. */
 static void
-tsc_freq_changed(void *arg, const struct cf_level *level, int status)
+tsc_freq_changed(void *arg __unused, const struct cf_level *level, int status)
 {
-	/*
-	 * If there was an error during the transition or
-	 * TSC is P-state invariant, don't do anything.
-	 */
-	if (status != 0 || tsc_is_invariant)
+
+	/* If there was an error during the transition, don't do anything. */
+	if (status != 0)
 		return;
 
 	/* Total setting for this level gives the new frequency in MHz. */
 	hw_clockrate = level->total_set.freq;
 }
 
-EVENTHANDLER_DEFINE(cpufreq_post_change, tsc_freq_changed, NULL,
-    EVENTHANDLER_PRI_ANY);
+static void
+hook_tsc_freq(void *arg __unused)
+{
+
+	if (tsc_is_invariant)
+		return;
+
+	tsc_post_tag = EVENTHANDLER_REGISTER(cpufreq_post_change,
+	    tsc_freq_changed, NULL, EVENTHANDLER_PRI_ANY);
+}
+
+SYSINIT(hook_tsc_freq, SI_SUB_CONFIGURE, SI_ORDER_ANY, hook_tsc_freq, NULL);
 
 /*
  * Final stage of CPU identification. -- Should I check TI?
@@ -1133,6 +1137,12 @@ finishidentcpu(void)
 		if (cpu_exthigh >= 0x80000008) {
 			do_cpuid(0x80000008, regs);
 			cpu_procinfo2 = regs[2];
+		}
+	} else if (cpu_vendor_id == CPU_VENDOR_CENTAUR) {
+		init_exthigh();
+		if (cpu_exthigh >= 0x80000001) {
+			do_cpuid(0x80000001, regs);
+			amd_feature = regs[3] & ~(cpu_feature & 0x0183f3ff);
 		}
 	} else if (cpu_vendor_id == CPU_VENDOR_CYRIX) {
 		if (cpu == CPU_486) {
@@ -1567,25 +1577,7 @@ print_via_padlock_info(void)
 {
 	u_int regs[4];
 
-	/* Check for supported models. */
-	switch (cpu_id & 0xff0) {
-	case 0x690:
-		if ((cpu_id & 0xf) < 3)
-			return;
-	case 0x6a0:
-	case 0x6d0:
-	case 0x6f0:
-		break;
-	default:
-		return;
-	}
-	
-	do_cpuid(0xc0000000, regs);
-	if (regs[0] >= 0xc0000001)
-		do_cpuid(0xc0000001, regs);
-	else
-		return;
-
+	do_cpuid(0xc0000001, regs);
 	printf("\n  VIA Padlock Features=0x%b", regs[3],
 	"\020"
 	"\003RNG"		/* RNG */

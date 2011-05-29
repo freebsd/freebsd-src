@@ -18,12 +18,10 @@
  *
  * CDDL HEADER END
  */
-/*
- * Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
- * Use is subject to license terms.
- */
 
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
+/*
+ * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+ */
 
 #include <sys/types.h>
 #if defined(sun)
@@ -77,11 +75,23 @@ dt_module_symhash_insert(dt_module_t *dmp, const char *name, uint_t id)
 static uint_t
 dt_module_syminit32(dt_module_t *dmp)
 {
+#if STT_NUM != (STT_TLS + 1)
+#error "STT_NUM has grown. update dt_module_syminit32()"
+#endif
+
 	Elf32_Sym *sym = dmp->dm_symtab.cts_data;
 	const char *base = dmp->dm_strtab.cts_data;
 	size_t ss_size = dmp->dm_strtab.cts_size;
 	uint_t i, n = dmp->dm_nsymelems;
 	uint_t asrsv = 0;
+
+#if defined(__FreeBSD__)
+	GElf_Ehdr ehdr;
+	int is_elf_obj;
+
+	gelf_getehdr(dmp->dm_elf, &ehdr);
+	is_elf_obj = (ehdr.e_type == ET_REL);
+#endif
 
 	for (i = 0; i < n; i++, sym++) {
 		const char *name = base + sym->st_name;
@@ -97,8 +107,12 @@ dt_module_syminit32(dt_module_t *dmp)
 		    (ELF32_ST_BIND(sym->st_info) != STB_LOCAL || sym->st_size)) {
 			asrsv++; /* reserve space in the address map */
 
-#if !defined(sun)
+#if defined(__FreeBSD__)
 			sym->st_value += (Elf_Addr) dmp->dm_reloc_offset;
+			if (is_elf_obj && sym->st_shndx != SHN_UNDEF &&
+			    sym->st_shndx < ehdr.e_shnum)
+				sym->st_value +=
+				    dmp->dm_sec_offsets[sym->st_shndx];
 #endif
 		}
 
@@ -111,11 +125,23 @@ dt_module_syminit32(dt_module_t *dmp)
 static uint_t
 dt_module_syminit64(dt_module_t *dmp)
 {
+#if STT_NUM != (STT_TLS + 1)
+#error "STT_NUM has grown. update dt_module_syminit64()"
+#endif
+
 	Elf64_Sym *sym = dmp->dm_symtab.cts_data;
 	const char *base = dmp->dm_strtab.cts_data;
 	size_t ss_size = dmp->dm_strtab.cts_size;
 	uint_t i, n = dmp->dm_nsymelems;
 	uint_t asrsv = 0;
+
+#if defined(__FreeBSD__)
+	GElf_Ehdr ehdr;
+	int is_elf_obj;
+
+	gelf_getehdr(dmp->dm_elf, &ehdr);
+	is_elf_obj = (ehdr.e_type == ET_REL);
+#endif
 
 	for (i = 0; i < n; i++, sym++) {
 		const char *name = base + sym->st_name;
@@ -130,9 +156,12 @@ dt_module_syminit64(dt_module_t *dmp)
 		if (sym->st_value != 0 &&
 		    (ELF64_ST_BIND(sym->st_info) != STB_LOCAL || sym->st_size)) {
 			asrsv++; /* reserve space in the address map */
-
-#if !defined(sun)
+#if defined(__FreeBSD__)
 			sym->st_value += (Elf_Addr) dmp->dm_reloc_offset;
+			if (is_elf_obj && sym->st_shndx != SHN_UNDEF &&
+			    sym->st_shndx < ehdr.e_shnum)
+				sym->st_value +=
+				    dmp->dm_sec_offsets[sym->st_shndx];
 #endif
 		}
 
@@ -489,7 +518,7 @@ dt_module_load_sect(dtrace_hdl_t *dtp, dt_module_t *dmp, ctf_sect_t *ctsp)
 	Elf_Data *dp;
 	Elf_Scn *sp;
 
-	if (elf_getshstrndx(dmp->dm_elf, &shstrs) == 0)
+	if (elf_getshdrstrndx(dmp->dm_elf, &shstrs) == -1)
 		return (dt_set_errno(dtp, EDT_NOTLOADED));
 
 	for (sp = NULL; (sp = elf_nextscn(dmp->dm_elf, sp)) != NULL; ) {
@@ -722,7 +751,12 @@ dt_module_unload(dtrace_hdl_t *dtp, dt_module_t *dmp)
 		free(dmp->dm_asmap);
 		dmp->dm_asmap = NULL;
 	}
-
+#if defined(__FreeBSD__)
+	if (dmp->dm_sec_offsets != NULL) {
+		free(dmp->dm_sec_offsets);
+		dmp->dm_sec_offsets = NULL;
+	}
+#endif
 	dmp->dm_symfree = 0;
 	dmp->dm_nsymbuckets = 0;
 	dmp->dm_nsymelems = 0;
@@ -750,9 +784,24 @@ dt_module_unload(dtrace_hdl_t *dtp, dt_module_t *dmp)
 void
 dt_module_destroy(dtrace_hdl_t *dtp, dt_module_t *dmp)
 {
+	uint_t h = dt_strtab_hash(dmp->dm_name, NULL) % dtp->dt_modbuckets;
+	dt_module_t **dmpp = &dtp->dt_mods[h];
+
 	dt_list_delete(&dtp->dt_modlist, dmp);
 	assert(dtp->dt_nmods != 0);
 	dtp->dt_nmods--;
+
+	/*
+	 * Now remove this module from its hash chain.  We expect to always
+	 * find the module on its hash chain, so in this loop we assert that
+	 * we don't run off the end of the list.
+	 */
+	while (*dmpp != dmp) {
+		dmpp = &((*dmpp)->dm_next);
+		assert(*dmpp != NULL);
+	}
+
+	*dmpp = dmp->dm_next;
 
 	dt_module_unload(dtp, dmp);
 	free(dmp);
@@ -846,9 +895,12 @@ dt_module_update(dtrace_hdl_t *dtp, struct kld_file_stat *k_stat)
 	(void) snprintf(fname, sizeof (fname),
 	    "%s/%s/object", OBJFS_ROOT, name);
 #else
+	GElf_Ehdr ehdr;
 	GElf_Phdr ph;
 	char name[MAXPATHLEN];
+	uintptr_t mapbase, alignmask;
 	int i = 0;
+	int is_elf_obj;
 
 	(void) strlcpy(name, k_stat->name, sizeof(name));
 	(void) strlcpy(fname, k_stat->pathname, sizeof(fname));
@@ -872,7 +924,7 @@ dt_module_update(dtrace_hdl_t *dtp, struct kld_file_stat *k_stat)
 	(void) close(fd);
 
 	if (dmp->dm_elf == NULL || err == -1 ||
-	    elf_getshstrndx(dmp->dm_elf, &shstrs) == 0) {
+	    elf_getshdrstrndx(dmp->dm_elf, &shstrs) == -1) {
 		dt_dprintf("failed to load %s: %s\n",
 		    fname, elf_errmsg(elf_errno()));
 		dt_module_destroy(dtp, dmp);
@@ -893,7 +945,20 @@ dt_module_update(dtrace_hdl_t *dtp, struct kld_file_stat *k_stat)
 		dt_module_destroy(dtp, dmp);
 		return;
 	}
-
+#if defined(__FreeBSD__)
+	mapbase = (uintptr_t)k_stat->address;
+	gelf_getehdr(dmp->dm_elf, &ehdr);
+	is_elf_obj = (ehdr.e_type == ET_REL);
+	if (is_elf_obj) {
+		dmp->dm_sec_offsets =
+		    malloc(ehdr.e_shnum * sizeof(*dmp->dm_sec_offsets));
+		if (dmp->dm_sec_offsets == NULL) {
+			dt_dprintf("failed to allocate memory\n");
+			dt_module_destroy(dtp, dmp);
+			return;
+		}
+	}
+#endif
 	/*
 	 * Iterate over the section headers locating various sections of
 	 * interest and use their attributes to flesh out the dt_module_t.
@@ -902,7 +967,19 @@ dt_module_update(dtrace_hdl_t *dtp, struct kld_file_stat *k_stat)
 		if (gelf_getshdr(sp, &sh) == NULL || sh.sh_type == SHT_NULL ||
 		    (s = elf_strptr(dmp->dm_elf, shstrs, sh.sh_name)) == NULL)
 			continue; /* skip any malformed sections */
-
+#if defined(__FreeBSD__)
+		if (sh.sh_size == 0)
+			continue;
+		if (is_elf_obj && (sh.sh_type == SHT_PROGBITS ||
+		    sh.sh_type == SHT_NOBITS)) {
+			alignmask = sh.sh_addralign - 1;
+			mapbase += alignmask;
+			mapbase &= ~alignmask;
+			sh.sh_addr = mapbase;
+			dmp->dm_sec_offsets[elf_ndxscn(sp)] = sh.sh_addr;
+			mapbase += sh.sh_size;
+		}
+#endif
 		if (strcmp(s, ".text") == 0) {
 			dmp->dm_text_size = sh.sh_size;
 			dmp->dm_text_va = sh.sh_addr;
@@ -927,6 +1004,13 @@ dt_module_update(dtrace_hdl_t *dtp, struct kld_file_stat *k_stat)
 #if defined(sun)
 	dmp->dm_modid = (int)OBJFS_MODID(st.st_ino);
 #else
+	/*
+	 * Include .rodata and special sections into .text.
+	 * This depends on default section layout produced by GNU ld
+	 * for ELF objects and libraries:
+	 * [Text][R/O data][R/W data][Dynamic][BSS][Non loadable]
+	 */
+	dmp->dm_text_size = dmp->dm_data_va - dmp->dm_text_va;
 #if defined(__i386__)
 	/*
 	 * Find the first load section and figure out the relocation

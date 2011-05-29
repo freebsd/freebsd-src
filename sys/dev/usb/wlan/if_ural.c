@@ -66,7 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_regdomain.h>
 #include <net80211/ieee80211_radiotap.h>
-#include <net80211/ieee80211_amrr.h>
+#include <net80211/ieee80211_ratectl.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
@@ -78,7 +78,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/wlan/if_uralreg.h>
 #include <dev/usb/wlan/if_uralvar.h>
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 static int ural_debug = 0;
 
 SYSCTL_NODE(_hw_usb, OID_AUTO, ural, CTLFLAG_RW, 0, "USB ural");
@@ -162,9 +162,6 @@ static void		ural_write_multi(struct ural_softc *, uint16_t, void *,
 static void		ural_bbp_write(struct ural_softc *, uint8_t, uint8_t);
 static uint8_t		ural_bbp_read(struct ural_softc *, uint8_t);
 static void		ural_rf_write(struct ural_softc *, uint8_t, uint32_t);
-static struct ieee80211_node *ural_node_alloc(struct ieee80211vap *,
-			    const uint8_t mac[IEEE80211_ADDR_LEN]);
-static void		ural_newassoc(struct ieee80211_node *, int);
 static void		ural_scan_start(struct ieee80211com *);
 static void		ural_scan_end(struct ieee80211com *);
 static void		ural_set_channel(struct ieee80211com *);
@@ -191,10 +188,10 @@ static void		ural_init(void *);
 static void		ural_stop(struct ural_softc *);
 static int		ural_raw_xmit(struct ieee80211_node *, struct mbuf *,
 			    const struct ieee80211_bpf_params *);
-static void		ural_amrr_start(struct ural_softc *,
+static void		ural_ratectl_start(struct ural_softc *,
 			    struct ieee80211_node *);
-static void		ural_amrr_timeout(void *);
-static void		ural_amrr_task(void *, int);
+static void		ural_ratectl_timeout(void *);
+static void		ural_ratectl_task(void *, int);
 static int		ural_pause(struct ural_softc *sc, int timeout);
 
 /*
@@ -403,7 +400,7 @@ static devclass_t ural_devclass;
 DRIVER_MODULE(ural, uhub, ural_driver, ural_devclass, NULL, 0);
 MODULE_DEPEND(ural, usb, 1, 1, 1);
 MODULE_DEPEND(ural, wlan, 1, 1, 1);
-MODULE_DEPEND(ural, wlan_amrr, 1, 1, 1);
+MODULE_VERSION(ural, 1);
 
 static int
 ural_match(device_t self)
@@ -471,8 +468,8 @@ ural_attach(device_t self)
 	ifp->if_init = ural_init;
 	ifp->if_ioctl = ural_ioctl;
 	ifp->if_start = ural_start;
-	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
-	ifp->if_snd.ifq_drv_maxlen = IFQ_MAXLEN;
+	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
+	ifp->if_snd.ifq_drv_maxlen = ifqmaxlen;
 	IFQ_SET_READY(&ifp->if_snd);
 
 	ic->ic_ifp = ifp;
@@ -500,9 +497,7 @@ ural_attach(device_t self)
 
 	ieee80211_ifattach(ic, sc->sc_bssid);
 	ic->ic_update_promisc = ural_update_promisc;
-	ic->ic_newassoc = ural_newassoc;
 	ic->ic_raw_xmit = ural_raw_xmit;
-	ic->ic_node_alloc = ural_node_alloc;
 	ic->ic_scan_start = ural_scan_start;
 	ic->ic_scan_end = ural_scan_end;
 	ic->ic_set_channel = ural_set_channel;
@@ -597,12 +592,10 @@ ural_vap_create(struct ieee80211com *ic,
 	uvp->newstate = vap->iv_newstate;
 	vap->iv_newstate = ural_newstate;
 
-	usb_callout_init_mtx(&uvp->amrr_ch, &sc->sc_mtx, 0);
-	TASK_INIT(&uvp->amrr_task, 0, ural_amrr_task, uvp);
-	ieee80211_amrr_init(&uvp->amrr, vap,
-	    IEEE80211_AMRR_MIN_SUCCESS_THRESHOLD,
-	    IEEE80211_AMRR_MAX_SUCCESS_THRESHOLD,
-	    1000 /* 1 sec */);
+	usb_callout_init_mtx(&uvp->ratectl_ch, &sc->sc_mtx, 0);
+	TASK_INIT(&uvp->ratectl_task, 0, ural_ratectl_task, uvp);
+	ieee80211_ratectl_init(vap);
+	ieee80211_ratectl_setinterval(vap, 1000 /* 1 sec */);
 
 	/* complete setup */
 	ieee80211_vap_attach(vap, ieee80211_media_change, ieee80211_media_status);
@@ -616,9 +609,9 @@ ural_vap_delete(struct ieee80211vap *vap)
 	struct ural_vap *uvp = URAL_VAP(vap);
 	struct ieee80211com *ic = vap->iv_ic;
 
-	usb_callout_drain(&uvp->amrr_ch);
-	ieee80211_draintask(ic, &uvp->amrr_task);
-	ieee80211_amrr_cleanup(&uvp->amrr);
+	usb_callout_drain(&uvp->ratectl_ch);
+	ieee80211_draintask(ic, &uvp->ratectl_task);
+	ieee80211_ratectl_deinit(vap);
 	ieee80211_vap_detach(vap);
 	free(uvp, M_80211_VAP);
 }
@@ -703,7 +696,7 @@ ural_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 
 	IEEE80211_UNLOCK(ic);
 	RAL_LOCK(sc);
-	usb_callout_stop(&uvp->amrr_ch);
+	usb_callout_stop(&uvp->ratectl_ch);
 
 	switch (nstate) {
 	case IEEE80211_S_INIT:
@@ -717,7 +710,7 @@ ural_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		break;
 
 	case IEEE80211_S_RUN:
-		ni = vap->iv_bss;
+		ni = ieee80211_ref_node(vap->iv_bss);
 
 		if (vap->iv_opmode != IEEE80211_M_MONITOR) {
 			ural_update_slot(ic->ic_ifp);
@@ -735,6 +728,7 @@ ural_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 				    "could not allocate beacon\n");
 				RAL_UNLOCK(sc);
 				IEEE80211_LOCK(ic);
+				ieee80211_free_node(ni);
 				return (-1);
 			}
 			ieee80211_ref_node(ni);
@@ -743,6 +737,7 @@ ural_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 				    "could not send beacon\n");
 				RAL_UNLOCK(sc);
 				IEEE80211_LOCK(ic);
+				ieee80211_free_node(ni);
 				return (-1);
 			}
 		}
@@ -759,8 +754,8 @@ ural_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		/* XXX should use ic_bsschan but not valid until after newstate call below */
 		tp = &vap->iv_txparms[ieee80211_chan2mode(ic->ic_curchan)];
 		if (tp->ucastrate == IEEE80211_FIXED_RATE_NONE)
-			ural_amrr_start(sc, ni);
-
+			ural_ratectl_start(sc, ni);
+		ieee80211_free_node(ni);
 		break;
 
 	default:
@@ -1165,7 +1160,7 @@ ural_sendprot(struct ural_softc *sc,
 	ackrate = ieee80211_ack_rate(ic->ic_rt, rate);
 
 	isshort = (ic->ic_flags & IEEE80211_F_SHPREAMBLE) != 0;
-	dur = ieee80211_compute_duration(ic->ic_rt, pktlen, rate, isshort);
+	dur = ieee80211_compute_duration(ic->ic_rt, pktlen, rate, isshort)
 	    + ieee80211_ack_duration(ic->ic_rt, rate, isshort);
 	flags = RAL_TX_RETRY(7);
 	if (prot == IEEE80211_PROT_RTSCTS) {
@@ -1582,25 +1577,6 @@ ural_rf_write(struct ural_softc *sc, uint8_t reg, uint32_t val)
 	sc->rf_regs[reg] = val;
 
 	DPRINTFN(15, "RF R[%u] <- 0x%05x\n", reg & 0x3, val & 0xfffff);
-}
-
-/* ARGUSED */
-static struct ieee80211_node *
-ural_node_alloc(struct ieee80211vap *vap __unused,
-	const uint8_t mac[IEEE80211_ADDR_LEN] __unused)
-{
-	struct ural_node *un;
-
-	un = malloc(sizeof(struct ural_node), M_80211_NODE, M_NOWAIT | M_ZERO);
-	return un != NULL ? &un->ni : NULL;
-}
-
-static void
-ural_newassoc(struct ieee80211_node *ni, int isnew)
-{
-	struct ieee80211vap *vap = ni->ni_vap;
-
-	ieee80211_amrr_node_init(&URAL_VAP(vap)->amrr, &URAL_NODE(ni)->amn, ni);
 }
 
 static void
@@ -2231,7 +2207,7 @@ bad:
 }
 
 static void
-ural_amrr_start(struct ural_softc *sc, struct ieee80211_node *ni)
+ural_ratectl_start(struct ural_softc *sc, struct ieee80211_node *ni)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ural_vap *uvp = URAL_VAP(vap);
@@ -2239,32 +2215,32 @@ ural_amrr_start(struct ural_softc *sc, struct ieee80211_node *ni)
 	/* clear statistic registers (STA_CSR0 to STA_CSR10) */
 	ural_read_multi(sc, RAL_STA_CSR0, sc->sta, sizeof sc->sta);
 
-	ieee80211_amrr_node_init(&uvp->amrr, &URAL_NODE(ni)->amn, ni);
-
-	usb_callout_reset(&uvp->amrr_ch, hz, ural_amrr_timeout, uvp);
+	usb_callout_reset(&uvp->ratectl_ch, hz, ural_ratectl_timeout, uvp);
 }
 
 static void
-ural_amrr_timeout(void *arg)
+ural_ratectl_timeout(void *arg)
 {
 	struct ural_vap *uvp = arg;
 	struct ieee80211vap *vap = &uvp->vap;
 	struct ieee80211com *ic = vap->iv_ic;
 
-	ieee80211_runtask(ic, &uvp->amrr_task);
+	ieee80211_runtask(ic, &uvp->ratectl_task);
 }
 
 static void
-ural_amrr_task(void *arg, int pending)
+ural_ratectl_task(void *arg, int pending)
 {
 	struct ural_vap *uvp = arg;
 	struct ieee80211vap *vap = &uvp->vap;
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ifnet *ifp = ic->ic_ifp;
 	struct ural_softc *sc = ifp->if_softc;
-	struct ieee80211_node *ni = vap->iv_bss;
+	struct ieee80211_node *ni;
 	int ok, fail;
+	int sum, retrycnt;
 
+	ni = ieee80211_ref_node(vap->iv_bss);
 	RAL_LOCK(sc);
 	/* read and clear statistic registers (STA_CSR0 to STA_CSR10) */
 	ural_read_multi(sc, RAL_STA_CSR0, sc->sta, sizeof(sc->sta));
@@ -2272,15 +2248,17 @@ ural_amrr_task(void *arg, int pending)
 	ok = sc->sta[7] +		/* TX ok w/o retry */
 	     sc->sta[8];		/* TX ok w/ retry */
 	fail = sc->sta[9];		/* TX retry-fail count */
+	sum = ok+fail;
+	retrycnt = sc->sta[8] + fail;
 
-	ieee80211_amrr_tx_update(&URAL_NODE(ni)->amn,
-	    ok+fail, ok, sc->sta[8] + fail);
-	(void) ieee80211_amrr_choose(ni, &URAL_NODE(ni)->amn);
+	ieee80211_ratectl_tx_update(vap, ni, &sum, &ok, &retrycnt);
+	(void) ieee80211_ratectl_rate(ni, NULL, 0);
 
 	ifp->if_oerrors += fail;	/* count TX retry-fail as Tx errors */
 
-	usb_callout_reset(&uvp->amrr_ch, hz, ural_amrr_timeout, uvp);
+	usb_callout_reset(&uvp->ratectl_ch, hz, ural_ratectl_timeout, uvp);
 	RAL_UNLOCK(sc);
+	ieee80211_free_node(ni);
 }
 
 static int

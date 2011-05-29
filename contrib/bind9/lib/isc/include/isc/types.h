@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: types.h,v 1.46.84.2 2009/01/29 23:47:44 tbox Exp $ */
+/* $Id: types.h,v 1.46.84.2 2009-01-29 23:47:44 tbox Exp $ */
 
 #ifndef ISC_TYPES_H
 #define ISC_TYPES_H 1

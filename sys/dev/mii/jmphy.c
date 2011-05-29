@@ -50,18 +50,11 @@ __FBSDID("$FreeBSD$");
 
 #include "miibus_if.h"
 
-static int 	jmphy_probe(device_t);
-static int 	jmphy_attach(device_t);
+static int	jmphy_probe(device_t);
+static int	jmphy_attach(device_t);
 static void	jmphy_reset(struct mii_softc *);
 static uint16_t	jmphy_anar(struct ifmedia_entry *);
-static int	jmphy_auto(struct mii_softc *, struct ifmedia_entry *);
-
-struct jmphy_softc {
-	struct mii_softc mii_sc;
-	int mii_oui;
-	int mii_model;
-	int mii_rev;
-};
+static int	jmphy_setmedia(struct mii_softc *, struct ifmedia_entry *);
 
 static device_method_t jmphy_methods[] = {
 	/* Device interface. */
@@ -76,7 +69,7 @@ static devclass_t jmphy_devclass;
 static driver_t jmphy_driver = {
 	"jmphy",
 	jmphy_methods,
-	sizeof(struct jmphy_softc)
+	sizeof(struct mii_softc)
 };
 
 DRIVER_MODULE(jmphy, miibus, jmphy_driver, jmphy_devclass, 0, 0);
@@ -90,6 +83,12 @@ static const struct mii_phydesc jmphys[] = {
 	MII_PHY_END
 };
 
+static const struct mii_phy_funcs jmphy_funcs = {
+	jmphy_service,
+	jmphy_status,
+	jmphy_reset
+};
+
 static int
 jmphy_probe(device_t dev)
 {
@@ -100,88 +99,39 @@ jmphy_probe(device_t dev)
 static int
 jmphy_attach(device_t dev)
 {
-	struct jmphy_softc *jsc;
-	struct mii_softc *sc;
 	struct mii_attach_args *ma;
-	struct mii_data *mii;
+	u_int flags;
 
-	jsc = device_get_softc(dev);
-	sc = &jsc->mii_sc;
 	ma = device_get_ivars(dev);
-	sc->mii_dev = device_get_parent(dev);
-	mii = device_get_softc(sc->mii_dev);
-	LIST_INSERT_HEAD(&mii->mii_phys, sc, mii_list);
-
-	sc->mii_inst = mii->mii_instance;
-	sc->mii_phy = ma->mii_phyno;
-	sc->mii_service = jmphy_service;
-	sc->mii_pdata = mii;
-
-	mii->mii_instance++;
-
-	jsc->mii_oui = MII_OUI(ma->mii_id1, ma->mii_id2);
-	jsc->mii_model = MII_MODEL(ma->mii_id2);
-	jsc->mii_rev = MII_REV(ma->mii_id2);
-	if (bootverbose)
-		device_printf(dev, "OUI 0x%06x, model 0x%04x, rev. %d\n",
-		    jsc->mii_oui, jsc->mii_model, jsc->mii_rev);
-
-	jmphy_reset(sc);
-
-	sc->mii_capabilities = PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
-	if (sc->mii_capabilities & BMSR_EXTSTAT)
-		sc->mii_extcapabilities = PHY_READ(sc, MII_EXTSR);
-	device_printf(dev, " ");
-	mii_phy_add_media(sc);
-	printf("\n");
-
-	MIIBUS_MEDIAINIT(sc->mii_dev);
-	return(0);
+	flags = 0;
+	if (strcmp(ma->mii_data->mii_ifp->if_dname, "jme") == 0 &&
+	    (miibus_get_flags(dev) & MIIF_MACPRIV0) != 0)
+		flags |= MIIF_PHYPRIV0;
+	mii_phy_dev_attach(dev, flags, &jmphy_funcs, 1);
+	return (0);
 }
 
 static int
 jmphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 {
 	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
-	uint16_t bmcr;
 
 	switch (cmd) {
 	case MII_POLLSTAT:
-		/*
-		 * If we're not polling our PHY instance, just return.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst)
-			return (0);
 		break;
 
 	case MII_MEDIACHG:
-		/*
-		 * If the media indicates a different PHY instance,
-		 * isolate ourselves.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst) {
-			bmcr = PHY_READ(sc, MII_BMCR);
-			PHY_WRITE(sc, MII_BMCR, bmcr | BMCR_ISO);
-			return (0);
-		}
-
 		/*
 		 * If the interface is not up, don't do anything.
 		 */
 		if ((mii->mii_ifp->if_flags & IFF_UP) == 0)
 			break;
 
-		if (jmphy_auto(sc, ife) != EJUSTRETURN)
+		if (jmphy_setmedia(sc, ife) != EJUSTRETURN)
 			return (EINVAL);
 		break;
 
 	case MII_TICK:
-		/*
-		 * If we're not currently selected, just return.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst)
-			return (0);
-
 		/*
 		 * Is the interface even up?
 		 */
@@ -209,12 +159,12 @@ jmphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 			return (0);
 
 		sc->mii_ticks = 0;
-		jmphy_auto(sc, ife);
+		(void)jmphy_setmedia(sc, ife);
 		break;
 	}
 
 	/* Update the media status. */
-	jmphy_status(sc);
+	PHY_STATUS(sc);
 
 	/* Callback if something changed. */
 	mii_phy_update(sc, cmd);
@@ -274,25 +224,21 @@ jmphy_status(struct mii_softc *sc)
 	}
 
 	if ((ssr & JMPHY_SSR_DUPLEX) != 0)
-		mii->mii_media_active |= IFM_FDX;
+		mii->mii_media_active |= IFM_FDX | mii_phy_flowstatus(sc);
 	else
 		mii->mii_media_active |= IFM_HDX;
-	/* XXX Flow-control. */
-#ifdef notyet
+
 	if (IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_T) {
 		if ((PHY_READ(sc, MII_100T2SR) & GTSR_MS_RES) != 0)
 			mii->mii_media_active |= IFM_ETH_MASTER;
 	}
-#endif
 }
 
 static void
 jmphy_reset(struct mii_softc *sc)
 {
-	struct jmphy_softc *jsc;
+	uint16_t t2cr, val;
 	int i;
-
-	jsc = (struct jmphy_softc *)sc;
 
 	/* Disable sleep mode. */
 	PHY_WRITE(sc, JMPHY_TMCTL,
@@ -303,6 +249,39 @@ jmphy_reset(struct mii_softc *sc)
 		DELAY(1);
 		if ((PHY_READ(sc, MII_BMCR) & BMCR_RESET) == 0)
 			break;
+	}
+	/* Perform vendor recommended PHY calibration. */
+	if ((sc->mii_flags & MIIF_PHYPRIV0) != 0) {
+		/* Select PHY test mode 1. */
+		t2cr = PHY_READ(sc, MII_100T2CR);
+		t2cr &= ~GTCR_TEST_MASK;
+		t2cr |= 0x2000;
+		PHY_WRITE(sc, MII_100T2CR, t2cr);
+		/* Apply calibration patch. */
+		PHY_WRITE(sc, JMPHY_SPEC_ADDR, JMPHY_SPEC_ADDR_READ |
+		    JMPHY_EXT_COMM_2);
+		val = PHY_READ(sc, JMPHY_SPEC_DATA);
+		val &= ~0x0002;
+		val |= 0x0010 | 0x0001;
+		PHY_WRITE(sc, JMPHY_SPEC_DATA, val);
+		PHY_WRITE(sc, JMPHY_SPEC_ADDR, JMPHY_SPEC_ADDR_WRITE |
+		    JMPHY_EXT_COMM_2);
+
+		/* XXX 20ms to complete recalibration. */
+		DELAY(20 * 1000);
+
+		PHY_READ(sc, MII_100T2CR);
+		PHY_WRITE(sc, JMPHY_SPEC_ADDR, JMPHY_SPEC_ADDR_READ |
+		    JMPHY_EXT_COMM_2);
+		val = PHY_READ(sc, JMPHY_SPEC_DATA);
+		val &= ~(0x0001 | 0x0002 | 0x0010);
+		PHY_WRITE(sc, JMPHY_SPEC_DATA, val);
+		PHY_WRITE(sc, JMPHY_SPEC_ADDR, JMPHY_SPEC_ADDR_WRITE |
+		    JMPHY_EXT_COMM_2);
+		/* Disable PHY test mode. */
+		PHY_READ(sc, MII_100T2CR);
+		t2cr &= ~GTCR_TEST_MASK;
+		PHY_WRITE(sc, MII_100T2CR, t2cr);
 	}
 }
 
@@ -332,7 +311,7 @@ jmphy_anar(struct ifmedia_entry *ife)
 }
 
 static int
-jmphy_auto(struct mii_softc *sc, struct ifmedia_entry *ife)
+jmphy_setmedia(struct mii_softc *sc, struct ifmedia_entry *ife)
 {
 	uint16_t anar, bmcr, gig;
 
@@ -355,21 +334,19 @@ jmphy_auto(struct mii_softc *sc, struct ifmedia_entry *ife)
 		return (EINVAL);
 	}
 
-	if ((ife->ifm_media & IFM_LOOP) != 0)
-		bmcr |= BMCR_LOOP;
-
 	anar = jmphy_anar(ife);
-	/* XXX Always advertise pause capability. */
-	anar |= (3 << 10);
+	if ((IFM_SUBTYPE(ife->ifm_media) == IFM_AUTO ||
+	    (ife->ifm_media & IFM_FDX) != 0) &&
+	    ((ife->ifm_media & IFM_FLOW) != 0 ||
+	    (sc->mii_flags & MIIF_FORCEPAUSE) != 0))
+		anar |= ANAR_PAUSE_TOWARDS;
 
 	if ((sc->mii_flags & MIIF_HAVE_GTCR) != 0) {
-#ifdef notyet
-		struct mii_data *mii;
-
-		mii = sc->mii_pdata;
-		if ((mii->mii_media.ifm_media & IFM_ETH_MASTER) != 0)
-			gig |= GTCR_MAN_MS | GTCR_MAN_ADV;
-#endif
+		if (IFM_SUBTYPE(ife->ifm_media) == IFM_1000_T) {
+			gig |= GTCR_MAN_MS;
+			if ((ife->ifm_media & IFM_ETH_MASTER) != 0)
+				gig |= GTCR_ADV_MS;
+		}
 		PHY_WRITE(sc, MII_100T2CR, gig);
 	}
 	PHY_WRITE(sc, MII_ANAR, anar | ANAR_CSMA);

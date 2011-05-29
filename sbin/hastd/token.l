@@ -1,6 +1,7 @@
 %{
 /*-
  * Copyright (c) 2009-2010 The FreeBSD Foundation
+ * Copyright (c) 2011 Pawel Jakub Dawidek <pawel@dawidek.net>
  * All rights reserved.
  *
  * This software was developed by Pawel Jakub Dawidek under sponsorship from
@@ -48,16 +49,26 @@ control			{ DP; return CONTROL; }
 listen			{ DP; return LISTEN; }
 port			{ DP; return PORT; }
 replication		{ DP; return REPLICATION; }
+checksum		{ DP; return CHECKSUM; }
+compression		{ DP; return COMPRESSION; }
+timeout			{ DP; return TIMEOUT; }
+exec			{ DP; return EXEC; }
 resource		{ DP; return RESOURCE; }
 name			{ DP; return NAME; }
 local			{ DP; return LOCAL; }
 remote			{ DP; return REMOTE; }
+source			{ DP; return SOURCE; }
 on			{ DP; return ON; }
 fullsync		{ DP; return FULLSYNC; }
 memsync			{ DP; return MEMSYNC; }
 async			{ DP; return ASYNC; }
+none			{ DP; return NONE; }
+crc32			{ DP; return CRC32; }
+sha256			{ DP; return SHA256; }
+hole			{ DP; return HOLE; }
+lzf			{ DP; return LZF; }
 [0-9]+			{ DP; yylval.num = atoi(yytext); return NUM; }
-[a-zA-Z0-9\.\-_/\:]+	{ DP; yylval.str = strdup(yytext); return STR; }
+[a-zA-Z0-9\.\-_/\:\[\]]+ { DP; yylval.str = strdup(yytext); return STR; }
 \{			{ DP; depth++; return OB; }
 \}			{ DP; depth--; return CB; }
 #.*$			/* ignore comments */;

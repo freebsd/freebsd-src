@@ -29,6 +29,8 @@
 #ifndef _TEKEN_H_
 #define	_TEKEN_H_
 
+#include <sys/types.h>
+
 /*
  * libteken: terminal emulation library.
  *

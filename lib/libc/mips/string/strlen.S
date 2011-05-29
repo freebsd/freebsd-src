@@ -1,4 +1,4 @@
-/*	$NetBSD: strlen.S,v 1.1 2005/12/20 19:28:50 christos Exp $	*/
+/*	$NetBSD: strlen.S,v 1.2 2009/12/14 00:39:00 matt Exp $	*/
 
 /*-
  * Copyright (c) 1991, 1993
@@ -37,7 +37,7 @@ __FBSDID("$FreeBSD$");
 
 #if defined(LIBC_SCCS) && !defined(lint)
 	ASMSTR("from: @(#)strlen.s	8.1 (Berkeley) 6/4/93")
-	ASMSTR("$NetBSD: strlen.S,v 1.1 2005/12/20 19:28:50 christos Exp $")
+	ASMSTR("$NetBSD: strlen.S,v 1.2 2009/12/14 00:39:00 matt Exp $")
 #endif /* LIBC_SCCS and not lint */
 
 #ifdef __ABICALLS__
@@ -45,11 +45,11 @@ __FBSDID("$FreeBSD$");
 #endif
 
 LEAF(strlen)
-	addu	v1, a0, 1
+	PTR_ADDU	v1, a0, 1
 1:
-	lb	v0, 0(a0)		# get byte from string
-	addu	a0, a0, 1		# increment pointer
-	bne	v0, zero, 1b		# continue if not end
-	subu	v0, a0, v1		# compute length - 1 for '\0' char
-	j	ra
+	lb		v0, 0(a0)	# get byte from string
+	PTR_ADDU	a0, a0, 1	# increment pointer
+	bne		v0, zero, 1b	# continue if not end
+	PTR_SUBU 	v0, a0, v1	# compute length - 1 for '\0' char
+	j		ra
 END(strlen)

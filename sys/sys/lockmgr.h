@@ -73,7 +73,10 @@ void	 _lockmgr_assert(struct lock *lk, int what, const char *file, int line);
 #endif
 void	 _lockmgr_disown(struct lock *lk, const char *file, int line);
 
+void	 lockallowrecurse(struct lock *lk);
+void	 lockallowshare(struct lock *lk);
 void	 lockdestroy(struct lock *lk);
+void	 lockdisablerecurse(struct lock *lk);
 void	 lockinit(struct lock *lk, int prio, const char *wmesg, int timo,
 	    int flags);
 #ifdef DDB

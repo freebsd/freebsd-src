@@ -33,6 +33,12 @@
  *	Author: David B. Golub, Carnegie Mellon University
  *	Date:	7/90
  */
+
+/*
+ * Helper functions.
+ */
+db_expr_t db_hex2dec(db_expr_t expr);
+
 /*
  * Command loop declarations.
  */

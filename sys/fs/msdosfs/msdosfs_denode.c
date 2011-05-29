@@ -240,7 +240,7 @@ deget(pmp, dirclust, diroffset, depp)
 			*depp = NULL;
 			return (error);
 		}
-		DE_INTERNALIZE(ldep, direntptr);
+		(void)DE_INTERNALIZE(ldep, direntptr);
 		brelse(bp);
 	}
 
@@ -548,8 +548,6 @@ msdosfs_reclaim(ap)
 	    dep, dep->de_Name, dep->de_refcnt);
 #endif
 
-	if (prtactive && vrefcnt(vp) != 0)
-		vprint("msdosfs_reclaim(): pushing active", vp);
 	/*
 	 * Destroy the vm object and flush associated pages.
 	 */
@@ -585,9 +583,6 @@ msdosfs_inactive(ap)
 #ifdef MSDOSFS_DEBUG
 	printf("msdosfs_inactive(): dep %p, de_Name[0] %x\n", dep, dep->de_Name[0]);
 #endif
-
-	if (prtactive && vrefcnt(vp) != 0)
-		vprint("msdosfs_inactive(): pushing active", vp);
 
 	/*
 	 * Ignore denodes related to stale file handles.

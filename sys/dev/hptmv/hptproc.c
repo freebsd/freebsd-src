@@ -51,8 +51,8 @@ int hpt_rescan_all(void);
 static char hptproc_buffer[256];
 extern char DRIVER_VERSION[];
 
-#define FORMAL_HANDLER_ARGS struct sysctl_oid *oidp, void *arg1, int arg2, \
-	struct sysctl_req *req
+#define FORMAL_HANDLER_ARGS struct sysctl_oid *oidp, void *arg1,	\
+	intptr_t arg2, struct sysctl_req *req
 #define REAL_HANDLER_ARGS oidp, arg1, arg2, req
 typedef struct sysctl_req HPT_GET_INFO;
 

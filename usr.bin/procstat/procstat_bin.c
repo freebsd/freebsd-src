@@ -32,6 +32,7 @@
 
 #include <err.h>
 #include <errno.h>
+#include <libprocstat.h>
 #include <limits.h>
 #include <stdio.h>
 #include <string.h>
@@ -39,7 +40,7 @@
 #include "procstat.h"
 
 void
-procstat_bin(pid_t pid, struct kinfo_proc *kipp)
+procstat_bin(struct kinfo_proc *kipp)
 {
 	char pathname[PATH_MAX];
 	int error, name[4];
@@ -51,12 +52,12 @@ procstat_bin(pid_t pid, struct kinfo_proc *kipp)
 	name[0] = CTL_KERN;
 	name[1] = KERN_PROC;
 	name[2] = KERN_PROC_PATHNAME;
-	name[3] = pid;
+	name[3] = kipp->ki_pid;
 
 	len = sizeof(pathname);
 	error = sysctl(name, 4, pathname, &len, NULL, 0);
 	if (error < 0 && errno != ESRCH) {
-		warn("sysctl: kern.proc.pathname: %d", pid);
+		warn("sysctl: kern.proc.pathname: %d", kipp->ki_pid);
 		return;
 	}
 	if (error < 0)
@@ -64,7 +65,7 @@ procstat_bin(pid_t pid, struct kinfo_proc *kipp)
 	if (len == 0 || strlen(pathname) == 0)
 		strcpy(pathname, "-");
 
-	printf("%5d ", pid);
+	printf("%5d ", kipp->ki_pid);
 	printf("%-16s ", kipp->ki_comm);
 	printf("%s\n", pathname);
 }

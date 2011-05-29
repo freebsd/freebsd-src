@@ -78,6 +78,7 @@ struct ieee80211_key {
 #define	IEEE80211_KEY_XMIT	0x0001	/* key used for xmit */
 #define	IEEE80211_KEY_RECV	0x0002	/* key used for recv */
 #define	IEEE80211_KEY_GROUP	0x0004	/* key used for WPA group operation */
+#define	IEEE80211_KEY_NOREPLAY	0x0008	/* ignore replay failures */
 #define	IEEE80211_KEY_SWENCRYPT	0x0010	/* host-based encrypt */
 #define	IEEE80211_KEY_SWDECRYPT	0x0020	/* host-based decrypt */
 #define	IEEE80211_KEY_SWENMIC	0x0040	/* host-based enmic */
@@ -98,7 +99,8 @@ struct ieee80211_key {
 	uint8_t		wk_macaddr[IEEE80211_ADDR_LEN];
 };
 #define	IEEE80211_KEY_COMMON 		/* common flags passed in by apps */\
-	(IEEE80211_KEY_XMIT | IEEE80211_KEY_RECV | IEEE80211_KEY_GROUP)
+	(IEEE80211_KEY_XMIT | IEEE80211_KEY_RECV | IEEE80211_KEY_GROUP | \
+	 IEEE80211_KEY_NOREPLAY)
 #define	IEEE80211_KEY_DEVICE		/* flags owned by device driver */\
 	(IEEE80211_KEY_DEVKEY|IEEE80211_KEY_CIPHER0|IEEE80211_KEY_CIPHER1)
 

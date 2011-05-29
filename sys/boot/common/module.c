@@ -275,9 +275,12 @@ file_load(char *filename, vm_offset_t dest, struct preloaded_file **result)
     int error;
     int i;
 
+    if (archsw.arch_loadaddr != NULL)
+	dest = archsw.arch_loadaddr(LOAD_RAW, filename, dest);
+
     error = EFTYPE;
     for (i = 0, fp = NULL; file_formats[i] && fp == NULL; i++) {
-	error = (file_formats[i]->l_load)(filename, loadaddr, &fp);
+	error = (file_formats[i]->l_load)(filename, dest, &fp);
 	if (error == 0) {
 	    fp->f_loader = i;		/* remember the loader */
 	    *result = fp;
@@ -295,7 +298,8 @@ file_load(char *filename, vm_offset_t dest, struct preloaded_file **result)
 }
 
 static int
-file_load_dependencies(struct preloaded_file *base_file) {
+file_load_dependencies(struct preloaded_file *base_file)
+{
     struct file_metadata *md;
     struct preloaded_file *fp;
     struct mod_depend *verinfo;
@@ -351,9 +355,6 @@ file_loadraw(char *type, char *name)
     char			*cp;
     int				fd, got;
     vm_offset_t			laddr;
-#ifdef PC98
-    struct stat			st;
-#endif
 
     /* We can't load first */
     if ((file_findfile(NULL, NULL)) == NULL) {
@@ -368,20 +369,15 @@ file_loadraw(char *type, char *name)
 	return(CMD_ERROR);
     }
     name = cp;
-    
+
     if ((fd = open(name, O_RDONLY)) < 0) {
 	sprintf(command_errbuf, "can't open '%s': %s", name, strerror(errno));
 	free(name);
 	return(CMD_ERROR);
     }
 
-#ifdef PC98
-    /* We cannot use 15M-16M area on pc98. */
-    if (loadaddr < 0x1000000 &&
-	fstat(fd, &st) == 0 &&
-	(st.st_size == -1 || loadaddr + st.st_size > 0xf00000))
-	loadaddr = 0x1000000;
-#endif
+    if (archsw.arch_loadaddr != NULL)
+	loadaddr = archsw.arch_loadaddr(LOAD_RAW, name, loadaddr);
 
     laddr = loadaddr;
     for (;;) {
@@ -488,14 +484,6 @@ mod_loadkld(const char *kldname, int argc, char *argv[])
 	;
 
     do {
-#ifdef PC98
-	/* We cannot use 15M-16M area on pc98. */
-	struct stat st;
-	if (loadaddr < 0x1000000 &&
-	    stat(filename, &st) == 0 &&
-	    (st.st_size == -1 || loadaddr + st.st_size > 0xf00000))
-	    loadaddr = 0x1000000;
-#endif
 	err = file_load(filename, loadaddr, &fp);
 	if (err)
 	    break;

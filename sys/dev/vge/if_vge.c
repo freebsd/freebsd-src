@@ -368,9 +368,6 @@ vge_miibus_readreg(device_t dev, int phy, int reg)
 
 	sc = device_get_softc(dev);
 
-	if (phy != sc->vge_phyaddr)
-		return (0);
-
 	vge_miipoll_stop(sc);
 
 	/* Specify the register we want to read. */
@@ -403,9 +400,6 @@ vge_miibus_writereg(device_t dev, int phy, int reg, int data)
 	int i, rval = 0;
 
 	sc = device_get_softc(dev);
-
-	if (phy != sc->vge_phyaddr)
-		return (0);
 
 	vge_miipoll_stop(sc);
 
@@ -691,7 +685,18 @@ vge_dma_alloc(struct vge_softc *sc)
 	bus_addr_t lowaddr, tx_ring_end, rx_ring_end;
 	int error, i;
 
-	lowaddr = BUS_SPACE_MAXADDR;
+	/*
+	 * It seems old PCI controllers do not support DAC.  DAC
+	 * configuration can be enabled by accessing VGE_CHIPCFG3
+	 * register but honor EEPROM configuration instead of
+	 * blindly overriding DAC configuration.  PCIe based
+	 * controllers are supposed to support 64bit DMA so enable
+	 * 64bit DMA on these controllers.
+	 */
+	if ((sc->vge_flags & VGE_FLAG_PCIE) != 0)
+		lowaddr = BUS_SPACE_MAXADDR;
+	else
+		lowaddr = BUS_SPACE_MAXADDR_32BIT;
 
 again:
 	/* Create parent ring tag. */
@@ -808,10 +813,14 @@ again:
 		goto again;
 	}
 
+	if ((sc->vge_flags & VGE_FLAG_PCIE) != 0)
+		lowaddr = VGE_BUF_DMA_MAXADDR;
+	else
+		lowaddr = BUS_SPACE_MAXADDR_32BIT;
 	/* Create parent buffer tag. */
 	error = bus_dma_tag_create(bus_get_dma_tag(sc->vge_dev),/* parent */
 	    1, 0,			/* algnmnt, boundary */
-	    VGE_BUF_DMA_MAXADDR,	/* lowaddr */
+	    lowaddr,			/* lowaddr */
 	    BUS_SPACE_MAXADDR,		/* highaddr */
 	    NULL, NULL,			/* filter, filterarg */
 	    BUS_SPACE_MAXSIZE_32BIT,	/* maxsize */
@@ -1010,12 +1019,12 @@ vge_attach(device_t dev)
 		goto fail;
 	}
 
-	if (pci_find_extcap(dev, PCIY_EXPRESS, &cap) == 0) {
+	if (pci_find_cap(dev, PCIY_EXPRESS, &cap) == 0) {
 		sc->vge_flags |= VGE_FLAG_PCIE;
 		sc->vge_expcap = cap;
 	} else
 		sc->vge_flags |= VGE_FLAG_JUMBO;
-	if (pci_find_extcap(dev, PCIY_PMG, &cap) == 0) {
+	if (pci_find_cap(dev, PCIY_PMG, &cap) == 0) {
 		sc->vge_flags |= VGE_FLAG_PMCAP;
 		sc->vge_pmcap = cap;
 	}
@@ -1091,10 +1100,11 @@ vge_attach(device_t dev)
 	}
 
 	/* Do MII setup */
-	if (mii_phy_probe(dev, &sc->vge_miibus,
-	    vge_ifmedia_upd, vge_ifmedia_sts)) {
-		device_printf(dev, "MII without any phy!\n");
-		error = ENXIO;
+	error = mii_attach(dev, &sc->vge_miibus, ifp, vge_ifmedia_upd,
+	    vge_ifmedia_sts, BMSR_DEFCAPMASK, sc->vge_phyaddr, MII_OFFSET_ANY,
+	    0);
+	if (error != 0) {
+		device_printf(dev, "attaching PHYs failed\n");
 		goto fail;
 	}
 

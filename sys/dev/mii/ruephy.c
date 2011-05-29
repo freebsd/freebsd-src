@@ -88,6 +88,12 @@ static const struct mii_phydesc ruephys[] = {
 	MII_PHY_END
 };
 
+static const struct mii_phy_funcs ruephy_funcs = {
+	ruephy_service,
+	ruephy_status,
+	ruephy_reset
+};
+
 static int
 ruephy_probe(device_t dev)
 {
@@ -101,46 +107,9 @@ ruephy_probe(device_t dev)
 static int
 ruephy_attach(device_t dev)
 {
-	struct mii_softc	*sc;
-	struct mii_attach_args	*ma;
-	struct mii_data		*mii;
 
-	sc = device_get_softc(dev);
-	ma = device_get_ivars(dev);
-	sc->mii_dev = device_get_parent(dev);
-	mii = device_get_softc(sc->mii_dev);
-
-	/*
-	 * The RealTek PHY can never be isolated, so never allow non-zero
-	 * instances!
-	 */
-	if (mii->mii_instance != 0) {
-		device_printf(dev, "ignoring this PHY, non-zero instance\n");
-		return (ENXIO);
-	}
-
-	LIST_INSERT_HEAD(&mii->mii_phys, sc, mii_list);
-
-	sc->mii_inst = mii->mii_instance;
-	sc->mii_phy = ma->mii_phyno;
-	sc->mii_service = ruephy_service;
-	sc->mii_pdata = mii;
-	mii->mii_instance++;
-
-	/*
-	 * Apparently, we can't neither isolate nor do loopback on this PHY.
-	 */
-	sc->mii_flags |= MIIF_NOISOLATE | MIIF_NOLOOP;
-
-	ruephy_reset(sc);
-
-	sc->mii_capabilities =
-	    PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
-	device_printf(dev, " ");
-	mii_phy_add_media(sc);
-	printf("\n");
-
-	MIIBUS_MEDIAINIT(sc->mii_dev);
+	mii_phy_dev_attach(dev, MIIF_NOISOLATE | MIIF_NOMANPAUSE,
+	    &ruephy_funcs, 1);
 	return (0);
 }
 
@@ -149,13 +118,6 @@ ruephy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 {
 	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
 	int reg;
-
-	/*
-	 * We can't isolate the RealTek RTL8150 PHY,
-	 * so it has to be the only one!
-	 */
-	if (IFM_INST(ife->ifm_media) != sc->mii_inst)
-		panic("ruephy_service: can't isolate RealTek RTL8150 PHY");
 
 	switch (cmd) {
 	case MII_POLLSTAT:
@@ -194,21 +156,19 @@ ruephy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		if (reg & RUEPHY_MSR_LINK)
 			break;
 
-		/*
-		 * Only retry autonegotiation every 5 seconds.
-		 */
-		if (++sc->mii_ticks <= MII_ANEGTICKS)
+		/* Only retry autonegotiation every mii_anegticks seconds. */
+		if (sc->mii_ticks <= sc->mii_anegticks)
 			break;
 
 		sc->mii_ticks = 0;
-		ruephy_reset(sc);
+		PHY_RESET(sc);
 		if (mii_phy_auto(sc) == EJUSTRETURN)
 			return (0);
 		break;
 	}
 
 	/* Update the media status. */
-	ruephy_status(sc);
+	PHY_STATUS(sc);
 
 	/* Callback if something changed. */
 	mii_phy_update(sc, cmd);
@@ -264,7 +224,10 @@ ruephy_status(struct mii_softc *phy)
 			mii->mii_media_active |= IFM_10_T;
 
 		if (msr & RUEPHY_MSR_DUPLEX)
-			mii->mii_media_active |= IFM_FDX;
+			mii->mii_media_active |=
+			    IFM_FDX | mii_phy_flowstatus(phy);
+		else
+			mii->mii_media_active |= IFM_HDX;
 	} else
 		mii->mii_media_active = ife->ifm_media;
 }

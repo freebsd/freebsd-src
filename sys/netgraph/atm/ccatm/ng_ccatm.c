@@ -348,9 +348,7 @@ ng_ccatm_constructor(node_p node)
 {
 	struct ccnode *priv;
 
-	priv = malloc(sizeof(*priv), M_NG_CCATM, M_NOWAIT | M_ZERO);
-	if (priv == NULL)
-		return (ENOMEM);
+	priv = malloc(sizeof(*priv), M_NG_CCATM, M_WAITOK | M_ZERO);
 
 	priv->node = node;
 	priv->data = cc_create(&cc_funcs);

@@ -75,8 +75,12 @@ __FBSDID("$FreeBSD$");
 
 #include "assym.s"
 
-#define	TSB_KERNEL_MASK	0x0
-#define	TSB_KERNEL	0x0
+#define	TSB_ASI			0x0
+#define	TSB_KERNEL		0x0
+#define	TSB_KERNEL_MASK		0x0
+#define	TSB_KERNEL_PHYS		0x0
+#define	TSB_KERNEL_PHYS_END	0x0
+#define	TSB_QUAD_LDD		0x0
 
 	.register %g2,#ignore
 	.register %g3,#ignore
@@ -84,19 +88,19 @@ __FBSDID("$FreeBSD$");
 	.register %g7,#ignore
 
 /*
- * Atomically set the reference bit in a TTE.
+ * Atomically set a bit in a TTE.
  */
-#define	TTE_SET_BIT(r1, r2, r3, bit) \
+#define	TTE_SET_BIT(r1, r2, r3, bit, a, asi) \
 	add	r1, TTE_DATA, r1 ; \
-	ldx	[r1], r2 ; \
+	LD(x, a) [r1] asi, r2 ; \
 9:	or	r2, bit, r3 ; \
-	casxa	[r1] ASI_N, r2, r3 ; \
+	CAS(x, a) [r1] asi, r2, r3 ; \
 	cmp	r2, r3 ; \
 	bne,pn	%xcc, 9b ; \
 	 mov	r3, r2
 
-#define	TTE_SET_REF(r1, r2, r3)		TTE_SET_BIT(r1, r2, r3, TD_REF)
-#define	TTE_SET_W(r1, r2, r3)		TTE_SET_BIT(r1, r2, r3, TD_W)
+#define	TTE_SET_REF(r1, r2, r3, a, asi)	TTE_SET_BIT(r1, r2, r3, TD_REF, a, asi)
+#define	TTE_SET_W(r1, r2, r3, a, asi)	TTE_SET_BIT(r1, r2, r3, TD_W, a, asi)
 
 /*
  * Macros for spilling and filling live windows.
@@ -316,15 +320,6 @@ END(tl1_kstack_fault)
 #define	RSF_FILL_INC	tl0_ret_fill_end - tl0_ret_fill
 
 /*
- * Retry a spill or fill with a different wstate due to an alignment fault.
- * We may just be using the wrong stack offset.
- */
-#define	RSF_ALIGN_RETRY(ws) \
-	wrpr	%g0, (ws), %wstate ; \
-	retry ; \
-	.align	16
-
-/*
  * Generate a T_SPILL or T_FILL trap if the window operation fails.
  */
 #define	RSF_TRAP(type) \
@@ -374,7 +369,7 @@ ENTRY(rsf_fatal)
 	sir
 END(rsf_fatal)
 
-	.comm	intrnames, IV_NAMLEN
+	.comm	intrnames, IV_MAX * (MAXCOMLEN + 1)
 	.comm	eintrnames, 0
 
 	.comm	intrcnt, IV_MAX * 8
@@ -386,7 +381,7 @@ END(rsf_fatal)
  * Due to its size a trap table is an inherently hard thing to represent in
  * code in a clean way.  There are approximately 1024 vectors, of 8 or 32
  * instructions each, many of which are identical.  The way that this is
- * layed out is the instructions (8 or 32) for the actual trap vector appear
+ * laid out is the instructions (8 or 32) for the actual trap vector appear
  * as an AS macro.  In general this code branches to tl0_trap or tl1_trap,
  * but if not supporting code can be placed just after the definition of the
  * macro.  The macros are then instantiated in a different section (.trap),
@@ -700,7 +695,7 @@ ENTRY(tl0_immu_miss_set_ref)
 	/*
 	 * Set the reference bit.
 	 */
-	TTE_SET_REF(%g4, %g2, %g3)
+	TTE_SET_REF(%g4, %g2, %g3, a, ASI_N)
 
 	/*
 	 * May have become invalid during casxa, in which case start over.
@@ -858,7 +853,7 @@ ENTRY(tl0_dmmu_miss_set_ref)
 	/*
 	 * Set the reference bit.
 	 */
-	TTE_SET_REF(%g4, %g2, %g3)
+	TTE_SET_REF(%g4, %g2, %g3, a, ASI_N)
 
 	/*
 	 * May have become invalid during casxa, in which case start over.
@@ -1006,7 +1001,7 @@ tl1_dmmu_prot_user:
 	/*
 	 * Set the hardware write bit.
 	 */
-	TTE_SET_W(%g4, %g2, %g3)
+	TTE_SET_W(%g4, %g2, %g3, a, ASI_N)
 
 	/*
 	 * Delete the old TLB entry and clear the SFSR.
@@ -1336,11 +1331,17 @@ END(tl1_sfsr_trap)
 	 * Compute the address of the TTE.  The TSB mask and address of the
 	 * TSB are patched at startup.
 	 */
-	.globl	tl1_immu_miss_patch_1
-tl1_immu_miss_patch_1:
+	.globl	tl1_immu_miss_patch_tsb_1
+tl1_immu_miss_patch_tsb_1:
+	sethi	%uhi(TSB_KERNEL), %g6
+	or	%g6, %ulo(TSB_KERNEL), %g6
+	sllx	%g6, 32, %g6
+	sethi	%hi(TSB_KERNEL), %g7
+	or	%g7, %g6, %g7
+	.globl	tl1_immu_miss_patch_tsb_mask_1
+tl1_immu_miss_patch_tsb_mask_1:
 	sethi	%hi(TSB_KERNEL_MASK), %g6
 	or	%g6, %lo(TSB_KERNEL_MASK), %g6
-	sethi	%hi(TSB_KERNEL), %g7
 
 	srlx	%g5, TAR_VPN_SHIFT, %g5
 	and	%g5, %g6, %g6
@@ -1350,7 +1351,9 @@ tl1_immu_miss_patch_1:
 	/*
 	 * Load the TTE.
 	 */
-	ldda	[%g6] ASI_NUCLEUS_QUAD_LDD, %g6 /*, %g7 */
+	.globl	tl1_immu_miss_patch_quad_ldd_1
+tl1_immu_miss_patch_quad_ldd_1:
+	ldda	[%g6] TSB_QUAD_LDD, %g6 /*, %g7 */
 
 	/*
 	 * Check that it's valid and executable and that the virtual page
@@ -1384,11 +1387,17 @@ ENTRY(tl1_immu_miss_set_ref)
 	 * Recompute the TTE address, which we clobbered loading the TTE.
 	 * The TSB mask and address of the TSB are patched at startup.
 	 */
-	.globl	tl1_immu_miss_patch_2
-tl1_immu_miss_patch_2:
+	.globl	tl1_immu_miss_patch_tsb_2
+tl1_immu_miss_patch_tsb_2:
+	sethi	%uhi(TSB_KERNEL), %g6
+	or	%g6, %ulo(TSB_KERNEL), %g6
+	sllx	%g6, 32, %g6
+	sethi	%hi(TSB_KERNEL), %g7
+	or	%g7, %g6, %g7
+	.globl	tl1_immu_miss_patch_tsb_mask_2
+tl1_immu_miss_patch_tsb_mask_2:
 	sethi	%hi(TSB_KERNEL_MASK), %g6
 	or	%g6, %lo(TSB_KERNEL_MASK), %g6
-	sethi	%hi(TSB_KERNEL), %g7
 
 	and	%g5, %g6, %g5
 	sllx	%g5, TTE_SHIFT, %g5
@@ -1397,7 +1406,10 @@ tl1_immu_miss_patch_2:
 	/*
 	 * Set the reference bit.
 	 */
-	TTE_SET_REF(%g5, %g6, %g7)
+	.globl	tl1_immu_miss_patch_asi_1
+tl1_immu_miss_patch_asi_1:
+	wr	%g0, TSB_ASI, %asi
+	TTE_SET_REF(%g5, %g6, %g7, a, %asi)
 
 	/*
 	 * May have become invalid during casxa, in which case start over.
@@ -1456,11 +1468,17 @@ END(tl1_immu_miss_trap)
 	 * Compute the address of the TTE.  The TSB mask and address of the
 	 * TSB are patched at startup.
 	 */
-	.globl	tl1_dmmu_miss_patch_1
-tl1_dmmu_miss_patch_1:
+	.globl	tl1_dmmu_miss_patch_tsb_1
+tl1_dmmu_miss_patch_tsb_1:
+	sethi	%uhi(TSB_KERNEL), %g6
+	or	%g6, %ulo(TSB_KERNEL), %g6
+	sllx	%g6, 32, %g6
+	sethi	%hi(TSB_KERNEL), %g7
+	or	%g7, %g6, %g7
+	.globl	tl1_dmmu_miss_patch_tsb_mask_1
+tl1_dmmu_miss_patch_tsb_mask_1:
 	sethi	%hi(TSB_KERNEL_MASK), %g6
 	or	%g6, %lo(TSB_KERNEL_MASK), %g6
-	sethi	%hi(TSB_KERNEL), %g7
 
 	srlx	%g5, TAR_VPN_SHIFT, %g5
 	and	%g5, %g6, %g6
@@ -1470,7 +1488,9 @@ tl1_dmmu_miss_patch_1:
 	/*
 	 * Load the TTE.
 	 */
-	ldda	[%g6] ASI_NUCLEUS_QUAD_LDD, %g6 /*, %g7 */
+	.globl	tl1_dmmu_miss_patch_quad_ldd_1
+tl1_dmmu_miss_patch_quad_ldd_1:
+	ldda	[%g6] TSB_QUAD_LDD, %g6 /*, %g7 */
 
 	/*
 	 * Check that it's valid and that the virtual page numbers match.
@@ -1501,11 +1521,17 @@ ENTRY(tl1_dmmu_miss_set_ref)
 	 * Recompute the TTE address, which we clobbered loading the TTE.
 	 * The TSB mask and address of the TSB are patched at startup.
 	 */
-	.globl	tl1_dmmu_miss_patch_2
-tl1_dmmu_miss_patch_2:
+	.globl	tl1_dmmu_miss_patch_tsb_mask_2
+tl1_dmmu_miss_patch_tsb_2:
+	sethi	%uhi(TSB_KERNEL), %g6
+	or	%g6, %ulo(TSB_KERNEL), %g6
+	sllx	%g6, 32, %g6
+	sethi	%hi(TSB_KERNEL), %g7
+	or	%g7, %g6, %g7
+	.globl	tl1_dmmu_miss_patch_tsb_2
+tl1_dmmu_miss_patch_tsb_mask_2:
 	sethi	%hi(TSB_KERNEL_MASK), %g6
 	or	%g6, %lo(TSB_KERNEL_MASK), %g6
-	sethi	%hi(TSB_KERNEL), %g7
 
 	and	%g5, %g6, %g5
 	sllx	%g5, TTE_SHIFT, %g5
@@ -1514,7 +1540,10 @@ tl1_dmmu_miss_patch_2:
 	/*
 	 * Set the reference bit.
 	 */
-	TTE_SET_REF(%g5, %g6, %g7)
+	.globl	tl1_dmmu_miss_patch_asi_1
+tl1_dmmu_miss_patch_asi_1:
+	wr	%g0, TSB_ASI, %asi
+	TTE_SET_REF(%g5, %g6, %g7, a, %asi)
 
 	/*
 	 * May have become invalid during casxa, in which case start over.
@@ -1554,15 +1583,42 @@ ENTRY(tl1_dmmu_miss_direct)
 	 * correspond to the TTE valid and page size bits are left set, so
 	 * they don't have to be included in the TTE bits below.  We know they
 	 * are set because the virtual address is in the upper va hole.
+	 * NB: if we are taking advantage of the ASI_ATOMIC_QUAD_LDD_PHYS
+	 * and we get a miss on the directly accessed kernel TSB we must not
+	 * set TD_CV in order to access it uniformly bypassing the D$.
 	 */
+	setx	TLB_DIRECT_ADDRESS_MASK, %g7, %g4
+	and	%g5, %g4, %g4
 	setx	TLB_DIRECT_TO_TTE_MASK, %g7, %g6
 	and	%g5, %g6, %g5
-	or	%g5, TD_CP | TD_CV | TD_W, %g5
+	.globl	tl1_dmmu_miss_direct_patch_tsb_phys_1
+tl1_dmmu_miss_direct_patch_tsb_phys_1:
+	sethi	%uhi(TSB_KERNEL_PHYS), %g3
+	or	%g3, %ulo(TSB_KERNEL_PHYS), %g3
+	sllx	%g3, 32, %g3
+	sethi	%hi(TSB_KERNEL_PHYS), %g3
+	or	%g7, %g3, %g7
+	cmp	%g4, %g7
+	bl,pt	%xcc, 1f
+	 or	%g5, TD_CP | TD_W, %g5
+	.globl	tl1_dmmu_miss_direct_patch_tsb_phys_end_1
+tl1_dmmu_miss_direct_patch_tsb_phys_end_1:
+	sethi	%uhi(TSB_KERNEL_PHYS_END), %g3
+	or	%g3, %ulo(TSB_KERNEL_PHYS_END), %g3
+	sllx	%g3, 32, %g3
+	sethi	%hi(TSB_KERNEL_PHYS_END), %g7
+	or	%g7, %g3, %g7
+	cmp	%g4, %g7
+	bg,a,pt	%xcc, 1f
+	 nop
+	ba,pt	%xcc, 2f
+	 nop
+1:	or	%g5, TD_CV, %g5
 
 	/*
 	 * Load the TTE data into the TLB and retry the instruction.
 	 */
-	stxa	%g5, [%g0] ASI_DTLB_DATA_IN_REG
+2:	stxa	%g5, [%g0] ASI_DTLB_DATA_IN_REG
 	retry
 END(tl1_dmmu_miss_direct)
 
@@ -1593,11 +1649,17 @@ ENTRY(tl1_dmmu_prot_1)
 	 * Compute the address of the TTE.  The TSB mask and address of the
 	 * TSB are patched at startup.
 	 */
-	.globl	tl1_dmmu_prot_patch_1
-tl1_dmmu_prot_patch_1:
+	.globl	tl1_dmmu_prot_patch_tsb_1
+tl1_dmmu_prot_patch_tsb_1:
+	sethi	%uhi(TSB_KERNEL), %g6
+	or	%g6, %ulo(TSB_KERNEL), %g6
+	sllx	%g6, 32, %g6
+	sethi	%hi(TSB_KERNEL), %g7
+	or	%g7, %g6, %g7
+	.globl	tl1_dmmu_prot_patch_tsb_mask_1
+tl1_dmmu_prot_patch_tsb_mask_1:
 	sethi	%hi(TSB_KERNEL_MASK), %g6
 	or	%g6, %lo(TSB_KERNEL_MASK), %g6
-	sethi	%hi(TSB_KERNEL), %g7
 
 	srlx	%g5, TAR_VPN_SHIFT, %g5
 	and	%g5, %g6, %g6
@@ -1607,7 +1669,9 @@ tl1_dmmu_prot_patch_1:
 	/*
 	 * Load the TTE.
 	 */
-	ldda	[%g6] ASI_NUCLEUS_QUAD_LDD, %g6 /*, %g7 */
+	.globl	tl1_dmmu_prot_patch_quad_ldd_1
+tl1_dmmu_prot_patch_quad_ldd_1:
+	ldda	[%g6] TSB_QUAD_LDD, %g6 /*, %g7 */
 
 	/*
 	 * Check that it's valid and writeable and that the virtual page
@@ -1634,12 +1698,17 @@ tl1_dmmu_prot_patch_1:
 	 * Recompute the TTE address, which we clobbered loading the TTE.
 	 * The TSB mask and address of the TSB are patched at startup.
 	 */
-	.globl	tl1_dmmu_prot_patch_2
-tl1_dmmu_prot_patch_2:
+	.globl	tl1_dmmu_prot_patch_tsb_2
+tl1_dmmu_prot_patch_tsb_2:
+	sethi	%uhi(TSB_KERNEL), %g6
+	or	%g6, %ulo(TSB_KERNEL), %g6
+	sllx	%g6, 32, %g6
+	sethi	%hi(TSB_KERNEL), %g7
+	or	%g7, %g6, %g7
+	.globl	tl1_dmmu_prot_patch_tsb_mask_2
+tl1_dmmu_prot_patch_tsb_mask_2:
 	sethi	%hi(TSB_KERNEL_MASK), %g6
 	or	%g6, %lo(TSB_KERNEL_MASK), %g6
-	sethi	%hi(TSB_KERNEL), %g7
-
 	and	%g5, %g6, %g5
 	sllx	%g5, TTE_SHIFT, %g5
 	add	%g5, %g7, %g5
@@ -1647,7 +1716,10 @@ tl1_dmmu_prot_patch_2:
 	/*
 	 * Set the hardware write bit.
 	 */
-	TTE_SET_W(%g5, %g6, %g7)
+	.globl	tl1_dmmu_prot_patch_asi_1
+tl1_dmmu_prot_patch_asi_1:
+	wr	%g0, TSB_ASI, %asi
+	TTE_SET_W(%g5, %g6, %g7, a, %asi)
 
 	/*
 	 * May have become invalid during casxa, in which case start over.
@@ -1716,6 +1788,19 @@ END(tl1_dmmu_prot_trap)
 	RSF_SPILL_TOPCB
 	.endm
 
+	.macro	tl1_spill_7_n
+	btst	1, %sp
+	bnz,a,pn %xcc, tl1_spill_0_n
+	 nop
+	srl	%sp, 0, %sp
+	SPILL(stw, %sp, 4, EMPTY)
+	saved
+	retry
+	.align	32
+	RSF_FATAL(T_SPILL)
+	RSF_FATAL(T_SPILL)
+	.endm
+
 	.macro	tl1_spill_0_o
 	wr	%g0, ASI_AIUP, %asi
 	SPILL(stxa, %sp + SPOFF, 8, %asi)
@@ -1768,6 +1853,19 @@ END(tl1_dmmu_prot_trap)
 	.align 32
 	RSF_FILL_MAGIC
 	RSF_FILL_MAGIC
+	.endm
+
+	.macro	tl1_fill_7_n
+	btst	1, %sp
+	bnz,a,pt %xcc, tl1_fill_0_n
+	 nop
+	srl	%sp, 0, %sp
+	FILL(lduw, %sp, 4, EMPTY)
+	restored
+	retry
+	.align	32
+	RSF_FATAL(T_FILL)
+	RSF_FATAL(T_FILL)
 	.endm
 
 /*
@@ -2016,8 +2114,10 @@ tl1_spill_0_n:
 tl1_spill_2_n:
 	tl1_spill_2_n					! 0x288
 tl1_spill_3_n:
-	tl1_spill_3_n					! 0x29c
-	tl1_spill_bad	4				! 0x290-0x29f
+	tl1_spill_3_n					! 0x28c
+	tl1_spill_bad	3				! 0x290-0x29b
+tl1_spill_7_n:
+	tl1_spill_7_n					! 0x29c
 tl1_spill_0_o:
 	tl1_spill_0_o					! 0x2a0
 tl1_spill_1_o:
@@ -2029,10 +2129,13 @@ tl1_fill_0_n:
 	tl1_fill_0_n					! 0x2c0
 	tl1_fill_bad	1				! 0x2c4
 tl1_fill_2_n:
-	tl1_fill_2_n					! 0x2d0
+	tl1_fill_2_n					! 0x2c8
 tl1_fill_3_n:
-	tl1_fill_3_n					! 0x2d4
-	tl1_fill_bad	12				! 0x2d8-0x2ff
+	tl1_fill_3_n					! 0x2cc
+	tl1_fill_bad	3				! 0x2d0-0x2db
+tl1_fill_7_n:
+	tl1_fill_7_n					! 0x2dc
+	tl1_fill_bad	8				! 0x2e0-0x2ff
 	tl1_reserved	1				! 0x300
 tl1_breakpoint:
 	tl1_gen		T_BREAKPOINT			! 0x301
@@ -2383,7 +2486,7 @@ ENTRY(tl0_ret)
 	 * Check for pending asts atomically with returning.  We must raise
 	 * the PIL before checking, and if no asts are found the PIL must
 	 * remain raised until the retry is executed, or we risk missing asts
-	 * caused by interrupts occuring after the test.  If the PIL is
+	 * caused by interrupts occurring after the test.  If the PIL is
 	 * lowered, as it is when we call ast, the check must be re-executed.
 	 */
 	wrpr	%g0, PIL_TICK, %pil
@@ -2649,7 +2752,7 @@ END(tl0_ret)
  * Kernel trap entry point
  *
  * void tl1_trap(u_int type, u_long o1, u_long o2, u_long tar, u_long sfar,
- *      u_int sfsr)
+ *     u_int sfsr)
  *
  * This is easy because the stack is already setup and the windows don't need
  * to be split.  We build a trapframe and call trap(), the same as above, but

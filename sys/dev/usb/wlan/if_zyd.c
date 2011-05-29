@@ -65,7 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_regdomain.h>
 #include <net80211/ieee80211_radiotap.h>
-#include <net80211/ieee80211_amrr.h>
+#include <net80211/ieee80211_ratectl.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
@@ -75,7 +75,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/wlan/if_zydreg.h>
 #include <dev/usb/wlan/if_zydfw.h>
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 static int zyd_debug = 0;
 
 SYSCTL_NODE(_hw_usb, OID_AUTO, zyd, CTLFLAG_RW, 0, "USB zyd");
@@ -125,8 +125,6 @@ static void	zyd_vap_delete(struct ieee80211vap *);
 static void	zyd_tx_free(struct zyd_tx_data *, int);
 static void	zyd_setup_tx_list(struct zyd_softc *);
 static void	zyd_unsetup_tx_list(struct zyd_softc *);
-static struct ieee80211_node *zyd_node_alloc(struct ieee80211vap *,
-			    const uint8_t mac[IEEE80211_ADDR_LEN]);
 static int	zyd_newstate(struct ieee80211vap *, enum ieee80211_state, int);
 static int	zyd_cmd(struct zyd_softc *, uint16_t, const void *, int,
 		    void *, int, int);
@@ -163,7 +161,6 @@ static void	zyd_init_locked(struct zyd_softc *);
 static void	zyd_init(void *);
 static void	zyd_stop(struct zyd_softc *);
 static int	zyd_loadfirmware(struct zyd_softc *);
-static void	zyd_newassoc(struct ieee80211_node *, int);
 static void	zyd_scan_start(struct ieee80211com *);
 static void	zyd_scan_end(struct ieee80211com *);
 static void	zyd_set_channel(struct ieee80211com *);
@@ -232,6 +229,7 @@ static const struct usb_device_id zyd_devs[] = {
 	ZYD_ZD1211_DEV(ZYXEL, ZYAIRG220),
 	ZYD_ZD1211_DEV(ZYXEL, G200V2),
 	/* ZYD_ZD1211B */
+	ZYD_ZD1211B_DEV(ACCTON, SMCWUSBG_NF),
 	ZYD_ZD1211B_DEV(ACCTON, SMCWUSBG),
 	ZYD_ZD1211B_DEV(ACCTON, ZD1211B),
 	ZYD_ZD1211B_DEV(ASUS, A9T_WIFI),
@@ -384,7 +382,7 @@ zyd_attach(device_t dev)
 	ifp->if_init = zyd_init;
 	ifp->if_ioctl = zyd_ioctl;
 	ifp->if_start = zyd_start;
-	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
+	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
 	IFQ_SET_READY(&ifp->if_snd);
 
 	ic = ifp->if_l2com;
@@ -408,9 +406,7 @@ zyd_attach(device_t dev)
 	ieee80211_init_channels(ic, NULL, &bands);
 
 	ieee80211_ifattach(ic, sc->sc_bssid);
-	ic->ic_newassoc = zyd_newassoc;
 	ic->ic_raw_xmit = zyd_raw_xmit;
-	ic->ic_node_alloc = zyd_node_alloc;
 	ic->ic_scan_start = zyd_scan_start;
 	ic->ic_scan_end = zyd_scan_end;
 	ic->ic_set_channel = zyd_set_channel;
@@ -483,10 +479,8 @@ zyd_vap_create(struct ieee80211com *ic,
 	zvp->newstate = vap->iv_newstate;
 	vap->iv_newstate = zyd_newstate;
 
-	ieee80211_amrr_init(&zvp->amrr, vap,
-	    IEEE80211_AMRR_MIN_SUCCESS_THRESHOLD,
-	    IEEE80211_AMRR_MAX_SUCCESS_THRESHOLD,
-	    1000 /* 1 sec */);
+	ieee80211_ratectl_init(vap);
+	ieee80211_ratectl_setinterval(vap, 1000 /* 1 sec */);
 
 	/* complete setup */
 	ieee80211_vap_attach(vap, ieee80211_media_change,
@@ -500,7 +494,7 @@ zyd_vap_delete(struct ieee80211vap *vap)
 {
 	struct zyd_vap *zvp = ZYD_VAP(vap);
 
-	ieee80211_amrr_cleanup(&zvp->amrr);
+	ieee80211_ratectl_deinit(vap);
 	ieee80211_vap_detach(vap);
 	free(zvp, M_80211_VAP);
 }
@@ -517,9 +511,6 @@ zyd_tx_free(struct zyd_tx_data *data, int txerr)
 		m_freem(data->m);
 		data->m = NULL;
 
-		if (txerr == 0)
-			ieee80211_amrr_tx_complete(&ZYD_NODE(data->ni)->amn,
-			    IEEE80211_AMRR_SUCCESS, 0);
 		ieee80211_free_node(data->ni);
 		data->ni = NULL;
 	}
@@ -572,24 +563,12 @@ zyd_unsetup_tx_list(struct zyd_softc *sc)
 	}
 }
 
-/* ARGUSED */
-static struct ieee80211_node *
-zyd_node_alloc(struct ieee80211vap *vap __unused,
-	const uint8_t mac[IEEE80211_ADDR_LEN] __unused)
-{
-	struct zyd_node *zn;
-
-	zn = malloc(sizeof(struct zyd_node), M_80211_NODE, M_NOWAIT | M_ZERO);
-	return (zn != NULL) ? (&zn->ni) : (NULL);
-}
-
 static int
 zyd_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 {
 	struct zyd_vap *zvp = ZYD_VAP(vap);
 	struct ieee80211com *ic = vap->iv_ic;
 	struct zyd_softc *sc = ic->ic_ifp->if_softc;
-	struct ieee80211_node *ni;
 	int error;
 
 	DPRINTF(sc, ZYD_DEBUG_STATE, "%s: %s -> %s\n", __func__,
@@ -603,7 +582,6 @@ zyd_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		zyd_set_chan(sc, ic->ic_curchan);
 		break;
 	case IEEE80211_S_RUN:
-		ni = vap->iv_bss;
 		if (vap->iv_opmode == IEEE80211_M_MONITOR)
 			break;
 
@@ -615,7 +593,7 @@ zyd_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		/* make data LED blink upon Tx */
 		zyd_write32_m(sc, sc->sc_fwbase + ZYD_FW_LINK_STATUS, 1);
 
-		IEEE80211_ADDR_COPY(sc->sc_bssid, ni->ni_bssid);
+		IEEE80211_ADDR_COPY(sc->sc_bssid, vap->iv_bss->ni_bssid);
 		zyd_set_bssid(sc, sc->sc_bssid);
 		break;
 	default:
@@ -669,9 +647,12 @@ zyd_intr_read_callback(struct usb_xfer *xfer, usb_error_t error)
 			 */
 			ni = ieee80211_find_txnode(vap, retry->macaddr);
 			if (ni != NULL) {
-				ieee80211_amrr_tx_complete(&ZYD_NODE(ni)->amn,
-				    IEEE80211_AMRR_FAILURE,
-				    (int)(le16toh(retry->count) & 0xff));
+				int retrycnt =
+				    (int)(le16toh(retry->count) & 0xff);
+				
+				ieee80211_ratectl_tx_complete(vap, ni,
+				    IEEE80211_RATECTL_TX_FAILURE,
+				    &retrycnt, NULL);
 				ieee80211_free_node(ni);
 			}
 			if (le16toh(retry->count) & 0x100)
@@ -2498,7 +2479,7 @@ zyd_tx_start(struct zyd_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 		else if (tp->ucastrate != IEEE80211_FIXED_RATE_NONE)
 			rate = tp->ucastrate;
 		else {
-			(void) ieee80211_amrr_choose(ni, &ZYD_NODE(ni)->amn);
+			(void) ieee80211_ratectl_rate(ni, NULL, 0);
 			rate = ni->ni_txrate;
 		}
 	}
@@ -2910,14 +2891,6 @@ zyd_loadfirmware(struct zyd_softc *sc)
 }
 
 static void
-zyd_newassoc(struct ieee80211_node *ni, int isnew)
-{
-	struct ieee80211vap *vap = ni->ni_vap;
-
-	ieee80211_amrr_node_init(&ZYD_VAP(vap)->amrr, &ZYD_NODE(ni)->amn, ni);
-}
-
-static void
 zyd_scan_start(struct ieee80211com *ic)
 {
 	struct ifnet *ifp = ic->ic_ifp;
@@ -2970,4 +2943,4 @@ static devclass_t zyd_devclass;
 DRIVER_MODULE(zyd, uhub, zyd_driver, zyd_devclass, NULL, 0);
 MODULE_DEPEND(zyd, usb, 1, 1, 1);
 MODULE_DEPEND(zyd, wlan, 1, 1, 1);
-MODULE_DEPEND(zyd, wlan_amrr, 1, 1, 1);
+MODULE_VERSION(zyd, 1);

@@ -85,6 +85,12 @@ struct seclifetime {
 	u_int64_t usetime;
 };
 
+union sa_route_union {
+	struct route		sa_route;
+	struct route		sin_route;	/* Duplicate for consistency. */
+	struct route_in6	sin6_route;
+};
+
 /* Security Association Data Base */
 struct secashead {
 	LIST_ENTRY(secashead) chain;
@@ -100,7 +106,7 @@ struct secashead {
 					/* SA chain */
 					/* The first of this list is newer SA */
 
-	struct route sa_route;		/* route cache */
+	union sa_route_union route_cache;
 };
 
 struct xformsw;

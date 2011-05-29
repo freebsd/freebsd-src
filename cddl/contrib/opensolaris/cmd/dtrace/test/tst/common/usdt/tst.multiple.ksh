@@ -94,6 +94,6 @@ script
 status=$?
 
 cd /
-/usr/bin/rm -rf $DIR
+/bin/rm -rf $DIR
 
 exit $status

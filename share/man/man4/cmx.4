@@ -43,10 +43,10 @@ smartcard reader.
 The driver provides a character device special file based
 .Em Chip/Smart Card Interface Devices (CCID)
 interface.  The driver implements what the vendor calls the
-.Em Synchronious API
+.Em Synchronous API
 onto the smartcard reader device.
 .Pp
-Reading and writing is synchronious, meaning that a call to
+Reading and writing is synchronous, meaning that a call to
 .Xr write 2
 directly corresponds to a complete CCID command sent to the
 device, while the following
@@ -67,11 +67,6 @@ and
 are supported and work as expected.  An open file descriptor
 will always be ready for writing, but only ready for reading
 if the device indicates that it has data available.
-.Sh COMPATIBILITY
-Userland smartcard code written for the vendor's Linux drivers
-should work with the
-.Nm
-driver without modification.
 .Sh FILES
 .Bl -tag -width /usr/ports/security/openct -compact
 .It Pa /dev/cmx\fBn\fP
@@ -91,6 +86,11 @@ devices.
 .\".Nm
 .\"devices.
 .El
+.Sh COMPATIBILITY
+Userland smartcard code written for the vendor's Linux drivers
+should work with the
+.Nm
+driver without modification.
 .Sh SEE ALSO
 .Xr pccard 4
 .Sh HISTORY

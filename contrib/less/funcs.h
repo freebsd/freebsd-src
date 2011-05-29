@@ -127,6 +127,7 @@
 	public char * bad_file ();
 	public POSITION filesize ();
 	public char * shell_coption ();
+	public char * last_component ();
 	public int eof_displayed ();
 	public int entire_file_displayed ();
 	public void squish_check ();
@@ -211,9 +212,10 @@
 	public void opt_quote ();
 	public void opt_query ();
 	public int get_swindow ();
+	public char * propt ();
 	public void scan_option ();
 	public void toggle_option ();
-	public int single_char_option ();
+	public int opt_has_param ();
 	public char * opt_prompt ();
 	public int isoptpending ();
 	public void nopendopt ();

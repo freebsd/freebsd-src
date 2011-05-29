@@ -39,6 +39,9 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
 #ifndef __GNUC__
 #error "GCC is needed to compile this file"
@@ -49,7 +52,6 @@
 
 #include "libc_private.h"
 #include "crtbrand.c"
-#include <machine/asm.h>
 
 struct Struct_Obj_Entry;
 struct ps_strings;
@@ -136,5 +138,3 @@ __asm__(".text");
 __asm__("eprol:");
 __asm__(".previous");
 #endif
-
-__asm__(".ident\t\"$FreeBSD$\"");

@@ -1,5 +1,5 @@
 /* itbl-ops.h
-   Copyright 1997, 1999, 2000 Free Software Foundation, Inc.
+   Copyright 1997, 1999, 2000, 2003, 2006, 2007 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -15,18 +15,10 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 /* External functions, constants and defines for itbl support */
-
-#include "ansidecl.h"
-
-/* Include file notes: "expr.h" needed before targ-*.h,
- * "targ-env.h" includes the chain of target dependant headers,
- * "targ-cpu.h" has the HAVE_ITBL_CPU define, and
- * as.h includes them all */
-#include "as.h"
 
 #ifdef HAVE_ITBL_CPU
 #include "itbl-cpu.h"
@@ -77,7 +69,7 @@ typedef enum
 typedef enum
   {
     e_p0,
-    e_nprocs = NUMBER_OF_PROCESSORS,
+    e_nprocs = ITBL_NUMBER_OF_PROCESSORS,
     e_invproc			/* invalid processor */
   } e_processor;
 

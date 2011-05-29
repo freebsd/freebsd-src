@@ -64,18 +64,6 @@
 #endif
 
 /*
- * The time for a process to be blocked before being very swappable.
- * This is a number of seconds which the system takes as being a non-trivial
- * amount of real time.  You probably shouldn't change this;
- * it is used in subtle ways (fractions and multiples of it are, that is, like
- * half of a ``long time'', almost a long time, etc.)
- * It is related to human patience and other factors which don't really
- * change over time.
- */
-#define	MAXSLP 		20
-
-
-/*
  * The physical address space is densely populated.
  */
 #define	VM_PHYSSEG_DENSE
@@ -116,6 +104,13 @@
 #define	VM_NFREEORDER		10
 #else
 #define	VM_NFREEORDER		11
+#endif
+
+/*
+ * Only one memory domain.
+ */
+#ifndef VM_NDOMAIN
+#define	VM_NDOMAIN		1
 #endif
 
 /*
@@ -194,12 +189,15 @@
  * Ceiling on amount of kmem_map kva space.
  */
 #ifndef VM_KMEM_SIZE_MAX
-#define	VM_KMEM_SIZE_MAX	(320 * 1024 * 1024)
+#define	VM_KMEM_SIZE_MAX	((VM_MAX_KERNEL_ADDRESS - \
+    VM_MIN_KERNEL_ADDRESS) * 2 / 5)
 #endif
 
 /* initial pagein size of beginning of executable file */
 #ifndef VM_INITIAL_PAGEIN
 #define	VM_INITIAL_PAGEIN	16
 #endif
+
+#define	ZERO_REGION_SIZE	(64 * 1024)	/* 64KB */
 
 #endif /* _MACHINE_VMPARAM_H_ */

@@ -141,41 +141,53 @@ print_mask(struct ipfw_flow_id *id)
 {
 	if (!IS_IP6_FLOW_ID(id)) {
 		printf("    "
-		    "mask: 0x%02x 0x%08x/0x%04x -> 0x%08x/0x%04x\n",
+		    "mask: %s 0x%02x 0x%08x/0x%04x -> 0x%08x/0x%04x\n",
+		    id->extra ? "queue," : "",
 		    id->proto,
 		    id->src_ip, id->src_port,
 		    id->dst_ip, id->dst_port);
-
-		printf("BKT Prot ___Source IP/port____ "
-		    "____Dest. IP/port____ "
-		    "Tot_pkt/bytes Pkt/Byte Drp\n");
 	} else {
 		char buf[255];
-		printf("\n        mask: proto: 0x%02x, flow_id: 0x%08x,  ",
+		printf("\n        mask: %sproto: 0x%02x, flow_id: 0x%08x,  ",
+		    id->extra ? "queue," : "",
 		    id->proto, id->flow_id6);
 		inet_ntop(AF_INET6, &(id->src_ip6), buf, sizeof(buf));
 		printf("%s/0x%04x -> ", buf, id->src_port);
 		inet_ntop(AF_INET6, &(id->dst_ip6), buf, sizeof(buf));
 		printf("%s/0x%04x\n", buf, id->dst_port);
-
-		printf("BKT ___Prot___ _flow-id_ "
-		    "______________Source IPv6/port_______________ "
-		    "_______________Dest. IPv6/port_______________ "
-		    "Tot_pkt/bytes Pkt/Byte Drp\n");
 	}
 }
 
 static void
-list_flow(struct dn_flow *ni)
+print_header(struct ipfw_flow_id *id)
+{
+	if (!IS_IP6_FLOW_ID(id))
+		printf("BKT Prot ___Source IP/port____ "
+		    "____Dest. IP/port____ "
+		    "Tot_pkt/bytes Pkt/Byte Drp\n");
+	else
+		printf("BKT ___Prot___ _flow-id_ "
+		    "______________Source IPv6/port_______________ "
+		    "_______________Dest. IPv6/port_______________ "
+		    "Tot_pkt/bytes Pkt/Byte Drp\n");
+}
+
+static void
+list_flow(struct dn_flow *ni, int *print)
 {
 	char buff[255];
-	struct protoent *pe;
+	struct protoent *pe = NULL;
 	struct in_addr ina;
 	struct ipfw_flow_id *id = &ni->fid;
 
+	if (*print) {
+		print_header(&ni->fid);
+		*print = 0;
+	}
 	pe = getprotobynumber(id->proto);
 		/* XXX: Should check for IPv4 flows */
-	printf("%3u ", (ni->oid.id) & 0xff);
+	printf("%3u%c", (ni->oid.id) & 0xff,
+		id->extra ? '*' : ' ');
 	if (!IS_IP6_FLOW_ID(id)) {
 		if (pe)
 			printf("%-4s ", pe->p_name);
@@ -200,9 +212,9 @@ list_flow(struct dn_flow *ni)
 		    inet_ntop(AF_INET6, &(id->dst_ip6), buff, sizeof(buff)),
 		    id->dst_port);
 	}
-	printf("%4llu %8llu %2u %4u %3u\n",
-	    align_uint64(&ni->tot_pkts),
-	    align_uint64(&ni->tot_bytes),
+	pr_u64(&ni->tot_pkts, 4);
+	pr_u64(&ni->tot_bytes, 8);
+	printf("%2u %4u %3u\n",
 	    ni->length, ni->len_bytes, ni->drops);
 }
 
@@ -272,7 +284,7 @@ flush_buf(char *buf)
 		printf("%s\n", buf);
 	buf[0] = '\0';
 }
-	
+
 /*
  * generic list routine. We expect objects in a specific order, i.e.
  * PIPES AND SCHEDULERS:
@@ -287,8 +299,9 @@ static void
 list_pipes(struct dn_id *oid, struct dn_id *end)
 {
     char buf[160];	/* pending buffer */
-    buf[0] = '\0';
+    int toPrint = 1;	/* print header */
 
+    buf[0] = '\0';
     for (; oid != end; oid = O_NEXT(oid, oid->len)) {
 	if (oid->len < sizeof(*oid))
 		errx(1, "invalid oid len %d\n", oid->len);
@@ -330,7 +343,7 @@ list_pipes(struct dn_id *oid, struct dn_id *end)
 	    break;
 
 	case DN_FLOW:
-	    list_flow((struct dn_flow *)oid);
+	    list_flow((struct dn_flow *)oid, &toPrint);
 	    break;
 
 	case DN_LINK: {
@@ -405,25 +418,25 @@ ipfw_delete_pipe(int do_pipe, int i)
  * We can model the additional delay with an empirical curve
  * that represents its distribution.
  *
- *	cumulative probability
- *	1.0 ^
- *	    |
- *	L   +-- loss-level          x
- *	    |                 ******
- *	    |                *
- *	    |           *****
- *	    |          *
- *	    |        **
- *	    |       *                         
- *	    +-------*------------------->
- *			delay
+ *      cumulative probability
+ *      1.0 ^
+ *          |
+ *      L   +-- loss-level          x
+ *          |                 ******
+ *          |                *
+ *          |           *****
+ *          |          *
+ *          |        **
+ *          |       *
+ *          +-------*------------------->
+ *                      delay
  *
  * The empirical curve may have both vertical and horizontal lines.
  * Vertical lines represent constant delay for a range of
  * probabilities; horizontal lines correspond to a discontinuty
  * in the delay distribution: the link will use the largest delay
  * for a given probability.
- * 
+ *
  * To pass the curve to dummynet, we must store the parameters
  * in a file as described below, and issue the command
  *
@@ -436,9 +449,9 @@ ipfw_delete_pipe(int do_pipe, int i)
  *		the number of samples used in the internal
  *		representation (2..1024; default 100);
  *
- *	loss-level L 
+ *	loss-level L
  *		The probability above which packets are lost.
- *               (0.0 <= L <= 1.0, default 1.0 i.e. no loss);
+ *	       (0.0 <= L <= 1.0, default 1.0 i.e. no loss);
  *
  *	name identifier
  *		Optional a name (listed by "ipfw pipe show")
@@ -459,18 +472,18 @@ ipfw_delete_pipe(int do_pipe, int i)
  * the curve as needed.
  *
  * Example of a profile file:
- 
-        name    bla_bla_bla
-        samples 100
-        loss-level    0.86
-        prob    delay
-        0       200	# minimum overhead is 200ms
-        0.5     200
-        0.5     300
-        0.8     1000
-        0.9     1300
-        1       1300
- 
+
+	name    bla_bla_bla
+	samples 100
+	loss-level    0.86
+	prob    delay
+	0       200	# minimum overhead is 200ms
+	0.5     200
+	0.5     300
+	0.8     1000
+	0.9     1300
+	1       1300
+
  * Internally, we will convert the curve to a fixed number of
  * samples, and when it is time to transmit a packet we will
  * model the extra delay as extra bits in the packet.
@@ -532,7 +545,7 @@ read_bandwidth(char *arg, int *bandwidth, char *if_name, int namelen)
 		if (*end == 'K' || *end == 'k') {
 			end++;
 			bw *= 1000;
-		} else if (*end == 'M') {
+		} else if (*end == 'M' || *end == 'm') {
 			end++;
 			bw *= 1000000;
 		}
@@ -600,7 +613,7 @@ load_extra_delays(const char *filename, struct dn_profile *p,
 	if (f == NULL)
 		err(EX_UNAVAILABLE, "fopen: %s", filename);
 
-	while (fgets(line, ED_MAX_LINE_LEN, f)) {         /* read commands */
+	while (fgets(line, ED_MAX_LINE_LEN, f)) {	 /* read commands */
 		char *s, *cur = line, *name = NULL, *arg = NULL;
 
 		++lineno;
@@ -727,7 +740,7 @@ load_extra_delays(const char *filename, struct dn_profile *p,
 /*
  * configuration of pipes, schedulers, flowsets.
  * When we configure a new scheduler, an empty pipe is created, so:
- * 
+ *
  * do_pipe = 1 -> "pipe N config ..." only for backward compatibility
  *	sched N+Delta type fifo sched_mask ...
  *	pipe N+Delta <parameters>
@@ -910,6 +923,7 @@ ipfw_config_pipe(int ac, char **av)
 			    case TOK_ALL:
 				    /*
 				     * special case, all bits significant
+				     * except 'extra' (the queue number)
 				     */
 				    mask->dst_ip = ~0;
 				    mask->src_ip = ~0;
@@ -919,6 +933,11 @@ ipfw_config_pipe(int ac, char **av)
 				    n2mask(&mask->dst_ip6, 128);
 				    n2mask(&mask->src_ip6, 128);
 				    mask->flow_id6 = ~0;
+				    *flags |= DN_HAVE_MASK;
+				    goto end_mask;
+
+			    case TOK_QUEUE:
+				    mask->extra = ~0;
 				    *flags |= DN_HAVE_MASK;
 				    goto end_mask;
 
@@ -936,7 +955,7 @@ ipfw_config_pipe(int ac, char **av)
 				    mask->addr_type = 6;
 				    pa6 = &mask->dst_ip6;
 				    break;
-			    
+
 			    case TOK_SRCIP6:
 				    mask->addr_type = 6;
 				    pa6 = &mask->src_ip6;
@@ -992,7 +1011,7 @@ ipfw_config_pipe(int ac, char **av)
 				    if (a > 0xFF)
 					    errx(EX_DATAERR,
 						"proto mask must be 8 bit");
-				    fs->flow_mask.proto = (uint8_t)a;
+				    mask->proto = (uint8_t)a;
 			    }
 			    if (a != 0)
 				    *flags |= DN_HAVE_MASK;
@@ -1111,7 +1130,7 @@ end_mask:
 			NEED(p, "burst");
 			NEED1("burst needs argument\n");
 			errno = 0;
-			if (expand_number(av[0], (int64_t *)&p->burst) < 0)
+			if (expand_number(av[0], &p->burst) < 0)
 				if (errno != ERANGE)
 					errx(EX_DATAERR,
 					    "burst: invalid argument");
@@ -1234,53 +1253,142 @@ dummynet_flush(void)
 	do_cmd(IP_DUMMYNET3, &oid, oid.len);
 }
 
+/* Parse input for 'ipfw [pipe|sched|queue] show [range list]'
+ * Returns the number of ranges, and possibly stores them
+ * in the array v of size len.
+ */
+static int
+parse_range(int ac, char *av[], uint32_t *v, int len)
+{
+	int n = 0;
+	char *endptr, *s;
+	uint32_t base[2];
+
+	if (v == NULL || len < 2) {
+		v = base;
+		len = 2;
+	}
+
+	for (s = *av; s != NULL; av++, ac--) {
+		v[0] = strtoul(s, &endptr, 10);
+		v[1] = (*endptr != '-') ? v[0] :
+			 strtoul(endptr+1, &endptr, 10);
+		if (*endptr == '\0') { /* prepare for next round */
+			s = (ac > 0) ? *(av+1) : NULL;
+		} else {
+			if (*endptr != ',') {
+				warn("invalid number: %s", s);
+				s = ++endptr;
+				continue;
+			}
+			/* continue processing from here */
+			s = ++endptr;
+			ac++;
+			av--;
+		}
+		if (v[1] < v[0] ||
+			v[1] < 0 || v[1] >= DN_MAX_ID-1 ||
+			v[0] < 0 || v[1] >= DN_MAX_ID-1) {
+			continue; /* invalid entry */
+		}
+		n++;
+		/* translate if 'pipe list' */
+		if (co.do_pipe == 1) {
+			v[0] += DN_MAX_ID;
+			v[1] += DN_MAX_ID;
+		}
+		v = (n*2 < len) ? v + 2 : base;
+	}
+	return n;
+}
+
 /* main entry point for dummynet list functions. co.do_pipe indicates
  * which function we want to support.
- * XXX todo- accept filtering arguments.
+ * av may contain filtering arguments, either individual entries
+ * or ranges, or lists (space or commas are valid separators).
+ * Format for a range can be n1-n2 or n3 n4 n5 ...
+ * In a range n1 must be <= n2, otherwise the range is ignored.
+ * A number 'n4' is translate in a range 'n4-n4'
+ * All number must be > 0 and < DN_MAX_ID-1
  */
 void
 dummynet_list(int ac, char *av[], int show_counters)
 {
-	struct dn_id oid, *x = NULL;
-	int ret, i, l = sizeof(oid);
+	struct dn_id *oid, *x = NULL;
+	int ret, i, l;
+	int n; 		/* # of ranges */
+	int buflen;
+	int max_size;	/* largest obj passed up */
 
-	oid_fill(&oid, l, DN_CMD_GET, DN_API_VERSION);
+	ac--;
+	av++; 		/* skip 'list' | 'show' word */
+
+	n = parse_range(ac, av, NULL, 0);	/* Count # of ranges. */
+
+	/* Allocate space to store ranges */
+	l = sizeof(*oid) + sizeof(uint32_t) * n * 2;
+	oid = safe_calloc(1, l);
+	oid_fill(oid, l, DN_CMD_GET, DN_API_VERSION);
+
+	if (n > 0)	/* store ranges in idx */
+		parse_range(ac, av, (uint32_t *)(oid + 1), n*2);
+	/*
+	 * Compute the size of the largest object returned. If the
+	 * response leaves at least this much spare space in the
+	 * buffer, then surely the response is complete; otherwise
+	 * there might be a risk of truncation and we will need to
+	 * retry with a larger buffer.
+	 * XXX don't bother with smaller structs.
+	 */
+	max_size = sizeof(struct dn_fs);
+	if (max_size < sizeof(struct dn_sch))
+		max_size = sizeof(struct dn_sch);
+	if (max_size < sizeof(struct dn_flow))
+		max_size = sizeof(struct dn_flow);
+
 	switch (co.do_pipe) {
 	case 1:
-		oid.subtype = DN_LINK;	/* list pipe */
+		oid->subtype = DN_LINK;	/* list pipe */
 		break;
 	case 2:
-		oid.subtype = DN_FS;	/* list queue */
+		oid->subtype = DN_FS;	/* list queue */
 		break;
 	case 3:
-		oid.subtype = DN_SCH;	/* list sched */
+		oid->subtype = DN_SCH;	/* list sched */
 		break;
 	}
 
-	/* Request the buffer size (in oid.id)*/
-	ret = do_cmd(-IP_DUMMYNET3, &oid, (uintptr_t)&l);
-	// printf("%s returns %d need %d\n", __FUNCTION__, ret, oid.id);
-	if (ret != 0 || oid.id <= sizeof(oid))
-		return;
-
-	/* Try max 10 times
-	 * Buffer is correct if l != 0.
-	 * If l == 0 no buffer is sent, maybe because kernel requires 
-	 * a greater buffer, so try with the new size in x->id.
+	/*
+	 * Ask the kernel an estimate of the required space (result
+	 * in oid.id), unless we are requesting a subset of objects,
+	 * in which case the kernel does not give an exact answer.
+	 * In any case, space might grow in the meantime due to the
+	 * creation of new queues, so we must be prepared to retry.
 	 */
-	for (i = 0, l = oid.id; i < 10; i++, l = x->id) {
-		x = safe_realloc(x, l);
-	*x = oid;
-	ret = do_cmd(-IP_DUMMYNET3, x, (uintptr_t)&l);
-
-		if (ret != 0 || x->id <= sizeof(oid))
-			return;
-
-		if (l != 0)
-			break; /* ok */
+	if (n > 0) {
+		buflen = 4*1024;
+	} else {
+		ret = do_cmd(-IP_DUMMYNET3, oid, (uintptr_t)&l);
+		if (ret != 0 || oid->id <= sizeof(*oid))
+			goto done;
+		buflen = oid->id + max_size;
+		oid->len = sizeof(*oid); /* restore */
 	}
-	// printf("%s returns %d need %d\n", __FUNCTION__, ret, oid.id);
-	// XXX filter on ac, av
+	/* Try a few times, until the buffer fits */
+	for (i = 0; i < 20; i++) {
+		l = buflen;
+		x = safe_realloc(x, l);
+		bcopy(oid, x, oid->len);
+		ret = do_cmd(-IP_DUMMYNET3, x, (uintptr_t)&l);
+		if (ret != 0 || x->id <= sizeof(*oid))
+			goto done; /* no response */
+		if (l + max_size <= buflen)
+			break; /* ok */
+		buflen *= 2;	 /* double for next attempt */
+	}
 	list_pipes(x, O_NEXT(x, l));
-	free(x);
+done:
+	if (x)
+		free(x);
+	free(oid);
 }

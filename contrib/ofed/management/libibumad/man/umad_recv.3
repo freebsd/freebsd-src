@@ -1,0 +1,40 @@
+.\" -*- nroff -*-
+.\"
+.TH UMAD_RECV 3  "May 11, 2007" "OpenIB" "OpenIB Programmer\'s Manual"
+.SH "NAME"
+umad_recv \- receive umad
+.SH "SYNOPSIS"
+.nf
+.B #include <infiniband/umad.h>
+.sp
+.BI "int umad_recv(int " "portid" ", void " "*umad" ", int " "*length" ", int " "timeout_ms");
+.fi
+.SH "DESCRIPTION"
+.B umad_recv()
+waits up to
+.I timeout_ms\fR
+milliseconds for a packet to be received from the port specified by
+.I portid\fR.
+The packet is copied to the
+.I umad\fR
+buffer if there is sufficient room and the received
+.I length\fR is indicated.
+If the buffer is not large enough, the size of the umad
+buffer needed is returned in
+.I length\fR.
+A negative
+.I timeout_ms\fR
+makes the function block until a packet is received. A
+.I timeout_ms\fR
+parameter of zero indicates a non blocking read.
+.SH "RETURN VALUE"
+.B umad_recv()
+returns non negative receiving agentid on success, and a negative value on error as follows:
+ -EINVAL      invalid port handle or agentid
+ -EIO         receive operation failed
+ -EWOULDBLOCK non blocking read can't be fulfilled
+.SH "SEE ALSO"
+.BR umad_poll (3)
+.SH "AUTHOR"
+.TP
+Hal Rosenstock <halr@voltaire.com>

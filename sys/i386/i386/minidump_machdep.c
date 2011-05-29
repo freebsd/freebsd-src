@@ -27,6 +27,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_watchdog.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
@@ -34,6 +36,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/kerneldump.h>
 #include <sys/msgbuf.h>
+#ifdef SW_WATCHDOG
+#include <sys/watchdog.h>
+#endif
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <machine/atomic.h>
@@ -138,6 +143,9 @@ blk_write(struct dumperinfo *di, char *ptr, vm_paddr_t pa, size_t sz)
 			printf(" %lld", PG2MB(progress >> PAGE_SHIFT));
 			counter &= (1<<24) - 1;
 		}
+#ifdef SW_WATCHDOG
+		wdog_kern_pat(WD_LASTVAL);
+#endif
 		if (ptr) {
 			error = dump_write(di, ptr, 0, dumplo, len);
 			if (error)

@@ -99,3 +99,5 @@ L2:	popl	%eax			/* pop destination address */
 	popl	%edi			/* restore edi */
 	ret
 END(strcat)
+
+	.section .note.GNU-stack,"",%progbits

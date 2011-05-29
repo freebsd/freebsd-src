@@ -63,48 +63,62 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 #include <sys/bus.h>
+#include <sys/interrupt.h>
 #include <sys/ktr.h>
 #include <sys/pcpu.h>
+#include <sys/timeet.h>
 #include <sys/timetc.h>
-#include <sys/interrupt.h>
 
 #include <machine/clock.h>
+#include <machine/intr_machdep.h>
 #include <machine/platform.h>
 #include <machine/psl.h>
 #include <machine/spr.h>
 #include <machine/cpu.h>
-#include <machine/intr.h>
 #include <machine/md_var.h>
 
 /*
  * Initially we assume a processor with a bus frequency of 12.5 MHz.
  */
-u_int tickspending;
-u_long ns_per_tick = 80;
-static u_long ticks_per_sec = 12500000;
-static long ticks_per_intr;
+static int		initialized = 0;
+static u_long		ns_per_tick = 80;
+static u_long		ticks_per_sec = 12500000;
+static u_long		*decr_counts[MAXCPU];
 
 #define	DIFF19041970	2082844800
 
+static int		decr_et_start(struct eventtimer *et,
+    struct bintime *first, struct bintime *period);
+static int		decr_et_stop(struct eventtimer *et);
 static timecounter_get_t decr_get_timecount;
 
+struct decr_state {
+	int	mode;	/* 0 - off, 1 - periodic, 2 - one-shot. */
+	int32_t	div;	/* Periodic divisor. */
+};
+static DPCPU_DEFINE(struct decr_state, decr_state);
+
+static struct eventtimer	decr_et;
 static struct timecounter	decr_timecounter = {
 	decr_get_timecount,	/* get_timecount */
 	0,			/* no poll_pps */
 	~0u,			/* counter_mask */
 	0,			/* frequency */
-	"decrementer"		/* name */
+	"timebase"		/* name */
 };
 
+/*
+ * Decrementer interrupt handler.
+ */
 void
 decr_intr(struct trapframe *frame)
 {
+	struct decr_state *s = DPCPU_PTR(decr_state);
 
-	/*
-	 * Check whether we are initialized.
-	 */
-	if (!ticks_per_intr)
+	if (!initialized)
 		return;
+
+	(*decr_counts[curcpu])++;
 
 	/*
 	 * Interrupt handler must reset DIS to avoid getting another
@@ -114,14 +128,11 @@ decr_intr(struct trapframe *frame)
 
 	CTR1(KTR_INTR, "%s: DEC interrupt", __func__);
 
-	if (PCPU_GET(cpuid) == 0)
-		hardclock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
-	else
-		hardclock_cpu(TRAPF_USERMODE(frame));
+	if (s->mode == 2)
+		decr_et_stop(NULL);
 
-	statclock(TRAPF_USERMODE(frame));
-	if (profprocs != 0)
-		profclock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
+	if (decr_et.et_active)
+		decr_et.et_event_cb(&decr_et, decr_et.et_arg);
 }
 
 void
@@ -129,57 +140,129 @@ cpu_initclocks(void)
 {
 
 	decr_tc_init();
-	stathz = hz;
-	profhz = hz;
+	cpu_initclocks_bsp();
 }
 
+/*
+ * BSP early initialization.
+ */
 void
 decr_init(void)
 {
 	struct cpuref cpu;
-	unsigned int msr;
+	char buf[32];
 
 	if (platform_smp_get_bsp(&cpu) != 0)
 		platform_smp_first_cpu(&cpu);
 	ticks_per_sec = platform_timebase_freq(&cpu);
-
-	msr = mfmsr();
-	mtmsr(msr & ~(PSL_EE));
-
 	ns_per_tick = 1000000000 / ticks_per_sec;
-	ticks_per_intr = ticks_per_sec / hz;
-
-	mtdec(ticks_per_intr);
-
-	mtspr(SPR_DECAR, ticks_per_intr);
-	mtspr(SPR_TCR, mfspr(SPR_TCR) | TCR_DIE | TCR_ARE);
 
 	set_cputicker(mftb, ticks_per_sec, 0);
-
-	mtmsr(msr);
+	snprintf(buf, sizeof(buf), "cpu%d:decrementer", curcpu);
+	intrcnt_add(buf, &decr_counts[curcpu]);
+	decr_et_stop(NULL);
+	initialized = 1;
 }
 
 #ifdef SMP
+/*
+ * AP early initialization.
+ */
 void
 decr_ap_init(void)
 {
+	char buf[32];
 
-	/* Set auto-reload value and enable DEC interrupts in TCR */
-	mtspr(SPR_DECAR, ticks_per_intr);
-	mtspr(SPR_TCR, mfspr(SPR_TCR) | TCR_DIE | TCR_ARE);
-
-	CTR2(KTR_INTR, "%s: set TCR=%p", __func__, mfspr(SPR_TCR));
+	snprintf(buf, sizeof(buf), "cpu%d:decrementer", curcpu);
+	intrcnt_add(buf, &decr_counts[curcpu]);
+	decr_et_stop(NULL);
 }
 #endif
 
+/*
+ * Final initialization.
+ */
 void
 decr_tc_init(void)
 {
 
 	decr_timecounter.tc_frequency = ticks_per_sec;
 	tc_init(&decr_timecounter);
+	decr_et.et_name = "decrementer";
+	decr_et.et_flags = ET_FLAGS_PERIODIC | ET_FLAGS_ONESHOT |
+	    ET_FLAGS_PERCPU;
+	decr_et.et_quality = 1000;
+	decr_et.et_frequency = ticks_per_sec;
+	decr_et.et_min_period.sec = 0;
+	decr_et.et_min_period.frac =
+	    ((0x00000002LLU << 32) / ticks_per_sec) << 32;
+	decr_et.et_max_period.sec = 0xfffffffeLLU / ticks_per_sec;
+	decr_et.et_max_period.frac =
+	    ((0xfffffffeLLU << 32) / ticks_per_sec) << 32;
+	decr_et.et_start = decr_et_start;
+	decr_et.et_stop = decr_et_stop;
+	decr_et.et_priv = NULL;
+	et_register(&decr_et);
 }
 
+/*
+ * Event timer start method.
+ */
+static int
+decr_et_start(struct eventtimer *et,
+    struct bintime *first, struct bintime *period)
+{
+	struct decr_state *s = DPCPU_PTR(decr_state);
+	uint32_t fdiv, tcr;
+
+	if (period != NULL) {
+		s->mode = 1;
+		s->div = (decr_et.et_frequency * (period->frac >> 32)) >> 32;
+		if (period->sec != 0)
+			s->div += decr_et.et_frequency * period->sec;
+	} else {
+		s->mode = 2;
+		s->div = 0xffffffff;
+	}
+	if (first != NULL) {
+		fdiv = (decr_et.et_frequency * (first->frac >> 32)) >> 32;
+		if (first->sec != 0)
+			fdiv += decr_et.et_frequency * first->sec;
+	} else
+		fdiv = s->div;
+
+	tcr = mfspr(SPR_TCR);
+	tcr |= TCR_DIE;
+	if (s->mode == 1) {
+		mtspr(SPR_DECAR, s->div);
+		tcr |= TCR_ARE;
+	} else
+		tcr &= ~TCR_ARE;
+	mtdec(fdiv);
+	mtspr(SPR_TCR, tcr);
+	return (0);
+}
+
+/*
+ * Event timer stop method.
+ */
+static int
+decr_et_stop(struct eventtimer *et)
+{
+	struct decr_state *s = DPCPU_PTR(decr_state);
+	uint32_t tcr;
+
+	s->mode = 0;
+	s->div = 0xffffffff;
+	tcr = mfspr(SPR_TCR);
+	tcr &= ~(TCR_DIE | TCR_ARE);
+	mtspr(SPR_TCR, tcr);
+	return (0);
+}
+
+/*
+ * Timecounter get method.
+ */
 static unsigned
 decr_get_timecount(struct timecounter *tc)
 {
@@ -204,18 +287,3 @@ DELAY(int n)
 	} while (now < end || (now > start && end < start));
 }
 
-/*
- * Nothing to do.
- */
-void
-cpu_startprofclock(void)
-{
-
-	/* Do nothing */
-}
-
-void
-cpu_stopprofclock(void)
-{
-
-}

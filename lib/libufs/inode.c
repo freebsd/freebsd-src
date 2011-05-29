@@ -93,3 +93,19 @@ gotit:	switch (disk->d_ufs) {
 	ERROR(disk, "unknown UFS filesystem type");
 	return (-1);
 }
+
+int
+putino(struct uufsd *disk)
+{
+	struct fs *fs;
+
+	fs = &disk->d_fs;
+	if (disk->d_inoblock == NULL) {
+		ERROR(disk, "No inode block allocated");
+		return (-1);
+	}
+	if (bwrite(disk, fsbtodb(fs, ino_to_fsba(&disk->d_fs, disk->d_inomin)),
+	    disk->d_inoblock, disk->d_fs.fs_bsize) <= 0)
+		return (-1);
+	return (0);
+}

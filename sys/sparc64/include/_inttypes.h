@@ -26,7 +26,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- *	From: $NetBSD: int_fmtio.h,v 1.2 2001/04/26 16:25:21 kleink Exp $
+ *	From: $NetBSD: int_fmtio.h,v 1.4 2008/04/28 20:23:36 martin Exp $
  * $FreeBSD$
  */
 

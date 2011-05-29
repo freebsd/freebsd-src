@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mman.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/racct.h>
 #include <sys/resourcevar.h>
 #include <sys/sysent.h>
 #include <sys/systm.h>
@@ -216,7 +217,9 @@ do_aout_hdr(struct imgact_gzip * gz)
 
 	/* data + bss can't exceed rlimit */
 	    gz->a_out.a_data + gz->bss_size >
-	    lim_cur(gz->ip->proc, RLIMIT_DATA)) {
+	    lim_cur(gz->ip->proc, RLIMIT_DATA) ||
+	    racct_set(gz->ip->proc, RACCT_DATA,
+	    gz->a_out.a_data + gz->bss_size) != 0) {
 		PROC_UNLOCK(gz->ip->proc);
 		gz->where = __LINE__;
 		return (ENOMEM);

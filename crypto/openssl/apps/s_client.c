@@ -226,7 +226,7 @@ static void sc_usage(void)
 	BIO_printf(bio_err," -ssl3         - just use SSLv3\n");
 	BIO_printf(bio_err," -tls1         - just use TLSv1\n");
 	BIO_printf(bio_err," -dtls1        - just use DTLSv1\n");    
-	BIO_printf(bio_err," -mtu          - set the MTU\n");
+	BIO_printf(bio_err," -mtu          - set the link layer MTU\n");
 	BIO_printf(bio_err," -no_tls1/-no_ssl3/-no_ssl2 - turn off that protocol\n");
 	BIO_printf(bio_err," -bugs         - Switch on all SSL implementation bug workarounds\n");
 	BIO_printf(bio_err," -serverpref   - Use server's cipher preferences (only SSLv2)\n");
@@ -249,6 +249,7 @@ static void sc_usage(void)
 	BIO_printf(bio_err," -status           - request certificate status from server\n");
 	BIO_printf(bio_err," -no_ticket        - disable use of RFC4507bis session tickets\n");
 #endif
+	BIO_printf(bio_err," -legacy_renegotiation - enable use of legacy renegotiation (dangerous)\n");
 	}
 
 #ifndef OPENSSL_NO_TLSEXT
@@ -286,7 +287,7 @@ int MAIN(int, char **);
 
 int MAIN(int argc, char **argv)
 	{
-	int off=0;
+	int off=0, clr = 0;
 	SSL *con=NULL,*con2=NULL;
 	X509_STORE *store = NULL;
 	int s,k,width,state=0;
@@ -318,6 +319,7 @@ int MAIN(int argc, char **argv)
 	BIO *sbio;
 	char *inrand=NULL;
 	int mbuf_len=0;
+	struct timeval timeout, *timeoutp;
 #ifndef OPENSSL_NO_ENGINE
 	char *engine_id=NULL;
 	char *ssl_client_engine_id=NULL;
@@ -338,7 +340,7 @@ int MAIN(int argc, char **argv)
 	struct sockaddr peer;
 	int peerlen = sizeof(peer);
 	int enable_timeouts = 0 ;
-	long mtu = 0;
+	long socket_mtu = 0;
 #ifndef OPENSSL_NO_JPAKE
 	char *jpake_secret = NULL;
 #endif
@@ -489,7 +491,7 @@ int MAIN(int argc, char **argv)
 		else if (strcmp(*argv,"-mtu") == 0)
 			{
 			if (--argc < 1) goto bad;
-			mtu = atol(*(++argv));
+			socket_mtu = atol(*(++argv));
 			}
 #endif
 		else if (strcmp(*argv,"-bugs") == 0)
@@ -535,6 +537,12 @@ int MAIN(int argc, char **argv)
 #endif
 		else if (strcmp(*argv,"-serverpref") == 0)
 			off|=SSL_OP_CIPHER_SERVER_PREFERENCE;
+		else if (strcmp(*argv,"-legacy_renegotiation") == 0)
+			off|=SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION;
+		else if	(strcmp(*argv,"-legacy_server_connect") == 0)
+			{ off|=SSL_OP_LEGACY_SERVER_CONNECT; }
+		else if	(strcmp(*argv,"-no_legacy_server_connect") == 0)
+			{ clr|=SSL_OP_LEGACY_SERVER_CONNECT; }
 		else if	(strcmp(*argv,"-cipher") == 0)
 			{
 			if (--argc < 1) goto bad;
@@ -709,6 +717,9 @@ bad:
 		SSL_CTX_set_options(ctx,SSL_OP_ALL|off);
 	else
 		SSL_CTX_set_options(ctx,off);
+
+	if (clr)
+		SSL_CTX_clear_options(ctx, clr);
 	/* DTLS: partial reads end up discarding unread UDP bytes :-( 
 	 * Setting read ahead solves this problem.
 	 */
@@ -819,7 +830,6 @@ re_start:
 
 	if ( SSL_version(con) == DTLS1_VERSION)
 		{
-		struct timeval timeout;
 
 		sbio=BIO_new_dgram(s,BIO_NOCLOSE);
 		if (getsockname(s, &peer, (void *)&peerlen) < 0)
@@ -843,10 +853,10 @@ re_start:
 			BIO_ctrl(sbio, BIO_CTRL_DGRAM_SET_SEND_TIMEOUT, 0, &timeout);
 			}
 
-		if ( mtu > 0)
+		if (socket_mtu > 28)
 			{
 			SSL_set_options(con, SSL_OP_NO_QUERY_MTU);
-			SSL_set_mtu(con, mtu);
+			SSL_set_mtu(con, socket_mtu - 28);
 			}
 		else
 			/* want to do MTU discovery */
@@ -1036,6 +1046,12 @@ SSL_set_tlsext_status_ids(con, ids);
 		FD_ZERO(&readfds);
 		FD_ZERO(&writefds);
 
+		if ((SSL_version(con) == DTLS1_VERSION) &&
+			DTLSv1_get_timeout(con, &timeout))
+			timeoutp = &timeout;
+		else
+			timeoutp = NULL;
+
 		if (SSL_in_init(con) && !SSL_total_renegotiations(con))
 			{
 			in_init=1;
@@ -1132,7 +1148,7 @@ SSL_set_tlsext_status_ids(con, ids);
 					if(!i && (!((_kbhit()) || (WAIT_OBJECT_0 == WaitForSingleObject(GetStdHandle(STD_INPUT_HANDLE), 0))) || !read_tty) ) continue;
 #endif
 				} else 	i=select(width,(void *)&readfds,(void *)&writefds,
-					 NULL,NULL);
+					 NULL,timeoutp);
 			}
 #elif defined(OPENSSL_SYS_NETWARE)
 			if(!write_tty) {
@@ -1142,11 +1158,11 @@ SSL_set_tlsext_status_ids(con, ids);
 					i=select(width,(void *)&readfds,(void *)&writefds,
 						NULL,&tv);
 				} else 	i=select(width,(void *)&readfds,(void *)&writefds,
-					NULL,NULL);
+					NULL,timeoutp);
 			}
 #else
 			i=select(width,(void *)&readfds,(void *)&writefds,
-				 NULL,NULL);
+				 NULL,timeoutp);
 #endif
 			if ( i < 0)
 				{
@@ -1155,6 +1171,11 @@ SSL_set_tlsext_status_ids(con, ids);
 				goto shut;
 				/* goto end; */
 				}
+			}
+
+		if ((SSL_version(con) == DTLS1_VERSION) && DTLSv1_handle_timeout(con) > 0)
+			{
+			BIO_printf(bio_err,"TIMEOUT occured\n");
 			}
 
 		if (!ssl_pending && FD_ISSET(SSL_get_fd(con),&writefds))
@@ -1511,6 +1532,8 @@ static void print_stuff(BIO *bio, SSL *s, int full)
 							 EVP_PKEY_bits(pktmp));
 		EVP_PKEY_free(pktmp);
 	}
+	BIO_printf(bio, "Secure Renegotiation IS%s supported\n",
+			SSL_get_secure_renegotiation_support(s) ? "" : " NOT");
 #ifndef OPENSSL_NO_COMP
 	comp=SSL_get_current_compression(s);
 	expansion=SSL_get_current_expansion(s);

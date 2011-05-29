@@ -56,8 +56,6 @@ FreeBSD build environment.
 .PP
 One notable difference from the default FreeBSD install is that only
 a limited set of device nodes should be created.
-MAKEDEV(8) has been modified to accept a ``jail'' argument that creates
-the correct set of nodes. 
 .PP
 To improve storage efficiency, a fair number of the binaries in the system tree
 may be deleted, as they are not relevant in a jail environment.

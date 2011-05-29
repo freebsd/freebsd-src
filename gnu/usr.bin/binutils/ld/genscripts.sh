@@ -70,7 +70,6 @@ fi
 # To force a logically empty LIB_PATH, do LIBPATH=":".
 
 LIB_SEARCH_DIRS=`echo ${libdir} | sed -e 's/:/ /g' -e 's/\([^ ][^ ]*\)/SEARCH_DIR(\1);/g'`
-#2.13:	LIB_SEARCH_DIRS=`echo ${libdir} | sed -e 's/:/ /g' -e 's/\([^ ][^ ]*\)/SEARCH_DIR(\\"\1\\");/g'`
 
 # Generate 5 or 6 script files from a master script template in
 # ${srcdir}/scripttempl/${SCRIPT_NAME}.sh.  Which one of the 5 or 6
@@ -97,11 +96,10 @@ if [ "x$SCRIPT_NAME" = "xelf" ]; then
   GENERATE_COMBRELOC_SCRIPT=yes
 fi
 
-#2.13:	SEGMENT_SIZE=${SEGMENT_SIZE-${TARGET_PAGE_SIZE}}
 SEGMENT_SIZE=${SEGMENT_SIZE-${MAXPAGESIZE-${TARGET_PAGE_SIZE}}}
 
 # Determine DATA_ALIGNMENT for the 5 variants, using
-# values specified in the emulparams/<emulation>.sh file or default.
+# values specified in the emulparams/<script_to_run>.sh file or default.
 
 DATA_ALIGNMENT_="${DATA_ALIGNMENT_-${DATA_ALIGNMENT-ALIGN(${SEGMENT_SIZE})}}"
 DATA_ALIGNMENT_n="${DATA_ALIGNMENT_n-${DATA_ALIGNMENT_}}"
@@ -157,7 +155,16 @@ if test -n "$GENERATE_COMBRELOC_SCRIPT"; then
     . ${srcdir}/scripttempl/${SCRIPT_NAME}.sc
   ) | sed -e '/^ *$/d;s/[ 	]*$//' > ldscripts/${EMULATION_NAME}.xc
   rm -f ${COMBRELOC}
+  LD_FLAG=w
+  RELRO_NOW=" "
+  COMBRELOC=ldscripts/${EMULATION_NAME}.xw.tmp
+  ( echo "/* Script for -z combreloc -z now -z relro: combine and sort reloc sections */"
+    . ${CUSTOMIZER_SCRIPT} ${EMULATION_NAME}
+    . ${srcdir}/scripttempl/${SCRIPT_NAME}.sc
+  ) | sed -e '/^ *$/d;s/[ 	]*$//' > ldscripts/${EMULATION_NAME}.xw
+  rm -f ${COMBRELOC}
   COMBRELOC=
+  unset RELRO_NOW
 fi
 
 if test -n "$GENERATE_SHLIB_SCRIPT"; then
@@ -173,13 +180,22 @@ if test -n "$GENERATE_SHLIB_SCRIPT"; then
   if test -n "$GENERATE_COMBRELOC_SCRIPT"; then
     LD_FLAG=cshared
     DATA_ALIGNMENT=${DATA_ALIGNMENT_sc-${DATA_ALIGNMENT}}
-    COMBRELOC=ldscripts/${EMULATION_NAME}.xc.tmp
+    COMBRELOC=ldscripts/${EMULATION_NAME}.xsc.tmp
     ( echo "/* Script for --shared -z combreloc: shared library, combine & sort relocs */"
       . ${CUSTOMIZER_SCRIPT} ${EMULATION_NAME}
       . ${srcdir}/scripttempl/${SCRIPT_NAME}.sc
     ) | sed -e '/^ *$/d;s/[ 	]*$//' > ldscripts/${EMULATION_NAME}.xsc
     rm -f ${COMBRELOC}
+    LD_FLAG=wshared
+    RELRO_NOW=" "
+    COMBRELOC=ldscripts/${EMULATION_NAME}.xsw.tmp
+    ( echo "/* Script for --shared -z combreloc -z now -z relro: shared library, combine & sort relocs */"
+      . ${CUSTOMIZER_SCRIPT} ${EMULATION_NAME}
+      . ${srcdir}/scripttempl/${SCRIPT_NAME}.sc
+    ) | sed -e '/^ *$/d;s/[ 	]*$//' > ldscripts/${EMULATION_NAME}.xsw
+    rm -f ${COMBRELOC}
     COMBRELOC=
+    unset RELRO_NOW
   fi
   unset CREATE_SHLIB
 fi
@@ -197,13 +213,22 @@ if test -n "$GENERATE_PIE_SCRIPT"; then
   if test -n "$GENERATE_COMBRELOC_SCRIPT"; then
     LD_FLAG=cpie
     DATA_ALIGNMENT=${DATA_ALIGNMENT_sc-${DATA_ALIGNMENT}}
-    COMBRELOC=ldscripts/${EMULATION_NAME}.xc.tmp
+    COMBRELOC=ldscripts/${EMULATION_NAME}.xdc.tmp
     ( echo "/* Script for -pie -z combreloc: position independent executable, combine & sort relocs */"
       . ${CUSTOMIZER_SCRIPT} ${EMULATION_NAME}
       . ${srcdir}/scripttempl/${SCRIPT_NAME}.sc
     ) | sed -e '/^ *$/d;s/[ 	]*$//' > ldscripts/${EMULATION_NAME}.xdc
     rm -f ${COMBRELOC}
+    LD_FLAG=wpie
+    RELRO_NOW=" "
+    COMBRELOC=ldscripts/${EMULATION_NAME}.xdw.tmp
+    ( echo "/* Script for -pie -z combreloc -z now -z relro: position independent executable, combine & sort relocs */"
+      . ${CUSTOMIZER_SCRIPT} ${EMULATION_NAME}
+      . ${srcdir}/scripttempl/${SCRIPT_NAME}.sc
+    ) | sed -e '/^ *$/d;s/[ 	]*$//' > ldscripts/${EMULATION_NAME}.xdw
+    rm -f ${COMBRELOC}
     COMBRELOC=
+    unset RELRO_NOW
   fi
   unset CREATE_PIE
 fi

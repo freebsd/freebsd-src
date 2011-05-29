@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 05, 2010
+.Dd April 27, 2011
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -64,7 +64,19 @@ The file
 is used to override settings in
 .Pa /etc/rc.conf
 for historical reasons.
-See the
+In addition to
+.Pa /etc/rc.conf.local
+you can also place smaller configuration files for each
+.Xr rc 8
+script in the
+.Pa /etc/rc.conf.d
+directory, which will be included by the
+.Va load_rc_config
+function.
+For jail configurations you could use the file
+.Pa /etc/rc.conf.d/jail
+to store jail specific configuration options.
+Also see the
 .Va rc_conf_files
 variable below.
 .Pp
@@ -427,27 +439,11 @@ the
 kernel module will be loaded.
 See also
 .Va ipfilter_enable .
-.It Va ipv6_firewall_enable
-.Pq Vt bool
-The IPv6 equivalent of
-.Va firewall_enable .
-Set to
-.Dq Li YES
-to load IPv6 firewall rules at startup.
-If the kernel was not built with
-.Cd "options IPV6FIREWALL" ,
-the
-.Pa ipfw.ko
-kernel module will be loaded.
 .It Va firewall_script
 .Pq Vt str
 This variable specifies the full path to the firewall script to run.
 The default is
 .Pa /etc/rc.firewall .
-.It Va ipv6_firewall_script
-.Pq Vt str
-The IPv6 equivalent of
-.Va firewall_script .
 .It Va firewall_type
 .Pq Vt str
 Names the firewall type from the selection in
@@ -471,19 +467,11 @@ basic protection for a LAN.
 .Pp
 If a filename is specified, the full path
 must be given.
-.It Va ipv6_firewall_type
-.Pq Vt str
-The IPv6 equivalent of
-.Va firewall_type .
 .It Va firewall_quiet
 .Pq Vt bool
 Set to
 .Dq Li YES
 to disable the display of firewall rules on the console during boot.
-.It Va ipv6_firewall_quiet
-.Pq Vt bool
-The IPv6 equivalent of
-.Va firewall_quiet .
 .It Va firewall_logging
 .Pq Vt bool
 Set to
@@ -492,10 +480,6 @@ to enable firewall event logging.
 This is equivalent to the
 .Dv IPFIREWALL_VERBOSE
 kernel option.
-.It Va ipv6_firewall_logging
-.Pq Vt bool
-The IPv6 equivalent of
-.Va firewall_logging .
 .It Va firewall_flags
 .Pq Vt str
 Flags passed to
@@ -503,10 +487,6 @@ Flags passed to
 if
 .Va firewall_type
 specifies a filename.
-.It Va ipv6_firewall_flags
-.Pq Vt str
-The IPv6 equivalent of
-.Va firewall_flags .
 .It Va firewall_coscripts
 .Pq Vt str
 List of executables and/or rc scripts to run after firewall starts/stops.
@@ -1183,9 +1163,10 @@ To create a vlan device named
 .Li em0.101
 on
 .Li em0
-with the vlan tag 101:
+with the vlan tag 101 and the optional the IPv4 address 192.0.2.1/24:
 .Bd -literal
 vlans_em0="101"
+ifconfig_em0_101="inet 192.0.2.1/24"
 .Ed
 .Pp
 To create a vlan device named
@@ -1300,47 +1281,63 @@ If the variable is
 is added to all of
 .Va ifconfig_ Ns Ao Ar interface Ac Ns _ipv6
 and the
-.Va ipv6_prefer
+.Va ipv6_activate_all_interfaces
 is defined as
 .Dq Li YES .
 .Pp
 This variable is deprecated.  Use
-.Va ipv6_prefer
+.Va ifconfig_ Ns Ao Ar interface Ac Ns _ipv6
 and
-.Va ifconfig_ Ns Ao Ar interface Ac Ns _ipv6 .
+.Va ipv6_activate_all_interfaces
+if necessary.
 .It Va ipv6_prefer
 .Pq Vt bool
-This variable does the following:
-.Pp
 If the variable is
 .Dq Li YES ,
-the default policy of the source address selection set by
+the default address selection policy table set by
 .Xr ip6addrctl 8
 will be IPv6-preferred.
 .Pp
 If the variable is
 .Dq Li NO ,
-the default policy of the source address selection set by
+the default address selection policy table set by
 .Xr ip6addrctl 8
-will be IPv4-preferred, and all of interfaces which does not have the
-corrsponding
+will be IPv4-preferred.
+.Pp
+This variable is deprecated.  Use
+.Va ip6addrctl_policy
+instead.
+.It Va ipv6_activate_all_interfaces
+If the variable is
+.Dq Li NO ,
+all of interfaces which do not have the corrsponding
 .Va ifconfig_ Ns Ao Ar interface Ac Ns _ipv6
 variable will be marked as
-.Dq Li IFDISABLED .
-This means only IPv6 functionality on that interface is completely
-disabled.  For more details of
+.Dq Li IFDISABLED
+for security reason.  This means only IPv6 functionality on that interface
+is completely disabled.  For more details of
 .Dq Li IFDISABLED
 flag and keywords
 .Dq Li inet6 ifdisabled ,
 see
 .Xr ifconfig 8 .
 .Pp
+Default is
+.Dq Li NO .
+.It Va ipv6_privacy
+.Pq Vt bool
+If the variable is
+.Dq Li YES
+privacy addresses will be generated for each IPv6
+interface as described in RFC 4193.
 .It Va ipv6_network_interfaces
 .Pq Vt str
 This is the IPv6 equivalent of
 .Va network_interfaces .
 Normally manual configuration of this variable is not needed.
 .Pp
+.It Va ifconfig_ Ns Ao Ar interface Ac Ns _ipv6
+.Pq Vt str
 IPv6 functionality on an interface should be configured by
 .Va ifconfig_ Ns Ao Ar interface Ac Ns _ipv6 ,
 instead of setting ifconfig parameters in
@@ -1376,25 +1373,55 @@ configured on that interface.
 If not set to
 .Dq Li NO ,
 this is the default output interface for scoped addresses.
-Now this works only for IPv6 link local multicast addresses.
+This works only with ipv6_gateway_enable="NO".
 .It Va ip6addrctl_enable
 .Pq Vt bool
-If set to
-.Dq Li YES ,
-install default address selection policy table
+This variable is to enable configuring default address selection policy table
 .Pq RFC 3484 .
-If a file
-.Pa /etc/ip6addrctl.conf
-is found the
+The table can be specified in another variable
+.Va ip6addrctl_policy .
+For
+.Va ip6addrctl_policy
+the following keywords can be specified:
+.Dq Li ipv4_prefer ,
+.Dq Li ipv6_prefer ,
+or
+.Dq Li AUTO .
+.Pp
+If
+.Dq Li ipv4_prefer
+or
+.Dq Li ipv6_prefer
+is specified,
 .Xr ip6addrctl 8
-reads and installs it.
-If not, a pre-defined policy table will be installed.
-There are two pre-defined ones; IPv4-preferred and IPv6-preferred.
-If set
-.Va ipv6_prefer
-variable to
+installs a pre-defined policy table described in Section 2.1
+.Pq IPv6-preferred
+or 10.3
+.Pq IPv4-preferred
+of RFC 3484.
+.Pp
+If
+.Dq Li AUTO
+is specified, it attempts to read a file
+.Pa /etc/ip6addrctl.conf
+first.  If this file is found,
+.Xr ip6addrctl 8
+reads and installs it.  If not found, a policy is automatically set
+according to
+.Va ipv6_activate_all_interfaces
+variable; if the variable is set to
 .Dq Li YES
-the IPv6-preferred one is used. Default is IPv4-preferred.
+the IPv6-preferred one is used.  Otherwise IPv4-preferred.
+.Pp
+The default value of
+.Va ip6addrctl_enable
+and
+.Va ip6addrctl_policy
+are
+.Dq Li YES
+and
+.Dq Li AUTO ,
+respectively.
 .It Va cloned_interfaces
 .Pq Vt str
 Set to the list of clonable network interfaces to create on this host.
@@ -1560,6 +1587,17 @@ If set to
 .Pa /etc/rc.d/zfs
 will attempt to automatically mount ZFS file systems and initialize ZFS volumes
 (ZVOLs).
+.It Va gptboot_enable
+.Pq Vt bool
+If set to
+.Dq Li YES ,
+.Pa /etc/rc.d/gptboot
+will log if the system successfully (or not) booted from a GPT partition,
+which had the
+.Ar bootonce
+attribute set using
+.Xr gpart 8
+utility.
 .It Va gbde_autoattach_all
 .Pq Vt bool
 If set to
@@ -1794,13 +1832,6 @@ is set to
 .Dq Li YES ,
 these are the flags to pass to
 .Xr named 8 .
-.It Va named_pidfile
-.Pq Vt str
-This is the default path to the
-.Xr named 8
-daemon's PID file.
-This must match the location in
-.Xr named.conf 5 .
 .It Va named_uid
 .Pq Vt str
 The user that the
@@ -1993,20 +2024,63 @@ is set to
 these are the flags to pass to the
 .Xr nfsd 8
 daemon.
-.It Va idmapd_enable
+.It Va nfsv4_server_enable
 .Pq Vt bool
-If set to
+If
+.Va nfs_server_enable
+is set to
+.Dq Li YES
+and
+.Va nfsv4_server_enable
+are set to
 .Dq Li YES ,
-run the ID mapping daemon for NFS version 4.
-.It Va idmapd_flags
+enable the server for NFSv4 as well as NFSv2 and NFSv3.
+.It Va nfsuserd_enable
+.Pq Vt bool
+If
+.Va nfsuserd_enable
+is set to
+.Dq Li YES ,
+run the nfsuserd daemon, which is needed for NFSv4 in order
+to map between user/group names vs uid/gid numbers.
+If
+.Va nfsv4_server_enable
+is set to
+.Dq Li YES ,
+this will be forced enabled.
+.It Va nfsuserd_flags
 .Pq Vt str
 If
-.Va idmapd_enable
+.Va nfsuserd_enable
 is set to
 .Dq Li YES ,
 these are the flags to pass to the
-.Xr idmapd 8
+.Xr nfsuserd 8
 daemon.
+.It Va nfscbd_enable
+.Pq Vt bool
+If
+.Va nfscbd_enable
+is set to
+.Dq Li YES ,
+run the nfscbd daemon, which enables callbacks/delegations for the NFSv4 client.
+.It Va nfscbd_flags
+.Pq Vt str
+If
+.Va nfscbd_enable
+is set to
+.Dq Li YES ,
+these are the flags to pass to the
+.Xr nfscbd 8
+daemon.
+.It Va oldnfs_server_enable
+.Pq Vt bool
+If
+.Va oldnfs_server_enable
+is set to
+.Dq Li YES ,
+force the NFS server daemons to run the old NFS server code
+that does not support NFSv4.
 .It Va mountd_enable
 .Pq Vt bool
 If set to
@@ -3508,7 +3582,8 @@ A space separated list of names for jails.
 This is purely a configuration aid to help identify and
 configure multiple jails.
 The names specified in this list will be used to
-identify settings common to an instance of a jail.
+identify settings common to an instance of a jail,
+and should contain alphanumeric characters only.
 Assuming that the jail in question was named
 .Li vjail ,
 you would have the following dependent variables:
@@ -3697,7 +3772,7 @@ Set to
 .Dq Li -l -U root
 by default.
 These are flags to pass to
-.Xr jail .
+.Xr jail 8 .
 .It Va jail_ Ns Ao Ar jname Ac Ns Va _interface
 .Pq Vt str
 Unset by default.
@@ -4066,65 +4141,6 @@ one could set the following:
 .Bd -literal
 mdconfig_md0_cmd="tar xfzC /var/file.tgz \e${_mp}"
 .Ed
-.It Va ramdisk_units
-.Pq Vt str
-A list of one or more ramdisk units to configure with
-.Xr mdconfig 8
-and
-.Xr newfs 8
-in time to be mounted from
-.Xr fstab 5 .
-Each listed unit
-.Ar X
-must specify at least a
-.Ar type
-in a
-.Va ramdisk_ Ns Ao Ar X Ac Ns Va _config
-variable.
-Note that this way to configure ramdisks has been deprecated
-in favor of new
-.Va mdconfig_md*
-variables (see above).
-.It Va ramdisk_ Ns Ao Ar X Ac Ns Va _config
-.Pq Vt str
-Arguments to
-.Xr mdconfig 8
-for ramdisk
-.Ar X .
-At minimum a
-.Fl t Ar type
-must be specified, where
-.Ar type
-must be one of
-.Cm malloc
-or
-.Cm swap .
-.It Va ramdisk_ Ns Ao Ar X Ac Ns Va _newfs
-.Pq Vt str
-Optional arguments passed to
-.Xr newfs 8
-to initialize ramdisk
-.Ar X .
-.It Va ramdisk_ Ns Ao Ar X Ac Ns Va _owner
-.Pq Vt str
-An ownership specification passed to
-.Xr chown 8
-after the specified ramdisk unit
-.Ar X
-has been mounted.
-Both the
-.Xr md 4
-device and the mount point will be changed.
-.It Va ramdisk_ Ns Ao Ar X Ac Ns Va _perms
-.Pq Vt str
-A mode string passed to
-.Xr chmod 1
-after the specified ramdisk unit
-.Ar X
-has been mounted.
-Both the
-.Xr md 4
-device and the mount point will be changed.
 .It Va autobridge_interfaces
 .Pq Vt str
 Set to the list of bridge interfaces that will have newly arriving interfaces
@@ -4238,17 +4254,37 @@ Must set properly if multiple profiles used in the same time.
 .Pq Vt bool
 Tells
 .Xr rfcomm_pppd 8
-if it should register Serial Port service on the speficied RFCOMM channel.
+if it should register Serial Port service on the specified RFCOMM channel.
 Default
 .Dq Li NO .
 .It Va rfcomm_pppd_server_ Ns Ao Ar profile Ac Ns _register_dun
 .Pq Vt bool
 Tells
 .Xr rfcomm_pppd 8
-if it should register Dial-Up Networking service on the speficied
+if it should register Dial-Up Networking service on the specified
 RFCOMM channel.
 Default
 .Dq Li NO .
+.It Va ubthidhci_enable
+.Pq Vt bool
+If set to
+.Dq Li YES ,
+change the USB Bluetooth controller from HID mode to HCI mode.
+You also need to specify the location of USB Bluetooth controller with the
+.Va ubthidhci_busnum
+and
+.Va ubthidhci_addr
+variables.
+.It Va ubthidhci_busnum
+Bus number where the USB Bluetooth controller is located.
+Check the output of
+.Xr usbconfig 8
+on your system to find this information.
+.It Va ubthidhci_addr
+Bus address of the USB Bluetooth controller.
+Check the output of
+.Xr usbconfig 8
+on your system to find this information.
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /etc/defaults/rc.conf" -compact
@@ -4339,6 +4375,7 @@ Default
 .Xr sysctl 8 ,
 .Xr syslogd 8 ,
 .Xr timed 8 ,
+.Xr usbconfig 8 ,
 .Xr wlandebug 8 ,
 .Xr yp 8 ,
 .Xr ypbind 8 ,

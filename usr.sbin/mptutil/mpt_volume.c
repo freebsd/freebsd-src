@@ -69,7 +69,7 @@ volume_name(int ac, char **av)
 {
 	CONFIG_PAGE_RAID_VOL_1 *vnames;
 	U8 VolumeBus, VolumeID;
-	int fd;
+	int error, fd;
 
 	if (ac != 3) {
 		warnx("name: volume and name required");
@@ -83,19 +83,22 @@ volume_name(int ac, char **av)
 
 	fd = mpt_open(mpt_unit);
 	if (fd < 0) {
+		error = errno;
 		warn("mpt_open");
-		return (errno);
+		return (error);
 	}
 
-	if (mpt_lookup_volume(fd, av[1], &VolumeBus, &VolumeID) < 0) {
-		warn("Invalid volume: %s", av[1]);
-		return (errno);
+	error = mpt_lookup_volume(fd, av[1], &VolumeBus, &VolumeID);
+	if (error) {
+		warnc(error, "Invalid volume: %s", av[1]);
+		return (error);
 	}
 
 	vnames = mpt_vol_names(fd, VolumeBus, VolumeID, NULL);
 	if (vnames == NULL) {
+		error = errno;
 		warn("Failed to fetch volume names");
-		return (errno);
+		return (error);
 	}
 
 	if (vnames->Header.PageType != MPI_CONFIG_PAGEATTR_CHANGEABLE) {
@@ -109,8 +112,9 @@ volume_name(int ac, char **av)
 	strcpy(vnames->Name, av[2]);
 
 	if (mpt_write_config_page(fd, vnames, NULL) < 0) {
+		error = errno;
 		warn("Failed to set volume name");
-		return (errno);
+		return (error);
 	}
 
 	free(vnames);
@@ -128,7 +132,7 @@ volume_status(int ac, char **av)
 	uint64_t total, remaining;
 	float pct;
 	U8 VolumeBus, VolumeID;
-	int fd;
+	int error, fd;
 
 	if (ac != 2) {
 		warnx("volume status: %s", ac > 2 ? "extra arguments" :
@@ -138,20 +142,23 @@ volume_status(int ac, char **av)
 
 	fd = mpt_open(mpt_unit);
 	if (fd < 0) {
+		error = errno;
 		warn("mpt_open");
-		return (errno);
+		return (error);
 	}
 
-	if (mpt_lookup_volume(fd, av[1], &VolumeBus, &VolumeID) < 0) {
-		warn("Invalid volume: %s", av[1]);
-		return (errno);
+	error = mpt_lookup_volume(fd, av[1], &VolumeBus, &VolumeID);
+	if (error) {
+		warnc(error, "Invalid volume: %s", av[1]);
+		return (error);
 	}
 
-	if (mpt_raid_action(fd, MPI_RAID_ACTION_INDICATOR_STRUCT, VolumeBus,
+	error = mpt_raid_action(fd, MPI_RAID_ACTION_INDICATOR_STRUCT, VolumeBus,
 	    VolumeID, 0, 0, NULL, 0, &VolumeStatus, (U32 *)&prog, sizeof(prog),
-	    NULL, NULL, 0) < 0) {
-		warn("Fetching volume status failed");
-		return (errno);
+	    NULL, NULL, 0);
+	if (error) {
+		warnc(error, "Fetching volume status failed");
+		return (error);
 	}
 
 	printf("Volume %s status:\n", mpt_volume_name(VolumeBus, VolumeID));
@@ -191,11 +198,11 @@ volume_cache(int ac, char **av)
 	U32 Settings, NewSettings;
 	U8 VolumeBus, VolumeID;
 	char *s1;
-	int fd;
+	int error, fd;
 
 	if (ac != 3) {
 		warnx("volume cache: %s", ac > 3 ? "extra arguments" :
-		    "volume required");
+		    "missing arguments");
 		return (EINVAL);
 	}
 
@@ -209,18 +216,20 @@ volume_cache(int ac, char **av)
 
 	fd = mpt_open(mpt_unit);
 	if (fd < 0) {
+		error = errno;
 		warn("mpt_open");
-		return (errno);
+		return (error);
 	}
 
-	if (mpt_lookup_volume(fd, av[1], &VolumeBus, &VolumeID) < 0) {
-		warn("Invalid volume: %s", av[1]);
-		return (errno);
+	error = mpt_lookup_volume(fd, av[1], &VolumeBus, &VolumeID);
+	if (error) {
+		warnc(error, "Invalid volume: %s", av[1]);
+		return (error);
 	}
 
 	volume = mpt_vol_info(fd, VolumeBus, VolumeID, NULL);
 	if (volume == NULL)
-		return (-1);
+		return (errno);
 
 	Settings = volume->VolumeSettings.Settings;
 
@@ -231,18 +240,19 @@ volume_cache(int ac, char **av)
 		NewSettings &= ~0x01;
 
 	if (NewSettings == Settings) {
-		warnx("volume cache unchanged\n");
+		warnx("volume cache unchanged");
 		close(fd);
 		return (0);
 	}
 
 	volume->VolumeSettings.Settings = NewSettings;
-	if (mpt_raid_action(fd, MPI_RAID_ACTION_CHANGE_VOLUME_SETTINGS,
+	error = mpt_raid_action(fd, MPI_RAID_ACTION_CHANGE_VOLUME_SETTINGS,
 	    VolumeBus, VolumeID, 0, *(U32 *)&volume->VolumeSettings, NULL, 0,
-	    NULL, NULL, 0, NULL, NULL, 0) < 0)
-		warnx("volume cache change failed, errno= %d\n", errno);
+	    NULL, NULL, 0, NULL, NULL, 0);
+	if (error)
+		warnc(error, "volume cache change failed");
 
 	close(fd);
-	return (0);
+	return (error);
 }
 MPT_COMMAND(volume, cache, volume_cache);

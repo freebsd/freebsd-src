@@ -13,10 +13,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -64,7 +60,9 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <ctype.h>
 #include <errno.h>
+#include <paths.h>
 #include <pwd.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -102,6 +100,7 @@ main(int argc, char **argv)
 	openlog("lock", LOG_ODELAY, LOG_AUTH);
 
 	sectimeout = TIMEOUT;
+	pw = NULL;
 	mypw = NULL;
 	usemine = 0;
 	no_timeout = 0;
@@ -137,6 +136,8 @@ main(int argc, char **argv)
 	gethostname(hostname, sizeof(hostname));
 	if (!(ttynam = ttyname(0)))
 		errx(1, "not a terminal?");
+	if (strncmp(ttynam, _PATH_DEV, strlen(_PATH_DEV)) == 0)
+		ttynam += strlen(_PATH_DEV);
 	if (gettimeofday(&timval, (struct timezone *)NULL))
 		err(1, "gettimeofday");
 	nexttime = timval.tv_sec + (sectimeout * 60);
@@ -196,7 +197,11 @@ main(int argc, char **argv)
 	}
 
 	/* header info */
-	(void)printf("lock: %s on %s.", ttynam, hostname);
+	if (pw != NULL)
+		(void)printf("lock: %s using %s on %s.", pw->pw_name,
+		    ttynam, hostname);
+	else
+		(void)printf("lock: %s on %s.", ttynam, hostname);
 	if (no_timeout)
 		(void)printf(" no timeout.");
 	else
@@ -257,9 +262,9 @@ hi(int signo __unused)
 		if (no_timeout) {
 			(void)putchar('\n');
 		} else {
-			(void)printf("timeout in %ld:%ld minutes\n",
-			    (nexttime - timval.tv_sec) / 60,
-			    (nexttime - timval.tv_sec) % 60);
+			(void)printf("timeout in %jd:%jd minutes\n",
+			    (intmax_t)(nexttime - timval.tv_sec) / 60,
+			    (intmax_t)(nexttime - timval.tv_sec) % 60);
 		}
 	}
 }

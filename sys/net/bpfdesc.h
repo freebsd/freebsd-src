@@ -81,6 +81,7 @@ struct bpf_d {
 	u_char		bd_immediate;	/* true to return on packet arrival */
 	int		bd_hdrcmplt;	/* false to fill in src lladdr automatically */
 	int		bd_direction;	/* select packet direction */
+	int		bd_tstamp;	/* select time stamping function */
 	int		bd_feedback;	/* true to feed back sent packets */
 	int		bd_async;	/* non-zero if packet reception should generate signal */
 	int		bd_sig;		/* signal to send upon packet reception */
@@ -97,6 +98,7 @@ struct bpf_d {
 	u_int64_t	bd_wfcount;	/* number of packets that matched write filter */
 	u_int64_t	bd_wdcount;	/* number of packets dropped during a write */
 	u_int64_t	bd_zcopy;	/* number of zero copy operations */
+	u_char		bd_compat32;	/* 32-bit stream on LP64 system */
 };
 
 /* Values for bd_state */

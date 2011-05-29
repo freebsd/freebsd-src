@@ -100,7 +100,6 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -410,6 +409,7 @@ static int
 ubt_probe(device_t dev)
 {
 	struct usb_attach_arg	*uaa = device_get_ivars(dev);
+	int error;
 
 	if (uaa->usb_mode != USB_MODE_HOST)
 		return (ENXIO);
@@ -417,14 +417,14 @@ ubt_probe(device_t dev)
 	if (uaa->info.bIfaceIndex != 0)
 		return (ENXIO);
 
-	if (uaa->use_generic == 0)
-		return (ENXIO);
-
 	if (usbd_lookup_id_by_uaa(ubt_ignore_devs,
 			sizeof(ubt_ignore_devs), uaa) == 0)
 		return (ENXIO);
 
-	return (usbd_lookup_id_by_uaa(ubt_devs, sizeof(ubt_devs), uaa));
+	error = usbd_lookup_id_by_uaa(ubt_devs, sizeof(ubt_devs), uaa);
+	if (error == 0)
+		return (BUS_PROBE_GENERIC);
+	return (error);
 } /* ubt_probe */
 
 /*

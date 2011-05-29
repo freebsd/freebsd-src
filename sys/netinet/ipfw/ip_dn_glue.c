@@ -1,4 +1,4 @@
-/*-    
+/*-
  * Copyright (c) 2010 Riccardo Panicucci, Universita` di Pisa
  * All rights reserved
  *
@@ -495,7 +495,7 @@ dn_compat_config_profile(struct dn_profile *pf, struct dn_link *p,
 static int
 dn_compat_configure(void *v)
 {
-	struct dn_id *buf, *base;
+	struct dn_id *buf = NULL, *base;
 	struct dn_sch *sch = NULL;
 	struct dn_link *p = NULL;
 	struct dn_fs *fs = NULL;
@@ -547,11 +547,13 @@ dn_compat_configure(void *v)
 	}
 	error = do_config(base, (char *)buf - (char *)base);
 
+	if (buf)
+		free(buf, M_DUMMYNET);
 	return error;
 }
 
 int
-dn_compat_calc_size(struct dn_parms dn_cfg)
+dn_compat_calc_size(void)
 {
 	int need = 0;
 	/* XXX use FreeBSD 8 struct size */
@@ -622,7 +624,7 @@ dn_c_copy_pipe(struct dn_schk *s, struct copy_args *a, int nq)
 	/* These 4 field are the same in pipe7 and pipe8 */
 	pipe7->next.sle_next = (struct dn_pipe7 *)DN_IS_PIPE;
 	pipe7->bandwidth = l->bandwidth;
-	pipe7->delay = l->delay;
+	pipe7->delay = l->delay * 1000 / hz;
 	pipe7->pipe_nr = l->link_nr - DN_MAX_ID;
 
 	if (!is7) {
@@ -805,7 +807,7 @@ ip_dummynet_compat(struct sockopt *sopt)
 		if (error)
 			break;
 		error = dn_compat_del(v);
-		free(v, M_DUMMYNET);
+		free(v, M_TEMP);
 		break;
 
 	case IP_DUMMYNET_CONFIGURE:
@@ -814,7 +816,7 @@ ip_dummynet_compat(struct sockopt *sopt)
 		if (error)
 			break;
 		error = dn_compat_configure(v);
-		free(v, M_DUMMYNET);
+		free(v, M_TEMP);
 		break;
 
 	case IP_DUMMYNET_GET: {

@@ -9,6 +9,7 @@ SUBDIR=	${_colldef} \
 	${_dict} \
 	${_doc} \
 	${_examples} \
+	${_i18n} \
 	${_man} \
 	${_me} \
 	misc \
@@ -42,6 +43,10 @@ _examples=	examples
 
 .if ${MK_GROFF} != "no"
 _me=		me
+.endif
+
+.if ${MK_ICONV} != "no"
+_i18n=		i18n
 .endif
 
 .if ${MK_LOCALES} != "no"

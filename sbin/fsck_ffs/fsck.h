@@ -60,6 +60,9 @@
  * $FreeBSD$
  */
 
+#ifndef _FSCK_H_
+#define	_FSCK_H_
+
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -265,11 +268,13 @@ char	snapname[BUFSIZ];	/* when doing snapshots, the name of the file */
 char	*cdevname;		/* name of device being checked */
 long	dev_bsize;		/* computed value of DEV_BSIZE */
 long	secsize;		/* actual disk sector size */
+long	real_dev_bsize;
 char	nflag;			/* assume a no response */
 char	yflag;			/* assume a yes response */
 int	bkgrdflag;		/* use a snapshot to run on an active system */
 int	bflag;			/* location of alternate super block */
 int	debug;			/* output debugging info */
+int	Eflag;			/* zero out empty data blocks */
 int	inoopt;			/* trim out unused inodes */
 char	ckclean;		/* only do work if not cleanly unmounted */
 int	cvtlevel;		/* convert to newer file system format */
@@ -333,6 +338,7 @@ char	       *blockcheck(char *name);
 int		blread(int fd, char *buf, ufs2_daddr_t blk, long size);
 void		bufinit(void);
 void		blwrite(int fd, char *buf, ufs2_daddr_t blk, long size);
+void		blerase(int fd, ufs2_daddr_t blk, long size);
 void		cacheino(union dinode *dp, ino_t inumber);
 void		catch(int);
 void		catchquit(int);
@@ -347,10 +353,6 @@ void		direrror(ino_t ino, const char *errmesg);
 int		dirscan(struct inodesc *);
 int		dofix(struct inodesc *, const char *msg);
 int		eascan(struct inodesc *, struct ufs2_dinode *dp);
-void		ffs_clrblock(struct fs *, u_char *, ufs1_daddr_t);
-void		ffs_fragacct(struct fs *, int, int32_t [], int);
-int		ffs_isblock(struct fs *, u_char *, ufs1_daddr_t);
-void		ffs_setblock(struct fs *, u_char *, ufs1_daddr_t);
 void		fileerror(ino_t cwd, ino_t ino, const char *errmesg);
 int		findino(struct inodesc *);
 int		findname(struct inodesc *);
@@ -392,3 +394,6 @@ void		sblock_init(void);
 void		setinodebuf(ino_t);
 int		setup(char *dev);
 void		gjournal_check(const char *filesys);
+int		suj_check(const char *filesys);
+
+#endif	/* !_FSCK_H_ */

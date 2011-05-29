@@ -9,8 +9,6 @@ SRCS=	auth_none.c \
 	clnt_rc.c \
 	clnt_vc.c \
 	getnetconfig.c \
-	inet_ntop.c \
-	inet_pton.c \
 	rpc_callmsg.c \
 	rpc_generic.c \
 	rpc_prot.c \

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: log.c,v 1.94.332.5 2009/02/16 02:04:05 marka Exp $ */
+/* $Id: log.c,v 1.94.332.5 2009-02-16 02:04:05 marka Exp $ */
 
 /*! \file
  * \author  Principal Authors: DCL */

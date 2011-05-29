@@ -133,6 +133,11 @@ unsigned char *ssl_add_clienthello_tlsext(SSL *s, unsigned char *p, unsigned cha
 	int extdatalen=0;
 	unsigned char *ret = p;
 
+	/* don't add extensions for SSLv3 unless doing secure renegotiation */
+	if (s->client_version == SSL3_VERSION
+					&& !s->s3->send_connection_binding)
+		return p;
+
 	ret+=2;
 
 	if (ret>=limit) return NULL; /* this really never occurs, but ... */
@@ -169,11 +174,37 @@ unsigned char *ssl_add_clienthello_tlsext(SSL *s, unsigned char *p, unsigned cha
 		ret+=size_str;
 
 		}
+ 
+        /* Add RI if renegotiating */
+        if (s->new_session)
+          {
+          int el;
+          
+          if(!ssl_add_clienthello_renegotiate_ext(s, 0, &el, 0))
+              {
+              SSLerr(SSL_F_SSL_ADD_CLIENTHELLO_TLSEXT, ERR_R_INTERNAL_ERROR);
+              return NULL;
+              }
 
+          if((limit - p - 4 - el) < 0) return NULL;
+          
+          s2n(TLSEXT_TYPE_renegotiate,ret);
+          s2n(el,ret);
+
+          if(!ssl_add_clienthello_renegotiate_ext(s, ret, &el, el))
+              {
+              SSLerr(SSL_F_SSL_ADD_CLIENTHELLO_TLSEXT, ERR_R_INTERNAL_ERROR);
+              return NULL;
+              }
+
+          ret += el;
+        }
+
+           
 	if (!(SSL_get_options(s) & SSL_OP_NO_TICKET))
 		{
 		int ticklen;
-		if (s->session && s->session->tlsext_tick)
+		if (!s->new_session && s->session && s->session->tlsext_tick)
 			ticklen = s->session->tlsext_ticklen;
 		else
 			ticklen = 0;
@@ -191,7 +222,8 @@ unsigned char *ssl_add_clienthello_tlsext(SSL *s, unsigned char *p, unsigned cha
 			}
 		}
 
-	if (s->tlsext_status_type == TLSEXT_STATUSTYPE_ocsp)
+	if (s->tlsext_status_type == TLSEXT_STATUSTYPE_ocsp &&
+	    s->version != DTLS1_VERSION)
 		{
 		int i;
 		long extlen, idlen, itmp;
@@ -251,6 +283,10 @@ unsigned char *ssl_add_serverhello_tlsext(SSL *s, unsigned char *p, unsigned cha
 	int extdatalen=0;
 	unsigned char *ret = p;
 
+	/* don't add extensions for SSLv3, unless doing secure renegotiation */
+	if (s->version == SSL3_VERSION && !s->s3->send_connection_binding)
+		return p;
+	
 	ret+=2;
 	if (ret>=limit) return NULL; /* this really never occurs, but ... */
 
@@ -261,6 +297,30 @@ unsigned char *ssl_add_serverhello_tlsext(SSL *s, unsigned char *p, unsigned cha
 		s2n(TLSEXT_TYPE_server_name,ret);
 		s2n(0,ret);
 		}
+
+	if(s->s3->send_connection_binding)
+        {
+          int el;
+          
+          if(!ssl_add_serverhello_renegotiate_ext(s, 0, &el, 0))
+              {
+              SSLerr(SSL_F_SSL_ADD_SERVERHELLO_TLSEXT, ERR_R_INTERNAL_ERROR);
+              return NULL;
+              }
+
+          if((limit - p - 4 - el) < 0) return NULL;
+          
+          s2n(TLSEXT_TYPE_renegotiate,ret);
+          s2n(el,ret);
+
+          if(!ssl_add_serverhello_renegotiate_ext(s, ret, &el, el))
+              {
+              SSLerr(SSL_F_SSL_ADD_SERVERHELLO_TLSEXT, ERR_R_INTERNAL_ERROR);
+              return NULL;
+              }
+
+          ret += el;
+        }
 	
 	if (s->tlsext_ticket_expected
 		&& !(SSL_get_options(s) & SSL_OP_NO_TICKET)) 
@@ -290,15 +350,18 @@ int ssl_parse_clienthello_tlsext(SSL *s, unsigned char **p, unsigned char *d, in
 	unsigned short size;
 	unsigned short len;
 	unsigned char *data = *p;
+	int renegotiate_seen = 0;
+
 	s->servername_done = 0;
 	s->tlsext_status_type = -1;
 
 	if (data >= (d+n-2))
-		return 1;
+		goto ri_check;
+
 	n2s(data,len);
 
 	if (data > (d+n-len)) 
-		return 1;
+		goto ri_check;
 
 	while (data <= (d+n-4))
 		{
@@ -306,7 +369,7 @@ int ssl_parse_clienthello_tlsext(SSL *s, unsigned char **p, unsigned char *d, in
 		n2s(data,size);
 
 		if (data+size > (d+n))
-	   		return 1;
+	   		goto ri_check;
 
 		if (s->tlsext_debug_cb)
 			s->tlsext_debug_cb(s, 0, type, data, size,
@@ -369,12 +432,21 @@ int ssl_parse_clienthello_tlsext(SSL *s, unsigned char **p, unsigned char *d, in
 				switch (servname_type)
 					{
 				case TLSEXT_NAMETYPE_host_name:
-					if (s->session->tlsext_hostname == NULL)
+					if (!s->hit)
 						{
-						if (len > TLSEXT_MAXLEN_host_name || 
-							((s->session->tlsext_hostname = OPENSSL_malloc(len+1)) == NULL))
+						if(s->session->tlsext_hostname)
+							{
+							*al = SSL_AD_DECODE_ERROR;
+							return 0;
+							}
+						if (len > TLSEXT_MAXLEN_host_name)
 							{
 							*al = TLS1_AD_UNRECOGNIZED_NAME;
+							return 0;
+							}
+						if ((s->session->tlsext_hostname = OPENSSL_malloc(len+1)) == NULL)
+							{
+							*al = TLS1_AD_INTERNAL_ERROR;
 							return 0;
 							}
 						memcpy(s->session->tlsext_hostname, sdata, len);
@@ -389,7 +461,8 @@ int ssl_parse_clienthello_tlsext(SSL *s, unsigned char **p, unsigned char *d, in
 
 						}
 					else 
-						s->servername_done = strlen(s->session->tlsext_hostname) == len 
+						s->servername_done = s->session->tlsext_hostname
+							&& strlen(s->session->tlsext_hostname) == len 
 							&& strncmp(s->session->tlsext_hostname, (char *)sdata, len) == 0;
 					
 					break;
@@ -407,8 +480,14 @@ int ssl_parse_clienthello_tlsext(SSL *s, unsigned char **p, unsigned char *d, in
 				}
 
 			}
-		else if (type == TLSEXT_TYPE_status_request
-						&& s->ctx->tlsext_status_cb)
+		else if (type == TLSEXT_TYPE_renegotiate)
+			{
+			if(!ssl_parse_clienthello_renegotiate_ext(s, data, size, al))
+				return 0;
+			renegotiate_seen = 1;
+			}
+		else if (type == TLSEXT_TYPE_status_request &&
+		         s->version != DTLS1_VERSION && s->ctx->tlsext_status_cb)
 			{
 		
 			if (size < 5) 
@@ -442,6 +521,7 @@ int ssl_parse_clienthello_tlsext(SSL *s, unsigned char **p, unsigned char *d, in
 						}
 					n2s(data, idsize);
 					dsize -= 2 + idsize;
+					size -= 2 + idsize;
 					if (dsize < 0)
 						{
 						*al = SSL_AD_DECODE_ERROR;
@@ -480,9 +560,14 @@ int ssl_parse_clienthello_tlsext(SSL *s, unsigned char **p, unsigned char *d, in
 					}
 
 				/* Read in request_extensions */
+				if (size < 2)
+					{
+					*al = SSL_AD_DECODE_ERROR;
+					return 0;
+					}
 				n2s(data,dsize);
 				size -= 2;
-				if (dsize > size) 
+				if (dsize != size)
 					{
 					*al = SSL_AD_DECODE_ERROR;
 					return 0;
@@ -507,28 +592,47 @@ int ssl_parse_clienthello_tlsext(SSL *s, unsigned char **p, unsigned char *d, in
 				else
 					s->tlsext_status_type = -1;
 			}
+
 		/* session ticket processed earlier */
 
 		data+=size;		
 		}
-
 	*p = data;
+
+	ri_check:
+
+	/* Need RI if renegotiating */
+
+	if (!renegotiate_seen && s->new_session &&
+		!(s->options & SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION))
+		{
+		*al = SSL_AD_HANDSHAKE_FAILURE;
+	 	SSLerr(SSL_F_SSL_PARSE_CLIENTHELLO_TLSEXT,
+				SSL_R_UNSAFE_LEGACY_RENEGOTIATION_DISABLED);
+		return 0;
+		}
+
 	return 1;
 	}
 
 int ssl_parse_serverhello_tlsext(SSL *s, unsigned char **p, unsigned char *d, int n, int *al)
 	{
+	unsigned short length;
 	unsigned short type;
 	unsigned short size;
-	unsigned short len;  
 	unsigned char *data = *p;
-
 	int tlsext_servername = 0;
+	int renegotiate_seen = 0;
 
 	if (data >= (d+n-2))
-		return 1;
+		goto ri_check;
 
-	n2s(data,len);
+	n2s(data,length);
+	if (data+length != d+n)
+		{
+		*al = SSL_AD_DECODE_ERROR;
+		return 0;
+		}
 
 	while(data <= (d+n-4))
 		{
@@ -536,7 +640,7 @@ int ssl_parse_serverhello_tlsext(SSL *s, unsigned char **p, unsigned char *d, in
 		n2s(data,size);
 
 		if (data+size > (d+n))
-	   		return 1;
+	   		goto ri_check;
 
 		if (s->tlsext_debug_cb)
 			s->tlsext_debug_cb(s, 1, type, data, size,
@@ -561,7 +665,8 @@ int ssl_parse_serverhello_tlsext(SSL *s, unsigned char **p, unsigned char *d, in
 				}
 			s->tlsext_ticket_expected = 1;
 			}
-		else if (type == TLSEXT_TYPE_status_request)
+		else if (type == TLSEXT_TYPE_status_request &&
+		         s->version != DTLS1_VERSION)
 			{
 			/* MUST be empty and only sent if we've requested
 			 * a status request message.
@@ -574,7 +679,12 @@ int ssl_parse_serverhello_tlsext(SSL *s, unsigned char **p, unsigned char *d, in
 			/* Set flag to expect CertificateStatus message */
 			s->tlsext_status_expected = 1;
 			}
-
+		else if (type == TLSEXT_TYPE_renegotiate)
+			{
+			if(!ssl_parse_serverhello_renegotiate_ext(s, data, size, al))
+				return 0;
+			renegotiate_seen = 1;
+			}
 		data+=size;		
 		}
 
@@ -606,6 +716,26 @@ int ssl_parse_serverhello_tlsext(SSL *s, unsigned char **p, unsigned char *d, in
 		}
 
 	*p = data;
+
+	ri_check:
+
+	/* Determine if we need to see RI. Strictly speaking if we want to
+	 * avoid an attack we should *always* see RI even on initial server
+	 * hello because the client doesn't see any renegotiation during an
+	 * attack. However this would mean we could not connect to any server
+	 * which doesn't support RI so for the immediate future tolerate RI
+	 * absence on initial connect only.
+	 */
+	if (!renegotiate_seen
+		&& !(s->options & SSL_OP_LEGACY_SERVER_CONNECT)
+		&& !(s->options & SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION))
+		{
+		*al = SSL_AD_HANDSHAKE_FAILURE;
+		SSLerr(SSL_F_SSL_PARSE_SERVERHELLO_TLSEXT,
+				SSL_R_UNSAFE_LEGACY_RENEGOTIATION_DISABLED);
+		return 0;
+		}
+
 	return 1;
 	}
 
@@ -745,6 +875,14 @@ int tls1_process_ticket(SSL *s, unsigned char *session_id, int len,
 		return 1;
 	if (p >= limit)
 		return -1;
+	/* Skip past DTLS cookie */
+	if (s->version == DTLS1_VERSION || s->version == DTLS1_BAD_VER)
+		{
+		i = *(p++);
+		p+= i;
+		if (p >= limit)
+			return -1;
+		}
 	/* Skip past cipher list */
 	n2s(p, i);
 	p+= i;
@@ -795,16 +933,17 @@ static int tls_decrypt_ticket(SSL *s, const unsigned char *etick, int eticklen,
 	unsigned char tick_hmac[EVP_MAX_MD_SIZE];
 	HMAC_CTX hctx;
 	EVP_CIPHER_CTX ctx;
+	SSL_CTX *tctx = s->initial_ctx;
 	/* Need at least keyname + iv + some encrypted data */
 	if (eticklen < 48)
 		goto tickerr;
 	/* Initialize session ticket encryption and HMAC contexts */
 	HMAC_CTX_init(&hctx);
 	EVP_CIPHER_CTX_init(&ctx);
-	if (s->ctx->tlsext_ticket_key_cb)
+	if (tctx->tlsext_ticket_key_cb)
 		{
 		unsigned char *nctick = (unsigned char *)etick;
-		int rv = s->ctx->tlsext_ticket_key_cb(s, nctick, nctick + 16,
+		int rv = tctx->tlsext_ticket_key_cb(s, nctick, nctick + 16,
 							&ctx, &hctx, 0);
 		if (rv < 0)
 			return -1;
@@ -816,12 +955,12 @@ static int tls_decrypt_ticket(SSL *s, const unsigned char *etick, int eticklen,
 	else
 		{
 		/* Check key name matches */
-		if (memcmp(etick, s->ctx->tlsext_tick_key_name, 16))
+		if (memcmp(etick, tctx->tlsext_tick_key_name, 16))
 			goto tickerr;
-		HMAC_Init_ex(&hctx, s->ctx->tlsext_tick_hmac_key, 16,
+		HMAC_Init_ex(&hctx, tctx->tlsext_tick_hmac_key, 16,
 					tlsext_tick_md(), NULL);
 		EVP_DecryptInit_ex(&ctx, EVP_aes_128_cbc(), NULL,
-				s->ctx->tlsext_tick_aes_key, etick + 16);
+				tctx->tlsext_tick_aes_key, etick + 16);
 		}
 	/* Attempt to process session ticket, first conduct sanity and
  	 * integrity checks on ticket.

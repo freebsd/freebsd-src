@@ -27,12 +27,17 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_watchdog.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/cons.h>
 #include <sys/kernel.h>
 #include <sys/kerneldump.h>
+#ifdef SW_WATCHDOG
+#include <sys/watchdog.h>
+#endif
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <machine/efi.h>
@@ -125,6 +130,9 @@ cb_dumpdata(struct efi_md *mdp, int seqnr, void *arg)
 			printf("%c\b", "|/-\\"[twiddle++ & 3]);
 			counter &= (1<<24) - 1;
 		}
+#ifdef SW_WATCHDOG
+		wdog_kern_pat(WD_LASTVAL);
+#endif
 		error = dump_write(di, (void*)pa, 0, dumplo, sz);
 		if (error)
 			break;

@@ -45,7 +45,7 @@
  *  
  * The uma_slab_t may be embedded in a UMA_SLAB_SIZE chunk of memory or it may
  * be allocated off the page from a special slab zone.  The free list within a
- * slab is managed with a linked list of indexes, which are 8 bit values.  If
+ * slab is managed with a linked list of indices, which are 8 bit values.  If
  * UMA_SLAB_SIZE is defined to be too large I will have to switch to 16bit
  * values.  Currently on alpha you can get 250 or so 32 byte items and on x86
  * you can get 250 or so 16byte items.  For item sizes that would yield more
@@ -56,9 +56,9 @@
  * wasted between items due to alignment problems.  This may yield a much better
  * memory footprint for certain sizes of objects.  Another alternative is to
  * increase the UMA_SLAB_SIZE, or allow for dynamic slab sizes.  I prefer
- * dynamic slab sizes because we could stick with 8 bit indexes and only use
+ * dynamic slab sizes because we could stick with 8 bit indices and only use
  * large slab sizes for zones with a lot of waste per slab.  This may create
- * ineffeciencies in the vm subsystem due to fragmentation in the address space.
+ * inefficiencies in the vm subsystem due to fragmentation in the address space.
  *
  * The only really gross cases, with regards to memory waste, are for those
  * items that are just over half the page size.   You can get nearly 50% waste,
@@ -118,7 +118,7 @@
 #define UMA_SLAB_MASK	(PAGE_SIZE - 1)	/* Mask to get back to the page */
 #define UMA_SLAB_SHIFT	PAGE_SHIFT	/* Number of bits PAGE_MASK */
 
-#define UMA_BOOT_PAGES		48	/* Pages allocated for startup */
+#define UMA_BOOT_PAGES		64	/* Pages allocated for startup */
 
 /* Max waste before going to off page slab management */
 #define UMA_MAX_WASTE	(UMA_SLAB_SIZE / 10)
@@ -160,6 +160,15 @@ struct uma_hash {
 };
 
 /*
+ * align field or structure to cache line
+ */
+#if defined(__amd64__)
+#define UMA_ALIGN	__aligned(CACHE_LINE_SIZE)
+#else
+#define UMA_ALIGN
+#endif
+
+/*
  * Structures for per cpu queues.
  */
 
@@ -177,7 +186,7 @@ struct uma_cache {
 	uma_bucket_t	uc_allocbucket;	/* Bucket to allocate from */
 	u_int64_t	uc_allocs;	/* Count of allocations */
 	u_int64_t	uc_frees;	/* Count of frees */
-};
+} UMA_ALIGN;
 
 typedef struct uma_cache * uma_cache_t;
 
@@ -312,11 +321,13 @@ struct uma_zone {
 	uma_init	uz_init;	/* Initializer for each item */
 	uma_fini	uz_fini;	/* Discards memory */
 
-	u_int64_t	uz_allocs;	/* Total number of allocations */
-	u_int64_t	uz_frees;	/* Total number of frees */
-	u_int64_t	uz_fails;	/* Total number of alloc failures */
 	u_int32_t	uz_flags;	/* Flags inherited from kegs */
 	u_int32_t	uz_size;	/* Size inherited from kegs */
+
+	u_int64_t	uz_allocs UMA_ALIGN; /* Total number of allocations */
+	u_int64_t	uz_frees;	/* Total number of frees */
+	u_int64_t	uz_fails;	/* Total number of alloc failures */
+	u_int64_t	uz_sleeps;	/* Total number of alloc sleeps */
 	uint16_t	uz_fills;	/* Outstanding bucket fills */
 	uint16_t	uz_count;	/* Highest value ub_ptr can have */
 
@@ -324,7 +335,7 @@ struct uma_zone {
 	 * This HAS to be the last item because we adjust the zone size
 	 * based on NCPU and then allocate the space for the zones.
 	 */
-	struct uma_cache	uz_cpu[1];	/* Per cpu caches */
+	struct uma_cache	uz_cpu[1]; /* Per cpu caches */
 };
 
 /*
@@ -340,6 +351,8 @@ struct uma_zone {
 
 #define	UMA_ZFLAG_INHERIT	(UMA_ZFLAG_INTERNAL | UMA_ZFLAG_CACHEONLY | \
 				    UMA_ZFLAG_BUCKET)
+
+#undef UMA_ALIGN
 
 #ifdef _KERNEL
 /* Internal prototypes */

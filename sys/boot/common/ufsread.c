@@ -87,7 +87,7 @@ static struct dmadat *dmadat;
 static ino_t lookup(const char *);
 static ssize_t fsread(ino_t, void *, size_t);
 
-static int ls, dsk_meta;
+static uint8_t ls, dsk_meta;
 static uint32_t fs_off;
 
 static __inline int
@@ -122,12 +122,10 @@ lookup(const char *path)
 	const char *s;
 	ino_t ino;
 	ssize_t n;
-	int dt;
+	uint8_t dt;
 
 	ino = ROOTINO;
 	dt = DT_DIR;
-	name[0] = '/';
-	name[1] = '\0';
 	for (;;) {
 		if (*path == '/')
 			path++;
@@ -223,14 +221,19 @@ fsread(ino_t inode, void *buf, size_t nbyte)
 			return -1;
 		n = INO_TO_VBO(n, inode);
 #if defined(UFS1_ONLY)
-		dp1 = ((struct ufs1_dinode *)blkbuf)[n];
+		memcpy(&dp1, (struct ufs1_dinode *)blkbuf + n,
+		    sizeof(struct ufs1_dinode));
 #elif defined(UFS2_ONLY)
-		dp2 = ((struct ufs2_dinode *)blkbuf)[n];
+		memcpy(&dp2, (struct ufs2_dinode *)blkbuf + n,
+		    sizeof(struct ufs2_dinode));
 #else
 		if (fs->fs_magic == FS_UFS1_MAGIC)
-			dp1 = ((struct ufs1_dinode *)blkbuf)[n];
+			memcpy(&dp1, (struct ufs1_dinode *)blkbuf + n,
+			    sizeof(struct ufs1_dinode));
 		else
-			dp2 = ((struct ufs2_dinode *)blkbuf)[n];
+			memcpy(&dp2, (struct ufs2_dinode *)blkbuf + n,
+			    sizeof(struct ufs2_dinode));
+
 #endif
 		inomap = inode;
 		fs_off = 0;

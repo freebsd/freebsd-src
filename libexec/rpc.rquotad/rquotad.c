@@ -23,6 +23,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <fstab.h>
 #include <grp.h>
+#include <libutil.h>
 #include <pwd.h>
 #include <signal.h>
 #include <stdio.h>
@@ -35,20 +36,9 @@ static void rquota_service(struct svc_req *request, SVCXPRT *transp);
 static void sendquota(struct svc_req *request, SVCXPRT *transp);
 static void initfs(void);
 static int getfsquota(long id, char *path, struct dqblk *dqblk);
-static int hasquota(struct fstab *fs, char **qfnamep);
 
-/*
- * structure containing informations about ufs filesystems
- * initialised by initfs()
- */
-struct fs_stat {
-	struct fs_stat *fs_next;	/* next element */
-	char   *fs_file;		/* mount point of the filesystem */
-	char   *qfpathname;		/* pathname of the quota file */
-	dev_t   st_dev;			/* device of the filesystem */
-} fs_stat;
-static struct fs_stat *fs_begin = NULL;
-
+static struct quotafile **qfa;	/* array of qfs */
+static int nqf, szqf;		/* number of qfs and size of array */
 static int from_inetd = 1;
 
 static void
@@ -74,9 +64,7 @@ main(void)
 
 	if (!from_inetd) {
 		daemon(0, 0);
-
 		(void)rpcb_unset(RQUOTAPROG, RQUOTAVERS, NULL);
-
 		(void)signal(SIGINT, cleanup);
 		(void)signal(SIGTERM, cleanup);
 		(void)signal(SIGHUP, cleanup);
@@ -118,12 +106,10 @@ rquota_service(struct svc_req *request, SVCXPRT *transp)
 	case NULLPROC:
 		(void)svc_sendreply(transp, (xdrproc_t)xdr_void, (char *)NULL);
 		break;
-
 	case RQUOTAPROC_GETQUOTA:
 	case RQUOTAPROC_GETACTIVEQUOTA:
 		sendquota(request, transp);
 		break;
-
 	default:
 		svcerr_noproc(transp);
 		break;
@@ -140,6 +126,7 @@ sendquota(struct svc_req *request, SVCXPRT *transp)
 	struct getquota_rslt getq_rslt;
 	struct dqblk dqblk;
 	struct timeval timev;
+	int scale;
 
 	bzero(&getq_args, sizeof(getq_args));
 	if (!svc_getargs(transp, (xdrproc_t)xdr_getquota_args, &getq_args)) {
@@ -156,13 +143,15 @@ sendquota(struct svc_req *request, SVCXPRT *transp)
 		gettimeofday(&timev, NULL);
 		getq_rslt.status = Q_OK;
 		getq_rslt.getquota_rslt_u.gqr_rquota.rq_active = TRUE;
-		getq_rslt.getquota_rslt_u.gqr_rquota.rq_bsize = DEV_BSIZE;
+		scale = 1 << flsll(dqblk.dqb_bhardlimit >> 32);
+		getq_rslt.getquota_rslt_u.gqr_rquota.rq_bsize =
+		    DEV_BSIZE * scale;
 		getq_rslt.getquota_rslt_u.gqr_rquota.rq_bhardlimit =
-		    dqblk.dqb_bhardlimit;
+		    dqblk.dqb_bhardlimit / scale;
 		getq_rslt.getquota_rslt_u.gqr_rquota.rq_bsoftlimit =
-		    dqblk.dqb_bsoftlimit;
+		    dqblk.dqb_bsoftlimit / scale;
 		getq_rslt.getquota_rslt_u.gqr_rquota.rq_curblocks =
-		    dqblk.dqb_curblocks;
+		    dqblk.dqb_curblocks / scale;
 		getq_rslt.getquota_rslt_u.gqr_rquota.rq_fhardlimit =
 		    dqblk.dqb_ihardlimit;
 		getq_rslt.getquota_rslt_u.gqr_rquota.rq_fsoftlimit =
@@ -182,39 +171,39 @@ sendquota(struct svc_req *request, SVCXPRT *transp)
 	}
 }
 
-/* initialise the fs_tab list from entries in /etc/fstab */
 static void
 initfs(void)
 {
-	struct fs_stat *fs_current = NULL;
-	struct fs_stat *fs_next = NULL;
-	char *qfpathname;
 	struct fstab *fs;
-	struct stat st;
 
 	setfsent();
+	szqf = 8;
+	if ((qfa = malloc(szqf * sizeof *qfa)) == NULL)
+		goto enomem;
 	while ((fs = getfsent())) {
 		if (strcmp(fs->fs_vfstype, "ufs"))
 			continue;
-		if (!hasquota(fs, &qfpathname))
+		if (nqf >= szqf) {
+			szqf *= 2;
+			if ((qfa = reallocf(qfa, szqf * sizeof *qfa)) == NULL)
+				goto enomem;
+		}
+		if ((qfa[nqf] = quota_open(fs, USRQUOTA, O_RDONLY)) == NULL) {
+			if (errno != EOPNOTSUPP)
+				goto fserr;
 			continue;
-
-		fs_current = malloc(sizeof(struct fs_stat));
-		fs_current->fs_next = fs_next;	/* next element */
-
-		fs_current->fs_file = malloc(strlen(fs->fs_file) + 1);
-		strcpy(fs_current->fs_file, fs->fs_file);
-
-		fs_current->qfpathname = malloc(strlen(qfpathname) + 1);
-		strcpy(fs_current->qfpathname, qfpathname);
-
-		stat(fs_current->fs_file, &st);
-		fs_current->st_dev = st.st_dev;
-
-		fs_next = fs_current;
+		}
+		++nqf;
+		/* XXX */
 	}
 	endfsent();
-	fs_begin = fs_current;
+	return;
+enomem:
+	syslog(LOG_ERR, "out of memory");
+	exit(1);
+fserr:
+	syslog(LOG_ERR, "%s: %s", fs->fs_file, strerror(errno));
+	exit(1);
 }
 
 /*
@@ -224,85 +213,10 @@ initfs(void)
 static int
 getfsquota(long id, char *path, struct dqblk *dqblk)
 {
-	struct stat st_path;
-	struct fs_stat *fs;
-	int	qcmd, fd, ret = 0;
+	int i;
 
-	if (stat(path, &st_path) < 0)
-		return (0);
-
-	qcmd = QCMD(Q_GETQUOTA, USRQUOTA);
-
-	for (fs = fs_begin; fs != NULL; fs = fs->fs_next) {
-		/* where the device is the same as path */
-		if (fs->st_dev != st_path.st_dev)
-			continue;
-
-		/* find the specified filesystem. get and return quota */
-		if (quotactl(fs->fs_file, qcmd, id, dqblk) == 0)
-			return (1);
-
-		if ((fd = open(fs->qfpathname, O_RDONLY)) < 0) {
-			syslog(LOG_ERR, "open error: %s: %m", fs->qfpathname);
-			return (0);
-		}
-		if (lseek(fd, (off_t)(id * sizeof(struct dqblk)), L_SET) == (off_t)-1) {
-			close(fd);
-			return (1);
-		}
-		switch (read(fd, dqblk, sizeof(struct dqblk))) {
-		case 0:
-			/*
-                         * Convert implicit 0 quota (EOF)
-                         * into an explicit one (zero'ed dqblk)
-                         */
-			bzero(dqblk, sizeof(struct dqblk));
-			ret = 1;
-			break;
-		case sizeof(struct dqblk):	/* OK */
-			ret = 1;
-			break;
-		default:	/* ERROR */
-			syslog(LOG_ERR, "read error: %s: %m", fs->qfpathname);
-			close(fd);
-			return (0);
-		}
-		close(fd);
-	}
-	return (ret);
-}
-
-/*
- * Check to see if a particular quota is to be enabled.
- * Comes from quota.c, NetBSD 0.9
- */
-static int
-hasquota(struct fstab *fs, char  **qfnamep)
-{
-	static char initname, usrname[100];
-	static char buf[BUFSIZ];
-	char *opt, *cp;
-	const char *qfextension[] = INITQFNAMES;
-
-	if (!initname) {
-		sprintf(usrname, "%s%s", qfextension[USRQUOTA], QUOTAFILENAME);
-		initname = 1;
-	}
-	strcpy(buf, fs->fs_mntops);
-	for (opt = strtok(buf, ","); opt; opt = strtok(NULL, ",")) {
-		if ((cp = index(opt, '=')))
-			*cp++ = '\0';
-		if (strcmp(opt, usrname) == 0)
-			break;
-	}
-	if (!opt)
-		return (0);
-	if (cp) {
-		*qfnamep = cp;
-		return (1);
-	}
-	sprintf(buf, "%s/%s.%s", fs->fs_file, QUOTAFILENAME,
-	    qfextension[USRQUOTA]);
-	*qfnamep = buf;
-	return (1);
+	for (i = 0; i < nqf; ++i)
+		if (quota_check_path(qfa[i], path) == 1)
+			return (quota_read(qfa[i], dqblk, id) == 0);
+	return (0);
 }

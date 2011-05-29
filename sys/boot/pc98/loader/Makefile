@@ -82,6 +82,8 @@ loader.help: help.common help.pc98
 .PATH: ${.CURDIR}/../../forth 
 FILES=	loader loader.help loader.4th support.4th loader.conf
 FILES+= screen.4th frames.4th beastie.4th
+FILES+= brand.4th check-password.4th color.4th delay.4th
+FILES+= menu.4th menu-commands.4th shortcuts.4th version.4th
 # XXX INSTALLFLAGS_loader= -b
 FILESMODE_loader= ${BINMODE} -b
 FILESDIR_loader.conf=	/boot/defaults
@@ -90,10 +92,14 @@ FILESDIR_loader.conf=	/boot/defaults
 FILES+=	${.CURDIR}/../../i386/loader/loader.rc
 .endif
 
+.if !exists(${DESTDIR}/boot/menu.rc)
+FILES+= menu.rc
+.endif
+
 # XXX crt0.o needs to be first for pxeboot(8) to work
 OBJS=	${BTXCRT} 
 
 DPADD=	${LIBFICL} ${LIBPC98} ${LIBSTAND}
-LDADD=	${LIBFICL} ${LIBPC98} -lstand
+LDADD=	${LIBFICL} ${LIBPC98} ${LIBSTAND}
 
 .include <bsd.prog.mk>

@@ -257,10 +257,10 @@ acpi_tz_attach(device_t dev)
     sc->tz_sysctl_tree = SYSCTL_ADD_NODE(&sc->tz_sysctl_ctx,
 					 SYSCTL_CHILDREN(acpi_tz_sysctl_tree),
 					 OID_AUTO, oidname, CTLFLAG_RD, 0, "");
-    SYSCTL_ADD_OPAQUE(&sc->tz_sysctl_ctx, SYSCTL_CHILDREN(sc->tz_sysctl_tree),
-		      OID_AUTO, "temperature", CTLFLAG_RD, &sc->tz_temperature,
-		      sizeof(sc->tz_temperature), "IK",
-		      "current thermal zone temperature");
+    SYSCTL_ADD_PROC(&sc->tz_sysctl_ctx, SYSCTL_CHILDREN(sc->tz_sysctl_tree),
+		    OID_AUTO, "temperature", CTLTYPE_INT | CTLFLAG_RD,
+		    &sc->tz_temperature, 0, sysctl_handle_int,
+		    "IK", "current thermal zone temperature");
     SYSCTL_ADD_PROC(&sc->tz_sysctl_ctx, SYSCTL_CHILDREN(sc->tz_sysctl_tree),
 		    OID_AUTO, "active", CTLTYPE_INT | CTLFLAG_RW,
 		    sc, 0, acpi_tz_active_sysctl, "I", "cooling is active");
@@ -286,9 +286,10 @@ acpi_tz_attach(device_t dev)
 		    sc, offsetof(struct acpi_tz_softc, tz_zone.crt),
 		    acpi_tz_temp_sysctl, "IK",
 		    "critical temp setpoint (shutdown now)");
-    SYSCTL_ADD_OPAQUE(&sc->tz_sysctl_ctx, SYSCTL_CHILDREN(sc->tz_sysctl_tree),
-		      OID_AUTO, "_ACx", CTLFLAG_RD, &sc->tz_zone.ac,
-		      sizeof(sc->tz_zone.ac), "IK", "");
+    SYSCTL_ADD_PROC(&sc->tz_sysctl_ctx, SYSCTL_CHILDREN(sc->tz_sysctl_tree),
+		    OID_AUTO, "_ACx", CTLTYPE_INT | CTLFLAG_RD,
+		    &sc->tz_zone.ac, sizeof(sc->tz_zone.ac),
+		    sysctl_handle_opaque, "IK", "");
     SYSCTL_ADD_PROC(&sc->tz_sysctl_ctx, SYSCTL_CHILDREN(sc->tz_sysctl_tree),
 		    OID_AUTO, "_TC1", CTLTYPE_INT | CTLFLAG_RW,
 		    sc, offsetof(struct acpi_tz_softc, tz_zone.tc1),
@@ -1171,7 +1172,6 @@ static int
 acpi_tz_cooling_thread_start(struct acpi_tz_softc *sc)
 {
     int error;
-    char name[16];
 
     ACPI_LOCK(thermal);
     if (sc->tz_cooling_proc_running) {
@@ -1182,10 +1182,9 @@ acpi_tz_cooling_thread_start(struct acpi_tz_softc *sc)
     ACPI_UNLOCK(thermal);
     error = 0;
     if (sc->tz_cooling_proc == NULL) {
-	snprintf(name, sizeof(name), "acpi_cooling%d",
-	    device_get_unit(sc->tz_dev));
 	error = kproc_create(acpi_tz_cooling_thread, sc,
-	    &sc->tz_cooling_proc, RFHIGHPID, 0, name);
+	    &sc->tz_cooling_proc, RFHIGHPID, 0, "acpi_cooling%d",
+	    device_get_unit(sc->tz_dev));
 	if (error != 0) {
 	    device_printf(sc->tz_dev, "could not create thread - %d", error);
 	    ACPI_LOCK(thermal);

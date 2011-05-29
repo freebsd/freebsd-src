@@ -1,0 +1,5 @@
+# $FreeBSD$
+
+See under share/examples/netgraph for some examples of
+making and hooking together jails using netgraph as the
+virtual networking fabric.

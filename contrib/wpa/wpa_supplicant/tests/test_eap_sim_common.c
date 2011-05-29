@@ -12,7 +12,7 @@
  * See README and COPYING for more details.
  */
 
-#include "eap_sim_common.c"
+#include "eap_common/eap_sim_common.c"
 
 
 static int test_eap_sim_prf(void)

@@ -69,36 +69,47 @@ typedef void (*snmp_timeout_stop_f)(void *timeout_id);
  * Client context.
  */
 struct snmp_client {
-	enum snmp_version version;
-	int		trans;	/* which transport to use */
+	enum snmp_version	version;
+	int			trans;	/* which transport to use */
 
 	/* these two are read-only for the application */
-	char		*cport;	/* port number as string */
-	char		*chost;	/* host name or IP address as string */
+	char			*cport;	/* port number as string */
+	char			*chost;	/* host name or IP address as string */
 
-	char		read_community[SNMP_COMMUNITY_MAXLEN + 1];
-	char		write_community[SNMP_COMMUNITY_MAXLEN + 1];
+	char			read_community[SNMP_COMMUNITY_MAXLEN + 1];
+	char			write_community[SNMP_COMMUNITY_MAXLEN + 1];
 
-	struct timeval	timeout;
-	u_int		retries;
+	/* SNMPv3 specific fields */
+	int32_t			identifier;
+	int32_t			security_model;
+	struct snmp_engine	engine;
+	struct snmp_user	user;
 
-	int		dump_pdus;
+	/* SNMPv3 Access control - VACM*/
+	uint32_t		clen;
+	uint8_t			cengine[SNMP_ENGINE_ID_SIZ];
+	char			cname[SNMP_CONTEXT_NAME_SIZ];
 
-	size_t		txbuflen;
-	size_t		rxbuflen;
+	struct timeval		timeout;
+	u_int			retries;
 
-	int		fd;
+	int			dump_pdus;
 
-	int32_t		next_reqid;
-	int32_t		max_reqid;
-	int32_t		min_reqid;
+	size_t			txbuflen;
+	size_t			rxbuflen;
 
-	char		error[SNMP_STRERROR_LEN];
+	int			fd;
 
-	snmp_timeout_start_f timeout_start;
-	snmp_timeout_stop_f timeout_stop;
+	int32_t			next_reqid;
+	int32_t			max_reqid;
+	int32_t			min_reqid;
 
-	char		local_path[sizeof(SNMP_LOCAL_PATH)];
+	char			error[SNMP_STRERROR_LEN];
+
+	snmp_timeout_start_f	timeout_start;
+	snmp_timeout_stop_f	timeout_stop;
+
+	char			local_path[sizeof(SNMP_LOCAL_PATH)];
 };
 
 /* the global context */
@@ -180,6 +191,9 @@ int snmp_table_fetch_async(const struct snmp_table *, void *,
 
 /* send a request and wait for the response */
 int snmp_dialog(struct snmp_pdu *_req, struct snmp_pdu *_resp);
+
+/* discover an authorative snmpEngineId */
+int snmp_discover_engine(char *);
 
 /* parse a server specification */
 int snmp_parse_server(struct snmp_client *, const char *);

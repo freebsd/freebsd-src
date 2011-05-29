@@ -144,8 +144,10 @@ __elfN(obj_loadfile)(char *filename, u_int64_t dest,
 		goto oerr;
 	}
 
-	/* Page-align the load address */
-	dest = roundup(dest, PAGE_SIZE);
+	if (archsw.arch_loadaddr != NULL)
+		dest = archsw.arch_loadaddr(LOAD_ELF, hdr, dest);
+	else
+		dest = roundup(dest, PAGE_SIZE);
 
 	/*
 	 * Ok, we think we should handle this.
@@ -221,6 +223,8 @@ __elfN(obj_loadimage)(struct preloaded_file *fp, elf_file_t ef, u_int64_t off)
 	for (i = 0; i < hdr->e_shnum; i++)
 		shdr[i].sh_addr = 0;
 	for (i = 0; i < hdr->e_shnum; i++) {
+		if (shdr[i].sh_size == 0)
+			continue;
 		switch (shdr[i].sh_type) {
 		case SHT_PROGBITS:
 		case SHT_NOBITS:

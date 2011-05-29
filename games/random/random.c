@@ -73,7 +73,7 @@ main(int argc, char *argv[])
 	denom = 0;
 	filename = "/dev/fd/0";
 	random_type = RANDOM_TYPE_UNSET;
-	random_exit = randomize_lines = random_type = unbuffer_output = 0;
+	random_exit = randomize_lines = unbuffer_output = 0;
 	unique_output = 1;
 
 	(void)setlocale(LC_CTYPE, "");

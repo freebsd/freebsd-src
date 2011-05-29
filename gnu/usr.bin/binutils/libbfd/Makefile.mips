@@ -1,7 +1,18 @@
 # $FreeBSD$
 
-#xxxIMPxxx: endian and size
-DEFAULT_VECTOR=	bfd_elf32_tradbigmips_vec
+.if ${TARGET_ARCH:Mmips*el} != ""
+_EMULATION_ENDIAN=little
+.else
+_EMULATION_ENDIAN=big
+.endif
+
+.if ${TARGET_ARCH:Mmips64*} != ""
+DEFAULT_VECTOR=	bfd_elf64_trad${_EMULATION_ENDIAN}mips_vec
+.elif ${TARGET_ARCH:Mmipsn32*} != ""
+DEFAULT_VECTOR=	bfd_elf32_ntrad${_EMULATION_ENDIAN}mips_vec
+.else
+DEFAULT_VECTOR=bfd_elf32_trad${_EMULATION_ENDIAN}mips_vec
+.endif
 
 SRCS+=	coff-mips.c \
 	cpu-mips.c \

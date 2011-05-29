@@ -990,7 +990,7 @@ Otherwise
 is the substring of
 .Ar old_string
 to be replaced in
-.Ar new_string
+.Ar new_string .
 .It Cm :T
 Replaces each word in the variable with its last component.
 .It Cm :U
@@ -1138,7 +1138,7 @@ The
 may be any one of the following:
 .Bl -tag -width "Cm XX"
 .It Cm ||
-logical
+Logical
 .Tn OR
 .It Cm &&
 Logical
@@ -1328,7 +1328,7 @@ made before the sources that succeed it in the line.
 Loops are not being
 detected and targets that form loops will be silently ignored.
 .El
-.Sh "SPECIAL TARGETS"
+.Sh SPECIAL TARGETS
 Special targets may not be included with other targets, i.e., they must be
 the only target specified.
 .Bl -tag -width Ic
@@ -1620,7 +1620,7 @@ command in the file.
 .It Ic .SUFFIXES
 Each source specifies a suffix to
 .Nm .
-If no sources are specified, any previous specified suffices are deleted.
+If no sources are specified, any previous specified suffixes are deleted.
 .It Ic .WARN
 Each source specifies a warning flag as previously described for the
 .Fl x
@@ -1633,7 +1633,7 @@ environment variables so that a warning flag specified on the command
 line will influence all sub-makes.
 Several flags can be specified on a single
 .Ic .WARN
-target by seperating them with blanks.
+target by separating them with blanks.
 .El
 .Sh REMAKING MAKEFILES
 If the special target
@@ -1779,7 +1779,7 @@ The evaluation of
 .Ar expression
 in a test is very simple-minded.
 Currently, the only form that works is
-.Ql .if ${VAR} op something
+.Ql .if ${VAR} op something .
 For instance, you should write tests as
 .Ql .if ${VAR} == "string"
 not the other way around, which would give you an error.

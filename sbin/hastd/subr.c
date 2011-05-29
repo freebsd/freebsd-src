@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2010 The FreeBSD Foundation
+ * Copyright (c) 2011 Pawel Jakub Dawidek <pawel@dawidek.net>
  * All rights reserved.
  *
  * This software was developed by Pawel Jakub Dawidek under sponsorship from
@@ -30,14 +31,21 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
+#include <sys/capability.h>
+#include <sys/param.h>
 #include <sys/disk.h>
 #include <sys/ioctl.h>
+#include <sys/jail.h>
 #include <sys/stat.h>
 
-#include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <pwd.h>
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 
 #include <pjdlog.h>
 
@@ -45,11 +53,33 @@ __FBSDID("$FreeBSD$");
 #include "subr.h"
 
 int
+vsnprlcat(char *str, size_t size, const char *fmt, va_list ap)
+{
+	size_t len;
+
+	len = strlen(str);
+	return (vsnprintf(str + len, size - len, fmt, ap));
+}
+
+int
+snprlcat(char *str, size_t size, const char *fmt, ...)
+{
+	va_list ap;
+	int result;
+
+	va_start(ap, fmt);
+	result = vsnprlcat(str, size, fmt, ap);
+	va_end(ap);
+	return (result);
+}
+
+int
 provinfo(struct hast_resource *res, bool dowrite)
 {
 	struct stat sb;
 
-	assert(res->hr_localpath != NULL && res->hr_localpath[0] != '\0');
+	PJDLOG_ASSERT(res->hr_localpath != NULL &&
+	    res->hr_localpath[0] != '\0');
 
 	if (res->hr_localfd == -1) {
 		res->hr_localfd = open(res->hr_localpath,
@@ -106,13 +136,123 @@ const char *
 role2str(int role)
 {
 
-	switch (role) {																			
-	case HAST_ROLE_INIT:																				
+	switch (role) {
+	case HAST_ROLE_INIT:
 		return ("init");
-	case HAST_ROLE_PRIMARY:																			
+	case HAST_ROLE_PRIMARY:
 		return ("primary");
-	case HAST_ROLE_SECONDARY:																			
+	case HAST_ROLE_SECONDARY:
 		return ("secondary");
 	}
 	return ("unknown");
+}
+
+int
+drop_privs(struct hast_resource *res)
+{
+	char jailhost[sizeof(res->hr_name) * 2];
+	struct jail jailst;
+	struct passwd *pw;
+	uid_t ruid, euid, suid;
+	gid_t rgid, egid, sgid;
+	gid_t gidset[1];
+	bool capsicum, jailed;
+
+	/*
+	 * According to getpwnam(3) we have to clear errno before calling the
+	 * function to be able to distinguish between an error and missing
+	 * entry (with is not treated as error by getpwnam(3)).
+	 */
+	errno = 0;
+	pw = getpwnam(HAST_USER);
+	if (pw == NULL) {
+		if (errno != 0) {
+			KEEP_ERRNO(pjdlog_errno(LOG_ERR,
+			    "Unable to find info about '%s' user", HAST_USER));
+			return (-1);
+		} else {
+			pjdlog_error("'%s' user doesn't exist.", HAST_USER);
+			errno = ENOENT;
+			return (-1);
+		}
+	}
+
+	bzero(&jailst, sizeof(jailst));
+	jailst.version = JAIL_API_VERSION;
+	jailst.path = pw->pw_dir;
+	if (res == NULL) {
+		(void)snprintf(jailhost, sizeof(jailhost), "hastctl");
+	} else {
+		(void)snprintf(jailhost, sizeof(jailhost), "hastd: %s (%s)",
+		    res->hr_name, role2str(res->hr_role));
+	}
+	jailst.hostname = jailhost;
+	jailst.jailname = NULL;
+	jailst.ip4s = 0;
+	jailst.ip4 = NULL;
+	jailst.ip6s = 0;
+	jailst.ip6 = NULL;
+	if (jail(&jailst) >= 0) {
+		jailed = true;
+	} else {
+		jailed = false;
+		pjdlog_errno(LOG_WARNING,
+		    "Unable to jail to directory to %s", pw->pw_dir);
+		if (chroot(pw->pw_dir) == -1) {
+			KEEP_ERRNO(pjdlog_errno(LOG_ERR,
+			    "Unable to change root directory to %s",
+			    pw->pw_dir));
+			return (-1);
+		}
+	}
+	PJDLOG_VERIFY(chdir("/") == 0);
+	gidset[0] = pw->pw_gid;
+	if (setgroups(1, gidset) == -1) {
+		KEEP_ERRNO(pjdlog_errno(LOG_ERR,
+		    "Unable to set groups to gid %u",
+		    (unsigned int)pw->pw_gid));
+		return (-1);
+	}
+	if (setgid(pw->pw_gid) == -1) {
+		KEEP_ERRNO(pjdlog_errno(LOG_ERR, "Unable to set gid to %u",
+		    (unsigned int)pw->pw_gid));
+		return (-1);
+	}
+	if (setuid(pw->pw_uid) == -1) {
+		KEEP_ERRNO(pjdlog_errno(LOG_ERR, "Unable to set uid to %u",
+		    (unsigned int)pw->pw_uid));
+		return (-1);
+	}
+
+	/*
+	 * Until capsicum doesn't allow ioctl(2) we cannot use it to sandbox
+	 * primary and secondary worker processes, as primary uses GGATE
+	 * ioctls and secondary uses ioctls to handle BIO_DELETE and BIO_FLUSH.
+	 * For now capsicum is only used to sandbox hastctl.
+	 */
+	if (res == NULL)
+		capsicum = (cap_enter() == 0);
+	else
+		capsicum = false;
+
+	/*
+	 * Better be sure that everything succeeded.
+	 */
+	PJDLOG_VERIFY(getresuid(&ruid, &euid, &suid) == 0);
+	PJDLOG_VERIFY(ruid == pw->pw_uid);
+	PJDLOG_VERIFY(euid == pw->pw_uid);
+	PJDLOG_VERIFY(suid == pw->pw_uid);
+	PJDLOG_VERIFY(getresgid(&rgid, &egid, &sgid) == 0);
+	PJDLOG_VERIFY(rgid == pw->pw_gid);
+	PJDLOG_VERIFY(egid == pw->pw_gid);
+	PJDLOG_VERIFY(sgid == pw->pw_gid);
+	PJDLOG_VERIFY(getgroups(0, NULL) == 1);
+	PJDLOG_VERIFY(getgroups(1, gidset) == 1);
+	PJDLOG_VERIFY(gidset[0] == pw->pw_gid);
+
+	pjdlog_debug(1,
+	    "Privileges successfully dropped using %s%s+setgid+setuid.",
+	    capsicum ? "capsicum+" : "", jailed ? "jail" : "chroot");
+
+	return (0);
 }

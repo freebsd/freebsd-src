@@ -13,7 +13,7 @@ name="nfsclient"
 rcvar="nfs_client_enable"
 start_cmd="nfsclient_start"
 stop_cmd="unmount_all"
-required_modules="nfsclient:nfs"
+required_modules="nfsclient:oldnfs"
 
 nfsclient_start()
 {

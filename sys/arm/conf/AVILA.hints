@@ -41,6 +41,9 @@ hint.ata_avila.0.at="ixp0"
 # Front Panel LED
 hint.led_avila.0.at="ixp0"
 
+# GPIO pins
+hint.gpio_avila.0.at="ixp0"
+
 # Analog Devices AD7418 temperature sensor
 hint.ad7418.0.at="iicbus0"
 hint.ad7418.0.addr=0x50

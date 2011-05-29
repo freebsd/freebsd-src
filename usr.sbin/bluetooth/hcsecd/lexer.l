@@ -34,7 +34,7 @@
 #include "parser.h"
 %}
 
-%option yylineno noyywrap nounput
+%option yylineno noyywrap nounput noinput
 
 delim		[ \t\n]
 ws		{delim}+

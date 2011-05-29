@@ -94,10 +94,12 @@ __FBSDID("$FreeBSD$");
 SDT_PROVIDER_DEFINE(mac);
 SDT_PROVIDER_DEFINE(mac_framework);
 
-SDT_PROBE_DEFINE2(mac, kernel, policy, modevent, "int",
+SDT_PROBE_DEFINE2(mac, kernel, policy, modevent, modevent, "int",
     "struct mac_policy_conf *mpc");
-SDT_PROBE_DEFINE1(mac, kernel, policy, register, "struct mac_policy_conf *");
-SDT_PROBE_DEFINE1(mac, kernel, policy, unregister, "struct mac_policy_conf *");
+SDT_PROBE_DEFINE1(mac, kernel, policy, register, register,
+    "struct mac_policy_conf *");
+SDT_PROBE_DEFINE1(mac, kernel, policy, unregister, unregister,
+    "struct mac_policy_conf *");
 
 /*
  * Root sysctl node for all MAC and MAC policy controls.
@@ -149,7 +151,7 @@ static int	mac_late = 0;
  * for an object type at run-time.
  */
 uint64_t	mac_labeled;
-SYSCTL_QUAD(_security_mac, OID_AUTO, labeled, CTLFLAG_RD, &mac_labeled, 0,
+SYSCTL_UQUAD(_security_mac, OID_AUTO, labeled, CTLFLAG_RD, &mac_labeled, 0,
     "Mask of object types being labeled");
 
 MALLOC_DEFINE(M_MACTEMP, "mactemp", "MAC temporary label storage");

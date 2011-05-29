@@ -368,7 +368,7 @@ fdesc_open(ap)
 		return (0);
 
 	/*
-	 * XXX Kludge: set td->td_proc->p_dupfd to contain the value of the the file
+	 * XXX Kludge: set td->td_proc->p_dupfd to contain the value of the file
 	 * descriptor being sought for duplication. The error return ensures
 	 * that the vnode for this device will be released by vn_open. Open
 	 * will detect this special error and take the actions in dupfdopen.
@@ -500,15 +500,11 @@ fdesc_readdir(ap)
 	struct dirent *dp = &d;
 	int error, i, off, fcnt;
 
-	/*
-	 * We don't allow exporting fdesc mounts, and currently local
-	 * requests do not need cookies.
-	 */
-	if (ap->a_ncookies)
-		panic("fdesc_readdir: not hungry");
-
 	if (VTOFDESC(ap->a_vp)->fd_type != Froot)
 		panic("fdesc_readdir: not dir");
+
+	if (ap->a_ncookies != NULL)
+		*ap->a_ncookies = 0;
 
 	off = (int)uio->uio_offset;
 	if (off != uio->uio_offset || off < 0 || (u_int)off % UIO_MX != 0 ||
@@ -522,11 +518,10 @@ fdesc_readdir(ap)
 
 	FILEDESC_SLOCK(fdp);
 	while (i < fdp->fd_nfiles + 2 && uio->uio_resid >= UIO_MX) {
+		bzero((caddr_t)dp, UIO_MX);
 		switch (i) {
 		case 0:	/* `.' */
 		case 1: /* `..' */
-			bzero((caddr_t)dp, UIO_MX);
-
 			dp->d_fileno = i + FD_ROOT;
 			dp->d_namlen = i + 1;
 			dp->d_reclen = UIO_MX;
@@ -535,26 +530,24 @@ fdesc_readdir(ap)
 			dp->d_type = DT_DIR;
 			break;
 		default:
-			if (fdp->fd_ofiles[fcnt] == NULL) {
-				FILEDESC_SUNLOCK(fdp);
-				goto done;
-			}
-
-			bzero((caddr_t) dp, UIO_MX);
+			if (fdp->fd_ofiles[fcnt] == NULL)
+				break;
 			dp->d_namlen = sprintf(dp->d_name, "%d", fcnt);
 			dp->d_reclen = UIO_MX;
 			dp->d_type = DT_UNKNOWN;
 			dp->d_fileno = i + FD_DESC;
 			break;
 		}
-		/*
-		 * And ship to userland
-		 */
-		FILEDESC_SUNLOCK(fdp);
-		error = uiomove(dp, UIO_MX, uio);
-		if (error)
-			goto done;
-		FILEDESC_SLOCK(fdp);
+		if (dp->d_namlen != 0) {
+			/*
+			 * And ship to userland
+			 */
+			FILEDESC_SUNLOCK(fdp);
+			error = uiomove(dp, UIO_MX, uio);
+			if (error)
+				goto done;
+			FILEDESC_SLOCK(fdp);
+		}
 		i++;
 		fcnt++;
 	}

@@ -80,9 +80,7 @@ soo_read(struct file *fp, struct uio *uio, struct ucred *active_cred,
 	if (error)
 		return (error);
 #endif
-	CURVNET_SET(so->so_vnet);
 	error = soreceive(so, 0, uio, 0, 0, 0);
-	CURVNET_RESTORE();
 	return (error);
 }
 
@@ -102,7 +100,7 @@ soo_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
 	error = sosend(so, 0, uio, 0, 0, 0, uio->uio_td);
 	if (error == EPIPE && (so->so_options & SO_NOSIGPIPE) == 0) {
 		PROC_LOCK(uio->uio_td->td_proc);
-		psignal(uio->uio_td->td_proc, SIGPIPE);
+		tdsignal(uio->uio_td, SIGPIPE);
 		PROC_UNLOCK(uio->uio_td->td_proc);
 	}
 	return (error);
@@ -123,7 +121,6 @@ soo_ioctl(struct file *fp, u_long cmd, void *data, struct ucred *active_cred,
 	struct socket *so = fp->f_data;
 	int error = 0;
 
-	CURVNET_SET(so->so_vnet);
 	switch (cmd) {
 	case FIONBIO:
 		SOCK_LOCK(so);
@@ -210,14 +207,18 @@ soo_ioctl(struct file *fp, u_long cmd, void *data, struct ucred *active_cred,
 		 */
 		if (IOCGROUP(cmd) == 'i')
 			error = ifioctl(so, cmd, data, td);
-		else if (IOCGROUP(cmd) == 'r')
+		else if (IOCGROUP(cmd) == 'r') {
+			CURVNET_SET(so->so_vnet);
 			error = rtioctl_fib(cmd, data, so->so_fibnum);
-		else
+			CURVNET_RESTORE();
+		} else {
+			CURVNET_SET(so->so_vnet);
 			error = ((*so->so_proto->pr_usrreqs->pru_control)
 			    (so, cmd, data, 0, td));
+			CURVNET_RESTORE();
+		}
 		break;
 	}
-	CURVNET_RESTORE();
 	return (error);
 }
 

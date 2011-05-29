@@ -64,6 +64,8 @@ _pthread_once(pthread_once_t *once_control, void (*init_routine) (void))
 	struct pthread *curthread;
 	int state;
 
+	_thr_check_init();
+
 	for (;;) {
 		state = once_control->state;
 		if (state == ONCE_DONE)

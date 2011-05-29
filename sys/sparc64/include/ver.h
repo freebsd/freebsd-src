@@ -69,8 +69,15 @@ extern char sparc64_model[];
 
 #endif /* !LOCORE */
 
-/* Known implementations. */
+/* Known implementations */
 #define	CPU_IMPL_SPARC64		0x01
+#define	CPU_IMPL_SPARC64II		0x02
+#define	CPU_IMPL_SPARC64III		0x03
+#define	CPU_IMPL_SPARC64IV		0x04
+#define	CPU_IMPL_SPARC64V		0x05
+#define	CPU_IMPL_SPARC64VI		0x06
+#define	CPU_IMPL_SPARC64VII		0x07
+#define	CPU_IMPL_SPARC64VIIIfx		0x08
 #define	CPU_IMPL_ULTRASPARCI		0x10
 #define	CPU_IMPL_ULTRASPARCII		0x11
 #define	CPU_IMPL_ULTRASPARCIIi		0x12

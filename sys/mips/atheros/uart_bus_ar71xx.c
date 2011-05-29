@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/uart/uart_bus.h>
 
 #include <mips/atheros/ar71xxreg.h>
+#include <mips/atheros/ar71xx_cpudef.h>
 
 #include "uart_if.h"
 

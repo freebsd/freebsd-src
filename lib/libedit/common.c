@@ -163,15 +163,12 @@ ed_delete_next_char(EditLine *el, int c)
 				return (CC_ERROR);
 #endif
 			}
-		} else {
-			if (el->el_line.cursor != el->el_line.buffer)
-				el->el_line.cursor--;
-			else
-				return (CC_ERROR);
-		}
+		} else
+			return (CC_ERROR);
 	}
 	c_delafter(el, el->el_state.argument);	/* delete after dot */
-	if (el->el_line.cursor >= el->el_line.lastchar &&
+	if (el->el_map.type == MAP_VI &&
+	    el->el_line.cursor >= el->el_line.lastchar &&
 	    el->el_line.cursor > el->el_line.buffer)
 			/* bounds check */
 		el->el_line.cursor = el->el_line.lastchar - 1;

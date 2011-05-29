@@ -55,31 +55,31 @@ static void label_dump(struct gctl_req *req);
 static void label_label(struct gctl_req *req);
 
 struct g_command PUBSYM(class_commands)[] = {
-	{ "clear", G_FLAG_VERBOSE, label_main, G_NULL_OPTS, NULL,
+	{ "clear", G_FLAG_VERBOSE, label_main, G_NULL_OPTS,
 	    "[-v] dev ..."
 	},
 	{ "create", G_FLAG_VERBOSE | G_FLAG_LOADKLD, NULL, G_NULL_OPTS,
-	    NULL, "[-v] name dev"
+	    "[-v] name dev"
 	},
 	{ "destroy", G_FLAG_VERBOSE, NULL,
 	    {
 		{ 'f', "force", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
 	    },
-	    NULL, "[-fv] name ..."
+	    "[-fv] name ..."
 	},
-	{ "dump", 0, label_main, G_NULL_OPTS, NULL,
+	{ "dump", 0, label_main, G_NULL_OPTS,
 	    "dev ..."
 	},
 	{ "label", G_FLAG_VERBOSE | G_FLAG_LOADKLD, label_main, G_NULL_OPTS,
-	    NULL, "[-v] name dev"
+	    "[-v] name dev"
 	},
 	{ "stop", G_FLAG_VERBOSE, NULL,
 	    {
 		{ 'f', "force", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
 	    },
-	    NULL, "[-fv] name ..."
+	    "[-fv] name ..."
 	},
 	G_CMD_SENTINEL
 };

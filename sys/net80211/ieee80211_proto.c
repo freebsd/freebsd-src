@@ -64,7 +64,7 @@ const char *ieee80211_mgt_subtype_name[] = {
 	"assoc_req",	"assoc_resp",	"reassoc_req",	"reassoc_resp",
 	"probe_req",	"probe_resp",	"reserved#6",	"reserved#7",
 	"beacon",	"atim",		"disassoc",	"auth",
-	"deauth",	"action",	"reserved#14",	"reserved#15"
+	"deauth",	"action",	"action_noack",	"reserved#15"
 };
 const char *ieee80211_ctl_subtype_name[] = {
 	"reserved#0",	"reserved#1",	"reserved#2",	"reserved#3",
@@ -207,6 +207,21 @@ ieee80211_proto_vattach(struct ieee80211vap *vap)
 		const struct ieee80211_rateset *rs = &ic->ic_sup_rates[i];
 
 		vap->iv_txparms[i].ucastrate = IEEE80211_FIXED_RATE_NONE;
+
+		/*
+		 * Setting the management rate to MCS 0 assumes that the
+		 * BSS Basic rate set is empty and the BSS Basic MCS set
+		 * is not.
+		 *
+		 * Since we're not checking this, default to the lowest
+		 * defined rate for this mode.
+		 *
+		 * At least one 11n AP (DLINK DIR-825) is reported to drop
+		 * some MCS management traffic (eg BA response frames.)
+		 *
+		 * See also: 9.6.0 of the 802.11n-2009 specification.
+		 */
+#ifdef	NOTYET
 		if (i == IEEE80211_MODE_11NA || i == IEEE80211_MODE_11NG) {
 			vap->iv_txparms[i].mgmtrate = 0 | IEEE80211_RATE_MCS;
 			vap->iv_txparms[i].mcastrate = 0 | IEEE80211_RATE_MCS;
@@ -216,6 +231,9 @@ ieee80211_proto_vattach(struct ieee80211vap *vap)
 			vap->iv_txparms[i].mcastrate = 
 			    rs->rs_rates[0] & IEEE80211_RATE_VAL;
 		}
+#endif
+		vap->iv_txparms[i].mgmtrate = rs->rs_rates[0] & IEEE80211_RATE_VAL;
+		vap->iv_txparms[i].mcastrate = rs->rs_rates[0] & IEEE80211_RATE_VAL;
 		vap->iv_txparms[i].maxretry = IEEE80211_TXMAX_DEFAULT;
 	}
 	vap->iv_roaming = IEEE80211_ROAMING_AUTO;
@@ -878,6 +896,15 @@ ieee80211_wme_initparams_locked(struct ieee80211vap *vap)
 		return;
 
 	/*
+	 * Clear the wme cap_info field so a qoscount from a previous
+	 * vap doesn't confuse later code which only parses the beacon
+	 * field and updates hardware when said field changes.
+	 * Otherwise the hardware is programmed with defaults, not what
+	 * the beacon actually announces.
+	 */
+	wme->wme_wmeChanParams.cap_info = 0;
+
+	/*
 	 * Select mode; we can be called early in which case we
 	 * always use auto mode.  We know we'll be called when
 	 * entering the RUN state with bsschan setup properly
@@ -1432,8 +1459,6 @@ ieee80211_swbmiss(void *arg)
 	} else if (vap->iv_swbmiss_count == 0) {
 		if (vap->iv_bmiss != NULL)
 			ieee80211_runtask(ic, &vap->iv_swbmiss_task);
-		if (vap->iv_bmiss_count == 0)	/* don't re-arm timer */
-			return;
 	} else
 		vap->iv_swbmiss_count = 0;
 	callout_reset(&vap->iv_swbmiss, vap->iv_swbmiss_period,

@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_kdb.h"
+#include "opt_stack.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -36,7 +37,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/pcpu.h>
 #include <sys/proc.h>
+#include <sys/sbuf.h>
 #include <sys/smp.h>
+#include <sys/stack.h>
 #include <sys/sysctl.h>
 
 #include <machine/kdb.h>
@@ -93,7 +96,7 @@ SYSCTL_PROC(_debug_kdb, OID_AUTO, trap_code, CTLTYPE_INT | CTLFLAG_RW, NULL, 0,
  */
 #ifdef SMP
 static int kdb_stop_cpus = 1;
-SYSCTL_INT(_debug_kdb, OID_AUTO, stop_cpus, CTLTYPE_INT | CTLFLAG_RW,
+SYSCTL_INT(_debug_kdb, OID_AUTO, stop_cpus, CTLFLAG_RW | CTLFLAG_TUN,
     &kdb_stop_cpus, 0, "stop other CPUs when entering the debugger");
 TUNABLE_INT("debug.kdb.stop_cpus", &kdb_stop_cpus);
 #endif
@@ -106,33 +109,17 @@ const char * volatile kdb_why = KDB_WHY_UNSET;
 static int
 kdb_sysctl_available(SYSCTL_HANDLER_ARGS)
 {
-	struct kdb_dbbe *be, **iter;
-	char *avail, *p;
-	ssize_t len, sz;
+	struct kdb_dbbe **iter;
+	struct sbuf sbuf;
 	int error;
 
-	sz = 0;
+	sbuf_new_for_sysctl(&sbuf, NULL, 64, req);
 	SET_FOREACH(iter, kdb_dbbe_set) {
-		be = *iter;
-		if (be->dbbe_active == 0)
-			sz += strlen(be->dbbe_name) + 1;
+		if ((*iter)->dbbe_active == 0)
+			sbuf_printf(&sbuf, "%s ", (*iter)->dbbe_name);
 	}
-	sz++;
-	avail = malloc(sz, M_TEMP, M_WAITOK);
-	p = avail;
-	*p = '\0';
-
-	SET_FOREACH(iter, kdb_dbbe_set) {
-		be = *iter;
-		if (be->dbbe_active == 0) {
-			len = snprintf(p, sz, "%s ", be->dbbe_name);
-			p += len;
-			sz -= len;
-		}
-	}
-	KASSERT(sz >= 0, ("%s", __func__));
-	error = sysctl_handle_string(oidp, avail, 0, req);
-	free(avail, M_TEMP);
+	error = sbuf_finish(&sbuf);
+	sbuf_delete(&sbuf);
 	return (error);
 }
 
@@ -142,10 +129,9 @@ kdb_sysctl_current(SYSCTL_HANDLER_ARGS)
 	char buf[16];
 	int error;
 
-	if (kdb_dbbe != NULL) {
-		strncpy(buf, kdb_dbbe->dbbe_name, sizeof(buf));
-		buf[sizeof(buf) - 1] = '\0';
-	} else
+	if (kdb_dbbe != NULL)
+		strlcpy(buf, kdb_dbbe->dbbe_name, sizeof(buf));
+	else
 		*buf = '\0';
 	error = sysctl_handle_string(oidp, buf, sizeof(buf), req);
 	if (error != 0 || req->newptr == NULL)
@@ -230,7 +216,7 @@ kdb_panic(const char *msg)
 	stop_cpus_hard(PCPU_GET(other_cpus));
 #endif
 	printf("KDB: panic\n");
-	panic(msg);
+	panic("%s", msg);
 }
 
 void
@@ -300,6 +286,15 @@ kdb_backtrace(void)
 		printf("KDB: stack backtrace:\n");
 		kdb_dbbe->dbbe_trace();
 	}
+#ifdef STACK
+	else {
+		struct stack st;
+
+		printf("KDB: stack backtrace:\n");
+		stack_save(&st);
+		stack_print_ddb(&st);
+	}
+#endif
 }
 
 /*
@@ -502,13 +497,15 @@ kdb_thr_select(struct thread *thr)
 int
 kdb_trap(int type, int code, struct trapframe *tf)
 {
+	struct kdb_dbbe *be;
 	register_t intr;
 #ifdef SMP
 	int did_stop_cpus;
 #endif
 	int handled;
 
-	if (kdb_dbbe == NULL || kdb_dbbe->dbbe_trap == NULL)
+	be = kdb_dbbe;
+	if (be == NULL || be->dbbe_trap == NULL)
 		return (0);
 
 	/* We reenter the debugger through kdb_reenter(). */
@@ -532,7 +529,15 @@ kdb_trap(int type, int code, struct trapframe *tf)
 	makectx(tf, &kdb_pcb);
 	kdb_thr_select(curthread);
 
-	handled = kdb_dbbe->dbbe_trap(type, code);
+	for (;;) {
+		handled = be->dbbe_trap(type, code);
+		if (be == kdb_dbbe)
+			break;
+		be = kdb_dbbe;
+		if (be == NULL || be->dbbe_trap == NULL)
+			break;
+		printf("Switching to %s back-end\n", be->dbbe_name);
+	}
 
 	kdb_active--;
 

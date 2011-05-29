@@ -87,7 +87,7 @@ __FBSDID("$FreeBSD$");
 VNET_DEFINE(u_short, ip_id);
 
 #ifdef MBUF_STRESS_TEST
-int mbuf_frag_size = 0;
+static int mbuf_frag_size = 0;
 SYSCTL_INT(_net_inet_ip, OID_AUTO, mbuf_frag_size, CTLFLAG_RW,
 	&mbuf_frag_size, 0, "Fragment outgoing mbufs to this size");
 #endif
@@ -148,14 +148,20 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 		bzero(ro, sizeof (*ro));
 
 #ifdef FLOWTABLE
-		/*
-		 * The flow table returns route entries valid for up to 30
-		 * seconds; we rely on the remainder of ip_output() taking no
-		 * longer than that long for the stability of ro_rt.  The
-		 * flow ID assignment must have happened before this point.
-		 */
-		if (flowtable_lookup(V_ip_ft, m, ro, M_GETFIB(m)) == 0)
-			nortfree = 1;
+		{
+			struct flentry *fle;
+			
+			/*
+			 * The flow table returns route entries valid for up to 30
+			 * seconds; we rely on the remainder of ip_output() taking no
+			 * longer than that long for the stability of ro_rt.  The
+			 * flow ID assignment must have happened before this point.
+			 */
+			if ((fle = flowtable_lookup_mbuf(V_ip_ft, m, AF_INET)) != NULL) {
+				flow_to_route(fle, ro);
+				nortfree = 1;
+			}
+		}
 #endif
 	}
 
@@ -199,6 +205,8 @@ again:
 	 */
 	rte = ro->ro_rt;
 	if (rte && ((rte->rt_flags & RTF_UP) == 0 ||
+		    rte->rt_ifp == NULL ||
+		    !RT_LINK_IS_UP(rte->rt_ifp) ||
 			  dst->sin_family != AF_INET ||
 			  dst->sin_addr.s_addr != ip->ip_dst.s_addr)) {
 		if (!nortfree)
@@ -236,7 +244,7 @@ again:
 		isbroadcast = 1;
 	} else if (flags & IP_ROUTETOIF) {
 		if ((ia = ifatoia(ifa_ifwithdstaddr(sintosa(dst)))) == NULL &&
-		    (ia = ifatoia(ifa_ifwithnet(sintosa(dst)))) == NULL) {
+		    (ia = ifatoia(ifa_ifwithnet(sintosa(dst), 0))) == NULL) {
 			IPSTAT_INC(ips_noroute);
 			error = ENETUNREACH;
 			goto bad;
@@ -270,7 +278,9 @@ again:
 #endif
 			rte = ro->ro_rt;
 		}
-		if (rte == NULL) {
+		if (rte == NULL ||
+		    rte->rt_ifp == NULL ||
+		    !RT_LINK_IS_UP(rte->rt_ifp)) {
 #ifdef IPSEC
 			/*
 			 * There is no route for this packet, but it is
@@ -313,6 +323,9 @@ again:
 	} else {
 		mtu = ifp->if_mtu;
 	}
+	/* Catch a possible divide by zero later. */
+	KASSERT(mtu > 0, ("%s: mtu %d <= 0, rte=%p (rt_flags=0x%08x) ifp=%p",
+	    __func__, mtu, rte, (rte != NULL) ? rte->rt_flags : 0, ifp));
 	if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr))) {
 		m->m_flags |= M_MCAST;
 		/*
@@ -573,7 +586,7 @@ passout:
 	}
 #ifdef SCTP
 	if (sw_csum & CSUM_SCTP) {
-		sctp_delayed_cksum(m);
+		sctp_delayed_cksum(m, (uint32_t)(ip->ip_hl << 2));
 		sw_csum &= ~CSUM_SCTP;
 	}
 #endif
@@ -715,7 +728,7 @@ ip_fragment(struct ip *ip, struct mbuf **m_frag, int mtu,
 #ifdef SCTP
 	if (m0->m_pkthdr.csum_flags & CSUM_SCTP &&
 	    (if_hwassist_flags & CSUM_IP_FRAGS) == 0) {
-		sctp_delayed_cksum(m0);
+		sctp_delayed_cksum(m0, hlen);
 		m0->m_pkthdr.csum_flags &= ~CSUM_SCTP;
 	}
 #endif
@@ -1111,6 +1124,7 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 		case IP_FAITH:
 		case IP_ONESBCAST:
 		case IP_DONTFRAG:
+		case IP_BINDANY:
 			switch (sopt->sopt_name) {
 
 			case IP_TOS:
@@ -1165,6 +1179,9 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 				break;
 			case IP_DONTFRAG:
 				optval = OPTBIT(INP_DONTFRAG);
+				break;
+			case IP_BINDANY:
+				optval = OPTBIT(INP_BINDANY);
 				break;
 			}
 			error = sooptcopyout(sopt, &optval, sizeof optval);

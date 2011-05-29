@@ -80,6 +80,7 @@ __FBSDID("$FreeBSD$");
 #include "pathnames.h"
 
 static void	makelabel(const char *, struct disklabel *);
+static int	geom_bsd_available(void);
 static int	writelabel(void);
 static int	readlabel(int flag);
 static void	display(FILE *, const struct disklabel *);
@@ -104,7 +105,7 @@ static char	tmpfil[] = PATH_TMPFILE;
 static struct	disklabel lab;
 static u_char	bootarea[BBSIZE];
 static off_t	mediasize;
-static u_int	secsize;
+static ssize_t	secsize;
 static char	blank[] = "";
 static char	unknown[] = "unknown";
 
@@ -128,12 +129,6 @@ static uint32_t lba_offset;
 static int labelsoffset = LABELSECTOR;
 static int labeloffset = LABELOFFSET;
 static int bbsize = BBSIZE;
-static int alphacksum =
-#if defined(__alpha__)
-	1;
-#else
-	0;
-#endif
 
 enum	{
 	UNSPEC, EDIT, READ, RESTORE, WRITE, WRITEBOOT
@@ -175,12 +170,6 @@ main(int argc, char *argv[])
 					labelsoffset = 1;
 					labeloffset = 0;
 					bbsize = 8192;
-					alphacksum = 0;
-				} else if (!strcmp(optarg, "alpha")) {
-					labelsoffset = 0;
-					labeloffset = 64;
-					bbsize = 8192;
-					alphacksum = 1;
 				} else {
 					errx(1, "Unsupported architecture");
 				}
@@ -347,9 +336,8 @@ makelabel(const char *type, struct disklabel *lp)
 static void
 readboot(void)
 {
-	int fd, i;
+	int fd;
 	struct stat st;
-	uint64_t *p;
 
 	if (xxboot == NULL)
 		xxboot = "/boot/boot";
@@ -357,34 +345,42 @@ readboot(void)
 	if (fd < 0)
 		err(1, "cannot open %s", xxboot);
 	fstat(fd, &st);
-	if (alphacksum && st.st_size <= BBSIZE - 512) {
-		i = read(fd, bootarea + 512, st.st_size);
-		if (i != st.st_size)
+	if (st.st_size <= BBSIZE) {
+		if (read(fd, bootarea, st.st_size) != st.st_size)
 			err(1, "read error %s", xxboot);
-
-		/*
-		 * Set the location and length so SRM can find the
-		 * boot blocks.
-		 */
-		p = (uint64_t *)bootarea;
-		p[60] = (st.st_size + secsize - 1) / secsize;
-		p[61] = 1;
-		p[62] = 0;
-		return;
-	} else if ((!alphacksum) && st.st_size <= BBSIZE) {
-		i = read(fd, bootarea, st.st_size);
-		if (i != st.st_size)
-			err(1, "read error %s", xxboot);
+		close(fd);
 		return;
 	}
 	errx(1, "boot code %s is wrong size", xxboot);
 }
 
 static int
+geom_bsd_available(void)
+{
+	struct gclass *class;
+	struct gmesh mesh;
+	int error;
+
+	error = geom_gettree(&mesh);
+	if (error != 0)
+		errc(1, error, "Cannot get GEOM tree");
+
+	LIST_FOREACH(class, &mesh.lg_class, lg_class) {
+		if (strcmp(class->lg_name, "BSD") == 0) {
+			geom_deletetree(&mesh);
+			return (1);
+		}
+	}
+
+	geom_deletetree(&mesh);
+
+	return (0);
+}
+
+static int
 writelabel(void)
 {
-	uint64_t *p, sum;
-	int i, fd;
+	int i, fd, serrno;
 	struct gctl_req *grq;
 	char const *errstr;
 	struct disklabel *lp = &lab;
@@ -406,18 +402,19 @@ writelabel(void)
 			lab.d_partitions[i].p_offset += lba_offset;
 	bsd_disklabel_le_enc(bootarea + labeloffset + labelsoffset * secsize,
 	    lp);
-	if (alphacksum) {
-		/* Generate the bootblock checksum for the SRM console.  */
-		for (p = (uint64_t *)bootarea, i = 0, sum = 0; i < 63; i++)
-			sum += p[i];
-		p[63] = sum;
-	}
 
 	fd = open(specname, O_RDWR);
 	if (fd < 0) {
 		if (is_file) {
 			warn("cannot open file %s for writing label", specname);
 			return(1);
+		} else
+			serrno = errno;
+
+		/* Give up if GEOM_BSD is not available. */
+		if (geom_bsd_available() == 0) {
+			warnc(serrno, "%s", specname);
+			return (1);
 		}
 
 		grq = gctl_get_handle();
@@ -479,13 +476,14 @@ get_file_parms(int f)
 static int
 readlabel(int flag)
 {
+	ssize_t nbytes;
 	uint32_t lba;
 	int f, i;
 	int error;
 
 	f = open(specname, O_RDONLY);
 	if (f < 0)
-		err(1, specname);
+		err(1, "%s", specname);
 	if (is_file)
 		get_file_parms(f);
 	else {
@@ -498,8 +496,11 @@ readlabel(int flag)
 		errx(1,
 		    "disks with more than 2^32-1 sectors are not supported");
 	(void)lseek(f, (off_t)0, SEEK_SET);
-	if (read(f, bootarea, BBSIZE) != BBSIZE)
+	nbytes = read(f, bootarea, BBSIZE);
+	if (nbytes == -1)
 		err(4, "%s read", specname);
+	if (nbytes != BBSIZE)
+		errx(4, "couldn't read %d bytes from %s", BBSIZE, specname);
 	close (f);
 	error = bsd_disklabel_le_dec(
 	    bootarea + (labeloffset + labelsoffset * secsize),
@@ -588,11 +589,11 @@ display(FILE *f, const struct disklabel *lp)
 	}
 	fprintf(f, "%u partitions:\n", lp->d_npartitions);
 	fprintf(f,
-	    "#        size   offset    fstype   [fsize bsize bps/cpg]\n");
+	    "#          size     offset    fstype   [fsize bsize bps/cpg]\n");
 	pp = lp->d_partitions;
 	for (i = 0; i < lp->d_npartitions; i++, pp++) {
 		if (pp->p_size) {
-			fprintf(f, "  %c: %8lu %8lu  ", 'a' + i,
+			fprintf(f, "  %c: %10lu %10lu  ", 'a' + i,
 			   (u_long)pp->p_size, (u_long)pp->p_offset);
 			if (pp->p_fstype < FSMAXTYPES)
 				fprintf(f, "%8.8s", fstypenames[pp->p_fstype]);
@@ -601,13 +602,13 @@ display(FILE *f, const struct disklabel *lp)
 			switch (pp->p_fstype) {
 
 			case FS_UNUSED:				/* XXX */
-				fprintf(f, "    %5lu %5lu %5.5s ",
+				fprintf(f, "    %5lu %5lu %2s",
 				    (u_long)pp->p_fsize,
 				    (u_long)(pp->p_fsize * pp->p_frag), "");
 				break;
 
 			case FS_BSDFFS:
-				fprintf(f, "    %5lu %5lu %5u ",
+				fprintf(f, "    %5lu %5lu %5u",
 				    (u_long)pp->p_fsize,
 				    (u_long)(pp->p_fsize * pp->p_frag),
 				    pp->p_cpg);
@@ -684,6 +685,8 @@ editit(void)
 	int pid, xpid;
 	int locstat, omask;
 	const char *ed;
+	uid_t uid;
+	gid_t gid;
 
 	omask = sigblock(sigmask(SIGINT)|sigmask(SIGQUIT)|sigmask(SIGHUP));
 	while ((pid = fork()) < 0) {
@@ -699,8 +702,12 @@ editit(void)
 	}
 	if (pid == 0) {
 		sigsetmask(omask);
-		setgid(getgid());
-		setuid(getuid());
+		gid = getgid();
+		if (setresgid(gid, gid, gid) == -1)
+			err(1, "setresgid");
+		uid = getuid();
+		if (setresuid(uid, uid, uid) == -1)
+			err(1, "setresuid");
 		if ((ed = getenv("EDITOR")) == (char *)0)
 			ed = DEFEDITOR;
 		execlp(ed, ed, tmpfil, (char *)0);
@@ -747,7 +754,7 @@ word(char *cp)
 static int
 getasciilabel(FILE *f, struct disklabel *lp)
 {
-	char *cp;
+	char *cp, *endp;
 	const char **cpp;
 	u_int part;
 	char *tp, line[BUFSIZ];
@@ -786,11 +793,15 @@ getasciilabel(FILE *f, struct disklabel *lp)
 				}
 			if (cpp < &dktypenames[DKMAXTYPES])
 				continue;
-			v = strtoul(tp, NULL, 10);
+			errno = 0;
+			v = strtoul(tp, &endp, 10);
+			if (errno != 0 || *endp != '\0')
+				v = DKMAXTYPES;
 			if (v >= DKMAXTYPES)
 				fprintf(stderr, "line %d:%s %lu\n", lineno,
 				    "Warning, unknown disk type", v);
-			lp->d_type = v;
+			else
+				lp->d_type = v;
 			continue;
 		}
 		if (!strcmp(cp, "flags")) {
@@ -1015,7 +1026,7 @@ static int
 getasciipartspec(char *tp, struct disklabel *lp, int part, int lineno)
 {
 	struct partition *pp;
-	char *cp;
+	char *cp, *endp;
 	const char **cpp;
 	u_long v;
 
@@ -1051,9 +1062,12 @@ getasciipartspec(char *tp, struct disklabel *lp, int part, int lineno)
 	if (*cpp != NULL) {
 		pp->p_fstype = cpp - fstypenames;
 	} else {
-		if (isdigit(*cp))
-			v = strtoul(cp, NULL, 10);
-		else
+		if (isdigit(*cp)) {
+			errno = 0;
+			v = strtoul(cp, &endp, 10);
+			if (errno != 0 || *endp != '\0')
+				v = FSMAXTYPES;
+		} else
 			v = FSMAXTYPES;
 		if (v >= FSMAXTYPES) {
 			fprintf(stderr,

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007, 2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2009, 2010  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: task.h,v 1.61.332.2 2009/01/18 23:47:41 tbox Exp $ */
+/* $Id: task.h,v 1.61.332.4 2010-12-03 23:45:47 tbox Exp $ */
 
 #ifndef ISC_TASK_H
 #define ISC_TASK_H 1
@@ -533,6 +533,16 @@ isc_task_getcurrenttime(isc_task_t *task, isc_stdtime_t *t);
  *
  * Ensures:
  *\li	'*t' has the "current time".
+ */
+
+isc_boolean_t
+isc_task_exiting(isc_task_t *t);
+/*%<
+ * Returns ISC_TRUE if the task is in the process of shutting down,
+ * ISC_FALSE otherwise.
+ *
+ * Requires:
+ *\li	'task' is a valid task.
  */
 
 /*****

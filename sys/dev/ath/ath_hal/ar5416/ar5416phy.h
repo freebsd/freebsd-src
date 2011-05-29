@@ -93,6 +93,8 @@
 #define AR9280_PHY_RXGAIN_TXRX_MARGIN	0x001FC000
 #define AR9280_PHY_RXGAIN_TXRX_MARGIN_S	14
 
+#define	AR_PHY_SEARCH_START_DELAY	0x9918		/* search start delay */
+
 #define AR_PHY_EXT_CCA          0x99bc
 #define AR_PHY_EXT_CCA_CYCPWR_THR1      0x0000FE00
 #define AR_PHY_EXT_CCA_CYCPWR_THR1_S    9
@@ -100,6 +102,13 @@
 #define AR_PHY_EXT_MINCCA_PWR_S 23
 #define AR_PHY_EXT_CCA_THRESH62	0x007F0000
 #define AR_PHY_EXT_CCA_THRESH62_S	16
+/*
+ * This duplicates AR_PHY_EXT_CCA_CYCPWR_THR1; it reads more like
+ * an ANI register this way.
+ */
+#define	AR_PHY_EXT_TIMING5_CYCPWR_THR1		0x0000FE00
+#define	AR_PHY_EXT_TIMING5_CYCPWR_THR1_S	9
+
 #define AR9280_PHY_EXT_MINCCA_PWR       0x01FF0000
 #define AR9280_PHY_EXT_MINCCA_PWR_S     16
 
@@ -110,6 +119,9 @@
 #define AR_PHY_HALFGI_DSC_EXP_S 0
 
 #define AR_PHY_HEAVY_CLIP_ENABLE    0x99E0
+
+#define AR_PHY_HEAVY_CLIP_FACTOR_RIFS	0x99ec
+#define AR_PHY_RIFS_INIT_DELAY		0x03ff0000
 
 #define AR_PHY_M_SLEEP      0x99f0      /* sleep control registers */
 #define AR_PHY_REFCLKDLY    0x99f4
@@ -266,4 +278,29 @@
 #define	AR_PHY_CL_CAL_CTL	0xA358		/* carrier leak cal control */
 #define	AR_PHY_CL_CAL_ENABLE	0x00000002
 #define	AR_PHY_PARALLEL_CAL_ENABLE	0x00000001
+
+/* empirically determined "good" CCA value ranges from atheros */
+#define	AR_PHY_CCA_NOM_VAL_5416_2GHZ		-90
+#define	AR_PHY_CCA_NOM_VAL_5416_5GHZ		-100
+#define	AR_PHY_CCA_MIN_GOOD_VAL_5416_2GHZ	-100
+#define	AR_PHY_CCA_MIN_GOOD_VAL_5416_5GHZ	-110
+#define	AR_PHY_CCA_MAX_GOOD_VAL_5416_2GHZ	-80
+#define	AR_PHY_CCA_MAX_GOOD_VAL_5416_5GHZ	-90
+
+/* ar9280 specific? */
+#define	AR_PHY_XPA_CFG		0xA3D8
+#define	AR_PHY_FORCE_XPA_CFG	0x000000001
+#define	AR_PHY_FORCE_XPA_CFG_S	0
+
+#define	AR_PHY_CCK_TX_CTRL_TX_DAC_SCALE_CCK	0x0000000C
+#define	AR_PHY_CCK_TX_CTRL_TX_DAC_SCALE_CCK_S	2
+
+#define	AR_PHY_TX_PWRCTRL9			0xa27C
+#define	AR_PHY_TX_DESIRED_SCALE_CCK		0x00007C00
+#define	AR_PHY_TX_DESIRED_SCALE_CCK_S		10
+#define	AR_PHY_TX_PWRCTRL9_RES_DC_REMOVAL	0x80000000
+#define	AR_PHY_TX_PWRCTRL9_RES_DC_REMOVAL_S	31
+
+#define	AR_PHY_MODE_ASYNCFIFO			0x80	/* Enable async fifo */
+
 #endif /* _DEV_ATH_AR5416PHY_H_ */

@@ -51,5 +51,15 @@ enum {
 	AH_MARK_ANI_RESET,		/* ar*AniReset, opmode */
 	AH_MARK_ANI_POLL,		/* ar*AniReset, listen time */
 	AH_MARK_ANI_CONTROL,		/* ar*AniReset, cmd */
+	AH_MARK_RX_CTL,			/* RX DMA control */
 };
+
+enum {
+	AH_MARK_RX_CTL_PCU_START,
+	AH_MARK_RX_CTL_PCU_STOP,
+	AH_MARK_RX_CTL_DMA_START,
+	AH_MARK_RX_CTL_DMA_STOP,
+	AH_MARK_RX_CTL_DMA_STOP_ERR,
+};
+
 #endif /* _ATH_AH_DECODE_H_ */

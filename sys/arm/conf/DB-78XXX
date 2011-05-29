@@ -67,6 +67,7 @@ device		e1000phy
 device		bpf
 
 # USB
+options 	USB_DEBUG	# enable debug msgs
 device		usb
 device		ehci
 device		umass
@@ -80,5 +81,8 @@ device		iicbus
 device		ds133x
 
 # SATA
-device		ata
-device		atadisk
+device		mvs
+
+# Flattened Device Tree
+options 	FDT
+makeoptions	FDT_DTS_FILE=db78100.dts

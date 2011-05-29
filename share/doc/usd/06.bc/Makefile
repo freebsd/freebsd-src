@@ -4,6 +4,5 @@
 VOLUME=	usd/06.bc
 SRCS=	bc
 MACROS=	-ms
-SRCDIR=	${.CURDIR}/../../../../usr.bin/bc/USD.doc
 
 .include <bsd.doc.mk>

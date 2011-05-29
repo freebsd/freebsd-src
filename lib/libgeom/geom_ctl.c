@@ -54,7 +54,7 @@ static char nomemmsg[] = "Could not allocate memory";
 void
 gctl_dump(struct gctl_req *req, FILE *f)
 {
-	u_int i;
+	unsigned int i;
 	int j;
 	struct gctl_req_arg *ap;
 
@@ -126,10 +126,8 @@ gctl_check_alloc(struct gctl_req *req, void *ptr)
 struct gctl_req *
 gctl_get_handle(void)
 {
-	struct gctl_req *rp;
 
-	rp = calloc(1, sizeof *rp);
-	return (rp);
+	return (calloc(1, sizeof(struct gctl_req)));
 }
 
 /*
@@ -152,33 +150,9 @@ gctl_new_arg(struct gctl_req *req)
 	return (ap);
 }
 
-void
-gctl_ro_param(struct gctl_req *req, const char *name, int len, const void* value)
-{
-	struct gctl_req_arg *ap;
-
-	if (req == NULL || req->error != NULL)
-		return;
-	ap = gctl_new_arg(req);
-	if (ap == NULL)
-		return;
-	ap->name = strdup(name);
-	gctl_check_alloc(req, ap->name);
-	if (ap->name == NULL)
-		return;
-	ap->nlen = strlen(ap->name) + 1;
-	ap->value = __DECONST(void *, value);
-	ap->flag = GCTL_PARAM_RD;
-	if (len >= 0)
-		ap->len = len;
-	else if (len < 0) {
-		ap->flag |= GCTL_PARAM_ASCII;
-		ap->len = strlen(value) + 1;	
-	}
-}
-
-void
-gctl_rw_param(struct gctl_req *req, const char *name, int len, void* value)
+static void
+gctl_param_add(struct gctl_req *req, const char *name, int len, void *value,
+    int flag)
 {
 	struct gctl_req_arg *ap;
 
@@ -193,11 +167,27 @@ gctl_rw_param(struct gctl_req *req, const char *name, int len, void* value)
 		return;
 	ap->nlen = strlen(ap->name) + 1;
 	ap->value = value;
-	ap->flag = GCTL_PARAM_RW;
+	ap->flag = flag;
 	if (len >= 0)
 		ap->len = len;
-	else if (len < 0)
+	else if (len < 0) {
+		ap->flag |= GCTL_PARAM_ASCII;
 		ap->len = strlen(value) + 1;	
+	}
+}
+
+void
+gctl_ro_param(struct gctl_req *req, const char *name, int len, const void* value)
+{
+
+	gctl_param_add(req, name, len, __DECONST(void *, value), GCTL_PARAM_RD);
+}
+
+void
+gctl_rw_param(struct gctl_req *req, const char *name, int len, void *value)
+{
+
+	gctl_param_add(req, name, len, value, GCTL_PARAM_RW);
 }
 
 const char *
@@ -233,7 +223,7 @@ gctl_issue(struct gctl_req *req)
 void
 gctl_free(struct gctl_req *req)
 {
-	u_int i;
+	unsigned int i;
 
 	if (req == NULL)
 		return;

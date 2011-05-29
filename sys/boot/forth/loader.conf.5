@@ -215,14 +215,20 @@ be displayed.
 If set to
 .Dq YES ,
 the beastie boot menu will be skipped.
-.It Va loader_logo Pq Dq Li fbsdbw
+.It Va loader_logo Pq Dq Li orbbw
 Selects a desired logo in the beastie boot menu.
 Possible values are:
+.Dq Li orbbw ,
+.Dq Li orb ,
 .Dq Li fbsdbw ,
 .Dq Li beastiebw ,
 .Dq Li beastie ,
 and
 .Dq Li none .
+.It Va loader_color
+If set to
+.Dq YES ,
+the beastie boot menu will be displayed using ANSI coloring where possible.
 .El
 .Sh FILES
 .Bl -tag -width /boot/defaults/loader.conf -compact
@@ -243,6 +249,14 @@ contains the instructions to automatically process
 .Xr boot 8 ,
 .Xr loader 8 ,
 .Xr loader.4th 8
+.Sh HISTORY
+The file
+.Nm
+first appeared in
+.Fx 3.2 .
+.Sh AUTHORS
+This manual page was written by
+.An Daniel C. Sobral Aq dcs@FreeBSD.org .
 .Sh BUGS
 The
 .Xr loader 8
@@ -253,11 +267,3 @@ booting a particular system (i.e.\&
 .Dq Va hw.ata.ata_dma Ns "=0" )
 should precede any experimental additions to
 .Nm .
-.Sh HISTORY
-The file
-.Nm
-first appeared in
-.Fx 3.2 .
-.Sh AUTHORS
-This manual page was written by
-.An Daniel C. Sobral Aq dcs@FreeBSD.org .

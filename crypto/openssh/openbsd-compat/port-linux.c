@@ -1,4 +1,4 @@
-/* $Id: port-linux.c,v 1.5 2008/03/26 20:27:21 dtucker Exp $ */
+/* $Id: port-linux.c,v 1.11.4.3 2011/02/06 02:24:17 dtucker Exp $ */
 
 /*
  * Copyright (c) 2005 Daniel Walsh <dwalsh@redhat.com>
@@ -23,14 +23,17 @@
 
 #include "includes.h"
 
+#if defined(WITH_SELINUX) || defined(LINUX_OOM_ADJUST)
 #include <errno.h>
 #include <stdarg.h>
 #include <string.h>
+#include <stdio.h>
 
-#ifdef WITH_SELINUX
 #include "log.h"
+#include "xmalloc.h"
 #include "port-linux.h"
 
+#ifdef WITH_SELINUX
 #include <selinux/selinux.h>
 #include <selinux/flask.h>
 #include <selinux/get_context_list.h>
@@ -42,7 +45,7 @@ ssh_selinux_enabled(void)
 	static int enabled = -1;
 
 	if (enabled == -1) {
-		enabled = is_selinux_enabled();
+		enabled = (is_selinux_enabled() == 1);
 		debug("SELinux support %s", enabled ? "enabled" : "disabled");
 	}
 
@@ -168,4 +171,128 @@ ssh_selinux_setup_pty(char *pwname, const char *tty)
 		freecon(user_ctx);
 	debug3("%s: done", __func__);
 }
+
+void
+ssh_selinux_change_context(const char *newname)
+{
+	int len, newlen;
+	char *oldctx, *newctx, *cx;
+
+	if (!ssh_selinux_enabled())
+		return;
+
+	if (getcon((security_context_t *)&oldctx) < 0) {
+		logit("%s: getcon failed with %s", __func__, strerror (errno));
+		return;
+	}
+	if ((cx = index(oldctx, ':')) == NULL || (cx = index(cx + 1, ':')) ==
+	    NULL) {
+		logit ("%s: unparseable context %s", __func__, oldctx);
+		return;
+	}
+
+	newlen = strlen(oldctx) + strlen(newname) + 1;
+	newctx = xmalloc(newlen);
+	len = cx - oldctx + 1;
+	memcpy(newctx, oldctx, len);
+	strlcpy(newctx + len, newname, newlen - len);
+	if ((cx = index(cx + 1, ':')))
+		strlcat(newctx, cx, newlen);
+	debug3("%s: setting context from '%s' to '%s'", __func__, oldctx,
+	    newctx);
+	if (setcon(newctx) < 0)
+		logit("%s: setcon failed with %s", __func__, strerror (errno));
+	xfree(oldctx);
+	xfree(newctx);
+}
+
+void
+ssh_selinux_setfscreatecon(const char *path)
+{
+	security_context_t context;
+
+	if (!ssh_selinux_enabled())
+		return;
+	if (path == NULL) {
+		setfscreatecon(NULL);
+		return;
+	}
+	if (matchpathcon(path, 0700, &context) == 0)
+		setfscreatecon(context);
+}
+
 #endif /* WITH_SELINUX */
+
+#ifdef LINUX_OOM_ADJUST
+/*
+ * The magic "don't kill me" values, old and new, as documented in eg:
+ * http://lxr.linux.no/#linux+v2.6.32/Documentation/filesystems/proc.txt
+ * http://lxr.linux.no/#linux+v2.6.36/Documentation/filesystems/proc.txt
+ */
+
+static int oom_adj_save = INT_MIN;
+static char *oom_adj_path = NULL;
+struct {
+	char *path;
+	int value;
+} oom_adjust[] = {
+	{"/proc/self/oom_score_adj", -1000},	/* kernels >= 2.6.36 */
+	{"/proc/self/oom_adj", -17},		/* kernels <= 2.6.35 */
+	{NULL, 0},
+};
+
+/*
+ * Tell the kernel's out-of-memory killer to avoid sshd.
+ * Returns the previous oom_adj value or zero.
+ */
+void
+oom_adjust_setup(void)
+{
+	int i, value;
+	FILE *fp;
+
+	debug3("%s", __func__);
+	 for (i = 0; oom_adjust[i].path != NULL; i++) {
+		oom_adj_path = oom_adjust[i].path;
+		value = oom_adjust[i].value;
+		if ((fp = fopen(oom_adj_path, "r+")) != NULL) {
+			if (fscanf(fp, "%d", &oom_adj_save) != 1)
+				verbose("error reading %s: %s", oom_adj_path,
+				    strerror(errno));
+			else {
+				rewind(fp);
+				if (fprintf(fp, "%d\n", value) <= 0)
+					verbose("error writing %s: %s",
+					   oom_adj_path, strerror(errno));
+				else
+					verbose("Set %s from %d to %d",
+					   oom_adj_path, oom_adj_save, value);
+			}
+			fclose(fp);
+			return;
+		}
+	}
+	oom_adj_path = NULL;
+}
+
+/* Restore the saved OOM adjustment */
+void
+oom_adjust_restore(void)
+{
+	FILE *fp;
+
+	debug3("%s", __func__);
+	if (oom_adj_save == INT_MIN || oom_adj_path == NULL ||
+	    (fp = fopen(oom_adj_path, "w")) == NULL)
+		return;
+
+	if (fprintf(fp, "%d\n", oom_adj_save) <= 0)
+		verbose("error writing %s: %s", oom_adj_path, strerror(errno));
+	else
+		verbose("Set %s to %d", oom_adj_path, oom_adj_save);
+
+	fclose(fp);
+	return;
+}
+#endif /* LINUX_OOM_ADJUST */
+#endif /* WITH_SELINUX || LINUX_OOM_ADJUST */

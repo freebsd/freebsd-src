@@ -56,3 +56,4 @@ HIDENAME(cerror):
 	movq	$-1,%rdx
 	ret
 
+	.section .note.GNU-stack,"",%progbits

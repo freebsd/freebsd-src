@@ -200,6 +200,7 @@ static int
 msdosfs_cmount(struct mntarg *ma, void *data, int flags)
 {
 	struct msdosfs_args args;
+	struct export_args exp;
 	int error;
 
 	if (data == NULL)
@@ -207,9 +208,10 @@ msdosfs_cmount(struct mntarg *ma, void *data, int flags)
 	error = copyin(data, &args, sizeof args);
 	if (error)
 		return (error);
+	vfs_oexport_conv(&args.export, &exp);
 
 	ma = mount_argsu(ma, "from", args.fspec, MAXPATHLEN);
-	ma = mount_arg(ma, "export", &args.export, sizeof args.export);
+	ma = mount_arg(ma, "export", &exp, sizeof(exp));
 	ma = mount_argf(ma, "uid", "%d", args.uid);
 	ma = mount_argf(ma, "gid", "%d", args.gid);
 	ma = mount_argf(ma, "mask", "%d", args.mask);
@@ -580,6 +582,7 @@ mountmsdosfs(struct vnode *devvp, struct mount *mp)
 	  || (pmp->pm_BytesPerSec & (pmp->pm_BytesPerSec - 1))
 	  || (pmp->pm_HugeSectors == 0)
 	  || (pmp->pm_FATsecs == 0)
+	  || (SecPerClust * pmp->pm_BlkPerSec > MAXBSIZE / DEV_BSIZE)
 	) {
 		error = EINVAL;
 		goto error_exit;
@@ -960,7 +963,7 @@ loop:
 }
 
 static int
-msdosfs_fhtovp(struct mount *mp, struct fid *fhp, struct vnode **vpp)
+msdosfs_fhtovp(struct mount *mp, struct fid *fhp, int flags, struct vnode **vpp)
 {
 	struct msdosfsmount *pmp = VFSTOMSDOSFS(mp);
 	struct defid *defhp = (struct defid *) fhp;

@@ -1,4 +1,4 @@
-/* @(#) $Header: /tcpdump/master/tcpdump/tftp.h,v 1.1.4.1 2008-04-11 16:44:17 gianluca Exp $ (LBL) */
+/* @(#) $Header: /tcpdump/master/tcpdump/tftp.h,v 1.2 2008-04-11 16:47:38 gianluca Exp $ (LBL) */
 /*
  * Copyright (c) 1983, 1993
  *	The Regents of the University of California.  All rights reserved.

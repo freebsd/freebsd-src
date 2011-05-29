@@ -68,6 +68,15 @@ mtmsr(register_t value)
 	__asm __volatile ("mtmsr %0; isync" :: "r"(value));
 }
 
+#ifdef __powerpc64__
+static __inline void
+mtmsrd(register_t value)
+{
+
+	__asm __volatile ("mtmsrd %0; isync" :: "r"(value));
+}
+#endif
+
 static __inline register_t
 mfmsr(void)
 {
@@ -78,6 +87,7 @@ mfmsr(void)
 	return (value);
 }
 
+#ifndef __powerpc64__
 static __inline void
 mtsrin(vm_offset_t va, register_t value)
 {
@@ -94,6 +104,18 @@ mfsrin(vm_offset_t va)
 
 	return (value);
 }
+#endif
+
+static __inline register_t
+mfctrl(void)
+{
+	register_t value;
+
+	__asm __volatile ("mfspr %0,136" : "=r"(value));
+
+	return (value);
+}
+
 
 static __inline void
 mtdec(register_t value)
@@ -126,6 +148,9 @@ static __inline u_quad_t
 mftb(void)
 {
 	u_quad_t tb;
+      #ifdef __powerpc64__
+	__asm __volatile ("mftb %0" : "=r"(tb));
+      #else
 	uint32_t *tbup = (uint32_t *)&tb;
 	uint32_t *tblp = tbup + 1;
 
@@ -133,6 +158,7 @@ mftb(void)
 		*tbup = mfspr(TBR_TBU);
 		*tblp = mfspr(TBR_TBL);
 	} while (*tbup != mfspr(TBR_TBU));
+      #endif
 
 	return (tb);
 }

@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sched.h>
 #include <geom/mirror/g_mirror.h>
 
+FEATURE(geom_mirror, "GEOM mirroring support");
 
 static MALLOC_DEFINE(M_MIRROR, "mirror_data", "GEOM_MIRROR Data");
 
@@ -842,21 +843,6 @@ g_mirror_unidle(struct g_mirror_softc *sc)
 		disk->d_flags |= G_MIRROR_DISK_FLAG_DIRTY;
 		g_mirror_update_metadata(disk);
 	}
-}
-
-static __inline int
-bintime_cmp(struct bintime *bt1, struct bintime *bt2)
-{
-
-	if (bt1->sec < bt2->sec)
-		return (-1);
-	else if (bt1->sec > bt2->sec)
-		return (1);
-	if (bt1->frac < bt2->frac)
-		return (-1);
-	else if (bt1->frac > bt2->frac)
-		return (1);
-	return (0);
 }
 
 static void
@@ -3021,7 +3007,8 @@ g_mirror_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		return (NULL);
 	gp = NULL;
 
-	if (md.md_provider[0] != '\0' && strcmp(md.md_provider, pp->name) != 0)
+	if (md.md_provider[0] != '\0' &&
+	    !g_compare_names(md.md_provider, pp->name))
 		return (NULL);
 	if (md.md_provsize != 0 && md.md_provsize != pp->mediasize)
 		return (NULL);

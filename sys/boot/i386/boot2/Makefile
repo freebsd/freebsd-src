@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 FILES=		boot boot1 boot2
 
 NM?=		nm
@@ -26,7 +28,8 @@ CFLAGS=	-Os \
 	-fno-unit-at-a-time \
 	-mno-align-long-strings \
 	-mrtd \
-	-mno-mmx -mno-3dnow -mno-sse -mno-sse2 -mno-sse3 \
+	-mregparm=3 \
+	-DUSE_XREAD \
 	-D${BOOT2_UFS} \
 	-DFLAGS=${BOOT_BOOT1_FLAGS} \
 	-DSIOPRT=${BOOT_COMCONSOLE_PORT} \
@@ -38,6 +41,13 @@ CFLAGS=	-Os \
 	-Wmissing-declarations -Wmissing-prototypes -Wnested-externs \
 	-Wpointer-arith -Wshadow -Wstrict-prototypes -Wwrite-strings \
 	-Winline --param max-inline-insns-single=100
+
+.if ${CC:T:Mclang} == "clang"
+CFLAGS+=	-mllvm -stack-alignment=8 -mllvm -inline-threshold=3 \
+		-mllvm -enable-load-pre=false
+# XXX: clang integrated-as doesn't grok .codeNN directives yet
+CFLAGS+=	${.IMPSRC:T:Mboot1.S:C/^.+$/-no-integrated-as/}
+.endif
 
 LDFLAGS=-static -N --gc-sections
 
@@ -94,7 +104,7 @@ boot2.h: boot1.out
 	    ORG1=`printf "%d" ${ORG1}` \
 	    REL1=`printf "%d" ${REL1}` > ${.TARGET}
 
-.if ${MACHINE_ARCH} == "amd64"
+.if ${MACHINE_CPUARCH} == "amd64"
 beforedepend boot2.s: machine
 CLEANFILES+=	machine
 machine:

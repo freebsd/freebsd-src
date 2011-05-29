@@ -68,11 +68,6 @@
 
 #include <openssl/opensslconf.h>
 
-#define _XOPEN_SOURCE 500 /* glibc2 needs this to declare strptime() */
-#include <time.h>
-#if 0 /* experimental */
-#undef _XOPEN_SOURCE /* To avoid clashes with anything else... */
-#endif
 #include <string.h>
 
 #define KRB5_PRIVATE	1
@@ -1806,6 +1801,9 @@ kssl_ctx_show(KSSL_CTX *kssl_ctx)
     krb5rc = krb5_sname_to_principal(krb5context, NULL, 
                                      kssl_ctx->service_name ? kssl_ctx->service_name: KRB5SVC,
                                      KRB5_NT_SRV_HST, &princ);
+
+    if (krb5rc)
+	goto exit;
 
     krb5rc = krb5_kt_get_entry(krb5context, krb5keytab, 
                                 princ,

@@ -1,7 +1,7 @@
 <!--
   Copyright (c) 2007-2008 Sam Leffler, Errno Consulting
   All rights reserved.
- 
+
   Redistribution and use in source and binary forms, with or without
   modification, are permitted provided that the following conditions
   are met:
@@ -10,7 +10,7 @@
   2. Redistributions in binary form must reproduce the above copyright
      notice, this list of conditions and the following disclaimer in the
      documentation and/or other materials provided with the distribution.
- 
+
   THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
   IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
   OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
@@ -21,7 +21,7 @@
   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
   THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- 
+
   $FreeBSD$
 -->
 
@@ -1200,7 +1200,7 @@
 <country-codes>
 <!--
   ISO 3166 Country/Region codes and regdomain mapping.
- 
+
   http://ftp.ics.uci.edu/pub/ietf/http/related/iso3166.txt
   has the list of codes.
   XXX this table is incomplete
@@ -1291,7 +1291,7 @@
 </country>
 <country id="SV">
   <isocc>222</isocc> <name>El Salvador</name> <rd ref="none"/>
-</country>    
+</country>
 <country id="EE">
   <isocc>233</isocc> <name>Estonia</name> <rd ref="etsi"/>
 </country>
@@ -1357,7 +1357,7 @@
 </country>
 <country id="J2">
   <isocc>394</isocc> <name>Japan2</name> <rd ref="japan"/>
-</country>    
+</country>
 <country id="J3">
   <isocc>395</isocc> <name>Japan3</name> <rd ref="japan"/>
 </country>
@@ -1366,7 +1366,7 @@
 </country>
 <country id="J5">
   <isocc>397</isocc> <name>Japan5</name> <rd ref="japan"/>
-</country>    
+</country>
 <country id="JO">
   <isocc>400</isocc> <name>Jordan</name> <rd ref="none"/>
 </country>
@@ -1528,7 +1528,7 @@
 </country>
 <country id="UZ">
   <isocc>860</isocc> <name>Uzbekistan</name> <rd ref="none"/>
-</country>    
+</country>
 <country id="VE">
   <isocc>862</isocc> <name>Venezuela</name> <rd ref="fcc"/>
 </country>
@@ -1549,7 +1549,7 @@
 
 <!--
   Band specifications referenced above.
-  NB: keep sorted by starting frequency, legacy before HT 
+  NB: keep sorted by starting frequency, legacy before HT
 -->
 <shared-frequency-bands>
 <freqband id="F1_4942_4987_5">

@@ -26,7 +26,7 @@ static const char rcsid[] _U_ =
 #include "interface.h"
 #include "nlpid.h"
 
-struct tok nlpid_values[] = {
+const struct tok nlpid_values[] = {
     { NLPID_NULLNS, "NULL" },
     { NLPID_Q933, "Q.933" },
     { NLPID_LMI, "LMI" },

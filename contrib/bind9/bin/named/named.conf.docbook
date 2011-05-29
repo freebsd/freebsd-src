@@ -17,7 +17,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: named.conf.docbook,v 1.39 2008/09/24 02:46:21 marka Exp $ -->
+<!-- $Id: named.conf.docbook,v 1.39 2008-09-24 02:46:21 marka Exp $ -->
 <refentry>
   <refentryinfo>
     <date>Aug 13, 2004</date>

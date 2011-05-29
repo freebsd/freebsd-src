@@ -102,6 +102,12 @@ void	ath_rate_newassoc(struct ath_softc *, struct ath_node *,
  * Transmit handling.
  */
 /*
+ * Return the four TX rate index and try counts for the current data packet.
+ */
+void	ath_rate_getxtxrates(struct ath_softc *sc, struct ath_node *an,
+		uint8_t rix0, uint8_t *rix, uint8_t *try);
+
+/*
  * Return the transmit info for a data packet.  If multi-rate state
  * is to be setup then try0 should contain a value other than ATH_TXMATRY
  * and ath_rate_setupxtxdesc will be called after deciding if the frame

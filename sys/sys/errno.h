@@ -165,7 +165,7 @@ __END_DECLS
 #define	EILSEQ		86		/* Illegal byte sequence */
 #define	ENOATTR		87		/* Attribute not found */
 
-#define EDOOFUS		88		/* Programming error */
+#define	EDOOFUS		88		/* Programming error */
 #endif /* _POSIX_SOURCE */
 
 #define	EBADMSG		89		/* Bad message */
@@ -175,10 +175,11 @@ __END_DECLS
 
 #ifndef _POSIX_SOURCE
 #define	ENOTCAPABLE	93		/* Capabilities insufficient */
+#define	ECAPMODE	94		/* Not permitted in capability mode */
 #endif /* _POSIX_SOURCE */
 
 #ifndef _POSIX_SOURCE
-#define	ELAST		93		/* Must be equal largest errno */
+#define	ELAST		94		/* Must be equal largest errno */
 #endif /* _POSIX_SOURCE */
 
 #ifdef _KERNEL

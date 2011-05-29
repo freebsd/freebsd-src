@@ -61,6 +61,9 @@ __FBSDID("$FreeBSD$");
 #include "authfd.h"
 #include "authfile.h"
 
+#define ssh_add_identity(auth, key, comment) \
+	ssh_add_identity_constrained(auth, key, comment, 0, 0)
+
 extern char **environ;
 
 struct pam_ssh_key {
@@ -100,11 +103,11 @@ pam_ssh_load_key(const char *dir, const char *kfn, const char *passphrase)
 	comment = NULL;
 	key = key_load_private(fn, passphrase, &comment);
 	if (key == NULL) {
-		openpam_log(PAM_LOG_DEBUG, "failed to load key from %s\n", fn);
+		openpam_log(PAM_LOG_DEBUG, "failed to load key from %s", fn);
 		return (NULL);
 	}
 
-	openpam_log(PAM_LOG_DEBUG, "loaded '%s' from %s\n", comment, fn);
+	openpam_log(PAM_LOG_DEBUG, "loaded '%s' from %s", comment, fn);
 	if ((psk = malloc(sizeof(*psk))) == NULL) {
 		key_free(key);
 		free(comment);

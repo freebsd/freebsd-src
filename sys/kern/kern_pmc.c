@@ -37,8 +37,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/pmc.h>
 #include <sys/pmckern.h>
 #include <sys/smp.h>
+#include <sys/sysctl.h>
 
 #ifdef	HWPMC_HOOKS
+FEATURE(hwpmc_hooks, "Kernel support for HW PMC");
 #define	PMC_KERNEL_VERSION	PMC_VERSION
 #else
 #define	PMC_KERNEL_VERSION	0

@@ -78,11 +78,19 @@
 #define BLKIF_OP_FLUSH_DISKCACHE   3
 
 /*
- * Maximum scatter/gather segments per request.
- * This is carefully chosen so that sizeof(blkif_ring_t) <= PAGE_SIZE.
- * NB. This could be 12 if the ring indexes weren't stored in the same page.
+ * Maximum scatter/gather segments associated with a request header block.
  */
-#define BLKIF_MAX_SEGMENTS_PER_REQUEST 11
+#define BLKIF_MAX_SEGMENTS_PER_HEADER_BLOCK  11
+
+/*
+ * Maximum scatter/gather segments associated with a segment block.
+ */
+#define BLKIF_MAX_SEGMENTS_PER_SEGMENT_BLOCK 14
+
+/*
+ * Maximum scatter/gather segments per request (header + segment blocks).
+ */
+#define BLKIF_MAX_SEGMENTS_PER_REQUEST 255
 
 struct blkif_request_segment {
     grant_ref_t gref;        /* reference to I/O buffer frame        */
@@ -90,6 +98,7 @@ struct blkif_request_segment {
     /* @last_sect: last sector in frame to transfer (inclusive).     */
     uint8_t     first_sect, last_sect;
 };
+typedef struct blkif_request_segment blkif_request_segment_t;
 
 struct blkif_request {
     uint8_t        operation;    /* BLKIF_OP_???                         */
@@ -97,7 +106,7 @@ struct blkif_request {
     blkif_vdev_t   handle;       /* only for read/write requests         */
     uint64_t       id;           /* private guest value, echoed in resp  */
     blkif_sector_t sector_number;/* start sector idx on disk (r/w only)  */
-    struct blkif_request_segment seg[BLKIF_MAX_SEGMENTS_PER_REQUEST];
+    struct blkif_request_segment seg[BLKIF_MAX_SEGMENTS_PER_HEADER_BLOCK];
 };
 typedef struct blkif_request blkif_request_t;
 
@@ -124,9 +133,21 @@ typedef struct blkif_response blkif_response_t;
 
 DEFINE_RING_TYPES(blkif, struct blkif_request, struct blkif_response);
 
+#define BLKRING_GET_SG_REQUEST(_r, _idx)				\
+    ((struct blkif_request_segment *)RING_GET_REQUEST(_r, _idx))
+
 #define VDISK_CDROM        0x1
 #define VDISK_REMOVABLE    0x2
 #define VDISK_READONLY     0x4
+
+/*
+ * The number of ring request blocks required to handle an I/O
+ * request containing _segs segments.
+ */
+#define BLKIF_SEGS_TO_BLOCKS(_segs)					\
+	((((_segs - BLKIF_MAX_SEGMENTS_PER_HEADER_BLOCK)		\
+	 + (BLKIF_MAX_SEGMENTS_PER_SEGMENT_BLOCK - 1))			\
+        / BLKIF_MAX_SEGMENTS_PER_SEGMENT_BLOCK) + /*header_block*/1)
 
 #endif /* __XEN_PUBLIC_IO_BLKIF_H__ */
 

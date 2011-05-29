@@ -28,7 +28,6 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <machine/cpuregs.h>
 
 #include "opt_ddb.h"
 #include "opt_kdb.h"
@@ -53,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <sys/user.h>
+#include <sys/timetc.h>
 
 #include <vm/vm.h>
 #include <vm/vm_object.h>
@@ -75,6 +75,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/vmparam.h>
 
 #ifdef SMP
+#include <sys/smp.h>
 #include <machine/smp.h>
 #endif
 
@@ -137,7 +138,7 @@ sb_intr_init(int cpuid)
 static void
 mips_init(void)
 {
-	int i, cfe_mem_idx, tmp;
+	int i, j, cfe_mem_idx, tmp;
 	uint64_t maxmem;
 
 #ifdef CFE_ENV
@@ -156,6 +157,17 @@ mips_init(void)
 #endif
 	TUNABLE_INT_FETCH("hw.physmem", &tmp);
 	maxmem = (uint64_t)tmp * 1024;
+
+	/*
+	 * XXX
+	 * If we used vm_paddr_t consistently in pmap, etc., we could
+	 * use 64-bit page numbers on !n64 systems, too, like i386
+	 * does with PAE.
+	 */
+#if !defined(__mips_n64)
+	if (maxmem == 0 || maxmem > 0xffffffff)
+		maxmem = 0xffffffff;
+#endif
 
 #ifdef CFE
 	/*
@@ -177,11 +189,11 @@ mips_init(void)
 			("CFE DRAM region is not available?"));
 
 		if (bootverbose)
-			printf("cfe_enummem: 0x%016jx/%llu.\n", addr, len);
+			printf("cfe_enummem: 0x%016jx/%ju.\n", addr, len);
 
 		if (maxmem != 0) {
 			if (addr >= maxmem) {
-				printf("Ignoring %llu bytes of memory at 0x%jx "
+				printf("Ignoring %ju bytes of memory at 0x%jx "
 				       "that is above maxmem %dMB\n",
 				       len, addr,
 				       (int)(maxmem / (1024 * 1024)));
@@ -189,7 +201,7 @@ mips_init(void)
 			}
 
 			if (addr + len > maxmem) {
-				printf("Ignoring %llu bytes of memory "
+				printf("Ignoring %ju bytes of memory "
 				       "that is above maxmem %dMB\n",
 				       (addr + len) - maxmem,
 				       (int)(maxmem / (1024 * 1024)));
@@ -212,6 +224,9 @@ mips_init(void)
 
 	realmem = btoc(physmem);
 #endif
+
+	for (j = 0; j < i; j++)
+		dump_avail[j] = phys_avail[j];
 
 	physmem = realmem;
 
@@ -240,7 +255,7 @@ mips_init(void)
 	 * code to the XTLB exception vector.
 	 */
 	{
-		bcopy(MipsTLBMiss, (void *)XTLB_MISS_EXC_VEC,
+		bcopy(MipsTLBMiss, (void *)MIPS3_XTLB_MISS_EXC_VEC,
 		      MipsTLBMissEnd - MipsTLBMiss);
 
 		mips_icache_sync_all();
@@ -301,7 +316,7 @@ kseg0_map_coherent(void)
 	const int CFG_K0_COHERENT = 5;
 
 	config = mips_rd_config();
-	config &= ~CFG_K0_MASK;
+	config &= ~MIPS3_CONFIG_K0_MASK;
 	config |= CFG_K0_COHERENT;
 	mips_wr_config(config);
 }
@@ -332,9 +347,17 @@ platform_ipi_intrnum(void)
 	return (4);
 }
 
+struct cpu_group *
+platform_smp_topo(void)
+{
+
+	return (smp_topo_none());
+}
+
 void
 platform_init_ap(int cpuid)
 {
+	int ipi_int_mask, clock_int_mask;
 
 	KASSERT(cpuid == 1, ("AP has an invalid cpu id %d", cpuid));
 
@@ -344,6 +367,13 @@ platform_init_ap(int cpuid)
 	kseg0_map_coherent();
 
 	sb_intr_init(cpuid);
+
+	/*
+	 * Unmask the clock and ipi interrupts.
+	 */
+	clock_int_mask = hard_int_mask(5);
+	ipi_int_mask = hard_int_mask(platform_ipi_intrnum());
+	set_intr_mask(ipi_int_mask | clock_int_mask);
 }
 
 int
@@ -364,6 +394,32 @@ platform_start_ap(int cpuid)
 }
 #endif	/* SMP */
 
+static u_int
+sb_get_timecount(struct timecounter *tc)
+{
+
+	return ((u_int)sb_zbbus_cycle_count());
+}
+
+static void
+sb_timecounter_init(void)
+{
+	static struct timecounter sb_timecounter = {
+		sb_get_timecount,
+		NULL,
+		~0u,
+		0,
+		"sibyte_zbbus_counter",
+		2000
+	};
+
+	/*
+	 * The ZBbus cycle counter runs at half the cpu frequency.
+	 */
+	sb_timecounter.tc_frequency = sb_cpu_speed() / 2;
+	platform_timecounter = &sb_timecounter;
+}
+
 void
 platform_start(__register_t a0, __register_t a1, __register_t a2,
 	       __register_t a3)
@@ -378,6 +434,7 @@ platform_start(__register_t a0, __register_t a1, __register_t a2,
 	mips_postboot_fixup();
 
 	sb_intr_init(0);
+	sb_timecounter_init();
 
 	/* Initialize pcpu stuff */
 	mips_pcpu0_init();

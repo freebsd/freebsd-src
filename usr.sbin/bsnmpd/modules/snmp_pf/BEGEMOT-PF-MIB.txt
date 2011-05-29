@@ -17,11 +17,13 @@ IMPORTS
 	FROM SNMPv2-SMI
     TruthValue
 	FROM SNMPv2-TC
+    InetAddress, InetAddressType, InetAddressPrefixLength
+	FROM INET-ADDRESS-MIB
     begemot
 	FROM BEGEMOT-MIB;
 
 begemotPf MODULE-IDENTITY
-    LAST-UPDATED "200501240000Z"
+    LAST-UPDATED "201003180000Z"
     ORGANIZATION "NixSys BVBA"
     CONTACT-INFO
 	    "		Philip Paeps
@@ -34,6 +36,19 @@ begemotPf MODULE-IDENTITY
 	     E-Mail:	philip@FreeBSD.org"
     DESCRIPTION
 	    "The Begemot MIB for the pf packet filter."
+    REVISION	"201003180000Z"
+    DESCRIPTION
+		"Modified pfTablesAddrEntry to support IPv6
+		addresses - added pfTablesAddrNetType column
+		and modified type of pfTablesAddrNet to
+		InetAddress."
+    REVISION	"200912050000Z"
+    DESCRIPTION
+	    "Added support for retrieving counters of labeled
+	    pf filter rules via pfLabelspfLabels subtree."
+    REVISION	"200501240000Z"
+    DESCRIPTION
+	    "Initial revision."
 
     ::= { begemot 200 }
 
@@ -51,6 +66,7 @@ pfLogInterface		OBJECT IDENTIFIER ::= { begemotPfObjects 7 }
 pfInterfaces		OBJECT IDENTIFIER ::= { begemotPfObjects 8 }
 pfTables		OBJECT IDENTIFIER ::= { begemotPfObjects 9 }
 pfAltq			OBJECT IDENTIFIER ::= { begemotPfObjects 10 }
+pfLabels		OBJECT IDENTIFIER ::= { begemotPfObjects 11 }
 
 -- --------------------------------------------------------------------------
 
@@ -1017,8 +1033,9 @@ pfTablesAddrEntry OBJECT-TYPE
 
 PfTablesAddrEntry ::= SEQUENCE {
     pfTablesAddrIndex		    Integer32,
-    pfTablesAddrNet		    IpAddress,
-    pfTablesAddrMask		    Integer32,
+    pfTablesAddrNetType		    InetAddressType,
+    pfTablesAddrNet		    InetAddress,
+    pfTablesAddrPrefix		    InetAddressPrefixLength,
     pfTablesAddrTZero		    TimeTicks,
     pfTablesAddrBytesInPass	    Counter64,
     pfTablesAddrBytesInBlock	    Counter64,
@@ -1038,21 +1055,29 @@ pfTablesAddrIndex OBJECT-TYPE
         "A unique value, greater than zero, for each address."
     ::= { pfTablesAddrEntry 1 }
 
+pfTablesAddrNetType OBJECT-TYPE
+    SYNTAX	InetAddressType
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The type of address in the corresponding pfTablesAddrNet object."
+    ::= { pfTablesAddrEntry 2 }
+
 pfTablesAddrNet OBJECT-TYPE
-    SYNTAX	IpAddress
+    SYNTAX	InetAddress
     MAX-ACCESS  read-only
     STATUS	current
     DESCRIPTION
         "The IP address of this particular table entry."
-    ::= { pfTablesAddrEntry 2 }
+    ::= { pfTablesAddrEntry 3 }
 
-pfTablesAddrMask OBJECT-TYPE
-    SYNTAX	Integer32 (0..32)
+pfTablesAddrPrefix OBJECT-TYPE
+    SYNTAX	InetAddressPrefixLength
     MAX-ACCESS  read-only
     STATUS	current
     DESCRIPTION
         "The CIDR netmask of this particular table entry."
-    ::= { pfTablesAddrEntry 3 }
+    ::= { pfTablesAddrEntry 4 }
 
 pfTablesAddrTZero OBJECT-TYPE
     SYNTAX	TimeTicks
@@ -1063,7 +1088,7 @@ pfTablesAddrTZero OBJECT-TYPE
         "The time passed since this entry's statistics were last
 	cleared, or the time passed since this entry was loaded
 	into the table, whichever is sooner."
-    ::= { pfTablesAddrEntry 4 }
+    ::= { pfTablesAddrEntry 5 }
 
 pfTablesAddrBytesInPass OBJECT-TYPE
     SYNTAX	Counter64
@@ -1071,7 +1096,7 @@ pfTablesAddrBytesInPass OBJECT-TYPE
     STATUS	current
     DESCRIPTION
         "The number of inbound bytes passed as a result of this entry."
-    ::= { pfTablesAddrEntry 5 }
+    ::= { pfTablesAddrEntry 6 }
 
 pfTablesAddrBytesInBlock OBJECT-TYPE
     SYNTAX	Counter64
@@ -1079,7 +1104,7 @@ pfTablesAddrBytesInBlock OBJECT-TYPE
     STATUS	current
     DESCRIPTION
         "The number of inbound bytes blocked as a result of this entry."
-    ::= { pfTablesAddrEntry 6 }
+    ::= { pfTablesAddrEntry 7 }
 
 pfTablesAddrBytesOutPass OBJECT-TYPE
     SYNTAX	Counter64
@@ -1087,7 +1112,7 @@ pfTablesAddrBytesOutPass OBJECT-TYPE
     STATUS	current
     DESCRIPTION
         "The number of outbound bytes passed as a result of this entry."
-    ::= { pfTablesAddrEntry 7 }
+    ::= { pfTablesAddrEntry 8 }
 
 pfTablesAddrBytesOutBlock OBJECT-TYPE
     SYNTAX	Counter64
@@ -1095,7 +1120,7 @@ pfTablesAddrBytesOutBlock OBJECT-TYPE
     STATUS	current
     DESCRIPTION
         "The number of outbound bytes blocked as a result of this entry."
-    ::= { pfTablesAddrEntry 8 }
+    ::= { pfTablesAddrEntry 9 }
 
 pfTablesAddrPktsInPass OBJECT-TYPE
     SYNTAX	Counter64
@@ -1103,7 +1128,7 @@ pfTablesAddrPktsInPass OBJECT-TYPE
     STATUS	current
     DESCRIPTION
         "The number of inbound packets passed as a result of this entry."
-    ::= { pfTablesAddrEntry 9 }
+    ::= { pfTablesAddrEntry 10 }
 
 pfTablesAddrPktsInBlock OBJECT-TYPE
     SYNTAX	Counter64
@@ -1111,7 +1136,7 @@ pfTablesAddrPktsInBlock OBJECT-TYPE
     STATUS	current
     DESCRIPTION
         "The number of inbound packets blocked as a result of this entry."
-    ::= { pfTablesAddrEntry 10 }
+    ::= { pfTablesAddrEntry 11 }
 
 pfTablesAddrPktsOutPass OBJECT-TYPE
     SYNTAX	Counter64
@@ -1119,7 +1144,7 @@ pfTablesAddrPktsOutPass OBJECT-TYPE
     STATUS	current
     DESCRIPTION
         "The number of outbound packets passed as a result of this entry."
-    ::= { pfTablesAddrEntry 11 }
+    ::= { pfTablesAddrEntry 12 }
 
 pfTablesAddrPktsOutBlock OBJECT-TYPE
     SYNTAX	Counter64
@@ -1128,7 +1153,7 @@ pfTablesAddrPktsOutBlock OBJECT-TYPE
     DESCRIPTION
         "The number of outbound packets blocked as a result of this
         entry."
-    ::= { pfTablesAddrEntry 12 }
+    ::= { pfTablesAddrEntry 13 }
 
 -- --------------------------------------------------------------------------
 
@@ -1226,5 +1251,97 @@ pfAltqQueueLimit OBJECT-TYPE
     DESCRIPTION
 	"Maximum number of packets in the queue."
     ::= { pfAltqQueueEntry 7 }
+
+pfLabelsLblNumber OBJECT-TYPE
+    SYNTAX	Integer32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of labeled filter rules on this system."
+    ::= { pfLabels 1 }
+
+pfLabelsLblTable OBJECT-TYPE
+    SYNTAX	SEQUENCE OF PfLabelsLblEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"Table of filter rules, index on pfLabelsLblIndex."
+    ::= { pfLabels 2 }
+
+pfLabelsLblEntry OBJECT-TYPE
+    SYNTAX	PfLabelsLblEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"Any entry in the pfLabelsLblTable containing information
+	about a particular filter rule on the system."
+    INDEX	{ pfLabelsLblIndex }
+    ::= { pfLabelsLblTable 1 }
+
+PfLabelsLblEntry ::= SEQUENCE {
+    pfLabelsLblIndex		Integer32,
+    pfLabelsLblName		OCTET STRING,
+    pfLabelsLblEvals		Counter64,
+    pfLabelsLblBytesIn		Counter64,
+    pfLabelsLblBytesOut		Counter64,
+    pfLabelsLblPktsIn		Counter64,
+    pfLabelsLblPktsOut		Counter64
+}
+
+pfLabelsLblIndex OBJECT-TYPE
+    SYNTAX	Integer32 (1..2147483647)
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"A unique value, greater than zero, for each label."
+    ::= { pfLabelsLblEntry 1 } 
+
+pfLabelsLblName OBJECT-TYPE
+    SYNTAX	OCTET STRING
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The name of the rule label."
+    ::= { pfLabelsLblEntry 2 }
+
+pfLabelsLblEvals OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of rule evaluations."
+    ::= { pfLabelsLblEntry 3 }
+
+pfLabelsLblBytesIn OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of incoming bytes matched by the rule."
+    ::= { pfLabelsLblEntry 4 }
+
+pfLabelsLblBytesOut OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of outgoing bytes matched by the rule."
+    ::= { pfLabelsLblEntry 5 }
+
+pfLabelsLblPktsIn OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of incoming packets matched by the rule."
+    ::= { pfLabelsLblEntry 6 }
+
+pfLabelsLblPktsOut OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of outgoing packets matched by the rule."
+    ::= { pfLabelsLblEntry 7 }
 
 END

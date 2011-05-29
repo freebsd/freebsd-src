@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/errno.h>
 #include <sys/endian.h>
 #include <sys/systm.h>
+#include <sys/sysctl.h>
 #include <sys/kernel.h>
 #include <sys/fcntl.h>
 #include <sys/malloc.h>
@@ -49,6 +50,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/sbuf.h>
 #include <geom/geom.h>
 #include <geom/geom_slice.h>
+
+FEATURE(geom_mbr, "GEOM DOS/MBR partitioning support");
 
 #define MBR_CLASS_NAME "MBR"
 #define MBREXT_CLASS_NAME "MBREXT"

@@ -70,7 +70,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/kernel.h>
-#include <sys/linker_set.h>
 #include <sys/sysctl.h>
 #include <sys/vmmeter.h>
 #include <sys/vnode.h>
@@ -97,9 +96,11 @@ vm_contig_launder_page(vm_page_t m, vm_page_t *next)
 	int vfslocked;
 
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	vm_page_lock_assert(m, MA_OWNED);
 	object = m->object;
 	if (!VM_OBJECT_TRYLOCK(object) &&
-	    !vm_pageout_fallback_object_lock(m, next)) {
+	    (!vm_pageout_fallback_object_lock(m, next) || m->hold_count != 0)) {
+		vm_page_unlock(m);
 		VM_OBJECT_UNLOCK(object);
 		return (EAGAIN);
 	}
@@ -109,9 +110,10 @@ vm_contig_launder_page(vm_page_t m, vm_page_t *next)
 		return (EBUSY);
 	}
 	vm_page_test_dirty(m);
-	if (m->dirty == 0 && m->hold_count == 0)
+	if (m->dirty == 0)
 		pmap_remove_all(m);
-	if (m->dirty) {
+	if (m->dirty != 0) {
+		vm_page_unlock(m);
 		if ((object->flags & OBJ_DEAD) != 0) {
 			VM_OBJECT_UNLOCK(object);
 			return (EAGAIN);
@@ -135,21 +137,26 @@ vm_contig_launder_page(vm_page_t m, vm_page_t *next)
 			return (0);
 		} else if (object->type == OBJT_SWAP ||
 			   object->type == OBJT_DEFAULT) {
+			vm_page_unlock_queues();
 			m_tmp = m;
-			vm_pageout_flush(&m_tmp, 1, VM_PAGER_PUT_SYNC);
+			vm_pageout_flush(&m_tmp, 1, VM_PAGER_PUT_SYNC, 0, NULL);
 			VM_OBJECT_UNLOCK(object);
+			vm_page_lock_queues();
 			return (0);
 		}
-	} else if (m->hold_count == 0)
+	} else {
 		vm_page_cache(m);
+		vm_page_unlock(m);
+	}
 	VM_OBJECT_UNLOCK(object);
 	return (0);
 }
 
 static int
-vm_contig_launder(int queue)
+vm_contig_launder(int queue, vm_paddr_t low, vm_paddr_t high)
 {
 	vm_page_t m, next;
+	vm_paddr_t pa;
 	int error;
 
 	TAILQ_FOREACH_SAFE(m, &vm_page_queues[queue].pl, pageq, next) {
@@ -158,9 +165,18 @@ vm_contig_launder(int queue)
 		if ((m->flags & PG_MARKER) != 0)
 			continue;
 
-		KASSERT(VM_PAGE_INQUEUE2(m, queue),
+		pa = VM_PAGE_TO_PHYS(m);
+		if (pa < low || pa + PAGE_SIZE > high)
+			continue;
+
+		if (!vm_pageout_page_lock(m, &next) || m->hold_count != 0) {
+			vm_page_unlock(m);
+			continue;
+		}
+		KASSERT(m->queue == queue,
 		    ("vm_contig_launder: page %p's queue is not %d", m, queue));
 		error = vm_contig_launder_page(m, &next);
+		vm_page_lock_assert(m, MA_NOTOWNED);
 		if (error == 0)
 			return (TRUE);
 		if (error == EBUSY)
@@ -183,6 +199,97 @@ vm_page_release_contig(vm_page_t m, vm_pindex_t count)
 		vm_page_free_toq(m);
 		m++;
 	}
+}
+
+/*
+ * Increase the number of cached pages.
+ */
+void
+vm_contig_grow_cache(int tries, vm_paddr_t low, vm_paddr_t high)
+{
+	int actl, actmax, inactl, inactmax;
+
+	vm_page_lock_queues();
+	inactl = 0;
+	inactmax = tries < 1 ? 0 : cnt.v_inactive_count;
+	actl = 0;
+	actmax = tries < 2 ? 0 : cnt.v_active_count;
+again:
+	if (inactl < inactmax && vm_contig_launder(PQ_INACTIVE, low, high)) {
+		inactl++;
+		goto again;
+	}
+	if (actl < actmax && vm_contig_launder(PQ_ACTIVE, low, high)) {
+		actl++;
+		goto again;
+	}
+	vm_page_unlock_queues();
+}
+
+/*
+ * Allocates a region from the kernel address map and pages within the
+ * specified physical address range to the kernel object, creates a wired
+ * mapping from the region to these pages, and returns the region's starting
+ * virtual address.  The allocated pages are not necessarily physically
+ * contiguous.  If M_ZERO is specified through the given flags, then the pages
+ * are zeroed before they are mapped.
+ */
+vm_offset_t
+kmem_alloc_attr(vm_map_t map, vm_size_t size, int flags, vm_paddr_t low,
+    vm_paddr_t high, vm_memattr_t memattr)
+{
+	vm_object_t object = kernel_object;
+	vm_offset_t addr, i, offset;
+	vm_page_t m;
+	int tries;
+
+	size = round_page(size);
+	vm_map_lock(map);
+	if (vm_map_findspace(map, vm_map_min(map), size, &addr)) {
+		vm_map_unlock(map);
+		return (0);
+	}
+	offset = addr - VM_MIN_KERNEL_ADDRESS;
+	vm_object_reference(object);
+	vm_map_insert(map, object, offset, addr, addr + size, VM_PROT_ALL,
+	    VM_PROT_ALL, 0);
+	VM_OBJECT_LOCK(object);
+	for (i = 0; i < size; i += PAGE_SIZE) {
+		tries = 0;
+retry:
+		m = vm_phys_alloc_contig(1, low, high, PAGE_SIZE, 0);
+		if (m == NULL) {
+			if (tries < ((flags & M_NOWAIT) != 0 ? 1 : 3)) {
+				VM_OBJECT_UNLOCK(object);
+				vm_map_unlock(map);
+				vm_contig_grow_cache(tries, low, high);
+				vm_map_lock(map);
+				VM_OBJECT_LOCK(object);
+				goto retry;
+			}
+			while (i != 0) {
+				i -= PAGE_SIZE;
+				m = vm_page_lookup(object, OFF_TO_IDX(offset +
+				    i));
+				vm_page_free(m);
+			}
+			VM_OBJECT_UNLOCK(object);
+			vm_map_delete(map, addr, addr + size);
+			vm_map_unlock(map);
+			return (0);
+		}
+		if (memattr != VM_MEMATTR_DEFAULT)
+			pmap_page_set_memattr(m, memattr);
+		vm_page_insert(m, object, OFF_TO_IDX(offset + i));
+		if ((flags & M_ZERO) && (m->flags & PG_ZERO) == 0)
+			pmap_zero_page(m);
+		m->valid = VM_PAGE_BITS_ALL;
+	}
+	VM_OBJECT_UNLOCK(object);
+	vm_map_unlock(map);
+	vm_map_wire(map, addr, addr + size, VM_MAP_WIRE_SYSTEM |
+	    VM_MAP_WIRE_NOHOLES);
+	return (addr);
 }
 
 /*
@@ -253,7 +360,7 @@ kmem_alloc_contig(vm_map_t map, vm_size_t size, int flags, vm_paddr_t low,
 	vm_offset_t ret;
 	vm_page_t pages;
 	unsigned long npgs;
-	int actl, actmax, inactl, inactmax, tries;
+	int tries;
 
 	size = round_page(size);
 	npgs = size >> PAGE_SHIFT;
@@ -262,23 +369,7 @@ retry:
 	pages = vm_phys_alloc_contig(npgs, low, high, alignment, boundary);
 	if (pages == NULL) {
 		if (tries < ((flags & M_NOWAIT) != 0 ? 1 : 3)) {
-			vm_page_lock_queues();
-			inactl = 0;
-			inactmax = tries < 1 ? 0 : cnt.v_inactive_count;
-			actl = 0;
-			actmax = tries < 2 ? 0 : cnt.v_active_count;
-again:
-			if (inactl < inactmax &&
-			    vm_contig_launder(PQ_INACTIVE)) {
-				inactl++;
-				goto again;
-			}
-			if (actl < actmax &&
-			    vm_contig_launder(PQ_ACTIVE)) {
-				actl++;
-				goto again;
-			}
-			vm_page_unlock_queues();
+			vm_contig_grow_cache(tries, low, high);
 			tries++;
 			goto retry;
 		}

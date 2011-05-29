@@ -55,13 +55,14 @@ __FBSDID("$FreeBSD$");
 
 #include <mips/cavium/octeon_pcmap_regs.h>
 
+#include <contrib/octeon-sdk/cvmx.h>
+
 #include "uart_if.h"
 
 extern struct uart_class uart_oct16550_class;
 
 
 static int uart_octeon_probe(device_t dev);
-static void octeon_uart_identify(driver_t * drv, device_t parent);
 
 extern struct uart_class octeon_uart_class;
 
@@ -70,7 +71,6 @@ static device_method_t uart_octeon_methods[] = {
 	DEVMETHOD(device_probe, uart_octeon_probe),
 	DEVMETHOD(device_attach, uart_bus_attach),
 	DEVMETHOD(device_detach, uart_bus_detach),
-	DEVMETHOD(device_identify, octeon_uart_identify),
 	{0, 0}
 };
 
@@ -101,16 +101,14 @@ uart_octeon_probe(device_t dev)
 	sc->sc_sysdev = SLIST_FIRST(&uart_sysdevs);
 	bcopy(&sc->sc_sysdev->bas, &sc->sc_bas, sizeof(sc->sc_bas));
 	sc->sc_bas.bst = uart_bus_space_mem;
-	if (bus_space_map(sc->sc_bas.bst, OCTEON_MIO_UART0, OCTEON_MIO_UART_SIZE,
-	    0, &sc->sc_bas.bsh) != 0)
+	/*
+	 * XXX
+	 * RBR isn't really a great base address.
+	 */
+	if (bus_space_map(sc->sc_bas.bst, CVMX_MIO_UARTX_RBR(0),
+	    uart_getrange(sc->sc_class), 0, &sc->sc_bas.bsh) != 0)
 		return (ENXIO);
 	return (uart_bus_probe(dev, sc->sc_bas.regshft, 0, 0, unit));
-}
-
-static void
-octeon_uart_identify(driver_t * drv, device_t parent)
-{
-	BUS_ADD_CHILD(parent, 0, "uart", 0);
 }
 
 DRIVER_MODULE(uart, obio, uart_octeon_driver, uart_devclass, 0, 0);

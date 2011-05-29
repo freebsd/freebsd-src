@@ -139,7 +139,8 @@ ata_ite_821x_setmode(device_t dev, int target, int mode)
 
 	mode = min(mode, ctlr->chip->max_dma);
 	/* check the CBLID bits for 80 conductor cable detection */
-	if (mode > ATA_UDMA2 && (pci_read_config(parent, 0x40, 2) &
+	if (ata_dma_check_80pin && mode > ATA_UDMA2 &&
+	    (pci_read_config(parent, 0x40, 2) &
 			     (ch->unit ? (1<<3) : (1<<2)))) {
 		ata_print_cable(dev, "controller");
 		mode = ATA_UDMA2;
@@ -186,7 +187,8 @@ ata_ite_8213_setmode(device_t dev, int target, int mode)
 
 	mode = min(mode, ctlr->chip->max_dma);
 
-	if (mode > ATA_UDMA2 && !(reg54 & (0x10 << target))) {
+	if (ata_dma_check_80pin && mode > ATA_UDMA2 &&
+	    !(reg54 & (0x10 << target))) {
 		ata_print_cable(dev, "controller");
 		mode = ATA_UDMA2;
 	}

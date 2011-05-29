@@ -63,6 +63,8 @@ __FBSDID("$FreeBSD$");
 
 #include <rpc/rpc_com.h>
 
+extern	u_long sb_max_adj;	/* not defined in socketvar.h */
+
 #if __FreeBSD_version < 700000
 #define strrchr rindex
 #endif
@@ -113,9 +115,8 @@ u_int
 /*ARGSUSED*/
 __rpc_get_t_size(int af, int proto, int size)
 {
-	int maxsize, defsize;
+	int defsize;
 
-	maxsize = 256 * 1024;	/* XXX */
 	switch (proto) {
 	case IPPROTO_TCP:
 		defsize = 64 * 1024;	/* XXX */
@@ -131,7 +132,7 @@ __rpc_get_t_size(int af, int proto, int size)
 		return defsize;
 
 	/* Check whether the value is within the upper max limit */
-	return (size > maxsize ? (u_int)maxsize : (u_int)size);
+	return (size > sb_max_adj ? (u_int)sb_max_adj : (u_int)size);
 }
 
 /*
@@ -186,7 +187,9 @@ __rpc_socket2sockinfo(struct socket *so, struct __rpc_sockinfo *sip)
 	struct sockopt opt;
 	int error;
 
+	CURVNET_SET(so->so_vnet);
 	error = so->so_proto->pr_usrreqs->pru_sockaddr(so, &sa);
+	CURVNET_RESTORE();
 	if (error)
 		return 0;
 
@@ -306,7 +309,7 @@ __rpc_taddr2uaddr_af(int af, const struct netbuf *nbuf)
 	switch (af) {
 	case AF_INET:
 		sin = nbuf->buf;
-		if (__rpc_inet_ntop(af, &sin->sin_addr, namebuf, sizeof namebuf)
+		if (inet_ntop(af, &sin->sin_addr, namebuf, sizeof namebuf)
 		    == NULL)
 			return NULL;
 		port = ntohs(sin->sin_port);
@@ -318,7 +321,7 @@ __rpc_taddr2uaddr_af(int af, const struct netbuf *nbuf)
 #ifdef INET6
 	case AF_INET6:
 		sin6 = nbuf->buf;
-		if (__rpc_inet_ntop(af, &sin6->sin6_addr, namebuf6, sizeof namebuf6)
+		if (inet_ntop(af, &sin6->sin6_addr, namebuf6, sizeof namebuf6)
 		    == NULL)
 			return NULL;
 		port = ntohs(sin6->sin6_port);
@@ -396,7 +399,7 @@ __rpc_uaddr2taddr_af(int af, const char *uaddr)
 		memset(sin, 0, sizeof *sin);
 		sin->sin_family = AF_INET;
 		sin->sin_port = htons(port);
-		if (__rpc_inet_pton(AF_INET, addrstr, &sin->sin_addr) <= 0) {
+		if (inet_pton(AF_INET, addrstr, &sin->sin_addr) <= 0) {
 			free(sin, M_RPC);
 			free(ret, M_RPC);
 			ret = NULL;
@@ -414,7 +417,7 @@ __rpc_uaddr2taddr_af(int af, const char *uaddr)
 		memset(sin6, 0, sizeof *sin6);
 		sin6->sin6_family = AF_INET6;
 		sin6->sin6_port = htons(port);
-		if (__rpc_inet_pton(AF_INET6, addrstr, &sin6->sin6_addr) <= 0) {
+		if (inet_pton(AF_INET6, addrstr, &sin6->sin6_addr) <= 0) {
 			free(sin6, M_RPC);
 			free(ret, M_RPC);
 			ret = NULL;
@@ -824,7 +827,6 @@ bindresvport(struct socket *so, struct sockaddr *sa)
 	sa->sa_len = salen;
 
 	if (*portp == 0) {
-		CURVNET_SET(so->so_vnet);
 		bzero(&opt, sizeof(opt));
 		opt.sopt_dir = SOPT_GET;
 		opt.sopt_level = proto;
@@ -833,14 +835,12 @@ bindresvport(struct socket *so, struct sockaddr *sa)
 		opt.sopt_valsize = sizeof(old);
 		error = sogetopt(so, &opt);
 		if (error) {
-			CURVNET_RESTORE();
 			goto out;
 		}
 
 		opt.sopt_dir = SOPT_SET;
 		opt.sopt_val = &portlow;
 		error = sosetopt(so, &opt);
-		CURVNET_RESTORE();
 		if (error)
 			goto out;
 	}
@@ -851,9 +851,7 @@ bindresvport(struct socket *so, struct sockaddr *sa)
 		if (error) {
 			opt.sopt_dir = SOPT_SET;
 			opt.sopt_val = &old;
-			CURVNET_SET(so->so_vnet);
 			sosetopt(so, &opt);
-			CURVNET_RESTORE();
 		}
 	}
 out:

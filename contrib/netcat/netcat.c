@@ -1,4 +1,4 @@
-/* $OpenBSD: netcat.c,v 1.93 2009/06/05 00:18:10 claudio Exp $ */
+/* $OpenBSD: netcat.c,v 1.100 2011/01/09 22:16:46 jeremy Exp $ */
 /*
  * Copyright (c) 2001 Eric Jackson <ericj@monkey.org>
  *
@@ -70,16 +70,15 @@
 
 #define PORT_MAX	65535
 #define PORT_MAX_LEN	6
+#define UNIX_DG_TMP_SOCKET_SIZE	19
 
 /* Command Line Options */
-int	Eflag;					/* Use IPsec ESP */
 int	dflag;					/* detached, no stdin */
 unsigned int iflag;				/* Interval Flag */
 int	jflag;					/* use jumbo frames if we can */
 int	kflag;					/* More than one connect */
 int	lflag;					/* Bind to local port */
 int	nflag;					/* Don't do name look up */
-int	oflag;					/* Once only: stop on EOF */
 int	FreeBSD_Oflag;				/* Do not use TCP options */
 char   *Pflag;					/* Proxy username */
 char   *pflag;					/* Localport flag */
@@ -95,11 +94,12 @@ int	Iflag;					/* TCP receive buffer size */
 int	Oflag;					/* TCP send buffer size */
 int	Sflag;					/* TCP MD5 signature option */
 int	Tflag = -1;				/* IP Type of Service */
-u_int	rdomain;
+u_int	rtableid;
 
 int timeout = -1;
 int family = AF_UNSPEC;
 char *portlist[PORT_MAX+1];
+char *unix_dg_tmp_socket;
 
 void	atelnet(int, unsigned char *, unsigned int);
 void	build_ports(char *);
@@ -110,6 +110,7 @@ int	remote_connect(const char *, const char *, struct addrinfo);
 int	socks_connect(const char *, const char *, struct addrinfo,
 	    const char *, const char *, struct addrinfo, int, const char *);
 int	udptest(int);
+int	unix_bind(char *);
 int	unix_connect(char *);
 int	unix_listen(char *);
 void	set_common_sockopts(int);
@@ -136,12 +137,12 @@ main(int argc, char *argv[])
 	char *proxy;
 	const char *errstr, *proxyhost = "", *proxyport = NULL;
 	struct addrinfo proxyhints;
+	char unix_dg_tmp_socket_buf[UNIX_DG_TMP_SOCKET_SIZE];
 	struct option longopts[] = {
 		{ "no-tcpopt",	no_argument,	&FreeBSD_Oflag,	1 },
 		{ NULL,		0,		NULL,		0 }
 	};
 
-	rdomain = 0;
 	ret = 1;
 	ipsec_count = 0;
 	s = 0;
@@ -151,7 +152,7 @@ main(int argc, char *argv[])
 	sv = NULL;
 
 	while ((ch = getopt_long(argc, argv,
-	    "46DdEe:hI:i:jklnO:oP:p:rSs:tT:UuV:vw:X:x:z",
+	    "46DdEe:hI:i:jklnoO:P:p:rSs:tT:UuV:vw:X:x:z",
 	    longopts, NULL)) != -1) {
 		switch (ch) {
 		case '4':
@@ -214,7 +215,7 @@ main(int argc, char *argv[])
 			nflag = 1;
 			break;
 		case 'o':
-			oflag = 1;
+			fprintf(stderr, "option -o is deprecated.\n");
 			break;
 		case 'P':
 			Pflag = optarg;
@@ -237,10 +238,10 @@ main(int argc, char *argv[])
 		case 'V':
 			if (sysctlbyname("net.fibs", &numfibs, &intsize, NULL, 0) == -1)
 				errx(1, "Multiple FIBS not supported");
-			rdomain = (unsigned int)strtonum(optarg, 0,
+			rtableid = (unsigned int)strtonum(optarg, 0,
 			    numfibs - 1, &errstr);
 			if (errstr)
-				errx(1, "FIB %s: %s", errstr, optarg);
+				errx(1, "rtable %s: %s", errstr, optarg);
 			break;
 		case 'v':
 			vflag = 1;
@@ -282,8 +283,6 @@ main(int argc, char *argv[])
 		case 'T':
 			Tflag = parse_iptos(optarg);
 			break;
-		case 0:
-			break;
 		default:
 			usage(1);
 		}
@@ -293,8 +292,6 @@ main(int argc, char *argv[])
 
 	/* Cruft to make sure options are clean, and used properly. */
 	if (argv[0] && !argv[1] && family == AF_UNIX) {
-		if (uflag)
-			errx(1, "cannot use -u and -U");
 		host = argv[0];
 		uport = NULL;
 	} else if (argv[0] && !argv[1]) {
@@ -316,6 +313,19 @@ main(int argc, char *argv[])
 		errx(1, "cannot use -z and -l");
 	if (!lflag && kflag)
 		errx(1, "must use -l with -k");
+
+	/* Get name of temporary socket for unix datagram client */
+	if ((family == AF_UNIX) && uflag && !lflag) {
+		if (sflag) {
+			unix_dg_tmp_socket = sflag;
+		} else {
+			strlcpy(unix_dg_tmp_socket_buf, "/tmp/nc.XXXXXXXXXX",
+				UNIX_DG_TMP_SOCKET_SIZE);
+			if (mktemp(unix_dg_tmp_socket_buf) == NULL)
+				err(1, "mktemp");
+			unix_dg_tmp_socket = unix_dg_tmp_socket_buf;
+		}
+	}
 
 	/* Initialize addrinfo structure. */
 	if (family != AF_UNIX) {
@@ -359,8 +369,12 @@ main(int argc, char *argv[])
 		int connfd;
 		ret = 0;
 
-		if (family == AF_UNIX)
-			s = unix_listen(host);
+		if (family == AF_UNIX) {
+			if (uflag)
+				s = unix_bind(host);
+			else
+				s = unix_listen(host);
+		}
 
 		/* Allow only one connection at a time, but stay alive. */
 		for (;;) {
@@ -375,11 +389,11 @@ main(int argc, char *argv[])
 			 */
 			if (uflag) {
 				int rv, plen;
-				char buf[8192];
+				char buf[16384];
 				struct sockaddr_storage z;
 
 				len = sizeof(z);
-				plen = jflag ? 8192 : 1024;
+				plen = jflag ? 16384 : 2048;
 				rv = recvfrom(s, buf, plen, MSG_PEEK,
 				    (struct sockaddr *)&z, &len);
 				if (rv < 0)
@@ -389,17 +403,21 @@ main(int argc, char *argv[])
 				if (rv < 0)
 					err(1, "connect");
 
-				connfd = s;
+				readwrite(s);
 			} else {
 				len = sizeof(cliaddr);
 				connfd = accept(s, (struct sockaddr *)&cliaddr,
 				    &len);
+				readwrite(connfd);
+				close(connfd);
 			}
 
-			readwrite(connfd);
-			close(connfd);
 			if (family != AF_UNIX)
 				close(s);
+			else if (uflag) {
+				if (connect(s, NULL, 0) < 0)
+					err(1, "connect");
+			}
 
 			if (!kflag)
 				break;
@@ -413,6 +431,8 @@ main(int argc, char *argv[])
 		} else
 			ret = 1;
 
+		if (uflag)
+			unlink(unix_dg_tmp_socket);
 		exit(ret);
 
 	} else {
@@ -455,8 +475,10 @@ main(int argc, char *argv[])
 					    uflag ? "udp" : "tcp");
 				}
 
-				printf("Connection to %s %s port [%s/%s] succeeded!\n",
-				    host, portlist[i], uflag ? "udp" : "tcp",
+				fprintf(stderr,
+				    "Connection to %s %s port [%s/%s] "
+				    "succeeded!\n", host, portlist[i],
+				    uflag ? "udp" : "tcp",
 				    sv ? sv->s_name : "*");
 			}
 			if (!zflag)
@@ -471,6 +493,38 @@ main(int argc, char *argv[])
 }
 
 /*
+ * unix_bind()
+ * Returns a unix socket bound to the given path
+ */
+int
+unix_bind(char *path)
+{
+	struct sockaddr_un sun;
+	int s;
+
+	/* Create unix domain socket. */
+	if ((s = socket(AF_UNIX, uflag ? SOCK_DGRAM : SOCK_STREAM,
+	     0)) < 0)
+		return (-1);
+
+	memset(&sun, 0, sizeof(struct sockaddr_un));
+	sun.sun_family = AF_UNIX;
+
+	if (strlcpy(sun.sun_path, path, sizeof(sun.sun_path)) >=
+	    sizeof(sun.sun_path)) {
+		close(s);
+		errno = ENAMETOOLONG;
+		return (-1);
+	}
+
+	if (bind(s, (struct sockaddr *)&sun, SUN_LEN(&sun)) < 0) {
+		close(s);
+		return (-1);
+	}
+	return (s);
+}
+
+/*
  * unix_connect()
  * Returns a socket connected to a local unix socket. Returns -1 on failure.
  */
@@ -480,8 +534,13 @@ unix_connect(char *path)
 	struct sockaddr_un sun;
 	int s;
 
-	if ((s = socket(AF_UNIX, SOCK_STREAM, 0)) < 0)
-		return (-1);
+	if (uflag) {
+		if ((s = unix_bind(unix_dg_tmp_socket)) < 0)
+			return (-1);
+	} else {
+		if ((s = socket(AF_UNIX, SOCK_STREAM, 0)) < 0)
+			return (-1);
+	}
 	(void)fcntl(s, F_SETFD, 1);
 
 	memset(&sun, 0, sizeof(struct sockaddr_un));
@@ -508,27 +567,9 @@ unix_connect(char *path)
 int
 unix_listen(char *path)
 {
-	struct sockaddr_un sun;
 	int s;
-
-	/* Create unix domain socket. */
-	if ((s = socket(AF_UNIX, SOCK_STREAM, 0)) < 0)
+	if ((s = unix_bind(path)) < 0)
 		return (-1);
-
-	memset(&sun, 0, sizeof(struct sockaddr_un));
-	sun.sun_family = AF_UNIX;
-
-	if (strlcpy(sun.sun_path, path, sizeof(sun.sun_path)) >=
-	    sizeof(sun.sun_path)) {
-		close(s);
-		errno = ENAMETOOLONG;
-		return (-1);
-	}
-
-	if (bind(s, (struct sockaddr *)&sun, SUN_LEN(&sun)) < 0) {
-		close(s);
-		return (-1);
-	}
 
 	if (listen(s, 5) < 0) {
 		close(s);
@@ -563,8 +604,8 @@ remote_connect(const char *host, const char *port, struct addrinfo hints)
 			add_ipsec_policy(s, ipsec_policy[1]);
 #endif
 
-		if (rdomain) {
-			if (setfib(rdomain) == -1)
+		if (rtableid) {
+			if (setfib(rtableid) == -1)
 				err(1, "setfib");
 		}
 
@@ -572,10 +613,8 @@ remote_connect(const char *host, const char *port, struct addrinfo hints)
 		if (sflag || pflag) {
 			struct addrinfo ahints, *ares;
 
-#ifdef SO_BINDANY
-			/* try SO_BINDANY, but don't insist */
-			setsockopt(s, SOL_SOCKET, SO_BINDANY, &on, sizeof(on));
-#endif
+			/* try IP_BINDANY, but don't insist */
+			setsockopt(s, IPPROTO_IP, IP_BINDANY, &on, sizeof(on));
 			memset(&ahints, 0, sizeof(struct addrinfo));
 			ahints.ai_family = res0->ai_family;
 			ahints.ai_socktype = uflag ? SOCK_DGRAM : SOCK_STREAM;
@@ -638,8 +677,8 @@ local_listen(char *host, char *port, struct addrinfo hints)
 		    res0->ai_protocol)) < 0)
 			continue;
 
-		if (rdomain) {
-			if (setfib(rdomain) == -1)
+		if (rtableid) {
+			if (setfib(rtableid) == -1)
 				err(1, "setfib");
 		}
 
@@ -684,12 +723,12 @@ void
 readwrite(int nfd)
 {
 	struct pollfd pfd[2];
-	unsigned char buf[8192];
+	unsigned char buf[16384];
 	int n, wfd = fileno(stdin);
 	int lfd = fileno(stdout);
 	int plen;
 
-	plen = jflag ? 8192 : 1024;
+	plen = jflag ? 16384 : 2048;
 
 	/* Setup Network FD */
 	pfd[0].fd = nfd;
@@ -727,10 +766,9 @@ readwrite(int nfd)
 		}
 
 		if (!dflag && pfd[1].revents & POLLIN) {
-			if ((n = read(wfd, buf, plen)) < 0 ||
-			    (oflag && n == 0)) {
+			if ((n = read(wfd, buf, plen)) < 0)
 				return;
-			} else if (n == 0) {
+			else if (n == 0) {
 				shutdown(nfd, SHUT_WR);
 				pfd[1].fd = -1;
 				pfd[1].events = 0;
@@ -749,27 +787,27 @@ atelnet(int nfd, unsigned char *buf, unsigned int size)
 	unsigned char *p, *end;
 	unsigned char obuf[4];
 
-	end = buf + size;
-	obuf[0] = '\0';
+	if (size < 3)
+		return;
+	end = buf + size - 2;
 
 	for (p = buf; p < end; p++) {
 		if (*p != IAC)
-			break;
+			continue;
 
 		obuf[0] = IAC;
 		p++;
 		if ((*p == WILL) || (*p == WONT))
 			obuf[1] = DONT;
-		if ((*p == DO) || (*p == DONT))
+		else if ((*p == DO) || (*p == DONT))
 			obuf[1] = WONT;
-		if (obuf) {
-			p++;
-			obuf[2] = *p;
-			obuf[3] = '\0';
-			if (atomicio(vwrite, nfd, obuf, 3) != 3)
-				warn("Write Error!");
-			obuf[0] = '\0';
-		}
+		else
+			continue;
+
+		p++;
+		obuf[2] = *p;
+		if (atomicio(vwrite, nfd, obuf, 3) != 3)
+			warn("Write Error!");
 	}
 }
 
@@ -832,10 +870,9 @@ build_ports(char *p)
 		hi = strtonum(p, 1, PORT_MAX, &errstr);
 		if (errstr)
 			errx(1, "port number %s: %s", errstr, p);
-		portlist[0] = calloc(1, PORT_MAX_LEN);
+		portlist[0] = strdup(p);
 		if (portlist[0] == NULL)
 			err(1, NULL);
-		portlist[0] = p;
 	}
 }
 
@@ -943,7 +980,6 @@ help(void)
 	\t-n		Suppress name/port resolutions\n\
 	\t--no-tcpopt	Disable TCP options\n\
 	\t-O length	TCP send buffer length\n\
-	\t-o		Terminate on EOF on input\n\
 	\t-P proxyuser\tUsername for proxy authentication\n\
 	\t-p port\t	Specify local port for remote connects\n\
 	\t-r		Randomize remote ports\n\
@@ -953,7 +989,7 @@ help(void)
 	\t-t		Answer TELNET negotiation\n\
 	\t-U		Use UNIX domain socket\n\
 	\t-u		UDP mode\n\
-	\t-V fib	Specify alternate routing table (FIB)\n\
+	\t-V rtable	Specify alternate routing table\n\
 	\t-v		Verbose\n\
 	\t-w secs\t	Timeout for connects and final net reads\n\
 	\t-X proto	Proxy protocol: \"4\", \"5\" (SOCKS) or \"connect\"\n\
@@ -993,13 +1029,13 @@ usage(int ret)
 {
 	fprintf(stderr,
 #ifdef IPSEC
-	    "usage: nc [-46DdEhklnorStUuvz] [-e policy] [-I length] [-i interval] [-O length]\n"
+	    "usage: nc [-46DdEhklnrStUuvz] [-e policy] [-I length] [-i interval] [-O length]\n"
 #else
-	    "usage: nc [-46DdhklnorStUuvz] [-I length] [-i interval] [-O length]\n"
+	    "usage: nc [-46DdhklnrStUuvz] [-I length] [-i interval] [-O length]\n"
 #endif
-	    "\t  [-P proxy_username] [-p source_port] [-s source_ip_address] [-T ToS]\n"
-	    "\t  [-V fib] [-w timeout] [-X proxy_protocol]\n"
-	    "\t  [-x proxy_address[:port]] [hostname] [port]\n");
+	    "\t  [-P proxy_username] [-p source_port] [-s source] [-T ToS]\n"
+	    "\t  [-V rtable] [-w timeout] [-X proxy_protocol]\n"
+	    "\t  [-x proxy_address[:port]] [destination] [port]\n");
 	if (ret)
 		exit(1);
 }

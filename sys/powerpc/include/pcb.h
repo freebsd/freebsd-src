@@ -35,12 +35,13 @@
 #ifndef _MACHINE_PCB_H_
 #define	_MACHINE_PCB_H_
 
-typedef int faultbuf[25];
+typedef register_t faultbuf[25];
 
 struct pcb {
 	register_t	pcb_context[20];	/* non-volatile r14-r31 */
 	register_t	pcb_cr;			/* Condition register */
 	register_t	pcb_sp;			/* stack pointer */
+	register_t	pcb_toc;		/* toc pointer */
 	register_t	pcb_lr;			/* link register */
 	struct		pmap *pcb_pm;		/* pmap of our vmspace */
 	faultbuf	*pcb_onfault;		/* For use during
@@ -58,14 +59,15 @@ struct pcb {
 		uint32_t vr[32][4];
 		register_t vrsave;
 		register_t spare[2];
-		register_t vscr;
-	} pcb_vec __attribute__((aligned(16)));	/* Vector processor */
+		register_t vscr;	/* aligned at vector element 3 */
+	} pcb_vec __aligned(16);	/* Vector processor */
 	unsigned int	pcb_veccpu;		/* which CPU had our vector
 							stuff. */
 
 	union {
 		struct {
-			register_t	usr;	/* USER_SR segment */
+			vm_offset_t	usr_segm;	/* Base address */
+			register_t	usr_vsid;	/* USER_SR segment */
 		} aim;
 		struct {
 			register_t	ctr;

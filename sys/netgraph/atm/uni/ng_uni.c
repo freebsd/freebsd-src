@@ -223,8 +223,7 @@ ng_uni_constructor(node_p node)
 {
 	struct priv *priv;
 
-	if ((priv = malloc(sizeof(*priv), M_NG_UNI, M_NOWAIT | M_ZERO)) == NULL)
-		return (ENOMEM);
+	priv = malloc(sizeof(*priv), M_NG_UNI, M_WAITOK | M_ZERO);
 
 	if ((priv->uni = uni_create(node, &uni_funcs)) == NULL) {
 		free(priv, M_NG_UNI);

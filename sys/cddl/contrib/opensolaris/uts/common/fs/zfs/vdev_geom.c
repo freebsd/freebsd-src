@@ -29,6 +29,7 @@
 #include <sys/bio.h>
 #include <sys/disk.h>
 #include <sys/spa.h>
+#include <sys/spa_impl.h>
 #include <sys/vdev_impl.h>
 #include <sys/fs/zfs.h>
 #include <sys/zio.h>
@@ -46,57 +47,39 @@ struct g_class zfs_vdev_class = {
 
 DECLARE_GEOM_CLASS(zfs_vdev_class, zfs_vdev);
 
-typedef struct vdev_geom_ctx {
-	struct g_consumer *gc_consumer;
-	int gc_state;
-	struct bio_queue_head gc_queue;
-	struct mtx gc_queue_mtx;
-} vdev_geom_ctx_t;
-
-static void
-vdev_geom_release(vdev_t *vd)
-{
-	vdev_geom_ctx_t *ctx;
-
-	ctx = vd->vdev_tsd;
-	vd->vdev_tsd = NULL;
-
-	mtx_lock(&ctx->gc_queue_mtx);
-	ctx->gc_state = 1;
-	wakeup_one(&ctx->gc_queue);
-	while (ctx->gc_state != 2)
-		msleep(&ctx->gc_state, &ctx->gc_queue_mtx, 0, "vgeom:w", 0);
-	mtx_unlock(&ctx->gc_queue_mtx);
-	mtx_destroy(&ctx->gc_queue_mtx);
-	kmem_free(ctx, sizeof(*ctx));
-}
+/*
+ * Don't send BIO_FLUSH.
+ */
+static int vdev_geom_bio_flush_disable = 0;
+TUNABLE_INT("vfs.zfs.vdev.bio_flush_disable", &vdev_geom_bio_flush_disable);
+SYSCTL_DECL(_vfs_zfs_vdev);
+SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, bio_flush_disable, CTLFLAG_RW,
+    &vdev_geom_bio_flush_disable, 0, "Disable BIO_FLUSH");
 
 static void
 vdev_geom_orphan(struct g_consumer *cp)
 {
-	struct g_geom *gp;
 	vdev_t *vd;
-	int error;
 
 	g_topology_assert();
 
 	vd = cp->private;
-	gp = cp->geom;
-	error = cp->provider->error;
 
-	ZFS_LOG(1, "Closing access to %s.", cp->provider->name);
-	if (cp->acr + cp->acw + cp->ace > 0)
-		g_access(cp, -cp->acr, -cp->acw, -cp->ace);
-	ZFS_LOG(1, "Destroyed consumer to %s.", cp->provider->name);
-	g_detach(cp);
-	g_destroy_consumer(cp);
-	/* Destroy geom if there are no consumers left. */
-	if (LIST_EMPTY(&gp->consumer)) {
-		ZFS_LOG(1, "Destroyed geom %s.", gp->name);
-		g_wither_geom(gp, error);
-	}
-	vdev_geom_release(vd);
-
+	/*
+	 * Orphan callbacks occur from the GEOM event thread.
+	 * Concurrent with this call, new I/O requests may be
+	 * working their way through GEOM about to find out
+	 * (only once executed by the g_down thread) that we've
+	 * been orphaned from our disk provider.  These I/Os
+	 * must be retired before we can detach our consumer.
+	 * This is most easily achieved by acquiring the
+	 * SPA ZIO configuration lock as a writer, but doing
+	 * so with the GEOM topology lock held would cause
+	 * a lock order reversal.  Instead, rely on the SPA's
+	 * async removal support to invoke a close on this
+	 * vdev once it is safe to do so.
+	 */
+	zfs_post_remove(vd->vdev_spa, vd);
 	vd->vdev_remove_wanted = B_TRUE;
 	spa_async_request(vd->vdev_spa, SPA_ASYNC_REMOVE);
 }
@@ -187,52 +170,6 @@ vdev_geom_detach(void *arg, int flag __unused)
 	}
 }
 
-static void
-vdev_geom_worker(void *arg)
-{
-	vdev_geom_ctx_t *ctx;
-	zio_t *zio;
-	struct bio *bp;
-
-	thread_lock(curthread);
-	sched_prio(curthread, PRIBIO);
-	thread_unlock(curthread);
-
-	ctx = arg;
-	for (;;) {
-		mtx_lock(&ctx->gc_queue_mtx);
-		bp = bioq_takefirst(&ctx->gc_queue);
-		if (bp == NULL) {
-			if (ctx->gc_state == 1) {
-				ctx->gc_state = 2;
-				wakeup_one(&ctx->gc_state);
-				mtx_unlock(&ctx->gc_queue_mtx);
-				kthread_exit();
-			}
-			msleep(&ctx->gc_queue, &ctx->gc_queue_mtx,
-			    PRIBIO | PDROP, "vgeom:io", 0);
-			continue;
-		}
-		mtx_unlock(&ctx->gc_queue_mtx);
-		zio = bp->bio_caller1;
-		zio->io_error = bp->bio_error;
-		if (bp->bio_cmd == BIO_FLUSH && bp->bio_error == ENOTSUP) {
-			vdev_t *vd;
-
-			/*
-			 * If we get ENOTSUP, we know that no future
-			 * attempts will ever succeed.  In this case we
-			 * set a persistent bit so that we don't bother
-			 * with the ioctl in the future.
-			 */
-			vd = zio->io_vd;
-			vd->vdev_nowritecache = B_TRUE;
-		}
-		g_destroy_bio(bp);
-		zio_interrupt(zio);
-	}
-}
-
 static uint64_t
 nvlist_get_guid(nvlist_t *list)
 {
@@ -254,7 +191,7 @@ vdev_geom_io(struct g_consumer *cp, int cmd, void *data, off_t offset, off_t siz
 {
 	struct bio *bp;
 	u_char *p;
-	off_t off;
+	off_t off, maxio;
 	int error;
 
 	ASSERT((offset % cp->provider->sectorsize) == 0);
@@ -264,14 +201,15 @@ vdev_geom_io(struct g_consumer *cp, int cmd, void *data, off_t offset, off_t siz
 	off = offset;
 	offset += size;
 	p = data;
+	maxio = MAXPHYS - (MAXPHYS % cp->provider->sectorsize);
 	error = 0;
 
-	for (; off < offset; off += MAXPHYS, p += MAXPHYS, size -= MAXPHYS) {
+	for (; off < offset; off += maxio, p += maxio, size -= maxio) {
 		bzero(bp, sizeof(*bp));
 		bp->bio_cmd = cmd;
 		bp->bio_done = NULL;
 		bp->bio_offset = off;
-		bp->bio_length = MIN(size, MAXPHYS);
+		bp->bio_length = MIN(size, maxio);
 		bp->bio_data = p;
 		g_io_request(bp, cp);
 		error = biowait(bp, "vdev_geom_io");
@@ -293,16 +231,12 @@ vdev_geom_read_guid(struct g_consumer *cp)
 	uint64_t psize;
 	off_t offset, size;
 	uint64_t guid;
-	int error, l, len, iszvol;
+	int error, l, len;
 
 	g_topology_assert_not();
 
 	pp = cp->provider;
 	ZFS_LOG(1, "Reading guid from %s...", pp->name);
-	if (g_getattr("ZFS::iszvol", cp, &iszvol) == 0 && iszvol) {
-		ZFS_LOG(1, "Skipping ZVOL-based provider %s.", pp->name);
-		return (0);
-	}
 
 	psize = pp->mediasize;
 	psize = P2ALIGN(psize, (uint64_t)sizeof(vdev_label_t));
@@ -340,11 +274,6 @@ vdev_geom_read_guid(struct g_consumer *cp)
 	return (guid);
 }
 
-struct vdev_geom_find {
-	uint64_t guid;
-	struct g_consumer *cp;
-};
-
 static void
 vdev_geom_taste_orphan(struct g_consumer *cp)
 {
@@ -353,25 +282,23 @@ vdev_geom_taste_orphan(struct g_consumer *cp)
 	    cp->provider->name));
 }
 
-static void
-vdev_geom_attach_by_guid_event(void *arg, int flags __unused)
+static struct g_consumer *
+vdev_geom_attach_by_guid(uint64_t guid)
 {
-	struct vdev_geom_find *ap;
 	struct g_class *mp;
 	struct g_geom *gp, *zgp;
 	struct g_provider *pp;
-	struct g_consumer *zcp;
-	uint64_t guid;
+	struct g_consumer *cp, *zcp;
+	uint64_t pguid;
 
 	g_topology_assert();
-
-	ap = arg;
 
 	zgp = g_new_geomf(&zfs_vdev_class, "zfs::vdev::taste");
 	/* This orphan function should be never called. */
 	zgp->orphan = vdev_geom_taste_orphan;
 	zcp = g_new_consumer(zgp);
 
+	cp = NULL;
 	LIST_FOREACH(mp, &g_classes, class) {
 		if (mp == &zfs_vdev_class)
 			continue;
@@ -387,39 +314,29 @@ vdev_geom_attach_by_guid_event(void *arg, int flags __unused)
 					continue;
 				}
 				g_topology_unlock();
-				guid = vdev_geom_read_guid(zcp);
+				pguid = vdev_geom_read_guid(zcp);
 				g_topology_lock();
 				g_access(zcp, -1, 0, 0);
 				g_detach(zcp);
-				if (guid != ap->guid)
+				if (pguid != guid)
 					continue;
-				ap->cp = vdev_geom_attach(pp);
-				if (ap->cp == NULL) {
-					printf("ZFS WARNING: Unable to attach to %s.",
+				cp = vdev_geom_attach(pp);
+				if (cp == NULL) {
+					printf("ZFS WARNING: Unable to attach to %s.\n",
 					    pp->name);
 					continue;
 				}
-				goto end;
+				break;
 			}
+			if (cp != NULL)
+				break;
 		}
+		if (cp != NULL)
+			break;
 	}
-	ap->cp = NULL;
 end:
 	g_destroy_consumer(zcp);
 	g_destroy_geom(zgp);
-}
-
-static struct g_consumer *
-vdev_geom_attach_by_guid(uint64_t guid)
-{
-	struct vdev_geom_find *ap;
-	struct g_consumer *cp;
-
-	ap = kmem_zalloc(sizeof(*ap), KM_SLEEP);
-	ap->guid = guid;
-	g_waitfor_event(vdev_geom_attach_by_guid_event, ap, M_WAITOK, NULL);
-	cp = ap->cp;
-	kmem_free(ap, sizeof(*ap));
 	return (cp);
 }
 
@@ -429,6 +346,8 @@ vdev_geom_open_by_guid(vdev_t *vd)
 	struct g_consumer *cp;
 	char *buf;
 	size_t len;
+
+	g_topology_assert();
 
 	ZFS_LOG(1, "Searching by guid [%ju].", (uintmax_t)vd->vdev_guid);
 	cp = vdev_geom_attach_by_guid(vd->vdev_guid);
@@ -457,13 +376,15 @@ vdev_geom_open_by_path(vdev_t *vd, int check_guid)
 	struct g_consumer *cp;
 	uint64_t guid;
 
+	g_topology_assert();
+
 	cp = NULL;
-	g_topology_lock();
 	pp = g_provider_by_name(vd->vdev_path + sizeof("/dev/") - 1);
 	if (pp != NULL) {
 		ZFS_LOG(1, "Found provider by name %s.", vd->vdev_path);
 		cp = vdev_geom_attach(pp);
-		if (cp != NULL && check_guid) {
+		if (cp != NULL && check_guid && ISP2(pp->sectorsize) &&
+		    pp->sectorsize <= VDEV_PAD_SIZE) {
 			g_topology_unlock();
 			guid = vdev_geom_read_guid(cp);
 			g_topology_lock();
@@ -479,7 +400,6 @@ vdev_geom_open_by_path(vdev_t *vd, int check_guid)
 			}
 		}
 	}
-	g_topology_unlock();
 
 	return (cp);
 }
@@ -487,10 +407,10 @@ vdev_geom_open_by_path(vdev_t *vd, int check_guid)
 static int
 vdev_geom_open(vdev_t *vd, uint64_t *psize, uint64_t *ashift)
 {
-	vdev_geom_ctx_t *ctx;
 	struct g_provider *pp;
 	struct g_consumer *cp;
-	int error, owned;
+	size_t bufsize;
+	int error, lock;
 
 	/*
 	 * We must have a pathname, and it must be absolute.
@@ -502,54 +422,80 @@ vdev_geom_open(vdev_t *vd, uint64_t *psize, uint64_t *ashift)
 
 	vd->vdev_tsd = NULL;
 
-	if ((owned = mtx_owned(&Giant)))
-		mtx_unlock(&Giant);
-	error = 0;
-	cp = vdev_geom_open_by_path(vd, 1);
-	if (cp == NULL) {
-		/*
-		 * The device at vd->vdev_path doesn't have the expected guid.
-		 * The disks might have merely moved around so try all other
-		 * geom providers to find one with the right guid.
-		 */
-		cp = vdev_geom_open_by_guid(vd);
+	if (mutex_owned(&spa_namespace_lock)) {
+		mutex_exit(&spa_namespace_lock);
+		lock = 1;
+	} else {
+		lock = 0;
 	}
-	if (cp == NULL)
+	DROP_GIANT();
+	g_topology_lock();
+	error = 0;
+
+	/*
+	 * If we're creating or splitting a pool, just find the GEOM provider
+	 * by its name and ignore GUID mismatches.
+	 */
+	if (vd->vdev_spa->spa_load_state == SPA_LOAD_NONE ||
+	    vd->vdev_spa->spa_splitting_newspa == B_TRUE)
 		cp = vdev_geom_open_by_path(vd, 0);
+	else {
+		cp = vdev_geom_open_by_path(vd, 1);
+		if (cp == NULL) {
+			/*
+			 * The device at vd->vdev_path doesn't have the
+			 * expected guid. The disks might have merely
+			 * moved around so try all other GEOM providers
+			 * to find one with the right guid.
+			 */
+			cp = vdev_geom_open_by_guid(vd);
+		}
+	}
+
 	if (cp == NULL) {
 		ZFS_LOG(1, "Provider %s not found.", vd->vdev_path);
 		error = ENOENT;
-	} else if (cp->acw == 0 && (spa_mode & FWRITE) != 0) {
+	} else if (cp->provider->sectorsize > VDEV_PAD_SIZE ||
+	    !ISP2(cp->provider->sectorsize)) {
+		ZFS_LOG(1, "Provider %s has unsupported sectorsize.",
+		    vd->vdev_path);
+
 		g_topology_lock();
-		error = g_access(cp, 0, 1, 0);
+		vdev_geom_detach(cp, 0);
+		g_topology_unlock();
+
+		error = EINVAL;
+		cp = NULL;
+	} else if (cp->acw == 0 && (spa_mode(vd->vdev_spa) & FWRITE) != 0) {
+		int i;
+
+		for (i = 0; i < 5; i++) {
+			error = g_access(cp, 0, 1, 0);
+			if (error == 0)
+				break;
+			g_topology_unlock();
+			tsleep(vd, 0, "vdev", hz / 2);
+			g_topology_lock();
+		}
 		if (error != 0) {
-			printf("ZFS WARNING: Unable to open %s for writing (error=%d).",
+			printf("ZFS WARNING: Unable to open %s for writing (error=%d).\n",
 			    vd->vdev_path, error);
 			vdev_geom_detach(cp, 0);
 			cp = NULL;
 		}
-		g_topology_unlock();
 	}
-	if (owned)
-		mtx_lock(&Giant);
+	g_topology_unlock();
+	PICKUP_GIANT();
+	if (lock)
+		mutex_enter(&spa_namespace_lock);
 	if (cp == NULL) {
 		vd->vdev_stat.vs_aux = VDEV_AUX_OPEN_FAILED;
 		return (error);
 	}
 
 	cp->private = vd;
-
-	ctx = kmem_zalloc(sizeof(*ctx), KM_SLEEP);
-	bioq_init(&ctx->gc_queue);
-	mtx_init(&ctx->gc_queue_mtx, "zfs:vdev:geom:queue", NULL, MTX_DEF);
-	ctx->gc_consumer = cp;
-	ctx->gc_state = 0;
-
-	vd->vdev_tsd = ctx;
+	vd->vdev_tsd = cp;
 	pp = cp->provider;
-
-	kproc_kthread_add(vdev_geom_worker, ctx, &zfsproc, NULL, 0, 0,
-	    "zfskern", "vdev %s", pp->name);
 
 	/*
 	 * Determine the actual size of the device.
@@ -567,56 +513,81 @@ vdev_geom_open(vdev_t *vd, uint64_t *psize, uint64_t *ashift)
 	 */
 	vd->vdev_nowritecache = B_FALSE;
 
+	if (vd->vdev_physpath != NULL)
+		spa_strfree(vd->vdev_physpath);
+	bufsize = sizeof("/dev/") + strlen(pp->name);
+	vd->vdev_physpath = kmem_alloc(bufsize, KM_SLEEP);
+	snprintf(vd->vdev_physpath, bufsize, "/dev/%s", pp->name);
+
 	return (0);
 }
 
 static void
 vdev_geom_close(vdev_t *vd)
 {
-	vdev_geom_ctx_t *ctx;
 	struct g_consumer *cp;
 
-	if ((ctx = vd->vdev_tsd) == NULL)
+	cp = vd->vdev_tsd;
+	if (cp == NULL)
 		return;
-	if ((cp = ctx->gc_consumer) == NULL)
-		return;
-	vdev_geom_release(vd);
+	vd->vdev_tsd = NULL;
+	vd->vdev_delayed_close = B_FALSE;
 	g_post_event(vdev_geom_detach, cp, M_WAITOK, NULL);
 }
 
 static void
 vdev_geom_io_intr(struct bio *bp)
 {
-	vdev_geom_ctx_t *ctx;
+	vdev_t *vd;
 	zio_t *zio;
 
 	zio = bp->bio_caller1;
-	ctx = zio->io_vd->vdev_tsd;
-
-	if ((zio->io_error = bp->bio_error) == 0 && bp->bio_resid != 0)
+	vd = zio->io_vd;
+	zio->io_error = bp->bio_error;
+	if (zio->io_error == 0 && bp->bio_resid != 0)
 		zio->io_error = EIO;
-
-	mtx_lock(&ctx->gc_queue_mtx);
-	bioq_insert_tail(&ctx->gc_queue, bp);
-	wakeup_one(&ctx->gc_queue);
-	mtx_unlock(&ctx->gc_queue_mtx);
+	if (bp->bio_cmd == BIO_FLUSH && bp->bio_error == ENOTSUP) {
+		/*
+		 * If we get ENOTSUP, we know that no future
+		 * attempts will ever succeed.  In this case we
+		 * set a persistent bit so that we don't bother
+		 * with the ioctl in the future.
+		 */
+		vd->vdev_nowritecache = B_TRUE;
+	}
+	if (zio->io_error == EIO && !vd->vdev_remove_wanted) {
+		/*
+		 * If provider's error is set we assume it is being
+		 * removed.
+		 */
+		if (bp->bio_to->error != 0) {
+			/*
+			 * We post the resource as soon as possible, instead of
+			 * when the async removal actually happens, because the
+			 * DE is using this information to discard previous I/O
+			 * errors.
+			 */
+			/* XXX: zfs_post_remove() can sleep. */
+			zfs_post_remove(zio->io_spa, vd);
+			vd->vdev_remove_wanted = B_TRUE;
+			spa_async_request(zio->io_spa, SPA_ASYNC_REMOVE);
+		} else if (!vd->vdev_delayed_close) {
+			vd->vdev_delayed_close = B_TRUE;
+		}
+	}
+	g_destroy_bio(bp);
+	zio_interrupt(zio);
 }
 
 static int
 vdev_geom_io_start(zio_t *zio)
 {
 	vdev_t *vd;
-	vdev_geom_ctx_t *ctx;
 	struct g_consumer *cp;
 	struct bio *bp;
 	int error;
 
-	cp = NULL;
-
 	vd = zio->io_vd;
-	ctx = vd->vdev_tsd;
-	if (ctx != NULL)
-		cp = ctx->gc_consumer;
 
 	if (zio->io_type == ZIO_TYPE_IOCTL) {
 		/* XXPOLICY */
@@ -629,7 +600,7 @@ vdev_geom_io_start(zio_t *zio)
 
 		case DKIOCFLUSHWRITECACHE:
 
-			if (zfs_nocacheflush)
+			if (zfs_nocacheflush || vdev_geom_bio_flush_disable)
 				break;
 
 			if (vd->vdev_nowritecache) {
@@ -645,6 +616,7 @@ vdev_geom_io_start(zio_t *zio)
 		return (ZIO_PIPELINE_CONTINUE);
 	}
 sendreq:
+	cp = vd->vdev_tsd;
 	if (cp == NULL) {
 		zio->io_error = ENXIO;
 		return (ZIO_PIPELINE_CONTINUE);
@@ -661,6 +633,7 @@ sendreq:
 		break;
 	case ZIO_TYPE_IOCTL:
 		bp->bio_cmd = BIO_FLUSH;
+		bp->bio_flags |= BIO_ORDERED;
 		bp->bio_data = NULL;
 		bp->bio_offset = cp->provider->mediasize;
 		bp->bio_length = 0;
@@ -678,6 +651,16 @@ vdev_geom_io_done(zio_t *zio)
 {
 }
 
+static void
+vdev_geom_hold(vdev_t *vd)
+{
+}
+
+static void
+vdev_geom_rele(vdev_t *vd)
+{
+}
+
 vdev_ops_t vdev_geom_ops = {
 	vdev_geom_open,
 	vdev_geom_close,
@@ -685,6 +668,8 @@ vdev_ops_t vdev_geom_ops = {
 	vdev_geom_io_start,
 	vdev_geom_io_done,
 	NULL,
+	vdev_geom_hold,
+	vdev_geom_rele,
 	VDEV_TYPE_DISK,		/* name of this vdev type */
 	B_TRUE			/* leaf vdev */
 };

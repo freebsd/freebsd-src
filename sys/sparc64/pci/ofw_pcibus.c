@@ -165,7 +165,7 @@ ofw_pcibus_setup_device(device_t bridge, uint32_t clock, u_int busno,
 		CS_WRITE(PCIR_SECLAT_1, reg, 1);
 	} else {
 		reg = CS_READ(PCIR_MINGNT, 1);
-		if (reg != 0) {
+		if ((int)reg > 0) {
 			switch (clock) {
 			case 33000000:
 				reg *= 8;
@@ -277,6 +277,7 @@ ofw_pcibus_attach(device_t dev)
 			continue;
 		}
 		pci_add_child(dev, (struct pci_devinfo *)dinfo);
+		OFW_PCI_SETUP_DEVICE(pcib, dinfo->opd_dinfo.cfg.dev);
 	}
 
 	return (bus_generic_attach(dev));

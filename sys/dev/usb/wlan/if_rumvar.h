@@ -67,18 +67,11 @@ struct rum_tx_data {
 };
 typedef STAILQ_HEAD(, rum_tx_data) rum_txdhead;
 
-struct rum_node {
-	struct ieee80211_node	ni;
-	struct ieee80211_amrr_node amn;
-};
-#define	RUM_NODE(ni)	((struct rum_node *)(ni))
-
 struct rum_vap {
 	struct ieee80211vap		vap;
 	struct ieee80211_beacon_offsets	bo;
-	struct ieee80211_amrr		amrr;
-	struct usb_callout		amrr_ch;
-	struct task			amrr_task;
+	struct usb_callout		ratectl_ch;
+	struct task			ratectl_task;
 
 	int				(*newstate)(struct ieee80211vap *,
 					    enum ieee80211_state, int);

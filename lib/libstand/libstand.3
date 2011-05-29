@@ -270,7 +270,6 @@ The
 .Li b
 conversion is provided to decode error registers.
 Its usage is:
-.Pp
 .Bd -ragged -offset indent
 printf(
 .Qq reg=%b\en ,
@@ -285,7 +284,6 @@ Each <arg> is a sequence of characters, the first of
 which gives the bit number to be inspected (origin 1) and the next characters
 (up to a character less than 32) give the text to be displayed if the bit is set.
 Thus
-.Pp
 .Bd -ragged -offset indent
 printf(
 .Qq reg=%b\en ,
@@ -295,7 +293,6 @@ printf(
 .Ed
 .Pp
 would give the output
-.Pp
 .Bd -ragged -offset indent
 reg=3<BITTWO,BITONE>
 .Ed
@@ -303,7 +300,6 @@ reg=3<BITTWO,BITONE>
 The
 .Li D
 conversion provides a hexdump facility, e.g.
-.Pp
 .Bd -ragged -offset indent
 printf(
 .Qq %6D ,

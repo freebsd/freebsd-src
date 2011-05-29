@@ -95,7 +95,7 @@ int drm_sysctl_init(struct drm_device *dev)
 			SYSCTL_CHILDREN(top), 
 			OID_AUTO, 
 			drm_sysctl_list[i].name, 
-			CTLTYPE_INT | CTLFLAG_RD, 
+			CTLTYPE_STRING | CTLFLAG_RD, 
 			dev, 
 			0, 
 			drm_sysctl_list[i].f, 
@@ -188,7 +188,7 @@ static int drm_vm_info DRM_SYSCTL_HANDLER_ARGS
 	DRM_UNLOCK();
 
 	DRM_SYSCTL_PRINT("\nslot offset	        size       "
-	    "type flags address            mtrr\n");
+	    "type flags address            handle mtrr\n");
 
 	for (i = 0; i < mapcount; i++) {
 		map = &tempmaps[i];
@@ -204,9 +204,11 @@ static int drm_vm_info DRM_SYSCTL_HANDLER_ARGS
 			yesno = "yes";
 
 		DRM_SYSCTL_PRINT(
-		    "%4d 0x%016lx 0x%08lx %4.4s  0x%02x 0x%016lx %s\n", i,
-		    map->offset, map->size, type, map->flags,
-		    (unsigned long)map->handle, yesno);
+		    "%4d 0x%016lx 0x%08lx %4.4s  0x%02x 0x%016lx %6d %s\n",
+		    i, map->offset, map->size, type, map->flags,
+		    (unsigned long)map->virtual,
+		    (unsigned int)((unsigned long)map->handle >>
+		    DRM_MAP_HANDLE_SHIFT), yesno);
 	}
 	SYSCTL_OUT(req, "", 1);
 
@@ -257,7 +259,7 @@ static int drm_bufs_info DRM_SYSCTL_HANDLER_ARGS
 				       *(1 << dma->bufs[i].page_order),
 				       (dma->bufs[i].seg_count
 					* (1 << dma->bufs[i].page_order))
-				       * PAGE_SIZE / 1024);
+				       * (int)PAGE_SIZE / 1024);
 	}
 	DRM_SYSCTL_PRINT("\n");
 	for (i = 0; i < dma->buf_count; i++) {

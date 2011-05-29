@@ -161,9 +161,7 @@ ng_vlan_constructor(node_p node)
 	priv_p priv;
 	int i;
 
-	priv = malloc(sizeof(*priv), M_NETGRAPH, M_NOWAIT | M_ZERO);
-	if (priv == NULL)
-		return (ENOMEM);
+	priv = malloc(sizeof(*priv), M_NETGRAPH, M_WAITOK | M_ZERO);
 	for (i = 0; i < HASHSIZE; i++)
 		LIST_INIT(&priv->hashtable[i]);
 	NG_NODE_SET_PRIVATE(node, priv);

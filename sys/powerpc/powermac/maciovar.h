@@ -38,6 +38,16 @@
 #define MACIO_REG_SIZE  0x7ffff
 
 /*
+ * Feature Control Registers (FCR)
+ */
+#define HEATHROW_FCR	0x38
+#define KEYLARGO_FCR0	0x38
+#define KEYLARGO_FCR1	0x3c
+
+#define FCR_ENET_ENABLE	0x60000000
+#define FCR_ENET_RESET	0x80000000
+
+/*
  * Format of a macio reg property entry.
  */
 struct macio_reg {

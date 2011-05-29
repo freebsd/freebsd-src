@@ -27,7 +27,7 @@
 # $FreeBSD$
 #
 
-# This is a wrapper script to run tools-nfs4.test.
+# This is a wrapper script to run tools-nfs4.test on UFS filesystem.
 #
 # If any of the tests fails, here is how to debug it: go to
 # the directory with problematic filesystem mounted on it,
@@ -44,7 +44,7 @@ if [ `whoami` != "root" ]; then
 	exit 1
 fi
 
-TESTDIR=`dirname $0`
+TESTDIR=$(dirname $(realpath $0))
 
 # Set up the test filesystem.
 MD=`mdconfig -at swap -s 10m`
@@ -63,13 +63,17 @@ cd $MNT
 # First, check whether we can crash the kernel by creating too many
 # entries.  For some reason this won't work in the test file.
 touch xxx
-setfacl -x5 xxx
+setfacl -x2 xxx
 while :; do setfacl -a0 u:42:rwx:allow xxx 2> /dev/null; if [ $? -ne 0 ]; then break; fi; done
 chmod 600 xxx
 rm xxx
 echo "ok 2"
 
-perl $TESTDIR/run $TESTDIR/tools-nfs4.test > /dev/null
+if [ `sysctl -n vfs.acl_nfs4_old_semantics` = 0 ]; then
+	perl $TESTDIR/run $TESTDIR/tools-nfs4-psarc.test > /dev/null
+else
+	perl $TESTDIR/run $TESTDIR/tools-nfs4.test > /dev/null
+fi
 
 if [ $? -eq 0 ]; then
 	echo "ok 3"

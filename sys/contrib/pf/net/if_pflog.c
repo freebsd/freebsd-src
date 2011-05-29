@@ -82,17 +82,17 @@ __FBSDID("$FreeBSD$");
 #include <net/route.h>
 #include <net/bpf.h>
 
-#ifdef	INET
+#if defined(INET) || defined(INET6)
 #include <netinet/in.h>
+#endif
+#ifdef	INET
 #include <netinet/in_var.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #endif
 
 #ifdef INET6
-#ifndef INET
-#include <netinet/in.h>
-#endif
+#include <netinet6/in6_var.h>
 #include <netinet6/nd6.h>
 #endif /* INET6 */
 

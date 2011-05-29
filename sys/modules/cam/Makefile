@@ -2,12 +2,14 @@
 
 S=	${.CURDIR}/../..
 
-.PATH: $S/cam $S/cam/scsi $S/cam/ata
+.PATH: $S/cam $S/cam/scsi $S/cam/ata $S/${MACHINE}/${MACHINE}
 
 KMOD=	cam
 
 # See sys/conf/options for the flags that go into the different opt_*.h files.
 SRCS=	opt_cam.h
+SRCS+=	opt_ada.h
+SRCS+=	opt_ata.h
 SRCS+=	opt_scsi.h
 SRCS+=	opt_cd.h
 SRCS+=	opt_pt.h
@@ -25,9 +27,13 @@ SRCS+=	scsi_ses.c
 SRCS+=	scsi_sg.c
 SRCS+=	scsi_targ_bh.c scsi_target.c
 SRCS+=	scsi_xpt.c
+SRCS+=	smp_all.c
 SRCS+=	ata_all.c
 SRCS+=	ata_xpt.c
 SRCS+=	ata_da.c
+.if exists($S/${MACHINE}/${MACHINE}/ata_machdep.c)
+SRCS+=  ata_machdep.c
+.endif
 SRCS+=	ata_pmp.c
 
 EXPORT_SYMS=	YES	# XXX evaluate

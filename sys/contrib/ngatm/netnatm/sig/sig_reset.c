@@ -270,7 +270,7 @@ start_restart_ack(struct uni *uni, struct uni_msg *m, struct uni_all *u)
 		 */
 		if (u->u.restart_ack.restart.rclass == UNI_RESTART_ALL &&
 		    IE_ISGOOD(u->u.restart_ack.connid)) {
-			UNI_SAVE_IERR(&uni->cx, UNI_IE_CONNID,
+			(void)UNI_SAVE_IERR(&uni->cx, UNI_IE_CONNID,
 			    u->u.restart_ack.connid.h.act,
 			    UNI_IERR_UNK);
 		} else if ((u->u.restart_ack.restart.rclass == UNI_RESTART_PATH ||
@@ -547,7 +547,7 @@ response_restart(struct uni *uni, struct uni_msg *m, struct uni_all *u)
 			 */
 			if (u->u.restart.restart.rclass == UNI_RESTART_ALL &&
 			   IE_ISGOOD(u->u.restart.connid)) {
-				UNI_SAVE_IERR(&uni->cx, UNI_IE_CONNID,
+				(void)UNI_SAVE_IERR(&uni->cx, UNI_IE_CONNID,
 				    u->u.restart.connid.h.act,
 				    UNI_IERR_UNK);
 			} else if ((u->u.restart.restart.rclass == UNI_RESTART_PATH ||

@@ -1,5 +1,5 @@
 /* ehopt.c--optimize gcc exception frame information.
-   Copyright 1998, 2000, 2001, 2003 Free Software Foundation, Inc.
+   Copyright 1998, 2000, 2001, 2003, 2005 Free Software Foundation, Inc.
    Written by Ian Lance Taylor <ian@cygnus.com>.
 
 This file is part of GAS, the GNU Assembler.
@@ -16,8 +16,8 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with GAS; see the file COPYING.  If not, write to the Free
-Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-02111-1307, USA.  */
+Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+02110-1301, USA.  */
 
 #include "as.h"
 #include "subsegs.h"
@@ -111,16 +111,8 @@ get_cie_info (struct cie_info *info)
 
   /* We should find the CIE at the start of the section.  */
 
-#if defined (BFD_ASSEMBLER) || defined (MANY_SEGMENTS)
   f = seg_info (now_seg)->frchainP->frch_root;
-#else
-  f = frchain_now->frch_root;
-#endif
-#ifdef BFD_ASSEMBLER
   fix = seg_info (now_seg)->frchainP->fix_root;
-#else
-  fix = *seg_fix_rootP;
-#endif
 
   /* Look through the frags of the section to find the code alignment.  */
 

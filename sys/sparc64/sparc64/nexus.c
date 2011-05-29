@@ -153,6 +153,7 @@ EARLY_DRIVER_MODULE(nexus, root, nexus_driver, nexus_devclass, 0, 0,
 MODULE_VERSION(nexus, 1);
 
 static const char *const nexus_excl_name[] = {
+	"FJSV,system",
 	"aliases",
 	"associations",
 	"chosen",
@@ -163,6 +164,7 @@ static const char *const nexus_excl_name[] = {
 	"openprom",
 	"options",
 	"packages",
+	"physical-memory",
 	"rsc",
 	"sgcn",
 	"todsg",
@@ -256,7 +258,7 @@ nexus_attach(device_t dev)
 }
 
 static device_t
-nexus_add_child(device_t dev, int order, const char *name, int unit)
+nexus_add_child(device_t dev, u_int order, const char *name, int unit)
 {
 	device_t cdev;
 	struct nexus_devinfo *ndi;

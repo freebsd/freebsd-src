@@ -50,12 +50,10 @@
 #include <sys/_mutex.h>
 #include <machine/atomic.h>
 #include <machine/pte.h>
+#include <machine/vmparam.h>
 
 #ifdef _KERNEL
 
-#ifndef NKPT
-#define	NKPT		30	/* initial number of kernel page tables */
-#endif
 #define MAXKPT		(PAGE_SIZE/sizeof(vm_offset_t))
 
 #define	vtophys(va)	pmap_kextract((vm_offset_t)(va))
@@ -75,7 +73,7 @@ struct md_page {
 struct pmap {
 	struct mtx		pm_mtx;
 	TAILQ_HEAD(,pv_entry)	pm_pvlist;	/* list of mappings in pmap */
-	u_int32_t		pm_rid[5];	/* base RID for pmap */
+	uint32_t		pm_rid[IA64_VM_MINKERN_REGION];
 	struct pmap_statistics	pm_stats;	/* pmap statistics */
 };
 
@@ -110,7 +108,7 @@ typedef struct pv_entry {
 
 #ifdef	_KERNEL
 
-extern vm_offset_t phys_avail[];
+extern vm_paddr_t phys_avail[];
 extern vm_offset_t virtual_avail;
 extern vm_offset_t virtual_end;
 
@@ -129,13 +127,8 @@ void	pmap_bootstrap(void);
 void	pmap_kenter(vm_offset_t va, vm_offset_t pa);
 vm_paddr_t pmap_kextract(vm_offset_t va);
 void	pmap_kremove(vm_offset_t);
-void	pmap_setdevram(unsigned long long basea, vm_offset_t sizea);
-int	pmap_uses_prom_console(void);
 void	*pmap_mapdev(vm_paddr_t, vm_size_t);
 void	pmap_unmapdev(vm_offset_t, vm_size_t);
-unsigned *pmap_pte(pmap_t, vm_offset_t) __pure2;
-void	pmap_set_opt	(unsigned *);
-void	pmap_set_opt_bsp	(void);
 struct pmap *pmap_switch(struct pmap *pmap);
 
 #endif /* _KERNEL */

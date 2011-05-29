@@ -95,4 +95,30 @@
 
 #define HVM_NR_PARAMS          15
 
+#ifdef XENHVM
+/**
+ * Retrieve an HVM setting from the hypervisor.
+ *
+ * \param index  The index of the HVM parameter to retrieve.
+ *
+ * \return  On error, 0.  Otherwise the value of the requested parameter.
+ */
+static inline unsigned long
+hvm_get_parameter(int index)
+{
+	struct xen_hvm_param xhv;
+	int error;
+
+	xhv.domid = DOMID_SELF;
+	xhv.index = index;
+	error = HYPERVISOR_hvm_op(HVMOP_get_param, &xhv);
+	if (error) {
+		printf("hvm_get_parameter: failed to get %d, error %d\n",
+		    index, error);
+		return (0);
+	}
+	return (xhv.value);
+}
+#endif
+
 #endif /* __XEN_PUBLIC_HVM_PARAMS_H__ */

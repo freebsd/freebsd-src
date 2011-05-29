@@ -324,8 +324,9 @@ smc_attach(device_t dev)
 	callout_init_mtx(&sc->smc_mii_tick_ch, &sc->smc_mtx,
 	    CALLOUT_RETURNUNLOCKED);
 	if (sc->smc_chip >= REV_CHIP_91110FD) {
-		mii_phy_probe(dev, &sc->smc_miibus, smc_mii_ifmedia_upd,
-		    smc_mii_ifmedia_sts);
+		(void)mii_attach(dev, &sc->smc_miibus, ifp,
+		    smc_mii_ifmedia_upd, smc_mii_ifmedia_sts, BMSR_DEFCAPMASK,
+		    MII_PHY_ANY, MII_OFFSET_ANY, 0);
 		if (sc->smc_miibus != NULL) {
 			sc->smc_mii_tick = smc_mii_tick;
 			sc->smc_mii_mediachg = smc_mii_mediachg;
@@ -347,7 +348,7 @@ smc_attach(device_t dev)
 	ifp->if_init = smc_init;
 	ifp->if_ioctl = smc_ioctl;
 	ifp->if_start = smc_start;
-	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
+	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
 	IFQ_SET_READY(&ifp->if_snd);
 
 	ifp->if_capabilities = ifp->if_capenable = 0;

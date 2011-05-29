@@ -28,7 +28,7 @@
 .\"	@(#)sigprocmask.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd May 7, 2010
 .Dt SIGPROCMASK 2
 .Os
 .Sh NAME
@@ -96,6 +96,11 @@ quietly disallows
 or
 .Dv SIGSTOP
 to be blocked.
+.Pp
+In threaded applications,
+.Xr pthread_sigmask 3
+must be used instead of
+.Fn sigprocmask .
 .Sh RETURN VALUES
 .Rv -std sigprocmask
 .Sh ERRORS
@@ -116,6 +121,7 @@ has a value other than those listed here.
 .Xr sigpending 2 ,
 .Xr sigsuspend 2 ,
 .Xr fpsetmask 3 ,
+.Xr pthread_sigmask 3 ,
 .Xr sigsetops 3
 .Sh STANDARDS
 The

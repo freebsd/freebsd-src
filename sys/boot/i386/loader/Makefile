@@ -6,7 +6,7 @@ MK_SSP=		no
 LOADER?=	loader
 PROG=		${LOADER}.sym
 INTERNALPROG=
-NEWVERSWHAT?=	"bootstrap loader" i386
+NEWVERSWHAT?=	"bootstrap loader" x86
 
 # architecture-specific loader code
 SRCS=		main.c conf.c vers.c
@@ -104,10 +104,15 @@ FILESMODE_${LOADER}= ${BINMODE} -b
 .PATH: ${.CURDIR}/../../forth 
 FILES+=	loader.help loader.4th support.4th loader.conf
 FILES+= screen.4th frames.4th beastie.4th
+FILES+= brand.4th check-password.4th color.4th delay.4th
+FILES+= menu.4th menu-commands.4th shortcuts.4th version.4th
 FILESDIR_loader.conf=	/boot/defaults
 
 .if !exists(${DESTDIR}/boot/loader.rc)
 FILES+=	loader.rc
+.endif
+.if !exists(${DESTDIR}/boot/menu.rc)
+FILES+= menu.rc
 .endif
 .endif
 
@@ -115,11 +120,11 @@ FILES+=	loader.rc
 OBJS=	${BTXCRT} 
 
 DPADD=	${LIBFICL} ${LIBFIREWIRE} ${LIBZFS} ${LIBI386} ${LIBSTAND}
-LDADD=	${LIBFICL} ${LIBFIREWIRE} ${LIBZFS} ${LIBI386} -lstand
+LDADD=	${LIBFICL} ${LIBFIREWIRE} ${LIBZFS} ${LIBI386} ${LIBSTAND}
 
 .include <bsd.prog.mk>
 
-.if ${MACHINE_ARCH} == "amd64"
+.if ${MACHINE_CPUARCH} == "amd64"
 beforedepend ${OBJS}: machine
 CLEANFILES+=	machine
 machine:

@@ -36,9 +36,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/malloc.h>
 #include <sys/systm.h>
+#include <sys/sysctl.h>
 
 #include <geom/geom.h>
 #include <net/zlib.h>
+
+FEATURE(geom_uzip, "GEOM uzip read-only compressed disks support");
 
 #undef GEOM_UZIP_DEBUG
 #ifdef GEOM_UZIP_DEBUG

@@ -45,13 +45,29 @@ typedef unsigned int RING_IDX;
 #define __RD32(_x) (((_x) & 0xffff0000) ? __RD16((_x)>>16)<<16 : __RD16(_x))
 
 /*
+ * The amount of space reserved in the shared ring for accounting information.
+ */
+#define __RING_HEADER_SIZE(_s) \
+    ((intptr_t)(_s)->ring - (intptr_t)(_s))
+
+/*
  * Calculate size of a shared ring, given the total available space for the
  * ring and indexes (_sz), and the name tag of the request/response structure.
  * A ring contains as many entries as will fit, rounded down to the nearest 
  * power of two (so we can mask with (size-1) to loop around).
  */
 #define __RING_SIZE(_s, _sz) \
-    (__RD32(((_sz) - (long)(_s)->ring + (long)(_s)) / sizeof((_s)->ring[0])))
+    (__RD32(((_sz) - __RING_HEADER_SIZE(_s)) / sizeof((_s)->ring[0])))
+
+/*
+ * The number of pages needed to support a given number of request/reponse
+ * entries.  The entry count is rounded down to the nearest power of two
+ * as required by the ring macros.
+ */
+#define __RING_PAGES(_s, _entries)              \
+    ((__RING_HEADER_SIZE(_s)                    \
+   + (__RD32(_entries) * sizeof((_s)->ring[0])) \
+   + PAGE_SIZE - 1) / PAGE_SIZE)
 
 /*
  * Macros to make the correct C datatypes for a new kind of ring.

@@ -163,9 +163,7 @@ ng_device_constructor(node_p node)
 
 	DBG;
 
-	priv = malloc(sizeof(*priv), M_NETGRAPH, M_NOWAIT | M_ZERO);
-	if (priv == NULL)
-		return (ENOMEM);
+	priv = malloc(sizeof(*priv), M_NETGRAPH, M_WAITOK | M_ZERO);
 
 	/* Allocate unit number */
 	priv->unit = alloc_unr(ngd_unit);

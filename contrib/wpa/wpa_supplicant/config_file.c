@@ -434,11 +434,9 @@ static const struct global_parse_data global_fields[] = {
 	{ INT_RANGE(eapol_version, 1, 2) },
 	{ INT(ap_scan) },
 	{ INT(fast_reauth) },
-#ifdef EAP_TLS_OPENSSL
 	{ STR(opensc_engine_path) },
 	{ STR(pkcs11_engine_path) },
 	{ STR(pkcs11_module_path) },
-#endif /* EAP_TLS_OPENSSL */
 	{ STR(driver_param) },
 	{ INT(dot11RSNAConfigPMKLifetime) },
 	{ INT(dot11RSNAConfigPMKReauthThreshold) },
@@ -456,9 +454,12 @@ static const struct global_parse_data global_fields[] = {
 	{ STR_RANGE(serial_number, 0, 32) },
 	{ STR(device_type) },
 	{ FUNC(os_version) },
+	{ STR(config_methods) },
 	{ INT_RANGE(wps_cred_processing, 0, 2) },
 #endif /* CONFIG_WPS */
-	{ FUNC(country) }
+	{ FUNC(country) },
+	{ INT(bss_max_count) },
+	{ INT_RANGE(filter_ssids, 0, 1) }
 };
 
 #undef FUNC
@@ -837,7 +838,6 @@ static void wpa_config_write_global(FILE *f, struct wpa_config *config)
 		fprintf(f, "ap_scan=%d\n", config->ap_scan);
 	if (config->fast_reauth != DEFAULT_FAST_REAUTH)
 		fprintf(f, "fast_reauth=%d\n", config->fast_reauth);
-#ifdef EAP_TLS_OPENSSL
 	if (config->opensc_engine_path)
 		fprintf(f, "opensc_engine_path=%s\n",
 			config->opensc_engine_path);
@@ -847,7 +847,6 @@ static void wpa_config_write_global(FILE *f, struct wpa_config *config)
 	if (config->pkcs11_module_path)
 		fprintf(f, "pkcs11_module_path=%s\n",
 			config->pkcs11_module_path);
-#endif /* EAP_TLS_OPENSSL */
 	if (config->driver_param)
 		fprintf(f, "driver_param=%s\n", config->driver_param);
 	if (config->dot11RSNAConfigPMKLifetime)
@@ -882,6 +881,8 @@ static void wpa_config_write_global(FILE *f, struct wpa_config *config)
 	if (WPA_GET_BE32(config->os_version))
 		fprintf(f, "os_version=%08x\n",
 			WPA_GET_BE32(config->os_version));
+	if (config->config_methods)
+		fprintf(f, "config_methods=%s\n", config->config_methods);
 	if (config->wps_cred_processing)
 		fprintf(f, "wps_cred_processing=%d\n",
 			config->wps_cred_processing);
@@ -890,6 +891,10 @@ static void wpa_config_write_global(FILE *f, struct wpa_config *config)
 		fprintf(f, "country=%c%c\n",
 			config->country[0], config->country[1]);
 	}
+	if (config->bss_max_count != DEFAULT_BSS_MAX_COUNT)
+		fprintf(f, "bss_max_count=%u\n", config->bss_max_count);
+	if (config->filter_ssids)
+		fprintf(f, "filter_ssids=%d\n", config->filter_ssids);
 }
 
 #endif /* CONFIG_NO_CONFIG_WRITE */

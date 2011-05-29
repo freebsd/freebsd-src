@@ -419,7 +419,7 @@ static device_method_t siba_pcib_methods[] = {
 	DEVMETHOD(pcib_write_config,	siba_pcib_write_config),
 	DEVMETHOD(pcib_route_interrupt,	siba_pcib_route_interrupt),
 
-	{0, 0},
+	KOBJMETHOD_END
 };
 
 static driver_t siba_pcib_driver = {

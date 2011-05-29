@@ -34,6 +34,8 @@
 #include <time.h>
 #include <unistd.h>
 
+#define	libusb_device_handle libusb20_device
+
 #include "libusb20.h"
 #include "libusb20_desc.h"
 #include "libusb20_int.h"
@@ -139,7 +141,7 @@ libusb10_handle_events_sub(struct libusb_context *ctx, struct timeval *tv)
 		err = LIBUSB_ERROR_IO;
 
 	if (err < 1) {
-		for (i = 0; i != nfds; i++) {
+		for (i = 0; i != (int)nfds; i++) {
 			if (ppdev[i] != NULL) {
 				CTX_UNLOCK(ctx);
 				libusb_unref_device(libusb_get_device(ppdev[i]));
@@ -148,7 +150,7 @@ libusb10_handle_events_sub(struct libusb_context *ctx, struct timeval *tv)
 		}
 		goto do_done;
 	}
-	for (i = 0; i != nfds; i++) {
+	for (i = 0; i != (int)nfds; i++) {
 		if (ppdev[i] != NULL) {
 			dev = libusb_get_device(ppdev[i]);
 
@@ -185,6 +187,8 @@ do_done:
 	/* Do all done callbacks */
 
 	while ((sxfer = TAILQ_FIRST(&ctx->tr_done))) {
+		uint8_t flags;
+
 		TAILQ_REMOVE(&ctx->tr_done, sxfer, entry);
 		sxfer->entry.tqe_prev = NULL;
 
@@ -195,13 +199,14 @@ do_done:
 		uxfer = (struct libusb_transfer *)(
 		    ((uint8_t *)sxfer) + sizeof(*sxfer));
 
+		/* Allow the callback to free the transfer itself. */
+		flags = uxfer->flags;
+
 		if (uxfer->callback != NULL)
 			(uxfer->callback) (uxfer);
 
-		if (uxfer->flags & LIBUSB_TRANSFER_FREE_BUFFER)
-			free(uxfer->buffer);
-
-		if (uxfer->flags & LIBUSB_TRANSFER_FREE_TRANSFER)
+		/* Check if the USB transfer should be automatically freed. */
+		if (flags & LIBUSB_TRANSFER_FREE_TRANSFER)
 			libusb_free_transfer(uxfer);
 
 		CTX_LOCK(ctx);

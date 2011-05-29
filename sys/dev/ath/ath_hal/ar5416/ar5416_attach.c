@@ -57,8 +57,22 @@ ar5416AniSetup(struct ath_hal *ah)
 		.rssiThrLow		= 7,
 		.period			= 100,
 	};
-	/* NB: ANI is not enabled yet */
-	ar5212AniAttach(ah, &aniparams, &aniparams, AH_FALSE);
+	/* NB: disable ANI noise immmunity for reliable RIFS rx */
+	AH5416(ah)->ah_ani_function &= ~(1 << HAL_ANI_NOISE_IMMUNITY_LEVEL);
+	ar5416AniAttach(ah, &aniparams, &aniparams, AH_TRUE);
+}
+
+/*
+ * AR5416 doesn't do OLC or temperature compensation.
+ */
+static void
+ar5416olcInit(struct ath_hal *ah)
+{
+}
+
+static void
+ar5416olcTempCompensation(struct ath_hal *ah)
+{
 }
 
 /*
@@ -98,16 +112,21 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 	ah->ah_setupXTxDesc		= ar5416SetupXTxDesc;
 	ah->ah_fillTxDesc		= ar5416FillTxDesc;
 	ah->ah_procTxDesc		= ar5416ProcTxDesc;
+	ah->ah_getTxCompletionRates	= ar5416GetTxCompletionRates;
+	ah->ah_setupTxQueue		= ar5416SetupTxQueue;
+	ah->ah_resetTxQueue		= ar5416ResetTxQueue;
 
 	/* Receive Functions */
 	ah->ah_startPcuReceive		= ar5416StartPcuReceive;
 	ah->ah_stopPcuReceive		= ar5416StopPcuReceive;
 	ah->ah_setupRxDesc		= ar5416SetupRxDesc;
 	ah->ah_procRxDesc		= ar5416ProcRxDesc;
-	ah->ah_rxMonitor		= ar5416AniPoll,
-	ah->ah_procMibEvent		= ar5416ProcessMibIntr,
+	ah->ah_rxMonitor		= ar5416RxMonitor;
+	ah->ah_aniPoll			= ar5416AniPoll;
+	ah->ah_procMibEvent		= ar5416ProcessMibIntr;
 
 	/* Misc Functions */
+	ah->ah_getCapability		= ar5416GetCapability;
 	ah->ah_getDiagState		= ar5416GetDiagState;
 	ah->ah_setLedState		= ar5416SetLedState;
 	ah->ah_gpioCfgOutput		= ar5416GpioCfgOutput;
@@ -133,8 +152,7 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 	ah->ah_setStationBeaconTimers	= ar5416SetStaBeaconTimers;
 	ah->ah_resetStationBeaconTimers	= ar5416ResetStaBeaconTimers;
 
-	/* XXX 802.11n Functions */
-#if 0
+	/* 802.11n Functions */
 	ah->ah_chainTxDesc		= ar5416ChainTxDesc;
 	ah->ah_setupFirstTxDesc		= ar5416SetupFirstTxDesc;
 	ah->ah_setupLastTxDesc		= ar5416SetupLastTxDesc;
@@ -146,7 +164,6 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 	ah->ah_set11nMac2040		= ar5416Set11nMac2040;
 	ah->ah_get11nRxClear		= ar5416Get11nRxClear;
 	ah->ah_set11nRxClear		= ar5416Set11nRxClear;
-#endif
 
 	/* Interrupt functions */
 	ah->ah_isInterruptPending	= ar5416IsInterruptPending;
@@ -160,13 +177,32 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 #endif
 	ahp->ah_priv.ah_getChipPowerLimits = ar5416GetChipPowerLimits;
 
+	/* Internal ops */
 	AH5416(ah)->ah_writeIni		= ar5416WriteIni;
 	AH5416(ah)->ah_spurMitigate	= ar5416SpurMitigate;
+
+	/* Internal baseband ops */
+	AH5416(ah)->ah_initPLL		= ar5416InitPLL;
+
+	/* Internal calibration ops */
+	AH5416(ah)->ah_cal_initcal	= ar5416InitCalHardware;
+
+	/* Internal TX power control related operations */
+	AH5416(ah)->ah_olcInit = ar5416olcInit;
+	AH5416(ah)->ah_olcTempCompensation	= ar5416olcTempCompensation;
+	AH5416(ah)->ah_setPowerCalTable	= ar5416SetPowerCalTable;
+
 	/*
 	 * Start by setting all Owl devices to 2x2
 	 */
 	AH5416(ah)->ah_rx_chainmask = AR5416_DEFAULT_RXCHAINMASK;
 	AH5416(ah)->ah_tx_chainmask = AR5416_DEFAULT_TXCHAINMASK;
+
+	/* Enable all ANI functions to begin with */
+	AH5416(ah)->ah_ani_function = 0xffffffff;
+
+        /* Set overridable ANI methods */
+        AH5212(ah)->ah_aniControl = ar5416AniControl;
 }
 
 uint32_t
@@ -189,7 +225,8 @@ ar5416GetRadioRev(struct ath_hal *ah)
  */
 static struct ath_hal *
 ar5416Attach(uint16_t devid, HAL_SOFTC sc,
-	HAL_BUS_TAG st, HAL_BUS_HANDLE sh, HAL_STATUS *status)
+	HAL_BUS_TAG st, HAL_BUS_HANDLE sh, uint16_t *eepromdata,
+	HAL_STATUS *status)
 {
 	struct ath_hal_5416 *ahp5416;
 	struct ath_hal_5212 *ahp;
@@ -247,7 +284,8 @@ ar5416Attach(uint16_t devid, HAL_SOFTC sc,
 	HAL_INI_INIT(&AH5416(ah)->ah_ini_bank7, ar5416Bank7, 2);
 	HAL_INI_INIT(&AH5416(ah)->ah_ini_addac, ar5416Addac, 2);
 
-	if (!IS_5416V2_2(ah)) {		/* Owl 2.1/2.0 */
+	if (! IS_5416V2_2(ah)) {		/* Owl 2.1/2.0 */
+		ath_hal_printf(ah, "[ath] Enabling CLKDRV workaround for AR5416 < v2.2\n");
 		struct ini {
 			uint32_t	*data;		/* NB: !const */
 			int		rows, cols;
@@ -336,6 +374,8 @@ ar5416Attach(uint16_t devid, HAL_SOFTC sc,
 	/* Read Reg Domain */
 	AH_PRIVATE(ah)->ah_currentRD =
 	    ath_hal_eepromGet(ah, AR_EEP_REGDMN_0, AH_NULL);
+	AH_PRIVATE(ah)->ah_currentRDext =
+	    ath_hal_eepromGet(ah, AR_EEP_REGDMN_1, AH_NULL);
 
 	/*
 	 * ah_miscMode is populated by ar5416FillCapabilityInfo()
@@ -344,7 +384,7 @@ ar5416Attach(uint16_t devid, HAL_SOFTC sc,
 	 * placed into hardware.
 	 */
 	if (ahp->ah_miscMode != 0)
-		OS_REG_WRITE(ah, AR_MISC_MODE, ahp->ah_miscMode);
+		OS_REG_WRITE(ah, AR_MISC_MODE, OS_REG_READ(ah, AR_MISC_MODE) | ahp->ah_miscMode);
 
 	rfStatus = ar2133RfAttach(ah, &ecode);
 	if (!rfStatus) {
@@ -354,6 +394,14 @@ ar5416Attach(uint16_t devid, HAL_SOFTC sc,
 	}
 
 	ar5416AniSetup(ah);			/* Anti Noise Immunity */
+
+	AH5416(ah)->nf_2g.max = AR_PHY_CCA_MAX_GOOD_VAL_5416_2GHZ;
+	AH5416(ah)->nf_2g.min = AR_PHY_CCA_MIN_GOOD_VAL_5416_2GHZ;
+	AH5416(ah)->nf_2g.nominal = AR_PHY_CCA_NOM_VAL_5416_2GHZ;
+	AH5416(ah)->nf_5g.max = AR_PHY_CCA_MAX_GOOD_VAL_5416_5GHZ;
+	AH5416(ah)->nf_5g.min = AR_PHY_CCA_MIN_GOOD_VAL_5416_5GHZ;
+	AH5416(ah)->nf_5g.nominal = AR_PHY_CCA_NOM_VAL_5416_5GHZ;
+
 	ar5416InitNfHistBuff(AH5416(ah)->ah_cal.nfCalHist);
 
 	HALDEBUG(ah, HAL_DEBUG_ATTACH, "%s: return\n", __func__);
@@ -374,6 +422,12 @@ ar5416Detach(struct ath_hal *ah)
 
 	HALASSERT(ah != AH_NULL);
 	HALASSERT(ah->ah_magic == AR5416_MAGIC);
+
+	/* Make sure that chip is awake before writing to it */
+	if (! ar5416SetPowerMode(ah, HAL_PM_AWAKE, AH_TRUE))
+		HALDEBUG(ah, HAL_DEBUG_UNMASKABLE,
+		    "%s: failed to wake up chip\n",
+		    __func__);
 
 	ar5416AniDetach(ah);
 	ar5212RfDetach(ah);
@@ -435,10 +489,11 @@ ar5416WriteIni(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	 * Write addac shifts
 	 */
 	OS_REG_WRITE(ah, AR_PHY_ADC_SERIAL_CTL, AR_PHY_SEL_EXTERNAL_RADIO);
-#if 0
+
 	/* NB: only required for Sowl */
-	ar5416EepromSetAddac(ah, chan);
-#endif
+	if (AR_SREV_SOWL(ah))
+		ar5416EepromSetAddac(ah, chan);
+
 	regWrites = ath_hal_ini_write(ah, &AH5416(ah)->ah_ini_addac, 1,
 	    regWrites);
 	OS_REG_WRITE(ah, AR_PHY_ADC_SERIAL_CTL, AR_PHY_SEL_INTERNAL_ADDAC);
@@ -764,8 +819,9 @@ ar5416FillCapabilityInfo(struct ath_hal *ah)
 	pCap->halPSPollBroken = AH_TRUE;	/* XXX fixed in later revs? */
 	pCap->halVEOLSupport = AH_TRUE;
 	pCap->halBssIdMaskSupport = AH_TRUE;
-	pCap->halMcastKeySrchSupport = AH_FALSE;
+	pCap->halMcastKeySrchSupport = AH_TRUE;	/* Works on AR5416 and later */
 	pCap->halTsfAddSupport = AH_TRUE;
+	pCap->hal4AddrAggrSupport = AH_FALSE;	/* Broken in Owl */
 
 	if (ath_hal_eepromGet(ah, AR_EEP_MAXQCU, &val) == HAL_OK)
 		pCap->halTotalQueues = val;
@@ -801,6 +857,9 @@ ar5416FillCapabilityInfo(struct ath_hal *ah)
 	pCap->halWowMatchPatternExact = AH_FALSE;
 	pCap->halBtCoexSupport = AH_FALSE;	/* XXX need support */
 	pCap->halAutoSleepSupport = AH_FALSE;
+	pCap->hal4kbSplitTransSupport = AH_TRUE;
+	/* Disable this so Block-ACK works correctly */
+	pCap->halHasRxSelfLinkedTail = AH_FALSE;
 #if 0	/* XXX not yet */
 	pCap->halNumAntCfg2GHz = ar5416GetNumAntConfig(ahp, HAL_FREQ_BAND_2GHZ);
 	pCap->halNumAntCfg5GHz = ar5416GetNumAntConfig(ahp, HAL_FREQ_BAND_5GHZ);
@@ -809,11 +868,16 @@ ar5416FillCapabilityInfo(struct ath_hal *ah)
 	pCap->halTxChainMask = ath_hal_eepromGet(ah, AR_EEP_TXMASK, AH_NULL);
 	/* XXX CB71 uses GPIO 0 to indicate 3 rx chains */
 	pCap->halRxChainMask = ath_hal_eepromGet(ah, AR_EEP_RXMASK, AH_NULL);
+	/* AR5416 may have 3 antennas but is a 2x2 stream device */
+	pCap->halTxStreams = 2;
+	pCap->halRxStreams = 2;
 	pCap->halRtsAggrLimit = 8*1024;		/* Owl 2.0 limit */
-	pCap->halMbssidAggrSupport = AH_TRUE;
+	pCap->halMbssidAggrSupport = AH_FALSE;	/* Broken on Owl */
 	pCap->halForcePpmSupport = AH_TRUE;
 	pCap->halEnhancedPmSupport = AH_TRUE;
 	pCap->halBssidMatchSupport = AH_TRUE;
+	pCap->halGTTSupport = AH_TRUE;
+	pCap->halCSTSupport = AH_TRUE;
 
 	if (ath_hal_eepromGetFlag(ah, AR_EEP_RFKILL) &&
 	    ath_hal_eepromGet(ah, AR_EEP_RFSILENT, &ahpriv->ah_rfsilent) == HAL_OK) {

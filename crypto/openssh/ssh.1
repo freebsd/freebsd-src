@@ -1,4 +1,3 @@
-.\"  -*- nroff -*-
 .\"
 .\" Author: Tatu Ylonen <ylo@cs.hut.fi>
 .\" Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -34,9 +33,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh.1,v 1.283 2009/03/19 15:15:09 jmc Exp $
+.\" $OpenBSD: ssh.1,v 1.316 2010/11/18 15:01:00 jmc Exp $
 .\" $FreeBSD$
-.Dd March 19 2009
+.Dd November 18, 2010
 .Dt SSH 1
 .Os
 .Sh NAME
@@ -44,43 +43,25 @@
 .Nd OpenSSH SSH client (remote login program)
 .Sh SYNOPSIS
 .Nm ssh
+.Bk -words
 .Op Fl 1246AaCfgKkMNnqsTtVvXxYy
 .Op Fl b Ar bind_address
 .Op Fl c Ar cipher_spec
-.Oo Fl D\ \&
-.Sm off
-.Oo Ar bind_address : Oc
-.Ar port
-.Sm on
-.Oc
+.Op Fl D Oo Ar bind_address : Oc Ns Ar port
 .Op Fl e Ar escape_char
 .Op Fl F Ar configfile
-.Bk -words
+.Op Fl I Ar pkcs11
 .Op Fl i Ar identity_file
-.Ek
-.Oo Fl L\ \&
-.Sm off
-.Oo Ar bind_address : Oc
-.Ar port : host : hostport
-.Sm on
-.Oc
-.Bk -words
+.Op Fl L Oo Ar bind_address : Oc Ns Ar port : Ns Ar host : Ns Ar hostport
 .Op Fl l Ar login_name
-.Ek
 .Op Fl m Ar mac_spec
 .Op Fl O Ar ctl_cmd
 .Op Fl o Ar option
 .Op Fl p Ar port
-.Oo Fl R\ \&
-.Sm off
-.Oo Ar bind_address : Oc
-.Ar port : host : hostport
-.Sm on
-.Oc
+.Op Fl R Oo Ar bind_address : Oc Ns Ar port : Ns Ar host : Ns Ar hostport
 .Op Fl S Ar ctl_path
-.Bk -words
-.Oo Fl w Ar local_tun Ns
-.Op : Ns Ar remote_tun Oc
+.Op Fl W Ar host : Ns Ar port
+.Op Fl w Ar local_tun Ns Op : Ns Ar remote_tun
 .Oo Ar user Ns @ Oc Ns Ar hostname
 .Op Ar command
 .Ek
@@ -133,8 +114,9 @@ This can also be specified on a per-host basis in a configuration file.
 .Pp
 Agent forwarding should be enabled with caution.
 Users with the ability to bypass file permissions on the remote host
-(for the agent's Unix-domain socket)
-can access the local agent through the forwarded connection.
+(for the agent's
+.Ux Ns -domain
+socket) can access the local agent through the forwarded connection.
 An attacker cannot obtain key material from the agent,
 however they can perform operations on the keys that enable them to
 authenticate using the identities loaded into the agent.
@@ -194,7 +176,9 @@ is a comma-separated list of ciphers
 listed in order of preference.
 See the
 .Cm Ciphers
-keyword for more information.
+keyword in
+.Xr ssh_config 5
+for more information.
 .It Fl D Xo
 .Sm off
 .Oo Ar bind_address : Oc
@@ -218,14 +202,7 @@ will act as a SOCKS server.
 Only root can forward privileged ports.
 Dynamic port forwardings can also be specified in the configuration file.
 .Pp
-IPv6 addresses can be specified with an alternative syntax:
-.Sm off
-.Xo
-.Op Ar bind_address No /
-.Ar port
-.Xc
-.Sm on
-or by enclosing the address in square brackets.
+IPv6 addresses can be specified by enclosing the address in square brackets.
 Only the superuser can forward privileged ports.
 By default, the local port is bound in accordance with the
 .Cm GatewayPorts
@@ -285,22 +262,21 @@ will wait for all remote port forwards to be successfully established
 before placing itself in the background.
 .It Fl g
 Allows remote hosts to connect to local forwarded ports.
-.It Fl I Ar smartcard_device
-Specify the device
+.It Fl I Ar pkcs11
+Specify the PKCS#11 shared library
 .Nm
-should use to communicate with a smartcard used for storing the user's
+should use to communicate with a PKCS#11 token providing the user's
 private RSA key.
-This option is only available if support for smartcard devices
-is compiled in (default is no support).
 .It Fl i Ar identity_file
 Selects a file from which the identity (private key) for
-RSA or DSA authentication is read.
+public key authentication is read.
 The default is
 .Pa ~/.ssh/identity
 for protocol version 1, and
-.Pa ~/.ssh/id_rsa
+.Pa ~/.ssh/id_dsa ,
+.Pa ~/.ssh/id_ecdsa
 and
-.Pa ~/.ssh/id_dsa
+.Pa ~/.ssh/id_rsa
 for protocol version 2.
 Identity files may also be specified on
 a per-host basis in the configuration file.
@@ -308,6 +284,11 @@ It is possible to have multiple
 .Fl i
 options (and multiple identities specified in
 configuration files).
+.Nm
+will also try to load certificate information from the filename obtained
+by appending
+.Pa -cert.pub
+to identity filenames.
 .It Fl K
 Enables GSSAPI-based authentication and forwarding (delegation) of GSSAPI
 credentials to the server.
@@ -333,15 +314,7 @@ port
 .Ar hostport
 from the remote machine.
 Port forwardings can also be specified in the configuration file.
-IPv6 addresses can be specified with an alternative syntax:
-.Sm off
-.Xo
-.Op Ar bind_address No /
-.Ar port No / Ar host No /
-.Ar hostport
-.Xc
-.Sm on
-or by enclosing the address in square brackets.
+IPv6 addresses can be specified by enclosing the address in square brackets.
 Only the superuser can forward privileged ports.
 By default, the local port is bound in accordance with the
 .Cm GatewayPorts
@@ -418,7 +391,9 @@ option is specified, the
 argument is interpreted and passed to the master process.
 Valid commands are:
 .Dq check
-(check that the master process is running) and
+(check that the master process is running),
+.Dq forward
+(request forwardings without command execution) and
 .Dq exit
 (request the master to exit).
 .It Fl o Ar option
@@ -461,7 +436,9 @@ For full details of the options listed below, and their possible values, see
 .It HostName
 .It IdentityFile
 .It IdentitiesOnly
+.It IPQoS
 .It KbdInteractiveDevices
+.It KexAlgorithms
 .It LocalCommand
 .It LocalForward
 .It LogLevel
@@ -470,6 +447,7 @@ For full details of the options listed below, and their possible values, see
 .It NumberOfPasswordPrompts
 .It PasswordAuthentication
 .It PermitLocalCommand
+.It PKCS11Provider
 .It Port
 .It PreferredAuthentications
 .It Protocol
@@ -482,7 +460,6 @@ For full details of the options listed below, and their possible values, see
 .It SendEnv
 .It ServerAliveInterval
 .It ServerAliveCountMax
-.It SmartcardDevice
 .It StrictHostKeyChecking
 .It TCPKeepAlive
 .It Tunnel
@@ -523,15 +500,7 @@ from the local machine.
 Port forwardings can also be specified in the configuration file.
 Privileged ports can be forwarded only when
 logging in as root on the remote machine.
-IPv6 addresses can be specified by enclosing the address in square braces or
-using an alternative syntax:
-.Sm off
-.Xo
-.Op Ar bind_address No /
-.Ar host No / Ar port No /
-.Ar hostport
-.Xc .
-.Sm on
+IPv6 addresses can be specified by enclosing the address in square braces.
 .Pp
 By default, the listening socket on the server will be bound to the loopback
 interface only.
@@ -555,8 +524,14 @@ argument is
 .Ql 0 ,
 the listen port will be dynamically allocated on the server and reported
 to the client at run time.
+When used together with
+.Ic -O forward
+the allocated port will be printed to the standard output.
 .It Fl S Ar ctl_path
-Specifies the location of a control socket for connection sharing.
+Specifies the location of a control socket for connection sharing,
+or the string
+.Dq none
+to disable connection sharing.
 Refer to the description of
 .Cm ControlPath
 and
@@ -595,6 +570,19 @@ Multiple
 .Fl v
 options increase the verbosity.
 The maximum is 3.
+.It Fl W Ar host : Ns Ar port
+Requests that standard input and output on the client be forwarded to
+.Ar host
+on
+.Ar port
+over the secure channel.
+Implies
+.Fl N ,
+.Fl T ,
+.Cm ExitOnForwardFailure
+and
+.Cm ClearAllForwardings
+and works with Protocol version 2 only.
 .It Fl w Xo
 .Ar local_tun Ns Op : Ns Ar remote_tun
 .Xc
@@ -662,26 +650,20 @@ may additionally obtain configuration data from
 a per-user configuration file and a system-wide configuration file.
 The file format and configuration options are described in
 .Xr ssh_config 5 .
-.Pp
-.Nm
-exits with the exit status of the remote command or with 255
-if an error occurred.
 .Sh AUTHENTICATION
 The OpenSSH SSH client supports SSH protocols 1 and 2.
-Protocol 2 is the default, with
-.Nm
-falling back to protocol 1 if it detects protocol 2 is unsupported.
-These settings may be altered using the
+The default is to use protocol 2 only,
+though this can be changed via the
 .Cm Protocol
 option in
-.Xr ssh_config 5 ,
-or enforced using the
+.Xr ssh_config 5
+or the
 .Fl 1
 and
 .Fl 2
 options (see above).
 Both protocols support similar authentication methods,
-but protocol 2 is preferred since
+but protocol 2 is the default since
 it provides additional mechanisms for confidentiality
 (the traffic is encrypted using AES, 3DES, Blowfish, CAST128, or Arcfour)
 and integrity (hmac-md5, hmac-sha1, umac-64, hmac-ripemd160).
@@ -739,14 +721,14 @@ key pair for authentication purposes.
 The server knows the public key, and only the user knows the private key.
 .Nm
 implements public key authentication protocol automatically,
-using either the RSA or DSA algorithms.
+using one of the DSA, ECDSA or RSA algorithms.
 Protocol 1 is restricted to using only RSA keys,
-but protocol 2 may use either.
+but protocol 2 may use any.
 The
 .Sx HISTORY
 section of
 .Xr ssl 8
-contains a brief discussion of the two algorithms.
+contains a brief discussion of the DSA and RSA algorithms.
 .Pp
 The file
 .Pa ~/.ssh/authorized_keys
@@ -766,6 +748,8 @@ This stores the private key in
 (protocol 1),
 .Pa ~/.ssh/id_dsa
 (protocol 2 DSA),
+.Pa ~/.ssh/id_ecdsa
+(protocol 2 ECDSA),
 or
 .Pa ~/.ssh/id_rsa
 (protocol 2 RSA)
@@ -774,6 +758,8 @@ and stores the public key in
 (protocol 1),
 .Pa ~/.ssh/id_dsa.pub
 (protocol 2 DSA),
+.Pa ~/.ssh/id_ecdsa.pub
+(protocol 2 ECDSA),
 or
 .Pa ~/.ssh/id_rsa.pub
 (protocol 2 RSA)
@@ -790,8 +776,20 @@ file, and has one key
 per line, though the lines can be very long.
 After this, the user can log in without giving the password.
 .Pp
-The most convenient way to use public key authentication may be with an
-authentication agent.
+A variation on public key authentication
+is available in the form of certificate authentication:
+instead of a set of public/private keys,
+signed certificates are used.
+This has the advantage that a single trusted certification authority
+can be used in place of many public/private keys.
+See the
+.Sx CERTIFICATES
+section of
+.Xr ssh-keygen 1
+for more information.
+.Pp
+The most convenient way to use public key or certificate authentication
+may be with an authentication agent.
 See
 .Xr ssh-agent 1
 for more information.
@@ -1256,7 +1254,7 @@ option in
 .Xr sshd_config 5 .
 .Sh FILES
 .Bl -tag -width Ds -compact
-.It ~/.rhosts
+.It Pa ~/.rhosts
 This file is used for host-based authentication (see above).
 On some machines this file may need to be
 world-readable if the user's home directory is on an NFS partition,
@@ -1269,42 +1267,44 @@ The recommended
 permission for most machines is read/write for the user, and not
 accessible by others.
 .Pp
-.It ~/.shosts
+.It Pa ~/.shosts
 This file is used in exactly the same way as
 .Pa .rhosts ,
 but allows host-based authentication without permitting login with
 rlogin/rsh.
 .Pp
-.It ~/.ssh/
+.It Pa ~/.ssh/
 This directory is the default location for all user-specific configuration
 and authentication information.
 There is no general requirement to keep the entire contents of this directory
 secret, but the recommended permissions are read/write/execute for the user,
 and not accessible by others.
 .Pp
-.It ~/.ssh/authorized_keys
-Lists the public keys (RSA/DSA) that can be used for logging in as this user.
+.It Pa ~/.ssh/authorized_keys
+Lists the public keys (DSA/ECDSA/RSA) that can be used for logging in as
+this user.
 The format of this file is described in the
 .Xr sshd 8
 manual page.
 This file is not highly sensitive, but the recommended
 permissions are read/write for the user, and not accessible by others.
 .Pp
-.It ~/.ssh/config
+.It Pa ~/.ssh/config
 This is the per-user configuration file.
 The file format and configuration options are described in
 .Xr ssh_config 5 .
 Because of the potential for abuse, this file must have strict permissions:
 read/write for the user, and not accessible by others.
 .Pp
-.It ~/.ssh/environment
+.It Pa ~/.ssh/environment
 Contains additional definitions for environment variables; see
 .Sx ENVIRONMENT ,
 above.
 .Pp
-.It ~/.ssh/identity
-.It ~/.ssh/id_dsa
-.It ~/.ssh/id_rsa
+.It Pa ~/.ssh/identity
+.It Pa ~/.ssh/id_dsa
+.It Pa ~/.ssh/id_ecdsa
+.It Pa ~/.ssh/id_rsa
 Contains the private key for authentication.
 These files
 contain sensitive data and should be readable by the user but not
@@ -1315,21 +1315,22 @@ It is possible to specify a passphrase when
 generating the key which will be used to encrypt the
 sensitive part of this file using 3DES.
 .Pp
-.It ~/.ssh/identity.pub
-.It ~/.ssh/id_dsa.pub
-.It ~/.ssh/id_rsa.pub
+.It Pa ~/.ssh/identity.pub
+.It Pa ~/.ssh/id_dsa.pub
+.It Pa ~/.ssh/id_ecdsa.pub
+.It Pa ~/.ssh/id_rsa.pub
 Contains the public key for authentication.
 These files are not
 sensitive and can (but need not) be readable by anyone.
 .Pp
-.It ~/.ssh/known_hosts
+.It Pa ~/.ssh/known_hosts
 Contains a list of host keys for all hosts the user has logged into
 that are not already in the systemwide list of known host keys.
 See
 .Xr sshd 8
 for further details of the format of this file.
 .Pp
-.It ~/.ssh/rc
+.It Pa ~/.ssh/rc
 Commands in this file are executed by
 .Nm
 when the user logs in, just before the user's shell (or command) is
@@ -1338,11 +1339,11 @@ See the
 .Xr sshd 8
 manual page for more information.
 .Pp
-.It /etc/hosts.equiv
+.It Pa /etc/hosts.equiv
 This file is for host-based authentication (see above).
 It should only be writable by root.
 .Pp
-.It /etc/shosts.equiv
+.It Pa /etc/shosts.equiv
 This file is used in exactly the same way as
 .Pa hosts.equiv ,
 but allows host-based authentication without permitting login with
@@ -1353,9 +1354,10 @@ Systemwide configuration file.
 The file format and configuration options are described in
 .Xr ssh_config 5 .
 .Pp
-.It /etc/ssh/ssh_host_key
-.It /etc/ssh/ssh_host_dsa_key
-.It /etc/ssh/ssh_host_rsa_key
+.It Pa /etc/ssh/ssh_host_key
+.It Pa /etc/ssh/ssh_host_dsa_key
+.It Pa /etc/ssh/ssh_host_ecdsa_key
+.It Pa /etc/ssh/ssh_host_rsa_key
 These three files contain the private parts of the host keys
 and are used for host-based authentication.
 If protocol version 1 is used,
@@ -1373,7 +1375,7 @@ By default
 .Nm
 is not setuid root.
 .Pp
-.It /etc/ssh/ssh_known_hosts
+.It Pa /etc/ssh/ssh_known_hosts
 Systemwide list of known host keys.
 This file should be prepared by the
 system administrator to contain the public host keys of all machines in the
@@ -1383,7 +1385,7 @@ See
 .Xr sshd 8
 for further details of the format of this file.
 .Pp
-.It /etc/ssh/sshrc
+.It Pa /etc/ssh/sshrc
 Commands in this file are executed by
 .Nm
 when the user logs in, just before the user's shell (or command) is started.
@@ -1391,6 +1393,10 @@ See the
 .Xr sshd 8
 manual page for more information.
 .El
+.Sh EXIT STATUS
+.Nm
+exits with the exit status of the remote command or with 255
+if an error occurred.
 .Sh SEE ALSO
 .Xr scp 1 ,
 .Xr sftp 1 ,
@@ -1462,6 +1468,11 @@ manual page for more information.
 .%R RFC 4716
 .%T "The Secure Shell (SSH) Public Key File Format"
 .%D 2006
+.Re
+.Rs
+.%R RFC 5656
+.%T "Elliptic Curve Algorithm Integration in the Secure Shell Transport Layer"
+.%D 2009
 .Re
 .Rs
 .%T "Hash Visualization: a New Technique to improve Real-World Security"

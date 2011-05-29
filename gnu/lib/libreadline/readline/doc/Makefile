@@ -13,7 +13,7 @@ CLEANFILES += readline.texi
 readline.info: rlman.texi rluser.texi rltech.texi version.texi fdl.texi
 
 readline.texi: rlman.texi
-	cp ${SRCDIR}/rlman.texi ${.TARGET}
+	cp -f ${SRCDIR}/rlman.texi ${.TARGET}
 
 rluserman.info: rluserman.texi version.texi rluser.texi fdl.texi
 

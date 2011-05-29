@@ -300,7 +300,7 @@ void e1000_init_function_pointers_82541(struct e1000_hw *hw)
  **/
 static s32 e1000_reset_hw_82541(struct e1000_hw *hw)
 {
-	u32 ledctl, ctrl, icr, manc;
+	u32 ledctl, ctrl, manc;
 
 	DEBUGFUNC("e1000_reset_hw_82541");
 
@@ -364,7 +364,7 @@ static s32 e1000_reset_hw_82541(struct e1000_hw *hw)
 	E1000_WRITE_REG(hw, E1000_IMC, 0xFFFFFFFF);
 
 	/* Clear any pending interrupt events. */
-	icr = E1000_READ_REG(hw, E1000_ICR);
+	E1000_READ_REG(hw, E1000_ICR);
 
 	return E1000_SUCCESS;
 }
@@ -390,7 +390,7 @@ static s32 e1000_init_hw_82541(struct e1000_hw *hw)
 		DEBUGOUT("Error initializing identification LED\n");
 		/* This is not fatal and we should not stop init due to this */
 	}
-        
+
 	/* Storing the Speed Power Down  value for later use */
 	ret_val = hw->phy.ops.read_reg(hw,
 	                               IGP01E1000_GMII_FIFO,

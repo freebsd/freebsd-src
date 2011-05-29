@@ -310,7 +310,8 @@
 #define RT2860_MCU_CMD_LED1	0x52
 #define RT2860_MCU_CMD_LED2	0x53
 #define RT2860_MCU_CMD_LED3	0x54
-#define RT2860_MCU_CMD_BOOT	0x72
+#define RT2860_MCU_CMD_RFRESET	0x72
+#define RT2860_MCU_CMD_ANTSEL	0x73
 #define RT2860_MCU_CMD_BBP	0x80
 #define RT2860_MCU_CMD_PSLEVEL	0x83
 
@@ -516,8 +517,10 @@
 #define RT2860_LNA_PE_A0_POL	(1 << 12)
 #define RT2860_LNA_PE_G1_EN	(1 << 11)
 #define RT2860_LNA_PE_A1_EN	(1 << 10)
+#define RT2860_LNA_PE1_EN	(RT2860_LNA_PE_A1_EN | RT2860_LNA_PE_G1_EN)
 #define RT2860_LNA_PE_G0_EN	(1 <<  9)
 #define RT2860_LNA_PE_A0_EN	(1 <<  8)
+#define RT2860_LNA_PE0_EN	(RT2860_LNA_PE_A0_EN | RT2860_LNA_PE_G0_EN)
 #define RT2860_PA_PE_G1_POL	(1 <<  7)
 #define RT2860_PA_PE_A1_POL	(1 <<  6)
 #define RT2860_PA_PE_G0_POL	(1 <<  5)
@@ -890,11 +893,12 @@ struct rt2860_rxwi {
 #define RT2860_EEPROM_TSSI5_5GHZ	0x6e
 #define RT2860_EEPROM_RPWR		0x6f
 #define RT2860_EEPROM_BBP_BASE		0x78
+#define RT3071_EEPROM_RF_BASE		0x82
 
 #define RT2860_RIDX_CCK1	 0
 #define RT2860_RIDX_CCK11	 3
 #define RT2860_RIDX_OFDM6	 4
-#define RT2860_RIDX_MAX		11
+#define RT2860_RIDX_MAX		12
 static const struct rt2860_rate {
 	uint8_t		rate;
 	uint8_t		mcs;
@@ -903,18 +907,18 @@ static const struct rt2860_rate {
 	uint16_t	sp_ack_dur;
 	uint16_t	lp_ack_dur;
 } rt2860_rates[] = {
-	{   2, 0, IEEE80211_T_DS,   0, 304, 304 },
-	{   4, 1, IEEE80211_T_DS,   1, 248, 152 },
-	{  11, 2, IEEE80211_T_DS,   2, 213, 117 },
-	{  22, 3, IEEE80211_T_DS,   3, 203, 107 },
-	{  12, 0, IEEE80211_T_OFDM, 4,  50,  50 },
-	{  18, 1, IEEE80211_T_OFDM, 4,  42,  42 },
-	{  24, 2, IEEE80211_T_OFDM, 6,  38,  38 },
-	{  36, 3, IEEE80211_T_OFDM, 6,  34,  34 },
-	{  48, 4, IEEE80211_T_OFDM, 8,  34,  34 },
-	{  72, 5, IEEE80211_T_OFDM, 8,  30,  30 },
-	{  96, 6, IEEE80211_T_OFDM, 8,  30,  30 },
-	{ 108, 7, IEEE80211_T_OFDM, 8,  30,  30 }
+	{   2, 0, IEEE80211_T_DS,   0, 314, 314 },
+	{   4, 1, IEEE80211_T_DS,   1, 258, 162 },
+	{  11, 2, IEEE80211_T_DS,   2, 223, 127 },
+	{  22, 3, IEEE80211_T_DS,   3, 213, 117 },
+	{  12, 0, IEEE80211_T_OFDM, 4,  60,  60 },
+	{  18, 1, IEEE80211_T_OFDM, 4,  52,  52 },
+	{  24, 2, IEEE80211_T_OFDM, 6,  48,  48 },
+	{  36, 3, IEEE80211_T_OFDM, 6,  44,  44 },
+	{  48, 4, IEEE80211_T_OFDM, 8,  44,  44 },
+	{  72, 5, IEEE80211_T_OFDM, 8,  40,  40 },
+	{  96, 6, IEEE80211_T_OFDM, 8,  40,  40 },
+	{ 108, 7, IEEE80211_T_OFDM, 8,  40,  40 }
 };
 
 /*
@@ -1034,7 +1038,8 @@ static const struct rt2860_rate {
 	{  91, 0x04 },	\
 	{  92, 0x00 },	\
 	{ 103, 0x00 },	\
-	{ 105, 0x05 }
+	{ 105, 0x05 },	\
+	{ 106, 0x35 }
 
 /*
  * Default settings for RF registers; values derived from the reference driver.
@@ -1088,23 +1093,66 @@ static const struct rt2860_rate {
 	{ 157, 0x100bb1, 0x1300e3, 0x05e014, 0x001407 },	\
 	{ 159, 0x100bb1, 0x1300e3, 0x05e014, 0x001409 },	\
 	{ 161, 0x100bb1, 0x1300e4, 0x05e014, 0x001401 },	\
-	{ 165, 0x100bb1, 0x1300e4, 0x05e014, 0x001405 }
+	{ 165, 0x100bb1, 0x1300e4, 0x05e014, 0x001405 },	\
+	{ 167, 0x100bb1, 0x1300f4, 0x05e014, 0x001407 },	\
+	{ 169, 0x100bb1, 0x1300f4, 0x05e014, 0x001409 },	\
+	{ 171, 0x100bb1, 0x1300f5, 0x05e014, 0x001401 },	\
+	{ 173, 0x100bb1, 0x1300f5, 0x05e014, 0x001403 }
 
-#define RT3070_RF3020	\
-	{ 241, 2, 2 },	\
-	{ 241, 2, 7 },	\
-	{ 242, 2, 2 },	\
-	{ 242, 2, 7 },	\
-	{ 243, 2, 2 },	\
-	{ 243, 2, 7 },	\
-	{ 244, 2, 2 },	\
-	{ 244, 2, 7 },	\
-	{ 245, 2, 2 },	\
-	{ 245, 2, 7 },	\
-	{ 246, 2, 2 },	\
-	{ 246, 2, 7 },	\
-	{ 247, 2, 2 },	\
-	{ 248, 2, 4 }
+#define RT3070_RF3052		\
+	{ 0xf1, 2,  2 },	\
+	{ 0xf1, 2,  7 },	\
+	{ 0xf2, 2,  2 },	\
+	{ 0xf2, 2,  7 },	\
+	{ 0xf3, 2,  2 },	\
+	{ 0xf3, 2,  7 },	\
+	{ 0xf4, 2,  2 },	\
+	{ 0xf4, 2,  7 },	\
+	{ 0xf5, 2,  2 },	\
+	{ 0xf5, 2,  7 },	\
+	{ 0xf6, 2,  2 },	\
+	{ 0xf6, 2,  7 },	\
+	{ 0xf7, 2,  2 },	\
+	{ 0xf8, 2,  4 },	\
+	{ 0x56, 0,  4 },	\
+	{ 0x56, 0,  6 },	\
+	{ 0x56, 0,  8 },	\
+	{ 0x57, 0,  0 },	\
+	{ 0x57, 0,  2 },	\
+	{ 0x57, 0,  4 },	\
+	{ 0x57, 0,  8 },	\
+	{ 0x57, 0, 10 },	\
+	{ 0x58, 0,  0 },	\
+	{ 0x58, 0,  4 },	\
+	{ 0x58, 0,  6 },	\
+	{ 0x58, 0,  8 },	\
+	{ 0x5b, 0,  8 },	\
+	{ 0x5b, 0, 10 },	\
+	{ 0x5c, 0,  0 },	\
+	{ 0x5c, 0,  4 },	\
+	{ 0x5c, 0,  6 },	\
+	{ 0x5c, 0,  8 },	\
+	{ 0x5d, 0,  0 },	\
+	{ 0x5d, 0,  2 },	\
+	{ 0x5d, 0,  4 },	\
+	{ 0x5d, 0,  8 },	\
+	{ 0x5d, 0, 10 },	\
+	{ 0x5e, 0,  0 },	\
+	{ 0x5e, 0,  4 },	\
+	{ 0x5e, 0,  6 },	\
+	{ 0x5e, 0,  8 },	\
+	{ 0x5f, 0,  0 },	\
+	{ 0x5f, 0,  9 },	\
+	{ 0x5f, 0, 11 },	\
+	{ 0x60, 0,  1 },	\
+	{ 0x60, 0,  5 },	\
+	{ 0x60, 0,  7 },	\
+	{ 0x60, 0,  9 },	\
+	{ 0x61, 0,  1 },	\
+	{ 0x61, 0,  3 },	\
+	{ 0x61, 0,  5 },	\
+	{ 0x61, 0,  7 },	\
+	{ 0x61, 0,  9 }
 
 #define RT3070_DEF_RF	\
 	{  4, 0x40 },	\
@@ -1126,5 +1174,51 @@ static const struct rt2860_rate {
 	{ 24, 0x16 },	\
 	{ 25, 0x01 },	\
 	{ 29, 0x1f }
+
+#define RT3572_DEF_RF	\
+	{  0, 0x70 },	\
+	{  1, 0x81 },	\
+	{  2, 0xf1 },	\
+	{  3, 0x02 },	\
+	{  4, 0x4c },	\
+	{  5, 0x05 },	\
+	{  6, 0x4a },	\
+	{  7, 0xd8 },	\
+	{  9, 0xc3 },	\
+	{ 10, 0xf1 },	\
+	{ 11, 0xb9 },	\
+	{ 12, 0x70 },	\
+	{ 13, 0x65 },	\
+	{ 14, 0xa0 },	\
+	{ 15, 0x53 },	\
+	{ 16, 0x4c },	\
+	{ 17, 0x23 },	\
+	{ 18, 0xac },	\
+	{ 19, 0x93 },	\
+	{ 20, 0xb3 },	\
+	{ 21, 0xd0 },	\
+	{ 22, 0x00 },  	\
+	{ 23, 0x3c },	\
+	{ 24, 0x16 },	\
+	{ 25, 0x15 },	\
+	{ 26, 0x85 },	\
+	{ 27, 0x00 },	\
+	{ 28, 0x00 },	\
+	{ 29, 0x9b },	\
+	{ 30, 0x09 },	\
+	{ 31, 0x10 }
+
+
+union run_stats {
+	uint32_t	raw;
+	struct {
+		uint16_t	fail;
+		uint16_t	pad;
+	} error;
+	struct {
+		uint16_t	success;
+		uint16_t	retry;
+	} tx;
+} __aligned(4);
 
 #endif	/* _IF_RUNREG_H_ */

@@ -7,6 +7,5 @@ EXTRA=		date loop time unused
 MACROS=		-ms
 USE_SOELIM=
 USE_TBL=
-SRCDIR=		${.CURDIR}/../../../../usr.sbin/timed/SMM.doc/timed
 
 .include <bsd.doc.mk>

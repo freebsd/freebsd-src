@@ -777,7 +777,7 @@ static int ssl_cipher_process_rulestr(const char *rule_str,
 		CIPHER_ORDER **tail_p, SSL_CIPHER **ca_list)
 	{
 	unsigned long algorithms, mask, algo_strength, mask_strength;
-	const char *l, *start, *buf;
+	const char *l, *buf;
 	int j, multi, found, rule, retval, ok, buflen;
 	unsigned long cipher_id = 0, ssl_version = 0;
 	char ch;
@@ -809,7 +809,6 @@ static int ssl_cipher_process_rulestr(const char *rule_str,
 
 		algorithms = mask = algo_strength = mask_strength = 0;
 
-		start=l;
 		for (;;)
 			{
 			ch = *l;
@@ -1091,15 +1090,16 @@ STACK_OF(SSL_CIPHER) *ssl_create_cipher_list(const SSL_METHOD *ssl_method,
 	*cipher_list_by_id = tmp_cipher_list;
 	(void)sk_SSL_CIPHER_set_cmp_func(*cipher_list_by_id,ssl_cipher_ptr_id_cmp);
 
+	sk_SSL_CIPHER_sort(*cipher_list_by_id);
 	return(cipherstack);
 	}
 
-char *SSL_CIPHER_description(SSL_CIPHER *cipher, char *buf, int len)
+char *SSL_CIPHER_description(const SSL_CIPHER *cipher, char *buf, int len)
 	{
 	int is_export,pkl,kl;
 	const char *ver,*exp_str;
 	const char *kx,*au,*enc,*mac;
-	unsigned long alg,alg2,alg_s;
+	unsigned long alg,alg2;
 #ifdef KSSL_DEBUG
 	static const char *format="%-23s %s Kx=%-8s Au=%-4s Enc=%-9s Mac=%-4s%s AL=%lx\n";
 #else
@@ -1107,7 +1107,6 @@ char *SSL_CIPHER_description(SSL_CIPHER *cipher, char *buf, int len)
 #endif /* KSSL_DEBUG */
 
 	alg=cipher->algorithms;
-	alg_s=cipher->algo_strength;
 	alg2=cipher->algorithm2;
 
 	is_export=SSL_C_IS_EXPORT(cipher);

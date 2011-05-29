@@ -28,12 +28,12 @@
 .\"     @(#)dumpfs.8	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd January 28, 2009
+.Dd May 8, 2011
 .Dt DUMPFS 8
 .Os
 .Sh NAME
 .Nm dumpfs
-.Nd dump file system information
+.Nd dump UFS file system information
 .Sh SYNOPSIS
 .Nm
 .Op Fl f
@@ -42,7 +42,7 @@
 .Sh DESCRIPTION
 The
 .Nm
-utility prints out the super block and cylinder group information
+utility prints out the UFS super block and cylinder group information
 for the file system or special device specified, unless the
 .Fl f
 or

@@ -178,3 +178,69 @@ ipcperm_new2old(struct ipc_perm *new, struct ipc_perm_old *old)
 	old->key = new->key;
 }
 #endif
+
+#ifdef COMPAT_FREEBSD32
+#include <sys/mount.h>
+#include <sys/socket.h>
+#include <compat/freebsd32/freebsd32.h>
+#include <compat/freebsd32/freebsd32_ipc.h>
+#include <compat/freebsd32/freebsd32_proto.h>
+#include <compat/freebsd32/freebsd32_signal.h>
+#include <compat/freebsd32/freebsd32_syscall.h>
+#include <compat/freebsd32/freebsd32_util.h>
+
+#if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
+    defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD7)
+void
+freebsd32_ipcperm_old_in(struct ipc_perm32_old *ip32, struct ipc_perm *ip)
+{
+
+	CP(*ip32, *ip, cuid);
+	CP(*ip32, *ip, cgid);
+	CP(*ip32, *ip, uid);
+	CP(*ip32, *ip, gid);
+	CP(*ip32, *ip, mode);
+	CP(*ip32, *ip, seq);
+	CP(*ip32, *ip, key);
+}
+
+void
+freebsd32_ipcperm_old_out(struct ipc_perm *ip, struct ipc_perm32_old *ip32)
+{
+
+	CP(*ip, *ip32, cuid);
+	CP(*ip, *ip32, cgid);
+	CP(*ip, *ip32, uid);
+	CP(*ip, *ip32, gid);
+	CP(*ip, *ip32, mode);
+	CP(*ip, *ip32, seq);
+	CP(*ip, *ip32, key);
+}
+#endif
+
+void
+freebsd32_ipcperm_in(struct ipc_perm32 *ip32, struct ipc_perm *ip)
+{
+
+	CP(*ip32, *ip, cuid);
+	CP(*ip32, *ip, cgid);
+	CP(*ip32, *ip, uid);
+	CP(*ip32, *ip, gid);
+	CP(*ip32, *ip, mode);
+	CP(*ip32, *ip, seq);
+	CP(*ip32, *ip, key);
+}
+
+void
+freebsd32_ipcperm_out(struct ipc_perm *ip, struct ipc_perm32 *ip32)
+{
+
+	CP(*ip, *ip32, cuid);
+	CP(*ip, *ip32, cgid);
+	CP(*ip, *ip32, uid);
+	CP(*ip, *ip32, gid);
+	CP(*ip, *ip32, mode);
+	CP(*ip, *ip32, seq);
+	CP(*ip, *ip32, key);
+}
+#endif

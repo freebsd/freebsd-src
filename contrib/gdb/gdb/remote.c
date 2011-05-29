@@ -4834,7 +4834,7 @@ compare_sections_command (char *args, int from_tty)
       if (!(s->flags & SEC_LOAD))
 	continue;		/* skip non-loadable section */
 
-      size = bfd_get_section_size_before_reloc (s);
+      size = bfd_get_section_size (s);
       if (size == 0)
 	continue;		/* skip zero-length section */
 

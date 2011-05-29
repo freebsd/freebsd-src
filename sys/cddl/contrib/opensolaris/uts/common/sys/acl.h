@@ -19,14 +19,12 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
 #ifndef _SYS_ACL_H
 #define	_SYS_ACL_H
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <sys/types.h>
 #include <sys/acl_impl.h>
@@ -39,7 +37,7 @@
 #undef _SYS_ACL_H
 #include_next <sys/acl.h>
 #define	_SYS_ACL_H
-#endif /* _KERNEL */
+#endif	/* _KERNEL */
 
 #ifdef	__cplusplus
 extern "C" {
@@ -59,7 +57,7 @@ typedef struct ace {
 	uint16_t	a_type;		/* allow or deny */
 } ace_t;
 
-#if !defined(_KERNEL)
+#ifndef _KERNEL
 typedef struct acl_info acl_t;
 #endif
 
@@ -167,6 +165,10 @@ typedef struct ace_object {
     ACE_WRITE_NAMED_ATTRS|ACE_EXECUTE|ACE_DELETE_CHILD|ACE_READ_ATTRIBUTES| \
     ACE_WRITE_ATTRIBUTES|ACE_DELETE|ACE_READ_ACL|ACE_WRITE_ACL| \
     ACE_WRITE_OWNER|ACE_SYNCHRONIZE)
+
+#define	ACE_ALL_WRITE_PERMS (ACE_WRITE_DATA|ACE_APPEND_DATA| \
+    ACE_WRITE_ATTRIBUTES|ACE_WRITE_NAMED_ATTRS|ACE_WRITE_ACL| \
+    ACE_WRITE_OWNER|ACE_DELETE|ACE_DELETE_CHILD)
 
 #define	ACE_READ_PERMS	(ACE_READ_DATA|ACE_READ_ACL|ACE_READ_ATTRIBUTES| \
     ACE_READ_NAMED_ATTRS)

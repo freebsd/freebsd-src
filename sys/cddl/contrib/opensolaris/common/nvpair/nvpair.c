@@ -20,11 +20,8 @@
  */
 
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
- * Use is subject to license terms.
+ * Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
  */
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <sys/debug.h>
 #include <sys/nvpair.h>
@@ -39,6 +36,7 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #endif
 
 #ifndef	offsetof
@@ -252,6 +250,12 @@ nvlist_init(nvlist_t *nvl, uint32_t nvflag, nvpriv_t *priv)
 	nvl->nvl_priv = (uint64_t)(uintptr_t)priv;
 	nvl->nvl_flag = 0;
 	nvl->nvl_pad = 0;
+}
+
+uint_t
+nvlist_nvflag(nvlist_t *nvl)
+{
+	return (nvl->nvl_nvflag);
 }
 
 /*
@@ -685,6 +689,18 @@ nvlist_remove(nvlist_t *nvl, const char *name, data_type_t type)
 	}
 
 	return (ENOENT);
+}
+
+int
+nvlist_remove_nvpair(nvlist_t *nvl, nvpair_t *nvp)
+{
+	if (nvl == NULL || nvp == NULL)
+		return (EINVAL);
+
+	nvp_buf_unlink(nvl, nvp);
+	nvpair_free(nvp);
+	nvp_buf_free(nvl, nvp);
+	return (0);
 }
 
 /*
@@ -1155,6 +1171,42 @@ nvlist_next_nvpair(nvlist_t *nvl, nvpair_t *nvp)
 	priv->nvp_curr = curr;
 
 	return (curr != NULL ? &curr->nvi_nvp : NULL);
+}
+
+nvpair_t *
+nvlist_prev_nvpair(nvlist_t *nvl, nvpair_t *nvp)
+{
+	nvpriv_t *priv;
+	i_nvp_t *curr;
+
+	if (nvl == NULL ||
+	    (priv = (nvpriv_t *)(uintptr_t)nvl->nvl_priv) == NULL)
+		return (NULL);
+
+	curr = NVPAIR2I_NVP(nvp);
+
+	if (nvp == NULL)
+		curr = priv->nvp_last;
+	else if (priv->nvp_curr == curr || nvlist_contains_nvp(nvl, nvp))
+		curr = curr->nvi_prev;
+	else
+		curr = NULL;
+
+	priv->nvp_curr = curr;
+
+	return (curr != NULL ? &curr->nvi_nvp : NULL);
+}
+
+boolean_t
+nvlist_empty(nvlist_t *nvl)
+{
+	nvpriv_t *priv;
+
+	if (nvl == NULL ||
+	    (priv = (nvpriv_t *)(uintptr_t)nvl->nvl_priv) == NULL)
+		return (B_TRUE);
+
+	return (priv->nvp_list == NULL);
 }
 
 char *

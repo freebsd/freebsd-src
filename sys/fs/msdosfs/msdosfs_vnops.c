@@ -61,9 +61,6 @@
 #include <sys/mutex.h>
 #include <sys/namei.h>
 #include <sys/priv.h>
-#include <sys/proc.h>
-#include <sys/resourcevar.h>
-#include <sys/signalvar.h>
 #include <sys/stat.h>
 #include <sys/unistd.h>
 #include <sys/vnode.h>
@@ -655,7 +652,6 @@ msdosfs_write(ap)
 	struct buf *bp;
 	int ioflag = ap->a_ioflag;
 	struct uio *uio = ap->a_uio;
-	struct thread *td = uio->uio_td;
 	struct vnode *vp = ap->a_vp;
 	struct vnode *thisvp;
 	struct denode *dep = VTODE(vp);
@@ -699,16 +695,8 @@ msdosfs_write(ap)
 	/*
 	 * If they've exceeded their filesize limit, tell them about it.
 	 */
-	if (td != NULL) {
-		PROC_LOCK(td->td_proc);
-		if ((uoff_t)uio->uio_offset + uio->uio_resid >
-		    lim_cur(td->td_proc, RLIMIT_FSIZE)) {
-			psignal(td->td_proc, SIGXFSZ);
-			PROC_UNLOCK(td->td_proc);
-			return (EFBIG);
-		}
-		PROC_UNLOCK(td->td_proc);
-	}
+	if (vn_rlimit_fsize(vp, uio, uio->uio_td))
+		return (EFBIG);
 
 	/*
 	 * If the offset we are starting the write at is beyond the end of
@@ -1270,6 +1258,14 @@ abortit:
 		}
 	}
 
+	/*
+	 * The msdosfs lookup is case insensitive. Several aliases may
+	 * be inserted for a single directory entry. As a consequnce,
+	 * name cache purge done by lookup for fvp when DELETE op for
+	 * namei is specified, might be not enough to expunge all
+	 * namecache entries that were installed for this direntry.
+	 */
+	cache_purge(fvp);
 	VOP_UNLOCK(fvp, 0);
 bad:
 	if (xp)
@@ -1534,7 +1530,7 @@ msdosfs_readdir(ap)
 
 	/*
 	 * msdosfs_readdir() won't operate properly on regular files since
-	 * it does i/o only with the the filesystem vnode, and hence can
+	 * it does i/o only with the filesystem vnode, and hence can
 	 * retrieve the wrong block from the buffer cache for a plain file.
 	 * So, fail attempts to readdir() on a plain file.
 	 */

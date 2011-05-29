@@ -35,7 +35,6 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -182,7 +181,7 @@ usb_loc_fill(struct usb_fs_privdata* pd, struct usb_cdev_privdata *cpd)
  *  0: Success, refcount incremented on the given USB device.
  *  Else: Failure.
  *------------------------------------------------------------------------*/
-usb_error_t
+static usb_error_t
 usb_ref_device(struct usb_cdev_privdata *cpd, 
     struct usb_cdev_refdata *crd, int need_uref)
 {
@@ -284,7 +283,7 @@ error:
 		usbd_enum_unlock(cpd->udev);
 
 		if (--(cpd->udev->refcount) == 0) {
-			cv_signal(cpd->udev->default_cv + 1);
+			cv_signal(&cpd->udev->ref_cv);
 		}
 	}
 	mtx_unlock(&usb_ref_lock);
@@ -327,7 +326,7 @@ usb_usb_ref_device(struct usb_cdev_privdata *cpd,
  * This function will release the reference count by one unit for the
  * given USB device.
  *------------------------------------------------------------------------*/
-void
+static void
 usb_unref_device(struct usb_cdev_privdata *cpd,
     struct usb_cdev_refdata *crd)
 {
@@ -352,7 +351,7 @@ usb_unref_device(struct usb_cdev_privdata *cpd,
 	}
 	if (crd->is_uref) {
 		if (--(cpd->udev->refcount) == 0) {
-			cv_signal(cpd->udev->default_cv + 1);
+			cv_signal(&cpd->udev->ref_cv);
 		}
 		crd->is_uref = 0;
 	}
@@ -500,7 +499,7 @@ usb_fifo_create(struct usb_cdev_privdata *cpd,
 		/* update some fields */
 		f->fifo_index = n + USB_FIFO_TX;
 		f->dev_ep_index = e;
-		f->priv_mtx = udev->default_mtx;
+		f->priv_mtx = &udev->device_mtx;
 		f->priv_sc0 = ep;
 		f->methods = &usb_ugen_methods;
 		f->iface_index = ep->iface_index;
@@ -527,7 +526,7 @@ usb_fifo_create(struct usb_cdev_privdata *cpd,
 		/* update some fields */
 		f->fifo_index = n + USB_FIFO_RX;
 		f->dev_ep_index = e;
-		f->priv_mtx = udev->default_mtx;
+		f->priv_mtx = &udev->device_mtx;
 		f->priv_sc0 = ep;
 		f->methods = &usb_ugen_methods;
 		f->iface_index = ep->iface_index;
@@ -615,7 +614,7 @@ usb_dev_get_ep(struct usb_device *udev, uint8_t ep_index, uint8_t dir)
 	uint8_t ep_dir;
 
 	if (ep_index == 0) {
-		ep = &udev->default_ep;
+		ep = &udev->ctrl_ep;
 	} else {
 		if (dir == USB_FIFO_RX) {
 			if (udev->flags.usb_mode == USB_MODE_HOST) {
@@ -964,7 +963,6 @@ usb_dev_uninit(void *arg)
 	if (usb_dev != NULL) {
 		destroy_dev(usb_dev);
 		usb_dev = NULL;
-	
 	}
 	mtx_destroy(&usb_ref_lock);
 	sx_destroy(&usb_sym_lock);
@@ -1058,21 +1056,45 @@ usb_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int fflag, struct thread* 
 		err = usb_ioctl_f_sub(f, cmd, addr, td);
 	}
 	KASSERT(f != NULL, ("fifo not found"));
-	if (err == ENOIOCTL) {
-		err = (f->methods->f_ioctl) (f, cmd, addr, fflags);
-		DPRINTFN(2, "f_ioctl cmd 0x%lx = %d\n", cmd, err);
-		if (err == ENOIOCTL) {
-			if (usb_usb_ref_device(cpd, &refs)) {
-				err = ENXIO;
-				goto done;
-			}
-			err = (f->methods->f_ioctl_post) (f, cmd, addr, fflags);
-			DPRINTFN(2, "f_ioctl_post cmd 0x%lx = %d\n", cmd, err);
+	if (err != ENOIOCTL)
+		goto done;
+
+	err = (f->methods->f_ioctl) (f, cmd, addr, fflags);
+
+	DPRINTFN(2, "f_ioctl cmd 0x%lx = %d\n", cmd, err);
+
+	if (err != ENOIOCTL)
+		goto done;
+
+	if (usb_usb_ref_device(cpd, &refs)) {
+		err = ENXIO;
+		goto done;
+	}
+
+	err = (f->methods->f_ioctl_post) (f, cmd, addr, fflags);
+
+	DPRINTFN(2, "f_ioctl_post cmd 0x%lx = %d\n", cmd, err);
+
+	if (err == ENOIOCTL)
+		err = ENOTTY;
+
+	if (err)
+		goto done;
+
+	/* Wait for re-enumeration, if any */
+
+	while (f->udev->re_enumerate_wait != 0) {
+
+		usb_unref_device(cpd, &refs);
+
+		usb_pause_mtx(NULL, hz / 128);
+
+		if (usb_ref_device(cpd, &refs, 1 /* need uref */)) {
+			err = ENXIO;
+			goto done;
 		}
 	}
-	if (err == ENOIOCTL) {
-		err = ENOTTY;
-	}
+
 done:
 	usb_unref_device(cpd, &refs);
 	return (err);
@@ -1456,7 +1478,7 @@ usb_static_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		struct usb_read_dir *urd;
 		void* data;
 	} u;
-	int err = ENOTTY;
+	int err;
 
 	u.data = data;
 	switch (cmd) {
@@ -1472,12 +1494,16 @@ usb_static_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 			break;
 		case USB_GET_TEMPLATE:
 			*(int *)data = usb_template;
+			err = 0;
 			break;
 		case USB_SET_TEMPLATE:
 			err = priv_check(curthread, PRIV_DRIVER);
 			if (err)
 				break;
 			usb_template = *(int *)data;
+			break;
+		default:
+			err = ENOTTY;
 			break;
 	}
 	return (err);
@@ -1733,7 +1759,7 @@ usb_fifo_attach(struct usb_device *udev, void *priv_sc,
 
 		/* Now, create the device itself */
 		f_sc->dev = make_dev(&usb_devsw, 0, uid, gid, mode,
-		    devname);
+		    "%s", devname);
 		/* XXX setting si_drv1 and creating the device is not atomic! */
 		f_sc->dev->si_drv1 = pd;
 	}

@@ -233,15 +233,15 @@ The following command will make the function key 10 emit "telnet myhost".
 .Dl kbdcontrol -f 10 \&"telnet myhost\&"
 .Pp
 In order to get the visual effect for bell, but prevent the screen
-from flushing if the bell is to ring in the background screen,
+from flashing if the bell is to ring in the background screen,
 run the following command.
 .Pp
 .Dl kbdcontrol -b quiet.visual
 .Pp
-To change the default console keyboard to the another keyboard,
+To change the default console keyboard to another keyboard,
 for example the first USB keyboard (see
 .Xr ukbd 4 ) ,
-use the following commands.
+use the following command.
 .Pp
 .Dl kbdcontrol -k /dev/ukbd0 < /dev/console
 .Pp

@@ -10,6 +10,7 @@ INSTALLFLAGS=	-b
 
 # Architecture-specific loader code
 SRCS=		conf.c metadata.c vers.c start.c
+SRCS+=		ucmpdi2.c
 
 LOADER_DISK_SUPPORT?=	yes
 LOADER_UFS_SUPPORT?=	yes
@@ -62,9 +63,9 @@ LIBFICL=	${.OBJDIR}/../../ficl/libficl.a
 CFLAGS+=	-DNETIF_OPEN_CLOSE_ONCE
 
 # Always add MI sources
-.PATH:		${.CURDIR}/../../common
+.PATH:		${.CURDIR}/../../common ${.CURDIR}/../../../libkern
 .include	"${.CURDIR}/../../common/Makefile.inc"
-CFLAGS+=	-I${.CURDIR}/../../common
+CFLAGS+=	-I${.CURDIR}/../../common -I${.CURDIR}/../../..
 CFLAGS+=	-I.
 
 CLEANFILES+=	vers.c loader.help
@@ -102,10 +103,16 @@ loader.help: help.common help.ofw
 
 .PATH: ${.CURDIR}/../../forth
 FILES=	loader.help loader.4th support.4th loader.conf
+FILES+=	beastie.4th brand.4th check-password.4th color.4th delay.4th
+FILES+=	menu.4th menu-commands.4th shortcuts.4th version.4th
 FILESDIR_loader.conf=	/boot/defaults
 
 .if !exists(${DESTDIR}/boot/loader.rc)
 FILES+= loader.rc
+.endif
+
+.if !exists(${DESTDIR}/boot/menu.rc)
+FILES+= menu.rc
 .endif
 
 .include <bsd.prog.mk>

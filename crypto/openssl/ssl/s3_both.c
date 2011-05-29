@@ -168,6 +168,23 @@ int ssl3_send_finished(SSL *s, int a, int b, const char *sender, int slen)
 		p+=i;
 		l=i;
 
+                /* Copy the finished so we can use it for
+                   renegotiation checks */
+                if(s->type == SSL_ST_CONNECT)
+                        {
+                         OPENSSL_assert(i <= EVP_MAX_MD_SIZE);
+                         memcpy(s->s3->previous_client_finished, 
+                             s->s3->tmp.finish_md, i);
+                         s->s3->previous_client_finished_len=i;
+                        }
+                else
+                        {
+                        OPENSSL_assert(i <= EVP_MAX_MD_SIZE);
+                        memcpy(s->s3->previous_server_finished, 
+                            s->s3->tmp.finish_md, i);
+                        s->s3->previous_server_finished_len=i;
+                        }
+
 #ifdef OPENSSL_SYS_WIN16
 		/* MSVC 1.5 does not clear the top bytes of the word unless
 		 * I do this.
@@ -232,6 +249,23 @@ int ssl3_get_finished(SSL *s, int a, int b)
 		goto f_err;
 		}
 
+        /* Copy the finished so we can use it for
+           renegotiation checks */
+        if(s->type == SSL_ST_ACCEPT)
+                {
+                OPENSSL_assert(i <= EVP_MAX_MD_SIZE);
+                memcpy(s->s3->previous_client_finished, 
+                    s->s3->tmp.peer_finish_md, i);
+                s->s3->previous_client_finished_len=i;
+                }
+        else
+                {
+                OPENSSL_assert(i <= EVP_MAX_MD_SIZE);
+                memcpy(s->s3->previous_server_finished, 
+                    s->s3->tmp.peer_finish_md, i);
+                s->s3->previous_server_finished_len=i;
+                }
+
 	return(1);
 f_err:
 	ssl3_send_alert(s,SSL3_AL_FATAL,al);
@@ -264,15 +298,31 @@ int ssl3_send_change_cipher_spec(SSL *s, int a, int b)
 	return(ssl3_do_write(s,SSL3_RT_CHANGE_CIPHER_SPEC));
 	}
 
+static int ssl3_add_cert_to_buf(BUF_MEM *buf, unsigned long *l, X509 *x)
+	{
+		int n;
+		unsigned char *p;
+
+		n=i2d_X509(x,NULL);
+		if (!BUF_MEM_grow_clean(buf,(int)(n+(*l)+3)))
+			{
+				SSLerr(SSL_F_SSL3_ADD_CERT_TO_BUF,ERR_R_BUF_LIB);
+				return(-1);
+			}
+		p=(unsigned char *)&(buf->data[*l]);
+		l2n3(n,p);
+		i2d_X509(x,&p);
+		*l+=n+3;
+
+		return(0);
+	}
+
 unsigned long ssl3_output_cert_chain(SSL *s, X509 *x)
 	{
 	unsigned char *p;
-	int n,i;
+	int i;
 	unsigned long l=7;
 	BUF_MEM *buf;
-	X509_STORE_CTX xs_ctx;
-	X509_OBJECT obj;
-
 	int no_chain;
 
 	if ((s->mode & SSL_MODE_NO_AUTO_CHAIN) || s->ctx->extra_certs)
@@ -289,58 +339,42 @@ unsigned long ssl3_output_cert_chain(SSL *s, X509 *x)
 		}
 	if (x != NULL)
 		{
-		if(!no_chain && !X509_STORE_CTX_init(&xs_ctx,s->ctx->cert_store,NULL,NULL))
+		if (no_chain)
 			{
-			SSLerr(SSL_F_SSL3_OUTPUT_CERT_CHAIN,ERR_R_X509_LIB);
-			return(0);
+			if (ssl3_add_cert_to_buf(buf, &l, x))
+				return(0);
 			}
-
-		for (;;)
+		else
 			{
-			n=i2d_X509(x,NULL);
-			if (!BUF_MEM_grow_clean(buf,(int)(n+l+3)))
+			X509_STORE_CTX xs_ctx;
+
+			if (!X509_STORE_CTX_init(&xs_ctx,s->ctx->cert_store,x,NULL))
 				{
-				SSLerr(SSL_F_SSL3_OUTPUT_CERT_CHAIN,ERR_R_BUF_LIB);
+				SSLerr(SSL_F_SSL3_OUTPUT_CERT_CHAIN,ERR_R_X509_LIB);
 				return(0);
 				}
-			p=(unsigned char *)&(buf->data[l]);
-			l2n3(n,p);
-			i2d_X509(x,&p);
-			l+=n+3;
+			X509_verify_cert(&xs_ctx);
+			/* Don't leave errors in the queue */
+			ERR_clear_error();
+			for (i=0; i < sk_X509_num(xs_ctx.chain); i++)
+				{
+				x = sk_X509_value(xs_ctx.chain, i);
 
-			if (no_chain)
-				break;
-
-			if (X509_NAME_cmp(X509_get_subject_name(x),
-				X509_get_issuer_name(x)) == 0) break;
-
-			i=X509_STORE_get_by_subject(&xs_ctx,X509_LU_X509,
-				X509_get_issuer_name(x),&obj);
-			if (i <= 0) break;
-			x=obj.data.x509;
-			/* Count is one too high since the X509_STORE_get uped the
-			 * ref count */
-			X509_free(x);
-			}
-		if (!no_chain)
+				if (ssl3_add_cert_to_buf(buf, &l, x))
+					{
+					X509_STORE_CTX_cleanup(&xs_ctx);
+					return 0;
+					}
+				}
 			X509_STORE_CTX_cleanup(&xs_ctx);
+			}
 		}
-
 	/* Thawte special :-) */
-	if (s->ctx->extra_certs != NULL)
 	for (i=0; i<sk_X509_num(s->ctx->extra_certs); i++)
 		{
 		x=sk_X509_value(s->ctx->extra_certs,i);
-		n=i2d_X509(x,NULL);
-		if (!BUF_MEM_grow_clean(buf,(int)(n+l+3)))
-			{
-			SSLerr(SSL_F_SSL3_OUTPUT_CERT_CHAIN,ERR_R_BUF_LIB);
+		if (ssl3_add_cert_to_buf(buf, &l, x))
 			return(0);
-			}
-		p=(unsigned char *)&(buf->data[l]);
-		l2n3(n,p);
-		i2d_X509(x,&p);
-		l+=n+3;
 		}
 
 	l-=7;
@@ -589,8 +623,13 @@ int ssl_verify_alarm_type(long type)
 int ssl3_setup_buffers(SSL *s)
 	{
 	unsigned char *p;
-	unsigned int extra;
+	unsigned int extra,headerlen;
 	size_t len;
+
+	if (SSL_version(s) == DTLS1_VERSION || SSL_version(s) == DTLS1_BAD_VER)
+		headerlen = DTLS1_RT_HEADER_LENGTH;
+	else
+		headerlen = SSL3_RT_HEADER_LENGTH;
 
 	if (s->s3->rbuf.buf == NULL)
 		{
@@ -608,7 +647,7 @@ int ssl3_setup_buffers(SSL *s)
 	if (s->s3->wbuf.buf == NULL)
 		{
 		len = SSL3_RT_MAX_PACKET_SIZE;
-		len += SSL3_RT_HEADER_LENGTH + 256; /* extra space for empty fragment */
+		len += headerlen + 256; /* extra space for empty fragment */
 		if ((p=OPENSSL_malloc(len)) == NULL)
 			goto err;
 		s->s3->wbuf.buf = p;

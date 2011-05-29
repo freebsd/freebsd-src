@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 15, 2009
+.Dd March 18, 2011
 .Dt BUILD 7
 .Os
 .Sh NAME
@@ -196,6 +196,13 @@ variable
 .Va DISTDIR .
 This target is used while building a release; see
 .Xr release 7 .
+.It Cm packageworld
+Archive the results of
+.Cm distributeworld ,
+placing the results in
+.Va DISTDIR .
+This target is used while building a release; see
+.Xr release 7 .
 .It Cm installworld
 Install everything built by a preceding
 .Cm buildworld
@@ -218,23 +225,37 @@ on how to make it start at boot time.
 Create the build toolchain needed to build the rest of the system.
 For cross-architecture builds, this step creates a cross-toolchain.
 .It Cm universe
-Execute a
+For each architecture,
+execute a
 .Cm buildworld
-and
+followed by a
 .Cm buildkernel
-for all kernels including
-.Pa LINT ,
-for each architecture supported by the build system.
+for all kernels for that architecture,
+including
+.Pa LINT .
 This command takes a long time.
 .It Cm update
 Get updated sources as configured in
 .Xr make.conf 5 .
+.It Cm targets
+Print a list of supported 
+.Va TARGET
+/
+.Va TARGET_ARCH
+pairs for world and kernel targets.
+.It Cm tinderbox
+Execute the same targets as
+.Cm universe .
+In addition print a summary of all failed targets at the end and
+exit with an error if there were any.
+.It Cm toolchains
+Create a build toolchain for each architecture supported by the build system.
 .El
 .Pp
 Kernel specific build targets in
 .Pa /usr/src
 are:
-.Bl -tag -width ".Cm reinstallkernel"
+.Bl -tag -width ".Cm distributekernel"
 .It Cm buildkernel
 Rebuild the kernel and the kernel modules.
 .It Cm installkernel
@@ -251,6 +272,18 @@ and
 .Va KODIR
 .Xr make 1
 variables.
+.It Cm distributekernel
+Install the kernel to the directory
+.Pa ${DISTDIR}/kernel/boot/kernel .
+This target is used while building a release; see
+.Xr release 7 .
+.It Cm packagekernel
+Archive the results of
+.Cm distributekernel ,
+placing the results in
+.Va DISTDIR .
+This target is used while building a release; see
+.Xr release 7 .
 .It Cm kernel
 Equivalent to
 .Cm buildkernel
@@ -311,6 +344,20 @@ should be set as with
 .Sh ENVIRONMENT
 Variables that influence all builds include:
 .Bl -tag -width ".Va MAKEOBJDIRPREFIX"
+.It Va DEBUG_FLAGS
+Defines a set of debugging flags that will be used to build all userland
+binaries under
+.Pa /usr/src .
+When
+.Va DEBUG_FLAGS
+is defined, the
+.Cm install
+and
+.Cm installworld
+targets install binaries from the current
+.Va MAKEOBJDIRPREFIX
+without stripping,
+so that debugging information is retained in the installed binaries.
 .It Va DESTDIR
 The directory hierarchy prefix where built objects will be installed.
 If not set,
@@ -327,6 +374,15 @@ or the command line.
 .It Va NO_WERROR
 If defined, compiler warnings will not cause the build to halt,
 even if the makefile says otherwise.
+.It Va WITH_CTF
+If defined, the build process will run the DTrace CTF conversion
+tools on built objects.
+Please note that this WITH_ option is handled differently than all
+other WITH_ options (there is no
+.Va WITHOUT_CTF ,
+or corresponding
+.Va MK_CTF
+in the build system).
 .El
 .Pp
 Additionally, builds in
@@ -396,7 +452,7 @@ Typically, one only needs to set
 .Pp
 Builds under directory
 .Pa /usr/src
-are also influenced by defining one or more the following symbols,
+are also influenced by defining one or more of the following symbols,
 using the
 .Fl D
 option of
@@ -473,6 +529,29 @@ variables:
 If set, restricts the documentation build to the language subdirectories
 specified as its content.
 The default action is to build documentation for all languages.
+.El
+.Pp
+Builds using the
+.Cm universe
+target are influenced by the following
+.Xr make 1
+variables:
+.Bl -tag -width ".Va MAKE_JUST_KERNELS"
+.It Va JFLAG
+Pass the value of this variable to each
+.Xr make 1
+invocation used to build worlds and kernels.
+This can be used to enable multiple jobs within a single architecture's build
+while still building each architecture serially.
+.It Va MAKE_JUST_KERNELS
+Only build kernels for each supported architecture.
+.It Va MAKE_JUST_WORLDS
+Only build worlds for each supported architecture.
+.It Va UNIVERSE_TARGET
+Execute the specified
+.Xr make 1
+target for each supported architecture instead of the default action of
+building a world and one or more kernels.
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /usr/share/examples/etc/make.conf" -compact

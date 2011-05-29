@@ -1,19 +1,14 @@
 $FreeBSD$
 
-1. Export from OpenBSD's nc(1) into an empty directory (say "v-nc").
-2. while read pattern; do rm ${pattern} ; done < FREEBSD-Xlist
-3. Checkout our contrib/netcat to another directory (say "f-nc"),
-   with -rOPENBSD, and usr.bin/nc to its ../../
-4. copy the files from v-nc to f-nc
-5. do cvs up -A in f-nc
-6. If there is conflicits, try to resolve them.
-7. do build in f-nc/../../usr.bin/nc
-8. If everything seems ok, do the actual import in v-nc:
-	cvs -n import src/contrib/netcat OPENBSD OPENBSD_<release>
-   Everything appears be Ok? Do:
-	cvs import src/contrib/netcat OPENBSD OPENBSD_<release>
-   (note: recently we import from OpenBSD's release branches
-    rather than importing -HEAD snapshots)
-9. Resolve the conflicits with the patchset obtained in step 6.
+Most of the instructions is outlined on FreeBSD wiki at:
 
-delphij@FreeBSD.org - 21 Apr 2008
+	http://wiki.freebsd.org/SubversionPrimer/VendorImports
+
+nc(1) is very small and most of code are just copied as-is from OpenBSD.  With a
+few exceptions:
+
+ * --no-tcpopt: Local feature specific to FreeBSD.
+ * -V: We use FIB to map what OpenBSD do for "rdomain"
+ * -E, -e: These are mostly self contained IPsec extensions
+
+delphij@FreeBSD.org - Mar 23, 2010

@@ -33,6 +33,9 @@
 #define WPS_MGMTAUTHKEY_LEN 32
 #define WPS_MGMTENCKEY_LEN 16
 #define WPS_MGMT_KEY_ID_LEN 16
+#define WPS_OOB_DEVICE_PASSWORD_ATTR_LEN 54
+#define WPS_OOB_DEVICE_PASSWORD_LEN 32
+#define WPS_OOB_PUBKEY_HASH_LEN 20
 
 /* Attribute Types */
 enum wps_attribute {
@@ -112,7 +115,7 @@ enum wps_attribute {
 	ATTR_PERMITTED_CFG_METHODS = 0x1052,
 	ATTR_SELECTED_REGISTRAR_CONFIG_METHODS = 0x1053,
 	ATTR_PRIMARY_DEV_TYPE = 0x1054,
-	ATTR_SECONDARY_DEV_TYP_ELIST = 0x1055,
+	ATTR_SECONDARY_DEV_TYPE_LIST = 0x1055,
 	ATTR_PORTABLE_DEV = 0x1056,
 	ATTR_AP_SETUP_LOCKED = 0x1057,
 	ATTR_APPLICATION_EXT = 0x1058,
@@ -228,13 +231,6 @@ enum wps_assoc_state {
 	WPS_ASSOC_IP_FAILURE = 4
 };
 
-
-/* Primary Device Type */
-struct wps_dev_type {
-	u8 categ_id[2];
-	u8 oui[4];
-	u8 sub_categ_id[2];
-};
 
 #define WPS_DEV_OUI_WFA 0x0050f204
 

@@ -4,119 +4,49 @@
  *
  *****************************************************************************/
 
-/******************************************************************************
- *
- * 1. Copyright Notice
- *
- * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
+/*
+ * Copyright (C) 2000 - 2011, Intel Corp.
  * All rights reserved.
  *
- * 2. License
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions, and the following disclaimer,
+ *    without modification.
+ * 2. Redistributions in binary form must reproduce at minimum a disclaimer
+ *    substantially similar to the "NO WARRANTY" disclaimer below
+ *    ("Disclaimer") and any redistribution must be conditioned upon
+ *    including a substantially similar Disclaimer requirement for further
+ *    binary redistribution.
+ * 3. Neither the names of the above-listed copyright holders nor the names
+ *    of any contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
  *
- * 2.1. This is your license from Intel Corp. under its intellectual property
- * rights.  You may have additional license terms from the party that provided
- * you this software, covering your right to use that party's intellectual
- * property rights.
+ * Alternatively, this software may be distributed under the terms of the
+ * GNU General Public License ("GPL") version 2 as published by the Free
+ * Software Foundation.
  *
- * 2.2. Intel grants, free of charge, to any person ("Licensee") obtaining a
- * copy of the source code appearing in this file ("Covered Code") an
- * irrevocable, perpetual, worldwide license under Intel's copyrights in the
- * base code distributed originally by Intel ("Original Intel Code") to copy,
- * make derivatives, distribute, use and display any portion of the Covered
- * Code in any form, with the right to sublicense such rights; and
- *
- * 2.3. Intel grants Licensee a non-exclusive and non-transferable patent
- * license (with the right to sublicense), under only those claims of Intel
- * patents that are infringed by the Original Intel Code, to make, use, sell,
- * offer to sell, and import the Covered Code and derivative works thereof
- * solely to the minimum extent necessary to exercise the above copyright
- * license, and in no event shall the patent license extend to any additions
- * to or modifications of the Original Intel Code.  No other license or right
- * is granted directly or by implication, estoppel or otherwise;
- *
- * The above copyright and patent license is granted only if the following
- * conditions are met:
- *
- * 3. Conditions
- *
- * 3.1. Redistribution of Source with Rights to Further Distribute Source.
- * Redistribution of source code of any substantial portion of the Covered
- * Code or modification with rights to further distribute source must include
- * the above Copyright Notice, the above License, this list of Conditions,
- * and the following Disclaimer and Export Compliance provision.  In addition,
- * Licensee must cause all Covered Code to which Licensee contributes to
- * contain a file documenting the changes Licensee made to create that Covered
- * Code and the date of any change.  Licensee must include in that file the
- * documentation of any changes made by any predecessor Licensee.  Licensee
- * must include a prominent statement that the modification is derived,
- * directly or indirectly, from Original Intel Code.
- *
- * 3.2. Redistribution of Source with no Rights to Further Distribute Source.
- * Redistribution of source code of any substantial portion of the Covered
- * Code or modification without rights to further distribute source must
- * include the following Disclaimer and Export Compliance provision in the
- * documentation and/or other materials provided with distribution.  In
- * addition, Licensee may not authorize further sublicense of source of any
- * portion of the Covered Code, and must include terms to the effect that the
- * license from Licensee to its licensee is limited to the intellectual
- * property embodied in the software Licensee provides to its licensee, and
- * not to intellectual property embodied in modifications its licensee may
- * make.
- *
- * 3.3. Redistribution of Executable. Redistribution in executable form of any
- * substantial portion of the Covered Code or modification must reproduce the
- * above Copyright Notice, and the following Disclaimer and Export Compliance
- * provision in the documentation and/or other materials provided with the
- * distribution.
- *
- * 3.4. Intel retains all right, title, and interest in and to the Original
- * Intel Code.
- *
- * 3.5. Neither the name Intel nor any other trademark owned or controlled by
- * Intel shall be used in advertising or otherwise to promote the sale, use or
- * other dealings in products derived from or relating to the Covered Code
- * without prior written authorization from Intel.
- *
- * 4. Disclaimer and Export Compliance
- *
- * 4.1. INTEL MAKES NO WARRANTY OF ANY KIND REGARDING ANY SOFTWARE PROVIDED
- * HERE.  ANY SOFTWARE ORIGINATING FROM INTEL OR DERIVED FROM INTEL SOFTWARE
- * IS PROVIDED "AS IS," AND INTEL WILL NOT PROVIDE ANY SUPPORT,  ASSISTANCE,
- * INSTALLATION, TRAINING OR OTHER SERVICES.  INTEL WILL NOT PROVIDE ANY
- * UPDATES, ENHANCEMENTS OR EXTENSIONS.  INTEL SPECIFICALLY DISCLAIMS ANY
- * IMPLIED WARRANTIES OF MERCHANTABILITY, NONINFRINGEMENT AND FITNESS FOR A
- * PARTICULAR PURPOSE.
- *
- * 4.2. IN NO EVENT SHALL INTEL HAVE ANY LIABILITY TO LICENSEE, ITS LICENSEES
- * OR ANY OTHER THIRD PARTY, FOR ANY LOST PROFITS, LOST DATA, LOSS OF USE OR
- * COSTS OF PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, OR FOR ANY INDIRECT,
- * SPECIAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THIS AGREEMENT, UNDER ANY
- * CAUSE OF ACTION OR THEORY OF LIABILITY, AND IRRESPECTIVE OF WHETHER INTEL
- * HAS ADVANCE NOTICE OF THE POSSIBILITY OF SUCH DAMAGES.  THESE LIMITATIONS
- * SHALL APPLY NOTWITHSTANDING THE FAILURE OF THE ESSENTIAL PURPOSE OF ANY
- * LIMITED REMEDY.
- *
- * 4.3. Licensee shall not export, either directly or indirectly, any of this
- * software or system incorporating such software without first obtaining any
- * required license or other approval from the U. S. Department of Commerce or
- * any other agency or department of the United States Government.  In the
- * event Licensee exports any such software from the United States or
- * re-exports any such software from a foreign destination, Licensee shall
- * ensure that the distribution and export/re-export of the software is in
- * compliance with all laws, regulations, orders, or other restrictions of the
- * U.S. Export Administration Regulations. Licensee agrees that neither it nor
- * any of its subsidiaries will export/re-export any technical data, process,
- * software, or service, directly or indirectly, to any country for which the
- * United States government or any agency thereof requires an export license,
- * other governmental approval, or letter of assurance, without first obtaining
- * such license, approval or letter.
- *
- *****************************************************************************/
+ * NO WARRANTY
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+ * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+ * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGES.
+ */
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
 #include <contrib/dev/acpica/include/acdisasm.h>
 #include <contrib/dev/acpica/include/actables.h>
+#include <contrib/dev/acpica/compiler/aslcompiler.h>
+#include <contrib/dev/acpica/compiler/dtcompiler.h>
 
 /* This module used for application-level code only */
 
@@ -125,20 +55,19 @@
 
 /* Local Prototypes */
 
-static ACPI_DMTABLE_DATA *
-AcpiDmGetTableData (
-    char                    *Signature);
-
 static void
 AcpiDmCheckAscii (
     UINT8                   *Target,
     char                    *RepairedName,
     UINT32                  Count);
 
-UINT8
-AcpiTbGenerateChecksum (
-    ACPI_TABLE_HEADER       *Table);
 
+/* Common format strings for commented values */
+
+#define UINT8_FORMAT        "%2.2X [%s]\n"
+#define UINT16_FORMAT       "%4.4X [%s]\n"
+#define UINT32_FORMAT       "%8.8X [%s]\n"
+#define STRING_FORMAT       "[%s]\n"
 
 /* These tables map a subtable type to a description string */
 
@@ -159,6 +88,74 @@ static const char           *AcpiDmDmarSubnames[] =
     "Root Port ATS Capability",
     "Remapping Hardware Static Affinity",
     "Unknown SubTable Type"         /* Reserved */
+};
+
+static const char           *AcpiDmEinjActions[] =
+{
+    "Begin Operation",
+    "Get Trigger Table",
+    "Set Error Type",
+    "Get Error Type",
+    "End Operation",
+    "Execute Operation",
+    "Check Busy Status",
+    "Get Command Status",
+    "Unknown Action"
+};
+
+static const char           *AcpiDmEinjInstructions[] =
+{
+    "Read Register",
+    "Read Register Value",
+    "Write Register",
+    "Write Register Value",
+    "Noop",
+    "Unknown Instruction"
+};
+
+static const char           *AcpiDmErstActions[] =
+{
+    "Begin Write Operation",
+    "Begin Read Operation",
+    "Begin Clear Operation",
+    "End Operation",
+    "Set Record Offset",
+    "Execute Operation",
+    "Check Busy Status",
+    "Get Command Status",
+    "Get Record Identifier",
+    "Set Record Identifier",
+    "Get Record Count",
+    "Begin Dummy Write",
+    "Unused/Unknown Action",
+    "Get Error Address Range",
+    "Get Error Address Length",
+    "Get Error Attributes",
+    "Unknown Action"
+};
+
+static const char           *AcpiDmErstInstructions[] =
+{
+    "Read Register",
+    "Read Register Value",
+    "Write Register",
+    "Write Register Value",
+    "Noop",
+    "Load Var1",
+    "Load Var2",
+    "Store Var1",
+    "Add",
+    "Subtract",
+    "Add Value",
+    "Subtract Value",
+    "Stall",
+    "Stall While True",
+    "Skip Next If True",
+    "GoTo",
+    "Set Source Address",
+    "Set Destination Address",
+    "Move Data",
+    "Unknown Instruction"
 };
 
 static const char           *AcpiDmHestSubnames[] =
@@ -202,6 +199,13 @@ static const char           *AcpiDmMadtSubnames[] =
     "Unknown SubTable Type"         /* Reserved */
 };
 
+static const char           *AcpiDmSlicSubnames[] =
+{
+    "Public Key Structure",
+    "Windows Marker Structure",
+    "Unknown SubTable Type"         /* Reserved */
+};
+
 static const char           *AcpiDmSratSubnames[] =
 {
     "Processor Local APIC/SAPIC Affinity",
@@ -233,60 +237,76 @@ static const char           *AcpiDmFadtProfiles[] =
     "Unknown Profile Type"
 };
 
-/*******************************************************************************
- *
- * ACPI Table Data, indexed by signature.
- *
- * Each entry contains: Signature, Table Info, Handler, Description
- *
- * Simple tables have only a TableInfo structure, complex tables have a handler.
- * This table must be NULL terminated. RSDP and FACS are special-cased
- * elsewhere.
- *
- ******************************************************************************/
+#define ACPI_GAS_WIDTH_RESERVED     5
 
-static ACPI_DMTABLE_DATA    AcpiDmTableData[] =
+static const char           *AcpiDmGasAccessWidth[] =
 {
-    {ACPI_SIG_ASF,  NULL,                   AcpiDmDumpAsf,  "Alert Standard Format table"},
-    {ACPI_SIG_BOOT, AcpiDmTableInfoBoot,    NULL,           "Simple Boot Flag Table"},
-    {ACPI_SIG_BERT, AcpiDmTableInfoBert,    NULL,           "Boot Error Record Table"},
-    {ACPI_SIG_CPEP, NULL,                   AcpiDmDumpCpep, "Corrected Platform Error Polling table"},
-    {ACPI_SIG_DBGP, AcpiDmTableInfoDbgp,    NULL,           "Debug Port table"},
-    {ACPI_SIG_DMAR, NULL,                   AcpiDmDumpDmar, "DMA Remapping table"},
-    {ACPI_SIG_ECDT, AcpiDmTableInfoEcdt,    NULL,           "Embedded Controller Boot Resources Table"},
-    {ACPI_SIG_EINJ, NULL,                   AcpiDmDumpEinj, "Error Injection table"},
-    {ACPI_SIG_ERST, NULL,                   AcpiDmDumpErst, "Error Record Serialization Table"},
-    {ACPI_SIG_FADT, NULL,                   AcpiDmDumpFadt, "Fixed ACPI Description Table"},
-    {ACPI_SIG_HEST, NULL,                   AcpiDmDumpHest, "Hardware Error Source Table"},
-    {ACPI_SIG_HPET, AcpiDmTableInfoHpet,    NULL,           "High Precision Event Timer table"},
-    {ACPI_SIG_IVRS, NULL,                   AcpiDmDumpIvrs, "I/O Virtualization Reporting Structure"},
-    {ACPI_SIG_MADT, NULL,                   AcpiDmDumpMadt, "Multiple APIC Description Table"},
-    {ACPI_SIG_MCFG, NULL,                   AcpiDmDumpMcfg, "Memory Mapped Configuration table"},
-    {ACPI_SIG_MCHI, AcpiDmTableInfoMchi,    NULL,           "Management Controller Host Interface table"},
-    {ACPI_SIG_MSCT, NULL,                   AcpiDmDumpMsct, "Maximum System Characteristics Table"},
-    {ACPI_SIG_RSDT, NULL,                   AcpiDmDumpRsdt, "Root System Description Table"},
-    {ACPI_SIG_SBST, AcpiDmTableInfoSbst,    NULL,           "Smart Battery Specification Table"},
-    {ACPI_SIG_SLIC, AcpiDmTableInfoSlic,    NULL,           "Software Licensing Description Table"},
-    {ACPI_SIG_SLIT, NULL,                   AcpiDmDumpSlit, "System Locality Information Table"},
-    {ACPI_SIG_SPCR, AcpiDmTableInfoSpcr,    NULL,           "Serial Port Console Redirection table"},
-    {ACPI_SIG_SPMI, AcpiDmTableInfoSpmi,    NULL,           "Server Platform Management Interface table"},
-    {ACPI_SIG_SRAT, NULL,                   AcpiDmDumpSrat, "System Resource Affinity Table"},
-    {ACPI_SIG_TCPA, AcpiDmTableInfoTcpa,    NULL,           "Trusted Computing Platform Alliance table"},
-    {ACPI_SIG_UEFI, AcpiDmTableInfoUefi,    NULL,           "UEFI Boot Optimization Table"},
-    {ACPI_SIG_WAET, AcpiDmTableInfoWaet,    NULL,           "Windows ACPI Emulated Devices Table"},
-    {ACPI_SIG_WDAT, NULL,                   AcpiDmDumpWdat, "Watchdog Action Table"},
-    {ACPI_SIG_WDRT, AcpiDmTableInfoWdrt,    NULL,           "Watchdog Resource Table"},
-    {ACPI_SIG_XSDT, NULL,                   AcpiDmDumpXsdt, "Extended System Description Table"},
-    {NULL,          NULL,                   NULL,           NULL}
+    "Undefined/Legacy",
+    "Byte Access:8",
+    "Word Access:16",
+    "DWord Access:32",
+    "QWord Access:64",
+    "Unknown Width Encoding"
 };
 
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiTbGenerateChecksum
+ * ACPI Table Data, indexed by signature.
  *
- * PARAMETERS:  Table               - Pointer to a valid ACPI table (with a
- *                                    standard ACPI header)
+ * Each entry contains: Signature, Table Info, Handler, DtHandler,
+ *  Template, Description
+ *
+ * Simple tables have only a TableInfo structure, complex tables have a
+ * handler. This table must be NULL terminated. RSDP and FACS are
+ * special-cased elsewhere.
+ *
+ ******************************************************************************/
+
+ACPI_DMTABLE_DATA    AcpiDmTableData[] =
+{
+    {ACPI_SIG_ASF,  NULL,                   AcpiDmDumpAsf,  DtCompileAsf,   TemplateAsf,    "Alert Standard Format table"},
+    {ACPI_SIG_BOOT, AcpiDmTableInfoBoot,    NULL,           NULL,           TemplateBoot,   "Simple Boot Flag Table"},
+    {ACPI_SIG_BERT, AcpiDmTableInfoBert,    NULL,           NULL,           TemplateBert,   "Boot Error Record Table"},
+    {ACPI_SIG_CPEP, NULL,                   AcpiDmDumpCpep, DtCompileCpep,  TemplateCpep,   "Corrected Platform Error Polling table"},
+    {ACPI_SIG_DBGP, AcpiDmTableInfoDbgp,    NULL,           NULL,           TemplateDbgp,   "Debug Port table"},
+    {ACPI_SIG_DMAR, NULL,                   AcpiDmDumpDmar, DtCompileDmar,  TemplateDmar,   "DMA Remapping table"},
+    {ACPI_SIG_ECDT, AcpiDmTableInfoEcdt,    NULL,           NULL,           TemplateEcdt,   "Embedded Controller Boot Resources Table"},
+    {ACPI_SIG_EINJ, NULL,                   AcpiDmDumpEinj, DtCompileEinj,  TemplateEinj,   "Error Injection table"},
+    {ACPI_SIG_ERST, NULL,                   AcpiDmDumpErst, DtCompileErst,  TemplateErst,   "Error Record Serialization Table"},
+    {ACPI_SIG_FADT, NULL,                   AcpiDmDumpFadt, DtCompileFadt,  TemplateFadt,   "Fixed ACPI Description Table"},
+    {ACPI_SIG_HEST, NULL,                   AcpiDmDumpHest, DtCompileHest,  TemplateHest,   "Hardware Error Source Table"},
+    {ACPI_SIG_HPET, AcpiDmTableInfoHpet,    NULL,           NULL,           TemplateHpet,   "High Precision Event Timer table"},
+    {ACPI_SIG_IVRS, NULL,                   AcpiDmDumpIvrs, DtCompileIvrs,  TemplateIvrs,   "I/O Virtualization Reporting Structure"},
+    {ACPI_SIG_MADT, NULL,                   AcpiDmDumpMadt, DtCompileMadt,  TemplateMadt,   "Multiple APIC Description Table"},
+    {ACPI_SIG_MCFG, NULL,                   AcpiDmDumpMcfg, DtCompileMcfg,  TemplateMcfg,   "Memory Mapped Configuration table"},
+    {ACPI_SIG_MCHI, AcpiDmTableInfoMchi,    NULL,           NULL,           TemplateMchi,   "Management Controller Host Interface table"},
+    {ACPI_SIG_MSCT, NULL,                   AcpiDmDumpMsct, DtCompileMsct,  TemplateMsct,   "Maximum System Characteristics Table"},
+    {ACPI_SIG_RSDT, NULL,                   AcpiDmDumpRsdt, DtCompileRsdt,  TemplateRsdt,   "Root System Description Table"},
+    {ACPI_SIG_SBST, AcpiDmTableInfoSbst,    NULL,           NULL,           TemplateSbst,   "Smart Battery Specification Table"},
+    {ACPI_SIG_SLIC, NULL,                   AcpiDmDumpSlic, DtCompileSlic,  TemplateSlic,   "Software Licensing Description Table"},
+    {ACPI_SIG_SLIT, NULL,                   AcpiDmDumpSlit, DtCompileSlit,  TemplateSlit,   "System Locality Information Table"},
+    {ACPI_SIG_SPCR, AcpiDmTableInfoSpcr,    NULL,           NULL,           TemplateSpcr,   "Serial Port Console Redirection table"},
+    {ACPI_SIG_SPMI, AcpiDmTableInfoSpmi,    NULL,           NULL,           TemplateSpmi,   "Server Platform Management Interface table"},
+    {ACPI_SIG_SRAT, NULL,                   AcpiDmDumpSrat, DtCompileSrat,  TemplateSrat,   "System Resource Affinity Table"},
+    {ACPI_SIG_TCPA, AcpiDmTableInfoTcpa,    NULL,           NULL,           TemplateTcpa,   "Trusted Computing Platform Alliance table"},
+    {ACPI_SIG_UEFI, AcpiDmTableInfoUefi,    NULL,           DtCompileUefi,  TemplateUefi,   "UEFI Boot Optimization Table"},
+    {ACPI_SIG_WAET, AcpiDmTableInfoWaet,    NULL,           NULL,           TemplateWaet,   "Windows ACPI Emulated Devices Table"},
+    {ACPI_SIG_WDAT, NULL,                   AcpiDmDumpWdat, DtCompileWdat,  TemplateWdat,   "Watchdog Action Table"},
+    {ACPI_SIG_WDDT, AcpiDmTableInfoWddt,    NULL,           NULL,           TemplateWddt,   "Watchdog Description Table"},
+    {ACPI_SIG_WDRT, AcpiDmTableInfoWdrt,    NULL,           NULL,           TemplateWdrt,   "Watchdog Resource Table"},
+    {ACPI_SIG_XSDT, NULL,                   AcpiDmDumpXsdt, DtCompileXsdt,  TemplateXsdt,   "Extended System Description Table"},
+    {NULL,          NULL,                   NULL,           NULL,           NULL,           NULL}
+};
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDmGenerateChecksum
+ *
+ * PARAMETERS:  Table               - Pointer to table to be checksummed
+ *              Length              - Length of the table
+ *              OriginalChecksum    - Value of the checksum field
  *
  * RETURN:      8 bit checksum of buffer
  *
@@ -295,19 +315,21 @@ static ACPI_DMTABLE_DATA    AcpiDmTableData[] =
  ******************************************************************************/
 
 UINT8
-AcpiTbGenerateChecksum (
-    ACPI_TABLE_HEADER       *Table)
+AcpiDmGenerateChecksum (
+    void                    *Table,
+    UINT32                  Length,
+    UINT8                   OriginalChecksum)
 {
     UINT8                   Checksum;
 
 
     /* Sum the entire table as-is */
 
-    Checksum = AcpiTbChecksum ((UINT8 *) Table, Table->Length);
+    Checksum = AcpiTbChecksum ((UINT8 *) Table, Length);
 
     /* Subtract off the existing checksum value in the table */
 
-    Checksum = (UINT8) (Checksum - Table->Checksum);
+    Checksum = (UINT8) (Checksum - OriginalChecksum);
 
     /* Compute the final checksum */
 
@@ -328,7 +350,7 @@ AcpiTbGenerateChecksum (
  *
  ******************************************************************************/
 
-static ACPI_DMTABLE_DATA *
+ACPI_DMTABLE_DATA *
 AcpiDmGetTableData (
     char                    *Signature)
 {
@@ -432,10 +454,14 @@ AcpiDmDumpDataTable (
         }
     }
 
-    /* Always dump the raw table data */
+    if (!Gbl_DoTemplates || Gbl_VerboseTemplates)
+    {
+        /* Dump the raw table data */
 
-    AcpiOsPrintf ("\nRaw Table Data\n\n");
-    AcpiUtDumpBuffer2 (ACPI_CAST_PTR (UINT8, Table), Length, DB_BYTE_DISPLAY);
+        AcpiOsPrintf ("\n%s: Length %d (0x%X)\n\n",
+            ACPI_RAW_TABLE_DATA_HEADER, Length, Length);
+        AcpiUtDumpBuffer2 (ACPI_CAST_PTR (UINT8, Table), Length, DB_BYTE_DISPLAY);
+    }
 }
 
 
@@ -463,15 +489,49 @@ AcpiDmLineHeader (
     char                    *Name)
 {
 
-    if (ByteLength)
+    /* Allow a null name for fields that span multiple lines (large buffers) */
+
+    if (!Name)
     {
-        AcpiOsPrintf ("[%3.3Xh %4.4d% 3d] %28s : ",
-            Offset, Offset, ByteLength, Name);
+        Name = "";
     }
-    else
+
+    if (Gbl_DoTemplates && !Gbl_VerboseTemplates) /* Terse template */
     {
-        AcpiOsPrintf ("%43s : ",
-            Name);
+        if (ByteLength)
+        {
+            AcpiOsPrintf ("[%.4d] %34s : ", ByteLength, Name);
+        }
+        else
+        {
+            if (*Name)
+            {
+                AcpiOsPrintf ("%41s : ", Name);
+            }
+            else
+            {
+                AcpiOsPrintf ("%41s   ", Name);
+            }
+        }
+    }
+    else /* Normal disassembler or verbose template */
+    {
+        if (ByteLength)
+        {
+            AcpiOsPrintf ("[%3.3Xh %4.4d% 4d] %28s : ",
+                Offset, Offset, ByteLength, Name);
+        }
+        else
+        {
+            if (*Name)
+            {
+                AcpiOsPrintf ("%44s : ", Name);
+            }
+            else
+            {
+                AcpiOsPrintf ("%44s   ", Name);
+            }
+        }
     }
 }
 
@@ -483,15 +543,31 @@ AcpiDmLineHeader2 (
     UINT32                  Value)
 {
 
-    if (ByteLength)
+    if (Gbl_DoTemplates && !Gbl_VerboseTemplates) /* Terse template */
     {
-        AcpiOsPrintf ("[%3.3Xh %4.4d% 3d] %24s % 3d : ",
-            Offset, Offset, ByteLength, Name, Value);
+        if (ByteLength)
+        {
+            AcpiOsPrintf ("[%.4d] %30s %3d : ",
+                ByteLength, Name, Value);
+        }
+        else
+        {
+            AcpiOsPrintf ("%36s % 3d : ",
+                Name, Value);
+        }
     }
-    else
+    else /* Normal disassembler or verbose template */
     {
-        AcpiOsPrintf ("[%3.3Xh %4.4d   ] %24s % 3d : ",
-            Offset, Offset, Name, Value);
+        if (ByteLength)
+        {
+            AcpiOsPrintf ("[%3.3Xh %4.4d %3d] %24s %3d : ",
+                Offset, Offset, ByteLength, Name, Value);
+        }
+        else
+        {
+            AcpiOsPrintf ("[%3.3Xh %4.4d   ] %24s %3d : ",
+                Offset, Offset, Name, Value);
+        }
     }
 }
 
@@ -510,6 +586,8 @@ AcpiDmLineHeader2 (
  * RETURN:      None
  *
  * DESCRIPTION: Display ACPI table contents by walking the Info table.
+ *
+ * Note: This function must remain in sync with DtGetFieldLength.
  *
  ******************************************************************************/
 
@@ -565,12 +643,17 @@ AcpiDmDumpTable (
         case ACPI_DMT_UINT8:
         case ACPI_DMT_CHKSUM:
         case ACPI_DMT_SPACEID:
+        case ACPI_DMT_ACCWIDTH:
         case ACPI_DMT_IVRS:
         case ACPI_DMT_MADT:
         case ACPI_DMT_SRAT:
         case ACPI_DMT_ASF:
         case ACPI_DMT_HESTNTYP:
         case ACPI_DMT_FADTPM:
+        case ACPI_DMT_EINJACT:
+        case ACPI_DMT_EINJINST:
+        case ACPI_DMT_ERSTACT:
+        case ACPI_DMT_ERSTINST:
             ByteLength = 1;
             break;
         case ACPI_DMT_UINT16:
@@ -584,12 +667,14 @@ AcpiDmDumpTable (
         case ACPI_DMT_UINT32:
         case ACPI_DMT_NAME4:
         case ACPI_DMT_SIG:
+        case ACPI_DMT_SLIC:
             ByteLength = 4;
             break;
         case ACPI_DMT_NAME6:
             ByteLength = 6;
             break;
         case ACPI_DMT_UINT56:
+        case ACPI_DMT_BUF7:
             ByteLength = 7;
             break;
         case ACPI_DMT_UINT64:
@@ -597,7 +682,11 @@ AcpiDmDumpTable (
             ByteLength = 8;
             break;
         case ACPI_DMT_BUF16:
+        case ACPI_DMT_UUID:
             ByteLength = 16;
+            break;
+        case ACPI_DMT_BUF128:
+            ByteLength = 128;
             break;
         case ACPI_DMT_STRING:
             ByteLength = ACPI_STRLEN (ACPI_CAST_PTR (char, Target)) + 1;
@@ -699,15 +788,41 @@ AcpiDmDumpTable (
                 ACPI_FORMAT_UINT64 (ACPI_GET64 (Target)));
             break;
 
+        case ACPI_DMT_BUF7:
         case ACPI_DMT_BUF16:
+        case ACPI_DMT_BUF128:
 
-            /* Buffer of length 16 */
-
-            for (Temp8 = 0; Temp8 < 16; Temp8++)
+            /*
+             * Buffer: Size depends on the opcode and was set above.
+             * Each hex byte is separated with a space.
+             * Multiple lines are separated by line continuation char.
+             */
+            for (Temp16 = 0; Temp16 < ByteLength; Temp16++)
             {
-                AcpiOsPrintf ("%2.2X,", Target[Temp8]);
+                AcpiOsPrintf ("%2.2X", Target[Temp16]);
+                if ((UINT32) (Temp16 + 1) < ByteLength)
+                {
+                    if ((Temp16 > 0) && (!((Temp16+1) % 16)))
+                    {
+                        AcpiOsPrintf (" \\\n"); /* Line continuation */
+                        AcpiDmLineHeader (0, 0, NULL);
+                    }
+                    else
+                    {
+                        AcpiOsPrintf (" ");
+                    }
+                }
             }
             AcpiOsPrintf ("\n");
+            break;
+
+        case ACPI_DMT_UUID:
+
+            /* Convert 16-byte UUID buffer to 36-byte formatted UUID string */
+
+            (void) AuConvertUuidToString ((char *) Target, MsgBuffer);
+
+            AcpiOsPrintf ("%s\n", MsgBuffer);
             break;
 
         case ACPI_DMT_STRING:
@@ -724,9 +839,12 @@ AcpiDmDumpTable (
             TableData = AcpiDmGetTableData (ACPI_CAST_PTR (char, Target));
             if (TableData)
             {
-                AcpiOsPrintf ("/* %s */", TableData->Name);
+                AcpiOsPrintf (STRING_FORMAT, TableData->Name);
             }
-            AcpiOsPrintf ("\n");
+            else
+            {
+                AcpiOsPrintf ("\n");
+            }
             break;
 
         case ACPI_DMT_NAME4:
@@ -754,7 +872,9 @@ AcpiDmDumpTable (
             /* Checksum, display and validate */
 
             AcpiOsPrintf ("%2.2X", *Target);
-            Temp8 = AcpiTbGenerateChecksum (Table);
+            Temp8 = AcpiDmGenerateChecksum (Table,
+                        ACPI_CAST_PTR (ACPI_TABLE_HEADER, Table)->Length,
+                        ACPI_CAST_PTR (ACPI_TABLE_HEADER, Table)->Checksum);
             if (Temp8 != ACPI_CAST_PTR (ACPI_TABLE_HEADER, Table)->Checksum)
             {
                 AcpiOsPrintf (
@@ -767,14 +887,27 @@ AcpiDmDumpTable (
 
             /* Address Space ID */
 
-            AcpiOsPrintf ("%2.2X (%s)\n", *Target, AcpiUtGetRegionName (*Target));
+            AcpiOsPrintf (UINT8_FORMAT, *Target, AcpiUtGetRegionName (*Target));
+            break;
+
+        case ACPI_DMT_ACCWIDTH:
+
+            /* Encoded Access Width */
+
+            Temp8 = *Target;
+            if (Temp8 > ACPI_GAS_WIDTH_RESERVED)
+            {
+                Temp8 = ACPI_GAS_WIDTH_RESERVED;
+            }
+
+            AcpiOsPrintf (UINT8_FORMAT, Temp8, AcpiDmGasAccessWidth[Temp8]);
             break;
 
         case ACPI_DMT_GAS:
 
             /* Generic Address Structure */
 
-            AcpiOsPrintf ("<Generic Address Structure>\n");
+            AcpiOsPrintf (STRING_FORMAT, "Generic Address Structure");
             AcpiDmDumpTable (TableLength, CurrentOffset, Target,
                 sizeof (ACPI_GENERIC_ADDRESS), AcpiDmTableInfoGas);
             AcpiOsPrintf ("\n");
@@ -791,7 +924,7 @@ AcpiDmDumpTable (
                 Temp16 = ACPI_ASF_TYPE_RESERVED;
             }
 
-            AcpiOsPrintf ("%2.2X <%s>\n", *Target, AcpiDmAsfSubnames[Temp16]);
+            AcpiOsPrintf (UINT8_FORMAT, *Target, AcpiDmAsfSubnames[Temp16]);
             break;
 
         case ACPI_DMT_DMAR:
@@ -804,7 +937,59 @@ AcpiDmDumpTable (
                 Temp16 = ACPI_DMAR_TYPE_RESERVED;
             }
 
-            AcpiOsPrintf ("%4.4X <%s>\n", ACPI_GET16 (Target), AcpiDmDmarSubnames[Temp16]);
+            AcpiOsPrintf (UINT16_FORMAT, ACPI_GET16 (Target), AcpiDmDmarSubnames[Temp16]);
+            break;
+
+        case ACPI_DMT_EINJACT:
+
+            /* EINJ Action types */
+
+            Temp8 = *Target;
+            if (Temp8 > ACPI_EINJ_ACTION_RESERVED)
+            {
+                Temp8 = ACPI_EINJ_ACTION_RESERVED;
+            }
+
+            AcpiOsPrintf (UINT8_FORMAT, *Target, AcpiDmEinjActions[Temp8]);
+            break;
+
+        case ACPI_DMT_EINJINST:
+
+            /* EINJ Instruction types */
+
+            Temp8 = *Target;
+            if (Temp8 > ACPI_EINJ_INSTRUCTION_RESERVED)
+            {
+                Temp8 = ACPI_EINJ_INSTRUCTION_RESERVED;
+            }
+
+            AcpiOsPrintf (UINT8_FORMAT, *Target, AcpiDmEinjInstructions[Temp8]);
+            break;
+
+        case ACPI_DMT_ERSTACT:
+
+            /* ERST Action types */
+
+            Temp8 = *Target;
+            if (Temp8 > ACPI_ERST_ACTION_RESERVED)
+            {
+                Temp8 = ACPI_ERST_ACTION_RESERVED;
+            }
+
+            AcpiOsPrintf (UINT8_FORMAT, *Target, AcpiDmErstActions[Temp8]);
+            break;
+
+        case ACPI_DMT_ERSTINST:
+
+            /* ERST Instruction types */
+
+            Temp8 = *Target;
+            if (Temp8 > ACPI_ERST_INSTRUCTION_RESERVED)
+            {
+                Temp8 = ACPI_ERST_INSTRUCTION_RESERVED;
+            }
+
+            AcpiOsPrintf (UINT8_FORMAT, *Target, AcpiDmErstInstructions[Temp8]);
             break;
 
         case ACPI_DMT_HEST:
@@ -817,12 +1002,12 @@ AcpiDmDumpTable (
                 Temp16 = ACPI_HEST_TYPE_RESERVED;
             }
 
-            AcpiOsPrintf ("%4.4X (%s)\n", ACPI_GET16 (Target), AcpiDmHestSubnames[Temp16]);
+            AcpiOsPrintf (UINT16_FORMAT, ACPI_GET16 (Target), AcpiDmHestSubnames[Temp16]);
             break;
 
         case ACPI_DMT_HESTNTFY:
 
-            AcpiOsPrintf ("<Hardware Error Notification Structure>\n");
+            AcpiOsPrintf (STRING_FORMAT, "Hardware Error Notification Structure");
             AcpiDmDumpTable (TableLength, CurrentOffset, Target,
                 sizeof (ACPI_HEST_NOTIFY), AcpiDmTableInfoHestNotify);
             AcpiOsPrintf ("\n");
@@ -839,9 +1024,8 @@ AcpiDmDumpTable (
                 Temp8 = ACPI_HEST_NOTIFY_RESERVED;
             }
 
-            AcpiOsPrintf ("%2.2X (%s)\n", *Target, AcpiDmHestNotifySubnames[Temp8]);
+            AcpiOsPrintf (UINT8_FORMAT, *Target, AcpiDmHestNotifySubnames[Temp8]);
             break;
-
 
         case ACPI_DMT_MADT:
 
@@ -853,7 +1037,20 @@ AcpiDmDumpTable (
                 Temp8 = ACPI_MADT_TYPE_RESERVED;
             }
 
-            AcpiOsPrintf ("%2.2X <%s>\n", *Target, AcpiDmMadtSubnames[Temp8]);
+            AcpiOsPrintf (UINT8_FORMAT, *Target, AcpiDmMadtSubnames[Temp8]);
+            break;
+
+        case ACPI_DMT_SLIC:
+
+            /* SLIC subtable types */
+
+            Temp8 = *Target;
+            if (Temp8 > ACPI_SLIC_TYPE_RESERVED)
+            {
+                Temp8 = ACPI_SLIC_TYPE_RESERVED;
+            }
+
+            AcpiOsPrintf (UINT32_FORMAT, *Target, AcpiDmSlicSubnames[Temp8]);
             break;
 
         case ACPI_DMT_SRAT:
@@ -866,7 +1063,7 @@ AcpiDmDumpTable (
                 Temp8 = ACPI_SRAT_TYPE_RESERVED;
             }
 
-            AcpiOsPrintf ("%2.2X <%s>\n", *Target, AcpiDmSratSubnames[Temp8]);
+            AcpiOsPrintf (UINT8_FORMAT, *Target, AcpiDmSratSubnames[Temp8]);
             break;
 
         case ACPI_DMT_FADTPM:
@@ -879,7 +1076,7 @@ AcpiDmDumpTable (
                 Temp8 = ACPI_FADT_PM_RESERVED;
             }
 
-            AcpiOsPrintf ("%2.2X (%s)\n", *Target, AcpiDmFadtProfiles[Temp8]);
+            AcpiOsPrintf (UINT8_FORMAT, *Target, AcpiDmFadtProfiles[Temp8]);
             break;
 
         case ACPI_DMT_IVRS:
@@ -904,7 +1101,7 @@ AcpiDmDumpTable (
                 break;
             }
 
-            AcpiOsPrintf ("%2.2X <%s>\n", *Target, Name);
+            AcpiOsPrintf (UINT8_FORMAT, *Target, Name);
             break;
 
         case ACPI_DMT_EXIT:

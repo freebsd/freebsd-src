@@ -369,10 +369,6 @@ ste_miibus_readreg(device_t dev, int phy, int reg)
 	struct ste_mii_frame frame;
 
 	sc = device_get_softc(dev);
-
-	if ((sc->ste_flags & STE_FLAG_ONE_PHY) != 0 && phy != 0)
-		return (0);
-
 	bzero((char *)&frame, sizeof(frame));
 
 	frame.mii_phyaddr = phy;
@@ -462,10 +458,8 @@ ste_ifmedia_upd(struct ifnet *ifp)
 	sc = ifp->if_softc;
 	STE_LOCK(sc);
 	mii = device_get_softc(sc->ste_miibus);
-	if (mii->mii_instance) {
-		LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
-			mii_phy_reset(miisc);
-	}
+	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
+		PHY_RESET(miisc);
 	error = mii_mediachg(mii);
 	STE_UNLOCK(sc);
 
@@ -1059,7 +1053,7 @@ ste_attach(device_t dev)
 	struct ste_softc *sc;
 	struct ifnet *ifp;
 	uint16_t eaddr[ETHER_ADDR_LEN / 2];
-	int error = 0, pmc, rid;
+	int error = 0, phy, pmc, prefer_iomap, rid;
 
 	sc = device_get_softc(dev);
 	sc->ste_dev = dev;
@@ -1081,12 +1075,25 @@ ste_attach(device_t dev)
 	 */
 	pci_enable_busmaster(dev);
 
-	/* Prefer memory space register mapping over IO space. */
-	sc->ste_res_id = PCIR_BAR(1);
-	sc->ste_res_type = SYS_RES_MEMORY;
-	sc->ste_res = bus_alloc_resource_any(dev, sc->ste_res_type,
-	    &sc->ste_res_id, RF_ACTIVE);
-	if (sc->ste_res == NULL) {
+	/*
+	 * Prefer memory space register mapping over IO space but use
+	 * IO space for a device that is known to have issues on memory
+	 * mapping.
+	 */
+	prefer_iomap = 0;
+	if (pci_get_device(dev) == ST_DEVICEID_ST201_1)
+		prefer_iomap = 1;
+	else
+		resource_int_value(device_get_name(sc->ste_dev),
+		    device_get_unit(sc->ste_dev), "prefer_iomap",
+		    &prefer_iomap);
+	if (prefer_iomap == 0) {
+		sc->ste_res_id = PCIR_BAR(1);
+		sc->ste_res_type = SYS_RES_MEMORY;
+		sc->ste_res = bus_alloc_resource_any(dev, sc->ste_res_type,
+		    &sc->ste_res_id, RF_ACTIVE);
+	}
+	if (prefer_iomap || sc->ste_res == NULL) {
 		sc->ste_res_id = PCIR_BAR(0);
 		sc->ste_res_type = SYS_RES_IOPORT;
 		sc->ste_res = bus_alloc_resource_any(dev, sc->ste_res_type,
@@ -1135,10 +1142,13 @@ ste_attach(device_t dev)
 	}
 
 	/* Do MII setup. */
-	if (mii_phy_probe(dev, &sc->ste_miibus,
-	    ste_ifmedia_upd, ste_ifmedia_sts)) {
-		device_printf(dev, "MII without any phy!\n");
-		error = ENXIO;
+	phy = MII_PHY_ANY;
+	if ((sc->ste_flags & STE_FLAG_ONE_PHY) != 0)
+		phy = 0;
+	error = mii_attach(dev, &sc->ste_miibus, ifp, ste_ifmedia_upd,
+		ste_ifmedia_sts, BMSR_DEFCAPMASK, phy, MII_OFFSET_ANY, 0);
+	if (error != 0) {
+		device_printf(dev, "attaching PHYs failed\n");
 		goto fail;
 	}
 
@@ -1164,7 +1174,7 @@ ste_attach(device_t dev)
 	 */
 	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
 	ifp->if_capabilities |= IFCAP_VLAN_MTU;
-	if (pci_find_extcap(dev, PCIY_PMG, &pmc) == 0)
+	if (pci_find_cap(dev, PCIY_PMG, &pmc) == 0)
 		ifp->if_capabilities |= IFCAP_WOL_MAGIC;
 	ifp->if_capenable = ifp->if_capabilities;
 #ifdef DEVICE_POLLING
@@ -2145,7 +2155,7 @@ ste_resume(device_t dev)
 
 	sc = device_get_softc(dev);
 	STE_LOCK(sc);
-	if (pci_find_extcap(sc->ste_dev, PCIY_PMG, &pmc) == 0) {
+	if (pci_find_cap(sc->ste_dev, PCIY_PMG, &pmc) == 0) {
 		/* Disable PME and clear PME status. */
 		pmstat = pci_read_config(sc->ste_dev,
 		    pmc + PCIR_POWER_STATUS, 2);
@@ -2168,7 +2178,7 @@ ste_resume(device_t dev)
 #define	STE_SYSCTL_STAT_ADD32(c, h, n, p, d)	\
 	    SYSCTL_ADD_UINT(c, h, OID_AUTO, n, CTLFLAG_RD, p, 0, d)
 #define	STE_SYSCTL_STAT_ADD64(c, h, n, p, d)	\
-	    SYSCTL_ADD_QUAD(c, h, OID_AUTO, n, CTLFLAG_RD, p, d)
+	    SYSCTL_ADD_UQUAD(c, h, OID_AUTO, n, CTLFLAG_RD, p, d)
 
 static void
 ste_sysctl_node(struct ste_softc *sc)
@@ -2249,7 +2259,7 @@ ste_setwol(struct ste_softc *sc)
 
 	STE_LOCK_ASSERT(sc);
 
-	if (pci_find_extcap(sc->ste_dev, PCIY_PMG, &pmc) != 0) {
+	if (pci_find_cap(sc->ste_dev, PCIY_PMG, &pmc) != 0) {
 		/* Disable WOL. */
 		CSR_READ_1(sc, STE_WAKE_EVENT);
 		CSR_WRITE_1(sc, STE_WAKE_EVENT, 0);

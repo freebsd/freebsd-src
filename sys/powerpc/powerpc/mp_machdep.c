@@ -32,6 +32,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/bus.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/pcpu.h>
 #include <sys/proc.h>
 #include <sys/sched.h>
@@ -47,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/intr_machdep.h>
+#include <machine/pcb.h>
 #include <machine/platform.h>
 #include <machine/md_var.h>
 #include <machine/smp.h>
@@ -57,9 +60,10 @@ extern struct pcpu __pcpu[MAXCPU];
 
 volatile static int ap_awake;
 volatile static u_int ap_letgo;
-volatile static uint32_t ap_decr;
 volatile static u_quad_t ap_timebase;
 static u_int ipi_msg_cnt[32];
+static struct mtx ap_boot_mtx;
+struct pcb stoppcbs[MAXCPU];
 
 void
 machdep_ap_bootstrap(void)
@@ -76,29 +80,30 @@ machdep_ap_bootstrap(void)
 		;
 
 	/* Initialize DEC and TB, sync with the BSP values */
-	decr_ap_init();
+#ifdef __powerpc64__
+	/* Writing to the time base register is hypervisor-privileged */
+	if (mfmsr() & PSL_HV)
+		mttb(ap_timebase);
+#else
 	mttb(ap_timebase);
-	__asm __volatile("mtdec %0" :: "r"(ap_decr));
+#endif
+	decr_ap_init();
 
-	atomic_add_int(&ap_awake, 1);
+	/* Serialize console output and AP count increment */
+	mtx_lock_spin(&ap_boot_mtx);
+	ap_awake++;
 	printf("SMP: AP CPU #%d launched\n", PCPU_GET(cpuid));
+	mtx_unlock_spin(&ap_boot_mtx);
 
 	/* Initialize curthread */
 	PCPU_SET(curthread, PCPU_GET(idlethread));
 	PCPU_SET(curpcb, curthread->td_pcb);
 
-	/* Let the DEC and external interrupts go */
-	mtmsr(mfmsr() | PSL_EE);
+	/* Start per-CPU event timers. */
+	cpu_initclocks_ap();
 
 	/* Announce ourselves awake, and enter the scheduler */
 	sched_throw(NULL);
-}
-
-struct cpu_group *
-cpu_topo(void)
-{
-
-	return (smp_topo_none());
 }
 
 void
@@ -187,7 +192,7 @@ cpu_mp_announce(void)
 		pc = pcpu_find(i);
 		if (pc == NULL)
 			continue;
-		printf("cpu%d: dev=%x", i, pc->pc_hwref);
+		printf("cpu%d: dev=%x", i, (int)pc->pc_hwref);
 		if (pc->pc_bsp)
 			printf(" (BSP)");
 		printf("\n");
@@ -203,6 +208,8 @@ cpu_mp_unleash(void *dummy)
 	if (mp_ncpus <= 1)
 		return;
 
+	mtx_init(&ap_boot_mtx, "ap boot", NULL, MTX_SPIN);
+
 	cpus = 0;
 	smp_cpus = 0;
 	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
@@ -211,7 +218,7 @@ cpu_mp_unleash(void *dummy)
 		if (!pc->pc_bsp) {
 			if (bootverbose)
 				printf("Waking up CPU %d (dev=%x)\n",
-				    pc->pc_cpuid, pc->pc_hwref);
+				    pc->pc_cpuid, (int)pc->pc_hwref);
 
 			platform_smp_start_cpu(pc);
 			
@@ -235,14 +242,19 @@ cpu_mp_unleash(void *dummy)
 	ap_awake = 1;
 
 	/* Provide our current DEC and TB values for APs */
-	__asm __volatile("mfdec %0" : "=r"(ap_decr));
 	ap_timebase = mftb() + 10;
 	__asm __volatile("msync; isync");
 	
 	/* Let APs continue */
 	atomic_store_rel_int(&ap_letgo, 1);
 
+#ifdef __powerpc64__
+	/* Writing to the time base register is hypervisor-privileged */
+	if (mfmsr() & PSL_HV)
+		mttb(ap_timebase);
+#else
 	mttb(ap_timebase);
+#endif
 
 	while (ap_awake < smp_cpus)
 		;
@@ -296,6 +308,7 @@ powerpc_ipi_handler(void *arg)
 			 */
 			CTR1(KTR_SMP, "%s: IPI_STOP or IPI_STOP_HARD (stop)",
 			    __func__);
+			savectx(&stoppcbs[PCPU_GET(cpuid)]);
 			self = PCPU_GET(cpumask);
 			savectx(PCPU_GET(curpcb));
 			atomic_set_int(&stopped_cpus, self);
@@ -304,6 +317,10 @@ powerpc_ipi_handler(void *arg)
 			atomic_clear_int(&started_cpus, self);
 			atomic_clear_int(&stopped_cpus, self);
 			CTR1(KTR_SMP, "%s: IPI_STOP (restart)", __func__);
+			break;
+		case IPI_HARDCLOCK:
+			CTR1(KTR_SMP, "%s: IPI_HARDCLOCK", __func__);
+			hardclockintr();
 			break;
 		}
 	}
@@ -319,7 +336,7 @@ ipi_send(struct pcpu *pc, int ipi)
 	    pc, pc->pc_cpuid, ipi);
 
 	atomic_set_32(&pc->pc_ipimask, (1 << ipi));
-	PIC_IPI(pic, pc->pc_cpuid);
+	PIC_IPI(root_pic, pc->pc_cpuid);
 
 	CTR1(KTR_SMP, "%s: sent", __func__);
 }
@@ -334,6 +351,14 @@ ipi_selected(cpumask_t cpus, int ipi)
 		if (cpus & pc->pc_cpumask)
 			ipi_send(pc, ipi);
 	}
+}
+
+/* Send an IPI to a specific CPU. */
+void
+ipi_cpu(int cpu, u_int ipi)
+{
+
+	ipi_send(cpuid_to_pcpu[cpu], ipi);
 }
 
 /* Send an IPI to all CPUs EXCEPT myself. */

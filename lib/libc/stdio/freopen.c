@@ -150,14 +150,6 @@ freopen(file, mode, fp)
 
 	/* Get a new descriptor to refer to the new file. */
 	f = _open(file, oflags, DEFFILEMODE);
-	if (f < 0 && isopen) {
-		/* If out of fd's close the old one and try again. */
-		if (errno == ENFILE || errno == EMFILE) {
-			(void) (*fp->_close)(fp->_cookie);
-			isopen = 0;
-			f = _open(file, oflags, DEFFILEMODE);
-		}
-	}
 	sverrno = errno;
 
 finish:
@@ -165,9 +157,11 @@ finish:
 	 * Finish closing fp.  Even if the open succeeded above, we cannot
 	 * keep fp->_base: it may be the wrong size.  This loses the effect
 	 * of any setbuffer calls, but stdio has always done this before.
+	 *
+	 * Leave the existing file descriptor open until dup2() is called
+	 * below to avoid races where a concurrent open() in another thread
+	 * could claim the existing descriptor.
 	 */
-	if (isopen)
-		(void) (*fp->_close)(fp->_cookie);
 	if (fp->_flags & __SMBF)
 		free((char *)fp->_bf._base);
 	fp->_w = 0;
@@ -186,6 +180,8 @@ finish:
 	memset(&fp->_mbstate, 0, sizeof(mbstate_t));
 
 	if (f < 0) {			/* did not get it after all */
+		if (isopen)
+			(void) (*fp->_close)(fp->_cookie);
 		fp->_flags = 0;		/* set it free */
 		FUNLOCKFILE(fp);
 		errno = sverrno;	/* restore in case _close clobbered */
@@ -197,11 +193,12 @@ finish:
 	 * to maintain the descriptor.  Various C library routines (perror)
 	 * assume stderr is always fd STDERR_FILENO, even if being freopen'd.
 	 */
-	if (wantfd >= 0 && f != wantfd) {
+	if (wantfd >= 0) {
 		if (_dup2(f, wantfd) >= 0) {
 			(void)_close(f);
 			f = wantfd;
-		}
+		} else
+			(void)_close(fp->_file);
 	}
 
 	/*

@@ -687,6 +687,8 @@ cdregister(struct cam_periph *periph, void *arg)
 	else
 		softc->minimum_command_size = 6;
 
+	(void)cam_periph_hold(periph, PRIBIO);
+	cam_periph_unlock(periph);
 	/*
 	 * Load the user's default, if any.
 	 */
@@ -712,18 +714,24 @@ cdregister(struct cam_periph *periph, void *arg)
 	 * WORM peripheral driver.  WORM drives will also have the WORM
 	 * driver attached to them.
 	 */
-	cam_periph_unlock(periph);
 	softc->disk = disk_alloc();
-	softc->disk->d_devstat = devstat_new_entry("cd", 
+	softc->disk->d_devstat = devstat_new_entry("cd",
 			  periph->unit_number, 0,
-	  		  DEVSTAT_BS_UNAVAILABLE,
-			  DEVSTAT_TYPE_CDROM | DEVSTAT_TYPE_IF_SCSI,
+			  DEVSTAT_BS_UNAVAILABLE,
+			  DEVSTAT_TYPE_CDROM |
+			  XPORT_DEVSTAT_TYPE(cpi.transport),
 			  DEVSTAT_PRIORITY_CD);
 	softc->disk->d_open = cdopen;
 	softc->disk->d_close = cdclose;
 	softc->disk->d_strategy = cdstrategy;
 	softc->disk->d_ioctl = cdioctl;
 	softc->disk->d_name = "cd";
+	cam_strvis(softc->disk->d_descr, cgd->inq_data.vendor,
+	    sizeof(cgd->inq_data.vendor), sizeof(softc->disk->d_descr));
+	strlcat(softc->disk->d_descr, " ", sizeof(softc->disk->d_descr));
+	cam_strvis(&softc->disk->d_descr[strlen(softc->disk->d_descr)],
+	    cgd->inq_data.product, sizeof(cgd->inq_data.product),
+	    sizeof(softc->disk->d_descr) - strlen(softc->disk->d_descr));
 	softc->disk->d_unit = periph->unit_number;
 	softc->disk->d_drv1 = periph;
 	if (cpi.maxio == 0)
@@ -733,8 +741,13 @@ cdregister(struct cam_periph *periph, void *arg)
 	else
 		softc->disk->d_maxsize = cpi.maxio;
 	softc->disk->d_flags = 0;
+	softc->disk->d_hba_vendor = cpi.hba_vendor;
+	softc->disk->d_hba_device = cpi.hba_device;
+	softc->disk->d_hba_subvendor = cpi.hba_subvendor;
+	softc->disk->d_hba_subdevice = cpi.hba_subdevice;
 	disk_create(softc->disk, DISK_VERSION);
 	cam_periph_lock(periph);
+	cam_periph_unhold(periph);
 
 	/*
 	 * Add an async callback so that we get
@@ -2125,7 +2138,7 @@ cdioctl(struct disk *dp, u_long cmd, void *addr, int flag, struct thread *td)
 				  ("trying to do CDIOREADTOCHEADER\n"));
 
 			error = cdreadtoc(periph, 0, 0, (u_int8_t *)th, 
-				          sizeof (*th), /*sense_flags*/0);
+				          sizeof (*th), /*sense_flags*/SF_NO_PRINT);
 			if (error) {
 				free(th, M_SCSICD);
 				cam_periph_unlock(periph);
@@ -2528,7 +2541,7 @@ cdioctl(struct disk *dp, u_long cmd, void *addr, int flag, struct thread *td)
 
 			error = cdgetmode(periph, &params, AUDIO_PAGE);
 			if (error) {
-				free(&params.mode_buf, M_SCSICD);
+				free(params.mode_buf, M_SCSICD);
 				cam_periph_unlock(periph);
 				break;
 			}
@@ -2773,8 +2786,12 @@ cdcheckmedia(struct cam_periph *periph)
 		softc->flags &= ~(CD_FLAG_VALID_MEDIA|CD_FLAG_VALID_TOC);
 		cdprevent(periph, PR_ALLOW);
 		return (error);
-	} else
+	} else {
 		softc->flags |= CD_FLAG_VALID_MEDIA;
+		softc->disk->d_sectorsize = softc->params.blksize;
+		softc->disk->d_mediasize =
+		    (off_t)softc->params.blksize * softc->params.disksize;
+	}
 
 	/*
 	 * Now we check the table of contents.  This (currently) is only
@@ -2863,9 +2880,6 @@ cdcheckmedia(struct cam_periph *periph)
 	}
 
 	softc->flags |= CD_FLAG_VALID_TOC;
-	softc->disk->d_sectorsize = softc->params.blksize;
-	softc->disk->d_mediasize =
-	    (off_t)softc->params.blksize * softc->params.disksize;
 
 bailout:
 

@@ -29,7 +29,9 @@
 #ifndef _MACHINE_FRAME_H_
 #define	_MACHINE_FRAME_H_
 
+#ifndef _MACHINE_REGSET_H_
 #include <machine/_regset.h>
+#endif
 
 /*
  * Software trap, exception, and syscall frame.

@@ -105,7 +105,6 @@ struct scsi_initialize_element_status {
  */
 struct scsi_move_medium {
 	u_int8_t	opcode;
-#define MOVE_MEDIUM	0xa5
 	u_int8_t	byte2;
 	u_int8_t	tea[2];	/* transport element address */
 	u_int8_t	src[2];	/* source element address */
@@ -122,7 +121,6 @@ struct scsi_move_medium {
  */
 struct scsi_position_to_element {
 	u_int8_t	opcode;
-#define POSITION_TO_ELEMENT	0x2b
 	u_int8_t	byte2;
 	u_int8_t	tea[2];	/* transport element address */
 	u_int8_t	dst[2];	/* destination element address */
@@ -137,7 +135,6 @@ struct scsi_position_to_element {
  */
 struct scsi_read_element_status {
 	u_int8_t	opcode;
-#define READ_ELEMENT_STATUS	0xb8
 	u_int8_t	byte2;
 #define READ_ELEMENT_STATUS_VOLTAG	0x10	/* report volume tag info */
 	/* ...next 4 bits are an element type code... */
@@ -151,7 +148,6 @@ struct scsi_read_element_status {
 
 struct scsi_request_volume_element_address {
 	u_int8_t	opcode;
-#define REQUEST_VOLUME_ELEMENT_ADDRESS	0xb5
 	u_int8_t	byte2;
 #define REQUEST_VOLUME_ELEMENT_ADDRESS_VOLTAG	0x10
 	/* ...next 4 bits are an element type code... */

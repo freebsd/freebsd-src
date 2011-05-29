@@ -5,6 +5,10 @@
 
 #include <sys/ccompile.h>
 
-#define	dirent64	dirent
+#include <fcntl.h>
+
+#define	NOTE(s)
+
+int mkdirp(const char *, mode_t);
 
 #endif	/* !_SOLARIS_H_ */

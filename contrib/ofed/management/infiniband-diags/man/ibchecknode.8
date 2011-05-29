@@ -1,0 +1,43 @@
+.TH IBCHECKNODE 8 "May 21, 2007" "OpenIB" "OpenIB Diagnostics"
+
+.SH NAME
+ibchecknode \- validate IB node and report errors
+
+.SH SYNOPSIS
+.B ibchecknode
+[\-h] [\-v] [\-N | \-nocolor] [\-G] [\-C ca_name] [\-P ca_port]
+[\-t(imeout) timeout_ms] <lid|guid>
+
+.SH DESCRIPTION
+.PP
+Check connectivity and do some simple sanity checks for the specified node.
+Port address is a lid unless -G option is used to specify a GUID address.
+
+.SH OPTIONS
+.PP
+\-G      use GUID address argument. In most cases, it is the Port GUID.
+        Example:
+        "0x08f1040023"
+.PP
+\-v      increase the verbosity level
+.PP
+\-N | \-nocolor use mono rather than color mode
+.PP
+\-C <ca_name>    use the specified ca_name.
+.PP
+\-P <ca_port>    use the specified ca_port.
+.PP
+\-t <timeout_ms> override the default timeout for the solicited mads.
+
+.SH EXAMPLE
+.PP
+ibchecknode 2           # check node via lid 2
+
+.SH SEE ALSO
+.BR smpquery(8),
+.BR ibaddr(8)
+
+.SH AUTHOR
+.TP
+Hal Rosenstock
+.RI < halr@voltaire.com >

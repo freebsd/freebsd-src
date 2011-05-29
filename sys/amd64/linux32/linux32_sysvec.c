@@ -34,8 +34,8 @@
 __FBSDID("$FreeBSD$");
 #include "opt_compat.h"
 
-#ifndef COMPAT_IA32
-#error "Unable to compile Linux-emulator due to missing COMPAT_IA32 option!"
+#ifndef COMPAT_FREEBSD32
+#error "Unable to compile Linux-emulator due to missing COMPAT_FREEBSD32 option!"
 #endif
 
 #define	__ELF_WORD_SIZE	32
@@ -76,8 +76,8 @@ __FBSDID("$FreeBSD$");
 
 #include <amd64/linux32/linux.h>
 #include <amd64/linux32/linux32_proto.h>
-#include <compat/linux/linux_futex.h>
 #include <compat/linux/linux_emul.h>
+#include <compat/linux/linux_futex.h>
 #include <compat/linux/linux_mib.h>
 #include <compat/linux/linux_misc.h>
 #include <compat/linux/linux_signal.h>
@@ -121,16 +121,13 @@ SET_DECLARE(linux_device_handler_set, struct linux_device_handler);
 static int	elf_linux_fixup(register_t **stack_base,
 		    struct image_params *iparams);
 static register_t *linux_copyout_strings(struct image_params *imgp);
-static void	linux_prepsyscall(struct trapframe *tf, int *args, u_int *code,
-		    caddr_t *params);
 static void     linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask);
-static void	exec_linux_setregs(struct thread *td, u_long entry,
-				   u_long stack, u_long ps_strings);
+static void	exec_linux_setregs(struct thread *td, 
+				   struct image_params *imgp, u_long stack);
 static void	linux32_fixlimit(struct rlimit *rl, int which);
 static boolean_t linux32_trans_osrel(const Elf_Note *note, int32_t *osrel);
 
 static eventhandler_tag linux_exit_tag;
-static eventhandler_tag linux_schedtail_tag;
 static eventhandler_tag linux_exec_tag;
 
 /*
@@ -252,8 +249,7 @@ elf_linux_fixup(register_t **stack_base, struct image_params *imgp)
 	struct linux32_ps_strings *arginfo;
 
 	arginfo = (struct linux32_ps_strings *)LINUX32_PS_STRINGS;
-	uplatform = (Elf32_Addr *)((caddr_t)arginfo - linux_szsigcode -
-	    linux_szplatform);
+	uplatform = (Elf32_Addr *)((caddr_t)arginfo - linux_szplatform);
 
 	KASSERT(curthread->td_proc == imgp->proc,
 	    ("unsafe elf_linux_fixup(), should be curproc"));
@@ -414,8 +410,7 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	 * Build context to run handler in.
 	 */
 	regs->tf_rsp = PTROUT(fp);
-	regs->tf_rip = LINUX32_PS_STRINGS - *(p->p_sysent->sv_szsigcode) +
-	    linux_sznonrtsigcode;
+	regs->tf_rip = p->p_sysent->sv_sigcode_base + linux_sznonrtsigcode;
 	regs->tf_rflags &= ~(PSL_T | PSL_D);
 	regs->tf_cs = _ucode32sel;
 	regs->tf_ss = _udatasel;
@@ -424,7 +419,7 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	regs->tf_fs = _ufssel;
 	regs->tf_gs = _ugssel;
 	regs->tf_flags = TF_HASSEGS;
-	td->td_pcb->pcb_full_iret = 1;
+	set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
 	PROC_LOCK(p);
 	mtx_lock(&psp->ps_mtx);
 }
@@ -538,7 +533,7 @@ linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	 * Build context to run handler in.
 	 */
 	regs->tf_rsp = PTROUT(fp);
-	regs->tf_rip = LINUX32_PS_STRINGS - *(p->p_sysent->sv_szsigcode);
+	regs->tf_rip = p->p_sysent->sv_sigcode_base;
 	regs->tf_rflags &= ~(PSL_T | PSL_D);
 	regs->tf_cs = _ucode32sel;
 	regs->tf_ss = _udatasel;
@@ -547,7 +542,7 @@ linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	regs->tf_fs = _ufssel;
 	regs->tf_gs = _ugssel;
 	regs->tf_flags = TF_HASSEGS;
-	td->td_pcb->pcb_full_iret = 1;
+	set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
 	PROC_LOCK(p);
 	mtx_lock(&psp->ps_mtx);
 }
@@ -645,7 +640,7 @@ linux_sigreturn(struct thread *td, struct linux_sigreturn_args *args)
 	regs->tf_rflags = eflags;
 	regs->tf_rsp    = frame.sf_sc.sc_esp_at_signal;
 	regs->tf_ss     = frame.sf_sc.sc_ss;
-	td->td_pcb->pcb_full_iret = 1;
+	set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
 
 	return (EJUSTRETURN);
 }
@@ -744,7 +739,7 @@ linux_rt_sigreturn(struct thread *td, struct linux_rt_sigreturn_args *args)
 	regs->tf_rflags = eflags;
 	regs->tf_rsp    = context->sc_esp_at_signal;
 	regs->tf_ss     = context->sc_ss;
-	td->td_pcb->pcb_full_iret = 1;
+	set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
 
 	/*
 	 * call sigaltstack & ignore results..
@@ -764,19 +759,33 @@ linux_rt_sigreturn(struct thread *td, struct linux_rt_sigreturn_args *args)
 	return (EJUSTRETURN);
 }
 
-/*
- * MPSAFE
- */
-static void
-linux_prepsyscall(struct trapframe *tf, int *args, u_int *code, caddr_t *params)
+static int
+linux32_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 {
-	args[0] = tf->tf_rbx;
-	args[1] = tf->tf_rcx;
-	args[2] = tf->tf_rdx;
-	args[3] = tf->tf_rsi;
-	args[4] = tf->tf_rdi;
-	args[5] = tf->tf_rbp;	/* Unconfirmed */
-	*params = NULL;		/* no copyin */
+	struct proc *p;
+	struct trapframe *frame;
+
+	p = td->td_proc;
+	frame = td->td_frame;
+
+	sa->args[0] = frame->tf_rbx;
+	sa->args[1] = frame->tf_rcx;
+	sa->args[2] = frame->tf_rdx;
+	sa->args[3] = frame->tf_rsi;
+	sa->args[4] = frame->tf_rdi;
+	sa->args[5] = frame->tf_rbp;	/* Unconfirmed */
+	sa->code = frame->tf_rax;
+
+	if (sa->code >= p->p_sysent->sv_size)
+		sa->callp = &p->p_sysent->sv_table[0];
+	else
+		sa->callp = &p->p_sysent->sv_table[sa->code];
+	sa->narg = sa->callp->sy_narg;
+
+	td->td_retval[0] = 0;
+	td->td_retval[1] = frame->tf_rdx;
+
+	return (0);
 }
 
 /*
@@ -792,7 +801,7 @@ exec_linux_imgact_try(struct image_params *imgp)
 {
 	const char *head = (const char *)imgp->image_header;
 	char *rpath;
-	int error = -1, len;
+	int error = -1;
 
 	/*
 	* The interpreter for shell scripts run from a linux binary needs
@@ -809,18 +818,12 @@ exec_linux_imgact_try(struct image_params *imgp)
 			linux_emul_convpath(FIRST_THREAD_IN_PROC(imgp->proc),
 			    imgp->interpreter_name, UIO_SYSSPACE, &rpath, 0,
 			    AT_FDCWD);
-			if (rpath != NULL) {
-				len = strlen(rpath) + 1;
-
-				if (len <= MAXSHELLCMDLEN) {
-					memcpy(imgp->interpreter_name, rpath,
-					    len);
-				}
-				free(rpath, M_TEMP);
-			}
+			if (rpath != NULL)
+				imgp->args->fname_buf =
+				    imgp->interpreter_name = rpath;
 		}
 	}
-	return(error);
+	return (error);
 }
 
 /*
@@ -828,11 +831,7 @@ exec_linux_imgact_try(struct image_params *imgp)
  * XXX copied from ia32_signal.c.
  */
 static void
-exec_linux_setregs(td, entry, stack, ps_strings)
-	struct thread *td;
-	u_long entry;
-	u_long stack;
-	u_long ps_strings;
+exec_linux_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 {
 	struct trapframe *regs = td->td_frame;
 	struct pcb *pcb = td->td_pcb;
@@ -852,7 +851,7 @@ exec_linux_setregs(td, entry, stack, ps_strings)
 	pcb->pcb_initial_fpucw = __LINUX_NPXCW__;
 
 	bzero((char *)regs, sizeof(struct trapframe));
-	regs->tf_rip = entry;
+	regs->tf_rip = imgp->entry_addr;
 	regs->tf_rsp = stack;
 	regs->tf_rflags = PSL_USER | (regs->tf_rflags & PSL_T);
 	regs->tf_gs = _ugssel;
@@ -862,14 +861,13 @@ exec_linux_setregs(td, entry, stack, ps_strings)
 	regs->tf_ss = _udatasel;
 	regs->tf_flags = TF_HASSEGS;
 	regs->tf_cs = _ucode32sel;
-	regs->tf_rbx = ps_strings;
-	td->td_pcb->pcb_full_iret = 1;
-	load_cr0(rcr0() | CR0_MP | CR0_TS);
+	regs->tf_rbx = imgp->ps_strings;
+
 	fpstate_drop(td);
 
-	/* Return via doreti so that we can change to a different %cs */
-	pcb->pcb_flags |= PCB_FULLCTX | PCB_32BIT;
-	pcb->pcb_flags &= ~PCB_GS32BIT;
+	/* Do full restore on return so that we can change to a different %cs */
+	set_pcb_flags(pcb, PCB_32BIT | PCB_FULL_IRET);
+	clear_pcb_flags(pcb, PCB_GS32BIT);
 	td->td_retval[1] = 0;
 }
 
@@ -890,21 +888,15 @@ linux_copyout_strings(struct image_params *imgp)
 	 * Also deal with signal trampoline code for this exec type.
 	 */
 	arginfo = (struct linux32_ps_strings *)LINUX32_PS_STRINGS;
-	destp =	(caddr_t)arginfo - linux_szsigcode - SPARE_USRSPACE -
-	    linux_szplatform - roundup((ARG_MAX - imgp->args->stringspace),
+	destp =	(caddr_t)arginfo - SPARE_USRSPACE - linux_szplatform -
+	    roundup((ARG_MAX - imgp->args->stringspace),
 	    sizeof(char *));
-
-	/*
-	 * install sigcode
-	 */
-	copyout(imgp->proc->p_sysent->sv_sigcode,
-	    ((caddr_t)arginfo - linux_szsigcode), linux_szsigcode);
 
 	/*
 	 * Install LINUX_PLATFORM
 	 */
-	copyout(linux_platform, ((caddr_t)arginfo - linux_szsigcode -
-	    linux_szplatform), linux_szplatform);
+	copyout(linux_platform, ((caddr_t)arginfo - linux_szplatform),
+	    linux_szplatform);
 
 	/*
 	 * If we have a valid auxargs ptr, prepare some room
@@ -1043,14 +1035,14 @@ struct sysentvec elf_linux_sysvec = {
 	.sv_sendsig	= linux_sendsig,
 	.sv_sigcode	= linux_sigcode,
 	.sv_szsigcode	= &linux_szsigcode,
-	.sv_prepsyscall	= linux_prepsyscall,
+	.sv_prepsyscall	= NULL,
 	.sv_name	= "Linux ELF32",
 	.sv_coredump	= elf32_coredump,
 	.sv_imgact_try	= exec_linux_imgact_try,
 	.sv_minsigstksz	= LINUX_MINSIGSTKSZ,
 	.sv_pagesize	= PAGE_SIZE,
 	.sv_minuser	= VM_MIN_ADDRESS,
-	.sv_maxuser	= LINUX32_USRSTACK,
+	.sv_maxuser	= LINUX32_MAXUSER,
 	.sv_usrstack	= LINUX32_USRSTACK,
 	.sv_psstrings	= LINUX32_PS_STRINGS,
 	.sv_stackprot	= VM_PROT_ALL,
@@ -1058,8 +1050,15 @@ struct sysentvec elf_linux_sysvec = {
 	.sv_setregs	= exec_linux_setregs,
 	.sv_fixlimit	= linux32_fixlimit,
 	.sv_maxssiz	= &linux32_maxssiz,
-	.sv_flags	= SV_ABI_LINUX | SV_ILP32 | SV_IA32
+	.sv_flags	= SV_ABI_LINUX | SV_ILP32 | SV_IA32 | SV_SHP,
+	.sv_set_syscall_retval = cpu_set_syscall_retval,
+	.sv_fetch_syscall_args = linux32_fetch_syscall_args,
+	.sv_syscallnames = NULL,
+	.sv_shared_page_base = LINUX32_SHAREDPAGE,
+	.sv_shared_page_len = PAGE_SIZE,
+	.sv_schedtail	= linux_schedtail,
 };
+INIT_SYSENTVEC(elf_sysvec, &elf_linux_sysvec);
 
 static char GNU_ABI_VENDOR[] = "GNU";
 static int GNULINUX_ABI_DESC = 0;
@@ -1152,8 +1151,6 @@ linux_elf_modevent(module_t mod, int type, void *data)
 			mtx_init(&futex_mtx, "ftllk", NULL, MTX_DEF);
 			linux_exit_tag = EVENTHANDLER_REGISTER(process_exit,
 			    linux_proc_exit, NULL, 1000);
-			linux_schedtail_tag = EVENTHANDLER_REGISTER(schedtail,
-			    linux_schedtail, NULL, 1000);
 			linux_exec_tag = EVENTHANDLER_REGISTER(process_exec,
 			    linux_proc_exec, NULL, 1000);
 			linux_szplatform = roundup(strlen(linux_platform) + 1,
@@ -1185,7 +1182,6 @@ linux_elf_modevent(module_t mod, int type, void *data)
 			sx_destroy(&emul_shared_lock);
 			mtx_destroy(&futex_mtx);
 			EVENTHANDLER_DEREGISTER(process_exit, linux_exit_tag);
-			EVENTHANDLER_DEREGISTER(schedtail, linux_schedtail_tag);
 			EVENTHANDLER_DEREGISTER(process_exec, linux_exec_tag);
 			linux_osd_jail_deregister();
 			if (bootverbose)
@@ -1205,4 +1201,4 @@ static moduledata_t linux_elf_mod = {
 	0
 };
 
-DECLARE_MODULE(linuxelf, linux_elf_mod, SI_SUB_EXEC, SI_ORDER_ANY);
+DECLARE_MODULE_TIED(linuxelf, linux_elf_mod, SI_SUB_EXEC, SI_ORDER_ANY);

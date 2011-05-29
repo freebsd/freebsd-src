@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2008, Intel Corporation 
+  Copyright (c) 2001-2010, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -42,6 +42,7 @@
                               (ID_LED_DEF1_DEF2))
 
 #define E1000_GCR_L1_ACT_WITHOUT_L0S_RX 0x08000000
+#define AN_RETRY_COUNT          5 /* Autoneg Retry Count value */
 
 /* Intr Throttling - RW */
 #define E1000_EITR_82574(_n)    (0x000E8 + (0x4 * (_n)))
@@ -53,6 +54,11 @@
 
 #define E1000_RXCFGL    0x0B634 /* TimeSync Rx EtherType & Msg Type Reg - RW */
 
+#define E1000_BASE1000T_STATUS 10
+#define E1000_IDLE_ERROR_COUNT_MASK 0xFF
+#define E1000_RECEIVE_ERROR_COUNTER 21
+#define E1000_RECEIVE_ERROR_MAX 0xFFFF
+bool e1000_check_phy_82574(struct e1000_hw *hw);
 bool e1000_get_laa_state_82571(struct e1000_hw *hw);
 void e1000_set_laa_state_82571(struct e1000_hw *hw, bool state);
 

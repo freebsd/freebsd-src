@@ -218,7 +218,7 @@ thread-specific cache garbage collection sweeps.
 Garbage collection is actually performed incrementally, one size
 class at a time, in order to avoid large collection pauses.
 The default sweep interval is 8192;
-.Ev JEMALLOC_OPTIONS=14g
+.Ev MALLOC_OPTIONS=14g
 will disable garbage collection.
 .It H
 Double/halve the number of thread-specific cache slots per size
@@ -232,7 +232,7 @@ See the
 .Dq G
 option for related tuning information.
 The default number of cache slots is 128;
-.Ev JEMALLOC_OPTIONS=7h
+.Ev MALLOC_OPTIONS=7h
 will disable thread-specific caching.
 Note that one cache slot per size class is not a valid
 configuration due to implementation details.
@@ -415,7 +415,7 @@ Allocation requests that are more than half the quantum, but no more than the
 minimum cacheline-multiple size class (see the
 .Dq Q
 option) are rounded up to the nearest multiple of the quantum.
-Allocation requests that are more than the minumum cacheline-multiple size
+Allocation requests that are more than the minimum cacheline-multiple size
 class, but no more than the minimum subpage-multiple size class (see the
 .Dq C
 option) are rounded up to the nearest multiple of the cacheline size (64).
@@ -550,7 +550,6 @@ allocation functions.
 .El
 .Sh EXAMPLES
 To dump core whenever a problem occurs:
-.Pp
 .Bd -literal -offset indent
 ln -s 'A' /etc/malloc.conf
 .Ed

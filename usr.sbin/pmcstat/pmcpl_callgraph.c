@@ -149,6 +149,8 @@ pmcstat_cgnode_hash_lookup_pc(struct pmcstat_process *pp, pmc_id_t pmcid,
 	 */
 	if ((sym = pmcstat_symbol_search(image, pc)) != NULL)
 		pc = sym->ps_start;
+	else
+		pmcstat_stats.ps_samples_unknown_function++;
 
 	for (hash = i = 0; i < sizeof(uintfptr_t); i++)
 		hash += (pc >> i) & 0xFF;
@@ -341,6 +343,7 @@ pmcpl_cg_process(struct pmcstat_process *pp, struct pmcstat_pmcrecord *pmcr,
 	parent = pmcstat_cgnode_hash_lookup_pc(pp, pmcid, pc, usermode);
 	if (parent == NULL) {
 		pmcstat_stats.ps_callchain_dubious_frames++;
+		pmcr->pr_dubious_frames++;
 		return;
 	}
 
@@ -580,6 +583,8 @@ pmcpl_cg_topdisplay(void)
 	struct pmcstat_pmcrecord *pmcr;
 
 	pmcr = pmcstat_pmcindex_to_pmcr(pmcstat_pmcinfilter);
+	if (!pmcr)
+		err(EX_SOFTWARE, "ERROR: invalid pmcindex");
 
 	/*
 	 * We pull out all callgraph nodes in the top-level hash table

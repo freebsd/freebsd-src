@@ -611,9 +611,7 @@ ng_pppoe_constructor(node_p node)
 	int	i;
 
 	/* Initialize private descriptor. */
-	privp = malloc(sizeof(*privp), M_NETGRAPH_PPPOE, M_NOWAIT | M_ZERO);
-	if (privp == NULL)
-		return (ENOMEM);
+	privp = malloc(sizeof(*privp), M_NETGRAPH_PPPOE, M_WAITOK | M_ZERO);
 
 	/* Link structs together; this counts as our one reference to *node. */
 	NG_NODE_SET_PRIVATE(node, privp);
@@ -1281,7 +1279,7 @@ ng_pppoe_rcvdata_ether(hook_p hook, item_p item)
 {
 	node_p			node = NG_HOOK_NODE(hook);
 	const priv_p		privp = NG_NODE_PRIVATE(node);
-	sessp			sp = NG_HOOK_PRIVATE(hook);
+	sessp			sp;
 	const struct pppoe_tag	*utag = NULL, *tag = NULL;
 	const struct pppoe_full_hdr *wh;
 	const struct pppoe_hdr	*ph;

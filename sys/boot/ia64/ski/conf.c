@@ -60,18 +60,6 @@ struct fs_ops *file_system[] = {
 	NULL
 };
 
-/* Exported for ia64 only */
-/* 
- * Sort formats so that those that can detect based on arguments
- * rather than reading the file go first.
- */
-extern struct file_format ia64_elf;
-
-struct file_format *file_formats[] = {
-	&ia64_elf,
-	NULL
-};
-
 /* 
  * Consoles 
  *

@@ -28,7 +28,7 @@
 .\"	@(#)chflags.2	8.3 (Berkeley) 5/2/95
 .\" $FreeBSD$
 .\"
-.Dd May 16, 2006
+.Dd Oct 29, 2010
 .Dt CHFLAGS 2
 .Os
 .Sh NAME
@@ -155,7 +155,7 @@ is set and the user is either not the super-user or
 securelevel is greater than 0.
 .It Bq Er EPERM
 A non-super-user tries to set one of
-.Dv SF_IMMUTABLE , SF_APPEND ,
+.Dv SF_ARCHIVED , SF_IMMUTABLE , SF_APPEND ,
 or
 .Dv SF_NOUNLINK .
 .It Bq Er EPERM
@@ -200,9 +200,13 @@ is set and the user is either not the super-user or
 securelevel is greater than 0.
 .It Bq Er EPERM
 A non-super-user tries to set one of
-.Dv SF_IMMUTABLE , SF_APPEND ,
+.Dv SF_ARCHIVED , SF_IMMUTABLE , SF_APPEND ,
 or
 .Dv SF_NOUNLINK .
+.It Bq Er EPERM
+User tries to set or remove the
+.Dv SF_SNAPSHOT
+flag.
 .It Bq Er EROFS
 The file resides on a read-only file system.
 .It Bq Er EIO

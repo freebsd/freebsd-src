@@ -1,5 +1,4 @@
 #!/usr/local/bin/perl
-# $FreeBSD$
 #
 # Mingw32.pl -- Mingw
 #

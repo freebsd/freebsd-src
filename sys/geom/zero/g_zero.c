@@ -104,7 +104,7 @@ g_zero_destroy_geom(struct gctl_req *req __unused, struct g_class *mp __unused,
 	if (pp->acr > 0 || pp->acw > 0 || pp->ace > 0)
 		return (EBUSY);
 	g_wither_geom(gp, ENXIO);
-	return (EBUSY);
+	return (0);
 }
 
 static struct g_class g_zero_class = {

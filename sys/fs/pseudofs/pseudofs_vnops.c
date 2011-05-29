@@ -542,7 +542,7 @@ pfs_lookup(struct vop_cachedlookup_args *va)
 
 	if (cnp->cn_flags & ISDOTDOT)
 		vn_lock(vn, LK_EXCLUSIVE|LK_RETRY);
-	if (cnp->cn_flags & MAKEENTRY)
+	if (cnp->cn_flags & MAKEENTRY && !(vn->v_iflag & VI_DOOMED))
 		cache_enter(vn, *vpp, cnp);
 	PFS_RETURN (0);
  failed:

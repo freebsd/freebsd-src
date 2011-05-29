@@ -135,25 +135,3 @@ isa_release_resource(device_t bus, device_t child, int type, int rid,
 	struct resource_list *rl = &idev->id_resources;
 	return resource_list_release(rl, bus, child, type, rid, r);
 }
-
-/*
- * We can't use the bus_generic_* versions of these methods because those
- * methods always pass the bus param as the requesting device, and we need
- * to pass the child (the i386 nexus knows about this and is prepared to
- * deal).
- */
-int
-isa_setup_intr(device_t bus, device_t child, struct resource *r, int flags,
-	       driver_filter_t filter, void (*ihand)(void *), void *arg, 
-	       void **cookiep)
-{
-	return (BUS_SETUP_INTR(device_get_parent(bus), child, r, flags,
-			       filter, ihand, arg, cookiep));
-}
-
-int
-isa_teardown_intr(device_t bus, device_t child, struct resource *r,
-		  void *cookie)
-{
-	return (BUS_TEARDOWN_INTR(device_get_parent(bus), child, r, cookie));
-}

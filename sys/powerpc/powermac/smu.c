@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/conf.h>
 #include <sys/cpu.h>
+#include <sys/clock.h>
 #include <sys/ctype.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
@@ -46,10 +47,17 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr_machdep.h>
 #include <machine/md_var.h>
 
+#include <dev/iicbus/iicbus.h>
+#include <dev/iicbus/iiconf.h>
 #include <dev/led/led.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
 #include <powerpc/powermac/macgpiovar.h>
+#include <powerpc/powermac/powermac_thermal.h>
+
+#include "clock_if.h"
+#include "iicbus_if.h"
 
 struct smu_cmd {
 	volatile uint8_t cmd;
@@ -62,19 +70,19 @@ struct smu_cmd {
 STAILQ_HEAD(smu_cmdq, smu_cmd);
 
 struct smu_fan {
+	struct pmac_fan fan;
+	device_t dev;
 	cell_t	reg;
-	cell_t	min_rpm;
-	cell_t	max_rpm;
-	cell_t	unmanaged_rpm;
-	char	location[32];
 
 	int	old_style;
 	int	setpoint;
 };
 
 struct smu_sensor {
+	struct pmac_therm therm;
+	device_t dev;
+
 	cell_t	reg;
-	char	location[32];
 	enum {
 		SMU_CURRENT_SENSOR,
 		SMU_VOLTAGE_SENSOR,
@@ -89,6 +97,7 @@ struct smu_softc {
 
 	struct resource	*sc_memr;
 	int		sc_memrid;
+	int		sc_u3;
 
 	bus_dma_tag_t	sc_dmatag;
 	bus_space_tag_t	sc_bt;
@@ -123,10 +132,6 @@ struct smu_softc {
 	uint16_t	sc_slots_pow_scale;
 	int16_t		sc_slots_pow_offset;
 
-	/* Thermal management parameters */
-	int		sc_target_temp;		/* Default 55 C */
-	int		sc_critical_temp;	/* Default 90 C */
-
 	struct cdev 	*sc_leddev;
 };
 
@@ -134,23 +139,29 @@ struct smu_softc {
 
 static int	smu_probe(device_t);
 static int	smu_attach(device_t);
+static const struct ofw_bus_devinfo *
+    smu_get_devinfo(device_t bus, device_t dev);
 
 /* cpufreq notification hooks */
 
 static void	smu_cpufreq_pre_change(device_t, const struct cf_level *level);
 static void	smu_cpufreq_post_change(device_t, const struct cf_level *level);
 
+/* clock interface */
+static int	smu_gettime(device_t dev, struct timespec *ts);
+static int	smu_settime(device_t dev, struct timespec *ts);
+
 /* utility functions */
 static int	smu_run_cmd(device_t dev, struct smu_cmd *cmd, int wait);
 static int	smu_get_datablock(device_t dev, int8_t id, uint8_t *buf,
 		    size_t len);
+static void	smu_attach_i2c(device_t dev, phandle_t i2croot);
 static void	smu_attach_fans(device_t dev, phandle_t fanroot);
 static void	smu_attach_sensors(device_t dev, phandle_t sensroot);
-static void	smu_fan_management_proc(void *xdev);
-static void	smu_manage_fans(device_t smu);
 static void	smu_set_sleepled(void *xdev, int onoff);
 static int	smu_server_mode(SYSCTL_HANDLER_ARGS);
 static void	smu_doorbell_intr(void *xdev);
+static void	smu_shutdown(void *xdev, int howto);
 
 /* where to find the doorbell GPIO */
 
@@ -160,6 +171,20 @@ static device_method_t  smu_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		smu_probe),
 	DEVMETHOD(device_attach,	smu_attach),
+
+	/* Clock interface */
+	DEVMETHOD(clock_gettime,	smu_gettime),
+	DEVMETHOD(clock_settime,	smu_settime),
+
+	/* ofw_bus interface */
+	DEVMETHOD(bus_child_pnpinfo_str,ofw_bus_gen_child_pnpinfo_str),
+	DEVMETHOD(ofw_bus_get_devinfo,	smu_get_devinfo),
+	DEVMETHOD(ofw_bus_get_compat,	ofw_bus_gen_get_compat),
+	DEVMETHOD(ofw_bus_get_model,	ofw_bus_gen_get_model),
+	DEVMETHOD(ofw_bus_get_name,	ofw_bus_gen_get_name),
+	DEVMETHOD(ofw_bus_get_node,	ofw_bus_gen_get_node),
+	DEVMETHOD(ofw_bus_get_type,	ofw_bus_gen_get_type),
+
 	{ 0, 0 },
 };
 
@@ -192,6 +217,9 @@ MALLOC_DEFINE(M_SMU, "smu", "SMU Sensor Information");
 #define  SMU_PWR_GET_POWERUP	0x00
 #define  SMU_PWR_SET_POWERUP	0x01
 #define  SMU_PWR_CLR_POWERUP	0x02
+#define SMU_RTC			0x8e
+#define  SMU_RTC_GET		0x81
+#define  SMU_RTC_SET		0x80
 
 /* Power event types */
 #define SMU_WAKEUP_KEYPRESS	0x01
@@ -243,6 +271,10 @@ smu_attach(device_t dev)
 	sc->sc_cur_cmd = NULL;
 	sc->sc_doorbellirqid = -1;
 
+	sc->sc_u3 = 0;
+	if (OF_finddevice("/u3") != -1)
+		sc->sc_u3 = 1;
+
 	/*
 	 * Map the mailbox area. This should be determined from firmware,
 	 * but I have not found a simple way to do that.
@@ -286,7 +318,13 @@ smu_attach(device_t dev)
 
 		if (strncmp(name, "sensors", 8) == 0)
 			smu_attach_sensors(dev, child);
+
+		if (strncmp(name, "smu-i2c-control", 15) == 0)
+			smu_attach_i2c(dev, child);
 	}
+
+	/* Some SMUs have the I2C children directly under the bus. */
+	smu_attach_i2c(dev, node);
 
 	/*
 	 * Collect calibration constants.
@@ -304,24 +342,6 @@ smu_attach(device_t dev)
 	smu_get_datablock(dev, SMU_SLOTPW_CAL, data, sizeof(data));
 	sc->sc_slots_pow_scale = (data[4] << 8) + data[5];
 	sc->sc_slots_pow_offset = (data[6] << 8) + data[7];
-
-	/*
-	 * Set up simple-minded thermal management.
-	 */
-	sc->sc_target_temp = 55;
-	sc->sc_critical_temp = 90;
-
-	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
-	    "target_temp", CTLTYPE_INT | CTLFLAG_RW, &sc->sc_target_temp,
-	    sizeof(int), "Target temperature (C)");
-	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
-	    "critical_temp", CTLTYPE_INT | CTLFLAG_RW,
-	    &sc->sc_critical_temp, sizeof(int), "Critical temperature (C)");
-
-	kproc_create(smu_fan_management_proc, dev, &sc->sc_fanmgt_proc,
-	    RFHIGHPID, 0, "smu_thermal");
 
 	/*
 	 * Set up LED interface
@@ -349,7 +369,25 @@ smu_attach(device_t dev)
 	powerpc_config_intr(rman_get_start(sc->sc_doorbellirq),
 	    INTR_TRIGGER_EDGE, INTR_POLARITY_LOW);
 
-	return (0);
+	/*
+	 * Connect RTC interface.
+	 */
+	clock_register(dev, 1000);
+
+	/*
+	 * Learn about shutdown events
+	 */
+	EVENTHANDLER_REGISTER(shutdown_final, smu_shutdown, dev,
+	    SHUTDOWN_PRI_LAST);
+
+	return (bus_generic_attach(dev));
+}
+
+static const struct ofw_bus_devinfo *
+smu_get_devinfo(device_t bus, device_t dev)
+{
+
+	return (device_get_ivars(dev));
 }
 
 static void
@@ -361,7 +399,9 @@ smu_send_cmd(device_t dev, struct smu_cmd *cmd)
 
 	mtx_assert(&sc->sc_mtx, MA_OWNED);
 
-	powerpc_pow_enabled = 0;	/* SMU cannot work if we go to NAP */
+	if (sc->sc_u3)
+		powerpc_pow_enabled = 0; /* SMU cannot work if we go to NAP */
+
 	sc->sc_cur_cmd = cmd;
 
 	/* Copy the command to the mailbox */
@@ -408,7 +448,8 @@ smu_doorbell_intr(void *xdev)
 	    sizeof(sc->sc_cmd->data));
 	wakeup(sc->sc_cur_cmd);
 	sc->sc_cur_cmd = NULL;
-	powerpc_pow_enabled = 1;
+	if (sc->sc_u3)
+		powerpc_pow_enabled = 1;
 
     done:
 	/* Queue next command if one is pending */
@@ -594,8 +635,9 @@ doorbell_attach(device_t dev)
  */
 
 static int
-smu_fan_set_rpm(device_t smu, struct smu_fan *fan, int rpm)
+smu_fan_set_rpm(struct smu_fan *fan, int rpm)
 {
+	device_t smu = fan->dev;
 	struct smu_cmd cmd;
 	int error;
 
@@ -603,8 +645,8 @@ smu_fan_set_rpm(device_t smu, struct smu_fan *fan, int rpm)
 	error = EIO;
 
 	/* Clamp to allowed range */
-	rpm = max(fan->min_rpm, rpm);
-	rpm = min(fan->max_rpm, rpm);
+	rpm = max(fan->fan.min_rpm, rpm);
+	rpm = min(fan->fan.max_rpm, rpm);
 
 	/*
 	 * Apple has two fan control mechanisms. We can't distinguish
@@ -620,7 +662,7 @@ smu_fan_set_rpm(device_t smu, struct smu_fan *fan, int rpm)
 		cmd.data[3] = rpm & 0xff;
 	
 		error = smu_run_cmd(smu, &cmd, 1);
-		if (error)
+		if (error && error != EWOULDBLOCK)
 			fan->old_style = 1;
 	}
 
@@ -640,17 +682,38 @@ smu_fan_set_rpm(device_t smu, struct smu_fan *fan, int rpm)
 }
 
 static int
-smu_fan_read_rpm(device_t smu, struct smu_fan *fan)
+smu_fan_read_rpm(struct smu_fan *fan)
 {
+	device_t smu = fan->dev;
 	struct smu_cmd cmd;
+	int rpm, error;
 
-	cmd.cmd = SMU_FAN;
-	cmd.len = 1;
-	cmd.data[0] = 1;
+	if (!fan->old_style) {
+		cmd.cmd = SMU_FAN;
+		cmd.len = 2;
+		cmd.data[0] = 0x31;
+		cmd.data[1] = fan->reg;
 
-	smu_run_cmd(smu, &cmd, 1);
+		error = smu_run_cmd(smu, &cmd, 1);
+		if (error && error != EWOULDBLOCK)
+			fan->old_style = 1;
 
-	return ((cmd.data[fan->reg*2+1] << 8) | cmd.data[fan->reg*2+2]);
+		rpm = (cmd.data[0] << 8) | cmd.data[1];
+	}
+
+	if (fan->old_style) {
+		cmd.cmd = SMU_FAN;
+		cmd.len = 1;
+		cmd.data[0] = 1;
+
+		error = smu_run_cmd(smu, &cmd, 1);
+		if (error)
+			return (error);
+
+		rpm = (cmd.data[fan->reg*2+1] << 8) | cmd.data[fan->reg*2+2];
+	}
+
+	return (rpm);
 }
 
 static int
@@ -665,7 +728,10 @@ smu_fanrpm_sysctl(SYSCTL_HANDLER_ARGS)
 	sc = device_get_softc(smu);
 	fan = &sc->sc_fans[arg2];
 
-	rpm = smu_fan_read_rpm(smu, fan);
+	rpm = smu_fan_read_rpm(fan);
+	if (rpm < 0)
+		return (rpm);
+
 	error = sysctl_handle_int(oidp, &rpm, 0, req);
 
 	if (error || !req->newptr)
@@ -673,7 +739,7 @@ smu_fanrpm_sysctl(SYSCTL_HANDLER_ARGS)
 
 	sc->sc_lastuserchange = time_uptime;
 
-	return (smu_fan_set_rpm(smu, fan, rpm));
+	return (smu_fan_set_rpm(fan, rpm));
 }
 
 static void
@@ -714,23 +780,25 @@ smu_attach_fans(device_t dev, phandle_t fanroot)
 		if (strcmp(type, "fan-rpm-control") != 0)
 			continue;
 
+		fan->dev = dev;
 		fan->old_style = 0;
 		OF_getprop(child, "reg", &fan->reg, sizeof(cell_t));
-		OF_getprop(child, "min-value", &fan->min_rpm, sizeof(cell_t));
-		OF_getprop(child, "max-value", &fan->max_rpm, sizeof(cell_t));
+		OF_getprop(child, "min-value", &fan->fan.min_rpm, sizeof(int));
+		OF_getprop(child, "max-value", &fan->fan.max_rpm, sizeof(int));
+		OF_getprop(child, "zone", &fan->fan.zone, sizeof(int));
 
-		if (OF_getprop(child, "unmanaged-value", &fan->unmanaged_rpm,
-		    sizeof(cell_t)) != sizeof(cell_t))
-			fan->unmanaged_rpm = fan->max_rpm;
+		if (OF_getprop(child, "unmanaged-value", &fan->fan.default_rpm,
+		    sizeof(int)) != sizeof(int))
+			fan->fan.default_rpm = fan->fan.max_rpm;
 
-		fan->setpoint = smu_fan_read_rpm(dev, fan);
+		fan->setpoint = smu_fan_read_rpm(fan);
 
-		OF_getprop(child, "location", fan->location,
-		    sizeof(fan->location));
+		OF_getprop(child, "location", fan->fan.name,
+		    sizeof(fan->fan.name));
 	
 		/* Add sysctls */
-		for (i = 0; i < strlen(fan->location); i++) {
-			sysctl_name[i] = tolower(fan->location[i]);
+		for (i = 0; i < strlen(fan->fan.name); i++) {
+			sysctl_name[i] = tolower(fan->fan.name[i]);
 			if (isspace(sysctl_name[i]))
 				sysctl_name[i] = '_';
 		}
@@ -739,14 +807,18 @@ smu_attach_fans(device_t dev, phandle_t fanroot)
 		oid = SYSCTL_ADD_NODE(ctx, SYSCTL_CHILDREN(fanroot_oid),
 		    OID_AUTO, sysctl_name, CTLFLAG_RD, 0, "Fan Information");
 		SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(oid), OID_AUTO, "minrpm",
-		    CTLTYPE_INT | CTLFLAG_RD, &fan->min_rpm, sizeof(cell_t),
+		    CTLTYPE_INT | CTLFLAG_RD, &fan->fan.min_rpm, sizeof(int),
 		    "Minimum allowed RPM");
 		SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(oid), OID_AUTO, "maxrpm",
-		    CTLTYPE_INT | CTLFLAG_RD, &fan->max_rpm, sizeof(cell_t),
+		    CTLTYPE_INT | CTLFLAG_RD, &fan->fan.max_rpm, sizeof(int),
 		    "Maximum allowed RPM");
 		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(oid), OID_AUTO, "rpm",
-		    CTLTYPE_INT | CTLFLAG_RW, dev, sc->sc_nfans,
-		    smu_fanrpm_sysctl, "I", "Fan RPM");
+		    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, dev,
+		    sc->sc_nfans, smu_fanrpm_sysctl, "I", "Fan RPM");
+
+		fan->fan.read = (int (*)(struct pmac_fan *))smu_fan_read_rpm;
+		fan->fan.set = (int (*)(struct pmac_fan *, int))smu_fan_set_rpm;
+		pmac_thermal_fan_register(&fan->fan);
 
 		fan++;
 		sc->sc_nfans++;
@@ -754,8 +826,9 @@ smu_attach_fans(device_t dev, phandle_t fanroot)
 }
 
 static int
-smu_sensor_read(device_t smu, struct smu_sensor *sens, int *val)
+smu_sensor_read(struct smu_sensor *sens)
 {
+	device_t smu = sens->dev;
 	struct smu_cmd cmd;
 	struct smu_softc *sc;
 	int64_t value;
@@ -768,7 +841,7 @@ smu_sensor_read(device_t smu, struct smu_sensor *sens, int *val)
 
 	error = smu_run_cmd(smu, &cmd, 1);
 	if (error != 0)
-		return (error);
+		return (-1);
 	
 	sc = device_get_softc(smu);
 	value = (cmd.data[0] << 8) | cmd.data[1];
@@ -780,8 +853,8 @@ smu_sensor_read(device_t smu, struct smu_sensor *sens, int *val)
 		value += ((int64_t)sc->sc_cpu_diode_offset) << 9;
 		value <<= 1;
 
-		/* Convert from 16.16 fixed point degC into integer C. */
-		value >>= 16;
+		/* Convert from 16.16 fixed point degC into integer 0.1 K. */
+		value = 10*(value >> 16) + 2732;
 		break;
 	case SMU_VOLTAGE_SENSOR:
 		value *= sc->sc_cpu_volt_scale;
@@ -815,8 +888,7 @@ smu_sensor_read(device_t smu, struct smu_sensor *sens, int *val)
 		break;
 	}
 
-	*val = value;
-	return (0);
+	return (value);
 }
 
 static int
@@ -831,9 +903,9 @@ smu_sensor_sysctl(SYSCTL_HANDLER_ARGS)
 	sc = device_get_softc(smu);
 	sens = &sc->sc_sensors[arg2];
 
-	error = smu_sensor_read(smu, sens, &value);
-	if (error != 0)
-		return (error);
+	value = smu_sensor_read(sens);
+	if (value < 0)
+		return (EBUSY);
 
 	error = sysctl_handle_int(oidp, &value, 0, req);
 
@@ -877,6 +949,7 @@ smu_attach_sensors(device_t dev, phandle_t sensroot)
 		char sysctl_name[40], sysctl_desc[40];
 		const char *units;
 
+		sens->dev = dev;
 		OF_getprop(child, "device_type", type, sizeof(type));
 
 		if (strcmp(type, "current-sensor") == 0) {
@@ -896,98 +969,37 @@ smu_attach_sensors(device_t dev, phandle_t sensroot)
 		}
 
 		OF_getprop(child, "reg", &sens->reg, sizeof(cell_t));
-		OF_getprop(child, "location", sens->location,
-		    sizeof(sens->location));
+		OF_getprop(child, "zone", &sens->therm.zone, sizeof(int));
+		OF_getprop(child, "location", sens->therm.name,
+		    sizeof(sens->therm.name));
 
-		for (i = 0; i < strlen(sens->location); i++) {
-			sysctl_name[i] = tolower(sens->location[i]);
+		for (i = 0; i < strlen(sens->therm.name); i++) {
+			sysctl_name[i] = tolower(sens->therm.name[i]);
 			if (isspace(sysctl_name[i]))
 				sysctl_name[i] = '_';
 		}
 		sysctl_name[i] = 0;
 
-		sprintf(sysctl_desc,"%s (%s)", sens->location, units);
+		sprintf(sysctl_desc,"%s (%s)", sens->therm.name, units);
 
 		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(sensroot_oid), OID_AUTO,
-		    sysctl_name, CTLTYPE_INT | CTLFLAG_RD, dev, sc->sc_nsensors,
-		    smu_sensor_sysctl, "I", sysctl_desc);
+		    sysctl_name, CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
+		    dev, sc->sc_nsensors, smu_sensor_sysctl, 
+		    (sens->type == SMU_TEMP_SENSOR) ? "IK" : "I", sysctl_desc);
+
+		if (sens->type == SMU_TEMP_SENSOR) {
+			/* Make up some numbers */
+			sens->therm.target_temp = 500 + 2732; /* 50 C */
+			sens->therm.max_temp = 900 + 2732; /* 90 C */
+
+			sens->therm.read =
+			    (int (*)(struct pmac_therm *))smu_sensor_read;
+			pmac_thermal_sensor_register(&sens->therm);
+		}
 
 		sens++;
 		sc->sc_nsensors++;
 	}
-}
-
-static void
-smu_fan_management_proc(void *xdev)
-{
-	device_t smu = xdev;
-
-	while(1) {
-		smu_manage_fans(smu);
-		pause("smu", SMU_FANMGT_INTERVAL * hz / 1000);
-	}
-}
-
-static void
-smu_manage_fans(device_t smu)
-{
-	struct smu_softc *sc;
-	int i, maxtemp, temp, factor, error;
-
-	sc = device_get_softc(smu);
-
-	maxtemp = 0;
-	for (i = 0; i < sc->sc_nsensors; i++) {
-		if (sc->sc_sensors[i].type != SMU_TEMP_SENSOR)
-			continue;
-
-		error = smu_sensor_read(smu, &sc->sc_sensors[i], &temp);
-		if (error == 0 && temp > maxtemp)
-			maxtemp = temp;
-	}
-
-	if (maxtemp < 10) { /* Bail if no good sensors */
-		for (i = 0; i < sc->sc_nfans; i++) 
-			smu_fan_set_rpm(smu, &sc->sc_fans[i],
-			    sc->sc_fans[i].unmanaged_rpm);
-		return;
-	}
-
-	if (maxtemp > sc->sc_critical_temp) {
-		device_printf(smu, "WARNING: Current system temperature (%d C) "
-		    "exceeds critical temperature (%d C)! Shutting down!\n",
-		    maxtemp, sc->sc_critical_temp);
-		shutdown_nice(RB_POWEROFF);
-	}
-
-	if (maxtemp - sc->sc_target_temp > 20)
-		device_printf(smu, "WARNING: Current system temperature (%d C) "
-		    "more than 20 degrees over target temperature (%d C)!\n",
-		    maxtemp, sc->sc_target_temp);
-
-	if (time_uptime - sc->sc_lastuserchange < 3) {
-		/*
-		 * If we have heard from a user process in the last 3 seconds,
-		 * go away.
-		 */
-
-		return;
-	}
-
-	if (maxtemp - sc->sc_target_temp > 4) 
-		factor = 110;
-	else if (maxtemp - sc->sc_target_temp > 1) 
-		factor = 105;
-	else if (sc->sc_target_temp - maxtemp > 4) 
-		factor = 90;
-	else if (sc->sc_target_temp - maxtemp > 1) 
-		factor = 95;
-	else
-		factor = 100;
-
-	for (i = 0; i < sc->sc_nfans; i++) 
-		smu_fan_set_rpm(smu, &sc->sc_fans[i],
-		    (sc->sc_fans[i].setpoint * factor) / 100);
 }
 
 static void
@@ -1041,5 +1053,271 @@ smu_server_mode(SYSCTL_HANDLER_ARGS)
 	cmd.data[2] = SMU_WAKEUP_AC_INSERT;
 
 	return (smu_run_cmd(smu, &cmd, 1));
+}
+
+static void
+smu_shutdown(void *xdev, int howto)
+{
+	device_t smu = xdev;
+	struct smu_cmd cmd;
+
+	cmd.cmd = SMU_POWER;
+	if (howto & RB_HALT)
+		strcpy(cmd.data, "SHUTDOWN");
+	else
+		strcpy(cmd.data, "RESTART");
+
+	cmd.len = strlen(cmd.data);
+
+	smu_run_cmd(smu, &cmd, 1);
+
+	for (;;);
+}
+
+static int
+smu_gettime(device_t dev, struct timespec *ts)
+{
+	struct smu_cmd cmd;
+	struct clocktime ct;
+
+	cmd.cmd = SMU_RTC;
+	cmd.len = 1;
+	cmd.data[0] = SMU_RTC_GET;
+
+	if (smu_run_cmd(dev, &cmd, 1) != 0)
+		return (ENXIO);
+
+	ct.nsec	= 0;
+	ct.sec	= bcd2bin(cmd.data[0]);
+	ct.min	= bcd2bin(cmd.data[1]);
+	ct.hour	= bcd2bin(cmd.data[2]);
+	ct.dow	= bcd2bin(cmd.data[3]);
+	ct.day	= bcd2bin(cmd.data[4]);
+	ct.mon	= bcd2bin(cmd.data[5]);
+	ct.year	= bcd2bin(cmd.data[6]) + 2000;
+
+	return (clock_ct_to_ts(&ct, ts));
+}
+
+static int
+smu_settime(device_t dev, struct timespec *ts)
+{
+	static struct smu_cmd cmd;
+	struct clocktime ct;
+
+	cmd.cmd = SMU_RTC;
+	cmd.len = 8;
+	cmd.data[0] = SMU_RTC_SET;
+
+	clock_ts_to_ct(ts, &ct);
+
+	cmd.data[1] = bin2bcd(ct.sec);
+	cmd.data[2] = bin2bcd(ct.min);
+	cmd.data[3] = bin2bcd(ct.hour);
+	cmd.data[4] = bin2bcd(ct.dow);
+	cmd.data[5] = bin2bcd(ct.day);
+	cmd.data[6] = bin2bcd(ct.mon);
+	cmd.data[7] = bin2bcd(ct.year - 2000);
+
+	return (smu_run_cmd(dev, &cmd, 0));
+}
+
+/* SMU I2C Interface */
+
+static int smuiic_probe(device_t dev);
+static int smuiic_attach(device_t dev);
+static int smuiic_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs);
+static phandle_t smuiic_get_node(device_t bus, device_t dev);
+
+static device_method_t smuiic_methods[] = {
+	/* device interface */
+	DEVMETHOD(device_probe,         smuiic_probe),
+	DEVMETHOD(device_attach,        smuiic_attach),
+
+	/* iicbus interface */
+	DEVMETHOD(iicbus_callback,      iicbus_null_callback),
+	DEVMETHOD(iicbus_transfer,      smuiic_transfer),
+
+	/* ofw_bus interface */
+	DEVMETHOD(ofw_bus_get_node,     smuiic_get_node),
+
+	{ 0, 0 }
+};
+
+struct smuiic_softc {
+	struct mtx	sc_mtx;
+	volatile int	sc_iic_inuse;
+	int		sc_busno;
+};
+
+static driver_t smuiic_driver = {
+	"iichb",
+	smuiic_methods,
+	sizeof(struct smuiic_softc)
+};
+static devclass_t smuiic_devclass;
+
+DRIVER_MODULE(smuiic, smu, smuiic_driver, smuiic_devclass, 0, 0);
+
+static void
+smu_attach_i2c(device_t smu, phandle_t i2croot)
+{
+	phandle_t child;
+	device_t cdev;
+	struct ofw_bus_devinfo *dinfo;
+	char name[32];
+
+	for (child = OF_child(i2croot); child != 0; child = OF_peer(child)) {
+		if (OF_getprop(child, "name", name, sizeof(name)) <= 0)
+			continue;
+
+		if (strcmp(name, "i2c-bus") != 0 && strcmp(name, "i2c") != 0)
+			continue;
+
+		dinfo = malloc(sizeof(struct ofw_bus_devinfo), M_SMU,
+		    M_WAITOK | M_ZERO);
+		if (ofw_bus_gen_setup_devinfo(dinfo, child) != 0) {
+			free(dinfo, M_SMU);
+			continue;
+		}
+
+		cdev = device_add_child(smu, NULL, -1);
+		if (cdev == NULL) {
+			device_printf(smu, "<%s>: device_add_child failed\n",
+			    dinfo->obd_name);
+			ofw_bus_gen_destroy_devinfo(dinfo);
+			free(dinfo, M_SMU);
+			continue;
+		}
+		device_set_ivars(cdev, dinfo);
+	}
+}
+
+static int
+smuiic_probe(device_t dev)
+{
+	const char *name;
+
+	name = ofw_bus_get_name(dev);
+	if (name == NULL)
+		return (ENXIO);
+
+	if (strcmp(name, "i2c-bus") == 0 || strcmp(name, "i2c") == 0) {
+		device_set_desc(dev, "SMU I2C controller");
+		return (0);
+	}
+
+	return (ENXIO);
+}
+
+static int
+smuiic_attach(device_t dev)
+{
+	struct smuiic_softc *sc = device_get_softc(dev);
+	mtx_init(&sc->sc_mtx, "smuiic", NULL, MTX_DEF);
+	sc->sc_iic_inuse = 0;
+
+	/* Get our bus number */
+	OF_getprop(ofw_bus_get_node(dev), "reg", &sc->sc_busno,
+	    sizeof(sc->sc_busno));
+
+	/* Add the IIC bus layer */
+	device_add_child(dev, "iicbus", -1);
+
+	return (bus_generic_attach(dev));
+}
+
+static int
+smuiic_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
+{
+	struct smuiic_softc *sc = device_get_softc(dev);
+	struct smu_cmd cmd;
+	int i, j, error;
+
+	mtx_lock(&sc->sc_mtx);
+	while (sc->sc_iic_inuse)
+		mtx_sleep(sc, &sc->sc_mtx, 0, "smuiic", 100);
+
+	sc->sc_iic_inuse = 1;
+	error = 0;
+
+	for (i = 0; i < nmsgs; i++) {
+		cmd.cmd = SMU_I2C;
+		cmd.data[0] = sc->sc_busno;
+		if (msgs[i].flags & IIC_M_NOSTOP)
+			cmd.data[1] = SMU_I2C_COMBINED;
+		else
+			cmd.data[1] = SMU_I2C_SIMPLE;
+
+		cmd.data[2] = msgs[i].slave;
+		if (msgs[i].flags & IIC_M_RD)
+			cmd.data[2] |= 1; 
+
+		if (msgs[i].flags & IIC_M_NOSTOP) {
+			KASSERT(msgs[i].len < 4,
+			    ("oversize I2C combined message"));
+
+			cmd.data[3] = min(msgs[i].len, 3);
+			memcpy(&cmd.data[4], msgs[i].buf, min(msgs[i].len, 3));
+			i++; /* Advance to next part of message */
+		} else {
+			cmd.data[3] = 0;
+			memset(&cmd.data[4], 0, 3);
+		}
+
+		cmd.data[7] = msgs[i].slave;
+		if (msgs[i].flags & IIC_M_RD)
+			cmd.data[7] |= 1; 
+
+		cmd.data[8] = msgs[i].len;
+		if (msgs[i].flags & IIC_M_RD) {
+			memset(&cmd.data[9], 0xff, msgs[i].len);
+			cmd.len = 9;
+		} else {
+			memcpy(&cmd.data[9], msgs[i].buf, msgs[i].len);
+			cmd.len = 9 + msgs[i].len;
+		}
+
+		mtx_unlock(&sc->sc_mtx);
+		smu_run_cmd(device_get_parent(dev), &cmd, 1);
+		mtx_lock(&sc->sc_mtx);
+
+		for (j = 0; j < 10; j++) {
+			cmd.cmd = SMU_I2C;
+			cmd.len = 1;
+			cmd.data[0] = 0;
+			memset(&cmd.data[1], 0xff, msgs[i].len);
+			
+			mtx_unlock(&sc->sc_mtx);
+			smu_run_cmd(device_get_parent(dev), &cmd, 1);
+			mtx_lock(&sc->sc_mtx);
+			
+			if (!(cmd.data[0] & 0x80))
+				break;
+
+			mtx_sleep(sc, &sc->sc_mtx, 0, "smuiic", 10);
+		}
+		
+		if (cmd.data[0] & 0x80) {
+			error = EIO;
+			msgs[i].len = 0;
+			goto exit;
+		}
+		memcpy(msgs[i].buf, &cmd.data[1], msgs[i].len);
+		msgs[i].len = cmd.len - 1;
+	}
+
+    exit:
+	sc->sc_iic_inuse = 0;
+	mtx_unlock(&sc->sc_mtx);
+	wakeup(sc);
+	return (error);
+}
+
+static phandle_t
+smuiic_get_node(device_t bus, device_t dev)
+{
+
+	return (ofw_bus_get_node(bus));
 }
 

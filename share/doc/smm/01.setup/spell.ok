@@ -1,3 +1,4 @@
+# $FreeBSD$
 A1096A
 AA
 ACU
@@ -91,7 +92,6 @@ LK201
 LOGFILE
 Leffler
 Luna
-MAKEDEV.local
 MB
 MC68040
 MFS

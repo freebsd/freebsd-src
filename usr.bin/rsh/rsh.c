@@ -328,7 +328,7 @@ done:
 }
 
 void
-connect_timeout(int sig)
+connect_timeout(int sig __unused)
 {
 	char message[] = "timeout reached before connection completed.\n";
 

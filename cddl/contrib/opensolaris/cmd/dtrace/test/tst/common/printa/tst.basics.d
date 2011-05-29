@@ -20,15 +20,13 @@
  */
 
 /*
- * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
-
 /*
  * ASSERTION:
- *  Test the basic formatting of all the supported kinds of aggregations.
+ *     Test the basic formatting of all the supported kinds of aggregations.
  *
  * SECTION: Output Formatting/printa()
  *
@@ -45,6 +43,7 @@ BEGIN
 	@e = min(1);
 	@f = sum(1);
 	@g = quantize(1);
+	@h = stddev(1);
 
 	printa("@a = %@u\n", @a);
 	printa("@b = %@u\n", @b);
@@ -53,6 +52,7 @@ BEGIN
 	printa("@e = %@u\n", @e);
 	printa("@f = %@u\n", @f);
 	printa("@g = %@d\n", @g);
+	printa("@h = %@d\n", @h);
 
 	exit(0);
 }

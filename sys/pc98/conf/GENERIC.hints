@@ -42,6 +42,10 @@ hint.ct.0.at="isa"
 #hint.ct.0.at="isa"
 #hint.ct.0.flags="0x50000"
 
+hint.attimer.0.at="isa"
+hint.attimer.0.port="0x71"
+hint.attimer.0.irq="0"
+
 hint.pcrtc.0.at="isa"
 
 hint.pckbd.0.at="isa"

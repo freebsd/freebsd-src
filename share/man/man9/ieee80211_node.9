@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 4, 2009
+.Dd April 28, 2010
 .Dt IEEE80211_NODE 9
 .Os
 .Sh NAME
@@ -101,7 +101,7 @@ Node table entries are reference counted.
 That is, there is a count of all long term references that determines
 when an entry may be reclaimed.
 References are held by every in-flight frame sent to a station to
-insure the entry is not reclaimed while the frame is queued or otherwise
+ensure the entry is not reclaimed while the frame is queued or otherwise
 held by a driver.
 Routines that lookup a table entry return a
 .Dq held reference
@@ -152,7 +152,7 @@ displays the contents of a single node while
 .Fn ieee80211_dump_nodes
 displays the contents of the specified node table.
 Nodes may also be displayed using
-.Xr ddb 9
+.Xr ddb 4
 with the
 .Dq show node
 directive and the station node table can be displayed with
@@ -246,6 +246,6 @@ If the specified index is
 .Dv IEEE80211_KEYIX_NONE
 then a normal lookup is done without a table update.
 .Sh SEE ALSO
-.Xr ddb 9
+.Xr ddb 9 ,
 .Xr ieee80211 9 ,
 .Xr ieee80211_proto 9

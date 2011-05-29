@@ -4,6 +4,7 @@ command -v true
 command -v /bin/ls
 
 fun() {
+	:
 }
 command -v fun
 command -v break

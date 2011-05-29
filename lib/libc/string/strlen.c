@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009 Xin LI <delphij@FreeBSD.org>
+ * Copyright (c) 2009, 2010 Xin LI <delphij@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,15 +43,17 @@ __FBSDID("$FreeBSD$");
  *	((x - 0x01....01) & ~x & 0x80....80)
  *
  * would evaluate to a non-zero value iff any of the bytes in the
- * original word is zero.  However, we can further reduce ~1/3 of
- * time if we consider that strlen() usually operate on 7-bit ASCII
- * by employing the following expression, which allows false positive
- * when high bit of 1 and use the tail case to catch these case:
+ * original word is zero.
  *
- *	((x - 0x01....01) & 0x80....80)
+ * On multi-issue processors, we can divide the above expression into:
+ *	a)  (x - 0x01....01)
+ *	b) (~x & 0x80....80)
+ *	c) a & b
  *
- * This is more than 5.2 times as fast as the raw implementation on
- * Intel T7300 under long mode for strings longer than word length.
+ * Where, a) and b) can be partially computed in parallel.
+ *
+ * The algorithm above is found on "Hacker's Delight" by
+ * Henry S. Warren, Jr.
  */
 
 /* Magic numbers for the algorithm */
@@ -82,29 +84,47 @@ strlen(const char *str)
 {
 	const char *p;
 	const unsigned long *lp;
+	long va, vb;
 
-	/* Skip the first few bytes until we have an aligned p */
-	for (p = str; (uintptr_t)p & LONGPTR_MASK; p++)
-	    if (*p == '\0')
-		return (p - str);
+	/*
+	 * Before trying the hard (unaligned byte-by-byte access) way
+	 * to figure out whether there is a nul character, try to see
+	 * if there is a nul character is within this accessible word
+	 * first.
+	 *
+	 * p and (p & ~LONGPTR_MASK) must be equally accessible since
+	 * they always fall in the same memory page, as long as page
+	 * boundaries is integral multiple of word size.
+	 */
+	lp = (const unsigned long *)((uintptr_t)str & ~LONGPTR_MASK);
+	va = (*lp - mask01);
+	vb = ((~*lp) & mask80);
+	lp++;
+	if (va & vb)
+		/* Check if we have \0 in the first part */
+		for (p = str; p < (const char *)lp; p++)
+			if (*p == '\0')
+				return (p - str);
 
 	/* Scan the rest of the string using word sized operation */
-	for (lp = (const unsigned long *)p; ; lp++)
-	    if ((*lp - mask01) & mask80) {
-		p = (const char *)(lp);
-		testbyte(0);
-		testbyte(1);
-		testbyte(2);
-		testbyte(3);
+	for (; ; lp++) {
+		va = (*lp - mask01);
+		vb = ((~*lp) & mask80);
+		if (va & vb) {
+			p = (const char *)(lp);
+			testbyte(0);
+			testbyte(1);
+			testbyte(2);
+			testbyte(3);
 #if (LONG_BIT >= 64)
-		testbyte(4);
-		testbyte(5);
-		testbyte(6);
-		testbyte(7);
+			testbyte(4);
+			testbyte(5);
+			testbyte(6);
+			testbyte(7);
 #endif
-	    }
+		}
+	}
 
 	/* NOTREACHED */
 	return (0);
 }
-

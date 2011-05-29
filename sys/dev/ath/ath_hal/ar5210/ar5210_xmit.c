@@ -621,3 +621,12 @@ ar5210GetTxIntrQueue(struct ath_hal *ah, uint32_t *txqs)
 {
 	return;
 }
+
+/*
+ * Retrieve the rate table from the given TX completion descriptor
+ */
+HAL_BOOL
+ar5210GetTxCompletionRates(struct ath_hal *ah, const struct ath_desc *ds0, int *rates, int *tries)
+{
+	return AH_FALSE;
+}

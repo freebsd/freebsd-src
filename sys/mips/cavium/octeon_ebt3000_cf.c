@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bio.h>
 #include <sys/systm.h>
 #include <sys/sysctl.h>
+#include <sys/ata.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
@@ -65,9 +66,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/cpuregs.h>
 
-#include "octeon_ebt3000_cf.h"
-#include "driveid.h"
 #include <mips/cavium/octeon_pcmap_regs.h>
+
+#include <contrib/octeon-sdk/cvmx.h>
 
 /* ATA Commands */
 #define CMD_READ_SECTOR		0x20
@@ -97,10 +98,10 @@ __FBSDID("$FreeBSD$");
 #define WAIT_DELAY		1000
 #define NR_TRIES		1000
 #define SWAP_SHORT(x)		((x << 8) | (x >> 8))
-#define SWAP_LONG(x)		(((x << 24) & 0xFF000000) | ((x <<  8) & 0x00FF0000) | \
-				 ((x >> 8) & 0x0000FF00)  | ((x << 24) & 0x000000FF) )
 #define MODEL_STR_SIZE		40
 
+/* XXX */
+extern cvmx_bootinfo_t *octeon_bootinfo;
 
 /* Globals */
 int	bus_width;
@@ -122,7 +123,7 @@ struct cf_priv {
 struct drive_param{
 	union {
 		char buf[SECTOR_SIZE];
-		struct hd_driveid driveid;
+		struct ata_params driveid;
 	} u;
 
 	char model[MODEL_STR_SIZE];
@@ -146,6 +147,8 @@ struct g_class g_cf_class = {
         .access =       cf_access,
         .ioctl =        cf_ioctl,
 };
+
+DECLARE_GEOM_CLASS(g_cf_class, g_cf);
 
 /* Device methods */
 static int	cf_probe(device_t);
@@ -415,10 +418,11 @@ static int cf_cmd_identify (void)
 	cf_swap_ascii(drive_param.u.driveid.model, drive_param.model);
 
 	drive_param.sector_size =  512;   //=  SWAP_SHORT (drive_param.u.driveid.sector_bytes);
-	drive_param.heads 	=  SWAP_SHORT (drive_param.u.driveid.cur_heads);
-	drive_param.tracks	=  SWAP_SHORT (drive_param.u.driveid.cur_cyls); 
-	drive_param.sec_track   =  SWAP_SHORT (drive_param.u.driveid.cur_sectors);
-	drive_param.nr_sectors  =  SWAP_LONG  (drive_param.u.driveid.lba_capacity);
+	drive_param.heads 	=  SWAP_SHORT (drive_param.u.driveid.current_heads);
+	drive_param.tracks	=  SWAP_SHORT (drive_param.u.driveid.current_cylinders); 
+	drive_param.sec_track   =  SWAP_SHORT (drive_param.u.driveid.current_sectors);
+	drive_param.nr_sectors  = (uint32_t)SWAP_SHORT (drive_param.u.driveid.lba_size_1) |
+	    ((uint32_t)SWAP_SHORT (drive_param.u.driveid.lba_size_2));
 
 	return (0);
 }
@@ -558,7 +562,7 @@ static void cf_swap_ascii (unsigned char str1[], char str2[])
 
 static int cf_probe (device_t dev)
 {
-    	if (!octeon_board_real()) return 1;
+    	if (octeon_is_simulation()) return 1;
 
 	if (device_get_unit(dev) != 0) {
                 panic("can't attach more devices\n");
@@ -583,19 +587,19 @@ static void cf_identify (driver_t *drv, device_t parent)
 	uint8_t status;
         int bus_region;
 	int count = 0;
-        octeon_mio_boot_reg_cfgx_t cfg;
+        cvmx_mio_boot_reg_cfgx_t cfg;
 
-    	if (!octeon_board_real())
+    	if (octeon_is_simulation())
 		return;
 
-	base_addr = (void *) MIPS_PHYS_TO_KSEG0(OCTEON_CF_COMMON_BASE_ADDR);
+	base_addr = cvmx_phys_to_ptr(octeon_bootinfo->compact_flash_common_base_addr);
 
         for (bus_region = 0; bus_region < 8; bus_region++)
         {
-                cfg.word64 = oct_read64(OCTEON_MIO_BOOT_REG_CFGX(bus_region));
-                if (cfg.bits.base == OCTEON_CF_COMMON_BASE_ADDR >> 16)
+                cfg.u64 = cvmx_read_csr(CVMX_MIO_BOOT_REG_CFGX(bus_region));
+                if (cfg.s.base == octeon_bootinfo->compact_flash_common_base_addr >> 16)
                 {
-                        bus_width = (cfg.bits.width) ? 16: 8;
+                        bus_width = (cfg.s.width) ? 16: 8;
                         printf("Compact flash found in bootbus region %d (%d bit).\n", bus_region, bus_width);
                         break;
                 }
@@ -664,7 +668,7 @@ static int cf_attach (device_t dev)
 {
 	struct cf_priv *cf_priv;
 
-    	if (!octeon_board_real()) return 1;
+    	if (octeon_is_simulation()) return 1;
 
 	cf_priv = device_get_softc(dev);
 	cf_priv->dev = dev;

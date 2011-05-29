@@ -208,7 +208,7 @@ fhc_attach(device_t dev)
 		printf("model unknown\n");
 
 	for (i = FHC_FANFAIL; i <= FHC_TOD; i++) {
-		bus_write_4(sc->sc_memres[i], FHC_ICLR, 0x0);
+		bus_write_4(sc->sc_memres[i], FHC_ICLR, INTCLR_IDLE);
 		(void)bus_read_4(sc->sc_memres[i], FHC_ICLR);
 	}
 
@@ -391,7 +391,7 @@ fhc_intr_clear(void *arg)
 	struct intr_vector *iv = arg;
 	struct fhc_icarg *fica = iv->iv_icarg;
 
-	bus_write_4(fica->fica_memres, FHC_ICLR, 0x0);
+	bus_write_4(fica->fica_memres, FHC_ICLR, INTCLR_IDLE);
 	(void)bus_read_4(fica->fica_memres, FHC_ICLR);
 }
 

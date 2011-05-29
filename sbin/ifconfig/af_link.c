@@ -58,7 +58,9 @@ link_status(int s __unused, const struct ifaddrs *ifa)
 	struct sockaddr_dl *sdl = (struct sockaddr_dl *) ifa->ifa_addr;
 
 	if (sdl != NULL && sdl->sdl_alen > 0) {
-		if (sdl->sdl_type == IFT_ETHER &&
+		if ((sdl->sdl_type == IFT_ETHER ||
+		    sdl->sdl_type == IFT_L2VLAN ||
+		    sdl->sdl_type == IFT_BRIDGE) &&
 		    sdl->sdl_alen == ETHER_ADDR_LEN)
 			printf("\tether %s\n",
 			    ether_ntoa((struct ether_addr *)LLADDR(sdl)));

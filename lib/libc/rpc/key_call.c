@@ -279,6 +279,9 @@ struct  key_call_private {
 	uid_t	uid;		/* user-id at last authorization */
 };
 static struct key_call_private *key_call_private_main = NULL;
+static thread_key_t key_call_key;
+static once_t key_call_once = ONCE_INITIALIZER;
+static int key_call_key_error;
 
 static void
 key_call_destroy(void *vp)
@@ -290,6 +293,13 @@ key_call_destroy(void *vp)
 			clnt_destroy(kcp->client);
 		free(kcp);
 	}
+}
+
+static void
+key_call_init(void)
+{
+
+	key_call_key_error = thr_keycreate(&key_call_key, key_call_destroy);
 }
 
 /*
@@ -307,7 +317,6 @@ int	vers;
 	struct utsname u;
 	int main_thread;
 	int fd;
-	static thread_key_t key_call_key;
 
 #define	TOTAL_TIMEOUT	30	/* total timeout talking to keyserver */
 #define	TOTAL_TRIES	5	/* Number of tries */
@@ -315,12 +324,9 @@ int	vers;
 	if ((main_thread = thr_main())) {
 		kcp = key_call_private_main;
 	} else {
-		if (key_call_key == 0) {
-			mutex_lock(&tsd_lock);
-			if (key_call_key == 0)
-				thr_keycreate(&key_call_key, key_call_destroy);
-			mutex_unlock(&tsd_lock);
-		}
+		if (thr_once(&key_call_once, key_call_init) != 0 ||
+		    key_call_key_error != 0)
+			return ((CLIENT *) NULL);
 		kcp = (struct key_call_private *)thr_getspecific(key_call_key);
 	}	
 	if (kcp == (struct key_call_private *)NULL) {

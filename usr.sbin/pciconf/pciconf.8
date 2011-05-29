@@ -142,7 +142,7 @@ If the
 option is supplied,
 .Nm
 will list any capabilities supported by each device.
-Each capability will be enumerated via a line in the following format:
+Each capability is enumerated via a line in the following format:
 .Bd -literal
     cap 10[40] = PCI-Express 1 root port
 .Ed
@@ -152,6 +152,18 @@ The first value after the
 prefix is the capability ID in hexadecimal.
 The second value in the square brackets is the offset of the capability
 in config space in hexadecimal.
+The format of the text after the equals sign is capability-specific.
+.Pp
+Each extended capability is enumerated via a line in a similar format:
+.Bd -literal
+ecap 0002[100] = VC 1 max VC0
+.Ed
+.Pp
+The first value after the
+.Dq Li ecap
+prefix is the extended capability ID in hexadecimal.
+The second value in the square brackets is the offset of the extended
+capability in config space in hexadecimal.
 The format of the text after the equals sign is capability-specific.
 .Pp
 If the
@@ -172,7 +184,7 @@ of the form
 Ns Va function Ns ,
 .Li pci Ns Va bus Ns \&: Ns Va device Ns \&: Ns Va function Ns , or
 .Li pci Ns Va bus Ns \&: Ns Va device Ns .
-In case of an abrigded form, omitted selector components are assumed to be 0.
+In case of an abridged form, omitted selector components are assumed to be 0.
 An optional leading device name followed by @ and an optional final colon 
 will be ignored; this is so that the first column in the output of
 .Nm

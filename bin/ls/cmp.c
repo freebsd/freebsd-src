@@ -66,17 +66,17 @@ int
 modcmp(const FTSENT *a, const FTSENT *b)
 {
 
-	if (b->fts_statp->st_mtimespec.tv_sec >
-	    a->fts_statp->st_mtimespec.tv_sec)
+	if (b->fts_statp->st_mtim.tv_sec >
+	    a->fts_statp->st_mtim.tv_sec)
 		return (1);
-	if (b->fts_statp->st_mtimespec.tv_sec <
-	    a->fts_statp->st_mtimespec.tv_sec)
+	if (b->fts_statp->st_mtim.tv_sec <
+	    a->fts_statp->st_mtim.tv_sec)
 		return (-1);
-	if (b->fts_statp->st_mtimespec.tv_nsec >
-	    a->fts_statp->st_mtimespec.tv_nsec)
+	if (b->fts_statp->st_mtim.tv_nsec >
+	    a->fts_statp->st_mtim.tv_nsec)
 		return (1);
-	if (b->fts_statp->st_mtimespec.tv_nsec <
-	    a->fts_statp->st_mtimespec.tv_nsec)
+	if (b->fts_statp->st_mtim.tv_nsec <
+	    a->fts_statp->st_mtim.tv_nsec)
 		return (-1);
 	return (strcoll(a->fts_name, b->fts_name));
 }
@@ -92,17 +92,17 @@ int
 acccmp(const FTSENT *a, const FTSENT *b)
 {
 
-	if (b->fts_statp->st_atimespec.tv_sec >
-	    a->fts_statp->st_atimespec.tv_sec)
+	if (b->fts_statp->st_atim.tv_sec >
+	    a->fts_statp->st_atim.tv_sec)
 		return (1);
-	if (b->fts_statp->st_atimespec.tv_sec <
-	    a->fts_statp->st_atimespec.tv_sec)
+	if (b->fts_statp->st_atim.tv_sec <
+	    a->fts_statp->st_atim.tv_sec)
 		return (-1);
-	if (b->fts_statp->st_atimespec.tv_nsec >
-	    a->fts_statp->st_atimespec.tv_nsec)
+	if (b->fts_statp->st_atim.tv_nsec >
+	    a->fts_statp->st_atim.tv_nsec)
 		return (1);
-	if (b->fts_statp->st_atimespec.tv_nsec <
-	    a->fts_statp->st_atimespec.tv_nsec)
+	if (b->fts_statp->st_atim.tv_nsec <
+	    a->fts_statp->st_atim.tv_nsec)
 		return (-1);
 	return (strcoll(a->fts_name, b->fts_name));
 }
@@ -118,17 +118,17 @@ int
 birthcmp(const FTSENT *a, const FTSENT *b)
 {
 
-	if (b->fts_statp->st_birthtimespec.tv_sec >
-	    a->fts_statp->st_birthtimespec.tv_sec)
+	if (b->fts_statp->st_birthtim.tv_sec >
+	    a->fts_statp->st_birthtim.tv_sec)
 		return (1);
-	if (b->fts_statp->st_birthtimespec.tv_sec <
-	    a->fts_statp->st_birthtimespec.tv_sec)
+	if (b->fts_statp->st_birthtim.tv_sec <
+	    a->fts_statp->st_birthtim.tv_sec)
 		return (-1);
-	if (b->fts_statp->st_birthtimespec.tv_nsec >
-	    a->fts_statp->st_birthtimespec.tv_nsec)
+	if (b->fts_statp->st_birthtim.tv_nsec >
+	    a->fts_statp->st_birthtim.tv_nsec)
 		return (1);
-	if (b->fts_statp->st_birthtimespec.tv_nsec <
-	    a->fts_statp->st_birthtimespec.tv_nsec)
+	if (b->fts_statp->st_birthtim.tv_nsec <
+	    a->fts_statp->st_birthtim.tv_nsec)
 		return (-1);
 	return (strcoll(a->fts_name, b->fts_name));
 }
@@ -144,17 +144,17 @@ int
 statcmp(const FTSENT *a, const FTSENT *b)
 {
 
-	if (b->fts_statp->st_ctimespec.tv_sec >
-	    a->fts_statp->st_ctimespec.tv_sec)
+	if (b->fts_statp->st_ctim.tv_sec >
+	    a->fts_statp->st_ctim.tv_sec)
 		return (1);
-	if (b->fts_statp->st_ctimespec.tv_sec <
-	    a->fts_statp->st_ctimespec.tv_sec)
+	if (b->fts_statp->st_ctim.tv_sec <
+	    a->fts_statp->st_ctim.tv_sec)
 		return (-1);
-	if (b->fts_statp->st_ctimespec.tv_nsec >
-	    a->fts_statp->st_ctimespec.tv_nsec)
+	if (b->fts_statp->st_ctim.tv_nsec >
+	    a->fts_statp->st_ctim.tv_nsec)
 		return (1);
-	if (b->fts_statp->st_ctimespec.tv_nsec <
-	    a->fts_statp->st_ctimespec.tv_nsec)
+	if (b->fts_statp->st_ctim.tv_nsec <
+	    a->fts_statp->st_ctim.tv_nsec)
 		return (-1);
 	return (strcoll(a->fts_name, b->fts_name));
 }

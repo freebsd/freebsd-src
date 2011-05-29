@@ -80,21 +80,19 @@ default_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
     vm_ooffset_t offset, struct ucred *cred)
 {
 	vm_object_t object;
-	struct uidinfo *uip;
 
 	if (handle != NULL)
 		panic("default_pager_alloc: handle specified");
 	if (cred != NULL) {
-		uip = cred->cr_ruidinfo;
-		if (!swap_reserve_by_uid(size, uip))
+		if (!swap_reserve_by_cred(size, cred))
 			return (NULL);
-		uihold(uip);
+		crhold(cred);
 	}
 	object = vm_object_allocate(OBJT_DEFAULT,
 	    OFF_TO_IDX(round_page(offset + size)));
 	if (cred != NULL) {
 		VM_OBJECT_LOCK(object);
-		object->uip = uip;
+		object->cred = cred;
 		object->charge = size;
 		VM_OBJECT_UNLOCK(object);
 	}

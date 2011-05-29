@@ -767,8 +767,8 @@ an_attach(struct an_softc *sc, int flags)
 	ifp->if_start = an_start;
 	ifp->if_init = an_init;
 	ifp->if_baudrate = 10000000;
-	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
-	ifp->if_snd.ifq_drv_maxlen = IFQ_MAXLEN;
+	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
+	ifp->if_snd.ifq_drv_maxlen = ifqmaxlen;
 	IFQ_SET_READY(&ifp->if_snd);
 
 	bzero(sc->an_config.an_nodename, sizeof(sc->an_config.an_nodename));

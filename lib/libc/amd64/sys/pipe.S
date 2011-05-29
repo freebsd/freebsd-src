@@ -58,3 +58,5 @@ ENTRY(__sys_pipe)
 	jmp	HIDENAME(cerror)
 #endif
 END(__sys_pipe)
+
+	.section .note.GNU-stack,"",%progbits

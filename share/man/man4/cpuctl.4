@@ -74,7 +74,6 @@ The
 structure is defined in
 .In sys/cpuctl.h
 as:
-.Pp
 .Bd -literal
 typedef struct {
 	int		msr;	/* MSR to read */
@@ -90,7 +89,6 @@ field.
 Retrieve CPUID information.
 Arguments are supplied in
 the following struct:
-.Pp
 .Bd -literal
 typedef struct {
 	int		level;	/* CPUID level */
@@ -108,7 +106,6 @@ Update CPU firmware (microcode).
 The structure is defined in
 .In sys/cpuctl.h
 as:
-.Pp
 .Bd -literal
 typedef struct {
 	void	*data;
@@ -148,10 +145,10 @@ The
 .Nm
 driver first appeared in
 .Fx 7.2 .
-.Sh BUGS
-Yes, probably, report if any.
 .Sh AUTHORS
 The
 .Nm
 module and this manual page were written by
 .An Stanislav Sedov Aq stas@FreeBSD.org .
+.Sh BUGS
+Yes, probably, report if any.

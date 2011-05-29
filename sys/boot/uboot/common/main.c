@@ -53,6 +53,10 @@ extern unsigned char __sbss_start[];
 extern unsigned char __sbss_end[];
 extern unsigned char _end[];
 
+#ifdef LOADER_FDT_SUPPORT
+extern int command_fdt_internal(int argc, char *argv[]);
+#endif
+
 static void
 dump_sig(struct api_signature *sig)
 {
@@ -157,20 +161,22 @@ main(void)
 		panic("no U-Boot devices found");
 	printf("Number of U-Boot devices: %d\n", devs_no);
 
-	/*
-	 * March through the device switch probing for things.
-	 */
-	for (i = 0; devsw[i] != NULL; i++)
-		if (devsw[i]->dv_init != NULL)
-			(devsw[i]->dv_init)();
-
 	printf("\n");
 	printf("%s, Revision %s\n", bootprog_name, bootprog_rev);
 	printf("(%s, %s)\n", bootprog_maker, bootprog_date);
 	meminfo();
 
+	/*
+	 * March through the device switch probing for things.
+	 */
 	for (i = 0; devsw[i] != NULL; i++) {
-		printf("\nDevice %d: %s\n", i, devsw[i]->dv_name);
+
+		if (devsw[i]->dv_init == NULL)
+			continue;
+		if ((devsw[i]->dv_init)() != 0)
+			continue;
+
+		printf("\nDevice: %s\n", devsw[i]->dv_name);
 
 		currdev.d_dev = devsw[i];
 		currdev.d_type = currdev.d_dev->dv_type;
@@ -269,3 +275,20 @@ command_sysinfo(int argc, char *argv[])
 	ub_dump_si(si);
 	return (CMD_OK);
 }
+
+#ifdef LOADER_FDT_SUPPORT
+/*
+ * Since proper fdt command handling function is defined in fdt_loader_cmd.c,
+ * and declaring it as extern is in contradiction with COMMAND_SET() macro
+ * (which uses static pointer), we're defining wrapper function, which
+ * calls the proper fdt handling routine.
+ */
+static int
+command_fdt(int argc, char *argv[])
+{
+
+	return (command_fdt_internal(argc, argv));
+}
+
+COMMAND_SET(fdt, "fdt", "flattened device tree handling", command_fdt);
+#endif

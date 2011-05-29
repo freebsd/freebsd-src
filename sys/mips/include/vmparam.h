@@ -46,17 +46,6 @@
 /*
  * Machine dependent constants mips processors.
  */
-/*
- * USRTEXT is the start of the user text/data space, while USRSTACK
- * is the top (end) of the user stack.
- */
-#define	USRTEXT		(1*PAGE_SIZE)
-/*
- * USRSTACK needs to start a little below 0x8000000 because the R8000
- * and some QED CPUs perform some virtual address checks before the
- * offset is calculated.
- */
-#define	USRSTACK	0x7ffff000	/* Start of user stack */
 
 /*
  * Virtual memory related constants, all in bytes
@@ -80,34 +69,40 @@
 #define	SGROWSIZ	(128UL*1024)		/* amount to grow stack */
 #endif
 
-/* 
- * The time for a process to be blocked before being very swappable.
- * This is a number of seconds which the system takes as being a non-trivial
- * amount of real time.	 You probably shouldn't change this;
- * it is used in subtle ways (fractions and multiples of it are, that is, like
- * half of a ``long time'', almost a long time, etc.)
- * It is related to human patience and other factors which don't really
- * change over time.
- */
-#define	MAXSLP		20
-
 /*
  * Mach derived constants
  */
 
 /* user/kernel map constants */
 #define	VM_MIN_ADDRESS		((vm_offset_t)0x00000000)
-#define	VM_MAXUSER_ADDRESS	((vm_offset_t)0x80000000)
-#define	VM_MAX_MMAP_ADDR	VM_MAXUSER_ADDRESS
-#define	VM_MAX_ADDRESS		((vm_offset_t)0x80000000)
+#define	VM_MAX_ADDRESS		((vm_offset_t)(intptr_t)(int32_t)0xffffffff)
 
-#ifndef VM_KERNEL_ALLOC_OFFSET
-#define	VM_KERNEL_ALLOC_OFFSET	((vm_offset_t)0x00000000)
+#define	VM_MINUSER_ADDRESS	((vm_offset_t)0x00000000)
+
+#ifdef __mips_n64
+#define	VM_MAXUSER_ADDRESS	(VM_MINUSER_ADDRESS + (NPDEPG * NBSEG))
+#define	VM_MIN_KERNEL_ADDRESS	((vm_offset_t)0xc000000000000000)
+#define	VM_MAX_KERNEL_ADDRESS	(VM_MIN_KERNEL_ADDRESS + (NPDEPG * NBSEG))
+#else
+#define	VM_MAXUSER_ADDRESS	((vm_offset_t)0x80000000)
+#define	VM_MIN_KERNEL_ADDRESS	((vm_offset_t)0xC0000000)
+#define	VM_MAX_KERNEL_ADDRESS	((vm_offset_t)0xFFFFC000)
 #endif
 
-#define	VM_MIN_KERNEL_ADDRESS		((vm_offset_t)0xC0000000)
-#define	VM_KERNEL_WIRED_ADDR_END	(VM_MIN_KERNEL_ADDRESS + VM_KERNEL_ALLOC_OFFSET)
-#define	VM_MAX_KERNEL_ADDRESS	((vm_offset_t)0xFFFFC000)
+#define	KERNBASE		((vm_offset_t)(intptr_t)(int32_t)0x80000000)
+/*
+ * USRSTACK needs to start a little below 0x8000000 because the R8000
+ * and some QED CPUs perform some virtual address checks before the
+ * offset is calculated.
+ */
+#define	USRSTACK		(VM_MAXUSER_ADDRESS - PAGE_SIZE)
+ 
+/*
+ * Only one memory domain.
+ */
+#ifndef VM_NDOMAIN
+#define	VM_NDOMAIN		1
+#endif
 
 /*
  * Disable superpage reservations. (not sure if this is right
@@ -116,7 +111,6 @@
 #ifndef	VM_NRESERVLEVEL
 #define	VM_NRESERVLEVEL		0
 #endif
-
 
 /* virtual sizes (bytes) for various kernel submaps */
 #ifndef VM_KMEM_SIZE
@@ -144,15 +138,17 @@
 #define	VM_INITIAL_PAGEIN	16
 #endif
 
+#define	UMA_MD_SMALL_ALLOC
+
 /*
  * max number of non-contig chunks of physical RAM you can have
  */
 #define	VM_PHYSSEG_MAX		32
 
 /*
- * The physical address space is densely populated.
+ * The physical address space is sparsely populated.
  */
-#define	VM_PHYSSEG_DENSE
+#define	VM_PHYSSEG_SPARSE
 
 /*
  * Create three free page pools: VM_FREEPOOL_DEFAULT is the default pool
@@ -166,36 +162,31 @@
 #define	VM_FREEPOOL_DIRECT	1
 
 /*
- * we support 1 free list:
+ * we support 2 free lists:
  *
- *	- DEFAULT for all systems
+ *	- DEFAULT for direct mapped (KSEG0) pages.
+ *	  Note: This usage of DEFAULT may be misleading because we use
+ *	  DEFAULT for allocating direct mapped pages. The normal page
+ *	  allocations use HIGHMEM if available, and then DEFAULT. 
+ *	- HIGHMEM for other pages 
  */
-
+#ifdef __mips_n64
 #define	VM_NFREELIST		1
 #define	VM_FREELIST_DEFAULT	0
+#define	VM_FREELIST_DIRECT	VM_FREELIST_DEFAULT
+#else
+#define	VM_NFREELIST		2
+#define	VM_FREELIST_DEFAULT	1
+#define	VM_FREELIST_HIGHMEM	0
+#define	VM_FREELIST_DIRECT	VM_FREELIST_DEFAULT
+#define	VM_HIGHMEM_ADDRESS	((vm_paddr_t)0x20000000)
+#endif
 
 /*
  * The largest allocation size is 1MB.
  */
 #define	VM_NFREEORDER		9
 
-/*
- * XXXMIPS: This values need to be changed!!!
- */ 
-#if 0
-#define VM_MIN_ADDRESS		((vm_offset_t)0x0000000000010000)
-#define VM_MAXUSER_ADDRESS	((vm_offset_t)MIPS_KSEG0_START-1)
-#define VM_MAX_ADDRESS		((vm_offset_t)0x0000000100000000)
-#define VM_MIN_KERNEL_ADDRESS	((vm_offset_t)MIPS_KSEG3_START)
-#define VM_MAX_KERNEL_ADDRESS	((vm_offset_t)MIPS_KSEG3_END)
-#define	KERNBASE		(VM_MIN_KERNEL_ADDRESS)
-
-/* virtual sizes (bytes) for various kernel submaps */
-#define	VM_KMEM_SIZE		(16*1024*1024)		/* XXX ??? */
-#endif
-
-#define NBSEG		0x400000	/* bytes/segment */
-#define SEGOFSET	(NBSEG-1)	/* byte offset into segment */
-#define SEGSHIFT	22		/* LOG2(NBSEG) */
+#define	ZERO_REGION_SIZE	(64 * 1024)	/* 64KB */
 
 #endif /* !_MACHINE_VMPARAM_H_ */

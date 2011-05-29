@@ -31,22 +31,11 @@
  *	$FreeBSD$
  */
 
-/*
- * Prerequisites: <sys/cdefs.h>, <sys/_types.h>
- */
-
 #ifndef _SYS_TIMESPEC_H_
 #define _SYS_TIMESPEC_H_
 
-#ifndef _TIME_T_DECLARED
-typedef	__time_t	time_t;
-#define	_TIME_T_DECLARED
-#endif
-
-struct timespec {
-	time_t	tv_sec;		/* seconds */
-	long	tv_nsec;	/* and nanoseconds */
-};
+#include <sys/cdefs.h>
+#include <sys/_timespec.h>
 
 #if __BSD_VISIBLE
 #define	TIMEVAL_TO_TIMESPEC(tv, ts)					\

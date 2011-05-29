@@ -434,6 +434,12 @@ static int drm_load(struct drm_device *dev)
 	DRM_DEBUG("\n");
 
 	TAILQ_INIT(&dev->maplist);
+	dev->map_unrhdr = new_unrhdr(1, ((1 << DRM_MAP_HANDLE_BITS) - 1), NULL);
+	if (dev->map_unrhdr == NULL) {
+		DRM_ERROR("Couldn't allocate map number allocator\n");
+		return EINVAL;
+	}
+
 
 	drm_mem_init();
 	drm_sysctl_init(dev);
@@ -472,7 +478,7 @@ static int drm_load(struct drm_device *dev)
 			retcode = ENOMEM;
 			goto error;
 		}
-		if (dev->agp != NULL) {
+		if (dev->agp != NULL && dev->agp->info.ai_aperture_base != 0) {
 			if (drm_mtrr_add(dev->agp->info.ai_aperture_base,
 			    dev->agp->info.ai_aperture_size, DRM_MTRR_WC) == 0)
 				dev->agp->mtrr = 1;
@@ -565,6 +571,7 @@ static void drm_unload(struct drm_device *dev)
 	}
 
 	delete_unrhdr(dev->drw_unrhdr);
+	delete_unrhdr(dev->map_unrhdr);
 
 	drm_mem_uninit();
 

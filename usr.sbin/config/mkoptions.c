@@ -70,31 +70,62 @@ options(void)
 	/* Fake the cpu types as options. */
 	SLIST_FOREACH(cp, &cputype, cpu_next) {
 		op = (struct opt *)calloc(1, sizeof(*op));
+		if (op == NULL)
+			err(EXIT_FAILURE, "calloc");
 		op->op_name = ns(cp->cpu_name);
 		SLIST_INSERT_HEAD(&opt, op, op_next);
 	}	
 
 	if (maxusers == 0) {
-		/* printf("maxusers not specified; will auto-size\n"); */
+		/* fprintf(stderr, "maxusers not specified; will auto-size\n"); */
 	} else if (maxusers < users.u_min) {
-		printf("minimum of %d maxusers assumed\n", users.u_min);
+		fprintf(stderr, "minimum of %d maxusers assumed\n",
+		    users.u_min);
 		maxusers = users.u_min;
 	} else if (maxusers > users.u_max)
-		printf("warning: maxusers > %d (%d)\n", users.u_max, maxusers);
+		fprintf(stderr, "warning: maxusers > %d (%d)\n",
+		    users.u_max, maxusers);
 
 	/* Fake MAXUSERS as an option. */
 	op = (struct opt *)calloc(1, sizeof(*op));
+	if (op == NULL)
+		err(EXIT_FAILURE, "calloc");
 	op->op_name = ns("MAXUSERS");
 	snprintf(buf, sizeof(buf), "%d", maxusers);
 	op->op_value = ns(buf);
 	SLIST_INSERT_HEAD(&opt, op, op_next);
 
 	read_options();
+
+	/* Fake the value of MACHINE_ARCH as an option if necessary */
+	SLIST_FOREACH(ol, &otab, o_next) {
+		if (strcasecmp(ol->o_name, machinearch) != 0)
+			continue;
+
+		op = (struct opt *)calloc(1, sizeof(*op));
+		if (op == NULL)
+			err(EXIT_FAILURE, "calloc");
+		op->op_name = ns(ol->o_name);
+		SLIST_INSERT_HEAD(&opt, op, op_next);
+		break;
+	}
+
+	SLIST_FOREACH(op, &opt, op_next) {
+		SLIST_FOREACH(ol, &otab, o_next) {
+			if (eq(op->op_name, ol->o_name) &&
+			    (ol->o_flags & OL_ALIAS)) {
+				fprintf(stderr, "Mapping option %s to %s.\n",
+				    op->op_name, ol->o_file);
+				op->op_name = ol->o_file;
+				break;
+			}
+		}
+	}
 	SLIST_FOREACH(ol, &otab, o_next)
 		do_option(ol->o_name);
 	SLIST_FOREACH(op, &opt, op_next) {
 		if (!op->op_ownfile && strncmp(op->op_name, "DEV_", 4)) {
-			printf("%s: unknown option \"%s\"\n",
+			fprintf(stderr, "%s: unknown option \"%s\"\n",
 			       PREFIX, op->op_name);
 			exit(1);
 		}
@@ -120,7 +151,6 @@ do_option(char *name)
 	int tidy;
 
 	file = tooption(name);
-
 	/*
 	 * Check to see if the option was specified..
 	 */
@@ -132,7 +162,7 @@ do_option(char *name)
 			if (value == NULL)
 				value = ns("1");
 			if (oldvalue != NULL && !eq(value, oldvalue))
-				printf(
+				fprintf(stderr,
 			    "%s: option \"%s\" redefined from %s to %s\n",
 				   PREFIX, op->op_name, oldvalue,
 				   value);
@@ -152,7 +182,7 @@ do_option(char *name)
 			fprintf(outf, "#define %s %s\n", name, value);
 		} /* else empty file */
 
-		(void) fclose(outf);
+		(void)fclose(outf);
 		return;
 	}
 	basefile = "";
@@ -190,15 +220,19 @@ do_option(char *name)
 			if (eq(inw, ol->o_name))
 				break;
 		if (!eq(inw, name) && !ol) {
-			printf("WARNING: unknown option `%s' removed from %s\n",
-				inw, file);
+			fprintf(stderr,
+			    "WARNING: unknown option `%s' removed from %s\n",
+			    inw, file);
 			tidy++;
 		} else if (ol != NULL && !eq(basefile, ol->o_file)) {
-			printf("WARNING: option `%s' moved from %s to %s\n",
-				inw, basefile, ol->o_file);
+			fprintf(stderr,
+			    "WARNING: option `%s' moved from %s to %s\n",
+			    inw, basefile, ol->o_file);
 			tidy++;
 		} else {
 			op = (struct opt *) calloc(1, sizeof *op);
+			if (op == NULL)
+				err(EXIT_FAILURE, "calloc");
 			op->op_name = inw;
 			op->op_value = invalue;
 			SLIST_INSERT_HEAD(&op_head, op, op_next);
@@ -209,7 +243,7 @@ do_option(char *name)
 		if (cp == (char *)EOF)
 			break;
 	}
-	(void) fclose(inf);
+	(void)fclose(inf);
 	if (!tidy && ((value == NULL && oldvalue == NULL) ||
 	    (value && oldvalue && eq(value, oldvalue)))) {	
 		while (!SLIST_EMPTY(&op_head)) {
@@ -225,6 +259,8 @@ do_option(char *name)
 	if (value && !seen) {
 		/* New option appears */
 		op = (struct opt *) calloc(1, sizeof *op);
+		if (op == NULL)
+			err(EXIT_FAILURE, "calloc");
 		op->op_name = ns(name);
 		op->op_value = value ? ns(value) : NULL;
 		SLIST_INSERT_HEAD(&op_head, op, op_next);
@@ -245,7 +281,7 @@ do_option(char *name)
 		free(op->op_value);
 		free(op);
 	}
-	(void) fclose(outf);
+	(void)fclose(outf);
 }
 
 /*
@@ -259,7 +295,7 @@ tooption(char *name)
 	struct opt_list *po;
 
 	/* "cannot happen"?  the otab list should be complete.. */
-	(void) strlcpy(nbuf, "options.h", sizeof(nbuf));
+	(void)strlcpy(nbuf, "options.h", sizeof(nbuf));
 
 	SLIST_FOREACH(po, &otab, o_next) {
 		if (eq(po->o_name, name)) {
@@ -268,8 +304,102 @@ tooption(char *name)
 		}
 	}
 
-	(void) strlcpy(hbuf, path(nbuf), sizeof(hbuf));
+	(void)strlcpy(hbuf, path(nbuf), sizeof(hbuf));
 	return (hbuf);
+}
+
+	
+static void
+check_duplicate(const char *fname, const char *this)
+{
+	struct opt_list *po;
+
+	SLIST_FOREACH(po, &otab, o_next) {
+		if (eq(po->o_name, this)) {
+			fprintf(stderr, "%s: Duplicate option %s.\n",
+			    fname, this);
+			exit(1);
+		}
+	}
+}
+
+static void
+insert_option(const char *fname, char *this, char *val)
+{
+	struct opt_list *po;
+
+	check_duplicate(fname, this);
+	po = (struct opt_list *) calloc(1, sizeof *po);
+	if (po == NULL)
+		err(EXIT_FAILURE, "calloc");
+	po->o_name = this;
+	po->o_file = val;
+	po->o_flags = 0;
+	SLIST_INSERT_HEAD(&otab, po, o_next);
+}
+
+static void
+update_option(const char *this, char *val, int flags)
+{
+	struct opt_list *po;
+
+	SLIST_FOREACH(po, &otab, o_next) {
+		if (eq(po->o_name, this)) {
+			free(po->o_file);
+			po->o_file = val;
+			po->o_flags = flags;
+			return;
+		}
+	}
+	/*
+	 * Option not found, but that's OK, we just ignore it since it
+	 * may be for another arch.
+	 */
+	return;
+}
+
+static int
+read_option_file(const char *fname, int flags)
+{
+	FILE *fp;
+	char *wd, *this, *val;
+	char genopt[MAXPATHLEN];
+
+	fp = fopen(fname, "r");
+	if (fp == 0)
+		return (0);
+	while ((wd = get_word(fp)) != (char *)EOF) {
+		if (wd == 0)
+			continue;
+		if (wd[0] == '#') {
+			while (((wd = get_word(fp)) != (char *)EOF) && wd)
+				continue;
+			continue;
+		}
+		this = ns(wd);
+		val = get_word(fp);
+		if (val == (char *)EOF)
+			return (1);
+		if (val == 0) {
+			if (flags) {
+				fprintf(stderr, "%s: compat file requires two"
+				    " words per line at %s\n", fname, this);
+				exit(1);
+			}
+			char *s = ns(this);
+			(void)snprintf(genopt, sizeof(genopt), "opt_%s.h",
+			    lower(s));
+			val = genopt;
+			free(s);
+		}
+		val = ns(val);
+		if (flags == 0)
+			insert_option(fname, this, val);
+		else
+			update_option(this, val, flags);
+	}
+	(void)fclose(fp);
+	return (1);
 }
 
 /*
@@ -278,69 +408,17 @@ tooption(char *name)
 static void
 read_options(void)
 {
-	FILE *fp;
 	char fname[MAXPATHLEN];
-	char *wd, *this, *val;
-	struct opt_list *po;
-	int first = 1;
-	char genopt[MAXPATHLEN];
 
 	SLIST_INIT(&otab);
-	(void) snprintf(fname, sizeof(fname), "../../conf/options");
-openit:
-	fp = fopen(fname, "r");
-	if (fp == 0) {
-		return;
+	read_option_file("../../conf/options", 0);
+	(void)snprintf(fname, sizeof fname, "../../conf/options.%s",
+	    machinename);
+	if (!read_option_file(fname, 0)) {
+		(void)snprintf(fname, sizeof fname, "options.%s", machinename);
+		read_option_file(fname, 0);
 	}
-next:
-	wd = get_word(fp);
-	if (wd == (char *)EOF) {
-		(void) fclose(fp);
-		if (first == 1) {
-			first++;
-			(void) snprintf(fname, sizeof fname, "../../conf/options.%s", machinename);
-			fp = fopen(fname, "r");
-			if (fp != 0)
-				goto next;
-			(void) snprintf(fname, sizeof fname, "options.%s", machinename);
-			goto openit;
-		}
-		return;
-	}
-	if (wd == 0)
-		goto next;
-	if (wd[0] == '#')
-	{
-		while (((wd = get_word(fp)) != (char *)EOF) && wd)
-		;
-		goto next;
-	}
-	this = ns(wd);
-	val = get_word(fp);
-	if (val == (char *)EOF)
-		return;
-	if (val == 0) {
-		char *s = ns(this);
-		(void) snprintf(genopt, sizeof(genopt), "opt_%s.h", lower(s));
-		val = genopt;
-		free(s);
-	}
-	val = ns(val);
-
-	SLIST_FOREACH(po, &otab, o_next) {
-		if (eq(po->o_name, this)) {
-			printf("%s: Duplicate option %s.\n",
-			       fname, this);
-			exit(1);
-		}
-	}
-	
-	po = (struct opt_list *) calloc(1, sizeof *po);
-	po->o_name = this;
-	po->o_file = val;
-	SLIST_INSERT_HEAD(&otab, po, o_next);
-
-	goto next;
+	read_option_file("../../conf/options-compat", OL_ALIAS);
 }
 
 static char *

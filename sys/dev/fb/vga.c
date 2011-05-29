@@ -1979,6 +1979,7 @@ vga_show_font(video_adapter_t *adp, int page)
 static int
 vga_save_palette(video_adapter_t *adp, u_char *palette)
 {
+    int bits;
     int i;
 
     prologue(adp, V_ADP_PALETTE, ENODEV);
@@ -1988,8 +1989,9 @@ vga_save_palette(video_adapter_t *adp, u_char *palette)
      * VGA has 6 bit DAC .
      */
     outb(PALRADR, 0x00);
+    bits = (adp->va_flags & V_ADP_DAC8) != 0 ? 0 : 2;
     for (i = 0; i < 256*3; ++i)
-	palette[i] = inb(PALDATA) << 2; 
+	palette[i] = inb(PALDATA) << bits; 
     inb(adp->va_crtc_addr + 6);	/* reset flip/flop */
     return 0;
 }
@@ -1998,15 +2000,17 @@ static int
 vga_save_palette2(video_adapter_t *adp, int base, int count,
 		  u_char *r, u_char *g, u_char *b)
 {
+    int bits;
     int i;
 
     prologue(adp, V_ADP_PALETTE, ENODEV);
 
     outb(PALRADR, base);
+    bits = (adp->va_flags & V_ADP_DAC8) != 0 ? 0 : 2;
     for (i = 0; i < count; ++i) {
-	r[i] = inb(PALDATA) << 2; 
-	g[i] = inb(PALDATA) << 2; 
-	b[i] = inb(PALDATA) << 2; 
+	r[i] = inb(PALDATA) << bits; 
+	g[i] = inb(PALDATA) << bits; 
+	b[i] = inb(PALDATA) << bits;
     }
     inb(adp->va_crtc_addr + 6);		/* reset flip/flop */
     return 0;
@@ -2021,14 +2025,16 @@ vga_save_palette2(video_adapter_t *adp, int base, int count,
 static int
 vga_load_palette(video_adapter_t *adp, u_char *palette)
 {
+    int bits;
     int i;
 
     prologue(adp, V_ADP_PALETTE, ENODEV);
 
     outb(PIXMASK, 0xff);		/* no pixelmask */
     outb(PALWADR, 0x00);
+    bits = (adp->va_flags & V_ADP_DAC8) != 0 ? 0 : 2;
     for (i = 0; i < 256*3; ++i)
-	outb(PALDATA, palette[i] >> 2);
+	outb(PALDATA, palette[i] >> bits);
     inb(adp->va_crtc_addr + 6);	/* reset flip/flop */
     outb(ATC, 0x20);			/* enable palette */
     return 0;
@@ -2038,16 +2044,18 @@ static int
 vga_load_palette2(video_adapter_t *adp, int base, int count,
 		  u_char *r, u_char *g, u_char *b)
 {
+    int bits;
     int i;
 
     prologue(adp, V_ADP_PALETTE, ENODEV);
 
     outb(PIXMASK, 0xff);		/* no pixelmask */
     outb(PALWADR, base);
+    bits = (adp->va_flags & V_ADP_DAC8) != 0 ? 0 : 2;
     for (i = 0; i < count; ++i) {
-	outb(PALDATA, r[i] >> 2);
-	outb(PALDATA, g[i] >> 2);
-	outb(PALDATA, b[i] >> 2);
+	outb(PALDATA, r[i] >> bits);
+	outb(PALDATA, g[i] >> bits);
+	outb(PALDATA, b[i] >> bits);
     }
     inb(adp->va_crtc_addr + 6);		/* reset flip/flop */
     outb(ATC, 0x20);			/* enable palette */

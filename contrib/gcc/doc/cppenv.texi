@@ -14,9 +14,6 @@
 @item CPATH
 @itemx C_INCLUDE_PATH
 @itemx CPLUS_INCLUDE_PATH
-@itemx OBJC_INCLUDE_PATH
-@c Commented out until ObjC++ is part of GCC:
-@c @itemx OBJCPLUS_INCLUDE_PATH
 Each variable's value is a list of directories separated by a special
 character, much like @env{PATH}, in which to look for header files.
 The special character, @code{PATH_SEPARATOR}, is target-dependent and

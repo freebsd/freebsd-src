@@ -1,5 +1,5 @@
 /* coffgrok.c
-   Copyright 1994, 1995, 1997, 1998, 2000, 2001, 2002, 2003
+   Copyright 1994, 1995, 1997, 1998, 2000, 2001, 2002, 2003, 2004, 2007
    Free Software Foundation, Inc.
 
 This file is part of GNU Binutils.
@@ -16,7 +16,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 /* Written by Steve Chamberlain (sac@cygnus.com)
 
@@ -26,23 +26,25 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 */
 
+#include "sysdep.h"
 #include "bfd.h"
 #include "libiberty.h"
-#include "bucomm.h"
 
 #include "coff/internal.h"
 #include "../bfd/libcoff.h"
+#include "bucomm.h"
 #include "coffgrok.h"
-int lofile = 1;
+
+static int lofile = 1;
 static struct coff_scope *top_scope;
 static struct coff_scope *file_scope;
 static struct coff_ofile *ofile;
 
-struct coff_symbol *last_function_symbol;
-struct coff_type *last_function_type;
-struct coff_type *last_struct;
-struct coff_type *last_enum;
-struct coff_sfile *cur_sfile;
+static struct coff_symbol *last_function_symbol;
+static struct coff_type *last_function_type;
+static struct coff_type *last_struct;
+static struct coff_type *last_enum;
+static struct coff_sfile *cur_sfile;
 
 static struct coff_symbol **tindex;
 
@@ -156,7 +158,7 @@ do_sections_p1 (struct coff_ofile *head)
       if (strcmp (section->name, ".bss") == 0)
 	head->sections[i].data = 1;
       head->sections[i].address = section->lma;
-      head->sections[i].size = section->_raw_size;
+      head->sections[i].size = bfd_get_section_size (section);
       head->sections[i].number = idx;
       head->sections[i].nrelocs = section->reloc_count;
       head->sections[i].relocs =

@@ -47,7 +47,7 @@
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
 #include <sys/sbuf.h>
-#ifdef COMPAT_IA32
+#ifdef COMPAT_FREEBSD32
 #include <sys/sysent.h>
 #endif
 #include <sys/uio.h>
@@ -83,10 +83,10 @@ procfs_doprocmap(PFS_FILL_ARGS)
 	vm_map_entry_t entry, tmp_entry;
 	struct vnode *vp;
 	char *fullpath, *freepath;
-	struct uidinfo *uip;
+	struct ucred *cred;
 	int error, vfslocked;
 	unsigned int last_timestamp;
-#ifdef COMPAT_IA32
+#ifdef COMPAT_FREEBSD32
 	int wrap32 = 0;
 #endif
 
@@ -99,9 +99,9 @@ procfs_doprocmap(PFS_FILL_ARGS)
 	if (uio->uio_rw != UIO_READ)
 		return (EOPNOTSUPP);
 
-#ifdef COMPAT_IA32
-        if (curproc->p_sysent->sv_flags & SV_ILP32) {
-                if (!(p->p_sysent->sv_flags & SV_ILP32))
+#ifdef COMPAT_FREEBSD32
+        if (SV_CURPROC_FLAG(SV_ILP32)) {
+                if (!(SV_PROC_FLAG(p, SV_ILP32)))
                         return (EOPNOTSUPP);
                 wrap32 = 1;
         }
@@ -136,7 +136,7 @@ procfs_doprocmap(PFS_FILL_ARGS)
 			if (obj->shadow_count == 1)
 				privateresident = obj->resident_page_count;
 		}
-		uip = (entry->uip) ? entry->uip : (obj ? obj->uip : NULL);
+		cred = (entry->cred) ? entry->cred : (obj ? obj->cred : NULL);
 
 		resident = 0;
 		addr = entry->start;
@@ -209,7 +209,7 @@ procfs_doprocmap(PFS_FILL_ARGS)
 		    "0x%lx 0x%lx %d %d %p %s%s%s %d %d 0x%x %s %s %s %s %s %d\n",
 			(u_long)e_start, (u_long)e_end,
 			resident, privateresident,
-#ifdef COMPAT_IA32
+#ifdef COMPAT_FREEBSD32
 			wrap32 ? NULL : obj,	/* Hide 64 bit value */
 #else
 			obj,
@@ -221,7 +221,7 @@ procfs_doprocmap(PFS_FILL_ARGS)
 			(e_eflags & MAP_ENTRY_COW)?"COW":"NCOW",
 			(e_eflags & MAP_ENTRY_NEEDS_COPY)?"NC":"NNC",
 			type, fullpath,
-			uip ? "CH":"NCH", uip ? uip->ui_uid : -1);
+			cred ? "CH":"NCH", cred ? cred->cr_ruid : -1);
 
 		if (freepath != NULL)
 			free(freepath, M_TEMP);

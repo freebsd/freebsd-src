@@ -10,7 +10,7 @@
 #define	PRIV_SYS_CONFIG	0
 
 static __inline int
-priv_ineffect(priv)
+priv_ineffect(int priv)
 {
 
 	assert(priv == PRIV_SYS_CONFIG);

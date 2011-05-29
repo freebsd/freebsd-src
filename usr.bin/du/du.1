@@ -9,10 +9,6 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 3. All advertising materials mentioning features or use of this software
-.\"    must display the following acknowledgement:
-.\"	This product includes software developed by the University of
-.\"	California, Berkeley and its contributors.
 .\" 4. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
@@ -42,7 +38,7 @@
 .Nm
 .Op Fl A
 .Op Fl H | L | P
-.Op Fl a | s | d Ar depth
+.Op Fl a | s | d Ar depth | Fl t Ar threshold
 .Op Fl c
 .Op Fl l
 .Op Fl h | k | m | B Ar blocksize
@@ -72,7 +68,7 @@ This is different from the
 .Fl k, m
 options or setting
 .Ev BLOCKSIZE
-and gives an estimate of how much space the examined file hierachy would
+and gives an estimate of how much space the examined file hierarchy would
 require on a filesystem with the given
 .Ar blocksize .
 Unless in
@@ -107,6 +103,14 @@ This option exists solely for conformance with
 Display an entry for each specified file.
 (Equivalent to
 .Fl d Li 0 )
+.It Fl t Ar threshold
+Display only entries for which size exceeds
+.Ar threshold .
+If
+.Ar threshold
+is negative, display only entries for which size is less than the absolute
+value of
+.Ar threshold .
 .It Fl d Ar depth
 Display an entry for all files and directories
 .Ar depth

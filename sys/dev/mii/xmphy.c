@@ -84,9 +84,15 @@ static void	xmphy_status(struct mii_softc *);
 static int	xmphy_mii_phy_auto(struct mii_softc *);
 
 static const struct mii_phydesc xmphys[] = {
-	{ MII_OUI_xxXAQTI, MII_MODEL_XAQTI_XMACII, MII_STR_XAQTI_XMACII },
-	MII_PHY_DESC(JATO, BASEX),
+	MII_PHY_DESC(xxJATO, BASEX),
+	MII_PHY_DESC(xxXAQTI, XMACII),
 	MII_PHY_END
+};
+
+static const struct mii_phy_funcs xmphy_funcs = {
+	xmphy_service,
+	xmphy_status,
+	mii_phy_reset
 };
 
 static int
@@ -100,35 +106,18 @@ static int
 xmphy_attach(device_t dev)
 {
 	struct mii_softc *sc;
-	struct mii_attach_args *ma;
-	struct mii_data *mii;
 	const char *sep = "";
 
 	sc = device_get_softc(dev);
-	ma = device_get_ivars(dev);
-	sc->mii_dev = device_get_parent(dev);
-	mii = device_get_softc(sc->mii_dev);
-	LIST_INSERT_HEAD(&mii->mii_phys, sc, mii_list);
 
-	sc->mii_inst = mii->mii_instance;
-	sc->mii_phy = ma->mii_phyno;
-	sc->mii_service = xmphy_service;
-	sc->mii_pdata = mii;
+	mii_phy_dev_attach(dev, MIIF_NOISOLATE | MIIF_NOMANPAUSE,
+	    &xmphy_funcs, 0);
+	sc->mii_anegticks = MII_ANEGTICKS;
 
-	sc->mii_flags |= MIIF_NOISOLATE;
-	mii->mii_instance++;
+	PHY_RESET(sc);
 
-#define	ADD(m, c)	ifmedia_add(&mii->mii_media, (m), (c), NULL)
+#define	ADD(m, c)	ifmedia_add(&sc->mii_pdata->mii_media, (m), (c), NULL)
 #define PRINT(s)	printf("%s%s", sep, s); sep = ", "
-
-	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_NONE, 0, sc->mii_inst),
-	    BMCR_ISO);
-#if 0
-	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_TX, IFM_LOOP, sc->mii_inst),
-	    BMCR_LOOP|BMCR_S100);
-#endif
-
-	mii_phy_reset(sc);
 
 	device_printf(dev, " ");
 	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_1000_SX, 0, sc->mii_inst),
@@ -140,6 +129,7 @@ xmphy_attach(device_t dev)
 	PRINT("auto");
 
 	printf("\n");
+
 #undef ADD
 #undef PRINT
 
@@ -155,24 +145,9 @@ xmphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 
 	switch (cmd) {
 	case MII_POLLSTAT:
-		/*
-		 * If we're not polling our PHY instance, just return.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst)
-			return (0);
 		break;
 
 	case MII_MEDIACHG:
-		/*
-		 * If the media indicates a different PHY instance,
-		 * isolate ourselves.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst) {
-			reg = PHY_READ(sc, MII_BMCR);
-			PHY_WRITE(sc, MII_BMCR, reg | BMCR_ISO);
-			return (0);
-		}
-
 		/*
 		 * If the interface is not up, don't do anything.
 		 */
@@ -188,11 +163,11 @@ xmphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 			if (PHY_READ(sc, XMPHY_MII_BMCR) & XMPHY_BMCR_AUTOEN)
 				return (0);
 #endif
-			(void) xmphy_mii_phy_auto(sc);
+			(void)xmphy_mii_phy_auto(sc);
 			break;
 		case IFM_1000_SX:
-			mii_phy_reset(sc);
-			if ((ife->ifm_media & IFM_GMASK) == IFM_FDX) {
+			PHY_RESET(sc);
+			if ((ife->ifm_media & IFM_FDX) != 0) {
 				PHY_WRITE(sc, XMPHY_MII_ANAR, XMPHY_ANAR_FDX);
 				PHY_WRITE(sc, XMPHY_MII_BMCR, XMPHY_BMCR_FDX);
 			} else {
@@ -200,21 +175,12 @@ xmphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 				PHY_WRITE(sc, XMPHY_MII_BMCR, 0);
 			}
 			break;
-		case IFM_100_T4:
-		case IFM_100_TX:
-		case IFM_10_T:
 		default:
 			return (EINVAL);
 		}
 		break;
 
 	case MII_TICK:
-		/*
-		 * If we're not currently selected, just return.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst)
-			return (0);
-
 		/*
 		 * Is the interface even up?
 		 */
@@ -236,15 +202,13 @@ xmphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		if (reg & BMSR_LINK)
 			break;
 
-		/*
-		 * Only retry autonegotiation every 5 seconds.
-		 */
-		if (++sc->mii_ticks <= MII_ANEGTICKS)
+		/* Only retry autonegotiation every mii_anegticks seconds. */
+		if (sc->mii_ticks <= sc->mii_anegticks)
 			break;
 
 		sc->mii_ticks = 0;
 
-		mii_phy_reset(sc);
+		PHY_RESET(sc);
 		xmphy_mii_phy_auto(sc);
 		return (0);
 	}
@@ -278,7 +242,6 @@ xmphy_status(struct mii_softc *sc)
 
 	if (bmcr & XMPHY_BMCR_LOOP)
 		mii->mii_media_active |= IFM_LOOP;
-
 
 	if (bmcr & XMPHY_BMCR_AUTOEN) {
 		if ((bmsr & XMPHY_BMSR_ACOMP) == 0) {

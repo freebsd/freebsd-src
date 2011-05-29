@@ -43,7 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -2105,7 +2104,7 @@ struct ohci_config_desc ohci_confd =
 		.bNumEndpoints = 1,
 		.bInterfaceClass = UICLASS_HUB,
 		.bInterfaceSubClass = UISUBCLASS_HUB,
-		.bInterfaceProtocol = UIPROTO_FSHUB,
+		.bInterfaceProtocol = 0,
 	},
 	.endpd = {
 		.bLength = sizeof(struct usb_endpoint_descriptor),
@@ -2614,9 +2613,7 @@ ohci_ep_init(struct usb_device *udev, struct usb_endpoint_descriptor *edesc,
 			}
 			break;
 		case UE_BULK:
-			if (udev->speed != USB_SPEED_LOW) {
-				ep->methods = &ohci_device_bulk_methods;
-			}
+			ep->methods = &ohci_device_bulk_methods;
 			break;
 		default:
 			/* do nothing */
@@ -2632,7 +2629,7 @@ ohci_xfer_unsetup(struct usb_xfer *xfer)
 }
 
 static void
-ohci_get_dma_delay(struct usb_bus *bus, uint32_t *pus)
+ohci_get_dma_delay(struct usb_device *udev, uint32_t *pus)
 {
 	/*
 	 * Wait until hardware has finished any possible use of the

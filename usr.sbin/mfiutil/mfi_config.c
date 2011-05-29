@@ -29,12 +29,12 @@
  * $FreeBSD$
  */
 
-#include <sys/types.h>
+#include <sys/param.h>
 #ifdef DEBUG
 #include <sys/sysctl.h>
 #endif
-#include <sys/errno.h>
 #include <err.h>
+#include <errno.h>
 #include <libutil.h>
 #ifdef DEBUG
 #include <stdint.h>
@@ -51,8 +51,6 @@ static void	dump_config(int fd, struct mfi_config_data *config);
 
 static int	add_spare(int ac, char **av);
 static int	remove_spare(int ac, char **av);
-
-#define powerof2(x)    ((((x)-1)&(x))==0)
 
 static long
 dehumanize(const char *value)
@@ -151,13 +149,14 @@ static int
 clear_config(int ac, char **av)
 {
 	struct mfi_ld_list list;
-	int ch, fd;
+	int ch, error, fd;
 	u_int i;
 
 	fd = mfi_open(mfi_unit);
 	if (fd < 0) {
+		error = errno;
 		warn("mfi_open");
-		return (errno);
+		return (error);
 	}
 
 	if (!mfi_reconfig_supported()) {
@@ -167,8 +166,9 @@ clear_config(int ac, char **av)
 	}
 
 	if (mfi_ld_get_list(fd, &list, NULL) < 0) {
+		error = errno;
 		warn("Failed to get volume list");
-		return (errno);
+		return (error);
 	}
 
 	for (i = 0; i < list.ld_count; i++) {
@@ -189,8 +189,9 @@ clear_config(int ac, char **av)
 	}
 
 	if (mfi_dcmd_command(fd, MFI_DCMD_CFG_CLEAR, NULL, 0, NULL, 0, NULL) < 0) {
+		error = errno;
 		warn("Failed to clear configuration");
-		return (errno);
+		return (error);
 	}
 
 	printf("mfi%d: Configuration cleared\n", mfi_unit);
@@ -327,6 +328,10 @@ parse_array(int fd, int raid_type, char *array_str, struct array_info *info)
 
 	/* Validate each drive. */
 	info->drives = calloc(count, sizeof(struct mfi_pd_info));
+	if (info->drives == NULL) {
+		warnx("malloc failed");
+		return (ENOMEM);
+	}
 	info->drive_count = count;
 	for (pinfo = info->drives; (cp = strsep(&array_str, ",")) != NULL;
 	     pinfo++) {
@@ -335,8 +340,9 @@ parse_array(int fd, int raid_type, char *array_str, struct array_info *info)
 			return (error);
 
 		if (mfi_pd_get_info(fd, device_id, pinfo, NULL) < 0) {
+			error = errno;
 			warn("Failed to fetch drive info for drive %s", cp);
-			return (errno);
+			return (error);
 		}
 
 		if (pinfo->fw_state != MFI_PD_STATE_UNCONFIGURED_GOOD) {
@@ -548,8 +554,9 @@ create_volume(int ac, char **av)
 	
 	fd = mfi_open(mfi_unit);
 	if (fd < 0) {
+		error = errno;
 		warn("mfi_open");
-		return (errno);
+		return (error);
 	}
 
 	if (!mfi_reconfig_supported()) {
@@ -635,6 +642,10 @@ create_volume(int ac, char **av)
 		break;
 	}
 	arrays = calloc(narrays, sizeof(*arrays));
+	if (arrays == NULL) {
+		warnx("malloc failed");
+		return (ENOMEM);
+	}
 	for (i = 0; i < narrays; i++) {
 		error = parse_array(fd, raid_type, av[i], &arrays[i]);
 		if (error)
@@ -660,8 +671,9 @@ create_volume(int ac, char **av)
 	 * array and volume identifiers.
 	 */
 	if (mfi_config_read(fd, &config) < 0) {
+		error = errno;
 		warn("Failed to read configuration");
-		return (errno);
+		return (error);
 	}
 	p = (char *)config->array;
 	state.array_ref = 0xffff;
@@ -669,6 +681,10 @@ create_volume(int ac, char **av)
 	state.array_count = config->array_count;
 	if (config->array_count > 0) {
 		state.arrays = calloc(config->array_count, sizeof(int));
+		if (state.arrays == NULL) {
+			warnx("malloc failed");
+			return (ENOMEM);
+		}
 		for (i = 0; i < config->array_count; i++) {
 			ar = (struct mfi_array *)p;
 			state.arrays[i] = ar->array_ref;
@@ -681,6 +697,10 @@ create_volume(int ac, char **av)
 	state.log_drv_count = config->log_drv_count;
 	if (config->log_drv_count) {
 		state.volumes = calloc(config->log_drv_count, sizeof(int));
+		if (state.volumes == NULL) {
+			warnx("malloc failed");
+			return (ENOMEM);
+		}
 		for (i = 0; i < config->log_drv_count; i++) {
 			ld = (struct mfi_ld_config *)p;
 			state.volumes[i] = ld->properties.ld.v.target_id;
@@ -717,6 +737,10 @@ create_volume(int ac, char **av)
 	config_size = sizeof(struct mfi_config_data) +
 	    sizeof(struct mfi_ld_config) * nvolumes + MFI_ARRAY_SIZE * narrays;
 	config = calloc(1, config_size);
+	if (config == NULL) {
+		warnx("malloc failed");
+		return (ENOMEM);
+	}
 	config->size = config_size;
 	config->array_count = narrays;
 	config->array_size = MFI_ARRAY_SIZE;	/* XXX: Firmware hardcode */
@@ -745,14 +769,14 @@ create_volume(int ac, char **av)
 #ifdef DEBUG
 	if (dump)
 		dump_config(fd, config);
-	else
 #endif
 
 	/* Send the new config to the controller. */
 	if (mfi_dcmd_command(fd, MFI_DCMD_CFG_ADD, config, config_size,
 	    NULL, 0, NULL) < 0) {
+		error = errno;
 		warn("Failed to add volume");
-		return (errno);
+		return (error);
 	}
 
 	/* Clean up. */
@@ -774,7 +798,7 @@ static int
 delete_volume(int ac, char **av)
 {
 	struct mfi_ld_info info;
-	int fd;
+	int error, fd;
 	uint8_t target_id, mbox[4];
 
 	/*
@@ -799,8 +823,9 @@ delete_volume(int ac, char **av)
 
 	fd = mfi_open(mfi_unit);
 	if (fd < 0) {
+		error = errno;
 		warn("mfi_open");
-		return (errno);
+		return (error);
 	}
 
 	if (!mfi_reconfig_supported()) {
@@ -810,13 +835,15 @@ delete_volume(int ac, char **av)
 	}
 
 	if (mfi_lookup_volume(fd, av[1], &target_id) < 0) {
+		error = errno;
 		warn("Invalid volume %s", av[1]);
-		return (errno);
+		return (error);
 	}
 
 	if (mfi_ld_get_info(fd, target_id, &info, NULL) < 0) {
+		error = errno;
 		warn("Failed to get info for volume %d", target_id);
-		return (errno);
+		return (error);
 	}
 
 	if (mfi_volume_busy(fd, target_id)) {
@@ -828,8 +855,9 @@ delete_volume(int ac, char **av)
 	mbox_store_ldref(mbox, &info.ld_config.properties.ld);
 	if (mfi_dcmd_command(fd, MFI_DCMD_LD_DELETE, NULL, 0, mbox,
 	    sizeof(mbox), NULL) < 0) {
+		error = errno;
 		warn("Failed to delete volume");
-		return (errno);
+		return (error);
 	}
 
 	close(fd);
@@ -858,8 +886,9 @@ add_spare(int ac, char **av)
 
 	fd = mfi_open(mfi_unit);
 	if (fd < 0) {
+		error = errno;
 		warn("mfi_open");
-		return (errno);
+		return (error);
 	}
 
 	error = mfi_lookup_drive(fd, av[1], &device_id);
@@ -867,8 +896,9 @@ add_spare(int ac, char **av)
 		return (error);
 
 	if (mfi_pd_get_info(fd, device_id, &info, NULL) < 0) {
+		error = errno;
 		warn("Failed to fetch drive info");
-		return (errno);
+		return (error);
 	}
 
 	if (info.fw_state != MFI_PD_STATE_UNCONFIGURED_GOOD) {
@@ -878,18 +908,24 @@ add_spare(int ac, char **av)
 
 	if (ac > 2) {
 		if (mfi_lookup_volume(fd, av[2], &target_id) < 0) {
+			error = errno;
 			warn("Invalid volume %s", av[2]);
-			return (errno);
+			return (error);
 		}
 	}
 
 	if (mfi_config_read(fd, &config) < 0) {
+		error = errno;
 		warn("Failed to read configuration");
-		return (errno);
+		return (error);
 	}
 
 	spare = malloc(sizeof(struct mfi_spare) + sizeof(uint16_t) *
 	    config->array_count);
+	if (spare == NULL) {
+		warnx("malloc failed");
+		return (ENOMEM);
+	}
 	bzero(spare, sizeof(struct mfi_spare));
 	spare->ref = info.ref;
 
@@ -939,8 +975,9 @@ add_spare(int ac, char **av)
 	if (mfi_dcmd_command(fd, MFI_DCMD_CFG_MAKE_SPARE, spare,
 	    sizeof(struct mfi_spare) + sizeof(uint16_t) * spare->array_count,
 	    NULL, 0, NULL) < 0) {
+		error = errno;
 		warn("Failed to assign spare");
-		return (errno);
+		return (error);
 	}
 
 	close(fd);
@@ -964,8 +1001,9 @@ remove_spare(int ac, char **av)
 
 	fd = mfi_open(mfi_unit);
 	if (fd < 0) {
+		error = errno;
 		warn("mfi_open");
-		return (errno);
+		return (error);
 	}
 
 	error = mfi_lookup_drive(fd, av[1], &device_id);
@@ -974,8 +1012,9 @@ remove_spare(int ac, char **av)
 
 	/* Get the info for this drive. */
 	if (mfi_pd_get_info(fd, device_id, &info, NULL) < 0) {
+		error = errno;
 		warn("Failed to fetch info for drive %u", device_id);
-		return (errno);
+		return (error);
 	}
 
 	if (info.fw_state != MFI_PD_STATE_HOT_SPARE) {
@@ -986,8 +1025,9 @@ remove_spare(int ac, char **av)
 	mbox_store_pdref(mbox, &info.ref);
 	if (mfi_dcmd_command(fd, MFI_DCMD_CFG_REMOVE_SPARE, NULL, 0, mbox,
 	    sizeof(mbox), NULL) < 0) {
+		error = errno;
 		warn("Failed to delete spare");
-		return (errno);
+		return (error);
 	}
 
 	close(fd);
@@ -1024,7 +1064,7 @@ dump_config(int fd, struct mfi_config_data *config)
 		    ar->num_drives);
 		printf("      size = %ju\n", (uintmax_t)ar->size);
 		for (j = 0; j < ar->num_drives; j++) {
-			device_id = ar->pd[j].ref.device_id;
+			device_id = ar->pd[j].ref.v.device_id;
 			if (device_id == 0xffff)
 				printf("        drive MISSING\n");
 			else {
@@ -1080,7 +1120,7 @@ dump_config(int fd, struct mfi_config_data *config)
 		sp = (struct mfi_spare *)p;
 		printf("    %s spare %u ",
 		    sp->spare_type & MFI_SPARE_DEDICATED ? "dedicated" :
-		    "global", sp->ref.device_id);
+		    "global", sp->ref.v.device_id);
 		printf("%s", mfi_pdstate(MFI_PD_STATE_HOT_SPARE));
 		printf(" backs:\n");
 		for (j = 0; j < sp->array_count; j++)
@@ -1093,7 +1133,7 @@ static int
 debug_config(int ac, char **av)
 {
 	struct mfi_config_data *config;
-	int fd;
+	int error, fd;
 
 	if (ac != 1) {
 		warnx("debug: extra arguments");
@@ -1102,14 +1142,16 @@ debug_config(int ac, char **av)
 
 	fd = mfi_open(mfi_unit);
 	if (fd < 0) {
+		error = errno;
 		warn("mfi_open");
-		return (errno);
+		return (error);
 	}
 
 	/* Get the config from the controller. */
 	if (mfi_config_read(fd, &config) < 0) {
+		error = errno;
 		warn("Failed to get config");
-		return (errno);
+		return (error);
 	}
 
 	/* Dump out the configuration. */
@@ -1127,7 +1169,7 @@ dump(int ac, char **av)
 	struct mfi_config_data *config;
 	char buf[64];
 	size_t len;
-	int fd;
+	int error, fd;
 
 	if (ac != 1) {
 		warnx("dump: extra arguments");
@@ -1136,23 +1178,30 @@ dump(int ac, char **av)
 
 	fd = mfi_open(mfi_unit);
 	if (fd < 0) {
+		error = errno;
 		warn("mfi_open");
-		return (errno);
+		return (error);
 	}
 
 	/* Get the stashed copy of the last dcmd from the driver. */
 	snprintf(buf, sizeof(buf), "dev.mfi.%d.debug_command", mfi_unit);
 	if (sysctlbyname(buf, NULL, &len, NULL, 0) < 0) {
+		error = errno;
 		warn("Failed to read debug command");
-		if (errno == ENOENT)
-			errno = EOPNOTSUPP;
-		return (errno);
+		if (error == ENOENT)
+			error = EOPNOTSUPP;
+		return (error);
 	}
 
 	config = malloc(len);
+	if (config == NULL) {
+		warnx("malloc failed");
+		return (ENOMEM);
+	}
 	if (sysctlbyname(buf, config, &len, NULL, 0) < 0) {
+		error = errno;
 		warn("Failed to read debug command");
-		return (errno);
+		return (error);
 	}
 	dump_config(fd, config);
 	free(config);

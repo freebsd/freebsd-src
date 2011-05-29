@@ -107,8 +107,11 @@ DRIVER_MODULE(eeprom, sbus, eeprom_driver, eeprom_devclass, 0, 0);
 static int
 eeprom_probe(device_t dev)
 {
+	const char *name;
 
-	if (strcmp("eeprom", ofw_bus_get_name(dev)) == 0) {
+	name = ofw_bus_get_name(dev);
+	if (strcmp(name, "eeprom") == 0 ||
+	    strcmp(name, "FJSV,eeprom") == 0) {
 		device_set_desc(dev, "EEPROM/clock");
 		return (0);
 	}

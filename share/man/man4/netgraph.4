@@ -531,7 +531,7 @@ The message can be examined using the
 macro, or completely extracted from the item using the
 .Fn NGI_GET_MSG
 which also removes the reference within the item.
-If the Item still holds a reference to the message when it is freed
+If the item still holds a reference to the message when it is freed
 (using the
 .Fn NG_FREE_ITEM
 macro), then the message will also be freed appropriately.
@@ -892,7 +892,7 @@ by returning
 Each type should have an include file that defines the commands,
 argument format, and cookie for its own messages.
 The typecookie
-insures that the same header file was included by both sender and
+ensures that the same header file was included by both sender and
 receiver; when an incompatible change in the header file is made,
 the typecookie
 .Em must

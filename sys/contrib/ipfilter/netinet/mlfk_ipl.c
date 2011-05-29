@@ -204,7 +204,7 @@ ipf_modload()
 			}
 		if (!c)
 			c = str;
-		ipf_devs[i] = make_dev(&ipl_cdevsw, i, 0, 0, 0600, c);
+		ipf_devs[i] = make_dev(&ipl_cdevsw, i, 0, 0, 0600, "%s", c);
 	}
 
 	error = ipf_pfil_hook();

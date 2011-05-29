@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 20, 2008
+.Dd March 7, 2010
 .Dt PROCSTAT 1
 .Os
 .Sh NAME
@@ -34,8 +34,9 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl h
+.Op Fl n
 .Op Fl w Ar interval
-.Op Fl b | c | f | k | s | t | v
+.Op Fl b | c | f | i | j | k | s | t | v
 .Op Fl a | Ar pid ...
 .Sh DESCRIPTION
 The
@@ -56,6 +57,10 @@ Display binary information for the process.
 Display command line arguments for the process.
 .It Fl f
 Display file descriptor information for the process.
+.It Fl i
+Display signal pending and disposition information for the process.
+.It Fl j
+Display signal pending and blocked information for the process threads.
 .It Fl k
 Display the stacks of kernel threads in the process, excluding stacks of
 threads currently running on a CPU and threads with stacks swapped to disk.
@@ -204,6 +209,58 @@ direct I/O
 .It l
 lock held
 .El
+.Ss Signal Disposition Information
+Display signal pending and disposition for a process:
+.Pp
+.Bl -tag -width ident -compact
+.It PID
+process ID
+.It COMM
+command
+.It SIG
+signal name
+.It FLAGS
+process signal disposition details, three symbols
+.Bl -tag -width X -compact
+.It P
+if signal is pending in the global process queue, - otherwise
+.It I
+if signal delivery disposition is SIGIGN, - otherwise
+.It C
+if signal delivery is to catch it, - otherwise
+.El
+.El
+.Pp
+If
+.Fl n
+switch is given, the signal numbers are shown instead of signal names.
+.Ss Thread Signal Information
+Display signal pending and blocked for a process threads:
+.Pp
+.Bl -tag -width ident -compact
+.It PID
+process ID
+.It COMM
+command
+.It TID
+thread ID
+.It SIG
+signal name
+.It FLAGS
+thread signal delivery status, two symbols
+.Bl -tag -width X -compact
+.It P
+if signal is pending for the thread, - otherwise
+.It B
+if signal is blocked in the thread signal mask, - if not blocked
+.El
+.El
+.Pp
+The
+.Fl n
+switch has the same effect as for the
+.Fl i
+switch, the signals numbers are shown instead of signal names.
 .Ss Kernel Thread Stacks
 Display kernel thread stacks for a process, allowing further interpretation
 of thread wait channels.

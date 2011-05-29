@@ -53,6 +53,7 @@ static char *rcsid =
 
 #include "nsparser.h"
 
+#define	YY_NO_INPUT
 #define YY_NO_UNPUT
 
 %}

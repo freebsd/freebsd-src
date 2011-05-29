@@ -1,4 +1,4 @@
-/* $OpenBSD: sshconnect2.c,v 1.171 2009/03/05 07:18:19 djm Exp $ */
+/* $OpenBSD: sshconnect2.c,v 1.186 2010/11/29 23:45:51 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  * Copyright (c) 2008 Damien Miller.  All rights reserved.
@@ -32,6 +32,7 @@
 #include <sys/stat.h>
 
 #include <errno.h>
+#include <fcntl.h>
 #include <netdb.h>
 #include <pwd.h>
 #include <signal.h>
@@ -68,6 +69,7 @@
 #include "msg.h"
 #include "pathnames.h"
 #include "uidswap.h"
+#include "hostfile.h"
 #include "schnorr.h"
 #include "jpake.h"
 
@@ -100,8 +102,60 @@ verify_host_key_callback(Key *hostkey)
 	return 0;
 }
 
+static char *
+order_hostkeyalgs(char *host, struct sockaddr *hostaddr, u_short port)
+{
+	char *oavail, *avail, *first, *last, *alg, *hostname, *ret;
+	size_t maxlen;
+	struct hostkeys *hostkeys;
+	int ktype;
+
+	/* Find all hostkeys for this hostname */
+	get_hostfile_hostname_ipaddr(host, hostaddr, port, &hostname, NULL);
+	hostkeys = init_hostkeys();
+	load_hostkeys(hostkeys, hostname, options.user_hostfile2);
+	load_hostkeys(hostkeys, hostname, options.system_hostfile2);
+	load_hostkeys(hostkeys, hostname, options.user_hostfile);
+	load_hostkeys(hostkeys, hostname, options.system_hostfile);
+
+	oavail = avail = xstrdup(KEX_DEFAULT_PK_ALG);
+	maxlen = strlen(avail) + 1;
+	first = xmalloc(maxlen);
+	last = xmalloc(maxlen);
+	*first = *last = '\0';
+
+#define ALG_APPEND(to, from) \
+	do { \
+		if (*to != '\0') \
+			strlcat(to, ",", maxlen); \
+		strlcat(to, from, maxlen); \
+	} while (0)
+
+	while ((alg = strsep(&avail, ",")) && *alg != '\0') {
+		if ((ktype = key_type_from_name(alg)) == KEY_UNSPEC)
+			fatal("%s: unknown alg %s", __func__, alg);
+		if (lookup_key_in_hostkeys_by_type(hostkeys,
+		    key_type_plain(ktype), NULL))
+			ALG_APPEND(first, alg);
+		else
+			ALG_APPEND(last, alg);
+	}
+#undef ALG_APPEND
+	xasprintf(&ret, "%s%s%s", first, *first == '\0' ? "" : ",", last);
+	if (*first != '\0')
+		debug3("%s: prefer hostkeyalgs: %s", __func__, first);
+
+	xfree(first);
+	xfree(last);
+	xfree(hostname);
+	xfree(oavail);
+	free_hostkeys(hostkeys);
+
+	return ret;
+}
+
 void
-ssh_kex2(char *host, struct sockaddr *hostaddr)
+ssh_kex2(char *host, struct sockaddr *hostaddr, u_short port)
 {
 	Kex *kex;
 
@@ -134,6 +188,13 @@ ssh_kex2(char *host, struct sockaddr *hostaddr)
 	if (options.hostkeyalgorithms != NULL)
 		myproposal[PROPOSAL_SERVER_HOST_KEY_ALGS] =
 		    options.hostkeyalgorithms;
+	else {
+		/* Prefer algorithms that we already have keys for */
+		myproposal[PROPOSAL_SERVER_HOST_KEY_ALGS] =
+		    order_hostkeyalgs(host, hostaddr, port);
+	}
+	if (options.kex_algorithms != NULL)
+		myproposal[PROPOSAL_KEX_ALGS] = options.kex_algorithms;
 
 	if (options.rekey_limit)
 		packet_set_rekey_limit((u_int32_t)options.rekey_limit);
@@ -144,6 +205,7 @@ ssh_kex2(char *host, struct sockaddr *hostaddr)
 	kex->kex[KEX_DH_GRP14_SHA1] = kexdh_client;
 	kex->kex[KEX_DH_GEX_SHA1] = kexgex_client;
 	kex->kex[KEX_DH_GEX_SHA256] = kexgex_client;
+	kex->kex[KEX_ECDH_SHA2] = kexecdh_client;
 	kex->client_version_string=client_version_string;
 	kex->server_version_string=server_version_string;
 	kex->verify_host_key=&verify_host_key_callback;
@@ -151,6 +213,11 @@ ssh_kex2(char *host, struct sockaddr *hostaddr)
 	xxx_kex = kex;
 
 	dispatch_run(DISPATCH_BLOCK, &kex->done, kex);
+
+	if (options.use_roaming && !kex->roaming) {
+		debug("Roaming not allowed by server");
+		options.use_roaming = 0;
+	}
 
 	session_id2 = kex->session_id;
 	session_id2_len = kex->session_id_len;
@@ -189,7 +256,7 @@ struct Authctxt {
 	const char *host;
 	const char *service;
 	Authmethod *method;
-	int success;
+	sig_atomic_t success;
 	char *authlist;
 	/* pubkey */
 	Idlist keys;
@@ -210,6 +277,7 @@ struct Authmethod {
 };
 
 void	input_userauth_success(int, u_int32_t, void *);
+void	input_userauth_success_unexpected(int, u_int32_t, void *);
 void	input_userauth_failure(int, u_int32_t, void *);
 void	input_userauth_banner(int, u_int32_t, void *);
 void	input_userauth_error(int, u_int32_t, void *);
@@ -414,7 +482,7 @@ input_userauth_banner(int type, u_int32_t seq, void *ctxt)
 		if (len > 65536)
 			len = 65536;
 		msg = xmalloc(len * 4 + 1); /* max expansion from strnvis() */
-		strnvis(msg, raw, len * 4 + 1, VIS_SAFE|VIS_OCTAL);
+		strnvis(msg, raw, len * 4 + 1, VIS_SAFE|VIS_OCTAL|VIS_NOSLASH);
 		fprintf(stderr, "%s", msg);
 		xfree(msg);
 	}
@@ -427,17 +495,32 @@ void
 input_userauth_success(int type, u_int32_t seq, void *ctxt)
 {
 	Authctxt *authctxt = ctxt;
+
 	if (authctxt == NULL)
 		fatal("input_userauth_success: no authentication context");
 	if (authctxt->authlist) {
 		xfree(authctxt->authlist);
 		authctxt->authlist = NULL;
 	}
+	if (authctxt->method != NULL && authctxt->method->cleanup != NULL)
+		authctxt->method->cleanup(authctxt);
 	if (authctxt->methoddata) {
 		xfree(authctxt->methoddata);
 		authctxt->methoddata = NULL;
 	}
 	authctxt->success = 1;			/* break out */
+}
+
+void
+input_userauth_success_unexpected(int type, u_int32_t seq, void *ctxt)
+{
+	Authctxt *authctxt = ctxt;
+
+	if (authctxt == NULL)
+		fatal("%s: no authentication context", __func__);
+
+	fatal("Unexpected authentication success during %s.",
+	    authctxt->method->name);
 }
 
 /* ARGSUSED */
@@ -782,6 +865,8 @@ userauth_passwd(Authctxt *authctxt)
 	static int attempt = 0;
 	char prompt[150];
 	char *password;
+	const char *host = options.host_key_alias ?  options.host_key_alias :
+	    authctxt->host;
 
 	if (attempt++ >= options.number_of_password_prompts)
 		return 0;
@@ -790,7 +875,7 @@ userauth_passwd(Authctxt *authctxt)
 		error("Permission denied, please try again.");
 
 	snprintf(prompt, sizeof(prompt), "%.30s@%.128s's password: ",
-	    authctxt->server_user, authctxt->host);
+	    authctxt->server_user, host);
 	password = read_passphrase(prompt, 0);
 	packet_start(SSH2_MSG_USERAUTH_REQUEST);
 	packet_put_cstring(authctxt->server_user);
@@ -819,6 +904,8 @@ input_userauth_passwd_changereq(int type, u_int32_t seqnr, void *ctxt)
 	Authctxt *authctxt = ctxt;
 	char *info, *lang, *password = NULL, *retype = NULL;
 	char prompt[150];
+	const char *host = options.host_key_alias ? options.host_key_alias :
+	    authctxt->host;
 
 	debug2("input_userauth_passwd_changereq");
 
@@ -839,7 +926,7 @@ input_userauth_passwd_changereq(int type, u_int32_t seqnr, void *ctxt)
 	packet_put_char(1);			/* additional info */
 	snprintf(prompt, sizeof(prompt),
 	    "Enter %.30s@%.128s's old password: ",
-	    authctxt->server_user, authctxt->host);
+	    authctxt->server_user, host);
 	password = read_passphrase(prompt, 0);
 	packet_put_cstring(password);
 	memset(password, 0, strlen(password));
@@ -848,7 +935,7 @@ input_userauth_passwd_changereq(int type, u_int32_t seqnr, void *ctxt)
 	while (password == NULL) {
 		snprintf(prompt, sizeof(prompt),
 		    "Enter %.30s@%.128s's new password: ",
-		    authctxt->server_user, authctxt->host);
+		    authctxt->server_user, host);
 		password = read_passphrase(prompt, RP_ALLOW_EOF);
 		if (password == NULL) {
 			/* bail out */
@@ -856,7 +943,7 @@ input_userauth_passwd_changereq(int type, u_int32_t seqnr, void *ctxt)
 		}
 		snprintf(prompt, sizeof(prompt),
 		    "Retype %.30s@%.128s's new password: ",
-		    authctxt->server_user, authctxt->host);
+		    authctxt->server_user, host);
 		retype = read_passphrase(prompt, 0);
 		if (strcmp(password, retype) != 0) {
 			memset(password, 0, strlen(password));
@@ -1114,8 +1201,11 @@ sign_and_send_pubkey(Authctxt *authctxt, Identity *id)
 	u_int skip = 0;
 	int ret = -1;
 	int have_sig = 1;
+	char *fp;
 
-	debug3("sign_and_send_pubkey");
+	fp = key_fingerprint(id->key, SSH_FP_MD5, SSH_FP_HEX);
+	debug3("sign_and_send_pubkey: %s %s", key_type(id->key), fp);
+	xfree(fp);
 
 	if (key_to_blob(id->key, &blob, &bloblen) == 0) {
 		/* we cannot handle this key */
@@ -1224,7 +1314,7 @@ load_identity_file(char *filename)
 {
 	Key *private;
 	char prompt[300], *passphrase;
-	int perm_ok, quit, i;
+	int perm_ok = 0, quit, i;
 	struct stat st;
 
 	if (stat(filename, &st) < 0) {
@@ -1284,6 +1374,8 @@ pubkey_prepare(Authctxt *authctxt)
 	for (i = 0; i < options.num_identity_files; i++) {
 		key = options.identity_keys[i];
 		if (key && key->type == KEY_RSA1)
+			continue;
+		if (key && key->cert && key->cert->type != SSH2_CERT_TYPE_USER)
 			continue;
 		options.identity_keys[i] = NULL;
 		id = xcalloc(1, sizeof(*id));
@@ -1370,7 +1462,8 @@ userauth_pubkey(Authctxt *authctxt)
 		 * private key instead
 		 */
 		if (id->key && id->key->type != KEY_RSA1) {
-			debug("Offering public key: %s", id->filename);
+			debug("Offering %s public key: %s", key_type(id->key),
+			    id->filename);
 			sent = send_pubkey_test(authctxt, id);
 		} else if (id->key == NULL) {
 			debug("Trying private key: %s", id->filename);
@@ -1488,7 +1581,7 @@ ssh_keysign(Key *key, u_char **sigp, u_int *lenp,
 	debug2("ssh_keysign called");
 
 	if (stat(_PATH_SSH_KEY_SIGN, &st) < 0) {
-		error("ssh_keysign: no installed: %s", strerror(errno));
+		error("ssh_keysign: not installed: %s", strerror(errno));
 		return -1;
 	}
 	if (fflush(stdout) != 0)
@@ -1506,6 +1599,8 @@ ssh_keysign(Key *key, u_char **sigp, u_int *lenp,
 		return -1;
 	}
 	if (pid == 0) {
+		/* keep the socket on exec */
+		fcntl(packet_get_connection_in(), F_SETFD, 0);
 		permanently_drop_suid(getuid());
 		close(from[0]);
 		if (dup2(from[1], STDOUT_FILENO) < 0)
@@ -1558,10 +1653,10 @@ userauth_hostbased(Authctxt *authctxt)
 	Sensitive *sensitive = authctxt->sensitive;
 	Buffer b;
 	u_char *signature, *blob;
-	char *chost, *pkalg, *p, myname[NI_MAXHOST];
+	char *chost, *pkalg, *p;
 	const char *service;
 	u_int blen, slen;
-	int ok, i, len, found = 0;
+	int ok, i, found = 0;
 
 	/* check for a useful key */
 	for (i = 0; i < sensitive->nkeys; i++) {
@@ -1582,23 +1677,13 @@ userauth_hostbased(Authctxt *authctxt)
 		return 0;
 	}
 	/* figure out a name for the client host */
-	p = NULL;
-	if (packet_connection_is_on_socket())
-		p = get_local_name(packet_get_connection_in());
-	if (p == NULL) {
-		if (gethostname(myname, sizeof(myname)) == -1) {
-			verbose("userauth_hostbased: gethostname: %s", 
-			    strerror(errno));
-		} else
-			p = xstrdup(myname);
-	}
+	p = get_local_name(packet_get_connection_in());
 	if (p == NULL) {
 		error("userauth_hostbased: cannot get local ipaddr/name");
 		key_free(private);
 		xfree(blob);
 		return 0;
 	}
-	len = strlen(p) + 2;
 	xasprintf(&chost, "%s.", p);
 	debug2("userauth_hostbased: chost %s", chost);
 	xfree(p);
@@ -1709,6 +1794,8 @@ userauth_jpake(Authctxt *authctxt)
 	/* Expect step 1 packet from peer */
 	dispatch_set(SSH2_MSG_USERAUTH_JPAKE_SERVER_STEP1,
 	    input_userauth_jpake_server_step1);
+	dispatch_set(SSH2_MSG_USERAUTH_SUCCESS,
+	    &input_userauth_success_unexpected);
 
 	return 1;
 }
@@ -1721,6 +1808,7 @@ userauth_jpake_cleanup(Authctxt *authctxt)
 		jpake_free(authctxt->methoddata);
 		authctxt->methoddata = NULL;
 	}
+	dispatch_set(SSH2_MSG_USERAUTH_SUCCESS, &input_userauth_success);
 }
 #endif /* JPAKE */
 

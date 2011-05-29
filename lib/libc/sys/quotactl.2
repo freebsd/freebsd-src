@@ -84,7 +84,7 @@ and group identifiers (GRPQUOTA).
 The
 .Dq ufs
 specific commands are:
-.Bl -tag -width Q_QUOTAOFFxx
+.Bl -tag -width Q_GETQUOTASIZEx
 .It Dv Q_QUOTAON
 Enable disk quotas for the file system specified by
 .Fa path .
@@ -110,6 +110,17 @@ and
 .Fa id
 arguments are unused.
 Only the super-user may turn quotas off.
+.It Dv Q_GETQUOTASIZE
+Get the wordsize used to represent the quotas for the user or group
+(as determined by the command type).
+Possible values are 32 for the old-style quota file 
+and 64 for the new-style quota file.
+The
+.Fa addr
+argument is a pointer to an integer into which the size is stored.
+The identifier
+.Fa id
+is not used.
 .It Dv Q_GETQUOTA
 Get disk quota limits and current usage for the user or group
 (as determined by the command type) with identifier
@@ -177,9 +188,11 @@ The
 argument
 or the command type is invalid.
 In
-.Dv Q_GETQUOTA
-and
+.Dv Q_GETQUOTASIZE ,
+.Dv Q_GETQUOTA ,
 .Dv Q_SETQUOTA ,
+and
+.Dv Q_SETUSE ,
 quotas are not currently enabled for this file system.
 .Pp
 The
@@ -208,7 +221,8 @@ Too many symbolic links were encountered in translating a pathname.
 .It Bq Er EROFS
 In
 .Dv Q_QUOTAON ,
-the quota file resides on a read-only file system.
+either the file system on which quotas are to be enabled is mounted read-only
+or the quota file resides on a read-only file system.
 .It Bq Er EIO
 An
 .Tn I/O

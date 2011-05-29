@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh2.h,v 1.11 2008/11/04 08:22:13 djm Exp $ */
+/* $OpenBSD: ssh2.h,v 1.14 2010/08/31 11:54:45 djm Exp $ */
 
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
@@ -98,6 +98,10 @@
 #define SSH2_MSG_KEX_DH_GEX_REPLY			33
 #define SSH2_MSG_KEX_DH_GEX_REQUEST			34
 
+/* ecdh */
+#define SSH2_MSG_KEX_ECDH_INIT				30
+#define SSH2_MSG_KEX_ECDH_REPLY				31
+
 /* user authentication: generic */
 
 #define SSH2_MSG_USERAUTH_REQUEST			50
@@ -166,3 +170,13 @@
 
 #define SSH2_EXTENDED_DATA_STDERR			1
 
+/* kex messages for resume@appgate.com */
+#define SSH2_MSG_KEX_ROAMING_RESUME			30
+#define SSH2_MSG_KEX_ROAMING_AUTH_REQUIRED		31
+#define SSH2_MSG_KEX_ROAMING_AUTH			32
+#define SSH2_MSG_KEX_ROAMING_AUTH_OK			33
+#define SSH2_MSG_KEX_ROAMING_AUTH_FAIL			34
+
+/* Certificate types for OpenSSH certificate keys extension */
+#define SSH2_CERT_TYPE_USER				1
+#define SSH2_CERT_TYPE_HOST				2

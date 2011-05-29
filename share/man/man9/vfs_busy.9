@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 2, 2008
+.Dd June 14, 2010
 .Dt VFS_BUSY 9
 .Os
 .Sh NAME
@@ -40,9 +40,8 @@
 .Sh DESCRIPTION
 The
 .Fn vfs_busy
-function marks a mount point as busy.
-The purpose of this
-function is to synchronize access to a mount point.
+function marks a mount point as busy by incrementing
+the reference count of a mount point.
 It also delays unmounting by sleeping on
 .Fa mp
 if the
@@ -50,7 +49,7 @@ if the
 flag is set in
 .Fa mp->mnt_kern_flag
 and the
-.Dv LK_NOWAIT
+.Dv MBF_NOWAIT
 flag is
 .Em not
 set.
@@ -75,9 +74,9 @@ drop the mountlist_mtx in the critical path.
 .Sh RETURN VALUES
 A 0 value is returned on success.
 If the mount point is being
-unmounted
+unmounted and MBF_NOWAIT flag is specified
 .Er ENOENT
-will always be returned.
+will be returned.
 .Sh ERRORS
 .Bl -tag -width Er
 .It Bq Er ENOENT

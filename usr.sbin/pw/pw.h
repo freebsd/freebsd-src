@@ -95,6 +95,7 @@ struct userconf
 	int	numgroups;		/* (internal) size of default_group array */
 };
 
+#define	_DEF_DIRMODE	(S_IRWXU | S_IRWXG | S_IRWXO)
 #define _PATH_PW_CONF	"/etc/pw.conf"
 #define _UC_MAXLINE	1024
 #define _UC_MAXSHELLS	32

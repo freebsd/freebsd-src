@@ -47,27 +47,25 @@ __FBSDID("$FreeBSD$");
 
 	.data
 _C_LABEL(minbrk):
-	.word	_C_LABEL(_end)
+	PTR_WORD	_C_LABEL(_end)
 
+	.text
 LEAF(__sys_brk)
 	WEAK_ALIAS(brk, __sys_brk)
 	WEAK_ALIAS(_brk, __sys_brk)
-#ifdef __ABICALLS__
-	.set	noreorder
-	.cpload	t9
-	.set	reorder
-#endif
-	lw	v0, _C_LABEL(minbrk)
+	PIC_PROLOGUE(__sys_brk)
+	PTR_LA	v0, _C_LABEL(minbrk)
+	PTR_L	v0, 0(v0)
 	bgeu	a0, v0, 1f
 	move	a0, v0		# dont allow break < minbrk
 1:
 	li	v0, SYS_break
 	syscall
 	bne	a3, zero, 2f
-	sw	a0, _C_LABEL(__curbrk)
+	PTR_LA	t0, _C_LABEL(__curbrk)
+	PTR_S	a0, 0(t0)
 	move	v0, zero
-	j	ra
+	PIC_RETURN()
 2:
-	la	t9, _C_LABEL(__cerror)
-	jr	t9
+	PIC_TAILCALL(__cerror)
 END(__sys_brk)

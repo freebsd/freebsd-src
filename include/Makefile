@@ -11,13 +11,13 @@ INCS=	a.out.h ar.h assert.h bitstring.h complex.h cpio.h _ctype.h ctype.h \
 	db.h \
 	dirent.h dlfcn.h elf.h elf-hints.h err.h fmtmsg.h fnmatch.h fstab.h \
 	fts.h ftw.h getopt.h glob.h grp.h gssapi.h \
-	histedit.h ieeefp.h ifaddrs.h \
+	ieeefp.h ifaddrs.h \
 	inttypes.h iso646.h kenv.h langinfo.h libgen.h limits.h link.h \
 	locale.h malloc.h malloc_np.h memory.h monetary.h mpool.h mqueue.h \
 	ndbm.h netconfig.h \
 	netdb.h nl_types.h nlist.h nss.h nsswitch.h paths.h \
 	printf.h proc_service.h pthread.h \
-	pthread_np.h pwd.h ranlib.h readpassphrase.h regex.h regexp.h \
+	pthread_np.h pwd.h ranlib.h readpassphrase.h regex.h \
 	res_update.h resolv.h runetype.h search.h semaphore.h setjmp.h \
 	signal.h spawn.h stab.h \
 	stdbool.h stddef.h stdio.h stdlib.h string.h stringlist.h \
@@ -40,14 +40,14 @@ LDIRS=	bsm cam geom net net80211 netatalk netgraph netinet netinet6 \
 
 LSUBDIRS=	cam/ata cam/scsi \
 	dev/acpica dev/an dev/bktr dev/firewire dev/hwpmc \
-	dev/ic dev/iicbus ${_dev_ieee488} dev/lmc dev/mfi dev/ofw \
+	dev/ic dev/iicbus ${_dev_ieee488} dev/io dev/lmc dev/mfi dev/ofw \
 	dev/pbio ${_dev_powermac_nvram} dev/ppbus dev/smbus \
 	dev/speaker dev/usb dev/utopia dev/vkbd dev/wi \
 	fs/devfs fs/fdescfs fs/fifofs fs/msdosfs fs/nfs fs/ntfs fs/nullfs \
 	${_fs_nwfs} fs/portalfs fs/procfs fs/smbfs fs/udf fs/unionfs \
 	geom/cache geom/concat geom/eli geom/gate geom/journal geom/label \
 	geom/mirror geom/mountver geom/multipath geom/nop \
-	geom/raid3 geom/shsec geom/stripe geom/virstor \
+	geom/raid geom/raid3 geom/shsec geom/stripe geom/virstor \
 	netgraph/atm netgraph/netflow \
 	security/audit \
 	security/mac_biba security/mac_bsdextended security/mac_lomac \
@@ -56,7 +56,7 @@ LSUBDIRS=	cam/ata cam/scsi \
 
 LSUBSUBDIRS=	dev/mpt/mpilib
 
-.if ${MACHINE_ARCH} == "powerpc"
+.if ${MACHINE_ARCH} == "powerpc" || ${MACHINE_ARCH} == "powerpc64"
 _dev_powermac_nvram=	dev/powermac_nvram
 .endif
 
@@ -66,6 +66,10 @@ _dev_ieee488=	dev/ieee488
 
 .if ${MK_HESIOD} != "no"
 INCS+=	hesiod.h
+.endif
+
+.if ${MK_ICONV} != "no"
+INCS+=	iconv.h
 .endif
 
 .if ${MK_BLUETOOTH} != "no"
@@ -115,8 +119,11 @@ INCSLINKS+=	machine/$i ${INCLUDEDIR}/$i
 INCSLINKS+=	sys/$i ${INCLUDEDIR}/$i
 .endfor
 
-.if ${MACHINE} != ${MACHINE_ARCH}
-_MARCH=${MACHINE_ARCH}
+.if ${MACHINE} != ${MACHINE_CPUARCH}
+_MARCHS=	${MACHINE_CPUARCH}
+.endif
+.if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
+_MARCHS+=	x86
 .endif
 
 .include <bsd.prog.mk>
@@ -126,7 +133,7 @@ ${SHARED}: compat
 
 # Take care of stale directory-level symlinks.
 compat:
-.for i in ${LDIRS} ${LSUBDIRS} machine ${_MARCH} crypto
+.for i in ${LDIRS} ${LSUBDIRS} machine ${_MARCHS} crypto
 	if [ -L ${DESTDIR}${INCLUDEDIR}/$i ]; then \
 		rm -f ${DESTDIR}${INCLUDEDIR}/$i; \
 	fi
@@ -142,7 +149,7 @@ compat:
 
 copies:
 .for i in ${LDIRS} ${LSUBDIRS} ${LSUBSUBDIRS} altq crypto machine machine/pc \
-	${_MARCH}
+	${_MARCHS}
 .if exists(${DESTDIR}${INCLUDEDIR}/$i)
 	cd ${DESTDIR}${INCLUDEDIR}/$i; \
 	for h in *.h; do \
@@ -189,7 +196,8 @@ copies:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
 	    ${DESTDIR}${INCLUDEDIR}/machine/pc
 .endif
-.if defined(_MARCH)
+.for _MARCH in ${_MARCHS}
+.if exists(${.CURDIR}/../sys/${_MARCH}/include)
 	${INSTALL} -d -o ${BINOWN} -g ${BINGRP} -m 755 \
 	    ${DESTDIR}${INCLUDEDIR}/${_MARCH}; \
 	cd ${.CURDIR}/../sys/${_MARCH}/include; \
@@ -203,6 +211,7 @@ copies:
 	    ${DESTDIR}${INCLUDEDIR}/${_MARCH}/pc
 .endif
 .endif
+.endfor
 	cd ${.CURDIR}/../sys/rpc; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 types.h \
 	    ${DESTDIR}${INCLUDEDIR}/rpc
@@ -276,7 +285,8 @@ symlinks:
 		    ${DESTDIR}${INCLUDEDIR}/machine/pc; \
 	done
 .endif
-.if defined(_MARCH)
+.for _MARCH in ${_MARCHS}
+.if exists(${.CURDIR}/../sys/${_MARCH}/include)
 	${INSTALL} -d -o ${BINOWN} -g ${BINGRP} -m 755 \
 	    ${DESTDIR}${INCLUDEDIR}/${_MARCH}; \
 	cd ${.CURDIR}/../sys/${_MARCH}/include; \
@@ -294,6 +304,7 @@ symlinks:
 	done
 .endif
 .endif
+.endfor
 	cd ${.CURDIR}/../sys/fs/cd9660; \
 	for h in *.h; do \
 		ln -fs ../../../../sys/fs/cd9660/$$h \

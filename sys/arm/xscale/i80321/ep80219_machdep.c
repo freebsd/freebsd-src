@@ -45,8 +45,6 @@
  * Created      : 17/09/94
  */
 
-#include "opt_msgbuf.h"
-
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -212,6 +210,9 @@ initarm(void *arg, void *arg2)
 	(var) = freemempos;		\
 	memset((char *)(var), 0, ((np) * PAGE_SIZE));
 
+	/* Do basic tuning, hz etc */
+	init_param1();
+
 	while (((freemempos - L1_TABLE_SIZE) & (L1_TABLE_SIZE - 1)) != 0)
 		freemempos -= PAGE_SIZE;
 	valloc_pages(kernel_l1pt, L1_TABLE_SIZE / PAGE_SIZE);
@@ -247,7 +248,7 @@ initarm(void *arg, void *arg2)
 	valloc_pages(undstack, UND_STACK_SIZE);
 	valloc_pages(kernelstack, KSTACK_PAGES);
 	alloc_pages(minidataclean.pv_pa, 1);
-	valloc_pages(msgbufpv, round_page(MSGBUF_SIZE) / PAGE_SIZE);
+	valloc_pages(msgbufpv, round_page(msgbufsize) / PAGE_SIZE);
 #ifdef ARM_USE_SMALL_ALLOC
 	freemempos -= PAGE_SIZE;
 	freemem_pt = trunc_page(freemem_pt);
@@ -397,7 +398,7 @@ initarm(void *arg, void *arg2)
 	pmap_bootstrap(pmap_curmaxkvaddr, 
 	    0xd0000000, &kernel_l1pt);
 	msgbufp = (void*)msgbufpv.pv_va;
-	msgbufinit(msgbufp, MSGBUF_SIZE);
+	msgbufinit(msgbufp, msgbufsize);
 	mutex_init();
 	
 	i = 0;
@@ -413,8 +414,6 @@ initarm(void *arg, void *arg2)
 	phys_avail[i++] = 0;
 	phys_avail[i] = 0;
 	
-	/* Do basic tuning, hz etc */
-	init_param1();
 	init_param2(physmem);
 	kdb_init();
 	return ((void *)(kernelstack.pv_va + USPACE_SVC_STACK_TOP -

@@ -43,7 +43,7 @@ static int hex2byte(const char *hex)
 
 
 /**
- * hwaddr_aton - Convert ASCII string to MAC address
+ * hwaddr_aton - Convert ASCII string to MAC address (colon-delimited format)
  * @txt: MAC address as a string (e.g., "00:11:22:33:44:55")
  * @addr: Buffer for the MAC address (ETH_ALEN = 6 bytes)
  * Returns: 0 on success, -1 on failure (e.g., string not a MAC address)
@@ -67,6 +67,36 @@ int hwaddr_aton(const char *txt, u8 *addr)
 	}
 
 	return 0;
+}
+
+
+/**
+ * hwaddr_aton2 - Convert ASCII string to MAC address (in any known format)
+ * @txt: MAC address as a string (e.g., 00:11:22:33:44:55 or 0011.2233.4455)
+ * @addr: Buffer for the MAC address (ETH_ALEN = 6 bytes)
+ * Returns: Characters used (> 0) on success, -1 on failure
+ */
+int hwaddr_aton2(const char *txt, u8 *addr)
+{
+	int i;
+	const char *pos = txt;
+
+	for (i = 0; i < 6; i++) {
+		int a, b;
+
+		while (*pos == ':' || *pos == '.' || *pos == '-')
+			pos++;
+
+		a = hex2num(*pos++);
+		if (a < 0)
+			return -1;
+		b = hex2num(*pos++);
+		if (b < 0)
+			return -1;
+		*addr++ = (a << 4) | b;
+	}
+
+	return pos - txt;
 }
 
 
@@ -324,4 +354,10 @@ const char * wpa_ssid_txt(const u8 *ssid, size_t ssid_len)
 			*pos = '_';
 	}
 	return ssid_txt;
+}
+
+
+void * __hide_aliasing_typecast(void *foo)
+{
+	return foo;
 }

@@ -87,7 +87,7 @@ static int32_t ffs_mapsearch(struct fs *, struct cg *, daddr_t, int);
  *      available block is located.
  */
 int
-ffs_alloc(struct inode *ip, daddr_t lbn, daddr_t bpref, int size,
+ffs_alloc(struct inode *ip, daddr_t lbn __unused, daddr_t bpref, int size,
     daddr_t *bnp)
 {
 	struct fs *fs = ip->i_fs;
@@ -95,7 +95,7 @@ ffs_alloc(struct inode *ip, daddr_t lbn, daddr_t bpref, int size,
 	int cg;
 	
 	*bnp = 0;
-	if ((u_int)size > fs->fs_bsize || fragoff(fs, size) != 0) {
+	if (size > fs->fs_bsize || fragoff(fs, size) != 0) {
 		errx(1, "ffs_alloc: bad size: bsize %d size %d",
 		    fs->fs_bsize, size);
 	}
@@ -187,11 +187,7 @@ ffs_blkpref_ufs1(struct inode *ip, daddr_t lbn, int indx, int32_t *bap)
 }
 
 daddr_t
-ffs_blkpref_ufs2(ip, lbn, indx, bap)
-	struct inode *ip;
-	daddr_t lbn;
-	int indx;
-	int64_t *bap;
+ffs_blkpref_ufs2(struct inode *ip, daddr_t lbn, int indx, int64_t *bap)
 {
 	struct fs *fs;
 	int cg;
@@ -385,11 +381,11 @@ ffs_alloccgblk(struct inode *ip, struct buf *bp, daddr_t bpref)
 	int32_t bno;
 	struct fs *fs = ip->i_fs;
 	const int needswap = UFS_FSNEEDSWAP(fs);
-	u_int8_t *blksfree;
+	u_int8_t *blksfree_swap;
 
 	cgp = (struct cg *)bp->b_data;
-	blksfree = cg_blksfree_swap(cgp, needswap);
-	if (bpref == 0 || dtog(fs, bpref) != ufs_rw32(cgp->cg_cgx, needswap)) {
+	blksfree_swap = cg_blksfree_swap(cgp, needswap);
+	if (bpref == 0 || (uint32_t)dtog(fs, bpref) != ufs_rw32(cgp->cg_cgx, needswap)) {
 		bpref = ufs_rw32(cgp->cg_rotor, needswap);
 	} else {
 		bpref = blknum(fs, bpref);
@@ -397,7 +393,7 @@ ffs_alloccgblk(struct inode *ip, struct buf *bp, daddr_t bpref)
 		/*
 		 * if the requested block is available, use it
 		 */
-		if (ffs_isblock(fs, blksfree, fragstoblks(fs, bno)))
+		if (ffs_isblock(fs, blksfree_swap, fragstoblks(fs, bno)))
 			goto gotit;
 	}
 	/*
@@ -409,7 +405,7 @@ ffs_alloccgblk(struct inode *ip, struct buf *bp, daddr_t bpref)
 	cgp->cg_rotor = ufs_rw32(bno, needswap);
 gotit:
 	blkno = fragstoblks(fs, bno);
-	ffs_clrblock(fs, blksfree, (long)blkno);
+	ffs_clrblock(fs, blksfree_swap, (long)blkno);
 	ffs_clusteracct(fs, cgp, blkno, -1);
 	ufs_add32(cgp->cg_cs.cs_nbfree, -1, needswap);
 	fs->fs_cstotal.cs_nbfree--;
@@ -436,14 +432,15 @@ ffs_blkfree(struct inode *ip, daddr_t bno, long size)
 	struct fs *fs = ip->i_fs;
 	const int needswap = UFS_FSNEEDSWAP(fs);
 
-	if ((u_int)size > fs->fs_bsize || fragoff(fs, size) != 0 ||
+	if (size > fs->fs_bsize || fragoff(fs, size) != 0 ||
 	    fragnum(fs, bno) + numfrags(fs, size) > fs->fs_frag) {
 		errx(1, "blkfree: bad size: bno %lld bsize %d size %ld",
 		    (long long)bno, fs->fs_bsize, size);
 	}
 	cg = dtog(fs, bno);
 	if (bno >= fs->fs_size) {
-		warnx("bad block %lld, ino %d", (long long)bno, ip->i_number);
+		warnx("bad block %lld, ino %llu", (long long)bno,
+		    (unsigned long long)ip->i_number);
 		return;
 	}
 	error = bread(ip->i_fd, ip->i_fs, fsbtodb(fs, cgtod(fs, cg)),
@@ -622,7 +619,7 @@ ffs_clusteracct(struct fs *fs, struct cg *cgp, int32_t blkno, int cnt)
 	 */
 	start = blkno + 1;
 	end = start + fs->fs_contigsumsize;
-	if (end >= ufs_rw32(cgp->cg_nclusterblks, needswap))
+	if ((unsigned)end >= ufs_rw32(cgp->cg_nclusterblks, needswap))
 		end = ufs_rw32(cgp->cg_nclusterblks, needswap);
 	mapp = &freemapp[start / NBBY];
 	map = *mapp++;

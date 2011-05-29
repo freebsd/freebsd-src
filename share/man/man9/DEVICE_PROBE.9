@@ -91,7 +91,7 @@ magical about them.
 .Bl -tag -width BUS_PROBE_NOWILDCARD
 .It BUS_PROBE_SPECIFIC
 The device that cannot be reprobed, and that no
-possible other driver may exist (typically legacy drivers who don't fallow
+possible other driver may exist (typically legacy drivers who don't follow
 all the rules, or special needs drivers).
 .It BUS_PROBE_VENDOR
 The device is supported by a vendor driver.
@@ -114,7 +114,7 @@ return this value, while the one that supports the newer ones would
 return BUS_PROBE_DEFAULT.
 .It BUS_PROBE_GENERIC
 The driver matches the type of device generally.
-This allows drivers to match all serial ports generally, with sepcialized
+This allows drivers to match all serial ports generally, with specialized
 drivers matching particular types of serial ports that need special
 treatment for some reason.
 .It BUS_PROBE_HOOVER

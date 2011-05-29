@@ -54,8 +54,6 @@ DUMMY(sysfs);
 DUMMY(query_module);
 DUMMY(nfsservctl);
 DUMMY(rt_sigqueueinfo);
-DUMMY(capget);
-DUMMY(capset);
 DUMMY(sendfile);
 DUMMY(setfsuid);
 DUMMY(setfsgid);

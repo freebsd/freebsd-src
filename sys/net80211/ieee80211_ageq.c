@@ -154,7 +154,7 @@ ieee80211_ageq_drain_node(struct ieee80211_ageq *aq,
  * deltas (in seconds) relative to the head so we can check
  * and/or adjust only the head of the list.  If a frame's age
  * exceeds the time quanta then remove it.  The list of removed
- * frames is is returned to the caller joined by m_nextpkt.
+ * frames is returned to the caller joined by m_nextpkt.
  */
 struct mbuf *
 ieee80211_ageq_age(struct ieee80211_ageq *aq, int quanta)

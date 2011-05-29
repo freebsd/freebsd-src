@@ -44,13 +44,16 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
+#include <sys/mman.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/resourcevar.h>
 #include <sys/sched.h>
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
 
 #include <vm/vm.h>
+#include <vm/vm_extern.h>
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
 #ifdef ZERO_COPY_SOCKETS
@@ -104,9 +107,10 @@ retry:
 	if ((user_pg = vm_page_lookup(uobject, upindex)) != NULL) {
 		if (vm_page_sleep_if_busy(user_pg, TRUE, "vm_pgmoveco"))
 			goto retry;
-		vm_page_lock_queues();
+		vm_page_lock(user_pg);
 		pmap_remove_all(user_pg);
 		vm_page_free(user_pg);
+		vm_page_unlock(user_pg);
 	} else {
 		/*
 		 * Even if a physical page does not exist in the
@@ -115,11 +119,9 @@ retry:
 		 */
 		if (uobject->backing_object != NULL)
 			pmap_remove(map->pmap, uaddr, uaddr + PAGE_SIZE);
-		vm_page_lock_queues();
 	}
 	vm_page_insert(kern_pg, uobject, upindex);
 	vm_page_dirty(kern_pg);
-	vm_page_unlock_queues();
 	VM_OBJECT_UNLOCK(uobject);
 	vm_map_lookup_done(map, entry);
 	return(KERN_SUCCESS);
@@ -159,8 +161,7 @@ uiomove(void *cp, int n, struct uio *uio)
 		switch (uio->uio_segflg) {
 
 		case UIO_USERSPACE:
-			if (ticks - PCPU_GET(switchticks) >= hogticks)
-				uio_yield();
+			maybe_yield();
 			if (uio->uio_rw == UIO_READ)
 				error = copyout(cp, iov->iov_base, cnt);
 			else
@@ -284,11 +285,8 @@ uiomoveco(void *cp, int n, struct uio *uio, int disposable)
 		switch (uio->uio_segflg) {
 
 		case UIO_USERSPACE:
-			if (ticks - PCPU_GET(switchticks) >= hogticks)
-				uio_yield();
-
+			maybe_yield();
 			error = userspaceco(cp, cnt, uio, disposable);
-
 			if (error)
 				return (error);
 			break;
@@ -355,20 +353,6 @@ again:
 	uio->uio_resid--;
 	uio->uio_offset++;
 	return (0);
-}
-
-void
-uio_yield(void)
-{
-	struct thread *td;
-
-	td = curthread;
-	DROP_GIANT();
-	thread_lock(td);
-	sched_prio(td, td->td_user_pri);
-	mi_switch(SW_INVOL | SWT_RELINQUISH, NULL);
-	thread_unlock(td);
-	PICKUP_GIANT();
 }
 
 int
@@ -475,4 +459,55 @@ cloneuio(struct uio *uiop)
 	uio->uio_iov = (struct iovec *)(uio + 1);
 	bcopy(uiop->uio_iov, uio->uio_iov, iovlen);
 	return (uio);
+}
+
+/*
+ * Map some anonymous memory in user space of size sz, rounded up to the page
+ * boundary.
+ */
+int
+copyout_map(struct thread *td, vm_offset_t *addr, size_t sz)
+{
+	struct vmspace *vms;
+	int error;
+	vm_size_t size;
+
+	vms = td->td_proc->p_vmspace;
+
+	/*
+	 * Map somewhere after heap in process memory.
+	 */
+	PROC_LOCK(td->td_proc);
+	*addr = round_page((vm_offset_t)vms->vm_daddr +
+	    lim_max(td->td_proc, RLIMIT_DATA));
+	PROC_UNLOCK(td->td_proc);
+
+	/* round size up to page boundry */
+	size = (vm_size_t)round_page(sz);
+
+	error = vm_mmap(&vms->vm_map, addr, size, PROT_READ | PROT_WRITE,
+	    VM_PROT_ALL, MAP_PRIVATE | MAP_ANON, OBJT_DEFAULT, NULL, 0);
+
+	return (error);
+}
+
+/*
+ * Unmap memory in user space.
+ */
+int
+copyout_unmap(struct thread *td, vm_offset_t addr, size_t sz)
+{
+	vm_map_t map;
+	vm_size_t size;
+
+	if (sz == 0)
+		return (0);
+
+	map = &td->td_proc->p_vmspace->vm_map;
+	size = (vm_size_t)round_page(sz);
+
+	if (vm_map_remove(map, addr, addr + size) != KERN_SUCCESS)
+		return (EINVAL);
+
+	return (0);
 }

@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -212,6 +208,10 @@ struct protox {
 	{ -1,		N_SCTPSTAT,	1,	sctp_protopr,
 	  sctp_stats,	NULL,		"sctp",	1,	IPPROTO_SCTP },
 #endif
+#ifdef SDP
+	{ -1,		-1,		1,	protopr,
+	 NULL,		NULL,		"sdp",	1,	IPPROTO_TCP },
+#endif
 	{ N_DIVCBINFO,	-1,		1,	protopr,
 	  NULL,		NULL,		"divert", 1,	IPPROTO_DIVERT },
 	{ N_RIPCBINFO,	N_IPSTAT,	1,	protopr,
@@ -252,6 +252,10 @@ struct protox ip6protox[] = {
 	  ip6_stats,	ip6_ifstats,	"ip6",	1,	IPPROTO_RAW },
 	{ N_RIPCBINFO,	N_ICMP6STAT,	1,	protopr,
 	  icmp6_stats,	icmp6_ifstats,	"icmp6", 1,	IPPROTO_ICMPV6 },
+#ifdef SDP
+	{ -1,		-1,		1,	protopr,
+	 NULL,		NULL,		"sdp",	1,	IPPROTO_TCP },
+#endif
 #ifdef IPSEC
 	{ -1,		N_IPSEC6STAT,	1,	NULL,
 	  ipsec_stats,	NULL,		"ipsec6", 0,	0 },
@@ -342,6 +346,7 @@ int	Qflag;		/* show netisr information */
 int	rflag;		/* show routing tables (or routing stats) */
 int	sflag;		/* show protocol statistics */
 int	Wflag;		/* wide display */
+int	Tflag;		/* TCP Information */
 int	xflag;		/* extra information, includes all socket buffer info */
 int	zflag;		/* zero stats */
 
@@ -361,7 +366,7 @@ main(int argc, char *argv[])
 
 	af = AF_UNSPEC;
 
-	while ((ch = getopt(argc, argv, "AaBbdf:ghI:iLlM:mN:np:Qq:rSsuWw:xz"))
+	while ((ch = getopt(argc, argv, "AaBbdf:ghI:iLlM:mN:np:Qq:rSTsuWw:xz"))
 	    != -1)
 		switch(ch) {
 		case 'A':
@@ -476,6 +481,9 @@ main(int argc, char *argv[])
 			interval = atoi(optarg);
 			iflag = 1;
 			break;
+		case 'T':
+			Tflag = 1;
+			break;
 		case 'x':
 			xflag = 1;
 			break;
@@ -514,6 +522,9 @@ main(int argc, char *argv[])
 	live = (nlistf == NULL && memf == NULL);
 	if (!live)
 		setgid(getgid());
+
+	if (xflag && Tflag) 
+		errx(1, "-x and -T are incompatible, pick one.");
 
 	if (Bflag) {
 		if (!live)
@@ -794,7 +805,7 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
-"usage: netstat [-AaLnSWx] [-f protocol_family | -p protocol]\n"
+"usage: netstat [-AaLnSTWx] [-f protocol_family | -p protocol]\n"
 "               [-M core] [-N system]",
 "       netstat -i | -I interface [-abdhnW] [-f address_family]\n"
 "               [-M core] [-N system]",

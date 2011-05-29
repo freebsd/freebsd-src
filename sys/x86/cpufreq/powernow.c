@@ -801,15 +801,13 @@ pn_decode_acpi(device_t dev, device_t perf_dev)
 			if ((sc->errata & A0_ERRATA) &&
 			    (pn7_fid_to_mult[state.fid] % 10) == 5)
 				continue;
-			state.freq = 100 * pn7_fid_to_mult[state.fid] * sc->fsb;
 			break;
 		case PN8_TYPE:
 			state.fid = ACPI_PN8_CTRL_TO_FID(ctrl);
 			state.vid = ACPI_PN8_CTRL_TO_VID(ctrl);
-			state.freq = 100 * pn8_fid_to_mult[state.fid] * sc->fsb;
 			break;
 		}
-
+		state.freq = sets[i].freq * 1000;
 		state.power = sets[i].power;
 
 		j = n;
@@ -841,6 +839,7 @@ pn_decode_acpi(device_t dev, device_t perf_dev)
 			device_printf(dev, "ACPI MAX frequency not found\n");
 			return (EINVAL);
 		}
+		sc->fsb = state.freq / 100 / pn7_fid_to_mult[state.fid];
 		break;
 	case PN8_TYPE:
 		sc->vst = ACPI_PN8_CTRL_TO_VST(ctrl),
@@ -856,6 +855,7 @@ pn_decode_acpi(device_t dev, device_t perf_dev)
 		if (sc->powernow_max_states >= 2 &&
 		    (sc->powernow_states[sc->powernow_max_states - 2].fid < 8))
 			return (EINVAL);
+		sc->fsb = state.freq / 100 / pn8_fid_to_mult[state.fid];
 		break;
 	}
 

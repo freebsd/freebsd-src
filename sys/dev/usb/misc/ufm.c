@@ -40,7 +40,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -117,6 +116,7 @@ static driver_t ufm_driver = {
 
 DRIVER_MODULE(ufm, uhub, ufm_driver, ufm_devclass, NULL, 0);
 MODULE_DEPEND(ufm, usb, 1, 1, 1);
+MODULE_VERSION(ufm, 1);
 
 static int
 ufm_probe(device_t dev)

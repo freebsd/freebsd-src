@@ -26,13 +26,13 @@
  * $FreeBSD$
  */
 
-#ifndef PATHMATCH_H
-#define PATHMATCH_H
+#ifndef LAFE_PATHMATCH_H
+#define LAFE_PATHMATCH_H
 
 /* Don't anchor at beginning unless the pattern starts with "^" */
 #define PATHMATCH_NO_ANCHOR_START	1
 /* Don't anchor at end unless the pattern ends with "$" */
-#define PATHMATCH_NO_ANCHOR_END	2
+#define PATHMATCH_NO_ANCHOR_END 	2
 
 /* Note that "^" and "$" are not special unless you set the corresponding
  * flag above. */

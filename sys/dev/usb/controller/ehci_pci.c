@@ -53,7 +53,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -92,8 +91,6 @@ __FBSDID("$FreeBSD$");
 #define	PCI_EHCI_VENDORID_NVIDIA	0x12D2
 #define	PCI_EHCI_VENDORID_NVIDIA2	0x10DE
 #define	PCI_EHCI_VENDORID_VIA		0x1106
-
-#define	PCI_EHCI_BASE_REG	0x10
 
 static void ehci_pci_takecontroller(device_t self);
 
@@ -208,6 +205,8 @@ ehci_pci_match(device_t self)
 		return "NVIDIA nForce3 250 USB 2.0 controller";
 	case 0x005b10de:
 		return "NVIDIA nForce4 USB 2.0 controller";
+	case 0x036d10de:
+		return "NVIDIA nForce MCP55 USB 2.0 controller";
 	case 0x03f210de:
 		return "NVIDIA nForce MCP61 USB 2.0 controller";
 	case 0x0aa610de:
@@ -503,12 +502,6 @@ ehci_pci_detach(device_t self)
 
 	pci_disable_busmaster(self);
 
-	/*
-	 * disable interrupts that might have been switched on in ehci_init
-	 */
-	if (sc->sc_io_res) {
-		EWRITE4(sc, EHCI_USBINTR, 0);
-	}
 	if (sc->sc_irq_res && sc->sc_intr_hdl) {
 		/*
 		 * only call ehci_detach() after ehci_init()

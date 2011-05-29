@@ -36,7 +36,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/sysctl.h>
 
+#include <errno.h>
+#include <link.h>
 #include <unistd.h>
+
+#include "libc_private.h"
 
 /*
  * This is unlikely to change over the running time of any
@@ -52,13 +56,20 @@ getpagesize()
 	int mib[2]; 
 	static int value;
 	size_t size;
+	int error;
 
-	if (!value) {
-		mib[0] = CTL_HW;
-		mib[1] = HW_PAGESIZE;
-		size = sizeof value;
-		if (sysctl(mib, 2, &value, &size, NULL, 0) == -1)
-			return (-1);
-	}
+	if (value != 0)
+		return (value);
+
+	error = _elf_aux_info(AT_PAGESZ, &value, sizeof(value));
+	if (error == 0 && value != 0)
+		return (value);
+
+	mib[0] = CTL_HW;
+	mib[1] = HW_PAGESIZE;
+	size = sizeof value;
+	if (sysctl(mib, 2, &value, &size, NULL, 0) == -1)
+		return (-1);
+
 	return (value);
 }

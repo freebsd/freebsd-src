@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2009-2010 The FreeBSD Foundation
+ * Copyright (c) 2011 Pawel Jakub Dawidek <pawel@dawidek.net>
  * All rights reserved.
  *
  * This software was developed by Pawel Jakub Dawidek under sponsorship from
@@ -48,7 +49,12 @@
 
 #include "proto.h"
 
-#define	HAST_PROTO_VERSION	0
+/*
+ * Version history:
+ * 0 - initial version
+ * 1 - HIO_KEEPALIVE added
+ */
+#define	HAST_PROTO_VERSION	1
 
 #define	EHAST_OK		0
 #define	EHAST_NOENTRY		1
@@ -74,12 +80,15 @@
 #define	HIO_WRITE		2
 #define	HIO_DELETE		3
 #define	HIO_FLUSH		4
+#define	HIO_KEEPALIVE		5
 
-#define	HAST_CONFIG	"/etc/hast.conf"
-#define	HAST_CONTROL	"/var/run/hastctl"
-#define	HASTD_PORT	8457
-#define	HASTD_LISTEN	"tcp4://0.0.0.0:8457"
-#define	HASTD_PIDFILE	"/var/run/hastd.pid"
+#define	HAST_USER		"hast"
+#define	HAST_TIMEOUT		20
+#define	HAST_CONFIG		"/etc/hast.conf"
+#define	HAST_CONTROL		"/var/run/hastctl"
+#define	HASTD_LISTEN_TCP4	"tcp4://0.0.0.0:8457"
+#define	HASTD_LISTEN_TCP6	"tcp6://[::]:8457"
+#define	HASTD_PIDFILE		"/var/run/hastd.pid"
 
 /* Default extent size. */
 #define	HAST_EXTENTSIZE	2097152
@@ -89,15 +98,26 @@
 #define	HAST_ADDRSIZE	1024
 #define	HAST_TOKEN_SIZE	16
 
+/* Number of seconds to sleep between reconnect retries or keepalive packets. */
+#define	HAST_KEEPALIVE	10
+
+struct hastd_listen {
+	/* Address to listen on. */
+	char	 hl_addr[HAST_ADDRSIZE];
+	/* Protocol-specific data. */
+	struct proto_conn *hl_conn;
+	TAILQ_ENTRY(hastd_listen) hl_next;
+};
+
 struct hastd_config {
 	/* Address to communicate with hastctl(8). */
 	char	 hc_controladdr[HAST_ADDRSIZE];
 	/* Protocol-specific data. */
 	struct proto_conn *hc_controlconn;
-	/* Address to listen on. */
-	char	 hc_listenaddr[HAST_ADDRSIZE];
-	/* Protocol-specific data. */
-	struct proto_conn *hc_listenconn;
+	/* Incoming control connection. */
+	struct proto_conn *hc_controlin;
+	/* List of addresses to listen on. */
+	TAILQ_HEAD(, hastd_listen) hc_listen;
 	/* List of resources. */
 	TAILQ_HEAD(, hast_resource) hc_resources;
 };
@@ -105,6 +125,14 @@ struct hastd_config {
 #define	HAST_REPLICATION_FULLSYNC	0
 #define	HAST_REPLICATION_MEMSYNC	1
 #define	HAST_REPLICATION_ASYNC		2
+
+#define	HAST_COMPRESSION_NONE	0
+#define	HAST_COMPRESSION_HOLE	1
+#define	HAST_COMPRESSION_LZF	2
+
+#define	HAST_CHECKSUM_NONE	0
+#define	HAST_CHECKSUM_CRC32	1
+#define	HAST_CHECKSUM_SHA256	2
 
 /*
  * Structure that describes single resource.
@@ -120,6 +148,12 @@ struct hast_resource {
 	int	hr_extentsize;
 	/* Maximum number of extents that are kept dirty. */
 	int	hr_keepdirty;
+	/* Path to a program to execute on various events. */
+	char	hr_exec[PATH_MAX];
+	/* Compression algorithm. */
+	int	hr_compression;
+	/* Checksum algorithm. */
+	int	hr_checksum;
 
 	/* Path to local component. */
 	char	hr_localpath[PATH_MAX];
@@ -141,6 +175,8 @@ struct hast_resource {
 
 	/* Address of the remote component. */
 	char	hr_remoteaddr[HAST_ADDRSIZE];
+	/* Local address to bind to for outgoing connections. */
+	char	hr_sourceaddr[HAST_ADDRSIZE];
 	/* Connection for incoming data. */
 	struct proto_conn *hr_remotein;
 	/* Connection for outgoing data. */
@@ -148,6 +184,8 @@ struct hast_resource {
 	/* Token to verify both in and out connection are coming from
 	   the same node (not necessarily from the same address). */
 	unsigned char hr_token[HAST_TOKEN_SIZE];
+	/* Connection timeout. */
+	int	hr_timeout;
 
 	/* Resource unique identifier. */
 	uint64_t hr_resuid;
@@ -168,19 +206,34 @@ struct hast_resource {
 	int	hr_previous_role;
 	/* PID of child worker process. 0 - no child. */
 	pid_t	hr_workerpid;
-	/* Control connection between parent and child. */
+	/* Control commands from parent to child. */
 	struct proto_conn *hr_ctrl;
+	/* Events from child to parent. */
+	struct proto_conn *hr_event;
+	/* Connection requests from child to parent. */
+	struct proto_conn *hr_conn;
 
 	/* Activemap structure. */
 	struct activemap *hr_amp;
 	/* Locked used to synchronize access to hr_amp. */
 	pthread_mutex_t hr_amp_lock;
 
+	/* Number of BIO_READ requests. */
+	uint64_t	hr_stat_read;
+	/* Number of BIO_WRITE requests. */
+	uint64_t	hr_stat_write;
+	/* Number of BIO_DELETE requests. */
+	uint64_t	hr_stat_delete;
+	/* Number of BIO_FLUSH requests. */
+	uint64_t	hr_stat_flush;
+	/* Number of activemap updates. */
+	uint64_t	hr_stat_activemap_update;
+
 	/* Next resource. */
 	TAILQ_ENTRY(hast_resource) hr_next;
 };
 
-struct hastd_config *yy_config_parse(const char *config);
+struct hastd_config *yy_config_parse(const char *config, bool exitonerror);
 void yy_config_free(struct hastd_config *config);
 
 void yyerror(const char *);

@@ -57,7 +57,7 @@ void __startC(void);
 #define cpu_idcache_wbinv_all	arm8_cache_purgeID
 #elif defined(CPU_ARM9)
 #define cpu_idcache_wbinv_all	arm9_idcache_wbinv_all
-#elif defined(CPU_FA526)
+#elif defined(CPU_FA526) || defined(CPU_FA626TE)
 #define cpu_idcache_wbinv_all	fa526_idcache_wbinv_all
 #elif defined(CPU_ARM9E)
 #define cpu_idcache_wbinv_all	armv5_ec_idcache_wbinv_all
@@ -159,7 +159,7 @@ _startC(void)
 #if defined(FLASHADDR) && defined(LOADERRAMADDR)
 	unsigned int pc;
 
-	__asm __volatile("adr %0, _start\n"
+	__asm __volatile("mov %0, pc\n"
 	    : "=r" (pc));
 	if ((FLASHADDR > LOADERRAMADDR && pc >= FLASHADDR) ||
 	    (FLASHADDR < LOADERRAMADDR && pc < LOADERRAMADDR)) {
@@ -173,11 +173,13 @@ _startC(void)
 		 */
 		unsigned int target_addr;
 		unsigned int tmp_sp;
+		uint32_t src_addr = (uint32_t)&_start - PHYSADDR + FLASHADDR
+		    + (pc - FLASHADDR - ((uint32_t)&_startC - PHYSADDR)) & 0xfffff000;
 
 		target_addr = (unsigned int)&_start - PHYSADDR + LOADERRAMADDR;
 		tmp_sp = target_addr + 0x100000 +
 		    (unsigned int)&_end - (unsigned int)&_start;
-		memcpy((char *)target_addr, (char *)pc,
+		memcpy((char *)target_addr, (char *)src_addr,
 		    (unsigned int)&_end - (unsigned int)&_start);
 		/* Temporary set the sp and jump to the new location. */
 		__asm __volatile(

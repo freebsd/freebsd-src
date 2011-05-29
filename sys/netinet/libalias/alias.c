@@ -1665,7 +1665,6 @@ LibAliasRefreshModules(void)
 			if (buf[i] == '#')
 				continue;
 			buf[len - 1] = '\0';
-			printf("Loading %s\n", buf);
 			LibAliasLoadModule(buf);
 		}
 	}

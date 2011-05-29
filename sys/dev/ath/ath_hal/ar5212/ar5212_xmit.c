@@ -918,3 +918,24 @@ ar5212GetTxIntrQueue(struct ath_hal *ah, uint32_t *txqs)
 	*txqs &= ahp->ah_intrTxqs;
 	ahp->ah_intrTxqs &= ~(*txqs);
 }
+
+/*
+ * Retrieve the rate table from the given TX completion descriptor
+ */
+HAL_BOOL
+ar5212GetTxCompletionRates(struct ath_hal *ah, const struct ath_desc *ds0, int *rates, int *tries)
+{ 
+	const struct ar5212_desc *ads = AR5212DESC_CONST(ds0);
+
+	rates[0] = MS(ads->ds_ctl3, AR_XmitRate0);
+	rates[1] = MS(ads->ds_ctl3, AR_XmitRate1);
+	rates[2] = MS(ads->ds_ctl3, AR_XmitRate2);
+	rates[3] = MS(ads->ds_ctl3, AR_XmitRate3);
+
+	tries[0] = MS(ads->ds_ctl2, AR_XmitDataTries0);
+	tries[1] = MS(ads->ds_ctl2, AR_XmitDataTries1);
+	tries[2] = MS(ads->ds_ctl2, AR_XmitDataTries2);
+	tries[3] = MS(ads->ds_ctl2, AR_XmitDataTries3);
+
+	return AH_TRUE;
+}  

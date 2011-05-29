@@ -221,6 +221,18 @@ getnettype(nettype)
 	return (_rpctypelist[i].type);
 }
 
+static thread_key_t tcp_key, udp_key;
+static once_t keys_once = ONCE_INITIALIZER;
+static int tcp_key_error, udp_key_error;
+
+static void
+keys_init(void)
+{
+
+	tcp_key_error = thr_keycreate(&tcp_key, free);
+	udp_key_error = thr_keycreate(&udp_key, free);
+}
+
 /*
  * For the given nettype (tcp or udp only), return the first structure found.
  * This should be freed by calling freenetconfigent()
@@ -236,25 +248,15 @@ __rpc_getconfip(nettype)
 	static char *netid_udp_main;
 	struct netconfig *dummy;
 	int main_thread;
-	static thread_key_t tcp_key, udp_key;
 
 	if ((main_thread = thr_main())) {
 		netid_udp = netid_udp_main;
 		netid_tcp = netid_tcp_main;
 	} else {
-		if (tcp_key == 0) {
-			mutex_lock(&tsd_lock);
-			if (tcp_key == 0)
-				thr_keycreate(&tcp_key, free);
-			mutex_unlock(&tsd_lock);
-		}
+		if (thr_once(&keys_once, keys_init) != 0 ||
+		    tcp_key_error != 0 || udp_key_error != 0)
+			return (NULL);
 		netid_tcp = (char *)thr_getspecific(tcp_key);
-		if (udp_key == 0) {
-			mutex_lock(&tsd_lock);
-			if (udp_key == 0)
-				thr_keycreate(&udp_key, free);
-			mutex_unlock(&tsd_lock);
-		}
 		netid_udp = (char *)thr_getspecific(udp_key);
 	}
 	if (!netid_udp && !netid_tcp) {

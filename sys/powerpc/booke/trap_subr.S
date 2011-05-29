@@ -330,7 +330,7 @@
 	lwz	%r22, PC_BOOKE_TLB_LOCK(%r20);				\
 									\
 1:	lwarx	%r23, 0, %r22;						\
-	cmpwi	%r23, MTX_UNOWNED;					\
+	cmpwi	%r23, TLB_UNLOCKED;					\
 	beq	2f;							\
 									\
 	/* check if this is recursion */				\
@@ -364,7 +364,7 @@
 	msync;								\
 									\
 	/* release the lock */						\
-	li	%r23, MTX_UNOWNED;					\
+	li	%r23, TLB_UNLOCKED;					\
 	stw	%r23, 0(%r22);						\
 1:	isync;								\
 	msync
@@ -441,6 +441,7 @@ INTERRUPT(int_instr_storage)
 INTERRUPT(int_external_input)
 	STANDARD_PROLOG(SPR_SPRG1, PC_TEMPSAVE, SPR_SRR0, SPR_SRR1)
 	FRAME_SETUP(SPR_SPRG1, PC_TEMPSAVE, EXC_EXI)
+	addi	%r3, %r1, 8
 	bl	CNAME(powerpc_extr_interrupt)
 	b	trapexit
 
@@ -859,7 +860,7 @@ ENTRY(tlb_lock)
 	GET_CPUINFO(%r5)
 	lwz	%r5, PC_CURTHREAD(%r5)
 1:	lwarx	%r4, 0, %r3
-	cmpwi	%r4, MTX_UNOWNED
+	cmpwi	%r4, TLB_UNLOCKED
 	bne	1b
 	stwcx.	%r5, 0, %r3
 	bne-	1b
@@ -870,11 +871,12 @@ ENTRY(tlb_lock)
 ENTRY(tlb_unlock)
 	isync
 	msync
-	li	%r4, MTX_UNOWNED
+	li	%r4, TLB_UNLOCKED
 	stw	%r4, 0(%r3)
 	isync
 	msync
 	blr
+
 /*
  * TLB miss spin locks. For each CPU we have a reservation granule (32 bytes);
  * only a single word from this granule will actually be used as a spin lock

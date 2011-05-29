@@ -7,7 +7,8 @@ SRCS+=	modeedit.c
 .else
 CFLAGS+= -DMINIMALISTIC
 .endif
-.if ${MACHINE_ARCH} == "arm"
+# This is verboten
+.if ${MACHINE_CPUARCH} == "arm"
 WARNS?= 3
 .endif
 DPADD=	${LIBCAM} ${LIBSBUF} ${LIBUTIL}
