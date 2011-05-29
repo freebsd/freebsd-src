@@ -329,7 +329,7 @@ max6690_sensor_read(struct max6690_sensor *sens)
 	*/
 	temp = (integer * 10) + (fraction >> 5) * 10 / 8;
 
-	return (temp);
+	return (temp + FCU_ZERO_C_TO_K);
 }
 
 static int
@@ -338,7 +338,6 @@ max6690_sensor_sysctl(SYSCTL_HANDLER_ARGS)
 	device_t dev;
 	struct max6690_softc *sc;
 	struct max6690_sensor *sens;
-	int value = 0;
 	int error;
 	unsigned int temp;
 
@@ -346,11 +345,9 @@ max6690_sensor_sysctl(SYSCTL_HANDLER_ARGS)
 	sc = device_get_softc(dev);
 	sens = &sc->sc_sensors[arg2];
 
-	value = max6690_sensor_read(sens);
-	if (value < 0)
+	temp = max6690_sensor_read(sens);
+	if (temp < 0)
 		return (EIO);
-
-	temp = value + FCU_ZERO_C_TO_K;
 
 	error = sysctl_handle_int(oidp, &temp, 0, req);
 
