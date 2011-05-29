@@ -297,10 +297,9 @@ struct nd_opt_hdr {		/* Neighbor discovery option header */
 #define ND_OPT_PREFIX_INFORMATION	3
 #define ND_OPT_REDIRECTED_HEADER	4
 #define ND_OPT_MTU			5
+#define ND_OPT_ROUTE_INFO		24	/* RFC 4191 */
 #define ND_OPT_RDNSS			25	/* RFC 6016 */
 #define ND_OPT_DNSSL			31	/* RFC 6016 */
-
-#define ND_OPT_ROUTE_INFO		200	/* draft-ietf-ipngwg-router-preference, not officially assigned yet */
 
 struct nd_opt_prefix_info {	/* prefix information */
 	u_int8_t	nd_opt_pi_type;
