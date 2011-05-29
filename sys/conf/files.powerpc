@@ -27,6 +27,7 @@ dev/cfi/cfi_bus_fdt.c		optional	cfi fdt
 dev/fb/fb.c			optional	sc
 dev/fdt/fdt_powerpc.c		optional	fdt
 dev/hwpmc/hwpmc_powerpc.c	optional	hwpmc
+dev/iicbus/ad7417.c		optional	ad7417 powermac
 dev/iicbus/ds1775.c		optional	ds1775 powermac
 dev/iicbus/max6690.c		optional	max6690 powermac
 dev/kbd/kbd.c			optional	sc
