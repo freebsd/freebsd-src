@@ -1874,10 +1874,7 @@ ffs_blkfree_cg(ump, fs, devvp, bno, size, inum)
 		/* devvp is a normal disk device */
 		dev = devvp->v_rdev;
 		cgblkno = fsbtodb(fs, cgtod(fs, cg));
-		ASSERT_VOP_LOCKED(devvp, "ffs_blkfree");
-		if ((devvp->v_vflag & VV_COPYONWRITE) &&
-		    ffs_snapblkfree(fs, devvp, bno, size, inum))
-			return;
+		ASSERT_VOP_LOCKED(devvp, "ffs_blkfree_cg");
 	}
 #ifdef INVARIANTS
 	if ((u_int)size > fs->fs_bsize || fragoff(fs, size) != 0 ||
@@ -2024,6 +2021,17 @@ ffs_blkfree(ump, fs, devvp, bno, size, inum)
 	struct bio *bip;
 	struct ffs_blkfree_trim_params *tp;
 
+	/*
+	 * Check to see if a snapshot wants to claim the block.
+	 * Check that devvp is a normal disk device, not a snapshot,
+	 * it has a snapshot(s) associated with it, and one of the
+	 * snapshots wants to claim the block.
+	 */
+	if (devvp->v_type != VREG &&
+	    (devvp->v_vflag & VV_COPYONWRITE) &&
+	    ffs_snapblkfree(fs, devvp, bno, size, inum)) {
+		return;
+	}
 	if (!ump->um_candelete) {
 		ffs_blkfree_cg(ump, fs, devvp, bno, size, inum);
 		return;
