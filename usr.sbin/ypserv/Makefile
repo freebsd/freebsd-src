@@ -3,10 +3,18 @@
 RPCDIR=	${.CURDIR}/../../include/rpcsvc
 .PATH: ${RPCDIR}
 
+.include <bsd.own.mk>
+
 PROG=	ypserv
 MAN=	ypserv.8 ypinit.8
 SRCS=	yp_svc.c yp_server.c yp_dblookup.c yp_dnslookup.c \
 	ypxfr_clnt.c yp.h yp_main.c yp_error.c yp_access.c yp_svc_udp.c
+.if ${MK_INET_SUPPORT} != "no"
+SRCS+=	yp_access_inet.c
+.endif
+.if ${MK_INET6_SUPPORT} != "no"
+SRCS+=	yp_access_inet6.c
+.endif
 
 CFLAGS+= -DDB_CACHE -DTCP_WRAPPER -I.
 

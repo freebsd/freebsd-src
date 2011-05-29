@@ -44,7 +44,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/wait.h>
-#include "yp.h"
+#include <rpc/rpc.h>
+#include <rpc/rpc_com.h>
 #include <err.h>
 #include <errno.h>
 #include <memory.h>
@@ -59,58 +60,64 @@ __FBSDID("$FreeBSD$");
 #include <sysent.h> /* getdtablesize, open */
 #endif /* __cplusplus */
 #include <netinet/in.h>
-#include <netdb.h>
-#include "yp_extern.h"
 #include <netconfig.h>
-#include <rpc/rpc.h>
-#include <rpc/rpc_com.h>
+#include <netdb.h>
+
+#include "yp.h"
+#include "yp_extern.h"
 
 #ifndef SIG_PF
 #define	SIG_PF void(*)(int)
 #endif
 
 #define	_RPCSVC_CLOSEDOWN 120
-int _rpcpmstart;		/* Started by a port monitor ? */
-static int _rpcfdtype;
-		 /* Whether Stream or Datagram ? */
+int _rpcpmstart;	/* Started by a port monitor ? */
+static int _rpcfdtype;	/* Whether Stream or Datagram ? */
 static int _rpcaf;
 static int _rpcfd;
 
-	/* States a server can be in wrt request */
-
-#define	_IDLE 0
-#define	_SERVED 1
-#define	_SERVING 2
+/* States a server can be in wrt request */
+/* Set when a request is serviced */
+static enum rpcsvcstate {
+	_IDLE = 0,
+	_SERVED,
+	_SERVING,
+} _rpcsvcstate;
 
 extern void ypprog_1(struct svc_req *, SVCXPRT *);
 extern void ypprog_2(struct svc_req *, SVCXPRT *);
 extern int _rpc_dtablesize(void);
-extern int _rpcsvcstate;	 /* Set when a request is serviced */
+
+char securenets_path[MAXPATHLEN];
+enum yp_snf_format securenets_format = YP_SNF_NATIVE;
 char *progname = "ypserv";
 char *yp_dir = _PATH_YP;
-/*int debug = 0;*/
+static char *servname = "0";
+
 int do_dns = 0;
 int resfd;
+int debug;
+pid_t	yp_pid;
 
 struct socklistent {
+	SLIST_ENTRY(socklistent)	sle_next;
+
 	int				sle_sock;
 	struct sockaddr_storage		sle_ss;
-	SLIST_ENTRY(socklistent)	sle_next;
 };
 static SLIST_HEAD(, socklistent) sle_head =
 	SLIST_HEAD_INITIALIZER(sle_head);
 
 struct bindaddrlistent {
-	const char			*ble_hostname;
 	SLIST_ENTRY(bindaddrlistent)	ble_next;
+
+	const char			*ble_hostname;
 };
 static SLIST_HEAD(, bindaddrlistent) ble_head =
 	SLIST_HEAD_INITIALIZER(ble_head);
 
-static char *servname = "0";
-
-static
-void _msgout(char* msg, ...)
+static void
+_msgout(char* msg, ...)
 {
 	va_list ap;
 
@@ -124,8 +131,6 @@ void _msgout(char* msg, ...)
 		vsyslog(LOG_ERR, msg, ap);
 	va_end(ap);
 }
-
-pid_t	yp_pid;
 
 static void
 yp_svc_run(void)
@@ -188,24 +193,22 @@ unregister(void)
 static void
 reaper(int sig)
 {
-	int			status;
-	int			saved_errno;
+	int status;
+	int saved_errno;
 
 	saved_errno = errno;
-
-	if (sig == SIGHUP) {
+	switch (sig) {
+	case SIGHUP:
 		load_securenets();
 #ifdef DB_CACHE
 		yp_flush_all();
 #endif
-		errno = saved_errno;
-		return;
-	}
-
-	if (sig == SIGCHLD) {
+		break;
+	case SIGCHLD:
 		while (wait3(&status, WNOHANG, NULL) > 0)
 			children--;
-	} else {
+		break;
+	default:
 		unregister();
 		exit(0);
 	}
@@ -216,8 +219,8 @@ reaper(int sig)
 static void
 usage(void)
 {
-	fprintf(stderr, "usage: ypserv [-h] [-d] [-n] [-p path] [-P port]\n");
-	exit(1);
+	fprintf(stderr, "usage: ypserv "
+	    "[-d] [-h hostname] [-n] [-p ypdir] [-P port] [-S]\n");
 }
 
 static void
@@ -246,8 +249,8 @@ closedown(int sig)
 	if (_rpcsvcstate == _SERVED)
 		_rpcsvcstate = _IDLE;
 
-	(void) signal(SIGALRM, (SIG_PF) closedown);
-	(void) alarm(_RPCSVC_CLOSEDOWN/2);
+	(void)signal(SIGALRM, (SIG_PF)closedown);
+	(void)alarm(_RPCSVC_CLOSEDOWN/2);
 }
 
 static int
@@ -284,7 +287,7 @@ create_service(const int sock, const struct netconfig *nconf,
 			if (error) {
 				_msgout("getaddrinfo(): %s",
 				    gai_strerror(error));
-				return -1;
+				return (-1);
 			}
 			for (res = res0; res; res = res->ai_next) {
 				int s;
@@ -301,7 +304,7 @@ create_service(const int sock, const struct netconfig *nconf,
 						    nconf->nc_netid,
 						    strerror(errno));
 					freeaddrinfo(res0);
-					return -1;
+					return (-1);
 				}
 				if (bindresvport_sa(s, res->ai_addr) == -1) {
 					if ((errno != EPERM) ||
@@ -313,7 +316,7 @@ create_service(const int sock, const struct netconfig *nconf,
 						strerror(errno));
 						freeaddrinfo(res0);
 						close(sock);
-						return -1;
+						return (-1);
 					}
 				}
 				if (nconf->nc_semantics != NC_TPI_CLTS)
@@ -325,7 +328,7 @@ create_service(const int sock, const struct netconfig *nconf,
 					    strerror(errno));
 					freeaddrinfo(res0);
 					close(s);
-					return -1;
+					return (-1);
 				}
 				memset(slep, 0, sizeof(*slep));
 				memcpy(&slep->sle_ss,
@@ -349,30 +352,30 @@ create_service(const int sock, const struct netconfig *nconf,
 						    strerror(errno));
 						freeaddrinfo(res0);
 						close(s);
-						return -1;
+						return (-1);
 					}
 					memset(sname, 0, NI_MAXSERV);
 
 					sap = (struct sockaddr *)&slep->sle_ss;
-					slen = sizeof(*sap);
+					slen = sap->sa_len;
 					error = getsockname(s, sap, &slen);
 					if (error) {
 						_msgout("getsockname(): %s",
 						    strerror(errno));
 						freeaddrinfo(res0);
 						close(s);
-						return -1;
+						return (-1);
 					}
-					error = getnameinfo(sap, slen,
+					error = getnameinfo(sap, sap->sa_len,
 					    NULL, 0,
 					    sname, NI_MAXSERV,
-					    NI_NUMERICHOST | NI_NUMERICSERV);
+					    NI_NUMERICSERV);
 					if (error) {
 						_msgout("getnameinfo(): %s",
-						    strerror(errno));
+						    gai_strerror(error));
 						freeaddrinfo(res0);
 						close(s);
-						return -1;
+						return (-1);
 					}
 					servname = sname;
 				}
@@ -383,7 +386,7 @@ create_service(const int sock, const struct netconfig *nconf,
 		slep = malloc(sizeof(*slep));
 		if (slep == NULL) {
 			_msgout("malloc failed: %s", strerror(errno));
-			return -1;
+			return (-1);
 		}
 		memset(slep, 0, sizeof(*slep));
 		slep->sle_sock = sock;
@@ -419,9 +422,11 @@ create_service(const int sock, const struct netconfig *nconf,
 			continue;
 		}
 	}
-	while(!(SLIST_EMPTY(&sle_head)))
+	while(!(SLIST_EMPTY(&sle_head))) {
+		slep = SLIST_FIRST(&sle_head);
 		SLIST_REMOVE_HEAD(&sle_head, sle_next);
-
+		free(slep);
+	}
 	/*
 	 * Register RPC service to rpcbind by using AI_PASSIVE address.
 	 */
@@ -429,7 +434,7 @@ create_service(const int sock, const struct netconfig *nconf,
 	error = getaddrinfo(NULL, servname, &hints, &res0);
 	if (error) {
 		_msgout("getaddrinfo(): %s", gai_strerror(error));
-		return -1;
+		return (-1);
 	}
 	svcaddr.buf = res0->ai_addr;
 	svcaddr.len = res0->ai_addrlen;
@@ -442,7 +447,7 @@ create_service(const int sock, const struct netconfig *nconf,
 	rpcb_set(YPPROG, YPVERS, nconf, &svcaddr);
 
 	freeaddrinfo(res0);
-	return 0;
+	return (0);
 }
 
 int
@@ -460,7 +465,7 @@ main(int argc, char *argv[])
 	memset(&si, 0, sizeof(si));
 	SLIST_INIT(&ble_head);
 
-	while ((ch = getopt(argc, argv, "dh:np:P:")) != -1) {
+	while ((ch = getopt(argc, argv, "dh:np:P:S")) != -1) {
 		switch (ch) {
 		case 'd':
 			debug = ypdb_debug = 1;
@@ -481,8 +486,12 @@ main(int argc, char *argv[])
 		case 'P':
 			servname = optarg;
 			break;
+		case 'S':
+			securenets_format = YP_SNF_SOLARIS;
+			break;
 		default:
 			usage();
+			exit(1);
 		}
 	}
 	/*
@@ -495,6 +504,8 @@ main(int argc, char *argv[])
 		memset(blep, 0, sizeof(*blep));
 		SLIST_INSERT_HEAD(&ble_head, blep, ble_next);
 	}
+	snprintf(securenets_path, sizeof(securenets_path),
+	     "%s/%s", yp_dir, SECURENETS_FNAME);
 
 	load_securenets();
 	yp_init_resolver();
@@ -514,13 +525,12 @@ main(int argc, char *argv[])
 	} else {
 		/* standalone mode */
 		if (!debug) {
-			if (daemon(0,0)) {
+			if (daemon(0,0))
 				err(1,"cannot fork");
-			}
 			openlog("ypserv", LOG_PID, LOG_DAEMON);
 		}
 		_rpcpmstart = 0;
-		_rpcaf = AF_INET;
+		_rpcaf = 0;
 		_rpcfd = RPC_ANYFD;
 		unregister();
 	}
@@ -536,11 +546,9 @@ main(int argc, char *argv[])
 				    "Ignored.", nconf->nc_netid);
 				continue;
 			}
-			if (_rpcpmstart) {
+			if (_rpcpmstart)
 				if (si.si_socktype != _rpcfdtype ||
 				    si.si_af != _rpcaf)
-					continue;
-			} else if (si.si_af != _rpcaf)
 					continue;
 			error = create_service(_rpcfd, nconf, &si);
 			if (error) {
@@ -551,27 +559,31 @@ main(int argc, char *argv[])
 		}
 	}
 	endnetconfig(nc_handle);
-	while(!(SLIST_EMPTY(&ble_head)))
+	while(!(SLIST_EMPTY(&ble_head))) {
+		blep = SLIST_FIRST(&ble_head);
 		SLIST_REMOVE_HEAD(&ble_head, ble_next);
+		free(blep);
+	}
 	if (ntrans == 0) {
 		_msgout("no transport is available.  Aborted.");
 		exit(1);
 	}
 	if (_rpcpmstart) {
-		(void) signal(SIGALRM, (SIG_PF) closedown);
-		(void) alarm(_RPCSVC_CLOSEDOWN/2);
+		(void)signal(SIGALRM, (SIG_PF)closedown);
+		(void)alarm(_RPCSVC_CLOSEDOWN/2);
 	}
 /*
  * Make sure SIGPIPE doesn't blow us away while servicing TCP
  * connections.
  */
-	(void) signal(SIGPIPE, SIG_IGN);
-	(void) signal(SIGCHLD, (SIG_PF) reaper);
-	(void) signal(SIGTERM, (SIG_PF) reaper);
-	(void) signal(SIGINT, (SIG_PF) reaper);
-	(void) signal(SIGHUP, (SIG_PF) reaper);
+	(void)signal(SIGPIPE, SIG_IGN);
+	(void)signal(SIGCHLD, (SIG_PF)reaper);
+	(void)signal(SIGTERM, (SIG_PF)reaper);
+	(void)signal(SIGINT, (SIG_PF)reaper);
+	(void)signal(SIGHUP, (SIG_PF)reaper);
 	yp_svc_run();
-	_msgout("svc_run returned");
-	exit(1);
+
 	/* NOTREACHED */
+	_msgout("svc_run returned");
+	return (1);
 }

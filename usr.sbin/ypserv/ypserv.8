@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 13, 2009
+.Dd May 29, 2011
 .Dt YPSERV 8
 .Os
 .Sh NAME
@@ -40,8 +40,10 @@
 .Nm
 .Op Fl n
 .Op Fl d
+.Op Fl h Ar addr
 .Op Fl P Ar port
 .Op Fl p Ar path
+.Op Fl S
 .Sh DESCRIPTION
 .Tn NIS
 is an RPC-based service designed to allow a number of UNIX-based
@@ -259,6 +261,46 @@ sample securenets file might look like this:
 # allow connections from any host
 # between 10.0.0.0 to 10.0.15.255
 10.0.0.0      255.255.240.0
+# IPv4 addresses in CIDR form
+172.16.0.1/16
+# IPv4 host
+172.17.0.1/32
+# IPv6 address with netmask
+2001:db8:1::1 ffff:ffff:ffff:ffff::
+# IPv6 address with prefix length
+2001:db8:2::1/64
+# IPv6 connections from local host
+::/128
+# IPv6 host
+2001:db8:3::1/128
+.Ed
+.Pp
+When
+.Fl S
+flag is specified, another format with the host field and the netmask
+field exchanged is used instead.  This is for compatibility with an
+implementation found in Solaris.  An example looks like the following:
+.Bd -unfilled -offset indent
+# allow connections from local host -- mandatory
+255.255.255.255     127.0.0.1
+# allow connections from any host
+# on the 192.168.128.0 network
+255.255.255.0 192.168.128.0
+# allow connections from any host
+# between 10.0.0.0 to 10.0.15.255
+255.255.240.0      10.0.0.0
+# IPv4 addresses in CIDR form
+172.16.0.1/16
+# "host" keyword can be used as 255.255.255.255
+host 172.17.0.1
+# IPv6 address with netmask
+ffff:ffff:ffff:ffff:: 2001:db8:1::1
+# IPv6 address with prefix length
+2001:db8:2::1/64
+# IPv6 connections from local host
+::/128
+# "host" keyword can be used as /128
+host 2001:db8:3::1
 .Ed
 .Pp
 If
@@ -434,6 +476,14 @@ flag may be used to specify an alternate
 root path, allowing
 the system administrator to move the map files to a different place
 within the file system.
+.It Fl S
+Specify
+.Pa secrenets
+file format as Solaris-compatible.  The differences from the native
+format are the order of the host and netmask fields, and availability
+of
+.Dq host
+keyword.
 .El
 .Sh FILES
 .Bl -tag -width Pa -compact
