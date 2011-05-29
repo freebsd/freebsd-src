@@ -328,20 +328,6 @@ sctp_soreceive(struct socket *so, struct sockaddr **psa,
     struct mbuf **controlp,
     int *flagsp);
 
-
-/* For those not passing mbufs, this does the
- * translations for you. Caller owns memory
- * of size controllen returned in controlp.
- */
-int 
-sctp_l_soreceive(struct socket *so,
-    struct sockaddr **name,
-    struct uio *uio,
-    char **controlp,
-    int *controllen,
-    int *flag);
-
-
 void
      sctp_misc_ints(uint8_t from, uint32_t a, uint32_t b, uint32_t c, uint32_t d);
 
