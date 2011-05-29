@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: peer.c,v 1.31 2008/04/03 06:09:04 tbox Exp $ */
+/* $Id: peer.c,v 1.31 2008-04-03 06:09:04 tbox Exp $ */
 
 /*! \file */
 

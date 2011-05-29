@@ -525,10 +525,10 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram,
 	NFSLOCKV4ROOTMUTEX();
 	if (nfsrv_stablefirst.nsf_flags & NFSNSF_NEEDLOCK)
 		igotlock = nfsv4_lock(&nfsv4rootfs_lock, 1, NULL,
-		    NFSV4ROOTLOCKMUTEXPTR);
+		    NFSV4ROOTLOCKMUTEXPTR, NULL);
 	else
 		igotlock = nfsv4_lock(&nfsv4rootfs_lock, 0, NULL,
-		    NFSV4ROOTLOCKMUTEXPTR);
+		    NFSV4ROOTLOCKMUTEXPTR, NULL);
 	NFSUNLOCKV4ROOTMUTEX();
 	if (igotlock) {
 		/*
@@ -576,7 +576,7 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram,
 		 */
 		NFSLOCKV4ROOTMUTEX();
 		nfsv4_getref(&nfsv4rootfs_lock, NULL,
-		    NFSV4ROOTLOCKMUTEXPTR);
+		    NFSV4ROOTLOCKMUTEXPTR, NULL);
 		NFSUNLOCKV4ROOTMUTEX();
 	}
 

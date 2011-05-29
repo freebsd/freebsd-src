@@ -439,8 +439,13 @@ ar9287FillCapabilityInfo(struct ath_hal *ah)
 	/* Disable this so Block-ACK works correctly */
 	pCap->halHasRxSelfLinkedTail = AH_FALSE;
 	pCap->halPSPollBroken = AH_FALSE;
+
+	/* Hardware supports (at least) single-stream STBC TX/RX */
 	pCap->halRxStbcSupport = 1;
 	pCap->halTxStbcSupport = 1;
+
+	/* Hardware supports short-GI w/ 20MHz */
+	pCap->halHTSGI20Support = 1;
 
 	return AH_TRUE;
 }

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: quota.c,v 1.18 2007/06/19 23:47:17 tbox Exp $ */
+/* $Id: quota.c,v 1.18 2007-06-19 23:47:17 tbox Exp $ */
 
 /*! \file */
 

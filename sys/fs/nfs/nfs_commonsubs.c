@@ -1726,11 +1726,13 @@ nfsmout:
  * Any usecnt must be decremented by calling nfsv4_relref() before
  * calling nfsv4_lock(). It was done this way, so nfsv4_lock() could
  * be called in a loop.
- * The last argument is set to indicate if the call slept, iff not NULL.
+ * The isleptp argument is set to indicate if the call slept, iff not NULL
+ * and the mp argument indicates to check for a forced dismount, iff not
+ * NULL.
  */
 APPLESTATIC int
 nfsv4_lock(struct nfsv4lock *lp, int iwantlock, int *isleptp,
-    void *mutex)
+    void *mutex, struct mount *mp)
 {
 
 	if (isleptp)
@@ -1751,6 +1753,10 @@ nfsv4_lock(struct nfsv4lock *lp, int iwantlock, int *isleptp,
 	    lp->nfslock_lock |= NFSV4LOCK_LOCKWANTED;
 	}
 	while (lp->nfslock_lock & (NFSV4LOCK_LOCK | NFSV4LOCK_LOCKWANTED)) {
+		if (mp != NULL && (mp->mnt_kern_flag & MNTK_UNMOUNTF) != 0) {
+			lp->nfslock_lock &= ~NFSV4LOCK_LOCKWANTED;
+			return (0);
+		}
 		lp->nfslock_lock |= NFSV4LOCK_WANTED;
 		if (isleptp)
 			*isleptp = 1;
@@ -1801,9 +1807,12 @@ nfsv4_relref(struct nfsv4lock *lp)
  * not wait for threads that want the exclusive lock. If priority needs
  * to be given to threads that need the exclusive lock, a call to nfsv4_lock()
  * with the 2nd argument == 0 should be done before calling nfsv4_getref().
+ * If the mp argument is not NULL, check for MNTK_UNMOUNTF being set and
+ * return without getting a refcnt for that case.
  */
 APPLESTATIC void
-nfsv4_getref(struct nfsv4lock *lp, int *isleptp, void *mutex)
+nfsv4_getref(struct nfsv4lock *lp, int *isleptp, void *mutex,
+    struct mount *mp)
 {
 
 	if (isleptp)
@@ -1813,12 +1822,16 @@ nfsv4_getref(struct nfsv4lock *lp, int *isleptp, void *mutex)
 	 * Wait for a lock held.
 	 */
 	while (lp->nfslock_lock & NFSV4LOCK_LOCK) {
+		if (mp != NULL && (mp->mnt_kern_flag & MNTK_UNMOUNTF) != 0)
+			return;
 		lp->nfslock_lock |= NFSV4LOCK_WANTED;
 		if (isleptp)
 			*isleptp = 1;
 		(void) nfsmsleep(&lp->nfslock_lock, mutex,
 		    PZERO - 1, "nfsv4lck", NULL);
 	}
+	if (mp != NULL && (mp->mnt_kern_flag & MNTK_UNMOUNTF) != 0)
+		return;
 
 	lp->nfslock_usecnt++;
 }

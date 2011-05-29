@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dig.h,v 1.107.120.2 2009/01/06 23:47:26 tbox Exp $ */
+/* $Id: dig.h,v 1.107.120.2 2009-01-06 23:47:26 tbox Exp $ */
 
 #ifndef DIG_H
 #define DIG_H

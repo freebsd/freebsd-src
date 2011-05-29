@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: hmacsha.h,v 1.7 2007/06/19 23:47:18 tbox Exp $ */
+/* $Id: hmacsha.h,v 1.7 2007-06-19 23:47:18 tbox Exp $ */
 
 /*! \file isc/hmacsha.h
  * This is the header file for the HMAC-SHA1, HMAC-SHA224, HMAC-SHA256,

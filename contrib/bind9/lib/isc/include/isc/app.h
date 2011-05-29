@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: app.h,v 1.8 2007/06/19 23:47:18 tbox Exp $ */
+/* $Id: app.h,v 1.8 2007-06-19 23:47:18 tbox Exp $ */
 
 #ifndef ISC_APP_H
 #define ISC_APP_H 1

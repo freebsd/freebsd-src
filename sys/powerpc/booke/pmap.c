@@ -92,9 +92,6 @@ __FBSDID("$FreeBSD$");
 
 #include "mmu_if.h"
 
-#define DEBUG
-#undef DEBUG
-
 #ifdef  DEBUG
 #define debugf(fmt, args...) printf(fmt, ##args)
 #else
@@ -947,7 +944,7 @@ pte_find(mmu_t mmu, pmap_t pmap, vm_offset_t va)
 /**************************************************************************/
 
 /*
- * This is called during e500_init, before the system is really initialized.
+ * This is called during booke_init, before the system is really initialized.
  */
 static void
 mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
@@ -3022,24 +3019,18 @@ tlb1_init(vm_offset_t ccsrbar)
 {
 	uint32_t mas0;
 
-	/* TLB1[1] is used to map the kernel. Save that entry. */
-	mas0 = MAS0_TLBSEL(1) | MAS0_ESEL(1);
+	/* TLB1[0] is used to map the kernel. Save that entry. */
+	mas0 = MAS0_TLBSEL(1) | MAS0_ESEL(0);
 	mtspr(SPR_MAS0, mas0);
 	__asm __volatile("isync; tlbre");
 
-	tlb1[1].mas1 = mfspr(SPR_MAS1);
-	tlb1[1].mas2 = mfspr(SPR_MAS2);
-	tlb1[1].mas3 = mfspr(SPR_MAS3);
+	tlb1[0].mas1 = mfspr(SPR_MAS1);
+	tlb1[0].mas2 = mfspr(SPR_MAS2);
+	tlb1[0].mas3 = mfspr(SPR_MAS3);
 
-	/* Map in CCSRBAR in TLB1[0] */
-	tlb1_idx = 0;
+	/* Map in CCSRBAR in TLB1[1] */
+	tlb1_idx = 1;
 	tlb1_set_entry(CCSRBAR_VA, ccsrbar, CCSRBAR_SIZE, _TLB_ENTRY_IO);
-	/*
-	 * Set the next available TLB1 entry index. Note TLB[1] is reserved
-	 * for initial mapping of kernel text+data, which was set early in
-	 * locore, we need to skip this [busy] entry.
-	 */
-	tlb1_idx = 2;
 
 	/* Setup TLB miss defaults */
 	set_mas4_defaults();

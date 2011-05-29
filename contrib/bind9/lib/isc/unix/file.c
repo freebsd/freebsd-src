@@ -48,7 +48,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: file.c,v 1.51.332.2 2009/02/16 23:47:15 tbox Exp $ */
+/* $Id: file.c,v 1.51.332.2 2009-02-16 23:47:15 tbox Exp $ */
 
 /*! \file */
 

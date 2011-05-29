@@ -49,27 +49,25 @@ struct ucred;
  */
 #define	RACCT_UNDEFINED		-1
 #define	RACCT_CPU		0
-#define	RACCT_FSIZE		1
-#define	RACCT_DATA		2
-#define	RACCT_STACK		3
-#define	RACCT_CORE		4
-#define	RACCT_RSS		5
-#define	RACCT_MEMLOCK		6
-#define	RACCT_NPROC		7
-#define	RACCT_NOFILE		8
-#define	RACCT_SBSIZE		9
-#define	RACCT_VMEM		10
-#define	RACCT_NPTS		11
-#define	RACCT_SWAP		12
-#define	RACCT_NTHR		13
-#define	RACCT_MSGQQUEUED	14
-#define	RACCT_MSGQSIZE		15
-#define	RACCT_NMSGQ		16
-#define	RACCT_NSEM		17
-#define	RACCT_NSEMOP		18
-#define	RACCT_NSHM		19
-#define	RACCT_SHMSIZE		20
-#define	RACCT_WALLCLOCK		21
+#define	RACCT_DATA		1
+#define	RACCT_STACK		2
+#define	RACCT_CORE		3
+#define	RACCT_RSS		4
+#define	RACCT_MEMLOCK		5
+#define	RACCT_NPROC		6
+#define	RACCT_NOFILE		7
+#define	RACCT_VMEM		8
+#define	RACCT_NPTS		9
+#define	RACCT_SWAP		10
+#define	RACCT_NTHR		11
+#define	RACCT_MSGQQUEUED	12
+#define	RACCT_MSGQSIZE		13
+#define	RACCT_NMSGQ		14
+#define	RACCT_NSEM		15
+#define	RACCT_NSEMOP		16
+#define	RACCT_NSHM		17
+#define	RACCT_SHMSIZE		18
+#define	RACCT_WALLCLOCK		19
 #define	RACCT_MAX		RACCT_WALLCLOCK
 
 /*

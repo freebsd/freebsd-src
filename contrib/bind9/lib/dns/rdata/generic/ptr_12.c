@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ptr_12.c,v 1.43 2007/06/19 23:47:17 tbox Exp $ */
+/* $Id: ptr_12.c,v 1.43 2007-06-19 23:47:17 tbox Exp $ */
 
 /* Reviewed: Thu Mar 16 14:05:12 PST 2000 by explorer */
 

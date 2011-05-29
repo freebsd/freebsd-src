@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lwresd.c,v 1.58 2008/07/23 23:27:54 marka Exp $ */
+/* $Id: lwresd.c,v 1.58 2008-07-23 23:27:54 marka Exp $ */
 
 /*! \file
  * \brief
