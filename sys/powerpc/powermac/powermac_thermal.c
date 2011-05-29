@@ -79,7 +79,7 @@ fan_management_proc(void)
 {
 	/* Nothing to manage? */
 	if (SLIST_EMPTY(&fans))
-		return;
+		kproc_exit(0);
 	
 	while (1) {
 		pmac_therm_manage_fans();
