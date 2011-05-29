@@ -53,6 +53,7 @@
 #include <stdio.h>
 #include <syslog.h>
 #include <errno.h>
+#include <netdb.h>
 #include <string.h>
 #include <search.h>
 #include <stdlib.h>
@@ -65,6 +66,11 @@
 #include "if.h"
 #include "config.h"
 
+/* label of tcapcode + number + domain name + zero octet */
+static char entbuf[10 + 3 + NI_MAXHOST + 1];
+static char oentbuf[10 + 3 + NI_MAXHOST + 1];
+static char abuf[DNAME_LABELENC_MAXLEN];
+
 static time_t prefix_timo = (60 * 120);	/* 2 hours.
 					 * XXX: should be configurable. */
 extern struct rainfo *ralist;
@@ -72,6 +78,32 @@ extern struct rainfo *ralist;
 static struct rtadvd_timer *prefix_timeout(void *);
 static void makeentry(char *, size_t, int, char *);
 static int getinet6sysctl(int);
+static size_t dname_labelenc(char *, const char *);
+
+/* Encode domain name label encoding in RFC 1035 Section 3.1 */
+static size_t
+dname_labelenc(char *dst, const char *src)
+{
+	char *dst_origin;
+	size_t len;
+
+	dst_origin = dst;
+	len = strlen(src);
+
+	/* Length fields per 63 octets + '\0' (<= DNAME_LABELENC_MAXLEN) */
+	memset(dst, 0, len + len / 64 + 1 + 1);
+
+	syslog(LOG_DEBUG, "<%s> labelenc = %s", __func__, src);
+	while ((len = strlen(src)) != 0) {
+		/* Put a length field with 63 octet limitation first. */
+		*dst++ = len = MIN(63, len + 1);
+		memcpy(dst, src, len);
+		dst += len;
+		src += len;
+	}
+	syslog(LOG_DEBUG, "<%s> labellen = %d", __func__, dst - dst_origin);
+	return (dst - dst_origin);
+}
 
 void
 getconfig(intface)
@@ -122,6 +154,10 @@ getconfig(intface)
 	tmp->prefix.next = tmp->prefix.prev = &tmp->prefix;
 #ifdef ROUTEINFO
 	tmp->route.next = tmp->route.prev = &tmp->route;
+#endif
+#ifdef RDNSS
+	TAILQ_INIT(&tmp->rdnss);
+	TAILQ_INIT(&tmp->dnssl);
 #endif
 
 	/* check if we are allowed to forward packets (if not determined) */
@@ -276,7 +312,6 @@ getconfig(intface)
 	tmp->pfxs = 0;
 	for (i = -1; i < MAXPREFIX; i++) {
 		struct prefix *pfx;
-		char entbuf[256];
 
 		makeentry(entbuf, sizeof(entbuf), i, "addr");
 		addr = (char *)agetstr(entbuf, &bp);
@@ -442,7 +477,6 @@ getconfig(intface)
 	tmp->routes = 0;
 	for (i = -1; i < MAXROUTE; i++) {
 		struct rtinfo *rti;
-		char entbuf[256], oentbuf[256];
 
 		makeentry(entbuf, sizeof(entbuf), i, "rtprefix");
 		addr = (char *)agetstr(entbuf, &bp);
@@ -585,6 +619,118 @@ getconfig(intface)
 	}
 #endif
 
+#ifdef RDNSS
+	/* DNS server and DNS search list information */
+	for (i = -1; i < MAXRDNSSENT ; i++) {
+		struct rdnss *rdn;
+		struct rdnss_addr *rdna;
+		char *ap;
+		int c;
+
+		makeentry(entbuf, sizeof(entbuf), i, "rdnss");
+		addr = (char *)agetstr(entbuf, &bp);
+		if (addr == NULL)
+			break;
+		rdn = malloc(sizeof(*rdn));
+		if (rdn == NULL) {
+			syslog(LOG_ERR,
+			   "<%s> can't get allocate buffer for rdnss entry",
+			   __func__);
+			exit(1);
+		}
+		memset(rdn, 0, sizeof(*rdn));
+		TAILQ_INIT(&rdn->rd_list);
+
+		for (ap = addr; ap - addr < strlen(addr); ap += c+1) {
+			c = strcspn(ap, ",");
+			strncpy(abuf, ap, c);
+			abuf[c] = '\0';
+			rdna = malloc(sizeof(*rdna));
+			if (rdna == NULL) {
+				syslog(LOG_ERR,
+				    "<%s> can't get allocate buffer for "
+				    "rdnss_addr entry",
+				    __func__);
+				exit(1);
+			}
+			memset(rdna, 0, sizeof(*rdna));
+			if (inet_pton(AF_INET6, abuf, &rdna->ra_dns) != 1) {
+				syslog(LOG_ERR, "<%s> inet_pton failed for %s",
+				    __func__, abuf);
+				exit(1);
+			} 
+			TAILQ_INSERT_TAIL(&rdn->rd_list, rdna, ra_next);
+		}
+
+		makeentry(entbuf, sizeof(entbuf), i, "rdnssltime");
+		MAYHAVE(val, entbuf, (tmp->maxinterval * 3 / 2));
+		if (val < tmp->maxinterval || val > tmp->maxinterval * 2) {
+			syslog(LOG_ERR, "%s (%ld) on %s is invalid "
+			    "(must be between %d and %d)",
+			    entbuf, val, intface, tmp->maxinterval,
+			    tmp->maxinterval * 2);
+			exit(1);
+		}
+		rdn->rd_ltime = val;
+
+		/* link into chain */
+		insque(rdn, &tmp->rdnss);
+	}
+
+	for (i = -1; i < MAXDNSSLENT ; i++) {
+		struct dnssl *dns;
+		struct dnssl_addr *dnsa;
+		char *ap;
+		int c;
+		char *p, *q;
+
+		makeentry(entbuf, sizeof(entbuf), i, "dnssl");
+		addr = (char *)agetstr(entbuf, &bp);
+		if (addr == NULL)
+			break;
+		dns = malloc(sizeof(*dns));
+		if (dns == NULL) {
+			syslog(LOG_ERR,
+			       "<%s> can't get allocate buffer for dnssl entry",
+			       __func__);
+			exit(1);
+		}
+		memset(dns, 0, sizeof(*dns));
+		TAILQ_INIT(&dns->dn_list);
+
+		for (ap = addr; ap - addr < strlen(addr); ap += c+1) {
+			c = strcspn(ap, ",");
+			strncpy(abuf, ap, c);
+			abuf[c] = '\0';
+			dnsa = malloc(sizeof(struct dnssl_addr));
+			if (dnsa == NULL) {
+				syslog(LOG_ERR,
+				    "<%s> can't get allocate buffer for "
+				    "dnssl_addr entry", __func__);
+				exit(1);
+			}
+			memset(dnsa, 0, sizeof(*dnsa));
+			dnsa->da_len = dname_labelenc(dnsa->da_dom, abuf);
+			syslog(LOG_DEBUG, "<%s>: dnsa->da_len = %d", __func__,
+			    dnsa->da_len);
+			TAILQ_INSERT_TAIL(&dns->dn_list, dnsa, da_next);
+		}
+
+		makeentry(entbuf, sizeof(entbuf), i, "dnsslltime");
+		MAYHAVE(val, entbuf, (tmp->maxinterval * 3 / 2));
+		if (val < tmp->maxinterval || val > tmp->maxinterval * 2) {
+			syslog(LOG_ERR, "%s (%ld) on %s is invalid "
+			    "(must be between %d and %d)",
+			    entbuf, val, intface, tmp->maxinterval,
+			    tmp->maxinterval * 2);
+			exit(1);
+		}
+		dns->dn_ltime = val;
+
+		/* link into chain */
+		insque(dns, &tmp->dnssl);
+	}
+#endif
 	/* okey */
 	tmp->next = ralist;
 	ralist = tmp;
@@ -913,6 +1059,13 @@ make_packet(struct rainfo *rainfo)
 	struct nd_opt_route_info *ndopt_rti;
 	struct rtinfo *rti;
 #endif
+#ifdef RDNSS
+	struct nd_opt_rdnss *ndopt_rdnss;
+	struct rdnss *rdn;
+	struct nd_opt_dnssl *ndopt_dnssl;
+	struct dnssl *dns;
+	size_t len;
+#endif
 	struct prefix *pfx;
 
 	/* calculate total length */
@@ -936,6 +1089,29 @@ make_packet(struct rainfo *rainfo)
 		packlen += sizeof(struct nd_opt_route_info) + 
 			   ((rti->prefixlen + 0x3f) >> 6) * 8;
 #endif
+#ifdef RDNSS
+	TAILQ_FOREACH(rdn, &rainfo->rdnss, rd_next) {
+		struct rdnss_addr *rdna;
+
+		packlen += sizeof(struct nd_opt_rdnss);
+		TAILQ_FOREACH(rdna, &rdn->rd_list, ra_next)
+			packlen += sizeof(rdna->ra_dns);
+	}
+	TAILQ_FOREACH(dns, &rainfo->dnssl, dn_next) {
+		struct dnssl_addr *dnsa;
+
+		packlen += sizeof(struct nd_opt_dnssl);
+		len = 0;
+		TAILQ_FOREACH(dnsa, &dns->dn_list, da_next)
+			len += dnsa->da_len;
+
+		/* A zero octet and 8 octet boundary */
+		len++;
+		len += 8 - (len % 8);
+
+		packlen += len;
+	}
+#endif
 
 	/* allocate memory for the packet */
 	if ((buf = malloc(packlen)) == NULL) {
@@ -944,6 +1120,7 @@ make_packet(struct rainfo *rainfo)
 		       __func__);
 		exit(1);
 	}
+	memset(buf, 0, packlen);
 	if (rainfo->ra_data) {
 		/* free the previous packet */
 		free(rainfo->ra_data);
@@ -1056,6 +1233,57 @@ make_packet(struct rainfo *rainfo)
 	}
 #endif
 
+#ifdef RDNSS
+	TAILQ_FOREACH(rdn, &rainfo->rdnss, rd_next) {
+		struct rdnss_addr *rdna;
+
+		ndopt_rdnss = (struct nd_opt_rdnss *)buf;
+		ndopt_rdnss->nd_opt_rdnss_type = ND_OPT_RDNSS;
+		ndopt_rdnss->nd_opt_rdnss_len = 0;
+		ndopt_rdnss->nd_opt_rdnss_reserved = 0;
+		ndopt_rdnss->nd_opt_rdnss_lifetime = htonl(rdn->rd_ltime);
+		buf += sizeof(struct nd_opt_rdnss);
+
+		TAILQ_FOREACH(rdna, &rdn->rd_list, ra_next) {
+			memcpy(buf, &rdna->ra_dns, sizeof(rdna->ra_dns));
+			buf += sizeof(rdna->ra_dns);
+		}
+		/* Length field should be in 8 octets */
+		ndopt_rdnss->nd_opt_rdnss_len = (buf - (char *)ndopt_rdnss) / 8;
+
+		syslog(LOG_DEBUG, "<%s>: nd_opt_dnss_len = %d", __func__,
+			ndopt_rdnss->nd_opt_rdnss_len);
+	}
+	TAILQ_FOREACH(dns, &rainfo->dnssl, dn_next) {
+		struct dnssl_addr *dnsa;
+		size_t len = 0;
+
+		ndopt_dnssl = (struct nd_opt_dnssl *)buf;
+		ndopt_dnssl->nd_opt_dnssl_type = ND_OPT_DNSSL;
+		ndopt_dnssl->nd_opt_dnssl_len = 0;
+		ndopt_dnssl->nd_opt_dnssl_reserved = 0;
+		ndopt_dnssl->nd_opt_dnssl_lifetime = htonl(dns->dn_ltime);
+		buf += sizeof(*ndopt_dnssl);
+
+		TAILQ_FOREACH(dnsa, &dns->dn_list, da_next) {
+			memcpy(buf, dnsa->da_dom, dnsa->da_len);
+			buf += dnsa->da_len;
+		}
+
+		/* A zero octet after encoded DNS server list. */
+		*buf++ = '\0';
+		
+		/* Padding to next 8 octets boundary */
+		len = buf - (char *)ndopt_dnssl;
+		len += 8 - (len % 8);
+
+		/* Length field must be in 8 octets */
+		ndopt_dnssl->nd_opt_dnssl_len = len / 8;
+
+		syslog(LOG_DEBUG, "<%s>: nd_opt_dnssl_len = %d", __func__,
+			ndopt_dnssl->nd_opt_dnssl_len);
+	}
+#endif
 	return;
 }
 

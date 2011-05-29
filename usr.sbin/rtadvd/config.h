@@ -45,3 +45,5 @@ extern void get_prefix(struct rainfo *);
  */
 #define MAXPREFIX	100
 #define MAXROUTE	100
+#define MAXRDNSSENT	100
+#define MAXDNSSLENT	100

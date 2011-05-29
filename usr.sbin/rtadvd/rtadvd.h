@@ -94,6 +94,44 @@ struct rtinfo {
 };
 #endif
 
+#ifdef RDNSS
+struct rdnss_addr {
+	TAILQ_ENTRY(rdnss_addr)	ra_next;
+
+	struct in6_addr ra_dns;	/* DNS server entry */
+};
+struct rdnss {
+	TAILQ_ENTRY(rdnss) rd_next;
+
+	TAILQ_HEAD(, rdnss_addr) rd_list; /* list of DNS servers */
+	int rd_cnt;		/* number of DNS servers */
+	u_int32_t rd_ltime;	/* number of seconds valid */
+};
+
+/*
+ * The maximum length of a domain name in a DNS search list is calculated
+ * by a domain name + length fields per 63 octets + a zero octet at
+ * the tail and adding 8 octet boundary padding.
+ */
+#define _DNAME_LABELENC_MAXLEN \
+	(NI_MAXHOST + (NI_MAXHOST / 64 + 1) + 1)
+#define DNAME_LABELENC_MAXLEN \
+	(_DNAME_LABELENC_MAXLEN + 8 - _DNAME_LABELENC_MAXLEN % 8)
+
+struct dnssl_addr {
+	TAILQ_ENTRY(dnssl_addr)	da_next;
+
+	int da_len;			/* length of entry */
+	char da_dom[DNAME_LABELENC_MAXLEN];	/* search domain name entry */
+};
+struct dnssl {
+	TAILQ_ENTRY(dnssl)	dn_next;
+
+	TAILQ_HEAD(, dnssl_addr) dn_list; /* list of search domains */
+	u_int32_t dn_ltime;	/* number of seconds valid */
+};
+#endif
+
 struct soliciter {
 	struct soliciter *next;
 	struct sockaddr_in6 addr;
@@ -130,6 +168,10 @@ struct	rainfo {
 	u_int	hoplimit;	/* AdvCurHopLimit */
 	struct prefix prefix;	/* AdvPrefixList(link head) */
 	int	pfxs;		/* number of prefixes */
+#ifdef RDNSS
+	TAILQ_HEAD(, rdnss) rdnss;	/* DNS server list */
+	TAILQ_HEAD(, dnssl) dnssl;	/* search domain list */
+#endif
 	long	clockskew;	/* used for consisitency check of lifetimes */
 
 #ifdef ROUTEINFO

@@ -69,6 +69,7 @@ extern int dflag;
 extern int aflag;
 extern int Fflag;
 extern char *otherconf_script;
+extern char *resolvconf_script;
 extern int ifconfig(char *);
 extern void iflist_init(void);
 struct ifinfo *find_ifinfo(int);
