@@ -51,3 +51,7 @@ lynx (without the GIF files of course).
 
 One patch needs to be applied after that to close two buffer overflows. See
 bin/92839 for details.
+
+A patch to fix IPV6_MULTICAST_LOOP was committed to head as r222444 and
+filed as http://bugs.ntp.org/show_bug.cgi?id=1936.  Check if still needed
+or re-apply on update.
