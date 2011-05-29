@@ -94,13 +94,17 @@ pmac_therm_manage_fans(void)
 	struct pmac_fan_le *fan;
 	int average_excess, max_excess_zone, frac_excess;
 	int nsens, nsens_zone;
+	int temp;
 
 	if (!enable_pmac_thermal)
 		return;
 
 	/* Read all the sensors */
 	SLIST_FOREACH(sensor, &sensors, entries) {
-		sensor->last_val = sensor->sensor->read(sensor->sensor);
+		temp = sensor->sensor->read(sensor->sensor);
+		if (temp > 0) /* Use the previous temp in case of error */
+			sensor->last_val = temp;
+
 		if (sensor->last_val > sensor->sensor->max_temp) {
 			printf("WARNING: Current temperature (%s: %d.%d C) "
 			    "exceeds critical temperature (%d.%d C)! "
