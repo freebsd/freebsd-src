@@ -59,6 +59,12 @@ __FBSDID("$FreeBSD$");
 static struct jailparam *params;
 static int *param_parent;
 static int nparams;
+#ifdef INET6
+static int ip6_ok;
+#endif
+#ifdef INET
+static int ip4_ok;
+#endif
 
 static int add_param(const char *name, void *value, size_t valuelen,
 		struct jailparam *source, unsigned flags);
@@ -112,6 +118,13 @@ main(int argc, char **argv)
 			errx(1, "usage: jls [-dhnqv] [-j jail] [param ...]");
 		}
 
+#ifdef INET6
+	ip6_ok = feature_present("inet6");
+#endif
+#ifdef INET
+	ip4_ok = feature_present("inet");
+#endif
+
 	/* Add the parameters to print. */
 	if (optind == argc) {
 		if (pflags & (PRINT_HEADER | PRINT_NAMEVAL))
@@ -124,13 +137,24 @@ main(int argc, char **argv)
 			add_param("name", NULL, (size_t)0, NULL, JP_USER);
 			add_param("dying", NULL, (size_t)0, NULL, JP_USER);
 			add_param("cpuset.id", NULL, (size_t)0, NULL, JP_USER);
-			add_param("ip4.addr", NULL, (size_t)0, NULL, JP_USER);
-			add_param("ip6.addr", NULL, (size_t)0, NULL,
-			    JP_USER | JP_OPT);
+#ifdef INET
+			if (ip4_ok)
+				add_param("ip4.addr", NULL, (size_t)0, NULL,
+				    JP_USER);
+#endif
+#ifdef INET6
+			if (ip6_ok)
+				add_param("ip6.addr", NULL, (size_t)0, NULL,
+				    JP_USER | JP_OPT);
+#endif
 		} else {
 			pflags |= PRINT_DEFAULT;
 			add_param("jid", NULL, (size_t)0, NULL, JP_USER);
-			add_param("ip4.addr", NULL, (size_t)0, NULL, JP_USER);
+#ifdef INET
+			if (ip4_ok)
+				add_param("ip4.addr", NULL, (size_t)0, NULL,
+				    JP_USER);
+#endif
 			add_param("host.hostname", NULL, (size_t)0, NULL,
 			    JP_USER);
 			add_param("path", NULL, (size_t)0, NULL, JP_USER);
@@ -327,7 +351,7 @@ print_jail(int pflags, int jflags)
 {
 	char *nname;
 	char **param_values;
-	int i, ai, jid, count, spc;
+	int i, ai, jid, count, n, spc;
 	char ipbuf[INET6_ADDRSTRLEN];
 
 	jid = jailparam_get(params, nparams, jflags);
@@ -345,31 +369,45 @@ print_jail(int pflags, int jflags)
 		    *(int *)params[4].jp_value ? "DYING" : "ACTIVE",
 		    "",
 		    *(int *)params[5].jp_value);
-		count = params[6].jp_valuelen / sizeof(struct in_addr);
-		for (ai = 0; ai < count; ai++)
-			if (inet_ntop(AF_INET,
-			    &((struct in_addr *)params[6].jp_value)[ai],
-			    ipbuf, sizeof(ipbuf)) == NULL)
-				err(1, "inet_ntop");
-			else
-				printf("%6s  %-15.15s\n", "", ipbuf);
-		if (!strcmp(params[7].jp_name, "ip6.addr")) {
-			count = params[7].jp_valuelen / sizeof(struct in6_addr);
+		n = 6;
+#ifdef INET
+		if (ip4_ok && !strcmp(params[n].jp_name, "ip.addr")) {
+			count = params[n].jp_valuelen / sizeof(struct in_addr);
+			for (ai = 0; ai < count; ai++)
+				if (inet_ntop(AF_INET,
+				    &((struct in_addr *)params[n].jp_value)[ai],
+				    ipbuf, sizeof(ipbuf)) == NULL)
+					err(1, "inet_ntop");
+				else
+					printf("%6s  %-15.15s\n", "", ipbuf);
+			n++;
+		}
+#endif
+#ifdef INET6
+		if (ip6_ok && !strcmp(params[n].jp_name, "ip6.addr")) {
+			count = params[n].jp_valuelen / sizeof(struct in6_addr);
 			for (ai = 0; ai < count; ai++)
 				if (inet_ntop(AF_INET6,
-				    &((struct in6_addr *)params[7].jp_value)[ai],
+				    &((struct in6_addr *)
+					params[n].jp_value)[ai],
 				    ipbuf, sizeof(ipbuf)) == NULL)
 					err(1, "inet_ntop");
 				else
 					printf("%6s  %s\n", "", ipbuf);
+			n++;
 		}
+#endif
 	} else if (pflags & PRINT_DEFAULT)
 		printf("%6d  %-15.15s %-29.29s %.74s\n",
 		    *(int *)params[0].jp_value,
-		    params[1].jp_valuelen == 0 ? "-"
+#ifdef INET
+		    (!ip4_ok || params[1].jp_valuelen == 0) ? "-"
 		    : inet_ntoa(*(struct in_addr *)params[1].jp_value),
-		    (char *)params[2].jp_value,
-		    (char *)params[3].jp_value);
+#else
+		    "-"
+#endif
+		    (char *)params[2-!ip4_ok].jp_value,
+		    (char *)params[3-!ip4_ok].jp_value);
 	else {
 		param_values = alloca(nparams * sizeof(*param_values));
 		for (i = 0; i < nparams; i++) {
