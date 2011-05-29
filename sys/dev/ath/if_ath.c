@@ -627,12 +627,21 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 			    | IEEE80211_HTC_AMPDU		/* A-MPDU tx/rx */
 			    | IEEE80211_HTC_AMSDU		/* A-MSDU tx/rx */
 			    | IEEE80211_HTCAP_MAXAMSDU_3839	/* max A-MSDU length */
-		/* At the present time, the hardware doesn't support short-GI in 20mhz mode */
-#if 0
-			    | IEEE80211_HTCAP_SHORTGI20		/* short GI in 20MHz */
-#endif
 			    | IEEE80211_HTCAP_SMPS_OFF;		/* SM power save off */
 			;
+
+		/*
+		 * Enable short-GI for HT20 only if the hardware
+		 * advertises support.
+		 * Notably, anything earlier than the AR9287 doesn't.
+		 */
+		if ((ath_hal_getcapability(ah,
+		    HAL_CAP_HT20_SGI, 0, NULL) == HAL_OK) &&
+		    (wmodes & HAL_MODE_HT20)) {
+			device_printf(sc->sc_dev,
+			    "[HT] enabling short-GI in 20MHz mode\n");
+			ic->ic_htcaps |= IEEE80211_HTCAP_SHORTGI20;
+		}
 
 		if (wmodes & HAL_MODE_HT40)
 			ic->ic_htcaps |= IEEE80211_HTCAP_CHWIDTH40
