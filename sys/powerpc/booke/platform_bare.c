@@ -104,13 +104,22 @@ bare_probe(platform_t plat)
 	int i, law_max, tgt;
 
 	ver = SVR_VER(mfspr(SPR_SVR));
-
-	if (ver == SVR_MPC8572E || ver == SVR_MPC8572 ||
-	    ver == SVR_P1020E || ver == SVR_P1020 ||
-	    ver == SVR_P2020E || ver == SVR_P2020)
+	switch (ver & ~0x0008) {	/* Mask Security Enabled bit */
+	case SVR_P4080:
+		maxcpu = 8;
+		break;
+	case SVR_P4040:
+		maxcpu = 4;
+		break;
+	case SVR_MPC8572:
+	case SVR_P1020:
+	case SVR_P2020:
 		maxcpu = 2;
-	else
+		break;
+	default:
 		maxcpu = 1;
+		break;
+	}
 
 	/*
 	 * Clear local access windows. Skip DRAM entries, so we don't shoot

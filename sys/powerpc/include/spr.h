@@ -662,6 +662,10 @@
 #define	  SVR_P2010E		  0x80eb
 #define	  SVR_P2020		  0x80e2
 #define	  SVR_P2020E		  0x80ea
+#define	  SVR_P4040		  0x8200
+#define	  SVR_P4040E		  0x8208
+#define	  SVR_P4080		  0x8201
+#define	  SVR_P4080E		  0x8209
 #define	SVR_VER(svr)		(((svr) >> 16) & 0xffff)
 
 #define	SPR_PID0		0x030	/* ..8 Process ID Register 0 */
