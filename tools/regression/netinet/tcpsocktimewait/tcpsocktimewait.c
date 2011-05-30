@@ -1,6 +1,10 @@
 /*-
  * Copyright (c) 2006 Robert N. M. Watson
+ * Copyright (c) 2011 Juniper Networks, Inc.
  * All rights reserved.
+ *
+ * Portions of this software were developed by Robert N. M. Watson under
+ * contract to Juniper Networks, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -41,45 +45,15 @@
 #include <err.h>
 #include <errno.h>
 #include <signal.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
-#define	TCP_PORT	9001
-
 static void
-tcp_server(pid_t partner)
+tcp_server(pid_t partner, int listen_fd)
 {
-	int error, listen_fd, accept_fd;
-	struct sockaddr_in sin;
-
-	listen_fd = socket(PF_INET, SOCK_STREAM, 0);
-	if (listen_fd < 0) {
-		error = errno;
-		(void)kill(partner, SIGTERM);
-		errno = error;
-		err(-1, "tcp_server: socket");
-	}
-
-	bzero(&sin, sizeof(sin));
-	sin.sin_family = AF_INET;
-	sin.sin_len = sizeof(sin);
-	sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-	sin.sin_port = htons(TCP_PORT);
-
-	if (bind(listen_fd, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
-		error = errno;
-		(void)kill(partner, SIGTERM);
-		errno = error;
-		err(-1, "tcp_server: bind");
-	}
-
-	if (listen(listen_fd, -1) < 0) {
-		error = errno;
-		(void)kill(partner, SIGTERM);
-		errno = error;
-		err(-1, "tcp_server: listen");
-	}
+	int error, accept_fd;
 
 	accept_fd = accept(listen_fd, NULL, NULL);
 	if (accept_fd < 0) {
@@ -93,7 +67,7 @@ tcp_server(pid_t partner)
 }
 
 static void
-tcp_client(pid_t partner, int secs)
+tcp_client(pid_t partner, u_short port, int secs)
 {
 	struct sockaddr_in sin;
 	int error, sock;
@@ -112,7 +86,7 @@ tcp_client(pid_t partner, int secs)
 	sin.sin_family = AF_INET;
 	sin.sin_len = sizeof(sin);
 	sin.sin_addr.s_addr = ntohl(INADDR_LOOPBACK);
-	sin.sin_port = htons(TCP_PORT);
+	sin.sin_port = port;
 
 	if (connect(sock, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
 		error = errno;
@@ -135,7 +109,11 @@ tcp_client(pid_t partner, int secs)
 int
 main(int argc, char *argv[])
 {
+	struct sockaddr_in sin;
 	pid_t child_pid, parent_pid;
+	int listen_fd;
+	socklen_t len;
+	u_short port;
 
 	if (signal(SIGCHLD, SIG_IGN) == SIG_ERR)
 		err(-1, "signal");
@@ -144,19 +122,38 @@ main(int argc, char *argv[])
 	 * Run the whole thing twice: once, with a short sleep in the client,
 	 * so that we close before time wait runs out, and once with a long
 	 * sleep so that the time wait terminates while the socket is open.
+	 * We don't reuse listen sockets between runs.
 	 */
-	parent_pid = getpid();
-	child_pid = fork();
-	if (child_pid < 0)
-		err(-1, "fork");
-	if (child_pid == 0) {
-		child_pid = getpid();
-		tcp_server(child_pid);
-		exit(0);
-	} else
-		tcp_client(parent_pid, 1);
-	(void)kill(child_pid, SIGTERM);
-	sleep(5);
+	listen_fd = socket(PF_INET, SOCK_STREAM, 0);
+	if (listen_fd < 0)
+		err(-1, "socket");
+
+	/*
+	 * We use the loopback, but let the kernel select a port for the
+	 * server socket.
+	 */
+	bzero(&sin, sizeof(sin));
+	sin.sin_family = AF_INET;
+	sin.sin_len = sizeof(sin);
+	sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+
+	if (bind(listen_fd, (struct sockaddr *)&sin, sizeof(sin)) < 0)
+		err(-1, "bind");
+
+	if (listen(listen_fd, -1) < 0)
+		err(-1, "listen");
+
+	/*
+	 * Query the port so that the client can use it.
+	 */
+	bzero(&sin, sizeof(sin));
+	sin.sin_family = AF_INET;
+	sin.sin_len = sizeof(sin);
+	len = sizeof(sin);
+	if (getsockname(listen_fd, (struct sockaddr *)&sin, &len) < 0)
+		err(-1, "getsockname");
+	port = sin.sin_port;
+	printf("Using port %d\n", ntohs(port));
 
 	parent_pid = getpid();
 	child_pid = fork();
@@ -164,9 +161,57 @@ main(int argc, char *argv[])
 		err(-1, "fork");
 	if (child_pid == 0) {
 		child_pid = getpid();
-		tcp_server(parent_pid);
+		tcp_server(child_pid, listen_fd);
+		exit(0);
 	} else
-		tcp_client(child_pid, 800);
+		tcp_client(parent_pid, port, 1);
+	(void)kill(child_pid, SIGTERM);
+	close(listen_fd);
+	sleep(5);
+
+	/*
+	 * Start again, this time long sleep.
+	 */
+	listen_fd = socket(PF_INET, SOCK_STREAM, 0);
+	if (listen_fd < 0)
+		err(-1, "socket");
+
+	/*
+	 * We use the loopback, but let the kernel select a port for the
+	 * server socket.
+	 */
+	bzero(&sin, sizeof(sin));
+	sin.sin_family = AF_INET;
+	sin.sin_len = sizeof(sin);
+	sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+
+	if (bind(listen_fd, (struct sockaddr *)&sin, sizeof(sin)) < 0)
+		err(-1, "bind");
+
+	if (listen(listen_fd, -1) < 0)
+		err(-1, "listen");
+
+	/*
+	 * Query the port so that the client can use it.
+	 */
+	bzero(&sin, sizeof(sin));
+	sin.sin_family = AF_INET;
+	sin.sin_len = sizeof(sin);
+	len = sizeof(sin);
+	if (getsockname(listen_fd, (struct sockaddr *)&sin, &len) < 0)
+		err(-1, "getsockname");
+	port = sin.sin_port;
+	printf("Using port %d\n", ntohs(port));
+
+	parent_pid = getpid();
+	child_pid = fork();
+	if (child_pid < 0)
+		err(-1, "fork");
+	if (child_pid == 0) {
+		child_pid = getpid();
+		tcp_server(parent_pid, listen_fd);
+	} else
+		tcp_client(child_pid, port, 800);
 
 	return (0);
 }
