@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_types.h>
 #include <net/if_dl.h>
+#include <net/if_vlan_var.h>
 
 #include "common/t4_hw.h"
 #include "common/common.h"
@@ -365,7 +366,13 @@ t4_attach(device_t dev)
 	sc->mbox = sc->pf;
 
 	pci_enable_busmaster(dev);
-	pci_set_max_read_req(dev, 4096);
+	if (pci_find_cap(dev, PCIY_EXPRESS, &i) == 0) {
+		pci_set_max_read_req(dev, 4096);
+		v = pci_read_config(dev, i + PCIR_EXPRESS_DEVICE_CTL, 2);
+		v |= PCIM_EXP_CTL_RELAXED_ORD_ENABLE;
+		pci_write_config(dev, i + PCIR_EXPRESS_DEVICE_CTL, v, 2);
+	}
+
 	snprintf(sc->lockname, sizeof(sc->lockname), "%s",
 	    device_get_nameunit(dev));
 	mtx_init(&sc->sc_lock, sc->lockname, 0, MTX_DEF);
@@ -3208,41 +3215,9 @@ filter_rpl(struct adapter *sc, const struct cpl_set_tcb_rpl *rpl)
 int
 t4_os_find_pci_capability(struct adapter *sc, int cap)
 {
-	device_t dev;
-	struct pci_devinfo *dinfo;
-	pcicfgregs *cfg;
-	uint32_t status;
-	uint8_t ptr;
+	int i;
 
-	dev = sc->dev;
-	dinfo = device_get_ivars(dev);
-	cfg = &dinfo->cfg;
-
-	status = pci_read_config(dev, PCIR_STATUS, 2);
-	if (!(status & PCIM_STATUS_CAPPRESENT))
-		return (0);
-
-	switch (cfg->hdrtype & PCIM_HDRTYPE) {
-	case 0:
-	case 1:
-		ptr = PCIR_CAP_PTR;
-		break;
-	case 2:
-		ptr = PCIR_CAP_PTR_2;
-		break;
-	default:
-		return (0);
-		break;
-	}
-	ptr = pci_read_config(dev, ptr, 1);
-
-	while (ptr != 0) {
-		if (pci_read_config(dev, ptr + PCICAP_ID, 1) == cap)
-			return (ptr);
-		ptr = pci_read_config(dev, ptr + PCICAP_NEXTPTR, 1);
-	}
-
-	return (0);
+	return (pci_find_cap(sc->dev, cap, &i) == 0 ? i : 0);
 }
 
 int
