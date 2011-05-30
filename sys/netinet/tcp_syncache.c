@@ -661,6 +661,7 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 	inp = sotoinpcb(so);
 	inp->inp_inc.inc_fibnum = so->so_fibnum;
 	INP_WLOCK(inp);
+	INP_HASH_WLOCK(&V_tcbinfo);
 
 	/* Insert new socket into PCB hash list. */
 	inp->inp_inc.inc_flags = sc->sc_inc.inc_flags;
@@ -694,6 +695,7 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 			    s, __func__, error);
 			free(s, M_TCPLOG);
 		}
+		INP_HASH_WUNLOCK(&V_tcbinfo);
 		goto abort;
 	}
 #ifdef IPSEC
@@ -737,6 +739,7 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 				    s, __func__, error);
 				free(s, M_TCPLOG);
 			}
+			INP_HASH_WUNLOCK(&V_tcbinfo);
 			goto abort;
 		}
 		/* Override flowlabel from in6_pcbconnect. */
@@ -776,10 +779,12 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 				    s, __func__, error);
 				free(s, M_TCPLOG);
 			}
+			INP_HASH_WUNLOCK(&V_tcbinfo);
 			goto abort;
 		}
 	}
 #endif /* INET */
+	INP_HASH_WUNLOCK(&V_tcbinfo);
 	tp = intotcpcb(inp);
 	tp->t_state = TCPS_SYN_RECEIVED;
 	tp->iss = sc->sc_iss;

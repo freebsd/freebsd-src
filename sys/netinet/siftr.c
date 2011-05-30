@@ -696,17 +696,16 @@ siftr_findinpcb(int ipver, struct ip *ip, struct mbuf *m, uint16_t sport,
 
 	/* We need the tcbinfo lock. */
 	INP_INFO_UNLOCK_ASSERT(&V_tcbinfo);
-	INP_INFO_RLOCK(&V_tcbinfo);
 
 	if (dir == PFIL_IN)
 		inp = (ipver == INP_IPV4 ?
-		    in_pcblookup_hash(&V_tcbinfo, ip->ip_src, sport, ip->ip_dst,
-		    dport, 0, m->m_pkthdr.rcvif)
+		    in_pcblookup(&V_tcbinfo, ip->ip_src, sport, ip->ip_dst,
+		    dport, INPLOOKUP_RLOCKPCB, m->m_pkthdr.rcvif)
 		    :
 #ifdef SIFTR_IPV6
-		    in6_pcblookup_hash(&V_tcbinfo,
+		    in6_pcblookup(&V_tcbinfo,
 		    &((struct ip6_hdr *)ip)->ip6_src, sport,
-		    &((struct ip6_hdr *)ip)->ip6_dst, dport, 0,
+		    &((struct ip6_hdr *)ip)->ip6_dst, dport, INPLOOKUP_RLOCKPCB,
 		    m->m_pkthdr.rcvif)
 #else
 		    NULL
@@ -715,13 +714,13 @@ siftr_findinpcb(int ipver, struct ip *ip, struct mbuf *m, uint16_t sport,
 
 	else
 		inp = (ipver == INP_IPV4 ?
-		    in_pcblookup_hash(&V_tcbinfo, ip->ip_dst, dport, ip->ip_src,
-		    sport, 0, m->m_pkthdr.rcvif)
+		    in_pcblookup(&V_tcbinfo, ip->ip_dst, dport, ip->ip_src,
+		    sport, INPLOOKUP_RLOCKPCB, m->m_pkthdr.rcvif)
 		    :
 #ifdef SIFTR_IPV6
-		    in6_pcblookup_hash(&V_tcbinfo,
+		    in6_pcblookup(&V_tcbinfo,
 		    &((struct ip6_hdr *)ip)->ip6_dst, dport,
-		    &((struct ip6_hdr *)ip)->ip6_src, sport, 0,
+		    &((struct ip6_hdr *)ip)->ip6_src, sport, INPLOOKUP_RLOCKPCB,
 		    m->m_pkthdr.rcvif)
 #else
 		    NULL
@@ -734,12 +733,7 @@ siftr_findinpcb(int ipver, struct ip *ip, struct mbuf *m, uint16_t sport,
 			ss->nskip_in_inpcb++;
 		else
 			ss->nskip_out_inpcb++;
-	} else {
-		/* Acquire the inpcb lock. */
-		INP_UNLOCK_ASSERT(inp);
-		INP_RLOCK(inp);
 	}
-	INP_INFO_RUNLOCK(&V_tcbinfo);
 
 	return (inp);
 }

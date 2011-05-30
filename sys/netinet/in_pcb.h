@@ -268,22 +268,22 @@ struct inpcbport {
  * Global data structure for each high-level protocol (UDP, TCP, ...) in both
  * IPv4 and IPv6.  Holds inpcb lists and information for managing them.
  *
- * Each pcbinfo is protected by ipi_lock, covering mutable global fields (such
- * as the global pcb list) and hashed lookup tables.  The lock order is:
+ * Each pcbinfo is protected by two locks: ipi_lock and ipi_hash_lock,
+ * the former covering mutable global fields (such as the global pcb list),
+ * and the latter covering the hashed lookup tables.  The lock order is:
  *
- *    ipi_lock (before) inpcb locks
+ *    ipi_lock (before) inpcb locks (before) ipi_hash_lock
  *
  * Locking key:
  *
  * (c) Constant or nearly constant after initialisation
  * (g) Locked by ipi_lock
- * (h) Read using either ipi_lock or inpcb lock; write requires both.
+ * (h) Read using either ipi_hash_lock or inpcb lock; write requires both.
  * (x) Synchronisation properties poorly defined
  */
 struct inpcbinfo {
 	/*
-	 * Global lock protecting global inpcb list, inpcb count, hash tables,
-	 * etc.
+	 * Global lock protecting global inpcb list, inpcb count, etc.
 	 */
 	struct rwlock		 ipi_lock;
 
@@ -312,17 +312,22 @@ struct inpcbinfo {
 	struct	uma_zone	*ipi_zone;		/* (c) */
 
 	/*
+	 * Global lock protecting hash lookup tables.
+	 */
+	struct rwlock		 ipi_hash_lock;
+
+	/*
 	 * Global hash of inpcbs, hashed by local and foreign addresses and
 	 * port numbers.
 	 */
-	struct inpcbhead	*ipi_hashbase;		/* (g) */
-	u_long			 ipi_hashmask;		/* (g) */
+	struct inpcbhead	*ipi_hashbase;		/* (h) */
+	u_long			 ipi_hashmask;		/* (h) */
 
 	/*
 	 * Global hash of inpcbs, hashed by only local port number.
 	 */
-	struct inpcbporthead	*ipi_porthashbase;	/* (g) */
-	u_long			 ipi_porthashmask;	/* (g) */
+	struct inpcbporthead	*ipi_porthashbase;	/* (h) */
+	u_long			 ipi_porthashmask;	/* (h) */
 
 	/*
 	 * Pointer to network stack instance
@@ -406,6 +411,18 @@ void 	inp_4tuple_get(struct inpcb *inp, uint32_t *laddr, uint16_t *lp,
 #define INP_INFO_WLOCK_ASSERT(ipi)	rw_assert(&(ipi)->ipi_lock, RA_WLOCKED)
 #define INP_INFO_UNLOCK_ASSERT(ipi)	rw_assert(&(ipi)->ipi_lock, RA_UNLOCKED)
 
+#define	INP_HASH_LOCK_INIT(ipi, d) \
+	rw_init_flags(&(ipi)->ipi_hash_lock, (d), 0)
+#define	INP_HASH_LOCK_DESTROY(ipi)	rw_destroy(&(ipi)->ipi_hash_lock)
+#define	INP_HASH_RLOCK(ipi)		rw_rlock(&(ipi)->ipi_hash_lock)
+#define	INP_HASH_WLOCK(ipi)		rw_wlock(&(ipi)->ipi_hash_lock)
+#define	INP_HASH_RUNLOCK(ipi)		rw_runlock(&(ipi)->ipi_hash_lock)
+#define	INP_HASH_WUNLOCK(ipi)		rw_wunlock(&(ipi)->ipi_hash_lock)
+#define	INP_HASH_LOCK_ASSERT(ipi)	rw_assert(&(ipi)->ipi_hash_lock, \
+					    RA_LOCKED)
+#define	INP_HASH_WLOCK_ASSERT(ipi)	rw_assert(&(ipi)->ipi_hash_lock, \
+					    RA_WLOCKED)
+
 #define INP_PCBHASH(faddr, lport, fport, mask) \
 	(((faddr) ^ ((faddr) >> 16) ^ ntohs((lport) ^ (fport))) & (mask))
 #define INP_PCBPORTHASH(lport, mask) \
@@ -466,7 +483,16 @@ void 	inp_4tuple_get(struct inpcb *inp, uint32_t *laddr, uint16_t *lp,
 #define	INP_LLE_VALID		0x00000001 /* cached lle is valid */	
 #define	INP_RT_VALID		0x00000002 /* cached rtentry is valid */
 
-#define	INPLOOKUP_WILDCARD	1
+/*
+ * Flags passed to in_pcblookup*() functions.
+ */
+#define	INPLOOKUP_WILDCARD	0x00000001	/* Allow wildcard sockets. */
+#define	INPLOOKUP_RLOCKPCB	0x00000002	/* Return inpcb read-locked. */
+#define	INPLOOKUP_WLOCKPCB	0x00000004	/* Return inpcb write-locked. */
+
+#define	INPLOOKUP_MASK	(INPLOOKUP_WILDCARD | INPLOOKUP_RLOCKPCB | \
+			    INPLOOKUP_WLOCKPCB)
+
 #define	sotoinpcb(so)	((struct inpcb *)(so)->so_pcb)
 #define	sotoin6pcb(so)	sotoinpcb(so) /* for KAME src sync over BSD*'s */
 
@@ -527,7 +553,7 @@ struct inpcb *
 	in_pcblookup_local(struct inpcbinfo *,
 	    struct in_addr, u_short, int, struct ucred *);
 struct inpcb *
-	in_pcblookup_hash(struct inpcbinfo *, struct in_addr, u_int,
+	in_pcblookup(struct inpcbinfo *, struct in_addr, u_int,
 	    struct in_addr, u_int, int, struct ifnet *);
 void	in_pcbnotifyall(struct inpcbinfo *pcbinfo, struct in_addr,
 	    int, struct inpcb *(*)(struct inpcb *, int));

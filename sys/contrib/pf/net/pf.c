@@ -3034,16 +3034,14 @@ pf_socket_lookup(int direction, struct pf_pdesc *pd)
 #ifdef INET
 	case AF_INET:
 #ifdef __FreeBSD__
-		INP_INFO_RLOCK(pi);	/* XXX LOR */
-		inp = in_pcblookup_hash(pi, saddr->v4, sport, daddr->v4,
-			dport, 0, NULL);
+		inp = in_pcblookup(pi, saddr->v4, sport, daddr->v4,
+			dport, INPLOOKUP_RLOCKPCB, NULL);
 		if (inp == NULL) {
-			inp = in_pcblookup_hash(pi, saddr->v4, sport,
-			   daddr->v4, dport, INPLOOKUP_WILDCARD, NULL);
-			if(inp == NULL) {
-				INP_INFO_RUNLOCK(pi);
+			inp = in_pcblookup(pi, saddr->v4, sport,
+			   daddr->v4, dport, INPLOOKUP_WILDCARD |
+			   INPLOOKUP_RLOCKPCB, NULL);
+			if (inp == NULL)
 				return (-1);
-			}
 		}
 #else
 		inp = in_pcbhashlookup(tb, saddr->v4, sport, daddr->v4, dport);
@@ -3058,16 +3056,14 @@ pf_socket_lookup(int direction, struct pf_pdesc *pd)
 #ifdef INET6
 	case AF_INET6:
 #ifdef __FreeBSD__
-		INP_INFO_RLOCK(pi);
-		inp = in6_pcblookup_hash(pi, &saddr->v6, sport,
-			&daddr->v6, dport, 0, NULL);
+		inp = in6_pcblookup(pi, &saddr->v6, sport,
+			&daddr->v6, dport, INPLOOKUP_RLOCKPCB, NULL);
 		if (inp == NULL) {
-			inp = in6_pcblookup_hash(pi, &saddr->v6, sport,
-			&daddr->v6, dport, INPLOOKUP_WILDCARD, NULL);
-			if (inp == NULL) {
-				INP_INFO_RUNLOCK(pi);
+			inp = in6_pcblookup(pi, &saddr->v6, sport,
+			    &daddr->v6, dport, INPLOOKUP_WILDCARD |
+			    INPLOOKUP_RLOCKPCB, NULL);
+			if (inp == NULL)
 				return (-1);
-			}
 		}
 #else
 		inp = in6_pcbhashlookup(tb, &saddr->v6, sport, &daddr->v6,
@@ -3085,9 +3081,10 @@ pf_socket_lookup(int direction, struct pf_pdesc *pd)
 		return (-1);
 	}
 #ifdef __FreeBSD__
+	INP_RLOCK_ASSERT(inp);
 	pd->lookup.uid = inp->inp_cred->cr_uid;
 	pd->lookup.gid = inp->inp_cred->cr_groups[0];
-	INP_INFO_RUNLOCK(pi);
+	INP_RUNLOCK(inp);
 #else
 	pd->lookup.uid = inp->inp_socket->so_euid;
 	pd->lookup.gid = inp->inp_socket->so_egid;

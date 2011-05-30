@@ -80,9 +80,13 @@ struct	inpcb *
 				 struct in6_addr *, u_short, int,
 				 struct ucred *));
 struct	inpcb *
-	in6_pcblookup_hash __P((struct inpcbinfo *,
-				struct in6_addr *, u_int, struct in6_addr *,
-				u_int, int, struct ifnet *));
+	in6_pcblookup __P((struct inpcbinfo *, struct in6_addr *,
+			   u_int, struct in6_addr *, u_int, int,
+			   struct ifnet *));
+struct	inpcb *
+	in6_pcblookup_hash_locked __P((struct inpcbinfo *, struct in6_addr *,
+			   u_int, struct in6_addr *, u_int, int,
+			   struct ifnet *));
 void	in6_pcbnotify __P((struct inpcbinfo *, struct sockaddr *,
 			   u_int, const struct sockaddr *, u_int, int, void *,
 			   struct inpcb *(*)(struct inpcb *, int)));
