@@ -445,6 +445,7 @@ struct adapter {
 	struct port_info *port[MAX_NPORTS];
 	uint8_t chan_map[NCHAN];
 
+	struct l2t_data *l2t;	/* L2 table */
 	struct tid_info tids;
 
 	int registered_device_map;
