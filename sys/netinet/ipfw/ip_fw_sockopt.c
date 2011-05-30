@@ -606,7 +606,7 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 		case O_SETFIB:
 			if (cmdlen != F_INSN_SIZE(ipfw_insn))
 				goto bad_size;
-			if (cmd->arg1 >= rt_numfibs) {
+			if ((cmd->arg1 != IP_FW_TABLEARG) && (cmd->arg1 >= rt_numfibs)) {
 				printf("ipfw: invalid fib number %d\n",
 					cmd->arg1);
 				return EINVAL;
