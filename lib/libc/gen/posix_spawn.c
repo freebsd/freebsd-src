@@ -163,11 +163,8 @@ process_file_actions_entry(posix_spawn_file_actions_entry_t *fae)
 			return (errno);
 		break;
 	case FAE_CLOSE:
-		/* Perform a close() */
-		if (_close(fae->fae_fildes) != 0) {
-			if (errno == EBADF)
-				return (EBADF);
-		}
+		/* Perform a close(), do not fail if already closed */
+		(void)_close(fae->fae_fildes);
 		break;
 	}
 	return (0);
