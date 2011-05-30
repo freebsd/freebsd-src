@@ -44,7 +44,7 @@ extern BTREEINFO openinfo_b;
 #define _PATH_YP "/var/yp/"
 #endif
 
-extern char	*yp_dir;
+extern const char	*yp_dir;
 extern int	debug;
 extern enum ypstat	yp_errno;
 extern void	yp_error(const char *, ...);

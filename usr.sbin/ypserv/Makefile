@@ -18,7 +18,7 @@ SRCS+=	yp_access_inet6.c
 
 CFLAGS+= -DDB_CACHE -DTCP_WRAPPER -I.
 
-WARNS?=	0
+WARNS?=	6
 
 DPADD=	${LIBWRAP}
 LDADD=	-lwrap

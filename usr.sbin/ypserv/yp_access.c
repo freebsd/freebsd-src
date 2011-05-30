@@ -56,10 +56,11 @@ __FBSDID("$FreeBSD$");
 #include "yp_extern.h"
 #ifdef TCP_WRAPPER
 #include "tcpd.h"
+extern int hosts_ctl(const char *, const char *, const char *, const char *);
 #endif
 
-extern int hosts_ctl(char *, char *, char *, char *);
-extern int debug;
+char securenets_path[MAXPATHLEN];
+enum yp_snf_format securenets_format = YP_SNF_NATIVE;
 
 const char *yp_procs[] = {
 	/* NIS v1 */
@@ -143,6 +144,7 @@ void
 yp_debug_sa(const struct sockaddr *sap)
 {
 	int error;
+	int plen;
 	char host[NI_MAXHOST + 1];
 	char serv[NI_MAXSERV + 1];
 
@@ -150,8 +152,9 @@ yp_debug_sa(const struct sockaddr *sap)
 		    sizeof(serv), NI_NUMERICHOST | NI_NUMERICSERV);
 	if (error)
 		yp_error("sockaddr: %s", gai_strerror(error));
-	else
-		yp_error("sockaddr: %d/%s/%s", sap->sa_family, host, serv);
+	mask2prefixlen(sap, &plen);
+	yp_error("sockaddr: %d:[%s]:%s(/%d)",
+		 sap->sa_family, host, serv, plen);
 }
 
 void
@@ -224,8 +227,13 @@ load_securenets(void)
 				return (1);
 			}
 			for (res = res0; res; res = res->ai_next) {
-				struct sockaddr *sap;
 				snp = malloc(sizeof(*snp));
+				if (snp == NULL) {
+					yp_error("malloc failed: %s",
+						 strerror(errno));
+					freeaddrinfo(res0);
+					return (1);
+				}
 				memset(snp, 0, sizeof(*snp));
 				memcpy(&snp->sn_addr, res->ai_addr,
 				   sizeof(res->ai_addrlen));
@@ -247,8 +255,8 @@ load_securenets(void)
 	line = 0;
 	while (fgets(linebuf, sizeof(linebuf), fp)) {
 		int nitems;
-		char *col_host;
-		char *col_mask;
+		const char *col_host;
+		const char *col_mask;
 		char addr1[NI_MAXHOST + 1];
 		char addr2[NI_MAXHOST + 1];
 		int plen;
@@ -300,7 +308,7 @@ load_securenets(void)
 			if (error) {
 				yp_error("line %d: "
 					 "badly formatted securenets entry: "
-					 "%s: %s: %s", line, linebuf,
+					 "%s: %s", line, linebuf,
 					 gai_strerror(error));
 				freeaddrinfo(res0);
 				free(snp);
@@ -339,7 +347,7 @@ load_securenets(void)
 			if (error) {
 				yp_error("line %d: "
 				    "badly formatted securenets entry: "
-				    "%s: %s: %s", line, linebuf,
+				    "%s: %s", line, linebuf,
 				    gai_strerror(error));
 				freeaddrinfo(res0);
 				free(snp);
@@ -448,7 +456,7 @@ compare_subnet(struct sockaddr *addr1,
 	u_char a1[sizeof(struct sockaddr_storage)];
 	u_char a2[sizeof(struct sockaddr_storage)];
 	u_char m[sizeof(struct sockaddr_storage)];
-	size_t len;
+	ssize_t len;
 	int i;
 	int samescope;
 
@@ -602,7 +610,7 @@ yp_access(const char *map, const struct svc_req *rqstp)
 			return (1);
 		}
 #ifdef DB_CACHE
-		if ((yp_testflag((char *)map, (char *)domain, YP_SECURE) ||
+		if ((yp_testflag((const char *)map, (const char *)domain, YP_SECURE) ||
 #else
 		if ((strstr(map, "master.passwd.") || strstr(map, "shadow.") ||
 #endif

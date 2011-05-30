@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 RPCDIR=	${.CURDIR}/../../include/rpcsvc
-.PATH: ${RPCDIR} ${.CURDIR}/../../usr.sbin/ypserv \
+.PATH: ${RPCDIR} ${.CURDIR}/../ypserv \
        ${.CURDIR}/../../libexec/ypxfr
 
 PROG=	yppush

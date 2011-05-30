@@ -86,10 +86,8 @@ static int _rpcfdtype;
 static char _localhost[] = "localhost";
 static char _passwd_byname[] = "passwd.byname";
 extern int _rpcsvcstate;	 /* Set when a request is serviced */
-static char _progname[] = "rpc.yppasswdd";
-char *progname = _progname;
-static char _yp_dir[] = _PATH_YP;
-char *yp_dir = _yp_dir;
+const char *progname = "rpc.yppasswdd";
+const char *yp_dir = _PATH_YP;
 static char _passfile_default[] = _PATH_YP "master.passwd";
 char *passfile_default = _passfile_default;
 char *passfile;

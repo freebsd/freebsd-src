@@ -51,8 +51,8 @@ __FBSDID("$FreeBSD$");
 #include <rpcsvc/ypxfrd.h>
 #include "ypxfr_extern.h"
 
-char *progname = "ypxfr";
-char *yp_dir = _PATH_YP;
+const char *progname = "ypxfr";
+const char *yp_dir = _PATH_YP;
 int _rpcpmstart = 0;
 int ypxfr_use_yplib = 0; /* Assume the worst. */
 int ypxfr_clear = 1;

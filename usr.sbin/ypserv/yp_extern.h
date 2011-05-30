@@ -69,8 +69,8 @@ extern int	ypdb_debug;
 extern int	do_dns;
 extern int	children;
 extern int	resfd;
-extern char 	*progname;
-extern char	*yp_dir;
+extern const char 	*progname;
+extern const char	*yp_dir;
 extern pid_t	yp_pid;
 extern char	securenets_path[MAXPATHLEN];
 extern enum yp_snf_format {
@@ -111,8 +111,9 @@ extern DB	*yp_open_db(const char *, const char *);
 extern DB	*yp_open_db_cache(const char *, const char *, const char *, int);
 extern void	yp_flush_all(void);
 extern void	yp_init_dbs(void);
-extern int	yp_testflag(char *, char *, int);
+extern int	yp_testflag(const char *, const char *, int);
 extern int	load_securenets(void);
+extern void	show_securenets(void);
 
 #ifdef DB_CACHE
 extern ypstat	yp_select_map(char *, char *, keydat *, int);
