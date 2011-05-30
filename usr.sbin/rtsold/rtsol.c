@@ -532,6 +532,7 @@ rtsol_input(int s)
 			free(smp);
 			return;
 		}
+		TAILQ_INSERT_TAIL(&sm_sl_head, smp, sm_next);
 	}
 	TAILQ_CONCAT(&sm_ns_head, &sm_sl_head, sm_next);
 	if (!TAILQ_EMPTY(&sm_ns_head) || !TAILQ_EMPTY(&sm_sl_head)) {
