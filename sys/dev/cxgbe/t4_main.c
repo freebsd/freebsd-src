@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include "common/t4_regs_values.h"
 #include "common/t4fw_interface.h"
 #include "t4_ioctl.h"
+#include "t4_l2t.h"
 
 /* T4 bus driver interface */
 static int t4_probe(device_t);
@@ -240,6 +241,7 @@ struct filter_entry {
         uint32_t locked:1;	/* filter is administratively locked */
         uint32_t pending:1;	/* filter action is pending firmware reply */
 	uint32_t smtidx:8;	/* Source MAC Table index for smac */
+	struct l2t_entry *l2t;	/* Layer Two Table entry for dmac */
 
         struct t4_filter_specification fs;
 };
@@ -304,7 +306,7 @@ static int set_filter_mode(struct adapter *, uint32_t);
 static int get_filter(struct adapter *, struct t4_filter *);
 static int set_filter(struct adapter *, struct t4_filter *);
 static int del_filter(struct adapter *, struct t4_filter *);
-static void clear_filter(struct adapter *, struct filter_entry *);
+static void clear_filter(struct filter_entry *);
 static int set_filter_wr(struct adapter *, int);
 static int del_filter_wr(struct adapter *, int);
 void filter_rpl(struct adapter *, const struct cpl_set_tcb_rpl *);
@@ -604,6 +606,8 @@ t4_attach(device_t dev)
 	sc->irq = malloc(sc->intr_count * sizeof(struct irq), M_CXGBE,
 	    M_ZERO | M_WAITOK);
 
+	sc->l2t = t4_init_l2t(M_WAITOK);
+
 	t4_sysctls(sc);
 
 	/*
@@ -690,6 +694,9 @@ t4_detach(device_t dev)
 	if (sc->msix_res)
 		bus_release_resource(dev, SYS_RES_MEMORY, sc->msix_rid,
 		    sc->msix_res);
+
+	if (sc->l2t)
+		t4_free_l2t(sc->l2t);
 
 	free(sc->irq, M_CXGBE);
 	free(sc->sge.rxq, M_CXGBE);
@@ -2913,8 +2920,10 @@ get_filter(struct adapter *sc, struct t4_filter *t)
 	for (i = t->idx; i < nfilters; i++, f++) {
 		if (f->valid) {
 			t->idx = i;
-			t->fs = f->fs;
+			t->l2tidx = f->l2t ? f->l2t->idx : 0;
+			t->smtidx = f->smtidx;
 			t->hits = 0;	/* XXX implement */
+			t->fs = f->fs;
 
 			return (0);
 		}
@@ -3034,11 +3043,12 @@ del_filter(struct adapter *sc, struct t4_filter *t)
 	return (0);
 }
 
-/* XXX: L2T */
 static void
-clear_filter(struct adapter *sc, struct filter_entry *f)
+clear_filter(struct filter_entry *f)
 {
-	(void) sc;
+	if (f->l2t)
+		t4_l2t_release(f->l2t);
+
 	bzero(f, sizeof (*f));
 }
 
@@ -3053,8 +3063,18 @@ set_filter_wr(struct adapter *sc, int fidx)
 
 	ADAPTER_LOCK_ASSERT_OWNED(sc);
 
-	if (f->fs.newdmac || f->fs.newvlan)
-		return (ENOTSUP);	/* XXX: fix after L2T code */
+	if (f->fs.newdmac || f->fs.newvlan) {
+		/* This filter needs an L2T entry; allocate one. */
+		f->l2t = t4_l2t_alloc_switching(sc->l2t);
+		if (f->l2t == NULL)
+			return (EAGAIN);
+		if (t4_l2t_set_switching(sc, f->l2t, f->fs.vlan, f->fs.eport,
+		    f->fs.dmac)) {
+			t4_l2t_release(f->l2t);
+			f->l2t = NULL;
+			return (ENOMEM);
+		}
+	}
 
 	ftid = sc->tids.ftid_base + fidx;
 
@@ -3089,7 +3109,7 @@ set_filter_wr(struct adapter *sc, int fidx)
 		V_FW_FILTER_WR_HITCNTS(f->fs.hitcnts) |
 		V_FW_FILTER_WR_TXCHAN(f->fs.eport) |
 		V_FW_FILTER_WR_PRIO(f->fs.prio) |
-		V_FW_FILTER_WR_L2TIX(0));	/* XXX: L2T */
+		V_FW_FILTER_WR_L2TIX(f->l2t ? f->l2t->idx : 0));
 	fwr->ethtype = htobe16(f->fs.val.ethtype);
 	fwr->ethtypem = htobe16(f->fs.mask.ethtype);
 	fwr->frag_to_ovlan_vldm =
@@ -3136,7 +3156,7 @@ set_filter_wr(struct adapter *sc, int fidx)
 	if (rc != 0) {
 		sc->tids.ftids_in_use--;
 		m_freem(m);
-		clear_filter(sc, f);
+		clear_filter(f);
 	}
 	return (rc);
 }
@@ -3188,12 +3208,12 @@ filter_rpl(struct adapter *sc, const struct cpl_set_tcb_rpl *rpl)
 			 * Clear the filter when we get confirmation from the
 			 * hardware that the filter has been deleted.
 			 */
-			clear_filter(sc, f);
+			clear_filter(f);
 			sc->tids.ftids_in_use--;
 		} else if (rc == FW_FILTER_WR_SMT_TBL_FULL) {
 			device_printf(sc->dev,
 			    "filter %u setup failed due to full SMT\n", idx);
-			clear_filter(sc, f);
+			clear_filter(f);
 			sc->tids.ftids_in_use--;
 		} else if (rc == FW_FILTER_WR_FLT_ADDED) {
 			f->smtidx = (be64toh(rpl->oldval) >> 24) & 0xff;
@@ -3206,7 +3226,7 @@ filter_rpl(struct adapter *sc, const struct cpl_set_tcb_rpl *rpl)
 			 */
 			device_printf(sc->dev,
 			    "filter %u setup failed with error %u\n", idx, rc);
-			clear_filter(sc, f);
+			clear_filter(f);
 			sc->tids.ftids_in_use--;
 		}
 	}
