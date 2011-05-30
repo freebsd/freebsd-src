@@ -127,13 +127,13 @@ static VNET_DEFINE(int, ipport_tcplastcount);
 
 #define	V_ipport_tcplastcount		VNET(ipport_tcplastcount)
 
+static void	in_pcbremlists(struct inpcb *inp);
+#ifdef INET
 static struct inpcb	*in_pcblookup_hash_locked(struct inpcbinfo *pcbinfo,
 			    struct in_addr faddr, u_int fport_arg,
 			    struct in_addr laddr, u_int lport_arg,
 			    int lookupflags, struct ifnet *ifp);
-static void	in_pcbremlists(struct inpcb *inp);
 
-#ifdef INET
 #define RANGECHK(var, min, max) \
 	if ((var) < (min)) { (var) = (min); } \
 	else if ((var) > (max)) { (var) = (max); }
