@@ -1443,46 +1443,46 @@ sdhci_read_ivar(device_t bus, device_t child, int which, uintptr_t *result)
 	default:
 		return (EINVAL);
 	case MMCBR_IVAR_BUS_MODE:
-		*(int *)result = slot->host.ios.bus_mode;
+		*result = slot->host.ios.bus_mode;
 		break;
 	case MMCBR_IVAR_BUS_WIDTH:
-		*(int *)result = slot->host.ios.bus_width;
+		*result = slot->host.ios.bus_width;
 		break;
 	case MMCBR_IVAR_CHIP_SELECT:
-		*(int *)result = slot->host.ios.chip_select;
+		*result = slot->host.ios.chip_select;
 		break;
 	case MMCBR_IVAR_CLOCK:
-		*(int *)result = slot->host.ios.clock;
+		*result = slot->host.ios.clock;
 		break;
 	case MMCBR_IVAR_F_MIN:
-		*(int *)result = slot->host.f_min;
+		*result = slot->host.f_min;
 		break;
 	case MMCBR_IVAR_F_MAX:
-		*(int *)result = slot->host.f_max;
+		*result = slot->host.f_max;
 		break;
 	case MMCBR_IVAR_HOST_OCR:
-		*(int *)result = slot->host.host_ocr;
+		*result = slot->host.host_ocr;
 		break;
 	case MMCBR_IVAR_MODE:
-		*(int *)result = slot->host.mode;
+		*result = slot->host.mode;
 		break;
 	case MMCBR_IVAR_OCR:
-		*(int *)result = slot->host.ocr;
+		*result = slot->host.ocr;
 		break;
 	case MMCBR_IVAR_POWER_MODE:
-		*(int *)result = slot->host.ios.power_mode;
+		*result = slot->host.ios.power_mode;
 		break;
 	case MMCBR_IVAR_VDD:
-		*(int *)result = slot->host.ios.vdd;
+		*result = slot->host.ios.vdd;
 		break;
 	case MMCBR_IVAR_CAPS:
-		*(int *)result = slot->host.caps;
+		*result = slot->host.caps;
 		break;
 	case MMCBR_IVAR_TIMING:
-		*(int *)result = slot->host.ios.timing;
+		*result = slot->host.ios.timing;
 		break;
 	case MMCBR_IVAR_MAX_DATA:
-		*(int *)result = 65535;
+		*result = 65535;
 		break;
 	}
 	return (0);
