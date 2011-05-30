@@ -145,5 +145,6 @@ sec2str(time_t total)
 		p += n;
 	}
 	snprintf(p, ep - p, "%ds", secs);
-	return(result);
+
+	return (result);
 }

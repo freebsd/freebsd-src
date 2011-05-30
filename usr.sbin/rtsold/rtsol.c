@@ -2,6 +2,7 @@
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
+ * Copyright (C) 2011 Hiroki Sato
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -62,8 +63,6 @@
 #include <syslog.h>
 #include "rtsold.h"
 
-#define ALLROUTER "ff02::2"
-
 static struct msghdr rcvmhdr;
 static struct msghdr sndmhdr;
 static struct iovec rcviov[2];
@@ -72,10 +71,32 @@ static struct sockaddr_in6 from;
 static int rcvcmsglen;
 
 int rssock;
+/*
+ * RFC 3542 API deprecates IPV6_PKTINFO in favor of
+ * IPV6_RECVPKTINFO
+ */
+#ifndef IPV6_RECVPKTINFO
+#ifdef IPV6_PKTINFO
+#define IPV6_RECVPKTINFO	IPV6_PKTINFO
+#endif
+#endif
+/*
+ * RFC 3542 API deprecates IPV6_HOPLIMIT in favor of
+ * IPV6_RECVHOPLIMIT
+ */
+#ifndef IPV6_RECVHOPLIMIT
+#ifdef IPV6_HOPLIMIT
+#define IPV6_RECVHOPLIMIT	IPV6_HOPLIMIT
+#endif
+#endif
 
-static struct sockaddr_in6 sin6_allrouters = {
+#define IN6ADDR_LINKLOCAL_ALLROUTERS_INIT			\
+	{{{ 0xff, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,	\
+	    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02 }}}
+static const struct sockaddr_in6 sin6_allrouters = {
 	.sin6_len =	sizeof(sin6_allrouters),
 	.sin6_family =	AF_INET6,
+	.sin6_addr =	IN6ADDR_LINKLOCAL_ALLROUTERS_INIT,
 };
 
 struct script_msg {
@@ -84,7 +105,7 @@ struct script_msg {
 	char *sm_msg;
 };
 
-static void call_script(char **, void *);
+static void call_script(const int, const char *const *, void *);
 static size_t dname_labeldec(char *, const char *);
 static int safefile(const char *);
 
@@ -92,8 +113,8 @@ static int safefile(const char *);
 #define _ARGS_RESCONF	resolvconf_script, "-a", ifi->ifname
 #define CALL_SCRIPT(name, sm_head)	\
 	do {						\
-		char *sarg[] = { _ARGS_##name, NULL };	\
-		call_script(sarg, sm_head);		\
+		const char *const sarg[] = { _ARGS_##name, NULL };	\
+		call_script(sizeof(sarg), sarg, sm_head);		\
 	} while(0);
 
 int
@@ -109,63 +130,35 @@ sockopen(void)
 	if (rcvcmsgbuf == NULL && (rcvcmsgbuf = malloc(rcvcmsglen)) == NULL) {
 		warnmsg(LOG_ERR, __func__,
 		    "malloc for receive msghdr failed");
-		return(-1);
+		return (-1);
 	}
 	if (sndcmsgbuf == NULL && (sndcmsgbuf = malloc(sndcmsglen)) == NULL) {
 		warnmsg(LOG_ERR, __func__,
 		    "malloc for send msghdr failed");
-		return(-1);
+		return (-1);
 	}
-	memset(&sin6_allrouters, 0, sizeof(struct sockaddr_in6));
-	sin6_allrouters.sin6_family = AF_INET6;
-	sin6_allrouters.sin6_len = sizeof(sin6_allrouters);
-	if (inet_pton(AF_INET6, ALLROUTER,
-	    &sin6_allrouters.sin6_addr.s6_addr) != 1) {
-		warnmsg(LOG_ERR, __func__, "inet_pton failed for %s",
-		    ALLROUTER);
-		return(-1);
-	}
-
 	if ((rssock = socket(AF_INET6, SOCK_RAW, IPPROTO_ICMPV6)) < 0) {
 		warnmsg(LOG_ERR, __func__, "socket: %s", strerror(errno));
-		return(-1);
+		return (-1);
 	}
 
 	/* specify to tell receiving interface */
 	on = 1;
-#ifdef IPV6_RECVPKTINFO
 	if (setsockopt(rssock, IPPROTO_IPV6, IPV6_RECVPKTINFO, &on,
 	    sizeof(on)) < 0) {
 		warnmsg(LOG_ERR, __func__, "IPV6_RECVPKTINFO: %s",
 		    strerror(errno));
 		exit(1);
 	}
-#else  /* old adv. API */
-	if (setsockopt(rssock, IPPROTO_IPV6, IPV6_PKTINFO, &on,
-	    sizeof(on)) < 0) {
-		warnmsg(LOG_ERR, __func__, "IPV6_PKTINFO: %s",
-		    strerror(errno));
-		exit(1);
-	}
-#endif
 
-	on = 1;
 	/* specify to tell value of hoplimit field of received IP6 hdr */
-#ifdef IPV6_RECVHOPLIMIT
+	on = 1;
 	if (setsockopt(rssock, IPPROTO_IPV6, IPV6_RECVHOPLIMIT, &on,
 	    sizeof(on)) < 0) {
 		warnmsg(LOG_ERR, __func__, "IPV6_RECVHOPLIMIT: %s",
 		    strerror(errno));
 		exit(1);
 	}
-#else  /* old adv. API */
-	if (setsockopt(rssock, IPPROTO_IPV6, IPV6_HOPLIMIT, &on,
-	    sizeof(on)) < 0) {
-		warnmsg(LOG_ERR, __func__, "IPV6_HOPLIMIT: %s",
-		    strerror(errno));
-		exit(1);
-	}
-#endif
 
 	/* specfiy to accept only router advertisements on the socket */
 	ICMP6_FILTER_SETBLOCKALL(&filt);
@@ -192,7 +185,7 @@ sockopen(void)
 	sndmhdr.msg_control = (caddr_t)sndcmsgbuf;
 	sndmhdr.msg_controllen = sndcmsglen;
 
-	return(rssock);
+	return (rssock);
 }
 
 void
@@ -563,9 +556,9 @@ rtsol_input(int s)
 }
 
 static void
-call_script(char *argv[], void *head)
+call_script(const int argc, const char *const argv[], void *head)
 {
-	char *scriptpath;
+	const char *scriptpath;
 	int fd[2];
 	int error;
 	pid_t pid, wpid;
@@ -626,6 +619,7 @@ call_script(char *argv[], void *head)
 		}
 	} else {		/* child */
 		int nullfd;
+		char **_argv;
 
 		if (safefile(scriptpath)) {
 			warnmsg(LOG_ERR, __func__,
@@ -658,7 +652,14 @@ call_script(char *argv[], void *head)
 		if (nullfd > STDERR_FILENO)
 			close(nullfd);
 
-		execv(scriptpath, argv);
+		_argv = malloc(sizeof(*_argv) * argc);
+		if (_argv == NULL) {
+			warnmsg(LOG_ERR, __func__,
+				"malloc: %s", strerror(errno));
+			exit(1);
+		}
+		memcpy(_argv, argv, (size_t)argc);
+		execv(scriptpath, (char *const *)_argv);
 		warnmsg(LOG_ERR, __func__, "child: exec failed: %s",
 		    strerror(errno));
 		exit(1);

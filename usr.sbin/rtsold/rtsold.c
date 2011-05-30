@@ -63,6 +63,9 @@
 
 #include "rtsold.h"
 
+#define RTSOL_DUMPFILE	"/var/run/rtsold.dump";
+#define RTSOL_PIDFILE	"/var/run/rtsold.pid";
+
 struct ifinfo *iflist;
 struct timeval tm_max =	{0x7fffffff, 0x7fffffff};
 static int log_upto = 999;
@@ -72,8 +75,8 @@ int Fflag = 0;	/* force setting sysctl parameters */
 int aflag = 0;
 int dflag = 0;
 
-char *otherconf_script;
-char *resolvconf_script = "/sbin/resolvconf";
+const char *otherconf_script;
+const char *resolvconf_script = "/sbin/resolvconf";
 
 /* protocol constants */
 #define MAX_RTR_SOLICITATION_DELAY	1 /* second */
@@ -86,16 +89,12 @@ char *resolvconf_script = "/sbin/resolvconf";
  */
 #define PROBE_INTERVAL 60
 
-int main(int, char **);
-
 /* static variables and functions */
 static int mobile_node = 0;
+static const char *pidfilename = RTSOL_PIDFILE;
 #ifndef SMALL
 static int do_dump;
-static const char *dumpfilename = "/var/run/rtsold.dump"; /* XXX: should be configurable */
-#endif
-#if 1
-static const char *pidfilename = "/var/run/rtsold.pid"; /* should be configurable */
+static const char *dumpfilename = RTSOL_DUMPFILE;
 #endif
 
 #if 0
@@ -107,14 +106,13 @@ static struct timeval *rtsol_check_timer(void);
 #ifndef SMALL
 static void rtsold_set_dump_file(int);
 #endif
-static void usage(char *);
+static void usage(void);
 
 int
 main(int argc, char **argv)
 {
 	int s, ch, once = 0;
 	struct timeval *timeout;
-	char *argv0;
 	const char *opts;
 #ifdef HAVE_POLL_H
 	struct pollfd set[2];
@@ -125,19 +123,15 @@ main(int argc, char **argv)
 #endif
 	int rtsock;
 
-	/*
-	 * Initialization
-	 */
-	argv0 = argv[0];
-
-	/* get option */
-	if (argv0 && argv0[strlen(argv0) - 1] != 'd') {
-		fflag = 1;
-		once = 1;
-		opts = "adDFO:R:";
-	} else
-		opts = "adDfFm1O:R:";
-
+#ifndef SMALL
+	/* rtsold */
+	opts = "adDfFm1O:P:R:";
+#else
+	/* rtsol */
+	opts = "adDFO:P:R:";
+	fflag = 1;
+	once = 1;
+#endif
 	while ((ch = getopt(argc, argv, opts)) != -1) {
 		switch (ch) {
 		case 'a':
@@ -164,20 +158,23 @@ main(int argc, char **argv)
 		case 'O':
 			otherconf_script = optarg;
 			break;
+		case 'P':
+			pidfilename = optarg;
+			break;
 		case 'R':
 			resolvconf_script = optarg;
 			break;
 		default:
-			usage(argv0);
-			/*NOTREACHED*/
+			usage();
+			exit(1);
 		}
 	}
 	argc -= optind;
 	argv += optind;
 
 	if ((!aflag && argc == 0) || (aflag && argc != 0)) {
-		usage(argv0);
-		/*NOTREACHED*/
+		usage();
+		exit(1);
 	}
 
 	/* set log level */
@@ -186,9 +183,9 @@ main(int argc, char **argv)
 	if (!fflag) {
 		char *ident;
 
-		ident = strrchr(argv0, '/');
+		ident = strrchr(argv[0], '/');
 		if (!ident)
-			ident = argv0;
+			ident = argv[0];
 		else
 			ident++;
 		openlog(ident, LOG_NDELAY|LOG_PID, LOG_DAEMON);
@@ -200,7 +197,14 @@ main(int argc, char **argv)
 		errx(1, "configuration script (%s) must be an absolute path",
 		    otherconf_script);
 	}
-
+	if (resolvconf_script && *resolvconf_script != '/') {
+		errx(1, "configuration script (%s) must be an absolute path",
+		    resolvconf_script);
+	}
+	if (pidfilename && *pidfilename != '/') {
+		errx(1, "pid filename (%s) must be an absolute path",
+		    pidfilename);
+	}
 #ifndef HAVE_ARC4RANDOM
 	/* random value initialization */
 	srandom((u_long)time(NULL));
@@ -230,7 +234,6 @@ main(int argc, char **argv)
 	if ((s = sockopen()) < 0) {
 		warnmsg(LOG_ERR, __func__, "failed to open a socket");
 		exit(1);
-		/*NOTREACHED*/
 	}
 #ifdef HAVE_POLL_H
 	set[0].fd = s;
@@ -246,7 +249,6 @@ main(int argc, char **argv)
 	if ((rtsock = rtsock_open()) < 0) {
 		warnmsg(LOG_ERR, __func__, "failed to open a socket");
 		exit(1);
-		/*NOTREACHED*/
 	}
 #ifdef HAVE_POLL_H
 	set[1].fd = rtsock;
@@ -259,12 +261,12 @@ main(int argc, char **argv)
 #ifndef HAVE_POLL_H
 	fdmasks = howmany(maxfd + 1, NFDBITS) * sizeof(fd_mask);
 	if ((fdsetp = malloc(fdmasks)) == NULL) {
-		err(1, "malloc");
-		/*NOTREACHED*/
+		warnmsg(LOG_ERR, __func__, "malloc");
+		exit(1);
 	}
 	if ((selectfdp = malloc(fdmasks)) == NULL) {
-		err(1, "malloc");
-		/*NOTREACHED*/
+		warnmsg(LOG_ERR, __func__, "malloc");
+		exit(1);
 	}
 #endif
 
@@ -273,7 +275,6 @@ main(int argc, char **argv)
 		warnmsg(LOG_ERR, __func__,
 		    "failed to initialize interfaces");
 		exit(1);
-		/*NOTREACHED*/
 	}
 	if (aflag)
 		argv = autoifprobe();
@@ -282,7 +283,6 @@ main(int argc, char **argv)
 			warnmsg(LOG_ERR, __func__,
 			    "failed to initialize %s", *argv);
 			exit(1);
-			/*NOTREACHED*/
 		}
 		argv++;
 	}
@@ -295,7 +295,6 @@ main(int argc, char **argv)
 		/*NOTREACHED*/
 	}
 
-#if 1
 	/* dump the current pid */
 	if (!once) {
 		pid_t pid = getpid();
@@ -310,8 +309,6 @@ main(int argc, char **argv)
 			fclose(fp);
 		}
 	}
-#endif
-
 #ifndef HAVE_POLL_H
 	memset(fdsetp, 0, fdmasks);
 	FD_SET(s, fdsetp);
@@ -377,7 +374,7 @@ main(int argc, char **argv)
 	}
 	/* NOTREACHED */
 
-	return 0;
+	return (0);
 }
 
 int
@@ -390,19 +387,19 @@ ifconfig(char *ifname)
 	if ((sdl = if_nametosdl(ifname)) == NULL) {
 		warnmsg(LOG_ERR, __func__,
 		    "failed to get link layer information for %s", ifname);
-		return(-1);
+		return (-1);
 	}
 	if (find_ifinfo(sdl->sdl_index)) {
 		warnmsg(LOG_ERR, __func__,
 		    "interface %s was already configured", ifname);
 		free(sdl);
-		return(-1);
+		return (-1);
 	}
 
 	if ((ifinfo = malloc(sizeof(*ifinfo))) == NULL) {
 		warnmsg(LOG_ERR, __func__, "memory allocation failed");
 		free(sdl);
-		return(-1);
+		return (-1);
 	}
 	memset(ifinfo, 0, sizeof(*ifinfo));
 	ifinfo->sdl = sdl;
@@ -452,12 +449,12 @@ ifconfig(char *ifname)
 		ifinfo->next = iflist;
 	iflist = ifinfo;
 
-	return(0);
+	return (0);
 
 bad:
 	free(ifinfo->sdl);
 	free(ifinfo);
-	return(-1);
+	return (-1);
 }
 
 void
@@ -498,7 +495,7 @@ ifreconfig(char *ifname)
 		free(ifi->rs_data);
 	free(ifi->sdl);
 	free(ifi);
-	return rv;
+	return (rv);
 }
 #endif
 
@@ -509,8 +506,8 @@ find_ifinfo(int ifindex)
 
 	for (ifi = iflist; ifi; ifi = ifi->next)
 		if (ifi->sdl->sdl_index == ifindex)
-			return(ifi);
-	return(NULL);
+			return (ifi);
+	return (NULL);
 }
 
 static int
@@ -532,7 +529,7 @@ make_packet(struct ifinfo *ifinfo)
 	if ((buf = malloc(packlen)) == NULL) {
 		warnmsg(LOG_ERR, __func__,
 		    "memory allocation failed for %s", ifinfo->ifname);
-		return(-1);
+		return (-1);
 	}
 	ifinfo->rs_data = buf;
 
@@ -548,7 +545,7 @@ make_packet(struct ifinfo *ifinfo)
 	if (lladdroptlen)
 		lladdropt_fill(ifinfo->sdl, (struct nd_opt_hdr *)buf);
 
-	return(0);
+	return (0);
 }
 
 static struct timeval *
@@ -644,7 +641,7 @@ rtsol_check_timer(void)
 
 	if (timercmp(&rtsol_timer, &tm_max, ==)) {
 		warnmsg(LOG_DEBUG, __func__, "there is no timer");
-		return(NULL);
+		return (NULL);
 	} else if (timercmp(&rtsol_timer, &now, <))
 		/* this may occur when the interval is too small */
 		returnval.tv_sec = returnval.tv_usec = 0;
@@ -655,7 +652,7 @@ rtsol_check_timer(void)
 		warnmsg(LOG_DEBUG, __func__, "New timer is %ld:%08ld",
 		    (long)returnval.tv_sec, (long)returnval.tv_usec);
 
-	return(&returnval);
+	return (&returnval);
 }
 
 void
@@ -746,28 +743,19 @@ rtsold_set_dump_file(int sig __unused)
 #endif
 
 static void
-usage(char *progname)
+usage(void)
 {
-	if (progname && progname[strlen(progname) - 1] != 'd') {
-		fprintf(stderr, "usage: rtsol [-dDF] interfaces...\n");
-		fprintf(stderr, "usage: rtsol [-dDF] -a\n");
-	} else {
-		fprintf(stderr, "usage: rtsold [-adDfFm1] interfaces...\n");
-		fprintf(stderr, "usage: rtsold [-dDfFm1] -a\n");
-	}
-	exit(1);
+#ifndef SMALL
+	fprintf(stderr, "usage: rtsold [-adDfFm1] [-O script-name] [-P pidfile] [-R script-name] interfaces...\n");
+	fprintf(stderr, "usage: rtsold [-dDfFm1] [-O script-name] [-P pidfile] [-R script-name] -a\n");
+#else
+	fprintf(stderr, "usage: rtsol [-dDF] [-O script-name] [-P pidfile] [-R script-name] interfaces...\n");
+	fprintf(stderr, "usage: rtsol [-dDF] [-O script-name] [-P pidfile] [-R script-name] -a\n");
+#endif
 }
 
 void
-#if __STDC__
 warnmsg(int priority, const char *func, const char *msg, ...)
-#else
-warnmsg(priority, func, msg, va_alist)
-	int priority;
-	const char *func;
-	const char *msg;
-	va_dcl
-#endif
 {
 	va_list ap;
 	char buf[BUFSIZ];
@@ -809,11 +797,11 @@ autoifprobe(void)
 	n = 0;
 
 	if (getifaddrs(&ifap) != 0)
-		return NULL;
+		return (NULL);
 
 	if (!Fflag && (s = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) {
-		err(1, "socket");
-		/* NOTREACHED */
+		warnmsg(LOG_ERR, __func__, "socket");
+		exit(1);
 	}
 
 	target = NULL;
@@ -849,8 +837,9 @@ autoifprobe(void)
 			memset(&nd, 0, sizeof(nd));
 			strlcpy(nd.ifname, ifa->ifa_name, sizeof(nd.ifname));
 			if (ioctl(s, SIOCGIFINFO_IN6, (caddr_t)&nd) < 0) {
-				err(1, "ioctl(SIOCGIFINFO_IN6)");
-				/* NOTREACHED */
+				warnmsg(LOG_ERR, __func__,
+					"ioctl(SIOCGIFINFO_IN6)");
+				exit(1);
 			}
 			if ((nd.ndi.flags & ND6_IFF_IFDISABLED))
 				continue;
@@ -860,32 +849,40 @@ autoifprobe(void)
 
 		/* if we find multiple candidates, just warn. */
 		if (n != 0 && dflag > 1)
-			warnx("multiple interfaces found");
+			warnmsg(LOG_WARNING, __func__,
+				"multiple interfaces found");
 
 		a = (char **)realloc(argv, (n + 1) * sizeof(char **));
-		if (a == NULL)
-			err(1, "realloc");
+		if (a == NULL) {
+			warnmsg(LOG_ERR, __func__, "realloc");
+			exit(1);
+		}
 		argv = a;
 		argv[n] = strdup(ifa->ifa_name);
-		if (!argv[n])
-			err(1, "malloc");
+		if (!argv[n]) {
+			warnmsg(LOG_ERR, __func__, "malloc");
+			exit(1);
+		}
 		n++;
 	}
 
 	if (n) {
 		a = (char **)realloc(argv, (n + 1) * sizeof(char **));
-		if (a == NULL)
-			err(1, "realloc");
+		if (a == NULL) {
+			warnmsg(LOG_ERR, __func__, "realloc");
+			exit(1);
+		}
 		argv = a;
 		argv[n] = NULL;
 
 		if (dflag > 0) {
 			for (i = 0; i < n; i++)
-				warnx("probing %s", argv[i]);
+				warnmsg(LOG_WARNING, __func__, "probing %s",
+					argv[i]);
 		}
 	}
 	if (!Fflag)
 		close(s);
 	freeifaddrs(ifap);
-	return argv;
+	return (argv);
 }
