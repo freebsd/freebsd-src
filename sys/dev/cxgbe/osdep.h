@@ -82,6 +82,7 @@ typedef boolean_t bool;
 #define DIV_ROUND_UP(x, y) howmany(x, y)
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+#define container_of(p, s, f) ((s *)(((uint8_t *)(p)) - offsetof(s, f)))
 
 #define swab16(x) bswap16(x) 
 #define swab32(x) bswap32(x) 
