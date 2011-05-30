@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 27, 2011
+.Dd May 30, 2011
 .Dt GPART 8
 .Os
 .Sh NAME
@@ -802,6 +802,22 @@ providers and some of them will be marked as corrupt.
 Be careful when choosing a provider for recovering.
 If you choose incorrectly you can destroy the metadata of another GEOM class,
 e.g. GEOM MIRROR or GEOM LABEL.
+.Sh SYSCTL VARIABLES
+The following
+.Xr sysctl 8
+variables can be used to control the behavior of the
+.Nm PART
+GEOM class.
+The default value is shown next to each variable.
+.Bl -tag -width indent
+.It Va kern.geom.part.check_integrity : No 1
+This variable controls the behaviour of metadata integrity checks.
+When integrity checks are enabled
+.Nm PART
+GEOM class verifies all generic partition parameters that it gets from the
+disk metadata. If some inconsistency is detected, partition table will be
+rejected with a diagnostic message:
+.Pa GEOM_PART: Integrity check failed (provider, scheme) .
 .Sh EXIT STATUS
 Exit status is 0 on success, and 1 if the command fails.
 .Sh EXAMPLES
