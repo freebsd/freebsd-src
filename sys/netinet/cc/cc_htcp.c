@@ -173,8 +173,7 @@ static VNET_DEFINE(uint8_t, htcp_rtt_scaling) = 0;
 #define	V_htcp_adaptive_backoff    VNET(htcp_adaptive_backoff)
 #define	V_htcp_rtt_scaling    VNET(htcp_rtt_scaling)
 
-MALLOC_DECLARE(M_HTCP);
-MALLOC_DEFINE(M_HTCP, "htcp data",
+static MALLOC_DEFINE(M_HTCP, "htcp data",
     "Per connection data required for the HTCP congestion control algorithm");
 
 struct cc_algo htcp_cc_algo = {

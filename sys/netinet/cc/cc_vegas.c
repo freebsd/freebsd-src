@@ -105,8 +105,7 @@ static VNET_DEFINE(uint32_t, vegas_beta) = 3;
 #define	V_vegas_alpha	VNET(vegas_alpha)
 #define	V_vegas_beta	VNET(vegas_beta)
 
-MALLOC_DECLARE(M_VEGAS);
-MALLOC_DEFINE(M_VEGAS, "vegas data",
+static MALLOC_DEFINE(M_VEGAS, "vegas data",
     "Per connection data required for the Vegas congestion control algorithm");
 
 struct cc_algo vegas_cc_algo = {
