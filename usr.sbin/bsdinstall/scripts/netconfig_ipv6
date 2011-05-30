@@ -61,7 +61,7 @@ while : ; do
 		if [ ! -z $BSDINSTALL_CONFIGCURRENT ]; then
 			dialog --backtitle 'FreeBSD Installer' \
 			    --infobox "Sending Router Solicitation ..." 0 0
-			ifconfig ${INTERFACE} inet6 accept_rtadv up
+			ifconfig ${INTERFACE} inet6 -ifdisabled accept_rtadv up
 			rtsol -F $INTERFACE 2>> $BSDINSTALL_LOG
 			if [ $? -ne 0 ]; then
 				dialog --backtitle 'FreeBSD Installer' --msgbox "SLAAC failed." 0 0
