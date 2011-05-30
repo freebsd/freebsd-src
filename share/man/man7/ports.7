@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 25, 2011
+.Dd May 30, 2011
 .Dt PORTS 7
 .Os
 .Sh NAME
@@ -479,6 +479,8 @@ Of course, these ports may not work as expected, but if you really know
 what you are doing and are sure about installing a forbidden port, then
 .Va NO_IGNORE
 lets you do it.
+.It Va NO_CHECKSUM
+If defined, skip verifying the port's checksum.
 .It Va TRYBROKEN
 If defined, attempt to build a port even if it is marked as
 .Aq Va BROKEN .
