@@ -69,7 +69,7 @@ while : ; do
 				continue
 			fi
 		fi
-		echo ifconfig_${INTERFACE}_ipv6=\"accept_rtadv\" >> $BSDINSTALL_TMPETC/rc.conf.net
+		echo ifconfig_${INTERFACE}_ipv6=\"inet6 accept_rtadv\" >> $BSDINSTALL_TMPETC/rc.conf.net
 		exit 0
 	else
 		break
