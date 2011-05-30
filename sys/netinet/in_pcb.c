@@ -127,6 +127,10 @@ static VNET_DEFINE(int, ipport_tcplastcount);
 
 #define	V_ipport_tcplastcount		VNET(ipport_tcplastcount)
 
+static struct inpcb	*in_pcblookup_hash_locked(struct inpcbinfo *pcbinfo,
+			    struct in_addr faddr, u_int fport_arg,
+			    struct in_addr laddr, u_int lport_arg,
+			    int lookupflags, struct ifnet *ifp);
 static void	in_pcbremlists(struct inpcb *inp);
 
 #ifdef INET
@@ -212,11 +216,13 @@ in_pcbinfo_init(struct inpcbinfo *pcbinfo, const char *name,
 {
 
 	INP_INFO_LOCK_INIT(pcbinfo, name);
+	INP_HASH_LOCK_INIT(pcbinfo, "pcbinfohash");	/* XXXRW: argument? */
 #ifdef VIMAGE
 	pcbinfo->ipi_vnet = curvnet;
 #endif
 	pcbinfo->ipi_listhead = listhead;
 	LIST_INIT(pcbinfo->ipi_listhead);
+	pcbinfo->ipi_count = 0;
 	pcbinfo->ipi_hashbase = hashinit(hash_nelements, M_PCB,
 	    &pcbinfo->ipi_hashmask);
 	pcbinfo->ipi_porthashbase = hashinit(porthash_nelements, M_PCB,
@@ -234,10 +240,14 @@ void
 in_pcbinfo_destroy(struct inpcbinfo *pcbinfo)
 {
 
+	KASSERT(pcbinfo->ipi_count == 0,
+	    ("%s: ipi_count = %u", __func__, pcbinfo->ipi_count));
+
 	hashdestroy(pcbinfo->ipi_hashbase, M_PCB, pcbinfo->ipi_hashmask);
 	hashdestroy(pcbinfo->ipi_porthashbase, M_PCB,
 	    pcbinfo->ipi_porthashmask);
 	uma_zdestroy(pcbinfo->ipi_zone);
+	INP_HASH_LOCK_DESTROY(pcbinfo);
 	INP_INFO_LOCK_DESTROY(pcbinfo);
 }
 
@@ -309,8 +319,8 @@ in_pcbbind(struct inpcb *inp, struct sockaddr *nam, struct ucred *cred)
 {
 	int anonport, error;
 
-	INP_INFO_WLOCK_ASSERT(inp->inp_pcbinfo);
 	INP_WLOCK_ASSERT(inp);
+	INP_HASH_WLOCK_ASSERT(inp->inp_pcbinfo);
 
 	if (inp->inp_lport != 0 || inp->inp_laddr.s_addr != INADDR_ANY)
 		return (EINVAL);
@@ -351,8 +361,8 @@ in_pcb_lport(struct inpcb *inp, struct in_addr *laddrp, u_short *lportp,
 	 * Because no actual state changes occur here, a global write lock on
 	 * the pcbinfo isn't required.
 	 */
-	INP_INFO_LOCK_ASSERT(pcbinfo);
 	INP_LOCK_ASSERT(inp);
+	INP_HASH_LOCK_ASSERT(pcbinfo);
 
 	if (inp->inp_flags & INP_HIGHPORT) {
 		first = V_ipport_hifirstauto;	/* sysctl */
@@ -473,11 +483,10 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 	int error;
 
 	/*
-	 * Because no actual state changes occur here, a global write lock on
-	 * the pcbinfo isn't required.
+	 * No state changes, so read locks are sufficient here.
 	 */
-	INP_INFO_LOCK_ASSERT(pcbinfo);
 	INP_LOCK_ASSERT(inp);
+	INP_HASH_LOCK_ASSERT(pcbinfo);
 
 	if (TAILQ_EMPTY(&V_in_ifaddrhead)) /* XXX broken! */
 		return (EADDRNOTAVAIL);
@@ -618,8 +627,8 @@ in_pcbconnect(struct inpcb *inp, struct sockaddr *nam, struct ucred *cred)
 	in_addr_t laddr, faddr;
 	int anonport, error;
 
-	INP_INFO_WLOCK_ASSERT(inp->inp_pcbinfo);
 	INP_WLOCK_ASSERT(inp);
+	INP_HASH_WLOCK_ASSERT(inp->inp_pcbinfo);
 
 	lport = inp->inp_lport;
 	laddr = inp->inp_laddr.s_addr;
@@ -907,8 +916,8 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr *nam,
 	 * Because a global state change doesn't actually occur here, a read
 	 * lock is sufficient.
 	 */
-	INP_INFO_LOCK_ASSERT(inp->inp_pcbinfo);
 	INP_LOCK_ASSERT(inp);
+	INP_HASH_LOCK_ASSERT(inp->inp_pcbinfo);
 
 	if (oinpp != NULL)
 		*oinpp = NULL;
@@ -983,8 +992,8 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr *nam,
 		if (error)
 			return (error);
 	}
-	oinp = in_pcblookup_hash(inp->inp_pcbinfo, faddr, fport, laddr, lport,
-	    0, NULL);
+	oinp = in_pcblookup_hash_locked(inp->inp_pcbinfo, faddr, fport,
+	    laddr, lport, 0, NULL);
 	if (oinp != NULL) {
 		if (oinpp != NULL)
 			*oinpp = oinp;
@@ -1007,8 +1016,8 @@ void
 in_pcbdisconnect(struct inpcb *inp)
 {
 
-	INP_INFO_WLOCK_ASSERT(inp->inp_pcbinfo);
 	INP_WLOCK_ASSERT(inp);
+	INP_HASH_WLOCK_ASSERT(inp->inp_pcbinfo);
 
 	inp->inp_faddr.s_addr = INADDR_ANY;
 	inp->inp_fport = 0;
@@ -1187,19 +1196,24 @@ void
 in_pcbdrop(struct inpcb *inp)
 {
 
-	INP_INFO_WLOCK_ASSERT(inp->inp_pcbinfo);
 	INP_WLOCK_ASSERT(inp);
 
+	/*
+	 * XXXRW: Possibly we should protect the setting of INP_DROPPED with
+	 * the hash lock...?
+	 */
 	inp->inp_flags |= INP_DROPPED;
 	if (inp->inp_flags & INP_INHASHLIST) {
 		struct inpcbport *phd = inp->inp_phd;
 
+		INP_HASH_WLOCK(inp->inp_pcbinfo);
 		LIST_REMOVE(inp, inp_hash);
 		LIST_REMOVE(inp, inp_portlist);
 		if (LIST_FIRST(&phd->phd_pcblist) == NULL) {
 			LIST_REMOVE(phd, phd_hash);
 			free(phd, M_PCB);
 		}
+		INP_HASH_WUNLOCK(inp->inp_pcbinfo);
 		inp->inp_flags &= ~INP_INHASHLIST;
 	}
 }
@@ -1328,7 +1342,8 @@ in_pcbpurgeif0(struct inpcbinfo *pcbinfo, struct ifnet *ifp)
 }
 
 /*
- * Lookup a PCB based on the local address and port.
+ * Lookup a PCB based on the local address and port.  Caller must hold the
+ * hash lock.  No inpcb locks or references are acquired.
  */
 #define INP_LOOKUP_MAPPED_PCB_COST	3
 struct inpcb *
@@ -1346,7 +1361,7 @@ in_pcblookup_local(struct inpcbinfo *pcbinfo, struct in_addr laddr,
 	KASSERT((lookupflags & ~(INPLOOKUP_WILDCARD)) == 0,
 	    ("%s: invalid lookup flags %d", __func__, lookupflags));
 
-	INP_INFO_LOCK_ASSERT(pcbinfo);
+	INP_HASH_LOCK_ASSERT(pcbinfo);
 
 	if ((lookupflags & INPLOOKUP_WILDCARD) == 0) {
 		struct inpcbhead *head;
@@ -1450,10 +1465,12 @@ in_pcblookup_local(struct inpcbinfo *pcbinfo, struct in_addr laddr,
 #undef INP_LOOKUP_MAPPED_PCB_COST
 
 /*
- * Lookup PCB in hash list.
+ * Lookup PCB in hash list, using pcbinfo tables.  This variation assumes
+ * that the caller has locked the hash list, and will not perform any further
+ * locking or reference operations on either the hash list or the connection.
  */
-struct inpcb *
-in_pcblookup_hash(struct inpcbinfo *pcbinfo, struct in_addr faddr,
+static struct inpcb *
+in_pcblookup_hash_locked(struct inpcbinfo *pcbinfo, struct in_addr faddr,
     u_int fport_arg, struct in_addr laddr, u_int lport_arg, int lookupflags,
     struct ifnet *ifp)
 {
@@ -1464,7 +1481,7 @@ in_pcblookup_hash(struct inpcbinfo *pcbinfo, struct in_addr faddr,
 	KASSERT((lookupflags & ~(INPLOOKUP_WILDCARD)) == 0,
 	    ("%s: invalid lookup flags %d", __func__, lookupflags));
 
-	INP_INFO_LOCK_ASSERT(pcbinfo);
+	INP_HASH_LOCK_ASSERT(pcbinfo);
 
 	/*
 	 * First look for an exact match.
@@ -1574,6 +1591,56 @@ in_pcblookup_hash(struct inpcbinfo *pcbinfo, struct in_addr faddr,
 
 	return (NULL);
 }
+
+/*
+ * Lookup PCB in hash list, using pcbinfo tables.  This variation locks the
+ * hash list lock, and will return the inpcb locked (i.e., requires
+ * INPLOOKUP_LOCKPCB).
+ */
+static struct inpcb *
+in_pcblookup_hash(struct inpcbinfo *pcbinfo, struct in_addr faddr,
+    u_int fport, struct in_addr laddr, u_int lport, int lookupflags,
+    struct ifnet *ifp)
+{
+	struct inpcb *inp;
+
+	INP_HASH_RLOCK(pcbinfo);
+	inp = in_pcblookup_hash_locked(pcbinfo, faddr, fport, laddr, lport,
+	    (lookupflags & ~(INPLOOKUP_RLOCKPCB | INPLOOKUP_WLOCKPCB)), ifp);
+	if (inp != NULL) {
+		in_pcbref(inp);
+		INP_HASH_RUNLOCK(pcbinfo);
+		if (lookupflags & INPLOOKUP_WLOCKPCB) {
+			INP_WLOCK(inp);
+			if (in_pcbrele_wlocked(inp))
+				return (NULL);
+		} else if (lookupflags & INPLOOKUP_RLOCKPCB) {
+			INP_RLOCK(inp);
+			if (in_pcbrele_rlocked(inp))
+				return (NULL);
+		} else
+			panic("%s: locking bug", __func__);
+	} else
+		INP_HASH_RUNLOCK(pcbinfo);
+	return (inp);
+}
+
+/*
+ * Public inpcb lookup routines, accepting a 4-tuple.
+ */
+struct inpcb *
+in_pcblookup(struct inpcbinfo *pcbinfo, struct in_addr faddr, u_int fport,
+    struct in_addr laddr, u_int lport, int lookupflags, struct ifnet *ifp)
+{
+
+	KASSERT((lookupflags & ~INPLOOKUP_MASK) == 0,
+	    ("%s: invalid lookup flags %d", __func__, lookupflags));
+	KASSERT((lookupflags & (INPLOOKUP_RLOCKPCB | INPLOOKUP_WLOCKPCB)) != 0,
+	    ("%s: LOCKPCB not set", __func__));
+
+	return (in_pcblookup_hash(pcbinfo, faddr, fport, laddr, lport,
+	    lookupflags, ifp));
+}
 #endif /* INET */
 
 /*
@@ -1588,8 +1655,9 @@ in_pcbinshash(struct inpcb *inp)
 	struct inpcbport *phd;
 	u_int32_t hashkey_faddr;
 
-	INP_INFO_WLOCK_ASSERT(pcbinfo);
 	INP_WLOCK_ASSERT(inp);
+	INP_HASH_WLOCK_ASSERT(pcbinfo);
+
 	KASSERT((inp->inp_flags & INP_INHASHLIST) == 0,
 	    ("in_pcbinshash: INP_INHASHLIST"));
 
@@ -1645,8 +1713,9 @@ in_pcbrehash(struct inpcb *inp)
 	struct inpcbhead *head;
 	u_int32_t hashkey_faddr;
 
-	INP_INFO_WLOCK_ASSERT(pcbinfo);
 	INP_WLOCK_ASSERT(inp);
+	INP_HASH_WLOCK_ASSERT(pcbinfo);
+
 	KASSERT(inp->inp_flags & INP_INHASHLIST,
 	    ("in_pcbrehash: !INP_INHASHLIST"));
 
@@ -1679,12 +1748,14 @@ in_pcbremlists(struct inpcb *inp)
 	if (inp->inp_flags & INP_INHASHLIST) {
 		struct inpcbport *phd = inp->inp_phd;
 
+		INP_HASH_WLOCK(pcbinfo);
 		LIST_REMOVE(inp, inp_hash);
 		LIST_REMOVE(inp, inp_portlist);
 		if (LIST_FIRST(&phd->phd_pcblist) == NULL) {
 			LIST_REMOVE(phd, phd_hash);
 			free(phd, M_PCB);
 		}
+		INP_HASH_WUNLOCK(pcbinfo);
 		inp->inp_flags &= ~INP_INHASHLIST;
 	}
 	LIST_REMOVE(inp, inp_list);

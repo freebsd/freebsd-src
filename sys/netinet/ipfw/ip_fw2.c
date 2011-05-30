@@ -657,7 +657,7 @@ check_uidgid(ipfw_insn_u32 *insn, int proto, struct ifnet *oif,
 	    (struct bsd_ucred *)uc, ugid_lookupp, ((struct mbuf *)inp)->m_skb);
 #else  /* FreeBSD */
 	struct inpcbinfo *pi;
-	int wildcard;
+	int lookupflags;
 	struct inpcb *pcb;
 	int match;
 
@@ -682,30 +682,31 @@ check_uidgid(ipfw_insn_u32 *insn, int proto, struct ifnet *oif,
 	if (*ugid_lookupp == -1)
 		return (0);
 	if (proto == IPPROTO_TCP) {
-		wildcard = 0;
+		lookupflags = 0;
 		pi = &V_tcbinfo;
 	} else if (proto == IPPROTO_UDP) {
-		wildcard = INPLOOKUP_WILDCARD;
+		lookupflags = INPLOOKUP_WILDCARD;
 		pi = &V_udbinfo;
 	} else
 		return 0;
+	lookupflags |= INPLOOKUP_RLOCKPCB;
 	match = 0;
 	if (*ugid_lookupp == 0) {
-		INP_INFO_RLOCK(pi);
 		pcb =  (oif) ?
-			in_pcblookup_hash(pi,
+			in_pcblookup(pi,
 				dst_ip, htons(dst_port),
 				src_ip, htons(src_port),
-				wildcard, oif) :
-			in_pcblookup_hash(pi,
+				lookupflags, oif) :
+			in_pcblookup(pi,
 				src_ip, htons(src_port),
 				dst_ip, htons(dst_port),
-				wildcard, NULL);
+				lookupflags, NULL);
 		if (pcb != NULL) {
+			INP_RLOCK_ASSERT(pcb);
 			*uc = crhold(pcb->inp_cred);
 			*ugid_lookupp = 1;
+			INP_RUNLOCK(pcb);
 		}
-		INP_INFO_RUNLOCK(pi);
 		if (*ugid_lookupp == 0) {
 			/*
 			 * We tried and failed, set the variable to -1
@@ -1827,21 +1828,32 @@ do {								\
 				else
 					break;
 
+				/*
+				 * XXXRW: so_user_cookie should almost
+				 * certainly be inp_user_cookie?
+				 */
+
 				/* For incomming packet, lookup up the 
 				inpcb using the src/dest ip/port tuple */
 				if (inp == NULL) {
-					INP_INFO_RLOCK(pi);
-					inp = in_pcblookup_hash(pi, 
+					inp = in_pcblookup(pi, 
 						src_ip, htons(src_port),
 						dst_ip, htons(dst_port),
-						0, NULL);
-					INP_INFO_RUNLOCK(pi);
-				}
-				
-				if (inp && inp->inp_socket) {
-					tablearg = inp->inp_socket->so_user_cookie;
-					if (tablearg)
-						match = 1;
+						INPLOOKUP_RLOCKPCB, NULL);
+					if (inp != NULL) {
+						tablearg =
+						    inp->inp_socket->so_user_cookie;
+						if (tablearg)
+							match = 1;
+						INP_RUNLOCK(inp);
+					}
+				} else {
+					if (inp->inp_socket) {
+						tablearg =
+						    inp->inp_socket->so_user_cookie;
+						if (tablearg)
+							match = 1;
+					}
 				}
 				break;
 			}
