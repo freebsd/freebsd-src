@@ -91,6 +91,8 @@ struct sgl {
 	bus_dma_segment_t seg[TX_SGL_SEGS];
 };
 
+static void t4_evt_rx(void *);
+static void t4_eth_rx(void *);
 static inline void init_iq(struct sge_iq *, struct adapter *, int, int, int,
     int, iq_intr_handler_t *, char *);
 static inline void init_fl(struct sge_fl *, int, char *);
@@ -102,8 +104,10 @@ static int free_ring(struct adapter *, bus_dma_tag_t, bus_dmamap_t, bus_addr_t,
 static int alloc_iq_fl(struct port_info *, struct sge_iq *, struct sge_fl *,
     int, int);
 static int free_iq_fl(struct port_info *, struct sge_iq *, struct sge_fl *);
-static int alloc_iq(struct sge_iq *, int);
-static int free_iq(struct sge_iq *);
+static int alloc_intrq(struct adapter *, int, int, int);
+static int free_intrq(struct sge_iq *);
+static int alloc_fwq(struct adapter *, int);
+static int free_fwq(struct sge_iq *);
 static int alloc_rxq(struct port_info *, struct sge_rxq *, int, int);
 static int free_rxq(struct port_info *, struct sge_rxq *);
 static int alloc_ctrlq(struct adapter *, struct sge_ctrlq *, int);
@@ -139,9 +143,10 @@ static void write_eqflush_wr(struct sge_eq *);
 static __be64 get_flit(bus_dma_segment_t *, int, int);
 static int handle_sge_egr_update(struct adapter *,
     const struct cpl_sge_egr_update *);
+static void handle_cpl(struct adapter *, struct sge_iq *);
 
 static int ctrl_tx(struct adapter *, struct sge_ctrlq *, struct mbuf *);
-static int sysctl_abs_id(SYSCTL_HANDLER_ARGS);
+static int sysctl_uint16(SYSCTL_HANDLER_ARGS);
 
 extern void filter_rpl(struct adapter *, const struct cpl_set_tcb_rpl *);
 
@@ -243,8 +248,7 @@ t4_destroy_dma_tag(struct adapter *sc)
 
 /*
  * Allocate and initialize the firmware event queue, control queues, and the
- * forwarded interrupt queues (if any).  The adapter owns all these queues as
- * they are not associated with any particular port.
+ * interrupt queues.  The adapter owns all of these queues.
  *
  * Returns errno on failure.  Resources allocated up to that point may still be
  * allocated.  Caller is responsible for cleanup in case this function fails.
@@ -252,8 +256,8 @@ t4_destroy_dma_tag(struct adapter *sc)
 int
 t4_setup_adapter_queues(struct adapter *sc)
 {
-	int i, rc;
-	struct sge_iq *iq, *fwq;
+	int i, j, rc, intr_idx, qsize;
+	struct sge_iq *iq;
 	struct sge_ctrlq *ctrlq;
 	iq_intr_handler_t *handler;
 	char name[16];
@@ -264,47 +268,76 @@ t4_setup_adapter_queues(struct adapter *sc)
 		struct sysctl_oid *oid = device_get_sysctl_tree(sc->dev);
 		struct sysctl_oid_list *children = SYSCTL_CHILDREN(oid);
 
+		sc->oid_fwq = SYSCTL_ADD_NODE(&sc->ctx, children, OID_AUTO,
+		    "fwq", CTLFLAG_RD, NULL, "firmware event queue");
 		sc->oid_ctrlq = SYSCTL_ADD_NODE(&sc->ctx, children, OID_AUTO,
 		    "ctrlq", CTLFLAG_RD, NULL, "ctrl queues");
+		sc->oid_intrq = SYSCTL_ADD_NODE(&sc->ctx, children, OID_AUTO,
+		    "intrq", CTLFLAG_RD, NULL, "interrupt queues");
 	}
 
-	fwq = &sc->sge.fwq;
-	if (sc->flags & INTR_FWD) {
-		iq = &sc->sge.fiq[0];
-
-		/*
-		 * Forwarded interrupt queues - allocate 1 if there's only 1
-		 * vector available, one less than the number of vectors
-		 * otherwise (the first vector is reserved for the error
-		 * interrupt in that case).
-		 */
-		i = sc->intr_count > 1 ? 1 : 0;
-		for (; i < sc->intr_count; i++, iq++) {
-
-			snprintf(name, sizeof(name), "%s fiq%d",
+	/*
+	 * Interrupt queues
+	 */
+	intr_idx = sc->intr_count - NINTRQ(sc);
+	if (sc->flags & INTR_SHARED) {
+		qsize = max((sc->sge.nrxq + 1) * 2, INTR_IQ_QSIZE);
+		for (i = 0; i < NINTRQ(sc); i++, intr_idx++) {
+			snprintf(name, sizeof(name), "%s intrq%d",
 			    device_get_nameunit(sc->dev), i);
-			init_iq(iq, sc, 0, 0, (sc->sge.nrxq + 1) * 2, 16, NULL,
-			    name);
 
-			rc = alloc_iq(iq, i);
+			iq = &sc->sge.intrq[i];
+			init_iq(iq, sc, 0, 0, qsize, INTR_IQ_ESIZE, NULL, name);
+			rc = alloc_intrq(sc, i % sc->params.nports, i,
+			    intr_idx);
+
 			if (rc != 0) {
 				device_printf(sc->dev,
-				    "failed to create fwd intr queue %d: %d\n",
-				    i, rc);
+				    "failed to create %s: %d\n", name, rc);
 				return (rc);
 			}
 		}
-
-		handler = t4_evt_rx;
-		i = 0;	/* forward fwq's interrupt to the first fiq */
 	} else {
-		handler = NULL;
-		i = 1;	/* fwq should use vector 1 (0 is used by error) */
+		int qidx = 0;
+		struct port_info *pi;
+
+		for (i = 0; i < sc->params.nports; i++) {
+			pi = sc->port[i];
+			qsize = max((pi->nrxq + 1) * 2, INTR_IQ_QSIZE);
+			for (j = 0; j < pi->nrxq; j++, qidx++, intr_idx++) {
+				snprintf(name, sizeof(name), "%s intrq%d",
+				    device_get_nameunit(pi->dev), j);
+
+				iq = &sc->sge.intrq[qidx];
+				init_iq(iq, sc, 0, 0, qsize, INTR_IQ_ESIZE,
+				    NULL, name);
+				rc = alloc_intrq(sc, i, qidx, intr_idx);
+
+				if (rc != 0) {
+					device_printf(sc->dev,
+					    "failed to create %s: %d\n",
+					    name, rc);
+					return (rc);
+				}
+			}
+		}
 	}
 
+	/*
+	 * Firmware event queue
+	 */
 	snprintf(name, sizeof(name), "%s fwq", device_get_nameunit(sc->dev));
-	init_iq(fwq, sc, 0, 0, FW_IQ_QSIZE, FW_IQ_ESIZE, handler, name);
-	rc = alloc_iq(fwq, i);
+	if (sc->intr_count > T4_EXTRA_INTR) {
+		handler = NULL;
+		intr_idx = 1;
+	} else {
+		handler = t4_evt_rx;
+		intr_idx = 0;
+	}
+
+	iq = &sc->sge.fwq;
+	init_iq(iq, sc, 0, 0, FW_IQ_QSIZE, FW_IQ_ESIZE, handler, name);
+	rc = alloc_fwq(sc, intr_idx);
 	if (rc != 0) {
 		device_printf(sc->dev,
 		    "failed to create firmware event queue: %d\n", rc);
@@ -313,10 +346,10 @@ t4_setup_adapter_queues(struct adapter *sc)
 	}
 
 	/*
-	 * Control queues - one per hardware channel.
+	 * Control queues - one per port.
 	 */
 	ctrlq = &sc->sge.ctrlq[0];
-	for (i = 0; i < NCHAN; i++, ctrlq++) {
+	for (i = 0; i < sc->params.nports; i++, ctrlq++) {
 		snprintf(name, sizeof(name), "%s ctrlq%d",
 		    device_get_nameunit(sc->dev), i);
 		init_eq(&ctrlq->eq, CTRL_EQ_QSIZE, name);
@@ -344,21 +377,22 @@ t4_teardown_adapter_queues(struct adapter *sc)
 	ADAPTER_LOCK_ASSERT_NOTOWNED(sc);
 
 	/* Do this before freeing the queues */
-	if (sc->oid_ctrlq) {
+	if (sc->oid_fwq || sc->oid_ctrlq || sc->oid_intrq) {
 		sysctl_ctx_free(&sc->ctx);
+		sc->oid_fwq = NULL;
 		sc->oid_ctrlq = NULL;
+		sc->oid_intrq = NULL;
 	}
 
-	for (i = 0; i < NCHAN; i++)
+	for (i = 0; i < sc->params.nports; i++)
 		free_ctrlq(sc, &sc->sge.ctrlq[i]);
 
 	iq = &sc->sge.fwq;
-	free_iq(iq);
-	if (sc->flags & INTR_FWD) {
-		for (i = 0; i < NFIQ(sc); i++) {
-			iq = &sc->sge.fiq[i];
-			free_iq(iq);
-		}
+	free_fwq(iq);
+
+	for (i = 0; i < NINTRQ(sc); i++) {
+		iq = &sc->sge.intrq[i];
+		free_intrq(iq);
 	}
 
 	return (0);
@@ -388,23 +422,19 @@ t4_setup_eth_queues(struct port_info *pi)
 		snprintf(name, sizeof(name), "%s rxq%d-iq",
 		    device_get_nameunit(pi->dev), i);
 		init_iq(&rxq->iq, sc, pi->tmr_idx, pi->pktc_idx,
-		    pi->qsize_rxq, RX_IQ_ESIZE,
-		    sc->flags & INTR_FWD ? t4_eth_rx : NULL, name);
+		    pi->qsize_rxq, RX_IQ_ESIZE, t4_eth_rx, name);
 
 		snprintf(name, sizeof(name), "%s rxq%d-fl",
 		    device_get_nameunit(pi->dev), i);
 		init_fl(&rxq->fl, pi->qsize_rxq / 8, name);
 
-		if (sc->flags & INTR_FWD)
-			intr_idx = (pi->first_rxq + i) % NFIQ(sc);
-		else
-			intr_idx = pi->first_rxq + i + 2;
+		intr_idx = pi->first_rxq + i;
+		if (sc->flags & INTR_SHARED)
+			intr_idx %= NINTRQ(sc);
 
 		rc = alloc_rxq(pi, rxq, intr_idx, i);
 		if (rc != 0)
 			goto done;
-
-		intr_idx++;
 	}
 
 	for_each_txq(pi, i, txq) {
@@ -452,25 +482,26 @@ t4_teardown_eth_queues(struct port_info *pi)
 	return (0);
 }
 
-/* Deals with errors and forwarded interrupts */
+/* Deals with errors and the first (and only) interrupt queue */
 void
 t4_intr_all(void *arg)
 {
 	struct adapter *sc = arg;
 
 	t4_intr_err(arg);
-	t4_intr_fwd(&sc->sge.fiq[0]);
+	t4_intr(&sc->sge.intrq[0]);
 }
 
-/* Deals with forwarded interrupts on the given ingress queue */
+/* Deals with interrupts, and a few CPLs, on the given interrupt queue */
 void
-t4_intr_fwd(void *arg)
+t4_intr(void *arg)
 {
 	struct sge_iq *iq = arg, *q;
 	struct adapter *sc = iq->adapter;
 	struct rsp_ctrl *ctrl;
+	const struct rss_header *rss;
 	int ndesc_pending = 0, ndesc_total = 0;
-	int qid;
+	int qid, rsp_type;
 
 	if (!atomic_cmpset_32(&iq->state, IQS_IDLE, IQS_BUSY))
 		return;
@@ -479,17 +510,23 @@ t4_intr_fwd(void *arg)
 
 		rmb();
 
-		/* Only interrupt muxing expected on this queue */
-		KASSERT(G_RSPD_TYPE(ctrl->u.type_gen) == X_RSPD_TYPE_INTR,
-		    ("unexpected event on forwarded interrupt queue: %x",
-		    G_RSPD_TYPE(ctrl->u.type_gen)));
+		rss = (const void *)iq->cdesc;
+		rsp_type = G_RSPD_TYPE(ctrl->u.type_gen);
+
+		if (__predict_false(rsp_type == X_RSPD_TYPE_CPL)) {
+			handle_cpl(sc, iq);
+			goto nextdesc;
+		}
 
 		qid = ntohl(ctrl->pldbuflen_qid) - sc->sge.iq_start;
 		q = sc->sge.iqmap[qid];
 
-		q->handler(q);
+		if (atomic_cmpset_32(&q->state, IQS_IDLE, IQS_BUSY)) {
+			q->handler(q);
+			atomic_cmpset_32(&q->state, IQS_BUSY, IQS_IDLE);
+		}
 
-		ndesc_total++;
+nextdesc:	ndesc_total++;
 		if (++ndesc_pending >= iq->qsize / 4) {
 			t4_write_reg(sc, MYPF_REG(A_SGE_PF_GTS),
 			    V_CIDXINC(ndesc_pending) |
@@ -514,9 +551,7 @@ t4_intr_err(void *arg)
 {
 	struct adapter *sc = arg;
 
-	if (sc->intr_type == INTR_INTX)
-		t4_write_reg(sc, MYPF_REG(A_PCIE_PF_CLI), 0);
-
+	t4_write_reg(sc, MYPF_REG(A_PCIE_PF_CLI), 0);
 	t4_slow_intr_handler(sc);
 }
 
@@ -526,70 +561,32 @@ t4_intr_evt(void *arg)
 {
 	struct sge_iq *iq = arg;
 
-	if (!atomic_cmpset_32(&iq->state, IQS_IDLE, IQS_BUSY))
-		return;
-
-	t4_evt_rx(arg);
-
-	atomic_cmpset_32(&iq->state, IQS_BUSY, IQS_IDLE);
+	if (atomic_cmpset_32(&iq->state, IQS_IDLE, IQS_BUSY)) {
+		t4_evt_rx(arg);
+		atomic_cmpset_32(&iq->state, IQS_BUSY, IQS_IDLE);
+	}
 }
 
-void
-t4_intr_data(void *arg)
-{
-	struct sge_iq *iq = arg;
-
-	if (!atomic_cmpset_32(&iq->state, IQS_IDLE, IQS_BUSY))
-		return;
-
-	t4_eth_rx(arg);
-
-	atomic_cmpset_32(&iq->state, IQS_BUSY, IQS_IDLE);
-}
-
-void
+static void
 t4_evt_rx(void *arg)
 {
 	struct sge_iq *iq = arg;
 	struct adapter *sc = iq->adapter;
 	struct rsp_ctrl *ctrl;
-	const struct rss_header *rss;
 	int ndesc_pending = 0, ndesc_total = 0;
 
 	KASSERT(iq == &sc->sge.fwq, ("%s: unexpected ingress queue", __func__));
 
 	while (is_new_response(iq, &ctrl)) {
+		int rsp_type;
 
 		rmb();
 
-		rss = (const void *)iq->cdesc;
+		rsp_type = G_RSPD_TYPE(ctrl->u.type_gen);
+		if (__predict_false(rsp_type != X_RSPD_TYPE_CPL))
+			panic("%s: unexpected rsp_type %d", __func__, rsp_type);
 
-		/* Should only get CPL on this queue */
-		KASSERT(G_RSPD_TYPE(ctrl->u.type_gen) == X_RSPD_TYPE_CPL,
-		    ("%s: unexpected type %d", __func__,
-		    G_RSPD_TYPE(ctrl->u.type_gen)));
-
-		switch (rss->opcode) {
-		case CPL_FW4_MSG:
-		case CPL_FW6_MSG: {
-			const struct cpl_fw6_msg *cpl;
-
-			cpl = (const void *)(rss + 1);
-			if (cpl->type == FW6_TYPE_CMD_RPL)
-				t4_handle_fw_rpl(sc, cpl->data);
-
-			break;
-			}
-		case CPL_SGE_EGR_UPDATE:
-			handle_sge_egr_update(sc, (const void *)(rss + 1));
-			break;
-		case CPL_SET_TCB_RPL:
-			filter_rpl(sc, (const void *) (rss + 1));
-			break;
-		default:
-			device_printf(sc->dev,
-			    "can't handle CPL opcode %d.", rss->opcode);
-		}
+		handle_cpl(sc, iq);
 
 		ndesc_total++;
 		if (++ndesc_pending >= iq->qsize / 4) {
@@ -600,6 +597,7 @@ t4_evt_rx(void *arg)
 				V_QINTR_TIMER_IDX(X_TIMERREG_UPDATE_CIDX)));
 			ndesc_pending = 0;
 		}
+
 		iq_next(iq);
 	}
 
@@ -613,7 +611,7 @@ t4_evt_rx(void *arg)
 #define RX_COPY_THRESHOLD MINCLSIZE
 #endif
 
-void
+static void
 t4_eth_rx(void *arg)
 {
 	struct sge_rxq *rxq = arg;
@@ -644,17 +642,9 @@ t4_eth_rx(void *arg)
 		rss = (const void *)iq->cdesc;
 		i = G_RSPD_TYPE(ctrl->u.type_gen);
 
-		if (__predict_false(i == X_RSPD_TYPE_CPL)) {
-
-			/* Can't be anything except an egress update */
-			KASSERT(rss->opcode == CPL_SGE_EGR_UPDATE,
-			    ("%s: unexpected CPL %x", __func__, rss->opcode));
-
-			handle_sge_egr_update(sc, (const void *)(rss + 1));
-			goto nextdesc;
-		}
 		KASSERT(i == X_RSPD_TYPE_FLBUF && rss->opcode == CPL_RX_PKT,
-		    ("%s: unexpected CPL %x rsp %d", __func__, rss->opcode, i));
+		    ("%s: unexpected type %d CPL opcode 0x%x",
+		    __func__, i, rss->opcode));
 
 		sd_next = sd + 1;
 		if (__predict_false(fl->cidx + 1 == fl->cap))
@@ -786,16 +776,15 @@ t4_eth_rx(void *arg)
 			refill_fl(sc, fl, 64, 32);
 		FL_UNLOCK(fl);
 
-nextdesc:	ndescs++;
-		iq_next(iq);
-
-		if (ndescs > 32) {
+		if (++ndescs > 32) {
 			t4_write_reg(sc, MYPF_REG(A_SGE_PF_GTS),
 			    V_CIDXINC(ndescs) |
 			    V_INGRESSQID((u32)iq->cntxt_id) |
 			    V_SEINTARM(V_QINTR_TIMER_IDX(X_TIMERREG_UPDATE_CIDX)));
 			ndescs = 0;
 		}
+
+		iq_next(iq);
 	}
 
 #ifdef INET
@@ -1008,7 +997,7 @@ t4_update_fl_bufsize(struct ifnet *ifp)
 
 /*
  * A non-NULL handler indicates this iq will not receive direct interrupts, the
- * handler will be invoked by a forwarded interrupt queue.
+ * handler will be invoked by an interrupt queue.
  */
 static inline void
 init_iq(struct sge_iq *iq, struct adapter *sc, int tmr_idx, int pktc_idx,
@@ -1100,7 +1089,7 @@ free_ring(struct adapter *sc, bus_dma_tag_t tag, bus_dmamap_t map,
  *
  * If the ingress queue will take interrupts directly (iq->handler == NULL) then
  * the intr_idx specifies the vector, starting from 0.  Otherwise it specifies
- * the index of the queue to which its interrupts will be forwarded.
+ * the index of the interrupt queue to which its interrupts will be forwarded.
  */
 static int
 alloc_iq_fl(struct port_info *pi, struct sge_iq *iq, struct sge_fl *fl,
@@ -1111,10 +1100,6 @@ alloc_iq_fl(struct port_info *pi, struct sge_iq *iq, struct sge_fl *fl,
 	struct fw_iq_cmd c;
 	struct adapter *sc = iq->adapter;
 	__be32 v = 0;
-
-	/* The adapter queues are nominally allocated in port[0]'s name */
-	if (pi == NULL)
-		pi = sc->port[0];
 
 	len = iq->qsize * iq->esize;
 	rc = alloc_ring(sc, len, &iq->desc_tag, &iq->desc_map, &iq->ba,
@@ -1135,10 +1120,10 @@ alloc_iq_fl(struct port_info *pi, struct sge_iq *iq, struct sge_fl *fl,
 		v |= F_FW_IQ_CMD_IQASYNCH;
 
 	if (iq->handler) {
-		KASSERT(intr_idx < NFIQ(sc),
+		KASSERT(intr_idx < NINTRQ(sc),
 		    ("%s: invalid indirect intr_idx %d", __func__, intr_idx));
 		v |= F_FW_IQ_CMD_IQANDST;
-		v |= V_FW_IQ_CMD_IQANDSTINDEX(sc->sge.fiq[intr_idx].abs_id);
+		v |= V_FW_IQ_CMD_IQANDSTINDEX(sc->sge.intrq[intr_idx].abs_id);
 	} else {
 		KASSERT(intr_idx < sc->intr_count,
 		    ("%s: invalid direct intr_idx %d", __func__, intr_idx));
@@ -1333,13 +1318,61 @@ free_iq_fl(struct port_info *pi, struct sge_iq *iq, struct sge_fl *fl)
 }
 
 static int
-alloc_iq(struct sge_iq *iq, int intr_idx)
+alloc_intrq(struct adapter *sc, int port_idx, int intrq_idx, int intr_idx)
 {
-	return alloc_iq_fl(NULL, iq, NULL, intr_idx, -1);
+	int rc;
+	struct sysctl_oid *oid;
+	struct sysctl_oid_list *children;
+	char name[16];
+	struct sge_iq *intrq = &sc->sge.intrq[intrq_idx];
+
+	rc = alloc_iq_fl(sc->port[port_idx], intrq, NULL, intr_idx, -1);
+	if (rc != 0)
+		return (rc);
+
+	children = SYSCTL_CHILDREN(sc->oid_intrq);
+
+	snprintf(name, sizeof(name), "%d", intrq_idx);
+	oid = SYSCTL_ADD_NODE(&sc->ctx, children, OID_AUTO, name, CTLFLAG_RD,
+	    NULL, "interrupt queue");
+	children = SYSCTL_CHILDREN(oid);
+
+	SYSCTL_ADD_PROC(&sc->ctx, children, OID_AUTO, "cidx",
+	    CTLTYPE_INT | CTLFLAG_RD, &intrq->cidx, 0, sysctl_uint16, "I",
+	    "consumer index");
+
+	return (rc);
 }
 
 static int
-free_iq(struct sge_iq *iq)
+free_intrq(struct sge_iq *iq)
+{
+	return free_iq_fl(NULL, iq, NULL);
+
+}
+
+static int
+alloc_fwq(struct adapter *sc, int intr_idx)
+{
+	int rc;
+	struct sysctl_oid_list *children;
+	struct sge_iq *fwq = &sc->sge.fwq;
+
+	rc = alloc_iq_fl(sc->port[0], fwq, NULL, intr_idx, -1);
+	if (rc != 0)
+		return (rc);
+
+	children = SYSCTL_CHILDREN(sc->oid_fwq);
+
+	SYSCTL_ADD_PROC(&sc->ctx, children, OID_AUTO, "cidx",
+	    CTLTYPE_INT | CTLFLAG_RD, &fwq->cidx, 0, sysctl_uint16, "I",
+	    "consumer index");
+
+	return (rc);
+}
+
+static int
+free_fwq(struct sge_iq *iq)
 {
 	return free_iq_fl(NULL, iq, NULL);
 }
@@ -1375,7 +1408,7 @@ alloc_rxq(struct port_info *pi, struct sge_rxq *rxq, int intr_idx, int idx)
 	children = SYSCTL_CHILDREN(oid);
 
 	SYSCTL_ADD_PROC(&pi->ctx, children, OID_AUTO, "abs_id",
-	    CTLTYPE_INT | CTLFLAG_RD, &rxq->iq.abs_id, 0, sysctl_abs_id, "I",
+	    CTLTYPE_INT | CTLFLAG_RD, &rxq->iq.abs_id, 0, sysctl_uint16, "I",
 	    "absolute id of the queue");
 #ifdef INET
 	SYSCTL_ADD_INT(&pi->ctx, children, OID_AUTO, "lro_queued", CTLFLAG_RD,
@@ -1433,7 +1466,10 @@ alloc_ctrlq(struct adapter *sc, struct sge_ctrlq *ctrlq, int idx)
 	eq->cap = eq->qsize - SPG_LEN / CTRL_EQ_ESIZE;
 	eq->spg = (void *)&eq->desc[eq->cap];
 	eq->avail = eq->cap - 1;	/* one less to avoid cidx = pidx */
-	eq->iqid = sc->sge.fwq.cntxt_id;
+	if (sc->flags & INTR_SHARED)
+		eq->iqid = sc->sge.intrq[idx % NINTRQ(sc)].cntxt_id;
+	else
+		eq->iqid = sc->sge.intrq[sc->port[idx]->first_rxq].cntxt_id;
 
 	bzero(&c, sizeof(c));
 
@@ -1446,8 +1482,8 @@ alloc_ctrlq(struct adapter *sc, struct sge_ctrlq *ctrlq, int idx)
 	c.physeqid_pkd = htobe32(0);
 	c.fetchszm_to_iqid =
 	    htobe32(V_FW_EQ_CTRL_CMD_HOSTFCMODE(X_HOSTFCMODE_STATUS_PAGE) |
-		V_FW_EQ_CTRL_CMD_PCIECHN(idx) | F_FW_EQ_CTRL_CMD_FETCHRO |
-		V_FW_EQ_CTRL_CMD_IQID(eq->iqid));
+		V_FW_EQ_CTRL_CMD_PCIECHN(sc->port[idx]->tx_chan) |
+		F_FW_EQ_CTRL_CMD_FETCHRO | V_FW_EQ_CTRL_CMD_IQID(eq->iqid));
 	c.dcaen_to_eqsize =
 	    htobe32(V_FW_EQ_CTRL_CMD_FBMIN(X_FETCHBURSTMIN_64B) |
 		V_FW_EQ_CTRL_CMD_FBMAX(X_FETCHBURSTMAX_512B) |
@@ -1479,13 +1515,12 @@ alloc_ctrlq(struct adapter *sc, struct sge_ctrlq *ctrlq, int idx)
 	    NULL, "ctrl queue");
 	children = SYSCTL_CHILDREN(oid);
 
-	SYSCTL_ADD_UQUAD(&sc->ctx, children, OID_AUTO, "total_wrs", CTLFLAG_RD,
-	    &ctrlq->total_wrs, "total # of work requests");
+	SYSCTL_ADD_PROC(&sc->ctx, children, OID_AUTO, "pidx",
+	    CTLTYPE_INT | CTLFLAG_RD, &ctrlq->eq.pidx, 0, sysctl_uint16, "I",
+	    "producer index");
 	SYSCTL_ADD_UINT(&sc->ctx, children, OID_AUTO, "no_desc", CTLFLAG_RD,
 	    &ctrlq->no_desc, 0,
 	    "# of times ctrlq ran out of hardware descriptors");
-	SYSCTL_ADD_UINT(&sc->ctx, children, OID_AUTO, "too_long", CTLFLAG_RD,
-	    &ctrlq->too_long, 0, "# of oversized work requests");
 
 	return (rc);
 }
@@ -1526,6 +1561,7 @@ alloc_txq(struct port_info *pi, struct sge_txq *txq, int idx)
 	char name[16];
 	struct sysctl_oid *oid;
 	struct sysctl_oid_list *children;
+	struct sge_iq *intrq;
 
 	txq->ifp = pi->ifp;
 	TASK_INIT(&txq->resume_tx, 0, cxgbe_txq_start, txq);
@@ -1544,7 +1580,12 @@ alloc_txq(struct port_info *pi, struct sge_txq *txq, int idx)
 	txq->sdesc = malloc(eq->cap * sizeof(struct tx_sdesc), M_CXGBE,
 	    M_ZERO | M_WAITOK);
 	txq->br = buf_ring_alloc(eq->qsize, M_CXGBE, M_WAITOK, &eq->eq_lock);
-	eq->iqid = sc->sge.rxq[pi->first_rxq].iq.cntxt_id;
+
+	intrq = &sc->sge.intrq[0];
+	if (sc->flags & INTR_SHARED)
+		eq->iqid = intrq[(pi->first_txq + idx) % NINTRQ(sc)].cntxt_id;
+	else
+		eq->iqid = intrq[pi->first_rxq + (idx % pi->nrxq)].cntxt_id;
 
 	rc = bus_dma_tag_create(sc->dmat, 1, 0, BUS_SPACE_MAXADDR,
 	    BUS_SPACE_MAXADDR, NULL, NULL, 64 * 1024, TX_SGL_SEGS,
@@ -2695,6 +2736,32 @@ handle_sge_egr_update(struct adapter *sc, const struct cpl_sge_egr_update *cpl)
 	return (0);
 }
 
+static void
+handle_cpl(struct adapter *sc, struct sge_iq *iq)
+{
+	const struct rss_header *rss = (const void *)iq->cdesc;
+	const struct cpl_fw6_msg *cpl = (const void *)(rss + 1);
+
+	switch (rss->opcode) {
+	case CPL_FW4_MSG:
+	case CPL_FW6_MSG:
+		if (cpl->type == FW6_TYPE_CMD_RPL)
+			t4_handle_fw_rpl(sc, cpl->data);
+		break;
+
+	case CPL_SGE_EGR_UPDATE:
+		handle_sge_egr_update(sc, (const void *)cpl);
+		break;
+
+	case CPL_SET_TCB_RPL:
+		filter_rpl(sc, (const void *)cpl);
+		break;
+
+	default:
+		panic("%s: unexpected CPL opcode 0x%x", __func__, rss->opcode);
+	}
+}
+
 /*
  * m0 is freed on successful transmission.
  */
@@ -2710,7 +2777,8 @@ ctrl_tx(struct adapter *sc, struct sge_ctrlq *ctrlq, struct mbuf *m0)
 	M_ASSERTPKTHDR(m0);
 
 	if (m0->m_pkthdr.len > SGE_MAX_WR_LEN) {
-		ctrlq->too_long++;
+		log(LOG_ERR, "%s: %s work request too long (%d)",
+		    device_get_nameunit(sc->dev), __func__, m0->m_pkthdr.len);
 		return (EMSGSIZE);
 	}
 	ndesc = howmany(m0->m_pkthdr.len, CTRL_EQ_ESIZE);
@@ -2738,7 +2806,6 @@ ctrl_tx(struct adapter *sc, struct sge_ctrlq *ctrlq, struct mbuf *m0)
 		eq->pidx -= eq->cap;
 
 	eq->pending += ndesc;
-	ctrlq->total_wrs++;
 	ring_eq_db(sc, eq);
 failed:
 	EQ_UNLOCK(eq);
@@ -2749,7 +2816,7 @@ failed:
 }
 
 static int
-sysctl_abs_id(SYSCTL_HANDLER_ARGS)
+sysctl_uint16(SYSCTL_HANDLER_ARGS)
 {
 	uint16_t *id = arg1;
 	int i = *id;
