@@ -76,7 +76,7 @@ static int _rpcfdtype;
 extern int _rpcsvcstate;	 /* Set when a request is serviced */
 
 const char *progname = "rpc.ypupdated";
-const char *yp_dir = "/var/yp/";
+const char *yp_dir = _PATH_YP;
 
 static void
 _msgout(char* msg)
