@@ -51,14 +51,17 @@ or
 .\".Cd "device ath_ar5312"
 .\".Cd "device ath_rf2136"
 .\".Cd "device ath_rf2137"
+.Cd "device ath_ar9130"
 .Cd "device ath_ar9160"
 .Cd "device ath_ar9280"
+.Cd "device ath_ar9285"
+.Cd "device ath_ar9287"
 .Cd "options AH_SUPPORT_AR5416"
 .Sh DESCRIPTION
 The hal provides hardware support for wireless network adapters based on
 the Atheros AR5210, AR5211, AR5212, AR5213, AR2413, AR2417, AR2425,
-AR5413, AR5416, AR5418, AR5424, AR9160, AR9220, AR9280, and AR9285 chips
-(and companion RF/baseband parts).
+AR5413, AR5416, AR5418, AR5424, AR9160, AR9220, AR9280, AR9285 and AR9287
+chips (and companion RF/baseband parts).
 This code is part of the
 .Xr ath 4
 driver but configured separately to allow fine-grained control
@@ -66,14 +69,15 @@ over the set of chips supported.
 Selecting
 .Nm
 enables support for all PCI and Cardbus devices.
-Note this includes AR5416, AR9160, AR9220, AR9280 and AR9285 devices
-and must be accompanied by the
+Note this includes AR5416, AR5418, AR9130, AR9160, AR9220, AR9280, AR9285
+and AR9287 devices and must be accompanied by the
 AH_SUPPORT_AR5416
 option to enable the extended hardware descriptor format used by
 AR5416 and later devices.
 .Pp
 Some devices come in Cardbus/MiniPCI/PCI format.
-Others (AR9280, AR9285) come in PCIe, Mini-PCIe or ExpressCard format.
+Others (for example AR2413, AR2427, AR5418, AR9280, AR9285, AR9287) come in
+PCIe, Mini-PCIe or ExpressCard format.
 .Pp
 Historically this code has been released in a binary-only form
 and packaged as a separate module.
