@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 14, 2009
+.Dd May 25, 2011
 .Dt PORTS 7
 .Os
 .Sh NAME
@@ -124,6 +124,8 @@ and
 .It Cm checksum
 Verify that the fetched distfile's checksum matches the one the port was
 tested against.
+If the distfile's checksum does not match, it also fetches the distfiles
+which are missing or failed the checksum calculation.
 Defining
 .Va NO_CHECKSUM
 will skip this step.
