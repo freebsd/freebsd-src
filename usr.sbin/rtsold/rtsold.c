@@ -92,6 +92,7 @@ const char *resolvconf_script = "/sbin/resolvconf";
 /* static variables and functions */
 static int mobile_node = 0;
 static const char *pidfilename = RTSOL_PIDFILE;
+
 #ifndef SMALL
 static int do_dump;
 static const char *dumpfilename = RTSOL_DUMPFILE;
@@ -100,6 +101,7 @@ static const char *dumpfilename = RTSOL_DUMPFILE;
 #if 0
 static int ifreconfig(char *);
 #endif
+
 static int make_packet(struct ifinfo *);
 static struct timeval *rtsol_check_timer(void);
 
@@ -338,7 +340,7 @@ main(int argc, char **argv)
 				break;
 
 			/* if all interfaces have got RA packet, we are done */
-			for (ifi = iflist; ifi; ifi = ifi->next) {
+			TAILQ_FOREACH(ifi, &ifinfo_head, ifi_next) {
 				if (ifi->state != IFS_DOWN && ifi->racnt == 0)
 					break;
 			}
@@ -380,7 +382,7 @@ main(int argc, char **argv)
 int
 ifconfig(char *ifname)
 {
-	struct ifinfo *ifinfo;
+	struct ifinfo *ifi;
 	struct sockaddr_dl *sdl;
 	int flags;
 
@@ -396,80 +398,78 @@ ifconfig(char *ifname)
 		return (-1);
 	}
 
-	if ((ifinfo = malloc(sizeof(*ifinfo))) == NULL) {
+	if ((ifi = malloc(sizeof(*ifi))) == NULL) {
 		warnmsg(LOG_ERR, __func__, "memory allocation failed");
 		free(sdl);
 		return (-1);
 	}
-	memset(ifinfo, 0, sizeof(*ifinfo));
-	ifinfo->sdl = sdl;
+	memset(ifi, 0, sizeof(*ifi));
+	ifi->sdl = sdl;
 
-	strlcpy(ifinfo->ifname, ifname, sizeof(ifinfo->ifname));
+	strlcpy(ifi->ifname, ifname, sizeof(ifi->ifname));
 
 	/* construct a router solicitation message */
-	if (make_packet(ifinfo))
+	if (make_packet(ifi))
 		goto bad;
 
 	/* set link ID of this interface. */
 #ifdef HAVE_SCOPELIB
-	if (inet_zoneid(AF_INET6, 2, ifname, &ifinfo->linkid))
+	if (inet_zoneid(AF_INET6, 2, ifname, &ifi->linkid))
 		goto bad;
 #else
 	/* XXX: assume interface IDs as link IDs */
-	ifinfo->linkid = ifinfo->sdl->sdl_index;
+	ifi->linkid = ifi->sdl->sdl_index;
 #endif
 
 	/*
 	 * check if the interface is available.
 	 * also check if SIOCGIFMEDIA ioctl is OK on the interface.
 	 */
-	ifinfo->mediareqok = 1;
-	ifinfo->active = interface_status(ifinfo);
-	if (!ifinfo->mediareqok) {
+	ifi->mediareqok = 1;
+	ifi->active = interface_status(ifi);
+	if (!ifi->mediareqok) {
 		/*
 		 * probe routers periodically even if the link status
 		 * does not change.
 		 */
-		ifinfo->probeinterval = PROBE_INTERVAL;
+		ifi->probeinterval = PROBE_INTERVAL;
 	}
 
 	/* activate interface: interface_up returns 0 on success */
-	flags = interface_up(ifinfo->ifname);
+	flags = interface_up(ifi->ifname);
 	if (flags == 0)
-		ifinfo->state = IFS_DELAY;
+		ifi->state = IFS_DELAY;
 	else if (flags == IFS_TENTATIVE)
-		ifinfo->state = IFS_TENTATIVE;
+		ifi->state = IFS_TENTATIVE;
 	else
-		ifinfo->state = IFS_DOWN;
+		ifi->state = IFS_DOWN;
 
-	rtsol_timer_update(ifinfo);
+	rtsol_timer_update(ifi);
 
-	/* link into chain */
-	if (iflist)
-		ifinfo->next = iflist;
-	iflist = ifinfo;
-
+	TAILQ_INSERT_TAIL(&ifinfo_head, ifi, ifi_next);
 	return (0);
 
 bad:
-	free(ifinfo->sdl);
-	free(ifinfo);
+	free(ifi->sdl);
+	free(ifi);
 	return (-1);
 }
 
 void
 iflist_init(void)
 {
-	struct ifinfo *ifi, *next;
+	struct ifinfo *ifi;
+	struct ifinfo *ifi_tmp;
 
-	for (ifi = iflist; ifi; ifi = next) {
-		next = ifi->next;
-		if (ifi->sdl)
+	ifi = TAILQ_FIRST(&ifinfo_head);
+	while (ifi != NULL) {
+		if (ifi->sdl != NULL)
 			free(ifi->sdl);
-		if (ifi->rs_data)
+		if (ifi->rs_data != NULL)
 			free(ifi->rs_data);
+		ifi_tmp = TAILQ_NEXT(ifi, ifi_next);
 		free(ifi);
-		iflist = NULL;
+		ifi = ifi_tmp;
 	}
 }
 
@@ -481,7 +481,7 @@ ifreconfig(char *ifname)
 	int rv;
 
 	prev = NULL;
-	for (ifi = iflist; ifi; ifi = ifi->next) {
+	TAILQ_FOREACH(ifi, &ifinfo_head, ifi_next) {
 		if (strncmp(ifi->ifname, ifname, sizeof(ifi->ifname)) == 0)
 			break;
 		prev = ifi;
@@ -495,6 +495,7 @@ ifreconfig(char *ifname)
 		free(ifi->rs_data);
 	free(ifi->sdl);
 	free(ifi);
+
 	return (rv);
 }
 #endif
@@ -504,34 +505,35 @@ find_ifinfo(int ifindex)
 {
 	struct ifinfo *ifi;
 
-	for (ifi = iflist; ifi; ifi = ifi->next)
+	TAILQ_FOREACH(ifi, &ifinfo_head, ifi_next) {
 		if (ifi->sdl->sdl_index == ifindex)
 			return (ifi);
+	}
 	return (NULL);
 }
 
 static int
-make_packet(struct ifinfo *ifinfo)
+make_packet(struct ifinfo *ifi)
 {
 	size_t packlen = sizeof(struct nd_router_solicit), lladdroptlen = 0;
 	struct nd_router_solicit *rs;
 	char *buf;
 
-	if ((lladdroptlen = lladdropt_length(ifinfo->sdl)) == 0) {
+	if ((lladdroptlen = lladdropt_length(ifi->sdl)) == 0) {
 		warnmsg(LOG_INFO, __func__,
 		    "link-layer address option has null length"
-		    " on %s. Treat as not included.", ifinfo->ifname);
+		    " on %s. Treat as not included.", ifi->ifname);
 	}
 	packlen += lladdroptlen;
-	ifinfo->rs_datalen = packlen;
+	ifi->rs_datalen = packlen;
 
 	/* allocate buffer */
 	if ((buf = malloc(packlen)) == NULL) {
 		warnmsg(LOG_ERR, __func__,
-		    "memory allocation failed for %s", ifinfo->ifname);
+		    "memory allocation failed for %s", ifi->ifname);
 		return (-1);
 	}
-	ifinfo->rs_data = buf;
+	ifi->rs_data = buf;
 
 	/* fill in the message */
 	rs = (struct nd_router_solicit *)buf;
@@ -543,7 +545,7 @@ make_packet(struct ifinfo *ifinfo)
 
 	/* fill in source link-layer address option */
 	if (lladdroptlen)
-		lladdropt_fill(ifinfo->sdl, (struct nd_opt_hdr *)buf);
+		lladdropt_fill(ifi->sdl, (struct nd_opt_hdr *)buf);
 
 	return (0);
 }
@@ -553,56 +555,56 @@ rtsol_check_timer(void)
 {
 	static struct timeval returnval;
 	struct timeval now, rtsol_timer;
-	struct ifinfo *ifinfo;
+	struct ifinfo *ifi;
 	int flags;
 
 	gettimeofday(&now, NULL);
 
 	rtsol_timer = tm_max;
 
-	for (ifinfo = iflist; ifinfo; ifinfo = ifinfo->next) {
-		if (timercmp(&ifinfo->expire, &now, <=)) {
+	TAILQ_FOREACH(ifi, &ifinfo_head, ifi_next) {
+		if (timercmp(&ifi->expire, &now, <=)) {
 			if (dflag > 1)
 				warnmsg(LOG_DEBUG, __func__,
 				    "timer expiration on %s, "
-				    "state = %d", ifinfo->ifname,
-				    ifinfo->state);
+				    "state = %d", ifi->ifname,
+				    ifi->state);
 
-			switch (ifinfo->state) {
+			switch (ifi->state) {
 			case IFS_DOWN:
 			case IFS_TENTATIVE:
 				/* interface_up returns 0 on success */
-				flags = interface_up(ifinfo->ifname);
+				flags = interface_up(ifi->ifname);
 				if (flags == 0)
-					ifinfo->state = IFS_DELAY;
+					ifi->state = IFS_DELAY;
 				else if (flags == IFS_TENTATIVE)
-					ifinfo->state = IFS_TENTATIVE;
+					ifi->state = IFS_TENTATIVE;
 				else
-					ifinfo->state = IFS_DOWN;
+					ifi->state = IFS_DOWN;
 				break;
 			case IFS_IDLE:
 			{
-				int oldstatus = ifinfo->active;
+				int oldstatus = ifi->active;
 				int probe = 0;
 
-				ifinfo->active = interface_status(ifinfo);
+				ifi->active = interface_status(ifi);
 
-				if (oldstatus != ifinfo->active) {
+				if (oldstatus != ifi->active) {
 					warnmsg(LOG_DEBUG, __func__,
 					    "%s status is changed"
 					    " from %d to %d",
-					    ifinfo->ifname,
-					    oldstatus, ifinfo->active);
+					    ifi->ifname,
+					    oldstatus, ifi->active);
 					probe = 1;
-					ifinfo->state = IFS_DELAY;
-				} else if (ifinfo->probeinterval &&
-				    (ifinfo->probetimer -=
-				    ifinfo->timer.tv_sec) <= 0) {
+					ifi->state = IFS_DELAY;
+				} else if (ifi->probeinterval &&
+				    (ifi->probetimer -=
+				    ifi->timer.tv_sec) <= 0) {
 					/* probe timer expired */
-					ifinfo->probetimer =
-					    ifinfo->probeinterval;
+					ifi->probetimer =
+					    ifi->probeinterval;
 					probe = 1;
-					ifinfo->state = IFS_PROBE;
+					ifi->state = IFS_PROBE;
 				}
 
 				/*
@@ -610,33 +612,33 @@ rtsol_check_timer(void)
 				 * status wrt the "other" configuration.
 				 */
 				if (probe)
-					ifinfo->otherconfig = 0;
+					ifi->otherconfig = 0;
 
 				if (probe && mobile_node)
-					defrouter_probe(ifinfo);
+					defrouter_probe(ifi);
 				break;
 			}
 			case IFS_DELAY:
-				ifinfo->state = IFS_PROBE;
-				sendpacket(ifinfo);
+				ifi->state = IFS_PROBE;
+				sendpacket(ifi);
 				break;
 			case IFS_PROBE:
-				if (ifinfo->probes < MAX_RTR_SOLICITATIONS)
-					sendpacket(ifinfo);
+				if (ifi->probes < MAX_RTR_SOLICITATIONS)
+					sendpacket(ifi);
 				else {
 					warnmsg(LOG_INFO, __func__,
 					    "No answer after sending %d RSs",
-					    ifinfo->probes);
-					ifinfo->probes = 0;
-					ifinfo->state = IFS_IDLE;
+					    ifi->probes);
+					ifi->probes = 0;
+					ifi->state = IFS_IDLE;
 				}
 				break;
 			}
-			rtsol_timer_update(ifinfo);
+			rtsol_timer_update(ifi);
 		}
 
-		if (timercmp(&ifinfo->expire, &rtsol_timer, <))
-			rtsol_timer = ifinfo->expire;
+		if (timercmp(&ifi->expire, &rtsol_timer, <))
+			rtsol_timer = ifi->expire;
 	}
 
 	if (timercmp(&rtsol_timer, &tm_max, ==)) {
@@ -656,31 +658,31 @@ rtsol_check_timer(void)
 }
 
 void
-rtsol_timer_update(struct ifinfo *ifinfo)
+rtsol_timer_update(struct ifinfo *ifi)
 {
 #define MILLION 1000000
 #define DADRETRY 10		/* XXX: adhoc */
 	long interval;
 	struct timeval now;
 
-	bzero(&ifinfo->timer, sizeof(ifinfo->timer));
+	bzero(&ifi->timer, sizeof(ifi->timer));
 
-	switch (ifinfo->state) {
+	switch (ifi->state) {
 	case IFS_DOWN:
 	case IFS_TENTATIVE:
-		if (++ifinfo->dadcount > DADRETRY) {
-			ifinfo->dadcount = 0;
-			ifinfo->timer.tv_sec = PROBE_INTERVAL;
+		if (++ifi->dadcount > DADRETRY) {
+			ifi->dadcount = 0;
+			ifi->timer.tv_sec = PROBE_INTERVAL;
 		} else
-			ifinfo->timer.tv_sec = 1;
+			ifi->timer.tv_sec = 1;
 		break;
 	case IFS_IDLE:
 		if (mobile_node) {
 			/* XXX should be configurable */
-			ifinfo->timer.tv_sec = 3;
+			ifi->timer.tv_sec = 3;
 		}
 		else
-			ifinfo->timer = tm_max;	/* stop timer(valid?) */
+			ifi->timer = tm_max;	/* stop timer(valid?) */
 		break;
 	case IFS_DELAY:
 #ifndef HAVE_ARC4RANDOM
@@ -688,12 +690,12 @@ rtsol_timer_update(struct ifinfo *ifinfo)
 #else
 		interval = arc4random_uniform(MAX_RTR_SOLICITATION_DELAY * MILLION);
 #endif
-		ifinfo->timer.tv_sec = interval / MILLION;
-		ifinfo->timer.tv_usec = interval % MILLION;
+		ifi->timer.tv_sec = interval / MILLION;
+		ifi->timer.tv_usec = interval % MILLION;
 		break;
 	case IFS_PROBE:
-		if (ifinfo->probes < MAX_RTR_SOLICITATIONS)
-			ifinfo->timer.tv_sec = RTR_SOLICITATION_INTERVAL;
+		if (ifi->probes < MAX_RTR_SOLICITATIONS)
+			ifi->timer.tv_sec = RTR_SOLICITATION_INTERVAL;
 		else {
 			/*
 			 * After sending MAX_RTR_SOLICITATIONS solicitations,
@@ -702,30 +704,30 @@ rtsol_timer_update(struct ifinfo *ifinfo)
 			 * the timer value to MAX_RTR_SOLICITATION_DELAY based
 			 * on RFC 2461, Section 6.3.7.
 			 */
-			ifinfo->timer.tv_sec = MAX_RTR_SOLICITATION_DELAY;
+			ifi->timer.tv_sec = MAX_RTR_SOLICITATION_DELAY;
 		}
 		break;
 	default:
 		warnmsg(LOG_ERR, __func__,
 		    "illegal interface state(%d) on %s",
-		    ifinfo->state, ifinfo->ifname);
+		    ifi->state, ifi->ifname);
 		return;
 	}
 
 	/* reset the timer */
-	if (timercmp(&ifinfo->timer, &tm_max, ==)) {
-		ifinfo->expire = tm_max;
+	if (timercmp(&ifi->timer, &tm_max, ==)) {
+		ifi->expire = tm_max;
 		warnmsg(LOG_DEBUG, __func__,
-		    "stop timer for %s", ifinfo->ifname);
+		    "stop timer for %s", ifi->ifname);
 	} else {
 		gettimeofday(&now, NULL);
-		timeradd(&now, &ifinfo->timer, &ifinfo->expire);
+		timeradd(&now, &ifi->timer, &ifi->expire);
 
 		if (dflag > 1)
 			warnmsg(LOG_DEBUG, __func__,
-			    "set timer for %s to %d:%d", ifinfo->ifname,
-			    (int)ifinfo->timer.tv_sec,
-			    (int)ifinfo->timer.tv_usec);
+			    "set timer for %s to %d:%d", ifi->ifname,
+			    (int)ifi->timer.tv_sec,
+			    (int)ifi->timer.tv_usec);
 	}
 
 #undef MILLION

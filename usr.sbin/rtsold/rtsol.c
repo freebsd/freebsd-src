@@ -71,50 +71,37 @@ static struct sockaddr_in6 from;
 static int rcvcmsglen;
 
 int rssock;
-/*
- * RFC 3542 API deprecates IPV6_PKTINFO in favor of
- * IPV6_RECVPKTINFO
- */
-#ifndef IPV6_RECVPKTINFO
-#ifdef IPV6_PKTINFO
-#define IPV6_RECVPKTINFO	IPV6_PKTINFO
-#endif
-#endif
-/*
- * RFC 3542 API deprecates IPV6_HOPLIMIT in favor of
- * IPV6_RECVHOPLIMIT
- */
-#ifndef IPV6_RECVHOPLIMIT
-#ifdef IPV6_HOPLIMIT
-#define IPV6_RECVHOPLIMIT	IPV6_HOPLIMIT
-#endif
-#endif
+struct ifinfo_head_t ifinfo_head =
+	TAILQ_HEAD_INITIALIZER(ifinfo_head);
 
-#define IN6ADDR_LINKLOCAL_ALLROUTERS_INIT			\
-	{{{ 0xff, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,	\
-	    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02 }}}
 static const struct sockaddr_in6 sin6_allrouters = {
 	.sin6_len =	sizeof(sin6_allrouters),
 	.sin6_family =	AF_INET6,
 	.sin6_addr =	IN6ADDR_LINKLOCAL_ALLROUTERS_INIT,
 };
 
-struct script_msg {
-	TAILQ_ENTRY(script_msg)	sm_next;
-
-	char *sm_msg;
-};
-
 static void call_script(const int, const char *const *, void *);
 static size_t dname_labeldec(char *, const char *);
 static int safefile(const char *);
+static int ra_opt_handler(struct ifinfo *);
 
 #define _ARGS_OTHER	otherconf_script, ifi->ifname
-#define _ARGS_RESCONF	resolvconf_script, "-a", ifi->ifname
-#define CALL_SCRIPT(name, sm_head)	\
-	do {						\
+#define _ARGS_RESADD	resolvconf_script, "-a", ifi->ifname
+#define _ARGS_RESDEL	resolvconf_script, "-d", ifi->ifname
+#define CALL_SCRIPT(name, sm_head)					\
+	do {								\
 		const char *const sarg[] = { _ARGS_##name, NULL };	\
 		call_script(sizeof(sarg), sarg, sm_head);		\
+	} while(0);
+#define ELM_MALLOC(p,error_action)					\
+	do {								\
+		p = malloc(sizeof(*p));					\
+		if (p == NULL) {					\
+			warnmsg(LOG_ERR, __func__, "malloc failed: %s", \
+				strerror(errno));			\
+			error_action;					\
+		}							\
+		memset(p, 0, sizeof(*p));				\
 	} while(0);
 
 int
@@ -189,7 +176,7 @@ sockopen(void)
 }
 
 void
-sendpacket(struct ifinfo *ifinfo)
+sendpacket(struct ifinfo *ifi)
 {
 	struct in6_pktinfo *pi;
 	struct cmsghdr *cm;
@@ -198,11 +185,11 @@ sendpacket(struct ifinfo *ifinfo)
 	struct sockaddr_in6 dst;
 
 	dst = sin6_allrouters;
-	dst.sin6_scope_id = ifinfo->linkid;
+	dst.sin6_scope_id = ifi->linkid;
 
 	sndmhdr.msg_name = (caddr_t)&dst;
-	sndmhdr.msg_iov[0].iov_base = (caddr_t)ifinfo->rs_data;
-	sndmhdr.msg_iov[0].iov_len = ifinfo->rs_datalen;
+	sndmhdr.msg_iov[0].iov_base = (caddr_t)ifi->rs_data;
+	sndmhdr.msg_iov[0].iov_len = ifi->rs_datalen;
 
 	cm = CMSG_FIRSTHDR(&sndmhdr);
 	/* specify the outgoing interface */
@@ -211,7 +198,7 @@ sendpacket(struct ifinfo *ifinfo)
 	cm->cmsg_len = CMSG_LEN(sizeof(struct in6_pktinfo));
 	pi = (struct in6_pktinfo *)CMSG_DATA(cm);
 	memset(&pi->ipi6_addr, 0, sizeof(pi->ipi6_addr));	/*XXX*/
-	pi->ipi6_ifindex = ifinfo->sdl->sdl_index;
+	pi->ipi6_ifindex = ifi->sdl->sdl_index;
 
 	/* specify the hop limit of the packet */
 	cm = CMSG_NXTHDR(&sndmhdr, cm);
@@ -222,20 +209,20 @@ sendpacket(struct ifinfo *ifinfo)
 
 	warnmsg(LOG_DEBUG, __func__,
 	    "send RS on %s, whose state is %d",
-	    ifinfo->ifname, ifinfo->state);
+	    ifi->ifname, ifi->state);
 	i = sendmsg(rssock, &sndmhdr, 0);
-	if (i < 0 || (size_t)i != ifinfo->rs_datalen) {
+	if (i < 0 || (size_t)i != ifi->rs_datalen) {
 		/*
 		 * ENETDOWN is not so serious, especially when using several
 		 * network cards on a mobile node. We ignore it.
 		 */
 		if (errno != ENETDOWN || dflag > 0)
 			warnmsg(LOG_ERR, __func__, "sendmsg on %s: %s",
-			    ifinfo->ifname, strerror(errno));
+			    ifi->ifname, strerror(errno));
 	}
 
 	/* update counter */
-	ifinfo->probes++;
+	ifi->probes++;
 }
 
 void
@@ -246,6 +233,7 @@ rtsol_input(int s)
 	ssize_t msglen;
 	struct in6_pktinfo *pi = NULL;
 	struct ifinfo *ifi = NULL;
+	struct ra_opt *rao = NULL;
 	struct icmp6_hdr *icp;
 	struct nd_router_advert *nd_ra;
 	struct cmsghdr *cm;
@@ -256,16 +244,13 @@ rtsol_input(int s)
 	struct nd_opt_rdnss *rdnss;
 	struct nd_opt_dnssl *dnssl;
 	size_t len;
-	struct script_msg *smp;
-	TAILQ_HEAD(, script_msg) sm_ns_head =
-		TAILQ_HEAD_INITIALIZER(sm_ns_head);
 	char nsbuf[11 + INET6_ADDRSTRLEN + 1 + IFNAMSIZ + 1 + 1];
 	/* 11 = sizeof("nameserver "), 1+1 = \n\0 termination */
-	TAILQ_HEAD(, script_msg) sm_sl_head =
-		TAILQ_HEAD_INITIALIZER(sm_sl_head);
 	char slbuf[7 + NI_MAXHOST + 1 + 1];
 	/* 7 = sizeof("search "), 1+1 = \n\0 termination */
 	char dname[NI_MAXHOST + 1];
+	struct timeval now;
+	struct timeval lifetime;
 
 	/* get message.  namelen and controllen must always be initialized. */
 	rcvmhdr.msg_namelen = sizeof(from);
@@ -387,6 +372,20 @@ rtsol_input(int s)
 				(((struct nd_opt_hdr *)x)->nd_opt_len * 8))
 	raoptp = (char *)icp + sizeof(struct nd_router_advert);
 
+	/* Initialize ra_opt per-interface structure. */
+	gettimeofday(&now, NULL);
+	if (!TAILQ_EMPTY(&ifi->ifi_ra_opt)) {
+		struct ra_opt *rao_tmp;
+
+		rao = TAILQ_FIRST(&ifi->ifi_ra_opt);
+		while (rao != NULL) {
+			rao_tmp = TAILQ_NEXT(rao, rao_next);
+			free(rao);
+			rao = rao_tmp;
+		}
+	} else
+		TAILQ_INIT(&ifi->ifi_ra_opt);
+
 	warnmsg(LOG_DEBUG, __func__, "Processing RA");
 	/* Process RA options. */
 	while (raoptp < (char *)icp + msglen) {
@@ -399,10 +398,7 @@ rtsol_input(int s)
 
 		switch (ndo->nd_opt_type) {
 		case ND_OPT_RDNSS:
-			if (resolvconf_script == NULL)
-				break;
 			rdnss = (struct nd_opt_rdnss *)raoptp;
-			/* XXX: no lifetime handling now */
 
 			addr = (struct in6_addr *)(raoptp + sizeof(*rdnss));
 			while ((char *)addr < (char *)RA_OPT_NEXT_HDR(raoptp)) {
@@ -418,65 +414,38 @@ rtsol_input(int s)
 				}
 				if (IN6_IS_ADDR_LINKLOCAL(addr))
 					/* XXX: % has to be escaped here */
-					sprintf(nsbuf, "nameserver "
-					    "%s%c%c%c%c%s\n",
+					sprintf(nsbuf, "%s%c%s",
 					    ntopbuf,
-					    SCOPE_DELIMITER,
-					    SCOPE_DELIMITER,
-					    SCOPE_DELIMITER,
 					    SCOPE_DELIMITER,
 					    ifi->ifname);
 				else
-					sprintf(nsbuf, "nameserver %s\n",
-					    ntopbuf);
+					sprintf(nsbuf, "%s", ntopbuf);
 				warnmsg(LOG_DEBUG, __func__, "nsbuf = %s",
 				    nsbuf);
 
-				smp = malloc(sizeof(*smp));
-				if (smp == NULL) {
-					warnmsg(LOG_ERR, __func__,
-					    "malloc failed: %s",
-					    strerror(errno));
-					continue;
-				}
-				memset(smp, 0, sizeof(*smp));
-				smp->sm_msg = strdup(nsbuf);
-				if (smp->sm_msg == NULL) {
+				ELM_MALLOC(rao, break);
+				rao->rao_type = ndo->nd_opt_type;
+				rao->rao_len = strlen(nsbuf);
+				rao->rao_msg = strdup(nsbuf);
+				if (rao->rao_msg == NULL) {
 					warnmsg(LOG_ERR, __func__,
 					    "strdup failed: %s",
 					    strerror(errno));
-					free(smp);
+					free(rao);
 					continue;
 				}
-				TAILQ_INSERT_TAIL(&sm_ns_head, smp, sm_next);
+				/* Set expiration timer */
+				memset(&rao->rao_expire, 0, sizeof(rao->rao_expire));
+				memset(&lifetime, 0, sizeof(lifetime));
+				lifetime.tv_sec = ntohl(rdnss->nd_opt_rdnss_lifetime);
+				timeradd(&now, &lifetime, &rao->rao_expire);
+
+				TAILQ_INSERT_TAIL(&ifi->ifi_ra_opt, rao, rao_next);
 				addr++;
 			}
 			break;
 		case ND_OPT_DNSSL:
-			if (resolvconf_script == NULL)
-				break;
 			dnssl = (struct nd_opt_dnssl *)raoptp;
-			/* XXX: no lifetime handling now */
-
-			if (TAILQ_EMPTY(&sm_sl_head)) {
-				smp = malloc(sizeof(*smp));
-				if (smp == NULL) {
-					warnmsg(LOG_ERR, __func__,
-					    "malloc failed: %s",
-					    strerror(errno));
-					break;
-				}
-				smp = malloc(sizeof(*smp));
-				smp->sm_msg = strdup("search ");
-				if (smp->sm_msg == NULL) {
-					warnmsg(LOG_ERR, __func__,
-					    "strdup failed: %s",
-					    strerror(errno));
-					free(smp);
-					break;
-				}
-				TAILQ_INSERT_TAIL(&sm_sl_head, smp, sm_next);
-			}
 
 			p = raoptp + sizeof(*dnssl);
 			while (0 < (len = dname_labeldec(dname, p))) {
@@ -484,23 +453,24 @@ rtsol_input(int s)
 				warnmsg(LOG_DEBUG, __func__, "slbuf = %s",
 				    slbuf);
 
-				smp = malloc(sizeof(*smp));
-				if (smp == NULL) {
-					warnmsg(LOG_ERR, __func__,
-					    "malloc failed: %s",
-					    strerror(errno));
-					break;
-				}
-				memset(smp, 0, sizeof(*smp));
-				smp->sm_msg = strdup(slbuf);
-				if (smp->sm_msg == NULL) {
+				ELM_MALLOC(rao, break);
+				rao->rao_type = ndo->nd_opt_type;
+				rao->rao_len = strlen(nsbuf);
+				rao->rao_msg = strdup(slbuf);
+				if (rao->rao_msg == NULL) {
 					warnmsg(LOG_ERR, __func__,
 					    "strdup failed: %s",
 					    strerror(errno));
-					free(smp);
+					free(rao);
 					break;
 				}
-				TAILQ_INSERT_TAIL(&sm_sl_head, smp, sm_next);
+				/* Set expiration timer */
+				memset(&rao->rao_expire, 0, sizeof(rao->rao_expire));
+				memset(&lifetime, 0, sizeof(lifetime));
+				lifetime.tv_sec = ntohl(dnssl->nd_opt_dnssl_lifetime);
+				timeradd(&now, &lifetime, &rao->rao_expire);
+
+				TAILQ_INSERT_TAIL(&ifi->ifi_ra_opt, rao, rao_next);
 				p += len;
 			}
 			break;
@@ -510,37 +480,7 @@ rtsol_input(int s)
 		}
 		raoptp = (char *)RA_OPT_NEXT_HDR(raoptp);
 	}
-	if (!TAILQ_EMPTY(&sm_sl_head)) {
-		smp = malloc(sizeof(*smp));
-		if (smp == NULL) {
-			warnmsg(LOG_ERR, __func__, "malloc failed: %s",
-			    strerror(errno));
-			return;
-		}
-		smp = malloc(sizeof(*smp));
-		smp->sm_msg = strdup("\n");
-		if (smp->sm_msg == NULL) {
-			warnmsg(LOG_ERR, __func__, "strdup failed: %s",
-			    strerror(errno));
-			free(smp);
-			return;
-		}
-		TAILQ_INSERT_TAIL(&sm_sl_head, smp, sm_next);
-	}
-	TAILQ_CONCAT(&sm_ns_head, &sm_sl_head, sm_next);
-	if (!TAILQ_EMPTY(&sm_ns_head) || !TAILQ_EMPTY(&sm_sl_head)) {
-		struct script_msg *sm_tmp;
-
-		CALL_SCRIPT(RESCONF, &sm_ns_head);
-
-		/* Clear script message queue. */
-		smp = TAILQ_FIRST(&sm_ns_head);
-		while(smp != NULL) {
-			sm_tmp = TAILQ_NEXT(smp, sm_next);
-			free(smp);
-			smp = sm_tmp;
-		}
-	}
+	ra_opt_handler(ifi);
 	ifi->racnt++;
 
 	switch (ifi->state) {
@@ -553,6 +493,93 @@ rtsol_input(int s)
 		rtsol_timer_update(ifi);
 		break;
 	}
+}
+
+static char resstr_ns_prefix[] = "nameserver ";
+static char resstr_sh_prefix[] = "search ";
+static char resstr_nl[] = "\n";
+
+static int
+ra_opt_handler(struct ifinfo *ifi)
+{
+	struct ra_opt *rao;
+	struct script_msg *smp;
+	struct timeval now;
+	TAILQ_HEAD(, script_msg) sm_rdnss_head =
+		TAILQ_HEAD_INITIALIZER(sm_rdnss_head);
+	TAILQ_HEAD(, script_msg) sm_dnssl_head =
+		TAILQ_HEAD_INITIALIZER(sm_dnssl_head);
+
+	gettimeofday(&now, NULL);
+	TAILQ_FOREACH(rao, &ifi->ifi_ra_opt, rao_next) {
+		switch (rao->rao_type) {
+		case ND_OPT_RDNSS:
+			if (timercmp(&now, &rao->rao_expire, >)) {
+				warnmsg(LOG_INFO, __func__,
+					"expired rdnss entry: %s",
+					(char *)rao->rao_msg);
+				break;
+			}
+			ELM_MALLOC(smp, continue);
+			smp->sm_msg = resstr_ns_prefix;
+			TAILQ_INSERT_TAIL(&sm_rdnss_head, smp, sm_next);
+
+			ELM_MALLOC(smp, continue);
+			smp->sm_msg = rao->rao_msg;
+			TAILQ_INSERT_TAIL(&sm_rdnss_head, smp, sm_next);
+
+			ELM_MALLOC(smp, continue);
+			smp->sm_msg = resstr_nl;
+			TAILQ_INSERT_TAIL(&sm_rdnss_head, smp, sm_next);
+
+			break;
+		case ND_OPT_DNSSL:
+			if (timercmp(&now, &rao->rao_expire, >)) {
+				warnmsg(LOG_INFO, __func__,
+					"expired dnssl entry: %s",
+					(char *)rao->rao_msg);
+				break;
+			}
+			if (TAILQ_EMPTY(&sm_dnssl_head)) {
+				ELM_MALLOC(smp, continue);
+				smp->sm_msg = resstr_sh_prefix;
+				TAILQ_INSERT_TAIL(&sm_dnssl_head, smp, sm_next);
+			}
+			ELM_MALLOC(smp, continue);
+			smp->sm_msg = rao->rao_msg;
+			TAILQ_INSERT_TAIL(&sm_dnssl_head, smp, sm_next);
+			break;
+		default:
+			break;
+		}
+	}
+	/* Add \n for DNSSL list. */
+	if (!TAILQ_EMPTY(&sm_dnssl_head)) {
+		ELM_MALLOC(smp, goto ra_opt_handler_freeit);
+		smp->sm_msg = resstr_nl;
+		TAILQ_INSERT_TAIL(&sm_dnssl_head, smp, sm_next);
+	}
+	TAILQ_CONCAT(&sm_rdnss_head, &sm_dnssl_head, sm_next);
+
+        if (!TAILQ_EMPTY(&sm_rdnss_head)) {
+                CALL_SCRIPT(RESADD, &sm_rdnss_head);
+	} else {
+                CALL_SCRIPT(RESDEL, NULL);
+	}
+
+ra_opt_handler_freeit:
+	/* Clear script message queue. */
+	if (!TAILQ_EMPTY(&sm_rdnss_head)) {
+                struct script_msg *sm_tmp;
+
+		smp = TAILQ_FIRST(&sm_rdnss_head);
+		while(smp != NULL) {
+			sm_tmp = TAILQ_NEXT(smp, sm_next);
+			free(smp);
+			smp = sm_tmp;
+		}
+	}
+	return (0);
 }
 
 static void
