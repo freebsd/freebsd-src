@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/fcntl.h>
 #include <machine/endian.h>
 #include "ypxfrd_extern.h"
+#include "yp_extern.h"
 
 int forked = 0;
 int children = 0;

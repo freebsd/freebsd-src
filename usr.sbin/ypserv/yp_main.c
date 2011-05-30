@@ -84,15 +84,9 @@ static enum rpcsvcstate {
 	_SERVING,
 } _rpcsvcstate;
 
-extern void ypprog_1(struct svc_req *, SVCXPRT *);
-extern void ypprog_2(struct svc_req *, SVCXPRT *);
-extern int _rpc_dtablesize(void);
-
-char securenets_path[MAXPATHLEN];
-enum yp_snf_format securenets_format = YP_SNF_NATIVE;
-char *progname = "ypserv";
-char *yp_dir = _PATH_YP;
-static char *servname = "0";
+const char *progname = "ypserv";
+const char *yp_dir = _PATH_YP;
+static char *servname = NULL;
 
 int do_dns = 0;
 int resfd;
@@ -117,7 +111,7 @@ static SLIST_HEAD(, bindaddrlistent) ble_head =
 	SLIST_HEAD_INITIALIZER(ble_head);
 
 static void
-_msgout(char* msg, ...)
+_msgout(const char* msg, ...)
 {
 	va_list ap;
 
@@ -226,8 +220,9 @@ usage(void)
 static void
 closedown(int sig)
 {
+	if (sig != SIGALRM)
+		return;
 	if (_rpcsvcstate == _IDLE) {
-		extern fd_set svc_fdset;
 		static int size;
 		int i, openfd;
 
@@ -264,10 +259,13 @@ create_service(const int sock, const struct netconfig *nconf,
 	struct socklistent *slep;
 	struct bindaddrlistent *blep;
 	struct netbuf svcaddr;
+	char nullserv[] = "0";
 
 	SLIST_INIT(&sle_head);
 	memset(&hints, 0, sizeof(hints));
 	memset(&svcaddr, 0, sizeof(svcaddr));
+	if (servname == NULL)
+		servname = nullserv;
 
 	hints.ai_family = si->si_af;
 	hints.ai_socktype = si->si_socktype;
@@ -285,8 +283,9 @@ create_service(const int sock, const struct netconfig *nconf,
 			error = getaddrinfo(blep->ble_hostname, servname,
 				    &hints, &res0);
 			if (error) {
-				_msgout("getaddrinfo(): %s",
-				    gai_strerror(error));
+				_msgout("%s: getaddrinfo(): %s",
+					__func__,
+					gai_strerror(error));
 				return (-1);
 			}
 			for (res = res0; res; res = res->ai_next) {
@@ -341,7 +340,8 @@ create_service(const int sock, const struct netconfig *nconf,
 				 * If servname == "0", redefine it by using
 				 * the bound socket.
 				 */
-				if (strncmp("0", servname, 1) == 0) {
+				if (servname == NULL ||
+				    strncmp("0", servname, 1) == 0) {
 					struct sockaddr *sap;
 					socklen_t slen;
 					char *sname;

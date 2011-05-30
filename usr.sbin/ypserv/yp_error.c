@@ -48,8 +48,6 @@ __FBSDID("$FreeBSD$");
 int debug;
 extern int _rpcpmstart;
 
-extern char *progname;
-
 static void __verr(const char *fmt, va_list ap) __printflike(1, 0);
 
 static void __verr(const char *fmt, va_list ap)

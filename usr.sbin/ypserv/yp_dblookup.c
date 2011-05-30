@@ -67,6 +67,7 @@ HASHINFO openinfo = {
 #define MAXDBS 20
 #endif
 
+static char nullbuf[] = "";
 static int numdbs = 0;
 
 struct dbent {
@@ -193,10 +194,8 @@ yp_flush_all(void)
 	return;
 }
 
-static char *inter_string = "YP_INTERDOMAIN";
-static char *secure_string = "YP_SECURE";
-static int inter_sz = sizeof("YP_INTERDOMAIN") - 1;
-static int secure_sz = sizeof("YP_SECURE") - 1;
+static char inter_string[] = "YP_INTERDOMAIN";
+static char secure_string[] = "YP_SECURE";
 
 static int
 yp_setflags(DB *dbp)
@@ -205,13 +204,13 @@ yp_setflags(DB *dbp)
 	int flags = 0;
 
 	key.data = inter_string;
-	key.size = inter_sz;
+	key.size = sizeof(inter_string) - 1;
 
 	if (!(dbp->get)(dbp, &key, &data, 0))
 		flags |= YP_INTERDOMAIN;
 
 	key.data = secure_string;
-	key.size = secure_sz;
+	key.size = sizeof(secure_string) - 1;
 
 	if (!(dbp->get)(dbp, &key, &data, 0))
 		flags |= YP_SECURE;
@@ -220,7 +219,7 @@ yp_setflags(DB *dbp)
 }
 
 int
-yp_testflag(char *map, char *domain, int flag)
+yp_testflag(const char *map, const char *domain, int flag)
 {
 	char buf[MAXPATHLEN + 2];
 	register struct circleq_entry *qptr;
@@ -501,7 +500,7 @@ yp_get_record(const char *domain, const char *map,
 
 #ifdef DB_CACHE
 	if (TAILQ_FIRST(&qhead)->dbptr->size) {
-		TAILQ_FIRST(&qhead)->dbptr->key = "";
+		TAILQ_FIRST(&qhead)->dbptr->key = nullbuf;
 		TAILQ_FIRST(&qhead)->dbptr->size = 0;
 	}
 #else

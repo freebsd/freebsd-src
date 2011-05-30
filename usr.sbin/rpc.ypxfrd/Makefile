@@ -1,13 +1,21 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../usr.sbin/ypserv
+.PATH: ${.CURDIR}/../ypserv
+
+.include <bsd.own.mk>
 
 PROG=	rpc.ypxfrd
 MAN=	rpc.ypxfrd.8
 SRCS=	ypxfrd_svc.c ypxfrd.h ypxfrd_server.c yp_error.c \
 	yp_access.c ypxfrd_main.c
+.if ${MK_INET_SUPPORT} != "no"
+SRCS+=	yp_access_inet.c
+.endif
+.if ${MK_INET6_SUPPORT} != "no"
+SRCS+=	yp_access_inet6.c
+.endif
 
-CFLAGS+= -I. -DXFRBLOCKSIZE=65535
+CFLAGS+= -I. -I${.CURDIR}/../ypserv -DXFRBLOCKSIZE=65535
 
 WARNS?=	2
 

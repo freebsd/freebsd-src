@@ -46,8 +46,6 @@
 #define MAP_UPDATE "yppwupdate"
 #define MAP_UPDATE_PATH YPLIBDIR "yppwupdate"
 
-extern char	*yp_dir;
-extern char	*progname;
 extern void	do_master(void);
 extern void	yppasswdprog_1(struct svc_req *, register SVCXPRT *);
 extern void     master_yppasswdprog_1(struct svc_req *, register SVCXPRT *);

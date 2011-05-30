@@ -53,10 +53,10 @@ __FBSDID("$FreeBSD$");
 #include "ypxfr_extern.h"
 #include "yppush_extern.h"
 
-char *progname = "yppush";
 int debug = 1;
 int _rpcpmstart = 0;
-char *yp_dir = _PATH_YP;
+const char *progname = "yppush";
+const char *yp_dir = _PATH_YP;
 
 char *yppush_mapname = NULL;	/* Map to transfer. */
 char *yppush_domain = NULL;	/* Domain in which map resides. */

@@ -48,11 +48,10 @@ __FBSDID("$FreeBSD$");
 #include <rpc/rpc.h>
 
 int children = 0;
+static char nullbuf[] = "";
 
 #define	MASTER_STRING	"YP_MASTER_NAME"
-#define	MASTER_SZ	sizeof(MASTER_STRING) - 1
 #define	ORDER_STRING	"YP_LAST_MODIFIED"
-#define	ORDER_SZ	sizeof(ORDER_STRING) - 1
 
 static pid_t
 yp_fork(void)
@@ -76,6 +75,7 @@ ypproc_null_2_svc(void *argp, struct svc_req *rqstp)
 	static char * result;
 	static char rval = 0;
 
+	argp = NULL;
 #ifdef DB_CACHE
 	if (yp_access(NULL, NULL, (struct svc_req *)rqstp))
 #else
@@ -135,7 +135,7 @@ ypproc_match_2_svc(ypreq_key *argp, struct svc_req *rqstp)
 {
 	static ypresp_val  result;
 
-	result.val.valdat_val = "";
+	result.val.valdat_val = nullbuf;
 	result.val.valdat_len = 0;
 
 #ifdef DB_CACHE
@@ -205,7 +205,7 @@ ypproc_first_2_svc(ypreq_nokey *argp, struct svc_req *rqstp)
 {
 	static ypresp_key_val  result;
 
-	result.val.valdat_val = result.key.keydat_val = "";
+	result.val.valdat_val = result.key.keydat_val = nullbuf;
 	result.val.valdat_len = result.key.keydat_len = 0;
 
 #ifdef DB_CACHE
@@ -237,7 +237,7 @@ ypproc_next_2_svc(ypreq_key *argp, struct svc_req *rqstp)
 {
 	static ypresp_key_val  result;
 
-	result.val.valdat_val = result.key.keydat_val = "";
+	result.val.valdat_val = result.key.keydat_val = nullbuf;
 	result.val.valdat_len = result.key.keydat_len = 0;
 
 #ifdef DB_CACHE
@@ -426,6 +426,7 @@ ypproc_clear_2_svc(void *argp, struct svc_req *rqstp)
 	static char * result;
 	static char rval = 0;
 
+	argp = NULL;
 #ifdef DB_CACHE
 	if (yp_access(NULL, NULL, (struct svc_req *)rqstp))
 #else
@@ -494,7 +495,7 @@ ypproc_all_2_svc(ypreq_nokey *argp, struct svc_req *rqstp)
 	 */
 	result.more = TRUE;
 	result.ypresp_all_u.val.key.keydat_len = 0;
-	result.ypresp_all_u.val.key.keydat_val = "";
+	result.ypresp_all_u.val.key.keydat_val = nullbuf;
 
 #ifdef DB_CACHE
 	if (yp_access(argp->map, argp->domain, (struct svc_req *)rqstp)) {
@@ -574,10 +575,11 @@ ypproc_master_2_svc(ypreq_nokey *argp, struct svc_req *rqstp)
 {
 	static ypresp_master  result;
 	static char ypvalbuf[YPMAXRECORD];
-	keydat key = { MASTER_SZ, MASTER_STRING };
+	char keybuf[] = MASTER_STRING;
+	keydat key = { sizeof(keybuf) - 1, keybuf };
 	valdat val;
 
-	result.peer = "";
+	result.peer = nullbuf;
 
 #ifdef DB_CACHE
 	if (yp_access(argp->map, argp->domain, (struct svc_req *)rqstp)) {
@@ -612,7 +614,7 @@ ypproc_master_2_svc(ypreq_nokey *argp, struct svc_req *rqstp)
 		ypvalbuf[val.valdat_len] = '\0';
 		result.peer = ypvalbuf;
 	} else
-		result.peer = "";
+		result.peer = nullbuf;
 
 	return (&result);
 }
@@ -621,7 +623,8 @@ ypresp_order *
 ypproc_order_2_svc(ypreq_nokey *argp, struct svc_req *rqstp)
 {
 	static ypresp_order  result;
-	keydat key = { ORDER_SZ, ORDER_STRING };
+	char keybuf[] = ORDER_STRING;
+	keydat key = { sizeof(keybuf) - 1, keybuf };
 	valdat val;
 
 	result.ordernum = 0;
@@ -662,7 +665,8 @@ ypproc_order_2_svc(ypreq_nokey *argp, struct svc_req *rqstp)
 	return (&result);
 }
 
-static void yp_maplist_free(struct ypmaplist *yp_maplist)
+static void
+yp_maplist_free(struct ypmaplist *yp_maplist)
 {
 	register struct ypmaplist *next;
 
@@ -815,7 +819,7 @@ ypoldproc_match_1_svc(yprequest *argp, struct svc_req *rqstp)
 	ypresp_val *v2_result;
 
 	result.yp_resptype = YPRESP_VAL;
-	result.ypresponse_u.yp_resp_valtype.val.valdat_val = "";
+	result.ypresponse_u.yp_resp_valtype.val.valdat_val = nullbuf;
 	result.ypresponse_u.yp_resp_valtype.val.valdat_len = 0;
 
 	if (argp->yp_reqtype != YPREQ_KEY) {
@@ -844,7 +848,7 @@ ypoldproc_first_1_svc(yprequest *argp, struct svc_req *rqstp)
 
 	result.yp_resptype = YPRESP_KEY_VAL;
 	result.ypresponse_u.yp_resp_key_valtype.val.valdat_val =
-	result.ypresponse_u.yp_resp_key_valtype.key.keydat_val = "";
+	result.ypresponse_u.yp_resp_key_valtype.key.keydat_val = nullbuf;
 	result.ypresponse_u.yp_resp_key_valtype.val.valdat_len =
 	result.ypresponse_u.yp_resp_key_valtype.key.keydat_len = 0;
 
@@ -875,7 +879,7 @@ ypoldproc_next_1_svc(yprequest *argp, struct svc_req *rqstp)
 
 	result.yp_resptype = YPRESP_KEY_VAL;
 	result.ypresponse_u.yp_resp_key_valtype.val.valdat_val =
-	result.ypresponse_u.yp_resp_key_valtype.key.keydat_val = "";
+	result.ypresponse_u.yp_resp_key_valtype.key.keydat_val = nullbuf;
 	result.ypresponse_u.yp_resp_key_valtype.val.valdat_len =
 	result.ypresponse_u.yp_resp_key_valtype.key.keydat_len = 0;
 
@@ -916,7 +920,7 @@ ypoldproc_poll_1_svc(yprequest *argp, struct svc_req *rqstp)
 	 * I hope this is right.
 	 */
 	result.ypresponse_u.yp_resp_map_parmstype.ordernum = 0;
-	result.ypresponse_u.yp_resp_map_parmstype.peer = "";
+	result.ypresponse_u.yp_resp_map_parmstype.peer = nullbuf;
 
 	if (argp->yp_reqtype != YPREQ_MAP_PARMS) {
 		return(&result);
@@ -956,6 +960,8 @@ ypoldproc_push_1_svc(yprequest *argp, struct svc_req *rqstp)
 	/*
 	 * Not implemented.
 	 */
+	argp = NULL;
+	rqstp = NULL;
 
 	return (&result);
 }
@@ -968,6 +974,8 @@ ypoldproc_pull_1_svc(yprequest *argp, struct svc_req *rqstp)
 	/*
 	 * Not implemented.
 	 */
+	argp = NULL;
+	rqstp = NULL;
 
 	return (&result);
 }
@@ -980,6 +988,8 @@ ypoldproc_get_1_svc(yprequest *argp, struct svc_req *rqstp)
 	/*
 	 * Not implemented.
 	 */
+	argp = NULL;
+	rqstp = NULL;
 
 	return (&result);
 }

@@ -52,9 +52,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <syslog.h>
-#include "ypxfrd_extern.h"
 #include <sys/wait.h>
 #include <errno.h>
+
+#include "ypxfrd_extern.h"
+#include "yp_extern.h"
 
 #ifndef SIG_PF
 #define	SIG_PF void(*)(int)
@@ -76,8 +78,8 @@ static int _rpcfdtype;
 
 extern int _rpcsvcstate;	 /* Set when a request is serviced */
 
-char *progname = "rpc.ypxfrd";
-char *yp_dir = "/var/yp/";
+const char *progname = "rpc.ypxfrd";
+const char *yp_dir = _PATH_YP;
 
 static void
 _msgout(char *msg)
