@@ -156,14 +156,11 @@ __FBSDID("$FreeBSD$");
 #define THIRD_OCTET(X)	(((X) & 0x0000FF00) >> 8)
 #define FOURTH_OCTET(X)	((X) & 0x000000FF)
 
-MALLOC_DECLARE(M_SIFTR);
-MALLOC_DEFINE(M_SIFTR, "siftr", "dynamic memory used by SIFTR");
-
-MALLOC_DECLARE(M_SIFTR_PKTNODE);
-MALLOC_DEFINE(M_SIFTR_PKTNODE, "siftr_pktnode", "SIFTR pkt_node struct");
-
-MALLOC_DECLARE(M_SIFTR_HASHNODE);
-MALLOC_DEFINE(M_SIFTR_HASHNODE, "siftr_hashnode", "SIFTR flow_hash_node struct");
+static MALLOC_DEFINE(M_SIFTR, "siftr", "dynamic memory used by SIFTR");
+static MALLOC_DEFINE(M_SIFTR_PKTNODE, "siftr_pktnode",
+    "SIFTR pkt_node struct");
+static MALLOC_DEFINE(M_SIFTR_HASHNODE, "siftr_hashnode",
+    "SIFTR flow_hash_node struct");
 
 /* Used as links in the pkt manager queue. */
 struct pkt_node {
