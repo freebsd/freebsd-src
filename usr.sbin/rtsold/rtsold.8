@@ -41,11 +41,13 @@
 .Nm
 .Op Fl dDfFm1
 .Op Fl O Ar script-name
+.Op Fl P Ar pidfile
 .Op Fl R Ar script-name
 .Ar interface ...
 .Nm
 .Op Fl dDfFm1
 .Op Fl O Ar script-name
+.Op Fl P Ar pidfile
 .Op Fl R Ar script-name
 .Fl a
 .Nm rtsol
@@ -225,6 +227,11 @@ configuration.
 must be the absolute path from root to the script file, be a regular
 file, and be created by the same owner who runs
 .Nm .
+.It Fl P Ar pidfile
+Writes the process ID of
+.Nm
+to file instead of the default PID file
+.Pa /var/run/rtsold.pid .
 .It Fl R Ar script-name
 Specifies a script to run when router advertisment options
 .Dv RDNSS Pq Recursive DNS Server
