@@ -110,6 +110,9 @@ enum {
 	FW_IQ_QSIZE = 256,
 	FW_IQ_ESIZE = 64,	/* At least 64 mandated by the firmware spec */
 
+	INTR_IQ_QSIZE = 64,
+	INTR_IQ_ESIZE = 64,	/* Handles some CPLs too, do not reduce */
+
 	CTRL_EQ_QSIZE = 128,
 	CTRL_EQ_ESIZE = 64,
 
@@ -141,7 +144,7 @@ enum {
 	/* adapter flags */
 	FULL_INIT_DONE	= (1 << 0),
 	FW_OK		= (1 << 1),
-	INTR_FWD	= (1 << 2),
+	INTR_SHARED	= (1 << 2),	/* one set of intrq's for all ports */
 
 	CXGBE_BUSY	= (1 << 9),
 
@@ -384,12 +387,10 @@ struct sge_ctrlq {
 
 	/* stats for common events first */
 
-	uint64_t total_wrs;	/* # of work requests sent down this queue */
 
 	/* stats for not-that-common events */
 
 	uint32_t no_desc;	/* out of hardware descriptors */
-	uint32_t too_long;	/* WR longer than hardware max */
 } __aligned(CACHE_LINE_SIZE);
 
 struct sge {
@@ -403,7 +404,7 @@ struct sge {
 
 	struct sge_iq fwq;	/* Firmware event queue */
 	struct sge_ctrlq *ctrlq;/* Control queues */
-	struct sge_iq *fiq;	/* Forwarded interrupt queues (INTR_FWD) */
+	struct sge_iq *intrq;	/* Interrupt queues */
 	struct sge_txq *txq;	/* NIC tx queues */
 	struct sge_rxq *rxq;	/* NIC rx queues */
 
@@ -457,7 +458,9 @@ struct adapter {
 	struct t4_virt_res vres;
 
 	struct sysctl_ctx_list ctx; /* from first_port_up to last_port_down */
+	struct sysctl_oid *oid_fwq;
 	struct sysctl_oid *oid_ctrlq;
+	struct sysctl_oid *oid_intrq;
 
 	struct mtx sc_lock;
 	char lockname[16];
@@ -503,7 +506,10 @@ struct adapter {
 	rxq = &pi->adapter->sge.rxq[pi->first_rxq]; \
 	for (iter = 0; iter < pi->nrxq; ++iter, ++rxq)
 
-#define NFIQ(sc) ((sc)->intr_count > 1 ? (sc)->intr_count - 1 : 1)
+/* One for errors, one for firmware events */
+#define T4_EXTRA_INTR 2
+#define NINTRQ(sc) ((sc)->intr_count > T4_EXTRA_INTR ? \
+    (sc)->intr_count - T4_EXTRA_INTR : 1)
 
 static inline uint32_t
 t4_read_reg(struct adapter *sc, uint32_t reg)
@@ -600,12 +606,9 @@ int t4_teardown_adapter_queues(struct adapter *);
 int t4_setup_eth_queues(struct port_info *);
 int t4_teardown_eth_queues(struct port_info *);
 void t4_intr_all(void *);
-void t4_intr_fwd(void *);
+void t4_intr(void *);
 void t4_intr_err(void *);
 void t4_intr_evt(void *);
-void t4_intr_data(void *);
-void t4_evt_rx(void *);
-void t4_eth_rx(void *);
 int t4_mgmt_tx(struct adapter *, struct mbuf *);
 int t4_eth_tx(struct ifnet *, struct sge_txq *, struct mbuf *);
 void t4_update_fl_bufsize(struct ifnet *);

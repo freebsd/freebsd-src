@@ -214,12 +214,12 @@ SYSCTL_UINT(_hw_cxgbe, OID_AUTO, interrupt_types, CTLFLAG_RDTUN, &intr_types, 0,
     "interrupt types allowed (bits 0, 1, 2 = INTx, MSI, MSI-X respectively)");
 
 /*
- * Force the driver to use interrupt forwarding.
+ * Force the driver to use the same set of interrupts for all ports.
  */
-static int intr_fwd = 0;
-TUNABLE_INT("hw.cxgbe.interrupt_forwarding", &intr_fwd);
-SYSCTL_UINT(_hw_cxgbe, OID_AUTO, interrupt_forwarding, CTLFLAG_RDTUN,
-    &intr_fwd, 0, "always use forwarded interrupts");
+static int intr_shared = 0;
+TUNABLE_INT("hw.cxgbe.interrupts_shared", &intr_shared);
+SYSCTL_UINT(_hw_cxgbe, OID_AUTO, interrupts_shared, CTLFLAG_RDTUN,
+    &intr_shared, 0, "interrupts shared between all ports");
 
 static unsigned int filter_mode = HW_TPL_FR_MT_PR_IV_P_FC;
 TUNABLE_INT("hw.cxgbe.filter_mode", &filter_mode);
@@ -229,7 +229,7 @@ SYSCTL_UINT(_hw_cxgbe, OID_AUTO, filter_mode, CTLFLAG_RDTUN,
 struct intrs_and_queues {
 	int intr_type;		/* INTx, MSI, or MSI-X */
 	int nirq;		/* Number of vectors */
-	int intr_fwd;		/* Interrupts forwarded */
+	int intr_shared;	/* Interrupts shared between all ports */
 	int ntxq10g;		/* # of NIC txq's for each 10G port */
 	int nrxq10g;		/* # of NIC rxq's for each 10G port */
 	int ntxq1g;		/* # of NIC txq's for each 1G port */
@@ -516,8 +516,8 @@ t4_attach(device_t dev)
 			device_printf(dev, "unable to initialize port %d: %d\n",
 			    i, rc);
 			free(pi, M_CXGBE);
-			sc->port[i] = NULL;	/* indicates init failed */
-			continue;
+			sc->port[i] = NULL;
+			goto done;
 		}
 
 		snprintf(pi->lockname, sizeof(pi->lockname), "%sp%d",
@@ -584,15 +584,15 @@ t4_attach(device_t dev)
 	s->nrxq = n10g * iaq.nrxq10g + n1g * iaq.nrxq1g;
 	s->ntxq = n10g * iaq.ntxq10g + n1g * iaq.ntxq1g;
 	s->neq = s->ntxq + s->nrxq;	/* the free list in an rxq is an eq */
-	s->neq += NCHAN;		/* control queues, 1 per hw channel */
+	s->neq += sc->params.nports;	/* control queues, 1 per port */
 	s->niq = s->nrxq + 1;		/* 1 extra for firmware event queue */
-	if (iaq.intr_fwd) {
-		sc->flags |= INTR_FWD;
-		s->niq += NFIQ(sc);		/* forwarded interrupt queues */
-		s->fiq = malloc(NFIQ(sc) * sizeof(struct sge_iq), M_CXGBE,
-		    M_ZERO | M_WAITOK);
-	}
-	s->ctrlq = malloc(NCHAN * sizeof(struct sge_ctrlq), M_CXGBE,
+	if (iaq.intr_shared)
+		sc->flags |= INTR_SHARED;
+	s->niq += NINTRQ(sc);		/* interrupt queues */
+
+	s->intrq = malloc(NINTRQ(sc) * sizeof(struct sge_iq), M_CXGBE,
+	    M_ZERO | M_WAITOK);
+	s->ctrlq = malloc(sc->params.nports * sizeof(struct sge_ctrlq), M_CXGBE,
 	    M_ZERO | M_WAITOK);
 	s->rxq = malloc(s->nrxq * sizeof(struct sge_rxq), M_CXGBE,
 	    M_ZERO | M_WAITOK);
@@ -702,7 +702,7 @@ t4_detach(device_t dev)
 	free(sc->sge.rxq, M_CXGBE);
 	free(sc->sge.txq, M_CXGBE);
 	free(sc->sge.ctrlq, M_CXGBE);
-	free(sc->sge.fiq, M_CXGBE);
+	free(sc->sge.intrq, M_CXGBE);
 	free(sc->sge.iqmap, M_CXGBE);
 	free(sc->sge.eqmap, M_CXGBE);
 	free(sc->tids.ftid_tab, M_CXGBE);
@@ -1238,33 +1238,32 @@ cfg_itype_and_nqueues(struct adapter *sc, int n10g, int n1g,
 		nrxq10g = min(nc, max_nrxq_10g);
 		nrxq1g = min(nc, max_nrxq_1g);
 
-		/* Extra 2 is for a) error interrupt b) firmware event */
-		iaq->nirq = n10g * nrxq10g + n1g * nrxq1g + 2;
-		if (iaq->nirq <= navail && intr_fwd == 0) {
+		iaq->nirq = n10g * nrxq10g + n1g * nrxq1g + T4_EXTRA_INTR;
+		if (iaq->nirq <= navail && intr_shared == 0) {
 
 			if (itype == INTR_MSI && !powerof2(iaq->nirq))
-				goto fwd;
+				goto share;
 
 			/* One for err, one for fwq, and one for each rxq */
 
-			iaq->intr_fwd = 0;
+			iaq->intr_shared = 0;
 			iaq->nrxq10g = nrxq10g;
 			iaq->nrxq1g = nrxq1g;
 
 		} else {
-fwd:
-			iaq->intr_fwd = 1;
+share:
+			iaq->intr_shared = 1;
 
-			if (navail > nc) {
+			if (navail >= nc + T4_EXTRA_INTR) {
 				if (itype == INTR_MSIX)
-					navail = nc + 1;
+					navail = nc + T4_EXTRA_INTR;
 
 				/* navail is and must remain a pow2 for MSI */
 				if (itype == INTR_MSI) {
 					KASSERT(powerof2(navail),
 					    ("%d not power of 2", navail));
 
-					while (navail / 2 > nc)
+					while (navail / 2 >= nc + T4_EXTRA_INTR)
 						navail /= 2;
 				}
 			}
@@ -1297,7 +1296,7 @@ fwd:
 			 * the kernel is willing to allocate (it's in navail).
 			 */
 			pci_release_msi(sc->dev);
-			goto fwd;
+			goto share;
 		}
 
 		device_printf(sc->dev,
@@ -1930,16 +1929,18 @@ cxgbe_uninit_synchronized(struct port_info *pi)
 	return (0);
 }
 
-#define T4_ALLOC_IRQ(sc, irqid, rid, handler, arg, name) do { \
-	rc = t4_alloc_irq(sc, &sc->irq[irqid], rid, handler, arg, name); \
+#define T4_ALLOC_IRQ(sc, irq, rid, handler, arg, name) do { \
+	rc = t4_alloc_irq(sc, irq, rid, handler, arg, name); \
 	if (rc != 0) \
 		goto done; \
 } while (0)
 static int
 first_port_up(struct adapter *sc)
 {
-	int rc, i;
-	char name[8];
+	int rc, i, rid, p, q;
+	char s[8];
+	struct irq *irq;
+	struct sge_iq *intrq;
 
 	ADAPTER_LOCK_ASSERT_NOTOWNED(sc);
 
@@ -1953,39 +1954,52 @@ first_port_up(struct adapter *sc)
 	/*
 	 * Setup interrupts.
 	 */
+	irq = &sc->irq[0];
+	rid = sc->intr_type == INTR_INTX ? 0 : 1;
 	if (sc->intr_count == 1) {
-		KASSERT(sc->flags & INTR_FWD,
-		    ("%s: single interrupt but not forwarded?", __func__));
-		T4_ALLOC_IRQ(sc, 0, 0, t4_intr_all, sc, "all");
+		KASSERT(sc->flags & INTR_SHARED,
+		    ("%s: single interrupt but not shared?", __func__));
+
+		T4_ALLOC_IRQ(sc, irq, rid, t4_intr_all, sc, "all");
 	} else {
 		/* Multiple interrupts.  The first one is always error intr */
-		T4_ALLOC_IRQ(sc, 0, 1, t4_intr_err, sc, "err");
+		T4_ALLOC_IRQ(sc, irq, rid, t4_intr_err, sc, "err");
+		irq++;
+		rid++;
 
-		if (sc->flags & INTR_FWD) {
-			/* The rest are shared by the fwq and all data intr */
-			for (i = 1; i < sc->intr_count; i++) {
-				snprintf(name, sizeof(name), "mux%d", i - 1);
-				T4_ALLOC_IRQ(sc, i, i + 1, t4_intr_fwd,
-				    &sc->sge.fiq[i - 1], name);
+		/* Firmware event queue normally has an interrupt of its own */
+		if (sc->intr_count > T4_EXTRA_INTR) {
+			T4_ALLOC_IRQ(sc, irq, rid, t4_intr_evt, &sc->sge.fwq,
+			    "evt");
+			irq++;
+			rid++;
+		}
+
+		intrq = &sc->sge.intrq[0];
+		if (sc->flags & INTR_SHARED) {
+
+			/* All ports share these interrupt queues */
+
+			for (i = 0; i < NINTRQ(sc); i++) {
+				snprintf(s, sizeof(s), "*.%d", i);
+				T4_ALLOC_IRQ(sc, irq, rid, t4_intr, intrq, s);
+				irq++;
+				rid++;
+				intrq++;
 			}
 		} else {
-			struct port_info *pi;
-			int p, q;
 
-			T4_ALLOC_IRQ(sc, 1, 2, t4_intr_evt, &sc->sge.fwq,
-			    "evt");
+			/* Each port has its own set of interrupt queues */
 
-			p = q = 0;
-			pi = sc->port[p];
-			for (i = 2; i < sc->intr_count; i++) {
-				snprintf(name, sizeof(name), "p%dq%d", p, q);
-				if (++q >= pi->nrxq) {
-					p++;
-					q = 0;
-					pi = sc->port[p];
+			for (p = 0; p < sc->params.nports; p++) {
+				for (q = 0; q < sc->port[p]->nrxq; q++) {
+					snprintf(s, sizeof(s), "%d.%d", p, q);
+					T4_ALLOC_IRQ(sc, irq, rid, t4_intr,
+					    intrq, s);
+					irq++;
+					rid++;
+					intrq++;
 				}
-				T4_ALLOC_IRQ(sc, i, i + 1, t4_intr_data,
-				    &sc->sge.rxq[i - 2], name);
 			}
 		}
 	}
@@ -3121,7 +3135,7 @@ set_filter_wr(struct adapter *sc, int fidx)
 		V_FW_FILTER_WR_OVLAN_VLDM(f->fs.mask.ovlan_vld));
 	fwr->smac_sel = 0;
 	fwr->rx_chan_rx_rpl_iq = htobe16(V_FW_FILTER_WR_RX_CHAN(0) |
-	    V_FW_FILTER_WR_RX_RPL_IQ(sc->sge.fwq.abs_id));
+	    V_FW_FILTER_WR_RX_RPL_IQ(sc->sge.intrq[0].abs_id));
 	fwr->maci_to_matchtypem =
 	    htobe32(V_FW_FILTER_WR_MACI(f->fs.val.macidx) |
 		V_FW_FILTER_WR_MACIM(f->fs.mask.macidx) |
@@ -3181,7 +3195,7 @@ del_filter_wr(struct adapter *sc, int fidx)
 	m->m_len = m->m_pkthdr.len = sizeof(*fwr);
 	bzero(fwr, sizeof (*fwr));
 
-	t4_mk_filtdelwr(ftid, fwr, sc->sge.fwq.abs_id);
+	t4_mk_filtdelwr(ftid, fwr, sc->sge.intrq[0].abs_id);
 
 	f->pending = 1;
 	rc = t4_mgmt_tx(sc, m);
