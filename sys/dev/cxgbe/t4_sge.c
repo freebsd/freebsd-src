@@ -2365,7 +2365,7 @@ write_txpkts_wr(struct sge_txq *txq, struct txpkts *txpkts)
 	wr->equiq_to_len16 = htobe32(ctrl);
 	wr->plen = htobe16(txpkts->plen);
 	wr->npkt = txpkts->npkt;
-	wr->r3 = wr->r4 = 0;
+	wr->r3 = wr->type = 0;
 
 	/* Everything else already written */
 
