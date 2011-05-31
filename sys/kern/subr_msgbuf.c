@@ -61,6 +61,7 @@ msgbuf_init(struct msgbuf *mbp, void *ptr, int size)
 	mbp->msg_magic = MSG_MAGIC;
 	mbp->msg_lastpri = -1;
 	mbp->msg_needsnl = 0;
+	bzero(&mbp->msg_lock, sizeof(mbp->msg_lock));
 	mtx_init(&mbp->msg_lock, "msgbuf", NULL, MTX_SPIN);
 }
 
@@ -95,6 +96,7 @@ msgbuf_reinit(struct msgbuf *mbp, void *ptr, int size)
 	mbp->msg_lastpri = -1;
 	/* Assume that the old message buffer didn't end in a newline. */
 	mbp->msg_needsnl = 1;
+	bzero(&mbp->msg_lock, sizeof(mbp->msg_lock));
 	mtx_init(&mbp->msg_lock, "msgbuf", NULL, MTX_SPIN);
 }
 
