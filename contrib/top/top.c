@@ -196,9 +196,9 @@ char *argv[];
     fd_set readfds;
 
 #ifdef ORDER
-    static char command_chars[] = "\f qh?en#sdkriIutHmSCajo";
+    static char command_chars[] = "\f qh?en#sdkriIutHmSCajzo";
 #else
-    static char command_chars[] = "\f qh?en#sdkriIutHmSCaj";
+    static char command_chars[] = "\f qh?en#sdkriIutHmSCajz";
 #endif
 /* these defines enumerate the "strchr"s of the commands in command_chars */
 #define CMD_redraw	0
@@ -224,8 +224,9 @@ char *argv[];
 #define	CMD_wcputog	19
 #define	CMD_showargs	20
 #define	CMD_jidtog	21
+#define CMD_kidletog	22
 #ifdef ORDER
-#define CMD_order       22
+#define CMD_order       23
 #endif
 
     /* set the buffer for stdout */
@@ -258,6 +259,7 @@ char *argv[];
     ps.thread  = No;
     ps.wcpu    = 1;
     ps.jail    = No;
+    ps.kidle   = Yes;
     ps.command = NULL;
 
     /* get preset options from the environment */
@@ -283,7 +285,7 @@ char *argv[];
 	    optind = 1;
 	}
 
-	while ((i = getopt(ac, av, "CSIHPabijnquvs:d:U:m:o:t")) != EOF)
+	while ((i = getopt(ac, av, "CSIHPabijnquvzs:d:U:m:o:t")) != EOF)
 	{
 	    switch(i)
 	    {
@@ -412,10 +414,14 @@ char *argv[];
 		pcpu_stats = Yes;
 		break;
 
+	      case 'z':
+		ps.kidle = !ps.kidle;
+		break;
+
 	      default:
 		fprintf(stderr,
 "Top version %s\n"
-"Usage: %s [-abCHIijnPqStuv] [-d count] [-m io | cpu] [-o field] [-s time]\n"
+"Usage: %s [-abCHIijnPqStuvz] [-d count] [-m io | cpu] [-o field] [-s time]\n"
 "       [-U username] [number]\n",
 			version_string(), myname);
 		exit(1);
@@ -1075,7 +1081,13 @@ restart:
 				reset_display();
 				putchar('\r');
 				break;
-	    
+			    case CMD_kidletog:
+				ps.kidle = !ps.kidle;
+				new_message(MT_standout | MT_delayed,
+				    " %sisplaying system idle process.",
+				    ps.kidle ? "D" : "Not d");
+				putchar('\r');
+				break;
 			    default:
 				new_message(MT_standout, " BAD CASE IN SWITCH!");
 				putchar('\r');
