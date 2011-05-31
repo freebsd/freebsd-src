@@ -220,8 +220,10 @@ main(int argc, char *argv[])
 		ifindex = 0;
 		if (argc == 1) {
 			afp = af_getbyname(*argv);
-			if (afp == NULL)
+			if (afp == NULL) {
+				warnx("Address family '%s' unknown.", *argv);
 				usage();
+			}
 			if (afp->af_name != NULL)
 				argc--, argv++;
 			/* leave with afp non-zero */
@@ -484,7 +486,28 @@ ifconfig(int argc, char *const *argv, int iscreate, const struct afswtch *uafp)
 	int s;
 
 	strncpy(ifr.ifr_name, name, sizeof ifr.ifr_name);
-	afp = uafp != NULL ? uafp : af_getbyname("inet");
+	afp = NULL;
+	if (uafp != NULL)
+		afp = uafp;
+	/*
+	 * This is the historical "accident" allowing users to configure IPv4
+	 * addresses without the "inet" keyword which while a nice feature has
+	 * proven to complicate other things.  We cannot remove this but only
+	 * make sure we will never have a similar implicit default for IPv6 or
+	 * any other address familiy.  We need a fallback though for
+	 * ifconfig IF up/down etc. to work without INET support as people
+	 * never used ifconfig IF link up/down, etc. either.
+	 */
+#ifdef INET
+	if (afp == NULL && feature_present("inet"))
+		afp = af_getbyname("inet");
+#endif
+	if (afp == NULL)
+		afp = af_getbyname("link");
+	if (afp == NULL) {
+		warnx("Please specify an address_family.");
+		usage();
+	}
 top:
 	ifr.ifr_addr.sa_family =
 		afp->af_af == AF_LINK || afp->af_af == AF_UNSPEC ?

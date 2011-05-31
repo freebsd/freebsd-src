@@ -1278,7 +1278,7 @@ pmap_release(pmap_t pm)
 	 *   to a kernel thread, leaving the pmap pointer unchanged.
 	 */
 	mtx_lock_spin(&sched_lock);
-	SLIST_FOREACH(pc, &cpuhead, pc_allcpu)
+	STAILQ_FOREACH(pc, &cpuhead, pc_allcpu)
 		if (pc->pc_pmap == pm)
 			pc->pc_pmap = NULL;
 	mtx_unlock_spin(&sched_lock);

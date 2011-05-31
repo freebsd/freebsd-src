@@ -1221,7 +1221,7 @@ netisr_start(void *arg)
 {
 	struct pcpu *pc;
 
-	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
+	STAILQ_FOREACH(pc, &cpuhead, pc_allcpu) {
 		if (nws_count >= netisr_maxthreads)
 			break;
 		/* XXXRW: Is skipping absent CPUs still required here? */
