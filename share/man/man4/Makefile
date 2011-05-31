@@ -46,7 +46,9 @@ MAN=	aac.4 \
 	atapicam.4 \
 	ataraid.4 \
 	ath.4 \
+	ath_ahb.4 \
 	ath_hal.4 \
+	ath_pci.4 \
 	atkbd.4 \
 	atkbdc.4 \
 	${_atp.4} \

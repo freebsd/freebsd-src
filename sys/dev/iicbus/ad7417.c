@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
+#include <powerpc/powermac/powermac_thermal.h>
 
 #define FCU_ZERO_C_TO_K     2732
 
@@ -63,8 +64,9 @@ __FBSDID("$FreeBSD$");
 uint8_t adc741x_config;
 
 struct ad7417_sensor {
+	struct	pmac_therm therm;
+	device_t dev;
 	int     id;
-	char    location[32];
 	enum {
 		ADC7417_TEMP_SENSOR,
 		ADC7417_ADC_SENSOR
@@ -83,6 +85,9 @@ static int ad7417_read_1(device_t dev, uint32_t addr, uint8_t reg,
 			 uint8_t *data);
 static int ad7417_read_2(device_t dev, uint32_t addr, uint8_t reg,
 			 uint16_t *data);
+static int ad7417_diode_read(struct ad7417_sensor *sens);
+static int ad7417_adc_read(struct ad7417_sensor *sens);
+static int ad7417_sensor_read(struct ad7417_sensor *sens);
 
 struct ad7417_softc {
 	device_t		sc_dev;
@@ -243,7 +248,7 @@ ad7417_fill_sensor_prop(device_t dev)
 			      sizeof(location));
 	while (len < prop_len) {
 		if (sc->sc_sensors != NULL)
-			strcpy(sc->sc_sensors[i].location, location + len);
+			strcpy(sc->sc_sensors[i].therm.name, location + len);
 		prev_len = strlen(location + len) + 1;
 		len += prev_len;
 		i++;
@@ -251,7 +256,7 @@ ad7417_fill_sensor_prop(device_t dev)
 	if (sc->sc_sensors == NULL)
 		return (i);
 
-	/* Fill the fan type property. */
+	/* Fill the sensor type property. */
 	len = 0;
 	i = 0;
 	prev_len = 0;
@@ -270,6 +275,36 @@ ad7417_fill_sensor_prop(device_t dev)
 	prop_len = OF_getprop(child, "hwsensor-id", id, sizeof(id));
 	for (j = 0; j < i; j++)
 		sc->sc_sensors[j].id = id[j];
+
+	/* Fill the sensor zone property. Taken from OF. */
+	prop_len = OF_getprop(child, "hwsensor-zone", id, sizeof(id));
+	for (j = 0; j < i; j++)
+		sc->sc_sensors[j].therm.zone = id[j];
+
+	/* Finish setting up sensor properties */
+	for (j = 0; j < i; j++) {
+		sc->sc_sensors[j].dev = dev;
+	
+		/* HACK: Apple wired a random diode to the ADC line */
+		if (strstr(sc->sc_sensors[j].therm.name, "DIODE TEMP")
+		    != NULL) {
+			sc->sc_sensors[j].type = ADC7417_TEMP_SENSOR;
+			sc->sc_sensors[j].therm.read =
+			    (int (*)(struct pmac_therm *))(ad7417_diode_read);
+		} else {
+			sc->sc_sensors[j].therm.read =
+			    (int (*)(struct pmac_therm *))(ad7417_sensor_read);
+		}
+			
+		if (sc->sc_sensors[j].type != ADC7417_TEMP_SENSOR)
+			continue;
+
+		/* Make up some ranges */
+		sc->sc_sensors[j].therm.target_temp = 500 + 2732;
+		sc->sc_sensors[j].therm.max_temp = 900 + 2732;
+		
+		pmac_thermal_sensor_register(&sc->sc_sensors[j].therm);
+	}
 
 	return (i);
 }
@@ -310,8 +345,9 @@ ad7417_attach(device_t dev)
 
 	/* Add sysctls for the sensors. */
 	for (i = 0; i < sc->sc_nsensors; i++) {
-		for (j = 0; j < strlen(sc->sc_sensors[i].location); j++) {
-			sysctl_name[j] = tolower(sc->sc_sensors[i].location[j]);
+		for (j = 0; j < strlen(sc->sc_sensors[i].therm.name); j++) {
+			sysctl_name[j] =
+			    tolower(sc->sc_sensors[i].therm.name[j]);
 			if (isspace(sysctl_name[j]))
 				sysctl_name[j] = '_';
 		}
@@ -341,7 +377,7 @@ ad7417_attach(device_t dev)
 		device_printf(dev, "Sensors\n");
 		for (i = 0; i < sc->sc_nsensors; i++) {
 			device_printf(dev, "Location: %s ID: %d type: %d\n",
-				      sc->sc_sensors[i].location,
+				      sc->sc_sensors[i].therm.name,
 				      sc->sc_sensors[i].id,
 				      sc->sc_sensors[i].type);
 		}
@@ -391,44 +427,91 @@ ad7417_get_adc(device_t dev, uint32_t addr, unsigned int *value,
 }
 
 static int
-ad7417_sensor_read(device_t dev, struct ad7417_sensor *sens, int *temp)
+ad7417_diode_read(struct ad7417_sensor *sens)
+{
+	static int eeprom_read = 0;
+	static cell_t eeprom[2][40];
+	phandle_t eeprom_node;
+	int rawval, diode_slope, diode_offset;
+	int temp;
+
+	if (!eeprom_read) {
+		eeprom_node = OF_finddevice("/u3/i2c/cpuid@a0");
+		OF_getprop(eeprom_node, "cpuid", eeprom[0], sizeof(eeprom[0]));
+		eeprom_node = OF_finddevice("/u3/i2c/cpuid@a2");
+		OF_getprop(eeprom_node, "cpuid", eeprom[1], sizeof(eeprom[1]));
+		eeprom_read = 1;
+	}
+
+	rawval = ad7417_adc_read(sens);
+	if (strstr(sens->therm.name, "CPU B") != NULL) {
+		diode_slope = eeprom[1][0x11] >> 16;
+		diode_offset = (int16_t)(eeprom[1][0x11] & 0xffff) << 12;
+	} else {
+		diode_slope = eeprom[0][0x11] >> 16;
+		diode_offset = (int16_t)(eeprom[0][0x11] & 0xffff) << 12;
+	}
+
+	temp = (rawval*diode_slope + diode_offset) >> 2;
+	temp = (10*(temp >> 16)) + ((10*(temp & 0xffff)) >> 16);
+	
+	return (temp + FCU_ZERO_C_TO_K);
+}
+
+static int
+ad7417_adc_read(struct ad7417_sensor *sens)
 {
 	struct ad7417_softc *sc;
+	uint8_t chan;
+	int temp;
 
-	sc = device_get_softc(dev);
+	sc = device_get_softc(sens->dev);
+
+	switch (sens->id) {
+	case 11:
+	case 16:
+		chan = 1;
+		break;
+	case 12:
+	case 17:
+		chan = 2;
+		break;
+	case 13:
+	case 18:
+		chan = 3;
+		break;
+	case 14:
+	case 19:
+		chan = 4;
+		break;
+	default:
+		chan = 1;
+	}
+
+	ad7417_get_adc(sc->sc_dev, sc->sc_addr, &temp, chan);
+
+	return (temp);
+}
+
+
+static int
+ad7417_sensor_read(struct ad7417_sensor *sens)
+{
+	struct ad7417_softc *sc;
+	int temp;
+
+	sc = device_get_softc(sens->dev);
 
 	/* Init the ADC. */
 	ad7417_init_adc(sc->sc_dev, sc->sc_addr);
 
 	if (sens->type == ADC7417_TEMP_SENSOR) {
-		ad7417_get_temp(sc->sc_dev, sc->sc_addr, temp);
-		*temp += FCU_ZERO_C_TO_K;
+		ad7417_get_temp(sc->sc_dev, sc->sc_addr, &temp);
+		temp += FCU_ZERO_C_TO_K;
 	} else {
-		uint8_t chan;
-		switch (sens->id) {
-		case 11:
-		case 16:
-			chan = 1;
-			break;
-		case 12:
-		case 17:
-			chan = 2;
-			break;
-		case 13:
-		case 18:
-			chan = 3;
-			break;
-		case 14:
-		case 19:
-			chan = 4;
-			break;
-		default:
-			chan = 1;
-		}
-
-		ad7417_get_adc(sc->sc_dev, sc->sc_addr, temp, chan);
+		temp = ad7417_adc_read(sens);
 	}
-	return (0);
+	return (temp);
 }
 
 static int
@@ -439,19 +522,16 @@ ad7417_sensor_sysctl(SYSCTL_HANDLER_ARGS)
 	struct ad7417_sensor *sens;
 	int value = 0;
 	int error;
-	int temp;
 
 	dev = arg1;
 	sc = device_get_softc(dev);
 	sens = &sc->sc_sensors[arg2];
 
-	error = ad7417_sensor_read(dev, sens, &value);
-	if (error != 0)
-		return (error);
+	value = sens->therm.read(&sens->therm);
+	if (value < 0)
+		return (ENXIO);
 
-	temp = value;
-
-	error = sysctl_handle_int(oidp, &temp, 0, req);
+	error = sysctl_handle_int(oidp, &value, 0, req);
 
 	return (error);
 }

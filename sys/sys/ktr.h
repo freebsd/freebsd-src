@@ -97,6 +97,9 @@
 
 #ifndef LOCORE
 
+#include <sys/param.h>
+#include <sys/_cpuset.h>
+
 struct ktr_entry {
 	u_int64_t ktr_timestamp;
 	int	ktr_cpu;
@@ -107,7 +110,7 @@ struct ktr_entry {
 	u_long	ktr_parms[KTR_PARMS];
 };
 
-extern int ktr_cpumask;
+extern cpuset_t ktr_cpumask;
 extern int ktr_mask;
 extern int ktr_entries;
 extern int ktr_verbose;

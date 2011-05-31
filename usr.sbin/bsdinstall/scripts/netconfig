@@ -2,6 +2,11 @@
 #-
 # Copyright (c) 2011 Nathan Whitehorn
 # All rights reserved.
+# Copyright (c) 2011 The FreeBSD Foundation
+# All rights reserved.
+#
+# Portions of this software were developed by Bjoern Zeeb
+# under sponsorship from the FreeBSD Foundation.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -66,56 +71,124 @@ if ifconfig $INTERFACE | grep -q 'media: IEEE 802.11 Wireless'; then
 	INTERFACE="$NEXT_WLAN_IFACE"
 fi
 
-dialog --backtitle 'FreeBSD Installer' --title 'Network Configuration' --yesno 'Would you like to use DHCP to configure this interface?' 0 0
-if [ $? -eq $DIALOG_OK ]; then
-	echo ifconfig_$INTERFACE=\"${IFCONFIG_PREFIX}DHCP\" >> $BSDINSTALL_TMPETC/rc.conf.net
+IPV6_AVAIL=0
+IPV4_AVAIL=0
+sysctl -N kern.features.inet6 > /dev/null 2>&1
+case $? in
+0)	IPV6_AVAIL=1 ;;
+esac
+sysctl -N kern.features.inet > /dev/null 2>&1
+case $? in
+0)	IPV4_AVAIL=1 ;;
+esac
 
-	if [ ! -z $BSDINSTALL_CONFIGCURRENT ]; then
-		dialog --backtitle 'FreeBSD Installer' --infobox "Acquiring DHCP lease..." 0 0
-		dhclient $INTERFACE 2>> $BSDINSTALL_LOG
-		if [ $? -ne 0 ]; then
-			dialog --backtitle 'FreeBSD Installer' --msgbox "DHCP lease acquisition failed." 0 0
-			exec $0
-		fi
+if [ ${IPV4_AVAIL} -eq 1 ]; then
+	dialog --backtitle 'FreeBSD Installer' --title 'Network Configuration' \
+	    --yesno 'Would you like to configure IPv4 for this interface?' 0 0
+	if [ $? -eq $DIALOG_OK ]; then
+		bsdinstall netconfig_ipv4 ${INTERFACE} "${IFCONFIG_PREFIX}" || \
+		exec $0
+	else
+		IPV4_AVAIL=0
 	fi
+fi
+# In case wlanconfig left an option and we do not support IPv4 we need to write
+# it out on its own.  We cannot write it out with IPv6 as that suffix.
+if [ ${IPV4_AVAIL} -eq 0 -a -n ${IFCONFIG_PREFIX} ]; then
+	echo ifconfig_${INTERFACE}=\"${IFCONFIG_PREFIX}\" >> $BSDINSTALL_TMPETC/rc.conf.net
+fi
+if [ ${IPV6_AVAIL} -eq 1 ]; then
+	dialog --backtitle 'FreeBSD Installer' --title 'Network Configuration' \
+	    --yesno 'Would you like to configure IPv6 for this interface?' 0 0
+	if [ $? -eq $DIALOG_OK ]; then
+		bsdinstall netconfig_ipv6 ${INTERFACE} || exec $0
+	else
+		IPV6_AVAIL=0
+	fi
+fi
+
+SEARCH=""
+IP4_1=""
+IP4_2=""
+IP6_1=""
+IP6_2=""
+while read key value; do
+	case "${key}" in
+	search)		SEARCH="${value}" ;;
+	nameserver)	# is more trick as we have to distinguish v4 and v6
+		case "${value}" in
+		[0-9]*\.[0-9]*\.[0-9]*\.[0-9]*)
+			if [ -z "${IP4_1}" ] ; then
+				IP4_1="${value}"
+			elif [ -z "${IP4_2}" ]; then
+				IP4_2="${value}"
+			fi
+			;;
+		[0-9A-Fa-f:]*:*)
+			if [ -z "${IP6_1}" ] ; then
+				IP6_1="${value}"
+			elif [ -z "${IP6_2}" ]; then
+				IP6_2="${value}"
+			fi
+			;;
+		esac
+		;;
+	# ignore others
+	esac
+done < ${BSDINSTALL_TMPETC}/resolv.conf
+
+RESOLV=""
+if [ ${IPV6_AVAIL} -eq 1 -a ${IPV4_AVAIL} -eq 1 ];  then
+	RESOLV="
+	    'Search' 1 0 \"${SEARCH}\" 1 16 50 0 0
+	    'Nameserver' 2 0 \"Nameserver\" 2 16 50 0 2
+	    'IPv6 DNS #1' 2 0 \"${IP6_1}\" 2 16 50 0 0
+	    'IPv6 DNS #2' 3 0 \"${IP6_2}\" 3 16 50 0 0
+	    'IPv4 DNS #1' 4 0 \"${IP4_1}\" 4 16 16 0 0
+	    'IPv4 DNS #2' 5 0 \"${IP4_2}\" 5 16 16 0 0"
+elif [ ${IPV6_AVAIL} -eq 1 ]; then
+	RESOLV="
+	    'Search' 1 0 \"${SEARCH}\" 1 16 50 0 0
+	    'Nameserver' 2 0 \"Nameserver\" 2 16 50 0 2
+	    'IPv6 DNS #1' 2 0 \"${IP6_1}\" 2 16 50 0 0
+	    'IPv6 DNS #2' 3 0 \"${IP6_2}\" 3 16 50 0 0"
+elif [ ${IPV4_AVAIL} -eq 1 ]; then
+	RESOLV="
+	    'Search' 1 0 \"${SEARCH}\" 1 16 50 0 0
+	    'Nameserver' 2 0 \"Nameserver\" 2 16 50 0 2
+	    'IPv4 DNS #1' 2 0 \"${IP4_1}\" 2 16 16 0 0
+	    'IPv4 DNS #2' 3 0 \"${IP4_2}\" 3 16 16 0 0"
+else
 	exit 0
 fi
 
-IP_ADDRESS=`ifconfig $INTERFACE inet | awk '/inet/ {printf("%s\n", $2); }'`
-NETMASK=`ifconfig $INTERFACE inet | awk '/inet/ {printf("%s\n", $4); }'`
-ROUTER=`netstat -rn -f inet | awk '/default/ {printf("%s\n", $2);}'`
-
 exec 3>&1
-IF_CONFIG=$(dialog --backtitle 'FreeBSD Installer' --title 'Network Configuration' --form 'Static Network Interface Configuration' 0 0 0 \
-	'IP Address' 1 0 "$IP_ADDRESS" 1 20 16 0 \
-	'Subnet Mask' 2 0 "$NETMASK" 2 20 16 0 \
-	'Default Router' 3 0 "$ROUTER" 3 20 16 0 \
-	\
-	'Nameserver' 5 0 "" 5 20 16 0 \
-	'Search Domain' 6 0 "" 6 20 20 0 \
+RESOLV=$(echo "${RESOLV}" | xargs dialog --backtitle 'FreeBSD Installer' \
+	--title 'Network Configuration' \
+	--mixedform 'Resovler Configuration' 0 0 0 \
 2>&1 1>&3)
 if [ $? -eq $DIALOG_CANCEL ]; then exec $0; fi
 exec 3>&-
 
-echo $INTERFACE $IF_CONFIG | 
-    awk -v prefix="$IFCONFIG_PREFIX" '{
-	printf("ifconfig_%s=\"%s%s netmask %s\"\n", $1, prefix, $2, $3);
-	printf("defaultrouter=\"%s\"\n", $4);
-    }' >> $BSDINSTALL_TMPETC/rc.conf.net
-
-if [ ! -z $BSDINSTALL_CONFIGCURRENT ]; then
-	. $BSDINSTALL_TMPETC/rc.conf.net
-	ifconfig $INTERFACE `eval echo \\\$ifconfig_$INTERFACE`
-	route delete default
-	route add default $defaultrouter
-fi
-
-
-echo $IF_CONFIG | 
-    awk '{
-	if ($4 != "")
-		printf("nameserver %s\n", $4);
-	if ($5 != "")
-		printf("search %s\n", $5);
-    }' > $BSDINSTALL_TMPETC/resolv.conf
+echo ${RESOLV} | tr ' ' '\n' | \
+awk '
+BEGIN {
+	search=1
+	printf "search ";
+}
+{
+	if (/^[[:space:]]+$/) {
+		next;
+	}
+	if (/^Nameserver$/) {
+		printf "\n";
+		search=0;
+		next;
+	}
+	if (search > 0) {
+		printf "%s%s", (search > 1) ? "," : "", $1;
+		next;
+	}
+	printf "nameserver %s\n", $1;
+}' > ${BSDINSTALL_TMPETC}/resolv.conf
 

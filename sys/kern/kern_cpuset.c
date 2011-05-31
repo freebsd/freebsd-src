@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/cpuset.h>
 #include <sys/sx.h>
 #include <sys/queue.h>
+#include <sys/libkern.h>
 #include <sys/limits.h>
 #include <sys/bus.h>
 #include <sys/interrupt.h>
@@ -657,6 +658,41 @@ cpusetobj_strprint(char *buf, const cpuset_t *set)
 	}
 	snprintf(tbuf, bufsiz, "%lx", set->__bits[0]);
 	return (buf);
+}
+
+/*
+ * Build a valid cpuset_t object from a string representation.
+ * It expects an incoming buffer at least sized as CPUSETBUFSIZ.
+ */
+int
+cpusetobj_strscan(cpuset_t *set, const char *buf)
+{
+	u_int nwords;
+	int i;
+
+	if (strlen(buf) > CPUSETBUFSIZ - 1)
+		return (-1);
+
+	/* Allow to pass a shorter version of the mask when necessary. */
+	nwords = 1;
+	for (i = 0; buf[i] != '\0'; i++)
+		if (buf[i] == ',')
+			nwords++;
+	if (nwords > _NCPUWORDS)
+		return (-1);
+
+	CPU_ZERO(set);
+	for (i = nwords - 1; i > 0; i--) {
+		if (!sscanf(buf, "%lx, ", &set->__bits[i]))
+			return (-1);
+		buf = strstr(buf, " ");
+		if (buf == NULL)
+			return (-1);
+		buf++;
+	}
+	if (!sscanf(buf, "%lx", &set->__bits[0]))
+		return (-1);
+	return (0);
 }
 
 /*
