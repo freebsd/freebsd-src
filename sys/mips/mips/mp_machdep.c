@@ -86,7 +86,7 @@ ipi_selected(cpumask_t cpus, int ipi)
 
 	CTR3(KTR_SMP, "%s: cpus: %x, ipi: %x\n", __func__, cpus, ipi);
 
-	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
+	STAILQ_FOREACH(pc, &cpuhead, pc_allcpu) {
 		if ((cpus & pc->pc_cpumask) != 0)
 			ipi_send(pc, ipi);
 	}
