@@ -566,7 +566,7 @@ msk_miibus_statchg(device_t dev)
 		msk_phy_writereg(sc_if, PHY_ADDR_MARV, PHY_MARV_INT_MASK, 0);
 		/* Disable Rx/Tx MAC. */
 		gmac = GMAC_READ_2(sc, sc_if->msk_port, GM_GP_CTRL);
-		if ((GM_GPCR_RX_ENA | GM_GPCR_TX_ENA) != 0) {
+		if ((gmac & (GM_GPCR_RX_ENA | GM_GPCR_TX_ENA)) != 0) {
 			gmac &= ~(GM_GPCR_RX_ENA | GM_GPCR_TX_ENA);
 			GMAC_WRITE_2(sc, sc_if->msk_port, GM_GP_CTRL, gmac);
 			/* Read again to ensure writing. */
