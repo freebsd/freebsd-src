@@ -200,5 +200,7 @@ static struct afswtch af_inet = {
 static __constructor void
 inet_ctor(void)
 {
+	if (!feature_present("inet"))
+		return;
 	af_register(&af_inet);
 }
