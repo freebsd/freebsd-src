@@ -1,4 +1,4 @@
-# $FreeBSD: projects/largeSMP/tools/regression/bin/sh/builtins/set1.0 222451 2011-05-29 15:02:10Z jilles $
+# $FreeBSD$
 
 set +C
 set +f
