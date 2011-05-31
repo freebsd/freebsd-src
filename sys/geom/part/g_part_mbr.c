@@ -248,14 +248,11 @@ g_part_mbr_bootcode(struct g_part_table *basetable, struct g_part_parms *gpp)
 static int
 g_part_mbr_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 {
-	struct g_consumer *cp;
 	struct g_provider *pp;
 	struct g_part_mbr_table *table;
 	uint32_t msize;
 
 	pp = gpp->gpp_provider;
-	cp = LIST_FIRST(&pp->consumers);
-
 	if (pp->sectorsize < MBRSIZE)
 		return (ENOSPC);
 
