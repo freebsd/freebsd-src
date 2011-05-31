@@ -659,7 +659,7 @@ enterloop:
     }
     else if (AcpiGbl_BatchMode == 2)
     {
-        AcpiDbExecute (BatchBuffer, NULL, EX_NO_SINGLE_STEP);
+        AcpiDbExecute (BatchBuffer, NULL, NULL, EX_NO_SINGLE_STEP);
     }
     else
     {
