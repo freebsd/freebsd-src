@@ -31,7 +31,15 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/msgbuf.h>
+
+/*
+ * Maximum number conversion buffer length: uintmax_t in base 2, plus <>
+ * around the priority, and a terminating NUL.
+ */
+#define	MAXPRIBUF	(sizeof(intmax_t) * NBBY + 3)
 
 /* Read/write sequence numbers are modulo a multiple of the buffer size. */
 #define SEQMOD(size) ((size) * 16)
@@ -51,6 +59,9 @@ msgbuf_init(struct msgbuf *mbp, void *ptr, int size)
 	mbp->msg_seqmod = SEQMOD(size);
 	msgbuf_clear(mbp);
 	mbp->msg_magic = MSG_MAGIC;
+	mbp->msg_lastpri = -1;
+	mbp->msg_needsnl = 0;
+	mtx_init(&mbp->msg_lock, "msgbuf", NULL, MTX_SPIN);
 }
 
 /*
@@ -80,6 +91,11 @@ msgbuf_reinit(struct msgbuf *mbp, void *ptr, int size)
 		}
 		msgbuf_clear(mbp);
 	}
+
+	mbp->msg_lastpri = -1;
+	/* Assume that the old message buffer didn't end in a newline. */
+	mbp->msg_needsnl = 1;
+	mtx_init(&mbp->msg_lock, "msgbuf", NULL, MTX_SPIN);
 }
 
 /*
@@ -110,25 +126,140 @@ msgbuf_getcount(struct msgbuf *mbp)
 }
 
 /*
- * Append a character to a message buffer.  This function can be
- * considered fully reentrant so long as the number of concurrent
- * callers is less than the number of characters in the buffer.
- * However, the message buffer is only guaranteed to be consistent
- * for reading when there are no callers in this function.
+ * Add a character into the message buffer, and update the checksum and
+ * sequence number.
+ *
+ * The caller should hold the message buffer spinlock.
+ */
+static inline void
+msgbuf_do_addchar(struct msgbuf *mbp, u_int *seq, int c)
+{
+	u_int pos;
+
+	/* Make sure we properly wrap the sequence number. */
+	pos = MSGBUF_SEQ_TO_POS(mbp, *seq);
+
+	mbp->msg_cksum += (u_int)c -
+	    (u_int)(u_char)mbp->msg_ptr[pos];
+
+	mbp->msg_ptr[pos] = c;
+
+	*seq = MSGBUF_SEQNORM(mbp, *seq + 1);
+}
+
+/*
+ * Append a character to a message buffer.
  */
 void
 msgbuf_addchar(struct msgbuf *mbp, int c)
 {
-	u_int new_seq, pos, seq;
+	mtx_lock_spin(&mbp->msg_lock);
 
-	do {
-		seq = mbp->msg_wseq;
-		new_seq = MSGBUF_SEQNORM(mbp, seq + 1);
-	} while (atomic_cmpset_rel_int(&mbp->msg_wseq, seq, new_seq) == 0);
-	pos = MSGBUF_SEQ_TO_POS(mbp, seq);
-	atomic_add_int(&mbp->msg_cksum, (u_int)(u_char)c -
-	    (u_int)(u_char)mbp->msg_ptr[pos]);
-	mbp->msg_ptr[pos] = c;
+	msgbuf_do_addchar(mbp, &mbp->msg_wseq, c);
+
+	mtx_unlock_spin(&mbp->msg_lock);
+}
+
+/*
+ * Append a NUL-terminated string with a priority to a message buffer.
+ * Filter carriage returns if the caller requests it.
+ *
+ * XXX The carriage return filtering behavior is present in the
+ * msglogchar() API, however testing has shown that we don't seem to send
+ * carriage returns down this path.  So do we still need it?
+ */
+void
+msgbuf_addstr(struct msgbuf *mbp, int pri, char *str, int filter_cr)
+{
+	u_int seq;
+	size_t len, prefix_len;
+	char prefix[MAXPRIBUF];
+	int nl, i;
+
+	len = strlen(str);
+	prefix_len = 0;
+	nl = 0;
+
+	/* If we have a zero-length string, no need to do anything. */
+	if (len == 0)
+		return;
+
+	mtx_lock_spin(&mbp->msg_lock);
+
+	/*
+	 * If this is true, we may need to insert a new priority sequence,
+	 * so prepare the prefix.
+	 */
+	if (pri != -1)
+		prefix_len = sprintf(prefix, "<%d>", pri);
+
+	/*
+	 * Starting write sequence number.
+	 */
+	seq = mbp->msg_wseq;
+
+	/*
+	 * Whenever there is a change in priority, we have to insert a
+	 * newline, and a priority prefix if the priority is not -1.  Here
+	 * we detect whether there was a priority change, and whether we
+	 * did not end with a newline.  If that is the case, we need to
+	 * insert a newline before this string.
+	 */
+	if (mbp->msg_lastpri != pri && mbp->msg_needsnl != 0) {
+
+		msgbuf_do_addchar(mbp, &seq, '\n');
+		mbp->msg_needsnl = 0;
+	}
+
+	for (i = 0; i < len; i++) {
+		/*
+		 * If we just had a newline, and the priority is not -1
+		 * (and therefore prefix_len != 0), then we need a priority
+		 * prefix for this line.
+		 */
+		if (mbp->msg_needsnl == 0 && prefix_len != 0) {
+			int j;
+
+			for (j = 0; j < prefix_len; j++)
+				msgbuf_do_addchar(mbp, &seq, prefix[j]);
+		}
+
+		/*
+		 * Don't copy carriage returns if the caller requested
+		 * filtering.
+		 * 
+		 * XXX This matches the behavior of msglogchar(), but is it
+		 * necessary?  Testing has shown that we don't seem to get
+		 * carriage returns here.
+		 */
+		if ((filter_cr != 0) && (str[i] == '\r'))
+			continue;
+
+		/*
+		 * Clear this flag if we see a newline.  This affects whether
+		 * we need to insert a new prefix or insert a newline later.
+		 */
+		if (str[i] == '\n')
+			mbp->msg_needsnl = 0;
+		else
+			mbp->msg_needsnl = 1;
+
+		msgbuf_do_addchar(mbp, &seq, str[i]);
+	}
+	/*
+	 * Update the write sequence number for the actual number of
+	 * characters we put in the message buffer.  (Depends on whether
+	 * carriage returns are filtered.)
+	 */
+	mbp->msg_wseq = seq;
+
+	/*
+	 * Set the last priority.
+	 */
+	mbp->msg_lastpri = pri;
+
+	mtx_unlock_spin(&mbp->msg_lock);
+
 }
 
 /*
@@ -141,14 +272,21 @@ msgbuf_getchar(struct msgbuf *mbp)
 	u_int len, wseq;
 	int c;
 
+	mtx_lock_spin(&mbp->msg_lock);
+
 	wseq = mbp->msg_wseq;
 	len = MSGBUF_SEQSUB(mbp, wseq, mbp->msg_rseq);
-	if (len == 0)
+	if (len == 0) {
+		mtx_unlock_spin(&mbp->msg_lock);
 		return (-1);
+	}
 	if (len > mbp->msg_size)
 		mbp->msg_rseq = MSGBUF_SEQNORM(mbp, wseq - mbp->msg_size);
 	c = (u_char)mbp->msg_ptr[MSGBUF_SEQ_TO_POS(mbp, mbp->msg_rseq)];
 	mbp->msg_rseq = MSGBUF_SEQNORM(mbp, mbp->msg_rseq + 1);
+
+	mtx_unlock_spin(&mbp->msg_lock);
+
 	return (c);
 }
 
@@ -161,10 +299,14 @@ msgbuf_getbytes(struct msgbuf *mbp, char *buf, int buflen)
 {
 	u_int len, pos, wseq;
 
+	mtx_lock_spin(&mbp->msg_lock);
+
 	wseq = mbp->msg_wseq;
 	len = MSGBUF_SEQSUB(mbp, wseq, mbp->msg_rseq);
-	if (len == 0)
+	if (len == 0) {
+		mtx_unlock_spin(&mbp->msg_lock);
 		return (0);
+	}
 	if (len > mbp->msg_size) {
 		mbp->msg_rseq = MSGBUF_SEQNORM(mbp, wseq - mbp->msg_size);
 		len = mbp->msg_size;
@@ -175,6 +317,9 @@ msgbuf_getbytes(struct msgbuf *mbp, char *buf, int buflen)
 
 	bcopy(&mbp->msg_ptr[pos], buf, len);
 	mbp->msg_rseq = MSGBUF_SEQNORM(mbp, mbp->msg_rseq + len);
+
+	mtx_unlock_spin(&mbp->msg_lock);
+
 	return (len);
 }
 
@@ -193,16 +338,21 @@ msgbuf_peekbytes(struct msgbuf *mbp, char *buf, int buflen, u_int *seqp)
 {
 	u_int len, pos, wseq;
 
+	mtx_lock_spin(&mbp->msg_lock);
+
 	if (buf == NULL) {
 		/* Just initialise *seqp. */
 		*seqp = MSGBUF_SEQNORM(mbp, mbp->msg_wseq - mbp->msg_size);
+		mtx_unlock_spin(&mbp->msg_lock);
 		return (0);
 	}
 
 	wseq = mbp->msg_wseq;
 	len = MSGBUF_SEQSUB(mbp, wseq, *seqp);
-	if (len == 0)
+	if (len == 0) {
+		mtx_unlock_spin(&mbp->msg_lock);
 		return (0);
+	}
 	if (len > mbp->msg_size) {
 		*seqp = MSGBUF_SEQNORM(mbp, wseq - mbp->msg_size);
 		len = mbp->msg_size;
@@ -212,6 +362,9 @@ msgbuf_peekbytes(struct msgbuf *mbp, char *buf, int buflen, u_int *seqp)
 	len = min(len, (u_int)buflen);
 	bcopy(&mbp->msg_ptr[MSGBUF_SEQ_TO_POS(mbp, *seqp)], buf, len);
 	*seqp = MSGBUF_SEQNORM(mbp, *seqp + len);
+
+	mtx_unlock_spin(&mbp->msg_lock);
+
 	return (len);
 }
 
