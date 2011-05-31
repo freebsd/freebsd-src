@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd March 20, 2011
+.Dd May 31, 2011
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -42,7 +42,7 @@
 .Op Fl n
 .Ar interface
 .Op Cm create
-.Op Ar address_family
+.Ar address_family
 .Oo
 .Ar address
 .Op Ar dest_address
@@ -165,8 +165,10 @@ and
 .Dq link .
 .\" and
 .\" .Dq ns .
-The default is
-.Dq inet .
+The default if available is
+.Dq inet
+or otherwise
+.Dq link .
 .Dq ether
 and
 .Dq lladdr

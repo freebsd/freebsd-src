@@ -54,11 +54,6 @@
 
 /* Local prototypes */
 
-static char *
-AcpiDbGetNextToken (
-    char                    *String,
-    char                    **Next);
-
 static UINT32
 AcpiDbGetLine (
     char                    *InputBuffer);
@@ -285,6 +280,10 @@ AcpiDbDisplayHelp (
     AcpiOsPrintf ("  Call                                Run to next control method invocation\n");
     AcpiOsPrintf ("  Debug <Namepath> [Arguments]        Single Step a control method\n");
     AcpiOsPrintf ("  Execute <Namepath> [Arguments]      Execute control method\n");
+    AcpiOsPrintf ("     Hex Integer                      Integer method argument\n");
+    AcpiOsPrintf ("     \"Ascii String\"                   String method argument\n");
+    AcpiOsPrintf ("     (Byte List)                      Buffer method argument\n");
+    AcpiOsPrintf ("     [Package Element List]           Package method argument\n");
     AcpiOsPrintf ("  Go                                  Allow method to run to completion\n");
     AcpiOsPrintf ("  Information                         Display info about the current method\n");
     AcpiOsPrintf ("  Into                                Step into (not over) a method call\n");
@@ -318,12 +317,15 @@ AcpiDbDisplayHelp (
  *
  ******************************************************************************/
 
-static char *
+char *
 AcpiDbGetNextToken (
     char                    *String,
-    char                    **Next)
+    char                    **Next,
+    ACPI_OBJECT_TYPE        *ReturnType)
 {
     char                    *Start;
+    UINT32                  Depth;
+    ACPI_OBJECT_TYPE        Type = ACPI_TYPE_INTEGER;
 
 
     /* At end of buffer? */
@@ -333,7 +335,7 @@ AcpiDbGetNextToken (
         return (NULL);
     }
 
-    /* Get rid of any spaces at the beginning */
+    /* Remove any spaces at the beginning */
 
     if (*String == ' ')
     {
@@ -348,22 +350,88 @@ AcpiDbGetNextToken (
         }
     }
 
-    if (*String == '"')
+    switch (*String)
     {
+    case '"':
+
         /* This is a quoted string, scan until closing quote */
 
         String++;
         Start = String;
+        Type = ACPI_TYPE_STRING;
 
-        /* Find end of token */
+        /* Find end of string */
 
         while (*String && (*String != '"'))
         {
             String++;
         }
-    }
-    else
-    {
+        break;
+
+    case '(':
+
+        /* This is the start of a buffer, scan until closing paren */
+
+        String++;
+        Start = String;
+        Type = ACPI_TYPE_BUFFER;
+
+        /* Find end of buffer */
+
+        while (*String && (*String != ')'))
+        {
+            String++;
+        }
+        break;
+
+    case '[':
+
+        /* This is the start of a package, scan until closing bracket */
+
+        String++;
+        Depth = 1;
+        Start = String;
+        Type = ACPI_TYPE_PACKAGE;
+
+        /* Find end of package (closing bracket) */
+
+        while (*String)
+        {
+            /* Handle String package elements */
+
+            if (*String == '"')
+            {
+                /* Find end of string */
+
+                String++;
+                while (*String && (*String != '"'))
+                {
+                    String++;
+                }
+                if (!(*String))
+                {
+                    break;
+                }
+            }
+            else if (*String == '[')
+            {
+                Depth++;         /* A nested package declaration */
+            }
+            else if (*String == ']')
+            {
+                Depth--;
+                if (Depth == 0) /* Found final package closing bracket */
+                {
+                    break;
+                }
+            }
+
+            String++;
+        }
+        break;
+
+    default:
+
         Start = String;
 
         /* Find end of token */
@@ -372,6 +440,7 @@ AcpiDbGetNextToken (
         {
             String++;
         }
+        break;
     }
 
     if (!(*String))
@@ -384,6 +453,7 @@ AcpiDbGetNextToken (
         *Next = String + 1;
     }
 
+    *ReturnType = Type;
     return (Start);
 }
 
@@ -416,7 +486,8 @@ AcpiDbGetLine (
     This = AcpiGbl_DbParsedBuf;
     for (i = 0; i < ACPI_DEBUGGER_MAX_ARGS; i++)
     {
-        AcpiGbl_DbArgs[i] = AcpiDbGetNextToken (This, &Next);
+        AcpiGbl_DbArgs[i] = AcpiDbGetNextToken (This, &Next,
+            &AcpiGbl_DbArgTypes[i]);
         if (!AcpiGbl_DbArgs[i])
         {
             break;
@@ -575,7 +646,8 @@ AcpiDbCommandDispatch (
         break;
 
     case CMD_DEBUG:
-        AcpiDbExecute (AcpiGbl_DbArgs[1], &AcpiGbl_DbArgs[2], EX_SINGLE_STEP);
+        AcpiDbExecute (AcpiGbl_DbArgs[1],
+            &AcpiGbl_DbArgs[2], &AcpiGbl_DbArgTypes[2], EX_SINGLE_STEP);
         break;
 
     case CMD_DISASSEMBLE:
@@ -601,7 +673,7 @@ AcpiDbCommandDispatch (
 
     case CMD_EXECUTE:
         AcpiDbExecute (AcpiGbl_DbArgs[1],
-            &AcpiGbl_DbArgs[2], EX_NO_SINGLE_STEP);
+            &AcpiGbl_DbArgs[2], &AcpiGbl_DbArgTypes[2], EX_NO_SINGLE_STEP);
         break;
 
     case CMD_FIND:
@@ -961,7 +1033,13 @@ AcpiDbUserCommands (
 
         /* Get the user input line */
 
-        (void) AcpiOsGetLine (AcpiGbl_DbLineBuf);
+        Status = AcpiOsGetLine (AcpiGbl_DbLineBuf,
+            ACPI_DB_LINE_BUFFER_SIZE, NULL);
+        if (ACPI_FAILURE (Status))
+        {
+            ACPI_EXCEPTION ((AE_INFO, Status, "While parsing command line"));
+            return (Status);
+        }
 
         /* Check for single or multithreaded debug */
 

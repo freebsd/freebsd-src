@@ -15,10 +15,16 @@ SRCS=	ifconfig.c		# base support
 #     of the toolchain.
 #
 SRCS+=	af_link.c		# LLC support
+.if ${MK_INET_SUPPORT} != "no"
 SRCS+=	af_inet.c		# IPv4 support
+.endif
+.if ${MK_INET6_SUPPORT} != "no"
 SRCS+=	af_inet6.c		# IPv6 support
+.endif
 SRCS+=	af_atalk.c		# AppleTalk support
+.if ${MK_INET6_SUPPORT} != "no"
 SRCS+=	af_nd6.c		# ND6 support
+.endif
 
 SRCS+=	ifclone.c		# clone device support
 SRCS+=	ifmac.c			# MAC support
@@ -38,6 +44,12 @@ SRCS+=	ifpfsync.c		# pfsync(4) support
 SRCS+=	ifbridge.c		# bridge support
 SRCS+=	iflagg.c		# lagg support
 
+.if ${MK_INET6_SUPPORT} != "no"
+CFLAGS+= -DINET6
+.endif
+.if ${MK_INET_SUPPORT} != "no"
+CFLAGS+= -DINET
+.endif
 .if ${MK_IPX_SUPPORT} != "no" && !defined(RELEASE_CRUNCH)
 SRCS+=	af_ipx.c		# IPX support
 DPADD+=	${LIBIPX}

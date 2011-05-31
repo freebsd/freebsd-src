@@ -155,7 +155,7 @@ static struct cmd cmdtab[] = {
 	{ "options",	setoptions,
 	  "enable or disable RFC2347 style options" },
 	{ "help",	help,		"print help information"	},
-	{ "packetdrop",	setpacketdrop,	"artifical packetloss feature"	},
+	{ "packetdrop",	setpacketdrop,	"artificial packetloss feature"	},
 	{ "?",		help,		"print help information"	},
 	{ NULL,		NULL,		NULL				}
 };
@@ -955,7 +955,7 @@ setblocksize(int argc, char *argv[])
 
 	if (!options_rfc_enabled)
 		printf("RFC2347 style options are not enabled "
-		    "(but proceding anyway)\n");
+		    "(but proceeding anyway)\n");
 
 	if (argc != 1) {
 		int size = atoi(argv[1]);
@@ -993,7 +993,7 @@ setblocksize2(int argc, char *argv[])
 	if (!options_rfc_enabled || !options_extra_enabled)
 		printf(
 		    "RFC2347 style or non-RFC defined options are not enabled "
-		    "(but proceding anyway)\n");
+		    "(but proceeding anyway)\n");
 
 	if (argc != 1) {
 		int size = atoi(argv[1]);

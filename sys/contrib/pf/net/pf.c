@@ -6132,9 +6132,11 @@ pf_routable(struct pf_addr *addr, sa_family_t af, struct pfi_kif *kif)
 
 #ifdef __FreeBSD__
 /* XXX MRT not always INET */ /* stick with table 0 though */
+#ifdef INET
 	if (af == AF_INET)
 		in_rtalloc_ign((struct route *)&ro, 0, 0);
 	else
+#endif
 		rtalloc_ign((struct route *)&ro, 0);
 #else /* ! __FreeBSD__ */
 	rtalloc_noclone((struct route *)&ro, NO_CLONING);
@@ -6214,9 +6216,11 @@ pf_rtlabel_match(struct pf_addr *addr, sa_family_t af, struct pf_addr_wrap *aw)
 # ifdef RTF_PRCLONING
 	rtalloc_ign((struct route *)&ro, (RTF_CLONING|RTF_PRCLONING));
 # else /* !RTF_PRCLONING */
+#ifdef INET
 	if (af == AF_INET)
 		in_rtalloc_ign((struct route *)&ro, 0, 0);
 	else
+#endif
 		rtalloc_ign((struct route *)&ro, 0);
 # endif
 #else /* ! __FreeBSD__ */
@@ -6789,11 +6793,13 @@ pf_check_proto_cksum(struct mbuf *m, int off, int len, u_int8_t p, sa_family_t a
 			KMOD_UDPSTAT_INC(udps_badsum);
 			break;
 		    }
+#ifdef INET
 		case IPPROTO_ICMP:
 		    {
 			KMOD_ICMPSTAT_INC(icps_checksum);
 			break;
 		    }
+#endif
 #ifdef INET6
 		case IPPROTO_ICMPV6:
 		    {
@@ -6889,9 +6895,11 @@ pf_check_proto_cksum(struct mbuf *m, int off, int len, u_int8_t p,
 		case IPPROTO_UDP:
 			KMOD_UDPSTAT_INC(udps_badsum);
 			break;
+#ifdef INET
 		case IPPROTO_ICMP:
 			KMOD_ICMPSTAT_INC(icps_checksum);
 			break;
+#endif
 #ifdef INET6
 		case IPPROTO_ICMPV6:
 			KMOD_ICMP6STAT_INC(icp6s_checksum);

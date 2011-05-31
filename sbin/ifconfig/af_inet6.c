@@ -541,6 +541,9 @@ inet6_ctor(void)
 #define	N(a)	(sizeof(a) / sizeof(a[0]))
 	size_t i;
 
+	if (!feature_present("inet6"))
+		return;
+
 	for (i = 0; i < N(inet6_cmds);  i++)
 		cmd_register(&inet6_cmds[i]);
 	af_register(&af_inet6);

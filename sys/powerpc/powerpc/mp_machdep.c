@@ -213,7 +213,7 @@ cpu_mp_unleash(void *dummy)
 
 	cpus = 0;
 	smp_cpus = 0;
-	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
+	STAILQ_FOREACH(pc, &cpuhead, pc_allcpu) {
 		cpus++;
 		pc->pc_other_cpus = all_cpus;
 		CPU_NAND(&pc->pc_other_cpus, &pc->pc_cpumask);
@@ -349,7 +349,7 @@ ipi_selected(cpuset_t cpus, int ipi)
 {
 	struct pcpu *pc;
 
-	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
+	STAILQ_FOREACH(pc, &cpuhead, pc_allcpu) {
 		if (CPU_OVERLAP(&cpus, &pc->pc_cpumask))
 			ipi_send(pc, ipi);
 	}
@@ -369,7 +369,7 @@ ipi_all_but_self(int ipi)
 {
 	struct pcpu *pc;
 
-	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
+	STAILQ_FOREACH(pc, &cpuhead, pc_allcpu) {
 		if (pc != pcpup)
 			ipi_send(pc, ipi);
 	}

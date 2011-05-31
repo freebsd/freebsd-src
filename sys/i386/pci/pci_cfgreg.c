@@ -553,7 +553,7 @@ pcie_cfgregopen(uint64_t base, uint8_t minbus, uint8_t maxbus)
 		    (uintmax_t)base);
 
 #ifdef SMP
-	SLIST_FOREACH(pc, &cpuhead, pc_allcpu)
+	STAILQ_FOREACH(pc, &cpuhead, pc_allcpu)
 #endif
 	{
 
