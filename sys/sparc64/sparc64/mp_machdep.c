@@ -383,7 +383,7 @@ cpu_mp_unleash(void *v)
 	ctx_inc = (TLB_CTX_USER_MAX - 1) / mp_ncpus;
 	csa = &cpu_start_args;
 	csa->csa_count = mp_ncpus;
-	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
+	STAILQ_FOREACH(pc, &cpuhead, pc_allcpu) {
 		pc->pc_tlb_ctx = ctx_min;
 		pc->pc_tlb_ctx_min = ctx_min;
 		pc->pc_tlb_ctx_max = ctx_min + ctx_inc;
