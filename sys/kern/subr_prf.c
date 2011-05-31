@@ -94,6 +94,7 @@ struct snprintf_arg {
 extern	int log_open;
 
 static void  msglogchar(int c, int pri);
+static void  msglogstr(char *str, int pri, int filter_cr);
 static void  putchar(int ch, void *arg);
 static char *ksprintn(char *nbuf, uintmax_t num, int base, int *len, int upper);
 static void  snprintf_func(int ch, void *arg);
@@ -105,6 +106,14 @@ static int      log_console_output = 1;
 TUNABLE_INT("kern.log_console_output", &log_console_output);
 SYSCTL_INT(_kern, OID_AUTO, log_console_output, CTLFLAG_RW,
     &log_console_output, 0, "Duplicate console output to the syslog.");
+
+/*
+ * See the comment in log_console() below for more explanation of this.
+ */
+static int log_console_add_linefeed = 0;
+TUNABLE_INT("kern.log_console_add_linefeed", &log_console_add_linefeed);
+SYSCTL_INT(_kern, OID_AUTO, log_console_add_linefeed, CTLFLAG_RW,
+    &log_console_add_linefeed, 0, "log_console() adds extra newlines.");
 
 static int	always_console_output = 0;
 TUNABLE_INT("kern.always_console_output", &always_console_output);
@@ -240,16 +249,37 @@ log(int level, const char *fmt, ...)
 {
 	va_list ap;
 	struct putchar_arg pca;
+#ifdef PRINTF_BUFR_SIZE
+	char bufr[PRINTF_BUFR_SIZE];
+#endif
 
 	pca.tty = NULL;
 	pca.pri = level;
 	pca.flags = log_open ? TOLOG : TOCONS;
+#ifdef PRINTF_BUFR_SIZE
+	pca.p_bufr = bufr;
+	pca.p_next = pca.p_bufr;
+	pca.n_bufr = sizeof(bufr);
+	pca.remain = sizeof(bufr);
+	*pca.p_next = '\0';
+#else
 	pca.p_bufr = NULL;
+#endif
 
 	va_start(ap, fmt);
 	kvprintf(fmt, putchar, &pca, 10, ap);
 	va_end(ap);
 
+#ifdef PRINTF_BUFR_SIZE
+	/* Write any buffered console/log output: */
+	if (*pca.p_bufr != '\0') {
+		if (pca.flags & TOLOG)
+			msglogstr(pca.p_bufr, level, /*filter_cr*/1);
+
+		if (pca.flags & TOCONS)
+			cnputs(pca.p_bufr);
+	}
+#endif
 	msgbuftrigger = 1;
 }
 
@@ -258,7 +288,7 @@ log(int level, const char *fmt, ...)
 void
 log_console(struct uio *uio)
 {
-	int c, i, error, nl;
+	int c, error, nl;
 	char *consbuffer;
 	int pri;
 
@@ -271,20 +301,48 @@ log_console(struct uio *uio)
 
 	nl = 0;
 	while (uio->uio_resid > 0) {
-		c = imin(uio->uio_resid, CONSCHUNK);
+		c = imin(uio->uio_resid, CONSCHUNK - 1);
 		error = uiomove(consbuffer, c, uio);
 		if (error != 0)
 			break;
-		for (i = 0; i < c; i++) {
-			msglogchar(consbuffer[i], pri);
-			if (consbuffer[i] == '\n')
-				nl = 1;
-			else
-				nl = 0;
-		}
+		/* Make sure we're NUL-terminated */
+		consbuffer[c] = '\0';
+		if (consbuffer[c - 1] == '\n')
+			nl = 1;
+		else
+			nl = 0;
+		msglogstr(consbuffer, pri, /*filter_cr*/ 1);
 	}
-	if (!nl)
-		msglogchar('\n', pri);
+	/*
+	 * The previous behavior in log_console() is preserved when
+	 * log_console_add_linefeed is non-zero.  For that behavior, if an
+	 * individual console write came in that was not terminated with a
+	 * line feed, it would add a line feed.
+	 *
+	 * This results in different data in the message buffer than
+	 * appears on the system console (which doesn't add extra line feed
+	 * characters).
+	 *
+	 * A number of programs and rc scripts write a line feed, or a period
+	 * and a line feed when they have completed their operation.  On
+	 * the console, this looks seamless, but when displayed with
+	 * 'dmesg -a', you wind up with output that looks like this:
+	 *
+	 * Updating motd:
+	 * .
+	 *
+	 * On the console, it looks like this:
+	 * Updating motd:.
+	 *
+	 * We could add logic to detect that situation, or just not insert
+	 * the extra newlines.  Set the kern.log_console_add_linefeed
+	 * sysctl/tunable variable to get the old behavior.
+	 */
+	if (!nl && log_console_add_linefeed) {
+		consbuffer[0] = '\n';
+		consbuffer[1] = '\0';
+		msglogstr(consbuffer, pri, /*filter_cr*/ 1);
+	}
 	msgbuftrigger = 1;
 	free(uio, M_IOV);
 	free(consbuffer, M_TEMP);
@@ -330,9 +388,11 @@ vprintf(const char *fmt, va_list ap)
 	retval = kvprintf(fmt, putchar, &pca, 10, ap);
 
 #ifdef PRINTF_BUFR_SIZE
-	/* Write any buffered console output: */
-	if (*pca.p_bufr != '\0')
+	/* Write any buffered console/log output: */
+	if (*pca.p_bufr != '\0') {
 		cnputs(pca.p_bufr);
+		msglogstr(pca.p_bufr, pca.pri, /*filter_cr*/ 1);
+	}
 #endif
 
 	if (!panicstr)
@@ -342,18 +402,18 @@ vprintf(const char *fmt, va_list ap)
 }
 
 static void
-putcons(int c, struct putchar_arg *ap)
+putbuf(int c, struct putchar_arg *ap)
 {
 	/* Check if no console output buffer was provided. */
-	if (ap->p_bufr == NULL)
+	if (ap->p_bufr == NULL) {
 		/* Output direct to the console. */
-		cnputc(c);
-	else {
+		if (ap->flags & TOCONS)
+			cnputc(c);
+
+		if (ap->flags & TOLOG)
+			msglogchar(c, ap->pri);
+	} else {
 		/* Buffer the character: */
-		if (c == '\n') {
-			*ap->p_next++ = '\r';
-			ap->remain--;
-		}
 		*ap->p_next++ = c;
 		ap->remain--;
 
@@ -361,12 +421,35 @@ putcons(int c, struct putchar_arg *ap)
 		*ap->p_next = '\0';
 
 		/* Check if the buffer needs to be flushed. */
-		if (ap->remain < 3 || c == '\n') {
-			cnputs(ap->p_bufr);
+		if (ap->remain == 2 || c == '\n') {
+
+			if (ap->flags & TOLOG)
+				msglogstr(ap->p_bufr, ap->pri, /*filter_cr*/1);
+
+			if (ap->flags & TOCONS) {
+				if ((panicstr == NULL) && (constty != NULL))
+					msgbuf_addstr(&consmsgbuf, -1,
+					    ap->p_bufr, /*filter_cr*/ 0);
+
+				if ((constty == NULL) ||(always_console_output))
+					cnputs(ap->p_bufr);
+			}
+
 			ap->p_next = ap->p_bufr;
 			ap->remain = ap->n_bufr;
 			*ap->p_next = '\0';
 		}
+
+		/*
+		 * Since we fill the buffer up one character at a time,
+		 * this should not happen.  We should always catch it when
+		 * ap->remain == 2 (if not sooner due to a newline), flush
+		 * the buffer and move on.  One way this could happen is
+		 * if someone sets PRINTF_BUFR_SIZE to 1 or something
+		 * similarly silly.
+		 */
+		KASSERT(ap->remain > 2, ("Bad buffer logic, remain = %zd",
+		    ap->remain));
 	}
 }
 
@@ -381,26 +464,25 @@ putchar(int c, void *arg)
 	struct putchar_arg *ap = (struct putchar_arg*) arg;
 	struct tty *tp = ap->tty;
 	int flags = ap->flags;
+	int putbuf_done = 0;
 
 	/* Don't use the tty code after a panic or while in ddb. */
 	if (kdb_active) {
 		if (c != '\0')
 			cnputc(c);
-	} else if (panicstr || ((flags & TOCONS) && constty == NULL)) {
-		if (c != '\0')
-			putcons(c, ap);
 	} else {
-		if ((flags & TOTTY) && tp != NULL)
+		if ((panicstr == NULL) && (flags & TOTTY) && (tp != NULL))
 			tty_putchar(tp, c);
+
 		if (flags & TOCONS) {
-			if (constty != NULL)
-				msgbuf_addchar(&consmsgbuf, c);
-			if (always_console_output && c != '\0')
-				putcons(c, ap);
+			putbuf(c, ap);
+			putbuf_done = 1;
 		}
 	}
-	if ((flags & TOLOG))
-		msglogchar(c, ap->pri);
+	if ((flags & TOLOG) && (putbuf_done == 0)) {
+		if (c != '\0')
+			putbuf(c, ap);
+	}
 }
 
 /*
@@ -888,6 +970,15 @@ msglogchar(int c, int pri)
 	} else {
 		dangling = 1;
 	}
+}
+
+static void
+msglogstr(char *str, int pri, int filter_cr)
+{
+	if (!msgbufmapped)
+		return;
+
+	msgbuf_addstr(msgbufp, pri, str, filter_cr);
 }
 
 void
