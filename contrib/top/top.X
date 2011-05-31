@@ -10,7 +10,7 @@ top \- display and update information about the top cpu processes
 .SH SYNOPSIS
 .B top
 [
-.B \-abCHIijnPqStuv
+.B \-abCHIijnPqStuvz
 ] [
 .BI \-d count
 ] [
@@ -141,6 +141,9 @@ numbers are displayed instead of the names.
 Write version number information to stderr then exit immediately.
 No other processing takes place when this option is used.  To see current
 revision information while top is running, use the help command \*(lq?\*(rq.
+.TP
+.B \-z
+Do not display the system idle process.
 .TP
 .BI \-d count
 Show only
@@ -303,6 +306,9 @@ ID.
 Toggle the display of the
 .I top
 process.
+.TP
+.B z
+Toggle the display of the system idle process.
 .SH "THE DISPLAY"
 The actual display varies depending on the specific variant of Unix
 that the machine is running.  This description may not exactly match
