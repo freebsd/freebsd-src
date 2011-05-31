@@ -3735,9 +3735,12 @@ pf_check6_out(void *arg, struct mbuf **m, struct ifnet *ifp, int dir,
 	 */
 	int chk;
 
-	/* We need a proper CSUM befor we start (s. OpenBSD ip_output) */
+	/* We need a proper CSUM before we start (s. OpenBSD ip_output) */
 	if ((*m)->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
+#ifdef INET
+		/* XXX-BZ copy&paste error from r126261? */
 		in_delayed_cksum(*m);
+#endif
 		(*m)->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
 	}
 	chk = pf_test6(PF_OUT, ifp, m, NULL, inp);
