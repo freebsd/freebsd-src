@@ -5,6 +5,7 @@
  *	Swinburne University of Technology, Melbourne, Australia.
  * Copyright (c) 2009-2010 Lawrence Stewart <lstewart@freebsd.org>
  * Copyright (c) 2010 The FreeBSD Foundation
+ * Copyright (c) 2010-2011 Juniper Networks, Inc.
  * All rights reserved.
  *
  * Portions of this software were developed at the Centre for Advanced Internet
@@ -15,6 +16,9 @@
  * Portions of this software were developed at the Centre for Advanced
  * Internet Architectures, Swinburne University of Technology, Melbourne,
  * Australia by David Hayes under sponsorship from the FreeBSD Foundation.
+ *
+ * Portions of this software were developed by Robert N. M. Watson under
+ * contract to Juniper Networks, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -196,10 +200,6 @@ VNET_DEFINE(int, tcp_autorcvbuf_max) = 256*1024;
 SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, recvbuf_max, CTLFLAG_RW,
     &VNET_NAME(tcp_autorcvbuf_max), 0,
     "Max size of automatic receive buffer");
-
-int	tcp_read_locking = 1;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, read_locking, CTLFLAG_RW,
-    &tcp_read_locking, 0, "Enable read locking strategy");
 
 VNET_DEFINE(struct inpcbhead, tcb);
 #define	tcb6	tcb  /* for KAME src sync over BSD*'s */
@@ -591,8 +591,7 @@ tcp_input(struct mbuf *m, int off0)
 	char *s = NULL;			/* address and port logging */
 	int ti_locked;
 #define	TI_UNLOCKED	1
-#define	TI_RLOCKED	2
-#define	TI_WLOCKED	3
+#define	TI_WLOCKED	2
 
 #ifdef TCPDEBUG
 	/*
@@ -756,30 +755,25 @@ tcp_input(struct mbuf *m, int off0)
 	drop_hdrlen = off0 + off;
 
 	/*
-	 * Locate pcb for segment, which requires a lock on tcbinfo.
-	 * Optimisticaly acquire a global read lock rather than a write lock
-	 * unless header flags necessarily imply a state change.  There are
-	 * two cases where we might discover later we need a write lock
-	 * despite the flags: ACKs moving a connection out of the syncache,
-	 * and ACKs for a connection in TIMEWAIT.
+	 * Locate pcb for segment; if we're likely to add or remove a
+	 * connection then first acquire pcbinfo lock.  There are two cases
+	 * where we might discover later we need a write lock despite the
+	 * flags: ACKs moving a connection out of the syncache, and ACKs for
+	 * a connection in TIMEWAIT.
 	 */
-	if ((thflags & (TH_SYN | TH_FIN | TH_RST)) != 0 ||
-	    tcp_read_locking == 0) {
+	if ((thflags & (TH_SYN | TH_FIN | TH_RST)) != 0) {
 		INP_INFO_WLOCK(&V_tcbinfo);
 		ti_locked = TI_WLOCKED;
-	} else {
-		INP_INFO_RLOCK(&V_tcbinfo);
-		ti_locked = TI_RLOCKED;
-	}
+	} else
+		ti_locked = TI_UNLOCKED;
 
 findpcb:
 #ifdef INVARIANTS
-	if (ti_locked == TI_RLOCKED)
-		INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
-	else if (ti_locked == TI_WLOCKED)
+	if (ti_locked == TI_WLOCKED) {
 		INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
-	else
-		panic("%s: findpcb ti_locked %d\n", __func__, ti_locked);
+	} else {
+		INP_INFO_UNLOCK_ASSERT(&V_tcbinfo);
+	}
 #endif
 
 #ifdef INET
@@ -797,20 +791,18 @@ findpcb:
 		 * Transparently forwarded. Pretend to be the destination.
 		 * already got one like this?
 		 */
-		inp = in_pcblookup_hash(&V_tcbinfo,
-					ip->ip_src, th->th_sport,
-					ip->ip_dst, th->th_dport,
-					0, m->m_pkthdr.rcvif);
+		inp = in_pcblookup(&V_tcbinfo, ip->ip_src, th->th_sport,
+		    ip->ip_dst, th->th_dport, INPLOOKUP_WLOCKPCB,
+		    m->m_pkthdr.rcvif);
 		if (!inp) {
-			/* It's new.  Try to find the ambushing socket. */
-			inp = in_pcblookup_hash(&V_tcbinfo,
-						ip->ip_src, th->th_sport,
-						next_hop->sin_addr,
-						next_hop->sin_port ?
-						    ntohs(next_hop->sin_port) :
-						    th->th_dport,
-						INPLOOKUP_WILDCARD,
-						m->m_pkthdr.rcvif);
+			/*
+			 * It's new.  Try to find the ambushing socket.
+			 */
+			inp = in_pcblookup(&V_tcbinfo, ip->ip_src,
+			    th->th_sport, next_hop->sin_addr,
+			    next_hop->sin_port ? ntohs(next_hop->sin_port) :
+			    th->th_dport, INPLOOKUP_WILDCARD |
+			    INPLOOKUP_WLOCKPCB, m->m_pkthdr.rcvif);
 		}
 		/* Remove the tag from the packet.  We don't need it anymore. */
 		m_tag_delete(m, fwd_tag);
@@ -820,21 +812,19 @@ findpcb:
 	{
 #ifdef INET6
 		if (isipv6)
-			inp = in6_pcblookup_hash(&V_tcbinfo,
-						 &ip6->ip6_src, th->th_sport,
-						 &ip6->ip6_dst, th->th_dport,
-						 INPLOOKUP_WILDCARD,
-						 m->m_pkthdr.rcvif);
+			inp = in6_pcblookup(&V_tcbinfo, &ip6->ip6_src,
+			    th->th_sport, &ip6->ip6_dst, th->th_dport,
+			    INPLOOKUP_WILDCARD | INPLOOKUP_WLOCKPCB,
+			    m->m_pkthdr.rcvif);
 #endif
 #if defined(INET) && defined(INET6)
 		else
 #endif
 #ifdef INET
-			inp = in_pcblookup_hash(&V_tcbinfo,
-						ip->ip_src, th->th_sport,
-						ip->ip_dst, th->th_dport,
-						INPLOOKUP_WILDCARD,
-						m->m_pkthdr.rcvif);
+			inp = in_pcblookup(&V_tcbinfo, ip->ip_src,
+			    th->th_sport, ip->ip_dst, th->th_dport,
+			    INPLOOKUP_WILDCARD | INPLOOKUP_WLOCKPCB,
+			    m->m_pkthdr.rcvif);
 #endif
 	}
 
@@ -865,7 +855,7 @@ findpcb:
 		rstreason = BANDLIM_RST_CLOSEDPORT;
 		goto dropwithreset;
 	}
-	INP_WLOCK(inp);
+	INP_WLOCK_ASSERT(inp);
 	if (!(inp->inp_flags & INP_HW_FLOWID)
 	    && (m->m_flags & M_FLOWID)
 	    && ((inp->inp_socket == NULL)
@@ -906,28 +896,26 @@ findpcb:
 	 * legitimate new connection attempt the old INPCB gets removed and
 	 * we can try again to find a listening socket.
 	 *
-	 * At this point, due to earlier optimism, we may hold a read lock on
-	 * the inpcbinfo, rather than a write lock.  If so, we need to
-	 * upgrade, or if that fails, acquire a reference on the inpcb, drop
-	 * all locks, acquire a global write lock, and then re-acquire the
-	 * inpcb lock.  We may at that point discover that another thread has
-	 * tried to free the inpcb, in which case we need to loop back and
-	 * try to find a new inpcb to deliver to.
+	 * At this point, due to earlier optimism, we may hold only an inpcb
+	 * lock, and not the inpcbinfo write lock.  If so, we need to try to
+	 * acquire it, or if that fails, acquire a reference on the inpcb,
+	 * drop all locks, acquire a global write lock, and then re-acquire
+	 * the inpcb lock.  We may at that point discover that another thread
+	 * has tried to free the inpcb, in which case we need to loop back
+	 * and try to find a new inpcb to deliver to.
+	 *
+	 * XXXRW: It may be time to rethink timewait locking.
 	 */
 relocked:
 	if (inp->inp_flags & INP_TIMEWAIT) {
-		KASSERT(ti_locked == TI_RLOCKED || ti_locked == TI_WLOCKED,
-		    ("%s: INP_TIMEWAIT ti_locked %d", __func__, ti_locked));
-
-		if (ti_locked == TI_RLOCKED) {
-			if (INP_INFO_TRY_UPGRADE(&V_tcbinfo) == 0) {
+		if (ti_locked == TI_UNLOCKED) {
+			if (INP_INFO_TRY_WLOCK(&V_tcbinfo) == 0) {
 				in_pcbref(inp);
 				INP_WUNLOCK(inp);
-				INP_INFO_RUNLOCK(&V_tcbinfo);
 				INP_INFO_WLOCK(&V_tcbinfo);
 				ti_locked = TI_WLOCKED;
 				INP_WLOCK(inp);
-				if (in_pcbrele(inp)) {
+				if (in_pcbrele_wlocked(inp)) {
 					inp = NULL;
 					goto findpcb;
 				}
@@ -975,26 +963,24 @@ relocked:
 
 	/*
 	 * We've identified a valid inpcb, but it could be that we need an
-	 * inpcbinfo write lock and have only a read lock.  In this case,
-	 * attempt to upgrade/relock using the same strategy as the TIMEWAIT
-	 * case above.  If we relock, we have to jump back to 'relocked' as
-	 * the connection might now be in TIMEWAIT.
+	 * inpcbinfo write lock but don't hold it.  In this case, attempt to
+	 * acquire using the same strategy as the TIMEWAIT case above.  If we
+	 * relock, we have to jump back to 'relocked' as the connection might
+	 * now be in TIMEWAIT.
 	 */
-	if (tp->t_state != TCPS_ESTABLISHED ||
-	    (thflags & (TH_SYN | TH_FIN | TH_RST)) != 0 ||
-	    tcp_read_locking == 0) {
-		KASSERT(ti_locked == TI_RLOCKED || ti_locked == TI_WLOCKED,
-		    ("%s: upgrade check ti_locked %d", __func__, ti_locked));
-
-		if (ti_locked == TI_RLOCKED) {
-			if (INP_INFO_TRY_UPGRADE(&V_tcbinfo) == 0) {
+#ifdef INVARIANTS
+	if ((thflags & (TH_SYN | TH_FIN | TH_RST)) != 0)
+		INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
+#endif
+	if (tp->t_state != TCPS_ESTABLISHED) {
+		if (ti_locked == TI_UNLOCKED) {
+			if (INP_INFO_TRY_WLOCK(&V_tcbinfo) == 0) {
 				in_pcbref(inp);
 				INP_WUNLOCK(inp);
-				INP_INFO_RUNLOCK(&V_tcbinfo);
 				INP_INFO_WLOCK(&V_tcbinfo);
 				ti_locked = TI_WLOCKED;
 				INP_WLOCK(inp);
-				if (in_pcbrele(inp)) {
+				if (in_pcbrele_wlocked(inp)) {
 					inp = NULL;
 					goto findpcb;
 				}
@@ -1027,13 +1013,16 @@ relocked:
 	/*
 	 * When the socket is accepting connections (the INPCB is in LISTEN
 	 * state) we look into the SYN cache if this is a new connection
-	 * attempt or the completion of a previous one.
+	 * attempt or the completion of a previous one.  Because listen
+	 * sockets are never in TCPS_ESTABLISHED, the V_tcbinfo lock will be
+	 * held in this case.
 	 */
 	if (so->so_options & SO_ACCEPTCONN) {
 		struct in_conninfo inc;
 
 		KASSERT(tp->t_state == TCPS_LISTEN, ("%s: so accepting but "
 		    "tp not listening", __func__));
+		INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
 
 		bzero(&inc, sizeof(inc));
 #ifdef INET6
@@ -1371,13 +1360,17 @@ relocked:
 	return;
 
 dropwithreset:
-	if (ti_locked == TI_RLOCKED)
-		INP_INFO_RUNLOCK(&V_tcbinfo);
-	else if (ti_locked == TI_WLOCKED)
+	if (ti_locked == TI_WLOCKED) {
 		INP_INFO_WUNLOCK(&V_tcbinfo);
-	else
-		panic("%s: dropwithreset ti_locked %d", __func__, ti_locked);
-	ti_locked = TI_UNLOCKED;
+		ti_locked = TI_UNLOCKED;
+	}
+#ifdef INVARIANTS
+	else {
+		KASSERT(ti_locked == TI_UNLOCKED, ("%s: dropwithreset "
+		    "ti_locked: %d", __func__, ti_locked));
+		INP_INFO_UNLOCK_ASSERT(&V_tcbinfo);
+	}
+#endif
 
 	if (inp != NULL) {
 		tcp_dropwithreset(m, th, tp, tlen, rstreason);
@@ -1388,13 +1381,17 @@ dropwithreset:
 	goto drop;
 
 dropunlock:
-	if (ti_locked == TI_RLOCKED)
-		INP_INFO_RUNLOCK(&V_tcbinfo);
-	else if (ti_locked == TI_WLOCKED)
+	if (ti_locked == TI_WLOCKED) {
 		INP_INFO_WUNLOCK(&V_tcbinfo);
-	else
-		panic("%s: dropunlock ti_locked %d", __func__, ti_locked);
-	ti_locked = TI_UNLOCKED;
+		ti_locked = TI_UNLOCKED;
+	}
+#ifdef INVARIANTS
+	else {
+		KASSERT(ti_locked == TI_UNLOCKED, ("%s: dropunlock "
+		    "ti_locked: %d", __func__, ti_locked));
+		INP_INFO_UNLOCK_ASSERT(&V_tcbinfo);
+	}
+#endif
 
 	if (inp != NULL)
 		INP_WUNLOCK(inp);
@@ -1449,13 +1446,13 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
 	} else {
 #ifdef INVARIANTS
-		if (ti_locked == TI_RLOCKED)
-			INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
-		else if (ti_locked == TI_WLOCKED)
+		if (ti_locked == TI_WLOCKED)
 			INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
-		else
-			panic("%s: ti_locked %d for EST", __func__,
-			    ti_locked);
+		else {
+			KASSERT(ti_locked == TI_UNLOCKED, ("%s: EST "
+			    "ti_locked: %d", __func__, ti_locked));
+			INP_INFO_UNLOCK_ASSERT(&V_tcbinfo);
+		}
 #endif
 	}
 	INP_WLOCK_ASSERT(tp->t_inpcb);
@@ -1601,13 +1598,8 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				/*
 				 * This is a pure ack for outstanding data.
 				 */
-				if (ti_locked == TI_RLOCKED)
-					INP_INFO_RUNLOCK(&V_tcbinfo);
-				else if (ti_locked == TI_WLOCKED)
+				if (ti_locked == TI_WLOCKED)
 					INP_INFO_WUNLOCK(&V_tcbinfo);
-				else
-					panic("%s: ti_locked %d on pure ACK",
-					    __func__, ti_locked);
 				ti_locked = TI_UNLOCKED;
 
 				TCPSTAT_INC(tcps_predack);
@@ -1708,13 +1700,8 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			 * nothing on the reassembly queue and we have enough
 			 * buffer space to take it.
 			 */
-			if (ti_locked == TI_RLOCKED)
-				INP_INFO_RUNLOCK(&V_tcbinfo);
-			else if (ti_locked == TI_WLOCKED)
+			if (ti_locked == TI_WLOCKED)
 				INP_INFO_WUNLOCK(&V_tcbinfo);
-			else
-				panic("%s: ti_locked %d on pure data "
-				    "segment", __func__, ti_locked);
 			ti_locked = TI_UNLOCKED;
 
 			/* Clean receiver SACK report if present */
@@ -2550,9 +2537,6 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		}
 
 process_ACK:
-		INP_INFO_LOCK_ASSERT(&V_tcbinfo);
-		KASSERT(ti_locked == TI_RLOCKED || ti_locked == TI_WLOCKED,
-		    ("tcp_input: process_ACK ti_locked %d", ti_locked));
 		INP_WLOCK_ASSERT(tp->t_inpcb);
 
 		acked = BYTES_THIS_ACK(tp, th);
@@ -2716,9 +2700,6 @@ process_ACK:
 	}
 
 step6:
-	INP_INFO_LOCK_ASSERT(&V_tcbinfo);
-	KASSERT(ti_locked == TI_RLOCKED || ti_locked == TI_WLOCKED,
-	    ("tcp_do_segment: step6 ti_locked %d", ti_locked));
 	INP_WLOCK_ASSERT(tp->t_inpcb);
 
 	/*
@@ -2804,9 +2785,6 @@ step6:
 			tp->rcv_up = tp->rcv_nxt;
 	}
 dodata:							/* XXX */
-	INP_INFO_LOCK_ASSERT(&V_tcbinfo);
-	KASSERT(ti_locked == TI_RLOCKED || ti_locked == TI_WLOCKED,
-	    ("tcp_do_segment: dodata ti_locked %d", ti_locked));
 	INP_WLOCK_ASSERT(tp->t_inpcb);
 
 	/*
@@ -2938,13 +2916,8 @@ dodata:							/* XXX */
 			return;
 		}
 	}
-	if (ti_locked == TI_RLOCKED)
-		INP_INFO_RUNLOCK(&V_tcbinfo);
-	else if (ti_locked == TI_WLOCKED)
+	if (ti_locked == TI_WLOCKED)
 		INP_INFO_WUNLOCK(&V_tcbinfo);
-	else
-		panic("%s: dodata epilogue ti_locked %d", __func__,
-		    ti_locked);
 	ti_locked = TI_UNLOCKED;
 
 #ifdef TCPDEBUG
@@ -2973,9 +2946,6 @@ check_delack:
 	return;
 
 dropafterack:
-	KASSERT(ti_locked == TI_RLOCKED || ti_locked == TI_WLOCKED,
-	    ("tcp_do_segment: dropafterack ti_locked %d", ti_locked));
-
 	/*
 	 * Generate an ACK dropping incoming segment if it occupies
 	 * sequence space, where the ACK reflects our state.
@@ -3002,13 +2972,8 @@ dropafterack:
 		tcp_trace(TA_DROP, ostate, tp, (void *)tcp_saveipgen,
 			  &tcp_savetcp, 0);
 #endif
-	if (ti_locked == TI_RLOCKED)
-		INP_INFO_RUNLOCK(&V_tcbinfo);
-	else if (ti_locked == TI_WLOCKED)
+	if (ti_locked == TI_WLOCKED)
 		INP_INFO_WUNLOCK(&V_tcbinfo);
-	else
-		panic("%s: dropafterack epilogue ti_locked %d", __func__,
-		    ti_locked);
 	ti_locked = TI_UNLOCKED;
 
 	tp->t_flags |= TF_ACKNOW;
@@ -3018,12 +2983,8 @@ dropafterack:
 	return;
 
 dropwithreset:
-	if (ti_locked == TI_RLOCKED)
-		INP_INFO_RUNLOCK(&V_tcbinfo);
-	else if (ti_locked == TI_WLOCKED)
+	if (ti_locked == TI_WLOCKED)
 		INP_INFO_WUNLOCK(&V_tcbinfo);
-	else
-		panic("%s: dropwithreset ti_locked %d", __func__, ti_locked);
 	ti_locked = TI_UNLOCKED;
 
 	if (tp != NULL) {
@@ -3034,15 +2995,14 @@ dropwithreset:
 	return;
 
 drop:
-	if (ti_locked == TI_RLOCKED)
-		INP_INFO_RUNLOCK(&V_tcbinfo);
-	else if (ti_locked == TI_WLOCKED)
+	if (ti_locked == TI_WLOCKED) {
 		INP_INFO_WUNLOCK(&V_tcbinfo);
+		ti_locked = TI_UNLOCKED;
+	}
 #ifdef INVARIANTS
 	else
 		INP_INFO_UNLOCK_ASSERT(&V_tcbinfo);
 #endif
-	ti_locked = TI_UNLOCKED;
 
 	/*
 	 * Drop space held by incoming segment and return.

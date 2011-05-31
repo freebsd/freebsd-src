@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 4, 2010
+.Dd May 31, 2011
 .Dt USBDUMP 8
 .Os
 .Sh NAME
@@ -63,16 +63,16 @@ Write the raw packets to
 .Ar file .
 .El
 .Sh EXAMPLES
-Captures USB raw packets on usbus2:
+Capture the USB raw packets on usbus2:
 .Pp
 .Dl "usbdump -i usbus2 -s 256 -v"
 .Pp
-Dumps the USB raw packets of usbus2 into the file without packet
+Dump the USB raw packets of usbus2 into the file without packet
 size limit:
 .Pp
 .Dl "usbdump -i usbus2 -s 0 -w /tmp/dump_pkts"
 .Pp
-Read the USB raw packets from previous file:
+Read and display the USB raw packets from previous file:
 .Pp
 .Dl "usbdump -r /tmp/dump_pkts -v"
 .Sh OUTPUT FORMAT

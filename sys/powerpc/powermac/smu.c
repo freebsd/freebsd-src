@@ -854,7 +854,7 @@ smu_sensor_read(struct smu_sensor *sens)
 		value <<= 1;
 
 		/* Convert from 16.16 fixed point degC into integer 0.1 K. */
-		value = 10*(value >> 16) + 2732;
+		value = 10*(value >> 16) + ((10*(value & 0xffff)) >> 16) + 2732;
 		break;
 	case SMU_VOLTAGE_SENSOR:
 		value *= sc->sc_cpu_volt_scale;

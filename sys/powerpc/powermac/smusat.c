@@ -235,7 +235,7 @@ smusat_sensor_read(struct smu_sensor *sens)
 		/* 16.16 */
 		value <<= 10;
 		/* From 16.16 to 0.1 C */
-		value = 10*(value >> 16) + 2732;
+		value = 10*(value >> 16) + ((10*(value & 0xffff)) >> 16) + 2732;
 		break;
 	case SMU_VOLTAGE_SENSOR:
 		/* 16.16 */

@@ -432,7 +432,10 @@ options 	KTRACE_REQUEST_POOL=101
 # defined by the KTR_* constants in <sys/ktr.h>.  KTR_MASK defines the
 # initial value of the ktr_mask variable which determines at runtime
 # what events to trace.  KTR_CPUMASK determines which CPU's log
-# events, with bit X corresponding to CPU X.  KTR_VERBOSE enables
+# events, with bit X corresponding to CPU X.  The layout of the string
+# passed as KTR_CPUMASK must match a serie of bitmasks each of them
+# separated by the ", " characters (ie:
+# KTR_CPUMASK=("0xAF, 0xFFFFFFFFFFFFFFFF")).  KTR_VERBOSE enables
 # dumping of KTR events to the console by default.  This functionality
 # can be toggled via the debug.ktr_verbose sysctl and defaults to off
 # if KTR_VERBOSE is not defined.  See ktr(4) and ktrdump(8) for details.
@@ -441,7 +444,7 @@ options 	KTR
 options 	KTR_ENTRIES=1024
 options 	KTR_COMPILE=(KTR_INTR|KTR_PROC)
 options 	KTR_MASK=KTR_INTR
-options 	KTR_CPUMASK=0x3
+options 	KTR_CPUMASK=("0x3")
 options 	KTR_VERBOSE
 
 #

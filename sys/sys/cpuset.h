@@ -214,6 +214,7 @@ int	cpuset_create_root(struct prison *, struct cpuset **);
 int	cpuset_setproc_update_set(struct proc *, struct cpuset *);
 int	cpusetobj_ffs(const cpuset_t *);
 char	*cpusetobj_strprint(char *, const cpuset_t *);
+int	cpusetobj_strscan(cpuset_t *, const char *);
 
 #else
 __BEGIN_DECLS

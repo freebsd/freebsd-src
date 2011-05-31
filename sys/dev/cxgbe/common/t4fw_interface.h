@@ -43,6 +43,7 @@ enum fw_retval {
 	FW_ENOMEM		= 12,	/* out of memory */
 	FW_EFAULT		= 14,	/* bad address; fw bad */
 	FW_EBUSY		= 16,	/* resource busy */
+	FW_EEXIST		= 17,	/* File exists */
 	FW_EINVAL		= 22,	/* invalid argument */
 	FW_ENOSYS		= 38,	/* functionality not implemented */
 	FW_EPROTO		= 71,	/* protocol error */
@@ -59,6 +60,8 @@ enum fw_retval {
 	FW_FCOE_NO_XCHG		= 136,	/* */
 	FW_SCSI_RSP_ERR		= 137,	/* */
 	FW_ERR_RDEV_IMPL_LOGO	= 138,	/* */
+	FW_SCSI_UNDER_FLOW_ERR  = 139,	/* */
+	FW_SCSI_OVER_FLOW_ERR   = 140,	/* */
 };
 
 /******************************************************************************
@@ -85,7 +88,8 @@ enum fw_wr_opcodes {
 	FW_RI_FR_NSMR_WR	= 0x19,
 	FW_RI_INV_LSTAG_WR	= 0x1a,
 	FW_RI_WR		= 0x0d,
-	FW_LASTC2E_WR		= 0x4a
+	FW_ISCSI_NODE_WR	= 0x4a,
+	FW_LASTC2E_WR		= 0x4b
 };
 
 /*
@@ -514,7 +518,7 @@ struct fw_eth_tx_pkts_wr {
 	__be32 r3;
 	__be16 plen;
 	__u8   npkt;
-	__u8   r4;
+	__u8   type;
 };
 
 struct fw_eq_flush_wr {
@@ -1465,6 +1469,65 @@ struct fw_ri_wr {
 #define G_FW_RI_WR_P2PTYPE(x)	\
     (((x) >> S_FW_RI_WR_P2PTYPE) & M_FW_RI_WR_P2PTYPE)
 
+#ifdef FOISCSI
+struct fw_iscsi_node_wr {
+	__u8   opcode;
+	__u8   subop;
+	__u8   node_attr_to_compl;
+	__u8   len16;
+	__u8   status;
+	__u8   r2;
+	__be16 immd_len;
+	__be64 cookie;
+	__be32 node_id;
+	__be32 ctrl_handle;
+	__be32 io_handle;
+	__be32 r3;
+};
+
+#define S_FW_ISCSI_NODE_WR_NODE_ATTR	7
+#define M_FW_ISCSI_NODE_WR_NODE_ATTR	0x1
+#define V_FW_ISCSI_NODE_WR_NODE_ATTR(x)	((x) << S_FW_ISCSI_NODE_WR_NODE_ATTR)
+#define G_FW_ISCSI_NODE_WR_NODE_ATTR(x)	\
+    (((x) >> S_FW_ISCSI_NODE_WR_NODE_ATTR) & M_FW_ISCSI_NODE_WR_NODE_ATTR)
+#define F_FW_ISCSI_NODE_WR_NODE_ATTR	V_FW_ISCSI_NODE_WR_NODE_ATTR(1U)
+
+#define S_FW_ISCSI_NODE_WR_SESS_ATTR	6
+#define M_FW_ISCSI_NODE_WR_SESS_ATTR	0x1
+#define V_FW_ISCSI_NODE_WR_SESS_ATTR(x)	((x) << S_FW_ISCSI_NODE_WR_SESS_ATTR)
+#define G_FW_ISCSI_NODE_WR_SESS_ATTR(x)	\
+    (((x) >> S_FW_ISCSI_NODE_WR_SESS_ATTR) & M_FW_ISCSI_NODE_WR_SESS_ATTR)
+#define F_FW_ISCSI_NODE_WR_SESS_ATTR	V_FW_ISCSI_NODE_WR_SESS_ATTR(1U)
+
+#define S_FW_ISCSI_NODE_WR_CONN_ATTR	5
+#define M_FW_ISCSI_NODE_WR_CONN_ATTR	0x1
+#define V_FW_ISCSI_NODE_WR_CONN_ATTR(x)	((x) << S_FW_ISCSI_NODE_WR_CONN_ATTR)
+#define G_FW_ISCSI_NODE_WR_CONN_ATTR(x)	\
+    (((x) >> S_FW_ISCSI_NODE_WR_CONN_ATTR) & M_FW_ISCSI_NODE_WR_CONN_ATTR)
+#define F_FW_ISCSI_NODE_WR_CONN_ATTR	V_FW_ISCSI_NODE_WR_CONN_ATTR(1U)
+
+#define S_FW_ISCSI_NODE_WR_TGT_ATTR	4
+#define M_FW_ISCSI_NODE_WR_TGT_ATTR	0x1
+#define V_FW_ISCSI_NODE_WR_TGT_ATTR(x)	((x) << S_FW_ISCSI_NODE_WR_TGT_ATTR)
+#define G_FW_ISCSI_NODE_WR_TGT_ATTR(x)	\
+    (((x) >> S_FW_ISCSI_NODE_WR_TGT_ATTR) & M_FW_ISCSI_NODE_WR_TGT_ATTR)
+#define F_FW_ISCSI_NODE_WR_TGT_ATTR	V_FW_ISCSI_NODE_WR_TGT_ATTR(1U)
+
+#define S_FW_ISCSI_NODE_WR_NODE_TYPE	3
+#define M_FW_ISCSI_NODE_WR_NODE_TYPE	0x1
+#define V_FW_ISCSI_NODE_WR_NODE_TYPE(x)	((x) << S_FW_ISCSI_NODE_WR_NODE_TYPE)
+#define G_FW_ISCSI_NODE_WR_NODE_TYPE(x)	\
+    (((x) >> S_FW_ISCSI_NODE_WR_NODE_TYPE) & M_FW_ISCSI_NODE_WR_NODE_TYPE)
+#define F_FW_ISCSI_NODE_WR_NODE_TYPE	V_FW_ISCSI_NODE_WR_NODE_TYPE(1U)
+
+#define S_FW_ISCSI_NODE_WR_COMPL	0
+#define M_FW_ISCSI_NODE_WR_COMPL	0x1
+#define V_FW_ISCSI_NODE_WR_COMPL(x)	((x) << S_FW_ISCSI_NODE_WR_COMPL)
+#define G_FW_ISCSI_NODE_WR_COMPL(x)	\
+    (((x) >> S_FW_ISCSI_NODE_WR_COMPL) & M_FW_ISCSI_NODE_WR_COMPL)
+#define F_FW_ISCSI_NODE_WR_COMPL	V_FW_ISCSI_NODE_WR_COMPL(1U)
+
+#endif
 
 /******************************************************************************
  *  C O M M A N D s
@@ -1511,6 +1574,7 @@ enum fw_cmd_opcodes {
 	FW_RSS_VI_CONFIG_CMD           = 0x23,
 	FW_SCHED_CMD                   = 0x24,
 	FW_DEVLOG_CMD                  = 0x25,
+	FW_NETIF_CMD                   = 0x26,
 	FW_LASTC2E_CMD                 = 0x40,
 	FW_ERROR_CMD                   = 0x80,
 	FW_DEBUG_CMD                   = 0x81,
@@ -1941,6 +2005,8 @@ enum fw_caps_config_iscsi {
 	FW_CAPS_CONFIG_ISCSI_TARGET_PDU = 0x00000002,
 	FW_CAPS_CONFIG_ISCSI_INITIATOR_CNXOFLD = 0x00000004,
 	FW_CAPS_CONFIG_ISCSI_TARGET_CNXOFLD = 0x00000008,
+	FW_CAPS_CONFIG_ISCSI_INITIATOR_SSNOFLD = 0x00000010,
+	FW_CAPS_CONFIG_ISCSI_TARGET_SSNOFLD = 0x00000020,
 };
 
 enum fw_caps_config_fcoe {
@@ -3941,6 +4007,39 @@ enum fw_port_cap {
 	FW_PORT_CAP_TECHKX4		= 0x2000,
 };
 
+#define S_FW_PORT_AUXLINFO_MDI		3
+#define M_FW_PORT_AUXLINFO_MDI		0x3
+#define V_FW_PORT_AUXLINFO_MDI(x)	((x) << S_FW_PORT_AUXLINFO_MDI)
+#define G_FW_PORT_AUXLINFO_MDI(x) \
+    (((x) >> S_FW_PORT_AUXLINFO_MDI) & M_FW_PORT_AUXLINFO_MDI)
+
+#define S_FW_PORT_AUXLINFO_KX4		2
+#define M_FW_PORT_AUXLINFO_KX4		0x1
+#define V_FW_PORT_AUXLINFO_KX4(x)	((x) << S_FW_PORT_AUXLINFO_KX4)
+#define G_FW_PORT_AUXLINFO_KX4(x) \
+    (((x) >> S_FW_PORT_AUXLINFO_KX4) & M_FW_PORT_AUXLINFO_KX4)
+#define F_FW_PORT_AUXLINFO_KX4		V_FW_PORT_AUXLINFO_KX4(1U)
+
+#define S_FW_PORT_AUXLINFO_KR		1
+#define M_FW_PORT_AUXLINFO_KR		0x1
+#define V_FW_PORT_AUXLINFO_KR(x)	((x) << S_FW_PORT_AUXLINFO_KR)
+#define G_FW_PORT_AUXLINFO_KR(x) \
+    (((x) >> S_FW_PORT_AUXLINFO_KR) & M_FW_PORT_AUXLINFO_KR)
+#define F_FW_PORT_AUXLINFO_KR		V_FW_PORT_AUXLINFO_KR(1U)
+
+#define S_FW_PORT_AUXLINFO_FEC		0
+#define M_FW_PORT_AUXLINFO_FEC		0x1
+#define V_FW_PORT_AUXLINFO_FEC(x)	((x) << S_FW_PORT_AUXLINFO_FEC)
+#define G_FW_PORT_AUXLINFO_FEC(x) \
+    (((x) >> S_FW_PORT_AUXLINFO_FEC) & M_FW_PORT_AUXLINFO_FEC) 
+#define F_FW_PORT_AUXLINFO_FEC		V_FW_PORT_AUXLINFO_FEC(1U)
+
+#define S_FW_PORT_RCAP_AUX	11
+#define M_FW_PORT_RCAP_AUX	0x7
+#define V_FW_PORT_RCAP_AUX(x)	((x) << S_FW_PORT_RCAP_AUX)
+#define G_FW_PORT_RCAP_AUX(x) \
+    (((x) >> S_FW_PORT_RCAP_AUX) & M_FW_PORT_RCAP_AUX)
+
 #define S_FW_PORT_CAP_SPEED	0
 #define M_FW_PORT_CAP_SPEED	0x3f
 #define V_FW_PORT_CAP_SPEED(x)	((x) << S_FW_PORT_CAP_SPEED)
@@ -4002,11 +4101,23 @@ enum fw_port_l2cfg_ctlbf {
 	FW_PORT_L2_CTLBF_MTU	= 0x40
 };
 
+enum fw_port_dcb_cfg {
+	FW_PORT_DCB_CFG_PG	= 0x01,
+	FW_PORT_DCB_CFG_PFC	= 0x02,
+	FW_PORT_DCB_CFG_APPL	= 0x04
+};
+
+enum fw_port_dcb_cfg_rc {
+	FW_PORT_DCB_CFG_SUCCESS	= 0x0,
+	FW_PORT_DCB_CFG_ERROR	= 0x1
+};
+
 enum fw_port_dcb_type {
 	FW_PORT_DCB_TYPE_PGID		= 0x00,
 	FW_PORT_DCB_TYPE_PGRATE		= 0x01,
 	FW_PORT_DCB_TYPE_PRIORATE	= 0x02,
-	FW_PORT_DCB_TYPE_PFC		= 0x03
+	FW_PORT_DCB_TYPE_PFC		= 0x03,
+	FW_PORT_DCB_TYPE_APP_ID		= 0x04,
 };
 
 struct fw_port_cmd {
@@ -4038,7 +4149,7 @@ struct fw_port_cmd {
 			__be16 acap;
 			__be16 mtu;
 			__u8   cbllen;
-			__u8   r7;
+			__u8   auxlinfo;
 			__be32 r8;
 			__be64 r9;
 		} info;
@@ -4068,6 +4179,14 @@ struct fw_port_cmd {
 				__be16 r10[3];
 				__be64 r11;
 			} pfc;
+			struct fw_port_app_priority {
+				__u8   type;
+				__u8   r10_lo[3];
+				__u8   prio;
+				__u8   sel;
+				__be16 protocolid;
+				__u8   r12[8];
+			} app_priority;
 		} dcb;
 	} u;
 };
@@ -5231,6 +5350,116 @@ struct fw_devlog_cmd {
 #define G_FW_DEVLOG_CMD_MEMADDR16_DEVLOG(x)	\
     (((x) >> S_FW_DEVLOG_CMD_MEMADDR16_DEVLOG) & \
      M_FW_DEVLOG_CMD_MEMADDR16_DEVLOG)
+
+struct fw_netif_cmd {
+	__be32 op_portid;
+	__be32 retval_to_len16;
+	__be32 add_to_ipv4gw;
+	__be32 vlanid_mtuval;
+	__be32 gwaddr;
+	__be32 addr;
+	__be32 nmask;
+	__be32 bcaddr;
+};
+
+#define S_FW_NETIF_CMD_PORTID		0
+#define M_FW_NETIF_CMD_PORTID		0xf
+#define V_FW_NETIF_CMD_PORTID(x)	((x) << S_FW_NETIF_CMD_PORTID)
+#define G_FW_NETIF_CMD_PORTID(x)	\
+    (((x) >> S_FW_NETIF_CMD_PORTID) & M_FW_NETIF_CMD_PORTID)
+
+#define S_FW_NETIF_CMD_RETVAL		24
+#define M_FW_NETIF_CMD_RETVAL		0xff
+#define V_FW_NETIF_CMD_RETVAL(x)	((x) << S_FW_NETIF_CMD_RETVAL)
+#define G_FW_NETIF_CMD_RETVAL(x)	\
+    (((x) >> S_FW_NETIF_CMD_RETVAL) & M_FW_NETIF_CMD_RETVAL)
+
+#define S_FW_NETIF_CMD_IFIDX	16
+#define M_FW_NETIF_CMD_IFIDX	0xff
+#define V_FW_NETIF_CMD_IFIDX(x)	((x) << S_FW_NETIF_CMD_IFIDX)
+#define G_FW_NETIF_CMD_IFIDX(x)	\
+    (((x) >> S_FW_NETIF_CMD_IFIDX) & M_FW_NETIF_CMD_IFIDX)
+
+#define S_FW_NETIF_CMD_LEN16	0
+#define M_FW_NETIF_CMD_LEN16	0xff
+#define V_FW_NETIF_CMD_LEN16(x)	((x) << S_FW_NETIF_CMD_LEN16)
+#define G_FW_NETIF_CMD_LEN16(x)	\
+    (((x) >> S_FW_NETIF_CMD_LEN16) & M_FW_NETIF_CMD_LEN16)
+
+#define S_FW_NETIF_CMD_ADD	31
+#define M_FW_NETIF_CMD_ADD	0x1
+#define V_FW_NETIF_CMD_ADD(x)	((x) << S_FW_NETIF_CMD_ADD)
+#define G_FW_NETIF_CMD_ADD(x)	\
+    (((x) >> S_FW_NETIF_CMD_ADD) & M_FW_NETIF_CMD_ADD)
+#define F_FW_NETIF_CMD_ADD	V_FW_NETIF_CMD_ADD(1U)
+
+#define S_FW_NETIF_CMD_LINK	30
+#define M_FW_NETIF_CMD_LINK	0x1
+#define V_FW_NETIF_CMD_LINK(x)	((x) << S_FW_NETIF_CMD_LINK)
+#define G_FW_NETIF_CMD_LINK(x)	\
+    (((x) >> S_FW_NETIF_CMD_LINK) & M_FW_NETIF_CMD_LINK)
+#define F_FW_NETIF_CMD_LINK	V_FW_NETIF_CMD_LINK(1U)
+
+#define S_FW_NETIF_CMD_VLAN	29
+#define M_FW_NETIF_CMD_VLAN	0x1
+#define V_FW_NETIF_CMD_VLAN(x)	((x) << S_FW_NETIF_CMD_VLAN)
+#define G_FW_NETIF_CMD_VLAN(x)	\
+    (((x) >> S_FW_NETIF_CMD_VLAN) & M_FW_NETIF_CMD_VLAN)
+#define F_FW_NETIF_CMD_VLAN	V_FW_NETIF_CMD_VLAN(1U)
+
+#define S_FW_NETIF_CMD_MTU	28
+#define M_FW_NETIF_CMD_MTU	0x1
+#define V_FW_NETIF_CMD_MTU(x)	((x) << S_FW_NETIF_CMD_MTU)
+#define G_FW_NETIF_CMD_MTU(x)	\
+    (((x) >> S_FW_NETIF_CMD_MTU) & M_FW_NETIF_CMD_MTU)
+#define F_FW_NETIF_CMD_MTU	V_FW_NETIF_CMD_MTU(1U)
+
+#define S_FW_NETIF_CMD_DHCP	27
+#define M_FW_NETIF_CMD_DHCP	0x1
+#define V_FW_NETIF_CMD_DHCP(x)	((x) << S_FW_NETIF_CMD_DHCP)
+#define G_FW_NETIF_CMD_DHCP(x)	\
+    (((x) >> S_FW_NETIF_CMD_DHCP) & M_FW_NETIF_CMD_DHCP)
+#define F_FW_NETIF_CMD_DHCP	V_FW_NETIF_CMD_DHCP(1U)
+
+#define S_FW_NETIF_CMD_IPV4BCADDR	3
+#define M_FW_NETIF_CMD_IPV4BCADDR	0x1
+#define V_FW_NETIF_CMD_IPV4BCADDR(x)	((x) << S_FW_NETIF_CMD_IPV4BCADDR)
+#define G_FW_NETIF_CMD_IPV4BCADDR(x)	\
+    (((x) >> S_FW_NETIF_CMD_IPV4BCADDR) & M_FW_NETIF_CMD_IPV4BCADDR)
+#define F_FW_NETIF_CMD_IPV4BCADDR	V_FW_NETIF_CMD_IPV4BCADDR(1U)
+
+#define S_FW_NETIF_CMD_IPV4NMASK	2
+#define M_FW_NETIF_CMD_IPV4NMASK	0x1
+#define V_FW_NETIF_CMD_IPV4NMASK(x)	((x) << S_FW_NETIF_CMD_IPV4NMASK)
+#define G_FW_NETIF_CMD_IPV4NMASK(x)	\
+    (((x) >> S_FW_NETIF_CMD_IPV4NMASK) & M_FW_NETIF_CMD_IPV4NMASK)
+#define F_FW_NETIF_CMD_IPV4NMASK	V_FW_NETIF_CMD_IPV4NMASK(1U)
+
+#define S_FW_NETIF_CMD_IPV4ADDR		1
+#define M_FW_NETIF_CMD_IPV4ADDR		0x1
+#define V_FW_NETIF_CMD_IPV4ADDR(x)	((x) << S_FW_NETIF_CMD_IPV4ADDR)
+#define G_FW_NETIF_CMD_IPV4ADDR(x)	\
+    (((x) >> S_FW_NETIF_CMD_IPV4ADDR) & M_FW_NETIF_CMD_IPV4ADDR)
+#define F_FW_NETIF_CMD_IPV4ADDR	V_FW_NETIF_CMD_IPV4ADDR(1U)
+
+#define S_FW_NETIF_CMD_IPV4GW		0
+#define M_FW_NETIF_CMD_IPV4GW		0x1
+#define V_FW_NETIF_CMD_IPV4GW(x)	((x) << S_FW_NETIF_CMD_IPV4GW)
+#define G_FW_NETIF_CMD_IPV4GW(x)	\
+    (((x) >> S_FW_NETIF_CMD_IPV4GW) & M_FW_NETIF_CMD_IPV4GW)
+#define F_FW_NETIF_CMD_IPV4GW	V_FW_NETIF_CMD_IPV4GW(1U)
+
+#define S_FW_NETIF_CMD_VLANID		16
+#define M_FW_NETIF_CMD_VLANID		0xfff
+#define V_FW_NETIF_CMD_VLANID(x)	((x) << S_FW_NETIF_CMD_VLANID)
+#define G_FW_NETIF_CMD_VLANID(x)	\
+    (((x) >> S_FW_NETIF_CMD_VLANID) & M_FW_NETIF_CMD_VLANID)
+
+#define S_FW_NETIF_CMD_MTUVAL		0
+#define M_FW_NETIF_CMD_MTUVAL		0xffff
+#define V_FW_NETIF_CMD_MTUVAL(x)	((x) << S_FW_NETIF_CMD_MTUVAL)
+#define G_FW_NETIF_CMD_MTUVAL(x)	\
+    (((x) >> S_FW_NETIF_CMD_MTUVAL) & M_FW_NETIF_CMD_MTUVAL)
 
 enum fw_error_type {
 	FW_ERROR_TYPE_EXCEPTION		= 0x0,

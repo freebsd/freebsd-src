@@ -44,9 +44,9 @@ ifn_start()
 
 	ifscript_up ${ifn} && cfg=0
 	ifconfig_up ${ifn} && cfg=0
-	ipv4_up ${ifn} && cfg=0
-	ipv6_up ${ifn} && cfg=0
-	ipx_up ${ifn} && cfg=0
+	afexists inet && ipv4_up ${ifn} && cfg=0
+	afexists inet6 && ipv6_up ${ifn} && cfg=0
+	afexists ipx && ipx_up ${ifn} && cfg=0
 	childif_create ${ifn} && cfg=0
 
 	return $cfg
@@ -64,9 +64,9 @@ ifn_stop()
 
 	[ -z "$ifn" ] && err 1 "ifn_stop called without an interface"
 
-	ipx_down ${ifn} && cfg=0
-	ipv6_down ${ifn} && cfg=0
-	ipv4_down ${ifn} && cfg=0
+	afexists ipx && ipx_down ${ifn} && cfg=0
+	afexists inet6 && ipv6_down ${ifn} && cfg=0
+	afexists inet && ipv4_down ${ifn} && cfg=0
 	ifconfig_down ${ifn} && cfg=0
 	ifscript_down ${ifn} && cfg=0
 	childif_destroy ${ifn} && cfg=0
@@ -85,6 +85,11 @@ ifconfig_up()
 {
 	local _cfg _ipv6_opts ifconfig_args
 	_cfg=1
+
+	# Make sure lo0 always comes up.
+	if [ "$1" = "lo0" ]; then
+		_cfg=0
+	fi
 
 	# ifconfig_IF
 	ifconfig_args=`ifconfig_getargs $1`
@@ -351,10 +356,10 @@ afexists()
 
 	case ${_af} in
 	inet)
-		${SYSCTL_N} net.inet > /dev/null 2>&1
+		${SYSCTL_N} kern.features.inet > /dev/null 2>&1
 		;;
 	inet6)
-		${SYSCTL_N} net.inet6 > /dev/null 2>&1
+		${SYSCTL_N} kern.features.inet6 > /dev/null 2>&1
 		;;
 	ipx)
 		${SYSCTL_N} net.ipx > /dev/null 2>&1
@@ -512,6 +517,13 @@ ipv4_up()
 	_if=$1
 	_ret=1
 
+	# Add 127.0.0.1/8 to lo0 unless otherwise specified.
+	if [ "${_if}" = "lo0" ]; then
+		ifconfig_args=`ifconfig_getargs ${_if}`
+		if [ -z "${ifconfig_args}" ]; then
+			ifconfig ${_if} inet 127.0.0.1/8 alias
+		fi
+	fi
 	ifalias_up ${_if} inet && _ret=0
 	ipv4_addrs_common ${_if} alias && _ret=0
 

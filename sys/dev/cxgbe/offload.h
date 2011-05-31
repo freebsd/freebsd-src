@@ -31,6 +31,24 @@
 #ifndef __T4_OFFLOAD_H__
 #define __T4_OFFLOAD_H__
 
+/* CPL message priority levels */
+enum {
+	CPL_PRIORITY_DATA     = 0,  /* data messages */
+	CPL_PRIORITY_SETUP    = 1,  /* connection setup messages */
+	CPL_PRIORITY_TEARDOWN = 0,  /* connection teardown messages */
+	CPL_PRIORITY_LISTEN   = 1,  /* listen start/stop messages */
+	CPL_PRIORITY_ACK      = 1,  /* RX ACK messages */
+	CPL_PRIORITY_CONTROL  = 1   /* control messages */
+};
+
+#define INIT_TP_WR(w, tid) do { \
+	(w)->wr.wr_hi = htonl(V_FW_WR_OP(FW_TP_WR) | \
+                              V_FW_WR_IMMDLEN(sizeof(*w) - sizeof(w->wr))); \
+	(w)->wr.wr_mid = htonl(V_FW_WR_LEN16(DIV_ROUND_UP(sizeof(*w), 16)) | \
+                               V_FW_WR_FLOWID(tid)); \
+	(w)->wr.wr_lo = cpu_to_be64(0); \
+} while (0)
+
 /*
  * Max # of ATIDs.  The absolute HW max is 16K but we keep it lower.
  */

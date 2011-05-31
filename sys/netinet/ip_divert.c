@@ -659,9 +659,9 @@ div_pcblist(SYSCTL_HANDLER_ARGS)
 	INP_INFO_WLOCK(&V_divcbinfo);
 	for (i = 0; i < n; i++) {
 		inp = inp_list[i];
-		INP_WLOCK(inp);
-		if (!in_pcbrele(inp))
-			INP_WUNLOCK(inp);
+		INP_RLOCK(inp);
+		if (!in_pcbrele_rlocked(inp))
+			INP_RUNLOCK(inp);
 	}
 	INP_INFO_WUNLOCK(&V_divcbinfo);
 
