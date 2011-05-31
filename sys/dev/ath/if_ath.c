@@ -984,6 +984,21 @@ ath_vap_create(struct ieee80211com *ic,
 	avp->av_bmiss = vap->iv_bmiss;
 	vap->iv_bmiss = ath_bmiss_vap;
 
+	/* Set default parameters */
+
+	/*
+	 * Anything earlier than some AR9300 series MACs don't
+	 * support a smaller MPDU density.
+	 */
+	vap->iv_ampdu_density = IEEE80211_HTCAP_MPDUDENSITY_8;
+	/*
+	 * All NICs can handle the maximum size, however
+	 * AR5416 based MACs can only TX aggregates w/ RTS
+	 * protection when the total aggregate size is <= 8k.
+	 * However, for now that's enforced by the TX path.
+	 */
+	vap->iv_ampdu_rxmax = IEEE80211_HTCAP_MAXRXAMPDU_64K;
+
 	avp->av_bslot = -1;
 	if (needbeacon) {
 		/*

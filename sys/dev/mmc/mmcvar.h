@@ -79,7 +79,7 @@ enum mmc_device_ivars {
 	__BUS_ACCESSOR(mmc, var, MMC, ivar, type)
 
 MMC_ACCESSOR(dsr_imp, DSR_IMP, int)
-MMC_ACCESSOR(media_size, MEDIA_SIZE, off_t)
+MMC_ACCESSOR(media_size, MEDIA_SIZE, long)
 MMC_ACCESSOR(rca, RCA, int)
 MMC_ACCESSOR(sector_size, SECTOR_SIZE, int)
 MMC_ACCESSOR(tran_speed, TRAN_SPEED, int)

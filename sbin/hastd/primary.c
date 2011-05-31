@@ -1243,7 +1243,7 @@ local_send_thread(void *arg)
 			    ggio->gctl_offset + res->hr_localoff);
 			if (ret == ggio->gctl_length)
 				hio->hio_errors[ncomp] = 0;
-			else {
+			else if (!ISSYNCREQ(hio)) {
 				/*
 				 * If READ failed, try to read from remote node.
 				 */

@@ -40,6 +40,7 @@ place the following lines in your
 kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "device ath"
+.Cd "device ath_pci"
 .Cd "device ath_hal"
 .Cd "options AH_SUPPORT_AR5416"
 .Cd "device ath_rate_sample"
@@ -51,6 +52,7 @@ module at boot time, place the following line in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
 if_ath_load="YES"
+if_ath_pci_load="YES"
 .Ed
 .Sh DESCRIPTION
 The
@@ -63,6 +65,19 @@ a PCI and/or CardBus interface are supported.
 Supported features include 802.11 and 802.3 frames, power management, BSS,
 IBSS, MBSS, TDMA, and host-based access point operation modes.
 All host/device interaction is via DMA.
+.Pp
+Please note that from FreeBSD-9.0, the
+.Nm
+driver does not include the PCI/PCIe bus glue.
+The same driver supports multiple underlying bus types, including PCI/PCIe,
+but also embedded (AHB) and USB in the future.
+.Pp
+To enable use for PCI/PCIe systems, see the
+.Xr ath_pci 4
+driver.
+For embedded systems which use the AHB to connect the wireless MAC, see the
+.Xr ath_ahb 4
+driver.
 .Pp
 The
 .Nm
