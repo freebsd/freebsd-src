@@ -1,31 +1,99 @@
 ----------------------------------------
+27 May 2011. Summary of changes for version 20110527:
+
+This release is available at www.acpica.org/downloads
+
+1) ACPI CA Core Subsystem:
+
+ASL Load() operator: Reinstate most restrictions on the incoming ACPI table 
+signature. Now, only allow SSDT, OEMx, and a null signature. History:
+    1) Originally, we checked the table signature for "SSDT" or "PSDT".
+       (PSDT is now obsolete.)
+    2) We added support for OEMx tables, signature "OEM" plus a fourth
+       "don't care" character.
+    3) Valid tables were encountered with a null signature, so we just
+       gave up on validating the signature, (05/2008).
+    4) We encountered non-AML tables such as the MADT, which caused
+       interpreter errors and kernel faults. So now, we once again allow
+       only SSDT, OEMx, and now, also a null signature. (05/2011).
+
+Added the missing _TDL predefined name to the global name list in order to 
+enable validation. Affects both the core ACPICA code and the iASL compiler.
+
+Example Code and Data Size: These are the sizes for the OS-independent 
+acpica.lib produced by the Microsoft Visual C++ 9.0 32-bit compiler. The debug 
+version of the code includes the debug output trace mechanism and has a much 
+larger code and data size.
+
+  Previous Release (VC 9.0):
+    Non-Debug Version:  90.0K Code, 23.8K Data, 113.8K Total
+    Debug Version:     164.5K Code, 68.0K Data, 232.5K Total
+  Current Release (VC 9.0):
+    Non-Debug Version:  90.1K Code, 23.9K Data, 114.0K Total
+    Debug Version:     165.6K Code, 68.4K Data, 234.0K Total
+
+2) iASL Compiler/Disassembler and Tools:
+
+Debugger/AcpiExec: Implemented support for "complex" method arguments on the 
+debugger command line. This adds support beyond simple integers -- including 
+Strings, Buffers, and Packages. Includes support for nested packages. 
+Increased the default command line buffer size to accommodate these arguments. 
+See the ACPICA reference for details and syntax. ACPICA BZ 917.
+ 
+Debugger/AcpiExec: Implemented support for "default" method arguments for the 
+Execute/Debug command. Now, the debugger will always invoke a control method 
+with the required number of arguments -- even if the command line specifies 
+none or insufficient arguments. It uses default integer values for any missing 
+arguments. Also fixes a bug where only six method arguments maximum were 
+supported instead of the required seven.
+
+Debugger/AcpiExec: Add a maximum buffer length parameter to AcpiOsGetLine and 
+also return status in order to prevent buffer overruns. See the ACPICA 
+reference for details and syntax. ACPICA BZ 921
+
+iASL: Cleaned up support for Berkeley yacc. A general cleanup of code and 
+makefiles to simplify support for the two different but similar parser 
+generators, bison and yacc.
+
+Updated the generic unix makefile for gcc 4. The default gcc version is now 
+expected to be 4 or greater, since options specific to gcc 4 are used.
+
+----------------------------------------
 13 April 2011. Summary of changes for version 20110413:
 
 1) ACPI CA Core Subsystem:
 
 Implemented support to execute a so-called "orphan" _REG method under the EC 
-device. This change will force the execution of a _REG method underneath the EC 
+device. This change will force the execution of a _REG method underneath the 
+EC 
 device even if there is no corresponding operation region of type 
 EmbeddedControl. Fixes a problem seen on some machines and apparently is 
 compatible with Windows behavior. ACPICA BZ 875.
 
 Added more predefined methods that are eligible for automatic NULL package 
-element removal. This change adds another group of predefined names to the list 
+element removal. This change adds another group of predefined names to the 
+list 
 of names that can be repaired by having NULL package elements dynamically 
 removed. This group are those methods that return a single variable-length 
 package containing simple data types such as integers, buffers, strings. This 
-includes: _ALx, _BCL, _CID,_ DOD, _EDL, _FIX, _PCL, _PLD, _PMD, _PRx, _PSL, _Sx, 
+includes: _ALx, _BCL, _CID,_ DOD, _EDL, _FIX, _PCL, _PLD, _PMD, _PRx, _PSL, 
+_Sx, 
 and _TZD. ACPICA BZ 914.
 
-Split and segregated all internal global lock functions to a new file, evglock.c.
+Split and segregated all internal global lock functions to a new file, 
+evglock.c.
 
-Updated internal address SpaceID for DataTable regions. Moved this internal space 
-id in preparation for ACPI 5.0 changes that will include some new space IDs. This 
+Updated internal address SpaceID for DataTable regions. Moved this internal 
+space 
+id in preparation for ACPI 5.0 changes that will include some new space IDs. 
+This 
 change should not affect user/host code.
 
-Example Code and Data Size: These are the sizes for the OS-independent acpica.lib 
+Example Code and Data Size: These are the sizes for the OS-independent 
+acpica.lib 
 produced by the Microsoft Visual C++ 9.0 32-bit compiler. The debug version of 
-the code includes the debug output trace mechanism and has a much larger code and 
+the code includes the debug output trace mechanism and has a much larger code 
+and 
 data size.
 
   Previous Release (VC 9.0):
@@ -40,34 +108,44 @@ data size.
 iASL/DTC: Major update for new grammar features. Allow generic data types in 
 custom ACPI tables. Field names are now optional. Any line can be split to 
 multiple lines using the continuation char (\). Large buffers now use line-
-continuation character(s) and no colon on the continuation lines. See the grammar 
+continuation character(s) and no colon on the continuation lines. See the 
+grammar 
 update in the iASL compiler reference. ACPI BZ 910,911. Lin Ming, Bob Moore.
 
 iASL: Mark ASL "Return()" and the simple "Return" as "Null" return statements. 
-Since the parser stuffs a "zero" as the return value for these statements (due to 
+Since the parser stuffs a "zero" as the return value for these statements (due 
+to 
 the underlying AML grammar), they were seen as "return with value" by the iASL 
 semantic checking. They are now seen correctly as "null" return statements.
 
 iASL: Check if a_REG declaration has a corresponding Operation Region. Adds a 
 check for each _REG to ensure that there is in fact a corresponding operation 
-region declaration in the same scope. If not, the _REG method is not very useful 
+region declaration in the same scope. If not, the _REG method is not very 
+useful 
 since it probably won't be executed. ACPICA BZ 915.
 
-iASL/DTC: Finish support for expression evaluation. Added a new expression parser 
-that implements c-style operator precedence and parenthesization. ACPICA bugzilla 
+iASL/DTC: Finish support for expression evaluation. Added a new expression 
+parser 
+that implements c-style operator precedence and parenthesization. ACPICA 
+bugzilla 
 908.
 
-Disassembler/DTC: Remove support for () and <> style comments in data tables. Now 
-that DTC has full expression support, we don't want to have comment strings that 
-start with a parentheses or a less-than symbol. Now, only the standard /* and // 
+Disassembler/DTC: Remove support for () and <> style comments in data tables. 
+Now 
+that DTC has full expression support, we don't want to have comment strings 
+that 
+start with a parentheses or a less-than symbol. Now, only the standard /* and 
+// 
 comments are supported, as well as the bracket [] comments.
 
-AcpiXtract: Fix for RSDP and dynamic SSDT extraction. These tables have "unusual" 
+AcpiXtract: Fix for RSDP and dynamic SSDT extraction. These tables have 
+"unusual" 
 headers in the acpidump file. Update the header validation to support these 
 tables. Problem introduced in previous AcpiXtract version in the change to 
 support "wrong checksum" error messages emitted by acpidump utility.
 
-iASL: Add a * option to generate all template files (as a synonym for ALL) as in 
+iASL: Add a * option to generate all template files (as a synonym for ALL) as 
+in 
 "iasl -T *" or "iasl -T ALL".
 
 iASL/DTC: Do not abort compiler on fatal errors. We do not want to completely 
@@ -81,7 +159,8 @@ invocation.
 1) ACPI CA Core Subsystem:
 
 Fixed a problem caused by a _PRW method appearing at the namespace root scope 
-during the setup of wake GPEs. A fault could occur if a _PRW directly under the 
+during the setup of wake GPEs. A fault could occur if a _PRW directly under 
+the 
 root object was passed to the AcpiSetupGpeForWake interface. Lin Ming.
 
 Implemented support for "spurious" Global Lock interrupts. On some systems, a 
@@ -89,9 +168,11 @@ global lock interrupt can occur without the pending flag being set. Upon a GL
 interrupt, we now ensure that a thread is actually waiting for the lock before 
 signaling GL availability. Rafael Wysocki, Bob Moore.
 
-Example Code and Data Size: These are the sizes for the OS-independent acpica.lib 
+Example Code and Data Size: These are the sizes for the OS-independent 
+acpica.lib 
 produced by the Microsoft Visual C++ 9.0 32-bit compiler. The debug version of 
-the code includes the debug output trace mechanism and has a much larger code and 
+the code includes the debug output trace mechanism and has a much larger code 
+and 
 data size.
 
   Previous Release (VC 9.0):
@@ -108,14 +189,16 @@ header files, disassembler, table compiler, and template generator. Bob Moore,
 Lin Ming.
 
 AcpiXtract: Correctly handle embedded comments and messages from AcpiDump. 
-Apparently some or all versions of acpidump will occasionally emit a comment like 
+Apparently some or all versions of acpidump will occasionally emit a comment 
+like 
 "Wrong checksum", etc., into the dump file. This was causing problems for 
 AcpiXtract. ACPICA BZ 905.
 
 iASL: Fix the Linux makefile by removing an inadvertent double file inclusion. 
 ACPICA BZ 913.
 
-AcpiExec: Update installation of operation region handlers. Install one handler 
+AcpiExec: Update installation of operation region handlers. Install one 
+handler 
 for a user-defined address space. This is used by the ASL test suite (ASLTS).
 
 ----------------------------------------
