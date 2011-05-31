@@ -376,9 +376,11 @@ AcpiOsRedirectOutput (
 /*
  * Debug input
  */
-UINT32
+ACPI_STATUS
 AcpiOsGetLine (
-    char                    *Buffer);
+    char                    *Buffer,
+    UINT32                  BufferLength,
+    UINT32                  *BytesRead);
 
 
 /*

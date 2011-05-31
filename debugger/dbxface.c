@@ -137,7 +137,13 @@ AcpiDbStartCommand (
 
             /* Get the user input line */
 
-            (void) AcpiOsGetLine (AcpiGbl_DbLineBuf);
+            Status = AcpiOsGetLine (AcpiGbl_DbLineBuf,
+                ACPI_DB_LINE_BUFFER_SIZE, NULL);
+            if (ACPI_FAILURE (Status))
+            {
+                ACPI_EXCEPTION ((AE_INFO, Status, "While parsing command line"));
+                return (Status);
+            }
         }
 
         Status = AcpiDbCommandDispatch (AcpiGbl_DbLineBuf, WalkState, Op);

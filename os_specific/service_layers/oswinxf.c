@@ -477,17 +477,21 @@ AcpiOsVprintf (
  *
  * FUNCTION:    AcpiOsGetLine
  *
- * PARAMETERS:  Buffer              - Where to store the line
+ * PARAMETERS:  Buffer              - Where to return the command line
+ *              BufferLength        - Maximum length of Buffer
+ *              BytesRead           - Where the actual byte count is returned
  *
- * RETURN:      Actual bytes read
+ * RETURN:      Status and actual bytes read
  *
  * DESCRIPTION: Formatted input with argument list pointer
  *
  *****************************************************************************/
 
-UINT32
+ACPI_STATUS
 AcpiOsGetLine (
-    char                    *Buffer)
+    char                    *Buffer,
+    UINT32                  BufferLength,
+    UINT32                  *BytesRead)
 {
     char                    Temp;
     UINT32                  i;
@@ -495,6 +499,11 @@ AcpiOsGetLine (
 
     for (i = 0; ; i++)
     {
+        if (i >= BufferLength)
+        {
+            return (AE_BUFFER_OVERFLOW);
+        }
+
         scanf ("%1c", &Temp);
         if (!Temp || Temp == '\n')
         {
@@ -510,7 +519,11 @@ AcpiOsGetLine (
 
     /* Return the number of bytes in the string */
 
-    return (i);
+    if (BytesRead)
+    {
+        *BytesRead = i;
+    }
+    return (AE_OK);
 }
 
 
