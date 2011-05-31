@@ -225,5 +225,9 @@ static struct afswtch af_nd6 = {
 static __constructor void
 nd6_ctor(void)
 {
+
+	if (!feature_present("inet6"))
+		return;
+
 	af_register(&af_nd6);
 }

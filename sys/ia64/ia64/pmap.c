@@ -535,7 +535,7 @@ pmap_invalidate_page(vm_offset_t va)
 	critical_enter();
 	vhpt_ofs = ia64_thash(va) - PCPU_GET(md.vhpt);
 	tag = ia64_ttag(va);
-	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
+	STAILQ_FOREACH(pc, &cpuhead, pc_allcpu) {
 		pte = (struct ia64_lpte *)(pc->pc_md.vhpt + vhpt_ofs);
 		atomic_cmpset_64(&pte->tag, tag, 1UL << 63);
 	}

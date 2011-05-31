@@ -1089,7 +1089,7 @@ forward_wakeup(int cpunum)
 	CPU_OR(&dontuse, &hlt_cpus_mask);
 	CPU_ZERO(&map2);
 	if (forward_wakeup_use_loop) {
-		SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
+		STAILQ_FOREACH(pc, &cpuhead, pc_allcpu) {
 			id = pc->pc_cpumask;
 			if (!CPU_OVERLAP(&id, &dontuse) &&
 			    pc->pc_curthread == pc->pc_idlethread) {
@@ -1124,7 +1124,7 @@ forward_wakeup(int cpunum)
 	}
 	if (!CPU_EMPTY(&map)) {
 		forward_wakeups_delivered++;
-		SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
+		STAILQ_FOREACH(pc, &cpuhead, pc_allcpu) {
 			id = pc->pc_cpumask;
 			if (!CPU_OVERLAP(&map, &id))
 				continue;

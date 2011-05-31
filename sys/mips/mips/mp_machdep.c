@@ -85,7 +85,7 @@ ipi_selected(cpuset_t cpus, int ipi)
 {
 	struct pcpu *pc;
 
-	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
+	STAILQ_FOREACH(pc, &cpuhead, pc_allcpu) {
 		if (CPU_OVERLAP(&cpus, &pc->pc_cpumask)) {
 			CTR3(KTR_SMP, "%s: pc: %p, ipi: %x\n", __func__, pc,
 			    ipi);
