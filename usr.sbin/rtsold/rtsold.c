@@ -570,6 +570,19 @@ rtsol_check_timer(void)
 				    "state = %d", ifi->ifname,
 				    ifi->state);
 
+			/* Remove all RA options. */
+			if (!TAILQ_EMPTY(&ifi->ifi_ra_opt)) {
+				struct ra_opt *rao;
+				struct ra_opt *rao_tmp;
+
+				rao = TAILQ_FIRST(&ifi->ifi_ra_opt);
+				while (rao != NULL) {
+					rao_tmp = TAILQ_NEXT(rao, rao_next);
+					free(rao_tmp->rao_msg);
+					free(rao_tmp);
+					rao = rao_tmp;
+				}
+			}
 			switch (ifi->state) {
 			case IFS_DOWN:
 			case IFS_TENTATIVE:
@@ -635,8 +648,29 @@ rtsol_check_timer(void)
 				break;
 			}
 			rtsol_timer_update(ifi);
-		}
+		} else {
+			/* Expiration check for RA options. */
+			struct ra_opt *rao;
+			struct ra_opt *rao_tmp;
+			int expire = 0;
 
+			TAILQ_FOREACH_SAFE(rao, &ifi->ifi_ra_opt, rao_next, rao_tmp) {
+				warnmsg(LOG_DEBUG, __func__,
+					"RA expiration timer: "
+					"type=%d, msg=%s, timer=%ld:%08ld",
+					rao->rao_type, (char *)rao->rao_msg,
+					(long)rao->rao_expire.tv_sec,
+					(long)rao->rao_expire.tv_usec);
+				if (timercmp(&now, &rao->rao_expire, >=)) {
+					warnmsg(LOG_DEBUG, __func__,
+						"RA expiration timer: expired.");
+					TAILQ_REMOVE(&ifi->ifi_ra_opt, rao, rao_next);
+					expire = 1;
+				}
+			}
+			if (expire)
+				ra_opt_handler(ifi);
+		}
 		if (timercmp(&ifi->expire, &rtsol_timer, <))
 			rtsol_timer = ifi->expire;
 	}
