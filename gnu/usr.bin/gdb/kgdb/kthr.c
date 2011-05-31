@@ -107,7 +107,7 @@ kgdb_thr_init(void)
 	addr = kgdb_lookup("stopped_cpus");
 	CPU_ZERO(&stopped_cpus);
 	cpusetsize = sysconf(_SC_CPUSET_SIZE);
-	if (cpusetsize != -1 && (size_t)cpusetsize <= sizeof(cpuset_t) &&
+	if (cpusetsize != -1 && (u_long)cpusetsize <= sizeof(cpuset_t) &&
 	    addr != 0)
 		kvm_read(kvm, addr, &stopped_cpus, cpusetsize);
 

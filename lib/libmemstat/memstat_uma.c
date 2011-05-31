@@ -341,7 +341,7 @@ memstat_kvm_uma(struct memory_type_list *list, void *kvm_handle)
 		return (-1);
 	}
 	cpusetsize = sysconf(_SC_CPUSET_SIZE);
-	if (cpusetsize == -1 || (size_t)cpusetsize > sizeof(cpuset_t)) {
+	if (cpusetsize == -1 || (u_long)cpusetsize > sizeof(cpuset_t)) {
 		list->mtl_error = MEMSTAT_ERROR_KVM_NOSYMBOL;
 		return (-1);
 	}
