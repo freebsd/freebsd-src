@@ -4,7 +4,7 @@
 /*
  * Copyright (C) 1998 WIDE Project.
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -16,7 +16,7 @@
  * 3. Neither the name of the project nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -29,12 +29,36 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-
-#define ALLNODES "ff02::1"
-#define ALLROUTERS_LINK "ff02::2"
-#define ALLROUTERS_SITE "ff05::2"
-#define ANY "::"
-#define RTSOLLEN 8
+#define IN6ADDR_LINKLOCAL_ALLNODES_INIT				\
+	{{{ 0xff, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,	\
+	    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01 }}}
+#define IN6ADDR_LINKLOCAL_ALLROUTERS_INIT			\
+	{{{ 0xff, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,	\
+	    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02 }}}
+#define IN6ADDR_SITELOCAL_ALLROUTERS_INIT			\
+	{{{ 0xff, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,	\
+	    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02 }}}
+extern const struct sockaddr_in6 sin6_linklocal_allnodes;
+extern const struct sockaddr_in6 sin6_linklocal_allrouters;
+extern const struct sockaddr_in6 sin6_sitelocal_allrouters;
+/*
+ * RFC 3542 API deprecates IPV6_PKTINFO in favor of
+ * IPV6_RECVPKTINFO
+ */
+#ifndef IPV6_RECVPKTINFO
+#ifdef IPV6_PKTINFO
+#define IPV6_RECVPKTINFO	IPV6_PKTINFO
+#endif
+#endif
+/*
+ * RFC 3542 API deprecates IPV6_HOPLIMIT in favor of
+ * IPV6_RECVHOPLIMIT
+ */
+#ifndef IPV6_RECVHOPLIMIT
+#ifdef IPV6_HOPLIMIT
+#define IPV6_RECVHOPLIMIT	IPV6_HOPLIMIT
+#endif
+#endif
 
 /* protocol constants and default values */
 #define DEF_MAXRTRADVINTERVAL 600
@@ -94,7 +118,6 @@ struct rtinfo {
 };
 #endif
 
-#ifdef RDNSS
 struct rdnss_addr {
 	TAILQ_ENTRY(rdnss_addr)	ra_next;
 
@@ -130,7 +153,6 @@ struct dnssl {
 	TAILQ_HEAD(, dnssl_addr) dn_list; /* list of search domains */
 	u_int32_t dn_ltime;	/* number of seconds valid */
 };
-#endif
 
 struct soliciter {
 	struct soliciter *next;
@@ -168,10 +190,8 @@ struct	rainfo {
 	u_int	hoplimit;	/* AdvCurHopLimit */
 	struct prefix prefix;	/* AdvPrefixList(link head) */
 	int	pfxs;		/* number of prefixes */
-#ifdef RDNSS
 	TAILQ_HEAD(, rdnss) rdnss;	/* DNS server list */
 	TAILQ_HEAD(, dnssl) dnssl;	/* search domain list */
-#endif
 	long	clockskew;	/* used for consisitency check of lifetimes */
 
 #ifdef ROUTEINFO
