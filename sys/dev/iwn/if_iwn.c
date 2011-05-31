@@ -401,6 +401,8 @@ static devclass_t iwn_devclass;
 
 DRIVER_MODULE(iwn, pci, iwn_driver, iwn_devclass, 0, 0);
 
+MODULE_VERSION(iwn, 1);
+
 MODULE_DEPEND(iwn, firmware, 1, 1, 1);
 MODULE_DEPEND(iwn, pci, 1, 1, 1);
 MODULE_DEPEND(iwn, wlan, 1, 1, 1);
