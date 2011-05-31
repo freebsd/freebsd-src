@@ -221,6 +221,7 @@ out:
 			error = errno;
 			unlink(tmpfile);
 		} else {
+			fflush(newfd);
 			/*
 			 * Send SIGHUP to mountd, but unlock exports file later.
 			 */
