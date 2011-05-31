@@ -65,7 +65,9 @@ and should have experience upgrading systems from source.
 The release build process requires that
 .Pa /usr/obj
 be populated with the output of
-.Dq Li "make buildworld" .
+.Dq Li "make buildworld" 
+and
+.Dq Li "make buildkernel" .
 This is necessary to provide the object files for the release or, when
 using
 .Pa generate-release.sh ,
@@ -294,7 +296,7 @@ The following sequence of commands can be used to build a
 cd /usr
 svn co svn://svn.freebsd.org/base/head src
 cd src
-make buildworld
+make buildworld buildkernel
 cd release
 make release
 make install DESTDIR=/var/freebsd-snapshot
