@@ -271,6 +271,7 @@ static void setup_memwin(struct adapter *);
 static int cfg_itype_and_nqueues(struct adapter *, int, int,
     struct intrs_and_queues *);
 static int prep_firmware(struct adapter *);
+static int get_devlog_params(struct adapter *, struct devlog_params *);
 static int get_capabilities(struct adapter *, struct fw_caps_config_cmd *);
 static int get_params(struct adapter *, struct fw_caps_config_cmd *);
 static void t4_set_desc(struct adapter *);
@@ -297,6 +298,7 @@ static int sysctl_holdoff_pktc_idx(SYSCTL_HANDLER_ARGS);
 static int sysctl_qsize_rxq(SYSCTL_HANDLER_ARGS);
 static int sysctl_qsize_txq(SYSCTL_HANDLER_ARGS);
 static int sysctl_handle_t4_reg64(SYSCTL_HANDLER_ARGS);
+static int sysctl_devlog(SYSCTL_HANDLER_ARGS);
 static inline void txq_start(struct ifnet *, struct sge_txq *);
 static uint32_t fconf_to_mode(uint32_t);
 static uint32_t mode_to_fconf(uint32_t);
@@ -401,6 +403,9 @@ t4_attach(device_t dev)
 	rc = prep_firmware(sc);
 	if (rc != 0)
 		goto done; /* error message displayed already */
+
+	/* Read firmware devlog parameters */
+	(void) get_devlog_params(sc, &sc->params.devlog);
 
 	/* Get device capabilities and select which ones we'll use */
 	rc = get_capabilities(sc, &caps);
@@ -1420,6 +1425,34 @@ prep_firmware(struct adapter *sc)
 }
 
 static int
+get_devlog_params(struct adapter *sc, struct devlog_params *dlog)
+{
+	struct fw_devlog_cmd devlog_cmd;
+	uint32_t meminfo;
+	int rc;
+
+	bzero(&devlog_cmd, sizeof(devlog_cmd));
+	devlog_cmd.op_to_write = htobe32(V_FW_CMD_OP(FW_DEVLOG_CMD) |
+	    F_FW_CMD_REQUEST | F_FW_CMD_READ);
+	devlog_cmd.retval_len16 = htobe32(FW_LEN16(devlog_cmd));
+	rc = -t4_wr_mbox(sc, sc->mbox, &devlog_cmd, sizeof(devlog_cmd),
+	    &devlog_cmd);
+	if (rc != 0) {
+		device_printf(sc->dev,
+		    "failed to get devlog parameters: %d.\n", rc);
+		bzero(dlog, sizeof (*dlog));
+		return (rc);
+	}
+
+	meminfo = be32toh(devlog_cmd.memtype_devlog_memaddr16_devlog);
+	dlog->memtype = G_FW_DEVLOG_CMD_MEMTYPE_DEVLOG(meminfo);
+	dlog->start = G_FW_DEVLOG_CMD_MEMADDR16_DEVLOG(meminfo) << 4;
+	dlog->size = be32toh(devlog_cmd.memsize_devlog);
+
+	return (0);
+}
+
+static int
 get_capabilities(struct adapter *sc, struct fw_caps_config_cmd *caps)
 {
 	int rc;
@@ -2387,6 +2420,10 @@ t4_sysctls(struct adapter *sc)
 	    CTLTYPE_STRING | CTLFLAG_RD, &intr_pktcount, sizeof(intr_pktcount),
 	    sysctl_int_array, "A", "interrupt holdoff packet counter values");
 
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "devlog",
+	    CTLTYPE_STRING | CTLFLAG_RD, sc, 0,
+	    sysctl_devlog, "A", "device log");
+
 	return (0);
 }
 
@@ -2728,6 +2765,120 @@ sysctl_handle_t4_reg64(SYSCTL_HANDLER_ARGS)
 	val = t4_read_reg64(sc, reg);
 
 	return (sysctl_handle_64(oidp, &val, 0, req));
+}
+
+const char *devlog_level_strings[] = {
+	[FW_DEVLOG_LEVEL_EMERG]		= "EMERG",
+	[FW_DEVLOG_LEVEL_CRIT]		= "CRIT",
+	[FW_DEVLOG_LEVEL_ERR]		= "ERR",
+	[FW_DEVLOG_LEVEL_NOTICE]	= "NOTICE",
+	[FW_DEVLOG_LEVEL_INFO]		= "INFO",
+	[FW_DEVLOG_LEVEL_DEBUG]		= "DEBUG"
+};
+
+const char *devlog_facility_strings[] = {
+	[FW_DEVLOG_FACILITY_CORE]	= "CORE",
+	[FW_DEVLOG_FACILITY_SCHED]	= "SCHED",
+	[FW_DEVLOG_FACILITY_TIMER]	= "TIMER",
+	[FW_DEVLOG_FACILITY_RES]	= "RES",
+	[FW_DEVLOG_FACILITY_HW]		= "HW",
+	[FW_DEVLOG_FACILITY_FLR]	= "FLR",
+	[FW_DEVLOG_FACILITY_DMAQ]	= "DMAQ",
+	[FW_DEVLOG_FACILITY_PHY]	= "PHY",
+	[FW_DEVLOG_FACILITY_MAC]	= "MAC",
+	[FW_DEVLOG_FACILITY_PORT]	= "PORT",
+	[FW_DEVLOG_FACILITY_VI]		= "VI",
+	[FW_DEVLOG_FACILITY_FILTER]	= "FILTER",
+	[FW_DEVLOG_FACILITY_ACL]	= "ACL",
+	[FW_DEVLOG_FACILITY_TM]		= "TM",
+	[FW_DEVLOG_FACILITY_QFC]	= "QFC",
+	[FW_DEVLOG_FACILITY_DCB]	= "DCB",
+	[FW_DEVLOG_FACILITY_ETH]	= "ETH",
+	[FW_DEVLOG_FACILITY_OFLD]	= "OFLD",
+	[FW_DEVLOG_FACILITY_RI]		= "RI",
+	[FW_DEVLOG_FACILITY_ISCSI]	= "ISCSI",
+	[FW_DEVLOG_FACILITY_FCOE]	= "FCOE",
+	[FW_DEVLOG_FACILITY_FOISCSI]	= "FOISCSI",
+	[FW_DEVLOG_FACILITY_FOFCOE]	= "FOFCOE"
+};
+
+static int
+sysctl_devlog(SYSCTL_HANDLER_ARGS)
+{
+	struct adapter *sc = arg1;
+	struct devlog_params *dparams = &sc->params.devlog;
+	struct fw_devlog_e *buf, *e;
+	int i, j, rc, nentries, first = 0;
+	struct sbuf *sb;
+	uint64_t ftstamp = UINT64_MAX;
+
+	if (dparams->start == 0)
+		return (ENXIO);
+
+	nentries = dparams->size / sizeof(struct fw_devlog_e);
+
+	buf = malloc(dparams->size, M_CXGBE, M_NOWAIT);
+	if (buf == NULL)
+		return (ENOMEM);
+
+	rc = -t4_mem_read(sc, dparams->memtype, dparams->start, dparams->size,
+	    (void *)buf);
+	if (rc != 0)
+		goto done;
+
+	for (i = 0; i < nentries; i++) {
+		e = &buf[i];
+
+		if (e->timestamp == 0)
+			break;	/* end */
+
+		e->timestamp = be64toh(e->timestamp);
+		e->seqno = be32toh(e->seqno);
+		for (j = 0; j < 8; j++)
+			e->params[j] = be32toh(e->params[j]);
+
+		if (e->timestamp < ftstamp) {
+			ftstamp = e->timestamp;
+			first = i;
+		}
+	}
+
+	if (buf[first].timestamp == 0)
+		goto done;	/* nothing in the log */
+
+	rc = sysctl_wire_old_buffer(req, 0);
+	if (rc != 0)
+		goto done;
+
+	sb = sbuf_new_for_sysctl(NULL, NULL, 4096, req);
+	sbuf_printf(sb, "\n%10s  %15s  %8s  %8s  %s\n",
+	    "Seq#", "Tstamp", "Level", "Facility", "Message");
+
+	i = first;
+	do {
+		e = &buf[i];
+		if (e->timestamp == 0)
+			break;	/* end */
+
+		sbuf_printf(sb, "%10d  %15ju  %8s  %8s  ",
+		    e->seqno, e->timestamp,
+		    (e->level < ARRAY_SIZE(devlog_level_strings) ?
+			devlog_level_strings[e->level] : "UNKNOWN"),
+		    (e->facility < ARRAY_SIZE(devlog_facility_strings) ?
+			devlog_facility_strings[e->facility] : "UNKNOWN"));
+		sbuf_printf(sb, e->fmt, e->params[0], e->params[1],
+		    e->params[2], e->params[3], e->params[4],
+		    e->params[5], e->params[6], e->params[7]);
+
+		if (++i == nentries)
+			i = 0;
+	} while (i != first);
+
+	rc = sbuf_finish(sb);
+	sbuf_delete(sb);
+done:
+	free(buf, M_CXGBE);
+	return (rc);
 }
 
 static inline void
