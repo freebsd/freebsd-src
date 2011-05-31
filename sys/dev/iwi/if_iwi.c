@@ -232,6 +232,8 @@ static devclass_t iwi_devclass;
 
 DRIVER_MODULE(iwi, pci, iwi_driver, iwi_devclass, 0, 0);
 
+MODULE_VERSION(iwi, 1);
+
 static __inline uint8_t
 MEM_READ_1(struct iwi_softc *sc, uint32_t addr)
 {
