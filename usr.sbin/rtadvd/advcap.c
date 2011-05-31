@@ -103,8 +103,7 @@ static char *tdecode(char *, char **);
  * we just notice escaped newlines.
  */
 int
-tgetent(bp, name)
-	char *bp, *name;
+tgetent(char *bp, char *name)
 {
 	char *cp;
 
@@ -113,8 +112,7 @@ tgetent(bp, name)
 }
 
 int
-getent(bp, name, cp)
-	char *bp, *name, *cp;
+getent(char *bp, char *name, char *cp)
 {
 	int c;
 	int i = 0, cnt = 0;
@@ -184,7 +182,7 @@ getent(bp, name, cp)
  * Note that this works because of the left to right scan.
  */
 int
-tnchktc()
+tnchktc(void)
 {
 	char *p, *q;
 	char tcname[16];	/* name of similar terminal */
@@ -233,8 +231,7 @@ tnchktc()
  * name (before the first field) stops us.
  */
 int
-tnamatch(np)
-	char *np;
+tnamatch(char *np)
 {
 	char *Np, *Bp;
 
@@ -260,8 +257,7 @@ tnamatch(np)
  * into the termcap file in octal.
  */
 static char *
-tskip(bp)
-	char *bp;
+tskip(char *bp)
 {
 	int dquote;
 
@@ -305,8 +301,7 @@ breakbreak:
  * Note that we handle octal numbers beginning with 0.
  */
 int64_t
-tgetnum(id)
-	char *id;
+tgetnum(char *id)
 {
 	int64_t i;
 	int base;
@@ -341,8 +336,7 @@ tgetnum(id)
  * not given.
  */
 int
-tgetflag(id)
-	char *id;
+tgetflag(char *id)
 {
 	char *bp = tbuf;
 
@@ -369,8 +363,7 @@ tgetflag(id)
  * No checking on area overflow.
  */
 char *
-tgetstr(id, area)
-	char *id, **area;
+tgetstr(char *id, char **area)
 {
 	char *bp = tbuf;
 
@@ -395,9 +388,7 @@ tgetstr(id, area)
  * string capability escapes.
  */
 static char *
-tdecode(str, area)
-	char *str;
-	char **area;
+tdecode(char *str, char **area)
 {
 	char *cp;
 	int c;

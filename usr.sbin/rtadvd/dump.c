@@ -4,7 +4,7 @@
 /*
  * Copyright (C) 2000 WIDE Project.
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -16,7 +16,7 @@
  * 3. Neither the name of the project nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -74,8 +74,7 @@ static char *rtpref_str[] = {
 };
 
 static char *
-ether_str(sdl)
-	struct sockaddr_dl *sdl;
+ether_str(struct sockaddr_dl *sdl)
 {
 	static char hbuf[32];
 	u_char *cp;
@@ -87,21 +86,19 @@ ether_str(sdl)
 	} else
 		snprintf(hbuf, sizeof(hbuf), "NONE");
 
-	return(hbuf);
+	return (hbuf);
 }
 
 static void
-if_dump()
+if_dump(void)
 {
 	struct rainfo *rai;
 	struct prefix *pfx;
 #ifdef ROUTEINFO
 	struct rtinfo *rti;
 #endif
-#ifdef RDNSS
 	struct rdnss *rdn;
 	struct dnssl *dns;
-#endif
 	char prefixbuf[INET6_ADDRSTRLEN];
 	int first;
 	struct timeval now;
@@ -236,7 +233,6 @@ if_dump()
 			fprintf(fp, ")\n");
 		}
 #endif
-#ifdef RDNSS
 		TAILQ_FOREACH(rdn, &rai->rdnss, rd_next) {
 			struct rdnss_addr *rdna;
 
@@ -248,7 +244,7 @@ if_dump()
 			TAILQ_FOREACH(rdna, &rdn->rd_list, ra_next) {
 				inet_ntop(AF_INET6, &rdna->ra_dns,
 				    prefixbuf, sizeof(prefixbuf));
-				
+
 				if (rdna != TAILQ_FIRST(&rdn->rd_list))
 					fprintf(fp, "            \t");
 				fprintf(fp, "%s\n", prefixbuf);
@@ -273,13 +269,11 @@ if_dump()
 			}
 			fprintf(fp, "\n");
 		}
-#endif
 	}
 }
 
 void
-rtadvd_dump_file(dumpfile)
-	char *dumpfile;
+rtadvd_dump_file(char *dumpfile)
 {
 	syslog(LOG_DEBUG, "<%s> dump current status to %s", __func__,
 	    dumpfile);

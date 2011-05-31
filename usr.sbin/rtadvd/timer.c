@@ -4,7 +4,7 @@
 /*
  * Copyright (C) 1998 WIDE Project.
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -16,7 +16,7 @@
  * 3. Neither the name of the project nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -85,7 +85,7 @@ rtadvd_add_timer(struct rtadvd_timer *(*timeout)(void *),
 	/* link into chain */
 	insque(newtimer, &timer_head);
 
-	return(newtimer);
+	return (newtimer);
 }
 
 void
@@ -146,13 +146,13 @@ rtadvd_check_timer()
 
 	if (TIMEVAL_EQUAL(&tm_max, &timer_head.tm)) {
 		/* no need to timeout */
-		return(NULL);
+		return (NULL);
 	} else if (TIMEVAL_LT(timer_head.tm, now)) {
 		/* this may occur when the interval is too small */
 		returnval.tv_sec = returnval.tv_usec = 0;
 	} else
 		TIMEVAL_SUB(&timer_head.tm, &now, &returnval);
-	return(&returnval);
+	return (&returnval);
 }
 
 struct timeval *
@@ -170,7 +170,7 @@ rtadvd_timer_rest(struct rtadvd_timer *timer)
 	else
 		TIMEVAL_SUB(&timer->tm, &now, &returnval);
 
-	return(&returnval);
+	return (&returnval);
 }
 
 /* result = a + b */

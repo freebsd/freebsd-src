@@ -4,7 +4,7 @@
 /*
  * Copyright (C) 1998 WIDE Project.
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -16,7 +16,7 @@
  * 3. Neither the name of the project nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -155,10 +155,8 @@ getconfig(intface)
 #ifdef ROUTEINFO
 	tmp->route.next = tmp->route.prev = &tmp->route;
 #endif
-#ifdef RDNSS
 	TAILQ_INIT(&tmp->rdnss);
 	TAILQ_INIT(&tmp->dnssl);
-#endif
 
 	/* check if we are allowed to forward packets (if not determined) */
 	if (forwarding < 0) {
@@ -619,7 +617,6 @@ getconfig(intface)
 	}
 #endif
 
-#ifdef RDNSS
 	/* DNS server and DNS search list information */
 	for (i = -1; i < MAXRDNSSENT ; i++) {
 		struct rdnss *rdn;
@@ -658,7 +655,7 @@ getconfig(intface)
 				syslog(LOG_ERR, "<%s> inet_pton failed for %s",
 				    __func__, abuf);
 				exit(1);
-			} 
+			}
 			TAILQ_INSERT_TAIL(&rdn->rd_list, rdna, ra_next);
 		}
 
@@ -730,7 +727,6 @@ getconfig(intface)
 		/* link into chain */
 		insque(dns, &tmp->dnssl);
 	}
-#endif
 	/* okey */
 	tmp->next = ralist;
 	ralist = tmp;
@@ -948,7 +944,7 @@ static struct rtadvd_timer *
 prefix_timeout(void *arg)
 {
 	struct prefix *prefix = (struct prefix *)arg;
-	
+
 	delete_prefix(prefix);
 
 	return(NULL);
@@ -1059,13 +1055,11 @@ make_packet(struct rainfo *rainfo)
 	struct nd_opt_route_info *ndopt_rti;
 	struct rtinfo *rti;
 #endif
-#ifdef RDNSS
 	struct nd_opt_rdnss *ndopt_rdnss;
 	struct rdnss *rdn;
 	struct nd_opt_dnssl *ndopt_dnssl;
 	struct dnssl *dns;
 	size_t len;
-#endif
 	struct prefix *pfx;
 
 	/* calculate total length */
@@ -1086,10 +1080,9 @@ make_packet(struct rainfo *rainfo)
 		packlen += sizeof(struct nd_opt_mtu);
 #ifdef ROUTEINFO
 	for (rti = rainfo->route.next; rti != &rainfo->route; rti = rti->next)
-		packlen += sizeof(struct nd_opt_route_info) + 
+		packlen += sizeof(struct nd_opt_route_info) +
 			   ((rti->prefixlen + 0x3f) >> 6) * 8;
 #endif
-#ifdef RDNSS
 	TAILQ_FOREACH(rdn, &rainfo->rdnss, rd_next) {
 		struct rdnss_addr *rdna;
 
@@ -1111,8 +1104,6 @@ make_packet(struct rainfo *rainfo)
 
 		packlen += len;
 	}
-#endif
-
 	/* allocate memory for the packet */
 	if ((buf = malloc(packlen)) == NULL) {
 		syslog(LOG_ERR,
@@ -1200,7 +1191,7 @@ make_packet(struct rainfo *rainfo)
 			if (pfx->pltimeexpire == 0)
 				pltime = pfx->preflifetime;
 			else
-				pltime = (pfx->pltimeexpire > now.tv_sec) ? 
+				pltime = (pfx->pltimeexpire > now.tv_sec) ?
 				    pfx->pltimeexpire - now.tv_sec : 0;
 		}
 		if (vltime < pltime) {
@@ -1232,8 +1223,6 @@ make_packet(struct rainfo *rainfo)
 		buf += sizeof(struct nd_opt_route_info) + psize * 8;
 	}
 #endif
-
-#ifdef RDNSS
 	TAILQ_FOREACH(rdn, &rainfo->rdnss, rd_next) {
 		struct rdnss_addr *rdna;
 
@@ -1272,7 +1261,7 @@ make_packet(struct rainfo *rainfo)
 
 		/* A zero octet after encoded DNS server list. */
 		*buf++ = '\0';
-		
+
 		/* Padding to next 8 octets boundary */
 		len = buf - (char *)ndopt_dnssl;
 		len += 8 - (len % 8);
@@ -1283,7 +1272,6 @@ make_packet(struct rainfo *rainfo)
 		syslog(LOG_DEBUG, "<%s>: nd_opt_dnssl_len = %d", __func__,
 			ndopt_dnssl->nd_opt_dnssl_len);
 	}
-#endif
 	return;
 }
 

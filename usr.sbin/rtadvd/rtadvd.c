@@ -4,7 +4,7 @@
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -16,7 +16,7 @@
  * 3. Neither the name of the project nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -80,8 +80,6 @@ struct msghdr sndmhdr;
 struct iovec rcviov[2];
 struct iovec sndiov[2];
 struct sockaddr_in6 rcvfrom;
-struct sockaddr_in6 sin6_allnodes = {sizeof(sin6_allnodes), AF_INET6};
-struct in6_addr in6a_site_allrouters;
 static char *dumpfilename = "/var/run/rtadvd.dump";
 static char *pidfilename = "/var/run/rtadvd.pid";
 static struct pidfh *pfh;
@@ -122,10 +120,8 @@ union nd_opts {
 #define NDOPT_FLAG_PREFIXINFO	(1 << 2)
 #define NDOPT_FLAG_RDHDR	(1 << 3)
 #define NDOPT_FLAG_MTU		(1 << 4)
-#ifdef RDNSS
 #define NDOPT_FLAG_RDNSS	(1 << 5)
 #define NDOPT_FLAG_DNSSL	(1 << 6)
-#endif
 
 u_int32_t ndopt_flags[] = {
 	[ND_OPT_SOURCE_LINKADDR]	= NDOPT_FLAG_SRCLINKADDR,
@@ -133,13 +129,25 @@ u_int32_t ndopt_flags[] = {
 	[ND_OPT_PREFIX_INFORMATION]	= NDOPT_FLAG_PREFIXINFO,
 	[ND_OPT_REDIRECTED_HEADER]	= NDOPT_FLAG_RDHDR,
 	[ND_OPT_MTU]			= NDOPT_FLAG_MTU,
-#ifdef RDNSS
 	[ND_OPT_RDNSS]			= NDOPT_FLAG_RDNSS,
 	[ND_OPT_DNSSL]			= NDOPT_FLAG_DNSSL,
-#endif
+};
+const struct sockaddr_in6 sin6_linklocal_allnodes = {
+        .sin6_len =     sizeof(sin6_linklocal_allnodes),
+        .sin6_family =  AF_INET6,
+        .sin6_addr =    IN6ADDR_LINKLOCAL_ALLNODES_INIT,
+};
+const struct sockaddr_in6 sin6_linklocal_allrouters = {
+        .sin6_len =     sizeof(sin6_linklocal_allrouters),
+        .sin6_family =  AF_INET6,
+        .sin6_addr =    IN6ADDR_LINKLOCAL_ALLROUTERS_INIT,
+};
+const struct sockaddr_in6 sin6_sitelocal_allrouters = {
+        .sin6_len =     sizeof(sin6_sitelocal_allrouters),
+        .sin6_family =  AF_INET6,
+        .sin6_addr =    IN6ADDR_SITELOCAL_ALLROUTERS_INIT,
 };
 
-int main(int, char *[]);
 static void set_die(int);
 static void die(void);
 static void sock_open(void);
@@ -160,9 +168,7 @@ static void rtadvd_set_dump_file(int);
 static void set_short_delay(struct rainfo *);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 #ifdef HAVE_POLL_H
 	struct pollfd set[2];
@@ -248,11 +254,6 @@ main(argc, argv)
 
 	while (argc--)
 		getconfig(*argv++);
-
-	if (inet_pton(AF_INET6, ALLNODES, &sin6_allnodes.sin6_addr) != 1) {
-		fprintf(stderr, "fatal: inet_pton failed\n");
-		exit(1);
-	}
 
 	pfh = pidfile_open(pidfilename, 0600, &otherpid);
 	if (pfh == NULL) {
@@ -372,27 +373,24 @@ main(argc, argv)
 }
 
 static void
-rtadvd_set_dump_file(sig)
-	int sig;
+rtadvd_set_dump_file(int sig)
 {
 	do_dump = 1;
 }
 
 static void
-set_die(sig)
-	int sig;
+set_die(int sig)
 {
 	do_die = 1;
 }
 
 static void
-die()
+die(void)
 {
 	struct rainfo *ra;
-#ifdef RDNSS
 	struct rdnss *rdn;
 	struct dnssl *dns;
-#endif
+
 	int i;
 	const int retrans = MAX_FINAL_RTR_ADVERTISEMENTS;
 
@@ -403,12 +401,10 @@ die()
 
 	for (ra = ralist; ra; ra = ra->next) {
 		ra->lifetime = 0;
-#ifdef RDNSS
 		TAILQ_FOREACH(rdn, &ra->rdnss, rd_next)
 			rdn->rd_ltime = 0;
 		TAILQ_FOREACH(dns, &ra->dnssl, dn_next)
 			dns->dn_ltime = 0;
-#endif
 		make_packet(ra);
 	}
 	for (i = 0; i < retrans; i++) {
@@ -417,12 +413,12 @@ die()
 		sleep(MIN_DELAY_BETWEEN_RAS);
 	}
 	pidfile_remove(pfh);
+
 	exit(0);
-	/*NOTREACHED*/
 }
 
 static void
-rtmsg_input()
+rtmsg_input(void)
 {
 	int n, type, ifindex = 0, plen;
 	size_t len;
@@ -441,7 +437,7 @@ rtmsg_input()
 	}
 	if (n > rtmsg_len(msg)) {
 		/*
-		 * This usually won't happen for messages received on 
+		 * This usually won't happen for messages received on
 		 * a routing socket.
 		 */
 		if (dflag > 1)
@@ -637,13 +633,13 @@ rtmsg_input()
 }
 
 void
-rtadvd_input()
+rtadvd_input(void)
 {
 	int i;
 	int *hlimp = NULL;
 #ifdef OLDRAWSOCKET
 	struct ip6_hdr *ip;
-#endif 
+#endif
 	struct icmp6_hdr *icp;
 	int ifindex = 0;
 	struct cmsghdr *cm;
@@ -766,7 +762,7 @@ rtadvd_input()
 	case ND_ROUTER_ADVERT:
 		/*
 		 * Message verification - RFC-2461 6.1.2
-		 * XXX: there's a same dilemma as above... 
+		 * XXX: there's a same dilemma as above...
 		 */
 		if (*hlimp != 255) {
 			syslog(LOG_NOTICE,
@@ -916,8 +912,7 @@ rs_input(int len, struct nd_router_solicit *rs,
 }
 
 static void
-set_short_delay(rai)
-	struct rainfo *rai;
+set_short_delay(struct rainfo *rai)
 {
 	long delay;	/* must not be greater than 1000000 */
 	struct timeval interval, now, min_delay, tm_tmp, *rest;
@@ -978,17 +973,14 @@ ra_input(int len, struct nd_router_advert *ra,
 	       inet_ntop(AF_INET6, &from->sin6_addr,
 			 ntopbuf, INET6_ADDRSTRLEN),
 	       if_indextoname(pi->ipi6_ifindex, ifnamebuf));
-	
+
 	/* ND option check */
 	memset(&ndopts, 0, sizeof(ndopts));
 	if (nd6_options((struct nd_opt_hdr *)(ra + 1),
 			len - sizeof(struct nd_router_advert),
 			&ndopts, NDOPT_FLAG_SRCLINKADDR |
-			NDOPT_FLAG_PREFIXINFO | NDOPT_FLAG_MTU
-#ifdef RDNSS
-			| NDOPT_FLAG_RDNSS | NDOPT_FLAG_DNSSL
-#endif
-	    )) {
+			NDOPT_FLAG_PREFIXINFO | NDOPT_FLAG_MTU |
+			NDOPT_FLAG_RDNSS | NDOPT_FLAG_DNSSL)) {
 		syslog(LOG_INFO,
 		       "<%s> ND option check failed for an RA from %s on %s",
 		       __func__,
@@ -1012,7 +1004,7 @@ ra_input(int len, struct nd_router_advert *ra,
 		goto done;
 	}
 	rai->rainput++;		/* increment statistics */
-	
+
 	/* Cur Hop Limit value */
 	if (ra->nd_ra_curhoplimit && rai->hoplimit &&
 	    ra->nd_ra_curhoplimit != rai->hoplimit) {
@@ -1118,7 +1110,7 @@ ra_input(int len, struct nd_router_advert *ra,
 
 	if (inconsistent)
 		rai->rainconsistent++;
-	
+
   done:
 	free_ndopts(&ndopts);
 	return;
@@ -1137,7 +1129,7 @@ prefix_check(struct nd_opt_prefix_info *pinfo,
 
 #if 0				/* impossible */
 	if (pinfo->nd_opt_pi_type != ND_OPT_PREFIX_INFORMATION)
-		return(0);
+		return (0);
 #endif
 
 	/*
@@ -1167,7 +1159,7 @@ prefix_check(struct nd_opt_prefix_info *pinfo,
 		       inet_ntop(AF_INET6, &from->sin6_addr,
 				 ntopbuf, INET6_ADDRSTRLEN),
 		       rai->ifname);
-		return(0);
+		return (0);
 	}
 
 	preferred_time = ntohl(pinfo->nd_opt_pi_preferred_time);
@@ -1250,7 +1242,7 @@ prefix_check(struct nd_opt_prefix_info *pinfo,
 		inconsistent++;
 	}
 
-	return(inconsistent);
+	return (inconsistent);
 }
 
 struct prefix *
@@ -1269,13 +1261,13 @@ find_prefix(struct rainfo *rai, struct in6_addr *prefix, int plen)
 		if (memcmp((void *)prefix, (void *)&pp->prefix, bytelen))
 			continue;
 		if (bitlen == 0 ||
-		    ((prefix->s6_addr[bytelen] & bitmask) == 
+		    ((prefix->s6_addr[bytelen] & bitmask) ==
 		     (pp->prefix.s6_addr[bytelen] & bitmask))) {
-			return(pp);
+			return (pp);
 		}
 	}
 
-	return(NULL);
+	return (NULL);
 }
 
 /* check if p0/plen0 matches p1/plen1; return 1 if matches, otherwise 0. */
@@ -1287,19 +1279,19 @@ prefix_match(struct in6_addr *p0, int plen0,
 	u_char bitmask;
 
 	if (plen0 < plen1)
-		return(0);
+		return (0);
 	bytelen = plen1 / 8;
 	bitlen = plen1 % 8;
 	bitmask = 0xff << (8 - bitlen);
 	if (memcmp((void *)p0, (void *)p1, bytelen))
-		return(0);
+		return (0);
 	if (bitlen == 0 ||
 	    ((p0->s6_addr[bytelen] & bitmask) ==
 	     (p1->s6_addr[bytelen] & bitmask))) {
-		return(1);
+		return (1);
 	}
 
-	return(0);
+	return (0);
 }
 
 static int
@@ -1327,12 +1319,9 @@ nd6_options(struct nd_opt_hdr *hdr, int limit,
 			goto bad;
 		}
 
-		if (hdr->nd_opt_type > ND_OPT_MTU
-#ifdef RDNSS
-		    && hdr->nd_opt_type != ND_OPT_RDNSS &&
-		       hdr->nd_opt_type != ND_OPT_DNSSL
-#endif
-		    ) {
+		if (hdr->nd_opt_type > ND_OPT_MTU &&
+		    hdr->nd_opt_type != ND_OPT_RDNSS &&
+		    hdr->nd_opt_type != ND_OPT_DNSSL) {
 			syslog(LOG_INFO, "<%s> unknown ND option(type %d)",
 			    __func__, hdr->nd_opt_type);
 			continue;
@@ -1350,14 +1339,12 @@ nd6_options(struct nd_opt_hdr *hdr, int limit,
 		 */
 		if ((hdr->nd_opt_type == ND_OPT_MTU &&
 			optlen != sizeof(struct nd_opt_mtu)) ||
-#ifdef RDNSS
 		    (hdr->nd_opt_type == ND_OPT_RDNSS &&
 			(optlen < 24 ||
 			(optlen - sizeof(struct nd_opt_rdnss)) % 16 != 0)) ||
 		    (hdr->nd_opt_type == ND_OPT_DNSSL &&
 			(optlen < 16 ||
 			(optlen - sizeof(struct nd_opt_dnssl)) % 8 != 0)) ||
-#endif
 		    (hdr->nd_opt_type == ND_OPT_PREFIX_INFORMATION &&
 			optlen != sizeof(struct nd_opt_prefix_info))
 		) {
@@ -1369,10 +1356,8 @@ nd6_options(struct nd_opt_hdr *hdr, int limit,
 		switch (hdr->nd_opt_type) {
 		case ND_OPT_TARGET_LINKADDR:
 		case ND_OPT_REDIRECTED_HEADER:
-#ifdef RDNSS
 		case ND_OPT_RDNSS:
 		case ND_OPT_DNSSL:
-#endif
 			break;	/* we don't care about these options */
 		case ND_OPT_SOURCE_LINKADDR:
 		case ND_OPT_MTU:
@@ -1408,12 +1393,12 @@ nd6_options(struct nd_opt_hdr *hdr, int limit,
 		}
 	}
 
-	return(0);
+	return (0);
 
   bad:
 	free_ndopts(ndopts);
 
-	return(-1);
+	return (-1);
 }
 
 static void
@@ -1429,7 +1414,7 @@ free_ndopts(union nd_opts *ndopts)
 }
 
 void
-sock_open()
+sock_open(void)
 {
 	struct icmp6_filter filt;
 	struct ipv6_mreq mreq;
@@ -1446,7 +1431,7 @@ sock_open()
 		exit(1);
 	}
 
-	sndcmsgbuflen = CMSG_SPACE(sizeof(struct in6_pktinfo)) + 
+	sndcmsgbuflen = CMSG_SPACE(sizeof(struct in6_pktinfo)) +
 				CMSG_SPACE(sizeof(int));
 	sndcmsgbuf = (u_char *)malloc(sndcmsgbuflen);
 	if (sndcmsgbuf == NULL) {
@@ -1459,43 +1444,22 @@ sock_open()
 		       strerror(errno));
 		exit(1);
 	}
-
 	/* specify to tell receiving interface */
 	on = 1;
-#ifdef IPV6_RECVPKTINFO
 	if (setsockopt(sock, IPPROTO_IPV6, IPV6_RECVPKTINFO, &on,
 		       sizeof(on)) < 0) {
 		syslog(LOG_ERR, "<%s> IPV6_RECVPKTINFO: %s",
 		       __func__, strerror(errno));
 		exit(1);
 	}
-#else  /* old adv. API */
-	if (setsockopt(sock, IPPROTO_IPV6, IPV6_PKTINFO, &on,
-		       sizeof(on)) < 0) {
-		syslog(LOG_ERR, "<%s> IPV6_PKTINFO: %s",
-		       __func__, strerror(errno));
-		exit(1);
-	}
-#endif 
-
 	on = 1;
 	/* specify to tell value of hoplimit field of received IP6 hdr */
-#ifdef IPV6_RECVHOPLIMIT
 	if (setsockopt(sock, IPPROTO_IPV6, IPV6_RECVHOPLIMIT, &on,
 		       sizeof(on)) < 0) {
 		syslog(LOG_ERR, "<%s> IPV6_RECVHOPLIMIT: %s",
 		       __func__, strerror(errno));
 		exit(1);
 	}
-#else  /* old adv. API */
-	if (setsockopt(sock, IPPROTO_IPV6, IPV6_HOPLIMIT, &on,
-		       sizeof(on)) < 0) {
-		syslog(LOG_ERR, "<%s> IPV6_HOPLIMIT: %s",
-		       __func__, strerror(errno));
-		exit(1);
-	}
-#endif
-
 	ICMP6_FILTER_SETBLOCKALL(&filt);
 	ICMP6_FILTER_SETPASS(ND_ROUTER_SOLICIT, &filt);
 	ICMP6_FILTER_SETPASS(ND_ROUTER_ADVERT, &filt);
@@ -1511,13 +1475,9 @@ sock_open()
 	/*
 	 * join all routers multicast address on each advertising interface.
 	 */
-	if (inet_pton(AF_INET6, ALLROUTERS_LINK,
-		      &mreq.ipv6mr_multiaddr.s6_addr)
-	    != 1) {
-		syslog(LOG_ERR, "<%s> inet_pton failed(library bug?)",
-		       __func__);
-		exit(1);
-	}
+	memcpy(&mreq.ipv6mr_multiaddr.s6_addr,
+	       &sin6_linklocal_allrouters.sin6_addr,
+	       sizeof(mreq.ipv6mr_multiaddr.s6_addr));
 	while (ra) {
 		mreq.ipv6mr_interface = ra->ifindex;
 		if (setsockopt(sock, IPPROTO_IPV6, IPV6_JOIN_GROUP, &mreq,
@@ -1531,16 +1491,12 @@ sock_open()
 
 	/*
 	 * When attending router renumbering, join all-routers site-local
-	 * multicast group. 
+	 * multicast group.
 	 */
 	if (accept_rr) {
-		if (inet_pton(AF_INET6, ALLROUTERS_SITE,
-			      &in6a_site_allrouters) != 1) {
-			syslog(LOG_ERR, "<%s> inet_pton failed(library bug?)",
-			       __func__);
-			exit(1);
-		}
-		mreq.ipv6mr_multiaddr = in6a_site_allrouters;
+		memcpy(&mreq.ipv6mr_multiaddr.s6_addr,
+		       &sin6_sitelocal_allrouters.sin6_addr,
+		       sizeof(mreq.ipv6mr_multiaddr.s6_addr));
 		if (mcastif) {
 			if ((mreq.ipv6mr_interface = if_nametoindex(mcastif))
 			    == 0) {
@@ -1561,7 +1517,7 @@ sock_open()
 			exit(1);
 		}
 	}
-	
+
 	/* initialize msghdr for receiving packets */
 	rcviov[0].iov_base = (caddr_t)answer;
 	rcviov[0].iov_len = sizeof(answer);
@@ -1578,13 +1534,13 @@ sock_open()
 	sndmhdr.msg_iovlen = 1;
 	sndmhdr.msg_control = (caddr_t)sndcmsgbuf;
 	sndmhdr.msg_controllen = sndcmsgbuflen;
-	
+
 	return;
 }
 
 /* open a routing socket to watch the routing table */
 static void
-rtsock_open()
+rtsock_open(void)
 {
 	if ((rtsock = socket(PF_ROUTE, SOCK_RAW, 0)) < 0) {
 		syslog(LOG_ERR,
@@ -1600,15 +1556,14 @@ if_indextorainfo(int idx)
 
 	for (rai = ralist; rai; rai = rai->next) {
 		if (rai->ifindex == idx)
-			return(rai);
+			return (rai);
 	}
 
-	return(NULL);		/* search failed */
+	return (NULL);		/* search failed */
 }
 
 static void
-ra_output(rainfo)
-struct rainfo *rainfo;
+ra_output(struct rainfo *rainfo)
 {
 	int i;
 	struct cmsghdr *cm;
@@ -1623,7 +1578,7 @@ struct rainfo *rainfo;
 
 	make_packet(rainfo);	/* XXX: inefficient */
 
-	sndmhdr.msg_name = (caddr_t)&sin6_allnodes;
+	sndmhdr.msg_name = (caddr_t)&sin6_linklocal_allnodes;
 	sndmhdr.msg_iov[0].iov_base = (caddr_t)rainfo->ra_data;
 	sndmhdr.msg_iov[0].iov_len = rainfo->ra_datalen;
 
@@ -1649,7 +1604,7 @@ struct rainfo *rainfo;
 
 	syslog(LOG_DEBUG,
 	       "<%s> send RA on %s, # of waitings = %d",
-	       __func__, rainfo->ifname, rainfo->waiting); 
+	       __func__, rainfo->ifname, rainfo->waiting);
 
 	i = sendmsg(sock, &sndmhdr, 0);
 
@@ -1701,7 +1656,7 @@ ra_timeout(void *data)
 
 	ra_output(rai);
 
-	return(rai->timer);
+	return (rai->timer);
 }
 
 /* update RA timer */
@@ -1717,7 +1672,7 @@ ra_timer_update(void *data, struct timeval *tm)
 	 * between the interface's configured MinRtrAdvInterval and
 	 * MaxRtrAdvInterval (RFC2461 6.2.4).
 	 */
-	interval = rai->mininterval; 
+	interval = rai->mininterval;
 #ifdef HAVE_ARC4RANDOM
 	interval += arc4random_uniform(rai->maxinterval - rai->mininterval);
 #else
