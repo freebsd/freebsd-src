@@ -83,7 +83,6 @@ static const struct sockaddr_in6 sin6_allrouters = {
 static void call_script(const int, const char *const *, void *);
 static size_t dname_labeldec(char *, const char *);
 static int safefile(const char *);
-static int ra_opt_handler(struct ifinfo *);
 
 #define _ARGS_OTHER	otherconf_script, ifi->ifname
 #define _ARGS_RESADD	resolvconf_script, "-a", ifi->ifname
@@ -244,10 +243,7 @@ rtsol_input(int s)
 	struct nd_opt_rdnss *rdnss;
 	struct nd_opt_dnssl *dnssl;
 	size_t len;
-	char nsbuf[11 + INET6_ADDRSTRLEN + 1 + IFNAMSIZ + 1 + 1];
-	/* 11 = sizeof("nameserver "), 1+1 = \n\0 termination */
-	char slbuf[7 + NI_MAXHOST + 1 + 1];
-	/* 7 = sizeof("search "), 1+1 = \n\0 termination */
+	char nsbuf[INET6_ADDRSTRLEN + 1 + IFNAMSIZ + 1 + 1];
 	char dname[NI_MAXHOST + 1];
 	struct timeval now;
 	struct timeval lifetime;
@@ -400,6 +396,16 @@ rtsol_input(int s)
 		case ND_OPT_RDNSS:
 			rdnss = (struct nd_opt_rdnss *)raoptp;
 
+			/* Optlen sanity check (Section 5.3.1 in RFC 6106) */
+			if (rdnss->nd_opt_rdnss_len < 3) {
+				warnmsg(LOG_INFO, __func__,
+		    			"too short RDNSS option"
+					"in RA from %s was ignored.",
+					inet_ntop(AF_INET6, &from.sin6_addr,
+						  ntopbuf, INET6_ADDRSTRLEN));
+				break;
+			}
+
 			addr = (struct in6_addr *)(raoptp + sizeof(*rdnss));
 			while ((char *)addr < (char *)RA_OPT_NEXT_HDR(raoptp)) {
 				if (inet_ntop(AF_INET6, addr, ntopbuf,
@@ -447,16 +453,25 @@ rtsol_input(int s)
 		case ND_OPT_DNSSL:
 			dnssl = (struct nd_opt_dnssl *)raoptp;
 
+			/* Optlen sanity check (Section 5.3.1 in RFC 6106) */
+			if (dnssl->nd_opt_dnssl_len < 2) {
+				warnmsg(LOG_INFO, __func__,
+		    			"too short DNSSL option"
+					"in RA from %s was ignored.",
+					inet_ntop(AF_INET6, &from.sin6_addr,
+						  ntopbuf, INET6_ADDRSTRLEN));
+				break;
+			}
+
 			p = raoptp + sizeof(*dnssl);
 			while (0 < (len = dname_labeldec(dname, p))) {
-				sprintf(slbuf, "%s ", dname);
-				warnmsg(LOG_DEBUG, __func__, "slbuf = %s",
-				    slbuf);
+				warnmsg(LOG_DEBUG, __func__, "dname = %s",
+				    dname);
 
 				ELM_MALLOC(rao, break);
 				rao->rao_type = ndo->nd_opt_type;
-				rao->rao_len = strlen(nsbuf);
-				rao->rao_msg = strdup(slbuf);
+				rao->rao_len = strlen(dname);
+				rao->rao_msg = strdup(dname);
 				if (rao->rao_msg == NULL) {
 					warnmsg(LOG_ERR, __func__,
 					    "strdup failed: %s",
@@ -498,8 +513,9 @@ rtsol_input(int s)
 static char resstr_ns_prefix[] = "nameserver ";
 static char resstr_sh_prefix[] = "search ";
 static char resstr_nl[] = "\n";
+static char resstr_sp[] = " ";
 
-static int
+int
 ra_opt_handler(struct ifinfo *ifi)
 {
 	struct ra_opt *rao;
@@ -547,6 +563,10 @@ ra_opt_handler(struct ifinfo *ifi)
 			}
 			ELM_MALLOC(smp, continue);
 			smp->sm_msg = rao->rao_msg;
+			TAILQ_INSERT_TAIL(&sm_dnssl_head, smp, sm_next);
+
+			ELM_MALLOC(smp, continue);
+			smp->sm_msg = resstr_sp;
 			TAILQ_INSERT_TAIL(&sm_dnssl_head, smp, sm_next);
 			break;
 		default:

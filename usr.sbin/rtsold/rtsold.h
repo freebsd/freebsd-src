@@ -118,6 +118,7 @@ void rtsol_timer_update(struct ifinfo *);
 extern void warnmsg(int, const char *, const char *, ...)
      __attribute__((__format__(__printf__, 3, 4)));
 extern char **autoifprobe(void);
+extern int ra_opt_handler(struct ifinfo *);
 
 /* if.c */
 extern int ifinit(void);
