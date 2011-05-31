@@ -316,7 +316,7 @@ cpu_startup(void *dummy)
 	/*
 	 * Create sysctl tree for per-CPU information.
 	 */
-	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
+	STAILQ_FOREACH(pc, &cpuhead, pc_allcpu) {
 		snprintf(nodename, sizeof(nodename), "%u", pc->pc_cpuid);
 		sysctl_ctx_init(&pc->pc_md.sysctl_ctx);
 		pc->pc_md.sysctl_tree = SYSCTL_ADD_NODE(&pc->pc_md.sysctl_ctx,
