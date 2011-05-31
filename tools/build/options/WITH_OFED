@@ -1,4 +1,4 @@
-.\" $FreeBSD: projects/largeSMP/tools/build/options/WITH_OFED 222016 2011-05-17 11:06:41Z ru $
+.\" $FreeBSD$
 Set to build the
 .Dq "OpenFabrics Enterprise Distribution"
 Infiniband software stack.
