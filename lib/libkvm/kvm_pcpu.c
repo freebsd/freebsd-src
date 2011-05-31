@@ -131,7 +131,7 @@ kvm_getpcpu(kvm_t *kd, int cpu)
 	}
 
 	kcpusetsize = sysconf(_SC_CPUSET_SIZE);
-	if (kcpusetsize == -1 || (size_t)kcpusetsize > sizeof(cpuset_t))
+	if (kcpusetsize == -1 || (u_long)kcpusetsize > sizeof(cpuset_t))
 		return ((void *)-1);
 
 	if (maxcpu == 0)
