@@ -392,6 +392,13 @@ VNET_DOMAIN_SET(inet6);
 /*
  * Internet configuration info
  */
+#ifndef	IPV6FORWARDING
+#ifdef GATEWAY6
+#define	IPV6FORWARDING	1	/* forward IP6 packets not for us */
+#else
+#define	IPV6FORWARDING	0	/* don't forward IP6 packets not for us */
+#endif /* GATEWAY6 */
+#endif /* !IPV6FORWARDING */
 
 #ifndef	IPV6_SENDREDIRECTS
 #define	IPV6_SENDREDIRECTS	1
