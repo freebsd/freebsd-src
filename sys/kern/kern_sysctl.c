@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/sbuf.h>
 #include <sys/sx.h>
 #include <sys/sysproto.h>
 #include <sys/uio.h>
@@ -1584,4 +1585,29 @@ userland_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 			*retval = req.oldidx;
 	}
 	return (error);
+}
+
+/*
+ * Drain into a sysctl struct.  The user buffer should be wired if a page
+ * fault would cause issue.
+ */
+static int
+sbuf_sysctl_drain(void *arg, const char *data, int len)
+{
+	struct sysctl_req *req = arg;
+	int error;
+
+	error = SYSCTL_OUT(req, data, len);
+	KASSERT(error >= 0, ("Got unexpected negative value %d", error));
+	return (error == 0 ? len : -error);
+}
+
+struct sbuf *
+sbuf_new_for_sysctl(struct sbuf *s, char *buf, int length,
+    struct sysctl_req *req)
+{
+
+	s = sbuf_new(s, buf, length, SBUF_FIXEDLEN);
+	sbuf_set_drain(s, sbuf_sysctl_drain, req);
+	return (s);
 }

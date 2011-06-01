@@ -324,8 +324,8 @@ sbuf_drain(struct sbuf *s)
 		SBUF_SETFLAG(s, SBUF_OVERFLOWED);
 		return (s->s_drain->s_error);
 	}
-
-	KASSERT(len > 0, ("Drain must either error or work!"));
+	KASSERT(len > 0 && len <= s->s_len,
+	    ("Bad drain amount %d for sbuf %p", len, s));
 	s->s_len -= len;
 	/*
 	 * Fast path for the expected case where all the data was
