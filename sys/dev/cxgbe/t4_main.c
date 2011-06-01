@@ -305,6 +305,7 @@ static uint32_t mode_to_fconf(uint32_t);
 static uint32_t fspec_to_fconf(struct t4_filter_specification *);
 static int get_filter_mode(struct adapter *, uint32_t *);
 static int set_filter_mode(struct adapter *, uint32_t);
+static inline uint64_t get_filter_hits(struct adapter *, uint32_t);
 static int get_filter(struct adapter *, struct t4_filter *);
 static int set_filter(struct adapter *, struct t4_filter *);
 static int del_filter(struct adapter *, struct t4_filter *);
@@ -3064,6 +3065,20 @@ done:
 	return (rc);
 }
 
+static inline uint64_t
+get_filter_hits(struct adapter *sc, uint32_t fid)
+{
+	uint32_t tcb_base = t4_read_reg(sc, A_TP_CMM_TCB_BASE);
+	uint64_t hits;
+
+	t4_write_reg(sc, PCIE_MEM_ACCESS_REG(A_PCIE_MEM_ACCESS_OFFSET, 0),
+	    tcb_base + (fid + sc->tids.ftid_base) * TCB_SIZE);
+	t4_read_reg(sc, PCIE_MEM_ACCESS_REG(A_PCIE_MEM_ACCESS_OFFSET, 0));
+	hits = t4_read_reg64(sc, MEMWIN0_BASE + 16);
+
+	return (be64toh(hits));
+}
+
 static int
 get_filter(struct adapter *sc, struct t4_filter *t)
 {
@@ -3087,7 +3102,10 @@ get_filter(struct adapter *sc, struct t4_filter *t)
 			t->idx = i;
 			t->l2tidx = f->l2t ? f->l2t->idx : 0;
 			t->smtidx = f->smtidx;
-			t->hits = 0;	/* XXX implement */
+			if (f->fs.hitcnts)
+				t->hits = get_filter_hits(sc, t->idx);
+			else
+				t->hits = UINT64_MAX;
 			t->fs = f->fs;
 
 			return (0);
