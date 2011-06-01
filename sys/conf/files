@@ -846,7 +846,10 @@ dev/ath/ath_rate/onoe/onoe.c	optional ath_rate_onoe \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
 dev/ath/ath_rate/sample/sample.c	optional ath_rate_sample \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
-#
+# ath DFS modules
+dev/ath/ath_dfs/null/dfs_null.c	optional	ath \
+	compile-with "${NORMAL_C} -I$S/dev/ath"
+# 
 dev/bce/if_bce.c		optional bce
 dev/bfe/if_bfe.c		optional bfe
 dev/bge/if_bge.c		optional bge
