@@ -59,17 +59,39 @@
 #include <sys/dtrace.h>
 
 #ifdef LINUX_SYSTRACE
-#include <linux.h>
-#include <linux_syscall.h>
-#include <linux_proto.h>
-#include <linux_syscallnames.c>
-#include <linux_systrace.c>
+#if defined(__amd64__)
+#include <amd64/linux32/linux.h>
+#include <amd64/linux32/linux32_proto.h>
+#include <amd64/linux32/linux32_syscalls.c>
+#include <amd64/linux32/linux32_systrace_args.c>
+#define	MODNAME		"linux32"
+#elif defined(__i386__)
+#include <i386/linux/linux.h>
+#include <i386/linux/linux_proto.h>
+#include <i386/linux/linux_syscalls.c>
+#include <i386/linux/linux_systrace_args.c>
+#define	MODNAME		"linux"
+#else
+#error Only i386 and amd64 are supported.
+#endif
 extern struct sysent linux_sysent[];
-#define	DEVNAME		"dtrace/linsystrace"
-#define	PROVNAME	"linsyscall"
 #define	MAXSYSCALL	LINUX_SYS_MAXSYSCALL
 #define	SYSCALLNAMES	linux_syscallnames
 #define	SYSENT		linux_sysent
+#elif defined(FREEBSD32_SYSTRACE)
+/*
+ * The syscall arguments are processed into a DTrace argument array
+ * using a generated function. See sys/kern/makesyscalls.sh.
+ */
+#include <compat/freebsd32/freebsd32_proto.h>
+#include <compat/freebsd32/freebsd32_util.h>
+#include <compat/freebsd32/freebsd32_syscall.h>
+#include <compat/freebsd32/freebsd32_systrace_args.c>
+extern const char *freebsd32_syscallnames[];
+#define	MODNAME		"freebsd32"
+#define	MAXSYSCALL	FREEBSD32_SYS_MAXSYSCALL
+#define	SYSCALLNAMES	freebsd32_syscallnames
+#define	SYSENT		freebsd32_sysent
 #else
 /*
  * The syscall arguments are processed into a DTrace argument array
@@ -77,12 +99,14 @@ extern struct sysent linux_sysent[];
  */
 #include <sys/syscall.h>
 #include <kern/systrace_args.c>
-#define	DEVNAME		"dtrace/systrace"
-#define	PROVNAME	"syscall"
+#define	MODNAME		"freebsd"
 #define	MAXSYSCALL	SYS_MAXSYSCALL
 #define	SYSCALLNAMES	syscallnames
 #define	SYSENT		sysent
 #endif
+
+#define	PROVNAME	"syscall"
+#define	DEVNAME	        "dtrace/systrace/" MODNAME
 
 #define	SYSTRACE_ARTIFICIAL_FRAMES	1
 
@@ -109,7 +133,7 @@ static struct cdevsw systrace_cdevsw = {
 	.d_version	= D_VERSION,
 	.d_open		= systrace_open,
 #ifdef LINUX_SYSTRACE
-	.d_name		= "linsystrace",
+	.d_name		= "systrace_" MODNAME,
 #else
 	.d_name		= "systrace",
 #endif
@@ -214,14 +238,14 @@ systrace_provide(void *arg, dtrace_probedesc_t *desc)
 		return;
 
 	for (i = 0; i < MAXSYSCALL; i++) {
-		if (dtrace_probe_lookup(systrace_id, NULL,
+		if (dtrace_probe_lookup(systrace_id, MODNAME,
 		    uglyhack.pp_syscallnames[i], "entry") != 0)
 			continue;
 
-		(void) dtrace_probe_create(systrace_id, NULL, uglyhack.pp_syscallnames[i],
+		(void) dtrace_probe_create(systrace_id, MODNAME, uglyhack.pp_syscallnames[i],
 		    "entry", SYSTRACE_ARTIFICIAL_FRAMES,
 		    (void *)((uintptr_t)SYSTRACE_ENTRY(i)));
-		(void) dtrace_probe_create(systrace_id, NULL, uglyhack.pp_syscallnames[i],
+		(void) dtrace_probe_create(systrace_id, MODNAME, uglyhack.pp_syscallnames[i],
 		    "return", SYSTRACE_ARTIFICIAL_FRAMES,
 		    (void *)((uintptr_t)SYSTRACE_RETURN(i)));
 	}
@@ -335,12 +359,16 @@ SYSINIT(systrace_load, SI_SUB_DTRACE_PROVIDER, SI_ORDER_ANY, systrace_load, NULL
 SYSUNINIT(systrace_unload, SI_SUB_DTRACE_PROVIDER, SI_ORDER_ANY, systrace_unload, NULL);
 
 #ifdef LINUX_SYSTRACE
-DEV_MODULE(linsystrace, systrace_modevent, NULL);
-MODULE_VERSION(linsystrace, 1);
-MODULE_DEPEND(linsystrace, linux, 1, 1, 1);
-MODULE_DEPEND(linsystrace, systrace, 1, 1, 1);
-MODULE_DEPEND(linsystrace, dtrace, 1, 1, 1);
-MODULE_DEPEND(linsystrace, opensolaris, 1, 1, 1);
+DEV_MODULE(systrace_linux32, systrace_modevent, NULL);
+MODULE_VERSION(systrace_linux32, 1);
+MODULE_DEPEND(systrace_linux32, linux, 1, 1, 1);
+MODULE_DEPEND(systrace_linux32, dtrace, 1, 1, 1);
+MODULE_DEPEND(systrace_linux32, opensolaris, 1, 1, 1);
+#elif defined(FREEBSD32_SYSTRACE)
+DEV_MODULE(systrace_freebsd32, systrace_modevent, NULL);
+MODULE_VERSION(systrace_freebsd32, 1);
+MODULE_DEPEND(systrace_freebsd32, dtrace, 1, 1, 1);
+MODULE_DEPEND(systrace_freebsd32, opensolaris, 1, 1, 1);
 #else
 DEV_MODULE(systrace, systrace_modevent, NULL);
 MODULE_VERSION(systrace, 1);
