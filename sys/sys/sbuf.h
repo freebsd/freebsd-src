@@ -33,12 +33,16 @@
 
 #include <sys/_types.h>
 
+struct sbuf;
+struct sbuf_drain_data;
+typedef int (sbuf_drain_func)(void *, const char *, int);
+
 /*
  * Structure definition
  */
 struct sbuf {
 	char		*s_buf;		/* storage buffer */
-	void		*s_unused;	/* binary compatibility. */
+	struct sbuf_drain *s_drain;	/* drain function and data */
 	int		 s_size;	/* size of storage buffer */
 	int		 s_len;		/* current length of string */
 #define	SBUF_FIXEDLEN	0x00000000	/* fixed length buffer (default) */
@@ -69,9 +73,10 @@ int		 sbuf_printf(struct sbuf *, const char *, ...)
 int		 sbuf_vprintf(struct sbuf *, const char *, __va_list)
 	__printflike(2, 0);
 int		 sbuf_putc(struct sbuf *, int);
+void		 sbuf_set_drain(struct sbuf *, sbuf_drain_func *, void *);
 int		 sbuf_trim(struct sbuf *);
 int		 sbuf_overflowed(struct sbuf *);
-void		 sbuf_finish(struct sbuf *);
+int		 sbuf_finish(struct sbuf *);
 char		*sbuf_data(struct sbuf *);
 int		 sbuf_len(struct sbuf *);
 int		 sbuf_done(struct sbuf *);
