@@ -98,7 +98,7 @@
 The
 .Nm
 family of functions allows one to safely allocate, construct and
-release bounded null-terminated strings in kernel space.
+release bounded NUL-terminated strings in kernel space.
 Instead of arrays of characters, these functions operate on structures
 called
 .Fa sbufs ,
@@ -289,7 +289,7 @@ overflowed.
 .Pp
 The
 .Fn sbuf_finish
-function null-terminates the
+function NUL-terminates the
 .Fa sbuf
 and marks it as finished, which means that it may no longer be
 modified using
@@ -298,7 +298,10 @@ modified using
 .Fn sbuf_cpy ,
 .Fn sbuf_printf
 or
-.Fn sbuf_putc .
+.Fn sbuf_putc ,
+until
+.Fn sbuf_clear
+is used to reset the sbuf.
 .Pp
 The
 .Fn sbuf_data
@@ -309,7 +312,9 @@ functions return the actual string and its length, respectively;
 only works on a finished
 .Fa sbuf .
 .Fn sbuf_done
-returns non-zero if the sbuf is finished.
+returns non-zero if the
+.Fa sbuf
+is finished.
 .Sh NOTES
 If an operation caused an
 .Fa sbuf
