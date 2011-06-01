@@ -128,6 +128,10 @@ static const struct ath_hal_private ar5212hal = {{
 	.ah_setDecompMask               = ar5212SetDecompMask,
 	.ah_setCoverageClass            = ar5212SetCoverageClass,
 
+	/* DFS Functions */
+	.ah_enableDfs			= ar5212EnableDfs,
+	.ah_getDfsThresh		= ar5212GetDfsThresh,
+
 	/* Key Cache Functions */
 	.ah_getKeyCacheSize		= ar5212GetKeyCacheSize,
 	.ah_resetKeyCacheEntry		= ar5212ResetKeyCacheEntry,
