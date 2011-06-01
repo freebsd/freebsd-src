@@ -618,5 +618,7 @@ extern	void ar5212AniReset(struct ath_hal *, const struct ieee80211_channel *,
 
 extern	HAL_BOOL ar5212IsNFCalInProgress(struct ath_hal *ah);
 extern	HAL_BOOL ar5212WaitNFCalComplete(struct ath_hal *ah, int i);
+extern	void ar5212EnableDfs(struct ath_hal *ah, HAL_PHYERR_PARAM *pe);
+extern	void ar5212GetDfsThresh(struct ath_hal *ah, HAL_PHYERR_PARAM *pe);
 
 #endif	/* _ATH_AR5212_H_ */
