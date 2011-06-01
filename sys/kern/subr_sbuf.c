@@ -1,5 +1,6 @@
 /*-
- * Copyright (c) 2000 Poul-Henning Kamp and Dag-Erling Coïdan Smørgrav
+ * Copyright (c) 2000-2008 Poul-Henning Kamp
+ * Copyright (c) 2000-2008 Dag-Erling CoÃ¯dan SmÃ¸rgrav
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -11,19 +12,18 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
- * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include <sys/cdefs.h>
@@ -84,9 +84,11 @@ static MALLOC_DEFINE(M_SBUF, "sbuf", "string buffers");
  * Debugging support
  */
 #if defined(_KERNEL) && defined(INVARIANTS)
+
 static void
 _assert_sbuf_integrity(const char *fun, struct sbuf *s)
 {
+
 	KASSERT(s != NULL,
 	    ("%s called with a NULL sbuf pointer", fun));
 	KASSERT(s->s_buf != NULL,
@@ -98,15 +100,20 @@ _assert_sbuf_integrity(const char *fun, struct sbuf *s)
 static void
 _assert_sbuf_state(const char *fun, struct sbuf *s, int state)
 {
+
 	KASSERT((s->s_flags & SBUF_FINISHED) == state,
 	    ("%s called with %sfinished or corrupt sbuf", fun,
 	    (state ? "un" : "")));
 }
+
 #define	assert_sbuf_integrity(s) _assert_sbuf_integrity(__func__, (s))
 #define	assert_sbuf_state(s, i)	 _assert_sbuf_state(__func__, (s), (i))
+
 #else /* _KERNEL && INVARIANTS */
+
 #define	assert_sbuf_integrity(s) do { } while (0)
 #define	assert_sbuf_state(s, i)	 do { } while (0)
+
 #endif /* _KERNEL && INVARIANTS */
 
 static int
@@ -121,7 +128,6 @@ sbuf_extendsize(int size)
 		else
 			newsize += SBUF_MAXEXTENDINCR;
 	}
-
 	return (newsize);
 }
 
@@ -137,9 +143,8 @@ sbuf_extend(struct sbuf *s, int addlen)
 
 	if (!SBUF_CANEXTEND(s))
 		return (-1);
-
 	newsize = sbuf_extendsize(s->s_size + addlen);
-	newbuf = (char *)SBMALLOC(newsize);
+	newbuf = SBMALLOC(newsize);
 	if (newbuf == NULL)
 		return (-1);
 	bcopy(s->s_buf, newbuf, s->s_size);
@@ -160,6 +165,7 @@ sbuf_extend(struct sbuf *s, int addlen)
 struct sbuf *
 sbuf_new(struct sbuf *s, char *buf, int length, int flags)
 {
+
 	KASSERT(length >= 0,
 	    ("attempt to create an sbuf of negative length (%d)", length));
 	KASSERT((flags & ~SBUF_USRFLAGMSK) == 0,
@@ -167,14 +173,14 @@ sbuf_new(struct sbuf *s, char *buf, int length, int flags)
 
 	flags &= SBUF_USRFLAGMSK;
 	if (s == NULL) {
-		s = (struct sbuf *)SBMALLOC(sizeof *s);
+		s = SBMALLOC(sizeof(*s));
 		if (s == NULL)
 			return (NULL);
-		bzero(s, sizeof *s);
+		bzero(s, sizeof(*s));
 		s->s_flags = flags;
 		SBUF_SETFLAG(s, SBUF_DYNSTRUCT);
 	} else {
-		bzero(s, sizeof *s);
+		bzero(s, sizeof(*s));
 		s->s_flags = flags;
 	}
 	s->s_size = length;
@@ -184,7 +190,7 @@ sbuf_new(struct sbuf *s, char *buf, int length, int flags)
 	}
 	if (flags & SBUF_AUTOEXTEND)
 		s->s_size = sbuf_extendsize(s->s_size);
-	s->s_buf = (char *)SBMALLOC(s->s_size);
+	s->s_buf = SBMALLOC(s->s_size);
 	if (s->s_buf == NULL) {
 		if (SBUF_ISDYNSTRUCT(s))
 			SBFREE(s);
@@ -201,6 +207,7 @@ sbuf_new(struct sbuf *s, char *buf, int length, int flags)
 struct sbuf *
 sbuf_uionew(struct sbuf *s, struct uio *uio, int *error)
 {
+
 	KASSERT(uio != NULL,
 	    ("%s called with NULL uio pointer", __func__));
 	KASSERT(error != NULL,
@@ -228,6 +235,7 @@ sbuf_uionew(struct sbuf *s, struct uio *uio, int *error)
 void
 sbuf_clear(struct sbuf *s)
 {
+
 	assert_sbuf_integrity(s);
 	/* don't care if it's finished or not */
 
@@ -243,6 +251,7 @@ sbuf_clear(struct sbuf *s)
 int
 sbuf_setpos(struct sbuf *s, int pos)
 {
+
 	assert_sbuf_integrity(s);
 	assert_sbuf_state(s, 0);
 
@@ -270,7 +279,6 @@ sbuf_bcat(struct sbuf *s, const void *buf, size_t len)
 
 	if (SBUF_HASOVERFLOWED(s))
 		return (-1);
-
 	for (; len; len--) {
 		if (!SBUF_HASROOM(s) && sbuf_extend(s, len) < 0)
 			break;
@@ -290,12 +298,12 @@ sbuf_bcat(struct sbuf *s, const void *buf, size_t len)
 int
 sbuf_bcopyin(struct sbuf *s, const void *uaddr, size_t len)
 {
+
 	assert_sbuf_integrity(s);
 	assert_sbuf_state(s, 0);
 
 	if (SBUF_HASOVERFLOWED(s))
 		return (-1);
-
 	if (len == 0)
 		return (0);
 	if (len > SBUF_FREESPACE(s)) {
@@ -316,6 +324,7 @@ sbuf_bcopyin(struct sbuf *s, const void *uaddr, size_t len)
 int
 sbuf_bcpy(struct sbuf *s, const void *buf, size_t len)
 {
+
 	assert_sbuf_integrity(s);
 	assert_sbuf_state(s, 0);
 
@@ -329,6 +338,7 @@ sbuf_bcpy(struct sbuf *s, const void *buf, size_t len)
 int
 sbuf_cat(struct sbuf *s, const char *str)
 {
+
 	assert_sbuf_integrity(s);
 	assert_sbuf_state(s, 0);
 
@@ -389,6 +399,7 @@ sbuf_copyin(struct sbuf *s, const void *uaddr, size_t len)
 int
 sbuf_cpy(struct sbuf *s, const char *str)
 {
+
 	assert_sbuf_integrity(s);
 	assert_sbuf_state(s, 0);
 
@@ -455,7 +466,7 @@ sbuf_printf(struct sbuf *s, const char *fmt, ...)
 	va_start(ap, fmt);
 	result = sbuf_vprintf(s, fmt, ap);
 	va_end(ap);
-	return(result);
+	return (result);
 }
 
 /*
@@ -464,12 +475,12 @@ sbuf_printf(struct sbuf *s, const char *fmt, ...)
 int
 sbuf_putc(struct sbuf *s, int c)
 {
+
 	assert_sbuf_integrity(s);
 	assert_sbuf_state(s, 0);
 
 	if (SBUF_HASOVERFLOWED(s))
 		return (-1);
-
 	if (!SBUF_HASROOM(s) && sbuf_extend(s, 1) < 0) {
 		SBUF_SETFLAG(s, SBUF_OVERFLOWED);
 		return (-1);
@@ -485,6 +496,7 @@ sbuf_putc(struct sbuf *s, int c)
 int
 sbuf_trim(struct sbuf *s)
 {
+
 	assert_sbuf_integrity(s);
 	assert_sbuf_state(s, 0);
 
@@ -503,7 +515,8 @@ sbuf_trim(struct sbuf *s)
 int
 sbuf_overflowed(struct sbuf *s)
 {
-    return SBUF_HASOVERFLOWED(s);
+
+	return (SBUF_HASOVERFLOWED(s));
 }
 
 /*
@@ -512,6 +525,7 @@ sbuf_overflowed(struct sbuf *s)
 void
 sbuf_finish(struct sbuf *s)
 {
+
 	assert_sbuf_integrity(s);
 	assert_sbuf_state(s, 0);
 
@@ -526,10 +540,11 @@ sbuf_finish(struct sbuf *s)
 char *
 sbuf_data(struct sbuf *s)
 {
+
 	assert_sbuf_integrity(s);
 	assert_sbuf_state(s, SBUF_FINISHED);
 
-	return s->s_buf;
+	return (s->s_buf);
 }
 
 /*
@@ -538,12 +553,13 @@ sbuf_data(struct sbuf *s)
 int
 sbuf_len(struct sbuf *s)
 {
+
 	assert_sbuf_integrity(s);
 	/* don't care if it's finished or not */
 
 	if (SBUF_HASOVERFLOWED(s))
 		return (-1);
-	return s->s_len;
+	return (s->s_len);
 }
 
 /*
@@ -560,7 +576,7 @@ sbuf_delete(struct sbuf *s)
 	if (SBUF_ISDYNAMIC(s))
 		SBFREE(s->s_buf);
 	isdyn = SBUF_ISDYNSTRUCT(s);
-	bzero(s, sizeof *s);
+	bzero(s, sizeof(*s));
 	if (isdyn)
 		SBFREE(s);
 }
@@ -572,5 +588,5 @@ int
 sbuf_done(struct sbuf *s)
 {
 
-	return(SBUF_ISFINISHED(s));
+	return (SBUF_ISFINISHED(s));
 }
