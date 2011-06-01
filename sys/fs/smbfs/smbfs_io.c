@@ -609,7 +609,7 @@ smbfs_putpages(ap)
 	npages = btoc(count);
 
 	for (i = 0; i < npages; i++) {
-		rtvals[i] = VM_PAGER_AGAIN;
+		rtvals[i] = VM_PAGER_ERROR;
 	}
 
 	bp = getpbuf(&smbfs_pbuf_freecnt);
@@ -639,13 +639,8 @@ smbfs_putpages(ap)
 
 	relpbuf(bp, &smbfs_pbuf_freecnt);
 
-	if (!error) {
-		int nwritten = round_page(count - uio.uio_resid) / PAGE_SIZE;
-		for (i = 0; i < nwritten; i++) {
-			rtvals[i] = VM_PAGER_OK;
-			vm_page_undirty(pages[i]);
-		}
-	}
+	if (!error)
+		vnode_pager_undirty_pages(pages, rtvals, count - uio.uio_resid);
 	return rtvals[0];
 #endif /* SMBFS_RWGENERIC */
 }

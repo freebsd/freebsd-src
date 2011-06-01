@@ -300,7 +300,7 @@ nfs_putpages(struct vop_putpages_args *ap)
 	}
 
 	for (i = 0; i < npages; i++)
-		rtvals[i] = VM_PAGER_AGAIN;
+		rtvals[i] = VM_PAGER_ERROR;
 
 	/*
 	 * When putting pages, do not extend file past EOF.
@@ -344,11 +344,7 @@ nfs_putpages(struct vop_putpages_args *ap)
 	relpbuf(bp, &nfs_pbuf_freecnt);
 
 	if (!error) {
-		int nwritten = round_page(count - uio.uio_resid) / PAGE_SIZE;
-		for (i = 0; i < nwritten; i++) {
-			rtvals[i] = VM_PAGER_OK;
-			vm_page_undirty(pages[i]);
-		}
+		vnode_pager_undirty_pages(pages, rtvals, count - uio.uio_resid);
 		if (must_commit) {
 			nfs_clearcommit(vp->v_mount);
 		}

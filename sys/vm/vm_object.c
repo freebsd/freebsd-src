@@ -852,6 +852,21 @@ rescan:
 		    flags, &clearobjflags);
 		if (object->generation != curgeneration)
 			goto rescan;
+
+		/*
+		 * If the VOP_PUTPAGES() did a truncated write, so
+		 * that even the first page of the run is not fully
+		 * written, vm_pageout_flush() returns 0 as the run
+		 * length.  Since the condition that caused truncated
+		 * write may be permanent, e.g. exhausted free space,
+		 * accepting n == 0 would cause an infinite loop.
+		 *
+		 * Forwarding the iterator leaves the unwritten page
+		 * behind, but there is not much we can do there if
+		 * filesystem refuses to write it.
+		 */
+		if (n == 0)
+			n = 1;
 		np = vm_page_find_least(object, pi + n);
 	}
 #if 0
