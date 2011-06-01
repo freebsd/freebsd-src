@@ -715,6 +715,9 @@ void	sysctl_lock(void);
 void	sysctl_unlock(void);
 int	sysctl_wire_old_buffer(struct sysctl_req *req, size_t len);
 
+struct sbuf;
+struct sbuf	*sbuf_new_for_sysctl(struct sbuf *, char *, int,
+		    struct sysctl_req *);
 #else	/* !_KERNEL */
 #include <sys/cdefs.h>
 
