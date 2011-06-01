@@ -134,6 +134,10 @@ SRCS+=	onoe.c
 SRCS+=	amrr.c
 .endif
 
+# DFS
+.PATH: ${.CURDIR}/../../dev/ath/ath_dfs/null
+SRCS+=	dfs_null.c
+
 CFLAGS+=  -I. -I${.CURDIR}/../../dev/ath -I${.CURDIR}/../../dev/ath/ath_hal
 
 opt_ah.h:
