@@ -1045,7 +1045,7 @@ config_red(struct dn_fsk *fs)
 
 	fs->w_q = fs->fs.w_q;
 	fs->max_p = fs->fs.max_p;
-	D("called");
+	ND("called");
 	/* Doing stuff that was in userland */
 	i = fs->sched->link.bandwidth;
 	s = (i <= 0) ? 0 :
@@ -1109,7 +1109,7 @@ config_red(struct dn_fsk *fs)
 	if (dn_cfg.red_max_pkt_size < 1)
 		dn_cfg.red_max_pkt_size = 1500;
 	fs->max_pkt_size = dn_cfg.red_max_pkt_size;
-	D("exit");
+	ND("exit");
 	return 0;
 }
 
@@ -2176,7 +2176,7 @@ ip_dn_destroy(int last)
 
 	DN_BH_WLOCK();
 	if (last) {
-		printf("%s removing last instance\n", __FUNCTION__);
+		ND("removing last instance\n");
 		ip_dn_ctl_ptr = NULL;
 		ip_dn_io_ptr = NULL;
 	}
@@ -2256,13 +2256,13 @@ unload_dn_sched(struct dn_alg *s)
 	struct dn_alg *tmp, *r;
 	int err = EINVAL;
 
-	D("called for %s", s->name);
+	ND("called for %s", s->name);
 
 	DN_BH_WLOCK();
 	SLIST_FOREACH_SAFE(r, &dn_cfg.schedlist, next, tmp) {
 		if (strcmp(s->name, r->name) != 0)
 			continue;
-		D("ref_count = %d", r->ref_count);
+		ND("ref_count = %d", r->ref_count);
 		err = (r->ref_count != 0) ? EBUSY : 0;
 		if (err == 0)
 			SLIST_REMOVE(&dn_cfg.schedlist, r, dn_alg, next);
