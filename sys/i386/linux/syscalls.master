@@ -102,7 +102,7 @@
 46	AUE_SETGID	STD	{ int linux_setgid16(l_gid16_t gid); }
 47	AUE_GETGID	STD	{ int linux_getgid16(void); }
 48	AUE_NULL	STD	{ int linux_signal(l_int sig, \
-				    l_handler_t handler); }
+				    void *handler); }
 49	AUE_GETEUID	STD	{ int linux_geteuid16(void); }
 50	AUE_GETEGID	STD	{ int linux_getegid16(void); }
 51	AUE_ACCT	NOPROTO	{ int acct(char *path); }
@@ -148,7 +148,7 @@
 				    struct timeval *tp, \
 				    struct timezone *tzp); }
 79	AUE_SETTIMEOFDAY	NOPROTO	{ int settimeofday( \
-				    struct timeval *tp, \
+				    struct timeval *tv, \
 				    struct timezone *tzp); }
 80	AUE_GETGROUPS	STD	{ int linux_getgroups16(l_uint gidsetsize, \
 				    l_gid16_t *gidset); }
@@ -293,7 +293,7 @@
 				    l_uid16_t *euid, l_uid16_t *suid); }
 166	AUE_NULL	STD	{ int linux_vm86(void); }
 167	AUE_NULL	STD	{ int linux_query_module(void); }
-168	AUE_POLL	NOPROTO	{ int poll(struct pollfd*, \
+168	AUE_POLL	NOPROTO	{ int poll(struct pollfd* fds, \
 				    unsigned int nfds, long timeout); }
 169	AUE_NULL	STD	{ int linux_nfsservctl(void); }
 170	AUE_SETRESGID	STD	{ int linux_setresgid16(l_gid16_t rgid, \
