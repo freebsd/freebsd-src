@@ -1,6 +1,5 @@
-.\" $NetBSD: ucom.4,v 1.9 2002/03/22 00:39:40 augustss Exp $
 .\"
-.\" Copyright (c) 1999 The NetBSD Foundation, Inc.
+.\" Copyright (c) 2010 Lev Serebryakov <lev@FreeBSD.org>.
 .\" All rights reserved.
 .\"
 .\" This code is derived from software contributed to The NetBSD Foundation
@@ -29,78 +28,70 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 1, 2008
-.Dt UCOM 4
+.Dd December 10, 2010
+.Dt UMCS7840 4
 .Os
 .Sh NAME
-.Nm ucom
-.Nd USB tty support
+.Nm umcs7840
+.Nd USB support for serial adapters based on the MCS7820 and MCS7840 chips
 .Sh SYNOPSIS
 To compile this driver into the kernel,
-place the following line in your
+place the following lines in your
 kernel configuration file:
 .Bd -ragged -offset indent
-.Cd "device ucom"
+.Cd "device umcs7840"
 .Ed
 .Pp
 Alternatively, to load the driver as a
 module at boot time, place the following line in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
-ucom_load="YES"
+umcs7840_load="YES"
 .Ed
 .Sh DESCRIPTION
 The
 .Nm
-driver attaches to USB modems, serial ports, and other devices that need
-to look like a tty.
+driver provides support for various multiport serial adapters based on the MosCom
+MCS7820 and MCS7840 chips. They are 2- or 4-port adapters with full-featured
+16550-compatible UARTs and very flexible baud generators. Also, these chips
+support RS422/RS485 and IrDA oprations.
+.Pp
+The device is accessed through the
+.Xr ucom 4
+driver which makes it behave like a
+.Xr tty 4 .
+.Pp
+Different ports on device are presented as sub-units, like
+.Pa /dev/ttyU0.1
+and
+.Pa /dev/ttyU0.2
+.Sh HARDWARE
 The
 .Nm
-driver shows a behavior like a
-.Xr tty 4 .
-This means that normal programs such as
-.Xr tip 1
-or
-.Xr ppp 8
-can be used to access the device.
+driver was tested on the following adapters:
 .Pp
-The
-.Va portno
-locater can be used to decide which port to use for devices that have
-multiple external ports.
-.Sh FILES
-.Bl -tag -width ".Pa /dev/cuaU?"
-.It Pa /dev/cuaU?
-.It Pa /dev/ttyU?
+.Bl -bullet -compact
+.It
+ST Lab U-360 two-port serial USB adapter
+.It
+ST Lab U-400 four-port serial USB adapter
 .El
 .Sh SEE ALSO
 .Xr tty 4 ,
-.Xr uark 4 ,
-.Xr uchcom 4 ,
-.Xr uftdi 4 ,
-.Xr umcs7840 4 ,
-.Xr umct 4 ,
-.Xr umodem 4 ,
-.Xr uplcom 4 ,
-.Xr usb 4 ,
-.Xr uvisor 4 ,
-.Xr uvscom 4
+.Xr ucom 4 ,
+.Xr usb 4
+.Sh BUGS
+This driver doesn't support access to any fine tunes of
+chip, like RS522/RS485 mode, non-standard baudrates, etc.
 .Sh HISTORY
 The
 .Nm
-driver was adopted from
-.Nx
-in March of 2002.
-This manual page was adopted from
-.Nx
-by
-.An Tom Rhodes Aq trhodes@FreeBSD.org
-in April 2002.
-.Sh BUGS
-Prior to
-.Fx 6.0
+driver
+appeared in ports since December of 2010.
+.Sh AUTHORS
+.An -nosplit
+The
 .Nm
-created
-.Pa /dev/ucom?
-rather than the uniform device names created today.
-Old scripts must be adjusted accordingly.
+driver was written by
+.An Lev Serebryakov
+.Aq lev@FreeBSD.org .
