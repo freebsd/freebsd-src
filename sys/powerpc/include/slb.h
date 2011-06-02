@@ -65,7 +65,7 @@
 /*
  * User segment for copyin/out
  */
-#define USER_SLB_SLOT 63
+#define USER_SLB_SLOT 0
 #define USER_SLB_SLBE (((USER_ADDR >> ADDR_SR_SHFT) << SLBE_ESID_SHIFT) | \
 			SLBE_VALID | USER_SLB_SLOT)
 
