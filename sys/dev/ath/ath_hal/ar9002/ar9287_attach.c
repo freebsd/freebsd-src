@@ -430,6 +430,7 @@ ar9287FillCapabilityInfo(struct ath_hal *ah)
 	pCap->halRifsTxSupport = AH_TRUE;
 	pCap->halRtsAggrLimit = 64*1024;	/* 802.11n max */
 	pCap->halExtChanDfsSupport = AH_TRUE;
+	pCap->halUseCombinedRadarRssi = AH_TRUE;
 #if 0
 	/* XXX bluetooth */
 	pCap->halBtCoexSupport = AH_TRUE;
@@ -446,6 +447,8 @@ ar9287FillCapabilityInfo(struct ath_hal *ah)
 
 	/* Hardware supports short-GI w/ 20MHz */
 	pCap->halHTSGI20Support = 1;
+
+	pCap->halEnhancedDfsSupport = AH_TRUE;
 
 	return AH_TRUE;
 }

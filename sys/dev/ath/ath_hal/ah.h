@@ -121,6 +121,9 @@ typedef enum {
 
 	HAL_CAP_RTS_AGGR_LIMIT	= 42,	/* aggregation limit with RTS */
 	HAL_CAP_4ADDR_AGGR	= 43,	/* hardware is capable of 4addr aggregation */
+	HAL_CAP_DFS_DMN		= 44,	/* current DFS domain */
+	HAL_CAP_EXT_CHAN_DFS	= 45,	/* DFS support for extension channel */
+	HAL_CAP_COMBINED_RADAR_RSSI	= 46,	/* Is combined RSSI for radar accurate */
 
 	HAL_CAP_AUTO_SLEEP	= 48,	/* hardware can go to network sleep
 					   automatically after waking up to receive TIM */
@@ -133,6 +136,7 @@ typedef enum {
 	HAL_CAP_HT20_SGI	= 96,	/* hardware supports HT20 short GI */
 
 	HAL_CAP_RXTSTAMP_PREC	= 100,	/* rx desc tstamp precision (bits) */
+	HAL_CAP_ENHANCED_DFS_SUPPORT	= 117,	/* hardware supports enhanced DFS */
 
 	/* The following are private to the FreeBSD HAL (224 onward) */
 
@@ -703,6 +707,34 @@ typedef enum {
 	HAL_CAP_INTMIT_SPUR_IMMUNITY_LEVEL = 6
 } HAL_CAP_INTMIT_CMD;
 
+typedef struct {
+	int32_t		pe_firpwr;	/* FIR pwr out threshold */
+	int32_t		pe_rrssi;	/* Radar rssi thresh */
+	int32_t		pe_height;	/* Pulse height thresh */
+	int32_t		pe_prssi;	/* Pulse rssi thresh */
+	int32_t		pe_inband;	/* Inband thresh */
+
+	/* The following params are only for AR5413 and later */
+	u_int32_t	pe_relpwr;	/* Relative power threshold in 0.5dB steps */
+	u_int32_t	pe_relstep;	/* Pulse Relative step threshold in 0.5dB steps */
+	u_int32_t	pe_maxlen;	/* Max length of radar sign in 0.8us units */
+	HAL_BOOL	pe_usefir128;	/* Use the average in-band power measured over 128 cycles */
+	HAL_BOOL	pe_blockradar;	/*
+					 * Enable to block radar check if pkt detect is done via OFDM
+					 * weak signal detect or pkt is detected immediately after tx
+					 * to rx transition
+					 */
+	HAL_BOOL	pe_enmaxrssi;	/*
+					 * Enable to use the max rssi instead of the last rssi during
+					 * fine gain changes for radar detection
+					 */
+	HAL_BOOL	pe_extchannel;	/* Enable DFS on ext channel */
+} HAL_PHYERR_PARAM;
+
+#define	HAL_PHYERR_PARAM_NOVAL	65535
+#define	HAL_PHYERR_PARAM_ENABLE	0x8000	/* Enable/Disable if applicable */
+
+
 /*
  * Hardware Access Layer (HAL) API.
  *
@@ -877,6 +909,12 @@ struct ath_hal {
 	u_int	  __ahdecl(*ah_getCTSTimeout)(struct ath_hal*);
 	HAL_BOOL  __ahdecl(*ah_setDecompMask)(struct ath_hal*, uint16_t, int);
 	void	  __ahdecl(*ah_setCoverageClass)(struct ath_hal*, uint8_t, int);
+
+	/* DFS functions */
+	void	  __ahdecl(*ah_enableDfs)(struct ath_hal *ah,
+				HAL_PHYERR_PARAM *pe);
+	void	  __ahdecl(*ah_getDfsThresh)(struct ath_hal *ah,
+				HAL_PHYERR_PARAM *pe);
 
 	/* Key Cache Functions */
 	uint32_t __ahdecl(*ah_getKeyCacheSize)(struct ath_hal*);

@@ -357,6 +357,10 @@ struct ath_softc {
 	uint16_t		*sc_eepromdata;	/* Local eeprom data, if AR9100 */
 	int			sc_txchainmask;	/* currently configured TX chainmask */
 	int			sc_rxchainmask;	/* currently configured RX chainmask */
+
+	/* DFS related state */
+	void			*sc_dfs;	/* Used by an optional DFS module */
+	struct task		sc_dfstask;	/* DFS processing task */
 };
 
 #define	ATH_LOCK_INIT(_sc) \
@@ -693,6 +697,17 @@ void	ath_intr(void *);
 	((*(_ah)->ah_set11nAggrMiddle((_ah), (_ds), (_num))))
 #define	ath_hal_set11nburstduration(_ah, _ds, _dur) \
 	((*(_ah)->ah_set11nBurstDuration)((_ah), (_ds), (_dur)))
+
+/*
+ * This is badly-named; you need to set the correct parameters
+ * to begin to receive useful radar events; and even then
+ * it doesn't "enable" DFS. See the ath_dfs/null/ module for
+ * more information.
+ */
+#define	ath_hal_enabledfs(_ah, _param) \
+	((*(_ah)->ah_enableDfs)((_ah), (_param)))
+#define	ath_hal_getdfsthresh(_ah, _param) \
+	((*(_ah)->ah_getDfsThresh)((_ah), (_param)))
 
 #define ath_hal_gpioCfgOutput(_ah, _gpio, _type) \
         ((*(_ah)->ah_gpioCfgOutput)((_ah), (_gpio), (_type)))

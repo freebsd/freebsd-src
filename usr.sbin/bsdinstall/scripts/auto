@@ -199,7 +199,7 @@ finalconfig() {
 		clear
 		echo This shell is operating in a chroot in the new system. \
 		    When finished making configuration changes, type \"exit\".
-		chroot "$BSDINSTALL_CHROOT" /bin/sh
+		chroot "$BSDINSTALL_CHROOT" /bin/sh 2>&1
 		# Don't hose local rc.conf changes
 		cp $BSDINSTALL_CHROOT/etc/rc.conf $BSDINSTALL_TMPETC/rc.conf.manual
 		finalconfig
