@@ -87,7 +87,6 @@ cpudep_ap_bootstrap(void)
 
 	msr = PSL_KERNSET & ~PSL_EE;
 	mtmsr(msr);
-	isync();
 
 	pcpup->pc_curthread = pcpup->pc_idlethread;
 	pcpup->pc_curpcb = pcpup->pc_curthread->td_pcb;
@@ -344,6 +343,10 @@ cpudep_ap_setup()
 
 		break;
 	default:
+#ifdef __powerpc64__
+		if (!(mfmsr() & PSL_HV)) /* Rely on HV to have set things up */
+			break;
+#endif
 		printf("WARNING: Unknown CPU type. Cache performace may be "
 		    "suboptimal.\n");
 		break;
