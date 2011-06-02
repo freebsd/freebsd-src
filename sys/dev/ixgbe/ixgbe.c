@@ -34,6 +34,7 @@
 
 #ifdef HAVE_KERNEL_OPTION_HEADERS
 #include "opt_inet.h"
+#include "opt_inet6.h"
 #endif
 
 #include "ixgbe.h"
@@ -46,7 +47,7 @@ int             ixgbe_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version
  *********************************************************************/
-char ixgbe_driver_version[] = "2.3.10";
+char ixgbe_driver_version[] = "2.3.11";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -318,7 +319,7 @@ static int fdir_pballoc = 1;
  *  ixgbe_probe determines if the driver should be loaded on
  *  adapter based on PCI vendor/device id of the adapter.
  *
- *  return 0 on success, positive on failure
+ *  return BUS_PROBE_DEFAULT on success, positive on failure
  *********************************************************************/
 
 static int
@@ -357,7 +358,7 @@ ixgbe_probe(device_t dev)
 				ixgbe_driver_version);
 			device_set_desc_copy(dev, adapter_name);
 			++ixgbe_total_ports;
-			return (0);
+			return (BUS_PROBE_DEFAULT);
 		}
 		ent++;
 	}
@@ -384,6 +385,11 @@ ixgbe_attach(device_t dev)
 	u32		ctrl_ext;
 
 	INIT_DEBUGOUT("ixgbe_attach: begin");
+
+	if (resource_disabled("ixgbe", device_get_unit(dev))) {
+		device_printf(dev, "Disabled by device hint\n");
+		return (ENXIO);
+	}
 
 	/* Allocate, clear, and link in our adapter structure */
 	adapter = device_get_softc(dev);
@@ -862,8 +868,9 @@ ixgbe_ioctl(struct ifnet * ifp, u_long command, caddr_t data)
 {
 	struct adapter	*adapter = ifp->if_softc;
 	struct ifreq	*ifr = (struct ifreq *) data;
-#ifdef INET
+#if defined(INET) || defined(INET6)
 	struct ifaddr *ifa = (struct ifaddr *)data;
+	bool		avoid_reset = FALSE;
 #endif
 	int             error = 0;
 
@@ -871,26 +878,28 @@ ixgbe_ioctl(struct ifnet * ifp, u_long command, caddr_t data)
 
         case SIOCSIFADDR:
 #ifdef INET
-		if (ifa->ifa_addr->sa_family == AF_INET) {
-			/*
-			 * Since resetting hardware takes a very long time
-			 * and results in link renegotiation we only
-			 * initialize the hardware only when it is absolutely
-			 * required.
-			 */
+		if (ifa->ifa_addr->sa_family == AF_INET)
+			avoid_reset = TRUE;
+#endif
+#ifdef INET6
+		if (ifa->ifa_addr->sa_family == AF_INET6)
+			avoid_reset = TRUE;
+#endif
+#if defined(INET) || defined(INET6)
+		/*
+		** Calling init results in link renegotiation,
+		** so we avoid doing it when possible.
+		*/
+		if (avoid_reset) {
 			ifp->if_flags |= IFF_UP;
-			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
-				IXGBE_CORE_LOCK(adapter);
-				ixgbe_init_locked(adapter);
-				IXGBE_CORE_UNLOCK(adapter);
-			}
+			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
+				ixgbe_init(adapter);
 			if (!(ifp->if_flags & IFF_NOARP))
 				arp_ifinit(ifp, ifa);
 		} else
-#endif
 			error = ether_ioctl(ifp, command, data);
 		break;
-
+#endif
 	case SIOCSIFMTU:
 		IOCTL_DEBUGOUT("ioctl: SIOCSIFMTU (Set Interface MTU)");
 		if (ifr->ifr_mtu > IXGBE_MAX_FRAME_SIZE - ETHER_HDR_LEN) {
@@ -951,6 +960,8 @@ ixgbe_ioctl(struct ifnet * ifp, u_long command, caddr_t data)
 			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
 		if (mask & IFCAP_VLAN_HWFILTER)
 			ifp->if_capenable ^= IFCAP_VLAN_HWFILTER;
+		if (mask & IFCAP_VLAN_HWTSO)
+			ifp->if_capenable ^= IFCAP_VLAN_HWTSO;
 		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 			IXGBE_CORE_LOCK(adapter);
 			ixgbe_init_locked(adapter);
@@ -1338,7 +1349,7 @@ ixgbe_legacy_irq(void *arg)
 
 /*********************************************************************
  *
- *  MSI Queue Interrupt Service routine
+ *  MSIX Queue Interrupt Service routine
  *
  **********************************************************************/
 void
@@ -1357,6 +1368,17 @@ ixgbe_msix_que(void *arg)
 
 	IXGBE_TX_LOCK(txr);
 	more_tx = ixgbe_txeof(txr);
+	/*
+	** Make certain that if the stack 
+	** has anything queued the task gets
+	** scheduled to handle it.
+	*/
+#if __FreeBSD_version < 800000
+	if (!IFQ_DRV_IS_EMPTY(&adapter->ifp->if_snd))
+#else
+	if (!drbr_empty(adapter->ifp, txr->br))
+#endif
+		more_tx = 1;
 	IXGBE_TX_UNLOCK(txr);
 
 	/* Do AIM now? */
@@ -1570,7 +1592,7 @@ ixgbe_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 	struct mbuf	*m_head;
 	bus_dma_segment_t segs[adapter->num_segs];
 	bus_dmamap_t	map;
-	struct ixgbe_tx_buf *txbuf, *txbuf_mapped;
+	struct ixgbe_tx_buf *txbuf;
 	union ixgbe_adv_tx_desc *txd = NULL;
 
 	m_head = *m_headp;
@@ -1589,7 +1611,6 @@ ixgbe_xmit(struct tx_ring *txr, struct mbuf **m_headp)
          */
         first = txr->next_avail_desc;
 	txbuf = &txr->tx_buffers[first];
-	txbuf_mapped = txbuf;
 	map = txbuf->map;
 
 	/*
@@ -1708,6 +1729,8 @@ ixgbe_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 	txr->next_avail_desc = i;
 
 	txbuf->m_head = m_head;
+	/* Swap the dma map between the first and last descriptor */
+	txr->tx_buffers[first].map = txbuf->map;
 	txbuf->map = map;
 	bus_dmamap_sync(txr->txtag, map, BUS_DMASYNC_PREWRITE);
 
@@ -2265,7 +2288,9 @@ ixgbe_setup_msix(struct adapter *adapter)
 msi:
        	msgs = pci_msi_count(dev);
        	if (msgs == 1 && pci_alloc_msi(dev, &msgs) == 0)
-               	device_printf(adapter->dev,"Using MSI interrupt\n");
+               	device_printf(adapter->dev,"Using an MSI interrupt\n");
+	else
+               	device_printf(adapter->dev,"Using a Legacy interrupt\n");
 	return (msgs);
 }
 
@@ -2412,19 +2437,21 @@ ixgbe_setup_interface(device_t dev, struct adapter *adapter)
 	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
 
 	ifp->if_capabilities |= IFCAP_HWCSUM | IFCAP_TSO4 | IFCAP_VLAN_HWCSUM;
-	ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU;
 	ifp->if_capabilities |= IFCAP_JUMBO_MTU;
+	ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING
+			     |  IFCAP_VLAN_HWTSO
+			     |  IFCAP_VLAN_MTU;
 	ifp->if_capenable = ifp->if_capabilities;
 
 	/* Don't enable LRO by default */
 	ifp->if_capabilities |= IFCAP_LRO;
 
 	/*
-	** Dont turn this on by default, if vlans are
+	** Don't turn this on by default, if vlans are
 	** created on another pseudo device (eg. lagg)
 	** then vlan events are not passed thru, breaking
 	** operation, but with HW FILTER off it works. If
-	** using vlans directly on the em driver you can
+	** using vlans directly on the ixgbe driver you can
 	** enable this and get full hardware tag filtering.
 	*/
 	ifp->if_capabilities |= IFCAP_VLAN_HWFILTER;
@@ -5333,7 +5360,7 @@ ixgbe_add_rx_process_limit(struct adapter *adapter, const char *name,
 static int
 ixgbe_set_advertise(SYSCTL_HANDLER_ARGS)
 {
-	int			error;
+	int			error = 0;
 	struct adapter		*adapter;
 	struct ixgbe_hw		*hw;
 	ixgbe_link_speed	speed, last;
