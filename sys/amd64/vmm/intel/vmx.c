@@ -110,7 +110,7 @@ MALLOC_DEFINE(M_VMX, "vmx", "vmx");
 
 extern  struct pcpu __pcpu[];
 
-static int vmxon_enabled[MAXCPU];
+int vmxon_enabled[MAXCPU];
 static char vmxon_region[MAXCPU][PAGE_SIZE] __aligned(PAGE_SIZE);
 
 static uint32_t pinbased_ctls, procbased_ctls, procbased_ctls2;
