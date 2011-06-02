@@ -697,7 +697,7 @@ ixv_ioctl(struct ifnet * ifp, u_long command, caddr_t data)
 	struct adapter	*adapter = ifp->if_softc;
 	struct ifreq	*ifr = (struct ifreq *) data;
 #if defined(INET) || defined(INET6)
-	struct ifreq	*ifa = (struct ifaddr *) data;
+	struct ifaddr	*ifa = (struct ifaddr *) data;
 	bool		avoid_reset = FALSE;
 #endif
 	int             error = 0;
