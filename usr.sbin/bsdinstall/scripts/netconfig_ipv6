@@ -69,7 +69,7 @@ while : ; do
 				continue
 			fi
 		fi
-		echo ifconfig_${INTERFACE}_ipv6=\"inet6 accept_rtadv\" >> $BSDINSTALL_TMPETC/rc.conf.net
+		echo ifconfig_${INTERFACE}_ipv6=\"inet6 accept_rtadv\" >> $BSDINSTALL_TMPETC/._rc.conf.net
 		exit 0
 	else
 		break
@@ -138,10 +138,10 @@ BEGIN {
 		sub("$", "/64", $1);
 	}
 	printf("ifconfig_%s_ipv6=\"inet6 %s\"\n", iface, $1);
-}' >> $BSDINSTALL_TMPETC/rc.conf.net
+}' >> $BSDINSTALL_TMPETC/._rc.conf.net
 
 if [ ! -z $BSDINSTALL_CONFIGCURRENT ]; then
-	. $BSDINSTALL_TMPETC/rc.conf.net
+	. $BSDINSTALL_TMPETC/._rc.conf.net
 	ifconfig ${INTERFACE} `eval echo \\\$ifconfig_${INTERFACE}_ipv6`
 	route delete default
 	route add default ${ipv6_defaultrouter}
