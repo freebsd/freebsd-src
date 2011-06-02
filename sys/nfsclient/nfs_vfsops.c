@@ -1147,6 +1147,10 @@ nfs_mount(struct mount *mp)
 				goto out;
 			}
 		}
+	} else if (has_addr_opt == 0) {
+		vfs_mount_error(mp, "No server address");
+		error = EINVAL;
+		goto out;
 	}
 	error = mountnfs(&args, mp, nam, args.hostname, &vp,
 	    curthread->td_ucred, negnametimeo);
