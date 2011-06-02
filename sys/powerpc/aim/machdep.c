@@ -526,7 +526,7 @@ powerpc_init(vm_offset_t startkernel, vm_offset_t endkernel,
 		pmap_mmu_install(MMU_TYPE_OEA, BUS_PROBE_GENERIC);
 
 	pmap_bootstrap(startkernel, endkernel);
-	mtmsr(mfmsr() | PSL_IR|PSL_DR|PSL_ME|PSL_RI);
+	mtmsr(PSL_KERNSET & ~PSL_EE);
 	isync();
 
 	/*
