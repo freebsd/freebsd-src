@@ -1,36 +1,39 @@
-//===-------- modsi3.S - Implement modsi3 ---------------------------------===//
-//
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
-//
-//===----------------------------------------------------------------------===//
+/*===-- modsi3.S - 32-bit signed integer modulus --------------------------===//
+ *
+ *                     The LLVM Compiler Infrastructure
+ *
+ * This file is dual licensed under the MIT and the University of Illinois Open
+ * Source Licenses. See LICENSE.TXT for details.
+ *
+ *===----------------------------------------------------------------------===//
+ *
+ * This file implements the __modsi3 (32-bit signed integer modulus) function
+ * for the ARM architecture as a wrapper around the unsigned routine.
+ *
+ *===----------------------------------------------------------------------===*/
 
 #include "../assembly.h"
 
-//
-// extern int32_t __modsi3(int32_t a, int32_t b);
-//
-// Returns the remainder when dividing two 32-bit signed integers.
-// Conceptually, the function is: { return a - (a / b) * b; }
-// But if you write that in C, llvm compiles it to a call to __modsi3...
-//
-	.align 2
+#define ESTABLISH_FRAME \
+    push   {r4, r7, lr}    ;\
+    add     r7,     sp, #4
+#define CLEAR_FRAME_AND_RETURN \
+    pop    {r4, r7, pc}
+
+.syntax unified
+.align 3
 DEFINE_COMPILERRT_FUNCTION(__modsi3)
-	push	{r4, r5, r7, lr}
-	add	r7, sp, #8	// set stack frame
-	mov	r5, r0		// save a
-	mov	r4, r1		// save b
-	bl      ___divsi3	// compute a/b
-#if __ARM_ARCH_7A__
-	mls     r0, r4, r0, r5  // mulitple result * b and subtract from a
-#else	
-	// before armv7, does not have "mls" instruction
-	mul	r3, r0, r4	// multiple result * b
-	sub     r0, r5, r3      // a - result
-#endif
-	pop     {r4, r5, r7, pc}
-	
-
-
+    ESTABLISH_FRAME
+    //  Set aside the sign of the dividend.
+    mov     r4,     r0
+    //  Take absolute value of a and b via abs(x) = (x^(x >> 31)) - (x >> 31).
+    eor     r2,     r0, r0, asr #31
+    eor     r3,     r1, r1, asr #31
+    sub     r0,     r2, r0, asr #31
+    sub     r1,     r3, r1, asr #31
+    //  abs(a) % abs(b)
+    bl     SYMBOL_NAME(__umodsi3)
+    //  Apply sign of dividend to result and return.
+    eor     r0,     r0, r4, asr #31
+    sub     r0,     r0, r4, asr #31
+    CLEAR_FRAME_AND_RETURN

@@ -11,6 +11,7 @@
  *
  * ===----------------------------------------------------------------------===
  */
+#include "abi.h"
 
 #include "int_lib.h"
 
@@ -26,7 +27,9 @@
 
 /* seee eeee eeee mmmm mmmm mmmm mmmm mmmm | mmmm mmmm mmmm mmmm mmmm mmmm mmmm mmmm */
 
-su_int
+ARM_EABI_FNALIAS(d2uiz, fixunsdfsi);
+
+COMPILER_RT_ABI su_int
 __fixunsdfsi(double a)
 {
     double_bits fb;

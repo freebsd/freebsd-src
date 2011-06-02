@@ -12,9 +12,14 @@
 // conversion is undefined for out of range values in the C standard.
 //
 //===----------------------------------------------------------------------===//
+#include "abi.h"
 
 #define DOUBLE_PRECISION
 #include "fp_lib.h"
+
+#include "int_lib.h"
+
+ARM_EABI_FNALIAS(d2iz, fixdfsi);
 
 int __fixdfsi(fp_t a) {
     
