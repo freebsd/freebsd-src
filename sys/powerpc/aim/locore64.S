@@ -76,7 +76,6 @@
         .set    kernbase, KERNBASE
 
 #define	TMPSTKSZ	8192		/* 8K temporary stack */
-#define	OFWSTKSZ	4096		/* 4K Open Firmware stack */
 
 /*
  * Globals
@@ -85,13 +84,8 @@
 	.align	4
 GLOBAL(tmpstk)
 	.space	TMPSTKSZ
-GLOBAL(ofwstk)
-	.space	OFWSTKSZ
 GLOBAL(esym)
 	.llong	0			/* end of symbol table */
-
-GLOBAL(ofmsr)
-	.llong	0, 0, 0, 0, 0		/* msr/sprg0-3 used in Open Firmware */
 
 #define	INTRCNT_COUNT	256		/* max(HROWPIC_IRQMAX,OPENPIC_IRQMAX) */
 GLOBAL(intrnames)
@@ -101,16 +95,6 @@ GLOBAL(eintrnames)
 GLOBAL(intrcnt)
 	.space	INTRCNT_COUNT * 4 * 2
 GLOBAL(eintrcnt)
-
-/*
- * File-scope for locore.S
- */
-idle_u:
-	.llong	0			/* fake uarea during idle after exit */
-openfirmware_entry:
-	.llong	0			/* Open Firmware entry point */
-srsave:
-	.llong	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 
 	.text
 	.globl	btext
@@ -206,122 +190,6 @@ ASENTRY(__start)
 	.globl	tocbase
 tocbase:
         .llong  .TOC.@tocbase
-
-/*
- * Open Firmware Real-mode Entry Point. This is a huge pain.
- */
-
-ASENTRY(ofw_32bit_mode_entry)
-	mflr	%r0
-	std	%r0,16(%r1)
-	stdu	%r1,-208(%r1)
-
-	/*
-	 * We need to save the following, because OF's register save/
-	 * restore code assumes that the contents of registers are
-	 * at most 32 bits wide: lr, cr, r2, r13-r31, the old MSR. These
-	 * get placed in that order in the stack.
-	 */
-
-	mfcr	%r4
-	std	%r4,48(%r1)
-	std	%r13,56(%r1)
-	std	%r14,64(%r1)
-	std	%r15,72(%r1)
-	std	%r16,80(%r1)
-	std	%r17,88(%r1)
-	std	%r18,96(%r1)
-	std	%r19,104(%r1)
-	std	%r20,112(%r1)
-	std	%r21,120(%r1)
-	std	%r22,128(%r1)
-	std	%r23,136(%r1)
-	std	%r24,144(%r1)
-	std	%r25,152(%r1)
-	std	%r26,160(%r1)
-	std	%r27,168(%r1)
-	std	%r28,176(%r1)
-	std	%r29,184(%r1)
-	std	%r30,192(%r1)
-	std	%r31,200(%r1)
-
-	/* Record the old MSR */
-	mfmsr	%r6
-
-	/* read client interface handler */
-	lis	%r4,openfirmware_entry@ha
-	ld	%r4,openfirmware_entry@l(%r4)
-
-	/*
-	 * Set the MSR to the OF value. This has the side effect of disabling
-	 * exceptions, which is important for the next few steps.
-	 */
-
-	lis	%r5,ofmsr@ha
-	ld	%r5,ofmsr@l(%r5)
-	mtmsrd	%r5
-	isync
-
-	/*
-	 * Set up OF stack. This needs to be accessible in real mode and
-	 * use the 32-bit ABI stack frame format. The pointer to the current
-	 * kernel stack is placed at the very top of the stack along with
-	 * the old MSR so we can get them back later.
-	 */
-	mr	%r5,%r1
-	lis	%r1,(ofwstk+OFWSTKSZ-32)@ha
-	addi	%r1,%r1,(ofwstk+OFWSTKSZ-32)@l
-	std	%r5,8(%r1)	/* Save real stack pointer */
-	std	%r2,16(%r1)	/* Save old TOC */
-	std	%r6,24(%r1)	/* Save old MSR */
-	li	%r5,0
-	stw	%r5,4(%r1)
-	stw	%r5,0(%r1)
-
-	/* Finally, branch to OF */
-	mtctr	%r4
-	bctrl
-
-	/* Reload stack pointer and MSR from the OFW stack */
-	ld	%r6,24(%r1)
-	ld	%r2,16(%r1)
-	ld	%r1,8(%r1)
-
-	/* Now set the real MSR */
-	mtmsrd	%r6
-	isync
-
-	/* Sign-extend the return value from OF */
-	extsw	%r3,%r3
-
-	/* Restore all the non-volatile registers */
-	ld	%r5,48(%r1)
-	mtcr	%r5
-	ld	%r13,56(%r1)
-	ld	%r14,64(%r1)
-	ld	%r15,72(%r1)
-	ld	%r16,80(%r1)
-	ld	%r17,88(%r1)
-	ld	%r18,96(%r1)
-	ld	%r19,104(%r1)
-	ld	%r20,112(%r1)
-	ld	%r21,120(%r1)
-	ld	%r22,128(%r1)
-	ld	%r23,136(%r1)
-	ld	%r24,144(%r1)
-	ld	%r25,152(%r1)
-	ld	%r26,160(%r1)
-	ld	%r27,168(%r1)
-	ld	%r28,176(%r1)
-	ld	%r29,184(%r1)
-	ld	%r30,192(%r1)
-	ld	%r31,200(%r1)
-
-	/* Restore the stack and link register */
-	ld	%r1,0(%r1)
-	ld	%r0,16(%r1)
-	mtlr 	%r0
-	blr
 
 /*
  * int setfault()
