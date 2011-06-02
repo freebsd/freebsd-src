@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2010, Intel Corporation 
+  Copyright (c) 2001-2011, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -33,7 +33,8 @@
 /*$FreeBSD$*/
 
 #ifdef HAVE_KERNEL_OPTION_HEADERS
-#include "opt_device_polling.h"
+#include "opt_inet.h"
+#include "opt_inet6.h"
 #endif
 
 #include "ixv.h"
@@ -41,7 +42,7 @@
 /*********************************************************************
  *  Driver version
  *********************************************************************/
-char ixv_driver_version[] = "1.0.0";
+char ixv_driver_version[] = "1.0.1";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -234,7 +235,7 @@ static u32 ixv_shadow_vfta[VFTA_SIZE];
  *  ixv_probe determines if the driver should be loaded on
  *  adapter based on PCI vendor/device id of the adapter.
  *
- *  return 0 on success, positive on failure
+ *  return BUS_PROBE_DEFAULT on success, positive on failure
  *********************************************************************/
 
 static int
@@ -271,7 +272,7 @@ ixv_probe(device_t dev)
 				ixv_strings[ent->index],
 				ixv_driver_version);
 			device_set_desc_copy(dev, adapter_name);
-			return (0);
+			return (BUS_PROBE_DEFAULT);
 		}
 		ent++;
 	}
@@ -296,6 +297,11 @@ ixv_attach(device_t dev)
 	int             error = 0;
 
 	INIT_DEBUGOUT("ixv_attach: begin");
+
+	if (resource_disabled("ixgbe", device_get_unit(dev))) {
+		device_printf(dev, "Disabled by device hint\n");
+		return (ENXIO);
+	}
 
 	/* Allocate, clear, and link in our adapter structure */
 	adapter = device_get_softc(dev);
@@ -690,10 +696,38 @@ ixv_ioctl(struct ifnet * ifp, u_long command, caddr_t data)
 {
 	struct adapter	*adapter = ifp->if_softc;
 	struct ifreq	*ifr = (struct ifreq *) data;
+#if defined(INET) || defined(INET6)
+	struct ifreq	*ifa = (struct ifaddr *) data;
+	bool		avoid_reset = FALSE;
+#endif
 	int             error = 0;
 
 	switch (command) {
 
+	case SIOCSIFADDR:
+#ifdef INET
+		if (ifa->ifa_addr->sa_family == AF_INET)
+			avoid_reset = TRUE;
+#endif
+#ifdef INET6
+		if (ifa->ifa_addr->sa_family == AF_INET6)
+			avoid_reset = TRUE;
+#endif
+#if defined(INET) || defined(INET6)
+		/*
+		** Calling init results in link renegotiation,
+		** so we avoid doing it when possible.
+		*/
+		if (avoid_reset) {
+			ifp->if_flags |= IFF_UP;
+			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
+				ixv_init(adapter);
+			if (!(ifp->if_flags & IFF_NOARP))
+				arp_ifinit(ifp, ifa);
+		} else
+			error = ether_ioctl(ifp, command, data);
+		break;
+#endif
 	case SIOCSIFMTU:
 		IOCTL_DEBUGOUT("ioctl: SIOCSIFMTU (Set Interface MTU)");
 		if (ifr->ifr_mtu > IXV_MAX_FRAME_SIZE - ETHER_HDR_LEN) {
@@ -1161,7 +1195,7 @@ ixv_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 	struct mbuf	*m_head;
 	bus_dma_segment_t segs[32];
 	bus_dmamap_t	map;
-	struct ixv_tx_buf *txbuf, *txbuf_mapped;
+	struct ixv_tx_buf *txbuf;
 	union ixgbe_adv_tx_desc *txd = NULL;
 
 	m_head = *m_headp;
@@ -1180,7 +1214,6 @@ ixv_xmit(struct tx_ring *txr, struct mbuf **m_headp)
          */
         first = txr->next_avail_desc;
 	txbuf = &txr->tx_buffers[first];
-	txbuf_mapped = txbuf;
 	map = txbuf->map;
 
 	/*
@@ -1283,6 +1316,7 @@ ixv_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 	txr->next_avail_desc = i;
 
 	txbuf->m_head = m_head;
+	txr->tx_buffers[first].map = txbuf->map;
 	txbuf->map = map;
 	bus_dmamap_sync(txr->txtag, map, BUS_DMASYNC_PREWRITE);
 
@@ -1820,10 +1854,14 @@ ixv_setup_interface(device_t dev, struct adapter *adapter)
 	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
 
 	ifp->if_capabilities |= IFCAP_HWCSUM | IFCAP_TSO4 | IFCAP_VLAN_HWCSUM;
-	ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU;
-	ifp->if_capabilities |= IFCAP_JUMBO_MTU | IFCAP_LRO;
-
+	ifp->if_capabilities |= IFCAP_JUMBO_MTU;
+	ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING
+			     |  IFCAP_VLAN_HWTSO
+			     |  IFCAP_VLAN_MTU;
 	ifp->if_capenable = ifp->if_capabilities;
+
+	/* Don't enable LRO by default */
+	ifp->if_capabilities |= IFCAP_LRO;
 
 	/*
 	 * Specify the media types supported by this adapter and register
