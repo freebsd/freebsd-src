@@ -1075,15 +1075,21 @@ nfs_mount(struct mount *mp)
 		dirpath[0] = '\0';
 	dirlen = strlen(dirpath);
 
-	if (has_nfs_args_opt == 0 && vfs_getopt(mp->mnt_optnew, "addr",
-	    (void **)&args.addr, &args.addrlen) == 0) {
-		if (args.addrlen > SOCK_MAXADDRLEN) {
-			error = ENAMETOOLONG;
+	if (has_nfs_args_opt == 0) {
+		if (vfs_getopt(mp->mnt_optnew, "addr",
+		    (void **)&args.addr, &args.addrlen) == 0) {
+			if (args.addrlen > SOCK_MAXADDRLEN) {
+				error = ENAMETOOLONG;
+				goto out;
+			}
+			nam = malloc(args.addrlen, M_SONAME, M_WAITOK);
+			bcopy(args.addr, nam, args.addrlen);
+			nam->sa_len = args.addrlen;
+		} else {
+			vfs_mount_error(mp, "No server address");
+			error = EINVAL;
 			goto out;
 		}
-		nam = malloc(args.addrlen, M_SONAME, M_WAITOK);
-		bcopy(args.addr, nam, args.addrlen);
-		nam->sa_len = args.addrlen;
 	}
 
 	args.fh = nfh;
