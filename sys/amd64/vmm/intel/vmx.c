@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/psl.h>
 #include <machine/cpufunc.h>
+#include <machine/md_var.h>
 #include <machine/pmap.h>
 #include <machine/segments.h>
 #include <machine/vmparam.h>
@@ -418,13 +419,11 @@ static int
 vmx_init(void)
 {
 	int error;
-	unsigned int regs[4];
 	uint64_t fixed0, fixed1;
 	uint32_t tmp;
 
 	/* CPUID.1:ECX[bit 5] must be 1 for processor to support VMX */
-	do_cpuid(1, regs);
-	if ((regs[2] & CPUID_0000_0001_FEAT0_VMX) == 0) {
+	if (!(cpu_feature2 & CPUID2_VMX)) {
 		printf("vmx_init: processor does not support VMX operation\n");
 		return (ENXIO);
 	}
@@ -705,7 +704,7 @@ vmx_vminit(struct vm *vm)
 }
 
 static int
-vmx_handle_cpuid(struct vmxctx *vmxctx)
+vmx_handle_cpuid(int vcpu, struct vmxctx *vmxctx)
 {
 	int handled, func;
 	
@@ -713,7 +712,7 @@ vmx_handle_cpuid(struct vmxctx *vmxctx)
 
 	handled = x86_emulate_cpuid((uint32_t*)(&vmxctx->guest_rax),
 	    (uint32_t*)(&vmxctx->guest_rbx), (uint32_t*)(&vmxctx->guest_rcx),
-	    (uint32_t*)(&vmxctx->guest_rdx));
+	    (uint32_t*)(&vmxctx->guest_rdx), vcpu);
 #if 0
 	printf("%s: func %x rax %lx rbx %lx rcx %lx rdx %lx handled %d\n",
 		__func__, func, vmxctx->guest_rax, vmxctx->guest_rbx,
@@ -1148,7 +1147,7 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		vmexit->u.inout.eax = (uint32_t)(vmxctx->guest_rax);
 		break;
 	case EXIT_REASON_CPUID:
-		handled = vmx_handle_cpuid(vmxctx);
+		handled = vmx_handle_cpuid(vcpu, vmxctx);
 		break;
 	default:
 		break;
