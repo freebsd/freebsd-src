@@ -342,7 +342,7 @@ gpart_autofill_resize(struct gctl_req *req)
 		if (alignment == 0)
 			errx(EXIT_FAILURE, "Invalid alignment param");
 		lba = pp->lg_stripesize / pp->lg_sectorsize;
-		if (lba % alignment)
+		if (lba > 0)
 			alignment = g_lcm(lba, alignment);
 	}
 	error = gctl_delete_param(req, "alignment");
@@ -496,7 +496,7 @@ gpart_autofill(struct gctl_req *req)
 	 * Use LCM from stripesize and user specified alignment.
 	 */
 	len = pp->lg_stripesize / pp->lg_sectorsize;
-	if (len % alignment)
+	if (len > 0 )
 		alignment = g_lcm(len, alignment);
 
 	/* Adjust parameters to stripeoffset */
