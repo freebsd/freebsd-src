@@ -67,6 +67,15 @@ It is the caller's responsibility to enforce any such requirements.
 The
 .Fn bus_adjust_resource
 method returns zero on success or an error code on failure.
+.Sh EXAMPLES
+Grow an existing memory resource by 4096 bytes.
+.Bd -literal
+	struct resource *res;
+	int error;
+
+	error = bus_adjust_resource(dev, SYS_RES_MEMORY, res,
+	    rman_get_start(res), rman_get_end(res) + 0x1000);
+.Ed
 .Sh ERRORS
 .Fn bus_adjust_resource
 will fail if:
@@ -85,15 +94,6 @@ The new address range does not overlap with the existing address range of
 .It Bq Er EBUSY
 The new address range conflicts with another allocated resource.
 .El
-.Sh EXAMPLES
-Grow an existing memory resource by 4096 bytes.
-.Bd -literal
-	struct resource *res;
-	int error;
-
-	error = bus_adjust_resource(dev, SYS_RES_MEMORY, res,
-	    rman_get_start(res), rman_get_end(res) + 0x1000);
-.Ed
 .Sh SEE ALSO
 .Xr bus_alloc_resource 9 ,
 .Xr bus_release_resource 9 ,
