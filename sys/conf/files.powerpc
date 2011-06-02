@@ -87,7 +87,6 @@ powerpc/aim/moea64_if.m		optional	aim
 powerpc/aim/moea64_native.c	optional	aim
 powerpc/aim/mp_cpudep.c		optional	aim smp
 powerpc/aim/nexus.c		optional	aim
-powerpc/aim/ofwmagic.S		optional	aim
 powerpc/aim/slb.c		optional	aim powerpc64
 powerpc/aim/swtch32.S		optional	aim powerpc
 powerpc/aim/swtch64.S		optional	aim powerpc64
@@ -137,6 +136,10 @@ powerpc/ofw/ofw_pcibus.c	optional	pci aim
 powerpc/ofw/ofw_pcib_pci.c	optional	pci aim
 powerpc/ofw/ofw_real.c		optional	aim
 powerpc/ofw/ofw_syscons.c	optional	sc aim
+powerpc/ofw/ofwcall32.S		optional	aim powerpc
+powerpc/ofw/ofwcall64.S		optional	aim powerpc64
+powerpc/ofw/ofwmagic.S		optional	aim
+powerpc/ofw/rtas.c		optional	aim
 powerpc/powermac/ata_kauai.c	optional	powermac ata | powermac atamacio
 powerpc/powermac/ata_macio.c	optional	powermac ata | powermac atamacio
 powerpc/powermac/ata_dbdma.c	optional	powermac ata | powermac atamacio
