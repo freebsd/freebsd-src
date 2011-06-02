@@ -895,7 +895,7 @@ NROFF='groff -S -P-c -Wall -mtty-char -man'
 PIC=pic
 REFER=refer
 TBL=tbl
-TROFF='groff -S -P-c -man'
+TROFF='groff -S -man'
 VGRIND=vgrind
 
 COL=/usr/bin/col
