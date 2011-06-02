@@ -251,7 +251,6 @@ powerpc_init(vm_offset_t startkernel, vm_offset_t endkernel,
     vm_offset_t basekernel, void *mdp)
 {
 	struct		pcpu *pc;
-	vm_offset_t	end;
 	void		*generictrap;
 	size_t		trap_offset;
 	void		*kmdp;
@@ -263,7 +262,6 @@ powerpc_init(vm_offset_t startkernel, vm_offset_t endkernel,
 	int		ppc64;
 	#endif
 
-	end = 0;
 	kmdp = NULL;
 	trap_offset = 0;
 	cacheline_warn = 0;
@@ -279,7 +277,8 @@ powerpc_init(vm_offset_t startkernel, vm_offset_t endkernel,
 		if (kmdp != NULL) {
 			boothowto = MD_FETCH(kmdp, MODINFOMD_HOWTO, int);
 			kern_envp = MD_FETCH(kmdp, MODINFOMD_ENVP, char *);
-			end = MD_FETCH(kmdp, MODINFOMD_KERNEND, vm_offset_t);
+			endkernel = ulmax(endkernel, MD_FETCH(kmdp,
+			    MODINFOMD_KERNEND, vm_offset_t));
 #ifdef DDB
 			ksym_start = MD_FETCH(kmdp, MODINFOMD_SSYM, uintptr_t);
 			ksym_end = MD_FETCH(kmdp, MODINFOMD_ESYM, uintptr_t);
