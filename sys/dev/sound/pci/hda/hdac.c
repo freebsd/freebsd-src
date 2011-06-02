@@ -140,6 +140,7 @@ SND_DECLARE_FILE("$FreeBSD$");
 
 /* Intel */
 #define INTEL_VENDORID		0x8086
+#define HDA_INTEL_CPT		HDA_MODEL_CONSTRUCT(INTEL, 0x1c20)
 #define HDA_INTEL_PATSBURG	HDA_MODEL_CONSTRUCT(INTEL, 0x1d20)
 #define HDA_INTEL_PPT1		HDA_MODEL_CONSTRUCT(INTEL, 0x1e20)
 #define HDA_INTEL_82801F	HDA_MODEL_CONSTRUCT(INTEL, 0x2668)
@@ -493,6 +494,7 @@ static const struct {
 	char		*desc;
 	char		flags;
 } hdac_devices[] = {
+	{ HDA_INTEL_CPT,     "Intel Cougar Point",	0 },
 	{ HDA_INTEL_PATSBURG,"Intel Patsburg",  0 },
 	{ HDA_INTEL_PPT1,    "Intel Panther Point",	0 },
 	{ HDA_INTEL_82801F,  "Intel 82801F",	0 },
