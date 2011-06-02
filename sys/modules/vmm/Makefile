@@ -7,7 +7,7 @@ CFLAGS+=	-B /usr/local/bin
 
 KMOD=	vmm
 
-SRCS=	device_if.h bus_if.h pci_if.h
+SRCS=	opt_ddb.h device_if.h bus_if.h pci_if.h
 
 CFLAGS+= -DVMM_KEEP_STATS -DSMP
 CFLAGS+= -I${.CURDIR}/../../amd64/vmm	
