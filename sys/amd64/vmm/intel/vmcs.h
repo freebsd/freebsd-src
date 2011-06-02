@@ -68,6 +68,8 @@ uint64_t vmcs_read(uint32_t encoding);
 
 #endif	/* _KERNEL */
 
+#define	VMCS_INITIAL			0xffffffffffffffff
+
 #define	VMCS_IDENT(encoding)		((encoding) | 0x80000000)
 /*
  * VMCS field encodings from Appendix H, Intel Architecture Manual Vol3B.

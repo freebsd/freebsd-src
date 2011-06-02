@@ -26,6 +26,8 @@
  * $FreeBSD$
  */
 
+#include "opt_ddb.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -44,6 +46,10 @@ __FBSDID("$FreeBSD$");
 #include "vmx_cpufunc.h"
 #include "ept.h"
 #include "vmx.h"
+
+#ifdef DDB
+#include <ddb/ddb.h>
+#endif
 
 static uint64_t
 vmcs_fix_regval(uint32_t encoding, uint64_t val)
@@ -449,3 +455,93 @@ vmcs_read(uint32_t encoding)
 
 	return (val);
 }
+
+#ifdef DDB
+extern int vmxon_enabled[];
+
+DB_SHOW_COMMAND(vmcs, db_show_vmcs)
+{
+	uint64_t cur_vmcs, val;
+	uint32_t exit;
+
+	if (!vmxon_enabled[curcpu]) {
+		db_printf("VMX not enabled\n");
+		return;
+	}
+
+	if (have_addr) {
+		db_printf("Only current VMCS supported\n");
+		return;
+	}
+
+	vmptrst(&cur_vmcs);
+	if (cur_vmcs == VMCS_INITIAL) {
+		db_printf("No current VM context\n");
+		return;
+	}
+	db_printf("VMCS: %jx\n", cur_vmcs);
+	db_printf("VPID: %lu\n", vmcs_read(VMCS_VPID));
+	db_printf("Activity: ");
+	val = vmcs_read(VMCS_GUEST_ACTIVITY);
+	switch (val) {
+	case 0:
+		db_printf("Active");
+		break;
+	case 1:
+		db_printf("HLT");
+		break;
+	case 2:
+		db_printf("Shutdown");
+		break;
+	case 3:
+		db_printf("Wait for SIPI");
+		break;
+	default:
+		db_printf("Unknown: %#lx", val);
+	}
+	db_printf("\n");
+	exit = vmcs_read(VMCS_EXIT_REASON);
+	if (exit & 0x80000000)
+		db_printf("Entry Failure Reason: %u\n", exit & 0xffff);
+	else
+		db_printf("Exit Reason: %u\n", exit & 0xffff);
+	db_printf("Qualification: %#lx\n", vmcs_exit_qualification());
+	db_printf("Guest Linear Address: %#lx\n",
+	    vmcs_read(VMCS_GUEST_LINEAR_ADDRESS));
+	switch (exit & 0x8000ffff) {
+	case EXIT_REASON_EXCEPTION:
+	case EXIT_REASON_EXT_INTR:
+		val = vmcs_read(VMCS_EXIT_INTERRUPTION_INFO);
+		db_printf("Interrupt Type: ");
+		switch (val >> 8 & 0x7) {
+		case 0:
+			db_printf("external");
+			break;
+		case 2:
+			db_printf("NMI");
+			break;
+		case 3:
+			db_printf("HW exception");
+			break;
+		case 4:
+			db_printf("SW exception");
+			break;
+		default:
+			db_printf("?? %lu", val >> 8 & 0x7);
+			break;
+		}
+		db_printf("  Vector: %lu", val & 0xff);
+		if (val & 0x800)
+			db_printf("  Error Code: %lx",
+			    vmcs_read(VMCS_EXIT_INTERRUPTION_ERROR));
+		db_printf("\n");
+		break;
+	case EXIT_REASON_EPT_FAULT:
+	case EXIT_REASON_EPT_MISCONFIG:
+		db_printf("Guest Physical Address: %#lx\n",
+		    vmcs_read(VMCS_GUEST_PHYSICAL_ADDRESS));
+		break;
+	}
+	db_printf("VM-instruction error: %#lx\n", vmcs_instruction_error());
+}
+#endif
