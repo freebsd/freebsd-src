@@ -362,8 +362,8 @@ mfi_decode_evt(int fd, struct mfi_evt_detail *detail, int verbose)
 {
 
 	printf("%5d (%s/%s/%s) - ", detail->seq, format_timestamp(detail->time),
-	    format_locale(detail->class.members.locale),
-	    format_class(detail->class.members.class));
+	    format_locale(detail->evt_class.members.locale),
+	    format_class(detail->evt_class.members.evt_class));
 	switch (detail->arg_type) {
 	case MR_EVT_ARGS_NONE:
 		break;
@@ -557,7 +557,7 @@ show_events(int ac, char **av)
 	num_events = 15;
 	filter.members.reserved = 0;
 	filter.members.locale = MFI_EVT_LOCALE_ALL;
-	filter.members.class = MFI_EVT_CLASS_WARNING;
+	filter.members.evt_class = MFI_EVT_CLASS_WARNING;
 	start = info.boot_seq_num;
 	stop = info.newest_seq_num;
 	verbose = 0;
@@ -567,7 +567,7 @@ show_events(int ac, char **av)
 	while ((ch = getopt(ac, av, "c:l:n:v")) != -1) {
 		switch (ch) {
 		case 'c':
-			if (parse_class(optarg, &filter.members.class) < 0) {
+			if (parse_class(optarg, &filter.members.evt_class) < 0) {
 				error = errno;
 				warn("Error parsing event class");
 				return (error);
