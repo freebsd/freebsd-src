@@ -12,7 +12,7 @@
  *===----------------------------------------------------------------------===
  */
 
-#include "int_lib.h"
+#include "abi.h"
 #include <float.h>
 
 /* Returns: convert a to a float, rounding toward even. */
@@ -23,7 +23,11 @@
 
 /* seee eeee emmm mmmm mmmm mmmm mmmm mmmm */
 
-float
+#include "int_lib.h"
+
+ARM_EABI_FNALIAS(ul2f, floatundisf);
+
+COMPILER_RT_ABI float
 __floatundisf(du_int a)
 {
     if (a == 0)

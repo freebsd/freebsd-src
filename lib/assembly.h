@@ -22,33 +22,48 @@
 #define SEPARATOR ;
 #endif
 
-/* We can't use __USER_LABEL_PREFIX__ here, it isn't possible to concatenate the
-   *values* of two macros. This is quite brittle, though. */
 #if defined(__APPLE__)
-#define SYMBOL_NAME(name) _##name
+#define HIDDEN_DIRECTIVE .private_extern
+#define LOCAL_LABEL(name) L_##name
 #else
-#define SYMBOL_NAME(name) name
+#define HIDDEN_DIRECTIVE .hidden
+#define LOCAL_LABEL(name) .L_##name
 #endif
+
+#define GLUE2(a, b) a ## b
+#define GLUE(a, b) GLUE2(a, b)
+#define SYMBOL_NAME(name) GLUE(__USER_LABEL_PREFIX__, name)
 
 #ifdef VISIBILITY_HIDDEN
-#define DEFINE_COMPILERRT_FUNCTION(name) \
-  .globl SYMBOL_NAME(name) SEPARATOR     \
-  .private_extern SYMBOL_NAME(name) SEPARATOR    \
+#define DEFINE_COMPILERRT_FUNCTION(name)                   \
+  .globl SYMBOL_NAME(name) SEPARATOR                       \
+  HIDDEN_DIRECTIVE SYMBOL_NAME(name) SEPARATOR             \
   SYMBOL_NAME(name):
 #else
-#define DEFINE_COMPILERRT_FUNCTION(name) \
-  .globl SYMBOL_NAME(name) SEPARATOR     \
+#define DEFINE_COMPILERRT_FUNCTION(name)                   \
+  .globl SYMBOL_NAME(name) SEPARATOR                       \
   SYMBOL_NAME(name):
 #endif
 
-#define DEFINE_COMPILERRT_PRIVATE_FUNCTION(name) \
-  .globl SYMBOL_NAME(name) SEPARATOR             \
-  .private_extern SYMBOL_NAME(name) SEPARATOR    \
+#define DEFINE_COMPILERRT_PRIVATE_FUNCTION(name)           \
+  .globl SYMBOL_NAME(name) SEPARATOR                       \
+  HIDDEN_DIRECTIVE SYMBOL_NAME(name) SEPARATOR             \
   SYMBOL_NAME(name):
 
 #define DEFINE_COMPILERRT_PRIVATE_FUNCTION_UNMANGLED(name) \
-  .globl name SEPARATOR             \
-  .private_extern name SEPARATOR    \
+  .globl name SEPARATOR                                    \
+  HIDDEN_DIRECTIVE name SEPARATOR                          \
   name:
+
+#define DEFINE_COMPILERRT_FUNCTION_ALIAS(name, target)     \
+  .globl SYMBOL_NAME(name) SEPARATOR                       \
+  .set SYMBOL_NAME(name), SYMBOL_NAME(target) SEPARATOR
+
+#if defined (__ARM_EABI__)
+# define DEFINE_AEABI_FUNCTION_ALIAS(aeabi_name, name)      \
+  DEFINE_COMPILERRT_FUNCTION_ALIAS(aeabi_name, name)
+#else
+# define DEFINE_AEABI_FUNCTION_ALIAS(aeabi_name, name)
+#endif
 
 #endif /* COMPILERRT_ASSEMBLY_H */

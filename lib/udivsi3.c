@@ -11,6 +11,7 @@
  *
  * ===----------------------------------------------------------------------===
  */
+#include "abi.h"
 
 #include "int_lib.h"
 
@@ -18,7 +19,9 @@
 
 /* Translated from Figure 3-40 of The PowerPC Compiler Writer's Guide */
 
-su_int
+ARM_EABI_FNALIAS(uidiv, udivsi3);
+
+COMPILER_RT_ABI su_int
 __udivsi3(su_int n, su_int d)
 {
     const unsigned n_uword_bits = sizeof(su_int) * CHAR_BIT;

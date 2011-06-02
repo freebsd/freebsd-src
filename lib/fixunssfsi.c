@@ -11,6 +11,7 @@
  *
  * ===----------------------------------------------------------------------===
  */
+#include "abi.h"
 
 #include "int_lib.h"
 
@@ -26,7 +27,9 @@
 
 /* seee eeee emmm mmmm mmmm mmmm mmmm mmmm */
 
-su_int
+ARM_EABI_FNALIAS(f2uiz, fixunssfsi);
+
+COMPILER_RT_ABI su_int
 __fixunssfsi(float a)
 {
     float_bits fb;

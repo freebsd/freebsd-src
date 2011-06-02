@@ -6,6 +6,20 @@
 
 Description := Static runtime libraries for clang/Darwin.
 
+# A function that ensures we don't try to build for architectures that we
+# don't have working toolchains for.
+CheckArches = \
+  $(shell \
+    result=""; \
+    for arch in $(1); do \
+      if $(CC) -arch $$arch -dumpversion > /dev/null; then \
+        result="$$result$$arch "; \
+      fi; \
+    done; \
+    echo $$result)
+
+###
+
 Configs :=
 UniversalArchs :=
 
@@ -13,22 +27,23 @@ UniversalArchs :=
 # still be referenced from Darwin system headers. This symbol is only ever
 # needed on i386.
 Configs += eprintf
-UniversalArchs.eprintf := i386
+UniversalArchs.eprintf := $(call CheckArches,i386)
 
 # Configuration for targetting 10.4. We need a few functions missing from
 # libgcc_s.10.4.dylib. We only build x86 slices since clang doesn't really
 # support targetting PowerPC.
 Configs += 10.4
-UniversalArchs.10.4 := i386 x86_64
+UniversalArchs.10.4 := $(call CheckArches,i386 x86_64)
 
-# Configuration for targetting armv6. We need a few additional functions which
-# must be in the same linkage unit.
-Configs += armv6
-UniversalArchs.armv6 := armv6
+# Configuration for targetting iOS, for some ARMv6 functions, which must be
+# in the same linkage unit, and for a couple of other functions that didn't
+# make it into libSystem.
+Configs += ios
+UniversalArchs.ios := $(call CheckArches,i386 x86_64 armv6 armv7)
 
 # Configuration for use with kernel/kexts.
 Configs += cc_kext
-UniversalArchs.cc_kext := armv6 armv7 i386 x86_64
+UniversalArchs.cc_kext := $(call CheckArches,armv6 armv7 i386 x86_64)
 
 ###
 
@@ -40,10 +55,42 @@ override CC := $(patsubst -arch_%,,$(CC))
 
 CFLAGS := -Wall -Werror -O3 -fomit-frame-pointer
 
+# Always set deployment target arguments for every build, these libraries should
+# never depend on the environmental overrides. We simply set them to minimum
+# supported deployment target -- nothing in the compiler-rt libraries should
+# actually depend on the deployment target.
+X86_DEPLOYMENT_ARGS := -mmacosx-version-min=10.4
+ARM_DEPLOYMENT_ARGS := -miphoneos-version-min=1.0
+
+# If an explicit ARM_SDK build variable is set, use that as the isysroot.
+ifneq ($(ARM_SDK),)
+ARM_DEPLOYMENT_ARGS += -isysroot $(ARM_SDK)
+endif
+
+CFLAGS.eprintf		:= $(CFLAGS) $(X86_DEPLOYMENT_ARGS)
+CFLAGS.10.4		:= $(CFLAGS) $(X86_DEPLOYMENT_ARGS)
+CFLAGS.ios.i386		:= $(CFLAGS) $(X86_DEPLOYMENT_ARGS)
+CFLAGS.ios.x86_64	:= $(CFLAGS) $(X86_DEPLOYMENT_ARGS)
+CFLAGS.ios.armv6	:= $(CFLAGS) $(ARM_DEPLOYMENT_ARGS)
+CFLAGS.ios.armv7	:= $(CFLAGS) $(ARM_DEPLOYMENT_ARGS)
+CFLAGS.cc_kext.i386	:= $(CFLAGS) $(X86_DEPLOYMENT_ARGS)
+CFLAGS.cc_kext.x86_64	:= $(CFLAGS) $(X86_DEPLOYMENT_ARGS)
+CFLAGS.cc_kext.armv6	:= $(CFLAGS) $(ARM_DEPLOYMENT_ARGS) -mthumb
+CFLAGS.cc_kext.armv7	:= $(CFLAGS) $(ARM_DEPLOYMENT_ARGS) -mthumb
+
 FUNCTIONS.eprintf := eprintf
 FUNCTIONS.10.4 := eprintf floatundidf floatundisf floatundixf
-FUNCTIONS.armv6 := switch16 switch32 switch8 switchu8 \
-                   save_vfp_d8_d15_regs restore_vfp_d8_d15_regs
+
+FUNCTIONS.ios	    := divmodsi4 udivmodsi4
+# On x86, the divmod functions reference divsi.
+FUNCTIONS.ios.i386   := $(FUNCTIONS.ios) \
+                        divsi3 udivsi3
+FUNCTIONS.ios.x86_64 := $(FUNCTIONS.ios) \
+                        divsi3 udivsi3
+FUNCTIONS.ios.armv6 := $(FUNCTIONS.ios) \
+                       sync_synchronize \
+                       switch16 switch32 switch8 switchu8 \
+                       save_vfp_d8_d15_regs restore_vfp_d8_d15_regs
 
 CCKEXT_COMMON_FUNCTIONS := \
 	absvdi2 \
@@ -62,6 +109,8 @@ CCKEXT_COMMON_FUNCTIONS := \
 	divdc3 \
 	divdi3 \
 	divsc3 \
+	divmodsi4 \
+	udivmodsi4 \
 	do_global_dtors \
 	eprintf \
 	ffsdi2 \
@@ -135,10 +184,8 @@ CCKEXT_ARM_FUNCTIONS := $(CCKEXT_COMMON_FUNCTIONS) \
 	floatsisf \
 	floatunsidf \
 	floatunsisf \
-	gtdf2 \
-	gtsf2 \
-	ltdf2 \
-	ltsf2 \
+	comparedf2 \
+	comparesf2 \
 	modsi3 \
 	muldf3 \
 	mulsf3 \
@@ -158,9 +205,6 @@ CCKEXT_ARM_FUNCTIONS := $(CCKEXT_COMMON_FUNCTIONS) \
 
 FUNCTIONS.cc_kext.armv6 := $(CCKEXT_ARM_FUNCTIONS)
 FUNCTIONS.cc_kext.armv7 := $(CCKEXT_ARM_FUNCTIONS)
-
-CFLAGS.cc_kext.armv6 := $(CFLAGS) -mthumb
-CFLAGS.cc_kext.armv7 := $(CFLAGS) -mthumb
 
 CCKEXT_X86_FUNCTIONS := $(CCKEXT_COMMON_FUNCTIONS) \
 	divxc3 \
@@ -221,11 +265,9 @@ FUNCTIONS.cc_kext.x86_64 := $(CCKEXT_X86_FUNCTIONS) \
 # FIXME: Currently, compiler-rt is missing implementations for a number of the
 # functions that need to go into libcc_kext.a. Filter them out for now.
 CCKEXT_MISSING_FUNCTIONS := \
-	adddf3 addsf3 cmpdf2 cmpsf2 div0 divdf3 divsf3 \
-	extendsfdf2 ffssi2 fixdfsi fixsfsi floatsidf floatsisf \
-	floatunsidf floatunsisf gtdf2 gtsf2 ltdf2 ltsf2 \
-	muldf3 mulsf3 negdf2 negsf2 subdf3 subsf3 \
-	truncdfsf2 udiv_w_sdiv unorddf2 unordsf2 bswapdi2 \
+	cmpdf2 cmpsf2 div0 \
+	ffssi2 \
+	udiv_w_sdiv unorddf2 unordsf2 bswapdi2 \
 	bswapsi2 \
 	gcc_bcmp \
 	do_global_dtors \
