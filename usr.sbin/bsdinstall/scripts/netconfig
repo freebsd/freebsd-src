@@ -41,8 +41,6 @@ DIALOG_TAGS=""
 : ${DIALOG_ITEM_HELP=4}
 : ${DIALOG_ESC=255}
 
-echo -n > $BSDINSTALL_TMPETC/rc.conf.net
-
 for IF in `ifconfig -l`; do
 	test "$IF" = "lo0" && continue
 	(ifconfig -g wlan | egrep -wq $IF) && continue
@@ -55,6 +53,8 @@ exec 3>&1
 INTERFACE=`echo $DIALOG_TAGS | xargs dialog --backtitle 'FreeBSD Installer' --title 'Network Configuration' --menu 'Please select a network interface to configure:' 0 0 0 2>&1 1>&3`
 if [ $? -eq $DIALOG_CANCEL ]; then exit 1; fi
 exec 3>&-
+
+: > $BSDINSTALL_TMPETC/rc.conf.net
 
 # Do a dirty check to see if this a wireless interface -- there should be a
 # better way
