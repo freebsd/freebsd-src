@@ -185,22 +185,6 @@ function switches terminal emulation to
 which is used by versions of
 .Fx
 prior to 9.0.
-.Sh SECURITY CONSIDERATIONS
-The
-.Fn tf_respond
-callback is used to respond to device status requests commands generated
-by an application.
-In the past, there have been various security issues, where a malicious
-application sends a device status request before termination, causing
-the generated response to be interpreted by applications such as
-.Xr sh 1 .
-.Pp
-.Nm
-only implements a small subset of responses which are unlikely to cause
-any harm.
-Still, it is advised to leave
-.Fn tf_respond
-unimplemented.
 .Sh SEE ALSO
 .Xr ncurses 3 ,
 .Xr termcap 3 ,
@@ -218,3 +202,19 @@ the
 library appeared in userspace.
 .Sh AUTHORS
 .An Ed Schouten Aq ed@FreeBSD.org
+.Sh SECURITY CONSIDERATIONS
+The
+.Fn tf_respond
+callback is used to respond to device status requests commands generated
+by an application.
+In the past, there have been various security issues, where a malicious
+application sends a device status request before termination, causing
+the generated response to be interpreted by applications such as
+.Xr sh 1 .
+.Pp
+.Nm
+only implements a small subset of responses which are unlikely to cause
+any harm.
+Still, it is advised to leave
+.Fn tf_respond
+unimplemented.
