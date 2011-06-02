@@ -1126,16 +1126,12 @@ est_acpi_info(device_t dev, freq_info **freqs)
 		 * Confirm id16 value is correct.
 		 */
 		if (sets[i].freq > 0) {
-			error = est_set_id16(dev, sets[i].spec[0], 1);
-			if (error != 0 && strict) {
+			error = est_set_id16(dev, sets[i].spec[0], strict);
+			if (error != 0) {
 				if (bootverbose) 
 					device_printf(dev, "Invalid freq %u, "
 					    "ignored.\n", sets[i].freq);
 				continue;
-			} else if (error != 0 && bootverbose) {
-				device_printf(dev, "Can't check freq %u, "
-				    "it may be invalid\n",
-				    sets[i].freq);
 			}
 			table[j].freq = sets[i].freq;
 			table[j].volts = sets[i].volts;
