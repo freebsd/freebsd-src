@@ -1158,7 +1158,7 @@ tcp6_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
 	 */
 	error = in6_pcbladdr(inp, nam, &addr6);
 	if (error)
-		return error;
+		goto out;
 	oinp = in6_pcblookup_hash_locked(inp->inp_pcbinfo,
 				  &sin6->sin6_addr, sin6->sin6_port,
 				  IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr)

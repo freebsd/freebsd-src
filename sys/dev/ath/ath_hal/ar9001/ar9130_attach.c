@@ -289,6 +289,7 @@ ar9130FillCapabilityInfo(struct ath_hal *ah)
 	pCap->halRifsTxSupport = AH_TRUE;
 	pCap->halRtsAggrLimit = 64*1024;	/* 802.11n max */
 	pCap->halExtChanDfsSupport = AH_TRUE;
+	pCap->halUseCombinedRadarRssi = AH_TRUE;
 	pCap->halAutoSleepSupport = AH_FALSE;	/* XXX? */
 	/*
 	 * MBSSID aggregation is broken in Howl v1.1, v1.2, v1.3
