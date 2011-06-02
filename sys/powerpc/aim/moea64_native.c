@@ -185,8 +185,8 @@ TLBIE(uint64_t vpn) {
 	mtx_unlock_spin(&tlbie_mutex);
 }
 
-#define DISABLE_TRANS(msr)	msr = mfmsr(); mtmsr(msr & ~PSL_DR); isync()
-#define ENABLE_TRANS(msr)	mtmsr(msr); isync()
+#define DISABLE_TRANS(msr)	msr = mfmsr(); mtmsr(msr & ~PSL_DR)
+#define ENABLE_TRANS(msr)	mtmsr(msr)
 
 /*
  * PTEG data.
@@ -344,7 +344,7 @@ moea64_cpu_bootstrap_native(mmu_t mmup, int ap)
 	 * Initialize segment registers and MMU
 	 */
 
-	mtmsr(mfmsr() & ~PSL_DR & ~PSL_IR); isync();
+	mtmsr(mfmsr() & ~PSL_DR & ~PSL_IR);
 
 	/*
 	 * Install kernel SLB entries
