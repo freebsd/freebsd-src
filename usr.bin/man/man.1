@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 1, 2010
+.Dd June 2, 2011
 .Dt MAN 1
 .Os
 .Sh NAME
@@ -283,6 +283,12 @@ Restricts manual sections searched to the specified colon delimited list.
 Corresponds to the
 .Fl S
 option.
+.It Ev MANWIDTH
+If set to a numeric value, used as the width manpages should be displayed.
+Otherwise, if set to a special value
+.Dq Li tty ,
+and output is to a terminal,
+the pages may be displayed over the whole width of the screen.
 .It Ev PAGER
 Program used to display files.
 If unset,

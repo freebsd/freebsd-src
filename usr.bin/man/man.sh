@@ -112,7 +112,11 @@ check_man() {
 		setup_cattool $manpage
 		decho "    Found manpage $manpage"
 
-		if exists "$2" && is_newer $found $manpage; then
+		if [ -n "${use_width}" ]; then
+			# non-standard width
+			unset use_cat
+			decho "    Skipping catpage: non-standard page width"
+		elif exists "$2" && is_newer $found $manpage; then
 			# cat page found and is newer, use that
 			use_cat=yes
 			catpage=$found
@@ -352,6 +356,10 @@ man_display_page() {
 		;;
 	esac
 
+	if [ -n "${use_width}" ]; then
+		NROFF="$NROFF -rLL=${use_width}n -rLT=${use_width}n"
+	fi
+
 	if [ -n "$MANROFFSEQ" ]; then
 		set -- -$MANROFFSEQ
 		while getopts 'egprtv' preproc_arg; do
@@ -562,6 +570,35 @@ man_setup() {
 
 	build_manpath
 	man_setup_locale
+	man_setup_width
+}
+
+# Usage: man_setup_width
+# Set up page width.
+man_setup_width() {
+	local sizes
+
+	unset use_width
+	case "$MANWIDTH" in
+	[0-9]*)
+		if [ "$MANWIDTH" -gt 0 2>/dev/null ]; then
+			use_width=$MANWIDTH
+		fi
+		;;
+	[Tt][Tt][Yy])
+		if { sizes=$($STTY size 0>&3 2>/dev/null); } 3>&1; then
+			set -- $sizes
+			if [ $2 -gt 80 ]; then
+				use_width=$(($2-2))
+			fi
+		fi
+		;;
+	esac
+	if [ -n "$use_width" ]; then
+		decho "Using non-standard page width: ${use_width}"
+	else
+		decho 'Using standard page width'
+	fi
 }
 
 # Usage: man_setup_locale
@@ -900,6 +937,7 @@ VGRIND=vgrind
 
 COL=/usr/bin/col
 LOCALE=/usr/bin/locale
+STTY=/bin/stty
 SYSCTL=/sbin/sysctl
 
 debug=0
