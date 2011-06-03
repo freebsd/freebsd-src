@@ -85,6 +85,7 @@ static size_t
 dname_labelenc(char *dst, const char *src)
 {
 	char *dst_origin;
+	char *p;
 	size_t len;
 
 	dst_origin = dst;
@@ -94,13 +95,23 @@ dname_labelenc(char *dst, const char *src)
 	memset(dst, 0, len + len / 64 + 1 + 1);
 
 	syslog(LOG_DEBUG, "<%s> labelenc = %s", __func__, src);
-	while ((len = strlen(src)) != 0) {
+	while (src && (len = strlen(src)) != 0) {
 		/* Put a length field with 63 octet limitation first. */
-		*dst++ = len = MIN(63, len + 1);
+		p = index(src, '.');
+		if (p == NULL)
+			*dst++ = len = MIN(63, len);
+		else
+			*dst++ = len = MIN(63, p - src);
+		/* Copy only 63 octets at most. */
 		memcpy(dst, src, len);
 		dst += len;
-		src += len;
+		if (p == NULL) /* the last label */
+			break;
+		src = p + 1;
 	}
+	/* Always need a 0-length label at the tail. */
+	*dst++ = '\0';
+
 	syslog(LOG_DEBUG, "<%s> labellen = %d", __func__, dst - dst_origin);
 	return (dst - dst_origin);
 }
