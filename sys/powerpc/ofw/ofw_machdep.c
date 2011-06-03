@@ -66,7 +66,8 @@ static struct mem_region OFfree[OFMEM_REGIONS + 3];
 static int nOFmem;
 
 extern register_t ofmsr[5];
-static int	(*ofwcall)(void *);
+int		ofwcall(void *);
+extern void	*openfirmware_entry;
 static void	*fdt;
 int		ofw_real_mode;
 
@@ -318,19 +319,6 @@ OF_initial_setup(void *fdt_ptr, void *junk, int (*openfirm)(void *))
 	else
 		ofw_real_mode = 1;
 
-	ofwcall = NULL;
-
-	#ifdef __powerpc64__
-		/*
-		 * For PPC64, we need to use some hand-written
-		 * asm trampolines to get to OF.
-		 */
-		if (openfirm != NULL)
-			ofwcall = ofw_32bit_mode_entry;
-	#else
-		ofwcall = openfirm;
-	#endif
-
 	fdt = fdt_ptr;
 
 	#ifdef FDT_DTB_STATIC
@@ -345,7 +333,7 @@ OF_bootstrap()
 {
 	boolean_t status = FALSE;
 
-	if (ofwcall != NULL) {
+	if (openfirmware_entry != NULL) {
 		if (ofw_real_mode) {
 			status = OF_install(OFW_STD_REAL, 0);
 		} else {
