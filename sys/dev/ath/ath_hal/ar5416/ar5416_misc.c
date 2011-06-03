@@ -273,6 +273,35 @@ ar5416Set11nRxClear(struct ath_hal *ah, HAL_HT_RXCLEAR rxclear)
     }
 }
 
+/* XXX shouldn't be here! */
+#define	TU_TO_USEC(_tu)		((_tu) << 10)
+
+HAL_STATUS
+ar5416SetQuiet(struct ath_hal *ah, uint32_t period, uint32_t duration,
+    uint32_t nextStart, HAL_QUIET_FLAG flag)
+{
+	uint32_t period_us = TU_TO_USEC(period); /* convert to us unit */
+	uint32_t nextStart_us = TU_TO_USEC(nextStart); /* convert to us unit */
+	if (flag & HAL_QUIET_ENABLE) {
+		if ((!nextStart) || (flag & HAL_QUIET_ADD_CURRENT_TSF)) {
+			/* Add the nextStart offset to the current TSF */
+			nextStart_us += OS_REG_READ(ah, AR_TSF_L32);
+		}
+		if (flag & HAL_QUIET_ADD_SWBA_RESP_TIME) {
+			nextStart_us += ath_hal_sw_beacon_response_time;
+		}
+		OS_REG_RMW_FIELD(ah, AR_QUIET1, AR_QUIET1_QUIET_ACK_CTS_ENABLE, 1);
+		OS_REG_WRITE(ah, AR_QUIET2, SM(duration, AR_QUIET2_QUIET_DUR));
+		OS_REG_WRITE(ah, AR_QUIET_PERIOD, period_us);
+		OS_REG_WRITE(ah, AR_NEXT_QUIET, nextStart_us);
+		OS_REG_SET_BIT(ah, AR_TIMER_MODE, AR_TIMER_MODE_QUIET);
+	} else {
+		OS_REG_CLR_BIT(ah, AR_TIMER_MODE, AR_TIMER_MODE_QUIET);
+	}
+	return HAL_OK;
+}
+#undef	TU_TO_USEC
+
 HAL_STATUS
 ar5416GetCapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
         uint32_t capability, uint32_t *result)

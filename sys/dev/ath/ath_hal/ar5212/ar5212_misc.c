@@ -634,6 +634,20 @@ ar5212SetCoverageClass(struct ath_hal *ah, uint8_t coverageclass, int now)
 	}
 }
 
+HAL_STATUS
+ar5212SetQuiet(struct ath_hal *ah, uint32_t period, uint32_t duration,
+    uint32_t nextStart, HAL_QUIET_FLAG flag)
+{
+	OS_REG_WRITE(ah, AR_QUIET2, period | (duration << AR_QUIET2_QUIET_DUR_S));
+	if (flag & HAL_QUIET_ENABLE) {
+		OS_REG_WRITE(ah, AR_QUIET1, nextStart | (1 << 16));
+	}
+	else {
+		OS_REG_WRITE(ah, AR_QUIET1, nextStart);
+	}
+	return HAL_OK;
+}
+
 void
 ar5212SetPCUConfig(struct ath_hal *ah)
 {
