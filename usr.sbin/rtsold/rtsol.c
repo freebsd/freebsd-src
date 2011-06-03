@@ -475,8 +475,9 @@ rtsol_input(int s)
 			}
 
 			p = raoptp + sizeof(*dnssl);
-			while (0 < (len = dname_labeldec(dname, sizeof(dname),
+			while (1 < (len = dname_labeldec(dname, sizeof(dname),
 			    p))) {
+				/* length == 1 means empty string */
 				warnmsg(LOG_DEBUG, __func__, "dname = %s",
 				    dname);
 
@@ -789,17 +790,20 @@ dname_labeldec(char *dst, size_t dlen, const char *src)
 {
 	size_t len;
 	const char *src_origin;
+	const char *dst_origin;
 
 	src_origin = src;
+	dst_origin = dst;
 	memset(dst, '\0', dlen);
-	while (*src && (len = (uint8_t)(*src++) & 0x3f) != 0) {
+	while (src && (len = (uint8_t)(*src++) & 0x3f)) {
+		if (dst != dst_origin)
+			*dst++ = '.';
 		warnmsg(LOG_DEBUG, __func__, "labellen = %zd", len);
 		memcpy(dst, src, len);
 		src += len;
 		dst += len;
-		if (*(dst - 1) == '\0')
-			break; 
 	}
+	*dst = '\0';
 
 	/*
 	 * XXX validate that domain name only contains valid characters

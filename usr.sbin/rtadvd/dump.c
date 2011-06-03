@@ -64,7 +64,7 @@ extern struct rainfo *ralist;
 
 static char *ether_str(struct sockaddr_dl *);
 static void if_dump(void);
-static size_t dname_labeldec(char *, const char *);
+static size_t dname_labeldec(char *, size_t, const char *);
 
 static char *rtpref_str[] = {
 	"medium",		/* 00 */
@@ -262,7 +262,7 @@ if_dump(void)
 
 			fprintf(fp, "    % 8u\t", dns->dn_ltime);
 			TAILQ_FOREACH(dnsa, &dns->dn_list, da_next) {
-				dname_labeldec(buf, dnsa->da_dom);
+				dname_labeldec(buf, sizeof(buf), dnsa->da_dom);
 				if (dnsa != TAILQ_FIRST(&dns->dn_list))
 					fprintf(fp, "            \t");
 				fprintf(fp, "%s(%d)\n", buf, dnsa->da_len);
@@ -291,20 +291,24 @@ rtadvd_dump_file(char *dumpfile)
 
 /* Decode domain name label encoding in RFC 1035 Section 3.1 */
 static size_t
-dname_labeldec(char *dst, const char *src)
+dname_labeldec(char *dst, size_t dlen, const char *src)
 {
 	size_t len;
 	const char *src_origin;
+	const char *dst_origin;
 
 	src_origin = src;
-	while (*src && (len = (uint8_t)(*src++) & 0x3f) != 0) {
+	dst_origin = dst;
+	memset(dst, '\0', dlen);
+	while (src && (len = (uint8_t)(*src++) & 0x3f)) {
+		if (dst != dst_origin)
+			*dst++ = '.';
 		syslog(LOG_DEBUG, "<%s> labellen = %d", __func__, len);
 		memcpy(dst, src, len);
 		src += len;
 		dst += len;
-		if (*(dst - 1) == '\0')
-			break;
 	}
+	*dst = '\0';
 
 	return (src - src_origin);
 }
