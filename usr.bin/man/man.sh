@@ -279,7 +279,7 @@ man_check_for_so() {
 # Usage: man_display_page
 # Display either the manpage or catpage depending on the use_cat variable
 man_display_page() {
-	local EQN COL NROFF PIC TBL TROFF REFER VGRIND
+	local EQN NROFF PIC TBL TROFF REFER VGRIND
 	local IFS l nroff_dev pipeline preproc_arg tool
 
 	# We are called with IFS set to colon. This causes really weird
@@ -347,7 +347,7 @@ man_display_page() {
 		# Allow language specific calls to override the default
 		# set of utilities.
 		l=$(echo $man_lang | tr [:lower:] [:upper:])
-		for tool in EQN COL NROFF PIC TBL TROFF REFER VGRIND; do
+		for tool in EQN NROFF PIC TBL TROFF REFER VGRIND; do
 			eval "$tool=\${${tool}_$l:-\$$tool}"
 		done
 		;;
@@ -368,7 +368,7 @@ man_display_page() {
 			g)	;; # Ignore for compatability.
 			p)	pipeline="$pipeline | $PIC" ;;
 			r)	pipeline="$pipeline | $REFER" ;;
-			t)	pipeline="$pipeline | $TBL"; use_col=yes ;;
+			t)	pipeline="$pipeline | $TBL" ;;
 			v)	pipeline="$pipeline | $VGRIND" ;;
 			*)	usage ;;
 			esac
@@ -377,19 +377,12 @@ man_display_page() {
 		pipeline="${pipeline#" | "}"
 	else
 		pipeline="$TBL"
-		use_col=yes
 	fi
 
 	if [ -n "$tflag" ]; then
 		pipeline="$pipeline | $TROFF"
 	else
-		pipeline="$pipeline | $NROFF"
-
-		if [ -n "$use_col" ]; then
-			pipeline="$pipeline | $COL"
-		fi
-
-		pipeline="$pipeline | $PAGER"
+		pipeline="$pipeline | $NROFF | $PAGER"
 	fi
 
 	if [ $debug -gt 0 ]; then
@@ -928,14 +921,13 @@ do_whatis() {
 
 # User's PATH setting decides on the groff-suite to pick up.
 EQN=eqn
-NROFF='groff -S -P-c -Wall -mtty-char -man'
+NROFF='groff -S -P-ch -Wall -mtty-char -man'
 PIC=pic
 REFER=refer
 TBL=tbl
 TROFF='groff -S -man'
 VGRIND=vgrind
 
-COL=/usr/bin/col
 LOCALE=/usr/bin/locale
 STTY=/bin/stty
 SYSCTL=/sbin/sysctl
