@@ -95,20 +95,28 @@ static int
 ds1775_read_2(device_t dev, uint32_t addr, uint8_t reg, uint16_t *data)
 {
 	uint8_t buf[4];
+	int err, try = 0;
 
 	struct iic_msg msg[2] = {
 	    { addr, IIC_M_WR | IIC_M_NOSTOP, 1, &reg },
 	    { addr, IIC_M_RD, 2, buf },
 	};
 
-	if (iicbus_transfer(dev, msg, 2) != 0) {
-		device_printf(dev, "iicbus read failed\n");
-		return (EIO);
+	for (;;)
+	{
+		err = iicbus_transfer(dev, msg, 2);
+		if (err != 0)
+			goto retry;
+
+		*data = *((uint16_t*)buf);
+		return (0);
+	retry:
+		if (++try > 5) {
+			device_printf(dev, "iicbus read failed\n");
+			return (-1);
+		}
+		pause("ds1775_read_2", hz);
 	}
-
-	*data = *((uint16_t*)buf);
-
-	return (0);
 }
 
 static int
@@ -182,7 +190,10 @@ ds1775_start(void *xdev)
 	ctx = device_get_sysctl_ctx(dev);
 	sensroot_oid = device_get_sysctl_tree(dev);
 
-	OF_getprop(child, "hwsensor-zone", &sc->sc_sensor.zone, sizeof(int));
+	if (OF_getprop(child, "hwsensor-zone", &sc->sc_sensor.zone,
+		       sizeof(int)) < 0)
+		sc->sc_sensor.zone = 0;
+
 	plen = OF_getprop(child, "hwsensor-location", sc->sc_sensor.name,
 			  sizeof(sc->sc_sensor.name));
 	units = "C";
@@ -199,8 +210,14 @@ ds1775_start(void *xdev)
 	}
 
 	/* Make up target temperatures. These are low, for the drive bay. */
-	sc->sc_sensor.target_temp = 300 + FCU_ZERO_C_TO_K;
-	sc->sc_sensor.max_temp = 600 + FCU_ZERO_C_TO_K;
+	if (sc->sc_sensor.zone == 0) {
+		sc->sc_sensor.target_temp = 500 + FCU_ZERO_C_TO_K;
+		sc->sc_sensor.max_temp = 600 + FCU_ZERO_C_TO_K;
+	}
+	else {
+		sc->sc_sensor.target_temp = 300 + FCU_ZERO_C_TO_K;
+		sc->sc_sensor.max_temp = 600 + FCU_ZERO_C_TO_K;
+	}
 
 	sc->sc_sensor.read =
 	    (int (*)(struct pmac_therm *sc))(ds1775_sensor_read);
@@ -220,8 +237,11 @@ ds1775_sensor_read(struct ds1775_softc *sc)
 {
 	uint16_t buf[2];
 	uint16_t read;
+	int err;
 
-	ds1775_read_2(sc->sc_dev, sc->sc_addr, DS1775_TEMP, buf);
+	err = ds1775_read_2(sc->sc_dev, sc->sc_addr, DS1775_TEMP, buf);
+	if (err < 0)
+		return (-1);
 
 	read = *((int16_t *)buf);
 
@@ -243,6 +263,8 @@ ds1775_sensor_sysctl(SYSCTL_HANDLER_ARGS)
 	sc = device_get_softc(dev);
 
 	temp = ds1775_sensor_read(sc);
+	if (temp < 0)
+		return (EIO);
 
 	error = sysctl_handle_int(oidp, &temp, 0, req);
 
