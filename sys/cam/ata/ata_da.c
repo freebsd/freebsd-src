@@ -114,9 +114,9 @@ struct disk_params {
 	u_int64_t sectors;	/* Total number sectors */
 };
 
-#define TRIM_MAX_BLOCKS	4
+#define TRIM_MAX_BLOCKS	8
 #define TRIM_MAX_RANGES	(TRIM_MAX_BLOCKS * 64)
-#define TRIM_MAX_BIOS	(TRIM_MAX_RANGES * 8)
+#define TRIM_MAX_BIOS	(TRIM_MAX_RANGES * 4)
 struct trim_request {
 	uint8_t		data[TRIM_MAX_RANGES * 8];
 	struct bio	*bps[TRIM_MAX_BIOS];
