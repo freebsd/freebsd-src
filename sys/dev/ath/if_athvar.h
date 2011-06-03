@@ -83,12 +83,29 @@ struct taskqueue;
 struct kthread;
 struct ath_buf;
 
+#define	ATH_TID_MAX_BUFS	(2 * IEEE80211_AGGR_BAWMAX)
+
+/*
+ * Per-TID state
+ *
+ * Note that TID 16 (WME_NUM_TID+1) is for handling non-QoS frames.
+ */
+struct ath_tid {
+	STAILQ_HEAD(ath_tid_bq,ath_buf) buf_q;		/* pending buffers        */
+	struct ath_buf *tx_buf[ATH_TID_MAX_BUFS];	/* active tx buffers, beginning at current BAW */
+};
+
 /* driver-specific node state */
 struct ath_node {
 	struct ieee80211_node an_node;	/* base class */
 	u_int8_t	an_mgmtrix;	/* min h/w rate index */
 	u_int8_t	an_mcastrix;	/* mcast h/w rate index */
+	STAILQ_ENTRY(ath_node)	an_list;	/* Per hw-txq entry, added if there
+						 * is traffic in this queue to send */
+	int		sched;			/* Whether this node has been
+						 * added to the txq axq_nodeq */
 	struct ath_buf	*an_ff_buf[WME_NUM_AC]; /* ff staging area */
+	struct ath_tid	an_tid[IEEE80211_TID_SIZE];	/* per-TID state */
 	/* variable-length rate control state follows */
 };
 #define	ATH_NODE(ni)	((struct ath_node *)(ni))
@@ -110,6 +127,7 @@ struct ath_node {
 
 struct ath_buf {
 	STAILQ_ENTRY(ath_buf)	bf_list;
+	struct ath_buf *	bf_next;	/* next buffer in the aggregate */
 	int			bf_nseg;
 	uint16_t		bf_txflags;	/* tx descriptor flags */
 	uint16_t		bf_flags;	/* status flags (below) */
@@ -122,6 +140,22 @@ struct ath_buf {
 	bus_size_t		bf_mapsize;
 #define	ATH_MAX_SCATTER		ATH_TXDESC	/* max(tx,rx,beacon) desc's */
 	bus_dma_segment_t	bf_segs[ATH_MAX_SCATTER];
+
+	/* This state is kept to support software retries and aggregation */
+	struct {
+		int bfs_pktlen;		/* length of this packet */
+		int bfs_hdrlen;		/* length of this packet header */
+		int bfs_seqno;		/* sequence number of this packet */
+		int bfs_retries;	/* retry count */
+		uint16_t bfs_al;	/* length of aggregate */
+		uint16_t bfs_pktdur;	/* packet duration (at current rate?) */
+		uint16_t bfs_nframes;	/* number of frames in aggregate */
+		uint16_t bfs_ndelim;	/* number of delims for padding */
+
+		int bfs_aggr:1;		/* part of aggregate? */
+		int bfs_aggrburst:1;	/* part of aggregate burst? */
+		int bfs_isretried:1;	/* retried frame? */
+	} bf_state;
 };
 typedef STAILQ_HEAD(, ath_buf) ath_bufhead;
 
@@ -160,6 +194,7 @@ struct ath_txq {
 	u_int			axq_intrcnt;	/* interrupt count */
 	u_int32_t		*axq_link;	/* link ptr in last TX desc */
 	STAILQ_HEAD(, ath_buf)	axq_q;		/* transmit queue */
+	STAILQ_HEAD(, ath_node)	axq_nodeq;	/* Nodes which have traffic to send */
 	struct mtx		axq_lock;	/* lock on q and link */
 	char			axq_name[12];	/* e.g. "ath0_txq4" */
 };

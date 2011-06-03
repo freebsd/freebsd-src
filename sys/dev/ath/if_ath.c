@@ -3108,6 +3108,8 @@ ath_node_alloc(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN])
 	}
 	ath_rate_node_init(sc, an);
 
+	/* XXX setup ath_tid */
+
 	DPRINTF(sc, ATH_DEBUG_NODE, "%s: an %p\n", __func__, an);
 	return &an->an_node;
 }
@@ -3119,6 +3121,9 @@ ath_node_free(struct ieee80211_node *ni)
         struct ath_softc *sc = ic->ic_ifp->if_softc;
 
 	DPRINTF(sc, ATH_DEBUG_NODE, "%s: ni %p\n", __func__, ni);
+
+	/* XXX ensure it's not scheduled on the TXQ; remove if needed */
+	/* XXX cleanup ath_tid */
 
 	ath_rate_node_cleanup(sc, ATH_NODE(ni));
 	sc->sc_node_free(ni);
@@ -3731,6 +3736,7 @@ ath_txq_init(struct ath_softc *sc, struct ath_txq *txq, int qnum)
 	txq->axq_intrcnt = 0;
 	txq->axq_link = NULL;
 	STAILQ_INIT(&txq->axq_q);
+	STAILQ_INIT(&txq->axq_nodeq);
 	ATH_TXQ_LOCK_INIT(sc, txq);
 }
 
