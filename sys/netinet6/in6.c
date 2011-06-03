@@ -666,15 +666,14 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 				nd.ndi.flags = ND_IFINFO(ifp)->flags;
 				nd.ndi.flags &= ~ND6_IFF_IFDISABLED;
 				if (nd6_ioctl(SIOCSIFINFO_FLAGS,
-					      (caddr_t)&nd, ifp) < 0)
+				    (caddr_t)&nd, ifp) < 0)
 					log(LOG_NOTICE, "SIOCAIFADDR_IN6: "
 					    "SIOCSIFINFO_FLAGS for -ifdisabled "
 					    "failed.");
 				/*
 				 * Ignore failure of clearing the flag
 				 * intentionally.  The failure means
-				 * some serious problems like address
-				 * duplication were detected.
+				 * address duplication wes detected.
 				 */
 			}
 			EVENTHANDLER_INVOKE(ifaddr_event, ifp);
