@@ -158,6 +158,8 @@ struct fhreturn {
 	int	*fhr_secflavors;
 };
 
+#define	GETPORT_MAXTRY	20	/* Max tries to get a port # */
+
 /* Global defs */
 char	*add_expdir(struct dirlist **, char *, int);
 void	add_dlist(struct dirlist **, struct dirlist *,
@@ -167,7 +169,9 @@ int	check_dirpath(char *);
 int	check_options(struct dirlist *);
 int	checkmask(struct sockaddr *sa);
 int	chk_host(struct dirlist *, struct sockaddr *, int *, int *);
-void	create_service(struct netconfig *nconf);
+static int	create_service(struct netconfig *nconf);
+static void	complete_service(struct netconfig *nconf, char *port_str);
+static void	clearout_service(void);
 void	del_mlist(char *hostp, char *dirp);
 struct dirlist *dirp_search(struct dirlist *, char *);
 int	do_mount(struct exportlist *, struct grouplist *, int,
@@ -233,6 +237,10 @@ int got_sighup = 0;
 int xcreated = 0;
 
 char *svcport_str = NULL;
+static int	mallocd_svcport = 0;
+static int	*sock_fd;
+static int	sock_fdcnt;
+static int	sock_fdpos;
 
 int opt_flags;
 static int have_v6 = 1;
@@ -281,6 +289,8 @@ main(int argc, char **argv)
 	in_port_t svcport;
 	int c, k, s;
 	int maxrec = RPC_MAXDATASIZE;
+	int attempt_cnt, port_len, port_pos, ret;
+	char **port_list;
 
 	/* Check that another mountd isn't already running. */
 	pfh = pidfile_open(_PATH_MOUNTDPID, 0600, &otherpid);
@@ -451,17 +461,97 @@ main(int argc, char **argv)
 		hosts[nhosts - 1] = "127.0.0.1";
 	}
 
+	attempt_cnt = 1;
+	sock_fdcnt = 0;
+	sock_fd = NULL;
+	port_list = NULL;
+	port_len = 0;
 	nc_handle = setnetconfig();
 	while ((nconf = getnetconfig(nc_handle))) {
 		if (nconf->nc_flag & NC_VISIBLE) {
 			if (have_v6 == 0 && strcmp(nconf->nc_protofmly,
 			    "inet6") == 0) {
 				/* DO NOTHING */
+			} else {
+				ret = create_service(nconf);
+				if (ret == 1)
+					/* Ignore this call */
+					continue;
+				if (ret < 0) {
+					/*
+					 * Failed to bind port, so close off
+					 * all sockets created and try again
+					 * if the port# was dynamically
+					 * assigned via bind(2).
+					 */
+					clearout_service();
+					if (mallocd_svcport != 0 &&
+					    attempt_cnt < GETPORT_MAXTRY) {
+						free(svcport_str);
+						svcport_str = NULL;
+						mallocd_svcport = 0;
+					} else {
+						errno = EADDRINUSE;
+						syslog(LOG_ERR,
+						    "bindresvport_sa: %m");
+						exit(1);
+					}
+
+					/* Start over at the first service. */
+					free(sock_fd);
+					sock_fdcnt = 0;
+					sock_fd = NULL;
+					nc_handle = setnetconfig();
+					attempt_cnt++;
+				} else if (mallocd_svcport != 0 &&
+				    attempt_cnt == GETPORT_MAXTRY) {
+					/*
+					 * For the last attempt, allow
+					 * different port #s for each nconf
+					 * by saving the svcport_str and
+					 * setting it back to NULL.
+					 */
+					port_list = realloc(port_list,
+					    (port_len + 1) * sizeof(char *));
+					if (port_list == NULL)
+						out_of_mem();
+					port_list[port_len++] = svcport_str;
+					svcport_str = NULL;
+					mallocd_svcport = 0;
+				}
+			}
+		}
+	}
+
+	/*
+	 * Successfully bound the ports, so call complete_service() to
+	 * do the rest of the setup on the service(s).
+	 */
+	sock_fdpos = 0;
+	port_pos = 0;
+	nc_handle = setnetconfig();
+	while ((nconf = getnetconfig(nc_handle))) {
+		if (nconf->nc_flag & NC_VISIBLE) {
+			if (have_v6 == 0 && strcmp(nconf->nc_protofmly,
+			    "inet6") == 0) {
+				/* DO NOTHING */
+			} else if (port_list != NULL) {
+				if (port_pos >= port_len) {
+					syslog(LOG_ERR, "too many port#s");
+					exit(1);
+				}
+				complete_service(nconf, port_list[port_pos++]);
 			} else
-				create_service(nconf);
+				complete_service(nconf, svcport_str);
 		}
 	}
 	endnetconfig(nc_handle);
+	free(sock_fd);
+	if (port_list != NULL) {
+		for (port_pos = 0; port_pos < port_len; port_pos++)
+			free(port_list[port_pos]);
+		free(port_list);
+	}
 
 	if (xcreated == 0) {
 		syslog(LOG_ERR, "could not create any services");
@@ -491,30 +581,31 @@ main(int argc, char **argv)
 
 /*
  * This routine creates and binds sockets on the appropriate
- * addresses. It gets called one time for each transport and
- * registrates the service with rpcbind on that trasport.
+ * addresses. It gets called one time for each transport.
+ * It returns 0 upon success, 1 for ingore the call and -1 to indicate
+ * bind failed with EADDRINUSE.
+ * Any file descriptors that have been created are stored in sock_fd and
+ * the total count of them is maintained in sock_fdcnt.
  */
-void
+static int
 create_service(struct netconfig *nconf)
 {
 	struct addrinfo hints, *res = NULL;
 	struct sockaddr_in *sin;
 	struct sockaddr_in6 *sin6;
 	struct __rpc_sockinfo si;
-	struct netbuf servaddr;
-	SVCXPRT	*transp = NULL;
 	int aicode;
 	int fd;
 	int nhostsbak;
 	int one = 1;
 	int r;
-	int registered = 0;
 	u_int32_t host_addr[4];  /* IPv4 or IPv6 */
+	int mallocd_res;
 
 	if ((nconf->nc_semantics != NC_TPI_CLTS) &&
 	    (nconf->nc_semantics != NC_TPI_COTS) &&
 	    (nconf->nc_semantics != NC_TPI_COTS_ORD))
-		return;	/* not my type */
+		return (1);	/* not my type */
 
 	/*
 	 * XXX - using RPC library internal functions.
@@ -522,7 +613,7 @@ create_service(struct netconfig *nconf)
 	if (!__rpc_nconf2sockinfo(nconf, &si)) {
 		syslog(LOG_ERR, "cannot get information for %s",
 		    nconf->nc_netid);
-		return;
+		return (1);
 	}
 
 	/* Get mountd's address on this transport */
@@ -538,6 +629,12 @@ create_service(struct netconfig *nconf)
 	nhostsbak = nhosts;
 	while (nhostsbak > 0) {
 		--nhostsbak;
+		sock_fd = realloc(sock_fd, (sock_fdcnt + 1) * sizeof(int));
+		if (sock_fd == NULL)
+			out_of_mem();
+		sock_fd[sock_fdcnt++] = -1;	/* Set invalid for now. */
+		mallocd_res = 0;
+
 		/*	
 		 * XXX - using RPC library internal functions.
 		 */
@@ -549,14 +646,16 @@ create_service(struct netconfig *nconf)
 				
 			syslog(non_fatal ? LOG_DEBUG : LOG_ERR, 
 			    "cannot create socket for %s", nconf->nc_netid);
-	    		return;
+			if (non_fatal != 0)
+				continue;
+			exit(1);
 		}
 
 		switch (hints.ai_family) {
 		case AF_INET:
 			if (inet_pton(AF_INET, hosts[nhostsbak],
 			    host_addr) == 1) {
-				hints.ai_flags &= AI_NUMERICHOST;
+				hints.ai_flags |= AI_NUMERICHOST;
 			} else {
 				/*
 				 * Skip if we have an AF_INET6 address.
@@ -571,7 +670,7 @@ create_service(struct netconfig *nconf)
 		case AF_INET6:
 			if (inet_pton(AF_INET6, hosts[nhostsbak],
 			    host_addr) == 1) {
-				hints.ai_flags &= AI_NUMERICHOST;
+				hints.ai_flags |= AI_NUMERICHOST;
 			} else {
 				/*
 				 * Skip if we have an AF_INET address.
@@ -607,6 +706,7 @@ create_service(struct netconfig *nconf)
 				res = malloc(sizeof(struct addrinfo));
 				if (res == NULL) 
 					out_of_mem();
+				mallocd_res = 1;
 				res->ai_flags = hints.ai_flags;
 				res->ai_family = hints.ai_family;
 				res->ai_protocol = hints.ai_protocol;
@@ -620,7 +720,7 @@ create_service(struct netconfig *nconf)
 					sin->sin_addr.s_addr = htonl(INADDR_ANY);
 					res->ai_addr = (struct sockaddr*) sin;
 					res->ai_addrlen = (socklen_t)
-					    sizeof(res->ai_addr);
+					    sizeof(struct sockaddr_in);
 					break;
 				case AF_INET6:
 					sin6 = malloc(sizeof(struct sockaddr_in6));
@@ -631,10 +731,12 @@ create_service(struct netconfig *nconf)
 					sin6->sin6_addr = in6addr_any;
 					res->ai_addr = (struct sockaddr*) sin6;
 					res->ai_addrlen = (socklen_t)
-					    sizeof(res->ai_addr);
-						break;
-				default:
+					    sizeof(struct sockaddr_in6);
 					break;
+				default:
+					syslog(LOG_ERR, "bad addr fam %d",
+					    res->ai_family);
+					exit(1);
 				}
 			} else { 
 				if ((aicode = getaddrinfo(NULL, svcport_str,
@@ -643,6 +745,7 @@ create_service(struct netconfig *nconf)
 					    "cannot get local address for %s: %s",
 					    nconf->nc_netid,
 					    gai_strerror(aicode));
+					close(fd);
 					continue;
 				}
 			}
@@ -652,15 +755,90 @@ create_service(struct netconfig *nconf)
 				syslog(LOG_ERR,
 				    "cannot get local address for %s: %s",
 				    nconf->nc_netid, gai_strerror(aicode));
+				close(fd);
 				continue;
 			}
 		}
 
+		/* Store the fd. */
+		sock_fd[sock_fdcnt - 1] = fd;
+
+		/* Now, attempt the bind. */
 		r = bindresvport_sa(fd, res->ai_addr);
 		if (r != 0) {
+			if (errno == EADDRINUSE && mallocd_svcport != 0) {
+				if (mallocd_res != 0) {
+					free(res->ai_addr);
+					free(res);
+				} else
+					freeaddrinfo(res);
+				return (-1);
+			}
 			syslog(LOG_ERR, "bindresvport_sa: %m");
 			exit(1);
 		}
+
+		if (svcport_str == NULL) {
+			svcport_str = malloc(NI_MAXSERV * sizeof(char));
+			if (svcport_str == NULL)
+				out_of_mem();
+			mallocd_svcport = 1;
+
+			if (getnameinfo(res->ai_addr,
+			    res->ai_addr->sa_len, NULL, NI_MAXHOST,
+			    svcport_str, NI_MAXSERV * sizeof(char),
+			    NI_NUMERICHOST | NI_NUMERICSERV))
+				errx(1, "Cannot get port number");
+		}
+		if (mallocd_res != 0) {
+			free(res->ai_addr);
+			free(res);
+		} else
+			freeaddrinfo(res);
+		res = NULL;
+	}
+	return (0);
+}
+
+/*
+ * Called after all the create_service() calls have succeeded, to complete
+ * the setup and registration.
+ */
+static void
+complete_service(struct netconfig *nconf, char *port_str)
+{
+	struct addrinfo hints, *res = NULL;
+	struct __rpc_sockinfo si;
+	struct netbuf servaddr;
+	SVCXPRT	*transp = NULL;
+	int aicode, fd, nhostsbak;
+	int registered = 0;
+
+	if ((nconf->nc_semantics != NC_TPI_CLTS) &&
+	    (nconf->nc_semantics != NC_TPI_COTS) &&
+	    (nconf->nc_semantics != NC_TPI_COTS_ORD))
+		return;	/* not my type */
+
+	/*
+	 * XXX - using RPC library internal functions.
+	 */
+	if (!__rpc_nconf2sockinfo(nconf, &si)) {
+		syslog(LOG_ERR, "cannot get information for %s",
+		    nconf->nc_netid);
+		return;
+	}
+
+	nhostsbak = nhosts;
+	while (nhostsbak > 0) {
+		--nhostsbak;
+		if (sock_fdpos >= sock_fdcnt) {
+			/* Should never happen. */
+			syslog(LOG_ERR, "Ran out of socket fd's");
+			return;
+		}
+		fd = sock_fd[sock_fdpos++];
+		if (fd < 0)
+			continue;
 
 		if (nconf->nc_semantics != NC_TPI_CLTS)
 			listen(fd, SOMAXCONN);
@@ -696,19 +874,7 @@ create_service(struct netconfig *nconf)
 			hints.ai_socktype = si.si_socktype;
 			hints.ai_protocol = si.si_proto;
 
-			if (svcport_str == NULL) {
-				svcport_str = malloc(NI_MAXSERV * sizeof(char));
-				if (svcport_str == NULL)
-					out_of_mem();
-
-				if (getnameinfo(res->ai_addr,
-				    res->ai_addr->sa_len, NULL, NI_MAXHOST,
-				    svcport_str, NI_MAXSERV * sizeof(char),
-				    NI_NUMERICHOST | NI_NUMERICSERV))
-					errx(1, "Cannot get port number");
-			}
-
-			if((aicode = getaddrinfo(NULL, svcport_str, &hints,
+			if ((aicode = getaddrinfo(NULL, port_str, &hints,
 			    &res)) != 0) {
 				syslog(LOG_ERR, "cannot get local address: %s",
 				    gai_strerror(aicode));
@@ -726,6 +892,23 @@ create_service(struct netconfig *nconf)
 			freeaddrinfo(res);
 		}
 	} /* end while */
+}
+
+/*
+ * Clear out sockets after a failure to bind one of them, so that the
+ * cycle of socket creation/binding can start anew.
+ */
+static void
+clearout_service(void)
+{
+	int i;
+
+	for (i = 0; i < sock_fdcnt; i++) {
+		if (sock_fd[i] >= 0) {
+			shutdown(sock_fd[i], SHUT_RDWR);
+			close(sock_fd[i]);
+		}
+	}
 }
 
 static void

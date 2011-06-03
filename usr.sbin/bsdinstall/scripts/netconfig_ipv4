@@ -44,7 +44,7 @@ esac
 
 dialog --backtitle 'FreeBSD Installer' --title 'Network Configuration' --yesno 'Would you like to use DHCP to configure this interface?' 0 0
 if [ $? -eq $DIALOG_OK ]; then
-	echo ifconfig_$INTERFACE=\"${IFCONFIG_PREFIX}DHCP\" >> $BSDINSTALL_TMPETC/rc.conf.net
+	echo ifconfig_$INTERFACE=\"${IFCONFIG_PREFIX}DHCP\" >> $BSDINSTALL_TMPETC/._rc.conf.net
 
 	if [ ! -z $BSDINSTALL_CONFIGCURRENT ]; then
 		dialog --backtitle 'FreeBSD Installer' --infobox "Acquiring DHCP lease..." 0 0
@@ -74,10 +74,10 @@ echo $INTERFACE $IF_CONFIG |
     awk -v prefix="$IFCONFIG_PREFIX" '{
 	printf("ifconfig_%s=\"%s inet %s netmask %s\"\n", $1, prefix, $2, $3);
 	printf("defaultrouter=\"%s\"\n", $4);
-    }' >> $BSDINSTALL_TMPETC/rc.conf.net
+    }' >> $BSDINSTALL_TMPETC/._rc.conf.net
 
 if [ ! -z $BSDINSTALL_CONFIGCURRENT ]; then
-	. $BSDINSTALL_TMPETC/rc.conf.net
+	. $BSDINSTALL_TMPETC/._rc.conf.net
 	ifconfig $INTERFACE inet `eval echo \\\$ifconfig_$INTERFACE`
 	route delete -inet default
 	route add -inet default $defaultrouter
