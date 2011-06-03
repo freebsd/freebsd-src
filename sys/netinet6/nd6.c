@@ -1328,7 +1328,7 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 		 */
 		if ((ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED) &&
 		    (ND.flags & (ND6_IFF_ACCEPT_RTADV |
-				 ND6_IFF_AUTO_LINKLOCAL)))
+			    ND6_IFF_AUTO_LINKLOCAL)))
 			ND.flags &= ~ND6_IFF_IFDISABLED;
 
 		if ((ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED) &&
@@ -1349,7 +1349,7 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 					continue;
 				ia = (struct in6_ifaddr *)ifa;
 				if ((ia->ia6_flags & IN6_IFF_DUPLICATED) &&
-				    IN6_IS_ADDR_LINKLOCAL(&ia->ia_addr.sin6_addr)) {
+				    IN6_IS_ADDR_LINKLOCAL(IA6_IN6(ia)))
 					duplicated_linklocal = 1;
 					break;
 				}
@@ -1401,8 +1401,10 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 				if (ifa->ifa_addr->sa_family != AF_INET6)
 					continue;
 				ia = (struct in6_ifaddr *)ifa;
-				if (IN6_IS_ADDR_LINKLOCAL(&(ia->ia_addr.sin6_addr)))
+				if (IN6_IS_ADDR_LINKLOCAL(IA6_IN6(ia))) {
 					haslinklocal = 1;
+					break;
+				}
 			}
 			IF_ADDR_UNLOCK(ifp);
 			if (!haslinklocal)
