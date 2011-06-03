@@ -36,14 +36,16 @@ struct script_msg {
 
 	char *sm_msg;
 };
+
 struct ra_opt {
 	TAILQ_ENTRY(ra_opt)	rao_next;
 
-	u_int8_t       	rao_type;
+	u_int8_t	rao_type;
 	struct timeval	rao_expire;
 	size_t		rao_len;
 	void		*rao_msg;
 };
+
 struct ifinfo {
 	TAILQ_ENTRY(ifinfo)	ifi_next;	/* pointer to the next interface */
 
@@ -100,9 +102,11 @@ extern TAILQ_HEAD(ifinfo_head_t, ifinfo) ifinfo_head;
 #endif
 #endif
 
+#ifndef IN6ADDR_LINKLOCAL_ALLROUTERS_INIT
 #define IN6ADDR_LINKLOCAL_ALLROUTERS_INIT			\
 	{{{ 0xff, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,	\
 	    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02 }}}
+#endif
 
 /* rtsold.c */
 extern struct timeval tm_max;

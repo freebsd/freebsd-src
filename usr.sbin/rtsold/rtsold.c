@@ -459,17 +459,14 @@ void
 iflist_init(void)
 {
 	struct ifinfo *ifi;
-	struct ifinfo *ifi_tmp;
 
-	ifi = TAILQ_FIRST(&ifinfo_head);
-	while (ifi != NULL) {
+	while ((ifi = TAILQ_FIRST(&ifinfo_head)) != NULL) {
+		TAILQ_REMOVE(&ifinfo_head, ifi, ifi_next);
 		if (ifi->sdl != NULL)
 			free(ifi->sdl);
 		if (ifi->rs_data != NULL)
 			free(ifi->rs_data);
-		ifi_tmp = TAILQ_NEXT(ifi, ifi_next);
 		free(ifi);
-		ifi = ifi_tmp;
 	}
 }
 
@@ -556,6 +553,7 @@ rtsol_check_timer(void)
 	static struct timeval returnval;
 	struct timeval now, rtsol_timer;
 	struct ifinfo *ifi;
+	struct ra_opt *rao;
 	int flags;
 
 	gettimeofday(&now, NULL);
@@ -571,17 +569,11 @@ rtsol_check_timer(void)
 				    ifi->state);
 
 			/* Remove all RA options. */
-			if (!TAILQ_EMPTY(&ifi->ifi_ra_opt)) {
-				struct ra_opt *rao;
-				struct ra_opt *rao_tmp;
-
-				rao = TAILQ_FIRST(&ifi->ifi_ra_opt);
-				while (rao != NULL) {
-					rao_tmp = TAILQ_NEXT(rao, rao_next);
-					free(rao_tmp->rao_msg);
-					free(rao_tmp);
-					rao = rao_tmp;
-				}
+			while ((rao = TAILQ_FIRST(&ifi->ifi_ra_opt)) != NULL) {
+				if (rao->rao_msg != NULL)
+					free(rao->rao_msg);
+				TAILQ_REMOVE(&ifi->ifi_ra_opt, rao, rao_next);
+				free(rao);
 			}
 			switch (ifi->state) {
 			case IFS_DOWN:
@@ -650,7 +642,6 @@ rtsol_check_timer(void)
 			rtsol_timer_update(ifi);
 		} else {
 			/* Expiration check for RA options. */
-			struct ra_opt *rao;
 			struct ra_opt *rao_tmp;
 			int expire = 0;
 
@@ -782,11 +773,15 @@ static void
 usage(void)
 {
 #ifndef SMALL
-	fprintf(stderr, "usage: rtsold [-adDfFm1] [-O script-name] [-P pidfile] [-R script-name] interfaces...\n");
-	fprintf(stderr, "usage: rtsold [-dDfFm1] [-O script-name] [-P pidfile] [-R script-name] -a\n");
+	fprintf(stderr, "usage: rtsold [-adDfFm1] [-O script-name] "
+	    "[-P pidfile] [-R script-name] interfaces...\n");
+	fprintf(stderr, "usage: rtsold [-dDfFm1] [-O script-name] "
+	    "[-P pidfile] [-R script-name] -a\n");
 #else
-	fprintf(stderr, "usage: rtsol [-dDF] [-O script-name] [-P pidfile] [-R script-name] interfaces...\n");
-	fprintf(stderr, "usage: rtsol [-dDF] [-O script-name] [-P pidfile] [-R script-name] -a\n");
+	fprintf(stderr, "usage: rtsol [-dDF] [-O script-name] "
+	    "[-P pidfile] [-R script-name] interfaces...\n");
+	fprintf(stderr, "usage: rtsol [-dDF] [-O script-name] "
+	    "[-P pidfile] [-R script-name] -a\n");
 #endif
 }
 

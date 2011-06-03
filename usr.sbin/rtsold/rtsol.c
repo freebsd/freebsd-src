@@ -44,7 +44,9 @@
 #include <net/route.h>
 #include <net/if_dl.h>
 
+#define	__BSD_VISIBLE	1	/* IN6ADDR_LINKLOCAL_ALLROUTERS_INIT */
 #include <netinet/in.h>
+#undef 	__BSD_VISIBLE
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
 #include <netinet/icmp6.h>
@@ -81,18 +83,20 @@ static const struct sockaddr_in6 sin6_allrouters = {
 };
 
 static void call_script(const int, const char *const *, void *);
-static size_t dname_labeldec(char *, const char *);
+static size_t dname_labeldec(char *, size_t, const char *);
 static int safefile(const char *);
 
-#define _ARGS_OTHER	otherconf_script, ifi->ifname
-#define _ARGS_RESADD	resolvconf_script, "-a", ifi->ifname
-#define _ARGS_RESDEL	resolvconf_script, "-d", ifi->ifname
-#define CALL_SCRIPT(name, sm_head)					\
+#define	_ARGS_OTHER	otherconf_script, ifi->ifname
+#define	_ARGS_RESADD	resolvconf_script, "-a", ifi->ifname
+#define	_ARGS_RESDEL	resolvconf_script, "-d", ifi->ifname
+
+#define	CALL_SCRIPT(name, sm_head)					\
 	do {								\
 		const char *const sarg[] = { _ARGS_##name, NULL };	\
 		call_script(sizeof(sarg), sarg, sm_head);		\
-	} while(0);
-#define ELM_MALLOC(p,error_action)					\
+	} while(0)
+
+#define	ELM_MALLOC(p,error_action)					\
 	do {								\
 		p = malloc(sizeof(*p));					\
 		if (p == NULL) {					\
@@ -101,7 +105,7 @@ static int safefile(const char *);
 			error_action;					\
 		}							\
 		memset(p, 0, sizeof(*p));				\
-	} while(0);
+	} while(0)
 
 int
 sockopen(void)
@@ -228,7 +232,7 @@ void
 rtsol_input(int s)
 {
 	u_char ntopbuf[INET6_ADDRSTRLEN], ifnamebuf[IFNAMSIZ];
-	int ifindex = 0, *hlimp = NULL;
+	int l, ifindex = 0, *hlimp = NULL;
 	ssize_t msglen;
 	struct in6_pktinfo *pi = NULL;
 	struct ifinfo *ifi = NULL;
@@ -364,26 +368,24 @@ rtsol_input(int s)
 		CALL_SCRIPT(OTHER, NULL);
 	}
 
-#define RA_OPT_NEXT_HDR(x)	(struct nd_opt_hdr *)((char *)x + \
-				(((struct nd_opt_hdr *)x)->nd_opt_len * 8))
-	raoptp = (char *)icp + sizeof(struct nd_router_advert);
-
 	/* Initialize ra_opt per-interface structure. */
 	gettimeofday(&now, NULL);
-	if (!TAILQ_EMPTY(&ifi->ifi_ra_opt)) {
-		struct ra_opt *rao_tmp;
-
-		rao = TAILQ_FIRST(&ifi->ifi_ra_opt);
-		while (rao != NULL) {
-			rao_tmp = TAILQ_NEXT(rao, rao_next);
+	if (!TAILQ_EMPTY(&ifi->ifi_ra_opt))
+		while ((rao = TAILQ_FIRST(&ifi->ifi_ra_opt)) != NULL) {
+			if (rao->rao_msg != NULL)
+				free(rao->rao_msg);
+			TAILQ_REMOVE(&ifi->ifi_ra_opt, rao, rao_next);
 			free(rao);
-			rao = rao_tmp;
 		}
-	} else
+	else
 		TAILQ_INIT(&ifi->ifi_ra_opt);
 
-	warnmsg(LOG_DEBUG, __func__, "Processing RA");
+#define	RA_OPT_NEXT_HDR(x)	(struct nd_opt_hdr *)((char *)x + \
+				(((struct nd_opt_hdr *)x)->nd_opt_len * 8))
+
 	/* Process RA options. */
+	warnmsg(LOG_DEBUG, __func__, "Processing RA");
+	raoptp = (char *)icp + sizeof(struct nd_router_advert);
 	while (raoptp < (char *)icp + msglen) {
 		ndo = (struct nd_opt_hdr *)raoptp;
 		warnmsg(LOG_DEBUG, __func__, "ndo = %p", raoptp);
@@ -411,21 +413,29 @@ rtsol_input(int s)
 				if (inet_ntop(AF_INET6, addr, ntopbuf,
 				    INET6_ADDRSTRLEN) == NULL) {
 					warnmsg(LOG_INFO, __func__,
-		    			"an invalid address in RDNSS option "
-					"in RA from %s was ignored.",
-					inet_ntop(AF_INET6, &from.sin6_addr,
-					ntopbuf, INET6_ADDRSTRLEN));
-
+		    			    "an invalid address in RDNSS option"
+					    " in RA from %s was ignored.",
+					    inet_ntop(AF_INET6, &from.sin6_addr,
+					    ntopbuf, INET6_ADDRSTRLEN));
+					addr++;
 					continue;
 				}
 				if (IN6_IS_ADDR_LINKLOCAL(addr))
 					/* XXX: % has to be escaped here */
-					sprintf(nsbuf, "%s%c%s",
-					    ntopbuf,
+					l = snprintf(nsbuf, sizeof(nsbuf),
+					    "%s%c%s", ntopbuf,
 					    SCOPE_DELIMITER,
 					    ifi->ifname);
 				else
-					sprintf(nsbuf, "%s", ntopbuf);
+					l = snprintf(nsbuf, sizeof(nsbuf),
+					    "%s", ntopbuf);
+				if (l < 0 || (size_t)l >= sizeof(nsbuf)) {
+					warnmsg(LOG_ERR, __func__,
+					    "address copying error in "
+					    "RDNSS option: %d.", l);
+					addr++;
+					continue;
+				}
 				warnmsg(LOG_DEBUG, __func__, "nsbuf = %s",
 				    nsbuf);
 
@@ -438,6 +448,7 @@ rtsol_input(int s)
 					    "strdup failed: %s",
 					    strerror(errno));
 					free(rao);
+					addr++;
 					continue;
 				}
 				/* Set expiration timer */
@@ -464,7 +475,8 @@ rtsol_input(int s)
 			}
 
 			p = raoptp + sizeof(*dnssl);
-			while (0 < (len = dname_labeldec(dname, p))) {
+			while (0 < (len = dname_labeldec(dname, sizeof(dname),
+			    p))) {
 				warnmsg(LOG_DEBUG, __func__, "dname = %s",
 				    dname);
 
@@ -519,13 +531,16 @@ int
 ra_opt_handler(struct ifinfo *ifi)
 {
 	struct ra_opt *rao;
-	struct script_msg *smp;
+	struct script_msg *smp1, *smp2, *smp3;
 	struct timeval now;
 	TAILQ_HEAD(, script_msg) sm_rdnss_head =
 		TAILQ_HEAD_INITIALIZER(sm_rdnss_head);
 	TAILQ_HEAD(, script_msg) sm_dnssl_head =
 		TAILQ_HEAD_INITIALIZER(sm_dnssl_head);
+	int dcount, dlen;
 
+	dcount = 0;
+	dlen = strlen(resstr_sh_prefix) + strlen(resstr_nl);
 	gettimeofday(&now, NULL);
 	TAILQ_FOREACH(rao, &ifi->ifi_ra_opt, rao_next) {
 		switch (rao->rao_type) {
@@ -536,17 +551,15 @@ ra_opt_handler(struct ifinfo *ifi)
 					(char *)rao->rao_msg);
 				break;
 			}
-			ELM_MALLOC(smp, continue);
-			smp->sm_msg = resstr_ns_prefix;
-			TAILQ_INSERT_TAIL(&sm_rdnss_head, smp, sm_next);
-
-			ELM_MALLOC(smp, continue);
-			smp->sm_msg = rao->rao_msg;
-			TAILQ_INSERT_TAIL(&sm_rdnss_head, smp, sm_next);
-
-			ELM_MALLOC(smp, continue);
-			smp->sm_msg = resstr_nl;
-			TAILQ_INSERT_TAIL(&sm_rdnss_head, smp, sm_next);
+			ELM_MALLOC(smp1, continue);
+			ELM_MALLOC(smp2, goto free1);
+			ELM_MALLOC(smp3, goto free2);
+			smp1->sm_msg = resstr_ns_prefix;
+			TAILQ_INSERT_TAIL(&sm_rdnss_head, smp1, sm_next);
+			smp2->sm_msg = rao->rao_msg;
+			TAILQ_INSERT_TAIL(&sm_rdnss_head, smp2, sm_next);
+			smp3->sm_msg = resstr_nl;
+			TAILQ_INSERT_TAIL(&sm_rdnss_head, smp3, sm_next);
 
 			break;
 		case ND_OPT_DNSSL:
@@ -556,47 +569,63 @@ ra_opt_handler(struct ifinfo *ifi)
 					(char *)rao->rao_msg);
 				break;
 			}
-			if (TAILQ_EMPTY(&sm_dnssl_head)) {
-				ELM_MALLOC(smp, continue);
-				smp->sm_msg = resstr_sh_prefix;
-				TAILQ_INSERT_TAIL(&sm_dnssl_head, smp, sm_next);
+			dcount++;
+			/* Check resolv.conf(5) restrictions. */
+			if (dcount > 6) {
+				warnmsg(LOG_INFO, __func__,
+				    "dnssl entry exceeding maximum count (%d>6)"
+				    ": %s", dcount, (char *)rao->rao_msg);
+				break;
 			}
-			ELM_MALLOC(smp, continue);
-			smp->sm_msg = rao->rao_msg;
-			TAILQ_INSERT_TAIL(&sm_dnssl_head, smp, sm_next);
-
-			ELM_MALLOC(smp, continue);
-			smp->sm_msg = resstr_sp;
-			TAILQ_INSERT_TAIL(&sm_dnssl_head, smp, sm_next);
+			if (256 < dlen + strlen(rao->rao_msg) +
+			    strlen(resstr_sp)) {
+				warnmsg(LOG_INFO, __func__,
+				    "dnssl entry exceeding maximum length "
+				    "(>256): %s", (char *)rao->rao_msg);
+				break;
+			}
+			ELM_MALLOC(smp1, continue);
+			ELM_MALLOC(smp2, goto free1);
+			if (TAILQ_EMPTY(&sm_dnssl_head)) {
+				ELM_MALLOC(smp3, goto free2);
+				smp3->sm_msg = resstr_sh_prefix;
+				TAILQ_INSERT_TAIL(&sm_dnssl_head, smp3,
+				    sm_next);
+			}
+			smp1->sm_msg = rao->rao_msg;
+			TAILQ_INSERT_TAIL(&sm_dnssl_head, smp1, sm_next);
+			smp2->sm_msg = resstr_sp;
+			TAILQ_INSERT_TAIL(&sm_dnssl_head, smp2, sm_next);
+			dlen += strlen(rao->rao_msg) + strlen(resstr_sp);
 			break;
 		default:
 			break;
 		}
+		continue;
+free2:
+		free(smp2);
+free1:
+		free(smp1);
 	}
 	/* Add \n for DNSSL list. */
 	if (!TAILQ_EMPTY(&sm_dnssl_head)) {
-		ELM_MALLOC(smp, goto ra_opt_handler_freeit);
-		smp->sm_msg = resstr_nl;
-		TAILQ_INSERT_TAIL(&sm_dnssl_head, smp, sm_next);
+		ELM_MALLOC(smp1, goto ra_opt_handler_freeit);
+		smp1->sm_msg = resstr_nl;
+		TAILQ_INSERT_TAIL(&sm_dnssl_head, smp1, sm_next);
 	}
 	TAILQ_CONCAT(&sm_rdnss_head, &sm_dnssl_head, sm_next);
 
-        if (!TAILQ_EMPTY(&sm_rdnss_head)) {
-                CALL_SCRIPT(RESADD, &sm_rdnss_head);
-	} else {
-                CALL_SCRIPT(RESDEL, NULL);
-	}
+	if (!TAILQ_EMPTY(&sm_rdnss_head))
+		CALL_SCRIPT(RESADD, &sm_rdnss_head);
+	else
+		CALL_SCRIPT(RESDEL, NULL);
 
 ra_opt_handler_freeit:
 	/* Clear script message queue. */
 	if (!TAILQ_EMPTY(&sm_rdnss_head)) {
-                struct script_msg *sm_tmp;
-
-		smp = TAILQ_FIRST(&sm_rdnss_head);
-		while(smp != NULL) {
-			sm_tmp = TAILQ_NEXT(smp, sm_next);
-			free(smp);
-			smp = sm_tmp;
+		while ((smp1 = TAILQ_FIRST(&sm_rdnss_head)) != NULL) {
+			TAILQ_REMOVE(&sm_rdnss_head, smp1, sm_next);
+			free(smp1);
 		}
 	}
 	return (0);
@@ -609,13 +638,13 @@ call_script(const int argc, const char *const argv[], void *head)
 	int fd[2];
 	int error;
 	pid_t pid, wpid;
-	TAILQ_HEAD(, script_msg) *sm_head = NULL;
+	TAILQ_HEAD(, script_msg) *sm_head;
 
-	sm_head = head;
-	fd[0] = fd[1] = -1;
 	if ((scriptpath = argv[0]) == NULL)
 		return;
 
+	fd[0] = fd[1] = -1;
+	sm_head = head;
 	if (sm_head != NULL && !TAILQ_EMPTY(sm_head)) {
 		error = pipe(fd);
 		if (error) {
@@ -642,7 +671,7 @@ call_script(const int argc, const char *const argv[], void *head)
 			TAILQ_FOREACH(smp, sm_head, sm_next) {
 				len = strlen(smp->sm_msg);
 				warnmsg(LOG_DEBUG, __func__,
-				    "write to child = %s(%d)",
+				    "write to child = %s(%zd)",
 				    smp->sm_msg, len);
 				if (write(fd[1], smp->sm_msg, len) != len) {
 					warnmsg(LOG_ERR, __func__,
@@ -660,10 +689,9 @@ call_script(const int argc, const char *const argv[], void *head)
 		if (wpid < 0)
 			warnmsg(LOG_ERR, __func__,
 			    "wait: %s", strerror(errno));
-		else {
+		else
 			warnmsg(LOG_DEBUG, __func__,
 			    "script \"%s\" terminated", scriptpath);
-		}
 	} else {		/* child */
 		int nullfd;
 		char **_argv;
@@ -757,20 +785,28 @@ safefile(const char *path)
 
 /* Decode domain name label encoding in RFC 1035 Section 3.1 */
 static size_t
-dname_labeldec(char *dst, const char *src)
+dname_labeldec(char *dst, size_t dlen, const char *src)
 {
 	size_t len;
 	const char *src_origin;
 
 	src_origin = src;
+	memset(dst, '\0', dlen);
 	while (*src && (len = (uint8_t)(*src++) & 0x3f) != 0) {
-		warnmsg(LOG_DEBUG, __func__, "labellen = %d", len);
+		warnmsg(LOG_DEBUG, __func__, "labellen = %zd", len);
 		memcpy(dst, src, len);
 		src += len;
 		dst += len;
 		if (*(dst - 1) == '\0')
 			break; 
 	}
+
+	/*
+	 * XXX validate that domain name only contains valid characters
+	 * for two reasons: 1) correctness, 2) we do not want to pass
+	 * possible malicious, unescaped characters like `` to a script
+	 * or program that could be exploited that way.
+	 */
 
 	return (src - src_origin);
 }
