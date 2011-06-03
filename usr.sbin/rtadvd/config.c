@@ -97,7 +97,7 @@ dname_labelenc(char *dst, const char *src)
 	syslog(LOG_DEBUG, "<%s> labelenc = %s", __func__, src);
 	while (src && (len = strlen(src)) != 0) {
 		/* Put a length field with 63 octet limitation first. */
-		p = index(src, '.');
+		p = strchr(src, '.');
 		if (p == NULL)
 			*dst++ = len = MIN(63, len);
 		else
