@@ -704,7 +704,7 @@ parse_file() {
 				manlocales="$manlocales:$tstr"
 				;;
 		MANCONFIG*)	decho "    MANCONFIG" 3
-				trim "${line#MANCONF}"
+				trim "${line#MANCONFIG}"
 				config_local="$tstr"
 				;;
 		# Set variables in the form of FOO_BAR
