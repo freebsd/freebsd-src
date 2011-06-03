@@ -736,6 +736,16 @@ typedef struct {
 
 
 /*
+ * Flag for setting QUIET period
+ */
+typedef enum {
+	HAL_QUIET_DISABLE		= 0x0,
+	HAL_QUIET_ENABLE		= 0x1,
+	HAL_QUIET_ADD_CURRENT_TSF	= 0x2,	/* add current TSF to next_start offset */
+	HAL_QUIET_ADD_SWBA_RESP_TIME	= 0x4,	/* add beacon response time to next_start offset */
+} HAL_QUIET_FLAG;
+
+/*
  * Hardware Access Layer (HAL) API.
  *
  * Clients of the HAL call ath_hal_attach to obtain a reference to an
@@ -909,6 +919,9 @@ struct ath_hal {
 	u_int	  __ahdecl(*ah_getCTSTimeout)(struct ath_hal*);
 	HAL_BOOL  __ahdecl(*ah_setDecompMask)(struct ath_hal*, uint16_t, int);
 	void	  __ahdecl(*ah_setCoverageClass)(struct ath_hal*, uint8_t, int);
+	HAL_STATUS	__ahdecl(*ah_setQuiet)(struct ath_hal *ah, uint32_t period,
+				uint32_t duration, uint32_t nextStart,
+				HAL_QUIET_FLAG flag);
 
 	/* DFS functions */
 	void	  __ahdecl(*ah_enableDfs)(struct ath_hal *ah,

@@ -1281,6 +1281,7 @@ pcap_cleanup_bpf(pcap_t *p)
 			munmap(p->md.zbuf1, p->md.zbufsize);
 		if (p->md.zbuf2 != MAP_FAILED && p->md.zbuf2 != NULL)
 			munmap(p->md.zbuf2, p->md.zbufsize);
+		p->buffer = NULL;
 	}
 #endif
 	if (p->md.device != NULL) {

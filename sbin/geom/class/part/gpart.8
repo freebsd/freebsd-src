@@ -61,7 +61,8 @@ which is used to define a logical partition.
 The
 .Dv GEOM_PART_EBR_COMPAT
 option enables backward compatibility for partition names
-in the EBR scheme. Also it makes impossible any types of actions
+in the EBR scheme.
+Also it makes impossible any types of actions
 with such partitions.
 The
 .Dv GEOM_PART_GPT
@@ -170,7 +171,7 @@ utility:
 .\" ==== SHOW ====
 .Nm
 .Cm show
-.Op Fl l | Fl r
+.Op Fl l | r
 .Op Fl p
 .Op Ar geom ...
 .\" ==== UNDO ====
@@ -200,11 +201,14 @@ The partition begins on the logical block address given by the
 option.
 Its size is given by the
 .Fl s Ar size
-option. SI unit suffixes are allowed. One or both
+option.
+SI unit suffixes are allowed.
+One or both
 .Fl b
 and
 .Fl s
-options can be omitted. If so they are automatically calculated.
+options can be omitted.
+If so they are automatically calculated.
 The type of the partition is given by the
 .Fl t Ar type
 option.
@@ -399,7 +403,7 @@ about its use.
 Recover corrupt partition's scheme metadata on the geom
 .Ar geom .
 See the section entitled
-.Sx "RECOVERING"
+.Sx RECOVERING
 below for the additional information.
 .Pp
 Additional options include:
@@ -453,7 +457,7 @@ action and given from standard input.
 Only partition table may be restored.
 This action does not affect content of partitions.
 This mean that you should copy your data from backup after restoring
-partition table and write bootcode again if it is needed. 
+partition table and write bootcode again if it is needed.
 .Pp
 Additional options include:
 .Bl -tag -width 10n
@@ -474,7 +478,7 @@ about its use.
 .It Cm set
 Set the named attribute on the partition entry.
 See the section entitled
-.Sx "ATTRIBUTES"
+.Sx ATTRIBUTES
 below for a list of available attributes.
 .Pp
 Additional options include:
@@ -511,7 +515,7 @@ action and can be used to undo any changes that have not been committed.
 .It Cm unset
 Clear the named attribute on the partition entry.
 See the section entitled
-.Sx "ATTRIBUTES"
+.Sx ATTRIBUTES
 below for a list of available attributes.
 .Pp
 Additional options include:
@@ -616,75 +620,75 @@ by GPT.
 .El
 .Sh ATTRIBUTES
 The scheme-specific attributes for EBR:
-.Bl -tag -width ".Ar active"
-.It Ar active
+.Bl -tag -width ".Cm active"
+.It Cm active
 .El
 .Pp
 The scheme-specific attributes for GPT:
-.Bl -tag -width ".Ar bootfailed"
-.It Ar bootme
+.Bl -tag -width ".Cm bootfailed"
+.It Cm bootme
 When set, the
 .Nm gptboot
 stage 1 boot loader will try to boot the system from this partition.
 Multiple partitions might be marked with the
-.Ar bootme
+.Cm bootme
 attribute.
 In such scenario the
 .Nm gptboot
 will try all
-.Ar bootme
+.Cm bootme
 partitions one by one, until the next boot stage is successfully entered.
-.It Ar bootonce
+.It Cm bootonce
 Setting this attribute automatically sets the
-.Ar bootme
+.Cm bootme
 attribute.
 When set, the
 .Nm gptboot
 stage 1 boot loader will try to boot the system from this partition only once.
 Partitions with both
-.Ar bootonce
+.Cm bootonce
 and
-.Ar bootme
+.Cm bootme
 attributes are tried before partitions with only the
-.Ar bootme
+.Cm bootme
 attribute.
 Before
-.Ar bootonce
+.Cm bootonce
 partition is tried, the
 .Nm gptboot
 removes the
-.Ar bootme
+.Cm bootme
 attribute and tries to execute the next boot stage.
 If it fails, the
-.Ar bootonce
+.Cm bootonce
 attribute that is now alone is replaced with the
-.Ar bootfailed
+.Cm bootfailed
 attribute.
 If the execution of the next boot stage succeeds, but the system is not fully
 booted, the
 .Nm gptboot
 will look for
-.Ar bootonce
+.Cm bootonce
 attributes alone (without the
-.Ar bootme
+.Cm bootme
 attribute) on the next system boot and will replace those with the
-.Ar bootfailed
+.Cm bootfailed
 attribute.
 If the system is fully booted, the
 .Pa /etc/rc.d/gptboot
 start-up script will look for partition with the
-.Ar bootonce
+.Cm bootonce
 attribute alone, will remove the attribute and log that the system was
 successfully booted from this partition.
 There should be at most one
-.Ar bootonce
+.Cm bootonce
 partition when system is successfully booted.
 Multiple partitions might be marked with the
-.Ar bootonce
+.Cm bootonce
 and
-.Ar bootme
+.Cm bootme
 attribute pairs.
-.It Ar bootfailed
+.It Cm bootfailed
 This attribute should not be manually managed.
 It is managed by the
 .Nm gptboot
@@ -692,24 +696,24 @@ stage 1 boot loader and the
 .Pa /etc/rc.d/gptboot
 start-up script.
 This attribute is used to mark partitions that had the
-.Ar bootonce
+.Cm bootonce
 attribute set, but we failed to boot from them.
 Once we successfully boot, the
 .Pa /etc/rc.d/gptboot
 script will log all the partitions we failed to boot from and will remove the
-.Ar bootfailed
+.Cm bootfailed
 attributes.
 .El
 .Pp
 The scheme-specific attributes for MBR:
-.Bl -tag -width ".Ar active"
-.It Ar active
+.Bl -tag -width ".Cm active"
+.It Cm active
 .El
 .Pp
 The scheme-specific attributes for PC98:
-.Bl -tag -width ".Ar bootable"
-.It Ar active
-.It Ar bootable
+.Bl -tag -width ".Cm bootable"
+.It Cm active
+.It Cm bootable
 .El
 .Sh OPERATIONAL FLAGS
 Actions other than the
@@ -747,7 +751,7 @@ reports about corruption.
 Any changes in corrupt table are prohibited except
 .Cm destroy
 and
-.Cm recover . 
+.Cm recover .
 .Pp
 In case when only first sector is corrupt kernel can not detect GPT even
 if partition table is not corrupt.
@@ -771,16 +775,15 @@ GEOM: provider: the secondary GPT table is corrupt or invalid.
 GEOM: provider: using the primary only -- recovery suggested.
 .Ed
 .Pp
-Also 
-.Cm gpart 
-commands like 
-.Cm show ,
-.Cm status
+Also
+.Nm
+commands like
+.Cm show , status
 and
 .Cm list
 will report about corrupt table.
 .Pp
-In case when the size of device has changed (e.g. volume expansion) the 
+In case when the size of device has changed (e.g.\& volume expansion) the
 secondary GPT header will become located not in the last sector.
 This is not a metadata corruption, but it is dangerous because any
 corruption of the primary GPT will lead to lost of partition table.
@@ -789,19 +792,19 @@ Kernel reports about this problem with message:
 GEOM: provider: the secondary GPT header is not in the last LBA.
 .Ed
 .Pp
-A corrupt table can be recovered with 
-.Cm gpart recover 
+A corrupt table can be recovered with
+.Cm recover
 command.
-This command does reconstruction of corrupt metadata using 
+This command does reconstruction of corrupt metadata using
 known valid metadata.
 Also it can relocate secondary GPT to the end of device.
 .Pp
-.Pa NOTE :
-The GEOM class PART can detect the same partition table on different GEOM 
+.Em NOTE :
+The GEOM class PART can detect the same partition table on different GEOM
 providers and some of them will be marked as corrupt.
 Be careful when choosing a provider for recovering.
 If you choose incorrectly you can destroy the metadata of another GEOM class,
-e.g. GEOM MIRROR or GEOM LABEL.
+e.g.\& GEOM MIRROR or GEOM LABEL.
 .Sh SYSCTL VARIABLES
 The following
 .Xr sysctl 8
@@ -815,20 +818,21 @@ This variable controls the behaviour of metadata integrity checks.
 When integrity checks are enabled
 .Nm PART
 GEOM class verifies all generic partition parameters that it gets from the
-disk metadata. If some inconsistency is detected, partition table will be
+disk metadata.
+If some inconsistency is detected, partition table will be
 rejected with a diagnostic message:
-.Pa GEOM_PART: Integrity check failed (provider, scheme) .
+.Sy "GEOM_PART: Integrity check failed (provider, scheme)" .
 .El
 .Sh EXIT STATUS
 Exit status is 0 on success, and 1 if the command fails.
 .Sh EXAMPLES
 Create GPT scheme on
-.Pa ad0 .
+.Pa ad0 :
 .Bd -literal -offset indent
 /sbin/gpart create -s GPT ad0
 .Ed
 .Pp
-Embed GPT bootstrap code into protective MBR.
+Embed GPT bootstrap code into protective MBR:
 .Bd -literal -offset indent
 /sbin/gpart bootcode -b /boot/pmbr ad0
 .Ed
@@ -854,15 +858,19 @@ future need (e.g.\& from a ZFS partition).
 .Pp
 Create a 512MB-sized
 .Cm freebsd-ufs
-partition that would contain UFS where the system boots from.
+partition that would contain UFS where the system boots from:
 .Bd -literal -offset indent
 /sbin/gpart add -b 162 -s 1048576 -t freebsd-ufs ad0
 .Ed
 .Pp
 Create MBR scheme on
 .Pa ada0 ,
-then create 30GB-sized FreeBSD slice, mark it active and
-install boot0 boot manager:
+then create 30GB-sized
+.Fx
+slice, mark it active and
+install
+.Nm boot0
+boot manager:
 .Bd -literal -offset indent
 /sbin/gpart create -s MBR ada0
 /sbin/gpart add -t freebsd -s 30G ada0
@@ -870,7 +878,11 @@ install boot0 boot manager:
 /sbin/gpart bootcode -b /boot/boot0 ada0
 .Ed
 .Pp
-Now create BSD scheme (BSD label) with ability to have up to 20 partitions:
+Now create
+.Bx
+scheme
+.Pf ( Bx
+label) with ability to have up to 20 partitions:
 .Bd -literal -offset indent
 /sbin/gpart create -s BSD -n 20 ada0s1
 .Ed
@@ -881,20 +893,22 @@ Create 1GB-sized UFS partition and 4GB-sized swap partition:
 /sbin/gpart add -t freebsd-swap -s 4G ada0s1
 .Ed
 .Pp
-Install bootstrap code for the BSD label:
+Install bootstrap code for the
+.Bx
+label:
 .Bd -literal -offset indent
 /sbin/gpart bootcode -b /boot/boot ada0s1
 .Ed
 .Pp
 Create VTOC8 scheme on
-.Pa da0 .
+.Pa da0 :
 .Bd -literal -offset indent
 /sbin/gpart create -s VTOC8 da0
 .Ed
 .Pp
 Create a 512MB-sized
 .Cm freebsd-ufs
-partition that would contain UFS where the system boots from.
+partition that would contain UFS where the system boots from:
 .Bd -literal -offset indent
 /sbin/gpart add -s 512M -t freebsd-ufs da0
 .Ed
@@ -906,29 +920,29 @@ partition that would contain UFS and aligned on 4KB boundaries:
 /sbin/gpart add -s 15G -t freebsd-ufs -a 4k da0
 .Ed
 .Pp
-After having created all required partitions, embed bootstrap code into them.
+After having created all required partitions, embed bootstrap code into them:
 .Bd -literal -offset indent
 /sbin/gpart bootcode -p /boot/boot1 da0
 .Ed
 .Pp
 Create backup of partition table from
-.Pa da0
+.Pa da0 :
 .Bd -literal -offset indent
 /sbin/gpart backup da0 > da0.backup
 .Ed
 .Pp
 Restore partition table from backup to
-.Pa da0
+.Pa da0 :
 .Bd -literal -offset indent
 /sbin/gpart restore -l da0 < /mnt/da0.backup
 .Ed
 .Pp
-Clone partition table from 
-.Pa ada0 
-to 
-.Pa ada1 
-and 
-.Pa ada2
+Clone partition table from
+.Pa ada0
+to
+.Pa ada1
+and
+.Pa ada2 :
 .Bd -literal -offset indent
 /sbin/gpart backup ada0 | /sbin/gpart restore -F ada1 ada2
 .Ed

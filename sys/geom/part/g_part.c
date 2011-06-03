@@ -248,6 +248,7 @@ g_part_check_integrity(struct g_part_table *table, struct g_consumer *cp)
 {
 	struct g_part_entry *e1, *e2;
 	struct g_provider *pp;
+	off_t offset;
 	int failed;
 
 	failed = 0;
@@ -293,6 +294,16 @@ g_part_check_integrity(struct g_part_table *table, struct g_consumer *cp)
 			    (intmax_t)e1->gpe_end,
 			    (intmax_t)table->gpt_last);
 			failed++;
+		}
+		if (pp->stripesize > 0) {
+			offset = e1->gpe_start * pp->sectorsize;
+			if (e1->gpe_offset > offset)
+				offset = e1->gpe_offset;
+			if ((offset + pp->stripeoffset) % pp->stripesize) {
+				DPRINTF("partition %d is not aligned on %u "
+				    "bytes\n", e1->gpe_index, pp->stripesize);
+				/* Don't treat this as a critical failure */
+			}
 		}
 		e2 = e1;
 		while ((e2 = LIST_NEXT(e2, gpe_entry)) != NULL) {
@@ -723,7 +734,11 @@ g_part_ctl_add(struct gctl_req *req, struct g_part_parms *gpp)
 	if (gpp->gpp_parms & G_PART_PARM_OUTPUT) {
 		sb = sbuf_new_auto();
 		G_PART_FULLNAME(table, entry, sb, gp->name);
-		sbuf_cat(sb, " added\n");
+		if (pp->stripesize > 0 && entry->gpe_pp->stripeoffset != 0)
+			sbuf_printf(sb, " added, but partition is not "
+			    "aligned on %u bytes\n", pp->stripesize);
+		else
+			sbuf_cat(sb, " added\n");
 		sbuf_finish(sb);
 		gctl_set_param(req, "output", sbuf_data(sb), sbuf_len(sb) + 1);
 		sbuf_delete(sb);
