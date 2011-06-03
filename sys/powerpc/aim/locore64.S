@@ -75,7 +75,7 @@
         .globl  kernbase
         .set    kernbase, KERNBASE
 
-#define	TMPSTKSZ	8192		/* 8K temporary stack */
+#define	TMPSTKSZ	16384		/* 16K temporary stack */
 
 /*
  * Globals
