@@ -139,6 +139,7 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 	ah->ah_setAntennaSwitch		= ar5416SetAntennaSwitch;
 	ah->ah_setDecompMask		= ar5416SetDecompMask;
 	ah->ah_setCoverageClass		= ar5416SetCoverageClass;
+	ah->ah_setQuiet			= ar5416SetQuiet;
 
 	ah->ah_resetKeyCacheEntry	= ar5416ResetKeyCacheEntry;
 	ah->ah_setKeyCacheEntry		= ar5416SetKeyCacheEntry;

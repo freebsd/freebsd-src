@@ -194,6 +194,8 @@ extern	uint32_t ar5416Get11nExtBusy(struct ath_hal *ah);
 extern	void ar5416Set11nMac2040(struct ath_hal *ah, HAL_HT_MACMODE mode);
 extern	HAL_HT_RXCLEAR ar5416Get11nRxClear(struct ath_hal *ah);
 extern	void ar5416Set11nRxClear(struct ath_hal *ah, HAL_HT_RXCLEAR rxclear);
+extern	HAL_STATUS ar5416SetQuiet(struct ath_hal *ah, uint32_t period,
+	    uint32_t duration, uint32_t nextStart, HAL_QUIET_FLAG flag);
 extern	HAL_STATUS ar5416GetCapability(struct ath_hal *ah,
 	    HAL_CAPABILITY_TYPE type, uint32_t capability, uint32_t *result);
 extern	HAL_BOOL ar5416GetDiagState(struct ath_hal *ah, int request,

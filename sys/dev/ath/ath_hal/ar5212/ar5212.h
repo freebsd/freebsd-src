@@ -506,6 +506,8 @@ extern	HAL_BOOL ar5212SetCapability(struct ath_hal *, HAL_CAPABILITY_TYPE,
 extern	HAL_BOOL ar5212GetDiagState(struct ath_hal *ah, int request,
 		const void *args, uint32_t argsize,
 		void **result, uint32_t *resultsize);
+extern	HAL_STATUS ar5212SetQuiet(struct ath_hal *ah, uint32_t period,
+		uint32_t duration, uint32_t nextStart, HAL_QUIET_FLAG flag);
 
 extern	HAL_BOOL ar5212SetPowerMode(struct ath_hal *ah, HAL_POWER_MODE mode,
 		int setChip);
