@@ -294,10 +294,10 @@ man_display_page() {
 			ret=0
 		else
 			if [ $debug -gt 0 ]; then
-				decho "Command: $cattool $catpage | $PAGER"
+				decho "Command: $cattool $catpage | $MANPAGER"
 				ret=0
 			else
-				eval "$cattool $catpage | $PAGER"
+				eval "$cattool $catpage | $MANPAGER"
 				ret=$?
 			fi
 		fi
@@ -356,6 +356,10 @@ man_display_page() {
 		;;
 	esac
 
+	if [ -z "$MANCOLOR" ]; then
+		NROFF="$NROFF -P-c"
+	fi
+
 	if [ -n "${use_width}" ]; then
 		NROFF="$NROFF -rLL=${use_width}n -rLT=${use_width}n"
 	fi
@@ -382,7 +386,7 @@ man_display_page() {
 	if [ -n "$tflag" ]; then
 		pipeline="$pipeline | $TROFF"
 	else
-		pipeline="$pipeline | $NROFF | $PAGER"
+		pipeline="$pipeline | $NROFF | $MANPAGER"
 	fi
 
 	if [ $debug -gt 0 ]; then
@@ -484,7 +488,7 @@ man_parse_args() {
 	while getopts 'M:P:S:adfhkm:op:tw' cmd_arg; do
 		case "${cmd_arg}" in
 		M)	MANPATH=$OPTARG ;;
-		P)	PAGER=$OPTARG ;;
+		P)	MANPAGER=$OPTARG ;;
 		S)	MANSECT=$OPTARG ;;
 		a)	aflag=aflag ;;
 		d)	debug=$(( $debug + 1 )) ;;
@@ -808,7 +812,7 @@ search_whatis() {
 	bad=${bad#\\n}
 
 	if [ -n "$good" ]; then
-		echo -e "$good" | $PAGER
+		echo -e "$good" | $MANPAGER
 	fi
 
 	if [ -n "$bad" ]; then
@@ -832,13 +836,21 @@ setup_cattool() {
 }
 
 # Usage: setup_pager
-# Correctly sets $PAGER
+# Correctly sets $MANPAGER
 setup_pager() {
 	# Setup pager.
-	if [ -z "$PAGER" ]; then
-		PAGER="more -s"
+	if [ -z "$MANPAGER" ]; then
+		if [ -n "$MANCOLOR" ]; then
+			MANPAGER="less -sR"
+		else
+			if [ -n "$PAGER" ]; then
+				MANPAGER="$PAGER"
+			else
+				MANPAGER="more -s"
+			fi
+		fi
 	fi
-	decho "Using pager: $PAGER"
+	decho "Using pager: $MANPAGER"
 }
 
 # Usage: trim string
@@ -921,7 +933,7 @@ do_whatis() {
 
 # User's PATH setting decides on the groff-suite to pick up.
 EQN=eqn
-NROFF='groff -S -P-ch -Wall -mtty-char -man'
+NROFF='groff -S -P-h -Wall -mtty-char -man'
 PIC=pic
 REFER=refer
 TBL=tbl

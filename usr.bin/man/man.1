@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 2, 2011
+.Dd June 3, 2011
 .Dt MAN 1
 .Os
 .Sh NAME
@@ -73,8 +73,12 @@ environment variable.
 .It Fl P Ar pager
 Use specified pager.
 Defaults to
+.Ic "less -sR"
+if color support is enabled, or
 .Ic "more -s" .
 Overrides the
+.Ev MANPAGER
+environment variable, which in turn overrides the
 .Ev PAGER
 environment variable.
 .It Fl S Ar mansect
@@ -289,9 +293,19 @@ Otherwise, if set to a special value
 .Dq Li tty ,
 and output is to a terminal,
 the pages may be displayed over the whole width of the screen.
-.It Ev PAGER
+.It Ev MANCOLOR
+If set, enables color support.
+.It Ev MANPAGER
 Program used to display files.
-If unset,
+.Pp
+If unset, and color support is enabled,
+.Ic "less -sR"
+is used.
+.Pp
+If unset, and color support is disabled, then
+.Ev PAGER
+is used.
+If that has no value either,
 .Ic "more -s"
 is used.
 .El
