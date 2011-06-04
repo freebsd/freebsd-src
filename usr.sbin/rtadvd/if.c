@@ -239,7 +239,7 @@ lladdropt_fill(struct sockaddr_dl *sdl, struct nd_opt_hdr *ndopt)
 }
 
 int
-rtbuf_len()
+rtbuf_len(void)
 {
 	size_t len;
 
@@ -565,7 +565,7 @@ parse_iflist(struct if_msghdr ***ifmlist_p, char *buf, size_t bufsize)
 }
 
 void
-init_iflist()
+init_iflist(void)
 {
 	if (ifblock) {
 		free(ifblock);

@@ -306,7 +306,7 @@ do_rr(int len, struct icmp6_router_renum *rr)
 		int rpmlen;
 
 		rpm = (struct rr_pco_match *)cp;
-		if (len < sizeof(struct rr_pco_match)) {
+		if ((size_t)len < sizeof(struct rr_pco_match)) {
 		    tooshort:
 			syslog(LOG_ERR, "<%s> pkt too short. left len = %d. "
 			       "gabage at end of pkt?", __func__, len);
@@ -341,7 +341,7 @@ rr_command_check(int len, struct icmp6_router_renum *rr, struct in6_addr *from,
 
 	/* omit rr minimal length check. hope kernel have done it. */
 	/* rr_command length check */
-	if (len < (sizeof(struct icmp6_router_renum) +
+	if ((size_t)len < (sizeof(struct icmp6_router_renum) +
 		   sizeof(struct rr_pco_match))) {
 		syslog(LOG_ERR,	"<%s> rr_command len %d is too short",
 		       __func__, len);
@@ -431,7 +431,7 @@ rr_input(int len, struct icmp6_router_renum *rr, struct in6_pktinfo *pi,
 	       if_indextoname(pi->ipi6_ifindex, ifnamebuf));
 
 	/* packet validation based on Section 4.1 of RFC2894 */
-	if (len < sizeof(struct icmp6_router_renum)) {
+	if ((size_t)len < sizeof(struct icmp6_router_renum)) {
 		syslog(LOG_NOTICE,
 		       "<%s>: RR short message (size %d) from %s to %s on %s",
 		       __func__, len,

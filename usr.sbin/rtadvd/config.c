@@ -76,7 +76,7 @@ static time_t prefix_timo = (60 * 120);	/* 2 hours.
 extern struct rainfo *ralist;
 
 static struct rtadvd_timer *prefix_timeout(void *);
-static void makeentry(char *, size_t, int, char *);
+static void makeentry(char *, size_t, int, const char *);
 static int getinet6sysctl(int);
 static size_t dname_labelenc(char *, const char *);
 
@@ -117,8 +117,7 @@ dname_labelenc(char *dst, const char *src)
 }
 
 void
-getconfig(intface)
-	char *intface;
+getconfig(char *intface)
 {
 	int stat, i;
 	char tbuf[BUFSIZ];
@@ -211,7 +210,8 @@ getconfig(intface)
 	}
 	tmp->maxinterval = (u_int)val;
 	MAYHAVE(val, "mininterval", tmp->maxinterval/3);
-	if (val < MIN_MININTERVAL || val > (tmp->maxinterval * 3) / 4) {
+	if ((u_int)val < MIN_MININTERVAL ||
+	    (u_int)val > (tmp->maxinterval * 3) / 4) {
 		syslog(LOG_ERR,
 		       "<%s> mininterval (%ld) on %s is invalid "
 		       "(must be between %d and %d)",
@@ -257,7 +257,8 @@ getconfig(intface)
 	}
 
 	MAYHAVE(val, "rltime", tmp->maxinterval * 3);
-	if (val && (val < tmp->maxinterval || val > MAXROUTERLIFETIME)) {
+	if ((u_int)val && ((u_int)val < tmp->maxinterval ||
+	    (u_int)val > MAXROUTERLIFETIME)) {
 		syslog(LOG_ERR,
 		       "<%s> router lifetime (%ld) on %s is invalid "
 		       "(must be 0 or between %d and %d)",
@@ -429,7 +430,7 @@ getconfig(intface)
 		get_prefix(tmp);
 
 	MAYHAVE(val, "mtu", 0);
-	if (val < 0 || val > 0xffffffff) {
+	if (val < 0 || (u_int)val > 0xffffffff) {
 		syslog(LOG_ERR,
 		       "<%s> mtu (%ld) on %s out of range",
 		       __func__, val, intface);
@@ -649,7 +650,7 @@ getconfig(intface)
 		memset(rdn, 0, sizeof(*rdn));
 		TAILQ_INIT(&rdn->rd_list);
 
-		for (ap = addr; ap - addr < strlen(addr); ap += c+1) {
+		for (ap = addr; ap - addr < (ssize_t)strlen(addr); ap += c+1) {
 			c = strcspn(ap, ",");
 			strncpy(abuf, ap, c);
 			abuf[c] = '\0';
@@ -672,7 +673,8 @@ getconfig(intface)
 
 		makeentry(entbuf, sizeof(entbuf), i, "rdnssltime");
 		MAYHAVE(val, entbuf, (tmp->maxinterval * 3 / 2));
-		if (val < tmp->maxinterval || val > tmp->maxinterval * 2) {
+		if ((u_int)val < tmp->maxinterval ||
+		    (u_int)val > tmp->maxinterval * 2) {
 			syslog(LOG_ERR, "%s (%ld) on %s is invalid "
 			    "(must be between %d and %d)",
 			    entbuf, val, intface, tmp->maxinterval,
@@ -690,7 +692,6 @@ getconfig(intface)
 		struct dnssl_addr *dnsa;
 		char *ap;
 		int c;
-		char *p, *q;
 
 		makeentry(entbuf, sizeof(entbuf), i, "dnssl");
 		addr = (char *)agetstr(entbuf, &bp);
@@ -706,7 +707,7 @@ getconfig(intface)
 		memset(dns, 0, sizeof(*dns));
 		TAILQ_INIT(&dns->dn_list);
 
-		for (ap = addr; ap - addr < strlen(addr); ap += c+1) {
+		for (ap = addr; ap - addr < (ssize_t)strlen(addr); ap += c+1) {
 			c = strcspn(ap, ",");
 			strncpy(abuf, ap, c);
 			abuf[c] = '\0';
@@ -726,7 +727,8 @@ getconfig(intface)
 
 		makeentry(entbuf, sizeof(entbuf), i, "dnsslltime");
 		MAYHAVE(val, entbuf, (tmp->maxinterval * 3 / 2));
-		if (val < tmp->maxinterval || val > tmp->maxinterval * 2) {
+		if ((u_int)val < tmp->maxinterval ||
+		    (u_int)val > tmp->maxinterval * 2) {
 			syslog(LOG_ERR, "%s (%ld) on %s is invalid "
 			    "(must be between %d and %d)",
 			    entbuf, val, intface, tmp->maxinterval,
@@ -841,11 +843,7 @@ get_prefix(struct rainfo *rai)
 }
 
 static void
-makeentry(buf, len, id, string)
-	char *buf;
-	size_t len;
-	int id;
-	char *string;
+makeentry(char *buf, size_t len, int id, const char *string)
 {
 
 	if (id < 0)
@@ -1256,7 +1254,6 @@ make_packet(struct rainfo *rainfo)
 	}
 	TAILQ_FOREACH(dns, &rainfo->dnssl, dn_next) {
 		struct dnssl_addr *dnsa;
-		size_t len = 0;
 
 		ndopt_dnssl = (struct nd_opt_dnssl *)buf;
 		ndopt_dnssl->nd_opt_dnssl_type = ND_OPT_DNSSL;

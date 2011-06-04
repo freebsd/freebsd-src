@@ -64,8 +64,6 @@
 #define V_TERM		"HOST"
 #endif
 
-char	*RM;
-
 /*
  * termcap - routines for dealing with the terminal capability data base
  *
@@ -83,12 +81,11 @@ char	*RM;
 static	char *tbuf;
 static	int hopcount;	/* detect infinite loops in termcap, init 0 */
 
-static	char *remotefile;
-
-extern char *conffile;
+static const char *remotefile;
+extern const char *conffile;
 
 int tgetent(char *, char *);
-int getent(char *, char *, char *);
+int getent(char *, char *, const char *);
 int tnchktc(void);
 int tnamatch(char *);
 static char *tskip(char *);
@@ -105,18 +102,16 @@ static char *tdecode(char *, char **);
 int
 tgetent(char *bp, char *name)
 {
-	char *cp;
-
-	remotefile = cp = conffile ? conffile : _PATH_RTADVDCONF;
-	return (getent(bp, name, cp));
+	return (getent(bp, name, conffile));
 }
 
 int
-getent(char *bp, char *name, char *cp)
+getent(char *bp, char *name, const char *cfile)
 {
 	int c;
 	int i = 0, cnt = 0;
 	char ibuf[BUFSIZ];
+	char *cp;
 	int tf;
 
 	tbuf = bp;
@@ -128,9 +123,9 @@ getent(char *bp, char *name, char *cp)
 	 * use so we don't have to read the file. In this case it
 	 * has to already have the newlines crunched out.
 	 */
-	if (cp && *cp) {
-		tf = open(RM = cp, O_RDONLY);
-	}
+	if (cfile && *cfile)
+		tf = open(cfile, O_RDONLY);
+
 	if (tf < 0) {
 		syslog(LOG_INFO,
 		       "<%s> open: %s", __func__, strerror(errno));
@@ -392,7 +387,7 @@ tdecode(char *str, char **area)
 {
 	char *cp;
 	int c;
-	char *dp;
+	const char *dp;
 	int i;
 	char term;
 
