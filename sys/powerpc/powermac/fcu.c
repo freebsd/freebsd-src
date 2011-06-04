@@ -138,6 +138,8 @@ fcu_write(device_t dev, uint32_t addr, uint8_t reg, uint8_t *buff,
 	  int len)
 {
 	unsigned char buf[4];
+	int try = 0;
+
 	struct iic_msg msg[] = {
 		{ addr, IIC_M_WR, 0, buf }
 	};
@@ -145,33 +147,46 @@ fcu_write(device_t dev, uint32_t addr, uint8_t reg, uint8_t *buff,
 	msg[0].len = len + 1;
 	buf[0] = reg;
 	memcpy(buf + 1, buff, len);
-	if (iicbus_transfer(dev, msg, 1) != 0) {
-		device_printf(dev, "iicbus write failed\n");
-		return (EIO);
+
+	for (;;)
+	{
+		if (iicbus_transfer(dev, msg, 1) == 0)
+			return (0);
+
+		if (++try > 5) {
+			device_printf(dev, "iicbus write failed\n");
+			return (-1);
+		}
+		pause("fcu_write", hz);
 	}
-
-	return (0);
-
 }
 
 static int
 fcu_read_1(device_t dev, uint32_t addr, uint8_t reg, uint8_t *data)
 {
 	uint8_t buf[4];
+	int err, try = 0;
 
 	struct iic_msg msg[2] = {
 	    { addr, IIC_M_WR | IIC_M_NOSTOP, 1, &reg },
 	    { addr, IIC_M_RD, 1, buf },
 	};
 
-	if (iicbus_transfer(dev, msg, 2) != 0) {
-		device_printf(dev, "iicbus read failed\n");
-		return (EIO);
+	for (;;)
+	{
+		  err = iicbus_transfer(dev, msg, 2);
+		  if (err != 0)
+			  goto retry;
+
+		  *data = *((uint8_t*)buf);
+		  return (0);
+	retry:
+		  if (++try > 5) {
+			  device_printf(dev, "iicbus read failed\n");
+			  return (-1);
+		  }
+		  pause("fcu_read_1", hz);
 	}
-
-	*data = *((uint8_t*)buf);
-
-	return (0);
 }
 
 static int
@@ -267,13 +282,14 @@ fcu_fan_set_rpm(struct fcu_fan *fan, int rpm)
 		fan->setpoint = rpm;
 	} else {
 		device_printf(fan->dev, "Unknown fan type: %d\n", fan->type);
-		return (EIO);
+		return (-1);
 	}
 
 	buf[0] = rpm >> (8 - fcu_rpm_shift);
 	buf[1] = rpm << fcu_rpm_shift;
 
-	fcu_write(sc->sc_dev, sc->sc_addr, reg, buf, 2);
+	if (fcu_write(sc->sc_dev, sc->sc_addr, reg, buf, 2) < 0)
+		return (-1);
 
 	return (0);
 }
@@ -292,7 +308,8 @@ fcu_fan_get_rpm(struct fcu_fan *fan)
 	if (fan->type == FCU_FAN_RPM) {
 		/* Check if the fan is available. */
 		reg = FCU_RPM_AVAILABLE;
-		fcu_read_1(sc->sc_dev, sc->sc_addr, reg, &avail);
+		if (fcu_read_1(sc->sc_dev, sc->sc_addr, reg, &avail) < 0)
+			return (-1);
 		if ((avail & (1 << fan->id)) == 0) {
 			device_printf(fan->dev,
 			    "RPM Fan not available ID: %d\n", fan->id);
@@ -300,7 +317,8 @@ fcu_fan_get_rpm(struct fcu_fan *fan)
 		}
 		/* Check if we have a failed fan. */
 		reg = FCU_RPM_FAIL;
-		fcu_read_1(sc->sc_dev, sc->sc_addr, reg, &fail);
+		if (fcu_read_1(sc->sc_dev, sc->sc_addr, reg, &fail) < 0)
+			return (-1);
 		if ((fail & (1 << fan->id)) != 0) {
 			device_printf(fan->dev,
 			    "RPM Fan failed ID: %d\n", fan->id);
@@ -308,7 +326,8 @@ fcu_fan_get_rpm(struct fcu_fan *fan)
 		}
 		/* Check if fan is active. */
 		reg = FCU_RPM_ACTIVE;
-		fcu_read_1(sc->sc_dev, sc->sc_addr, reg, &active);
+		if (fcu_read_1(sc->sc_dev, sc->sc_addr, reg, &active) < 0)
+			return (-1);
 		if ((active & (1 << fan->id)) == 0) {
 			device_printf(fan->dev, "RPM Fan not active ID: %d\n",
 				      fan->id);
@@ -322,7 +341,8 @@ fcu_fan_get_rpm(struct fcu_fan *fan)
 	}
 
 	/* It seems that we can read the fans rpm. */
-	fcu_read_1(sc->sc_dev, sc->sc_addr, reg, buff);
+	if (fcu_read_1(sc->sc_dev, sc->sc_addr, reg, buff) < 0)
+		return (-1);
 
 	rpm = (buff[0] << (8 - fcu_rpm_shift)) | buff[1] >> fcu_rpm_shift;
 
@@ -356,8 +376,8 @@ fcu_fan_set_pwm(struct fcu_fan *fan, int pwm)
 
 	buf[0] = (pwm * 2550) / 1000;
 
-	fcu_write(sc->sc_dev, sc->sc_addr, reg, buf, 1);
-
+	if (fcu_write(sc->sc_dev, sc->sc_addr, reg, buf, 1) < 0)
+		return (-1);
 	return (0);
 }
 
@@ -374,26 +394,29 @@ fcu_fan_get_pwm(device_t dev, struct fcu_fan *fan, int *pwm, int *rpm)
 	if (fan->type == FCU_FAN_PWM) {
 		/* Check if the fan is available. */
 		reg = FCU_PWM_AVAILABLE;
-		fcu_read_1(sc->sc_dev, sc->sc_addr, reg, &avail);
+		if (fcu_read_1(sc->sc_dev, sc->sc_addr, reg, &avail) < 0)
+			return (-1);
 		if ((avail & (1 << fan->id)) == 0) {
 			device_printf(dev, "PWM Fan not available ID: %d\n",
 				      fan->id);
-			return (EIO);
+			return (-1);
 		}
 		/* Check if we have a failed fan. */
 		reg = FCU_PWM_FAIL;
-		fcu_read_1(sc->sc_dev, sc->sc_addr, reg, &fail);
+		if (fcu_read_1(sc->sc_dev, sc->sc_addr, reg, &fail) < 0)
+			return (-1);
 		if ((fail & (1 << fan->id)) != 0) {
 			device_printf(dev, "PWM Fan failed ID: %d\n", fan->id);
-			return (EIO);
+			return (-1);
 		}
 		/* Check if fan is active. */
 		reg = FCU_PWM_ACTIVE;
-		fcu_read_1(sc->sc_dev, sc->sc_addr, reg, &active);
+		if (fcu_read_1(sc->sc_dev, sc->sc_addr, reg, &active) < 0)
+			return (-1);
 		if ((active & (1 << fan->id)) == 0) {
 			device_printf(dev, "PWM Fan not active ID: %d\n",
 				      fan->id);
-			return (ENXIO);
+			return (-1);
 		}
 		reg = FCU_PWM_SGET(fan->id);
 	} else {
@@ -402,13 +425,16 @@ fcu_fan_get_pwm(device_t dev, struct fcu_fan *fan, int *pwm, int *rpm)
 	}
 
 	/* It seems that we can read the fans pwm. */
-	fcu_read_1(sc->sc_dev, sc->sc_addr, reg, buf);
+	if (fcu_read_1(sc->sc_dev, sc->sc_addr, reg, buf) < 0)
+		return (-1);
 
 	*pwm = (buf[0] * 1000) / 2550;
 
 	/* Now read the rpm. */
 	reg = FCU_PWM_RPM(fan->id);
-	fcu_read_1(sc->sc_dev, sc->sc_addr, reg, buf);
+	if (fcu_read_1(sc->sc_dev, sc->sc_addr, reg, buf) < 0)
+		return (-1);
+
 	*rpm = (buf[0] << (8 - fcu_rpm_shift)) | buf[1] >> fcu_rpm_shift;
 
 	return (0);
@@ -502,16 +528,20 @@ fcu_fanrpm_sysctl(SYSCTL_HANDLER_ARGS)
 	device_t fcu;
 	struct fcu_softc *sc;
 	struct fcu_fan *fan;
-	int rpm = 0, pwm = 0, error;
+	int rpm = 0, pwm = 0, error = 0;
 
 	fcu = arg1;
 	sc = device_get_softc(fcu);
 	fan = &sc->sc_fans[arg2 & 0x00ff];
 	if (fan->type == FCU_FAN_RPM) {
 		rpm = fcu_fan_get_rpm(fan);
+		if (rpm < 0)
+			return (-1);
 		error = sysctl_handle_int(oidp, &rpm, 0, req);
 	} else {
-		fcu_fan_get_pwm(fcu, fan, &pwm, &rpm);
+		error = fcu_fan_get_pwm(fcu, fan, &pwm, &rpm);
+		if (error < 0)
+			return (-1);
 
 		switch (arg2 & 0xff00) {
 		case FCU_PWM_SYSCTL_PWM:
