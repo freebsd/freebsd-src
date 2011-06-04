@@ -961,6 +961,30 @@ start_ap(int apic_id)
 }
 
 /*
+ * send an IPI to a specific CPU.
+ */
+static void
+ipi_send_cpu(int cpu, u_int ipi)
+{
+	u_int bitmap, old_pending, new_pending;
+
+	if (IPI_IS_BITMAPED(ipi)) { 
+		bitmap = 1 << ipi;
+		ipi = IPI_BITMAP_VECTOR;
+		do {
+			old_pending = cpu_ipi_pending[cpu];
+			new_pending = old_pending | bitmap;
+		} while  (!atomic_cmpset_int(&cpu_ipi_pending[cpu],
+		    old_pending, new_pending));	
+		if (!old_pending)
+			ipi_pcpu(cpu, RESCHEDULE_VECTOR);
+	} else {
+		KASSERT(call_data != NULL, ("call_data not set"));
+		ipi_pcpu(cpu, CALL_FUNCTION_VECTOR);
+	}
+}
+
+/*
  * Flush the TLB on all other CPU's
  */
 static void
@@ -1102,14 +1126,6 @@ void
 ipi_selected(cpumask_t cpus, u_int ipi)
 {
 	int cpu;
-	u_int bitmap = 0;
-	u_int old_pending;
-	u_int new_pending;
-	
-	if (IPI_IS_BITMAPED(ipi)) { 
-		bitmap = 1 << ipi;
-		ipi = IPI_BITMAP_VECTOR;
-	} 
 
 	/*
 	 * IPI_STOP_HARD maps to a NMI and the trap handler needs a bit
@@ -1119,23 +1135,11 @@ ipi_selected(cpumask_t cpus, u_int ipi)
 	if (ipi == IPI_STOP_HARD)
 		atomic_set_int(&ipi_nmi_pending, cpus);
 
-	CTR3(KTR_SMP, "%s: cpus: %x ipi: %x", __func__, cpus, ipi);
 	while ((cpu = ffs(cpus)) != 0) {
 		cpu--;
 		cpus &= ~(1 << cpu);
-
-		if (bitmap) {
-			do {
-				old_pending = cpu_ipi_pending[cpu];
-				new_pending = old_pending | bitmap;
-			} while  (!atomic_cmpset_int(&cpu_ipi_pending[cpu],
-			    old_pending, new_pending));	
-			if (!old_pending)
-				ipi_pcpu(cpu, RESCHEDULE_VECTOR);
-		} else {
-			KASSERT(call_data != NULL, ("call_data not set"));
-			ipi_pcpu(cpu, CALL_FUNCTION_VECTOR);
-		}
+		CTR3(KTR_SMP, "%s: cpu: %d ipi: %x", __func__, cpu, ipi);
+		ipi_send_cpu(cpu, ipi);
 	}
 }
 
@@ -1145,14 +1149,6 @@ ipi_selected(cpumask_t cpus, u_int ipi)
 void
 ipi_cpu(int cpu, u_int ipi)
 {
-	u_int bitmap = 0;
-	u_int old_pending;
-	u_int new_pending;
-	
-	if (IPI_IS_BITMAPED(ipi)) { 
-		bitmap = 1 << ipi;
-		ipi = IPI_BITMAP_VECTOR;
-	} 
 
 	/*
 	 * IPI_STOP_HARD maps to a NMI and the trap handler needs a bit
@@ -1163,19 +1159,7 @@ ipi_cpu(int cpu, u_int ipi)
 		atomic_set_int(&ipi_nmi_pending, 1 << cpu);
 
 	CTR3(KTR_SMP, "%s: cpu: %d ipi: %x", __func__, cpu, ipi);
-
-	if (bitmap) {
-		do {
-			old_pending = cpu_ipi_pending[cpu];
-			new_pending = old_pending | bitmap;
-		} while  (!atomic_cmpset_int(&cpu_ipi_pending[cpu],
-		    old_pending, new_pending));	
-		if (!old_pending)
-			ipi_pcpu(cpu, RESCHEDULE_VECTOR);
-	} else {
-		KASSERT(call_data != NULL, ("call_data not set"));
-		ipi_pcpu(cpu, CALL_FUNCTION_VECTOR);
-	}
+	ipi_send_cpu(cpu, ipi);
 }
 
 /*
