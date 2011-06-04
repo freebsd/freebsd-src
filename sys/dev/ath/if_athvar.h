@@ -360,6 +360,7 @@ struct ath_softc {
 
 	/* DFS related state */
 	void			*sc_dfs;	/* Used by an optional DFS module */
+	int			sc_dodfs;	/* Whether to enable DFS rx filter bits */
 	struct task		sc_dfstask;	/* DFS processing task */
 };
 
