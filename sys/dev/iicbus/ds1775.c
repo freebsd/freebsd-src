@@ -51,8 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <powerpc/powermac/powermac_thermal.h>
 
-#define FCU_ZERO_C_TO_K     2732
-
 /* Drivebay sensor: LM75/DS1775. */
 #define DS1775_TEMP         0x0
 
@@ -211,12 +209,12 @@ ds1775_start(void *xdev)
 
 	/* Make up target temperatures. These are low, for the drive bay. */
 	if (sc->sc_sensor.zone == 0) {
-		sc->sc_sensor.target_temp = 500 + FCU_ZERO_C_TO_K;
-		sc->sc_sensor.max_temp = 600 + FCU_ZERO_C_TO_K;
+		sc->sc_sensor.target_temp = 500 + ZERO_C_TO_K;
+		sc->sc_sensor.max_temp = 600 + ZERO_C_TO_K;
 	}
 	else {
-		sc->sc_sensor.target_temp = 300 + FCU_ZERO_C_TO_K;
-		sc->sc_sensor.max_temp = 600 + FCU_ZERO_C_TO_K;
+		sc->sc_sensor.target_temp = 300 + ZERO_C_TO_K;
+		sc->sc_sensor.max_temp = 600 + ZERO_C_TO_K;
 	}
 
 	sc->sc_sensor.read =
@@ -248,7 +246,7 @@ ds1775_sensor_read(struct ds1775_softc *sc)
 	/* The default mode of the ADC is 9 bit, the resolution is 0.5 C per
 	   bit. The temperature is in tenth kelvin.
 	*/
-	return (((int16_t)(read) >> 7) * 5 + FCU_ZERO_C_TO_K);
+	return (((int16_t)(read) >> 7) * 5 + ZERO_C_TO_K);
 }
 
 static int
