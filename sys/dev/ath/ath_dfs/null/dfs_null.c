@@ -107,7 +107,7 @@ ath_dfs_radar_enable(struct ath_softc *sc, struct ieee80211_channel *chan)
  * Process DFS related PHY errors
  */
 void
-ath_dfs_process_phy_err(struct ath_softc *sc, struct ath_desc *ds,
+ath_dfs_process_phy_err(struct ath_softc *sc, const char *buf,
     uint64_t tsf, struct ath_rx_status *rxstat)
 {
 
