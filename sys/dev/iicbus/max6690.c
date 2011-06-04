@@ -51,12 +51,11 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <powerpc/powermac/powermac_thermal.h>
 
-#define FCU_ZERO_C_TO_K     2732
-
 /* Inlet, Backside, U3 Heatsink sensor: MAX6690. */
 
 #define MAX6690_INT_TEMP    0x0
 #define MAX6690_EXT_TEMP    0x1
+#define MAX6690_RSL_STATUS  0x2
 #define MAX6690_EEXT_TEMP   0x10
 #define MAX6690_IEXT_TEMP   0x11
 #define MAX6690_TEMP_MASK   0xe0
@@ -76,8 +75,8 @@ static int  max6690_attach(device_t);
 static int  max6690_sensor_read(struct max6690_sensor *sens);
 static int  max6690_sensor_sysctl(SYSCTL_HANDLER_ARGS);
 static void max6690_start(void *xdev);
-static int  max6690_read_1(device_t dev, uint32_t addr, uint8_t reg,
-			   uint8_t *data);
+static int  max6690_read(device_t dev, uint32_t addr, uint8_t reg,
+			 uint8_t *data);
 
 struct max6690_softc {
 	device_t		sc_dev;
@@ -105,23 +104,43 @@ DRIVER_MODULE(max6690, iicbus, max6690_driver, max6690_devclass, 0, 0);
 MALLOC_DEFINE(M_MAX6690, "max6690", "Temp-Monitor MAX6690");
 
 static int
-max6690_read_1(device_t dev, uint32_t addr, uint8_t reg, uint8_t *data)
+max6690_read(device_t dev, uint32_t addr, uint8_t reg, uint8_t *data)
 {
 	uint8_t buf[4];
+	uint8_t busy[1], rsl;
+	int err, try = 0;
 
-	struct iic_msg msg[2] = {
+	/* Busy register RSL. */
+	rsl = MAX6690_RSL_STATUS;
+	/* first read the status register, 0x2. If busy, retry. */
+	struct iic_msg msg[4] = {
+	    { addr, IIC_M_WR | IIC_M_NOSTOP, 1, &rsl },
+	    { addr, IIC_M_RD, 1, busy },
 	    { addr, IIC_M_WR | IIC_M_NOSTOP, 1, &reg },
 	    { addr, IIC_M_RD, 1, buf },
 	};
 
-	if (iicbus_transfer(dev, msg, 2) != 0) {
-		device_printf(dev, "iicbus read failed\n");
-		return (EIO);
+	for (;;)
+	{
+		err = iicbus_transfer(dev, msg, 4);
+		if (err != 0)
+			goto retry;
+		if (busy[0] & 0x80)
+			goto retry;
+		/* Check for invalid value and retry. */
+		if (buf[0] == 0xff)
+			goto retry;
+
+		*data = *((uint8_t*)buf);
+		return (0);
+
+	retry:
+		if (++try > 5) {
+			device_printf(dev, "iicbus read failed\n");
+			return (-1);
+		}
+		pause("max6690_read", hz);
 	}
-
-	*data = *((uint8_t*)buf);
-
-	return (0);
 }
 
 static int
@@ -193,8 +212,8 @@ max6690_fill_sensor_prop(device_t dev)
 	for (j = 0; j < i; j++) {
 		sc->sc_sensors[j].dev = dev;
 
-		sc->sc_sensors[j].therm.target_temp = 400 + 2732;
-		sc->sc_sensors[j].therm.max_temp = 800 + 2732;
+		sc->sc_sensors[j].therm.target_temp = 400 + ZERO_C_TO_K;
+		sc->sc_sensors[j].therm.max_temp = 800 + ZERO_C_TO_K;
 
 		sc->sc_sensors[j].therm.read =
 		    (int (*)(struct pmac_therm *))(max6690_sensor_read);
@@ -302,14 +321,15 @@ static int
 max6690_sensor_read(struct max6690_sensor *sens)
 {
 	uint8_t reg_int = 0, reg_ext = 0;
-	uint8_t integer;
-	uint8_t fraction;
-	int temp;
+	uint8_t integer = 0;
+	uint8_t fraction = 0;
+	int err, temp;
+
 	struct max6690_softc *sc;
 
 	sc = device_get_softc(sens->dev);
 
-	/* The internal sensor id's are even, the external ar odd. */
+	/* The internal sensor id's are even, the external are odd. */
 	if ((sens->id % 2) == 0) {
 		reg_int = MAX6690_INT_TEMP;
 		reg_ext = MAX6690_IEXT_TEMP;
@@ -318,9 +338,11 @@ max6690_sensor_read(struct max6690_sensor *sens)
 		reg_ext = MAX6690_EEXT_TEMP;
 	}
 
-	max6690_read_1(sc->sc_dev, sc->sc_addr, reg_int, &integer);
+	err = max6690_read(sc->sc_dev, sc->sc_addr, reg_int, &integer);
+	err = max6690_read(sc->sc_dev, sc->sc_addr, reg_ext, &fraction);
 
-	max6690_read_1(sc->sc_dev, sc->sc_addr, reg_ext, &fraction);
+	if (err < 0)
+		return (-1);
 
 	fraction &= MAX6690_TEMP_MASK;
 
@@ -329,7 +351,7 @@ max6690_sensor_read(struct max6690_sensor *sens)
 	*/
 	temp = (integer * 10) + (fraction >> 5) * 10 / 8;
 
-	return (temp + FCU_ZERO_C_TO_K);
+	return (temp + ZERO_C_TO_K);
 }
 
 static int
