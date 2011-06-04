@@ -162,6 +162,7 @@ powerpc/powermac/smusat.c	optional	powermac smu
 powerpc/powermac/uninorth.c	optional	powermac
 powerpc/powermac/uninorthpci.c	optional	powermac pci
 powerpc/powermac/vcoregpio.c	optional	powermac 
+powerpc/powermac/windtunnel.c	optional	powermac windtunnel
 powerpc/powerpc/altivec.c	optional	aim
 powerpc/powerpc/atomic.S	standard
 powerpc/powerpc/autoconf.c	standard
