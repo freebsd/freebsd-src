@@ -530,7 +530,9 @@ div_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	((struct sockaddr_in *)nam)->sin_addr.s_addr = INADDR_ANY;
 	INP_INFO_WLOCK(&V_divcbinfo);
 	INP_WLOCK(inp);
+	INP_HASH_WLOCK(&V_divcbinfo);
 	error = in_pcbbind(inp, nam, td->td_ucred);
+	INP_HASH_WUNLOCK(&V_divcbinfo);
 	INP_WUNLOCK(inp);
 	INP_INFO_WUNLOCK(&V_divcbinfo);
 	return error;
