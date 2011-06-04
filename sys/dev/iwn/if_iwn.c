@@ -3314,7 +3314,8 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 	}
 	ac = M_WME_GETAC(m);
 
-	if (IEEE80211_AMPDU_RUNNING(&ni->ni_tx_ampdu[ac])) {
+	if (IEEE80211_QOS_HAS_SEQ(wh) &&
+	    IEEE80211_AMPDU_RUNNING(&ni->ni_tx_ampdu[ac])) {
 		struct ieee80211_tx_ampdu *tap = &ni->ni_tx_ampdu[ac];
 
 		ring = &sc->txq[*(int *)tap->txa_private];
