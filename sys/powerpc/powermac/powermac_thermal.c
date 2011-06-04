@@ -109,9 +109,10 @@ pmac_therm_manage_fans(void)
 			printf("WARNING: Current temperature (%s: %d.%d C) "
 			    "exceeds critical temperature (%d.%d C)! "
 			    "Shutting down!\n", sensor->sensor->name,
-			    sensor->last_val / 10, sensor->last_val % 10,
-			    sensor->sensor->max_temp / 10,
-			    sensor->sensor->max_temp % 10);
+			       (sensor->last_val - ZERO_C_TO_K) / 10,
+			       (sensor->last_val - ZERO_C_TO_K) % 10,
+			       (sensor->sensor->max_temp - ZERO_C_TO_K) / 10,
+			       (sensor->sensor->max_temp - ZERO_C_TO_K) % 10);
 			shutdown_nice(RB_POWEROFF);
 		}
 	}

@@ -2520,6 +2520,7 @@ ieee80211_add_htcap_body(uint8_t *frm, struct ieee80211_node *ni)
 	frm[1] = (v) >> 8;			\
 	frm += 2;				\
 } while (0)
+	struct ieee80211com *ic = ni->ni_ic;
 	struct ieee80211vap *vap = ni->ni_vap;
 	uint16_t caps, extcaps;
 	int rxmax, density;
@@ -2543,6 +2544,17 @@ ieee80211_add_htcap_body(uint8_t *frm, struct ieee80211_node *ni)
 		/* use advertised setting (XXX locally constraint) */
 		rxmax = MS(ni->ni_htparam, IEEE80211_HTCAP_MAXRXAMPDU);
 		density = MS(ni->ni_htparam, IEEE80211_HTCAP_MPDUDENSITY);
+
+		/*
+		 * NB: Hardware might support HT40 on some but not all
+		 * channels. We can't determine this earlier because only
+		 * after association the channel is upgraded to HT based
+		 * on the negotiated capabilities.
+		 */
+		if (ni->ni_chan != IEEE80211_CHAN_ANYC &&
+		    findhtchan(ic, ni->ni_chan, IEEE80211_CHAN_HT40U) == NULL &&
+		    findhtchan(ic, ni->ni_chan, IEEE80211_CHAN_HT40D) == NULL)
+			caps &= ~IEEE80211_HTCAP_CHWIDTH40;
 	} else {
 		/* override 20/40 use based on current channel */
 		if (IEEE80211_IS_CHAN_HT40(ni->ni_chan))

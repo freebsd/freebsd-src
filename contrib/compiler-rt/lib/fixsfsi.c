@@ -2,8 +2,8 @@
 //
 //                     The LLVM Compiler Infrastructure
 //
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// This file is dual licensed under the MIT and the University of Illinois Open
+// Source Licenses. See LICENSE.TXT for details.
 //
 //===----------------------------------------------------------------------===//
 //
@@ -12,12 +12,15 @@
 // conversion is undefined for out of range values in the C standard.
 //
 //===----------------------------------------------------------------------===//
+#include "abi.h"
 
 #define SINGLE_PRECISION
 #include "fp_lib.h"
 
-int __fixsfsi(fp_t a) {
-    
+ARM_EABI_FNALIAS(f2iz, fixsfsi);
+
+COMPILER_RT_ABI int
+__fixsfsi(fp_t a) {
     // Break a into sign, exponent, significand
     const rep_t aRep = toRep(a);
     const rep_t aAbs = aRep & absMask;
