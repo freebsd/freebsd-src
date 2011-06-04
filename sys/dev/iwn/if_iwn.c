@@ -606,9 +606,9 @@ iwn_attach(device_t dev)
 		ic->ic_htcaps =
 			  IEEE80211_HTCAP_SMPS_OFF	/* SMPS mode disabled */
 			| IEEE80211_HTCAP_SHORTGI20	/* short GI in 20MHz */
-#ifdef notyet
 			| IEEE80211_HTCAP_CHWIDTH40	/* 40MHz channel width*/
 			| IEEE80211_HTCAP_SHORTGI40	/* short GI in 40MHz */
+#ifdef notyet
 			| IEEE80211_HTCAP_GREENFIELD
 #if IWN_RBUF_SIZE == 8192
 			| IEEE80211_HTCAP_MAXAMSDU_7935	/* max A-MSDU length */
