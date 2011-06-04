@@ -165,7 +165,7 @@ evalstring(char *s, int flags)
 	setstackmark(&smark);
 	setinputstring(s, 1);
 	while ((n = parsecmd(0)) != NEOF) {
-		if (n != NULL) {
+		if (n != NULL && !nflag) {
 			if (flags_exit && preadateof())
 				evaltree(n, flags | EV_EXIT);
 			else

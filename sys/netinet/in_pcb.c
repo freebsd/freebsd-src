@@ -621,7 +621,8 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
  * then pick one.
  */
 int
-in_pcbconnect(struct inpcb *inp, struct sockaddr *nam, struct ucred *cred)
+in_pcbconnect_mbuf(struct inpcb *inp, struct sockaddr *nam,
+    struct ucred *cred, struct mbuf *m)
 {
 	u_short lport, fport;
 	in_addr_t laddr, faddr;
@@ -654,11 +655,18 @@ in_pcbconnect(struct inpcb *inp, struct sockaddr *nam, struct ucred *cred)
 	inp->inp_laddr.s_addr = laddr;
 	inp->inp_faddr.s_addr = faddr;
 	inp->inp_fport = fport;
-	in_pcbrehash(inp);
+	in_pcbrehash_mbuf(inp, m);
 
 	if (anonport)
 		inp->inp_flags |= INP_ANONPORT;
 	return (0);
+}
+
+int
+in_pcbconnect(struct inpcb *inp, struct sockaddr *nam, struct ucred *cred)
+{
+
+	return (in_pcbconnect_mbuf(inp, nam, cred, NULL));
 }
 
 /*
@@ -1626,11 +1634,27 @@ in_pcblookup_hash(struct inpcbinfo *pcbinfo, struct in_addr faddr,
 }
 
 /*
- * Public inpcb lookup routines, accepting a 4-tuple.
+ * Public inpcb lookup routines, accepting a 4-tuple, and optionally, an mbuf
+ * from which a pre-calculated hash value may be extracted.
  */
 struct inpcb *
 in_pcblookup(struct inpcbinfo *pcbinfo, struct in_addr faddr, u_int fport,
     struct in_addr laddr, u_int lport, int lookupflags, struct ifnet *ifp)
+{
+
+	KASSERT((lookupflags & ~INPLOOKUP_MASK) == 0,
+	    ("%s: invalid lookup flags %d", __func__, lookupflags));
+	KASSERT((lookupflags & (INPLOOKUP_RLOCKPCB | INPLOOKUP_WLOCKPCB)) != 0,
+	    ("%s: LOCKPCB not set", __func__));
+
+	return (in_pcblookup_hash(pcbinfo, faddr, fport, laddr, lport,
+	    lookupflags, ifp));
+}
+
+struct inpcb *
+in_pcblookup_mbuf(struct inpcbinfo *pcbinfo, struct in_addr faddr,
+    u_int fport, struct in_addr laddr, u_int lport, int lookupflags,
+    struct ifnet *ifp, struct mbuf *m)
 {
 
 	KASSERT((lookupflags & ~INPLOOKUP_MASK) == 0,
@@ -1707,7 +1731,7 @@ in_pcbinshash(struct inpcb *inp)
  * not change after in_pcbinshash() has been called.
  */
 void
-in_pcbrehash(struct inpcb *inp)
+in_pcbrehash_mbuf(struct inpcb *inp, struct mbuf *m)
 {
 	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
 	struct inpcbhead *head;
@@ -1731,6 +1755,13 @@ in_pcbrehash(struct inpcb *inp)
 
 	LIST_REMOVE(inp, inp_hash);
 	LIST_INSERT_HEAD(head, inp, inp_hash);
+}
+
+void
+in_pcbrehash(struct inpcb *inp)
+{
+
+	in_pcbrehash_mbuf(inp, NULL);
 }
 
 /*

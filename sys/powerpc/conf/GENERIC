@@ -180,6 +180,7 @@ device		fcu		# Apple Fan Control Unit
 device		max6690		# PowerMac7,2 temperature sensor
 device		powermac_nvram	# Open Firmware configuration NVRAM
 device		smu		# Apple System Management Unit
+device		windtunnel	# Apple G4 MDD fan controller
 
 # ADB support
 device		adb

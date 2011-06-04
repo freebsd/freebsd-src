@@ -364,8 +364,8 @@ in6_pcbladdr(register struct inpcb *inp, struct sockaddr *nam,
  * then pick one.
  */
 int
-in6_pcbconnect(register struct inpcb *inp, struct sockaddr *nam,
-    struct ucred *cred)
+in6_pcbconnect_mbuf(register struct inpcb *inp, struct sockaddr *nam,
+    struct ucred *cred, struct mbuf *m)
 {
 	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
 	register struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)nam;
@@ -405,9 +405,16 @@ in6_pcbconnect(register struct inpcb *inp, struct sockaddr *nam,
 		inp->inp_flow |=
 		    (htonl(ip6_randomflowlabel()) & IPV6_FLOWLABEL_MASK);
 
-	in_pcbrehash(inp);
+	in_pcbrehash_mbuf(inp, m);
 
 	return (0);
+}
+
+int
+in6_pcbconnect(struct inpcb *inp, struct sockaddr *nam, struct ucred *cred)
+{
+
+	return (in6_pcbconnect_mbuf(inp, nam, cred, NULL));
 }
 
 void
@@ -974,13 +981,27 @@ in6_pcblookup_hash(struct inpcbinfo *pcbinfo, struct in6_addr *faddr,
 }
 
 /*
- * Public inpcb lookup routines, accepting a 4-tuple.
+ * Public inpcb lookup routines, accepting a 4-tuple, and optionally, an mbuf
+ * from which a pre-calculated hash value may be extracted.
  */
 struct inpcb *
 in6_pcblookup(struct inpcbinfo *pcbinfo, struct in6_addr *faddr, u_int fport,
     struct in6_addr *laddr, u_int lport, int lookupflags, struct ifnet *ifp)
 {
+	KASSERT((lookupflags & ~INPLOOKUP_MASK) == 0,
+	    ("%s: invalid lookup flags %d", __func__, lookupflags));
+	KASSERT((lookupflags & (INPLOOKUP_RLOCKPCB | INPLOOKUP_WLOCKPCB)) != 0,
+	    ("%s: LOCKPCB not set", __func__));
 
+	return (in6_pcblookup_hash(pcbinfo, faddr, fport, laddr, lport,
+	    lookupflags, ifp));
+}
+
+struct inpcb *
+in6_pcblookup_mbuf(struct inpcbinfo *pcbinfo, struct in6_addr *faddr,
+    u_int fport, struct in6_addr *laddr, u_int lport, int lookupflags,
+    struct ifnet *ifp, struct mbuf *m)
+{
 	KASSERT((lookupflags & ~INPLOOKUP_MASK) == 0,
 	    ("%s: invalid lookup flags %d", __func__, lookupflags));
 	KASSERT((lookupflags & (INPLOOKUP_RLOCKPCB | INPLOOKUP_WLOCKPCB)) != 0,

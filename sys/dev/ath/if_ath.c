@@ -1261,6 +1261,10 @@ ath_resume(struct ath_softc *sc)
 	    sc->sc_curchan != NULL ? sc->sc_curchan : ic->ic_curchan,
 	    AH_FALSE, &status);
 	ath_reset_keycache(sc);
+
+	/* Let DFS at it in case it's a DFS channel */
+	ath_dfs_radar_enable(sc, ic->ic_curchan);
+
 	if (sc->sc_resume_up) {
 		if (ic->ic_opmode == IEEE80211_M_STA) {
 			ath_init(sc);
@@ -2012,6 +2016,10 @@ ath_calcrxfilter(struct ath_softc *sc)
 	}
 	if (ic->ic_opmode == IEEE80211_M_MONITOR)
 		rfilt |= HAL_RX_FILTER_CONTROL;
+
+	if (sc->sc_dodfs) {
+		rfilt |= HAL_RX_FILTER_PHYRADAR;
+	}
 
 	/*
 	 * Enable RX of compressed BAR frames only when doing
@@ -3465,7 +3473,7 @@ ath_rx_proc(void *arg, int npending)
 			if (rs->rs_status & HAL_RXERR_PHY) {
 				sc->sc_stats.ast_rx_phyerr++;
 				/* Process DFS radar events */
-				ath_dfs_process_phy_err(sc, ds, tsf, rs);
+				ath_dfs_process_phy_err(sc, mtod(m, char *), tsf, rs);
 
 				/* Be suitably paranoid about receiving phy errors out of the stats array bounds */
 				if (rs->rs_phyerr < 64)
