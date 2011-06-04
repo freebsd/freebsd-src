@@ -567,6 +567,7 @@ iwn_attach(device_t dev)
 	ic->ic_caps =
 		  IEEE80211_C_STA		/* station mode supported */
 		| IEEE80211_C_MONITOR		/* monitor mode supported */
+		| IEEE80211_C_BGSCAN		/* background scanning */
 		| IEEE80211_C_TXPMGT		/* tx power management */
 		| IEEE80211_C_SHSLOT		/* short slot time supported */
 		| IEEE80211_C_WPA
@@ -576,8 +577,6 @@ iwn_attach(device_t dev)
 #endif
 		| IEEE80211_C_WME		/* WME */
 		;
-	if (sc->hw_type != IWN_HW_REV_TYPE_4965)
-		ic->ic_caps |= IEEE80211_C_BGSCAN; /* background scanning */
 
 	/* Read MAC address, channels, etc from EEPROM. */
 	if ((error = iwn_read_eeprom(sc, macaddr)) != 0) {
@@ -5161,7 +5160,7 @@ iwn_scan(struct iwn_softc *sc)
 	if (IEEE80211_IS_CHAN_A(ic->ic_curchan) &&
 	    sc->hw_type == IWN_HW_REV_TYPE_4965) {
 		/* Ant A must be avoided in 5GHz because of an HW bug. */
-		rxchain |= IWN_RXCHAIN_FORCE_SEL(IWN_ANT_BC);
+		rxchain |= IWN_RXCHAIN_FORCE_SEL(IWN_ANT_B);
 	} else	/* Use all available RX antennas. */
 		rxchain |= IWN_RXCHAIN_FORCE_SEL(sc->rxchainmask);
 	hdr->rxchain = htole16(rxchain);
@@ -5172,14 +5171,19 @@ iwn_scan(struct iwn_softc *sc)
 	tx->id = sc->broadcast_id;
 	tx->lifetime = htole32(IWN_LIFETIME_INFINITE);
 
-	if (IEEE80211_IS_CHAN_A(ic->ic_curchan)) {
+	if (IEEE80211_IS_CHAN_5GHZ(ic->ic_curchan)) {
 		/* Send probe requests at 6Mbps. */
 		tx->rate = htole32(0xd);
 		rs = &ic->ic_sup_rates[IEEE80211_MODE_11A];
 	} else {
 		hdr->flags = htole32(IWN_RXON_24GHZ | IWN_RXON_AUTO);
-		/* Send probe requests at 1Mbps. */
-		tx->rate = htole32(10 | IWN_RFLAG_CCK);
+		if (sc->hw_type == IWN_HW_REV_TYPE_4965 &&
+		    sc->rxon.associd && sc->rxon.chan > 14)
+			tx->rate = htole32(0xd);
+		else {
+			/* Send probe requests at 1Mbps. */
+			tx->rate = htole32(10 | IWN_RFLAG_CCK);
+		}
 		rs = &ic->ic_sup_rates[IEEE80211_MODE_11G];
 	}
 	/* Use the first valid TX antenna. */
