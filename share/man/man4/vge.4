@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 23, 2010
+.Dd May 29, 2011
 .Dt VGE 4
 .Os
 .Sh NAME
@@ -66,13 +66,14 @@ The MAC supports TCP/IP hardware
 checksums (IPv4 only), TCP large send, VLAN tag insertion and stripping,
 as well as VLAN filtering, a 64-entry CAM filter and a 64-entry VLAN filter,
 64-bit multicast hash filter, 4 separate transmit DMA queues, flow control
-and jumbo frames up to 16K in size.
+and jumbo frames (not on VT6130/VT6132) up to 16K in size.
 The Velocity family controllers have a 16K receive FIFO and 48K transmit FIFO.
 .Pp
 The
 .Nm
 driver takes advantage of the controller's checksum offload and VLAN
-tagging features, as well as the jumbo frame and CAM filter support.
+tagging features, as well as the jumbo frame (except VT6130/VT6132) and CAM
+filter support.
 The CAM filter is used for multicast address filtering to provide
 64 perfect multicast address filter support.
 If it is necessary for the interface to join more than 64 multicast
@@ -81,6 +82,8 @@ groups, the driver will switch over to using the hash filter.
 The jumbo frame support can be enabled by setting the interface MTU
 to any value larger than the default of 1500 bytes, up to a maximum
 of 9000 bytes.
+Jumbo frames are disabled on the VT6130/VT6132 controllers because the TX 
+MAC will hang when trying to send a frame that is larger than 4K.
 The receive and transmit checksum offload support
 can be toggled on and off using the
 .Xr ifconfig 8
