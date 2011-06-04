@@ -430,7 +430,7 @@ rtmsg_input(void)
 	struct prefix *prefix;
 	struct rainfo *rai;
 	struct in6_addr *addr;
-	char addrbuf[INET6_ADDRSTRLEN];
+	char addrbuf[INET6_ADDRSTRLEN + 1];
 	int prefixchange = 0;
 
 	n = read(rtsock, msg, sizeof(msg));
@@ -726,7 +726,7 @@ rtadvd_input(void)
 	switch (icp->icmp6_type) {
 	case ND_ROUTER_SOLICIT:
 		/*
-		 * Message verification - RFC-2461 6.1.1
+		 * Message verification - RFC 4861 6.1.1
 		 * XXX: these checks must be done in the kernel as well,
 		 *      but we can't completely rely on them.
 		 */
@@ -764,9 +764,18 @@ rtadvd_input(void)
 		break;
 	case ND_ROUTER_ADVERT:
 		/*
-		 * Message verification - RFC-2461 6.1.2
+		 * Message verification - RFC 4861 6.1.2
 		 * XXX: there's the same dilemma as above...
 		 */
+		if (!IN6_IS_ADDR_LINKLOCAL(&rcvfrom.sin6_addr)) {
+			syslog(LOG_NOTICE,
+			    "<%s> RA witn non-linklocal source address "
+			    "received from %s on %s",
+			    __func__, inet_ntop(AF_INET6, &rcvfrom.sin6_addr,
+			    ntopbuf, INET6_ADDRSTRLEN),
+			    if_indextoname(pi->ipi6_ifindex, ifnamebuf));
+			return;
+		}
 		if (*hlimp != 255) {
 			syslog(LOG_NOTICE,
 			    "<%s> RA with invalid hop limit(%d) "
@@ -857,7 +866,7 @@ rs_input(int len, struct nd_router_solicit *rs,
 	/*
 	 * If the IP source address is the unspecified address, there
 	 * must be no source link-layer address option in the message.
-	 * (RFC-2461 6.1.1)
+	 * (RFC 4861 6.1.1)
 	 */
 	if (IN6_IS_ADDR_UNSPECIFIED(&from->sin6_addr) &&
 	    ndopts.nd_opts_src_lladdr) {
@@ -925,7 +934,7 @@ set_short_delay(struct rainfo *rai)
 	 * corresponds to a time later than the time the next
 	 * multicast RA is scheduled to be sent, ignore the random
 	 * delay and send the advertisement at the
-	 * already-scheduled time. RFC-2461 6.2.6
+	 * already-scheduled time. RFC 4861 6.2.6
 	 */
 #ifdef HAVE_ARC4RANDOM
 	delay = arc4random_uniform(MAX_RA_DELAY_TIME);
@@ -994,7 +1003,7 @@ ra_input(int len, struct nd_router_advert *ra,
 	}
 
 	/*
-	 * RA consistency check according to RFC-2461 6.2.7
+	 * RA consistency check according to RFC 4861 6.2.7
 	 */
 	if ((rai = if_indextorainfo(pi->ipi6_ifindex)) == 0) {
 		syslog(LOG_INFO,
@@ -1695,7 +1704,7 @@ ra_timer_update(void *data, struct timeval *tm)
 	 * MAX_INITIAL_RTR_ADVERTISEMENTS), if the randomly chosen interval
 	 * is greater than MAX_INITIAL_RTR_ADVERT_INTERVAL, the timer
 	 * SHOULD be set to MAX_INITIAL_RTR_ADVERT_INTERVAL instead.
-	 * (RFC-2461 6.2.4)
+	 * (RFC 4861 6.2.4)
 	 */
 	if (rai->initcounter < MAX_INITIAL_RTR_ADVERTISEMENTS &&
 	    interval > MAX_INITIAL_RTR_ADVERT_INTERVAL)
