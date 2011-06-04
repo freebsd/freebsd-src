@@ -66,21 +66,21 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb_cdc.h>
 #include "usbdevs.h"
 
-#define	USB_DEBUG_VAR umcs7840_debug
+#define	USB_DEBUG_VAR umcs_debug
 #include <dev/usb/usb_debug.h>
 #include <dev/usb/usb_process.h>
 
 #include <dev/usb/serial/usb_serial.h>
 
-#include <dev/usb/serial/umcs7840.h>
+#include <dev/usb/serial/umcs.h>
 
 #define	UMCS7840_MODVER	1
 
 #ifdef USB_DEBUG
-static int umcs7840_debug = 0;
+static int umcs_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, umcs7840, CTLFLAG_RW, 0, "USB umcs7840 quadport serial adapter");
-SYSCTL_INT(_hw_usb_umcs7840, OID_AUTO, debug, CTLFLAG_RW, &umcs7840_debug, 0, "Debug level");
+SYSCTL_NODE(_hw_usb, OID_AUTO, umcs, CTLFLAG_RW, 0, "USB umcs quadport serial adapter");
+SYSCTL_INT(_hw_usb_umcs, OID_AUTO, debug, CTLFLAG_RW, &umcs_debug, 0, "Debug level");
 #endif					/* USB_DEBUG */
 
 

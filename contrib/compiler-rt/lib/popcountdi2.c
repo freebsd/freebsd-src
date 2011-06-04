@@ -2,8 +2,8 @@
  *
  *                     The LLVM Compiler Infrastructure
  *
- * This file is distributed under the University of Illinois Open Source
- * License. See LICENSE.TXT for details.
+ * This file is dual licensed under the MIT and the University of Illinois Open
+ * Source Licenses. See LICENSE.TXT for details.
  *
  * ===----------------------------------------------------------------------===
  *
@@ -11,12 +11,13 @@
  *
  * ===----------------------------------------------------------------------===
  */
+#include "abi.h"
 
 #include "int_lib.h"
 
 /* Returns: count of 1 bits */
 
-si_int
+COMPILER_RT_ABI si_int
 __popcountdi2(di_int a)
 {
     du_int x2 = (du_int)a;

@@ -29,6 +29,8 @@
 #ifndef _POWERPC_POWERMAC_POWERMAC_THERMAL_H
 #define _POWERPC_POWERMAC_POWERMAC_THERMAL_H
 
+#define ZERO_C_TO_K 2732
+
 struct pmac_fan {
 	int min_rpm, max_rpm, default_rpm;
 	

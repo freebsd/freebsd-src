@@ -820,7 +820,7 @@ forkshell(struct job *jp, union node *n, int mode)
 			    ! fd0_redirected_p ()) {
 				close(0);
 				if (open(_PATH_DEVNULL, O_RDONLY) != 0)
-					error("Can't open %s: %s",
+					error("cannot open %s: %s",
 					    _PATH_DEVNULL, strerror(errno));
 			}
 		}
@@ -832,7 +832,7 @@ forkshell(struct job *jp, union node *n, int mode)
 			    ! fd0_redirected_p ()) {
 				close(0);
 				if (open(_PATH_DEVNULL, O_RDONLY) != 0)
-					error("Can't open %s: %s",
+					error("cannot open %s: %s",
 					    _PATH_DEVNULL, strerror(errno));
 			}
 		}

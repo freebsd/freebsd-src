@@ -47,6 +47,7 @@ device		pmu		# Apple Power Management Unit
 device		smu		# Apple System Management Unit
 device		snd_ai2s	# Apple I2S Audio
 device		snd_davbus	# Apple Davbus Audio
+device		windtunnel	# Apple G4 MDD fan controller
 
 
 #####################################################################
