@@ -186,11 +186,11 @@ can be augmented with a number, like
 to specify multiple prefixes.
 .Bl -tag -width indent
 .It Cm \&noonlinkprefix
-(bool) Specifies no prefix in the kernel will be advertised.
+(bool) Specifies no prefix on the network interfaces will be advertised.
 By default
 .Nm rtadvd
-automatically obtains valid and on-link prefixes from the kernel's routing
-table.
+automatically gathers on-link prefixes from all of the network interfaces
+and advertise them.
 The
 .Cm noonlinkprefix
 disables that behavior.
