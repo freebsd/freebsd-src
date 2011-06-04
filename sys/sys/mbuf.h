@@ -199,7 +199,9 @@ struct mbuf {
 #define	M_PROTO6	0x00080000 /* protocol-specific */
 #define	M_PROTO7	0x00100000 /* protocol-specific */
 #define	M_PROTO8	0x00200000 /* protocol-specific */
-#define	M_FLOWID	0x00400000 /* flowid is valid */
+#define	M_FLOWID	0x00400000 /* deprecated: flowid is valid */
+#define	M_HASHTYPEBITS	0x0F000000 /* mask of bits holding flowid hash type */
+
 /*
  * For RELENG_{6,7} steal these flags for limited multiple routing table
  * support. In RELENG_8 and beyond, use just one flag and a tag.
@@ -215,11 +217,45 @@ struct mbuf {
     (M_PROTO1|M_PROTO2|M_PROTO3|M_PROTO4|M_PROTO5|M_PROTO6|M_PROTO7|M_PROTO8)
 
 /*
+ * Network interface cards are able to hash protocol fields (such as IPv4
+ * addresses and TCP port numbers) classify packets into flows.  These flows
+ * can then be used to maintain ordering while delivering packets to the OS
+ * via parallel input queues, as well as to provide a stateless affinity
+ * model.  NIC drivers can pass up the hash via m->m_pkthdr.flowid, and set
+ * m_flag fields to indicate how the hash should be interpreted by the
+ * network stack.
+ *
+ * Most NICs support RSS, which provides ordering and explicit affinity, and
+ * use the hash m_flag bits to indicate what header fields were covered by
+ * the hash.  M_HASHTYPE_OPAQUE can be set by non-RSS cards or configurations
+ * that provide an opaque flow identifier, allowing for ordering and
+ * distribution without explicit affinity.
+ */
+#define	M_HASHTYPE_SHIFT		24
+#define	M_HASHTYPE_NONE			0x0
+#define	M_HASHTYPE_RSS_IPV4		0x1	/* IPv4 2-tuple */
+#define	M_HASHTYPE_RSS_TCP_IPV4		0x2	/* TCPv4 4-tuple */
+#define	M_HASHTYPE_RSS_IPV6		0x3	/* IPv6 2-tuple */
+#define	M_HASHTYPE_RSS_TCP_IPV6		0x4	/* TCPv6 4-tuple */
+#define	M_HASHTYPE_RSS_IPV6_EX		0x5	/* IPv6 2-tuple + ext hdrs */
+#define	M_HASHTYPE_RSS_TCP_IPV6_EX	0x6	/* TCPv6 4-tiple + ext hdrs */
+#define	M_HASHTYPE_OPAQUE		0xf	/* ordering, not affinity */
+
+#define	M_HASHTYPE_CLEAR(m)	(m)->m_flags &= ~(M_HASHTYPEBITS)
+#define	M_HASHTYPE_GET(m)	(((m)->m_flags & M_HASHTYPEBITS) >> \
+				    M_HASHTYPE_SHIFT)
+#define	M_HASHTYPE_SET(m, v)	do {					\
+	(m)->m_flags &= ~M_HASHTYPEBITS;				\
+	(m)->m_flags |= ((v) << M_HASHTYPE_SHIFT);			\
+while (0)
+#define	M_HASHTYPE_TEST(m, v)	(M_HASHTYPE_GET(m) == (v))
+
+/*
  * Flags preserved when copying m_pkthdr.
  */
 #define	M_COPYFLAGS \
     (M_PKTHDR|M_EOR|M_RDONLY|M_PROTOFLAGS|M_SKIP_FIREWALL|M_BCAST|M_MCAST|\
-     M_FRAG|M_FIRSTFRAG|M_LASTFRAG|M_VLANTAG|M_PROMISC|M_FIB)
+     M_FRAG|M_FIRSTFRAG|M_LASTFRAG|M_VLANTAG|M_PROMISC|M_FIB|M_HASHTYPEBITS)
 
 /*
  * External buffer types: identify ext_buf type.
