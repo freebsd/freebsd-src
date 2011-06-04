@@ -68,6 +68,7 @@
 #include "if.h"
 #include "config.h"
 #include "dump.h"
+#include "pathnames.h"
 
 struct msghdr rcvmhdr;
 static u_char *rcvcmsgbuf;
@@ -80,16 +81,15 @@ struct msghdr sndmhdr;
 struct iovec rcviov[2];
 struct iovec sndiov[2];
 struct sockaddr_in6 rcvfrom;
-static char *dumpfilename = "/var/run/rtadvd.dump";
-static char *pidfilename = "/var/run/rtadvd.pid";
+static const char *dumpfilename = _PATH_RTADVDDUMP;
+static const char *pidfilename = _PATH_RTADVDPID;
+const char *conffile = _PATH_RTADVDCONF;
 static struct pidfh *pfh;
 static char *mcastif;
 int sock;
 int rtsock = -1;
 int accept_rr = 0;
 int dflag = 0, sflag = 0;
-
-u_char *conffile = NULL;
 
 struct rainfo *ralist = NULL;
 struct nd_optlist {
@@ -133,19 +133,19 @@ u_int32_t ndopt_flags[] = {
 	[ND_OPT_DNSSL]			= NDOPT_FLAG_DNSSL,
 };
 
-const struct sockaddr_in6 sin6_linklocal_allnodes = {
+struct sockaddr_in6 sin6_linklocal_allnodes = {
         .sin6_len =     sizeof(sin6_linklocal_allnodes),
         .sin6_family =  AF_INET6,
         .sin6_addr =    IN6ADDR_LINKLOCAL_ALLNODES_INIT,
 };
 
-const struct sockaddr_in6 sin6_linklocal_allrouters = {
+struct sockaddr_in6 sin6_linklocal_allrouters = {
         .sin6_len =     sizeof(sin6_linklocal_allrouters),
         .sin6_family =  AF_INET6,
         .sin6_addr =    IN6ADDR_LINKLOCAL_ALLROUTERS_INIT,
 };
 
-const struct sockaddr_in6 sin6_sitelocal_allrouters = {
+struct sockaddr_in6 sin6_sitelocal_allrouters = {
         .sin6_len =     sizeof(sin6_sitelocal_allrouters),
         .sin6_family =  AF_INET6,
         .sin6_addr =    IN6ADDR_SITELOCAL_ALLROUTERS_INIT,
@@ -376,13 +376,13 @@ main(int argc, char *argv[])
 }
 
 static void
-rtadvd_set_dump_file(int sig)
+rtadvd_set_dump_file(int sig __unused)
 {
 	do_dump = 1;
 }
 
 static void
-set_die(int sig)
+set_die(int sig __unused)
 {
 	do_die = 1;
 }
@@ -638,7 +638,7 @@ rtmsg_input(void)
 void
 rtadvd_input(void)
 {
-	int i;
+	ssize_t i;
 	int *hlimp = NULL;
 #ifdef OLDRAWSOCKET
 	struct ip6_hdr *ip;
@@ -703,7 +703,7 @@ rtadvd_input(void)
 	}
 
 #ifdef OLDRAWSOCKET
-	if (i < sizeof(struct ip6_hdr) + sizeof(struct icmp6_hdr)) {
+	if ((size_t)i < sizeof(struct ip6_hdr) + sizeof(struct icmp6_hdr)) {
 		syslog(LOG_ERR,
 		       "<%s> packet size(%d) is too short",
 		       __func__, i);
@@ -713,7 +713,7 @@ rtadvd_input(void)
 	ip = (struct ip6_hdr *)rcvmhdr.msg_iov[0].iov_base;
 	icp = (struct icmp6_hdr *)(ip + 1); /* XXX: ext. hdr? */
 #else
-	if (i < sizeof(struct icmp6_hdr)) {
+	if ((size_t)i < sizeof(struct icmp6_hdr)) {
 		syslog(LOG_ERR,
 		       "<%s> packet size(%d) is too short",
 		       __func__, i);
@@ -750,7 +750,7 @@ rtadvd_input(void)
 			    if_indextoname(pi->ipi6_ifindex, ifnamebuf));
 			return;
 		}
-		if (i < sizeof(struct nd_router_solicit)) {
+		if ((size_t)i < sizeof(struct nd_router_solicit)) {
 			syslog(LOG_NOTICE,
 			    "<%s> RS from %s on %s does not have enough "
 			    "length (len = %d)",
@@ -787,7 +787,7 @@ rtadvd_input(void)
 			    if_indextoname(pi->ipi6_ifindex, ifnamebuf));
 			return;
 		}
-		if (i < sizeof(struct nd_router_advert)) {
+		if ((size_t)i < sizeof(struct nd_router_advert)) {
 			syslog(LOG_NOTICE,
 			    "<%s> RA from %s on %s does not have enough "
 			    "length (len = %d)",
@@ -871,7 +871,7 @@ rs_input(int len, struct nd_router_solicit *rs,
 
 	ra = ralist;
 	while (ra != NULL) {
-		if (pi->ipi6_ifindex == ra->ifindex)
+		if (pi->ipi6_ifindex == (unsigned int)ra->ifindex)
 			break;
 		ra = ra->next;
 	}
@@ -966,7 +966,7 @@ ra_input(int len, struct nd_router_advert *ra,
 	struct rainfo *rai;
 	u_char ntopbuf[INET6_ADDRSTRLEN], ifnamebuf[IFNAMSIZ];
 	union nd_opts ndopts;
-	char *on_off[] = {"OFF", "ON"};
+	const char *on_off[] = {"OFF", "ON"};
 	u_int32_t reachabletime, retranstimer, mtu;
 	int inconsistent = 0;
 
@@ -1304,7 +1304,7 @@ nd6_options(struct nd_opt_hdr *hdr, int limit,
 	int optlen = 0;
 
 	for (; limit > 0; limit -= optlen) {
-		if (limit < sizeof(struct nd_opt_hdr)) {
+		if ((size_t)limit < sizeof(struct nd_opt_hdr)) {
 			syslog(LOG_INFO, "<%s> short option header", __func__);
 			goto bad;
 		}
@@ -1619,7 +1619,7 @@ ra_output(struct rainfo *rainfo)
 
 	i = sendmsg(sock, &sndmhdr, 0);
 
-	if (i < 0 || i != rainfo->ra_datalen)  {
+	if (i < 0 || (size_t)i != rainfo->ra_datalen)  {
 		if (i < 0) {
 			syslog(LOG_ERR, "<%s> sendmsg on %s: %s",
 			       __func__, rainfo->ifname,

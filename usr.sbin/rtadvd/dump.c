@@ -66,7 +66,7 @@ static char *ether_str(struct sockaddr_dl *);
 static void if_dump(void);
 static size_t dname_labeldec(char *, size_t, const char *);
 
-static char *rtpref_str[] = {
+static const char *rtpref_str[] = {
 	"medium",		/* 00 */
 	"high",			/* 01 */
 	"rsv",			/* 10 */
@@ -273,7 +273,7 @@ if_dump(void)
 }
 
 void
-rtadvd_dump_file(char *dumpfile)
+rtadvd_dump_file(const char *dumpfile)
 {
 	syslog(LOG_DEBUG, "<%s> dump current status to %s", __func__,
 	    dumpfile);

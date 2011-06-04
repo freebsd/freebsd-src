@@ -30,4 +30,4 @@
  * SUCH DAMAGE.
  */
 
-extern void rtadvd_dump_file(char *);
+extern void rtadvd_dump_file(const char *);

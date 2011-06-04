@@ -42,9 +42,9 @@
 	{{{ 0xff, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,	\
 	    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02 }}}
 
-extern const struct sockaddr_in6 sin6_linklocal_allnodes;
-extern const struct sockaddr_in6 sin6_linklocal_allrouters;
-extern const struct sockaddr_in6 sin6_sitelocal_allrouters;
+extern struct sockaddr_in6 sin6_linklocal_allnodes;
+extern struct sockaddr_in6 sin6_linklocal_allrouters;
+extern struct sockaddr_in6 sin6_sitelocal_allrouters;
 
 /*
  * RFC 3542 API deprecates IPV6_PKTINFO in favor of
@@ -181,8 +181,8 @@ struct	rainfo {
 	int	ifindex;
 	int	advlinkopt;	/* bool: whether include link-layer addr opt */
 	struct sockaddr_dl *sdl;
-	char	ifname[16];
-	int	phymtu;		/* mtu of the physical interface */
+	char	ifname[IFNAMSIZ];
+	u_int32_t	phymtu;		/* mtu of the physical interface */
 
 	/* Router configuration variables */
 	u_short lifetime;	/* AdvDefaultLifetime */
