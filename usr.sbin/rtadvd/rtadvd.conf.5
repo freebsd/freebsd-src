@@ -385,13 +385,14 @@ manual page for resolver implementation in
 .It Cm \&rdnssltime
 The lifetime of the
 .Cm rdnss
-DNS server entries.  The default value is 3/2 of the interval
-time.
+DNS server entries.
+The default value is 3/2 of the interval time.
 .It Cm \&dnssl
 (str) One or more domain names in a comma-separated string.
 These domain names will be used when making DNS queries on a
-non-fully-qualified domain name.  If different lifetimes are needed for
-different domains, separate entries can be given by using
+non-fully-qualified domain name.
+If different lifetimes are needed for different domains, separate entries
+can be given by using
 .Cm dnssl ,
 .Cm dnssl0 ,
 .Cm dnssl1 ,
@@ -410,8 +411,8 @@ manual page for resolver implementation in
 .It Cm \&dnsslltime
 The lifetime of the
 .Cm dnssl
-DNS search list entries.  The default value is 3/2 of the interval
-time.
+DNS search list entries.
+The default value is 3/2 of the interval time.
 .El
 .Pp
 You can also refer one line from another by using
@@ -457,8 +458,8 @@ using the default option lifetime values.
 .Bd -literal -offset
 wlan0:\\
 	:addr="2001:db8:ffff:1000::":prefixlen#64:\\
-	:rdnss="2001:db8:ffff::10,2001:db8:ffff::2:43:\\
-	:dnssl="foo.com":
+	:rdnss="2001:db8:ffff::10,2001:db8:ffff::2:43":\\
+	:dnssl="example.com":
 .Ed
 .Pp
 The following example presents the default values in an explicit manner.

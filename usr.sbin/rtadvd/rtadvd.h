@@ -29,18 +29,23 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+
 #define IN6ADDR_LINKLOCAL_ALLNODES_INIT				\
 	{{{ 0xff, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,	\
 	    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01 }}}
+
 #define IN6ADDR_LINKLOCAL_ALLROUTERS_INIT			\
 	{{{ 0xff, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,	\
 	    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02 }}}
+
 #define IN6ADDR_SITELOCAL_ALLROUTERS_INIT			\
 	{{{ 0xff, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,	\
 	    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02 }}}
+
 extern const struct sockaddr_in6 sin6_linklocal_allnodes;
 extern const struct sockaddr_in6 sin6_linklocal_allrouters;
 extern const struct sockaddr_in6 sin6_sitelocal_allrouters;
+
 /*
  * RFC 3542 API deprecates IPV6_PKTINFO in favor of
  * IPV6_RECVPKTINFO
@@ -50,6 +55,7 @@ extern const struct sockaddr_in6 sin6_sitelocal_allrouters;
 #define IPV6_RECVPKTINFO	IPV6_PKTINFO
 #endif
 #endif
+
 /*
  * RFC 3542 API deprecates IPV6_HOPLIMIT in favor of
  * IPV6_RECVHOPLIMIT
@@ -123,6 +129,7 @@ struct rdnss_addr {
 
 	struct in6_addr ra_dns;	/* DNS server entry */
 };
+
 struct rdnss {
 	TAILQ_ENTRY(rdnss) rd_next;
 
@@ -138,6 +145,7 @@ struct rdnss {
  */
 #define _DNAME_LABELENC_MAXLEN \
 	(NI_MAXHOST + (NI_MAXHOST / 64 + 1) + 1)
+
 #define DNAME_LABELENC_MAXLEN \
 	(_DNAME_LABELENC_MAXLEN + 8 - _DNAME_LABELENC_MAXLEN % 8)
 

@@ -132,16 +132,19 @@ u_int32_t ndopt_flags[] = {
 	[ND_OPT_RDNSS]			= NDOPT_FLAG_RDNSS,
 	[ND_OPT_DNSSL]			= NDOPT_FLAG_DNSSL,
 };
+
 const struct sockaddr_in6 sin6_linklocal_allnodes = {
         .sin6_len =     sizeof(sin6_linklocal_allnodes),
         .sin6_family =  AF_INET6,
         .sin6_addr =    IN6ADDR_LINKLOCAL_ALLNODES_INIT,
 };
+
 const struct sockaddr_in6 sin6_linklocal_allrouters = {
         .sin6_len =     sizeof(sin6_linklocal_allrouters),
         .sin6_family =  AF_INET6,
         .sin6_addr =    IN6ADDR_LINKLOCAL_ALLROUTERS_INIT,
 };
+
 const struct sockaddr_in6 sin6_sitelocal_allrouters = {
         .sin6_len =     sizeof(sin6_sitelocal_allrouters),
         .sin6_family =  AF_INET6,
@@ -762,7 +765,7 @@ rtadvd_input(void)
 	case ND_ROUTER_ADVERT:
 		/*
 		 * Message verification - RFC-2461 6.1.2
-		 * XXX: there's a same dilemma as above...
+		 * XXX: there's the same dilemma as above...
 		 */
 		if (*hlimp != 255) {
 			syslog(LOG_NOTICE,
@@ -1337,17 +1340,25 @@ nd6_options(struct nd_opt_hdr *hdr, int limit,
 		 * Option length check.  Do it here for all fixed-length
 		 * options.
 		 */
-		if ((hdr->nd_opt_type == ND_OPT_MTU &&
-			optlen != sizeof(struct nd_opt_mtu)) ||
-		    (hdr->nd_opt_type == ND_OPT_RDNSS &&
-			(optlen < 24 ||
-			(optlen - sizeof(struct nd_opt_rdnss)) % 16 != 0)) ||
-		    (hdr->nd_opt_type == ND_OPT_DNSSL &&
-			(optlen < 16 ||
-			(optlen - sizeof(struct nd_opt_dnssl)) % 8 != 0)) ||
-		    (hdr->nd_opt_type == ND_OPT_PREFIX_INFORMATION &&
-			optlen != sizeof(struct nd_opt_prefix_info))
-		) {
+		switch (hdr->nd_opt_type) {
+		case ND_OPT_MTU:
+			if (optlen == sizeof(struct nd_opt_mtu))
+				break;
+			goto skip;
+		case ND_OPT_RDNSS:
+			if (optlen >= 24 &&
+			    (optlen - sizeof(struct nd_opt_rdnss)) % 16 == 0)
+				break;
+			goto skip;
+		case ND_OPT_DNSSL:
+			if (optlen >= 16 &&
+			    (optlen - sizeof(struct nd_opt_dnssl)) % 8 == 0)
+				break;
+			goto skip;
+		case ND_OPT_PREFIX_INFORMATION:
+			if (optlen == sizeof(struct nd_opt_prefix_info))
+				break;
+skip:
 			syslog(LOG_INFO, "<%s> invalid option length",
 			    __func__);
 			continue;
