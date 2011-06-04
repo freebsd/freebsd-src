@@ -29,8 +29,8 @@ S=     ${.CURDIR}/../../..
 
 .PATH: $S/dev/usb/serial
 
-KMOD=	umcs7840
+KMOD=	umcs
 SRCS=	opt_bus.h opt_usb.h device_if.h bus_if.h usb_if.h usbdevs.h \
-	umcs7840.c
+	umcs.c
 
 .include <bsd.kmod.mk>

@@ -29,24 +29,24 @@
 .\" $FreeBSD$
 .\"
 .Dd December 10, 2010
-.Dt UMCS7840 4
+.Dt UMCS 4
 .Os
 .Sh NAME
-.Nm umcs7840
+.Nm umcs
 .Nd USB support for serial adapters based on the MCS7820 and MCS7840 chips
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your
 kernel configuration file:
 .Bd -ragged -offset indent
-.Cd "device umcs7840"
+.Cd "device umcs"
 .Ed
 .Pp
 Alternatively, to load the driver as a
 module at boot time, place the following line in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
-umcs7840_load="YES"
+umcs_load="YES"
 .Ed
 .Sh DESCRIPTION
 The
@@ -80,6 +80,9 @@ ST Lab U-400 four-port serial USB adapter
 .Xr tty 4 ,
 .Xr ucom 4 ,
 .Xr usb 4
+.Sh BUGS
+This driver doesn't support access to any fine tunes of
+chip, like RS522/RS485 mode, non-standard baudrates, etc.
 .Sh HISTORY
 The
 .Nm
@@ -92,6 +95,3 @@ The
 driver was written by
 .An Lev Serebryakov
 .Aq lev@FreeBSD.org .
-.Sh BUGS
-This driver doesn't support access to any fine tunes of
-chip, like RS522/RS485 mode, non-standard baudrates, etc.
