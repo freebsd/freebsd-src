@@ -541,6 +541,8 @@ int	in_pcb_lport(struct inpcb *, struct in_addr *, u_short *,
 int	in_pcbbind_setup(struct inpcb *, struct sockaddr *, in_addr_t *,
 	    u_short *, struct ucred *);
 int	in_pcbconnect(struct inpcb *, struct sockaddr *, struct ucred *);
+int	in_pcbconnect_mbuf(struct inpcb *, struct sockaddr *, struct ucred *,
+	    struct mbuf *);
 int	in_pcbconnect_setup(struct inpcb *, struct sockaddr *, in_addr_t *,
 	    u_short *, in_addr_t *, u_short *, struct inpcb **,
 	    struct ucred *);
@@ -555,10 +557,14 @@ struct inpcb *
 struct inpcb *
 	in_pcblookup(struct inpcbinfo *, struct in_addr, u_int,
 	    struct in_addr, u_int, int, struct ifnet *);
+struct inpcb *
+	in_pcblookup_mbuf(struct inpcbinfo *, struct in_addr, u_int,
+	    struct in_addr, u_int, int, struct ifnet *, struct mbuf *);
 void	in_pcbnotifyall(struct inpcbinfo *pcbinfo, struct in_addr,
 	    int, struct inpcb *(*)(struct inpcb *, int));
 void	in_pcbref(struct inpcb *);
 void	in_pcbrehash(struct inpcb *);
+void	in_pcbrehash_mbuf(struct inpcb *, struct mbuf *);
 int	in_pcbrele(struct inpcb *);
 int	in_pcbrele_rlocked(struct inpcb *);
 int	in_pcbrele_wlocked(struct inpcb *);
