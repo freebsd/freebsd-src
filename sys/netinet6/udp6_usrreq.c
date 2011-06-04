@@ -377,9 +377,9 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 	/*
 	 * Locate pcb for datagram.
 	 */
-	inp = in6_pcblookup(&V_udbinfo, &ip6->ip6_src, uh->uh_sport,
+	inp = in6_pcblookup_mbuf(&V_udbinfo, &ip6->ip6_src, uh->uh_sport,
 	    &ip6->ip6_dst, uh->uh_dport, INPLOOKUP_WILDCARD |
-	    INPLOOKUP_RLOCKPCB, m->m_pkthdr.rcvif);
+	    INPLOOKUP_RLOCKPCB, m->m_pkthdr.rcvif, m);
 	if (inp == NULL) {
 		if (udp_log_in_vain) {
 			char ip6bufs[INET6_ADDRSTRLEN];

@@ -3034,6 +3034,10 @@ pf_socket_lookup(int direction, struct pf_pdesc *pd)
 #ifdef INET
 	case AF_INET:
 #ifdef __FreeBSD__
+		/*
+		 * XXXRW: would be nice if we had an mbuf here so that we
+		 * could use in_pcblookup_mbuf().
+		 */
 		inp = in_pcblookup(pi, saddr->v4, sport, daddr->v4,
 			dport, INPLOOKUP_RLOCKPCB, NULL);
 		if (inp == NULL) {
@@ -3056,6 +3060,10 @@ pf_socket_lookup(int direction, struct pf_pdesc *pd)
 #ifdef INET6
 	case AF_INET6:
 #ifdef __FreeBSD__
+		/*
+		 * XXXRW: would be nice if we had an mbuf here so that we
+		 * could use in6_pcblookup_mbuf().
+		 */
 		inp = in6_pcblookup(pi, &saddr->v6, sport,
 			&daddr->v6, dport, INPLOOKUP_RLOCKPCB, NULL);
 		if (inp == NULL) {
