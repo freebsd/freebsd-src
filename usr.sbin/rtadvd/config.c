@@ -185,6 +185,12 @@ getconfig(char *intface)
 		if ((forwarding = getinet6sysctl(IPV6CTL_FORWARDING)) < 0)
 			exit(1);
 
+	/* gather on-link prefixes from the kernel or not. */
+	if (agetflag("noonlinkprefix"))
+		rai->rai_advonlinkprefix = 0;
+	else
+		rai->rai_advonlinkprefix = 1;
+
 	/* get interface information */
 	if (agetflag("nolladdr"))
 		rai->rai_advlinkopt = 0;
@@ -433,7 +439,7 @@ getconfig(char *intface)
 			    now.tv_sec + pfx->pfx_preflifetime;
 		}
 	}
-	if (rai->rai_pfxs == 0)
+	if (rai->rai_advonlinkprefix && rai->rai_pfxs == 0)
 		get_prefix(rai);
 
 	MAYHAVE(val, "mtu", 0);

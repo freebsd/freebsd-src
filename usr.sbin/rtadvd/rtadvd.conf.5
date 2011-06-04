@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 28, 2011
+.Dd June 4, 2011
 .Dt RTADVD.CONF 5
 .Os
 .Sh NAME
@@ -179,10 +179,25 @@ will automatically get appropriate prefixes from the kernel's routing table,
 and advertise the prefixes with the default parameters.
 Keywords other than
 .Cm clockskew
+and
+.Cm noonlinkprefix
 can be augmented with a number, like
 .Dq Li prefix2 ,
 to specify multiple prefixes.
 .Bl -tag -width indent
+.It Cm \&noonlinkprefix
+(bool) Specifies no prefix in the kernel will be advertised.
+By default
+.Nm rtadvd
+automatically obtains valid and on-link prefixes from the kernel's routing
+table.
+The
+.Cm noonlinkprefix
+disables that behavior.
+If this is specified and no
+.Cm addr
+keyword is specified, no prefix information option will be included in the
+message.
 .It Cm \&clockskew
 (num) Time skew to adjust link propagation delays and clock skews
 between routers on the link
