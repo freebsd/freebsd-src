@@ -254,7 +254,7 @@ if_dump(void)
 
 		TAILQ_FOREACH(dns, &rai->dnssl, dn_next) {
 			struct dnssl_addr *dnsa;
-			char buf[NI_MAXHOST + 1];
+			char buf[NI_MAXHOST];
 
 			if (dns == TAILQ_FIRST(&rai->dnssl))
 				fprintf(fp, "  DNS search list:\n"
@@ -295,12 +295,15 @@ dname_labeldec(char *dst, size_t dlen, const char *src)
 {
 	size_t len;
 	const char *src_origin;
+	const char *src_last;
 	const char *dst_origin;
 
 	src_origin = src;
+	src_last = strchr(src, '\0');
 	dst_origin = dst;
 	memset(dst, '\0', dlen);
-	while (src && (len = (uint8_t)(*src++) & 0x3f)) {
+	while (src && (len = (uint8_t)(*src++) & 0x3f) &&
+	    (src + len) <= src_last) {
 		if (dst != dst_origin)
 			*dst++ = '.';
 		syslog(LOG_DEBUG, "<%s> labellen = %d", __func__, len);

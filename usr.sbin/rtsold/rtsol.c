@@ -248,7 +248,7 @@ rtsol_input(int s)
 	struct nd_opt_dnssl *dnssl;
 	size_t len;
 	char nsbuf[INET6_ADDRSTRLEN + 1 + IFNAMSIZ + 1 + 1];
-	char dname[NI_MAXHOST + 1];
+	char dname[NI_MAXHOST];
 	struct timeval now;
 	struct timeval lifetime;
 
@@ -473,6 +473,13 @@ rtsol_input(int s)
 						  ntopbuf, INET6_ADDRSTRLEN));
 				break;
 			}
+
+			/*
+			 * Ensure NUL-termination in DNSSL in case of
+			 * malformed field.
+			 */
+			p = (char *)RA_OPT_NEXT_HDR(raoptp);
+			*(p - 1) = '\0';
 
 			p = raoptp + sizeof(*dnssl);
 			while (1 < (len = dname_labeldec(dname, sizeof(dname),
@@ -790,12 +797,15 @@ dname_labeldec(char *dst, size_t dlen, const char *src)
 {
 	size_t len;
 	const char *src_origin;
+	const char *src_last;
 	const char *dst_origin;
 
 	src_origin = src;
+	src_last = strchr(src, '\0');
 	dst_origin = dst;
 	memset(dst, '\0', dlen);
-	while (src && (len = (uint8_t)(*src++) & 0x3f)) {
+	while (src && (len = (uint8_t)(*src++) & 0x3f) &&
+	    (src + len) <= src_last) {
 		if (dst != dst_origin)
 			*dst++ = '.';
 		warnmsg(LOG_DEBUG, __func__, "labellen = %zd", len);
