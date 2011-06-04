@@ -102,7 +102,7 @@ dname_labelenc(char *dst, const char *src)
 			*dst++ = len = MIN(63, len);
 		else
 			*dst++ = len = MIN(63, p - src);
-		/* Copy only 63 octets at most. */
+		/* Copy 63 octets at most. */
 		memcpy(dst, src, len);
 		dst += len;
 		if (p == NULL) /* the last label */
@@ -1111,7 +1111,7 @@ make_packet(struct rainfo *rainfo)
 
 		/* A zero octet and 8 octet boundary */
 		len++;
-		len += 8 - (len % 8);
+		len += (len % 8) ? 8 - len % 8 : 0;
 
 		packlen += len;
 	}
@@ -1275,7 +1275,7 @@ make_packet(struct rainfo *rainfo)
 
 		/* Padding to next 8 octets boundary */
 		len = buf - (char *)ndopt_dnssl;
-		len += 8 - (len % 8);
+		len += (len % 8) ? 8 - len % 8 : 0;
 
 		/* Length field must be in 8 octets */
 		ndopt_dnssl->nd_opt_dnssl_len = len / 8;

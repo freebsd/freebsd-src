@@ -240,7 +240,7 @@ if_dump(void)
 				fprintf(fp, "  Recursive DNS servers:\n"
 					    "    Lifetime\tServers\n");
 
-			fprintf(fp, "    % 8u\t", rdn->rd_ltime);
+			fprintf(fp, "    %8u\t", rdn->rd_ltime);
 			TAILQ_FOREACH(rdna, &rdn->rd_list, ra_next) {
 				inet_ntop(AF_INET6, &rdna->ra_dns,
 				    prefixbuf, sizeof(prefixbuf));
@@ -260,7 +260,7 @@ if_dump(void)
 				fprintf(fp, "  DNS search list:\n"
 					    "    Lifetime\tDomains\n");
 
-			fprintf(fp, "    % 8u\t", dns->dn_ltime);
+			fprintf(fp, "    %8u\t", dns->dn_ltime);
 			TAILQ_FOREACH(dnsa, &dns->dn_list, da_next) {
 				dname_labeldec(buf, sizeof(buf), dnsa->da_dom);
 				if (dnsa != TAILQ_FIRST(&dns->dn_list))

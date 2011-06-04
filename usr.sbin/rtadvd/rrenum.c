@@ -450,9 +450,8 @@ rr_input(int len, struct icmp6_router_renum *rr, struct in6_pktinfo *pi,
 	 * We rely on the kernel input routine for unicast addresses, and thus
 	 * check multicast destinations only.
 	 */
-	if (IN6_IS_ADDR_MULTICAST(&pi->ipi6_addr) &&
-	    !IN6_ARE_ADDR_EQUAL(&sin6_sitelocal_allrouters.sin6_addr,
-				&pi->ipi6_addr)) {
+	if (IN6_IS_ADDR_MULTICAST(&pi->ipi6_addr) && !IN6_ARE_ADDR_EQUAL(
+	    &sin6_sitelocal_allrouters.sin6_addr, &pi->ipi6_addr)) {
 		syslog(LOG_NOTICE,
 		       "<%s>: RR message with invalid destination (%s) "
 		       "from %s on %s",
