@@ -403,7 +403,7 @@ setinputfile(const char *fname, int push)
 
 	INTOFF;
 	if ((fd = open(fname, O_RDONLY)) < 0)
-		error("Can't open %s: %s", fname, strerror(errno));
+		error("cannot open %s: %s", fname, strerror(errno));
 	if (fd < 10) {
 		fd2 = fcntl(fd, F_DUPFD, 10);
 		close(fd);
