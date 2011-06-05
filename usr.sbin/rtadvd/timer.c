@@ -92,6 +92,9 @@ void
 rtadvd_remove_timer(struct rtadvd_timer *rat)
 {
 
+	if (rat == NULL)
+		return;
+
 	TAILQ_REMOVE(&ra_timer, rat, rat_next);
 	free(rat);
 }
