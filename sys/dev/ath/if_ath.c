@@ -739,6 +739,9 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	ath_sysctlattach(sc);
 	ath_sysctl_stats_attach(sc);
 
+	/* Setup software TX queue related bits */
+	STAILQ_INIT(&sc->sc_txnodeq);
+
 	if (bootverbose)
 		ieee80211_announce(ic);
 	ath_announce(sc);
@@ -3736,7 +3739,6 @@ ath_txq_init(struct ath_softc *sc, struct ath_txq *txq, int qnum)
 	txq->axq_intrcnt = 0;
 	txq->axq_link = NULL;
 	STAILQ_INIT(&txq->axq_q);
-	STAILQ_INIT(&txq->axq_nodeq);
 	ATH_TXQ_LOCK_INIT(sc, txq);
 }
 

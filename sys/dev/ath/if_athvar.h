@@ -91,7 +91,8 @@ struct ath_buf;
  * Note that TID 16 (WME_NUM_TID+1) is for handling non-QoS frames.
  */
 struct ath_tid {
-	STAILQ_HEAD(ath_tid_bq,ath_buf) buf_q;		/* pending buffers        */
+	STAILQ_HEAD(,ath_buf) axq_q;		/* pending buffers        */
+	u_int			axq_depth;	/* queue depth (stat only) */
 	struct ath_buf *tx_buf[ATH_TID_MAX_BUFS];	/* active tx buffers, beginning at current BAW */
 };
 
@@ -194,7 +195,6 @@ struct ath_txq {
 	u_int			axq_intrcnt;	/* interrupt count */
 	u_int32_t		*axq_link;	/* link ptr in last TX desc */
 	STAILQ_HEAD(, ath_buf)	axq_q;		/* transmit queue */
-	STAILQ_HEAD(, ath_node)	axq_nodeq;	/* Nodes which have traffic to send */
 	struct mtx		axq_lock;	/* lock on q and link */
 	char			axq_name[12];	/* e.g. "ath0_txq4" */
 };
@@ -396,6 +396,9 @@ struct ath_softc {
 	/* DFS related state */
 	void			*sc_dfs;	/* Used by an optional DFS module */
 	struct task		sc_dfstask;	/* DFS processing task */
+
+	/* Software TX queue related state */
+	STAILQ_HEAD(, ath_node)	sc_txnodeq;	/* Nodes which have traffic to send */
 };
 
 #define	ATH_LOCK_INIT(_sc) \

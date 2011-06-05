@@ -1122,3 +1122,64 @@ bad:
 	ieee80211_free_node(ni);
 	return error;
 }
+
+
+/* Per-node software queue operations */
+
+/*
+ * Mark the current node/TID as ready to TX.
+ *
+ * This is done to make it easy for the software scheduler to 
+ * find which nodes/TIDs have data to send.
+ */
+static void
+ath_tx_node_sched(struct ath_softc *sc, struct ath_node *an, int tid)
+{
+	/*
+	 * For now, the node is marked as ready;
+	 * later code will also maintain a per-TID list.
+	 */
+	if (an->sched)
+		return;		/* already scheduled */
+
+	STAILQ_INSERT_TAIL(&sc->sc_txnodeq, an, an_list);
+}
+
+/*
+ * Queue the given packet on the relevant software queue.
+ *
+ * This however doesn't queue the packet to the hardware!
+ */
+void
+ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf,
+    struct mbuf *m0)
+{
+	struct ath_node *an = ATH_NODE(ni);
+	struct ieee80211_frame *wh;
+	struct ath_tid *atid;
+	int tid;
+
+	/* Fetch the TID - non-QoS frames get assigned to TID 16 */
+	wh = mtod(m0, struct ieee80211_frame *);
+	tid = ieee80211_gettid(wh);
+	atid = &an->an_tid[tid];
+
+	/* Queue frame to the tail of the software queue */
+	ATH_TXQ_INSERT_TAIL(atid, bf, bf_list);
+
+	/* Mark the given node/tid as having packets to dequeue */
+	ath_tx_node_sched(sc, an, tid);
+}
+
+/*
+ * Do the basic frame setup stuff that's required before the frame
+ * is added to a software queue.
+ *
+ * All frames get mostly the same treatment and it's done once.
+ * Retransmits fiddle with things like the rate control setup,
+ * setting the retransmit bit in the packet; doing relevant DMA/bus
+ * syncing and relinking it (back) into the hardware TX queue.
+ *
+ * Note that this may cause the mbuf to be reallocated, so
+ * m0 may not be valid.
+ */

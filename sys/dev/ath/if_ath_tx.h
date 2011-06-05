@@ -41,4 +41,8 @@ extern int ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 extern int ath_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
     const struct ieee80211_bpf_params *params);
 
+/* software queue stuff */
+extern void ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni,
+    struct ath_buf *bf, struct mbuf *m0);
+
 #endif
