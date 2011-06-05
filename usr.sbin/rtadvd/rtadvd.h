@@ -185,7 +185,7 @@ struct	rainfo {
 	/* interface information */
 	int	rai_ifindex;
 	int	rai_advlinkopt;	/* bool: whether include link-layer addr opt */
-	int	rai_advonlinkprefix;	/* bool: gather on-link prefixes? */
+	int	rai_advifprefix;	/* bool: gather IF prefixes? */
 	struct sockaddr_dl *rai_sdl;
 	char	rai_ifname[IFNAMSIZ];
 	u_int32_t	rai_phymtu;	/* mtu of the physical interface */
