@@ -34,7 +34,6 @@
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/time.h>
-#include <sys/sysctl.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
@@ -76,7 +75,6 @@ static time_t prefix_timo = (60 * 120);	/* 2 hours.
 
 static struct rtadvd_timer *prefix_timeout(void *);
 static void makeentry(char *, size_t, int, const char *);
-static int getinet6sysctl(int);
 static size_t dname_labelenc(char *, const char *);
 
 /* Encode domain name label encoding in RFC 1035 Section 3.1 */
@@ -215,7 +213,6 @@ getconfig(int idx)
 	char *bp = buf;
 	char *addr, *flagstr;
 	char intface[IFNAMSIZ];
-	static int forwarding = -1;
 
 	if (if_indextoname(idx, intface) == NULL) {
 		syslog(LOG_ERR, "<%s> invalid index number (%d)",
@@ -246,11 +243,6 @@ getconfig(int idx)
 	TAILQ_INIT(&rai->rai_rdnss);
 	TAILQ_INIT(&rai->rai_dnssl);
 	TAILQ_INIT(&rai->rai_soliciter);
-
-	/* check if we are allowed to forward packets (if not determined) */
-	if (forwarding < 0)
-		if ((forwarding = getinet6sysctl(IPV6CTL_FORWARDING)) < 0)
-			exit(1);
 
 	/* gather on-link prefixes from the network interfaces. */
 	if (agetflag("noifprefix"))
@@ -353,22 +345,6 @@ getconfig(int idx)
 		    "(must be 0 or between %d and %d)",
 		    __func__, val, intface, rai->rai_maxinterval,
 		    MAXROUTERLIFETIME);
-		return (-1);
-	}
-	/*
-	 * Basically, hosts MUST NOT send Router Advertisement messages at any
-	 * time (RFC 4861, Section 6.2.3). However, it would sometimes be
-	 * useful to allow hosts to advertise some parameters such as prefix
-	 * information and link MTU. Thus, we allow hosts to invoke rtadvd
-	 * only when router lifetime (on every advertising interface) is
-	 * explicitly set zero. (see also the above section)
-	 */
-	if (val && forwarding == 0) {
-		syslog(LOG_ERR,
-		    "<%s> non zero router lifetime is specified for %s, "
-		    "which must not be allowed for hosts.  you must "
-		    "change router lifetime or enable IPv6 forwarding.",
-		    __func__, intface);
 		return (-1);
 	}
 	rai->rai_lifetime = val & 0xffff;
@@ -1311,24 +1287,4 @@ make_packet(struct rainfo *rai)
 		    ndopt_dnssl->nd_opt_dnssl_len);
 	}
 	return;
-}
-
-static int
-getinet6sysctl(int code)
-{
-	int mib[] = { CTL_NET, PF_INET6, IPPROTO_IPV6, 0 };
-	int value;
-	size_t size;
-
-	mib[3] = code;
-	size = sizeof(value);
-	if (sysctl(mib, sizeof(mib)/sizeof(mib[0]), &value, &size, NULL, 0)
-	    < 0) {
-		syslog(LOG_ERR, "<%s>: failed to get ip6 sysctl(%d): %s",
-		    __func__, code,
-		    strerror(errno));
-		return (-1);
-	}
-	else
-		return (value);
 }
