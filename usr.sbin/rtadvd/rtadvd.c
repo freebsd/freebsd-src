@@ -90,6 +90,8 @@ int sock;
 int rtsock = -1;
 int accept_rr = 0;
 int dflag = 0, sflag = 0;
+static int ifl_len;
+static char **ifl_names;
 
 struct railist_head_t railist =
     TAILQ_HEAD_INITIALIZER(railist);
@@ -171,6 +173,7 @@ static void	ra_output(struct rainfo *);
 static void	rtmsg_input(void);
 static void	rtadvd_set_dump_file(int);
 static void	set_short_delay(struct rainfo *);
+static int	ifl_lookup(char *, char **, int);
 
 int
 main(int argc, char *argv[])
@@ -186,6 +189,7 @@ main(int argc, char *argv[])
 	int i, ch;
 	int fflag = 0, logopt;
 	pid_t pid, otherpid;
+	int error;
 
 	/* get command line options and arguments */
 	while ((ch = getopt(argc, argv, "c:dDfF:M:p:Rs")) != -1) {
@@ -258,9 +262,25 @@ main(int argc, char *argv[])
 #endif
 	/* get iflist block from kernel */
 	init_iflist();
+	ifl_names = argv;
+	ifl_len = argc;
 
-	while (argc--)
-		getconfig(*argv++);
+	for (i = 0; i < ifl_len; i++) {
+		int idx;
+
+		idx = if_nametoindex(ifl_names[i]);
+		if (idx == 0) {
+			syslog(LOG_INFO,
+			    "<%s> interface %s not found."
+			    "Ignored at this moment.", __func__, ifl_names[i]);
+			continue;
+		}
+		error = getconfig(idx);
+		if (error)
+			syslog(LOG_INFO,
+			    "<%s> invalid configuration for %s."
+			    "Ignored at this moment.", __func__, ifl_names[i]);
+	}
 
 	pfh = pidfile_open(pidfilename, 0600, &otherpid);
 	if (pfh == NULL) {
@@ -376,6 +396,15 @@ main(int argc, char *argv[])
 	exit(0);		/* NOTREACHED */
 }
 
+static int
+ifl_lookup(char *ifn, char **names, int len)
+{
+	while (len--)
+		if (strncmp(names[len], ifn, IFNAMSIZ) == 0)
+			return (0);
+	return (-1);
+}
+
 static void
 rtadvd_set_dump_file(int sig __unused)
 {
@@ -426,12 +455,14 @@ rtmsg_input(void)
 	int n, type, ifindex = 0, plen;
 	size_t len;
 	char msg[2048], *next, *lim;
-	u_char ifname[IF_NAMESIZE];
+	u_char ifname[IFNAMSIZ];
+	struct if_announcemsghdr *ifan;
 	struct prefix *pfx;
 	struct rainfo *rai;
 	struct in6_addr *addr;
 	char addrbuf[INET6_ADDRSTRLEN];
 	int prefixchange = 0;
+	int error;
 
 	n = read(rtsock, msg, sizeof(msg));
 	syslog(LOG_DEBUG, "<%s> received a routing message "
@@ -462,7 +493,8 @@ rtmsg_input(void)
 		    RTADV_TYPE2BITMASK(RTM_DELETE) |
 		    RTADV_TYPE2BITMASK(RTM_NEWADDR) |
 		    RTADV_TYPE2BITMASK(RTM_DELADDR) |
-		    RTADV_TYPE2BITMASK(RTM_IFINFO));
+		    RTADV_TYPE2BITMASK(RTM_IFINFO) |
+		    RTADV_TYPE2BITMASK(RTM_IFANNOUNCE));
 		if (len == 0)
 			break;
 		type = rtmsg_type(next);
@@ -478,6 +510,50 @@ rtmsg_input(void)
 		case RTM_IFINFO:
 			ifindex = get_ifm_ifindex(next);
 			break;
+		case RTM_IFANNOUNCE:
+			ifan = (struct if_announcemsghdr *)next;
+			switch (ifan->ifan_what) {
+			case IFAN_ARRIVAL:
+			case IFAN_DEPARTURE:
+				break;
+			default:
+				syslog(LOG_DEBUG,
+				    "<%s:%d> unknown ifan msg (ifan_what=%d)",
+				   __func__, __LINE__, ifan->ifan_what);
+				continue;
+			}
+
+			syslog(LOG_INFO, "<%s>: if_announcemsg (idx=%d:%d)",
+			       __func__, ifan->ifan_index, ifan->ifan_what);
+			init_iflist();
+			error = ifl_lookup(ifan->ifan_name,
+			    ifl_names, ifl_len);
+			if (error) {
+				syslog(LOG_INFO, "<%s>: not a target "
+				    "interface (idx=%d)", __func__,
+				    ifan->ifan_index);
+				continue;
+			}
+
+			switch (ifan->ifan_what) {
+			case IFAN_ARRIVAL:
+				error = getconfig(ifan->ifan_index);
+				if (error)
+					syslog(LOG_ERR,
+					    "<%s>: getconfig failed (idx=%d)"
+					    "  Ignored.", __func__,
+					    ifan->ifan_index);
+				break;
+			case IFAN_DEPARTURE:
+				error = rmconfig(ifan->ifan_index);
+				if (error)
+					syslog(LOG_ERR,
+					    "<%s>: rmconfig failed (idx=%d)"
+					    "  Ignored.", __func__,
+					    ifan->ifan_index);
+				break;
+			}
+			continue;
 		default:
 			/* should not reach here */
 			syslog(LOG_DEBUG,

@@ -30,7 +30,8 @@
  * SUCH DAMAGE.
  */
 
-extern void getconfig(char *);
+extern int getconfig(int);
+extern int rmconfig(int);
 extern void delete_prefix(struct prefix *);
 extern void invalidate_prefix(struct prefix *);
 extern void update_prefix(struct prefix *);

@@ -143,8 +143,68 @@ dname_labelenc(char *dst, const char *src)
 		memset(p, 0, sizeof(*p));				\
 	} while(0)
 
-void
-getconfig(char *intface)
+int
+rmconfig(int idx)
+{
+	struct rainfo *rai;
+	struct prefix *pfx;
+	struct soliciter *sol;
+	struct rdnss *rdn;
+	struct rdnss_addr *rdna;
+	struct dnssl *dns;
+	struct rtinfo *rti;
+
+	rai = if_indextorainfo(idx);
+	if (rai == NULL) {
+		syslog(LOG_ERR, "<%s>: rainfo not found (idx=%d)",
+		    __func__, idx);
+		return (-1);
+	}
+
+	TAILQ_REMOVE(&railist, rai, rai_next);
+	syslog(LOG_DEBUG, "<%s>: rainfo (idx=%d) removed.",
+	    __func__, idx);
+
+	/* Free all of allocated memories for this entry. */
+	rtadvd_remove_timer(rai->rai_timer);
+
+	if (rai->rai_ra_data != NULL)
+		free(rai->rai_ra_data);
+
+	if (rai->rai_sdl != NULL)
+		free(rai->rai_sdl);
+
+	while ((pfx = TAILQ_FIRST(&rai->rai_prefix)) != NULL) {
+		TAILQ_REMOVE(&rai->rai_prefix, pfx, pfx_next);
+		free(pfx);
+	}
+	while ((sol = TAILQ_FIRST(&rai->rai_soliciter)) != NULL) {
+		TAILQ_REMOVE(&rai->rai_soliciter, sol, sol_next);
+		free(sol);
+	}
+	while ((rdn = TAILQ_FIRST(&rai->rai_rdnss)) != NULL) {
+		TAILQ_REMOVE(&rai->rai_rdnss, rdn, rd_next);
+		while ((rdna = TAILQ_FIRST(&rdn->rd_list)) != NULL) {
+			TAILQ_REMOVE(&rdn->rd_list, rdna, ra_next);
+			free(rdna);
+		}
+		free(rdn);
+	}
+	while ((dns = TAILQ_FIRST(&rai->rai_dnssl)) != NULL) {
+		TAILQ_REMOVE(&rai->rai_dnssl, dns, dn_next);
+		free(dns);
+	}
+	while ((rti = TAILQ_FIRST(&rai->rai_route)) != NULL) {
+		TAILQ_REMOVE(&rai->rai_route, rti, rti_next);
+		free(rti);
+	}
+	free(rai);
+	
+	return (0);
+}
+
+int
+getconfig(int idx)
 {
 	int stat, i;
 	char tbuf[BUFSIZ];
@@ -154,7 +214,14 @@ getconfig(char *intface)
 	char buf[BUFSIZ];
 	char *bp = buf;
 	char *addr, *flagstr;
+	char intface[IFNAMSIZ];
 	static int forwarding = -1;
+
+	if (if_indextoname(idx, intface) == NULL) {
+		syslog(LOG_ERR, "<%s> invalid index number (%d)",
+		    __func__, idx);
+		return (-1);
+	}
 
 	if ((stat = agetent(tbuf, intface)) <= 0) {
 		memset(tbuf, 0, sizeof(tbuf));
@@ -201,7 +268,7 @@ getconfig(char *intface)
 			syslog(LOG_ERR,
 			    "<%s> can't get information of %s",
 			    __func__, intface);
-			exit(1);
+			return (-1);
 		}
 		rai->rai_ifindex = rai->rai_sdl->sdl_index;
 	} else
@@ -227,7 +294,7 @@ getconfig(char *intface)
 		    "<%s> maxinterval (%ld) on %s is invalid "
 		    "(must be between %u and %u)", __func__, val,
 		    intface, MIN_MAXINTERVAL, MAX_MAXINTERVAL);
-		exit(1);
+		return (-1);
 	}
 	rai->rai_maxinterval = (u_int)val;
 
@@ -239,7 +306,7 @@ getconfig(char *intface)
 		    "(must be between %d and %d)",
 		    __func__, val, intface, MIN_MININTERVAL,
 		    (rai->rai_maxinterval * 3) / 4);
-		exit(1);
+		return (-1);
 	}
 	rai->rai_mininterval = (u_int)val;
 
@@ -258,7 +325,7 @@ getconfig(char *intface)
 			if ((val & ND_RA_FLAG_RTPREF_HIGH)) {
 				syslog(LOG_ERR, "<%s> the \'h\' and \'l\'"
 				    " router flags are exclusive", __func__);
-				exit(1);
+				return (-1);
 			}
 			val |= ND_RA_FLAG_RTPREF_LOW;
 		}
@@ -275,7 +342,7 @@ getconfig(char *intface)
 	if (rai->rai_rtpref == ND_RA_FLAG_RTPREF_RSV) {
 		syslog(LOG_ERR, "<%s> invalid router preference (%02x) on %s",
 		    __func__, rai->rai_rtpref, intface);
-		exit(1);
+		return (-1);
 	}
 
 	MAYHAVE(val, "rltime", rai->rai_maxinterval * 3);
@@ -286,7 +353,7 @@ getconfig(char *intface)
 		    "(must be 0 or between %d and %d)",
 		    __func__, val, intface, rai->rai_maxinterval,
 		    MAXROUTERLIFETIME);
-		exit(1);
+		return (-1);
 	}
 	/*
 	 * Basically, hosts MUST NOT send Router Advertisement messages at any
@@ -302,7 +369,7 @@ getconfig(char *intface)
 		    "which must not be allowed for hosts.  you must "
 		    "change router lifetime or enable IPv6 forwarding.",
 		    __func__, intface);
-		exit(1);
+		return (-1);
 	}
 	rai->rai_lifetime = val & 0xffff;
 
@@ -312,7 +379,7 @@ getconfig(char *intface)
 		    "<%s> reachable time (%ld) on %s is invalid "
 		    "(must be no greater than %d)",
 		    __func__, val, intface, MAXREACHABLETIME);
-		exit(1);
+		return (-1);
 	}
 	rai->rai_reachabletime = (u_int32_t)val;
 
@@ -320,7 +387,7 @@ getconfig(char *intface)
 	if (val64 < 0 || val64 > 0xffffffff) {
 		syslog(LOG_ERR, "<%s> retrans time (%lld) on %s out of range",
 		    __func__, (long long)val64, intface);
-		exit(1);
+		return (-1);
 	}
 	rai->rai_retranstimer = (u_int32_t)val64;
 
@@ -328,7 +395,7 @@ getconfig(char *intface)
 		syslog(LOG_ERR,
 		    "<%s> mobile-ip6 configuration not supported",
 		    __func__);
-		exit(1);
+		return (-1);
 	}
 	/* prefix information */
 
@@ -361,14 +428,14 @@ getconfig(char *intface)
 			syslog(LOG_ERR,
 			    "<%s> inet_pton failed for %s",
 			    __func__, addr);
-			exit(1);
+			return (-1);
 		}
 		if (IN6_IS_ADDR_MULTICAST(&pfx->pfx_prefix)) {
 			syslog(LOG_ERR,
 			    "<%s> multicast prefix (%s) must "
 			    "not be advertised on %s",
 			    __func__, addr, intface);
-			exit(1);
+			return (-1);
 		}
 		if (IN6_IS_ADDR_LINKLOCAL(&pfx->pfx_prefix))
 			syslog(LOG_NOTICE,
@@ -382,7 +449,7 @@ getconfig(char *intface)
 			syslog(LOG_ERR, "<%s> prefixlen (%ld) for %s "
 			    "on %s out of range",
 			    __func__, val, addr, intface);
-			exit(1);
+			return (-1);
 		}
 		pfx->pfx_prefixlen = (int)val;
 
@@ -407,7 +474,7 @@ getconfig(char *intface)
 			    "%s/%d on %s is out of range",
 			    __func__, (long long)val64,
 			    addr, pfx->pfx_prefixlen, intface);
-			exit(1);
+			return (-1);
 		}
 		pfx->pfx_validlifetime = (u_int32_t)val64;
 
@@ -427,7 +494,7 @@ getconfig(char *intface)
 			    "is out of range",
 			    __func__, (long long)val64,
 			    addr, pfx->pfx_prefixlen, intface);
-			exit(1);
+			return (-1);
 		}
 		pfx->pfx_preflifetime = (u_int32_t)val64;
 
@@ -447,7 +514,7 @@ getconfig(char *intface)
 		syslog(LOG_ERR,
 		    "<%s> mtu (%ld) on %s out of range",
 		    __func__, val, intface);
-		exit(1);
+		return (-1);
 	}
 	rai->rai_linkmtu = (u_int32_t)val;
 	if (rai->rai_linkmtu == 0) {
@@ -464,7 +531,7 @@ getconfig(char *intface)
 		    "be between least MTU (%d) and physical link MTU (%d)",
 		    __func__, (unsigned long)rai->rai_linkmtu, intface,
 		    IPV6_MMTU, rai->rai_phymtu);
-		exit(1);
+		return (-1);
 	}
 
 #ifdef SIOCSIFINFO_IN6
@@ -523,7 +590,7 @@ getconfig(char *intface)
 		if (inet_pton(AF_INET6, addr, &rti->rti_prefix) != 1) {
 			syslog(LOG_ERR, "<%s> inet_pton failed for %s",
 			    __func__, addr);
-			exit(1);
+			return (-1);
 		}
 #if 0
 		/*
@@ -538,14 +605,14 @@ getconfig(char *intface)
 			    "<%s> multicast route (%s) must "
 			    "not be advertised on %s",
 			    __func__, addr, intface);
-			exit(1);
+			return (-1);
 		}
 		if (IN6_IS_ADDR_LINKLOCAL(&rti->prefix)) {
 			syslog(LOG_NOTICE,
 			    "<%s> link-local route (%s) will "
 			    "be advertised on %s",
 			    __func__, addr, intface);
-			exit(1);
+			return (-1);
 		}
 #endif
 
@@ -565,7 +632,7 @@ getconfig(char *intface)
 			syslog(LOG_ERR, "<%s> prefixlen (%ld) for %s on %s "
 			    "out of range",
 			    __func__, val, addr, intface);
-			exit(1);
+			return (-1);
 		}
 		rti->rti_prefixlen = (int)val;
 
@@ -601,7 +668,7 @@ getconfig(char *intface)
 			    "for %s/%d on %s",
 			    __func__, rti->rti_rtpref, addr,
 			    rti->rti_prefixlen, intface);
-			exit(1);
+			return (-1);
 		}
 
 		/*
@@ -628,7 +695,7 @@ getconfig(char *intface)
 			syslog(LOG_ERR, "<%s> route lifetime (%lld) for "
 			    "%s/%d on %s out of range", __func__,
 			    (long long)val64, addr, rti->rti_prefixlen, intface);
-			exit(1);
+			return (-1);
 		}
 		rti->rti_ltime = (u_int32_t)val64;
 	}
@@ -656,7 +723,8 @@ getconfig(char *intface)
 			if (inet_pton(AF_INET6, abuf, &rdna->ra_dns) != 1) {
 				syslog(LOG_ERR, "<%s> inet_pton failed for %s",
 				    __func__, abuf);
-				exit(1);
+				free(rdna);
+				return (-1);
 			}
 			TAILQ_INSERT_TAIL(&rdn->rd_list, rdna, ra_next);
 		}
@@ -669,7 +737,7 @@ getconfig(char *intface)
 			    "(must be between %d and %d)",
 			    entbuf, val, intface, rai->rai_maxinterval,
 			    rai->rai_maxinterval * 2);
-			exit(1);
+			return (-1);
 		}
 		rdn->rd_ltime = val;
 
@@ -711,7 +779,7 @@ getconfig(char *intface)
 			    "(must be between %d and %d)",
 			    entbuf, val, intface, rai->rai_maxinterval,
 			    rai->rai_maxinterval * 2);
-			exit(1);
+			return (-1);
 		}
 		dns->dn_ltime = val;
 
@@ -727,6 +795,8 @@ getconfig(char *intface)
 				      rai, rai);
 	ra_timer_update((void *)rai, &rai->rai_timer->rat_tm);
 	rtadvd_set_timer(&rai->rai_timer->rat_tm, rai->rai_timer);
+
+	return (0);
 }
 
 void

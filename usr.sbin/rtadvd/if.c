@@ -271,9 +271,16 @@ get_next_msg(char *buf, char *lim, int ifindex, size_t *lenp, int filter)
 			    buf, lim, rtm);
 			break;
 		}
-		if (FILTER_MATCH(rtm->rtm_type, filter) == 0) {
+		if (((struct rt_msghdr *)buf)->rtm_version != RTM_VERSION) {
+			syslog(LOG_WARNING,
+			    "<%s> routing message version mismatch "
+			    "(buf=%p lim=%p rtm=%p)", __func__,
+			    buf, lim, rtm);
 			continue;
 		}
+
+		if (FILTER_MATCH(rtm->rtm_type, filter) == 0)
+			continue;
 
 		switch (rtm->rtm_type) {
 		case RTM_GET:
@@ -328,6 +335,7 @@ get_next_msg(char *buf, char *lim, int ifindex, size_t *lenp, int filter)
 			return (char *)rtm;
 			/* NOTREACHED */
 		case RTM_IFINFO:
+		case RTM_IFANNOUNCE:
 			/* found */
 			*lenp = rtm->rtm_msglen;
 			return (char *)rtm;
@@ -566,6 +574,9 @@ parse_iflist(struct if_msghdr ***ifmlist_p, char *buf, size_t bufsize)
 void
 init_iflist(void)
 {
+	syslog(LOG_DEBUG,
+	    "<%s> generate iflist.", __func__);
+
 	if (ifblock) {
 		free(ifblock);
 		ifblock_size = 0;
