@@ -31,10 +31,12 @@
  */
 
 #include <sys/param.h>
+#include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/uio.h>
 #include <sys/time.h>
 #include <sys/queue.h>
+#include <sys/sysctl.h>
 
 #include <net/if.h>
 #include <net/if_media.h>
@@ -46,6 +48,10 @@
 #include <netinet/icmp6.h>
 
 #include <arpa/inet.h>
+
+#include <net/if_var.h>
+#include <netinet/in_var.h>
+#include <netinet6/nd6.h>
 
 #include <time.h>
 #include <unistd.h>
@@ -174,6 +180,8 @@ static void	rtmsg_input(void);
 static void	rtadvd_set_dump_file(int);
 static void	set_short_delay(struct rainfo *);
 static int	ifl_lookup(char *, char **, int);
+static int	check_accept_rtadv(int);
+static int	getinet6sysctl(int);
 
 int
 main(int argc, char *argv[])
@@ -1030,6 +1038,61 @@ set_short_delay(struct rainfo *rai)
 	rtadvd_set_timer(&interval, rai->rai_timer);
 }
 
+static int
+check_accept_rtadv(int idx)
+{
+	struct in6_ndireq nd;
+	u_char ifname[IFNAMSIZ];
+	int s6;
+	int error;
+
+	if ((s6 = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) {
+		syslog(LOG_ERR,
+		    "<%s> open socket failed for idx=%d.",
+		    __func__, idx);
+		return (0);
+	}
+	if ((if_indextoname(idx, ifname)) == NULL) {
+		syslog(LOG_ERR,
+		    "<%s> ifindex->ifname failed (idx=%d).",
+		    __func__, idx);
+		close(s6);
+		return (0);
+	}
+	memset(&nd, 0, sizeof(nd));
+	strncpy(nd.ifname, ifname, sizeof(nd.ifname));
+	error = ioctl(s6, SIOCGIFINFO_IN6, &nd);
+	if (error) {
+		syslog(LOG_ERR,
+		    "<%s> ioctl(SIOCGIFINFO_IN6) failed for idx=%d.",
+		    __func__, idx);
+		nd.ndi.flags = 0;
+	}
+	close(s6);
+
+	return (nd.ndi.flags & ND6_IFF_ACCEPT_RTADV);
+}
+
+static int
+getinet6sysctl(int code)
+{
+	int mib[] = { CTL_NET, PF_INET6, IPPROTO_IPV6, 0 };
+	int value;
+	size_t size;
+
+	mib[3] = code;
+	size = sizeof(value);
+	if (sysctl(mib, sizeof(mib)/sizeof(mib[0]), &value, &size, NULL, 0)
+	    < 0) {
+		syslog(LOG_ERR, "<%s>: failed to get ip6 sysctl(%d): %s",
+		    __func__, code,
+		    strerror(errno));
+		return (-1);
+	}
+	else
+		return (value);
+}
+
 static void
 ra_input(int len, struct nd_router_advert *nra,
 	 struct in6_pktinfo *pi, struct sockaddr_in6 *from)
@@ -1046,6 +1109,16 @@ ra_input(int len, struct nd_router_advert *nra,
 	syslog(LOG_DEBUG, "<%s> RA received from %s on %s", __func__,
 	    inet_ntop(AF_INET6, &from->sin6_addr, ntopbuf, sizeof(ntopbuf)),
 	    if_indextoname(pi->ipi6_ifindex, ifnamebuf));
+
+	if (!check_accept_rtadv(pi->ipi6_ifindex)) {
+		syslog(LOG_INFO,
+		    "<%s> An RA from %s on %s ignored (no ACCEPT_RTADV flag).",
+		    __func__,
+		    inet_ntop(AF_INET6, &from->sin6_addr, ntopbuf,
+			sizeof(ntopbuf)), if_indextoname(pi->ipi6_ifindex,
+			ifnamebuf));
+		return;
+	}
 
 	/* ND option check */
 	memset(&ndopts, 0, sizeof(ndopts));
@@ -1637,6 +1710,41 @@ ra_output(struct rainfo *rai)
 		syslog(LOG_DEBUG, "<%s> %s is not up, skip sending RA",
 		    __func__, rai->rai_ifname);
 		return;
+	}
+
+	/*
+	 * Check lifetime, ACCEPT_RTADV flag, and ip6.forwarding.
+	 *
+	 * (lifetime == 0) = output
+	 * (lifetime != 0 && (ACCEPT_RTADV || !ip6.forwarding) = no output
+	 *
+	 * Basically, hosts MUST NOT send Router Advertisement
+	 * messages at any time (RFC 4861, Section 6.2.3). However, it
+	 * would sometimes be useful to allow hosts to advertise some
+	 * parameters such as prefix information and link MTU. Thus,
+	 * we allow hosts to invoke rtadvd only when router lifetime
+	 * (on every advertising interface) is explicitly set
+	 * zero. (see also the above section)
+	 */
+	syslog(LOG_DEBUG,
+	    "<%s> check lifetime=%d, ACCEPT_RTADV=%d, ip6.forwarding=%d on %s",
+	    __func__, rai->rai_lifetime, check_accept_rtadv(rai->rai_ifindex),
+	    getinet6sysctl(IPV6CTL_FORWARDING), rai->rai_ifname);
+	if (rai->rai_lifetime != 0) {
+		if (check_accept_rtadv(rai->rai_ifindex)) {
+			syslog(LOG_INFO,
+			    "<%s> non-zero lifetime RA "
+			    "on RA receiving interface %s."
+			    "  Ignored.", __func__, rai->rai_ifname);
+			return;
+		}
+		if (getinet6sysctl(IPV6CTL_FORWARDING) == 0) {
+			syslog(LOG_INFO,
+			    "<%s> non-zero lifetime RA "
+			    "but net.inet6.ip6.forwarding=0.  "
+			    "Ignored.", __func__);
+			return;
+		}
 	}
 
 	make_packet(rai);	/* XXX: inefficient */
