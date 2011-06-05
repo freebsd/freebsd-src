@@ -69,6 +69,7 @@ static	int explicit_prefix = 0;
 
 extern void setnd6flags(const char *, int, int, const struct afswtch *);
 extern void setnd6defif(const char *, int, int, const struct afswtch *);
+extern void nd6_status(int);
 
 static	char addr_buf[MAXHOSTNAMELEN *2 + 1];	/*for getnameinfo()*/
 
@@ -519,6 +520,7 @@ static struct afswtch af_inet6 = {
 	.af_status	= in6_status,
 	.af_getaddr	= in6_getaddr,
 	.af_getprefix	= in6_getprefix,
+	.af_other_status = nd6_status,
 	.af_postproc	= in6_postproc,
 	.af_status_tunnel = in6_status_tunnel,
 	.af_settunnel	= in6_set_tunnel,
