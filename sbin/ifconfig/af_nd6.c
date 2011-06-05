@@ -160,7 +160,7 @@ nd6_status(int s)
 	isdefif = isnd6defif(s6);
 	close(s6);
 
-	if (nd.ndi.flags == 0)
+	if (nd.ndi.flags == 0 && !isdefif)
 		return;
 	printb("\tnd6 options",
 	    (unsigned int)(nd.ndi.flags | (isdefif << 15)), ND6BITS);
