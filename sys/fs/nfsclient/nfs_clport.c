@@ -943,6 +943,7 @@ nfscl_getmyip(struct nfsmount *nmp, int *isinet6p)
 		sad.sin_family = AF_INET;
 		sad.sin_len = sizeof (struct sockaddr_in);
 		sad.sin_addr.s_addr = sin->sin_addr.s_addr;
+		CURVNET_SET(CRED_TO_VNET(nmp->nm_sockreq.nr_cred));
 		rt = rtalloc1((struct sockaddr *)&sad, 0, 0UL);
 		if (rt != NULL) {
 			if (rt->rt_ifp != NULL &&
@@ -956,6 +957,7 @@ nfscl_getmyip(struct nfsmount *nmp, int *isinet6p)
 			}
 			RTFREE_LOCKED(rt);
 		}
+		CURVNET_RESTORE();
 #ifdef INET6
 	} else if (nmp->nm_nam->sa_family == AF_INET6) {
 		struct sockaddr_in6 sad6, *sin6;
@@ -966,6 +968,7 @@ nfscl_getmyip(struct nfsmount *nmp, int *isinet6p)
 		sad6.sin6_family = AF_INET6;
 		sad6.sin6_len = sizeof (struct sockaddr_in6);
 		sad6.sin6_addr = sin6->sin6_addr;
+		CURVNET_SET(CRED_TO_VNET(nmp->nm_sockreq.nr_cred));
 		rt = rtalloc1((struct sockaddr *)&sad6, 0, 0UL);
 		if (rt != NULL) {
 			if (rt->rt_ifp != NULL &&
@@ -980,6 +983,7 @@ nfscl_getmyip(struct nfsmount *nmp, int *isinet6p)
 			}
 			RTFREE_LOCKED(rt);
 		}
+		CURVNET_RESTORE();
 #endif
 	}
 	return (retp);
