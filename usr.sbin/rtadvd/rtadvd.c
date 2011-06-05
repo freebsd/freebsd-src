@@ -194,10 +194,10 @@ main(int argc, char *argv[])
 			conffile = optarg;
 			break;
 		case 'd':
-			dflag = 1;
+			dflag++;
 			break;
 		case 'D':
-			dflag = 2;
+			dflag += 2;
 			break;
 		case 'f':
 			fflag = 1;
@@ -238,10 +238,12 @@ main(int argc, char *argv[])
 	openlog("rtadvd", logopt, LOG_DAEMON);
 
 	/* set log level */
-	if (dflag == 0)
-		(void)setlogmask(LOG_UPTO(LOG_ERR));
-	if (dflag == 1)
+	if (dflag > 1)
+		(void)setlogmask(LOG_UPTO(LOG_DEBUG));
+	else if (dflag > 0)
 		(void)setlogmask(LOG_UPTO(LOG_INFO));
+	else
+		(void)setlogmask(LOG_UPTO(LOG_ERR));
 
 	/* timer initialization */
 	rtadvd_timer_init();
@@ -397,9 +399,8 @@ die(void)
 	int i;
 	const int retrans = MAX_FINAL_RTR_ADVERTISEMENTS;
 
-	if (dflag > 1)
-		syslog(LOG_DEBUG, "<%s> cease to be an advertising router\n",
-		    __func__);
+	syslog(LOG_DEBUG, "<%s> cease to be an advertising router\n",
+	    __func__);
 
 	TAILQ_FOREACH(rai, &railist, rai_next) {
 		rai->rai_lifetime = 0;
@@ -433,21 +434,19 @@ rtmsg_input(void)
 	int prefixchange = 0;
 
 	n = read(rtsock, msg, sizeof(msg));
-	if (dflag > 1)
-		syslog(LOG_DEBUG, "<%s> received a routing message "
-		    "(type = %d, len = %d)", __func__, rtmsg_type(msg), n);
+	syslog(LOG_DEBUG, "<%s> received a routing message "
+	    "(type = %d, len = %d)", __func__, rtmsg_type(msg), n);
 
 	if (n > rtmsg_len(msg)) {
 		/*
 		 * This usually won't happen for messages received on
 		 * a routing socket.
 		 */
-		if (dflag > 1)
-			syslog(LOG_DEBUG,
-			    "<%s> received data length is larger than "
-			    "1st routing message len. multiple messages? "
-			    "read %d bytes, but 1st msg len = %d",
-			    __func__, n, rtmsg_len(msg));
+		syslog(LOG_DEBUG,
+		    "<%s> received data length is larger than "
+		    "1st routing message len. multiple messages? "
+		    "read %d bytes, but 1st msg len = %d",
+		    __func__, n, rtmsg_len(msg));
 #if 0
 		/* adjust length */
 		n = rtmsg_len(msg);
@@ -481,22 +480,19 @@ rtmsg_input(void)
 			break;
 		default:
 			/* should not reach here */
-			if (dflag > 1)
-				syslog(LOG_DEBUG,
-				       "<%s:%d> unknown rtmsg %d on %s",
-				       __func__, __LINE__, type,
-				       if_indextoname(ifindex, ifname));
+			syslog(LOG_DEBUG,
+			       "<%s:%d> unknown rtmsg %d on %s",
+			       __func__, __LINE__, type,
+			       if_indextoname(ifindex, ifname));
 			continue;
 		}
 
 		if ((rai = if_indextorainfo(ifindex)) == NULL) {
-			if (dflag > 1) {
-				syslog(LOG_DEBUG,
-				       "<%s> route changed on "
-				       "non advertising interface(%s)",
-				       __func__,
-				       if_indextoname(ifindex, ifname));
-			}
+			syslog(LOG_DEBUG,
+			       "<%s> route changed on "
+			       "non advertising interface(%s)",
+			       __func__,
+			       if_indextoname(ifindex, ifname));
 			continue;
 		}
 		oldifflags = iflist[ifindex]->ifm_flags;
@@ -529,7 +525,7 @@ rtmsg_input(void)
 					 */
 					update_prefix(pfx);
 					prefixchange = 1;
-				} else if (dflag > 1)
+				} else
 					syslog(LOG_DEBUG,
 					    "<%s> new prefix(%s/%d) "
 					    "added on %s, "
@@ -565,16 +561,12 @@ rtmsg_input(void)
 			}
 			pfx = find_prefix(rai, addr, plen);
 			if (pfx == NULL) {
-				if (dflag > 1)
-					syslog(LOG_DEBUG,
-					    "<%s> prefix(%s/%d) was "
-					    "deleted on %s, "
-					    "but it was not in list",
-					    __func__,
-					    inet_ntop(AF_INET6, addr,
-						(char *)addrbuf,
-						sizeof(addrbuf)),
-					    plen, rai->rai_ifname);
+				syslog(LOG_DEBUG,
+				    "<%s> prefix(%s/%d) was deleted on %s, "
+				    "but it was not in list",
+				    __func__, inet_ntop(AF_INET6, addr,
+					(char *)addrbuf, sizeof(addrbuf)),
+					plen, rai->rai_ifname);
 				break;
 			}
 			invalidate_prefix(pfx);
@@ -591,12 +583,10 @@ rtmsg_input(void)
 			break;
 		default:
 			/* should not reach here */
-			if (dflag > 1) {
-				syslog(LOG_DEBUG,
-				    "<%s:%d> unknown rtmsg %d on %s",
-				    __func__, __LINE__, type,
-				    if_indextoname(ifindex, ifname));
-			}
+			syslog(LOG_DEBUG,
+			    "<%s:%d> unknown rtmsg %d on %s",
+			    __func__, __LINE__, type,
+			    if_indextoname(ifindex, ifname));
 			return;
 		}
 
