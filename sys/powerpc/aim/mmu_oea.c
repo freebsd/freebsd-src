@@ -584,24 +584,7 @@ moea_pte_change(struct pte *pt, struct pte *pvo_pt, vm_offset_t va)
 /*
  * Quick sort callout for comparing memory regions.
  */
-static int	mr_cmp(const void *a, const void *b);
 static int	om_cmp(const void *a, const void *b);
-
-static int
-mr_cmp(const void *a, const void *b)
-{
-	const struct	mem_region *regiona;
-	const struct	mem_region *regionb;
-
-	regiona = a;
-	regionb = b;
-	if (regiona->mr_start < regionb->mr_start)
-		return (-1);
-	else if (regiona->mr_start > regionb->mr_start)
-		return (1);
-	else
-		return (0);
-}
 
 static int
 om_cmp(const void *a, const void *b)
@@ -720,7 +703,6 @@ moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 	mem_regions(&pregions, &pregions_sz, &regions, &regions_sz);
 	CTR0(KTR_PMAP, "moea_bootstrap: physical memory");
 
-	qsort(pregions, pregions_sz, sizeof(*pregions), mr_cmp);
 	for (i = 0; i < pregions_sz; i++) {
 		vm_offset_t pa;
 		vm_offset_t end;
@@ -749,7 +731,7 @@ moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 
 	if (sizeof(phys_avail)/sizeof(phys_avail[0]) < regions_sz)
 		panic("moea_bootstrap: phys_avail too small");
-	qsort(regions, regions_sz, sizeof(*regions), mr_cmp);
+
 	phys_avail_count = 0;
 	physsz = 0;
 	hwphyssz = 0;

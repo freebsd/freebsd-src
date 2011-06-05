@@ -1,6 +1,7 @@
 .\"     $KAME: stf.4,v 1.35 2001/05/02 06:24:49 itojun Exp $
 .\"
 .\" Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
+.\" Copyright (c) 2010 Hiroki Sato <hrs@FreeBSD.org>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -29,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 27, 2001
+.Dd September 23, 2010
 .Dt STF 4
 .Os
 .Sh NAME
@@ -42,21 +43,11 @@ tunnel interface
 .Sh DESCRIPTION
 The
 .Nm
-interface supports
-.Dq 6to4
-IPv6 in IPv4 encapsulation.
-It can tunnel IPv6 traffic over IPv4, as specified in
-.Li RFC3056 .
-.Pp
-For ordinary nodes in 6to4 site, you do not need
-.Nm
-interface.
-The
-.Nm
-interface is necessary for site border router
-(called
-.Dq 6to4 router
-in the specification).
+interface supports IPv6 in IPv4 encapsulation by
+tunneling IPv6 traffic over IPv4, as specified in
+.Li RFC3056 Pq 6to4
+and
+.Li RFC5569 Pq 6rd .
 .Pp
 Each
 .Nm
@@ -72,12 +63,28 @@ variable in
 .Pp
 Due to the way 6to4 protocol is specified,
 .Nm
-interface requires certain configuration to work properly.
+interface requires certain configuration to work properly.  Two
+different protocols defined in RFC3056 and RFC5569 are basically the
+same as each other except for address handling, so
+.Nm
+decides its behavior based on the configured IPv6 addresses as
+explained in the following.
+The
+.Nm
+interface can be configured with multiple IPv6 addresses including
+both 6to4 and 6rd.
+.Sh RFC3056 (a.k.a. 6to4)
 Single
-(no more than 1)
-valid 6to4 address needs to be configured to the interface.
-.Dq A valid 6to4 address
-is an address which has the following properties.
+.Pq no more than 1 valid 6to4 address needs to be configured to the interface.
+.Dq a valid 6to4 address
+is an address which has the following properties.  For ordinary nodes
+in 6to4 site, you do not need
+.Nm
+interface; it is necessary only for site border router
+(called
+.Dq 6to4 router
+in the specification).
+.Pp
 If any of the following properties are not satisfied,
 .Nm
 raises runtime error on packet transmission.
@@ -110,6 +117,78 @@ you may want to configure IPv6 prefix length as
 .Nm
 interface will check the IPv4 source address on packets,
 if the IPv6 prefix length is larger than 16.
+.Sh RFC5569 (a.k.a. 6rd)
+The
+.Nm
+interface works in the 6rd mode when one or more IPv6 addresses that
+consists of an IPv6 prefix and 32-bit IPv4 part with a prefix length
+equal to or shorter than 64.  In 6rd protocol, an IPv6 address
+.Li 2001:db8:c000:205::1/32
+means the following, for example:
+.Bl -bullet
+.It
+The 6rd relay prefix is
+.Li 2001:db8::/32 .
+.It
+The 6rd router's IPv4 address is
+.Li 192.0.2.5 .
+.El
+.Pp
+As you can see the IPv4 address is embedded in the IPv6 address just
+after the prefix.  While you can choose an IPv6 prefix length other
+than 32, it must be from 0 to 32.
+.Pp
+Assuming this address is configured on the
+.Nm
+interface, it does the following:
+.Bl -bullet
+.It
+An incoming IPv6 packet on
+.Nm
+will be encapsuled in an IPv4 packet with the source address
+.Li 192.0.2.5
+and then the IPv4 packet is delivered based on the IPv4 routing table.
+The IPv4 destination address is calculated from the destination
+address of the original IPv6 packet in the same way as the source.
+.It
+An incoming IPv4 packet which encapsules an IPv6 packet whose
+destination address matches a 6rd prefix with embedded IPv4 address
+configured on the
+.Nm
+interface, the IPv6 packet will be decapsulated and delivered based on
+the IPv6 routing table.  Note that
+.Nm
+interface normally has a route which covers whole range of a 6rd relay
+prefix, the delivered IPv6 packet can return to
+.Nm
+if there is no more specific route.  In that case, the returned packet
+will be discarded silently.
+.El
+.\" XXX: example configuration will be added
+.\" .Pp
+.\" By using this interface, you can configure a 6rd domain.  For simplicity,
+.\" we assume the following here:
+.\" .Bl -bullet
+.\" .It
+.\" A 6rd Customer, who has an IPv6/IPv4 LAN and an IPv4-only access
+.\" toward network of his Internet Service Provider.  The Customer has
+.\" a router called
+.\" .Dq CE Pq Customer Edge
+.\" Router, which can communicate between his LAN and the ISP over IPv4
+.\" and encapsulate  
+.\" his networks.
+.\" .It
+.\" A 6rd Provider, who provides IPv6 Internet reachability by using 6rd
+.\" protocol.  The Provider offers access to a router called
+.\" .Dq PE Pq Provider Edge
+.\" Router, which can communicate with 
+.\" .El
+.\" .Pp
+.\" A 6rd customer
+.\" needs to configure
+.\" .Nm
+.\" on his CE (Customer Edge) router.
+.Sh Other Functionality of the Interface
 .Pp
 .Nm
 can be configured to be ECN friendly.
@@ -147,9 +226,6 @@ Packets with IPv4 multicast address as outer IPv4 source/destination
 Packets with limited broadcast address as outer IPv4 source/destination
 .Pq Li 255.0.0.0/8
 .It
-Packets with private address as outer IPv4 source/destination
-.Pq Li 10.0.0.0/8 , 172.16.0.0/12 , 192.168.0.0/16
-.It
 Packets with subnet broadcast address as outer IPv4 source/destination.
 The check is made against subnet broadcast addresses for
 all of the directly connected subnets.
@@ -163,6 +239,11 @@ bit.
 The same set of rules are applied against the IPv4 address embedded into
 inner IPv6 address, if the IPv6 address matches 6to4 prefix.
 .El
+.Pp
+In addition to them, packets with private address as outer IPv4
+source/destination
+.Pq Li 10.0.0.0/8 , 172.16.0.0/12 , 192.168.0.0/16
+are filtered out only in the 6to4 mode.
 .Pp
 It is recommended to filter/audit
 incoming IPv4 packet with IP protocol number 41, as necessary.

@@ -856,8 +856,8 @@ in6_pcbsetport(struct in6_addr *laddr, struct inpcb *inp, struct ucred *cred)
 	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
 #endif
 
-	INP_INFO_WLOCK_ASSERT(pcbinfo);
 	INP_WLOCK_ASSERT(inp);
+	INP_HASH_WLOCK_ASSERT(pcbinfo);
 
 	error = prison_local_ip6(cred, laddr,
 	    ((inp->inp_flags & IN6P_IPV6_V6ONLY) != 0));

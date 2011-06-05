@@ -3034,16 +3034,18 @@ pf_socket_lookup(int direction, struct pf_pdesc *pd)
 #ifdef INET
 	case AF_INET:
 #ifdef __FreeBSD__
-		INP_INFO_RLOCK(pi);	/* XXX LOR */
-		inp = in_pcblookup_hash(pi, saddr->v4, sport, daddr->v4,
-			dport, 0, NULL);
+		/*
+		 * XXXRW: would be nice if we had an mbuf here so that we
+		 * could use in_pcblookup_mbuf().
+		 */
+		inp = in_pcblookup(pi, saddr->v4, sport, daddr->v4,
+			dport, INPLOOKUP_RLOCKPCB, NULL);
 		if (inp == NULL) {
-			inp = in_pcblookup_hash(pi, saddr->v4, sport,
-			   daddr->v4, dport, INPLOOKUP_WILDCARD, NULL);
-			if(inp == NULL) {
-				INP_INFO_RUNLOCK(pi);
+			inp = in_pcblookup(pi, saddr->v4, sport,
+			   daddr->v4, dport, INPLOOKUP_WILDCARD |
+			   INPLOOKUP_RLOCKPCB, NULL);
+			if (inp == NULL)
 				return (-1);
-			}
 		}
 #else
 		inp = in_pcbhashlookup(tb, saddr->v4, sport, daddr->v4, dport);
@@ -3058,16 +3060,18 @@ pf_socket_lookup(int direction, struct pf_pdesc *pd)
 #ifdef INET6
 	case AF_INET6:
 #ifdef __FreeBSD__
-		INP_INFO_RLOCK(pi);
-		inp = in6_pcblookup_hash(pi, &saddr->v6, sport,
-			&daddr->v6, dport, 0, NULL);
+		/*
+		 * XXXRW: would be nice if we had an mbuf here so that we
+		 * could use in6_pcblookup_mbuf().
+		 */
+		inp = in6_pcblookup(pi, &saddr->v6, sport,
+			&daddr->v6, dport, INPLOOKUP_RLOCKPCB, NULL);
 		if (inp == NULL) {
-			inp = in6_pcblookup_hash(pi, &saddr->v6, sport,
-			&daddr->v6, dport, INPLOOKUP_WILDCARD, NULL);
-			if (inp == NULL) {
-				INP_INFO_RUNLOCK(pi);
+			inp = in6_pcblookup(pi, &saddr->v6, sport,
+			    &daddr->v6, dport, INPLOOKUP_WILDCARD |
+			    INPLOOKUP_RLOCKPCB, NULL);
+			if (inp == NULL)
 				return (-1);
-			}
 		}
 #else
 		inp = in6_pcbhashlookup(tb, &saddr->v6, sport, &daddr->v6,
@@ -3085,9 +3089,10 @@ pf_socket_lookup(int direction, struct pf_pdesc *pd)
 		return (-1);
 	}
 #ifdef __FreeBSD__
+	INP_RLOCK_ASSERT(inp);
 	pd->lookup.uid = inp->inp_cred->cr_uid;
 	pd->lookup.gid = inp->inp_cred->cr_groups[0];
-	INP_INFO_RUNLOCK(pi);
+	INP_RUNLOCK(inp);
 #else
 	pd->lookup.uid = inp->inp_socket->so_euid;
 	pd->lookup.gid = inp->inp_socket->so_egid;
@@ -6135,9 +6140,11 @@ pf_routable(struct pf_addr *addr, sa_family_t af, struct pfi_kif *kif)
 
 #ifdef __FreeBSD__
 /* XXX MRT not always INET */ /* stick with table 0 though */
+#ifdef INET
 	if (af == AF_INET)
 		in_rtalloc_ign((struct route *)&ro, 0, 0);
 	else
+#endif
 		rtalloc_ign((struct route *)&ro, 0);
 #else /* ! __FreeBSD__ */
 	rtalloc_noclone((struct route *)&ro, NO_CLONING);
@@ -6217,9 +6224,11 @@ pf_rtlabel_match(struct pf_addr *addr, sa_family_t af, struct pf_addr_wrap *aw)
 # ifdef RTF_PRCLONING
 	rtalloc_ign((struct route *)&ro, (RTF_CLONING|RTF_PRCLONING));
 # else /* !RTF_PRCLONING */
+#ifdef INET
 	if (af == AF_INET)
 		in_rtalloc_ign((struct route *)&ro, 0, 0);
 	else
+#endif
 		rtalloc_ign((struct route *)&ro, 0);
 # endif
 #else /* ! __FreeBSD__ */
@@ -6792,11 +6801,13 @@ pf_check_proto_cksum(struct mbuf *m, int off, int len, u_int8_t p, sa_family_t a
 			KMOD_UDPSTAT_INC(udps_badsum);
 			break;
 		    }
+#ifdef INET
 		case IPPROTO_ICMP:
 		    {
 			KMOD_ICMPSTAT_INC(icps_checksum);
 			break;
 		    }
+#endif
 #ifdef INET6
 		case IPPROTO_ICMPV6:
 		    {
@@ -6892,9 +6903,11 @@ pf_check_proto_cksum(struct mbuf *m, int off, int len, u_int8_t p,
 		case IPPROTO_UDP:
 			KMOD_UDPSTAT_INC(udps_badsum);
 			break;
+#ifdef INET
 		case IPPROTO_ICMP:
 			KMOD_ICMPSTAT_INC(icps_checksum);
 			break;
+#endif
 #ifdef INET6
 		case IPPROTO_ICMPV6:
 			KMOD_ICMP6STAT_INC(icp6s_checksum);

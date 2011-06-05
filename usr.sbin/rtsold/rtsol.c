@@ -247,7 +247,7 @@ rtsol_input(int s)
 	struct nd_opt_rdnss *rdnss;
 	struct nd_opt_dnssl *dnssl;
 	size_t len;
-	char nsbuf[INET6_ADDRSTRLEN + 1 + IFNAMSIZ + 1 + 1];
+	char nsbuf[INET6_ADDRSTRLEN + 1 + IFNAMSIZ + 1];
 	char dname[NI_MAXHOST];
 	struct timeval now;
 	struct timeval lifetime;

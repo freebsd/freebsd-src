@@ -2,8 +2,8 @@
  *
  *                     The LLVM Compiler Infrastructure
  *
- * This file is distributed under the University of Illinois Open Source
- * License. See LICENSE.TXT for details.
+ * This file is dual licensed under the MIT and the University of Illinois Open
+ * Source Licenses. See LICENSE.TXT for details.
  *
  * ===----------------------------------------------------------------------===
  *
@@ -11,12 +11,13 @@
  *
  * ===----------------------------------------------------------------------===
  */
+#include "abi.h"
 
 #include "int_lib.h"
 
 /* Returns: a ^ b */
 
-double
+COMPILER_RT_ABI double
 __powidf2(double a, si_int b)
 {
     const int recip = b < 0;

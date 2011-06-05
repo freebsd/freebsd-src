@@ -164,7 +164,7 @@ struct pcpu {
 	u_int		pc_cpuid;		/* This cpu number */
 	cpumask_t	pc_cpumask;		/* This cpu mask */
 	cpumask_t	pc_other_cpus;		/* Mask of all other cpus */
-	SLIST_ENTRY(pcpu) pc_allcpu;
+	STAILQ_ENTRY(pcpu) pc_allcpu;
 	struct lock_list_entry *pc_spinlocks;
 #ifdef KTR
 	char		pc_name[PCPU_NAME_LEN];	/* String name for KTR */
@@ -201,7 +201,7 @@ struct pcpu {
 
 #ifdef _KERNEL
 
-SLIST_HEAD(cpuhead, pcpu);
+STAILQ_HEAD(cpuhead, pcpu);
 
 extern struct cpuhead cpuhead;
 extern struct pcpu *cpuid_to_pcpu[MAXCPU];

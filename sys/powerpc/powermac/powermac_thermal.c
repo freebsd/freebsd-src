@@ -79,7 +79,7 @@ fan_management_proc(void)
 {
 	/* Nothing to manage? */
 	if (SLIST_EMPTY(&fans))
-		return;
+		kproc_exit(0);
 	
 	while (1) {
 		pmac_therm_manage_fans();
@@ -94,20 +94,25 @@ pmac_therm_manage_fans(void)
 	struct pmac_fan_le *fan;
 	int average_excess, max_excess_zone, frac_excess;
 	int nsens, nsens_zone;
+	int temp;
 
 	if (!enable_pmac_thermal)
 		return;
 
 	/* Read all the sensors */
 	SLIST_FOREACH(sensor, &sensors, entries) {
-		sensor->last_val = sensor->sensor->read(sensor->sensor);
+		temp = sensor->sensor->read(sensor->sensor);
+		if (temp > 0) /* Use the previous temp in case of error */
+			sensor->last_val = temp;
+
 		if (sensor->last_val > sensor->sensor->max_temp) {
 			printf("WARNING: Current temperature (%s: %d.%d C) "
 			    "exceeds critical temperature (%d.%d C)! "
 			    "Shutting down!\n", sensor->sensor->name,
-			    sensor->last_val / 10, sensor->last_val % 10,
-			    sensor->sensor->max_temp / 10,
-			    sensor->sensor->max_temp % 10);
+			       (sensor->last_val - ZERO_C_TO_K) / 10,
+			       (sensor->last_val - ZERO_C_TO_K) % 10,
+			       (sensor->sensor->max_temp - ZERO_C_TO_K) / 10,
+			       (sensor->sensor->max_temp - ZERO_C_TO_K) % 10);
 			shutdown_nice(RB_POWEROFF);
 		}
 	}
@@ -121,6 +126,8 @@ pmac_therm_manage_fans(void)
 			    sensor->sensor->target_temp)*100 /
 			    (sensor->sensor->max_temp -
 			    sensor->sensor->target_temp);
+			if (frac_excess < 0)
+				frac_excess = 0;
 			if (sensor->sensor->zone == fan->fan->zone) {
 				max_excess_zone = imax(max_excess_zone,
 				    frac_excess);

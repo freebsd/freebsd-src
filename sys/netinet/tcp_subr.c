@@ -1184,9 +1184,9 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 	INP_INFO_WLOCK(&V_tcbinfo);
 	for (i = 0; i < n; i++) {
 		inp = inp_list[i];
-		INP_WLOCK(inp);
-		if (!in_pcbrele(inp))
-			INP_WUNLOCK(inp);
+		INP_RLOCK(inp);
+		if (!in_pcbrele_rlocked(inp))
+			INP_RUNLOCK(inp);
 	}
 	INP_INFO_WUNLOCK(&V_tcbinfo);
 
@@ -1228,12 +1228,9 @@ tcp_getcred(SYSCTL_HANDLER_ARGS)
 	error = SYSCTL_IN(req, addrs, sizeof(addrs));
 	if (error)
 		return (error);
-	INP_INFO_RLOCK(&V_tcbinfo);
-	inp = in_pcblookup_hash(&V_tcbinfo, addrs[1].sin_addr,
-	    addrs[1].sin_port, addrs[0].sin_addr, addrs[0].sin_port, 0, NULL);
+	inp = in_pcblookup(&V_tcbinfo, addrs[1].sin_addr, addrs[1].sin_port,
+	    addrs[0].sin_addr, addrs[0].sin_port, INPLOOKUP_RLOCKPCB, NULL);
 	if (inp != NULL) {
-		INP_RLOCK(inp);
-		INP_INFO_RUNLOCK(&V_tcbinfo);
 		if (inp->inp_socket == NULL)
 			error = ENOENT;
 		if (error == 0)
@@ -1241,10 +1238,8 @@ tcp_getcred(SYSCTL_HANDLER_ARGS)
 		if (error == 0)
 			cru2x(inp->inp_cred, &xuc);
 		INP_RUNLOCK(inp);
-	} else {
-		INP_INFO_RUNLOCK(&V_tcbinfo);
+	} else
 		error = ENOENT;
-	}
 	if (error == 0)
 		error = SYSCTL_OUT(req, &xuc, sizeof(struct xucred));
 	return (error);
@@ -1286,23 +1281,20 @@ tcp6_getcred(SYSCTL_HANDLER_ARGS)
 			return (EINVAL);
 	}
 
-	INP_INFO_RLOCK(&V_tcbinfo);
 #ifdef INET
 	if (mapped == 1)
-		inp = in_pcblookup_hash(&V_tcbinfo,
+		inp = in_pcblookup(&V_tcbinfo,
 			*(struct in_addr *)&addrs[1].sin6_addr.s6_addr[12],
 			addrs[1].sin6_port,
 			*(struct in_addr *)&addrs[0].sin6_addr.s6_addr[12],
-			addrs[0].sin6_port,
-			0, NULL);
+			addrs[0].sin6_port, INPLOOKUP_RLOCKPCB, NULL);
 	else
 #endif
-		inp = in6_pcblookup_hash(&V_tcbinfo,
+		inp = in6_pcblookup(&V_tcbinfo,
 			&addrs[1].sin6_addr, addrs[1].sin6_port,
-			&addrs[0].sin6_addr, addrs[0].sin6_port, 0, NULL);
+			&addrs[0].sin6_addr, addrs[0].sin6_port,
+			INPLOOKUP_RLOCKPCB, NULL);
 	if (inp != NULL) {
-		INP_RLOCK(inp);
-		INP_INFO_RUNLOCK(&V_tcbinfo);
 		if (inp->inp_socket == NULL)
 			error = ENOENT;
 		if (error == 0)
@@ -1310,10 +1302,8 @@ tcp6_getcred(SYSCTL_HANDLER_ARGS)
 		if (error == 0)
 			cru2x(inp->inp_cred, &xuc);
 		INP_RUNLOCK(inp);
-	} else {
-		INP_INFO_RUNLOCK(&V_tcbinfo);
+	} else
 		error = ENOENT;
-	}
 	if (error == 0)
 		error = SYSCTL_OUT(req, &xuc, sizeof(struct xucred));
 	return (error);
@@ -1374,10 +1364,9 @@ tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 		th = (struct tcphdr *)((caddr_t)ip
 				       + (ip->ip_hl << 2));
 		INP_INFO_WLOCK(&V_tcbinfo);
-		inp = in_pcblookup_hash(&V_tcbinfo, faddr, th->th_dport,
-		    ip->ip_src, th->th_sport, 0, NULL);
+		inp = in_pcblookup(&V_tcbinfo, faddr, th->th_dport,
+		    ip->ip_src, th->th_sport, INPLOOKUP_WLOCKPCB, NULL);
 		if (inp != NULL)  {
-			INP_WLOCK(inp);
 			if (!(inp->inp_flags & INP_TIMEWAIT) &&
 			    !(inp->inp_flags & INP_DROPPED) &&
 			    !(inp->inp_socket == NULL)) {
@@ -2154,20 +2143,19 @@ sysctl_drop(SYSCTL_HANDLER_ARGS)
 	switch (addrs[0].ss_family) {
 #ifdef INET6
 	case AF_INET6:
-		inp = in6_pcblookup_hash(&V_tcbinfo, &fin6->sin6_addr,
-		    fin6->sin6_port, &lin6->sin6_addr, lin6->sin6_port, 0,
-		    NULL);
+		inp = in6_pcblookup(&V_tcbinfo, &fin6->sin6_addr,
+		    fin6->sin6_port, &lin6->sin6_addr, lin6->sin6_port,
+		    INPLOOKUP_WLOCKPCB, NULL);
 		break;
 #endif
 #ifdef INET
 	case AF_INET:
-		inp = in_pcblookup_hash(&V_tcbinfo, fin->sin_addr,
-		    fin->sin_port, lin->sin_addr, lin->sin_port, 0, NULL);
+		inp = in_pcblookup(&V_tcbinfo, fin->sin_addr, fin->sin_port,
+		    lin->sin_addr, lin->sin_port, INPLOOKUP_WLOCKPCB, NULL);
 		break;
 #endif
 	}
 	if (inp != NULL) {
-		INP_WLOCK(inp);
 		if (inp->inp_flags & INP_TIMEWAIT) {
 			/*
 			 * XXXRW: There currently exists a state where an

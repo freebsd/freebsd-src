@@ -2,8 +2,8 @@
  *
  *                    The LLVM Compiler Infrastructure
  *
- * This file is distributed under the University of Illinois Open Source
- * License. See LICENSE.TXT for details.
+ * This file is dual licensed under the MIT and the University of Illinois Open
+ * Source Licenses. See LICENSE.TXT for details.
  *
  * ===----------------------------------------------------------------------===
  *
@@ -11,6 +11,7 @@
  *
  * ===----------------------------------------------------------------------===
  */
+#include "abi.h"
 
 #include "int_lib.h"
 
@@ -23,7 +24,9 @@
 
 /* seee eeee emmm mmmm mmmm mmmm mmmm mmmm */
 
-di_int
+ARM_EABI_FNALIAS(d2lz, fixsfdi);
+
+COMPILER_RT_ABI di_int
 __fixsfdi(float a)
 {
     float_bits fb;
