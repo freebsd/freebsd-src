@@ -2898,7 +2898,8 @@ nfs_advlock(struct vop_advlock_args *ap)
 		 * RFC3530 Sec. 9.3.2.
 		 */
 		if (ap->a_op == F_UNLCK &&
-		    nfscl_checkwritelocked(vp, ap->a_fl, cred, td))
+		    nfscl_checkwritelocked(vp, ap->a_fl, cred, td, ap->a_id,
+		    ap->a_flags))
 			(void) ncl_flush(vp, MNT_WAIT, cred, td, 1, 0);
 
 		/*
@@ -2907,7 +2908,7 @@ nfs_advlock(struct vop_advlock_args *ap)
 		 */
 		do {
 			ret = nfsrpc_advlock(vp, np->n_size, ap->a_op,
-			    ap->a_fl, 0, cred, td);
+			    ap->a_fl, 0, cred, td, ap->a_id, ap->a_flags);
 			if (ret == NFSERR_DENIED && (ap->a_flags & F_WAIT) &&
 			    ap->a_op == F_SETLK) {
 				VOP_UNLOCK(vp, 0);
