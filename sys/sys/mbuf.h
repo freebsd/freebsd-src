@@ -247,7 +247,7 @@ struct mbuf {
 #define	M_HASHTYPE_SET(m, v)	do {					\
 	(m)->m_flags &= ~M_HASHTYPEBITS;				\
 	(m)->m_flags |= ((v) << M_HASHTYPE_SHIFT);			\
-while (0)
+} while (0)
 #define	M_HASHTYPE_TEST(m, v)	(M_HASHTYPE_GET(m) == (v))
 
 /*
