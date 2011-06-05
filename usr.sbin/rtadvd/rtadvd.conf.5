@@ -180,19 +180,19 @@ and advertise the prefixes with the default parameters.
 Keywords other than
 .Cm clockskew
 and
-.Cm noonlinkprefix
+.Cm noifprefix
 can be augmented with a number, like
 .Dq Li prefix2 ,
 to specify multiple prefixes.
 .Bl -tag -width indent
-.It Cm \&noonlinkprefix
+.It Cm \&noifprefix
 (bool) Specifies no prefix on the network interfaces will be advertised.
 By default
 .Nm rtadvd
 automatically gathers on-link prefixes from all of the network interfaces
 and advertise them.
 The
-.Cm noonlinkprefix
+.Cm noifprefix
 disables that behavior.
 If this is specified and no
 .Cm addr
