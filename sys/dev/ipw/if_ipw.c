@@ -199,6 +199,8 @@ static devclass_t ipw_devclass;
 
 DRIVER_MODULE(ipw, pci, ipw_driver, ipw_devclass, 0, 0);
 
+MODULE_VERSION(ipw, 1);
+
 static int
 ipw_probe(device_t dev)
 {

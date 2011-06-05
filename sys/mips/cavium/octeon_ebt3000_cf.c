@@ -104,12 +104,40 @@ __FBSDID("$FreeBSD$");
 extern cvmx_bootinfo_t *octeon_bootinfo;
 
 /* Globals */
-int	bus_width;
+/*
+ * There's three bus types supported by this driver.
+ *
+ * CF_8 -- Traditional PC Card IDE interface on an 8-bit wide bus.  We assume
+ * the bool loader has configure attribute memory properly.  We then access
+ * the device like old-school 8-bit IDE card (which is all a traditional PC Card
+ * interface really is).
+ * CF_16 -- Traditional PC Card IDE interface on a 16-bit wide bus.  Registers on
+ * this bus are 16-bits wide too.  When accessing registers in the task file, you
+ * have to do it in 16-bit chunks, and worry about masking out what you don't want
+ * or ORing together the traditional 8-bit values.  We assume the bootloader does
+ * the right attribute memory initialization dance.
+ * CF_TRUE_IDE_8 - CF Card wired to True IDE mode.  There's no Attribute memory
+ * space at all.  Instead all the traditional 8-bit registers are there, but
+ * on a 16-bit bus where addr0 isn't wired.  This means we need to read/write them
+ * 16-bit chunks, but only the lower 8 bits are valid.  We do not (and can not)
+ * access this like CF_16 with the comingled registers.  Yet we can't access
+ * this like CF_8 because of the register offset.  Except the TF_DATA register
+ * appears to be full width?
+ */
 void	*base_addr;
+int	bus_type;
+#define CF_8		1	/* 8-bit bus, no offsets - PC Card */
+#define CF_16		2	/* 16-bit bus, registers shared - PC Card */
+#define CF_TRUE_IDE_8	3	/* 16-bit bus, only lower 8-bits, TrueIDE */
+const char *const cf_type[] = {
+	"impossible type",
+	"CF 8-bit",
+	"CF 16-bit",
+	"True IDE"
+};
 
 /* Device softc */
 struct cf_priv {
-
 	device_t dev;
 	struct drive_param *drive_param;
 
@@ -230,9 +258,65 @@ static void cf_start (struct bio *bp)
 
 static int cf_ioctl (struct g_provider *pp, u_long cmd, void *data, int fflag, struct thread *td)
 {
-    return (0);
+	return (0);
 }
 
+
+static uint8_t cf_inb_8(int port)
+{
+	/*
+	 * Traditional 8-bit PC Card/CF bus access.
+	 */
+	if (bus_type == CF_8) {
+		volatile uint8_t *task_file = (volatile uint8_t *)base_addr;
+		return task_file[port];
+	}
+
+	/*
+	 * True IDE access.  lower 8 bits on a 16-bit bus (see above).
+	 */
+	volatile uint16_t *task_file = (volatile uint16_t *)base_addr;
+	return task_file[port] & 0xff;
+}
+
+static void cf_outb_8(int port, uint8_t val)
+{
+	/*
+	 * Traditional 8-bit PC Card/CF bus access.
+	 */
+	if (bus_type == CF_8) {
+		volatile uint8_t *task_file = (volatile uint8_t *)base_addr;
+		task_file[port] = val;
+	}
+
+	/*
+	 * True IDE access.  lower 8 bits on a 16-bit bus (see above).
+	 */
+	volatile uint16_t *task_file = (volatile uint16_t *)base_addr;
+	task_file[port] = val & 0xff;
+}
+
+static uint8_t cf_inb_16(int port)
+{
+	volatile uint16_t *task_file = (volatile uint16_t *)base_addr;
+	uint16_t val = task_file[port / 2];
+	if (port & 1)
+		return (val >> 8) & 0xff;
+	return val & 0xff;
+}
+
+static uint16_t cf_inw_16(int port)
+{
+	volatile uint16_t *task_file = (volatile uint16_t *)base_addr;
+	uint16_t val = task_file[port / 2];
+	return val;
+}
+
+static void cf_outw_16(int port, uint16_t val)
+{
+	volatile uint16_t *task_file = (volatile uint16_t *)base_addr;
+	task_file[port / 2] = val;
+}
 
 /* ------------------------------------------------------------------- *
  *                      cf_cmd_read()                                  *
@@ -264,25 +348,29 @@ static int cf_cmd_read (uint32_t nr_sectors, uint32_t start_sector, void *buf)
 			return (error);
 		}
 
-		if (bus_width == 8) {
-			volatile uint8_t *task_file = (volatile uint8_t*)base_addr;
-        		volatile uint8_t dummy;
+		switch (bus_type)
+		{
+		case CF_8:
 			for (count = 0; count < SECTOR_SIZE; count++) {
-				*ptr_8++ = task_file[TF_DATA];
-				if ((count & 0xf) == 0) dummy = task_file[TF_STATUS];
+				*ptr_8++ = cf_inb_8(TF_DATA);
+				if ((count & 0xf) == 0)
+					(void)cf_inb_8(TF_STATUS);
 			}
-		} else {
-			volatile uint16_t *task_file = (volatile uint16_t*)base_addr;
-        		volatile uint16_t dummy;
+			break;
+		case CF_TRUE_IDE_8:
+		case CF_16:
+		default:
 			for (count = 0; count < SECTOR_SIZE; count+=2) {
 				uint16_t temp;
-				temp = task_file[TF_DATA];
+				temp = cf_inw_16(TF_DATA);
 				*ptr_16++ = SWAP_SHORT(temp);
-				if ((count & 0xf) == 0) dummy = task_file[TF_STATUS/2];
+				if ((count & 0xf) == 0)
+					(void)cf_inb_16(TF_STATUS);
 			}
+			break;
 		}  
 
-		lba ++;
+		lba++;
 	}
 #ifdef OCTEON_VISUAL_CF_0
         octeon_led_write_char(0, ' ');
@@ -320,28 +408,28 @@ static int cf_cmd_write (uint32_t nr_sectors, uint32_t start_sector, void *buf)
 			return (error);
 		}
 
-		if (bus_width == 8) {
-			volatile uint8_t *task_file;
-        		volatile uint8_t dummy;
-
-			task_file = (volatile uint8_t *) base_addr;
+		switch (bus_type)
+		{
+		case CF_8:
 			for (count = 0; count < SECTOR_SIZE; count++) {
-				task_file[TF_DATA] =  *ptr_8++;
-				if ((count & 0xf) == 0) dummy = task_file[TF_STATUS];
+				cf_outb_8(TF_DATA, *ptr_8++);
+				if ((count & 0xf) == 0)
+					(void)cf_inb_8(TF_STATUS);
 			}
-		} else {
-			volatile uint16_t *task_file;
-        		volatile uint16_t dummy;
-
-			task_file = (volatile uint16_t *) base_addr;
+			break;
+		case CF_TRUE_IDE_8:
+		case CF_16:
+		default:
 			for (count = 0; count < SECTOR_SIZE; count+=2) {
 				uint16_t temp = *ptr_16++;
-				task_file[TF_DATA] =  SWAP_SHORT(temp);
-				if ((count & 0xf) == 0) dummy = task_file[TF_STATUS/2];
+				cf_outw_16(TF_DATA, SWAP_SHORT(temp));
+				if ((count & 0xf) == 0)
+					(void)cf_inb_16(TF_STATUS);
 			}
+			break;
 		} 
 
-		lba ++;
+		lba++;
 	}
 #ifdef OCTEON_VISUAL_CF_1
         octeon_led_write_char(1, ' ');
@@ -361,58 +449,31 @@ static int cf_cmd_write (uint32_t nr_sectors, uint32_t start_sector, void *buf)
 static int cf_cmd_identify (void)
 {
 	int count;
-	uint8_t status;
 	int error;
 
-	if (bus_width == 8) {
-        	volatile uint8_t *task_file;
-
-        	task_file = (volatile uint8_t *) base_addr;
-
-		while ((status = task_file[TF_STATUS]) & STATUS_BSY) {
-			DELAY(WAIT_DELAY);
-        	}
-
-        	task_file[TF_SECTOR_COUNT]  = 0;
-        	task_file[TF_SECTOR_NUMBER] = 0;
-        	task_file[TF_CYL_LSB]  = 0;
-        	task_file[TF_CYL_MSB]  = 0;
-        	task_file[TF_DRV_HEAD] = 0;
-        	task_file[TF_COMMAND]  = CMD_IDENTIFY;
-
-		error = cf_wait_busy();
-		if (error == 0) {
-			for (count = 0; count < SECTOR_SIZE; count++) 
-				drive_param.u.buf[count] = task_file[TF_DATA];
-		}
-	} else {
-		volatile uint16_t *task_file;
-
-		task_file = (volatile uint16_t *) base_addr;
-
-		while ((status = (task_file[TF_STATUS/2]>>8)) & STATUS_BSY) {
-			DELAY(WAIT_DELAY);
-		}
-
-		task_file[TF_SECTOR_COUNT/2]  = 0; /* this includes TF_SECTOR_NUMBER */
-		task_file[TF_CYL_LSB/2]  = 0; /* this includes TF_CYL_MSB */
-		task_file[TF_DRV_HEAD/2] = 0 | (CMD_IDENTIFY<<8); /* this includes TF_COMMAND */
-
-		error = cf_wait_busy();
-		if (error == 0) {
-			for (count = 0; count < SECTOR_SIZE; count+=2) {
-				uint16_t temp;
-				temp = task_file[TF_DATA];
-				
-				/* endianess will be swapped below */
-				drive_param.u.buf[count]   = (temp & 0xff);
-				drive_param.u.buf[count+1] = (temp & 0xff00)>>8;
-			}
-		}
-	}
+	error = cf_send_cmd(0, CMD_IDENTIFY);
 	if (error != 0) {
 		printf("%s: identify failed: %d\n", __func__, error);
 		return (error);
+	}
+	switch (bus_type)
+	{
+	case CF_8:
+		for (count = 0; count < SECTOR_SIZE; count++) 
+			drive_param.u.buf[count] = cf_inb_8(TF_DATA);
+		break;
+	case CF_TRUE_IDE_8:
+	case CF_16:
+	default:
+		for (count = 0; count < SECTOR_SIZE; count += 2) {
+			uint16_t temp;
+			temp = cf_inw_16(TF_DATA);
+				
+			/* endianess will be swapped below */
+			drive_param.u.buf[count]   = (temp & 0xff);
+			drive_param.u.buf[count + 1] = (temp & 0xff00) >> 8;
+		}
+		break;
 	}
 
 	cf_swap_ascii(drive_param.u.driveid.model, drive_param.model);
@@ -423,6 +484,7 @@ static int cf_cmd_identify (void)
 	drive_param.sec_track   =  SWAP_SHORT (drive_param.u.driveid.current_sectors);
 	drive_param.nr_sectors  = (uint32_t)SWAP_SHORT (drive_param.u.driveid.lba_size_1) |
 	    ((uint32_t)SWAP_SHORT (drive_param.u.driveid.lba_size_2));
+	printf("cf0: <%s> %lld sectors\n", drive_param.model, (long long)drive_param.nr_sectors);
 
 	return (0);
 }
@@ -437,37 +499,27 @@ static int cf_cmd_identify (void)
  */
 static int cf_send_cmd (uint32_t lba, uint8_t cmd)
 {
-	uint8_t status;
-
-	if (bus_width == 8) {
-		volatile uint8_t *task_file;
-
-		task_file = (volatile uint8_t *) base_addr;
-
-		while ( (status = task_file[TF_STATUS]) & STATUS_BSY) {
+	switch (bus_type)
+	{
+	case CF_8:
+	case CF_TRUE_IDE_8:
+		while (cf_inb_8(TF_STATUS) & STATUS_BSY)
 			DELAY(WAIT_DELAY);
-		}
-
-		task_file[TF_SECTOR_COUNT]  = 1;
-		task_file[TF_SECTOR_NUMBER] = (lba & 0xff);
-		task_file[TF_CYL_LSB]  =  ((lba >> 8) & 0xff);
-		task_file[TF_CYL_MSB]  =  ((lba >> 16) & 0xff);
-		task_file[TF_DRV_HEAD] =  ((lba >> 24) & 0xff) | 0xe0; 
-		task_file[TF_COMMAND]  =  cmd;
-
-	} else {
-		volatile uint16_t *task_file;
-
-		task_file = (volatile uint16_t *) base_addr;
-
-		while ( (status = (task_file[TF_STATUS/2]>>8)) & STATUS_BSY) {
+		cf_outb_8(TF_SECTOR_COUNT, 1);
+		cf_outb_8(TF_SECTOR_NUMBER, lba & 0xff);
+		cf_outb_8(TF_CYL_LSB, (lba >> 8) & 0xff);
+		cf_outb_8(TF_CYL_MSB, (lba >> 16) & 0xff);
+		cf_outb_8(TF_DRV_HEAD, ((lba >> 24) & 0xff) | 0xe0);
+		cf_outb_8(TF_COMMAND, cmd);
+		break;
+	case CF_16:
+	default:
+		while (cf_inb_16(TF_STATUS) & STATUS_BSY)
 			DELAY(WAIT_DELAY);
-		}
-
-		task_file[TF_SECTOR_COUNT/2]  = 1 | ((lba & 0xff) << 8);
-		task_file[TF_CYL_LSB/2]  =  ((lba >> 8) & 0xff) | (((lba >> 16) & 0xff) << 8);
-		task_file[TF_DRV_HEAD/2] =  (((lba >> 24) & 0xff) | 0xe0) | (cmd << 8); 
-
+		cf_outw_16(TF_SECTOR_COUNT, 1 | ((lba & 0xff) << 8));
+		cf_outw_16(TF_CYL_LSB, ((lba >> 8) & 0xff) | (((lba >> 16) & 0xff) << 8));
+		cf_outw_16(TF_DRV_HEAD, (((lba >> 24) & 0xff) | 0xe0) | (cmd << 8));
+		break;
 	}
 
 	return (cf_wait_busy());
@@ -499,32 +551,32 @@ static int cf_wait_busy (void)
         octeon_led_run_wheel(&where0, 2);
 #endif
 
-	if (bus_width == 8) {
-		volatile uint8_t *task_file;
-		task_file = (volatile uint8_t *)base_addr;
-
-		status = task_file[TF_STATUS];	
+	switch (bus_type)
+	{
+	case CF_8:
+	case CF_TRUE_IDE_8:
+		status = cf_inb_8(TF_STATUS);
 		while ((status & STATUS_BSY) == STATUS_BSY) {
 			if ((status & STATUS_DF) != 0) {
 				printf("%s: device fault (status=%x)\n", __func__, status);
 				return (EIO);
 			}
 			DELAY(WAIT_DELAY);
-			status = task_file[TF_STATUS];
+			status = cf_inb_8(TF_STATUS);
 		}
-	} else {
-		volatile uint16_t *task_file;
-		task_file = (volatile uint16_t *)base_addr;
-
-		status = task_file[TF_STATUS/2]>>8;	
+		break;
+	case CF_16:
+	default:
+		status = cf_inb_16(TF_STATUS);
 		while ((status & STATUS_BSY) == STATUS_BSY) {
 			if ((status & STATUS_DF) != 0) {
 				printf("%s: device fault (status=%x)\n", __func__, status);
 				return (EIO);
 			}
 			DELAY(WAIT_DELAY);
-			status = (uint8_t)(task_file[TF_STATUS/2]>>8);
+			status = cf_inb_16(TF_STATUS);
 		}
+		break;
 	}
 	if ((status & STATUS_DRQ) == 0) {
 		printf("%s: device not ready (status=%x)\n", __func__, status);
@@ -550,9 +602,8 @@ static void cf_swap_ascii (unsigned char str1[], char str2[])
 {
 	int i;
 
-	for(i = 0; i < MODEL_STR_SIZE; i++) {
-            str2[i] = str1[i^1];
-        }
+	for(i = 0; i < MODEL_STR_SIZE; i++)
+		str2[i] = str1[i ^ 1];
 }
 
 
@@ -562,7 +613,8 @@ static void cf_swap_ascii (unsigned char str1[], char str2[])
 
 static int cf_probe (device_t dev)
 {
-    	if (octeon_is_simulation()) return 1;
+    	if (octeon_is_simulation())
+		return (ENXIO);
 
 	if (device_get_unit(dev) != 0) {
                 panic("can't attach more devices\n");
@@ -582,9 +634,9 @@ static int cf_probe (device_t dev)
  * inserted.
  *
  */
+typedef unsigned long long llu;
 static void cf_identify (driver_t *drv, device_t parent)
 {
-	uint8_t status;
         int bus_region;
 	int count = 0;
         cvmx_mio_boot_reg_cfgx_t cfg;
@@ -599,34 +651,39 @@ static void cf_identify (driver_t *drv, device_t parent)
                 cfg.u64 = cvmx_read_csr(CVMX_MIO_BOOT_REG_CFGX(bus_region));
                 if (cfg.s.base == octeon_bootinfo->compact_flash_common_base_addr >> 16)
                 {
-                        bus_width = (cfg.s.width) ? 16: 8;
-                        printf("Compact flash found in bootbus region %d (%d bit).\n", bus_region, bus_width);
+			if (octeon_bootinfo->compact_flash_attribute_base_addr == 0)
+				bus_type = CF_TRUE_IDE_8;
+			else
+				bus_type = (cfg.s.width) ? CF_16 : CF_8;
+                        printf("Compact flash found in bootbus region %d (%s).\n", bus_region, cf_type[bus_type]);
                         break;
                 }
         }
 
-	if (bus_width == 8) {
-		volatile uint8_t *task_file;
-		task_file = (volatile uint8_t *) base_addr;
+	switch (bus_type)
+	{
+	case CF_8:
+	case CF_TRUE_IDE_8:
 		/* Check if CF is inserted */
-		while ( (status = task_file[TF_STATUS]) & STATUS_BSY){
-			if ((count++) == NR_TRIES )     {
+		while (cf_inb_8(TF_STATUS) & STATUS_BSY) {
+			if ((count++) == NR_TRIES ) {
 				printf("Compact Flash not present\n");
 				return;
                 	}
 			DELAY(WAIT_DELAY);
         	}
-	} else {
-		volatile uint16_t *task_file;
-		task_file = (volatile uint16_t *) base_addr;
+		break;
+	case CF_16:
+	default:
 		/* Check if CF is inserted */
-		while ( (status = (task_file[TF_STATUS/2]>>8)) & STATUS_BSY){
-			if ((count++) == NR_TRIES )     {
+		while (cf_inb_16(TF_STATUS) & STATUS_BSY) {
+			if ((count++) == NR_TRIES ) {
 				printf("Compact Flash not present\n");
 				return;
                 	}
 			DELAY(WAIT_DELAY);
         	}
+		break;
 	}
 
 	BUS_ADD_CHILD(parent, 0, "cf", 0);
@@ -655,7 +712,7 @@ static int cf_attach_geom (void *arg, int flag)
  * ------------------------------------------------------------------- */
 static void cf_attach_geom_proxy (void *arg, int flag)
 {
-    cf_attach_geom(arg, flag);
+	cf_attach_geom(arg, flag);
 }
 
 
@@ -668,7 +725,8 @@ static int cf_attach (device_t dev)
 {
 	struct cf_priv *cf_priv;
 
-    	if (octeon_is_simulation()) return 1;
+    	if (octeon_is_simulation())
+		return (ENXIO);
 
 	cf_priv = device_get_softc(dev);
 	cf_priv->dev = dev;
@@ -701,4 +759,3 @@ static driver_t cf_driver = {
 static devclass_t cf_devclass;
 
 DRIVER_MODULE(cf, nexus, cf_driver, cf_devclass, 0, 0);
-

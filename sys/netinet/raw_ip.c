@@ -226,7 +226,7 @@ rip_append(struct inpcb *last, struct ip *ip, struct mbuf *n,
 {
 	int policyfail = 0;
 
-	INP_RLOCK_ASSERT(last);
+	INP_LOCK_ASSERT(last);
 
 #ifdef IPSEC
 	/* check AH/ESP integrity. */
@@ -834,16 +834,19 @@ rip_detach(struct socket *so)
 static void
 rip_dodisconnect(struct socket *so, struct inpcb *inp)
 {
+	struct inpcbinfo *pcbinfo;
 
-	INP_INFO_WLOCK_ASSERT(inp->inp_pcbinfo);
-	INP_WLOCK_ASSERT(inp);
-
+	pcbinfo = inp->inp_pcbinfo;
+	INP_INFO_WLOCK(pcbinfo);
+	INP_WLOCK(inp);
 	rip_delhash(inp);
 	inp->inp_faddr.s_addr = INADDR_ANY;
 	rip_inshash(inp);
 	SOCK_LOCK(so);
 	so->so_state &= ~SS_ISCONNECTED;
 	SOCK_UNLOCK(so);
+	INP_WUNLOCK(inp);
+	INP_INFO_WUNLOCK(pcbinfo);
 }
 
 static void
@@ -854,11 +857,7 @@ rip_abort(struct socket *so)
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("rip_abort: inp == NULL"));
 
-	INP_INFO_WLOCK(&V_ripcbinfo);
-	INP_WLOCK(inp);
 	rip_dodisconnect(so, inp);
-	INP_WUNLOCK(inp);
-	INP_INFO_WUNLOCK(&V_ripcbinfo);
 }
 
 static void
@@ -869,11 +868,7 @@ rip_close(struct socket *so)
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("rip_close: inp == NULL"));
 
-	INP_INFO_WLOCK(&V_ripcbinfo);
-	INP_WLOCK(inp);
 	rip_dodisconnect(so, inp);
-	INP_WUNLOCK(inp);
-	INP_INFO_WUNLOCK(&V_ripcbinfo);
 }
 
 static int
@@ -887,11 +882,7 @@ rip_disconnect(struct socket *so)
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("rip_disconnect: inp == NULL"));
 
-	INP_INFO_WLOCK(&V_ripcbinfo);
-	INP_WLOCK(inp);
 	rip_dodisconnect(so, inp);
-	INP_WUNLOCK(inp);
-	INP_INFO_WUNLOCK(&V_ripcbinfo);
 	return (0);
 }
 
@@ -1077,9 +1068,9 @@ rip_pcblist(SYSCTL_HANDLER_ARGS)
 	INP_INFO_WLOCK(&V_ripcbinfo);
 	for (i = 0; i < n; i++) {
 		inp = inp_list[i];
-		INP_WLOCK(inp);
-		if (!in_pcbrele(inp))
-			INP_WUNLOCK(inp);
+		INP_RLOCK(inp);
+		if (!in_pcbrele_rlocked(inp))
+			INP_RUNLOCK(inp);
 	}
 	INP_INFO_WUNLOCK(&V_ripcbinfo);
 

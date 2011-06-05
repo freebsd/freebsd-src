@@ -490,7 +490,7 @@ tcp_timer_rexmt(void * xtp)
 		INP_WUNLOCK(inp);
 		INP_INFO_WLOCK(&V_tcbinfo);
 		INP_WLOCK(inp);
-		if (in_pcbrele(inp)) {
+		if (in_pcbrele_wlocked(inp)) {
 			INP_INFO_WUNLOCK(&V_tcbinfo);
 			CURVNET_RESTORE();
 			return;

@@ -226,10 +226,10 @@ get_font(void)
 				}
 			}
 		}
+		fclose(fp);
 	} else
 		fprintf(stderr, "Could not open %s for reading\n", sysconfig);
 
-	fclose(fp);
 	return fnt;
 }
 

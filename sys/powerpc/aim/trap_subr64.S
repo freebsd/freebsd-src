@@ -53,55 +53,53 @@
  * User SRs are loaded through a pointer to the current pmap.
  */
 restore_usersrs:
-	GET_CPUINFO(%r28);
-	ld	%r28,PC_USERSLB(%r28);
+	GET_CPUINFO(%r28)
+	ld	%r28,PC_USERSLB(%r28)
 	li	%r29, 0			/* Set the counter to zero */
 
 	slbia
 	slbmfee	%r31,%r29		
 	clrrdi	%r31,%r31,28
 	slbie	%r31
-instuserslb:
-	ld	%r31, 0(%r28);		/* Load SLB entry pointer */
-	cmpli	0, %r31, 0;		/* If NULL, stop */
-	beqlr;
+1:	ld	%r31, 0(%r28)		/* Load SLB entry pointer */
+	cmpli	0, %r31, 0		/* If NULL, stop */
+	beqlr
 
 	ld	%r30, 0(%r31)		/* Load SLBV */
 	ld	%r31, 8(%r31)		/* Load SLBE */
 	or	%r31, %r31, %r29	/*  Set SLBE slot */
-	slbmte	%r30, %r31;		/* Install SLB entry */
+	slbmte	%r30, %r31		/* Install SLB entry */
 
-	addi	%r28, %r28, 8;		/* Advance pointer */
-	addi	%r29, %r29, 1;
-	cmpli	0, %r29, 64;		/* Repeat if we are not at the end */
-	blt instuserslb;
-	blr;
+	addi	%r28, %r28, 8		/* Advance pointer */
+	addi	%r29, %r29, 1
+	b	1b			/* Repeat */
 
 /*
  * Kernel SRs are loaded directly from the PCPU fields
  */
 restore_kernsrs:
-	GET_CPUINFO(%r28);
-	addi	%r28,%r28,PC_KERNSLB;
+	GET_CPUINFO(%r28)
+	addi	%r28,%r28,PC_KERNSLB
 	li	%r29, 0			/* Set the counter to zero */
 
 	slbia
 	slbmfee	%r31,%r29		
 	clrrdi	%r31,%r31,28
 	slbie	%r31
-instkernslb:
-	ld	%r31, 8(%r28);		/* Load SLBE */
+1:	cmpli	0, %r29, USER_SLB_SLOT	/* Skip the user slot */
+	beq-	2f
 
-	cmpli	0, %r31, 0;		/* If SLBE is not valid, stop */
-	beqlr;
+	ld	%r31, 8(%r28)		/* Load SLBE */
+	cmpli	0, %r31, 0		/* If SLBE is not valid, stop */
+	beqlr
 	ld	%r30, 0(%r28)		/* Load SLBV  */
-	slbmte	%r30, %r31;		/* Install SLB entry */
+	slbmte	%r30, %r31		/* Install SLB entry */
 
-	addi	%r28, %r28, 16;		/* Advance pointer */
-	addi	%r29, %r29, 1;
-	cmpli	0, %r29, USER_SLB_SLOT;	/* Repeat if we are not at the end */
-	blt instkernslb;
-	blr;
+2:	addi	%r28, %r28, 16		/* Advance pointer */
+	addi	%r29, %r29, 1
+	cmpli	0, %r29, 64		/* Repeat if we are not at the end */
+	blt	1b 
+	blr
 
 /*
  * FRAME_SETUP assumes:

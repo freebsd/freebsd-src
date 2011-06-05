@@ -95,10 +95,12 @@ __FBSDID("$FreeBSD$");
 #include <dev/ath/if_ath_tx.h>
 #include <dev/ath/if_ath_sysctl.h>
 #include <dev/ath/if_ath_keycache.h>
+#include <dev/ath/if_athdfs.h>
 
 #ifdef ATH_TX99_DIAG
 #include <dev/ath/ath_tx99/ath_tx99.h>
 #endif
+
 
 /*
  * ATH_BCBUF determines the number of vap's that can transmit
@@ -198,6 +200,8 @@ static int	ath_rate_setup(struct ath_softc *, u_int mode);
 static void	ath_setcurmode(struct ath_softc *, enum ieee80211_phymode);
 
 static void	ath_announce(struct ath_softc *);
+
+static void	ath_dfs_tasklet(void *, int);
 
 #ifdef IEEE80211_SUPPORT_TDMA
 static void	ath_tdma_settimers(struct ath_softc *sc, u_int32_t nexttbtt,
@@ -470,6 +474,16 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 		error = EIO;
 		goto bad2;
 	}
+
+	/* Attach DFS module */
+	if (! ath_dfs_attach(sc)) {
+		device_printf(sc->sc_dev, "%s: unable to attach DFS\n", __func__);
+		error = EIO;
+		goto bad2;
+	}
+
+	/* Start DFS processing tasklet */
+	TASK_INIT(&sc->sc_dfstask, 0, ath_dfs_tasklet, sc);
 
 	sc->sc_blinking = 0;
 	sc->sc_ledstate = 1;
@@ -771,6 +785,8 @@ ath_detach(struct ath_softc *sc)
 		sc->sc_tx99->detach(sc->sc_tx99);
 #endif
 	ath_rate_detach(sc->sc_rc);
+
+	ath_dfs_detach(sc);
 	ath_desc_free(sc);
 	ath_tx_cleanup(sc);
 	ath_hal_detach(sc->sc_ah);	/* NB: sets chip in full sleep */
@@ -983,6 +999,21 @@ ath_vap_create(struct ieee80211com *ic,
 	vap->iv_newstate = ath_newstate;
 	avp->av_bmiss = vap->iv_bmiss;
 	vap->iv_bmiss = ath_bmiss_vap;
+
+	/* Set default parameters */
+
+	/*
+	 * Anything earlier than some AR9300 series MACs don't
+	 * support a smaller MPDU density.
+	 */
+	vap->iv_ampdu_density = IEEE80211_HTCAP_MPDUDENSITY_8;
+	/*
+	 * All NICs can handle the maximum size, however
+	 * AR5416 based MACs can only TX aggregates w/ RTS
+	 * protection when the total aggregate size is <= 8k.
+	 * However, for now that's enforced by the TX path.
+	 */
+	vap->iv_ampdu_rxmax = IEEE80211_HTCAP_MAXRXAMPDU_64K;
 
 	avp->av_bslot = -1;
 	if (needbeacon) {
@@ -1230,6 +1261,10 @@ ath_resume(struct ath_softc *sc)
 	    sc->sc_curchan != NULL ? sc->sc_curchan : ic->ic_curchan,
 	    AH_FALSE, &status);
 	ath_reset_keycache(sc);
+
+	/* Let DFS at it in case it's a DFS channel */
+	ath_dfs_radar_enable(sc, ic->ic_curchan);
+
 	if (sc->sc_resume_up) {
 		if (ic->ic_opmode == IEEE80211_M_STA) {
 			ath_init(sc);
@@ -1539,6 +1574,9 @@ ath_init(void *arg)
 	}
 	ath_chan_change(sc, ic->ic_curchan);
 
+	/* Let DFS at it in case it's a DFS channel */
+	ath_dfs_radar_enable(sc, ic->ic_curchan);
+
 	/*
 	 * Likewise this is set during reset so update
 	 * state cached in the driver.
@@ -1684,6 +1722,10 @@ ath_reset(struct ifnet *ifp)
 		if_printf(ifp, "%s: unable to reset hardware; hal status %u\n",
 			__func__, status);
 	sc->sc_diversity = ath_hal_getdiversity(ah);
+
+	/* Let DFS at it in case it's a DFS channel */
+	ath_dfs_radar_enable(sc, ic->ic_curchan);
+
 	if (ath_startrecv(sc) != 0)	/* restart recv */
 		if_printf(ifp, "%s: unable to start recv logic\n", __func__);
 	/*
@@ -1974,6 +2016,10 @@ ath_calcrxfilter(struct ath_softc *sc)
 	}
 	if (ic->ic_opmode == IEEE80211_M_MONITOR)
 		rfilt |= HAL_RX_FILTER_CONTROL;
+
+	if (sc->sc_dodfs) {
+		rfilt |= HAL_RX_FILTER_PHYRADAR;
+	}
 
 	/*
 	 * Enable RX of compressed BAR frames only when doing
@@ -3426,6 +3472,17 @@ ath_rx_proc(void *arg, int npending)
 				sc->sc_stats.ast_rx_fifoerr++;
 			if (rs->rs_status & HAL_RXERR_PHY) {
 				sc->sc_stats.ast_rx_phyerr++;
+				/* Process DFS radar events */
+				if ((rs->rs_phyerr == HAL_PHYERR_RADAR) ||
+				    (rs->rs_phyerr == HAL_PHYERR_FALSE_RADAR_EXT)) {
+					/* Since we're touching the frame data, sync it */
+					bus_dmamap_sync(sc->sc_dmat,
+					    bf->bf_dmamap,
+					    BUS_DMASYNC_POSTREAD);
+					/* Now pass it to the radar processing code */
+					ath_dfs_process_phy_err(sc, mtod(m, char *), tsf, rs);
+				}
+
 				/* Be suitably paranoid about receiving phy errors out of the stats array bounds */
 				if (rs->rs_phyerr < 64)
 					sc->sc_stats.ast_rx_phy[rs->rs_phyerr]++;
@@ -3666,6 +3723,10 @@ rx_next:
 	ath_hal_rxmonitor(ah, &sc->sc_halstats, sc->sc_curchan);
 	if (ngood)
 		sc->sc_lastrx = tsf;
+
+	/* Queue DFS tasklet if needed */
+	if (ath_dfs_tasklet_needed(sc, sc->sc_curchan))
+		taskqueue_enqueue(sc->sc_tq, &sc->sc_dfstask);
 
 	if ((ifp->if_drv_flags & IFF_DRV_OACTIVE) == 0) {
 #ifdef IEEE80211_SUPPORT_SUPERG
@@ -4383,6 +4444,9 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 			return EIO;
 		}
 		sc->sc_diversity = ath_hal_getdiversity(ah);
+
+		/* Let DFS at it in case it's a DFS channel */
+		ath_dfs_radar_enable(sc, ic->ic_curchan);
 
 		/*
 		 * Re-enable rx framework.
@@ -5649,6 +5713,24 @@ ath_tdma_beacon_send(struct ath_softc *sc, struct ieee80211vap *vap)
 	}
 }
 #endif /* IEEE80211_SUPPORT_TDMA */
+
+static void
+ath_dfs_tasklet(void *p, int npending)
+{
+	struct ath_softc *sc = (struct ath_softc *) p;
+	struct ifnet *ifp = sc->sc_ifp;
+	struct ieee80211com *ic = ifp->if_l2com;
+
+	/*
+	 * If previous processing has found a radar event,
+	 * signal this to the net80211 layer to begin DFS
+	 * processing.
+	 */
+	if (ath_dfs_process_radar_event(sc, sc->sc_curchan)) {
+		/* DFS event found, initiate channel change */
+		ieee80211_dfs_notify_radar(ic, sc->sc_curchan);
+	}
+}
 
 MODULE_VERSION(if_ath, 1);
 MODULE_DEPEND(if_ath, wlan, 1, 1, 1);          /* 802.11 media layer */

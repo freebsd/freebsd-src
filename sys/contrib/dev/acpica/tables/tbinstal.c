@@ -144,12 +144,28 @@ AcpiTbAddTable (
     }
 
     /*
-     * Originally, we checked the table signature for "SSDT" or "PSDT" here.
-     * Next, we added support for OEMx tables, signature "OEM".
-     * Valid tables were encountered with a null signature, so we've just
-     * given up on validating the signature, since it seems to be a waste
-     * of code. The original code was removed (05/2008).
+     * Validate the incoming table signature.
+     *
+     * 1) Originally, we checked the table signature for "SSDT" or "PSDT".
+     * 2) We added support for OEMx tables, signature "OEM".
+     * 3) Valid tables were encountered with a null signature, so we just
+     *    gave up on validating the signature, (05/2008).
+     * 4) We encountered non-AML tables such as the MADT, which caused
+     *    interpreter errors and kernel faults. So now, we once again allow
+     *    only "SSDT", "OEMx", and now, also a null signature. (05/2011).
      */
+    if ((TableDesc->Pointer->Signature[0] != 0x00) &&
+       (!ACPI_COMPARE_NAME (TableDesc->Pointer->Signature, ACPI_SIG_SSDT)) &&
+       (ACPI_STRNCMP (TableDesc->Pointer->Signature, "OEM", 3)))
+    {
+        ACPI_ERROR ((AE_INFO,
+            "Table has invalid signature [%4.4s] (0x%8.8X), must be SSDT or OEMx",
+            AcpiUtValidAcpiName (*(UINT32 *) TableDesc->Pointer->Signature) ?
+                TableDesc->Pointer->Signature : "????",
+            *(UINT32 *) TableDesc->Pointer->Signature));
+
+        return_ACPI_STATUS (AE_BAD_SIGNATURE);
+    }
 
     (void) AcpiUtAcquireMutex (ACPI_MTX_TABLES);
 

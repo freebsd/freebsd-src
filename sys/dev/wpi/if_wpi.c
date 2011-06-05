@@ -273,6 +273,8 @@ static devclass_t wpi_devclass;
 
 DRIVER_MODULE(wpi, pci, wpi_driver, wpi_devclass, 0, 0);
 
+MODULE_VERSION(wpi, 1);
+
 static const uint8_t wpi_ridx_to_plcp[] = {
 	/* OFDM: IEEE Std 802.11a-1999, pp. 14 Table 80 */
 	/* R1-R4 (ral/ural is R4-R1) */

@@ -54,12 +54,18 @@ static struct jailparam *params;
 static char **param_values;
 static int nparams;
 
-static char *ip4_addr;
 #ifdef INET6
+static int ip6_ok;
 static char *ip6_addr;
 #endif
+#ifdef INET
+static int ip4_ok;
+static char *ip4_addr;
+#endif
 
+#if defined(INET6) || defined(INET)
 static void add_ip_addr(char **addrp, char *newaddr);
+#endif
 #ifdef INET6
 static void add_ip_addr46(char *newaddr);
 #endif
@@ -194,6 +200,13 @@ main(int argc, char **argv)
 	if (uflag)
 		GET_USER_INFO;
 
+#ifdef INET6
+	ip6_ok = feature_present("inet6");
+#endif
+#ifdef INET
+	ip4_ok = feature_present("inet");
+#endif
+
 	if (jailname)
 		set_param("name", jailname);
 	if (securelevel)
@@ -207,10 +220,12 @@ main(int argc, char **argv)
 				break;
 			}
 			if (hflag) {
+#ifdef INET
 				if (!strncmp(argv[i], "ip4.addr=", 9)) {
 					add_ip_addr(&ip4_addr, argv[i] + 9);
 					break;
 				}
+#endif
 #ifdef INET6
 				if (!strncmp(argv[i], "ip6.addr=", 9)) {
 					add_ip_addr(&ip6_addr, argv[i] + 9);
@@ -231,11 +246,13 @@ main(int argc, char **argv)
 		set_param("host.hostname", argv[1]);
 		if (hflag)
 			add_ip_addrinfo(0, argv[1]);
+#if defined(INET6) || defined(INET)
 		if (argv[2][0] != '\0')
 #ifdef INET6
 			add_ip_addr46(argv[2]);
 #else
 			add_ip_addr(&ip4_addr, argv[2]);
+#endif
 #endif
 		cmdarg = 3;
 		/* Emulate the defaults from security.jail.* sysctls */
@@ -259,8 +276,10 @@ main(int argc, char **argv)
 			}
 		}
 	}
+#ifdef INET
 	if (ip4_addr != NULL)
 		set_param("ip4.addr", ip4_addr);
+#endif
 #ifdef INET6
 	if (ip6_addr != NULL)
 		set_param("ip6.addr", ip6_addr);
@@ -297,14 +316,19 @@ main(int argc, char **argv)
 			for (i = 0; i < nparams; i++)
 				if (!strcmp(params[i].jp_name, "path"))
 					break;
-#ifdef INET6
+#if defined(INET6) && defined(INET)
 			fprintf(fp, "%d\t%s\t%s\t%s%s%s\t%s\n",
 			    jid, i < nparams
 			    ? (char *)params[i].jp_value : argv[0],
 			    argv[1], ip4_addr ? ip4_addr : "",
 			    ip4_addr && ip4_addr[0] && ip6_addr && ip6_addr[0]
 			    ? "," : "", ip6_addr ? ip6_addr : "", argv[3]);
-#else
+#elif defined(INET6)
+			fprintf(fp, "%d\t%s\t%s\t%s\t%s\n",
+			    jid, i < nparams
+			    ?  (char *)params[i].jp_value : argv[0],
+			    argv[1], ip6_addr ? ip6_addr : "", argv[3]);
+#elif defined(INET)
 			fprintf(fp, "%d\t%s\t%s\t%s\t%s\n",
 			    jid, i < nparams
 			    ? (char *)params[i].jp_value : argv[0],
@@ -348,6 +372,7 @@ main(int argc, char **argv)
 	err(1, "execvp: %s", argv[cmdarg]);
 }
 
+#if defined(INET6) || defined(INET)
 static void
 add_ip_addr(char **addrp, char *value)
 {
@@ -368,6 +393,7 @@ add_ip_addr(char **addrp, char *value)
 		*addrp = addr;
 	}
 }
+#endif
 
 #ifdef INET6
 static void
@@ -391,23 +417,24 @@ static void
 add_ip_addrinfo(int ai_flags, char *value)
 {
 	struct addrinfo hints, *ai0, *ai;
-	struct in_addr addr4;
-	size_t size;
-	int error, ip4ok;
-	int mib[4];
+	int error;
+#ifdef INET
 	char avalue4[INET_ADDRSTRLEN];
+	struct in_addr addr4;
+#endif
 #ifdef INET6
-	struct in6_addr addr6;
-	int ip6ok;
 	char avalue6[INET6_ADDRSTRLEN];
+	struct in6_addr addr6;
 #endif
 
 	/* Look up the hostname (or get the address) */
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_socktype = SOCK_STREAM;
-#ifdef INET6
+#if defined(INET6) && defined(INET)
 	hints.ai_family = PF_UNSPEC;
-#else
+#elif defined(INET6)
+	hints.ai_family = PF_INET6;
+#elif defined(INET)
 	hints.ai_family = PF_INET;
 #endif
 	hints.ai_flags = ai_flags;
@@ -415,32 +442,12 @@ add_ip_addrinfo(int ai_flags, char *value)
 	if (error != 0)
 		errx(1, "hostname %s: %s", value, gai_strerror(error));
 
-	/*
-	 * Silently ignore unsupported address families from DNS lookups.
-	 * But if this is a numeric address, let the kernel give the error.
-	 */
-	if (ai_flags & AI_NUMERICHOST)
-		ip4ok =
-#ifdef INET6
-		    ip6ok =
-#endif
-		    1;
-	else {
-		size = 4;
-		ip4ok = (sysctlnametomib("security.jail.param.ip4", mib,
-		    &size) == 0);
-#ifdef INET6
-		size = 4;
-		ip6ok = (sysctlnametomib("security.jail.param.ip6", mib,
-		    &size) == 0);
-#endif
-	}
-	
 	/* Convert the addresses to ASCII so set_param can convert them back. */
 	for (ai = ai0; ai; ai = ai->ai_next)
 		switch (ai->ai_family) {
+#ifdef INET
 		case AF_INET:
-			if (!ip4ok)
+			if (!ip4_ok && (ai_flags & AI_NUMERICHOST) == 0)
 				break;
 			memcpy(&addr4, &((struct sockaddr_in *)
 			    (void *)ai->ai_addr)->sin_addr, sizeof(addr4));
@@ -449,9 +456,10 @@ add_ip_addrinfo(int ai_flags, char *value)
 				err(1, "inet_ntop");
 			add_ip_addr(&ip4_addr, avalue4);
 			break;
+#endif
 #ifdef INET6
 		case AF_INET6:
-			if (!ip6ok)
+			if (!ip6_ok && (ai_flags & AI_NUMERICHOST) == 0)
 				break;
 			memcpy(&addr6, &((struct sockaddr_in6 *)
 			    (void *)ai->ai_addr)->sin6_addr, sizeof(addr6));

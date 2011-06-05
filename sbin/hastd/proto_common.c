@@ -194,6 +194,8 @@ int
 proto_common_recv(int sock, unsigned char *data, size_t size, int *fdp)
 {
 	ssize_t done;
+	size_t total_done, recvsize;
+	unsigned char *dp;
 
 	PJDLOG_ASSERT(sock >= 0);
 
@@ -210,9 +212,19 @@ proto_common_recv(int sock, unsigned char *data, size_t size, int *fdp)
 	PJDLOG_ASSERT(data != NULL);
 	PJDLOG_ASSERT(size > 0);
 
+	total_done = 0;
+	dp = data;
 	do {
-		done = recv(sock, data, size, MSG_WAITALL);
-	} while (done == -1 && errno == EINTR);
+		recvsize = size - total_done;
+		recvsize = recvsize < MAX_SEND_SIZE ? recvsize : MAX_SEND_SIZE;
+		done = recv(sock, dp, recvsize, MSG_WAITALL);
+		if (done == -1 && errno == EINTR)
+			continue;
+		if (done <= 0)
+			break;
+		total_done += done;
+		dp += done;
+	} while (total_done < size);
 	if (done == 0) {
 		return (ENOTCONN);
 	} else if (done < 0) {

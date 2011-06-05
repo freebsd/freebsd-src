@@ -136,15 +136,23 @@ ath_rateseries_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 	 	 */
 		if (ni->ni_chw == 40)
 			series[i].RateFlags |= HAL_RATESERIES_2040;
-#if 0
+
 		/*
-		 * The hardware only supports short-gi in 40mhz mode -
-		 * if later hardware supports it in 20mhz mode, be sure
-		 * to add the relevant check here.
+		 * Set short-GI only if the node has advertised it
+		 * the channel width is suitable, and we support it.
+		 * We don't currently have a "negotiated" set of bits -
+		 * ni_htcap is what the remote end sends, not what this
+		 * node is capable of.
 		 */
-		if (ni->ni_htcap & IEEE80211_HTCAP_SHORTGI40)
+		if (ni->ni_chw == 40 &&
+		    ic->ic_htcaps & IEEE80211_HTCAP_SHORTGI40 &&
+		    ni->ni_htcap & IEEE80211_HTCAP_SHORTGI40)
 			series[i].RateFlags |= HAL_RATESERIES_HALFGI;
-#endif
+
+		if (ni->ni_chw == 20 &&
+		    ic->ic_htcaps & IEEE80211_HTCAP_SHORTGI20 &&
+		    ni->ni_htcap & IEEE80211_HTCAP_SHORTGI20)
+			series[i].RateFlags |= HAL_RATESERIES_HALFGI;
 
 		series[i].Rate = rt->info[rix[i]].rateCode;
 

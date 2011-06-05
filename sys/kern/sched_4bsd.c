@@ -1081,7 +1081,7 @@ forward_wakeup(int cpunum)
 	dontuse = me | stopped_cpus | hlt_cpus_mask;
 	map2 = 0;
 	if (forward_wakeup_use_loop) {
-		SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
+		STAILQ_FOREACH(pc, &cpuhead, pc_allcpu) {
 			id = pc->pc_cpumask;
 			if ((id & dontuse) == 0 &&
 			    pc->pc_curthread == pc->pc_idlethread) {
@@ -1112,7 +1112,7 @@ forward_wakeup(int cpunum)
 	}
 	if (map) {
 		forward_wakeups_delivered++;
-		SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
+		STAILQ_FOREACH(pc, &cpuhead, pc_allcpu) {
 			id = pc->pc_cpumask;
 			if ((map & id) == 0)
 				continue;

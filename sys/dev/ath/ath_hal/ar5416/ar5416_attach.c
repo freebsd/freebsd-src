@@ -139,9 +139,14 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 	ah->ah_setAntennaSwitch		= ar5416SetAntennaSwitch;
 	ah->ah_setDecompMask		= ar5416SetDecompMask;
 	ah->ah_setCoverageClass		= ar5416SetCoverageClass;
+	ah->ah_setQuiet			= ar5416SetQuiet;
 
 	ah->ah_resetKeyCacheEntry	= ar5416ResetKeyCacheEntry;
 	ah->ah_setKeyCacheEntry		= ar5416SetKeyCacheEntry;
+
+	/* DFS Functions */
+	ah->ah_enableDfs		= ar5416EnableDfs;
+	ah->ah_getDfsThresh		= ar5416GetDfsThresh;
 
 	/* Power Management Functions */
 	ah->ah_setPowerMode		= ar5416SetPowerMode;
@@ -878,6 +883,7 @@ ar5416FillCapabilityInfo(struct ath_hal *ah)
 	pCap->halBssidMatchSupport = AH_TRUE;
 	pCap->halGTTSupport = AH_TRUE;
 	pCap->halCSTSupport = AH_TRUE;
+	pCap->halEnhancedDfsSupport = AH_FALSE;
 
 	if (ath_hal_eepromGetFlag(ah, AR_EEP_RFKILL) &&
 	    ath_hal_eepromGet(ah, AR_EEP_RFSILENT, &ahpriv->ah_rfsilent) == HAL_OK) {

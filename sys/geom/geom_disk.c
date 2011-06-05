@@ -154,6 +154,12 @@ g_disk_access(struct g_provider *pp, int r, int w, int e)
 		}
 		pp->mediasize = dp->d_mediasize;
 		pp->sectorsize = dp->d_sectorsize;
+		if (dp->d_flags & DISKFLAG_CANDELETE)
+			pp->flags |= G_PF_CANDELETE;
+		else
+			pp->flags &= ~G_PF_CANDELETE;
+		pp->stripeoffset = dp->d_stripeoffset;
+		pp->stripesize = dp->d_stripesize;
 		dp->d_flags |= DISKFLAG_OPEN;
 		if (dp->d_maxsize == 0) {
 			printf("WARNING: Disk drive %s%d has no d_maxsize\n",

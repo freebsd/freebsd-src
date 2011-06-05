@@ -357,7 +357,7 @@ cpu_mp_start()
 	/* Keep 'em spinning until we unleash them... */
 	ia64_ap_state.as_spin = 1;
 
-	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
+	STAILQ_FOREACH(pc, &cpuhead, pc_allcpu) {
 		pc->pc_md.current_pmap = kernel_pmap;
 		pc->pc_other_cpus = all_cpus & ~pc->pc_cpumask;
 		/* The BSP is obviously running already. */
@@ -424,7 +424,7 @@ cpu_mp_unleash(void *dummy)
 
 	cpus = 0;
 	smp_cpus = 0;
-	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
+	STAILQ_FOREACH(pc, &cpuhead, pc_allcpu) {
 		cpus++;
 		if (pc->pc_md.awake) {
 			kproc_create(ia64_store_mca_state, pc, NULL, 0, 0,
@@ -462,7 +462,7 @@ ipi_selected(cpumask_t cpus, int ipi)
 {
 	struct pcpu *pc;
 
-	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
+	STAILQ_FOREACH(pc, &cpuhead, pc_allcpu) {
 		if (cpus & pc->pc_cpumask)
 			ipi_send(pc, ipi);
 	}
@@ -486,7 +486,7 @@ ipi_all_but_self(int ipi)
 {
 	struct pcpu *pc;
 
-	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
+	STAILQ_FOREACH(pc, &cpuhead, pc_allcpu) {
 		if (pc != pcpup)
 			ipi_send(pc, ipi);
 	}

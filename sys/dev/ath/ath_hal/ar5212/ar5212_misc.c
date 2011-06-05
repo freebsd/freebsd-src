@@ -634,6 +634,20 @@ ar5212SetCoverageClass(struct ath_hal *ah, uint8_t coverageclass, int now)
 	}
 }
 
+HAL_STATUS
+ar5212SetQuiet(struct ath_hal *ah, uint32_t period, uint32_t duration,
+    uint32_t nextStart, HAL_QUIET_FLAG flag)
+{
+	OS_REG_WRITE(ah, AR_QUIET2, period | (duration << AR_QUIET2_QUIET_DUR_S));
+	if (flag & HAL_QUIET_ENABLE) {
+		OS_REG_WRITE(ah, AR_QUIET1, nextStart | (1 << 16));
+	}
+	else {
+		OS_REG_WRITE(ah, AR_QUIET1, nextStart);
+	}
+	return HAL_OK;
+}
+
 void
 ar5212SetPCUConfig(struct ath_hal *ah)
 {
@@ -1115,3 +1129,54 @@ ar5212WaitNFCalComplete(struct ath_hal *ah, int i)
 	}
 	return AH_FALSE;
 }
+
+void
+ar5212EnableDfs(struct ath_hal *ah, HAL_PHYERR_PARAM *pe)
+{
+	uint32_t val;
+	val = OS_REG_READ(ah, AR_PHY_RADAR_0);
+
+	if (pe->pe_firpwr != HAL_PHYERR_PARAM_NOVAL) {
+		val &= ~AR_PHY_RADAR_0_FIRPWR;
+		val |= SM(pe->pe_firpwr, AR_PHY_RADAR_0_FIRPWR);
+	}
+	if (pe->pe_rrssi != HAL_PHYERR_PARAM_NOVAL) {
+		val &= ~AR_PHY_RADAR_0_RRSSI;
+		val |= SM(pe->pe_rrssi, AR_PHY_RADAR_0_RRSSI);
+	}
+	if (pe->pe_height != HAL_PHYERR_PARAM_NOVAL) {
+		val &= ~AR_PHY_RADAR_0_HEIGHT;
+		val |= SM(pe->pe_height, AR_PHY_RADAR_0_HEIGHT);
+	}
+	if (pe->pe_prssi != HAL_PHYERR_PARAM_NOVAL) {
+		val &= ~AR_PHY_RADAR_0_PRSSI;
+		val |= SM(pe->pe_prssi, AR_PHY_RADAR_0_PRSSI);
+	}
+	if (pe->pe_inband != HAL_PHYERR_PARAM_NOVAL) {
+		val &= ~AR_PHY_RADAR_0_INBAND;
+		val |= SM(pe->pe_inband, AR_PHY_RADAR_0_INBAND);
+	}
+	OS_REG_WRITE(ah, AR_PHY_RADAR_0, val | AR_PHY_RADAR_0_ENA);
+}
+
+void
+ar5212GetDfsThresh(struct ath_hal *ah, HAL_PHYERR_PARAM *pe)
+{
+	uint32_t val,temp;
+
+	val = OS_REG_READ(ah, AR_PHY_RADAR_0);
+
+	temp = MS(val,AR_PHY_RADAR_0_FIRPWR);
+	temp |= 0xFFFFFF80;
+	pe->pe_firpwr = temp;
+	pe->pe_rrssi = MS(val, AR_PHY_RADAR_0_RRSSI);
+	pe->pe_height =  MS(val, AR_PHY_RADAR_0_HEIGHT);
+	pe->pe_prssi = MS(val, AR_PHY_RADAR_0_PRSSI);
+	pe->pe_inband = MS(val, AR_PHY_RADAR_0_INBAND);
+
+	pe->pe_relpwr = 0;
+	pe->pe_relstep = 0;
+	pe->pe_maxlen = 0;
+	pe->pe_extchannel = AH_FALSE;
+}
+
