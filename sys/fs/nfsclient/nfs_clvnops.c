@@ -2884,8 +2884,11 @@ nfs_advlock(struct vop_advlock_args *ap)
 	int ret, error = EOPNOTSUPP;
 	u_quad_t size;
 	
-	if (NFS_ISV4(vp) && (ap->a_flags & F_POSIX)) {
-		cred = p->p_ucred;
+	if (NFS_ISV4(vp) && (ap->a_flags & (F_POSIX | F_FLOCK)) != 0) {
+		if ((ap->a_flags & F_POSIX) != 0)
+			cred = p->p_ucred;
+		else
+			cred = td->td_ucred;
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		if (vp->v_iflag & VI_DOOMED) {
 			VOP_UNLOCK(vp, 0);
