@@ -188,7 +188,7 @@ main(int argc, char *argv[])
 	pid_t pid, otherpid;
 
 	/* get command line options and arguments */
-	while ((ch = getopt(argc, argv, "c:dDF:fMp:Rs")) != -1) {
+	while ((ch = getopt(argc, argv, "c:dDfF:M:p:Rs")) != -1) {
 		switch (ch) {
 		case 'c':
 			conffile = optarg;
@@ -226,8 +226,9 @@ main(int argc, char *argv[])
 	argv += optind;
 	if (argc == 0) {
 		fprintf(stderr,
-		    "usage: rtadvd [-dDfMRs] [-c conffile] "
-		    "[-F dumpfile] [-p pidfile] interfaces...\n");
+		    "usage: rtadvd [-dDfRs] [-c conffile] "
+		    "[-F dumpfile] [-M ifname] "
+		    "[-p pidfile] interfaces...\n");
 		exit(1);
 	}
 
