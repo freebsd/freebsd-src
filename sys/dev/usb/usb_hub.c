@@ -242,9 +242,14 @@ uhub_explore_sub(struct uhub_softc *sc, struct usb_port *up)
 	if (child->flags.usb_mode == USB_MODE_HOST) {
 		usbd_enum_lock(child);
 		if (child->re_enumerate_wait) {
-			err = usbd_set_config_index(child, USB_UNCONFIG_INDEX);
-			if (err == 0)
-				err = usbd_req_re_enumerate(child, NULL);
+			err = usbd_set_config_index(child,
+			    USB_UNCONFIG_INDEX);
+			if (err != 0) {
+				DPRINTF("Unconfigure failed: "
+				    "%s: Ignored.\n",
+				    usbd_errstr(err));
+			}
+			err = usbd_req_re_enumerate(child, NULL);
 			if (err == 0)
 				err = usbd_set_config_index(child, 0);
 			if (err == 0) {
@@ -2470,4 +2475,20 @@ usbd_filter_power_mode(struct usb_device *udev, uint8_t power_mode)
 
 	/* use fixed power mode given by hardware driver */
 	return (temp);
+}
+
+/*------------------------------------------------------------------------*
+ *	usbd_start_re_enumerate
+ *
+ * This function starts re-enumeration of the given USB device. This
+ * function does not need to be called BUS-locked. This function does
+ * not wait until the re-enumeration is completed.
+ *------------------------------------------------------------------------*/
+void
+usbd_start_re_enumerate(struct usb_device *udev)
+{
+	if (udev->re_enumerate_wait == 0) {
+		udev->re_enumerate_wait = 1;
+		usb_needs_explore(udev->bus, 0);
+	}
 }
