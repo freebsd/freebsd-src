@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include "common/t4_regs_values.h"
 #include "common/t4fw_interface.h"
 #include "t4_ioctl.h"
+#include "t4_l2t.h"
 
 /* T4 bus driver interface */
 static int t4_probe(device_t);
@@ -213,12 +214,12 @@ SYSCTL_UINT(_hw_cxgbe, OID_AUTO, interrupt_types, CTLFLAG_RDTUN, &intr_types, 0,
     "interrupt types allowed (bits 0, 1, 2 = INTx, MSI, MSI-X respectively)");
 
 /*
- * Force the driver to use interrupt forwarding.
+ * Force the driver to use the same set of interrupts for all ports.
  */
-static int intr_fwd = 0;
-TUNABLE_INT("hw.cxgbe.interrupt_forwarding", &intr_fwd);
-SYSCTL_UINT(_hw_cxgbe, OID_AUTO, interrupt_forwarding, CTLFLAG_RDTUN,
-    &intr_fwd, 0, "always use forwarded interrupts");
+static int intr_shared = 0;
+TUNABLE_INT("hw.cxgbe.interrupts_shared", &intr_shared);
+SYSCTL_UINT(_hw_cxgbe, OID_AUTO, interrupts_shared, CTLFLAG_RDTUN,
+    &intr_shared, 0, "interrupts shared between all ports");
 
 static unsigned int filter_mode = HW_TPL_FR_MT_PR_IV_P_FC;
 TUNABLE_INT("hw.cxgbe.filter_mode", &filter_mode);
@@ -228,7 +229,7 @@ SYSCTL_UINT(_hw_cxgbe, OID_AUTO, filter_mode, CTLFLAG_RDTUN,
 struct intrs_and_queues {
 	int intr_type;		/* INTx, MSI, or MSI-X */
 	int nirq;		/* Number of vectors */
-	int intr_fwd;		/* Interrupts forwarded */
+	int intr_shared;	/* Interrupts shared between all ports */
 	int ntxq10g;		/* # of NIC txq's for each 10G port */
 	int nrxq10g;		/* # of NIC rxq's for each 10G port */
 	int ntxq1g;		/* # of NIC txq's for each 1G port */
@@ -240,6 +241,7 @@ struct filter_entry {
         uint32_t locked:1;	/* filter is administratively locked */
         uint32_t pending:1;	/* filter action is pending firmware reply */
 	uint32_t smtidx:8;	/* Source MAC Table index for smac */
+	struct l2t_entry *l2t;	/* Layer Two Table entry for dmac */
 
         struct t4_filter_specification fs;
 };
@@ -269,6 +271,7 @@ static void setup_memwin(struct adapter *);
 static int cfg_itype_and_nqueues(struct adapter *, int, int,
     struct intrs_and_queues *);
 static int prep_firmware(struct adapter *);
+static int get_devlog_params(struct adapter *, struct devlog_params *);
 static int get_capabilities(struct adapter *, struct fw_caps_config_cmd *);
 static int get_params(struct adapter *, struct fw_caps_config_cmd *);
 static void t4_set_desc(struct adapter *);
@@ -295,16 +298,20 @@ static int sysctl_holdoff_pktc_idx(SYSCTL_HANDLER_ARGS);
 static int sysctl_qsize_rxq(SYSCTL_HANDLER_ARGS);
 static int sysctl_qsize_txq(SYSCTL_HANDLER_ARGS);
 static int sysctl_handle_t4_reg64(SYSCTL_HANDLER_ARGS);
+#ifdef T4_DEVLOG
+static int sysctl_devlog(SYSCTL_HANDLER_ARGS);
+#endif
 static inline void txq_start(struct ifnet *, struct sge_txq *);
 static uint32_t fconf_to_mode(uint32_t);
 static uint32_t mode_to_fconf(uint32_t);
 static uint32_t fspec_to_fconf(struct t4_filter_specification *);
 static int get_filter_mode(struct adapter *, uint32_t *);
 static int set_filter_mode(struct adapter *, uint32_t);
+static inline uint64_t get_filter_hits(struct adapter *, uint32_t);
 static int get_filter(struct adapter *, struct t4_filter *);
 static int set_filter(struct adapter *, struct t4_filter *);
 static int del_filter(struct adapter *, struct t4_filter *);
-static void clear_filter(struct adapter *, struct filter_entry *);
+static void clear_filter(struct filter_entry *);
 static int set_filter_wr(struct adapter *, int);
 static int del_filter_wr(struct adapter *, int);
 void filter_rpl(struct adapter *, const struct cpl_set_tcb_rpl *);
@@ -400,6 +407,9 @@ t4_attach(device_t dev)
 	if (rc != 0)
 		goto done; /* error message displayed already */
 
+	/* Read firmware devlog parameters */
+	(void) get_devlog_params(sc, &sc->params.devlog);
+
 	/* Get device capabilities and select which ones we'll use */
 	rc = get_capabilities(sc, &caps);
 	if (rc != 0) {
@@ -484,6 +494,8 @@ t4_attach(device_t dev)
 	    V_RXTSHIFTMAXR2(15) | V_PERSHIFTBACKOFFMAX(8) | V_PERSHIFTMAX(8) |
 	    V_KEEPALIVEMAXR1(4) | V_KEEPALIVEMAXR2(9));
 	t4_write_reg(sc, A_ULP_RX_TDDP_PSZ, V_HPZ0(PAGE_SHIFT - 12));
+	t4_set_reg_field(sc, A_TP_PARA_REG3, F_TUNNELCNGDROP0 |
+	    F_TUNNELCNGDROP1 | F_TUNNELCNGDROP2 | F_TUNNELCNGDROP3, 0);
 
 	setup_memwin(sc);
 
@@ -514,8 +526,8 @@ t4_attach(device_t dev)
 			device_printf(dev, "unable to initialize port %d: %d\n",
 			    i, rc);
 			free(pi, M_CXGBE);
-			sc->port[i] = NULL;	/* indicates init failed */
-			continue;
+			sc->port[i] = NULL;
+			goto done;
 		}
 
 		snprintf(pi->lockname, sizeof(pi->lockname), "%sp%d",
@@ -582,15 +594,15 @@ t4_attach(device_t dev)
 	s->nrxq = n10g * iaq.nrxq10g + n1g * iaq.nrxq1g;
 	s->ntxq = n10g * iaq.ntxq10g + n1g * iaq.ntxq1g;
 	s->neq = s->ntxq + s->nrxq;	/* the free list in an rxq is an eq */
-	s->neq += NCHAN;		/* control queues, 1 per hw channel */
+	s->neq += sc->params.nports;	/* control queues, 1 per port */
 	s->niq = s->nrxq + 1;		/* 1 extra for firmware event queue */
-	if (iaq.intr_fwd) {
-		sc->flags |= INTR_FWD;
-		s->niq += NFIQ(sc);		/* forwarded interrupt queues */
-		s->fiq = malloc(NFIQ(sc) * sizeof(struct sge_iq), M_CXGBE,
-		    M_ZERO | M_WAITOK);
-	}
-	s->ctrlq = malloc(NCHAN * sizeof(struct sge_ctrlq), M_CXGBE,
+	if (iaq.intr_shared)
+		sc->flags |= INTR_SHARED;
+	s->niq += NINTRQ(sc);		/* interrupt queues */
+
+	s->intrq = malloc(NINTRQ(sc) * sizeof(struct sge_iq), M_CXGBE,
+	    M_ZERO | M_WAITOK);
+	s->ctrlq = malloc(sc->params.nports * sizeof(struct sge_ctrlq), M_CXGBE,
 	    M_ZERO | M_WAITOK);
 	s->rxq = malloc(s->nrxq * sizeof(struct sge_rxq), M_CXGBE,
 	    M_ZERO | M_WAITOK);
@@ -603,6 +615,8 @@ t4_attach(device_t dev)
 
 	sc->irq = malloc(sc->intr_count * sizeof(struct irq), M_CXGBE,
 	    M_ZERO | M_WAITOK);
+
+	sc->l2t = t4_init_l2t(M_WAITOK);
 
 	t4_sysctls(sc);
 
@@ -691,11 +705,14 @@ t4_detach(device_t dev)
 		bus_release_resource(dev, SYS_RES_MEMORY, sc->msix_rid,
 		    sc->msix_res);
 
+	if (sc->l2t)
+		t4_free_l2t(sc->l2t);
+
 	free(sc->irq, M_CXGBE);
 	free(sc->sge.rxq, M_CXGBE);
 	free(sc->sge.txq, M_CXGBE);
 	free(sc->sge.ctrlq, M_CXGBE);
-	free(sc->sge.fiq, M_CXGBE);
+	free(sc->sge.intrq, M_CXGBE);
 	free(sc->sge.iqmap, M_CXGBE);
 	free(sc->sge.eqmap, M_CXGBE);
 	free(sc->tids.ftid_tab, M_CXGBE);
@@ -1231,33 +1248,32 @@ cfg_itype_and_nqueues(struct adapter *sc, int n10g, int n1g,
 		nrxq10g = min(nc, max_nrxq_10g);
 		nrxq1g = min(nc, max_nrxq_1g);
 
-		/* Extra 2 is for a) error interrupt b) firmware event */
-		iaq->nirq = n10g * nrxq10g + n1g * nrxq1g + 2;
-		if (iaq->nirq <= navail && intr_fwd == 0) {
+		iaq->nirq = n10g * nrxq10g + n1g * nrxq1g + T4_EXTRA_INTR;
+		if (iaq->nirq <= navail && intr_shared == 0) {
 
 			if (itype == INTR_MSI && !powerof2(iaq->nirq))
-				goto fwd;
+				goto share;
 
 			/* One for err, one for fwq, and one for each rxq */
 
-			iaq->intr_fwd = 0;
+			iaq->intr_shared = 0;
 			iaq->nrxq10g = nrxq10g;
 			iaq->nrxq1g = nrxq1g;
 
 		} else {
-fwd:
-			iaq->intr_fwd = 1;
+share:
+			iaq->intr_shared = 1;
 
-			if (navail > nc) {
+			if (navail >= nc + T4_EXTRA_INTR) {
 				if (itype == INTR_MSIX)
-					navail = nc + 1;
+					navail = nc + T4_EXTRA_INTR;
 
 				/* navail is and must remain a pow2 for MSI */
 				if (itype == INTR_MSI) {
 					KASSERT(powerof2(navail),
 					    ("%d not power of 2", navail));
 
-					while (navail / 2 > nc)
+					while (navail / 2 >= nc + T4_EXTRA_INTR)
 						navail /= 2;
 				}
 			}
@@ -1290,7 +1306,7 @@ fwd:
 			 * the kernel is willing to allocate (it's in navail).
 			 */
 			pci_release_msi(sc->dev);
-			goto fwd;
+			goto share;
 		}
 
 		device_printf(sc->dev,
@@ -1409,6 +1425,34 @@ prep_firmware(struct adapter *sc)
 	    G_FW_HDR_FW_VER_MICRO(sc->params.fw_vers),
 	    G_FW_HDR_FW_VER_BUILD(sc->params.fw_vers));
 	sc->flags |= FW_OK;
+
+	return (0);
+}
+
+static int
+get_devlog_params(struct adapter *sc, struct devlog_params *dlog)
+{
+	struct fw_devlog_cmd devlog_cmd;
+	uint32_t meminfo;
+	int rc;
+
+	bzero(&devlog_cmd, sizeof(devlog_cmd));
+	devlog_cmd.op_to_write = htobe32(V_FW_CMD_OP(FW_DEVLOG_CMD) |
+	    F_FW_CMD_REQUEST | F_FW_CMD_READ);
+	devlog_cmd.retval_len16 = htobe32(FW_LEN16(devlog_cmd));
+	rc = -t4_wr_mbox(sc, sc->mbox, &devlog_cmd, sizeof(devlog_cmd),
+	    &devlog_cmd);
+	if (rc != 0) {
+		device_printf(sc->dev,
+		    "failed to get devlog parameters: %d.\n", rc);
+		bzero(dlog, sizeof (*dlog));
+		return (rc);
+	}
+
+	meminfo = be32toh(devlog_cmd.memtype_devlog_memaddr16_devlog);
+	dlog->memtype = G_FW_DEVLOG_CMD_MEMTYPE_DEVLOG(meminfo);
+	dlog->start = G_FW_DEVLOG_CMD_MEMADDR16_DEVLOG(meminfo) << 4;
+	dlog->size = be32toh(devlog_cmd.memsize_devlog);
 
 	return (0);
 }
@@ -1923,16 +1967,18 @@ cxgbe_uninit_synchronized(struct port_info *pi)
 	return (0);
 }
 
-#define T4_ALLOC_IRQ(sc, irqid, rid, handler, arg, name) do { \
-	rc = t4_alloc_irq(sc, &sc->irq[irqid], rid, handler, arg, name); \
+#define T4_ALLOC_IRQ(sc, irq, rid, handler, arg, name) do { \
+	rc = t4_alloc_irq(sc, irq, rid, handler, arg, name); \
 	if (rc != 0) \
 		goto done; \
 } while (0)
 static int
 first_port_up(struct adapter *sc)
 {
-	int rc, i;
-	char name[8];
+	int rc, i, rid, p, q;
+	char s[8];
+	struct irq *irq;
+	struct sge_iq *intrq;
 
 	ADAPTER_LOCK_ASSERT_NOTOWNED(sc);
 
@@ -1946,39 +1992,52 @@ first_port_up(struct adapter *sc)
 	/*
 	 * Setup interrupts.
 	 */
+	irq = &sc->irq[0];
+	rid = sc->intr_type == INTR_INTX ? 0 : 1;
 	if (sc->intr_count == 1) {
-		KASSERT(sc->flags & INTR_FWD,
-		    ("%s: single interrupt but not forwarded?", __func__));
-		T4_ALLOC_IRQ(sc, 0, 0, t4_intr_all, sc, "all");
+		KASSERT(sc->flags & INTR_SHARED,
+		    ("%s: single interrupt but not shared?", __func__));
+
+		T4_ALLOC_IRQ(sc, irq, rid, t4_intr_all, sc, "all");
 	} else {
 		/* Multiple interrupts.  The first one is always error intr */
-		T4_ALLOC_IRQ(sc, 0, 1, t4_intr_err, sc, "err");
+		T4_ALLOC_IRQ(sc, irq, rid, t4_intr_err, sc, "err");
+		irq++;
+		rid++;
 
-		if (sc->flags & INTR_FWD) {
-			/* The rest are shared by the fwq and all data intr */
-			for (i = 1; i < sc->intr_count; i++) {
-				snprintf(name, sizeof(name), "mux%d", i - 1);
-				T4_ALLOC_IRQ(sc, i, i + 1, t4_intr_fwd,
-				    &sc->sge.fiq[i - 1], name);
+		/* Firmware event queue normally has an interrupt of its own */
+		if (sc->intr_count > T4_EXTRA_INTR) {
+			T4_ALLOC_IRQ(sc, irq, rid, t4_intr_evt, &sc->sge.fwq,
+			    "evt");
+			irq++;
+			rid++;
+		}
+
+		intrq = &sc->sge.intrq[0];
+		if (sc->flags & INTR_SHARED) {
+
+			/* All ports share these interrupt queues */
+
+			for (i = 0; i < NINTRQ(sc); i++) {
+				snprintf(s, sizeof(s), "*.%d", i);
+				T4_ALLOC_IRQ(sc, irq, rid, t4_intr, intrq, s);
+				irq++;
+				rid++;
+				intrq++;
 			}
 		} else {
-			struct port_info *pi;
-			int p, q;
 
-			T4_ALLOC_IRQ(sc, 1, 2, t4_intr_evt, &sc->sge.fwq,
-			    "evt");
+			/* Each port has its own set of interrupt queues */
 
-			p = q = 0;
-			pi = sc->port[p];
-			for (i = 2; i < sc->intr_count; i++) {
-				snprintf(name, sizeof(name), "p%dq%d", p, q);
-				if (++q >= pi->nrxq) {
-					p++;
-					q = 0;
-					pi = sc->port[p];
+			for (p = 0; p < sc->params.nports; p++) {
+				for (q = 0; q < sc->port[p]->nrxq; q++) {
+					snprintf(s, sizeof(s), "%d.%d", p, q);
+					T4_ALLOC_IRQ(sc, irq, rid, t4_intr,
+					    intrq, s);
+					irq++;
+					rid++;
+					intrq++;
 				}
-				T4_ALLOC_IRQ(sc, i, i + 1, t4_intr_data,
-				    &sc->sge.rxq[i - 2], name);
 			}
 		}
 	}
@@ -2366,6 +2425,12 @@ t4_sysctls(struct adapter *sc)
 	    CTLTYPE_STRING | CTLFLAG_RD, &intr_pktcount, sizeof(intr_pktcount),
 	    sysctl_int_array, "A", "interrupt holdoff packet counter values");
 
+#ifdef T4_DEVLOG
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "devlog",
+	    CTLTYPE_STRING | CTLFLAG_RD, sc, 0,
+	    sysctl_devlog, "A", "device log");
+#endif
+
 	return (0);
 }
 
@@ -2416,7 +2481,7 @@ cxgbe_sysctls(struct port_info *pi)
 
 #define SYSCTL_ADD_T4_REG64(pi, name, desc, reg) \
 	SYSCTL_ADD_OID(ctx, children, OID_AUTO, name, \
-	    CTLTYPE_QUAD | CTLFLAG_RD, pi->adapter, reg, \
+	    CTLTYPE_U64 | CTLFLAG_RD, pi->adapter, reg, \
 	    sysctl_handle_t4_reg64, "QU", desc)
 
 	SYSCTL_ADD_T4_REG64(pi, "tx_octets", "# of octets in good frames",
@@ -2540,7 +2605,7 @@ cxgbe_sysctls(struct port_info *pi)
 #undef SYSCTL_ADD_T4_REG64
 
 #define SYSCTL_ADD_T4_PORTSTAT(name, desc) \
-	SYSCTL_ADD_QUAD(ctx, children, OID_AUTO, #name, CTLFLAG_RD, \
+	SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO, #name, CTLFLAG_RD, \
 	    &pi->stats.name, desc)
 
 	/* We get these from port_stats and they may be stale by upto 1s */
@@ -2706,8 +2771,124 @@ sysctl_handle_t4_reg64(SYSCTL_HANDLER_ARGS)
 
 	val = t4_read_reg64(sc, reg);
 
-	return (sysctl_handle_quad(oidp, &val, 0, req));
+	return (sysctl_handle_64(oidp, &val, 0, req));
 }
+
+#ifdef T4_DEVLOG
+const char *devlog_level_strings[] = {
+	[FW_DEVLOG_LEVEL_EMERG]		= "EMERG",
+	[FW_DEVLOG_LEVEL_CRIT]		= "CRIT",
+	[FW_DEVLOG_LEVEL_ERR]		= "ERR",
+	[FW_DEVLOG_LEVEL_NOTICE]	= "NOTICE",
+	[FW_DEVLOG_LEVEL_INFO]		= "INFO",
+	[FW_DEVLOG_LEVEL_DEBUG]		= "DEBUG"
+};
+
+const char *devlog_facility_strings[] = {
+	[FW_DEVLOG_FACILITY_CORE]	= "CORE",
+	[FW_DEVLOG_FACILITY_SCHED]	= "SCHED",
+	[FW_DEVLOG_FACILITY_TIMER]	= "TIMER",
+	[FW_DEVLOG_FACILITY_RES]	= "RES",
+	[FW_DEVLOG_FACILITY_HW]		= "HW",
+	[FW_DEVLOG_FACILITY_FLR]	= "FLR",
+	[FW_DEVLOG_FACILITY_DMAQ]	= "DMAQ",
+	[FW_DEVLOG_FACILITY_PHY]	= "PHY",
+	[FW_DEVLOG_FACILITY_MAC]	= "MAC",
+	[FW_DEVLOG_FACILITY_PORT]	= "PORT",
+	[FW_DEVLOG_FACILITY_VI]		= "VI",
+	[FW_DEVLOG_FACILITY_FILTER]	= "FILTER",
+	[FW_DEVLOG_FACILITY_ACL]	= "ACL",
+	[FW_DEVLOG_FACILITY_TM]		= "TM",
+	[FW_DEVLOG_FACILITY_QFC]	= "QFC",
+	[FW_DEVLOG_FACILITY_DCB]	= "DCB",
+	[FW_DEVLOG_FACILITY_ETH]	= "ETH",
+	[FW_DEVLOG_FACILITY_OFLD]	= "OFLD",
+	[FW_DEVLOG_FACILITY_RI]		= "RI",
+	[FW_DEVLOG_FACILITY_ISCSI]	= "ISCSI",
+	[FW_DEVLOG_FACILITY_FCOE]	= "FCOE",
+	[FW_DEVLOG_FACILITY_FOISCSI]	= "FOISCSI",
+	[FW_DEVLOG_FACILITY_FOFCOE]	= "FOFCOE"
+};
+
+static int
+sysctl_devlog(SYSCTL_HANDLER_ARGS)
+{
+	struct adapter *sc = arg1;
+	struct devlog_params *dparams = &sc->params.devlog;
+	struct fw_devlog_e *buf, *e;
+	int i, j, rc, nentries, first = 0;
+	struct sbuf *sb;
+	uint64_t ftstamp = UINT64_MAX;
+
+	if (dparams->start == 0)
+		return (ENXIO);
+
+	nentries = dparams->size / sizeof(struct fw_devlog_e);
+
+	buf = malloc(dparams->size, M_CXGBE, M_NOWAIT);
+	if (buf == NULL)
+		return (ENOMEM);
+
+	rc = -t4_mem_read(sc, dparams->memtype, dparams->start, dparams->size,
+	    (void *)buf);
+	if (rc != 0)
+		goto done;
+
+	for (i = 0; i < nentries; i++) {
+		e = &buf[i];
+
+		if (e->timestamp == 0)
+			break;	/* end */
+
+		e->timestamp = be64toh(e->timestamp);
+		e->seqno = be32toh(e->seqno);
+		for (j = 0; j < 8; j++)
+			e->params[j] = be32toh(e->params[j]);
+
+		if (e->timestamp < ftstamp) {
+			ftstamp = e->timestamp;
+			first = i;
+		}
+	}
+
+	if (buf[first].timestamp == 0)
+		goto done;	/* nothing in the log */
+
+	rc = sysctl_wire_old_buffer(req, 0);
+	if (rc != 0)
+		goto done;
+
+	sb = sbuf_new_for_sysctl(NULL, NULL, 4096, req);
+	sbuf_printf(sb, "\n%10s  %15s  %8s  %8s  %s\n",
+	    "Seq#", "Tstamp", "Level", "Facility", "Message");
+
+	i = first;
+	do {
+		e = &buf[i];
+		if (e->timestamp == 0)
+			break;	/* end */
+
+		sbuf_printf(sb, "%10d  %15ju  %8s  %8s  ",
+		    e->seqno, e->timestamp,
+		    (e->level < ARRAY_SIZE(devlog_level_strings) ?
+			devlog_level_strings[e->level] : "UNKNOWN"),
+		    (e->facility < ARRAY_SIZE(devlog_facility_strings) ?
+			devlog_facility_strings[e->facility] : "UNKNOWN"));
+		sbuf_printf(sb, e->fmt, e->params[0], e->params[1],
+		    e->params[2], e->params[3], e->params[4],
+		    e->params[5], e->params[6], e->params[7]);
+
+		if (++i == nentries)
+			i = 0;
+	} while (i != first);
+
+	rc = sbuf_finish(sb);
+	sbuf_delete(sb);
+done:
+	free(buf, M_CXGBE);
+	return (rc);
+}
+#endif
 
 static inline void
 txq_start(struct ifnet *ifp, struct sge_txq *txq)
@@ -2892,6 +3073,20 @@ done:
 	return (rc);
 }
 
+static inline uint64_t
+get_filter_hits(struct adapter *sc, uint32_t fid)
+{
+	uint32_t tcb_base = t4_read_reg(sc, A_TP_CMM_TCB_BASE);
+	uint64_t hits;
+
+	t4_write_reg(sc, PCIE_MEM_ACCESS_REG(A_PCIE_MEM_ACCESS_OFFSET, 0),
+	    tcb_base + (fid + sc->tids.ftid_base) * TCB_SIZE);
+	t4_read_reg(sc, PCIE_MEM_ACCESS_REG(A_PCIE_MEM_ACCESS_OFFSET, 0));
+	hits = t4_read_reg64(sc, MEMWIN0_BASE + 16);
+
+	return (be64toh(hits));
+}
+
 static int
 get_filter(struct adapter *sc, struct t4_filter *t)
 {
@@ -2913,8 +3108,13 @@ get_filter(struct adapter *sc, struct t4_filter *t)
 	for (i = t->idx; i < nfilters; i++, f++) {
 		if (f->valid) {
 			t->idx = i;
+			t->l2tidx = f->l2t ? f->l2t->idx : 0;
+			t->smtidx = f->smtidx;
+			if (f->fs.hitcnts)
+				t->hits = get_filter_hits(sc, t->idx);
+			else
+				t->hits = UINT64_MAX;
 			t->fs = f->fs;
-			t->hits = 0;	/* XXX implement */
 
 			return (0);
 		}
@@ -3034,11 +3234,12 @@ del_filter(struct adapter *sc, struct t4_filter *t)
 	return (0);
 }
 
-/* XXX: L2T */
 static void
-clear_filter(struct adapter *sc, struct filter_entry *f)
+clear_filter(struct filter_entry *f)
 {
-	(void) sc;
+	if (f->l2t)
+		t4_l2t_release(f->l2t);
+
 	bzero(f, sizeof (*f));
 }
 
@@ -3053,8 +3254,18 @@ set_filter_wr(struct adapter *sc, int fidx)
 
 	ADAPTER_LOCK_ASSERT_OWNED(sc);
 
-	if (f->fs.newdmac || f->fs.newvlan)
-		return (ENOTSUP);	/* XXX: fix after L2T code */
+	if (f->fs.newdmac || f->fs.newvlan) {
+		/* This filter needs an L2T entry; allocate one. */
+		f->l2t = t4_l2t_alloc_switching(sc->l2t);
+		if (f->l2t == NULL)
+			return (EAGAIN);
+		if (t4_l2t_set_switching(sc, f->l2t, f->fs.vlan, f->fs.eport,
+		    f->fs.dmac)) {
+			t4_l2t_release(f->l2t);
+			f->l2t = NULL;
+			return (ENOMEM);
+		}
+	}
 
 	ftid = sc->tids.ftid_base + fidx;
 
@@ -3089,7 +3300,7 @@ set_filter_wr(struct adapter *sc, int fidx)
 		V_FW_FILTER_WR_HITCNTS(f->fs.hitcnts) |
 		V_FW_FILTER_WR_TXCHAN(f->fs.eport) |
 		V_FW_FILTER_WR_PRIO(f->fs.prio) |
-		V_FW_FILTER_WR_L2TIX(0));	/* XXX: L2T */
+		V_FW_FILTER_WR_L2TIX(f->l2t ? f->l2t->idx : 0));
 	fwr->ethtype = htobe16(f->fs.val.ethtype);
 	fwr->ethtypem = htobe16(f->fs.mask.ethtype);
 	fwr->frag_to_ovlan_vldm =
@@ -3101,7 +3312,7 @@ set_filter_wr(struct adapter *sc, int fidx)
 		V_FW_FILTER_WR_OVLAN_VLDM(f->fs.mask.ovlan_vld));
 	fwr->smac_sel = 0;
 	fwr->rx_chan_rx_rpl_iq = htobe16(V_FW_FILTER_WR_RX_CHAN(0) |
-	    V_FW_FILTER_WR_RX_RPL_IQ(sc->sge.fwq.abs_id));
+	    V_FW_FILTER_WR_RX_RPL_IQ(sc->sge.intrq[0].abs_id));
 	fwr->maci_to_matchtypem =
 	    htobe32(V_FW_FILTER_WR_MACI(f->fs.val.macidx) |
 		V_FW_FILTER_WR_MACIM(f->fs.mask.macidx) |
@@ -3136,7 +3347,7 @@ set_filter_wr(struct adapter *sc, int fidx)
 	if (rc != 0) {
 		sc->tids.ftids_in_use--;
 		m_freem(m);
-		clear_filter(sc, f);
+		clear_filter(f);
 	}
 	return (rc);
 }
@@ -3161,7 +3372,7 @@ del_filter_wr(struct adapter *sc, int fidx)
 	m->m_len = m->m_pkthdr.len = sizeof(*fwr);
 	bzero(fwr, sizeof (*fwr));
 
-	t4_mk_filtdelwr(ftid, fwr, sc->sge.fwq.abs_id);
+	t4_mk_filtdelwr(ftid, fwr, sc->sge.intrq[0].abs_id);
 
 	f->pending = 1;
 	rc = t4_mgmt_tx(sc, m);
@@ -3188,12 +3399,12 @@ filter_rpl(struct adapter *sc, const struct cpl_set_tcb_rpl *rpl)
 			 * Clear the filter when we get confirmation from the
 			 * hardware that the filter has been deleted.
 			 */
-			clear_filter(sc, f);
+			clear_filter(f);
 			sc->tids.ftids_in_use--;
 		} else if (rc == FW_FILTER_WR_SMT_TBL_FULL) {
 			device_printf(sc->dev,
 			    "filter %u setup failed due to full SMT\n", idx);
-			clear_filter(sc, f);
+			clear_filter(f);
 			sc->tids.ftids_in_use--;
 		} else if (rc == FW_FILTER_WR_FLT_ADDED) {
 			f->smtidx = (be64toh(rpl->oldval) >> 24) & 0xff;
@@ -3206,7 +3417,7 @@ filter_rpl(struct adapter *sc, const struct cpl_set_tcb_rpl *rpl)
 			 */
 			device_printf(sc->dev,
 			    "filter %u setup failed with error %u\n", idx, rc);
-			clear_filter(sc, f);
+			clear_filter(f);
 			sc->tids.ftids_in_use--;
 		}
 	}

@@ -178,6 +178,8 @@ struct t4_filter_specification {
 
 struct t4_filter {
 	uint32_t idx;
+	uint16_t l2tidx;
+	uint16_t smtidx;
 	uint64_t hits;
 	struct t4_filter_specification fs;
 };
