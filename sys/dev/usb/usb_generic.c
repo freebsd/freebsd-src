@@ -966,10 +966,8 @@ ugen_re_enumerate(struct usb_fifo *f)
 		/* ignore any errors */
 		DPRINTFN(6, "no FIFOs\n");
 	}
-	if (udev->re_enumerate_wait == 0) {
-		udev->re_enumerate_wait = 1;
-		usb_needs_explore(udev->bus, 0);
-	}
+	/* start re-enumeration of device */
+	usbd_start_re_enumerate(udev);
 	return (0);
 }
 
