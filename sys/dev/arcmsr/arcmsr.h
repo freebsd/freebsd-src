@@ -46,7 +46,7 @@
 #define ARCMSR_MAX_OUTSTANDING_CMD			256
 #define ARCMSR_MAX_START_JOB				257
 #define ARCMSR_MAX_CMD_PERLUN				ARCMSR_MAX_OUTSTANDING_CMD
-#define ARCMSR_MAX_FREESRB_NUM				320
+#define ARCMSR_MAX_FREESRB_NUM				384
 #define ARCMSR_MAX_QBUFFER					4096 /* ioctl QBUFFER */
 #define ARCMSR_MAX_SG_ENTRIES				38 /* max 38*/
 #define ARCMSR_MAX_ADAPTER					4
@@ -714,23 +714,13 @@ struct CommandControlBlock {
 	u_int32_t					cdb_shifted_phyaddr;	/* 504-507 */
 	u_int32_t					arc_cdb_size;			/* 508-511 */
 	/*  ======================512+32 bytes============================  */
-#if defined(__x86_64__) || defined(__amd64__) || defined(__ia64__) || defined(__sparc64__) || defined(__powerpc__)
 	union ccb					*pccb;					/* 512-515 516-519 pointer of freebsd scsi command */
 	struct AdapterControlBlock	*acb;					/* 520-523 524-527 */
 	bus_dmamap_t				dm_segs_dmamap;			/* 528-531 532-535 */
 	u_int16_t   				srb_flags;				/* 536-537 */
-	u_int16_t					startdone;                /* 538-539 */
-	u_int32_t					reserved2;                /* 540-543 */
-#else
-	union ccb					*pccb;                    /* 512-515 pointer of freebsd scsi command */
-	struct AdapterControlBlock	*acb;                     /* 516-519 */
-	bus_dmamap_t				dm_segs_dmamap;           /* 520-523 */
-	u_int16_t   				srb_flags;                /* 524-525 */
-	u_int16_t					startdone;                /* 526-527 */
-	u_int32_t					reserved2[4];             /* 528-531 532-535 536-539 540-543 */
-#endif
+	u_int16_t					srb_state;                /* 538-539 */
+	struct	callout				ccb_callout;
     /*  ==========================================================  */
-/*	struct	callout				ccb_callout; */
 };
 /*	srb_flags */
 #define		SRB_FLAG_READ				0x0000
@@ -742,7 +732,8 @@ struct CommandControlBlock {
 #define		SRB_FLAG_DMACONSISTENT  	0x0020
 #define		SRB_FLAG_DMAWRITE			0x0040
 #define		SRB_FLAG_PKTBIND			0x0080
-/*	startdone */
+#define		SRB_FLAG_TIMER_START		0x0080
+/*	srb_state */
 #define		ARCMSR_SRB_DONE   			0x0000
 #define		ARCMSR_SRB_UNBUILD 			0x0000
 #define		ARCMSR_SRB_TIMEOUT 			0x1111
@@ -775,18 +766,18 @@ struct AdapterControlBlock {
 #if __FreeBSD_version < 503000
 	dev_t						ioctl_dev;
 #else
-	struct cdev *				ioctl_dev;
+	struct cdev					*ioctl_dev;
 #endif
 	int							pci_unit;
 	
-	struct resource *			sys_res_arcmsr[2];
-	struct resource *			irqres;
-	void *						ih;                         /* interrupt handle */
+	struct resource				*sys_res_arcmsr[2];
+	struct resource				*irqres;
+	void						*ih;                         /* interrupt handle */
 	
 	/* Hooks into the CAM XPT */
 	struct						cam_sim *psim;
 	struct						cam_path *ppath;
-	u_int8_t *					uncacheptr;
+	u_int8_t					*uncacheptr;
 	unsigned long				vir2phy_offset;
 	union	{
 		unsigned long			phyaddr;
@@ -799,14 +790,14 @@ struct AdapterControlBlock {
 	/* Offset is used in making arc cdb physical to virtual calculations */
 	u_int32_t					outbound_int_enable;
 	
-	struct MessageUnit_UNION *	pmu;                        /* message unit ATU inbound base address0 */
+	struct MessageUnit_UNION	*pmu;                        /* message unit ATU inbound base address0 */
 	
 	u_int8_t					adapter_index;              /*  */
 	u_int8_t					irq;
 	u_int16_t					acb_flags;                  /*  */
 	
-	struct CommandControlBlock *	psrb_pool[ARCMSR_MAX_FREESRB_NUM];     /* serial srb pointer array */
-	struct CommandControlBlock *	srbworkingQ[ARCMSR_MAX_FREESRB_NUM];   /* working srb pointer array */
+	struct CommandControlBlock *psrb_pool[ARCMSR_MAX_FREESRB_NUM];     /* serial srb pointer array */
+	struct CommandControlBlock *srbworkingQ[ARCMSR_MAX_FREESRB_NUM];   /* working srb pointer array */
 	int32_t						workingsrb_doneindex;                  /* done srb array index */
 	int32_t						workingsrb_startindex;                 /* start srb array index  */
 	int32_t						srboutstandingcount;
@@ -835,6 +826,10 @@ struct AdapterControlBlock {
 	char						firm_version[20];           /*17,68-83*/
 	char						device_map[20];				/*21,84-99 */
 	struct	callout				devmap_callout;
+#ifdef ARCMSR_DEBUG1
+	u_int32_t					pktRequestCount;
+	u_int32_t					pktReturnCount;
+#endif	
 };/* HW_DEVICE_EXTENSION */
 /* acb_flags */
 #define ACB_F_SCSISTOPADAPTER           0x0001
