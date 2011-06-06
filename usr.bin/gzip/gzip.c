@@ -1,4 +1,4 @@
-/*	$NetBSD: gzip.c,v 1.97 2009/10/11 09:17:21 mrg Exp $	*/
+/*	$NetBSD: gzip.c,v 1.99 2011/03/23 12:59:44 tsutsui Exp $	*/
 
 /*-
  * Copyright (c) 1997, 1998, 2003, 2004, 2006 Matthew R. Green
@@ -31,7 +31,7 @@
 #ifndef lint
 __COPYRIGHT("@(#) Copyright (c) 1997, 1998, 2003, 2004, 2006\
  Matthew R. Green.  All rights reserved.");
-__RCSID("$FreeBSD$");
+__FBSDID("$FreeBSD$");
 #endif /* not lint */
 
 /*
@@ -146,7 +146,7 @@ static suffixes_t suffixes[] = {
 #define NUM_SUFFIXES (sizeof suffixes / sizeof suffixes[0])
 #define SUFFIX_MAXLEN	30
 
-static	const char	gzip_version[] = "FreeBSD gzip 20100407";
+static	const char	gzip_version[] = "FreeBSD gzip 20110523";
 
 #ifndef SMALL
 static	const char	gzip_copyright[] = \
@@ -314,7 +314,7 @@ main(int argc, char **argv)
 		dflag = cflag = 1;
 
 #ifdef SMALL
-#define OPT_LIST "123456789cdhltV"
+#define OPT_LIST "123456789cdhlV"
 #else
 #define OPT_LIST "123456789acdfhklLNnqrS:tVv"
 #endif
@@ -918,6 +918,7 @@ gz_uncompress(int in, int out, char *pre, size_t prelen, off_t *gsizep,
 			case Z_BUF_ERROR:
 				if (z.avail_out > 0 && !done_reading)
 					continue;
+
 			case Z_STREAM_END:
 			case Z_OK:
 				break;
@@ -1781,7 +1782,8 @@ handle_pathname(char *path)
 	}
 
 retry:
-	if (stat(path, &sb) != 0) {
+	if (stat(path, &sb) != 0 || (fflag == 0 && cflag == 0 &&
+	    lstat(path, &sb) != 0)) {
 		/* lets try <path>.gz if we're decompressing */
 		if (dflag && s == NULL && errno == ENOENT) {
 			len = strlen(path);
