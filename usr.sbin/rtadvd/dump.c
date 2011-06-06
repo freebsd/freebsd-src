@@ -310,7 +310,7 @@ dname_labeldec(char *dst, size_t dlen, const char *src)
 	    (src + len) <= src_last) {
 		if (dst != dst_origin)
 			*dst++ = '.';
-		syslog(LOG_DEBUG, "<%s> labellen = %d", __func__, len);
+		syslog(LOG_DEBUG, "<%s> labellen = %zd", __func__, len);
 		memcpy(dst, src, len);
 		src += len;
 		dst += len;
