@@ -499,6 +499,8 @@ static struct cmd inet6_cmds[] = {
 	DEF_CMD("-autoconf",	-IN6_IFF_AUTOCONF,	setip6flags),
 	DEF_CMD("accept_rtadv",	ND6_IFF_ACCEPT_RTADV,	setnd6flags),
 	DEF_CMD("-accept_rtadv",-ND6_IFF_ACCEPT_RTADV,	setnd6flags),
+	DEF_CMD("no_radr",	ND6_IFF_NO_RADR,	setnd6flags),
+	DEF_CMD("-no_radr",	-ND6_IFF_NO_RADR,	setnd6flags),
 	DEF_CMD("defaultif",	1,			setnd6defif),
 	DEF_CMD("-defaultif",	-1,			setnd6defif),
 	DEF_CMD("ifdisabled",	ND6_IFF_IFDISABLED,	setnd6flags),
