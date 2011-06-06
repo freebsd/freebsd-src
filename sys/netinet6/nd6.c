@@ -193,8 +193,8 @@ nd6_ifattach(struct ifnet *ifp)
 	/* A loopback interface does not need to accept RTADV. */
 	if (V_ip6_accept_rtadv && !(ifp->if_flags & IFF_LOOPBACK))
 		nd->flags |= ND6_IFF_ACCEPT_RTADV;
-	if (V_ip6_defroute_rtadv && !(ifp->if_flags & IFF_LOOPBACK))
-		nd->flags |= ND6_IFF_DEFROUTE_RTADV;
+	if (V_ip6_no_radr && !(ifp->if_flags & IFF_LOOPBACK))
+		nd->flags |= ND6_IFF_NO_RADR;
 
 	/* XXX: we cannot call nd6_setmtu since ifp is not fully initialized */
 	nd6_setmtu0(ifp, nd);
@@ -1328,7 +1328,7 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 		 */
 		if ((ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED) &&
 		    (ND.flags & (ND6_IFF_ACCEPT_RTADV |
-			    ND6_IFF_AUTO_LINKLOCAL)))
+		    ND6_IFF_AUTO_LINKLOCAL)))
 			ND.flags &= ~ND6_IFF_IFDISABLED;
 
 		if ((ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED) &&
