@@ -611,7 +611,10 @@ struct ip6_mtuinfo {
 #define IPV6CTL_STEALTH		45
 
 #define	ICMPV6CTL_ND6_ONLINKNSRFC4861	47
-#define IPV6CTL_MAXID		48
+#define	IPV6CTL_NO_RADR		48	/* No defroute from RA */
+#define	IPV6CTL_NORBIT_RAIF	49	/* Disable R-bit in NA on RA
+					 * receiving IF. */
+#define	IPV6CTL_MAXID		50
 #endif /* __BSD_VISIBLE */
 
 /*
