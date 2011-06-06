@@ -692,6 +692,10 @@ check_uidgid(ipfw_insn_u32 *insn, int proto, struct ifnet *oif,
 	lookupflags |= INPLOOKUP_RLOCKPCB;
 	match = 0;
 	if (*ugid_lookupp == 0) {
+		/*
+		 * XXXRW: If we had the mbuf here, could use
+		 * in_pcblookup_mbuf().
+		 */
 		pcb =  (oif) ?
 			in_pcblookup(pi,
 				dst_ip, htons(dst_port),

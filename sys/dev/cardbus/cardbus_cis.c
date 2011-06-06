@@ -324,7 +324,7 @@ decode_tuple_bar(device_t cbdev, device_t child, int id,
 		 * hint when the cardbus bridge is a child of pci0 (the main
 		 * bus).  The PC Card spec seems to indicate that this should
 		 * only be done on x86 based machines, which suggests that on
-		 * non-x86 machines the adddresses can be anywhere.  Since the
+		 * non-x86 machines the addresses can be anywhere.  Since the
 		 * hardware can do it on non-x86 machines, it should be able
 		 * to do it on x86 machines too.  Therefore, we can and should
 		 * ignore this hint.  Furthermore, the PC Card spec recommends
@@ -430,7 +430,6 @@ cardbus_read_tuple_finish(device_t cbdev, device_t child, int rid,
 {
 	if (res != CIS_CONFIG_SPACE) {
 		bus_release_resource(child, SYS_RES_MEMORY, rid, res);
-		bus_delete_resource(child, SYS_RES_MEMORY, rid);
 	}
 }
 
@@ -467,7 +466,7 @@ cardbus_read_tuple_init(device_t cbdev, device_t child, uint32_t *start,
 	}
 
 	/* allocate the memory space to read CIS */
-	res = bus_alloc_resource(child, SYS_RES_MEMORY, rid, 0, ~0, 1,
+	res = bus_alloc_resource_any(child, SYS_RES_MEMORY, rid,
 	    rman_make_alignment_flags(4096) | RF_ACTIVE);
 	if (res == NULL) {
 		device_printf(cbdev, "Unable to allocate resource "

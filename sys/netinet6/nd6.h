@@ -85,6 +85,7 @@ struct nd_ifinfo {
 				     */
 #define ND6_IFF_DONT_SET_IFROUTE	0x10
 #define ND6_IFF_AUTO_LINKLOCAL	0x20
+#define	ND6_IFF_NO_RADR		0x40
 
 #define	ND6_CREATE		LLE_CREATE
 #define	ND6_EXCLUSIVE		LLE_EXCLUSIVE

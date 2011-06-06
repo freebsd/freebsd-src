@@ -51,12 +51,12 @@ static puc_config_f puc_config_amc;
 static puc_config_f puc_config_diva;
 static puc_config_f puc_config_exar;
 static puc_config_f puc_config_icbook;
+static puc_config_f puc_config_oxford_pcie;
 static puc_config_f puc_config_quatech;
 static puc_config_f puc_config_syba;
 static puc_config_f puc_config_siig;
 static puc_config_f puc_config_timedia;
 static puc_config_f puc_config_titan;
-static puc_config_f puc_config_oxford_pcie;
 
 const struct puc_cfg puc_pci_devices[] = {
 
@@ -1366,14 +1366,12 @@ puc_config_oxford_pcie(struct puc_softc *sc, enum puc_cfg_cmd cmd, int port,
 		bar = puc_get_bar(sc, cfg->rid);
 		if (bar == NULL)
 			return (ENXIO);
-
 		for (idx = 0; idx < sc->sc_nports; idx++) {
-			value = bus_read_1(bar->b_res, 0x1000 + (idx << 9)
-				+ 0x92);
+			value = bus_read_1(bar->b_res, 0x1000 + (idx << 9) +
+			    0x92);
 			bus_write_1(bar->b_res, 0x1000 + (idx << 9) + 0x92,
-				value | 0x10);
+			    value | 0x10);
 		}
-
 		return (0);
 	case PUC_CFG_GET_LEN:
 		*res = 0x200;

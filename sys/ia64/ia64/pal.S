@@ -38,43 +38,40 @@ ia64_pal_entry:	.quad 0
  *	u_int64_t arg1, u_int64_t arg2, u_int64_t arg3)
  */
 ENTRY(ia64_call_pal_static, 4)
-	
-	.regstk	4,5,0,0
+
+	.regstk	4,4,0,0
 palret	=	loc0
 entry	=	loc1
 rpsave	=	loc2
 pfssave =	loc3
-psrsave	=	loc4
 
-	alloc	pfssave=ar.pfs,4,5,0,0
+	alloc	pfssave=ar.pfs,4,4,0,0
 	;; 
 	mov	rpsave=rp
-
 	movl	entry=@gprel(ia64_pal_entry)
+
 1:	mov	palret=ip		// for return address
 	;;
 	add	entry=entry,gp
-	mov	psrsave=psr
+	add	palret=2f-1b,palret	// calculate return address
 	mov	r28=in0			// procedure number
-	;;
-	ld8	entry=[entry]		// read entry point
 	mov	r29=in1			// copy arguments
 	mov	r30=in2
 	mov	r31=in3
 	;;
-	mov	b6=entry
-	add	palret=2f-1b,palret	// calculate return address
-	;;
+	ld8	entry=[entry]		// read entry point
 	mov	b0=palret
-	rsm	psr.i			// disable interrupts
+	;;
+	mov	b6=entry
 	;;
 	br.cond.sptk b6			// call into firmware
-2:	mov	psr.l=psrsave
+	;;
+2:
 	mov	rp=rpsave
 	mov	ar.pfs=pfssave
 	;;
-	srlz.d
 	br.ret.sptk rp
+	;;
 END(ia64_call_pal_static)
 
 /*

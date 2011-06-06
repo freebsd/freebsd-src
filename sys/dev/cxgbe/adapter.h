@@ -396,6 +396,7 @@ struct sge_ctrlq {
 struct sge {
 	uint16_t timer_val[SGE_NTIMERS];
 	uint8_t  counter_val[SGE_NCOUNTERS];
+	int fl_starve_threshold;
 
 	int nrxq;	/* total rx queues (all ports and the rest) */
 	int ntxq;	/* total tx queues (all ports and the rest) */

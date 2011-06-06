@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
+#include "opt_pcbgroup.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -676,8 +677,14 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 #ifdef INET6
 	}
 #endif
+
+	/*
+	 * Install in the reservation hash table for now, but don't yet
+	 * install a connection group since the full 4-tuple isn't yet
+	 * configured.
+	 */
 	inp->inp_lport = sc->sc_inc.inc_lport;
-	if ((error = in_pcbinshash(inp)) != 0) {
+	if ((error = in_pcbinshash_nopcbgroup(inp)) != 0) {
 		/*
 		 * Undo the assignments above if we failed to
 		 * put the PCB on the hash lists.
