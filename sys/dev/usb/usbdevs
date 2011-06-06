@@ -2264,7 +2264,9 @@ product MOBILITY EASIDOCK	0x0304	EasiDock Ethernet
 
 /* MosChip products */
 product MOSCHIP MCS7703		0x7703	MCS7703 Serial Port Adapter
+product MOSCHIP MCS7820		0x7820	MCS7820 Serial Port Adapter
 product MOSCHIP MCS7830		0x7830	MCS7830 Ethernet
+product MOSCHIP MCS7840		0x7840	MCS7840 Serial Port Adapter
 
 /* Motorola products */
 product MOTOROLA MC141555	0x1555	MC141555 hub controller

@@ -1792,6 +1792,7 @@ dev/usb/serial/uftdi.c		optional uftdi
 dev/usb/serial/ugensa.c		optional ugensa
 dev/usb/serial/uipaq.c		optional uipaq
 dev/usb/serial/ulpt.c		optional ulpt
+dev/usb/serial/umcs.c		optional umcs
 dev/usb/serial/umct.c		optional umct
 dev/usb/serial/umodem.c		optional umodem
 dev/usb/serial/umoscom.c	optional umoscom
@@ -1801,7 +1802,7 @@ dev/usb/serial/uvisor.c		optional uvisor
 dev/usb/serial/uvscom.c		optional uvscom
 dev/usb/serial/usb_serial.c 	optional ucom | u3g | uark | ubsa | ubser | \
 					 uchcom | ucycom | ufoma | uftdi | \
-					 ugensa | uipaq | ulpt | umct | \
+					 ugensa | uipaq | umcs | umct | \
 					 umodem | umoscom | uplcom | uslcom | \
 					 uvisor | uvscom
 #
