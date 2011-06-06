@@ -401,10 +401,10 @@ int nfsrpc_readdirplus(vnode_t, struct uio *, nfsuint64 *,
 int nfsrpc_commit(vnode_t, u_quad_t, int, struct ucred *,
     NFSPROC_T *, u_char *, struct nfsvattr *, int *, void *);
 int nfsrpc_advlock(vnode_t, off_t, int, struct flock *, int,
-    struct ucred *, NFSPROC_T *);
+    struct ucred *, NFSPROC_T *, void *, int);
 int nfsrpc_lockt(struct nfsrv_descript *, vnode_t,
     struct nfsclclient *, u_int64_t, u_int64_t, struct flock *,
-    struct ucred *, NFSPROC_T *);
+    struct ucred *, NFSPROC_T *, void *, int);
 int nfsrpc_lock(struct nfsrv_descript *, struct nfsmount *, vnode_t,
     u_int8_t *, int, struct nfscllockowner *, int, int, u_int64_t,
     u_int64_t, short, struct ucred *, NFSPROC_T *, int);
@@ -439,16 +439,16 @@ struct nfsclclient *nfscl_findcl(struct nfsmount *);
 void nfscl_clientrelease(struct nfsclclient *);
 void nfscl_freelock(struct nfscllock *, int);
 int nfscl_getbytelock(vnode_t, u_int64_t, u_int64_t, short,
-    struct ucred *, NFSPROC_T *, struct nfsclclient *, int, u_int8_t *,
-    u_int8_t *, struct nfscllockowner **, int *, int *);
+    struct ucred *, NFSPROC_T *, struct nfsclclient *, int, void *, int,
+    u_int8_t *, u_int8_t *, struct nfscllockowner **, int *, int *);
 int nfscl_relbytelock(vnode_t, u_int64_t, u_int64_t,
     struct ucred *, NFSPROC_T *, int, struct nfsclclient *,
-    struct nfscllockowner **, int *);
+    void *, int, struct nfscllockowner **, int *);
 int nfscl_checkwritelocked(vnode_t, struct flock *,
-    struct ucred *, NFSPROC_T *);
+    struct ucred *, NFSPROC_T *, void *, int);
 void nfscl_lockrelease(struct nfscllockowner *, int, int);
 void nfscl_fillclid(u_int64_t, char *, u_int8_t *, u_int16_t);
-void nfscl_filllockowner(NFSPROC_T *, u_int8_t *);
+void nfscl_filllockowner(void *, u_int8_t *, int);
 void nfscl_freeopen(struct nfsclopen *, int);
 void nfscl_umount(struct nfsmount *, NFSPROC_T *);
 void nfscl_renewthread(struct nfsclclient *, NFSPROC_T *);
@@ -466,9 +466,10 @@ void nfscl_lockexcl(struct nfsv4lock *, void *);
 void nfscl_lockunlock(struct nfsv4lock *);
 void nfscl_lockderef(struct nfsv4lock *);
 void nfscl_docb(struct nfsrv_descript *, NFSPROC_T *);
-void nfscl_releasealllocks(struct nfsclclient *, vnode_t, NFSPROC_T *);
+void nfscl_releasealllocks(struct nfsclclient *, vnode_t, NFSPROC_T *, void *,
+    int);
 int nfscl_lockt(vnode_t, struct nfsclclient *, u_int64_t,
-    u_int64_t, struct flock *, NFSPROC_T *);
+    u_int64_t, struct flock *, NFSPROC_T *, void *, int);
 int nfscl_mustflush(vnode_t);
 int nfscl_nodeleg(vnode_t, int);
 int nfscl_removedeleg(vnode_t, NFSPROC_T *, nfsv4stateid_t *);

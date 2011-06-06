@@ -652,8 +652,32 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 		 * that is, this address might make other addresses detached.
 		 */
 		pfxlist_onlink_check();
-		if (error == 0 && ia)
+		if (error == 0 && ia) {
+			if (ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED) {
+				/*
+				 * Try to clear the flag when a new
+				 * IPv6 address is added onto an
+				 * IFDISABLED interface and it
+				 * succeeds.
+				 */
+				struct in6_ndireq nd;
+
+				memset(&nd, 0, sizeof(nd));
+				nd.ndi.flags = ND_IFINFO(ifp)->flags;
+				nd.ndi.flags &= ~ND6_IFF_IFDISABLED;
+				if (nd6_ioctl(SIOCSIFINFO_FLAGS,
+				    (caddr_t)&nd, ifp) < 0)
+					log(LOG_NOTICE, "SIOCAIFADDR_IN6: "
+					    "SIOCSIFINFO_FLAGS for -ifdisabled "
+					    "failed.");
+				/*
+				 * Ignore failure of clearing the flag
+				 * intentionally.  The failure means
+				 * address duplication was detected.
+				 */
+			}
 			EVENTHANDLER_INVOKE(ifaddr_event, ifp);
+		}
 		break;
 	}
 

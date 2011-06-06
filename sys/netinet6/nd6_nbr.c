@@ -112,10 +112,14 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 	int lladdrlen = 0;
 	int anycast = 0, proxy = 0, tentative = 0;
 	int tlladdr;
+	int rflag;
 	union nd_opts ndopts;
 	struct sockaddr_dl proxydl;
 	char ip6bufs[INET6_ADDRSTRLEN], ip6bufd[INET6_ADDRSTRLEN];
 
+	rflag = (V_ip6_forwarding) ? ND_NA_FLAG_ROUTER : 0;
+	if (ND_IFINFO(ifp)->flags & ND6_IFF_ACCEPT_RTADV && V_ip6_norbit_raif)
+		rflag = 0;
 #ifndef PULLDOWN_TEST
 	IP6_EXTHDR_CHECK(m, off, icmp6len,);
 	nd_ns = (struct nd_neighbor_solicit *)((caddr_t)ip6 + off);
@@ -339,8 +343,7 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 			goto bad;
 		nd6_na_output(ifp, &in6_all, &taddr6,
 		    ((anycast || proxy || !tlladdr) ? 0 : ND_NA_FLAG_OVERRIDE) |
-		    (V_ip6_forwarding ? ND_NA_FLAG_ROUTER : 0),
-		    tlladdr, proxy ? (struct sockaddr *)&proxydl : NULL);
+		    rflag, tlladdr, proxy ? (struct sockaddr *)&proxydl : NULL);
 		goto freeit;
 	}
 
@@ -349,8 +352,8 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 
 	nd6_na_output(ifp, &saddr6, &taddr6,
 	    ((anycast || proxy || !tlladdr) ? 0 : ND_NA_FLAG_OVERRIDE) |
-	    (V_ip6_forwarding ? ND_NA_FLAG_ROUTER : 0) | ND_NA_FLAG_SOLICITED,
-	    tlladdr, proxy ? (struct sockaddr *)&proxydl : NULL);
+	    rflag | ND_NA_FLAG_SOLICITED, tlladdr,
+	    proxy ? (struct sockaddr *)&proxydl : NULL);
  freeit:
 	if (ifa != NULL)
 		ifa_free(ifa);
@@ -862,7 +865,8 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 			dr = defrouter_lookup(in6, ln->lle_tbl->llt_ifp);
 			if (dr)
 				defrtrlist_del(dr);
-			else if (!V_ip6_forwarding) {
+			else if (ND_IFINFO(ln->lle_tbl->llt_ifp)->flags &
+			    ND6_IFF_ACCEPT_RTADV) {
 				/*
 				 * Even if the neighbor is not in the default
 				 * router list, the neighbor may be used

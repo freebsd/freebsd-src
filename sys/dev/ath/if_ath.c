@@ -3473,7 +3473,15 @@ ath_rx_proc(void *arg, int npending)
 			if (rs->rs_status & HAL_RXERR_PHY) {
 				sc->sc_stats.ast_rx_phyerr++;
 				/* Process DFS radar events */
-				ath_dfs_process_phy_err(sc, mtod(m, char *), tsf, rs);
+				if ((rs->rs_phyerr == HAL_PHYERR_RADAR) ||
+				    (rs->rs_phyerr == HAL_PHYERR_FALSE_RADAR_EXT)) {
+					/* Since we're touching the frame data, sync it */
+					bus_dmamap_sync(sc->sc_dmat,
+					    bf->bf_dmamap,
+					    BUS_DMASYNC_POSTREAD);
+					/* Now pass it to the radar processing code */
+					ath_dfs_process_phy_err(sc, mtod(m, char *), tsf, rs);
+				}
 
 				/* Be suitably paranoid about receiving phy errors out of the stats array bounds */
 				if (rs->rs_phyerr < 64)

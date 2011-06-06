@@ -409,6 +409,8 @@ VNET_DEFINE(int, ip6_sendredirects) = IPV6_SENDREDIRECTS;
 VNET_DEFINE(int, ip6_defhlim) = IPV6_DEFHLIM;
 VNET_DEFINE(int, ip6_defmcasthlim) = IPV6_DEFAULT_MULTICAST_HOPS;
 VNET_DEFINE(int, ip6_accept_rtadv) = 0;
+VNET_DEFINE(int, ip6_no_radr) = 0;
+VNET_DEFINE(int, ip6_norbit_raif) = 0;
 VNET_DEFINE(int, ip6_maxfragpackets);	/* initialized in frag6.c:frag6_init() */
 VNET_DEFINE(int, ip6_maxfrags);		/* initialized in frag6.c:frag6_init() */
 VNET_DEFINE(int, ip6_log_interval) = 5;
@@ -537,6 +539,15 @@ SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_ACCEPT_RTADV, accept_rtadv,
 	CTLFLAG_RW, &VNET_NAME(ip6_accept_rtadv), 0,
 	"Default value of per-interface flag for accepting ICMPv6 Router"
 	"Advertisement messages");
+SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_NO_RADR, no_radr,
+	CTLFLAG_RW, &VNET_NAME(ip6_no_radr), 0,
+	"Default value of per-interface flag to control whether routers "
+	"sending ICMPv6 RA messages on that interface are added into the "
+	"default router list.");
+SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_NORBIT_RAIF, norbit_raif, CTLFLAG_RW,
+	&VNET_NAME(ip6_norbit_raif), 0,
+	"Always set 0 to R flag in ICMPv6 NA messages when accepting RA"
+	" on the interface.");
 SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_KEEPFAITH, keepfaith, CTLFLAG_RW,
 	&VNET_NAME(ip6_keepfaith), 0, "");
 SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_LOG_INTERVAL, log_interval,
