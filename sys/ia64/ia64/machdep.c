@@ -411,12 +411,34 @@ cpu_halt()
 void
 cpu_idle(int busy)
 {
-	struct ia64_pal_result res;
+	register_t ie;
 
-	if (cpu_idle_hook != NULL)
+#if 0
+	if (!busy) {
+		critical_enter();
+		cpu_idleclock();
+	}
+#endif
+
+	ie = intr_disable();
+	KASSERT(ie != 0, ("%s called with interrupts disabled\n", __func__));
+
+	if (sched_runnable())
+		ia64_enable_intr();
+	else if (cpu_idle_hook != NULL) {
 		(*cpu_idle_hook)();
-	else
-		res = ia64_call_pal_static(PAL_HALT_LIGHT, 0, 0, 0);
+		/* The hook must enable interrupts! */
+	} else {
+		ia64_call_pal_static(PAL_HALT_LIGHT, 0, 0, 0);
+		ia64_enable_intr();
+	}
+
+#if 0
+	if (!busy) {
+		cpu_activeclock();
+		critical_exit();
+	}
+#endif
 }
 
 int
@@ -644,9 +666,12 @@ calculate_frequencies(void)
 {
 	struct ia64_sal_result sal;
 	struct ia64_pal_result pal;
+	register_t ie;
 
+	ie = intr_disable();
 	sal = ia64_sal_entry(SAL_FREQ_BASE, 0, 0, 0, 0, 0, 0, 0);
 	pal = ia64_call_pal_static(PAL_FREQ_RATIOS, 0, 0, 0);
+	intr_restore(ie);
 
 	if (sal.sal_status == 0 && pal.pal_status == 0) {
 		if (bootverbose) {

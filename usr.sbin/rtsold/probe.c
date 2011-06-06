@@ -72,18 +72,18 @@ probe_init(void)
 	if (sndcmsgbuf == NULL &&
 	    (sndcmsgbuf = (u_char *)malloc(scmsglen)) == NULL) {
 		warnmsg(LOG_ERR, __func__, "malloc failed");
-		return(-1);
+		return (-1);
 	}
 
 	if ((probesock = socket(AF_INET6, SOCK_RAW, IPPROTO_NONE)) < 0) {
 		warnmsg(LOG_ERR, __func__, "socket: %s", strerror(errno));
-		return(-1);
+		return (-1);
 	}
 
 	/* make the socket send-only */
 	if (shutdown(probesock, 0)) {
 		warnmsg(LOG_ERR, __func__, "shutdown: %s", strerror(errno));
-		return(-1);
+		return (-1);
 	}
 
 	/* initialize msghdr for sending packets */
@@ -92,7 +92,8 @@ probe_init(void)
 	sndmhdr.msg_iovlen = 1;
 	sndmhdr.msg_control = (caddr_t)sndcmsgbuf;
 	sndmhdr.msg_controllen = scmsglen;
-	return(0);
+
+	return (0);
 }
 
 /*

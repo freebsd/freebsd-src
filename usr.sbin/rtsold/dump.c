@@ -34,6 +34,7 @@
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/socket.h>
+#include <sys/queue.h>
 
 #include <net/if.h>
 #include <netinet/in.h>
@@ -58,41 +59,41 @@ static const char * const ifstatstr[] = {"IDLE", "DELAY", "PROBE", "DOWN", "TENT
 static void
 dump_interface_status(void)
 {
-	struct ifinfo *ifinfo;
+	struct ifinfo *ifi;
 	struct timeval now;
 
 	gettimeofday(&now, NULL);
 
-	for (ifinfo = iflist; ifinfo; ifinfo = ifinfo->next) {
-		fprintf(fp, "Interface %s\n", ifinfo->ifname);
+	TAILQ_FOREACH(ifi, &ifinfo_head, ifi_next) {
+		fprintf(fp, "Interface %s\n", ifi->ifname);
 		fprintf(fp, "  probe interval: ");
-		if (ifinfo->probeinterval) {
-			fprintf(fp, "%d\n", ifinfo->probeinterval);
-			fprintf(fp, "  probe timer: %d\n", ifinfo->probetimer);
+		if (ifi->probeinterval) {
+			fprintf(fp, "%d\n", ifi->probeinterval);
+			fprintf(fp, "  probe timer: %d\n", ifi->probetimer);
 		} else {
 			fprintf(fp, "infinity\n");
 			fprintf(fp, "  no probe timer\n");
 		}
 		fprintf(fp, "  interface status: %s\n",
-		    ifinfo->active > 0 ? "active" : "inactive");
+		    ifi->active > 0 ? "active" : "inactive");
 		fprintf(fp, "  other config: %s\n",
-		    ifinfo->otherconfig ? "on" : "off");
-		fprintf(fp, "  rtsold status: %s\n", ifstatstr[ifinfo->state]);
+		    ifi->otherconfig ? "on" : "off");
+		fprintf(fp, "  rtsold status: %s\n", ifstatstr[ifi->state]);
 		fprintf(fp, "  carrier detection: %s\n",
-		    ifinfo->mediareqok ? "available" : "unavailable");
+		    ifi->mediareqok ? "available" : "unavailable");
 		fprintf(fp, "  probes: %d, dadcount = %d\n",
-		    ifinfo->probes, ifinfo->dadcount);
-		if (ifinfo->timer.tv_sec == tm_max.tv_sec &&
-		    ifinfo->timer.tv_usec == tm_max.tv_usec)
+		    ifi->probes, ifi->dadcount);
+		if (ifi->timer.tv_sec == tm_max.tv_sec &&
+		    ifi->timer.tv_usec == tm_max.tv_usec)
 			fprintf(fp, "  no timer\n");
 		else {
 			fprintf(fp, "  timer: interval=%d:%d, expire=%s\n",
-			    (int)ifinfo->timer.tv_sec,
-			    (int)ifinfo->timer.tv_usec,
-			    (ifinfo->expire.tv_sec < now.tv_sec) ? "expired"
-			    : sec2str(ifinfo->expire.tv_sec - now.tv_sec));
+			    (int)ifi->timer.tv_sec,
+			    (int)ifi->timer.tv_usec,
+			    (ifi->expire.tv_sec < now.tv_sec) ? "expired"
+			    : sec2str(ifi->expire.tv_sec - now.tv_sec));
 		}
-		fprintf(fp, "  number of valid RAs: %d\n", ifinfo->racnt);
+		fprintf(fp, "  number of valid RAs: %d\n", ifi->racnt);
 	}
 }
 
@@ -145,5 +146,6 @@ sec2str(time_t total)
 		p += n;
 	}
 	snprintf(p, ep - p, "%ds", secs);
-	return(result);
+
+	return (result);
 }

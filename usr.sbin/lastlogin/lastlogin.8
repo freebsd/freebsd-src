@@ -31,7 +31,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd January 11, 1996
+.Dd June 6, 2011
 .Dt LASTLOGIN 8
 .Os
 .Sh NAME
@@ -39,6 +39,8 @@
 .Nd indicate last login time of users
 .Sh SYNOPSIS
 .Nm
+.Op Fl f Ar file
+.Op Fl rt
 .Op Ar user ...
 .Sh DESCRIPTION
 The
@@ -54,8 +56,8 @@ If more than one
 .Ar user
 is given, the session information for each user is printed in
 the order given on the command line.
-Otherwise, information
-for all users is printed, sorted by name.
+Otherwise, information for all users is printed.
+By default, the entries are sorted by user name.
 .Pp
 The
 .Nm
@@ -63,6 +65,18 @@ utility differs from
 .Xr last 1
 in that it only prints information regarding the very last login session.
 The last login database is never turned over or deleted in standard usage.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl f Ar file
+Open last login database
+.Ar file
+instead of the system-wide database.
+.It Fl r
+Print the entries in reverse sorted order.
+.It Fl t
+Sort the elements by last login time, instead of user name.
+.El
 .Sh FILES
 .Bl -tag -width /var/log/utx.lastlogin -compact
 .It Pa /var/log/utx.lastlogin

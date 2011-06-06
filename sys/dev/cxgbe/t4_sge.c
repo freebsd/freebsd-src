@@ -203,6 +203,9 @@ t4_sge_init(struct adapter *sc)
 		    FL_BUF_SIZE(i));
 	}
 
+	i = t4_read_reg(sc, A_SGE_CONM_CTRL);
+	s->fl_starve_threshold = G_EGRTHRESHOLD(i) * 2 + 1;
+
 	t4_write_reg(sc, A_SGE_INGRESS_RX_THRESHOLD,
 		     V_THRESHOLD_0(s->counter_val[0]) |
 		     V_THRESHOLD_1(s->counter_val[1]) |
@@ -1233,7 +1236,8 @@ alloc_iq_fl(struct port_info *pi, struct sge_iq *iq, struct sge_fl *fl,
 		sc->sge.eqmap[cntxt_id] = (void *)fl;
 
 		FL_LOCK(fl);
-		refill_fl(sc, fl, -1, 8);
+		/* Just enough to make sure it doesn't starve right away. */
+		refill_fl(sc, fl, roundup(sc->sge.fl_starve_threshold, 8), 8);
 		FL_UNLOCK(fl);
 	}
 
@@ -1388,6 +1392,10 @@ alloc_rxq(struct port_info *pi, struct sge_rxq *rxq, int intr_idx, int idx)
 	rc = alloc_iq_fl(pi, &rxq->iq, &rxq->fl, intr_idx, 1 << pi->tx_chan);
 	if (rc != 0)
 		return (rc);
+
+	FL_LOCK(&rxq->fl);
+	refill_fl(pi->adapter, &rxq->fl, rxq->fl.needed / 8, 8);
+	FL_UNLOCK(&rxq->fl);
 
 #ifdef INET
 	rc = tcp_lro_init(&rxq->lro);

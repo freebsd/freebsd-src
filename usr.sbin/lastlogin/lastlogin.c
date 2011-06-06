@@ -47,13 +47,28 @@ __RCSID("$NetBSD: lastlogin.c,v 1.4 1998/02/03 04:45:35 perry Exp $");
 	int	main(int, char **);
 static	void	output(struct utmpx *);
 static	void	usage(void);
+static int	utcmp_user(const void *, const void *);
+
+static int	order = 1;
+static const char *file = NULL;
+static int	(*utcmp)(const void *, const void *) = utcmp_user;
 
 static int
-utcmp(const void *u1, const void *u2)
+utcmp_user(const void *u1, const void *u2)
 {
 
-	return (strcmp(((const struct utmpx *)u1)->ut_user,
+	return (order * strcmp(((const struct utmpx *)u1)->ut_user,
 	    ((const struct utmpx *)u2)->ut_user));
+}
+
+static int
+utcmp_time(const void *u1, const void *u2)
+{
+	time_t t1, t2;
+
+	t1 = ((const struct utmpx *)u1)->ut_tv.tv_sec;
+	t2 = ((const struct utmpx *)u2)->ut_tv.tv_sec;
+	return (t1 < t2 ? order : t1 > t2 ? -order : 0);
 }
 
 int
@@ -62,15 +77,29 @@ main(int argc, char *argv[])
 	int	ch, i, ulistsize;
 	struct utmpx *u, *ulist;
 
-	while ((ch = getopt(argc, argv, "")) != -1) {
-		usage();
+	while ((ch = getopt(argc, argv, "f:rt")) != -1) {
+		switch (ch) {
+		case 'f':
+			file = optarg;
+			break;
+		case 'r':
+			order = -1;
+			break;
+		case 't':
+			utcmp = utcmp_time;
+			break;
+		default:
+			usage();
+		}
 	}
+	argc -= optind;
+	argv += optind;
 
-	/* Process usernames given on the command line. */
-	if (argc > 1) {
-		for (i = 1; i < argc; ++i) {
-			if (setutxdb(UTXDB_LASTLOGIN, NULL) != 0)
-				errx(1, "failed to open lastlog database");
+	if (argc > 0) {
+		/* Process usernames given on the command line. */
+		for (i = 0; i < argc; i++) {
+			if (setutxdb(UTXDB_LASTLOGIN, file) != 0)
+				err(1, "failed to open lastlog database");
 			if ((u = getutxuser(argv[i])) == NULL) {
 				warnx("user '%s' not found", argv[i]);
 				continue;
@@ -78,11 +107,10 @@ main(int argc, char *argv[])
 			output(u);
 			endutxent();
 		}
-	}
-	/* Read all lastlog entries, looking for active ones */
-	else {
-		if (setutxdb(UTXDB_LASTLOGIN, NULL) != 0)
-			errx(1, "failed to open lastlog database");
+	} else {
+		/* Read all lastlog entries, looking for active ones. */
+		if (setutxdb(UTXDB_LASTLOGIN, file) != 0)
+			err(1, "failed to open lastlog database");
 		ulist = NULL;
 		ulistsize = 0;
 		while ((u = getutxent()) != NULL) {
@@ -119,6 +147,6 @@ output(struct utmpx *u)
 static void
 usage(void)
 {
-	fprintf(stderr, "usage: lastlogin [user ...]\n");
+	fprintf(stderr, "usage: lastlogin [-f file] [-rt] [user ...]\n");
 	exit(1);
 }

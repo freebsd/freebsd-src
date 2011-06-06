@@ -311,7 +311,8 @@ typedef struct _snd_capabilities {
  * IOCTL Commands for /dev/sequencer
  */
 
-#define SNDCTL_SEQ_RESET	_IO  ('Q', 0)
+#define SNDCTL_SEQ_HALT		_IO  ('Q', 0)
+#define SNDCTL_SEQ_RESET	SNDCTL_SEQ_HALT	/* Historic interface */
 #define SNDCTL_SEQ_SYNC		_IO  ('Q', 1)
 #define SNDCTL_SYNTH_INFO	_IOWR('Q', 2, struct synth_info)
 #define SNDCTL_SEQ_CTRLRATE	_IOWR('Q', 3, int) /* Set/get timer res.(hz) */

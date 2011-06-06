@@ -127,8 +127,11 @@ nd6_rs_input(struct mbuf *m, int off, int icmp6len)
 	union nd_opts ndopts;
 	char ip6bufs[INET6_ADDRSTRLEN], ip6bufd[INET6_ADDRSTRLEN];
 
-	/* If I'm not a router, ignore it. */
-	if (!V_ip6_forwarding)
+	/*
+	 * Accept RS only when V_ip6_forwarding=1 and the interface has
+	 * no ND6_IFF_ACCEPT_RTADV.
+	 */
+	if (!V_ip6_forwarding || ND_IFINFO(ifp)->flags & ND6_IFF_ACCEPT_RTADV)
 		goto freeit;
 
 	/* Sanity checks */
@@ -213,11 +216,10 @@ nd6_ra_input(struct mbuf *m, int off, int icmp6len)
 	char ip6bufs[INET6_ADDRSTRLEN], ip6bufd[INET6_ADDRSTRLEN];
 
 	/*
-	 * We only accept RAs only when
-	 * the node is not a router and
-	 * per-interface variable allows RAs on the receiving interface.
+	 * We only accept RAs only when the per-interface flag
+	 * ND6_IFF_ACCEPT_RTADV is on the receiving interface.
 	 */
-	if (V_ip6_forwarding || !(ndi->flags & ND6_IFF_ACCEPT_RTADV))
+	if (!(ndi->flags & ND6_IFF_ACCEPT_RTADV))
 		goto freeit;
 
 	if (ip6->ip6_hlim != 255) {
@@ -266,7 +268,15 @@ nd6_ra_input(struct mbuf *m, int off, int icmp6len)
 	bzero(&dr0, sizeof(dr0));
 	dr0.rtaddr = saddr6;
 	dr0.flags  = nd_ra->nd_ra_flags_reserved;
-	dr0.rtlifetime = ntohs(nd_ra->nd_ra_router_lifetime);
+	/*
+	 * Effectively-disable the route in the RA packet
+	 * when ND6_IFF_NO_RADR on the receiving interface or
+	 * ip6.forwarding=1.
+	 */
+	if (ndi->flags & ND6_IFF_NO_RADR || V_ip6_forwarding)
+		dr0.rtlifetime = 0;
+	else
+		dr0.rtlifetime = ntohs(nd_ra->nd_ra_router_lifetime);
 	dr0.expire = time_second + dr0.rtlifetime;
 	dr0.ifp = ifp;
 	/* unspecified or not? (RFC 2461 6.3.4) */
@@ -557,7 +567,7 @@ defrtrlist_del(struct nd_defrouter *dr)
 	 * Flush all the routing table entries that use the router
 	 * as a next hop.
 	 */
-	if (!V_ip6_forwarding)
+	if (ND_IFINFO(dr->ifp)->flags & ND6_IFF_ACCEPT_RTADV)
 		rt6_flush(&dr->rtaddr, dr->ifp);
 
 	if (dr->installed) {
@@ -614,20 +624,6 @@ defrouter_select(void)
 	int s = splnet();
 	struct nd_defrouter *dr, *selected_dr = NULL, *installed_dr = NULL;
 	struct llentry *ln = NULL;
-
-	/*
-	 * This function should be called only when acting as an autoconfigured
-	 * host.  Although the remaining part of this function is not effective
-	 * if the node is not an autoconfigured host, we explicitly exclude
-	 * such cases here for safety.
-	 */
-	if (V_ip6_forwarding) {
-		nd6log((LOG_WARNING,
-		    "defrouter_select: called unexpectedly (forwarding=%d)\n",
-		    V_ip6_forwarding));
-		splx(s);
-		return;
-	}
 
 	/*
 	 * Let's handle easy case (3) first:
