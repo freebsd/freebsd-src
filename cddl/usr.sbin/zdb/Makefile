@@ -16,6 +16,7 @@ CFLAGS+= -I${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libzpool/common
 CFLAGS+= -I${.CURDIR}/../../../sys/cddl/contrib/opensolaris/uts/common/fs/zfs
 CFLAGS+= -I${.CURDIR}/../../../sys/cddl/contrib/opensolaris/uts/common
 CFLAGS+= -I${.CURDIR}/../../../sys/cddl/contrib/opensolaris/uts/common/sys
+CFLAGS+= -I${.CURDIR}/../../../sys/cddl/contrib/opensolaris/common/zfs
 CFLAGS+= -I${.CURDIR}/../../../cddl/contrib/opensolaris/head
 CFLAGS+= -I${.CURDIR}/../../lib/libumem
 

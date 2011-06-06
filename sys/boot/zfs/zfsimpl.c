@@ -31,6 +31,8 @@ __FBSDID("$FreeBSD$");
  *	Stand-alone ZFS file reader.
  */
 
+#include <sys/stat.h>
+
 #include "zfsimpl.h"
 #include "zfssubr.c"
 
@@ -70,26 +72,30 @@ zfs_init(void)
 	zfs_init_crc();
 }
 
-static char *
-zfs_alloc_temp(size_t sz)
+static void *
+zfs_alloc(size_t size)
 {
-	char *p;
+	char *ptr;
 
-	if (zfs_temp_ptr + sz > zfs_temp_end) {
+	if (zfs_temp_ptr + size > zfs_temp_end) {
 		printf("ZFS: out of temporary buffer space\n");
 		for (;;) ;
 	}
-	p = zfs_temp_ptr;
-	zfs_temp_ptr += sz;
+	ptr = zfs_temp_ptr;
+	zfs_temp_ptr += size;
 
-	return (p);
+	return (ptr);
 }
 
 static void
-zfs_reset_temp(void)
+zfs_free(void *ptr, size_t size)
 {
 
-	zfs_temp_ptr = zfs_temp_buf;
+	zfs_temp_ptr -= size;
+	if (zfs_temp_ptr != ptr) {
+		printf("ZFS: zfs_alloc()/zfs_free() mismatch\n");
+		for (;;) ;
+	}
 }
 
 static int
@@ -341,7 +347,7 @@ vdev_read_phys(vdev_t *vdev, const blkptr_t *bp, void *buf,
 	rc = vdev->v_phys_read(vdev, vdev->v_read_priv, offset, buf, psize);
 	if (rc)
 		return (rc);
-	if (bp && zio_checksum_error(bp, buf))
+	if (bp && zio_checksum_error(bp, buf, offset))
 		return (EIO);
 
 	return (0);
@@ -428,7 +434,8 @@ vdev_create(uint64_t guid, vdev_read_t *read)
 }
 
 static int
-vdev_init_from_nvlist(const unsigned char *nvlist, vdev_t **vdevp, int is_newer)
+vdev_init_from_nvlist(const unsigned char *nvlist, vdev_t *pvdev,
+    vdev_t **vdevp, int is_newer)
 {
 	int rc;
 	uint64_t guid, id, ashift, nparity;
@@ -453,7 +460,7 @@ vdev_init_from_nvlist(const unsigned char *nvlist, vdev_t **vdevp, int is_newer)
 	    && strcmp(type, VDEV_TYPE_DISK)
 	    && strcmp(type, VDEV_TYPE_RAIDZ)
 	    && strcmp(type, VDEV_TYPE_REPLACING)) {
-		printf("ZFS: can only boot from disk, mirror or raidz vdevs\n");
+		printf("ZFS: can only boot from disk, mirror, raidz1, raidz2 and raidz3 vdevs\n");
 		return (EIO);
 	}
 
@@ -484,6 +491,7 @@ vdev_init_from_nvlist(const unsigned char *nvlist, vdev_t **vdevp, int is_newer)
 			vdev = vdev_create(guid, vdev_disk_read);
 
 		vdev->v_id = id;
+		vdev->v_top = pvdev != NULL ? pvdev : vdev;
 		if (nvlist_find(nvlist, ZPOOL_CONFIG_ASHIFT,
 			DATA_TYPE_UINT64, 0, &ashift) == 0)
 			vdev->v_ashift = ashift;
@@ -503,8 +511,14 @@ vdev_init_from_nvlist(const unsigned char *nvlist, vdev_t **vdevp, int is_newer)
 			if (!strcmp(type, "raidz")) {
 				if (vdev->v_nparity == 1)
 					vdev->v_name = "raidz1";
-				else
+				else if (vdev->v_nparity == 2)
 					vdev->v_name = "raidz2";
+				else if (vdev->v_nparity == 3)
+					vdev->v_name = "raidz3";
+				else {
+					printf("ZFS: can only boot from disk, mirror, raidz1, raidz2 and raidz3 vdevs\n");
+					return (EIO);
+				}
 			} else {
 				vdev->v_name = strdup(type);
 			}
@@ -541,7 +555,7 @@ vdev_init_from_nvlist(const unsigned char *nvlist, vdev_t **vdevp, int is_newer)
 	if (rc == 0) {
 		vdev->v_nchildren = nkids;
 		for (i = 0; i < nkids; i++) {
-			rc = vdev_init_from_nvlist(kids, &kid, is_newer);
+			rc = vdev_init_from_nvlist(kids, vdev, &kid, is_newer);
 			if (rc)
 				return (rc);
 			if (is_new)
@@ -770,7 +784,7 @@ vdev_probe(vdev_phys_read_t *read, void *read_priv, spa_t **spap)
 	const char *pool_name;
 	const unsigned char *vdevs;
 	int i, rc, is_newer;
-	char upbuf[1024];
+	char *upbuf;
 	const struct uberblock *up;
 
 	/*
@@ -814,17 +828,10 @@ vdev_probe(vdev_phys_read_t *read, void *read_priv, spa_t **spap)
 		return (EIO);
 	}
 
-#ifndef TEST
-	if (val != POOL_STATE_ACTIVE) {
-		/*
-		 * Don't print a message here. If we happen to reboot
-		 * while where is an exported pool around, we don't
-		 * need a cascade of confusing messages during boot.
-		 */
-		/*printf("ZFS: pool is not active\n");*/
+	if (val == POOL_STATE_DESTROYED) {
+		/* We don't boot only from destroyed pools. */
 		return (EIO);
 	}
-#endif
 
 	if (nvlist_find(nvlist,
 			ZPOOL_CONFIG_POOL_TXG,
@@ -884,7 +891,7 @@ vdev_probe(vdev_phys_read_t *read, void *read_priv, spa_t **spap)
 		return (EIO);
 	}
 
-	rc = vdev_init_from_nvlist(vdevs, &top_vdev, is_newer);
+	rc = vdev_init_from_nvlist(vdevs, NULL, &top_vdev, is_newer);
 	if (rc)
 		return (rc);
 
@@ -920,22 +927,23 @@ vdev_probe(vdev_phys_read_t *read, void *read_priv, spa_t **spap)
 	 * the best uberblock and then we can actually access
 	 * the contents of the pool.
 	 */
+	upbuf = zfs_alloc(VDEV_UBERBLOCK_SIZE(vdev));
+	up = (const struct uberblock *)upbuf;
 	for (i = 0;
-	     i < VDEV_UBERBLOCK_RING >> UBERBLOCK_SHIFT;
+	     i < VDEV_UBERBLOCK_COUNT(vdev);
 	     i++) {
-		off = offsetof(vdev_label_t, vl_uberblock);
-		off += i << UBERBLOCK_SHIFT;
+		off = VDEV_UBERBLOCK_OFFSET(vdev, i);
 		BP_ZERO(&bp);
 		DVA_SET_OFFSET(&bp.blk_dva[0], off);
-		BP_SET_LSIZE(&bp, 1 << UBERBLOCK_SHIFT);
-		BP_SET_PSIZE(&bp, 1 << UBERBLOCK_SHIFT);
+		BP_SET_LSIZE(&bp, VDEV_UBERBLOCK_SIZE(vdev));
+		BP_SET_PSIZE(&bp, VDEV_UBERBLOCK_SIZE(vdev));
 		BP_SET_CHECKSUM(&bp, ZIO_CHECKSUM_LABEL);
 		BP_SET_COMPRESS(&bp, ZIO_COMPRESS_OFF);
 		ZIO_SET_CHECKSUM(&bp.blk_cksum, off, 0, 0, 0);
-		if (vdev_read_phys(vdev, &bp, upbuf, off, 0))
+
+		if (vdev_read_phys(vdev, NULL, upbuf, off, VDEV_UBERBLOCK_SIZE(vdev)))
 			continue;
 
-		up = (const struct uberblock *) upbuf;
 		if (up->ub_magic != UBERBLOCK_MAGIC)
 			continue;
 		if (up->ub_txg < spa->spa_txg)
@@ -947,6 +955,7 @@ vdev_probe(vdev_phys_read_t *read, void *read_priv, spa_t **spap)
 				spa->spa_uberblock = *up;
 		}
 	}
+	zfs_free(upbuf, VDEV_UBERBLOCK_SIZE(vdev));
 
 	if (spap)
 		*spap = spa;
@@ -1000,16 +1009,11 @@ static int
 zio_read(spa_t *spa, const blkptr_t *bp, void *buf)
 {
 	int cpfunc = BP_GET_COMPRESS(bp);
-	size_t lsize = BP_GET_LSIZE(bp);
-	size_t psize = BP_GET_PSIZE(bp);
+	uint64_t align, size;
 	void *pbuf;
-	int i;
+	int i, error;
 
-	zfs_reset_temp();
-	if (cpfunc != ZIO_COMPRESS_OFF)
-		pbuf = zfs_alloc_temp(psize);
-	else
-		pbuf = buf;
+	error = EIO;
 
 	for (i = 0; i < SPA_DVAS_PER_BP; i++) {
 		const dva_t *dva = &bp->blk_dva[i];
@@ -1021,32 +1025,49 @@ zio_read(spa_t *spa, const blkptr_t *bp, void *buf)
 			continue;
 
 		if (DVA_GET_GANG(dva)) {
-			if (zio_read_gang(spa, bp, dva, buf))
+			error = zio_read_gang(spa, bp, dva, buf);
+			if (error != 0)
 				continue;
 		} else {
 			vdevid = DVA_GET_VDEV(dva);
 			offset = DVA_GET_OFFSET(dva);
-			STAILQ_FOREACH(vdev, &spa->spa_vdevs, v_childlink)
+			STAILQ_FOREACH(vdev, &spa->spa_vdevs, v_childlink) {
 				if (vdev->v_id == vdevid)
 					break;
-			if (!vdev || !vdev->v_read) {
-				continue;
 			}
-			if (vdev->v_read(vdev, bp, pbuf, offset, psize))
+			if (!vdev || !vdev->v_read)
 				continue;
 
-			if (cpfunc != ZIO_COMPRESS_OFF) {
-				if (zio_decompress_data(cpfunc, pbuf, psize,
-				    buf, lsize))
-					return (EIO);
+			size = BP_GET_PSIZE(bp);
+			align = 1ULL << vdev->v_top->v_ashift;
+			if (P2PHASE(size, align) != 0)
+				size = P2ROUNDUP(size, align);
+			if (size != BP_GET_PSIZE(bp) || cpfunc != ZIO_COMPRESS_OFF)
+				pbuf = zfs_alloc(size);
+			else
+				pbuf = buf;
+
+			error = vdev->v_read(vdev, bp, pbuf, offset, size);
+			if (error == 0) {
+				if (cpfunc != ZIO_COMPRESS_OFF) {
+					error = zio_decompress_data(cpfunc,
+					    pbuf, BP_GET_PSIZE(bp), buf,
+					    BP_GET_LSIZE(bp));
+				} else if (size != BP_GET_PSIZE(bp)) {
+					bcopy(pbuf, buf, BP_GET_PSIZE(bp));
+				}
 			}
+			if (buf != pbuf)
+				zfs_free(pbuf, size);
+			if (error != 0)
+				continue;
 		}
-
-		return (0);
+		error = 0;
+		break;
 	}
-	printf("ZFS: i/o error - all block copies unavailable\n");
-
-	return (EIO);
+	if (error != 0)
+		printf("ZFS: i/o error - all block copies unavailable\n");
+	return (error);
 }
 
 static int
@@ -1276,7 +1297,7 @@ zap_lookup(spa_t *spa, const dnode_phys_t *dnode, const char *name, uint64_t *va
 {
 	int rc;
 	uint64_t zap_type;
-	size_t size = dnode->dn_datablkszsec * 512;
+	size_t size = dnode->dn_datablkszsec << SPA_MINBLOCKSHIFT;
 
 	rc = dnode_read(spa, dnode, 0, zap_scratch, size);
 	if (rc)
@@ -1285,8 +1306,10 @@ zap_lookup(spa_t *spa, const dnode_phys_t *dnode, const char *name, uint64_t *va
 	zap_type = *(uint64_t *) zap_scratch;
 	if (zap_type == ZBT_MICRO)
 		return mzap_lookup(spa, dnode, name, value);
-	else
+	else if (zap_type == ZBT_HEADER)
 		return fzap_lookup(spa, dnode, name, value);
+	printf("ZFS: invalid zap_type=%d\n", (int)zap_type);
+	return (EIO);
 }
 
 #ifdef BOOT2
@@ -1497,6 +1520,7 @@ zfs_mount_root(spa_t *spa, objset_phys_t *objset)
 static int
 zfs_mount_pool(spa_t *spa)
 {
+
 	/*
 	 * Find the MOS and work our way in from there.
 	 */
@@ -1516,6 +1540,58 @@ zfs_mount_pool(spa_t *spa)
 	return (0);
 }
 
+static int
+zfs_dnode_stat(spa_t *spa, dnode_phys_t *dn, struct stat *sb)
+{
+
+	if (dn->dn_bonustype != DMU_OT_SA) {
+		znode_phys_t *zp = (znode_phys_t *)dn->dn_bonus;
+
+		sb->st_mode = zp->zp_mode;
+		sb->st_uid = zp->zp_uid;
+		sb->st_gid = zp->zp_gid;
+		sb->st_size = zp->zp_size;
+	} else {
+		sa_hdr_phys_t *sahdrp;
+		int hdrsize;
+		size_t size = 0;
+		void *buf = NULL;
+
+		if (dn->dn_bonuslen != 0)
+			sahdrp = (sa_hdr_phys_t *)DN_BONUS(dn);
+		else {
+			if ((dn->dn_flags & DNODE_FLAG_SPILL_BLKPTR) != 0) {
+				blkptr_t *bp = &dn->dn_spill;
+				int error;
+
+				size = BP_GET_LSIZE(bp);
+				buf = zfs_alloc(size);
+				error = zio_read(spa, bp, buf);
+				if (error != 0) {
+					zfs_free(buf, size);
+					return (error);
+				}
+				sahdrp = buf;
+			} else {
+				return (EIO);
+			}
+		}
+		hdrsize = SA_HDR_SIZE(sahdrp);
+		sb->st_mode = *(uint64_t *)((char *)sahdrp + hdrsize +
+		    SA_MODE_OFFSET);
+		sb->st_uid = *(uint64_t *)((char *)sahdrp + hdrsize +
+		    SA_UID_OFFSET);
+		sb->st_gid = *(uint64_t *)((char *)sahdrp + hdrsize +
+		    SA_GID_OFFSET);
+		sb->st_size = *(uint64_t *)((char *)sahdrp + hdrsize +
+		    SA_SIZE_OFFSET);
+		if (buf != NULL)
+			zfs_free(buf, size);
+	}
+
+	return (0);
+}
+
 /*
  * Lookup a file and return its dnode.
  */
@@ -1525,11 +1601,11 @@ zfs_lookup(spa_t *spa, const char *upath, dnode_phys_t *dnode)
 	int rc;
 	uint64_t objnum, rootnum, parentnum;
 	dnode_phys_t dn;
-	const znode_phys_t *zp = (const znode_phys_t *) dn.dn_bonus;
 	const char *p, *q;
 	char element[256];
 	char path[1024];
 	int symlinks_followed = 0;
+	struct stat sb;
 
 	if (spa->spa_root_objset.os_type != DMU_OST_ZFS) {
 		printf("ZFS: unexpected object set type %llu\n",
@@ -1569,9 +1645,11 @@ zfs_lookup(spa_t *spa, const char *upath, dnode_phys_t *dnode)
 			p = 0;
 		}
 
-		if ((zp->zp_mode >> 12) != 0x4) {
+		rc = zfs_dnode_stat(spa, &dn, &sb);
+		if (rc)
+			return (rc);
+		if (!S_ISDIR(sb.st_mode))
 			return (ENOTDIR);
-		}
 
 		parentnum = objnum;
 		rc = zap_lookup(spa, &dn, element, &objnum);
@@ -1586,7 +1664,10 @@ zfs_lookup(spa_t *spa, const char *upath, dnode_phys_t *dnode)
 		/*
 		 * Check for symlink.
 		 */
-		if ((zp->zp_mode >> 12) == 0xa) {
+		rc = zfs_dnode_stat(spa, &dn, &sb);
+		if (rc)
+			return (rc);
+		if (S_ISLNK(sb.st_mode)) {
 			if (symlinks_followed > 10)
 				return (EMLINK);
 			symlinks_followed++;
@@ -1596,14 +1677,14 @@ zfs_lookup(spa_t *spa, const char *upath, dnode_phys_t *dnode)
 			 * current path onto the end.
 			 */
 			if (p)
-				strcpy(&path[zp->zp_size], p);
+				strcpy(&path[sb.st_size], p);
 			else
-				path[zp->zp_size] = 0;
-			if (zp->zp_size + sizeof(znode_phys_t) <= dn.dn_bonuslen) {
+				path[sb.st_size] = 0;
+			if (sb.st_size + sizeof(znode_phys_t) <= dn.dn_bonuslen) {
 				memcpy(path, &dn.dn_bonus[sizeof(znode_phys_t)],
-					zp->zp_size);
+					sb.st_size);
 			} else {
-				rc = dnode_read(spa, &dn, 0, path, zp->zp_size);
+				rc = dnode_read(spa, &dn, 0, path, sb.st_size);
 				if (rc)
 					return (rc);
 			}

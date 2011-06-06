@@ -20,8 +20,7 @@
  */
 
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
- * Use is subject to license terms.
+ * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  */
 
 #include <sys/zfs_context.h>
@@ -36,6 +35,7 @@
 #include <sys/sunddi.h>
 #ifdef _KERNEL
 #include <sys/kobj.h>
+#include <sys/zone.h>
 #endif
 
 /*
@@ -74,7 +74,6 @@ spa_config_load(void)
 	void *buf = NULL;
 	nvlist_t *nvlist, *child;
 	nvpair_t *nvpair;
-	spa_t *spa;
 	char *pathname;
 	struct _buf *file;
 	uint64_t fsize;
@@ -88,33 +87,27 @@ spa_config_load(void)
 
 	file = kobj_open_file(pathname);
 
-	if (file == (struct _buf *)-1) {
-		ZFS_LOG(1, "Cannot open %s.", pathname);
-		goto out;
-	}
+	kmem_free(pathname, MAXPATHLEN);
 
-	if (kobj_get_filesize(file, &fsize) != 0) {
-		ZFS_LOG(1, "Cannot get size of %s.", pathname);
+	if (file == (struct _buf *)-1)
+		return;
+
+	if (kobj_get_filesize(file, &fsize) != 0)
 		goto out;
-	}
 
 	buf = kmem_alloc(fsize, KM_SLEEP);
 
 	/*
 	 * Read the nvlist from the file.
 	 */
-	if (kobj_read_file(file, buf, fsize, 0) < 0) {
-		ZFS_LOG(1, "Cannot read %s.", pathname);
+	if (kobj_read_file(file, buf, fsize, 0) < 0)
 		goto out;
-	}
 
 	/*
 	 * Unpack the nvlist.
 	 */
 	if (nvlist_unpack(buf, fsize, &nvlist, KM_SLEEP) != 0)
 		goto out;
-
-	ZFS_LOG(1, "File %s loaded.", pathname);
 
 	/*
 	 * Iterate over all elements in the nvlist, creating a new spa_t for
@@ -123,7 +116,6 @@ spa_config_load(void)
 	mutex_enter(&spa_namespace_lock);
 	nvpair = NULL;
 	while ((nvpair = nvlist_next_nvpair(nvlist, nvpair)) != NULL) {
-
 		if (nvpair_type(nvpair) != DATA_TYPE_NVLIST)
 			continue;
 
@@ -131,33 +123,27 @@ spa_config_load(void)
 
 		if (spa_lookup(nvpair_name(nvpair)) != NULL)
 			continue;
-		spa = spa_add(nvpair_name(nvpair), NULL);
-
-		/*
-		 * We blindly duplicate the configuration here.  If it's
-		 * invalid, we will catch it when the pool is first opened.
-		 */
-		VERIFY(nvlist_dup(child, &spa->spa_config, 0) == 0);
+		(void) spa_add(nvpair_name(nvpair), child, NULL);
 	}
 	mutex_exit(&spa_namespace_lock);
 
 	nvlist_free(nvlist);
 
 out:
-	kmem_free(pathname, MAXPATHLEN);
 	if (buf != NULL)
 		kmem_free(buf, fsize);
-	if (file != (struct _buf *)-1)
-		kobj_close_file(file);
+
+	kobj_close_file(file);
 }
 
 static void
 spa_config_write(spa_config_dirent_t *dp, nvlist_t *nvl)
 {
-	int oflags = FWRITE | FTRUNC | FCREAT | FOFFMAX;
-	char *buf, *temp;
 	size_t buflen;
+	char *buf;
 	vnode_t *vp;
+	int oflags = FWRITE | FTRUNC | FCREAT | FOFFMAX;
+	char *temp;
 
 	/*
 	 * If the nvlist is empty (NULL), then remove the old cachefile.
@@ -328,6 +314,7 @@ spa_config_generate(spa_t *spa, vdev_t *vd, uint64_t txg, int getstats)
 	vdev_t *rvd = spa->spa_root_vdev;
 	unsigned long hostid = 0;
 	boolean_t locked = B_FALSE;
+	uint64_t split_guid;
 
 	if (vd == NULL) {
 		vd = rvd;
@@ -356,7 +343,15 @@ spa_config_generate(spa_t *spa, vdev_t *vd, uint64_t txg, int getstats)
 	    txg) == 0);
 	VERIFY(nvlist_add_uint64(config, ZPOOL_CONFIG_POOL_GUID,
 	    spa_guid(spa)) == 0);
+#ifdef	_KERNEL
+	hostid = zone_get_hostid(NULL);
+#else	/* _KERNEL */
+	/*
+	 * We're emulating the system's hostid in userland, so we can't use
+	 * zone_get_hostid().
+	 */
 	(void) ddi_strtoul(hw_serial, NULL, 10, &hostid);
+#endif	/* _KERNEL */
 	if (hostid != 0) {
 		VERIFY(nvlist_add_uint64(config, ZPOOL_CONFIG_HOSTID,
 		    hostid) == 0);
@@ -376,11 +371,62 @@ spa_config_generate(spa_t *spa, vdev_t *vd, uint64_t txg, int getstats)
 			VERIFY(nvlist_add_uint64(config, ZPOOL_CONFIG_IS_LOG,
 			    1ULL) == 0);
 		vd = vd->vdev_top;		/* label contains top config */
+	} else {
+		/*
+		 * Only add the (potentially large) split information
+		 * in the mos config, and not in the vdev labels
+		 */
+		if (spa->spa_config_splitting != NULL)
+			VERIFY(nvlist_add_nvlist(config, ZPOOL_CONFIG_SPLIT,
+			    spa->spa_config_splitting) == 0);
 	}
 
-	nvroot = vdev_config_generate(spa, vd, getstats, B_FALSE, B_FALSE);
+	/*
+	 * Add the top-level config.  We even add this on pools which
+	 * don't support holes in the namespace.
+	 */
+	vdev_top_config_generate(spa, config);
+
+	/*
+	 * If we're splitting, record the original pool's guid.
+	 */
+	if (spa->spa_config_splitting != NULL &&
+	    nvlist_lookup_uint64(spa->spa_config_splitting,
+	    ZPOOL_CONFIG_SPLIT_GUID, &split_guid) == 0) {
+		VERIFY(nvlist_add_uint64(config, ZPOOL_CONFIG_SPLIT_GUID,
+		    split_guid) == 0);
+	}
+
+	nvroot = vdev_config_generate(spa, vd, getstats, 0);
 	VERIFY(nvlist_add_nvlist(config, ZPOOL_CONFIG_VDEV_TREE, nvroot) == 0);
 	nvlist_free(nvroot);
+
+	if (getstats && spa_load_state(spa) == SPA_LOAD_NONE) {
+		ddt_histogram_t *ddh;
+		ddt_stat_t *dds;
+		ddt_object_t *ddo;
+
+		ddh = kmem_zalloc(sizeof (ddt_histogram_t), KM_SLEEP);
+		ddt_get_dedup_histogram(spa, ddh);
+		VERIFY(nvlist_add_uint64_array(config,
+		    ZPOOL_CONFIG_DDT_HISTOGRAM,
+		    (uint64_t *)ddh, sizeof (*ddh) / sizeof (uint64_t)) == 0);
+		kmem_free(ddh, sizeof (ddt_histogram_t));
+
+		ddo = kmem_zalloc(sizeof (ddt_object_t), KM_SLEEP);
+		ddt_get_dedup_object_stats(spa, ddo);
+		VERIFY(nvlist_add_uint64_array(config,
+		    ZPOOL_CONFIG_DDT_OBJ_STATS,
+		    (uint64_t *)ddo, sizeof (*ddo) / sizeof (uint64_t)) == 0);
+		kmem_free(ddo, sizeof (ddt_object_t));
+
+		dds = kmem_zalloc(sizeof (ddt_stat_t), KM_SLEEP);
+		ddt_get_dedup_stats(spa, dds);
+		VERIFY(nvlist_add_uint64_array(config,
+		    ZPOOL_CONFIG_DDT_STATS,
+		    (uint64_t *)dds, sizeof (*dds) / sizeof (uint64_t)) == 0);
+		kmem_free(dds, sizeof (ddt_stat_t));
+	}
 
 	if (locked)
 		spa_config_exit(spa, SCL_CONFIG | SCL_STATE, FTAG);
@@ -416,10 +462,9 @@ spa_config_update(spa_t *spa, int what)
 		 */
 		for (c = 0; c < rvd->vdev_children; c++) {
 			vdev_t *tvd = rvd->vdev_child[c];
-			if (tvd->vdev_ms_array == 0) {
-				vdev_init(tvd, txg);
-				vdev_config_dirty(tvd);
-			}
+			if (tvd->vdev_ms_array == 0)
+				vdev_metaslab_set_size(tvd);
+			vdev_expand(tvd, txg);
 		}
 	}
 	spa_config_exit(spa, SCL_ALL, FTAG);

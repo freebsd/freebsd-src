@@ -20,14 +20,15 @@
  */
 
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
- * Use is subject to license terms.
+ * Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
+ */
+
+/*
+ * These are Consolidation Private interfaces and are subject to change.
  */
 
 #ifndef _SYS_GFS_H
 #define	_SYS_GFS_H
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <sys/types.h>
 #include <sys/vnode.h>

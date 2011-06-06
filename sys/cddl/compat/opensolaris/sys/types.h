@@ -45,6 +45,7 @@ typedef	int64_t		clock_t;
 #define	MAXNAMELEN	256
 
 typedef	struct timespec	timestruc_t;
+typedef	struct timespec	timespec_t;
 typedef u_int		uint_t;
 typedef u_char		uchar_t;
 typedef u_short		ushort_t;
@@ -59,6 +60,7 @@ typedef id_t		zoneid_t;
 typedef id_t		ctid_t;
 typedef	mode_t		o_mode_t;
 typedef	uint64_t	pgcnt_t;
+typedef	u_int		minor_t;
 
 #ifdef _KERNEL
 
@@ -83,7 +85,6 @@ typedef enum { B_FALSE, B_TRUE }	boolean_t;
 typedef	longlong_t	offset_t;
 typedef	u_longlong_t	u_offset_t;
 typedef	uint64_t	upad64_t;
-typedef	struct timespec	timespec_t;
 typedef	short		pri_t;
 typedef	int32_t		daddr32_t;
 typedef	int32_t		time32_t;

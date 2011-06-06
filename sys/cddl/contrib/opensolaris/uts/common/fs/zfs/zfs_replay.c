@@ -19,11 +19,8 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
- * Use is subject to license terms.
+ * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  */
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <sys/types.h>
 #include <sys/param.h>
@@ -132,6 +129,12 @@ zfs_replay_xvattr(lr_attr_t *lrattr, xvattr_t *xvap)
 		ZFS_TIME_DECODE(&xoap->xoa_createtime, crtime);
 	if (XVA_ISSET_REQ(xvap, XAT_AV_SCANSTAMP))
 		bcopy(scanstamp, xoap->xoa_av_scanstamp, AV_SCANSTAMP_SZ);
+	if (XVA_ISSET_REQ(xvap, XAT_REPARSE))
+		xoap->xoa_reparse = ((*attrs & XAT0_REPARSE) != 0);
+	if (XVA_ISSET_REQ(xvap, XAT_OFFLINE))
+		xoap->xoa_offline = ((*attrs & XAT0_OFFLINE) != 0);
+	if (XVA_ISSET_REQ(xvap, XAT_SPARSE))
+		xoap->xoa_sparse = ((*attrs & XAT0_SPARSE) != 0);
 }
 
 static int
@@ -516,7 +519,6 @@ zfs_replay_create(zfsvfs_t *zfsvfs, lr_create_t *lr, boolean_t byteswap)
 		error = VOP_MKDIR(ZTOV(dzp), &vp, &cn, &xva.xva_vattr /*,vflg*/);
 		break;
 	case TX_MKXATTR:
-		name = (char *)(lr + 1);
 		error = zfs_make_xattrdir(dzp, &xva.xva_vattr, &vp, kcred);
 		break;
 	case TX_SYMLINK:
@@ -531,10 +533,8 @@ zfs_replay_create(zfsvfs_t *zfsvfs, lr_create_t *lr, boolean_t byteswap)
 	VOP_UNLOCK(ZTOV(dzp), 0);
 
 out:
-	if (error == 0 && vp != NULL) {
-		VOP_UNLOCK(vp, 0);
-		VN_RELE(vp);
-	}
+	if (error == 0 && vp != NULL)
+		VN_URELE(vp);
 
 	VN_RELE(ZTOV(dzp));
 
@@ -588,6 +588,7 @@ zfs_replay_remove(zfsvfs_t *zfsvfs, lr_remove_t *lr, boolean_t byteswap)
 	}
 	vput(vp);
 	VOP_UNLOCK(ZTOV(dzp), 0);
+
 fail:
 	VN_RELE(ZTOV(dzp));
 
@@ -616,6 +617,7 @@ zfs_replay_link(zfsvfs_t *zfsvfs, lr_link_t *lr, boolean_t byteswap)
 
 	if (lr->lr_common.lrc_txtype & TX_CI)
 		vflg |= FIGNORECASE;
+
 	cn.cn_nameptr = name;
 	cn.cn_cred = kcred;
 	cn.cn_thread = curthread;
@@ -710,7 +712,7 @@ zfs_replay_write(zfsvfs_t *zfsvfs, lr_write_t *lr, boolean_t byteswap)
 	znode_t	*zp;
 	int error;
 	ssize_t resid;
-	uint64_t orig_eof, eod;
+	uint64_t eod, offset, length;
 
 	if (byteswap)
 		byteswap_uint64_array(lr, sizeof (*lr));
@@ -725,15 +727,10 @@ zfs_replay_write(zfsvfs_t *zfsvfs, lr_write_t *lr, boolean_t byteswap)
 			error = 0;
 		return (error);
 	}
-	orig_eof = zp->z_phys->zp_size;
-	eod = lr->lr_offset + lr->lr_length; /* end of data for this write */
 
-	/* If it's a dmu_sync() block get the data and write the whole block */
-	if (lr->lr_common.lrc_reclen == sizeof (lr_write_t))
-		zil_get_replay_data(zfsvfs->z_log, lr);
-
-	error = vn_rdwr(UIO_WRITE, ZTOV(zp), data, lr->lr_length,
-	    lr->lr_offset, UIO_SYSSPACE, 0, RLIM64_INFINITY, kcred, &resid);
+	offset = lr->lr_offset;
+	length = lr->lr_length;
+	eod = offset + length;	/* end of data for this write */
 
 	/*
 	 * This may be a write from a dmu_sync() for a whole block,
@@ -741,12 +738,29 @@ zfs_replay_write(zfsvfs_t *zfsvfs, lr_write_t *lr, boolean_t byteswap)
 	 * We can't just replay what was written for this TX_WRITE as
 	 * a future TX_WRITE2 may extend the eof and the data for that
 	 * write needs to be there. So we write the whole block and
-	 * reduce the eof.
+	 * reduce the eof. This needs to be done within the single dmu
+	 * transaction created within vn_rdwr -> zfs_write. So a possible
+	 * new end of file is passed through in zfsvfs->z_replay_eof
 	 */
-	if (orig_eof < zp->z_phys->zp_size) /* file length grew ? */
-		zp->z_phys->zp_size = eod;
+
+	zfsvfs->z_replay_eof = 0; /* 0 means don't change end of file */
+
+	/* If it's a dmu_sync() block, write the whole block */
+	if (lr->lr_common.lrc_reclen == sizeof (lr_write_t)) {
+		uint64_t blocksize = BP_GET_LSIZE(&lr->lr_blkptr);
+		if (length < blocksize) {
+			offset -= offset % blocksize;
+			length = blocksize;
+		}
+		if (zp->z_size < eod)
+			zfsvfs->z_replay_eof = eod;
+	}
+
+	error = vn_rdwr(UIO_WRITE, ZTOV(zp), data, length, offset,
+	    UIO_SYSSPACE, 0, RLIM64_INFINITY, kcred, &resid);
 
 	VN_RELE(ZTOV(zp));
+	zfsvfs->z_replay_eof = 0;	/* safety */
 
 	return (error);
 }
@@ -767,21 +781,34 @@ zfs_replay_write2(zfsvfs_t *zfsvfs, lr_write_t *lr, boolean_t byteswap)
 	if (byteswap)
 		byteswap_uint64_array(lr, sizeof (*lr));
 
-	if ((error = zfs_zget(zfsvfs, lr->lr_foid, &zp)) != 0) {
-		/*
-		 * As we can log writes out of order, it's possible the
-		 * file has been removed. In this case just drop the write
-		 * and return success.
-		 */
-		if (error == ENOENT)
-			error = 0;
+	if ((error = zfs_zget(zfsvfs, lr->lr_foid, &zp)) != 0)
 		return (error);
-	}
 
+top:
 	end = lr->lr_offset + lr->lr_length;
-	if (end > zp->z_phys->zp_size) {
-		ASSERT3U(end - zp->z_phys->zp_size, <, zp->z_blksz);
-		zp->z_phys->zp_size = end;
+	if (end > zp->z_size) {
+		dmu_tx_t *tx = dmu_tx_create(zfsvfs->z_os);
+
+		zp->z_size = end;
+		dmu_tx_hold_sa(tx, zp->z_sa_hdl, B_FALSE);
+		error = dmu_tx_assign(tx, TXG_WAIT);
+		if (error) {
+			VN_RELE(ZTOV(zp));
+			if (error == ERESTART) {
+				dmu_tx_wait(tx);
+				dmu_tx_abort(tx);
+				goto top;
+			}
+			dmu_tx_abort(tx);
+			return (error);
+		}
+		(void) sa_update(zp->z_sa_hdl, SA_ZPL_SIZE(zfsvfs),
+		    (void *)&zp->z_size, sizeof (uint64_t), tx);
+
+		/* Ensure the replayed seq is updated */
+		(void) zil_replaying(zfsvfs->z_log, tx);
+
+		dmu_tx_commit(tx);
 	}
 
 	VN_RELE(ZTOV(zp));
@@ -792,9 +819,33 @@ zfs_replay_write2(zfsvfs_t *zfsvfs, lr_write_t *lr, boolean_t byteswap)
 static int
 zfs_replay_truncate(zfsvfs_t *zfsvfs, lr_truncate_t *lr, boolean_t byteswap)
 {
+#ifdef sun
+	znode_t *zp;
+	flock64_t fl;
+	int error;
 
+	if (byteswap)
+		byteswap_uint64_array(lr, sizeof (*lr));
+
+	if ((error = zfs_zget(zfsvfs, lr->lr_foid, &zp)) != 0)
+		return (error);
+
+	bzero(&fl, sizeof (fl));
+	fl.l_type = F_WRLCK;
+	fl.l_whence = 0;
+	fl.l_start = lr->lr_offset;
+	fl.l_len = lr->lr_length;
+
+	error = VOP_SPACE(ZTOV(zp), F_FREESP, &fl, FWRITE | FOFFMAX,
+	    lr->lr_offset, kcred, NULL);
+
+	VN_RELE(ZTOV(zp));
+
+	return (error);
+#else	/* !sun */
 	ZFS_LOG(0, "Unexpected code path, report to pjd@FreeBSD.org");
 	return (EOPNOTSUPP);
+#endif	/* !sun */
 }
 
 static int
@@ -816,16 +867,8 @@ zfs_replay_setattr(zfsvfs_t *zfsvfs, lr_setattr_t *lr, boolean_t byteswap)
 			zfs_replay_swap_attrs((lr_attr_t *)(lr + 1));
 	}
 
-	if ((error = zfs_zget(zfsvfs, lr->lr_foid, &zp)) != 0) {
-		/*
-		 * As we can log setattrs out of order, it's possible the
-		 * file has been removed. In this case just drop the setattr
-		 * and return success.
-		 */
-		if (error == ENOENT)
-			error = 0;
+	if ((error = zfs_zget(zfsvfs, lr->lr_foid, &zp)) != 0)
 		return (error);
-	}
 
 	zfs_init_vattr(vap, lr->lr_mask, lr->lr_mode,
 	    lr->lr_uid, lr->lr_gid, 0, lr->lr_foid);
@@ -874,16 +917,8 @@ zfs_replay_acl_v0(zfsvfs_t *zfsvfs, lr_acl_v0_t *lr, boolean_t byteswap)
 		zfs_oldace_byteswap(ace, lr->lr_aclcnt);
 	}
 
-	if ((error = zfs_zget(zfsvfs, lr->lr_foid, &zp)) != 0) {
-		/*
-		 * As we can log acls out of order, it's possible the
-		 * file has been removed. In this case just drop the acl
-		 * and return success.
-		 */
-		if (error == ENOENT)
-			error = 0;
+	if ((error = zfs_zget(zfsvfs, lr->lr_foid, &zp)) != 0)
 		return (error);
-	}
 
 	bzero(&vsa, sizeof (vsa));
 	vsa.vsa_mask = VSA_ACE | VSA_ACECNT;
@@ -935,16 +970,8 @@ zfs_replay_acl(zfsvfs_t *zfsvfs, lr_acl_t *lr, boolean_t byteswap)
 		}
 	}
 
-	if ((error = zfs_zget(zfsvfs, lr->lr_foid, &zp)) != 0) {
-		/*
-		 * As we can log acls out of order, it's possible the
-		 * file has been removed. In this case just drop the acl
-		 * and return success.
-		 */
-		if (error == ENOENT)
-			error = 0;
+	if ((error = zfs_zget(zfsvfs, lr->lr_foid, &zp)) != 0)
 		return (error);
-	}
 
 #ifdef TODO
 	bzero(&vsa, sizeof (vsa));

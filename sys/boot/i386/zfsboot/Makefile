@@ -6,9 +6,6 @@ FILES=		zfsboot
 
 NM?=		nm
 
-# A value of 0x80 enables LBA support.
-BOOT_BOOT1_FLAGS?=	0x80
-
 BOOT_COMCONSOLE_PORT?= 0x3f8
 BOOT_COMCONSOLE_SPEED?= 9600
 B2SIOFMT?=	0x3
@@ -26,7 +23,6 @@ CFLAGS=	-DBOOTPROG=\"zfsboot\" \
 	-mrtd \
 	-mno-mmx -mno-3dnow -mno-sse -mno-sse2 -mno-sse3 \
 	-DBOOT2 \
-	-DFLAGS=${BOOT_BOOT1_FLAGS} \
 	-DSIOPRT=${BOOT_COMCONSOLE_PORT} \
 	-DSIOFMT=${B2SIOFMT} \
 	-DSIOSPD=${BOOT_COMCONSOLE_SPEED} \
@@ -60,12 +56,12 @@ zfsldr.out: zfsldr.o
 	${LD} ${LDFLAGS} -e start -Ttext ${ORG1} -o ${.TARGET} zfsldr.o
 
 CLEANFILES+=	zfsboot2 zfsboot.ld zfsboot.ldr zfsboot.bin zfsboot.out \
-		zfsboot.o zfsboot.s zfsboot.s.tmp xreadorg.h sio.o
+		zfsboot.o zfsboot.s zfsboot.s.tmp sio.o cons.o drv.o util.o
 
-# We currently allow 32768 bytes for zfsboot - in practice it could be
+# We currently allow 65536 bytes for zfsboot - in practice it could be
 # any size up to 3.5Mb but keeping it fixed size simplifies zfsldr.
 # 
-BOOT2SIZE=	32768
+BOOT2SIZE=	65536
 
 zfsboot2: zfsboot.ld
 	@set -- `ls -l zfsboot.ld`; x=$$((${BOOT2SIZE}-$$5)); \
@@ -87,19 +83,12 @@ zfsboot.out: ${BTXCRT} zfsboot.o sio.o drv.o cons.o util.o
 
 zfsboot.o: zfsboot.s
 
-SRCS=	zfsboot.c xreadorg.h
+SRCS=	zfsboot.c
 
-zfsboot.s: zfsboot.c xreadorg.h ${.CURDIR}/../../zfs/zfsimpl.c
+zfsboot.s: zfsboot.c ${.CURDIR}/../../zfs/zfsimpl.c
 	${CC} ${CFLAGS} -S -o zfsboot.s.tmp ${.CURDIR}/zfsboot.c
 	sed -e '/align/d' -e '/nop/d' < zfsboot.s.tmp > zfsboot.s
 	rm -f zfsboot.s.tmp
-
-xreadorg.h: zfsldr.out
-	${NM} -t d ${.ALLSRC} | awk '/([0-9])+ T xread/ \
-	    { x = $$1 - ORG1; \
-	    printf("#define XREADORG %#x\n", REL1 + x) }' \
-	    ORG1=`printf "%d" ${ORG1}` \
-	    REL1=`printf "%d" ${REL1}` > ${.TARGET}
 
 .if ${MACHINE_ARCH} == "amd64"
 beforedepend zfsboot.s: machine

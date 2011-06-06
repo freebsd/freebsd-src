@@ -46,10 +46,31 @@ struct uio {
 };
 #endif
 
+#define	uio_loffset	uio_offset
+
 typedef	struct uio	uio_t;
 typedef	struct iovec	iovec_t;
 
-#define	uio_loffset	uio_offset
+typedef enum xuio_type {
+	UIOTYPE_ASYNCIO,
+	UIOTYPE_ZEROCOPY
+} xuio_type_t;
+
+typedef struct xuio {
+	uio_t	xu_uio;
+
+	/* Extended uio fields */
+	enum xuio_type xu_type; /* What kind of uio structure? */
+	union {
+		struct {
+			int xu_zc_rw;
+			void *xu_zc_priv;
+		} xu_zc;
+	} xu_ext;
+} xuio_t;
+
+#define	XUIO_XUZC_PRIV(xuio)	xuio->xu_ext.xu_zc.xu_zc_priv
+#define	XUIO_XUZC_RW(xuio)	xuio->xu_ext.xu_zc.xu_zc_rw
 
 #ifdef BUILDING_ZFS
 static __inline int

@@ -19,7 +19,7 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2010 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -29,8 +29,6 @@
 #include <strings.h>
 #include <unistd.h>
 #include <libnvpair.h>
-#include <idmap.h>
-#include <zone.h>
 #include <libintl.h>
 #include <libzfs.h>
 #include <libzfs_impl.h>
@@ -44,10 +42,6 @@ static int zfsdevfd;
 #endif
 
 #define	_(s) dgettext(TEXT_DOMAIN, s)
-
-#ifdef sun
-extern int sid_to_id(char *sid, boolean_t user, uid_t *id);
-#endif	/* sun */
 
 /*PRINTFLIKE1*/
 static void
@@ -66,7 +60,7 @@ seterr(char *fmt, ...)
 static char cmdstr[HIS_MAX_RECORD_LEN];
 
 static int
-ioctl_with_cmdstr(unsigned long ioc, zfs_cmd_t *zc)
+ioctl_with_cmdstr(int ioc, zfs_cmd_t *zc)
 {
 	int err;
 
@@ -138,8 +132,7 @@ dict2nvl(PyObject *d)
 	nvlist_t *nvl;
 	int err;
 	PyObject *key, *value;
-//	int pos = 0;
-	Py_ssize_t pos = 0;
+	int pos = 0;
 
 	if (!PyDict_Check(d)) {
 		PyErr_SetObject(PyExc_ValueError, d);
@@ -205,7 +198,7 @@ add_ds_props(zfs_cmd_t *zc, PyObject *nvl)
 
 /* On error, returns NULL but does not set python exception. */
 static PyObject *
-ioctl_with_dstnv(unsigned long ioc, zfs_cmd_t *zc)
+ioctl_with_dstnv(int ioc, zfs_cmd_t *zc)
 {
 	int nvsz = 2048;
 	void *nvbuf;
@@ -236,7 +229,7 @@ again:
 static PyObject *
 py_next_dataset(PyObject *self, PyObject *args)
 {
-	unsigned long ioc;
+	int ioc;
 	uint64_t cookie;
 	zfs_cmd_t zc = { 0 };
 	int snaps;
@@ -353,6 +346,25 @@ py_set_fsacl(PyObject *self, PyObject *args)
 }
 
 static PyObject *
+py_get_holds(PyObject *self, PyObject *args)
+{
+	zfs_cmd_t zc = { 0 };
+	char *name;
+	PyObject *nvl;
+
+	if (!PyArg_ParseTuple(args, "s", &name))
+		return (NULL);
+
+	(void) strlcpy(zc.zc_name, name, sizeof (zc.zc_name));
+
+	nvl = ioctl_with_dstnv(ZFS_IOC_GET_HOLDS, &zc);
+	if (nvl == NULL)
+		seterr(_("cannot get holds for %s"), name);
+
+	return (nvl);
+}
+
+static PyObject *
 py_userspace_many(PyObject *self, PyObject *args)
 {
 	zfs_cmd_t zc = { 0 };
@@ -440,80 +452,6 @@ py_userspace_upgrade(PyObject *self, PyObject *args)
 }
 
 static PyObject *
-py_sid_to_id(PyObject *self, PyObject *args)
-{
-#ifdef sun
-	char *sid;
-	int err, isuser;
-	uid_t id;
-
-	if (!PyArg_ParseTuple(args, "si", &sid, &isuser))
-		return (NULL);
-
-	err = sid_to_id(sid, isuser, &id);
-	if (err) {
-		PyErr_SetString(PyExc_KeyError, sid);
-		return (NULL);
-	}
-
-	return (Py_BuildValue("I", id));
-#else	/* sun */
-	return (NULL);
-#endif	/* sun */
-}
-
-/*
- * Translate the sid string ("S-1-...") to the user@domain name, if
- * possible.  There should be a better way to do this, but for now we
- * just translate to the (possibly ephemeral) uid and then back again.
- */
-static PyObject *
-py_sid_to_name(PyObject *self, PyObject *args)
-{
-#ifdef sun
-	char *sid;
-	int err, isuser;
-	uid_t id;
-	char *name, *domain;
-	char buf[256];
-
-	if (!PyArg_ParseTuple(args, "si", &sid, &isuser))
-		return (NULL);
-
-	err = sid_to_id(sid, isuser, &id);
-	if (err) {
-		PyErr_SetString(PyExc_KeyError, sid);
-		return (NULL);
-	}
-
-	if (isuser) {
-		err = idmap_getwinnamebyuid(id,
-		    IDMAP_REQ_FLG_USE_CACHE, &name, &domain);
-	} else {
-		err = idmap_getwinnamebygid(id,
-		    IDMAP_REQ_FLG_USE_CACHE, &name, &domain);
-	}
-	if (err != IDMAP_SUCCESS) {
-		PyErr_SetString(PyExc_KeyError, sid);
-		return (NULL);
-	}
-	(void) snprintf(buf, sizeof (buf), "%s@%s", name, domain);
-	free(name);
-	free(domain);
-
-	return (Py_BuildValue("s", buf));
-#else	/* sun */
-	return(NULL);
-#endif	/* sun */
-}
-
-static PyObject *
-py_isglobalzone(PyObject *self, PyObject *args)
-{
-	return (Py_BuildValue("i", getzoneid() == GLOBAL_ZONEID));
-}
-
-static PyObject *
 py_set_cmdstr(PyObject *self, PyObject *args)
 {
 	char *str;
@@ -584,12 +522,7 @@ static PyMethodDef zfsmethods[] = {
 	    "Get dataset properties."},
 	{"get_proptable", py_get_proptable, METH_NOARGS,
 	    "Get property table."},
-	/* Below are not really zfs-specific: */
-	{"sid_to_id", py_sid_to_id, METH_VARARGS, "Map SID to UID/GID."},
-	{"sid_to_name", py_sid_to_name, METH_VARARGS,
-	    "Map SID to name@domain."},
-	{"isglobalzone", py_isglobalzone, METH_NOARGS,
-	    "Determine if this is the global zone."},
+	{"get_holds", py_get_holds, METH_VARARGS, "Get user holds."},
 	{NULL, NULL, 0, NULL}
 };
 

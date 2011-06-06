@@ -37,10 +37,16 @@
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 
+MALLOC_DECLARE(M_SOLARIS);
+
+#define	POINTER_IS_VALID(p)	(!((uintptr_t)(p) & 0x3))
+#define	POINTER_INVALIDATE(pp)	(*(pp) = (void *)((uintptr_t)(*(pp)) | 0x1))
+
 #define	KM_SLEEP		M_WAITOK
 #define	KM_PUSHPAGE		M_WAITOK
 #define	KM_NOSLEEP		M_NOWAIT
 #define	KMC_NODEBUG		0
+#define	KMC_NOTOUCH		0
 
 typedef struct kmem_cache {
 	char		kc_name[32];
@@ -74,5 +80,7 @@ void *calloc(size_t n, size_t s);
 #define	kmem_alloc(size, kmflags)	zfs_kmem_alloc((size), (kmflags))
 #define	kmem_zalloc(size, kmflags)	zfs_kmem_alloc((size), (kmflags) | M_ZERO)
 #define	kmem_free(buf, size)		zfs_kmem_free((buf), (size))
+
+#define	kmem_cache_set_move(cache, movefunc)	do { } while (0)
 
 #endif	/* _OPENSOLARIS_SYS_KMEM_H_ */

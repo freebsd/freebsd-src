@@ -30,16 +30,12 @@
 		.set PRT_NUM,0x4		# Partitions
 		.set PRT_BSD,0xa5		# Partition type
 
-/* Flag Bits */
-		.set FL_PACKET,0x80		# Packet mode
-
 /* Misc. Constants */
 		.set SIZ_PAG,0x1000		# Page size
 		.set SIZ_SEC,0x200		# Sector size
 
-		.set NSECT,0x40
+		.set NSECT,0x80
 		.globl start
-		.globl xread
 		.code16
 
 start:		jmp main			# Start recognizably
@@ -49,7 +45,7 @@ start:		jmp main			# Start recognizably
  * FAT disks have this at the start of their MBR. While normal BIOS's will
  * work fine without this section, IBM's El Torito emulation "fixes" up the
  * BPB by writing into the memory copy of the MBR. Rather than have data
- * written into our xread routine, we'll define a BPB to work around it.
+ * written into our code, we'll define a BPB to work around it.
  * The data marked with (T) indicates a field required for a ThinkPad to
  * recognize the disk and (W) indicates fields written from IBM BIOS code.
  * The use of the BPB is based on what OpenBSD and NetBSD implemented in
@@ -80,34 +76,7 @@ ebpb:		.byte	0		# BIOS physical drive number (W)
 
 		.org 0x25,0x90
 /*
- * Trampoline used by boot2 to call read to read data from the disk via
- * the BIOS.  Call with:
- *
- * %ecx:%eax	- long    - LBA to read in
- * %es:(%bx)	- caddr_t - buffer to read data into
- * %dl		- byte    - drive to read from
- * %dh		- byte    - num sectors to read
- */
-
-xread:		push %ss			# Address
-		pop %ds				#  data
-/*
- * Setup an EDD disk packet and pass it to read
- */
-xread.1:	pushl %ecx			# Starting absolute block
-		pushl %eax			#  block number
-		push %es			# Address of
-		push %bx			#  transfer buffer
-		xor %ax,%ax			# Number of
-		movb %dh,%al			#  blocks to
-		push %ax			#  transfer
-		push $0x10			# Size of packet
-		mov %sp,%bp			# Packet pointer
-		callw read			# Read from disk
-		lea 0x10(%bp),%sp		# Clear stack
-		lret				# To far caller
-/*
- * Load the rest of boot2 and BTX up, copy the parts to the right locations,
+ * Load the rest of zfsboot2 and BTX up, copy the parts to the right locations,
  * and start it all up.
  */
 
@@ -181,7 +150,7 @@ main.4: 	xor %dx,%dx			# Partition:drive
  * itself to 0x9000 - doing it in this order means that none of the
  * memcpy regions overlap which would corrupt the copy.  Normally, BTX
  * clients start at MEM_USR, or 0xa000, but when we use btxld to
- * create boot2, we use an entry point of 0x2000.  That entry point is
+ * create zfsboot2, we use an entry point of 0x2000.  That entry point is
  * relative to MEM_USR; thus boot2.bin starts at 0xc000.
  *
  * The load area and the target area for the client overlap so we have
@@ -241,15 +210,29 @@ seta20.3:	sti				# Enable interrupts
 
 
 /*
- * Trampoline used to call read from within boot1.
+ * Trampoline used to call read from within zfsldr.  Sets up an EDD
+ * packet on the stack and passes it to read.
+ *
+ * %eax		- int     - LBA to read in relative to partition start
+ * %dl		- byte    - drive to read from
+ * %dh		- byte    - num sectors to read
+ * %si		- ptr     - MBR partition entry
  */
 nread:		xor %eax,%eax			# Sector offset in partition
-nread.1:	mov $MEM_BUF,%bx		# Transfer buffer
-		xor %ecx,%ecx			# Get
+nread.1:	xor %ecx,%ecx			# Get
 		addl 0x8(%si),%eax		#  LBA
 		adc $0,%ecx
-		push %cs			# Read from
-		callw xread.1	 		#  disk
+		pushl %ecx			# Starting absolute block
+		pushl %eax			#  block number
+		push %es			# Address of
+		push $MEM_BUF			#  transfer buffer
+		xor %ax,%ax			# Number of
+		movb %dh,%al			#  blocks to
+		push %ax			#  transfer
+		push $0x10			# Size of packet
+		mov %sp,%bp			# Packet pointer
+		callw read			# Read from disk
+		lea 0x10(%bp),%sp		# Clear stack
 		jnc return			# If success, return
 		mov $msg_read,%si		# Otherwise, set the error
 						#  message and fall through to
@@ -293,9 +276,7 @@ return: 	retw				# To caller
  * %dl	- byte     - drive number
  * stack - 10 bytes - EDD Packet
  */
-read:		testb $FL_PACKET,%cs:MEM_REL+flags-start # LBA support enabled?
-		jz read.1			# No, use CHS
-		cmpb $0x80,%dl			# Hard drive?
+read:		cmpb $0x80,%dl			# Hard drive?
 		jb read.1			# No, use CHS
 		mov $0x55aa,%bx			# Magic
 		push %dx			# Save
@@ -311,73 +292,9 @@ read:		testb $FL_PACKET,%cs:MEM_REL+flags-start # LBA support enabled?
 		movb $0x42,%ah			# BIOS: Extended
 		int $0x13			#  read
 		retw				# To caller
-#if 0	
-read.1:	 	push %dx			# Save
-		movb $0x8,%ah			# BIOS: Get drive
-		int $0x13			#  parameters
-		movb %dh,%ch			# Max head number
-		pop %dx				# Restore
-		jc return			# If error
-		andb $0x3f,%cl			# Sectors per track
-		jz ereturn			# If zero
-		cli				# Disable interrupts
-		mov 0x8(%bp),%eax		# Get LBA
-		push %dx			# Save
-		movzbl %cl,%ebx			# Divide by
-		xor %edx,%edx			#  sectors
-		div %ebx			#  per track
-		movb %ch,%bl			# Max head number
-		movb %dl,%ch			# Sector number
-		inc %bx				# Divide by
-		xorb %dl,%dl			#  number
-		div %ebx			#  of heads
-		movb %dl,%bh			# Head number
-		pop %dx				# Restore
-		cmpl $0x3ff,%eax		# Cylinder number supportable?
-		sti				# Enable interrupts
-		ja ereturn			# No, return an error
-		xchgb %al,%ah			# Set up cylinder
-		rorb $0x2,%al			#  number
-		orb %ch,%al			# Merge
-		inc %ax				#  sector
-		xchg %ax,%cx	 		#  number
-		movb %bh,%dh			# Head number
-		subb %ah,%al			# Sectors this track
-		mov 0x2(%bp),%ah		# Blocks to read
-		cmpb %ah,%al			# To read
-		jb read.2			#  this
-#ifdef	TRACK_AT_A_TIME
-		movb %ah,%al			#  track
-#else
-		movb $1,%al			#  one sector
-#endif
-read.2: 	mov $0x5,%di	 		# Try count
-read.3: 	les 0x4(%bp),%bx		# Transfer buffer
-		push %ax			# Save
-		movb $0x2,%ah			# BIOS: Read
-		int $0x13			#  from disk
-		pop %bx				# Restore
-		jnc read.4			# If success
-		dec %di				# Retry?
-		jz read.6			# No
-		xorb %ah,%ah			# BIOS: Reset
-		int $0x13			#  disk system
-		xchg %bx,%ax	 		# Block count
-		jmp read.3			# Continue
-read.4: 	movzbw %bl,%ax	 		# Sectors read
-		add %ax,0x8(%bp)		# Adjust
-		jnc read.5			#  LBA,
-		incw 0xa(%bp)	 		#  transfer
-read.5: 	shlb %bl			#  buffer
-		add %bl,0x5(%bp)		#  pointer,
-		sub %al,0x2(%bp)		#  block count
-		ja read.1			# If not done
-read.6: 	retw				# To caller
-#else
 read.1:		mov $msg_chs,%si
 		jmp error
 msg_chs:	.asciz "CHS not supported"
-#endif
 
 /* Messages */
 
@@ -385,8 +302,6 @@ msg_read:	.asciz "Read"
 msg_part:	.asciz "Boot"
 
 prompt: 	.asciz " error\r\n"
-
-flags:		.byte FLAGS			# Flags
 
 		.org PRT_OFF,0x90
 

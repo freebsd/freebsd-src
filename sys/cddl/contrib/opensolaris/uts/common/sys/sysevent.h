@@ -2,9 +2,8 @@
  * CDDL HEADER START
  *
  * The contents of this file are subject to the terms of the
- * Common Development and Distribution License, Version 1.0 only
- * (the "License").  You may not use this file except in compliance
- * with the License.
+ * Common Development and Distribution License (the "License").
+ * You may not use this file except in compliance with the License.
  *
  * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
  * or http://www.opensolaris.org/os/licensing.
@@ -19,15 +18,13 @@
  *
  * CDDL HEADER END
  */
+
 /*
- * Copyright 2004 Sun Microsystems, Inc.  All rights reserved.
- * Use is subject to license terms.
+ * Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
  */
 
 #ifndef	_SYS_SYSEVENT_H
 #define	_SYS_SYSEVENT_H
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <sys/nvpair.h>
 
@@ -164,18 +161,50 @@ typedef struct sysevent_value {
 #define	EVCH_QWAIT	0x0008	/* Wait for slot in event queue */
 
 /*
- * Meaning of flags for subscribe/unsubscribe. Bits 0 to 7 are dedicated to
- * the consolidation private interface.
+ * Meaning of flags for subscribe. Bits 8 to 15 are dedicated to
+ * the consolidation private interface, so flags defined here are restricted
+ * to the LSB.
+ *
+ * EVCH_SUB_KEEP indicates that this subscription should persist even if
+ * this subscriber id should die unexpectedly; matching events will be
+ * queued (up to a limit) and will be delivered if/when we restart again
+ * with the same subscriber id.
  */
-#define	EVCH_SUB_KEEP		0x0001
+#define	EVCH_SUB_KEEP		0x01
+
+/*
+ * Subscriptions may be wildcarded, but we limit the number of
+ * wildcards permitted.
+ */
+#define	EVCH_WILDCARD_MAX	10
+
+/*
+ * Used in unsubscribe to indicate all subscriber ids for a channel.
+ */
 #define	EVCH_ALLSUB		"all_subs"
 
 /*
  * Meaning of flags parameter of channel bind function
+ *
+ * EVCH_CREAT indicates to create a channel if not already present.
+ *
+ * EVCH_HOLD_PEND indicates that events should be published to this
+ * channel even if there are no matching subscribers present; when
+ * a subscriber belatedly binds to the channel and registers their
+ * subscriptions they will receive events that predate their bind.
+ * If the channel is closed, however, with no remaining bindings then
+ * the channel is destroyed.
+ *
+ * EVCH_HOLD_PEND_INDEF is a stronger version of EVCH_HOLD_PEND -
+ * even if the channel has no remaining bindings it will not be
+ * destroyed so long as events remain unconsumed.  This is suitable for
+ * use with short-lived event producers that may bind to (create) the
+ * channel and exit before the intended consumer has started.
  */
-#define	EVCH_CREAT		0x0001	/* Create a channel if not present */
+#define	EVCH_CREAT		0x0001
 #define	EVCH_HOLD_PEND		0x0002
-#define	EVCH_B_FLAGS		0x0003	/* All valid bits */
+#define	EVCH_HOLD_PEND_INDEF	0x0004
+#define	EVCH_B_FLAGS		0x0007	/* All valid bits */
 
 /*
  * Meaning of commands of evc_control function
@@ -185,38 +214,71 @@ typedef struct sysevent_value {
 #define	EVCH_SET_CHAN_LEN	 3	/* Set event queue length */
 #define	EVCH_CMD_LAST		 EVCH_SET_CHAN_LEN	/* Last command */
 
+#ifdef sun
 /*
- * Event channel interface definitions
+ * Shared user/kernel event channel interface definitions
  */
-int sysevent_evc_bind(const char *, evchan_t **, uint32_t);
-void sysevent_evc_unbind(evchan_t *);
-int sysevent_evc_subscribe(evchan_t *, const char *, const char *,
+extern int sysevent_evc_bind(const char *, evchan_t **, uint32_t);
+extern int sysevent_evc_unbind(evchan_t *);
+extern int sysevent_evc_subscribe(evchan_t *, const char *, const char *,
     int (*)(sysevent_t *, void *), void *, uint32_t);
-void sysevent_evc_unsubscribe(evchan_t *, const char *);
-int sysevent_evc_publish(evchan_t *, const char *, const char *,
+extern int sysevent_evc_unsubscribe(evchan_t *, const char *);
+extern int sysevent_evc_publish(evchan_t *, const char *, const char *,
     const char *, const char *, nvlist_t *, uint32_t);
-int sysevent_evc_control(evchan_t *, int, ...);
+extern int sysevent_evc_control(evchan_t *, int, ...);
+extern int sysevent_evc_setpropnvl(evchan_t *, nvlist_t *);
+extern int sysevent_evc_getpropnvl(evchan_t *, nvlist_t **);
+#endif	/* sun */
 
-#ifdef	_KERNEL
+#ifndef	_KERNEL
+
+#ifdef sun
+/*
+ * Userland-only event channel interfaces
+ */
+
+#include <door.h>
+
+typedef struct sysevent_subattr sysevent_subattr_t;
+
+extern sysevent_subattr_t *sysevent_subattr_alloc(void);
+extern void sysevent_subattr_free(sysevent_subattr_t *);
+
+extern void sysevent_subattr_thrattr(sysevent_subattr_t *, pthread_attr_t *);
+extern void sysevent_subattr_sigmask(sysevent_subattr_t *, sigset_t *);
+
+extern void sysevent_subattr_thrcreate(sysevent_subattr_t *,
+    door_xcreate_server_func_t *, void *);
+extern void sysevent_subattr_thrsetup(sysevent_subattr_t *,
+    door_xcreate_thrsetup_func_t *, void *);
+
+extern int sysevent_evc_xsubscribe(evchan_t *, const char *, const char *,
+    int (*)(sysevent_t *, void *), void *, uint32_t, sysevent_subattr_t *);
+#endif	/* sun */
+
+#else
 
 /*
  * Kernel log_event interfaces.
  */
-int log_sysevent(sysevent_t *, int, sysevent_id_t *);
+extern int log_sysevent(sysevent_t *, int, sysevent_id_t *);
 
-sysevent_t *sysevent_alloc(char *, char *, char *, int);
-void sysevent_free(sysevent_t *);
-int sysevent_add_attr(sysevent_attr_list_t **, char *, sysevent_value_t *, int);
-void sysevent_free_attr(sysevent_attr_list_t *);
-int sysevent_attach_attributes(sysevent_t *, sysevent_attr_list_t *);
-void sysevent_detach_attributes(sysevent_t *);
-char *sysevent_get_class_name(sysevent_t *);
-char *sysevent_get_subclass_name(sysevent_t *);
-uint64_t sysevent_get_seq(sysevent_t *);
-void sysevent_get_time(sysevent_t *, hrtime_t *);
-size_t sysevent_get_size(sysevent_t *);
-char *sysevent_get_pub(sysevent_t *);
-int sysevent_get_attr_list(sysevent_t *, nvlist_t **);
+extern sysevent_t *sysevent_alloc(char *, char *, char *, int);
+extern void sysevent_free(sysevent_t *);
+extern int sysevent_add_attr(sysevent_attr_list_t **, char *,
+    sysevent_value_t *, int);
+extern void sysevent_free_attr(sysevent_attr_list_t *);
+extern int sysevent_attach_attributes(sysevent_t *, sysevent_attr_list_t *);
+extern void sysevent_detach_attributes(sysevent_t *);
+#ifdef sun
+extern char *sysevent_get_class_name(sysevent_t *);
+extern char *sysevent_get_subclass_name(sysevent_t *);
+extern uint64_t sysevent_get_seq(sysevent_t *);
+extern void sysevent_get_time(sysevent_t *, hrtime_t *);
+extern size_t sysevent_get_size(sysevent_t *);
+extern char *sysevent_get_pub(sysevent_t *);
+extern int sysevent_get_attr_list(sysevent_t *, nvlist_t **);
+#endif	/* sun */
 
 #endif	/* _KERNEL */
 

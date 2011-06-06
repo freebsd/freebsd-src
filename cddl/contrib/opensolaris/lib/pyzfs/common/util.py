@@ -1,4 +1,4 @@
-#! /usr/bin/python2.4
+#! /usr/bin/python2.6
 #
 # CDDL HEADER START
 #
@@ -19,8 +19,7 @@
 #
 # CDDL HEADER END
 #
-# Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
-# Use is subject to license terms.
+# Copyright (c) 2009, 2010, Oracle and/or its affiliates. All rights reserved.
 #
 
 """This module provides utility functions for ZFS.
@@ -29,6 +28,7 @@ zfs.util.dev -- a file object of /dev/zfs """
 import gettext
 import errno
 import os
+import solaris.misc
 # Note: this module (zfs.util) should not import zfs.ioctl, because that
 # would introduce a circular dependency
 
@@ -37,8 +37,11 @@ errno.ENOTSUP = 48
 
 dev = open("/dev/zfs", "w")
 
-_ = gettext.translation("SUNW_OST_OSLIB", "/usr/lib/locale",
-    fallback=True).gettext
+try:
+	_ = gettext.translation("SUNW_OST_OSLIB", "/usr/lib/locale",
+	    fallback=True).gettext
+except:
+	_ = solaris.misc.gettext
 
 def default_repr(self):
 	"""A simple __repr__ function."""

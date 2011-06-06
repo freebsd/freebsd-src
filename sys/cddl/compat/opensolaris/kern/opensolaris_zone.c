@@ -229,6 +229,15 @@ zone_destroy(void *arg)
         free(head, M_ZONES);
 }
 
+uint32_t
+zone_get_hostid(void *ptr)
+{
+
+	KASSERT(ptr == NULL, ("only NULL pointer supported in %s", __func__));
+
+	return ((uint32_t)curthread->td_ucred->cr_prison->pr_hostid);
+}
+
 static void
 zone_sysinit(void *arg __unused)
 {

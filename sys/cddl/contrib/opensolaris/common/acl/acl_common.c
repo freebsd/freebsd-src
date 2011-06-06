@@ -19,11 +19,8 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
- * Use is subject to license terms.
+ * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  */
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -151,166 +148,6 @@ typedef struct ace_list {
 	ace_to_aent_state_t state;
 	int seen; /* bitmask of all aclent_t a_type values seen */
 } ace_list_t;
-
-ace_t trivial_acl[] = {
-	{(uid_t)-1, 0, ACE_OWNER, ACE_ACCESS_DENIED_ACE_TYPE},
-	{(uid_t)-1, ACE_WRITE_ACL|ACE_WRITE_OWNER|ACE_WRITE_ATTRIBUTES|
-	    ACE_WRITE_NAMED_ATTRS, ACE_OWNER, ACE_ACCESS_ALLOWED_ACE_TYPE},
-	{(uid_t)-1, 0, ACE_GROUP|ACE_IDENTIFIER_GROUP,
-	    ACE_ACCESS_DENIED_ACE_TYPE},
-	{(uid_t)-1, 0, ACE_GROUP|ACE_IDENTIFIER_GROUP,
-	    ACE_ACCESS_ALLOWED_ACE_TYPE},
-	{(uid_t)-1, ACE_WRITE_ACL|ACE_WRITE_OWNER| ACE_WRITE_ATTRIBUTES|
-	    ACE_WRITE_NAMED_ATTRS, ACE_EVERYONE, ACE_ACCESS_DENIED_ACE_TYPE},
-	{(uid_t)-1, ACE_READ_ACL|ACE_READ_ATTRIBUTES|ACE_READ_NAMED_ATTRS|
-	    ACE_SYNCHRONIZE, ACE_EVERYONE, ACE_ACCESS_ALLOWED_ACE_TYPE}
-};
-
-
-void
-adjust_ace_pair_common(void *pair, size_t access_off,
-    size_t pairsize, mode_t mode)
-{
-	char *datap = (char *)pair;
-	uint32_t *amask0 = (uint32_t *)(uintptr_t)(datap + access_off);
-	uint32_t *amask1 = (uint32_t *)(uintptr_t)(datap + pairsize +
-	    access_off);
-	if (mode & S_IROTH)
-		*amask1 |= ACE_READ_DATA;
-	else
-		*amask0 |= ACE_READ_DATA;
-	if (mode & S_IWOTH)
-		*amask1 |= ACE_WRITE_DATA|ACE_APPEND_DATA;
-	else
-		*amask0 |= ACE_WRITE_DATA|ACE_APPEND_DATA;
-	if (mode & S_IXOTH)
-		*amask1 |= ACE_EXECUTE;
-	else
-		*amask0 |= ACE_EXECUTE;
-}
-
-void
-adjust_ace_pair(ace_t *pair, mode_t mode)
-{
-	adjust_ace_pair_common(pair, offsetof(ace_t, a_access_mask),
-	    sizeof (ace_t), mode);
-}
-
-static void
-ace_allow_deny_helper(uint16_t type, boolean_t *allow, boolean_t *deny)
-{
-	if (type == ACE_ACCESS_ALLOWED_ACE_TYPE)
-		*allow = B_TRUE;
-	else if (type == ACE_ACCESS_DENIED_ACE_TYPE)
-		*deny = B_TRUE;
-}
-
-/*
- * ace_trivial:
- * determine whether an ace_t acl is trivial
- *
- * Trivialness implies that the acl is composed of only
- * owner, group, everyone entries.  ACL can't
- * have read_acl denied, and write_owner/write_acl/write_attributes
- * can only be owner@ entry.
- */
-int
-ace_trivial_common(void *acep, int aclcnt,
-    uint64_t (*walk)(void *, uint64_t, int aclcnt,
-    uint16_t *, uint16_t *, uint32_t *))
-{
-	boolean_t owner_allow = B_FALSE;
-	boolean_t group_allow = B_FALSE;
-	boolean_t everyone_allow = B_FALSE;
-	boolean_t owner_deny = B_FALSE;
-	boolean_t group_deny = B_FALSE;
-	boolean_t everyone_deny = B_FALSE;
-	uint16_t flags;
-	uint32_t mask;
-	uint16_t type;
-	uint64_t cookie = 0;
-
-	while (cookie = walk(acep, cookie, aclcnt, &flags, &type, &mask)) {
-		switch (flags & ACE_TYPE_FLAGS) {
-		case ACE_OWNER:
-			if (group_allow || group_deny || everyone_allow ||
-			    everyone_deny)
-				return (1);
-			ace_allow_deny_helper(type, &owner_allow, &owner_deny);
-			break;
-		case ACE_GROUP|ACE_IDENTIFIER_GROUP:
-			if (everyone_allow || everyone_deny &&
-			    (!owner_allow && !owner_deny))
-				return (1);
-			ace_allow_deny_helper(type, &group_allow, &group_deny);
-			break;
-
-		case ACE_EVERYONE:
-			if (!owner_allow && !owner_deny &&
-			    !group_allow && !group_deny)
-				return (1);
-			ace_allow_deny_helper(type,
-			    &everyone_allow, &everyone_deny);
-			break;
-		default:
-			return (1);
-
-		}
-
-		if (flags & (ACE_FILE_INHERIT_ACE|
-		    ACE_DIRECTORY_INHERIT_ACE|ACE_NO_PROPAGATE_INHERIT_ACE|
-		    ACE_INHERIT_ONLY_ACE))
-			return (1);
-
-		/*
-		 * Special check for some special bits
-		 *
-		 * Don't allow anybody to deny reading basic
-		 * attributes or a files ACL.
-		 */
-		if ((mask & (ACE_READ_ACL|ACE_READ_ATTRIBUTES)) &&
-		    (type == ACE_ACCESS_DENIED_ACE_TYPE))
-			return (1);
-
-		/*
-		 * Allow on owner@ to allow
-		 * write_acl/write_owner/write_attributes
-		 */
-		if (type == ACE_ACCESS_ALLOWED_ACE_TYPE &&
-		    (!(flags & ACE_OWNER) && (mask &
-		    (ACE_WRITE_OWNER|ACE_WRITE_ACL|ACE_WRITE_ATTRIBUTES))))
-			return (1);
-
-	}
-
-	if (!owner_allow || !owner_deny || !group_allow || !group_deny ||
-	    !everyone_allow || !everyone_deny)
-		return (1);
-
-	return (0);
-}
-
-uint64_t
-ace_walk(void *datap, uint64_t cookie, int aclcnt, uint16_t *flags,
-    uint16_t *type, uint32_t *mask)
-{
-	ace_t *acep = datap;
-
-	if (cookie >= aclcnt)
-		return (0);
-
-	*flags = acep[cookie].a_flags;
-	*type = acep[cookie].a_type;
-	*mask = acep[cookie++].a_access_mask;
-
-	return (cookie);
-}
-
-int
-ace_trivial(ace_t *acep, int aclcnt)
-{
-	return (ace_trivial_common(acep, aclcnt, ace_walk));
-}
 
 /*
  * Generic shellsort, from K&R (1st ed, p 58.), somewhat modified.
@@ -1726,4 +1563,198 @@ out:
 	return (error);
 #endif
 }
-#endif /* _KERNEL */
+#endif /* !_KERNEL */
+
+#define	SET_ACE(acl, index, who, mask, type, flags) { \
+	acl[0][index].a_who = (uint32_t)who; \
+	acl[0][index].a_type = type; \
+	acl[0][index].a_flags = flags; \
+	acl[0][index++].a_access_mask = mask; \
+}
+
+void
+acl_trivial_access_masks(mode_t mode, uint32_t *allow0, uint32_t *deny1,
+    uint32_t *deny2, uint32_t *owner, uint32_t *group, uint32_t *everyone)
+{
+	*deny1 = *deny2 = *allow0 = *group = 0;
+
+	if (!(mode & S_IRUSR) && (mode & (S_IRGRP|S_IROTH)))
+		*deny1 |= ACE_READ_DATA;
+	if (!(mode & S_IWUSR) && (mode & (S_IWGRP|S_IWOTH)))
+		*deny1 |= ACE_WRITE_DATA|ACE_APPEND_DATA;
+	if (!(mode & S_IXUSR) && (mode & (S_IXGRP|S_IXOTH)))
+		*deny1 |= ACE_EXECUTE;
+
+	if (!(mode & S_IRGRP) && (mode & S_IROTH))
+		*deny2 = ACE_READ_DATA;
+	if (!(mode & S_IWGRP) && (mode & S_IWOTH))
+		*deny2 |= ACE_WRITE_DATA|ACE_APPEND_DATA;
+	if (!(mode & S_IXGRP) && (mode & S_IXOTH))
+		*deny2 |= ACE_EXECUTE;
+
+	if ((mode & S_IRUSR) && (!(mode & S_IRGRP) && (mode & S_IROTH)))
+		*allow0 |= ACE_READ_DATA;
+	if ((mode & S_IWUSR) && (!(mode & S_IWGRP) && (mode & S_IWOTH)))
+		*allow0 |= ACE_WRITE_DATA|ACE_APPEND_DATA;
+	if ((mode & S_IXUSR) && (!(mode & S_IXGRP) && (mode & S_IXOTH)))
+		*allow0 |= ACE_EXECUTE;
+
+	*owner = ACE_WRITE_ATTRIBUTES|ACE_WRITE_OWNER|ACE_WRITE_ACL|
+	    ACE_WRITE_NAMED_ATTRS|ACE_READ_ACL|ACE_READ_ATTRIBUTES|
+	    ACE_READ_NAMED_ATTRS|ACE_SYNCHRONIZE;
+	if (mode & S_IRUSR)
+		*owner |= ACE_READ_DATA;
+	if (mode & S_IWUSR)
+		*owner |= ACE_WRITE_DATA|ACE_APPEND_DATA;
+	if (mode & S_IXUSR)
+		*owner |= ACE_EXECUTE;
+
+	*group = ACE_READ_ACL|ACE_READ_ATTRIBUTES| ACE_READ_NAMED_ATTRS|
+	    ACE_SYNCHRONIZE;
+	if (mode & S_IRGRP)
+		*group |= ACE_READ_DATA;
+	if (mode & S_IWGRP)
+		*group |= ACE_WRITE_DATA|ACE_APPEND_DATA;
+	if (mode & S_IXGRP)
+		*group |= ACE_EXECUTE;
+
+	*everyone = ACE_READ_ACL|ACE_READ_ATTRIBUTES| ACE_READ_NAMED_ATTRS|
+	    ACE_SYNCHRONIZE;
+	if (mode & S_IROTH)
+		*everyone |= ACE_READ_DATA;
+	if (mode & S_IWOTH)
+		*everyone |= ACE_WRITE_DATA|ACE_APPEND_DATA;
+	if (mode & S_IXOTH)
+		*everyone |= ACE_EXECUTE;
+}
+
+int
+acl_trivial_create(mode_t mode, ace_t **acl, int *count)
+{
+	uint32_t	deny1, deny2;
+	uint32_t	allow0;
+	uint32_t	owner, group, everyone;
+	int 		index = 0;
+	int		error;
+
+	*count = 3;
+	acl_trivial_access_masks(mode, &allow0, &deny1, &deny2, &owner, &group,
+	    &everyone);
+
+	if (allow0)
+		(*count)++;
+	if (deny1)
+		(*count)++;
+	if (deny2)
+		(*count)++;
+
+	if ((error = cacl_malloc((void **)acl, *count * sizeof (ace_t))) != 0)
+		return (error);
+
+	if (allow0) {
+		SET_ACE(acl, index, -1, allow0, ACE_ACCESS_ALLOWED_ACE_TYPE,
+		    ACE_OWNER);
+	}
+	if (deny1) {
+		SET_ACE(acl, index, -1, deny1, ACE_ACCESS_DENIED_ACE_TYPE,
+		    ACE_OWNER);
+	}
+	if (deny2) {
+		SET_ACE(acl, index, -1, deny2, ACE_ACCESS_DENIED_ACE_TYPE,
+		    ACE_GROUP|ACE_IDENTIFIER_GROUP);
+	}
+
+	SET_ACE(acl, index, -1, owner, ACE_ACCESS_ALLOWED_ACE_TYPE, ACE_OWNER);
+	SET_ACE(acl, index, -1, group, ACE_ACCESS_ALLOWED_ACE_TYPE,
+	    ACE_IDENTIFIER_GROUP|ACE_GROUP);
+	SET_ACE(acl, index, -1, everyone, ACE_ACCESS_ALLOWED_ACE_TYPE,
+	    ACE_EVERYONE);
+
+	return (0);
+}
+
+/*
+ * ace_trivial:
+ * determine whether an ace_t acl is trivial
+ *
+ * Trivialness implies that the acl is composed of only
+ * owner, group, everyone entries.  ACL can't
+ * have read_acl denied, and write_owner/write_acl/write_attributes
+ * can only be owner@ entry.
+ */
+int
+ace_trivial_common(void *acep, int aclcnt,
+    uint64_t (*walk)(void *, uint64_t, int aclcnt,
+    uint16_t *, uint16_t *, uint32_t *))
+{
+	uint16_t flags;
+	uint32_t mask;
+	uint16_t type;
+	uint64_t cookie = 0;
+
+	while (cookie = walk(acep, cookie, aclcnt, &flags, &type, &mask)) {
+		switch (flags & ACE_TYPE_FLAGS) {
+		case ACE_OWNER:
+		case ACE_GROUP|ACE_IDENTIFIER_GROUP:
+		case ACE_EVERYONE:
+			break;
+		default:
+			return (1);
+
+		}
+
+		if (flags & (ACE_FILE_INHERIT_ACE|
+		    ACE_DIRECTORY_INHERIT_ACE|ACE_NO_PROPAGATE_INHERIT_ACE|
+		    ACE_INHERIT_ONLY_ACE))
+			return (1);
+
+		/*
+		 * Special check for some special bits
+		 *
+		 * Don't allow anybody to deny reading basic
+		 * attributes or a files ACL.
+		 */
+		if ((mask & (ACE_READ_ACL|ACE_READ_ATTRIBUTES)) &&
+		    (type == ACE_ACCESS_DENIED_ACE_TYPE))
+			return (1);
+
+		/*
+		 * Delete permissions are never set by default
+		 */
+		if (mask & (ACE_DELETE|ACE_DELETE_CHILD))
+			return (1);
+		/*
+		 * only allow owner@ to have
+		 * write_acl/write_owner/write_attributes/write_xattr/
+		 */
+		if (type == ACE_ACCESS_ALLOWED_ACE_TYPE &&
+		    (!(flags & ACE_OWNER) && (mask &
+		    (ACE_WRITE_OWNER|ACE_WRITE_ACL| ACE_WRITE_ATTRIBUTES|
+		    ACE_WRITE_NAMED_ATTRS))))
+			return (1);
+
+	}
+	return (0);
+}
+
+uint64_t
+ace_walk(void *datap, uint64_t cookie, int aclcnt, uint16_t *flags,
+    uint16_t *type, uint32_t *mask)
+{
+	ace_t *acep = datap;
+
+	if (cookie >= aclcnt)
+		return (0);
+
+	*flags = acep[cookie].a_flags;
+	*type = acep[cookie].a_type;
+	*mask = acep[cookie++].a_access_mask;
+
+	return (cookie);
+}
+
+int
+ace_trivial(ace_t *acep, int aclcnt)
+{
+	return (ace_trivial_common(acep, aclcnt, ace_walk));
+}

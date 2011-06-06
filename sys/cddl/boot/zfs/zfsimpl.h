@@ -95,6 +95,14 @@
 	BF64_SET(x, low, len, ((val) >> (shift)) - (bias))
 
 /*
+ * Macros to reverse byte order
+ */
+#define	BSWAP_8(x)	((x) & 0xff)
+#define	BSWAP_16(x)	((BSWAP_8(x) << 8) | BSWAP_8((x) >> 8))
+#define	BSWAP_32(x)	((BSWAP_16(x) << 16) | BSWAP_16((x) >> 16))
+#define	BSWAP_64(x)	((BSWAP_32(x) << 32) | BSWAP_32((x) >> 32))
+
+/*
  * We currently support nine block sizes, from 512 bytes to 128K.
  * We could go higher, but the benefits are near-zero and the cost
  * of COWing a giant block to modify one byte would become excessive.
@@ -150,15 +158,15 @@ typedef struct zio_cksum {
  *	+-------+-------+-------+-------+-------+-------+-------+-------+
  * 5	|G|			 offset3				|
  *	+-------+-------+-------+-------+-------+-------+-------+-------+
- * 6	|E| lvl | type	| cksum | comp	|     PSIZE	|     LSIZE	|
+ * 6	|BDX|lvl| type	| cksum | comp	|     PSIZE	|     LSIZE	|
  *	+-------+-------+-------+-------+-------+-------+-------+-------+
  * 7	|			padding					|
  *	+-------+-------+-------+-------+-------+-------+-------+-------+
  * 8	|			padding					|
  *	+-------+-------+-------+-------+-------+-------+-------+-------+
- * 9	|			padding					|
+ * 9	|			physical birth txg			|
  *	+-------+-------+-------+-------+-------+-------+-------+-------+
- * a	|			birth txg				|
+ * a	|			logical birth txg			|
  *	+-------+-------+-------+-------+-------+-------+-------+-------+
  * b	|			fill count				|
  *	+-------+-------+-------+-------+-------+-------+-------+-------+
@@ -182,24 +190,28 @@ typedef struct zio_cksum {
  * cksum	checksum function
  * comp		compression function
  * G		gang block indicator
- * E		endianness
- * type		DMU object type
+ * B		byteorder (endianness)
+ * D		dedup
+ * X		unused
  * lvl		level of indirection
- * birth txg	transaction group in which the block was born
+ * type		DMU object type
+ * phys birth	txg of block allocation; zero if same as logical birth txg
+ * log. birth	transaction group in which the block was logically born
  * fill count	number of non-zero blocks under this bp
  * checksum[4]	256-bit checksum of the data this bp describes
  */
-typedef struct blkptr {
-	dva_t		blk_dva[3];	/* 128-bit Data Virtual Address	*/
-	uint64_t	blk_prop;	/* size, compression, type, etc	*/
-	uint64_t	blk_pad[3];	/* Extra space for the future	*/
-	uint64_t	blk_birth;	/* transaction group at birth	*/
-	uint64_t	blk_fill;	/* fill count			*/
-	zio_cksum_t	blk_cksum;	/* 256-bit checksum		*/
-} blkptr_t;
-
 #define	SPA_BLKPTRSHIFT	7		/* blkptr_t is 128 bytes	*/
 #define	SPA_DVAS_PER_BP	3		/* Number of DVAs in a bp	*/
+
+typedef struct blkptr {
+	dva_t		blk_dva[SPA_DVAS_PER_BP]; /* Data Virtual Addresses */
+	uint64_t	blk_prop;	/* size, compression, type, etc	    */
+	uint64_t	blk_pad[2];	/* Extra space for the future	    */
+	uint64_t	blk_phys_birth;	/* txg when block was allocated	    */
+	uint64_t	blk_birth;	/* transaction group at birth	    */
+	uint64_t	blk_fill;	/* fill count			    */
+	zio_cksum_t	blk_cksum;	/* 256-bit checksum		    */
+} blkptr_t;
 
 /*
  * Macros to get and set fields in a bp or DVA.
@@ -246,8 +258,14 @@ typedef struct blkptr {
 #define	BP_GET_LEVEL(bp)	BF64_GET((bp)->blk_prop, 56, 5)
 #define	BP_SET_LEVEL(bp, x)	BF64_SET((bp)->blk_prop, 56, 5, x)
 
+#define	BP_GET_DEDUP(bp)	BF64_GET((bp)->blk_prop, 62, 1)
+#define	BP_SET_DEDUP(bp, x)	BF64_SET((bp)->blk_prop, 62, 1, x)
+
 #define	BP_GET_BYTEORDER(bp)	(0 - BF64_GET((bp)->blk_prop, 63, 1))
 #define	BP_SET_BYTEORDER(bp, x)	BF64_SET((bp)->blk_prop, 63, 1, x)
+
+#define	BP_PHYSICAL_BIRTH(bp)		\
+	((bp)->blk_phys_birth ? (bp)->blk_phys_birth : (bp)->blk_birth)
 
 #define	BP_GET_ASIZE(bp)	\
 	(DVA_GET_ASIZE(&(bp)->blk_dva[0]) + DVA_GET_ASIZE(&(bp)->blk_dva[1]) + \
@@ -304,18 +322,41 @@ typedef struct blkptr {
 	(bp)->blk_prop = 0;			\
 	(bp)->blk_pad[0] = 0;			\
 	(bp)->blk_pad[1] = 0;			\
-	(bp)->blk_pad[2] = 0;			\
+	(bp)->blk_phys_birth = 0;		\
 	(bp)->blk_birth = 0;			\
 	(bp)->blk_fill = 0;			\
 	ZIO_SET_CHECKSUM(&(bp)->blk_cksum, 0, 0, 0, 0);	\
 }
 
-#define	ZBT_MAGIC	0x210da7ab10c7a11ULL	/* zio data bloc tail */
+/*
+ * Embedded checksum
+ */
+#define	ZEC_MAGIC	0x210da7ab10c7a11ULL
 
-typedef struct zio_block_tail {
-	uint64_t	zbt_magic;	/* for validation, endianness	*/
-	zio_cksum_t	zbt_cksum;	/* 256-bit checksum		*/
-} zio_block_tail_t;
+typedef struct zio_eck {
+	uint64_t	zec_magic;	/* for validation, endianness	*/
+	zio_cksum_t	zec_cksum;	/* 256-bit checksum		*/
+} zio_eck_t;
+
+/*
+ * Gang block headers are self-checksumming and contain an array
+ * of block pointers.
+ */
+#define	SPA_GANGBLOCKSIZE	SPA_MINBLOCKSIZE
+#define	SPA_GBH_NBLKPTRS	((SPA_GANGBLOCKSIZE - \
+	sizeof (zio_eck_t)) / sizeof (blkptr_t))
+#define	SPA_GBH_FILLER		((SPA_GANGBLOCKSIZE - \
+	sizeof (zio_eck_t) - \
+	(SPA_GBH_NBLKPTRS * sizeof (blkptr_t))) /\
+	sizeof (uint64_t))
+
+typedef struct zio_gbh {
+	blkptr_t		zg_blkptr[SPA_GBH_NBLKPTRS];
+	uint64_t		zg_filler[SPA_GBH_FILLER];
+	zio_eck_t		zg_tail;
+} zio_gbh_phys_t;
+
+#define	VDEV_RAIDZ_MAXPARITY	3
 
 #define	VDEV_PAD_SIZE		(8 << 10)
 /* 2 padding areas (vl_pad1 and vl_pad2) to skip */
@@ -324,7 +365,7 @@ typedef struct zio_block_tail {
 #define	VDEV_UBERBLOCK_RING	(128 << 10)
 
 #define	VDEV_UBERBLOCK_SHIFT(vd)	\
-	MAX((vd)->vdev_top->vdev_ashift, UBERBLOCK_SHIFT)
+	MAX((vd)->v_top->v_ashift, UBERBLOCK_SHIFT)
 #define	VDEV_UBERBLOCK_COUNT(vd)	\
 	(VDEV_UBERBLOCK_RING >> VDEV_UBERBLOCK_SHIFT(vd))
 #define	VDEV_UBERBLOCK_OFFSET(vd, n)	\
@@ -332,8 +373,8 @@ typedef struct zio_block_tail {
 #define	VDEV_UBERBLOCK_SIZE(vd)		(1ULL << VDEV_UBERBLOCK_SHIFT(vd))
 
 typedef struct vdev_phys {
-	char		vp_nvlist[VDEV_PHYS_SIZE - sizeof (zio_block_tail_t)];
-	zio_block_tail_t vp_zbt;
+	char		vp_nvlist[VDEV_PHYS_SIZE - sizeof (zio_eck_t)];
+	zio_eck_t	vp_zbt;
 } vdev_phys_t;
 
 typedef struct vdev_label {
@@ -363,24 +404,6 @@ typedef struct vdev_label {
 #define	VDEV_LABEL_END_SIZE	(2 * sizeof (vdev_label_t))
 #define	VDEV_LABELS		4
 
-/*
- * Gang block headers are self-checksumming and contain an array
- * of block pointers.
- */
-#define SPA_GANGBLOCKSIZE	SPA_MINBLOCKSIZE
-#define SPA_GBH_NBLKPTRS	((SPA_GANGBLOCKSIZE - \
-	sizeof (zio_block_tail_t)) / sizeof (blkptr_t))
-#define SPA_GBH_FILLER		((SPA_GANGBLOCKSIZE - \
-	sizeof (zio_block_tail_t) - \
-	(SPA_GBH_NBLKPTRS * sizeof (blkptr_t))) /\
-	sizeof (uint64_t))
-
-typedef struct zio_gbh {
-	blkptr_t		zg_blkptr[SPA_GBH_NBLKPTRS];
-	uint64_t		zg_filler[SPA_GBH_FILLER];
-	zio_block_tail_t	zg_tail;
-} zio_gbh_phys_t;
-
 enum zio_checksum {
 	ZIO_CHECKSUM_INHERIT = 0,
 	ZIO_CHECKSUM_ON,
@@ -391,10 +414,11 @@ enum zio_checksum {
 	ZIO_CHECKSUM_FLETCHER_2,
 	ZIO_CHECKSUM_FLETCHER_4,
 	ZIO_CHECKSUM_SHA256,
+	ZIO_CHECKSUM_ZILOG2,
 	ZIO_CHECKSUM_FUNCTIONS
 };
 
-#define	ZIO_CHECKSUM_ON_VALUE	ZIO_CHECKSUM_FLETCHER_2
+#define	ZIO_CHECKSUM_ON_VALUE	ZIO_CHECKSUM_FLETCHER_4
 #define	ZIO_CHECKSUM_DEFAULT	ZIO_CHECKSUM_ON
 
 enum zio_compress {
@@ -412,6 +436,7 @@ enum zio_compress {
 	ZIO_COMPRESS_GZIP_7,
 	ZIO_COMPRESS_GZIP_8,
 	ZIO_COMPRESS_GZIP_9,
+	ZIO_COMPRESS_ZLE,
 	ZIO_COMPRESS_FUNCTIONS
 };
 
@@ -470,13 +495,28 @@ typedef enum {
 #define	SPA_VERSION_13			13ULL
 #define	SPA_VERSION_14			14ULL
 #define	SPA_VERSION_15			15ULL
+#define	SPA_VERSION_16			16ULL
+#define	SPA_VERSION_17			17ULL
+#define	SPA_VERSION_18			18ULL
+#define	SPA_VERSION_19			19ULL
+#define	SPA_VERSION_20			20ULL
+#define	SPA_VERSION_21			21ULL
+#define	SPA_VERSION_22			22ULL
+#define	SPA_VERSION_23			23ULL
+#define	SPA_VERSION_24			24ULL
+#define	SPA_VERSION_25			25ULL
+#define	SPA_VERSION_26			26ULL
+#define	SPA_VERSION_27			27ULL
+#define	SPA_VERSION_28			28ULL
+
 /*
- * When bumping up SPA_VERSION, make sure GRUB ZFS understand the on-disk
- * format change. Go to usr/src/grub/grub-0.95/stage2/{zfs-include/, fsys_zfs*},
- * and do the appropriate changes.
+ * When bumping up SPA_VERSION, make sure GRUB ZFS understands the on-disk
+ * format change. Go to usr/src/grub/grub-0.97/stage2/{zfs-include/, fsys_zfs*},
+ * and do the appropriate changes.  Also bump the version number in
+ * usr/src/grub/capability.
  */
-#define	SPA_VERSION			SPA_VERSION_15
-#define	SPA_VERSION_STRING		"15"
+#define	SPA_VERSION			SPA_VERSION_28
+#define	SPA_VERSION_STRING		"28"
 
 /*
  * Symbolic names for the changes that caused a SPA_VERSION switch.
@@ -513,6 +553,20 @@ typedef enum {
 #define	SPA_VERSION_USED_BREAKDOWN	SPA_VERSION_13
 #define	SPA_VERSION_PASSTHROUGH_X	SPA_VERSION_14
 #define SPA_VERSION_USERSPACE		SPA_VERSION_15
+#define	SPA_VERSION_STMF_PROP		SPA_VERSION_16
+#define	SPA_VERSION_RAIDZ3		SPA_VERSION_17
+#define	SPA_VERSION_USERREFS		SPA_VERSION_18
+#define	SPA_VERSION_HOLES		SPA_VERSION_19
+#define	SPA_VERSION_ZLE_COMPRESSION	SPA_VERSION_20
+#define	SPA_VERSION_DEDUP		SPA_VERSION_21
+#define	SPA_VERSION_RECVD_PROPS		SPA_VERSION_22
+#define	SPA_VERSION_SLIM_ZIL		SPA_VERSION_23
+#define	SPA_VERSION_SA			SPA_VERSION_24
+#define	SPA_VERSION_SCAN		SPA_VERSION_25
+#define	SPA_VERSION_DIR_CLONES		SPA_VERSION_26
+#define	SPA_VERSION_DEADLISTS		SPA_VERSION_26
+#define	SPA_VERSION_FAST_SNAP		SPA_VERSION_27
+#define	SPA_VERSION_MULTI_REPLACE	SPA_VERSION_28
 
 /*
  * The following are configuration names used in the nvlist describing a pool's
@@ -558,6 +612,8 @@ typedef enum {
 #define	ZPOOL_CONFIG_FAULTED            "faulted"
 #define	ZPOOL_CONFIG_DEGRADED           "degraded"
 #define	ZPOOL_CONFIG_REMOVED            "removed"
+#define	ZPOOL_CONFIG_FRU		"fru"
+#define	ZPOOL_CONFIG_AUX_STATE		"aux_state"
 
 #define	VDEV_TYPE_ROOT			"root"
 #define	VDEV_TYPE_MIRROR		"mirror"
@@ -566,7 +622,10 @@ typedef enum {
 #define	VDEV_TYPE_DISK			"disk"
 #define	VDEV_TYPE_FILE			"file"
 #define	VDEV_TYPE_MISSING		"missing"
+#define	VDEV_TYPE_HOLE			"hole"
 #define	VDEV_TYPE_SPARE			"spare"
+#define	VDEV_TYPE_LOG			"log"
+#define	VDEV_TYPE_L2CACHE		"l2cache"
 
 /*
  * This is needed in userland to report the minimum necessary device size.
@@ -577,11 +636,7 @@ typedef enum {
  * The location of the pool configuration repository, shared between kernel and
  * userland.
  */
-#define	ZPOOL_CACHE_DIR		"/boot/zfs"
-#define	ZPOOL_CACHE_FILE	"zpool.cache"
-#define	ZPOOL_CACHE_TMP		".zpool.cache"
-
-#define	ZPOOL_CACHE		ZPOOL_CACHE_DIR "/" ZPOOL_CACHE_FILE
+#define	ZPOOL_CACHE		"/boot/zfs/zpool.cache"
 
 /*
  * vdev states are ordered from least to most healthy.
@@ -694,7 +749,11 @@ struct uberblock {
 #define	EPB(blkshift, typeshift)	(1 << (blkshift - typeshift))
 
 /* Is dn_used in bytes?  if not, it's in multiples of SPA_MINBLOCKSIZE */
-#define	DNODE_FLAG_USED_BYTES	(1<<0)
+#define	DNODE_FLAG_USED_BYTES		(1<<0)
+#define	DNODE_FLAG_USERUSED_ACCOUNTED	(1<<1)
+
+/* Does dnode have a SA spill blkptr in bonus? */
+#define	DNODE_FLAG_SPILL_BLKPTR	(1<<2)
 
 typedef struct dnode_phys {
 	uint8_t dn_type;		/* dmu_object_type_t */
@@ -716,7 +775,8 @@ typedef struct dnode_phys {
 	uint64_t dn_pad3[4];
 
 	blkptr_t dn_blkptr[1];
-	uint8_t dn_bonus[DN_MAX_BONUSLEN];
+	uint8_t dn_bonus[DN_MAX_BONUSLEN - sizeof (blkptr_t)];
+	blkptr_t dn_spill;
 } dnode_phys_t;
 
 typedef enum dmu_object_type {
@@ -744,7 +804,7 @@ typedef enum dmu_object_type {
 	DMU_OT_DSL_DATASET,		/* UINT64 */
 	/* zpl: */
 	DMU_OT_ZNODE,			/* ZNODE */
-	DMU_OT_ACL,			/* ACL */
+	DMU_OT_OLDACL,			/* Old ACL */
 	DMU_OT_PLAIN_FILE_CONTENTS,	/* UINT8 */
 	DMU_OT_DIRECTORY_CONTENTS,	/* ZAP */
 	DMU_OT_MASTER_NODE,		/* ZAP */
@@ -761,7 +821,24 @@ typedef enum dmu_object_type {
 	DMU_OT_SPA_HISTORY,		/* UINT8 */
 	DMU_OT_SPA_HISTORY_OFFSETS,	/* spa_his_phys_t */
 	DMU_OT_POOL_PROPS,		/* ZAP */
-
+	DMU_OT_DSL_PERMS,		/* ZAP */
+	DMU_OT_ACL,			/* ACL */
+	DMU_OT_SYSACL,			/* SYSACL */
+	DMU_OT_FUID,			/* FUID table (Packed NVLIST UINT8) */
+	DMU_OT_FUID_SIZE,		/* FUID table size UINT64 */
+	DMU_OT_NEXT_CLONES,		/* ZAP */
+	DMU_OT_SCAN_QUEUE,		/* ZAP */
+	DMU_OT_USERGROUP_USED,		/* ZAP */
+	DMU_OT_USERGROUP_QUOTA,		/* ZAP */
+	DMU_OT_USERREFS,		/* ZAP */
+	DMU_OT_DDT_ZAP,			/* ZAP */
+	DMU_OT_DDT_STATS,		/* ZAP */
+	DMU_OT_SA,			/* System attr */
+	DMU_OT_SA_MASTER_NODE,		/* ZAP */
+	DMU_OT_SA_ATTR_REGISTRATION,	/* ZAP */
+	DMU_OT_SA_ATTR_LAYOUTS,		/* ZAP */
+	DMU_OT_SCAN_XLATE,		/* ZAP */
+	DMU_OT_DEDUP,			/* fake dedup BP from ddt_bp_create() */
 	DMU_OT_NUMTYPES
 } dmu_object_type_t;
 
@@ -776,6 +853,54 @@ typedef enum dmu_objset_type {
 } dmu_objset_type_t;
 
 /*
+ * header for all bonus and spill buffers.
+ * The header has a fixed portion with a variable number
+ * of "lengths" depending on the number of variable sized
+ * attribues which are determined by the "layout number"
+ */
+
+#define	SA_MAGIC	0x2F505A  /* ZFS SA */
+typedef struct sa_hdr_phys {
+	uint32_t sa_magic;
+	uint16_t sa_layout_info;  /* Encoded with hdrsize and layout number */
+	uint16_t sa_lengths[1];	/* optional sizes for variable length attrs */
+	/* ... Data follows the lengths.  */
+} sa_hdr_phys_t;
+
+/*
+ * sa_hdr_phys -> sa_layout_info
+ *
+ * 16      10       0
+ * +--------+-------+
+ * | hdrsz  |layout |
+ * +--------+-------+
+ *
+ * Bits 0-10 are the layout number
+ * Bits 11-16 are the size of the header.
+ * The hdrsize is the number * 8
+ *
+ * For example.
+ * hdrsz of 1 ==> 8 byte header
+ *          2 ==> 16 byte header
+ *
+ */
+
+#define	SA_HDR_LAYOUT_NUM(hdr) BF32_GET(hdr->sa_layout_info, 0, 10)
+#define	SA_HDR_SIZE(hdr) BF32_GET_SB(hdr->sa_layout_info, 10, 16, 3, 0)
+#define	SA_HDR_LAYOUT_INFO_ENCODE(x, num, size) \
+{ \
+	BF32_SET_SB(x, 10, 6, 3, 0, size); \
+	BF32_SET(x, 0, 10, num); \
+}
+
+#define	SA_MODE_OFFSET		0
+#define	SA_SIZE_OFFSET		8
+#define	SA_GEN_OFFSET		16
+#define	SA_UID_OFFSET		24
+#define	SA_GID_OFFSET		32
+#define	SA_PARENT_OFFSET	40
+
+/*
  * Intent log header - this on disk structure holds fields to manage
  * the log.  All fields are 64 bit to easily handle cross architectures.
  */
@@ -787,12 +912,14 @@ typedef struct zil_header {
 	uint64_t zh_pad[5];
 } zil_header_t;
 
+#define	OBJSET_PHYS_SIZE 2048
+
 typedef struct objset_phys {
 	dnode_phys_t os_meta_dnode;
 	zil_header_t os_zil_header;
 	uint64_t os_type;
 	uint64_t os_flags;
-	char os_pad[2048 - sizeof (dnode_phys_t)*3 -
+	char os_pad[OBJSET_PHYS_SIZE - sizeof (dnode_phys_t)*3 -
 	    sizeof (zil_header_t) - sizeof (uint64_t)*2];
 	dnode_phys_t os_userused_dnode;
 	dnode_phys_t os_groupused_dnode;
@@ -1174,11 +1301,12 @@ typedef struct vdev {
 	STAILQ_ENTRY(vdev) v_childlink;	/* link in parent's child list */
 	STAILQ_ENTRY(vdev) v_alllink;	/* link in global vdev list */
 	vdev_list_t	v_children;	/* children of this vdev */
-	char		*v_name;	/* vdev name */
+	const char	*v_name;	/* vdev name */
 	uint64_t	v_guid;		/* vdev guid */
 	int		v_id;		/* index in parent */
 	int		v_ashift;	/* offset to block shift */
 	int		v_nparity;	/* # parity for raidz */
+	struct vdev	*v_top;		/* parent vdev */
 	int		v_nchildren;	/* # children */
 	vdev_state_t	v_state;	/* current state */
 	vdev_phys_read_t *v_phys_read;	/* read from raw leaf vdev */

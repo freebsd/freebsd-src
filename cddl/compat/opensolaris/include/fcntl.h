@@ -32,6 +32,7 @@
 
 #include_next <fcntl.h>
 
-#define open64	open
+#define open64(...)	open(__VA_ARGS__)
+#define openat64(...)	openat(__VA_ARGS__)
 
 #endif

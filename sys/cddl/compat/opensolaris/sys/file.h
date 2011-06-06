@@ -31,26 +31,30 @@
 
 #include_next <sys/file.h>
 
+#define	FKIOCTL	0x80000000	/* ioctl addresses are from kernel */
+
 #ifdef _KERNEL
 typedef	struct file	file_t;
 
 static __inline file_t *
-getf(int fd, int write)
+getf(int fd)
 {
 	struct file *fp;
 
-	if (write && fget_write(curthread, fd, &fp) == 0)
-		return (fp);
-	else if (!write && fget_read(curthread, fd, &fp) == 0)
+	if (fget(curthread, fd, &fp) == 0)
 		return (fp);
 	return (NULL);
 }
 
 static __inline void
-releasef(file_t *fp)
+releasef(int fd)
 {
+	struct file *fp;
 
-	fdrop(fp, curthread);
+	if (fget(curthread, fd, &fp) == 0) {
+		fdrop(fp, curthread);
+		fdrop(fp, curthread);
+	}
 }
 #endif	/* _KERNEL */
 

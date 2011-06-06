@@ -37,7 +37,7 @@
 #undef _SYS_ACL_H
 #include_next <sys/acl.h>
 #define	_SYS_ACL_H
-#endif /* _KERNEL */
+#endif	/* _KERNEL */
 
 #ifdef	__cplusplus
 extern "C" {
@@ -57,7 +57,7 @@ typedef struct ace {
 	uint16_t	a_type;		/* allow or deny */
 } ace_t;
 
-#if !defined(_KERNEL)
+#ifndef _KERNEL
 typedef struct acl_info acl_t;
 #endif
 

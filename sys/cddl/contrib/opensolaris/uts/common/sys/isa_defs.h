@@ -432,6 +432,12 @@ extern "C" {
 
 #elif defined(__powerpc__)
 
+#if defined(__BIG_ENDIAN__)
+#define _BIT_FIELDS_HTOL
+#else
+#define _BIT_FIELDS_LTOH
+#endif
+
 /*
  * The following set of definitions characterize the Solaris on SPARC systems.
  *
