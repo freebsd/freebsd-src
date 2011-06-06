@@ -300,7 +300,8 @@ tcp_init(void)
 		hashsize = 512; /* safe default */
 	}
 	in_pcbinfo_init(&V_tcbinfo, "tcp", &V_tcb, hashsize, hashsize,
-	    "tcp_inpcb", tcp_inpcb_init, NULL, UMA_ZONE_NOFREE);
+	    "tcp_inpcb", tcp_inpcb_init, NULL, UMA_ZONE_NOFREE,
+	    IPI_HASHFIELDS_4TUPLE);
 
 	/*
 	 * These have to be type stable for the benefit of the timers.
