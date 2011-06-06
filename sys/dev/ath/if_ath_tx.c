@@ -1197,6 +1197,8 @@ ath_tx_node_sched(struct ath_softc *sc, struct ath_node *an, int tid)
 	if (an->sched)
 		return;		/* already scheduled */
 
+	an->sched = 1;
+
 	STAILQ_INSERT_TAIL(&sc->sc_txnodeq, an, an_list);
 }
 
