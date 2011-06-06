@@ -839,6 +839,7 @@ int_rman_release_resource(struct rman *rm, struct resource_i *r)
 		 * without freeing anything.
 		 */
 		r->r_flags &= ~RF_ALLOCATED;
+		r->r_dev = NULL;
 		return 0;
 	}
 
