@@ -37,9 +37,10 @@
 .Nd router advertisement daemon
 .Sh SYNOPSIS
 .Nm
-.Op Fl dDfMRs
+.Op Fl dDfRs
 .Op Fl c Ar configfile
 .Op Fl F Ar dumpfile
+.Op Fl M Ar ifname
 .Op Fl p Ar pidfile
 .Ar interface ...
 .Sh DESCRIPTION
@@ -103,7 +104,7 @@ will not watch the routing table and the whole functionality described
 above will be suppressed.
 .Pp
 Basically, hosts MUST NOT send Router Advertisement messages at any
-time (RFC 2461, Section 6.2.3).
+time (RFC 4861, Section 6.2.3).
 However, it would sometimes be useful to allow hosts to advertise some
 parameters such as prefix information and link MTU.
 Thus,
@@ -176,7 +177,7 @@ In this case,
 .Nm
 will transmit router advertisement with router lifetime 0
 to all the interfaces
-.Pq in accordance with RFC2461 6.2.5 .
+.Pq in accordance with RFC 4861 6.2.5 .
 .Sh FILES
 .Bl -tag -width Pa -compact
 .It Pa /etc/rtadvd.conf
@@ -193,6 +194,34 @@ dumps its internal state.
 .Sh SEE ALSO
 .Xr rtadvd.conf 5 ,
 .Xr rtsol 8
+.Rs
+.%A Thomas Narten
+.%A Erik Nordmark
+.%A W. A. Simpson
+.%A Hesham Soliman
+.%T Neighbor Discovery for IP version 6 (IPv6)
+.%R RFC 4861
+.Re
+.Rs
+.%A Thomas Narten
+.%A Erik Nordmark
+.%A W. A. Simpson
+.%T Neighbor Discovery for IP version 6 (IPv6)
+.%R RFC 2461 (obsoleted by RFC 4861)
+.Re
+.Rs
+.%A Richard Draves
+.%T Default Router Preferences and More-Specific Routes
+.%R draft-ietf-ipngwg-router-selection-xx.txt
+.Re
+.Rs
+.%A J. Jeong
+.%A S. Park
+.%A L. Beloeil
+.%A S. Madanapalli
+.%T IPv6 Router Advertisement Options for DNS Configuration
+.%R RFC 6106
+.Re
 .Sh HISTORY
 The
 .Nm
