@@ -85,5 +85,9 @@ usb_error_t usbd_req_set_hub_u2_timeout(struct usb_device *udev,
 		    struct mtx *mtx, uint8_t port, uint8_t timeout);
 usb_error_t usbd_req_set_hub_depth(struct usb_device *udev,
 		    struct mtx *mtx, uint16_t depth);
+usb_error_t usbd_req_reset_tt(struct usb_device *udev, struct mtx *mtx,
+		    uint8_t port);
+usb_error_t usbd_req_clear_tt_buffer(struct usb_device *udev, struct mtx *mtx,
+		    uint8_t port, uint8_t addr, uint8_t type, uint8_t endpoint);
 
 #endif					/* _USB_REQUEST_H_ */
