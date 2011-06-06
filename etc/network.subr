@@ -102,7 +102,7 @@ ifconfig_up()
 	if afexists inet6; then
 		if checkyesno ipv6_activate_all_interfaces; then
 			_ipv6_opts="-ifdisabled"
-		else
+		elif [ "$1" != "lo0" ]; then
 			_ipv6_opts="ifdisabled"
 		fi
 
