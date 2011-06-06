@@ -419,6 +419,7 @@ MROUTING		opt_mrouting.h
 NCP
 NETATALK		opt_atalk.h
 NFSLOCKD
+PCBGROUP		opt_pcbgroup.h
 RADIX_MPATH		opt_mpath.h
 ROUTETABLES		opt_route.h
 SLIP_IFF_OPTS		opt_slip.h
