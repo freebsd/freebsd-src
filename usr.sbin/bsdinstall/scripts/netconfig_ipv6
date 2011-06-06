@@ -33,7 +33,6 @@
 
 #
 # TODO: 
-# - Add -R /sbin/resolvconf to rtsol once support is in tree.
 # - Add DHCPv6 support once FreeBSD ships with it.
 # 
 
