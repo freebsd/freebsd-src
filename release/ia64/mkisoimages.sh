@@ -72,8 +72,8 @@ else
     BOOTOPTS=""
 fi
 
-echo "/dev/iso9660/$LABEL / cd9660 ro 0 0" > $1/etc/fstab
+echo "/dev/iso9660/$LABEL / cd9660 ro 0 0" > $BASE/etc/fstab
 makefs -t cd9660 $BOOTOPTS -o rockridge -o label=$LABEL $NAME $BASE $*
+rm $BASE/etc/fstab
 rm -f $EFIPART
-rm $1/etc/fstab
 exit 0
