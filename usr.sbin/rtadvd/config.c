@@ -109,7 +109,7 @@ dname_labelenc(char *dst, const char *src)
 	/* Always need a 0-length label at the tail. */
 	*dst++ = '\0';
 
-	syslog(LOG_DEBUG, "<%s> labellen = %d", __func__, dst - dst_origin);
+	syslog(LOG_DEBUG, "<%s> labellen = %td", __func__, dst - dst_origin);
 	return (dst - dst_origin);
 }
 
