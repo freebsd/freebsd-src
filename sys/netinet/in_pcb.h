@@ -141,6 +141,7 @@ struct	icmp6_filter;
  *
  * Key:
  * (c) - Constant after initialization
+ * (g) - Protected by the pcbgroup lock
  * (i) - Protected by the inpcb lock
  * (p) - Protected by the pcbinfo lock for the inpcb
  * (s) - Protected by another subsystem's locks
@@ -160,9 +161,12 @@ struct	icmp6_filter;
  */
 struct inpcb {
 	LIST_ENTRY(inpcb) inp_hash;	/* (i/p) hash list */
+	LIST_ENTRY(inpcb) inp_pcbgrouphash;	/* (g/i) hash list */
 	LIST_ENTRY(inpcb) inp_list;	/* (i/p) list for all PCBs for proto */
 	void	*inp_ppcb;		/* (i) pointer to per-protocol pcb */
 	struct	inpcbinfo *inp_pcbinfo;	/* (c) PCB list info */
+	struct	inpcbgroup *inp_pcbgroup; /* (g/i) PCB group list */
+	LIST_ENTRY(inpcb) inp_pcbgroup_wild; /* (g/i/p) group wildcard entry */
 	struct	socket *inp_socket;	/* (i) back pointer to socket */
 	struct	ucred	*inp_cred;	/* (c) cache of socket cred */
 	u_int32_t inp_flow;		/* (i) IPv6 flow information */
@@ -272,13 +276,14 @@ struct inpcbport {
  * the former covering mutable global fields (such as the global pcb list),
  * and the latter covering the hashed lookup tables.  The lock order is:
  *
- *    ipi_lock (before) inpcb locks (before) ipi_hash_lock
+ *    ipi_lock (before) inpcb locks (before) {ipi_hash_lock, pcbgroup locks}
  *
  * Locking key:
  *
  * (c) Constant or nearly constant after initialisation
  * (g) Locked by ipi_lock
- * (h) Read using either ipi_hash_lock or inpcb lock; write requires both.
+ * (h) Read using either ipi_hash_lock or inpcb lock; write requires both
+ * (p) Protected by one or more pcbgroup locks
  * (x) Synchronisation properties poorly defined
  */
 struct inpcbinfo {
@@ -312,7 +317,16 @@ struct inpcbinfo {
 	struct	uma_zone	*ipi_zone;		/* (c) */
 
 	/*
-	 * Global lock protecting hash lookup tables.
+	 * Connection groups associated with this protocol.  These fields are
+	 * constant, but pcbgroup structures themselves are protected by
+	 * per-pcbgroup locks.
+	 */
+	struct inpcbgroup	*ipi_pcbgroups;		/* (c) */
+	u_int			 ipi_npcbgroups;	/* (c) */
+	u_int			 ipi_hashfields;	/* (c) */
+
+	/*
+	 * Global lock protecting non-pcbgroup hash lookup tables.
 	 */
 	struct rwlock		 ipi_hash_lock;
 
@@ -330,6 +344,14 @@ struct inpcbinfo {
 	u_long			 ipi_porthashmask;	/* (h) */
 
 	/*
+	 * List of wildcard inpcbs for use with pcbgroups.  In the past, was
+	 * per-pcbgroup but is now global.  All pcbgroup locks must be held
+	 * to modify the list, so any is sufficient to read it.
+	 */
+	struct inpcbhead	*ipi_wildbase;		/* (p) */
+	u_long			 ipi_wildmask;		/* (p) */
+
+	/*
 	 * Pointer to network stack instance
 	 */
 	struct vnet		*ipi_vnet;		/* (c) */
@@ -339,6 +361,31 @@ struct inpcbinfo {
 	 */
 	void 			*ipi_pspare[2];
 };
+
+/*
+ * Connection groups hold sets of connections that have similar CPU/thread
+ * affinity.  Each connection belongs to exactly one connection group.
+ */
+struct inpcbgroup {
+	/*
+	 * Per-connection group hash of inpcbs, hashed by local and foreign
+	 * addresses and port numbers.
+	 */
+	struct inpcbhead	*ipg_hashbase;		/* (c) */
+	u_long			 ipg_hashmask;		/* (c) */
+
+	/*
+	 * Notional affinity of this pcbgroup.
+	 */
+	u_int			 ipg_cpu;		/* (p) */
+
+	/*
+	 * Per-connection group lock, not to be confused with ipi_lock.
+	 * Protects the hash table hung off the group, but also the global
+	 * wildcard list in inpcbinfo.
+	 */
+	struct mtx		 ipg_lock;
+} __aligned(CACHE_LINE_SIZE);
 
 #define INP_LOCK_INIT(inp, d, t) \
 	rw_init_flags(&(inp)->inp_lock, (t), RW_RECURSE |  RW_DUPOK)
@@ -423,6 +470,14 @@ void 	inp_4tuple_get(struct inpcb *inp, uint32_t *laddr, uint16_t *lp,
 #define	INP_HASH_WLOCK_ASSERT(ipi)	rw_assert(&(ipi)->ipi_hash_lock, \
 					    RA_WLOCKED)
 
+#define	INP_GROUP_LOCK_INIT(ipg, d)	mtx_init(&(ipg)->ipg_lock, (d), NULL, \
+					    MTX_DEF | MTX_DUPOK)
+#define	INP_GROUP_LOCK_DESTROY(ipg)	mtx_destroy(&(ipg)->ipg_lock)
+
+#define	INP_GROUP_LOCK(ipg)		mtx_lock(&(ipg)->ipg_lock)
+#define	INP_GROUP_LOCK_ASSERT(ipg)	mtx_assert(&(ipg)->ipg_lock, MA_OWNED)
+#define	INP_GROUP_UNLOCK(ipg)		mtx_unlock(&(ipg)->ipg_lock)
+
 #define INP_PCBHASH(faddr, lport, fport, mask) \
 	(((faddr) ^ ((faddr) >> 16) ^ ntohs((lport) ^ (fport))) & (mask))
 #define INP_PCBPORTHASH(lport, mask) \
@@ -482,6 +537,7 @@ void 	inp_4tuple_get(struct inpcb *inp, uint32_t *laddr, uint16_t *lp,
  */
 #define	INP_LLE_VALID		0x00000001 /* cached lle is valid */	
 #define	INP_RT_VALID		0x00000002 /* cached rtentry is valid */
+#define	INP_PCBGROUPWILD	0x00000004 /* in pcbgroup wildcard list */
 
 /*
  * Flags passed to in_pcblookup*() functions.
@@ -499,6 +555,13 @@ void 	inp_4tuple_get(struct inpcb *inp, uint32_t *laddr, uint16_t *lp,
 #define	INP_SOCKAF(so) so->so_proto->pr_domain->dom_family
 
 #define	INP_CHECK_SOCKAF(so, af)	(INP_SOCKAF(so) == af)
+
+/*
+ * Constants for pcbinfo.ipi_hashfields.
+ */
+#define	IPI_HASHFIELDS_NONE	0
+#define	IPI_HASHFIELDS_2TUPLE	1
+#define	IPI_HASHFIELDS_4TUPLE	2
 
 #ifdef _KERNEL
 VNET_DECLARE(int, ipport_reservedhigh);
@@ -531,7 +594,21 @@ VNET_DECLARE(int, ipport_tcpallocs);
 
 void	in_pcbinfo_destroy(struct inpcbinfo *);
 void	in_pcbinfo_init(struct inpcbinfo *, const char *, struct inpcbhead *,
-	    int, int, char *, uma_init, uma_fini, uint32_t);
+	    int, int, char *, uma_init, uma_fini, uint32_t, u_int);
+
+struct inpcbgroup *
+	in_pcbgroup_byhash(struct inpcbinfo *, u_int, uint32_t);
+struct inpcbgroup *
+	in_pcbgroup_byinpcb(struct inpcb *);
+struct inpcbgroup *
+	in_pcbgroup_bytuple(struct inpcbinfo *, struct in_addr, u_short,
+	    struct in_addr, u_short);
+void	in_pcbgroup_destroy(struct inpcbinfo *);
+int	in_pcbgroup_enabled(struct inpcbinfo *);
+void	in_pcbgroup_init(struct inpcbinfo *, u_int, int);
+void	in_pcbgroup_remove(struct inpcb *);
+void	in_pcbgroup_update(struct inpcb *);
+void	in_pcbgroup_update_mbuf(struct inpcb *, struct mbuf *);
 
 void	in_pcbpurgeif0(struct inpcbinfo *, struct ifnet *);
 int	in_pcballoc(struct socket *, struct inpcbinfo *);
@@ -551,6 +628,7 @@ void	in_pcbdisconnect(struct inpcb *);
 void	in_pcbdrop(struct inpcb *);
 void	in_pcbfree(struct inpcb *);
 int	in_pcbinshash(struct inpcb *);
+int	in_pcbinshash_nopcbgroup(struct inpcb *);
 struct inpcb *
 	in_pcblookup_local(struct inpcbinfo *,
 	    struct in_addr, u_short, int, struct ucred *);
