@@ -1349,7 +1349,7 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 					continue;
 				ia = (struct in6_ifaddr *)ifa;
 				if ((ia->ia6_flags & IN6_IFF_DUPLICATED) &&
-				    IN6_IS_ADDR_LINKLOCAL(IA6_IN6(ia)))
+				    IN6_IS_ADDR_LINKLOCAL(IA6_IN6(ia))) {
 					duplicated_linklocal = 1;
 					break;
 				}
