@@ -673,7 +673,7 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 				/*
 				 * Ignore failure of clearing the flag
 				 * intentionally.  The failure means
-				 * address duplication wes detected.
+				 * address duplication was detected.
 				 */
 			}
 			EVENTHANDLER_INVOKE(ifaddr_event, ifp);
