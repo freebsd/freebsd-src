@@ -38,35 +38,42 @@
 ** History
 **
 **        REV#         DATE	            NAME	         DESCRIPTION
-**     1.00.00.00    3/31/2004		Erich Chen			 First release
-**     1.20.00.02   11/29/2004		Erich Chen			 bug fix with arcmsr_bus_reset when PHY error
-**     1.20.00.03    4/19/2005		Erich Chen			 add SATA 24 Ports adapter type support
+**     1.00.00.00	03/31/2004		Erich Chen			 First release
+**     1.20.00.02	11/29/2004		Erich Chen			 bug fix with arcmsr_bus_reset when PHY error
+**     1.20.00.03	04/19/2005		Erich Chen			 add SATA 24 Ports adapter type support
 **                                                       clean unused function
-**     1.20.00.12    9/12/2005		Erich Chen        	 bug fix with abort command handling, 
+**     1.20.00.12	09/12/2005		Erich Chen        	 bug fix with abort command handling, 
 **                                                       firmware version check 
 **                                                       and firmware update notify for hardware bug fix
 **                                                       handling if none zero high part physical address 
 **                                                       of srb resource 
-**     1.20.00.13    8/18/2006		Erich Chen			 remove pending srb and report busy
+**     1.20.00.13	08/18/2006		Erich Chen			 remove pending srb and report busy
 **                                                       add iop message xfer 
 **                                                       with scsi pass-through command
 **                                                       add new device id of sas raid adapters 
 **                                                       code fit for SPARC64 & PPC 
-**     1.20.00.14   02/05/2007		Erich Chen			 bug fix for incorrect ccb_h.status report
+**     1.20.00.14	02/05/2007		Erich Chen			 bug fix for incorrect ccb_h.status report
 **                                                       and cause g_vfs_done() read write error
-**     1.20.00.15   10/10/2007		Erich Chen			 support new RAID adapter type ARC120x
-**     1.20.00.16   10/10/2009		Erich Chen			 Bug fix for RAID adapter type ARC120x
+**     1.20.00.15	10/10/2007		Erich Chen			 support new RAID adapter type ARC120x
+**     1.20.00.16	10/10/2009		Erich Chen			 Bug fix for RAID adapter type ARC120x
 **                                                       bus_dmamem_alloc() with BUS_DMA_ZERO
 **     1.20.00.17	07/15/2010		Ching Huang			 Added support ARC1880
 **														 report CAM_DEV_NOT_THERE instead of CAM_SEL_TIMEOUT when device failed,
 **														 prevent cam_periph_error removing all LUN devices of one Target id
 **														 for any one LUN device failed
-**	   1.20.00.18	10/14/2010		Ching Huang			 Fixed "inquiry data fails comparion at DV1 step"
-**	   				10/25/2010		Ching Huang			 Fixed bad range input in bus_alloc_resource for ADAPTER_TYPE_B
-**	   1.20.00.19	11/11/2010		Ching Huang			 Fixed arcmsr driver prevent arcsas support for Areca SAS HBA ARC13x0
+**     1.20.00.18	10/14/2010		Ching Huang			 Fixed "inquiry data fails comparion at DV1 step"
+**               	10/25/2010		Ching Huang			 Fixed bad range input in bus_alloc_resource for ADAPTER_TYPE_B
+**     1.20.00.19	11/11/2010		Ching Huang			 Fixed arcmsr driver prevent arcsas support for Areca SAS HBA ARC13x0
+**     1.20.00.20	12/08/2010		Ching Huang			 Avoid calling atomic_set_int function
+**     1.20.00.21	02/08/2011		Ching Huang			 Implement I/O request timeout
+**               	02/14/2011		Ching Huang			 Modified pktRequestCount
+**     1.20.00.21	03/03/2011		Ching Huang			 if a command timeout, then wait its ccb back before free it
 ******************************************************************************************
 * $FreeBSD$
 */
+#if 0
+#define ARCMSR_DEBUG1			1
+#endif
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
@@ -137,9 +144,16 @@
 #define	CAM_NEW_TRAN_CODE	1
 #endif
 
-#define ARCMSR_DRIVER_VERSION			"Driver Version 1.20.00.19 2010-11-11"
+#if __FreeBSD_version > 500000
+#define arcmsr_callout_init(a)	callout_init(a, /*mpsafe*/1);
+#else
+#define arcmsr_callout_init(a)	callout_init(a);
+#endif
+
+#define ARCMSR_DRIVER_VERSION			"Driver Version 1.20.00.21 2010-03-03"
 #include <dev/arcmsr/arcmsr.h>
-#define ARCMSR_SRBS_POOL_SIZE           ((sizeof(struct CommandControlBlock) * ARCMSR_MAX_FREESRB_NUM))
+#define	SRB_SIZE						((sizeof(struct CommandControlBlock)+0x1f) & 0xffe0)
+#define ARCMSR_SRBS_POOL_SIZE           (SRB_SIZE * ARCMSR_MAX_FREESRB_NUM)
 /*
 **************************************************************************
 **************************************************************************
@@ -150,6 +164,7 @@
 **************************************************************************
 **************************************************************************
 */
+static void arcmsr_free_srb(struct CommandControlBlock *srb);
 static struct CommandControlBlock * arcmsr_get_freesrb(struct AdapterControlBlock *acb);
 static u_int8_t arcmsr_seek_cmd2abort(union ccb * abortccb);
 static int arcmsr_probe(device_t dev);
@@ -177,6 +192,10 @@ static int arcmsr_resume(device_t dev);
 static int arcmsr_suspend(device_t dev);
 static void arcmsr_rescanLun_cb(struct cam_periph *periph, union ccb *ccb);
 static void	arcmsr_polling_devmap(void* arg);
+static void	arcmsr_srb_timeout(void* arg);
+#ifdef ARCMSR_DEBUG1
+static void arcmsr_dump_data(struct AdapterControlBlock *acb);
+#endif
 /*
 **************************************************************************
 **************************************************************************
@@ -220,17 +239,13 @@ MODULE_DEPEND(arcmsr, cam, 1, 1, 1);
 	#define	BUS_DMA_COHERENT	0x04	/* hint: map memory in a coherent way */
 #endif
 #if __FreeBSD_version >= 501000
-	#ifndef D_NEEDGIANT
-		#define D_NEEDGIANT	0x00400000	/* driver want Giant */
-	#endif
-	#ifndef D_VERSION
-		#define D_VERSION	0x20011966
-	#endif
 static struct cdevsw arcmsr_cdevsw={
-	#if __FreeBSD_version > 502010
+	#if __FreeBSD_version >= 503000
 		.d_version = D_VERSION, 
 	#endif
+	#if (__FreeBSD_version>=503000 && __FreeBSD_version<600034)
 		.d_flags   = D_NEEDGIANT, 
+	#endif
 		.d_open    = arcmsr_open, 	/* open     */
 		.d_close   = arcmsr_close, 	/* close    */
 		.d_ioctl   = arcmsr_ioctl, 	/* ioctl    */
@@ -671,6 +686,8 @@ static void arcmsr_srb_complete(struct CommandControlBlock *srb, int stand_flag)
 	struct AdapterControlBlock *acb=srb->acb;
 	union ccb * pccb=srb->pccb;
 	
+	if(srb->srb_flags & SRB_FLAG_TIMER_START)
+		callout_stop(&srb->ccb_callout);
 	if((pccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
 		bus_dmasync_op_t op;
 	
@@ -690,11 +707,11 @@ static void arcmsr_srb_complete(struct CommandControlBlock *srb, int stand_flag)
 			pccb->ccb_h.status |= CAM_RELEASE_SIMQ;
 		}
 	}
-	srb->startdone=ARCMSR_SRB_DONE;
-	srb->srb_flags=0;
-	acb->srbworkingQ[acb->workingsrb_doneindex]=srb;
-	acb->workingsrb_doneindex++;
-	acb->workingsrb_doneindex %= ARCMSR_MAX_FREESRB_NUM;
+	if(srb->srb_state != ARCMSR_SRB_TIMEOUT)
+		arcmsr_free_srb(srb);
+#ifdef ARCMSR_DEBUG1
+	acb->pktReturnCount++;
+#endif
 	xpt_done(pccb);
 	return;
 }
@@ -761,7 +778,7 @@ static void arcmsr_drain_donequeue(struct AdapterControlBlock *acb, u_int32_t fl
 	/* check if command done with no error*/
 	switch (acb->adapter_type) {
 	case ACB_ADAPTER_TYPE_C:
-		srb = (struct CommandControlBlock *)(acb->vir2phy_offset+(flag_srb & 0xFFFFFFF0));/*frame must be 32 bytes aligned*/
+		srb = (struct CommandControlBlock *)(acb->vir2phy_offset+(flag_srb & 0xFFFFFFE0));/*frame must be 32 bytes aligned*/
 		break;
 	case ACB_ADAPTER_TYPE_A:
 	case ACB_ADAPTER_TYPE_B:
@@ -769,21 +786,50 @@ static void arcmsr_drain_donequeue(struct AdapterControlBlock *acb, u_int32_t fl
 		srb = (struct CommandControlBlock *)(acb->vir2phy_offset+(flag_srb << 5));/*frame must be 32 bytes aligned*/
 		break;
 	}
-	if((srb->acb!=acb) || (srb->startdone!=ARCMSR_SRB_START)) {
-		if(srb->startdone==ARCMSR_SRB_ABORTED) {
-			printf("arcmsr%d: srb='%p' isr got aborted command \n", acb->pci_unit, srb);
-			srb->pccb->ccb_h.status |= CAM_REQ_ABORTED;
-			arcmsr_srb_complete(srb, 1);
+	if((srb->acb!=acb) || (srb->srb_state!=ARCMSR_SRB_START)) {
+		if(srb->srb_state == ARCMSR_SRB_TIMEOUT) {
+			arcmsr_free_srb(srb);
+			printf("arcmsr%d: srb='%p' return srb has been timeouted\n", acb->pci_unit, srb);
 			return;
 		}
-		printf("arcmsr%d: isr get an illegal srb command done"
-			"acb='%p' srb='%p' srbacb='%p' startdone=0x%xsrboutstandingcount=%d \n",
-			acb->pci_unit, acb, srb, srb->acb,srb->startdone, acb->srboutstandingcount);
+		printf("arcmsr%d: return srb has been completed\n"
+			"srb='%p' srb_state=0x%x outstanding srb count=%d \n",
+			acb->pci_unit, srb, srb->srb_state, acb->srboutstandingcount);
 		return;
 	}
 	arcmsr_report_srb_state(acb, srb, error);
 	return;
 }
+/*
+**************************************************************************
+**************************************************************************
+*/
+static void	arcmsr_srb_timeout(void* arg)
+{
+	struct CommandControlBlock *srb = (struct CommandControlBlock *)arg;
+	struct AdapterControlBlock *acb;
+	int target, lun;
+	u_int8_t cmd;
+	
+	target=srb->pccb->ccb_h.target_id;
+	lun=srb->pccb->ccb_h.target_lun;
+	acb = srb->acb;
+	ARCMSR_LOCK_ACQUIRE(&acb->qbuffer_lock);
+	if(srb->srb_state == ARCMSR_SRB_START)
+	{
+		cmd = srb->pccb->csio.cdb_io.cdb_bytes[0];
+		srb->srb_state = ARCMSR_SRB_TIMEOUT;
+		srb->pccb->ccb_h.status |= CAM_CMD_TIMEOUT;
+		arcmsr_srb_complete(srb, 1);
+		printf("arcmsr%d: scsi id %d lun %d cmd=0x%x srb='%p' ccb command time out!\n",
+				 acb->pci_unit, target, lun, cmd, srb);
+	}
+	ARCMSR_LOCK_RELEASE(&acb->qbuffer_lock);
+#ifdef ARCMSR_DEBUG1
+    	arcmsr_dump_data(acb);
+#endif
+}
+
 /*
 **********************************************************************
 **********************************************************************
@@ -855,18 +901,25 @@ static void arcmsr_iop_reset(struct AdapterControlBlock *acb)
 		arcmsr_abort_allcmd(acb);
 		for(i=0;i<ARCMSR_MAX_FREESRB_NUM;i++) {
 			srb=acb->psrb_pool[i];
-			if(srb->startdone==ARCMSR_SRB_START) {
-				srb->startdone=ARCMSR_SRB_ABORTED;
+			if(srb->srb_state==ARCMSR_SRB_START) {
+				srb->srb_state=ARCMSR_SRB_ABORTED;
 				srb->pccb->ccb_h.status |= CAM_REQ_ABORTED;
 				arcmsr_srb_complete(srb, 1);
+				printf("arcmsr%d: scsi id=%d lun=%d srb='%p' aborted\n"
+						, acb->pci_unit, srb->pccb->ccb_h.target_id
+						, srb->pccb->ccb_h.target_lun, srb);
 			}
 		}
 		/* enable all outbound interrupt */
 		arcmsr_enable_allintr(acb, intmask_org);
 	}
-	atomic_set_int(&acb->srboutstandingcount, 0);
+	acb->srboutstandingcount=0;
 	acb->workingsrb_doneindex=0;
 	acb->workingsrb_startindex=0;
+#ifdef ARCMSR_DEBUG1
+	acb->pktRequestCount = 0;
+	acb->pktReturnCount = 0;
+#endif
 	return;
 }
 /*
@@ -968,7 +1021,7 @@ static void arcmsr_post_srb(struct AdapterControlBlock *acb, struct CommandContr
 	
 	bus_dmamap_sync(acb->srb_dmat, acb->srb_dmamap, (srb->srb_flags & SRB_FLAG_WRITE) ? BUS_DMASYNC_POSTWRITE:BUS_DMASYNC_POSTREAD);
 	atomic_add_int(&acb->srboutstandingcount, 1);
-	srb->startdone=ARCMSR_SRB_START;
+	srb->srb_state=ARCMSR_SRB_START;
 
 	switch (acb->adapter_type) {
 	case ACB_ADAPTER_TYPE_A: {
@@ -1242,13 +1295,9 @@ static void arcmsr_poll(struct cam_sim * psim)
 	struct AdapterControlBlock *acb;
 
 	acb = (struct AdapterControlBlock *)cam_sim_softc(psim);
-#if __FreeBSD_version < 700025
 	ARCMSR_LOCK_ACQUIRE(&acb->qbuffer_lock);
-#endif
 	arcmsr_interrupt(acb);
-#if __FreeBSD_version < 700025
 	ARCMSR_LOCK_RELEASE(&acb->qbuffer_lock);
-#endif
 	return;
 }
 /*
@@ -1377,13 +1426,14 @@ static void arcmsr_abort_dr_ccbs(struct AdapterControlBlock *acb, int target, in
 	for (i = 0; i < ARCMSR_MAX_FREESRB_NUM; i++)
 	{
 		srb = acb->psrb_pool[i];
-		if (srb->startdone == ARCMSR_SRB_START)
+		if (srb->srb_state == ARCMSR_SRB_START)
 		{
            	if((target == srb->pccb->ccb_h.target_id) && (lun == srb->pccb->ccb_h.target_lun))
             {
-		    	srb->startdone = ARCMSR_SRB_ABORTED;
+		    	srb->srb_state = ARCMSR_SRB_ABORTED;
 				srb->pccb->ccb_h.status |= CAM_REQ_ABORTED;
 		    	arcmsr_srb_complete(srb, 1);
+				printf("arcmsr%d: abort scsi id %d lun %d srb=%p \n", acb->pci_unit, target, lun, srb);
        		}
 		}
 	}
@@ -1461,7 +1511,7 @@ static void arcmsr_dr_handle(struct AdapterControlBlock *acb) {
                         }
                         else
                         {/* unit arrived */
-							printf("arcmsr_dr_handle: Target=%x, lun=%x, ARRIVING!!!\n",target,lun);
+							printf("arcmsr_dr_handle: Target=%x, lun=%x, Plug-IN!!!\n",target,lun);
                         	arcmsr_rescan_lun(acb, target, lun);
         					acb->devstate[target][lun] = ARECA_RAID_GOOD;
                         }
@@ -2014,14 +2064,33 @@ u_int32_t arcmsr_iop_ioctlcmd(struct AdapterControlBlock *acb, u_int32_t ioctl_c
 **************************************************************************
 **************************************************************************
 */
+static void arcmsr_free_srb(struct CommandControlBlock *srb)
+{
+	struct AdapterControlBlock	*acb;
+	int	mutex;
+	
+	acb = srb->acb;
+	mutex = mtx_owned(&acb->qbuffer_lock);
+	if( mutex == 0 )
+		ARCMSR_LOCK_ACQUIRE(&acb->qbuffer_lock);
+	srb->srb_state=ARCMSR_SRB_DONE;
+	srb->srb_flags=0;
+	acb->srbworkingQ[acb->workingsrb_doneindex]=srb;
+	acb->workingsrb_doneindex++;
+	acb->workingsrb_doneindex %= ARCMSR_MAX_FREESRB_NUM;
+	if( mutex == 0 )
+		ARCMSR_LOCK_RELEASE(&acb->qbuffer_lock);
+}
+/*
+**************************************************************************
+**************************************************************************
+*/
 struct CommandControlBlock * arcmsr_get_freesrb(struct AdapterControlBlock *acb)
 {
 	struct CommandControlBlock *srb=NULL;
 	u_int32_t workingsrb_startindex, workingsrb_doneindex;
 
-#if __FreeBSD_version < 700025
 	ARCMSR_LOCK_ACQUIRE(&acb->qbuffer_lock);
-#endif
 	workingsrb_doneindex=acb->workingsrb_doneindex;
 	workingsrb_startindex=acb->workingsrb_startindex;
 	srb=acb->srbworkingQ[workingsrb_startindex];
@@ -2032,9 +2101,7 @@ struct CommandControlBlock * arcmsr_get_freesrb(struct AdapterControlBlock *acb)
 	} else {
 		srb=NULL;
 	}
-#if __FreeBSD_version < 700025
 	ARCMSR_LOCK_RELEASE(&acb->qbuffer_lock);
-#endif
 	return(srb);
 }
 /*
@@ -2250,6 +2317,9 @@ static void arcmsr_execute_srb(void *arg, bus_dma_segment_t *dm_segs, int nseg, 
 	pccb=srb->pccb;
 	target=pccb->ccb_h.target_id;
 	lun=pccb->ccb_h.target_lun;
+#ifdef ARCMSR_DEBUG1
+	acb->pktRequestCount++;
+#endif
 	if(error != 0) {
 		if(error != EFBIG) {
 			printf("arcmsr%d: unexpected error %x"
@@ -2274,13 +2344,14 @@ static void arcmsr_execute_srb(void *arg, bus_dma_segment_t *dm_segs, int nseg, 
 		return;
 	}
 	if(acb->devstate[target][lun]==ARECA_RAID_GONE) {
-		u_int8_t block_cmd;
+		u_int8_t block_cmd, cmd;
 
-		block_cmd=pccb->csio.cdb_io.cdb_bytes[0] & 0x0f;
+		cmd = pccb->csio.cdb_io.cdb_bytes[0];
+		block_cmd= cmd & 0x0f;
 		if(block_cmd==0x08 || block_cmd==0x0a) {
 			printf("arcmsr%d:block 'read/write' command "
-				"with gone raid volume Cmd=%2x, TargetId=%d, Lun=%d \n"
-				, acb->pci_unit, block_cmd, target, lun);
+				"with gone raid volume Cmd=0x%2x, TargetId=%d, Lun=%d \n"
+				, acb->pci_unit, cmd, target, lun);
 			pccb->ccb_h.status |= CAM_DEV_NOT_THERE;
 			arcmsr_srb_complete(srb, 0);
 			return;
@@ -2302,10 +2373,13 @@ static void arcmsr_execute_srb(void *arg, bus_dma_segment_t *dm_segs, int nseg, 
 	}
 	pccb->ccb_h.status |= CAM_SIM_QUEUED;
 	arcmsr_build_srb(srb, dm_segs, nseg);
-/*	if (pccb->ccb_h.timeout != CAM_TIME_INFINITY)
-		callout_reset(&srb->ccb_callout, (pccb->ccb_h.timeout * hz) / 1000, arcmsr_srb_timeout, srb);
-*/
 	arcmsr_post_srb(acb, srb);
+	if (pccb->ccb_h.timeout != CAM_TIME_INFINITY)
+	{
+		arcmsr_callout_init(&srb->ccb_callout);
+		callout_reset(&srb->ccb_callout, (pccb->ccb_h.timeout * hz ) / 1000, arcmsr_srb_timeout, srb);
+		srb->srb_flags |= SRB_FLAG_TIMER_START;
+	}
 	return;
 }
 /*
@@ -2330,28 +2404,28 @@ static u_int8_t arcmsr_seek_cmd2abort(union ccb * abortccb)
 	***************************************************************************
 	*/
 	if(acb->srboutstandingcount!=0) {
+		/* disable all outbound interrupt */
+		intmask_org=arcmsr_disable_allintr(acb);
 		for(i=0;i<ARCMSR_MAX_FREESRB_NUM;i++) {
 			srb=acb->psrb_pool[i];
-			if(srb->startdone==ARCMSR_SRB_START) {
+			if(srb->srb_state==ARCMSR_SRB_START) {
 				if(srb->pccb==abortccb) {
-					srb->startdone=ARCMSR_SRB_ABORTED;
+					srb->srb_state=ARCMSR_SRB_ABORTED;
 					printf("arcmsr%d:scsi id=%d lun=%d abort srb '%p'"
 						"outstanding command \n"
 						, acb->pci_unit, abortccb->ccb_h.target_id
 						, abortccb->ccb_h.target_lun, srb);
-					goto abort_outstanding_cmd;
+					arcmsr_polling_srbdone(acb, srb);
+					/* enable outbound Post Queue, outbound doorbell Interrupt */
+					arcmsr_enable_allintr(acb, intmask_org);
+					return (TRUE);
 				}
 			}
 		}
+		/* enable outbound Post Queue, outbound doorbell Interrupt */
+		arcmsr_enable_allintr(acb, intmask_org);
 	}
 	return(FALSE);
-abort_outstanding_cmd:
-	/* disable all outbound interrupt */
-	intmask_org=arcmsr_disable_allintr(acb);
-	arcmsr_polling_srbdone(acb, srb);
-	/* enable outbound Post Queue, outbound doorbell Interrupt */
-	arcmsr_enable_allintr(acb, intmask_org);
-	return (TRUE);
 }
 /*
 ****************************************************************************
@@ -2764,8 +2838,8 @@ polling_ccb_retry:
 			(acb->vir2phy_offset+(flag_srb << 5));/*frame must be 32 bytes aligned*/
         error=(flag_srb & ARCMSR_SRBREPLY_FLAG_ERROR_MODE0)?TRUE:FALSE;
 		poll_srb_done = (srb==poll_srb) ? 1:0;
-		if((srb->acb!=acb) || (srb->startdone!=ARCMSR_SRB_START)) {
-			if(srb->startdone==ARCMSR_SRB_ABORTED) {
+		if((srb->acb!=acb) || (srb->srb_state!=ARCMSR_SRB_START)) {
+			if(srb->srb_state==ARCMSR_SRB_ABORTED) {
 				printf("arcmsr%d: scsi id=%d lun=%d srb='%p'"
 					"poll command abort successfully \n"
 					, acb->pci_unit
@@ -2825,8 +2899,8 @@ polling_ccb_retry:
 			(acb->vir2phy_offset+(flag_srb << 5));/*frame must be 32 bytes aligned*/
         error=(flag_srb & ARCMSR_SRBREPLY_FLAG_ERROR_MODE0)?TRUE:FALSE;
 		poll_srb_done = (srb==poll_srb) ? 1:0;
-		if((srb->acb!=acb) || (srb->startdone!=ARCMSR_SRB_START)) {
-			if(srb->startdone==ARCMSR_SRB_ABORTED) {
+		if((srb->acb!=acb) || (srb->srb_state!=ARCMSR_SRB_START)) {
+			if(srb->srb_state==ARCMSR_SRB_ABORTED) {
 				printf("arcmsr%d: scsi id=%d lun=%d srb='%p'"
 					"poll command abort successfully \n"
 					, acb->pci_unit
@@ -2877,12 +2951,12 @@ polling_ccb_retry:
 		}
 		flag_srb = CHIP_REG_READ32(HBC_MessageUnit, 0, outbound_queueport_low);
 		/* check if command done with no error*/
-		srb=(struct CommandControlBlock *)(acb->vir2phy_offset+(flag_srb & 0xFFFFFFF0));/*frame must be 32 bytes aligned*/
+		srb=(struct CommandControlBlock *)(acb->vir2phy_offset+(flag_srb & 0xFFFFFFE0));/*frame must be 32 bytes aligned*/
         error=(flag_srb & ARCMSR_SRBREPLY_FLAG_ERROR_MODE1)?TRUE:FALSE;
 		if (poll_srb != NULL)
 			poll_srb_done = (srb==poll_srb) ? 1:0;
-		if((srb->acb!=acb) || (srb->startdone!=ARCMSR_SRB_START)) {
-			if(srb->startdone==ARCMSR_SRB_ABORTED) {
+		if((srb->acb!=acb) || (srb->srb_state!=ARCMSR_SRB_START)) {
+			if(srb->srb_state==ARCMSR_SRB_ABORTED) {
 				printf("arcmsr%d: scsi id=%d lun=%d srb='%p'poll command abort successfully \n"
 						, acb->pci_unit, srb->pccb->ccb_h.target_id, srb->pccb->ccb_h.target_lun, srb);
 				srb->pccb->ccb_h.status |= CAM_REQ_ABORTED;
@@ -3213,7 +3287,7 @@ static u_int32_t arcmsr_iop_confirm(struct AdapterControlBlock *acb)
 				printf( "arcmsr%d: 'set window of post command Q' timeout\n", acb->pci_unit);
 				return FALSE;
 			}
-			post_queue_phyaddr = srb_phyaddr + ARCMSR_MAX_FREESRB_NUM*sizeof(struct CommandControlBlock) 
+			post_queue_phyaddr = srb_phyaddr + ARCMSR_SRBS_POOL_SIZE 
 								+ offsetof(struct HBB_MessageUnit, post_qbuffer);
 			CHIP_REG_WRITE32(HBB_RWBUFFER, 1, msgcode_rwbuffer[0], ARCMSR_SIGNATURE_SET_CONFIG); /* driver "set config" signature */
 			CHIP_REG_WRITE32(HBB_RWBUFFER, 1, msgcode_rwbuffer[1], srb_phyaddr_hi32); /* normal should be zero */
@@ -3320,8 +3394,8 @@ static void arcmsr_map_free_srb(void *arg, bus_dma_segment_t *segs, int nseg, in
 		srb_tmp->cdb_shifted_phyaddr=(acb->adapter_type==ACB_ADAPTER_TYPE_C)?srb_phyaddr:(srb_phyaddr >> 5);
 		srb_tmp->acb=acb;
 		acb->srbworkingQ[i]=acb->psrb_pool[i]=srb_tmp;
-		srb_phyaddr=srb_phyaddr+sizeof(struct CommandControlBlock);
-		srb_tmp++;
+		srb_phyaddr=srb_phyaddr+SRB_SIZE;
+		srb_tmp = (struct CommandControlBlock *)((unsigned long)srb_tmp+SRB_SIZE);
 	}
 	acb->vir2phy_offset=(unsigned long)srb_tmp-(unsigned long)srb_phyaddr;
 	return;
@@ -3407,7 +3481,7 @@ static u_int32_t arcmsr_initialize(device_t dev)
 							/*nsegments*/	BUS_SPACE_UNRESTRICTED,
 							/*maxsegsz*/	BUS_SPACE_MAXSIZE_32BIT,
 							/*flags*/		0,
-#if __FreeBSD_version >= 502010
+#if __FreeBSD_version >= 501102
 							/*lockfunc*/	NULL,
 							/*lockarg*/		NULL,
 #endif
@@ -3421,7 +3495,11 @@ static u_int32_t arcmsr_initialize(device_t dev)
 	if(bus_dma_tag_create(  /*parent_dmat*/	acb->parent_dmat,
 							/*alignment*/	1,
 							/*boundary*/	0,
+#ifdef PAE
+							/*lowaddr*/		BUS_SPACE_MAXADDR_32BIT,
+#else
 							/*lowaddr*/		BUS_SPACE_MAXADDR,
+#endif
 							/*highaddr*/	BUS_SPACE_MAXADDR,
 							/*filter*/		NULL,
 							/*filterarg*/	NULL,
@@ -3429,13 +3507,9 @@ static u_int32_t arcmsr_initialize(device_t dev)
 							/*nsegments*/	ARCMSR_MAX_SG_ENTRIES,
 							/*maxsegsz*/	BUS_SPACE_MAXSIZE_32BIT,
 							/*flags*/		0,
-#if __FreeBSD_version >= 502010
+#if __FreeBSD_version >= 501102
 							/*lockfunc*/	busdma_lock_mutex,
-	#if __FreeBSD_version >= 700025
 							/*lockarg*/		&acb->qbuffer_lock,
-	#else
-							/*lockarg*/		&Giant,
-	#endif
 #endif
 						&acb->dm_segs_dmat) != 0)
 	{
@@ -3456,7 +3530,7 @@ static u_int32_t arcmsr_initialize(device_t dev)
 							/*nsegments*/	1,
 							/*maxsegsz*/	BUS_SPACE_MAXSIZE_32BIT,
 							/*flags*/		0,
-#if __FreeBSD_version >= 502010
+#if __FreeBSD_version >= 501102
 							/*lockfunc*/	NULL,
 							/*lockarg*/		NULL,
 #endif
@@ -3550,7 +3624,8 @@ static u_int32_t arcmsr_initialize(device_t dev)
 				acb->bhandle[i]=rman_get_bushandle(acb->sys_res_arcmsr[i]);
 			}
 			freesrb=(struct CommandControlBlock *)acb->uncacheptr;
-			acb->pmu=(struct MessageUnit_UNION *)&freesrb[ARCMSR_MAX_FREESRB_NUM];
+//			acb->pmu=(struct MessageUnit_UNION *)&freesrb[ARCMSR_MAX_FREESRB_NUM];
+			acb->pmu=(struct MessageUnit_UNION *)((unsigned long)freesrb+ARCMSR_SRBS_POOL_SIZE);
 			phbbmu=(struct HBB_MessageUnit *)acb->pmu;
 			phbbmu->hbb_doorbell=(struct HBB_DOORBELL *)mem_base[0];
 			phbbmu->hbb_rwbuffer=(struct HBB_RWBUFFER *)mem_base[1];
@@ -3711,14 +3786,11 @@ static int arcmsr_attach(device_t dev)
 #if __FreeBSD_version > 500005
 	(void)make_dev_alias(acb->ioctl_dev, "arc%d", unit);
 #endif
-#if __FreeBSD_version > 500000
-	callout_init(&acb->devmap_callout, /*mpsafe*/1);
-#else
-	callout_init(&acb->devmap_callout);
-#endif
+	arcmsr_callout_init(&acb->devmap_callout);
 	callout_reset(&acb->devmap_callout, 60 * hz, arcmsr_polling_devmap, acb);
 	return 0;
 }
+
 /*
 ************************************************************************
 ************************************************************************
@@ -3802,16 +3874,20 @@ static int arcmsr_shutdown(device_t dev)
 		arcmsr_abort_allcmd(acb);
 		for(i=0;i<ARCMSR_MAX_FREESRB_NUM;i++) {
 			srb=acb->psrb_pool[i];
-			if(srb->startdone==ARCMSR_SRB_START) {
-				srb->startdone=ARCMSR_SRB_ABORTED;
+			if(srb->srb_state==ARCMSR_SRB_START) {
+				srb->srb_state=ARCMSR_SRB_ABORTED;
 				srb->pccb->ccb_h.status |= CAM_REQ_ABORTED;
 				arcmsr_srb_complete(srb, 1);
 			}
 		}
 	}
-	atomic_set_int(&acb->srboutstandingcount, 0);
+	acb->srboutstandingcount=0;
 	acb->workingsrb_doneindex=0;
 	acb->workingsrb_startindex=0;
+#ifdef ARCMSR_DEBUG1
+	acb->pktRequestCount = 0;
+	acb->pktReturnCount = 0;
+#endif
 	ARCMSR_LOCK_RELEASE(&acb->qbuffer_lock);
 	return (0);
 }
@@ -3842,4 +3918,15 @@ static int arcmsr_detach(device_t dev)
 	return (0);
 }
 
+#ifdef ARCMSR_DEBUG1
+static void arcmsr_dump_data(struct AdapterControlBlock *acb)
+{
+	if((acb->pktRequestCount - acb->pktReturnCount) == 0)
+		return;
+	printf("Command Request Count   =0x%x\n",acb->pktRequestCount);
+	printf("Command Return Count    =0x%x\n",acb->pktReturnCount);
+	printf("Command (Req-Rtn) Count =0x%x\n",(acb->pktRequestCount - acb->pktReturnCount));
+	printf("Queued Command Count    =0x%x\n",acb->srboutstandingcount);
+}
+#endif
 
