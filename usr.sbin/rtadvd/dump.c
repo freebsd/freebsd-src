@@ -4,7 +4,7 @@
 /*
  * Copyright (C) 2000 WIDE Project.
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -16,7 +16,7 @@
  * 3. Neither the name of the project nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -45,6 +45,7 @@
 
 #include <arpa/inet.h>
 
+#include <netdb.h>
 #include <time.h>
 #include <stdio.h>
 #include <stdarg.h>
@@ -63,8 +64,9 @@ extern struct rainfo *ralist;
 
 static char *ether_str(struct sockaddr_dl *);
 static void if_dump(void);
+static size_t dname_labeldec(char *, size_t, const char *);
 
-static char *rtpref_str[] = {
+static const char *rtpref_str[] = {
 	"medium",		/* 00 */
 	"high",			/* 01 */
 	"rsv",			/* 10 */
@@ -72,8 +74,7 @@ static char *rtpref_str[] = {
 };
 
 static char *
-ether_str(sdl)
-	struct sockaddr_dl *sdl;
+ether_str(struct sockaddr_dl *sdl)
 {
 	static char hbuf[32];
 	u_char *cp;
@@ -85,84 +86,86 @@ ether_str(sdl)
 	} else
 		snprintf(hbuf, sizeof(hbuf), "NONE");
 
-	return(hbuf);
+	return (hbuf);
 }
 
 static void
-if_dump()
+if_dump(void)
 {
 	struct rainfo *rai;
 	struct prefix *pfx;
 #ifdef ROUTEINFO
 	struct rtinfo *rti;
 #endif
+	struct rdnss *rdn;
+	struct dnssl *dns;
 	char prefixbuf[INET6_ADDRSTRLEN];
-	int first;
 	struct timeval now;
 
 	gettimeofday(&now, NULL); /* XXX: unused in most cases */
-	for (rai = ralist; rai; rai = rai->next) {
-		fprintf(fp, "%s:\n", rai->ifname);
+	TAILQ_FOREACH(rai, &railist, rai_next) {
+		fprintf(fp, "%s:\n", rai->rai_ifname);
 
 		fprintf(fp, "  Status: %s\n",
-			(iflist[rai->ifindex]->ifm_flags & IFF_UP) ? "UP" :
-			"DOWN");
+		    (iflist[rai->rai_ifindex]->ifm_flags & IFF_UP) ? "UP" :
+		    "DOWN");
 
 		/* control information */
-		if (rai->lastsent.tv_sec) {
+		if (rai->rai_lastsent.tv_sec) {
 			/* note that ctime() appends CR by itself */
 			fprintf(fp, "  Last RA sent: %s",
-			    ctime((time_t *)&rai->lastsent.tv_sec));
+			    ctime((time_t *)&rai->rai_lastsent.tv_sec));
 		}
-		if (rai->timer) {
+		if (rai->rai_timer)
 			fprintf(fp, "  Next RA will be sent: %s",
-			    ctime((time_t *)&rai->timer->tm.tv_sec));
-		}
+			    ctime((time_t *)&rai->rai_timer->rat_tm.tv_sec));
 		else
 			fprintf(fp, "  RA timer is stopped");
 		fprintf(fp, "  waits: %d, initcount: %d\n",
-			rai->waiting, rai->initcounter);
+			rai->rai_waiting, rai->rai_initcounter);
 
 		/* statistics */
 		fprintf(fp, "  statistics: RA(out/in/inconsistent): "
 		    "%llu/%llu/%llu, ",
-		    (unsigned long long)rai->raoutput,
-		    (unsigned long long)rai->rainput,
-		    (unsigned long long)rai->rainconsistent);
+		    (unsigned long long)rai->rai_raoutput,
+		    (unsigned long long)rai->rai_rainput,
+		    (unsigned long long)rai->rai_rainconsistent);
 		fprintf(fp, "RS(input): %llu\n",
-		    (unsigned long long)rai->rsinput);
+		    (unsigned long long)rai->rai_rsinput);
 
 		/* interface information */
-		if (rai->advlinkopt)
+		if (rai->rai_advlinkopt)
 			fprintf(fp, "  Link-layer address: %s\n",
-			    ether_str(rai->sdl));
-		fprintf(fp, "  MTU: %d\n", rai->phymtu);
+			    ether_str(rai->rai_sdl));
+		fprintf(fp, "  MTU: %d\n", rai->rai_phymtu);
 
 		/* Router configuration variables */
 		fprintf(fp, "  DefaultLifetime: %d, MaxAdvInterval: %d, "
-		    "MinAdvInterval: %d\n", rai->lifetime, rai->maxinterval,
-		    rai->mininterval);
-		fprintf(fp, "  Flags: %s%s%s, ",
-		    rai->managedflg ? "M" : "", rai->otherflg ? "O" : "", "");
+		    "MinAdvInterval: %d\n", rai->rai_lifetime,
+		    rai->rai_maxinterval, rai->rai_mininterval);
+		fprintf(fp, "  Flags: ");
+		if (rai->rai_managedflg || rai->rai_otherflg) {
+			fprintf(fp, "%s", rai->rai_managedflg ? "M" : "");
+			fprintf(fp, "%s", rai->rai_otherflg ? "O" : "");
+		} else
+			fprintf(fp, "<none>");
+		fprintf(fp, ", ");
 		fprintf(fp, "Preference: %s, ",
-			rtpref_str[(rai->rtpref >> 3) & 0xff]);
-		fprintf(fp, "MTU: %d\n", rai->linkmtu);
+		    rtpref_str[(rai->rai_rtpref >> 3) & 0xff]);
+		fprintf(fp, "MTU: %d\n", rai->rai_linkmtu);
 		fprintf(fp, "  ReachableTime: %d, RetransTimer: %d, "
-			"CurHopLimit: %d\n", rai->reachabletime,
-			rai->retranstimer, rai->hoplimit);
-		if (rai->clockskew)
+		    "CurHopLimit: %d\n", rai->rai_reachabletime,
+		    rai->rai_retranstimer, rai->rai_hoplimit);
+		if (rai->rai_clockskew)
 			fprintf(fp, "  Clock skew: %ldsec\n",
-			    rai->clockskew);
-		for (first = 1, pfx = rai->prefix.next; pfx != &rai->prefix;
-		     pfx = pfx->next) {
-			if (first) {
+			    rai->rai_clockskew);
+		TAILQ_FOREACH(pfx, &rai->rai_prefix, pfx_next) {
+			if (pfx == TAILQ_FIRST(&rai->rai_prefix))
 				fprintf(fp, "  Prefixes:\n");
-				first = 0;
-			}
 			fprintf(fp, "    %s/%d(",
-			    inet_ntop(AF_INET6, &pfx->prefix, prefixbuf,
-			    sizeof(prefixbuf)), pfx->prefixlen);
-			switch (pfx->origin) {
+			    inet_ntop(AF_INET6, &pfx->pfx_prefix, prefixbuf,
+			    sizeof(prefixbuf)), pfx->pfx_prefixlen);
+			switch (pfx->pfx_origin) {
 			case PREFIX_FROM_KERNEL:
 				fprintf(fp, "KERNEL, ");
 				break;
@@ -173,36 +176,42 @@ if_dump()
 				fprintf(fp, "DYNAMIC, ");
 				break;
 			}
-			if (pfx->validlifetime == ND6_INFINITE_LIFETIME)
+			if (pfx->pfx_validlifetime == ND6_INFINITE_LIFETIME)
 				fprintf(fp, "vltime: infinity");
 			else
 				fprintf(fp, "vltime: %ld",
-					(long)pfx->validlifetime);
-			if (pfx->vltimeexpire != 0)
-				fprintf(fp, "(decr,expire %ld), ", (long)
-					pfx->vltimeexpire > now.tv_sec ?
-					pfx->vltimeexpire - now.tv_sec : 0);
+				    (long)pfx->pfx_validlifetime);
+			if (pfx->pfx_vltimeexpire != 0)
+				fprintf(fp, "(decr,expire %ld), ",
+				    (long)pfx->pfx_vltimeexpire > now.tv_sec ?
+				    (long)pfx->pfx_vltimeexpire - now.tv_sec :
+				    0);
 			else
 				fprintf(fp, ", ");
-			if (pfx->preflifetime ==  ND6_INFINITE_LIFETIME)
+			if (pfx->pfx_preflifetime ==  ND6_INFINITE_LIFETIME)
 				fprintf(fp, "pltime: infinity");
 			else
 				fprintf(fp, "pltime: %ld",
-					(long)pfx->preflifetime);
-			if (pfx->pltimeexpire != 0)
-				fprintf(fp, "(decr,expire %ld), ", (long)
-					pfx->pltimeexpire > now.tv_sec ?
-					pfx->pltimeexpire - now.tv_sec : 0);
+				    (long)pfx->pfx_preflifetime);
+			if (pfx->pfx_pltimeexpire != 0)
+				fprintf(fp, "(decr,expire %ld), ",
+				    (long)pfx->pfx_pltimeexpire > now.tv_sec ?
+				    (long)pfx->pfx_pltimeexpire - now.tv_sec :
+				    0);
 			else
 				fprintf(fp, ", ");
-			fprintf(fp, "flags: %s%s%s",
-				pfx->onlinkflg ? "L" : "",
-				pfx->autoconfflg ? "A" : "",
-				"");
-			if (pfx->timer) {
+			fprintf(fp, "flags: ");
+			if (pfx->pfx_onlinkflg || pfx->pfx_autoconfflg) {
+				fprintf(fp, "%s",
+				    pfx->pfx_onlinkflg ? "L" : "");
+				fprintf(fp, "%s",
+				    pfx->pfx_autoconfflg ? "A" : "");
+			} else
+				fprintf(fp, "<none>");
+			if (pfx->pfx_timer) {
 				struct timeval *rest;
 
-				rest = rtadvd_timer_rest(pfx->timer);
+				rest = rtadvd_timer_rest(pfx->pfx_timer);
 				if (rest) { /* XXX: what if not? */
 					fprintf(fp, ", expire in: %ld",
 					    (long)rest->tv_sec);
@@ -211,31 +220,64 @@ if_dump()
 			fprintf(fp, ")\n");
 		}
 #ifdef ROUTEINFO
-		for (first = 1, rti = rai->route.next; rti != &rai->route;
-		     rti = rti->next) {
-			if (first) {
+		TAILQ_FOREACH(rti, &rai->rai_route, rti_next) {
+			if (rti == TAILQ_FIRST(&rai->rai_route))
 				fprintf(fp, "  Route Information:\n");
-				first = 0;
-			}
 			fprintf(fp, "    %s/%d (",
-				inet_ntop(AF_INET6, &rti->prefix,
-					  prefixbuf, sizeof(prefixbuf)),
-				rti->prefixlen);
+				inet_ntop(AF_INET6, &rti->rti_prefix,
+				    prefixbuf, sizeof(prefixbuf)),
+				    rti->rti_prefixlen);
 			fprintf(fp, "preference: %s, ",
-				rtpref_str[0xff & (rti->rtpref >> 3)]);
-			if (rti->ltime == ND6_INFINITE_LIFETIME)
+				rtpref_str[0xff & (rti->rti_rtpref >> 3)]);
+			if (rti->rti_ltime == ND6_INFINITE_LIFETIME)
 				fprintf(fp, "lifetime: infinity");
 			else
-				fprintf(fp, "lifetime: %ld", (long)rti->ltime);
+				fprintf(fp, "lifetime: %ld",
+				    (long)rti->rti_ltime);
 			fprintf(fp, ")\n");
 		}
 #endif
+		TAILQ_FOREACH(rdn, &rai->rai_rdnss, rd_next) {
+			struct rdnss_addr *rdna;
+
+			if (rdn == TAILQ_FIRST(&rai->rai_rdnss))
+				fprintf(fp, "  Recursive DNS servers:\n"
+					    "    Lifetime\tServers\n");
+
+			fprintf(fp, "    %8u\t", rdn->rd_ltime);
+			TAILQ_FOREACH(rdna, &rdn->rd_list, ra_next) {
+				inet_ntop(AF_INET6, &rdna->ra_dns,
+				    prefixbuf, sizeof(prefixbuf));
+
+				if (rdna != TAILQ_FIRST(&rdn->rd_list))
+					fprintf(fp, "            \t");
+				fprintf(fp, "%s\n", prefixbuf);
+			}
+			fprintf(fp, "\n");
+		}
+
+		TAILQ_FOREACH(dns, &rai->rai_dnssl, dn_next) {
+			struct dnssl_addr *dnsa;
+			char buf[NI_MAXHOST];
+
+			if (dns == TAILQ_FIRST(&rai->rai_dnssl))
+				fprintf(fp, "  DNS search list:\n"
+					    "    Lifetime\tDomains\n");
+
+			fprintf(fp, "    %8u\t", dns->dn_ltime);
+			TAILQ_FOREACH(dnsa, &dns->dn_list, da_next) {
+				dname_labeldec(buf, sizeof(buf), dnsa->da_dom);
+				if (dnsa != TAILQ_FIRST(&dns->dn_list))
+					fprintf(fp, "            \t");
+				fprintf(fp, "%s(%d)\n", buf, dnsa->da_len);
+			}
+			fprintf(fp, "\n");
+		}
 	}
 }
 
 void
-rtadvd_dump_file(dumpfile)
-	char *dumpfile;
+rtadvd_dump_file(const char *dumpfile)
 {
 	syslog(LOG_DEBUG, "<%s> dump current status to %s", __func__,
 	    dumpfile);
@@ -249,4 +291,31 @@ rtadvd_dump_file(dumpfile)
 	if_dump();
 
 	fclose(fp);
+}
+
+/* Decode domain name label encoding in RFC 1035 Section 3.1 */
+static size_t
+dname_labeldec(char *dst, size_t dlen, const char *src)
+{
+	size_t len;
+	const char *src_origin;
+	const char *src_last;
+	const char *dst_origin;
+
+	src_origin = src;
+	src_last = strchr(src, '\0');
+	dst_origin = dst;
+	memset(dst, '\0', dlen);
+	while (src && (len = (uint8_t)(*src++) & 0x3f) &&
+	    (src + len) <= src_last) {
+		if (dst != dst_origin)
+			*dst++ = '.';
+		syslog(LOG_DEBUG, "<%s> labellen = %d", __func__, len);
+		memcpy(dst, src, len);
+		src += len;
+		dst += len;
+	}
+	*dst = '\0';
+
+	return (src - src_origin);
 }
