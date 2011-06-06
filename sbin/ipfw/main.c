@@ -444,7 +444,7 @@ static void
 ipfw_readfile(int ac, char *av[])
 {
 #define MAX_ARGS	32
-	char	buf[BUFSIZ];
+	char buf[4096];
 	char *progname = av[0];		/* original program name */
 	const char *cmd = NULL;		/* preprocessor name, if any */
 	const char *filename = av[ac-1]; /* file to read */
@@ -552,7 +552,7 @@ ipfw_readfile(int ac, char *av[])
 		}
 	}
 
-	while (fgets(buf, BUFSIZ, f)) {		/* read commands */
+	while (fgets(buf, sizeof(buf), f)) {		/* read commands */
 		char linename[20];
 		char *args[2];
 
