@@ -48,28 +48,32 @@ EFIPART=efipart.sys
 if [ $bootable = yes ]; then
     EFISZ=65536
     MNT=/mnt
-    dd if=/dev/zero of=$BASE/$EFIPART count=$EFISZ
-    md=`mdconfig -a -t vnode -f $BASE/$EFIPART`
+    dd if=/dev/zero of=$EFIPART count=$EFISZ
+    md=`mdconfig -a -t vnode -f $EFIPART`
     newfs_msdos -F 12 -S 512 -h 4 -o 0 -s $EFISZ -u 16 $md
     mount -t msdosfs /dev/$md $MNT
     mkdir -p $MNT/efi/boot $MNT/boot $MNT/boot/kernel
     cp -R $BASE/boot/defaults $MNT/boot
     cp $BASE/boot/kernel/kernel $MNT/boot/kernel
-    cp $BASE/boot/kernel/ispfw.ko $MNT/boot/kernel
+    if [ -s $BASE/boot/kernel/ispfw.ko ]; then
+	cp $BASE/boot/kernel/ispfw.ko $MNT/boot/kernel
+    fi
     cp $BASE/boot/device.hints $MNT/boot
     cp $BASE/boot/loader.* $MNT/boot
-    cp $BASE/boot/mfsroot.gz $MNT/boot
+    if [ -s $BASE/boot/mfsroot.gz ]; then
+	cp $BASE/boot/mfsroot.gz $MNT/boot
+    fi
     cp $BASE/boot/support.4th $MNT/boot
     mv $MNT/boot/loader.efi $MNT/efi/boot/bootia64.efi
     umount $MNT
     mdconfig -d -u $md
-    BOOTOPTS="-b bootimage=i386;$EFIPART -o no-emul-boot"
+    BOOTOPTS="-o bootimage=i386;$EFIPART -o no-emul-boot"
 else
     BOOTOPTS=""
 fi
 
 echo "/dev/iso9660/$LABEL / cd9660 ro 0 0" > $1/etc/fstab
 makefs -t cd9660 $BOOTOPTS -o rockridge -o label=$LABEL $NAME $BASE $*
-rm -f $BASE/$EFIPART
+rm -f $EFIPART
 rm $1/etc/fstab
 exit 0
