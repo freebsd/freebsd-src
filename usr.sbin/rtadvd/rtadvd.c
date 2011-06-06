@@ -789,7 +789,7 @@ rtadvd_input(void)
 #else
 	if ((size_t)i < sizeof(struct icmp6_hdr)) {
 		syslog(LOG_ERR,
-		    "<%s> packet size(%d) is too short",
+		    "<%s> packet size(%zd) is too short",
 		    __func__, i);
 		return;
 	}
@@ -827,7 +827,7 @@ rtadvd_input(void)
 		if ((size_t)i < sizeof(struct nd_router_solicit)) {
 			syslog(LOG_NOTICE,
 			    "<%s> RS from %s on %s does not have enough "
-			    "length (len = %d)",
+			    "length (len = %zd)",
 			    __func__,
 			    inet_ntop(AF_INET6, &rcvfrom.sin6_addr, ntopbuf,
 			    sizeof(ntopbuf)),
@@ -873,7 +873,7 @@ rtadvd_input(void)
 		if ((size_t)i < sizeof(struct nd_router_advert)) {
 			syslog(LOG_NOTICE,
 			    "<%s> RA from %s on %s does not have enough "
-			    "length (len = %d)",
+			    "length (len = %zd)",
 			    __func__,
 			    inet_ntop(AF_INET6, &rcvfrom.sin6_addr, ntopbuf,
 			    sizeof(ntopbuf)),
