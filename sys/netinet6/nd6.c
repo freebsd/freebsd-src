@@ -1327,6 +1327,7 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 		 * accept_rtadv or auto_linklocal.
 		 */
 		if ((ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED) &&
+		    !(ND.flags & ND6_IFF_IFDISABLED) &&
 		    (ND.flags & (ND6_IFF_ACCEPT_RTADV |
 		    ND6_IFF_AUTO_LINKLOCAL)))
 			ND.flags &= ~ND6_IFF_IFDISABLED;
@@ -1388,7 +1389,8 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 			/* If no link-local address on ifp, configure */
 			ND_IFINFO(ifp)->flags |= ND6_IFF_AUTO_LINKLOCAL;
 			in6_ifattach(ifp, NULL);
-		} else if (ND_IFINFO(ifp)->flags & ND6_IFF_AUTO_LINKLOCAL) {
+		} else if ((ND_IFINFO(ifp)->flags & ND6_IFF_AUTO_LINKLOCAL) &&
+		    !(ND.flags & ND6_IFF_IFDISABLED)) {
 			/*
 			 * When the IF already has
 			 * ND6_IFF_AUTO_LINKLOCAL and no link-local
