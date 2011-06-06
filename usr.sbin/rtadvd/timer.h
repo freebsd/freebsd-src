@@ -4,7 +4,7 @@
 /*
  * Copyright (C) 1998 WIDE Project.
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -16,7 +16,7 @@
  * 3. Neither the name of the project nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -31,35 +31,42 @@
  */
 
 /* a < b */
-#define TIMEVAL_LT(a, b) (((a).tv_sec < (b).tv_sec) ||\
-			  (((a).tv_sec == (b).tv_sec) && \
-			    ((a).tv_usec < (b).tv_usec)))
+#define	TIMEVAL_LT(a, b)				\
+		(((a)->tv_sec < (b)->tv_sec) ||		\
+		    (((a)->tv_sec == (b)->tv_sec) &&	\
+		    ((a)->tv_usec < (b)->tv_usec)))
 
 /* a <= b */
-#define TIMEVAL_LEQ(a, b) (((a).tv_sec < (b).tv_sec) ||\
-			   (((a).tv_sec == (b).tv_sec) &&\
- 			    ((a).tv_usec <= (b).tv_usec)))
+#define	TIMEVAL_LEQ(a, b)				\
+		(((a)->tv_sec < (b)->tv_sec) ||		\
+		    (((a)->tv_sec == (b)->tv_sec) &&	\
+		    ((a)->tv_usec <= (b)->tv_usec)))
 
+#define	TIMEVAL_EQUAL(a,b)				\
+		(((a)->tv_sec == (b)->tv_sec) &&	\
+		    ((a)->tv_usec == (b)->tv_usec))
+
+extern TAILQ_HEAD(rtadvd_timer_head_t, rtadvd_timer) ra_timer;
 struct rtadvd_timer {
-	struct rtadvd_timer *next;
-	struct rtadvd_timer *prev;
-	struct rainfo *rai;
-	struct timeval tm;
+	TAILQ_ENTRY(rtadvd_timer)	rat_next;
 
-	struct rtadvd_timer *(*expire)(void *);	/* expiration function */
-	void *expire_data;
-	void (*update)(void *, struct timeval *);	/* update function */
-	void *update_data;
+	struct rainfo	*rat_rai;
+	struct timeval	rat_tm;
+	struct rtadvd_timer *(*rat_expire)(void *);
+	void	*rat_expire_data;
+	void	(*rat_update)(void *, struct timeval *);
+	void	*rat_update_data;
 };
 
-void rtadvd_timer_init(void);
-struct rtadvd_timer *rtadvd_add_timer(struct rtadvd_timer *(*)(void *),
-		void (*)(void *, struct timeval *), void *, void *);
-void rtadvd_set_timer(struct timeval *, struct rtadvd_timer *);
-void rtadvd_remove_timer(struct rtadvd_timer **);
-struct timeval * rtadvd_check_timer(void);
-struct timeval * rtadvd_timer_rest(struct rtadvd_timer *);
-void TIMEVAL_ADD(struct timeval *, struct timeval *,
-		      struct timeval *);
-void TIMEVAL_SUB(struct timeval *, struct timeval *,
-		      struct timeval *);
+void			rtadvd_timer_init(void);
+struct rtadvd_timer	*rtadvd_add_timer(struct rtadvd_timer *(*)(void *),
+			    void (*)(void *, struct timeval *), void *, void *);
+void			rtadvd_set_timer(struct timeval *,
+			    struct rtadvd_timer *);
+void			rtadvd_remove_timer(struct rtadvd_timer *);
+struct timeval		*rtadvd_check_timer(void);
+struct timeval		*rtadvd_timer_rest(struct rtadvd_timer *);
+void			TIMEVAL_ADD(struct timeval *, struct timeval *,
+			    struct timeval *);
+void			TIMEVAL_SUB(struct timeval *, struct timeval *,
+			    struct timeval *);
