@@ -345,7 +345,7 @@ auto_if_type "sockfamilyname" "AF_[[:alnum:]]+[[:space:]]+" "sys/socket.h"
 auto_if_type "sockipprotoname" "IPPROTO_[[:alnum:]]+[[:space:]]+" "netinet/in.h"
 auto_switch_type "sockoptname" "SO_[A-Z]+[[:space:]]+0x[0-9]+" "sys/socket.h"
 auto_switch_type "socktypename" "SOCK_[A-Z]+[[:space:]]+[1-9]+[0-9]*" "sys/socket.h"
-auto_switch_type "ptraceopname" "PT_[[:alnum:]]+[[:space:]]+[0-9]+" "sys/ptrace.h"
+auto_switch_type "ptraceopname" "PT_[[:alnum:]_]+[[:space:]]+[0-9]+" "sys/ptrace.h"
 
 cat <<_EOF_
 /*
