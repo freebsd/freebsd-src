@@ -100,24 +100,18 @@ ifconfig_up()
 
 	# inet6 specific
 	if afexists inet6; then
-		if ipv6if $1; then
-			if checkyesno ipv6_gateway_enable; then
-				_ipv6_opts="-accept_rtadv"
-			fi
+		if checkyesno ipv6_activate_all_interfaces; then
+			_ipv6_opts="-ifdisabled"
 		else
-			if checkyesno ipv6_activate_all_interfaces; then
-				_ipv6_opts="-ifdisabled"
-			else
-				_ipv6_opts="ifdisabled"
-			fi
-
-			# backward compatibility: $ipv6_enable
-			case $ipv6_enable in
-			[Yy][Ee][Ss]|[Tt][Rr][Uu][Ee]|[Oo][Nn]|1)
-				_ipv6_opts="${_ipv6_opts} accept_rtadv"
-				;;
-			esac
+			_ipv6_opts="ifdisabled"
 		fi
+
+		# backward compatibility: $ipv6_enable
+		case $ipv6_enable in
+		[Yy][Ee][Ss]|[Tt][Rr][Uu][Ee]|[Oo][Nn]|1)
+			_ipv6_opts="${_ipv6_opts} accept_rtadv"
+			;;
+		esac
 
 		if [ -n "${_ipv6_opts}" ]; then
 			ifconfig $1 inet6 ${_ipv6_opts}
