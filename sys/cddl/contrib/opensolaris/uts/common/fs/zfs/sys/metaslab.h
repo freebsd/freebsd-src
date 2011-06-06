@@ -19,8 +19,7 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
- * Use is subject to license terms.
+ * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  */
 
 #ifndef _SYS_METASLAB_H
@@ -35,9 +34,6 @@
 #ifdef	__cplusplus
 extern "C" {
 #endif
-
-typedef struct metaslab_class metaslab_class_t;
-typedef struct metaslab_group metaslab_group_t;
 
 extern space_map_ops_t *zfs_metaslab_ops;
 
@@ -58,14 +54,24 @@ extern void metaslab_free(spa_t *spa, const blkptr_t *bp, uint64_t txg,
     boolean_t now);
 extern int metaslab_claim(spa_t *spa, const blkptr_t *bp, uint64_t txg);
 
-extern metaslab_class_t *metaslab_class_create(space_map_ops_t *ops);
+extern metaslab_class_t *metaslab_class_create(spa_t *spa,
+    space_map_ops_t *ops);
 extern void metaslab_class_destroy(metaslab_class_t *mc);
-extern void metaslab_class_add(metaslab_class_t *mc, metaslab_group_t *mg);
-extern void metaslab_class_remove(metaslab_class_t *mc, metaslab_group_t *mg);
+extern int metaslab_class_validate(metaslab_class_t *mc);
+
+extern void metaslab_class_space_update(metaslab_class_t *mc,
+    int64_t alloc_delta, int64_t defer_delta,
+    int64_t space_delta, int64_t dspace_delta);
+extern uint64_t metaslab_class_get_alloc(metaslab_class_t *mc);
+extern uint64_t metaslab_class_get_space(metaslab_class_t *mc);
+extern uint64_t metaslab_class_get_dspace(metaslab_class_t *mc);
+extern uint64_t metaslab_class_get_deferred(metaslab_class_t *mc);
 
 extern metaslab_group_t *metaslab_group_create(metaslab_class_t *mc,
     vdev_t *vd);
 extern void metaslab_group_destroy(metaslab_group_t *mg);
+extern void metaslab_group_activate(metaslab_group_t *mg);
+extern void metaslab_group_passivate(metaslab_group_t *mg);
 
 #ifdef	__cplusplus
 }

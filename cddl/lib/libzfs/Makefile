@@ -6,8 +6,8 @@
 .PATH: ${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libzfs/common
 
 LIB=	zfs
-DPADD=	${LIBUTIL}
-LDADD=	-lutil
+DPADD=	${LIBMD} ${LIBPTHREAD} ${LIBUMEM} ${LIBUTIL}
+LDADD=	-lmd -lpthread -lumem -lutil
 
 SRCS=	deviceid.c \
 	fsshare.c \
@@ -16,22 +16,27 @@ SRCS=	deviceid.c \
 	zmount.c \
 	zone.c
 
-SRCS+=	zfs_deleg.c \
+SRCS+=	libzfs_changelist.c \
+	libzfs_config.c \
+	libzfs_dataset.c \
+	libzfs_diff.c \
+	libzfs_graph.c \
+	libzfs_import.c \
+	libzfs_mount.c \
+	libzfs_pool.c \
+	libzfs_sendrecv.c \
+	libzfs_status.c \
+	libzfs_util.c \
+	zfs_comutil.c \
+	zfs_deleg.c \
+	zfs_fletcher.c \
+	zfs_ioctl_compat.c \
 	zfs_namecheck.c \
 	zfs_prop.c \
 	zpool_prop.c \
 	zprop_common.c \
-	libzfs_dataset.c \
-	libzfs_util.c \
-	libzfs_graph.c \
-	libzfs_mount.c \
-	libzfs_pool.c \
-	libzfs_changelist.c \
-	libzfs_config.c \
-	libzfs_import.c \
-	libzfs_sendrecv.c \
-	libzfs_status.c
 
+CSTD=	c99
 CFLAGS+= -DZFS_NO_ACL
 CFLAGS+= -I${.CURDIR}/../../../sbin/mount
 CFLAGS+= -I${.CURDIR}/../../../cddl/lib/libumem

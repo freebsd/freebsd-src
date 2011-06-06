@@ -29,10 +29,11 @@
 #ifndef _OPENSOLARIS_SYS_SYSTM_H_
 #define	_OPENSOLARIS_SYS_SYSTM_H_
 
+#ifdef _KERNEL
+
 #include <sys/param.h>
 #include_next <sys/systm.h>
 
-#ifdef _KERNEL
 #include <sys/string.h>
 
 #define	PAGESIZE	PAGE_SIZE
@@ -40,9 +41,6 @@
 #define	PAGEMASK	(~PAGEOFFSET)
 
 #define	delay(x)	pause("soldelay", (x))
-
-#define	xcopyin(u, k, s)	copyin(u, k, s)
-#define	xcopyout(k, u, s)	copyout(k, u, s)
 
 #endif	/* _KERNEL */
 

@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #ifdef _KERNEL
-static MALLOC_DEFINE(M_SOLARIS, "solaris", "Solaris");
+MALLOC_DEFINE(M_SOLARIS, "solaris", "Solaris");
 #else
 #define	malloc(size, type, flags)	malloc(size)
 #define	free(addr, type)		free(addr)

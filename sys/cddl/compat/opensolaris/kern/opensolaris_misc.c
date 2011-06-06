@@ -33,40 +33,22 @@ __FBSDID("$FreeBSD$");
 #include <sys/libkern.h>
 #include <sys/limits.h>
 #include <sys/misc.h>
-#include <sys/sunddi.h>
+#include <sys/sysctl.h>
 
 char hw_serial[11] = "0";
 
 struct opensolaris_utsname utsname = {
-	.nodename = "unset",
-	.sysname  = "SunOS"
+	.machine = MACHINE
 };
 
-int
-ddi_strtol(const char *str, char **nptr, int base, long *result)
+static void
+opensolaris_utsname_init(void *arg)
 {
 
-	*result = strtol(str, nptr, base);
-	if (*result == 0)
-		return (EINVAL);
-	else if (*result == LONG_MIN || *result == LONG_MAX)
-		return (ERANGE);
-	return (0);
+	utsname.sysname = ostype;
+	utsname.nodename = prison0.pr_hostname;
+	utsname.release = osrelease;
+	snprintf(utsname.version, sizeof(utsname.version), "%d", osreldate);
 }
-
-int
-ddi_strtoul(const char *str, char **nptr, int base, unsigned long *result)
-{
-
-	if (str == hw_serial) {
-		*result = prison0.pr_hostid;
-		return (0);
-	}
-
-	*result = strtoul(str, nptr, base);
-	if (*result == 0)
-		return (EINVAL);
-	else if (*result == ULONG_MAX)
-		return (ERANGE);
-	return (0);
-}
+SYSINIT(opensolaris_utsname_init, SI_SUB_TUNABLES, SI_ORDER_ANY,
+    opensolaris_utsname_init, NULL);

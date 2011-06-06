@@ -11,9 +11,12 @@
 # LIST_SRCS
 .PATH: ${.CURDIR}/../../../sys/cddl/contrib/opensolaris/uts/common/os
 # ATOMIC_SRCS
-.if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "ia64" || ${MACHINE_ARCH} == "sparc64"
+.if exists(${.CURDIR}/../../../sys/cddl/contrib/opensolaris/common/atomic/${MACHINE_ARCH}/opensolaris_atomic.S)
 .PATH: ${.CURDIR}/../../../sys/cddl/contrib/opensolaris/common/atomic/${MACHINE_ARCH}
 ATOMIC_SRCS=	opensolaris_atomic.S
+.if ${MACHINE_ARCH} != "ia64" && ${MACHINE_ARCH} != "sparc64"
+ACFLAGS+=	-Wa,--noexecstack
+.endif
 .else
 .PATH: ${.CURDIR}/../../../sys/cddl/compat/opensolaris/kern
 ATOMIC_SRCS=	opensolaris_atomic.c
@@ -34,16 +37,16 @@ SRCS=		${ZFS_COMMON_SRCS} ${ZFS_SHARED_SRCS} \
 		${UNICODE_SRCS}
 
 CFLAGS+=	-I${.CURDIR}/../../../sys/cddl/compat/opensolaris
-CFLAGS+=	-I${.CURDIR}/../../../cddl/compat/opensolaris/include
-CFLAGS+=	-I${.CURDIR}/../../../cddl/compat/opensolaris/lib/libumem
-CFLAGS+=	-I${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libzpool/common
+CFLAGS+=	-I${.CURDIR}/../../compat/opensolaris/include
+CFLAGS+=	-I${.CURDIR}/../../compat/opensolaris/lib/libumem
+CFLAGS+=	-I${.CURDIR}/../../contrib/opensolaris/lib/libzpool/common
 CFLAGS+=	-I${.CURDIR}/../../../sys/cddl/contrib/opensolaris/uts/common/sys
 CFLAGS+=	-I${.CURDIR}/../../../sys/cddl/contrib/opensolaris/uts/common/fs/zfs
 CFLAGS+=	-I${.CURDIR}/../../../sys/cddl/contrib/opensolaris/common/zfs
 CFLAGS+=	-I${.CURDIR}/../../../sys/cddl/contrib/opensolaris/uts/common
-CFLAGS+=	-I${.CURDIR}/../../../cddl/contrib/opensolaris/head
-CFLAGS+=	-I${.CURDIR}/../../../cddl/lib/libumem
-CFLAGS+=	-I${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libnvpair
+CFLAGS+=	-I${.CURDIR}/../../contrib/opensolaris/head
+CFLAGS+=	-I${.CURDIR}/../../lib/libumem
+CFLAGS+=	-I${.CURDIR}/../../contrib/opensolaris/lib/libnvpair
 # XXX: pthread doesn't have mutex_owned() equivalent, so we need to look
 #      into libthr private structures. That's sooo evil, but it's only for
 #      ZFS debugging tools needs.
@@ -52,8 +55,8 @@ CFLAGS+=	-I${.CURDIR}/../../../lib/libpthread/thread
 CFLAGS+=	-I${.CURDIR}/../../../lib/libpthread/sys
 CFLAGS+=	-I${.CURDIR}/../../../lib/libthr/arch/${MACHINE_ARCH}/include
 
-DPADD=		${LIBPTHREAD} ${LIBZ}
-LDADD=		-lpthread -lz
+DPADD=		${LIBMD} ${LIBPTHREAD} ${LIBZ}
+LDADD=		-lmd -lpthread -lz
 
 # atomic.S doesn't like profiling.
 NO_PROFILE=

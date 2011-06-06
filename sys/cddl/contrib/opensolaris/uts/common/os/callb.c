@@ -19,11 +19,9 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <sys/param.h>
 #include <sys/types.h>
@@ -319,9 +317,9 @@ callb_generic_cpr(void *arg, int code)
 #ifdef CPR_NOT_THREAD_SAFE
 		while (!(cp->cc_events & CALLB_CPR_SAFE))
 			/* cv_timedwait() returns -1 if it times out. */
-			if ((ret = cv_timedwait(&cp->cc_callb_cv,
-			    cp->cc_lockp,
-			    callb_timeout_sec * hz)) == -1)
+			if ((ret = cv_reltimedwait(&cp->cc_callb_cv,
+			    cp->cc_lockp, (callb_timeout_sec * hz),
+			    TR_CLOCK_TICK)) == -1)
 				break;
 #endif
 		break;
@@ -369,6 +367,72 @@ callb_unlock_table(void)
 	cv_broadcast(&ct->ct_busy_cv);
 	mutex_exit(&ct->ct_lock);
 }
+
+#ifdef sun
+/*
+ * Return a boolean value indicating whether a particular kernel thread is
+ * stopped in accordance with the cpr callback protocol.  If returning
+ * false, also return a pointer to the thread name via the 2nd argument.
+ */
+boolean_t
+callb_is_stopped(kthread_id_t tp, caddr_t *thread_name)
+{
+	callb_t *cp;
+	boolean_t ret_val;
+
+	mutex_enter(&ct->ct_lock);
+
+	for (cp = ct->ct_first_cb[CB_CL_CPR_DAEMON];
+	    cp != NULL && tp != cp->c_thread; cp = cp->c_next)
+		;
+
+	ret_val = (cp != NULL);
+	if (ret_val) {
+		/*
+		 * We found the thread in the callback table and have
+		 * provisionally set the return value to true.  Now
+		 * see if it is marked "safe" and is sleeping or stopped.
+		 */
+		callb_cpr_t *ccp = (callb_cpr_t *)cp->c_arg;
+
+		*thread_name = cp->c_name;	/* in case not stopped */
+		mutex_enter(ccp->cc_lockp);
+
+		if (ccp->cc_events & CALLB_CPR_SAFE) {
+			int retry;
+
+			mutex_exit(ccp->cc_lockp);
+			for (retry = 0; retry < CALLB_MAX_RETRY; retry++) {
+				thread_lock(tp);
+				if (tp->t_state & (TS_SLEEP | TS_STOPPED)) {
+					thread_unlock(tp);
+					break;
+				}
+				thread_unlock(tp);
+				delay(CALLB_THREAD_DELAY);
+			}
+			ret_val = retry < CALLB_MAX_RETRY;
+		} else {
+			ret_val =
+			    (ccp->cc_events & CALLB_CPR_ALWAYS_SAFE) != 0;
+			mutex_exit(ccp->cc_lockp);
+		}
+	} else {
+		/*
+		 * Thread not found in callback table.  Make the best
+		 * attempt to identify the thread in the error message.
+		 */
+		ulong_t offset;
+		char *sym = kobj_getsymname((uintptr_t)tp->t_startpc,
+		    &offset);
+
+		*thread_name = sym ? sym : "*unknown*";
+	}
+
+	mutex_exit(&ct->ct_lock);
+	return (ret_val);
+}
+#endif	/* sun */
 
 SYSINIT(sol_callb, SI_SUB_DRIVERS, SI_ORDER_FIRST, callb_init, NULL);
 SYSUNINIT(sol_callb, SI_SUB_DRIVERS, SI_ORDER_FIRST, callb_fini, NULL);

@@ -18,9 +18,9 @@
  *
  * CDDL HEADER END
  */
+
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
- * Use is subject to license terms.
+ * Copyright (c) 1988, 2010, Oracle and/or its affiliates. All rights reserved.
  */
 
 /*	Copyright (c) 1983, 1984, 1985, 1986, 1987, 1988, 1989 AT&T	*/
@@ -40,10 +40,6 @@
 #define	_SYS_VNODE_H
 
 #include_next <sys/vnode.h>
-
-#ifdef	__cplusplus
-extern "C" {
-#endif
 
 #define	IS_DEVVP(vp)	\
 	((vp)->v_type == VCHR || (vp)->v_type == VBLK || (vp)->v_type == VFIFO)
@@ -69,6 +65,10 @@ typedef struct xoptattr {
 	uint8_t		xoa_av_quarantined;
 	uint8_t		xoa_av_modified;
 	uint8_t		xoa_av_scanstamp[AV_SCANSTAMP_SZ];
+	uint8_t		xoa_reparse;
+	uint64_t	xoa_generation;
+	uint8_t		xoa_offline;
+	uint8_t		xoa_sparse;
 } xoptattr_t;
 
 /*
@@ -209,11 +209,15 @@ typedef struct xvattr {
 #define	XAT0_AV_QUARANTINED	0x00000400	/* anti-virus quarantine */
 #define	XAT0_AV_MODIFIED	0x00000800	/* anti-virus modified */
 #define	XAT0_AV_SCANSTAMP	0x00001000	/* anti-virus scanstamp */
+#define	XAT0_REPARSE	0x00002000	/* FS reparse point */
+#define	XAT0_GEN	0x00004000	/* object generation number */
+#define	XAT0_OFFLINE	0x00008000	/* offline */
+#define	XAT0_SPARSE	0x00010000	/* sparse */
 
 #define	XAT0_ALL_ATTRS	(XAT0_CREATETIME|XAT0_ARCHIVE|XAT0_SYSTEM| \
     XAT0_READONLY|XAT0_HIDDEN|XAT0_NOUNLINK|XAT0_IMMUTABLE|XAT0_APPENDONLY| \
-    XAT0_NODUMP|XAT0_OPAQUE|XAT0_AV_QUARANTINED| \
-    XAT0_AV_MODIFIED|XAT0_AV_SCANSTAMP)
+    XAT0_NODUMP|XAT0_OPAQUE|XAT0_AV_QUARANTINED|  XAT0_AV_MODIFIED| \
+    XAT0_AV_SCANSTAMP|XAT0_REPARSE|XATO_GEN|XAT0_OFFLINE|XAT0_SPARSE)
 
 /* Support for XAT_* optional attributes */
 #define	XVA_MASK		0xffffffff	/* Used to mask off 32 bits */
@@ -246,6 +250,10 @@ typedef struct xvattr {
 #define	XAT_AV_QUARANTINED	((XAT0_INDEX << XVA_SHFT) | XAT0_AV_QUARANTINED)
 #define	XAT_AV_MODIFIED		((XAT0_INDEX << XVA_SHFT) | XAT0_AV_MODIFIED)
 #define	XAT_AV_SCANSTAMP	((XAT0_INDEX << XVA_SHFT) | XAT0_AV_SCANSTAMP)
+#define	XAT_REPARSE		((XAT0_INDEX << XVA_SHFT) | XAT0_REPARSE)
+#define	XAT_GEN			((XAT0_INDEX << XVA_SHFT) | XAT0_GEN)
+#define	XAT_OFFLINE		((XAT0_INDEX << XVA_SHFT) | XAT0_OFFLINE)
+#define	XAT_SPARSE		((XAT0_INDEX << XVA_SHFT) | XAT0_SPARSE)
 
 /*
  * The returned attribute map array (xva_rtnattrmap[]) is located past the
@@ -305,7 +313,6 @@ typedef struct xvattr {
 #define	MODEMASK	07777		/* mode bits plus permission bits */
 #define	PERMMASK	00777		/* permission bits */
 
-
 /*
  * VOP_ACCESS flags
  */
@@ -358,15 +365,12 @@ typedef struct caller_context {
 	ulong_t		cc_flags;
 } caller_context_t;
 
-/*
- * Structure tags for function prototypes, defined elsewhere.
- */
 struct taskq;
 
 /*
  * Flags for VOP_LOOKUP
  *
- * Defined in file.h, but also possible, FIGNORECASE
+ * Defined in file.h, but also possible, FIGNORECASE and FSEARCH
  *
  */
 #define	LOOKUP_DIR		0x01	/* want parent dir vp */

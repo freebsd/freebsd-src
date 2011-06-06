@@ -2,7 +2,7 @@
 
 KMOD=	zfs
 
-SRCS=	vnode_if.h
+SRCS=	bus_if.h device_if.h vnode_if.h
 
 SUNW=	${.CURDIR}/../../cddl/contrib/opensolaris
 
@@ -12,6 +12,7 @@ SRCS+=	acl_common.c
 SRCS+=	avl.c
 .PATH:	${SUNW}/common/nvpair
 SRCS+=	nvpair.c
+SRCS+=	nvpair_alloc_fixed.c
 .PATH:	${.CURDIR}/../../cddl/contrib/opensolaris/common/unicode
 SRCS+=	u8_textprep.c
 
@@ -22,17 +23,18 @@ SRCS+=	opensolaris_kstat.c
 SRCS+=	opensolaris_lookup.c
 SRCS+=	opensolaris_policy.c
 SRCS+=	opensolaris_string.c
+SRCS+=	opensolaris_sysevent.c
 SRCS+=	opensolaris_taskq.c
 SRCS+=	opensolaris_uio.c
 SRCS+=	opensolaris_vfs.c
 SRCS+=	opensolaris_zone.c
 
-.if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "ia64" || ${MACHINE_ARCH} == "sparc64"
-.PATH:	${SUNW}/common/atomic/${MACHINE_ARCH}
-SRCS+=	opensolaris_atomic.S
+_A=${.CURDIR}/../../cddl/contrib/opensolaris/common/atomic
+.if exists(${_A}/${MACHINE_ARCH}/opensolaris_atomic.S)
+.PATH:	${_A}/${MACHINE_ARCH}
+SRCS+=		opensolaris_atomic.S
 .else
-.PATH:	${.CURDIR}/../../cddl/compat/opensolaris/kern
-SRCS+=	opensolaris_atomic.c
+SRCS+=		opensolaris_atomic.c
 .endif
 
 .PATH:	${SUNW}/uts/common/fs
@@ -41,6 +43,7 @@ SRCS+=	vnode.c
 
 .PATH:	${SUNW}/uts/common/os
 SRCS+=	callb.c
+SRCS+=	fm.c
 SRCS+=	list.c
 SRCS+=	nvpair_alloc_system.c
 
@@ -55,6 +58,9 @@ SRCS+=	trees.c
 SRCS+=	zmod.c
 SRCS+=	zmod_subr.c
 SRCS+=	zutil.c
+
+.PATH:	${.CURDIR}/../../crypto/sha2
+SRCS+=	sha2.c
 
 .PATH:	${SUNW}/common/zfs
 .include "${SUNW}/uts/common/Makefile.files"

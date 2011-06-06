@@ -1,4 +1,4 @@
-#! /usr/bin/python2.4
+#! /usr/bin/python2.6
 #
 # CDDL HEADER START
 #
@@ -19,8 +19,7 @@
 #
 # CDDL HEADER END
 #
-# Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
-# Use is subject to license terms.
+# Copyright (c) 2009, 2010, Oracle and/or its affiliates. All rights reserved.
 #
 
 """Implements the Dataset class, providing methods for manipulating ZFS
@@ -109,7 +108,7 @@ class Dataset(object):
 
 		types is an iterable of strings specifying which types
 		of datasets are permitted.  Accepted strings are
-		"filesystem" and "volume".  Defaults to acceptying all
+		"filesystem" and "volume".  Defaults to accepting all
 		types.
 
 		snaps is a boolean specifying if snapshots are acceptable.
@@ -203,3 +202,33 @@ class Dataset(object):
 		Return a dict("whostr": { "perm" -> None })."""
 
 		return zfs.ioctl.get_fsacl(self.name)
+
+	def get_holds(self):
+		"""Get the user holds on this Dataset.
+
+		Return a dict("tag": timestamp)."""
+
+		return zfs.ioctl.get_holds(self.name)
+
+def snapshots_fromcmdline(dsnames, recursive):
+	for dsname in dsnames:
+		if not "@" in dsname:
+			raise zfs.util.ZFSError(errno.EINVAL,
+			    _("cannot open %s") % dsname,
+			    _("operation only applies to snapshots"))
+		try:
+			ds = Dataset(dsname)
+			yield ds
+		except zfs.util.ZFSError, e:
+			if not recursive or e.errno != errno.ENOENT:
+				raise
+		if recursive:
+			(base, snapname) = dsname.split('@')
+			parent = Dataset(base)
+			for child in parent.descendents():
+				try:
+					yield Dataset(child.name + "@" +
+					    snapname)
+				except zfs.util.ZFSError, e:
+					if e.errno != errno.ENOENT:
+						raise

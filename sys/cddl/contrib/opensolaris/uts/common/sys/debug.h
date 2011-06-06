@@ -19,18 +19,18 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2010 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
 /*	Copyright (c) 1984, 1986, 1987, 1988, 1989 AT&T	*/
 /*	  All Rights Reserved	*/
 
-
 #ifndef _SYS_DEBUG_H
 #define	_SYS_DEBUG_H
 
 #include <sys/types.h>
+#include <sys/note.h>
 
 #ifdef	__cplusplus
 extern "C" {
@@ -70,6 +70,25 @@ extern int assfail();
 #else
 #define	ASSERT64(x)
 #define	ASSERT32(x)	ASSERT(x)
+#endif
+
+/*
+ * IMPLY and EQUIV are assertions of the form:
+ *
+ *	if (a) then (b)
+ * and
+ *	if (a) then (b) *AND* if (b) then (a)
+ */
+#ifdef DEBUG
+#define	IMPLY(A, B) \
+	((void)(((!(A)) || (B)) || \
+	    assfail("(" #A ") implies (" #B ")", __FILE__, __LINE__)))
+#define	EQUIV(A, B) \
+	((void)((!!(A) == !!(B)) || \
+	    assfail("(" #A ") is equivalent to (" #B ")", __FILE__, __LINE__)))
+#else
+#define	IMPLY(A, B) ((void)0)
+#define	EQUIV(A, B) ((void)0)
 #endif
 
 /*

@@ -15,6 +15,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW ON IA64 OR SUN4V:
 	debugging tools present in HEAD were left in place because
 	sun4v support still needs work to become production ready.
 
+20110606:
+	A new version of ZFS (version 28) has been merged.
+	This version does not depend on a python library and the
+	sysutils/py-zfs port is not used anymore.
+	For upgrading your boot pool, please read "ZFS notes"
+	in the COMMON ITEMS: section later in this file.
+
 20110428:
 	IPsec's HMAC_SHA256-512 support has been fixed to be RFC4868
 	compliant, and will now use half of hash for authentication.

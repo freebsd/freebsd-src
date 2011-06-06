@@ -36,41 +36,39 @@
 #include <sys/vnode.h>
 
 struct mount;
-struct ucred;
 struct vattr;
-struct vnode;
 
-int	secpolicy_nfs(struct ucred *cred);
-int	secpolicy_zfs(struct ucred *cred);
-int	secpolicy_sys_config(struct ucred *cred, int checkonly);
-int	secpolicy_zinject(struct ucred *cred);
-int	secpolicy_fs_unmount(struct ucred *cred, struct mount *vfsp);
-int	secpolicy_basic_link(struct vnode *vp, struct ucred *cred);
-int	secpolicy_vnode_owner(struct vnode *vp, cred_t *cred, uid_t owner);
-int	secpolicy_vnode_chown(struct vnode *vp, cred_t *cred, uid_t owner);
-int	secpolicy_vnode_stky_modify(struct ucred *cred);
-int	secpolicy_vnode_remove(struct vnode *vp, struct ucred *cred);
-int	secpolicy_vnode_access(struct ucred *cred, struct vnode *vp,
-	    uint64_t owner, accmode_t accmode);
-int	secpolicy_vnode_setdac(struct vnode *vp, struct ucred *cred,
-	    uid_t owner);
-int	secpolicy_vnode_setattr(struct ucred *cred, struct vnode *vp,
-	    struct vattr *vap, const struct vattr *ovap, int flags,
-	    int unlocked_access(void *, int, struct ucred *), void *node);
-int	secpolicy_vnode_create_gid(struct ucred *cred);
-int	secpolicy_vnode_setids_setgids(struct vnode *vp, struct ucred *cred,
-	    gid_t gid);
-int	secpolicy_vnode_setid_retain(struct vnode *vp, struct ucred *cred,
+int	secpolicy_nfs(cred_t *cr);
+int	secpolicy_zfs(cred_t *crd);
+int	secpolicy_sys_config(cred_t *cr, int checkonly);
+int	secpolicy_zinject(cred_t *cr);
+int	secpolicy_fs_unmount(cred_t *cr, struct mount *vfsp);
+int	secpolicy_basic_link(vnode_t *vp, cred_t *cr);
+int	secpolicy_vnode_owner(vnode_t *vp, cred_t *cr, uid_t owner);
+int	secpolicy_vnode_chown(vnode_t *vp, cred_t *cr, uid_t owner);
+int	secpolicy_vnode_stky_modify(cred_t *cr);
+int	secpolicy_vnode_remove(vnode_t *vp, cred_t *cr);
+int	secpolicy_vnode_access(cred_t *cr, vnode_t *vp, uid_t owner,
+	    accmode_t accmode);
+int	secpolicy_vnode_access2(cred_t *cr, vnode_t *vp, uid_t owner,
+	    accmode_t curmode, accmode_t wantmode);
+int	secpolicy_vnode_any_access(cred_t *cr, vnode_t *vp, uid_t owner);
+int	secpolicy_vnode_setdac(vnode_t *vp, cred_t *cr, uid_t owner);
+int	secpolicy_vnode_setattr(cred_t *cr, vnode_t *vp, struct vattr *vap,
+	    const struct vattr *ovap, int flags,
+	    int unlocked_access(void *, int, cred_t *), void *node);
+int	secpolicy_vnode_create_gid(cred_t *cr);
+int	secpolicy_vnode_setids_setgids(vnode_t *vp, cred_t *cr, gid_t gid);
+int	secpolicy_vnode_setid_retain(vnode_t *vp, cred_t *cr,
 	    boolean_t issuidroot);
-void	secpolicy_setid_clear(struct vattr *vap, struct vnode *vp,
-	    struct ucred *cred);
-int	secpolicy_setid_setsticky_clear(struct vnode *vp, struct vattr *vap,
-	    const struct vattr *ovap, struct ucred *cred);
-int	secpolicy_fs_owner(struct mount *vfsp, struct ucred *cred);
+void	secpolicy_setid_clear(struct vattr *vap, vnode_t *vp, cred_t *cr);
+int	secpolicy_setid_setsticky_clear(vnode_t *vp, struct vattr *vap,
+	    const struct vattr *ovap, cred_t *cr);
+int	secpolicy_fs_owner(struct mount *vfsp, cred_t *cr);
 int	secpolicy_fs_mount(cred_t *cr, vnode_t *mvp, struct mount *vfsp);
 void	secpolicy_fs_mount_clearopts(cred_t *cr, struct mount *vfsp);
-int	secpolicy_xvattr(struct vnode *vp, xvattr_t *xvap, uid_t owner,
-	    cred_t *cr, vtype_t vtype);
+int	secpolicy_xvattr(vnode_t *vp, xvattr_t *xvap, uid_t owner, cred_t *cr,
+	    vtype_t vtype);
 int	secpolicy_smb(cred_t *cr);
 
 #endif	/* _KERNEL */

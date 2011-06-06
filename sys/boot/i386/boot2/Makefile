@@ -27,6 +27,7 @@ CFLAGS=	-Os \
 	-mno-align-long-strings \
 	-mrtd \
 	-mno-mmx -mno-3dnow -mno-sse -mno-sse2 -mno-sse3 \
+	-DUSE_XREAD \
 	-D${BOOT2_UFS} \
 	-DFLAGS=${BOOT_BOOT1_FLAGS} \
 	-DSIOPRT=${BOOT_COMCONSOLE_PORT} \

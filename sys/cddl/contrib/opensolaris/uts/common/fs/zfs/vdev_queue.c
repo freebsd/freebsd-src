@@ -24,7 +24,6 @@
  */
 
 #include <sys/zfs_context.h>
-#include <sys/spa.h>
 #include <sys/vdev_impl.h>
 #include <sys/zio.h>
 #include <sys/avl.h>
@@ -41,37 +40,48 @@
 int zfs_vdev_max_pending = 10;
 int zfs_vdev_min_pending = 4;
 
-/* deadline = pri + (LBOLT >> time_shift) */
+/* deadline = pri + ddi_get_lbolt64() >> time_shift) */
 int zfs_vdev_time_shift = 6;
 
 /* exponential I/O issue ramp-up rate */
 int zfs_vdev_ramp_rate = 2;
 
 /*
- * To reduce IOPs, we aggregate small adjacent i/os into one large i/o.
- * For read i/os, we also aggregate across small adjacency gaps.
+ * To reduce IOPs, we aggregate small adjacent I/Os into one large I/O.
+ * For read I/Os, we also aggregate across small adjacency gaps; for writes
+ * we include spans of optional I/Os to aid aggregation at the disk even when
+ * they aren't able to help us aggregate at this level.
  */
 int zfs_vdev_aggregation_limit = SPA_MAXBLOCKSIZE;
 int zfs_vdev_read_gap_limit = 32 << 10;
+int zfs_vdev_write_gap_limit = 4 << 10;
 
 SYSCTL_DECL(_vfs_zfs_vdev);
 TUNABLE_INT("vfs.zfs.vdev.max_pending", &zfs_vdev_max_pending);
-SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, max_pending, CTLFLAG_RDTUN,
+SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, max_pending, CTLFLAG_RW,
     &zfs_vdev_max_pending, 0, "Maximum I/O requests pending on each device");
 TUNABLE_INT("vfs.zfs.vdev.min_pending", &zfs_vdev_min_pending);
-SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, min_pending, CTLFLAG_RDTUN,
+SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, min_pending, CTLFLAG_RW,
     &zfs_vdev_min_pending, 0,
     "Initial number of I/O requests pending to each device");
 TUNABLE_INT("vfs.zfs.vdev.time_shift", &zfs_vdev_time_shift);
-SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, time_shift, CTLFLAG_RDTUN,
+SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, time_shift, CTLFLAG_RW,
     &zfs_vdev_time_shift, 0, "Used for calculating I/O request deadline");
 TUNABLE_INT("vfs.zfs.vdev.ramp_rate", &zfs_vdev_ramp_rate);
-SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, ramp_rate, CTLFLAG_RDTUN,
+SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, ramp_rate, CTLFLAG_RW,
     &zfs_vdev_ramp_rate, 0, "Exponential I/O issue ramp-up rate");
 TUNABLE_INT("vfs.zfs.vdev.aggregation_limit", &zfs_vdev_aggregation_limit);
-SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, aggregation_limit, CTLFLAG_RDTUN,
+SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, aggregation_limit, CTLFLAG_RW,
     &zfs_vdev_aggregation_limit, 0,
     "I/O requests are aggregated up to this size");
+TUNABLE_INT("vfs.zfs.vdev.read_gap_limit", &zfs_vdev_read_gap_limit);
+SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, read_gap_limit, CTLFLAG_RW,
+    &zfs_vdev_read_gap_limit, 0,
+    "Acceptable gap between two reads being aggregated");
+TUNABLE_INT("vfs.zfs.vdev.write_gap_limit", &zfs_vdev_write_gap_limit);
+SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, write_gap_limit, CTLFLAG_RW,
+    &zfs_vdev_write_gap_limit, 0,
+    "Acceptable gap between two writes being aggregated");
 
 /*
  * Virtual device vector for disk I/O scheduling.
@@ -191,12 +201,14 @@ vdev_queue_agg_io_done(zio_t *aio)
 static zio_t *
 vdev_queue_io_to_issue(vdev_queue_t *vq, uint64_t pending_limit)
 {
-	zio_t *fio, *lio, *aio, *dio, *nio;
+	zio_t *fio, *lio, *aio, *dio, *nio, *mio;
 	avl_tree_t *t;
 	int flags;
 	uint64_t maxspan = zfs_vdev_aggregation_limit;
 	uint64_t maxgap;
+	int stretch;
 
+again:
 	ASSERT(MUTEX_HELD(&vq->vq_lock));
 
 	if (avl_numnodes(&vq->vq_pending_tree) >= pending_limit ||
@@ -211,21 +223,88 @@ vdev_queue_io_to_issue(vdev_queue_t *vq, uint64_t pending_limit)
 
 	if (!(flags & ZIO_FLAG_DONT_AGGREGATE)) {
 		/*
-		 * We can aggregate I/Os that are adjacent and of the
-		 * same flavor, as expressed by the AGG_INHERIT flags.
-		 * The latter is necessary so that certain attributes
-		 * of the I/O, such as whether it's a normal I/O or a
-		 * scrub/resilver, can be preserved in the aggregate.
+		 * We can aggregate I/Os that are sufficiently adjacent and of
+		 * the same flavor, as expressed by the AGG_INHERIT flags.
+		 * The latter requirement is necessary so that certain
+		 * attributes of the I/O, such as whether it's a normal I/O
+		 * or a scrub/resilver, can be preserved in the aggregate.
+		 * We can include optional I/Os, but don't allow them
+		 * to begin a range as they add no benefit in that situation.
+		 */
+
+		/*
+		 * We keep track of the last non-optional I/O.
+		 */
+		mio = (fio->io_flags & ZIO_FLAG_OPTIONAL) ? NULL : fio;
+
+		/*
+		 * Walk backwards through sufficiently contiguous I/Os
+		 * recording the last non-option I/O.
 		 */
 		while ((dio = AVL_PREV(t, fio)) != NULL &&
 		    (dio->io_flags & ZIO_FLAG_AGG_INHERIT) == flags &&
-		    IO_SPAN(dio, lio) <= maxspan && IO_GAP(dio, fio) <= maxgap)
+		    IO_SPAN(dio, lio) <= maxspan &&
+		    IO_GAP(dio, fio) <= maxgap) {
 			fio = dio;
+			if (mio == NULL && !(fio->io_flags & ZIO_FLAG_OPTIONAL))
+				mio = fio;
+		}
 
+		/*
+		 * Skip any initial optional I/Os.
+		 */
+		while ((fio->io_flags & ZIO_FLAG_OPTIONAL) && fio != lio) {
+			fio = AVL_NEXT(t, fio);
+			ASSERT(fio != NULL);
+		}
+
+		/*
+		 * Walk forward through sufficiently contiguous I/Os.
+		 */
 		while ((dio = AVL_NEXT(t, lio)) != NULL &&
 		    (dio->io_flags & ZIO_FLAG_AGG_INHERIT) == flags &&
-		    IO_SPAN(fio, dio) <= maxspan && IO_GAP(lio, dio) <= maxgap)
+		    IO_SPAN(fio, dio) <= maxspan &&
+		    IO_GAP(lio, dio) <= maxgap) {
 			lio = dio;
+			if (!(lio->io_flags & ZIO_FLAG_OPTIONAL))
+				mio = lio;
+		}
+
+		/*
+		 * Now that we've established the range of the I/O aggregation
+		 * we must decide what to do with trailing optional I/Os.
+		 * For reads, there's nothing to do. While we are unable to
+		 * aggregate further, it's possible that a trailing optional
+		 * I/O would allow the underlying device to aggregate with
+		 * subsequent I/Os. We must therefore determine if the next
+		 * non-optional I/O is close enough to make aggregation
+		 * worthwhile.
+		 */
+		stretch = B_FALSE;
+		if (t != &vq->vq_read_tree && mio != NULL) {
+			nio = lio;
+			while ((dio = AVL_NEXT(t, nio)) != NULL &&
+			    IO_GAP(nio, dio) == 0 &&
+			    IO_GAP(mio, dio) <= zfs_vdev_write_gap_limit) {
+				nio = dio;
+				if (!(nio->io_flags & ZIO_FLAG_OPTIONAL)) {
+					stretch = B_TRUE;
+					break;
+				}
+			}
+		}
+
+		if (stretch) {
+			/* This may be a no-op. */
+			VERIFY((dio = AVL_NEXT(t, lio)) != NULL);
+			dio->io_flags &= ~ZIO_FLAG_OPTIONAL;
+		} else {
+			while (lio != mio && lio != fio) {
+				ASSERT(lio->io_flags & ZIO_FLAG_OPTIONAL);
+				lio = AVL_PREV(t, lio);
+				ASSERT(lio != NULL);
+			}
+		}
 	}
 
 	if (fio != lio) {
@@ -244,10 +323,15 @@ vdev_queue_io_to_issue(vdev_queue_t *vq, uint64_t pending_limit)
 			ASSERT(dio->io_type == aio->io_type);
 			ASSERT(dio->io_vdev_tree == t);
 
-			if (dio->io_type == ZIO_TYPE_WRITE)
+			if (dio->io_flags & ZIO_FLAG_NODATA) {
+				ASSERT(dio->io_type == ZIO_TYPE_WRITE);
+				bzero((char *)aio->io_data + (dio->io_offset -
+				    aio->io_offset), dio->io_size);
+			} else if (dio->io_type == ZIO_TYPE_WRITE) {
 				bcopy(dio->io_data, (char *)aio->io_data +
 				    (dio->io_offset - aio->io_offset),
 				    dio->io_size);
+			}
 
 			zio_add_child(dio, aio);
 			vdev_queue_io_remove(vq, dio);
@@ -262,6 +346,20 @@ vdev_queue_io_to_issue(vdev_queue_t *vq, uint64_t pending_limit)
 
 	ASSERT(fio->io_vdev_tree == t);
 	vdev_queue_io_remove(vq, fio);
+
+	/*
+	 * If the I/O is or was optional and therefore has no data, we need to
+	 * simply discard it. We need to drop the vdev queue's lock to avoid a
+	 * deadlock that we could encounter since this I/O will complete
+	 * immediately.
+	 */
+	if (fio->io_flags & ZIO_FLAG_NODATA) {
+		mutex_exit(&vq->vq_lock);
+		zio_vdev_io_bypass(fio);
+		zio_execute(fio);
+		mutex_enter(&vq->vq_lock);
+		goto again;
+	}
 
 	avl_add(&vq->vq_pending_tree, fio);
 
@@ -288,7 +386,8 @@ vdev_queue_io(zio_t *zio)
 
 	mutex_enter(&vq->vq_lock);
 
-	zio->io_deadline = (lbolt64 >> zfs_vdev_time_shift) + zio->io_priority;
+	zio->io_deadline = (ddi_get_lbolt64() >> zfs_vdev_time_shift) +
+	    zio->io_priority;
 
 	vdev_queue_io_add(vq, zio);
 

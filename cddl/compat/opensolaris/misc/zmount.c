@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <mnttab.h>
 
 static void
 build_iovec(struct iovec **iov, int *iovlen, const char *name, void *val,
@@ -78,7 +79,7 @@ zmount(const char *spec, const char *dir, int mflag, char *fstype,
 
 	assert(spec != NULL);
 	assert(dir != NULL);
-	assert(mflag == 0);
+	assert(mflag == 0 || mflag == MS_RDONLY);
 	assert(fstype != NULL);
 	assert(strcmp(fstype, MNTTYPE_ZFS) == 0);
 	assert(dataptr == NULL);
@@ -91,6 +92,8 @@ zmount(const char *spec, const char *dir, int mflag, char *fstype,
 
 	iov = NULL;
 	iovlen = 0;
+	if (mflag & MS_RDONLY)
+		build_iovec(&iov, &iovlen, "ro", NULL, 0);
 	build_iovec(&iov, &iovlen, "fstype", fstype, (size_t)-1);
 	build_iovec(&iov, &iovlen, "fspath", __DECONST(char *, dir),
 	    (size_t)-1);

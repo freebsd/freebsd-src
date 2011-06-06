@@ -1,4 +1,4 @@
-#! /usr/bin/python2.4
+#! /usr/bin/python2.6
 #
 # CDDL HEADER START
 #
@@ -19,21 +19,22 @@
 #
 # CDDL HEADER END
 #
-# Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
-# Use is subject to license terms.
+# Copyright (c) 2009, 2010, Oracle and/or its affiliates. All rights reserved.
 #
 
 """This module implements the "zfs userspace" and "zfs groupspace" subcommands.
 The only public interface is the zfs.userspace.do_userspace() function."""
 
-import zfs.util
-import zfs.ioctl
-import zfs.dataset
 import optparse
 import sys
 import pwd
 import grp
 import errno
+import solaris.misc
+import zfs.util
+import zfs.ioctl
+import zfs.dataset
+import zfs.table
 
 _ = zfs.util._
 
@@ -58,9 +59,6 @@ def skiptype(options, prop):
 		return True
 	return False
 
-def updatemax(d, k, v):
-	d[k] = max(d.get(k, None), v)
-
 def new_entry(options, isgroup, domain, rid):
 	"""Return a dict("field": value) for this domain (string) + rid (int)"""
 
@@ -70,9 +68,9 @@ def new_entry(options, isgroup, domain, rid):
 		idstr = "%u" % rid
 
 	(typename, mapfunc) = {
-	    (1, 1): ("SMB Group",   lambda id: zfs.ioctl.sid_to_name(id, 0)),
+	    (1, 1): ("SMB Group",   lambda id: solaris.misc.sid_to_name(id, 0)),
 	    (1, 0): ("POSIX Group", lambda id: grp.getgrgid(int(id)).gr_name),
-	    (0, 1): ("SMB User",    lambda id: zfs.ioctl.sid_to_name(id, 1)),
+	    (0, 1): ("SMB User",    lambda id: solaris.misc.sid_to_name(id, 1)),
 	    (0, 0): ("POSIX User",  lambda id: pwd.getpwuid(int(id)).pw_name)
 	}[isgroup, bool(domain)]
 
@@ -102,8 +100,8 @@ def new_entry(options, isgroup, domain, rid):
 	v["quota.sort"] = 0
 	return v
 
-def process_one_raw(acct, maxfieldlen, options, prop, elem):
-	"""Update the acct and maxfieldlen dicts to incorporate the
+def process_one_raw(acct, options, prop, elem):
+	"""Update the acct dict to incorporate the
 	information from this elem from Dataset.userspace(prop)."""
 
 	(domain, rid, value) = elem
@@ -111,7 +109,7 @@ def process_one_raw(acct, maxfieldlen, options, prop, elem):
 
 	if options.translate and domain:
 		try:
-			rid = zfs.ioctl.sid_to_id("%s-%u" % (domain, rid),
+			rid = solaris.misc.sid_to_id("%s-%u" % (domain, rid),
 			    not isgroup)
 			domain = None
 		except KeyError:
@@ -134,10 +132,6 @@ def process_one_raw(acct, maxfieldlen, options, prop, elem):
 		v[field] = str(value)
 	else:
 		v[field] = zfs.util.nicenum(value)
-	for k in v.keys():
-		# some of the .sort fields are integers, so have no len()
-		if isinstance(v[k], str):
-			updatemax(maxfieldlen, k, len(v[k]))
 
 def do_userspace():
 	"""Implements the "zfs userspace" and "zfs groupspace" subcommands."""
@@ -156,7 +150,7 @@ def do_userspace():
 		defaulttypes = "posixgroup,smbgroup"
 
 	fields = ("type", "name", "used", "quota")
-	ljustfields = ("type", "name")
+	rjustfields = ("used", "quota")
 	types = ("all", "posixuser", "smbuser", "posixgroup", "smbgroup")
 
 	u = _("%s [-niHp] [-o field[,...]] [-sS field] ... \n") % sys.argv[1]
@@ -209,38 +203,23 @@ def do_userspace():
 
 	ds = zfs.dataset.Dataset(dsname, types=("filesystem"))
 
-	if ds.getprop("jailed") and zfs.ioctl.isglobalzone():
+	if ds.getprop("jailed") and solaris.misc.isglobalzone():
 		options.noname = True
 
 	if not ds.getprop("useraccounting"):
 		print(_("Initializing accounting information on old filesystem, please wait..."))
 		ds.userspace_upgrade()
 
-	acct = dict()
-	maxfieldlen = dict()
-
 	# gather and process accounting information
+	# Due to -i, we need to keep a dict, so we can potentially add
+	# together the posix ID and SID's usage.  Grr.
+	acct = dict()
 	for prop in props.keys():
 		if skiptype(options, prop):
 			continue;
 		for elem in ds.userspace(prop):
-			process_one_raw(acct, maxfieldlen, options, prop, elem)
+			process_one_raw(acct, options, prop, elem)
 
-	# print out headers
-	if not options.noheaders:
-		line = str()
-		for field in options.fields:
-			# make sure the field header will fit
-			updatemax(maxfieldlen, field, len(field))
-
-			if field in ljustfields:
-				fmt = "%-*s  "
-			else:
-				fmt = "%*s  "
-			line += fmt % (maxfieldlen[field], field.upper())
-		print(line)
-
-	# custom sorting func
 	def cmpkey(val):
 		l = list()
 		for (opt, field) in options.sortfields:
@@ -261,17 +240,7 @@ def do_userspace():
 			l.append(n)
 		return l
 
-	# print out data lines
-	for val in sorted(acct.itervalues(), key=cmpkey):
-		line = str()
-		for field in options.fields:
-			if options.noheaders:
-				line += val[field]
-				line += "\t"
-			else:
-				if field in ljustfields:
-					fmt = "%-*s  "
-				else:
-					fmt = "%*s  "
-				line += fmt % (maxfieldlen[field], val[field])
-		print(line)
+	t = zfs.table.Table(options.fields, rjustfields)
+	for val in acct.itervalues():
+		t.addline(cmpkey(val), val)
+	t.printme(not options.noheaders)

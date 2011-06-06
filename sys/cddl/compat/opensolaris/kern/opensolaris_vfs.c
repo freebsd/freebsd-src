@@ -115,10 +115,10 @@ int
 mount_snapshot(kthread_t *td, vnode_t **vpp, const char *fstype, char *fspath,
     char *fspec, int fsflags)
 {
-	struct mount *mp;
 	struct vfsconf *vfsp;
+	struct mount *mp;
+	vnode_t *vp, *mvp;
 	struct ucred *cr;
-	vnode_t *vp;
 	int error;
 
 	/*
@@ -153,8 +153,10 @@ mount_snapshot(kthread_t *td, vnode_t **vpp, const char *fstype, char *fspath,
 
 	/*
 	 * Allocate and initialize the filesystem.
+	 * We don't want regular user that triggered snapshot mount to be able
+	 * to unmount it, so pass credentials of the parent mount.
 	 */
-	mp = vfs_mount_alloc(vp, vfsp, fspath, td->td_ucred);
+	mp = vfs_mount_alloc(vp, vfsp, fspath, vp->v_mount->mnt_cred);
 
 	mp->mnt_optnew = NULL;
 	vfs_setmntopt(mp, "from", fspec, 0);
@@ -164,8 +166,7 @@ mount_snapshot(kthread_t *td, vnode_t **vpp, const char *fstype, char *fspath,
 	/*
 	 * Set the mount level flags.
 	 */
-	mp->mnt_flag &= ~MNT_UPDATEMASK;
-	mp->mnt_flag |= fsflags & (MNT_UPDATEMASK | MNT_FORCE | MNT_ROOTFS);
+	mp->mnt_flag = fsflags & MNT_UPDATEMASK;
 	/*
 	 * Snapshots are always read-only.
 	 */
@@ -176,13 +177,6 @@ mount_snapshot(kthread_t *td, vnode_t **vpp, const char *fstype, char *fspath,
 	 */
 	mp->mnt_flag |= MNT_IGNORE;
 	/*
-	 * Unprivileged user can trigger mounting a snapshot, but we don't want
-	 * him to unmount it, so we switch to privileged of original mount.
-	 */
-	crfree(mp->mnt_cred);
-	mp->mnt_cred = crdup(vp->v_mount->mnt_cred);
-	mp->mnt_stat.f_owner = mp->mnt_cred->cr_uid;
-	/*
 	 * XXX: This is evil, but we can't mount a snapshot as a regular user.
 	 * XXX: Is is safe when snapshot is mounted from within a jail?
 	 */
@@ -191,17 +185,25 @@ mount_snapshot(kthread_t *td, vnode_t **vpp, const char *fstype, char *fspath,
 	error = VFS_MOUNT(mp);
 	td->td_ucred = cr;
 
-	if (error == 0) {
-		if (mp->mnt_opt != NULL)
-			vfs_freeopts(mp->mnt_opt);
-		mp->mnt_opt = mp->mnt_optnew;
-		(void)VFS_STATFS(mp, &mp->mnt_stat);
+	if (error != 0) {
+		vrele(vp);
+		vfs_unbusy(mp);
+		vfs_mount_destroy(mp);
+		*vpp = NULL;
+		return (error);
 	}
+
+	if (mp->mnt_opt != NULL)
+		vfs_freeopts(mp->mnt_opt);
+	mp->mnt_opt = mp->mnt_optnew;
+	(void)VFS_STATFS(mp, &mp->mnt_stat);
+
 	/*
 	 * Prevent external consumers of mount options from reading
 	 * mnt_optnew.
 	*/
 	mp->mnt_optnew = NULL;
+
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 #ifdef FREEBSD_NAMECACHE
 	cache_purge(vp);
@@ -209,27 +211,17 @@ mount_snapshot(kthread_t *td, vnode_t **vpp, const char *fstype, char *fspath,
 	VI_LOCK(vp);
 	vp->v_iflag &= ~VI_MOUNT;
 	VI_UNLOCK(vp);
-	if (error == 0) {
-		vnode_t *mvp;
 
-		vp->v_mountedhere = mp;
-		/*
-		 * Put the new filesystem on the mount list.
-		 */
-		mtx_lock(&mountlist_mtx);
-		TAILQ_INSERT_TAIL(&mountlist, mp, mnt_list);
-		mtx_unlock(&mountlist_mtx);
-		vfs_event_signal(NULL, VQ_MOUNT, 0);
-		if (VFS_ROOT(mp, LK_EXCLUSIVE, &mvp))
-			panic("mount: lost mount");
-		vput(vp);
-		vfs_unbusy(mp);
-		*vpp = mvp;
-	} else {
-		vput(vp);
-		vfs_unbusy(mp);
-		vfs_mount_destroy(mp);
-		*vpp = NULL;
-	}
-	return (error);
+	vp->v_mountedhere = mp;
+	/* Put the new filesystem on the mount list. */
+	mtx_lock(&mountlist_mtx);
+	TAILQ_INSERT_TAIL(&mountlist, mp, mnt_list);
+	mtx_unlock(&mountlist_mtx);
+	vfs_event_signal(NULL, VQ_MOUNT, 0);
+	if (VFS_ROOT(mp, LK_EXCLUSIVE, &mvp))
+		panic("mount: lost mount");
+	vput(vp);
+	vfs_unbusy(mp);
+	*vpp = mvp;
+	return (0);
 }

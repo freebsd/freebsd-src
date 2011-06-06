@@ -19,12 +19,11 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
- * Use is subject to license terms.
+ * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  */
 
 #include <sys/zfs_context.h>
-#include <sys/spa.h>
+#include <sys/spa_impl.h>
 #include <sys/refcount.h>
 #include <sys/vdev_disk.h>
 #include <sys/vdev_impl.h>
@@ -44,12 +43,71 @@ typedef struct vdev_disk_buf {
 	zio_t	*vdb_io;
 } vdev_disk_buf_t;
 
+static void
+vdev_disk_hold(vdev_t *vd)
+{
+	ddi_devid_t devid;
+	char *minor;
+
+	ASSERT(spa_config_held(vd->vdev_spa, SCL_STATE, RW_WRITER));
+
+	/*
+	 * We must have a pathname, and it must be absolute.
+	 */
+	if (vd->vdev_path == NULL || vd->vdev_path[0] != '/')
+		return;
+
+	/*
+	 * Only prefetch path and devid info if the device has
+	 * never been opened.
+	 */
+	if (vd->vdev_tsd != NULL)
+		return;
+
+	if (vd->vdev_wholedisk == -1ULL) {
+		size_t len = strlen(vd->vdev_path) + 3;
+		char *buf = kmem_alloc(len, KM_SLEEP);
+
+		(void) snprintf(buf, len, "%ss0", vd->vdev_path);
+
+		(void) ldi_vp_from_name(buf, &vd->vdev_name_vp);
+		kmem_free(buf, len);
+	}
+
+	if (vd->vdev_name_vp == NULL)
+		(void) ldi_vp_from_name(vd->vdev_path, &vd->vdev_name_vp);
+
+	if (vd->vdev_devid != NULL &&
+	    ddi_devid_str_decode(vd->vdev_devid, &devid, &minor) == 0) {
+		(void) ldi_vp_from_devid(devid, minor, &vd->vdev_devid_vp);
+		ddi_devid_str_free(minor);
+		ddi_devid_free(devid);
+	}
+}
+
+static void
+vdev_disk_rele(vdev_t *vd)
+{
+	ASSERT(spa_config_held(vd->vdev_spa, SCL_STATE, RW_WRITER));
+
+	if (vd->vdev_name_vp) {
+		VN_RELE_ASYNC(vd->vdev_name_vp,
+		    dsl_pool_vnrele_taskq(vd->vdev_spa->spa_dsl_pool));
+		vd->vdev_name_vp = NULL;
+	}
+	if (vd->vdev_devid_vp) {
+		VN_RELE_ASYNC(vd->vdev_devid_vp,
+		    dsl_pool_vnrele_taskq(vd->vdev_spa->spa_dsl_pool));
+		vd->vdev_devid_vp = NULL;
+	}
+}
+
 static int
 vdev_disk_open(vdev_t *vd, uint64_t *psize, uint64_t *ashift)
 {
 	spa_t *spa = vd->vdev_spa;
 	vdev_disk_t *dvd;
-	struct dk_minfo dkm;
+	struct dk_minfo_ext dkmext;
 	int error;
 	dev_t dev;
 	int otyp;
@@ -60,6 +118,16 @@ vdev_disk_open(vdev_t *vd, uint64_t *psize, uint64_t *ashift)
 	if (vd->vdev_path == NULL || vd->vdev_path[0] != '/') {
 		vd->vdev_stat.vs_aux = VDEV_AUX_BAD_LABEL;
 		return (EINVAL);
+	}
+
+	/*
+	 * Reopen the device if it's not currently open. Otherwise,
+	 * just update the physical size of the device.
+	 */
+	if (vd->vdev_tsd != NULL) {
+		ASSERT(vd->vdev_reopening);
+		dvd = vd->vdev_tsd;
+		goto skip_open;
 	}
 
 	dvd = vd->vdev_tsd = kmem_zalloc(sizeof (vdev_disk_t), KM_SLEEP);
@@ -79,12 +147,6 @@ vdev_disk_open(vdev_t *vd, uint64_t *psize, uint64_t *ashift)
 	 *
 	 * 3. Otherwise, the device may have moved.  Try opening the device
 	 *    by the devid instead.
-	 *
-	 * If the vdev is part of the root pool, we avoid opening it by path.
-	 * We do this because there is no /dev path available early in boot,
-	 * and if we try to open the device by path at a later point, we can
-	 * deadlock when devfsadm attempts to open the underlying backing store
-	 * file.
 	 */
 	if (vd->vdev_devid != NULL) {
 		if (ddi_devid_str_decode(vd->vdev_devid, &dvd->vd_devid,
@@ -96,7 +158,7 @@ vdev_disk_open(vdev_t *vd, uint64_t *psize, uint64_t *ashift)
 
 	error = EINVAL;		/* presume failure */
 
-	if (vd->vdev_path != NULL && !spa_is_root(spa)) {
+	if (vd->vdev_path != NULL) {
 		ddi_devid_t devid;
 
 		if (vd->vdev_wholedisk == -1ULL) {
@@ -167,7 +229,7 @@ vdev_disk_open(vdev_t *vd, uint64_t *psize, uint64_t *ashift)
 		 * as above.  This hasn't been used in a very long time and we
 		 * don't need to propagate its oddities to this edge condition.
 		 */
-		if (error && vd->vdev_path != NULL && !spa_is_root(spa))
+		if (error && vd->vdev_path != NULL)
 			error = ldi_open_by_name(vd->vdev_path, spa_mode(spa),
 			    kcred, &dvd->vd_lh, zfs_li);
 	}
@@ -202,6 +264,7 @@ vdev_disk_open(vdev_t *vd, uint64_t *psize, uint64_t *ashift)
 		kmem_free(physpath, MAXPATHLEN);
 	}
 
+skip_open:
 	/*
 	 * Determine the actual size of the device.
 	 */
@@ -224,11 +287,11 @@ vdev_disk_open(vdev_t *vd, uint64_t *psize, uint64_t *ashift)
 	 * Determine the device's minimum transfer size.
 	 * If the ioctl isn't supported, assume DEV_BSIZE.
 	 */
-	if (ldi_ioctl(dvd->vd_lh, DKIOCGMEDIAINFO, (intptr_t)&dkm,
+	if (ldi_ioctl(dvd->vd_lh, DKIOCGMEDIAINFOEXT, (intptr_t)&dkmext,
 	    FKIOCTL, kcred, NULL) != 0)
-		dkm.dki_lbsize = DEV_BSIZE;
+		dkmext.dki_pbsize = DEV_BSIZE;
 
-	*ashift = highbit(MAX(dkm.dki_lbsize, SPA_MINBLOCKSIZE)) - 1;
+	*ashift = highbit(MAX(dkmext.dki_pbsize, SPA_MINBLOCKSIZE)) - 1;
 
 	/*
 	 * Clear the nowritecache bit, so that on a vdev_reopen() we will
@@ -244,7 +307,7 @@ vdev_disk_close(vdev_t *vd)
 {
 	vdev_disk_t *dvd = vd->vdev_tsd;
 
-	if (dvd == NULL)
+	if (vd->vdev_reopening || dvd == NULL)
 		return;
 
 	if (dvd->vd_minor != NULL)
@@ -256,6 +319,7 @@ vdev_disk_close(vdev_t *vd)
 	if (dvd->vd_lh != NULL)
 		(void) ldi_close(dvd->vd_lh, spa_mode(vd->vdev_spa), kcred);
 
+	vd->vdev_delayed_close = B_FALSE;
 	kmem_free(dvd, sizeof (vdev_disk_t));
 	vd->vdev_tsd = NULL;
 }
@@ -315,6 +379,11 @@ vdev_disk_ioctl_free(zio_t *zio)
 	kmem_free(zio->io_vsd, sizeof (struct dk_callback));
 }
 
+static const zio_vsd_ops_t vdev_disk_vsd_ops = {
+	vdev_disk_ioctl_free,
+	zio_vsd_default_cksum_report
+};
+
 static void
 vdev_disk_ioctl_done(void *zio_arg, int error)
 {
@@ -355,7 +424,7 @@ vdev_disk_io_start(zio_t *zio)
 			}
 
 			zio->io_vsd = dkc = kmem_alloc(sizeof (*dkc), KM_SLEEP);
-			zio->io_vsd_free = vdev_disk_ioctl_free;
+			zio->io_vsd_ops = &vdev_disk_vsd_ops;
 
 			dkc->dkc_callback = vdev_disk_ioctl_done;
 			dkc->dkc_flag = FLUSH_VOLATILE;
@@ -427,14 +496,23 @@ vdev_disk_io_done(zio_t *zio)
 	 * asynchronous removal of the device. Otherwise, probe the device and
 	 * make sure it's still accessible.
 	 */
-	if (zio->io_error == EIO) {
+	if (zio->io_error == EIO && !vd->vdev_remove_wanted) {
 		vdev_disk_t *dvd = vd->vdev_tsd;
 		int state = DKIO_NONE;
 
 		if (ldi_ioctl(dvd->vd_lh, DKIOCSTATE, (intptr_t)&state,
 		    FKIOCTL, kcred, NULL) == 0 && state != DKIO_INSERTED) {
+			/*
+			 * We post the resource as soon as possible, instead of
+			 * when the async removal actually happens, because the
+			 * DE is using this information to discard previous I/O
+			 * errors.
+			 */
+			zfs_post_remove(zio->io_spa, vd);
 			vd->vdev_remove_wanted = B_TRUE;
 			spa_async_request(zio->io_spa, SPA_ASYNC_REMOVE);
+		} else if (!vd->vdev_delayed_close) {
+			vd->vdev_delayed_close = B_TRUE;
 		}
 	}
 }
@@ -446,6 +524,8 @@ vdev_ops_t vdev_disk_ops = {
 	vdev_disk_io_start,
 	vdev_disk_io_done,
 	NULL,
+	vdev_disk_hold,
+	vdev_disk_rele,
 	VDEV_TYPE_DISK,		/* name of this vdev type */
 	B_TRUE			/* leaf vdev */
 };
@@ -488,6 +568,7 @@ vdev_disk_read_rootlabel(char *devpath, char *devid, nvlist_t **config)
 	size = P2ALIGN_TYPED(s, sizeof (vdev_label_t), uint64_t);
 	label = kmem_alloc(sizeof (vdev_label_t), KM_SLEEP);
 
+	*config = NULL;
 	for (l = 0; l < VDEV_LABELS; l++) {
 		uint64_t offset, state, txg = 0;
 
@@ -522,6 +603,8 @@ vdev_disk_read_rootlabel(char *devpath, char *devid, nvlist_t **config)
 
 	kmem_free(label, sizeof (vdev_label_t));
 	(void) ldi_close(vd_lh, FREAD, kcred);
+	if (*config == NULL)
+		error = EIDRM;
 
 	return (error);
 }

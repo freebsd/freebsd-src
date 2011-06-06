@@ -1,4 +1,4 @@
-#! /usr/bin/python2.4
+#! /usr/bin/python2.6
 #
 # CDDL HEADER START
 #
@@ -19,8 +19,7 @@
 #
 # CDDL HEADER END
 #
-# Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
-# Use is subject to license terms.
+# Copyright (c) 2009, 2010, Oracle and/or its affiliates. All rights reserved.
 #
 
 """This module implements the "zfs allow" and "zfs unallow" subcommands.
@@ -204,8 +203,8 @@ def args_to_perms(parser, options, who, perms):
 perms_subcmd = dict(
     create=_("Must also have the 'mount' ability"),
     destroy=_("Must also have the 'mount' ability"),
-    snapshot=_("Must also have the 'mount' ability"),
-    rollback=_("Must also have the 'mount' ability"),
+    snapshot="",
+    rollback="",
     clone=_("""Must also have the 'create' ability and 'mount'
 \t\t\t\tability in the origin file system"""),
     promote=_("""Must also have the 'mount'
@@ -217,6 +216,9 @@ perms_subcmd = dict(
     mount=_("Allows mount/umount of ZFS datasets"),
     share=_("Allows sharing file systems over NFS or SMB\n\t\t\t\tprotocols"),
     send="",
+    hold=_("Allows adding a user hold to a snapshot"),
+    release=_("Allows releasing a user hold which\n\t\t\t\tmight destroy the snapshot"),
+    diff=_("Allows lookup of paths within a dataset,\n\t\t\t\tgiven an object number. Ordinary users need this\n\t\t\t\tin order to use zfs diff"),
 )
 
 perms_other = dict(
@@ -265,7 +267,7 @@ def print_perms():
 			print(fmt % (name, _("property"), ""))
 
 def do_allow():
-	"""Implementes the "zfs allow" and "zfs unallow" subcommands."""
+	"""Implements the "zfs allow" and "zfs unallow" subcommands."""
 	un = (sys.argv[1] == "unallow")
 
 	def usage(msg=None):
@@ -320,7 +322,7 @@ def do_allow():
 		if sys.argv[2] == "-h":
 			# hack to make "zfs allow -h" work
 			usage()
-		ds = zfs.dataset.Dataset(sys.argv[2])
+		ds = zfs.dataset.Dataset(sys.argv[2], snaps=False)
 
 		p = dict()
 		for (fs, raw) in ds.get_fsacl().items():

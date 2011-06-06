@@ -19,15 +19,11 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
- * Use is subject to license terms.
+ * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  */
 
 #ifndef	_ACL_COMMON_H
 #define	_ACL_COMMON_H
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
-
 
 #include <sys/types.h>
 #include <sys/acl.h>
@@ -51,10 +47,12 @@ extern acl_t *acl_alloc(acl_type_t);
 extern void acl_free(acl_t *aclp);
 extern int acl_translate(acl_t *aclp, int target_flavor,
     int isdir, uid_t owner, gid_t group);
+#endif	/* !_KERNEL */
 void ksort(caddr_t v, int n, int s, int (*f)());
 int cmp2acls(void *a, void *b);
-
-#endif /* _KERNEL */
+int acl_trivial_create(mode_t mode, ace_t **acl, int *count);
+void acl_trivial_access_masks(mode_t mode, uint32_t *allow0, uint32_t *deny1,
+    uint32_t *deny2, uint32_t *owner, uint32_t *group, uint32_t *everyone);
 
 #ifdef	__cplusplus
 }

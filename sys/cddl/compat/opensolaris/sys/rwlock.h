@@ -37,7 +37,6 @@
 #ifdef _KERNEL
 
 typedef enum {
-	RW_DRIVER = 2,		/* driver (DDI) rwlock */
 	RW_DEFAULT = 4		/* kernel default rwlock */
 } krw_type_t;
 
@@ -61,6 +60,7 @@ typedef	struct sx	krwlock_t;
 
 #define	rw_init(lock, desc, type, arg)	do {				\
 	const char *_name;						\
+	ASSERT((type) == 0 || (type) == RW_DEFAULT);			\
 	KASSERT(((lock)->lock_object.lo_flags & LO_ALLMASK) !=		\
 	    LO_EXPECTED, ("lock %s already initialized", #lock));	\
 	bzero((lock), sizeof(struct sx));				\
