@@ -23,6 +23,6 @@ LDADD=	-lutil
 
 CFLAGS+= -DHAVE_ARC4RANDOM -DHAVE_POLL_H -DROUTEINFO
 
-WARNS?=	1
+WARNS?=	6
 
 .include <bsd.prog.mk>
