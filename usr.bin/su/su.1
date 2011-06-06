@@ -203,6 +203,12 @@ Note that the
 option is required since user
 .Dq man
 does not have a valid shell by default.
+In this example,
+.Fl c
+is passed to the shell of the user
+.Dq man ,
+and is not interpreted as an argument to
+.Nm .
 .It Li "su -m man -c 'catman /usr/share/man /usr/local/man'"
 Same as above, but the target command consists of more than a
 single word and hence is quoted for use with the
