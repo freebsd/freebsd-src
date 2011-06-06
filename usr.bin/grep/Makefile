@@ -28,8 +28,6 @@ MLINKS= grep.1 egrep.1 \
 bsdgrep.1: grep.1
 	cp ${.ALLSRC} ${.TARGET}
 
-WARNS?=	6
-
 LDADD=	-lz -lbz2
 DPADD=	${LIBZ} ${LIBBZ2}
 
