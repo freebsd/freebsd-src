@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 5, 2006
+.Dd September 1, 2009
 .Dt MAKE.CONF 5
 .Os
 .Sh NAME
@@ -474,6 +474,12 @@ console driver to
 and allow access over FireWire(IEEE1394) using
 .Xr dconschat 8 .
 Currently, only i386 and amd64 are supported.
+.It Va MALLOC_PRODUCTION
+.Pq Vt bool
+Set this to disable assertions and statistics gathering in
+.Xr malloc 3 .
+It also defaults the A and J runtime options to off.
+Disabled by default on -CURRENT.
 .It Va MODULES_WITH_WORLD
 .Pq Vt bool
 Set to build modules with the system instead of the kernel.
