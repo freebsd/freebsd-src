@@ -1097,7 +1097,8 @@ get_typematic(keyboard_t *kbd)
 	x86regs_t regs;
 	uint8_t *p;
 
-	if (x86bios_get_intr(0x15) == 0 || x86bios_get_intr(0x16) == 0)
+	if (x86bios_get_intr(0x15) != 0xf000f859 ||
+	    x86bios_get_intr(0x16) != 0xf000e82e)
 		return (ENODEV);
 
 	/* Is BIOS system configuration table supported? */
