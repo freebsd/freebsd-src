@@ -226,7 +226,8 @@ ath_tx_dmasetup(struct ath_softc *sc, struct ath_buf *bf, struct mbuf *m0)
 }
 
 static void
-ath_tx_chaindesclist(struct ath_softc *sc, struct ath_txq *txq, struct ath_buf *bf)
+ath_tx_chaindesclist(struct ath_softc *sc, struct ath_txq *txq,
+   struct ath_buf *bf)
 {
 	struct ath_hal *ah = sc->sc_ah;
 	struct ath_desc *ds, *ds0;
@@ -260,9 +261,6 @@ static void
 ath_tx_handoff(struct ath_softc *sc, struct ath_txq *txq, struct ath_buf *bf)
 {
 	struct ath_hal *ah = sc->sc_ah;
-
-	/* Fill in the details in the descriptor list */
-	ath_tx_chaindesclist(sc, txq, bf);
 
 	/*
 	 * Insert the frame on the outbound list and pass it on
@@ -488,9 +486,9 @@ ath_tx_calc_ctsduration(struct ath_hal *ah, int rix, int cix,
 	return ctsduration;
 }
 
-int
-ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf,
-    struct mbuf *m0)
+static int
+ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
+    struct ath_buf *bf, struct mbuf *m0)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ath_vap *avp = ATH_VAP(vap);
@@ -528,7 +526,8 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 	pktlen = m0->m_pkthdr.len - (hdrlen & 3);
 
 	/* Handle encryption twiddling if needed */
-	if (! ath_tx_tag_crypto(sc, ni, m0, iswep, isfrag, &hdrlen, &pktlen, &keyix)) {
+	if (! ath_tx_tag_crypto(sc, ni, m0, iswep, isfrag, &hdrlen,
+	    &pktlen, &keyix)) {
 		ath_freetx(m0);
 		return EIO;
 	}
@@ -774,6 +773,32 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 	} else
 		ctsrate = 0;
 
+
+	/*
+	 * Determine if a tx interrupt should be generated for
+	 * this descriptor.  We take a tx interrupt to reap
+	 * descriptors when the h/w hits an EOL condition or
+	 * when the descriptor is specifically marked to generate
+	 * an interrupt.  We periodically mark descriptors in this
+	 * way to insure timely replenishing of the supply needed
+	 * for sending frames.  Defering interrupts reduces system
+	 * load and potentially allows more concurrent work to be
+	 * done but if done to aggressively can cause senders to
+	 * backup.
+	 *
+	 * NB: use >= to deal with sc_txintrperiod changing
+	 *     dynamically through sysctl.
+	 */
+	if (flags & HAL_TXDESC_INTREQ) {
+		txq->axq_intrcnt = 0;
+	} else if (++txq->axq_intrcnt >= sc->sc_txintrperiod) {
+		flags |= HAL_TXDESC_INTREQ;
+		txq->axq_intrcnt = 0;
+	}
+
+	/* This point forward is actual TX bits */
+
+
 	/*
 	 * At this point we are committed to sending the frame
 	 * and we don't need to look at m_nextpkt; clear it in
@@ -801,27 +826,6 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 		ieee80211_radiotap_tx(vap, m0);
 	}
 
-	/*
-	 * Determine if a tx interrupt should be generated for
-	 * this descriptor.  We take a tx interrupt to reap
-	 * descriptors when the h/w hits an EOL condition or
-	 * when the descriptor is specifically marked to generate
-	 * an interrupt.  We periodically mark descriptors in this
-	 * way to insure timely replenishing of the supply needed
-	 * for sending frames.  Defering interrupts reduces system
-	 * load and potentially allows more concurrent work to be
-	 * done but if done to aggressively can cause senders to
-	 * backup.
-	 *
-	 * NB: use >= to deal with sc_txintrperiod changing
-	 *     dynamically through sysctl.
-	 */
-	if (flags & HAL_TXDESC_INTREQ) {
-		txq->axq_intrcnt = 0;
-	} else if (++txq->axq_intrcnt >= sc->sc_txintrperiod) {
-		flags |= HAL_TXDESC_INTREQ;
-		txq->axq_intrcnt = 0;
-	}
 
 	if (ath_tx_is_11n(sc)) {
 		rate[0] = rix;
@@ -862,10 +866,57 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
         }
 
         if (ath_tx_is_11n(sc)) {
-                ath_buf_set_rate(sc, ni, bf, pktlen, flags, ctsrate, (atype == HAL_PKT_TYPE_PSPOLL), rate, try);
+                ath_buf_set_rate(sc, ni, bf, pktlen, flags, ctsrate,
+		    (atype == HAL_PKT_TYPE_PSPOLL), rate, try);
         }
 
+	return 0;
+}
+
+/*
+ * Direct-dispatch the current frame to the hardware.
+ */
+int
+ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
+    struct ath_buf *bf, struct mbuf *m0)
+{
+	struct ieee80211vap *vap = ni->ni_vap;
+	struct ath_vap *avp = ATH_VAP(vap);
+	int r;
+	u_int pri;
+	struct ath_txq *txq;
+	int ismcast;
+	const struct ieee80211_frame *wh;
+
+	/* Determine the target hardware queue! */
+	pri = M_WME_GETAC(m0);			/* honor classification */
+	txq = sc->sc_ac2q[pri];
+	wh = mtod(m0, struct ieee80211_frame *);
+	ismcast = IEEE80211_IS_MULTICAST(wh->i_addr1);
+
+	/* Multicast frames go onto the software multicat queue */
+	if (ismcast && (vap->iv_ps_sta || avp->av_mcastq.axq_depth))
+		txq = &avp->av_mcastq;
+
+	/* Do the generic frame setup */
+	/* This also sets up the DMA map */
+	r = ath_tx_normal_setup(sc, ni, bf, m0);
+
+	if (r != 0)
+		return r;
+
+	/* At this point m0 could have changed! */
+	//m0 = bf->bf_m;
+
+	/* Fill in the details in the descriptor list */
+	ath_tx_chaindesclist(sc, txq, bf);
+
+	/*
+	 * For now, since there's no software queue,
+	 * direct-dispatch to the hardware.
+	 */
 	ath_tx_handoff(sc, txq, bf);
+
 	return 0;
 }
 
@@ -1051,10 +1102,14 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 		 * notice that rix doesn't include any of the "magic" flags txrate
 		 * does for communicating "other stuff" to the HAL.
 		 */
-		ath_buf_set_rate(sc, ni, bf, pktlen, flags, ctsrate, (atype == HAL_PKT_TYPE_PSPOLL), rate, try);
+		ath_buf_set_rate(sc, ni, bf, pktlen, flags, ctsrate,
+		    (atype == HAL_PKT_TYPE_PSPOLL), rate, try);
 	}
 
 	/* NB: no buffered multicast in power save support */
+
+	/* Fill in the details in the descriptor list */
+	ath_tx_chaindesclist(sc, sc->sc_ac2q[pri], bf);
 	ath_tx_handoff(sc, sc->sc_ac2q[pri], bf);
 	return 0;
 }
