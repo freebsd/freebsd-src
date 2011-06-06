@@ -44,6 +44,7 @@
 #include <sys/_rwlock.h>
 
 #ifdef _KERNEL
+#include <sys/lock.h>
 #include <sys/rwlock.h>
 #include <net/vnet.h>
 #include <vm/uma.h>
