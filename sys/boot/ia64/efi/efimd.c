@@ -230,3 +230,35 @@ ia64_platform_enter(const char *kernel)
 
 	return (0);
 }
+
+COMMAND_SET(pbvm, "pbvm", "show PBVM details", command_pbvm);
+
+static int
+command_pbvm(int argc, char *argv[])
+{
+	uint64_t limit, pg, start;
+	u_int idx;
+
+	printf("Page table @ %p, size %x\n", ia64_pgtbl, ia64_pgtblsz);
+
+	if (ia64_pgtbl == NULL)
+		return (0);
+
+	limit = ~0;
+	start = ~0;
+	idx = 0;
+	while (ia64_pgtbl[idx] != 0) {
+		pg = ia64_pgtbl[idx];
+		if (pg != limit) {	
+			if (start != ~0)
+				printf("%#lx-%#lx\n", start, limit);
+			start = pg;
+		}
+		limit = pg + IA64_PBVM_PAGE_SIZE;
+		idx++;
+	}
+	if (start != ~0)
+		printf("%#lx-%#lx\n", start, limit);
+
+	return (0);
+}
