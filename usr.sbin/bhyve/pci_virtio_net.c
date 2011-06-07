@@ -594,7 +594,8 @@ pci_vtnet_write(struct pci_devinst *pi, int baridx, int offset, int size,
 		uint32_t value)
 {
 	struct pci_vtnet_softc *sc = pi->pi_arg;
-	
+	void *ptr;
+
 	if (offset + size > VTNET_REGSZ) {
 		DPRINTF(("vtnet_write: 2big, offset %d size %d\n",
 			 offset, size));
@@ -632,11 +633,19 @@ pci_vtnet_write(struct pci_devinst *pi, int baridx, int offset, int size,
 	case VTNET_R_CFG3:
 	case VTNET_R_CFG4:
 	case VTNET_R_CFG5:
+		assert((size + offset) <= (VTNET_R_CFG5 + 1));
+		ptr = &sc->vsc_macaddr[offset - VTNET_R_CFG0];
 		/*
 		 * The driver is allowed to change the MAC address
 		 */
-		assert(size == 1);
 		sc->vsc_macaddr[offset - VTNET_R_CFG0] = value;
+		if (size == 1) {
+			*(uint8_t *) ptr = value;
+		} else if (size == 2) {
+			*(uint16_t *) ptr = value;
+		} else {
+			*(uint32_t *) ptr = value;
+		}
 		break;
 	case VTCFG_R_HOSTCAP:
 	case VTCFG_R_QNUM:
@@ -658,6 +667,7 @@ uint32_t
 pci_vtnet_read(struct pci_devinst *pi, int baridx, int offset, int size)
 {
 	struct pci_vtnet_softc *sc = pi->pi_arg;
+	void *ptr;
 	uint32_t value;
 
 	if (offset + size > VTNET_REGSZ) {
@@ -708,16 +718,23 @@ pci_vtnet_read(struct pci_devinst *pi, int baridx, int offset, int size)
 	case VTNET_R_CFG3:
 	case VTNET_R_CFG4:
 	case VTNET_R_CFG5:
-		assert(size == 1);
-		value = sc->vsc_macaddr[offset - VTNET_R_CFG0];
+                assert((size + offset) <= (VTNET_R_CFG5 + 1));
+                ptr = &sc->vsc_macaddr[offset - VTNET_R_CFG0];
+                if (size == 1) {
+                        value = *(uint8_t *) ptr;
+                } else if (size == 2) {
+                        value = *(uint16_t *) ptr;
+                } else {
+                        value = *(uint32_t *) ptr;
+                }
 		break;
 	case VTNET_R_CFG6:
-		assert(size == 1);
-		value = 0x01;	/* XXX link always up */
+		assert(size != 4);
+		value = 0x01; /* XXX link always up */
 		break;
 	case VTNET_R_CFG7:
 		assert(size == 1);
-		value = 0;  /* link status is in the LSB */
+		value = 0; /* XXX link status in LSB */
 		break;
 	default:
 		DPRINTF(("vtnet: unknown i/o read offset %d\n\r", offset));

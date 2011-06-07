@@ -439,6 +439,7 @@ uint32_t
 pci_vtblk_read(struct pci_devinst *pi, int baridx, int offset, int size)
 {
 	struct pci_vtblk_softc *sc = pi->pi_arg;
+	void *ptr;
 	uint32_t value;
 
 	if (offset + size > VTBLK_REGSZ) {
@@ -481,8 +482,15 @@ pci_vtblk_read(struct pci_devinst *pi, int baridx, int offset, int size)
 		sc->vbsc_isr = 0;     /* a read clears this flag */
 		break;
 	case VTBLK_R_CFG ... VTBLK_R_CFG_END:
-		assert(size == 1);
-		value = *((uint8_t *)&sc->vbsc_cfg + offset - VTBLK_R_CFG);
+		assert(size + offset <= (VTBLK_R_CFG_END + 1));
+		ptr = (uint8_t *)&sc->vbsc_cfg + offset - VTBLK_R_CFG;
+		if (size == 1) {
+			value = *(uint8_t *) ptr;
+		} else if (size == 2) {
+			value = *(uint16_t *) ptr;
+		} else {
+			value = *(uint32_t *) ptr;
+		}
 		break;
 	default:
 		DPRINTF(("vtblk: unknown i/o read offset %d\n\r", offset));
