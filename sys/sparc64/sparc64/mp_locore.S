@@ -269,13 +269,17 @@ ENTRY(mp_startup)
 	add	%l1, %l2, %l1
 	sub	%l1, SPOFF + CCFSZ, %sp
 
+	/* Initialize global registers. */
+	call	cpu_setregs
+	 mov	%l1, %o0
+
 #if KTR_COMPILE & KTR_SMP
 	CATR(KTR_SMP,
 	    "mp_startup: bootstrap cpuid=%d mid=%d pcpu=%#lx data=%#lx sp=%#lx"
 	    , %g1, %g2, %g3, 7, 8, 9)
-	lduw	[%l1 + PC_CPUID], %g2
+	lduw	[PCPU(CPUID)], %g2
 	stx	%g2, [%g1 + KTR_PARM1]
-	lduw	[%l1 + PC_MID], %g2
+	lduw	[PCPU(MID)], %g2
 	stx	%g2, [%g1 + KTR_PARM2]
 	stx	%l1, [%g1 + KTR_PARM3]
 	stx	%sp, [%g1 + KTR_PARM5]
