@@ -692,3 +692,19 @@ ar5416EnableDfs(struct ath_hal *ah, HAL_PHYERR_PARAM *pe)
 		OS_REG_WRITE(ah, AR_PHY_RADAR_1, val);
 	}
 }
+
+/*
+ * Extract the radar event information from the given phy error.
+ *
+ * Returns AH_TRUE if the phy error was actually a phy error,
+ * AH_FALSE if the phy error wasn't a phy error.
+ */
+HAL_BOOL
+ar5416ProcessRadarEvent(struct ath_hal *ah, struct ath_rx_status *rxs,
+    uint64_t fulltsf, const char *buf, HAL_DFS_EVENT *event)
+{
+	/*
+	 * For now, this isn't implemented.
+	 */
+	return AH_FALSE;
+}
