@@ -22,6 +22,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 9.x IS SLOW:
 	machines to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20110607:
+	cpumask_t type is retired and cpuset_t is used in order to describe
+	a mask of CPUs.
+
 20110513:
 	Support for sun4v architecture is officially dropped
 
