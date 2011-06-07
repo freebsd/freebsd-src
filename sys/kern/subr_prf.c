@@ -163,6 +163,7 @@ uprintf(const char *fmt, ...)
 		goto out;
 	}
 	pca.flags = TOTTY;
+	pca.p_bufr = NULL;
 	va_start(ap, fmt);
 	tty_lock(pca.tty);
 	retval = kvprintf(fmt, putchar, &pca, 10, ap);
@@ -206,6 +207,7 @@ tprintf(struct proc *p, int pri, const char *fmt, ...)
 	pca.pri = pri;
 	pca.tty = tp;
 	pca.flags = flags;
+	pca.p_bufr = NULL;
 	va_start(ap, fmt);
 	if (pca.tty != NULL)
 		tty_lock(pca.tty);
@@ -234,6 +236,7 @@ ttyprintf(struct tty *tp, const char *fmt, ...)
 	va_start(ap, fmt);
 	pca.tty = tp;
 	pca.flags = TOTTY;
+	pca.p_bufr = NULL;
 	retval = kvprintf(fmt, putchar, &pca, 10, ap);
 	va_end(ap);
 	return (retval);

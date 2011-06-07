@@ -258,6 +258,8 @@ ia64_loadseg(Elf_Ehdr *eh, Elf_Phdr *ph, uint64_t delta)
 	if (ph->p_flags & PF_X) {
 		ia64_text_start = ph->p_vaddr + delta;
 		ia64_text_size = ph->p_memsz;
+
+		ia64_sync_icache(ia64_text_start, ia64_text_size);
 	} else {
 		ia64_data_start = ph->p_vaddr + delta;
 		ia64_data_size = ph->p_memsz;
