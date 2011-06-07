@@ -21,9 +21,7 @@
 #include "ah.h"
 #include "ah_internal.h"
 #include "ah_devid.h"
-#ifdef AH_DEBUG
 #include "ah_desc.h"			/* NB: for HAL_PHYERR* */
-#endif
 
 #include "ar5212/ar5212.h"
 #include "ar5212/ar5212reg.h"
