@@ -29,6 +29,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/cpuset.h>
 #include <sys/ktr.h>
 #include <sys/proc.h>
 #include <sys/lock.h>
@@ -80,15 +81,16 @@ ipi_all_but_self(int ipi)
 
 /* Send an IPI to a set of cpus. */
 void
-ipi_selected(cpumask_t cpus, int ipi)
+ipi_selected(cpuset_t cpus, int ipi)
 {
 	struct pcpu *pc;
 
-	CTR3(KTR_SMP, "%s: cpus: %x, ipi: %x\n", __func__, cpus, ipi);
-
 	STAILQ_FOREACH(pc, &cpuhead, pc_allcpu) {
-		if ((cpus & pc->pc_cpumask) != 0)
+		if (CPU_OVERLAP(&cpus, &pc->pc_cpumask)) {
+			CTR3(KTR_SMP, "%s: pc: %p, ipi: %x\n", __func__, pc,
+			    ipi);
 			ipi_send(pc, ipi);
+		}
 	}
 }
 
@@ -108,7 +110,7 @@ static int
 mips_ipi_handler(void *arg)
 {
 	int cpu;
-	cpumask_t cpumask;
+	cpuset_t cpumask;
 	u_int	ipi, ipi_bitmap;
 	int	bit;
 
@@ -148,14 +150,14 @@ mips_ipi_handler(void *arg)
 			tlb_save();
 
 			/* Indicate we are stopped */
-			atomic_set_int(&stopped_cpus, cpumask);
+			CPU_OR_ATOMIC(&stopped_cpus, &cpumask);
 
 			/* Wait for restart */
-			while ((started_cpus & cpumask) == 0)
+			while (!CPU_OVERLAP(&started_cpus, &cpumask))
 				cpu_spinwait();
 
-			atomic_clear_int(&started_cpus, cpumask);
-			atomic_clear_int(&stopped_cpus, cpumask);
+			CPU_NAND_ATOMIC(&started_cpus, &cpumask);
+			CPU_NAND_ATOMIC(&stopped_cpus, &cpumask);
 			CTR0(KTR_SMP, "IPI_STOP (restart)");
 			break;
 		case IPI_PREEMPT:
@@ -200,14 +202,22 @@ start_ap(int cpuid)
 void
 cpu_mp_setmaxid(void)
 {
-	cpumask_t cpumask;
+	cpuset_t cpumask;
+	int cpu, last;
 
-	cpumask = platform_cpu_mask();
-	mp_ncpus = bitcount32(cpumask);
+	platform_cpu_mask(&cpumask);
+	mp_ncpus = 0;
+	last = 1;
+	while ((cpu = cpusetobj_ffs(&cpumask)) != 0) {
+		last = cpu;
+		cpu--;
+		CPU_CLR(cpu, &cpumask);
+		mp_ncpus++;
+	}
 	if (mp_ncpus <= 0)
 		mp_ncpus = 1;
 
-	mp_maxid = min(fls(cpumask), MAXCPU) - 1;
+	mp_maxid = min(last, MAXCPU) - 1;
 }
 
 void
@@ -233,16 +243,16 @@ void
 cpu_mp_start(void)
 {
 	int error, cpuid;
-	cpumask_t cpumask;
+	cpuset_t cpumask, ocpus;
 
 	mtx_init(&ap_boot_mtx, "ap boot", NULL, MTX_SPIN);
 
-	all_cpus = 0;
-	cpumask = platform_cpu_mask();
+	CPU_ZERO(&all_cpus);
+	platform_cpu_mask(&cpumask);
 
-	while (cpumask != 0) {
-		cpuid = ffs(cpumask) - 1;
-		cpumask &= ~(1 << cpuid);
+	while (!CPU_EMPTY(&cpumask)) {
+		cpuid = cpusetobj_ffs(&cpumask) - 1;
+		CPU_CLR(cpuid, &cpumask);
 
 		if (cpuid >= MAXCPU) {
 			printf("cpu_mp_start: ignoring AP #%d.\n", cpuid);
@@ -257,15 +267,19 @@ cpu_mp_start(void)
 			if (bootverbose)
 				printf("AP #%d started!\n", cpuid);
 		}
-		all_cpus |= 1 << cpuid;
+		CPU_SET(cpuid, &all_cpus);
 	}
 
-	PCPU_SET(other_cpus, all_cpus & ~PCPU_GET(cpumask));
+	ocpus = all_cpus;
+	CPU_CLR(PCPU_GET(cpuid), &ocpus);
+	PCPU_SET(other_cpus, ocpus);
 }
 
 void
 smp_init_secondary(u_int32_t cpuid)
 {
+	cpuset_t ocpus;
+
 	/* TLB */
 	mips_wr_wired(0);
 	tlb_invalidate_all();
@@ -303,7 +317,9 @@ smp_init_secondary(u_int32_t cpuid)
 	CTR1(KTR_SMP, "SMP: AP CPU #%d launched", PCPU_GET(cpuid));
 
 	/* Build our map of 'other' CPUs. */
-	PCPU_SET(other_cpus, all_cpus & ~PCPU_GET(cpumask));
+	ocpus = all_cpus;
+	CPU_CLR(PCPU_GET(cpuid), &ocpus);
+	PCPU_SET(other_cpus, ocpus);
 
 	if (bootverbose)
 		printf("SMP: AP CPU #%d launched.\n", PCPU_GET(cpuid));

@@ -164,20 +164,29 @@ ENTRY(cpu_switch)
 	 * If there was no non-kernel pmap, don't try to deactivate it.
 	 */
 	brz,pn	%l2, 3f
-	 lduw	[PCPU(CPUMASK)], %l4
+	 lduw	[PCPU(CPUID)], %l3
 
 	/*
 	 * Mark the pmap of the last non-kernel vmspace to run as no longer
 	 * active on this CPU.
 	 */
-	lduw	[%l2 + PM_ACTIVE], %l3
-	andn	%l3, %l4, %l3
-	stw	%l3, [%l2 + PM_ACTIVE]
+	mov	_NCPUBITS, %l5
+	mov	%g0, %y
+	udiv	%l3, %l5, %l6
+	srl	%l6, 0, %l4
+	sllx	%l4, PTR_SHIFT, %l4
+	add	%l4, PM_ACTIVE, %l4
+	smul	%l6, %l5, %l5
+	sub	%l3, %l5, %l5
+	mov	1, %l6
+	sllx	%l6, %l5, %l5
+	ldx	[%l2 + %l4], %l6
+	andn	%l6, %l5, %l6
+	stx	%l6, [%l2 + %l4]
 
 	/*
 	 * Take away its context number.
 	 */
-	lduw	[PCPU(CPUID)], %l3
 	sllx	%l3, INT_SHIFT, %l3
 	add	%l2, PM_CONTEXT, %l4
 	mov	-1, %l5
@@ -210,18 +219,27 @@ ENTRY(cpu_switch)
 	/*
 	 * Set the new context number in the pmap.
 	 */
-	lduw	[PCPU(CPUID)], %i4
-	sllx	%i4, INT_SHIFT, %i4
+	lduw	[PCPU(CPUID)], %l3
+	sllx	%l3, INT_SHIFT, %i4
 	add	%l1, PM_CONTEXT, %i5
 	stw	%i3, [%i4 + %i5]
 
 	/*
 	 * Mark the pmap as active on this CPU.
 	 */
-	lduw	[%l1 + PM_ACTIVE], %i4
-	lduw	[PCPU(CPUMASK)], %i5
-	or	%i4, %i5, %i4
-	stw	%i4, [%l1 + PM_ACTIVE]
+	mov	_NCPUBITS, %l5
+	mov	%g0, %y
+	udiv	%l3, %l5, %l6
+	srl	%l6, 0, %l4
+	sllx	%l4, PTR_SHIFT, %l4
+	add	%l4, PM_ACTIVE, %l4
+	smul	%l6, %l5, %l5
+	sub	%l3, %l5, %l5
+	mov	1, %l6
+	sllx	%l6, %l5, %l5
+	ldx	[%l1 + %l4], %l6
+	or	%l6, %l5, %l6
+	stx	%l6, [%l1 + %l4]
 
 	/*
 	 * Make note of the change in pmap.

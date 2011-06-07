@@ -443,8 +443,7 @@ DB_SHOW_COMMAND(irqs, db_show_irqs)
  * allocate CPUs round-robin.
  */
 
-/* The BSP is always a valid target. */
-static cpumask_t intr_cpus = (1 << 0);
+static cpuset_t intr_cpus;
 static int current_cpu;
 
 /*
@@ -466,7 +465,7 @@ intr_next_cpu(void)
 		current_cpu++;
 		if (current_cpu > mp_maxid)
 			current_cpu = 0;
-	} while (!(intr_cpus & (1 << current_cpu)));
+	} while (!CPU_ISSET(current_cpu, &intr_cpus));
 	mtx_unlock_spin(&icu_lock);
 	return (apic_id);
 }
@@ -497,7 +496,7 @@ intr_add_cpu(u_int cpu)
 		printf("INTR: Adding local APIC %d as a target\n",
 		    cpu_apic_ids[cpu]);
 
-	intr_cpus |= (1 << cpu);
+	CPU_SET(cpu, &intr_cpus);
 }
 
 /*
@@ -509,6 +508,9 @@ intr_shuffle_irqs(void *arg __unused)
 {
 	struct intsrc *isrc;
 	int i;
+
+	/* The BSP is always a valid target. */
+	CPU_SETOF(0, &intr_cpus);
 
 	/* Don't bother on UP. */
 	if (mp_ncpus == 1)
