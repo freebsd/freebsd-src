@@ -1878,7 +1878,7 @@ pci_alloc_msi_method(device_t dev, device_t child, int *count)
 	for (;;) {
 		/* Try to allocate N messages. */
 		error = PCIB_ALLOC_MSI(device_get_parent(dev), child, actual,
-		    cfg->msi.msi_msgnum, irqs);
+		    actual, irqs);
 		if (error == 0)
 			break;
 		if (actual == 1)
