@@ -786,6 +786,8 @@ ia64_init(void)
 	ia64_sal_init();
 	calculate_frequencies();
 
+	set_cputicker(ia64_get_itc, (u_long)itc_freq * 1000000, 0);
+
 	/*
 	 * Setup the PCPU data for the bootstrap processor. It is needed
 	 * by printf(). Also, since printf() has critical sections, we
