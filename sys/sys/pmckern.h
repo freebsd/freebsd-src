@@ -76,7 +76,7 @@ extern int (*pmc_intr)(int _cpu, struct trapframe *_frame);
 extern struct sx pmc_sx;
 
 /* Per-cpu flags indicating availability of sampling data */
-extern volatile cpumask_t pmc_cpumask;
+extern volatile cpuset_t pmc_cpumask;
 
 /* Count of system-wide sampling PMCs in existence */
 extern volatile int pmc_ss_count;
@@ -122,7 +122,7 @@ do {						\
 #define	PMC_SYSTEM_SAMPLING_ACTIVE()		(pmc_ss_count > 0)
 
 /* Check if a CPU has recorded samples. */
-#define	PMC_CPU_HAS_SAMPLES(C)	(__predict_false(pmc_cpumask & (1 << (C))))
+#define	PMC_CPU_HAS_SAMPLES(C)	(__predict_false(CPU_ISSET(C, &pmc_cpumask)))
 
 /*
  * Helper functions.

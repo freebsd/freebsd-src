@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/module.h>
 #include <sys/bus.h>
+#include <sys/cpuset.h>
 
 #include <machine/resource.h>
 #include <machine/hwfunc.h>
@@ -242,11 +243,15 @@ sb_clear_mailbox(int cpu, uint64_t val)
 	sb_store64(regaddr, val);
 }
 
-cpumask_t
-platform_cpu_mask(void)
+void
+platform_cpu_mask(cpuset_t *mask)
 {
+	int i, s;
 
-	return (~0U >> (32 - SYSREV_NUM_PROCESSORS(sb_read_sysrev())));
+	CPU_ZERO(mask);
+	s = SYSREV_NUM_PROCESSORS(sb_read_sysrev());
+	for (i = 0; i < s; i++)
+		CPU_SET(i, mask);
 }
 #endif	/* SMP */
 

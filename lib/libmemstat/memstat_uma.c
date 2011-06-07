@@ -27,6 +27,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/cpuset.h>
 #include <sys/sysctl.h>
 
 #define	LIBMEMSTAT	/* Cause vm_page.h not to include opt_vmpage.h */
@@ -44,6 +45,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "memstat.h"
 #include "memstat_internal.h"
@@ -313,7 +315,8 @@ memstat_kvm_uma(struct memory_type_list *list, void *kvm_handle)
 	struct uma_keg *kzp, kz;
 	int hint_dontsearch, i, mp_maxid, ret;
 	char name[MEMTYPE_MAXNAME];
-	__cpumask_t all_cpus;
+	cpuset_t all_cpus;
+	long cpusetsize;
 	kvm_t *kvm;
 
 	kvm = (kvm_t *)kvm_handle;
@@ -337,7 +340,13 @@ memstat_kvm_uma(struct memory_type_list *list, void *kvm_handle)
 		list->mtl_error = ret;
 		return (-1);
 	}
-	ret = kread_symbol(kvm, X_ALL_CPUS, &all_cpus, sizeof(all_cpus), 0);
+	cpusetsize = sysconf(_SC_CPUSET_SIZE);
+	if (cpusetsize == -1 || (u_long)cpusetsize > sizeof(cpuset_t)) {
+		list->mtl_error = MEMSTAT_ERROR_KVM_NOSYMBOL;
+		return (-1);
+	}
+	CPU_ZERO(&all_cpus);
+	ret = kread_symbol(kvm, X_ALL_CPUS, &all_cpus, cpusetsize, 0);
 	if (ret != 0) {
 		list->mtl_error = ret;
 		return (-1);
@@ -407,7 +416,7 @@ memstat_kvm_uma(struct memory_type_list *list, void *kvm_handle)
 			if (kz.uk_flags & UMA_ZFLAG_INTERNAL)
 				goto skip_percpu;
 			for (i = 0; i < mp_maxid + 1; i++) {
-				if ((all_cpus & (1 << i)) == 0)
+				if (!CPU_ISSET(i, &all_cpus))
 					continue;
 				ucp = &ucp_array[i];
 				mtp->mt_numallocs += ucp->uc_allocs;

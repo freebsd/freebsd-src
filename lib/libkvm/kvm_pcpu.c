@@ -39,11 +39,13 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/cpuset.h>
 #include <sys/pcpu.h>
 #include <sys/sysctl.h>
 #include <kvm.h>
 #include <limits.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #include "kvm_private.h"
 
@@ -118,12 +120,19 @@ _kvm_pcpu_clear(void)
 void *
 kvm_getpcpu(kvm_t *kd, int cpu)
 {
+	long kcpusetsize;
+	ssize_t nbytes;
+	uintptr_t readptr;
 	char *buf;
 
 	if (kd == NULL) {
 		_kvm_pcpu_clear();
 		return (NULL);
 	}
+
+	kcpusetsize = sysconf(_SC_CPUSET_SIZE);
+	if (kcpusetsize == -1 || (u_long)kcpusetsize > sizeof(cpuset_t))
+		return ((void *)-1);
 
 	if (maxcpu == 0)
 		if (_kvm_pcpu_init(kd) < 0)
@@ -137,8 +146,26 @@ kvm_getpcpu(kvm_t *kd, int cpu)
 		_kvm_err(kd, kd->program, "out of memory");
 		return ((void *)-1);
 	}
-	if (kvm_read(kd, (uintptr_t)pcpu_data[cpu], buf, sizeof(struct pcpu)) !=
-	    sizeof(struct pcpu)) {
+	nbytes = sizeof(struct pcpu) - 2 * kcpusetsize;
+	readptr = (uintptr_t)pcpu_data[cpu];
+	if (kvm_read(kd, readptr, buf, nbytes) != nbytes) {
+		_kvm_err(kd, kd->program, "unable to read per-CPU data");
+		free(buf);
+		return ((void *)-1);
+	}
+
+	/* Fetch the valid cpuset_t objects. */
+	CPU_ZERO((cpuset_t *)(buf + nbytes));
+	CPU_ZERO((cpuset_t *)(buf + nbytes + sizeof(cpuset_t)));
+	readptr += nbytes;
+	if (kvm_read(kd, readptr, buf + nbytes, kcpusetsize) != kcpusetsize) {
+		_kvm_err(kd, kd->program, "unable to read per-CPU data");
+		free(buf);
+		return ((void *)-1);
+	}
+	readptr += kcpusetsize;
+	if (kvm_read(kd, readptr, buf + nbytes + sizeof(cpuset_t),
+	    kcpusetsize) != kcpusetsize) {
 		_kvm_err(kd, kd->program, "unable to read per-CPU data");
 		free(buf);
 		return ((void *)-1);
