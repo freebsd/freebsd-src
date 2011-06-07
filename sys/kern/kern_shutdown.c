@@ -233,30 +233,32 @@ print_uptime(void)
 	printf("%lds\n", (long)ts.tv_sec);
 }
 
-static void
-doadump(void)
+int
+doadump(boolean_t textdump)
 {
+	boolean_t coredump;
 
-	/*
-	 * Sometimes people have to call this from the kernel debugger. 
-	 * (if 'panic' can not dump)
-	 * Give them a clue as to why they can't dump.
-	 */
-	if (dumper.dumper == NULL) {
-		printf("Cannot dump. Device not defined or unavailable.\n");
-		return;
-	}
+	if (dumping)
+		return (EBUSY);
+	if (dumper.dumper == NULL)
+		return (ENXIO);
 
 	savectx(&dumppcb);
 	dumptid = curthread->td_tid;
 	dumping++;
+
+	coredump = TRUE;
 #ifdef DDB
-	if (textdump_pending)
+	if (textdump && textdump_pending) {
+		coredump = FALSE;
 		textdump_dumpsys(&dumper);
-	else
+	}
 #endif
+	if (coredump)
 		dumpsys(&dumper);
+
 	dumping--;
+	return (0);
 }
 
 static int
@@ -425,7 +427,7 @@ kern_reboot(int howto)
 	EVENTHANDLER_INVOKE(shutdown_post_sync, howto);
 
 	if ((howto & (RB_HALT|RB_DUMP)) == RB_DUMP && !cold && !dumping) 
-		doadump();
+		doadump(TRUE);
 
 	/* Now that we're going to really halt the system... */
 	EVENTHANDLER_INVOKE(shutdown_final, howto);

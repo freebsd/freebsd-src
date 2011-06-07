@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/signalvar.h>
 #include <sys/systm.h>
 #include <sys/cons.h>
+#include <sys/conf.h>
 #include <sys/watchdog.h>
 #include <sys/kernel.h>
 
@@ -64,6 +65,7 @@ db_addr_t	db_last_addr;
 db_addr_t	db_prev;
 db_addr_t	db_next;
 
+static db_cmdfcn_t	db_dump;
 static db_cmdfcn_t	db_fncall;
 static db_cmdfcn_t	db_gdb;
 static db_cmdfcn_t	db_halt;
@@ -102,6 +104,7 @@ static struct command db_cmds[] = {
 	{ "w",		db_write_cmd,		CS_MORE|CS_SET_DOT, 0 },
 	{ "delete",	db_delete_cmd,		0,	0 },
 	{ "d",		db_delete_cmd,		0,	0 },
+	{ "dump",	db_dump,		0,	0 },
 	{ "break",	db_breakpoint_cmd,	0,	0 },
 	{ "b",		db_breakpoint_cmd,	0,	0 },
 	{ "dwatch",	db_deletewatch_cmd,	0,	0 },
@@ -526,6 +529,27 @@ db_error(s)
 	kdb_reenter();
 }
 
+static void
+db_dump(db_expr_t dummy, boolean_t dummy2, db_expr_t dummy3, char *dummy4)
+{
+	int error;
+
+	error = doadump(FALSE);
+	if (error) {
+		db_printf("Cannot dump: ");
+		switch (error) {
+		case EBUSY:
+			db_printf("debugger got invoked while dumping.\n");
+			break;
+		case ENXIO:
+			db_printf("no dump device specified.\n");
+			break;
+		default:
+			db_printf("unknown error (error=%d).\n", error);
+			break;
+		}
+	}
+}
 
 /*
  * Call random function:
