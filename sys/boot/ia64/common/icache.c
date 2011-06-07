@@ -1,48 +1,51 @@
 /*-
- * Copyright (c) 1999 Kazutaka YOKOTA <yokota@zodiac.mech.utsunomiya-u.ac.jp>
+ * Copyright (c) 2011 Marcel Moolenaar
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
+ *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer as
- *    the first lines of this file unmodified.
+ *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- * IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
  * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
  * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-#ifndef _DEV_ATKBDC_ATKBDREG_H_
-#define _DEV_ATKBDC_ATKBDREG_H_
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-#define ATKBD_DRIVER_NAME	"atkbd"
+#include <stand.h>
+#include <machine/ia64_cpu.h>
 
-/* device configuration flags (atkbdprobe, atkbdattach) */
-#define KB_CONF_FAIL_IF_NO_KBD	(1 << 0) /* don't install if no kbd is found */
-#define KB_CONF_NO_RESET	(1 << 1) /* don't reset the keyboard */
-#define KB_CONF_ALT_SCANCODESET	(1 << 2) /* assume the XT type keyboard */
-#define	KB_CONF_NO_PROBE_TEST	(1 << 3) /* don't test keyboard during probe */
+#include "libia64.h"
 
-#ifdef _KERNEL
+void
+ia64_sync_icache(vm_offset_t va, size_t sz)
+{
+	uintptr_t pa;
+	size_t cnt, max;
 
-int		atkbd_probe_unit(int unit, int ctlr, int irq, int flags);
-int		atkbd_attach_unit(int unit, keyboard_t **kbd,
-				 int ctlr, int irq, int flags);
-
-#endif
-
-#endif /* !_DEV_ATKBDC_ATKBDREG_H_ */
+	while (sz > 0) {
+		max = sz;
+		pa = (uintptr_t)ia64_va2pa(va, &max);
+		for (cnt = 0; cnt < max; cnt += 32)
+			ia64_fc_i(pa + cnt);
+		ia64_sync_i();
+		va += max;
+		sz -= max;
+	}
+	ia64_srlz_i();
+}
