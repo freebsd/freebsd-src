@@ -64,6 +64,7 @@ void ia64_loadseg(void *, void *, uint64_t);
 
 ssize_t ia64_copyin(const void *, vm_offset_t, size_t);
 ssize_t ia64_copyout(vm_offset_t, void *, size_t);
+void ia64_sync_icache(vm_offset_t, size_t);
 ssize_t ia64_readin(int, vm_offset_t, size_t);
 void *ia64_va2pa(vm_offset_t, size_t *);
 
