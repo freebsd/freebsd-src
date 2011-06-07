@@ -1280,6 +1280,7 @@ ENTRY(tl1_data_excptn_trap)
 END(tl1_data_excptn_trap)
 
 	.macro	tl1_align
+	wrpr	%g0, PSTATE_ALT, %pstate
 	ba,a	%xcc, tl1_align_trap
 	 nop
 	.align	32
@@ -1289,7 +1290,7 @@ ENTRY(tl1_align_trap)
 	RESUME_SPILLFILL_ALIGN
 	ba	%xcc, tl1_sfsr_trap
 	 mov	T_MEM_ADDRESS_NOT_ALIGNED | T_KERNEL, %g2
-END(tl1_data_excptn_trap)
+END(tl1_align_trap)
 
 ENTRY(tl1_sfsr_trap)
 	wr	%g0, ASI_DMMU, %asi
@@ -2702,7 +2703,7 @@ tl0_ret_fill_end:
 	    , %l0, %l1, %l2, 7, 8, 9)
 	rdpr	%pstate, %l1
 	stx	%l1, [%l0 + KTR_PARM1]
-	stx	%l5, [%l0 + KTR_PARM2]
+	stx	%l6, [%l0 + KTR_PARM2]
 	stx	%sp, [%l0 + KTR_PARM3]
 9:
 
