@@ -32,7 +32,7 @@
 .\"     @(#)fstab.5	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd November 23, 2008
+.Dd June 7, 2011
 .Dt FSTAB 5
 .Os
 .Sh NAME
@@ -146,6 +146,13 @@ this location can be specified as:
 .Bd -literal -offset indent
 userquota=/var/quotas/tmp.user
 .Ed
+.Pp
+If the option ``failok'' is specified,
+the system will ignore any error which happens during the mount of that filesystem,
+which would otherwise cause the system to drop into single user mode.
+This option is implemented by the
+.Xr mount 8
+command and will not be passed to the kernel.
 .Pp
 If the option ``noauto'' is specified, the file system will not be automatically
 mounted at system startup.
