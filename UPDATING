@@ -26,6 +26,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 9.x IS SLOW:
 	cpumask_t type is retired and cpuset_t is used in order to describe
 	a mask of CPUs.
 
+20110531:
+	Changes to ifconfig(8) for dynamic address family detection mandate
+	that you are running a kernel of 20110525 or later.  Make sure to
+	follow the update procedure to boot a new kernel before installing
+	world.
+
 20110513:
 	Support for sun4v architecture is officially dropped
 
