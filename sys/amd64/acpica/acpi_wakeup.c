@@ -78,7 +78,7 @@ static void		acpi_stop_beep(void *);
 
 #ifdef SMP
 static int		acpi_wakeup_ap(struct acpi_softc *, int);
-static void		acpi_wakeup_cpus(struct acpi_softc *, cpumask_t);
+static void		acpi_wakeup_cpus(struct acpi_softc *, const cpuset_t *);
 #endif
 
 #define	WAKECODE_VADDR(sc)	((sc)->acpi_wakeaddr + (3 * PAGE_SIZE))
@@ -173,7 +173,7 @@ acpi_wakeup_ap(struct acpi_softc *sc, int cpu)
 #define	BIOS_WARM		(0x0a)
 
 static void
-acpi_wakeup_cpus(struct acpi_softc *sc, cpumask_t wakeup_cpus)
+acpi_wakeup_cpus(struct acpi_softc *sc, const cpuset_t *wakeup_cpus)
 {
 	uint32_t	mpbioswarmvec;
 	int		cpu;
@@ -192,7 +192,7 @@ acpi_wakeup_cpus(struct acpi_softc *sc, cpumask_t wakeup_cpus)
 
 	/* Wake up each AP. */
 	for (cpu = 1; cpu < mp_ncpus; cpu++) {
-		if ((wakeup_cpus & (1 << cpu)) == 0)
+		if (!CPU_ISSET(cpu, wakeup_cpus))
 			continue;
 		if (acpi_wakeup_ap(sc, cpu) == 0) {
 			/* restore the warmstart vector */
@@ -214,7 +214,7 @@ int
 acpi_sleep_machdep(struct acpi_softc *sc, int state)
 {
 #ifdef SMP
-	cpumask_t	wakeup_cpus;
+	cpuset_t	wakeup_cpus;
 #endif
 	register_t	cr3, rf;
 	ACPI_STATUS	status;
@@ -244,10 +244,9 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 
 	if (savectx(susppcbs[0])) {
 #ifdef SMP
-		if (wakeup_cpus != 0 && suspend_cpus(wakeup_cpus) == 0) {
-			device_printf(sc->acpi_dev,
-			    "Failed to suspend APs: CPU mask = 0x%jx\n",
-			    (uintmax_t)(wakeup_cpus & ~stopped_cpus));
+		if (!CPU_EMPTY(&wakeup_cpus) &&
+		    suspend_cpus(wakeup_cpus) == 0) {
+			device_printf(sc->acpi_dev, "Failed to suspend APs\n");
 			goto out;
 		}
 #endif
@@ -282,8 +281,8 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 		PCPU_SET(switchtime, 0);
 		PCPU_SET(switchticks, ticks);
 #ifdef SMP
-		if (wakeup_cpus != 0)
-			acpi_wakeup_cpus(sc, wakeup_cpus);
+		if (!CPU_EMPTY(&wakeup_cpus))
+			acpi_wakeup_cpus(sc, &wakeup_cpus);
 #endif
 		acpi_resync_clock(sc);
 		ret = 0;
@@ -291,7 +290,7 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 
 out:
 #ifdef SMP
-	if (wakeup_cpus != 0)
+	if (!CPU_EMPTY(&wakeup_cpus))
 		restart_cpus(wakeup_cpus);
 #endif
 

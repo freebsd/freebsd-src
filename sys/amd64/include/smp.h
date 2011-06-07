@@ -63,17 +63,17 @@ void	ipi_all_but_self(u_int ipi);
 void 	ipi_bitmap_handler(struct trapframe frame);
 void	ipi_cpu(int cpu, u_int ipi);
 int	ipi_nmi_handler(void);
-void	ipi_selected(cpumask_t cpus, u_int ipi);
+void	ipi_selected(cpuset_t cpus, u_int ipi);
 u_int	mp_bootaddress(u_int);
 int	mp_grab_cpu_hlt(void);
 void	smp_cache_flush(void);
 void	smp_invlpg(vm_offset_t addr);
-void	smp_masked_invlpg(cpumask_t mask, vm_offset_t addr);
+void	smp_masked_invlpg(cpuset_t mask, vm_offset_t addr);
 void	smp_invlpg_range(vm_offset_t startva, vm_offset_t endva);
-void	smp_masked_invlpg_range(cpumask_t mask, vm_offset_t startva,
+void	smp_masked_invlpg_range(cpuset_t mask, vm_offset_t startva,
 	    vm_offset_t endva);
 void	smp_invltlb(void);
-void	smp_masked_invltlb(cpumask_t mask);
+void	smp_masked_invltlb(cpuset_t mask);
 
 #endif /* !LOCORE */
 #endif /* SMP */
