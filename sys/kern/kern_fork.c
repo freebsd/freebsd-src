@@ -722,10 +722,13 @@ again:
 	/*
 	 * Set the child start time and mark the process as being complete.
 	 */
+	PROC_LOCK(p2);
+	PROC_LOCK(p1);
 	microuptime(&p2->p_stats->p_start);
 	PROC_SLOCK(p2);
 	p2->p_state = PRS_NORMAL;
 	PROC_SUNLOCK(p2);
+
 #ifdef KDTRACE_HOOKS
 	/*
 	 * Tell the DTrace fasttrap provider about the new process
@@ -733,16 +736,9 @@ again:
 	 * p_state is PRS_NORMAL since the fasttrap module will use pfind()
 	 * later on.
 	 */
-	if (dtrace_fasttrap_fork) {
-		PROC_LOCK(p1);
-		PROC_LOCK(p2);
+	if (dtrace_fasttrap_fork)
 		dtrace_fasttrap_fork(p1, p2);
-		PROC_UNLOCK(p2);
-		PROC_UNLOCK(p1);
-	}
 #endif
-
-	PROC_LOCK(p1);
 	if ((p1->p_flag & (P_TRACED | P_FOLLOWFORK)) == (P_TRACED |
 	    P_FOLLOWFORK)) {
 		/*
@@ -754,12 +750,11 @@ again:
 		 */
 		td->td_dbgflags |= TDB_FORK;
 		td->td_dbg_forked = p2->p_pid;
-		PROC_LOCK(p2);
 		td2->td_dbgflags |= TDB_STOPATFORK;
 		_PHOLD(p2);
 		p2_held = 1;
-		PROC_UNLOCK(p2);
 	}
+	PROC_UNLOCK(p2);
 	if ((flags & RFSTOPPED) == 0) {
 		/*
 		 * If RFSTOPPED not requested, make child runnable and

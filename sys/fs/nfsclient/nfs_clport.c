@@ -1126,11 +1126,11 @@ pfind_locked(pid_t pid)
 
 	LIST_FOREACH(p, PIDHASH(pid), p_hash)
 		if (p->p_pid == pid) {
-			if (p->p_state == PRS_NEW) {
-				p = NULL;
-				break;
-			}
 			PROC_LOCK(p);
+			if (p->p_state == PRS_NEW) {
+				PROC_UNLOCK(p);
+				p = NULL;
+			}
 			break;
 		}
 	return (p);
