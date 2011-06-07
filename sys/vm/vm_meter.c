@@ -132,15 +132,12 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 		if (p->p_flag & P_SYSTEM)
 			continue;
 		PROC_LOCK(p);
-		PROC_SLOCK(p);
 		switch (p->p_state) {
 		case PRS_NEW:
-			PROC_SUNLOCK(p);
 			PROC_UNLOCK(p);
 			continue;
 			break;
 		default:
-			PROC_SUNLOCK(p);
 			FOREACH_THREAD_IN_PROC(p, td) {
 				thread_lock(td);
 				switch (td->td_state) {

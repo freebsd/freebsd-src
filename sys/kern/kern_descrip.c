@@ -2643,9 +2643,11 @@ sysctl_kern_file(SYSCTL_HANDLER_ARGS)
 	xf.xf_size = sizeof(xf);
 	sx_slock(&allproc_lock);
 	FOREACH_PROC_IN_SYSTEM(p) {
-		if (p->p_state == PRS_NEW)
-			continue;
 		PROC_LOCK(p);
+		if (p->p_state == PRS_NEW) {
+			PROC_UNLOCK(p);
+			continue;
+		}
 		if (p_cansee(req->td, p) != 0) {
 			PROC_UNLOCK(p);
 			continue;
