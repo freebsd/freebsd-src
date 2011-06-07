@@ -2567,8 +2567,8 @@ moea64_sync_icache(mmu_t mmu, pmap_t pm, vm_offset_t va, vm_size_t sz)
 		lim = round_page(va);
 		len = MIN(lim - va, sz);
 		pvo = moea64_pvo_find_va(pm, va & ~ADDR_POFF, NULL);
-		if (pvo != NULL) {
-			pa = (pvo->pvo_pte.pte.pte_lo & LPTE_RPGN) |
+		if (pvo != NULL && !(pvo->pvo_pte.lpte.pte_lo & LPTE_I)) {
+			pa = (pvo->pvo_pte.lpte.pte_lo & LPTE_RPGN) |
 			    (va & ADDR_POFF);
 			moea64_syncicache(pm, va, pa, len);
 		}
