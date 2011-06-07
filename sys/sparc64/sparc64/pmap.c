@@ -664,7 +664,7 @@ pmap_bootstrap(u_int cpu_impl)
 	pm = kernel_pmap;
 	for (i = 0; i < MAXCPU; i++)
 		pm->pm_context[i] = TLB_CTX_KERNEL;
-	pm->pm_active = ~0;
+	CPU_FILL(&pm->pm_active);
 
 	/*
 	 * Flush all non-locked TLB entries possibly left over by the
@@ -1189,7 +1189,7 @@ pmap_pinit0(pmap_t pm)
 	PMAP_LOCK_INIT(pm);
 	for (i = 0; i < MAXCPU; i++)
 		pm->pm_context[i] = TLB_CTX_KERNEL;
-	pm->pm_active = 0;
+	CPU_ZERO(&pm->pm_active);
 	pm->pm_tsb = NULL;
 	pm->pm_tsb_obj = NULL;
 	bzero(&pm->pm_stats, sizeof(pm->pm_stats));
@@ -1229,7 +1229,7 @@ pmap_pinit(pmap_t pm)
 	mtx_lock_spin(&sched_lock);
 	for (i = 0; i < MAXCPU; i++)
 		pm->pm_context[i] = -1;
-	pm->pm_active = 0;
+	CPU_ZERO(&pm->pm_active);
 	mtx_unlock_spin(&sched_lock);
 
 	VM_OBJECT_LOCK(pm->pm_tsb_obj);
@@ -2230,7 +2230,7 @@ pmap_activate(struct thread *td)
 	PCPU_SET(tlb_ctx, context + 1);
 
 	pm->pm_context[curcpu] = context;
-	pm->pm_active |= PCPU_GET(cpumask);
+	CPU_OR(&pm->pm_active, PCPU_PTR(cpumask));
 	PCPU_SET(pmap, pm);
 
 	stxa(AA_DMMU_TSB, ASI_DMMU, pm->pm_tsb);

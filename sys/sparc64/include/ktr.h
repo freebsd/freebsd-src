@@ -85,7 +85,9 @@ l2:	add	r2, 1, r3 ; \
 	lduw	[PCPU(MID)], r1 ; \
 	mov	1, r2 ; \
 	sllx	r2, r1, r1 ; \
+#ifdef notyet \
 	TEST(ktr_cpumask, r1, r2, r3, l3) ; \
+#endif \
 	ATR(desc, r1, r2, r3, l1, l2)
 
 #endif /* LOCORE */

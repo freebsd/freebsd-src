@@ -1,13 +1,16 @@
 /*-
- * Copyright (c) 2008 Marcel Moolenaar
+ * Copyright (c) 2008,	Jeffrey Roberson <jeff@freebsd.org>
+ * All rights reserved.
+ *
+ * Copyright (c) 2008 Nokia Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
- *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    notice unmodified, this list of conditions, and the following
+ *    disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
@@ -26,37 +29,24 @@
  * $FreeBSD$
  */
 
-#ifndef _MACHINE_SMP_H_
-#define _MACHINE_SMP_H_
+#ifndef _SYS__CPUSET_H_
+#define	_SYS__CPUSET_H_
 
 #ifdef _KERNEL
+#define	CPU_SETSIZE	MAXCPU
+#endif
 
-#define	IPI_AST			0
-#define	IPI_PREEMPT		1
-#define	IPI_RENDEZVOUS		2
-#define	IPI_STOP		3
-#define	IPI_STOP_HARD		3
-#define	IPI_HARDCLOCK		4
+#define	CPU_MAXSIZE	128
 
-#ifndef LOCORE
+#ifndef	CPU_SETSIZE
+#define	CPU_SETSIZE	CPU_MAXSIZE
+#endif
 
-#include <sys/_cpuset.h>
+#define	_NCPUBITS	(sizeof(long) * NBBY)	/* bits per mask */
+#define	_NCPUWORDS	howmany(CPU_SETSIZE, _NCPUBITS)
 
-void	ipi_all_but_self(int ipi);
-void	ipi_cpu(int cpu, u_int ipi);
-void	ipi_selected(cpuset_t cpus, int ipi);
+typedef	struct _cpuset {
+	long	__bits[howmany(CPU_SETSIZE, _NCPUBITS)];
+} cpuset_t;
 
-struct cpuref {
-	uintptr_t	cr_hwref;
-	u_int		cr_cpuid;
-};
-
-void	pmap_cpu_bootstrap(int);
-void	cpudep_ap_early_bootstrap(void);
-uintptr_t cpudep_ap_bootstrap(void);
-void	cpudep_ap_setup(void);
-void	machdep_ap_bootstrap(void);
-
-#endif /* !LOCORE */
-#endif /* _KERNEL */
-#endif /* !_MACHINE_SMP_H */
+#endif /* !_SYS__CPUSET_H_ */

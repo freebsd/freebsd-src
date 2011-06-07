@@ -113,12 +113,12 @@ dtrace_toxic_ranges(void (*func)(uintptr_t base, uintptr_t limit))
 void
 dtrace_xcall(processorid_t cpu, dtrace_xcall_t func, void *arg)
 {
-	cpumask_t cpus;
+	cpuset_t cpus;
 
 	if (cpu == DTRACE_CPUALL)
 		cpus = all_cpus;
 	else
-		cpus = (cpumask_t)1 << cpu;
+		CPU_SETOF(cpu, &cpus);
 
 	smp_rendezvous_cpus(cpus, smp_no_rendevous_barrier, func,
 	    smp_no_rendevous_barrier, arg);
@@ -374,7 +374,7 @@ dtrace_gethrtime_init(void *arg)
 {
 	struct pcpu *pc;
 	uint64_t tsc_f;
-	cpumask_t map;
+	cpuset_t map;
 	int i;
 
 	/*
@@ -412,7 +412,8 @@ dtrace_gethrtime_init(void *arg)
 			continue;
 
 		pc = pcpu_find(i);
-		map = PCPU_GET(cpumask) | pc->pc_cpumask;
+		map = PCPU_GET(cpumask);
+		CPU_OR(&map, &pc->pc_cpumask);
 
 		smp_rendezvous_cpus(map, NULL,
 		    dtrace_gethrtime_init_cpu,

@@ -139,18 +139,18 @@ ia64_ih_rndzvs(struct thread *td, u_int xiv, struct trapframe *tf)
 static u_int
 ia64_ih_stop(struct thread *td, u_int xiv, struct trapframe *tf)
 {
-	cpumask_t mybit;
+	cpuset_t mybit;
 
 	PCPU_INC(md.stats.pcs_nstops);
 	mybit = PCPU_GET(cpumask);
 
 	savectx(PCPU_PTR(md.pcb));
 
-	atomic_set_int(&stopped_cpus, mybit);
-	while ((started_cpus & mybit) == 0)
+	CPU_OR_ATOMIC(&stopped_cpus, &mybit);
+	while (!CPU_OVERLAP(&started_cpus, &mybit))
 		cpu_spinwait();
-	atomic_clear_int(&started_cpus, mybit);
-	atomic_clear_int(&stopped_cpus, mybit);
+	CPU_NAND_ATOMIC(&started_cpus, &mybit);
+	CPU_NAND_ATOMIC(&stopped_cpus, &mybit);
 	return (0);
 }
 
@@ -286,7 +286,7 @@ cpu_mp_add(u_int acpi_id, u_int id, u_int eid)
 	cpuid = (IA64_LID_GET_SAPIC_ID(ia64_get_lid()) == sapic_id)
 	    ? 0 : smp_cpus++;
 
-	KASSERT((all_cpus & (1UL << cpuid)) == 0,
+	KASSERT(!CPU_ISSET(cpuid, &all_cpus),
 	    ("%s: cpu%d already in CPU map", __func__, acpi_id));
 
 	if (cpuid != 0) {
@@ -300,7 +300,7 @@ cpu_mp_add(u_int acpi_id, u_int id, u_int eid)
 	pc->pc_acpi_id = acpi_id;
 	pc->pc_md.lid = IA64_LID_SET_SAPIC_ID(sapic_id);
 
-	all_cpus |= (1UL << pc->pc_cpuid);
+	CPU_SET(pc->pc_cpuid, &all_cpus);
 }
 
 void
@@ -359,7 +359,8 @@ cpu_mp_start()
 
 	STAILQ_FOREACH(pc, &cpuhead, pc_allcpu) {
 		pc->pc_md.current_pmap = kernel_pmap;
-		pc->pc_other_cpus = all_cpus & ~pc->pc_cpumask;
+		pc->pc_other_cpus = all_cpus;
+		CPU_NAND(&pc->pc_other_cpus, &pc->pc_cpumask);
 		/* The BSP is obviously running already. */
 		if (pc->pc_cpuid == 0) {
 			pc->pc_md.awake = 1;
@@ -458,12 +459,12 @@ cpu_mp_unleash(void *dummy)
  * send an IPI to a set of cpus.
  */
 void
-ipi_selected(cpumask_t cpus, int ipi)
+ipi_selected(cpuset_t cpus, int ipi)
 {
 	struct pcpu *pc;
 
 	STAILQ_FOREACH(pc, &cpuhead, pc_allcpu) {
-		if (cpus & pc->pc_cpumask)
+		if (CPU_OVERLAP(&cpus, &pc->pc_cpumask))
 			ipi_send(pc, ipi);
 	}
 }
