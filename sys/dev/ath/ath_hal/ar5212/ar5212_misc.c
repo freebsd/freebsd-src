@@ -1180,3 +1180,47 @@ ar5212GetDfsThresh(struct ath_hal *ah, HAL_PHYERR_PARAM *pe)
 	pe->pe_extchannel = AH_FALSE;
 }
 
+/*
+ * Process the radar phy error and extract the pulse duration.
+ */
+HAL_BOOL
+ar5212ProcessRadarEvent(struct ath_hal *ah, struct ath_rx_status *rxs,
+    uint64_t fulltsf, const char *buf, HAL_DFS_EVENT *event)
+{
+	uint8_t dur;
+	uint8_t rssi;
+
+	/* Check whether the given phy error is a radar event */
+	if ((rxs->rs_phyerr != HAL_PHYERR_RADAR) &&
+	    (rxs->rs_phyerr != HAL_PHYERR_FALSE_RADAR_EXT))
+		return AH_FALSE;
+
+	/*
+	 * The first byte is the pulse width - if there's
+	 * no data, simply set the duration to 0
+	 */
+	if (rxs->rs_datalen >= 1)
+		/* The pulse width is byte 0 of the data */
+		dur = ((uint8_t) buf[0]) & 0xff;
+	else
+		dur = 0;
+
+	/* Pulse RSSI is the normal reported RSSI */
+	rssi = (uint8_t) rxs->rs_rssi;
+
+	/* 0 duration/rssi is not a valid radar event */
+	if (dur == 0 && rssi == 0)
+		return AH_FALSE;
+
+	HALDEBUG(ah, HAL_DEBUG_DFS, "%s: rssi=%d, dur=%d\n",
+	    __func__, rssi, dur);
+
+	/* Record the event */
+	event->re_full_ts = fulltsf;
+	event->re_ts = rxs->rs_tstamp;
+	event->re_rssi = rssi;
+	event->re_dur = dur;
+	event->re_flags = HAL_DFS_EVENT_PRICH;
+
+	return AH_TRUE;
+}
