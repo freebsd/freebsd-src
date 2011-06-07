@@ -684,7 +684,7 @@ smu_fan_set_rpm(device_t smu, struct smu_fan *fan, int rpm)
 		cmd.data[3] = rpm & 0xff;
 	
 		error = smu_run_cmd(smu, &cmd, 1);
-		if (error)
+		if (error && error != EWOULDBLOCK)
 			fan->old_style = 1;
 	}
 
@@ -716,7 +716,7 @@ smu_fan_read_rpm(device_t smu, struct smu_fan *fan)
 		cmd.data[1] = fan->reg;
 
 		error = smu_run_cmd(smu, &cmd, 1);
-		if (error)
+		if (error && error != EWOULDBLOCK)
 			fan->old_style = 1;
 
 		rpm = (cmd.data[0] << 8) | cmd.data[1];
