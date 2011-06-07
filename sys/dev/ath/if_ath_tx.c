@@ -258,7 +258,36 @@ ath_tx_chaindesclist(struct ath_softc *sc, struct ath_txq *txq,
 }
 
 static void
-ath_tx_handoff(struct ath_softc *sc, struct ath_txq *txq, struct ath_buf *bf)
+ath_tx_handoff_mcast(struct ath_softc *sc, struct ath_txq *txq, struct ath_buf *bf)
+{
+	ATH_TXQ_LOCK(txq);
+	KASSERT((bf->bf_flags & ATH_BUF_BUSY) == 0,
+	     ("busy status 0x%x", bf->bf_flags));
+	if (txq->axq_link != NULL) {
+		struct ath_buf *last = ATH_TXQ_LAST(txq);
+		struct ieee80211_frame *wh;
+
+		/* mark previous frame */
+		wh = mtod(last->bf_m, struct ieee80211_frame *);
+		wh->i_fc[1] |= IEEE80211_FC1_MORE_DATA;
+		bus_dmamap_sync(sc->sc_dmat, last->bf_dmamap,
+		    BUS_DMASYNC_PREWRITE);
+
+		/* link descriptor */
+		*txq->axq_link = bf->bf_daddr;
+	}
+	ATH_TXQ_INSERT_TAIL(txq, bf, bf_list);
+	txq->axq_link = &bf->bf_desc[bf->bf_nseg - 1].ds_link;
+	ATH_TXQ_UNLOCK(txq);
+}
+
+
+
+/*
+ * Hand-off packet to a hardware queue.
+ */
+static void
+ath_tx_handoff_hw(struct ath_softc *sc, struct ath_txq *txq, struct ath_buf *bf)
 {
 	struct ath_hal *ah = sc->sc_ah;
 
@@ -273,7 +302,11 @@ ath_tx_handoff(struct ath_softc *sc, struct ath_txq *txq, struct ath_buf *bf)
 	ATH_TXQ_LOCK(txq);
 	KASSERT((bf->bf_flags & ATH_BUF_BUSY) == 0,
 	     ("busy status 0x%x", bf->bf_flags));
-	if (txq->axq_qnum != ATH_TXQ_SWQ) {
+	KASSERT(txq->axq_qnum != ATH_TXQ_SWQ,
+	     ("ath_tx_handoff_hw called for mcast queue"));
+
+	/* For now, so not to generate whitespace diffs */
+	if (1) {
 #ifdef IEEE80211_SUPPORT_TDMA
 		int qbusy;
 
@@ -347,24 +380,17 @@ ath_tx_handoff(struct ath_softc *sc, struct ath_txq *txq, struct ath_buf *bf)
 #endif /* IEEE80211_SUPPORT_TDMA */
 		txq->axq_link = &bf->bf_desc[bf->bf_nseg - 1].ds_link;
 		ath_hal_txstart(ah, txq->axq_qnum);
-	} else {
-		if (txq->axq_link != NULL) {
-			struct ath_buf *last = ATH_TXQ_LAST(txq);
-			struct ieee80211_frame *wh;
-
-			/* mark previous frame */
-			wh = mtod(last->bf_m, struct ieee80211_frame *);
-			wh->i_fc[1] |= IEEE80211_FC1_MORE_DATA;
-			bus_dmamap_sync(sc->sc_dmat, last->bf_dmamap,
-			    BUS_DMASYNC_PREWRITE);
-
-			/* link descriptor */
-			*txq->axq_link = bf->bf_daddr;
-		}
-		ATH_TXQ_INSERT_TAIL(txq, bf, bf_list);
-		txq->axq_link = &bf->bf_desc[bf->bf_nseg - 1].ds_link;
 	}
 	ATH_TXQ_UNLOCK(txq);
+}
+
+static void
+ath_tx_handoff(struct ath_softc *sc, struct ath_txq *txq, struct ath_buf *bf)
+{
+	if (txq->axq_qnum == ATH_TXQ_SWQ)
+		ath_tx_handoff_mcast(sc, txq, bf);
+	else
+		ath_tx_handoff_hw(sc, txq, bf);
 }
 
 static int
@@ -915,7 +941,10 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	 * For now, since there's no software queue,
 	 * direct-dispatch to the hardware.
 	 */
-	ath_tx_handoff(sc, txq, bf);
+	if (ismcast)
+		ath_tx_handoff_mcast(sc, txq, bf);
+	else
+		ath_tx_handoff_hw(sc, txq, bf);
 
 	return 0;
 }
