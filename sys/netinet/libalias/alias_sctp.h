@@ -135,13 +135,13 @@ struct sctp_nat_assoc {
 	struct in_addr a_addr;	/**< alias ip address */
 	int state;			/**< current state of NAT association */
 	int TableRegister;		/**< stores which look up tables association is registered in */
-	int	exp;			/**< timer expiration in seconds from uptime */
+	int exp;			/**< timer expiration in seconds from uptime */
 	int exp_loc;			/**< current location in timer_Q */
 	int num_Gaddr;		/**< number of global IP addresses in the list */
 	LIST_HEAD(sctpGlobalAddresshead,sctp_GlobalAddress) Gaddr; /**< List of global addresses */
-							    LIST_ENTRY (sctp_nat_assoc) list_L; /**< Linked list of pointers for Local table*/
-											LIST_ENTRY (sctp_nat_assoc) list_G; /**< Linked list of pointers for Global table */
-														    LIST_ENTRY (sctp_nat_assoc) timer_Q; /**< Linked list of pointers for timer Q */
+	LIST_ENTRY (sctp_nat_assoc) list_L; /**< Linked list of pointers for Local table*/
+	LIST_ENTRY (sctp_nat_assoc) list_G; /**< Linked list of pointers for Global table */
+	LIST_ENTRY (sctp_nat_assoc) timer_Q; /**< Linked list of pointers for timer Q */
 //Using libalias locking
 };
 
