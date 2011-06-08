@@ -1292,6 +1292,12 @@ puc_config_timedia(struct puc_softc *sc, enum puc_cfg_cmd cmd, int port,
 	uint16_t subdev;
 
 	switch (cmd) {
+	case PUC_CFG_GET_CLOCK:
+		if (port < 2)
+			*res = DEFAULT_RCLK * 8;
+		else
+			*res = DEFAULT_RCLK;
+		return (0);
 	case PUC_CFG_GET_DESC:
 		snprintf(desc, sizeof(desc),
 		    "Timedia technology %d Port Serial", (int)sc->sc_cfg_data);
