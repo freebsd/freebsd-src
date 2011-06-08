@@ -46,6 +46,16 @@ struct ra_opt {
 	void		*rao_msg;
 };
 
+TAILQ_HEAD(rainfo_head, ra_opt);
+
+struct rainfo {
+	TAILQ_ENTRY(rainfo)	rai_next;
+
+	struct ifinfo		*rai_ifinfo;
+	struct sockaddr_in6	rai_saddr;
+	TAILQ_HEAD(, ra_opt)	rai_ra_opt;
+};
+
 struct ifinfo {
 	TAILQ_ENTRY(ifinfo)	ifi_next;	/* pointer to the next interface */
 
@@ -64,13 +74,16 @@ struct ifinfo {
 	struct timeval timer;
 	struct timeval expire;
 	int errors;		/* # of errors we've got - detect wedge */
+#define IFI_DNSOPT_STATE_NOINFO		0
+#define IFI_DNSOPT_STATE_RECEIVED     	1
+	int ifi_rdnss;		/* RDNSS option state */
+	int ifi_dnssl;		/* DNSSL option state */
 
 	int racnt;		/* total # of valid RAs it have got */
+	TAILQ_HEAD(, rainfo)	ifi_rainfo;
 
 	size_t rs_datalen;
 	u_char *rs_data;
-
-	TAILQ_HEAD(, ra_opt)   ifi_ra_opt;
 };
 
 /* per interface status */
@@ -118,6 +131,7 @@ extern const char *resolvconf_script;
 extern int ifconfig(char *);
 extern void iflist_init(void);
 struct ifinfo *find_ifinfo(int);
+struct rainfo *find_rainfo(struct ifinfo *, struct sockaddr_in6 *);
 void rtsol_timer_update(struct ifinfo *);
 extern void warnmsg(int, const char *, const char *, ...)
      __attribute__((__format__(__printf__, 3, 4)));
@@ -145,6 +159,7 @@ extern void defrouter_probe(struct ifinfo *);
 
 /* dump.c */
 extern void rtsold_dump_file(const char *);
+extern const char *sec2str(const struct timeval *);
 
 /* rtsock.c */
 extern int rtsock_open(void);
