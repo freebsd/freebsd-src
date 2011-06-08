@@ -79,7 +79,8 @@ static void tsc_freq_changed(void *arg, const struct cf_level *level,
     int status);
 static void tsc_freq_changing(void *arg, const struct cf_level *level,
     int *status);
-static	unsigned tsc_get_timecount(struct timecounter *tc);
+static unsigned tsc_get_timecount(struct timecounter *tc);
+static unsigned tsc_get_timecount_lowres(struct timecounter *tc);
 static void tsc_levels_changed(void *arg, int unit);
 
 static struct timecounter tsc_timecounter = {
@@ -392,9 +393,17 @@ test_smp_tsc(void)
 static void
 init_TSC_tc(void)
 {
+	uint64_t max_freq;
+	int shift;
 
 	if ((cpu_feature & CPUID_TSC) == 0 || tsc_disabled)
 		return;
+
+	/*
+	 * Limit timecounter frequency to fit in an int and prevent it from
+	 * overflowing too fast.
+	 */
+	max_freq = UINT_MAX;
 
 	/*
 	 * We can not use the TSC if we support APM.  Precise timekeeping
@@ -418,13 +427,27 @@ init_TSC_tc(void)
 	 * We can not use the TSC in SMP mode unless the TSCs on all CPUs are
 	 * synchronized.  If the user is sure that the system has synchronized
 	 * TSCs, set kern.timecounter.smp_tsc tunable to a non-zero value.
+	 * We also limit the frequency even lower to avoid "temporal anomalies"
+	 * as much as possible.
 	 */
-	if (smp_cpus > 1)
+	if (smp_cpus > 1) {
 		tsc_timecounter.tc_quality = test_smp_tsc();
+		max_freq >>= 8;
+	}
 #endif
 init:
+	for (shift = 0; shift < 32 && (tsc_freq >> shift) > max_freq; shift++)
+		;
+	if (shift > 0) {
+		tsc_timecounter.tc_get_timecount = tsc_get_timecount_lowres;
+		tsc_timecounter.tc_name = "TSC-low";
+		if (bootverbose)
+			printf("TSC timecounter discards lower %d bit(s).\n",
+			    shift);
+	}
 	if (tsc_freq != 0) {
-		tsc_timecounter.tc_frequency = tsc_freq;
+		tsc_timecounter.tc_frequency = tsc_freq >> shift;
+		tsc_timecounter.tc_priv = (void *)(intptr_t)shift;
 		tc_init(&tsc_timecounter);
 	}
 }
@@ -496,7 +519,8 @@ tsc_freq_changed(void *arg, const struct cf_level *level, int status)
 	/* Total setting for this level gives the new frequency in MHz. */
 	freq = (uint64_t)level->total_set.freq * 1000000;
 	atomic_store_rel_64(&tsc_freq, freq);
-	atomic_store_rel_64(&tsc_timecounter.tc_frequency, freq);
+	tsc_timecounter.tc_frequency =
+	    freq >> (int)(intptr_t)tsc_timecounter.tc_priv;
 }
 
 static int
@@ -511,7 +535,8 @@ sysctl_machdep_tsc_freq(SYSCTL_HANDLER_ARGS)
 	error = sysctl_handle_64(oidp, &freq, 0, req);
 	if (error == 0 && req->newptr != NULL) {
 		atomic_store_rel_64(&tsc_freq, freq);
-		atomic_store_rel_64(&tsc_timecounter.tc_frequency, freq);
+		tsc_timecounter.tc_frequency =
+		    freq >> (int)(intptr_t)tsc_timecounter.tc_priv;
 	}
 	return (error);
 }
@@ -520,8 +545,15 @@ SYSCTL_PROC(_machdep, OID_AUTO, tsc_freq, CTLTYPE_U64 | CTLFLAG_RW,
     0, 0, sysctl_machdep_tsc_freq, "QU", "Time Stamp Counter frequency");
 
 static u_int
-tsc_get_timecount(struct timecounter *tc)
+tsc_get_timecount(struct timecounter *tc __unused)
 {
 
 	return (rdtsc32());
+}
+
+static u_int
+tsc_get_timecount_lowres(struct timecounter *tc)
+{
+
+	return (rdtsc() >> (int)(intptr_t)tc->tc_priv);
 }
