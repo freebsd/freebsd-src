@@ -383,7 +383,29 @@ test_smp_tsc(void)
 	if (bootverbose)
 		printf("SMP: %sed TSC synchronization test\n",
 		    smp_tsc ? "pass" : "fail");
-	return (smp_tsc ? 800 : -100);
+	if (smp_tsc && tsc_is_invariant) {
+		switch (cpu_vendor_id) {
+		case CPU_VENDOR_AMD:
+			/*
+			 * Starting with Family 15h processors, TSC clock
+			 * source is in the north bridge.  Check whether
+			 * we have a single-socket/multi-core platform.
+			 * XXX Need more work for complex cases.
+			 */
+			if (CPUID_TO_FAMILY(cpu_id) < 0x15 ||
+			    (amd_feature2 & AMDID2_CMP) == 0 ||
+			    smp_cpus > (cpu_procinfo2 & AMDID_CMP_CORES) + 1)
+				break;
+			return (1000);
+		case CPU_VENDOR_INTEL:
+			/*
+			 * XXX Assume Intel platforms have synchronized TSCs.
+			 */
+			return (1000);
+		}
+		return (800);
+	}
+	return (-100);
 }
 
 #undef N
@@ -433,8 +455,11 @@ init_TSC_tc(void)
 	if (smp_cpus > 1) {
 		tsc_timecounter.tc_quality = test_smp_tsc();
 		max_freq >>= 8;
-	}
+	} else
 #endif
+	if (tsc_is_invariant)
+		tsc_timecounter.tc_quality = 1000;
+
 init:
 	for (shift = 0; shift < 32 && (tsc_freq >> shift) > max_freq; shift++)
 		;
