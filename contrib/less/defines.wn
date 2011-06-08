@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2009  Mark Nudelman
+ * Copyright (C) 1984-2011  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -272,7 +272,7 @@
 #define HAVE_SYSTEM	1
 
 /* Define if you have the snprintf function.  */
-#define HAVE_SNPRINTF	0
+#define HAVE_SNPRINTF	1
 
 /* Define if you have the <ctype.h> header file.  */
 #define HAVE_CTYPE_H 1
@@ -286,8 +286,11 @@
 /* Define if you have the <fcntl.h> header file.  */
 #define HAVE_FCNTL_H 1
 
+/* Define HAVE_FLOAT if your compiler supports the "double" type. */
+#define HAVE_FLOAT 1
+
 /* Define if you have the <limits.h> header file.  */
-#define HAVE_LIMITS_H 0
+#define HAVE_LIMITS_H 1
 
 /* Define if you have the <stdio.h> header file.  */
 #define HAVE_STDIO_H 1
@@ -331,3 +334,6 @@
 
 #define	popen	_popen
 #define	pclose	_pclose
+#define snprintf	_snprintf
+
+#pragma warning(disable:4996)
