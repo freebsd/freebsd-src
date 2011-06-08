@@ -617,6 +617,8 @@
 .\" POSIX Part 1: System API
 .ds doc-str-St--p1003.1        \*[doc-Tn-font-size]\%IEEE\*[doc-str-St] Std 1003.1
 .as doc-str-St--p1003.1        " (\*[Lq]\)\*[Px]\*[doc-str-St].1\*[Rq])
+.ds doc-str-St--p1003.1b       \*[doc-Tn-font-size]\%IEEE\*[doc-str-St] Std 1003.1b
+.as doc-str-St--p1003.1b       " (\*[Lq]\)\*[Px]\*[doc-str-St].1\*[Rq])
 .ds doc-str-St--p1003.1-88     \*[doc-Tn-font-size]\%IEEE\*[doc-str-St] Std 1003.1-1988
 .as doc-str-St--p1003.1-88     " (\*[Lq]\)\*[Px]\*[doc-str-St].1\*[Rq])
 .ds doc-str-St--p1003.1-90     \*[doc-Tn-font-size]ISO/IEC\*[doc-str-St] 9945-1:1990
@@ -754,6 +756,7 @@
 .
 .ds doc-str-Lb-libarm      ARM Architecture Library (libarm, \-larm)
 .ds doc-str-Lb-libarm32    ARM32 Architecture Library (libarm32, \-larm32)
+.ds doc-str-Lb-libbsm      Basic Security Module Library (libbsm, \-lbsm)
 .ds doc-str-Lb-libc        Standard C\~Library (libc, \-lc)
 .ds doc-str-Lb-libcdk      Curses Development Kit Library (libcdk, \-lcdk)
 .ds doc-str-Lb-libcompat   Compatibility Library (libcompat, \-lcompat)
@@ -779,6 +782,7 @@
 .ds doc-str-Lb-libpthread  \*[Px] \*[doc-str-Lb]Threads Library (libpthread, \-lpthread)
 .ds doc-str-Lb-libresolv   DNS Resolver Library (libresolv, \-lresolv)
 .ds doc-str-Lb-librt       \*[Px] \*[doc-str-Lb]Real-time Library (librt, \-lrt)
+.ds doc-str-Lb-libSystem   System Library (libSystem, \-lSystem)
 .ds doc-str-Lb-libtermcap  Termcap Access Library (libtermcap, \-ltermcap)
 .ds doc-str-Lb-libusbhid   USB Human Interface Devices Library (libusbhid, \-lusbhid)
 .ds doc-str-Lb-libutil     System Utilities Library (libutil, \-lutil)
