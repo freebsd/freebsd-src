@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 5, 2011
+.Dd April 29, 2011
 .Dt MFIUTIL 8
 .Os
 .Sh NAME
@@ -65,6 +65,9 @@
 .Nm
 .Op Fl u Ar unit
 .Cm show patrol
+.Nm
+.Op Fl u Ar unit
+.Cm show progress
 .Nm
 .Op Fl u Ar unit
 .Cm show volumes
@@ -296,6 +299,9 @@ Lists all of the firmware images present on the controller.
 Display the various sequence numbers associated with the event log.
 .It Cm show patrol
 Display the status of the controller's patrol read operation.
+.It Cm show progress
+Report the current progress and estimated completion time for active
+operations on all volumes and drives.
 .It Cm show volumes
 Lists all of the logical volumes managed by the controller.
 .El
