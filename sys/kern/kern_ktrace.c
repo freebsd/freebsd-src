@@ -881,7 +881,8 @@ ktrace(td, uap)
 		nfound = 0;
 		LIST_FOREACH(p, &pg->pg_members, p_pglist) {
 			PROC_LOCK(p);
-			if (p_cansee(td, p) != 0) {
+			if (p->p_state == PRS_NEW ||
+			    p_cansee(td, p) != 0) {
 				PROC_UNLOCK(p); 
 				continue;
 			}

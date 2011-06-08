@@ -457,6 +457,10 @@ schedcpu(void)
 	sx_slock(&allproc_lock);
 	FOREACH_PROC_IN_SYSTEM(p) {
 		PROC_LOCK(p);
+		if (p->p_state == PRS_NEW) {
+			PROC_UNLOCK(p);
+			continue;
+		}
 		FOREACH_THREAD_IN_PROC(p, td) {
 			awake = 0;
 			thread_lock(td);
