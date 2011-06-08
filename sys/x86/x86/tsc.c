@@ -80,7 +80,7 @@ static void tsc_freq_changed(void *arg, const struct cf_level *level,
 static void tsc_freq_changing(void *arg, const struct cf_level *level,
     int *status);
 static unsigned tsc_get_timecount(struct timecounter *tc);
-static unsigned tsc_get_timecount_lowres(struct timecounter *tc);
+static unsigned tsc_get_timecount_low(struct timecounter *tc);
 static void tsc_levels_changed(void *arg, int unit);
 
 static struct timecounter tsc_timecounter = {
@@ -464,10 +464,10 @@ init:
 	for (shift = 0; shift < 32 && (tsc_freq >> shift) > max_freq; shift++)
 		;
 	if (shift > 0) {
-		tsc_timecounter.tc_get_timecount = tsc_get_timecount_lowres;
+		tsc_timecounter.tc_get_timecount = tsc_get_timecount_low;
 		tsc_timecounter.tc_name = "TSC-low";
 		if (bootverbose)
-			printf("TSC timecounter discards lower %d bit(s).\n",
+			printf("TSC timecounter discards lower %d bit(s)\n",
 			    shift);
 	}
 	if (tsc_freq != 0) {
@@ -560,8 +560,8 @@ sysctl_machdep_tsc_freq(SYSCTL_HANDLER_ARGS)
 	error = sysctl_handle_64(oidp, &freq, 0, req);
 	if (error == 0 && req->newptr != NULL) {
 		atomic_store_rel_64(&tsc_freq, freq);
-		tsc_timecounter.tc_frequency =
-		    freq >> (int)(intptr_t)tsc_timecounter.tc_priv;
+		atomic_store_rel_64(&tsc_timecounter.tc_frequency,
+		    freq >> (int)(intptr_t)tsc_timecounter.tc_priv);
 	}
 	return (error);
 }
@@ -577,7 +577,7 @@ tsc_get_timecount(struct timecounter *tc __unused)
 }
 
 static u_int
-tsc_get_timecount_lowres(struct timecounter *tc)
+tsc_get_timecount_low(struct timecounter *tc)
 {
 
 	return (rdtsc() >> (int)(intptr_t)tc->tc_priv);
