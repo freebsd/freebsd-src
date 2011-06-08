@@ -34,7 +34,6 @@
 .\" FreeBSD .Lb values
 .ds doc-str-Lb-libarchive  Streaming Archive Library (libarchive, \-larchive)
 .ds doc-str-Lb-libbluetooth Bluetooth User Library (libbluetooth, \-lbluetooth)
-.ds doc-str-Lb-libbsm      Basic Security Module User Library (libbsm, \-lbsm)
 .ds doc-str-Lb-libc_r      Reentrant C\~Library (libc_r, \-lc_r)
 .ds doc-str-Lb-libcalendar Calendar Arithmetic Library (libcalendar, \-lcalendar)
 .ds doc-str-Lb-libcam      Common Access Method User Library (libcam, \-lcam)
@@ -43,6 +42,7 @@
 .ds doc-str-Lb-libdevstat  Device Statistics Library (libdevstat, \-ldevstat)
 .ds doc-str-Lb-libdisk     Interface to Slice and Partition Labels Library (libdisk, \-ldisk)
 .ds doc-str-Lb-libedit     Line Editor and History Library (libedit, \-ledit)
+.ds doc-str-Lb-libefi      EFI Runtime Services Library (libefi, \-lefi)
 .ds doc-str-Lb-libelf      ELF Parsing Library (libelf, \-lelf)
 .ds doc-str-Lb-libfetch    File Transfer Library (libfetch, \-lfetch)
 .ds doc-str-Lb-libgeom     Userland API Library for kernel GEOM subsystem (libgeom, \-lgeom)
@@ -55,12 +55,15 @@
 .ds doc-str-Lb-libmemstat  Kernel Memory Allocator Statistics Library (libmemstat, \-lmemstat)
 .ds doc-str-Lb-libnetgraph Netgraph User Library (libnetgraph, \-lnetgraph)
 .ds doc-str-Lb-libpmc      Performance Monitoring Counters Interface Library (libpmc, \-lpmc)
+.ds doc-str-Lb-libproc     Processor Monitoring and Analysis Library (libproc, \-lproc)
 .ds doc-str-Lb-librpcsec_gss RPC GSS-API Authentication Library (librpcsec_gss, \-lrpcsec_gss)
 .ds doc-str-Lb-librpcsvc   RPC Service Library (librpcsvc, \-lrpcsvc)
+.ds doc-str-Lb-librtld_db  Run-time Linker Debugging Library (librtld_db, \-lrtld_db)
 .ds doc-str-Lb-libsdp      Bluetooth Service Discovery Protocol User Library (libsdp, \-lsdp)
 .ds doc-str-Lb-libthr      1:1 Threading Library (libthr, \-lthr)
 .ds doc-str-Lb-libufs      UFS File System Access Library (libufs, \-lufs)
 .ds doc-str-Lb-libugidfw   File System Firewall Interface Library (libugidfw, \-lugidfw)
+.ds doc-str-Lb-libulog     User Login Record Library (libulog, \-lulog)
 .ds doc-str-Lb-libvgl      Video Graphics Library (libvgl, \-lvgl)
 .
 .\" FreeBSD architectures not found in doc-common
@@ -71,7 +74,6 @@
 .
 .\" FreeBSD releases not found in doc-common
 .ds doc-operating-system-FreeBSD-7.4    7.4
-.ds doc-operating-system-FreeBSD-8.2    8.2
 .ds doc-operating-system-FreeBSD-8.3    8.3
 .ds doc-operating-system-FreeBSD-9.0    9.0
 .
