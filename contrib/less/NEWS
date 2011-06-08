@@ -12,6 +12,37 @@
 
 ======================================================================
 
+	Major changes between "less" versions 436 and 443
+
+* Change search behavior such that when a search is given an explicit 
+  pattern, the entire displayed screen is included in the search and 
+  not just the portion after the target line.
+
+* Add -A option to change search behavior to the old way: only
+  the portion of the screen after the target line is searched.
+
+* Add %F formatting to prompt strings, replaced by the last component
+  of the input file.
+
+* Control-G while editing a command exits the command.
+
+* Less now exits with status 2 if control-C is pressed and -K is in effect.
+
+* Fix "ungetc overflow" when passing long commands via the -p option.
+
+* Fix bug in using line filtering via the & command 
+  in combination with -i and -I.
+
+* Fix bug in handling negative arguments to the -j option.
+
+* Fix bug in handling %t in prompt strings.
+
+* Improve handling of long option names.
+
+* Improve percentage calculation for very large files.
+
+======================================================================
+
 	Major changes between "less" versions 429 and 436
 
 * Don't pass "-" to non-pipe LESSOPEN unless it starts with "-".

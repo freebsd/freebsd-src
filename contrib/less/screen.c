@@ -1,6 +1,6 @@
 /* $FreeBSD$ */
 /*
- * Copyright (C) 1984-2009  Mark Nudelman
+ * Copyright (C) 1984-2011  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -1789,7 +1789,7 @@ win32_scroll_up(n)
 
 	/* Move the source text to the top of the screen. */
 	new_org.X = rcSrc.Left;
-	/* new_org.Y = rcClip.top; -- doesn't compile under MSVC6 */
+	new_org.Y = rcClip.Top;
 
 	/* Fill the right character and attributes. */
 	fillchar.Char.AsciiChar = ' ';

@@ -1,4 +1,4 @@
-.TH LESS 1 "Version 436: 07 Jul 2009"
+.TH LESS 1 "Version 443: 09 Apr 2011"
 .SH NAME
 less \- opposite of more
 .SH SYNOPSIS
@@ -10,7 +10,7 @@ less \- opposite of more
 .br
 .B "less \-\-version"
 .br
-.B "less [\-[+]aBcCdeEfFgGiIJKLmMnNqQrRsSuUVwWX~]"
+.B "less [\-[+]aABcCdeEfFgGiIJKLmMnNqQrRsSuUVwWX~]"
 .br
 .B "     [\-b \fIspace\fP] [\-h \fIlines\fP] [\-j \fIline\fP] [\-k \fIkeyfile\fP]"
 .br
@@ -65,7 +65,7 @@ Like SPACE, but if N is specified, it becomes the new window size.
 .IP "ESC-SPACE"
 Like SPACE, but scrolls a full screenful, even if it reaches
 end-of-file in the process.
-.IP "RETURN or ^N or e or ^E or j or ^J"
+.IP "ENTER or RETURN or ^N or e or ^E or j or ^J"
 Scroll forward N lines, default 1.
 The entire N lines are displayed, even if N is more than the screen size.
 .IP "d or ^D"
@@ -178,7 +178,7 @@ Search forward in the file for the N-th line containing the pattern.
 N defaults to 1.
 The pattern is a regular expression, as recognized by
 the regular expression library supplied by your system.
-The search starts at the second line displayed
+The search starts at the first line displayed
 (but see the \-a and \-j options, which change this).
 .sp
 Certain characters are special
@@ -333,7 +333,7 @@ the current setting is printed and nothing is changed.
 .IP \-\-
 Like the \- command, but takes a long option name (see OPTIONS below)
 rather than a single option letter.
-You must press RETURN after typing the option name.
+You must press ENTER or RETURN after typing the option name.
 A ^P immediately after the second dash suppresses printing of a 
 message describing the new setting, as in the \- command.
 .IP \-+
@@ -363,7 +363,7 @@ The setting of the option is not changed.
 (Double underscore.)
 Like the _ (underscore) command, but takes a long option name
 rather than a single option letter.
-You must press RETURN after typing the option name.
+You must press ENTER or RETURN after typing the option name.
 .IP +cmd
 Causes the specified cmd to be executed each time a new file is examined.
 For example, +G causes 
@@ -465,11 +465,24 @@ This option displays a summary of the commands accepted by
 (Depending on how your shell interprets the question mark,
 it may be necessary to quote the question mark, thus: "\-\e?".)
 .IP "\-a or \-\-search-skip-screen"
-Causes searches to start after the last line
-displayed on the screen, 
+By default, forward searches start at the top of the displayed screen
+and backwards searches start at the bottom of the displayed screen
+(except for repeated searches invoked by the n or N commands,
+which start after or before the "target" line respectively;
+see the \-j option for more about the target line).
+The \-a option causes forward searches to instead start at
+the bottom of the screen
+and backward searches to start at the top of the screen,
 thus skipping all lines displayed on the screen.
-By default, searches start at the second line on the screen
-(or after the last found line; see the \-j option).
+.IP "\-A or \-\-SEARCH-SKIP-SCREEN"
+Causes all forward searches (not just non-repeated searches) 
+to start just after the target line, and all backward searches 
+to start just before the target line.
+Thus, forward searches will skip part of the displayed screen
+(from the first line up to and including the target line).
+Similarly backwards searches will skip the displayed screen
+from the last line up to and including the target line.
+This was the default behavior in less versions prior to 441.
 .IP "\-b\fIn\fP or \-\-buffers=\fIn\fP"
 Specifies the amount of buffer space
 .I less
@@ -590,7 +603,8 @@ is recalculated if the terminal window is resized, so that the
 target line remains at the specified fraction of the screen height.
 If any form of the \-j option is used, 
 forward searches begin at the line immediately after the target line,
-and backward searches begin at the target line.
+and backward searches begin at the target line,
+unless changed by \-a or \-A.
 For example, if "\-j4" is used, the target line is the
 fourth line on the screen, so forward searches begin at the fifth line
 on the screen.
@@ -613,7 +627,8 @@ file.
 .IP "\-K or \-\-quit-on-intr"
 Causes
 .I less
-to exit immediately when an interrupt character (usually ^C) is typed.
+to exit immediately (with status 2)
+when an interrupt character (usually ^C) is typed.
 Normally, an interrupt character causes
 .I less
 to stop whatever it is doing and return to its command prompt.
@@ -970,6 +985,8 @@ Delete the entire command line,
 or cancel the command if the command line is empty.
 If you have changed your line-kill character in Unix to something
 other than ^U, that character is used instead of ^U.
+.IP "^G"
+Delete the entire command line and return to the main prompt.
 
 .SH "KEY BINDINGS"
 You may define your own 
@@ -1290,7 +1307,6 @@ The remainder of LESSBINFMT is a string which may include one
 printf-style escape sequence (a % followed by x, X, o, d, etc.).
 For example, if LESSBINFMT is "*u[%x]", binary characters
 are displayed in underlined hexadecimal surrounded by brackets.
-The default if no LESSBINFMT is specified is "*s<%X>".
 The default if no LESSBINFMT is specified is "*s<%02X>".
 Warning: the result of expanding the character via LESSBINFMT must
 be less than 31 characters.
@@ -1347,6 +1363,8 @@ or the EDITOR environment variable if VISUAL is not defined).
 See the discussion of the LESSEDIT feature below.
 .IP "%f"
 Replaced by the name of the current input file.
+.IP "%F"
+Replaced by the last component of the name of the current input file.
 .IP "%i"
 Replaced by the index of the current file in the list of
 input files.
@@ -1664,7 +1682,7 @@ The name of the editor (used for the v command).
 lesskey(1)
 
 .SH COPYRIGHT
-Copyright (C) 1984-2009  Mark Nudelman
+Copyright (C) 1984-2011  Mark Nudelman
 .PP
 less is part of the GNU project and is free software.
 You can redistribute it and/or modify it
@@ -1689,11 +1707,9 @@ See the GNU General Public License for more details.
 .PP
 Mark Nudelman <markn@greenwoodsoftware.com>
 .br
+Send bug reports or comments to the above address or to bug-less@gnu.org.
+.br
 See http://www.greenwoodsoftware.com/less/bugs.html for the latest list of known bugs in less.
-.br
-Send bug reports or comments to the above address or to 
-.br
-bug-less@gnu.org.
 .br
 For more information, see the less homepage at 
 .br
