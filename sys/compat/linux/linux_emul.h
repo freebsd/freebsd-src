@@ -82,7 +82,7 @@ struct linux_emuldata	*em_find(struct proc *, int locked);
 
 int	linux_proc_init(struct thread *, pid_t, int);
 void	linux_proc_exit(void *, struct proc *);
-void	linux_schedtail(void *, struct proc *);
+void	linux_schedtail(struct thread *);
 void	linux_proc_exec(void *, struct proc *, struct image_params *);
 void	linux_kill_threads(struct thread *, int);
 

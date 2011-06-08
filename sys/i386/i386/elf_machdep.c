@@ -78,6 +78,7 @@ struct sysentvec elf32_freebsd_sysvec = {
 	.sv_set_syscall_retval = cpu_set_syscall_retval,
 	.sv_fetch_syscall_args = cpu_fetch_syscall_args,
 	.sv_syscallnames = syscallnames,
+	.sv_schedtail	= NULL,
 };
 
 static Elf32_Brandinfo freebsd_brand_info = {

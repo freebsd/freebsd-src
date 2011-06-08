@@ -128,7 +128,6 @@ static void	linux32_fixlimit(struct rlimit *rl, int which);
 static boolean_t linux32_trans_osrel(const Elf_Note *note, int32_t *osrel);
 
 static eventhandler_tag linux_exit_tag;
-static eventhandler_tag linux_schedtail_tag;
 static eventhandler_tag linux_exec_tag;
 
 /*
@@ -1073,6 +1072,7 @@ struct sysentvec elf_linux_sysvec = {
 	.sv_set_syscall_retval = cpu_set_syscall_retval,
 	.sv_fetch_syscall_args = linux32_fetch_syscall_args,
 	.sv_syscallnames = NULL,
+	.sv_schedtail	= linux_schedtail,
 };
 
 static char GNU_ABI_VENDOR[] = "GNU";
@@ -1166,8 +1166,6 @@ linux_elf_modevent(module_t mod, int type, void *data)
 			mtx_init(&futex_mtx, "ftllk", NULL, MTX_DEF);
 			linux_exit_tag = EVENTHANDLER_REGISTER(process_exit,
 			    linux_proc_exit, NULL, 1000);
-			linux_schedtail_tag = EVENTHANDLER_REGISTER(schedtail,
-			    linux_schedtail, NULL, 1000);
 			linux_exec_tag = EVENTHANDLER_REGISTER(process_exec,
 			    linux_proc_exec, NULL, 1000);
 			linux_szplatform = roundup(strlen(linux_platform) + 1,
@@ -1199,7 +1197,6 @@ linux_elf_modevent(module_t mod, int type, void *data)
 			sx_destroy(&emul_shared_lock);
 			mtx_destroy(&futex_mtx);
 			EVENTHANDLER_DEREGISTER(process_exit, linux_exit_tag);
-			EVENTHANDLER_DEREGISTER(schedtail, linux_schedtail_tag);
 			EVENTHANDLER_DEREGISTER(process_exec, linux_exec_tag);
 			linux_osd_jail_deregister();
 			if (bootverbose)

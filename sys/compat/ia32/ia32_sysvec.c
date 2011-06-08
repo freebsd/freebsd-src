@@ -141,6 +141,7 @@ struct sysentvec ia32_freebsd_sysvec = {
 	.sv_set_syscall_retval = ia32_set_syscall_retval,
 	.sv_fetch_syscall_args = ia32_fetch_syscall_args,
 	.sv_syscallnames = freebsd32_syscallnames,
+	.sv_schedtail	= NULL,
 };
 
 
