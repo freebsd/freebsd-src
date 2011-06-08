@@ -97,7 +97,7 @@ SYSCTL_VNET_INT(_net_inet6_ipsec6, OID_AUTO,
 
 /*
  * Check if we have to jump over firewall processing for this packet.
- * Called from ip_input().
+ * Called from ip6_input().
  * 1 = jump over firewall, 0 = packet goes through firewall.
  */
 int
@@ -106,7 +106,7 @@ ip6_ipsec_filtertunnel(struct mbuf *m)
 #if defined(IPSEC)
 
 	/*
-	 * Bypass packet filtering for packets from a tunnel.
+	 * Bypass packet filtering for packets previously handled by IPsec.
 	 */
 	if (!V_ip6_ipsec6_filtertunnel &&
 	    m_tag_find(m, PACKET_TAG_IPSEC_IN_DONE, NULL) != NULL)
@@ -118,7 +118,7 @@ ip6_ipsec_filtertunnel(struct mbuf *m)
 /*
  * Check if this packet has an active SA and needs to be dropped instead
  * of forwarded.
- * Called from ip_input().
+ * Called from ip6_input().
  * 1 = drop packet, 0 = forward packet.
  */
 int
@@ -141,7 +141,7 @@ ip6_ipsec_fwd(struct mbuf *m)
 	if (sp == NULL) {	/* NB: can happen if error */
 		splx(s);
 		/*XXX error stat???*/
-		DPRINTF(("ip_input: no SP for forwarding\n"));	/*XXX*/
+		DPRINTF(("%s: no SP for forwarding\n", __func__));	/*XXX*/
 		return 1;
 	}
 
@@ -163,7 +163,7 @@ ip6_ipsec_fwd(struct mbuf *m)
  * Check if protocol type doesn't have a further header and do IPSEC
  * decryption or reject right now.  Protocols with further headers get
  * their IPSEC treatment within the protocol specific processing.
- * Called from ip_input().
+ * Called from ip6_input().
  * 1 = drop packet, 0 = continue processing packet.
  */
 int
@@ -206,7 +206,7 @@ ip6_ipsec_input(struct mbuf *m, int nxt)
 		} else {
 			/* XXX error stat??? */
 			error = EINVAL;
-			DPRINTF(("ip_input: no SP, packet discarded\n"));/*XXX*/
+			DPRINTF(("%s: no SP, packet discarded\n", __func__));/*XXX*/
 			return 1;
 		}
 		splx(s);

@@ -118,11 +118,14 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/queue.h>
+#include <sys/cpuset.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
 #include <sys/msgbuf.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/sched.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/vmmeter.h>
@@ -820,7 +823,7 @@ moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 	PMAP_LOCK_INIT(kernel_pmap);
 	for (i = 0; i < 16; i++)
 		kernel_pmap->pm_sr[i] = EMPTY_SEGMENT + i;
-	kernel_pmap->pm_active = ~0;
+	CPU_FILL(&kernel_pmap->pm_active);
 
 	/*
 	 * Set up the Open Firmware mappings
@@ -942,7 +945,9 @@ moea_activate(mmu_t mmu, struct thread *td)
 	pm = &td->td_proc->p_vmspace->vm_pmap;
 	pmr = pm->pmap_phys;
 
-	pm->pm_active |= PCPU_GET(cpumask);
+	sched_pin();
+	CPU_OR(&pm->pm_active, PCPU_PTR(cpumask));
+	sched_unpin();
 	PCPU_SET(curpmap, pmr);
 }
 
@@ -952,7 +957,9 @@ moea_deactivate(mmu_t mmu, struct thread *td)
 	pmap_t	pm;
 
 	pm = &td->td_proc->p_vmspace->vm_pmap;
-	pm->pm_active &= ~PCPU_GET(cpumask);
+	sched_pin();
+	CPU_NAND(&pm->pm_active, PCPU_PTR(cpumask));
+	sched_unpin();
 	PCPU_SET(curpmap, NULL);
 }
 

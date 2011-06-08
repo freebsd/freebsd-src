@@ -625,8 +625,10 @@ free1:
 
 	if (!TAILQ_EMPTY(&sm_rdnss_head))
 		CALL_SCRIPT(RESADD, &sm_rdnss_head);
+#if 0
 	else
 		CALL_SCRIPT(RESDEL, NULL);
+#endif
 
 ra_opt_handler_freeit:
 	/* Clear script message queue. */

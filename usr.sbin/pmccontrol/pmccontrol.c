@@ -28,8 +28,9 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/queue.h>
+#include <sys/cpuset.h>
 #include <sys/sysctl.h>
 
 #include <assert.h>
@@ -133,26 +134,32 @@ pmcc_init_debug(void)
 static int
 pmcc_do_enable_disable(struct pmcc_op_list *op_list)
 {
+	long cpusetsize;
 	int c, error, i, j, ncpu, npmc, t;
-	cpumask_t haltedcpus, cpumask;
+	cpuset_t haltedcpus, cpumask;
 	struct pmcc_op *np;
 	unsigned char *map;
 	unsigned char op;
 	int cpu, pmc;
-	size_t dummy;
+	size_t setsize;
 
 	if ((ncpu = pmc_ncpu()) < 0)
 		err(EX_OSERR, "Unable to determine the number of cpus");
 
 	/* Determine the set of active CPUs. */
-	cpumask = (1 << ncpu) - 1;
-	dummy = sizeof(int);
-	haltedcpus = (cpumask_t) 0;
-	if (ncpu > 1 && sysctlbyname("machdep.hlt_cpus", &haltedcpus,
-	    &dummy, NULL, 0) < 0)
+	cpusetsize = sysconf(_SC_CPUSET_SIZE);
+	if (cpusetsize == -1 || (u_long)cpusetsize > sizeof(cpuset_t)) {
 		err(EX_OSERR, "ERROR: Cannot determine which CPUs are "
 		    "halted");
-	cpumask &= ~haltedcpus;
+	}
+	CPU_ZERO(&haltedcpus);
+	setsize = (size_t)cpusetsize;
+	if (ncpu > 1 && sysctlbyname("machdep.hlt_cpus", &haltedcpus,
+	    &setsize, NULL, 0) < 0)
+		err(EX_OSERR, "ERROR: Cannot determine which CPUs are "
+		    "halted");
+	CPU_FILL(&cpumask);
+	CPU_NAND(&cpumask, &haltedcpus);
 
 	/* Determine the maximum number of PMCs in any CPU. */
 	npmc = 0;
@@ -200,7 +207,7 @@ pmcc_do_enable_disable(struct pmcc_op_list *op_list)
 
 		if (cpu == PMCC_CPU_ALL)
 			for (i = 0; i < ncpu; i++) {
-				if ((1 << i) & cpumask)
+				if (CPU_ISSET(i, &cpumask))
 					SET_PMCS(i, pmc, op);
 			}
 		else

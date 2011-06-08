@@ -132,6 +132,7 @@ static const struct ath_hal_private ar5212hal = {{
 	/* DFS Functions */
 	.ah_enableDfs			= ar5212EnableDfs,
 	.ah_getDfsThresh		= ar5212GetDfsThresh,
+	.ah_procRadarEvent		= ar5212ProcessRadarEvent,
 
 	/* Key Cache Functions */
 	.ah_getKeyCacheSize		= ar5212GetKeyCacheSize,

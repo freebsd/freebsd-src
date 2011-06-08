@@ -20,12 +20,13 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
-#include <netinet/in.h>
 
+#include <netinet/in.h>
 #include <netinet/in_pcb.h>
 #define TCPSTATES
 #include <netinet/tcp_fsm.h>

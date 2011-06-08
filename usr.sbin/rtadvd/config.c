@@ -109,7 +109,7 @@ dname_labelenc(char *dst, const char *src)
 	/* Always need a 0-length label at the tail. */
 	*dst++ = '\0';
 
-	syslog(LOG_DEBUG, "<%s> labellen = %d", __func__, dst - dst_origin);
+	syslog(LOG_DEBUG, "<%s> labellen = %td", __func__, dst - dst_origin);
 	return (dst - dst_origin);
 }
 
@@ -229,13 +229,7 @@ getconfig(int idx)
 		     __func__, intface);
 	}
 
-	rai = malloc(sizeof(*rai));
-	if (rai == NULL) {
-		syslog(LOG_INFO, "<%s> %s: can't allocate enough memory",
-		    __func__, intface);
-		exit(1);
-	}
-	memset(rai, 0, sizeof(*rai));
+	ELM_MALLOC(rai, exit(1));
 	TAILQ_INIT(&rai->rai_prefix);
 #ifdef ROUTEINFO
 	TAILQ_INIT(&rai->rai_route);
@@ -394,10 +388,7 @@ getconfig(int idx)
 
 		/* allocate memory to store prefix information */
 		ELM_MALLOC(pfx, exit(1));
-
-		/* link into chain */
-		TAILQ_INSERT_TAIL(&rai->rai_prefix, pfx, pfx_next);
-		rai->rai_pfxs++;
+		pfx->pfx_rainfo = rai;
 		pfx->pfx_origin = PREFIX_FROM_CONFIG;
 
 		if (inet_pton(AF_INET6, addr, &pfx->pfx_prefix) != 1) {
@@ -481,6 +472,9 @@ getconfig(int idx)
 			pfx->pfx_pltimeexpire =
 			    now.tv_sec + pfx->pfx_preflifetime;
 		}
+		/* link into chain */
+		TAILQ_INSERT_TAIL(&rai->rai_prefix, pfx, pfx_next);
+		rai->rai_pfxs++;
 	}
 	if (rai->rai_advifprefix && rai->rai_pfxs == 0)
 		get_prefix(rai);

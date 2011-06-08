@@ -745,6 +745,17 @@ typedef enum {
 	HAL_QUIET_ADD_SWBA_RESP_TIME	= 0x4,	/* add beacon response time to next_start offset */
 } HAL_QUIET_FLAG;
 
+#define	HAL_DFS_EVENT_PRICH		0x0000001
+
+struct dfs_event {
+	uint64_t	re_full_ts;	/* 64-bit full timestamp from interrupt time */
+	uint32_t	re_ts;		/* Original 15 bit recv timestamp */
+	uint8_t		re_rssi;	/* rssi of radar event */
+	uint8_t		re_dur;		/* duration of radar pulse */
+	uint32_t	re_flags;	/* Flags (see above) */
+};
+typedef struct dfs_event HAL_DFS_EVENT;
+
 /*
  * Hardware Access Layer (HAL) API.
  *
@@ -928,6 +939,9 @@ struct ath_hal {
 				HAL_PHYERR_PARAM *pe);
 	void	  __ahdecl(*ah_getDfsThresh)(struct ath_hal *ah,
 				HAL_PHYERR_PARAM *pe);
+	HAL_BOOL  __ahdecl(*ah_procRadarEvent)(struct ath_hal *ah,
+				struct ath_rx_status *rxs, uint64_t fulltsf,
+				const char *buf, HAL_DFS_EVENT *event);
 
 	/* Key Cache Functions */
 	uint32_t __ahdecl(*ah_getKeyCacheSize)(struct ath_hal*);

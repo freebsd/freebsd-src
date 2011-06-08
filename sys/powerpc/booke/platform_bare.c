@@ -256,7 +256,7 @@ bare_smp_start_cpu(platform_t plat, struct pcpu *pc)
 	int timeout;
 
 	eebpcr = ccsr_read4(OCP85XX_EEBPCR);
-	if ((eebpcr & (pc->pc_cpumask << 24)) != 0) {
+	if ((eebpcr & (1 << (pc->pc_cpuid + 24))) != 0) {
 		printf("%s: CPU=%d already out of hold-off state!\n",
 		    __func__, pc->pc_cpuid);
 		return (ENXIO);
@@ -274,7 +274,7 @@ bare_smp_start_cpu(platform_t plat, struct pcpu *pc)
 	/*
 	 * Release AP from hold-off state
 	 */
-	eebpcr |= (pc->pc_cpumask << 24);
+	eebpcr |= (1 << (pc->pc_cpuid + 24));
 	ccsr_write4(OCP85XX_EEBPCR, eebpcr);
 	__asm __volatile("isync; msync");
 

@@ -5,6 +5,4 @@
 
 GEOM_CLASS=	sched
 
-WARNS?=	6
-
 .include <bsd.lib.mk>
