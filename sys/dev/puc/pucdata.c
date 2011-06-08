@@ -638,6 +638,12 @@ const struct puc_cfg puc_pci_devices[] = {
 	    PUC_PORT_4S, 0x10, 0, 8,
 	},
 
+	{   0x1415, 0x9501, 0x131f, 0x2052,
+	    "SIIG Quartet Serial 850",
+	    DEFAULT_RCLK * 10,
+	    PUC_PORT_4S, 0x10, 0, 8,
+	},
+
 	{   0x1415, 0x9501, 0x14db, 0x2150,
 	    "Kuroutoshikou SERIAL4P-LPPCI2",
 	    DEFAULT_RCLK * 10,
