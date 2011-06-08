@@ -571,7 +571,7 @@ show_firmware(int ac, char **av)
 	u_int i;
 
 	if (ac != 1) {
-		warnx("show drives: extra arguments");
+		warnx("show firmware: extra arguments");
 		return (EINVAL);
 	}
 
@@ -616,3 +616,112 @@ show_firmware(int ac, char **av)
 	return (0);
 }
 MFI_COMMAND(show, firmware, show_firmware);
+
+static int
+show_progress(int ac, char **av)
+{
+	struct mfi_ld_list llist;
+	struct mfi_pd_list *plist;
+	struct mfi_ld_info linfo;
+	struct mfi_pd_info pinfo;
+	int busy, error, fd;
+	u_int i;
+	
+	uint16_t device_id;
+	uint8_t target_id;
+
+	if (ac != 1) {
+		warnx("show progress: extra arguments");
+		return (EINVAL);
+	}
+
+	fd = mfi_open(mfi_unit);
+	if (fd < 0) {
+		error = errno;
+		warn("mfi_open");
+		return (error);
+	}
+	busy = 0;
+
+	if (mfi_ld_get_list(fd, &llist, NULL) < 0) {
+		error = errno;
+		warn("Failed to get volume list");
+		return (error);
+	}
+	if (mfi_pd_get_list(fd, &plist, NULL) < 0) {
+		error = errno;
+		warn("Failed to get drive list");
+		return (error);
+	}
+
+	for (i = 0; i < llist.ld_count; i++) {
+		target_id = llist.ld_list[i].ld.v.target_id;
+		if (mfi_ld_get_info(fd, target_id, &linfo, NULL) < 0) {
+			error = errno;
+			warn("Failed to get info for volume %s",
+			    mfi_volume_name(fd, target_id));
+			return (error);
+		}
+		if (linfo.progress.active & MFI_LD_PROGRESS_CC) {
+			printf("volume %s ", mfi_volume_name(fd, target_id));
+			mfi_display_progress("Consistency Check",
+			    &linfo.progress.cc);
+			busy = 1;
+		}
+		if (linfo.progress.active & MFI_LD_PROGRESS_BGI) {
+			printf("volume %s ", mfi_volume_name(fd, target_id));
+			mfi_display_progress("Background Init",
+			    &linfo.progress.bgi);
+			busy = 1;
+		}
+		if (linfo.progress.active & MFI_LD_PROGRESS_FGI) {
+			printf("volume %s ", mfi_volume_name(fd, target_id));
+			mfi_display_progress("Foreground Init",
+			    &linfo.progress.fgi);
+			busy = 1;
+		}
+		if (linfo.progress.active & MFI_LD_PROGRESS_RECON) {
+			printf("volume %s ", mfi_volume_name(fd, target_id));
+			mfi_display_progress("Reconstruction",
+			    &linfo.progress.recon);
+			busy = 1;
+		}
+	}
+
+	for (i = 0; i < plist->count; i++) {
+		if (plist->addr[i].scsi_dev_type != 0)
+			continue;
+
+		device_id = plist->addr[i].device_id;
+		if (mfi_pd_get_info(fd, device_id, &pinfo, NULL) < 0) {
+			error = errno;
+			warn("Failed to fetch info for drive %u", device_id);
+			return (error);
+		}
+
+		if (pinfo.prog_info.active & MFI_PD_PROGRESS_REBUILD) {
+			printf("drive %u ", device_id);
+			mfi_display_progress("Rebuild", &pinfo.prog_info.rbld);
+			busy = 1;
+		}
+		if (pinfo.prog_info.active & MFI_PD_PROGRESS_PATROL) {
+			printf("drive %u ", device_id);
+			mfi_display_progress("Patrol Read",
+			    &pinfo.prog_info.patrol);
+			busy = 1;
+		}
+		if (pinfo.prog_info.active & MFI_PD_PROGRESS_CLEAR) {
+			printf("drive %u ", device_id);
+			mfi_display_progress("Clear", &pinfo.prog_info.clear);
+			busy = 1;
+		}
+	}
+
+	close(fd);
+
+	if (!busy)
+		printf("No activity in progress for adapter mfi%d\n", mfi_unit);
+
+	return (0);
+}
+MFI_COMMAND(show, progress, show_progress);
