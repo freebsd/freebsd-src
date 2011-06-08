@@ -11,7 +11,7 @@ SUBDIR= ${_binutils} \
 	${_dtc} \
 	${_gdb} \
 	${_gperf} \
-	${_grep} \
+	grep \
 	${_groff} \
 	patch \
 	${_rcs} \
@@ -26,8 +26,6 @@ _gperf=		gperf
 _groff=		groff
 .endif
 .endif
-
-_grep=          grep
 
 .if ${MK_CVS} != "no"
 _cvs=		cvs
