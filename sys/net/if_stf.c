@@ -3,7 +3,7 @@
 
 /*-
  * Copyright (C) 2000 WIDE Project.
- * Copyright (c) 2010 Hiroki Sato <hrs@FreeBSD.org>
+ * Copyright (c) 2010-2011 Hiroki Sato <hrs@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
  */
 
 /*
- * 6to4 interface, based on RFC3056 + 6rd (RFC5569) support.
+ * 6to4 interface, based on RFC 3056 + 6rd (RFC 5969) support.
  *
  * 6to4 interface is NOT capable of link-layer (I mean, IPv4) multicasting.
  * There is no address mapping defined from IPv6 multicast address to IPv4
@@ -74,10 +74,9 @@
  * for details.  The code tries to filter out some of malicious packets.
  * Note that there is no way to be 100% secure.
  *
- * 6rd (RFC5569) extension is enabled when an IPv6 GUA other than
- * 2002::/16 is assigned.  The stf(4) recognizes a 32-bit just after
- * prefixlen as the IPv4 address of the 6rd customer site.  The
- * prefixlen must be shorter than 32.
+ * 6rd (RFC 5969) extension is enabled when an IPv6 GUA other than
+ * 2002::/16 is assigned.  The stf(4) calculates a 6rd delegated
+ * prefix from a 6rd prefix and an IPv4 address.
  *
  */
 
@@ -280,10 +279,10 @@ stf_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	LIST_INSERT_HEAD(&V_stf_softc_list, sc, stf_list);
 	mtx_unlock(&stf_mtx);
 
-	sc->sc_ifaddr_event_tag = EVENTHANDLER_REGISTER(ifaddr_event,
-							stf_ifaddr_change,
-							NULL,
-							EVENTHANDLER_PRI_ANY);
+	sc->sc_ifaddr_event_tag =
+	    EVENTHANDLER_REGISTER(ifaddr_event, stf_ifaddr_change, NULL,
+		EVENTHANDLER_PRI_ANY);
+
 	return (0);
 }
 
@@ -1367,35 +1366,20 @@ stf_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	case SIOCSIFADDR:
 		DEBUG_PRINTF(1, "enter SIOCSIFADDR.\n");
 		ifa = (struct ifaddr *)data;
-		if (ifa == NULL || ifa->ifa_addr->sa_family != AF_INET6) {
+		if (ifa == NULL) {
 			error = EAFNOSUPPORT;
 			break;
 		}
-		ifa->ifa_rtrequest = stf_rtrequest;
-		ifp->if_flags |= IFF_UP;
+		if (ifa->ifa_addr->sa_family == AF_INET6 &&
+		    ifa->ifa_dstaddr->sa_family == AF_INET &&
+		    ifa->ifa_netmask->sa_family == AF_INET6) {
+			ifa->ifa_rtrequest = stf_rtrequest;
+			ifp->if_flags |= IFF_UP;
+		} else {
+			error = EINVAL;
+			break;
+		}
 		break;
-
-/*
-	case STFSSRDADDR:
-		ifra6 = (struct in6_aliasreq *)data;
-		if (ifra6 == NULL || ifra6->ifra_addr->sa_family != AF_INET6) {
-			error = EAFNOSUPPORT;
-			break;
-		}
-		sa6 = &ifra6->ifra_addr;
-		if (ifra6->ifra_dstaddr->sa_family != AF_INET) {
-			error = EAFNOSUPPORT;
-			break;
-		}
-		memcpy(&ifra.ifra_addr, sa6, sizeof(ifra.ifra_addr));
-		error = in6_control(NULL, SIOCAIFADDR_IN6, (caddr_t)&ifra, ifp, curthread);
-		if (error)
-			return (error);
-		
-		break;
-		
-	case STFDSRDADDR:
-*/
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		ifr = (struct ifreq *)data;

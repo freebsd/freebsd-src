@@ -118,11 +118,14 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/queue.h>
+#include <sys/cpuset.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
 #include <sys/msgbuf.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/sched.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/vmmeter.h>
@@ -827,7 +830,7 @@ moea64_mid_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 	#endif
 
 	kernel_pmap->pmap_phys = kernel_pmap;
-	kernel_pmap->pm_active = ~0;
+	CPU_FILL(&kernel_pmap->pm_active);
 
 	PMAP_LOCK_INIT(kernel_pmap);
 
@@ -995,7 +998,9 @@ moea64_activate(mmu_t mmu, struct thread *td)
 	pmap_t	pm;
 
 	pm = &td->td_proc->p_vmspace->vm_pmap;
-	pm->pm_active |= PCPU_GET(cpumask);
+	sched_pin();
+	CPU_OR(&pm->pm_active, PCPU_PTR(cpumask));
+	sched_unpin();
 
 	#ifdef __powerpc64__
 	PCPU_SET(userslb, pm->pm_slb);
@@ -1010,7 +1015,9 @@ moea64_deactivate(mmu_t mmu, struct thread *td)
 	pmap_t	pm;
 
 	pm = &td->td_proc->p_vmspace->vm_pmap;
-	pm->pm_active &= ~(PCPU_GET(cpumask));
+	sched_pin();
+	CPU_NAND(&pm->pm_active, PCPU_PTR(cpumask));
+	sched_unpin();
 	#ifdef __powerpc64__
 	PCPU_SET(userslb, NULL);
 	#else

@@ -420,13 +420,13 @@ nospace:
 	 */
 	if (reclaimed == 0) {
 		reclaimed = 1;
-		softdep_request_cleanup(fs, vp, cred, FLUSH_BLOCKS_WAIT);
 		UFS_UNLOCK(ump);
 		if (bp) {
 			brelse(bp);
 			bp = NULL;
 		}
 		UFS_LOCK(ump);
+		softdep_request_cleanup(fs, vp, cred, FLUSH_BLOCKS_WAIT);
 		goto retry;
 	}
 	UFS_UNLOCK(ump);
@@ -2356,8 +2356,8 @@ ffs_fserr(fs, inum, cp)
  *	specified inode by the specified amount. Under normal
  *	operation the count should always go down. Decrementing
  *	the count to zero will cause the inode to be freed.
- * adjblkcnt(inode, amt) - adjust the number of blocks used to
- *	by the specifed amount.
+ * adjblkcnt(inode, amt) - adjust the number of blocks used by the
+ *	inode by the specified amount.
  * adjndir, adjbfree, adjifree, adjffree, adjnumclusters(amt) -
  *	adjust the superblock summary.
  * freedirs(inode, count) - directory inodes [inode..inode + count - 1]

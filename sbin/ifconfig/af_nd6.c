@@ -58,7 +58,7 @@ static const char rcsid[] =
 #define	MAX_SYSCTL_TRY	5
 #define	ND6BITS	"\020\001PERFORMNUD\002ACCEPT_RTADV\003PREFER_SOURCE" \
 		"\004IFDISABLED\005DONT_SET_IFROUTE\006AUTO_LINKLOCAL" \
-		"\007DEFROUTE_RTADV\020DEFAULTIF"
+		"\007NO_RADR\020DEFAULTIF"
 
 static int isnd6defif(int);
 void setnd6flags(const char *, int, int, const struct afswtch *);
@@ -159,7 +159,6 @@ nd6_status(int s)
 	}
 	isdefif = isnd6defif(s6);
 	close(s6);
-
 	if (nd.ndi.flags == 0 && !isdefif)
 		return;
 	printb("\tnd6 options",

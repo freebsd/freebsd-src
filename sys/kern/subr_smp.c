@@ -53,15 +53,15 @@ __FBSDID("$FreeBSD$");
 #include "opt_sched.h"
 
 #ifdef SMP
-volatile cpumask_t stopped_cpus;
-volatile cpumask_t started_cpus;
-cpumask_t hlt_cpus_mask;
-cpumask_t logical_cpus_mask;
+volatile cpuset_t stopped_cpus;
+volatile cpuset_t started_cpus;
+cpuset_t hlt_cpus_mask;
+cpuset_t logical_cpus_mask;
 
 void (*cpustop_restartfunc)(void);
 #endif
 /* This is used in modules that need to work in both SMP and UP. */
-cpumask_t all_cpus;
+cpuset_t all_cpus;
 
 int mp_ncpus;
 /* export this for libkvm consumers. */
@@ -200,8 +200,11 @@ forward_signal(struct thread *td)
  *
  */
 static int
-generic_stop_cpus(cpumask_t map, u_int type)
+generic_stop_cpus(cpuset_t map, u_int type)
 {
+#ifdef KTR
+	char cpusetbuf[CPUSETBUFSIZ];
+#endif
 	static volatile u_int stopping_cpu = NOCPU;
 	int i;
 
@@ -216,7 +219,8 @@ generic_stop_cpus(cpumask_t map, u_int type)
 	if (!smp_started)
 		return (0);
 
-	CTR2(KTR_SMP, "stop_cpus(%x) with %u type", map, type);
+	CTR2(KTR_SMP, "stop_cpus(%s) with %u type",
+	    cpusetobj_strprint(cpusetbuf, &map), type);
 
 	if (stopping_cpu != PCPU_GET(cpuid))
 		while (atomic_cmpset_int(&stopping_cpu, NOCPU,
@@ -228,7 +232,7 @@ generic_stop_cpus(cpumask_t map, u_int type)
 	ipi_selected(map, type);
 
 	i = 0;
-	while ((stopped_cpus & map) != map) {
+	while (!CPU_SUBSET(&stopped_cpus, &map)) {
 		/* spin */
 		cpu_spinwait();
 		i++;
@@ -245,14 +249,14 @@ generic_stop_cpus(cpumask_t map, u_int type)
 }
 
 int
-stop_cpus(cpumask_t map)
+stop_cpus(cpuset_t map)
 {
 
 	return (generic_stop_cpus(map, IPI_STOP));
 }
 
 int
-stop_cpus_hard(cpumask_t map)
+stop_cpus_hard(cpuset_t map)
 {
 
 	return (generic_stop_cpus(map, IPI_STOP_HARD));
@@ -260,7 +264,7 @@ stop_cpus_hard(cpumask_t map)
 
 #if defined(__amd64__)
 int
-suspend_cpus(cpumask_t map)
+suspend_cpus(cpuset_t map)
 {
 
 	return (generic_stop_cpus(map, IPI_SUSPEND));
@@ -281,19 +285,22 @@ suspend_cpus(cpumask_t map)
  *   1: ok
  */
 int
-restart_cpus(cpumask_t map)
+restart_cpus(cpuset_t map)
 {
+#ifdef KTR
+	char cpusetbuf[CPUSETBUFSIZ];
+#endif
 
 	if (!smp_started)
 		return 0;
 
-	CTR1(KTR_SMP, "restart_cpus(%x)", map);
+	CTR1(KTR_SMP, "restart_cpus(%s)", cpusetobj_strprint(cpusetbuf, &map));
 
 	/* signal other cpus to restart */
-	atomic_store_rel_int(&started_cpus, map);
+	CPU_COPY_STORE_REL(&map, &started_cpus);
 
 	/* wait for each to clear its bit */
-	while ((stopped_cpus & map) != 0)
+	while (CPU_OVERLAP(&stopped_cpus, &map))
 		cpu_spinwait();
 
 	return 1;
@@ -409,13 +416,13 @@ smp_rendezvous_action(void)
 }
 
 void
-smp_rendezvous_cpus(cpumask_t map,
+smp_rendezvous_cpus(cpuset_t map,
 	void (* setup_func)(void *), 
 	void (* action_func)(void *),
 	void (* teardown_func)(void *),
 	void *arg)
 {
-	int i, ncpus = 0;
+	int curcpumap, i, ncpus = 0;
 
 	if (!smp_started) {
 		if (setup_func != NULL)
@@ -428,11 +435,11 @@ smp_rendezvous_cpus(cpumask_t map,
 	}
 
 	CPU_FOREACH(i) {
-		if (((1 << i) & map) != 0)
+		if (CPU_ISSET(i, &map))
 			ncpus++;
 	}
 	if (ncpus == 0)
-		panic("ncpus is 0 with map=0x%x", map);
+		panic("ncpus is 0 with non-zero map");
 
 	mtx_lock_spin(&smp_ipi_mtx);
 
@@ -452,10 +459,12 @@ smp_rendezvous_cpus(cpumask_t map,
 	 * Signal other processors, which will enter the IPI with
 	 * interrupts off.
 	 */
-	ipi_selected(map & ~(1 << curcpu), IPI_RENDEZVOUS);
+	curcpumap = CPU_ISSET(curcpu, &map);
+	CPU_CLR(curcpu, &map);
+	ipi_selected(map, IPI_RENDEZVOUS);
 
 	/* Check if the current CPU is in the map */
-	if ((map & (1 << curcpu)) != 0)
+	if (curcpumap != 0)
 		smp_rendezvous_action();
 
 	/*
@@ -484,6 +493,7 @@ static struct cpu_group group[MAXCPU];
 struct cpu_group *
 smp_topo(void)
 {
+	char cpusetbuf[CPUSETBUFSIZ], cpusetbuf2[CPUSETBUFSIZ];
 	struct cpu_group *top;
 
 	/*
@@ -530,9 +540,10 @@ smp_topo(void)
 	if (top->cg_count != mp_ncpus)
 		panic("Built bad topology at %p.  CPU count %d != %d",
 		    top, top->cg_count, mp_ncpus);
-	if (top->cg_mask != all_cpus)
-		panic("Built bad topology at %p.  CPU mask 0x%X != 0x%X",
-		    top, top->cg_mask, all_cpus);
+	if (CPU_CMP(&top->cg_mask, &all_cpus))
+		panic("Built bad topology at %p.  CPU mask (%s) != (%s)",
+		    top, cpusetobj_strprint(cpusetbuf, &top->cg_mask),
+		    cpusetobj_strprint(cpusetbuf2, &all_cpus));
 	return (top);
 }
 
@@ -557,11 +568,13 @@ static int
 smp_topo_addleaf(struct cpu_group *parent, struct cpu_group *child, int share,
     int count, int flags, int start)
 {
-	cpumask_t mask;
+	char cpusetbuf[CPUSETBUFSIZ], cpusetbuf2[CPUSETBUFSIZ];
+	cpuset_t mask;
 	int i;
 
-	for (mask = 0, i = 0; i < count; i++, start++)
-		mask |= (1 << start);
+	CPU_ZERO(&mask);
+	for (i = 0; i < count; i++, start++)
+		CPU_SET(start, &mask);
 	child->cg_parent = parent;
 	child->cg_child = NULL;
 	child->cg_children = 0;
@@ -571,10 +584,12 @@ smp_topo_addleaf(struct cpu_group *parent, struct cpu_group *child, int share,
 	child->cg_mask = mask;
 	parent->cg_children++;
 	for (; parent != NULL; parent = parent->cg_parent) {
-		if ((parent->cg_mask & child->cg_mask) != 0)
-			panic("Duplicate children in %p.  mask 0x%X child 0x%X",
-			    parent, parent->cg_mask, child->cg_mask);
-		parent->cg_mask |= child->cg_mask;
+		if (CPU_OVERLAP(&parent->cg_mask, &child->cg_mask))
+			panic("Duplicate children in %p.  mask (%s) child (%s)",
+			    parent,
+			    cpusetobj_strprint(cpusetbuf, &parent->cg_mask),
+			    cpusetobj_strprint(cpusetbuf2, &child->cg_mask));
+		CPU_OR(&parent->cg_mask, &child->cg_mask);
 		parent->cg_count += child->cg_count;
 	}
 
@@ -634,20 +649,20 @@ struct cpu_group *
 smp_topo_find(struct cpu_group *top, int cpu)
 {
 	struct cpu_group *cg;
-	cpumask_t mask;
+	cpuset_t mask;
 	int children;
 	int i;
 
-	mask = (1 << cpu);
+	CPU_SETOF(cpu, &mask);
 	cg = top;
 	for (;;) {
-		if ((cg->cg_mask & mask) == 0)
+		if (!CPU_OVERLAP(&cg->cg_mask, &mask))
 			return (NULL);
 		if (cg->cg_children == 0)
 			return (cg);
 		children = cg->cg_children;
 		for (i = 0, cg = cg->cg_child; i < children; cg++, i++)
-			if ((cg->cg_mask & mask) != 0)
+			if (CPU_OVERLAP(&cg->cg_mask, &mask))
 				break;
 	}
 	return (NULL);
@@ -655,7 +670,7 @@ smp_topo_find(struct cpu_group *top, int cpu)
 #else /* !SMP */
 
 void
-smp_rendezvous_cpus(cpumask_t map,
+smp_rendezvous_cpus(cpuset_t map,
 	void (*setup_func)(void *), 
 	void (*action_func)(void *),
 	void (*teardown_func)(void *),

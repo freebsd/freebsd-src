@@ -153,7 +153,8 @@ div_init(void)
 	 * place for hashbase == NULL.
 	 */
 	in_pcbinfo_init(&V_divcbinfo, "div", &V_divcb, 1, 1, "divcb",
-	    div_inpcb_init, div_inpcb_fini, UMA_ZONE_NOFREE);
+	    div_inpcb_init, div_inpcb_fini, UMA_ZONE_NOFREE,
+	    IPI_HASHFIELDS_NONE);
 }
 
 static void
