@@ -29,7 +29,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_apic.h"
 #include "opt_cpu.h"
 #include "opt_kstack_pages.h"
-#include "opt_mp_watchdog.h"
 #include "opt_pmap.h"
 #include "opt_sched.h"
 #include "opt_smp.h"
@@ -78,7 +77,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/cputypes.h>
 #include <x86/mca.h>
 #include <machine/md_var.h>
-#include <machine/mp_watchdog.h>
 #include <machine/pcb.h>
 #include <machine/psl.h>
 #include <machine/smp.h>
@@ -209,11 +207,8 @@ static int	start_all_aps(void);
 static int	start_ap(int apic_id);
 static void	release_aps(void *dummy);
 
-static int	hlt_logical_cpus;
 static u_int	hyperthreading_cpus;	/* logical cpus sharing L1 cache */
-static cpuset_t	hyperthreading_cpus_mask;
 static int	hyperthreading_allowed = 1;
-static struct	sysctl_ctx_list logical_cpu_clist;
 
 static void
 mem_range_AP_init(void)
@@ -794,11 +789,6 @@ init_secondary(void)
 	/* XXX Calculation depends on cpu_logical being a power of 2, e.g. 2 */
 	if (cpu_logical > 1 && PCPU_GET(apic_id) % cpu_logical != 0)
 		CPU_OR(&logical_cpus_mask, &tcpuset);
-	
-	/* Determine if we are a hyperthread. */
-	if (hyperthreading_cpus > 1 &&
-	    PCPU_GET(apic_id) % hyperthreading_cpus != 0)
-		CPU_OR(&hyperthreading_cpus_mask, &tcpuset);
 
 	/* Build our map of 'other' CPUs. */
 	tallcpus = all_cpus;
@@ -882,7 +872,7 @@ assign_cpu_ids(void)
 
 		if (hyperthreading_cpus > 1 && i % hyperthreading_cpus != 0) {
 			cpu_info[i].cpu_hyperthread = 1;
-#if defined(SCHED_ULE)
+
 			/*
 			 * Don't use HT CPU if it has been disabled by a
 			 * tunable.
@@ -891,7 +881,6 @@ assign_cpu_ids(void)
 				cpu_info[i].cpu_disabled = 1;
 				continue;
 			}
-#endif
 		}
 
 		/* Don't use this CPU if it has been disabled by a tunable. */
@@ -899,6 +888,11 @@ assign_cpu_ids(void)
 			cpu_info[i].cpu_disabled = 1;
 			continue;
 		}
+	}
+
+	if (hyperthreading_allowed == 0 && hyperthreading_cpus > 1) {
+		hyperthreading_cpus = 0;
+		cpu_logical = 1;
 	}
 
 	/*
@@ -1549,159 +1543,6 @@ release_aps(void *dummy __unused)
 		ia32_pause();
 }
 SYSINIT(start_aps, SI_SUB_SMP, SI_ORDER_FIRST, release_aps, NULL);
-
-static int
-sysctl_hlt_cpus(SYSCTL_HANDLER_ARGS)
-{
-	cpuset_t mask;
-	int error;
-
-	mask = hlt_cpus_mask;
-	error = sysctl_handle_opaque(oidp, &mask, sizeof(mask), req);
-	if (error || !req->newptr)
-		return (error);
-
-	if (!CPU_EMPTY(&logical_cpus_mask) &&
-	    CPU_SUBSET(&mask, &logical_cpus_mask))
-		hlt_logical_cpus = 1;
-	else
-		hlt_logical_cpus = 0;
-
-	if (! hyperthreading_allowed)
-		CPU_OR(&mask, &hyperthreading_cpus_mask);
-
-	if (CPU_SUBSET(&mask, &all_cpus))
-		CPU_CLR(0, &mask);
-	hlt_cpus_mask = mask;
-	return (error);
-}
-SYSCTL_PROC(_machdep, OID_AUTO, hlt_cpus,
-    CTLTYPE_STRUCT | CTLFLAG_RW | CTLFLAG_MPSAFE, 0, 0, sysctl_hlt_cpus, "S",
-    "Bitmap of CPUs to halt.  101 (binary) will halt CPUs 0 and 2.");
-
-static int
-sysctl_hlt_logical_cpus(SYSCTL_HANDLER_ARGS)
-{
-	int disable, error;
-
-	disable = hlt_logical_cpus;
-	error = sysctl_handle_int(oidp, &disable, 0, req);
-	if (error || !req->newptr)
-		return (error);
-
-	if (disable)
-		CPU_OR(&hlt_cpus_mask, &logical_cpus_mask);
-	else
-		CPU_NAND(&hlt_cpus_mask, &logical_cpus_mask);
-
-	if (! hyperthreading_allowed)
-		CPU_OR(&hlt_cpus_mask, &hyperthreading_cpus_mask);
-
-	if (CPU_SUBSET(&hlt_cpus_mask, &all_cpus))
-		CPU_CLR(0, &hlt_cpus_mask);
-
-	hlt_logical_cpus = disable;
-	return (error);
-}
-
-static int
-sysctl_hyperthreading_allowed(SYSCTL_HANDLER_ARGS)
-{
-	int allowed, error;
-
-	allowed = hyperthreading_allowed;
-	error = sysctl_handle_int(oidp, &allowed, 0, req);
-	if (error || !req->newptr)
-		return (error);
-
-#ifdef SCHED_ULE
-	/*
-	 * SCHED_ULE doesn't allow enabling/disabling HT cores at
-	 * run-time.
-	 */
-	if (allowed != hyperthreading_allowed)
-		return (ENOTSUP);
-	return (error);
-#endif
-
-	if (allowed)
-		CPU_NAND(&hlt_cpus_mask, &hyperthreading_cpus_mask);
-	else
-		CPU_OR(&hlt_cpus_mask, &hyperthreading_cpus_mask);
-
-	if (!CPU_EMPTY(&logical_cpus_mask) &&
-	    CPU_SUBSET(&hlt_cpus_mask, &logical_cpus_mask))
-		hlt_logical_cpus = 1;
-	else
-		hlt_logical_cpus = 0;
-
-	if (CPU_SUBSET(&hlt_cpus_mask, &all_cpus))
-		CPU_CLR(0, &hlt_cpus_mask);
-
-	hyperthreading_allowed = allowed;
-	return (error);
-}
-
-static void
-cpu_hlt_setup(void *dummy __unused)
-{
-
-	if (!CPU_EMPTY(&logical_cpus_mask)) {
-		TUNABLE_INT_FETCH("machdep.hlt_logical_cpus",
-		    &hlt_logical_cpus);
-		sysctl_ctx_init(&logical_cpu_clist);
-		SYSCTL_ADD_PROC(&logical_cpu_clist,
-		    SYSCTL_STATIC_CHILDREN(_machdep), OID_AUTO,
-		    "hlt_logical_cpus", CTLTYPE_INT|CTLFLAG_RW, 0, 0,
-		    sysctl_hlt_logical_cpus, "IU", "");
-		SYSCTL_ADD_UINT(&logical_cpu_clist,
-		    SYSCTL_STATIC_CHILDREN(_machdep), OID_AUTO,
-		    "logical_cpus_mask", CTLTYPE_INT|CTLFLAG_RD,
-		    &logical_cpus_mask, 0, "");
-
-		if (hlt_logical_cpus)
-			CPU_OR(&hlt_cpus_mask, &logical_cpus_mask);
-
-		/*
-		 * If necessary for security purposes, force
-		 * hyperthreading off, regardless of the value
-		 * of hlt_logical_cpus.
-		 */
-		if (!CPU_EMPTY(&hyperthreading_cpus_mask)) {
-			SYSCTL_ADD_PROC(&logical_cpu_clist,
-			    SYSCTL_STATIC_CHILDREN(_machdep), OID_AUTO,
-			    "hyperthreading_allowed", CTLTYPE_INT|CTLFLAG_RW,
-			    0, 0, sysctl_hyperthreading_allowed, "IU", "");
-			if (! hyperthreading_allowed)
-				CPU_OR(&hlt_cpus_mask,
-				    &hyperthreading_cpus_mask);
-		}
-	}
-}
-SYSINIT(cpu_hlt, SI_SUB_SMP, SI_ORDER_ANY, cpu_hlt_setup, NULL);
-
-int
-mp_grab_cpu_hlt(void)
-{
-	cpuset_t mask;
-#ifdef MP_WATCHDOG
-	u_int cpuid;
-#endif
-	int retval;
-
-	mask = PCPU_GET(cpumask);
-#ifdef MP_WATCHDOG
-	cpuid = PCPU_GET(cpuid);
-	ap_watchdog(cpuid);
-#endif
-
-	retval = 0;
-	while (CPU_OVERLAP(&mask, &hlt_cpus_mask)) {
-		retval = 1;
-		__asm __volatile("sti; hlt" : : : "memory");
-	}
-	return (retval);
-}
 
 #ifdef COUNT_IPIS
 /*
