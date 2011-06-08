@@ -39,6 +39,7 @@
 #include <net/if.h>
 #include <netinet/in.h>
 #include <netinet/icmp6.h>
+#include <arpa/inet.h>
 
 #include <syslog.h>
 #include <time.h>
@@ -53,14 +54,16 @@ static FILE *fp;
 extern struct ifinfo *iflist;
 
 static void dump_interface_status(void);
-static const char *sec2str(time_t);
 static const char * const ifstatstr[] = {"IDLE", "DELAY", "PROBE", "DOWN", "TENTATIVE"};
 
 static void
 dump_interface_status(void)
 {
 	struct ifinfo *ifi;
+	struct rainfo *rai;
+	struct ra_opt *rao;
 	struct timeval now;
+	char ntopbuf[INET6_ADDRSTRLEN];
 
 	gettimeofday(&now, NULL);
 
@@ -91,9 +94,33 @@ dump_interface_status(void)
 			    (int)ifi->timer.tv_sec,
 			    (int)ifi->timer.tv_usec,
 			    (ifi->expire.tv_sec < now.tv_sec) ? "expired"
-			    : sec2str(ifi->expire.tv_sec - now.tv_sec));
+			    : sec2str(&ifi->expire));
 		}
 		fprintf(fp, "  number of valid RAs: %d\n", ifi->racnt);
+
+		TAILQ_FOREACH(rai, &ifi->ifi_rainfo, rai_next) {
+			fprintf(fp, "   RA from %s\n",
+			    inet_ntop(AF_INET6, &rai->rai_saddr.sin6_addr,
+				ntopbuf, sizeof(ntopbuf)));
+			TAILQ_FOREACH(rao, &rai->rai_ra_opt, rao_next) {
+				fprintf(fp, "    option: ");
+				switch (rao->rao_type) {
+				case ND_OPT_RDNSS:
+					fprintf(fp, "RDNSS: %s (expire: %s)\n",
+					    (char *)rao->rao_msg,
+					    sec2str(&rao->rao_expire));
+					break;
+				case ND_OPT_DNSSL:
+					fprintf(fp, "DNSSL: %s (expire: %s)\n",
+					    (char *)rao->rao_msg,
+					    sec2str(&rao->rao_expire));
+					break;
+				default:
+					break;
+				}
+			}
+			fprintf(fp, "\n");
+		}
 	}
 }
 
@@ -109,8 +136,8 @@ rtsold_dump_file(const char *dumpfile)
 	fclose(fp);
 }
 
-static const char *
-sec2str(time_t total)
+const char *
+sec2str(const struct timeval *total)
 {
 	static char result[256];
 	int days, hours, mins, secs;
@@ -118,11 +145,19 @@ sec2str(time_t total)
 	char *p = result;
 	char *ep = &result[sizeof(result)];
 	int n;
+	struct timeval now;
+	time_t tsec;
 
-	days = total / 3600 / 24;
-	hours = (total / 3600) % 24;
-	mins = (total / 60) % 60;
-	secs = total % 60;
+	gettimeofday(&now, NULL);
+	tsec  = total->tv_sec;
+	tsec += total->tv_usec / 1000000;
+	tsec -= now.tv_sec;
+	tsec -= now.tv_usec / 1000000;
+
+	days = tsec / 3600 / 24;
+	hours = (tsec / 3600) % 24;
+	mins = (tsec / 60) % 60;
+	secs = tsec % 60;
 
 	if (days) {
 		first = 0;
