@@ -1827,7 +1827,8 @@ pgsignal(struct pgrp *pgrp, int sig, int checkctty, ksiginfo_t *ksi)
 		PGRP_LOCK_ASSERT(pgrp, MA_OWNED);
 		LIST_FOREACH(p, &pgrp->pg_members, p_pglist) {
 			PROC_LOCK(p);
-			if (checkctty == 0 || p->p_flag & P_CONTROLT)
+			if (p->p_state == PRS_NORMAL &&
+			    (checkctty == 0 || p->p_flag & P_CONTROLT))
 				pksignal(p, sig, ksi);
 			PROC_UNLOCK(p);
 		}
@@ -3223,7 +3224,8 @@ pgsigio(sigiop, sig, checkctty)
 		PGRP_LOCK(sigio->sio_pgrp);
 		LIST_FOREACH(p, &sigio->sio_pgrp->pg_members, p_pglist) {
 			PROC_LOCK(p);
-			if (CANSIGIO(sigio->sio_ucred, p->p_ucred) &&
+			if (p->p_state == PRS_NORMAL &&
+			    CANSIGIO(sigio->sio_ucred, p->p_ucred) &&
 			    (checkctty == 0 || (p->p_flag & P_CONTROLT)))
 				psignal(p, sig);
 			PROC_UNLOCK(p);
