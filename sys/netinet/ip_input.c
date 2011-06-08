@@ -488,7 +488,7 @@ tooshort:
 	}
 #ifdef IPSEC
 	/*
-	 * Bypass packet filtering for packets from a tunnel (gif).
+	 * Bypass packet filtering for packets previously handled by IPsec.
 	 */
 	if (ip_ipsec_filtertunnel(m))
 		goto passin;
