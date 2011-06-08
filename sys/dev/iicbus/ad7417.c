@@ -51,8 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <powerpc/powermac/powermac_thermal.h>
 
-#define FCU_ZERO_C_TO_K     2732
-
 /* CPU A/B sensors, temp and adc: AD7417. */
 
 #define AD7417_TEMP         0x00
@@ -73,6 +71,16 @@ struct ad7417_sensor {
 	} type;
 };
 
+struct write_data {
+	uint8_t reg;
+	uint8_t val;
+};
+
+struct read_data {
+	uint8_t reg;
+	uint16_t val;
+};
+
 /* Regular bus attachment functions */
 static int ad7417_probe(device_t);
 static int ad7417_attach(device_t);
@@ -85,6 +93,8 @@ static int ad7417_read_1(device_t dev, uint32_t addr, uint8_t reg,
 			 uint8_t *data);
 static int ad7417_read_2(device_t dev, uint32_t addr, uint8_t reg,
 			 uint16_t *data);
+static int ad7417_write_read(device_t dev, uint32_t addr,
+			     struct write_data out, struct read_data *in);
 static int ad7417_diode_read(struct ad7417_sensor *sens);
 static int ad7417_adc_read(struct ad7417_sensor *sens);
 static int ad7417_sensor_read(struct ad7417_sensor *sens);
@@ -118,6 +128,8 @@ static int
 ad7417_write(device_t dev, uint32_t addr, uint8_t reg, uint8_t *buff, int len)
 {
 	unsigned char buf[4];
+	int try = 0;
+
 	struct iic_msg msg[] = {
 		{ addr, IIC_M_WR, 0, buf }
 	};
@@ -126,76 +138,134 @@ ad7417_write(device_t dev, uint32_t addr, uint8_t reg, uint8_t *buff, int len)
 	buf[0] = reg;
 	memcpy(buf + 1, buff, len);
 
-	if (iicbus_transfer(dev, msg, 1) != 0) {
-		device_printf(dev, "iicbus write failed\n");
-		return (EIO);
+	for (;;)
+	{
+		if (iicbus_transfer(dev, msg, 1) == 0)
+			return (0);
+
+		if (++try > 5) {
+			device_printf(dev, "iicbus write failed\n");
+			return (-1);
+		}
+		pause("ad7417_write", hz);
 	}
-
-	return (0);
-
 }
 
 static int
 ad7417_read_1(device_t dev, uint32_t addr, uint8_t reg, uint8_t *data)
 {
 	uint8_t buf[4];
+	int err, try = 0;
 
 	struct iic_msg msg[2] = {
 	    { addr, IIC_M_WR | IIC_M_NOSTOP, 1, &reg },
 	    { addr, IIC_M_RD, 1, buf },
 	};
 
-	if (iicbus_transfer(dev, msg, 2) != 0) {
-		device_printf(dev, "iicbus read failed\n");
-		return (EIO);
+	for (;;)
+	{
+		err = iicbus_transfer(dev, msg, 2);
+		if (err != 0)
+			goto retry;
+
+		*data = *((uint8_t*)buf);
+		return (0);
+	retry:
+		if (++try > 5) {
+			device_printf(dev, "iicbus read failed\n");
+			return (-1);
+		}
+		pause("ad7417_read_1", hz);
 	}
-
-	*data = *((uint8_t*)buf);
-
-	return (0);
 }
 
 static int
 ad7417_read_2(device_t dev, uint32_t addr, uint8_t reg, uint16_t *data)
 {
 	uint8_t buf[4];
+	int err, try = 0;
 
 	struct iic_msg msg[2] = {
 	    { addr, IIC_M_WR | IIC_M_NOSTOP, 1, &reg },
 	    { addr, IIC_M_RD, 2, buf },
 	};
 
-	if (iicbus_transfer(dev, msg, 2) != 0) {
-		device_printf(dev, "iicbus read failed\n");
-		return (EIO);
+	for (;;)
+	{
+		err = iicbus_transfer(dev, msg, 2);
+		if (err != 0)
+			goto retry;
+
+		*data = *((uint16_t*)buf);
+		return (0);
+	retry:
+		if (++try > 5) {
+			device_printf(dev, "iicbus read failed\n");
+			return (-1);
+		}
+		pause("ad7417_read_2", hz);
 	}
+}
 
-	*data = *((uint16_t*)buf);
+static int
+ad7417_write_read(device_t dev, uint32_t addr, struct write_data out,
+		  struct read_data *in)
+{
+	uint8_t buf[4];
+	int err, try = 0;
 
-	return (0);
+	/* Do a combined write/read. */
+	struct iic_msg msg[3] = {
+	    { addr, IIC_M_WR, 2, buf },
+	    { addr, IIC_M_WR | IIC_M_NOSTOP, 1, &in->reg },
+	    { addr, IIC_M_RD, 2, buf },
+	};
+
+	/* Prepare the write msg. */
+	buf[0] = out.reg;
+	buf[1] = out.val & 0xff;
+
+	for (;;)
+	{
+		err = iicbus_transfer(dev, msg, 3);
+		if (err != 0)
+			goto retry;
+
+		in->val = *((uint16_t*)buf);
+		return (0);
+	retry:
+		if (++try > 5) {
+			device_printf(dev, "iicbus write/read failed\n");
+			return (-1);
+		}
+		pause("ad7417_write_read", hz);
+	}
 }
 
 static int
 ad7417_init_adc(device_t dev, uint32_t addr)
 {
 	uint8_t buf;
+	int err;
 
 	adc741x_config = 0;
 	/* Clear Config2 */
 	buf = 0;
-	ad7417_write(dev, addr, AD7417_CONFIG2, &buf, 1);
+
+	err = ad7417_write(dev, addr, AD7417_CONFIG2, &buf, 1);
 
 	 /* Read & cache Config1 */
 	buf = 0;
-	ad7417_write(dev, addr, AD7417_CONFIG, &buf, 1);
-
-	ad7417_read_1(dev, addr, AD7417_CONFIG, &buf);
+	err = ad7417_write(dev, addr, AD7417_CONFIG, &buf, 1);
+	err = ad7417_read_1(dev, addr, AD7417_CONFIG, &buf);
 	adc741x_config = (uint8_t)buf;
 
 	/* Disable shutdown mode */
 	adc741x_config &= 0xfe;
 	buf = adc741x_config;
-	ad7417_write(dev, addr, AD7417_CONFIG, &buf, 1);
+	err = ad7417_write(dev, addr, AD7417_CONFIG, &buf, 1);
+	if (err < 0)
+		return (-1);
 
 	return (0);
 
@@ -300,8 +370,8 @@ ad7417_fill_sensor_prop(device_t dev)
 			continue;
 
 		/* Make up some ranges */
-		sc->sc_sensors[j].therm.target_temp = 500 + 2732;
-		sc->sc_sensors[j].therm.max_temp = 900 + 2732;
+		sc->sc_sensors[j].therm.target_temp = 500 + ZERO_C_TO_K;
+		sc->sc_sensors[j].therm.max_temp = 900 + ZERO_C_TO_K;
 		
 		pmac_thermal_sensor_register(&sc->sc_sensors[j].therm);
 	}
@@ -391,8 +461,13 @@ ad7417_get_temp(device_t dev, uint32_t addr, int *temp)
 {
 	uint16_t buf[2];
 	uint16_t read;
+	int err;
 
-	ad7417_read_2(dev, addr, AD7417_TEMP, buf);
+	err = ad7417_read_2(dev, addr, AD7417_TEMP, buf);
+
+	if (err < 0)
+		return (-1);
+
 	read = *((int16_t*)buf);
 
 	/* The ADC is 10 bit, the resolution is 0.25 C.
@@ -406,22 +481,25 @@ static int
 ad7417_get_adc(device_t dev, uint32_t addr, unsigned int *value,
 	       uint8_t chan)
 {
-	uint8_t cfg1, tmp;
-	uint16_t read, buf[2];
-
-	ad7417_read_1(dev, addr, AD7417_CONFIG, &cfg1);
+	uint8_t tmp;
+	int err;
+	struct write_data config;
+	struct read_data data;
 
 	tmp = chan << 5;
+	config.reg = AD7417_CONFIG;
+	data.reg = AD7417_ADC;
+	data.val = 0;
 
-	cfg1 = (cfg1 & ~AD7417_CONFMASK) | (tmp & AD7417_CONFMASK);
+	err = ad7417_read_1(dev, addr, AD7417_CONFIG, &config.val);
 
-	ad7417_write(dev, addr, AD7417_CONFIG, &cfg1, 1);
+	config.val = (config.val & ~AD7417_CONFMASK) | (tmp & AD7417_CONFMASK);
 
-	ad7417_read_2(dev, addr, AD7417_ADC, buf);
+	err = ad7417_write_read(dev, addr, config, &data);
+	if (err < 0)
+		return (-1);
 
-	read = *((uint16_t*)buf);
-
-	*value = ((uint32_t)read) >> 6;
+	*value = ((uint32_t)data.val) >> 6;
 
 	return (0);
 }
@@ -444,6 +522,9 @@ ad7417_diode_read(struct ad7417_sensor *sens)
 	}
 
 	rawval = ad7417_adc_read(sens);
+	if (rawval < 0)
+		return (-1);
+
 	if (strstr(sens->therm.name, "CPU B") != NULL) {
 		diode_slope = eeprom[1][0x11] >> 16;
 		diode_offset = (int16_t)(eeprom[1][0x11] & 0xffff) << 12;
@@ -455,7 +536,7 @@ ad7417_diode_read(struct ad7417_sensor *sens)
 	temp = (rawval*diode_slope + diode_offset) >> 2;
 	temp = (10*(temp >> 16)) + ((10*(temp & 0xffff)) >> 16);
 	
-	return (temp + FCU_ZERO_C_TO_K);
+	return (temp + ZERO_C_TO_K);
 }
 
 static int
@@ -488,7 +569,8 @@ ad7417_adc_read(struct ad7417_sensor *sens)
 		chan = 1;
 	}
 
-	ad7417_get_adc(sc->sc_dev, sc->sc_addr, &temp, chan);
+	if (ad7417_get_adc(sc->sc_dev, sc->sc_addr, &temp, chan) < 0)
+		return (-1);
 
 	return (temp);
 }
@@ -503,11 +585,13 @@ ad7417_sensor_read(struct ad7417_sensor *sens)
 	sc = device_get_softc(sens->dev);
 
 	/* Init the ADC. */
-	ad7417_init_adc(sc->sc_dev, sc->sc_addr);
+	if (ad7417_init_adc(sc->sc_dev, sc->sc_addr) < 0)
+		return (-1);
 
 	if (sens->type == ADC7417_TEMP_SENSOR) {
-		ad7417_get_temp(sc->sc_dev, sc->sc_addr, &temp);
-		temp += FCU_ZERO_C_TO_K;
+		if (ad7417_get_temp(sc->sc_dev, sc->sc_addr, &temp) < 0)
+			return (-1);
+		temp += ZERO_C_TO_K;
 	} else {
 		temp = ad7417_adc_read(sens);
 	}
