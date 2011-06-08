@@ -1197,8 +1197,14 @@
 .  if !\n[doc-arg-limit] \
 .    ds doc-macro-name Aq
 .
-.  ds doc-quote-left <
-.  ds doc-quote-right >
+.  ie "\*[doc-macro-name]"An" \{\
+.    ds doc-quote-left <
+.    ds doc-quote-right >
+.  \}
+.  el \{\
+.    ds doc-quote-left \[la]
+.    ds doc-quote-right \[ra]
+.  \}
 .
 .  doc-enclose-string \$@
 ..
@@ -1527,7 +1533,10 @@
 .  if !\n[doc-arg-limit] \
 .    ds doc-macro-name Ao
 .
-.  ds doc-quote-left \[la]
+.  ie "\*[doc-macro-name]"An" \
+.    ds doc-quote-left <
+.  el \
+.    ds doc-quote-left \[la]
 .
 .  doc-enclose-open \$@
 ..
@@ -1546,7 +1555,10 @@
 .  if !\n[doc-arg-limit] \
 .    ds doc-macro-name Ac
 .
-.  ds doc-quote-right \[ra]
+.  ie "\*[doc-macro-name]"An" \
+.    ds doc-quote-right >
+.  el \
+.    ds doc-quote-right \[ra]
 .
 .  doc-enclose-close \$@
 ..
