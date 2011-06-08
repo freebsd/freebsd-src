@@ -195,6 +195,7 @@ struct sysentvec svr4_sysvec = {
 	.sv_set_syscall_retval = cpu_set_syscall_retval,
 	.sv_fetch_syscall_args = cpu_fetch_syscall_args,
 	.sv_syscallnames = NULL,
+	.sv_schedtail	= NULL,
 };
 
 const char      svr4_emul_path[] = "/compat/svr4";

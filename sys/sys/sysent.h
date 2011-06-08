@@ -108,6 +108,7 @@ struct sysentvec {
 	int		(*sv_fetch_syscall_args)(struct thread *, struct
 			    syscall_args *);
 	const char	**sv_syscallnames;
+	void		(*sv_schedtail)(struct thread *);
 };
 
 #define	SV_ILP32	0x000100

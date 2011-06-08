@@ -237,6 +237,4 @@ typedef void (*uma_zone_chfn)(void *);
 EVENTHANDLER_DECLARE(nmbclusters_change, uma_zone_chfn);
 EVENTHANDLER_DECLARE(maxsockets_change, uma_zone_chfn);
 
-typedef void(*schedtail_fn)(void *, struct proc *);
-EVENTHANDLER_DECLARE(schedtail, schedtail_fn);
 #endif /* SYS_EVENTHANDLER_H */

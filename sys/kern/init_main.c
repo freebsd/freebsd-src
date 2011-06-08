@@ -375,6 +375,7 @@ struct sysentvec null_sysvec = {
 	.sv_set_syscall_retval = null_set_syscall_retval,
 	.sv_fetch_syscall_args = null_fetch_syscall_args,
 	.sv_syscallnames = NULL,
+	.sv_schedtail	= NULL,
 };
 
 /*
