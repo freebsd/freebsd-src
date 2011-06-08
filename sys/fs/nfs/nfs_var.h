@@ -370,7 +370,7 @@ int nfsrpc_readlink(vnode_t, struct uio *, struct ucred *,
     NFSPROC_T *, struct nfsvattr *, int *, void *);
 int nfsrpc_read(vnode_t, struct uio *, struct ucred *, NFSPROC_T *,
     struct nfsvattr *, int *, void *);
-int nfsrpc_write(vnode_t, struct uio *, int *, u_char *,
+int nfsrpc_write(vnode_t, struct uio *, int *, int *,
     struct ucred *, NFSPROC_T *, struct nfsvattr *, int *, void *, int);
 int nfsrpc_mknod(vnode_t, char *, int, struct vattr *, u_int32_t,
     enum vtype, struct ucred *, NFSPROC_T *, struct nfsvattr *,
