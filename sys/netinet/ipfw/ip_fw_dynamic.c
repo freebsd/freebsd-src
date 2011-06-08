@@ -753,11 +753,12 @@ ipfw_install_state(struct ip_fw *rule, ipfw_insn_limit *cmd,
 	q = lookup_dyn_rule_locked(&args->f_id, NULL, NULL);
 
 	if (q != NULL) {	/* should never occur */
+		DEB(
 		if (last_log != time_uptime) {
 			last_log = time_uptime;
 			printf("ipfw: %s: entry already present, done\n",
 			    __func__);
-		}
+		})
 		IPFW_DYN_UNLOCK();
 		return (0);
 	}
