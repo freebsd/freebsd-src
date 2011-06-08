@@ -106,7 +106,7 @@ static const char _rcsid[] = "$KAME: route6d.c,v 1.104 2003/10/31 00:30:20 itoju
 
 struct	ifc {			/* Configuration of an interface */
 	char	ifc_name[IFNAMSIZ];		/* if name */
-	TAILQ_ENTRY(ifc) ifc_next;
+	struct	ifc *ifc_next;
 	int	ifc_index;			/* if index */
 	int	ifc_mtu;			/* if mtu */
 	int	ifc_metric;			/* if metric */
@@ -120,7 +120,7 @@ struct	ifc {			/* Configuration of an interface */
 
 struct	ifac {			/* Adddress associated to an interface */ 
 	struct	ifc *ifa_conf;		/* back pointer */
-	TAILQ_ENTRY(ifac) ifa_next;
+	struct	ifac *ifa_next;
 	struct	in6_addr ifa_addr;	/* address */
 	struct	in6_addr ifa_raddr;	/* remote address, valid in p2p */
 	int	ifa_plen;		/* prefix length */
@@ -134,10 +134,8 @@ struct	iff {
 	struct	iff *iff_next;
 };
 
-TAILQ_HEAD(, ifc) ifc = 
-    TAILQ_HEAD_INITIALIZER(ifc);
-TAILQ_HEAD(, iff) iff_head =
-    TAILQ_HEAD_INITIALIZER(iff_head);
+struct	ifc *ifc;
+struct  iff *iff_head;
 int	nifc;		/* number of valid ifc's */
 struct	ifc **index2ifc;
 unsigned int	nindex2ifc;
@@ -168,7 +166,7 @@ struct	rip6 *ripbuf;	/* packet buffer for sending */
  */
 
 struct	riprt {
-	TAILQ_ENTRY(riprt) rrt_next;	/* next destination */
+	struct	riprt *rrt_next;	/* next destination */
 	struct	riprt *rrt_same;	/* same destination - future use */
 	struct	netinfo6 rrt_info;	/* network info */
 	struct	in6_addr rrt_gw;	/* gateway */
