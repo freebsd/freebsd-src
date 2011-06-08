@@ -124,6 +124,7 @@ main(int argc, char **argv)
 	int maxfd;
 #endif
 	int rtsock;
+	char *argv0;
 
 #ifndef SMALL
 	/* rtsold */
@@ -134,6 +135,8 @@ main(int argc, char **argv)
 	fflag = 1;
 	once = 1;
 #endif
+	argv0 = argv[0];
+
 	while ((ch = getopt(argc, argv, opts)) != -1) {
 		switch (ch) {
 		case 'a':
@@ -185,9 +188,9 @@ main(int argc, char **argv)
 	if (!fflag) {
 		char *ident;
 
-		ident = strrchr(argv[0], '/');
+		ident = strrchr(argv0, '/');
 		if (!ident)
-			ident = argv[0];
+			ident = argv0;
 		else
 			ident++;
 		openlog(ident, LOG_NDELAY|LOG_PID, LOG_DAEMON);
