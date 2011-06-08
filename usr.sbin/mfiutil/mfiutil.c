@@ -60,6 +60,7 @@ usage(void)
 	fprintf(stderr, "    show firmware             - list firmware images\n");
 	fprintf(stderr, "    show volumes              - list logical volumes\n");
 	fprintf(stderr, "    show patrol               - display patrol read status\n");
+	fprintf(stderr, "    show progress             - display status of active operations\n");
 	fprintf(stderr, "    fail <drive>              - fail a physical drive\n");
 	fprintf(stderr, "    good <drive>              - mark a bad physical drive as good\n");
 	fprintf(stderr, "    rebuild <drive>           - mark failed drive ready for rebuild\n");
