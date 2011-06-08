@@ -22,6 +22,23 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 9.x IS SLOW:
 	machines to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20110608:
+	The following sysctls and tunables are retired on x86 platforms:
+		machdep.hlt_cpus
+		machdep.hlt_logical_cpus
+	The following sysctl is retired:
+		machdep.hyperthreading_allowed
+	The sysctls were supposed to provide a way to dynamically offline and
+	online selected CPUs on x86 platforms, but the implementation has not
+	been reliable especially with SCHED_ULE scheduler.
+	machdep.hyperthreading_allowed tunable is still available to ignore
+	hyperthreading CPUs at OS level.
+	Individual CPUs can be disabled using hint.lapic.X.disabled tunable,
+	where X is an APIC ID of a CPU.  Be advised, though, that disabling
+	CPUs in non-uniform fashion will result in non-uniform topology and
+	may lead to sub-optimal system performance with SCHED_ULE, which is
+	a default scheduler.
+
 20110607:
 	cpumask_t type is retired and cpuset_t is used in order to describe
 	a mask of CPUs.
