@@ -166,9 +166,6 @@ tsc_freq_vmware(void)
 			tsc_freq = regs[0] | ((uint64_t)regs[1] << 32);
 	}
 	tsc_is_invariant = 1;
-#ifdef SMP
-	smp_tsc = 1;	/* XXX */
-#endif
 	return (1);
 }
 
