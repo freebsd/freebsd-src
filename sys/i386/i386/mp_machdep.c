@@ -223,11 +223,34 @@ mem_range_AP_init(void)
 static void
 topo_probe_amd(void)
 {
+	int core_id_bits;
+	int id;
 
 	/* AMD processors do not support HTT. */
-	cpu_cores = (amd_feature2 & AMDID2_CMP) != 0 ?
-	    (cpu_procinfo2 & AMDID_CMP_CORES) + 1 : 1;
 	cpu_logical = 1;
+
+	if ((amd_feature2 & AMDID2_CMP) == 0) {
+		cpu_cores = 1;
+		return;
+	}
+
+	core_id_bits = (cpu_procinfo2 & AMDID_COREID_SIZE) >>
+	    AMDID_COREID_SIZE_SHIFT;
+	if (core_id_bits == 0) {
+		cpu_cores = (cpu_procinfo2 & AMDID_CMP_CORES) + 1;
+		return;
+	}
+
+	/* Fam 10h and newer should get here. */
+	for (id = 0; id <= MAX_APIC_ID; id++) {
+		/* Check logical CPU availability. */
+		if (!cpu_info[id].cpu_present || cpu_info[id].cpu_disabled)
+			continue;
+		/* Check if logical CPU has the same package ID. */
+		if ((id >> core_id_bits) != (boot_cpu_id >> core_id_bits))
+			continue;
+		cpu_cores++;
+	}
 }
 
 /*
