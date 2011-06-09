@@ -174,12 +174,14 @@ volume_cache(int ac, char **av)
 	if (mfi_lookup_volume(fd, av[1], &target_id) < 0) {
 		error = errno;
 		warn("Invalid volume: %s", av[1]);
+		close(fd);
 		return (error);
 	}
 
 	if (mfi_ld_get_props(fd, target_id, &props) < 0) {
 		error = errno;
 		warn("Failed to fetch volume properties");
+		close(fd);
 		return (error);
 	}
 
@@ -264,6 +266,7 @@ volume_cache(int ac, char **av)
 		else if (strcmp(av[2], "read-ahead") == 0) {
 			if (ac < 4) {
 				warnx("cache: read-ahead setting required");
+				close(fd);
 				return (EINVAL);
 			}
 			if (strcmp(av[3], "none") == 0)
@@ -275,6 +278,7 @@ volume_cache(int ac, char **av)
 				    MR_LD_CACHE_READ_ADAPTIVE;
 			else {
 				warnx("cache: invalid read-ahead setting");
+				close(fd);
 				return (EINVAL);
 			}
 			error = update_cache_policy(fd, &props, policy,
@@ -283,6 +287,7 @@ volume_cache(int ac, char **av)
 		} else if (strcmp(av[2], "bad-bbu-write-cache") == 0) {
 			if (ac < 4) {
 				warnx("cache: bad BBU setting required");
+				close(fd);
 				return (EINVAL);
 			}
 			if (strcmp(av[3], "enable") == 0)
@@ -291,6 +296,7 @@ volume_cache(int ac, char **av)
 				policy = 0;
 			else {
 				warnx("cache: invalid bad BBU setting");
+				close(fd);
 				return (EINVAL);
 			}
 			error = update_cache_policy(fd, &props, policy,
@@ -298,6 +304,7 @@ volume_cache(int ac, char **av)
 		} else if (strcmp(av[2], "write-cache") == 0) {
 			if (ac < 4) {
 				warnx("cache: write-cache setting required");
+				close(fd);
 				return (EINVAL);
 			}
 			if (strcmp(av[3], "enable") == 0)
@@ -308,6 +315,7 @@ volume_cache(int ac, char **av)
 				policy = MR_PD_CACHE_UNCHANGED;
 			else {
 				warnx("cache: invalid write-cache setting");
+				close(fd);
 				return (EINVAL);
 			}
 			error = 0;
@@ -331,6 +339,7 @@ volume_cache(int ac, char **av)
 			}
 		} else {
 			warnx("cache: Invalid command");
+			close(fd);
 			return (EINVAL);
 		}
 	}
@@ -367,12 +376,14 @@ volume_name(int ac, char **av)
 	if (mfi_lookup_volume(fd, av[1], &target_id) < 0) {
 		error = errno;
 		warn("Invalid volume: %s", av[1]);
+		close(fd);
 		return (error);
 	}
 
 	if (mfi_ld_get_props(fd, target_id, &props) < 0) {
 		error = errno;
 		warn("Failed to fetch volume properties");
+		close(fd);
 		return (error);
 	}
 
@@ -383,6 +394,7 @@ volume_name(int ac, char **av)
 	if (mfi_ld_set_props(fd, &props) < 0) {
 		error = errno;
 		warn("Failed to set volume properties");
+		close(fd);
 		return (error);
 	}
 
@@ -415,6 +427,7 @@ volume_progress(int ac, char **av)
 	if (mfi_lookup_volume(fd, av[1], &target_id) < 0) {
 		error = errno;
 		warn("Invalid volume: %s", av[1]);
+		close(fd);
 		return (error);
 	}
 
@@ -423,6 +436,7 @@ volume_progress(int ac, char **av)
 		error = errno;
 		warn("Failed to fetch info for volume %s",
 		    mfi_volume_name(fd, target_id));
+		close(fd);
 		return (error);
 	}
 
