@@ -745,8 +745,9 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 	/* Print the command if xflag is set. */
 	if (xflag) {
 		char sep = 0;
-		const char *p;
-		out2str(ps4val());
+		const char *p, *ps4;
+		ps4 = expandstr(ps4val());
+		out2str(ps4 != NULL ? ps4 : ps4val());
 		for (sp = varlist.list ; sp ; sp = sp->next) {
 			if (sep != 0)
 				out2c(' ');
