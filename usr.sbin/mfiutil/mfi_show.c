@@ -71,6 +71,7 @@ show_adapter(int ac, char **av)
 	if (mfi_ctrl_get_info(fd, &info, NULL) < 0) {
 		error = errno;
 		warn("Failed to get controller info");
+		close(fd);
 		return (error);
 	}
 	printf("mfi%d Adapter:\n", mfi_unit);
@@ -158,10 +159,12 @@ show_battery(int ac, char **av)
 	    sizeof(cap), NULL, 0, &status) < 0) {
 		if (status == MFI_STAT_NO_HW_PRESENT) {
 			printf("mfi%d: No battery present\n", mfi_unit);
+			close(fd);
 			return (0);
 		}
 		error = errno;
 		warn("Failed to get capacity info");
+		close(fd);
 		return (error);
 	}
 
@@ -169,6 +172,7 @@ show_battery(int ac, char **av)
 	    sizeof(design), NULL, 0, NULL) < 0) {
 		error = errno;
 		warn("Failed to get design info");
+		close(fd);
 		return (error);
 	}
 
@@ -176,6 +180,7 @@ show_battery(int ac, char **av)
 	    NULL, 0, NULL) < 0) {
 		error = errno;
 		warn("Failed to get status");
+		close(fd);
 		return (error);
 	}
 
@@ -308,6 +313,7 @@ show_config(int ac, char **av)
 	if (mfi_config_read(fd, &config) < 0) {
 		error = errno;
 		warn("Failed to get config");
+		close(fd);
 		return (error);
 	}
 
@@ -376,6 +382,7 @@ show_config(int ac, char **av)
 			printf("\n");
 		p += config->spares_size;
 	}
+	free(config);
 	close(fd);
 
 	return (0);
@@ -406,6 +413,7 @@ show_volumes(int ac, char **av)
 	if (mfi_ld_get_list(fd, &list, NULL) < 0) {
 		error = errno;
 		warn("Failed to get volume list");
+		close(fd);
 		return (error);
 	}
 
@@ -431,6 +439,7 @@ show_volumes(int ac, char **av)
 			error = errno;
 			warn("Failed to get info for volume %d",
 			    list.ld_list[i].ld.v.target_id);
+			close(fd);
 			return (error);
 		}
 		printf("%6s ",
@@ -483,10 +492,11 @@ show_drives(int ac, char **av)
 		return (error);
 	}
 
+	list = NULL;
 	if (mfi_pd_get_list(fd, &list, NULL) < 0) {
 		error = errno;
 		warn("Failed to get drive list");
-		return (error);
+		goto error;
 	}
 
 	/* Walk the list of drives to determine width of state column. */
@@ -500,7 +510,7 @@ show_drives(int ac, char **av)
 			error = errno;
 			warn("Failed to fetch info for drive %u",
 			    list->addr[i].device_id);
-			return (error);
+			goto error;
 		}
 		len = strlen(mfi_pdstate(info.fw_state));
 		if (len > state_len)
@@ -521,15 +531,17 @@ show_drives(int ac, char **av)
 			error = errno;
 			warn("Failed to fetch info for drive %u",
 			    list->addr[i].device_id);
-			return (error);
+			goto error;
 		}
 
 		print_pd(&info, state_len, 1);
 		printf("\n");
 	}
+error:
+	free(list);
 	close(fd);
 
-	return (0);
+	return (error);
 }
 MFI_COMMAND(show, drives, show_drives);
 
@@ -586,6 +598,7 @@ show_firmware(int ac, char **av)
 	if (mfi_ctrl_get_info(fd, &info, NULL) < 0) {
 		error = errno;
 		warn("Failed to get controller info");
+		close(fd);
 		return (error);
 	}
 
@@ -627,7 +640,6 @@ show_progress(int ac, char **av)
 	struct mfi_pd_info pinfo;
 	int busy, error, fd;
 	u_int i;
-	
 	uint16_t device_id;
 	uint8_t target_id;
 
@@ -642,25 +654,29 @@ show_progress(int ac, char **av)
 		warn("mfi_open");
 		return (error);
 	}
-	busy = 0;
 
 	if (mfi_ld_get_list(fd, &llist, NULL) < 0) {
 		error = errno;
 		warn("Failed to get volume list");
+		close(fd);
 		return (error);
 	}
 	if (mfi_pd_get_list(fd, &plist, NULL) < 0) {
 		error = errno;
 		warn("Failed to get drive list");
+		close(fd);
 		return (error);
 	}
 
+	busy = 0;
 	for (i = 0; i < llist.ld_count; i++) {
 		target_id = llist.ld_list[i].ld.v.target_id;
 		if (mfi_ld_get_info(fd, target_id, &linfo, NULL) < 0) {
 			error = errno;
 			warn("Failed to get info for volume %s",
 			    mfi_volume_name(fd, target_id));
+			free(plist);
+			close(fd);
 			return (error);
 		}
 		if (linfo.progress.active & MFI_LD_PROGRESS_CC) {
@@ -697,6 +713,8 @@ show_progress(int ac, char **av)
 		if (mfi_pd_get_info(fd, device_id, &pinfo, NULL) < 0) {
 			error = errno;
 			warn("Failed to fetch info for drive %u", device_id);
+			free(plist);
+			close(fd);
 			return (error);
 		}
 
@@ -718,6 +736,7 @@ show_progress(int ac, char **av)
 		}
 	}
 
+	free(plist);
 	close(fd);
 
 	if (!busy)
