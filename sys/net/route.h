@@ -325,7 +325,6 @@ struct rt_addrinfo {
 #define	RT_LOCK_INIT(_rt) \
 	mtx_init(&(_rt)->rt_mtx, "rtentry", NULL, MTX_DEF | MTX_DUPOK)
 #define	RT_LOCK(_rt)		mtx_lock(&(_rt)->rt_mtx)
-#define	RT_TRYLOCK(_rt)		mtx_trylock(&(_rt)->rt_mtx)
 #define	RT_UNLOCK(_rt)		mtx_unlock(&(_rt)->rt_mtx)
 #define	RT_LOCK_DESTROY(_rt)	mtx_destroy(&(_rt)->rt_mtx)
 #define	RT_LOCK_ASSERT(_rt)	mtx_assert(&(_rt)->rt_mtx, MA_OWNED)
@@ -358,22 +357,6 @@ struct rt_addrinfo {
 #define	RTFREE(_rt) do {					\
 	RT_LOCK(_rt);						\
 	RTFREE_LOCKED(_rt);					\
-} while (0)
-
-#define RT_TEMP_UNLOCK(_rt) do {				\
-	RT_ADDREF(_rt);						\
-	RT_UNLOCK(_rt);						\
-} while (0)
-
-#define RT_RELOCK(_rt) do {					\
-	RT_LOCK(_rt);						\
-	if ((_rt)->rt_refcnt <= 1) {				\
-		rtfree(_rt);					\
-		_rt = 0; /*  signal that it went away */	\
-	} else {						\
-		RT_REMREF(_rt);					\
-		/* note that _rt is still valid */		\
-	}							\
 } while (0)
 
 struct radix_node_head *rt_tables_get_rnh(int, int);
