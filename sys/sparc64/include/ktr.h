@@ -40,16 +40,6 @@
 
 #else
 
-#define	AND(var, mask, r1, r2) \
-	SET(var, r2, r1) ; \
-	lduw	[r1], r2 ; \
-	and	r2, mask, r1
-
-#define	TEST(var, mask, r1, r2, l1) \
-	AND(var, mask, r1, r2) ; \
-	brz	r1, l1 ## f ; \
-	 nop
-
 /*
  * XXX could really use another register...
  */
@@ -79,15 +69,37 @@ l2:	add	r2, 1, r3 ; \
 	SET(l1 ## b, r3, r2) ; \
 	stx	r2, [r1 + KTR_DESC]
 
+/*
+ * NB: this clobbers %y.
+ */
 #define CATR(mask, desc, r1, r2, r3, l1, l2, l3) \
 	set	mask, r1 ; \
-	TEST(ktr_mask, r1, r2, r2, l3) ; \
-	lduw	[PCPU(MID)], r1 ; \
+	SET(ktr_mask, r3, r2) ; \
+	lduw	[r2], r2 ; \
+	and	r2, r1, r1 ; \
+	brz	r1, l3 ## f ; \
+	 nop ; \
+	lduw	[PCPU(CPUID)], r2 ; \
+	mov	_NCPUBITS, r3 ; \
+	mov	%g0, %y ; \
+	udiv	r2, r3, r2 ; \
+	srl	r2, 0, r2 ; \
+	sllx	r2, PTR_SHIFT, r2 ; \
+	SET(ktr_cpumask, r3, r1) ; \
+	ldx	[r1 + r2], r1 ; \
+	lduw	[PCPU(CPUID)], r2 ; \
+	mov	_NCPUBITS, r3 ; \
+	mov	%g0, %y ; \
+	udiv	r2, r3, r2 ; \
+	srl	r2, 0, r2 ; \
+	smul	r2, r3, r3 ; \
+	lduw	[PCPU(CPUID)], r2 ; \
+	sub	r2, r3, r3 ; \
 	mov	1, r2 ; \
-	sllx	r2, r1, r1 ; \
-#ifdef notyet \
-	TEST(ktr_cpumask, r1, r2, r3, l3) ; \
-#endif \
+	sllx	r2, r3, r2 ; \
+	andn	r1, r2, r1 ; \
+	brz	r1, l3 ## f ; \
+	 nop ; \
 	ATR(desc, r1, r2, r3, l1, l2)
 
 #endif /* LOCORE */

@@ -44,6 +44,7 @@
 #include <netinet/in.h>
 #include <netinet/icmp6.h>
 #include <netinet/in_var.h>
+#include <arpa/inet.h>
 
 #include <netinet6/nd6.h>
 
@@ -124,6 +125,7 @@ main(int argc, char **argv)
 	int maxfd;
 #endif
 	int rtsock;
+	char *argv0;
 
 #ifndef SMALL
 	/* rtsold */
@@ -134,6 +136,8 @@ main(int argc, char **argv)
 	fflag = 1;
 	once = 1;
 #endif
+	argv0 = argv[0];
+
 	while ((ch = getopt(argc, argv, opts)) != -1) {
 		switch (ch) {
 		case 'a':
@@ -185,9 +189,9 @@ main(int argc, char **argv)
 	if (!fflag) {
 		char *ident;
 
-		ident = strrchr(argv[0], '/');
+		ident = strrchr(argv0, '/');
 		if (!ident)
-			ident = argv[0];
+			ident = argv0;
 		else
 			ident++;
 		openlog(ident, LOG_NDELAY|LOG_PID, LOG_DAEMON);
@@ -405,7 +409,9 @@ ifconfig(char *ifname)
 	}
 	memset(ifi, 0, sizeof(*ifi));
 	ifi->sdl = sdl;
-
+	ifi->ifi_rdnss = IFI_DNSOPT_STATE_NOINFO;
+	ifi->ifi_dnssl = IFI_DNSOPT_STATE_NOINFO;
+	TAILQ_INIT(&ifi->ifi_rainfo);
 	strlcpy(ifi->ifname, ifname, sizeof(ifi->ifname));
 
 	/* construct a router solicitation message */
@@ -497,6 +503,19 @@ ifreconfig(char *ifname)
 }
 #endif
 
+struct rainfo *
+find_rainfo(struct ifinfo *ifi, struct sockaddr_in6 *sin6)
+{
+	struct rainfo *rai;
+
+	TAILQ_FOREACH(rai, &ifi->ifi_rainfo, rai_next)
+		if (memcmp(&rai->rai_saddr.sin6_addr, &sin6->sin6_addr,
+		    sizeof(rai->rai_saddr.sin6_addr)) == 0)
+			return (rai);
+
+	return (NULL);
+}
+
 struct ifinfo *
 find_ifinfo(int ifindex)
 {
@@ -553,6 +572,7 @@ rtsol_check_timer(void)
 	static struct timeval returnval;
 	struct timeval now, rtsol_timer;
 	struct ifinfo *ifi;
+	struct rainfo *rai;
 	struct ra_opt *rao;
 	int flags;
 
@@ -562,18 +582,21 @@ rtsol_check_timer(void)
 
 	TAILQ_FOREACH(ifi, &ifinfo_head, ifi_next) {
 		if (timercmp(&ifi->expire, &now, <=)) {
-			if (dflag > 1)
-				warnmsg(LOG_DEBUG, __func__,
-				    "timer expiration on %s, "
-				    "state = %d", ifi->ifname,
-				    ifi->state);
+			warnmsg(LOG_DEBUG, __func__, "timer expiration on %s, "
+			    "state = %d", ifi->ifname, ifi->state);
 
-			/* Remove all RA options. */
-			while ((rao = TAILQ_FIRST(&ifi->ifi_ra_opt)) != NULL) {
-				if (rao->rao_msg != NULL)
-					free(rao->rao_msg);
-				TAILQ_REMOVE(&ifi->ifi_ra_opt, rao, rao_next);
-				free(rao);
+			while((rai = TAILQ_FIRST(&ifi->ifi_rainfo)) != NULL) {
+				/* Remove all RA options. */
+				TAILQ_REMOVE(&ifi->ifi_rainfo, rai, rai_next);
+				while ((rao = TAILQ_FIRST(&rai->rai_ra_opt)) !=
+				    NULL) {
+					TAILQ_REMOVE(&rai->rai_ra_opt, rao,
+					    rao_next);
+					if (rao->rao_msg != NULL)
+						free(rao->rao_msg);
+					free(rao);
+				}
+				free(rai);
 			}
 			switch (ifi->state) {
 			case IFS_DOWN:
@@ -642,21 +665,27 @@ rtsol_check_timer(void)
 			rtsol_timer_update(ifi);
 		} else {
 			/* Expiration check for RA options. */
-			struct ra_opt *rao_tmp;
 			int expire = 0;
 
-			TAILQ_FOREACH_SAFE(rao, &ifi->ifi_ra_opt, rao_next, rao_tmp) {
-				warnmsg(LOG_DEBUG, __func__,
-					"RA expiration timer: "
-					"type=%d, msg=%s, timer=%ld:%08ld",
-					rao->rao_type, (char *)rao->rao_msg,
-					(long)rao->rao_expire.tv_sec,
-					(long)rao->rao_expire.tv_usec);
-				if (timercmp(&now, &rao->rao_expire, >=)) {
+			TAILQ_FOREACH(rai, &ifi->ifi_rainfo, rai_next) {
+				TAILQ_FOREACH(rao, &rai->rai_ra_opt, rao_next) {
 					warnmsg(LOG_DEBUG, __func__,
-						"RA expiration timer: expired.");
-					TAILQ_REMOVE(&ifi->ifi_ra_opt, rao, rao_next);
-					expire = 1;
+					    "RA expiration timer: "
+					    "type=%d, msg=%s, expire=%s",
+					    rao->rao_type, (char *)rao->rao_msg,
+						sec2str(&rao->rao_expire));
+					if (timercmp(&now, &rao->rao_expire,
+					    >=)) {
+						warnmsg(LOG_DEBUG, __func__,
+						    "RA expiration timer: "
+						    "expired.");
+						TAILQ_REMOVE(&rai->rai_ra_opt,
+						    rao, rao_next);
+						if (rao->rao_msg != NULL)
+							free(rao->rao_msg);
+						free(rao);
+						expire = 1;
+					}
 				}
 			}
 			if (expire)
@@ -675,9 +704,10 @@ rtsol_check_timer(void)
 	else
 		timersub(&rtsol_timer, &now, &returnval);
 
-	if (dflag > 1)
-		warnmsg(LOG_DEBUG, __func__, "New timer is %ld:%08ld",
-		    (long)returnval.tv_sec, (long)returnval.tv_usec);
+	now.tv_sec += returnval.tv_sec;
+	now.tv_usec += returnval.tv_usec;
+	warnmsg(LOG_DEBUG, __func__, "New timer is %s",
+	    sec2str(&now));
 
 	return (&returnval);
 }
@@ -748,11 +778,10 @@ rtsol_timer_update(struct ifinfo *ifi)
 		gettimeofday(&now, NULL);
 		timeradd(&now, &ifi->timer, &ifi->expire);
 
-		if (dflag > 1)
-			warnmsg(LOG_DEBUG, __func__,
-			    "set timer for %s to %d:%d", ifi->ifname,
-			    (int)ifi->timer.tv_sec,
-			    (int)ifi->timer.tv_usec);
+		now.tv_sec += ifi->timer.tv_sec;
+		now.tv_usec += ifi->timer.tv_usec;
+		warnmsg(LOG_DEBUG, __func__, "set timer for %s to %s",
+		    ifi->ifname, sec2str(&now));
 	}
 
 #undef MILLION

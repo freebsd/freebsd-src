@@ -81,7 +81,6 @@
 static	char *tbuf;
 static	int hopcount;	/* detect infinite loops in termcap, init 0 */
 
-static const char *remotefile;
 extern const char *conffile;
 
 int tgetent(char *, char *);
@@ -204,7 +203,7 @@ tnchktc(void)
 		write(STDERR_FILENO, "Infinite tc= loop\n", 18);
 		return (0);
 	}
-	if (getent(tcbuf, tcname, remotefile) != 1) {
+	if (getent(tcbuf, tcname, conffile) != 1) {
 		return (0);
 	}
 	for (q = tcbuf; *q++ != ':'; )
