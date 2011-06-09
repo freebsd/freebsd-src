@@ -338,7 +338,6 @@ rtalloc1_fib(struct sockaddr *dst, int report, u_long ignflags,
 		    u_int fibnum)
 {
 	struct radix_node_head *rnh;
-	struct rtentry *rt;
 	struct radix_node *rn;
 	struct rtentry *newrt;
 	struct rt_addrinfo info;
@@ -366,7 +365,7 @@ rtalloc1_fib(struct sockaddr *dst, int report, u_long ignflags,
 #endif
 	rn = rnh->rnh_matchaddr(dst, rnh);
 	if (rn && ((rn->rn_flags & RNF_ROOT) == 0)) {
-		newrt = rt = RNTORT(rn);
+		newrt = RNTORT(rn);
 		RT_LOCK(newrt);
 		RT_ADDREF(newrt);
 		if (needlock)
