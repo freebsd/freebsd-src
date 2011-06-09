@@ -300,6 +300,7 @@ is_erase_char(c)
  */
 	static int
 mca_opt_first_char(c)
+    int c;
 {
 	int flag = (optflag & ~OPT_NO_PROMPT);
 	if (flag == OPT_NO_TOGGLE)
@@ -839,6 +840,7 @@ ungetcc(c)
 	ug->ug_char = c;
 	ug->ug_next = ungot;
 	ungot = ug;
+	unget_end = 0;
 }
 
 /*
