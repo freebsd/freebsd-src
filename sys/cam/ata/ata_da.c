@@ -88,7 +88,8 @@ typedef enum {
 } ada_flags;
 
 typedef enum {
-	ADA_Q_NONE		= 0x00
+	ADA_Q_NONE		= 0x00,
+	ADA_Q_4K		= 0x01,
 } ada_quirks;
 
 typedef enum {
@@ -152,6 +153,86 @@ struct ada_quirk_entry {
 
 static struct ada_quirk_entry ada_quirk_table[] =
 {
+	{
+		/* Hitachi Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "Hitachi H??????????E3*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/* Samsung Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "SAMSUNG HD204UI*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/* Seagate Barracuda Green Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "ST????DL*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/* Seagate Momentus Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "ST9500423AS*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/* Seagate Momentus Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "ST9500424AS*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/* Seagate Momentus Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "ST9750420AS*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/* Seagate Momentus Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "ST9750422AS*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/* Seagate Momentus Thin Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "ST???LT*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/* WDC Caviar Green Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "WDC WD????RS*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/* WDC Caviar Green Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "WDC WD????RX*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/* WDC Caviar Green Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "WDC WD??????RS*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/* WDC Caviar Green Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "WDC WD??????RX*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/* WDC Scorpio Black Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "WDC WD???PKT*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/* WDC Scorpio Black Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "WDC WD?????PKT*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/* WDC Scorpio Blue Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "WDC WD???PVT*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/* WDC Scorpio Blue Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "WDC WD?????PVT*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
 	{
 		/* Default */
 		{
@@ -711,6 +792,7 @@ adaregister(struct cam_periph *periph, void *arg)
 	struct disk_params *dp;
 	caddr_t match;
 	u_int maxio;
+	int quirks;
 
 	cgd = (struct ccb_getdev *)arg;
 	if (periph == NULL) {
@@ -785,6 +867,11 @@ adaregister(struct cam_periph *periph, void *arg)
 	 */
 	(void)cam_periph_hold(periph, PRIBIO);
 	mtx_unlock(periph->sim->mtx);
+	snprintf(announce_buf, sizeof(announce_buf),
+	    "kern.cam.ada.%d.quirks", periph->unit_number);
+	quirks = softc->quirks;
+	TUNABLE_INT_FETCH(announce_buf, &quirks);
+	softc->quirks = quirks;
 	softc->write_cache = -1;
 	snprintf(announce_buf, sizeof(announce_buf),
 	    "kern.cam.ada.%d.write_cache", periph->unit_number);
@@ -834,6 +921,9 @@ adaregister(struct cam_periph *periph, void *arg)
 		softc->disk->d_stripeoffset = (softc->disk->d_stripesize -
 		    ata_logical_sector_offset(&cgd->ident_data)) %
 		    softc->disk->d_stripesize;
+	} else if (softc->quirks & ADA_Q_4K) {
+		softc->disk->d_stripesize = 4096;
+		softc->disk->d_stripeoffset = 0;
 	}
 	softc->disk->d_fwsectors = softc->params.secs_per_track;
 	softc->disk->d_fwheads = softc->params.heads;
