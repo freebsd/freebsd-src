@@ -420,6 +420,7 @@ cc_cong_signal(struct tcpcb *tp, struct tcphdr *th, uint32_t type)
 		if (tp->t_flags & TF_WASCRECOVERY)
 			ENTER_CONGRECOVERY(tp->t_flags);
 		tp->snd_nxt = tp->snd_max;
+		tp->t_flags &= ~TF_PREVVALID;
 		tp->t_badrxtwin = 0;
 		break;
 	}
@@ -1575,6 +1576,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				 * "bad retransmit" recovery.
 				 */
 				if (tp->t_rxtshift == 1 &&
+				    tp->t_flags & TF_PREVVALID &&
 				    (int)(ticks - tp->t_badrxtwin) < 0) {
 					cc_cong_signal(tp, th, CC_RTO_ERR);
 				}
@@ -2522,7 +2524,8 @@ process_ACK:
 		 * original cwnd and ssthresh, and proceed to transmit where
 		 * we left off.
 		 */
-		if (tp->t_rxtshift == 1 && (int)(ticks - tp->t_badrxtwin) < 0)
+		if (tp->t_rxtshift == 1 && tp->t_flags & TF_PREVVALID &&
+		    (int)(ticks - tp->t_badrxtwin) < 0)
 			cc_cong_signal(tp, th, CC_RTO_ERR);
 
 		/*
