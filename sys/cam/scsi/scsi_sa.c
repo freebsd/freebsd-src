@@ -1431,6 +1431,7 @@ saregister(struct cam_periph *periph, void *arg)
 {
 	struct sa_softc *softc;
 	struct ccb_getdev *cgd;
+	struct ccb_pathinq cpi;
 	caddr_t match;
 	int i;
 	
@@ -1479,15 +1480,20 @@ saregister(struct cam_periph *periph, void *arg)
 	} else
 		softc->quirks = SA_QUIRK_NONE;
 
+	bzero(&cpi, sizeof(cpi));
+	xpt_setup_ccb(&cpi.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
+	cpi.ccb_h.func_code = XPT_PATH_INQ;
+	xpt_action((union ccb *)&cpi);
+
 	/*
- 	 * The SA driver supports a blocksize, but we don't know the
+	 * The SA driver supports a blocksize, but we don't know the
 	 * blocksize until we media is inserted.  So, set a flag to
 	 * indicate that the blocksize is unavailable right now.
 	 */
 	cam_periph_unlock(periph);
 	softc->device_stats = devstat_new_entry("sa", periph->unit_number, 0,
 	    DEVSTAT_BS_UNAVAILABLE, SID_TYPE(&cgd->inq_data) |
-	    DEVSTAT_TYPE_IF_SCSI, DEVSTAT_PRIORITY_TAPE);
+	    XPORT_DEVSTAT_TYPE(cpi.transport), DEVSTAT_PRIORITY_TAPE);
 
 	softc->devs.ctl_dev = make_dev(&sa_cdevsw, SAMINOR(SA_CTLDEV,
 	    0, SA_ATYPE_R), UID_ROOT, GID_OPERATOR,
