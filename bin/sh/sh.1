@@ -32,7 +32,7 @@
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd June 9, 2011
+.Dd June 10, 2011
 .Dt SH 1
 .Os
 .Sh NAME
@@ -124,8 +124,8 @@ If the environment variable
 .Ev ENV
 is set on entry to a shell, or is set in the
 .Pa .profile
-of a login shell, the shell then reads commands from the file named in
-.Ev ENV .
+of a login shell, the shell then subjects its value to parameter expansion
+and arithmetic expansion and reads commands from the named file.
 Therefore, a user should place commands that are to be executed only
 at login time in the
 .Pa .profile
