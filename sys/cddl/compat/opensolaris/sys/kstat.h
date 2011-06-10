@@ -58,7 +58,7 @@ typedef struct kstat_named {
 	} value;
 } kstat_named_t;
 
-kstat_t *kstat_create(char *module, int instance, char *name, char *class,
+kstat_t *kstat_create(char *module, int instance, char *name, char *cls,
     uchar_t type, ulong_t ndata, uchar_t flags);
 void kstat_install(kstat_t *ksp);
 void kstat_delete(kstat_t *ksp);
