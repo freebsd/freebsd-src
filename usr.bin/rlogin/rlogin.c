@@ -485,18 +485,18 @@ sigwinch(int signo __unused)
 void
 sendwindow(void)
 {
-	struct winsize *wp;
+	struct winsize ws;
 	char obuf[4 + sizeof (struct winsize)];
 
-	wp = (struct winsize *)(obuf+4);
 	obuf[0] = 0377;
 	obuf[1] = 0377;
 	obuf[2] = 's';
 	obuf[3] = 's';
-	wp->ws_row = htons(winsize.ws_row);
-	wp->ws_col = htons(winsize.ws_col);
-	wp->ws_xpixel = htons(winsize.ws_xpixel);
-	wp->ws_ypixel = htons(winsize.ws_ypixel);
+	ws.ws_row = htons(winsize.ws_row);
+	ws.ws_col = htons(winsize.ws_col);
+	ws.ws_xpixel = htons(winsize.ws_xpixel);
+	ws.ws_ypixel = htons(winsize.ws_ypixel);
+	bcopy(&ws, obuf + 4, sizeof(ws));
 
 	(void)write(rem, obuf, sizeof(obuf));
 }
