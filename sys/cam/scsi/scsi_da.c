@@ -1075,8 +1075,13 @@ dasysctlinit(void *context, int pending)
 	char tmpstr[80], tmpstr2[80];
 
 	periph = (struct cam_periph *)context;
-	if (cam_periph_acquire(periph) != CAM_REQ_CMP)
+	/*
+	 * periph was held for us when this task was enqueued
+	 */
+	if (periph->flags & CAM_PERIPH_INVALID) {
+		cam_periph_release(periph);
 		return;
+	}
 
 	softc = (struct da_softc *)periph->softc;
 	snprintf(tmpstr, sizeof(tmpstr), "CAM DA unit %d", periph->unit_number);
@@ -1232,6 +1237,33 @@ daregister(struct cam_periph *periph, void *arg)
 	 * Register this media as a disk
 	 */
 
+	/*
+	 * Add async callbacks for bus reset and
+	 * bus device reset calls.  I don't bother
+	 * checking if this fails as, in most cases,
+	 * the system will function just fine without
+	 * them and the only alternative would be to
+	 * not attach the device on failure.
+	 */
+	xpt_register_async(AC_SENT_BDR | AC_BUS_RESET | AC_LOST_DEVICE,
+			   daasync, periph, periph->path);
+
+	/*
+	 * Take an exclusive refcount on the periph while dastart is called
+	 * to finish the probe.  The reference will be dropped in dadone at
+	 * the end of probe.
+	 */
+	(void)cam_periph_hold(periph, PRIBIO);
+
+	/*
+	 * Schedule a periodic event to occasionally send an
+	 * ordered tag to a device.
+	 */
+	callout_init_mtx(&softc->sendordered_c, periph->sim->mtx, 0);
+	callout_reset(&softc->sendordered_c,
+	    (DA_DEFAULT_TIMEOUT * hz) / DA_ORDEREDTAG_INTERVAL,
+	    dasendorderedtag, softc);
+
 	mtx_unlock(periph->sim->mtx);
 	softc->disk = disk_alloc();
 	softc->disk->d_open = daopen;
@@ -1255,33 +1287,7 @@ daregister(struct cam_periph *periph, void *arg)
 	disk_create(softc->disk, DISK_VERSION);
 	mtx_lock(periph->sim->mtx);
 
-	/*
-	 * Add async callbacks for bus reset and
-	 * bus device reset calls.  I don't bother
-	 * checking if this fails as, in most cases,
-	 * the system will function just fine without
-	 * them and the only alternative would be to
-	 * not attach the device on failure.
-	 */
-	xpt_register_async(AC_SENT_BDR | AC_BUS_RESET | AC_LOST_DEVICE,
-			   daasync, periph, periph->path);
-
-	/*
-	 * Take an exclusive refcount on the periph while dastart is called
-	 * to finish the probe.  The reference will be dropped in dadone at
-	 * the end of probe.
-	 */
-	(void)cam_periph_hold(periph, PRIBIO);
 	xpt_schedule(periph, CAM_PRIORITY_DEV);
-
-	/*
-	 * Schedule a periodic event to occasionally send an
-	 * ordered tag to a device.
-	 */
-	callout_init_mtx(&softc->sendordered_c, periph->sim->mtx, 0);
-	callout_reset(&softc->sendordered_c,
-	    (DA_DEFAULT_TIMEOUT * hz) / DA_ORDEREDTAG_INTERVAL,
-	    dasendorderedtag, softc);
 
 	return(CAM_REQ_CMP);
 }
@@ -1754,6 +1760,7 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 			 * Create our sysctl variables, now that we know
 			 * we have successfully attached.
 			 */
+			(void) cam_periph_acquire(periph);	/* increase the refcount */
 			taskqueue_enqueue(taskqueue_thread,&softc->sysctl_task);
 		}
 		softc->state = DA_STATE_NORMAL;	
