@@ -1829,9 +1829,11 @@ ahci_execute_transaction(struct ahci_slot *slot)
 			if (!(ATA_INL(ch->r_mem, AHCI_P_CI) & (1 << slot->slot)))
 				break;
 			if (ATA_INL(ch->r_mem, AHCI_P_TFD) & ATA_S_ERROR) {
+#if 0
 				device_printf(ch->dev,
 				    "Poll error on slot %d, TFD: %04x\n",
 				    slot->slot, ATA_INL(ch->r_mem, AHCI_P_TFD));
+#endif
 				et = AHCI_ERR_TFE;
 				break;
 			}
@@ -1871,14 +1873,12 @@ ahci_execute_transaction(struct ahci_slot *slot)
 				}
 			} 
 		}
-		ahci_end_transaction(slot, et);
 		/* Kick controller into sane state and enable FBS. */
 		if ((ccb->ccb_h.func_code == XPT_ATA_IO) &&
 		    (ccb->ataio.cmd.flags & CAM_ATAIO_CONTROL) &&
-		    (ccb->ataio.cmd.control & ATA_A_RESET) == 0) {
-			ahci_stop(ch->dev);
-			ahci_start(ch->dev, 1);
-		}
+		    (ccb->ataio.cmd.control & ATA_A_RESET) == 0)
+			ch->eslots |= (1 << slot->slot);
+		ahci_end_transaction(slot, et);
 		return;
 	}
 	/* Start command execution timeout */
@@ -2163,13 +2163,6 @@ ahci_end_transaction(struct ahci_slot *slot, enum ahci_err_type et)
 		ch->numhslots++;
 	} else
 		xpt_done(ccb);
-	/* Unfreeze frozen command. */
-	if (ch->frozen && !ahci_check_collision(dev, ch->frozen)) {
-		union ccb *fccb = ch->frozen;
-		ch->frozen = NULL;
-		ahci_begin_transaction(dev, fccb);
-		xpt_release_simq(ch->sim, TRUE);
-	}
 	/* If we have no other active commands, ... */
 	if (ch->rslots == 0) {
 		/* if there was fatal error - reset port. */
@@ -2179,6 +2172,7 @@ ahci_end_transaction(struct ahci_slot *slot, enum ahci_err_type et)
 			/* if we have slots in error, we can reinit port. */
 			if (ch->eslots != 0) {
 				ahci_stop(dev);
+				ahci_clo(dev);
 				ahci_start(dev, 1);
 			}
 			/* if there commands on hold, we can do READ LOG. */
@@ -2189,6 +2183,13 @@ ahci_end_transaction(struct ahci_slot *slot, enum ahci_err_type et)
 	} else if ((ch->rslots & ~ch->toslots) == 0 &&
 	    et != AHCI_ERR_TIMEOUT)
 		ahci_rearm_timeout(dev);
+	/* Unfreeze frozen command. */
+	if (ch->frozen && !ahci_check_collision(dev, ch->frozen)) {
+		union ccb *fccb = ch->frozen;
+		ch->frozen = NULL;
+		ahci_begin_transaction(dev, fccb);
+		xpt_release_simq(ch->sim, TRUE);
+	}
 	/* Start PM timer. */
 	if (ch->numrslots == 0 && ch->pm_level > 3 &&
 	    (ch->curr[ch->pm_present ? 15 : 0].caps & CTS_SATA_CAPS_D_PMREQ)) {

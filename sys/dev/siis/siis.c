@@ -1178,11 +1178,22 @@ siis_timeout(struct siis_slot *slot)
 {
 	device_t dev = slot->dev;
 	struct siis_channel *ch = device_get_softc(dev);
+	union ccb *ccb = slot->ccb;
 
 	mtx_assert(&ch->mtx, MA_OWNED);
 	/* Check for stale timeout. */
 	if (slot->state < SIIS_SLOT_RUNNING)
 		return;
+
+	/* Handle soft-reset timeouts without doing hard-reset. */
+	if ((ccb->ccb_h.func_code == XPT_ATA_IO) &&
+	    (ccb->ataio.cmd.flags & CAM_ATAIO_CONTROL) &&
+	    (ccb->ataio.cmd.control & ATA_A_RESET)) {
+		xpt_freeze_simq(ch->sim, ch->numrslots);
+		siis_end_transaction(slot, SIIS_ERR_TFE);
+		return;
+	}
+
 	device_printf(dev, "Timeout on slot %d\n", slot->slot);
 	device_printf(dev, "%s is %08x ss %08x rs %08x es %08x sts %08x serr %08x\n",
 	    __func__, ATA_INL(ch->r_mem, SIIS_P_IS),
@@ -1331,13 +1342,6 @@ siis_end_transaction(struct siis_slot *slot, enum siis_err_type et)
 		ch->numhslots++;
 	} else
 		xpt_done(ccb);
-	/* Unfreeze frozen command. */
-	if (ch->frozen && !siis_check_collision(dev, ch->frozen)) {
-		union ccb *fccb = ch->frozen;
-		ch->frozen = NULL;
-		siis_begin_transaction(dev, fccb);
-		xpt_release_simq(ch->sim, TRUE);
-	}
 	/* If we have no other active commands, ... */
 	if (ch->rslots == 0) {
 		/* if there were timeouts or fatal error - reset port. */
@@ -1355,6 +1359,13 @@ siis_end_transaction(struct siis_slot *slot, enum siis_err_type et)
 	} else if ((ch->rslots & ~ch->toslots) == 0 &&
 	    et != SIIS_ERR_TIMEOUT)
 		siis_rearm_timeout(dev);
+	/* Unfreeze frozen command. */
+	if (ch->frozen && !siis_check_collision(dev, ch->frozen)) {
+		union ccb *fccb = ch->frozen;
+		ch->frozen = NULL;
+		siis_begin_transaction(dev, fccb);
+		xpt_release_simq(ch->sim, TRUE);
+	}
 }
 
 static void
