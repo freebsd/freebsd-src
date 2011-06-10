@@ -247,10 +247,10 @@ int nfsv4_loadattr(struct nfsrv_descript *, vnode_t,
     struct nfsv3_pathconf *, struct statfs *, struct nfsstatfs *,
     struct nfsfsinfo *, NFSACL_T *,
     int, int *, u_int32_t *, u_int32_t *, NFSPROC_T *, struct ucred *);
-int nfsv4_lock(struct nfsv4lock *, int, int *, void *);
+int nfsv4_lock(struct nfsv4lock *, int, int *, void *, struct mount *);
 void nfsv4_unlock(struct nfsv4lock *, int);
 void nfsv4_relref(struct nfsv4lock *);
-void nfsv4_getref(struct nfsv4lock *, int *, void *);
+void nfsv4_getref(struct nfsv4lock *, int *, void *, struct mount *);
 int nfsv4_getref_nonblock(struct nfsv4lock *);
 int nfsv4_testlock(struct nfsv4lock *);
 int nfsrv_mtostr(struct nfsrv_descript *, char *, int);
