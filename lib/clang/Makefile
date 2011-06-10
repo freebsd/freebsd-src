@@ -44,6 +44,7 @@ SUBDIR=	libclanganalysis \
 	libllvmarminstprinter \
 	libllvmia64codegen \
 	libllvmia64info \
+	libllvmia64instprinter \
 	libllvmmipscodegen \
 	libllvmmipsinfo \
 	libllvmpowerpccodegen \

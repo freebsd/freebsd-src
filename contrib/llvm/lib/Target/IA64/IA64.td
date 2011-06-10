@@ -48,8 +48,17 @@ def NOP : IA64Instruction<(outs), (ins)>;
 def IA64InstrInfo : InstrInfo;
 
 //
+// Machine code and assembly writer
+//
+def IA64InstPrinter : AsmWriter {
+  string AsmWriterClassName  = "InstPrinter";
+  bit isMCAsmWriter = 1;
+}
+
+//
 // Target for the Itanium Processor Family (IPF)
 //
 def IA64 : Target {
   let InstructionSet = IA64InstrInfo;
+  let AssemblyWriters = [IA64InstPrinter];
 }

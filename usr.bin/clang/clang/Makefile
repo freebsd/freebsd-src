@@ -47,6 +47,7 @@ LIBDEPS=clangfrontendtool \
 	llvmarminfo \
 	llvmia64codegen \
 	llvmia64info \
+	llvmia64instprinter \
 	llvmmipscodegen \
 	llvmmipsinfo \
 	llvmpowerpccodegen \
