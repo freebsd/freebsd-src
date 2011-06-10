@@ -244,6 +244,7 @@ public:
         case llvm::Triple::x86_64:
           this->MCountName = ".mcount";
           break;
+        case llvm::Triple::ia64:
         case llvm::Triple::mips:
         case llvm::Triple::mipsel:
         case llvm::Triple::ppc:
@@ -2459,6 +2460,73 @@ namespace {
 }
 
 namespace {
+  class IA64TargetInfo : public TargetInfo {
+    static const char * const GCCRegNames[];
+  public:
+    IA64TargetInfo(const std::string& triple) : TargetInfo(triple) {
+      NoAsmVariants = false;			// XXX what does this mean
+      PointerWidth = PointerAlign = 64;
+      LongWidth = LongAlign = 64;
+      LongDoubleWidth = LongDoubleAlign = 128;
+      Int64Type = SignedLong;
+      SigAtomicType = SignedLong;
+      LongDoubleFormat = &llvm::APFloat::IEEEdouble;
+      DescriptionString = "e-p:64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-"
+            "i64:64:64-f32:32:32-f64:64:64-f80:128:128-f128:128:128-"
+            "n8:16:32:64";
+    }
+    virtual void getTargetDefines(const LangOptions &Opts,
+          MacroBuilder &Builder) const {
+      Builder.defineMacro("__ia64");
+      Builder.defineMacro("__ia64__");
+      Builder.defineMacro("__itanium__");
+      Builder.defineMacro("_LP64");
+      Builder.defineMacro("__LP64__");
+    }
+    virtual void getTargetBuiltins(const Builtin::Info *&Records,
+          unsigned &NumRecords) const {
+      Records = 0;
+      NumRecords = 0;
+    }
+    virtual void getGCCRegNames(const char * const *&Names,
+          unsigned &NumNames) const;
+    virtual void getGCCRegAliases(const GCCRegAlias *&Aliases,
+          unsigned &NumAliases) const {
+      // No aliases.
+      Aliases = 0;
+      NumAliases = 0;
+    }
+    virtual bool validateAsmConstraint(const char *&Name,
+          TargetInfo::ConstraintInfo &info) const {
+      // No target constraints for now.
+      return false;
+    }
+    virtual const char *getClobbers() const {
+      // FIXME: Is this really right?
+      return "";
+    }
+    virtual const char *getVAListDeclaration() const {
+      // FIXME: implement
+      return "typedef char* __builtin_va_list;";
+    }
+  };
+
+  const char * const IA64TargetInfo::GCCRegNames[] = {
+    "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7",
+    "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15",
+    "r16", "r17", "r18", "r19", "r20", "r21", "r22", "r23",
+    "r24", "r25", "r26", "r27", "r28", "r29", "r30", "r31"
+  };
+ 
+  void IA64TargetInfo::getGCCRegNames(const char * const *&Names,
+        unsigned &NumNames) const {
+    Names = GCCRegNames;
+    NumNames = llvm::array_lengthof(GCCRegNames);
+  }
+}
+
+
+namespace {
 
   // LLVM and Clang cannot be used directly to output native binaries for
   // target, but is used to compile C code to llvm bitcode with correct
@@ -2709,6 +2777,11 @@ static TargetInfo *AllocateTarget(const std::string &T) {
 
   case llvm::Triple::bfin:
     return new BlackfinTargetInfo(T);
+
+  case llvm::Triple::ia64:
+    if (os == llvm::Triple::FreeBSD)
+      return new FreeBSDTargetInfo<IA64TargetInfo>(T);
+    return new IA64TargetInfo(T);
 
   case llvm::Triple::msp430:
     return new MSP430TargetInfo(T);
