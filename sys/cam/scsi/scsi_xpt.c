@@ -1494,12 +1494,13 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 		  ("scsi_scan_bus\n"));
 	switch (request_ccb->ccb_h.func_code) {
 	case XPT_SCAN_BUS:
+	case XPT_SCAN_TGT:
 	{
 		scsi_scan_bus_info *scan_info;
 		union	ccb *work_ccb, *reset_ccb;
 		struct	cam_path *path;
 		u_int	i;
-		u_int	max_target;
+		u_int	low_target, max_target;
 		u_int	initiator_id;
 
 		/* Find out the characteristics of the bus */
@@ -1564,13 +1565,18 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 
 		/* Cache on our stack so we can work asynchronously */
 		max_target = scan_info->cpi->max_target;
+		low_target = 0;
 		initiator_id = scan_info->cpi->initiator_id;
 
 
 		/*
 		 * We can scan all targets in parallel, or do it sequentially.
 		 */
-		if (scan_info->cpi->hba_misc & PIM_SEQSCAN) {
+
+		if (request_ccb->ccb_h.func_code == XPT_SCAN_TGT) {
+			max_target = low_target = request_ccb->ccb_h.target_id;
+			scan_info->counter = 0;
+		} else if (scan_info->cpi->hba_misc & PIM_SEQSCAN) {
 			max_target = 0;
 			scan_info->counter = 0;
 		} else {
@@ -1580,7 +1586,7 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 			}
 		}
 
-		for (i = 0; i <= max_target; i++) {
+		for (i = low_target; i <= max_target; i++) {
 			cam_status status;
 			if (i == initiator_id)
 				continue;
@@ -1695,7 +1701,9 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 
  hop_again:
 			done = 0;
-			if (scan_info->cpi->hba_misc & PIM_SEQSCAN) {
+			if (scan_info->request_ccb->ccb_h.func_code == XPT_SCAN_TGT) {
+				done = 1;
+			} else if (scan_info->cpi->hba_misc & PIM_SEQSCAN) {
 				scan_info->counter++;
 				if (scan_info->counter ==
 				    scan_info->cpi->initiator_id) {
@@ -2016,6 +2024,7 @@ scsi_action(union ccb *start_ccb)
 		break;
 	}
 	case XPT_SCAN_BUS:
+	case XPT_SCAN_TGT:
 		scsi_scan_bus(start_ccb->ccb_h.path->periph, start_ccb);
 		break;
 	case XPT_SCAN_LUN:

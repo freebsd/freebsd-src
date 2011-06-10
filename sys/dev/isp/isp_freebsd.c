@@ -3893,7 +3893,7 @@ isp_make_here(ispsoftc_t *isp, int chan, int tgt)
 	}
 
 	/*
-	 * Allocate a CCB, create a wildcard path for this bus/target and schedule a rescan.
+	 * Allocate a CCB, create a wildcard path for this target and schedule a rescan.
 	 */
 	ccb = xpt_alloc_ccb_nowait();
 	if (ccb == NULL) {
