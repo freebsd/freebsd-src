@@ -44,4 +44,4 @@ alias g='egrep -i'
 # esac
 
 # search path for cd(1)
-# CDPATH=.:$HOME
+# CDPATH=:$HOME
