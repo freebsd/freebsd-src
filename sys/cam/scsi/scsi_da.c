@@ -1266,6 +1266,12 @@ daregister(struct cam_periph *periph, void *arg)
 
 	mtx_unlock(periph->sim->mtx);
 	softc->disk = disk_alloc();
+	softc->disk->d_devstat = devstat_new_entry(periph->periph_name,
+			  periph->unit_number, 0,
+			  DEVSTAT_BS_UNAVAILABLE,
+			  SID_TYPE(&cgd->inq_data) |
+			  XPORT_DEVSTAT_TYPE(cpi.transport),
+			  DEVSTAT_PRIORITY_DISK);
 	softc->disk->d_open = daopen;
 	softc->disk->d_close = daclose;
 	softc->disk->d_strategy = dastrategy;

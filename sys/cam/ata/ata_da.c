@@ -793,6 +793,12 @@ adaregister(struct cam_periph *periph, void *arg)
 	TUNABLE_INT_FETCH(announce_buf, &softc->write_cache);
 	adagetparams(periph, cgd);
 	softc->disk = disk_alloc();
+	softc->disk->d_devstat = devstat_new_entry(periph->periph_name,
+			  periph->unit_number, softc->params.secsize,
+			  DEVSTAT_ALL_SUPPORTED,
+			  DEVSTAT_TYPE_DIRECT |
+			  XPORT_DEVSTAT_TYPE(cpi.transport),
+			  DEVSTAT_PRIORITY_DISK);
 	softc->disk->d_open = adaopen;
 	softc->disk->d_close = adaclose;
 	softc->disk->d_strategy = adastrategy;

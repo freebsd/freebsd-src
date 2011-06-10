@@ -230,6 +230,7 @@ passregister(struct cam_periph *periph, void *arg)
 {
 	struct pass_softc *softc;
 	struct ccb_getdev *cgd;
+	struct ccb_pathinq cpi;
 	int    no_tags;
 
 	cgd = (struct ccb_getdev *)arg;
@@ -254,9 +255,19 @@ passregister(struct cam_periph *periph, void *arg)
 
 	bzero(softc, sizeof(*softc));
 	softc->state = PASS_STATE_NORMAL;
-	softc->pd_type = SID_TYPE(&cgd->inq_data);
+	if (cgd->protocol == PROTO_SCSI || cgd->protocol == PROTO_ATAPI)
+		softc->pd_type = SID_TYPE(&cgd->inq_data);
+	else if (cgd->protocol == PROTO_SATAPM)
+		softc->pd_type = T_ENCLOSURE;
+	else
+		softc->pd_type = T_DIRECT;
 
 	periph->softc = softc;
+
+	bzero(&cpi, sizeof(cpi));
+	xpt_setup_ccb(&cpi.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
+	cpi.ccb_h.func_code = XPT_PATH_INQ;
+	xpt_action((union ccb *)&cpi);
 
 	/*
 	 * We pass in 0 for a blocksize, since we don't 
@@ -270,7 +281,7 @@ passregister(struct cam_periph *periph, void *arg)
 			  DEVSTAT_NO_BLOCKSIZE
 			  | (no_tags ? DEVSTAT_NO_ORDERED_TAGS : 0),
 			  softc->pd_type |
-			  DEVSTAT_TYPE_IF_SCSI |
+			  XPORT_DEVSTAT_TYPE(cpi.transport) |
 			  DEVSTAT_TYPE_PASS,
 			  DEVSTAT_PRIORITY_PASS);
 
