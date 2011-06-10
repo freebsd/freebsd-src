@@ -81,6 +81,7 @@ static device_method_t legacy_methods[] = {
 	DEVMETHOD(bus_read_ivar,	legacy_read_ivar),
 	DEVMETHOD(bus_write_ivar,	legacy_write_ivar),
 	DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
+	DEVMETHOD(bus_adjust_resource,	bus_generic_adjust_resource),
 	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
