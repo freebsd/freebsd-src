@@ -1323,6 +1323,7 @@ tcp_setpersist(struct tcpcb *tp)
 	int t = ((tp->t_srtt >> 2) + tp->t_rttvar) >> 1;
 	int tt;
 
+	tp->t_flags &= ~TF_PREVVALID;
 	if (tcp_timer_active(tp, TT_REXMT))
 		panic("tcp_setpersist: retransmit pending");
 	/*

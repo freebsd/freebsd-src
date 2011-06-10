@@ -225,6 +225,7 @@ struct tcpcb {
 #define	TF_NEEDSYN	0x000400	/* send SYN (implicit state) */
 #define	TF_NEEDFIN	0x000800	/* send FIN (implicit state) */
 #define	TF_NOPUSH	0x001000	/* don't push */
+#define	TF_PREVVALID	0x002000	/* saved values for bad rxmit valid */
 #define	TF_MORETOCOME	0x010000	/* More data to be appended to sock */
 #define	TF_LQ_OVERFLOW	0x020000	/* listen queue overflow */
 #define	TF_LASTIDLE	0x040000	/* connection was previously idle */
