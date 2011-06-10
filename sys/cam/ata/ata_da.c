@@ -264,7 +264,6 @@ adaopen(struct disk *dp)
 {
 	struct cam_periph *periph;
 	struct ada_softc *softc;
-	int unit;
 	int error;
 
 	periph = (struct cam_periph *)dp->d_drv1;
@@ -283,13 +282,12 @@ adaopen(struct disk *dp)
 		return (error);
 	}
 
-	unit = periph->unit_number;
 	softc = (struct ada_softc *)periph->softc;
 	softc->flags |= ADA_FLAG_OPEN;
 
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE,
 	    ("adaopen: disk=%s%d (unit %d)\n", dp->d_name, dp->d_unit,
-	     unit));
+	     periph->unit_number));
 
 	if ((softc->flags & ADA_FLAG_PACK_INVALID) != 0) {
 		/* Invalidate our pack information. */
@@ -1293,11 +1291,6 @@ adadone(struct cam_periph *periph, union ccb *done_ccb)
 static int
 adaerror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 {
-	struct ada_softc	  *softc;
-	struct cam_periph *periph;
-
-	periph = xpt_path_periph(ccb->ccb_h.path);
-	softc = (struct ada_softc *)periph->softc;
 
 	return(cam_periph_error(ccb, cam_flags, sense_flags, NULL));
 }
