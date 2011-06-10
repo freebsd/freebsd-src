@@ -74,6 +74,7 @@ int	ffs_isfreeblock(struct fs *, u_char *, ufs1_daddr_t);
 void	ffs_load_inode(struct buf *, struct inode *, struct fs *, ino_t);
 int	ffs_mountroot(void);
 void	ffs_oldfscompat_write(struct fs *, struct ufsmount *);
+void	ffs_pages_remove(struct vnode *vp, vm_pindex_t start, vm_pindex_t end);
 int	ffs_reallocblks(struct vop_reallocblks_args *);
 int	ffs_realloccg(struct inode *, ufs2_daddr_t, ufs2_daddr_t,
 	    ufs2_daddr_t, int, int, int, struct ucred *, struct buf **);
@@ -107,7 +108,6 @@ extern struct vop_vector ffs_fifoops2;
 
 int	softdep_check_suspend(struct mount *, struct vnode *,
 	  int, int, int, int);
-int	softdep_complete_trunc(struct vnode *, void *);
 void	softdep_get_depcounts(struct mount *, int *, int *);
 void	softdep_initialize(void);
 void	softdep_uninitialize(void);
@@ -139,14 +139,17 @@ void	softdep_setup_blkfree(struct mount *, struct buf *, ufs2_daddr_t, int,
 void	softdep_setup_inofree(struct mount *, struct buf *, ino_t,
 	    struct workhead *);
 void	softdep_setup_sbupdate(struct ufsmount *, struct fs *, struct buf *);
-void 	*softdep_setup_trunc(struct vnode *vp, off_t length, int flags);
 void	softdep_fsync_mountdev(struct vnode *);
 int	softdep_sync_metadata(struct vnode *);
+int	softdep_sync_buf(struct vnode *, struct buf *, int);
 int     softdep_process_worklist(struct mount *, int);
 int     softdep_fsync(struct vnode *);
 int	softdep_waitidle(struct mount *);
 int	softdep_prealloc(struct vnode *, int);
 int	softdep_journal_lookup(struct mount *, struct vnode **);
+void	softdep_journal_freeblocks(struct inode *, struct ucred *, off_t, int);
+void	softdep_journal_fsync(struct inode *);
+
 
 /*
  * Things to request flushing in softdep_request_cleanup()
