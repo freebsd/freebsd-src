@@ -89,6 +89,10 @@ Use \*(lqbatch\*(rq mode.  In this mode, all input from the terminal is
 ignored.  Interrupt characters (such as ^C and ^\e) still have an effect.
 This is the default on a dumb terminal, or when the output is not a terminal.
 .TP
+.B \-H
+Display each thread for a multithreaded process individually.
+By default a single summary line is displayed for each process.
+.TP
 .B \-i
 Use \*(lqinteractive\*(rq mode.  In this mode, any input is immediately
 read for processing.  See the section on \*(lqInteractive Mode\*(rq
@@ -289,6 +293,9 @@ or
 .BR r enice
 command.
 .TP
+.B H
+Toggle the display of threads.
+.TP
 .B i
 (or
 .BR I )
@@ -352,8 +359,11 @@ the order of the processes, and
 COMMAND is the name of the command that the process is currently running
 (if the process is swapped out, this column is marked \*(lq<swapped>\*(rq).
 .SH NOTES
-The \*(lqABANDONED\*(rq state (known in the kernel as \*(lqSWAIT\*(rq) was
-abandoned, thus the name.  A process should never end up in this state.
+If a process is in the \*(lqSLEEP\*(rq or \*(lqLOCK\*(rq state,
+the state column will report the name of the event or lock on which the
+process is waiting.
+Lock names are prefixed with an asterisk \*(lq*\*(rq while sleep events
+are not.
 .SH AUTHOR
 William LeFebvre, EECS Department, Northwestern University
 .SH ENVIRONMENT
