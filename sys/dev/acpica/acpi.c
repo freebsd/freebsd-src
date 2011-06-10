@@ -123,6 +123,8 @@ static int	acpi_set_resource(device_t dev, device_t child, int type,
 static struct resource *acpi_alloc_resource(device_t bus, device_t child,
 			int type, int *rid, u_long start, u_long end,
 			u_long count, u_int flags);
+static int	acpi_adjust_resource(device_t bus, device_t child, int type,
+			struct resource *r, u_long start, u_long end);
 static int	acpi_release_resource(device_t bus, device_t child, int type,
 			int rid, struct resource *r);
 static void	acpi_delete_resource(device_t bus, device_t child, int type,
@@ -193,6 +195,7 @@ static device_method_t acpi_methods[] = {
     DEVMETHOD(bus_set_resource,		acpi_set_resource),
     DEVMETHOD(bus_get_resource,		bus_generic_rl_get_resource),
     DEVMETHOD(bus_alloc_resource,	acpi_alloc_resource),
+    DEVMETHOD(bus_adjust_resource,	acpi_adjust_resource),
     DEVMETHOD(bus_release_resource,	acpi_release_resource),
     DEVMETHOD(bus_delete_resource,	acpi_delete_resource),
     DEVMETHOD(bus_child_pnpinfo_str,	acpi_child_pnpinfo_str_method),
@@ -1325,29 +1328,40 @@ acpi_alloc_resource(device_t bus, device_t child, int type, int *rid,
 }
 
 static int
-acpi_release_resource(device_t bus, device_t child, int type, int rid,
-    struct resource *r)
+acpi_is_resource_managed(int type, struct resource *r)
 {
-    struct rman *rm;
-    int ret;
 
     /* We only handle memory and IO resources through rman. */
     switch (type) {
     case SYS_RES_IOPORT:
-	rm = &acpi_rman_io;
-	break;
+	return (rman_is_region_manager(r, &acpi_rman_io));
     case SYS_RES_MEMORY:
-	rm = &acpi_rman_mem;
-	break;
-    default:
-	rm = NULL;
+	return (rman_is_region_manager(r, &acpi_rman_mem));
     }
+    return (0);
+}
+
+static int
+acpi_adjust_resource(device_t bus, device_t child, int type, struct resource *r,
+    u_long start, u_long end)
+{
+
+    if (acpi_is_resource_managed(type, r))
+	return (rman_adjust_resource(r, start, end));
+    return (bus_generic_adjust_resource(bus, child, type, r, start, end));
+}
+
+static int
+acpi_release_resource(device_t bus, device_t child, int type, int rid,
+    struct resource *r)
+{
+    int ret;
 
     /*
      * If this resource belongs to one of our internal managers,
      * deactivate it and release it to the local pool.
      */
-    if (rm != NULL && rman_is_region_manager(r, rm)) {
+    if (acpi_is_resource_managed(type, r)) {
 	if (rman_get_flags(r) & RF_ACTIVE) {
 	    ret = bus_deactivate_resource(child, type, rid, r);
 	    if (ret != 0)
