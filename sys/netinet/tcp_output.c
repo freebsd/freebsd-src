@@ -560,11 +560,19 @@ after_sack_rexmit:
 		long adv = min(recwin, (long)TCP_MAXWIN << tp->rcv_scale) -
 			(tp->rcv_adv - tp->rcv_nxt);
 
+		/* 
+		 * If the new window size ends up being the same as the old
+		 * size when it is scaled, then don't force a window update.
+		 */
+		if ((tp->rcv_adv - tp->rcv_nxt) >> tp->rcv_scale ==
+		    (adv + tp->rcv_adv - tp->rcv_nxt) >> tp->rcv_scale)
+			goto dontupdate;
 		if (adv >= (long) (2 * tp->t_maxseg))
 			goto send;
 		if (2 * adv >= (long) so->so_rcv.sb_hiwat)
 			goto send;
 	}
+dontupdate:
 
 	/*
 	 * Send if we owe the peer an ACK, RST, SYN, or urgent data.  ACKNOW
