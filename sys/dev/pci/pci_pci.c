@@ -916,7 +916,8 @@ pcib_grow_window(struct pcib_softc *sc, struct pcib_window *w, int type,
 
 		/* Move end_free down until it is properly aligned. */
 		end_free &= ~(align - 1);
-		front = end_free - count;
+		end_free--;
+		front = end_free - (count - 1);
 
 		/*
 		 * The resource would now be allocated at (front,
@@ -944,7 +945,7 @@ pcib_grow_window(struct pcib_softc *sc, struct pcib_window *w, int type,
 
 		/* Move start_free up until it is properly aligned. */
 		start_free = roundup2(start_free, align);
-		back = start_free + count;
+		back = start_free + count - 1;
 
 		/*
 		 * The resource would now be allocated at (start_free,
@@ -957,7 +958,7 @@ pcib_grow_window(struct pcib_softc *sc, struct pcib_window *w, int type,
 			if (bootverbose)
 				printf("\tback candidate range: %#lx-%#lx\n",
 				    start_free, back);
-			back = roundup2(back, w->step) - 1;
+			back = roundup2(back + 1, w->step) - 1;
 			back -= rman_get_end(w->res);
 		} else
 			back = 0;
