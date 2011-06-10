@@ -302,6 +302,7 @@ struct vattr {
 #define	IO_EXT		0x0400		/* operate on external attributes */
 #define	IO_NORMAL	0x0800		/* operate on regular data */
 #define	IO_NOMACCHECK	0x1000		/* MAC checks unnecessary */
+#define	IO_BUFLOCKED	0x2000		/* ffs flag; indir buf is locked */
 
 #define IO_SEQMAX	0x7F		/* seq heuristic max value */
 #define IO_SEQSHIFT	16		/* seq heuristic in upper 16 bits */

@@ -127,7 +127,7 @@
 #define	DIRCHG		0x000080 /* diradd, dirrem only */
 #define	GOINGAWAY	0x000100 /* indirdep, jremref only */
 #define	IOSTARTED	0x000200 /* inodedep, pagedep, bmsafemap only */
-#define	UNUSED400	0x000400 /* currently available. */
+#define	DELAYEDFREE	0x000400 /* allocindirect free delayed. */
 #define	NEWBLOCK	0x000800 /* pagedep, jaddref only */
 #define	INPROGRESS	0x001000 /* dirrem, freeblks, freefrag, freefile only */
 #define	UFS1FMT		0x002000 /* indirdep only */
@@ -195,8 +195,9 @@ struct worklist {
 #define	WK_JFREEBLK(wk) ((struct jfreeblk *)(wk))
 #define	WK_FREEDEP(wk) ((struct freedep *)(wk))
 #define	WK_JFREEFRAG(wk) ((struct jfreefrag *)(wk))
-#define	WK_SBDEP(wk) ((struct sbdep *)wk)
+#define	WK_SBDEP(wk) ((struct sbdep *)(wk))
 #define	WK_JTRUNC(wk) ((struct jtrunc *)(wk))
+#define	WK_JFSYNC(wk) ((struct jfsync *)(wk))
 
 /*
  * Various types of lists
@@ -213,10 +214,12 @@ LIST_HEAD(jaddrefhd, jaddref);
 LIST_HEAD(jremrefhd, jremref);
 LIST_HEAD(jmvrefhd, jmvref);
 LIST_HEAD(jnewblkhd, jnewblk);
-LIST_HEAD(jfreeblkhd, jfreeblk);
+LIST_HEAD(jblkdephd, jblkdep);
 LIST_HEAD(freeworkhd, freework);
+TAILQ_HEAD(freeworklst, freework);
 TAILQ_HEAD(jseglst, jseg);
 TAILQ_HEAD(inoreflst, inoref);
+TAILQ_HEAD(freeblklst, freeblks);
 
 /*
  * The "pagedep" structure tracks the various dependencies related to
@@ -321,6 +324,7 @@ struct inodedep {
 	struct	allocdirectlst id_newinoupdt; /* updates when inode written */
 	struct	allocdirectlst id_extupdt; /* extdata updates pre-inode write */
 	struct	allocdirectlst id_newextupdt; /* extdata updates at ino write */
+	struct	freeblklst id_freeblklst; /* List of partial truncates. */
 	union {
 	struct	ufs1_dinode *idu_savedino1; /* saved ufs1_dinode contents */
 	struct	ufs2_dinode *idu_savedino2; /* saved ufs2_dinode contents */
@@ -342,8 +346,9 @@ struct inodedep {
 struct bmsafemap {
 	struct	worklist sm_list;	/* cylgrp buffer */
 #	define	sm_state sm_list.wk_state
-	int	sm_cg;
 	LIST_ENTRY(bmsafemap) sm_hash;	/* Hash links. */
+	LIST_ENTRY(bmsafemap) sm_next;	/* Mount list. */
+	int	sm_cg;
 	struct	buf *sm_buf;		/* associated buffer */
 	struct	allocdirecthd sm_allocdirecthd; /* allocdirect deps */
 	struct	allocdirecthd sm_allocdirectwr; /* writing allocdirect deps */
@@ -355,6 +360,8 @@ struct bmsafemap {
 	struct	newblkhd sm_newblkwr;	/* writing newblk deps */
 	struct	jaddrefhd sm_jaddrefhd;	/* Pending inode allocations. */
 	struct	jnewblkhd sm_jnewblkhd;	/* Pending block allocations. */
+	struct	workhead sm_freehd;	/* Freedep deps. */
+	struct	workhead sm_freewr;	/* Written freedeps. */
 };
 
 /*
@@ -442,14 +449,15 @@ struct indirdep {
 	struct	worklist ir_list;	/* buffer holding indirect block */
 #	define	ir_state ir_list.wk_state /* indirect block pointer state */
 	LIST_ENTRY(indirdep) ir_next;	/* alloc{direct,indir} list */
+	TAILQ_HEAD(, freework) ir_trunc;	/* List of truncations. */
 	caddr_t	ir_saveddata;		/* buffer cache contents */
 	struct	buf *ir_savebp;		/* buffer holding safe copy */
+	struct	buf *ir_bp;		/* buffer holding live copy */
 	struct	allocindirhd ir_completehd; /* waiting for indirdep complete */
 	struct	allocindirhd ir_writehd; /* Waiting for the pointer write. */
 	struct	allocindirhd ir_donehd;	/* done waiting to update safecopy */
 	struct	allocindirhd ir_deplisthd; /* allocindir deps for this block */
-	struct	jnewblkhd ir_jnewblkhd;	/* Canceled block allocations. */
-	struct	workhead ir_jwork;	/* Journal work pending. */
+	struct	freeblks *ir_freeblks;	/* Freeblks that frees this indir. */
 };
 
 /*
@@ -471,6 +479,7 @@ struct allocindir {
 	LIST_ENTRY(allocindir) ai_next;	/* indirdep's list of allocindir's */
 	struct	indirdep *ai_indirdep;	/* address of associated indirdep */
 	ufs2_daddr_t	ai_oldblkno;	/* old value of block pointer */
+	ufs_lbn_t	ai_lbn;		/* Logical block number. */
 	int		ai_offset;	/* Pointer offset in parent. */
 };
 #define	ai_newblkno	ai_block.nb_newblkno
@@ -516,14 +525,22 @@ struct freefrag {
 struct freeblks {
 	struct	worklist fb_list;	/* id_inowait or delayed worklist */
 #	define	fb_state fb_list.wk_state /* inode and dirty block state */
-	struct	jfreeblkhd fb_jfreeblkhd; /* Journal entries pending */
+	TAILQ_ENTRY(freeblks) fb_next;	/* List of inode truncates. */
+	struct	jblkdephd fb_jblkdephd;	/* Journal entries pending */
 	struct	workhead fb_freeworkhd;	/* Work items pending */
 	struct	workhead fb_jwork;	/* Journal work pending */
-	ino_t	fb_previousinum;	/* inode of previous owner of blocks */
-	uid_t	fb_uid;			/* uid of previous owner of blocks */
 	struct	vnode *fb_devvp;	/* filesystem device vnode */
-	ufs2_daddr_t fb_chkcnt;		/* used to check cnt of blks released */
+#ifdef QUOTA
+	struct	dquot *fb_quota[MAXQUOTAS]; /* quotas to be adjusted */
+#endif
+	uint64_t fb_modrev;		/* Inode revision at start of trunc. */
+	off_t	fb_len;			/* Length we're truncating to. */
+	ufs2_daddr_t fb_chkcnt;		/* Expected blks released. */
+	ufs2_daddr_t fb_freecnt;	/* Actual blocks released. */
+	ino_t	fb_inum;		/* inode owner of blocks */
+	uid_t	fb_uid;			/* uid of previous owner of blocks */
 	int	fb_ref;			/* Children outstanding. */
+	int	fb_cgwait;		/* cg writes outstanding. */
 };
 
 /*
@@ -538,16 +555,18 @@ struct freeblks {
 struct freework {
 	struct	worklist fw_list;		/* Delayed worklist. */
 #	define	fw_state fw_list.wk_state
-	LIST_ENTRY(freework) fw_next;		/* For seg journal list. */
-	struct	jnewblk  *fw_jnewblk;		/* Journal entry to cancel. */
+	LIST_ENTRY(freework) fw_segs;		/* Seg list. */
+	TAILQ_ENTRY(freework) fw_next;		/* Hash/Trunc list. */
+	struct	jnewblk	 *fw_jnewblk;		/* Journal entry to cancel. */
 	struct	freeblks *fw_freeblks;		/* Root of operation. */
 	struct	freework *fw_parent;		/* Parent indirect. */
+	struct	indirdep *fw_indir;		/* indirect block. */
 	ufs2_daddr_t	 fw_blkno;		/* Our block #. */
 	ufs_lbn_t	 fw_lbn;		/* Original lbn before free. */
-	int		 fw_frags;		/* Number of frags. */
-	int		 fw_ref;		/* Number of children out. */
-	int		 fw_off;		/* Current working position. */
-	struct	workhead fw_jwork;		/* Journal work pending. */
+	uint16_t	 fw_frags;		/* Number of frags. */
+	uint16_t	 fw_ref;		/* Number of children out. */
+	uint16_t	 fw_off;		/* Current working position. */
+	uint16_t	 fw_start;		/* Start of partial truncate. */
 };
 
 /*
@@ -674,6 +693,7 @@ struct dirrem {
 	LIST_ENTRY(dirrem) dm_inonext;	/* inodedep's list of dirrem's */
 	struct	jremrefhd dm_jremrefhd;	/* Pending remove reference deps. */
 	ino_t	dm_oldinum;		/* inum of the removed dir entry */
+	doff_t	dm_offset;		/* offset of removed dir entry in blk */
 	union {
 	struct	pagedep *dmu_pagedep;	/* pagedep dependency for remove */
 	ino_t	dmu_dirinum;		/* parent inode number (for rmdir) */
@@ -707,7 +727,7 @@ struct dirrem {
  */
 struct newdirblk {
 	struct	worklist db_list;	/* id_inowait or pg_newdirblk */
-#	define	db_state db_list.wk_state /* unused */
+#	define	db_state db_list.wk_state
 	struct	pagedep *db_pagedep;	/* associated pagedep */
 	struct	workhead db_mkdir;
 };
@@ -807,13 +827,24 @@ struct jnewblk {
 #	define	jn_state jn_list.wk_state
 	struct	jsegdep	*jn_jsegdep;	/* Will track our journal record. */
 	LIST_ENTRY(jnewblk) jn_deps;	/* Jnewblks on sm_jnewblkhd. */
-	LIST_ENTRY(jnewblk) jn_indirdeps; /* Jnewblks on ir_jnewblkhd. */
 	struct	worklist *jn_dep;	/* Dependency to ref completed seg. */
-	ino_t		jn_ino;		/* Ino to which allocated. */
 	ufs_lbn_t	jn_lbn;		/* Lbn to which allocated. */
 	ufs2_daddr_t	jn_blkno;	/* Blkno allocated */
+	ino_t		jn_ino;		/* Ino to which allocated. */
 	int		jn_oldfrags;	/* Previous fragments when extended. */
 	int		jn_frags;	/* Number of fragments. */
+};
+
+/*
+ * A "jblkdep" structure tracks jfreeblk and jtrunc records attached to a
+ * freeblks structure.
+ */
+struct jblkdep {
+	struct	worklist jb_list;	/* For softdep journal pending. */
+	struct	jsegdep *jb_jsegdep;	/* Reference to the jseg. */
+	struct	freeblks *jb_freeblks;	/* Back pointer to freeblks. */
+	LIST_ENTRY(jblkdep) jb_deps;	/* Dep list on freeblks. */
+
 };
 
 /*
@@ -822,14 +853,10 @@ struct jnewblk {
  * or indirect prior to the jfreeblk being written to the journal.
  */
 struct jfreeblk {
-	struct	worklist jf_list;	/* Linked to softdep_journal_pending. */
-#	define	jf_state jf_list.wk_state
-	struct	jsegdep	*jf_jsegdep;	/* Will track our journal record. */
-	struct freeblks	*jf_freeblks;	/* Back pointer to freeblks. */
-	LIST_ENTRY(jfreeblk) jf_deps;	/* Jfreeblk on fb_jfreeblkhd. */
-	ino_t		jf_ino;		/* Ino from which blocks freed. */
+	struct	jblkdep	jf_dep;		/* freeblks linkage. */
 	ufs_lbn_t	jf_lbn;		/* Lbn from which blocks freed. */
 	ufs2_daddr_t	jf_blkno;	/* Blkno being freed. */
+	ino_t		jf_ino;		/* Ino from which blocks freed. */
 	int		jf_frags;	/* Number of frags being freed. */
 };
 
@@ -843,24 +870,31 @@ struct jfreefrag {
 #	define	fr_state fr_list.wk_state
 	struct	jsegdep	*fr_jsegdep;	/* Will track our journal record. */
 	struct freefrag	*fr_freefrag;	/* Back pointer to freefrag. */
-	ino_t		fr_ino;		/* Ino from which frag freed. */
 	ufs_lbn_t	fr_lbn;		/* Lbn from which frag freed. */
 	ufs2_daddr_t	fr_blkno;	/* Blkno being freed. */
+	ino_t		fr_ino;		/* Ino from which frag freed. */
 	int		fr_frags;	/* Size of frag being freed. */
 };
 
 /*
- * A "jtrunc" journals the intent to truncate an inode to a non-zero
- * value.  This is done synchronously prior to the synchronous partial
- * truncation process.  The jsegdep is not released until the truncation
- * is complete and the truncated inode is fsync'd.
+ * A "jtrunc" journals the intent to truncate an inode's data or extent area.
  */
 struct jtrunc {
-	struct	worklist jt_list;	/* Linked to softdep_journal_pending. */
-	struct	jsegdep	*jt_jsegdep;	/* Will track our journal record. */
-	ino_t		 jt_ino;	/* Ino being truncated. */
-	off_t		 jt_size;	/* Final file size. */
-	int		 jt_extsize;	/* Final extent size. */
+	struct	jblkdep	jt_dep;		/* freeblks linkage. */
+	off_t		jt_size;	/* Final file size. */
+	int		jt_extsize;	/* Final extent size. */
+	ino_t		jt_ino;		/* Ino being truncated. */
+};
+
+/*
+ * A "jfsync" journals the completion of an fsync which invalidates earlier
+ * jtrunc records in the journal.
+ */
+struct jfsync {
+	struct worklist	jfs_list;	/* For softdep journal pending. */
+	off_t		jfs_size;	/* Sync file size. */
+	int		jfs_extsize;	/* Sync extent size. */
+	ino_t		jfs_ino;	/* ino being synced. */
 };
 
 /*
