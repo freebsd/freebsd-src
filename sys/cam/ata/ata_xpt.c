@@ -1262,6 +1262,7 @@ ata_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 		  ("xpt_scan_bus\n"));
 	switch (request_ccb->ccb_h.func_code) {
 	case XPT_SCAN_BUS:
+	case XPT_SCAN_TGT:
 		/* Find out the characteristics of the bus */
 		work_ccb = xpt_alloc_ccb_nowait();
 		if (work_ccb == NULL) {
@@ -1610,6 +1611,7 @@ ata_action(union ccb *start_ccb)
 		break;
 	}
 	case XPT_SCAN_BUS:
+	case XPT_SCAN_TGT:
 		ata_scan_bus(start_ccb->ccb_h.path->periph, start_ccb);
 		break;
 	case XPT_SCAN_LUN:
