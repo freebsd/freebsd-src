@@ -2489,12 +2489,8 @@ xpt_action_default(union ccb *start_ccb)
 			start_ccb->ccb_h.status = CAM_DEV_NOT_THERE;
 		} else {
 			struct ccb_getdev *cgd;
-			struct cam_eb *bus;
-			struct cam_et *tar;
 
 			cgd = &start_ccb->cgd;
-			bus = cgd->ccb_h.path->bus;
-			tar = cgd->ccb_h.path->target;
 			cgd->protocol = dev->protocol;
 			cgd->inq_data = dev->inq_data;
 			cgd->ident_data = dev->ident_data;
