@@ -967,7 +967,7 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp, isrename)
 				return (0);
 			if (tvp != NULL)
 				VOP_UNLOCK(tvp, 0);
-			error = VOP_FSYNC(dvp, MNT_WAIT, td);
+			(void) VOP_FSYNC(dvp, MNT_WAIT, td);
 			if (tvp != NULL)
 				vn_lock(tvp, LK_EXCLUSIVE | LK_RETRY);
 			return (error);
