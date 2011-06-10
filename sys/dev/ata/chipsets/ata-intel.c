@@ -404,8 +404,9 @@ ata_intel_reset(device_t dev)
 	device_t parent = device_get_parent(dev);
 	struct ata_pci_controller *ctlr = device_get_softc(parent);
 	struct ata_channel *ch = device_get_softc(dev);
-	int mask, pmask, timeout, devs;
+	int mask, pshift, timeout, devs;
 	u_char *smap;
+	uint16_t pcs;
 
 	/* In combined mode, skip SATA stuff for PATA channel. */
 	if ((ch->flags & ATA_SATA) == 0)
@@ -424,26 +425,35 @@ ata_intel_reset(device_t dev)
 
 	/* Wait up to 1 sec for "connect well". */
 	if (ctlr->chip->cfg1 & (INTEL_6CH | INTEL_6CH2))
-		pmask = mask << 8;
+		pshift = 8;
 	else
-		pmask = mask << 4;
+		pshift = 4;
 	for (timeout = 0; timeout < 100 ; timeout++) {
-		if (((pci_read_config(parent, 0x92, 2) & pmask) == pmask) &&
-		    (ATA_IDX_INB(ch, ATA_STATUS) != 0xff))
+		pcs = (pci_read_config(parent, 0x92, 2) >> pshift) & mask;
+		if ((pcs == mask) && (ATA_IDX_INB(ch, ATA_STATUS) != 0xff))
 			break;
 		ata_udelay(10000);
 	}
 
+	if (bootverbose)
+		device_printf(dev, "SATA reset: ports status=0x%02x\n", pcs);
 	/* If any device found, do soft-reset. */
 	if (ch->hw.pm_read != NULL) {
-		devs = ata_sata_phy_reset(dev, 0, 2);
+		devs = ata_sata_phy_reset(dev, 0, 2) ? ATA_ATA_MASTER : 0;
 		if ((ch->flags & ATA_NO_SLAVE) == 0)
-			devs += ata_sata_phy_reset(dev, 1, 2);
-	} else
-		devs = 1;
-	if (devs)
+			devs |= ata_sata_phy_reset(dev, 1, 2) ?
+			    ATA_ATA_SLAVE : 0;
+	} else {
+		devs = (pcs & (1 << smap[0])) ? ATA_ATA_MASTER : 0;
+		if ((ch->flags & ATA_NO_SLAVE) == 0)
+			devs |= (pcs & (1 << smap[1])) ?
+			    ATA_ATA_SLAVE : 0;
+	}
+	if (devs) {
 		ata_generic_reset(dev);
-	else
+		/* Reset may give fake slave when only ATAPI master present. */
+		ch->devices &= (devs | (devs * ATA_ATAPI_MASTER));
+	} else
 		ch->devices = 0;
 }
 
