@@ -1205,10 +1205,6 @@ daregister(struct cam_periph *periph, void *arg)
 	TASK_INIT(&softc->sysctl_task, 0, dasysctlinit, periph);
 
 	/*
-	 * Register this media as a disk
-	 */
-
-	/*
 	 * Add async callbacks for bus reset and
 	 * bus device reset calls.  I don't bother
 	 * checking if this fails as, in most cases,
@@ -1265,6 +1261,9 @@ daregister(struct cam_periph *periph, void *arg)
 	else if (softc->minimum_cmd_size > 12)
 		softc->minimum_cmd_size = 16;
 
+	/*
+	 * Register this media as a disk.
+	 */
 	softc->disk = disk_alloc();
 	softc->disk->d_devstat = devstat_new_entry(periph->periph_name,
 			  periph->unit_number, 0,
