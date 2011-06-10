@@ -687,6 +687,8 @@ cdregister(struct cam_periph *periph, void *arg)
 	else
 		softc->minimum_command_size = 6;
 
+	(void)cam_periph_hold(periph, PRIBIO);
+	cam_periph_unlock(periph);
 	/*
 	 * Load the user's default, if any.
 	 */
@@ -712,7 +714,6 @@ cdregister(struct cam_periph *periph, void *arg)
 	 * WORM peripheral driver.  WORM drives will also have the WORM
 	 * driver attached to them.
 	 */
-	cam_periph_unlock(periph);
 	softc->disk = disk_alloc();
 	softc->disk->d_devstat = devstat_new_entry("cd",
 			  periph->unit_number, 0,
@@ -736,6 +737,7 @@ cdregister(struct cam_periph *periph, void *arg)
 	softc->disk->d_flags = 0;
 	disk_create(softc->disk, DISK_VERSION);
 	cam_periph_lock(periph);
+	cam_periph_unhold(periph);
 
 	/*
 	 * Add an async callback so that we get
