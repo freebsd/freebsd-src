@@ -125,7 +125,7 @@ static void	tunclone(void *arg, struct ucred *cred, char *name,
 		    int namelen, struct cdev **dev);
 static void	tuncreate(const char *name, struct cdev *dev);
 static int	tunifioctl(struct ifnet *, u_long, caddr_t);
-static int	tuninit(struct ifnet *);
+static void	tuninit(struct ifnet *);
 static int	tunmodevent(module_t, int, void *);
 static int	tunoutput(struct ifnet *, struct mbuf *, struct sockaddr *,
 		    struct rtentry *rt);
@@ -485,14 +485,13 @@ tunclose(struct cdev *dev, int foo, int bar, struct thread *td)
 	return (0);
 }
 
-static int
+static void
 tuninit(struct ifnet *ifp)
 {
 	struct tun_softc *tp = ifp->if_softc;
 #ifdef INET
 	struct ifaddr *ifa;
 #endif
-	int error = 0;
 
 	TUNDEBUG(ifp, "tuninit\n");
 
@@ -517,7 +516,6 @@ tuninit(struct ifnet *ifp)
 	}
 #endif
 	mtx_unlock(&tp->tun_mtx);
-	return (error);
 }
 
 /*
@@ -541,12 +539,12 @@ tunifioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		mtx_unlock(&tp->tun_mtx);
 		break;
 	case SIOCSIFADDR:
-		error = tuninit(ifp);
-		TUNDEBUG(ifp, "address set, error=%d\n", error);
+		tuninit(ifp);
+		TUNDEBUG(ifp, "address set\n");
 		break;
 	case SIOCSIFDSTADDR:
-		error = tuninit(ifp);
-		TUNDEBUG(ifp, "destination address set, error=%d\n", error);
+		tuninit(ifp);
+		TUNDEBUG(ifp, "destination address set\n");
 		break;
 	case SIOCSIFMTU:
 		ifp->if_mtu = ifr->ifr_mtu;
@@ -850,7 +848,6 @@ tunwrite(struct cdev *dev, struct uio *uio, int flag)
 	struct tun_softc *tp = dev->si_drv1;
 	struct ifnet	*ifp = TUN2IFP(tp);
 	struct mbuf	*m;
-	int		error = 0;
 	uint32_t	family;
 	int 		isr;
 
@@ -870,7 +867,7 @@ tunwrite(struct cdev *dev, struct uio *uio, int flag)
 
 	if ((m = m_uiotombuf(uio, M_DONTWAIT, 0, 0, M_PKTHDR)) == NULL) {
 		ifp->if_ierrors++;
-		return (error);
+		return (ENOBUFS);
 	}
 
 	m->m_pkthdr.rcvif = ifp;
