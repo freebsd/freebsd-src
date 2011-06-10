@@ -376,6 +376,15 @@ struct ahci_device {
 	u_int			caps;
 };
 
+struct ahci_led {
+	device_t		dev;		/* Device handle */
+	struct cdev		*led;
+	uint8_t			num;		/* Number of this led */
+	uint8_t			state;		/* State of this led */
+};
+
+#define	AHCI_NUM_LEDS		3
+
 /* structure describing an ATA channel */
 struct ahci_channel {
 	device_t		dev;            /* Device handle */
@@ -386,6 +395,7 @@ struct ahci_channel {
 	struct ata_dma		dma;            /* DMA data */
 	struct cam_sim		*sim;
 	struct cam_path		*path;
+	struct ahci_led		leds[3];
 	uint32_t		caps;		/* Controller capabilities */
 	uint32_t		caps2;		/* Controller capabilities */
 	uint32_t		chcaps;		/* Channel capabilities */
@@ -443,6 +453,7 @@ struct ahci_controller {
 	uint32_t		caps;		/* Controller capabilities */
 	uint32_t		caps2;		/* Controller capabilities */
 	uint32_t		capsem;		/* Controller capabilities */
+	uint32_t		emloc;		/* EM buffer location */
 	int			quirks;
 	int			numirqs;
 	int			channels;
@@ -453,6 +464,7 @@ struct ahci_controller {
 		void			(*function)(void *);
 		void			*argument;
 	} interrupt[AHCI_MAX_PORTS];
+	struct mtx		em_mtx;		/* EM access lock */
 };
 
 enum ahci_err_type {

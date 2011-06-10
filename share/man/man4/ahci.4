@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 28, 2010
+.Dd May 17, 2011
 .Dt AHCI 4
 .Os
 .Sh NAME
@@ -122,6 +122,15 @@ hardware command queues (up to 32 commands per port),
 Native Command Queuing, SATA interface Power Management, device hot-plug
 and Message Signaled Interrupts.
 .Pp
+Driver supports "LED" enclosure management messages, defined by the AHCI.
+When supported by hardware, it allows to control per-port activity, locate
+and fault LEDs via the
+.Xr led 4
+API for localization and status reporting purposes.
+Supporting AHCI controllers may transmit that information to the backplane
+controllers via SGPIO interface. Backplane controllers interpret received
+statuses in some way (IBPI standard) to report them using present indicators.
+.Pp
 AHCI hardware is also supported by ataahci driver from
 .Xr ata 4
 subsystem.
@@ -136,6 +145,15 @@ subclass 6 (SATA) and programming interface 1 (AHCI).
 Also, in cooperation with atamarvell and atajmicron drivers of ata(4),
 it supports AHCI part of legacy-PATA + AHCI-SATA combined controllers,
 such as JMicron JMB36x and Marvell 88SX61xx.
+.Sh FILES
+.Bl -tag -width /dev/led/ahcich*.locate
+.It Pa /dev/led/ahcich*.act
+activity LED device nodes
+.It Pa /dev/led/ahcich*.fault
+fault LED device nodes
+.It Pa /dev/led/ahcich*.locate
+locate LED device nodes
+.El
 .Sh SEE ALSO
 .Xr ada 4 ,
 .Xr ata 4 ,
