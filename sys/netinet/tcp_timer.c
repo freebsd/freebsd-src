@@ -476,7 +476,9 @@ tcp_timer_rexmt(void * xtp)
 		else
 		  tp->t_flags &= ~TF_WASFRECOVERY;
 		tp->t_badrxtwin = ticks + (tp->t_srtt >> (TCP_RTT_SHIFT + 1));
-	}
+		tp->t_flags |= TF_PREVVALID;
+	} else
+		tp->t_flags &= ~TF_PREVVALID;
 	tcpstat.tcps_rexmttimeo++;
 	if (tp->t_state == TCPS_SYN_SENT)
 		rexmt = TCP_REXMTVAL(tp) * tcp_syn_backoff[tp->t_rxtshift];
