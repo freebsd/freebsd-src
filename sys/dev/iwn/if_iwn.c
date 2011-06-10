@@ -2105,6 +2105,7 @@ rate2plcp(int rate)
 static void
 iwn_newassoc(struct ieee80211_node *ni, int isnew)
 {
+#define	RV(v)	((v) & IEEE80211_RATE_VAL)
 	struct ieee80211com *ic = ni->ni_ic;
 	struct iwn_softc *sc = ic->ic_ifp->if_softc;
 	struct iwn_node *wn = (void *)ni;
@@ -2118,7 +2119,7 @@ iwn_newassoc(struct ieee80211_node *ni, int isnew)
 	if (IEEE80211_IS_CHAN_HT(ni->ni_chan)) {
 		ridx = ni->ni_rates.rs_nrates - 1;
 		for (i = ni->ni_htrates.rs_nrates - 1; i >= 0; i--) {
-			plcp = ni->ni_htrates.rs_rates[i] | IWN_RFLAG_MCS;
+			plcp = RV(ni->ni_htrates.rs_rates[i]) | IWN_RFLAG_MCS;
 			if (IEEE80211_IS_CHAN_HT40(ni->ni_chan)) {
 				plcp |= IWN_RFLAG_HT40;
 				if (ni->ni_htcap & IEEE80211_HTCAP_SHORTGI40)
@@ -2130,8 +2131,7 @@ iwn_newassoc(struct ieee80211_node *ni, int isnew)
 			else
 				plcp |= IWN_RFLAG_ANT(txant1);
 			if (ridx >= 0) {
-				rate = ni->ni_rates.rs_rates[ridx];
-				rate &= IEEE80211_RATE_VAL;
+				rate = RV(ni->ni_rates.rs_rates[ridx]);
 				wn->ridx[rate] = plcp;
 			}
 			wn->ridx[IEEE80211_RATE_MCS | i] = plcp;
@@ -2139,8 +2139,7 @@ iwn_newassoc(struct ieee80211_node *ni, int isnew)
 		}
 	} else {
 		for (i = 0; i < ni->ni_rates.rs_nrates; i++) {
-			rate = ni->ni_rates.rs_rates[i] & IEEE80211_RATE_VAL;
-
+			rate = RV(ni->ni_rates.rs_rates[i]);
 			plcp = rate2plcp(rate);
 			ridx = ic->ic_rt->rateCodeToIndex[rate];
 			if (ridx < IWN_RIDX_OFDM6 &&
@@ -2150,6 +2149,7 @@ iwn_newassoc(struct ieee80211_node *ni, int isnew)
 			wn->ridx[rate] = htole32(plcp);
 		}
 	}
+#undef	RV
 }
 
 static int
@@ -3993,6 +3993,7 @@ iwn5000_add_node(struct iwn_softc *sc, struct iwn_node_info *node, int async)
 static int
 iwn_set_link_quality(struct iwn_softc *sc, struct ieee80211_node *ni)
 {
+#define	RV(v)	((v) & IEEE80211_RATE_VAL)
 	struct iwn_node *wn = (void *)ni;
 	struct ieee80211_rateset *rs = &ni->ni_rates;
 	struct iwn_cmd_link_quality linkq;
@@ -4019,11 +4020,11 @@ iwn_set_link_quality(struct iwn_softc *sc, struct ieee80211_node *ni)
 		if (IEEE80211_IS_CHAN_HT(ni->ni_chan))
 			rate = IEEE80211_RATE_MCS | txrate;
 		else
-			rate = rs->rs_rates[txrate] & IEEE80211_RATE_VAL;
+			rate = RV(rs->rs_rates[txrate]);
 		linkq.retry[i] = wn->ridx[rate];
 
 		if ((le32toh(wn->ridx[rate]) & IWN_RFLAG_MCS) &&
-		    (le32toh(wn->ridx[rate]) & 0xff) > 7)
+		    RV(le32toh(wn->ridx[rate])) > 7)
 			linkq.mimo = i + 1;
 
 		/* Next retry at immediate lower bit-rate. */
@@ -4031,6 +4032,7 @@ iwn_set_link_quality(struct iwn_softc *sc, struct ieee80211_node *ni)
 			txrate--;
 	}
 	return iwn_cmd(sc, IWN_CMD_LINK_QUALITY, &linkq, sizeof linkq, 1);
+#undef	RV
 }
 
 /*
