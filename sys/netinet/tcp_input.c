@@ -1030,6 +1030,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				 * "bad retransmit" recovery.
 				 */
 				if (tp->t_rxtshift == 1 &&
+				    tp->t_flags & TF_PREVVALID &&
 				    (int)(ticks - tp->t_badrxtwin) < 0) {
 					++tcpstat.tcps_sndrexmitbad;
 					tp->snd_cwnd = tp->snd_cwnd_prev;
@@ -1039,6 +1040,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 					if (tp->t_flags & TF_WASFRECOVERY)
 					    ENTER_FASTRECOVERY(tp);
 					tp->snd_nxt = tp->snd_max;
+					tp->t_flags &= ~TF_PREVVALID;
 					tp->t_badrxtwin = 0;
 				}
 
@@ -1962,7 +1964,8 @@ process_ACK:
 		 * original cwnd and ssthresh, and proceed to transmit where
 		 * we left off.
 		 */
-		if (tp->t_rxtshift == 1 && (int)(ticks - tp->t_badrxtwin) < 0) {
+		if (tp->t_rxtshift == 1 && tp->t_flags & TF_PREVVALID &&
+		    (int)(ticks - tp->t_badrxtwin) < 0) {
 			++tcpstat.tcps_sndrexmitbad;
 			tp->snd_cwnd = tp->snd_cwnd_prev;
 			tp->snd_ssthresh = tp->snd_ssthresh_prev;
@@ -1970,6 +1973,7 @@ process_ACK:
 			if (tp->t_flags & TF_WASFRECOVERY)
 				ENTER_FASTRECOVERY(tp);
 			tp->snd_nxt = tp->snd_max;
+			tp->t_flags &= ~TF_PREVVALID;
 			tp->t_badrxtwin = 0;	/* XXX probably not required */
 		}
 
