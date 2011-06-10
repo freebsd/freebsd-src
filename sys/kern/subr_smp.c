@@ -303,11 +303,15 @@ restart_cpus(cpumask_t map)
 void
 smp_rendezvous_action(void)
 {
+	struct thread *td;
 	void *local_func_arg;
 	void (*local_setup_func)(void*);
 	void (*local_action_func)(void*);
 	void (*local_teardown_func)(void*);
 	int generation;
+#ifdef INVARIANTS
+	int owepreempt;
+#endif
 
 	/* Ensure we have up-to-date values. */
 	atomic_add_acq_int(&smp_rv_waiters[0], 1);
@@ -321,6 +325,34 @@ smp_rendezvous_action(void)
 	local_teardown_func = smp_rv_teardown_func;
 	generation = smp_rv_generation;
 
+	/*
+	 * Use a nested critical section to prevent any preemptions
+	 * from occurring during a rendezvous action routine.
+	 * Specifically, if a rendezvous handler is invoked via an IPI
+	 * and the interrupted thread was in the critical_exit()
+	 * function after setting td_critnest to 0 but before
+	 * performing a deferred preemption, this routine can be
+	 * invoked with td_critnest set to 0 and td_owepreempt true.
+	 * In that case, a critical_exit() during the rendezvous
+	 * action would trigger a preemption which is not permitted in
+	 * a rendezvous action.  To fix this, wrap all of the
+	 * rendezvous action handlers in a critical section.  We
+	 * cannot use a regular critical section however as having
+	 * critical_exit() preempt from this routine would also be
+	 * problematic (the preemption must not occur before the IPI
+	 * has been acknowleged via an EOI).  Instead, we
+	 * intentionally ignore td_owepreempt when leaving the
+	 * critical setion.  This should be harmless because we do not
+	 * permit rendezvous action routines to schedule threads, and
+	 * thus td_owepreempt should never transition from 0 to 1
+	 * during this routine.
+	 */
+	td = curthread;
+	td->td_critnest++;
+#ifdef INVARIANTS
+	owepreempt = td->td_owepreempt;
+#endif
+	
 	/*
 	 * If requested, run a setup function before the main action
 	 * function.  Ensure all CPUs have completed the setup
@@ -354,14 +386,18 @@ smp_rendezvous_action(void)
 	 */
 	MPASS(generation == smp_rv_generation);
 	atomic_add_int(&smp_rv_waiters[2], 1);
-	if (local_teardown_func == smp_no_rendevous_barrier)
-                return;
-	while (smp_rv_waiters[2] < smp_rv_ncpus &&
-	    generation == smp_rv_generation)
-		cpu_spinwait();
+	if (local_teardown_func != smp_no_rendevous_barrier) {
+		while (smp_rv_waiters[2] < smp_rv_ncpus &&
+		    generation == smp_rv_generation)
+			cpu_spinwait();
 
-	if (local_teardown_func != NULL)
-		local_teardown_func(local_func_arg);
+		if (local_teardown_func != NULL)
+			local_teardown_func(local_func_arg);
+	}
+
+	td->td_critnest--;
+	KASSERT(owepreempt == td->td_owepreempt,
+	    ("rendezvous action changed td_owepreempt"));
 }
 
 void
