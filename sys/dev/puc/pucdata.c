@@ -48,8 +48,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/puc/puc_bfe.h>
 
 static puc_config_f puc_config_amc;
-static puc_config_f puc_config_cronyx;
 static puc_config_f puc_config_diva;
+static puc_config_f puc_config_exar;
 static puc_config_f puc_config_icbook;
 static puc_config_f puc_config_oxford_pcie;
 static puc_config_f puc_config_quatech;
@@ -548,11 +548,25 @@ const struct puc_cfg puc_pci_devices[] = {
 	    PUC_PORT_8S, 0x18, 0, 8,
 	},
 
+	{   0x13a8, 0x0152, 0xffff, 0,
+	    "Exar XR17C/D152",
+	    DEFAULT_RCLK * 8,
+	    PUC_PORT_2S, 0x10, 0, -1,
+	    .config_function = puc_config_exar
+	},
+
+	{   0x13a8, 0x0154, 0xffff, 0,
+	    "Exar XR17C154",
+	    DEFAULT_RCLK * 8,
+	    PUC_PORT_4S, 0x10, 0, -1,
+	    .config_function = puc_config_exar
+	},
+
 	{   0x13a8, 0x0158, 0xffff, 0,
-	    "Cronyx Omega2-PCI",
+	    "Exar XR17C158",
 	    DEFAULT_RCLK * 8,
 	    PUC_PORT_8S, 0x10, 0, -1,
-	    .config_function = puc_config_cronyx
+	    .config_function = puc_config_exar
 	},
 
 	{   0x13a8, 0x0258, 0xffff, 0,
@@ -1014,17 +1028,6 @@ puc_config_amc(struct puc_softc *sc, enum puc_cfg_cmd cmd, int port,
 }
 
 static int
-puc_config_cronyx(struct puc_softc *sc, enum puc_cfg_cmd cmd, int port,
-    intptr_t *res)
-{
-	if (cmd == PUC_CFG_GET_OFS) {
-		*res = port * 0x200;
-		return (0);
-	}
-	return (ENXIO);
-}
-
-static int
 puc_config_diva(struct puc_softc *sc, enum puc_cfg_cmd cmd, int port,
     intptr_t *res)
 {
@@ -1036,6 +1039,17 @@ puc_config_diva(struct puc_softc *sc, enum puc_cfg_cmd cmd, int port,
 		else if (cfg->subdevice == 0x104b)	/* Maestro SP2 */
 			port = (port == 3) ? 4 : port;
 		*res = port * 8 + ((port > 2) ? 0x18 : 0);
+		return (0);
+	}
+	return (ENXIO);
+}
+
+static int
+puc_config_exar(struct puc_softc *sc, enum puc_cfg_cmd cmd, int port,
+    intptr_t *res)
+{
+	if (cmd == PUC_CFG_GET_OFS) {
+		*res = port * 0x200;
 		return (0);
 	}
 	return (ENXIO);
