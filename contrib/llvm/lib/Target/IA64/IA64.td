@@ -34,6 +34,9 @@ def F1 : IA64Register<"f1">;
 def P0 : IA64Register<"p0">;
 
 def R0 : IA64Register<"r0">;
+def R1 : IA64Register<"r1">;
+def R12 : IA64Register<"r12">;
+def R13 : IA64Register<"r13">;
 
 //
 // Register classes
@@ -43,7 +46,7 @@ class IA64RegisterClass<list<ValueType> types, int align, list<Register> regs>
 }
 
 def FloatingPoint : IA64RegisterClass<[f128], 128, [F0, F1]>;
-def General : IA64RegisterClass<[i64], 64, [R0]>;
+def General : IA64RegisterClass<[i64], 64, [R0, R1, R12, R13]>;
 def Predicate : IA64RegisterClass<[i1], 0, [P0]>;
 
 //
