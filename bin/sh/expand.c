@@ -174,6 +174,7 @@ expandarg(union node *arg, struct arglist *arglist, int flag)
 	ifslastp = NULL;
 	argstr(arg->narg.text, flag);
 	if (arglist == NULL) {
+		STACKSTRNUL(expdest);
 		return;			/* here document expanded */
 	}
 	STPUTC('\0', expdest);

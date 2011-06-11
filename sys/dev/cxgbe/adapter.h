@@ -297,7 +297,7 @@ struct sge_eq {
 	uint16_t pidx;		/* producer idx (desc idx) */
 	uint16_t pending;	/* # of descriptors used since last doorbell */
 	uint16_t iqid;		/* iq that gets egr_update for the eq */
-	uint32_t cntxt_id;	/* SGE context id for the eq */
+	unsigned int  cntxt_id;	/* SGE context id for the eq */
 };
 
 struct sge_fl {

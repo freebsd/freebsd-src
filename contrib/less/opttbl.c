@@ -263,10 +263,6 @@ static struct loption option[] =
 			NULL
 		}
 	},
-	{ 'l', NULL,
-		STRING|NO_TOGGLE|NO_QUERY, 0, NULL, opt_l,
-		{ NULL, NULL, NULL }
-	},
 	{ 'L', &L__optname,
 		BOOL, OPT_ON, &use_lessopen, NULL,
 		{

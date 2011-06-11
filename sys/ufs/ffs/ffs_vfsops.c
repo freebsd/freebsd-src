@@ -2034,12 +2034,10 @@ ffs_geom_strategy(struct bufobj *bo, struct buf *bp)
 static void
 db_print_ffs(struct ufsmount *ump)
 {
-	db_printf("mp %p %s devvp %p fs %p su_wl %d su_wl_in %d su_deps %d "
-		  "su_req %d\n",
+	db_printf("mp %p %s devvp %p fs %p su_wl %d su_deps %d su_req %d\n",
 	    ump->um_mountp, ump->um_mountp->mnt_stat.f_mntonname,
 	    ump->um_devvp, ump->um_fs, ump->softdep_on_worklist,
-	    ump->softdep_on_worklist_inprogress, ump->softdep_deps,
-	    ump->softdep_req);
+	    ump->softdep_deps, ump->softdep_req);
 }
 
 DB_SHOW_COMMAND(ffs, db_show_ffs)
