@@ -350,3 +350,11 @@ device		fwe		# Ethernet over FireWire (non-standard!)
 device		fwip		# IP over FireWire (RFC 2734,3146)
 device		dcons		# Dumb console driver
 device		dcons_crom	# Configuration ROM for dcons
+
+# Sound support
+device		sound		# Generic sound driver (required)
+device		snd_es137x	# Ensoniq AudioPCI ES137x
+device		snd_hda		# Intel High Definition Audio
+device		snd_ich		# Intel, NVidia and other ICH AC'97 Audio
+device		snd_uaudio	# USB Audio
+device		snd_via8233	# VIA VT8233x Audio
