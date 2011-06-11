@@ -1214,17 +1214,13 @@ bad:
  * Mark the current node/TID as ready to TX.
  *
  * This is done to make it easy for the software scheduler to 
- * find which nodes/TIDs have data to send.
+ * find which nodes have data to send.
  *
  * This must be called with the TX/ATH lock held.
  */
 static void
-ath_tx_node_sched(struct ath_softc *sc, struct ath_node *an, int tid)
+ath_tx_node_sched(struct ath_softc *sc, struct ath_node *an)
 {
-	/*
-	 * For now, the node is marked as ready;
-	 * later code will also maintain a per-TID list.
-	 */
 	if (an->sched)
 		return;		/* already scheduled */
 
@@ -1234,13 +1230,13 @@ ath_tx_node_sched(struct ath_softc *sc, struct ath_node *an, int tid)
 }
 
 /*
- * Mark the current node/TID as no longer needing to be polled for
+ * Mark the current node as no longer needing to be polled for
  * TX packets.
  *
  * This must be called with the TX/ATH lock held.
  */
 static void
-ath_tx_node_unsched(struct ath_softc *sc, struct ath_node *an, int tid)
+ath_tx_node_unsched(struct ath_softc *sc, struct ath_node *an)
 {
 	if (an->sched == 0)
 		return;
@@ -1259,20 +1255,42 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf,
     struct mbuf *m0)
 {
 	struct ath_node *an = ATH_NODE(ni);
+	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211_frame *wh;
+	struct ath_vap *avp = ATH_VAP(vap);
 	struct ath_tid *atid;
+	struct ath_txq *txq;	/* eventual destination queue */
 	int tid;
+	int ismcast;
+	u_int pri;
 
 	/* Fetch the TID - non-QoS frames get assigned to TID 16 */
 	wh = mtod(m0, struct ieee80211_frame *);
 	tid = ieee80211_gettid(wh);
 	atid = &an->an_tid[tid];
 
+	/* Fetch the eventual destination queue */
+	pri = M_WME_GETAC(m0);			/* honor classification */
+	ismcast = IEEE80211_IS_MULTICAST(wh->i_addr1);
+	txq = sc->sc_ac2q[pri];
+
+	/* Handle mcast, or PS STA */
+	if (ismcast && (vap->iv_ps_sta || avp->av_mcastq.axq_depth))
+		txq = &avp->av_mcastq;
+
+	/* Set local packet state, used to queue packets to hardware */
+	bf->bf_state.bfs_tid = tid;
+	bf->bf_state.bfs_txq = txq;
+
 	/* Queue frame to the tail of the software queue */
+	ATH_TXQ_LOCK(atid);
 	ATH_TXQ_INSERT_TAIL(atid, bf, bf_list);
+	ATH_TXQ_UNLOCK(atid);
 
 	/* Mark the given node/tid as having packets to dequeue */
-	ath_tx_node_sched(sc, an, tid);
+	ATH_LOCK(sc);
+	ath_tx_node_sched(sc, an);
+	ATH_UNLOCK(sc);
 }
 
 /*
@@ -1374,9 +1392,105 @@ ath_tx_tid_cleanup(struct ath_softc *sc, struct ath_node *an)
 		ath_tx_tid_txq_unmark(sc, an, i);
 
 		/* Remove any pending hardware TXQ scheduling */
-		ath_tx_node_unsched(sc, an, i);
+		ath_tx_node_unsched(sc, an);
 
 		/* Free mutex */
 		mtx_destroy(&atid->axq_lock);
 	}
 }
+
+/*
+ * Schedule some packets from the given node/TID to the hardware.
+ *
+ * For non-aggregate packets, all packets can just be queued.
+ * Aggregate destinations will end up having limitations on
+ * what can actually be queued here (ie, not more than the
+ * block-ack window.)
+ */
+void
+ath_tx_tid_hw_queue(struct ath_softc *sc, struct ath_node *an, int tid)
+{
+	struct ath_buf *bf;
+	struct ath_txq *txq;
+	struct ath_tid *atid = &an->an_tid[tid];
+
+	for (;;) {
+		ATH_TXQ_LOCK(atid);
+                bf = STAILQ_FIRST(&txq->axq_q);
+		if (bf == NULL) {
+			ATH_TXQ_UNLOCK(atid);
+			break;
+		}
+		ATH_TXQ_REMOVE_HEAD(atid, bf_list);
+		ATH_TXQ_UNLOCK(atid);
+
+		txq = bf->bf_state.bfs_txq;
+		/* Sanity check! */
+		if (tid != bf->bf_state.bfs_tid) {
+			device_printf(sc->sc_dev, "%s: bfs_tid %d !="
+			    " tid %d\n",
+			    __func__, bf->bf_state.bfs_tid, tid);
+		}
+
+		/* Punt to hardware or software txq */
+		ath_tx_handoff(sc, txq, bf);
+	}
+}
+
+/*
+ * Attempt to schedule packets from the given node to the hardware.
+ */
+void
+ath_tx_hw_queue(struct ath_softc *sc, struct ath_node *an)
+{
+	struct ath_tid *atid;
+	int i;
+
+	/*
+	 * For now, just queue from all TIDs in order.
+	 * This is very likely absolutely wrong from a QoS
+	 * perspective but it'll do for now.
+	 */
+	for (i = 0; i < IEEE80211_TID_SIZE; i++) {
+		atid = &an->an_tid[i];
+		ath_tx_tid_hw_queue(sc, an, i);
+	}
+}
+
+/*
+ * This is pretty disgusting, but again it's just temporary.
+ */
+static int
+ath_txq_node_qlen(struct ath_softc *sc, struct ath_node *an)
+{
+	int qlen = 0;
+	int i;
+	for (i = 0; i < IEEE80211_TID_SIZE; i++) {
+		ATH_TXQ_LOCK(&an->an_tid[i]);
+		qlen += an->an_tid[i].axq_depth;
+		ATH_TXQ_UNLOCK(&an->an_tid[i]);
+	}
+	return qlen;
+}
+
+/*
+ * Handle scheduling some packets from whichever nodes have
+ * signaled they're (potentially) ready.
+ *
+ * This must be called with the ATH lock held.
+ */
+void
+ath_txq_sched(struct ath_softc *sc)
+{
+	struct ath_node *an, *next;
+
+	/* Iterate over the list of active nodes, queuing packets */
+	STAILQ_FOREACH_SAFE(an, &sc->sc_txnodeq, an_list, next) {
+		/* Try dequeueing packets from the current node */
+		ath_tx_hw_queue(sc, an);
+
+		/* Are any packets left on the node software queue? Remove */
+		if (! ath_txq_node_qlen(sc, an))
+			ath_tx_node_unsched(sc, an);
+	}
+} 

@@ -151,6 +151,7 @@ struct ath_buf {
 		int bfs_seqno;		/* sequence number of this packet */
 		int bfs_retries;	/* retry count */
 		uint16_t bfs_tid;	/* packet TID (or TID_MAX for no QoS) */
+		struct ath_txq *bfs_txq;	/* eventual dest hardware TXQ */
 		uint16_t bfs_al;	/* length of aggregate */
 		uint16_t bfs_pktdur;	/* packet duration (at current rate?) */
 		uint16_t bfs_nframes;	/* number of frames in aggregate */
