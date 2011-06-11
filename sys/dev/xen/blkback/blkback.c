@@ -2921,7 +2921,7 @@ xbb_resume(device_t dev)
  *
  * \return  0 for success, errno codes for failure.
  */
-static int
+static void
 xbb_frontend_changed(device_t dev, XenbusState frontend_state)
 {
 	struct xbb_softc *xbb = device_get_softc(dev);
@@ -2948,7 +2948,6 @@ xbb_frontend_changed(device_t dev, XenbusState frontend_state)
 				 frontend_state);
 		break;
 	}
-	return (0);
 }
 
 /*---------------------------- NewBus Registration ---------------------------*/
