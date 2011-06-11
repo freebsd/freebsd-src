@@ -46,6 +46,8 @@ __FBSDID("$FreeBSD$");
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
 
+#define	max(x, y) ((x) > (y) ? (x) : (y))
+
 static const char *progname, *nexus;
 
 struct reg_info {
@@ -59,6 +61,15 @@ struct mod_regs {
 	const struct reg_info *ri;
 };
 
+struct field_desc {
+	const char *name;     /* Field name */
+	unsigned short start; /* Start bit position */
+	unsigned short end;   /* End bit position */
+	unsigned char shift;  /* # of low order bits omitted and implicitly 0 */
+	unsigned char hex;    /* Print field in hex instead of decimal */
+	unsigned char islog2; /* Field contains the base-2 log of the value */
+};
+
 #include "reg_defs_t4.c"
 #include "reg_defs_t4vf.c"
 
@@ -67,6 +78,7 @@ usage(FILE *fp)
 {
 	fprintf(fp, "Usage: %s <nexus> [operation]\n", progname);
 	fprintf(fp,
+	    "\tcontext <type> <id>                 show an SGE context\n"
 	    "\tfilter <idx> [<param> <val>] ...    set a filter\n"
 	    "\tfilter <idx> delete|clear           delete a filter\n"
 	    "\tfilter list                         list all filters\n"
@@ -1113,6 +1125,227 @@ filter_cmd(int argc, const char *argv[])
 	return set_filter(idx, argc - 1, argv + 1);
 }
 
+/*
+ * Shows the fields of a multi-word structure.  The structure is considered to
+ * consist of @nwords 32-bit words (i.e, it's an (@nwords * 32)-bit structure)
+ * whose fields are described by @fd.  The 32-bit words are given in @words
+ * starting with the least significant 32-bit word.
+ */
+static void
+show_struct(const uint32_t *words, int nwords, const struct field_desc *fd)
+{
+	unsigned int w = 0;
+	const struct field_desc *p;
+
+	for (p = fd; p->name; p++)
+		w = max(w, strlen(p->name));
+
+	while (fd->name) {
+		unsigned long long data;
+		int first_word = fd->start / 32;
+		int shift = fd->start % 32;
+		int width = fd->end - fd->start + 1;
+		unsigned long long mask = (1ULL << width) - 1;
+
+		data = (words[first_word] >> shift) |
+		       ((uint64_t)words[first_word + 1] << (32 - shift));
+		if (shift)
+		       data |= ((uint64_t)words[first_word + 2] << (64 - shift));
+		data &= mask;
+		if (fd->islog2)
+			data = 1 << data;
+		printf("%-*s ", w, fd->name);
+		printf(fd->hex ? "%#llx\n" : "%llu\n", data << fd->shift);
+		fd++;
+	}
+}
+
+#define FIELD(name, start, end) { name, start, end, 0, 0, 0 }
+#define FIELD1(name, start) FIELD(name, start, start)
+
+static void
+show_sge_context(const struct t4_sge_context *p)
+{
+	static struct field_desc egress[] = {
+		FIELD1("StatusPgNS:", 180),
+		FIELD1("StatusPgRO:", 179),
+		FIELD1("FetchNS:", 178),
+		FIELD1("FetchRO:", 177),
+		FIELD1("Valid:", 176),
+		FIELD("PCIeDataChannel:", 174, 175),
+		FIELD1("DCAEgrQEn:", 173),
+		FIELD("DCACPUID:", 168, 172),
+		FIELD1("FCThreshOverride:", 167),
+		FIELD("WRLength:", 162, 166),
+		FIELD1("WRLengthKnown:", 161),
+		FIELD1("ReschedulePending:", 160),
+		FIELD1("OnChipQueue:", 159),
+		FIELD1("FetchSizeMode", 158),
+		{ "FetchBurstMin:", 156, 157, 4, 0, 1 },
+		{ "FetchBurstMax:", 153, 154, 6, 0, 1 },
+		FIELD("uPToken:", 133, 152),
+		FIELD1("uPTokenEn:", 132),
+		FIELD1("UserModeIO:", 131),
+		FIELD("uPFLCredits:", 123, 130),
+		FIELD1("uPFLCreditEn:", 122),
+		FIELD("FID:", 111, 121),
+		FIELD("HostFCMode:", 109, 110),
+		FIELD1("HostFCOwner:", 108),
+		{ "CIDXFlushThresh:", 105, 107, 0, 0, 1 },
+		FIELD("CIDX:", 89, 104),
+		FIELD("PIDX:", 73, 88),
+		{ "BaseAddress:", 18, 72, 9, 1 },
+		FIELD("QueueSize:", 2, 17),
+		FIELD1("QueueType:", 1),
+		FIELD1("CachePriority:", 0),
+		{ NULL }
+	};
+	static struct field_desc fl[] = {
+		FIELD1("StatusPgNS:", 180),
+		FIELD1("StatusPgRO:", 179),
+		FIELD1("FetchNS:", 178),
+		FIELD1("FetchRO:", 177),
+		FIELD1("Valid:", 176),
+		FIELD("PCIeDataChannel:", 174, 175),
+		FIELD1("DCAEgrQEn:", 173),
+		FIELD("DCACPUID:", 168, 172),
+		FIELD1("FCThreshOverride:", 167),
+		FIELD("WRLength:", 162, 166),
+		FIELD1("WRLengthKnown:", 161),
+		FIELD1("ReschedulePending:", 160),
+		FIELD1("OnChipQueue:", 159),
+		FIELD1("FetchSizeMode", 158),
+		{ "FetchBurstMin:", 156, 157, 4, 0, 1 },
+		{ "FetchBurstMax:", 153, 154, 6, 0, 1 },
+		FIELD1("FLMcongMode:", 152),
+		FIELD("MaxuPFLCredits:", 144, 151),
+		FIELD("FLMcontextID:", 133, 143),
+		FIELD1("uPTokenEn:", 132),
+		FIELD1("UserModeIO:", 131),
+		FIELD("uPFLCredits:", 123, 130),
+		FIELD1("uPFLCreditEn:", 122),
+		FIELD("FID:", 111, 121),
+		FIELD("HostFCMode:", 109, 110),
+		FIELD1("HostFCOwner:", 108),
+		{ "CIDXFlushThresh:", 105, 107, 0, 0, 1 },
+		FIELD("CIDX:", 89, 104),
+		FIELD("PIDX:", 73, 88),
+		{ "BaseAddress:", 18, 72, 9, 1 },
+		FIELD("QueueSize:", 2, 17),
+		FIELD1("QueueType:", 1),
+		FIELD1("CachePriority:", 0),
+		{ NULL }
+	};
+	static struct field_desc ingress[] = {
+		FIELD1("NoSnoop:", 145),
+		FIELD1("RelaxedOrdering:", 144),
+		FIELD1("GTSmode:", 143),
+		FIELD1("ISCSICoalescing:", 142),
+		FIELD1("Valid:", 141),
+		FIELD1("TimerPending:", 140),
+		FIELD1("DropRSS:", 139),
+		FIELD("PCIeChannel:", 137, 138),
+		FIELD1("SEInterruptArmed:", 136),
+		FIELD1("CongestionMgtEnable:", 135),
+		FIELD1("DCAIngQEnable:", 134),
+		FIELD("DCACPUID:", 129, 133),
+		FIELD1("UpdateScheduling:", 128),
+		FIELD("UpdateDelivery:", 126, 127),
+		FIELD1("InterruptSent:", 125),
+		FIELD("InterruptIDX:", 114, 124),
+		FIELD1("InterruptDestination:", 113),
+		FIELD1("InterruptArmed:", 112),
+		FIELD("RxIntCounter:", 106, 111),
+		FIELD("RxIntCounterThreshold:", 104, 105),
+		FIELD1("Generation:", 103),
+		{ "BaseAddress:", 48, 102, 9, 1 },
+		FIELD("PIDX:", 32, 47),
+		FIELD("CIDX:", 16, 31),
+		{ "QueueSize:", 4, 15, 4, 0 },
+		{ "QueueEntrySize:", 2, 3, 4, 0, 1 },
+		FIELD1("QueueEntryOverride:", 1),
+		FIELD1("CachePriority:", 0),
+		{ NULL }
+	};
+	static struct field_desc flm[] = {
+		FIELD1("NoSnoop:", 79),
+		FIELD1("RelaxedOrdering:", 78),
+		FIELD1("Valid:", 77),
+		FIELD("DCACPUID:", 72, 76),
+		FIELD1("DCAFLEn:", 71),
+		FIELD("EQid:", 54, 70),
+		FIELD("SplitEn:", 52, 53),
+		FIELD1("PadEn:", 51),
+		FIELD1("PackEn:", 50),
+		FIELD1("DBpriority:", 48),
+		FIELD("PackOffset:", 16, 47),
+		FIELD("CIDX:", 8, 15),
+		FIELD("PIDX:", 0, 7),
+		{ NULL }
+	};
+	static struct field_desc conm[] = {
+		FIELD1("CngDBPHdr:", 6),
+		FIELD1("CngDBPData:", 5),
+		FIELD1("CngIMSG:", 4),
+		FIELD("CngChMap:", 0, 3),
+		{ NULL }
+	};
+
+	if (p->mem_id == SGE_CONTEXT_EGRESS)
+		show_struct(p->data, 6, (p->data[0] & 2) ? fl : egress);
+	else if (p->mem_id == SGE_CONTEXT_FLM)
+		show_struct(p->data, 3, flm);
+	else if (p->mem_id == SGE_CONTEXT_INGRESS)
+		show_struct(p->data, 5, ingress);
+	else if (p->mem_id == SGE_CONTEXT_CNM)
+		show_struct(p->data, 1, conm);
+}
+
+#undef FIELD
+#undef FIELD1
+
+static int
+get_sge_context(int argc, const char *argv[])
+{
+	int rc;
+	char *p;
+	long cid;
+	struct t4_sge_context cntxt = {0};
+
+	if (argc != 2) {
+		warnx("sge_context: incorrect number of arguments.");
+		return (EINVAL);
+	}
+
+	if (!strcmp(argv[0], "egress"))
+		cntxt.mem_id = SGE_CONTEXT_EGRESS;
+	else if (!strcmp(argv[0], "ingress"))
+		cntxt.mem_id = SGE_CONTEXT_INGRESS;
+	else if (!strcmp(argv[0], "fl"))
+		cntxt.mem_id = SGE_CONTEXT_FLM;
+	else if (!strcmp(argv[0], "cong"))
+		cntxt.mem_id = SGE_CONTEXT_CNM;
+	else {
+		warnx("unknown context type \"%s\"; known types are egress, "
+		    "ingress, fl, and cong.", argv[0]);
+		return (EINVAL);
+	}
+
+	p = str_to_number(argv[1], &cid, NULL);
+	if (*p) {
+		warnx("invalid context id \"%s\"", argv[1]);
+		return (EINVAL);
+	}
+	cntxt.cid = cid;
+
+	rc = doit(CHELSIO_T4_GET_SGE_CONTEXT, &cntxt);
+	if (rc != 0)
+		return (rc);
+
+	show_sge_context(&cntxt);
+	return (0);
+}
+
 static int
 run_cmd(int argc, const char *argv[])
 {
@@ -1131,6 +1364,8 @@ run_cmd(int argc, const char *argv[])
 		rc = dump_regs(argc, argv);
 	else if (!strcmp(cmd, "filter"))
 		rc = filter_cmd(argc, argv);
+	else if (!strcmp(cmd, "context"))
+		rc = get_sge_context(argc, argv);
 	else {
 		rc = EINVAL;
 		warnx("invalid command \"%s\"", cmd);
