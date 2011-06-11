@@ -147,7 +147,6 @@ The following socket options are supported:
 .It Dv IPV6_UNICAST_HOPS Fa "int *"
 Get or set the default hop limit header field for outgoing unicast
 datagrams sent on this socket.
-A value of \-1 resets to the default value.
 .\" .It Dv IPV6_RECVOPTS Fa "int *"
 .\" Get or set the status of whether all header options will be
 .\" delivered along with the datagram when it is received.
@@ -313,6 +312,18 @@ The
 routine and family of routines may be used to manipulate this data.
 .Pp
 This option requires superuser privileges.
+.It Dv IPV6_TCLASS Fa "int *"
+Get or set the value of the traffic class field used for outgoing datagrams
+on this socket.
+The value must be between \-1 and 255.
+A value of \-1 resets to the default value.
+.It Dv IPV6_RECVTCLASS Fa "int *"
+Get or set the status of whether the traffic class header field will be
+provided as ancillary data along with the payload in subsequent
+.Xr recvmsg 2
+calls.
+The header field is stored as a single value of type
+.Vt int .
 .It Dv IPV6_RTHDR Fa "int *"
 Get or set whether the routing header from subsequent packets will be
 provided as ancillary data along with the payload in subsequent
