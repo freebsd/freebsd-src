@@ -32,7 +32,7 @@
 .\"	@(#)su.1	8.2 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd July 1, 2008
+.Dd June 6, 2011
 .Dt SU 1
 .Os
 .Sh NAME
@@ -197,16 +197,22 @@ PAM configuration for
 .Sh EXAMPLES
 .Bl -tag -width 5n -compact
 .It Li "su -m man -c catman"
-Runs the command
-.Li catman
-as user
-.Li man .
+Starts a shell as user
+.Li man ,
+and runs the command
+.Li catman .
 You will be asked for man's password unless your real UID is 0.
 Note that the
 .Fl m
 option is required since user
 .Dq man
 does not have a valid shell by default.
+In this example,
+.Fl c
+is passed to the shell of the user
+.Dq man ,
+and is not interpreted as an argument to
+.Nm .
 .It Li "su -m man -c 'catman /usr/share/man /usr/local/man'"
 Same as above, but the target command consists of more than a
 single word and hence is quoted for use with the
