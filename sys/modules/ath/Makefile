@@ -142,5 +142,10 @@ CFLAGS+=  -I. -I${.CURDIR}/../../dev/ath -I${.CURDIR}/../../dev/ath/ath_hal
 
 opt_ah.h:
 	echo '#define AH_SUPPORT_AR5416 1' > $@
+	echo '#define AH_AR5416_INTERRUPT_MITIGATION 1' >> $@
+	echo '#define AH_DEBUG 1' >> $@
+	echo '#define ATH_DEBUG 1' >> $@
+	echo '#define ATH_DIAGAPI 1' >> $@
+	echo '#define ATH_ENABLE_11N 1' >> $@
 
 .include <bsd.kmod.mk>
