@@ -349,11 +349,8 @@ afexists()
 	_af=$1
 
 	case ${_af} in
-	inet)
-		${SYSCTL_N} kern.features.inet > /dev/null 2>&1
-		;;
-	inet6)
-		${SYSCTL_N} kern.features.inet6 > /dev/null 2>&1
+	inet|inet6)
+		check_kern_features ${_af}
 		;;
 	ipx)
 		${SYSCTL_N} net.ipx > /dev/null 2>&1
