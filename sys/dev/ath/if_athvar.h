@@ -109,6 +109,7 @@ struct ath_node {
 						 * added to the txq axq_nodeq */
 	struct ath_buf	*an_ff_buf[WME_NUM_AC]; /* ff staging area */
 	struct ath_tid	an_tid[IEEE80211_TID_SIZE];	/* per-TID state */
+	u_int		an_qdepth;	/* Current queue depth of all TIDs */
 	/* variable-length rate control state follows */
 };
 #define	ATH_NODE(ni)	((struct ath_node *)(ni))

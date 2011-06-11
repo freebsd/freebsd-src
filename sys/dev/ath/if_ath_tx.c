@@ -937,6 +937,11 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	/* Fill in the details in the descriptor list */
 	ath_tx_chaindesclist(sc, txq, bf);
 
+#if 0
+	/* add to software queue */
+	ath_tx_swq(sc, ni, bf, m0);
+#else
+
 	/*
 	 * For now, since there's no software queue,
 	 * direct-dispatch to the hardware.
@@ -945,6 +950,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 		ath_tx_handoff_mcast(sc, txq, bf);
 	else
 		ath_tx_handoff_hw(sc, txq, bf);
+#endif
 
 	return 0;
 }
@@ -1287,6 +1293,10 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf,
 	ATH_TXQ_INSERT_TAIL(atid, bf, bf_list);
 	ATH_TXQ_UNLOCK(atid);
 
+	/* Bump queued packet counter */
+	/* XXX does this have to be atomic? */
+	an->an_qdepth++;
+
 	/* Mark the given node/tid as having packets to dequeue */
 	ATH_LOCK(sc);
 	ath_tx_node_sched(sc, an);
@@ -1416,13 +1426,16 @@ ath_tx_tid_hw_queue(struct ath_softc *sc, struct ath_node *an, int tid)
 
 	for (;;) {
 		ATH_TXQ_LOCK(atid);
-                bf = STAILQ_FIRST(&txq->axq_q);
+                bf = STAILQ_FIRST(&atid->axq_q);
 		if (bf == NULL) {
 			ATH_TXQ_UNLOCK(atid);
 			break;
 		}
 		ATH_TXQ_REMOVE_HEAD(atid, bf_list);
 		ATH_TXQ_UNLOCK(atid);
+
+		/* XXX does this have to be atomic? */
+		an->an_qdepth--;
 
 		txq = bf->bf_state.bfs_txq;
 		/* Sanity check! */
@@ -1457,32 +1470,23 @@ ath_tx_hw_queue(struct ath_softc *sc, struct ath_node *an)
 	}
 }
 
-/*
- * This is pretty disgusting, but again it's just temporary.
- */
 static int
 ath_txq_node_qlen(struct ath_softc *sc, struct ath_node *an)
 {
-	int qlen = 0;
-	int i;
-	for (i = 0; i < IEEE80211_TID_SIZE; i++) {
-		ATH_TXQ_LOCK(&an->an_tid[i]);
-		qlen += an->an_tid[i].axq_depth;
-		ATH_TXQ_UNLOCK(&an->an_tid[i]);
-	}
-	return qlen;
+	return an->an_qdepth;
 }
 
 /*
  * Handle scheduling some packets from whichever nodes have
  * signaled they're (potentially) ready.
- *
- * This must be called with the ATH lock held.
  */
 void
 ath_txq_sched(struct ath_softc *sc)
 {
 	struct ath_node *an, *next;
+
+	/* XXX I'm not happy the ATH lock is held for so long here */
+	ATH_LOCK(sc);
 
 	/* Iterate over the list of active nodes, queuing packets */
 	STAILQ_FOREACH_SAFE(an, &sc->sc_txnodeq, an_list, next) {
@@ -1493,4 +1497,5 @@ ath_txq_sched(struct ath_softc *sc)
 		if (! ath_txq_node_qlen(sc, an))
 			ath_tx_node_unsched(sc, an);
 	}
+	ATH_UNLOCK(sc);
 } 
