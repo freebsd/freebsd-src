@@ -67,6 +67,7 @@ chinsan [label="Chinsan Huang\nchinsan@FreeBSD.org\n2007/06/12"]
 clement [label="Clement Laforet\nclement@FreeBSD.org\n2003/12/17"]
 clsung [label="Cheng-Lung Sung\nclsung@FreeBSD.org\n2004/8/18"]
 cperciva [label="Colin Percival\ncperciva@FreeBSD.org\n2006/01/31"]
+crees [label="Chris Rees\ncrees@FreeBSD.org\n2011/06/11"]
 culot [label="Frederic Culot\nculot@FreeBSD.org\n2010/10/16"]
 daichi [label="Daichi Goto\ndaichi@FreeBSD.org\n2002/10/17"]
 danfe [label="Alexey Dokuchaev\ndanfe@FreeBSD.org\n2004/08/20"]
@@ -374,6 +375,8 @@ pgollucci -> swills
 philip -> koitsu
 
 rafan -> chinsan
+
+rene -> crees
 
 sahil -> culot
 
