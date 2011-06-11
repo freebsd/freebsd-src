@@ -1901,6 +1901,12 @@ ath_start(struct ifnet *ifp)
 
 		sc->sc_wd_timer = 5;
 	}
+
+	/*
+	 * Since there's no nicer place to put this for now,
+	 * stick the software TXQ punt call here.
+	 */
+	ath_txq_sched(sc);
 }
 
 static int
