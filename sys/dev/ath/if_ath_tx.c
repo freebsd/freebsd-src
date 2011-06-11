@@ -1319,11 +1319,9 @@ ath_tx_tid_init(struct ath_softc *sc, struct ath_node *an)
  * Mark packets currently in the hardware TXQ from this TID
  * as now having no parent software TXQ.
  *
- * This is done when an ath_node goes away so any pending
- * packets going out to the device are simply freed, rather
- * than referencing some now-nonexisting ath_node.
- *
- * XXX make sure that access to the hardware TXQ is correctly locked!
+ * XXX not yet needed; there shouldn't be any packets left
+ * XXX for this node in any of the hardware queues; the node
+ * XXX isn't freed until the last TX packet has been sent.
  */
 static void
 ath_tx_tid_txq_unmark(struct ath_softc *sc, struct ath_node *an,
@@ -1333,15 +1331,32 @@ ath_tx_tid_txq_unmark(struct ath_softc *sc, struct ath_node *an,
 }
 
 /*
+ * Free any packets currently pending in the software TX queue.
+ *
+ * Since net80211 shouldn't free the node until the last packets
+ * have been sent, this function should never have to free any
+ * packets.
+ */
+static void
+ath_tx_tid_free_pkts(struct ath_softc *sc, struct ath_node *an,
+    int tid)
+{
+	struct ath_tid *atid = &an->an_tid[tid];
+	struct ieee80211_node *ni = &an->an_node;
+
+	/* XXX TODO */
+	/* For now, just print a loud warning if it occurs */
+	if (! STAILQ_EMPTY(&atid->axq_q))
+		device_printf(sc->sc_dev, "%s: AID %d TID %d queue not "
+		    "empty on queue destroy!\n",
+		    __func__, ni->ni_associd, tid);
+}
+
+/*
  * Free the per-TID node state.
  *
  * This frees any packets currently in the software queue and frees
  * any other TID state.
- *
- * Since node destruction currenty doesn't wait for the last
- * packets to be xmited, there needs to be a good place to
- * mark packets currently in the hardware TX queue as
- * now having no parent node!
  */
 void
 ath_tx_tid_cleanup(struct ath_softc *sc, struct ath_node *an)
@@ -1353,6 +1368,7 @@ ath_tx_tid_cleanup(struct ath_softc *sc, struct ath_node *an)
 		atid = &an->an_tid[i];
 
 		/* Free packets in sw queue */
+		ath_tx_tid_free_pkts(sc, an, i);
 
 		/* Mark hw-queued packets as having no parent now */
 		ath_tx_tid_txq_unmark(sc, an, i);
