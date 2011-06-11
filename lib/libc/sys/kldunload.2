@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 10, 2008
+.Dd December 25, 2008
 .Dt KLDUNLOAD 2
 .Os
 .Sh NAME
@@ -70,6 +70,10 @@ You do not have access to unlink the file from the kernel.
 The file was not found.
 .It Bq Er EBUSY
 You attempted to unload a file linked by the kernel.
+.It Bq Er EINVAL
+The
+.Fn kldunloadf
+system call was passed invalid flags.
 .El
 .Sh SEE ALSO
 .Xr kldfind 2 ,
