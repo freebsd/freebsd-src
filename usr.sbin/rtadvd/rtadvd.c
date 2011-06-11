@@ -83,6 +83,7 @@ static u_char *sndcmsgbuf = NULL;
 static size_t sndcmsgbuflen;
 volatile sig_atomic_t do_dump;
 volatile sig_atomic_t do_die;
+volatile sig_atomic_t do_reload;
 struct msghdr sndmhdr;
 struct iovec rcviov[2];
 struct iovec sndiov[2];
@@ -161,6 +162,7 @@ struct sockaddr_in6 sin6_sitelocal_allrouters = {
         .sin6_addr =    IN6ADDR_SITELOCAL_ALLROUTERS_INIT,
 };
 
+static void	set_reload(int);
 static void	set_die(int);
 static void	die(void);
 static void	sock_open(void);
@@ -175,7 +177,6 @@ static int	prefix_check(struct nd_opt_prefix_info *, struct rainfo *,
 static int	nd6_options(struct nd_opt_hdr *, int,
 		    union nd_opt *, u_int32_t);
 static void	free_ndopts(union nd_opt *);
-static void	ra_output(struct rainfo *);
 static void	rtmsg_input(void);
 static void	rtadvd_set_dump_file(int);
 static void	set_short_delay(struct rainfo *);
@@ -197,7 +198,6 @@ main(int argc, char *argv[])
 	int i, ch;
 	int fflag = 0, logopt;
 	pid_t pid, otherpid;
-	int error;
 
 	/* get command line options and arguments */
 	while ((ch = getopt(argc, argv, "c:dDfF:M:p:Rs")) != -1) {
@@ -273,22 +273,7 @@ main(int argc, char *argv[])
 	ifl_names = argv;
 	ifl_len = argc;
 
-	for (i = 0; i < ifl_len; i++) {
-		int idx;
-
-		idx = if_nametoindex(ifl_names[i]);
-		if (idx == 0) {
-			syslog(LOG_INFO,
-			    "<%s> interface %s not found."
-			    "Ignored at this moment.", __func__, ifl_names[i]);
-			continue;
-		}
-		error = getconfig(idx);
-		if (error)
-			syslog(LOG_INFO,
-			    "<%s> invalid configuration for %s."
-			    "Ignored at this moment.", __func__, ifl_names[i]);
-	}
+	loadconfig(argv, argc);
 
 	pfh = pidfile_open(pidfilename, 0600, &otherpid);
 	if (pfh == NULL) {
@@ -343,6 +328,7 @@ main(int argc, char *argv[])
 #endif
 	signal(SIGTERM, set_die);
 	signal(SIGUSR1, rtadvd_set_dump_file);
+	signal(SIGHUP, set_reload);
 
 	while (1) {
 #ifndef HAVE_POLL_H
@@ -356,6 +342,11 @@ main(int argc, char *argv[])
 		if (do_die) {
 			die();
 			/*NOTREACHED*/
+		}
+
+		if (do_reload) {
+			loadconfig(argv, argc);
+			do_reload = 0;
 		}
 
 		/* timer expiration check and reset the timer */
@@ -418,6 +409,13 @@ rtadvd_set_dump_file(int sig __unused)
 {
 
 	do_dump = 1;
+}
+
+static void
+set_reload(int sig __unused)
+{
+
+	do_reload = 1;
 }
 
 static void
@@ -1698,7 +1696,7 @@ if_indextorainfo(int idx)
 	return (NULL);		/* search failed */
 }
 
-static void
+void
 ra_output(struct rainfo *rai)
 {
 	int i;
