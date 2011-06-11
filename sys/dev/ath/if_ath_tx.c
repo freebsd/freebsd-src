@@ -1222,11 +1222,15 @@ bad:
  * This is done to make it easy for the software scheduler to 
  * find which nodes have data to send.
  *
- * This must be called with the TX/ATH lock held.
+ * This must be called with the ATH lock held.
  */
 static void
 ath_tx_node_sched(struct ath_softc *sc, struct ath_node *an)
 {
+	/*
+	 * XXX sched is serialised behind the ATH lock; not
+	 * XXX a per-node lock.
+	 */
 	if (an->sched)
 		return;		/* already scheduled */
 
@@ -1239,11 +1243,15 @@ ath_tx_node_sched(struct ath_softc *sc, struct ath_node *an)
  * Mark the current node as no longer needing to be polled for
  * TX packets.
  *
- * This must be called with the TX/ATH lock held.
+ * This must be called with the ATH lock held.
  */
 static void
 ath_tx_node_unsched(struct ath_softc *sc, struct ath_node *an)
 {
+	/*
+	 * XXX sched is serialised behind the ATH lock; not
+	 * XXX a per-node lock.
+	 */
 	if (an->sched == 0)
 		return;
 
@@ -1293,11 +1301,12 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf,
 	ATH_TXQ_INSERT_TAIL(atid, bf, bf_list);
 	ATH_TXQ_UNLOCK(atid);
 
-	/* Bump queued packet counter */
-	atomic_add_int(&an->an_qdepth, 1);
 
 	/* Mark the given node/tid as having packets to dequeue */
 	ATH_LOCK(sc);
+	/* Bump queued packet counter */
+	/* XXX for now, an_qdepth is behind the ATH lock */
+	atomic_add_int(&an->an_qdepth, 1);
 	ath_tx_node_sched(sc, an);
 	ATH_UNLOCK(sc);
 }
@@ -1471,6 +1480,7 @@ ath_tx_hw_queue(struct ath_softc *sc, struct ath_node *an)
 
 /*
  * XXX this needs to be atomic or ath_node locked
+ * XXX This is currently serialised behind the ATH lock
  */
 static int
 ath_txq_node_qlen(struct ath_softc *sc, struct ath_node *an)
