@@ -174,7 +174,9 @@ device		sbp		# SCSI over FireWire (Requires scbus and da)
 device		fwe		# Ethernet over FireWire (non-standard!)
 
 # Misc
-device          ad7417          # PowerMac7,2 temperature sensor
+device		iicbus		# I2C bus code
+device		kiic		# Keywest I2C
+device		ad7417		# PowerMac7,2 temperature sensor
 device		ds1775		# PowerMac7,2 temperature sensor
 device		fcu		# Apple Fan Control Unit
 device		max6690		# PowerMac7,2 temperature sensor
@@ -187,7 +189,9 @@ device		adb
 device		cuda
 device		pmu
 
-# Powermac I2C support
-device		iicbus		# I2C bus code
-device		kiic		# Keywest I2C
+# Sound support
+device		sound		# Generic sound driver (required)
+device		snd_ai2s	# Apple I2S audio
+device		snd_davbus	# Apple DAVBUS audio
+device		snd_uaudio	# USB Audio
 
