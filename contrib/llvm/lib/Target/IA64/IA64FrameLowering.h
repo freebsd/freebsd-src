@@ -15,10 +15,8 @@ namespace llvm {
 
   public:
     explicit IA64FrameLowering(const IA64Subtarget &sti) :
-	TargetFrameLowering(TargetFrameLowering::StackGrowsDown, 2, -2),
-	STI(sti)
-    {
-    }
+	TargetFrameLowering(TargetFrameLowering::StackGrowsDown, 16, -8, 16),
+	STI(sti) {}
 
     void emitPrologue(MachineFunction &MF) const;
     void emitEpilogue(MachineFunction &MF, MachineBasicBlock &MBB) const;
