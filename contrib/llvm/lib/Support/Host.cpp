@@ -298,6 +298,44 @@ std::string sys::getHostCPUName() {
   }
   return "generic";
 }
+#elif defined(__ia64__)
+std::string sys::getHostCPUName() {
+  unsigned long id3;
+  unsigned char family, model;
+
+  __asm __volatile("mov %0 = cpuid[%1]" : "=r"(id3) : "r"(3));
+  model = id3 >> 16;
+  family = id3 >> 24;
+
+  switch (family) {
+  case 0x07:  // Itanium
+    // There has only been 1 CPU implementation in this family.
+    return "merced";
+
+  case 0x1f:  // Itanium 2
+    // We don't distinguish between Madison and Madison 2 (aka
+    // Madison 9M). Maybe we should?
+    switch (model) {
+    case 0x00:
+      return "mckinley";
+    case 0x01:  // Madison & Deerfield
+    case 0x02:  // Madison 2 (aka Madison 9M)
+      return "madison";
+    }
+
+  case 0x20:    // Itanium 2 multi-core
+    switch (model) {
+    case 0x00:
+      return "montecito";
+    case 0x01:
+      return "montvale";
+    }
+  }
+  // XXX where does Tukwila go?
+
+  // Fall back to a generic Itanium 2 implementation.
+  return "itanium2";
+}
 #else
 std::string sys::getHostCPUName() {
   return "generic";

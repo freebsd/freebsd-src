@@ -6,8 +6,12 @@ include "llvm/Target/Target.td"
 class IA64Impl<string name, list<SubtargetFeature> features> :
     Processor<name, NoItineraries, features>;
 
+def FeatureLongBranch :
+    SubtargetFeature<"lb", "HasLongBranch", "true",
+          "Enable the long branch instruction">;
+
 def : IA64Impl<"merced", []>;
-def : IA64Impl<"mckinley", []>;
+def : IA64Impl<"mckinley", [FeatureLongBranch]>;
 
 //
 // Registers

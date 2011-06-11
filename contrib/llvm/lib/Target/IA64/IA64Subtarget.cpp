@@ -5,8 +5,13 @@
 
 using namespace llvm;
 
-IA64Subtarget::IA64Subtarget(const std::string &TT, const std::string &FS) {
-  std::string CPU = "generic";
+IA64Subtarget::IA64Subtarget(const std::string &TT, const std::string &FS)
+{
+#if defined(__ia64__)
+  std::string CPU = sys::getHostCPUName();
+#else
+  std::string CPU = "mckinley";
+#endif
 
   // Parse features string.
   ParseSubtargetFeatures(FS, CPU);

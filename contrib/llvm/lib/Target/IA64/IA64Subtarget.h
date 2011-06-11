@@ -8,7 +8,7 @@
 namespace llvm {
 
   class IA64Subtarget : public TargetSubtarget {
-    bool ExtendedInsts;
+    bool HasLongBranch;
 
   public:
     /// This constructor initializes the data members to match that
