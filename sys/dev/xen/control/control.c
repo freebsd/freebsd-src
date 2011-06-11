@@ -173,8 +173,6 @@ static struct xctrl_shutdown_reason xctrl_shutdown_reasons[] = {
 };
 
 struct xctrl_softc {
-
-	/** Must be first */
 	struct xs_watch    xctrl_watch;	
 };
 
@@ -450,6 +448,7 @@ xctrl_attach(device_t dev)
 	/* Activate watch */
 	xctrl->xctrl_watch.node = "control/shutdown";
 	xctrl->xctrl_watch.callback = xctrl_on_watch_event;
+	xctrl->xctrl_watch.callback_data = (uintptr_t)xctrl;
 	xs_register_watch(&xctrl->xctrl_watch);
 
 #ifndef XENHVM
