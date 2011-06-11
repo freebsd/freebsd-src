@@ -93,6 +93,8 @@ struct ath_buf;
 struct ath_tid {
 	STAILQ_HEAD(,ath_buf) axq_q;		/* pending buffers        */
 	u_int			axq_depth;	/* queue depth (stat only) */
+	struct mtx		axq_lock;	/* lock on queue, tx_buf */
+	char			axq_name[24];	/* e.g. "ath0_a1_t5" */
 	struct ath_buf *tx_buf[ATH_TID_MAX_BUFS];	/* active tx buffers, beginning at current BAW */
 };
 

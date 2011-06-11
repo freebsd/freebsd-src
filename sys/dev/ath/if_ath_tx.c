@@ -1215,6 +1215,8 @@ bad:
  *
  * This is done to make it easy for the software scheduler to 
  * find which nodes/TIDs have data to send.
+ *
+ * This must be called with the TX/ATH lock held.
  */
 static void
 ath_tx_node_sched(struct ath_softc *sc, struct ath_node *an, int tid)
@@ -1229,6 +1231,22 @@ ath_tx_node_sched(struct ath_softc *sc, struct ath_node *an, int tid)
 	an->sched = 1;
 
 	STAILQ_INSERT_TAIL(&sc->sc_txnodeq, an, an_list);
+}
+
+/*
+ * Mark the current node/TID as no longer needing to be polled for
+ * TX packets.
+ *
+ * This must be called with the TX/ATH lock held.
+ */
+static void
+ath_tx_node_unsched(struct ath_softc *sc, struct ath_node *an, int tid)
+{
+	if (an->sched == 0)
+		return;
+
+	STAILQ_REMOVE(&sc->sc_txnodeq, an, ath_node, an_list);
+	an->sched = 0;
 }
 
 /*
@@ -1269,3 +1287,80 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf,
  * Note that this may cause the mbuf to be reallocated, so
  * m0 may not be valid.
  */
+
+
+/*
+ * Configure the per-TID node state.
+ *
+ * This likely belongs in if_ath_node.c but I can't think of anywhere
+ * else to put it just yet.
+ *
+ * This sets up the SLISTs and the mutex as appropriate.
+ */
+void
+ath_tx_tid_init(struct ath_softc *sc, struct ath_node *an)
+{
+	int i;
+	struct ath_tid *atid;
+	struct ieee80211_node *ni = &an->an_node;
+
+	for (i = 0; i < IEEE80211_TID_SIZE; i++) {
+		atid = &an->an_tid[i];
+		STAILQ_INIT(&atid->axq_q);
+		snprintf(atid->axq_name, sizeof(atid->axq_name),
+		    "%s_a%d_t%d\n", device_get_nameunit(sc->sc_dev),
+		    ni->ni_associd,
+		    i);
+		mtx_init(&atid->axq_lock, atid->axq_name, NULL, MTX_DEF);
+	}
+}
+
+/*
+ * Mark packets currently in the hardware TXQ from this TID
+ * as now having no parent software TXQ.
+ *
+ * This is done when an ath_node goes away so any pending
+ * packets going out to the device are simply freed, rather
+ * than referencing some now-nonexisting ath_node.
+ *
+ * XXX make sure that access to the hardware TXQ is correctly locked!
+ */
+static void
+ath_tx_tid_txq_unmark(struct ath_softc *sc, struct ath_node *an,
+    int tid)
+{
+	/* XXX TODO */
+}
+
+/*
+ * Free the per-TID node state.
+ *
+ * This frees any packets currently in the software queue and frees
+ * any other TID state.
+ *
+ * Since node destruction currenty doesn't wait for the last
+ * packets to be xmited, there needs to be a good place to
+ * mark packets currently in the hardware TX queue as
+ * now having no parent node!
+ */
+void
+ath_tx_tid_cleanup(struct ath_softc *sc, struct ath_node *an)
+{
+	int i;
+	struct ath_tid *atid;
+
+	for (i = 0; i < IEEE80211_TID_SIZE; i++) {
+		atid = &an->an_tid[i];
+
+		/* Free packets in sw queue */
+
+		/* Mark hw-queued packets as having no parent now */
+		ath_tx_tid_txq_unmark(sc, an, i);
+
+		/* Remove any pending hardware TXQ scheduling */
+		ath_tx_node_unsched(sc, an, i);
+
+		/* Free mutex */
+		mtx_destroy(&atid->axq_lock);
+	}
+}

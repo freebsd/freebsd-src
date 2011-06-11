@@ -3112,6 +3112,7 @@ ath_node_alloc(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN])
 	ath_rate_node_init(sc, an);
 
 	/* XXX setup ath_tid */
+	ath_tx_tid_init(sc, an);
 
 	DPRINTF(sc, ATH_DEBUG_NODE, "%s: an %p\n", __func__, an);
 	return &an->an_node;
@@ -3125,8 +3126,8 @@ ath_node_free(struct ieee80211_node *ni)
 
 	DPRINTF(sc, ATH_DEBUG_NODE, "%s: ni %p\n", __func__, ni);
 
-	/* XXX ensure it's not scheduled on the TXQ; remove if needed */
-	/* XXX cleanup ath_tid */
+	/* Cleanup ath_tid, free unused bufs, unlink bufs in TXQ */
+	ath_tx_tid_cleanup(sc, ATH_NODE(ni));
 
 	ath_rate_node_cleanup(sc, ATH_NODE(ni));
 	sc->sc_node_free(ni);
