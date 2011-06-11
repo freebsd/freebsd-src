@@ -28,7 +28,7 @@
 .\"     @(#)syslog.conf.5	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd June 9, 1993
+.Dd December 23, 2008
 .Dt SYSLOG.CONF 5
 .Os
 .Sh NAME
@@ -137,7 +137,7 @@ The
 .Em level
 describes the severity of the message, and is a keyword from the
 following ordered list (higher to lower):
-.Cm emerg , alert , err , warning , notice , info
+.Cm emerg , crit , alert , err , warning , notice , info
 and
 .Cm debug .
 These keywords correspond to
@@ -446,7 +446,7 @@ A configuration file might appear as follows:
 # level notice or higher, and anything of level err or
 # higher to the console.
 # Don't log private authentication messages!
-*.err;kern.*;auth.notice;authpriv.none	/dev/console
+*.err;kern.*;auth.notice;authpriv.none;mail.crit	/dev/console
 
 # Log anything (except mail) of level info or higher.
 # Don't log private authentication messages!
