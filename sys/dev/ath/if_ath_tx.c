@@ -937,7 +937,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	/* Fill in the details in the descriptor list */
 	ath_tx_chaindesclist(sc, txq, bf);
 
-#if 0
+#if 1
 	/* add to software queue */
 	ath_tx_swq(sc, ni, bf, m0);
 #else
@@ -1294,8 +1294,7 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf,
 	ATH_TXQ_UNLOCK(atid);
 
 	/* Bump queued packet counter */
-	/* XXX does this have to be atomic? */
-	an->an_qdepth++;
+	atomic_add_int(&an->an_qdepth, 1);
 
 	/* Mark the given node/tid as having packets to dequeue */
 	ATH_LOCK(sc);
@@ -1434,8 +1433,8 @@ ath_tx_tid_hw_queue(struct ath_softc *sc, struct ath_node *an, int tid)
 		ATH_TXQ_REMOVE_HEAD(atid, bf_list);
 		ATH_TXQ_UNLOCK(atid);
 
-		/* XXX does this have to be atomic? */
-		an->an_qdepth--;
+		/* Remove from queue */
+		atomic_subtract_int(&an->an_qdepth, 1);
 
 		txq = bf->bf_state.bfs_txq;
 		/* Sanity check! */
@@ -1470,6 +1469,9 @@ ath_tx_hw_queue(struct ath_softc *sc, struct ath_node *an)
 	}
 }
 
+/*
+ * XXX this needs to be atomic or ath_node locked
+ */
 static int
 ath_txq_node_qlen(struct ath_softc *sc, struct ath_node *an)
 {
