@@ -2636,6 +2636,23 @@ vm_page_cowsetup(vm_page_t m)
 	return (0);
 }
 
+#ifdef INVARIANTS
+void
+vm_page_object_lock_assert(vm_page_t m)
+{
+
+	/*
+	 * Certain of the page's fields may only be modified by the
+	 * holder of the containing object's lock or the setter of the
+	 * page's VPO_BUSY flag.  Unfortunately, the setter of the
+	 * VPO_BUSY flag is not recorded, and thus cannot be checked
+	 * here.
+	 */
+	if (m->object != NULL && (m->oflags & VPO_BUSY) == 0)
+		VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+}
+#endif
+
 #include "opt_ddb.h"
 #ifdef DDB
 #include <sys/kernel.h>
