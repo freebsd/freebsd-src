@@ -90,10 +90,16 @@ xenbusb_free_child_ivars(struct xenbus_device_ivars *ivars)
 		ivars->xd_otherend_watch.node = NULL;
 	}
 
+	if (ivars->xd_local_watch.node != NULL) {
+		xs_unregister_watch(&ivars->xd_local_watch);
+		ivars->xd_local_watch.node = NULL;
+	}
+
 	if (ivars->xd_node != NULL) {
 		free(ivars->xd_node, M_XENBUS);
 		ivars->xd_node = NULL;
 	}
+	ivars->xd_node_len = 0;
 
 	if (ivars->xd_type != NULL) {
 		free(ivars->xd_type, M_XENBUS);
@@ -104,6 +110,7 @@ xenbusb_free_child_ivars(struct xenbus_device_ivars *ivars)
 		free(ivars->xd_otherend_path, M_XENBUS);
 		ivars->xd_otherend_path = NULL;
 	}
+	ivars->xd_otherend_path_len = 0;
 
 	free(ivars, M_XENBUS);
 }
@@ -121,30 +128,64 @@ xenbusb_free_child_ivars(struct xenbus_device_ivars *ivars)
  *                   watch event data.  The vector should be indexed via the
  *                   xs_watch_type enum in xs_wire.h.
  * \param vec_size   The number of elements in vec.
- *
- * \return  The device_t of the found device if any, or NULL.
- *
- * \note device_t is a pointer type, so it can be compared against
- *       NULL for validity. 
  */
 static void
-xenbusb_otherend_changed(struct xs_watch *watch, const char **vec,
+xenbusb_otherend_watch_cb(struct xs_watch *watch, const char **vec,
     unsigned int vec_size __unused)
 {
 	struct xenbus_device_ivars *ivars;
-	device_t dev;
+	device_t child;
+	device_t bus;
+	const char *path;
 	enum xenbus_state newstate;
 
-	ivars = (struct xenbus_device_ivars *) watch;
-	dev = ivars->xd_dev;
+	ivars = (struct xenbus_device_ivars *)watch->callback_data;
+	child = ivars->xd_dev;
+	bus = device_get_parent(child);
 
-	if (!ivars->xd_otherend_path
-	 || strncmp(ivars->xd_otherend_path, vec[XS_WATCH_PATH],
-		    strlen(ivars->xd_otherend_path)))
+	path = vec[XS_WATCH_PATH];
+	if (ivars->xd_otherend_path == NULL
+	 || strncmp(ivars->xd_otherend_path, path, ivars->xd_otherend_path_len))
 		return;
 
 	newstate = xenbus_read_driver_state(ivars->xd_otherend_path);
-	XENBUS_OTHEREND_CHANGED(dev, newstate);
+	XENBUSB_OTHEREND_CHANGED(bus, child, newstate);
+}
+
+/**
+ * XenBus watch callback registered against the XenStore sub-tree
+ * represnting the local half of a split device connection.
+ *
+ * This callback is invoked whenever any XenStore data in the subtree
+ * is modified, either by us or another privledged domain.
+ *
+ * \param watch      The xs_watch object used to register this callback
+ *                   function.
+ * \param vec        An array of pointers to NUL terminated strings containing
+ *                   watch event data.  The vector should be indexed via the
+ *                   xs_watch_type enum in xs_wire.h.
+ * \param vec_size   The number of elements in vec.
+ *
+ */
+static void
+xenbusb_local_watch_cb(struct xs_watch *watch, const char **vec,
+    unsigned int vec_size __unused)
+{
+	struct xenbus_device_ivars *ivars;
+	device_t child;
+	device_t bus;
+	const char *path;
+
+	ivars = (struct xenbus_device_ivars *)watch->callback_data;
+	child = ivars->xd_dev;
+	bus = device_get_parent(child);
+
+	path = vec[XS_WATCH_PATH];
+	if (ivars->xd_node == NULL
+	 || strncmp(ivars->xd_node, path, ivars->xd_node_len))
+		return;
+
+	XENBUSB_LOCALEND_CHANGED(bus, child, &path[ivars->xd_node_len]);
 }
 
 /**
@@ -193,12 +234,14 @@ xenbusb_delete_child(device_t dev, device_t child)
 
 	/*
 	 * We no longer care about the otherend of the
-	 * connection.  Cancel the watch now so that we
+	 * connection.  Cancel the watches now so that we
 	 * don't try to handle an event for a partially
 	 * detached child.
 	 */
 	if (ivars->xd_otherend_watch.node != NULL)
 		xs_unregister_watch(&ivars->xd_otherend_watch);
+	if (ivars->xd_local_watch.node != NULL)
+		xs_unregister_watch(&ivars->xd_local_watch);
 	
 	device_delete_child(dev, child);
 	xenbusb_free_child_ivars(ivars);
@@ -421,6 +464,7 @@ xenbusb_probe_children(device_t dev)
 			 */
 			ivars = device_get_ivars(kids[i]);
 			xs_register_watch(&ivars->xd_otherend_watch);
+			xs_register_watch(&ivars->xd_local_watch);
 		}
 		free(kids, M_TEMP);
 	}
@@ -475,7 +519,7 @@ xenbusb_devices_changed(struct xs_watch *watch, const char **vec,
 	char *p;
 	u_int component;
 
-	xbs = (struct xenbusb_softc *)watch;
+	xbs = (struct xenbusb_softc *)watch->callback_data;
 	dev = xbs->xbs_dev;
 
 	if (len <= XS_WATCH_PATH) {
@@ -620,6 +664,7 @@ xenbusb_add_device(device_t dev, const char *type, const char *id)
 		sx_init(&ivars->xd_lock, "xdlock");
 		ivars->xd_flags = XDF_CONNECTING;
 		ivars->xd_node = strdup(devpath, M_XENBUS);
+		ivars->xd_node_len = strlen(devpath);
 		ivars->xd_type  = strdup(type, M_XENBUS);
 		ivars->xd_state = XenbusStateInitialising;
 
@@ -630,12 +675,16 @@ xenbusb_add_device(device_t dev, const char *type, const char *id)
 			goto out;
 		}
 
-		statepath = malloc(strlen(ivars->xd_otherend_path)
+		statepath = malloc(ivars->xd_otherend_path_len
 		    + strlen("/state") + 1, M_XENBUS, M_WAITOK);
 		sprintf(statepath, "%s/state", ivars->xd_otherend_path);
-
 		ivars->xd_otherend_watch.node = statepath;
-		ivars->xd_otherend_watch.callback = xenbusb_otherend_changed;
+		ivars->xd_otherend_watch.callback = xenbusb_otherend_watch_cb;
+		ivars->xd_otherend_watch.callback_data = (uintptr_t)ivars;
+
+		ivars->xd_local_watch.node = ivars->xd_node;
+		ivars->xd_local_watch.callback = xenbusb_local_watch_cb;
+		ivars->xd_local_watch.callback_data = (uintptr_t)ivars;
 
 		mtx_lock(&xbs->xbs_lock);
 		xbs->xbs_connecting_children++;
@@ -693,6 +742,7 @@ xenbusb_attach(device_t dev, char *bus_node, u_int id_components)
 
 	xbs->xbs_device_watch.node = bus_node;
 	xbs->xbs_device_watch.callback = xenbusb_devices_changed;
+	xbs->xbs_device_watch.callback_data = (uintptr_t)xbs;
 
 	TASK_INIT(&xbs->xbs_probe_children, 0, xenbusb_probe_children_cb, dev);
 
@@ -735,7 +785,7 @@ xenbusb_resume(device_t dev)
 
 			DEVICE_RESUME(kids[i]);
 
-			statepath = malloc(strlen(ivars->xd_otherend_path)
+			statepath = malloc(ivars->xd_otherend_path_len
 			    + strlen("/state") + 1, M_XENBUS, M_WAITOK);
 			sprintf(statepath, "%s/state", ivars->xd_otherend_path);
 
@@ -819,7 +869,7 @@ xenbusb_write_ivar(device_t dev, device_t child, int index, uintptr_t value)
 	{
 		int error;
 
-		newstate = (enum xenbus_state) value;
+		newstate = (enum xenbus_state)value;
 		sx_xlock(&ivars->xd_lock);
 		if (ivars->xd_state == newstate) {
 			error = 0;
@@ -875,4 +925,25 @@ xenbusb_write_ivar(device_t dev, device_t child, int index, uintptr_t value)
 	}
 
 	return (ENOENT);
+}
+
+void
+xenbusb_otherend_changed(device_t bus, device_t child, enum xenbus_state state)
+{
+	XENBUS_OTHEREND_CHANGED(child, state);
+}
+
+void
+xenbusb_localend_changed(device_t bus, device_t child, const char *path)
+{
+
+	if (strcmp(path, "/state") != 0) {
+		struct xenbus_device_ivars *ivars;
+
+		ivars = device_get_ivars(child);
+		sx_xlock(&ivars->xd_lock);
+		ivars->xd_state = xenbus_read_driver_state(ivars->xd_node);
+		sx_xunlock(&ivars->xd_lock);
+	}
+	XENBUS_LOCALEND_CHANGED(child, path);
 }
