@@ -142,6 +142,33 @@ dname_labelenc(char *dst, const char *src)
 	} while(0)
 
 int
+loadconfig(char *ifl_names[], const int ifl_len)
+{
+	int i;
+	int idx;
+	int error;
+
+	for (i = 0; i < ifl_len; i++) {
+		idx = if_nametoindex(ifl_names[i]);
+		if (idx == 0) {
+			syslog(LOG_ERR,
+			    "<%s> interface %s not found.  "
+			    "Ignored at this moment.", __func__, ifl_names[i]);
+			continue;
+		}
+		syslog(LOG_INFO,
+		    "<%s> loading config for %s.", __func__, ifl_names[i]);
+		error = getconfig(idx);
+		if (error)
+			syslog(LOG_ERR,
+			    "<%s> invalid configuration for %s.  "
+			    "Ignored at this moment.", __func__, ifl_names[i]);
+	}
+
+	return (0);
+}
+
+int
 rmconfig(int idx)
 {
 	struct rainfo *rai;
@@ -207,6 +234,7 @@ getconfig(int idx)
 	int stat, i;
 	char tbuf[BUFSIZ];
 	struct rainfo *rai;
+	struct rainfo *rai_old;
 	long val;
 	int64_t val64;
 	char buf[BUFSIZ];
@@ -219,6 +247,10 @@ getconfig(int idx)
 		    __func__, idx);
 		return (-1);
 	}
+
+	TAILQ_FOREACH(rai_old, &railist, rai_next)
+		if (idx == rai_old->rai_ifindex)
+			break;
 
 	if ((stat = agetent(tbuf, intface)) <= 0) {
 		memset(tbuf, 0, sizeof(tbuf));
@@ -254,7 +286,7 @@ getconfig(int idx)
 			syslog(LOG_ERR,
 			    "<%s> can't get information of %s",
 			    __func__, intface);
-			return (-1);
+			goto getconfig_free_rai;
 		}
 		rai->rai_ifindex = rai->rai_sdl->sdl_index;
 	} else
@@ -280,7 +312,7 @@ getconfig(int idx)
 		    "<%s> maxinterval (%ld) on %s is invalid "
 		    "(must be between %u and %u)", __func__, val,
 		    intface, MIN_MAXINTERVAL, MAX_MAXINTERVAL);
-		return (-1);
+		goto getconfig_free_rai;
 	}
 	rai->rai_maxinterval = (u_int)val;
 
@@ -292,7 +324,7 @@ getconfig(int idx)
 		    "(must be between %d and %d)",
 		    __func__, val, intface, MIN_MININTERVAL,
 		    (rai->rai_maxinterval * 3) / 4);
-		return (-1);
+		goto getconfig_free_rai;
 	}
 	rai->rai_mininterval = (u_int)val;
 
@@ -311,7 +343,7 @@ getconfig(int idx)
 			if ((val & ND_RA_FLAG_RTPREF_HIGH)) {
 				syslog(LOG_ERR, "<%s> the \'h\' and \'l\'"
 				    " router flags are exclusive", __func__);
-				return (-1);
+				goto getconfig_free_rai;
 			}
 			val |= ND_RA_FLAG_RTPREF_LOW;
 		}
@@ -328,7 +360,7 @@ getconfig(int idx)
 	if (rai->rai_rtpref == ND_RA_FLAG_RTPREF_RSV) {
 		syslog(LOG_ERR, "<%s> invalid router preference (%02x) on %s",
 		    __func__, rai->rai_rtpref, intface);
-		return (-1);
+		goto getconfig_free_rai;
 	}
 
 	MAYHAVE(val, "rltime", rai->rai_maxinterval * 3);
@@ -339,7 +371,7 @@ getconfig(int idx)
 		    "(must be 0 or between %d and %d)",
 		    __func__, val, intface, rai->rai_maxinterval,
 		    MAXROUTERLIFETIME);
-		return (-1);
+		goto getconfig_free_rai;
 	}
 	rai->rai_lifetime = val & 0xffff;
 
@@ -349,7 +381,7 @@ getconfig(int idx)
 		    "<%s> reachable time (%ld) on %s is invalid "
 		    "(must be no greater than %d)",
 		    __func__, val, intface, MAXREACHABLETIME);
-		return (-1);
+		goto getconfig_free_rai;
 	}
 	rai->rai_reachabletime = (u_int32_t)val;
 
@@ -357,7 +389,7 @@ getconfig(int idx)
 	if (val64 < 0 || val64 > 0xffffffff) {
 		syslog(LOG_ERR, "<%s> retrans time (%lld) on %s out of range",
 		    __func__, (long long)val64, intface);
-		return (-1);
+		goto getconfig_free_rai;
 	}
 	rai->rai_retranstimer = (u_int32_t)val64;
 
@@ -365,7 +397,7 @@ getconfig(int idx)
 		syslog(LOG_ERR,
 		    "<%s> mobile-ip6 configuration not supported",
 		    __func__);
-		return (-1);
+		goto getconfig_free_rai;
 	}
 	/* prefix information */
 
@@ -395,14 +427,14 @@ getconfig(int idx)
 			syslog(LOG_ERR,
 			    "<%s> inet_pton failed for %s",
 			    __func__, addr);
-			return (-1);
+			goto getconfig_free_pfx;
 		}
 		if (IN6_IS_ADDR_MULTICAST(&pfx->pfx_prefix)) {
 			syslog(LOG_ERR,
 			    "<%s> multicast prefix (%s) must "
 			    "not be advertised on %s",
 			    __func__, addr, intface);
-			return (-1);
+			goto getconfig_free_pfx;
 		}
 		if (IN6_IS_ADDR_LINKLOCAL(&pfx->pfx_prefix))
 			syslog(LOG_NOTICE,
@@ -416,7 +448,7 @@ getconfig(int idx)
 			syslog(LOG_ERR, "<%s> prefixlen (%ld) for %s "
 			    "on %s out of range",
 			    __func__, val, addr, intface);
-			return (-1);
+			goto getconfig_free_pfx;
 		}
 		pfx->pfx_prefixlen = (int)val;
 
@@ -441,7 +473,7 @@ getconfig(int idx)
 			    "%s/%d on %s is out of range",
 			    __func__, (long long)val64,
 			    addr, pfx->pfx_prefixlen, intface);
-			return (-1);
+			goto getconfig_free_pfx;
 		}
 		pfx->pfx_validlifetime = (u_int32_t)val64;
 
@@ -461,7 +493,7 @@ getconfig(int idx)
 			    "is out of range",
 			    __func__, (long long)val64,
 			    addr, pfx->pfx_prefixlen, intface);
-			return (-1);
+			goto getconfig_free_pfx;
 		}
 		pfx->pfx_preflifetime = (u_int32_t)val64;
 
@@ -475,6 +507,9 @@ getconfig(int idx)
 		/* link into chain */
 		TAILQ_INSERT_TAIL(&rai->rai_prefix, pfx, pfx_next);
 		rai->rai_pfxs++;
+		continue;
+getconfig_free_pfx:
+		free(pfx);
 	}
 	if (rai->rai_advifprefix && rai->rai_pfxs == 0)
 		get_prefix(rai);
@@ -484,7 +519,7 @@ getconfig(int idx)
 		syslog(LOG_ERR,
 		    "<%s> mtu (%ld) on %s out of range",
 		    __func__, val, intface);
-		return (-1);
+		goto getconfig_free_rai;
 	}
 	rai->rai_linkmtu = (u_int32_t)val;
 	if (rai->rai_linkmtu == 0) {
@@ -501,7 +536,7 @@ getconfig(int idx)
 		    "be between least MTU (%d) and physical link MTU (%d)",
 		    __func__, (unsigned long)rai->rai_linkmtu, intface,
 		    IPV6_MMTU, rai->rai_phymtu);
-		return (-1);
+		goto getconfig_free_rai;
 	}
 
 #ifdef SIOCSIFINFO_IN6
@@ -553,14 +588,10 @@ getconfig(int idx)
 		/* allocate memory to store prefix information */
 		ELM_MALLOC(rti, exit(1));
 
-		/* link into chain */
-		TAILQ_INSERT_TAIL(&rai->rai_route, rti, rti_next);
-		rai->rai_routes++;
-
 		if (inet_pton(AF_INET6, addr, &rti->rti_prefix) != 1) {
 			syslog(LOG_ERR, "<%s> inet_pton failed for %s",
 			    __func__, addr);
-			return (-1);
+			goto getconfig_free_rti;
 		}
 #if 0
 		/*
@@ -575,14 +606,14 @@ getconfig(int idx)
 			    "<%s> multicast route (%s) must "
 			    "not be advertised on %s",
 			    __func__, addr, intface);
-			return (-1);
+			goto getconfig_free_rti;
 		}
 		if (IN6_IS_ADDR_LINKLOCAL(&rti->prefix)) {
 			syslog(LOG_NOTICE,
 			    "<%s> link-local route (%s) will "
 			    "be advertised on %s",
 			    __func__, addr, intface);
-			return (-1);
+			goto getconfig_free_rti;
 		}
 #endif
 
@@ -602,7 +633,7 @@ getconfig(int idx)
 			syslog(LOG_ERR, "<%s> prefixlen (%ld) for %s on %s "
 			    "out of range",
 			    __func__, val, addr, intface);
-			return (-1);
+			goto getconfig_free_rti;
 		}
 		rti->rti_prefixlen = (int)val;
 
@@ -617,7 +648,7 @@ getconfig(int idx)
 					    "<%s> the \'h\' and \'l\' route"
 					    " preferences are exclusive",
 					    __func__);
-					exit(1);
+					goto getconfig_free_rti;
 				}
 				val |= ND_RA_FLAG_RTPREF_LOW;
 			}
@@ -638,7 +669,7 @@ getconfig(int idx)
 			    "for %s/%d on %s",
 			    __func__, rti->rti_rtpref, addr,
 			    rti->rti_prefixlen, intface);
-			return (-1);
+			goto getconfig_free_rti;
 		}
 
 		/*
@@ -665,9 +696,16 @@ getconfig(int idx)
 			syslog(LOG_ERR, "<%s> route lifetime (%lld) for "
 			    "%s/%d on %s out of range", __func__,
 			    (long long)val64, addr, rti->rti_prefixlen, intface);
-			return (-1);
+			goto getconfig_free_rti;
 		}
 		rti->rti_ltime = (u_int32_t)val64;
+
+		/* link into chain */
+		TAILQ_INSERT_TAIL(&rai->rai_route, rti, rti_next);
+		rai->rai_routes++;
+		continue;
+getconfig_free_rti:
+		free(rti);
 	}
 #endif
 	/* DNS server and DNS search list information */
@@ -689,12 +727,12 @@ getconfig(int idx)
 			c = strcspn(ap, ",");
 			strncpy(abuf, ap, c);
 			abuf[c] = '\0';
-			ELM_MALLOC(rdna, exit(1));
+			ELM_MALLOC(rdna, goto getconfig_free_rdn);
 			if (inet_pton(AF_INET6, abuf, &rdna->ra_dns) != 1) {
 				syslog(LOG_ERR, "<%s> inet_pton failed for %s",
 				    __func__, abuf);
 				free(rdna);
-				return (-1);
+				goto getconfig_free_rdn;
 			}
 			TAILQ_INSERT_TAIL(&rdn->rd_list, rdna, ra_next);
 		}
@@ -707,12 +745,19 @@ getconfig(int idx)
 			    "(must be between %d and %d)",
 			    entbuf, val, intface, rai->rai_maxinterval,
 			    rai->rai_maxinterval * 2);
-			return (-1);
+			goto getconfig_free_rdn;
 		}
 		rdn->rd_ltime = val;
 
 		/* link into chain */
 		TAILQ_INSERT_TAIL(&rai->rai_rdnss, rdn, rd_next);
+		continue;
+getconfig_free_rdn:
+		while ((rdna = TAILQ_FIRST(&rdn->rd_list)) != NULL) {
+			TAILQ_REMOVE(&rdn->rd_list, rdna, ra_next);
+			free(rdna);
+		}
+		free(rdn);
 	}
 
 	for (i = -1; i < MAXDNSSLENT ; i++) {
@@ -734,7 +779,7 @@ getconfig(int idx)
 			c = strcspn(ap, ",");
 			strncpy(abuf, ap, c);
 			abuf[c] = '\0';
-			ELM_MALLOC(dnsa, exit(1));
+			ELM_MALLOC(dnsa, goto getconfig_free_dns);
 			dnsa->da_len = dname_labelenc(dnsa->da_dom, abuf);
 			syslog(LOG_DEBUG, "<%s>: dnsa->da_len = %d", __func__,
 			    dnsa->da_len);
@@ -749,15 +794,46 @@ getconfig(int idx)
 			    "(must be between %d and %d)",
 			    entbuf, val, intface, rai->rai_maxinterval,
 			    rai->rai_maxinterval * 2);
-			return (-1);
+			goto getconfig_free_dns;
 		}
 		dns->dn_ltime = val;
 
 		/* link into chain */
 		TAILQ_INSERT_TAIL(&rai->rai_dnssl, dns, dn_next);
+		continue;
+getconfig_free_dns:
+		while ((dnsa = TAILQ_FIRST(&dns->dn_list)) != NULL) {
+			TAILQ_REMOVE(&dns->dn_list, dnsa, da_next);
+			free(dnsa);
+		}
+		free(dns);
 	}
 	/* construct the sending packet */
 	make_packet(rai);
+
+	/*
+	 * If an entry with the same ifindex exists, remove it first.
+	 * Before the removal, RDNSS and DNSSL options with
+	 * zero-lifetime will be sent.
+	 */
+	if (rai_old != NULL) {
+		const int retrans = MAX_FINAL_RTR_ADVERTISEMENTS;
+		struct rdnss *rdn;
+		struct dnssl *dns;
+
+		rai_old->rai_lifetime = 0;
+		TAILQ_FOREACH(rdn, &rai_old->rai_rdnss, rd_next)
+			rdn->rd_ltime = 0;
+		TAILQ_FOREACH(dns, &rai_old->rai_dnssl, dn_next)
+			dns->dn_ltime = 0;
+
+		make_packet(rai_old);
+		for (i = 0; i < retrans; i++) {
+			ra_output(rai_old);
+			sleep(MIN_DELAY_BETWEEN_RAS);
+		}
+		rmconfig(idx);
+	}
 	TAILQ_INSERT_TAIL(&railist, rai, rai_next);
 
 	/* set timer */
@@ -767,6 +843,9 @@ getconfig(int idx)
 	rtadvd_set_timer(&rai->rai_timer->rat_tm, rai->rai_timer);
 
 	return (0);
+getconfig_free_rai:
+	free(rai);
+	return (-1);
 }
 
 void
