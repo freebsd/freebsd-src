@@ -1734,6 +1734,28 @@ check_required_after()
 
 fi
 
+# check_kern_features mib
+#	Return existence of kern.features.* sysctl MIB as true or
+#	false.  The result will be cached in $_rc_cache_kern_features_
+#	namespace.  "0" means the kern.features.X exists.
+
+check_kern_features()
+{
+	local _v
+
+	[ -n "$1" ] || return 1;
+	_v=`eval echo "\\$_rc_cache_kern_features_$1"`
+	[ -n "$_v" ] && return "$_v";
+
+	if ${SYSCTL_N} kern.features.$1 > /dev/null 2>&1; then
+		eval _rc_cache_kern_features_$1=0
+		return 0
+	else
+		eval _rc_cache_kern_features_$1=1
+		return 1
+	fi
+}
+
 # _echoonce var msg mode
 #	mode=0: Echo $msg if ${$var} is empty.
 #	        After doing echo, a string is set to ${$var}.
