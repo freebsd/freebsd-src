@@ -10,8 +10,16 @@ def FeatureLongBranch :
     SubtargetFeature<"lb", "HasLongBranch", "true",
           "Enable the long branch instruction">;
 
+// Itanium 1
+def : IA64Impl<"itanium", []>;
 def : IA64Impl<"merced", []>;
+
+// Itanium 2
+def : IA64Impl<"itanium2", [FeatureLongBranch]>;
 def : IA64Impl<"mckinley", [FeatureLongBranch]>;
+def : IA64Impl<"madison", [FeatureLongBranch]>;
+def : IA64Impl<"montecito", [FeatureLongBranch]>;
+def : IA64Impl<"montvale", [FeatureLongBranch]>;
 
 //
 // Registers
