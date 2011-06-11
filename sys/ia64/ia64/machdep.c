@@ -232,6 +232,9 @@ identifycpu(void)
 		case 0x00:
 			model_name = "Montecito";
 			break;
+		case 0x01:
+			model_name = "Montvale";
+			break;
 		}
 		break;
 	}
