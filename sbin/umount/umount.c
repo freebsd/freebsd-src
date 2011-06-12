@@ -90,9 +90,6 @@ main(int argc, char *argv[])
 	struct statfs *mntbuf, *sfs;
 	struct addrinfo hints;
 
-	/* Start disks transferring immediately. */
-	sync();
-
 	all = errs = 0;
 	while ((ch = getopt(argc, argv, "AaF:fh:t:v")) != -1)
 		switch (ch) {
@@ -126,6 +123,10 @@ main(int argc, char *argv[])
 		}
 	argc -= optind;
 	argv += optind;
+
+	/* Start disks transferring immediately. */
+	if ((fflag & MNT_FORCE) == 0)
+		sync();
 
 	if ((argc == 0 && !all) || (argc != 0 && all))
 		usage();
