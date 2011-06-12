@@ -1430,7 +1430,7 @@ patmatch(const char *pattern, const char *string, int squoted)
 			if (localeisutf8)
 				wc = get_wc(&q);
 			else
-				wc = *q++;
+				wc = (unsigned char)*q++;
 			if (wc == '\0')
 				return 0;
 			break;
@@ -1487,7 +1487,7 @@ patmatch(const char *pattern, const char *string, int squoted)
 			if (localeisutf8)
 				chr = get_wc(&q);
 			else
-				chr = *q++;
+				chr = (unsigned char)*q++;
 			if (chr == '\0')
 				return 0;
 			c = *p++;
@@ -1502,7 +1502,7 @@ patmatch(const char *pattern, const char *string, int squoted)
 					if (wc == 0) /* bad utf-8 */
 						return 0;
 				} else
-					wc = c;
+					wc = (unsigned char)c;
 				if (*p == '-' && p[1] != ']') {
 					p++;
 					while (*p == CTLQUOTEMARK)
@@ -1514,7 +1514,7 @@ patmatch(const char *pattern, const char *string, int squoted)
 						if (wc2 == 0) /* bad utf-8 */
 							return 0;
 					} else
-						wc2 = *p++;
+						wc2 = (unsigned char)*p++;
 					if (   collate_range_cmp(chr, wc) >= 0
 					    && collate_range_cmp(chr, wc2) <= 0
 					   )
