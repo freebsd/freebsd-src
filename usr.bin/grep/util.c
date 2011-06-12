@@ -309,7 +309,9 @@ procline(struct str *l, int nottext)
 					r = regexec(&r_pattern[i], l->dat, 1,
 					    &pmatch, eflags);
 				r = (r == 0) ? 0 : REG_NOMATCH;
-				st = pmatch.rm_eo;
+				st = (cflags & REG_NOSUB)
+					? (size_t)l->len
+					: (size_t)pmatch.rm_eo;
 				if (r == REG_NOMATCH)
 					continue;
 				/* Check for full match */
