@@ -1628,6 +1628,15 @@ bool Sema::IsPointerConversion(Expr *From, QualType FromType, QualType ToType,
     return true;
   }
 
+  // MSVC allows implicit function to void* type conversion.
+  if (getLangOptions().Microsoft && FromPointeeType->isFunctionType() &&
+      ToPointeeType->isVoidType()) {
+    ConvertedType = BuildSimilarlyQualifiedPointerType(FromTypePtr,
+                                                       ToPointeeType,
+                                                       ToType, Context);
+    return true;
+  }
+
   // When we're overloading in C, we allow a special kind of pointer
   // conversion for compatible-but-not-identical pointee types.
   if (!getLangOptions().CPlusPlus &&
@@ -2197,6 +2206,13 @@ Sema::IsQualificationConversion(QualType FromType, QualType ToType,
     Qualifiers FromQuals = FromType.getQualifiers();
     Qualifiers ToQuals = ToType.getQualifiers();
     
+    // Allow addition/removal of GC attributes but not changing GC attributes.
+    if (FromQuals.getObjCGCAttr() != ToQuals.getObjCGCAttr() &&
+        (!FromQuals.hasObjCGCAttr() || !ToQuals.hasObjCGCAttr())) {
+      FromQuals.removeObjCGCAttr();
+      ToQuals.removeObjCGCAttr();
+    }
+    
     //   -- for every j > 0, if const is in cv 1,j then const is in cv
     //      2,j, and similarly for volatile.
     if (!CStyle && !ToQuals.compatiblyIncludes(FromQuals))
@@ -2507,12 +2523,10 @@ compareStandardConversionSubsets(ASTContext &Context,
 
   // the identity conversion sequence is considered to be a subsequence of
   // any non-identity conversion sequence
-  if (SCS1.ReferenceBinding == SCS2.ReferenceBinding) {
-    if (SCS1.isIdentityConversion() && !SCS2.isIdentityConversion())
-      return ImplicitConversionSequence::Better;
-    else if (!SCS1.isIdentityConversion() && SCS2.isIdentityConversion())
-      return ImplicitConversionSequence::Worse;
-  }
+  if (SCS1.isIdentityConversion() && !SCS2.isIdentityConversion())
+    return ImplicitConversionSequence::Better;
+  else if (!SCS1.isIdentityConversion() && SCS2.isIdentityConversion())
+    return ImplicitConversionSequence::Worse;
 
   if (SCS1.Second != SCS2.Second) {
     if (SCS1.Second == ICK_Identity)
@@ -4689,6 +4703,10 @@ class BuiltinCandidateTypeSet  {
   /// were present in the candidate set.
   bool HasArithmeticOrEnumeralTypes;
 
+  /// \brief A flag indicating whether the nullptr type was present in the
+  /// candidate set.
+  bool HasNullPtrType;
+  
   /// Sema - The semantic analysis instance where we are building the
   /// candidate type set.
   Sema &SemaRef;
@@ -4707,6 +4725,7 @@ public:
   BuiltinCandidateTypeSet(Sema &SemaRef)
     : HasNonRecordTypes(false),
       HasArithmeticOrEnumeralTypes(false),
+      HasNullPtrType(false),
       SemaRef(SemaRef),
       Context(SemaRef.Context) { }
 
@@ -4739,6 +4758,7 @@ public:
 
   bool hasNonRecordTypes() { return HasNonRecordTypes; }
   bool hasArithmeticOrEnumeralTypes() { return HasArithmeticOrEnumeralTypes; }
+  bool hasNullPtrType() const { return HasNullPtrType; }
 };
 
 /// AddPointerWithMoreQualifiedTypeVariants - Add the pointer type @p Ty to
@@ -4899,6 +4919,8 @@ BuiltinCandidateTypeSet::AddTypesConvertedFrom(QualType Ty,
     // extension.
     HasArithmeticOrEnumeralTypes = true;
     VectorTypes.insert(Ty);
+  } else if (Ty->isNullPtrType()) {
+    HasNullPtrType = true;
   } else if (AllowUserConversions && TyRec) {
     // No conversion functions in incomplete types.
     if (SemaRef.RequireCompleteType(Loc, Ty, 0))
@@ -5358,8 +5380,8 @@ public:
 
   // C++ [over.built]p15:
   //
-  //   For every pointer or enumeration type T, there exist
-  //   candidate operator functions of the form
+  //   For every T, where T is an enumeration type, a pointer type, or 
+  //   std::nullptr_t, there exist candidate operator functions of the form
   //
   //        bool       operator<(T, T);
   //        bool       operator>(T, T);
@@ -5443,6 +5465,17 @@ public:
         QualType ParamTypes[2] = { *Enum, *Enum };
         S.AddBuiltinCandidate(S.Context.BoolTy, ParamTypes, Args, 2,
                               CandidateSet);
+      }
+      
+      if (CandidateTypes[ArgIdx].hasNullPtrType()) {
+        CanQualType NullPtrTy = S.Context.getCanonicalType(S.Context.NullPtrTy);
+        if (AddedTypes.insert(NullPtrTy) &&
+            !UserDefinedBinaryOperators.count(std::make_pair(NullPtrTy, 
+                                                             NullPtrTy))) {
+          QualType ParamTypes[2] = { NullPtrTy, NullPtrTy };
+          S.AddBuiltinCandidate(S.Context.BoolTy, ParamTypes, Args, 2, 
+                                CandidateSet);
+        }
       }
     }
   }
@@ -6401,7 +6434,9 @@ enum OverloadCandidateKind {
   oc_constructor_template,
   oc_implicit_default_constructor,
   oc_implicit_copy_constructor,
+  oc_implicit_move_constructor,
   oc_implicit_copy_assignment,
+  oc_implicit_move_assignment,
   oc_implicit_inherited_constructor
 };
 
@@ -6423,8 +6458,15 @@ OverloadCandidateKind ClassifyOverloadCandidate(Sema &S,
     if (Ctor->getInheritedConstructor())
       return oc_implicit_inherited_constructor;
 
-    return Ctor->isCopyConstructor() ? oc_implicit_copy_constructor
-                                     : oc_implicit_default_constructor;
+    if (Ctor->isDefaultConstructor())
+      return oc_implicit_default_constructor;
+
+    if (Ctor->isMoveConstructor())
+      return oc_implicit_move_constructor;
+
+    assert(Ctor->isCopyConstructor() &&
+           "unexpected sort of implicit constructor");
+    return oc_implicit_copy_constructor;
   }
 
   if (CXXMethodDecl *Meth = dyn_cast<CXXMethodDecl>(Fn)) {
@@ -6432,6 +6474,9 @@ OverloadCandidateKind ClassifyOverloadCandidate(Sema &S,
     // it doesn't hurt to split it out.
     if (!Meth->isImplicit())
       return isTemplate ? oc_method_template : oc_method;
+
+    if (Meth->isMoveAssignmentOperator())
+      return oc_implicit_move_assignment;
 
     assert(Meth->isCopyAssignmentOperator()
            && "implicit method is not copy assignment operator?");
@@ -6675,6 +6720,15 @@ void DiagnoseArityMismatch(Sema &S, OverloadCandidate *Cand,
   const FunctionProtoType *FnTy = Fn->getType()->getAs<FunctionProtoType>();
 
   unsigned MinParams = Fn->getMinRequiredArguments();
+
+  // With invalid overloaded operators, it's possible that we think we
+  // have an arity mismatch when it fact it looks like we have the
+  // right number of arguments, because only overloaded operators have
+  // the weird behavior of overloading member and non-member functions.
+  // Just don't report anything.
+  if (Fn->isInvalidDecl() && 
+      Fn->getDeclName().getNameKind() == DeclarationName::CXXOperatorName)
+    return;
 
   // at least / at most / exactly
   unsigned mode, modeCount;
@@ -7772,6 +7826,111 @@ void Sema::AddOverloadedCallCandidates(UnresolvedLookupExpr *ULE,
                                          ULE->isStdAssociatedNamespace());
 }
 
+/// Attempt to recover from an ill-formed use of a non-dependent name in a
+/// template, where the non-dependent name was declared after the template
+/// was defined. This is common in code written for a compilers which do not
+/// correctly implement two-stage name lookup.
+///
+/// Returns true if a viable candidate was found and a diagnostic was issued.
+static bool
+DiagnoseTwoPhaseLookup(Sema &SemaRef, SourceLocation FnLoc,
+                       const CXXScopeSpec &SS, LookupResult &R,
+                       TemplateArgumentListInfo *ExplicitTemplateArgs,
+                       Expr **Args, unsigned NumArgs) {
+  if (SemaRef.ActiveTemplateInstantiations.empty() || !SS.isEmpty())
+    return false;
+
+  for (DeclContext *DC = SemaRef.CurContext; DC; DC = DC->getParent()) {
+    SemaRef.LookupQualifiedName(R, DC);
+
+    if (!R.empty()) {
+      R.suppressDiagnostics();
+
+      if (isa<CXXRecordDecl>(DC)) {
+        // Don't diagnose names we find in classes; we get much better
+        // diagnostics for these from DiagnoseEmptyLookup.
+        R.clear();
+        return false;
+      }
+
+      OverloadCandidateSet Candidates(FnLoc);
+      for (LookupResult::iterator I = R.begin(), E = R.end(); I != E; ++I)
+        AddOverloadedCallCandidate(SemaRef, I.getPair(),
+                                   ExplicitTemplateArgs, Args, NumArgs,
+                                   Candidates, false);
+
+      OverloadCandidateSet::iterator Best;
+      if (Candidates.BestViableFunction(SemaRef, FnLoc, Best) != OR_Success)
+        // No viable functions. Don't bother the user with notes for functions
+        // which don't work and shouldn't be found anyway.
+        return false;
+
+      // Find the namespaces where ADL would have looked, and suggest
+      // declaring the function there instead.
+      Sema::AssociatedNamespaceSet AssociatedNamespaces;
+      Sema::AssociatedClassSet AssociatedClasses;
+      SemaRef.FindAssociatedClassesAndNamespaces(Args, NumArgs,
+                                                 AssociatedNamespaces,
+                                                 AssociatedClasses);
+      // Never suggest declaring a function within namespace 'std'. 
+      Sema::AssociatedNamespaceSet SuggestedNamespaces;
+      if (DeclContext *Std = SemaRef.getStdNamespace()) {
+        for (Sema::AssociatedNamespaceSet::iterator
+               it = AssociatedNamespaces.begin(),
+               end = AssociatedNamespaces.end(); it != end; ++it) {
+          if (!Std->Encloses(*it))
+            SuggestedNamespaces.insert(*it);
+        }
+      } else {
+        // Lacking the 'std::' namespace, use all of the associated namespaces.
+        SuggestedNamespaces = AssociatedNamespaces;
+      }
+
+      SemaRef.Diag(R.getNameLoc(), diag::err_not_found_by_two_phase_lookup)
+        << R.getLookupName();
+      if (SuggestedNamespaces.empty()) {
+        SemaRef.Diag(Best->Function->getLocation(),
+                     diag::note_not_found_by_two_phase_lookup)
+          << R.getLookupName() << 0;
+      } else if (SuggestedNamespaces.size() == 1) {
+        SemaRef.Diag(Best->Function->getLocation(),
+                     diag::note_not_found_by_two_phase_lookup)
+          << R.getLookupName() << 1 << *SuggestedNamespaces.begin();
+      } else {
+        // FIXME: It would be useful to list the associated namespaces here,
+        // but the diagnostics infrastructure doesn't provide a way to produce
+        // a localized representation of a list of items.
+        SemaRef.Diag(Best->Function->getLocation(),
+                     diag::note_not_found_by_two_phase_lookup)
+          << R.getLookupName() << 2;
+      }
+
+      // Try to recover by calling this function.
+      return true;
+    }
+
+    R.clear();
+  }
+
+  return false;
+}
+
+/// Attempt to recover from ill-formed use of a non-dependent operator in a
+/// template, where the non-dependent operator was declared after the template
+/// was defined.
+///
+/// Returns true if a viable candidate was found and a diagnostic was issued.
+static bool
+DiagnoseTwoPhaseOperatorLookup(Sema &SemaRef, OverloadedOperatorKind Op,
+                               SourceLocation OpLoc,
+                               Expr **Args, unsigned NumArgs) {
+  DeclarationName OpName =
+    SemaRef.Context.DeclarationNames.getCXXOperatorName(Op);
+  LookupResult R(SemaRef, OpName, OpLoc, Sema::LookupOperatorName);
+  return DiagnoseTwoPhaseLookup(SemaRef, OpLoc, CXXScopeSpec(), R,
+                                /*ExplicitTemplateArgs=*/0, Args, NumArgs);
+}
+
 /// Attempts to recover from a call where no functions were found.
 ///
 /// Returns true if new candidates were found.
@@ -7780,13 +7939,14 @@ BuildRecoveryCallExpr(Sema &SemaRef, Scope *S, Expr *Fn,
                       UnresolvedLookupExpr *ULE,
                       SourceLocation LParenLoc,
                       Expr **Args, unsigned NumArgs,
-                      SourceLocation RParenLoc) {
+                      SourceLocation RParenLoc,
+                      bool EmptyLookup) {
 
   CXXScopeSpec SS;
   SS.Adopt(ULE->getQualifierLoc());
 
   TemplateArgumentListInfo TABuffer;
-  const TemplateArgumentListInfo *ExplicitTemplateArgs = 0;
+  TemplateArgumentListInfo *ExplicitTemplateArgs = 0;
   if (ULE->hasExplicitTemplateArgs()) {
     ULE->copyTemplateArgumentsInto(TABuffer);
     ExplicitTemplateArgs = &TABuffer;
@@ -7794,7 +7954,10 @@ BuildRecoveryCallExpr(Sema &SemaRef, Scope *S, Expr *Fn,
 
   LookupResult R(SemaRef, ULE->getName(), ULE->getNameLoc(),
                  Sema::LookupOrdinaryName);
-  if (SemaRef.DiagnoseEmptyLookup(S, SS, R, Sema::CTC_Expression))
+  if (!DiagnoseTwoPhaseLookup(SemaRef, Fn->getExprLoc(), SS, R,
+                              ExplicitTemplateArgs, Args, NumArgs) &&
+      (!EmptyLookup ||
+       SemaRef.DiagnoseEmptyLookup(S, SS, R, Sema::CTC_Expression)))
     return ExprError();
 
   assert(!R.empty() && "lookup results empty despite recovery");
@@ -7814,7 +7977,7 @@ BuildRecoveryCallExpr(Sema &SemaRef, Scope *S, Expr *Fn,
     return ExprError();
 
   // This shouldn't cause an infinite loop because we're giving it
-  // an expression with non-empty lookup results, which should never
+  // an expression with viable lookup results, which should never
   // end up here.
   return SemaRef.ActOnCallExpr(/*Scope*/ 0, NewFn.take(), LParenLoc,
                                MultiExprArg(Args, NumArgs), RParenLoc);
@@ -7860,11 +8023,11 @@ Sema::BuildOverloadedCallExpr(Scope *S, Expr *Fn, UnresolvedLookupExpr *ULE,
   AddOverloadedCallCandidates(ULE, Args, NumArgs, CandidateSet);
 
   // If we found nothing, try to recover.
-  // AddRecoveryCallCandidates diagnoses the error itself, so we just
-  // bailout out if it fails.
+  // BuildRecoveryCallExpr diagnoses the error itself, so we just bail
+  // out if it fails.
   if (CandidateSet.empty())
     return BuildRecoveryCallExpr(*this, S, Fn, ULE, LParenLoc, Args, NumArgs,
-                                 RParenLoc);
+                                 RParenLoc, /*EmptyLookup=*/true);
 
   OverloadCandidateSet::iterator Best;
   switch (CandidateSet.BestViableFunction(*this, Fn->getLocStart(), Best)) {
@@ -7879,12 +8042,21 @@ Sema::BuildOverloadedCallExpr(Scope *S, Expr *Fn, UnresolvedLookupExpr *ULE,
                                  ExecConfig);
   }
 
-  case OR_No_Viable_Function:
+  case OR_No_Viable_Function: {
+    // Try to recover by looking for viable functions which the user might
+    // have meant to call.
+    ExprResult Recovery = BuildRecoveryCallExpr(*this, S, Fn, ULE, LParenLoc,
+                                                Args, NumArgs, RParenLoc,
+                                                /*EmptyLookup=*/false);
+    if (!Recovery.isInvalid())
+      return Recovery;
+
     Diag(Fn->getSourceRange().getBegin(),
          diag::err_ovl_no_viable_function_in_call)
       << ULE->getName() << Fn->getSourceRange();
     CandidateSet.NoteCandidates(*this, OCD_AllCandidates, Args, NumArgs);
     break;
+  }
 
   case OR_Ambiguous:
     Diag(Fn->getSourceRange().getBegin(), diag::err_ovl_ambiguous_call)
@@ -8073,6 +8245,13 @@ Sema::CreateOverloadedUnaryOp(SourceLocation OpLoc, unsigned OpcIn,
   }
 
   case OR_No_Viable_Function:
+    // This is an erroneous use of an operator which can be overloaded by
+    // a non-member function. Check for non-member operators which were
+    // defined too late to be candidates.
+    if (DiagnoseTwoPhaseOperatorLookup(*this, Op, OpLoc, Args, NumArgs))
+      // FIXME: Recover by calling the found function.
+      return ExprError();
+
     // No viable function; fall through to handling this as a
     // built-in operator, which will produce an error message for us.
     break;
@@ -8354,6 +8533,13 @@ Sema::CreateOverloadedBinOp(SourceLocation OpLoc,
              << BinaryOperator::getOpcodeStr(Opc)
              << Args[0]->getSourceRange() << Args[1]->getSourceRange();
       } else {
+        // This is an erroneous use of an operator which can be overloaded by
+        // a non-member function. Check for non-member operators which were
+        // defined too late to be candidates.
+        if (DiagnoseTwoPhaseOperatorLookup(*this, Op, OpLoc, Args, 2))
+          // FIXME: Recover by calling the found function.
+          return ExprError();
+
         // No viable function; try to create a built-in operation, which will
         // produce an error. Then, show the non-viable candidates.
         Result = CreateBuiltinBinOp(OpLoc, Opc, Args[0], Args[1]);
@@ -8772,6 +8958,19 @@ Sema::BuildCallToMemberFunction(Scope *S, Expr *MemExprE,
   if (CheckFunctionCall(Method, TheCall))
     return ExprError();
 
+  if ((isa<CXXConstructorDecl>(CurContext) || 
+       isa<CXXDestructorDecl>(CurContext)) && 
+      TheCall->getMethodDecl()->isPure()) {
+    const CXXMethodDecl *MD = TheCall->getMethodDecl();
+
+    if (isa<CXXThisExpr>(MemExpr->getBase()->IgnoreParenCasts()))
+      Diag(MemExpr->getLocStart(), 
+           diag::warn_call_to_pure_virtual_member_function_from_ctor_dtor)
+        << MD->getDeclName() << isa<CXXDestructorDecl>(CurContext)
+        << MD->getParent()->getDeclName();
+
+      Diag(MD->getLocStart(), diag::note_previous_decl) << MD->getDeclName();
+  }
   return MaybeBindToTemporary(TheCall);
 }
 

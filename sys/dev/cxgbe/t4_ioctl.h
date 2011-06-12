@@ -46,6 +46,7 @@ enum {
 	T4_GET_FILTER,			/* get information about a filter */
 	T4_SET_FILTER,			/* program a filter */
 	T4_DEL_FILTER,			/* delete a filter */
+	T4_GET_SGE_CONTEXT,		/* get SGE context for a queue */
 };
 
 struct t4_reg {
@@ -184,6 +185,20 @@ struct t4_filter {
 	struct t4_filter_specification fs;
 };
 
+#define T4_SGE_CONTEXT_SIZE 24
+enum {
+	SGE_CONTEXT_EGRESS,
+	SGE_CONTEXT_INGRESS,
+	SGE_CONTEXT_FLM,
+	SGE_CONTEXT_CNM
+};
+
+struct t4_sge_context {
+	uint32_t mem_id;
+	uint32_t cid;
+	uint32_t data[T4_SGE_CONTEXT_SIZE / 4];
+};
+
 #define CHELSIO_T4_GETREG	_IOWR('f', T4_GETREG, struct t4_reg)
 #define CHELSIO_T4_SETREG	_IOW('f', T4_SETREG, struct t4_reg)
 #define CHELSIO_T4_REGDUMP	_IOWR('f', T4_REGDUMP, struct t4_regdump)
@@ -192,4 +207,6 @@ struct t4_filter {
 #define CHELSIO_T4_GET_FILTER	_IOWR('f', T4_GET_FILTER, struct t4_filter)
 #define CHELSIO_T4_SET_FILTER	_IOW('f', T4_SET_FILTER, struct t4_filter)
 #define CHELSIO_T4_DEL_FILTER	_IOW('f', T4_DEL_FILTER, struct t4_filter)
+#define CHELSIO_T4_GET_SGE_CONTEXT _IOWR('f', T4_GET_SGE_CONTEXT, \
+    struct t4_sge_context)
 #endif

@@ -15,7 +15,7 @@ ORG1=	0x7c00
 ORG2=	0x2000
 
 CFLAGS=	-DBOOTPROG=\"zfsboot\" \
-	-Os -g \
+	-Os \
 	-fno-guess-branch-probability \
 	-fomit-frame-pointer \
 	-fno-unit-at-a-time \

@@ -233,6 +233,7 @@ extern TAILQ_HEAD(railist_head_t, rainfo) railist;
 
 struct rtadvd_timer	*ra_timeout(void *);
 void			ra_timer_update(void *, struct timeval *);
+void			ra_output(struct rainfo *);
 
 int			prefix_match(struct in6_addr *, int,
 			    struct in6_addr *, int);

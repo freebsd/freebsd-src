@@ -328,7 +328,7 @@ namespace llvm {
     /// LowerAsmOperandForConstraint - Lower the specified operand into the Ops
     /// vector.  If it is invalid, don't add anything to Ops.
     virtual void LowerAsmOperandForConstraint(SDValue Op,
-                                              char ConstraintLetter,
+                                              std::string &Constraint,
                                               std::vector<SDValue> &Ops,
                                               SelectionDAG &DAG) const;
 
@@ -363,9 +363,6 @@ namespace llvm {
     getOptimalMemOpType(uint64_t Size, unsigned DstAlign, unsigned SrcAlign,
                         bool NonScalarIntSafe, bool MemcpyStrSrc,
                         MachineFunction &MF) const;
-
-    /// getFunctionAlignment - Return the Log2 alignment of this function.
-    virtual unsigned getFunctionAlignment(const Function *F) const;
 
   private:
     SDValue getFramePointerFrameIndex(SelectionDAG & DAG) const;

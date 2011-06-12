@@ -650,7 +650,7 @@ netfront_send_fake_arp(device_t dev, struct netfront_info *info)
 /**
  * Callback received when the backend's state changes.
  */
-static int
+static void
 netfront_backend_changed(device_t dev, XenbusState newstate)
 {
 	struct netfront_info *sc = device_get_softc(dev);
@@ -680,7 +680,6 @@ netfront_backend_changed(device_t dev, XenbusState newstate)
 		xenbus_set_state(dev, XenbusStateClosed);
 		break;
 	}
-	return (0);
 }
 
 static void

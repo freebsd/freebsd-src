@@ -1604,7 +1604,7 @@ ino_trunc(ino_t ino, off_t size)
 	 * uninitialized space later.
 	 */
 	off = blkoff(fs, size);
-	if (off) {
+	if (off && DIP(ip, di_mode) != IFDIR) {
 		uint8_t *buf;
 		long clrsize;
 
@@ -1775,13 +1775,18 @@ cg_trunc(struct suj_cg *sc)
 	struct suj_ino *sino;
 	int i;
 
-	for (i = 0; i < SUJ_HASHSIZE; i++)
-		LIST_FOREACH(sino, &sc->sc_inohash[i], si_next)
+	for (i = 0; i < SUJ_HASHSIZE; i++) {
+		LIST_FOREACH(sino, &sc->sc_inohash[i], si_next) {
 			if (sino->si_trunc) {
 				ino_trunc(sino->si_ino,
 				    sino->si_trunc->jt_size);
+				sino->si_blkadj = 0;
 				sino->si_trunc = NULL;
 			}
+			if (sino->si_blkadj)
+				ino_adjblks(sino);
+		}
+	}
 }
 
 /*
@@ -1791,7 +1796,6 @@ cg_trunc(struct suj_cg *sc)
 static void
 cg_check_blk(struct suj_cg *sc)
 {
-	struct suj_ino *sino;
 	struct suj_blk *sblk;
 	int i;
 
@@ -1799,15 +1803,6 @@ cg_check_blk(struct suj_cg *sc)
 	for (i = 0; i < SUJ_HASHSIZE; i++)
 		LIST_FOREACH(sblk, &sc->sc_blkhash[i], sb_next)
 			blk_check(sblk);
-	/*
-	 * Now that we've freed blocks which are not referenced we
-	 * make a second pass over all inodes to adjust their block
-	 * counts.
-	 */
-	for (i = 0; i < SUJ_HASHSIZE; i++)
-		LIST_FOREACH(sino, &sc->sc_inohash[i], si_next)
-			if (sino->si_blkadj)
-				ino_adjblks(sino);
 }
 
 /*
@@ -1961,14 +1956,7 @@ ino_append(union jrec *rec)
 		    "parent %d, diroff %jd\n",
 		    refrec->jr_op, refrec->jr_ino, refrec->jr_nlink,
 		    refrec->jr_parent, refrec->jr_diroff);
-	/*
-	 * Lookup the ino and clear truncate if one is found.  Partial
-	 * truncates are always done synchronously so if we discover
-	 * an operation that requires a lock the truncation has completed
-	 * and can be discarded.
-	 */
 	sino = ino_lookup(((struct jrefrec *)rec)->jr_ino, 1);
-	sino->si_trunc = NULL;
 	sino->si_hasrecs = 1;
 	srec = errmalloc(sizeof(*srec));
 	srec->sr_rec = rec;
@@ -2174,9 +2162,7 @@ blk_build(struct jblkrec *blkrec)
 	struct suj_rec *srec;
 	struct suj_blk *sblk;
 	struct jblkrec *blkrn;
-	struct suj_ino *sino;
 	ufs2_daddr_t blk;
-	off_t foff;
 	int frag;
 
 	if (debug)
@@ -2185,17 +2171,6 @@ blk_build(struct jblkrec *blkrec)
 		    blkrec->jb_op, blkrec->jb_blkno, blkrec->jb_frags,
 		    blkrec->jb_oldfrags, blkrec->jb_ino, blkrec->jb_lbn);
 
-	/*
-	 * Look up the inode and clear the truncate if any lbns after the
-	 * truncate lbn are freed or allocated.
-	 */
-	sino = ino_lookup(blkrec->jb_ino, 0);
-	if (sino && sino->si_trunc) {
-		foff = lblktosize(fs, blkrec->jb_lbn);
-		foff += lfragtosize(fs, blkrec->jb_frags);
-		if (foff > sino->si_trunc->jt_size)
-			sino->si_trunc = NULL;
-	}
 	blk = blknum(fs, blkrec->jb_blkno);
 	frag = fragnum(fs, blkrec->jb_blkno);
 	sblk = blk_lookup(blk, 1);
@@ -2242,10 +2217,15 @@ ino_build_trunc(struct jtrncrec *rec)
 	struct suj_ino *sino;
 
 	if (debug)
-		printf("ino_build_trunc: ino %d, size %jd\n",
-		    rec->jt_ino, rec->jt_size);
+		printf("ino_build_trunc: op %d ino %d, size %jd\n",
+		    rec->jt_op, rec->jt_ino, rec->jt_size);
 	sino = ino_lookup(rec->jt_ino, 1);
-	sino->si_trunc = rec;
+	if (rec->jt_op == JOP_SYNC) {
+		sino->si_trunc = NULL;
+		return;
+	}
+	if (sino->si_trunc == NULL || sino->si_trunc->jt_size > rec->jt_size)
+		sino->si_trunc = rec;
 }
 
 /*

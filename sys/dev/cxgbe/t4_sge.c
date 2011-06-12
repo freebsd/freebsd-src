@@ -1368,6 +1368,12 @@ alloc_fwq(struct adapter *sc, int intr_idx)
 
 	children = SYSCTL_CHILDREN(sc->oid_fwq);
 
+	SYSCTL_ADD_PROC(&sc->ctx, children, OID_AUTO, "abs_id",
+	    CTLTYPE_INT | CTLFLAG_RD, &fwq->abs_id, 0, sysctl_uint16, "I",
+	    "absolute id of the queue");
+	SYSCTL_ADD_PROC(&sc->ctx, children, OID_AUTO, "cntxt_id",
+	    CTLTYPE_INT | CTLFLAG_RD, &fwq->cntxt_id, 0, sysctl_uint16, "I",
+	    "SGE context id of the queue");
 	SYSCTL_ADD_PROC(&sc->ctx, children, OID_AUTO, "cidx",
 	    CTLTYPE_INT | CTLFLAG_RD, &fwq->cidx, 0, sysctl_uint16, "I",
 	    "consumer index");
@@ -1418,6 +1424,12 @@ alloc_rxq(struct port_info *pi, struct sge_rxq *rxq, int intr_idx, int idx)
 	SYSCTL_ADD_PROC(&pi->ctx, children, OID_AUTO, "abs_id",
 	    CTLTYPE_INT | CTLFLAG_RD, &rxq->iq.abs_id, 0, sysctl_uint16, "I",
 	    "absolute id of the queue");
+	SYSCTL_ADD_PROC(&pi->ctx, children, OID_AUTO, "cntxt_id",
+	    CTLTYPE_INT | CTLFLAG_RD, &rxq->iq.cntxt_id, 0, sysctl_uint16, "I",
+	    "SGE context id of the queue");
+	SYSCTL_ADD_PROC(&pi->ctx, children, OID_AUTO, "cidx",
+	    CTLTYPE_INT | CTLFLAG_RD, &rxq->iq.cidx, 0, sysctl_uint16, "I",
+	    "consumer index");
 #ifdef INET
 	SYSCTL_ADD_INT(&pi->ctx, children, OID_AUTO, "lro_queued", CTLFLAG_RD,
 	    &rxq->lro.lro_queued, 0, NULL);
@@ -1429,6 +1441,19 @@ alloc_rxq(struct port_info *pi, struct sge_rxq *rxq, int intr_idx, int idx)
 	SYSCTL_ADD_UQUAD(&pi->ctx, children, OID_AUTO, "vlan_extraction",
 	    CTLFLAG_RD, &rxq->vlan_extraction,
 	    "# of times hardware extracted 802.1Q tag");
+
+	children = SYSCTL_CHILDREN(oid);
+	oid = SYSCTL_ADD_NODE(&pi->ctx, children, OID_AUTO, "fl", CTLFLAG_RD,
+	    NULL, "freelist");
+	children = SYSCTL_CHILDREN(oid);
+
+	SYSCTL_ADD_PROC(&pi->ctx, children, OID_AUTO, "cntxt_id",
+	    CTLTYPE_INT | CTLFLAG_RD, &rxq->fl.cntxt_id, 0, sysctl_uint16, "I",
+	    "SGE context id of the queue");
+	SYSCTL_ADD_UINT(&pi->ctx, children, OID_AUTO, "cidx", CTLFLAG_RD,
+	    &rxq->fl.cidx, 0, "consumer index");
+	SYSCTL_ADD_UINT(&pi->ctx, children, OID_AUTO, "pidx", CTLFLAG_RD,
+	    &rxq->fl.pidx, 0, "producer index");
 
 	return (rc);
 }
@@ -1651,6 +1676,15 @@ alloc_txq(struct port_info *pi, struct sge_txq *txq, int idx)
 	oid = SYSCTL_ADD_NODE(&pi->ctx, children, OID_AUTO, name, CTLFLAG_RD,
 	    NULL, "tx queue");
 	children = SYSCTL_CHILDREN(oid);
+
+	SYSCTL_ADD_UINT(&pi->ctx, children, OID_AUTO, "cntxt_id", CTLFLAG_RD,
+	    &eq->cntxt_id, 0, "SGE context id of the queue");
+	SYSCTL_ADD_PROC(&pi->ctx, children, OID_AUTO, "cidx",
+	    CTLTYPE_INT | CTLFLAG_RD, &eq->cidx, 0, sysctl_uint16, "I",
+	    "consumer index");
+	SYSCTL_ADD_PROC(&pi->ctx, children, OID_AUTO, "pidx",
+	    CTLTYPE_INT | CTLFLAG_RD, &eq->pidx, 0, sysctl_uint16, "I",
+	    "producer index");
 
 	SYSCTL_ADD_UQUAD(&pi->ctx, children, OID_AUTO, "txcsum", CTLFLAG_RD,
 	    &txq->txcsum, "# of times hardware assisted with checksum");

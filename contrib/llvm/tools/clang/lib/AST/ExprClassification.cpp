@@ -161,6 +161,7 @@ static Cl::Kinds ClassifyInternal(ASTContext &Ctx, const Expr *E) {
   case Expr::InitListExprClass:
   case Expr::SizeOfPackExprClass:
   case Expr::SubstNonTypeTemplateParmPackExprClass:
+  case Expr::AsTypeExprClass:
     return Cl::CL_PRValue;
 
     // Next come the complicated cases.
@@ -465,14 +466,16 @@ static Cl::Kinds ClassifyBinaryOp(ASTContext &Ctx, const BinaryOperator *E) {
   //   is a pointer to a data member is of the same value category as its first
   //   operand.
   if (E->getOpcode() == BO_PtrMemD)
-    return E->getType()->isFunctionType() ? Cl::CL_MemberFunction :
-      ClassifyInternal(Ctx, E->getLHS());
+    return (E->getType()->isFunctionType() || E->getType() == Ctx.BoundMemberTy)
+             ? Cl::CL_MemberFunction 
+             : ClassifyInternal(Ctx, E->getLHS());
 
   // C++ [expr.mptr.oper]p6: The result of an ->* expression is an lvalue if its
   //   second operand is a pointer to data member and a prvalue otherwise.
   if (E->getOpcode() == BO_PtrMemI)
-    return E->getType()->isFunctionType() ?
-      Cl::CL_MemberFunction : Cl::CL_LValue;
+    return (E->getType()->isFunctionType() || E->getType() == Ctx.BoundMemberTy)
+             ? Cl::CL_MemberFunction 
+             : Cl::CL_LValue;
 
   // All other binary operations are prvalues.
   return Cl::CL_PRValue;

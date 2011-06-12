@@ -352,8 +352,7 @@ bool ConstStructBuilder::Build(InitListExpr *ILE) {
     if (IsMsStruct) {
       // Zero-length bitfields following non-bitfield members are
       // ignored:
-      if (CGM.getContext().ZeroBitfieldFollowsNonBitfield((*Field), LastFD) ||
-          CGM.getContext().ZeroBitfieldFollowsBitfield((*Field), LastFD)) {
+      if (CGM.getContext().ZeroBitfieldFollowsNonBitfield((*Field), LastFD)) {
         --FieldNo;
         continue;
       }
@@ -611,12 +610,12 @@ public:
       return llvm::ConstantPointerNull::get(cast<llvm::PointerType>(destType));
 
     case CK_IntegralCast: {
-      bool isSigned = subExpr->getType()->isSignedIntegerType();
+      bool isSigned = subExpr->getType()->isSignedIntegerOrEnumerationType();
       return llvm::ConstantExpr::getIntegerCast(C, destType, isSigned);
     }
 
     case CK_IntegralToPointer: {
-      bool isSigned = subExpr->getType()->isSignedIntegerType();
+      bool isSigned = subExpr->getType()->isSignedIntegerOrEnumerationType();
       C = llvm::ConstantExpr::getIntegerCast(C, CGM.IntPtrTy, isSigned);
       return llvm::ConstantExpr::getIntToPtr(C, destType);
     }
@@ -626,13 +625,13 @@ public:
                              llvm::Constant::getNullValue(C->getType()));
 
     case CK_IntegralToFloating:
-      if (subExpr->getType()->isSignedIntegerType())
+      if (subExpr->getType()->isSignedIntegerOrEnumerationType())
         return llvm::ConstantExpr::getSIToFP(C, destType);
       else
         return llvm::ConstantExpr::getUIToFP(C, destType);
 
     case CK_FloatingToIntegral:
-      if (E->getType()->isSignedIntegerType())
+      if (E->getType()->isSignedIntegerOrEnumerationType())
         return llvm::ConstantExpr::getFPToSI(C, destType);
       else
         return llvm::ConstantExpr::getFPToUI(C, destType);

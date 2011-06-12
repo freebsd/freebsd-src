@@ -58,6 +58,20 @@ BitVector SystemZRegisterInfo::getReservedRegs(const MachineFunction &MF) const 
   return Reserved;
 }
 
+const TargetRegisterClass*
+SystemZRegisterInfo::getMatchingSuperRegClass(const TargetRegisterClass *A,
+                                              const TargetRegisterClass *B,
+                                              unsigned Idx) const {
+  switch(Idx) {
+  // Exact sub-classes don't exist for the other sub-register indexes.
+  default: return 0;
+  case SystemZ::subreg_32bit:
+    if (B == SystemZ::ADDR32RegisterClass)
+      return A->getSize() == 8 ? SystemZ::ADDR64RegisterClass : 0;
+    return A;
+  }
+}
+
 void SystemZRegisterInfo::
 eliminateCallFramePseudoInstr(MachineFunction &MF, MachineBasicBlock &MBB,
                               MachineBasicBlock::iterator I) const {
@@ -124,5 +138,11 @@ int SystemZRegisterInfo::getDwarfRegNum(unsigned RegNum, bool isEH) const {
   assert(0 && "What is the dwarf register number");
   return -1;
 }
+
+int SystemZRegisterInfo::getLLVMRegNum(unsigned DwarfRegNo, bool isEH) const {
+  assert(0 && "What is the dwarf register number");
+  return -1;
+}
+
 
 #include "SystemZGenRegisterInfo.inc"

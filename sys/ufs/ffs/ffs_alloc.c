@@ -217,7 +217,7 @@ nospace:
 	(void) chkdq(ip, -btodb(size), cred, FORCE);
 	UFS_LOCK(ump);
 #endif
-	if (reclaimed == 0) {
+	if (reclaimed == 0 && (flags & IO_BUFLOCKED) == 0) {
 		reclaimed = 1;
 		softdep_request_cleanup(fs, ITOV(ip), cred, FLUSH_BLOCKS_WAIT);
 		goto retry;
@@ -418,7 +418,7 @@ nospace:
 	/*
 	 * no space available
 	 */
-	if (reclaimed == 0) {
+	if (reclaimed == 0 && (flags & IO_BUFLOCKED) == 0) {
 		reclaimed = 1;
 		UFS_UNLOCK(ump);
 		if (bp) {
@@ -2035,7 +2035,7 @@ ffs_blkfree(ump, fs, devvp, bno, size, inum, dephd)
 	 */
 	if (devvp->v_type != VREG &&
 	    (devvp->v_vflag & VV_COPYONWRITE) &&
-	    ffs_snapblkfree(fs, devvp, bno, size, inum)) {
+	    ffs_snapblkfree(fs, devvp, bno, size, inum, dephd)) {
 		return;
 	}
 	if (!ump->um_candelete) {

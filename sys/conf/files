@@ -3152,41 +3152,41 @@ ofed/drivers/net/mlx4/en_tx.c			optional mlxen		\
 	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/net/mlx4/"
 
 ofed/drivers/infiniband/hw/mthca/mthca_allocator.c	optional mthca	\
-	no-depend compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/mthca/"
+	no-depend compile-with "${OFED_C}"
 ofed/drivers/infiniband/hw/mthca/mthca_av.c		optional mthca	\
-	no-depend compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/mthca/"
+	no-depend compile-with "${OFED_C}"
 ofed/drivers/infiniband/hw/mthca/mthca_catas.c		optional mthca	\
-	no-depend compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/mthca/"
+	no-depend compile-with "${OFED_C}"
 ofed/drivers/infiniband/hw/mthca/mthca_cmd.c		optional mthca	\
-	no-depend compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/mthca/"
+	no-depend compile-with "${OFED_C}"
 ofed/drivers/infiniband/hw/mthca/mthca_cq.c		optional mthca	\
-	no-depend compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/mthca/"
+	no-depend compile-with "${OFED_C}"
 ofed/drivers/infiniband/hw/mthca/mthca_eq.c		optional mthca	\
-	no-depend compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/mthca/"
+	no-depend compile-with "${OFED_C}"
 ofed/drivers/infiniband/hw/mthca/mthca_mad.c		optional mthca	\
-	no-depend compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/mthca/"
+	no-depend compile-with "${OFED_C}"
 ofed/drivers/infiniband/hw/mthca/mthca_main.c		optional mthca	\
-	no-depend compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/mthca/"
+	no-depend compile-with "${OFED_C}"
 ofed/drivers/infiniband/hw/mthca/mthca_mcg.c		optional mthca	\
-	no-depend compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/mthca/"
+	no-depend compile-with "${OFED_C}"
 ofed/drivers/infiniband/hw/mthca/mthca_memfree.c	optional mthca	\
-	no-depend compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/mthca/"
+	no-depend compile-with "${OFED_C}"
 ofed/drivers/infiniband/hw/mthca/mthca_mr.c		optional mthca	\
-	no-depend compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/mthca/"
+	no-depend compile-with "${OFED_C}"
 ofed/drivers/infiniband/hw/mthca/mthca_pd.c		optional mthca	\
-	no-depend compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/mthca/"
+	no-depend compile-with "${OFED_C}"
 ofed/drivers/infiniband/hw/mthca/mthca_profile.c	optional mthca	\
-	no-depend compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/mthca/"
+	no-depend compile-with "${OFED_C}"
 ofed/drivers/infiniband/hw/mthca/mthca_provider.c	optional mthca	\
-	no-depend compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/mthca/"
+	no-depend compile-with "${OFED_C}"
 ofed/drivers/infiniband/hw/mthca/mthca_qp.c		optional mthca	\
-	no-depend compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/mthca/"
+	no-depend compile-with "${OFED_C}"
 ofed/drivers/infiniband/hw/mthca/mthca_reset.c		optional mthca	\
-	no-depend compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/mthca/"
+	no-depend compile-with "${OFED_C}"
 ofed/drivers/infiniband/hw/mthca/mthca_srq.c		optional mthca	\
-	no-depend compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/mthca/"
+	no-depend compile-with "${OFED_C}"
 ofed/drivers/infiniband/hw/mthca/mthca_uar.c		optional mthca	\
-	no-depend compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/mthca/"
+	no-depend compile-with "${OFED_C}"
 
 # crypto support
 opencrypto/cast.c		optional crypto | ipsec
