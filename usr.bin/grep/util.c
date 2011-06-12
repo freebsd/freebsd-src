@@ -301,18 +301,15 @@ procline(struct str *l, int nottext)
  * XXX: grep_search() is a workaround for speed up and should be
  * removed in the future.  See fastgrep.c.
  */
-				if (fg_pattern[i].pattern) {
+				if (fg_pattern[i].pattern)
 					r = grep_search(&fg_pattern[i],
 					    (unsigned char *)l->dat,
 					    l->len, &pmatch);
-					r = (r == 0) ? 0 : REG_NOMATCH;
-					st = pmatch.rm_eo;
-				} else {
+				else
 					r = regexec(&r_pattern[i], l->dat, 1,
 					    &pmatch, eflags);
-					r = (r == 0) ? 0 : REG_NOMATCH;
-					st = pmatch.rm_eo;
-				}
+				r = (r == 0) ? 0 : REG_NOMATCH;
+				st = pmatch.rm_eo;
 				if (r == REG_NOMATCH)
 					continue;
 				/* Check for full match */
@@ -321,8 +318,7 @@ procline(struct str *l, int nottext)
 					    (size_t)pmatch.rm_eo != l->len)
 						r = REG_NOMATCH;
 				/* Check for whole word match */
-				if (r == 0 && fg_pattern[i].word &&
-				    pmatch.rm_so != 0) {
+				if (r == 0 && (wflag || fg_pattern[i].word)) {
 					wint_t wbegin, wend;
 
 					wbegin = wend = L' ';
@@ -330,11 +326,13 @@ procline(struct str *l, int nottext)
 					    sscanf(&l->dat[pmatch.rm_so - 1],
 					    "%lc", &wbegin) != 1)
 						r = REG_NOMATCH;
-					else if ((size_t)pmatch.rm_eo != l->len &&
+					else if ((size_t)pmatch.rm_eo !=
+					    l->len &&
 					    sscanf(&l->dat[pmatch.rm_eo],
 					    "%lc", &wend) != 1)
 						r = REG_NOMATCH;
-					else if (iswword(wbegin) || iswword(wend))
+					else if (iswword(wbegin) ||
+					    iswword(wend))
 						r = REG_NOMATCH;
 				}
 				if (r == 0) {
@@ -343,7 +341,8 @@ procline(struct str *l, int nottext)
 					if (m < MAX_LINE_MATCHES)
 						matches[m++] = pmatch;
 					/* matches - skip further patterns */
-					if ((color != NULL && !oflag) || qflag || lflag)
+					if ((color == NULL && !oflag) ||
+					    qflag || lflag)
 						break;
 				}
 			}
@@ -353,7 +352,7 @@ procline(struct str *l, int nottext)
 				break;
 			}
 			/* One pass if we are not recording matches */
-			if ((color != NULL && !oflag) || qflag || lflag)
+			if ((color == NULL && !oflag) || qflag || lflag)
 				break;
 
 			if (st == (size_t)pmatch.rm_so)
