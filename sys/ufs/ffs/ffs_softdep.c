@@ -584,6 +584,33 @@ softdep_get_depcounts(struct mount *mp,
 	*softdepactiveaccp = 0;
 }
 
+void
+softdep_buf_append(bp, wkhd)
+	struct buf *bp;
+	struct workhead *wkhd;
+{
+
+	panic("softdep_buf_appendwork called");
+}
+
+void
+softdep_inode_append(ip, cred, wkhd)
+	struct inode *ip;
+	struct ucred *cred;
+	struct workhead *wkhd;
+{
+
+	panic("softdep_inode_appendwork called");
+}
+
+void
+softdep_freework(wkhd)
+	struct workhead *wkhd;
+{
+
+	panic("softdep_freework called");
+}
+
 #else
 
 FEATURE(softupdates, "FFS soft-updates support");
@@ -867,7 +894,7 @@ static	void freework_enqueue(struct freework *);
 static	int handle_workitem_freeblocks(struct freeblks *, int);
 static	int handle_complete_freeblocks(struct freeblks *, int);
 static	void handle_workitem_indirblk(struct freework *);
-static	void handle_written_freework(struct freework *, int);
+static	void handle_written_freework(struct freework *);
 static	void merge_inode_lists(struct allocdirectlst *,struct allocdirectlst *);
 static	struct worklist *jnewblk_merge(struct worklist *, struct worklist *,
 	    struct workhead *);
@@ -1632,6 +1659,7 @@ process_truncates(vp)
 		if (cgwait) {
 			FREE_LOCK(&lk);
 			sync_cgs(mp, MNT_WAIT);
+			ffs_sync_snap(mp, MNT_WAIT);
 			ACQUIRE_LOCK(&lk);
 			continue;
 		}
@@ -5922,7 +5950,7 @@ complete_trunc_indir(freework)
 	 */
 	if (bp == NULL)  {
 		if (LIST_EMPTY(&indirdep->ir_freeblks->fb_jblkdephd))
-			handle_written_freework(freework, 0);
+			handle_written_freework(freework);
 		else
 			WORKLIST_INSERT(&indirdep->ir_freeblks->fb_freeworkhd,
 			   &freework->fw_list);
@@ -5974,7 +6002,7 @@ out:
 	 */
 	if (totblks > datablocks)
 		return (0);
-	return (totblks - datablocks);
+	return (datablocks - totblks);
 }
 
 /*
@@ -7228,6 +7256,7 @@ freework_freeblock(freework)
 		cancel_jnewblk(jnewblk, &wkhd);
 		needj = 0;
 	} else if (needj) {
+		freework->fw_state |= DELAYEDFREE;
 		freeblks->fb_cgwait++;
 		WORKLIST_INSERT(&wkhd, &freework->fw_list);
 	}
@@ -7241,7 +7270,7 @@ freework_freeblock(freework)
 	 * made it to disk.  We can immediately free the freeblk.
 	 */
 	if (needj == 0)
-		handle_written_freework(freework, 0);
+		handle_written_freework(freework);
 }
 
 /*
@@ -7256,7 +7285,8 @@ freework_enqueue(freework)
 	struct freeblks *freeblks;
 
 	freeblks = freework->fw_freeblks;
-	WORKLIST_INSERT(&freeblks->fb_freeworkhd, &freework->fw_list);
+	if ((freework->fw_state & INPROGRESS) == 0)
+		WORKLIST_INSERT(&freeblks->fb_freeworkhd, &freework->fw_list);
 	if ((freeblks->fb_state &
 	    (ONWORKLIST | INPROGRESS | ALLCOMPLETE)) == ALLCOMPLETE &&
 	    LIST_EMPTY(&freeblks->fb_jblkdephd))
@@ -7282,13 +7312,14 @@ handle_workitem_indirblk(freework)
 	ump = VFSTOUFS(freeblks->fb_list.wk_mp);
 	fs = ump->um_fs;
 	if (freework->fw_state & DEPCOMPLETE) {
-		handle_written_freework(freework, 0);
+		handle_written_freework(freework);
 		return;
 	}
 	if (freework->fw_off == NINDIR(fs)) {
 		freework_freeblock(freework);
 		return;
 	}
+	freework->fw_state |= INPROGRESS;
 	FREE_LOCK(&lk);
 	indir_trunc(freework, fsbtodb(fs, freework->fw_blkno),
 	    freework->fw_lbn);
@@ -7301,16 +7332,16 @@ handle_workitem_indirblk(freework)
  * the freeblks is added back to the worklist if there is more work to do.
  */
 static void
-handle_written_freework(freework, cgwrite)
+handle_written_freework(freework)
 	struct freework *freework;
-	int cgwrite;
 {
 	struct freeblks *freeblks;
 	struct freework *parent;
 
 	freeblks = freework->fw_freeblks;
 	parent = freework->fw_parent;
-	freeblks->fb_cgwait -= cgwrite;
+	if (freework->fw_state & DELAYEDFREE)
+		freeblks->fb_cgwait--;
 	freework->fw_state |= COMPLETE;
 	if ((freework->fw_state & ALLCOMPLETE) == ALLCOMPLETE)
 		WORKITEM_FREE(freework, D_FREEWORK);
@@ -7552,6 +7583,8 @@ indir_trunc(freework, dbn, lbn)
 		return;
 	}
 	ACQUIRE_LOCK(&lk);
+	/* Protects against a race with complete_trunc_indir(). */
+	freework->fw_state &= ~INPROGRESS;
 	/*
 	 * If we have an indirdep we need to enforce the truncation order
 	 * and discard it when it is complete.
@@ -7675,7 +7708,7 @@ indir_trunc(freework, dbn, lbn)
 	if (freework->fw_blkno == dbn) {
 		freework->fw_state |= ALLCOMPLETE;
 		ACQUIRE_LOCK(&lk);
-		handle_written_freework(freework, 0);
+		handle_written_freework(freework);
 		FREE_LOCK(&lk);
 	}
 	return;
@@ -10368,8 +10401,7 @@ softdep_disk_write_complete(bp)
 			continue;
 
 		case D_FREEWORK:
-			/* Freework on an indirect block, not bmsafemap. */
-			handle_written_freework(WK_FREEWORK(wk), 0);
+			handle_written_freework(WK_FREEWORK(wk));
 			break;
 
 		case D_JSEGDEP:
@@ -10540,7 +10572,7 @@ handle_jwork(wkhd)
 			free_freedep(WK_FREEDEP(wk));
 			continue;
 		case D_FREEWORK:
-			handle_written_freework(WK_FREEWORK(wk), 1);
+			handle_written_freework(WK_FREEWORK(wk));
 			continue;
 		default:
 			panic("handle_jwork: Unknown type %s\n",
@@ -12736,6 +12768,53 @@ clear_inodedeps(td)
 		vn_finished_write(mp);
 		ACQUIRE_LOCK(&lk);
 	}
+}
+
+void
+softdep_buf_append(bp, wkhd)
+	struct buf *bp;
+	struct workhead *wkhd;
+{
+	struct worklist *wk;
+
+	ACQUIRE_LOCK(&lk);
+	while ((wk = LIST_FIRST(wkhd)) != NULL) {
+		WORKLIST_REMOVE(wk);
+		WORKLIST_INSERT(&bp->b_dep, wk);
+	}
+	FREE_LOCK(&lk);
+
+}
+
+void
+softdep_inode_append(ip, cred, wkhd)
+	struct inode *ip;
+	struct ucred *cred;
+	struct workhead *wkhd;
+{
+	struct buf *bp;
+	struct fs *fs;
+	int error;
+
+	fs = ip->i_fs;
+	error = bread(ip->i_devvp, fsbtodb(fs, ino_to_fsba(fs, ip->i_number)),
+	    (int)fs->fs_bsize, cred, &bp);
+	if (error) {
+		softdep_freework(wkhd);
+		return;
+	}
+	softdep_buf_append(bp, wkhd);
+	bqrelse(bp);
+}
+
+void
+softdep_freework(wkhd)
+	struct workhead *wkhd;
+{
+
+	ACQUIRE_LOCK(&lk);
+	handle_jwork(wkhd);
+	FREE_LOCK(&lk);
 }
 
 /*

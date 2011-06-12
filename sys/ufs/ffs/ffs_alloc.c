@@ -2035,7 +2035,7 @@ ffs_blkfree(ump, fs, devvp, bno, size, inum, dephd)
 	 */
 	if (devvp->v_type != VREG &&
 	    (devvp->v_vflag & VV_COPYONWRITE) &&
-	    ffs_snapblkfree(fs, devvp, bno, size, inum)) {
+	    ffs_snapblkfree(fs, devvp, bno, size, inum, dephd)) {
 		return;
 	}
 	if (!ump->um_candelete) {
