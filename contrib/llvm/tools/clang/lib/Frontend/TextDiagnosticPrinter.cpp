@@ -343,7 +343,7 @@ void TextDiagnosticPrinter::EmitCaretDiagnostic(Diagnostic::Level Level,
       // "included from" lines.
       if (LastWarningLoc != PLoc.getIncludeLoc()) {
         LastWarningLoc = PLoc.getIncludeLoc();
-        PrintIncludeStack(Level, LastWarningLoc, SM);
+        PrintIncludeStack(Diagnostic::Note, LastWarningLoc, SM);
       }
 
       if (DiagOpts->ShowLocation) {
@@ -819,16 +819,28 @@ void TextDiagnosticPrinter::HandleDiagnostic(Diagnostic::Level Level,
         if (DiagOpts->ShowColors)
           OS.changeColor(savedColor, true);
 
-        // Emit a Visual Studio compatible line number syntax.
-        if (LangOpts && LangOpts->Microsoft) {
-          OS << PLoc.getFilename() << '(' << LineNo << ')';
-          OS << " : ";
-        } else {
-          OS << PLoc.getFilename() << ':' << LineNo << ':';
-          if (DiagOpts->ShowColumn)
-            if (unsigned ColNo = PLoc.getColumn())
-              OS << ColNo << ':';
+        OS << PLoc.getFilename();
+        switch (DiagOpts->Format) {
+        case DiagnosticOptions::Clang: OS << ':'  << LineNo; break;
+        case DiagnosticOptions::Msvc:  OS << '('  << LineNo; break;
+        case DiagnosticOptions::Vi:    OS << " +" << LineNo; break;
         }
+        if (DiagOpts->ShowColumn)
+          if (unsigned ColNo = PLoc.getColumn()) {
+            if (DiagOpts->Format == DiagnosticOptions::Msvc) {
+              OS << ',';
+              ColNo--;
+            } else 
+              OS << ':';
+            OS << ColNo;
+          }
+        switch (DiagOpts->Format) {
+        case DiagnosticOptions::Clang: 
+        case DiagnosticOptions::Vi:    OS << ':';    break;
+        case DiagnosticOptions::Msvc:  OS << ") : "; break;
+        }
+
+                
         if (DiagOpts->ShowSourceRanges && Info.getNumRanges()) {
           FileID CaretFileID =
             SM.getFileID(SM.getInstantiationLoc(Info.getLocation()));
@@ -927,8 +939,8 @@ void TextDiagnosticPrinter::HandleDiagnostic(Diagnostic::Level Level,
         OptionName += "-Werror";
     }
 
-    if (const char *
-          Opt = DiagnosticIDs::getWarningOptionForDiag(Info.getID())) {
+    llvm::StringRef Opt = DiagnosticIDs::getWarningOptionForDiag(Info.getID());
+    if (!Opt.empty()) {
       if (!OptionName.empty())
         OptionName += ',';
       OptionName += "-W";

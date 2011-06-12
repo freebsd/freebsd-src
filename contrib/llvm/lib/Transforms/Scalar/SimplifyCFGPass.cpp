@@ -96,6 +96,7 @@ static void ChangeToCall(InvokeInst *II) {
   NewCall->takeName(II);
   NewCall->setCallingConv(II->getCallingConv());
   NewCall->setAttributes(II->getAttributes());
+  NewCall->setDebugLoc(II->getDebugLoc());
   II->replaceAllUsesWith(NewCall);
 
   // Follow the call by a branch to the normal destination.
@@ -163,7 +164,7 @@ static bool MarkAliveBlocks(BasicBlock *BB,
         Changed = true;
       }
 
-    Changed |= ConstantFoldTerminator(BB);
+    Changed |= ConstantFoldTerminator(BB, true);
     for (succ_iterator SI = succ_begin(BB), SE = succ_end(BB); SI != SE; ++SI)
       Worklist.push_back(*SI);
   } while (!Worklist.empty());

@@ -480,7 +480,9 @@ ExprResult Parser::ParseCastExpression(bool isUnaryExpression,
 /// [OBJC]  '@encode' '(' type-name ')'
 /// [OBJC]  objc-string-literal
 /// [C++]   simple-type-specifier '(' expression-list[opt] ')'      [C++ 5.2.3]
+/// [C++0x] simple-type-specifier braced-init-list                  [C++ 5.2.3]
 /// [C++]   typename-specifier '(' expression-list[opt] ')'         [C++ 5.2.3]
+/// [C++0x] typename-specifier braced-init-list                     [C++ 5.2.3]
 /// [C++]   'const_cast' '<' type-name '>' '(' expression ')'       [C++ 5.2p1]
 /// [C++]   'dynamic_cast' '<' type-name '>' '(' expression ')'     [C++ 5.2p1]
 /// [C++]   'reinterpret_cast' '<' type-name '>' '(' expression ')' [C++ 5.2p1]
@@ -565,6 +567,9 @@ ExprResult Parser::ParseCastExpression(bool isUnaryExpression,
 ///                   '__is_polymorphic'
 ///                   '__is_trivial'
 ///                   '__is_union'
+///
+/// [Clang] unary-type-trait:
+///                   '__trivially_copyable'
 ///
 ///       binary-type-trait:
 /// [GNU]             '__is_base_of'       
@@ -782,6 +787,7 @@ ExprResult Parser::ParseCastExpression(bool isUnaryExpression,
   case tok::kw___builtin_va_arg:
   case tok::kw___builtin_offsetof:
   case tok::kw___builtin_choose_expr:
+  case tok::kw___builtin_astype: // primary-expression: [OCL] as_type()
     return ParseBuiltinPrimaryExpression();
   case tok::kw___null:
     return Actions.ActOnGNUNullExpr(ConsumeToken());
@@ -919,15 +925,18 @@ ExprResult Parser::ParseCastExpression(bool isUnaryExpression,
 
     if (SavedKind == tok::kw_typename) {
       // postfix-expression: typename-specifier '(' expression-list[opt] ')'
+      //                     typename-specifier braced-init-list
       if (TryAnnotateTypeOrScopeToken())
         return ExprError();
     }
 
     // postfix-expression: simple-type-specifier '(' expression-list[opt] ')'
+    //                     simple-type-specifier braced-init-list
     //
     DeclSpec DS(AttrFactory);
     ParseCXXSimpleTypeSpecifier(DS);
-    if (Tok.isNot(tok::l_paren))
+    if (Tok.isNot(tok::l_paren) &&
+        (!getLang().CPlusPlus0x || Tok.isNot(tok::l_brace)))
       return ExprError(Diag(Tok, diag::err_expected_lparen_after_type)
                          << DS.getSourceRange());
 
@@ -1060,6 +1069,7 @@ ExprResult Parser::ParseCastExpression(bool isUnaryExpression,
   case tok::kw___is_pod:
   case tok::kw___is_polymorphic:
   case tok::kw___is_trivial:
+  case tok::kw___is_trivially_copyable:
   case tok::kw___is_union:
   case tok::kw___has_trivial_constructor:
   case tok::kw___has_trivial_copy:
@@ -1117,6 +1127,7 @@ ExprResult Parser::ParseCastExpression(bool isUnaryExpression,
 ///       postfix-expression: [C99 6.5.2]
 ///         primary-expression
 ///         postfix-expression '[' expression ']'
+///         postfix-expression '[' braced-init-list ']'
 ///         postfix-expression '(' argument-expression-list[opt] ')'
 ///         postfix-expression '.' identifier
 ///         postfix-expression '->' identifier
@@ -1172,7 +1183,11 @@ Parser::ParsePostfixExpressionSuffix(ExprResult LHS) {
         return move(LHS);
           
       Loc = ConsumeBracket();
-      ExprResult Idx(ParseExpression());
+      ExprResult Idx;
+      if (getLang().CPlusPlus0x && Tok.is(tok::l_brace))
+        Idx = ParseBraceInitializer();
+      else
+        Idx = ParseExpression();
 
       SourceLocation RLoc = Tok.getLocation();
 
@@ -1529,6 +1544,7 @@ ExprResult Parser::ParseUnaryExprOrTypeTraitExpression() {
 /// [GNU]   '__builtin_choose_expr' '(' assign-expr ',' assign-expr ','
 ///                                     assign-expr ')'
 /// [GNU]   '__builtin_types_compatible_p' '(' type-name ',' type-name ')'
+/// [OCL]   '__builtin_astype' '(' type-name expr ')'
 ///
 /// [GNU] offsetof-member-designator:
 /// [GNU]   identifier
@@ -1673,7 +1689,35 @@ ExprResult Parser::ParseBuiltinPrimaryExpression() {
                                   Expr2.take(), ConsumeParen());
     break;
   }
+  case tok::kw___builtin_astype: {
+    // The first argument is an expression to be converted, followed by a comma.
+    ExprResult Expr(ParseAssignmentExpression());
+    if (Expr.isInvalid()) {
+      SkipUntil(tok::r_paren);
+      return ExprError();
+    }
+    
+    if (ExpectAndConsume(tok::comma, diag::err_expected_comma, "", 
+                         tok::r_paren))
+      return ExprError();
+    
+    // Second argument is the type to bitcast to.
+    TypeResult DestTy = ParseTypeName();
+    if (DestTy.isInvalid())
+      return ExprError();
+    
+    // Attempt to consume the r-paren.
+    if (Tok.isNot(tok::r_paren)) {
+      Diag(Tok, diag::err_expected_rparen);
+      SkipUntil(tok::r_paren);
+      return ExprError();
+    }
+    
+    Res = Actions.ActOnAsTypeExpr(Expr.take(), DestTy.get(), StartLoc, 
+                                  ConsumeParen());
+    break;
   }
+}
 
   if (Res.isInvalid())
     return ExprError();
@@ -1987,8 +2031,19 @@ ExprResult Parser::ParseGenericSelectionExpression() {
 ///         argument-expression-list , assignment-expression
 ///
 /// [C++] expression-list:
-/// [C++]   assignment-expression ...[opt]
-/// [C++]   expression-list , assignment-expression ...[opt]
+/// [C++]   assignment-expression
+/// [C++]   expression-list , assignment-expression
+///
+/// [C++0x] expression-list:
+/// [C++0x]   initializer-list
+///
+/// [C++0x] initializer-list
+/// [C++0x]   initializer-clause ...[opt]
+/// [C++0x]   initializer-list , initializer-clause ...[opt]
+///
+/// [C++0x] initializer-clause:
+/// [C++0x]   assignment-expression
+/// [C++0x]   braced-init-list
 ///
 bool Parser::ParseExpressionList(llvm::SmallVectorImpl<Expr*> &Exprs,
                             llvm::SmallVectorImpl<SourceLocation> &CommaLocs,
@@ -2005,8 +2060,13 @@ bool Parser::ParseExpressionList(llvm::SmallVectorImpl<Expr*> &Exprs,
         Actions.CodeCompleteOrdinaryName(getCurScope(), Sema::PCC_Expression);
       ConsumeCodeCompletionToken();
     }
-    
-    ExprResult Expr(ParseAssignmentExpression());
+
+    ExprResult Expr;
+    if (getLang().CPlusPlus0x && Tok.is(tok::l_brace))
+      Expr = ParseBraceInitializer();
+    else
+      Expr = ParseAssignmentExpression();
+
     if (Tok.is(tok::ellipsis))
       Expr = Actions.ActOnPackExpansion(Expr.get(), ConsumeToken());    
     if (Expr.isInvalid())

@@ -1121,7 +1121,7 @@ public:
   }
   virtual bool validateAsmConstraint(const char *&Name,
                                      TargetInfo::ConstraintInfo &info) const;
-  virtual std::string convertConstraint(const char Constraint) const;
+  virtual std::string convertConstraint(const char *&Constraint) const;
   virtual const char *getClobbers() const {
     return "~{dirflag},~{fpsr},~{flags}";
   }
@@ -1180,7 +1180,7 @@ void X86TargetInfo::getDefaultFeatures(const std::string &CPU,
   else if (CPU == "corei7") {
     setFeatureEnabled(Features, "sse4", true);
     setFeatureEnabled(Features, "aes", true);
-  } else if (CPU == "sandybridge") {
+  } else if (CPU == "corei7-avx") {
     setFeatureEnabled(Features, "sse4", true);
     setFeatureEnabled(Features, "aes", true);
 //    setFeatureEnabled(Features, "avx", true);
@@ -1449,8 +1449,8 @@ X86TargetInfo::validateAsmConstraint(const char *&Name,
 
 
 std::string
-X86TargetInfo::convertConstraint(const char Constraint) const {
-  switch (Constraint) {
+X86TargetInfo::convertConstraint(const char *&Constraint) const {
+  switch (*Constraint) {
   case 'a': return std::string("{ax}");
   case 'b': return std::string("{bx}");
   case 'c': return std::string("{cx}");
@@ -1464,7 +1464,7 @@ X86TargetInfo::convertConstraint(const char Constraint) const {
   case 'u': // second from top of floating point stack.
     return std::string("{st(1)}"); // second from top of floating point stack.
   default:
-    return std::string(1, Constraint);
+    return std::string(1, *Constraint);
   }
 }
 } // end anonymous namespace
@@ -1993,11 +1993,11 @@ public:
     if (CPU == "xscale")
       Builder.defineMacro("__XSCALE__");
 
-    bool IsThumb2 = IsThumb && (CPUArch == "6T2" || CPUArch.startswith("7"));
+    bool IsARMv7 = CPUArch.startswith("7");
     if (IsThumb) {
       Builder.defineMacro("__THUMBEL__");
       Builder.defineMacro("__thumb__");
-      if (IsThumb2)
+      if (CPUArch == "6T2" || IsARMv7)
         Builder.defineMacro("__thumb2__");
     }
 
@@ -2011,7 +2011,7 @@ public:
     // the VFP define, hence the soft float and arch check. This is subtly
     // different from gcc, we follow the intent which was that it should be set
     // when Neon instructions are actually available.
-    if (FPU == NeonFPU && !SoftFloat && IsThumb2)
+    if (FPU == NeonFPU && !SoftFloat && IsARMv7)
       Builder.defineMacro("__ARM_NEON__");
   }
   virtual void getTargetBuiltins(const Builtin::Info *&Records,
@@ -2020,7 +2020,7 @@ public:
     NumRecords = clang::ARM::LastTSBuiltin-Builtin::FirstTSBuiltin;
   }
   virtual const char *getVAListDeclaration() const {
-    return "typedef char* __builtin_va_list;";
+    return "typedef void* __builtin_va_list;";
   }
   virtual void getGCCRegNames(const char * const *&Names,
                               unsigned &NumNames) const;
@@ -2037,8 +2037,30 @@ public:
     case 'P': // VFP Floating point register double precision
       Info.setAllowsRegister();
       return true;
+    case 'U': // a memory reference...
+      switch (Name[1]) {
+      case 'q': // ...ARMV4 ldrsb
+      case 'v': // ...VFP load/store (reg+constant offset)
+      case 'y': // ...iWMMXt load/store
+        Info.setAllowsMemory();
+        Name++;
+        return true;
+      }
     }
     return false;
+  }
+  std::string
+  virtual convertConstraint(const char *&Constraint) const {
+    std::string R;
+    switch (*Constraint) {
+    case 'U':   // Two-character constraint; add "^" hint for later parsing.
+      R = std::string("^") + std::string(Constraint, 2);
+      Constraint++;
+      break;
+    default:
+      return std::string(1, *Constraint);
+    }
+    return R;
   }
   virtual const char *getClobbers() const {
     // FIXME: Is this really right?
@@ -2531,7 +2553,9 @@ class MipsTargetInfo : public TargetInfo {
 public:
   MipsTargetInfo(const std::string& triple) : TargetInfo(triple), ABI("o32") {
     DescriptionString = "E-p:32:32:32-i1:8:8-i8:8:32-i16:16:32-i32:32:32-"
-                        "i64:32:64-f32:32:32-f64:64:64-v64:64:64-n32";
+                        "i64:64:64-f32:32:32-f64:64:64-v64:64:64-n32";
+    SizeType = UnsignedInt;
+    PtrDiffType = SignedInt;
   }
   virtual const char *getABI() const { return ABI.c_str(); }
   virtual bool setABI(const std::string &Name) {
@@ -2663,7 +2687,7 @@ class MipselTargetInfo : public MipsTargetInfo {
 public:
   MipselTargetInfo(const std::string& triple) : MipsTargetInfo(triple) {
     DescriptionString = "e-p:32:32:32-i1:8:8-i8:8:32-i16:16:32-i32:32:32-"
-                        "i64:32:64-f32:32:32-f64:64:64-v64:64:64-n32";
+                        "i64:64:64-f32:32:32-f64:64:64-v64:64:64-n32";
   }
 
   virtual void getTargetDefines(const LangOptions &Opts,

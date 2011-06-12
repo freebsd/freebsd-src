@@ -952,12 +952,12 @@ static Value *GetLoadValueForLoad(LoadInst *SrcVal, unsigned Offset,
       IntegerType::get(LoadTy->getContext(), NewLoadSize*8);
     DestPTy = PointerType::get(DestPTy, 
                        cast<PointerType>(PtrVal->getType())->getAddressSpace());
-    
+    Builder.SetCurrentDebugLocation(SrcVal->getDebugLoc());
     PtrVal = Builder.CreateBitCast(PtrVal, DestPTy);
     LoadInst *NewLoad = Builder.CreateLoad(PtrVal);
     NewLoad->takeName(SrcVal);
     NewLoad->setAlignment(SrcVal->getAlignment());
-    
+
     DEBUG(dbgs() << "GVN WIDENED LOAD: " << *SrcVal << "\n");
     DEBUG(dbgs() << "TO: " << *NewLoad << "\n");
     
@@ -1576,6 +1576,9 @@ bool GVN::processNonLocalLoad(LoadInst *LI) {
     if (MDNode *Tag = LI->getMetadata(LLVMContext::MD_tbaa))
       NewLoad->setMetadata(LLVMContext::MD_tbaa, Tag);
 
+    // Transfer DebugLoc.
+    NewLoad->setDebugLoc(LI->getDebugLoc());
+
     // Add the newly created load.
     ValuesPerBlock.push_back(AvailableValueInBlock::get(UnavailablePred,
                                                         NewLoad));
@@ -1604,6 +1607,11 @@ bool GVN::processLoad(LoadInst *L) {
   if (L->isVolatile())
     return false;
 
+  if (L->use_empty()) {
+    markInstructionForDeletion(L);
+    return true;
+  }
+  
   // ... to a pointer that has been loaded from before...
   MemDepResult Dep = MD->getDependency(L);
 
@@ -2099,6 +2107,7 @@ bool GVN::performPRE(Function &F) {
 
       PREInstr->insertBefore(PREPred->getTerminator());
       PREInstr->setName(CurInst->getName() + ".pre");
+      PREInstr->setDebugLoc(CurInst->getDebugLoc());
       predMap[PREPred] = PREInstr;
       VN.add(PREInstr, ValNo);
       ++NumGVNPRE;
@@ -2118,7 +2127,7 @@ bool GVN::performPRE(Function &F) {
 
       VN.add(Phi, ValNo);
       addToLeaderTable(ValNo, Phi, CurrentBlock);
-
+      Phi->setDebugLoc(CurInst->getDebugLoc());
       CurInst->replaceAllUsesWith(Phi);
       if (Phi->getType()->isPointerTy()) {
         // Because we have added a PHI-use of the pointer value, it has now

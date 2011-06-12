@@ -27,11 +27,10 @@ protected:
 
 public:
   explicit MipsFrameLowering(const MipsSubtarget &sti)
-    // FIXME: Is this correct at all?
-    : TargetFrameLowering(StackGrowsUp, 8, 0), STI(sti) {
+    : TargetFrameLowering(StackGrowsDown, 8, 0), STI(sti) {
   }
 
-  void adjustMipsStackFrame(MachineFunction &MF) const;
+  bool targetHandlesStackFrameRounding() const;
 
   /// emitProlog/emitEpilog - These methods insert prolog and epilog code into
   /// the function.
@@ -40,7 +39,10 @@ public:
 
   bool hasFP(const MachineFunction &MF) const;
 
-  void processFunctionBeforeFrameFinalized(MachineFunction &MF) const;
+  void getInitialFrameState(std::vector<MachineMove> &Moves) const;
+  
+  void processFunctionBeforeCalleeSavedScan(MachineFunction &MF,
+                                            RegScavenger *RS) const;
 };
 
 } // End llvm namespace

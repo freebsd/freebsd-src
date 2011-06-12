@@ -253,9 +253,17 @@ void Parser::ParseMicrosoftDeclSpec(ParsedAttributes &attrs) {
     SkipUntil(tok::r_paren, true); // skip until ) or ;
     return;
   }
+
   while (Tok.getIdentifierInfo()) {
     IdentifierInfo *AttrName = Tok.getIdentifierInfo();
     SourceLocation AttrNameLoc = ConsumeToken();
+    
+    // FIXME: Remove this when we have proper __declspec(property()) support.
+    // Just skip everything inside property().
+    if (AttrName->getName() == "property") {
+      ConsumeParen();
+      SkipUntil(tok::r_paren);
+    }
     if (Tok.is(tok::l_paren)) {
       ConsumeParen();
       // FIXME: This doesn't parse __declspec(property(get=get_func_name))
@@ -806,8 +814,10 @@ Parser::DeclGroupPtrTy Parser::ParseDeclGroup(ParsingDeclSpec &DS,
   // analyzed.
   if (FRI && Tok.is(tok::colon)) {
     FRI->ColonLoc = ConsumeToken();
-    // FIXME: handle braced-init-list here.
-    FRI->RangeExpr = ParseExpression();
+    if (Tok.is(tok::l_brace))
+      FRI->RangeExpr = ParseBraceInitializer();
+    else
+      FRI->RangeExpr = ParseExpression();
     Decl *ThisDecl = Actions.ActOnDeclarator(getCurScope(), D);
     Actions.ActOnCXXForRangeDecl(ThisDecl);
     Actions.FinalizeDeclaration(ThisDecl);
@@ -906,6 +916,7 @@ bool Parser::ParseAttributesAfterDeclarator(Declarator &D) {
 /// [C++]   '(' expression-list ')'
 /// [C++0x] '=' 'default'                                                [TODO]
 /// [C++0x] '=' 'delete'
+/// [C++0x] braced-init-list
 ///
 /// According to the standard grammar, =default and =delete are function
 /// definitions, but that definitely doesn't fit with the parser here.
@@ -960,12 +971,17 @@ Decl *Parser::ParseDeclarationAfterDeclaratorAndAttributes(Declarator &D,
                                diag::err_invalid_equalequal_after_declarator)) {
     ConsumeToken();
     if (Tok.is(tok::kw_delete)) {
-      SourceLocation DelLoc = ConsumeToken();
-      
-      if (!getLang().CPlusPlus0x)
-        Diag(DelLoc, diag::warn_deleted_function_accepted_as_extension);
-
-      Actions.SetDeclDeleted(ThisDecl, DelLoc);
+      if (D.isFunctionDeclarator())
+        Diag(ConsumeToken(), diag::err_default_delete_in_multiple_declaration)
+          << 1 /* delete */;
+      else
+        Diag(ConsumeToken(), diag::err_deleted_non_function);
+    } else if (Tok.is(tok::kw_default)) {
+      if (D.isFunctionDeclarator())
+        Diag(Tok, diag::err_default_delete_in_multiple_declaration)
+          << 1 /* delete */;
+      else
+        Diag(ConsumeToken(), diag::err_default_special_members);
     } else {
       if (getLang().CPlusPlus && D.getCXXScopeSpec().isSet()) {
         EnterScope(0);
@@ -1028,6 +1044,26 @@ Decl *Parser::ParseDeclarationAfterDeclaratorAndAttributes(Declarator &D,
                                             RParenLoc,
                                             TypeContainsAuto);
     }
+  } else if (getLang().CPlusPlus0x && Tok.is(tok::l_brace)) {
+    // Parse C++0x braced-init-list.
+    if (D.getCXXScopeSpec().isSet()) {
+      EnterScope(0);
+      Actions.ActOnCXXEnterDeclInitializer(getCurScope(), ThisDecl);
+    }
+
+    ExprResult Init(ParseBraceInitializer());
+
+    if (D.getCXXScopeSpec().isSet()) {
+      Actions.ActOnCXXExitDeclInitializer(getCurScope(), ThisDecl);
+      ExitScope();
+    }
+
+    if (Init.isInvalid()) {
+      Actions.ActOnInitializerError(ThisDecl);
+    } else
+      Actions.AddInitializerToDecl(ThisDecl, Init.take(),
+                                   /*DirectInit=*/true, TypeContainsAuto);
+
   } else {
     Actions.ActOnUninitializedDecl(ThisDecl, TypeContainsAuto);
   }
@@ -1846,6 +1882,9 @@ void Parser::ParseDeclarationSpecifiers(DeclSpec &DS,
       ParseDecltypeSpecifier(DS);
       continue;
 
+    case tok::kw___underlying_type:
+      ParseUnderlyingTypeSpecifier(DS);
+
     // OpenCL qualifiers:
     case tok::kw_private: 
       if (!getLang().OpenCL)
@@ -2114,6 +2153,11 @@ bool Parser::ParseOptionalTypeSpecifier(DeclSpec &DS, bool& isInvalid,
   // C++0x decltype support.
   case tok::kw_decltype:
     ParseDecltypeSpecifier(DS);
+    return true;
+
+  // C++0x type traits support.
+  case tok::kw___underlying_type:
+    ParseUnderlyingTypeSpecifier(DS);
     return true;
 
   // OpenCL qualifiers:

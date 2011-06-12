@@ -39,6 +39,9 @@ SVal Environment::getSVal(const Stmt *E, SValBuilder& svalBuilder,
   }
 
   for (;;) {
+    if (const Expr *Ex = dyn_cast<Expr>(E))
+      E = Ex->IgnoreParens();
+
     switch (E->getStmtClass()) {
       case Stmt::AddrLabelExprClass:
         return svalBuilder.makeLoc(cast<AddrLabelExpr>(E));
@@ -48,13 +51,10 @@ SVal Environment::getSVal(const Stmt *E, SValBuilder& svalBuilder,
         continue;        
       }        
       case Stmt::ParenExprClass:
-        // ParenExprs are no-ops.
-        E = cast<ParenExpr>(E)->getSubExpr();
-        continue;
       case Stmt::GenericSelectionExprClass:
-        // GenericSelectionExprs are no-ops.
-        E = cast<GenericSelectionExpr>(E)->getResultExpr();
-        continue;
+        llvm_unreachable("ParenExprs and GenericSelectionExprs should "
+                         "have been handled by IgnoreParens()");
+        return UnknownVal();
       case Stmt::CharacterLiteralClass: {
         const CharacterLiteral* C = cast<CharacterLiteral>(E);
         return svalBuilder.makeIntVal(C->getValue(), C->getType());
@@ -77,21 +77,6 @@ SVal Environment::getSVal(const Stmt *E, SValBuilder& svalBuilder,
       // For special C0xx nullptr case, make a null pointer SVal.
       case Stmt::CXXNullPtrLiteralExprClass:
         return svalBuilder.makeNull();
-      case Stmt::ImplicitCastExprClass:
-      case Stmt::CXXFunctionalCastExprClass:
-      case Stmt::CStyleCastExprClass: {
-        // We blast through no-op casts to get the descendant
-        // subexpression that has a value.
-        const CastExpr* C = cast<CastExpr>(E);
-        QualType CT = C->getType();
-        if (CT->isVoidType())
-          return UnknownVal();
-        if (C->getCastKind() == CK_NoOp) {
-          E = C->getSubExpr();
-          continue;
-        }
-        break;
-      }
       case Stmt::ExprWithCleanupsClass:
         E = cast<ExprWithCleanups>(E)->getSubExpr();
         continue;

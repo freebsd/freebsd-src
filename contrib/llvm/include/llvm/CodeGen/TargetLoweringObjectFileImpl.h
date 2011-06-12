@@ -58,6 +58,10 @@ public:
   virtual void Initialize(MCContext &Ctx, const TargetMachine &TM);
 
   virtual const MCSection *getEHFrameSection() const;
+  virtual const MCSection *getWin64EHFuncTableSection(StringRef) const {
+    return NULL;
+  }
+  virtual const MCSection *getWin64EHTableSection(StringRef) const{return NULL;}
 
   virtual void emitPersonalityValue(MCStreamer &Streamer,
                                     const TargetMachine &TM,
@@ -133,6 +137,10 @@ public:
   virtual void Initialize(MCContext &Ctx, const TargetMachine &TM);
 
   virtual const MCSection *getEHFrameSection() const;
+  virtual const MCSection *getWin64EHFuncTableSection(StringRef) const {
+    return NULL;
+  }
+  virtual const MCSection *getWin64EHTableSection(StringRef) const{return NULL;}
 
   virtual const MCSection *
   SelectSectionForGlobal(const GlobalValue *GV, SectionKind Kind,
@@ -196,6 +204,8 @@ public:
 
 class TargetLoweringObjectFileCOFF : public TargetLoweringObjectFile {
   const MCSection *DrectveSection;
+  const MCSection *PDataSection;
+  const MCSection *XDataSection;
 public:
   TargetLoweringObjectFileCOFF() {}
   ~TargetLoweringObjectFileCOFF() {}
@@ -203,6 +213,8 @@ public:
   virtual void Initialize(MCContext &Ctx, const TargetMachine &TM);
 
   virtual const MCSection *getEHFrameSection() const;
+  virtual const MCSection *getWin64EHFuncTableSection(StringRef) const;
+  virtual const MCSection *getWin64EHTableSection(StringRef) const;
 
   virtual const MCSection *getDrectveSection() const { return DrectveSection; }
 

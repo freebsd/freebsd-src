@@ -12,7 +12,7 @@ SRCS=	ARMException.cpp \
 	DwarfCompileUnit.cpp \
 	DwarfDebug.cpp \
 	DwarfException.cpp \
-	DwarfTableException.cpp \
-	OcamlGCPrinter.cpp
+	OcamlGCPrinter.cpp \
+	Win64Exception.cpp
 
 .include "../clang.lib.mk"
