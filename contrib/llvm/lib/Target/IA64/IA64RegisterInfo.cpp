@@ -90,6 +90,12 @@ IA64RegisterInfo::getDwarfRegNum(unsigned RegNum, bool isEH) const
   return IA64GenRegisterInfo::getDwarfRegNumFull(RegNum, 0);
 }
 
+int
+IA64RegisterInfo::getLLVMRegNum(unsigned RegNum, bool isEH) const
+{
+  llvm_unreachable(__func__);
+}
+
 unsigned
 IA64RegisterInfo::getFrameRegister(const MachineFunction &MF) const
 {
