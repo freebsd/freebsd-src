@@ -140,6 +140,9 @@ def femit_coverage_notes : Flag<"-femit-coverage-notes">,
   HelpText<"Emit a gcov coverage notes file when compiling.">;
 def femit_coverage_data: Flag<"-femit-coverage-data">,
   HelpText<"Instrument the program to emit gcov coverage data when run.">;
+def coverage_file : Separate<"-coverage-file">,
+  HelpText<"Emit coverage data to this filename. The extension will be replaced.">;
+def coverage_file_EQ : Joined<"-coverage-file=">, Alias<coverage_file>;
 def relaxed_aliasing : Flag<"-relaxed-aliasing">,
   HelpText<"Turn off Type Based Alias Analysis">;
 def masm_verbose : Flag<"-masm-verbose">,
@@ -178,6 +181,8 @@ def mconstructor_aliases : Flag<"-mconstructor-aliases">,
   HelpText<"Emit complete constructors and destructors as aliases when possible">;
 def mms_bitfields : Flag<"-mms-bitfields">,
   HelpText<"Set the default structure layout to be compatible with the Microsoft compiler standard.">;
+def mstackrealign : Flag<"-mstackrealign">,
+  HelpText<"Force realign the stack at entry to every function.">;
 def O : Joined<"-O">, HelpText<"Optimization level">;
 def Os : Flag<"-Os">, HelpText<"Optimize for size">;
 def Oz : Flag<"-Oz">, HelpText<"Optimize for size, regardless of performance">;
@@ -211,6 +216,8 @@ def diagnostic_log_file : Separate<"-diagnostic-log-file">,
   HelpText<"Filename (or -) to log diagnostics to">;
 def fno_show_column : Flag<"-fno-show-column">,
   HelpText<"Do not include column number on diagnostics">;
+def fshow_column : Flag<"-fshow-column">,
+  HelpText<"Include column number on diagnostics">;
 def fno_show_source_location : Flag<"-fno-show-source-location">,
   HelpText<"Do not include source location information with diagnostics">;
 def fshow_overloads_EQ : Joined<"-fshow-overloads=">,
@@ -240,6 +247,8 @@ def fdiagnostics_show_name : Flag<"-fdiagnostics-show-name">,
   HelpText<"Print diagnostic name">;
 def fdiagnostics_show_option : Flag<"-fdiagnostics-show-option">,
   HelpText<"Print option name with mappable diagnostics">;
+def fdiagnostics_format : Separate<"-fdiagnostics-format">,
+  HelpText<"Change diagnostic formatting to match IDE and command line tools">;
 def fdiagnostics_show_category : Separate<"-fdiagnostics-show-category">,
   HelpText<"Print diagnostic category">;
 def fdiagnostics_show_note_include_stack :
@@ -414,6 +423,8 @@ def fno_assume_sane_operator_new : Flag<"-fno-assume-sane-operator-new">,
   HelpText<"Don't assume that C++'s global operator new can't alias any pointer">;
 def fgnu_keywords : Flag<"-fgnu-keywords">,
   HelpText<"Allow GNU-extension keywords regardless of language standard">;
+def fgnu89_inline : Flag<"-fgnu89-inline">,
+  HelpText<"Use the gnu89 inline semantics">;
 def fno_gnu_keywords : Flag<"-fno-gnu-keywords">,
   HelpText<"Disallow GNU-extension keywords regardless of language standard">;
 def fdollars_in_identifiers : Flag<"-fdollars-in-identifiers">,
@@ -484,6 +495,8 @@ def print_ivar_layout : Flag<"-print-ivar-layout">,
   HelpText<"Enable Objective-C Ivar layout bitmap print trace">;
 def fobjc_nonfragile_abi : Flag<"-fobjc-nonfragile-abi">,
   HelpText<"enable objective-c's nonfragile abi">;
+def fobjc_infer_related_result_type : Flag<"-fobjc-infer-related-result-type">,
+  HelpText<"infer Objective-C related result type based on method family">;
 def ftrapv : Flag<"-ftrapv">,
   HelpText<"Trap on integer overflow">;
 def ftrapv_handler : Separate<"-ftrapv-handler">,

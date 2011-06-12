@@ -181,6 +181,11 @@ bool InlineAsm::ConstraintInfo::Parse(StringRef Str,
       multipleAlternativeIndex++;
       pCodes = &multipleAlternatives[multipleAlternativeIndex].Codes;
       ++I;
+    } else if (*I == '^') {
+      // Multi-letter constraint
+      // FIXME: For now assuming these are 2-character constraints.
+      pCodes->push_back(std::string(I+1, I+3));
+      I += 3;
     } else {
       // Single letter constraint.
       pCodes->push_back(std::string(I, I+1));

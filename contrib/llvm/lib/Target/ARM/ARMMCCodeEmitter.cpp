@@ -269,10 +269,15 @@ public:
   unsigned getMsbOpValue(const MCInst &MI, unsigned Op,
                          SmallVectorImpl<MCFixup> &Fixups) const;
 
+  unsigned getSsatBitPosValue(const MCInst &MI, unsigned Op,
+                              SmallVectorImpl<MCFixup> &Fixups) const;
+
   unsigned getRegisterListOpValue(const MCInst &MI, unsigned Op,
                                   SmallVectorImpl<MCFixup> &Fixups) const;
   unsigned getAddrMode6AddressOpValue(const MCInst &MI, unsigned Op,
                                       SmallVectorImpl<MCFixup> &Fixups) const;
+  unsigned getAddrMode6OneLane32AddressOpValue(const MCInst &MI, unsigned Op,
+                                        SmallVectorImpl<MCFixup> &Fixups) const;
   unsigned getAddrMode6DupAddressOpValue(const MCInst &MI, unsigned Op,
                                         SmallVectorImpl<MCFixup> &Fixups) const;
   unsigned getAddrMode6OffsetOpValue(const MCInst &MI, unsigned Op,
@@ -1122,6 +1127,13 @@ getMsbOpValue(const MCInst &MI, unsigned Op,
 }
 
 unsigned ARMMCCodeEmitter::
+getSsatBitPosValue(const MCInst &MI, unsigned Op,
+                   SmallVectorImpl<MCFixup> &Fixups) const {
+  // For ssat instructions, the bit position should be encoded decremented by 1
+  return MI.getOperand(Op).getImm()-1;
+}
+
+unsigned ARMMCCodeEmitter::
 getRegisterListOpValue(const MCInst &MI, unsigned Op,
                        SmallVectorImpl<MCFixup> &Fixups) const {
   // VLDM/VSTM:
@@ -1177,6 +1189,30 @@ getAddrMode6AddressOpValue(const MCInst &MI, unsigned Op,
 
   return RegNo | (Align << 4);
 }
+
+/// getAddrMode6OneLane32AddressOpValue - Encode an addrmode6 register number
+/// along  with the alignment operand for use in VST1 and VLD1 with size 32.
+unsigned ARMMCCodeEmitter::
+getAddrMode6OneLane32AddressOpValue(const MCInst &MI, unsigned Op,
+                                    SmallVectorImpl<MCFixup> &Fixups) const {
+  const MCOperand &Reg = MI.getOperand(Op);
+  const MCOperand &Imm = MI.getOperand(Op + 1);
+
+  unsigned RegNo = getARMRegisterNumbering(Reg.getReg());
+  unsigned Align = 0;
+
+  switch (Imm.getImm()) {
+  default: break;
+  case 2:
+  case 4:
+  case 8:
+  case 16: Align = 0x00; break;
+  case 32: Align = 0x03; break;
+  }
+
+  return RegNo | (Align << 4);
+}
+
 
 /// getAddrMode6DupAddressOpValue - Encode an addrmode6 register number and
 /// alignment operand for use in VLD-dup instructions.  This is the same as

@@ -349,7 +349,8 @@ Program::Wait(const Path &path,
   if (WaitForSingleObject(hProcess, millisecondsToWait) == WAIT_TIMEOUT) {
     if (!TerminateProcess(hProcess, 1)) {
       MakeErrMsg(ErrMsg, "Failed to terminate timed-out program.");
-      return -1;
+      // -2 indicates a crash or timeout as opposed to failure to execute.
+      return -2;
     }
     WaitForSingleObject(hProcess, INFINITE);
   }
@@ -362,7 +363,8 @@ Program::Wait(const Path &path,
   if (!rc) {
     SetLastError(err);
     MakeErrMsg(ErrMsg, "Failed getting status for program.");
-    return -1;
+    // -2 indicates a crash or timeout as opposed to failure to execute.
+    return -2;
   }
 
   return status;

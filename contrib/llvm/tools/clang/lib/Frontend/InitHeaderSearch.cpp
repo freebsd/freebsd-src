@@ -567,6 +567,19 @@ void InitHeaderSearch::AddDefaultCIncludePaths(const llvm::Triple &triple,
     AddPath(CLANG_PREFIX "/usr/include/clang/" CLANG_VERSION_STRING,
       System, false, false, false);
     break;
+  case llvm::Triple::Linux:
+    // Generic Debian multiarch support:
+    if (triple.getArch() == llvm::Triple::x86_64) {
+      AddPath("/usr/include/x86_64-linux-gnu", System, false, false, false);
+      AddPath("/usr/include/i686-linux-gnu/64", System, false, false, false);
+      AddPath("/usr/include/i486-linux-gnu/64", System, false, false, false);
+    } else if (triple.getArch() == llvm::Triple::x86) {
+      AddPath("/usr/include/x86_64-linux-gnu/32", System, false, false, false);
+      AddPath("/usr/include/i686-linux-gnu", System, false, false, false);
+      AddPath("/usr/include/i486-linux-gnu", System, false, false, false);
+    } else if (triple.getArch() == llvm::Triple::arm) {
+      AddPath("/usr/include/arm-linux-gnueabi", System, false, false, false);
+    }
   default:
     break;
   }
@@ -659,6 +672,27 @@ AddDefaultCPlusPlusIncludePaths(const llvm::Triple &triple) {
     // Debian based distros.
     // Note: these distros symlink /usr/include/c++/X.Y.Z -> X.Y
     //===------------------------------------------------------------------===//
+
+    // Ubuntu 11.11 "Oneiric Ocelot" -- gcc-4.6.0
+    AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.6",
+                                "x86_64-linux-gnu", "32", "", triple);
+    AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.6",
+                                "i686-linux-gnu", "", "64", triple);
+    AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.6",
+                                "i486-linux-gnu", "", "64", triple);
+    AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.6",
+                                "arm-linux-gnueabi", "", "", triple);
+
+    // Ubuntu 11.04 "Natty Narwhal" -- gcc-4.5.2
+    AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.5",
+                                "x86_64-linux-gnu", "32", "", triple);
+    AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.5",
+                                "i686-linux-gnu", "", "64", triple);
+    AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.5",
+                                "i486-linux-gnu", "", "64", triple);
+    AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.5",
+                                "arm-linux-gnueabi", "", "", triple);
+
     // Ubuntu 10.10 "Maverick Meerkat" -- gcc-4.4.5
     AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.4",
                                 "i686-linux-gnu", "", "64", triple);
@@ -742,6 +776,13 @@ AddDefaultCPlusPlusIncludePaths(const llvm::Triple &triple) {
                                 "x86_64-redhat-linux", "", "", triple);
     AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.1.2",
                                 "i386-redhat-linux", "", "", triple);
+      
+    // RHEL 5
+    AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.1.1",
+                                "x86_64-redhat-linux", "32", "", triple);
+    AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.1.1",
+                                "i386-redhat-linux", "", "", triple);
+
 
     //===------------------------------------------------------------------===//
 
@@ -769,6 +810,11 @@ AddDefaultCPlusPlusIncludePaths(const llvm::Triple &triple) {
     AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.5",
                                 "x86_64-suse-linux", "", "", triple);
 
+    // openSUSE 12.1
+    AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.6",
+                                "i586-suse-linux", "", "", triple);
+    AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.6",
+                                "x86_64-suse-linux", "", "", triple);
     // Arch Linux 2008-06-24
     AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.3.1",
                                 "i686-pc-linux-gnu", "", "", triple);
@@ -997,6 +1043,8 @@ void InitHeaderSearch::Realize(const LangOptions &Lang) {
     if (it->first == Angled)
       SearchList.push_back(it->second);
   }
+  RemoveDuplicates(SearchList, quoted, Verbose);
+  unsigned angled = SearchList.size();
 
   for (path_iterator it = IncludePath.begin(), ie = IncludePath.end();
        it != ie; ++it) {
@@ -1010,10 +1058,10 @@ void InitHeaderSearch::Realize(const LangOptions &Lang) {
       SearchList.push_back(it->second);
   }
 
-  RemoveDuplicates(SearchList, quoted, Verbose);
+  RemoveDuplicates(SearchList, angled, Verbose);
 
   bool DontSearchCurDir = false;  // TODO: set to true if -I- is set?
-  Headers.SetSearchPaths(SearchList, quoted, DontSearchCurDir);
+  Headers.SetSearchPaths(SearchList, quoted, angled, DontSearchCurDir);
 
   // If verbose, print the list of directories that will be searched.
   if (Verbose) {

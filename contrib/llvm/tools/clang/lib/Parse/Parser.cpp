@@ -20,6 +20,7 @@
 #include "RAIIObjectsForParser.h"
 #include "ParsePragma.h"
 #include "clang/AST/DeclTemplate.h"
+#include "clang/AST/ASTConsumer.h"
 using namespace clang;
 
 Parser::Parser(Preprocessor &pp, Sema &actions)
@@ -350,7 +351,23 @@ void Parser::ExitScope() {
     ScopeCache[NumCachedScopes++] = OldScope;
 }
 
+/// Set the flags for the current scope to ScopeFlags. If ManageFlags is false,
+/// this object does nothing.
+Parser::ParseScopeFlags::ParseScopeFlags(Parser *Self, unsigned ScopeFlags,
+                                 bool ManageFlags)
+  : CurScope(ManageFlags ? Self->getCurScope() : 0) {
+  if (CurScope) {
+    OldFlags = CurScope->getFlags();
+    CurScope->setFlags(ScopeFlags);
+  }
+}
 
+/// Restore the flags for the current scope to what they were before this
+/// object overrode them.
+Parser::ParseScopeFlags::~ParseScopeFlags() {
+  if (CurScope)
+    CurScope->setFlags(OldFlags);
+}
 
 
 //===----------------------------------------------------------------------===//
@@ -653,6 +670,11 @@ Parser::ParseExternalDeclaration(ParsedAttributesWithRange &attrs,
     // FIXME: Detect C++ linkage specifications here?
     goto dont_know;
 
+  case tok::kw___if_exists:
+  case tok::kw___if_not_exists:
+    ParseMicrosoftIfExistsExternalDeclaration();
+    return DeclGroupPtrTy();
+
   default:
   dont_know:
     // We can't tell whether this is a function-definition or declaration yet.
@@ -671,7 +693,14 @@ Parser::ParseExternalDeclaration(ParsedAttributesWithRange &attrs,
 
 /// \brief Determine whether the current token, if it occurs after a
 /// declarator, continues a declaration or declaration list.
-bool Parser::isDeclarationAfterDeclarator() const {
+bool Parser::isDeclarationAfterDeclarator() {
+  // Check for '= delete' or '= default'
+  if (getLang().CPlusPlus && Tok.is(tok::equal)) {
+    const Token &KW = NextToken();
+    if (KW.is(tok::kw_default) || KW.is(tok::kw_delete))
+      return false;
+  }
+
   return Tok.is(tok::equal) ||      // int X()=  -> not a function def
     Tok.is(tok::comma) ||           // int X(),  -> not a function def
     Tok.is(tok::semi)  ||           // int X();  -> not a function def
@@ -692,6 +721,11 @@ bool Parser::isStartOfFunctionDefinition(const ParsingDeclarator &Declarator) {
   if (!getLang().CPlusPlus &&
       Declarator.getFunctionTypeInfo().isKNRPrototype()) 
     return isDeclarationSpecifier();
+
+  if (getLang().CPlusPlus && Tok.is(tok::equal)) {
+    const Token &KW = NextToken();
+    return KW.is(tok::kw_default) || KW.is(tok::kw_delete);
+  }
   
   return Tok.is(tok::colon) ||         // X() : Base() {} (used for ctors)
          Tok.is(tok::kw_try);          // X() try { ... }
@@ -814,11 +848,13 @@ Decl *Parser::ParseFunctionDefinition(ParsingDeclarator &D,
   if (FTI.isKNRPrototype())
     ParseKNRParamDeclarations(D);
 
+
   // We should have either an opening brace or, in a C++ constructor,
   // we may have a colon.
   if (Tok.isNot(tok::l_brace) && 
       (!getLang().CPlusPlus ||
-       (Tok.isNot(tok::colon) && Tok.isNot(tok::kw_try)))) {
+       (Tok.isNot(tok::colon) && Tok.isNot(tok::kw_try) &&
+        Tok.isNot(tok::equal)))) {
     Diag(Tok, diag::err_expected_fn_body);
 
     // Skip over garbage, until we get to '{'.  Don't eat the '{'.
@@ -866,7 +902,6 @@ Decl *Parser::ParseFunctionDefinition(ParsingDeclarator &D,
     return DP;
   }
 
-
   // Enter a scope for the function body.
   ParseScope BodyScope(this, Scope::FnScope|Scope::DeclScope);
 
@@ -886,6 +921,43 @@ Decl *Parser::ParseFunctionDefinition(ParsingDeclarator &D,
   // Break out of the ParsingDeclSpec context, too.  This const_cast is
   // safe because we're always the sole owner.
   D.getMutableDeclSpec().abort();
+
+  if (Tok.is(tok::equal)) {
+    assert(getLang().CPlusPlus && "Only C++ function definitions have '='");
+    ConsumeToken();
+
+    Actions.ActOnFinishFunctionBody(Res, 0, false);
+ 
+    bool Delete = false;
+    SourceLocation KWLoc;
+    if (Tok.is(tok::kw_delete)) {
+      if (!getLang().CPlusPlus0x)
+        Diag(Tok, diag::warn_deleted_function_accepted_as_extension);
+
+      KWLoc = ConsumeToken();
+      Actions.SetDeclDeleted(Res, KWLoc);
+      Delete = true;
+    } else if (Tok.is(tok::kw_default)) {
+      if (!getLang().CPlusPlus0x)
+        Diag(Tok, diag::warn_defaulted_function_accepted_as_extension);
+
+      KWLoc = ConsumeToken();
+      Actions.SetDeclDefaulted(Res, KWLoc);
+    } else {
+      llvm_unreachable("function definition after = not 'delete' or 'default'");
+    }
+
+    if (Tok.is(tok::comma)) {
+      Diag(KWLoc, diag::err_default_delete_in_multiple_declaration)
+        << Delete;
+      SkipUntil(tok::semi);
+    } else {
+      ExpectAndConsume(tok::semi, diag::err_expected_semi_after,
+                       Delete ? "delete" : "default", tok::semi);
+    }
+
+    return Res;
+  }
 
   if (Tok.is(tok::kw_try))
     return ParseFunctionTryBlock(Res, BodyScope);
@@ -1373,4 +1445,81 @@ void Parser::CodeCompleteMacroArgument(IdentifierInfo *Macro,
 
 void Parser::CodeCompleteNaturalLanguage() {
   Actions.CodeCompleteNaturalLanguage();
+}
+
+bool Parser::ParseMicrosoftIfExistsCondition(bool& Result) {
+  assert((Tok.is(tok::kw___if_exists) || Tok.is(tok::kw___if_not_exists)) &&
+         "Expected '__if_exists' or '__if_not_exists'");
+  Token Condition = Tok;
+  SourceLocation IfExistsLoc = ConsumeToken();
+
+  SourceLocation LParenLoc = Tok.getLocation();
+  if (Tok.isNot(tok::l_paren)) {
+    Diag(Tok, diag::err_expected_lparen_after) << IfExistsLoc;
+    SkipUntil(tok::semi);
+    return true;
+  }
+  ConsumeParen(); // eat the '('.
+  
+  // Parse nested-name-specifier.
+  CXXScopeSpec SS;
+  ParseOptionalCXXScopeSpecifier(SS, ParsedType(), false);
+
+  // Check nested-name specifier.
+  if (SS.isInvalid()) {
+    SkipUntil(tok::semi);
+    return true;
+  }
+
+  // Parse the unqualified-id. 
+  UnqualifiedId Name;
+  if (ParseUnqualifiedId(SS, false, true, true, ParsedType(), Name)) {
+    SkipUntil(tok::semi);
+    return true;
+  }
+
+  if (MatchRHSPunctuation(tok::r_paren, LParenLoc).isInvalid())
+    return true;
+
+  // Check if the symbol exists.
+  bool Exist = Actions.CheckMicrosoftIfExistsSymbol(SS, Name);
+
+  Result = ((Condition.is(tok::kw___if_exists) && Exist) ||
+            (Condition.is(tok::kw___if_not_exists) && !Exist));
+
+  return false;
+}
+
+void Parser::ParseMicrosoftIfExistsExternalDeclaration() {
+  bool Result;
+  if (ParseMicrosoftIfExistsCondition(Result))
+    return;
+  
+  if (Tok.isNot(tok::l_brace)) {
+    Diag(Tok, diag::err_expected_lbrace);
+    return;
+  }
+  ConsumeBrace();
+
+  // Condition is false skip all inside the {}.
+  if (!Result) {
+    SkipUntil(tok::r_brace, false);
+    return;
+  }
+
+  // Condition is true, parse the declaration.
+  while (Tok.isNot(tok::r_brace)) {
+    ParsedAttributesWithRange attrs(AttrFactory);
+    MaybeParseCXX0XAttributes(attrs);
+    MaybeParseMicrosoftAttributes(attrs);
+    DeclGroupPtrTy Result = ParseExternalDeclaration(attrs);
+    if (Result && !getCurScope()->getParent())
+      Actions.getASTConsumer().HandleTopLevelDecl(Result.get());
+  }
+
+  if (Tok.isNot(tok::r_brace)) {
+    Diag(Tok, diag::err_expected_rbrace);
+    return;
+  }
+  ConsumeBrace();
 }

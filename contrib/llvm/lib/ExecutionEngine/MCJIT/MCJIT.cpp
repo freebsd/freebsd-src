@@ -38,27 +38,15 @@ ExecutionEngine *MCJIT::createJIT(Module *M,
                                   JITMemoryManager *JMM,
                                   CodeGenOpt::Level OptLevel,
                                   bool GVsWithCode,
-                                  CodeModel::Model CMM,
-                                  StringRef MArch,
-                                  StringRef MCPU,
-                                  const SmallVectorImpl<std::string>& MAttrs) {
+                                  TargetMachine *TM) {
   // Try to register the program as a source of symbols to resolve against.
   //
   // FIXME: Don't do this here.
   sys::DynamicLibrary::LoadLibraryPermanently(0, NULL);
 
-  // Pick a target either via -march or by guessing the native arch.
-  //
-  // FIXME: This should be lifted out of here, it isn't something which should
-  // be part of the JIT policy, rather the burden for this selection should be
-  // pushed to clients.
-  TargetMachine *TM = MCJIT::selectTarget(M, MArch, MCPU, MAttrs, ErrorStr);
-  if (!TM || (ErrorStr && ErrorStr->length() > 0)) return 0;
-  TM->setCodeModel(CMM);
-
   // If the target supports JIT code generation, create the JIT.
   if (TargetJITInfo *TJ = TM->getJITInfo())
-    return new MCJIT(M, TM, *TJ, new MCJITMemoryManager(JMM), OptLevel,
+    return new MCJIT(M, TM, *TJ, new MCJITMemoryManager(JMM, M), OptLevel,
                      GVsWithCode);
 
   if (ErrorStr)
@@ -114,8 +102,12 @@ void *MCJIT::getPointerToFunction(Function *F) {
     return Addr;
   }
 
-  Twine Name = TM->getMCAsmInfo()->getGlobalPrefix() + F->getName();
-  return (void*)Dyld.getSymbolAddress(Name.str());
+  // FIXME: Should we be using the mangler for this? Probably.
+  StringRef BaseName = F->getName();
+  if (BaseName[0] == '\1')
+    return (void*)Dyld.getSymbolAddress(BaseName.substr(1));
+  return (void*)Dyld.getSymbolAddress((TM->getMCAsmInfo()->getGlobalPrefix()
+                                       + BaseName).str());
 }
 
 void *MCJIT::recompileAndRelinkFunction(Function *F) {
