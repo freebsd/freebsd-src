@@ -175,7 +175,6 @@ static void	ath_tx_cleanup(struct ath_softc *);
 static void	ath_tx_proc_q0(void *, int);
 static void	ath_tx_proc_q0123(void *, int);
 static void	ath_tx_proc(void *, int);
-static void	ath_tx_draintxq(struct ath_softc *, struct ath_txq *);
 static int	ath_chan_set(struct ath_softc *, struct ieee80211_channel *);
 static void	ath_draintxq(struct ath_softc *);
 static void	ath_stoprecv(struct ath_softc *);
@@ -202,6 +201,7 @@ static void	ath_setcurmode(struct ath_softc *, enum ieee80211_phymode);
 static void	ath_announce(struct ath_softc *);
 
 static void	ath_dfs_tasklet(void *, int);
+static void	ath_sc_flushtxq(struct ath_softc *sc);
 
 #ifdef IEEE80211_SUPPORT_TDMA
 static void	ath_tdma_settimers(struct ath_softc *sc, u_int32_t nexttbtt,
@@ -1130,7 +1130,8 @@ ath_vap_delete(struct ieee80211vap *vap)
 		 * the vap state by any frames pending on the tx queues.
 		 */
 		ath_hal_intrset(ah, 0);		/* disable interrupts */
-		ath_draintxq(sc);		/* stop xmit side */
+		ath_draintxq(sc);		/* stop hw xmit side */
+		ath_sc_flushtxq(sc);		/* drain sw xmit side */
 		ath_stoprecv(sc);		/* stop recv side */
 	}
 
@@ -1678,6 +1679,7 @@ ath_stop_locked(struct ifnet *ifp)
 			ath_hal_intrset(ah, 0);
 		}
 		ath_draintxq(sc);
+		ath_sc_flushtxq(sc);		/* drain sw xmit side */
 		if (!sc->sc_invalid) {
 			ath_stoprecv(sc);
 			ath_hal_phydisable(ah);
@@ -1714,6 +1716,7 @@ ath_reset(struct ifnet *ifp)
 
 	ath_hal_intrset(ah, 0);		/* disable interrupts */
 	ath_draintxq(sc);		/* stop xmit side */
+	ath_sc_flushtxq(sc);		/* drain sw xmit side */
 	ath_stoprecv(sc);		/* stop recv side */
 	ath_settkipmic(sc);		/* configure TKIP MIC handling */
 	/* NB: indicate channel change so we do a full reset */
@@ -4204,13 +4207,43 @@ ath_tx_proc(void *arg, int npending)
 	ath_start(ifp);
 }
 
-static void
+/*
+ * This is currently used by ath_tx_draintxq() and
+ * ath_tx_tid_free_pkts().
+ *
+ * It recycles a single ath_buf.
+ */
+void
+ath_tx_buf_drainone(struct ath_softc *sc, struct ath_buf *bf)
+{
+	struct ieee80211_node *ni;
+
+	bus_dmamap_unload(sc->sc_dmat, bf->bf_dmamap);
+	ni = bf->bf_node;
+	bf->bf_node = NULL;
+	if (ni != NULL) {
+		/*
+		 * Do any callback and reclaim the node reference.
+		 */
+		if (bf->bf_m->m_flags & M_TXCB)
+			ieee80211_process_callback(ni, bf->bf_m, -1);
+		ieee80211_free_node(ni);
+	}
+	m_freem(bf->bf_m);
+	bf->bf_m = NULL;
+	bf->bf_flags &= ~ATH_BUF_BUSY;
+
+	ATH_TXBUF_LOCK(sc);
+	STAILQ_INSERT_TAIL(&sc->sc_txbuf, bf, bf_list);
+	ATH_TXBUF_UNLOCK(sc);
+}
+
+void
 ath_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq)
 {
 #ifdef ATH_DEBUG
 	struct ath_hal *ah = sc->sc_ah;
 #endif
-	struct ieee80211_node *ni;
 	struct ath_buf *bf;
 	u_int ix;
 
@@ -4244,24 +4277,7 @@ ath_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq)
 			    bf->bf_m->m_len, 0, -1);
 		}
 #endif /* ATH_DEBUG */
-		bus_dmamap_unload(sc->sc_dmat, bf->bf_dmamap);
-		ni = bf->bf_node;
-		bf->bf_node = NULL;
-		if (ni != NULL) {
-			/*
-			 * Do any callback and reclaim the node reference.
-			 */
-			if (bf->bf_m->m_flags & M_TXCB)
-				ieee80211_process_callback(ni, bf->bf_m, -1);
-			ieee80211_free_node(ni);
-		}
-		m_freem(bf->bf_m);
-		bf->bf_m = NULL;
-		bf->bf_flags &= ~ATH_BUF_BUSY;
-
-		ATH_TXBUF_LOCK(sc);
-		STAILQ_INSERT_TAIL(&sc->sc_txbuf, bf, bf_list);
-		ATH_TXBUF_UNLOCK(sc);
+		ath_tx_buf_drainone(sc, bf);
 	}
 }
 
@@ -4434,6 +4450,7 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 		 */
 		ath_hal_intrset(ah, 0);		/* disable interrupts */
 		ath_draintxq(sc);		/* clear pending tx frames */
+		ath_sc_flushtxq(sc);		/* drain sw xmit side */
 		ath_stoprecv(sc);		/* turn off frame recv */
 		if (!ath_hal_reset(ah, sc->sc_opmode, chan, AH_TRUE, &status)) {
 			if_printf(ifp, "%s: unable to reset "
@@ -5729,6 +5746,39 @@ ath_dfs_tasklet(void *p, int npending)
 		/* DFS event found, initiate channel change */
 		ieee80211_dfs_notify_radar(ic, sc->sc_curchan);
 	}
+}
+
+/*
+ * Flush all software queued packets for the given VAP.
+ *
+ * The ieee80211 common lock should be held.
+ */
+static void
+ath_vap_flush_node(void *arg, struct ieee80211_node *ni)
+{
+	struct ath_softc *sc = (struct ath_softc *) arg;
+
+	ath_tx_node_flush(sc, ATH_NODE(ni));
+}
+
+/*
+ * Flush all software queued packets for the given sc.
+ *
+ * The ieee80211 common lock should be held.
+ */
+static void
+ath_sc_flushtxq(struct ath_softc *sc)
+{
+	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
+
+	//IEEE80211_LOCK_ASSERT(ic);
+	/* Debug if we don't own the lock! */
+	if (! mtx_owned(IEEE80211_LOCK_OBJ(ic))) {
+		device_printf(sc->sc_dev, "%s: comlock not owned?\n",
+		    __func__);
+	}
+
+	ieee80211_iterate_nodes(&ic->ic_sta, ath_vap_flush_node, sc);
 }
 
 MODULE_VERSION(if_ath, 1);

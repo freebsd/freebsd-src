@@ -1371,21 +1371,45 @@ ath_tx_tid_txq_unmark(struct ath_softc *sc, struct ath_node *an,
  *
  * Since net80211 shouldn't free the node until the last packets
  * have been sent, this function should never have to free any
- * packets.
+ * packets when a node is freed.
+ *
+ * It can also be called on an active node during an interface
+ * reset or state transition.
  */
 static void
 ath_tx_tid_free_pkts(struct ath_softc *sc, struct ath_node *an,
     int tid)
 {
 	struct ath_tid *atid = &an->an_tid[tid];
-	struct ieee80211_node *ni = &an->an_node;
+	struct ath_buf *bf;
 
-	/* XXX TODO */
-	/* For now, just print a loud warning if it occurs */
-	if (! STAILQ_EMPTY(&atid->axq_q))
-		device_printf(sc->sc_dev, "%s: AID %d TID %d queue not "
-		    "empty on queue destroy!\n",
-		    __func__, ni->ni_associd, tid);
+
+	/* Walk the queue, free frames */
+	ATH_TXQ_LOCK(atid);
+	for (;;) {
+	bf = STAILQ_FIRST(&atid->axq_q);
+		if (bf == NULL)
+			break;
+		ATH_TXQ_REMOVE_HEAD(atid, bf_list);
+		ath_tx_buf_drainone(sc, bf);
+	}
+	ATH_TXQ_UNLOCK(atid);
+}
+
+/*
+ * Flush all software queued packets for the given node.
+ *
+ * This protects ath_node behind ATH_LOCK for now.
+ */
+void
+ath_tx_node_flush(struct ath_softc *sc, struct ath_node *an)
+{
+	int tid;
+
+	ATH_LOCK(sc);
+	for (tid = 0; tid < IEEE80211_TID_SIZE; tid++)
+		ath_tx_tid_free_pkts(sc, an, tid);
+	ATH_UNLOCK(sc);
 }
 
 /*
@@ -1399,11 +1423,19 @@ ath_tx_tid_cleanup(struct ath_softc *sc, struct ath_node *an)
 {
 	int i;
 	struct ath_tid *atid;
+	struct ieee80211_node *ni = &an->an_node;
 
 	for (i = 0; i < IEEE80211_TID_SIZE; i++) {
 		atid = &an->an_tid[i];
 
 		/* Free packets in sw queue */
+		/* For now, just print a loud warning if it occurs */
+		ATH_TXQ_LOCK(atid);
+		if (! STAILQ_EMPTY(&atid->axq_q))
+			device_printf(sc->sc_dev, "%s: AID %d TID %d queue not "
+			    "empty on queue destroy!\n",
+			    __func__, ni->ni_associd, i);
+		ATH_TXQ_UNLOCK(atid);
 		ath_tx_tid_free_pkts(sc, an, i);
 
 		/* Mark hw-queued packets as having no parent now */
