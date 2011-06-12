@@ -5771,12 +5771,14 @@ ath_sc_flushtxq(struct ath_softc *sc)
 {
 	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
 
+#if 0
 	//IEEE80211_LOCK_ASSERT(ic);
 	/* Debug if we don't own the lock! */
 	if (! mtx_owned(IEEE80211_LOCK_OBJ(ic))) {
 		device_printf(sc->sc_dev, "%s: comlock not owned?\n",
 		    __func__);
 	}
+#endif
 
 	ieee80211_iterate_nodes(&ic->ic_sta, ath_vap_flush_node, sc);
 }

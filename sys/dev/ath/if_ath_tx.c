@@ -1385,15 +1385,17 @@ ath_tx_tid_free_pkts(struct ath_softc *sc, struct ath_node *an,
 
 
 	/* Walk the queue, free frames */
-	ATH_TXQ_LOCK(atid);
 	for (;;) {
-	bf = STAILQ_FIRST(&atid->axq_q);
-		if (bf == NULL)
+		ATH_TXQ_LOCK(atid);
+		bf = STAILQ_FIRST(&atid->axq_q);
+		if (bf == NULL) {
+			ATH_TXQ_UNLOCK(atid);
 			break;
+		}
 		ATH_TXQ_REMOVE_HEAD(atid, bf_list);
+		ATH_TXQ_UNLOCK(atid);
 		ath_tx_buf_drainone(sc, bf);
 	}
-	ATH_TXQ_UNLOCK(atid);
 }
 
 /*
