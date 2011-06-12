@@ -33,19 +33,15 @@ CodeGenFunction::CodeGenFunction(CodeGenModule &cgm)
     Target(CGM.getContext().Target), Builder(cgm.getModule().getContext()),
     BlockInfo(0), BlockPointer(0),
     NormalCleanupDest(0), EHCleanupDest(0), NextCleanupDestIndex(1),
-    ExceptionSlot(0), DebugInfo(0), DisableDebugInfo(false), IndirectBranch(0),
-    SwitchInsn(0), CaseRangeBlock(0),
-    DidCallStackSave(false), UnreachableBlock(0),
+    ExceptionSlot(0), EHSelectorSlot(0),
+    DebugInfo(0), DisableDebugInfo(false), DidCallStackSave(false),
+    IndirectBranch(0), SwitchInsn(0), CaseRangeBlock(0), UnreachableBlock(0),
     CXXThisDecl(0), CXXThisValue(0), CXXVTTDecl(0), CXXVTTValue(0),
     OutermostConditional(0), TerminateLandingPad(0), TerminateHandler(0),
     TrapBB(0) {
 
   CatchUndefined = getContext().getLangOptions().CatchUndefined;
   CGM.getCXXABI().getMangleContext().startNewFunction();
-}
-
-ASTContext &CodeGenFunction::getContext() const {
-  return CGM.getContext();
 }
 
 
@@ -57,9 +53,41 @@ const llvm::Type *CodeGenFunction::ConvertType(QualType T) {
   return CGM.getTypes().ConvertType(T);
 }
 
-bool CodeGenFunction::hasAggregateLLVMType(QualType T) {
-  return T->isRecordType() || T->isArrayType() || T->isAnyComplexType() ||
-    T->isObjCObjectType();
+bool CodeGenFunction::hasAggregateLLVMType(QualType type) {
+  switch (type.getCanonicalType()->getTypeClass()) {
+#define TYPE(name, parent)
+#define ABSTRACT_TYPE(name, parent)
+#define NON_CANONICAL_TYPE(name, parent) case Type::name:
+#define DEPENDENT_TYPE(name, parent) case Type::name:
+#define NON_CANONICAL_UNLESS_DEPENDENT_TYPE(name, parent) case Type::name:
+#include "clang/AST/TypeNodes.def"
+    llvm_unreachable("non-canonical or dependent type in IR-generation");
+
+  case Type::Builtin:
+  case Type::Pointer:
+  case Type::BlockPointer:
+  case Type::LValueReference:
+  case Type::RValueReference:
+  case Type::MemberPointer:
+  case Type::Vector:
+  case Type::ExtVector:
+  case Type::FunctionProto:
+  case Type::FunctionNoProto:
+  case Type::Enum:
+  case Type::ObjCObjectPointer:
+    return false;
+
+  // Complexes, arrays, records, and Objective-C objects.
+  case Type::Complex:
+  case Type::ConstantArray:
+  case Type::IncompleteArray:
+  case Type::VariableArray:
+  case Type::Record:
+  case Type::ObjCObject:
+  case Type::ObjCInterface:
+    return true;
+  }
+  llvm_unreachable("unknown type kind!");
 }
 
 void CodeGenFunction::EmitReturnBlock() {
@@ -168,7 +196,7 @@ void CodeGenFunction::FinishFunction(SourceLocation EndLoc) {
 bool CodeGenFunction::ShouldInstrumentFunction() {
   if (!CGM.getCodeGenOpts().InstrumentFunctions)
     return false;
-  if (CurFuncDecl->hasAttr<NoInstrumentFunctionAttr>())
+  if (!CurFuncDecl || CurFuncDecl->hasAttr<NoInstrumentFunctionAttr>())
     return false;
   return true;
 }
@@ -177,16 +205,12 @@ bool CodeGenFunction::ShouldInstrumentFunction() {
 /// instrumentation function with the current function and the call site, if
 /// function instrumentation is enabled.
 void CodeGenFunction::EmitFunctionInstrumentation(const char *Fn) {
-  const llvm::PointerType *PointerTy;
-  const llvm::FunctionType *FunctionTy;
-  std::vector<const llvm::Type*> ProfileFuncArgs;
-
   // void __cyg_profile_func_{enter,exit} (void *this_fn, void *call_site);
-  PointerTy = Int8PtrTy;
-  ProfileFuncArgs.push_back(PointerTy);
-  ProfileFuncArgs.push_back(PointerTy);
-  FunctionTy = llvm::FunctionType::get(llvm::Type::getVoidTy(getLLVMContext()),
-                                       ProfileFuncArgs, false);
+  const llvm::PointerType *PointerTy = Int8PtrTy;
+  const llvm::Type *ProfileFuncArgs[] = { PointerTy, PointerTy };
+  const llvm::FunctionType *FunctionTy =
+    llvm::FunctionType::get(llvm::Type::getVoidTy(getLLVMContext()),
+                            ProfileFuncArgs, false);
 
   llvm::Constant *F = CGM.CreateRuntimeFunction(FunctionTy, Fn);
   llvm::CallInst *CallSite = Builder.CreateCall(

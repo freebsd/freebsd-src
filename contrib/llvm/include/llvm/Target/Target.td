@@ -128,6 +128,11 @@ class RegisterClass<string namespace, list<ValueType> regTypes, int alignment,
   // dags: (RegClass SubRegIndex, SubRegindex, ...)
   list<dag> SubRegClasses = [];
 
+  // isAllocatable - Specify that the register class can be used for virtual
+  // registers and register allocation.  Some register classes are only used to
+  // model instruction operand constraints, and should have isAllocatable = 0.
+  bit isAllocatable = 1;
+
   // MethodProtos/MethodBodies - These members can be used to insert arbitrary
   // code into a generated register class.   The normal usage of this is to
   // overload virtual methods.
@@ -149,6 +154,14 @@ class DwarfRegNum<list<int> Numbers> {
   // -1 indicates that the gcc number is undefined and -2 that register number
   // is invalid for this mode/flavour.
   list<int> DwarfNumbers = Numbers;
+}
+
+// DwarfRegAlias - This class declares that a given register uses the same dwarf
+// numbers as another one. This is useful for making it clear that the two
+// registers do have the same number. It also lets us build a mapping
+// from dwarf register number to llvm register.
+class DwarfRegAlias<Register reg> {
+      Register DwarfAlias = reg;
 }
 
 //===----------------------------------------------------------------------===//

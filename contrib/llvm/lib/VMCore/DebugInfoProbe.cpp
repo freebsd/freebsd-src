@@ -51,7 +51,6 @@ namespace llvm {
     unsigned NumDbgLineLost, NumDbgValueLost;
     std::string PassName;
     Function *TheFn;
-    std::set<unsigned> LineNos;
     std::set<MDNode *> DbgVariables;
     std::set<Instruction *> MissingDebugLoc;
   };
@@ -60,37 +59,19 @@ namespace llvm {
 //===----------------------------------------------------------------------===//
 // DebugInfoProbeImpl
 
-static void collect(Function &F, std::set<unsigned> &Lines) {
-  for (Function::iterator FI = F.begin(), FE = F.end(); FI != FE; ++FI)
-    for (BasicBlock::iterator BI = FI->begin(), BE = FI->end(); 
-         BI != BE; ++BI) {
-      const DebugLoc &DL = BI->getDebugLoc();
-      unsigned LineNo = 0;
-      if (!DL.isUnknown()) {
-        if (MDNode *N = DL.getInlinedAt(F.getContext()))
-          LineNo = DebugLoc::getFromDILocation(N).getLine();
-        else
-          LineNo = DL.getLine();
-
-        Lines.insert(LineNo);
-      }
-    }
-}
-
 /// initialize - Collect information before running an optimization pass.
 void DebugInfoProbeImpl::initialize(StringRef PName, Function &F) {
   if (!EnableDebugInfoProbe) return;
   PassName = PName;
 
-  LineNos.clear();
   DbgVariables.clear();
+  MissingDebugLoc.clear();
   TheFn = &F;
-  collect(F, LineNos);
 
   for (Function::iterator FI = F.begin(), FE = F.end(); FI != FE; ++FI)
     for (BasicBlock::iterator BI = FI->begin(), BE = FI->end(); 
          BI != BE; ++BI) {
-      if (BI->getDebugLoc().isUnknown())
+      if (!isa<PHINode>(BI) && BI->getDebugLoc().isUnknown())
         MissingDebugLoc.insert(BI);
       if (!isa<DbgInfoIntrinsic>(BI)) continue;
       Value *Addr = NULL;
@@ -130,30 +111,16 @@ void DebugInfoProbeImpl::report() {
 /// must be used after initialization.
 void DebugInfoProbeImpl::finalize(Function &F) {
   if (!EnableDebugInfoProbe) return;
-  std::set<unsigned> LineNos2;
-  collect(F, LineNos2);
   assert (TheFn == &F && "Invalid function to measure!");
-
-  for (std::set<unsigned>::iterator I = LineNos.begin(),
-         E = LineNos.end(); I != E; ++I) {
-    unsigned LineNo = *I;
-    if (LineNos2.count(LineNo) == 0) {
-      DEBUG(dbgs() 
-            << "DebugInfoProbe("
-            << PassName
-            << "): Losing dbg info for source line " 
-            << LineNo << "\n");
-      ++NumDbgLineLost;
-    }
-  }
 
   std::set<MDNode *>DbgVariables2;
   for (Function::iterator FI = F.begin(), FE = F.end(); FI != FE; ++FI)
     for (BasicBlock::iterator BI = FI->begin(), BE = FI->end(); 
          BI != BE; ++BI) {
-      if (BI->getDebugLoc().isUnknown() &&
+      if (!isa<PHINode>(BI) && BI->getDebugLoc().isUnknown() &&
           MissingDebugLoc.count(BI) == 0) {
-        DEBUG(dbgs() << "DebugInfoProbe(" << PassName << "): --- ");
+        ++NumDbgLineLost;
+        DEBUG(dbgs() << "DebugInfoProbe (" << PassName << "): --- ");
         DEBUG(BI->print(dbgs()));
         DEBUG(dbgs() << "\n");
       }

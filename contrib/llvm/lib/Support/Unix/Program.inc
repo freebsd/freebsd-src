@@ -338,7 +338,7 @@ Program::Wait(const sys::Path &path,
       else
         MakeErrMsg(ErrMsg, "Child timed out", 0);
 
-      return -1;   // Timeout detected
+      return -2;   // Timeout detected
     } else if (errno != EINTR) {
       MakeErrMsg(ErrMsg, "Error waiting for child process");
       return -1;
@@ -382,7 +382,9 @@ Program::Wait(const sys::Path &path,
         *ErrMsg += " (core dumped)";
 #endif
     }
-    return -1;
+    // Return a special value to indicate that the process received an unhandled
+    // signal during execution as opposed to failing to execute.
+    return -2;
   }
   return result;
 #else

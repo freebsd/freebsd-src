@@ -1390,7 +1390,7 @@ LValue CodeGenFunction::EmitArraySubscriptExpr(const ArraySubscriptExpr *E) {
   // The index must always be an integer, which is not an aggregate.  Emit it.
   llvm::Value *Idx = EmitScalarExpr(E->getIdx());
   QualType IdxTy  = E->getIdx()->getType();
-  bool IdxSigned = IdxTy->isSignedIntegerType();
+  bool IdxSigned = IdxTy->isSignedIntegerOrEnumerationType();
 
   // If the base is a vector type, then we are forming a vector element lvalue
   // with this subscript.
@@ -1635,7 +1635,8 @@ LValue CodeGenFunction::EmitLValueForAnonRecordField(llvm::Value *BaseValue,
   IndirectFieldDecl::chain_iterator I = Field->chain_begin(),
     IEnd = Field->chain_end();
   while (true) {
-    LValue LV = EmitLValueForField(BaseValue, cast<FieldDecl>(*I), CVRQualifiers);
+    LValue LV = EmitLValueForField(BaseValue, cast<FieldDecl>(*I),
+                                   CVRQualifiers);
     if (++I == IEnd) return LV;
 
     assert(LV.isSimple());

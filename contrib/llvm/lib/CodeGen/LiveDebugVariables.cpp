@@ -101,9 +101,13 @@ class UserValue {
   void insertDebugValue(MachineBasicBlock *MBB, SlotIndex Idx, unsigned LocNo,
                         LiveIntervals &LIS, const TargetInstrInfo &TII);
 
+  /// splitLocation - Replace OldLocNo ranges with NewRegs ranges where NewRegs
+  /// is live. Returns true if any changes were made.
+  bool splitLocation(unsigned OldLocNo, ArrayRef<LiveInterval*> NewRegs);
+
 public:
   /// UserValue - Create a new UserValue.
-  UserValue(const MDNode *var, unsigned o, DebugLoc L, 
+  UserValue(const MDNode *var, unsigned o, DebugLoc L,
             LocMap::Allocator &alloc)
     : variable(var), offset(o), dl(L), leader(this), next(0), locInts(alloc)
   {}
@@ -215,6 +219,10 @@ public:
   void renameRegister(unsigned OldReg, unsigned NewReg, unsigned SubIdx,
                       const TargetRegisterInfo *TRI);
 
+  /// splitRegister - Replace OldReg ranges with NewRegs ranges where NewRegs is
+  /// live. Returns true if any changes were made.
+  bool splitRegister(unsigned OldLocNo, ArrayRef<LiveInterval*> NewRegs);
+
   /// rewriteLocations - Rewrite virtual register locations according to the
   /// provided virtual register map.
   void rewriteLocations(VirtRegMap &VRM, const TargetRegisterInfo &TRI);
@@ -228,7 +236,7 @@ public:
   /// Only first one needs DebugLoc to identify variable's lexical scope
   /// in source file.
   DebugLoc findDebugLoc();
-  void print(raw_ostream&, const TargetRegisterInfo*);
+  void print(raw_ostream&, const TargetMachine*);
 };
 } // namespace
 
@@ -293,6 +301,9 @@ public:
   /// renameRegister - Replace all references to OldReg with NewReg:SubIdx.
   void renameRegister(unsigned OldReg, unsigned NewReg, unsigned SubIdx);
 
+  /// splitRegister -  Replace all references to OldReg with NewRegs.
+  void splitRegister(unsigned OldReg, ArrayRef<LiveInterval*> NewRegs);
+
   /// emitDebugVariables - Recreate DBG_VALUE instruction from data structures.
   void emitDebugValues(VirtRegMap *VRM);
 
@@ -300,7 +311,7 @@ public:
 };
 } // namespace
 
-void UserValue::print(raw_ostream &OS, const TargetRegisterInfo *TRI) {
+void UserValue::print(raw_ostream &OS, const TargetMachine *TM) {
   if (const MDString *MDS = dyn_cast<MDString>(variable->getOperand(2)))
     OS << "!\"" << MDS->getString() << "\"\t";
   if (offset)
@@ -312,15 +323,17 @@ void UserValue::print(raw_ostream &OS, const TargetRegisterInfo *TRI) {
     else
       OS << I.value();
   }
-  for (unsigned i = 0, e = locations.size(); i != e; ++i)
-    OS << " Loc" << i << '=' << locations[i];
+  for (unsigned i = 0, e = locations.size(); i != e; ++i) {
+    OS << " Loc" << i << '=';
+    locations[i].print(OS, TM);
+  }
   OS << '\n';
 }
 
 void LDVImpl::print(raw_ostream &OS) {
   OS << "********** DEBUG VARIABLES **********\n";
   for (unsigned i = 0, e = userValues.size(); i != e; ++i)
-    userValues[i]->print(OS, TRI);
+    userValues[i]->print(OS, &MF->getTarget());
 }
 
 void UserValue::coalesceLocation(unsigned LocNo) {
@@ -677,6 +690,143 @@ renameRegister(unsigned OldReg, unsigned NewReg, unsigned SubIdx) {
     static_cast<LDVImpl*>(pImpl)->renameRegister(OldReg, NewReg, SubIdx);
 }
 
+//===----------------------------------------------------------------------===//
+//                           Live Range Splitting
+//===----------------------------------------------------------------------===//
+
+bool
+UserValue::splitLocation(unsigned OldLocNo, ArrayRef<LiveInterval*> NewRegs) {
+  DEBUG({
+    dbgs() << "Splitting Loc" << OldLocNo << '\t';
+    print(dbgs(), 0);
+  });
+  bool DidChange = false;
+  LocMap::iterator LocMapI;
+  LocMapI.setMap(locInts);
+  for (unsigned i = 0; i != NewRegs.size(); ++i) {
+    LiveInterval *LI = NewRegs[i];
+    if (LI->empty())
+      continue;
+
+    // Don't allocate the new LocNo until it is needed.
+    unsigned NewLocNo = ~0u;
+
+    // Iterate over the overlaps between locInts and LI.
+    LocMapI.find(LI->beginIndex());
+    if (!LocMapI.valid())
+      continue;
+    LiveInterval::iterator LII = LI->advanceTo(LI->begin(), LocMapI.start());
+    LiveInterval::iterator LIE = LI->end();
+    while (LocMapI.valid() && LII != LIE) {
+      // At this point, we know that LocMapI.stop() > LII->start.
+      LII = LI->advanceTo(LII, LocMapI.start());
+      if (LII == LIE)
+        break;
+
+      // Now LII->end > LocMapI.start(). Do we have an overlap?
+      if (LocMapI.value() == OldLocNo && LII->start < LocMapI.stop()) {
+        // Overlapping correct location. Allocate NewLocNo now.
+        if (NewLocNo == ~0u) {
+          MachineOperand MO = MachineOperand::CreateReg(LI->reg, false);
+          MO.setSubReg(locations[OldLocNo].getSubReg());
+          NewLocNo = getLocationNo(MO);
+          DidChange = true;
+        }
+
+        SlotIndex LStart = LocMapI.start();
+        SlotIndex LStop  = LocMapI.stop();
+
+        // Trim LocMapI down to the LII overlap.
+        if (LStart < LII->start)
+          LocMapI.setStartUnchecked(LII->start);
+        if (LStop > LII->end)
+          LocMapI.setStopUnchecked(LII->end);
+
+        // Change the value in the overlap. This may trigger coalescing.
+        LocMapI.setValue(NewLocNo);
+
+        // Re-insert any removed OldLocNo ranges.
+        if (LStart < LocMapI.start()) {
+          LocMapI.insert(LStart, LocMapI.start(), OldLocNo);
+          ++LocMapI;
+          assert(LocMapI.valid() && "Unexpected coalescing");
+        }
+        if (LStop > LocMapI.stop()) {
+          ++LocMapI;
+          LocMapI.insert(LII->end, LStop, OldLocNo);
+          --LocMapI;
+        }
+      }
+
+      // Advance to the next overlap.
+      if (LII->end < LocMapI.stop()) {
+        if (++LII == LIE)
+          break;
+        LocMapI.advanceTo(LII->start);
+      } else {
+        ++LocMapI;
+        if (!LocMapI.valid())
+          break;
+        LII = LI->advanceTo(LII, LocMapI.start());
+      }
+    }
+  }
+
+  // Finally, remove any remaining OldLocNo intervals and OldLocNo itself.
+  locations.erase(locations.begin() + OldLocNo);
+  LocMapI.goToBegin();
+  while (LocMapI.valid()) {
+    unsigned v = LocMapI.value();
+    if (v == OldLocNo) {
+      DEBUG(dbgs() << "Erasing [" << LocMapI.start() << ';'
+                   << LocMapI.stop() << ")\n");
+      LocMapI.erase();
+    } else {
+      if (v > OldLocNo)
+        LocMapI.setValueUnchecked(v-1);
+      ++LocMapI;
+    }
+  }
+
+  DEBUG({dbgs() << "Split result: \t"; print(dbgs(), 0);});
+  return DidChange;
+}
+
+bool
+UserValue::splitRegister(unsigned OldReg, ArrayRef<LiveInterval*> NewRegs) {
+  bool DidChange = false;
+  // Split locations referring to OldReg. Iterate backwards so splitLocation can
+  // safely erase unuused locations.
+  for (unsigned i = locations.size(); i ; --i) {
+    unsigned LocNo = i-1;
+    const MachineOperand *Loc = &locations[LocNo];
+    if (!Loc->isReg() || Loc->getReg() != OldReg)
+      continue;
+    DidChange |= splitLocation(LocNo, NewRegs);
+  }
+  return DidChange;
+}
+
+void LDVImpl::splitRegister(unsigned OldReg, ArrayRef<LiveInterval*> NewRegs) {
+  bool DidChange = false;
+  for (UserValue *UV = lookupVirtReg(OldReg); UV; UV = UV->getNext())
+    DidChange |= UV->splitRegister(OldReg, NewRegs);
+
+  if (!DidChange)
+    return;
+
+  // Map all of the new virtual registers.
+  UserValue *UV = lookupVirtReg(OldReg);
+  for (unsigned i = 0; i != NewRegs.size(); ++i)
+    mapVirtReg(NewRegs[i]->reg, UV);
+}
+
+void LiveDebugVariables::
+splitRegister(unsigned OldReg, ArrayRef<LiveInterval*> NewRegs) {
+  if (pImpl)
+    static_cast<LDVImpl*>(pImpl)->splitRegister(OldReg, NewRegs);
+}
+
 void
 UserValue::rewriteLocations(VirtRegMap &VRM, const TargetRegisterInfo &TRI) {
   // Iterate over locations in reverse makes it easier to handle coalescing.
@@ -690,6 +840,9 @@ UserValue::rewriteLocations(VirtRegMap &VRM, const TargetRegisterInfo &TRI) {
     unsigned VirtReg = Loc.getReg();
     if (VRM.isAssignedReg(VirtReg) &&
         TargetRegisterInfo::isPhysicalRegister(VRM.getPhys(VirtReg))) {
+      // This can create a %noreg operand in rare cases when the sub-register
+      // index is no longer available. That means the user value is in a
+      // non-existent sub-register, and %noreg is exactly what we want.
       Loc.substPhysReg(VRM.getPhys(VirtReg), TRI);
     } else if (VRM.getStackSlot(VirtReg) != VirtRegMap::NO_STACK_SLOT &&
                VRM.isSpillSlotUsed(VRM.getStackSlot(VirtReg))) {
@@ -701,7 +854,6 @@ UserValue::rewriteLocations(VirtRegMap &VRM, const TargetRegisterInfo &TRI) {
     }
     coalesceLocation(LocNo);
   }
-  DEBUG(print(dbgs(), &TRI));
 }
 
 /// findInsertLocation - Find an iterator for inserting a DBG_VALUE
@@ -793,6 +945,7 @@ void LDVImpl::emitDebugValues(VirtRegMap *VRM) {
   DEBUG(dbgs() << "********** EMITTING LIVE DEBUG VARIABLES **********\n");
   const TargetInstrInfo *TII = MF->getTarget().getInstrInfo();
   for (unsigned i = 0, e = userValues.size(); i != e; ++i) {
+    DEBUG(userValues[i]->print(dbgs(), &MF->getTarget()));
     userValues[i]->rewriteLocations(*VRM, *TRI);
     userValues[i]->emitDebugValues(VRM, *LIS, *TII);
   }

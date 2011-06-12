@@ -21,6 +21,7 @@
 #include "llvm/Analysis/Dominators.h"
 #include "llvm/Analysis/LoopPass.h"
 #include "llvm/Analysis/ScalarEvolutionExpressions.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Target/TargetData.h"
 #include "llvm/Assembly/Writer.h"
 #include "llvm/ADT/STLExtras.h"
@@ -37,6 +38,15 @@ INITIALIZE_PASS_DEPENDENCY(DominatorTree)
 INITIALIZE_PASS_DEPENDENCY(ScalarEvolution)
 INITIALIZE_PASS_END(IVUsers, "iv-users",
                       "Induction Variable Users", false, true)
+
+// IVUsers behavior currently depends on this temporary indvars mode. The
+// option must be defined upstream from its uses.
+namespace llvm {
+  bool DisableIVRewrite = false;
+}
+cl::opt<bool, true> DisableIVRewriteOpt(
+  "disable-iv-rewrite", cl::Hidden, cl::location(llvm::DisableIVRewrite),
+  cl::desc("Disable canonical induction variable rewriting"));
 
 Pass *llvm::createIVUsersPass() {
   return new IVUsers();
@@ -79,7 +89,7 @@ static bool isInteresting(const SCEV *S, const Instruction *I, const Loop *L,
 /// AddUsersIfInteresting - Inspect the specified instruction.  If it is a
 /// reducible SCEV, recursively add its users to the IVUsesByStride set and
 /// return true.  Otherwise, return false.
-bool IVUsers::AddUsersIfInteresting(Instruction *I) {
+bool IVUsers::AddUsersIfInteresting(Instruction *I, PHINode *Phi) {
   if (!SE->isSCEVable(I->getType()))
     return false;   // Void and FP expressions cannot be reduced.
 
@@ -88,6 +98,11 @@ bool IVUsers::AddUsersIfInteresting(Instruction *I) {
   // 64-bit IV in 32-bit code just because the loop has one 64-bit cast.
   uint64_t Width = SE->getTypeSizeInBits(I->getType());
   if (Width > 64 || (TD && !TD->isLegalInteger(Width)))
+    return false;
+
+  // We expect Sign/Zero extension to be eliminated from the IR before analyzing
+  // any downstream uses.
+  if (DisableIVRewrite && (isa<SExtInst>(I) || isa<ZExtInst>(I)))
     return false;
 
   if (!Processed.insert(I))
@@ -121,13 +136,13 @@ bool IVUsers::AddUsersIfInteresting(Instruction *I) {
     bool AddUserToIVUsers = false;
     if (LI->getLoopFor(User->getParent()) != L) {
       if (isa<PHINode>(User) || Processed.count(User) ||
-          !AddUsersIfInteresting(User)) {
+          !AddUsersIfInteresting(User, Phi)) {
         DEBUG(dbgs() << "FOUND USER in other loop: " << *User << '\n'
                      << "   OF SCEV: " << *ISE << '\n');
         AddUserToIVUsers = true;
       }
     } else if (Processed.count(User) ||
-               !AddUsersIfInteresting(User)) {
+               !AddUsersIfInteresting(User, Phi)) {
       DEBUG(dbgs() << "FOUND USER: " << *User << '\n'
                    << "   OF SCEV: " << *ISE << '\n');
       AddUserToIVUsers = true;
@@ -135,9 +150,11 @@ bool IVUsers::AddUsersIfInteresting(Instruction *I) {
 
     if (AddUserToIVUsers) {
       // Okay, we found a user that we cannot reduce.
-      IVUses.push_back(new IVStrideUse(this, User, I));
+      IVUses.push_back(new IVStrideUse(this, User, I, Phi));
       IVStrideUse &NewUse = IVUses.back();
-      // Transform the expression into a normalized form.
+      // Autodetect the post-inc loop set, populating NewUse.PostIncLoops.
+      // The regular return value here is discarded; instead of recording
+      // it, we just recompute it when we need it.
       ISE = TransformForPostIncUse(NormalizeAutodetect,
                                    ISE, User, I,
                                    NewUse.PostIncLoops,
@@ -148,8 +165,8 @@ bool IVUsers::AddUsersIfInteresting(Instruction *I) {
   return true;
 }
 
-IVStrideUse &IVUsers::AddUser(Instruction *User, Value *Operand) {
-  IVUses.push_back(new IVStrideUse(this, User, Operand));
+IVStrideUse &IVUsers::AddUser(Instruction *User, Value *Operand, PHINode *Phi) {
+  IVUses.push_back(new IVStrideUse(this, User, Operand, Phi));
   return IVUses.back();
 }
 
@@ -177,7 +194,7 @@ bool IVUsers::runOnLoop(Loop *l, LPPassManager &LPM) {
   // them by stride.  Start by finding all of the PHI nodes in the header for
   // this loop.  If they are induction variables, inspect their uses.
   for (BasicBlock::iterator I = L->getHeader()->begin(); isa<PHINode>(I); ++I)
-    (void)AddUsersIfInteresting(I);
+    (void)AddUsersIfInteresting(I, cast<PHINode>(I));
 
   return false;
 }
