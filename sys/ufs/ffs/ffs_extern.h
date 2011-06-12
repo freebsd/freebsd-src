@@ -80,12 +80,14 @@ int	ffs_realloccg(struct inode *, ufs2_daddr_t, ufs2_daddr_t,
 	    ufs2_daddr_t, int, int, int, struct ucred *, struct buf **);
 int	ffs_sbupdate(struct ufsmount *, int, int);
 void	ffs_setblock(struct fs *, u_char *, ufs1_daddr_t);
-int	ffs_snapblkfree(struct fs *, struct vnode *, ufs2_daddr_t, long, ino_t);
+int	ffs_snapblkfree(struct fs *, struct vnode *, ufs2_daddr_t, long, ino_t,
+	    struct workhead *);
 void	ffs_snapremove(struct vnode *vp);
 int	ffs_snapshot(struct mount *mp, char *snapfile);
 void	ffs_snapshot_mount(struct mount *mp);
 void	ffs_snapshot_unmount(struct mount *mp);
 void	process_deferred_inactive(struct mount *mp);
+void	ffs_sync_snap(struct mount *, int);
 int	ffs_syncvnode(struct vnode *vp, int waitfor);
 int	ffs_truncate(struct vnode *, off_t, int, struct ucred *, struct thread *);
 int	ffs_update(struct vnode *, int);
@@ -149,6 +151,9 @@ int	softdep_prealloc(struct vnode *, int);
 int	softdep_journal_lookup(struct mount *, struct vnode **);
 void	softdep_journal_freeblocks(struct inode *, struct ucred *, off_t, int);
 void	softdep_journal_fsync(struct inode *);
+void	softdep_buf_append(struct buf *, struct workhead *);
+void	softdep_inode_append(struct inode *, struct ucred *, struct workhead *);
+void	softdep_freework(struct workhead *);
 
 
 /*
@@ -160,5 +165,15 @@ void	softdep_journal_fsync(struct inode *);
 #define FLUSH_BLOCKS_WAIT	4
 
 int	ffs_rdonly(struct inode *);
+
+TAILQ_HEAD(snaphead, inode);
+
+struct snapdata {
+	LIST_ENTRY(snapdata) sn_link;
+	struct snaphead sn_head;
+	daddr_t sn_listsize;
+	daddr_t *sn_blklist;
+	struct lock sn_lock;
+};
 
 #endif /* !_UFS_FFS_EXTERN_H */
