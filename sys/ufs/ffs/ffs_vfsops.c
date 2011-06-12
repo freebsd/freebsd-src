@@ -269,6 +269,8 @@ ffs_mount(struct mount *mp)
 				vfs_write_resume(mp);
 				return (error);
 			}
+			if (mp->mnt_flag & MNT_SOFTDEP)
+				softdep_unmount(mp);
 			DROP_GIANT();
 			g_topology_lock();
 			g_access(ump->um_cp, 0, -1, 0);
