@@ -47,6 +47,7 @@ struct TargetRegisterDesc {
   const unsigned *SubRegs;      // Sub-register set, described above
   const unsigned *SuperRegs;    // Super-register set, described above
   unsigned CostPerUse;          // Extra cost of instructions using register.
+  bool inAllocatableClass;      // Register belongs to an allocatable regclass.
 };
 
 class TargetRegisterClass {
@@ -66,6 +67,7 @@ private:
   const sc_iterator SuperRegClasses;
   const unsigned RegSize, Alignment;    // Size & Alignment of register in bytes
   const int CopyCost;
+  const bool Allocatable;
   const iterator RegsBegin, RegsEnd;
   DenseSet<unsigned> RegSet;
 public:
@@ -76,11 +78,12 @@ public:
                       const TargetRegisterClass * const *supcs,
                       const TargetRegisterClass * const *subregcs,
                       const TargetRegisterClass * const *superregcs,
-                      unsigned RS, unsigned Al, int CC,
+                      unsigned RS, unsigned Al, int CC, bool Allocable,
                       iterator RB, iterator RE)
     : ID(id), Name(name), VTs(vts), SubClasses(subcs), SuperClasses(supcs),
     SubRegClasses(subregcs), SuperRegClasses(superregcs),
-    RegSize(RS), Alignment(Al), CopyCost(CC), RegsBegin(RB), RegsEnd(RE) {
+    RegSize(RS), Alignment(Al), CopyCost(CC), Allocatable(Allocable),
+    RegsBegin(RB), RegsEnd(RE) {
       for (iterator I = RegsBegin, E = RegsEnd; I != E; ++I)
         RegSet.insert(*I);
     }
@@ -182,6 +185,12 @@ public:
     return false;
   }
 
+  /// hasSubClassEq - Returns true if RC is a subclass of or equal to this
+  /// class.
+  bool hasSubClassEq(const TargetRegisterClass *RC) const {
+    return RC == this || hasSubClass(RC);
+  }
+
   /// subclasses_begin / subclasses_end - Loop over all of the classes
   /// that are proper subsets of this register class.
   sc_iterator subclasses_begin() const {
@@ -201,6 +210,12 @@ public:
       if (SuperClasses[i] == cs)
         return true;
     return false;
+  }
+
+  /// hasSuperClassEq - Returns true if RC is a superclass of or equal to this
+  /// class.
+  bool hasSuperClassEq(const TargetRegisterClass *RC) const {
+    return RC == this || hasSuperClass(RC);
   }
 
   /// superclasses_begin / superclasses_end - Loop over all of the classes
@@ -256,6 +271,10 @@ public:
   /// this class. A negative number means the register class is very expensive
   /// to copy e.g. status flag register classes.
   int getCopyCost() const { return CopyCost; }
+
+  /// isAllocatable - Return true if this register class may be used to create
+  /// virtual registers.
+  bool isAllocatable() const { return Allocatable; }
 };
 
 
@@ -351,13 +370,13 @@ public:
   /// The first virtual register in a function will get the index 0.
   static unsigned virtReg2Index(unsigned Reg) {
     assert(isVirtualRegister(Reg) && "Not a virtual register");
-    return Reg - (1u << 31);
+    return Reg & ~(1u << 31);
   }
 
   /// index2VirtReg - Convert a 0-based index to a virtual register number.
   /// This is the inverse operation of VirtReg2IndexFunctor below.
   static unsigned index2VirtReg(unsigned Index) {
-    return Index + (1u << 31);
+    return Index | (1u << 31);
   }
 
   /// getMinimalPhysRegClass - Returns the Register Class of a physical
@@ -802,6 +821,8 @@ public:
   /// debugging info.
   virtual int getDwarfRegNum(unsigned RegNum, bool isEH) const = 0;
 
+  virtual int getLLVMRegNum(unsigned RegNum, bool isEH) const = 0;
+
   /// getFrameRegister - This method should return the register used as a base
   /// for values allocated in the current stack frame.
   virtual unsigned getFrameRegister(const MachineFunction &MF) const = 0;
@@ -809,6 +830,12 @@ public:
   /// getRARegister - This method should return the register where the return
   /// address can be found.
   virtual unsigned getRARegister() const = 0;
+
+  /// getSEHRegNum - Map a target register to an equivalent SEH register
+  /// number.  Returns -1 if there is no equivalent value.
+  virtual int getSEHRegNum(unsigned i) const {
+    return i;
+  }
 };
 
 

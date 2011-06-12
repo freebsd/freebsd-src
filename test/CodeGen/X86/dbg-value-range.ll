@@ -1,5 +1,5 @@
 ; RUN: llc -mtriple=x86_64-apple-darwin10 < %s | FileCheck %s
-; RUN: llc -mtriple=x86_64-apple-darwin10 -regalloc=basic < %s | FileCheck %s
+; RUN: llc -mtriple=x86_64-apple-darwin10 -regalloc=basic -join-physregs < %s | FileCheck %s
 
 %struct.a = type { i32 }
 
@@ -53,7 +53,10 @@ declare void @llvm.dbg.value(metadata, i64, metadata) nounwind readnone
 ;CHECK:Ldebug_loc0:
 ;CHECK-NEXT:	.quad
 ;CHECK-NEXT:	.quad	[[CLOBBER]]
-;CHECK-NEXT:	.short	1
+;CHECK-NEXT: Lset{{.*}} = Ltmp{{.*}}-Ltmp{{.*}}
+;CHECK-NEXT:    .short  Lset
+;CHECK-NEXT: Ltmp
 ;CHECK-NEXT:	.byte	85
+;CHECK-NEXT: Ltmp
 ;CHECK-NEXT:	.quad	0
 ;CHECK-NEXT:	.quad	0

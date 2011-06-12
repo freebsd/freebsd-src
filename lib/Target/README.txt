@@ -2305,4 +2305,56 @@ The two or/and's should be merged into one each.
 
 //===---------------------------------------------------------------------===//
 
+Machine level code hoisting can be useful in some cases.  For example, PR9408
+is about:
 
+typedef union {
+ void (*f1)(int);
+ void (*f2)(long);
+} funcs;
+
+void foo(funcs f, int which) {
+ int a = 5;
+ if (which) {
+   f.f1(a);
+ } else {
+   f.f2(a);
+ }
+}
+
+which we compile to:
+
+foo:                                    # @foo
+# BB#0:                                 # %entry
+       pushq   %rbp
+       movq    %rsp, %rbp
+       testl   %esi, %esi
+       movq    %rdi, %rax
+       je      .LBB0_2
+# BB#1:                                 # %if.then
+       movl    $5, %edi
+       callq   *%rax
+       popq    %rbp
+       ret
+.LBB0_2:                                # %if.else
+       movl    $5, %edi
+       callq   *%rax
+       popq    %rbp
+       ret
+
+Note that bb1 and bb2 are the same.  This doesn't happen at the IR level
+because one call is passing an i32 and the other is passing an i64.
+
+//===---------------------------------------------------------------------===//
+
+I see this sort of pattern in 176.gcc in a few places (e.g. the start of
+store_bit_field).  The rem should be replaced with a multiply and subtract:
+
+  %3 = sdiv i32 %A, %B
+  %4 = srem i32 %A, %B
+
+Similarly for udiv/urem.  Note that this shouldn't be done on X86 or ARM,
+which can do this in a single operation (instruction or libcall).  It is
+probably best to do this in the code generator.
+
+//===---------------------------------------------------------------------===//

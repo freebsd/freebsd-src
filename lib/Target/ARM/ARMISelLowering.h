@@ -264,6 +264,12 @@ namespace llvm {
     /// the immediate into a register.
     virtual bool isLegalICmpImmediate(int64_t Imm) const;
 
+    /// isLegalAddImmediate - Return true if the specified immediate is legal
+    /// add immediate, that is the target has add instructions which can
+    /// add a register and the immediate without having to materialize
+    /// the immediate into a register.
+    virtual bool isLegalAddImmediate(int64_t Imm) const;
+
     /// getPreIndexedAddressParts - returns true by value, base pointer and
     /// offset pointer and addressing mode by reference if the node's address
     /// can be legally represented as pre-indexed load / store address.
@@ -309,7 +315,7 @@ namespace llvm {
     /// true it means one of the asm constraint of the inline asm instruction
     /// being processed is 'm'.
     virtual void LowerAsmOperandForConstraint(SDValue Op,
-                                              char ConstraintLetter,
+                                              std::string &Constraint,
                                               std::vector<SDValue> &Ops,
                                               SelectionDAG &DAG) const;
 
@@ -320,9 +326,6 @@ namespace llvm {
     /// getRegClassFor - Return the register class that should be used for the
     /// specified value type.
     virtual TargetRegisterClass *getRegClassFor(EVT VT) const;
-
-    /// getFunctionAlignment - Return the Log2 alignment of this function.
-    virtual unsigned getFunctionAlignment(const Function *F) const;
 
     /// getMaximalGlobalOffset - Returns the maximal possible offset which can
     /// be used for loads / stores from the global.

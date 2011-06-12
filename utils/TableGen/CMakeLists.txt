@@ -16,6 +16,7 @@ add_llvm_utility(tblgen
   CodeEmitterGen.cpp
   CodeGenDAGPatterns.cpp
   CodeGenInstruction.cpp
+  CodeGenRegisters.cpp
   CodeGenTarget.cpp
   DAGISelEmitter.cpp
   DAGISelMatcherEmitter.cpp
@@ -34,6 +35,7 @@ add_llvm_utility(tblgen
   OptParserEmitter.cpp
   Record.cpp
   RegisterInfoEmitter.cpp
+  SetTheory.cpp
   StringMatcher.cpp
   SubtargetEmitter.cpp
   TGLexer.cpp

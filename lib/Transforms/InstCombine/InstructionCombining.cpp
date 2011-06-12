@@ -240,9 +240,9 @@ bool InstCombiner::SimplifyAssociativeOrCommutative(BinaryOperator &I) {
         Constant *C2 = cast<Constant>(Op1->getOperand(1));
 
         Constant *Folded = ConstantExpr::get(Opcode, C1, C2);
-        Instruction *New = BinaryOperator::Create(Opcode, A, B, Op1->getName(),
-                                                  &I);
-        Worklist.Add(New);
+        Instruction *New = BinaryOperator::Create(Opcode, A, B);
+        InsertNewInstWith(New, I);
+        New->takeName(Op1);
         I.setOperand(0, New);
         I.setOperand(1, Folded);
         // Conservatively clear the optional flags, since they may not be
@@ -599,7 +599,7 @@ Instruction *InstCombiner::FoldOpIntoPhi(Instruction &I) {
   }
 
   // Okay, we can do the transformation: create the new PHI node.
-  PHINode *NewPN = PHINode::Create(I.getType(), PN->getNumIncomingValues(), "");
+  PHINode *NewPN = PHINode::Create(I.getType(), PN->getNumIncomingValues());
   InsertNewInstBefore(NewPN, *PN);
   NewPN->takeName(PN);
   
@@ -1088,8 +1088,8 @@ Instruction *InstCombiner::visitFree(CallInst &FI) {
   // free undef -> unreachable.
   if (isa<UndefValue>(Op)) {
     // Insert a new store to null because we cannot modify the CFG here.
-    new StoreInst(ConstantInt::getTrue(FI.getContext()),
-           UndefValue::get(Type::getInt1PtrTy(FI.getContext())), &FI);
+    Builder->CreateStore(ConstantInt::getTrue(FI.getContext()),
+                         UndefValue::get(Type::getInt1PtrTy(FI.getContext())));
     return EraseInstFromFunction(FI);
   }
   
@@ -1261,7 +1261,7 @@ Instruction *InstCombiner::visitExtractValueInst(ExtractValueInst &EV) {
       case Intrinsic::sadd_with_overflow:
         if (*EV.idx_begin() == 0) {  // Normal result.
           Value *LHS = II->getArgOperand(0), *RHS = II->getArgOperand(1);
-          II->replaceAllUsesWith(UndefValue::get(II->getType()));
+          ReplaceInstUsesWith(*II, UndefValue::get(II->getType()));
           EraseInstFromFunction(*II);
           return BinaryOperator::CreateAdd(LHS, RHS);
         }
@@ -1278,7 +1278,7 @@ Instruction *InstCombiner::visitExtractValueInst(ExtractValueInst &EV) {
       case Intrinsic::ssub_with_overflow:
         if (*EV.idx_begin() == 0) {  // Normal result.
           Value *LHS = II->getArgOperand(0), *RHS = II->getArgOperand(1);
-          II->replaceAllUsesWith(UndefValue::get(II->getType()));
+          ReplaceInstUsesWith(*II, UndefValue::get(II->getType()));
           EraseInstFromFunction(*II);
           return BinaryOperator::CreateSub(LHS, RHS);
         }
@@ -1287,7 +1287,7 @@ Instruction *InstCombiner::visitExtractValueInst(ExtractValueInst &EV) {
       case Intrinsic::smul_with_overflow:
         if (*EV.idx_begin() == 0) {  // Normal result.
           Value *LHS = II->getArgOperand(0), *RHS = II->getArgOperand(1);
-          II->replaceAllUsesWith(UndefValue::get(II->getType()));
+          ReplaceInstUsesWith(*II, UndefValue::get(II->getType()));
           EraseInstFromFunction(*II);
           return BinaryOperator::CreateMul(LHS, RHS);
         }
@@ -1385,8 +1385,8 @@ static bool AddReachableCodeToWorklist(BasicBlock *BB,
   Worklist.push_back(BB);
 
   SmallVector<Instruction*, 128> InstrsForInstCombineWorklist;
-  SmallPtrSet<ConstantExpr*, 64> FoldedConstants;
-  
+  DenseMap<ConstantExpr*, Constant*> FoldedConstants;
+
   do {
     BB = Worklist.pop_back_val();
     
@@ -1421,14 +1421,15 @@ static bool AddReachableCodeToWorklist(BasicBlock *BB,
              i != e; ++i) {
           ConstantExpr *CE = dyn_cast<ConstantExpr>(i);
           if (CE == 0) continue;
-          
-          // If we already folded this constant, don't try again.
-          if (!FoldedConstants.insert(CE))
-            continue;
-          
-          Constant *NewC = ConstantFoldConstantExpression(CE, TD);
-          if (NewC && NewC != CE) {
-            *i = NewC;
+
+          Constant*& FoldRes = FoldedConstants[CE];
+          if (!FoldRes)
+            FoldRes = ConstantFoldConstantExpression(CE, TD);
+          if (!FoldRes)
+            FoldRes = CE;
+
+          if (FoldRes != CE) {
+            *i = FoldRes;
             MadeIRChange = true;
           }
         }
@@ -1575,6 +1576,7 @@ bool InstCombiner::DoOneIteration(Function &F, unsigned Iteration) {
 
     // Now that we have an instruction, try combining it to simplify it.
     Builder->SetInsertPoint(I->getParent(), I);
+    Builder->SetCurrentDebugLocation(I->getDebugLoc());
     
 #ifndef NDEBUG
     std::string OrigI;
@@ -1589,7 +1591,8 @@ bool InstCombiner::DoOneIteration(Function &F, unsigned Iteration) {
         DEBUG(errs() << "IC: Old = " << *I << '\n'
                      << "    New = " << *Result << '\n');
 
-        Result->setDebugLoc(I->getDebugLoc());
+        if (!I->getDebugLoc().isUnknown())
+          Result->setDebugLoc(I->getDebugLoc());
         // Everything uses the new instruction now.
         I->replaceAllUsesWith(Result);
 

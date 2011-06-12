@@ -44,6 +44,11 @@ class AFPR<bits<5> num, string n, list<Register> subregs>
   let SubRegIndices = [sub_fpeven, sub_fpodd];
 }
 
+// Mips Hardware Registers
+class HWR<bits<5> num, string n> : MipsReg<n> {
+  let Num = num;
+}
+
 //===----------------------------------------------------------------------===//
 //  Registers
 //===----------------------------------------------------------------------===//
@@ -55,7 +60,7 @@ let Namespace = "Mips" in {
   def AT   : MipsGPRReg< 1, "AT">,   DwarfRegNum<[1]>;
   def V0   : MipsGPRReg< 2, "2">,    DwarfRegNum<[2]>;
   def V1   : MipsGPRReg< 3, "3">,    DwarfRegNum<[3]>;
-  def A0   : MipsGPRReg< 4, "4">,    DwarfRegNum<[5]>;
+  def A0   : MipsGPRReg< 4, "4">,    DwarfRegNum<[4]>;
   def A1   : MipsGPRReg< 5, "5">,    DwarfRegNum<[5]>;
   def A2   : MipsGPRReg< 6, "6">,    DwarfRegNum<[6]>;
   def A3   : MipsGPRReg< 7, "7">,    DwarfRegNum<[7]>;
@@ -120,22 +125,22 @@ let Namespace = "Mips" in {
 
   /// Mips Double point precision FPU Registers (aliased
   /// with the single precision to hold 64 bit values)
-  def D0  : AFPR< 0,  "F0", [F0,   F1]>, DwarfRegNum<[32]>;
-  def D1  : AFPR< 2,  "F2", [F2,   F3]>, DwarfRegNum<[34]>;
-  def D2  : AFPR< 4,  "F4", [F4,   F5]>, DwarfRegNum<[36]>;
-  def D3  : AFPR< 6,  "F6", [F6,   F7]>, DwarfRegNum<[38]>;
-  def D4  : AFPR< 8,  "F8", [F8,   F9]>, DwarfRegNum<[40]>;
-  def D5  : AFPR<10, "F10", [F10, F11]>, DwarfRegNum<[42]>;
-  def D6  : AFPR<12, "F12", [F12, F13]>, DwarfRegNum<[44]>;
-  def D7  : AFPR<14, "F14", [F14, F15]>, DwarfRegNum<[46]>;
-  def D8  : AFPR<16, "F16", [F16, F17]>, DwarfRegNum<[48]>;
-  def D9  : AFPR<18, "F18", [F18, F19]>, DwarfRegNum<[50]>;
-  def D10 : AFPR<20, "F20", [F20, F21]>, DwarfRegNum<[52]>;
-  def D11 : AFPR<22, "F22", [F22, F23]>, DwarfRegNum<[54]>;
-  def D12 : AFPR<24, "F24", [F24, F25]>, DwarfRegNum<[56]>;
-  def D13 : AFPR<26, "F26", [F26, F27]>, DwarfRegNum<[58]>;
-  def D14 : AFPR<28, "F28", [F28, F29]>, DwarfRegNum<[60]>;
-  def D15 : AFPR<30, "F30", [F30, F31]>, DwarfRegNum<[62]>;
+  def D0  : AFPR< 0,  "F0", [F0,   F1]>;
+  def D1  : AFPR< 2,  "F2", [F2,   F3]>;
+  def D2  : AFPR< 4,  "F4", [F4,   F5]>;
+  def D3  : AFPR< 6,  "F6", [F6,   F7]>;
+  def D4  : AFPR< 8,  "F8", [F8,   F9]>;
+  def D5  : AFPR<10, "F10", [F10, F11]>;
+  def D6  : AFPR<12, "F12", [F12, F13]>;
+  def D7  : AFPR<14, "F14", [F14, F15]>;
+  def D8  : AFPR<16, "F16", [F16, F17]>;
+  def D9  : AFPR<18, "F18", [F18, F19]>;
+  def D10 : AFPR<20, "F20", [F20, F21]>;
+  def D11 : AFPR<22, "F22", [F22, F23]>;
+  def D12 : AFPR<24, "F24", [F24, F25]>;
+  def D13 : AFPR<26, "F26", [F26, F27]>;
+  def D14 : AFPR<28, "F28", [F28, F29]>;
+  def D15 : AFPR<30, "F30", [F30, F31]>;
 
   // Hi/Lo registers
   def HI  : Register<"hi">, DwarfRegNum<[64]>;
@@ -143,6 +148,9 @@ let Namespace = "Mips" in {
 
   // Status flags register
   def FCR31 : Register<"31">;
+
+  // Hardware register $29
+  def HWR29 : Register<"29">;
 }
 
 //===----------------------------------------------------------------------===//
@@ -157,19 +165,7 @@ def CPURegs : RegisterClass<"Mips", [i32], 32,
   // Callee save
   S0, S1, S2, S3, S4, S5, S6, S7,
   // Reserved
-  ZERO, AT, K0, K1, GP, SP, FP, RA]>
-{
-  let MethodProtos = [{
-    iterator allocation_order_end(const MachineFunction &MF) const;
-  }];
-  let MethodBodies = [{
-    CPURegsClass::iterator
-    CPURegsClass::allocation_order_end(const MachineFunction &MF) const {
-      // The last 8 registers on the list above are reserved
-      return end()-8;
-    }
-  }];
-}
+  ZERO, AT, K0, K1, GP, SP, FP, RA]>;
 
 // 64bit fp:
 // * FGR64  - 32 64-bit registers
@@ -186,52 +182,7 @@ def FGR32 : RegisterClass<"Mips", [f32], 32,
   // Callee save
   F20, F21, F22, F23, F24, F25, F26, F27, F28, F29, F30,
   // Reserved
-  F31]>
-{
-  let MethodProtos = [{
-    iterator allocation_order_begin(const MachineFunction &MF) const;
-    iterator allocation_order_end(const MachineFunction &MF) const;
-  }];
-  let MethodBodies = [{
-
-    static const unsigned MIPS_FGR32[] = {
-      Mips::F0,  Mips::F1,  Mips::F2,  Mips::F3,  Mips::F12,  Mips::F13,
-      Mips::F14, Mips::F15, Mips::F4,  Mips::F5,  Mips::F6,   Mips::F7,
-      Mips::F8,  Mips::F9,  Mips::F10, Mips::F11, Mips::F16,  Mips::F17,
-      Mips::F18, Mips::F19, Mips::F20, Mips::F21, Mips::F22,  Mips::F23,
-      Mips::F24, Mips::F25, Mips::F26, Mips::F27, Mips::F28,  Mips::F29,
-      Mips::F30
-    };
-
-    static const unsigned MIPS_SVR4_FGR32[] = {
-      Mips::F0,  Mips::F2,  Mips::F12, Mips::F14, Mips::F4,
-      Mips::F6,  Mips::F8,  Mips::F10, Mips::F16, Mips::F18,
-      Mips::F20, Mips::F22, Mips::F24, Mips::F26, Mips::F28, Mips::F30,
-    };
-
-    FGR32Class::iterator
-    FGR32Class::allocation_order_begin(const MachineFunction &MF) const {
-      const TargetMachine &TM = MF.getTarget();
-      const MipsSubtarget &Subtarget = TM.getSubtarget<MipsSubtarget>();
-
-      if (Subtarget.isSingleFloat())
-        return MIPS_FGR32;
-      else
-        return MIPS_SVR4_FGR32;
-    }
-
-    FGR32Class::iterator
-    FGR32Class::allocation_order_end(const MachineFunction &MF) const {
-      const TargetMachine &TM = MF.getTarget();
-      const MipsSubtarget &Subtarget = TM.getSubtarget<MipsSubtarget>();
-
-      if (Subtarget.isSingleFloat())
-        return MIPS_FGR32 + (sizeof(MIPS_FGR32) / sizeof(unsigned));
-      else
-        return MIPS_SVR4_FGR32 + (sizeof(MIPS_SVR4_FGR32) / sizeof(unsigned));
-    }
-  }];
-}
+  F31]>;
 
 def AFGR64 : RegisterClass<"Mips", [f64], 64,
   // Return Values and Arguments
@@ -241,19 +192,8 @@ def AFGR64 : RegisterClass<"Mips", [f64], 64,
   // Callee save
   D10, D11, D12, D13, D14,
   // Reserved
-  D15]>
-{
+  D15]> {
   let SubRegClasses = [(FGR32 sub_fpeven, sub_fpodd)];
-  let MethodProtos = [{
-    iterator allocation_order_end(const MachineFunction &MF) const;
-  }];
-  let MethodBodies = [{
-    AFGR64Class::iterator
-    AFGR64Class::allocation_order_end(const MachineFunction &MF) const {
-      // The last register on the list above is reserved
-      return end()-1;
-    }
-  }];
 }
 
 // Condition Register for floating point operations
@@ -262,3 +202,5 @@ def CCR  : RegisterClass<"Mips", [i32], 32, [FCR31]>;
 // Hi/Lo Registers
 def HILO : RegisterClass<"Mips", [i32], 32, [HI, LO]>;
 
+// Hardware registers
+def HWRegs : RegisterClass<"Mips", [i32], 32, [HWR29]>;
