@@ -95,6 +95,10 @@ public:
   /// The code model to use (-mcmodel).
   std::string CodeModel;
 
+  /// The filename with path we use for coverage files. The extension will be
+  /// replaced.
+  std::string CoverageFile;
+
   /// Enable additional debugging information.
   std::string DebugPass;
 

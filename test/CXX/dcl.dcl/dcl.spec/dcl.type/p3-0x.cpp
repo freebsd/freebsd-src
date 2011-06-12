@@ -1,15 +1,14 @@
 // RUN: %clang_cc1 -std=c++0x -fsyntax-only -verify %s
 
-// FIXME: when clang supports alias-declarations.
-#if 0
 using X = struct { // ok
 };
-#endif
+template<typename T> using Y = struct { // expected-error {{can not be defined in a type alias template}}
+};
 
 class K {
   virtual ~K();
-  // FIXME: the diagnostic here isn't very good
-  operator struct S {} (); // expected-error 2{{}}
+  // FIXME: the diagnostic here is really bad
+  operator struct S {} (); // expected-error 2{{}} expected-note {{}}
 };
 
 void f() {

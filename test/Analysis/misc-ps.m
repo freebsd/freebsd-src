@@ -1301,3 +1301,28 @@ static void test(unsigned int bit_mask)
     }
   }
 }
+
+// Don't crash on code containing __label__.
+int radar9414427_aux();
+void radar9414427() {
+  __label__ mylabel;
+  if (radar9414427_aux()) {
+  mylabel: do {}
+  while (0);
+  }
+}
+
+// Analyze methods in @implementation (category)
+@interface RDar9465344
+@end
+
+@implementation RDar9465344 (MyCategory)
+- (void) testcategoryImpl {
+  int *p = 0x0;
+  *p = 0xDEADBEEF; // expected-warning {{null}}
+}
+@end
+
+@implementation RDar9465344
+@end
+

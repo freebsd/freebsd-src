@@ -89,3 +89,13 @@ int is_union();
 int is_literal();
 #endif
 // CHECK: int is_literal();
+
+#if __has_feature(is_standard_layout)
+int is_standard_layout();
+#endif
+// CHECK: int is_standard_layout();
+
+#if __has_feature(is_trivially_copyable)
+int is_trivially_copyable();
+#endif
+// CHECK: int is_trivially_copyable();

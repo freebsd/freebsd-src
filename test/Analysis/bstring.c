@@ -136,12 +136,37 @@ void memcpy13() {
   memcpy(a, 0, 0); // no-warning
 }
 
+void memcpy_unknown_size (size_t n) {
+  char a[4], b[4] = {1};
+  if (memcpy(a, b, n) != a)
+    (void)*(char*)0; // no-warning
+}
+
+void memcpy_unknown_size_warn (size_t n) {
+  char a[4];
+  if (memcpy(a, 0, n) != a) // expected-warning{{Null pointer argument in call to byte string function}}
+    (void)*(char*)0; // no-warning
+}
+
 //===----------------------------------------------------------------------===
 // mempcpy()
 //===----------------------------------------------------------------------===
 
+#ifdef VARIANT
+
+#define __mempcpy_chk BUILTIN(__mempcpy_chk)
+void *__mempcpy_chk(void *restrict s1, const void *restrict s2, size_t n,
+                   size_t destlen);
+
+#define mempcpy(a,b,c) __mempcpy_chk(a,b,c,(size_t)-1)
+
+#else /* VARIANT */
+
 #define mempcpy BUILTIN(mempcpy)
 void *mempcpy(void *restrict s1, const void *restrict s2, size_t n);
+
+#endif /* VARIANT */
+
 
 void mempcpy0 () {
   char src[] = {1, 2, 3, 4};
@@ -231,6 +256,18 @@ void mempcpy12() {
 void mempcpy13() {
   char a[4] = {0};
   mempcpy(a, 0, 0); // no-warning
+}
+
+void mempcpy_unknown_size_warn (size_t n) {
+  char a[4];
+  if (mempcpy(a, 0, n) != a) // expected-warning{{Null pointer argument in call to byte string function}}
+    (void)*(char*)0; // no-warning
+}
+
+void mempcpy_unknownable_size (char *src, float n) {
+  char a[4];
+  // This used to crash because we don't model floats.
+  mempcpy(a, src, (size_t)n);
 }
 
 //===----------------------------------------------------------------------===

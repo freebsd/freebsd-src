@@ -277,6 +277,14 @@ static void DiagnosticOptsToArgs(const DiagnosticOptions &Opts,
     Res.push_back("-fdiagnostics-show-category=id");
   else if (Opts.ShowCategories == 2)
     Res.push_back("-fdiagnostics-show-category=name");
+  switch (Opts.Format) {
+  case DiagnosticOptions::Clang: 
+    Res.push_back("-fdiagnostics-format=clang"); break;
+  case DiagnosticOptions::Msvc:  
+    Res.push_back("-fdiagnostics-format=msvc");  break;
+  case DiagnosticOptions::Vi:    
+    Res.push_back("-fdiagnostics-format=vi");    break;
+  }
   if (Opts.ErrorLimit) {
     Res.push_back("-ferror-limit");
     Res.push_back(llvm::utostr(Opts.ErrorLimit));
@@ -662,6 +670,9 @@ static void LangOptsToArgs(const LangOptions &Opts,
       Res.push_back("-fobjc-gc-only");
     }
   }
+  if (Opts.ObjCInferRelatedResultType)
+    Res.push_back("-fobjc-infer-related-result-type");
+  
   if (Opts.AppleKext)
     Res.push_back("-fapple-kext");
   
@@ -974,6 +985,7 @@ static void ParseCodeGenArgs(CodeGenOptions &Opts, ArgList &Args, InputKind IK,
   Opts.InstrumentForProfiling = Args.hasArg(OPT_pg);
   Opts.EmitGcovArcs = Args.hasArg(OPT_femit_coverage_data);
   Opts.EmitGcovNotes = Args.hasArg(OPT_femit_coverage_notes);
+  Opts.CoverageFile = Args.getLastArgValue(OPT_coverage_file);
 
   if (Arg *A = Args.getLastArg(OPT_fobjc_dispatch_method_EQ)) {
     llvm::StringRef Name = A->getValue(Args);
@@ -1010,7 +1022,9 @@ static void ParseDiagnosticArgs(DiagnosticOptions &Opts, ArgList &Args,
   Opts.PedanticErrors = Args.hasArg(OPT_pedantic_errors);
   Opts.ShowCarets = !Args.hasArg(OPT_fno_caret_diagnostics);
   Opts.ShowColors = Args.hasArg(OPT_fcolor_diagnostics);
-  Opts.ShowColumn = !Args.hasArg(OPT_fno_show_column);
+  Opts.ShowColumn = Args.hasFlag(OPT_fshow_column,
+                                 OPT_fno_show_column,
+                                 /*Default=*/true);
   Opts.ShowFixits = !Args.hasArg(OPT_fno_diagnostics_fixit_info);
   Opts.ShowLocation = !Args.hasArg(OPT_fno_show_source_location);
   Opts.ShowNames = Args.hasArg(OPT_fdiagnostics_show_name);
@@ -1047,6 +1061,19 @@ static void ParseDiagnosticArgs(DiagnosticOptions &Opts, ArgList &Args,
       << Args.getLastArg(OPT_fdiagnostics_show_category)->getAsString(Args)
       << ShowCategory;
 
+  llvm::StringRef Format =
+    Args.getLastArgValue(OPT_fdiagnostics_format, "clang");
+  if (Format == "clang")
+    Opts.Format = DiagnosticOptions::Clang;
+  else if (Format == "msvc") 
+    Opts.Format = DiagnosticOptions::Msvc;
+  else if (Format == "vi") 
+    Opts.Format = DiagnosticOptions::Vi;
+  else 
+    Diags.Report(diag::err_drv_invalid_value)
+      << Args.getLastArg(OPT_fdiagnostics_format)->getAsString(Args)
+      << Format;
+  
   Opts.ShowSourceRanges = Args.hasArg(OPT_fdiagnostics_print_source_range_info);
   Opts.ShowParseableFixits = Args.hasArg(OPT_fdiagnostics_parseable_fixits);
   Opts.VerifyDiagnostics = Args.hasArg(OPT_verify);
@@ -1397,6 +1424,40 @@ static void ParseLangArgs(LangOptions &Opts, ArgList &Args, InputKind IK,
     if (LangStd == LangStandard::lang_unspecified)
       Diags.Report(diag::err_drv_invalid_value)
         << A->getAsString(Args) << A->getValue(Args);
+    else {
+      // Valid standard, check to make sure language and standard are compatable.    
+      const LangStandard &Std = LangStandard::getLangStandardForKind(LangStd);
+      switch (IK) {
+      case IK_C:
+      case IK_ObjC:
+      case IK_PreprocessedC:
+      case IK_PreprocessedObjC:
+        if (!(Std.isC89() || Std.isC99()))
+          Diags.Report(diag::err_drv_argument_not_allowed_with)
+            << A->getAsString(Args) << "C/ObjC";
+        break;
+      case IK_CXX:
+      case IK_ObjCXX:
+      case IK_PreprocessedCXX:
+      case IK_PreprocessedObjCXX:
+        if (!Std.isCPlusPlus())
+          Diags.Report(diag::err_drv_argument_not_allowed_with)
+            << A->getAsString(Args) << "C++/ObjC++";
+        break;
+      case IK_OpenCL:
+        if (!Std.isC99())
+          Diags.Report(diag::err_drv_argument_not_allowed_with)
+            << A->getAsString(Args) << "OpenCL";
+        break;
+      case IK_CUDA:
+        if (!Std.isCPlusPlus())
+          Diags.Report(diag::err_drv_argument_not_allowed_with)
+            << A->getAsString(Args) << "CUDA";
+        break;
+      default:
+        break;
+      }
+    }
   }
 
   if (const Arg *A = Args.getLastArg(OPT_cl_std_EQ)) {
@@ -1419,10 +1480,16 @@ static void ParseLangArgs(LangOptions &Opts, ArgList &Args, InputKind IK,
   if (Args.hasArg(OPT_fno_operator_names))
     Opts.CXXOperatorNames = 0;
 
+  if (Args.hasArg(OPT_fgnu89_inline))
+    Opts.GNUInline = 1;
+
   if (Args.hasArg(OPT_fobjc_gc_only))
     Opts.setGCMode(LangOptions::GCOnly);
   else if (Args.hasArg(OPT_fobjc_gc))
     Opts.setGCMode(LangOptions::HybridGC);
+  
+  if (Args.hasArg(OPT_fobjc_infer_related_result_type))
+    Opts.ObjCInferRelatedResultType = 1;
   
   if (Args.hasArg(OPT_fapple_kext)) {
     if (!Opts.CPlusPlus)

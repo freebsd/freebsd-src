@@ -55,3 +55,55 @@ namespace PR6657 {
     f0<int>();
   }
 }
+
+// Instantiate out-of-line definitions of static data members which complete
+// types through an initializer even when the only use of the member that would
+// cause instantiation is in an unevaluated context, but one requiring its
+// complete type.
+namespace PR10001 {
+  template <typename T> struct S {
+    static const int arr[];
+    static const int x;
+    static int f();
+  };
+
+  template <typename T> const int S<T>::arr[] = { 1, 2, 3 };
+  template <typename T> const int S<T>::x = sizeof(arr) / sizeof(arr[0]);
+  template <typename T> int S<T>::f() { return x; }
+
+  int x = S<int>::f();
+}
+
+namespace PR7985 {
+  template<int N> struct integral_c { };
+
+  template <typename T, int N>
+  integral_c<N> array_lengthof(T (&x)[N]) { return integral_c<N>(); } // expected-note 2{{candidate template ignored: failed template argument deduction}}
+
+  template<typename T>
+  struct Data {
+    T x;
+  };
+
+  template<typename T>
+  struct Description {
+    static const Data<T> data[];
+  };
+
+  template<typename T>
+  const Data<T> Description<T>::data[] = {{ 1 }}; // expected-error{{cannot initialize a member subobject of type 'int *' with an rvalue of type 'int'}}
+
+  template<>
+  Data<float*> Description<float*>::data[];
+
+  void test() {
+    integral_c<1> ic1 = array_lengthof(Description<int>::data);
+    (void)sizeof(array_lengthof(Description<float>::data));
+
+    sizeof(array_lengthof( // expected-error{{no matching function for call to 'array_lengthof'}}
+                          Description<int*>::data // expected-note{{in instantiation of static data member 'PR7985::Description<int *>::data' requested here}}
+                          ));
+
+    array_lengthof(Description<float*>::data); // expected-error{{no matching function for call to 'array_lengthof'}}
+  }
+}

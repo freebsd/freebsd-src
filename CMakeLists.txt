@@ -57,6 +57,13 @@ set(CLANG_RESOURCE_DIR "" CACHE STRING
 set(C_INCLUDE_DIRS "" CACHE STRING
   "Colon separated list of directories clang will search for headers.")
 
+set(CLANG_VENDOR "" CACHE STRING
+  "Vendor-specific text for showing with version information.")
+
+if( CLANG_VENDOR )
+  add_definitions( -DCLANG_VENDOR="${CLANG_VENDOR} " )
+endif()
+
 set(CLANG_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 set(CLANG_BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR})
 
@@ -103,7 +110,7 @@ configure_file(
   ${CMAKE_CURRENT_BINARY_DIR}/include/clang/Basic/Version.inc)
 
 # Add appropriate flags for GCC
-if (CMAKE_COMPILER_IS_GNUCXX)
+if (LLVM_COMPILER_IS_GCC_COMPATIBLE)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-common -Woverloaded-virtual -Wcast-qual -fno-strict-aliasing -pedantic -Wno-long-long -Wall -W -Wno-unused-parameter -Wwrite-strings")
 endif ()
 

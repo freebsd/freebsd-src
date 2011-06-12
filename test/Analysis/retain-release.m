@@ -280,7 +280,7 @@ CFAbsoluteTime f1() {
   CFRelease(date);
   CFDateGetAbsoluteTime(date); // no-warning
   CFRelease(date);
-  t = CFDateGetAbsoluteTime(date);   // expected-warning{{Reference-counted object is used after it is released.}}
+  t = CFDateGetAbsoluteTime(date);   // expected-warning{{Reference-counted object is used after it is released}}
   return t;
 }
 
@@ -291,7 +291,7 @@ CFAbsoluteTime f2() {
   CFRelease(date);
   CFDateGetAbsoluteTime(date); // no-warning
   [((NSDate*) date) release];
-  t = CFDateGetAbsoluteTime(date);   // expected-warning{{Reference-counted object is used after it is released.}}
+  t = CFDateGetAbsoluteTime(date);   // expected-warning{{Reference-counted object is used after it is released}}
   return t;
 }
 
@@ -343,7 +343,7 @@ CFDateRef f6(int x) {
 CFDateRef f7() {
   CFDateRef date = CFDateCreate(0, CFAbsoluteTimeGetCurrent());  //expected-warning{{leak}}
   CFRetain(date);
-  date = CFDateCreate(0, CFAbsoluteTimeGetCurrent());
+  date = CFDateCreate(0, CFAbsoluteTimeGetCurrent()); // expected-warning {{leak}}
   return date;
 }
 
@@ -357,8 +357,8 @@ CFDateRef f8() {
   return date;
 }
 
-CFDateRef f9() {
-  CFDateRef date = CFDateCreate(0, CFAbsoluteTimeGetCurrent());
+__attribute__((cf_returns_retained)) CFDateRef f9() {
+  CFDateRef date = CFDateCreate(0, CFAbsoluteTimeGetCurrent()); // no-warning
   int *p = 0;
   // When allocations fail, CFDateCreate can return null.
   if (!date) *p = 1; // expected-warning{{null}}

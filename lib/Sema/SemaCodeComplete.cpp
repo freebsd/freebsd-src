@@ -2658,6 +2658,16 @@ CXCursorKind clang::getCursorKindForDecl(Decl *D) {
     case Decl::UnresolvedUsingTypename: 
       return CXCursor_UsingDeclaration;
       
+    case Decl::ObjCPropertyImpl:
+      switch (cast<ObjCPropertyImplDecl>(D)->getPropertyImplementation()) {
+      case ObjCPropertyImplDecl::Dynamic:
+        return CXCursor_ObjCDynamicDecl;
+          
+      case ObjCPropertyImplDecl::Synthesize:
+        return CXCursor_ObjCSynthesizeDecl;
+      }
+      break;
+      
     default:
       if (TagDecl *TD = dyn_cast<TagDecl>(D)) {
         switch (TD->getTagKind()) {
@@ -3078,6 +3088,7 @@ typedef llvm::SmallPtrSet<IdentifierInfo*, 16> AddedPropertiesSet;
 
 static void AddObjCProperties(ObjCContainerDecl *Container, 
                               bool AllowCategories,
+                              bool AllowNullaryMethods,
                               DeclContext *CurContext,
                               AddedPropertiesSet &AddedProperties,
                               ResultBuilder &Results) {
@@ -3092,32 +3103,75 @@ static void AddObjCProperties(ObjCContainerDecl *Container,
       Results.MaybeAddResult(Result(*P, 0), CurContext);
   }
   
+  // Add nullary methods
+  if (AllowNullaryMethods) {
+    ASTContext &Context = Container->getASTContext();
+    for (ObjCContainerDecl::method_iterator M = Container->meth_begin(),
+                                         MEnd = Container->meth_end();
+         M != MEnd; ++M) {
+      if (M->getSelector().isUnarySelector())
+        if (IdentifierInfo *Name = M->getSelector().getIdentifierInfoForSlot(0))
+          if (AddedProperties.insert(Name)) {
+            CodeCompletionBuilder Builder(Results.getAllocator());
+            AddResultTypeChunk(Context, *M, Builder);
+            Builder.AddTypedTextChunk(
+                            Results.getAllocator().CopyString(Name->getName()));
+            
+            CXAvailabilityKind Availability = CXAvailability_Available;
+            switch (M->getAvailability()) {
+            case AR_Available:
+            case AR_NotYetIntroduced:
+              Availability = CXAvailability_Available;      
+              break;
+              
+            case AR_Deprecated:
+              Availability = CXAvailability_Deprecated;
+              break;
+              
+            case AR_Unavailable:
+              Availability = CXAvailability_NotAvailable;
+              break;
+            }
+
+            Results.MaybeAddResult(Result(Builder.TakeString(),
+                                  CCP_MemberDeclaration + CCD_MethodAsProperty,
+                                          M->isInstanceMethod()
+                                            ? CXCursor_ObjCInstanceMethodDecl
+                                            : CXCursor_ObjCClassMethodDecl,
+                                          Availability),
+                                          CurContext);
+          }
+    }
+  }
+    
+  
   // Add properties in referenced protocols.
   if (ObjCProtocolDecl *Protocol = dyn_cast<ObjCProtocolDecl>(Container)) {
     for (ObjCProtocolDecl::protocol_iterator P = Protocol->protocol_begin(),
                                           PEnd = Protocol->protocol_end();
          P != PEnd; ++P)
-      AddObjCProperties(*P, AllowCategories, CurContext, AddedProperties, 
-                        Results);
+      AddObjCProperties(*P, AllowCategories, AllowNullaryMethods, CurContext, 
+                        AddedProperties, Results);
   } else if (ObjCInterfaceDecl *IFace = dyn_cast<ObjCInterfaceDecl>(Container)){
     if (AllowCategories) {
       // Look through categories.
       for (ObjCCategoryDecl *Category = IFace->getCategoryList();
            Category; Category = Category->getNextClassCategory())
-        AddObjCProperties(Category, AllowCategories, CurContext, 
-                          AddedProperties, Results);
+        AddObjCProperties(Category, AllowCategories, AllowNullaryMethods, 
+                          CurContext, AddedProperties, Results);
     }
     
     // Look through protocols.
     for (ObjCInterfaceDecl::all_protocol_iterator
          I = IFace->all_referenced_protocol_begin(),
          E = IFace->all_referenced_protocol_end(); I != E; ++I)
-      AddObjCProperties(*I, AllowCategories, CurContext, AddedProperties,
-                        Results);
+      AddObjCProperties(*I, AllowCategories, AllowNullaryMethods, CurContext,
+                        AddedProperties, Results);
     
     // Look in the superclass.
     if (IFace->getSuperClass())
-      AddObjCProperties(IFace->getSuperClass(), AllowCategories, CurContext, 
+      AddObjCProperties(IFace->getSuperClass(), AllowCategories, 
+                        AllowNullaryMethods, CurContext, 
                         AddedProperties, Results);
   } else if (const ObjCCategoryDecl *Category
                                     = dyn_cast<ObjCCategoryDecl>(Container)) {
@@ -3125,8 +3179,8 @@ static void AddObjCProperties(ObjCContainerDecl *Container,
     for (ObjCCategoryDecl::protocol_iterator P = Category->protocol_begin(),
                                           PEnd = Category->protocol_end(); 
          P != PEnd; ++P)
-      AddObjCProperties(*P, AllowCategories, CurContext, AddedProperties,
-                        Results);
+      AddObjCProperties(*P, AllowCategories, AllowNullaryMethods, CurContext,
+                        AddedProperties, Results);
   }
 }
 
@@ -3192,14 +3246,16 @@ void Sema::CodeCompleteMemberReferenceExpr(Scope *S, ExprTy *BaseE,
     const ObjCObjectPointerType *ObjCPtr
       = BaseType->getAsObjCInterfacePointerType();
     assert(ObjCPtr && "Non-NULL pointer guaranteed above!");
-    AddObjCProperties(ObjCPtr->getInterfaceDecl(), true, CurContext, 
+    AddObjCProperties(ObjCPtr->getInterfaceDecl(), true, 
+                      /*AllowNullaryMethods=*/true, CurContext, 
                       AddedProperties, Results);
     
     // Add properties from the protocols in a qualified interface.
     for (ObjCObjectPointerType::qual_iterator I = ObjCPtr->qual_begin(),
                                               E = ObjCPtr->qual_end();
          I != E; ++I)
-      AddObjCProperties(*I, true, CurContext, AddedProperties, Results);
+      AddObjCProperties(*I, true, /*AllowNullaryMethods=*/true, CurContext, 
+                        AddedProperties, Results);
   } else if ((IsArrow && BaseType->isObjCObjectPointerType()) ||
              (!IsArrow && BaseType->isObjCObjectType())) {
     // Objective-C instance variable access.
@@ -4109,6 +4165,8 @@ void Sema::CodeCompleteObjCPropertyFlags(Scope *S, ObjCDeclSpec &ODS) {
     Results.AddResult(CodeCompletionResult("copy"));
   if (!ObjCPropertyFlagConflicts(Attributes, ObjCDeclSpec::DQ_PR_nonatomic))
     Results.AddResult(CodeCompletionResult("nonatomic"));
+  if (!ObjCPropertyFlagConflicts(Attributes, ObjCDeclSpec::DQ_PR_atomic))
+    Results.AddResult(CodeCompletionResult("atomic"));
   if (!ObjCPropertyFlagConflicts(Attributes, ObjCDeclSpec::DQ_PR_setter)) {
     CodeCompletionBuilder Setter(Results.getAllocator());
     Setter.AddTypedTextChunk("setter");
@@ -5334,11 +5392,13 @@ void Sema::CodeCompleteObjCPropertyDefinition(Scope *S, Decl *ObjCImpDecl) {
   Results.EnterNewScope();
   if (ObjCImplementationDecl *ClassImpl
         = dyn_cast<ObjCImplementationDecl>(Container))
-    AddObjCProperties(ClassImpl->getClassInterface(), false, CurContext, 
+    AddObjCProperties(ClassImpl->getClassInterface(), false, 
+                      /*AllowNullaryMethods=*/false, CurContext, 
                       AddedProperties, Results);
   else
     AddObjCProperties(cast<ObjCCategoryImplDecl>(Container)->getCategoryDecl(),
-                      false, CurContext, AddedProperties, Results);
+                      false, /*AllowNullaryMethods=*/false, CurContext, 
+                      AddedProperties, Results);
   Results.ExitScope();
   
   HandleCodeCompleteResults(this, CodeCompleter, 
@@ -5549,7 +5609,7 @@ static void AddObjCKeyValueCompletions(ObjCPropertyDecl *Property,
                                        bool IsInstanceMethod,
                                        QualType ReturnType,
                                        ASTContext &Context,
-                                       const KnownMethodsMap &KnownMethods,
+                                       VisitedSelectorSet &KnownSelectors,
                                        ResultBuilder &Results) {
   IdentifierInfo *PropName = Property->getIdentifier();
   if (!PropName || PropName->getLength() == 0)
@@ -5595,7 +5655,7 @@ static void AddObjCKeyValueCompletions(ObjCPropertyDecl *Property,
   
   // Add the normal accessor -(type)key.
   if (IsInstanceMethod &&
-      !KnownMethods.count(Selectors.getNullarySelector(PropName)) &&
+      KnownSelectors.insert(Selectors.getNullarySelector(PropName)) &&
       ReturnTypeMatchesProperty && !Property->getGetterMethodDecl()) {
     if (ReturnType.isNull())
       AddObjCPassingTypeChunk(Property->getType(), Context, Builder);
@@ -5615,7 +5675,7 @@ static void AddObjCKeyValueCompletions(ObjCPropertyDecl *Property,
          Property->getType()->isBooleanType())))) {
     std::string SelectorName = (llvm::Twine("is") + UpperKey).str();
     IdentifierInfo *SelectorId = &Context.Idents.get(SelectorName);
-    if (!KnownMethods.count(Selectors.getNullarySelector(SelectorId))) {
+    if (KnownSelectors.insert(Selectors.getNullarySelector(SelectorId))) {
       if (ReturnType.isNull()) {
         Builder.AddChunk(CodeCompletionString::CK_LeftParen);
         Builder.AddTextChunk("BOOL");
@@ -5634,7 +5694,7 @@ static void AddObjCKeyValueCompletions(ObjCPropertyDecl *Property,
       !Property->getSetterMethodDecl()) {
     std::string SelectorName = (llvm::Twine("set") + UpperKey).str();
     IdentifierInfo *SelectorId = &Context.Idents.get(SelectorName);
-    if (!KnownMethods.count(Selectors.getUnarySelector(SelectorId))) {
+    if (KnownSelectors.insert(Selectors.getUnarySelector(SelectorId))) {
       if (ReturnType.isNull()) {
         Builder.AddChunk(CodeCompletionString::CK_LeftParen);
         Builder.AddTextChunk("void");
@@ -5685,7 +5745,7 @@ static void AddObjCKeyValueCompletions(ObjCPropertyDecl *Property,
       (ReturnType.isNull() || ReturnType->isIntegerType())) {
     std::string SelectorName = (llvm::Twine("countOf") + UpperKey).str();
     IdentifierInfo *SelectorId = &Context.Idents.get(SelectorName);
-    if (!KnownMethods.count(Selectors.getNullarySelector(SelectorId))) {
+    if (KnownSelectors.insert(Selectors.getNullarySelector(SelectorId))) {
       if (ReturnType.isNull()) {
         Builder.AddChunk(CodeCompletionString::CK_LeftParen);
         Builder.AddTextChunk("NSUInteger");
@@ -5708,7 +5768,7 @@ static void AddObjCKeyValueCompletions(ObjCPropertyDecl *Property,
     std::string SelectorName
       = (llvm::Twine("objectIn") + UpperKey + "AtIndex").str();
     IdentifierInfo *SelectorId = &Context.Idents.get(SelectorName);
-    if (!KnownMethods.count(Selectors.getUnarySelector(SelectorId))) {
+    if (KnownSelectors.insert(Selectors.getUnarySelector(SelectorId))) {
       if (ReturnType.isNull()) {
         Builder.AddChunk(CodeCompletionString::CK_LeftParen);
         Builder.AddTextChunk("id");
@@ -5735,7 +5795,7 @@ static void AddObjCKeyValueCompletions(ObjCPropertyDecl *Property,
     std::string SelectorName
       = (llvm::Twine(Property->getName()) + "AtIndexes").str();
     IdentifierInfo *SelectorId = &Context.Idents.get(SelectorName);
-    if (!KnownMethods.count(Selectors.getUnarySelector(SelectorId))) {
+    if (KnownSelectors.insert(Selectors.getUnarySelector(SelectorId))) {
       if (ReturnType.isNull()) {
         Builder.AddChunk(CodeCompletionString::CK_LeftParen);
         Builder.AddTextChunk("NSArray *");
@@ -5760,7 +5820,7 @@ static void AddObjCKeyValueCompletions(ObjCPropertyDecl *Property,
       &Context.Idents.get("range")
     };
     
-    if (!KnownMethods.count(Selectors.getSelector(2, SelectorIds))) {
+    if (KnownSelectors.insert(Selectors.getSelector(2, SelectorIds))) {
       if (ReturnType.isNull()) {
         Builder.AddChunk(CodeCompletionString::CK_LeftParen);
         Builder.AddTextChunk("void");
@@ -5794,7 +5854,7 @@ static void AddObjCKeyValueCompletions(ObjCPropertyDecl *Property,
       &Context.Idents.get(SelectorName)
     };
     
-    if (!KnownMethods.count(Selectors.getSelector(2, SelectorIds))) {
+    if (KnownSelectors.insert(Selectors.getSelector(2, SelectorIds))) {
       if (ReturnType.isNull()) {
         Builder.AddChunk(CodeCompletionString::CK_LeftParen);
         Builder.AddTextChunk("void");
@@ -5826,7 +5886,7 @@ static void AddObjCKeyValueCompletions(ObjCPropertyDecl *Property,
       &Context.Idents.get("atIndexes")
     };
     
-    if (!KnownMethods.count(Selectors.getSelector(2, SelectorIds))) {
+    if (KnownSelectors.insert(Selectors.getSelector(2, SelectorIds))) {
       if (ReturnType.isNull()) {
         Builder.AddChunk(CodeCompletionString::CK_LeftParen);
         Builder.AddTextChunk("void");
@@ -5854,7 +5914,7 @@ static void AddObjCKeyValueCompletions(ObjCPropertyDecl *Property,
     std::string SelectorName
       = (llvm::Twine("removeObjectFrom") + UpperKey + "AtIndex").str();
     IdentifierInfo *SelectorId = &Context.Idents.get(SelectorName);        
-    if (!KnownMethods.count(Selectors.getUnarySelector(SelectorId))) {
+    if (KnownSelectors.insert(Selectors.getUnarySelector(SelectorId))) {
       if (ReturnType.isNull()) {
         Builder.AddChunk(CodeCompletionString::CK_LeftParen);
         Builder.AddTextChunk("void");
@@ -5876,7 +5936,7 @@ static void AddObjCKeyValueCompletions(ObjCPropertyDecl *Property,
     std::string SelectorName
       = (llvm::Twine("remove") + UpperKey + "AtIndexes").str();
     IdentifierInfo *SelectorId = &Context.Idents.get(SelectorName);        
-    if (!KnownMethods.count(Selectors.getUnarySelector(SelectorId))) {
+    if (KnownSelectors.insert(Selectors.getUnarySelector(SelectorId))) {
       if (ReturnType.isNull()) {
         Builder.AddChunk(CodeCompletionString::CK_LeftParen);
         Builder.AddTextChunk("void");
@@ -5902,7 +5962,7 @@ static void AddObjCKeyValueCompletions(ObjCPropertyDecl *Property,
       &Context.Idents.get("withObject")
     };
     
-    if (!KnownMethods.count(Selectors.getSelector(2, SelectorIds))) {
+    if (KnownSelectors.insert(Selectors.getSelector(2, SelectorIds))) {
       if (ReturnType.isNull()) {
         Builder.AddChunk(CodeCompletionString::CK_LeftParen);
         Builder.AddTextChunk("void");
@@ -5935,7 +5995,7 @@ static void AddObjCKeyValueCompletions(ObjCPropertyDecl *Property,
       &Context.Idents.get(SelectorName2)
     };
     
-    if (!KnownMethods.count(Selectors.getSelector(2, SelectorIds))) {
+    if (KnownSelectors.insert(Selectors.getSelector(2, SelectorIds))) {
       if (ReturnType.isNull()) {
         Builder.AddChunk(CodeCompletionString::CK_LeftParen);
         Builder.AddTextChunk("void");
@@ -5968,7 +6028,7 @@ static void AddObjCKeyValueCompletions(ObjCPropertyDecl *Property,
           ->getName() == "NSEnumerator"))) {
     std::string SelectorName = (llvm::Twine("enumeratorOf") + UpperKey).str();
     IdentifierInfo *SelectorId = &Context.Idents.get(SelectorName);
-    if (!KnownMethods.count(Selectors.getNullarySelector(SelectorId))) {
+    if (KnownSelectors.insert(Selectors.getNullarySelector(SelectorId))) {
       if (ReturnType.isNull()) {
         Builder.AddChunk(CodeCompletionString::CK_LeftParen);
         Builder.AddTextChunk("NSEnumerator *");
@@ -5986,7 +6046,7 @@ static void AddObjCKeyValueCompletions(ObjCPropertyDecl *Property,
       (ReturnType.isNull() || ReturnType->isObjCObjectPointerType())) {
     std::string SelectorName = (llvm::Twine("memberOf") + UpperKey).str();
     IdentifierInfo *SelectorId = &Context.Idents.get(SelectorName);
-    if (!KnownMethods.count(Selectors.getUnarySelector(SelectorId))) {
+    if (KnownSelectors.insert(Selectors.getUnarySelector(SelectorId))) {
       if (ReturnType.isNull()) {
         Builder.AddChunk(CodeCompletionString::CK_LeftParen);
         Builder.AddPlaceholderChunk("object-type");
@@ -6016,7 +6076,7 @@ static void AddObjCKeyValueCompletions(ObjCPropertyDecl *Property,
     std::string SelectorName
       = (llvm::Twine("add") + UpperKey + llvm::Twine("Object")).str();
     IdentifierInfo *SelectorId = &Context.Idents.get(SelectorName);
-    if (!KnownMethods.count(Selectors.getUnarySelector(SelectorId))) {
+    if (KnownSelectors.insert(Selectors.getUnarySelector(SelectorId))) {
       if (ReturnType.isNull()) {
         Builder.AddChunk(CodeCompletionString::CK_LeftParen);
         Builder.AddTextChunk("void");
@@ -6038,7 +6098,7 @@ static void AddObjCKeyValueCompletions(ObjCPropertyDecl *Property,
   if (IsInstanceMethod && ReturnTypeMatchesVoid) {
     std::string SelectorName = (llvm::Twine("add") + UpperKey).str();
     IdentifierInfo *SelectorId = &Context.Idents.get(SelectorName);
-    if (!KnownMethods.count(Selectors.getUnarySelector(SelectorId))) {
+    if (KnownSelectors.insert(Selectors.getUnarySelector(SelectorId))) {
       if (ReturnType.isNull()) {
         Builder.AddChunk(CodeCompletionString::CK_LeftParen);
         Builder.AddTextChunk("void");
@@ -6060,7 +6120,7 @@ static void AddObjCKeyValueCompletions(ObjCPropertyDecl *Property,
     std::string SelectorName
       = (llvm::Twine("remove") + UpperKey + llvm::Twine("Object")).str();
     IdentifierInfo *SelectorId = &Context.Idents.get(SelectorName);
-    if (!KnownMethods.count(Selectors.getUnarySelector(SelectorId))) {
+    if (KnownSelectors.insert(Selectors.getUnarySelector(SelectorId))) {
       if (ReturnType.isNull()) {
         Builder.AddChunk(CodeCompletionString::CK_LeftParen);
         Builder.AddTextChunk("void");
@@ -6082,7 +6142,7 @@ static void AddObjCKeyValueCompletions(ObjCPropertyDecl *Property,
   if (IsInstanceMethod && ReturnTypeMatchesVoid) {
     std::string SelectorName = (llvm::Twine("remove") + UpperKey).str();
     IdentifierInfo *SelectorId = &Context.Idents.get(SelectorName);
-    if (!KnownMethods.count(Selectors.getUnarySelector(SelectorId))) {
+    if (KnownSelectors.insert(Selectors.getUnarySelector(SelectorId))) {
       if (ReturnType.isNull()) {
         Builder.AddChunk(CodeCompletionString::CK_LeftParen);
         Builder.AddTextChunk("void");
@@ -6103,7 +6163,7 @@ static void AddObjCKeyValueCompletions(ObjCPropertyDecl *Property,
   if (IsInstanceMethod && ReturnTypeMatchesVoid) {
     std::string SelectorName = (llvm::Twine("intersect") + UpperKey).str();
     IdentifierInfo *SelectorId = &Context.Idents.get(SelectorName);
-    if (!KnownMethods.count(Selectors.getUnarySelector(SelectorId))) {
+    if (KnownSelectors.insert(Selectors.getUnarySelector(SelectorId))) {
       if (ReturnType.isNull()) {
         Builder.AddChunk(CodeCompletionString::CK_LeftParen);
         Builder.AddTextChunk("void");
@@ -6131,7 +6191,7 @@ static void AddObjCKeyValueCompletions(ObjCPropertyDecl *Property,
     std::string SelectorName 
       = (llvm::Twine("keyPathsForValuesAffecting") + UpperKey).str();
     IdentifierInfo *SelectorId = &Context.Idents.get(SelectorName);
-    if (!KnownMethods.count(Selectors.getNullarySelector(SelectorId))) {
+    if (KnownSelectors.insert(Selectors.getNullarySelector(SelectorId))) {
       if (ReturnType.isNull()) {
         Builder.AddChunk(CodeCompletionString::CK_LeftParen);
         Builder.AddTextChunk("NSSet *");
@@ -6140,7 +6200,28 @@ static void AddObjCKeyValueCompletions(ObjCPropertyDecl *Property,
        
       Builder.AddTypedTextChunk(Allocator.CopyString(SelectorName));
       Results.AddResult(Result(Builder.TakeString(), CCP_CodePattern, 
-                              CXCursor_ObjCInstanceMethodDecl));
+                              CXCursor_ObjCClassMethodDecl));
+    }
+  }
+
+  // + (BOOL)automaticallyNotifiesObserversForKey
+  if (!IsInstanceMethod &&
+      (ReturnType.isNull() ||
+       ReturnType->isIntegerType() || 
+       ReturnType->isBooleanType())) {
+    std::string SelectorName 
+      = (llvm::Twine("automaticallyNotifiesObserversOf") + UpperKey).str();
+    IdentifierInfo *SelectorId = &Context.Idents.get(SelectorName);
+    if (KnownSelectors.insert(Selectors.getNullarySelector(SelectorId))) {
+      if (ReturnType.isNull()) {
+        Builder.AddChunk(CodeCompletionString::CK_LeftParen);
+        Builder.AddTextChunk("BOOL");
+        Builder.AddChunk(CodeCompletionString::CK_RightParen);
+      }
+       
+      Builder.AddTypedTextChunk(Allocator.CopyString(SelectorName));
+      Results.AddResult(Result(Builder.TakeString(), CCP_CodePattern, 
+                              CXCursor_ObjCClassMethodDecl));
     }
   }
 }
@@ -6271,6 +6352,13 @@ void Sema::CodeCompleteObjCMethodDecl(Scope *S,
     llvm::SmallVector<ObjCContainerDecl *, 4> Containers;
     Containers.push_back(SearchDecl);
     
+    VisitedSelectorSet KnownSelectors;
+    for (KnownMethodsMap::iterator M = KnownMethods.begin(), 
+                                MEnd = KnownMethods.end();
+         M != MEnd; ++M)
+      KnownSelectors.insert(M->first);
+
+    
     ObjCInterfaceDecl *IFace = dyn_cast<ObjCInterfaceDecl>(SearchDecl);
     if (!IFace)
       if (ObjCCategoryDecl *Category = dyn_cast<ObjCCategoryDecl>(SearchDecl))
@@ -6287,7 +6375,7 @@ void Sema::CodeCompleteObjCMethodDecl(Scope *S,
                                          PEnd = Containers[I]->prop_end(); 
            P != PEnd; ++P) {
         AddObjCKeyValueCompletions(*P, IsInstanceMethod, ReturnType, Context, 
-                                   KnownMethods, Results);
+                                   KnownSelectors, Results);
       }
     }
   }

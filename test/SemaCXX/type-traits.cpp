@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -triple x86_64-apple-darwin10 -fsyntax-only -verify %s 
+// RUN: %clang_cc1 -triple x86_64-apple-darwin10 -fsyntax-only -verify -std=gnu++0x %s 
 #define T(b) (b) ? 1 : -1
 #define F(b) (b) ? -1 : 1
 
@@ -38,8 +38,7 @@ typedef Derives DerivesArNB[];
 struct DerivesEmpty : Empty {};
 struct HasCons { HasCons(int); };
 struct HasCopyAssign { HasCopyAssign operator =(const HasCopyAssign&); };
-struct HasMoveAssign { HasMoveAssign operator =(const HasMoveAssign&&); }; // \
-    // expected-warning {{rvalue references}}
+struct HasMoveAssign { HasMoveAssign operator =(const HasMoveAssign&&); };
 struct HasDest { ~HasDest(); };
 class  HasPriv { int priv; };
 class  HasProt { protected: int prot; };
@@ -870,6 +869,15 @@ struct NonTrivialStruct {
   }
 };
 
+struct SuperNonTrivialStruct {
+  SuperNonTrivialStruct() { }
+  ~SuperNonTrivialStruct() { }
+};
+
+struct NonTCStruct {
+  NonTCStruct(const NonTCStruct&) {}
+};
+
 void is_trivial2()
 {
   int t01[T(__is_trivial(char))];
@@ -897,6 +905,39 @@ void is_trivial2()
 
   int t30[F(__is_trivial(void))];
   int t31[F(__is_trivial(NonTrivialStruct))];
+  int t32[F(__is_trivial(SuperNonTrivialStruct))];
+  int t33[F(__is_trivial(NonTCStruct))];
+}
+
+void is_trivially_copyable2()
+{
+  int t01[T(__is_trivially_copyable(char))];
+  int t02[T(__is_trivially_copyable(int))];
+  int t03[T(__is_trivially_copyable(long))];
+  int t04[T(__is_trivially_copyable(short))];
+  int t05[T(__is_trivially_copyable(signed char))];
+  int t06[T(__is_trivially_copyable(wchar_t))];
+  int t07[T(__is_trivially_copyable(bool))];
+  int t08[T(__is_trivially_copyable(float))];
+  int t09[T(__is_trivially_copyable(double))];
+  int t10[T(__is_trivially_copyable(long double))];
+  int t11[T(__is_trivially_copyable(unsigned char))];
+  int t12[T(__is_trivially_copyable(unsigned int))];
+  int t13[T(__is_trivially_copyable(unsigned long long))];
+  int t14[T(__is_trivially_copyable(unsigned long))];
+  int t15[T(__is_trivially_copyable(unsigned short))];
+  int t16[T(__is_trivially_copyable(ClassType))];
+  int t17[T(__is_trivially_copyable(Derives))];
+  int t18[T(__is_trivially_copyable(Enum))];
+  int t19[T(__is_trivially_copyable(IntAr))];
+  int t20[T(__is_trivially_copyable(Union))];
+  int t21[T(__is_trivially_copyable(UnionAr))];
+  int t22[T(__is_trivially_copyable(TrivialStruct))];
+  int t23[T(__is_trivially_copyable(NonTrivialStruct))];
+
+  int t30[F(__is_trivially_copyable(void))];
+  int t32[F(__is_trivially_copyable(SuperNonTrivialStruct))];
+  int t31[F(__is_trivially_copyable(NonTCStruct))];
 }
 
 struct CStruct {
@@ -1027,7 +1068,7 @@ struct HasCopy {
 };
 
 struct HasMove {
-  HasMove(HasMove&& cp); // expected-warning {{rvalue references}}
+  HasMove(HasMove&& cp);
 };
 
 struct HasTemplateCons {
@@ -1211,6 +1252,9 @@ void has_nothrow_copy() {
   { int arr[F(__has_nothrow_copy(cvoid))]; }
 }
 
+template<bool b> struct assert_expr;
+template<> struct assert_expr<true> {};
+
 void has_nothrow_constructor() {
   { int arr[T(__has_nothrow_constructor(Int))]; }
   { int arr[T(__has_nothrow_constructor(IntAr))]; }
@@ -1238,6 +1282,11 @@ void has_nothrow_constructor() {
   { int arr[F(__has_nothrow_constructor(void))]; }
   { int arr[F(__has_nothrow_constructor(cvoid))]; }
   { int arr[F(__has_nothrow_constructor(HasTemplateCons))]; }
+
+  // While parsing an in-class initializer, the constructor is not known to be
+  // non-throwing yet.
+  struct HasInClassInit { int n = (assert_expr<!__has_nothrow_constructor(HasInClassInit)>(), 0); };
+  { int arr[T(__has_nothrow_constructor(HasInClassInit))]; }
 }
 
 void has_virtual_destructor() {
@@ -1472,6 +1521,51 @@ void is_trivial()
   { int arr[F(__is_trivial(DerivesHasVirt))]; }
   { int arr[F(__is_trivial(void))]; }
   { int arr[F(__is_trivial(cvoid))]; }
+}
+
+void is_trivially_copyable()
+{
+  { int arr[T(__is_trivially_copyable(int))]; }
+  { int arr[T(__is_trivially_copyable(Enum))]; }
+  { int arr[T(__is_trivially_copyable(POD))]; }
+  { int arr[T(__is_trivially_copyable(Int))]; }
+  { int arr[T(__is_trivially_copyable(IntAr))]; }
+  { int arr[T(__is_trivially_copyable(IntArNB))]; }
+  { int arr[T(__is_trivially_copyable(Statics))]; }
+  { int arr[T(__is_trivially_copyable(Empty))]; }
+  { int arr[T(__is_trivially_copyable(EmptyUnion))]; }
+  { int arr[T(__is_trivially_copyable(Union))]; }
+  { int arr[T(__is_trivially_copyable(Derives))]; }
+  { int arr[T(__is_trivially_copyable(DerivesAr))]; }
+  { int arr[T(__is_trivially_copyable(DerivesArNB))]; }
+  { int arr[T(__is_trivially_copyable(DerivesEmpty))]; }
+  { int arr[T(__is_trivially_copyable(HasFunc))]; }
+  { int arr[T(__is_trivially_copyable(HasOp))]; }
+  { int arr[T(__is_trivially_copyable(HasConv))]; }
+  { int arr[T(__is_trivially_copyable(HasAssign))]; }
+  { int arr[T(__is_trivially_copyable(HasAnonymousUnion))]; }
+  { int arr[T(__is_trivially_copyable(HasPriv))]; }
+  { int arr[T(__is_trivially_copyable(HasProt))]; }
+  { int arr[T(__is_trivially_copyable(DerivesHasPriv))]; }
+  { int arr[T(__is_trivially_copyable(DerivesHasProt))]; }
+  { int arr[T(__is_trivially_copyable(Vector))]; }
+  { int arr[T(__is_trivially_copyable(VectorExt))]; }
+  { int arr[T(__is_trivially_copyable(HasCons))]; }
+  { int arr[T(__is_trivially_copyable(HasRef))]; }
+  { int arr[T(__is_trivially_copyable(HasNonPOD))]; }
+  { int arr[T(__is_trivially_copyable(DerivesHasCons))]; }
+  { int arr[T(__is_trivially_copyable(DerivesHasRef))]; }
+
+  { int arr[F(__is_trivially_copyable(HasCopyAssign))]; }
+  { int arr[F(__is_trivially_copyable(HasMoveAssign))]; }
+  { int arr[F(__is_trivially_copyable(HasDest))]; }
+  { int arr[F(__is_trivially_copyable(HasVirt))]; }
+  { int arr[F(__is_trivially_copyable(DerivesHasCopyAssign))]; }
+  { int arr[F(__is_trivially_copyable(DerivesHasMoveAssign))]; }
+  { int arr[F(__is_trivially_copyable(DerivesHasDest))]; }
+  { int arr[F(__is_trivially_copyable(DerivesHasVirt))]; }
+  { int arr[F(__is_trivially_copyable(void))]; }
+  { int arr[F(__is_trivially_copyable(cvoid))]; }
 }
 
 void array_rank() {

@@ -11,6 +11,7 @@
 // CHECK: @_ZTVSo = linkonce_odr unnamed_addr constant
 // CHECK: @_ZTTSi = linkonce_odr unnamed_addr constant
 // CHECK: @_ZTVSi = linkonce_odr unnamed_addr constant
+
 namespace std {
   struct A { A(); };
   

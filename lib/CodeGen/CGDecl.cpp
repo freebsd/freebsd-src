@@ -51,6 +51,7 @@ void CodeGenFunction::EmitDecl(const Decl &D) {
   case Decl::ImplicitParam:
   case Decl::ClassTemplate:
   case Decl::FunctionTemplate:
+  case Decl::TypeAliasTemplate:
   case Decl::TemplateTemplateParm:
   case Decl::ObjCMethod:
   case Decl::ObjCCategory:
@@ -628,15 +629,14 @@ CodeGenFunction::EmitAutoVarAlloca(const VarDecl &D) {
   emission.Address = DeclPtr;
 
   // Emit debug info for local var declaration.
-  if (CGDebugInfo *DI = getDebugInfo()) {
-    assert(HaveInsertPoint() && "Unexpected unreachable point!");
-
-    DI->setLocation(D.getLocation());
-    if (Target.useGlobalsForAutomaticVariables()) {
-      DI->EmitGlobalVariable(static_cast<llvm::GlobalVariable *>(DeclPtr), &D);
-    } else
-      DI->EmitDeclareOfAutoVariable(&D, DeclPtr, Builder);
-  }
+  if (HaveInsertPoint())
+    if (CGDebugInfo *DI = getDebugInfo()) {
+      DI->setLocation(D.getLocation());
+      if (Target.useGlobalsForAutomaticVariables()) {
+        DI->EmitGlobalVariable(static_cast<llvm::GlobalVariable *>(DeclPtr), &D);
+      } else
+        DI->EmitDeclareOfAutoVariable(&D, DeclPtr, Builder);
+    }
 
   return emission;
 }
@@ -741,6 +741,7 @@ void CodeGenFunction::EmitAutoVarInit(const AutoVarEmission &emission) {
                                llvm::GlobalValue::InternalLinkage,
                                constant, Name, 0, false, 0);
     GV->setAlignment(alignment.getQuantity());
+    GV->setUnnamedAddr(true);
         
     llvm::Value *SrcPtr = GV;
     if (SrcPtr->getType() != BP)
