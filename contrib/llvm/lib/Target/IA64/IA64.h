@@ -8,8 +8,8 @@ namespace llvm {
   class FunctionPass;
   class IA64TargetMachine;
 
-  FunctionPass *createIA64ISelDag(IA64TargetMachine &TM,
-	CodeGenOpt::Level OptLevel);
+  FunctionPass *createIA64ISelPass(IA64TargetMachine &TM,
+        CodeGenOpt::Level OptLevel);
 
   FunctionPass *createIA64BundleSelectionPass();
 

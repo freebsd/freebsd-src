@@ -5,6 +5,7 @@ LIB=	llvmia64codegen
 SRCDIR=	lib/Target/IA64
 SRCS=	\
 	IA64AsmPrinter.cpp \
+	IA64DAGToDAGISel.cpp \
 	IA64FrameLowering.cpp \
 	IA64InstrInfo.cpp \
 	IA64TargetLowering.cpp \
@@ -17,6 +18,7 @@ SRCS=	\
 
 TGHDRS=	\
 	Intrinsics \
+	IA64GenDAGISel \
 	IA64GenInstrInfo \
 	IA64GenInstrNames \
 	IA64GenRegisterInfo \

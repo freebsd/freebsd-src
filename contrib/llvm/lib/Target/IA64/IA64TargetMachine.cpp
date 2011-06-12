@@ -32,7 +32,7 @@ bool
 IA64TargetMachine::addInstSelector(PassManagerBase &PM,
 	CodeGenOpt::Level OptLevel)
 {
-  // PM.add(createIA64ISelDag(*this, OptLevel));
+  PM.add(createIA64ISelPass(*this, OptLevel));
   return false;
 }
 
