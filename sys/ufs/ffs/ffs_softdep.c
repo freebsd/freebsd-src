@@ -2386,8 +2386,15 @@ softdep_unmount(mp)
 	struct mount *mp;
 {
 
-	if (mp->mnt_kern_flag & MNTK_SUJ)
-		journal_unmount(mp);
+	MNT_ILOCK(mp);
+	mp->mnt_flag &= ~MNT_SOFTDEP;
+	if ((mp->mnt_kern_flag & MNTK_SUJ) == 0) {
+		MNT_IUNLOCK(mp);
+		return;
+	}
+	mp->mnt_kern_flag &= ~MNTK_SUJ;
+	MNT_IUNLOCK(mp);
+	journal_unmount(mp);
 }
 
 struct jblocks {
