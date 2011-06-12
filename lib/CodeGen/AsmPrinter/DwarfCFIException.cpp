@@ -41,14 +41,17 @@ using namespace llvm;
 
 DwarfCFIException::DwarfCFIException(AsmPrinter *A)
   : DwarfException(A),
-    shouldEmitPersonality(false), shouldEmitLSDA(false), shouldEmitMoves(false)
-    {}
+    shouldEmitPersonality(false), shouldEmitLSDA(false), shouldEmitMoves(false),
+    moveTypeModule(AsmPrinter::CFI_M_None) {}
 
 DwarfCFIException::~DwarfCFIException() {}
 
 /// EndModule - Emit all exception information that should come after the
 /// content.
 void DwarfCFIException::EndModule() {
+  if (moveTypeModule == AsmPrinter::CFI_M_Debug)
+    Asm->OutStreamer.EmitCFISections(false, true);
+
   if (!Asm->MAI->isExceptionHandlingDwarf())
     return;
 
@@ -87,7 +90,13 @@ void DwarfCFIException::BeginFunction(const MachineFunction *MF) {
   bool hasLandingPads = !MMI->getLandingPads().empty();
 
   // See if we need frame move info.
-  shouldEmitMoves = Asm->needsCFIMoves();
+  AsmPrinter::CFIMoveType MoveType = Asm->needsCFIMoves();
+  if (MoveType == AsmPrinter::CFI_M_EH ||
+      (MoveType == AsmPrinter::CFI_M_Debug &&
+       moveTypeModule == AsmPrinter::CFI_M_None))
+    moveTypeModule = MoveType;
+
+  shouldEmitMoves = MoveType != AsmPrinter::CFI_M_None;
 
   const TargetLoweringObjectFile &TLOF = Asm->getObjFileLowering();
   unsigned PerEncoding = TLOF.getPersonalityEncoding();

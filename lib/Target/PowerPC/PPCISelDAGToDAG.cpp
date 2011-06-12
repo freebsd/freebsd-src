@@ -240,11 +240,11 @@ SDNode *PPCDAGToDAGISel::getGlobalBaseReg() {
 
     if (PPCLowering.getPointerTy() == MVT::i32) {
       GlobalBaseReg = RegInfo->createVirtualRegister(PPC::GPRCRegisterClass);
-      BuildMI(FirstMBB, MBBI, dl, TII.get(PPC::MovePCtoLR), PPC::LR);
+      BuildMI(FirstMBB, MBBI, dl, TII.get(PPC::MovePCtoLR));
       BuildMI(FirstMBB, MBBI, dl, TII.get(PPC::MFLR), GlobalBaseReg);
     } else {
       GlobalBaseReg = RegInfo->createVirtualRegister(PPC::G8RCRegisterClass);
-      BuildMI(FirstMBB, MBBI, dl, TII.get(PPC::MovePCtoLR8), PPC::LR8);
+      BuildMI(FirstMBB, MBBI, dl, TII.get(PPC::MovePCtoLR8));
       BuildMI(FirstMBB, MBBI, dl, TII.get(PPC::MFLR8), GlobalBaseReg);
     }
   }
@@ -1057,9 +1057,10 @@ SDNode *PPCDAGToDAGISel::Select(SDNode *N) {
     SDValue Chain = N->getOperand(0);
     SDValue Target = N->getOperand(1);
     unsigned Opc = Target.getValueType() == MVT::i32 ? PPC::MTCTR : PPC::MTCTR8;
+    unsigned Reg = Target.getValueType() == MVT::i32 ? PPC::BCTR : PPC::BCTR8;
     Chain = SDValue(CurDAG->getMachineNode(Opc, dl, MVT::Other, Target,
                                            Chain), 0);
-    return CurDAG->SelectNodeTo(N, PPC::BCTR, MVT::Other, Chain);
+    return CurDAG->SelectNodeTo(N, Reg, MVT::Other, Chain);
   }
   }
 

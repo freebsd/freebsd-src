@@ -854,9 +854,18 @@ int GCC::ExecuteProgram(const std::string &ProgramFile,
 
   if (RemoteClientPath.isEmpty()) {
     DEBUG(errs() << "<run locally>");
-    return RunProgramWithTimeout(OutputBinary, &ProgramArgs[0],
+    int ExitCode = RunProgramWithTimeout(OutputBinary, &ProgramArgs[0],
         sys::Path(InputFile), sys::Path(OutputFile), sys::Path(OutputFile),
         Timeout, MemoryLimit, Error);
+    // Treat a signal (usually SIGSEGV) or timeout as part of the program output
+    // so that crash-causing miscompilation is handled seamlessly.
+    if (ExitCode < -1) {
+      std::ofstream outFile(OutputFile.c_str(), std::ios_base::app);
+      outFile << *Error << '\n';
+      outFile.close();
+      Error->clear();
+    }
+    return ExitCode;
   } else {
     outs() << "<run remotely>"; outs().flush();
     return RunProgramRemotelyWithTimeout(sys::Path(RemoteClientPath),

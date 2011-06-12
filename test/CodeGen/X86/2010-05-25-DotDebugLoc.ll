@@ -1,8 +1,10 @@
-; RUN: llc -march=x86-64 -O2 < %s | FileCheck %s
-; RUN: llc -march=x86-64 -O2 -regalloc=basic < %s | FileCheck %s
+; RUN: llc -mtriple=x86_64-pc-linux -O2 < %s | FileCheck %s
+; RUN: llc -mtriple=x86_64-pc-linux -O2 -regalloc=basic < %s | FileCheck %s
 ; Test to check .debug_loc support. This test case emits many debug_loc entries.
 
 ; CHECK: Loc expr size
+; CHECK-NEXT: .short
+; CHECK-NEXT: .Ltmp
 ; CHECK-NEXT: DW_OP_reg
 
 %0 = type { double }

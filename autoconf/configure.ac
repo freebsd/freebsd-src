@@ -1528,7 +1528,7 @@ dnl Set the flags needed to emit LLVM IR and to disable optimizations
 dnl in llvmgcc
 if test "$llvm_cv_llvmgcc_dragonegg" = "yes" ; then
   LLVMCC_EMITIR_FLAG="-fplugin-arg-dragonegg-emit-ir"
-  LLVMCC_DISABLEOPT_FLAGS="-fplugin-arg-dragonegg-disable-llvm-optzns"
+  LLVMCC_DISABLEOPT_FLAGS="-fplugin-arg-dragonegg-llvm-ir-optimize=0"
 else
   LLVMCC_EMITIR_FLAG="-emit-llvm"
   LLVMCC_DISABLEOPT_FLAGS="-mllvm -disable-llvm-optzns"
@@ -1722,6 +1722,12 @@ AC_CONFIG_FILES([Makefile.config])
 
 dnl Configure the RPM spec file for LLVM
 AC_CONFIG_FILES([llvm.spec])
+
+dnl Configure doxygen's configuration file
+AC_CONFIG_FILES([docs/doxygen.cfg])
+if test -f ${srcdir}/tools/clang/README.txt; then
+  AC_CONFIG_FILES([tools/clang/docs/doxygen.cfg])
+fi
 
 dnl Configure llvmc's Base plugin
 AC_CONFIG_FILES([tools/llvmc/src/Base.td])

@@ -68,8 +68,8 @@ unsigned XCoreRegisterInfo::getNumArgRegs(const MachineFunction *MF)
 }
 
 bool XCoreRegisterInfo::needsFrameMoves(const MachineFunction &MF) {
-  return MF.getMMI().hasDebugInfo() || !MF.getFunction()->doesNotThrow() ||
-          UnwindTablesMandatory;
+  return MF.getMMI().hasDebugInfo() ||
+    MF.getFunction()->needsUnwindTableEntry();
 }
 
 const unsigned* XCoreRegisterInfo::getCalleeSavedRegs(const MachineFunction *MF)
@@ -313,6 +313,10 @@ loadConstant(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
 
 int XCoreRegisterInfo::getDwarfRegNum(unsigned RegNum, bool isEH) const {
   return XCoreGenRegisterInfo::getDwarfRegNumFull(RegNum, 0);
+}
+
+int XCoreRegisterInfo::getLLVMRegNum(unsigned DwarfRegNo, bool isEH) const {
+  return XCoreGenRegisterInfo::getLLVMRegNumFull(DwarfRegNo,0);
 }
 
 unsigned XCoreRegisterInfo::getFrameRegister(const MachineFunction &MF) const {

@@ -21,7 +21,8 @@ PTXSubtarget::PTXSubtarget(const std::string &TT, const std::string &FS,
   : PTXShaderModel(PTX_SM_1_0),
     PTXVersion(PTX_VERSION_2_0),
     SupportsDouble(false),
-    Is64Bit(is64Bit) {
+    SupportsFMA(true),
+    Is64Bit(is64Bit) {	
   std::string TARGET = "generic";
   ParseSubtargetFeatures(FS, TARGET);
 }
@@ -41,6 +42,7 @@ std::string PTXSubtarget::getPTXVersionString() const {
     case PTX_VERSION_2_0: return "2.0";
     case PTX_VERSION_2_1: return "2.1";
     case PTX_VERSION_2_2: return "2.2";
+    case PTX_VERSION_2_3: return "2.3";
   }
 }
 

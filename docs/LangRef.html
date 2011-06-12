@@ -239,6 +239,8 @@
           <li><a href="#int_sin">'<tt>llvm.sin.*</tt>' Intrinsic</a></li>
           <li><a href="#int_cos">'<tt>llvm.cos.*</tt>' Intrinsic</a></li>
           <li><a href="#int_pow">'<tt>llvm.pow.*</tt>' Intrinsic</a></li>
+          <li><a href="#int_exp">'<tt>llvm.exp.*</tt>' Intrinsic</a></li>
+          <li><a href="#int_log">'<tt>llvm.log.*</tt>' Intrinsic</a></li>
         </ol>
       </li>
       <li><a href="#int_manip">Bit Manipulation Intrinsics</a>
@@ -2446,11 +2448,11 @@ entry:
 
   %narrowaddr = bitcast i32* @g to i16*
   %wideaddr = bitcast i32* @g to i64*
-  %trap3 = load 16* %narrowaddr      ; Returns a trap value.
-  %trap4 = load i64* %widaddr        ; Returns a trap value.
+  %trap3 = load i16* %narrowaddr     ; Returns a trap value.
+  %trap4 = load i64* %wideaddr       ; Returns a trap value.
 
-  %cmp = icmp i32 slt %trap, 0       ; Returns a trap value.
-  %br i1 %cmp, %true, %end           ; Branch to either destination.
+  %cmp = icmp slt i32 %trap, 0       ; Returns a trap value.
+  br i1 %cmp, label %true, label %end ; Branch to either destination.
 
 true:
   volatile store i32 0, i32* @g      ; This is control-dependent on %cmp, so
@@ -2467,19 +2469,19 @@ end:
                                      ; if %cmp is true, or the store in %entry
                                      ; otherwise, so this is undefined behavior.
 
-  %br i1 %cmp, %second_true, %second_end
+  br i1 %cmp, label %second_true, label %second_end
                                      ; The same branch again, but this time the
                                      ; true block doesn't have side effects.
 
 second_true:
   ; No side effects!
-  br label %end
+  ret void
 
 second_end:
   volatile store i32 0, i32* @g      ; This time, the instruction always depends
                                      ; on the store in %end. Also, it is
                                      ; control-equivalent to %end, so this is
-                                     ; well- defined (again, ignoring earlier
+                                     ; well-defined (again, ignoring earlier
                                      ; undefined behavior in this example).
 </pre>
 
@@ -4302,7 +4304,7 @@ that the invoke/unwind semantics are likely to change in future versions.</p>
 
 <h5>Syntax:</h5>
 <pre>
-  &lt;result&gt; = insertvalue &lt;aggregate type&gt; &lt;val&gt;, &lt;ty&gt; &lt;elt&gt;, &lt;idx&gt;    <i>; yields &lt;aggregate type&gt;</i>
+  &lt;result&gt; = insertvalue &lt;aggregate type&gt; &lt;val&gt;, &lt;ty&gt; &lt;elt&gt;, &lt;idx&gt;{, <idx>}*    <i>; yields &lt;aggregate type&gt;</i>
 </pre>
 
 <h5>Overview:</h5>
@@ -4326,8 +4328,9 @@ that the invoke/unwind semantics are likely to change in future versions.</p>
 
 <h5>Example:</h5>
 <pre>
-  %agg1 = insertvalue {i32, float} undef, i32 1, 0         <i>; yields {i32 1, float undef}</i>
-  %agg2 = insertvalue {i32, float} %agg1, float %val, 1    <i>; yields {i32 1, float %val}</i>
+  %agg1 = insertvalue {i32, float} undef, i32 1, 0              <i>; yields {i32 1, float undef}</i>
+  %agg2 = insertvalue {i32, float} %agg1, float %val, 1         <i>; yields {i32 1, float %val}</i>
+  %agg3 = insertvalue {i32, {float}} %agg1, float %val, 1, 0    <i>; yields {i32 1, float %val}</i>
 </pre>
 
 </div>
@@ -6496,6 +6499,72 @@ LLVM</a>.</p>
 
 </div>
 
+<!-- _______________________________________________________________________ -->
+<h4>
+  <a name="int_exp">'<tt>llvm.exp.*</tt>' Intrinsic</a>
+</h4>
+
+<div>
+
+<h5>Syntax:</h5>
+<p>This is an overloaded intrinsic. You can use <tt>llvm.exp</tt> on any
+   floating point or vector of floating point type. Not all targets support all
+   types however.</p>
+
+<pre>
+  declare float     @llvm.exp.f32(float  %Val)
+  declare double    @llvm.exp.f64(double %Val)
+  declare x86_fp80  @llvm.exp.f80(x86_fp80  %Val)
+  declare fp128     @llvm.exp.f128(fp128 %Val)
+  declare ppc_fp128 @llvm.exp.ppcf128(ppc_fp128  %Val)
+</pre>
+
+<h5>Overview:</h5>
+<p>The '<tt>llvm.exp.*</tt>' intrinsics perform the exp function.</p>
+
+<h5>Arguments:</h5>
+<p>The argument and return value are floating point numbers of the same
+   type.</p>
+
+<h5>Semantics:</h5>
+<p>This function returns the same values as the libm <tt>exp</tt> functions
+   would, and handles error conditions in the same way.</p>
+
+</div>
+
+<!-- _______________________________________________________________________ -->
+<h4>
+  <a name="int_log">'<tt>llvm.log.*</tt>' Intrinsic</a>
+</h4>
+
+<div>
+
+<h5>Syntax:</h5>
+<p>This is an overloaded intrinsic. You can use <tt>llvm.log</tt> on any
+   floating point or vector of floating point type. Not all targets support all
+   types however.</p>
+
+<pre>
+  declare float     @llvm.log.f32(float  %Val)
+  declare double    @llvm.log.f64(double %Val)
+  declare x86_fp80  @llvm.log.f80(x86_fp80  %Val)
+  declare fp128     @llvm.log.f128(fp128 %Val)
+  declare ppc_fp128 @llvm.log.ppcf128(ppc_fp128  %Val)
+</pre>
+
+<h5>Overview:</h5>
+<p>The '<tt>llvm.log.*</tt>' intrinsics perform the log function.</p>
+
+<h5>Arguments:</h5>
+<p>The argument and return value are floating point numbers of the same
+   type.</p>
+
+<h5>Semantics:</h5>
+<p>This function returns the same values as the libm <tt>log</tt> functions
+   would, and handles error conditions in the same way.</p>
+
+</div>
+
 <!-- ======================================================================= -->
 <h3>
   <a name="int_manip">Bit Manipulation Intrinsics</a>
@@ -7948,7 +8017,7 @@ LLVM</a>.</p>
 
   <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
   <a href="http://llvm.org/">The LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2011-04-23 02:30:22 +0200 (Sat, 23 Apr 2011) $
+  Last modified: $Date: 2011-05-27 02:36:31 +0200 (Fri, 27 May 2011) $
 </address>
 
 </body>

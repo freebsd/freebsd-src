@@ -147,3 +147,34 @@ define void @test_with_vcombine(<4 x float>* %v) nounwind {
   store <4 x float> %tmp8, <4 x float>* %v, align 16
   ret void
 }
+
+; vrev <4 x i16> should use VREV32 and not VREV64
+define void @test_vrev64(<4 x i16>* nocapture %source, <2 x i16>* nocapture %dst) nounwind ssp {
+; CHECK: test_vrev64:
+; CHECK: vext.16
+; CHECK: vrev32.16
+entry:
+  %0 = bitcast <4 x i16>* %source to <8 x i16>*
+  %tmp2 = load <8 x i16>* %0, align 4
+  %tmp3 = extractelement <8 x i16> %tmp2, i32 6
+  %tmp5 = insertelement <2 x i16> undef, i16 %tmp3, i32 0
+  %tmp9 = extractelement <8 x i16> %tmp2, i32 5
+  %tmp11 = insertelement <2 x i16> %tmp5, i16 %tmp9, i32 1
+  store <2 x i16> %tmp11, <2 x i16>* %dst, align 4
+  ret void
+}
+
+; Test vrev of float4
+define void @float_vrev64(float* nocapture %source, <4 x float>* nocapture %dest) nounwind noinline ssp {
+; CHECK: float_vrev64
+; CHECK: vext.32
+; CHECK: vrev64.32
+entry:
+  %0 = bitcast float* %source to <4 x float>*
+  %tmp2 = load <4 x float>* %0, align 4
+  %tmp5 = shufflevector <4 x float> <float 0.000000e+00, float undef, float undef, float undef>, <4 x float> %tmp2, <4 x i32> <i32 0, i32 7, i32 0, i32 0>
+  %arrayidx8 = getelementptr inbounds <4 x float>* %dest, i32 11
+  store <4 x float> %tmp5, <4 x float>* %arrayidx8, align 4
+  ret void
+}
+
