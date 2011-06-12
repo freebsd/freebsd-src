@@ -36,7 +36,7 @@ set_target_properties(ClangUnitTests PROPERTIES FOLDER "Clang tests")
 
 include_directories(${LLVM_MAIN_SRC_DIR}/utils/unittest/googletest/include)
 add_definitions(-DGTEST_HAS_RTTI=0)
-if( CMAKE_COMPILER_IS_GNUCXX )
+if( LLVM_COMPILER_IS_GCC_COMPATIBLE )
   llvm_replace_compiler_option(CMAKE_CXX_FLAGS "-frtti" "-fno-rtti")
 elseif( MSVC )
   llvm_replace_compiler_option(CMAKE_CXX_FLAGS "/GR" "/GR-")
@@ -58,14 +58,4 @@ add_clang_unittest(Basic
 add_clang_unittest(Frontend
   Frontend/FrontendActionTest.cpp
   USED_LIBS gtest gtest_main clangFrontend
- )
-
-add_clang_unittest(Tooling
-  Tooling/ToolingTest.cpp
-  USED_LIBS gtest gtest_main clangTooling
- )
-
-add_clang_unittest(JsonCompileCommandLineDatabase
-  Tooling/JsonCompileCommandLineDatabaseTest.cpp
-  USED_LIBS gtest gtest_main clangTooling
  )

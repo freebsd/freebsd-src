@@ -97,6 +97,8 @@ struct Bad2 {
   void operator delete(void*) throw(int);
 };
 
+typedef int X;
+
 void implicits() {
   N(new int);
   P(new (0) int);
@@ -113,6 +115,7 @@ void implicits() {
   N(static_cast<int>(s));
   P(static_cast<float>(s));
   N(Bad1());
+  P(X().~X());
 }
 
 struct V {
@@ -155,12 +158,16 @@ void gencon() {
   N(G3());
 }
 
+template <class T> void f(T&&) noexcept;
 template <typename T, bool b>
 void late() {
   B(b, typeid(*(T*)0));
   B(b, T(1));
   B(b, static_cast<T>(S2(0, 0)));
   B(b, S1() + T());
+  P(f(T()));
+  P(new (0) T);
+  P(delete (T*)0);
 }
 struct S3 {
   virtual ~S3() throw();
@@ -168,9 +175,15 @@ struct S3 {
   explicit S3(int);
   S3(const S2&);
 };
+template <class T> T&& f2() noexcept;
+template <typename T>
+void late2() {
+  P(dynamic_cast<S3&>(f2<T&>()));
+}
 void operator +(const S1&, float) throw();
 void operator +(const S1&, const S3&);
 void tlate() {
   late<float, true>();
   late<S3, false>();
+  late2<S3>();
 }

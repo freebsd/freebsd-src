@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 %s -fsyntax-only -Wno-unused-value -Wmicrosoft -verify -fms-extensions
+// RUN: %clang_cc1 %s -fsyntax-only -Wno-unused-value -Wmicrosoft -verify -fms-extensions -fdelayed-template-parsing
 
 /* Microsoft attribute tests */
 [repeatable][source_annotation_attribute( Parameter|ReturnValue )]
@@ -105,6 +105,13 @@ template <class T, const GUID& g>
 class COM_CLASS_TEMPLATE_REF  { };
 typedef COM_CLASS_TEMPLATE<struct_with_uuid, __uuidof(struct_with_uuid)> COM_TYPE_REF;
 
+  struct late_defined_uuid;
+  template<typename T>
+  void test_late_defined_uuid() {
+    __uuidof(late_defined_uuid);
+  }
+  struct __declspec(uuid("000000A0-0000-0000-C000-000000000049")) late_defined_uuid;
+
 
 class CtorCall { 
 public:
@@ -136,7 +143,7 @@ class C2  {
 };
 
 template <class T>
-void f(){
+void missing_template_keyword(){
   typename C1<T>:: /*template*/ Iterator<0> Mypos; // expected-warning {{use 'template' keyword to treat 'Iterator' as a dependent template name}}
 }
 
@@ -151,11 +158,6 @@ void redundant_typename() {
    t = 3;
 }
 
-int main() {
-  redundant_typename<int>();
-  f<int>();
-}
-
 
 __interface MicrosoftInterface;
 __interface MicrosoftInterface {
@@ -164,3 +166,87 @@ __interface MicrosoftInterface {
 };
 
 __int64 x7 = __int64(0);
+
+
+namespace If_exists_test {
+
+class IF_EXISTS {
+private:
+    typedef int Type;
+};
+
+int __if_exists_test() {
+  int b=0;
+  __if_exists(IF_EXISTS::Type) {
+     b++;
+     b++;
+  }
+  __if_exists(IF_EXISTS::Type_not) {
+     this wont compile.
+  }
+  __if_not_exists(IF_EXISTS::Type) {
+     this wont compile.
+  }
+  __if_not_exists(IF_EXISTS::Type_not) {
+     b++;
+     b++;
+  }
+}
+
+
+__if_exists(IF_EXISTS::Type) {
+  int var23;
+}
+
+__if_exists(IF_EXISTS::Type_not) {
+ this wont compile.
+}
+
+__if_not_exists(IF_EXISTS::Type) {
+ this wont compile.
+}
+
+__if_not_exists(IF_EXISTS::Type_not) {
+  int var244;
+}
+
+class IF_EXISTS_CLASS_TEST {
+  __if_exists(IF_EXISTS::Type) {
+    // __if_exists, __if_not_exists can nest
+    __if_not_exists(IF_EXISTS::Type_not) {
+      int var123;
+    }
+    int var23;
+  }
+
+  __if_exists(IF_EXISTS::Type_not) {
+   this wont compile.
+  }
+
+  __if_not_exists(IF_EXISTS::Type) {
+   this wont compile.
+  }
+
+  __if_not_exists(IF_EXISTS::Type_not) {
+    int var244;
+  }
+};
+
+}
+
+
+int __identifier(generic) = 3;
+
+class inline_definition_pure_spec {
+   virtual int f() = 0 { return 0; }// expected-warning {{function definition with pure-specifier is a Microsoft extension}}
+   virtual int f2() = 0;
+};
+
+
+int main () {
+  // Necessary to force instantiation in -fdelayed-template-parsing mode.
+  test_late_defined_uuid<int>(); 
+  redundant_typename<int>();
+  missing_template_keyword<int>();
+}
+

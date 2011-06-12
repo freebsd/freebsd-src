@@ -9,6 +9,10 @@
 
 #include "ToolChains.h"
 
+#ifdef HAVE_CLANG_CONFIG_H
+# include "clang/Config/config.h"
+#endif
+
 #include "clang/Driver/Arg.h"
 #include "clang/Driver/ArgList.h"
 #include "clang/Driver/Compilation.h"
@@ -115,7 +119,7 @@ llvm::StringRef Darwin::getDarwinArchName(const ArgList &Args) const {
   switch (getTriple().getArch()) {
   default:
     return getArchName();
-  
+
   case llvm::Triple::thumb:
   case llvm::Triple::arm: {
     if (const Arg *A = Args.getLastArg(options::OPT_march_EQ))
@@ -145,10 +149,10 @@ std::string Darwin::ComputeEffectiveClangTriple(const ArgList &Args) const {
   // the default triple).
   if (!isTargetInitialized())
     return Triple.getTriple();
-    
+
   unsigned Version[3];
   getTargetVersion(Version);
-  
+
   llvm::SmallString<16> Str;
   llvm::raw_svector_ostream(Str)
     << (isTargetIPhoneOS() ? "ios" : "macosx")
@@ -558,7 +562,7 @@ void DarwinClang::AddCCKextLibArgs(const ArgList &Args,
   P.appendComponent("lib");
   P.appendComponent("darwin");
   P.appendComponent("libclang_rt.cc_kext.a");
-  
+
   // For now, allow missing resource libraries to support developers who may
   // not have compiler-rt checked out or integrated into their build.
   bool Exists;
@@ -624,7 +628,7 @@ DerivedArgList *Darwin::TranslateArgs(const DerivedArgList &Args,
           DAL->AddSeparateArg(OriginalArg,
                               Opts.getOption(options::OPT_Zlinker_input),
                               A->getValue(Args, i));
-          
+
         }
         continue;
       }
@@ -915,8 +919,8 @@ TCEToolChain::~TCEToolChain() {
       delete it->second;
 }
 
-bool TCEToolChain::IsMathErrnoDefault() const { 
-  return true; 
+bool TCEToolChain::IsMathErrnoDefault() const {
+  return true;
 }
 
 bool TCEToolChain::IsUnwindTablesDefault() const {
@@ -931,7 +935,7 @@ const char *TCEToolChain::GetForcedPicModel() const {
   return 0;
 }
 
-Tool &TCEToolChain::SelectTool(const Compilation &C, 
+Tool &TCEToolChain::SelectTool(const Compilation &C,
                             const JobAction &JA,
                                const ActionList &Inputs) const {
   Action::ActionClass Key;
@@ -1002,7 +1006,12 @@ FreeBSD::FreeBSD(const HostInfo &Host, const llvm::Triple& Triple)
       llvm::Triple(getDriver().DefaultHostTriple).getArch() ==
         llvm::Triple::x86_64)
     Lib32 = true;
-    
+
+  if (Triple.getArch() == llvm::Triple::ppc &&
+      llvm::Triple(getDriver().DefaultHostTriple).getArch() ==
+        llvm::Triple::ppc64)
+    Lib32 = true;
+
   if (Lib32) {
     getFilePaths().push_back("/usr/lib32");
   } else {
@@ -1043,14 +1052,14 @@ Tool &FreeBSD::SelectTool(const Compilation &C, const JobAction &JA,
 
 /// NetBSD - NetBSD tool chain which can call as(1) and ld(1) directly.
 
-NetBSD::NetBSD(const HostInfo &Host, const llvm::Triple& Triple)
-  : Generic_ELF(Host, Triple) {
+NetBSD::NetBSD(const HostInfo &Host, const llvm::Triple& Triple,
+               const llvm::Triple& ToolTriple)
+  : Generic_ELF(Host, Triple), ToolTriple(ToolTriple) {
 
   // Determine if we are compiling 32-bit code on an x86_64 platform.
   bool Lib32 = false;
-  if (Triple.getArch() == llvm::Triple::x86 &&
-      llvm::Triple(getDriver().DefaultHostTriple).getArch() ==
-        llvm::Triple::x86_64)
+  if (ToolTriple.getArch() == llvm::Triple::x86_64 &&
+      Triple.getArch() == llvm::Triple::x86)
     Lib32 = true;
 
   if (getDriver().UseStdLib) {
@@ -1080,10 +1089,11 @@ Tool &NetBSD::SelectTool(const Compilation &C, const JobAction &JA,
       if (UseIntegratedAs)
         T = new tools::ClangAs(*this);
       else
-        T = new tools::netbsd::Assemble(*this);
+        T = new tools::netbsd::Assemble(*this, ToolTriple);
       break;
     case Action::LinkJobClass:
-      T = new tools::netbsd::Link(*this); break;
+      T = new tools::netbsd::Link(*this, ToolTriple);
+      break;
     default:
       T = &Generic_GCC::SelectTool(C, JA, Inputs);
     }
@@ -1172,12 +1182,18 @@ enum LinuxDistro {
   ArchLinux,
   DebianLenny,
   DebianSqueeze,
+  DebianWheezy,
   Exherbo,
+  RHEL4,
+  RHEL5,
+  RHEL6,
   Fedora13,
   Fedora14,
   Fedora15,
   FedoraRawhide,
   OpenSuse11_3,
+  OpenSuse11_4,
+  OpenSuse12_1,
   UbuntuHardy,
   UbuntuIntrepid,
   UbuntuJaunty,
@@ -1185,27 +1201,31 @@ enum LinuxDistro {
   UbuntuLucid,
   UbuntuMaverick,
   UbuntuNatty,
+  UbuntuOneiric,
   UnknownDistro
 };
 
-static bool IsFedora(enum LinuxDistro Distro) {
+static bool IsRedhat(enum LinuxDistro Distro) {
   return Distro == Fedora13 || Distro == Fedora14 ||
-         Distro == Fedora15 || Distro == FedoraRawhide;
+         Distro == Fedora15 || Distro == FedoraRawhide ||
+         Distro == RHEL4 || Distro == RHEL5 || Distro == RHEL6;
 }
 
 static bool IsOpenSuse(enum LinuxDistro Distro) {
-  return Distro == OpenSuse11_3;
+  return Distro == OpenSuse11_3 || Distro == OpenSuse11_4 ||
+         Distro == OpenSuse12_1;
 }
 
 static bool IsDebian(enum LinuxDistro Distro) {
-  return Distro == DebianLenny || Distro == DebianSqueeze;
+  return Distro == DebianLenny || Distro == DebianSqueeze ||
+         Distro == DebianWheezy;
 }
 
 static bool IsUbuntu(enum LinuxDistro Distro) {
   return Distro == UbuntuHardy  || Distro == UbuntuIntrepid ||
-         Distro == UbuntuLucid  || Distro == UbuntuMaverick || 
+         Distro == UbuntuLucid  || Distro == UbuntuMaverick ||
          Distro == UbuntuJaunty || Distro == UbuntuKarmic ||
-         Distro == UbuntuNatty;
+         Distro == UbuntuNatty  || Distro == UbuntuOneiric;
 }
 
 static bool IsDebianBased(enum LinuxDistro Distro) {
@@ -1223,7 +1243,8 @@ static bool HasMultilib(llvm::Triple::ArchType Arch, enum LinuxDistro Distro) {
   }
   if (Arch == llvm::Triple::ppc64)
     return true;
-  if ((Arch == llvm::Triple::x86 || Arch == llvm::Triple::ppc) && IsDebianBased(Distro))
+  if ((Arch == llvm::Triple::x86 || Arch == llvm::Triple::ppc) && 
+      IsDebianBased(Distro))
     return true;
   return false;
 }
@@ -1249,6 +1270,8 @@ static LinuxDistro DetectLinuxDistro(llvm::Triple::ArchType Arch) {
         return UbuntuMaverick;
       else if (Lines[i] == "DISTRIB_CODENAME=natty")
         return UbuntuNatty;
+      else if (Lines[i] == "DISTRIB_CODENAME=oneiric")
+        return UbuntuOneiric;
     }
     return UnknownDistro;
   }
@@ -1264,6 +1287,17 @@ static LinuxDistro DetectLinuxDistro(llvm::Triple::ArchType Arch) {
     else if (Data.startswith("Fedora release") &&
              Data.find("Rawhide") != llvm::StringRef::npos)
       return FedoraRawhide;
+    else if (Data.startswith("Red Hat Enterprise Linux") &&
+             Data.find("release 6") != llvm::StringRef::npos)
+      return RHEL6;
+    else if ((Data.startswith("Red Hat Enterprise Linux") ||
+	      Data.startswith("CentOS")) &&
+             Data.find("release 5") != llvm::StringRef::npos)
+      return RHEL5;
+    else if ((Data.startswith("Red Hat Enterprise Linux") ||
+	      Data.startswith("CentOS")) &&
+             Data.find("release 4") != llvm::StringRef::npos)
+      return RHEL4;
     return UnknownDistro;
   }
 
@@ -1273,6 +1307,8 @@ static LinuxDistro DetectLinuxDistro(llvm::Triple::ArchType Arch) {
       return DebianLenny;
     else if (Data.startswith("squeeze/sid"))
       return DebianSqueeze;
+    else if (Data.startswith("wheezy/sid"))
+      return DebianWheezy;
     return UnknownDistro;
   }
 
@@ -1280,6 +1316,10 @@ static LinuxDistro DetectLinuxDistro(llvm::Triple::ArchType Arch) {
     llvm::StringRef Data = File.get()->getBuffer();
     if (Data.startswith("openSUSE 11.3"))
       return OpenSuse11_3;
+    else if (Data.startswith("openSUSE 11.4"))
+      return OpenSuse11_4;
+    else if (Data.startswith("openSUSE 12.1"))
+      return OpenSuse12_1;
     return UnknownDistro;
   }
 
@@ -1291,6 +1331,54 @@ static LinuxDistro DetectLinuxDistro(llvm::Triple::ArchType Arch) {
     return ArchLinux;
 
   return UnknownDistro;
+}
+
+static std::string findGCCBaseLibDir(const std::string &GccTriple) {
+  // FIXME: Using CXX_INCLUDE_ROOT is here is a bit of a hack, but
+  // avoids adding yet another option to configure/cmake.
+  // It would probably be cleaner to break it in two variables
+  // CXX_GCC_ROOT with just /foo/bar
+  // CXX_GCC_VER with 4.5.2
+  // Then we would have
+  // CXX_INCLUDE_ROOT = CXX_GCC_ROOT/include/c++/CXX_GCC_VER
+  // and this function would return
+  // CXX_GCC_ROOT/lib/gcc/CXX_INCLUDE_ARCH/CXX_GCC_VER
+  llvm::SmallString<128> CxxIncludeRoot(CXX_INCLUDE_ROOT);
+  if (CxxIncludeRoot != "") {
+    // This is of the form /foo/bar/include/c++/4.5.2/
+    if (CxxIncludeRoot.back() == '/')
+      llvm::sys::path::remove_filename(CxxIncludeRoot); // remove the /
+    llvm::StringRef Version = llvm::sys::path::filename(CxxIncludeRoot);
+    llvm::sys::path::remove_filename(CxxIncludeRoot); // remove the version
+    llvm::sys::path::remove_filename(CxxIncludeRoot); // remove the c++
+    llvm::sys::path::remove_filename(CxxIncludeRoot); // remove the include
+    std::string ret(CxxIncludeRoot.c_str());
+    ret.append("/lib/gcc/");
+    ret.append(CXX_INCLUDE_ARCH);
+    ret.append("/");
+    ret.append(Version);
+    return ret;
+  }
+  static const char* GccVersions[] = {"4.6.0", "4.6",
+                                      "4.5.2", "4.5.1", "4.5",
+                                      "4.4.5", "4.4.4", "4.4.3", "4.4",
+                                      "4.3.4", "4.3.3", "4.3.2", "4.3",
+                                      "4.2.4", "4.2.3", "4.2.2", "4.2.1",
+                                      "4.2", "4.1.1"};
+  bool Exists;
+  for (unsigned i = 0; i < sizeof(GccVersions)/sizeof(char*); ++i) {
+    std::string Suffix = GccTriple + "/" + GccVersions[i];
+    std::string t1 = "/usr/lib/gcc/" + Suffix;
+    if (!llvm::sys::fs::exists(t1 + "/crtbegin.o", Exists) && Exists)
+      return t1;
+    std::string t2 = "/usr/lib64/gcc/" + Suffix;
+    if (!llvm::sys::fs::exists(t2 + "/crtbegin.o", Exists) && Exists)
+      return t2;
+    std::string t3 = "/usr/lib/" + GccTriple + "/gcc/" + Suffix;
+    if (!llvm::sys::fs::exists(t3 + "/crtbegin.o", Exists) && Exists)
+      return t3;
+  }
+  return "";
 }
 
 Linux::Linux(const HostInfo &Host, const llvm::Triple &Triple)
@@ -1366,42 +1454,23 @@ Linux::Linux(const HostInfo &Host, const llvm::Triple &Triple)
   } else if (Arch == llvm::Triple::ppc) {
     if (!llvm::sys::fs::exists("/usr/lib/powerpc-linux-gnu", Exists) && Exists)
       GccTriple = "powerpc-linux-gnu";
-    else if (!llvm::sys::fs::exists("/usr/lib/gcc/powerpc-unknown-linux-gnu", Exists) && Exists)
+    else if (!llvm::sys::fs::exists("/usr/lib/gcc/powerpc-unknown-linux-gnu",
+                                    Exists) && Exists)
       GccTriple = "powerpc-unknown-linux-gnu";
   } else if (Arch == llvm::Triple::ppc64) {
-    if (!llvm::sys::fs::exists("/usr/lib/gcc/powerpc64-unknown-linux-gnu", Exists) && Exists)
+    if (!llvm::sys::fs::exists("/usr/lib/gcc/powerpc64-unknown-linux-gnu",
+                               Exists) && Exists)
       GccTriple = "powerpc64-unknown-linux-gnu";
-    else if (!llvm::sys::fs::exists("/usr/lib64/gcc/powerpc64-unknown-linux-gnu", Exists) && Exists)
+    else if (!llvm::sys::fs::exists("/usr/lib64/gcc/"
+                                    "powerpc64-unknown-linux-gnu", Exists) && 
+             Exists)
       GccTriple = "powerpc64-unknown-linux-gnu";
   }
 
-  const char* GccVersions[] = {"4.6.0",
-                               "4.5.2", "4.5.1", "4.5",
-                               "4.4.5", "4.4.4", "4.4.3", "4.4",
-                               "4.3.4", "4.3.3", "4.3.2", "4.3",
-                               "4.2.4", "4.2.3", "4.2.2", "4.2.1", "4.2"};
-  std::string Base = "";
-  for (unsigned i = 0; i < sizeof(GccVersions)/sizeof(char*); ++i) {
-    std::string Suffix = GccTriple + "/" + GccVersions[i];
-    std::string t1 = "/usr/lib/gcc/" + Suffix;
-    if (!llvm::sys::fs::exists(t1 + "/crtbegin.o", Exists) && Exists) {
-      Base = t1;
-      break;
-    }
-    std::string t2 = "/usr/lib64/gcc/" + Suffix;
-    if (!llvm::sys::fs::exists(t2 + "/crtbegin.o", Exists) && Exists) {
-      Base = t2;
-      break;
-    }
-    std::string t3 = "/usr/lib/" + GccTriple + "/gcc/" + Suffix;
-    if (!llvm::sys::fs::exists(t3 + "/crtbegin.o", Exists) && Exists) {
-      Base = t3;
-      break;
-    }
-  }
-
+  std::string Base = findGCCBaseLibDir(GccTriple);
   path_list &Paths = getFilePaths();
-  bool Is32Bits = (getArch() == llvm::Triple::x86 || getArch() == llvm::Triple::ppc);
+  bool Is32Bits = (getArch() == llvm::Triple::x86 || 
+                   getArch() == llvm::Triple::ppc);
 
   std::string Suffix;
   std::string Lib;
@@ -1422,7 +1491,7 @@ Linux::Linux(const HostInfo &Host, const llvm::Triple &Triple)
 
   LinuxDistro Distro = DetectLinuxDistro(Arch);
 
-  if (IsUbuntu(Distro)) {
+  if (IsOpenSuse(Distro) || IsUbuntu(Distro)) {
     ExtraOpts.push_back("-z");
     ExtraOpts.push_back("relro");
   }
@@ -1430,20 +1499,27 @@ Linux::Linux(const HostInfo &Host, const llvm::Triple &Triple)
   if (Arch == llvm::Triple::arm || Arch == llvm::Triple::thumb)
     ExtraOpts.push_back("-X");
 
-  if (IsFedora(Distro) || Distro == UbuntuMaverick || Distro == UbuntuNatty)
+  if (IsRedhat(Distro) || IsOpenSuse(Distro) || Distro == UbuntuMaverick ||
+      Distro == UbuntuNatty || Distro == UbuntuOneiric)
     ExtraOpts.push_back("--hash-style=gnu");
 
-  if (IsDebian(Distro) || Distro == UbuntuLucid || Distro == UbuntuJaunty ||
-      Distro == UbuntuKarmic)
+  if (IsDebian(Distro) || IsOpenSuse(Distro) || Distro == UbuntuLucid ||
+      Distro == UbuntuJaunty || Distro == UbuntuKarmic)
     ExtraOpts.push_back("--hash-style=both");
 
-  if (IsFedora(Distro))
+  if (IsRedhat(Distro))
     ExtraOpts.push_back("--no-add-needed");
 
-  if (Distro == DebianSqueeze || IsOpenSuse(Distro) ||
-      IsFedora(Distro) || Distro == UbuntuLucid || Distro == UbuntuMaverick ||
-      Distro == UbuntuKarmic || Distro == UbuntuNatty)
+  if (Distro == DebianSqueeze || Distro == DebianWheezy ||
+      IsOpenSuse(Distro) ||
+      (IsRedhat(Distro) && Distro != RHEL4 && Distro != RHEL5) ||
+      Distro == UbuntuLucid ||
+      Distro == UbuntuMaverick || Distro == UbuntuKarmic ||
+      Distro == UbuntuNatty || Distro == UbuntuOneiric)
     ExtraOpts.push_back("--build-id");
+
+  if (IsOpenSuse(Distro))
+    ExtraOpts.push_back("--enable-new-dtags");
 
   if (Distro == ArchLinux)
     Lib = "lib";
@@ -1453,9 +1529,14 @@ Linux::Linux(const HostInfo &Host, const llvm::Triple &Triple)
     if (IsOpenSuse(Distro) && Is32Bits)
       Paths.push_back(Base + "/../../../../" + GccTriple + "/lib/../lib");
     Paths.push_back(Base + "/../../../../" + Lib);
-    Paths.push_back("/lib/../" + Lib);
-    Paths.push_back("/usr/lib/../" + Lib);
   }
+
+  // FIXME: This is in here to find crt1.o. It is provided by libc, and
+  // libc (like gcc), can be installed in any directory. Once we are
+  // fetching this from a config file, we should have a libc prefix.
+  Paths.push_back("/lib/../" + Lib);
+  Paths.push_back("/usr/lib/../" + Lib);
+
   if (!Suffix.empty())
     Paths.push_back(Base);
   if (IsOpenSuse(Distro))

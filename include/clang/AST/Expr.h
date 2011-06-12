@@ -515,6 +515,14 @@ public:
   /// ParenExpr or ImplicitCastExprs, returning their operand.
   Expr *IgnoreParenImpCasts();
 
+  /// IgnoreConversionOperator - Ignore conversion operator. If this Expr is a
+  /// call to a conversion operator, return the argument.
+  Expr *IgnoreConversionOperator();
+
+  const Expr *IgnoreConversionOperator() const {
+    return const_cast<Expr*>(this)->IgnoreConversionOperator();
+  }
+
   const Expr *IgnoreParenImpCasts() const {
     return const_cast<Expr*>(this)->IgnoreParenImpCasts();
   }
@@ -1018,13 +1026,18 @@ public:
            false),
       Loc(l) {
     assert(type->isIntegerType() && "Illegal type in IntegerLiteral");
+    assert(V.getBitWidth() == C.getIntWidth(type) &&
+           "Integer type is not the correct size for constant.");
     setValue(C, V);
   }
 
-  // type should be IntTy, LongTy, LongLongTy, UnsignedIntTy, UnsignedLongTy,
-  // or UnsignedLongLongTy
+  /// \brief Returns a new integer literal with value 'V' and type 'type'.
+  /// \param type - either IntTy, LongTy, LongLongTy, UnsignedIntTy,
+  /// UnsignedLongTy, or UnsignedLongLongTy which should match the size of V
+  /// \param V - the value that the returned integer literal contains.
   static IntegerLiteral *Create(ASTContext &C, const llvm::APInt &V,
                                 QualType type, SourceLocation l);
+  /// \brief Returns a new empty integer literal.
   static IntegerLiteral *Create(ASTContext &C, EmptyShell Empty);
 
   llvm::APInt getValue() const { return Num.getValue(); }
@@ -1555,9 +1568,9 @@ public:
     TSInfo = tsi;
   }
   
-  const OffsetOfNode &getComponent(unsigned Idx) {
+  const OffsetOfNode &getComponent(unsigned Idx) const {
     assert(Idx < NumComps && "Subscript out of range");
-    return reinterpret_cast<OffsetOfNode *> (this + 1)[Idx];
+    return reinterpret_cast<const OffsetOfNode *> (this + 1)[Idx];
   }
 
   void setComponent(unsigned Idx, OffsetOfNode ON) {
@@ -1573,6 +1586,9 @@ public:
     assert(Idx < NumExprs && "Subscript out of range");
     return reinterpret_cast<Expr **>(
                     reinterpret_cast<OffsetOfNode *>(this+1) + NumComps)[Idx];
+  }
+  const Expr *getIndexExpr(unsigned Idx) const {
+    return const_cast<OffsetOfExpr*>(this)->getIndexExpr(Idx);
   }
 
   void setIndexExpr(unsigned Idx, Expr* E) {
@@ -3299,6 +3315,9 @@ public:
   Expr *getArrayFiller() {
     return ArrayFillerOrUnionFieldInit.dyn_cast<Expr *>();
   }
+  const Expr *getArrayFiller() const {
+    return const_cast<InitListExpr *>(this)->getArrayFiller();
+  }
   void setArrayFiller(Expr *filler);
 
   /// \brief If this initializes a union, specifies which field in the
@@ -3309,6 +3328,9 @@ public:
   /// initialization of a different field within the union.
   FieldDecl *getInitializedFieldInUnion() {
     return ArrayFillerOrUnionFieldInit.dyn_cast<FieldDecl *>();
+  }
+  const FieldDecl *getInitializedFieldInUnion() const {
+    return const_cast<InitListExpr *>(this)->getInitializedFieldInUnion();
   }
   void setInitializedFieldInUnion(FieldDecl *FD) {
     ArrayFillerOrUnionFieldInit = FD;
@@ -4012,6 +4034,42 @@ public:
   child_range children() { return child_range(); }
 };
 
+/// AsTypeExpr - Clang builtin function __builtin_astype [OpenCL 6.2.4.2]
+/// This AST node provides support for reinterpreting a type to another
+/// type of the same size.
+class AsTypeExpr : public Expr {
+private:
+  Expr* SrcExpr;
+  QualType DstType;
+  SourceLocation BuiltinLoc, RParenLoc;
+  
+public:
+  AsTypeExpr(Expr* SrcExpr, QualType DstType,
+             ExprValueKind VK, ExprObjectKind OK,
+             SourceLocation BuiltinLoc, SourceLocation RParenLoc)
+  : Expr(AsTypeExprClass, DstType, VK, OK, false, false, false), 
+  SrcExpr(SrcExpr), DstType(DstType),
+  BuiltinLoc(BuiltinLoc), RParenLoc(RParenLoc) {}
+  
+  /// \brief Build an empty __builtin_astype
+  explicit AsTypeExpr(EmptyShell Empty) : Expr(AsTypeExprClass, Empty) {}
+  
+  /// getSrcExpr - Return the Expr to be converted.
+  Expr *getSrcExpr() const { return SrcExpr; }
+  QualType getDstType() const { return DstType; }
+  
+  SourceRange getSourceRange() const {
+    return SourceRange(BuiltinLoc, RParenLoc);
+  }
+  
+  static bool classof(const Stmt *T) {
+    return T->getStmtClass() == AsTypeExprClass; 
+  }
+  static bool classof(const AsTypeExpr *) { return true; }
+  
+  // Iterators
+  child_range children() { return child_range(); }
+};
 }  // end namespace clang
 
 #endif

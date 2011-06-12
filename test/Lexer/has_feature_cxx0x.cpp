@@ -17,7 +17,7 @@ int has_nullptr();
 int no_nullptr();
 #endif
 
-// CHECK-0X: no_nullptr
+// CHECK-0X: has_nullptr
 // CHECK-NO-0X: no_nullptr
 
 
@@ -155,3 +155,12 @@ int no_override_control();
 
 // CHECK-0X: has_override_control
 // CHECK-NO-0X: no_override_control
+
+#if __has_feature(cxx_alias_templates)
+int has_alias_templates();
+#else
+int no_alias_templates();
+#endif
+
+// CHECK-0X: has_alias_templates
+// CHECK-NO-0X: no_alias_templates

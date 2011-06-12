@@ -96,7 +96,7 @@ namespace test2 {
   A a; // expected-error {{calling a private constructor}}
   A A::foo; // okay
   
-  class B : A { }; // expected-error {{base class 'test2::A' has private constructor}}
+  class B : A { }; // expected-error {{base class 'test2::A' has private default constructor}}
   B b; // expected-note{{implicit default constructor}}
   
   class C : virtual A { 
@@ -104,7 +104,7 @@ namespace test2 {
     C();
   };
 
-  class D : C { }; // expected-error {{inherited virtual base class 'test2::A' has private constructor}}
+  class D : C { }; // expected-error {{inherited virtual base class 'test2::A' has private default constructor}}
   D d; // expected-note{{implicit default constructor}}
 }
 
@@ -206,7 +206,7 @@ namespace test5 {
 
   class Test1 { A a; }; // expected-error {{private member}}
   void test1() {
-    Test1 a;
+    Test1 a; 
     a = Test1(); // expected-note{{implicit default copy}}
   }
 

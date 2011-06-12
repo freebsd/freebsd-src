@@ -317,7 +317,6 @@ void f0() {
   (void) __builtin_ia32_clflush(tmp_vCp);
   (void) __builtin_ia32_lfence();
   (void) __builtin_ia32_mfence();
-  tmp_V16c = __builtin_ia32_loaddqu(tmp_cCp);
   (void) __builtin_ia32_storedqu(tmp_cp, tmp_V16c);
   tmp_V4s = __builtin_ia32_psllwi(tmp_V4s, tmp_i);
   tmp_V2i = __builtin_ia32_pslldi(tmp_V2i, tmp_i);
