@@ -34,6 +34,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/queue.h>
 #if defined(_KERNEL)
 #include <sys/systm.h>
 #endif
