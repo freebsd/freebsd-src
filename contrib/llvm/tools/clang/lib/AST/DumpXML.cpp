@@ -482,18 +482,20 @@ struct XMLDumper : public XMLDeclVisitor<XMLDumper>,
     setFlag("trivial", D->isTrivial());
     setFlag("returnzero", D->hasImplicitReturnZero());
     setFlag("prototype", D->hasWrittenPrototype());
-    setFlag("deleted", D->isDeleted());
+    setFlag("deleted", D->isDeletedAsWritten());
     if (D->getStorageClass() != SC_None)
       set("storage",
           VarDecl::getStorageClassSpecifierString(D->getStorageClass()));
     setFlag("inline", D->isInlineSpecified());
+    if (const AsmLabelAttr *ALA = D->getAttr<AsmLabelAttr>())
+      set("asmlabel", ALA->getLabel());
     // TODO: instantiation, etc.
   }
   void visitFunctionDeclChildren(FunctionDecl *D) {
     for (FunctionDecl::param_iterator
            I = D->param_begin(), E = D->param_end(); I != E; ++I)
       dispatch(*I);
-    if (D->isThisDeclarationADefinition())
+    if (D->doesThisDeclarationHaveABody())
       dispatch(D->getBody());
   }
 
@@ -619,7 +621,8 @@ struct XMLDumper : public XMLDeclVisitor<XMLDumper>,
   // TemplateDecl
   void visitTemplateDeclChildren(TemplateDecl *D) {
     visitTemplateParameters(D->getTemplateParameters());
-    dispatch(D->getTemplatedDecl());
+    if (D->getTemplatedDecl())
+      dispatch(D->getTemplatedDecl());
   }
 
   // FunctionTemplateDecl
@@ -845,6 +848,7 @@ struct XMLDumper : public XMLDeclVisitor<XMLDumper>,
     setFlag("variadic", D->isVariadic());
     setFlag("synthesized", D->isSynthesized());
     setFlag("defined", D->isDefined());
+    setFlag("related_result_type", D->hasRelatedResultType());
   }
   void visitObjCMethodDeclChildren(ObjCMethodDecl *D) {
     dispatch(D->getResultType());

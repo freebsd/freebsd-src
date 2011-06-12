@@ -741,6 +741,12 @@ StmtResult Parser::ParseCompoundStatementBody(bool isStmtExpr) {
       continue;
     }
 
+    if (getLang().Microsoft && (Tok.is(tok::kw___if_exists) ||
+        Tok.is(tok::kw___if_not_exists))) {
+      ParseMicrosoftIfExistsStatement(Stmts);
+      continue;
+    }
+
     StmtResult R;
     if (Tok.isNot(tok::kw___extension__)) {
       R = ParseStatementOrDeclaration(Stmts, false);
@@ -1999,4 +2005,35 @@ StmtResult Parser::ParseCXXCatchBlock() {
     return move(Block);
 
   return Actions.ActOnCXXCatchBlock(CatchLoc, ExceptionDecl, Block.take());
+}
+
+void Parser::ParseMicrosoftIfExistsStatement(StmtVector &Stmts) {
+  bool Result;
+  if (ParseMicrosoftIfExistsCondition(Result))
+    return;
+  
+  if (Tok.isNot(tok::l_brace)) {
+    Diag(Tok, diag::err_expected_lbrace);
+    return;
+  }
+  ConsumeBrace();
+
+  // Condition is false skip all inside the {}.
+  if (!Result) {
+    SkipUntil(tok::r_brace, false);
+    return;
+  }
+
+  // Condition is true, parse the statements.
+  while (Tok.isNot(tok::r_brace)) {
+    StmtResult R = ParseStatementOrDeclaration(Stmts, false);
+    if (R.isUsable())
+      Stmts.push_back(R.release());
+  }
+
+  if (Tok.isNot(tok::r_brace)) {
+    Diag(Tok, diag::err_expected_rbrace);
+    return;
+  }
+  ConsumeBrace();
 }

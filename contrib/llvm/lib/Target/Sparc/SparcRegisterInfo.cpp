@@ -39,6 +39,8 @@ const unsigned* SparcRegisterInfo::getCalleeSavedRegs(const MachineFunction *MF)
 
 BitVector SparcRegisterInfo::getReservedRegs(const MachineFunction &MF) const {
   BitVector Reserved(getNumRegs());
+  // FIXME: G1 reserved for now for large imm generation by frame code.
+  Reserved.set(SP::G1);
   Reserved.set(SP::G2);
   Reserved.set(SP::G3);
   Reserved.set(SP::G4);
@@ -128,6 +130,10 @@ unsigned SparcRegisterInfo::getEHHandlerRegister() const {
 
 int SparcRegisterInfo::getDwarfRegNum(unsigned RegNum, bool isEH) const {
   return SparcGenRegisterInfo::getDwarfRegNumFull(RegNum, 0);
+}
+
+int SparcRegisterInfo::getLLVMRegNum(unsigned DwarfRegNo, bool isEH) const {
+  return SparcGenRegisterInfo::getLLVMRegNumFull(DwarfRegNo,0);
 }
 
 #include "SparcGenRegisterInfo.inc"

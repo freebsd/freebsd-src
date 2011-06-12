@@ -165,9 +165,9 @@ namespace {
 
 void CGObjCRuntime::EmitTryCatchStmt(CodeGenFunction &CGF,
                                      const ObjCAtTryStmt &S,
-                                     llvm::Function *beginCatchFn,
-                                     llvm::Function *endCatchFn,
-                                     llvm::Function *exceptionRethrowFn) {
+                                     llvm::Constant *beginCatchFn,
+                                     llvm::Constant *endCatchFn,
+                                     llvm::Constant *exceptionRethrowFn) {
   // Jump destination for falling out of catch bodies.
   CodeGenFunction::JumpDest Cont;
   if (S.getNumCatchStmts())
@@ -233,6 +233,8 @@ void CGObjCRuntime::EmitTryCatchStmt(CodeGenFunction &CGF,
       cast<llvm::CallInst>(Exn)->setDoesNotThrow();
     }
 
+    CodeGenFunction::RunCleanupsScope cleanups(CGF);
+
     if (endCatchFn) {
       // Add a cleanup to leave the catch.
       bool EndCatchMightThrow = (Handler.Variable == 0);
@@ -255,9 +257,8 @@ void CGObjCRuntime::EmitTryCatchStmt(CodeGenFunction &CGF,
     CGF.EmitStmt(Handler.Body);
     CGF.ObjCEHValueStack.pop_back();
 
-    // Leave the earlier cleanup.
-    if (endCatchFn) 
-      CGF.PopCleanupBlock();
+    // Leave any cleanups associated with the catch.
+    cleanups.ForceCleanup();
 
     CGF.EmitBranchThroughCleanup(Cont);
   }  
