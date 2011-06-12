@@ -32,7 +32,7 @@
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd June 10, 2011
+.Dd June 12, 2011
 .Dt SH 1
 .Os
 .Sh NAME
@@ -1536,10 +1536,7 @@ except that the built-in commands
 and
 .Ic trap
 return information about the main shell environment
-if they are the only command in a command substitution
-and the substitutions in the command cannot cause side effects
-(such as from assigning values to variables or referencing
-.Li $! ).
+if they are the only command in a command substitution.
 .Ss Arithmetic Expansion
 Arithmetic expansion provides a mechanism for evaluating an arithmetic
 expression and substituting its value.
