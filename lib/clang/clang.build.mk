@@ -1,5 +1,8 @@
 # $FreeBSD$
 
+GRAPHVIZ_FLAGS=-DHAVE_GRAPHVIZ -DLLVM_PATH_GRAPHVIZ=/usr/local/bin/graphviz
+DEBUG_FLAGS?=-O0 -g ${GRAPHVIZ_FLAGS}
+
 CLANG_SRCS=${LLVM_SRCS}/tools/clang
 
 CFLAGS+=-I${LLVM_SRCS}/include -I${CLANG_SRCS}/include \
