@@ -71,6 +71,7 @@ __FBSDID("$FreeBSD$");
 #include "error.h"
 #include "mystring.h"
 #include "var.h"
+#include "builtins.h"
 
 
 static struct job *jobtab;	/* array of jobs */
