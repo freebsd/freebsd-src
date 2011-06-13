@@ -46,7 +46,7 @@ case "$daily_scrub_zfs_enable" in
 		esac
 
 		# determine how many days shall be between scrubs
-		eval _pool_threshold=\${daily_scrub_zfs_${pool}_threshold}
+		eval _pool_threshold=\${daily_scrub_zfs_$(echo "${pool}"|tr -s "-" "_"|tr -s "." "_"|tr -s ":" "_")_threshold}
 		if [ -z "${_pool_threshold}" ];then
 			_pool_threshold=${daily_scrub_zfs_default_threshold}
 		fi
