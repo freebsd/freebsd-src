@@ -197,6 +197,7 @@ extern void xencons_resume(void);
 static void
 xctrl_suspend()
 {
+	u_int cpuid;
 	int i, j, k, fpp;
 	unsigned long max_pfn, start_info_mfn;
 
@@ -210,11 +211,11 @@ xctrl_suspend()
 	thread_lock(td);
 	sched_bind(td, 0);
 	thread_unlock(td);
-	KASSERT(PCPU_GET(cpuid) == 0, ("xen_suspend: not running on cpu 0"));
+	cpuid = PCPU_GET(cpuid);
+	KASSERT(cpuid == 0, ("xen_suspend: not running on cpu 0"));
 
-	sched_pin();
-	map = PCPU_GET(other_cpus);
-	sched_unpin();
+	map = all_cpus;
+	CPU_CLR(cpuid, &map);
 	CPU_NAND(&map, &stopped_cpus);
 	if (!CPU_EMPTY(&map))
 		stop_cpus(map);
