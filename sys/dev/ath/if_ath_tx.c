@@ -100,6 +100,13 @@ __FBSDID("$FreeBSD$");
 #include <dev/ath/if_ath_tx.h>
 #include <dev/ath/if_ath_tx_ht.h>
 
+static int ath_tx_ampdu_pending(struct ath_softc *sc, struct ath_node *an,
+    int tid);
+#if 0
+static int ath_tx_ampdu_running(struct ath_softc *sc, struct ath_node *an,
+    int tid);
+#endif
+
 /*
  * Whether to use the 11n rate scenario functions or not
  */
@@ -1529,6 +1536,12 @@ ath_tx_hw_queue(struct ath_softc *sc, struct ath_node *an)
 	 */
 	for (i = 0; i < IEEE80211_TID_SIZE; i++) {
 		atid = &an->an_tid[i];
+		ATH_NODE_LOCK(an);
+		if (ath_tx_ampdu_pending(sc, an, i)) {
+			ATH_NODE_UNLOCK(an);
+			continue;
+		}
+		ATH_NODE_UNLOCK(an);
 		ath_tx_tid_hw_queue(sc, an, i);
 	}
 }
@@ -1566,13 +1579,79 @@ ath_txq_sched(struct ath_softc *sc)
 		ATH_NODE_UNLOCK(an);
 	}
 	ATH_TXNODE_UNLOCK(sc);
-} 
-
+}
 
 
 /*
  * TX addba handling
  */
+
+/*
+ * Return net80211 TID struct pointer, or NULL for none
+ */
+static struct ieee80211_tx_ampdu *
+ath_tx_get_tx_tid(struct ath_node *an, int tid)
+{
+	struct ieee80211_node *ni = &an->an_node;
+	struct ieee80211_tx_ampdu *tap;
+	int ac;
+
+	if (tid == IEEE80211_NONQOS_TID)
+		return 0;
+
+	ac = TID_TO_WME_AC(tid);
+
+	tap = &ni->ni_tx_ampdu[ac];
+	return tap;
+}
+
+#if 0
+/*
+ * Is AMPDU-TX running?
+ *
+ * The ATH_NODE lock must be held.
+ */
+static int
+ath_tx_ampdu_running(struct ath_softc *sc, struct ath_node *an, int tid)
+{
+	struct ieee80211_tx_ampdu *tap;
+
+	ATH_NODE_LOCK_ASSERT(an);
+
+	tap = ath_tx_get_tx_tid(an, tid);
+	if (tap == NULL)
+		return 0;	/* Not valid; default to not running */
+
+	return (tap->txa_flags & IEEE80211_AGGR_RUNNING);
+}
+#endif
+
+/*
+ * Is AMPDU-TX negotiation pending?
+ *
+ * The ATH_NODE lock must be held.
+ */
+static int
+ath_tx_ampdu_pending(struct ath_softc *sc, struct ath_node *an, int tid)
+{
+	struct ieee80211_tx_ampdu *tap;
+
+	ATH_NODE_LOCK_ASSERT(an);
+
+	tap = ath_tx_get_tx_tid(an, tid);
+	if (tap == NULL)
+		return 0;	/* Not valid; default to not pending */
+
+	return (tap->txa_flags & IEEE80211_AGGR_XCHGPEND);
+}
+
+
+/*
+ * Is AMPDU-TX pending for the given TID?
+ *
+ * The ATH_NODE lock must be held.
+ */
+
 
 /*
  * Method to handle sending an ADDBA request.
