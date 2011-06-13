@@ -741,6 +741,9 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 
 	/* Setup software TX queue related bits */
 	STAILQ_INIT(&sc->sc_txnodeq);
+	snprintf(sc->sc_txnodeq_name, sizeof(sc->sc_txnodeq_name),
+	    "%s: txnodeq\n", device_get_nameunit(sc->sc_dev));
+	ATH_TXNODE_LOCK_INIT(sc);
 
 	if (bootverbose)
 		ieee80211_announce(ic);
@@ -793,6 +796,7 @@ ath_detach(struct ath_softc *sc)
 	ath_desc_free(sc);
 	ath_tx_cleanup(sc);
 	ath_hal_detach(sc->sc_ah);	/* NB: sets chip in full sleep */
+	ATH_TXNODE_LOCK_DESTROY(sc);
 	if_free(ifp);
 
 	return 0;
@@ -3120,6 +3124,11 @@ ath_node_alloc(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN])
 	}
 	ath_rate_node_init(sc, an);
 
+	/* Setup the mutex - there's no associd yet so set the name to NULL */
+	snprintf(an->an_name, sizeof(an->an_name), "%s: node %p",
+	    device_get_nameunit(sc->sc_dev), an);
+	mtx_init(&an->an_mtx, an->an_name, NULL, MTX_DEF);
+
 	/* XXX setup ath_tid */
 	ath_tx_tid_init(sc, an);
 
@@ -3139,6 +3148,7 @@ ath_node_free(struct ieee80211_node *ni)
 	ath_tx_tid_cleanup(sc, ATH_NODE(ni));
 
 	ath_rate_node_cleanup(sc, ATH_NODE(ni));
+	mtx_destroy(&ATH_NODE(ni)->an_mtx);
 	sc->sc_node_free(ni);
 }
 

@@ -649,8 +649,10 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 				txrate |= rt->info[rix].shortPreamble;
 			try0 = ATH_TXMAXTRY;	/* XXX?too many? */
 		} else {
+			ATH_NODE_LOCK(an);
 			ath_rate_findrate(sc, an, shortPreamble, pktlen,
 				&rix, &try0, &txrate);
+			ATH_NODE_UNLOCK(an);
 			sc->sc_txrix = rix;		/* for LED blinking */
 			sc->sc_lastdatarix = rix;	/* for fast frames */
 			if (try0 != ATH_TXMAXTRY)
@@ -885,10 +887,12 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 	 * we don't use it.
 	 */
         if (ismrr) {
+		ATH_NODE_LOCK(an);
                 if (ath_tx_is_11n(sc))
                         ath_rate_getxtxrates(sc, an, rix, rate, try);
                 else
                         ath_rate_setupxtxdesc(sc, an, ds, shortPreamble, rix);
+		ATH_NODE_UNLOCK(an);
         }
 
         if (ath_tx_is_11n(sc)) {
@@ -1222,15 +1226,14 @@ bad:
  * This is done to make it easy for the software scheduler to 
  * find which nodes have data to send.
  *
- * This must be called with the ATH lock held.
+ * The node and txnode locks should be held.
  */
 static void
 ath_tx_node_sched(struct ath_softc *sc, struct ath_node *an)
 {
-	/*
-	 * XXX sched is serialised behind the ATH lock; not
-	 * XXX a per-node lock.
-	 */
+	ATH_NODE_LOCK_ASSERT(an);
+	ATH_TXNODE_LOCK_ASSERT(sc);
+
 	if (an->sched)
 		return;		/* already scheduled */
 
@@ -1243,20 +1246,19 @@ ath_tx_node_sched(struct ath_softc *sc, struct ath_node *an)
  * Mark the current node as no longer needing to be polled for
  * TX packets.
  *
- * This must be called with the ATH lock held.
+ * The node and txnode locks should be held.
  */
 static void
 ath_tx_node_unsched(struct ath_softc *sc, struct ath_node *an)
 {
-	/*
-	 * XXX sched is serialised behind the ATH lock; not
-	 * XXX a per-node lock.
-	 */
+	ATH_NODE_LOCK_ASSERT(an);
+	ATH_TXNODE_LOCK_ASSERT(sc);
+
 	if (an->sched == 0)
 		return;
 
-	STAILQ_REMOVE(&sc->sc_txnodeq, an, ath_node, an_list);
 	an->sched = 0;
+	STAILQ_REMOVE(&sc->sc_txnodeq, an, ath_node, an_list);
 }
 
 /*
@@ -1302,13 +1304,18 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf,
 	ATH_TXQ_UNLOCK(atid);
 
 
-	/* Mark the given node/tid as having packets to dequeue */
-	ATH_LOCK(sc);
+	/*
+	 * ATH_TXNODE must be acquired before ATH_NODE is acquired
+	 * if they're both needed.
+	 */
+	ATH_TXNODE_LOCK(sc);
+	ATH_NODE_LOCK(an);
 	/* Bump queued packet counter */
-	/* XXX for now, an_qdepth is behind the ATH lock */
-	atomic_add_int(&an->an_qdepth, 1);
+	an->an_qdepth++;
+	/* Mark the given node as having packets to dequeue */
 	ath_tx_node_sched(sc, an);
-	ATH_UNLOCK(sc);
+	ATH_NODE_UNLOCK(an);
+	ATH_TXNODE_UNLOCK(sc);
 }
 
 /*
@@ -1375,6 +1382,8 @@ ath_tx_tid_txq_unmark(struct ath_softc *sc, struct ath_node *an,
  *
  * It can also be called on an active node during an interface
  * reset or state transition.
+ *
+ * This doesn't update an->an_qdepth!
  */
 static void
 ath_tx_tid_free_pkts(struct ath_softc *sc, struct ath_node *an,
@@ -1382,7 +1391,6 @@ ath_tx_tid_free_pkts(struct ath_softc *sc, struct ath_node *an,
 {
 	struct ath_tid *atid = &an->an_tid[tid];
 	struct ath_buf *bf;
-
 
 	/* Walk the queue, free frames */
 	for (;;) {
@@ -1400,18 +1408,17 @@ ath_tx_tid_free_pkts(struct ath_softc *sc, struct ath_node *an,
 
 /*
  * Flush all software queued packets for the given node.
- *
- * This protects ath_node behind ATH_LOCK for now.
  */
 void
 ath_tx_node_flush(struct ath_softc *sc, struct ath_node *an)
 {
 	int tid;
 
-	ATH_LOCK(sc);
+	ATH_NODE_LOCK(an);
 	for (tid = 0; tid < IEEE80211_TID_SIZE; tid++)
 		ath_tx_tid_free_pkts(sc, an, tid);
-	ATH_UNLOCK(sc);
+	an->an_qdepth = 0;
+	ATH_NODE_UNLOCK(an);
 }
 
 /*
@@ -1444,7 +1451,11 @@ ath_tx_tid_cleanup(struct ath_softc *sc, struct ath_node *an)
 		ath_tx_tid_txq_unmark(sc, an, i);
 
 		/* Remove any pending hardware TXQ scheduling */
+		ATH_NODE_LOCK(an);
+		ATH_TXNODE_LOCK(sc);
 		ath_tx_node_unsched(sc, an);
+		ATH_TXNODE_UNLOCK(sc);
+		ATH_NODE_UNLOCK(an);
 
 		/* Free mutex */
 		mtx_destroy(&atid->axq_lock);
@@ -1477,7 +1488,9 @@ ath_tx_tid_hw_queue(struct ath_softc *sc, struct ath_node *an, int tid)
 		ATH_TXQ_UNLOCK(atid);
 
 		/* Remove from queue */
-		atomic_subtract_int(&an->an_qdepth, 1);
+		ATH_NODE_LOCK(an);
+		an->an_qdepth--;
+		ATH_NODE_UNLOCK(an);
 
 		txq = bf->bf_state.bfs_txq;
 		/* Sanity check! */
@@ -1519,6 +1532,7 @@ ath_tx_hw_queue(struct ath_softc *sc, struct ath_node *an)
 static int
 ath_txq_node_qlen(struct ath_softc *sc, struct ath_node *an)
 {
+	ATH_NODE_LOCK_ASSERT(an);
 	return an->an_qdepth;
 }
 
@@ -1531,17 +1545,17 @@ ath_txq_sched(struct ath_softc *sc)
 {
 	struct ath_node *an, *next;
 
-	/* XXX I'm not happy the ATH lock is held for so long here */
-	ATH_LOCK(sc);
-
+	ATH_TXNODE_LOCK(sc);
 	/* Iterate over the list of active nodes, queuing packets */
 	STAILQ_FOREACH_SAFE(an, &sc->sc_txnodeq, an_list, next) {
 		/* Try dequeueing packets from the current node */
 		ath_tx_hw_queue(sc, an);
 
 		/* Are any packets left on the node software queue? Remove */
+		ATH_NODE_LOCK(an);
 		if (! ath_txq_node_qlen(sc, an))
 			ath_tx_node_unsched(sc, an);
+		ATH_NODE_UNLOCK(an);
 	}
-	ATH_UNLOCK(sc);
+	ATH_TXNODE_UNLOCK(sc);
 } 

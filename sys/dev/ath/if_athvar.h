@@ -94,7 +94,7 @@ struct ath_tid {
 	STAILQ_HEAD(,ath_buf) axq_q;		/* pending buffers        */
 	u_int			axq_depth;	/* queue depth (stat only) */
 	struct mtx		axq_lock;	/* lock on queue, tx_buf */
-	char			axq_name[24];	/* e.g. "ath0_a1_t5" */
+	char			axq_name[24];	/* e.g. "wlan0_a1_t5" */
 	struct ath_buf *tx_buf[ATH_TID_MAX_BUFS];	/* active tx buffers, beginning at current BAW */
 };
 
@@ -110,6 +110,8 @@ struct ath_node {
 	struct ath_buf	*an_ff_buf[WME_NUM_AC]; /* ff staging area */
 	struct ath_tid	an_tid[IEEE80211_TID_SIZE];	/* per-TID state */
 	u_int		an_qdepth;	/* Current queue depth of all TIDs */
+	char		an_name[32];	/* eg "wlan0_a1" */
+	struct mtx	an_mtx;		/* protecting the ath_node state */
 	/* variable-length rate control state follows */
 };
 #define	ATH_NODE(ni)	((struct ath_node *)(ni))
@@ -203,6 +205,10 @@ struct ath_txq {
 	struct mtx		axq_lock;	/* lock on q and link */
 	char			axq_name[12];	/* e.g. "ath0_txq4" */
 };
+
+#define	ATH_NODE_LOCK(_an)		mtx_lock(&(_an)->an_mtx)
+#define	ATH_NODE_UNLOCK(_an)		mtx_unlock(&(_an)->an_mtx)
+#define	ATH_NODE_LOCK_ASSERT(_an)	mtx_assert(&(_an)->an_mtx, MA_OWNED)
 
 #define	ATH_TXQ_LOCK_INIT(_sc, _tq) do { \
 	snprintf((_tq)->axq_name, sizeof((_tq)->axq_name), "%s_txq%u", \
@@ -403,7 +409,9 @@ struct ath_softc {
 	struct task		sc_dfstask;	/* DFS processing task */
 
 	/* Software TX queue related state */
+	struct mtx		sc_txnodeq_mtx;	/* mutex protecting the below */
 	STAILQ_HEAD(, ath_node)	sc_txnodeq;	/* Nodes which have traffic to send */
+	char			sc_txnodeq_name[16];	/* mutex name */
 };
 
 #define	ATH_LOCK_INIT(_sc) \
@@ -413,6 +421,14 @@ struct ath_softc {
 #define	ATH_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
 #define	ATH_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
 #define	ATH_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sc_mtx, MA_OWNED)
+
+#define	ATH_TXNODE_LOCK_INIT(_sc) \
+	mtx_init(&(_sc)->sc_txnodeq_mtx, (sc)->sc_txnodeq_name, \
+	NULL, MTX_DEF | MTX_RECURSE)
+#define	ATH_TXNODE_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->sc_txnodeq_mtx)
+#define	ATH_TXNODE_LOCK(_sc)		mtx_lock(&(_sc)->sc_txnodeq_mtx)
+#define	ATH_TXNODE_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_txnodeq_mtx)
+#define	ATH_TXNODE_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sc_txnodeq_mtx, MA_OWNED)
 
 #define	ATH_TXQ_SETUP(sc, i)	((sc)->sc_txqsetup & (1<<i))
 
