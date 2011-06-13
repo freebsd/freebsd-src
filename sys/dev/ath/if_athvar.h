@@ -412,6 +412,14 @@ struct ath_softc {
 	struct mtx		sc_txnodeq_mtx;	/* mutex protecting the below */
 	STAILQ_HEAD(, ath_node)	sc_txnodeq;	/* Nodes which have traffic to send */
 	char			sc_txnodeq_name[16];	/* mutex name */
+
+	/* TX AMPDU handling */
+	int			(*sc_addba_request)(struct ieee80211_node *,
+				    struct ieee80211_tx_ampdu *, int, int, int);
+	int			(*sc_addba_response)(struct ieee80211_node *,
+				    struct ieee80211_tx_ampdu *, int, int, int);
+	void			(*sc_addba_stop)(struct ieee80211_node *,
+				    struct ieee80211_tx_ampdu *);
 };
 
 #define	ATH_LOCK_INIT(_sc) \

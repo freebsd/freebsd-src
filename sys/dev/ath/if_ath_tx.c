@@ -1665,7 +1665,8 @@ int
 ath_addba_request(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
     int dialogtoken, int baparamset, int batimeout)
 {
-	return ieee80211_addba_request(ni, tap, dialogtoken, baparamset,
+	struct ath_softc *sc = ni->ni_ic->ic_ifp->if_softc;
+	return sc->sc_addba_request(ni, tap, dialogtoken, baparamset,
 	    batimeout);
 }
 
@@ -1681,7 +1682,8 @@ int
 ath_addba_response(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
     int dialogtoken, int code, int batimeout)
 {
-	return ieee80211_addba_request(ni, tap, dialogtoken, code, batimeout);
+	struct ath_softc *sc = ni->ni_ic->ic_ifp->if_softc;
+	return sc->sc_addba_request(ni, tap, dialogtoken, code, batimeout);
 }
 
 
@@ -1695,5 +1697,6 @@ ath_addba_response(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
 void
 ath_addba_stop(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap)
 {
-	ieee80211_addba_stop(ni, tap);
+	struct ath_softc *sc = ni->ni_ic->ic_ifp->if_softc;
+	sc->sc_addba_stop(ni, tap);
 }
