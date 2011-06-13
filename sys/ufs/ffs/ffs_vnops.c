@@ -322,7 +322,7 @@ loop:
 	}
 
 	if (wait) {
-		bufobj_wwait(bo, 3, 0);
+		bufobj_wwait(bo, 0, 0);
 		BO_UNLOCK(bo);
 
 		/*
