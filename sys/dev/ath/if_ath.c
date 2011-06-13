@@ -3977,27 +3977,6 @@ ath_tx_findrix(const struct ath_softc *sc, uint8_t rate)
 }
 
 static void
-ath_tx_freebuf(struct ath_softc *sc, struct ath_buf *bf)
-{
-	struct ath_buf *last;
-
-	bus_dmamap_sync(sc->sc_dmat, bf->bf_dmamap,
-	    BUS_DMASYNC_POSTWRITE);
-	bus_dmamap_unload(sc->sc_dmat, bf->bf_dmamap);
-
-	m_freem(bf->bf_m);
-	bf->bf_m = NULL;
-	bf->bf_node = NULL;
-
-	ATH_TXBUF_LOCK(sc);
-	last = STAILQ_LAST(&sc->sc_txbuf, ath_buf, bf_list);
-	if (last != NULL)
-		last->bf_flags &= ~ATH_BUF_BUSY;
-	STAILQ_INSERT_TAIL(&sc->sc_txbuf, bf, bf_list);
-	ATH_TXBUF_UNLOCK(sc);
-}
-
-static void
 ath_tx_update_stats(struct ath_softc *sc, struct ath_tx_status *ts,
     struct ath_buf *bf)
 {
@@ -4127,20 +4106,15 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 				}
 				ath_rate_tx_complete(sc, an, bf);
 			}
-
-			/*
-			 * Do any tx complete callback.  Note this must
-			 * be done before releasing the node reference.
-			 */
-			if (bf->bf_m->m_flags & M_TXCB)
-				ieee80211_process_callback(ni, bf->bf_m,
-				    (bf->bf_txflags & HAL_TXDESC_NOACK) == 0 ?
-				        ts->ts_status : HAL_TXERR_XRETRY);
-			ieee80211_free_node(ni);
 		}
-
-		/* Free the mbuf; recycle the ath_buf */
-		ath_tx_freebuf(sc, bf);
+		/*
+		 * Do any tx complete callback.  Note this must
+		 * be done before releasing the node reference.
+		 * This will free the node as well.
+		 */
+		ath_tx_freebuf(sc, bf,
+		    ((bf->bf_txflags & HAL_TXDESC_NOACK) == 0) ?
+		        ts->ts_status : HAL_TXERR_XRETRY);
 	}
 #ifdef IEEE80211_SUPPORT_SUPERG
 	/*
@@ -4256,7 +4230,7 @@ ath_tx_proc(void *arg, int npending)
  * It recycles a single ath_buf.
  */
 void
-ath_tx_buf_drainone(struct ath_softc *sc, struct ath_buf *bf)
+ath_tx_freebuf(struct ath_softc *sc, struct ath_buf *bf, int status)
 {
 	struct ieee80211_node *ni;
 
@@ -4268,7 +4242,7 @@ ath_tx_buf_drainone(struct ath_softc *sc, struct ath_buf *bf)
 		 * Do any callback and reclaim the node reference.
 		 */
 		if (bf->bf_m->m_flags & M_TXCB)
-			ieee80211_process_callback(ni, bf->bf_m, -1);
+			ieee80211_process_callback(ni, bf->bf_m, status);
 		ieee80211_free_node(ni);
 	}
 	m_freem(bf->bf_m);
@@ -4319,7 +4293,7 @@ ath_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq)
 			    bf->bf_m->m_len, 0, -1);
 		}
 #endif /* ATH_DEBUG */
-		ath_tx_buf_drainone(sc, bf);
+		ath_tx_freebuf(sc, bf, -1);
 	}
 }
 
