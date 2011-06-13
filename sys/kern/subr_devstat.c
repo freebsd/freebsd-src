@@ -470,9 +470,11 @@ devstat_alloc(void)
 	static int once;
 
 	mtx_assert(&devstat_mutex, MA_NOTOWNED);
-	if (!once && atomic_cmpset_int(&once, 0, 1)) {
-		make_dev_credf(MAKEDEV_ETERNAL, &devstat_cdevsw, 0, NULL,
-		    UID_ROOT, GID_WHEEL, 0400, DEVSTAT_DEVICE_NAME);
+	if (!once) {
+		make_dev_credf(MAKEDEV_ETERNAL | MAKEDEV_CHECKNAME,
+		    &devstat_cdevsw, 0, NULL, UID_ROOT, GID_WHEEL, 0400,
+		    DEVSTAT_DEVICE_NAME);
+		once = 1;
 	}
 	spp2 = NULL;
 	mtx_lock(&devstat_mutex);
