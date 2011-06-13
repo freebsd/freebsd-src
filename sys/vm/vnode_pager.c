@@ -1080,7 +1080,7 @@ vnode_pager_generic_putpages(vp, m, bytecount, flags, rtvals)
 	count = bytecount / PAGE_SIZE;
 
 	for (i = 0; i < count; i++)
-		rtvals[i] = VM_PAGER_AGAIN;
+		rtvals[i] = VM_PAGER_ERROR;
 
 	if ((int64_t)m[0]->pindex < 0) {
 		printf("vnode_pager_putpages: attempt to write meta-data!!! -- 0x%lx(%lx)\n",
@@ -1170,4 +1170,23 @@ vnode_pager_generic_putpages(vp, m, bytecount, flags, rtvals)
 		rtvals[i] = VM_PAGER_OK;
 	}
 	return rtvals[0];
+}
+
+void
+vnode_pager_undirty_pages(vm_page_t *ma, int *rtvals, int written)
+{
+	int i, pos;
+
+	vm_page_lock_queues();
+	for (i = 0, pos = 0; pos < written; i++, pos += PAGE_SIZE) {
+		if (pos < trunc_page(written)) {
+			rtvals[i] = VM_PAGER_OK;
+			vm_page_undirty(ma[i]);
+		} else {
+			/* Partially written page. */
+			rtvals[i] = VM_PAGER_AGAIN;
+			vm_page_clear_dirty(ma[i], 0, written & PAGE_MASK);
+		}
+	}
+	vm_page_unlock_queues();
 }
