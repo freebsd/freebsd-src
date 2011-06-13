@@ -235,7 +235,7 @@ usage(void)
 {
 	extern char *__progname;
 
-	fprintf(stderr, "usage: %s [-AdeghmNnOqRrvz] ", __progname);
+	fprintf(stderr, "usage: %s [-AdeghmNnOPqRrvz] ", __progname);
 	fprintf(stderr, "[-a anchor] [-D macro=value] [-F modifier]\n");
 	fprintf(stderr, "\t[-f file] [-i interface] [-K host | network] ");
 	fprintf(stderr, "[-k host | network ]\n");
@@ -770,6 +770,7 @@ pfctl_show_rules(int dev, char *path, int opts, enum pfctl_show format,
 	struct pfioc_rule pr;
 	u_int32_t nr, mnr, header = 0;
 	int rule_numbers = opts & (PF_OPT_VERBOSE2 | PF_OPT_DEBUG);
+	int numeric = opts & PF_OPT_NUMERIC;
 	int len = strlen(path);
 	int brace;
 	char *p;
@@ -834,7 +835,7 @@ pfctl_show_rules(int dev, char *path, int opts, enum pfctl_show format,
 		case PFCTL_SHOW_RULES:
 			if (pr.rule.label[0] && (opts & PF_OPT_SHOWALL))
 				labels = 1;
-			print_rule(&pr.rule, pr.anchor_call, rule_numbers);
+			print_rule(&pr.rule, pr.anchor_call, rule_numbers, numeric);
 			printf("\n");
 			pfctl_print_rule_counters(&pr.rule, opts);
 			break;
@@ -894,7 +895,7 @@ pfctl_show_rules(int dev, char *path, int opts, enum pfctl_show format,
 			} else
 				p = &pr.anchor_call[0];
 		
-			print_rule(&pr.rule, p, rule_numbers);
+			print_rule(&pr.rule, p, rule_numbers, numeric);
 			if (brace)
 				printf(" {\n");
 			else
@@ -951,7 +952,7 @@ pfctl_show_nat(int dev, int opts, char *anchorname)
 				dotitle = 0;
 			}
 			print_rule(&pr.rule, pr.anchor_call,
-			    opts & PF_OPT_VERBOSE2);
+			    opts & PF_OPT_VERBOSE2, opts & PF_OPT_NUMERIC);
 			printf("\n");
 			pfctl_print_rule_counters(&pr.rule, opts);
 			pfctl_clear_pool(&pr.rule.rpool);
@@ -1318,7 +1319,8 @@ pfctl_load_rule(struct pfctl *pf, char *path, struct pf_rule *r, int depth)
 	if (pf->opts & PF_OPT_VERBOSE) {
 		INDENT(depth, !(pf->opts & PF_OPT_VERBOSE2));
 		print_rule(r, r->anchor ? r->anchor->name : "",
-		    pf->opts & PF_OPT_VERBOSE2);
+		    pf->opts & PF_OPT_VERBOSE2,
+		    pf->opts & PF_OPT_NUMERIC);
 	}
 	path[len] = '\0';
 	pfctl_clear_pool(&r->rpool);
@@ -1978,7 +1980,7 @@ main(int argc, char *argv[])
 		usage();
 
 	while ((ch = getopt(argc, argv,
-	    "a:AdD:eqf:F:ghi:k:K:mnNOo::p:rRs:t:T:vx:z")) != -1) {
+	    "a:AdD:eqf:F:ghi:k:K:mnNOo::Pp:rRs:t:T:vx:z")) != -1) {
 		switch (ch) {
 		case 'a':
 			anchoropt = optarg;
@@ -2079,6 +2081,9 @@ main(int argc, char *argv[])
 			break;
 		case 'p':
 			pf_device = optarg;
+			break;
+		case 'P':
+			opts |= PF_OPT_NUMERIC;
 			break;
 		case 's':
 			showopt = pfctl_lookup_option(optarg, showopt_list);

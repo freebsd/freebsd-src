@@ -64,11 +64,11 @@ __FBSDID("$FreeBSD$");
 #include "pfctl.h"
 
 void		 print_op (u_int8_t, const char *, const char *);
-void		 print_port (u_int8_t, u_int16_t, u_int16_t, const char *);
+void		 print_port (u_int8_t, u_int16_t, u_int16_t, const char *, int);
 void		 print_ugid (u_int8_t, unsigned, unsigned, const char *, unsigned);
 void		 print_flags (u_int8_t);
 void		 print_fromto(struct pf_rule_addr *, pf_osfp_t,
-		    struct pf_rule_addr *, u_int8_t, u_int8_t, int);
+		    struct pf_rule_addr *, u_int8_t, u_int8_t, int, int);
 int		 ifa_skip_if(const char *filter, struct node_host *p);
 
 struct node_host	*ifa_grouplookup(const char *, int);
@@ -320,12 +320,15 @@ print_op(u_int8_t op, const char *a1, const char *a2)
 }
 
 void
-print_port(u_int8_t op, u_int16_t p1, u_int16_t p2, const char *proto)
+print_port(u_int8_t op, u_int16_t p1, u_int16_t p2, const char *proto, int numeric)
 {
 	char		 a1[6], a2[6];
 	struct servent	*s;
 
-	s = getservbyport(p1, proto);
+	if (!numeric)
+		s = getservbyport(p1, proto);
+	else
+		s = NULL;
 	p1 = ntohs(p1);
 	p2 = ntohs(p2);
 	snprintf(a1, sizeof(a1), "%u", p1);
@@ -363,7 +366,7 @@ print_flags(u_int8_t f)
 
 void
 print_fromto(struct pf_rule_addr *src, pf_osfp_t osfp, struct pf_rule_addr *dst,
-    sa_family_t af, u_int8_t proto, int verbose)
+    sa_family_t af, u_int8_t proto, int verbose, int numeric)
 {
 	char buf[PF_OSFP_LEN*3];
 	if (src->addr.type == PF_ADDR_ADDRMASK &&
@@ -384,7 +387,8 @@ print_fromto(struct pf_rule_addr *src, pf_osfp_t osfp, struct pf_rule_addr *dst,
 		if (src->port_op)
 			print_port(src->port_op, src->port[0],
 			    src->port[1],
-			    proto == IPPROTO_TCP ? "tcp" : "udp");
+			    proto == IPPROTO_TCP ? "tcp" : "udp",
+			    numeric);
 		if (osfp != PF_OSFP_ANY)
 			printf(" os \"%s\"", pfctl_lookup_fingerprint(osfp, buf,
 			    sizeof(buf)));
@@ -396,7 +400,8 @@ print_fromto(struct pf_rule_addr *src, pf_osfp_t osfp, struct pf_rule_addr *dst,
 		if (dst->port_op)
 			print_port(dst->port_op, dst->port[0],
 			    dst->port[1],
-			    proto == IPPROTO_TCP ? "tcp" : "udp");
+			    proto == IPPROTO_TCP ? "tcp" : "udp",
+			    numeric);
 	}
 }
 
@@ -673,7 +678,7 @@ print_src_node(struct pf_src_node *sn, int opts)
 }
 
 void
-print_rule(struct pf_rule *r, const char *anchor_call, int verbose)
+print_rule(struct pf_rule *r, const char *anchor_call, int verbose, int numeric)
 {
 	static const char *actiontypes[] = { "pass", "block", "scrub",
 	    "no scrub", "nat", "no nat", "binat", "no binat", "rdr", "no rdr" };
@@ -800,7 +805,7 @@ print_rule(struct pf_rule *r, const char *anchor_call, int verbose)
 			printf(" proto %u", r->proto);
 	}
 	print_fromto(&r->src, r->os_fingerprint, &r->dst, r->af, r->proto,
-	    verbose);
+	    verbose, numeric);
 	if (r->uid.op)
 		print_ugid(r->uid.op, r->uid.uid[0], r->uid.uid[1], "user",
 		    UID_MAX);
