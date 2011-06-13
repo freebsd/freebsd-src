@@ -77,6 +77,7 @@ __FBSDID("$FreeBSD$");
 #ifdef IEEE80211_SUPPORT_TDMA
 #include <net80211/ieee80211_tdma.h>
 #endif
+#include <net80211/ieee80211_ht.h>
 
 #include <net/bpf.h>
 
@@ -1566,3 +1567,54 @@ ath_txq_sched(struct ath_softc *sc)
 	}
 	ATH_TXNODE_UNLOCK(sc);
 } 
+
+
+
+/*
+ * TX addba handling
+ */
+
+/*
+ * Method to handle sending an ADDBA request.
+ *
+ * We tap this so the relevant flags can be set to pause the TID
+ * whilst waiting for the response.
+ *
+ * XXX there's no timeout handler we can override?
+ */
+int
+ath_addba_request(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
+    int dialogtoken, int baparamset, int batimeout)
+{
+	return ieee80211_addba_request(ni, tap, dialogtoken, baparamset,
+	    batimeout);
+}
+
+/*
+ * Handle an ADDBA response.
+ *
+ * We unpause the queue so TX'ing can resume.
+ *
+ * Any packets TX'ed from this point should be "aggregate" (whether
+ * aggregate or not) so the BAW is updated.
+ */
+int
+ath_addba_response(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
+    int dialogtoken, int code, int batimeout)
+{
+	return ieee80211_addba_request(ni, tap, dialogtoken, code, batimeout);
+}
+
+
+/*
+ * Stop ADDBA on a queue.
+ *
+ * In theory, queued ath_bufs should be turned back into non-aggregate
+ * buffers. I'm not sure what to do about packets currently queued
+ * to the hardware.
+ */
+void
+ath_addba_stop(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap)
+{
+	ieee80211_addba_stop(ni, tap);
+}

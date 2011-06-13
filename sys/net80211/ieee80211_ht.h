@@ -200,4 +200,14 @@ uint8_t	*ieee80211_add_htinfo_vendor(uint8_t *, struct ieee80211_node *);
 struct ieee80211_beacon_offsets;
 void	ieee80211_ht_update_beacon(struct ieee80211vap *,
 		struct ieee80211_beacon_offsets *);
+
+int	ieee80211_addba_request(struct ieee80211_node *ni,
+		struct ieee80211_tx_ampdu *tap, int dialogtoken,
+		int baparamset, int batimeout);
+int	ieee80211_addba_response(struct ieee80211_node *ni,
+		struct ieee80211_tx_ampdu *tap, int dialogtoken,
+		int code, int batimeout);
+void	ieee80211_addba_stop(struct ieee80211_node *ni,
+		struct ieee80211_tx_ampdu *tap);
+
 #endif /* _NET80211_IEEE80211_HT_H_ */

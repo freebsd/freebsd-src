@@ -52,5 +52,14 @@ extern void ath_tx_tid_hw_queue(struct ath_softc *sc, struct ath_node *an,
 extern void ath_tx_hw_queue(struct ath_softc *sc, struct ath_node *an);
 extern void ath_txq_sched(struct ath_softc *sc);
 
+/* TX addba handling */
+extern	int ath_addba_request(struct ieee80211_node *ni,
+    struct ieee80211_tx_ampdu *tap, int dialogtoken,
+    int baparamset, int batimeout);
+extern	int ath_addba_response(struct ieee80211_node *ni,
+    struct ieee80211_tx_ampdu *tap, int dialogtoken,
+    int code, int batimeout);
+extern	void ath_addba_stop(struct ieee80211_node *ni,
+    struct ieee80211_tx_ampdu *tap);
 
 #endif

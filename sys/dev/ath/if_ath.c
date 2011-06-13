@@ -644,6 +644,10 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 			    | IEEE80211_HTCAP_SMPS_OFF;		/* SM power save off */
 			;
 
+		ic->ic_addba_request = ath_addba_request;
+		ic->ic_addba_response = ath_addba_response;
+		ic->ic_addba_stop = ath_addba_stop;
+
 		/*
 		 * Enable short-GI for HT20 only if the hardware
 		 * advertises support.

@@ -209,14 +209,7 @@ SYSINIT(wlan_ht, SI_SUB_DRIVERS, SI_ORDER_FIRST, ieee80211_ht_init, NULL);
 
 static int ieee80211_ampdu_enable(struct ieee80211_node *ni,
 	struct ieee80211_tx_ampdu *tap);
-static int ieee80211_addba_request(struct ieee80211_node *ni,
-	struct ieee80211_tx_ampdu *tap,
-	int dialogtoken, int baparamset, int batimeout);
-static int ieee80211_addba_response(struct ieee80211_node *ni,
-	struct ieee80211_tx_ampdu *tap,
-	int code, int baparamset, int batimeout);
-static void ieee80211_addba_stop(struct ieee80211_node *ni,
-	struct ieee80211_tx_ampdu *tap);
+
 static void ieee80211_bar_response(struct ieee80211_node *ni,
 	struct ieee80211_tx_ampdu *tap, int status);
 static void ampdu_tx_stop(struct ieee80211_tx_ampdu *tap);
@@ -1726,7 +1719,7 @@ addba_stop_timeout(struct ieee80211_tx_ampdu *tap)
  * We setup the specified state block and start a timer
  * to wait for an ADDBA response frame.
  */
-static int
+int
 ieee80211_addba_request(struct ieee80211_node *ni,
 	struct ieee80211_tx_ampdu *tap,
 	int dialogtoken, int baparamset, int batimeout)
@@ -1748,7 +1741,7 @@ ieee80211_addba_request(struct ieee80211_node *ni,
  * response.  We shutdown any pending timer and update the
  * state block according to the reply.
  */
-static int
+int
 ieee80211_addba_response(struct ieee80211_node *ni,
 	struct ieee80211_tx_ampdu *tap,
 	int status, int baparamset, int batimeout)
@@ -1777,7 +1770,7 @@ ieee80211_addba_response(struct ieee80211_node *ni,
  * Default method for stopping A-MPDU tx aggregation.
  * Any timer is cleared and we drain any pending frames.
  */
-static void
+void
 ieee80211_addba_stop(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap)
 {
 	/* XXX locking */
