@@ -147,5 +147,6 @@ opt_ah.h:
 	echo '#define ATH_DEBUG 1' >> $@
 	echo '#define ATH_DIAGAPI 1' >> $@
 	echo '#define ATH_ENABLE_11N 1' >> $@
+	echo '#define IEEE80211_DEBUG 1' >> $@
 
 .include <bsd.kmod.mk>
