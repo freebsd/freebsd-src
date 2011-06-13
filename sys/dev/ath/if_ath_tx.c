@@ -1683,7 +1683,7 @@ ath_addba_response(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
     int dialogtoken, int code, int batimeout)
 {
 	struct ath_softc *sc = ni->ni_ic->ic_ifp->if_softc;
-	return sc->sc_addba_request(ni, tap, dialogtoken, code, batimeout);
+	return sc->sc_addba_response(ni, tap, dialogtoken, code, batimeout);
 }
 
 

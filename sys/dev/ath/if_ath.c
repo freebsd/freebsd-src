@@ -4105,6 +4105,7 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 
 		ni = bf->bf_node;
 		if (ni != NULL) {
+			an = ATH_NODE(ni);
 			/* update statistics */
 			ath_tx_update_stats(sc, ts, bf);
 
