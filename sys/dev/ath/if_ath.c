@@ -3976,6 +3976,76 @@ ath_tx_findrix(const struct ath_softc *sc, uint8_t rate)
 	return (rix == 0xff ? 0 : rix);
 }
 
+static void
+ath_tx_freebuf(struct ath_softc *sc, struct ath_buf *bf)
+{
+	struct ath_buf *last;
+
+	bus_dmamap_sync(sc->sc_dmat, bf->bf_dmamap,
+	    BUS_DMASYNC_POSTWRITE);
+	bus_dmamap_unload(sc->sc_dmat, bf->bf_dmamap);
+
+	m_freem(bf->bf_m);
+	bf->bf_m = NULL;
+	bf->bf_node = NULL;
+
+	ATH_TXBUF_LOCK(sc);
+	last = STAILQ_LAST(&sc->sc_txbuf, ath_buf, bf_list);
+	if (last != NULL)
+		last->bf_flags &= ~ATH_BUF_BUSY;
+	STAILQ_INSERT_TAIL(&sc->sc_txbuf, bf, bf_list);
+	ATH_TXBUF_UNLOCK(sc);
+}
+
+static void
+ath_tx_update_stats(struct ath_softc *sc, struct ath_tx_status *ts,
+    struct ath_buf *bf)
+{
+	struct ieee80211_node *ni = bf->bf_node;
+	struct ifnet *ifp = sc->sc_ifp;
+	struct ieee80211com *ic = ifp->if_l2com;
+	int sr, lr, pri;
+
+	if (ts->ts_status == 0) {
+		u_int8_t txant = ts->ts_antenna;
+		sc->sc_stats.ast_ant_tx[txant]++;
+		sc->sc_ant_tx[txant]++;
+		if (ts->ts_finaltsi != 0)
+			sc->sc_stats.ast_tx_altrate++;
+		pri = M_WME_GETAC(bf->bf_m);
+		if (pri >= WME_AC_VO)
+			ic->ic_wme.wme_hipri_traffic++;
+		if ((bf->bf_txflags & HAL_TXDESC_NOACK) == 0)
+			ni->ni_inact = ni->ni_inact_reload;
+	} else {
+		if (ts->ts_status & HAL_TXERR_XRETRY)
+			sc->sc_stats.ast_tx_xretries++;
+		if (ts->ts_status & HAL_TXERR_FIFO)
+			sc->sc_stats.ast_tx_fifoerr++;
+		if (ts->ts_status & HAL_TXERR_FILT)
+			sc->sc_stats.ast_tx_filtered++;
+		if (ts->ts_status & HAL_TXERR_XTXOP)
+			sc->sc_stats.ast_tx_xtxop++;
+		if (ts->ts_status & HAL_TXERR_TIMER_EXPIRED)
+			sc->sc_stats.ast_tx_timerexpired++;
+
+		/* XXX HAL_TX_DATA_UNDERRUN */
+		/* XXX HAL_TX_DELIM_UNDERRUN */
+
+		if (bf->bf_m->m_flags & M_FF)
+			sc->sc_stats.ast_ff_txerr++;
+	}
+	/* XXX when is this valid? */
+	if (ts->ts_status & HAL_TX_DESC_CFG_ERR)
+		sc->sc_stats.ast_tx_desccfgerr++;
+
+	sr = ts->ts_shortretry;
+	lr = ts->ts_longretry;
+	sc->sc_stats.ast_tx_shortretry += sr;
+	sc->sc_stats.ast_tx_longretry += lr;
+
+}
+
 /*
  * Process completed xmit descriptors from the specified queue.
  */
@@ -3983,14 +4053,12 @@ static int
 ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 {
 	struct ath_hal *ah = sc->sc_ah;
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
-	struct ath_buf *bf, *last;
+	struct ath_buf *bf;
 	struct ath_desc *ds, *ds0;
 	struct ath_tx_status *ts;
 	struct ieee80211_node *ni;
 	struct ath_node *an;
-	int sr, lr, pri, nacked;
+	int nacked;
 	HAL_STATUS status;
 
 	DPRINTF(sc, ATH_DEBUG_TX_PROC, "%s: tx queue %u head %p link %p\n",
@@ -4037,44 +4105,9 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 
 		ni = bf->bf_node;
 		if (ni != NULL) {
-			an = ATH_NODE(ni);
-			if (ts->ts_status == 0) {
-				u_int8_t txant = ts->ts_antenna;
-				sc->sc_stats.ast_ant_tx[txant]++;
-				sc->sc_ant_tx[txant]++;
-				if (ts->ts_finaltsi != 0)
-					sc->sc_stats.ast_tx_altrate++;
-				pri = M_WME_GETAC(bf->bf_m);
-				if (pri >= WME_AC_VO)
-					ic->ic_wme.wme_hipri_traffic++;
-				if ((bf->bf_txflags & HAL_TXDESC_NOACK) == 0)
-					ni->ni_inact = ni->ni_inact_reload;
-			} else {
-				if (ts->ts_status & HAL_TXERR_XRETRY)
-					sc->sc_stats.ast_tx_xretries++;
-				if (ts->ts_status & HAL_TXERR_FIFO)
-					sc->sc_stats.ast_tx_fifoerr++;
-				if (ts->ts_status & HAL_TXERR_FILT)
-					sc->sc_stats.ast_tx_filtered++;
-				if (ts->ts_status & HAL_TXERR_XTXOP)
-					sc->sc_stats.ast_tx_xtxop++;
-				if (ts->ts_status & HAL_TXERR_TIMER_EXPIRED)
-					sc->sc_stats.ast_tx_timerexpired++;
+			/* update statistics */
+			ath_tx_update_stats(sc, ts, bf);
 
-				/* XXX HAL_TX_DATA_UNDERRUN */
-				/* XXX HAL_TX_DELIM_UNDERRUN */
-
-				if (bf->bf_m->m_flags & M_FF)
-					sc->sc_stats.ast_ff_txerr++;
-			}
-			/* XXX when is this valid? */
-			if (ts->ts_status & HAL_TX_DESC_CFG_ERR)
-				sc->sc_stats.ast_tx_desccfgerr++;
-
-			sr = ts->ts_shortretry;
-			lr = ts->ts_longretry;
-			sc->sc_stats.ast_tx_shortretry += sr;
-			sc->sc_stats.ast_tx_longretry += lr;
 			/*
 			 * Hand the descriptor to the rate control algorithm.
 			 */
@@ -4093,6 +4126,7 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 				}
 				ath_rate_tx_complete(sc, an, bf);
 			}
+
 			/*
 			 * Do any tx complete callback.  Note this must
 			 * be done before releasing the node reference.
@@ -4103,20 +4137,9 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 				        ts->ts_status : HAL_TXERR_XRETRY);
 			ieee80211_free_node(ni);
 		}
-		bus_dmamap_sync(sc->sc_dmat, bf->bf_dmamap,
-		    BUS_DMASYNC_POSTWRITE);
-		bus_dmamap_unload(sc->sc_dmat, bf->bf_dmamap);
 
-		m_freem(bf->bf_m);
-		bf->bf_m = NULL;
-		bf->bf_node = NULL;
-
-		ATH_TXBUF_LOCK(sc);
-		last = STAILQ_LAST(&sc->sc_txbuf, ath_buf, bf_list);
-		if (last != NULL)
-			last->bf_flags &= ~ATH_BUF_BUSY;
-		STAILQ_INSERT_TAIL(&sc->sc_txbuf, bf, bf_list);
-		ATH_TXBUF_UNLOCK(sc);
+		/* Free the mbuf; recycle the ath_buf */
+		ath_tx_freebuf(sc, bf);
 	}
 #ifdef IEEE80211_SUPPORT_SUPERG
 	/*
