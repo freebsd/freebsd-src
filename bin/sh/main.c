@@ -72,6 +72,7 @@ __FBSDID("$FreeBSD$");
 #include "mystring.h"
 #include "exec.h"
 #include "cd.h"
+#include "builtins.h"
 
 int rootpid;
 int rootshell;
