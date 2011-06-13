@@ -147,6 +147,9 @@ struct ath_buf {
 #define	ATH_MAX_SCATTER		ATH_TXDESC	/* max(tx,rx,beacon) desc's */
 	bus_dma_segment_t	bf_segs[ATH_MAX_SCATTER];
 
+	/* Completion function to call on TX complete (fail or not) */
+	void(* bf_comp) (struct ath_softc *sc, struct ath_buf *bf);
+
 	/* This state is kept to support software retries and aggregation */
 	struct {
 		int bfs_pktlen;		/* length of this packet */

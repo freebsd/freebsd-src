@@ -4025,6 +4025,21 @@ ath_tx_update_stats(struct ath_softc *sc, struct ath_tx_status *ts,
 
 }
 
+void
+ath_tx_default_comp(struct ath_softc *sc, struct ath_buf *bf)
+{
+	struct ath_tx_status *ts = &bf->bf_status.ds_txstat;
+	/*
+	 * Do any tx complete callback.  Note this must
+	 * be done before releasing the node reference.
+	 * This will free the mbuf, release the net80211
+	 * node and recycle the ath_buf.
+	 */
+	ath_tx_freebuf(sc, bf,
+	    ((bf->bf_txflags & HAL_TXDESC_NOACK) == 0) ?
+	        ts->ts_status : HAL_TXERR_XRETRY);
+}
+
 /*
  * Process completed xmit descriptors from the specified queue.
  */
@@ -4083,6 +4098,20 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 		ATH_TXQ_UNLOCK(txq);
 
 		ni = bf->bf_node;
+		/*
+		 * If unicast frame was ack'd update RSSI,
+		 * including the last rx time used to
+		 * workaround phantom bmiss interrupts.
+		 */
+		if (ni != NULL && ts->ts_status == 0 &&
+		    ((bf->bf_txflags & HAL_TXDESC_NOACK) == 0)) {
+			nacked++;
+			sc->sc_stats.ast_tx_rssi = ts->ts_rssi;
+			ATH_RSSI_LPF(sc->sc_halstats.ns_avgtxrssi,
+				ts->ts_rssi);
+		}
+
+		/* If unicast frame, update general statistics */
 		if (ni != NULL) {
 			an = ATH_NODE(ni);
 			/* update statistics */
@@ -4092,29 +4121,14 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 			 * Hand the descriptor to the rate control algorithm.
 			 */
 			if ((ts->ts_status & HAL_TXERR_FILT) == 0 &&
-			    (bf->bf_txflags & HAL_TXDESC_NOACK) == 0) {
-				/*
-				 * If frame was ack'd update statistics,
-				 * including the last rx time used to
-				 * workaround phantom bmiss interrupts.
-				 */
-				if (ts->ts_status == 0) {
-					nacked++;
-					sc->sc_stats.ast_tx_rssi = ts->ts_rssi;
-					ATH_RSSI_LPF(sc->sc_halstats.ns_avgtxrssi,
-						ts->ts_rssi);
-				}
+			    (bf->bf_txflags & HAL_TXDESC_NOACK) == 0)
 				ath_rate_tx_complete(sc, an, bf);
-			}
 		}
-		/*
-		 * Do any tx complete callback.  Note this must
-		 * be done before releasing the node reference.
-		 * This will free the node as well.
-		 */
-		ath_tx_freebuf(sc, bf,
-		    ((bf->bf_txflags & HAL_TXDESC_NOACK) == 0) ?
-		        ts->ts_status : HAL_TXERR_XRETRY);
+
+		if (bf->bf_comp == NULL)
+			ath_tx_default_comp(sc, bf);
+		else
+			bf->bf_comp(sc, bf);
 	}
 #ifdef IEEE80211_SUPPORT_SUPERG
 	/*
