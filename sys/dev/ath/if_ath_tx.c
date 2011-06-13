@@ -1414,9 +1414,16 @@ ath_tx_node_flush(struct ath_softc *sc, struct ath_node *an)
 {
 	int tid;
 
-	ATH_NODE_LOCK(an);
 	for (tid = 0; tid < IEEE80211_TID_SIZE; tid++)
 		ath_tx_tid_free_pkts(sc, an, tid);
+
+	/*
+	 * Don't hold the node lock across free_pkts;
+	 * freeing buffers may release the node and
+	 * that will acquire the IEEE80211_NODE_LOCK (node table).
+	 * That then causes a lock reversal.
+	 */
+	ATH_NODE_LOCK(an);
 	an->an_qdepth = 0;
 	ATH_NODE_UNLOCK(an);
 }
