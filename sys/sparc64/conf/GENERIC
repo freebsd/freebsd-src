@@ -61,13 +61,13 @@ options 	PRINTF_BUFR_SIZE=128	# Prevent printf output being interspersed.
 options 	HWPMC_HOOKS		# Necessary kernel hooks for hwpmc(4)
 options 	AUDIT			# Security event auditing
 options 	MAC			# TrustedBSD MAC Framework
-options 	INCLUDE_CONFIG_FILE     # Include this file in kernel
+options 	INCLUDE_CONFIG_FILE	# Include this file in kernel
 
 # Debugging for use in -current
 options 	KDB			# Enable kernel debugger support.
 options 	DDB			# Support DDB.
 options 	GDB			# Support remote GDB.
-options		DEADLKRES		# Enable the deadlock resolver
+options 	DEADLKRES		# Enable the deadlock resolver
 options 	INVARIANTS		# Enable calls of extra sanity checking
 options 	INVARIANT_SUPPORT	# Extra sanity checks of internal structures, required by INVARIANTS
 options 	WITNESS			# Enable checks to detect deadlocks and cycles
@@ -266,3 +266,10 @@ device		fwe		# Ethernet over FireWire (non-standard!)
 device		fwip		# IP over FireWire (RFC 2734,3146)
 device		dcons		# Dumb console driver
 device		dcons_crom	# Configuration ROM for dcons
+
+# Sound support
+device		sound		# Generic sound driver (required)
+device		snd_audiocs	# Crystal Semiconductor CS4231
+device		snd_es137x	# Ensoniq AudioPCI ES137x
+device		snd_t4dwave	# Acer Labs M5451
+device		snd_uaudio	# USB Audio
