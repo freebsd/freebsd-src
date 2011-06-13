@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include "mystring.h"
 #include "show.h"
 #include "cd.h"
+#include "builtins.h"
 
 static int cdlogical(char *);
 static int cdphysical(char *);
