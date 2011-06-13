@@ -394,6 +394,10 @@ PPCTargetLowering::PPCTargetLowering(PPCTargetMachine &TM)
     setLibcallName(RTLIB::EXP2_PPCF128, "exp2l$LDBL128");
   }
 
+  setMinFunctionAlignment(2);
+  if (PPCSubTarget.isDarwin())
+    setPrefFunctionAlignment(4);
+
   computeRegisterProperties();
 }
 
@@ -458,14 +462,6 @@ const char *PPCTargetLowering::getTargetNodeName(unsigned Opcode) const {
 
 MVT::SimpleValueType PPCTargetLowering::getSetCCResultType(EVT VT) const {
   return MVT::i32;
-}
-
-/// getFunctionAlignment - Return the Log2 alignment of this function.
-unsigned PPCTargetLowering::getFunctionAlignment(const Function *F) const {
-  if (getTargetMachine().getSubtarget<PPCSubtarget>().isDarwin())
-    return F->hasFnAttr(Attribute::OptimizeForSize) ? 2 : 4;
-  else
-    return 2;
 }
 
 //===----------------------------------------------------------------------===//
@@ -1014,7 +1010,8 @@ bool PPCTargetLowering::SelectAddressRegImmShift(SDValue N, SDValue &Disp,
       short Imm;
       if (isIntS16Immediate(CN, Imm)) {
         Disp = DAG.getTargetConstant((unsigned short)Imm >> 2, getPointerTy());
-        Base = DAG.getRegister(PPC::R0, CN->getValueType(0));
+        Base = DAG.getRegister(PPCSubTarget.isPPC64() ? PPC::X0 : PPC::R0,
+                               CN->getValueType(0));
         return true;
       }
 
@@ -1561,8 +1558,8 @@ PPCTargetLowering::LowerFormalArguments_SVR4(
 
   // Assign locations to all of the incoming arguments.
   SmallVector<CCValAssign, 16> ArgLocs;
-  CCState CCInfo(CallConv, isVarArg, getTargetMachine(), ArgLocs,
-                 *DAG.getContext());
+  CCState CCInfo(CallConv, isVarArg, DAG.getMachineFunction(),
+		 getTargetMachine(), ArgLocs, *DAG.getContext());
 
   // Reserve space for the linkage area on the stack.
   CCInfo.AllocateStack(PPCFrameLowering::getLinkageSize(false, false), PtrByteSize);
@@ -1622,8 +1619,8 @@ PPCTargetLowering::LowerFormalArguments_SVR4(
   // Aggregates passed by value are stored in the local variable space of the
   // caller's stack frame, right above the parameter list area.
   SmallVector<CCValAssign, 16> ByValArgLocs;
-  CCState CCByValInfo(CallConv, isVarArg, getTargetMachine(),
-                      ByValArgLocs, *DAG.getContext());
+  CCState CCByValInfo(CallConv, isVarArg, DAG.getMachineFunction(),
+		      getTargetMachine(), ByValArgLocs, *DAG.getContext());
 
   // Reserve stack space for the allocations in CCInfo.
   CCByValInfo.AllocateStack(CCInfo.getNextStackOffset(), PtrByteSize);
@@ -2565,7 +2562,7 @@ unsigned PrepareCall(SelectionDAG &DAG, SDValue &Callee, SDValue &InFlag,
     Callee.setNode(0);
     // Add CTR register as callee so a bctr can be emitted later.
     if (isTailCall)
-      Ops.push_back(DAG.getRegister(PPC::CTR, PtrVT));
+      Ops.push_back(DAG.getRegister(isPPC64 ? PPC::CTR8 : PPC::CTR, PtrVT));
   }
 
   // If this is a direct call, pass the chain and the callee.
@@ -2594,8 +2591,8 @@ PPCTargetLowering::LowerCallResult(SDValue Chain, SDValue InFlag,
                                    SmallVectorImpl<SDValue> &InVals) const {
 
   SmallVector<CCValAssign, 16> RVLocs;
-  CCState CCRetInfo(CallConv, isVarArg, getTargetMachine(),
-                    RVLocs, *DAG.getContext());
+  CCState CCRetInfo(CallConv, isVarArg, DAG.getMachineFunction(),
+		    getTargetMachine(), RVLocs, *DAG.getContext());
   CCRetInfo.AnalyzeCallResult(Ins, RetCC_PPC);
 
   // Copy all of the result registers out of their specified physreg.
@@ -2644,8 +2641,8 @@ PPCTargetLowering::FinishCall(CallingConv::ID CallConv, DebugLoc dl,
     // to the liveout set for the function.
     if (DAG.getMachineFunction().getRegInfo().liveout_empty()) {
       SmallVector<CCValAssign, 16> RVLocs;
-      CCState CCInfo(CallConv, isVarArg, getTargetMachine(), RVLocs,
-                     *DAG.getContext());
+      CCState CCInfo(CallConv, isVarArg, DAG.getMachineFunction(),
+		     getTargetMachine(), RVLocs, *DAG.getContext());
       CCInfo.AnalyzeCallResult(Ins, RetCC_PPC);
       for (unsigned i = 0; i != RVLocs.size(); ++i)
         DAG.getMachineFunction().getRegInfo().addLiveOut(RVLocs[i].getLocReg());
@@ -2758,8 +2755,8 @@ PPCTargetLowering::LowerCall_SVR4(SDValue Chain, SDValue Callee,
 
   // Assign locations to all of the outgoing arguments.
   SmallVector<CCValAssign, 16> ArgLocs;
-  CCState CCInfo(CallConv, isVarArg, getTargetMachine(),
-                 ArgLocs, *DAG.getContext());
+  CCState CCInfo(CallConv, isVarArg, DAG.getMachineFunction(),
+		 getTargetMachine(), ArgLocs, *DAG.getContext());
 
   // Reserve space for the linkage area on the stack.
   CCInfo.AllocateStack(PPCFrameLowering::getLinkageSize(false, false), PtrByteSize);
@@ -2798,8 +2795,8 @@ PPCTargetLowering::LowerCall_SVR4(SDValue Chain, SDValue Callee,
 
   // Assign locations to all of the outgoing aggregate by value arguments.
   SmallVector<CCValAssign, 16> ByValArgLocs;
-  CCState CCByValInfo(CallConv, isVarArg, getTargetMachine(), ByValArgLocs,
-                      *DAG.getContext());
+  CCState CCByValInfo(CallConv, isVarArg, DAG.getMachineFunction(),
+		      getTargetMachine(), ByValArgLocs, *DAG.getContext());
 
   // Reserve stack space for the allocations in CCInfo.
   CCByValInfo.AllocateStack(CCInfo.getNextStackOffset(), PtrByteSize);
@@ -3306,8 +3303,8 @@ PPCTargetLowering::LowerReturn(SDValue Chain,
                                DebugLoc dl, SelectionDAG &DAG) const {
 
   SmallVector<CCValAssign, 16> RVLocs;
-  CCState CCInfo(CallConv, isVarArg, getTargetMachine(),
-                 RVLocs, *DAG.getContext());
+  CCState CCInfo(CallConv, isVarArg, DAG.getMachineFunction(),
+		 getTargetMachine(), RVLocs, *DAG.getContext());
   CCInfo.AnalyzeReturn(Outs, RetCC_PPC);
 
   // If this is the first return lowered for this function, add the regs to the
@@ -5442,10 +5439,16 @@ PPCTargetLowering::getRegForInlineAsmConstraint(const std::string &Constraint,
 
 /// LowerAsmOperandForConstraint - Lower the specified operand into the Ops
 /// vector.  If it is invalid, don't add anything to Ops.
-void PPCTargetLowering::LowerAsmOperandForConstraint(SDValue Op, char Letter,
+void PPCTargetLowering::LowerAsmOperandForConstraint(SDValue Op,
+                                                     std::string &Constraint,
                                                      std::vector<SDValue>&Ops,
                                                      SelectionDAG &DAG) const {
   SDValue Result(0,0);
+
+  // Only support length 1 constraints.
+  if (Constraint.length() > 1) return;
+
+  char Letter = Constraint[0];
   switch (Letter) {
   default: break;
   case 'I':
@@ -5501,7 +5504,7 @@ void PPCTargetLowering::LowerAsmOperandForConstraint(SDValue Op, char Letter,
   }
 
   // Handle standard constraint letters.
-  TargetLowering::LowerAsmOperandForConstraint(Op, Letter, Ops, DAG);
+  TargetLowering::LowerAsmOperandForConstraint(Op, Constraint, Ops, DAG);
 }
 
 // isLegalAddressingMode - Return true if the addressing mode represented

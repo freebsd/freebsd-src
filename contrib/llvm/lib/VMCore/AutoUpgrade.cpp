@@ -285,7 +285,33 @@ static bool UpgradeIntrinsicFunction1(Function *F, Function *&NewFn) {
     }
 
     break;
-  case 'x': 
+  case 'x':
+    // This fixes the poorly named crc32 intrinsics
+    if (Name.compare(5, 13, "x86.sse42.crc", 13) == 0) {
+      const char* NewFnName = NULL;
+      if (Name.compare(18, 2, "32", 2) == 0) {
+        if (Name.compare(20, 2, ".8") == 0 && Name.length() == 22) {
+          NewFnName = "llvm.x86.sse42.crc32.32.8";
+        } else if (Name.compare(20, 3, ".16") == 0 && Name.length() == 23) {
+          NewFnName = "llvm.x86.sse42.crc32.32.16";
+        } else if (Name.compare(20, 3, ".32") == 0 && Name.length() == 23) {
+          NewFnName = "llvm.x86.sse42.crc32.32.32";
+        }
+      }
+      else if (Name.compare(18, 2, "64", 2) == 0) {
+        if (Name.compare(20, 2, ".8") == 0 && Name.length() == 22) {
+          NewFnName = "llvm.x86.sse42.crc32.64.8";
+        } else if (Name.compare(20, 3, ".64") == 0 && Name.length() == 23) {
+          NewFnName = "llvm.x86.sse42.crc32.64.64";
+        }
+      }
+      if (NewFnName) {
+        F->setName(NewFnName);
+        NewFn = F;
+        return true;
+      }
+    }
+
     // This fixes all MMX shift intrinsic instructions to take a
     // x86_mmx instead of a v1i64, v2i32, v4i16, or v8i8.
     if (Name.compare(5, 8, "x86.mmx.", 8) == 0) {
@@ -531,6 +557,13 @@ static bool UpgradeIntrinsicFunction1(Function *F, Function *&NewFn) {
                Name.compare(5, 17, "x86.sse2.loadu.dq", 17) == 0 ||
                Name.compare(5, 17, "x86.sse2.loadu.pd", 17) == 0) {
       // Calls to these instructions are transformed into unaligned loads.
+      NewFn = 0;
+      return true;
+    } else if (Name.compare(5, 16, "x86.sse.movnt.ps", 16) == 0 ||
+               Name.compare(5, 17, "x86.sse2.movnt.dq", 17) == 0 ||
+               Name.compare(5, 17, "x86.sse2.movnt.pd", 17) == 0 ||
+               Name.compare(5, 17, "x86.sse2.movnt.i", 16) == 0) {
+      // Calls to these instructions are transformed into nontemporal stores.
       NewFn = 0;
       return true;
     } else if (Name.compare(5, 17, "x86.ssse3.pshuf.w", 17) == 0) {
@@ -972,6 +1005,31 @@ void llvm::UpgradeIntrinsicCall(CallInst *CI, Function *NewFn) {
       // Fix up all the uses with our new load.
       if (!CI->use_empty())
         CI->replaceAllUsesWith(BC);
+
+      // Remove intrinsic.
+      CI->eraseFromParent();
+    } else if (F->getName() == "llvm.x86.sse.movnt.ps" ||
+               F->getName() == "llvm.x86.sse2.movnt.dq" ||
+               F->getName() == "llvm.x86.sse2.movnt.pd" ||
+               F->getName() == "llvm.x86.sse2.movnt.i") {
+      IRBuilder<> Builder(C);
+      Builder.SetInsertPoint(CI->getParent(), CI);
+
+      Module *M = F->getParent();
+      SmallVector<Value *, 1> Elts;
+      Elts.push_back(ConstantInt::get(Type::getInt32Ty(C), 1));
+      MDNode *Node = MDNode::get(C, Elts);
+
+      Value *Arg0 = CI->getArgOperand(0);
+      Value *Arg1 = CI->getArgOperand(1);
+
+      // Convert the type of the pointer to a pointer to the stored type.
+      Value *BC = Builder.CreateBitCast(Arg0,
+                                        PointerType::getUnqual(Arg1->getType()),
+                                        "cast");
+      StoreInst *SI = Builder.CreateStore(Arg1, BC);
+      SI->setMetadata(M->getMDKindID("nontemporal"), Node);
+      SI->setAlignment(16);
 
       // Remove intrinsic.
       CI->eraseFromParent();

@@ -169,6 +169,18 @@ or the file specified with option
 .Fl F .
 .Pp
 Use
+.Dv SIGHUP
+to reload the configuration file
+.Pa /etc/rtadvd.conf .
+If an invalid parameter is found in the configuration file upon the reload,
+the entry will be ignored and the old configuration will be used.
+When parameters in an existing entry are updated, 
+.Nm
+will send Router Advertisement messages with the old configuration but
+zero router lifetime to the interface first, and then start to send a new
+message.
+.Pp
+Use
 .Dv SIGTERM
 to kill
 .Nm

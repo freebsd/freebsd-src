@@ -41,82 +41,82 @@ let Namespace = "X86" in {
 
   // 8-bit registers
   // Low registers
-  def AL : Register<"al">, DwarfRegNum<[0, 0, 0]>;
-  def DL : Register<"dl">, DwarfRegNum<[1, 2, 2]>;
-  def CL : Register<"cl">, DwarfRegNum<[2, 1, 1]>;
-  def BL : Register<"bl">, DwarfRegNum<[3, 3, 3]>;
+  def AL : Register<"al">;
+  def DL : Register<"dl">;
+  def CL : Register<"cl">;
+  def BL : Register<"bl">;
 
   // X86-64 only, requires REX.
   let CostPerUse = 1 in {
-  def SIL : Register<"sil">, DwarfRegNum<[4, 6, 6]>;
-  def DIL : Register<"dil">, DwarfRegNum<[5, 7, 7]>;
-  def BPL : Register<"bpl">, DwarfRegNum<[6, 4, 5]>;
-  def SPL : Register<"spl">, DwarfRegNum<[7, 5, 4]>;
-  def R8B  : Register<"r8b">,  DwarfRegNum<[8, -2, -2]>;
-  def R9B  : Register<"r9b">,  DwarfRegNum<[9, -2, -2]>;
-  def R10B : Register<"r10b">, DwarfRegNum<[10, -2, -2]>;
-  def R11B : Register<"r11b">, DwarfRegNum<[11, -2, -2]>;
-  def R12B : Register<"r12b">, DwarfRegNum<[12, -2, -2]>;
-  def R13B : Register<"r13b">, DwarfRegNum<[13, -2, -2]>;
-  def R14B : Register<"r14b">, DwarfRegNum<[14, -2, -2]>;
-  def R15B : Register<"r15b">, DwarfRegNum<[15, -2, -2]>;
+  def SIL : Register<"sil">;
+  def DIL : Register<"dil">;
+  def BPL : Register<"bpl">;
+  def SPL : Register<"spl">;
+  def R8B  : Register<"r8b">;
+  def R9B  : Register<"r9b">;
+  def R10B : Register<"r10b">;
+  def R11B : Register<"r11b">;
+  def R12B : Register<"r12b">;
+  def R13B : Register<"r13b">;
+  def R14B : Register<"r14b">;
+  def R15B : Register<"r15b">;
   }
 
   // High registers. On x86-64, these cannot be used in any instruction
   // with a REX prefix.
-  def AH : Register<"ah">, DwarfRegNum<[0, 0, 0]>;
-  def DH : Register<"dh">, DwarfRegNum<[1, 2, 2]>;
-  def CH : Register<"ch">, DwarfRegNum<[2, 1, 1]>;
-  def BH : Register<"bh">, DwarfRegNum<[3, 3, 3]>;
+  def AH : Register<"ah">;
+  def DH : Register<"dh">;
+  def CH : Register<"ch">;
+  def BH : Register<"bh">;
 
   // 16-bit registers
   let SubRegIndices = [sub_8bit, sub_8bit_hi] in {
-  def AX : RegisterWithSubRegs<"ax", [AL,AH]>, DwarfRegNum<[0, 0, 0]>;
-  def DX : RegisterWithSubRegs<"dx", [DL,DH]>, DwarfRegNum<[1, 2, 2]>;
-  def CX : RegisterWithSubRegs<"cx", [CL,CH]>, DwarfRegNum<[2, 1, 1]>;
-  def BX : RegisterWithSubRegs<"bx", [BL,BH]>, DwarfRegNum<[3, 3, 3]>;
+  def AX : RegisterWithSubRegs<"ax", [AL,AH]>;
+  def DX : RegisterWithSubRegs<"dx", [DL,DH]>;
+  def CX : RegisterWithSubRegs<"cx", [CL,CH]>;
+  def BX : RegisterWithSubRegs<"bx", [BL,BH]>;
   }
   let SubRegIndices = [sub_8bit] in {
-  def SI : RegisterWithSubRegs<"si", [SIL]>, DwarfRegNum<[4, 6, 6]>;
-  def DI : RegisterWithSubRegs<"di", [DIL]>, DwarfRegNum<[5, 7, 7]>;
-  def BP : RegisterWithSubRegs<"bp", [BPL]>, DwarfRegNum<[6, 4, 5]>;
-  def SP : RegisterWithSubRegs<"sp", [SPL]>, DwarfRegNum<[7, 5, 4]>;
+  def SI : RegisterWithSubRegs<"si", [SIL]>;
+  def DI : RegisterWithSubRegs<"di", [DIL]>;
+  def BP : RegisterWithSubRegs<"bp", [BPL]>;
+  def SP : RegisterWithSubRegs<"sp", [SPL]>;
   }
-  def IP : Register<"ip">, DwarfRegNum<[16]>;
+  def IP : Register<"ip">;
 
   // X86-64 only, requires REX.
   let SubRegIndices = [sub_8bit], CostPerUse = 1 in {
-  def R8W  : RegisterWithSubRegs<"r8w", [R8B]>, DwarfRegNum<[8, -2, -2]>;
-  def R9W  : RegisterWithSubRegs<"r9w", [R9B]>, DwarfRegNum<[9, -2, -2]>;
-  def R10W : RegisterWithSubRegs<"r10w", [R10B]>, DwarfRegNum<[10, -2, -2]>;
-  def R11W : RegisterWithSubRegs<"r11w", [R11B]>, DwarfRegNum<[11, -2, -2]>;
-  def R12W : RegisterWithSubRegs<"r12w", [R12B]>, DwarfRegNum<[12, -2, -2]>;
-  def R13W : RegisterWithSubRegs<"r13w", [R13B]>, DwarfRegNum<[13, -2, -2]>;
-  def R14W : RegisterWithSubRegs<"r14w", [R14B]>, DwarfRegNum<[14, -2, -2]>;
-  def R15W : RegisterWithSubRegs<"r15w", [R15B]>, DwarfRegNum<[15, -2, -2]>;
+  def R8W  : RegisterWithSubRegs<"r8w", [R8B]>;
+  def R9W  : RegisterWithSubRegs<"r9w", [R9B]>;
+  def R10W : RegisterWithSubRegs<"r10w", [R10B]>;
+  def R11W : RegisterWithSubRegs<"r11w", [R11B]>;
+  def R12W : RegisterWithSubRegs<"r12w", [R12B]>;
+  def R13W : RegisterWithSubRegs<"r13w", [R13B]>;
+  def R14W : RegisterWithSubRegs<"r14w", [R14B]>;
+  def R15W : RegisterWithSubRegs<"r15w", [R15B]>;
   }
   // 32-bit registers
   let SubRegIndices = [sub_16bit] in {
-  def EAX : RegisterWithSubRegs<"eax", [AX]>, DwarfRegNum<[0, 0, 0]>;
-  def EDX : RegisterWithSubRegs<"edx", [DX]>, DwarfRegNum<[1, 2, 2]>;
-  def ECX : RegisterWithSubRegs<"ecx", [CX]>, DwarfRegNum<[2, 1, 1]>;
-  def EBX : RegisterWithSubRegs<"ebx", [BX]>, DwarfRegNum<[3, 3, 3]>;
-  def ESI : RegisterWithSubRegs<"esi", [SI]>, DwarfRegNum<[4, 6, 6]>;
-  def EDI : RegisterWithSubRegs<"edi", [DI]>, DwarfRegNum<[5, 7, 7]>;
-  def EBP : RegisterWithSubRegs<"ebp", [BP]>, DwarfRegNum<[6, 4, 5]>;
-  def ESP : RegisterWithSubRegs<"esp", [SP]>, DwarfRegNum<[7, 5, 4]>;
-  def EIP : RegisterWithSubRegs<"eip", [IP]>, DwarfRegNum<[16, 8, 8]>;
+  def EAX : RegisterWithSubRegs<"eax", [AX]>, DwarfRegNum<[-2, 0, 0]>;
+  def EDX : RegisterWithSubRegs<"edx", [DX]>, DwarfRegNum<[-2, 2, 2]>;
+  def ECX : RegisterWithSubRegs<"ecx", [CX]>, DwarfRegNum<[-2, 1, 1]>;
+  def EBX : RegisterWithSubRegs<"ebx", [BX]>, DwarfRegNum<[-2, 3, 3]>;
+  def ESI : RegisterWithSubRegs<"esi", [SI]>, DwarfRegNum<[-2, 6, 6]>;
+  def EDI : RegisterWithSubRegs<"edi", [DI]>, DwarfRegNum<[-2, 7, 7]>;
+  def EBP : RegisterWithSubRegs<"ebp", [BP]>, DwarfRegNum<[-2, 4, 5]>;
+  def ESP : RegisterWithSubRegs<"esp", [SP]>, DwarfRegNum<[-2, 5, 4]>;
+  def EIP : RegisterWithSubRegs<"eip", [IP]>, DwarfRegNum<[-2, 8, 8]>;
 
   // X86-64 only, requires REX
   let CostPerUse = 1 in {
-  def R8D  : RegisterWithSubRegs<"r8d", [R8W]>, DwarfRegNum<[8, -2, -2]>;
-  def R9D  : RegisterWithSubRegs<"r9d", [R9W]>, DwarfRegNum<[9, -2, -2]>;
-  def R10D : RegisterWithSubRegs<"r10d", [R10W]>, DwarfRegNum<[10, -2, -2]>;
-  def R11D : RegisterWithSubRegs<"r11d", [R11W]>, DwarfRegNum<[11, -2, -2]>;
-  def R12D : RegisterWithSubRegs<"r12d", [R12W]>, DwarfRegNum<[12, -2, -2]>;
-  def R13D : RegisterWithSubRegs<"r13d", [R13W]>, DwarfRegNum<[13, -2, -2]>;
-  def R14D : RegisterWithSubRegs<"r14d", [R14W]>, DwarfRegNum<[14, -2, -2]>;
-  def R15D : RegisterWithSubRegs<"r15d", [R15W]>, DwarfRegNum<[15, -2, -2]>;
+  def R8D  : RegisterWithSubRegs<"r8d", [R8W]>;
+  def R9D  : RegisterWithSubRegs<"r9d", [R9W]>;
+  def R10D : RegisterWithSubRegs<"r10d", [R10W]>;
+  def R11D : RegisterWithSubRegs<"r11d", [R11W]>;
+  def R12D : RegisterWithSubRegs<"r12d", [R12W]>;
+  def R13D : RegisterWithSubRegs<"r13d", [R13W]>;
+  def R14D : RegisterWithSubRegs<"r14d", [R14W]>;
+  def R15D : RegisterWithSubRegs<"r15d", [R15W]>;
   }}
 
   // 64-bit registers, X86-64 only
@@ -188,22 +188,22 @@ let Namespace = "X86" in {
 
   // YMM Registers, used by AVX instructions
   let SubRegIndices = [sub_xmm] in {
-  def YMM0: RegisterWithSubRegs<"ymm0", [XMM0]>, DwarfRegNum<[17, 21, 21]>;
-  def YMM1: RegisterWithSubRegs<"ymm1", [XMM1]>, DwarfRegNum<[18, 22, 22]>;
-  def YMM2: RegisterWithSubRegs<"ymm2", [XMM2]>, DwarfRegNum<[19, 23, 23]>;
-  def YMM3: RegisterWithSubRegs<"ymm3", [XMM3]>, DwarfRegNum<[20, 24, 24]>;
-  def YMM4: RegisterWithSubRegs<"ymm4", [XMM4]>, DwarfRegNum<[21, 25, 25]>;
-  def YMM5: RegisterWithSubRegs<"ymm5", [XMM5]>, DwarfRegNum<[22, 26, 26]>;
-  def YMM6: RegisterWithSubRegs<"ymm6", [XMM6]>, DwarfRegNum<[23, 27, 27]>;
-  def YMM7: RegisterWithSubRegs<"ymm7", [XMM7]>, DwarfRegNum<[24, 28, 28]>;
-  def YMM8:  RegisterWithSubRegs<"ymm8", [XMM8]>,  DwarfRegNum<[25, -2, -2]>;
-  def YMM9:  RegisterWithSubRegs<"ymm9", [XMM9]>,  DwarfRegNum<[26, -2, -2]>;
-  def YMM10: RegisterWithSubRegs<"ymm10", [XMM10]>, DwarfRegNum<[27, -2, -2]>;
-  def YMM11: RegisterWithSubRegs<"ymm11", [XMM11]>, DwarfRegNum<[28, -2, -2]>;
-  def YMM12: RegisterWithSubRegs<"ymm12", [XMM12]>, DwarfRegNum<[29, -2, -2]>;
-  def YMM13: RegisterWithSubRegs<"ymm13", [XMM13]>, DwarfRegNum<[30, -2, -2]>;
-  def YMM14: RegisterWithSubRegs<"ymm14", [XMM14]>, DwarfRegNum<[31, -2, -2]>;
-  def YMM15: RegisterWithSubRegs<"ymm15", [XMM15]>, DwarfRegNum<[32, -2, -2]>;
+  def YMM0: RegisterWithSubRegs<"ymm0", [XMM0]>, DwarfRegAlias<XMM0>;
+  def YMM1: RegisterWithSubRegs<"ymm1", [XMM1]>, DwarfRegAlias<XMM1>;
+  def YMM2: RegisterWithSubRegs<"ymm2", [XMM2]>, DwarfRegAlias<XMM2>;
+  def YMM3: RegisterWithSubRegs<"ymm3", [XMM3]>, DwarfRegAlias<XMM3>;
+  def YMM4: RegisterWithSubRegs<"ymm4", [XMM4]>, DwarfRegAlias<XMM4>;
+  def YMM5: RegisterWithSubRegs<"ymm5", [XMM5]>, DwarfRegAlias<XMM5>;
+  def YMM6: RegisterWithSubRegs<"ymm6", [XMM6]>, DwarfRegAlias<XMM6>;
+  def YMM7: RegisterWithSubRegs<"ymm7", [XMM7]>, DwarfRegAlias<XMM7>;
+  def YMM8:  RegisterWithSubRegs<"ymm8", [XMM8]>, DwarfRegAlias<XMM8>;
+  def YMM9:  RegisterWithSubRegs<"ymm9", [XMM9]>, DwarfRegAlias<XMM9>;
+  def YMM10: RegisterWithSubRegs<"ymm10", [XMM10]>, DwarfRegAlias<XMM10>;
+  def YMM11: RegisterWithSubRegs<"ymm11", [XMM11]>, DwarfRegAlias<XMM11>;
+  def YMM12: RegisterWithSubRegs<"ymm12", [XMM12]>, DwarfRegAlias<XMM12>;
+  def YMM13: RegisterWithSubRegs<"ymm13", [XMM13]>, DwarfRegAlias<XMM13>;
+  def YMM14: RegisterWithSubRegs<"ymm14", [XMM14]>, DwarfRegAlias<XMM14>;
+  def YMM15: RegisterWithSubRegs<"ymm15", [XMM15]>, DwarfRegAlias<XMM15>;
   }
 
   // Floating point stack registers
@@ -326,104 +326,12 @@ def GR16 : RegisterClass<"X86", [i16], 16,
                          [AX, CX, DX, SI, DI, BX, BP, SP,
                           R8W, R9W, R10W, R11W, R14W, R15W, R12W, R13W]> {
   let SubRegClasses = [(GR8 sub_8bit, sub_8bit_hi)];
-  let MethodProtos = [{
-    iterator allocation_order_begin(const MachineFunction &MF) const;
-    iterator allocation_order_end(const MachineFunction &MF) const;
-  }];
-  let MethodBodies = [{
-    static const unsigned X86_GR16_AO_64[] = {
-      X86::AX,  X86::CX,   X86::DX,   X86::SI,   X86::DI,
-      X86::R8W, X86::R9W,  X86::R10W, X86::R11W,
-      X86::BX, X86::R14W, X86::R15W,  X86::R12W, X86::R13W, X86::BP
-    };
-
-    GR16Class::iterator
-    GR16Class::allocation_order_begin(const MachineFunction &MF) const {
-      const TargetMachine &TM = MF.getTarget();
-      const X86Subtarget &Subtarget = TM.getSubtarget<X86Subtarget>();
-      if (Subtarget.is64Bit())
-        return X86_GR16_AO_64;
-      else
-        return begin();
-    }
-
-    GR16Class::iterator
-    GR16Class::allocation_order_end(const MachineFunction &MF) const {
-      const TargetMachine &TM = MF.getTarget();
-      const TargetFrameLowering *TFI = TM.getFrameLowering();
-      const X86Subtarget &Subtarget = TM.getSubtarget<X86Subtarget>();
-      const X86MachineFunctionInfo *MFI = MF.getInfo<X86MachineFunctionInfo>();
-      if (Subtarget.is64Bit()) {
-        // Does the function dedicate RBP to being a frame ptr?
-        if (TFI->hasFP(MF) || MFI->getReserveFP())
-          // If so, don't allocate SP or BP.
-          return array_endof(X86_GR16_AO_64) - 1;
-        else
-          // If not, just don't allocate SP.
-          return array_endof(X86_GR16_AO_64);
-      } else {
-        // Does the function dedicate EBP to being a frame ptr?
-        if (TFI->hasFP(MF) || MFI->getReserveFP())
-          // If so, don't allocate SP or BP.
-          return begin() + 6;
-        else
-          // If not, just don't allocate SP.
-          return begin() + 7;
-      }
-    }
-  }];
 }
 
 def GR32 : RegisterClass<"X86", [i32], 32,
                          [EAX, ECX, EDX, ESI, EDI, EBX, EBP, ESP,
                           R8D, R9D, R10D, R11D, R14D, R15D, R12D, R13D]> {
   let SubRegClasses = [(GR8 sub_8bit, sub_8bit_hi), (GR16 sub_16bit)];
-  let MethodProtos = [{
-    iterator allocation_order_begin(const MachineFunction &MF) const;
-    iterator allocation_order_end(const MachineFunction &MF) const;
-  }];
-  let MethodBodies = [{
-    static const unsigned X86_GR32_AO_64[] = {
-      X86::EAX, X86::ECX,  X86::EDX,  X86::ESI,  X86::EDI,
-      X86::R8D, X86::R9D,  X86::R10D, X86::R11D,
-      X86::EBX, X86::R14D, X86::R15D, X86::R12D, X86::R13D, X86::EBP
-    };
-
-    GR32Class::iterator
-    GR32Class::allocation_order_begin(const MachineFunction &MF) const {
-      const TargetMachine &TM = MF.getTarget();
-      const X86Subtarget &Subtarget = TM.getSubtarget<X86Subtarget>();
-      if (Subtarget.is64Bit())
-        return X86_GR32_AO_64;
-      else
-        return begin();
-    }
-
-    GR32Class::iterator
-    GR32Class::allocation_order_end(const MachineFunction &MF) const {
-      const TargetMachine &TM = MF.getTarget();
-      const TargetFrameLowering *TFI = TM.getFrameLowering();
-      const X86Subtarget &Subtarget = TM.getSubtarget<X86Subtarget>();
-      const X86MachineFunctionInfo *MFI = MF.getInfo<X86MachineFunctionInfo>();
-      if (Subtarget.is64Bit()) {
-        // Does the function dedicate RBP to being a frame ptr?
-        if (TFI->hasFP(MF) || MFI->getReserveFP())
-          // If so, don't allocate ESP or EBP.
-          return array_endof(X86_GR32_AO_64) - 1;
-        else
-          // If not, just don't allocate ESP.
-          return array_endof(X86_GR32_AO_64);
-      } else {
-        // Does the function dedicate EBP to being a frame ptr?
-        if (TFI->hasFP(MF) || MFI->getReserveFP())
-          // If so, don't allocate ESP or EBP.
-          return begin() + 6;
-        else
-          // If not, just don't allocate ESP.
-          return begin() + 7;
-      }
-    }
-  }];
 }
 
 // GR64 - 64-bit GPRs. This oddly includes RIP, which isn't accurate, since
@@ -435,25 +343,6 @@ def GR64 : RegisterClass<"X86", [i64], 64,
   let SubRegClasses = [(GR8 sub_8bit, sub_8bit_hi),
                        (GR16 sub_16bit),
                        (GR32 sub_32bit)];
-  let MethodProtos = [{
-    iterator allocation_order_end(const MachineFunction &MF) const;
-  }];
-  let MethodBodies = [{
-    GR64Class::iterator
-    GR64Class::allocation_order_end(const MachineFunction &MF) const {
-      const TargetMachine &TM = MF.getTarget();
-      const TargetFrameLowering *TFI = TM.getFrameLowering();
-      const X86Subtarget &Subtarget = TM.getSubtarget<X86Subtarget>();
-      const X86MachineFunctionInfo *MFI = MF.getInfo<X86MachineFunctionInfo>();
-      if (!Subtarget.is64Bit())
-        return begin();  // None of these are allocatable in 32-bit.
-      // Does the function dedicate RBP to being a frame ptr?
-      if (TFI->hasFP(MF) || MFI->getReserveFP())
-        return end()-3;  // If so, don't allocate RIP, RSP or RBP
-      else
-        return end()-2;  // If not, just don't allocate RIP or RSP
-    }
-  }];
 }
 
 // Segment registers for use by MOV instructions (and others) that have a
@@ -496,7 +385,7 @@ def GR32_TC   : RegisterClass<"X86", [i32], 32, [EAX, ECX, EDX]> {
   let SubRegClasses = [(GR8 sub_8bit, sub_8bit_hi), (GR16 sub_16bit)];
 }
 def GR64_TC   : RegisterClass<"X86", [i64], 64, [RAX, RCX, RDX, RSI, RDI,
-                                                 R8, R9, R11]> {
+                                                 R8, R9, R11, RIP]> {
   let SubRegClasses = [(GR8 sub_8bit, sub_8bit_hi),
                        (GR16 sub_16bit),
                        (GR32_TC sub_32bit)];
@@ -543,48 +432,12 @@ def GR8_NOREX : RegisterClass<"X86", [i8], 8,
 def GR16_NOREX : RegisterClass<"X86", [i16], 16,
                                [AX, CX, DX, SI, DI, BX, BP, SP]> {
   let SubRegClasses = [(GR8_NOREX sub_8bit, sub_8bit_hi)];
-  let MethodProtos = [{
-    iterator allocation_order_end(const MachineFunction &MF) const;
-  }];
-  let MethodBodies = [{
-    GR16_NOREXClass::iterator
-    GR16_NOREXClass::allocation_order_end(const MachineFunction &MF) const {
-      const TargetMachine &TM = MF.getTarget();
-      const TargetFrameLowering *TFI = TM.getFrameLowering();
-      const X86MachineFunctionInfo *MFI = MF.getInfo<X86MachineFunctionInfo>();
-      // Does the function dedicate RBP / EBP to being a frame ptr?
-      if (TFI->hasFP(MF) || MFI->getReserveFP())
-        // If so, don't allocate SP or BP.
-        return end() - 2;
-      else
-        // If not, just don't allocate SP.
-        return end() - 1;
-    }
-  }];
 }
 // GR32_NOREX - GR32 registers which do not require a REX prefix.
 def GR32_NOREX : RegisterClass<"X86", [i32], 32,
                                [EAX, ECX, EDX, ESI, EDI, EBX, EBP, ESP]> {
   let SubRegClasses = [(GR8_NOREX sub_8bit, sub_8bit_hi),
                        (GR16_NOREX sub_16bit)];
-  let MethodProtos = [{
-    iterator allocation_order_end(const MachineFunction &MF) const;
-  }];
-  let MethodBodies = [{
-    GR32_NOREXClass::iterator
-    GR32_NOREXClass::allocation_order_end(const MachineFunction &MF) const {
-      const TargetMachine &TM = MF.getTarget();
-      const TargetFrameLowering *TFI = TM.getFrameLowering();
-      const X86MachineFunctionInfo *MFI = MF.getInfo<X86MachineFunctionInfo>();
-      // Does the function dedicate RBP / EBP to being a frame ptr?
-      if (TFI->hasFP(MF) || MFI->getReserveFP())
-        // If so, don't allocate ESP or EBP.
-        return end() - 2;
-      else
-        // If not, just don't allocate ESP.
-        return end() - 1;
-    }
-  }];
 }
 // GR64_NOREX - GR64 registers which do not require a REX prefix.
 def GR64_NOREX : RegisterClass<"X86", [i64], 64,
@@ -592,24 +445,6 @@ def GR64_NOREX : RegisterClass<"X86", [i64], 64,
   let SubRegClasses = [(GR8_NOREX sub_8bit, sub_8bit_hi),
                        (GR16_NOREX sub_16bit),
                        (GR32_NOREX sub_32bit)];
-  let MethodProtos = [{
-    iterator allocation_order_end(const MachineFunction &MF) const;
-  }];
-  let MethodBodies = [{
-    GR64_NOREXClass::iterator
-    GR64_NOREXClass::allocation_order_end(const MachineFunction &MF) const {
-      const TargetMachine &TM = MF.getTarget();
-      const TargetFrameLowering *TFI = TM.getFrameLowering();
-      const X86MachineFunctionInfo *MFI = MF.getInfo<X86MachineFunctionInfo>();
-      // Does the function dedicate RBP to being a frame ptr?
-      if (TFI->hasFP(MF) || MFI->getReserveFP())
-        // If so, don't allocate RIP, RSP or RBP.
-        return end() - 3;
-      else
-        // If not, just don't allocate RIP or RSP.
-        return end() - 2;
-    }
-  }];
 }
 
 // GR32_NOSP - GR32 registers except ESP.
@@ -617,52 +452,6 @@ def GR32_NOSP : RegisterClass<"X86", [i32], 32,
                               [EAX, ECX, EDX, ESI, EDI, EBX, EBP,
                                R8D, R9D, R10D, R11D, R14D, R15D, R12D, R13D]> {
   let SubRegClasses = [(GR8 sub_8bit, sub_8bit_hi), (GR16 sub_16bit)];
-  let MethodProtos = [{
-    iterator allocation_order_begin(const MachineFunction &MF) const;
-    iterator allocation_order_end(const MachineFunction &MF) const;
-  }];
-  let MethodBodies = [{
-    static const unsigned X86_GR32_NOSP_AO_64[] = {
-      X86::EAX, X86::ECX,  X86::EDX,  X86::ESI,  X86::EDI,
-      X86::R8D, X86::R9D,  X86::R10D, X86::R11D,
-      X86::EBX, X86::R14D, X86::R15D, X86::R12D, X86::R13D, X86::EBP
-    };
-
-    GR32_NOSPClass::iterator
-    GR32_NOSPClass::allocation_order_begin(const MachineFunction &MF) const {
-      const TargetMachine &TM = MF.getTarget();
-      const X86Subtarget &Subtarget = TM.getSubtarget<X86Subtarget>();
-      if (Subtarget.is64Bit())
-        return X86_GR32_NOSP_AO_64;
-      else
-        return begin();
-    }
-
-    GR32_NOSPClass::iterator
-    GR32_NOSPClass::allocation_order_end(const MachineFunction &MF) const {
-      const TargetMachine &TM = MF.getTarget();
-      const TargetFrameLowering *TFI = TM.getFrameLowering();
-      const X86Subtarget &Subtarget = TM.getSubtarget<X86Subtarget>();
-      const X86MachineFunctionInfo *MFI = MF.getInfo<X86MachineFunctionInfo>();
-      if (Subtarget.is64Bit()) {
-        // Does the function dedicate RBP to being a frame ptr?
-        if (TFI->hasFP(MF) || MFI->getReserveFP())
-          // If so, don't allocate EBP.
-          return array_endof(X86_GR32_NOSP_AO_64) - 1;
-        else
-          // If not, any reg in this class is ok.
-          return array_endof(X86_GR32_NOSP_AO_64);
-      } else {
-        // Does the function dedicate EBP to being a frame ptr?
-        if (TFI->hasFP(MF) || MFI->getReserveFP())
-          // If so, don't allocate EBP.
-          return begin() + 6;
-        else
-          // If not, any reg in this class is ok.
-          return begin() + 7;
-      }
-    }
-  }];
 }
 
 // GR64_NOSP - GR64 registers except RSP (and RIP).
@@ -672,25 +461,14 @@ def GR64_NOSP : RegisterClass<"X86", [i64], 64,
   let SubRegClasses = [(GR8 sub_8bit, sub_8bit_hi),
                        (GR16 sub_16bit),
                        (GR32_NOSP sub_32bit)];
-  let MethodProtos = [{
-    iterator allocation_order_end(const MachineFunction &MF) const;
-  }];
-  let MethodBodies = [{
-    GR64_NOSPClass::iterator
-    GR64_NOSPClass::allocation_order_end(const MachineFunction &MF) const {
-      const TargetMachine &TM = MF.getTarget();
-      const TargetFrameLowering *TFI = TM.getFrameLowering();
-      const X86Subtarget &Subtarget = TM.getSubtarget<X86Subtarget>();
-      const X86MachineFunctionInfo *MFI = MF.getInfo<X86MachineFunctionInfo>();
-      if (!Subtarget.is64Bit())
-        return begin();  // None of these are allocatable in 32-bit.
-      // Does the function dedicate RBP to being a frame ptr?
-      if (TFI->hasFP(MF) || MFI->getReserveFP())
-        return end()-1;  // If so, don't allocate RBP
-      else
-        return end();  // If not, any reg in this class is ok.
-    }
-  }];
+}
+
+// GR32_NOREX_NOSP - GR32 registers which do not require a REX prefix except
+// ESP.
+def GR32_NOREX_NOSP : RegisterClass<"X86", [i32], 32,
+                               [EAX, ECX, EDX, ESI, EDI, EBX, EBP]> {
+  let SubRegClasses = [(GR8_NOREX sub_8bit, sub_8bit_hi),
+                       (GR16_NOREX sub_16bit)];
 }
 
 // GR64_NOREX_NOSP - GR64_NOREX registers except RSP.
@@ -698,26 +476,7 @@ def GR64_NOREX_NOSP : RegisterClass<"X86", [i64], 64,
                                     [RAX, RCX, RDX, RSI, RDI, RBX, RBP]> {
   let SubRegClasses = [(GR8_NOREX sub_8bit, sub_8bit_hi),
                        (GR16_NOREX sub_16bit),
-                       (GR32_NOREX sub_32bit)];
-  let MethodProtos = [{
-    iterator allocation_order_end(const MachineFunction &MF) const;
-  }];
-  let MethodBodies = [{
-    GR64_NOREX_NOSPClass::iterator
-    GR64_NOREX_NOSPClass::allocation_order_end(const MachineFunction &MF) const
-  {
-      const TargetMachine &TM = MF.getTarget();
-      const TargetFrameLowering *TFI = TM.getFrameLowering();
-      const X86MachineFunctionInfo *MFI = MF.getInfo<X86MachineFunctionInfo>();
-      // Does the function dedicate RBP to being a frame ptr?
-      if (TFI->hasFP(MF) || MFI->getReserveFP())
-        // If so, don't allocate RBP.
-        return end() - 1;
-      else
-        // If not, any reg in this class is ok.
-        return end();
-    }
-  }];
+                       (GR32_NOREX_NOSP sub_32bit)];
 }
 
 // A class to support the 'A' assembler constraint: EAX then EDX.
@@ -731,42 +490,12 @@ def GR32_AD : RegisterClass<"X86", [i32], 32, [EAX, EDX]> {
 def FR32 : RegisterClass<"X86", [f32], 32,
                          [XMM0, XMM1, XMM2, XMM3, XMM4, XMM5, XMM6, XMM7,
                           XMM8, XMM9, XMM10, XMM11,
-                          XMM12, XMM13, XMM14, XMM15]> {
-  let MethodProtos = [{
-    iterator allocation_order_end(const MachineFunction &MF) const;
-  }];
-  let MethodBodies = [{
-    FR32Class::iterator
-    FR32Class::allocation_order_end(const MachineFunction &MF) const {
-      const TargetMachine &TM = MF.getTarget();
-      const X86Subtarget &Subtarget = TM.getSubtarget<X86Subtarget>();
-      if (!Subtarget.is64Bit())
-        return end()-8; // Only XMM0 to XMM7 are available in 32-bit mode.
-      else
-        return end();
-    }
-  }];
-}
+                          XMM12, XMM13, XMM14, XMM15]>;
 
 def FR64 : RegisterClass<"X86", [f64], 64,
                          [XMM0, XMM1, XMM2, XMM3, XMM4, XMM5, XMM6, XMM7,
                           XMM8, XMM9, XMM10, XMM11,
-                          XMM12, XMM13, XMM14, XMM15]> {
-  let MethodProtos = [{
-    iterator allocation_order_end(const MachineFunction &MF) const;
-  }];
-  let MethodBodies = [{
-    FR64Class::iterator
-    FR64Class::allocation_order_end(const MachineFunction &MF) const {
-      const TargetMachine &TM = MF.getTarget();
-      const X86Subtarget &Subtarget = TM.getSubtarget<X86Subtarget>();
-      if (!Subtarget.is64Bit())
-        return end()-8; // Only XMM0 to XMM7 are available in 32-bit mode.
-      else
-        return end();
-    }
-  }];
-}
+                          XMM12, XMM13, XMM14, XMM15]>;
 
 
 // FIXME: This sets up the floating point register files as though they are f64
@@ -784,15 +513,7 @@ def RFP80 : RegisterClass<"X86",[f80], 32, [FP0, FP1, FP2, FP3, FP4, FP5, FP6]>;
 // for transforming FPn allocations to STn registers)
 def RST : RegisterClass<"X86", [f80, f64, f32], 32,
                         [ST0, ST1, ST2, ST3, ST4, ST5, ST6, ST7]> {
-    let MethodProtos = [{
-    iterator allocation_order_end(const MachineFunction &MF) const;
-  }];
-  let MethodBodies = [{
-    RSTClass::iterator
-    RSTClass::allocation_order_end(const MachineFunction &MF) const {
-      return begin();
-    }
-  }];
+  let isAllocatable = 0;
 }
 
 // Generic vector registers: VR64 and VR128.
@@ -803,21 +524,6 @@ def VR128 : RegisterClass<"X86", [v16i8, v8i16, v4i32, v2i64, v4f32, v2f64],128,
                            XMM8, XMM9, XMM10, XMM11,
                            XMM12, XMM13, XMM14, XMM15]> {
   let SubRegClasses = [(FR32 sub_ss), (FR64 sub_sd)];
-
-  let MethodProtos = [{
-    iterator allocation_order_end(const MachineFunction &MF) const;
-  }];
-  let MethodBodies = [{
-    VR128Class::iterator
-    VR128Class::allocation_order_end(const MachineFunction &MF) const {
-      const TargetMachine &TM = MF.getTarget();
-      const X86Subtarget &Subtarget = TM.getSubtarget<X86Subtarget>();
-      if (!Subtarget.is64Bit())
-        return end()-8; // Only XMM0 to XMM7 are available in 32-bit mode.
-      else
-        return end();
-    }
-  }];
 }
 
 def VR256 : RegisterClass<"X86", [v32i8, v8i32, v4i64, v8f32, v4f64], 256,
@@ -825,35 +531,10 @@ def VR256 : RegisterClass<"X86", [v32i8, v8i32, v4i64, v8f32, v4f64], 256,
                            YMM8, YMM9, YMM10, YMM11,
                            YMM12, YMM13, YMM14, YMM15]> {
   let SubRegClasses = [(FR32 sub_ss), (FR64 sub_sd), (VR128 sub_xmm)];
-
-  let MethodProtos = [{
-    iterator allocation_order_end(const MachineFunction &MF) const;
-  }];
-  let MethodBodies = [{
-    VR256Class::iterator
-    VR256Class::allocation_order_end(const MachineFunction &MF) const {
-      const TargetMachine &TM = MF.getTarget();
-      const X86Subtarget &Subtarget = TM.getSubtarget<X86Subtarget>();
-      if (!Subtarget.is64Bit())
-        return end()-8; // Only YMM0 to YMM7 are available in 32-bit mode.
-      else
-        return end();
-    }
-  }];
 }
 
 // Status flags registers.
 def CCR : RegisterClass<"X86", [i32], 32, [EFLAGS]> {
   let CopyCost = -1;  // Don't allow copying of status registers.
-
-  // EFLAGS is not allocatable.
-  let MethodProtos = [{
-    iterator allocation_order_end(const MachineFunction &MF) const;
-  }];
-  let MethodBodies = [{
-    CCRClass::iterator
-    CCRClass::allocation_order_end(const MachineFunction &MF) const {
-      return allocation_order_begin(MF);
-    }
-  }];
+  let isAllocatable = 0;
 }

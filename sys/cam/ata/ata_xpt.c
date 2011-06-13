@@ -1583,12 +1583,14 @@ ata_device_transport(struct cam_path *path)
 	cts.proto_specific.valid = 0;
 	if (ident_buf) {
 		if (path->device->transport == XPORT_ATA) {
-			cts.xport_specific.ata.atapi = 
+			cts.xport_specific.ata.atapi =
+			    (ident_buf->config == ATA_PROTO_CFA) ? 0 :
 			    ((ident_buf->config & ATA_PROTO_MASK) == ATA_PROTO_ATAPI_16) ? 16 :
 			    ((ident_buf->config & ATA_PROTO_MASK) == ATA_PROTO_ATAPI_12) ? 12 : 0;
 			cts.xport_specific.ata.valid = CTS_ATA_VALID_ATAPI;
 		} else {
-			cts.xport_specific.sata.atapi = 
+			cts.xport_specific.sata.atapi =
+			    (ident_buf->config == ATA_PROTO_CFA) ? 0 :
 			    ((ident_buf->config & ATA_PROTO_MASK) == ATA_PROTO_ATAPI_16) ? 16 :
 			    ((ident_buf->config & ATA_PROTO_MASK) == ATA_PROTO_ATAPI_12) ? 12 : 0;
 			cts.xport_specific.sata.valid = CTS_SATA_VALID_ATAPI;
@@ -1638,7 +1640,9 @@ ata_action(union ccb *start_ccb)
 			uint16_t p =
 			    device->ident_data.config & ATA_PROTO_MASK;
 
-			maxlen = (p == ATA_PROTO_ATAPI_16) ? 16 :
+			maxlen =
+			    (device->ident_data.config == ATA_PROTO_CFA) ? 0 :
+			    (p == ATA_PROTO_ATAPI_16) ? 16 :
 			    (p == ATA_PROTO_ATAPI_12) ? 12 : 0;
 		}
 		if (start_ccb->csio.cdb_len > maxlen) {

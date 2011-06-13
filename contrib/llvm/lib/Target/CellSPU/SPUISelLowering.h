@@ -141,7 +141,7 @@ namespace llvm {
       getRegForInlineAsmConstraint(const std::string &Constraint,
                                    EVT VT) const;
 
-    void LowerAsmOperandForConstraint(SDValue Op, char ConstraintLetter,
+    void LowerAsmOperandForConstraint(SDValue Op, std::string &Constraint,
                                       std::vector<SDValue> &Ops,
                                       SelectionDAG &DAG) const;
 
@@ -151,9 +151,6 @@ namespace llvm {
     virtual bool isLegalAddressImmediate(GlobalValue *) const;
 
     virtual bool isOffsetFoldingLegal(const GlobalAddressSDNode *GA) const;
-
-    /// getFunctionAlignment - Return the Log2 alignment of this function.
-    virtual unsigned getFunctionAlignment(const Function *F) const;
 
     virtual SDValue
       LowerFormalArguments(SDValue Chain,

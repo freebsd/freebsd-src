@@ -56,8 +56,8 @@ struct xenstore_domain_interface;
 struct xs_watch;
 extern struct xenstore_domain_interface *xen_store;
 
-typedef	void (xs_watch_cb_t)(struct xs_watch *,
-				   const char **vec, unsigned int len);
+typedef	void (xs_watch_cb_t)(struct xs_watch *, const char **vec,
+    unsigned int len);
 
 /* Register callback to watch subtree (node) in the XenStore. */
 struct xs_watch
@@ -69,6 +69,9 @@ struct xs_watch
 
 	/* Callback (executed in a process context with no locks held). */
 	xs_watch_cb_t *callback;
+
+	/* Callback client data untouched by the XenStore watch mechanism. */
+	uintptr_t callback_data;
 };
 LIST_HEAD(xs_watch_list, xs_watch);
 
@@ -301,7 +304,7 @@ int xs_gather(struct xs_transaction t, const char *dir, ...);
  * XenStore watches allow a client to be notified via a callback (embedded
  * within the watch object) of changes to an object in the XenStore.
  *
- * \param watch  A xenbus_watch struct with it's node and callback fields
+ * \param watch  An xs_watch struct with it's node and callback fields
  *               properly initialized.
  *
  * \return  On success, 0. Otherwise an errno value indicating the

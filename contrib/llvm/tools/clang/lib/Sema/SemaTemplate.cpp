@@ -92,11 +92,9 @@ void Sema::FilterAcceptableTemplateNames(LookupResult &R) {
       //   ambiguity in certain cases (for example, if it is found in more than
       //   one base class). If all of the injected-class-names that are found
       //   refer to specializations of the same class template, and if the name
-      //   is followed by a template-argument-list, the reference refers to the
-      //   class template itself and not a specialization thereof, and is not
+      //   is used as a template-name, the reference refers to the class
+      //   template itself and not a specialization thereof, and is not
       //   ambiguous.
-      //
-      // FIXME: Will we eventually have to do the same for alias templates?
       if (ClassTemplateDecl *ClassTmpl = dyn_cast<ClassTemplateDecl>(Repl))
         if (!ClassTemplates.insert(ClassTmpl)) {
           filter.erase();
@@ -199,7 +197,8 @@ TemplateNameKind Sema::isTemplateName(Scope *S,
       // We'll do this lookup again later.
       R.suppressDiagnostics();
     } else {
-      assert(isa<ClassTemplateDecl>(TD) || isa<TemplateTemplateParmDecl>(TD));
+      assert(isa<ClassTemplateDecl>(TD) || isa<TemplateTemplateParmDecl>(TD) ||
+             isa<TypeAliasTemplateDecl>(TD));
       TemplateKind = TNK_Type_template;
     }
   }
@@ -603,8 +602,10 @@ Sema::CheckNonTypeTemplateParameterType(QualType T, SourceLocation Loc) {
       T->isPointerType() ||
       //   -- reference to object or reference to function,
       T->isReferenceType() ||
-      //   -- pointer to member.
+      //   -- pointer to member,
       T->isMemberPointerType() ||
+      //   -- std::nullptr_t.
+      T->isNullPtrType() ||
       // If T is a dependent type, we can't do the check now, so we
       // assume that it is well-formed.
       T->isDependentType())
@@ -919,7 +920,8 @@ Sema::CheckClassTemplate(Scope *S, unsigned TagSpec, TagUseKind TUK,
     //   the class-key shall agree in kind with the original class
     //   template declaration (7.1.5.3).
     RecordDecl *PrevRecordDecl = PrevClassTemplate->getTemplatedDecl();
-    if (!isAcceptableTagRedeclaration(PrevRecordDecl, Kind, KWLoc, *Name)) {
+    if (!isAcceptableTagRedeclaration(PrevRecordDecl, Kind,
+                                      TUK == TUK_Definition,  KWLoc, *Name)) {
       Diag(KWLoc, diag::err_use_with_wrong_tag)
         << Name
         << FixItHint::CreateReplacement(KWLoc, PrevRecordDecl->getKindName());
@@ -1062,6 +1064,7 @@ static bool DiagnoseDefaultTemplateArgument(Sema &S,
                                             SourceRange DefArgRange) {
   switch (TPC) {
   case Sema::TPC_ClassTemplate:
+  case Sema::TPC_TypeAliasTemplate:
     return false;
 
   case Sema::TPC_FunctionTemplate:
@@ -1187,9 +1190,10 @@ bool Sema::CheckTemplateParameterList(TemplateParameterList *NewParams,
     bool MissingDefaultArg = false;
 
     // C++0x [temp.param]p11:
-    //   If a template parameter of a primary class template is a template
-    //   parameter pack, it shall be the last template parameter.
-    if (SawParameterPack && TPC == TPC_ClassTemplate) {
+    //   If a template parameter of a primary class template or alias template
+    //   is a template parameter pack, it shall be the last template parameter.
+    if (SawParameterPack &&
+        (TPC == TPC_ClassTemplate || TPC == TPC_TypeAliasTemplate)) {
       Diag(ParameterPackLoc,
            diag::err_template_param_pack_must_be_last_template_parameter);
       Invalid = true;
@@ -1429,17 +1433,39 @@ struct DependencyChecker : RecursiveASTVisitor<DependencyChecker> {
     }
     return super::VisitDeclRefExpr(E);
   }
+  
+  bool TraverseInjectedClassNameType(const InjectedClassNameType *T) {
+    return TraverseType(T->getInjectedSpecializationType());
+  }
 };
 }
 
-/// Determines whether a template-id depends on the given parameter
+/// Determines whether a given type depends on the given parameter
 /// list.
 static bool
-DependsOnTemplateParameters(const TemplateSpecializationType *TemplateId,
-                            TemplateParameterList *Params) {
+DependsOnTemplateParameters(QualType T, TemplateParameterList *Params) {
   DependencyChecker Checker(Params);
-  Checker.TraverseType(QualType(TemplateId, 0));
+  Checker.TraverseType(T);
   return Checker.Match;
+}
+
+// Find the source range corresponding to the named type in the given
+// nested-name-specifier, if any.
+static SourceRange getRangeOfTypeInNestedNameSpecifier(ASTContext &Context,
+                                                       QualType T,
+                                                       const CXXScopeSpec &SS) {
+  NestedNameSpecifierLoc NNSLoc(SS.getScopeRep(), SS.location_data());
+  while (NestedNameSpecifier *NNS = NNSLoc.getNestedNameSpecifier()) {
+    if (const Type *CurType = NNS->getAsType()) {
+      if (Context.hasSameUnqualifiedType(T, QualType(CurType, 0)))
+        return NNSLoc.getTypeLoc().getSourceRange();
+    } else
+      break;
+    
+    NNSLoc = NNSLoc.getPrefix();
+  }
+  
+  return SourceRange();
 }
 
 /// \brief Match the given template parameter lists to the given scope
@@ -1448,6 +1474,8 @@ DependsOnTemplateParameters(const TemplateSpecializationType *TemplateId,
 ///
 /// \param DeclStartLoc the start of the declaration that has a scope
 /// specifier or a template parameter list.
+///
+/// \param DeclLoc The location of the declaration itself.
 ///
 /// \param SS the scope specifier that will be matched to the given template
 /// parameter lists. This scope specifier precedes a qualified name that is
@@ -1473,6 +1501,7 @@ DependsOnTemplateParameters(const TemplateSpecializationType *TemplateId,
 /// itself a template).
 TemplateParameterList *
 Sema::MatchTemplateParametersToScopeSpecifier(SourceLocation DeclStartLoc,
+                                              SourceLocation DeclLoc,
                                               const CXXScopeSpec &SS,
                                           TemplateParameterList **ParamLists,
                                               unsigned NumParamLists,
@@ -1480,138 +1509,268 @@ Sema::MatchTemplateParametersToScopeSpecifier(SourceLocation DeclStartLoc,
                                               bool &IsExplicitSpecialization,
                                               bool &Invalid) {
   IsExplicitSpecialization = false;
-
-  // Find the template-ids that occur within the nested-name-specifier. These
-  // template-ids will match up with the template parameter lists.
-  llvm::SmallVector<const TemplateSpecializationType *, 4>
-    TemplateIdsInSpecifier;
-  llvm::SmallVector<ClassTemplateSpecializationDecl *, 4>
-    ExplicitSpecializationsInSpecifier;
-  for (NestedNameSpecifier *NNS = (NestedNameSpecifier *)SS.getScopeRep();
-       NNS; NNS = NNS->getPrefix()) {
-    const Type *T = NNS->getAsType();
-    if (!T) break;
-
-    // C++0x [temp.expl.spec]p17:
-    //   A member or a member template may be nested within many
-    //   enclosing class templates. In an explicit specialization for
-    //   such a member, the member declaration shall be preceded by a
-    //   template<> for each enclosing class template that is
-    //   explicitly specialized.
-    //
-    // Following the existing practice of GNU and EDG, we allow a typedef of a
-    // template specialization type.
-    while (const TypedefType *TT = dyn_cast<TypedefType>(T))
-      T = TT->getDecl()->getUnderlyingType().getTypePtr();
-
-    if (const TemplateSpecializationType *SpecType
-                                  = dyn_cast<TemplateSpecializationType>(T)) {
-      TemplateDecl *Template = SpecType->getTemplateName().getAsTemplateDecl();
-      if (!Template)
-        continue; // FIXME: should this be an error? probably...
-
-      if (const RecordType *Record = SpecType->getAs<RecordType>()) {
-        ClassTemplateSpecializationDecl *SpecDecl
-          = cast<ClassTemplateSpecializationDecl>(Record->getDecl());
-        // If the nested name specifier refers to an explicit specialization,
-        // we don't need a template<> header.
-        if (SpecDecl->getSpecializationKind() == TSK_ExplicitSpecialization) {
-          ExplicitSpecializationsInSpecifier.push_back(SpecDecl);
-          continue;
-        }
-      }
-
-      TemplateIdsInSpecifier.push_back(SpecType);
-    }
+  Invalid = false;
+  
+  // The sequence of nested types to which we will match up the template
+  // parameter lists. We first build this list by starting with the type named
+  // by the nested-name-specifier and walking out until we run out of types.
+  llvm::SmallVector<QualType, 4> NestedTypes;
+  QualType T;
+  if (SS.getScopeRep()) {
+    if (CXXRecordDecl *Record 
+              = dyn_cast_or_null<CXXRecordDecl>(computeDeclContext(SS, true)))
+      T = Context.getTypeDeclType(Record);
+    else
+      T = QualType(SS.getScopeRep()->getAsType(), 0);
   }
-
-  // Reverse the list of template-ids in the scope specifier, so that we can
-  // more easily match up the template-ids and the template parameter lists.
-  std::reverse(TemplateIdsInSpecifier.begin(), TemplateIdsInSpecifier.end());
-
-  SourceLocation FirstTemplateLoc = DeclStartLoc;
-  if (NumParamLists)
-    FirstTemplateLoc = ParamLists[0]->getTemplateLoc();
-
-  // Match the template-ids found in the specifier to the template parameter
-  // lists.
-  unsigned ParamIdx = 0, TemplateIdx = 0;
-  for (unsigned NumTemplateIds = TemplateIdsInSpecifier.size();
-       TemplateIdx != NumTemplateIds; ++TemplateIdx) {
-    const TemplateSpecializationType *TemplateId
-      = TemplateIdsInSpecifier[TemplateIdx];
-    bool DependentTemplateId = TemplateId->isDependentType();
-
-    // In friend declarations we can have template-ids which don't
-    // depend on the corresponding template parameter lists.  But
-    // assume that empty parameter lists are supposed to match this
-    // template-id.
-    if (IsFriend && ParamIdx < NumParamLists && ParamLists[ParamIdx]->size()) {
-      if (!DependentTemplateId ||
-          !DependsOnTemplateParameters(TemplateId, ParamLists[ParamIdx]))
-        continue;
-    }
-
-    if (ParamIdx >= NumParamLists) {
-      // We have a template-id without a corresponding template parameter
-      // list.
-
-      // ...which is fine if this is a friend declaration.
-      if (IsFriend) {
-        IsExplicitSpecialization = true;
+  
+  // If we found an explicit specialization that prevents us from needing
+  // 'template<>' headers, this will be set to the location of that
+  // explicit specialization.
+  SourceLocation ExplicitSpecLoc;
+  
+  while (!T.isNull()) {
+    NestedTypes.push_back(T);
+    
+    // Retrieve the parent of a record type.
+    if (CXXRecordDecl *Record = T->getAsCXXRecordDecl()) {
+      // If this type is an explicit specialization, we're done.
+      if (ClassTemplateSpecializationDecl *Spec
+          = dyn_cast<ClassTemplateSpecializationDecl>(Record)) {
+        if (!isa<ClassTemplatePartialSpecializationDecl>(Spec) && 
+            Spec->getSpecializationKind() == TSK_ExplicitSpecialization) {
+          ExplicitSpecLoc = Spec->getLocation();
+          break;
+        }
+      } else if (Record->getTemplateSpecializationKind()
+                                                == TSK_ExplicitSpecialization) {
+        ExplicitSpecLoc = Record->getLocation();
         break;
       }
-
-      if (DependentTemplateId) {
-        // FIXME: the location information here isn't great.
-        Diag(SS.getRange().getBegin(),
-             diag::err_template_spec_needs_template_parameters)
-          << QualType(TemplateId, 0)
-          << SS.getRange();
-        Invalid = true;
-      } else {
-        Diag(SS.getRange().getBegin(), diag::err_template_spec_needs_header)
-          << SS.getRange()
-          << FixItHint::CreateInsertion(FirstTemplateLoc, "template<> ");
-        IsExplicitSpecialization = true;
+      
+      if (TypeDecl *Parent = dyn_cast<TypeDecl>(Record->getParent()))
+        T = Context.getTypeDeclType(Parent);
+      else
+        T = QualType();
+      continue;
+    } 
+    
+    if (const TemplateSpecializationType *TST
+                                     = T->getAs<TemplateSpecializationType>()) {
+      if (TemplateDecl *Template = TST->getTemplateName().getAsTemplateDecl()) {
+        if (TypeDecl *Parent = dyn_cast<TypeDecl>(Template->getDeclContext()))
+          T = Context.getTypeDeclType(Parent);
+        else
+          T = QualType();
+        continue;        
       }
-      return 0;
+    }
+    
+    // Look one step prior in a dependent template specialization type.
+    if (const DependentTemplateSpecializationType *DependentTST
+                          = T->getAs<DependentTemplateSpecializationType>()) {
+      if (NestedNameSpecifier *NNS = DependentTST->getQualifier())
+        T = QualType(NNS->getAsType(), 0);
+      else
+        T = QualType();
+      continue;
+    }
+    
+    // Look one step prior in a dependent name type.
+    if (const DependentNameType *DependentName = T->getAs<DependentNameType>()){
+      if (NestedNameSpecifier *NNS = DependentName->getQualifier())
+        T = QualType(NNS->getAsType(), 0);
+      else
+        T = QualType();
+      continue;
+    }
+    
+    // Retrieve the parent of an enumeration type.
+    if (const EnumType *EnumT = T->getAs<EnumType>()) {
+      // FIXME: Forward-declared enums require a TSK_ExplicitSpecialization
+      // check here.
+      EnumDecl *Enum = EnumT->getDecl();
+      
+      // Get to the parent type.
+      if (TypeDecl *Parent = dyn_cast<TypeDecl>(Enum->getParent()))
+        T = Context.getTypeDeclType(Parent);
+      else
+        T = QualType();      
+      continue;
     }
 
-    // Check the template parameter list against its corresponding template-id.
-    if (DependentTemplateId) {
-      TemplateParameterList *ExpectedTemplateParams = 0;
+    T = QualType();
+  }
+  // Reverse the nested types list, since we want to traverse from the outermost
+  // to the innermost while checking template-parameter-lists.
+  std::reverse(NestedTypes.begin(), NestedTypes.end());
 
-      // Are there cases in (e.g.) friends where this won't match?
-      if (const InjectedClassNameType *Injected
-            = TemplateId->getAs<InjectedClassNameType>()) {
-        CXXRecordDecl *Record = Injected->getDecl();
-        if (ClassTemplatePartialSpecializationDecl *Partial =
-              dyn_cast<ClassTemplatePartialSpecializationDecl>(Record))
-          ExpectedTemplateParams = Partial->getTemplateParameters();
-        else
+  // C++0x [temp.expl.spec]p17:
+  //   A member or a member template may be nested within many
+  //   enclosing class templates. In an explicit specialization for
+  //   such a member, the member declaration shall be preceded by a
+  //   template<> for each enclosing class template that is
+  //   explicitly specialized.
+  bool SawNonEmptyTemplateParameterList = false;
+  unsigned ParamIdx = 0;
+  for (unsigned TypeIdx = 0, NumTypes = NestedTypes.size(); TypeIdx != NumTypes;
+       ++TypeIdx) {
+    T = NestedTypes[TypeIdx];
+    
+    // Whether we expect a 'template<>' header.
+    bool NeedEmptyTemplateHeader = false;
+
+    // Whether we expect a template header with parameters.
+    bool NeedNonemptyTemplateHeader = false;
+    
+    // For a dependent type, the set of template parameters that we
+    // expect to see.
+    TemplateParameterList *ExpectedTemplateParams = 0;
+
+    // C++0x [temp.expl.spec]p15:
+    //   A member or a member template may be nested within many enclosing 
+    //   class templates. In an explicit specialization for such a member, the 
+    //   member declaration shall be preceded by a template<> for each 
+    //   enclosing class template that is explicitly specialized.
+    if (CXXRecordDecl *Record = T->getAsCXXRecordDecl()) {
+      if (ClassTemplatePartialSpecializationDecl *Partial
+            = dyn_cast<ClassTemplatePartialSpecializationDecl>(Record)) {
+        ExpectedTemplateParams = Partial->getTemplateParameters();
+        NeedNonemptyTemplateHeader = true;
+      } else if (Record->isDependentType()) {
+        if (Record->getDescribedClassTemplate()) {
           ExpectedTemplateParams = Record->getDescribedClassTemplate()
-            ->getTemplateParameters();
+                                                      ->getTemplateParameters();
+          NeedNonemptyTemplateHeader = true;
+        }
+      } else if (ClassTemplateSpecializationDecl *Spec
+                     = dyn_cast<ClassTemplateSpecializationDecl>(Record)) {
+        // C++0x [temp.expl.spec]p4:
+        //   Members of an explicitly specialized class template are defined
+        //   in the same manner as members of normal classes, and not using 
+        //   the template<> syntax. 
+        if (Spec->getSpecializationKind() != TSK_ExplicitSpecialization)
+          NeedEmptyTemplateHeader = true;
+        else
+          continue;
+      } else if (Record->getTemplateSpecializationKind()) {
+        if (Record->getTemplateSpecializationKind() 
+                                                != TSK_ExplicitSpecialization &&
+            TypeIdx == NumTypes - 1)
+          IsExplicitSpecialization = true;
+        
+        continue;
+      }
+    } else if (const TemplateSpecializationType *TST
+                                     = T->getAs<TemplateSpecializationType>()) {
+      if (TemplateDecl *Template = TST->getTemplateName().getAsTemplateDecl()) {        
+        ExpectedTemplateParams = Template->getTemplateParameters();
+        NeedNonemptyTemplateHeader = true;        
+      }
+    } else if (T->getAs<DependentTemplateSpecializationType>()) {
+      // FIXME:  We actually could/should check the template arguments here
+      // against the corresponding template parameter list.
+      NeedNonemptyTemplateHeader = false;
+    } 
+    
+    // C++ [temp.expl.spec]p16:
+    //   In an explicit specialization declaration for a member of a class 
+    //   template or a member template that ap- pears in namespace scope, the 
+    //   member template and some of its enclosing class templates may remain 
+    //   unspecialized, except that the declaration shall not explicitly 
+    //   specialize a class member template if its en- closing class templates 
+    //   are not explicitly specialized as well.
+    if (ParamIdx < NumParamLists) {
+      if (ParamLists[ParamIdx]->size() == 0) {
+        if (SawNonEmptyTemplateParameterList) {
+          Diag(DeclLoc, diag::err_specialize_member_of_template)
+            << ParamLists[ParamIdx]->getSourceRange();
+          Invalid = true;
+          IsExplicitSpecialization = false;
+          return 0;
+        }
+      } else
+        SawNonEmptyTemplateParameterList = true;
+    }
+    
+    if (NeedEmptyTemplateHeader) {
+      // If we're on the last of the types, and we need a 'template<>' header
+      // here, then it's an explicit specialization.
+      if (TypeIdx == NumTypes - 1)
+        IsExplicitSpecialization = true;
+      
+      if (ParamIdx < NumParamLists) {
+        if (ParamLists[ParamIdx]->size() > 0) {
+          // The header has template parameters when it shouldn't. Complain.
+          Diag(ParamLists[ParamIdx]->getTemplateLoc(), 
+               diag::err_template_param_list_matches_nontemplate)
+            << T
+            << SourceRange(ParamLists[ParamIdx]->getLAngleLoc(),
+                           ParamLists[ParamIdx]->getRAngleLoc())
+            << getRangeOfTypeInNestedNameSpecifier(Context, T, SS);
+          Invalid = true;
+          return 0;
+        }
+        
+        // Consume this template header.
+        ++ParamIdx;
+        continue;
+      } 
+      
+      if (!IsFriend) {
+        // We don't have a template header, but we should.
+        SourceLocation ExpectedTemplateLoc;
+        if (NumParamLists > 0)
+          ExpectedTemplateLoc = ParamLists[0]->getTemplateLoc();
+        else
+          ExpectedTemplateLoc = DeclStartLoc;
+
+        Diag(DeclLoc, diag::err_template_spec_needs_header)
+          << getRangeOfTypeInNestedNameSpecifier(Context, T, SS)
+          << FixItHint::CreateInsertion(ExpectedTemplateLoc, "template<> ");
+      }
+      
+      continue;
+    }
+    
+    if (NeedNonemptyTemplateHeader) {
+      // In friend declarations we can have template-ids which don't
+      // depend on the corresponding template parameter lists.  But
+      // assume that empty parameter lists are supposed to match this
+      // template-id.
+      if (IsFriend && T->isDependentType()) {
+        if (ParamIdx < NumParamLists &&
+            DependsOnTemplateParameters(T, ParamLists[ParamIdx]))
+          ExpectedTemplateParams = 0;
+        else 
+          continue;
       }
 
-      if (ExpectedTemplateParams)
-        TemplateParameterListsAreEqual(ParamLists[ParamIdx],
-                                       ExpectedTemplateParams,
-                                       true, TPL_TemplateMatch);
-
-      CheckTemplateParameterList(ParamLists[ParamIdx], 0,
-                                 TPC_ClassTemplateMember);
-    } else if (ParamLists[ParamIdx]->size() > 0)
-      Diag(ParamLists[ParamIdx]->getTemplateLoc(),
-           diag::err_template_param_list_matches_nontemplate)
-        << TemplateId
-        << ParamLists[ParamIdx]->getSourceRange();
-    else
-      IsExplicitSpecialization = true;
-
-    ++ParamIdx;
+      if (ParamIdx < NumParamLists) {
+        // Check the template parameter list, if we can.        
+        if (ExpectedTemplateParams &&
+            !TemplateParameterListsAreEqual(ParamLists[ParamIdx],
+                                            ExpectedTemplateParams,
+                                            true, TPL_TemplateMatch))
+          Invalid = true;
+        
+        if (!Invalid &&
+            CheckTemplateParameterList(ParamLists[ParamIdx], 0,
+                                       TPC_ClassTemplateMember))
+          Invalid = true;
+        
+        ++ParamIdx;
+        continue;
+      }
+      
+      Diag(DeclLoc, diag::err_template_spec_needs_template_parameters)
+        << T
+        << getRangeOfTypeInNestedNameSpecifier(Context, T, SS);
+      Invalid = true;
+      continue;
+    }
   }
-
+    
   // If there were at least as many template-ids as there were template
   // parameter lists, then there are no template parameter lists remaining for
   // the declaration itself.
@@ -1619,32 +1778,53 @@ Sema::MatchTemplateParametersToScopeSpecifier(SourceLocation DeclStartLoc,
     return 0;
 
   // If there were too many template parameter lists, complain about that now.
-  if (ParamIdx != NumParamLists - 1) {
-    while (ParamIdx < NumParamLists - 1) {
-      bool isExplicitSpecHeader = ParamLists[ParamIdx]->size() == 0;
-      Diag(ParamLists[ParamIdx]->getTemplateLoc(),
-           isExplicitSpecHeader? diag::warn_template_spec_extra_headers
-                               : diag::err_template_spec_extra_headers)
-        << SourceRange(ParamLists[ParamIdx]->getTemplateLoc(),
-                       ParamLists[ParamIdx]->getRAngleLoc());
-
-      if (isExplicitSpecHeader && !ExplicitSpecializationsInSpecifier.empty()) {
-        Diag(ExplicitSpecializationsInSpecifier.back()->getLocation(),
-             diag::note_explicit_template_spec_does_not_need_header)
-          << ExplicitSpecializationsInSpecifier.back();
-        ExplicitSpecializationsInSpecifier.pop_back();
-      }
-
-      // We have a template parameter list with no corresponding scope, which
-      // means that the resulting template declaration can't be instantiated
-      // properly (we'll end up with dependent nodes when we shouldn't).
-      if (!isExplicitSpecHeader)
-        Invalid = true;
-
-      ++ParamIdx;
+  if (ParamIdx < NumParamLists - 1) {
+    bool HasAnyExplicitSpecHeader = false;
+    bool AllExplicitSpecHeaders = true;
+    for (unsigned I = ParamIdx; I != NumParamLists - 1; ++I) {
+      if (ParamLists[I]->size() == 0)
+        HasAnyExplicitSpecHeader = true;
+      else
+        AllExplicitSpecHeaders = false;
     }
+    
+    Diag(ParamLists[ParamIdx]->getTemplateLoc(),
+         AllExplicitSpecHeaders? diag::warn_template_spec_extra_headers
+                               : diag::err_template_spec_extra_headers)
+      << SourceRange(ParamLists[ParamIdx]->getTemplateLoc(),
+                     ParamLists[NumParamLists - 2]->getRAngleLoc());
+
+    // If there was a specialization somewhere, such that 'template<>' is
+    // not required, and there were any 'template<>' headers, note where the
+    // specialization occurred.
+    if (ExplicitSpecLoc.isValid() && HasAnyExplicitSpecHeader)
+      Diag(ExplicitSpecLoc, 
+           diag::note_explicit_template_spec_does_not_need_header)
+        << NestedTypes.back();
+    
+    // We have a template parameter list with no corresponding scope, which
+    // means that the resulting template declaration can't be instantiated
+    // properly (we'll end up with dependent nodes when we shouldn't).
+    if (!AllExplicitSpecHeaders)
+      Invalid = true;
   }
 
+  // C++ [temp.expl.spec]p16:
+  //   In an explicit specialization declaration for a member of a class 
+  //   template or a member template that ap- pears in namespace scope, the 
+  //   member template and some of its enclosing class templates may remain 
+  //   unspecialized, except that the declaration shall not explicitly 
+  //   specialize a class member template if its en- closing class templates 
+  //   are not explicitly specialized as well.
+  if (ParamLists[NumParamLists - 1]->size() == 0 && 
+      SawNonEmptyTemplateParameterList) {
+    Diag(DeclLoc, diag::err_specialize_member_of_template)
+      << ParamLists[ParamIdx]->getSourceRange();
+    Invalid = true;
+    IsExplicitSpecialization = false;
+    return 0;
+  }
+  
   // Return the last template parameter list, which corresponds to the
   // entity being declared.
   return ParamLists[NumParamLists - 1];
@@ -1655,7 +1835,8 @@ void Sema::NoteAllFoundTemplates(TemplateName Name) {
     Diag(Template->getLocation(), diag::note_template_declared_here)
       << (isa<FunctionTemplateDecl>(Template)? 0
           : isa<ClassTemplateDecl>(Template)? 1
-          : 2)
+          : isa<TypeAliasTemplateDecl>(Template)? 2
+          : 3)
       << Template->getDeclName();
     return;
   }
@@ -1675,13 +1856,24 @@ void Sema::NoteAllFoundTemplates(TemplateName Name) {
 QualType Sema::CheckTemplateIdType(TemplateName Name,
                                    SourceLocation TemplateLoc,
                                    TemplateArgumentListInfo &TemplateArgs) {
+  DependentTemplateName *DTN = Name.getAsDependentTemplateName();
+  if (DTN && DTN->isIdentifier())
+    // When building a template-id where the template-name is dependent,
+    // assume the template is a type template. Either our assumption is
+    // correct, or the code is ill-formed and will be diagnosed when the
+    // dependent name is substituted.
+    return Context.getDependentTemplateSpecializationType(ETK_None,
+                                                          DTN->getQualifier(),
+                                                          DTN->getIdentifier(),
+                                                          TemplateArgs);
+
   TemplateDecl *Template = Name.getAsTemplateDecl();
   if (!Template || isa<FunctionTemplateDecl>(Template)) {
     // We might have a substituted template template parameter pack. If so,
     // build a template specialization type for it.
     if (Name.getAsSubstTemplateTemplateParmPack())
       return Context.getTemplateSpecializationType(Name, TemplateArgs);
-    
+
     Diag(TemplateLoc, diag::err_template_id_not_a_type)
       << Name;
     NoteAllFoundTemplates(Name);
@@ -1700,9 +1892,32 @@ QualType Sema::CheckTemplateIdType(TemplateName Name,
 
   QualType CanonType;
 
-  if (Name.isDependent() ||
-      TemplateSpecializationType::anyDependentTemplateArguments(
-                                                      TemplateArgs)) {
+  if (TypeAliasTemplateDecl *AliasTemplate
+        = dyn_cast<TypeAliasTemplateDecl>(Template)) {
+    // Find the canonical type for this type alias template specialization.
+    TypeAliasDecl *Pattern = AliasTemplate->getTemplatedDecl();
+    if (Pattern->isInvalidDecl())
+      return QualType();
+
+    TemplateArgumentList TemplateArgs(TemplateArgumentList::OnStack,
+                                      Converted.data(), Converted.size());
+
+    // Only substitute for the innermost template argument list.
+    MultiLevelTemplateArgumentList TemplateArgLists;
+    TemplateArgLists.addOuterTemplateArguments(&TemplateArgs);
+    unsigned Depth = AliasTemplate->getTemplateParameters()->getDepth();
+    for (unsigned I = 0; I < Depth; ++I)
+      TemplateArgLists.addOuterTemplateArguments(0, 0);
+
+    InstantiatingTemplate Inst(*this, TemplateLoc, Template);
+    CanonType = SubstType(Pattern->getUnderlyingType(),
+                          TemplateArgLists, AliasTemplate->getLocation(),
+                          AliasTemplate->getDeclName());
+    if (CanonType.isNull())
+      return QualType();
+  } else if (Name.isDependent() ||
+             TemplateSpecializationType::anyDependentTemplateArguments(
+               TemplateArgs)) {
     // This class template specialization is a dependent
     // type. Therefore, its canonical type is another class template
     // specialization type that contains all of the converted
@@ -1894,6 +2109,16 @@ TypeResult Sema::ActOnTagTemplateIdType(TagUseKind TUK,
       SpecTL.setArgLocInfo(I, TemplateArgs[I].getLocInfo());
     return CreateParsedType(T, TLB.getTypeSourceInfo(Context, T));
   }
+
+  if (TypeAliasTemplateDecl *TAT =
+        dyn_cast_or_null<TypeAliasTemplateDecl>(Template.getAsTemplateDecl())) {
+    // C++0x [dcl.type.elab]p2:
+    //   If the identifier resolves to a typedef-name or the simple-template-id
+    //   resolves to an alias template specialization, the
+    //   elaborated-type-specifier is ill-formed.
+    Diag(TemplateLoc, diag::err_tag_reference_non_tag) << 4;
+    Diag(TAT->getLocation(), diag::note_declared_at);
+  }
   
   QualType Result = CheckTemplateIdType(Template, TemplateLoc, TemplateArgs);
   if (Result.isNull())
@@ -1906,7 +2131,8 @@ TypeResult Sema::ActOnTagTemplateIdType(TagUseKind TUK,
     IdentifierInfo *Id = D->getIdentifier();
     assert(Id && "templated class must have an identifier");
     
-    if (!isAcceptableTagRedeclaration(D, TagKind, TagLoc, *Id)) {
+    if (!isAcceptableTagRedeclaration(D, TagKind, TUK == TUK_Definition,
+                                      TagLoc, *Id)) {
       Diag(TagLoc, diag::err_use_with_wrong_tag)
         << Result
         << FixItHint::CreateReplacement(SourceRange(TagLoc), D->getKindName());
@@ -2485,7 +2711,7 @@ bool Sema::CheckTemplateArgument(NamedDecl *Param,
       }
 
       // We have a template argument that actually does refer to a class
-      // template, template alias, or template template parameter, and
+      // template, alias template, or template template parameter, and
       // therefore cannot be a non-type template argument.
       Diag(Arg.getLocation(), diag::err_template_arg_must_be_expr)
         << Arg.getSourceRange();
@@ -2562,7 +2788,8 @@ bool Sema::CheckTemplateArgument(NamedDecl *Param,
   case TemplateArgument::Type:
     // We have a template template parameter but the template
     // argument does not refer to a template.
-    Diag(Arg.getLocation(), diag::err_template_arg_must_be_template);
+    Diag(Arg.getLocation(), diag::err_template_arg_must_be_template)
+      << getLangOptions().CPlusPlus0x;
     return true;
 
   case TemplateArgument::Declaration:
@@ -2631,9 +2858,6 @@ bool Sema::CheckTemplateArgumentList(TemplateDecl *Template,
   unsigned ArgIdx = 0;
   LocalInstantiationScope InstScope(*this, true);
   while (Param != ParamEnd) {
-    if (ArgIdx > NumArgs && PartialTemplateArgs)
-      break;
-
     if (ArgIdx < NumArgs) {
       // If we have an expanded parameter pack, make sure we don't have too
       // many arguments.
@@ -2674,11 +2898,31 @@ bool Sema::CheckTemplateArgumentList(TemplateDecl *Template,
       continue;
     }
 
+    // If we're checking a partial template argument list, we're done.
+    if (PartialTemplateArgs) {
+      if ((*Param)->isTemplateParameterPack() && !ArgumentPack.empty())
+        Converted.push_back(TemplateArgument::CreatePackCopy(Context,
+                                                         ArgumentPack.data(),
+                                                         ArgumentPack.size()));
+        
+      return Invalid;
+    }
+
     // If we have a template parameter pack with no more corresponding
     // arguments, just break out now and we'll fill in the argument pack below.
     if ((*Param)->isTemplateParameterPack())
       break;
 
+    // If our template is a template template parameter that hasn't acquired
+    // its proper context yet (e.g., because we're using the template template
+    // parameter in the signature of a function template, before we've built
+    // the function template itself), don't attempt substitution of default
+    // template arguments at this point: we don't have enough context to
+    // do it properly.
+    if (isTemplateTemplateParameter && 
+        Template->getDeclContext()->isTranslationUnit())
+      break;
+    
     // We have a default template argument that we will use.
     TemplateArgumentLoc Arg;
 
@@ -2689,7 +2933,7 @@ bool Sema::CheckTemplateArgumentList(TemplateDecl *Template,
     // the default argument.
     if (TemplateTypeParmDecl *TTP = dyn_cast<TemplateTypeParmDecl>(*Param)) {
       if (!TTP->hasDefaultArgument()) {
-        assert((Invalid || PartialTemplateArgs) && "Missing default argument");
+        assert(Invalid && "Missing default argument");
         break;
       }
 
@@ -2707,7 +2951,7 @@ bool Sema::CheckTemplateArgumentList(TemplateDecl *Template,
     } else if (NonTypeTemplateParmDecl *NTTP
                  = dyn_cast<NonTypeTemplateParmDecl>(*Param)) {
       if (!NTTP->hasDefaultArgument()) {
-        assert((Invalid || PartialTemplateArgs) && "Missing default argument");
+        assert(Invalid && "Missing default argument");
         break;
       }
 
@@ -2726,7 +2970,7 @@ bool Sema::CheckTemplateArgumentList(TemplateDecl *Template,
         = cast<TemplateTemplateParmDecl>(*Param);
 
       if (!TempParm->hasDefaultArgument()) {
-        assert((Invalid || PartialTemplateArgs) && "Missing default argument");
+        assert(Invalid && "Missing default argument");
         break;
       }
 
@@ -2772,9 +3016,7 @@ bool Sema::CheckTemplateArgumentList(TemplateDecl *Template,
     // in arguments for non-template parameter packs.
 
     if ((*Param)->isTemplateParameterPack()) {
-      if (PartialTemplateArgs && ArgumentPack.empty()) {
-        Converted.push_back(TemplateArgument());
-      } else if (ArgumentPack.empty())
+      if (ArgumentPack.empty())
         Converted.push_back(TemplateArgument(0, 0));
       else {
         Converted.push_back(TemplateArgument::CreatePackCopy(Context,
@@ -2915,6 +3157,11 @@ bool UnnamedLocalNoLinkageFinder::VisitTypeOfType(const TypeOfType* T) {
 }
 
 bool UnnamedLocalNoLinkageFinder::VisitDecltypeType(const DecltypeType*) {
+  return false;
+}
+
+bool UnnamedLocalNoLinkageFinder::VisitUnaryTransformType(
+                                                    const UnaryTransformType*) {
   return false;
 }
 
@@ -3501,32 +3748,49 @@ ExprResult Sema::CheckTemplateArgument(NonTypeTemplateParmDecl *Param,
       return ExprError();
     }
 
+    // Add the value of this argument to the list of converted
+    // arguments. We use the bitwidth and signedness of the template
+    // parameter.
+    if (Arg->isValueDependent()) {
+      // The argument is value-dependent. Create a new
+      // TemplateArgument with the converted expression.
+      Converted = TemplateArgument(Arg);
+      return Owned(Arg);
+    }
+
     QualType IntegerType = Context.getCanonicalType(ParamType);
     if (const EnumType *Enum = IntegerType->getAs<EnumType>())
       IntegerType = Context.getCanonicalType(Enum->getDecl()->getIntegerType());
 
-    if (!Arg->isValueDependent()) {
+    if (ParamType->isBooleanType()) {
+      // Value must be zero or one.
+      Value = Value != 0;
+      unsigned AllowedBits = Context.getTypeSize(IntegerType);
+      if (Value.getBitWidth() != AllowedBits)
+        Value = Value.extOrTrunc(AllowedBits);
+      Value.setIsSigned(IntegerType->isSignedIntegerOrEnumerationType());
+    } else {
       llvm::APSInt OldValue = Value;
-
+      
       // Coerce the template argument's value to the value it will have
       // based on the template parameter's type.
       unsigned AllowedBits = Context.getTypeSize(IntegerType);
       if (Value.getBitWidth() != AllowedBits)
         Value = Value.extOrTrunc(AllowedBits);
-      Value.setIsSigned(IntegerType->isSignedIntegerType());
-
+      Value.setIsSigned(IntegerType->isSignedIntegerOrEnumerationType());
+      
       // Complain if an unsigned parameter received a negative value.
-      if (IntegerType->isUnsignedIntegerType()
-          && (OldValue.isSigned() && OldValue.isNegative())) {
+      if (IntegerType->isUnsignedIntegerOrEnumerationType()
+               && (OldValue.isSigned() && OldValue.isNegative())) {
         Diag(Arg->getSourceRange().getBegin(), diag::warn_template_arg_negative)
           << OldValue.toString(10) << Value.toString(10) << Param->getType()
           << Arg->getSourceRange();
         Diag(Param->getLocation(), diag::note_template_param_here);
       }
-
+      
       // Complain if we overflowed the template parameter's type.
       unsigned RequiredBits;
-      if (IntegerType->isUnsignedIntegerType())
+      if (IntegerType->isUnsignedIntegerOrEnumerationType())
         RequiredBits = OldValue.getActiveBits();
       else if (OldValue.isUnsigned())
         RequiredBits = OldValue.getActiveBits() + 1;
@@ -3541,16 +3805,6 @@ ExprResult Sema::CheckTemplateArgument(NonTypeTemplateParmDecl *Param,
       }
     }
 
-    // Add the value of this argument to the list of converted
-    // arguments. We use the bitwidth and signedness of the template
-    // parameter.
-    if (Arg->isValueDependent()) {
-      // The argument is value-dependent. Create a new
-      // TemplateArgument with the converted expression.
-      Converted = TemplateArgument(Arg);
-      return Owned(Arg);
-    }
-
     Converted = TemplateArgument(Value,
                                  ParamType->isEnumeralType() ? ParamType
                                                              : IntegerType);
@@ -3563,10 +3817,17 @@ ExprResult Sema::CheckTemplateArgument(NonTypeTemplateParmDecl *Param,
   // from a template argument of type std::nullptr_t to a non-type
   // template parameter of type pointer to object, pointer to
   // function, or pointer-to-member, respectively.
-  if (ArgType->isNullPtrType() &&
-      (ParamType->isPointerType() || ParamType->isMemberPointerType())) {
-    Converted = TemplateArgument((NamedDecl *)0);
-    return Owned(Arg);
+  if (ArgType->isNullPtrType()) {
+    if (ParamType->isPointerType() || ParamType->isMemberPointerType()) {
+      Converted = TemplateArgument((NamedDecl *)0);
+      return Owned(Arg);
+    }
+    
+    if (ParamType->isNullPtrType()) {
+      llvm::APSInt Zero(Context.getTypeSize(Context.NullPtrTy), true);
+      Converted = TemplateArgument(Zero, Context.NullPtrTy);
+      return Owned(Arg);
+    }
   }
 
   // Handle pointer-to-function, reference-to-function, and
@@ -3715,9 +3976,10 @@ bool Sema::CheckTemplateArgument(TemplateTemplateParmDecl *Param,
     return false;
   }
 
-  // C++ [temp.arg.template]p1:
+  // C++0x [temp.arg.template]p1:
   //   A template-argument for a template template-parameter shall be
-  //   the name of a class template, expressed as id-expression. Only
+  //   the name of a class template or an alias template, expressed as an
+  //   id-expression. When the template-argument names a class template, only
   //   primary class templates are considered when matching the
   //   template template argument with the corresponding parameter;
   //   partial specializations are not considered even if their
@@ -3727,7 +3989,8 @@ bool Sema::CheckTemplateArgument(TemplateTemplateParmDecl *Param,
   // will happen when we are dealing with, e.g., class template
   // partial specializations.
   if (!isa<ClassTemplateDecl>(Template) &&
-      !isa<TemplateTemplateParmDecl>(Template)) {
+      !isa<TemplateTemplateParmDecl>(Template) &&
+      !isa<TypeAliasTemplateDecl>(Template)) {
     assert(isa<FunctionTemplateDecl>(Template) &&
            "Only function templates are possible here");
     Diag(Arg.getLocation(), diag::err_template_arg_not_class_template);
@@ -3858,6 +4121,9 @@ Sema::BuildExpressionFromIntegralTemplateArgument(const TemplateArgument &Arg,
                                             Arg.getAsIntegral()->getBoolValue(),
                                             T, Loc));
 
+  if (T->isNullPtrType())
+    return Owned(new (Context) CXXNullPtrLiteralExpr(Context.NullPtrTy, Loc));
+  
   // If this is an enum type that we're instantiating, we need to use an integer
   // type the same size as the enumerator.  We don't want to build an
   // IntegerLiteral with enum type.
@@ -4044,7 +4310,7 @@ Sema::TemplateParameterListsAreEqual(TemplateParameterList *New,
   // C++0x [temp.arg.template]p3:
   //   A template-argument matches a template template-parameter (call it P)
   //   when each of the template parameters in the template-parameter-list of
-  //   the template-argument's corresponding class template or template alias
+  //   the template-argument's corresponding class template or alias template
   //   (call it A) matches the corresponding template parameter in the
   //   template-parameter-list of P. [...]
   TemplateParameterList::iterator NewParm = New->begin();
@@ -4442,7 +4708,9 @@ Sema::ActOnClassTemplateSpecialization(Scope *S, unsigned TagSpec,
   // friend declarations.
   bool Invalid = false;
   TemplateParameterList *TemplateParams
-    = MatchTemplateParametersToScopeSpecifier(TemplateNameLoc, SS,
+    = MatchTemplateParametersToScopeSpecifier(TemplateNameLoc, 
+                                              TemplateNameLoc,
+                                              SS,
                         (TemplateParameterList**)TemplateParameterLists.get(),
                                               TemplateParameterLists.size(),
                                               TUK == TUK_Friend,
@@ -4509,7 +4777,7 @@ Sema::ActOnClassTemplateSpecialization(Scope *S, unsigned TagSpec,
   TagTypeKind Kind = TypeWithKeyword::getTagTypeKindForTypeSpec(TagSpec);
   assert(Kind != TTK_Enum && "Invalid enum tag in class template spec!");
   if (!isAcceptableTagRedeclaration(ClassTemplate->getTemplatedDecl(),
-                                    Kind, KWLoc,
+                                    Kind, TUK == TUK_Definition, KWLoc,
                                     *ClassTemplate->getIdentifier())) {
     Diag(KWLoc, diag::err_use_with_wrong_tag)
       << ClassTemplate
@@ -5180,7 +5448,7 @@ Sema::CheckFunctionTemplateSpecialization(FunctionDecl *FD,
                                          SpecInfo->getPointOfInstantiation(),
                                              HasNoEffect))
     return true;
-
+  
   // Mark the prior declaration as an explicit specialization, so that later
   // clients know that this is an explicit specialization.
   if (!isFriend) {
@@ -5200,7 +5468,8 @@ Sema::CheckFunctionTemplateSpecialization(FunctionDecl *FD,
                                         TemplArgs, /*InsertPos=*/0,
                                     SpecInfo->getTemplateSpecializationKind(),
                                         TemplArgsAsWritten);
-
+  FD->setStorageClass(Specialization->getStorageClass());
+  
   // The "previous declaration" for this function template specialization is
   // the prior function template specialization.
   Previous.clear();
@@ -5479,7 +5748,7 @@ Sema::ActOnExplicitInstantiation(Scope *S,
   assert(Kind != TTK_Enum &&
          "Invalid enum tag in class template explicit instantiation!");
   if (!isAcceptableTagRedeclaration(ClassTemplate->getTemplatedDecl(),
-                                    Kind, KWLoc,
+                                    Kind, /*isDefinition*/false, KWLoc,
                                     *ClassTemplate->getIdentifier())) {
     Diag(KWLoc, diag::err_use_with_wrong_tag)
       << ClassTemplate
@@ -5801,11 +6070,20 @@ DeclResult Sema::ActOnExplicitInstantiation(Scope *S,
   if (R.isNull())
     return true;
 
+  // C++ [dcl.stc]p1:
+  //   A storage-class-specifier shall not be specified in [...] an explicit 
+  //   instantiation (14.7.2) directive.
   if (D.getDeclSpec().getStorageClassSpec() == DeclSpec::SCS_typedef) {
-    // Cannot explicitly instantiate a typedef.
     Diag(D.getIdentifierLoc(), diag::err_explicit_instantiation_of_typedef)
       << Name;
     return true;
+  } else if (D.getDeclSpec().getStorageClassSpec() 
+                                                != DeclSpec::SCS_unspecified) {
+    // Complain about then remove the storage class specifier.
+    Diag(D.getIdentifierLoc(), diag::err_explicit_instantiation_storage_class)
+      << FixItHint::CreateRemoval(D.getDeclSpec().getStorageClassSpecLoc());
+    
+    D.getMutableDeclSpec().ClearStorageClassSpecs();
   }
 
   // C++0x [temp.explicit]p1:

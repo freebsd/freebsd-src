@@ -23,6 +23,9 @@ def SDTIntShiftDOp: SDTypeProfile<1, 3,
 
 def SDTX86CmpTest : SDTypeProfile<1, 2, [SDTCisVT<0, i32>, SDTCisSameAs<1, 2>]>;
 
+def SDTX86Cmpsd : SDTypeProfile<1, 3, [SDTCisVT<0, f64>, SDTCisSameAs<1, 2>, SDTCisVT<3, i8>]>;
+def SDTX86Cmpss : SDTypeProfile<1, 3, [SDTCisVT<0, f32>, SDTCisSameAs<1, 2>, SDTCisVT<3, i8>]>;
+
 def SDTX86Cmov    : SDTypeProfile<1, 4,
                                   [SDTCisSameAs<0, 1>, SDTCisSameAs<1, 2>,
                                    SDTCisVT<3, i8>, SDTCisVT<4, i32>]>;
@@ -1485,6 +1488,7 @@ defm : FpUnaryAlias<"fucompi",  UCOM_FIPr>;
 // solely because gas supports it.
 def : InstAlias<"faddp %st(0), $op", (ADD_FPrST0 RST:$op), 0>;
 def : InstAlias<"fmulp %st(0), $op", (MUL_FPrST0 RST:$op)>;
+def : InstAlias<"fsubp %st(0), $op", (SUBR_FPrST0 RST:$op)>;
 def : InstAlias<"fsubrp %st(0), $op", (SUB_FPrST0 RST:$op)>;
 def : InstAlias<"fdivp %st(0), $op", (DIVR_FPrST0 RST:$op)>;
 def : InstAlias<"fdivrp %st(0), $op", (DIV_FPrST0 RST:$op)>;
@@ -1546,8 +1550,8 @@ def : InstAlias<"movq $src, $dst",
 def : InstAlias<"movsd", (MOVSD)>;
 
 // movsx aliases
-def : InstAlias<"movsx $src, $dst", (MOVSX16rr8W GR16:$dst, GR8:$src), 0>;
-def : InstAlias<"movsx $src, $dst", (MOVSX16rm8W GR16:$dst, i8mem:$src), 0>;
+def : InstAlias<"movsx $src, $dst", (MOVSX16rr8 GR16:$dst, GR8:$src), 0>;
+def : InstAlias<"movsx $src, $dst", (MOVSX16rm8 GR16:$dst, i8mem:$src), 0>;
 def : InstAlias<"movsx $src, $dst", (MOVSX32rr8 GR32:$dst, GR8:$src), 0>;
 def : InstAlias<"movsx $src, $dst", (MOVSX32rr16 GR32:$dst, GR16:$src), 0>;
 def : InstAlias<"movsx $src, $dst", (MOVSX64rr8 GR64:$dst, GR8:$src), 0>;
@@ -1555,8 +1559,8 @@ def : InstAlias<"movsx $src, $dst", (MOVSX64rr16 GR64:$dst, GR16:$src), 0>;
 def : InstAlias<"movsx $src, $dst", (MOVSX64rr32 GR64:$dst, GR32:$src), 0>;
 
 // movzx aliases
-def : InstAlias<"movzx $src, $dst", (MOVZX16rr8W GR16:$dst, GR8:$src), 0>;
-def : InstAlias<"movzx $src, $dst", (MOVZX16rm8W GR16:$dst, i8mem:$src), 0>;
+def : InstAlias<"movzx $src, $dst", (MOVZX16rr8 GR16:$dst, GR8:$src), 0>;
+def : InstAlias<"movzx $src, $dst", (MOVZX16rm8 GR16:$dst, i8mem:$src), 0>;
 def : InstAlias<"movzx $src, $dst", (MOVZX32rr8 GR32:$dst, GR8:$src), 0>;
 def : InstAlias<"movzx $src, $dst", (MOVZX32rr16 GR32:$dst, GR16:$src), 0>;
 def : InstAlias<"movzx $src, $dst", (MOVZX64rr8_Q GR64:$dst, GR8:$src), 0>;
