@@ -1331,7 +1331,7 @@ out:
 	 * then remember the size of the advertised window.
 	 * Any pending ACK has now been sent.
 	 */
-	if (recwin > 0 && SEQ_GT(tp->rcv_nxt + recwin, tp->rcv_adv))
+	if (recwin >= 0 && SEQ_GT(tp->rcv_nxt + recwin, tp->rcv_adv))
 		tp->rcv_adv = tp->rcv_nxt + recwin;
 	tp->last_ack_sent = tp->rcv_nxt;
 	tp->t_flags &= ~(TF_ACKNOW | TF_DELACK);
