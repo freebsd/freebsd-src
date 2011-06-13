@@ -1451,11 +1451,11 @@ ath_tx_tid_cleanup(struct ath_softc *sc, struct ath_node *an)
 		ath_tx_tid_txq_unmark(sc, an, i);
 
 		/* Remove any pending hardware TXQ scheduling */
-		ATH_NODE_LOCK(an);
 		ATH_TXNODE_LOCK(sc);
+		ATH_NODE_LOCK(an);
 		ath_tx_node_unsched(sc, an);
-		ATH_TXNODE_UNLOCK(sc);
 		ATH_NODE_UNLOCK(an);
+		ATH_TXNODE_UNLOCK(sc);
 
 		/* Free mutex */
 		mtx_destroy(&atid->axq_lock);
