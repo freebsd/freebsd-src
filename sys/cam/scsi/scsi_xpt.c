@@ -542,6 +542,7 @@ static const int scsi_quirk_table_size =
 static cam_status	proberegister(struct cam_periph *periph,
 				      void *arg);
 static void	 probeschedule(struct cam_periph *probe_periph);
+static int	 device_has_vpd(struct cam_ed *device, uint8_t page_id);
 static void	 probestart(struct cam_periph *periph, union ccb *start_ccb);
 static void	 proberequestdefaultnegotiation(struct cam_periph *periph);
 static int       proberequestbackoff(struct cam_periph *periph,
@@ -1460,7 +1461,7 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 				path->device->device_id = (uint8_t *)devid;
 			}
 		} else if (cam_periph_error(done_ccb, 0,
-					    SF_RETRY_UA|SF_NO_PRINT,
+					    SF_RETRY_UA,
 					    &softc->saved_ccb) == ERESTART) {
 			return;
 		} else if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
@@ -1506,9 +1507,9 @@ probe_device_check:
 				(u_int8_t *)malloc((serial_buf->length + 1),
 						   M_CAMXPT, M_NOWAIT);
 			if (path->device->serial_num != NULL) {
-				bcopy(serial_buf->serial_num,
-				      path->device->serial_num,
-				      serial_buf->length);
+				memcpy(path->device->serial_num,
+				       serial_buf->serial_num,
+				       serial_buf->length);
 				path->device->serial_num_len =
 				    serial_buf->length;
 				path->device->serial_num[serial_buf->length]
@@ -2433,28 +2434,77 @@ scsi_devise_transport(struct cam_path *path)
 }
 
 static void
-scsi_getdev_advinfo(union ccb *start_ccb)
+scsi_dev_advinfo(union ccb *start_ccb)
 {
 	struct cam_ed *device;
-	struct ccb_getdev_advinfo *cgdai;
+	struct ccb_dev_advinfo *cdai;
 	off_t amt;
 
 	device = start_ccb->ccb_h.path->device;
-	cgdai = &start_ccb->cgdai;
-	switch(cgdai->buftype) {
-	case CGDAI_TYPE_SCSI_DEVID:
-		cgdai->provsiz = device->device_id_len;
+	cdai = &start_ccb->cdai;
+	switch(cdai->buftype) {
+	case CDAI_TYPE_SCSI_DEVID:
+		if (cdai->flags & CDAI_FLAG_STORE)
+			break;
+		cdai->provsiz = device->device_id_len;
 		if (device->device_id_len == 0)
 			break;
 		amt = device->device_id_len;
-		if (cgdai->provsiz > cgdai->bufsiz)
-			amt = cgdai->bufsiz;
-		bcopy(device->device_id, cgdai->buf, amt);
+		if (cdai->provsiz > cdai->bufsiz)
+			amt = cdai->bufsiz;
+		memcpy(cdai->buf, device->device_id, amt);
+		break;
+	case CDAI_TYPE_SERIAL_NUM:
+		if (cdai->flags & CDAI_FLAG_STORE)
+			break;
+		cdai->provsiz = device->serial_num_len;
+		if (device->serial_num_len == 0)
+			break;
+		amt = device->serial_num_len;
+		if (cdai->provsiz > cdai->bufsiz)
+			amt = cdai->bufsiz;
+		memcpy(cdai->buf, device->serial_num, amt);
+		break;
+	case CDAI_TYPE_PHYS_PATH:
+		if (cdai->flags & CDAI_FLAG_STORE) {
+			if (device->physpath != NULL)
+				free(device->physpath, M_CAMXPT);
+			device->physpath_len = cdai->bufsiz;
+			/* Clear existing buffer if zero length */
+			if (cdai->bufsiz == 0)
+				break;
+			device->physpath = malloc(cdai->bufsiz, M_CAMXPT, M_NOWAIT);
+			if (device->physpath == NULL) {
+				start_ccb->ccb_h.status = CAM_REQ_ABORTED;
+				return;
+			}
+			memcpy(device->physpath, cdai->buf, cdai->bufsiz);
+		} else {
+			cdai->provsiz = device->physpath_len;
+			if (device->physpath_len == 0)
+				break;
+			amt = device->physpath_len;
+			if (cdai->provsiz > cdai->bufsiz)
+				amt = cdai->bufsiz;
+			memcpy(cdai->buf, device->physpath, amt);
+		}
 		break;
 	default:
 		break;
 	}
 	start_ccb->ccb_h.status = CAM_REQ_CMP;
+
+	if (cdai->flags & CDAI_FLAG_STORE) {
+		int owned;
+
+		owned = mtx_owned(start_ccb->ccb_h.path->bus->sim->mtx);
+		if (owned == 0)
+			mtx_lock(start_ccb->ccb_h.path->bus->sim->mtx);
+		xpt_async(AC_ADVINFO_CHANGED, start_ccb->ccb_h.path,
+			  (void *)(uintptr_t)cdai->buftype);
+		if (owned == 0)
+			mtx_unlock(start_ccb->ccb_h.path->bus->sim->mtx);
+	}
 }
 
 static void
@@ -2486,9 +2536,9 @@ scsi_action(union ccb *start_ccb)
 		(*(sim->sim_action))(sim, start_ccb);
 		break;
 	}
-	case XPT_GDEV_ADVINFO:
+	case XPT_DEV_ADVINFO:
 	{
-		scsi_getdev_advinfo(start_ccb);
+		scsi_dev_advinfo(start_ccb);
 		break;
 	}
 	default:
