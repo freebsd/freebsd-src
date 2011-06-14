@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2003 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2003, 2010 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: err.c,v 8.196 2006/11/10 23:14:08 ca Exp $")
+SM_RCSID("@(#)$Id: err.c,v 8.205 2010/02/03 23:22:41 ca Exp $")
 
 #if LDAPMAP
 # include <lber.h>
@@ -359,7 +359,7 @@ usrerr(fmt, va_alist)
 **		increments Errors.
 */
 
-/*VARARGS1*/
+/*VARARGS2*/
 void
 #ifdef __STDC__
 usrerrenh(char *enhsc, const char *fmt, ...)
@@ -427,6 +427,7 @@ usrerrenh(enhsc, fmt, va_alist)
 	if (QuickAbort)
 		sm_exc_raisenew_x(&EtypeQuickAbort, 1);
 }
+
 /*
 **  MESSAGE -- print message (not necessarily an error)
 **
@@ -473,11 +474,12 @@ message(msg, va_alist)
 	  case '5':
 		if (CurEnv->e_rpool == NULL && CurEnv->e_message != NULL)
 			sm_free(CurEnv->e_message);
-		CurEnv->e_message =
-			sm_rpool_strdup_x(CurEnv->e_rpool, errtxt);
+		CurEnv->e_message = sm_rpool_strdup_x(CurEnv->e_rpool, errtxt);
 		break;
 	}
 }
+
+
 /*
 **  NMESSAGE -- print message (not necessarily an error)
 **
