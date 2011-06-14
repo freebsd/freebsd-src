@@ -747,6 +747,10 @@ kern_sendit(td, s, mp, flags, control, segflg)
 		return (error);
 	so = (struct socket *)fp->f_data;
 
+#ifdef KTRACE
+	if (mp->msg_name != NULL && KTRPOINT(td, KTR_STRUCT))
+		ktrsockaddr(mp->msg_name);
+#endif
 #ifdef MAC
 	if (mp->msg_name != NULL) {
 		error = mac_socket_check_connect(td->td_ucred, so,
