@@ -199,6 +199,13 @@ struct if_data {
  *   field.  IFCAP_* and CSUM_* do not match one to one and CSUM_* may be
  *   more detailed or differenciated than IFCAP_*.
  *   Hwassist features are defined CSUM_* in sys/mbuf.h
+ *
+ * Capabilities that cannot be arbitrarily changed with ifconfig/ioctl
+ * are listed in IFCAP_CANTCHANGE, similar to IFF_CANTCHANGE.
+ * This is not strictly necessary because the common code never
+ * changes capabilities, and it is left to the individual driver
+ * to do the right thing. However, having the filter here
+ * avoids replication of the same code in all individual drivers.
  */
 #define	IFCAP_RXCSUM		0x00001  /* can offload checksum on RX */
 #define	IFCAP_TXCSUM		0x00002  /* can offload checksum on TX */
@@ -220,11 +227,14 @@ struct if_data {
 #define	IFCAP_POLLING_NOCOUNT	0x20000 /* polling ticks cannot be fragmented */
 #define	IFCAP_VLAN_HWTSO	0x40000 /* can do IFCAP_TSO on VLANs */
 #define	IFCAP_LINKSTATE		0x80000 /* the runtime link state is dynamic */
+#define	IFCAP_NETMAP		0x100000 /* netmap mode supported/enabled */
 
 #define IFCAP_HWCSUM	(IFCAP_RXCSUM | IFCAP_TXCSUM)
 #define	IFCAP_TSO	(IFCAP_TSO4 | IFCAP_TSO6)
 #define	IFCAP_WOL	(IFCAP_WOL_UCAST | IFCAP_WOL_MCAST | IFCAP_WOL_MAGIC)
 #define	IFCAP_TOE	(IFCAP_TOE4 | IFCAP_TOE6)
+
+#define	IFCAP_CANTCHANGE	(IFCAP_NETMAP)
 
 #define	IFQ_MAXLEN	50
 #define	IFNET_SLOWHZ	1		/* granularity is 1 second */
