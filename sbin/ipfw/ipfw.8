@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 27, 2010
+.Dd May 30, 2011
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -867,13 +867,16 @@ for more information on
 and
 .Cm ngtee
 actions.
-.It Cm setfib Ar fibnum
+.It Cm setfib Ar fibnum | tablearg
 The packet is tagged so as to use the FIB (routing table)
 .Ar fibnum
 in any subsequent forwarding decisions.
 Initially this is limited to the values 0 through 15, see
 .Xr setfib 1 .
 Processing continues at the next rule.
+It is possible to use the 
+.Cm tablearg
+keyword with a setfib. If tablearg value is not within compiled FIB range packet fib is set to 0.
 .It Cm reass
 Queue and reassemble ip fragments.
 If the packet is not fragmented, counters are updated and processing continues with the next rule.
@@ -1697,7 +1700,7 @@ is used.
 The
 .Cm tablearg
 argument can be used with the following actions:
-.Cm nat, pipe , queue, divert, tee, netgraph, ngtee, fwd, skipto
+.Cm nat, pipe , queue, divert, tee, netgraph, ngtee, fwd, skipto, setfib,
 action parameters:
 .Cm tag, untag,
 rule options:
