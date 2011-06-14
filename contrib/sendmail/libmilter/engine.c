@@ -9,7 +9,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: engine.c,v 8.166 2009/11/06 00:57:07 ca Exp $")
+SM_RCSID("@(#)$Id: engine.c,v 8.167 2011/03/03 06:09:15 ca Exp $")
 
 #include "libmilter.h"
 
@@ -284,7 +284,7 @@ mi_engine(ctx)
 		if (mi_stop() == MILTER_ABRT)
 		{
 			if (ctx->ctx_dbg > 3)
-				sm_dprintf("[%ld] milter_abort\n",
+				sm_dprintf("[%lu] milter_abort\n",
 					(long) ctx->ctx_id);
 			ret = MI_FAILURE;
 			break;
@@ -315,7 +315,7 @@ mi_engine(ctx)
 		    cmd < SMFIC_VALIDCMD)
 		{
 			if (ctx->ctx_dbg > 5)
-				sm_dprintf("[%ld] mi_engine: mi_rd_cmd error (%x)\n",
+				sm_dprintf("[%lu] mi_engine: mi_rd_cmd error (%x)\n",
 					(long) ctx->ctx_id, (int) cmd);
 
 			/*
@@ -328,7 +328,7 @@ mi_engine(ctx)
 			break;
 		}
 		if (ctx->ctx_dbg > 4)
-			sm_dprintf("[%ld] got cmd '%c' len %d\n",
+			sm_dprintf("[%lu] got cmd '%c' len %d\n",
 				(long) ctx->ctx_id, cmd, (int) len);
 		for (i = 0; i < ncmds; i++)
 		{
@@ -339,7 +339,7 @@ mi_engine(ctx)
 		{
 			/* unknown command */
 			if (ctx->ctx_dbg > 1)
-				sm_dprintf("[%ld] cmd '%c' unknown\n",
+				sm_dprintf("[%lu] cmd '%c' unknown\n",
 					(long) ctx->ctx_id, cmd);
 			ret = MI_FAILURE;
 			break;
@@ -348,7 +348,7 @@ mi_engine(ctx)
 		{
 			/* stop for now */
 			if (ctx->ctx_dbg > 1)
-				sm_dprintf("[%ld] cmd '%c' not impl\n",
+				sm_dprintf("[%lu] cmd '%c' not impl\n",
 					(long) ctx->ctx_id, cmd);
 			ret = MI_FAILURE;
 			break;
@@ -357,14 +357,14 @@ mi_engine(ctx)
 		/* is new state ok? */
 		newstate = cmds[i].cm_next;
 		if (ctx->ctx_dbg > 5)
-			sm_dprintf("[%ld] cur %x new %x nextmask %x\n",
+			sm_dprintf("[%lu] cur %x new %x nextmask %x\n",
 				(long) ctx->ctx_id,
 				curstate, newstate, next_states[curstate]);
 
 		if (newstate != ST_NONE && !trans_ok(curstate, newstate))
 		{
 			if (ctx->ctx_dbg > 1)
-				sm_dprintf("[%ld] abort: cur %d (%x) new %d (%x) next %x\n",
+				sm_dprintf("[%lu] abort: cur %d (%x) new %d (%x) next %x\n",
 					(long) ctx->ctx_id,
 					curstate, MI_MASK(curstate),
 					newstate, MI_MASK(newstate),
@@ -434,7 +434,7 @@ mi_engine(ctx)
 		else if (r == _SMFIS_ABORT)
 		{
 			if (ctx->ctx_dbg > 5)
-				sm_dprintf("[%ld] function returned abort\n",
+				sm_dprintf("[%lu] function returned abort\n",
 					(long) ctx->ctx_id);
 			ret = MI_FAILURE;
 			break;
@@ -1122,7 +1122,7 @@ st_optionneg(g)
 	fix_stm(ctx);
 
 	if (ctx->ctx_dbg > 3)
-		sm_dprintf("[%ld] milter_negotiate:"
+		sm_dprintf("[%lu] milter_negotiate:"
 			" mta_actions=0x%lx, mta_flags=0x%lx"
 			" actions=0x%lx, flags=0x%lx\n"
 			, (long) ctx->ctx_id
@@ -1131,7 +1131,7 @@ st_optionneg(g)
 
 #if _FFR_MILTER_CHECK
 	if (ctx->ctx_dbg > 3)
-		sm_dprintf("[%ld] milter_negotiate:"
+		sm_dprintf("[%lu] milter_negotiate:"
 			" testmode=%d, pflags2mta=%X, internal_pflags=%X\n"
 			, (long) ctx->ctx_id, testmode
 			, ctx->ctx_pflags2mta, internal_pflags);
