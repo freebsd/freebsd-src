@@ -197,17 +197,6 @@ struct mbuf    *m_megapullup(struct mbuf *, int);
  */
 #define	PKT_ALIAS_RESET_ON_ADDR_CHANGE	0x20
 
-#ifndef NO_FW_PUNCH
-/*
- * If PKT_ALIAS_PUNCH_FW is set, active FTP and IRC DCC connections will
- * create a 'hole' in the firewall to allow the transfers to work.  The
- * ipfw rule number that the hole is created with is controlled by
- * PacketAliasSetFWBase().  The hole will be attached to that
- * particular alias_link, so when the link goes away the hole is deleted.
- */
-#define	PKT_ALIAS_PUNCH_FW		0x100
-#endif
-
 /*
  * If PKT_ALIAS_PROXY_ONLY is set, then NAT will be disabled and only
  * transparent proxying is performed.
@@ -219,6 +208,17 @@ struct mbuf    *m_megapullup(struct mbuf *, int);
  * PacketAliasOut() are reversed.
  */
 #define	PKT_ALIAS_REVERSE		0x80
+
+#ifndef NO_FW_PUNCH
+/*
+ * If PKT_ALIAS_PUNCH_FW is set, active FTP and IRC DCC connections will
+ * create a 'hole' in the firewall to allow the transfers to work.  The
+ * ipfw rule number that the hole is created with is controlled by
+ * PacketAliasSetFWBase().  The hole will be attached to that
+ * particular alias_link, so when the link goes away the hole is deleted.
+ */
+#define	PKT_ALIAS_PUNCH_FW		0x100
+#endif
 
 /* Function return codes. */
 #define	PKT_ALIAS_ERROR			-1
