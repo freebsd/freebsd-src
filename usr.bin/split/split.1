@@ -32,7 +32,7 @@
 .\"	@(#)split.1	8.3 (Berkeley) 4/16/94
 .\" $FreeBSD$
 .\"
-.Dd August 10, 2006
+.Dd January 23, 2009
 .Dt SPLIT 1
 .Os
 .Sh NAME
@@ -84,7 +84,7 @@ letters to form the suffix of the file name.
 .Cm K | k | M | m | G | g
 .Sm on
 .Oc
-Create smaller files
+Create split files
 .Ar byte_count
 bytes in length.
 If
@@ -109,7 +109,7 @@ is appended to the number, the file is split into
 .Ar byte_count
 gigabyte pieces.
 .It Fl l Ar line_count
-Create smaller files
+Create split files
 .Ar line_count
 lines in length.
 .It Fl p Ar pattern
