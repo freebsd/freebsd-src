@@ -172,6 +172,11 @@ mount_snapshot(kthread_t *td, vnode_t **vpp, const char *fstype, char *fspath,
 	 */
 	mp->mnt_flag |= MNT_RDONLY;
 	/*
+	 * We don't want snapshots to allow access to vulnerable setuid
+	 * programs, so we turn off setuid when mounting snapshots.
+	 */
+	mp->mnt_flag |= MNT_NOSUID;
+	/*
 	 * We don't want snapshots to be visible in regular
 	 * mount(8) and df(1) output.
 	 */
