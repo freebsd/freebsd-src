@@ -1,5 +1,5 @@
 #
-# Copyright (c) 1998-2004, 2009 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1998-2004, 2009, 2010 Sendmail, Inc. and its suppliers.
 #	All rights reserved.
 # Copyright (c) 1983, 1995 Eric P. Allman.  All rights reserved.
 # Copyright (c) 1988, 1993
@@ -188,6 +188,7 @@ SLocal_tls_server')
 define(`LOCAL_RULE_3', `divert(2)')
 define(`LOCAL_CONFIG', `divert(6)')
 define(`MAILER_DEFINITIONS', `divert(7)')
+define(`LOCAL_DNSBL', `divert(8)')
 define(`LOCAL_NET_CONFIG', `define(`_LOCAL_RULES_', 1)divert(1)')
 define(`UUCPSMTP', `R DOL(*) < @ $1 .UUCP > DOL(*)	DOL(1) < @ $2 > DOL(2)')
 define(`CONCAT', `$1$2$3$4$5$6$7')
@@ -306,4 +307,4 @@ define(`confMILTER_MACROS_EOM', `{msg_id}')
 
 
 divert(0)dnl
-VERSIONID(`$Id: cfhead.m4,v 8.120 2009/01/23 22:39:21 ca Exp $')
+VERSIONID(`$Id: cfhead.m4,v 8.121 2010/01/07 18:20:19 ca Exp $')

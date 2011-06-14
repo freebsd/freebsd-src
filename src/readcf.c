@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2006, 2008, 2009 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2006, 2008-2010 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -14,11 +14,12 @@
 #include <sendmail.h>
 #include <sm/sendmail.h>
 
-SM_RCSID("@(#)$Id: readcf.c,v 8.674 2009/10/26 17:47:00 ca Exp $")
+SM_RCSID("@(#)$Id: readcf.c,v 8.684 2011/03/15 17:29:29 guenther Exp $")
 
 #if NETINET || NETINET6
 # include <arpa/inet.h>
 #endif /* NETINET || NETINET6 */
+
 
 #define SECONDS
 #define MINUTES	* 60
@@ -114,7 +115,15 @@ readcf(cfname, safe, e)
 	LineNumber = 0;
 
 #if STARTTLS
-	Srv_SSL_Options = Clt_SSL_Options = SSL_OP_ALL;
+	Srv_SSL_Options = SSL_OP_ALL;
+	Clt_SSL_Options = SSL_OP_ALL
+#ifdef SSL_OP_NO_SSLv2
+		| SSL_OP_NO_SSLv2
+#endif
+#ifdef SSL_OP_NO_TICKET
+		| SSL_OP_NO_TICKET
+#endif
+		;
 #endif /* STARTTLS */
 	if (DontLockReadFiles)
 		sff |= SFF_NOLOCK;
@@ -2271,6 +2280,10 @@ static struct optioninfo
 # define O_RCPTTHROTDELAY	0xe6
 	{ "BadRcptThrottleDelay",	O_RCPTTHROTDELAY,	OI_SAFE	},
 #endif /* _FFR_RCPTTHROTDELAY */
+#if 0 && _FFR_QOS && defined(SOL_IP) && defined(IP_TOS)
+# define O_INETQOS	0xe7	/* reserved for FFR_QOS */
+	{ "InetQoS",			O_INETQOS,	OI_NONE },
+#endif
 
 	{ NULL,				'\0',		OI_NONE	}
 };
@@ -2285,68 +2298,85 @@ static struct ssl_options
 /* these are turned on by default */
 #ifdef SSL_OP_MICROSOFT_SESS_ID_BUG
 	{ "SSL_OP_MICROSOFT_SESS_ID_BUG",	SSL_OP_MICROSOFT_SESS_ID_BUG	},
-#endif /* SSL_OP_MICROSOFT_SESS_ID_BUG */
+#endif
 #ifdef SSL_OP_NETSCAPE_CHALLENGE_BUG
 	{ "SSL_OP_NETSCAPE_CHALLENGE_BUG",	SSL_OP_NETSCAPE_CHALLENGE_BUG	},
-#endif /* SSL_OP_NETSCAPE_CHALLENGE_BUG */
+#endif
 #ifdef SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG
 	{ "SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG",	SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG	},
-#endif /* SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG */
+#endif
 #ifdef SSL_OP_SSLREF2_REUSE_CERT_TYPE_BUG
 	{ "SSL_OP_SSLREF2_REUSE_CERT_TYPE_BUG",	SSL_OP_SSLREF2_REUSE_CERT_TYPE_BUG	},
-#endif /* SSL_OP_SSLREF2_REUSE_CERT_TYPE_BUG */
+#endif
 #ifdef SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER
 	{ "SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER",	SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER	},
-#endif /* SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER */
+#endif
 #ifdef SSL_OP_MSIE_SSLV2_RSA_PADDING
 	{ "SSL_OP_MSIE_SSLV2_RSA_PADDING",	SSL_OP_MSIE_SSLV2_RSA_PADDING	},
-#endif /* SSL_OP_MSIE_SSLV2_RSA_PADDING */
+#endif
 #ifdef SSL_OP_SSLEAY_080_CLIENT_DH_BUG
 	{ "SSL_OP_SSLEAY_080_CLIENT_DH_BUG",	SSL_OP_SSLEAY_080_CLIENT_DH_BUG	},
-#endif /* SSL_OP_SSLEAY_080_CLIENT_DH_BUG */
+#endif
 #ifdef SSL_OP_TLS_D5_BUG
 	{ "SSL_OP_TLS_D5_BUG",	SSL_OP_TLS_D5_BUG	},
-#endif /* SSL_OP_TLS_D5_BUG */
+#endif
 #ifdef SSL_OP_TLS_BLOCK_PADDING_BUG
 	{ "SSL_OP_TLS_BLOCK_PADDING_BUG",	SSL_OP_TLS_BLOCK_PADDING_BUG	},
-#endif /* SSL_OP_TLS_BLOCK_PADDING_BUG */
+#endif
 #ifdef SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS
 	{ "SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS",	SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS	},
-#endif /* SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS */
+#endif
+#ifdef SSL_OP_ALL
 	{ "SSL_OP_ALL",	SSL_OP_ALL	},
+#endif
+#ifdef SSL_OP_NO_QUERY_MTU
+	{ "SSL_OP_NO_QUERY_MTU",	SSL_OP_NO_QUERY_MTU	},
+#endif
+#ifdef SSL_OP_COOKIE_EXCHANGE
+	{ "SSL_OP_COOKIE_EXCHANGE",	SSL_OP_COOKIE_EXCHANGE	},
+#endif
+#ifdef SSL_OP_NO_TICKET
+	{ "SSL_OP_NO_TICKET",	SSL_OP_NO_TICKET	},
+#endif
 #ifdef SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION
 	{ "SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION",	SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION	},
-#endif /* SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION */
+#endif
+#ifdef SSL_OP_SINGLE_ECDH_USE
+	{ "SSL_OP_SINGLE_ECDH_USE",	SSL_OP_SINGLE_ECDH_USE	},
+#endif
+#ifdef SSL_OP_SINGLE_DH_USE
+	{ "SSL_OP_SINGLE_DH_USE",	SSL_OP_SINGLE_DH_USE	},
+#endif
 #ifdef SSL_OP_EPHEMERAL_RSA
 	{ "SSL_OP_EPHEMERAL_RSA",	SSL_OP_EPHEMERAL_RSA	},
-#endif /* SSL_OP_EPHEMERAL_RSA */
+#endif
 #ifdef SSL_OP_CIPHER_SERVER_PREFERENCE
 	{ "SSL_OP_CIPHER_SERVER_PREFERENCE",	SSL_OP_CIPHER_SERVER_PREFERENCE	},
-#endif /* SSL_OP_CIPHER_SERVER_PREFERENCE */
+#endif
 #ifdef SSL_OP_TLS_ROLLBACK_BUG
 	{ "SSL_OP_TLS_ROLLBACK_BUG",	SSL_OP_TLS_ROLLBACK_BUG	},
-#endif /* SSL_OP_TLS_ROLLBACK_BUG */
+#endif
 #ifdef SSL_OP_NO_SSLv2
 	{ "SSL_OP_NO_SSLv2",	SSL_OP_NO_SSLv2	},
-#endif /* SSL_OP_NO_SSLv2 */
+#endif
 #ifdef SSL_OP_NO_SSLv3
 	{ "SSL_OP_NO_SSLv3",	SSL_OP_NO_SSLv3	},
-#endif /* SSL_OP_NO_SSLv3 */
+#endif
 #ifdef SSL_OP_NO_TLSv1
 	{ "SSL_OP_NO_TLSv1",	SSL_OP_NO_TLSv1	},
-#endif /* SSL_OP_NO_TLSv1 */
+#endif
 #ifdef SSL_OP_PKCS1_CHECK_1
 	{ "SSL_OP_PKCS1_CHECK_1",	SSL_OP_PKCS1_CHECK_1	},
-#endif /* SSL_OP_PKCS1_CHECK_1 */
+#endif
 #ifdef SSL_OP_PKCS1_CHECK_2
 	{ "SSL_OP_PKCS1_CHECK_2",	SSL_OP_PKCS1_CHECK_2	},
-#endif /* SSL_OP_PKCS1_CHECK_2 */
+#endif
 #ifdef SSL_OP_NETSCAPE_CA_DN_BUG
 	{ "SSL_OP_NETSCAPE_CA_DN_BUG",	SSL_OP_NETSCAPE_CA_DN_BUG	},
-#endif /* SSL_OP_NETSCAPE_CA_DN_BUG */
+#endif
 #ifdef SSL_OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG
 	{ "SSL_OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG",	SSL_OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG	},
-#endif /* SSL_OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG */
+#endif
 	{ NULL,		0		}
 };
 #endif /* STARTTLS && _FFR_TLS_1 */
@@ -2638,6 +2668,7 @@ setoption(opt, val, safe, sticky, e)
 #endif /* _FFR_DM_ONE */
 			set_delivery_mode(*val, e);
 			break;
+
 
 		  default:
 			syserr("Unknown delivery mode %c", *val);
@@ -3446,7 +3477,7 @@ setoption(opt, val, safe, sticky, e)
 		ConnectOnlyTo.sa.sa_family = AF_UNSPEC;
 # if NETINET6
 		if (anynet_pton(AF_INET6, val,
-				&ConnectOnlyTo.sin6.sin6_addr) != 1)
+				&ConnectOnlyTo.sin6.sin6_addr) == 1)
 			ConnectOnlyTo.sa.sa_family = AF_INET6;
 		else
 # endif /* NETINET6 */

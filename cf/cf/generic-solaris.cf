@@ -1,5 +1,5 @@
 #
-# Copyright (c) 1998-2004, 2009 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1998-2004, 2009, 2010 Sendmail, Inc. and its suppliers.
 #	All rights reserved.
 # Copyright (c) 1983, 1995 Eric P. Allman.  All rights reserved.
 # Copyright (c) 1988, 1993
@@ -16,8 +16,8 @@
 #####
 #####		SENDMAIL CONFIGURATION FILE
 #####
-##### built by ca@wiz.smi.sendmail.com on Tue Dec 22 20:49:08 PST 2009
-##### in /extra/home/ca/sm-8.14.4/OpenSource/sendmail-8.14.4/cf/cf
+##### built by ca@wiz.smi.sendmail.com on Sat May 14 21:31:13 PDT 2011
+##### in /extra/home/ca/sm-8.14.5/OpenSource/sendmail-8.14.5/cf/cf
 ##### using ../ as configuration include directory
 #####
 ######################################################################
@@ -27,7 +27,7 @@
 ######################################################################
 ######################################################################
 
-#####  $Id: cfhead.m4,v 8.120 2009/01/23 22:39:21 ca Exp $  #####
+#####  $Id: cfhead.m4,v 8.121 2010/01/07 18:20:19 ca Exp $  #####
 #####  $Id: cf.m4,v 8.32 1999/02/07 07:26:14 gshapiro Exp $  #####
 #####  $Id: generic-solaris.mc,v 8.13 2001/06/27 21:46:30 gshapiro Exp $  #####
 
@@ -41,7 +41,7 @@
 
 
 
-#####  $Id: proto.m4,v 8.741 2009/12/11 00:04:53 ca Exp $  #####
+#####  $Id: proto.m4,v 8.744 2010/11/23 20:29:47 guenther Exp $  #####
 
 # level 10 config file format
 V10/Berkeley
@@ -122,7 +122,7 @@ DnMAILER-DAEMON
 CPREDIRECT
 
 # Configuration version number
-DZ8.14.4
+DZ8.14.5
 
 
 ###############
@@ -997,7 +997,6 @@ SBasic_check_relay
 R$*			$: < $&{deliveryMode} > $1
 R< d > $*		$@ deferred
 R< $* > $*		$: $2
-
 
 
 
