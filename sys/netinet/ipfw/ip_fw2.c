@@ -2194,6 +2194,13 @@ do {								\
 				    int nat_id;
 
 				    set_match(args, f_pos, chain);
+				    /* Check if this is 'global' nat rule */
+				    if (cmd->arg1 == 0) {
+					    retval = ipfw_nat_ptr(args, NULL, m);
+					    l = 0;
+					    done = 1;
+					    break;
+				    }
 				    t = ((ipfw_insn_nat *)cmd)->nat;
 				    if (t == NULL) {
 					nat_id = (cmd->arg1 == IP_FW_TABLEARG) ?
