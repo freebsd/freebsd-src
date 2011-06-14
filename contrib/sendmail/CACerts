@@ -1,77 +1,10 @@
-# $Id: CACerts,v 8.4 2009/06/26 05:46:10 ca Exp $
+# $Id: CACerts,v 8.5 2011/05/06 23:05:10 ca Exp $
 # This file contains some CA certificates that are used to sign the
 # certificates of mail servers of members of the sendmail consortium
 # who may reply to questions etc sent to sendmail.org.
 # It is useful to allow connections from those MTAs that can present
 # a certificate signed by one of these CA certificates.
 #
-
-Certificate:
-    Data:
-        Version: 3 (0x2)
-        Serial Number: 0 (0x0)
-        Signature Algorithm: md5WithRSAEncryption
-        Issuer: C=US, ST=Illinois, L=De Kalb, O=Northern Illinois University, OU=Computer Science, CN=Neil Rickert/emailAddress=rickert@cs.niu.edu
-        Validity
-            Not Before: May 12 00:40:50 2000 GMT
-            Not After : May 20 00:40:50 2010 GMT
-        Subject: C=US, ST=Illinois, L=De Kalb, O=Northern Illinois University, OU=Computer Science, CN=Neil Rickert/emailAddress=rickert@cs.niu.edu
-        Subject Public Key Info:
-            Public Key Algorithm: rsaEncryption
-            RSA Public Key: (1024 bit)
-                Modulus (1024 bit):
-                    00:b1:1b:49:06:ef:3f:44:e0:93:ad:8c:a7:f7:21:
-                    7c:87:cb:da:35:f6:4b:a2:fd:8a:a0:07:5b:cc:6a:
-                    9b:89:33:fc:24:f5:b1:24:59:5a:25:50:fd:16:d7:
-                    d4:bc:c7:04:1d:df:90:9b:5e:c3:a8:e9:8b:7d:a3:
-                    5d:9a:e9:7f:e5:2b:ea:15:a7:ad:ba:58:26:0a:11:
-                    49:4f:da:9a:67:7f:b0:a6:66:f4:27:b6:61:4e:3c:
-                    c8:3e:a0:2f:6a:b4:0e:15:d6:39:f8:92:60:85:df:
-                    a6:34:f3:fa:a4:a5:e4:47:49:e7:87:a4:a5:5c:8e:
-                    6a:2f:13:76:5f:29:f3:64:73
-                Exponent: 65537 (0x10001)
-        X509v3 extensions:
-            X509v3 Subject Key Identifier: 
-            B6:31:78:BB:7E:AA:4D:A1:5D:FD:A2:24:18:C6:90:5A:2D:2F:19:48
-            X509v3 Authority Key Identifier: 
-            keyid:B6:31:78:BB:7E:AA:4D:A1:5D:FD:A2:24:18:C6:90:5A:2D:2F:19:48
-            DirName:/C=US/ST=Illinois/L=De Kalb/O=Northern Illinois University/OU=Computer Science/CN=Neil Rickert/emailAddress=rickert@cs.niu.edu
-            serial:00
-
-            X509v3 Basic Constraints: 
-            CA:TRUE
-    Signature Algorithm: md5WithRSAEncryption
-        60:69:23:65:97:51:5c:06:a4:42:cb:00:e7:9a:dc:39:70:c3:
-        d3:5d:bf:0f:e0:04:54:4d:d9:dc:12:57:12:6c:67:fd:5b:b0:
-        39:63:ea:c4:12:65:51:bb:3d:f1:f7:25:b4:cd:0b:f6:5b:7a:
-        61:25:ad:06:0a:01:55:dc:71:05:29:0d:73:e9:30:51:be:d3:
-        e1:b2:89:fc:0f:28:f7:06:75:96:1b:34:75:e0:07:e5:3b:b3:
-        0b:28:24:e5:79:ea:55:39:e7:d2:ee:ec:63:b4:e4:c6:ee:cb:
-        15:d0:c8:eb:3b:4f:36:10:a4:6a:c0:6b:03:e8:29:72:c7:a7:
-        10:00
------BEGIN CERTIFICATE-----
-MIID5TCCA06gAwIBAgIBADANBgkqhkiG9w0BAQQFADCBrjELMAkGA1UEBhMCVVMx
-ETAPBgNVBAgTCElsbGlub2lzMRAwDgYDVQQHEwdEZSBLYWxiMSUwIwYDVQQKExxO
-b3J0aGVybiBJbGxpbm9pcyBVbml2ZXJzaXR5MRkwFwYDVQQLExBDb21wdXRlciBT
-Y2llbmNlMRUwEwYDVQQDEwxOZWlsIFJpY2tlcnQxITAfBgkqhkiG9w0BCQEWEnJp
-Y2tlcnRAY3Mubml1LmVkdTAeFw0wMDA1MTIwMDQwNTBaFw0xMDA1MjAwMDQwNTBa
-MIGuMQswCQYDVQQGEwJVUzERMA8GA1UECBMISWxsaW5vaXMxEDAOBgNVBAcTB0Rl
-IEthbGIxJTAjBgNVBAoTHE5vcnRoZXJuIElsbGlub2lzIFVuaXZlcnNpdHkxGTAX
-BgNVBAsTEENvbXB1dGVyIFNjaWVuY2UxFTATBgNVBAMTDE5laWwgUmlja2VydDEh
-MB8GCSqGSIb3DQEJARYScmlja2VydEBjcy5uaXUuZWR1MIGfMA0GCSqGSIb3DQEB
-AQUAA4GNADCBiQKBgQCxG0kG7z9E4JOtjKf3IXyHy9o19kui/YqgB1vMapuJM/wk
-9bEkWVolUP0W19S8xwQd35CbXsOo6Yt9o12a6X/lK+oVp626WCYKEUlP2ppnf7Cm
-ZvQntmFOPMg+oC9qtA4V1jn4kmCF36Y08/qkpeRHSeeHpKVcjmovE3ZfKfNkcwID
-AQABo4IBDzCCAQswHQYDVR0OBBYEFLYxeLt+qk2hXf2iJBjGkFotLxlIMIHbBgNV
-HSMEgdMwgdCAFLYxeLt+qk2hXf2iJBjGkFotLxlIoYG0pIGxMIGuMQswCQYDVQQG
-EwJVUzERMA8GA1UECBMISWxsaW5vaXMxEDAOBgNVBAcTB0RlIEthbGIxJTAjBgNV
-BAoTHE5vcnRoZXJuIElsbGlub2lzIFVuaXZlcnNpdHkxGTAXBgNVBAsTEENvbXB1
-dGVyIFNjaWVuY2UxFTATBgNVBAMTDE5laWwgUmlja2VydDEhMB8GCSqGSIb3DQEJ
-ARYScmlja2VydEBjcy5uaXUuZWR1ggEAMAwGA1UdEwQFMAMBAf8wDQYJKoZIhvcN
-AQEEBQADgYEAYGkjZZdRXAakQssA55rcOXDD012/D+AEVE3Z3BJXEmxn/VuwOWPq
-xBJlUbs98fcltM0L9lt6YSWtBgoBVdxxBSkNc+kwUb7T4bKJ/A8o9wZ1lhs0deAH
-5TuzCygk5XnqVTnn0u7sY7Tkxu7LFdDI6ztPNhCkasBrA+gpcsenEAA=
------END CERTIFICATE-----
 
 Certificate:
     Data:

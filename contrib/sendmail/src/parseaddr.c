@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: parseaddr.c,v 8.403 2008/02/08 02:27:35 ca Exp $")
+SM_RCSID("@(#)$Id: parseaddr.c,v 8.404 2010/07/27 03:35:42 ca Exp $")
 
 #include <sm/sendmail.h>
 #include "map.h"
@@ -319,7 +319,7 @@ delim:
 **			is invalid and should be "repaired".
 **
 **	Returns:
-**		true -- if the address has any "wierd" characters or
+**		true -- if the address has any "weird" characters or
 **			non-printable characters or if a quote is unbalanced.
 **		false -- otherwise.
 */

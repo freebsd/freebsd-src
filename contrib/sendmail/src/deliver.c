@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2008 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2010 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -14,7 +14,7 @@
 #include <sendmail.h>
 #include <sm/time.h>
 
-SM_RCSID("@(#)$Id: deliver.c,v 8.1020 2009/12/18 17:08:01 ca Exp $")
+SM_RCSID("@(#)$Id: deliver.c,v 8.1024 2011/01/12 23:52:59 ca Exp $")
 
 #if HASSETUSERCONTEXT
 # include <login_cap.h>
@@ -1850,7 +1850,7 @@ deliver(e, firstto)
 	**	If we are running SMTP, we just need to clean up.
 	*/
 
-	/* XXX this seems a bit wierd */
+	/* XXX this seems a bit weird */
 	if (ctladdr == NULL && m != ProgMailer && m != FileMailer &&
 	    bitset(QGOODUID, e->e_from.q_flags))
 		ctladdr = &e->e_from;
@@ -2144,6 +2144,7 @@ tryhost:
 			mci->mci_lastuse = curtime();
 			mci->mci_deliveries = 0;
 			mci->mci_exitstat = i;
+			mci_clr_extensions(mci);
 # if NAMED_BIND
 			mci->mci_herrno = h_errno;
 # endif /* NAMED_BIND */
@@ -3104,7 +3105,7 @@ reconnect:	/* after switching to an encrypted connection */
 			    mci->mci_state != MCIS_CLOSED)
 			{
 				SET_HELO(mci->mci_flags);
-				mci->mci_flags &= ~MCIF_EXTENS;
+				mci_clr_extensions(mci);
 				goto reconnect;
 			}
 		}
@@ -3157,7 +3158,7 @@ reconnect:	/* after switching to an encrypted connection */
 						     &mci->mci_out,
 						     mci->mci_conn, tmo) == 0)
 					{
-						mci->mci_flags &= ~MCIF_EXTENS;
+						mci_clr_extensions(mci);
 						mci->mci_flags |= MCIF_AUTHACT|
 								  MCIF_ONLY_EHLO;
 						goto reconnect;
@@ -6111,12 +6112,13 @@ starttls(m, mci, e)
 		return EX_TEMPFAIL;
 
 # if USE_OPENSSL_ENGINE
-	if (!SSL_set_engine(NULL))
+	if (!SSLEngineInitialized && !SSL_set_engine(NULL))
 	{
 		sm_syslog(LOG_ERR, NOQID,
 			  "STARTTLS=client, SSL_set_engine=failed");
 		return EX_TEMPFAIL;
 	}
+	SSLEngineInitialized = true;
 # endif /* USE_OPENSSL_ENGINE */
 
 	smtpmessage("STARTTLS", m, mci);
