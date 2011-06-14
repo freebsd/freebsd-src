@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/eventhandler.h>
 #include <sys/malloc.h>
 #include <sys/cons.h>
+#include <geom/geom.h>
 #include <geom/geom_disk.h>
 #endif /* _KERNEL */
 
@@ -933,6 +934,25 @@ dadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t leng
 	return (0);
 }
 
+static int
+dagetattr(struct bio *bp)
+{
+	int ret = -1;
+	struct cam_periph *periph;
+
+	if (bp->bio_disk == NULL || bp->bio_disk->d_drv1 == NULL)
+		return ENXIO;
+	periph = (struct cam_periph *)bp->bio_disk->d_drv1;
+	if (periph->path == NULL)
+		return ENXIO;
+
+	ret = xpt_getattr(bp->bio_data, bp->bio_length, bp->bio_attribute,
+	    periph->path);
+	if (ret == 0)
+		bp->bio_completed = bp->bio_length;
+	return ret;
+}
+
 static void
 dainit(void)
 {
@@ -1046,6 +1066,20 @@ daasync(void *callback_arg, u_int32_t code,
 		 && status != CAM_REQ_INPROG)
 			printf("daasync: Unable to attach to new device "
 				"due to status 0x%x\n", status);
+		return;
+	}
+	case AC_ADVINFO_CHANGED:
+	{
+		uintptr_t buftype;
+
+		buftype = (uintptr_t)arg;
+		if (buftype == CDAI_TYPE_PHYS_PATH) {
+			struct da_softc *softc;
+
+			softc = periph->softc;
+			disk_attr_changed(softc->disk, "GEOM::physpath",
+					  M_NOWAIT);
+		}
 		break;
 	}
 	case AC_SENT_BDR:
@@ -1233,17 +1267,6 @@ daregister(struct cam_periph *periph, void *arg)
 	TASK_INIT(&softc->sysctl_task, 0, dasysctlinit, periph);
 
 	/*
-	 * Add async callbacks for bus reset and
-	 * bus device reset calls.  I don't bother
-	 * checking if this fails as, in most cases,
-	 * the system will function just fine without
-	 * them and the only alternative would be to
-	 * not attach the device on failure.
-	 */
-	xpt_register_async(AC_SENT_BDR | AC_BUS_RESET | AC_LOST_DEVICE,
-			   daasync, periph, periph->path);
-
-	/*
 	 * Take an exclusive refcount on the periph while dastart is called
 	 * to finish the probe.  The reference will be dropped in dadone at
 	 * the end of probe.
@@ -1303,6 +1326,7 @@ daregister(struct cam_periph *periph, void *arg)
 	softc->disk->d_close = daclose;
 	softc->disk->d_strategy = dastrategy;
 	softc->disk->d_dump = dadump;
+	softc->disk->d_getattr = dagetattr;
 	softc->disk->d_name = "da";
 	softc->disk->d_drv1 = periph;
 	if (cpi.maxio == 0)
@@ -1315,8 +1339,6 @@ daregister(struct cam_periph *periph, void *arg)
 	softc->disk->d_flags = 0;
 	if ((softc->quirks & DA_Q_NO_SYNC_CACHE) == 0)
 		softc->disk->d_flags |= DISKFLAG_CANFLUSHCACHE;
-	strlcpy(softc->disk->d_ident, cgd->serial_num,
-	    MIN(sizeof(softc->disk->d_ident), cgd->serial_num_len + 1));
 	cam_strvis(softc->disk->d_descr, cgd->inq_data.vendor,
 	    sizeof(cgd->inq_data.vendor), sizeof(softc->disk->d_descr));
 	strlcat(softc->disk->d_descr, " ", sizeof(softc->disk->d_descr));
@@ -1329,6 +1351,25 @@ daregister(struct cam_periph *periph, void *arg)
 	softc->disk->d_hba_subdevice = cpi.hba_subdevice;
 	disk_create(softc->disk, DISK_VERSION);
 	mtx_lock(periph->sim->mtx);
+
+	/*
+	 * Add async callbacks for events of interest.
+	 * I don't bother checking if this fails as,
+	 * in most cases, the system will function just
+	 * fine without them and the only alternative
+	 * would be to not attach the device on failure.
+	 */
+	xpt_register_async(AC_SENT_BDR | AC_BUS_RESET
+			 | AC_LOST_DEVICE | AC_ADVINFO_CHANGED,
+			   daasync, periph, periph->path);
+
+	/*
+	 * Emit an attribute changed notification just in case 
+	 * physical path information arrived before our async
+	 * event handler was registered, but after anyone attaching
+	 * to our disk device polled it.
+	 */
+	disk_attr_changed(softc->disk, "GEOM::physpath", M_NOWAIT);
 
 	xpt_schedule(periph, CAM_PRIORITY_DEV);
 
