@@ -548,8 +548,8 @@ passsendccb(struct cam_periph *periph, union ccb *ccb, union ccb *inccb)
 	    && ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE))
 	  || (ccb->ccb_h.func_code == XPT_DEV_MATCH)
 	  || (ccb->ccb_h.func_code == XPT_SMP_IO)
-	  || ((ccb->ccb_h.func_code == XPT_GDEV_ADVINFO)
-	   && (ccb->cgdai.bufsiz > 0)))) {
+	  || ((ccb->ccb_h.func_code == XPT_DEV_ADVINFO)
+	   && (ccb->cdai.bufsiz > 0)))) {
 
 		bzero(&mapinfo, sizeof(mapinfo));
 
