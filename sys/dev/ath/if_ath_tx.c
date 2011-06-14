@@ -102,10 +102,10 @@ __FBSDID("$FreeBSD$");
 
 static int ath_tx_ampdu_pending(struct ath_softc *sc, struct ath_node *an,
     int tid);
-#if 0
 static int ath_tx_ampdu_running(struct ath_softc *sc, struct ath_node *an,
     int tid);
-#endif
+static ieee80211_seq ath_tx_tid_seqno_assign(struct ath_softc *sc,
+    struct ieee80211_node *ni, struct ath_buf *bf, struct mbuf *m0);
 
 /*
  * Whether to use the 11n rate scenario functions or not
@@ -922,21 +922,39 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	struct ath_vap *avp = ATH_VAP(vap);
 	int r;
 	u_int pri;
+	int tid;
 	struct ath_txq *txq;
 	int ismcast;
 	const struct ieee80211_frame *wh;
+	int is_ampdu = 0;
 
 	/* Determine the target hardware queue! */
 	pri = M_WME_GETAC(m0);			/* honor classification */
+	tid = WME_AC_TO_TID(pri);
 	txq = sc->sc_ac2q[pri];
 	wh = mtod(m0, struct ieee80211_frame *);
 	ismcast = IEEE80211_IS_MULTICAST(wh->i_addr1);
 
-	/* Multicast frames go onto the software multicat queue */
-	if (ismcast && (vap->iv_ps_sta || avp->av_mcastq.axq_depth))
+	/* A-MPDU TX */
+	if ((ath_tx_ampdu_running(sc, ATH_NODE(ni), tid)) ||
+	    (ath_tx_ampdu_pending(sc, ATH_NODE(ni), tid)))
+		is_ampdu = 1;
+
+	DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: tid=%d, ac=%d, is_ampdu=%d\n", 
+	    __func__, tid, pri, is_ampdu);
+
+	/* Multicast frames go onto the software multicast queue */
+	if (ismcast)
+		txq = &avp->av_mcastq;
+ 	if ((! is_ampdu) && (vap->iv_ps_sta || avp->av_mcastq.axq_depth))
 		txq = &avp->av_mcastq;
 
 	/* Do the generic frame setup */
+
+	/* A-MPDU TX? Manually set sequence number */
+	if (is_ampdu)
+		(void) ath_tx_tid_seqno_assign(sc, ni, bf, m0);
+
 	/* This also sets up the DMA map */
 	r = ath_tx_normal_setup(sc, ni, bf, m0);
 
@@ -951,7 +969,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 
 #if 1
 	/* add to software queue */
-	ath_tx_swq(sc, ni, bf, m0);
+	ath_tx_swq(sc, ni, txq, bf, m0);
 #else
 
 	/*
@@ -1270,37 +1288,56 @@ ath_tx_node_unsched(struct ath_softc *sc, struct ath_node *an)
 }
 
 /*
+ * Assign a sequence number manually to the given frame.
+ * 
+ * This should only be called for A-MPDU TX frames. 
+ */
+static ieee80211_seq
+ath_tx_tid_seqno_assign(struct ath_softc *sc, struct ieee80211_node *ni,
+    struct ath_buf *bf, struct mbuf *m0)
+{
+	struct ieee80211_frame *wh;
+	int tid, pri;
+	ieee80211_seq seqno;
+
+	/* TID lookup */
+	wh = mtod(m0, struct ieee80211_frame *);
+	pri = M_WME_GETAC(m0);			/* honor classification */
+	tid = WME_AC_TO_TID(pri);
+
+	/* Does the packet require a sequence number? */
+	if (! IEEE80211_QOS_HAS_SEQ(wh))
+		return -1;
+
+	/* Manually assign sequence number */
+	seqno = ni->ni_txseqs[tid]++;
+	*(uint16_t *)&wh->i_seq[0] = htole16(seqno << IEEE80211_SEQ_SEQ_SHIFT);
+	M_SEQNO_SET(m0, seqno);
+
+	/* Return so caller can do something with it if needed */
+	return seqno;
+}
+
+
+/*
  * Queue the given packet on the relevant software queue.
  *
  * This however doesn't queue the packet to the hardware!
  */
 void
-ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf,
-    struct mbuf *m0)
+ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_txq *txq,
+    struct ath_buf *bf, struct mbuf *m0)
 {
 	struct ath_node *an = ATH_NODE(ni);
-	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211_frame *wh;
-	struct ath_vap *avp = ATH_VAP(vap);
 	struct ath_tid *atid;
-	struct ath_txq *txq;	/* eventual destination queue */
-	int tid;
-	int ismcast;
-	u_int pri;
+	int pri, tid;
 
 	/* Fetch the TID - non-QoS frames get assigned to TID 16 */
 	wh = mtod(m0, struct ieee80211_frame *);
-	tid = ieee80211_gettid(wh);
-	atid = &an->an_tid[tid];
-
-	/* Fetch the eventual destination queue */
 	pri = M_WME_GETAC(m0);			/* honor classification */
-	ismcast = IEEE80211_IS_MULTICAST(wh->i_addr1);
-	txq = sc->sc_ac2q[pri];
-
-	/* Handle mcast, or PS STA */
-	if (ismcast && (vap->iv_ps_sta || avp->av_mcastq.axq_depth))
-		txq = &avp->av_mcastq;
+	tid = WME_AC_TO_TID(pri);
+	atid = &an->an_tid[tid];
 
 	/* Set local packet state, used to queue packets to hardware */
 	bf->bf_state.bfs_tid = tid;
@@ -1310,7 +1347,6 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf,
 	ATH_TXQ_LOCK(atid);
 	ATH_TXQ_INSERT_TAIL(atid, bf, bf_list);
 	ATH_TXQ_UNLOCK(atid);
-
 
 	/*
 	 * ATH_TXNODE must be acquired before ATH_NODE is acquired
@@ -1605,7 +1641,6 @@ ath_tx_get_tx_tid(struct ath_node *an, int tid)
 	return tap;
 }
 
-#if 0
 /*
  * Is AMPDU-TX running?
  *
@@ -1616,15 +1651,14 @@ ath_tx_ampdu_running(struct ath_softc *sc, struct ath_node *an, int tid)
 {
 	struct ieee80211_tx_ampdu *tap;
 
-	ATH_NODE_LOCK_ASSERT(an);
+	//ATH_NODE_LOCK_ASSERT(an);
 
 	tap = ath_tx_get_tx_tid(an, tid);
 	if (tap == NULL)
 		return 0;	/* Not valid; default to not running */
 
-	return (tap->txa_flags & IEEE80211_AGGR_RUNNING);
+	return !! (tap->txa_flags & IEEE80211_AGGR_RUNNING);
 }
-#endif
 
 /*
  * Is AMPDU-TX negotiation pending?
@@ -1636,13 +1670,13 @@ ath_tx_ampdu_pending(struct ath_softc *sc, struct ath_node *an, int tid)
 {
 	struct ieee80211_tx_ampdu *tap;
 
-	ATH_NODE_LOCK_ASSERT(an);
+	//ATH_NODE_LOCK_ASSERT(an);
 
 	tap = ath_tx_get_tx_tid(an, tid);
 	if (tap == NULL)
 		return 0;	/* Not valid; default to not pending */
 
-	return (tap->txa_flags & IEEE80211_AGGR_XCHGPEND);
+	return !! (tap->txa_flags & IEEE80211_AGGR_XCHGPEND);
 }
 
 
