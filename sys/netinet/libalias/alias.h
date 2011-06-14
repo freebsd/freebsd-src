@@ -220,6 +220,12 @@ struct mbuf    *m_megapullup(struct mbuf *, int);
 #define	PKT_ALIAS_PUNCH_FW		0x100
 #endif
 
+/*
+ * If PKT_ALIAS_SKIP_GLOBAL is set, nat instance is not checked for matching
+ * states in 'ipfw nat global' rule.
+ */
+#define	PKT_ALIAS_SKIP_GLOBAL		0x200
+
 /* Function return codes. */
 #define	PKT_ALIAS_ERROR			-1
 #define	PKT_ALIAS_OK			1
