@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2004 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2000-2004, 2010 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -44,9 +44,13 @@
 #include <sendmail.h>
 #if DNSMAP
 # if NAMED_BIND
+#  if NETINET
+#   include <netinet/in_systm.h>
+#   include <netinet/ip.h>
+#  endif /* NETINET */
 #  include "sm_resolve.h"
 
-SM_RCSID("$Id: sm_resolve.c,v 8.36 2008/02/11 23:04:16 ca Exp $")
+SM_RCSID("$Id: sm_resolve.c,v 8.39 2010/06/29 15:35:33 ca Exp $")
 
 static struct stot
 {
@@ -394,7 +398,13 @@ dns_lookup_int(domain, rr_class, rr_type, retrans, retry)
 	time_t save_retrans = 0;
 	int save_retry = 0;
 	DNS_REPLY_T *r = NULL;
-	unsigned char reply[1024];
+	querybuf reply_buf;
+	unsigned char *reply;
+
+#define SMRBSIZE sizeof(reply_buf)
+#ifndef IP_MAXPACKET
+# define IP_MAXPACKET	65535
+#endif
 
 	if (tTd(8, 16))
 	{
@@ -415,15 +425,44 @@ dns_lookup_int(domain, rr_class, rr_type, retrans, retry)
 	}
 	errno = 0;
 	SM_SET_H_ERRNO(0);
-	len = res_search(domain, rr_class, rr_type, reply, sizeof(reply));
+	reply = (unsigned char *)&reply_buf;
+	len = res_search(domain, rr_class, rr_type, reply, SMRBSIZE);
+	if (len >= SMRBSIZE)
+	{
+		if (len >= IP_MAXPACKET)
+		{
+			if (tTd(8, 4))
+				sm_dprintf("dns_lookup: domain=%s, length=%d, default_size=%d, max=%d, status=response too long\n",
+					   domain, len, (int) SMRBSIZE,
+					   IP_MAXPACKET);
+		}
+		else
+		{
+			if (tTd(8, 6))
+				sm_dprintf("dns_lookup: domain=%s, length=%d, default_size=%d, max=%d, status=response longer than default size, resizing\n",
+					   domain, len, (int) SMRBSIZE,
+					   IP_MAXPACKET);
+			reply = (unsigned char *)sm_malloc(IP_MAXPACKET);
+			if (reply == NULL)
+				SM_SET_H_ERRNO(TRY_AGAIN);
+			else
+				len = res_search(domain, rr_class, rr_type,
+						 reply, IP_MAXPACKET);
+		}
+	}
 	if (tTd(8, 16))
 	{
 		_res.options = old_options;
 		sm_dprintf("dns_lookup(%s, %d, %s) --> %d\n",
 			   domain, rr_class, dns_type_to_string(rr_type), len);
 	}
-	if (len >= 0)
+	if (len >= 0 && len < IP_MAXPACKET && reply != NULL)
 		r = parse_dns_reply(reply, len);
+	if (reply != (unsigned char *)&reply_buf && reply != NULL)
+	{
+		sm_free(reply);
+		reply = NULL;
+	}
 	if (retrans > 0)
 		_res.retrans = save_retrans;
 	if (retry > 0)

@@ -122,8 +122,10 @@ DDEESSCCRRIIPPTTIIOONN
               If  not  specified,  ``Received:''  lines  in  the  message  are
               counted.
 
-       --ii     Ignore dots alone on lines by themselves in  incoming  messages.
-              This should be set if you are reading data from a file.
+       --ii     Do not strip a leading dot from lines in incoming messages,  and
+              do not treat a dot on a line by itself as the end of an incoming
+              message.  This should be set if you  are  reading  data  from  a
+              file.
 
        --LL _t_a_g Set  the identifier used in syslog messages to the supplied _t_a_g.
 
@@ -464,4 +466,4 @@ HHIISSTTOORRYY
 
 
 
-                         $Date: 2009/04/10 17:49:19 $              SENDMAIL(8)
+                         $Date: 2011/03/07 23:44:48 $              SENDMAIL(8)
