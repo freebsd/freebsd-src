@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2008 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2010 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -17,7 +17,7 @@
 # include <libmilter/mfdef.h>
 #endif /* MILTER */
 
-SM_RCSID("@(#)$Id: srvrsmtp.c,v 8.989 2009/12/18 17:08:01 ca Exp $")
+SM_RCSID("@(#)$Id: srvrsmtp.c,v 8.1008 2011/01/12 23:52:59 ca Exp $")
 
 #include <sm/time.h>
 #include <sm/fdset.h>
@@ -875,10 +875,8 @@ smtp(nullserver, d_flags, e)
 
 		/* XXX should these be options settable via .cf ? */
 		/* ssp.min_ssf = 0; is default due to memset() */
-		{
-			ssp.max_ssf = MaxSLBits;
-			ssp.maxbufsize = MAXOUTLEN;
-		}
+		ssp.max_ssf = MaxSLBits;
+		ssp.maxbufsize = MAXOUTLEN;
 		ssp.security_flags = SASLOpts & SASL_SEC_MASK;
 		sasl_ok = sasl_setprop(conn, SASL_SEC_PROPS, &ssp) == SASL_OK;
 
@@ -909,15 +907,6 @@ smtp(nullserver, d_flags, e)
 #endif /* SASL */
 
 #if STARTTLS
-# if USE_OPENSSL_ENGINE
-	if (tls_ok_srv && bitset(SRV_OFFER_TLS, features) &&
-	    !SSL_set_engine(NULL))
-	{
-		sm_syslog(LOG_ERR, NOQID,
-			  "STARTTLS=server, SSL_set_engine=failed");
-		tls_ok_srv = false;
-	}
-# endif /* USE_OPENSSL_ENGINE */
 
 
 	set_tls_rd_tmo(TimeOuts.to_nextcommand);
@@ -1836,6 +1825,21 @@ smtp(nullserver, d_flags, e)
 				break;
 			}
   starttls:
+# if USE_OPENSSL_ENGINE
+			if (!SSLEngineInitialized)
+			{
+				if (!SSL_set_engine(NULL))
+				{
+					sm_syslog(LOG_ERR, NOQID,
+						  "STARTTLS=server, SSL_set_engine=failed");
+					tls_ok_srv = false;
+					message("454 4.3.3 TLS not available right now");
+					break;
+				}
+				else
+					SSLEngineInitialized = true;
+			}
+# endif /* USE_OPENSSL_ENGINE */
 # if TLS_NO_RSA
 			/*
 			**  XXX do we need a temp key ?
@@ -2260,8 +2264,7 @@ smtp(nullserver, d_flags, e)
 				message("250-AUTH %s", mechlist);
 #endif /* SASL */
 #if STARTTLS
-			if (tls_ok_srv &&
-			    bitset(SRV_OFFER_TLS, features))
+			if (tls_ok_srv && bitset(SRV_OFFER_TLS, features))
 				message("250-STARTTLS");
 #endif /* STARTTLS */
 			if (DeliverByMin > 0)
@@ -2622,7 +2625,7 @@ smtp(nullserver, d_flags, e)
 				goto rcpt_done;
 			}
 
-			if (e->e_sendmode != SM_DELIVER
+			if (!SM_IS_INTERACTIVE(e->e_sendmode)
 #if _FFR_DM_ONE
 			    && (NotFirstDelivery || SM_DM_ONE != e->e_sendmode)
 #endif /* _FFR_DM_ONE */
@@ -3724,6 +3727,7 @@ smtp_data(smtp, e)
 	_res.retrans = TimeOuts.res_retrans[RES_TO_FIRST];
 #endif /* NAMED_BIND */
 
+
 	for (ee = e; ee != NULL; ee = ee->e_sibling)
 	{
 		/* make sure we actually do delivery */
@@ -3767,18 +3771,18 @@ smtp_data(smtp, e)
 	oldid = CurEnv->e_id;
 	CurEnv->e_id = id;
 
-	/* issue success message */
+		/* issue success message */
 #if _FFR_MSG_ACCEPT
-	if (MessageAccept != NULL && *MessageAccept != '\0')
-	{
-		char msg[MAXLINE];
+		if (MessageAccept != NULL && *MessageAccept != '\0')
+		{
+			char msg[MAXLINE];
 
-		expand(MessageAccept, msg, sizeof(msg), e);
-		message("250 2.0.0 %s", msg);
-	}
-	else
+			expand(MessageAccept, msg, sizeof(msg), e);
+			message("250 2.0.0 %s", msg);
+		}
+		else
 #endif /* _FFR_MSG_ACCEPT */
-	message("250 2.0.0 %s Message accepted for delivery", id);
+		message("250 2.0.0 %s Message accepted for delivery", id);
 	CurEnv->e_id = oldid;
 
 	/* if we just queued, poke it */
@@ -4687,7 +4691,8 @@ proxy_policy(conn, context, requested_user, rlen, auth_identity, alen,
 		return SASL_FAIL;
 
 	macdefine(&BlankEnvelope.e_macro, A_TEMP,
-		  macid("{auth_authen}"), (char *) auth_identity);
+		  macid("{auth_authen}"),
+		  xtextify((char *) auth_identity, "=<>\")"));
 
 	return SASL_OK;
 }
