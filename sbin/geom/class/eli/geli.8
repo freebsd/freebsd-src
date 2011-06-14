@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 20, 2010
+.Dd March 9, 2011
 .Dt GELI 8
 .Os
 .Sh NAME
@@ -694,15 +694,17 @@ Enter passphrase:
 .Ed
 .Pp
 Create an encrypted provider, but use two keys:
-one for your girlfriend and one for
-you (so there will be no tragedy if she forgets her passphrase):
+one for your employee and one for you as company's security officer
+(so there is no tragedy if the employee
+.Qq accidentally
+forgets his passphrase):
 .Bd -literal -offset indent
 # geli init /dev/da2
-Enter new passphrase:	(enter your passphrase)
+Enter new passphrase:	(enter security officer passphrase)
 Reenter new passphrase:
 # geli setkey -n 1 /dev/da2
-Enter passphrase:	(enter your passphrase)
-Enter new passphrase:	(let your girlfriend enter her passphrase ...)
+Enter passphrase:	(enter security officer passphrase)
+Enter new passphrase:	(let your employee enter his passphrase ...)
 Reenter new passphrase:	(... twice)
 .Ed
 .Pp
@@ -842,7 +844,7 @@ Enter passphrase:
 .Nm
 supports two encryption modes:
 .Nm XTS ,
-which was standarized as
+which was standardized as
 .Nm IEE P1619
 and
 .Nm CBC
@@ -873,6 +875,10 @@ changes with the data he owns without notice.
 In other words
 .Nm
 will not protect your data against replay attacks.
+.Pp
+It is recommended to write the whole provider before the first use,
+in order to make sure that all sectors and their corresponding
+checksums are properly initialized into a consistent state.
 .Sh SEE ALSO
 .Xr crypto 4 ,
 .Xr gbde 4 ,
