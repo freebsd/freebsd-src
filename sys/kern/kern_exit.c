@@ -701,8 +701,9 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options,
 	 */
 	if (p->p_oppid && (t = pfind(p->p_oppid)) != NULL) {
 		PROC_LOCK(p);
-		p->p_oppid = 0;
 		proc_reparent(p, t);
+		p->p_pptr->p_dbg_child--;
+		p->p_oppid = 0;
 		PROC_UNLOCK(p);
 		pksignal(t, SIGCHLD, p->p_ksi);
 		wakeup(t);
@@ -794,7 +795,8 @@ kern_wait(struct thread *td, pid_t pid, int *status, int options,
 		pid = -q->p_pgid;
 		PROC_UNLOCK(q);
 	}
-	if (options &~ (WUNTRACED|WNOHANG|WCONTINUED|WNOWAIT|WLINUXCLONE))
+	/* If we don't know the option, just return. */
+	if (options & ~(WUNTRACED|WNOHANG|WCONTINUED|WNOWAIT|WLINUXCLONE))
 		return (EINVAL);
 loop:
 	if (q->p_flag & P_STATCHILD) {
@@ -873,7 +875,10 @@ loop:
 	}
 	if (nfound == 0) {
 		sx_xunlock(&proctree_lock);
-		return (ECHILD);
+		if (td->td_proc->p_dbg_child)
+			return (0);
+		else
+			return (ECHILD);
 	}
 	if (options & WNOHANG) {
 		sx_xunlock(&proctree_lock);
