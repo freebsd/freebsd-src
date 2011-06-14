@@ -727,7 +727,8 @@ daclose(struct disk *dp)
 
 	softc = (struct da_softc *)periph->softc;
 
-	if ((softc->quirks & DA_Q_NO_SYNC_CACHE) == 0) {
+	if ((softc->quirks & DA_Q_NO_SYNC_CACHE) == 0
+	 && (softc->flags & DA_FLAG_PACK_INVALID) == 0) {
 		union	ccb *ccb;
 
 		ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
@@ -977,7 +978,8 @@ daoninvalidate(struct cam_periph *periph)
 	bioq_flush(&softc->bio_queue, NULL, ENXIO);
 
 	disk_gone(softc->disk);
-	xpt_print(periph->path, "lost device\n");
+	xpt_print(periph->path, "lost device - %d outstanding\n",
+		  softc->outstanding_cmds);
 }
 
 static void
@@ -1060,12 +1062,12 @@ daasync(void *callback_arg, u_int32_t code,
 		softc->flags |= DA_FLAG_RETRY_UA;
 		LIST_FOREACH(ccbh, &softc->pending_ccbs, periph_links.le)
 			ccbh->ccb_state |= DA_CCB_RETRY_UA;
-		/* FALLTHROUGH*/
-	}
-	default:
-		cam_periph_async(periph, code, path, arg);
 		break;
 	}
+	default:
+		break;
+	}
+	cam_periph_async(periph, code, path, arg);
 }
 
 static void
@@ -1558,7 +1560,7 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 		if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
 			int error;
 			int sf;
-			
+
 			if ((csio->ccb_h.ccb_state & DA_CCB_RETRY_UA) != 0)
 				sf = SF_RETRY_UA;
 			else
@@ -1573,8 +1575,17 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 				return;
 			}
 			if (error != 0) {
+				int queued_error;
 
-				if (error == ENXIO) {
+				/*
+				 * return all queued I/O with EIO, so that
+				 * the client can retry these I/Os in the
+				 * proper order should it attempt to recover.
+				 */
+				queued_error = EIO;
+
+				if (error == ENXIO
+				 && (softc->flags & DA_FLAG_PACK_INVALID)== 0) {
 					/*
 					 * Catastrophic error.  Mark our pack as
 					 * invalid.
@@ -1586,14 +1597,10 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 					xpt_print(periph->path,
 					    "Invalidating pack\n");
 					softc->flags |= DA_FLAG_PACK_INVALID;
+					queued_error = ENXIO;
 				}
-
-				/*
-				 * return all queued I/O with EIO, so that
-				 * the client can retry these I/Os in the
-				 * proper order should it attempt to recover.
-				 */
-				bioq_flush(&softc->bio_queue, NULL, EIO);
+				bioq_flush(&softc->bio_queue, NULL,
+					   queued_error);
 				bp->bio_error = error;
 				bp->bio_resid = bp->bio_bcount;
 				bp->bio_flags |= BIO_ERROR;
@@ -1625,6 +1632,11 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 		softc->outstanding_cmds--;
 		if (softc->outstanding_cmds == 0)
 			softc->flags |= DA_FLAG_WENT_IDLE;
+
+		if ((softc->flags & DA_FLAG_PACK_INVALID) != 0) {
+			xpt_print(periph->path, "oustanding %d\n",
+				  softc->outstanding_cmds);
+		}
 
 		biodone(bp);
 		break;
