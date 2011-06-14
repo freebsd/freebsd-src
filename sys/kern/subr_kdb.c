@@ -244,29 +244,44 @@ kdb_reboot(void)
 #define	KEY_CRTLP	16	/* ^P */
 #define	KEY_CRTLR	18	/* ^R */
 
+/* States of th KDB "alternate break sequence" detecting state machine. */
+enum {
+	KDB_ALT_BREAK_SEEN_NONE,
+	KDB_ALT_BREAK_SEEN_CR,
+	KDB_ALT_BREAK_SEEN_CR_TILDE,
+};
+
 int
 kdb_alt_break(int key, int *state)
 {
 	int brk;
 
+	/* All states transition to KDB_ALT_BREAK_SEEN_CR on a CR. */
+	if (key == KEY_CR) {
+		*state = KDB_ALT_BREAK_SEEN_CR;
+		return (0);
+	}
+
 	brk = 0;
 	switch (*state) {
-	case 0:
-		if (key == KEY_CR)
-			*state = 1;
-		break;
-	case 1:
+	case KDB_ALT_BREAK_SEEN_CR:
+		*state = KDB_ALT_BREAK_SEEN_NONE;
 		if (key == KEY_TILDE)
-			*state = 2;
+			*state = KDB_ALT_BREAK_SEEN_CR_TILDE;
 		break;
-	case 2:
+	case KDB_ALT_BREAK_SEEN_CR_TILDE:
+		*state = KDB_ALT_BREAK_SEEN_NONE;
 		if (key == KEY_CRTLB)
 			brk = KDB_REQ_DEBUGGER;
 		else if (key == KEY_CRTLP)
 			brk = KDB_REQ_PANIC;
 		else if (key == KEY_CRTLR)
 			brk = KDB_REQ_REBOOT;
-		*state = 0;
+		break;
+	case KDB_ALT_BREAK_SEEN_NONE:
+	default:
+		*state = KDB_ALT_BREAK_SEEN_NONE;
+		break;
 	}
 	return (brk);
 }
