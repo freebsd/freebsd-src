@@ -287,9 +287,6 @@ static xpt_targetfunc_t	xptdeftargetfunc;
 static xpt_devicefunc_t	xptdefdevicefunc;
 static xpt_periphfunc_t	xptdefperiphfunc;
 static void		xpt_finishconfig_task(void *context, int pending);
-static int		xpt_for_all_busses(xpt_busfunc_t *tr_func, void *arg);
-static int		xpt_for_all_devices(xpt_devicefunc_t *tr_func,
-					    void *arg);
 static void		xpt_dev_async_default(u_int32_t async_code,
 					      struct cam_eb *bus,
 					      struct cam_et *target,
@@ -1105,6 +1102,44 @@ xpt_announce_periph(struct cam_periph *periph, char *announce_string)
 		       periph->unit_number, announce_string);
 }
 
+int
+xpt_getattr(char *buf, size_t len, const char *attr, struct cam_path *path)
+{
+	int ret = -1;
+	struct ccb_dev_advinfo cdai;
+
+	memset(&cdai, 0, sizeof(cdai));
+	xpt_setup_ccb(&cdai.ccb_h, path, CAM_PRIORITY_NORMAL);
+	cdai.ccb_h.func_code = XPT_DEV_ADVINFO;
+	cdai.bufsiz = len;
+
+	if (!strcmp(attr, "GEOM::ident"))
+		cdai.buftype = CDAI_TYPE_SERIAL_NUM;
+	else if (!strcmp(attr, "GEOM::physpath"))
+		cdai.buftype = CDAI_TYPE_PHYS_PATH;
+	else
+		goto out;
+
+	cdai.buf = malloc(cdai.bufsiz, M_CAMXPT, M_NOWAIT|M_ZERO);
+	if (cdai.buf == NULL) {
+		ret = ENOMEM;
+		goto out;
+	}
+	xpt_action((union ccb *)&cdai); /* can only be synchronous */
+	if ((cdai.ccb_h.status & CAM_DEV_QFRZN) != 0)
+		cam_release_devq(cdai.ccb_h.path, 0, 0, 0, FALSE);
+	if (cdai.provsiz == 0)
+		goto out;
+	ret = 0;
+	if (strlcpy(buf, cdai.buf, len) >= len)
+		ret = EFAULT;
+
+out:
+	if (cdai.buf != NULL)
+		free(cdai.buf, M_CAMXPT);
+	return ret;
+}
+
 static dev_match_ret
 xptbusmatch(struct dev_match_pattern *patterns, u_int num_patterns,
 	    struct cam_eb *bus)
@@ -1241,6 +1276,7 @@ xptdevicematch(struct dev_match_pattern *patterns, u_int num_patterns,
 
 	for (i = 0; i < num_patterns; i++) {
 		struct device_match_pattern *cur_pattern;
+		struct scsi_vpd_device_id *device_id_page;
 
 		/*
 		 * If the pattern in question isn't for a device node, we
@@ -1255,22 +1291,17 @@ xptdevicematch(struct dev_match_pattern *patterns, u_int num_patterns,
 
 		cur_pattern = &patterns[i].pattern.device_pattern;
 
+		/* Error out if mutually exclusive options are specified. */ 
+		if ((cur_pattern->flags & (DEV_MATCH_INQUIRY|DEV_MATCH_DEVID))
+		 == (DEV_MATCH_INQUIRY|DEV_MATCH_DEVID))
+			return(DM_RET_ERROR);
+
 		/*
 		 * If they want to match any device node, we give them any
 		 * device node.
 		 */
-		if (cur_pattern->flags == DEV_MATCH_ANY) {
-			/* set the copy flag */
-			retval |= DM_RET_COPY;
-
-
-			/*
-			 * If we've already decided on an action, go ahead
-			 * and return.
-			 */
-			if ((retval & DM_RET_ACTION_MASK) != DM_RET_NONE)
-				return(retval);
-		}
+		if (cur_pattern->flags == DEV_MATCH_ANY)
+			goto copy_dev_node;
 
 		/*
 		 * Not sure why someone would do this...
@@ -1292,11 +1323,22 @@ xptdevicematch(struct dev_match_pattern *patterns, u_int num_patterns,
 
 		if (((cur_pattern->flags & DEV_MATCH_INQUIRY) != 0)
 		 && (cam_quirkmatch((caddr_t)&device->inq_data,
-				    (caddr_t)&cur_pattern->inq_pat,
-				    1, sizeof(cur_pattern->inq_pat),
+				    (caddr_t)&cur_pattern->data.inq_pat,
+				    1, sizeof(cur_pattern->data.inq_pat),
 				    scsi_static_inquiry_match) == NULL))
 			continue;
 
+		device_id_page = (struct scsi_vpd_device_id *)device->device_id;
+		if (((cur_pattern->flags & DEV_MATCH_DEVID) != 0)
+		 && (device->device_id_len < SVPD_DEVICE_ID_HDR_LEN
+		  || scsi_devid_match((uint8_t *)device_id_page->desc_list,
+				      device->device_id_len
+				    - SVPD_DEVICE_ID_HDR_LEN,
+				      cur_pattern->data.devid_pat.id,
+				      cur_pattern->data.devid_pat.id_len) != 0))
+			continue;
+
+copy_dev_node:
 		/*
 		 * If we get to this point, the user definitely wants
 		 * information on this device.  So tell the caller to copy
@@ -2889,6 +2931,8 @@ xpt_action_default(union ccb *start_ccb)
 	case XPT_TERM_IO:
 	case XPT_ENG_INQ:
 		/* XXX Implement */
+		printf("%s: CCB type %#x not supported\n", __func__,
+		       start_ccb->ccb_h.func_code);
 		start_ccb->ccb_h.status = CAM_PROVIDE_FAIL;
 		if (start_ccb->ccb_h.func_code & XPT_FC_DEV_QUEUED) {
 			xpt_done(start_ccb);
@@ -3528,16 +3572,12 @@ xpt_path_string(struct cam_path *path, char *str, size_t str_len)
 path_id_t
 xpt_path_path_id(struct cam_path *path)
 {
-	mtx_assert(path->bus->sim->mtx, MA_OWNED);
-
 	return(path->bus->path_id);
 }
 
 target_id_t
 xpt_path_target_id(struct cam_path *path)
 {
-	mtx_assert(path->bus->sim->mtx, MA_OWNED);
-
 	if (path->target != NULL)
 		return (path->target->target_id);
 	else
@@ -3547,8 +3587,6 @@ xpt_path_target_id(struct cam_path *path)
 lun_id_t
 xpt_path_lun_id(struct cam_path *path)
 {
-	mtx_assert(path->bus->sim->mtx, MA_OWNED);
-
 	if (path->device != NULL)
 		return (path->device->lun_id);
 	else
@@ -4242,7 +4280,8 @@ xpt_alloc_target(struct cam_eb *bus, target_id_t target_id)
 {
 	struct cam_et *target;
 
-	target = (struct cam_et *)malloc(sizeof(*target), M_CAMXPT, M_NOWAIT);
+	target = (struct cam_et *)malloc(sizeof(*target), M_CAMXPT,
+					 M_NOWAIT|M_ZERO);
 	if (target != NULL) {
 		struct cam_et *cur_target;
 
@@ -4330,7 +4369,7 @@ xpt_alloc_device(struct cam_eb *bus, struct cam_et *target, lun_id_t lun_id)
 		device = NULL;
 	} else {
 		device = (struct cam_ed *)malloc(sizeof(*device),
-						 M_CAMXPT, M_NOWAIT);
+						 M_CAMXPT, M_NOWAIT|M_ZERO);
 	}
 
 	if (device != NULL) {
@@ -4676,27 +4715,29 @@ xpt_register_async(int event, ac_callback_t *cbfunc, void *cbarg,
 	csa.callback_arg = cbarg;
 	xpt_action((union ccb *)&csa);
 	status = csa.ccb_h.status;
+
 	if (xptpath) {
 		xpt_free_path(path);
 		mtx_unlock(&xsoftc.xpt_lock);
-
-		if ((status == CAM_REQ_CMP) &&
-		    (csa.event_enable & AC_FOUND_DEVICE)) {
-			/*
-			 * Get this peripheral up to date with all
-			 * the currently existing devices.
-			 */
-			xpt_for_all_devices(xptsetasyncfunc, &csa);
-		}
-		if ((status == CAM_REQ_CMP) &&
-		    (csa.event_enable & AC_PATH_REGISTERED)) {
-			/*
-			 * Get this peripheral up to date with all
-			 * the currently existing busses.
-			 */
-			xpt_for_all_busses(xptsetasyncbusfunc, &csa);
-		}
 	}
+
+	if ((status == CAM_REQ_CMP) &&
+	    (csa.event_enable & AC_FOUND_DEVICE)) {
+		/*
+		 * Get this peripheral up to date with all
+		 * the currently existing devices.
+		 */
+		xpt_for_all_devices(xptsetasyncfunc, &csa);
+	}
+	if ((status == CAM_REQ_CMP) &&
+	    (csa.event_enable & AC_PATH_REGISTERED)) {
+		/*
+		 * Get this peripheral up to date with all
+		 * the currently existing busses.
+		 */
+		xpt_for_all_busses(xptsetasyncbusfunc, &csa);
+	}
+
 	return (status);
 }
 
@@ -4852,8 +4893,10 @@ camisr_runqueue(void *V_queue)
 			if ((dev->flags & CAM_DEV_TAG_AFTER_COUNT) != 0
 			 && (--dev->tag_delay_count == 0))
 				xpt_start_tags(ccb_h->path);
-			if (!device_is_send_queued(dev))
-				xpt_schedule_dev_sendq(ccb_h->path->bus, dev);
+			if (!device_is_send_queued(dev)) {
+				runq = xpt_schedule_dev_sendq(ccb_h->path->bus, 
+				    dev);
+			}
 		}
 
 		if (ccb_h->status & CAM_RELEASE_SIMQ) {

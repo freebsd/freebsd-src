@@ -3552,32 +3552,63 @@ scsi_calc_syncparam(u_int period)
 	return (period/400);
 }
 
-uint8_t *
-scsi_get_sas_addr(struct scsi_vpd_device_id *id, uint32_t len)
+int
+scsi_devid_is_naa_ieee_reg(uint8_t *bufp)
 {
-	uint8_t *bufp, *buf_end;
 	struct scsi_vpd_id_descriptor *descr;
 	struct scsi_vpd_id_naa_basic *naa;
 
-	bufp = buf_end = (uint8_t *)id;
-	bufp += SVPD_DEVICE_ID_HDR_LEN;
-	buf_end += len;
-	while (bufp < buf_end) {
-		descr = (struct scsi_vpd_id_descriptor *)bufp;
-		bufp += SVPD_DEVICE_ID_DESC_HDR_LEN;
-		/* Right now, we only care about SAS NAA IEEE Reg addrs */
-		if (((descr->id_type & SVPD_ID_PIV) != 0)
-		 && (descr->proto_codeset >> SVPD_ID_PROTO_SHIFT) ==
-		     SCSI_PROTO_SAS
-		 && (descr->id_type & SVPD_ID_TYPE_MASK) == SVPD_ID_TYPE_NAA){
-			naa = (struct scsi_vpd_id_naa_basic *)bufp;
-			if ((naa->naa >> 4) == SVPD_ID_NAA_IEEE_REG)
-				return bufp;
-		}
-		bufp += descr->length;
+	descr = (struct scsi_vpd_id_descriptor *)bufp;
+	naa = (struct scsi_vpd_id_naa_basic *)descr->identifier;
+	if ((descr->id_type & SVPD_ID_TYPE_MASK) != SVPD_ID_TYPE_NAA)
+		return 0;
+	if (descr->length < sizeof(struct scsi_vpd_id_naa_ieee_reg))
+		return 0;
+	if ((naa->naa >> SVPD_ID_NAA_NAA_SHIFT) != SVPD_ID_NAA_IEEE_REG)
+		return 0;
+	return 1;
+}
+
+int
+scsi_devid_is_sas_target(uint8_t *bufp)
+{
+	struct scsi_vpd_id_descriptor *descr;
+
+	descr = (struct scsi_vpd_id_descriptor *)bufp;
+	if (!scsi_devid_is_naa_ieee_reg(bufp))
+		return 0;
+	if ((descr->id_type & SVPD_ID_PIV) == 0) /* proto field reserved */
+		return 0;
+	if ((descr->proto_codeset >> SVPD_ID_PROTO_SHIFT) != SCSI_PROTO_SAS)
+		return 0;
+	return 1;
+}
+
+uint8_t *
+scsi_get_devid(struct scsi_vpd_device_id *id, uint32_t page_len,
+    scsi_devid_checkfn_t ck_fn)
+{
+	struct scsi_vpd_id_descriptor *desc;
+	uint8_t *page_end;
+	uint8_t *desc_buf_end;
+
+	page_end = (uint8_t *)id + page_len;
+	if (page_end < id->desc_list)
+		return (NULL);
+
+	desc_buf_end = MIN(id->desc_list + scsi_2btoul(id->length), page_end);
+
+	for (desc = (struct scsi_vpd_id_descriptor *)id->desc_list;
+	     desc->identifier <= desc_buf_end
+	  && desc->identifier + desc->length <= desc_buf_end;
+	     desc = (struct scsi_vpd_id_descriptor *)(desc->identifier
+						    + desc->length)) {
+
+		if (ck_fn == NULL || ck_fn((uint8_t *)desc) != 0)
+			return (desc->identifier);
 	}
 
-	return NULL;
+	return (NULL);
 }
 
 void
@@ -4174,6 +4205,77 @@ scsi_read_write(struct ccb_scsiio *csio, u_int32_t retries,
 		      timeout);
 }
 
+void
+scsi_receive_diagnostic_results(struct ccb_scsiio *csio, u_int32_t retries,
+				void (*cbfcnp)(struct cam_periph *, union ccb*),
+				uint8_t tag_action, int pcv, uint8_t page_code,
+				uint8_t *data_ptr, uint16_t allocation_length,
+				uint8_t sense_len, uint32_t timeout)
+{
+	struct scsi_receive_diag *scsi_cmd;
+
+	scsi_cmd = (struct scsi_receive_diag *)&csio->cdb_io.cdb_bytes;
+	memset(scsi_cmd, 0, sizeof(*scsi_cmd));
+	scsi_cmd->opcode = RECEIVE_DIAGNOSTIC;
+	if (pcv) {
+		scsi_cmd->byte2 |= SRD_PCV;
+		scsi_cmd->page_code = page_code;
+	}
+	scsi_ulto2b(allocation_length, scsi_cmd->length);
+
+	cam_fill_csio(csio,
+		      retries,
+		      cbfcnp,
+		      /*flags*/CAM_DIR_IN,
+		      tag_action,
+		      data_ptr,
+		      allocation_length,
+		      sense_len,
+		      sizeof(*scsi_cmd),
+		      timeout);
+}
+
+void
+scsi_send_diagnostic(struct ccb_scsiio *csio, u_int32_t retries,
+		     void (*cbfcnp)(struct cam_periph *, union ccb *),
+		     uint8_t tag_action, int unit_offline, int device_offline,
+		     int self_test, int page_format, int self_test_code,
+		     uint8_t *data_ptr, uint16_t param_list_length,
+		     uint8_t sense_len, uint32_t timeout)
+{
+	struct scsi_send_diag *scsi_cmd;
+
+	scsi_cmd = (struct scsi_send_diag *)&csio->cdb_io.cdb_bytes;
+	memset(scsi_cmd, 0, sizeof(*scsi_cmd));
+	scsi_cmd->opcode = SEND_DIAGNOSTIC;
+
+	/*
+	 * The default self-test mode control and specific test
+	 * control are mutually exclusive.
+	 */
+	if (self_test)
+		self_test_code = SSD_SELF_TEST_CODE_NONE;
+
+	scsi_cmd->byte2 = ((self_test_code << SSD_SELF_TEST_CODE_SHIFT)
+			 & SSD_SELF_TEST_CODE_MASK)
+			| (unit_offline   ? SSD_UNITOFFL : 0)
+			| (device_offline ? SSD_DEVOFFL  : 0)
+			| (self_test      ? SSD_SELFTEST : 0)
+			| (page_format    ? SSD_PF       : 0);
+	scsi_ulto2b(param_list_length, scsi_cmd->length);
+
+	cam_fill_csio(csio,
+		      retries,
+		      cbfcnp,
+		      /*flags*/param_list_length ? CAM_DIR_OUT : CAM_DIR_NONE,
+		      tag_action,
+		      data_ptr,
+		      param_list_length,
+		      sense_len,
+		      sizeof(*scsi_cmd),
+		      timeout);
+}
+
 void 
 scsi_start_stop(struct ccb_scsiio *csio, u_int32_t retries,
 		void (*cbfcnp)(struct cam_periph *, union ccb *),
@@ -4206,7 +4308,6 @@ scsi_start_stop(struct ccb_scsiio *csio, u_int32_t retries,
 		      sense_len,
 		      sizeof(*scsi_cmd),
 		      timeout);
-
 }
 
 
@@ -4262,6 +4363,66 @@ scsi_static_inquiry_match(caddr_t inqbuffer, caddr_t table_entry)
 		return (0);
 	}
         return (-1);
+}
+
+/**
+ * Compare two buffers of vpd device descriptors for a match.
+ *
+ * \param lhs      Pointer to first buffer of descriptors to compare.
+ * \param lhs_len  The length of the first buffer.
+ * \param rhs	   Pointer to second buffer of descriptors to compare.
+ * \param rhs_len  The length of the second buffer.
+ *
+ * \return  0 on a match, -1 otherwise.
+ *
+ * Treat rhs and lhs as arrays of vpd device id descriptors.  Walk lhs matching
+ * agains each element in rhs until all data are exhausted or we have found
+ * a match.
+ */
+int
+scsi_devid_match(uint8_t *lhs, size_t lhs_len, uint8_t *rhs, size_t rhs_len)
+{
+	struct scsi_vpd_id_descriptor *lhs_id;
+	struct scsi_vpd_id_descriptor *lhs_last;
+	struct scsi_vpd_id_descriptor *rhs_last;
+	uint8_t *lhs_end;
+	uint8_t *rhs_end;
+
+	lhs_end = lhs + lhs_len;
+	rhs_end = rhs + rhs_len;
+
+	/*
+	 * rhs_last and lhs_last are the last posible position of a valid
+	 * descriptor assuming it had a zero length identifier.  We use
+	 * these variables to insure we can safely dereference the length
+	 * field in our loop termination tests.
+	 */
+	lhs_last = (struct scsi_vpd_id_descriptor *)
+	    (lhs_end - __offsetof(struct scsi_vpd_id_descriptor, identifier));
+	rhs_last = (struct scsi_vpd_id_descriptor *)
+	    (rhs_end - __offsetof(struct scsi_vpd_id_descriptor, identifier));
+
+	lhs_id = (struct scsi_vpd_id_descriptor *)lhs;
+	while (lhs_id <= lhs_last
+	    && (lhs_id->identifier + lhs_id->length) <= lhs_end) {
+		struct scsi_vpd_id_descriptor *rhs_id;
+
+		rhs_id = (struct scsi_vpd_id_descriptor *)rhs;
+		while (rhs_id <= rhs_last
+		    && (rhs_id->identifier + rhs_id->length) <= rhs_end) {
+
+			if (rhs_id->length == lhs_id->length
+			 && memcmp(rhs_id->identifier, lhs_id->identifier,
+				   rhs_id->length) == 0)
+				return (0);
+
+			rhs_id = (struct scsi_vpd_id_descriptor *)
+			   (rhs_id->identifier + rhs_id->length);
+		}
+		lhs_id = (struct scsi_vpd_id_descriptor *)
+		   (lhs_id->identifier + lhs_id->length);
+	}
+	return (-1);
 }
 
 #ifdef _KERNEL
