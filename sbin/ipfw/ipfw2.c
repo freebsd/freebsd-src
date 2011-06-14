@@ -2826,14 +2826,19 @@ chkarg:
 		size_t intsize = sizeof(int);
 
 		action->opcode = O_SETFIB;
- 		NEED1("missing fib number");
- 	        action->arg1 = strtoul(*av, NULL, 10);
-		if (sysctlbyname("net.fibs", &numfibs, &intsize, NULL, 0) == -1)
-			errx(EX_DATAERR, "fibs not suported.\n");
-		if (action->arg1 >= numfibs)  /* Temporary */
-			errx(EX_DATAERR, "fib too large.\n");
- 		av++;
- 		break;
+		NEED1("missing fib number");
+		if (_substrcmp(*av, "tablearg") == 0) {
+			action->arg1 = IP_FW_TABLEARG;
+		} else {
+		        action->arg1 = strtoul(*av, NULL, 10);
+			if (sysctlbyname("net.fibs", &numfibs, &intsize,
+			    NULL, 0) == -1)
+				errx(EX_DATAERR, "fibs not suported.\n");
+			if (action->arg1 >= numfibs)  /* Temporary */
+				errx(EX_DATAERR, "fib too large.\n");
+		}
+		av++;
+		break;
 	    }
 
 	case TOK_REASS:

@@ -2101,14 +2101,21 @@ do {								\
 				done = 1;       /* exit outer loop */
 				break;
 
-			case O_SETFIB:
+			case O_SETFIB: {
+				uint32_t fib;
+
 				f->pcnt++;	/* update stats */
 				f->bcnt += pktlen;
 				f->timestamp = time_uptime;
-				M_SETFIB(m, cmd->arg1);
-				args->f_id.fib = cmd->arg1;
+				fib = (cmd->arg1 == IP_FW_TABLEARG) ? tablearg:
+				    cmd->arg1;
+				if (fib >= rt_numfibs)
+					fib = 0;
+				M_SETFIB(m, fib);
+				args->f_id.fib = fib;
 				l = 0;		/* exit inner loop */
 				break;
+		        }
 
 			case O_NAT:
  				if (!IPFW_NAT_LOADED) {
