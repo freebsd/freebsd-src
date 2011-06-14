@@ -166,6 +166,7 @@ skreuzer [label="Steven Kreuzer\nskreuzer@FreeBSD.org\n2009/03/25"]
 sobomax[label="Maxim Sobolev\nsobomax@FreeBSD.org\n2000/05/17"]
 stas [label="Stanislav Sedov\nstas@FreeBSD.org\n2006/09/18"]
 stefan [label="Stefan Walter\nstefan@FreeBSD.org\n2006/05/07"]
+stephen [label="Stephen Montgomery-Smith\nstephen@FreeBSD.org\n2011/06/13"]
 sunpoet [label="Po-Chuan Hsieh\nsunpoet@FreeBSD.org\n2010/09/21"]
 sylvio [label="Sylvio Cesar Teixeira\nsylvio@FreeBSD.org\n2009/10/29"]
 swills [label="Steve Wills\nswills@FreeBSD.org\n2010/09/03"]
@@ -259,6 +260,7 @@ flz -> romain
 
 gabor -> lippe
 gabor -> pgj
+gabor -> stephen
 
 garga -> acm
 garga -> alepulver
@@ -311,6 +313,7 @@ lioux -> pat
 
 lwhsu -> yzlin
 
+maho -> stephen
 maho -> tota
 
 marcus -> ahze
