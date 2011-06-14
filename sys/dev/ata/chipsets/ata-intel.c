@@ -288,7 +288,9 @@ ata_intel_chipinit(device_t dev)
 			ATA_OUTL(ctlr->r_res2, 0x0C,
 			    ATA_INL(ctlr->r_res2, 0x0C) | 0xf);
 		}
-	} else {
+	/* Skip BAR(5) on ICH8M Apples, system locks up on access. */
+	} else if (ctlr->chip->chipid != ATA_I82801HBM_S1 ||
+	    pci_get_subvendor(dev) != 0x106b) {
 		ctlr->r_type2 = SYS_RES_IOPORT;
 		ctlr->r_rid2 = PCIR_BAR(5);
 		ctlr->r_res2 = bus_alloc_resource_any(dev, ctlr->r_type2,
