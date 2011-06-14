@@ -76,6 +76,7 @@ typedef void g_orphan_t (struct g_consumer *);
 
 typedef void g_start_t (struct bio *);
 typedef void g_spoiled_t (struct g_consumer *);
+typedef void g_attrchanged_t (struct g_consumer *, const char *attr);
 typedef void g_dumpconf_t (struct sbuf *, const char *indent, struct g_geom *,
     struct g_consumer *, struct g_provider *);
 
@@ -100,6 +101,7 @@ struct g_class {
 	 */
 	g_start_t		*start;
 	g_spoiled_t		*spoiled;
+	g_attrchanged_t		*attrchanged;
 	g_dumpconf_t		*dumpconf;
 	g_access_t		*access;
 	g_orphan_t		*orphan;
@@ -128,6 +130,7 @@ struct g_geom {
 	int			rank;
 	g_start_t		*start;
 	g_spoiled_t		*spoiled;
+	g_attrchanged_t		*attrchanged;
 	g_dumpconf_t		*dumpconf;
 	g_access_t		*access;
 	g_orphan_t		*orphan;
@@ -217,6 +220,7 @@ struct g_classifier_hook {
 /* geom_dev.c */
 struct cdev;
 void g_dev_print(void);
+void g_dev_physpath_changed(void);
 struct g_provider *g_dev_getprovider(struct cdev *dev);
 
 /* geom_dump.c */
@@ -232,6 +236,7 @@ typedef void g_event_t(void *, int flag);
 int g_post_event(g_event_t *func, void *arg, int flag, ...);
 int g_waitfor_event(g_event_t *func, void *arg, int flag, ...);
 void g_cancel_event(void *ref);
+int g_attr_changed(struct g_provider *pp, const char *attr, int flag);
 void g_orphan_provider(struct g_provider *pp, int error);
 void g_waitidlelock(void);
 
