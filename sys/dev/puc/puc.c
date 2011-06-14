@@ -726,3 +726,41 @@ puc_bus_read_ivar(device_t dev, device_t child, int index, uintptr_t *result)
 	}
 	return (0);
 }
+
+int
+puc_bus_print_child(device_t dev, device_t child)
+{
+	struct puc_port *port;
+	int retval;
+
+	port = device_get_ivars(child);
+	retval = 0;
+
+	retval += bus_print_child_header(dev, child);
+	retval += printf(" at port %d", port->p_nr);
+	retval += bus_print_child_footer(dev, child);
+
+	return (retval);
+}
+
+int
+puc_bus_child_location_str(device_t dev, device_t child, char *buf,
+    size_t buflen)
+{
+	struct puc_port *port;
+
+	port = device_get_ivars(child);
+	snprintf(buf, buflen, "port=%d", port->p_nr);
+	return (0);
+}
+
+int
+puc_bus_child_pnpinfo_str(device_t dev, device_t child, char *buf,
+    size_t buflen)
+{
+	struct puc_port *port;
+
+	port = device_get_ivars(child);
+	snprintf(buf, buflen, "type=%d", port->p_type);
+	return (0);
+}
