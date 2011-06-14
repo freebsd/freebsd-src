@@ -721,16 +721,18 @@ ipfw_config_nat(int ac, char **av)
 {
 	struct cfg_nat *n;		/* Nat instance configuration. */
 	int i, off, tok, ac1;
-	char *id, *buf, **av1;
+	char *id, *buf, **av1, *end;
 	size_t len;
 
 	av++; ac--;
 	/* Nat id. */
-	if (ac && isdigit(**av)) {
-		id = *av;
-		ac--; av++;
-	} else
+	if (ac == 0)
 		errx(EX_DATAERR, "missing nat id");
+	id = *av;
+	i = (int)strtol(id, &end, 0);
+	if (i <= 0 || *end != '\0')
+		errx(EX_DATAERR, "illegal nat id: %s", id);
+	av++; ac--;
 	if (ac == 0)
 		errx(EX_DATAERR, "missing option");
 
@@ -787,7 +789,6 @@ ipfw_config_nat(int ac, char **av)
 	off = sizeof(*n);
 	memset(buf, 0, len);
 	n = (struct cfg_nat *)buf;
-	i = atoi(id);
 	n->id = i;
 
 	while (ac > 0) {
