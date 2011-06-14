@@ -315,6 +315,7 @@ static void clear_filter(struct filter_entry *);
 static int set_filter_wr(struct adapter *, int);
 static int del_filter_wr(struct adapter *, int);
 void filter_rpl(struct adapter *, const struct cpl_set_tcb_rpl *);
+static int get_sge_context(struct adapter *, struct t4_sge_context *);
 static int t4_mod_event(module_t, int, void *);
 
 struct t4_pciids {
@@ -3423,6 +3424,35 @@ filter_rpl(struct adapter *sc, const struct cpl_set_tcb_rpl *rpl)
 	}
 }
 
+static int
+get_sge_context(struct adapter *sc, struct t4_sge_context *cntxt)
+{
+	int rc = EINVAL;
+
+	if (cntxt->cid > M_CTXTQID)
+		return (rc);
+
+	if (cntxt->mem_id != CTXT_EGRESS && cntxt->mem_id != CTXT_INGRESS &&
+	    cntxt->mem_id != CTXT_FLM && cntxt->mem_id != CTXT_CNM)
+		return (rc);
+
+	if (sc->flags & FW_OK) {
+		ADAPTER_LOCK(sc);	/* Avoid parallel t4_wr_mbox */
+		rc = -t4_sge_ctxt_rd(sc, sc->mbox, cntxt->cid, cntxt->mem_id,
+		    &cntxt->data[0]);
+		ADAPTER_UNLOCK(sc);
+	}
+
+	if (rc != 0) {
+		/* Read via firmware failed or wasn't even attempted */
+
+		rc = -t4_sge_ctxt_rd_bd(sc, cntxt->cid, cntxt->mem_id,
+		    &cntxt->data[0]);
+	}
+
+	return (rc);
+}
+
 int
 t4_os_find_pci_capability(struct adapter *sc, int cap)
 {
@@ -3585,6 +3615,9 @@ t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
 		ADAPTER_LOCK(sc);
 		rc = del_filter(sc, (struct t4_filter *)data);
 		ADAPTER_UNLOCK(sc);
+		break;
+	case CHELSIO_T4_GET_SGE_CONTEXT:
+		rc = get_sge_context(sc, (struct t4_sge_context *)data);
 		break;
 	default:
 		rc = EINVAL;
