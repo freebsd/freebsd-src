@@ -91,7 +91,7 @@ struct sctp_paramhdr {
 #define SCTP_PEER_ADDR_PARAMS 		0x0000000a
 #define SCTP_DEFAULT_SEND_PARAM		0x0000000b
 /* ancillary data/notification interest options */
-#define SCTP_EVENTS			0x0000000c
+#define SCTP_EVENTS			0x0000000c	/* deprecated */
 /* Without this applied we will give V4 and V6 addresses on a V6 socket */
 #define SCTP_I_WANT_MAPPED_V4_ADDR	0x0000000d
 #define SCTP_MAXSEG 			0x0000000e
@@ -114,6 +114,10 @@ struct sctp_paramhdr {
 #define SCTP_EXPLICIT_EOR               0x0000001b
 #define SCTP_REUSE_PORT                 0x0000001c	/* rw */
 #define SCTP_AUTH_DEACTIVATE_KEY	0x0000001d
+#define SCTP_EVENT                      0x0000001e
+#define SCTP_RECVRCVINFO                0x0000001f
+#define SCTP_RECVNXTINFO                0x00000020
+#define SCTP_DEFAULT_SNDINFO            0x00000021
 
 /*
  * read-only options
@@ -490,7 +494,7 @@ struct sctp_error_unrecognized_chunk {
 /*
  * PCB Features (in sctp_features bitmask)
  */
-#define SCTP_PCB_FLAGS_EXT_RCVINFO      0x00000002
+#define SCTP_PCB_FLAGS_EXT_RCVINFO      0x00000002	/* deprecated */
 #define SCTP_PCB_FLAGS_DONOT_HEARTBEAT  0x00000004
 #define SCTP_PCB_FLAGS_FRAG_INTERLEAVE  0x00000008
 #define SCTP_PCB_FLAGS_INTERLEAVE_STRMS	0x00000010
@@ -500,7 +504,7 @@ struct sctp_error_unrecognized_chunk {
 /* socket options */
 #define SCTP_PCB_FLAGS_NODELAY		0x00000100
 #define SCTP_PCB_FLAGS_AUTOCLOSE	0x00000200
-#define SCTP_PCB_FLAGS_RECVDATAIOEVNT	0x00000400
+#define SCTP_PCB_FLAGS_RECVDATAIOEVNT	0x00000400	/* deprecated */
 #define SCTP_PCB_FLAGS_RECVASSOCEVNT	0x00000800
 #define SCTP_PCB_FLAGS_RECVPADDREVNT	0x00001000
 #define SCTP_PCB_FLAGS_RECVPEERERR	0x00002000
@@ -516,6 +520,9 @@ struct sctp_error_unrecognized_chunk {
 #define SCTP_PCB_FLAGS_MULTIPLE_ASCONFS	0x01000000
 #define SCTP_PCB_FLAGS_PORTREUSE        0x02000000
 #define SCTP_PCB_FLAGS_DRYEVNT          0x04000000
+#define SCTP_PCB_FLAGS_RECVRCVINFO      0x08000000
+#define SCTP_PCB_FLAGS_RECVNXTINFO      0x10000000
+
 /*-
  * mobility_features parameters (by micchie).Note
  * these features are applied against the
