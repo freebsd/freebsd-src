@@ -1836,10 +1836,16 @@ dontblock:
 			}
 			SBLASTRECORDCHK(&so->so_rcv);
 			SBLASTMBUFCHK(&so->so_rcv);
-			error = sbwait(&so->so_rcv);
-			if (error) {
-				SOCKBUF_UNLOCK(&so->so_rcv);
-				goto release;
+			/*
+			 * We could receive some data while was notifying
+			 * the protocol. Skip blocking in this case.
+			 */
+			if (so->so_rcv.sb_mb == NULL) {
+				error = sbwait(&so->so_rcv);
+				if (error) {
+					SOCKBUF_UNLOCK(&so->so_rcv);
+					goto release;
+				}
 			}
 			m = so->so_rcv.sb_mb;
 			if (m != NULL)
