@@ -443,11 +443,15 @@ sendrecv_tftp(d, sproc, sbuf, ssize, rproc, rbuf, rsize)
 			continue;
 		}
 
+recvnext:
 		/* Try to get a packet and process it. */
 		cc = (*rproc)(d, rbuf, rsize, tleft);
 		/* Return on data, EOF or real error. */
 		if (cc != -1 || errno != 0)
 			return (cc);
+		if ((getsecs() - t1) < tleft) {
+		    goto recvnext;
+		}
 
 		/* Timed out or didn't get the packet we're waiting for */
 		tleft += MINTMO;
