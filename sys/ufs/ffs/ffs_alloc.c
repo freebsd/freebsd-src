@@ -116,7 +116,6 @@ static ufs2_daddr_t ffs_clusteralloc(struct inode *, u_int, ufs2_daddr_t, int,
 static ino_t	ffs_dirpref(struct inode *);
 static ufs2_daddr_t ffs_fragextend(struct inode *, u_int, ufs2_daddr_t,
 		    int, int);
-static void	ffs_fserr(struct fs *, ino_t, char *);
 static ufs2_daddr_t	ffs_hashalloc
 		(struct inode *, u_int, ufs2_daddr_t, int, int, allocfcn_t *);
 static ufs2_daddr_t ffs_nodealloccg(struct inode *, u_int, ufs2_daddr_t, int,
@@ -223,7 +222,7 @@ nospace:
 		goto retry;
 	}
 	UFS_UNLOCK(ump);
-	if (ppsratecheck(&lastfail, &curfail, 1)) {
+	if (reclaimed > 0 && ppsratecheck(&lastfail, &curfail, 1)) {
 		ffs_fserr(fs, ip->i_number, "filesystem full");
 		uprintf("\n%s: write failed, filesystem is full\n",
 		    fs->fs_fsmnt);
@@ -432,7 +431,7 @@ nospace:
 	UFS_UNLOCK(ump);
 	if (bp)
 		brelse(bp);
-	if (ppsratecheck(&lastfail, &curfail, 1)) {
+	if (reclaimed > 0 && ppsratecheck(&lastfail, &curfail, 1)) {
 		ffs_fserr(fs, ip->i_number, "filesystem full");
 		uprintf("\n%s: write failed, filesystem is full\n",
 		    fs->fs_fsmnt);
@@ -2335,7 +2334,7 @@ ffs_mapsearch(fs, cgp, bpref, allocsiz)
  * The form of the error message is:
  *	fs: error message
  */
-static void
+void
 ffs_fserr(fs, inum, cp)
 	struct fs *fs;
 	ino_t inum;
