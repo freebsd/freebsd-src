@@ -10417,6 +10417,10 @@ softdep_disk_write_complete(bp)
 				WORKLIST_INSERT(&reattach, wk);
 			continue;
 
+		case D_FREEDEP:
+			free_freedep(WK_FREEDEP(wk));
+			continue;
+
 		default:
 			panic("handle_disk_write_complete: Unknown type %s",
 			    TYPENAME(wk->wk_type));
