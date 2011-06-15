@@ -235,7 +235,8 @@ ffs_truncate(vp, length, flags, cred, td)
 				if (oldblks[i] == 0)
 					continue;
 				ffs_blkfree(ump, fs, ip->i_devvp, oldblks[i],
-				    sblksize(fs, osize, i), ip->i_number, NULL);
+				    sblksize(fs, osize, i), ip->i_number,
+				    vp->v_type, NULL);
 			}
 		}
 	}
@@ -435,7 +436,8 @@ ffs_truncate(vp, length, flags, cred, td)
 			if (lastiblock[level] < 0) {
 				DIP_SET(ip, i_ib[level], 0);
 				ffs_blkfree(ump, fs, ip->i_devvp, bn,
-				    fs->fs_bsize, ip->i_number, NULL);
+				    fs->fs_bsize, ip->i_number,
+				    vp->v_type, NULL);
 				blocksreleased += nblocks;
 			}
 		}
@@ -455,7 +457,7 @@ ffs_truncate(vp, length, flags, cred, td)
 		DIP_SET(ip, i_db[i], 0);
 		bsize = blksize(fs, ip, i);
 		ffs_blkfree(ump, fs, ip->i_devvp, bn, bsize, ip->i_number,
-		    NULL);
+		    vp->v_type, NULL);
 		blocksreleased += btodb(bsize);
 	}
 	if (lastblock < 0)
@@ -487,7 +489,7 @@ ffs_truncate(vp, length, flags, cred, td)
 			 */
 			bn += numfrags(fs, newspace);
 			ffs_blkfree(ump, fs, ip->i_devvp, bn,
-			    oldspace - newspace, ip->i_number, NULL);
+			   oldspace - newspace, ip->i_number, vp->v_type, NULL);
 			blocksreleased += btodb(oldspace - newspace);
 		}
 	}
@@ -634,7 +636,7 @@ ffs_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
 			blocksreleased += blkcount;
 		}
 		ffs_blkfree(ip->i_ump, fs, ip->i_devvp, nb, fs->fs_bsize,
-		    ip->i_number, NULL);
+		    ip->i_number, vp->v_type, NULL);
 		blocksreleased += nblocks;
 	}
 

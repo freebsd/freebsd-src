@@ -506,7 +506,7 @@ fail:
 	 */
 	for (blkp = allociblk; blkp < allocblk; blkp++) {
 		ffs_blkfree(ump, fs, ip->i_devvp, *blkp, fs->fs_bsize,
-		    ip->i_number, NULL);
+		    ip->i_number, vp->v_type, NULL);
 	}
 	return (error);
 }
@@ -1052,7 +1052,7 @@ fail:
 	 */
 	for (blkp = allociblk; blkp < allocblk; blkp++) {
 		ffs_blkfree(ump, fs, ip->i_devvp, *blkp, fs->fs_bsize,
-		    ip->i_number, NULL);
+		    ip->i_number, vp->v_type, NULL);
 	}
 	return (error);
 }

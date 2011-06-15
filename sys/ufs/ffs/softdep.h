@@ -511,6 +511,7 @@ struct freefrag {
 	ufs2_daddr_t ff_blkno;		/* fragment physical block number */
 	long	ff_fragsize;		/* size of fragment being deleted */
 	ino_t	ff_inum;		/* owning inode number */
+	enum	vtype ff_vtype;		/* owning inode's file type */
 };
 
 /*
@@ -538,6 +539,7 @@ struct freeblks {
 	ufs2_daddr_t fb_chkcnt;		/* Expected blks released. */
 	ufs2_daddr_t fb_freecnt;	/* Actual blocks released. */
 	ino_t	fb_inum;		/* inode owner of blocks */
+	enum	vtype fb_vtype;		/* inode owner's file type */
 	uid_t	fb_uid;			/* uid of previous owner of blocks */
 	int	fb_ref;			/* Children outstanding. */
 	int	fb_cgwait;		/* cg writes outstanding. */
