@@ -110,7 +110,8 @@ reldoc:
 system: packagesystem
 # Install system
 	-mkdir ${.OBJDIR}/release
-	cd ${WORLDDIR} && ${IMAKE} installkernel installworld distribution DESTDIR=${.OBJDIR}/release
+	cd ${WORLDDIR} && ${IMAKE} installkernel installworld distribution \
+	    DESTDIR=${.OBJDIR}/release WITHOUT_RESCUE=1
 	-rm ${.OBJDIR}/release/boot/kernel/*.symbols
 # Copy distfiles
 	mkdir ${.OBJDIR}/release/usr/freebsd-dist
