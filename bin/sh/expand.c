@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 #include <wchar.h>
+#include <wctype.h>
 
 /*
  * Routines to expand arguments to commands.  We have to deal with
@@ -1401,13 +1402,43 @@ get_wc(const char **p)
 
 
 /*
+ * See if a character matches a character class, starting at the first colon
+ * of "[:class:]".
+ * If a valid character class is recognized, a pointer to the next character
+ * after the final closing bracket is stored into *end, otherwise a null
+ * pointer is stored into *end.
+ */
+static int
+match_charclass(const char *p, wchar_t chr, const char **end)
+{
+	char name[20];
+	const char *nameend;
+	wctype_t cclass;
+
+	*end = NULL;
+	p++;
+	nameend = strstr(p, ":]");
+	if (nameend == NULL || nameend - p >= sizeof(name) || nameend == p)
+		return 0;
+	memcpy(name, p, nameend - p);
+	name[nameend - p] = '\0';
+	*end = nameend + 2;
+	cclass = wctype(name);
+	/* An unknown class matches nothing but is valid nevertheless. */
+	if (cclass == 0)
+		return 0;
+	return iswctype(chr, cclass);
+}
+
+
+/*
  * Returns true if the pattern matches the string.
  */
 
 int
 patmatch(const char *pattern, const char *string, int squoted)
 {
-	const char *p, *q;
+	const char *p, *q, *end;
 	char c;
 	wchar_t wc, wc2;
 
@@ -1495,6 +1526,11 @@ patmatch(const char *pattern, const char *string, int squoted)
 			do {
 				if (c == CTLQUOTEMARK)
 					continue;
+				if (c == '[' && *p == ':') {
+					found |= match_charclass(p, chr, &end);
+					if (end != NULL)
+						p = end;
+				}
 				if (c == CTLESC)
 					c = *p++;
 				if (localeisutf8 && c & 0x80) {
