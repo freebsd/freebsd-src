@@ -926,7 +926,8 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	struct ath_txq *txq;
 	int ismcast;
 	const struct ieee80211_frame *wh;
-	int is_ampdu = 0;
+	int is_ampdu, is_ampdu_tx, is_ampdu_pending;
+	ieee80211_seq seqno;
 
 	/* Determine the target hardware queue! */
 	pri = M_WME_GETAC(m0);			/* honor classification */
@@ -936,9 +937,9 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	ismcast = IEEE80211_IS_MULTICAST(wh->i_addr1);
 
 	/* A-MPDU TX */
-	if ((ath_tx_ampdu_running(sc, ATH_NODE(ni), tid)) ||
-	    (ath_tx_ampdu_pending(sc, ATH_NODE(ni), tid)))
-		is_ampdu = 1;
+	is_ampdu_tx = ath_tx_ampdu_running(sc, ATH_NODE(ni), tid);
+	is_ampdu_pending = ath_tx_ampdu_pending(sc, ATH_NODE(ni), tid);
+	is_ampdu = is_ampdu_tx | is_ampdu_pending;
 
 	DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: tid=%d, ac=%d, is_ampdu=%d\n", 
 	    __func__, tid, pri, is_ampdu);
@@ -952,8 +953,9 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	/* Do the generic frame setup */
 
 	/* A-MPDU TX? Manually set sequence number */
-	if (is_ampdu)
-		(void) ath_tx_tid_seqno_assign(sc, ni, bf, m0);
+	/* Don't do it whilst pending; the net80211 layer still assigns them */
+	if (is_ampdu_tx)
+		seqno = ath_tx_tid_seqno_assign(sc, ni, bf, m0);
 
 	/* This also sets up the DMA map */
 	r = ath_tx_normal_setup(sc, ni, bf, m0);
