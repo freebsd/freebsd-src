@@ -66,6 +66,7 @@ static int	tftp_read(struct open_file *f, void *buf, size_t size, size_t *resid)
 static int	tftp_write(struct open_file *f, void *buf, size_t size, size_t *resid);
 static off_t	tftp_seek(struct open_file *f, off_t offset, int where);
 static int	tftp_stat(struct open_file *f, struct stat *sb);
+static ssize_t sendrecv_tftp(d, sproc, sbuf, ssize, rproc, rbuf, rsize);
 
 struct fs_ops tftp_fsops = {
 	"tftp",
@@ -191,7 +192,7 @@ tftp_makereq(struct tftp_handle *h)
 	h->iodesc->destport = htons(IPPORT_TFTP);
 	h->iodesc->xid = 1;	/* expected block */
 
-	res = sendrecv(h->iodesc, sendudp, &wbuf.t, wtail - (char *) &wbuf.t,
+	res = sendrecv_tftp(h->iodesc, sendudp, &wbuf.t, wtail - (char *) &wbuf.t,
 		       recvtftp, t, sizeof(*t) + RSPACE);
 
 	if (res == -1)
@@ -226,7 +227,7 @@ tftp_getnextblock(struct tftp_handle *h)
 
 	h->iodesc->xid = h->currblock + 1;	/* expected block */
 
-	res = sendrecv(h->iodesc, sendudp, &wbuf.t, wtail - (char *) &wbuf.t,
+	res = sendrecv_tftp(h->iodesc, sendudp, &wbuf.t, wtail - (char *) &wbuf.t,
 		       recvtftp, t, sizeof(*t) + RSPACE);
 
 	if (res == -1)		/* 0 is OK! */
@@ -403,4 +404,56 @@ tftp_seek(struct open_file *f, off_t offset, int where)
 		return (-1);
 	}
 	return (tftpfile->off);
+}
+
+static ssize_t
+sendrecv_tftp(d, sproc, sbuf, ssize, rproc, rbuf, rsize)
+	struct iodesc *d;
+	ssize_t (*sproc)(struct iodesc *, void *, size_t);
+	void *sbuf;
+	size_t ssize;
+	ssize_t (*rproc)(struct iodesc *, void *, size_t, time_t);
+	void *rbuf;
+	size_t rsize;
+{
+	ssize_t cc;
+	time_t t, t1, tleft;
+
+#ifdef TFTP_DEBUG
+	if (debug)
+		printf("sendrecv: called\n");
+#endif
+
+	tleft = MINTMO;
+	t = t1 = getsecs();
+	for (;;) {
+		if ((getsecs() - t) > MAXTMO) {
+			errno = ETIMEDOUT;
+			return -1;
+		}
+
+		cc = (*sproc)(d, sbuf, ssize);
+		if (cc != -1 && cc < ssize)
+			panic("sendrecv: short write! (%zd < %zu)",
+			    cc, ssize);
+
+		if (cc == -1) {
+			/* Error on transmit; wait before retrying */
+			while ((getsecs() - t1) < tleft);
+			continue;
+		}
+
+		/* Try to get a packet and process it. */
+		cc = (*rproc)(d, rbuf, rsize, tleft);
+		/* Return on data, EOF or real error. */
+		if (cc != -1 || errno != 0)
+			return (cc);
+
+		/* Timed out or didn't get the packet we're waiting for */
+		tleft += MINTMO;
+		if (tleft > (2 * MINTMO)) {
+			tleft = (2 * MINTMO);
+		}
+		t1 = getsecs();
+	}
 }
