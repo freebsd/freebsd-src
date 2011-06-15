@@ -957,6 +957,14 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	if (is_ampdu_tx)
 		seqno = ath_tx_tid_seqno_assign(sc, ni, bf, m0);
 
+#if 0
+	/* Is ampdu pending? fetch the seqno and print it out */
+	if (is_ampdu_pending)
+		device_printf(sc->sc_dev,
+		    "%s: tid %d: ampdu pending, seqno %d\n",
+		    __func__, tid, M_SEQNO_GET(m0));
+#endif
+
 	/* This also sets up the DMA map */
 	r = ath_tx_normal_setup(sc, ni, bf, m0);
 
@@ -1021,7 +1029,9 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	pktlen = m0->m_pkthdr.len - (hdrlen & 3) + IEEE80211_CRC_LEN;
 
 	/* Handle encryption twiddling if needed */
-	if (! ath_tx_tag_crypto(sc, ni, m0, params->ibp_flags & IEEE80211_BPF_CRYPTO, 0, &hdrlen, &pktlen, &keyix)) {
+	if (! ath_tx_tag_crypto(sc, ni,
+	    m0, params->ibp_flags & IEEE80211_BPF_CRYPTO, 0,
+	    &hdrlen, &pktlen, &keyix)) {
 		ath_freetx(m0);
 		return EIO;
 	}
