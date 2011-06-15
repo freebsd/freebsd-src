@@ -118,10 +118,10 @@ struct tftp_handle {
 		u_char header[HEADER_SIZE];
 		struct tftphdr t;
 		u_char space[TFTP_MAX_BLKSIZE];
-	} lastdata;
+	} __packed __aligned(4) lastdata;
 };
 
-static int tftperrors[8] = {
+static const int tftperrors[8] = {
 	0,			/* ??? */
 	ENOENT,
 	EPERM,
@@ -208,7 +208,7 @@ tftp_makereq(struct tftp_handle *h)
 		u_char header[HEADER_SIZE];
 		struct tftphdr  t;
 		u_char space[FNAME_SIZE + 6];
-	} wbuf;
+	} __packed __aligned(4) wbuf;
 	char           *wtail;
 	int             l;
 	ssize_t         res;
@@ -286,7 +286,7 @@ tftp_getnextblock(struct tftp_handle *h)
 	struct {
 		u_char header[HEADER_SIZE];
 		struct tftphdr t;
-	} wbuf;
+	} __packed __aligned(4) wbuf;
 	char           *wtail;
 	int             res;
 	struct tftphdr *t;
