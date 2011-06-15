@@ -60,13 +60,21 @@ __FBSDID("$FreeBSD$");
 
 #include "tftp.h"
 
+struct tftp_handle;
+
 static int	tftp_open(const char *path, struct open_file *f);
 static int	tftp_close(struct open_file *f);
+static void	tftp_parse_oack(struct tftp_handle *h, char *buf, size_t len);
 static int	tftp_read(struct open_file *f, void *buf, size_t size, size_t *resid);
 static int	tftp_write(struct open_file *f, void *buf, size_t size, size_t *resid);
 static off_t	tftp_seek(struct open_file *f, off_t offset, int where);
+static int	tftp_set_blksize(struct tftp_handle *h, const char *str);
 static int	tftp_stat(struct open_file *f, struct stat *sb);
-static ssize_t sendrecv_tftp(d, sproc, sbuf, ssize, rproc, rbuf, rsize);
+static ssize_t sendrecv_tftp(struct tftp_handle *h, 
+    ssize_t (*sproc)(struct iodesc *, void *, size_t),
+    void *sbuf, size_t ssize,
+    ssize_t (*rproc)(struct tftp_handle *h, void *, ssize_t, time_t, unsigned short *),
+    void *rbuf, size_t rsize, unsigned short *rtype);
 
 struct fs_ops tftp_fsops = {
 	"tftp",
@@ -82,8 +90,20 @@ struct fs_ops tftp_fsops = {
 extern struct in_addr servip;
 
 static int      tftpport = 2000;
+static int	is_open = 0;
 
-#define RSPACE 520		/* max data packet, rounded up */
+/*
+ * The legacy TFTP_BLKSIZE value was 512.
+ * TFTP_REQUESTED_BLKSIZE of 1428 is (Ethernet MTU, less the TFTP, UDP and
+ * IP header lengths).
+ */
+#define TFTP_REQUESTED_BLKSIZE 1428
+
+/*
+ * Choose a blksize big enough so we can test with Ethernet
+ * Jumbo frames in the future.
+ */ 
+#define TFTP_MAX_BLKSIZE 9008
 
 struct tftp_handle {
 	struct iodesc  *iodesc;
@@ -92,14 +112,16 @@ struct tftp_handle {
 	int             validsize;
 	int             off;
 	char           *path;	/* saved for re-requests */
+	unsigned int	tftp_blksize;
+	unsigned long	tftp_tsize; 
 	struct {
 		u_char header[HEADER_SIZE];
 		struct tftphdr t;
-		u_char space[RSPACE];
-	} __packed __aligned(4) lastdata;
+		u_char space[TFTP_MAX_BLKSIZE];
+	} lastdata;
 };
 
-static const int tftperrors[8] = {
+static int tftperrors[8] = {
 	0,			/* ??? */
 	ENOENT,
 	EPERM,
@@ -111,8 +133,10 @@ static const int tftperrors[8] = {
 };
 
 static ssize_t 
-recvtftp(struct iodesc *d, void *pkt, ssize_t len, time_t tleft)
+recvtftp(struct tftp_handle *h, void *pkt, ssize_t len, time_t tleft,
+    unsigned short *rtype)
 {
+	struct iodesc *d = h->iodesc;
 	struct tftphdr *t;
 
 	errno = 0;
@@ -123,6 +147,7 @@ recvtftp(struct iodesc *d, void *pkt, ssize_t len, time_t tleft)
 		return (-1);
 
 	t = (struct tftphdr *) pkt;
+	*rtype = ntohs(t->th_opcode);
 	switch (ntohs(t->th_opcode)) {
 	case DATA: {
 		int got;
@@ -155,6 +180,18 @@ recvtftp(struct iodesc *d, void *pkt, ssize_t len, time_t tleft)
 			errno = tftperrors[ntohs(t->th_code)];
 		}
 		return (-1);
+	case OACK: {
+		struct udphdr *uh;
+		int tftp_oack_len = len - sizeof(t->th_opcode); 
+		tftp_parse_oack(h, t->th_u.tu_stuff, tftp_oack_len);
+		/*
+		 * Remember which port this OACK came from,
+		 * because we need to send the ACK back to it.
+		 */
+		uh = (struct udphdr *) pkt - 1;
+		d->destport = uh->uh_sport;
+		return (0);
+	}
 	default:
 #ifdef TFTP_DEBUG
 		printf("tftp type %d not handled\n", ntohs(t->th_opcode));
@@ -171,19 +208,40 @@ tftp_makereq(struct tftp_handle *h)
 		u_char header[HEADER_SIZE];
 		struct tftphdr  t;
 		u_char space[FNAME_SIZE + 6];
-	} __packed __aligned(4) wbuf;
+	} wbuf;
 	char           *wtail;
 	int             l;
 	ssize_t         res;
 	struct tftphdr *t;
+	char *tftp_blksize = NULL;
+	int blksize_l;
+	unsigned short rtype = 0;
+
+	/*
+	 * Allow overriding default TFTP block size by setting
+	 * a tftp.blksize environment variable.
+	 */
+	if ((tftp_blksize = getenv("tftp.blksize")) != NULL) {
+		tftp_set_blksize(h, tftp_blksize);
+	}
 
 	wbuf.t.th_opcode = htons((u_short) RRQ);
 	wtail = wbuf.t.th_stuff;
 	l = strlen(h->path);
+	if (l > FNAME_SIZE)
+		return (ENAMETOOLONG);
 	bcopy(h->path, wtail, l + 1);
 	wtail += l + 1;
 	bcopy("octet", wtail, 6);
 	wtail += 6;
+	bcopy("blksize", wtail, 8);
+	wtail += 8;
+	blksize_l = sprintf(wtail, "%d", h->tftp_blksize);
+	wtail += blksize_l + 1;
+	bcopy("tsize", wtail, 6);
+	wtail += 6;
+	bcopy("0", wtail, 2);
+	wtail += 2;
 
 	t = &h->lastdata.t;
 
@@ -192,18 +250,33 @@ tftp_makereq(struct tftp_handle *h)
 	h->iodesc->destport = htons(IPPORT_TFTP);
 	h->iodesc->xid = 1;	/* expected block */
 
-	res = sendrecv_tftp(h->iodesc, sendudp, &wbuf.t, wtail - (char *) &wbuf.t,
-		       recvtftp, t, sizeof(*t) + RSPACE);
+	res = sendrecv_tftp(h, &sendudp, &wbuf.t, wtail - (char *) &wbuf.t,
+		       &recvtftp, t, sizeof(*t) + h->tftp_blksize, &rtype);
 
-	if (res == -1)
-		return (errno);
+	if (rtype == OACK) {
+		wbuf.t.th_opcode = htons((u_short)ACK);
+		wtail = (char *) &wbuf.t.th_block;
+		wbuf.t.th_block = htons(0);
+		wtail += 2;
+		rtype = 0;
+		res = sendrecv_tftp(h, &sendudp, &wbuf.t, wtail - (char *) &wbuf.t,
+			       &recvtftp, t, sizeof(*t) + h->tftp_blksize, &rtype);
+	}
 
-	h->currblock = 1;
-	h->validsize = res;
-	h->islastblock = 0;
-	if (res < SEGSIZE)
-		h->islastblock = 1;	/* very short file */
-	return (0);
+	switch (rtype) {
+		case DATA: {
+			h->currblock = 1;
+			h->validsize = res;
+			h->islastblock = 0;
+			if (res < h->tftp_blksize)
+				h->islastblock = 1;	/* very short file */
+			return (0);
+		}
+		case ERROR:
+		default:
+			return (errno);
+	}
+
 }
 
 /* ack block, expect next */
@@ -213,11 +286,11 @@ tftp_getnextblock(struct tftp_handle *h)
 	struct {
 		u_char header[HEADER_SIZE];
 		struct tftphdr t;
-	} __packed __aligned(4) wbuf;
+	} wbuf;
 	char           *wtail;
 	int             res;
 	struct tftphdr *t;
-
+	unsigned short rtype = 0;
 	wbuf.t.th_opcode = htons((u_short) ACK);
 	wtail = (char *) &wbuf.t.th_block;
 	wbuf.t.th_block = htons((u_short) h->currblock);
@@ -227,16 +300,23 @@ tftp_getnextblock(struct tftp_handle *h)
 
 	h->iodesc->xid = h->currblock + 1;	/* expected block */
 
-	res = sendrecv_tftp(h->iodesc, sendudp, &wbuf.t, wtail - (char *) &wbuf.t,
-		       recvtftp, t, sizeof(*t) + RSPACE);
+	res = sendrecv_tftp(h, &sendudp, &wbuf.t, wtail - (char *) &wbuf.t,
+		       &recvtftp, t, sizeof(*t) + h->tftp_blksize, &rtype);
 
 	if (res == -1)		/* 0 is OK! */
 		return (errno);
 
 	h->currblock++;
 	h->validsize = res;
-	if (res < SEGSIZE)
+	if (res < h->tftp_blksize)
 		h->islastblock = 1;	/* EOF */
+
+	if (h->islastblock == 1) {
+		/* Send an ACK for the last block */ 
+		wbuf.t.th_block = htons((u_short) h->currblock);
+		sendudp(h->iodesc, &wbuf.t, wtail - (char *)&wbuf.t);
+	}
+
 	return (0);
 }
 
@@ -252,10 +332,15 @@ tftp_open(const char *path, struct open_file *f)
 		return (EINVAL);
 #endif
 
+	if (is_open)
+		return (EBUSY);
+
 	tftpfile = (struct tftp_handle *) malloc(sizeof(*tftpfile));
 	if (!tftpfile)
 		return (ENOMEM);
 
+	memset(tftpfile, 0, sizeof(*tftpfile));
+	tftpfile->tftp_blksize = TFTP_REQUESTED_BLKSIZE;
 	tftpfile->iodesc = io = socktodesc(*(int *) (f->f_devdata));
 	if (io == NULL)
 		return (EINVAL);
@@ -276,6 +361,7 @@ tftp_open(const char *path, struct open_file *f)
 		return (res);
 	}
 	f->f_fsdata = (void *) tftpfile;
+	is_open = 1;
 	return (0);
 }
 
@@ -293,7 +379,7 @@ tftp_read(struct open_file *f, void *addr, size_t size,
 		if (!(tc++ % 16))
 			twiddle();
 
-		needblock = tftpfile->off / SEGSIZE + 1;
+		needblock = tftpfile->off / tftpfile->tftp_blksize + 1;
 
 		if (tftpfile->currblock > needblock)	/* seek backwards */
 			tftp_makereq(tftpfile);	/* no error check, it worked
@@ -316,7 +402,7 @@ tftp_read(struct open_file *f, void *addr, size_t size,
 		if (tftpfile->currblock == needblock) {
 			int offinblock, inbuffer;
 
-			offinblock = tftpfile->off % SEGSIZE;
+			offinblock = tftpfile->off % tftpfile->tftp_blksize;
 
 			inbuffer = tftpfile->validsize - offinblock;
 			if (inbuffer < 0) {
@@ -362,18 +448,19 @@ tftp_close(struct open_file *f)
 		free(tftpfile->path);
 		free(tftpfile);
 	}
+	is_open = 0;
 	return (0);
 }
 
 static int 
 tftp_write(struct open_file *f __unused, void *start __unused, size_t size __unused,
-    size_t *resid /* out */ __unused)
+    size_t *resid __unused /* out */)
 {
 	return (EROFS);
 }
 
 static int 
-tftp_stat(struct open_file *f, struct stat    *sb)
+tftp_stat(struct open_file *f, struct stat *sb)
 {
 	struct tftp_handle *tftpfile;
 	tftpfile = (struct tftp_handle *) f->f_fsdata;
@@ -407,15 +494,13 @@ tftp_seek(struct open_file *f, off_t offset, int where)
 }
 
 static ssize_t
-sendrecv_tftp(d, sproc, sbuf, ssize, rproc, rbuf, rsize)
-	struct iodesc *d;
-	ssize_t (*sproc)(struct iodesc *, void *, size_t);
-	void *sbuf;
-	size_t ssize;
-	ssize_t (*rproc)(struct iodesc *, void *, size_t, time_t);
-	void *rbuf;
-	size_t rsize;
+sendrecv_tftp(struct tftp_handle *h, 
+    ssize_t (*sproc)(struct iodesc *, void *, size_t),
+    void *sbuf, size_t ssize,
+    ssize_t (*rproc)(struct tftp_handle *, void *, ssize_t, time_t, unsigned short *),
+    void *rbuf, size_t rsize, unsigned short *rtype)
 {
+	struct iodesc *d = h->iodesc;
 	ssize_t cc;
 	time_t t, t1, tleft;
 
@@ -445,7 +530,7 @@ sendrecv_tftp(d, sproc, sbuf, ssize, rproc, rbuf, rsize)
 
 recvnext:
 		/* Try to get a packet and process it. */
-		cc = (*rproc)(d, rbuf, rsize, tleft);
+		cc = (*rproc)(h, rbuf, rsize, tleft, rtype);
 		/* Return on data, EOF or real error. */
 		if (cc != -1 || errno != 0)
 			return (cc);
@@ -460,4 +545,113 @@ recvnext:
 		}
 		t1 = getsecs();
 	}
+}
+
+static int
+tftp_set_blksize(struct tftp_handle *h, const char *str)
+{
+        char *endptr;
+	int new_blksize;
+	int ret = 0;
+
+	if (h == NULL || str == NULL)
+		return (ret);
+
+	new_blksize =
+	    (unsigned int)strtol(str, &endptr, 0);
+
+	/*
+	 * Only accept blksize value if it is numeric.
+	 * RFC2348 specifies that acceptable valuesare 8-65464
+	 * 8-65464 .  Let's choose a limit less than MAXRSPACE
+	*/
+	if (*endptr == '\0' && new_blksize >= 8
+	    && new_blksize <= TFTP_MAX_BLKSIZE) {
+		h->tftp_blksize = new_blksize;
+		ret = 1;
+	}
+
+	return (ret);
+}
+
+/*
+ * In RFC2347, the TFTP Option Acknowledgement package (OACK)
+ * is used to acknowledge a client's option negotiation request.
+ * The format of an OACK packet is:
+ *    +-------+---~~---+---+---~~---+---+---~~---+---+---~~---+---+
+ *    |  opc  |  opt1  | 0 | value1 | 0 |  optN  | 0 | valueN | 0 |
+ *    +-------+---~~---+---+---~~---+---+---~~---+---+---~~---+---+
+ *
+ *    opc
+ *       The opcode field contains a 6, for Option Acknowledgment.
+ *
+ *    opt1
+ *       The first option acknowledgment, copied from the original
+ *       request.
+ *
+ *    value1
+ *       The acknowledged value associated with the first option.  If
+ *       and how this value may differ from the original request is
+ *       detailed in the specification for the option.
+ *
+ *    optN, valueN
+ *       The final option/value acknowledgment pair.
+ */
+static void 
+tftp_parse_oack(struct tftp_handle *h, char *buf, size_t len)
+{
+	/* 
+	 *  We parse the OACK strings into an array
+	 *  of name-value pairs.
+	 *  
+	 */
+	char *tftp_options[128] = { 0 };
+	char *val = buf;
+	int i = 0;
+	int option_idx = 0;
+	int blksize_is_set = 0;
+	int tsize = 0;
+	
+ 
+	while ( option_idx < 128 && i < len ) {
+		 if (buf[i] == '\0') {
+		    if (&buf[i] > val) {
+		       tftp_options[option_idx] = val;
+		       val = &buf[i] + 1;
+		       ++option_idx;
+		    }
+		 }
+		 ++i;
+	}
+
+	/* 
+	 * Parse individual TFTP options.
+	 *    * "blksize" is specified in RFC2348.
+	 *    * "tsize" is specified in RFC2349.
+	 */ 
+	for (i = 0; i < option_idx; i += 2) {
+	    if (strcasecmp(tftp_options[i], "blksize") == 0) {
+		if (i + 1 < option_idx) {
+			blksize_is_set =
+			    tftp_set_blksize(h, tftp_options[i + 1]);
+		}
+	    } else if (strcasecmp(tftp_options[i], "tsize") == 0) {
+		if (i + 1 < option_idx) {
+			tsize = strtol(tftp_options[i + 1], (char **)NULL, 10);
+		}
+	    }
+	}
+
+	if (!blksize_is_set) {
+		/*
+		 * If TFTP blksize was not set, try defaulting
+		 * to the legacy TFTP blksize of 512
+		 */
+		h->tftp_blksize = 512;
+	}
+
+#ifdef TFTP_DEBUG
+	printf("tftp_blksize: %u\n", h->tftp_blksize);
+	printf("tftp_tsize: %lu\n", h->tftp_tsize);
+#endif
 }
