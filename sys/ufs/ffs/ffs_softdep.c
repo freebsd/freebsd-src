@@ -5172,6 +5172,7 @@ newfreefrag(ip, blkno, size, lbn)
 	freefrag->ff_state = ATTACHED;
 	LIST_INIT(&freefrag->ff_jwork);
 	freefrag->ff_inum = ip->i_number;
+	freefrag->ff_vtype = ITOV(ip)->v_type;
 	freefrag->ff_blkno = blkno;
 	freefrag->ff_fragsize = size;
 
@@ -5216,7 +5217,7 @@ handle_workitem_freefrag(freefrag)
 	}
 	FREE_LOCK(&lk);
 	ffs_blkfree(ump, ump->um_fs, ump->um_devvp, freefrag->ff_blkno,
-	    freefrag->ff_fragsize, freefrag->ff_inum, &wkhd);
+	   freefrag->ff_fragsize, freefrag->ff_inum, freefrag->ff_vtype, &wkhd);
 	ACQUIRE_LOCK(&lk);
 	WORKITEM_FREE(freefrag, D_FREEFRAG);
 	FREE_LOCK(&lk);
@@ -5724,6 +5725,7 @@ newfreeblks(mp, ip)
 	freeblks->fb_state = ATTACHED;
 	freeblks->fb_uid = ip->i_uid;
 	freeblks->fb_inum = ip->i_number;
+	freeblks->fb_vtype = ITOV(ip)->v_type;
 	freeblks->fb_modrev = DIP(ip, i_modrev);
 	freeblks->fb_devvp = ip->i_devvp;
 	freeblks->fb_chkcnt = 0;
@@ -7263,7 +7265,7 @@ freework_freeblock(freework)
 	freeblks->fb_freecnt += btodb(bsize);
 	FREE_LOCK(&lk);
 	ffs_blkfree(ump, fs, freeblks->fb_devvp, freework->fw_blkno, bsize,
-	    freeblks->fb_inum, &wkhd);
+	    freeblks->fb_inum, freeblks->fb_vtype, &wkhd);
 	ACQUIRE_LOCK(&lk);
 	/*
 	 * The jnewblk will be discarded and the bits in the map never
@@ -7669,7 +7671,8 @@ indir_trunc(freework, dbn, lbn)
 				freedeps++;
 			}
 			ffs_blkfree(ump, fs, freeblks->fb_devvp, nb,
-			    fs->fs_bsize, freeblks->fb_inum, &wkhd);
+			    fs->fs_bsize, freeblks->fb_inum,
+			    freeblks->fb_vtype, &wkhd);
 		}
 	}
 	if (goingaway) {
@@ -7702,7 +7705,7 @@ indir_trunc(freework, dbn, lbn)
 	fs_pendingblocks += nblocks;
 	dbn = dbtofsb(fs, dbn);
 	ffs_blkfree(ump, fs, freeblks->fb_devvp, dbn, fs->fs_bsize,
-	    freeblks->fb_inum, NULL);
+	    freeblks->fb_inum, freeblks->fb_vtype, NULL);
 	/* Non SUJ softdep does single-threaded truncations. */
 	freeblks->fb_freecnt += fs_pendingblocks;
 	if (freework->fw_blkno == dbn) {
