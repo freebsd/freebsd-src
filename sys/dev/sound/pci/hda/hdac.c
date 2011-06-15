@@ -754,7 +754,17 @@ static const struct {
 #define HDA_CODEC_CX20561	HDA_CODEC_CONSTRUCT(CONEXANT, 0x5051)
 #define HDA_CODEC_CX20582	HDA_CODEC_CONSTRUCT(CONEXANT, 0x5066)
 #define HDA_CODEC_CX20583	HDA_CODEC_CONSTRUCT(CONEXANT, 0x5067)
+#define HDA_CODEC_CX20584	HDA_CODEC_CONSTRUCT(CONEXANT, 0x5068)
 #define HDA_CODEC_CX20585	HDA_CODEC_CONSTRUCT(CONEXANT, 0x5069)
+#define HDA_CODEC_CX20590	HDA_CODEC_CONSTRUCT(CONEXANT, 0x506e)
+#define HDA_CODEC_CX20631	HDA_CODEC_CONSTRUCT(CONEXANT, 0x5097)
+#define HDA_CODEC_CX20632	HDA_CODEC_CONSTRUCT(CONEXANT, 0x5098)
+#define HDA_CODEC_CX20641	HDA_CODEC_CONSTRUCT(CONEXANT, 0x50a1)
+#define HDA_CODEC_CX20642	HDA_CODEC_CONSTRUCT(CONEXANT, 0x50a2)
+#define HDA_CODEC_CX20651	HDA_CODEC_CONSTRUCT(CONEXANT, 0x50ab)
+#define HDA_CODEC_CX20652	HDA_CODEC_CONSTRUCT(CONEXANT, 0x50ac)
+#define HDA_CODEC_CX20664	HDA_CODEC_CONSTRUCT(CONEXANT, 0x50b8)
+#define HDA_CODEC_CX20665	HDA_CODEC_CONSTRUCT(CONEXANT, 0x50b9)
 #define HDA_CODEC_CXXXXX	HDA_CODEC_CONSTRUCT(CONEXANT, 0xffff)
 
 /* VIA */
@@ -939,7 +949,17 @@ static const struct {
 	{ HDA_CODEC_CX20561,   "Conexant CX20561 (Hermosa)" },
 	{ HDA_CODEC_CX20582,   "Conexant CX20582 (Pebble)" },
 	{ HDA_CODEC_CX20583,   "Conexant CX20583 (Pebble HSF)" },
+	{ HDA_CODEC_CX20584,   "Conexant CX20584" },
 	{ HDA_CODEC_CX20585,   "Conexant CX20585" },
+	{ HDA_CODEC_CX20590,   "Conexant CX20590" },
+	{ HDA_CODEC_CX20631,   "Conexant CX20631" },
+	{ HDA_CODEC_CX20632,   "Conexant CX20632" },
+	{ HDA_CODEC_CX20641,   "Conexant CX20641" },
+	{ HDA_CODEC_CX20642,   "Conexant CX20642" },
+	{ HDA_CODEC_CX20651,   "Conexant CX20651" },
+	{ HDA_CODEC_CX20652,   "Conexant CX20652" },
+	{ HDA_CODEC_CX20664,   "Conexant CX20664" },
+	{ HDA_CODEC_CX20665,   "Conexant CX20665" },
 	{ HDA_CODEC_VT1708_8,  "VIA VT1708_8" },
 	{ HDA_CODEC_VT1708_9,  "VIA VT1708_9" },
 	{ HDA_CODEC_VT1708_A,  "VIA VT1708_A" },
@@ -4918,6 +4938,25 @@ hdac_vendor_patch_parse(struct hdac_devinfo *devinfo)
 		if (w != NULL)
 			w->connsenable[0] = 0;
 		w = hdac_widget_get(devinfo, 24);
+		if (w != NULL)
+			w->connsenable[0] = 0;
+		break;
+	case HDA_CODEC_CX20582:
+	case HDA_CODEC_CX20583:
+	case HDA_CODEC_CX20584:
+	case HDA_CODEC_CX20585:
+	case HDA_CODEC_CX20590:
+		/*
+		 * These codecs have extra connectivity on record side
+		 * too reach for the present parser.
+		 */
+		w = hdac_widget_get(devinfo, 20);
+		if (w != NULL)
+			w->connsenable[1] = 0;
+		w = hdac_widget_get(devinfo, 21);
+		if (w != NULL)
+			w->connsenable[1] = 0;
+		w = hdac_widget_get(devinfo, 22);
 		if (w != NULL)
 			w->connsenable[0] = 0;
 		break;

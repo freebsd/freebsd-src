@@ -480,7 +480,7 @@
       Figwort release to the Hydrangea release.</para>
 
     <para role="merged"><application>sendmail</application> has been updated from
-      8.14.1 to 8.14.4.</para>
+      8.14.1 to 8.14.5.</para>
 
     <para role="merged">The timezone database has been updated from
       the <application>tzdata2008h</application> release to

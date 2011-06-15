@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include "error.h"
 #include "mystring.h"
 #include "parser.h"
+#include "builtins.h"
 #ifndef NO_HISTORY
 #include "myhistedit.h"
 #endif

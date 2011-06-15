@@ -9,9 +9,9 @@
 .\" the sendmail distribution.
 .\"
 .\"
-.\"     $Id: sendmail.8,v 8.59 2009/04/10 17:49:19 gshapiro Exp $
+.\"     $Id: sendmail.8,v 8.60 2011/03/07 23:44:48 ca Exp $
 .\"
-.TH SENDMAIL 8 "$Date: 2009/04/10 17:49:19 $"
+.TH SENDMAIL 8 "$Date: 2011/03/07 23:44:48 $"
 .SH NAME
 sendmail
 \- an electronic mail transport agent
@@ -224,7 +224,9 @@ If not specified,
 ``Received:'' lines in the message are counted.
 .TP
 .B \-i
-Ignore dots alone on lines by themselves in incoming messages.
+Do not strip a leading dot from lines in incoming messages,
+and do not treat a dot on a line by itself
+as the end of an incoming message.
 This should be set if you are reading data from a file.
 .TP
 .BI "\-L " tag

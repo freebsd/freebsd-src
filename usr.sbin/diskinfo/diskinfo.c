@@ -39,6 +39,7 @@
 #include <paths.h>
 #include <err.h>
 #include <sys/disk.h>
+#include <sys/param.h>
 #include <sys/time.h>
 
 static void
@@ -57,7 +58,7 @@ int
 main(int argc, char **argv)
 {
 	int i, ch, fd, error, exitval = 0;
-	char buf[BUFSIZ], ident[DISK_IDENT_SIZE];
+	char buf[BUFSIZ], ident[DISK_IDENT_SIZE], physpath[MAXPATHLEN];
 	off_t	mediasize, stripesize, stripeoffset;
 	u_int	sectorsize, fwsectors, fwheads;
 
@@ -151,6 +152,8 @@ main(int argc, char **argv)
 			} 
 			if (ioctl(fd, DIOCGIDENT, ident) == 0)
 				printf("\t%-12s\t# Disk ident.\n", ident);
+			if (ioctl(fd, DIOCGPHYSPATH, physpath) == 0)
+				printf("\t%-12s\t# Physical path\n", physpath);
 		}
 		printf("\n");
 		if (opt_c)

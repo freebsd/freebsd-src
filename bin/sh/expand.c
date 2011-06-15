@@ -76,6 +76,7 @@ __FBSDID("$FreeBSD$");
 #include "mystring.h"
 #include "arith.h"
 #include "show.h"
+#include "builtins.h"
 
 /*
  * Structure specifying which parts of the string should be searched
