@@ -1175,7 +1175,13 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 
 	/* Fill in the details in the descriptor list */
 	ath_tx_chaindesclist(sc, sc->sc_ac2q[pri], bf);
-	ath_tx_handoff(sc, sc->sc_ac2q[pri], bf);
+
+	/* Queue to software queue */
+	ath_tx_swq(sc, ni, sc->sc_ac2q[pri], bf, m0);
+
+	/* Kick txq */
+	ath_txq_sched(sc);
+
 	return 0;
 }
 
