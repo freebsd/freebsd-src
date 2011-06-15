@@ -390,7 +390,7 @@ retry:
 		bp->b_blkno = fsbtodb(fs, bno);
 		if (!DOINGSOFTDEP(vp))
 			ffs_blkfree(ump, fs, ip->i_devvp, bprev, (long)osize,
-			    ip->i_number, NULL);
+			    ip->i_number, vp->v_type, NULL);
 		delta = btodb(nsize - osize);
 		DIP_SET(ip, i_blocks, DIP(ip, i_blocks) + delta);
 		if (flags & IO_EXT)
@@ -670,7 +670,7 @@ ffs_reallocblks_ufs1(ap)
 		if (!DOINGSOFTDEP(vp))
 			ffs_blkfree(ump, fs, ip->i_devvp,
 			    dbtofsb(fs, buflist->bs_children[i]->b_blkno),
-			    fs->fs_bsize, ip->i_number, NULL);
+			    fs->fs_bsize, ip->i_number, vp->v_type, NULL);
 		buflist->bs_children[i]->b_blkno = fsbtodb(fs, blkno);
 #ifdef INVARIANTS
 		if (!ffs_checkblk(ip,
@@ -878,7 +878,7 @@ ffs_reallocblks_ufs2(ap)
 		if (!DOINGSOFTDEP(vp))
 			ffs_blkfree(ump, fs, ip->i_devvp,
 			    dbtofsb(fs, buflist->bs_children[i]->b_blkno),
-			    fs->fs_bsize, ip->i_number, NULL);
+			    fs->fs_bsize, ip->i_number, vp->v_type, NULL);
 		buflist->bs_children[i]->b_blkno = fsbtodb(fs, blkno);
 #ifdef INVARIANTS
 		if (!ffs_checkblk(ip,
@@ -1880,7 +1880,7 @@ ffs_blkfree_cg(ump, fs, devvp, bno, size, inum, dephd)
 		printf("dev=%s, bno = %jd, bsize = %ld, size = %ld, fs = %s\n",
 		    devtoname(dev), (intmax_t)bno, (long)fs->fs_bsize,
 		    size, fs->fs_fsmnt);
-		panic("ffs_blkfree: bad size");
+		panic("ffs_blkfree_cg: bad size");
 	}
 #endif
 	if ((u_int)bno >= fs->fs_size) {
@@ -1914,7 +1914,7 @@ ffs_blkfree_cg(ump, fs, devvp, bno, size, inum, dephd)
 			}
 			printf("dev = %s, block = %jd, fs = %s\n",
 			    devtoname(dev), (intmax_t)bno, fs->fs_fsmnt);
-			panic("ffs_blkfree: freeing free block");
+			panic("ffs_blkfree_cg: freeing free block");
 		}
 		ffs_setblock(fs, blksfree, fragno);
 		ffs_clusteracct(fs, cgp, fragno, 1);
@@ -1937,7 +1937,7 @@ ffs_blkfree_cg(ump, fs, devvp, bno, size, inum, dephd)
 				printf("dev = %s, block = %jd, fs = %s\n",
 				    devtoname(dev), (intmax_t)(bno + i),
 				    fs->fs_fsmnt);
-				panic("ffs_blkfree: freeing free frag");
+				panic("ffs_blkfree_cg: freeing free frag");
 			}
 			setbit(blksfree, cgbno + i);
 		}
@@ -2013,13 +2013,14 @@ ffs_blkfree_trim_completed(bip)
 }
 
 void
-ffs_blkfree(ump, fs, devvp, bno, size, inum, dephd)
+ffs_blkfree(ump, fs, devvp, bno, size, inum, vtype, dephd)
 	struct ufsmount *ump;
 	struct fs *fs;
 	struct vnode *devvp;
 	ufs2_daddr_t bno;
 	long size;
 	ino_t inum;
+	enum vtype vtype;
 	struct workhead *dephd;
 {
 	struct mount *mp;
@@ -2034,7 +2035,7 @@ ffs_blkfree(ump, fs, devvp, bno, size, inum, dephd)
 	 */
 	if (devvp->v_type != VREG &&
 	    (devvp->v_vflag & VV_COPYONWRITE) &&
-	    ffs_snapblkfree(fs, devvp, bno, size, inum, dephd)) {
+	    ffs_snapblkfree(fs, devvp, bno, size, inum, vtype, dephd)) {
 		return;
 	}
 	if (!ump->um_candelete) {
@@ -2571,7 +2572,7 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 			if (blksize > blkcnt)
 				blksize = blkcnt;
 			ffs_blkfree(ump, fs, ump->um_devvp, blkno,
-			    blksize * fs->fs_fsize, ROOTINO, NULL);
+			    blksize * fs->fs_fsize, ROOTINO, VDIR, NULL);
 			blkno += blksize;
 			blkcnt -= blksize;
 			blksize = fs->fs_frag;
