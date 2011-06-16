@@ -103,7 +103,7 @@ struct sysentvec aout_sysvec = {
 
 #elif defined(__amd64__)
 
-#define	AOUT32_USRSTACK	0xbfc0000
+#define	AOUT32_USRSTACK	0xbfc00000
 #define	AOUT32_PS_STRINGS \
     (AOUT32_USRSTACK - sizeof(struct freebsd32_ps_strings))
 
