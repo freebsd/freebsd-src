@@ -174,7 +174,7 @@ The
 .Nm
 command appeared in
 .Bx 4.3 .
-.Sh BUGS
+.Sh NOTES
 Because there is no user-login or validation within
 the
 .Tn TFTP
@@ -185,4 +185,5 @@ exact methods are specific to each site and therefore
 difficult to document here.
 .Pp
 Files larger than 33488896 octets (65535 blocks) cannot be transferred
-without client and server supporting blocksize negotiation (RFC1783).
+without client and server supporting the TFTP blocksize option (RFC2348),
+or the non-standard TFTP rollover option.
