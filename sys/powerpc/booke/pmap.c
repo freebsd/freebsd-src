@@ -1826,6 +1826,7 @@ static void
 mmu_booke_activate(mmu_t mmu, struct thread *td)
 {
 	pmap_t pmap;
+	u_int cpuid;
 
 	pmap = &td->td_proc->p_vmspace->vm_pmap;
 
@@ -1836,14 +1837,15 @@ mmu_booke_activate(mmu_t mmu, struct thread *td)
 
 	mtx_lock_spin(&sched_lock);
 
-	CPU_OR_ATOMIC(&pmap->pm_active, PCPU_PTR(cpumask));
+	cpuid = PCPU_GET(cpuid);
+	CPU_SET_ATOMIC(cpuid, &pmap->pm_active);
 	PCPU_SET(curpmap, pmap);
 	
-	if (pmap->pm_tid[PCPU_GET(cpuid)] == TID_NONE)
+	if (pmap->pm_tid[cpuid] == TID_NONE)
 		tid_alloc(pmap);
 
 	/* Load PID0 register with pmap tid value. */
-	mtspr(SPR_PID0, pmap->pm_tid[PCPU_GET(cpuid)]);
+	mtspr(SPR_PID0, pmap->pm_tid[cpuid]);
 	__asm __volatile("isync");
 
 	mtx_unlock_spin(&sched_lock);
@@ -1865,9 +1867,7 @@ mmu_booke_deactivate(mmu_t mmu, struct thread *td)
 	CTR5(KTR_PMAP, "%s: td=%p, proc = '%s', id = %d, pmap = 0x%08x",
 	    __func__, td, td->td_proc->p_comm, td->td_proc->p_pid, pmap);
 
-	sched_pin();
-	CPU_NAND_ATOMIC(&pmap->pm_active, PCPU_PTR(cpumask));
-	sched_unpin();
+	CPU_CLR_ATOMIC(PCPU_GET(cpuid), &pmap->pm_active);
 	PCPU_SET(curpmap, NULL);
 }
 
