@@ -201,6 +201,7 @@ struct sctp_recvv_rn {
 #define SCTP_RECVV_NXTINFO 2
 #define SCTP_RECVV_RN      3
 
+#define SCTP_SENDV_NOINFO   0
 #define SCTP_SENDV_SNDINFO  1
 #define SCTP_SENDV_PRINFO   2
 #define SCTP_SENDV_AUTHINFO 3
