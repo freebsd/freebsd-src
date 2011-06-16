@@ -32,6 +32,7 @@ namespace clang {
   class LangOptions;
   class Preprocessor;
   class DiagnosticErrorTrap;
+  class StoredDiagnostic;
 
 /// \brief Annotates a diagnostic with some code that should be
 /// inserted, removed, or replaced to fix the problem.
@@ -400,6 +401,7 @@ public:
   void setExtensionHandlingBehavior(ExtensionHandling H) {
     ExtBehavior = H;
   }
+  ExtensionHandling getExtensionHandlingBehavior() const { return ExtBehavior; }
 
   /// AllExtensionsSilenced - This is a counter bumped when an __extension__
   /// block is encountered.  When non-zero, all extension diagnostics are
@@ -423,7 +425,7 @@ public:
   ///
   /// 'Loc' is the source location that this change of diagnostic state should
   /// take affect. It can be null if we are setting the state from command-line.
-  bool setDiagnosticGroupMapping(const char *Group, diag::Mapping Map,
+  bool setDiagnosticGroupMapping(llvm::StringRef Group, diag::Mapping Map,
                                  SourceLocation Loc = SourceLocation()) {
     return Diags->setDiagnosticGroupMapping(Group, Map, Loc, *this);
   }
@@ -486,6 +488,8 @@ public:
   /// which can be an invalid location if no position information is available.
   inline DiagnosticBuilder Report(SourceLocation Pos, unsigned DiagID);
   inline DiagnosticBuilder Report(unsigned DiagID);
+
+  void Report(const StoredDiagnostic &storedDiag);
 
   /// \brief Determine whethere there is already a diagnostic in flight.
   bool isDiagnosticInFlight() const { return CurDiagID != ~0U; }
@@ -839,8 +843,11 @@ inline DiagnosticBuilder Diagnostic::Report(unsigned DiagID) {
 /// about the currently in-flight diagnostic.
 class DiagnosticInfo {
   const Diagnostic *DiagObj;
+  llvm::StringRef StoredDiagMessage;
 public:
   explicit DiagnosticInfo(const Diagnostic *DO) : DiagObj(DO) {}
+  DiagnosticInfo(const Diagnostic *DO, llvm::StringRef storedDiagMessage)
+    : DiagObj(DO), StoredDiagMessage(storedDiagMessage) {}
 
   const Diagnostic *getDiags() const { return DiagObj; }
   unsigned getID() const { return DiagObj->CurDiagID; }

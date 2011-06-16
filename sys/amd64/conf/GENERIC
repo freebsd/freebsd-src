@@ -295,6 +295,7 @@ options 	USB_DEBUG	# enable debug msgs
 device		uhci		# UHCI PCI->USB interface
 device		ohci		# OHCI PCI->USB interface
 device		ehci		# EHCI PCI->USB interface (USB 2.0)
+device		xhci		# XHCI PCI->USB interface (USB 3.0)
 device		usb		# USB Bus (required)
 #device		udbp		# USB Double Bulk Pipe devices (needs netgraph)
 device		uhid		# "Human Interface Devices"
@@ -337,3 +338,11 @@ device		fwe		# Ethernet over FireWire (non-standard!)
 device		fwip		# IP over FireWire (RFC 2734,3146)
 device		dcons		# Dumb console driver
 device		dcons_crom	# Configuration ROM for dcons
+
+# Sound support
+device		sound		# Generic sound driver (required)
+device		snd_es137x	# Ensoniq AudioPCI ES137x
+device		snd_hda		# Intel High Definition Audio
+device		snd_ich		# Intel, NVidia and other ICH AC'97 Audio
+device		snd_uaudio	# USB Audio
+device		snd_via8233	# VIA VT8233x Audio

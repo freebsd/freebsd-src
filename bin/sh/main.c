@@ -72,6 +72,7 @@ __FBSDID("$FreeBSD$");
 #include "mystring.h"
 #include "exec.h"
 #include "cd.h"
+#include "builtins.h"
 
 int rootpid;
 int rootshell;
@@ -150,7 +151,7 @@ main(int argc, char *argv[])
 state1:
 		state = 2;
 		if (privileged == 0)
-			read_profile(".profile");
+			read_profile("${HOME-}/.profile");
 		else
 			read_profile("/etc/suid_profile");
 	}

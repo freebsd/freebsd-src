@@ -1195,8 +1195,13 @@ vnode_pager_generic_putpages(struct vnode *vp, vm_page_t *ma, int bytecount,
 void
 vnode_pager_undirty_pages(vm_page_t *ma, int *rtvals, int written)
 {
+	vm_object_t obj;
 	int i, pos;
 
+	if (written == 0)
+		return;
+	obj = ma[0]->object;
+	VM_OBJECT_LOCK(obj);
 	for (i = 0, pos = 0; pos < written; i++, pos += PAGE_SIZE) {
 		if (pos < trunc_page(written)) {
 			rtvals[i] = VM_PAGER_OK;
@@ -1207,4 +1212,5 @@ vnode_pager_undirty_pages(vm_page_t *ma, int *rtvals, int written)
 			vm_page_clear_dirty(ma[i], 0, written & PAGE_MASK);
 		}
 	}
+	VM_OBJECT_UNLOCK(obj);
 }

@@ -15,7 +15,7 @@ NO_PIC=
 INCS=		stand.h
 MAN=		libstand.3
 
-WARNS?=		0
+WARNS?=		2
 
 CFLAGS+= -ffreestanding -Wformat
 CFLAGS+= -I${.CURDIR}

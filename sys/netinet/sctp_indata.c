@@ -201,48 +201,110 @@ failed_build:
 
 
 struct mbuf *
-sctp_build_ctl_nchunk(struct sctp_inpcb *inp,
-    struct sctp_sndrcvinfo *sinfo)
+sctp_build_ctl_nchunk(struct sctp_inpcb *inp, struct sctp_sndrcvinfo *sinfo)
 {
+	struct sctp_extrcvinfo *seinfo;
 	struct sctp_sndrcvinfo *outinfo;
+	struct sctp_rcvinfo *rcvinfo;
+	struct sctp_nxtinfo *nxtinfo;
 	struct cmsghdr *cmh;
 	struct mbuf *ret;
 	int len;
-	int use_extended = 0;
+	int use_extended;
+	int provide_nxt;
 
-	if (sctp_is_feature_off(inp, SCTP_PCB_FLAGS_RECVDATAIOEVNT)) {
-		/* user does not want the sndrcv ctl */
+	if (sctp_is_feature_off(inp, SCTP_PCB_FLAGS_RECVDATAIOEVNT) &&
+	    sctp_is_feature_off(inp, SCTP_PCB_FLAGS_RECVRCVINFO) &&
+	    sctp_is_feature_off(inp, SCTP_PCB_FLAGS_RECVNXTINFO)) {
+		/* user does not want any ancillary data */
 		return (NULL);
 	}
-	if (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_EXT_RCVINFO)) {
-		use_extended = 1;
-		len = CMSG_LEN(sizeof(struct sctp_extrcvinfo));
+	len = 0;
+	if (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_RECVRCVINFO)) {
+		len += CMSG_SPACE(sizeof(struct sctp_rcvinfo));
+	}
+	seinfo = (struct sctp_extrcvinfo *)sinfo;
+	if (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_RECVNXTINFO) &&
+	    (seinfo->sreinfo_next_flags & SCTP_NEXT_MSG_AVAIL)) {
+		provide_nxt = 1;
+		len += CMSG_SPACE(sizeof(struct sctp_rcvinfo));
 	} else {
-		len = CMSG_LEN(sizeof(struct sctp_sndrcvinfo));
+		provide_nxt = 0;
+	}
+	if (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_RECVDATAIOEVNT)) {
+		if (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_EXT_RCVINFO)) {
+			use_extended = 1;
+			len += CMSG_SPACE(sizeof(struct sctp_extrcvinfo));
+		} else {
+			use_extended = 0;
+			len += CMSG_SPACE(sizeof(struct sctp_sndrcvinfo));
+		}
+	} else {
+		use_extended = 0;
 	}
 
-
-	ret = sctp_get_mbuf_for_msg(len,
-	    0, M_DONTWAIT, 1, MT_DATA);
-
+	ret = sctp_get_mbuf_for_msg(len, 0, M_DONTWAIT, 1, MT_DATA);
 	if (ret == NULL) {
 		/* No space */
 		return (ret);
 	}
-	/* We need a CMSG header followed by the struct  */
+	SCTP_BUF_LEN(ret) = 0;
+
+	/* We need a CMSG header followed by the struct */
 	cmh = mtod(ret, struct cmsghdr *);
-	outinfo = (struct sctp_sndrcvinfo *)CMSG_DATA(cmh);
-	cmh->cmsg_level = IPPROTO_SCTP;
-	if (use_extended) {
-		cmh->cmsg_type = SCTP_EXTRCV;
-		cmh->cmsg_len = len;
-		memcpy(outinfo, sinfo, len);
-	} else {
-		cmh->cmsg_type = SCTP_SNDRCV;
-		cmh->cmsg_len = len;
-		*outinfo = *sinfo;
+	if (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_RECVRCVINFO)) {
+		cmh->cmsg_level = IPPROTO_SCTP;
+		cmh->cmsg_len = CMSG_LEN(sizeof(struct sctp_rcvinfo));
+		cmh->cmsg_type = SCTP_RCVINFO;
+		rcvinfo = (struct sctp_rcvinfo *)CMSG_DATA(cmh);
+		rcvinfo->rcv_sid = sinfo->sinfo_stream;
+		rcvinfo->rcv_ssn = sinfo->sinfo_ssn;
+		rcvinfo->rcv_flags = sinfo->sinfo_flags;
+		rcvinfo->rcv_ppid = sinfo->sinfo_ppid;
+		rcvinfo->rcv_tsn = sinfo->sinfo_tsn;
+		rcvinfo->rcv_cumtsn = sinfo->sinfo_cumtsn;
+		rcvinfo->rcv_context = sinfo->sinfo_context;
+		rcvinfo->rcv_assoc_id = sinfo->sinfo_assoc_id;
+		cmh = (struct cmsghdr *)((caddr_t)cmh + CMSG_SPACE(sizeof(struct sctp_rcvinfo)));
+		SCTP_BUF_LEN(ret) += CMSG_SPACE(sizeof(struct sctp_rcvinfo));
 	}
-	SCTP_BUF_LEN(ret) = cmh->cmsg_len;
+	if (provide_nxt) {
+		cmh->cmsg_level = IPPROTO_SCTP;
+		cmh->cmsg_len = CMSG_LEN(sizeof(struct sctp_nxtinfo));
+		cmh->cmsg_type = SCTP_NXTINFO;
+		nxtinfo = (struct sctp_nxtinfo *)CMSG_DATA(cmh);
+		nxtinfo->nxt_sid = seinfo->sreinfo_next_stream;
+		nxtinfo->nxt_flags = 0;
+		if (seinfo->sreinfo_next_flags & SCTP_NEXT_MSG_IS_UNORDERED) {
+			nxtinfo->nxt_flags |= SCTP_UNORDERED;
+		}
+		if (seinfo->sreinfo_next_flags & SCTP_NEXT_MSG_IS_NOTIFICATION) {
+			nxtinfo->nxt_flags |= SCTP_NOTIFICATION;
+		}
+		if (seinfo->sreinfo_next_flags & SCTP_NEXT_MSG_ISCOMPLETE) {
+			nxtinfo->nxt_flags |= SCTP_COMPLETE;
+		}
+		nxtinfo->nxt_ppid = seinfo->sreinfo_next_ppid;
+		nxtinfo->nxt_length = seinfo->sreinfo_next_length;
+		nxtinfo->nxt_assoc_id = seinfo->sreinfo_next_aid;
+		cmh = (struct cmsghdr *)((caddr_t)cmh + CMSG_SPACE(sizeof(struct sctp_nxtinfo)));
+		SCTP_BUF_LEN(ret) += CMSG_SPACE(sizeof(struct sctp_nxtinfo));
+	}
+	if (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_RECVDATAIOEVNT)) {
+		cmh->cmsg_level = IPPROTO_SCTP;
+		outinfo = (struct sctp_sndrcvinfo *)CMSG_DATA(cmh);
+		if (use_extended) {
+			cmh->cmsg_len = CMSG_LEN(sizeof(struct sctp_extrcvinfo));
+			cmh->cmsg_type = SCTP_EXTRCV;
+			memcpy(outinfo, sinfo, sizeof(struct sctp_extrcvinfo));
+			SCTP_BUF_LEN(ret) += CMSG_SPACE(sizeof(struct sctp_extrcvinfo));
+		} else {
+			cmh->cmsg_len = CMSG_LEN(sizeof(struct sctp_sndrcvinfo));
+			cmh->cmsg_type = SCTP_SNDRCV;
+			*outinfo = *sinfo;
+			SCTP_BUF_LEN(ret) += CMSG_SPACE(sizeof(struct sctp_sndrcvinfo));
+		}
+	}
 	return (ret);
 }
 

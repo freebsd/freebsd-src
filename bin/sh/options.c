@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include "memalloc.h"
 #include "error.h"
 #include "mystring.h"
+#include "builtins.h"
 #ifndef NO_HISTORY
 #include "myhistedit.h"
 #endif

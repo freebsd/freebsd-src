@@ -860,6 +860,9 @@ class APKHI<bits<8> opcod, bit tb, dag oops, dag iops, InstrItinClass itin,
 class ARMPat<dag pattern, dag result> : Pat<pattern, result> {
   list<Predicate> Predicates = [IsARM];
 }
+class ARMV5TPat<dag pattern, dag result> : Pat<pattern, result> {
+  list<Predicate> Predicates = [IsARM, HasV5T];
+}
 class ARMV5TEPat<dag pattern, dag result> : Pat<pattern, result> {
   list<Predicate> Predicates = [IsARM, HasV5TE];
 }
@@ -1019,6 +1022,10 @@ class T1LoadStore<bits<4> opA, bits<3> opB> : Encoding16 {
   let Inst{11-9}  = opB;
 }
 class T1LdStSP<bits<3> opB>   : T1LoadStore<0b1001, opB>; // SP relative
+
+class T1BranchCond<bits<4> opcode> : Encoding16 {
+  let Inst{15-12} = opcode;
+}
 
 // Helper classes to encode Thumb1 loads and stores. For immediates, the
 // following bits are used for "opA" (see A6.2.4):
@@ -1206,6 +1213,11 @@ class Tv5Pat<dag pattern, dag result> : Pat<pattern, result> {
 // T1Pat - Same as Pat<>, but requires that the compiler be in Thumb1 mode.
 class T1Pat<dag pattern, dag result> : Pat<pattern, result> {
   list<Predicate> Predicates = [IsThumb, IsThumb1Only];
+}
+
+// T2v6Pat - Same as Pat<>, but requires V6T2 Thumb2 mode.
+class T2v6Pat<dag pattern, dag result> : Pat<pattern, result> {
+  list<Predicate> Predicates = [IsThumb2, HasV6T2];
 }
 
 // T2Pat - Same as Pat<>, but requires that the compiler be in Thumb2 mode.
@@ -1742,9 +1754,10 @@ class N2VImm<bit op24, bit op23, bits<4> op11_8, bit op7, bit op6, bit op4,
 
 // NEON 3 vector register format.
 
-class N3VCommon<bit op24, bit op23, bits<2> op21_20, bits<4> op11_8, bit op6, bit op4,
-          dag oops, dag iops, Format f, InstrItinClass itin,
-          string opc, string dt, string asm, string cstr, list<dag> pattern>
+class N3VCommon<bit op24, bit op23, bits<2> op21_20, bits<4> op11_8, bit op6,
+                bit op4, dag oops, dag iops, Format f, InstrItinClass itin,
+                string opc, string dt, string asm, string cstr,
+                list<dag> pattern>
   : NDataI<oops, iops, f, itin, opc, dt, asm, cstr, pattern> {
   let Inst{24}    = op24;
   let Inst{23}    = op23;
@@ -1773,9 +1786,10 @@ class N3V<bit op24, bit op23, bits<2> op21_20, bits<4> op11_8, bit op6, bit op4,
   let Inst{5}     = Vm{4};
 }
 
-class N3VLane32<bit op24, bit op23, bits<2> op21_20, bits<4> op11_8, bit op6, bit op4,
-          dag oops, dag iops, Format f, InstrItinClass itin,
-          string opc, string dt, string asm, string cstr, list<dag> pattern>
+class N3VLane32<bit op24, bit op23, bits<2> op21_20, bits<4> op11_8, bit op6,
+                bit op4, dag oops, dag iops, Format f, InstrItinClass itin,
+                string opc, string dt, string asm, string cstr,
+                list<dag> pattern>
   : N3VCommon<op24, op23, op21_20, op11_8, op6, op4,
               oops, iops, f, itin, opc, dt, asm, cstr, pattern> {
 
@@ -1793,9 +1807,10 @@ class N3VLane32<bit op24, bit op23, bits<2> op21_20, bits<4> op11_8, bit op6, bi
   let Inst{5}     = lane;
 }
 
-class N3VLane16<bit op24, bit op23, bits<2> op21_20, bits<4> op11_8, bit op6, bit op4,
-          dag oops, dag iops, Format f, InstrItinClass itin,
-          string opc, string dt, string asm, string cstr, list<dag> pattern>
+class N3VLane16<bit op24, bit op23, bits<2> op21_20, bits<4> op11_8, bit op6,
+                bit op4, dag oops, dag iops, Format f, InstrItinClass itin,
+                string opc, string dt, string asm, string cstr,
+                list<dag> pattern>
   : N3VCommon<op24, op23, op21_20, op11_8, op6, op4,
               oops, iops, f, itin, opc, dt, asm, cstr, pattern> {
 

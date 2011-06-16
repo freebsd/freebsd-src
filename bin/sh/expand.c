@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 #include <wchar.h>
+#include <wctype.h>
 
 /*
  * Routines to expand arguments to commands.  We have to deal with
@@ -76,6 +77,7 @@ __FBSDID("$FreeBSD$");
 #include "mystring.h"
 #include "arith.h"
 #include "show.h"
+#include "builtins.h"
 
 /*
  * Structure specifying which parts of the string should be searched
@@ -1400,13 +1402,43 @@ get_wc(const char **p)
 
 
 /*
+ * See if a character matches a character class, starting at the first colon
+ * of "[:class:]".
+ * If a valid character class is recognized, a pointer to the next character
+ * after the final closing bracket is stored into *end, otherwise a null
+ * pointer is stored into *end.
+ */
+static int
+match_charclass(const char *p, wchar_t chr, const char **end)
+{
+	char name[20];
+	const char *nameend;
+	wctype_t cclass;
+
+	*end = NULL;
+	p++;
+	nameend = strstr(p, ":]");
+	if (nameend == NULL || nameend - p >= sizeof(name) || nameend == p)
+		return 0;
+	memcpy(name, p, nameend - p);
+	name[nameend - p] = '\0';
+	*end = nameend + 2;
+	cclass = wctype(name);
+	/* An unknown class matches nothing but is valid nevertheless. */
+	if (cclass == 0)
+		return 0;
+	return iswctype(chr, cclass);
+}
+
+
+/*
  * Returns true if the pattern matches the string.
  */
 
 int
 patmatch(const char *pattern, const char *string, int squoted)
 {
-	const char *p, *q;
+	const char *p, *q, *end;
 	char c;
 	wchar_t wc, wc2;
 
@@ -1430,7 +1462,7 @@ patmatch(const char *pattern, const char *string, int squoted)
 			if (localeisutf8)
 				wc = get_wc(&q);
 			else
-				wc = *q++;
+				wc = (unsigned char)*q++;
 			if (wc == '\0')
 				return 0;
 			break;
@@ -1487,13 +1519,18 @@ patmatch(const char *pattern, const char *string, int squoted)
 			if (localeisutf8)
 				chr = get_wc(&q);
 			else
-				chr = *q++;
+				chr = (unsigned char)*q++;
 			if (chr == '\0')
 				return 0;
 			c = *p++;
 			do {
 				if (c == CTLQUOTEMARK)
 					continue;
+				if (c == '[' && *p == ':') {
+					found |= match_charclass(p, chr, &end);
+					if (end != NULL)
+						p = end;
+				}
 				if (c == CTLESC)
 					c = *p++;
 				if (localeisutf8 && c & 0x80) {
@@ -1502,7 +1539,7 @@ patmatch(const char *pattern, const char *string, int squoted)
 					if (wc == 0) /* bad utf-8 */
 						return 0;
 				} else
-					wc = c;
+					wc = (unsigned char)c;
 				if (*p == '-' && p[1] != ']') {
 					p++;
 					while (*p == CTLQUOTEMARK)
@@ -1514,7 +1551,7 @@ patmatch(const char *pattern, const char *string, int squoted)
 						if (wc2 == 0) /* bad utf-8 */
 							return 0;
 					} else
-						wc2 = *p++;
+						wc2 = (unsigned char)*p++;
 					if (   collate_range_cmp(chr, wc) >= 0
 					    && collate_range_cmp(chr, wc2) <= 0
 					   )
@@ -1618,78 +1655,6 @@ cvtnum(int num, char *buf)
 
 	STPUTS(p, buf);
 	return buf;
-}
-
-/*
- * Check statically if expanding a string may have side effects.
- */
-int
-expandhassideeffects(const char *p)
-{
-	int c;
-	int arinest;
-
-	arinest = 0;
-	while ((c = *p++) != '\0') {
-		switch (c) {
-		case CTLESC:
-			p++;
-			break;
-		case CTLVAR:
-			c = *p++;
-			/* Expanding $! sets the job to remembered. */
-			if (*p == '!')
-				return 1;
-			if ((c & VSTYPE) == VSASSIGN)
-				return 1;
-			/*
-			 * If we are in arithmetic, the parameter may contain
-			 * '=' which may cause side effects. Exceptions are
-			 * the length of a parameter and $$, $# and $? which
-			 * are always numeric.
-			 */
-			if ((c & VSTYPE) == VSLENGTH) {
-				while (*p != '=')
-					p++;
-				p++;
-				break;
-			}
-			if ((*p == '$' || *p == '#' || *p == '?') &&
-			    p[1] == '=') {
-				p += 2;
-				break;
-			}
-			if (arinest > 0)
-				return 1;
-			break;
-		case CTLBACKQ:
-		case CTLBACKQ | CTLQUOTE:
-			if (arinest > 0)
-				return 1;
-			break;
-		case CTLARI:
-			arinest++;
-			break;
-		case CTLENDARI:
-			arinest--;
-			break;
-		case '=':
-			if (*p == '=') {
-				/* Allow '==' operator. */
-				p++;
-				continue;
-			}
-			if (arinest > 0)
-				return 1;
-			break;
-		case '!': case '<': case '>':
-			/* Allow '!=', '<=', '>=' operators. */
-			if (*p == '=')
-				p++;
-			break;
-		}
-	}
-	return 0;
 }
 
 /*

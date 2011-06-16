@@ -14,6 +14,7 @@
 #include "clang/Sema/Sema.h"
 #include "clang/Sema/SemaInternal.h"
 #include "clang/Sema/Lookup.h"
+#include "clang/Sema/Overload.h"
 #include "clang/Sema/DeclSpec.h"
 #include "clang/Sema/Scope.h"
 #include "clang/Sema/ScopeInfo.h"
@@ -534,7 +535,7 @@ void Sema::ForceDeclarationOfImplicitMembers(CXXRecordDecl *Class) {
     return;
 
   // If the default constructor has not yet been declared, do so now.
-  if (!Class->hasDeclaredDefaultConstructor())
+  if (Class->needsImplicitDefaultConstructor())
     DeclareImplicitDefaultConstructor(Class);
 
   // If the copy constructor has not yet been declared, do so now.
@@ -581,7 +582,7 @@ static void DeclareImplicitMemberFunctionsWithName(Sema &S,
     if (const CXXRecordDecl *Record = dyn_cast<CXXRecordDecl>(DC))
       if (Record->getDefinition() &&
           CanDeclareSpecialMemberFunction(S.Context, Record)) {
-        if (!Record->hasDeclaredDefaultConstructor())
+        if (Record->needsImplicitDefaultConstructor())
           S.DeclareImplicitDefaultConstructor(
                                            const_cast<CXXRecordDecl *>(Record));
         if (!Record->hasDeclaredCopyConstructor())
@@ -2136,11 +2137,200 @@ void Sema::LookupOverloadedOperatorName(OverloadedOperatorKind Op, Scope *S,
   }
 }
 
+Sema::SpecialMemberOverloadResult *Sema::LookupSpecialMember(CXXRecordDecl *D,
+                                                            CXXSpecialMember SM,
+                                                            bool ConstArg,
+                                                            bool VolatileArg,
+                                                            bool RValueThis,
+                                                            bool ConstThis,
+                                                            bool VolatileThis) {
+  D = D->getDefinition();
+  assert((D && !D->isBeingDefined()) &&
+         "doing special member lookup into record that isn't fully complete");
+  if (RValueThis || ConstThis || VolatileThis)
+    assert((SM == CXXCopyAssignment || SM == CXXMoveAssignment) &&
+           "constructors and destructors always have unqualified lvalue this");
+  if (ConstArg || VolatileArg)
+    assert((SM != CXXDefaultConstructor && SM != CXXDestructor) &&
+           "parameter-less special members can't have qualified arguments");
+
+  llvm::FoldingSetNodeID ID;
+  ID.AddPointer(D);
+  ID.AddInteger(SM);
+  ID.AddInteger(ConstArg);
+  ID.AddInteger(VolatileArg);
+  ID.AddInteger(RValueThis);
+  ID.AddInteger(ConstThis);
+  ID.AddInteger(VolatileThis);
+
+  void *InsertPoint;
+  SpecialMemberOverloadResult *Result =
+    SpecialMemberCache.FindNodeOrInsertPos(ID, InsertPoint);
+
+  // This was already cached
+  if (Result)
+    return Result;
+
+  Result = BumpAlloc.Allocate<SpecialMemberOverloadResult>();
+  Result = new (Result) SpecialMemberOverloadResult(ID);
+  SpecialMemberCache.InsertNode(Result, InsertPoint);
+
+  if (SM == CXXDestructor) {
+    if (!D->hasDeclaredDestructor())
+      DeclareImplicitDestructor(D);
+    CXXDestructorDecl *DD = D->getDestructor();
+    assert(DD && "record without a destructor");
+    Result->setMethod(DD);
+    Result->setSuccess(DD->isDeleted());
+    Result->setConstParamMatch(false);
+    return Result;
+  }
+
+  // Prepare for overload resolution. Here we construct a synthetic argument
+  // if necessary and make sure that implicit functions are declared.
+  CanQualType CanTy = Context.getCanonicalType(Context.getTagDeclType(D));
+  DeclarationName Name;
+  Expr *Arg = 0;
+  unsigned NumArgs;
+
+  if (SM == CXXDefaultConstructor) {
+    Name = Context.DeclarationNames.getCXXConstructorName(CanTy);
+    NumArgs = 0;
+    if (D->needsImplicitDefaultConstructor())
+      DeclareImplicitDefaultConstructor(D);
+  } else {
+    if (SM == CXXCopyConstructor || SM == CXXMoveConstructor) {
+      Name = Context.DeclarationNames.getCXXConstructorName(CanTy);
+      if (!D->hasDeclaredCopyConstructor())
+        DeclareImplicitCopyConstructor(D);
+      // TODO: Move constructors
+    } else {
+      Name = Context.DeclarationNames.getCXXOperatorName(OO_Equal);
+      if (!D->hasDeclaredCopyAssignment())
+        DeclareImplicitCopyAssignment(D);
+      // TODO: Move assignment
+    }
+
+    QualType ArgType = CanTy;
+    if (ConstArg)
+      ArgType.addConst();
+    if (VolatileArg)
+      ArgType.addVolatile();
+
+    // This isn't /really/ specified by the standard, but it's implied
+    // we should be working from an RValue in the case of move to ensure
+    // that we prefer to bind to rvalue references, and an LValue in the
+    // case of copy to ensure we don't bind to rvalue references.
+    // Possibly an XValue is actually correct in the case of move, but
+    // there is no semantic difference for class types in this restricted
+    // case.
+    ExprValueKind VK;
+    if (SM == CXXCopyAssignment || SM == CXXMoveAssignment)
+      VK = VK_LValue;
+    else
+      VK = VK_RValue;
+
+    NumArgs = 1;
+    Arg = new (Context) OpaqueValueExpr(SourceLocation(), ArgType, VK);
+  }
+
+  // Create the object argument
+  QualType ThisTy = CanTy;
+  if (ConstThis)
+    ThisTy.addConst();
+  if (VolatileThis)
+    ThisTy.addVolatile();
+  Expr::Classification ObjectClassification =
+    (new (Context) OpaqueValueExpr(SourceLocation(), ThisTy,
+                                   RValueThis ? VK_RValue : VK_LValue))->
+        Classify(Context);
+
+  // Now we perform lookup on the name we computed earlier and do overload
+  // resolution. Lookup is only performed directly into the class since there
+  // will always be a (possibly implicit) declaration to shadow any others.
+  OverloadCandidateSet OCS((SourceLocation()));
+  DeclContext::lookup_iterator I, E;
+  Result->setConstParamMatch(false);
+
+  llvm::tie(I, E) = D->lookup(Name);
+  assert((I != E) &&
+         "lookup for a constructor or assignment operator was empty");
+  for ( ; I != E; ++I) {
+    if ((*I)->isInvalidDecl())
+      continue;
+
+    if (CXXMethodDecl *M = dyn_cast<CXXMethodDecl>(*I)) {
+      AddOverloadCandidate(M, DeclAccessPair::make(M, AS_public), &Arg, NumArgs,
+                           OCS, true);
+
+      // Here we're looking for a const parameter to speed up creation of
+      // implicit copy methods.
+      if ((SM == CXXCopyAssignment && M->isCopyAssignmentOperator()) ||
+          (SM == CXXCopyConstructor &&
+            cast<CXXConstructorDecl>(M)->isCopyConstructor())) {
+        QualType ArgType = M->getType()->getAs<FunctionProtoType>()->getArgType(0);
+        if (ArgType->getPointeeType().isConstQualified())
+          Result->setConstParamMatch(true);
+      }
+    } else {
+      FunctionTemplateDecl *Tmpl = cast<FunctionTemplateDecl>(*I);
+      AddTemplateOverloadCandidate(Tmpl, DeclAccessPair::make(Tmpl, AS_public),
+                                   0, &Arg, NumArgs, OCS, true);
+    }
+  }
+
+  OverloadCandidateSet::iterator Best;
+  switch (OCS.BestViableFunction(*this, SourceLocation(), Best)) {
+    case OR_Success:
+      Result->setMethod(cast<CXXMethodDecl>(Best->Function));
+      Result->setSuccess(true);
+      break;
+
+    case OR_Deleted:
+      Result->setMethod(cast<CXXMethodDecl>(Best->Function));
+      Result->setSuccess(false);
+      break;
+
+    case OR_Ambiguous:
+    case OR_No_Viable_Function:
+      Result->setMethod(0);
+      Result->setSuccess(false);
+      break;
+  }
+
+  return Result;
+}
+
+/// \brief Look up the default constructor for the given class.
+CXXConstructorDecl *Sema::LookupDefaultConstructor(CXXRecordDecl *Class) {
+  SpecialMemberOverloadResult *Result =
+    LookupSpecialMember(Class, CXXDefaultConstructor, false, false, false,
+                        false, false);
+
+  return cast_or_null<CXXConstructorDecl>(Result->getMethod());
+}
+
+/// \brief Look up the copy constructor for the given class.
+CXXConstructorDecl *Sema::LookupCopyConstructor(CXXRecordDecl *Class,
+                                                unsigned Quals,
+                                                bool *ConstParamMatch) {
+  assert(!(Quals & ~(Qualifiers::Const | Qualifiers::Volatile)) &&
+         "non-const, non-volatile qualifiers for copy ctor arg");
+  SpecialMemberOverloadResult *Result =
+    LookupSpecialMember(Class, CXXCopyConstructor, Quals & Qualifiers::Const,
+                        Quals & Qualifiers::Volatile, false, false, false);
+
+  if (ConstParamMatch)
+    *ConstParamMatch = Result->hasConstParamMatch();
+
+  return cast_or_null<CXXConstructorDecl>(Result->getMethod());
+}
+
 /// \brief Look up the constructors for the given class.
 DeclContext::lookup_result Sema::LookupConstructors(CXXRecordDecl *Class) {
-  // If the copy constructor has not yet been declared, do so now.
+  // If the implicit constructors have not yet been declared, do so now.
   if (CanDeclareSpecialMemberFunction(Context, Class)) {
-    if (!Class->hasDeclaredDefaultConstructor())
+    if (Class->needsImplicitDefaultConstructor())
       DeclareImplicitDefaultConstructor(Class);
     if (!Class->hasDeclaredCopyConstructor())
       DeclareImplicitCopyConstructor(Class);
@@ -2158,12 +2348,9 @@ DeclContext::lookup_result Sema::LookupConstructors(CXXRecordDecl *Class) {
 ///
 /// \returns The destructor for this class.
 CXXDestructorDecl *Sema::LookupDestructor(CXXRecordDecl *Class) {
-  // If the destructor has not yet been declared, do so now.
-  if (CanDeclareSpecialMemberFunction(Context, Class) &&
-      !Class->hasDeclaredDestructor())
-    DeclareImplicitDestructor(Class);
-
-  return Class->getDestructor();
+  return cast<CXXDestructorDecl>(LookupSpecialMember(Class, CXXDestructor,
+                                                     false, false, false,
+                                                     false, false)->getMethod());
 }
 
 void ADLResult::insert(NamedDecl *New) {
@@ -2410,8 +2597,8 @@ VisibleDeclsRecord::ShadowMapEntry::end() {
   if (DeclOrVector.isNull())
     return 0;
 
-  if (DeclOrVector.dyn_cast<NamedDecl *>())
-    return &reinterpret_cast<NamedDecl*&>(DeclOrVector) + 1;
+  if (DeclOrVector.is<NamedDecl *>())
+    return DeclOrVector.getAddrOf<NamedDecl *>() + 1;
 
   return DeclOrVector.get<DeclVector *>()->end();
 }
