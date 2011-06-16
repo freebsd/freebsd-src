@@ -1,9 +1,0 @@
-.\" $FreeBSD$
-Set to avoid building or installing
-.Xr named 8 ,
-.Xr named.reload 8 ,
-.Xr named-checkconf 8 ,
-.Xr named-checkzone 8 ,
-.Xr rndc 8 ,
-and
-.Xr rndc-confgen 8 .

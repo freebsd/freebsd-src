@@ -1,6 +1,0 @@
-
-#------------------------------------------------------------------------------
-# netware:  file(1) magic for NetWare Loadable Modules (NLMs)
-# From: Mads Martin Joergensen <mmj@suse.de>
-
-0	string	NetWare\ Loadable\ Module	NetWare Loadable Module

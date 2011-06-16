@@ -1,2 +1,0 @@
-# $FreeBSD$
-true && ! true | false

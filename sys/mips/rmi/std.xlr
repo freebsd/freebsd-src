@@ -1,5 +1,0 @@
-# $FreeBSD$
-files	"../rmi/files.xlr"
-
-cpu	CPU_RMI
-option	NOFPU

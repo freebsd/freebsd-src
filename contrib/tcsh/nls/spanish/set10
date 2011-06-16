@@ -1,8 +1,0 @@
-$ $tcsh: set10,v 1.2 2006/03/02 18:46:48 christos Exp $
-$ ma.setp.c
-$set 10 
-1 setpath: comando '%s' incorrecto.\n
-2 setpath: insuficientes argumentos para el comando '%s'.\n
-3 setpath: falta el valor en la ruta '%s'\n
-4 setpath: no se encuentra %s en %s\n
-5 setpath: %d posición inválida en %s\n

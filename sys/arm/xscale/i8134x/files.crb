@@ -1,3 +1,0 @@
-# $FreeBSD$
-arm/xscale/i8134x/crb_machdep.c		standard
-arm/xscale/i8134x/iq81342_7seg.c	optional	7seg

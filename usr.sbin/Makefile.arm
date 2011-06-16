@@ -1,5 +1,0 @@
-# $FreeBSD$
-
-SUBDIR+=	ofwdump
-SUBDIR+=	kgmon
-SUBDIR:=	${SUBDIR:Nsysinstall}

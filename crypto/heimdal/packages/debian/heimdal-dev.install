@@ -1,8 +1,0 @@
-usr/bin/krb5-config
-usr/bin/mk_cmds
-usr/lib/*.a
-usr/lib/*.la
-usr/lib/*.so
-usr/include
-usr/share/man/man1/krb5-config.1
-usr/share/man/man3

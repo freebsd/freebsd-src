@@ -1,7 +1,0 @@
-# $FreeBSD$
-
-.if ${MK_NCP} != "no"
-SUBDIR+=	ncplist
-SUBDIR+=	ncplogin
-.endif
-SUBDIR+=	smbutil
