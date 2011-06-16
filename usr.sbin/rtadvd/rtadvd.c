@@ -503,6 +503,13 @@ rtmsg_input(void)
 		    RTADV_TYPE2BITMASK(RTM_IFANNOUNCE));
 		if (len == 0)
 			break;
+		if (((struct rt_msghdr *)next)->rtm_version != RTM_VERSION) {
+			syslog(LOG_ERR,
+			    "<%s> RTM_VERSION mismatch (%d != %d).",
+			    __func__, ((struct rt_msghdr *)next)->rtm_version,
+			    RTM_VERSION);
+			continue;
+		}
 		type = rtmsg_type(next);
 		switch (type) {
 		case RTM_ADD:
