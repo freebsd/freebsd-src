@@ -89,7 +89,8 @@
 18	AUE_GETFSSTAT	COMPAT4	{ int freebsd32_getfsstat( \
 				    struct statfs32 *buf, long bufsize, \
 				    int flags); }
-19	AUE_LSEEK	OBSOL	olseek
+19	AUE_LSEEK	COMPAT	{ int freebsd32_lseek(int fd, int offset, \
+				    int whence); }
 20	AUE_GETPID	NOPROTO	{ pid_t getpid(void); }
 21	AUE_MOUNT	NOPROTO	{ int mount(char *type, char *path, \
 				    int flags, caddr_t data); }
