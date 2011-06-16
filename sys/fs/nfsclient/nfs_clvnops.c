@@ -3283,7 +3283,13 @@ nfs_pathconf(struct vop_pathconf_args *ap)
 	struct thread *td = curthread;
 	int attrflag, error;
 
-	if (NFS_ISV34(vp)) {
+	if (NFS_ISV4(vp) || (NFS_ISV3(vp) && (ap->a_name == _PC_LINK_MAX ||
+	    ap->a_name == _PC_NAME_MAX || ap->a_name == _PC_CHOWN_RESTRICTED ||
+	    ap->a_name == _PC_NO_TRUNC))) {
+		/*
+		 * Since only the above 4 a_names are returned by the NFSv3
+		 * Pathconf RPC, there is no point in doing it for others.
+		 */
 		error = nfsrpc_pathconf(vp, &pc, td->td_ucred, td, &nfsva,
 		    &attrflag, NULL);
 		if (attrflag != 0)
@@ -3292,7 +3298,10 @@ nfs_pathconf(struct vop_pathconf_args *ap)
 		if (error != 0)
 			return (error);
 	} else {
-		/* For NFSv2, just fake them. */
+		/*
+		 * For NFSv2 (or NFSv3 when not one of the above 4 a_names),
+		 * just fake them.
+		 */
 		pc.pc_linkmax = LINK_MAX;
 		pc.pc_namemax = NFS_MAXNAMLEN;
 		pc.pc_notrunc = 1;
