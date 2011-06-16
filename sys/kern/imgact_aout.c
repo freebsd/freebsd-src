@@ -152,7 +152,7 @@ aout_fixup(register_t **stack_base, struct image_params *imgp)
 {
 
 	*(char **)stack_base -= sizeof(uint32_t);
-	return (suword(*stack_base, imgp->args->argc));
+	return (suword32(*stack_base, imgp->args->argc));
 }
 
 static int
