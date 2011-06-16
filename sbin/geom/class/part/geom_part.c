@@ -927,6 +927,7 @@ gpart_restore(struct gctl_req *req, unsigned int fl __unused)
 			gctl_ro_param(r, "size", -1, argv[3]);
 			if (rl != 0 && label != NULL)
 				gctl_ro_param(r, "label", -1, argv[4]);
+			gctl_ro_param(r, "alignment", -1, GPART_AUTOFILL);
 			gctl_ro_param(r, "arg0", -1, s);
 			error = gpart_autofill(r);
 			if (error != 0)
