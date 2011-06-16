@@ -100,7 +100,7 @@ sendrecv(struct iodesc *d,
 				    cc, ssize);
 
 			tleft = tmo;
-			tmo <<= 1;
+			tmo += MINTMO;
 			if (tmo > MAXTMO)
 				tmo = MAXTMO;
 

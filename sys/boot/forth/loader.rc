@@ -10,8 +10,5 @@ start
 \ Tests for password -- executes autoboot first if a password was defined
 check-password
 
-\ Load in the boot menu
-include /boot/beastie.4th
+\ Unless set otherwise, autoboot is automatic at this point
 
-\ Start the boot menu
-beastie-start

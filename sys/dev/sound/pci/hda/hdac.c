@@ -4146,7 +4146,10 @@ hdac_attach(device_t dev)
 	uint16_t vendor;
 	uint8_t v;
 
-	device_printf(dev, "HDA Driver Revision: %s\n", HDA_DRV_TEST_REV);
+	HDA_BOOTVERBOSE(
+		device_printf(dev, "HDA Driver Revision: %s\n",
+		    HDA_DRV_TEST_REV);
+	);
 
 	model = (uint32_t)pci_get_device(dev) << 16;
 	model |= (uint32_t)pci_get_vendor(dev) & 0x0000ffff;
