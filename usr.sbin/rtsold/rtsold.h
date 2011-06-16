@@ -37,6 +37,8 @@ struct script_msg {
 	char *sm_msg;
 };
 
+TAILQ_HEAD(script_msg_head_t, script_msg);
+
 struct ra_opt {
 	TAILQ_ENTRY(ra_opt)	rao_next;
 
@@ -60,7 +62,7 @@ struct ifinfo {
 	TAILQ_ENTRY(ifinfo)	ifi_next;	/* pointer to the next interface */
 
 	struct sockaddr_dl *sdl; /* link-layer address */
-	char ifname[IF_NAMESIZE]; /* interface name */
+	char ifname[IFNAMSIZ];	/* interface name */
 	u_int32_t linkid;	/* link ID of this interface */
 	int active;		/* interface status */
 	int probeinterval;	/* interval of probe timer (if necessary) */
@@ -96,6 +98,7 @@ struct ifinfo {
 /* Interface list */
 extern TAILQ_HEAD(ifinfo_head_t, ifinfo) ifinfo_head;
 
+#define	DNSINFO_ORIGIN_LABEL	"slaac"
 /*
  * RFC 3542 API deprecates IPV6_PKTINFO in favor of
  * IPV6_RECVPKTINFO
@@ -126,6 +129,7 @@ extern struct timeval tm_max;
 extern int dflag;
 extern int aflag;
 extern int Fflag;
+extern int uflag;
 extern const char *otherconf_script;
 extern const char *resolvconf_script;
 extern int ifconfig(char *);

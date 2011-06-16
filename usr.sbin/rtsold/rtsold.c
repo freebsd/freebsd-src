@@ -75,6 +75,7 @@ static int fflag = 0;
 int Fflag = 0;	/* force setting sysctl parameters */
 int aflag = 0;
 int dflag = 0;
+int uflag = 0;
 
 const char *otherconf_script;
 const char *resolvconf_script = "/sbin/resolvconf";
@@ -129,10 +130,10 @@ main(int argc, char **argv)
 
 #ifndef SMALL
 	/* rtsold */
-	opts = "adDfFm1O:P:R:";
+	opts = "adDfFm1O:p:R:u";
 #else
 	/* rtsol */
-	opts = "adDFO:P:R:";
+	opts = "adDFO:R:u";
 	fflag = 1;
 	once = 1;
 #endif
@@ -144,10 +145,10 @@ main(int argc, char **argv)
 			aflag = 1;
 			break;
 		case 'd':
-			dflag = 1;
+			dflag += 1;
 			break;
 		case 'D':
-			dflag = 2;
+			dflag += 2;
 			break;
 		case 'f':
 			fflag = 1;
@@ -164,11 +165,14 @@ main(int argc, char **argv)
 		case 'O':
 			otherconf_script = optarg;
 			break;
-		case 'P':
+		case 'p':
 			pidfilename = optarg;
 			break;
 		case 'R':
 			resolvconf_script = optarg;
+			break;
+		case 'u':
+			uflag = 1;
 			break;
 		default:
 			usage();
@@ -184,14 +188,19 @@ main(int argc, char **argv)
 	}
 
 	/* set log level */
-	if (dflag == 0)
+	if (dflag > 1)
+		log_upto = LOG_DEBUG;
+	else if (dflag > 0)
+		log_upto = LOG_INFO;
+	else
 		log_upto = LOG_NOTICE;
+
 	if (!fflag) {
 		char *ident;
 
-		ident = strrchr(argv[0], '/');
+		ident = strrchr(argv0, '/');
 		if (!ident)
-			ident = argv[0];
+			ident = argv0;
 		else
 			ident++;
 		openlog(ident, LOG_NDELAY|LOG_PID, LOG_DAEMON);
