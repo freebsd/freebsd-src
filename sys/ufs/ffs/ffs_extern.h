@@ -33,6 +33,7 @@
 #ifndef _UFS_FFS_EXTERN_H
 #define	_UFS_FFS_EXTERN_H
 
+enum vtype;
 struct buf;
 struct cg;
 struct fid;
