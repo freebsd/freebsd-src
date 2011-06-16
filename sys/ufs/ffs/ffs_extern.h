@@ -33,7 +33,10 @@
 #ifndef _UFS_FFS_EXTERN_H
 #define	_UFS_FFS_EXTERN_H
 
-enum vtype;
+#ifndef _KERNEL
+#error "No user-serving parts inside"
+#else
+
 struct buf;
 struct cg;
 struct fid;
@@ -168,7 +171,6 @@ void	softdep_freework(struct workhead *);
 
 int	ffs_rdonly(struct inode *);
 
-#ifdef _KERNEL
 TAILQ_HEAD(snaphead, inode);
 
 struct snapdata {
@@ -178,6 +180,7 @@ struct snapdata {
 	daddr_t *sn_blklist;
 	struct lock sn_lock;
 };
+
 #endif /* _KERNEL */
 
 #endif /* !_UFS_FFS_EXTERN_H */
