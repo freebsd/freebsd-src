@@ -281,17 +281,20 @@ DecomposeGEPExpression(const Value *V, int64_t &BaseOffs,
       continue;
     }
 
-    if (const Instruction *I = dyn_cast<Instruction>(V))
-      // TODO: Get a DominatorTree and use it here.
-      if (const Value *Simplified =
-            SimplifyInstruction(const_cast<Instruction *>(I), TD)) {
-        V = Simplified;
-        continue;
-      }
-    
     const GEPOperator *GEPOp = dyn_cast<GEPOperator>(Op);
-    if (GEPOp == 0)
+    if (GEPOp == 0) {
+      // If it's not a GEP, hand it off to SimplifyInstruction to see if it
+      // can come up with something. This matches what GetUnderlyingObject does.
+      if (const Instruction *I = dyn_cast<Instruction>(V))
+        // TODO: Get a DominatorTree and use it here.
+        if (const Value *Simplified =
+              SimplifyInstruction(const_cast<Instruction *>(I), TD)) {
+          V = Simplified;
+          continue;
+        }
+    
       return V;
+    }
     
     // Don't attempt to analyze GEPs over unsized objects.
     if (!cast<PointerType>(GEPOp->getOperand(0)->getType())
@@ -448,7 +451,13 @@ namespace {
   /// BasicAliasAnalysis - This is the primary alias analysis implementation.
   struct BasicAliasAnalysis : public ImmutablePass, public AliasAnalysis {
     static char ID; // Class identification, replacement for typeinfo
-    BasicAliasAnalysis() : ImmutablePass(ID) {
+    BasicAliasAnalysis() : ImmutablePass(ID),
+                           // AliasCache rarely has more than 1 or 2 elements,
+                           // so start it off fairly small so that clear()
+                           // doesn't have to tromp through 64 (the default)
+                           // elements on each alias query. This really wants
+                           // something like a SmallDenseMap.
+                           AliasCache(8) {
       initializeBasicAliasAnalysisPass(*PassRegistry::getPassRegistry());
     }
 
@@ -462,12 +471,12 @@ namespace {
 
     virtual AliasResult alias(const Location &LocA,
                               const Location &LocB) {
-      assert(Visited.empty() && "Visited must be cleared after use!");
+      assert(AliasCache.empty() && "AliasCache must be cleared after use!");
       assert(notDifferentParent(LocA.Ptr, LocB.Ptr) &&
              "BasicAliasAnalysis doesn't support interprocedural queries.");
       AliasResult Alias = aliasCheck(LocA.Ptr, LocA.Size, LocA.TBAATag,
                                      LocB.Ptr, LocB.Size, LocB.TBAATag);
-      Visited.clear();
+      AliasCache.clear();
       return Alias;
     }
 
@@ -503,7 +512,12 @@ namespace {
     }
     
   private:
-    // Visited - Track instructions visited by a aliasPHI, aliasSelect(), and aliasGEP().
+    // AliasCache - Track alias queries to guard against recursion.
+    typedef std::pair<Location, Location> LocPair;
+    typedef DenseMap<LocPair, AliasResult> AliasCacheTy;
+    AliasCacheTy AliasCache;
+
+    // Visited - Track instructions visited by pointsToConstantMemory.
     SmallPtrSet<const Value*, 16> Visited;
 
     // aliasGEP - Provide a bunch of ad-hoc rules to disambiguate a GEP
@@ -680,9 +694,12 @@ BasicAliasAnalysis::getModRefInfo(ImmutableCallSite CS,
     unsigned ArgNo = 0;
     for (ImmutableCallSite::arg_iterator CI = CS.arg_begin(), CE = CS.arg_end();
          CI != CE; ++CI, ++ArgNo) {
-      // Only look at the no-capture pointer arguments.
+      // Only look at the no-capture or byval pointer arguments.  If this
+      // pointer were passed to arguments that were neither of these, then it
+      // couldn't be no-capture.
       if (!(*CI)->getType()->isPointerTy() ||
-          !CS.paramHasAttr(ArgNo+1, Attribute::NoCapture))
+          (!CS.paramHasAttr(ArgNo+1, Attribute::NoCapture) &&
+           !CS.paramHasAttr(ArgNo+1, Attribute::ByVal)))
         continue;
       
       // If this is a no-capture pointer argument, see if we can tell that it
@@ -816,13 +833,6 @@ BasicAliasAnalysis::aliasGEP(const GEPOperator *GEP1, uint64_t V1Size,
                              const MDNode *V2TBAAInfo,
                              const Value *UnderlyingV1,
                              const Value *UnderlyingV2) {
-  // If this GEP has been visited before, we're on a use-def cycle.
-  // Such cycles are only valid when PHI nodes are involved or in unreachable
-  // code. The visitPHI function catches cycles containing PHIs, but there
-  // could still be a cycle without PHIs in unreachable code.
-  if (!Visited.insert(GEP1))
-    return MayAlias;
-
   int64_t GEP1BaseOffset;
   SmallVector<VariableGEPIndex, 4> GEP1VariableIndices;
 
@@ -940,7 +950,30 @@ BasicAliasAnalysis::aliasGEP(const GEPOperator *GEP1, uint64_t V1Size,
       return NoAlias;
   }
   
-  return MayAlias;
+  // Statically, we can see that the base objects are the same, but the
+  // pointers have dynamic offsets which we can't resolve. And none of our
+  // little tricks above worked.
+  //
+  // TODO: Returning PartialAlias instead of MayAlias is a mild hack; the
+  // practical effect of this is protecting TBAA in the case of dynamic
+  // indices into arrays of unions. An alternative way to solve this would
+  // be to have clang emit extra metadata for unions and/or union accesses.
+  // A union-specific solution wouldn't handle the problem for malloc'd
+  // memory however.
+  return PartialAlias;
+}
+
+static AliasAnalysis::AliasResult
+MergeAliasResults(AliasAnalysis::AliasResult A, AliasAnalysis::AliasResult B) {
+  // If the results agree, take it.
+  if (A == B)
+    return A;
+  // A mix of PartialAlias and MustAlias is PartialAlias.
+  if ((A == AliasAnalysis::PartialAlias && B == AliasAnalysis::MustAlias) ||
+      (B == AliasAnalysis::PartialAlias && A == AliasAnalysis::MustAlias))
+    return AliasAnalysis::PartialAlias;
+  // Otherwise, we don't know anything.
+  return AliasAnalysis::MayAlias;
 }
 
 /// aliasSelect - Provide a bunch of ad-hoc rules to disambiguate a Select
@@ -950,13 +983,6 @@ BasicAliasAnalysis::aliasSelect(const SelectInst *SI, uint64_t SISize,
                                 const MDNode *SITBAAInfo,
                                 const Value *V2, uint64_t V2Size,
                                 const MDNode *V2TBAAInfo) {
-  // If this select has been visited before, we're on a use-def cycle.
-  // Such cycles are only valid when PHI nodes are involved or in unreachable
-  // code. The visitPHI function catches cycles containing PHIs, but there
-  // could still be a cycle without PHIs in unreachable code.
-  if (!Visited.insert(SI))
-    return MayAlias;
-
   // If the values are Selects with the same condition, we can do a more precise
   // check: just check for aliases between the values on corresponding arms.
   if (const SelectInst *SI2 = dyn_cast<SelectInst>(V2))
@@ -969,9 +995,7 @@ BasicAliasAnalysis::aliasSelect(const SelectInst *SI, uint64_t SISize,
       AliasResult ThisAlias =
         aliasCheck(SI->getFalseValue(), SISize, SITBAAInfo,
                    SI2->getFalseValue(), V2Size, V2TBAAInfo);
-      if (ThisAlias != Alias)
-        return MayAlias;
-      return Alias;
+      return MergeAliasResults(ThisAlias, Alias);
     }
 
   // If both arms of the Select node NoAlias or MustAlias V2, then returns
@@ -981,16 +1005,9 @@ BasicAliasAnalysis::aliasSelect(const SelectInst *SI, uint64_t SISize,
   if (Alias == MayAlias)
     return MayAlias;
 
-  // If V2 is visited, the recursive case will have been caught in the
-  // above aliasCheck call, so these subsequent calls to aliasCheck
-  // don't need to assume that V2 is being visited recursively.
-  Visited.erase(V2);
-
   AliasResult ThisAlias =
     aliasCheck(V2, V2Size, V2TBAAInfo, SI->getFalseValue(), SISize, SITBAAInfo);
-  if (ThisAlias != Alias)
-    return MayAlias;
-  return Alias;
+  return MergeAliasResults(ThisAlias, Alias);
 }
 
 // aliasPHI - Provide a bunch of ad-hoc rules to disambiguate a PHI instruction
@@ -1000,10 +1017,6 @@ BasicAliasAnalysis::aliasPHI(const PHINode *PN, uint64_t PNSize,
                              const MDNode *PNTBAAInfo,
                              const Value *V2, uint64_t V2Size,
                              const MDNode *V2TBAAInfo) {
-  // The PHI node has already been visited, avoid recursion any further.
-  if (!Visited.insert(PN))
-    return MayAlias;
-
   // If the values are PHIs in the same block, we can do a more precise
   // as well as efficient check: just check for aliases between the values
   // on corresponding edges.
@@ -1020,8 +1033,9 @@ BasicAliasAnalysis::aliasPHI(const PHINode *PN, uint64_t PNSize,
           aliasCheck(PN->getIncomingValue(i), PNSize, PNTBAAInfo,
                      PN2->getIncomingValueForBlock(PN->getIncomingBlock(i)),
                      V2Size, V2TBAAInfo);
-        if (ThisAlias != Alias)
-          return MayAlias;
+        Alias = MergeAliasResults(ThisAlias, Alias);
+        if (Alias == MayAlias)
+          break;
       }
       return Alias;
     }
@@ -1052,15 +1066,11 @@ BasicAliasAnalysis::aliasPHI(const PHINode *PN, uint64_t PNSize,
   for (unsigned i = 1, e = V1Srcs.size(); i != e; ++i) {
     Value *V = V1Srcs[i];
 
-    // If V2 is visited, the recursive case will have been caught in the
-    // above aliasCheck call, so these subsequent calls to aliasCheck
-    // don't need to assume that V2 is being visited recursively.
-    Visited.erase(V2);
-
     AliasResult ThisAlias = aliasCheck(V2, V2Size, V2TBAAInfo,
                                        V, PNSize, PNTBAAInfo);
-    if (ThisAlias != Alias || ThisAlias == MayAlias)
-      return MayAlias;
+    Alias = MergeAliasResults(ThisAlias, Alias);
+    if (Alias == MayAlias)
+      break;
   }
 
   return Alias;
@@ -1145,6 +1155,17 @@ BasicAliasAnalysis::aliasCheck(const Value *V1, uint64_t V1Size,
         (V2Size != UnknownSize && isObjectSmallerThan(O1, V2Size, *TD)))
       return NoAlias;
   
+  // Check the cache before climbing up use-def chains. This also terminates
+  // otherwise infinitely recursive queries.
+  LocPair Locs(Location(V1, V1Size, V1TBAAInfo),
+               Location(V2, V2Size, V2TBAAInfo));
+  if (V1 > V2)
+    std::swap(Locs.first, Locs.second);
+  std::pair<AliasCacheTy::iterator, bool> Pair =
+    AliasCache.insert(std::make_pair(Locs, MayAlias));
+  if (!Pair.second)
+    return Pair.first->second;
+
   // FIXME: This isn't aggressively handling alias(GEP, PHI) for example: if the
   // GEP can't simplify, we don't even look at the PHI cases.
   if (!isa<GEPOperator>(V1) && isa<GEPOperator>(V2)) {
@@ -1154,7 +1175,7 @@ BasicAliasAnalysis::aliasCheck(const Value *V1, uint64_t V1Size,
   }
   if (const GEPOperator *GV1 = dyn_cast<GEPOperator>(V1)) {
     AliasResult Result = aliasGEP(GV1, V1Size, V2, V2Size, V2TBAAInfo, O1, O2);
-    if (Result != MayAlias) return Result;
+    if (Result != MayAlias) return AliasCache[Locs] = Result;
   }
 
   if (isa<PHINode>(V2) && !isa<PHINode>(V1)) {
@@ -1164,7 +1185,7 @@ BasicAliasAnalysis::aliasCheck(const Value *V1, uint64_t V1Size,
   if (const PHINode *PN = dyn_cast<PHINode>(V1)) {
     AliasResult Result = aliasPHI(PN, V1Size, V1TBAAInfo,
                                   V2, V2Size, V2TBAAInfo);
-    if (Result != MayAlias) return Result;
+    if (Result != MayAlias) return AliasCache[Locs] = Result;
   }
 
   if (isa<SelectInst>(V2) && !isa<SelectInst>(V1)) {
@@ -1174,7 +1195,7 @@ BasicAliasAnalysis::aliasCheck(const Value *V1, uint64_t V1Size,
   if (const SelectInst *S1 = dyn_cast<SelectInst>(V1)) {
     AliasResult Result = aliasSelect(S1, V1Size, V1TBAAInfo,
                                      V2, V2Size, V2TBAAInfo);
-    if (Result != MayAlias) return Result;
+    if (Result != MayAlias) return AliasCache[Locs] = Result;
   }
 
   // If both pointers are pointing into the same object and one of them
@@ -1183,8 +1204,10 @@ BasicAliasAnalysis::aliasCheck(const Value *V1, uint64_t V1Size,
   if (TD && O1 == O2)
     if ((V1Size != UnknownSize && isObjectSize(O1, V1Size, *TD)) ||
         (V2Size != UnknownSize && isObjectSize(O2, V2Size, *TD)))
-      return PartialAlias;
+      return AliasCache[Locs] = PartialAlias;
 
-  return AliasAnalysis::alias(Location(V1, V1Size, V1TBAAInfo),
-                              Location(V2, V2Size, V2TBAAInfo));
+  AliasResult Result =
+    AliasAnalysis::alias(Location(V1, V1Size, V1TBAAInfo),
+                         Location(V2, V2Size, V2TBAAInfo));
+  return AliasCache[Locs] = Result;
 }

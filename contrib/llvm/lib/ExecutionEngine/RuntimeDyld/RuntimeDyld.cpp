@@ -129,18 +129,19 @@ void RuntimeDyldImpl::extractFunction(StringRef Name, uint8_t *StartAddress,
                                       uint8_t *EndAddress) {
   // Allocate memory for the function via the memory manager.
   uintptr_t Size = EndAddress - StartAddress + 1;
-  uint8_t *Mem = MemMgr->startFunctionBody(Name.data(), Size);
+  uintptr_t AllocSize = Size;
+  uint8_t *Mem = MemMgr->startFunctionBody(Name.data(), AllocSize);
   assert(Size >= (uint64_t)(EndAddress - StartAddress + 1) &&
          "Memory manager failed to allocate enough memory!");
   // Copy the function payload into the memory block.
-  memcpy(Mem, StartAddress, EndAddress - StartAddress + 1);
+  memcpy(Mem, StartAddress, Size);
   MemMgr->endFunctionBody(Name.data(), Mem, Mem + Size);
   // Remember where we put it.
   Functions[Name] = sys::MemoryBlock(Mem, Size);
   // Default the assigned address for this symbol to wherever this
   // allocated it.
   SymbolTable[Name] = Mem;
-  DEBUG(dbgs() << "    allocated to " << Mem << "\n");
+  DEBUG(dbgs() << "    allocated to [" << Mem << ", " << Mem + Size << "]\n");
 }
 
 bool RuntimeDyldImpl::
@@ -268,9 +269,9 @@ loadSegment32(const MachOObject *Obj,
     if (!Sect)
       return Error("unable to load section: '" + Twine(SectNum) + "'");
 
-    // FIXME: Improve check.
+    // FIXME: For the time being, we're only loading text segments.
     if (Sect->Flags != 0x80000400)
-      return Error("unsupported section type!");
+      continue;
 
     // Address and names of symbols in the section.
     typedef std::pair<uint64_t, StringRef> SymbolEntry;
@@ -295,11 +296,11 @@ loadSegment32(const MachOObject *Obj,
 
       // FIXME: Check the symbol type and flags.
       if (STE->Type != 0xF)  // external, defined in this section.
-        return Error("unexpected symbol type!");
+        continue;
       // Flags == 0x8 marks a thumb function for ARM, which is fine as it
       // doesn't require any special handling here.
       if (STE->Flags != 0x0 && STE->Flags != 0x8)
-        return Error("unexpected symbol type!");
+        continue;
 
       // Remember the symbol.
       Symbols.push_back(SymbolEntry(STE->Value, Name));
@@ -309,6 +310,10 @@ loadSegment32(const MachOObject *Obj,
     }
     // Sort the symbols by address, just in case they didn't come in that way.
     array_pod_sort(Symbols.begin(), Symbols.end());
+
+    // If there weren't any functions (odd, but just in case...)
+    if (!Symbols.size())
+      continue;
 
     // Extract the function data.
     uint8_t *Base = (uint8_t*)Obj->getData(SegmentLC->FileOffset,
@@ -403,9 +408,9 @@ loadSegment64(const MachOObject *Obj,
     if (!Sect)
       return Error("unable to load section: '" + Twine(SectNum) + "'");
 
-    // FIXME: Improve check.
+    // FIXME: For the time being, we're only loading text segments.
     if (Sect->Flags != 0x80000400)
-      return Error("unsupported section type!");
+      continue;
 
     // Address and names of symbols in the section.
     typedef std::pair<uint64_t, StringRef> SymbolEntry;
@@ -430,9 +435,9 @@ loadSegment64(const MachOObject *Obj,
 
       // FIXME: Check the symbol type and flags.
       if (STE->Type != 0xF)  // external, defined in this section.
-        return Error("unexpected symbol type!");
+        continue;
       if (STE->Flags != 0x0)
-        return Error("unexpected symbol type!");
+        continue;
 
       // Remember the symbol.
       Symbols.push_back(SymbolEntry(STE->Value, Name));
@@ -442,6 +447,10 @@ loadSegment64(const MachOObject *Obj,
     }
     // Sort the symbols by address, just in case they didn't come in that way.
     array_pod_sort(Symbols.begin(), Symbols.end());
+
+    // If there weren't any functions (odd, but just in case...)
+    if (!Symbols.size())
+      continue;
 
     // Extract the function data.
     uint8_t *Base = (uint8_t*)Obj->getData(Segment64LC->FileOffset,

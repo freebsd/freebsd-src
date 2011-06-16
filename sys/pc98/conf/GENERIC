@@ -139,12 +139,6 @@ device		sc
 # Add suspend/resume support for the i8254.
 #device		pmtimer
 
-# Audio support
-#device		sound		# Generic sound driver
-#device		snd_mss		# Microsoft Sound System
-#device		"snd_sb16"	# Sound Blaster 16
-#device		snd_sbc		# Sound Blaster
-
 # PCCARD (PCMCIA) support
 # PCMCIA and cardbus bridge support
 device		cbb		# cardbus (yenta) bridge
@@ -288,3 +282,10 @@ device		bpf		# Berkeley packet filter
 #device		firewire	# FireWire bus code
 #device		sbp		# SCSI over FireWire (Requires scbus and da)
 #device		fwe		# Ethernet over FireWire (non-standard!)
+
+# Sound support
+#device		sound		# Generic sound driver (required)
+#device		snd_mss		# Microsoft Sound System
+#device		"snd_sb16"	# Sound Blaster 16
+#device		snd_sbc		# Sound Blaster
+#device		snd_uaudio	# USB Audio

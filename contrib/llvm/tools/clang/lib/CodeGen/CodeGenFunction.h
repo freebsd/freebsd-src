@@ -603,6 +603,10 @@ public:
   /// exception pointer into this alloca.
   llvm::Value *ExceptionSlot;
 
+  /// The selector slot.  Under the MandatoryCleanup model, all
+  /// landing pads write the current selector value into this alloca.
+  llvm::AllocaInst *EHSelectorSlot;
+
   /// Emits a landing pad for the current EH stack.
   llvm::BasicBlock *EmitLandingPad();
 
@@ -951,6 +955,10 @@ private:
   CGDebugInfo *DebugInfo;
   bool DisableDebugInfo;
 
+  /// DidCallStackSave - Whether llvm.stacksave has been called. Used to avoid
+  /// calling llvm.stacksave for multiple VLAs in the same scope.
+  bool DidCallStackSave;
+
   /// IndirectBranch - The first time an indirect goto is seen we create a block
   /// with an indirect branch.  Every time we see the address of a label taken,
   /// we add the label to the indirect goto.  Every subsequent indirect goto is
@@ -997,10 +1005,6 @@ private:
   // enter/leave scopes.
   llvm::DenseMap<const Expr*, llvm::Value*> VLASizeMap;
 
-  /// DidCallStackSave - Whether llvm.stacksave has been called. Used to avoid
-  /// calling llvm.stacksave for multiple VLAs in the same scope.
-  bool DidCallStackSave;
-
   /// A block containing a single 'unreachable' instruction.  Created
   /// lazily by getUnreachableBlock().
   llvm::BasicBlock *UnreachableBlock;
@@ -1035,7 +1039,7 @@ public:
   CodeGenFunction(CodeGenModule &cgm);
 
   CodeGenTypes &getTypes() const { return CGM.getTypes(); }
-  ASTContext &getContext() const;
+  ASTContext &getContext() const { return CGM.getContext(); }
   CGDebugInfo *getDebugInfo() { 
     if (DisableDebugInfo) 
       return NULL;
@@ -1050,6 +1054,7 @@ public:
   /// Returns a pointer to the function's exception object slot, which
   /// is assigned in every landing pad.
   llvm::Value *getExceptionSlot();
+  llvm::Value *getEHSelectorSlot();
 
   llvm::Value *getNormalCleanupDestSlot();
   llvm::Value *getEHCleanupDestSlot();
@@ -1076,7 +1081,8 @@ public:
   void GenerateObjCMethod(const ObjCMethodDecl *OMD);
 
   void StartObjCMethod(const ObjCMethodDecl *MD,
-                       const ObjCContainerDecl *CD);
+                       const ObjCContainerDecl *CD,
+                       SourceLocation StartLoc);
 
   /// GenerateObjCGetter - Synthesize an Objective-C property getter function.
   void GenerateObjCGetter(ObjCImplementationDecl *IMP,
@@ -1156,6 +1162,9 @@ public:
   /// GenerateThunk - Generate a thunk for the given method.
   void GenerateThunk(llvm::Function *Fn, const CGFunctionInfo &FnInfo,
                      GlobalDecl GD, const ThunkInfo &Thunk);
+
+  void GenerateVarArgsThunk(llvm::Function *Fn, const CGFunctionInfo &FnInfo,
+                            GlobalDecl GD, const ThunkInfo &Thunk);
 
   void EmitCtorPrologue(const CXXConstructorDecl *CD, CXXCtorType Type,
                         FunctionArgList &Args);
@@ -1701,6 +1710,7 @@ public:
   void EmitObjCAtThrowStmt(const ObjCAtThrowStmt &S);
   void EmitObjCAtSynchronizedStmt(const ObjCAtSynchronizedStmt &S);
 
+  llvm::Constant *getUnwindResumeFn();
   llvm::Constant *getUnwindResumeOrRethrowFn();
   void EnterCXXTryStmt(const CXXTryStmt &S, bool IsFnTryBlock = false);
   void ExitCXXTryStmt(const CXXTryStmt &S, bool IsFnTryBlock = false);
@@ -1915,6 +1925,9 @@ public:
   RValue EmitCXXMemberPointerCallExpr(const CXXMemberCallExpr *E,
                                       ReturnValueSlot ReturnValue);
 
+  llvm::Value *EmitCXXOperatorMemberCallee(const CXXOperatorCallExpr *E,
+                                           const CXXMethodDecl *MD,
+                                           llvm::Value *This);
   RValue EmitCXXOperatorMemberCallExpr(const CXXOperatorCallExpr *E,
                                        const CXXMethodDecl *MD,
                                        ReturnValueSlot ReturnValue);

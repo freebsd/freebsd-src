@@ -224,9 +224,6 @@ let TargetPrefix = "x86" in {  // All intrinsics start with "llvm.x86.".
 
 // Cacheability support ops
 let TargetPrefix = "x86" in {  // All intrinsics start with "llvm.x86.".
-  def int_x86_sse_movnt_ps : GCCBuiltin<"__builtin_ia32_movntps">,
-              Intrinsic<[], [llvm_ptr_ty,
-                         llvm_v4f32_ty], []>;
   def int_x86_sse_sfence : GCCBuiltin<"__builtin_ia32_sfence">,
               Intrinsic<[], [], []>;
 }
@@ -534,19 +531,6 @@ let TargetPrefix = "x86" in {  // All intrinsics start with "llvm.x86.".
   def int_x86_sse2_storel_dq : GCCBuiltin<"__builtin_ia32_storelv4si">,
               Intrinsic<[], [llvm_ptr_ty,
                          llvm_v4i32_ty], []>;
-}
-
-// Cacheability support ops
-let TargetPrefix = "x86" in {  // All intrinsics start with "llvm.x86.".
-  def int_x86_sse2_movnt_dq : GCCBuiltin<"__builtin_ia32_movntdq">,
-              Intrinsic<[], [llvm_ptr_ty,
-                         llvm_v2i64_ty], []>;
-  def int_x86_sse2_movnt_pd : GCCBuiltin<"__builtin_ia32_movntpd">,
-              Intrinsic<[], [llvm_ptr_ty,
-                         llvm_v2f64_ty], []>;
-  def int_x86_sse2_movnt_i : GCCBuiltin<"__builtin_ia32_movnti">,
-              Intrinsic<[], [llvm_ptr_ty,
-                         llvm_i32_ty], []>;
 }
 
 // Misc.
@@ -964,19 +948,19 @@ let TargetPrefix = "x86" in { // All intrinsics start with "llvm.x86.".
 // Miscellaneous
 // CRC Instruction
 let TargetPrefix = "x86" in { // All intrinsics start with "llvm.x86.".
-  def int_x86_sse42_crc32_8         : GCCBuiltin<"__builtin_ia32_crc32qi">,
+  def int_x86_sse42_crc32_32_8       : GCCBuiltin<"__builtin_ia32_crc32qi">,
           Intrinsic<[llvm_i32_ty], [llvm_i32_ty, llvm_i8_ty],
                     [IntrNoMem]>;
-  def int_x86_sse42_crc32_16         : GCCBuiltin<"__builtin_ia32_crc32hi">,
+  def int_x86_sse42_crc32_32_16      : GCCBuiltin<"__builtin_ia32_crc32hi">,
           Intrinsic<[llvm_i32_ty], [llvm_i32_ty, llvm_i16_ty],
                     [IntrNoMem]>;
-  def int_x86_sse42_crc32_32         : GCCBuiltin<"__builtin_ia32_crc32si">,
+  def int_x86_sse42_crc32_32_32      : GCCBuiltin<"__builtin_ia32_crc32si">,
           Intrinsic<[llvm_i32_ty], [llvm_i32_ty, llvm_i32_ty],
                     [IntrNoMem]>;
-  def int_x86_sse42_crc64_8         :
+  def int_x86_sse42_crc32_64_8       :
           Intrinsic<[llvm_i64_ty], [llvm_i64_ty, llvm_i8_ty],
                     [IntrNoMem]>;
-  def int_x86_sse42_crc64_64         : GCCBuiltin<"__builtin_ia32_crc32di">,
+  def int_x86_sse42_crc32_64_64      : GCCBuiltin<"__builtin_ia32_crc32di">,
           Intrinsic<[llvm_i64_ty], [llvm_i64_ty, llvm_i64_ty],
                     [IntrNoMem]>;
 }

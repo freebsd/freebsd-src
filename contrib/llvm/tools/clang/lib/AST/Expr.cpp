@@ -22,6 +22,7 @@
 #include "clang/AST/StmtVisitor.h"
 #include "clang/Lex/LiteralSupport.h"
 #include "clang/Lex/Lexer.h"
+#include "clang/Sema/SemaDiagnostic.h"
 #include "clang/Basic/Builtins.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Basic/TargetInfo.h"
@@ -1653,7 +1654,8 @@ static Expr::CanThrowResult CanSubExprsThrow(ASTContext &C, const Expr *CE) {
   return R;
 }
 
-static Expr::CanThrowResult CanCalleeThrow(ASTContext &Ctx, const Decl *D,
+static Expr::CanThrowResult CanCalleeThrow(ASTContext &Ctx, const Expr *E,
+                                           const Decl *D,
                                            bool NullThrows = true) {
   if (!D)
     return NullThrows ? Expr::CT_Can : Expr::CT_Cannot;
@@ -1683,6 +1685,15 @@ static Expr::CanThrowResult CanCalleeThrow(ASTContext &Ctx, const Decl *D,
   if (!FT)
     return Expr::CT_Can;
 
+  if (FT->getExceptionSpecType() == EST_Delayed) {
+    assert(isa<CXXConstructorDecl>(D) &&
+           "only constructor exception specs can be unknown");
+    Ctx.getDiagnostics().Report(E->getLocStart(),
+                                diag::err_exception_spec_unknown)
+      << E->getSourceRange();
+    return Expr::CT_Can;
+  }
+
   return FT->isNothrow(Ctx) ? Expr::CT_Cannot : Expr::CT_Can;
 }
 
@@ -1692,6 +1703,9 @@ static Expr::CanThrowResult CanDynamicCastThrow(const CXXDynamicCastExpr *DC) {
 
   if (!DC->getTypeAsWritten()->isReferenceType())
     return Expr::CT_Cannot;
+
+  if (DC->getSubExpr()->isTypeDependent())
+    return Expr::CT_Dependent;
 
   return DC->getCastKind() == clang::CK_Dynamic? Expr::CT_Can : Expr::CT_Cannot;
 }
@@ -1747,7 +1761,14 @@ Expr::CanThrowResult Expr::CanThrow(ASTContext &C) const {
   case CallExprClass:
   case CXXOperatorCallExprClass:
   case CXXMemberCallExprClass: {
-    CanThrowResult CT = CanCalleeThrow(C,cast<CallExpr>(this)->getCalleeDecl());
+    const CallExpr *CE = cast<CallExpr>(this);
+    CanThrowResult CT;
+    if (isTypeDependent())
+      CT = CT_Dependent;
+    else if (isa<CXXPseudoDestructorExpr>(CE->getCallee()->IgnoreParens()))
+      CT = CT_Cannot;
+    else
+      CT = CanCalleeThrow(C, this, CE->getCalleeDecl());
     if (CT == CT_Can)
       return CT;
     return MergeCanThrow(CT, CanSubExprsThrow(C, this));
@@ -1755,7 +1776,7 @@ Expr::CanThrowResult Expr::CanThrow(ASTContext &C) const {
 
   case CXXConstructExprClass:
   case CXXTemporaryObjectExprClass: {
-    CanThrowResult CT = CanCalleeThrow(C,
+    CanThrowResult CT = CanCalleeThrow(C, this,
         cast<CXXConstructExpr>(this)->getConstructor());
     if (CT == CT_Can)
       return CT;
@@ -1763,9 +1784,13 @@ Expr::CanThrowResult Expr::CanThrow(ASTContext &C) const {
   }
 
   case CXXNewExprClass: {
-    CanThrowResult CT = MergeCanThrow(
-        CanCalleeThrow(C, cast<CXXNewExpr>(this)->getOperatorNew()),
-        CanCalleeThrow(C, cast<CXXNewExpr>(this)->getConstructor(),
+    CanThrowResult CT;
+    if (isTypeDependent())
+      CT = CT_Dependent;
+    else
+      CT = MergeCanThrow(
+        CanCalleeThrow(C, this, cast<CXXNewExpr>(this)->getOperatorNew()),
+        CanCalleeThrow(C, this, cast<CXXNewExpr>(this)->getConstructor(),
                        /*NullThrows*/false));
     if (CT == CT_Can)
       return CT;
@@ -1773,29 +1798,26 @@ Expr::CanThrowResult Expr::CanThrow(ASTContext &C) const {
   }
 
   case CXXDeleteExprClass: {
-    CanThrowResult CT = CanCalleeThrow(C,
-        cast<CXXDeleteExpr>(this)->getOperatorDelete());
-    if (CT == CT_Can)
-      return CT;
-    const Expr *Arg = cast<CXXDeleteExpr>(this)->getArgument();
-    // Unwrap exactly one implicit cast, which converts all pointers to void*.
-    if (const ImplicitCastExpr *Cast = dyn_cast<ImplicitCastExpr>(Arg))
-      Arg = Cast->getSubExpr();
-    if (const PointerType *PT = Arg->getType()->getAs<PointerType>()) {
-      if (const RecordType *RT = PT->getPointeeType()->getAs<RecordType>()) {
-        CanThrowResult CT2 = CanCalleeThrow(C,
-            cast<CXXRecordDecl>(RT->getDecl())->getDestructor());
-        if (CT2 == CT_Can)
-          return CT2;
-        CT = MergeCanThrow(CT, CT2);
+    CanThrowResult CT;
+    QualType DTy = cast<CXXDeleteExpr>(this)->getDestroyedType();
+    if (DTy.isNull() || DTy->isDependentType()) {
+      CT = CT_Dependent;
+    } else {
+      CT = CanCalleeThrow(C, this,
+                          cast<CXXDeleteExpr>(this)->getOperatorDelete());
+      if (const RecordType *RT = DTy->getAs<RecordType>()) {
+        const CXXRecordDecl *RD = cast<CXXRecordDecl>(RT->getDecl());
+        CT = MergeCanThrow(CT, CanCalleeThrow(C, this, RD->getDestructor()));
       }
+      if (CT == CT_Can)
+        return CT;
     }
     return MergeCanThrow(CT, CanSubExprsThrow(C, this));
   }
 
   case CXXBindTemporaryExprClass: {
     // The bound temporary has to be destroyed again, which might throw.
-    CanThrowResult CT = CanCalleeThrow(C,
+    CanThrowResult CT = CanCalleeThrow(C, this,
       cast<CXXBindTemporaryExpr>(this)->getTemporary()->getDestructor());
     if (CT == CT_Can)
       return CT;
@@ -1976,6 +1998,14 @@ Expr *Expr::IgnoreParenImpCasts() {
     }
     return E;
   }
+}
+
+Expr *Expr::IgnoreConversionOperator() {
+  if (CXXMemberCallExpr *MCE = dyn_cast<CXXMemberCallExpr>(this)) {
+    if (isa<CXXConversionDecl>(MCE->getMethodDecl()))
+      return MCE->getImplicitObjectArgument();
+  }
+  return this;
 }
 
 /// IgnoreParenNoopCasts - Ignore parentheses and casts that do not change the
@@ -3013,4 +3043,3 @@ BlockDeclRefExpr::BlockDeclRefExpr(VarDecl *d, QualType t, ExprValueKind VK,
   ExprBits.TypeDependent = TypeDependent;
   ExprBits.ValueDependent = ValueDependent;
 }
-

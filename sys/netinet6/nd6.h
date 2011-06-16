@@ -319,6 +319,16 @@ struct nd_pfxrouter {
 
 LIST_HEAD(nd_prhead, nd_prefix);
 
+struct sockaddr_nd6 {
+	uint8_t		snd6_len;	/* total length */
+	sa_family_t	snd6_family;	/* address family */
+	int		snd6_direction;
+	int		snd6_ifidx;
+	char		snd6_zero[8];
+};
+
+extern int (*nd6_sendso_input_hook)(struct mbuf *, struct ifnet *, int, int);
+
 /* nd6.c */
 VNET_DECLARE(int, nd6_prune);
 VNET_DECLARE(int, nd6_delay);

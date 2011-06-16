@@ -571,14 +571,8 @@ evalpipe(union node *n)
 static int
 is_valid_fast_cmdsubst(union node *n)
 {
-	union node *argp;
 
-	if (n->type != NCMD)
-		return 0;
-	for (argp = n->ncmd.args ; argp ; argp = argp->narg.next)
-		if (expandhassideeffects(argp->narg.text))
-			return 0;
-	return 1;
+	return (n->type == NCMD);
 }
 
 /*
@@ -596,6 +590,7 @@ evalbackcmd(union node *n, struct backcmd *result)
 	struct stackmark smark;		/* unnecessary */
 	struct jmploc jmploc;
 	struct jmploc *savehandler;
+	struct localvar *savelocalvars;
 
 	setstackmark(&smark);
 	result->fd = -1;
@@ -608,12 +603,18 @@ evalbackcmd(union node *n, struct backcmd *result)
 	}
 	if (is_valid_fast_cmdsubst(n)) {
 		exitstatus = oexitstatus;
+		savelocalvars = localvars;
+		localvars = NULL;
+		forcelocal++;
 		savehandler = handler;
 		if (setjmp(jmploc.loc)) {
 			if (exception == EXERROR || exception == EXEXEC)
 				exitstatus = 2;
 			else if (exception != 0) {
 				handler = savehandler;
+				forcelocal--;
+				poplocalvars();
+				localvars = savelocalvars;
 				longjmp(handler->loc, 1);
 			}
 		} else {
@@ -621,6 +622,9 @@ evalbackcmd(union node *n, struct backcmd *result)
 			evalcommand(n, EV_BACKCMD, result);
 		}
 		handler = savehandler;
+		forcelocal--;
+		poplocalvars();
+		localvars = savelocalvars;
 	} else {
 		exitstatus = 0;
 		if (pipe(pip) < 0)

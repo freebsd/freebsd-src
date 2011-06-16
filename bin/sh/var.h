@@ -46,6 +46,7 @@
 #define VUNSET		0x20	/* the variable is not set */
 #define VNOFUNC		0x40	/* don't call the callback function */
 #define VNOSET		0x80	/* do not set variable - just readonly test */
+#define VNOLOCAL	0x100	/* ignore forcelocal */
 
 
 struct var {
@@ -68,6 +69,7 @@ struct localvar {
 
 
 struct localvar *localvars;
+extern int forcelocal;
 
 extern struct var vifs;
 extern struct var vmail;
@@ -121,11 +123,7 @@ void updatecharset(void);
 void initcharset(void);
 char **environment(void);
 int showvarscmd(int, char **);
-int exportcmd(int, char **);
-int localcmd(int, char **);
 void mklocal(char *);
 void poplocalvars(void);
-int setvarcmd(int, char **);
-int unsetcmd(int, char **);
 int unsetvar(const char *);
 int setvarsafe(const char *, const char *, int);

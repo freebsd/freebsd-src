@@ -812,6 +812,25 @@ adasysctlinit(void *context, int pending)
 	cam_periph_release(periph);
 }
 
+static int
+adagetattr(struct bio *bp)
+{
+	int ret = -1;
+	struct cam_periph *periph;
+
+	if (bp->bio_disk == NULL || bp->bio_disk->d_drv1)
+		return ENXIO;
+	periph = (struct cam_periph *)bp->bio_disk->d_drv1;
+	if (periph->path == NULL)
+		return ENXIO;
+
+	ret = xpt_getattr(bp->bio_data, bp->bio_length, bp->bio_attribute,
+	    periph->path);
+	if (ret == 0)
+		bp->bio_completed = bp->bio_length;
+	return ret;
+}
+
 static cam_status
 adaregister(struct cam_periph *periph, void *arg)
 {
@@ -917,6 +936,7 @@ adaregister(struct cam_periph *periph, void *arg)
 	softc->disk->d_open = adaopen;
 	softc->disk->d_close = adaclose;
 	softc->disk->d_strategy = adastrategy;
+	softc->disk->d_getattr = adagetattr;
 	softc->disk->d_dump = adadump;
 	softc->disk->d_name = "ada";
 	softc->disk->d_drv1 = periph;
@@ -938,8 +958,6 @@ adaregister(struct cam_periph *periph, void *arg)
 	    ((softc->flags & ADA_FLAG_CAN_CFA) &&
 	    !(softc->flags & ADA_FLAG_CAN_48BIT)))
 		softc->disk->d_flags |= DISKFLAG_CANDELETE;
-	strlcpy(softc->disk->d_ident, cgd->serial_num,
-	    MIN(sizeof(softc->disk->d_ident), cgd->serial_num_len + 1));
 	strlcpy(softc->disk->d_descr, cgd->ident_data.model,
 	    MIN(sizeof(softc->disk->d_descr), sizeof(cgd->ident_data.model)));
 	softc->disk->d_hba_vendor = cpi.hba_vendor;

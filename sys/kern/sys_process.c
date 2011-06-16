@@ -831,8 +831,11 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		/* security check done above */
 		p->p_flag |= P_TRACED;
 		p->p_oppid = p->p_pptr->p_pid;
-		if (p->p_pptr != td->td_proc)
+		if (p->p_pptr != td->td_proc) {
+			/* Remember that a child is being debugged(traced). */
+			p->p_pptr->p_dbg_child++;
 			proc_reparent(p, td->td_proc);
+		}
 		data = SIGSTOP;
 		goto sendsig;	/* in PT_CONTINUE below */
 
@@ -919,11 +922,12 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 					PROC_UNLOCK(pp);
 				PROC_LOCK(p);
 				proc_reparent(p, pp);
+				p->p_pptr->p_dbg_child--;
 				if (pp == initproc)
 					p->p_sigparent = SIGCHLD;
 			}
-			p->p_flag &= ~(P_TRACED | P_WAITED | P_FOLLOWFORK);
 			p->p_oppid = 0;
+			p->p_flag &= ~(P_TRACED | P_WAITED | P_FOLLOWFORK);
 
 			/* should we send SIGCHLD? */
 			/* childproc_continued(p); */

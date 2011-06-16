@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include "error.h"
 #include "mystring.h"
 #include "parser.h"
+#include "builtins.h"
 #ifndef NO_HISTORY
 #include "myhistedit.h"
 #endif
@@ -93,6 +94,8 @@ struct var vps2;
 struct var vps4;
 struct var vvers;
 static struct var voptind;
+
+int forcelocal;
 
 static const struct varinit varinit[] = {
 #ifndef NO_HISTORY
@@ -325,6 +328,8 @@ setvareq(char *s, int flags)
 
 	if (aflag)
 		flags |= VEXPORT;
+	if (forcelocal && !(flags & (VNOSET | VNOLOCAL)))
+		mklocal(s);
 	vp = find_var(s, &vpp, &nlen);
 	if (vp != NULL) {
 		if (vp->flags & VREADONLY)
@@ -740,9 +745,9 @@ mklocal(char *name)
 		vp = find_var(name, &vpp, NULL);
 		if (vp == NULL) {
 			if (strchr(name, '='))
-				setvareq(savestr(name), VSTRFIXED);
+				setvareq(savestr(name), VSTRFIXED | VNOLOCAL);
 			else
-				setvar(name, NULL, VSTRFIXED);
+				setvar(name, NULL, VSTRFIXED | VNOLOCAL);
 			vp = *vpp;	/* the new variable */
 			lvp->text = NULL;
 			lvp->flags = VUNSET;
@@ -751,7 +756,7 @@ mklocal(char *name)
 			lvp->flags = vp->flags;
 			vp->flags |= VSTRFIXED|VTEXTFIXED;
 			if (name[vp->name_len] == '=')
-				setvareq(savestr(name), 0);
+				setvareq(savestr(name), VNOLOCAL);
 		}
 	}
 	lvp->vp = vp;

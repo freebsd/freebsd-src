@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2001 Jake Burkholder.
+ * Copyright (c) 2007 - 2011 Marius Strobl <marius@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -136,8 +137,11 @@ extern	char tl_ipi_tlb_range_demap[];
 static __inline void
 ipi_all_but_self(u_int ipi)
 {
+	cpuset_t cpus;
 
-	cpu_ipi_selected(PCPU_GET(other_cpus), 0, (u_long)tl_ipi_level, ipi);
+	cpus = all_cpus;
+	CPU_CLR(PCPU_GET(cpuid), &cpus);
+	cpu_ipi_selected(cpus, 0, (u_long)tl_ipi_level, ipi);
 }
 
 static __inline void
@@ -167,8 +171,9 @@ ipi_dcache_page_inval(void *func, vm_paddr_t pa)
 	ica = &ipi_cache_args;
 	mtx_lock_spin(&ipi_mtx);
 	ica->ica_mask = all_cpus;
+	CPU_CLR(PCPU_GET(cpuid), &ica->ica_mask);
 	ica->ica_pa = pa;
-	cpu_ipi_selected(PCPU_GET(other_cpus), 0, (u_long)func, (u_long)ica);
+	cpu_ipi_selected(ica->ica_mask, 0, (u_long)func, (u_long)ica);
 	return (&ica->ica_mask);
 }
 
@@ -183,8 +188,9 @@ ipi_icache_page_inval(void *func, vm_paddr_t pa)
 	ica = &ipi_cache_args;
 	mtx_lock_spin(&ipi_mtx);
 	ica->ica_mask = all_cpus;
+	CPU_CLR(PCPU_GET(cpuid), &ica->ica_mask);
 	ica->ica_pa = pa;
-	cpu_ipi_selected(PCPU_GET(other_cpus), 0, (u_long)func, (u_long)ica);
+	cpu_ipi_selected(ica->ica_mask, 0, (u_long)func, (u_long)ica);
 	return (&ica->ica_mask);
 }
 
@@ -198,8 +204,7 @@ ipi_rd(u_int cpu, void *func, u_long *val)
 	sched_pin();
 	ira = &ipi_rd_args;
 	mtx_lock_spin(&ipi_mtx);
-	ira->ira_mask = PCPU_GET(cpumask);
-	CPU_SET(cpu, &ira->ira_mask);
+	CPU_SETOF(cpu, &ira->ira_mask);
 	ira->ira_val = val;
 	cpu_ipi_single(cpu, 0, (u_long)func, (u_long)ira);
 	return (&ira->ira_mask);
@@ -215,7 +220,8 @@ ipi_tlb_context_demap(struct pmap *pm)
 		return (NULL);
 	sched_pin();
 	cpus = pm->pm_active;
-	CPU_AND(&cpus, PCPU_PTR(other_cpus));
+	CPU_AND(&cpus, &all_cpus);
+	CPU_CLR(PCPU_GET(cpuid), &cpus);
 	if (CPU_EMPTY(&cpus)) {
 		sched_unpin();
 		return (NULL);
@@ -223,7 +229,6 @@ ipi_tlb_context_demap(struct pmap *pm)
 	ita = &ipi_tlb_args;
 	mtx_lock_spin(&ipi_mtx);
 	ita->ita_mask = cpus;
-	CPU_OR(&ita->ita_mask, PCPU_PTR(cpumask));
 	ita->ita_pmap = pm;
 	cpu_ipi_selected(cpus, 0, (u_long)tl_ipi_tlb_context_demap,
 	    (u_long)ita);
@@ -240,7 +245,8 @@ ipi_tlb_page_demap(struct pmap *pm, vm_offset_t va)
 		return (NULL);
 	sched_pin();
 	cpus = pm->pm_active;
-	CPU_AND(&cpus, PCPU_PTR(other_cpus));
+	CPU_AND(&cpus, &all_cpus);
+	CPU_CLR(PCPU_GET(cpuid), &cpus);
 	if (CPU_EMPTY(&cpus)) {
 		sched_unpin();
 		return (NULL);
@@ -248,7 +254,6 @@ ipi_tlb_page_demap(struct pmap *pm, vm_offset_t va)
 	ita = &ipi_tlb_args;
 	mtx_lock_spin(&ipi_mtx);
 	ita->ita_mask = cpus;
-	CPU_OR(&ita->ita_mask, PCPU_PTR(cpumask));
 	ita->ita_pmap = pm;
 	ita->ita_va = va;
 	cpu_ipi_selected(cpus, 0, (u_long)tl_ipi_tlb_page_demap, (u_long)ita);
@@ -265,7 +270,8 @@ ipi_tlb_range_demap(struct pmap *pm, vm_offset_t start, vm_offset_t end)
 		return (NULL);
 	sched_pin();
 	cpus = pm->pm_active;
-	CPU_AND(&cpus, PCPU_PTR(other_cpus));
+	CPU_AND(&cpus, &all_cpus);
+	CPU_CLR(PCPU_GET(cpuid), &cpus);
 	if (CPU_EMPTY(&cpus)) {
 		sched_unpin();
 		return (NULL);
@@ -273,7 +279,6 @@ ipi_tlb_range_demap(struct pmap *pm, vm_offset_t start, vm_offset_t end)
 	ita = &ipi_tlb_args;
 	mtx_lock_spin(&ipi_mtx);
 	ita->ita_mask = cpus;
-	CPU_OR(&ita->ita_mask, PCPU_PTR(cpumask));
 	ita->ita_pmap = pm;
 	ita->ita_start = start;
 	ita->ita_end = end;
@@ -288,7 +293,6 @@ ipi_wait(void *cookie)
 	volatile cpuset_t *mask;
 
 	if ((mask = cookie) != NULL) {
-		CPU_NAND_ATOMIC(mask, PCPU_PTR(cpumask));
 		while (!CPU_EMPTY(mask))
 			;
 		mtx_unlock_spin(&ipi_mtx);

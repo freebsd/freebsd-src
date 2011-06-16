@@ -26,6 +26,9 @@ StringRef PPCInstPrinter::getOpcodeName(unsigned Opcode) const {
   return getInstructionName(Opcode);
 }
 
+void PPCInstPrinter::printRegName(raw_ostream &OS, unsigned RegNo) const {
+  OS << getRegisterName(RegNo);
+}
 
 void PPCInstPrinter::printInst(const MCInst *MI, raw_ostream &O) {
   // Check for slwi/srwi mnemonics.

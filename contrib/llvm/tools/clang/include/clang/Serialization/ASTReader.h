@@ -54,6 +54,7 @@ class Decl;
 class DeclContext;
 class NestedNameSpecifier;
 class CXXBaseSpecifier;
+class CXXConstructorDecl;
 class CXXCtorInitializer;
 class GotoStmt;
 class MacroDefinition;
@@ -255,6 +256,13 @@ private:
     /// \brief Offsets for all of the source location entries in the
     /// AST file.
     const uint32_t *SLocOffsets;
+
+    /// \brief The number of source location file entries in this AST file.
+    unsigned LocalNumSLocFileEntries;
+
+    /// \brief Offsets for all of the source location file entries in the
+    /// AST file.
+    const uint32_t *SLocFileOffsets;
 
     /// \brief The entire size of this module's source location offset range.
     unsigned LocalSLocSize;
@@ -564,6 +572,10 @@ private:
   /// generating warnings.
   llvm::SmallVector<uint64_t, 16> UnusedFileScopedDecls;
 
+  /// \brief A list of all the delegating constructors we've seen, to diagnose
+  /// cycles.
+  llvm::SmallVector<uint64_t, 4> DelegatingCtorDecls;
+
   /// \brief A snapshot of Sema's weak undeclared identifier tracking, for
   /// generating warnings.
   llvm::SmallVector<uint64_t, 64> WeakUndeclaredIdentifiers;
@@ -626,6 +638,10 @@ private:
   /// AST file.
   std::string ActualOriginalFileName;
 
+  /// \brief The file ID for the original file that was used to build the
+  /// primary AST file.
+  FileID OriginalFileID;
+  
   /// \brief The directory that the PCH was originally created in. Used to
   /// allow resolving headers even after headers+PCH was moved to a new path.
   std::string OriginalDir;
@@ -780,6 +796,10 @@ private:
   /// \brief Reads a statement from the specified cursor.
   Stmt *ReadStmtFromStream(PerFileData &F);
 
+  /// \brief Get a FileEntry out of stored-in-PCH filename, making sure we take
+  /// into account all the necessary relocations.
+  const FileEntry *getFileEntry(llvm::StringRef filename);
+
   void MaybeAddSystemRootToFilename(std::string &Filename);
 
   ASTReadResult ReadASTCore(llvm::StringRef FileName, ASTFileType Type);
@@ -878,6 +898,10 @@ public:
   /// \brief Load the precompiled header designated by the given file
   /// name.
   ASTReadResult ReadAST(const std::string &FileName, ASTFileType Type);
+
+  /// \brief Checks that no file that is stored in PCH is out-of-sync with
+  /// the actual file in the file system.
+  ASTReadResult validateFileEntries();
 
   /// \brief Set the AST callbacks listener.
   void setListener(ASTReaderListener *listener) {

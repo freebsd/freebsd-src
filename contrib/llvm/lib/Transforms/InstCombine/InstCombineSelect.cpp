@@ -133,9 +133,8 @@ Instruction *InstCombiner::FoldSelectOpOp(SelectInst &SI, Instruction *TI,
     }
 
     // Fold this by inserting a select from the input values.
-    SelectInst *NewSI = SelectInst::Create(SI.getCondition(), TI->getOperand(0),
-                                          FI->getOperand(0), SI.getName()+".v");
-    InsertNewInstBefore(NewSI, SI);
+    Value *NewSI = Builder->CreateSelect(SI.getCondition(), TI->getOperand(0),
+                                         FI->getOperand(0), SI.getName()+".v");
     return CastInst::Create(Instruction::CastOps(TI->getOpcode()), NewSI,
                             TI->getType());
   }
@@ -174,9 +173,8 @@ Instruction *InstCombiner::FoldSelectOpOp(SelectInst &SI, Instruction *TI,
   }
 
   // If we reach here, they do have operations in common.
-  SelectInst *NewSI = SelectInst::Create(SI.getCondition(), OtherOpT,
-                                         OtherOpF, SI.getName()+".v");
-  InsertNewInstBefore(NewSI, SI);
+  Value *NewSI = Builder->CreateSelect(SI.getCondition(), OtherOpT,
+                                       OtherOpF, SI.getName()+".v");
 
   if (BinaryOperator *BO = dyn_cast<BinaryOperator>(TI)) {
     if (MatchIsOpZero)
@@ -224,8 +222,7 @@ Instruction *InstCombiner::FoldSelectIntoOp(SelectInst &SI, Value *TrueVal,
           // Avoid creating select between 2 constants unless it's selecting
           // between 0, 1 and -1.
           if (!isa<Constant>(OOp) || isSelect01(C, cast<Constant>(OOp))) {
-            Instruction *NewSel = SelectInst::Create(SI.getCondition(), OOp, C);
-            InsertNewInstBefore(NewSel, SI);
+            Value *NewSel = Builder->CreateSelect(SI.getCondition(), OOp, C);
             NewSel->takeName(TVI);
             BinaryOperator *TVI_BO = cast<BinaryOperator>(TVI);
             BinaryOperator *BO = BinaryOperator::Create(TVI_BO->getOpcode(),
@@ -260,8 +257,7 @@ Instruction *InstCombiner::FoldSelectIntoOp(SelectInst &SI, Value *TrueVal,
           // Avoid creating select between 2 constants unless it's selecting
           // between 0, 1 and -1.
           if (!isa<Constant>(OOp) || isSelect01(C, cast<Constant>(OOp))) {
-            Instruction *NewSel = SelectInst::Create(SI.getCondition(), C, OOp);
-            InsertNewInstBefore(NewSel, SI);
+            Value *NewSel = Builder->CreateSelect(SI.getCondition(), C, OOp);
             NewSel->takeName(FVI);
             BinaryOperator *FVI_BO = cast<BinaryOperator>(FVI);
             BinaryOperator *BO = BinaryOperator::Create(FVI_BO->getOpcode(),
@@ -277,6 +273,59 @@ Instruction *InstCombiner::FoldSelectIntoOp(SelectInst &SI, Value *TrueVal,
         }
       }
     }
+  }
+
+  return 0;
+}
+
+/// SimplifyWithOpReplaced - See if V simplifies when its operand Op is
+/// replaced with RepOp.
+static Value *SimplifyWithOpReplaced(Value *V, Value *Op, Value *RepOp,
+                                     const TargetData *TD) {
+  // Trivial replacement.
+  if (V == Op)
+    return RepOp;
+
+  Instruction *I = dyn_cast<Instruction>(V);
+  if (!I)
+    return 0;
+
+  // If this is a binary operator, try to simplify it with the replaced op.
+  if (BinaryOperator *B = dyn_cast<BinaryOperator>(I)) {
+    if (B->getOperand(0) == Op)
+      return SimplifyBinOp(B->getOpcode(), RepOp, B->getOperand(1), TD);
+    if (B->getOperand(1) == Op)
+      return SimplifyBinOp(B->getOpcode(), B->getOperand(0), RepOp, TD);
+  }
+
+  // Same for CmpInsts.
+  if (CmpInst *C = dyn_cast<CmpInst>(I)) {
+    if (C->getOperand(0) == Op)
+      return SimplifyCmpInst(C->getPredicate(), RepOp, C->getOperand(1), TD);
+    if (C->getOperand(1) == Op)
+      return SimplifyCmpInst(C->getPredicate(), C->getOperand(0), RepOp, TD);
+  }
+
+  // TODO: We could hand off more cases to instsimplify here.
+
+  // If all operands are constant after substituting Op for RepOp then we can
+  // constant fold the instruction.
+  if (Constant *CRepOp = dyn_cast<Constant>(RepOp)) {
+    // Build a list of all constant operands.
+    SmallVector<Constant*, 8> ConstOps;
+    for (unsigned i = 0, e = I->getNumOperands(); i != e; ++i) {
+      if (I->getOperand(i) == Op)
+        ConstOps.push_back(CRepOp);
+      else if (Constant *COp = dyn_cast<Constant>(I->getOperand(i)))
+        ConstOps.push_back(COp);
+      else
+        break;
+    }
+
+    // All operands were constants, fold it.
+    if (ConstOps.size() == I->getNumOperands())
+      return ConstantFoldInstOperands(I->getOpcode(), I->getType(),
+                                      ConstOps.data(), ConstOps.size(), TD);
   }
 
   return 0;
@@ -420,24 +469,20 @@ Instruction *InstCombiner::visitSelectInstWithICmp(SelectInst &SI,
     }
   }
 
-  if (CmpLHS == TrueVal && CmpRHS == FalseVal) {
-    // Transform (X == Y) ? X : Y  -> Y
-    if (Pred == ICmpInst::ICMP_EQ)
+  // If we have an equality comparison then we know the value in one of the
+  // arms of the select. See if substituting this value into the arm and
+  // simplifying the result yields the same value as the other arm.
+  if (Pred == ICmpInst::ICMP_EQ) {
+    if (SimplifyWithOpReplaced(FalseVal, CmpLHS, CmpRHS, TD) == TrueVal ||
+        SimplifyWithOpReplaced(FalseVal, CmpRHS, CmpLHS, TD) == TrueVal)
       return ReplaceInstUsesWith(SI, FalseVal);
-    // Transform (X != Y) ? X : Y  -> X
-    if (Pred == ICmpInst::ICMP_NE)
+  } else if (Pred == ICmpInst::ICMP_NE) {
+    if (SimplifyWithOpReplaced(TrueVal, CmpLHS, CmpRHS, TD) == FalseVal ||
+        SimplifyWithOpReplaced(TrueVal, CmpRHS, CmpLHS, TD) == FalseVal)
       return ReplaceInstUsesWith(SI, TrueVal);
-    /// NOTE: if we wanted to, this is where to detect integer MIN/MAX
-
-  } else if (CmpLHS == FalseVal && CmpRHS == TrueVal) {
-    // Transform (X == Y) ? Y : X  -> X
-    if (Pred == ICmpInst::ICMP_EQ)
-      return ReplaceInstUsesWith(SI, FalseVal);
-    // Transform (X != Y) ? Y : X  -> Y
-    if (Pred == ICmpInst::ICMP_NE)
-      return ReplaceInstUsesWith(SI, TrueVal);
-    /// NOTE: if we wanted to, this is where to detect integer MIN/MAX
   }
+
+  // NOTE: if we wanted to, this is where to detect integer MIN/MAX
 
   if (isa<Constant>(CmpRHS)) {
     if (CmpLHS == TrueVal && Pred == ICmpInst::ICMP_EQ) {
@@ -604,9 +649,7 @@ Instruction *InstCombiner::visitSelectInst(SelectInst &SI) {
         return BinaryOperator::CreateOr(CondVal, FalseVal);
       }
       // Change: A = select B, false, C --> A = and !B, C
-      Value *NotCond =
-        InsertNewInstBefore(BinaryOperator::CreateNot(CondVal,
-                                           "not."+CondVal->getName()), SI);
+      Value *NotCond = Builder->CreateNot(CondVal, "not."+CondVal->getName());
       return BinaryOperator::CreateAnd(NotCond, FalseVal);
     } else if (ConstantInt *C = dyn_cast<ConstantInt>(FalseVal)) {
       if (C->getZExtValue() == false) {
@@ -614,9 +657,7 @@ Instruction *InstCombiner::visitSelectInst(SelectInst &SI) {
         return BinaryOperator::CreateAnd(CondVal, TrueVal);
       }
       // Change: A = select B, C, true --> A = or !B, C
-      Value *NotCond =
-        InsertNewInstBefore(BinaryOperator::CreateNot(CondVal,
-                                           "not."+CondVal->getName()), SI);
+      Value *NotCond = Builder->CreateNot(CondVal, "not."+CondVal->getName());
       return BinaryOperator::CreateOr(NotCond, TrueVal);
     }
 
@@ -755,27 +796,20 @@ Instruction *InstCombiner::visitSelectInst(SelectInst &SI) {
             // So at this point we know we have (Y -> OtherAddOp):
             //        select C, (add X, Y), (sub X, Z)
             Value *NegVal;  // Compute -Z
-            if (Constant *C = dyn_cast<Constant>(SubOp->getOperand(1))) {
-              NegVal = ConstantExpr::getNeg(C);
-            } else if (SI.getType()->isFloatingPointTy()) {
-              NegVal = InsertNewInstBefore(
-                    BinaryOperator::CreateFNeg(SubOp->getOperand(1),
-                                              "tmp"), SI);
+            if (SI.getType()->isFloatingPointTy()) {
+              NegVal = Builder->CreateFNeg(SubOp->getOperand(1));
             } else {
-              NegVal = InsertNewInstBefore(
-                    BinaryOperator::CreateNeg(SubOp->getOperand(1),
-                                              "tmp"), SI);
+              NegVal = Builder->CreateNeg(SubOp->getOperand(1));
             }
 
             Value *NewTrueOp = OtherAddOp;
             Value *NewFalseOp = NegVal;
             if (AddOp != TI)
               std::swap(NewTrueOp, NewFalseOp);
-            Instruction *NewSel =
-              SelectInst::Create(CondVal, NewTrueOp,
-                                 NewFalseOp, SI.getName() + ".p");
+            Value *NewSel = 
+              Builder->CreateSelect(CondVal, NewTrueOp,
+                                    NewFalseOp, SI.getName() + ".p");
 
-            NewSel = InsertNewInstBefore(NewSel, SI);
             if (SI.getType()->isFloatingPointTy())
               return BinaryOperator::CreateFAdd(SubOp->getOperand(0), NewSel);
             else

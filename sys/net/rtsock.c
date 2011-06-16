@@ -373,14 +373,14 @@ rts_sockaddr(struct socket *so, struct sockaddr **nam)
 static struct pr_usrreqs route_usrreqs = {
 	.pru_abort =		rts_abort,
 	.pru_attach =		rts_attach,
-	.pru_bind =		rts_bind,
-	.pru_connect =		rts_connect,
+	.pru_bind =		raw_bind,
+	.pru_connect =		raw_connect,
 	.pru_detach =		rts_detach,
-	.pru_disconnect =	rts_disconnect,
-	.pru_peeraddr =		rts_peeraddr,
-	.pru_send =		rts_send,
-	.pru_shutdown =		rts_shutdown,
-	.pru_sockaddr =		rts_sockaddr,
+	.pru_disconnect =	raw_disconnect,
+	.pru_peeraddr =		raw_peeraddr,
+	.pru_send =		raw_send,
+	.pru_shutdown =		raw_shutdown,
+	.pru_sockaddr =		raw_sockaddr,
 	.pru_close =		rts_close,
 };
 

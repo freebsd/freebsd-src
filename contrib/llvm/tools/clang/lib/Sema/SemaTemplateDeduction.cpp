@@ -2314,7 +2314,7 @@ Sema::FinishTemplateArgumentDeduction(FunctionTemplateDecl *FunctionTemplate,
                               FunctionTemplate->getLocation(),
                               FunctionTemplate->getSourceRange().getEnd(),
                               0, Builder,
-                              CTAK_Deduced)) {
+                              CTAK_Specified)) {
       Info.Param = makeTemplateParameter(
                          const_cast<NamedDecl *>(TemplateParams->getParam(I)));
       // FIXME: These template arguments are temporary. Free them!
@@ -2500,6 +2500,12 @@ static bool AdjustFunctionParmAndArgTypesForDeduction(Sema &S,
   if (ParamRefType) {
     QualType PointeeType = ParamRefType->getPointeeType();
 
+    // If the argument has incomplete array type, try to complete it's type.
+    if (ArgType->isIncompleteArrayType() &&
+        !S.RequireCompleteExprType(Arg, S.PDiag(), 
+                                   std::make_pair(SourceLocation(), S.PDiag())))
+      ArgType = Arg->getType();
+
     //   [C++0x] If P is an rvalue reference to a cv-unqualified
     //   template parameter and the argument is an lvalue, the type
     //   "lvalue reference to A" is used in place of A for type
@@ -2507,7 +2513,9 @@ static bool AdjustFunctionParmAndArgTypesForDeduction(Sema &S,
     if (isa<RValueReferenceType>(ParamType)) {
       if (!PointeeType.getQualifiers() &&
           isa<TemplateTypeParmType>(PointeeType) &&
-          Arg->Classify(S.Context).isLValue())
+          Arg->Classify(S.Context).isLValue() &&
+          Arg->getType() != S.Context.OverloadTy &&
+          Arg->getType() != S.Context.BoundMemberTy)
         ArgType = S.Context.getLValueReferenceType(ArgType);
     }
 
@@ -3881,6 +3889,13 @@ MarkUsedTemplateParameters(Sema &SemaRef, QualType T,
     if (!OnlyDeduced)
       MarkUsedTemplateParameters(SemaRef,
                                  cast<DecltypeType>(T)->getUnderlyingExpr(),
+                                 OnlyDeduced, Depth, Used);
+    break;
+
+  case Type::UnaryTransform:
+    if (!OnlyDeduced)
+      MarkUsedTemplateParameters(SemaRef,
+                               cast<UnaryTransformType>(T)->getUnderlyingType(),
                                  OnlyDeduced, Depth, Used);
     break;
 

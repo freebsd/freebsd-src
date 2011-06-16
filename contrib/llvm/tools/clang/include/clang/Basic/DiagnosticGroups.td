@@ -33,7 +33,10 @@ def : DiagGroup<"char-align">;
 def Comment : DiagGroup<"comment">;
 def : DiagGroup<"ctor-dtor-privacy">;
 def : DiagGroup<"declaration-after-statement">;
+def DefaultArgSpecialMember : DiagGroup<"default-arg-special-member">;
 def GNUDesignator : DiagGroup<"gnu-designator">;
+
+def DeleteNonVirtualDtor : DiagGroup<"delete-non-virtual-dtor">;
 
 def DeprecatedDeclarations : DiagGroup<"deprecated-declarations">;
 def DeprecatedWritableStr : DiagGroup<"deprecated-writable-strings">;
@@ -144,7 +147,7 @@ def : DiagGroup<"type-limits">;
 def Uninitialized  : DiagGroup<"uninitialized">;
 def UninitializedMaybe : DiagGroup<"conditional-uninitialized">;
 def UnknownPragmas : DiagGroup<"unknown-pragmas">;
-def UnknownAttributes : DiagGroup<"unknown-attributes">;
+def UnknownAttributes : DiagGroup<"attributes">;
 def UnnamedTypeTemplateArgs : DiagGroup<"unnamed-type-template-args">;
 def UnusedArgument : DiagGroup<"unused-argument">;
 def UnusedExceptionParameter : DiagGroup<"unused-exception-parameter">;
@@ -235,6 +238,7 @@ def Extra : DiagGroup<"extra", [
 def Most : DiagGroup<"most", [
     CharSubscript,
     Comment,
+    DeleteNonVirtualDtor,
     Format,
     Implicit,
     MismatchedTags,
@@ -271,6 +275,8 @@ def NonGCC : DiagGroup<"non-gcc",
 def CXX0xStaticNonIntegralInitializer :
   DiagGroup<"c++0x-static-nonintegral-init">;
 def CXX0x : DiagGroup<"c++0x-extensions", [CXX0xStaticNonIntegralInitializer]>;
+def DelegatingCtorCycles :
+  DiagGroup<"delegating-ctor-cycles">;
 
 // A warning group for warnings about GCC extensions.
 def GNU : DiagGroup<"gnu", [GNUDesignator, VLA]>;

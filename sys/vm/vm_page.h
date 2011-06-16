@@ -383,6 +383,13 @@ void vm_page_cowfault (vm_page_t);
 int vm_page_cowsetup(vm_page_t);
 void vm_page_cowclear (vm_page_t);
 
+#ifdef INVARIANTS
+void vm_page_object_lock_assert(vm_page_t m);
+#define	VM_PAGE_OBJECT_LOCK_ASSERT(m)	vm_page_object_lock_assert(m)
+#else
+#define	VM_PAGE_OBJECT_LOCK_ASSERT(m)	(void)0
+#endif
+
 /*
  *	vm_page_sleep_if_busy:
  *
@@ -412,6 +419,8 @@ vm_page_sleep_if_busy(vm_page_t m, int also_m_busy, const char *msg)
 static __inline void
 vm_page_undirty(vm_page_t m)
 {
+
+	VM_PAGE_OBJECT_LOCK_ASSERT(m);
 	m->dirty = 0;
 }
 

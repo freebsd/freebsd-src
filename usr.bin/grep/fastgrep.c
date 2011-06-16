@@ -89,7 +89,7 @@ fastcomp(fastgrep_t *fg, const char *pat)
 	fg->bol = false;
 	fg->eol = false;
 	fg->reversed = false;
-	fg->word = wflag;
+	fg->word = false;
 
 	/* Remove end-of-line character ('$'). */
 	if (fg->len > 0 && pat[fg->len - 1] == '$') {

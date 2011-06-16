@@ -65,16 +65,16 @@ getRegisterNumbering(unsigned RegEnum)
     case Mips::T5   : case Mips::F13: return 13;
     case Mips::T6   : case Mips::F14: case Mips::D7: return 14;
     case Mips::T7   : case Mips::F15: return 15;
-    case Mips::T8   : case Mips::F16: case Mips::D8: return 16;
-    case Mips::T9   : case Mips::F17: return 17;
-    case Mips::S0   : case Mips::F18: case Mips::D9: return 18;
-    case Mips::S1   : case Mips::F19: return 19;
-    case Mips::S2   : case Mips::F20: case Mips::D10: return 20;
-    case Mips::S3   : case Mips::F21: return 21;
-    case Mips::S4   : case Mips::F22: case Mips::D11: return 22;
-    case Mips::S5   : case Mips::F23: return 23;
-    case Mips::S6   : case Mips::F24: case Mips::D12: return 24;
-    case Mips::S7   : case Mips::F25: return 25;
+    case Mips::S0   : case Mips::F16: case Mips::D8: return 16;
+    case Mips::S1   : case Mips::F17: return 17;
+    case Mips::S2   : case Mips::F18: case Mips::D9: return 18;
+    case Mips::S3   : case Mips::F19: return 19;
+    case Mips::S4   : case Mips::F20: case Mips::D10: return 20;
+    case Mips::S5   : case Mips::F21: return 21;
+    case Mips::S6   : case Mips::F22: case Mips::D11: return 22;
+    case Mips::S7   : case Mips::F23: return 23;
+    case Mips::T8   : case Mips::F24: case Mips::D12: return 24;
+    case Mips::T9   : case Mips::F25: return 25;
     case Mips::K0   : case Mips::F26: case Mips::D13: return 26;
     case Mips::K1   : case Mips::F27: return 27;
     case Mips::GP   : case Mips::F28: case Mips::D14: return 28;
@@ -98,22 +98,22 @@ getCalleeSavedRegs(const MachineFunction *MF) const
 {
   // Mips callee-save register range is $16-$23, $f20-$f30
   static const unsigned SingleFloatOnlyCalleeSavedRegs[] = {
-    Mips::S0, Mips::S1, Mips::S2, Mips::S3,
-    Mips::S4, Mips::S5, Mips::S6, Mips::S7,
-    Mips::F20, Mips::F21, Mips::F22, Mips::F23, Mips::F24, Mips::F25,
-    Mips::F26, Mips::F27, Mips::F28, Mips::F29, Mips::F30, 0
+    Mips::F30, Mips::F29, Mips::F28, Mips::F27, Mips::F26,
+    Mips::F25, Mips::F24, Mips::F23, Mips::F22, Mips::F21, Mips::F20,
+    Mips::RA, Mips::FP, Mips::S7, Mips::S6, Mips::S5, Mips::S4,
+    Mips::S3, Mips::S2, Mips::S1, Mips::S0, 0
   };
 
-  static const unsigned BitMode32CalleeSavedRegs[] = {
-    Mips::S0, Mips::S1, Mips::S2, Mips::S3,
-    Mips::S4, Mips::S5, Mips::S6, Mips::S7,
-    Mips::F20, Mips::F22, Mips::F24, Mips::F26, Mips::F28, Mips::F30, 0
+  static const unsigned Mips32CalleeSavedRegs[] = {
+    Mips::D15, Mips::D14, Mips::D13, Mips::D12, Mips::D11, Mips::D10,
+    Mips::RA, Mips::FP, Mips::S7, Mips::S6, Mips::S5, Mips::S4,
+    Mips::S3, Mips::S2, Mips::S1, Mips::S0, 0
   };
 
   if (Subtarget.isSingleFloat())
     return SingleFloatOnlyCalleeSavedRegs;
   else
-    return BitMode32CalleeSavedRegs;
+    return Mips32CalleeSavedRegs;
 }
 
 BitVector MipsRegisterInfo::
@@ -127,9 +127,11 @@ getReservedRegs(const MachineFunction &MF) const {
   Reserved.set(Mips::SP);
   Reserved.set(Mips::FP);
   Reserved.set(Mips::RA);
+  Reserved.set(Mips::F31);
+  Reserved.set(Mips::D15);
 
   // SRV4 requires that odd register can't be used.
-  if (!Subtarget.isSingleFloat())
+  if (!Subtarget.isSingleFloat() && !Subtarget.isMips32())
     for (unsigned FReg=(Mips::F0)+1; FReg < Mips::F30; FReg+=2)
       Reserved.set(FReg);
 
@@ -153,6 +155,8 @@ eliminateFrameIndex(MachineBasicBlock::iterator II, int SPAdj,
                     RegScavenger *RS) const {
   MachineInstr &MI = *II;
   MachineFunction &MF = *MI.getParent()->getParent();
+  MachineFrameInfo *MFI = MF.getFrameInfo();
+  MipsFunctionInfo *MipsFI = MF.getInfo<MipsFunctionInfo>();
 
   unsigned i = 0;
   while (!MI.getOperand(i).isFI()) {
@@ -172,9 +176,19 @@ eliminateFrameIndex(MachineBasicBlock::iterator II, int SPAdj,
                << "spOffset   : " << spOffset << "\n"
                << "stackSize  : " << stackSize << "\n");
 
-  // as explained on LowerFormalArguments, detect negative offsets
-  // and adjust SPOffsets considering the final stack size.
-  int Offset = ((spOffset < 0) ? (stackSize + (-(spOffset+4))) : (spOffset));
+  int Offset;
+
+  // Calculate final offset.
+  // - There is no need to change the offset if the frame object is an outgoing
+  //   argument or a $gp restore location,
+  // - If the frame object is any of the following, its offset must be adjusted
+  //   by adding the size of the stack:
+  //   incoming argument, callee-saved register location or local variable.  
+  if (MipsFI->isOutArgFI(FrameIndex) || MipsFI->isGPFI(FrameIndex))
+    Offset = spOffset;
+  else
+    Offset = spOffset + stackSize;
+
   Offset    += MI.getOperand(i-1).getImm();
 
   DEBUG(errs() << "Offset     : " << Offset << "\n" << "<--------->\n");
@@ -183,26 +197,45 @@ eliminateFrameIndex(MachineBasicBlock::iterator II, int SPAdj,
   int NewImm = 0;
   MachineBasicBlock &MBB = *MI.getParent();
   bool ATUsed;
-  unsigned OrigReg = getFrameRegister(MF);
-  int OrigImm = Offset;
+  unsigned FrameReg;
+  const std::vector<CalleeSavedInfo> &CSI = MFI->getCalleeSavedInfo();
+  int MinCSFI = 0;
+  int MaxCSFI = -1;
 
-// OrigImm fits in the 16-bit field
-  if (OrigImm < 0x8000 && OrigImm >= -0x8000) {
-    NewReg = OrigReg;
-    NewImm = OrigImm;
+  if (CSI.size()) {
+    MinCSFI = CSI[0].getFrameIdx();
+    MaxCSFI = CSI[CSI.size() - 1].getFrameIdx();
+  }
+
+  // The following stack frame objects are always referenced relative to $sp:
+  //  1. Outgoing arguments.
+  //  2. Pointer to dynamically allocated stack space.
+  //  3. Locations for callee-saved registers.
+  // Everything else is referenced relative to whatever register 
+  // getFrameRegister() returns.
+  if (MipsFI->isOutArgFI(FrameIndex) ||
+      (FrameIndex >= MinCSFI && FrameIndex <= MaxCSFI))
+    FrameReg = Mips::SP;
+  else
+    FrameReg = getFrameRegister(MF); 
+  
+  // Offset fits in the 16-bit field
+  if (Offset < 0x8000 && Offset >= -0x8000) {
+    NewReg = FrameReg;
+    NewImm = Offset;
     ATUsed = false;
   }
   else {
     const TargetInstrInfo *TII = MF.getTarget().getInstrInfo();
     DebugLoc DL = II->getDebugLoc();
-    int ImmLo = OrigImm & 0xffff;
-    int ImmHi = (((unsigned)OrigImm & 0xffff0000) >> 16) +
-                ((OrigImm & 0x8000) != 0);
+    int ImmLo = (short)(Offset & 0xffff);
+    int ImmHi = (((unsigned)Offset & 0xffff0000) >> 16) +
+                ((Offset & 0x8000) != 0);
 
     // FIXME: change this when mips goes MC".
     BuildMI(MBB, II, DL, TII->get(Mips::NOAT));
     BuildMI(MBB, II, DL, TII->get(Mips::LUi), Mips::AT).addImm(ImmHi);
-    BuildMI(MBB, II, DL, TII->get(Mips::ADDu), Mips::AT).addReg(OrigReg)
+    BuildMI(MBB, II, DL, TII->get(Mips::ADDu), Mips::AT).addReg(FrameReg)
                                                         .addReg(Mips::AT);
     NewReg = Mips::AT;
     NewImm = ImmLo;
@@ -216,15 +249,6 @@ eliminateFrameIndex(MachineBasicBlock::iterator II, int SPAdj,
 
   MI.getOperand(i).ChangeToRegister(NewReg, false);
   MI.getOperand(i-1).ChangeToImmediate(NewImm);
-}
-
-void MipsRegisterInfo::
-processFunctionBeforeFrameFinalized(MachineFunction &MF) const {
-  // Set the stack offset where GP must be saved/loaded from.
-  MachineFrameInfo *MFI = MF.getFrameInfo();
-  MipsFunctionInfo *MipsFI = MF.getInfo<MipsFunctionInfo>();
-  if (MipsFI->needGPSaveRestore())
-    MFI->setObjectOffset(MipsFI->getGPFI(), MipsFI->getGPStackOffset());
 }
 
 unsigned MipsRegisterInfo::
@@ -253,8 +277,11 @@ getEHHandlerRegister() const {
 
 int MipsRegisterInfo::
 getDwarfRegNum(unsigned RegNum, bool isEH) const {
-  llvm_unreachable("What is the dwarf register number");
-  return -1;
+  return MipsGenRegisterInfo::getDwarfRegNumFull(RegNum, 0);
+}
+
+int MipsRegisterInfo::getLLVMRegNum(unsigned DwarfRegNo, bool isEH) const {
+  return MipsGenRegisterInfo::getLLVMRegNumFull(DwarfRegNo,0);
 }
 
 #include "MipsGenRegisterInfo.inc"

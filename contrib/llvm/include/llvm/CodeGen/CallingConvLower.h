@@ -16,6 +16,7 @@
 #define LLVM_CODEGEN_CALLINGCONVLOWER_H
 
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/ValueTypes.h"
 #include "llvm/Target/TargetCallingConv.h"
 #include "llvm/CallingConv.h"
@@ -141,14 +142,19 @@ typedef bool CCCustomFn(unsigned &ValNo, MVT &ValVT,
                         MVT &LocVT, CCValAssign::LocInfo &LocInfo,
                         ISD::ArgFlagsTy &ArgFlags, CCState &State);
 
-typedef enum { Invalid, Prologue, Call } ParmContext;
+/// ParmContext - This enum tracks whether calling convention lowering is in
+/// the context of prologue or call generation. Not all backends make use of
+/// this information.
+typedef enum { Unknown, Prologue, Call } ParmContext;
 
 /// CCState - This class holds information needed while lowering arguments and
 /// return values.  It captures which registers are already assigned and which
 /// stack slots are used.  It provides accessors to allocate these values.
 class CCState {
+private:
   CallingConv::ID CallingConv;
   bool IsVarArg;
+  MachineFunction &MF;
   const TargetMachine &TM;
   const TargetRegisterInfo &TRI;
   SmallVector<CCValAssign, 16> &Locs;
@@ -158,10 +164,14 @@ class CCState {
   SmallVector<uint32_t, 16> UsedRegs;
   unsigned FirstByValReg;
   bool FirstByValRegValid;
+
+protected:
   ParmContext CallOrPrologue;
+
 public:
-  CCState(CallingConv::ID CC, bool isVarArg, const TargetMachine &TM,
-          SmallVector<CCValAssign, 16> &locs, LLVMContext &C);
+  CCState(CallingConv::ID CC, bool isVarArg, MachineFunction &MF,
+          const TargetMachine &TM, SmallVector<CCValAssign, 16> &locs,
+          LLVMContext &C);
 
   void addLoc(const CCValAssign &V) {
     Locs.push_back(V);
@@ -169,6 +179,7 @@ public:
 
   LLVMContext &getContext() const { return Context; }
   const TargetMachine &getTarget() const { return TM; }
+  MachineFunction &getMachineFunction() const { return MF; }
   CallingConv::ID getCallingConv() const { return CallingConv; }
   bool isVarArg() const { return IsVarArg; }
 
@@ -301,7 +312,6 @@ public:
   bool isFirstByValRegValid() { return FirstByValRegValid; }
 
   ParmContext getCallOrPrologue() { return CallOrPrologue; }
-  void setCallOrPrologue(ParmContext pc) { CallOrPrologue = pc; }
 
 private:
   /// MarkAllocated - Mark a register and all of its aliases as allocated.

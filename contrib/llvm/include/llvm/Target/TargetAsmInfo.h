@@ -22,6 +22,7 @@
 namespace llvm {
   class MCSection;
   class MCContext;
+  class MachineFunction;
   class TargetMachine;
   class TargetLoweringObjectFile;
 
@@ -58,12 +59,28 @@ public:
     return TLOF->getEHFrameSection();
   }
 
+  const MCSection *getDwarfFrameSection() const {
+    return TLOF->getDwarfFrameSection();
+  }
+
+  const MCSection *getWin64EHFuncTableSection(StringRef Suffix) const {
+    return TLOF->getWin64EHFuncTableSection(Suffix);
+  }
+
+  const MCSection *getWin64EHTableSection(StringRef Suffix) const {
+    return TLOF->getWin64EHTableSection(Suffix);
+  }
+
   unsigned getFDEEncoding(bool CFI) const {
     return TLOF->getFDEEncoding(CFI);
   }
 
   bool isFunctionEHFrameSymbolPrivate() const {
     return TLOF->isFunctionEHFrameSymbolPrivate();
+  }
+
+  const unsigned *getCalleeSavedRegs(MachineFunction *MF = 0) const {
+    return TRI->getCalleeSavedRegs(MF);
   }
 
   unsigned getDwarfRARegNum(bool isEH) const {
@@ -76,6 +93,14 @@ public:
 
   int getDwarfRegNum(unsigned RegNum, bool isEH) const {
     return TRI->getDwarfRegNum(RegNum, isEH);
+  }
+
+  int getLLVMRegNum(unsigned DwarfRegNum, bool isEH) const {
+    return TRI->getLLVMRegNum(DwarfRegNum, isEH);
+  }
+
+  int getSEHRegNum(unsigned RegNum) const {
+    return TRI->getSEHRegNum(RegNum);
   }
 };
 

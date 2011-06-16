@@ -407,7 +407,7 @@ optimize_superblock(struct pfctl *pf, struct superblock *block)
 	TAILQ_FOREACH(por, &block->sb_rules, por_entry) {
 		printf("  ");
 		print_rule(&por->por_rule, por->por_rule.anchor ?
-		    por->por_rule.anchor->name : "", 1);
+		    por->por_rule.anchor->name : "", 1, 0);
 	}
 #endif /* OPT_DEBUG */
 
