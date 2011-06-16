@@ -1035,8 +1035,8 @@ sctp_sendv(int sd,
 
 	if ((addrcnt < 0) ||
 	    (iovcnt < 0) ||
-	    ((addr == NULL) && (addrcnt > 0)) ||
-	    ((addr != NULL) && (addrcnt == 0)) ||
+	    ((addrs == NULL) && (addrcnt > 0)) ||
+	    ((addrs != NULL) && (addrcnt == 0)) ||
 	    ((iov == NULL) && (iovcnt > 0)) ||
 	    ((iov != NULL) && (iovcnt == 0))) {
 		errno = EINVAL;
@@ -1203,9 +1203,6 @@ sctp_sendv(int sd,
 			msg.msg_namelen = addr_len;
 		}
 		addr = (struct sockaddr *)((caddr_t)addr + addr_len);
-	}
-	if (msg.msg_controllen == 0) {
-		msg.msg_control = NULL;
 	}
 	if (msg.msg_controllen == 0) {
 		msg.msg_control = NULL;
