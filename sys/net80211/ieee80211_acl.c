@@ -77,7 +77,7 @@ struct acl {
 struct aclstate {
 	acl_lock_t		as_lock;
 	int			as_policy;
-	int			as_nacls;
+	uint32_t		as_nacls;
 	TAILQ_HEAD(, acl)	as_list;	/* list of all ACL's */
 	LIST_HEAD(, acl)	as_hash[ACL_HASHSIZE];
 	struct ieee80211vap	*as_vap;
@@ -289,7 +289,8 @@ acl_getioctl(struct ieee80211vap *vap, struct ieee80211req *ireq)
 	struct aclstate *as = vap->iv_as;
 	struct acl *acl;
 	struct ieee80211req_maclist *ap;
-	int error, space, i;
+	int error;
+	uint32_t i, space;
 
 	switch (ireq->i_val) {
 	case IEEE80211_MACCMD_POLICY:
