@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 18, 2011
+.Dd June 16, 2011
 .Dt BUILD 7
 .Os
 .Sh NAME
@@ -515,6 +515,10 @@ documentation as part of the
 target.
 .It Va NO_PORTSUPDATE
 If set, the update process does not update the Ports tree as part of the
+.Dq make update
+target.
+.It Va NO_WWWUPDATE
+If set, the update process does not update the www tree as part of the
 .Dq make update
 target.
 .El
