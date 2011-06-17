@@ -383,6 +383,7 @@ __DEFAULT_YES_OPTIONS = \
     TEXTPROC \
     TOOLCHAIN \
     USB \
+    UTMPX \
     WIRELESS \
     WPA_SUPPLICANT_EAPOL \
     ZFS \
