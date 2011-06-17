@@ -2,12 +2,7 @@
 
 .include <bsd.own.mk>
 
-FILES=	999.local
-
-# NB: keep these sorted by MK_* knobs
-
-.if ${MK_ACCT} != "no"
-FILES+=	200.accounting
-.endif
+FILES=	200.accounting \
+	999.local
 
 .include <bsd.prog.mk>
