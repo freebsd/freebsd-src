@@ -3,8 +3,7 @@
 
 .include <bsd.own.mk>
 
-SUBDIR=	ac \
-	adduser \
+SUBDIR=	adduser \
 	arp \
 	bootparamd \
 	burncd \
@@ -35,7 +34,6 @@ SUBDIR=	ac \
 	inetd \
 	iostat \
 	kldxref \
-	lastlogin \
 	mailwrapper \
 	makefs \
 	manctl \
@@ -90,7 +88,6 @@ SUBDIR=	ac \
 	trpt \
 	tzsetup \
 	ugidfw \
-	utxrm \
 	vipw \
 	wake \
 	watch \
@@ -297,6 +294,12 @@ SUBDIR+=	uathload
 SUBDIR+=	uhsoctl
 SUBDIR+=	usbconfig
 SUBDIR+=	usbdump
+.endif
+
+.if ${MK_UTMPX} != "no"
+SUBDIR+=	ac
+SUBDIR+=	lastlogin
+SUBDIR+=	utxrm
 .endif
 
 .if ${MK_WIRELESS} != "no"

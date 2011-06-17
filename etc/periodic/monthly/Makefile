@@ -2,7 +2,12 @@
 
 .include <bsd.own.mk>
 
-FILES=	200.accounting \
-	999.local
+FILES=	999.local
+
+# NB: keep these sorted by MK_* knobs
+
+.if ${MK_UTMPX} != "no"
+FILES+=	200.accounting
+.endif
 
 .include <bsd.prog.mk>
