@@ -87,6 +87,7 @@ static const struct ipspec intparams[] = {
     [IP__IP6_IFADDR] =		{"ip6.addr",		PF_INTERNAL | PF_CONV},
 #endif
     [IP__MOUNT_FROM_FSTAB] =	{"mount.fstab",		PF_INTERNAL | PF_CONV},
+    [IP__OP] =			{NULL,			PF_CONV},
     [KP_ALLOW_CHFLAGS] =	{"allow.chflags",	0},
     [KP_ALLOW_MOUNT] =		{"allow.mount",		0},
     [KP_ALLOW_RAW_SOCKETS] =	{"allow.raw_sockets",	0},
