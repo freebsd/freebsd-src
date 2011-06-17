@@ -100,6 +100,7 @@ GEOM_PART_MBR	opt_geom.h
 GEOM_PART_PC98	opt_geom.h
 GEOM_PART_VTOC8	opt_geom.h
 GEOM_PC98	opt_geom.h
+GEOM_RAID	opt_geom.h
 GEOM_RAID3	opt_geom.h
 GEOM_SHSEC	opt_geom.h
 GEOM_STRIPE	opt_geom.h
