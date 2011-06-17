@@ -829,6 +829,15 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 
 	case PT_ATTACH:
 		/* security check done above */
+		/*
+		 * It would be nice if the tracing relationship was separate
+		 * from the parent relationship but that would require
+		 * another set of links in the proc struct or for "wait"
+		 * to scan the entire proc table.  To make life easier,
+		 * we just re-parent the process we're trying to trace.
+		 * The old parent is remembered so we can put things back
+		 * on a "detach".
+		 */
 		p->p_flag |= P_TRACED;
 		p->p_oppid = p->p_pptr->p_pid;
 		if (p->p_pptr != td->td_proc) {
