@@ -1049,6 +1049,15 @@ linprocfs_doproccmdline(PFS_FILL_ARGS)
 		PROC_UNLOCK(p);
 		return (ret);
 	}
+
+	/*
+	 * Mimic linux behavior and pass only processes with usermode
+	 * address space as valid.  Return zero silently otherwize.
+	 */
+	if (p->p_vmspace == &vmspace0) {
+		PROC_UNLOCK(p);
+		return (0);
+	}
 	if (p->p_args != NULL) {
 		sbuf_bcpy(sb, p->p_args->ar_args, p->p_args->ar_length);
 		PROC_UNLOCK(p);
@@ -1072,6 +1081,15 @@ linprocfs_doprocenviron(PFS_FILL_ARGS)
 	if ((ret = p_cansee(td, p)) != 0) {
 		PROC_UNLOCK(p);
 		return (ret);
+	}
+
+	/*
+	 * Mimic linux behavior and pass only processes with usermode
+	 * address space as valid.  Return zero silently otherwize.
+	 */
+	if (p->p_vmspace == &vmspace0) {
+		PROC_UNLOCK(p);
+		return (0);
 	}
 	PROC_UNLOCK(p);
 
