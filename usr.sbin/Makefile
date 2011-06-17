@@ -3,7 +3,8 @@
 
 .include <bsd.own.mk>
 
-SUBDIR= adduser \
+SUBDIR=	ac \
+	adduser \
 	arp \
 	bootparamd \
 	burncd \
@@ -99,7 +100,6 @@ SUBDIR= adduser \
 # NB: keep these sorted by MK_* knobs
 
 .if ${MK_ACCT} != "no"
-SUBDIR+=	ac
 SUBDIR+=	accton
 SUBDIR+=	sa
 .endif
