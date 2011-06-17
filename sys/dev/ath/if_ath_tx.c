@@ -106,6 +106,8 @@ static int ath_tx_ampdu_running(struct ath_softc *sc, struct ath_node *an,
     int tid);
 static ieee80211_seq ath_tx_tid_seqno_assign(struct ath_softc *sc,
     struct ieee80211_node *ni, struct ath_buf *bf, struct mbuf *m0);
+static int ath_tx_action_frame_override_queue(struct ath_softc *sc,
+    struct ieee80211_node *ni, struct mbuf *m0, int *tid);
 
 /*
  * Whether to use the 11n rate scenario functions or not
@@ -1014,6 +1016,8 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	struct ath_desc *ds;
 	u_int pri;
 	uint8_t try[4], rate[4];
+	int o_tid = -1;
+	int do_override;
 
 	bzero(try, sizeof(try));
 	bzero(rate, sizeof(rate));
@@ -1185,14 +1189,37 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 
 	/* NB: no buffered multicast in power save support */
 
+	/* XXX If it's an ADDBA, override the correct queue */
+	do_override = ath_tx_action_frame_override_queue(sc, ni, m0, &o_tid);
+
+	/* Map ADDBA to the correct priority */
+	if (do_override) {
+#if 0
+		device_printf(sc->sc_dev,
+		    "%s: overriding tid %d pri %d -> %d\n",
+		    __func__, o_tid, pri, TID_TO_WME_AC(o_tid));
+#endif
+		pri = TID_TO_WME_AC(o_tid);
+	}
+
 	/* Fill in the details in the descriptor list */
 	ath_tx_chaindesclist(sc, sc->sc_ac2q[pri], bf);
 
-	/* Queue to software queue */
-	ath_tx_swq(sc, ni, sc->sc_ac2q[pri], bf, m0);
+	/*
+	 * If we're overiding the ADDBA destination, dump directly
+	 * into the hardware queue, right after any pending
+	 * frames to that node are.
+	 */
 
-	/* Kick txq */
-	ath_txq_sched(sc);
+	if (do_override)
+		ath_tx_handoff(sc, sc->sc_ac2q[pri], bf);
+	else {
+		/* Queue to software queue */
+		ath_tx_swq(sc, ni, sc->sc_ac2q[pri], bf, m0);
+
+		/* Kick txq */
+		ath_txq_sched(sc);
+	}
 
 	return 0;
 }
@@ -1261,6 +1288,93 @@ bad:
 	return error;
 }
 
+/* Some helper functions */
+
+/*
+ * ADDBA (and potentially others) need to be placed in the same
+ * hardware queue as the TID/node it's relating to. This is so
+ * it goes out after any pending non-aggregate frames to the
+ * same node/TID.
+ *
+ * If this isn't done, the ADDBA can go out before the frames
+ * queued in hardware. Even though these frames have a sequence
+ * number -earlier- than the ADDBA can be transmitted (but
+ * no frames whose sequence numbers are after the ADDBA should
+ * be!) they'll arrive after the ADDBA - and the receiving end
+ * will simply drop them as being out of the BAW.
+ *
+ * The frames can't be appended to the TID software queue - it'll
+ * never be sent out. So these frames have to be directly
+ * dispatched to the hardware, rather than queued in software.
+ * So if this function returns true, the TXQ has to be
+ * overridden and it has to be directly dispatched.
+ *
+ * It's a dirty hack, but someone's gotta do it.
+ */
+
+/*
+ * XXX doesn't belong here!
+ */
+static int
+ieee80211_is_action(struct ieee80211_frame *wh)
+{
+	/* Type: Management frame? */
+	if ((wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK) !=
+	    IEEE80211_FC0_TYPE_MGT)
+		return 0;
+
+	/* Subtype: Action frame? */
+	if ((wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK) !=
+	    IEEE80211_FC0_SUBTYPE_ACTION)
+		return 0;
+
+	return 1;
+}
+
+#define	MS(_v, _f)	(((_v) & _f) >> _f##_S)
+/*
+ * Return an alternate TID for ADDBA request frames.
+ *
+ * Yes, this likely should be done in the net80211 layer.
+ */
+static int
+ath_tx_action_frame_override_queue(struct ath_softc *sc,
+    struct ieee80211_node *ni,
+    struct mbuf *m0, int *tid)
+{
+	struct ieee80211_frame *wh = mtod(m0, struct ieee80211_frame *);
+	struct ieee80211_action_ba_addbarequest *ia;
+	uint8_t *frm;
+	uint16_t baparamset;
+
+	/* Not action frame? Bail */
+	if (! ieee80211_is_action(wh))
+		return 0;
+
+	/* XXX Not needed for frames we send? */
+#if 0
+	/* Correct length? */
+	if (! ieee80211_parse_action(ni, m))
+		return 0;
+#endif
+
+	/* Extract out action frame */
+	frm = (u_int8_t *)&wh[1];
+	ia = (struct ieee80211_action_ba_addbarequest *) frm;
+
+	/* Not ADDBA? Bail */
+	if (ia->rq_header.ia_category != IEEE80211_ACTION_CAT_BA)
+		return 0;
+	if (ia->rq_header.ia_action != IEEE80211_ACTION_BA_ADDBA_REQUEST)
+		return 0;
+
+	/* Extract TID, return it */
+	baparamset = le16toh(ia->rq_baparamset);
+	*tid = (int) MS(baparamset, IEEE80211_BAPS_TID);
+
+	return 1;
+}
+#undef	MS
 
 /* Per-node software queue operations */
 
