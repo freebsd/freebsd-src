@@ -59,11 +59,9 @@
 #define JF_FAILED	0x0020	/* Operation failed */
 #define JF_PARAMS	0x0040	/* Parameters checked and imported */
 #define JF_RDTUN	0x0080	/* Create-only parameter check has been done */
-#define JF_IFUP		0x0100	/* IP addresses have been configured */
-#define JF_MOUNTED	0x0200	/* Filesystems have been mounted */
-#define JF_PERSIST	0x0400	/* Jail is temporarily persistent */
-#define JF_TIMEOUT	0x0800	/* A command (or process kill) timed out */
-#define JF_SLEEPQ	0x2000	/* Waiting on a command and/or timeout */
+#define JF_PERSIST	0x0100	/* Jail is temporarily persistent */
+#define JF_TIMEOUT	0x0200	/* A command (or process kill) timed out */
+#define JF_SLEEPQ	0x0400	/* Waiting on a command and/or timeout */
 
 #define JF_OP_MASK		(JF_START | JF_SET | JF_STOP)
 #define JF_RESTART		(JF_START | JF_STOP)
@@ -102,6 +100,7 @@ enum intparam {
 	IP__IP6_IFADDR,		/* Copy of ip6.addr with interface/prefixlen */
 #endif
 	IP__MOUNT_FROM_FSTAB,	/* Line from mount.fstab file */
+	IP__OP,			/* Placeholder for requested operation */
 	KP_ALLOW_CHFLAGS,
 	KP_ALLOW_MOUNT,
 	KP_ALLOW_RAW_SOCKETS,
@@ -164,7 +163,7 @@ struct cfjail {
 	struct cfstring		*comstring;
 	struct jailparam	*jp;
 	struct timespec		timeout;
-	enum intparam		comparam;
+	const enum intparam	*comparam;
 	unsigned		flags;
 	int			jid;
 	int			seq;
@@ -187,7 +186,7 @@ extern void failed(struct cfjail *j);
 extern void jail_note(const struct cfjail *j, const char *fmt, ...);
 extern void jail_warnx(const struct cfjail *j, const char *fmt, ...);
 
-extern int run_command(struct cfjail *j, enum intparam comparam);
+extern int next_command(struct cfjail *j);
 extern int finish_command(struct cfjail *j);
 extern struct cfjail *next_proc(int nonblock);
 

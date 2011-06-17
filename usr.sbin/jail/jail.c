@@ -78,6 +78,41 @@ static struct permspec perm_sysctl[] = {
 	{ "security.jail.socket_unixiproute_only", KP_ALLOW_SOCKET_AF, 1 },
 };
 
+static const enum intparam startcommands[] = {
+    0,
+    IP__IP4_IFADDR,
+#ifdef INET6
+    IP__IP6_IFADDR,
+#endif
+    IP_MOUNT,
+    IP__MOUNT_FROM_FSTAB,
+    IP_MOUNT_DEVFS,
+    IP_EXEC_PRESTART, 
+    IP__OP,
+    IP_VNET_INTERFACE,
+    IP_EXEC_START,
+    IP_COMMAND,
+    IP_EXEC_POSTSTART,
+    0
+};
+
+static const enum intparam stopcommands[] = {
+    0,
+    IP_EXEC_PRESTOP,
+    IP_EXEC_STOP,
+    IP_STOP_TIMEOUT,
+    IP__OP,
+    IP_EXEC_POSTSTOP,
+    IP_MOUNT_DEVFS,
+    IP__MOUNT_FROM_FSTAB,
+    IP_MOUNT,
+#ifdef INET6
+    IP__IP6_IFADDR,
+#endif
+    IP__IP4_IFADDR,
+    0
+};
+
 int
 main(int argc, char **argv)
 {
@@ -290,25 +325,11 @@ main(int argc, char **argv)
 	while ((j = next_jail()))
 	{
 		if (j->flags & JF_FAILED) {
-			clear_persist(j);
-			if (j->flags & JF_MOUNTED) {
-				(void)run_command(j, IP_MOUNT_DEVFS);
-				if (run_command(j, IP__MOUNT_FROM_FSTAB))
-					while (run_command(j, 0)) ;
-				if (run_command(j, IP_MOUNT))
-					while (run_command(j, 0)) ;
-			}
-			if (j->flags & JF_IFUP) {
-				if (run_command(j, IP__IP4_IFADDR))
-					while (run_command(j, 0)) ;
-#ifdef INET6
-				if (run_command(j, IP__IP6_IFADDR))
-					while (run_command(j, 0)) ;
-#endif
-			}
 			error = 1;
-			dep_done(j, 0);
-			continue;
+			if (j->comparam == NULL) {
+				dep_done(j, 0);
+				continue;
+			}
 		}
 		if (!(j->flags & JF_PARAMS))
 		{
@@ -326,7 +347,7 @@ main(int argc, char **argv)
 			    (j->flags & (JF_SET | JF_DEPEND)) == JF_SET
 			    ? dflag || bool_param(j->intparams[IP_ALLOW_DYING])
 			    : 0);
-		if (finish_command(j) || run_command(j, 0))
+		if (finish_command(j))
 			continue;
 
 		switch (j->flags & JF_OP_MASK) {
@@ -356,17 +377,7 @@ main(int argc, char **argv)
 
 		switch (j->flags & JF_OP_MASK) {
 		case JF_START:
-			/*
-			 * 1: check existence and dependencies
-			 * 2: configure IP addresses
-			 * 3: run any exec.prestart commands
-			 * 4: create the jail
-			 * 5: configure vnet interfaces
-			 * 6: run any exec.start or "command" commands
-			 * 7: run any exec.poststart commands
-			 */
-			switch (j->comparam) {
-			default:
+			if (j->comparam == NULL) {
 				if (j->jid > 0 &&
 				    !(j->flags & (JF_DEPEND | JF_WILD))) {
 					warnx("\"%s\" already exists", j->name);
@@ -377,70 +388,38 @@ main(int argc, char **argv)
 					continue;
 				if (j->jid > 0)
 					goto jail_create_done;
-				if (run_command(j, IP__IP4_IFADDR))
-					continue;
-				/* FALLTHROUGH */
-			case IP__IP4_IFADDR:
-#ifdef INET6
-				if (run_command(j, IP__IP6_IFADDR))
-					continue;
-				/* FALLTHROUGH */
-			case IP__IP6_IFADDR:
-#endif
-				if (run_command(j, IP_MOUNT))
-					continue;
-				/* FALLTHROUGH */
-			case IP_MOUNT:
-				if (run_command(j,
-				    IP__MOUNT_FROM_FSTAB))
-					continue;
-				/* FALLTHROUGH */
-			case IP__MOUNT_FROM_FSTAB:
-				if (run_command(j, IP_MOUNT_DEVFS))
-					continue;
-				/* FALLTHROUGH */
-			case IP_MOUNT_DEVFS:
-				if (run_command(j, IP_EXEC_PRESTART))
-					continue;
-				/* FALLTHROUGH */
-			case IP_EXEC_PRESTART:
-				if (create_jail(j) < 0)
-					continue;
-				if (iflag)
-					printf("%d\n", j->jid);
-				if (jfp != NULL)
-					print_jail(jfp, j, oldcl);
-				if (verbose >= 0 && (j->name || verbose > 0))
-					jail_note(j, "created\n");
-				dep_done(j, DF_LIGHT);
-				if (bool_param(j->intparams[KP_VNET]) &&
-				    run_command(j, IP_VNET_INTERFACE))
-					continue;
-				/* FALLTHROUGH */
-			case IP_VNET_INTERFACE:
-				if (run_command(j, IP_EXEC_START))
-					continue;
-				/* FALLTHROUGH */
-			case IP_EXEC_START:
-				if (run_command(j, IP_COMMAND))
-					continue;
-				/* FALLTHROUGH */
-			case IP_COMMAND:
-				if (run_command(j, IP_EXEC_POSTSTART))
-					continue;
-				/* FALLTHROUGH */
-			case IP_EXEC_POSTSTART:
-			jail_create_done:
-				clear_persist(j);
-				dep_done(j, 0);
+				j->comparam == startcommands + 1;
+			} else if (*j->comparam == IP__OP) {
+				if (j->flags & JF_FAILED) {
+					if (jail_remove(j->jid) == 0 &&
+					    verbose >= 0 &&
+					    (j->name || verbose > 0))
+						jail_note(j, "removed\n");
+					j->jid = -1;
+					j->flags &= ~JF_PERSIST;
+					j->comparam--;
+				} else if (create_jail(j) < 0) {
+					j->comparam--;
+				} else {
+					if (verbose >= 0 &&
+					    (j->name || verbose > 0))
+						jail_note(j, "created\n");
+					dep_done(j, DF_LIGHT);
+					j->comparam++;
+				}
 			}
+			if (next_command(j))
+				continue;
+		jail_create_done:
+			clear_persist(j);
+			if (iflag)
+				printf("%d\n", j->jid);
+			if (jfp != NULL)
+				print_jail(jfp, j, oldcl);
+			dep_done(j, 0);
 			break;
 
 		case JF_SET:
-			/*
-			 * 1: check existence and dependencies
-			 * 2: update the jail
-			 */
 			if (j->jid < 0 && !(j->flags & JF_DEPEND)) {
 				warnx("\"%s\" not found", j->name);
 				failed(j);
@@ -460,17 +439,7 @@ main(int argc, char **argv)
 
 		case JF_STOP:
 		case JF_RESTART:
-			/*
-			 * 1: check dependencies and existence (note order)
-			 * 2: run any exec.prestop commands
-			 * 3: run any exec.stop commands
-			 * 4: send SIGTERM to all jail processes
-			 * 5: remove the jail
-			 * 6: run any exec.poststop commands
-			 * 7: take down IP addresses
-			 */
-			switch (j->comparam) {
-			default:
+			if (j->comparam == NULL) {
 				if (dep_check(j))
 					continue;
 				if (j->jid < 0) {
@@ -480,60 +449,28 @@ main(int argc, char **argv)
 						    j->name);
 					goto jail_remove_done;
 				}
-				if (run_command(j, IP_EXEC_PRESTOP))
-					continue;
-				/* FALLTHROUGH */
-			case IP_EXEC_PRESTOP:
-				if (run_command(j, IP_EXEC_STOP))
-					continue;
-				/* FALLTHROUGH */
-			case IP_EXEC_STOP:
-				if (run_command(j, IP_STOP_TIMEOUT))
-					continue;
-				/* FALLTHROUGH */
-			case IP_STOP_TIMEOUT:
-				(void)jail_remove(j->jid);
-				j->jid = -1;
-				if (verbose >= 0 &&
+				j->comparam == stopcommands + 1;
+			} else if ((j->flags & JF_FAILED) && j->jid > 0) {
+				goto jail_remove_done;
+			} else if (*j->comparam == IP__OP) {
+				if (jail_remove(j->jid) == 0 &&
+				    verbose >= 0 &&
 				    (docf || argc > 1 ||
 				     wild_jail_name(argv[0]) || verbose > 0))
 					jail_note(j, "removed\n");
+				j->jid = -1;
 				dep_done(j, DF_LIGHT);
-				if (run_command(j, IP_EXEC_POSTSTOP))
-					continue;
-				/* FALLTHROUGH */
-			case IP_EXEC_POSTSTOP:
-				if (run_command(j, IP_MOUNT_DEVFS))
-					continue;
-				/* FALLTHROUGH */
-			case IP_MOUNT_DEVFS:
-				if (run_command(j, IP__MOUNT_FROM_FSTAB))
-					continue;
-				/* FALLTHROUGH */
-			case IP__MOUNT_FROM_FSTAB:
-				if (run_command(j, IP_MOUNT))
-					continue;
-				/* FALLTHROUGH */
-			case IP_MOUNT:
-				if (run_command(j, IP__IP4_IFADDR))
-					continue;
-				/* FALLTHROUGH */
-			case IP__IP4_IFADDR:
-#ifdef INET6
-				if (run_command(j, IP__IP6_IFADDR))
-					continue;
-				/* FALLTHROUGH */
-			case IP__IP6_IFADDR:
-#endif
-			jail_remove_done:
-				dep_done(j, 0);
-				if (j->flags & JF_START) {
-					j->comparam = 0;
-					j->flags &= ~JF_STOP;
-					dep_reset(j);
-					requeue(j,
-					    j->ndeps ? &depend : &ready);
-				}
+				j->comparam++;
+			}
+			if (next_command(j))
+				continue;
+		jail_remove_done:
+			dep_done(j, 0);
+			if ((j->flags & (JF_START | JF_FAILED)) == JF_START) {
+				j->comparam = NULL;
+				j->flags &= ~JF_STOP;
+				dep_reset(j);
+				requeue(j, j->ndeps ? &depend : &ready);
 			}
 			break;
 		}
