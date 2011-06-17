@@ -916,6 +916,17 @@ When set, it also enforces the following options:
 .It Va WITHOUT_USB
 .\" from FreeBSD: head/tools/build/options/WITHOUT_USB 156932 2006-03-21 07:50:50Z ru
 Set to not build USB-related programs and libraries.
+.It Va WITHOUT_UTMPX
+.\" from FreeBSD: head/tools/build/options/WITHOUT_UTMPX 223209 2011-06-17 21:30:21Z ed
+Set to not build user accounting tools such as
+.Xr last 1 ,
+.Xr users 1 ,
+.Xr who 1 ,
+.Xr wtmpcvt 1 ,
+.Xr ac 8 ,
+.Xr lastlogin 8
+and
+.Xr utxrm 8 .
 .It Va WITHOUT_WIRELESS
 .\" from FreeBSD: head/tools/build/options/WITHOUT_WIRELESS 183242 2008-09-21 22:02:26Z sam
 Set to not build programs used for 802.11 wireless networks; especially
