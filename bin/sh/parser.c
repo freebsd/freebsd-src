@@ -542,10 +542,13 @@ TRACE(("expecting DO got %s %s\n", tokname[got], got == TWORD ? wordtext : ""));
 
 			checkkwd = CHKNL | CHKKWD | CHKALIAS;
 			if ((t = readtoken()) != TESAC) {
-				if (t != TENDCASE)
-					synexpect(TENDCASE);
+				if (t == TENDCASE)
+					;
+				else if (t == TFALLTHRU)
+					cp->type = NCLISTFALLTHRU;
 				else
-					checkkwd = CHKNL | CHKKWD, readtoken();
+					synexpect(TENDCASE);
+				checkkwd = CHKNL | CHKKWD, readtoken();
 			}
 			cpp = &cp->nclist.next;
 		}
@@ -931,8 +934,11 @@ xxreadtoken(void)
 			pungetc();
 			RETURN(TPIPE);
 		case ';':
-			if (pgetc() == ';')
+			c = pgetc();
+			if (c == ';')
 				RETURN(TENDCASE);
+			else if (c == '&')
+				RETURN(TFALLTHRU);
 			pungetc();
 			RETURN(TSEMI);
 		case '(':
