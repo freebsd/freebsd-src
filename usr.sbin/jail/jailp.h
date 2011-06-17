@@ -131,10 +131,10 @@ struct cfvar {
 	size_t			pos;
 };
 
-STAILQ_HEAD(cfstrings, cfstring);
+TAILQ_HEAD(cfstrings, cfstring);
 
 struct cfstring {
-	STAILQ_ENTRY(cfstring)	tq;
+	TAILQ_ENTRY(cfstring)	tq;
 	char			*s;
 	size_t			len;
 	struct cfvars		vars;

@@ -963,9 +963,9 @@ print_jail(FILE *fp, struct cfjail *j, int oldcl)
 		print_param(fp, j->intparams[KP_IP4_ADDR], ',', 0);
 #ifdef INET6
 		if (j->intparams[KP_IP6_ADDR] &&
-		    !STAILQ_EMPTY(&j->intparams[KP_IP6_ADDR]->val)) {
+		    !TAILQ_EMPTY(&j->intparams[KP_IP6_ADDR]->val)) {
 			if (j->intparams[KP_IP4_ADDR] &&
-			    !STAILQ_EMPTY(&j->intparams[KP_IP4_ADDR]->val))
+			    !TAILQ_EMPTY(&j->intparams[KP_IP4_ADDR]->val))
 				putc(',', fp);
 			print_param(fp, j->intparams[KP_IP6_ADDR], ',', 0);
 		}
@@ -993,11 +993,11 @@ print_param(FILE *fp, const struct cfparam *p, int sep, int doname)
 
 	if (doname)
 		fputs(p->name, fp);
-	if (p == NULL || STAILQ_EMPTY(&p->val))
+	if (p == NULL || TAILQ_EMPTY(&p->val))
 		return;
 	if (doname)
 		putc('=', fp);
-	STAILQ_FOREACH_SAFE(s, &p->val, tq, ts) {
+	TAILQ_FOREACH_SAFE(s, &p->val, tq, ts) {
 		quoted_print(fp, s->s);
 		if (ts != NULL)
 			putc(sep, fp);
