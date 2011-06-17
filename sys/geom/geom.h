@@ -208,6 +208,12 @@ struct g_classifier_hook {
 	void			*arg;
 };
 
+/* BIO_GETATTR("GEOM::setstate") argument values. */
+#define G_STATE_FAILED		0
+#define G_STATE_REBUILD		1
+#define G_STATE_RESYNC		2
+#define G_STATE_ACTIVE		3
+
 /* geom_dev.c */
 struct cdev;
 void g_dev_print(void);
