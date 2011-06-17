@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 1999 Poul-Henning Kamp.
- * Copyright (c) 2009-2010 James Gritton
+ * Copyright (c) 2009-2011 James Gritton
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -70,12 +70,12 @@ static void quoted_print(FILE *fp, char *str);
 static void usage(void);
 
 static struct permspec perm_sysctl[] = {
-	{ "security.jail.set_hostname_allowed", KP_ALLOW_SET_HOSTNAME, 0 },
-	{ "security.jail.sysvipc_allowed", KP_ALLOW_SYSVIPC, 0 },
-	{ "security.jail.allow_raw_sockets", KP_ALLOW_RAW_SOCKETS, 0 },
-	{ "security.jail.chflags_allowed", KP_ALLOW_CHFLAGS, 0 },
-	{ "security.jail.mount_allowed", KP_ALLOW_MOUNT, 0 },
-	{ "security.jail.socket_unixiproute_only", KP_ALLOW_SOCKET_AF, 1 },
+    { "security.jail.set_hostname_allowed", KP_ALLOW_SET_HOSTNAME, 0 },
+    { "security.jail.sysvipc_allowed", KP_ALLOW_SYSVIPC, 0 },
+    { "security.jail.allow_raw_sockets", KP_ALLOW_RAW_SOCKETS, 0 },
+    { "security.jail.chflags_allowed", KP_ALLOW_CHFLAGS, 0 },
+    { "security.jail.mount_allowed", KP_ALLOW_MOUNT, 0 },
+    { "security.jail.socket_unixiproute_only", KP_ALLOW_SOCKET_AF, 1 },
 };
 
 static const enum intparam startcommands[] = {
@@ -423,7 +423,7 @@ main(int argc, char **argv)
 			if (j->jid < 0 && !(j->flags & JF_DEPEND)) {
 				warnx("\"%s\" not found", j->name);
 				failed(j);
-				continue;;
+				continue;
 			}
 			if (dep_check(j))
 				continue;
