@@ -112,20 +112,20 @@ param	: name
 	| name '=' value
 	{
 		$$ = $1;
-		STAILQ_CONCAT(&$$->val, $3);
+		TAILQ_CONCAT(&$$->val, $3, tq);
 		free($3);
 	}
 	| name PLEQ value
 	{
 		$$ = $1;
-		STAILQ_CONCAT(&$$->val, $3);
+		TAILQ_CONCAT(&$$->val, $3, tq);
 		$$->flags |= PF_APPEND;
 		free($3);
 	}
 	| name value
 	{
 		$$ = $1;
-		STAILQ_CONCAT(&$$->val, $2);
+		TAILQ_CONCAT(&$$->val, $2, tq);
 		free($2);
 	}
 	| error
@@ -141,14 +141,14 @@ name	: STR
 	{
 		$$ = emalloc(sizeof(struct cfparam));
 		$$->name = $1;
-		STAILQ_INIT(&$$->val);
+		TAILQ_INIT(&$$->val);
 		$$->flags = 0;
 	}
 	| VAR
 	{
 		$$ = emalloc(sizeof(struct cfparam));
 		$$->name = $1;
-		STAILQ_INIT(&$$->val);
+		TAILQ_INIT(&$$->val);
 		$$->flags = PF_VAR;
 	}
 	;
@@ -156,13 +156,13 @@ name	: STR
 value	: string
 	{
 		$$ = emalloc(sizeof(struct cfstrings));
-		STAILQ_INIT($$);
-		STAILQ_INSERT_TAIL($$, $1, tq);
+		TAILQ_INIT($$);
+		TAILQ_INSERT_TAIL($$, $1, tq);
 	}
 	| value ',' string
 	{
 		$$ = $1;
-		STAILQ_INSERT_TAIL($$, $3, tq);
+		TAILQ_INSERT_TAIL($$, $3, tq);
 	}
 	;
 

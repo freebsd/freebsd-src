@@ -178,7 +178,7 @@ load_config(void)
 		TAILQ_FOREACH(p, &j->params, tq) {
 		    p->gen = ++pgen;
 		find_vars:
-		    STAILQ_FOREACH(s, &p->val, tq) {
+		    TAILQ_FOREACH(s, &p->val, tq) {
 			varoff = 0;
 			while ((v = STAILQ_FIRST(&s->vars))) {
 				TAILQ_FOREACH(vp, &j->params, tq)
@@ -202,7 +202,7 @@ load_config(void)
 					    v->name);
 					goto bad_var;
 				}
-				STAILQ_FOREACH(vs, &vp->val, tq)
+				TAILQ_FOREACH(vs, &vp->val, tq)
 					if (!STAILQ_EMPTY(&vs->vars)) {
 						vp->gen = pgen;
 						TAILQ_REMOVE(&j->params, vp,
@@ -211,8 +211,8 @@ load_config(void)
 						p = vp;
 						goto find_vars;
 					}
-				vs = STAILQ_FIRST(&vp->val);
-				if (STAILQ_NEXT(vs, tq) != NULL &&
+				vs = TAILQ_FIRST(&vp->val);
+				if (TAILQ_NEXT(vs, tq) != NULL &&
 				    (s->s[0] != '\0' ||
 				     STAILQ_NEXT(v, tq))) {
 					jail_warnx(j, "%s: array cannot be "
@@ -227,12 +227,12 @@ load_config(void)
 				memcpy(s->s + v->pos + varoff, vs->s, vs->len);
 				varoff += vs->len;
 				s->len += vs->len;
-				while ((vs = STAILQ_NEXT(vs, tq))) {
+				while ((vs = TAILQ_NEXT(vs, tq))) {
 					ns = emalloc(sizeof(struct cfstring));
 					ns->s = estrdup(vs->s);
 					ns->len = vs->len;
 					STAILQ_INIT(&ns->vars);
-					STAILQ_INSERT_AFTER(&p->val, s, ns, tq);
+					TAILQ_INSERT_AFTER(&p->val, s, ns, tq);
 					s = ns;
 				}
 			free_var:
@@ -298,7 +298,7 @@ add_param(struct cfjail *j, const struct cfparam *p, enum intparam ipnum,
 		if (j == NULL)
 			j = add_jail();
 	}
-	STAILQ_INIT(&nss);
+	TAILQ_INIT(&nss);
 	if (p != NULL) {
 		name = p->name;
 		flags = p->flags;
@@ -306,7 +306,7 @@ add_param(struct cfjail *j, const struct cfparam *p, enum intparam ipnum,
 		 * Make a copy of the parameter's string list,
 		 * which may be freed if it's overridden later.
 		 */
-		STAILQ_FOREACH(s, &p->val, tq) {
+		TAILQ_FOREACH(s, &p->val, tq) {
 			ns = emalloc(sizeof(struct cfstring));
 			ns->s = estrdup(s->s);
 			ns->len = s->len;
@@ -317,7 +317,7 @@ add_param(struct cfjail *j, const struct cfparam *p, enum intparam ipnum,
 				nv->pos = v->pos;
 				STAILQ_INSERT_TAIL(&ns->vars, nv, tq);
 			}
-			STAILQ_INSERT_TAIL(&nss, ns, tq);
+			TAILQ_INSERT_TAIL(&nss, ns, tq);
 		}
 	} else {
 		flags = PF_APPEND;
@@ -338,7 +338,7 @@ add_param(struct cfjail *j, const struct cfparam *p, enum intparam ipnum,
 			ns->s = estrdup(value);
 			ns->len = strlen(value);
 			STAILQ_INIT(&ns->vars);
-			STAILQ_INSERT_TAIL(&nss, ns, tq);
+			TAILQ_INSERT_TAIL(&nss, ns, tq);
 		}
 	}
 
@@ -355,16 +355,16 @@ add_param(struct cfjail *j, const struct cfparam *p, enum intparam ipnum,
 			free(dp->name);
 			dp->name = estrdup(name);
 		}
-		if (!(flags & PF_APPEND) || STAILQ_EMPTY(&nss))
+		if (!(flags & PF_APPEND) || TAILQ_EMPTY(&nss))
 			free_param_strings(dp);
-		STAILQ_CONCAT(&dp->val, &nss);
+		TAILQ_CONCAT(&dp->val, &nss, tq);
 		dp->flags |= flags;
 	} else {
 		/* Not found - add it. */
 		np = emalloc(sizeof(struct cfparam));
 		np->name = estrdup(name);
-		STAILQ_INIT(&np->val);
-		STAILQ_CONCAT(&np->val, &nss);
+		TAILQ_INIT(&np->val);
+		TAILQ_CONCAT(&np->val, &nss, tq);
 		np->flags = flags;
 		np->gen = 0;
 		TAILQ_INSERT_TAIL(&j->params, np, tq);
@@ -393,9 +393,9 @@ bool_param(const struct cfparam *p)
 		return 0;
 	cs = strrchr(p->name, '.');
 	return !strncmp(cs ? cs + 1 : p->name, "no", 2) ^
-	    (STAILQ_EMPTY(&p->val) ||
-	     !strcasecmp(STAILQ_LAST(&p->val, cfstring, tq)->s, "true") ||
-	     (strtol(STAILQ_LAST(&p->val, cfstring, tq)->s, NULL, 10)));
+	    (TAILQ_EMPTY(&p->val) ||
+	     !strcasecmp(TAILQ_LAST(&p->val, cfstrings)->s, "true") ||
+	     (strtol(TAILQ_LAST(&p->val, cfstrings)->s, NULL, 10)));
 }
 
 /*
@@ -404,9 +404,9 @@ bool_param(const struct cfparam *p)
 int
 int_param(const struct cfparam *p, int *ip)
 {
-	if (p == NULL || STAILQ_EMPTY(&p->val))
+	if (p == NULL || TAILQ_EMPTY(&p->val))
 		return 0;
-	*ip = strtol(STAILQ_LAST(&p->val, cfstring, tq)->s, NULL, 10);
+	*ip = strtol(TAILQ_LAST(&p->val, cfstrings)->s, NULL, 10);
 	return 1;
 }
 
@@ -416,8 +416,8 @@ int_param(const struct cfparam *p, int *ip)
 const char *
 string_param(const struct cfparam *p)
 {
-	return (p && !STAILQ_EMPTY(&p->val)
-	    ? STAILQ_LAST(&p->val, cfstring, tq)->s : NULL);
+	return (p && !TAILQ_EMPTY(&p->val)
+	    ? TAILQ_LAST(&p->val, cfstrings)->s : NULL);
 }
 
 /*
@@ -448,9 +448,8 @@ check_intparams(struct cfjail *j)
 	error = 0;
 	/* Check format of boolan and integer values. */
 	TAILQ_FOREACH(p, &j->params, tq) {
-		if (!STAILQ_EMPTY(&p->val) &&
-		    (p->flags & (PF_BOOL | PF_INT))) {
-			val = STAILQ_LAST(&p->val, cfstring, tq)->s;
+		if (!TAILQ_EMPTY(&p->val) && (p->flags & (PF_BOOL | PF_INT))) {
+			val = TAILQ_LAST(&p->val, cfstrings)->s;
 			if (p->flags & PF_BOOL) {
 				if (strcasecmp(val, "false") &&
 				    strcasecmp(val, "true") &&
@@ -565,7 +564,7 @@ check_intparams(struct cfjail *j)
 	{
 		if (j->intparams[KP_IP4_ADDR + isip6] == NULL)
 			continue;
-		STAILQ_FOREACH(s, &j->intparams[KP_IP4_ADDR + isip6]->val, tq) {
+		TAILQ_FOREACH(s, &j->intparams[KP_IP4_ADDR + isip6]->val, tq) {
 			cs = strchr(s->s, '|');
 			if (cs || defif)
 				add_param(j, NULL, IP__IP4_IFADDR + isip6,
@@ -610,7 +609,7 @@ check_intparams(struct cfjail *j)
 	 * parameter.
 	 */
 	if (j->intparams[IP_MOUNT_FSTAB] != NULL) {
-		STAILQ_FOREACH(s, &j->intparams[IP_MOUNT_FSTAB]->val, tq) {
+		TAILQ_FOREACH(s, &j->intparams[IP_MOUNT_FSTAB]->val, tq) {
 			if (s->len == 0)
 				continue;
 			f = fopen(s->s, "r");
@@ -668,28 +667,28 @@ import_params(struct cfjail *j)
 			jail_warnx(j, "%s", jail_errmsg);
 			continue;
 		}
-		if (STAILQ_EMPTY(&p->val))
+		if (TAILQ_EMPTY(&p->val))
 			value = NULL;
 		else if (!jp->jp_elemlen ||
-			 !STAILQ_NEXT(STAILQ_FIRST(&p->val), tq)) {
+			 !TAILQ_NEXT(TAILQ_FIRST(&p->val), tq)) {
 			/*
 			 * Scalar parameters silently discard multiple (array)
 			 * values, keeping only the last value added.  This
 			 * lets values added from the command line append to
 			 * arrays wthout pre-checking the type.
 			 */
-			value = STAILQ_LAST(&p->val, cfstring, tq)->s;
+			value = TAILQ_LAST(&p->val, cfstrings)->s;
 		} else {
 			/*
 			 * Convert arrays into comma-separated strings, which
 			 * jailparam_import will then convert back into arrays.
 			 */
 			vallen = 0;
-			STAILQ_FOREACH(s, &p->val, tq)
+			TAILQ_FOREACH(s, &p->val, tq)
 				vallen += s->len + 1;
 			value = alloca(vallen);
 			cs = value;
-			STAILQ_FOREACH_SAFE(s, &p->val, tq, ts) {
+			TAILQ_FOREACH_SAFE(s, &p->val, tq, ts) {
 				strcpy(cs, s->s);
 				if (ts != NULL) {
 					cs += s->len + 1;
@@ -796,14 +795,14 @@ free_param_strings(struct cfparam *p)
 	struct cfstring *s;
 	struct cfvar *v;
 
-	while ((s = STAILQ_FIRST(&p->val))) {
+	while ((s = TAILQ_FIRST(&p->val))) {
 		free(s->s);
 		while ((v = STAILQ_FIRST(&s->vars))) {
 			free(v->name);
 			STAILQ_REMOVE_HEAD(&s->vars, tq);
 			free(v);
 		}
-		STAILQ_REMOVE_HEAD(&p->val, tq);
+		TAILQ_REMOVE(&p->val, s, tq);
 		free(s);
 	}
 }
