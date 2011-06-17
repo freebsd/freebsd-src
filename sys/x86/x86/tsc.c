@@ -461,7 +461,7 @@ init_TSC_tc(void)
 		tsc_timecounter.tc_quality = 1000;
 
 init:
-	for (shift = 0; shift < 32 && (tsc_freq >> shift) > max_freq; shift++)
+	for (shift = 0; shift < 31 && (tsc_freq >> shift) > max_freq; shift++)
 		;
 	if (shift > 0) {
 		tsc_timecounter.tc_get_timecount = tsc_get_timecount_low;
@@ -579,6 +579,9 @@ tsc_get_timecount(struct timecounter *tc __unused)
 static u_int
 tsc_get_timecount_low(struct timecounter *tc)
 {
+	uint32_t rv;
 
-	return (rdtsc() >> (int)(intptr_t)tc->tc_priv);
+	__asm __volatile("rdtsc; shrd %%cl, %%edx, %0"
+	: "=a" (rv) : "c" ((int)(intptr_t)tc->tc_priv) : "edx");
+	return (rv);
 }
