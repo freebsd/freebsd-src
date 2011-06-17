@@ -96,12 +96,13 @@ NCASE ncase			# a case statement
 	expr	  nodeptr		# the word to switch on
 	cases	  nodeptr		# the list of cases (NCLIST nodes)
 
-NCLIST nclist			# a case
+NCLIST nclist			# a case ending with ;;
 	type	  int
 	next	  nodeptr		# the next case in list
 	pattern	  nodeptr		# list of patterns for this case
 	body	  nodeptr		# code to execute for this case
 
+NCLISTFALLTHRU nclist		# a case ending with ;&
 
 NDEFUN narg			# define a function.  The "next" field contains
 				# the body of the function.

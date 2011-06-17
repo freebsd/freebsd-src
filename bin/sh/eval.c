@@ -386,6 +386,14 @@ evalcase(union node *n, int flags)
 	for (cp = n->ncase.cases ; cp && evalskip == 0 ; cp = cp->nclist.next) {
 		for (patp = cp->nclist.pattern ; patp ; patp = patp->narg.next) {
 			if (casematch(patp, arglist.list->text)) {
+				while (cp->nclist.next &&
+				    cp->type == NCLISTFALLTHRU) {
+					if (evalskip != 0)
+						break;
+					evaltree(cp->nclist.body,
+					    flags & ~EV_EXIT);
+					cp = cp->nclist.next;
+				}
 				if (evalskip == 0) {
 					evaltree(cp->nclist.body, flags);
 				}
