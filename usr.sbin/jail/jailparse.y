@@ -1,6 +1,6 @@
 %{
 /*-
- * Copyright (c) 2010 James Gritton
+ * Copyright (c) 2011 James Gritton
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
