@@ -365,9 +365,6 @@ sctp_opt_info(int sd, sctp_assoc_t id, int opt, void *arg, socklen_t * size)
 	case SCTP_DEFAULT_SEND_PARAM:
 		((struct sctp_assocparams *)arg)->sasoc_assoc_id = id;
 		break;
-	case SCTP_SET_PEER_PRIMARY_ADDR:
-		((struct sctp_setpeerprim *)arg)->sspp_assoc_id = id;
-		break;
 	case SCTP_PRIMARY_ADDR:
 		((struct sctp_setprim *)arg)->ssp_assoc_id = id;
 		break;
@@ -406,6 +403,12 @@ sctp_opt_info(int sd, sctp_assoc_t id, int opt, void *arg, socklen_t * size)
 		break;
 	case SCTP_EVENT:
 		((struct sctp_event *)arg)->se_assoc_id = id;
+		break;
+	case SCTP_DEFAULT_SNDINFO:
+		((struct sctp_sndinfo *)arg)->snd_assoc_id = id;
+		break;
+	case SCTP_DEFAULT_PRINFO:
+		((struct sctp_default_prinfo *)arg)->pr_assoc_id = id;
 		break;
 	default:
 		break;
