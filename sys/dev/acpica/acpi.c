@@ -151,6 +151,7 @@ static ACPI_STATUS acpi_sleep_disable(struct acpi_softc *sc);
 static ACPI_STATUS acpi_EnterSleepState(struct acpi_softc *sc, int state);
 static void	acpi_shutdown_final(void *arg, int howto);
 static void	acpi_enable_fixed_events(struct acpi_softc *sc);
+static BOOLEAN	acpi_has_hid(ACPI_HANDLE handle);
 static int	acpi_wake_sleep_prep(ACPI_HANDLE handle, int sstate);
 static int	acpi_wake_run_prep(ACPI_HANDLE handle, int sstate);
 static int	acpi_wake_prep_walk(int sstate);
@@ -1855,6 +1856,13 @@ acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
 		break;
 	    if (acpi_parse_prw(handle, &prw) == 0)
 		AcpiSetupGpeForWake(handle, prw.gpe_handle, prw.gpe_bit);
+
+	    /*
+	     * Ignore devices that do not have a _HID or _CID.  They should
+	     * be discovered by other buses (e.g. the PCI bus driver).
+	     */
+	    if (!acpi_has_hid(handle))
+		break;
 	    /* FALLTHROUGH */
 	case ACPI_TYPE_PROCESSOR:
 	case ACPI_TYPE_THERMAL:
@@ -2040,6 +2048,30 @@ acpi_BatteryIsPresent(device_t dev)
 
     AcpiOsFree(devinfo);
     return (present);
+}
+
+/*
+ * Returns true if a device has at least one valid device ID.
+ */
+static BOOLEAN
+acpi_has_hid(ACPI_HANDLE h)
+{
+    ACPI_DEVICE_INFO	*devinfo;
+    BOOLEAN		ret;
+
+    if (h == NULL ||
+	ACPI_FAILURE(AcpiGetObjectInfo(h, &devinfo)))
+	return (FALSE);
+
+    ret = FALSE;
+    if ((devinfo->Valid & ACPI_VALID_HID) != 0)
+	ret = TRUE;
+    else if ((devinfo->Valid & ACPI_VALID_CID) != 0)
+	if (devinfo->CompatibleIdList.Count > 0)
+	    ret = TRUE;
+
+    AcpiOsFree(devinfo);
+    return (ret);
 }
 
 /*
