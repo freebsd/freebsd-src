@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 24, 2008
+.Dd June 17, 2011
 .Dt POSIX_SPAWN 3
 .Os
 .Sh NAME
@@ -384,29 +384,28 @@ the child process exits with exit status 127).
 .It
 If the
 .Fa file_actions
-argument is not NULL, and specifies any close, dup2, or open actions to be
+argument is not NULL, and specifies any dup2 or open actions to be
 performed, and if
 .Fn posix_spawn
 or
 .Fn posix_spawnp
 fails for any of the reasons that would cause
-.Fn close ,
-.Fn dup2 ,
+.Fn dup2
 or
 .Fn open
 to fail, an error value is returned as described by
-.Fn close ,
-.Fn dup2 ,
+.Fn dup2
 and
 .Fn open ,
 respectively (or, if the error occurs after the calling process successfully
 returns, the child process exits with exit status 127). An open file action
 may, by itself, result in any of the errors described by
-.Fn close
-or
 .Fn dup2 ,
 in addition to those described by
 .Fn open .
+This implementation ignores any errors from
+.Fn close ,
+including trying to close a descriptor that is not open.
 .El
 .Sh SEE ALSO
 .Xr close 2 ,
@@ -443,7 +442,13 @@ The
 and
 .Fn posix_spawnp
 functions conform to
-.St -p1003.1-2001 .
+.St -p1003.1-2001 ,
+except that they ignore all errors from
+.Fn close .
+A future update of the Standard is expected to require that these functions
+not fail because a file descriptor to be closed (via
+.Fn posix_spawn_file_actions_addclose )
+is not open.
 .Sh HISTORY
 The
 .Fn posix_spawn
