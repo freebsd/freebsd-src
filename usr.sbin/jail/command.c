@@ -50,7 +50,6 @@ __FBSDID("$FreeBSD$");
 
 #include "jailp.h"
 
-#define COMSTRING_DUMMY		((struct cfstring *)1)
 #define DEFAULT_STOP_TIMEOUT	10
 #define PHASH_SIZE		256
 
@@ -66,12 +65,13 @@ int paralimit = -1;
 
 extern char **environ;
 
-static int get_user_info(struct cfjail *j, const char *username,
-    const struct passwd **pwdp, login_cap_t **lcapp);
+static int run_command(struct cfjail *j);
 static void add_proc(struct cfjail *j, pid_t pid);
 static void clear_procs(struct cfjail *j);
 static struct cfjail *find_proc(pid_t pid);
 static int term_procs(struct cfjail *j);
+static int get_user_info(struct cfjail *j, const char *username,
+    const struct passwd **pwdp, login_cap_t **lcapp);
 static int check_path(struct cfjail *j, const char *pname, const char *path,
     int isfile, const char *umount_type);
 
@@ -81,384 +81,60 @@ static struct phhead phash[PHASH_SIZE];
 static int kq;
 
 /*
- * Run a command associated with a jail, possibly inside the jail.
+ * Run the next command associated with a jail.
  */
 int
-run_command(struct cfjail *j, enum intparam comparam)
+next_command(struct cfjail *j)
 {
-	const struct passwd *pwd;
-	struct cfstring *comstring, *s;
-	login_cap_t *lcap;
-	char **argv;
-	char *cs, *addr, *comcs, *devpath;
-	const char *jidstr, *conslog, *path, *ruleset, *term, *username;
-	size_t comlen;
-	pid_t pid;
-	int argc, bg, clean, consfd, down, fib, i, injail, sjuser, timeout;
+	const struct cfstring *comstring;
+	enum intparam comparam;
+	int rval, create_failed;
 
-	static char *cleanenv;
+	static struct cfstring dummystring = { .len = 1 };
 
-	if (comparam) {
-		switch (comparam) {
-		case IP_MOUNT_DEVFS:
-			if (!bool_param(j->intparams[IP_MOUNT_DEVFS]))
-				return 0;
-			/* FALLTHROUGH */
-		case IP_STOP_TIMEOUT:
-			j->comstring = COMSTRING_DUMMY;
-			break;
-		default:
-			if (j->intparams[comparam] == NULL)
-				return 0;
-			j->comstring =
-			    TAILQ_FIRST(&j->intparams[comparam]->val);
-		}
-		j->comparam = comparam;
-	} else
-		comparam = j->comparam;
- next_comstring:
-	comstring = j->comstring;
-	if (comstring == NULL)
-		return 0;
-	if (paralimit == 0) {
-		requeue(j, &runnable);
-		return 1;
-	}
-	j->comstring =
-	    comstring == COMSTRING_DUMMY ? NULL : TAILQ_NEXT(comstring, tq);
-	if (comstring != COMSTRING_DUMMY && comstring->len == 0)
-		goto next_comstring;
-	/*
-	 * Collect exec arguments.  Internal commands for network and
-	 * mounting build their own argument lists.
-	 */
-	bg = j->flags & JF_FAILED;
-	down = j->flags & (JF_STOP | JF_FAILED);
-	switch (comparam) {
-	case IP_STOP_TIMEOUT:
-		/* This isn't really a command */
-		return term_procs(j);
-
-	case IP__IP4_IFADDR:
-		argv = alloca(8 * sizeof(char *));
-		*(const char **)&argv[0] = _PATH_IFCONFIG;
-		if ((cs = strchr(comstring->s, '|'))) {
-			argv[1] = alloca(cs - comstring->s + 1);
-			strlcpy(argv[1], comstring->s, cs - comstring->s + 1);
-			addr = cs + 1;
-		} else {
-			*(const char **)&argv[1] =
-			    string_param(j->intparams[IP_INTERFACE]);
-			addr = comstring->s;
-		}
-		*(const char **)&argv[2] = "inet";
-		if (!(cs = strchr(addr, '/'))) {
-			argv[3] = addr;
-			*(const char **)&argv[4] = "netmask";
-			*(const char **)&argv[5] = "255.255.255.255";
-			argc = 6;
-		} else if (strchr(cs + 1, '.')) {
-			argv[3] = alloca(cs - addr + 1);
-			strlcpy(argv[3], addr, cs - addr + 1);
-			*(const char **)&argv[4] = "netmask";
-			*(const char **)&argv[5] = cs + 1;
-			argc = 6;
-		} else {
-			argv[3] = addr;
-			argc = 4;
-		}
-		*(const char **)&argv[argc] = down ? "-alias" : "alias";
-		argv[argc + 1] = NULL;
-		j->flags |= JF_IFUP;
-		break;
-
-#ifdef INET6
-	case IP__IP6_IFADDR:
-		argv = alloca(8 * sizeof(char *));
-		*(const char **)&argv[0] = _PATH_IFCONFIG;
-		if ((cs = strchr(comstring->s, '|'))) {
-			argv[1] = alloca(cs - comstring->s + 1);
-			strlcpy(argv[1], comstring->s, cs - comstring->s + 1);
-			addr = cs + 1;
-		} else {
-			*(const char **)&argv[1] =
-			    string_param(j->intparams[IP_INTERFACE]);
-			addr = comstring->s;
-		}
-		*(const char **)&argv[2] = "inet6";
-		argv[3] = addr;
-		if (!(cs = strchr(addr, '/'))) {
-			*(const char **)&argv[4] = "prefixlen";
-			*(const char **)&argv[5] = "128";
-			argc = 6;
-		} else
-			argc = 4;
-		*(const char **)&argv[argc] = down ? "-alias" : "alias";
-		argv[argc + 1] = NULL;
-		j->flags |= JF_IFUP;
-		break;	
-#endif
-
-	case IP_VNET_INTERFACE:
-		argv = alloca(5 * sizeof(char *));
-		*(const char **)&argv[0] = _PATH_IFCONFIG;
-		argv[1] = comstring->s;
-		*(const char **)&argv[2] = down ? "-vnet" : "vnet";
-		jidstr = string_param(j->intparams[KP_JID]);
-		*(const char **)&argv[3] =
-			jidstr ? jidstr : string_param(j->intparams[KP_NAME]);
-		argv[4] = NULL;
-		j->flags |= JF_IFUP;
-		break;
-
-	case IP_MOUNT:
-	case IP__MOUNT_FROM_FSTAB:
-		argv = alloca(8 * sizeof(char *));
-		comcs = alloca(comstring->len + 1);
-		strcpy(comcs, comstring->s);
-		argc = 0;
-		for (cs = strtok(comcs, " \t\f\v\r\n"); cs && argc < 4;
-		     cs = strtok(NULL, " \t\f\v\r\n"))
-			argv[argc++] = cs;
-		if (argc == 0)
-			goto next_comstring;
-		if (argc < 3) {
-			jail_warnx(j, "%s: %s: missing information",
-			    j->intparams[comparam]->name, comstring->s);
-			failed(j);
-			return -1;
-		}
-		if (check_path(j, j->intparams[comparam]->name, argv[1], 0,
-		    down ? argv[2] : NULL) < 0) {
-			failed(j);
-			return -1;
-		}
-		if (down) {
-			argv[4] = NULL;
-			argv[3] = argv[1];
-			*(const char **)&argv[0] = "/sbin/umount";
-		} else {
-			if (argc == 4) {
-				argv[7] = NULL;
-				argv[6] = argv[1];
-				argv[5] = argv[0];
-				argv[4] = argv[3];
-				*(const char **)&argv[3] = "-o";
-			} else {
-				argv[5] = NULL;
-				argv[4] = argv[1];
-				argv[3] = argv[0];
+	rval = 0;
+	create_failed = (j->flags & (JF_STOP | JF_FAILED)) == JF_FAILED;
+	for (; (comparam = *j->comparam) && comparam != IP__OP;
+	     j->comparam += create_failed ? -1 : 1) {
+		if (j->comstring == NULL) {
+			switch (comparam) {
+			case IP_MOUNT_DEVFS:
+				if (!bool_param(j->intparams[IP_MOUNT_DEVFS]))
+					continue;
+				/* FALLTHROUGH */
+			case IP_STOP_TIMEOUT:
+				j->comstring = &dummystring;
+				break;
+			default:
+				if (j->intparams[comparam] == NULL)
+					continue;
+				j->comstring = create_failed
+				    ? TAILQ_LAST(&j->intparams[comparam]->val,
+					cfstrings)
+				    : TAILQ_FIRST(&j->intparams[comparam]->val);
 			}
-			*(const char **)&argv[0] = _PATH_MOUNT;
 		}
-		*(const char **)&argv[1] = "-t";
-		j->flags |= JF_MOUNTED;
-		break;
-
-	case IP_MOUNT_DEVFS:
-		path = string_param(j->intparams[KP_PATH]);
-		if (path == NULL) {
-			jail_warnx(j, "mount.devfs: no path");
-			failed(j);
-			return -1;
-		}
-		devpath = alloca(strlen(path) + 5);
-		sprintf(devpath, "%s/dev", path);
-		if (check_path(j, "mount.devfs", devpath, 0,
-		    down ? "devfs" : NULL) < 0) {
-			failed(j);
-			return -1;
-		}
-		if (down) {
-			argv = alloca(3 * sizeof(char *));
-			*(const char **)&argv[0] = "/sbin/umount";
-			argv[1] = devpath;
-			argv[2] = NULL;
-		} else {
-			argv = alloca(4 * sizeof(char *));
-			*(const char **)&argv[0] = _PATH_BSHELL;
-			*(const char **)&argv[1] = "-c";
-			ruleset = string_param(j->intparams
-			    [IP_MOUNT_DEVFS_RULESET]);
-			argv[2] = alloca(strlen(path) +
-			    (ruleset ? strlen(ruleset) + 1 : 0) + 56);
-			sprintf(argv[2], ". /etc/rc.subr; load_rc_config .; "
-			    "devfs_mount_jail %s/dev%s%s", path,
-			    ruleset ? " " : "", ruleset ? ruleset : "");
-			argv[3] = NULL;
-		}
-		j->flags |= JF_MOUNTED;
-		break;
-
-	case IP_COMMAND:
-		if (j->name != NULL)
-			goto default_command;
-		argc = 0;
-		TAILQ_FOREACH(s, &j->intparams[IP_COMMAND]->val, tq)
-			argc++;
-		argv = alloca((argc + 1) * sizeof(char *));
-		argc = 0;
-		TAILQ_FOREACH(s, &j->intparams[IP_COMMAND]->val, tq)
-			argv[argc++] = s->s;
-		argv[argc] = NULL;
-		j->comstring = NULL;
-		break;
-
-	default:
-	default_command:
-		if ((cs = strpbrk(comstring->s, "!\"$&'()*;<>?[\\]`{|}~")) &&
-		    !(cs[0] == '&' && cs[1] == '\0')) {
-			argv = alloca(4 * sizeof(char *));
-			*(const char **)&argv[0] = _PATH_BSHELL;
-			*(const char **)&argv[1] = "-c";
-			argv[2] = comstring->s;
-			argv[3] = NULL;
-		} else {
-			if (cs) {
-				*cs = 0;
-				bg = 1;
+		for (; j->comstring != NULL;
+		     j->comstring = create_failed
+			? TAILQ_PREV(j->comstring, cfstrings, tq)
+			: TAILQ_NEXT(j->comstring, tq)) {
+			if (rval != 0)
+				return rval;
+			if (j->comstring->len == 0 || (create_failed &&
+			    (comparam == IP_EXEC_PRESTART || comparam ==
+			    IP_EXEC_START || comparam == IP_COMMAND ||
+			    comparam == IP_EXEC_POSTSTART)))
+				continue;
+			if (paralimit == 0) {
+				requeue(j, &runnable);
+				return 1;
 			}
-			comcs = alloca(comstring->len + 1);
-			strcpy(comcs, comstring->s);	
-			argc = 0;
-			for (cs = strtok(comcs, " \t\f\v\r\n"); cs;
-			     cs = strtok(NULL, " \t\f\v\r\n"))
-				argc++;
-			argv = alloca((argc + 1) * sizeof(char *));
-			strcpy(comcs, comstring->s);	
-			argc = 0;
-			for (cs = strtok(comcs, " \t\f\v\r\n"); cs;
-			     cs = strtok(NULL, " \t\f\v\r\n"))
-				argv[argc++] = cs;
-			argv[argc] = NULL;
+			rval = run_command(j);
+			create_failed =
+			    (j->flags & (JF_STOP | JF_FAILED)) == JF_FAILED;
 		}
 	}
-
-	if (argv[0] == NULL)
-		goto next_comstring;
-	if (int_param(j->intparams[IP_EXEC_TIMEOUT], &timeout) &&
-	    timeout != 0) {
-		clock_gettime(CLOCK_REALTIME, &j->timeout);
-		j->timeout.tv_sec += timeout;
-	} else
-		j->timeout.tv_sec = 0;
-
-	injail = comparam == IP_EXEC_START || comparam == IP_COMMAND ||
-	    comparam == IP_EXEC_STOP;
-	clean = bool_param(j->intparams[IP_EXEC_CLEAN]);
-	username = string_param(j->intparams[injail
-	    ? IP_EXEC_JAIL_USER : IP_EXEC_SYSTEM_USER]);
-	sjuser = bool_param(j->intparams[IP_EXEC_SYSTEM_JAIL_USER]);
-
-	consfd = 0;
-	if (injail &&
-	    (conslog = string_param(j->intparams[IP_EXEC_CONSOLELOG]))) {
-		if (check_path(j, "exec.consolelog", conslog, 1, NULL) < 0) {
-			failed(j);
-			return -1;
-		}
-		consfd =
-		    open(conslog, O_WRONLY | O_CREAT | O_APPEND, DEFFILEMODE);
-		if (consfd < 0) {
-			jail_warnx(j, "open %s: %s", conslog, strerror(errno));
-			failed(j);
-			return -1;
-		}
-	}
-
-	comlen = 0;
-	for (i = 0; argv[i]; i++)
-		comlen += strlen(argv[i]) + 1;
-	j->comline = cs = emalloc(comlen);
-	for (i = 0; argv[i]; i++) {
-		strcpy(cs, argv[i]);
-		if (argv[i + 1]) {
-			cs += strlen(argv[i]) + 1;
-			cs[-1] = ' ';
-		}
-	}
-	if (verbose > 0)
-		jail_note(j, "run command%s%s%s: %s\n",
-		    injail ? " in jail" : "", username ? " as " : "",
-		    username ? username : "", j->comline);
-
-	pid = fork();
-	if (pid < 0)
-		err(1, "fork");
-	if (pid > 0) {
-		if (bg) {
-			free(j->comline);
-			j->comline = NULL;
-			requeue(j, &ready);
-		} else {
-			paralimit--;
-			add_proc(j, pid);
-		}
-		return 1;
-	}
-	if (bg)
-		setsid();
-
-	pwd = NULL;
-	lcap = NULL;
-	if ((clean || username) && injail && sjuser &&
-	    get_user_info(j, username, &pwd, &lcap) < 0)
-		exit(1);
-	if (injail) {
-		/* jail_attach won't chdir along with its chroot. */
-		path = string_param(j->intparams[KP_PATH]);
-		if (path && chdir(path) < 0) {
-			jail_warnx(j, "chdir %s: %s", path, strerror(errno));
-			exit(1);
-		}
-		if (int_param(j->intparams[IP_EXEC_FIB], &fib) &&
-		    setfib(fib) < 0) {
-			jail_warnx(j, "setfib: %s", strerror(errno));
-			exit(1);
-		}
-		if (jail_attach(j->jid) < 0) {
-			jail_warnx(j, "jail_attach: %s", strerror(errno));
-			exit(1);
-		}
-	}
-	if (clean || username) {
-		if (!(injail && sjuser) &&
-		    get_user_info(j, username, &pwd, &lcap) < 0)
-			exit(1);
-		if (clean) {
-			term = getenv("TERM");
-			environ = &cleanenv;
-			setenv("PATH", "/bin:/usr/bin", 0);
-			setenv("TERM", term, 1);
-		}
-		if (setusercontext(lcap, pwd, pwd->pw_uid, username
-		    ? LOGIN_SETALL & ~LOGIN_SETGROUP & ~LOGIN_SETLOGIN
-		    : LOGIN_SETPATH | LOGIN_SETENV) < 0) {
-			jail_warnx(j, "setusercontext %s: %s", pwd->pw_name,
-			    strerror(errno));
-			exit(1);
-		}
-		login_close(lcap);
-		setenv("USER", pwd->pw_name, 1);
-		setenv("HOME", pwd->pw_dir, 1);
-		setenv("SHELL",
-		    *pwd->pw_shell ? pwd->pw_shell : _PATH_BSHELL, 1);
-		if (clean && chdir(pwd->pw_dir) < 0) {
-			jail_warnx(j, "chdir %s: %s",
-			    pwd->pw_dir, strerror(errno));
-			exit(1);
-		}
-		endpwent();
-	}
-
-	if (consfd != 0 && (dup2(consfd, 1) < 0 || dup2(consfd, 2) < 0)) {
-		jail_warnx(j, "exec.consolelog: %s", strerror(errno));
-		exit(1);
-	}
-	closefrom(3);
-	execvp(argv[0], argv);
-	jail_warnx(j, "exec %s: %s", argv[0], strerror(errno));
-	exit(1);
+	return rval;
 }
 
 /*
@@ -472,7 +148,7 @@ finish_command(struct cfjail *j)
 	if (!(j->flags & JF_SLEEPQ))
 		return 0;
 	j->flags &= ~JF_SLEEPQ;
-	if (j->comparam != IP_STOP_TIMEOUT) {
+	if (*j->comparam != IP_STOP_TIMEOUT) {
 		paralimit++;
 		if (!TAILQ_EMPTY(&runnable))
 			requeue(TAILQ_FIRST(&runnable), &ready);
@@ -480,7 +156,7 @@ finish_command(struct cfjail *j)
 	error = 0;
 	if (j->flags & JF_TIMEOUT) {
 		j->flags &= ~JF_TIMEOUT;
-		if (j->comparam != IP_STOP_TIMEOUT) {
+		if (*j->comparam != IP_STOP_TIMEOUT) {
 			jail_warnx(j, "%s: timed out", j->comline);
 			failed(j);
 			error = -1;
@@ -559,6 +235,356 @@ next_proc(int nonblock)
 		}
 	}
 	return NULL;
+}
+
+/*
+ * Run a single command for a jail, possible inside the jail.
+ */
+int
+run_command(struct cfjail *j)
+{
+	const struct passwd *pwd;
+	const struct cfstring *comstring, *s;
+	login_cap_t *lcap;
+	char **argv;
+	char *cs, *addr, *comcs, *devpath;
+	const char *jidstr, *conslog, *path, *ruleset, *term, *username;
+	enum intparam comparam;
+	size_t comlen;
+	pid_t pid;
+	int argc, bg, clean, consfd, down, fib, i, injail, sjuser, timeout;
+
+	static char *cleanenv;
+
+	/*
+	 * Collect exec arguments.  Internal commands for network and
+	 * mounting build their own argument lists.
+	 */
+	comparam = *j->comparam;
+	comstring = j->comstring;
+	bg = 0;
+	down = j->flags & (JF_STOP | JF_FAILED);
+	switch (comparam) {
+	case IP_STOP_TIMEOUT:
+		/* This isn't really a command */
+		return term_procs(j);
+
+	case IP__IP4_IFADDR:
+		argv = alloca(8 * sizeof(char *));
+		*(const char **)&argv[0] = _PATH_IFCONFIG;
+		if ((cs = strchr(comstring->s, '|'))) {
+			argv[1] = alloca(cs - comstring->s + 1);
+			strlcpy(argv[1], comstring->s, cs - comstring->s + 1);
+			addr = cs + 1;
+		} else {
+			*(const char **)&argv[1] =
+			    string_param(j->intparams[IP_INTERFACE]);
+			addr = comstring->s;
+		}
+		*(const char **)&argv[2] = "inet";
+		if (!(cs = strchr(addr, '/'))) {
+			argv[3] = addr;
+			*(const char **)&argv[4] = "netmask";
+			*(const char **)&argv[5] = "255.255.255.255";
+			argc = 6;
+		} else if (strchr(cs + 1, '.')) {
+			argv[3] = alloca(cs - addr + 1);
+			strlcpy(argv[3], addr, cs - addr + 1);
+			*(const char **)&argv[4] = "netmask";
+			*(const char **)&argv[5] = cs + 1;
+			argc = 6;
+		} else {
+			argv[3] = addr;
+			argc = 4;
+		}
+		*(const char **)&argv[argc] = down ? "-alias" : "alias";
+		argv[argc + 1] = NULL;
+		break;
+
+#ifdef INET6
+	case IP__IP6_IFADDR:
+		argv = alloca(8 * sizeof(char *));
+		*(const char **)&argv[0] = _PATH_IFCONFIG;
+		if ((cs = strchr(comstring->s, '|'))) {
+			argv[1] = alloca(cs - comstring->s + 1);
+			strlcpy(argv[1], comstring->s, cs - comstring->s + 1);
+			addr = cs + 1;
+		} else {
+			*(const char **)&argv[1] =
+			    string_param(j->intparams[IP_INTERFACE]);
+			addr = comstring->s;
+		}
+		*(const char **)&argv[2] = "inet6";
+		argv[3] = addr;
+		if (!(cs = strchr(addr, '/'))) {
+			*(const char **)&argv[4] = "prefixlen";
+			*(const char **)&argv[5] = "128";
+			argc = 6;
+		} else
+			argc = 4;
+		*(const char **)&argv[argc] = down ? "-alias" : "alias";
+		argv[argc + 1] = NULL;
+		break;	
+#endif
+
+	case IP_VNET_INTERFACE:
+		argv = alloca(5 * sizeof(char *));
+		*(const char **)&argv[0] = _PATH_IFCONFIG;
+		argv[1] = comstring->s;
+		*(const char **)&argv[2] = down ? "-vnet" : "vnet";
+		jidstr = string_param(j->intparams[KP_JID]);
+		*(const char **)&argv[3] =
+			jidstr ? jidstr : string_param(j->intparams[KP_NAME]);
+		argv[4] = NULL;
+		break;
+
+	case IP_MOUNT:
+	case IP__MOUNT_FROM_FSTAB:
+		argv = alloca(8 * sizeof(char *));
+		comcs = alloca(comstring->len + 1);
+		strcpy(comcs, comstring->s);
+		argc = 0;
+		for (cs = strtok(comcs, " \t\f\v\r\n"); cs && argc < 4;
+		     cs = strtok(NULL, " \t\f\v\r\n"))
+			argv[argc++] = cs;
+		if (argc == 0)
+			return 0;
+		if (argc < 3) {
+			jail_warnx(j, "%s: %s: missing information",
+			    j->intparams[comparam]->name, comstring->s);
+			failed(j);
+			return -1;
+		}
+		if (check_path(j, j->intparams[comparam]->name, argv[1], 0,
+		    down ? argv[2] : NULL) < 0) {
+			failed(j);
+			return -1;
+		}
+		if (down) {
+			argv[4] = NULL;
+			argv[3] = argv[1];
+			*(const char **)&argv[0] = "/sbin/umount";
+		} else {
+			if (argc == 4) {
+				argv[7] = NULL;
+				argv[6] = argv[1];
+				argv[5] = argv[0];
+				argv[4] = argv[3];
+				*(const char **)&argv[3] = "-o";
+			} else {
+				argv[5] = NULL;
+				argv[4] = argv[1];
+				argv[3] = argv[0];
+			}
+			*(const char **)&argv[0] = _PATH_MOUNT;
+		}
+		*(const char **)&argv[1] = "-t";
+		break;
+
+	case IP_MOUNT_DEVFS:
+		path = string_param(j->intparams[KP_PATH]);
+		if (path == NULL) {
+			jail_warnx(j, "mount.devfs: no path");
+			failed(j);
+			return -1;
+		}
+		devpath = alloca(strlen(path) + 5);
+		sprintf(devpath, "%s/dev", path);
+		if (check_path(j, "mount.devfs", devpath, 0,
+		    down ? "devfs" : NULL) < 0) {
+			failed(j);
+			return -1;
+		}
+		if (down) {
+			argv = alloca(3 * sizeof(char *));
+			*(const char **)&argv[0] = "/sbin/umount";
+			argv[1] = devpath;
+			argv[2] = NULL;
+		} else {
+			argv = alloca(4 * sizeof(char *));
+			*(const char **)&argv[0] = _PATH_BSHELL;
+			*(const char **)&argv[1] = "-c";
+			ruleset = string_param(j->intparams
+			    [IP_MOUNT_DEVFS_RULESET]);
+			argv[2] = alloca(strlen(path) +
+			    (ruleset ? strlen(ruleset) + 1 : 0) + 56);
+			sprintf(argv[2], ". /etc/rc.subr; load_rc_config .; "
+			    "devfs_mount_jail %s/dev%s%s", path,
+			    ruleset ? " " : "", ruleset ? ruleset : "");
+			argv[3] = NULL;
+		}
+		break;
+
+	case IP_COMMAND:
+		if (j->name != NULL)
+			goto default_command;
+		argc = 0;
+		TAILQ_FOREACH(s, &j->intparams[IP_COMMAND]->val, tq)
+			argc++;
+		argv = alloca((argc + 1) * sizeof(char *));
+		argc = 0;
+		TAILQ_FOREACH(s, &j->intparams[IP_COMMAND]->val, tq)
+			argv[argc++] = s->s;
+		argv[argc] = NULL;
+		j->comstring = NULL;
+		break;
+
+	default:
+	default_command:
+		if ((cs = strpbrk(comstring->s, "!\"$&'()*;<>?[\\]`{|}~")) &&
+		    !(cs[0] == '&' && cs[1] == '\0')) {
+			argv = alloca(4 * sizeof(char *));
+			*(const char **)&argv[0] = _PATH_BSHELL;
+			*(const char **)&argv[1] = "-c";
+			argv[2] = comstring->s;
+			argv[3] = NULL;
+		} else {
+			if (cs) {
+				*cs = 0;
+				bg = 1;
+			}
+			comcs = alloca(comstring->len + 1);
+			strcpy(comcs, comstring->s);	
+			argc = 0;
+			for (cs = strtok(comcs, " \t\f\v\r\n"); cs;
+			     cs = strtok(NULL, " \t\f\v\r\n"))
+				argc++;
+			argv = alloca((argc + 1) * sizeof(char *));
+			strcpy(comcs, comstring->s);	
+			argc = 0;
+			for (cs = strtok(comcs, " \t\f\v\r\n"); cs;
+			     cs = strtok(NULL, " \t\f\v\r\n"))
+				argv[argc++] = cs;
+			argv[argc] = NULL;
+		}
+	}
+	if (argv[0] == NULL)
+		return 0;
+
+	if (int_param(j->intparams[IP_EXEC_TIMEOUT], &timeout) &&
+	    timeout != 0) {
+		clock_gettime(CLOCK_REALTIME, &j->timeout);
+		j->timeout.tv_sec += timeout;
+	} else
+		j->timeout.tv_sec = 0;
+
+	injail = comparam == IP_EXEC_START || comparam == IP_COMMAND ||
+	    comparam == IP_EXEC_STOP;
+	clean = bool_param(j->intparams[IP_EXEC_CLEAN]);
+	username = string_param(j->intparams[injail
+	    ? IP_EXEC_JAIL_USER : IP_EXEC_SYSTEM_USER]);
+	sjuser = bool_param(j->intparams[IP_EXEC_SYSTEM_JAIL_USER]);
+
+	consfd = 0;
+	if (injail &&
+	    (conslog = string_param(j->intparams[IP_EXEC_CONSOLELOG]))) {
+		if (check_path(j, "exec.consolelog", conslog, 1, NULL) < 0) {
+			failed(j);
+			return -1;
+		}
+		consfd =
+		    open(conslog, O_WRONLY | O_CREAT | O_APPEND, DEFFILEMODE);
+		if (consfd < 0) {
+			jail_warnx(j, "open %s: %s", conslog, strerror(errno));
+			failed(j);
+			return -1;
+		}
+	}
+
+	comlen = 0;
+	for (i = 0; argv[i]; i++)
+		comlen += strlen(argv[i]) + 1;
+	j->comline = cs = emalloc(comlen);
+	for (i = 0; argv[i]; i++) {
+		strcpy(cs, argv[i]);
+		if (argv[i + 1]) {
+			cs += strlen(argv[i]) + 1;
+			cs[-1] = ' ';
+		}
+	}
+	if (verbose > 0)
+		jail_note(j, "run command%s%s%s: %s\n",
+		    injail ? " in jail" : "", username ? " as " : "",
+		    username ? username : "", j->comline);
+
+	pid = fork();
+	if (pid < 0)
+		err(1, "fork");
+	if (pid > 0) {
+		if (bg) {
+			free(j->comline);
+			j->comline = NULL;
+			requeue(j, &ready);
+		} else {
+			paralimit--;
+			add_proc(j, pid);
+		}
+		return 1;
+	}
+	if (bg)
+		setsid();
+
+	/* Set up the environment and run the command */
+	pwd = NULL;
+	lcap = NULL;
+	if ((clean || username) && injail && sjuser &&
+	    get_user_info(j, username, &pwd, &lcap) < 0)
+		exit(1);
+	if (injail) {
+		/* jail_attach won't chdir along with its chroot. */
+		path = string_param(j->intparams[KP_PATH]);
+		if (path && chdir(path) < 0) {
+			jail_warnx(j, "chdir %s: %s", path, strerror(errno));
+			exit(1);
+		}
+		if (int_param(j->intparams[IP_EXEC_FIB], &fib) &&
+		    setfib(fib) < 0) {
+			jail_warnx(j, "setfib: %s", strerror(errno));
+			exit(1);
+		}
+		if (jail_attach(j->jid) < 0) {
+			jail_warnx(j, "jail_attach: %s", strerror(errno));
+			exit(1);
+		}
+	}
+	if (clean || username) {
+		if (!(injail && sjuser) &&
+		    get_user_info(j, username, &pwd, &lcap) < 0)
+			exit(1);
+		if (clean) {
+			term = getenv("TERM");
+			environ = &cleanenv;
+			setenv("PATH", "/bin:/usr/bin", 0);
+			setenv("TERM", term, 1);
+		}
+		if (setusercontext(lcap, pwd, pwd->pw_uid, username
+		    ? LOGIN_SETALL & ~LOGIN_SETGROUP & ~LOGIN_SETLOGIN
+		    : LOGIN_SETPATH | LOGIN_SETENV) < 0) {
+			jail_warnx(j, "setusercontext %s: %s", pwd->pw_name,
+			    strerror(errno));
+			exit(1);
+		}
+		login_close(lcap);
+		setenv("USER", pwd->pw_name, 1);
+		setenv("HOME", pwd->pw_dir, 1);
+		setenv("SHELL",
+		    *pwd->pw_shell ? pwd->pw_shell : _PATH_BSHELL, 1);
+		if (clean && chdir(pwd->pw_dir) < 0) {
+			jail_warnx(j, "chdir %s: %s",
+			    pwd->pw_dir, strerror(errno));
+			exit(1);
+		}
+		endpwent();
+	}
+
+	if (consfd != 0 && (dup2(consfd, 1) < 0 || dup2(consfd, 2) < 0)) {
+		jail_warnx(j, "exec.consolelog: %s", strerror(errno));
+		exit(1);
+	}
+	closefrom(3);
+	execvp(argv[0], argv);
+	jail_warnx(j, "exec %s: %s", argv[0], strerror(errno));
+	exit(1);
 }
 
 /*
