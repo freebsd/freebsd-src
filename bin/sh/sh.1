@@ -32,7 +32,7 @@
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd June 15, 2011
+.Dd June 17, 2011
 .Dt SH 1
 .Os
 .Sh NAME
@@ -372,7 +372,7 @@ The following is a list of valid operators:
 .It Control operators:
 .Bl -column "XXX" "XXX" "XXX" "XXX" "XXX" -offset center -compact
 .It Li & Ta Li && Ta Li ( Ta Li ) Ta Li \en
-.It Li ;; Ta Li ; Ta Li | Ta Li ||
+.It Li ;; Ta Li ;& Ta Li ; Ta Li | Ta Li ||
 .El
 .It Redirection operators:
 .Bl -column "XXX" "XXX" "XXX" "XXX" "XXX" -offset center -compact
@@ -990,6 +990,11 @@ described later),
 separated by
 .Ql \&|
 characters.
+If the selected list is terminated by the control operator
+.Ql ;&
+instead of
+.Ql ;; ,
+execution continues with the next list.
 The exit code of the
 .Ic case
 command is the exit code of the last command executed in the list or
