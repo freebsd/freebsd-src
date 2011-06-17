@@ -69,7 +69,7 @@ dep_setup(int docf)
 		 */
 		if ((j = TAILQ_FIRST(&cfjails)) &&
 		    (p = j->intparams[IP_DEPEND])) {
-			STAILQ_FOREACH(s, &p->val, tq) {
+			TAILQ_FOREACH(s, &p->val, tq) {
 				if (running_jid(s->s, 0) < 0) {
 					warnx("depends on nonexistent jail "
 					    "\"%s\"", s->s);
@@ -97,7 +97,7 @@ dep_setup(int docf)
 		if (j->flags & JF_FAILED)
 			continue;
 		if ((p = j->intparams[IP_DEPEND])) {
-			STAILQ_FOREACH(s, &p->val, tq) {
+			TAILQ_FOREACH(s, &p->val, tq) {
 				dj = find_jail(s->s);
 				if (dj != NULL) {
 					deps++;

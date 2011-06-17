@@ -111,7 +111,7 @@ run_command(struct cfjail *j, enum intparam comparam)
 			if (j->intparams[comparam] == NULL)
 				return 0;
 			j->comstring =
-			    STAILQ_FIRST(&j->intparams[comparam]->val);
+			    TAILQ_FIRST(&j->intparams[comparam]->val);
 		}
 		j->comparam = comparam;
 	} else
@@ -125,7 +125,7 @@ run_command(struct cfjail *j, enum intparam comparam)
 		return 1;
 	}
 	j->comstring =
-	    comstring == COMSTRING_DUMMY ? NULL : STAILQ_NEXT(comstring, tq);
+	    comstring == COMSTRING_DUMMY ? NULL : TAILQ_NEXT(comstring, tq);
 	if (comstring != COMSTRING_DUMMY && comstring->len == 0)
 		goto next_comstring;
 	/*
@@ -294,11 +294,11 @@ run_command(struct cfjail *j, enum intparam comparam)
 		if (j->name != NULL)
 			goto default_command;
 		argc = 0;
-		STAILQ_FOREACH(s, &j->intparams[IP_COMMAND]->val, tq)
+		TAILQ_FOREACH(s, &j->intparams[IP_COMMAND]->val, tq)
 			argc++;
 		argv = alloca((argc + 1) * sizeof(char *));
 		argc = 0;
-		STAILQ_FOREACH(s, &j->intparams[IP_COMMAND]->val, tq)
+		TAILQ_FOREACH(s, &j->intparams[IP_COMMAND]->val, tq)
 			argv[argc++] = s->s;
 		argv[argc] = NULL;
 		j->comstring = NULL;
