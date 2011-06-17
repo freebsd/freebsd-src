@@ -297,6 +297,7 @@ struct tx_ring {
 	struct buf_ring		*br;
 #endif
 	bus_dma_tag_t		txtag;
+	struct task		txq_task;
 
 	u32			bytes;
 	u32			packets;
