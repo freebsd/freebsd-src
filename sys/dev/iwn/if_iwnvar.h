@@ -260,8 +260,10 @@ struct iwn_softc {
 	struct task		sc_radioon_task;
 	struct task		sc_radiooff_task;
 
+	struct callout		calib_to;
 	int			calib_cnt;
 	struct iwn_calib_state	calib;
+	struct callout		watchdog_to;
 	u_int			calib_init;
 	u_int			calib_runtime;
 #define	IWN_CALIB_XTAL			(1 << IWN_CALIB_IDX_XTAL)
@@ -312,7 +314,6 @@ struct iwn_softc {
 	uint8_t			rxchainmask;
 	uint8_t			chainmask;
 
-	struct callout		sc_timer_to;
 	int			sc_tx_timer;
 
 	struct iwn_rx_radiotap_header sc_rxtap;

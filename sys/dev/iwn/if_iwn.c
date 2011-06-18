@@ -123,10 +123,9 @@ static struct ieee80211_node *iwn_node_alloc(struct ieee80211vap *,
 		    const uint8_t mac[IEEE80211_ADDR_LEN]);
 static int	iwn_media_change(struct ifnet *);
 static int	iwn_newstate(struct ieee80211vap *, enum ieee80211_state, int);
+static void	iwn_calib_timeout(void *);
 static void	iwn_rx_phy(struct iwn_softc *, struct iwn_rx_desc *,
 		    struct iwn_rx_data *);
-static void	iwn_timer_timeout(void *);
-static void	iwn_calib_reset(struct iwn_softc *);
 static void	iwn_rx_done(struct iwn_softc *, struct iwn_rx_desc *,
 		    struct iwn_rx_data *);
 #if 0	/* HT */
@@ -161,7 +160,7 @@ static int	iwn_raw_xmit(struct ieee80211_node *, struct mbuf *,
 		    const struct ieee80211_bpf_params *);
 static void	iwn_start(struct ifnet *);
 static void	iwn_start_locked(struct ifnet *);
-static void	iwn_watchdog(struct iwn_softc *sc);
+static void	iwn_watchdog(void *);
 static int	iwn_ioctl(struct ifnet *, u_long, caddr_t);
 static int	iwn_cmd(struct iwn_softc *, int, const void *, int, int);
 static int	iwn4965_add_node(struct iwn_softc *, struct iwn_node_info *,
@@ -475,7 +474,6 @@ iwn_attach(device_t dev)
 	}
 
 	IWN_LOCK_INIT(sc);
-	callout_init_mtx(&sc->sc_timer_to, &sc->sc_mtx, 0);
 	TASK_INIT(&sc->sc_reinit_task, 0, iwn_hw_reset, sc );
 	TASK_INIT(&sc->sc_radioon_task, 0, iwn_radio_on, sc );
 	TASK_INIT(&sc->sc_radiooff_task, 0, iwn_radio_off, sc );
@@ -668,6 +666,10 @@ iwn_attach(device_t dev)
 #endif
 
 	iwn_radiotap_attach(sc);
+
+	callout_init_mtx(&sc->calib_to, &sc->sc_mtx, 0);
+	callout_init_mtx(&sc->watchdog_to, &sc->sc_mtx, 0);
+
 	iwn_sysctlattach(sc);
 
 	/*
@@ -860,7 +862,8 @@ iwn_detach(device_t dev)
 		ieee80211_draintask(ic, &sc->sc_radiooff_task);
 
 		iwn_stop(sc);
-		callout_drain(&sc->sc_timer_to);
+		callout_drain(&sc->watchdog_to);
+		callout_drain(&sc->calib_to);
 		ieee80211_ifdetach(ic);
 	}
 
@@ -1942,7 +1945,7 @@ iwn_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 
 	IEEE80211_UNLOCK(ic);
 	IWN_LOCK(sc);
-	callout_stop(&sc->sc_timer_to);
+	callout_stop(&sc->calib_to);
 
 	switch (nstate) {
 	case IEEE80211_S_ASSOC:
@@ -1959,7 +1962,8 @@ iwn_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		 */
 		sc->rxon.associd = 0;
 		sc->rxon.filter &= ~htole32(IWN_FILTER_BSS);
-		iwn_calib_reset(sc);
+		sc->calib.state = IWN_CALIB_STATE_INIT;
+
 		error = iwn_auth(sc, vap);
 		break;
 
@@ -1967,9 +1971,8 @@ iwn_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		/*
 		 * RUN -> RUN transition; Just restart the timers.
 		 */
-		if (vap->iv_state == IEEE80211_S_RUN &&
-		    vap->iv_opmode != IEEE80211_M_MONITOR) {
-			iwn_calib_reset(sc);
+		if (vap->iv_state == IEEE80211_S_RUN) {
+			sc->calib_cnt = 0;
 			break;
 		}
 
@@ -1981,12 +1984,37 @@ iwn_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		error = iwn_run(sc, vap);
 		break;
 
+	case IEEE80211_S_INIT:
+		sc->calib.state = IWN_CALIB_STATE_INIT;
+		break;
+
 	default:
 		break;
 	}
 	IWN_UNLOCK(sc);
 	IEEE80211_LOCK(ic);
 	return ivp->iv_newstate(vap, nstate, arg);
+}
+
+static void
+iwn_calib_timeout(void *arg)
+{
+	struct iwn_softc *sc = arg;
+
+	IWN_LOCK_ASSERT(sc);
+
+	/* Force automatic TX power calibration every 60 secs. */
+	if (++sc->calib_cnt >= 120) {
+		uint32_t flags = 0;
+
+		DPRINTF(sc, IWN_DEBUG_CALIBRATE, "%s\n",
+		    "sending request for statistics");
+		(void)iwn_cmd(sc, IWN_CMD_GET_STATISTICS, &flags,
+		    sizeof flags, 1);
+		sc->calib_cnt = 0;
+	}
+	callout_reset(&sc->calib_to, msecs_to_ticks(500), iwn_calib_timeout,
+	    sc);
 }
 
 /*
@@ -2005,32 +2033,6 @@ iwn_rx_phy(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 	/* Save RX statistics, they will be used on MPDU_RX_DONE. */
 	memcpy(&sc->last_rx_stat, stat, sizeof (*stat));
 	sc->last_rx_valid = 1;
-}
-
-static void
-iwn_timer_timeout(void *arg)
-{
-	struct iwn_softc *sc = arg;
-	uint32_t flags = 0;
-
-	IWN_LOCK_ASSERT(sc);
-
-	if (sc->calib_cnt && --sc->calib_cnt == 0) {
-		DPRINTF(sc, IWN_DEBUG_CALIBRATE, "%s\n",
-		    "send statistics request");
-		(void) iwn_cmd(sc, IWN_CMD_GET_STATISTICS, &flags,
-		    sizeof flags, 1);
-		sc->calib_cnt = 60;	/* do calibration every 60s */
-	}
-	iwn_watchdog(sc);		/* NB: piggyback tx watchdog */
-	callout_reset(&sc->sc_timer_to, hz, iwn_timer_timeout, sc);
-}
-
-static void
-iwn_calib_reset(struct iwn_softc *sc)
-{
-	callout_reset(&sc->sc_timer_to, hz, iwn_timer_timeout, sc);
-	sc->calib_cnt = 60;		/* do calibration every 60s */
 }
 
 /*
@@ -2222,7 +2224,7 @@ iwn_rx_statistics(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 
 	bus_dmamap_sync(sc->rxq.data_dmat, data->map, BUS_DMASYNC_POSTREAD);
 	DPRINTF(sc, IWN_DEBUG_CALIBRATE, "%s: cmd %d\n", __func__, desc->type);
-	iwn_calib_reset(sc);	/* Reset TX power calibration timeout. */
+	sc->calib_cnt = 0;	/* Reset TX power calibration timeout. */
 
 	/* Test if temperature has changed. */
 	if (stats->general.temp != sc->rawtemp) {
@@ -3306,6 +3308,8 @@ iwn_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 		ieee80211_free_node(ni);
 		ifp->if_oerrors++;
 	}
+	sc->sc_tx_timer = 5;
+
 	IWN_UNLOCK(sc);
 	return error;
 }
@@ -3352,15 +3356,24 @@ iwn_start_locked(struct ifnet *ifp)
 }
 
 static void
-iwn_watchdog(struct iwn_softc *sc)
+iwn_watchdog(void *arg)
 {
-	if (sc->sc_tx_timer > 0 && --sc->sc_tx_timer == 0) {
-		struct ifnet *ifp = sc->sc_ifp;
-		struct ieee80211com *ic = ifp->if_l2com;
+	struct iwn_softc *sc = arg;
+	struct ifnet *ifp = sc->sc_ifp;
+	struct ieee80211com *ic = ifp->if_l2com;
 
-		if_printf(ifp, "device timeout\n");
-		ieee80211_runtask(ic, &sc->sc_reinit_task);
+	IWN_LOCK_ASSERT(sc);
+
+	KASSERT(ifp->if_drv_flags & IFF_DRV_RUNNING, ("not running"));
+
+	if (sc->sc_tx_timer > 0) {
+		if (--sc->sc_tx_timer == 0) {
+			if_printf(ifp, "device timeout\n");
+			ieee80211_runtask(ic, &sc->sc_reinit_task);
+			return;
+		}
 	}
+	callout_reset(&sc->watchdog_to, hz, iwn_watchdog, sc);
 }
 
 static int
@@ -4760,8 +4773,6 @@ iwn_auth(struct iwn_softc *sc, struct ieee80211vap *vap)
 	struct ieee80211_node *ni = vap->iv_bss;
 	int error;
 
-	sc->calib.state = IWN_CALIB_STATE_INIT;
-
 	/* Update adapter configuration. */
 	IEEE80211_ADDR_COPY(sc->rxon.bssid, ni->ni_bssid);
 	sc->rxon.chan = ieee80211_chan2ieee(ic, ni->ni_chan);
@@ -4954,7 +4965,9 @@ iwn_run(struct iwn_softc *sc, struct ieee80211vap *vap)
 
 	/* Start periodic calibration timer. */
 	sc->calib.state = IWN_CALIB_STATE_ASSOC;
-	iwn_calib_reset(sc);
+	sc->calib_cnt = 0;
+	callout_reset(&sc->calib_to, msecs_to_ticks(500), iwn_calib_timeout,
+	    sc);
 
 	/* Link LED always on while associated. */
 	iwn_set_led(sc, IWN_LED_LINK, 0, 1);
@@ -6406,6 +6419,7 @@ iwn_init_locked(struct iwn_softc *sc)
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 
+	callout_reset(&sc->watchdog_to, hz, iwn_watchdog, sc);
 	return;
 
 fail:
@@ -6435,7 +6449,8 @@ iwn_stop_locked(struct iwn_softc *sc)
 	IWN_LOCK_ASSERT(sc);
 
 	sc->sc_tx_timer = 0;
-	callout_stop(&sc->sc_timer_to);
+	callout_stop(&sc->watchdog_to);
+	callout_stop(&sc->calib_to);
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 
 	/* Power OFF hardware. */
