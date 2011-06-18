@@ -240,8 +240,8 @@ list(int nlflag, int erflag)
 		n2 = andor();
 		tok = readtoken();
 		if (tok == TBACKGND) {
-			if (n2->type == NCMD || n2->type == NPIPE) {
-				n2->ncmd.backgnd = 1;
+			if (n2->type == NPIPE) {
+				n2->npipe.backgnd = 1;
 			} else if (n2->type == NREDIR) {
 				n2->type = NBACKGND;
 			} else {
@@ -689,7 +689,6 @@ simplecmd(union node **rpp, union node *redir)
 	*rpp = NULL;
 	n = (union node *)stalloc(sizeof (struct ncmd));
 	n->type = NCMD;
-	n->ncmd.backgnd = 0;
 	n->ncmd.args = args;
 	n->ncmd.redirect = redir;
 	return n;
