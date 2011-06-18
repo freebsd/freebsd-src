@@ -894,14 +894,13 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 	}
 
 	/* Fork off a child process if necessary. */
-	if (cmd->ncmd.backgnd
-	 || ((cmdentry.cmdtype == CMDNORMAL || cmdentry.cmdtype == CMDUNKNOWN)
+	if (((cmdentry.cmdtype == CMDNORMAL || cmdentry.cmdtype == CMDUNKNOWN)
 	    && ((flags & EV_EXIT) == 0 || have_traps()))
 	 || ((flags & EV_BACKCMD) != 0
 	    && (cmdentry.cmdtype != CMDBUILTIN ||
 		 !safe_builtin(cmdentry.u.index, argc, argv)))) {
 		jp = makejob(cmd, 1);
-		mode = cmd->ncmd.backgnd;
+		mode = FORK_FG;
 		if (flags & EV_BACKCMD) {
 			mode = FORK_NOJOB;
 			if (pipe(pip) < 0)
@@ -1068,8 +1067,7 @@ parent:	/* parent process gets here (if we forked) */
 		backcmd->fd = pip[0];
 		close(pip[1]);
 		backcmd->jp = jp;
-	} else
-		exitstatus = 0;
+	}
 
 out:
 	if (lastarg)
