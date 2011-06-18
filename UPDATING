@@ -52,6 +52,18 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 9.x IS SLOW:
 20110513:
 	Support for sun4v architecture is officially dropped
 
+20110503:
+	Several KPI breaking changes have been committed to the mii(4) layer,
+	the PHY drivers and consequently some Ethernet drivers using mii(4).
+	This means that miibus.ko and the modules of the affected Ethernet
+	drivers need to be recompiled.
+
+	Note to kernel developers: Given that the OUI bit reversion problem
+	was fixed as part of these changes all mii(4) commits related to OUIs,
+	i.e. to sys/dev/mii/miidevs, PHY driver probing and vendor specific
+	handling, no longer can be merged verbatim to stable/8 and previous
+	branches.
+
 20110430:
 	Users of the Atheros AR71xx SoC code now need to add 'device ar71xx_pci'
 	into their kernel configurations along with 'device pci'.
