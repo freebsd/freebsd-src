@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 27, 2011
+.Dd June 18, 2011
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -196,6 +196,14 @@ Configuration file for
 .Xr ddb 8 .
 Default
 .Pa /etc/ddb.conf .
+.It Va kld_list
+.Pq Vt str
+A list of kernel modules to load right after the local
+disks are mounted.
+Loading modules at this point in the boot process is
+much faster than doing it via
+.Pa /boot/loader.conf
+for those modules not necessary for mounting local disk.
 .It Va kldxref_enable
 .Pq Vt bool
 Set to
