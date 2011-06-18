@@ -522,7 +522,8 @@ do_mmapped:
 			fflags = 0;
 			if (prot & VM_PROT_READ)
 				fflags = PS_FST_FFLAG_READ;
-			if (prot & VM_PROT_WRITE)
+			if ((vmentry.eflags & MAP_ENTRY_COW) == 0 &&
+			    prot & VM_PROT_WRITE)
 				fflags |= PS_FST_FFLAG_WRITE;
 
 			/*
@@ -696,7 +697,8 @@ procstat_getfiles_sysctl(struct procstat *procstat, struct kinfo_proc *kp, int m
 			fflags = 0;
 			if (kve->kve_protection & KVME_PROT_READ)
 				fflags = PS_FST_FFLAG_READ;
-			if (kve->kve_protection & KVME_PROT_WRITE)
+			if ((kve->kve_flags & KVME_FLAG_COW) == 0 &&
+			    kve->kve_protection & KVME_PROT_WRITE)
 				fflags |= PS_FST_FFLAG_WRITE;
 			offset = kve->kve_offset;
 			refcount = kve->kve_ref_count;
