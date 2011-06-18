@@ -21,6 +21,7 @@
  */
 
 #include <sys/types.h>
+#include <sys/param.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
@@ -3567,7 +3568,7 @@ read_options:
 			}
 			if (lookup_key[j] <= 0)
 				errx(EX_USAGE, "format: cannot lookup on %s", *av);
-			c->d[1] = j; // i converted to option
+			__PAST_END(c->d, 1) = j; // i converted to option
 			av++;
 			cmd->arg1 = strtoul(*av, &p, 0);
 			if (p && *p)

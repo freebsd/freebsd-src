@@ -696,8 +696,6 @@ inptype(const char *cp, const char **epp)
 	case SIGNED:
 	case NOTSPEC:
 		break;
-	case NTSPEC:
-		abort();
 	}
 
 	*epp = cp;
@@ -901,8 +899,6 @@ gettlen(const char *cp, const char **epp)
 	case UQUAD:
 	case LONG:
 		break;
-	case NTSPEC:
-		abort();
 	}
 
 	*epp = cp;

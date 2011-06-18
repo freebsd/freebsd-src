@@ -580,9 +580,6 @@ icon(int base)
 	case CHAR:
 	case UNSIGN:
 		break;
-
-	case NTSPEC:	/* this value unused */
-		break;
 	}
 
 	if (typ != QUAD && typ != UQUAD) {

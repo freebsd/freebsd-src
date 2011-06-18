@@ -1112,9 +1112,9 @@ exp_get_fill (etree_type *tree, fill_type *def, char *name)
       fill = xmalloc (4 + sizeof (*fill) - 1);
       val = expld.result.value;
       fill->data[0] = (val >> 24) & 0xff;
-      fill->data[1] = (val >> 16) & 0xff;
-      fill->data[2] = (val >>  8) & 0xff;
-      fill->data[3] = (val >>  0) & 0xff;
+      __PAST_END(fill->data, 1) = (val >> 16) & 0xff;
+      __PAST_END(fill->data, 2) = (val >>  8) & 0xff;
+      __PAST_END(fill->data, 3) = (val >>  0) & 0xff;
       fill->size = 4;
     }
   return fill;
