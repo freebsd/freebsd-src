@@ -94,7 +94,7 @@ next_command(struct cfjail *j)
 
 	rval = 0;
 	create_failed = (j->flags & (JF_STOP | JF_FAILED)) == JF_FAILED;
-	for (; (comparam = *j->comparam) && comparam != IP__OP;
+	for (; (comparam = *j->comparam);
 	     j->comparam += create_failed ? -1 : 1) {
 		if (j->comstring == NULL) {
 			switch (comparam) {
@@ -102,6 +102,7 @@ next_command(struct cfjail *j)
 				if (!bool_param(j->intparams[IP_MOUNT_DEVFS]))
 					continue;
 				/* FALLTHROUGH */
+			case IP__OP:
 			case IP_STOP_TIMEOUT:
 				j->comstring = &dummystring;
 				break;
@@ -256,19 +257,43 @@ run_command(struct cfjail *j)
 
 	static char *cleanenv;
 
+	/* Perform some operations that aren't actually commands */
+	comparam = *j->comparam;
+	down = j->flags & (JF_STOP | JF_FAILED);
+	switch (comparam) {
+	case IP_STOP_TIMEOUT:
+		return term_procs(j);
+
+	case IP__OP:
+		if (down) {
+			if (jail_remove(j->jid) == 0 && verbose >= 0 &&
+			    (verbose > 0 || (j->flags & JF_STOP
+			    ? note_remove : j->name != NULL)))
+			    jail_note(j, "removed\n");
+			j->jid = -1;
+			if (j->flags & JF_STOP)
+				dep_done(j, DF_LIGHT);
+			else
+				j->flags &= ~JF_PERSIST;
+		} else {
+			if (create_jail(j) < 0) {
+				failed(j);
+				return -1;
+			}
+			if (verbose >= 0 && (j->name || verbose > 0))
+				jail_note(j, "created\n");
+			dep_done(j, DF_LIGHT);
+		}
+		requeue(j, &ready);
+		return 1;
+	}
 	/*
 	 * Collect exec arguments.  Internal commands for network and
 	 * mounting build their own argument lists.
 	 */
-	comparam = *j->comparam;
 	comstring = j->comstring;
 	bg = 0;
-	down = j->flags & (JF_STOP | JF_FAILED);
 	switch (comparam) {
-	case IP_STOP_TIMEOUT:
-		/* This isn't really a command */
-		return term_procs(j);
-
 	case IP__IP4_IFADDR:
 		argv = alloca(8 * sizeof(char *));
 		*(const char **)&argv[0] = _PATH_IFCONFIG;

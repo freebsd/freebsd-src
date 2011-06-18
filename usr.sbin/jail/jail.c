@@ -55,9 +55,9 @@ struct permspec {
 };
 
 const char *cfname;
+int note_remove;
 int verbose;
 
-static int create_jail(struct cfjail *j);
 static void clear_persist(struct cfjail *j);
 static int update_jail(struct cfjail *j);
 static int rdtun_params(struct cfjail *j, int dofail);
@@ -271,6 +271,7 @@ main(int argc, char **argv)
 		if ((docf = !Rflag &&
 		     (!strcmp(cfname, "-") || stat(cfname, &st) == 0)))
 			load_config();
+		note_remove = docf || argc > 1 || wild_jail_name(argv[0]);
 	} else if (argc > 1 || (argc == 1 && strchr(argv[0], '='))) {
 		/* Single jail specified on the command line */
 		if (Rflag)
@@ -388,25 +389,7 @@ main(int argc, char **argv)
 					continue;
 				if (j->jid > 0)
 					goto jail_create_done;
-				j->comparam == startcommands + 1;
-			} else if (*j->comparam == IP__OP) {
-				if (j->flags & JF_FAILED) {
-					if (jail_remove(j->jid) == 0 &&
-					    verbose >= 0 &&
-					    (j->name || verbose > 0))
-						jail_note(j, "removed\n");
-					j->jid = -1;
-					j->flags &= ~JF_PERSIST;
-					j->comparam--;
-				} else if (create_jail(j) < 0) {
-					j->comparam--;
-				} else {
-					if (verbose >= 0 &&
-					    (j->name || verbose > 0))
-						jail_note(j, "created\n");
-					dep_done(j, DF_LIGHT);
-					j->comparam++;
-				}
+				j->comparam = startcommands + 1;
 			}
 			if (next_command(j))
 				continue;
@@ -449,19 +432,9 @@ main(int argc, char **argv)
 						    j->name);
 					goto jail_remove_done;
 				}
-				j->comparam == stopcommands + 1;
-			} else if ((j->flags & JF_FAILED) && j->jid > 0) {
+				j->comparam = stopcommands + 1;
+			} else if ((j->flags & JF_FAILED) && j->jid > 0)
 				goto jail_remove_done;
-			} else if (*j->comparam == IP__OP) {
-				if (jail_remove(j->jid) == 0 &&
-				    verbose >= 0 &&
-				    (docf || argc > 1 ||
-				     wild_jail_name(argv[0]) || verbose > 0))
-					jail_note(j, "removed\n");
-				j->jid = -1;
-				dep_done(j, DF_LIGHT);
-				j->comparam++;
-			}
 			if (next_command(j))
 				continue;
 		jail_remove_done:
@@ -578,7 +551,7 @@ jail_warnx(const struct cfjail *j, const char *fmt, ...)
 /*
  * Create a new jail.
  */
-static int
+int
 create_jail(struct cfjail *j)
 {
 	struct iovec jiov[4];
@@ -595,17 +568,14 @@ create_jail(struct cfjail *j)
 		if (path[0] != '/') {
 			jail_warnx(j, "path %s: not an absolute pathname",
 			    path);
-			failed(j);
 			return -1;
 		}
 		if (stat(path, &st) < 0) {
 			jail_warnx(j, "path %s: %s", path, strerror(errno));
-			failed(j);
 			return -1;
 		}
 		if (!S_ISDIR(st.st_mode)) {
 			jail_warnx(j, "path %s: %s", path, strerror(ENOTDIR));
-			failed(j);
 			return -1;
 		}
 	}
@@ -621,7 +591,6 @@ create_jail(struct cfjail *j)
 	    alloca((j->njp + dopersist) * sizeof(struct jailparam));
 	if (dopersist && jailparam_init(sjp++, "persist") < 0) {
 		jail_warnx(j, "%s", jail_errmsg);
-		failed(j);
 		return -1;
 	}
 	for (jp = j->jp; jp < j->jp + j->njp; jp++)
