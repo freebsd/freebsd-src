@@ -32,7 +32,7 @@
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd June 17, 2011
+.Dd June 18, 2011
 .Dt SH 1
 .Os
 .Sh NAME
@@ -241,6 +241,10 @@ tested, all commands of the function are considered to be tested as
 well.
 .It Fl f Li noglob
 Disable pathname expansion.
+.It Fl h Li trackall
+A do-nothing option for
+.Tn POSIX
+compliance.
 .It Fl I Li ignoreeof
 Ignore
 .Dv EOF Ap s
