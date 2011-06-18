@@ -1283,7 +1283,7 @@ vntype2psfsttype(int type)
 static char *
 getmnton(kvm_t *kd, struct mount *m)
 {
-	static struct mount mnt;
+	struct mount mnt;
 	static struct mtab {
 		struct mtab *next;
 		struct mount *m;
@@ -1302,7 +1302,7 @@ getmnton(kvm_t *kd, struct mount *m)
 		err(1, NULL);
 	mt->m = m;
 	bcopy(&mnt.mnt_stat.f_mntonname[0], &mt->mntonname[0], MNAMELEN);
-	mnt.mnt_stat.f_mntonname[MNAMELEN] = '\0';
+	mt->mntonname[MNAMELEN] = '\0';
 	mt->next = mhead;
 	mhead = mt;
 	return (mt->mntonname);
