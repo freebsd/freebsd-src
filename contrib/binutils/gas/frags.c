@@ -146,7 +146,7 @@ frag_new (int old_frags_var_max_size
 
   /* This will align the obstack so the next struct we allocate on it
      will begin at a correct boundary.  */
-  obstack_finish (&frchain_now->frch_obstack);
+  (void) obstack_finish (&frchain_now->frch_obstack);
   frchP = frchain_now;
   know (frchP);
   former_last_fragP = frchP->frch_last;

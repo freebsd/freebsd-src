@@ -22,6 +22,11 @@ Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
 #ifndef GCC_TREE_H
 #define GCC_TREE_H
 
+#include <sys/param.h>
+#ifndef __PAST_END
+# define __PAST_END(array, offset) (((typeof(*(array)) *)(array))[offset])
+#endif
+
 #include "hashtab.h"
 #include "machmode.h"
 #include "input.h"
@@ -830,12 +835,12 @@ extern void omp_clause_range_check_failed (const tree, const char *, int,
 #define TREE_RANGE_CHECK(T, CODE1, CODE2)	(T)
 #define EXPR_CHECK(T)				(T)
 #define NON_TYPE_CHECK(T)			(T)
-#define TREE_VEC_ELT_CHECK(T, I)		((T)->vec.a[I])
-#define TREE_OPERAND_CHECK(T, I)		((T)->exp.operands[I])
-#define TREE_OPERAND_CHECK_CODE(T, CODE, I)	((T)->exp.operands[I])
+#define TREE_VEC_ELT_CHECK(T, I)		__PAST_END((T)->vec.a, I)
+#define TREE_OPERAND_CHECK(T, I)		__PAST_END((T)->exp.operands, I)
+#define TREE_OPERAND_CHECK_CODE(T, CODE, I)	__PAST_END((T)->exp.operands, I)
 #define TREE_RTL_OPERAND_CHECK(T, CODE, I)  (*(rtx *) &((T)->exp.operands[I]))
 #define PHI_NODE_ELT_CHECK(T, i)	((T)->phi.a[i])
-#define OMP_CLAUSE_ELT_CHECK(T, i)	        ((T)->omp_clause.ops[i])
+#define OMP_CLAUSE_ELT_CHECK(T, i)	        __PAST_END((T)->omp_clause.ops, i)
 #define OMP_CLAUSE_RANGE_CHECK(T, CODE1, CODE2)	(T)
 #define OMP_CLAUSE_SUBCODE_CHECK(T, CODE)	(T)
 
