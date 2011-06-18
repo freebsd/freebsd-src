@@ -885,6 +885,8 @@ struct iwn_phy_calib {
 #define IWN5000_PHY_CALIB_CRYSTAL		15
 #define IWN5000_PHY_CALIB_BASE_BAND		16
 #define IWN5000_PHY_CALIB_TX_IQ_PERIODIC	17
+#define IWN5000_PHY_CALIB_TEMP_OFFSET		18
+
 #define IWN5000_PHY_CALIB_RESET_NOISE_GAIN	18
 #define IWN5000_PHY_CALIB_NOISE_GAIN		19
 
@@ -901,6 +903,17 @@ struct iwn5000_phy_calib_crystal {
 
 	uint8_t	cap_pin[2];
 	uint8_t	reserved[2];
+} __packed;
+
+struct iwn5000_phy_calib_temp_offset {
+	uint8_t		code;
+	uint8_t		group;
+	uint8_t		ngroups;
+	uint8_t		isvalid;
+	int16_t		offset;
+#define IWN_DEFAULT_TEMP_OFFSET	2700
+
+	uint16_t	reserved;
 } __packed;
 
 struct iwn_phy_calib_gain {

@@ -223,6 +223,7 @@ static int	iwn5000_query_calibration(struct iwn_softc *);
 static int	iwn5000_send_calibration(struct iwn_softc *);
 static int	iwn5000_send_wimax_coex(struct iwn_softc *);
 static int	iwn5000_crystal_calib(struct iwn_softc *);
+static int	iwn5000_temp_offset_calib(struct iwn_softc *);
 static int	iwn4965_post_alive(struct iwn_softc *);
 static int	iwn5000_post_alive(struct iwn_softc *);
 static int	iwn4965_load_bootcode(struct iwn_softc *, const uint8_t *,
@@ -4539,6 +4540,16 @@ iwn_config(struct iwn_softc *sc)
 	int error;
 	uint16_t rxchain;
 
+	if (sc->hw_type == IWN_HW_REV_TYPE_6005) {
+		/* Set radio temperature sensor offset. */
+		error = iwn5000_temp_offset_calib(sc);
+		if (error != 0) {
+			device_printf(sc->sc_dev,
+			    "%s: could not set temperature offset\n", __func__);
+			return error;
+		}
+	}
+
 	/* Configure valid TX chains for 5000 Series. */
 	if (sc->hw_type != IWN_HW_REV_TYPE_4965) {
 		txmask = htole32(sc->txchainmask);
@@ -5326,6 +5337,24 @@ iwn5000_crystal_calib(struct iwn_softc *sc)
 	return iwn_cmd(sc, IWN_CMD_PHY_CALIB, &cmd, sizeof cmd, 0);
 }
 
+static int
+iwn5000_temp_offset_calib(struct iwn_softc *sc)
+{
+	struct iwn5000_phy_calib_temp_offset cmd;
+
+	memset(&cmd, 0, sizeof cmd);
+	cmd.code = IWN5000_PHY_CALIB_TEMP_OFFSET;
+	cmd.ngroups = 1;
+	cmd.isvalid = 1;
+	if (sc->eeprom_temp != 0)
+		cmd.offset = htole16(sc->eeprom_temp);
+	else
+		cmd.offset = htole16(IWN_DEFAULT_TEMP_OFFSET);
+	DPRINTF(sc, IWN_DEBUG_CALIBRATE, "setting radio sensor offset to %d\n",
+	    le16toh(cmd.offset));
+	return iwn_cmd(sc, IWN_CMD_PHY_CALIB, &cmd, sizeof cmd, 0);
+}
+
 /*
  * This function is called after the runtime firmware notifies us of its
  * readiness (called in a process context.)
@@ -6028,7 +6057,8 @@ iwn5000_nic_config(struct iwn_softc *sc)
 		/* Use internal power amplifier only. */
 		IWN_WRITE(sc, IWN_GP_DRIVER, IWN_GP_DRIVER_RADIO_2X2_IPA);
 	}
-	if (sc->hw_type == IWN_HW_REV_TYPE_6050 && sc->calib_ver >= 6) {
+	if ((sc->hw_type == IWN_HW_REV_TYPE_6050 ||
+	     sc->hw_type == IWN_HW_REV_TYPE_6005) && sc->calib_ver >= 6) {
 		/* Indicate that ROM calibration version is >=6. */
 		IWN_SETBITS(sc, IWN_GP_DRIVER, IWN_GP_DRIVER_CALIB_VER6);
 	}
