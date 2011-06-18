@@ -121,6 +121,7 @@ static void	iwn_read_eeprom_channels(struct iwn_softc *, int,
 static void	iwn_read_eeprom_enhinfo(struct iwn_softc *);
 static struct ieee80211_node *iwn_node_alloc(struct ieee80211vap *,
 		    const uint8_t mac[IEEE80211_ADDR_LEN]);
+static void	iwn_newassoc(struct ieee80211_node *, int);
 static int	iwn_media_change(struct ifnet *);
 static int	iwn_newstate(struct ieee80211vap *, enum ieee80211_state, int);
 static void	iwn_calib_timeout(void *);
@@ -169,7 +170,8 @@ static int	iwn4965_add_node(struct iwn_softc *, struct iwn_node_info *,
 		    int);
 static int	iwn5000_add_node(struct iwn_softc *, struct iwn_node_info *,
 		    int);
-static int	iwn_set_link_quality(struct iwn_softc *, uint8_t, int);
+static int	iwn_set_link_quality(struct iwn_softc *,
+		    struct ieee80211_node *);
 static int	iwn_add_broadcast_node(struct iwn_softc *, int);
 static int	iwn_wme_update(struct ieee80211com *);
 static void	iwn_update_mcast(struct ifnet *);
@@ -648,6 +650,7 @@ iwn_attach(device_t dev)
 	ic->ic_vap_delete = iwn_vap_delete;
 	ic->ic_raw_xmit = iwn_raw_xmit;
 	ic->ic_node_alloc = iwn_node_alloc;
+	ic->ic_newassoc = iwn_newassoc;
 	ic->ic_wme.wme_update = iwn_wme_update;
 	ic->ic_update_mcast = iwn_update_mcast;
 	ic->ic_scan_start = iwn_scan_start;
@@ -1908,6 +1911,18 @@ iwn_node_alloc(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN])
 	return malloc(sizeof (struct iwn_node), M_80211_NODE,M_NOWAIT | M_ZERO);
 }
 
+static void
+iwn_newassoc(struct ieee80211_node *ni, int isnew)
+{
+	struct iwn_node *wn = (void *)ni;
+	int ridx, i;
+
+	for (i = 0; i < ni->ni_rates.rs_nrates; i++) {
+		ridx = iwn_plcp_signal(ni->ni_rates.rs_rates[i]);
+		wn->ridx[i] = ridx;
+	}
+}
+
 static int
 iwn_media_change(struct ifnet *ifp)
 {
@@ -2891,7 +2906,7 @@ iwn_plcp_signal(int rate) {
 	int i;
 
 	for (i = 0; i < IWN_RIDX_MAX + 1; i++) {
-		if (rate == iwn_rates[i].rate)
+		if ((rate & IEEE80211_RATE_VAL) == iwn_rates[i].rate)
 			return i;
 	}
 
@@ -3055,7 +3070,7 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni,
 		txant = IWN_LSB(sc->txchainmask);
 		tx->rflags |= IWN_RFLAG_ANT(txant);
 	} else {
-		tx->linkq = IWN_RIDX_OFDM54 - ridx;
+		tx->linkq = ni->ni_rates.rs_nrates - ridx - 1;
 		flags |= IWN_TX_LINKQ;	/* enable MRR */
 	}
 
@@ -3599,98 +3614,39 @@ iwn5000_add_node(struct iwn_softc *sc, struct iwn_node_info *node, int async)
 	return iwn_cmd(sc, IWN_CMD_ADD_NODE, node, sizeof (*node), async);
 }
 
-#if 0	/* HT */
-static const uint8_t iwn_ridx_to_plcp[] = {
-	10, 20, 55, 110, /* CCK */
-	0xd, 0xf, 0x5, 0x7, 0x9, 0xb, 0x1, 0x3, 0x3 /* OFDM R1-R4 */
-};
-static const uint8_t iwn_siso_mcs_to_plcp[] = {
-	0, 0, 0, 0, 			/* CCK */
-	0, 0, 1, 2, 3, 4, 5, 6, 7	/* HT */
-};
-static const uint8_t iwn_mimo_mcs_to_plcp[] = {
-	0, 0, 0, 0, 			/* CCK */
-	8, 8, 9, 10, 11, 12, 13, 14, 15	/* HT */
-};
-#endif
-static const uint8_t iwn_prev_ridx[] = {
-	/* NB: allow fallback from CCK11 to OFDM9 and from OFDM6 to CCK5 */
-	0, 0, 1, 5,			/* CCK */
-	2, 4, 3, 6, 7, 8, 9, 10, 10	/* OFDM */
-};
-
-/*
- * Configure hardware link parameters for the specified
- * node operating on the specified channel.
- */
 static int
-iwn_set_link_quality(struct iwn_softc *sc, uint8_t id, int async)
+iwn_set_link_quality(struct iwn_softc *sc, struct ieee80211_node *ni)
 {
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct iwn_node *wn = (void *)ni;
+	struct ieee80211_rateset *rs = &ni->ni_rates;
 	struct iwn_cmd_link_quality linkq;
 	const struct iwn_rate *rinfo;
-	int i;
-	uint8_t txant, ridx;
+	uint8_t txant;
+	int i, txrate;
 
 	/* Use the first valid TX antenna. */
 	txant = IWN_LSB(sc->txchainmask);
 
 	memset(&linkq, 0, sizeof linkq);
-	linkq.id = id;
+	linkq.id = wn->id;
 	linkq.antmsk_1stream = txant;
 	linkq.antmsk_2stream = IWN_ANT_AB;
 	linkq.ampdu_max = 31;
 	linkq.ampdu_threshold = 3;
 	linkq.ampdu_limit = htole16(4000);	/* 4ms */
 
-#if 0	/* HT */
-	if (IEEE80211_IS_CHAN_HT(c))
-		linkq.mimo = 1;
-#endif
-
-	if (id == IWN_ID_BSS)
-		ridx = IWN_RIDX_OFDM54;
-	else if (IEEE80211_IS_CHAN_A(ic->ic_curchan))
-		ridx = IWN_RIDX_OFDM6;
-	else
-		ridx = IWN_RIDX_CCK1;
-
+	/* Start at highest available bit-rate. */
+	txrate = rs->rs_nrates - 1;
 	for (i = 0; i < IWN_MAX_TX_RETRIES; i++) {
-		rinfo = &iwn_rates[ridx];
-#if 0	/* HT */
-		if (IEEE80211_IS_CHAN_HT40(c)) {
-			linkq.retry[i].plcp = iwn_mimo_mcs_to_plcp[ridx]
-					 | IWN_RIDX_MCS;
-			linkq.retry[i].rflags = IWN_RFLAG_HT
-					 | IWN_RFLAG_HT40;
-			/* XXX shortGI */
-		} else if (IEEE80211_IS_CHAN_HT(c)) {
-			linkq.retry[i].plcp = iwn_siso_mcs_to_plcp[ridx]
-					 | IWN_RIDX_MCS;
-			linkq.retry[i].rflags = IWN_RFLAG_HT;
-			/* XXX shortGI */
-		} else
-#endif
-		{
-			linkq.retry[i].plcp = rinfo->plcp;
-			linkq.retry[i].rflags = rinfo->flags;
-		}
+		rinfo = &iwn_rates[wn->ridx[txrate]];
+		linkq.retry[i].plcp = rinfo->plcp;
+		linkq.retry[i].rflags = rinfo->flags;
 		linkq.retry[i].rflags |= IWN_RFLAG_ANT(txant);
-		ridx = iwn_prev_ridx[ridx];
+		/* Next retry at immediate lower bit-rate. */
+		if (txrate > 0)
+			txrate--;
 	}
-#ifdef IWN_DEBUG
-	if (sc->sc_debug & IWN_DEBUG_STATE) {
-		printf("%s: set link quality for node %d, mimo %d ssmask %d\n",
-		    __func__, id, linkq.mimo, linkq.antmsk_1stream);
-		printf("%s:", __func__);
-		for (i = 0; i < IWN_MAX_TX_RETRIES; i++)
-			printf(" %d:%x", linkq.retry[i].plcp,
-			    linkq.retry[i].rflags);
-		printf("\n");
-	}
-#endif
-	return iwn_cmd(sc, IWN_CMD_LINK_QUALITY, &linkq, sizeof linkq, async);
+	return iwn_cmd(sc, IWN_CMD_LINK_QUALITY, &linkq, sizeof linkq, 1);
 }
 
 /*
@@ -3701,8 +3657,12 @@ iwn_add_broadcast_node(struct iwn_softc *sc, int async)
 {
 	const struct iwn_hal *hal = sc->sc_hal;
 	struct ifnet *ifp = sc->sc_ifp;
+	struct ieee80211com *ic = ifp->if_l2com;
 	struct iwn_node_info node;
-	int error;
+	struct iwn_cmd_link_quality linkq;
+	const struct iwn_rate *rinfo;
+	uint8_t txant;
+	int i, error;
 
 	memset(&node, 0, sizeof node);
 	IEEE80211_ADDR_COPY(node.macaddr, ifp->if_broadcastaddr);
@@ -3712,8 +3672,31 @@ iwn_add_broadcast_node(struct iwn_softc *sc, int async)
 	if (error != 0)
 		return error;
 
-	error = iwn_set_link_quality(sc, hal->broadcast_id, async);
-	return error;
+	/* Use the first valid TX antenna. */
+	txant = IWN_LSB(sc->txchainmask);
+
+	memset(&linkq, 0, sizeof linkq);
+	linkq.id = sc->sc_hal->broadcast_id;
+	linkq.antmsk_1stream = txant;
+	linkq.antmsk_2stream = IWN_ANT_AB;
+	linkq.ampdu_max = 64;
+	linkq.ampdu_threshold = 3;
+	linkq.ampdu_limit = htole16(4000);	/* 4ms */
+
+	/* Use lowest mandatory bit-rate. */
+	if (IEEE80211_IS_CHAN_5GHZ(ic->ic_curchan))
+		rinfo = &iwn_rates[IWN_RIDX_OFDM6];
+	else
+		rinfo = &iwn_rates[IWN_RIDX_CCK1];
+	linkq.retry[0].plcp = rinfo->plcp;
+	linkq.retry[0].rflags = rinfo->flags;
+	linkq.retry[0].rflags |= IWN_RFLAG_ANT(txant);
+	/* Use same bit-rate for all TX retries. */
+	for (i = 1; i < IWN_MAX_TX_RETRIES; i++) {
+		linkq.retry[i].plcp = linkq.retry[0].plcp;
+		linkq.retry[i].rflags = linkq.retry[0].rflags;
+	}
+	return iwn_cmd(sc, IWN_CMD_LINK_QUALITY, &linkq, sizeof linkq, async);
 }
 
 static int
@@ -5010,6 +4993,10 @@ iwn_run(struct iwn_softc *sc, struct ieee80211vap *vap)
 		return error;
 	}
 
+	/* Fake a join to initialize the TX rate. */
+	((struct iwn_node *)ni)->id = IWN_ID_BSS;
+	iwn_newassoc(ni, 1);
+
 	/* Add BSS node. */
 	memset(&node, 0, sizeof node);
 	IEEE80211_ADDR_COPY(node.macaddr, ni->ni_macaddr);
@@ -5027,7 +5014,7 @@ iwn_run(struct iwn_softc *sc, struct ieee80211vap *vap)
 	}
 	DPRINTF(sc, IWN_DEBUG_STATE, "setting link quality for node %d\n",
 	    node.id);
-	error = iwn_set_link_quality(sc, node.id, 1);
+	error = iwn_set_link_quality(sc, ni);
 	if (error != 0) {
 		device_printf(sc->sc_dev,
 		    "%s: could not setup MRR for node %d, error %d\n",
