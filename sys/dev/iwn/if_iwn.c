@@ -196,6 +196,7 @@ static void	iwn_tune_sensitivity(struct iwn_softc *,
 		    const struct iwn_rx_stats *);
 static int	iwn_send_sensitivity(struct iwn_softc *);
 static int	iwn_set_pslevel(struct iwn_softc *, int, int, int);
+static int	iwn_send_btcoex(struct iwn_softc *);
 static int	iwn_config(struct iwn_softc *);
 static uint8_t	*ieee80211_add_ssid(uint8_t *, const uint8_t *, u_int);
 static int	iwn_scan(struct iwn_softc *);
@@ -4464,12 +4465,25 @@ iwn_set_pslevel(struct iwn_softc *sc, int dtim, int level, int async)
 }
 
 static int
+iwn_send_btcoex(struct iwn_softc *sc)
+{
+	struct iwn_bluetooth cmd;
+
+	memset(&cmd, 0, sizeof cmd);
+	cmd.flags = IWN_BT_COEX_CHAN_ANN | IWN_BT_COEX_BT_PRIO;
+	cmd.lead_time = IWN_BT_LEAD_TIME_DEF;
+	cmd.max_kill = IWN_BT_MAX_KILL_DEF;
+	DPRINTF(sc, IWN_DEBUG_RESET, "%s: configuring bluetooth coexistence\n",
+	    __func__);
+	return iwn_cmd(sc, IWN_CMD_BT_COEX, &cmd, sizeof(cmd), 0);
+}
+
+static int
 iwn_config(struct iwn_softc *sc)
 {
 	const struct iwn_hal *hal = sc->sc_hal;
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
-	struct iwn_bluetooth bluetooth;
 	uint32_t txmask;
 	int error;
 	uint16_t rxchain;
@@ -4490,13 +4504,7 @@ iwn_config(struct iwn_softc *sc)
 	}
 
 	/* Configure bluetooth coexistence. */
-	memset(&bluetooth, 0, sizeof bluetooth);
-	bluetooth.flags = IWN_BT_COEX_CHAN_ANN | IWN_BT_COEX_BT_PRIO;
-	bluetooth.lead_time = IWN_BT_LEAD_TIME_DEF;
-	bluetooth.max_kill = IWN_BT_MAX_KILL_DEF;
-	DPRINTF(sc, IWN_DEBUG_RESET, "%s: config bluetooth coexistence\n",
-	    __func__);
-	error = iwn_cmd(sc, IWN_CMD_BT_COEX, &bluetooth, sizeof bluetooth, 0);
+	error = iwn_send_btcoex(sc);
 	if (error != 0) {
 		device_printf(sc->sc_dev,
 		    "%s: could not configure bluetooth coexistence, error %d\n",
