@@ -198,6 +198,7 @@ static void	iwn_tune_sensitivity(struct iwn_softc *,
 static int	iwn_send_sensitivity(struct iwn_softc *);
 static int	iwn_set_pslevel(struct iwn_softc *, int, int, int);
 static int	iwn_config(struct iwn_softc *);
+static uint8_t	*ieee80211_add_ssid(uint8_t *, const uint8_t *, u_int);
 static int	iwn_scan(struct iwn_softc *);
 static int	iwn_auth(struct iwn_softc *, struct ieee80211vap *vap);
 static int	iwn_run(struct iwn_softc *, struct ieee80211vap *vap);
@@ -3636,7 +3637,6 @@ static int
 iwn_wme_update(struct ieee80211com *ic)
 {
 #define IWN_EXP2(x)	((1 << (x)) - 1)	/* CWmin = 2^ECWmin - 1 */
-#define	IWN_TXOP_TO_US(v)		(v<<5)
 	struct iwn_softc *sc = ic->ic_ifp->if_softc;
 	struct iwn_edca_params cmd;
 	int i;
@@ -3650,7 +3650,7 @@ iwn_wme_update(struct ieee80211com *ic)
 		cmd.ac[i].cwmin = htole16(IWN_EXP2(wmep->wmep_logcwmin));
 		cmd.ac[i].cwmax = htole16(IWN_EXP2(wmep->wmep_logcwmax));
 		cmd.ac[i].txoplimit =
-		    htole16(IWN_TXOP_TO_US(wmep->wmep_txopLimit));
+		    htole16(IEEE80211_TXOP_TO_US(wmep->wmep_txopLimit));
 	}
 	IEEE80211_UNLOCK(ic);
 	IWN_LOCK(sc);
@@ -3658,7 +3658,6 @@ iwn_wme_update(struct ieee80211com *ic)
 	IWN_UNLOCK(sc);
 	IEEE80211_LOCK(ic);
 	return 0;
-#undef IWN_TXOP_TO_US
 #undef IWN_EXP2
 }
 
@@ -3720,7 +3719,7 @@ iwn_set_timing(struct iwn_softc *sc, struct ieee80211_node *ni)
 	cmd.lintval = htole16(10);
 
 	/* Compute remaining time until next beacon. */
-	val = (uint64_t)ni->ni_intval * 1024;	/* msecs -> usecs */
+	val = (uint64_t)ni->ni_intval * IEEE80211_DUR_TU;
 	mod = le64toh(cmd.tstamp) % val;
 	cmd.binitval = htole32((uint32_t)(val - mod));
 
@@ -4270,7 +4269,7 @@ iwn_tune_sensitivity(struct iwn_softc *sc, const struct iwn_rx_stats *stats)
 	/* Compute number of false alarms since last call for OFDM. */
 	fa  = le32toh(stats->ofdm.bad_plcp) - calib->bad_plcp_ofdm;
 	fa += le32toh(stats->ofdm.fa) - calib->fa_ofdm;
-	fa *= 200 * 1024;	/* 200TU */
+	fa *= 200 * IEEE80211_DUR_TU;	/* 200TU */
 
 	/* Save counters values for next call. */
 	calib->bad_plcp_ofdm = le32toh(stats->ofdm.bad_plcp);
@@ -4327,7 +4326,7 @@ iwn_tune_sensitivity(struct iwn_softc *sc, const struct iwn_rx_stats *stats)
 	/* Compute number of false alarms since last call for CCK. */
 	fa  = le32toh(stats->cck.bad_plcp) - calib->bad_plcp_cck;
 	fa += le32toh(stats->cck.fa) - calib->fa_cck;
-	fa *= 200 * 1024;	/* 200TU */
+	fa *= 200 * IEEE80211_DUR_TU;	/* 200TU */
 
 	/* Save counters values for next call. */
 	calib->bad_plcp_cck = le32toh(stats->cck.bad_plcp);
@@ -4586,6 +4585,18 @@ iwn_config(struct iwn_softc *sc)
 	return 0;
 }
 
+/*
+ * Add an ssid element to a frame.
+ */
+static uint8_t *
+ieee80211_add_ssid(uint8_t *frm, const uint8_t *ssid, u_int len)
+{
+	*frm++ = IEEE80211_ELEMID_SSID;
+	*frm++ = len;
+	memcpy(frm, ssid, len);
+	return frm + len;
+}
+
 static int
 iwn_scan(struct iwn_softc *sc)
 {
@@ -4599,7 +4610,7 @@ iwn_scan(struct iwn_softc *sc)
 	struct ieee80211_frame *wh;
 	struct ieee80211_rateset *rs;
 	struct ieee80211_channel *c;
-	int buflen, error, nrates;
+	int buflen, error;
 	uint16_t rxchain;
 	uint8_t *buf, *frm, txant;
 
@@ -4675,30 +4686,14 @@ iwn_scan(struct iwn_softc *sc)
 	*(uint16_t *)&wh->i_seq[0] = 0;	/* filled by HW */
 
 	frm = (uint8_t *)(wh + 1);
-
-	/* Add SSID IE. */
-	*frm++ = IEEE80211_ELEMID_SSID;
-	*frm++ = ss->ss_ssid[0].len;
-	memcpy(frm, ss->ss_ssid[0].ssid, ss->ss_ssid[0].len);
-	frm += ss->ss_ssid[0].len;
-
-	/* Add supported rates IE. */
-	*frm++ = IEEE80211_ELEMID_RATES;
-	nrates = rs->rs_nrates;
-	if (nrates > IEEE80211_RATE_SIZE)
-		nrates = IEEE80211_RATE_SIZE;
-	*frm++ = nrates;
-	memcpy(frm, rs->rs_rates, nrates);
-	frm += nrates;
-
-	/* Add supported xrates IE. */
-	if (rs->rs_nrates > IEEE80211_RATE_SIZE) {
-		nrates = rs->rs_nrates - IEEE80211_RATE_SIZE;
-		*frm++ = IEEE80211_ELEMID_XRATES;
-		*frm++ = (uint8_t)nrates;
-		memcpy(frm, rs->rs_rates + IEEE80211_RATE_SIZE, nrates);
-		frm += nrates;
-	}
+	frm = ieee80211_add_ssid(frm, NULL, 0);
+	frm = ieee80211_add_rates(frm, rs);
+	if (rs->rs_nrates > IEEE80211_RATE_SIZE)
+		frm = ieee80211_add_xrates(frm, rs);
+#if 0	/* HT */
+	if (ic->ic_flags & IEEE80211_F_HTON)
+		frm = ieee80211_add_htcaps(frm, ic);
+#endif
 
 	/* Set length of probe request. */
 	tx->len = htole16(frm - (uint8_t *)wh);
