@@ -271,11 +271,11 @@ procstat_freefiles(struct procstat *procstat, struct filestat_list *head)
 	}
 	free(head);
 	if (procstat->vmentries != NULL) {
-		free (procstat->vmentries);
+		free(procstat->vmentries);
 		procstat->vmentries = NULL;
 	}
 	if (procstat->files != NULL) {
-		free (procstat->files);
+		free(procstat->files);
 		procstat->files = NULL;
 	}
 }
