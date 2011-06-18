@@ -191,7 +191,7 @@ procstat_getprocs(struct procstat *procstat, int what, int arg,
 		len = *count * sizeof(*p);
 		p = malloc(len);
 		if (p == NULL) {
-			warnx("malloc(%zd)", len);
+			warnx("malloc(%zu)", len);
 			goto fail;
 		}
 		bcopy(p0, p, len);
@@ -213,7 +213,7 @@ procstat_getprocs(struct procstat *procstat, int what, int arg,
 		}
 		p = malloc(len);
 		if (p == NULL) {
-			warnx("malloc(%zd)", len);
+			warnx("malloc(%zu)", len);
 			goto fail;
 		}
 		error = sysctl(name, 4, p, &len, NULL, 0);
@@ -426,7 +426,7 @@ procstat_getfiles_kvm(struct procstat *procstat, struct kinfo_proc *kp, int mmap
 	nfiles = filed.fd_lastfile + 1;
 	ofiles = malloc(nfiles * sizeof(struct file *));
 	if (ofiles == NULL) {
-		warn("malloc(%zd)", nfiles * sizeof(struct file *));
+		warn("malloc(%zu)", nfiles * sizeof(struct file *));
 		goto do_mmapped;
 	}
 	if (!kvm_read_all(kd, (unsigned long)filed.fd_ofiles, ofiles,
