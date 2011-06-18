@@ -759,7 +759,7 @@ match:
 			}
 		} else
 			LLE_WUNLOCK(la);
-	} /* end of FIB loop */
+	}
 reply:
 	if (op != ARPOP_REQUEST)
 		goto drop;
