@@ -65,7 +65,7 @@ typedef long ctf_id_t;
  * filling in ctf_sect_t structures and passing them to ctf_bufopen():
  */
 typedef struct ctf_sect {
-	char *cts_name;		/* section name (if any) */
+	const char *cts_name;	/* section name (if any) */
 	ulong_t cts_type;	/* section type (ELF SHT_... value) */
 	ulong_t cts_flags;	/* section flags (ELF SHF_... value) */
 #if defined(sun)

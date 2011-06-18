@@ -45,6 +45,7 @@
 #include <assert.h>
 #include <libgen.h>
 #include <limits.h>
+#include <stdint.h>
 
 #include <dt_impl.h>
 
@@ -811,15 +812,14 @@ dt_basename(char *str)
 ulong_t
 dt_popc(ulong_t x)
 {
-#ifdef _ILP32
+#if defined(_ILP32)
 	x = x - ((x >> 1) & 0x55555555UL);
 	x = (x & 0x33333333UL) + ((x >> 2) & 0x33333333UL);
 	x = (x + (x >> 4)) & 0x0F0F0F0FUL;
 	x = x + (x >> 8);
 	x = x + (x >> 16);
 	return (x & 0x3F);
-#endif
-#ifdef _LP64
+#elif defined(_LP64)
 	x = x - ((x >> 1) & 0x5555555555555555ULL);
 	x = (x & 0x3333333333333333ULL) + ((x >> 2) & 0x3333333333333333ULL);
 	x = (x + (x >> 4)) & 0x0F0F0F0F0F0F0F0FULL;
@@ -827,6 +827,8 @@ dt_popc(ulong_t x)
 	x = x + (x >> 16);
 	x = x + (x >> 32);
 	return (x & 0x7F);
+#else
+# warning need td_popc() implementation
 #endif
 }
 
@@ -958,7 +960,7 @@ dtrace_uaddr2str(dtrace_hdl_t *dtp, pid_t pid,
 		P = dt_proc_grab(dtp, pid, PGRAB_RDONLY | PGRAB_FORCE, 0);
 
 	if (P == NULL) {
-		(void) snprintf(c, sizeof (c), "0x%llx", addr);
+	  (void) snprintf(c, sizeof (c), "0x%jx", (uintmax_t)addr);
 		return (dt_string2str(c, str, nbytes));
 	}
 
@@ -976,10 +978,10 @@ dtrace_uaddr2str(dtrace_hdl_t *dtp, pid_t pid,
 			(void) snprintf(c, sizeof (c), "%s`%s", obj, name);
 		}
 	} else if (Pobjname(P, addr, objname, sizeof (objname)) != 0) {
-		(void) snprintf(c, sizeof (c), "%s`0x%llx",
-		    dt_basename(objname), addr);
+		(void) snprintf(c, sizeof (c), "%s`0x%jx",
+				dt_basename(objname), (uintmax_t)addr);
 	} else {
-		(void) snprintf(c, sizeof (c), "0x%llx", addr);
+	  (void) snprintf(c, sizeof (c), "0x%jx", (uintmax_t)addr);
 	}
 
 	dt_proc_unlock(dtp, P);

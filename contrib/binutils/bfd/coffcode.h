@@ -3240,7 +3240,7 @@ coff_compute_section_file_positions (bfd * abfd)
 	 incremented in coff_set_section_contents.  This is right for
 	 SVR3.2.  */
       if (strcmp (current->name, _LIB) == 0)
-	bfd_set_section_vma (abfd, current, 0);
+	(void) bfd_set_section_vma (abfd, current, 0);
 #endif
 
       previous = current;
