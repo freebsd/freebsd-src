@@ -358,9 +358,8 @@ str2sig(const char *str)
 {
 	int i;
 
-#define	SIGPREFIX	"sig"
-	if (!strncasecmp(str, SIGPREFIX, sizeof(SIGPREFIX)))
-		str += sizeof(SIGPREFIX);
+	if (!strncasecmp(str, "SIG", 3))
+		str += 3;
 	for (i = 1; i < sys_nsig; i++) {
                 if (!strcasecmp(sys_signame[i], str))
                         return (i);
