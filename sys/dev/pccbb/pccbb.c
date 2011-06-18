@@ -811,14 +811,14 @@ cbb_power(device_t brdev, int volts)
 		mtx_unlock(&sc->mtx);
 
 		/*
-		 * Relax for 10ms.  Some bridges appear to assert this signal
+		 * Relax for 100ms.  Some bridges appear to assert this signal
 		 * right away, but before the card has stabilized.  Other
 		 * cards need need more time to cope up reliabily.
 		 * Experiments with troublesome setups show this to be a
 		 * "cheap" way to enhance reliabilty.  We need not do this for
 		 * "off" since we don't touch the card after we turn it off.
 		 */
-		pause("cbbPwr", min(hz / 100, 1));
+		pause("cbbPwr", min(hz / 10, 1));
 
 		/*
 		 * The TOPIC95B requires a little bit extra time to get its
