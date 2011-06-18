@@ -1792,7 +1792,6 @@ iwn_read_eeprom_band(struct iwn_softc *sc, int n)
 			c->ic_freq = ieee80211_ieee2mhz(chan,
 			    IEEE80211_CHAN_A);
 			c->ic_flags = IEEE80211_CHAN_A | nflags;
-			sc->sc_flags |= IWN_FLAG_HAS_5GHZ;
 		}
 #if 0	/* HT */
 		/* XXX no constraints on using HT20 */
