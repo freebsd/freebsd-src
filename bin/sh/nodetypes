@@ -56,7 +56,6 @@ NSEMI nbinary			# two commands separated by a semicolon
 
 NCMD ncmd			# a simple command
 	type	  int
-	backgnd	  int			# set to run command in background
 	args	  nodeptr		# the arguments
 	redirect  nodeptr		# list of file redirections
 
