@@ -229,7 +229,7 @@ procstat_getprocs(struct procstat *procstat, int what, int arg,
 		*count = len / sizeof(*p);
 		return (p);
 	} else {
-		warnx("unknown access method");
+		warnx("unknown access method: %d", procstat->type);
 		return (NULL);
 	}
 fail:
@@ -726,7 +726,7 @@ procstat_get_pipe_info(struct procstat *procstat, struct filestat *fst,
 	} else if (procstat->type == PROCSTAT_SYSCTL) {
 		return (procstat_get_pipe_info_sysctl(fst, ps, errbuf));
 	} else {
-		warnx("unknow access method: %d", procstat->type);
+		warnx("unknown access method: %d", procstat->type);
 		snprintf(errbuf, _POSIX2_LINE_MAX, "error");
 		return (1);
 	}
@@ -790,7 +790,7 @@ procstat_get_pts_info(struct procstat *procstat, struct filestat *fst,
 	} else if (procstat->type == PROCSTAT_SYSCTL) {
 		return (procstat_get_pts_info_sysctl(fst, pts, errbuf));
 	} else {
-		warnx("unknow access method: %d", procstat->type);
+		warnx("unknown access method: %d", procstat->type);
 		snprintf(errbuf, _POSIX2_LINE_MAX, "error");
 		return (1);
 	}
@@ -852,7 +852,7 @@ procstat_get_vnode_info(struct procstat *procstat, struct filestat *fst,
 	} else if (procstat->type == PROCSTAT_SYSCTL) {
 		return (procstat_get_vnode_info_sysctl(fst, vn, errbuf));
 	} else {
-		warnx("unknow access method: %d", procstat->type);
+		warnx("unknown access method: %d", procstat->type);
 		snprintf(errbuf, _POSIX2_LINE_MAX, "error");
 		return (1);
 	}
@@ -1059,7 +1059,7 @@ procstat_get_socket_info(struct procstat *procstat, struct filestat *fst,
 	} else if (procstat->type == PROCSTAT_SYSCTL) {
 		return (procstat_get_socket_info_sysctl(fst, sock, errbuf));
 	} else {
-		warnx("unknow access method: %d", procstat->type);
+		warnx("unknown access method: %d", procstat->type);
 		snprintf(errbuf, _POSIX2_LINE_MAX, "error");
 		return (1);
 	}
