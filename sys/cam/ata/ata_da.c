@@ -818,7 +818,7 @@ adagetattr(struct bio *bp)
 	int ret = -1;
 	struct cam_periph *periph;
 
-	if (bp->bio_disk == NULL || bp->bio_disk->d_drv1)
+	if (bp->bio_disk == NULL || bp->bio_disk->d_drv1 == NULL)
 		return ENXIO;
 	periph = (struct cam_periph *)bp->bio_disk->d_drv1;
 	if (periph->path == NULL)
