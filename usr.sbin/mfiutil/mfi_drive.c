@@ -310,19 +310,23 @@ drive_set_state(char *drive, uint16_t new_state)
 	}
 
 	error = mfi_lookup_drive(fd, drive, &device_id);
-	if (error)
+	if (error) {
+		close(fd);
 		return (error);
+	}
 
 	/* Get the info for this drive. */
 	if (mfi_pd_get_info(fd, device_id, &info, NULL) < 0) {
 		error = errno;
 		warn("Failed to fetch info for drive %u", device_id);
+		close(fd);
 		return (error);
 	}
 
 	/* Try to change the state. */
 	if (info.fw_state == new_state) {
 		warnx("Drive %u is already in the desired state", device_id);
+		close(fd);
 		return (EINVAL);
 	}
 
@@ -334,6 +338,7 @@ drive_set_state(char *drive, uint16_t new_state)
 		error = errno;
 		warn("Failed to set drive %u to %s", device_id,
 		    mfi_pdstate(new_state));
+		close(fd);
 		return (error);
 	}
 
@@ -406,19 +411,23 @@ start_rebuild(int ac, char **av)
 	}
 
 	error = mfi_lookup_drive(fd, av[1], &device_id);
-	if (error)
+	if (error) {
+		close(fd);
 		return (error);
+	}
 
 	/* Get the info for this drive. */
 	if (mfi_pd_get_info(fd, device_id, &info, NULL) < 0) {
 		error = errno;
 		warn("Failed to fetch info for drive %u", device_id);
+		close(fd);
 		return (error);
 	}
 
 	/* Check the state, must be REBUILD. */
 	if (info.fw_state != MFI_PD_STATE_REBUILD) {
 		warnx("Drive %d is not in the REBUILD state", device_id);
+		close(fd);
 		return (EINVAL);
 	}
 
@@ -428,6 +437,7 @@ start_rebuild(int ac, char **av)
 	    NULL) < 0) {
 		error = errno;
 		warn("Failed to start rebuild on drive %u", device_id);
+		close(fd);
 		return (error);
 	}
 	close(fd);
@@ -458,19 +468,23 @@ abort_rebuild(int ac, char **av)
 	}
 
 	error = mfi_lookup_drive(fd, av[1], &device_id);
-	if (error)
+	if (error) {
+		close(fd);
 		return (error);
+	}
 
 	/* Get the info for this drive. */
 	if (mfi_pd_get_info(fd, device_id, &info, NULL) < 0) {
 		error = errno;
 		warn("Failed to fetch info for drive %u", device_id);
+		close(fd);
 		return (error);
 	}
 
 	/* Check the state, must be REBUILD. */
 	if (info.fw_state != MFI_PD_STATE_REBUILD) {
 		warn("Drive %d is not in the REBUILD state", device_id);
+		close(fd);
 		return (EINVAL);
 	}
 
@@ -480,6 +494,7 @@ abort_rebuild(int ac, char **av)
 	    NULL) < 0) {
 		error = errno;
 		warn("Failed to abort rebuild on drive %u", device_id);
+		close(fd);
 		return (error);
 	}
 	close(fd);
@@ -509,13 +524,16 @@ drive_progress(int ac, char **av)
 	}
 
 	error = mfi_lookup_drive(fd, av[1], &device_id);
-	if (error)
+	if (error) {
+		close(fd);
 		return (error);
+	}
 
 	/* Get the info for this drive. */
 	if (mfi_pd_get_info(fd, device_id, &info, NULL) < 0) {
 		error = errno;
 		warn("Failed to fetch info for drive %u", device_id);
+		close(fd);
 		return (error);
 	}
 	close(fd);
@@ -570,13 +588,16 @@ drive_clear(int ac, char **av)
 	}
 
 	error = mfi_lookup_drive(fd, av[1], &device_id);
-	if (error)
+	if (error) {
+		close(fd);
 		return (error);
+	}
 
 	/* Get the info for this drive. */
 	if (mfi_pd_get_info(fd, device_id, &info, NULL) < 0) {
 		error = errno;
 		warn("Failed to fetch info for drive %u", device_id);
+		close(fd);
 		return (error);
 	}
 
@@ -586,6 +607,7 @@ drive_clear(int ac, char **av)
 		warn("Failed to %s clear on drive %u",
 		    opcode == MFI_DCMD_PD_CLEAR_START ? "start" : "stop",
 		    device_id);
+		close(fd);
 		return (error);
 	}
 
@@ -626,8 +648,10 @@ drive_locate(int ac, char **av)
 	}
 
 	error = mfi_lookup_drive(fd, av[1], &device_id);
-	if (error)
+	if (error) {
+		close(fd);
 		return (error);
+	}
 
 
 	mbox_store_device_id(&mbox[0], device_id);
@@ -638,6 +662,7 @@ drive_locate(int ac, char **av)
 		warn("Failed to %s locate on drive %u",
 		    opcode == MFI_DCMD_PD_LOCATE_START ? "start" : "stop",
 		    device_id);
+		close(fd);
 		return (error);
 	}
 	close(fd);

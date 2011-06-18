@@ -85,6 +85,7 @@ mfi_config_read(int fd, struct mfi_config_data **configp)
 {
 	struct mfi_config_data *config;
 	uint32_t config_size;
+	int error;
 
 	/*
 	 * Keep fetching the config in a loop until we have a large enough
@@ -97,8 +98,12 @@ fetch:
 	if (config == NULL)
 		return (-1);
 	if (mfi_dcmd_command(fd, MFI_DCMD_CFG_READ, config,
-	    config_size, NULL, 0, NULL) < 0)
+	    config_size, NULL, 0, NULL) < 0) {
+		error = errno;
+		free(config);
+		errno = error;
 		return (-1);
+	}
 
 	if (config->size > config_size) {
 		config_size = config->size;
@@ -162,12 +167,14 @@ clear_config(int ac, char **av)
 	if (!mfi_reconfig_supported()) {
 		warnx("The current mfi(4) driver does not support "
 		    "configuration changes.");
+		close(fd);
 		return (EOPNOTSUPP);
 	}
 
 	if (mfi_ld_get_list(fd, &list, NULL) < 0) {
 		error = errno;
 		warn("Failed to get volume list");
+		close(fd);
 		return (error);
 	}
 
@@ -175,6 +182,7 @@ clear_config(int ac, char **av)
 		if (mfi_volume_busy(fd, list.ld_list[i].ld.v.target_id)) {
 			warnx("Volume %s is busy and cannot be deleted",
 			    mfi_volume_name(fd, list.ld_list[i].ld.v.target_id));
+			close(fd);
 			return (EBUSY);
 		}
 	}
@@ -185,12 +193,14 @@ clear_config(int ac, char **av)
 	ch = getchar();
 	if (ch != 'y' && ch != 'Y') {
 		printf("\nAborting\n");
+		close(fd);
 		return (0);
 	}
 
 	if (mfi_dcmd_command(fd, MFI_DCMD_CFG_CLEAR, NULL, 0, NULL, 0, NULL) < 0) {
 		error = errno;
 		warn("Failed to clear configuration");
+		close(fd);
 		return (error);
 	}
 
@@ -336,17 +346,21 @@ parse_array(int fd, int raid_type, char *array_str, struct array_info *info)
 	for (pinfo = info->drives; (cp = strsep(&array_str, ",")) != NULL;
 	     pinfo++) {
 		error = mfi_lookup_drive(fd, cp, &device_id);
-		if (error)
+		if (error) {
+			free(info->drives);
 			return (error);
+		}
 
 		if (mfi_pd_get_info(fd, device_id, pinfo, NULL) < 0) {
 			error = errno;
 			warn("Failed to fetch drive info for drive %s", cp);
+			free(info->drives);
 			return (error);
 		}
 
 		if (pinfo->fw_state != MFI_PD_STATE_UNCONFIGURED_GOOD) {
 			warnx("Drive %u is not available", device_id);
+			free(info->drives);
 			return (EINVAL);
 		}
 	}
@@ -551,7 +565,12 @@ create_volume(int ac, char **av)
 		return (EINVAL);
 	}
 
-	
+	bzero(&state, sizeof(state));
+	config = NULL;
+	arrays = NULL;
+	narrays = 0;
+	error = 0;
+
 	fd = mfi_open(mfi_unit);
 	if (fd < 0) {
 		error = errno;
@@ -562,7 +581,8 @@ create_volume(int ac, char **av)
 	if (!mfi_reconfig_supported()) {
 		warnx("The current mfi(4) driver does not support "
 		    "configuration changes.");
-		return (EOPNOTSUPP);
+		error = EOPNOTSUPP;
+		goto error;
 	}
 
 	/* Lookup the RAID type first. */
@@ -575,7 +595,8 @@ create_volume(int ac, char **av)
 
 	if (raid_type == -1) {
 		warnx("Unknown or unsupported volume type %s", av[1]);
-		return (EINVAL);
+		error = EINVAL;
+		goto error;
 	}
 
 	/* Parse any options. */
@@ -603,7 +624,8 @@ create_volume(int ac, char **av)
 			break;
 		case '?':
 		default:
-			return (EINVAL);
+			error = EINVAL;
+			goto error;
 		}
 	}
 	ac -= optind;
@@ -613,7 +635,8 @@ create_volume(int ac, char **av)
 	narrays = ac;
 	if (narrays == 0) {
 		warnx("At least one drive list is required");
-		return (EINVAL);
+		error = EINVAL;
+		goto error;
 	}
 	switch (raid_type) {
 	case RT_RAID0:
@@ -623,7 +646,8 @@ create_volume(int ac, char **av)
 	case RT_CONCAT:
 		if (narrays != 1) {
 			warnx("Only one drive list can be specified");
-			return (EINVAL);
+			error = EINVAL;
+			goto error;
 		}
 		break;
 	case RT_RAID10:
@@ -632,24 +656,27 @@ create_volume(int ac, char **av)
 		if (narrays < 1) {
 			warnx("RAID10, RAID50, and RAID60 require at least "
 			    "two drive lists");
-			return (EINVAL);
+			error = EINVAL;
+			goto error;
 		}
 		if (narrays > MFI_MAX_SPAN_DEPTH) {
 			warnx("Volume spans more than %d arrays",
 			    MFI_MAX_SPAN_DEPTH);
-			return (EINVAL);
+			error = EINVAL;
+			goto error;
 		}
 		break;
 	}
 	arrays = calloc(narrays, sizeof(*arrays));
 	if (arrays == NULL) {
 		warnx("malloc failed");
-		return (ENOMEM);
+		error = ENOMEM;
+		goto error;
 	}
 	for (i = 0; i < narrays; i++) {
 		error = parse_array(fd, raid_type, av[i], &arrays[i]);
 		if (error)
-			return (error);
+			goto error;
 	}
 
 	switch (raid_type) {
@@ -660,7 +687,8 @@ create_volume(int ac, char **av)
 			if (arrays[i].drive_count != arrays[0].drive_count) {
 				warnx("All arrays must contain the same "
 				    "number of drives");
-				return (EINVAL);
+				error = EINVAL;
+				goto error;
 			}
 		}
 		break;
@@ -673,7 +701,7 @@ create_volume(int ac, char **av)
 	if (mfi_config_read(fd, &config) < 0) {
 		error = errno;
 		warn("Failed to read configuration");
-		return (error);
+		goto error;
 	}
 	p = (char *)config->array;
 	state.array_ref = 0xffff;
@@ -683,7 +711,8 @@ create_volume(int ac, char **av)
 		state.arrays = calloc(config->array_count, sizeof(int));
 		if (state.arrays == NULL) {
 			warnx("malloc failed");
-			return (ENOMEM);
+			error = ENOMEM;
+			goto error;
 		}
 		for (i = 0; i < config->array_count; i++) {
 			ar = (struct mfi_array *)p;
@@ -699,7 +728,8 @@ create_volume(int ac, char **av)
 		state.volumes = calloc(config->log_drv_count, sizeof(int));
 		if (state.volumes == NULL) {
 			warnx("malloc failed");
-			return (ENOMEM);
+			error = ENOMEM;
+			goto error;
 		}
 		for (i = 0; i < config->log_drv_count; i++) {
 			ld = (struct mfi_ld_config *)p;
@@ -739,7 +769,8 @@ create_volume(int ac, char **av)
 	config = calloc(1, config_size);
 	if (config == NULL) {
 		warnx("malloc failed");
-		return (ENOMEM);
+		error = ENOMEM;
+		goto error;
 	}
 	config->size = config_size;
 	config->array_count = narrays;
@@ -776,21 +807,20 @@ create_volume(int ac, char **av)
 	    NULL, 0, NULL) < 0) {
 		error = errno;
 		warn("Failed to add volume");
-		return (error);
+		/* FALLTHROUGH */
 	}
 
+error:
 	/* Clean up. */
 	free(config);
-	if (state.log_drv_count > 0)
-		free(state.volumes);
-	if (state.array_count > 0)
-		free(state.arrays);
+	free(state.volumes);
+	free(state.arrays);
 	for (i = 0; i < narrays; i++)
 		free(arrays[i].drives);
 	free(arrays);
 	close(fd);
 
-	return (0);
+	return (error);
 }
 MFI_COMMAND(top, create, create_volume);
 
@@ -831,24 +861,28 @@ delete_volume(int ac, char **av)
 	if (!mfi_reconfig_supported()) {
 		warnx("The current mfi(4) driver does not support "
 		    "configuration changes.");
+		close(fd);
 		return (EOPNOTSUPP);
 	}
 
 	if (mfi_lookup_volume(fd, av[1], &target_id) < 0) {
 		error = errno;
 		warn("Invalid volume %s", av[1]);
+		close(fd);
 		return (error);
 	}
 
 	if (mfi_ld_get_info(fd, target_id, &info, NULL) < 0) {
 		error = errno;
 		warn("Failed to get info for volume %d", target_id);
+		close(fd);
 		return (error);
 	}
 
 	if (mfi_volume_busy(fd, target_id)) {
 		warnx("Volume %s is busy and cannot be deleted",
 		    mfi_volume_name(fd, target_id));
+		close(fd);
 		return (EBUSY);
 	}
 
@@ -857,6 +891,7 @@ delete_volume(int ac, char **av)
 	    sizeof(mbox), NULL) < 0) {
 		error = errno;
 		warn("Failed to delete volume");
+		close(fd);
 		return (error);
 	}
 
@@ -891,40 +926,44 @@ add_spare(int ac, char **av)
 		return (error);
 	}
 
+	config = NULL;
+	spare = NULL;
 	error = mfi_lookup_drive(fd, av[1], &device_id);
 	if (error)
-		return (error);
+		goto error;
 
 	if (mfi_pd_get_info(fd, device_id, &info, NULL) < 0) {
 		error = errno;
 		warn("Failed to fetch drive info");
-		return (error);
+		goto error;
 	}
 
 	if (info.fw_state != MFI_PD_STATE_UNCONFIGURED_GOOD) {
 		warnx("Drive %u is not available", device_id);
-		return (EINVAL);
+		error = EINVAL;
+		goto error;
 	}
 
 	if (ac > 2) {
 		if (mfi_lookup_volume(fd, av[2], &target_id) < 0) {
 			error = errno;
 			warn("Invalid volume %s", av[2]);
-			return (error);
+			goto error;
 		}
 	}
 
 	if (mfi_config_read(fd, &config) < 0) {
 		error = errno;
 		warn("Failed to read configuration");
-		return (error);
+		goto error;
 	}
 
 	spare = malloc(sizeof(struct mfi_spare) + sizeof(uint16_t) *
 	    config->array_count);
 	if (spare == NULL) {
 		warnx("malloc failed");
-		return (ENOMEM);
+		error = ENOMEM;
+		goto error;
 	}
 	bzero(spare, sizeof(struct mfi_spare));
 	spare->ref = info.ref;
@@ -937,7 +976,8 @@ add_spare(int ac, char **av)
 			if (ar->size > info.coerced_size) {
 				warnx("Spare isn't large enough for array %u",
 				    ar->array_ref);
-				return (EINVAL);
+				error = EINVAL;
+				goto error;
 			}
 			p += config->array_size;
 		}
@@ -950,7 +990,8 @@ add_spare(int ac, char **av)
 		ld = mfi_config_lookup_volume(config, target_id);
 		if (ld == NULL) {
 			warnx("Did not find volume %d", target_id);
-			return (EINVAL);
+			error = EINVAL;
+			goto error;
 		}
 
 		spare->spare_type |= MFI_SPARE_DEDICATED;
@@ -960,29 +1001,33 @@ add_spare(int ac, char **av)
 			    ld->span[i].array_ref);
 			if (ar == NULL) {
 				warnx("Missing array; inconsistent config?");
-				return (ENXIO);
+				error = ENXIO;
+				goto error;
 			}
 			if (ar->size > info.coerced_size) {
 				warnx("Spare isn't large enough for array %u",
 				    ar->array_ref);
-				return (EINVAL);
+				error = EINVAL;
+				goto error;
 			}				
 			spare->array_ref[i] = ar->array_ref;
 		}
 	}
-	free(config);
 
 	if (mfi_dcmd_command(fd, MFI_DCMD_CFG_MAKE_SPARE, spare,
 	    sizeof(struct mfi_spare) + sizeof(uint16_t) * spare->array_count,
 	    NULL, 0, NULL) < 0) {
 		error = errno;
 		warn("Failed to assign spare");
-		return (error);
+		/* FALLTHROUGH. */
 	}
 
+error:
+	free(spare);
+	free(config);
 	close(fd);
 
-	return (0);
+	return (error);
 }
 MFI_COMMAND(top, add, add_spare);
 
@@ -1007,18 +1052,22 @@ remove_spare(int ac, char **av)
 	}
 
 	error = mfi_lookup_drive(fd, av[1], &device_id);
-	if (error)
+	if (error) {
+		close(fd);
 		return (error);
+	}
 
 	/* Get the info for this drive. */
 	if (mfi_pd_get_info(fd, device_id, &info, NULL) < 0) {
 		error = errno;
 		warn("Failed to fetch info for drive %u", device_id);
+		close(fd);
 		return (error);
 	}
 
 	if (info.fw_state != MFI_PD_STATE_HOT_SPARE) {
 		warnx("Drive %u is not a hot spare", device_id);
+		close(fd);
 		return (EINVAL);
 	}
 
@@ -1027,6 +1076,7 @@ remove_spare(int ac, char **av)
 	    sizeof(mbox), NULL) < 0) {
 		error = errno;
 		warn("Failed to delete spare");
+		close(fd);
 		return (error);
 	}
 
@@ -1151,6 +1201,7 @@ debug_config(int ac, char **av)
 	if (mfi_config_read(fd, &config) < 0) {
 		error = errno;
 		warn("Failed to get config");
+		close(fd);
 		return (error);
 	}
 
@@ -1190,17 +1241,21 @@ dump(int ac, char **av)
 		warn("Failed to read debug command");
 		if (error == ENOENT)
 			error = EOPNOTSUPP;
+		close(fd);
 		return (error);
 	}
 
 	config = malloc(len);
 	if (config == NULL) {
 		warnx("malloc failed");
+		close(fd);
 		return (ENOMEM);
 	}
 	if (sysctlbyname(buf, config, &len, NULL, 0) < 0) {
 		error = errno;
 		warn("Failed to read debug command");
+		free(config);
+		close(fd);
 		return (error);
 	}
 	dump_config(fd, config);
