@@ -93,6 +93,8 @@ static struct pr_usrreqs nousrreqs;
 #include <net/if_pfsync.h>
 #endif
 
+FEATURE(inet, "Internet Protocol version 4");
+
 extern	struct domain inetdomain;
 
 /* Spacer for loadable protocols. */
