@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
  */
 
 #include "opt_inet6.h"
+#include "opt_kdtrace.h"
 #include "opt_kgssapi.h"
 #include "opt_nfs.h"
 
@@ -63,6 +64,28 @@ __FBSDID("$FreeBSD$");
 #include <kgssapi/krb5/kcrypto.h>
 
 #include <fs/nfs/nfsport.h>
+
+#ifdef KDTRACE_HOOKS
+#include <sys/dtrace_bsd.h>
+
+dtrace_nfsclient_nfs23_start_probe_func_t
+		dtrace_nfscl_nfs234_start_probe;
+
+dtrace_nfsclient_nfs23_done_probe_func_t
+		dtrace_nfscl_nfs234_done_probe;
+
+/*
+ * Registered probes by RPC type.
+ */
+uint32_t	nfscl_nfs2_start_probes[NFS_NPROCS + 1];
+uint32_t	nfscl_nfs2_done_probes[NFS_NPROCS + 1];
+
+uint32_t	nfscl_nfs3_start_probes[NFS_NPROCS + 1];
+uint32_t	nfscl_nfs3_done_probes[NFS_NPROCS + 1];
+
+uint32_t	nfscl_nfs4_start_probes[NFS_NPROCS + 1];
+uint32_t	nfscl_nfs4_done_probes[NFS_NPROCS + 1];
+#endif
 
 NFSSTATESPINLOCK;
 NFSREQSPINLOCK;
@@ -568,6 +591,29 @@ newnfs_request(struct nfsrv_descript *nd, struct nfsmount *nmp,
 		if ((nd->nd_flag & ND_NFSV4) && procnum == NFSV4PROC_COMPOUND)
 			MALLOC(rep, struct nfsreq *, sizeof(struct nfsreq),
 			    M_NFSDREQ, M_WAITOK);
+#ifdef KDTRACE_HOOKS
+		if (dtrace_nfscl_nfs234_start_probe != NULL) {
+			uint32_t probe_id;
+			int probe_procnum;
+	
+			if (nd->nd_flag & ND_NFSV4) {
+				probe_id =
+				    nfscl_nfs4_start_probes[nd->nd_procnum];
+				probe_procnum = nd->nd_procnum;
+			} else if (nd->nd_flag & ND_NFSV3) {
+				probe_id = nfscl_nfs3_start_probes[procnum];
+				probe_procnum = procnum;
+			} else {
+				probe_id =
+				    nfscl_nfs2_start_probes[nd->nd_procnum];
+				probe_procnum = procnum;
+			}
+			if (probe_id != 0)
+				(dtrace_nfscl_nfs234_start_probe)
+				    (probe_id, vp, nd->nd_mreq, cred,
+				     probe_procnum);
+		}
+#endif
 	}
 	trycnt = 0;
 tryagain:
@@ -761,6 +807,27 @@ tryagain:
 				nd->nd_repstat = NFSERR_STALEDONTRECOVER;
 		}
 	}
+
+#ifdef KDTRACE_HOOKS
+	if (nmp != NULL && dtrace_nfscl_nfs234_done_probe != NULL) {
+		uint32_t probe_id;
+		int probe_procnum;
+
+		if (nd->nd_flag & ND_NFSV4) {
+			probe_id = nfscl_nfs4_done_probes[nd->nd_procnum];
+			probe_procnum = nd->nd_procnum;
+		} else if (nd->nd_flag & ND_NFSV3) {
+			probe_id = nfscl_nfs3_done_probes[procnum];
+			probe_procnum = procnum;
+		} else {
+			probe_id = nfscl_nfs2_done_probes[nd->nd_procnum];
+			probe_procnum = procnum;
+		}
+		if (probe_id != 0)
+			(dtrace_nfscl_nfs234_done_probe)(probe_id, vp,
+			    nd->nd_mreq, cred, probe_procnum, 0);
+	}
+#endif
 
 	m_freem(nd->nd_mreq);
 	AUTH_DESTROY(auth);
