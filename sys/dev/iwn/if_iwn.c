@@ -81,7 +81,6 @@ static struct ieee80211vap *iwn_vap_create(struct ieee80211com *,
 		    int flags, const uint8_t bssid[IEEE80211_ADDR_LEN],
 		    const uint8_t mac[IEEE80211_ADDR_LEN]);
 static void	iwn_vap_delete(struct ieee80211vap *);
-static int	iwn_cleanup(device_t);
 static int	iwn_detach(device_t);
 static int	iwn_nic_lock(struct iwn_softc *);
 static int	iwn_eeprom_lock(struct iwn_softc *);
@@ -684,7 +683,7 @@ iwn_attach(device_t dev)
 	ieee80211_announce(ic);
 	return 0;
 fail:
-	iwn_cleanup(dev);
+	iwn_detach(dev);
 	return error;
 }
 
@@ -845,7 +844,7 @@ iwn_vap_delete(struct ieee80211vap *vap)
 }
 
 static int
-iwn_cleanup(device_t dev)
+iwn_detach(device_t dev)
 {
 	struct iwn_softc *sc = device_get_softc(dev);
 	struct ifnet *ifp = sc->sc_ifp;
@@ -891,13 +890,6 @@ iwn_cleanup(device_t dev)
 		if_free(ifp);
 
 	IWN_LOCK_DESTROY(sc);
-	return 0;
-}
-
-static int
-iwn_detach(device_t dev)
-{
-	iwn_cleanup(dev);
 	return 0;
 }
 
