@@ -88,7 +88,7 @@ static int	iwn_init_otprom(struct iwn_softc *);
 static int	iwn_read_prom_data(struct iwn_softc *, uint32_t, void *, int);
 static void	iwn_dma_map_addr(void *, bus_dma_segment_t *, int, int);
 static int	iwn_dma_contig_alloc(struct iwn_softc *, struct iwn_dma_info *,
-		    void **, bus_size_t, bus_size_t, int);
+		    void **, bus_size_t, bus_size_t);
 static void	iwn_dma_contig_free(struct iwn_dma_info *);
 static int	iwn_alloc_sched(struct iwn_softc *);
 static void	iwn_free_sched(struct iwn_softc *);
@@ -1117,7 +1117,7 @@ iwn_dma_map_addr(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 
 static int
 iwn_dma_contig_alloc(struct iwn_softc *sc, struct iwn_dma_info *dma,
-	void **kvap, bus_size_t size, bus_size_t alignment, int flags)
+    void **kvap, bus_size_t size, bus_size_t alignment)
 {
 	int error;
 
@@ -1126,27 +1126,21 @@ iwn_dma_contig_alloc(struct iwn_softc *sc, struct iwn_dma_info *dma,
 
 	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), alignment,
 	    0, BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, size,
-	    1, size, flags, NULL, NULL, &dma->tag);
-	if (error != 0) {
-		device_printf(sc->sc_dev,
-		    "%s: bus_dma_tag_create failed, error %d\n",
-		    __func__, error);
+	    1, size, BUS_DMA_NOWAIT, NULL, NULL, &dma->tag);
+	if (error != 0)
 		goto fail;
-	}
+
 	error = bus_dmamem_alloc(dma->tag, (void **)&dma->vaddr,
-	    flags | BUS_DMA_ZERO, &dma->map);
-	if (error != 0) {
-		device_printf(sc->sc_dev,
-		    "%s: bus_dmamem_alloc failed, error %d\n", __func__, error);
+	    BUS_DMA_NOWAIT | BUS_DMA_ZERO | BUS_DMA_COHERENT, &dma->map);
+	if (error != 0)
 		goto fail;
-	}
-	error = bus_dmamap_load(dma->tag, dma->map, dma->vaddr,
-	    size, iwn_dma_map_addr, &dma->paddr, flags);
-	if (error != 0) {
-		device_printf(sc->sc_dev,
-		    "%s: bus_dmamap_load failed, error %d\n", __func__, error);
+
+	error = bus_dmamap_load(dma->tag, dma->map, dma->vaddr, size,
+	    iwn_dma_map_addr, &dma->paddr, BUS_DMA_NOWAIT);
+	if (error != 0)
 		goto fail;
-	}
+
+	bus_dmamap_sync(dma->tag, dma->map, BUS_DMASYNC_PREWRITE);
 
 	if (kvap != NULL)
 		*kvap = dma->vaddr;
@@ -1159,16 +1153,20 @@ fail:
 static void
 iwn_dma_contig_free(struct iwn_dma_info *dma)
 {
-	if (dma->tag != NULL) {
-		if (dma->map != NULL) {
-			if (dma->paddr == 0) {
-				bus_dmamap_sync(dma->tag, dma->map,
-				    BUS_DMASYNC_POSTREAD|BUS_DMASYNC_POSTWRITE);
-				bus_dmamap_unload(dma->tag, dma->map);
-			}
+	if (dma->map != NULL) {
+		if (dma->vaddr != NULL) {
+			bus_dmamap_sync(dma->tag, dma->map,
+			    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+			bus_dmamap_unload(dma->tag, dma->map);
 			bus_dmamem_free(dma->tag, &dma->vaddr, dma->map);
+			dma->vaddr = NULL;
 		}
+		bus_dmamap_destroy(dma->tag, dma->map);
+		dma->map = NULL;
+	}
+	if (dma->tag != NULL) {
 		bus_dma_tag_destroy(dma->tag);
+		dma->tag = NULL;
 	}
 }
 
@@ -1176,8 +1174,8 @@ static int
 iwn_alloc_sched(struct iwn_softc *sc)
 {
 	/* TX scheduler rings must be aligned on a 1KB boundary. */
-	return iwn_dma_contig_alloc(sc, &sc->sched_dma,
-	    (void **)&sc->sched, sc->sc_hal->schedsz, 1024, BUS_DMA_NOWAIT);
+	return iwn_dma_contig_alloc(sc, &sc->sched_dma, (void **)&sc->sched,
+	    sc->sc_hal->schedsz, 1024);
 }
 
 static void
@@ -1190,8 +1188,7 @@ static int
 iwn_alloc_kw(struct iwn_softc *sc)
 {
 	/* "Keep Warm" page must be aligned on a 4KB boundary. */
-	return iwn_dma_contig_alloc(sc, &sc->kw_dma, NULL, 4096, 4096,
-	    BUS_DMA_NOWAIT);
+	return iwn_dma_contig_alloc(sc, &sc->kw_dma, NULL, 4096, 4096);
 }
 
 static void
@@ -1204,8 +1201,8 @@ static int
 iwn_alloc_ict(struct iwn_softc *sc)
 {
 	/* ICT table must be aligned on a 4KB boundary. */
-	return iwn_dma_contig_alloc(sc, &sc->ict_dma,
-	    (void **)&sc->ict, IWN_ICT_SIZE, 4096, BUS_DMA_NOWAIT);
+	return iwn_dma_contig_alloc(sc, &sc->ict_dma, (void **)&sc->ict,
+	    IWN_ICT_SIZE, 4096);
 }
 
 static void
@@ -1218,8 +1215,8 @@ static int
 iwn_alloc_fwmem(struct iwn_softc *sc)
 {
 	/* Must be aligned on a 16-byte boundary. */
-	return iwn_dma_contig_alloc(sc, &sc->fw_dma, NULL,
-	    sc->sc_hal->fwsz, 16, BUS_DMA_NOWAIT);
+	return iwn_dma_contig_alloc(sc, &sc->fw_dma, NULL, sc->sc_hal->fwsz,
+	    16);
 }
 
 static void
@@ -1238,33 +1235,33 @@ iwn_alloc_rx_ring(struct iwn_softc *sc, struct iwn_rx_ring *ring)
 
 	/* Allocate RX descriptors (256-byte aligned). */
 	size = IWN_RX_RING_COUNT * sizeof (uint32_t);
-	error = iwn_dma_contig_alloc(sc, &ring->desc_dma,
-	    (void **)&ring->desc, size, 256, BUS_DMA_NOWAIT);
+	error = iwn_dma_contig_alloc(sc, &ring->desc_dma, (void **)&ring->desc,
+	    size, 256);
 	if (error != 0) {
 		device_printf(sc->sc_dev,
-		    "%s: could not allocate Rx ring DMA memory, error %d\n",
-		    __func__, error);
-		goto fail;
-	}
-
-	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), 1, 0,
-	    BUS_SPACE_MAXADDR_32BIT,
-	    BUS_SPACE_MAXADDR, NULL, NULL, MJUMPAGESIZE, 1,
-	    MJUMPAGESIZE, BUS_DMA_NOWAIT, NULL, NULL, &ring->data_dmat);
-	if (error != 0) {
-		device_printf(sc->sc_dev,
-		    "%s: bus_dma_tag_create_failed, error %d\n",
+		    "%s: could not allocate RX ring DMA memory, error %d\n",
 		    __func__, error);
 		goto fail;
 	}
 
 	/* Allocate RX status area (16-byte aligned). */
-	error = iwn_dma_contig_alloc(sc, &ring->stat_dma,
-	    (void **)&ring->stat, sizeof (struct iwn_rx_status),
-	    16, BUS_DMA_NOWAIT);
+	error = iwn_dma_contig_alloc(sc, &ring->stat_dma, (void **)&ring->stat,
+	    sizeof (struct iwn_rx_status), 16);
 	if (error != 0) {
 		device_printf(sc->sc_dev,
-		    "%s: could not allocate Rx status DMA memory, error %d\n",
+		    "%s: could not allocate RX status DMA memory, error %d\n",
+		    __func__, error);
+		goto fail;
+	}
+
+	/* Create RX buffer DMA tag. */
+	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), 1, 0,
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
+	    IWN_RBUF_SIZE, 1, IWN_RBUF_SIZE, BUS_DMA_NOWAIT, NULL, NULL,
+	    &ring->data_dmat);
+	if (error != 0) {
+		device_printf(sc->sc_dev,
+		    "%s: could not create RX buf DMA tag, error %d\n",
 		    __func__, error);
 		goto fail;
 	}
@@ -1279,33 +1276,29 @@ iwn_alloc_rx_ring(struct iwn_softc *sc, struct iwn_rx_ring *ring)
 		error = bus_dmamap_create(ring->data_dmat, 0, &data->map);
 		if (error != 0) {
 			device_printf(sc->sc_dev,
-			    "%s: bus_dmamap_create failed, error %d\n",
+			    "%s: could not create RX buf DMA map, error %d\n",
 			    __func__, error);
 			goto fail;
 		}
 
-		data->m = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, MJUMPAGESIZE);
+		data->m = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR,
+		    IWN_RBUF_SIZE);
 		if (data->m == NULL) {
 			device_printf(sc->sc_dev,
-			    "%s: could not allocate rx mbuf\n", __func__);
-			error = ENOMEM;
+			    "%s: could not allocate RX mbuf\n", __func__);
+			error = ENOBUFS;
 			goto fail;
 		}
 
-		/* Map page. */
 		error = bus_dmamap_load(ring->data_dmat, data->map,
-		    mtod(data->m, caddr_t), MJUMPAGESIZE,
-		    iwn_dma_map_addr, &paddr, BUS_DMA_NOWAIT);
+		    mtod(data->m, void *), IWN_RBUF_SIZE, iwn_dma_map_addr,
+		    &paddr, BUS_DMA_NOWAIT);
 		if (error != 0 && error != EFBIG) {
 			device_printf(sc->sc_dev,
-			    "%s: bus_dmamap_load failed, error %d\n",
-			    __func__, error);
-			m_freem(data->m);
-			error = ENOMEM;	/* XXX unique code */
+			    "%s: can't not map mbuf, error %d\n", __func__,
+			    error);
 			goto fail;
 		}
-		bus_dmamap_sync(ring->data_dmat, data->map,
-		    BUS_DMASYNC_PREWRITE);
 
 		/* Set physical address of RX buffer (256-byte aligned). */
 		ring->desc[i] = htole32(paddr >> 8);
@@ -1358,9 +1351,14 @@ iwn_free_rx_ring(struct iwn_softc *sc, struct iwn_rx_ring *ring)
 			    BUS_DMASYNC_POSTREAD);
 			bus_dmamap_unload(ring->data_dmat, data->map);
 			m_freem(data->m);
+			data->m = NULL;
 		}
 		if (data->map != NULL)
 			bus_dmamap_destroy(ring->data_dmat, data->map);
+	}
+	if (ring->data_dmat != NULL) {
+		bus_dma_tag_destroy(ring->data_dmat);
+		ring->data_dmat = NULL;
 	}
 }
 
@@ -1377,8 +1375,8 @@ iwn_alloc_tx_ring(struct iwn_softc *sc, struct iwn_tx_ring *ring, int qid)
 
 	/* Allocate TX descriptors (256-byte aligned.) */
 	size = IWN_TX_RING_COUNT * sizeof(struct iwn_tx_desc);
-	error = iwn_dma_contig_alloc(sc, &ring->desc_dma,
-	    (void **)&ring->desc, size, 256, BUS_DMA_NOWAIT);
+	error = iwn_dma_contig_alloc(sc, &ring->desc_dma, (void **)&ring->desc,
+	    size, 256);
 	if (error != 0) {
 		device_printf(sc->sc_dev,
 		    "%s: could not allocate TX ring DMA memory, error %d\n",
@@ -1394,8 +1392,8 @@ iwn_alloc_tx_ring(struct iwn_softc *sc, struct iwn_tx_ring *ring, int qid)
 		return 0;
 
 	size = IWN_TX_RING_COUNT * sizeof(struct iwn_tx_cmd);
-	error = iwn_dma_contig_alloc(sc, &ring->cmd_dma,
-	    (void **)&ring->cmd, size, 4, BUS_DMA_NOWAIT);
+	error = iwn_dma_contig_alloc(sc, &ring->cmd_dma, (void **)&ring->cmd,
+	    size, 4);
 	if (error != 0) {
 		device_printf(sc->sc_dev,
 		    "%s: could not allocate TX cmd DMA memory, error %d\n",
@@ -1409,7 +1407,7 @@ iwn_alloc_tx_ring(struct iwn_softc *sc, struct iwn_tx_ring *ring, int qid)
 	    MCLBYTES, BUS_DMA_NOWAIT, NULL, NULL, &ring->data_dmat);
 	if (error != 0) {
 		device_printf(sc->sc_dev,
-		    "%s: bus_dma_tag_create_failed, error %d\n",
+		    "%s: could not create TX buf DMA tag, error %d\n",
 		    __func__, error);
 		goto fail;
 	}
@@ -1425,12 +1423,10 @@ iwn_alloc_tx_ring(struct iwn_softc *sc, struct iwn_tx_ring *ring, int qid)
 		error = bus_dmamap_create(ring->data_dmat, 0, &data->map);
 		if (error != 0) {
 			device_printf(sc->sc_dev,
-			    "%s: bus_dmamap_create failed, error %d\n",
+			    "%s: could not create TX buf DMA map, error %d\n",
 			    __func__, error);
 			goto fail;
 		}
-		bus_dmamap_sync(ring->data_dmat, data->map,
-		    BUS_DMASYNC_PREWRITE);
 	}
 	return 0;
 fail:
@@ -1447,6 +1443,8 @@ iwn_reset_tx_ring(struct iwn_softc *sc, struct iwn_tx_ring *ring)
 		struct iwn_tx_data *data = &ring->data[i];
 
 		if (data->m != NULL) {
+			bus_dmamap_sync(ring->data_dmat, data->map,
+			    BUS_DMASYNC_POSTWRITE);
 			bus_dmamap_unload(ring->data_dmat, data->map);
 			m_freem(data->m);
 			data->m = NULL;
@@ -1480,6 +1478,10 @@ iwn_free_tx_ring(struct iwn_softc *sc, struct iwn_tx_ring *ring)
 		}
 		if (data->map != NULL)
 			bus_dmamap_destroy(ring->data_dmat, data->map);
+	}
+	if (ring->data_dmat != NULL) {
+		bus_dma_tag_destroy(ring->data_dmat);
+		ring->data_dmat = NULL;
 	}
 }
 
@@ -2095,8 +2097,7 @@ iwn_rx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 		return;
 	}
 
-	/* XXX don't need mbuf, just dma buffer */
-	m1 = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, MJUMPAGESIZE);
+	m1 = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, IWN_RBUF_SIZE);
 	if (m1 == NULL) {
 		DPRINTF(sc, IWN_DEBUG_ANY, "%s: no mbuf to restock ring\n",
 		    __func__);
@@ -2105,13 +2106,24 @@ iwn_rx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 	}
 	bus_dmamap_unload(ring->data_dmat, data->map);
 
-	error = bus_dmamap_load(ring->data_dmat, data->map,
-	    mtod(m1, caddr_t), MJUMPAGESIZE,
-	    iwn_dma_map_addr, &paddr, BUS_DMA_NOWAIT);
+	error = bus_dmamap_load(ring->data_dmat, data->map, mtod(m1, void *),
+	    IWN_RBUF_SIZE, iwn_dma_map_addr, &paddr, BUS_DMA_NOWAIT);
 	if (error != 0 && error != EFBIG) {
 		device_printf(sc->sc_dev,
 		    "%s: bus_dmamap_load failed, error %d\n", __func__, error);
 		m_freem(m1);
+
+		/* Try to reload the old mbuf. */
+		error = bus_dmamap_load(ring->data_dmat, data->map,
+		    mtod(data->m, void *), IWN_RBUF_SIZE, iwn_dma_map_addr,
+		    &paddr, BUS_DMA_NOWAIT);
+		if (error != 0 && error != EFBIG) {
+			panic("%s: could not load old RX mbuf", __func__);
+		}
+		/* Physical address may have changed. */
+		ring->desc[ring->cur] = htole32(paddr >> 8);
+		bus_dmamap_sync(ring->data_dmat, ring->desc_dma.map,
+		    BUS_DMASYNC_PREWRITE);
 		ifp->if_ierrors++;
 		return;
 	}
@@ -2186,6 +2198,8 @@ iwn_rx_compressed_ba(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 {
 	struct iwn_compressed_ba *ba = (struct iwn_compressed_ba *)(desc + 1);
 	struct iwn_tx_ring *txq;
+
+	bus_dmamap_sync(sc->rxq.data_dmat, data->map, BUS_DMASYNC_POSTREAD);
 
 	txq = &sc->txq[letoh16(ba->qid)];
 	/* XXX TBD */
@@ -2437,6 +2451,8 @@ iwn_cmd_done(struct iwn_softc *sc, struct iwn_rx_desc *desc)
 
 	/* If the command was mapped in an mbuf, free it. */
 	if (data->m != NULL) {
+		bus_dmamap_sync(ring->data_dmat, data->map,
+		    BUS_DMASYNC_POSTWRITE);
 		bus_dmamap_unload(ring->data_dmat, data->map);
 		m_freem(data->m);
 		data->m = NULL;
@@ -2898,8 +2914,8 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni,
 	struct iwn_cmd_data *tx;
 	struct ieee80211_frame *wh;
 	struct ieee80211_key *k = NULL;
-	struct mbuf *mnew;
-	bus_dma_segment_t segs[IWN_MAX_SCATTER];
+	struct mbuf *m1;
+	bus_dma_segment_t *seg, segs[IWN_MAX_SCATTER];
 	uint32_t flags;
 	u_int hdrlen;
 	int totlen, error, pad, nsegs = 0, i, rate;
@@ -3055,26 +3071,30 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni,
 	tx->security = 0;
 	tx->flags = htole32(flags);
 
-	if (m->m_len > 0) {
-		error = bus_dmamap_load_mbuf_sg(ring->data_dmat, data->map,
-		    m, segs, &nsegs, BUS_DMA_NOWAIT);
-		if (error == EFBIG) {
-			/* too many fragments, linearize */
-			mnew = m_collapse(m, M_DONTWAIT, IWN_MAX_SCATTER);
-			if (mnew == NULL) {
-				device_printf(sc->sc_dev,
-				    "%s: could not defrag mbuf\n", __func__);
-				m_freem(m);
-				return ENOBUFS;
-			}
-			m = mnew;
-			error = bus_dmamap_load_mbuf_sg(ring->data_dmat,
-			    data->map, m, segs, &nsegs, BUS_DMA_NOWAIT);
+	error = bus_dmamap_load_mbuf_sg(ring->data_dmat, data->map, m, segs,
+	    &nsegs, BUS_DMA_NOWAIT);
+	if (error != 0) {
+		if (error != EFBIG) {
+			device_printf(sc->sc_dev,
+			    "%s: can't map mbuf (error %d)\n", __func__, error);
+			m_freem(m);
+			return error;
 		}
+		/* Too many DMA segments, linearize mbuf. */
+		m1 = m_collapse(m, M_DONTWAIT, IWN_MAX_SCATTER);
+		if (m1 == NULL) {
+			device_printf(sc->sc_dev,
+			    "%s: could not defrag mbuf\n", __func__);
+			m_freem(m);
+			return ENOBUFS;
+		}
+		m = m1;
+
+		error = bus_dmamap_load_mbuf_sg(ring->data_dmat, data->map, m,
+		    segs, &nsegs, BUS_DMA_NOWAIT);
 		if (error != 0) {
 			device_printf(sc->sc_dev,
-			    "%s: bus_dmamap_load_mbuf_sg failed, error %d\n",
-			    __func__, error);
+			    "%s: can't map mbuf (error %d)\n", __func__, error);
 			m_freem(m);
 			return error;
 		}
@@ -3087,16 +3107,20 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni,
 	    __func__, ring->qid, ring->cur, m->m_pkthdr.len, nsegs);
 
 	/* Fill TX descriptor. */
-	desc->nsegs = 1 + nsegs;
+	desc->nsegs = 1;
+	if (m->m_len != 0)
+		desc->nsegs += nsegs;
 	/* First DMA segment is used by the TX command. */
 	desc->segs[0].addr = htole32(IWN_LOADDR(data->cmd_paddr));
 	desc->segs[0].len  = htole16(IWN_HIADDR(data->cmd_paddr) |
 	    (4 + sizeof (*tx) + hdrlen + pad) << 4);
 	/* Other DMA segments are for data payload. */
+	seg = &segs[0];
 	for (i = 1; i <= nsegs; i++) {
-		desc->segs[i].addr = htole32(IWN_LOADDR(segs[i - 1].ds_addr));
-		desc->segs[i].len  = htole16(IWN_HIADDR(segs[i - 1].ds_addr) |
-		    segs[i - 1].ds_len << 4);
+		desc->segs[i].addr = htole32(IWN_LOADDR(seg->ds_addr));
+		desc->segs[i].len  = htole16(IWN_HIADDR(seg->ds_addr) |
+		    seg->ds_len << 4);
+		seg++;
 	}
 
 	bus_dmamap_sync(ring->data_dmat, data->map, BUS_DMASYNC_PREWRITE);
@@ -3136,9 +3160,8 @@ iwn_tx_data_raw(struct iwn_softc *sc, struct mbuf *m,
 	struct ieee80211_frame *wh;
 	struct iwn_tx_desc *desc;
 	struct iwn_tx_data *data;
-	struct mbuf *mnew;
-	bus_addr_t paddr;
-	bus_dma_segment_t segs[IWN_MAX_SCATTER];
+	struct mbuf *m1;
+	bus_dma_segment_t *seg, segs[IWN_MAX_SCATTER];
 	uint32_t flags;
 	u_int hdrlen;
 	int totlen, error, pad, nsegs = 0, i, rate;
@@ -3238,9 +3261,8 @@ iwn_tx_data_raw(struct iwn_softc *sc, struct mbuf *m,
 	txant = IWN_LSB(sc->txchainmask);
 	tx->rflags |= IWN_RFLAG_ANT(txant);
 	/* Set physical address of "scratch area". */
-	paddr = ring->cmd_dma.paddr + ring->cur * sizeof (struct iwn_tx_cmd);
-	tx->loaddr = htole32(IWN_LOADDR(paddr));
-	tx->hiaddr = IWN_HIADDR(paddr);
+	tx->loaddr = htole32(IWN_LOADDR(data->scratch_paddr));
+	tx->hiaddr = IWN_HIADDR(data->scratch_paddr);
 
 	/* Copy 802.11 header in TX command. */
 	memcpy((uint8_t *)(tx + 1), wh, hdrlen);
@@ -3250,26 +3272,30 @@ iwn_tx_data_raw(struct iwn_softc *sc, struct mbuf *m,
 	tx->security = 0;
 	tx->flags = htole32(flags);
 
-	if (m->m_len > 0) {
-		error = bus_dmamap_load_mbuf_sg(ring->data_dmat, data->map,
-		    m, segs, &nsegs, BUS_DMA_NOWAIT);
-		if (error == EFBIG) {
-			/* Too many fragments, linearize. */
-			mnew = m_collapse(m, M_DONTWAIT, IWN_MAX_SCATTER);
-			if (mnew == NULL) {
-				device_printf(sc->sc_dev,
-				    "%s: could not defrag mbuf\n", __func__);
-				m_freem(m);
-				return ENOBUFS;
-			}
-			m = mnew;
-			error = bus_dmamap_load_mbuf_sg(ring->data_dmat,
-			    data->map, m, segs, &nsegs, BUS_DMA_NOWAIT);
+	error = bus_dmamap_load_mbuf_sg(ring->data_dmat, data->map, m, segs,
+	    &nsegs, BUS_DMA_NOWAIT);
+	if (error != 0) {
+		if (error != EFBIG) {
+			device_printf(sc->sc_dev,
+			    "%s: can't map mbuf (error %d)\n", __func__, error);
+			m_freem(m);
+			return error;
 		}
+		/* Too many DMA segments, linearize mbuf. */
+		m1 = m_collapse(m, M_DONTWAIT, IWN_MAX_SCATTER);
+		if (m1 == NULL) {
+			device_printf(sc->sc_dev,
+			    "%s: could not defrag mbuf\n", __func__);
+			m_freem(m);
+			return ENOBUFS;
+		}
+		m = m1;
+
+		error = bus_dmamap_load_mbuf_sg(ring->data_dmat, data->map, m,
+		    segs, &nsegs, BUS_DMA_NOWAIT);
 		if (error != 0) {
 			device_printf(sc->sc_dev,
-			    "%s: bus_dmamap_load_mbuf_sg failed, error %d\n",
-			    __func__, error);
+			    "%s: can't map mbuf (error %d)\n", __func__, error);
 			m_freem(m);
 			return error;
 		}
@@ -3282,16 +3308,20 @@ iwn_tx_data_raw(struct iwn_softc *sc, struct mbuf *m,
 	    __func__, ring->qid, ring->cur, m->m_pkthdr.len, nsegs);
 
 	/* Fill TX descriptor. */
-	desc->nsegs = 1 + nsegs;
+	desc->nsegs = 1;
+	if (m->m_len != 0)
+		desc->nsegs += nsegs;
 	/* First DMA segment is used by the TX command. */
 	desc->segs[0].addr = htole32(IWN_LOADDR(data->cmd_paddr));
 	desc->segs[0].len  = htole16(IWN_HIADDR(data->cmd_paddr) |
 	    (4 + sizeof (*tx) + hdrlen + pad) << 4);
 	/* Other DMA segments are for data payload. */
+	seg = &segs[0];
 	for (i = 1; i <= nsegs; i++) {
-		desc->segs[i].addr = htole32(IWN_LOADDR(segs[i - 1].ds_addr));
-		desc->segs[i].len  = htole16(IWN_HIADDR(segs[i - 1].ds_addr) |
-		    segs[i - 1].ds_len << 4);
+		desc->segs[i].addr = htole32(IWN_LOADDR(seg->ds_addr));
+		desc->segs[i].len  = htole16(IWN_HIADDR(seg->ds_addr) |
+		    seg->ds_len << 4);
+		seg++;
 	}
 
 	bus_dmamap_sync(ring->data_dmat, data->map, BUS_DMASYNC_PREWRITE);
