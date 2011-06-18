@@ -267,6 +267,7 @@
  * NFS_V3NPROCS is one greater than the last V3 op and NFS_NPROCS is
  * one greater than the last number.
  */
+#ifndef	NFS_V3NPROCS
 #define	NFS_V3NPROCS		22
 
 #define	NFSPROC_LOOKUPP		22
@@ -293,6 +294,7 @@
  * Must be defined as one higher than the last Proc# above.
  */
 #define	NFSV4_NPROCS		41
+#endif	/* NFS_V3NPROCS */
 
 /*
  * Stats structure
@@ -358,7 +360,9 @@ struct ext_nfsstats {
 /*
  * Define NFS_NPROCS as NFSV4_NPROCS for the experimental kernel code.
  */
+#ifndef	NFS_NPROCS
 #define	NFS_NPROCS		NFSV4_NPROCS
+#endif
 
 #include <fs/nfs/nfskpiport.h>
 #include <fs/nfs/nfsdport.h>
