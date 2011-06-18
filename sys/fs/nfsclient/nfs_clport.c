@@ -34,6 +34,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_kdtrace.h"
+
 /*
  * generally, I don't like #includes inside .h files, but it seems to
  * be the easiest way to handle the port.
@@ -42,6 +44,26 @@ __FBSDID("$FreeBSD$");
 #include <fs/nfs/nfsport.h>
 #include <netinet/if_ether.h>
 #include <net/if_types.h>
+
+#include <fs/nfsclient/nfs_kdtrace.h>
+
+#ifdef KDTRACE_HOOKS
+dtrace_nfsclient_attrcache_flush_probe_func_t
+		dtrace_nfscl_attrcache_flush_done_probe;
+uint32_t	nfscl_attrcache_flush_done_id;
+
+dtrace_nfsclient_attrcache_get_hit_probe_func_t
+		dtrace_nfscl_attrcache_get_hit_probe;
+uint32_t	nfscl_attrcache_get_hit_id;
+
+dtrace_nfsclient_attrcache_get_miss_probe_func_t
+		dtrace_nfscl_attrcache_get_miss_probe;
+uint32_t	nfscl_attrcache_get_miss_id;
+
+dtrace_nfsclient_attrcache_load_probe_func_t
+		dtrace_nfscl_attrcache_load_done_probe;
+uint32_t	nfscl_attrcache_load_done_id;
+#endif /* !KDTRACE_HOOKS */
 
 extern u_int32_t newnfs_true, newnfs_false, newnfs_xdrneg1;
 extern struct vop_vector newnfs_vnodeops;
@@ -407,6 +429,7 @@ nfscl_loadattrcache(struct vnode **vpp, struct nfsvattr *nap, void *nvaper,
 				 */
 				vap->va_size = np->n_size;
 				np->n_attrstamp = 0;
+				KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(vp);
 			} else if (np->n_flag & NMODIFIED) {
 				/*
 				 * We've modified the file: Use the larger
@@ -439,9 +462,11 @@ nfscl_loadattrcache(struct vnode **vpp, struct nfsvattr *nap, void *nvaper,
 	 * We detect this by for the mtime moving back. We invalidate the 
 	 * attrcache when this happens.
 	 */
-	if (timespeccmp(&mtime_save, &vap->va_mtime, >))
+	if (timespeccmp(&mtime_save, &vap->va_mtime, >)) {
 		/* Size changed or mtime went backwards */
 		np->n_attrstamp = 0;
+		KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(vp);
+	}
 	if (vaper != NULL) {
 		NFSBCOPY((caddr_t)vap, (caddr_t)vaper, sizeof(*vap));
 		if (np->n_flag & NCHG) {
@@ -451,6 +476,10 @@ nfscl_loadattrcache(struct vnode **vpp, struct nfsvattr *nap, void *nvaper,
 				vaper->va_mtime = np->n_mtim;
 		}
 	}
+#ifdef KDTRACE_HOOKS
+	if (np->n_attrstamp != 0)
+		KDTRACE_NFS_ATTRCACHE_LOAD_DONE(vp, vap, 0);
+#endif
 	NFSUNLOCKNODE(np);
 	return (0);
 }
