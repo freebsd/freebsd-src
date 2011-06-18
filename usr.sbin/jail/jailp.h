@@ -182,6 +182,7 @@ struct cfdepend {
 extern void *emalloc(size_t);
 extern void *erealloc(void *, size_t);
 extern char *estrdup(const char *);
+extern int create_jail(struct cfjail *j);
 extern void failed(struct cfjail *j);
 extern void jail_note(const struct cfjail *j, const char *fmt, ...);
 extern void jail_warnx(const struct cfjail *j, const char *fmt, ...);
@@ -219,5 +220,6 @@ extern struct cfjails cfjails;
 extern struct cfjails ready;
 extern struct cfjails depend;
 extern const char *cfname;
+extern int note_remove;
 extern int paralimit;
 extern int verbose;
