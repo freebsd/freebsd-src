@@ -800,24 +800,36 @@ cbb_power(device_t brdev, int volts)
 		 * We have a shortish timeout of 500ms here.  Some bridges do
 		 * not generate a POWER_CYCLE event for 16-bit cards.  In
 		 * those cases, we have to cope the best we can, and having
-		 * only a short delay is better than the alternatives.
+		 * only a short delay is better than the alternatives.  Others
+		 * raise the power cycle a smidge before it is really ready.
+		 * We deal with those below.
 		 */
 		sane = 10;
 		while (!(cbb_get(sc, CBB_SOCKET_STATE) & CBB_STATE_POWER_CYCLE) &&
 		    cnt == sc->powerintr && sane-- > 0)
 			msleep(&sc->powerintr, &sc->mtx, 0, "-", hz / 20);
 		mtx_unlock(&sc->mtx);
+
+		/*
+		 * Relax for 10ms.  Some bridges appear to assert this signal
+		 * right away, but before the card has stabilized.  Other
+		 * cards need need more time to cope up reliabily.
+		 * Experiments with troublesome setups show this to be a
+		 * "cheap" way to enhance reliabilty.  We need not do this for
+		 * "off" since we don't touch the card after we turn it off.
+		 */
+		pause("cbbPwr", min(hz / 100, 1));
+
 		/*
 		 * The TOPIC95B requires a little bit extra time to get its
 		 * act together, so delay for an additional 100ms.  Also as
 		 * documented below, it doesn't seem to set the POWER_CYCLE
 		 * bit, so don't whine if it never came on.
 		 */
-		if (sc->chipset == CB_TOPIC95) {
+		if (sc->chipset == CB_TOPIC95)
 			pause("cbb95B", hz / 10);
-		} else if (sane <= 0) {
+		else if (sane <= 0)
 			device_printf(sc->dev, "power timeout, doom?\n");
-		}
 	}
 
 	/*
