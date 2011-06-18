@@ -2069,7 +2069,6 @@ iwn_rx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 		if (!sc->last_rx_valid) {
 			DPRINTF(sc, IWN_DEBUG_ANY,
 			    "%s: missing RX_PHY\n", __func__);
-			ifp->if_ierrors++;
 			return;
 		}
 		sc->last_rx_valid = 0;
@@ -2083,7 +2082,6 @@ iwn_rx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 		device_printf(sc->sc_dev,
 		    "%s: invalid rx statistic header, len %d\n",
 		    __func__, stat->cfg_phy_len);
-		ifp->if_ierrors++;
 		return;
 	}
 	if (desc->type == IWN_MPDU_RX_DONE) {
@@ -2427,11 +2425,12 @@ iwn_tx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc, int ackfailcnt,
 	/*
 	 * Update rate control statistics for the node.
 	 */
-	if (status & 0x80) {
+	if (status & IWN_TX_FAIL) {
 		ifp->if_oerrors++;
 		ieee80211_ratectl_tx_complete(vap, ni,
 		    IEEE80211_RATECTL_TX_FAILURE, &ackfailcnt, NULL);
 	} else {
+		ifp->if_opackets++;
 		ieee80211_ratectl_tx_complete(vap, ni,
 		    IEEE80211_RATECTL_TX_SUCCESS, &ackfailcnt, NULL);
 	}
