@@ -1,6 +1,6 @@
 # $FreeBSD$
 
 KMOD=	iwn1000fw
-IMG=	iwlwifi-1000-128.50.3.1
+IMG=	iwlwifi-1000-39.31.5.1
 
 .include <bsd.kmod.mk>
