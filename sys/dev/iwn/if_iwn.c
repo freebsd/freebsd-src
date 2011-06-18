@@ -158,7 +158,10 @@ static void	iwn5000_reset_sched(struct iwn_softc *, int, int);
 #endif
 static uint8_t	iwn_plcp_signal(int);
 static int	iwn_tx_data(struct iwn_softc *, struct mbuf *,
-		    struct ieee80211_node *, struct iwn_tx_ring *);
+		    struct ieee80211_node *);
+static int	iwn_tx_data_raw(struct iwn_softc *, struct mbuf *,
+		    struct ieee80211_node *,
+		    const struct ieee80211_bpf_params *params);
 static int	iwn_raw_xmit(struct ieee80211_node *, struct mbuf *,
 		    const struct ieee80211_bpf_params *);
 static void	iwn_start(struct ifnet *);
@@ -2913,8 +2916,7 @@ iwn_plcp_signal(int rate) {
 }
 
 static int
-iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni,
-    struct iwn_tx_ring *ring)
+iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 {
 	const struct iwn_hal *hal = sc->sc_hal;
 	const struct ieee80211_txparam *tp;
@@ -2922,6 +2924,7 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni,
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;
 	struct iwn_node *wn = (void *)ni;
+	struct iwn_tx_ring *ring;
 	struct iwn_tx_desc *desc;
 	struct iwn_tx_data *data;
 	struct iwn_tx_cmd *cmd;
@@ -2931,9 +2934,10 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni,
 	struct mbuf *m1;
 	bus_dma_segment_t *seg, segs[IWN_MAX_SCATTER];
 	uint32_t flags;
+	uint16_t qos;
 	u_int hdrlen;
-	int totlen, error, pad, nsegs = 0, i, rate;
-	uint8_t ridx, type, txant;
+	uint8_t tid, ridx, type, txant;
+	int ac, i, totlen, error, pad, nsegs = 0, rate;
 
 	IWN_LOCK_ASSERT(sc);
 
@@ -2941,6 +2945,17 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni,
 	hdrlen = ieee80211_anyhdrsize(wh);
 	type = wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
 
+	/* Select EDCA Access Category and TX ring for this frame. */
+	if (IEEE80211_QOS_HAS_SEQ(wh)) {
+		qos = ((const struct ieee80211_qosframe *)wh)->i_qos[0];
+		tid = qos & IEEE80211_QOS_TID;
+	} else {
+		qos = 0;
+		tid = 0;
+	}
+	ac = M_WME_GETAC(m);
+
+	ring = &sc->txq[ac];
 	desc = &ring->desc[ring->cur];
 	data = &ring->data[ring->cur];
 
@@ -2995,8 +3010,12 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni,
 	tx->scratch = 0;	/* clear "scratch" area */
 
 	flags = 0;
-	if (!IEEE80211_IS_MULTICAST(wh->i_addr1))
-		flags |= IWN_TX_NEED_ACK;
+	if (!IEEE80211_IS_MULTICAST(wh->i_addr1)) {
+		/* Unicast frame, check if an ACK is expected. */
+		if (!qos || (qos & IEEE80211_QOS_ACKPOLICY) !=
+		    IEEE80211_QOS_ACKPOLICY_NOACK)
+			flags |= IWN_TX_NEED_ACK;
+	}
 	if ((wh->i_fc[0] &
 	    (IEEE80211_FC0_TYPE_MASK | IEEE80211_FC0_SUBTYPE_MASK)) ==
 	    (IEEE80211_FC0_TYPE_CTL | IEEE80211_FC0_SUBTYPE_BAR))
@@ -3056,7 +3075,7 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni,
 		pad = 0;
 
 	tx->len = htole16(totlen);
-	tx->tid = 0;
+	tx->tid = tid;
 	tx->rts_ntries = 60;
 	tx->data_ntries = 15;
 	tx->lifetime = htole32(IWN_LIFETIME_INFINITE);
@@ -3161,8 +3180,7 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni,
 
 static int
 iwn_tx_data_raw(struct iwn_softc *sc, struct mbuf *m,
-    struct ieee80211_node *ni, struct iwn_tx_ring *ring,
-    const struct ieee80211_bpf_params *params)
+    struct ieee80211_node *ni, const struct ieee80211_bpf_params *params)
 {
 	const struct iwn_hal *hal = sc->sc_hal;
 	const struct iwn_rate *rinfo;
@@ -3172,13 +3190,14 @@ iwn_tx_data_raw(struct iwn_softc *sc, struct mbuf *m,
 	struct iwn_tx_cmd *cmd;
 	struct iwn_cmd_data *tx;
 	struct ieee80211_frame *wh;
+	struct iwn_tx_ring *ring;
 	struct iwn_tx_desc *desc;
 	struct iwn_tx_data *data;
 	struct mbuf *m1;
 	bus_dma_segment_t *seg, segs[IWN_MAX_SCATTER];
 	uint32_t flags;
 	u_int hdrlen;
-	int totlen, error, pad, nsegs = 0, i, rate;
+	int ac, totlen, error, pad, nsegs = 0, i, rate;
 	uint8_t ridx, type, txant;
 
 	IWN_LOCK_ASSERT(sc);
@@ -3187,6 +3206,9 @@ iwn_tx_data_raw(struct iwn_softc *sc, struct mbuf *m,
 	hdrlen = ieee80211_anyhdrsize(wh);
 	type = wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
 
+	ac = params->ibp_pri & 3;
+
+	ring = &sc->txq[ac];
 	desc = &ring->desc[ring->cur];
 	data = &ring->data[ring->cur];
 
@@ -3362,12 +3384,11 @@ iwn_tx_data_raw(struct iwn_softc *sc, struct mbuf *m,
 
 static int
 iwn_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
-	const struct ieee80211_bpf_params *params)
+    const struct ieee80211_bpf_params *params)
 {
 	struct ieee80211com *ic = ni->ni_ic;
 	struct ifnet *ifp = ic->ic_ifp;
 	struct iwn_softc *sc = ifp->if_softc;
-	struct iwn_tx_ring *txq;
 	int error = 0;
 
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
@@ -3377,23 +3398,18 @@ iwn_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	}
 
 	IWN_LOCK(sc);
-	if (params == NULL)
-		txq = &sc->txq[M_WME_GETAC(m)];
-	else
-		txq = &sc->txq[params->ibp_pri & 3];
-
 	if (params == NULL) {
 		/*
 		 * Legacy path; interpret frame contents to decide
 		 * precisely how to send the frame.
 		 */
-		error = iwn_tx_data(sc, m, ni, txq);
+		error = iwn_tx_data(sc, m, ni);
 	} else {
 		/*
 		 * Caller supplied explicit parameters to use in
 		 * sending the frame.
 		 */
-		error = iwn_tx_data_raw(sc, m, ni, txq, params);
+		error = iwn_tx_data_raw(sc, m, ni, params);
 	}
 	if (error != 0) {
 		/* NB: m is reclaimed on tx failure */
@@ -3421,11 +3437,13 @@ iwn_start_locked(struct ifnet *ifp)
 {
 	struct iwn_softc *sc = ifp->if_softc;
 	struct ieee80211_node *ni;
-	struct iwn_tx_ring *txq;
 	struct mbuf *m;
-	int pri;
 
 	IWN_LOCK_ASSERT(sc);
+
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 ||
+	    (ifp->if_drv_flags & IFF_DRV_OACTIVE))
+		return;
 
 	for (;;) {
 		if (sc->qfullmsk != 0) {
@@ -3436,12 +3454,10 @@ iwn_start_locked(struct ifnet *ifp)
 		if (m == NULL)
 			break;
 		ni = (struct ieee80211_node *)m->m_pkthdr.rcvif;
-		pri = M_WME_GETAC(m);
-		txq = &sc->txq[pri];
-		if (iwn_tx_data(sc, m, ni, txq) != 0) {
-			ifp->if_oerrors++;
+		if (iwn_tx_data(sc, m, ni) != 0) {
 			ieee80211_free_node(ni);
-			break;
+			ifp->if_oerrors++;
+			continue;
 		}
 		sc->sc_tx_timer = 5;
 	}
