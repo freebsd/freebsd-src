@@ -4757,7 +4757,7 @@ iwn_auth(struct iwn_softc *sc, struct ieee80211vap *vap)
 
 	/* Update adapter configuration. */
 	IEEE80211_ADDR_COPY(sc->rxon.bssid, ni->ni_bssid);
-	sc->rxon.chan = htole16(ieee80211_chan2ieee(ic, ni->ni_chan));
+	sc->rxon.chan = ieee80211_chan2ieee(ic, ni->ni_chan);
 	sc->rxon.flags = htole32(IWN_RXON_TSF | IWN_RXON_CTS_TO_SELF);
 	if (IEEE80211_IS_CHAN_2GHZ(ni->ni_chan))
 		sc->rxon.flags |= htole32(IWN_RXON_AUTO | IWN_RXON_24GHZ);
@@ -4843,15 +4843,11 @@ iwn_run(struct iwn_softc *sc, struct ieee80211vap *vap)
 
 	/* Update adapter configuration. */
 	IEEE80211_ADDR_COPY(sc->rxon.bssid, ni->ni_bssid);
-	sc->rxon.chan = htole16(ieee80211_chan2ieee(ic, ni->ni_chan));
 	sc->rxon.associd = htole16(IEEE80211_AID(ni->ni_associd));
-	/* Short preamble and slot time are negotiated when associating. */
-	sc->rxon.flags &= ~htole32(IWN_RXON_SHPREAMBLE | IWN_RXON_SHSLOT);
-	sc->rxon.flags |= htole32(IWN_RXON_TSF | IWN_RXON_CTS_TO_SELF);
+	sc->rxon.chan = ieee80211_chan2ieee(ic, ni->ni_chan);
+	sc->rxon.flags = htole32(IWN_RXON_TSF | IWN_RXON_CTS_TO_SELF);
 	if (IEEE80211_IS_CHAN_2GHZ(ni->ni_chan))
 		sc->rxon.flags |= htole32(IWN_RXON_AUTO | IWN_RXON_24GHZ);
-	else
-		sc->rxon.flags &= ~htole32(IWN_RXON_AUTO | IWN_RXON_24GHZ);
 	if (ic->ic_flags & IEEE80211_F_SHSLOT)
 		sc->rxon.flags |= htole32(IWN_RXON_SHSLOT);
 	if (ic->ic_flags & IEEE80211_F_SHPREAMBLE)
