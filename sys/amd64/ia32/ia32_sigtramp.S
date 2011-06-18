@@ -79,8 +79,20 @@ ia32_osigcode:
 	jmp	1b
 
 
+/*
+ * The lcall $7,$0 emulator cannot use the call gate that does an
+ * inter-privilege transition. The reason is that the call gate
+ * does not disable interrupts, and, before the swapgs is
+ * executed, we would have a window where the ring 0 code is
+ * executed with the wrong gsbase.
+ *
+ * Instead, reflect the lcall $7,$0 back to ring 3 trampoline
+ * which sets up the frame for int $0x80.
+ */
 	ALIGN_TEXT
 lcall_tramp:
+	cmpl	$SYS_vfork,%eax
+	je	2f
 	pushl	%ebp
 	movl	%esp,%ebp
 	pushl	0x24(%ebp) /* arg 6 */
@@ -91,8 +103,19 @@ lcall_tramp:
 	pushl	0x10(%ebp) /* arg 1 */
 	pushl	0xc(%ebp) /* gap */
 	int	$0x80
-	leave
+	leavel
+1:
 	lretl
+2:
+	/*
+	 * vfork handling is special and relies on the libc stub saving
+	 * the return ip in %ecx.  If vfork failed, then there is no
+	 * child which can corrupt the frame created by call gate.
+	 */
+	int	$0x80
+	jb	1b
+	addl	$8,%esp
+	jmpl	*%ecx
 #endif
 
 	ALIGN_TEXT
