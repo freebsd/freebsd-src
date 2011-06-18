@@ -816,9 +816,11 @@ iwn5000_attach(struct iwn_softc *sc, uint16_t pid)
 		break;
 	case IWN_HW_REV_TYPE_6005:
 		sc->limits = &iwn6000_sensitivity_limits;
-		sc->fwname = "iwn6005fw";
-		if (pid != 0x0082 && pid != 0x0085)
+		if (pid != 0x0082 && pid != 0x0085) {
+			sc->fwname = "iwn6000g2bfw";
 			sc->sc_flags |= IWN_FLAG_ADV_BTCOEX;
+		} else
+			sc->fwname = "iwn6000g2afw";
 		break;
 	default:
 		device_printf(sc->sc_dev, "adapter type %d not supported\n",
