@@ -2463,23 +2463,22 @@ iwn_notif_intr(struct iwn_softc *sc)
 			    BUS_DMASYNC_POSTREAD);
 			misses = le32toh(miss->consecutive);
 
-			/* XXX not sure why we're notified w/ zero */
-			if (misses == 0)
-				break;
 			DPRINTF(sc, IWN_DEBUG_STATE,
 			    "%s: beacons missed %d/%d\n", __func__,
 			    misses, le32toh(miss->total));
-
 			/*
 			 * If more than 5 consecutive beacons are missed,
 			 * reinitialize the sensitivity state machine.
 			 */
-			if (vap->iv_state == IEEE80211_S_RUN && misses > 5)
-				(void) iwn_init_sensitivity(sc);
-			if (misses >= vap->iv_bmissthreshold) {
-				IWN_UNLOCK(sc);
-				ieee80211_beacon_miss(ic);
-				IWN_LOCK(sc);
+			if (vap->iv_state == IEEE80211_S_RUN &&
+			    (ic->ic_flags & IEEE80211_F_SCAN) != 0) {
+				if (misses > 5)
+					(void)iwn_init_sensitivity(sc);
+				if (misses >= vap->iv_bmissthreshold) {
+					IWN_UNLOCK(sc);
+					ieee80211_beacon_miss(ic);
+					IWN_LOCK(sc);
+				}
 			}
 			break;
 		}
