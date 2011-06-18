@@ -283,8 +283,7 @@
 #define IWN_FH_TX_CHICKEN_SCHED_RETRY	(1 << 1)
 
 /* Possible flags for register IWN_FH_TX_STATUS. */
-#define IWN_FH_TX_STATUS_IDLE(chnl)					\
-	(1 << ((chnl) + 24) | 1 << ((chnl) + 16))
+#define IWN_FH_TX_STATUS_IDLE(chnl)	(1 << ((chnl) + 16))
 
 /* Possible flags for register IWN_FH_RX_CONFIG. */
 #define IWN_FH_RX_CONFIG_ENA		(1 << 31)
