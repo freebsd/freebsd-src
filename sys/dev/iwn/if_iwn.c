@@ -5629,10 +5629,10 @@ iwn4965_load_firmware(struct iwn_softc *sc)
 
 	/* Copy initialization sections into pre-allocated DMA-safe memory. */
 	memcpy(dma->vaddr, fw->init.data, fw->init.datasz);
-	bus_dmamap_sync(sc->fw_dma.tag, dma->map, BUS_DMASYNC_PREWRITE);
+	bus_dmamap_sync(dma->tag, dma->map, BUS_DMASYNC_PREWRITE);
 	memcpy(dma->vaddr + IWN4965_FW_DATA_MAXSZ,
 	    fw->init.text, fw->init.textsz);
-	bus_dmamap_sync(sc->fw_dma.tag, dma->map, BUS_DMASYNC_PREWRITE);
+	bus_dmamap_sync(dma->tag, dma->map, BUS_DMASYNC_PREWRITE);
 
 	/* Tell adapter where to find initialization sections. */
 	error = iwn_nic_lock(sc);
@@ -5670,10 +5670,10 @@ iwn4965_load_firmware(struct iwn_softc *sc)
 
 	/* Copy runtime sections into pre-allocated DMA-safe memory. */
 	memcpy(dma->vaddr, fw->main.data, fw->main.datasz);
-	bus_dmamap_sync(sc->fw_dma.tag, dma->map, BUS_DMASYNC_PREWRITE);
+	bus_dmamap_sync(dma->tag, dma->map, BUS_DMASYNC_PREWRITE);
 	memcpy(dma->vaddr + IWN4965_FW_DATA_MAXSZ,
 	    fw->main.text, fw->main.textsz);
-	bus_dmamap_sync(sc->fw_dma.tag, dma->map, BUS_DMASYNC_PREWRITE);
+	bus_dmamap_sync(dma->tag, dma->map, BUS_DMASYNC_PREWRITE);
 
 	/* Tell adapter where to find runtime sections. */
 	error = iwn_nic_lock(sc);
@@ -5700,7 +5700,7 @@ iwn5000_load_firmware_section(struct iwn_softc *sc, uint32_t dst,
 
 	/* Copy firmware section into pre-allocated DMA-safe memory. */
 	memcpy(dma->vaddr, section, size);
-	bus_dmamap_sync(sc->fw_dma.tag, dma->map, BUS_DMASYNC_PREWRITE);
+	bus_dmamap_sync(dma->tag, dma->map, BUS_DMASYNC_PREWRITE);
 
 	error = iwn_nic_lock(sc);
 	if (error != 0)
@@ -5726,7 +5726,7 @@ iwn5000_load_firmware_section(struct iwn_softc *sc, uint32_t dst,
 	iwn_nic_unlock(sc);
 
 	/* Wait at most five seconds for FH DMA transfer to complete. */
-	return msleep(sc, &sc->sc_mtx, PCATCH, "iwninit", hz);
+	return msleep(sc, &sc->sc_mtx, PCATCH, "iwninit", 5 * hz);
 }
 
 static int
@@ -5771,7 +5771,7 @@ iwn_read_firmware_leg(struct iwn_softc *sc, struct iwn_fw_info *fw)
 	size_t hdrlen = 24;
 	uint32_t rev;
 
-	ptr = (const uint32_t *)sc->fw_fp->data;
+	ptr = (const uint32_t *)fw->data;
 	rev = le32toh(*ptr++);
 
 	/* Check firmware API version. */
@@ -5819,7 +5819,7 @@ iwn_read_firmware_leg(struct iwn_softc *sc, struct iwn_fw_info *fw)
 /*
  * Extract text and data sections from a TLV firmware image.
  */
-int
+static int
 iwn_read_firmware_tlv(struct iwn_softc *sc, struct iwn_fw_info *fw,
     uint16_t alt)
 {
@@ -5931,6 +5931,8 @@ iwn_read_firmware(struct iwn_softc *sc)
 		device_printf(sc->sc_dev,
 		    "%s: firmware file too short: %zu bytes\n",
 		    __func__, fw->size);
+		firmware_put(sc->fw_fp, FIRMWARE_UNLOAD);
+		sc->fw_fp = NULL;
 		return EINVAL;
 	}
 
@@ -5942,6 +5944,8 @@ iwn_read_firmware(struct iwn_softc *sc)
 	if (error != 0) {
 		device_printf(sc->sc_dev,
 		    "%s: could not read firmware sections\n", __func__);
+		firmware_put(sc->fw_fp, FIRMWARE_UNLOAD);
+		sc->fw_fp = NULL;
 		return error;
 	}
 
@@ -5954,6 +5958,8 @@ iwn_read_firmware(struct iwn_softc *sc)
 	    (fw->boot.textsz & 3) != 0) {
 		device_printf(sc->sc_dev,
 		    "%s: firmware sections too large\n", __func__);
+		firmware_put(sc->fw_fp, FIRMWARE_UNLOAD);
+		sc->fw_fp = NULL;
 		return EINVAL;
 	}
 
