@@ -1918,7 +1918,8 @@ retry:
 	if (savedcbp) {
 		vp = savedcbp->b_vp;
 		bawrite(savedcbp);
-		if ((vtype == VDIR || dopersistence) && ip->i_effnlink > 0)
+		if ((vtype == VDIR || dopersistence) &&
+		    VTOI(vp)->i_effnlink > 0)
 			(void) ffs_syncvnode(vp, MNT_WAIT);
 	}
 	/*
