@@ -210,6 +210,7 @@ static const struct usb_device_id udav_devs[] = {
 	{USB_VPI(USB_VENDOR_SHANTOU, USB_PRODUCT_SHANTOU_ADM8515, 0)},
 	/* Kontron AG USB Ethernet */
 	{USB_VPI(USB_VENDOR_KONTRON, USB_PRODUCT_KONTRON_DM9601, 0)},
+	{USB_VPI(USB_VENDOR_KONTRON, USB_PRODUCT_KONTRON_JP1082, 0)},
 };
 
 static void
