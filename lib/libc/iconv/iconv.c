@@ -85,7 +85,7 @@ _iconv_open(const char *out, const char *in, struct _citrus_iconv *prealloc)
 		errno = ENOMEM;
 		return ((iconv_t)-1);
 	}
-		
+
 	p = out_truncated;
         while (*p != 0) {
                 if (p[0] == '/' && p[1] == '/') {
