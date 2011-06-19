@@ -323,9 +323,7 @@ newnfs_disconnect(struct nfssockreq *nrp)
 		client = nrp->nr_client;
 		nrp->nr_client = NULL;
 		mtx_unlock(&nrp->nr_mtx);
-#ifdef KGSSAPI
-		rpc_gss_secpurge(client);
-#endif
+		rpc_gss_secpurge_call(client);
 		CLNT_CLOSE(client);
 		CLNT_RELEASE(client);
 	} else {
@@ -337,21 +335,18 @@ static AUTH *
 nfs_getauth(struct nfssockreq *nrp, int secflavour, char *clnt_principal,
     char *srv_principal, gss_OID mech_oid, struct ucred *cred)
 {
-#ifdef KGSSAPI
 	rpc_gss_service_t svc;
 	AUTH *auth;
 #ifdef notyet
 	rpc_gss_options_req_t req_options;
 #endif
-#endif
 
 	switch (secflavour) {
-#ifdef KGSSAPI
 	case RPCSEC_GSS_KRB5:
 	case RPCSEC_GSS_KRB5I:
 	case RPCSEC_GSS_KRB5P:
 		if (!mech_oid) {
-			if (!rpc_gss_mech_to_oid("kerberosv5", &mech_oid))
+			if (!rpc_gss_mech_to_oid_call("kerberosv5", &mech_oid))
 				return (NULL);
 		}
 		if (secflavour == RPCSEC_GSS_KRB5)
@@ -367,7 +362,7 @@ nfs_getauth(struct nfssockreq *nrp, int secflavour, char *clnt_principal,
 		req_options.input_channel_bindings = NULL;
 		req_options.enc_type = nfs_keytab_enctype;
 
-		auth = rpc_gss_secfind(nrp->nr_client, cred,
+		auth = rpc_gss_secfind_call(nrp->nr_client, cred,
 		    clnt_principal, srv_principal, mech_oid, svc,
 		    &req_options);
 #else
@@ -377,7 +372,7 @@ nfs_getauth(struct nfssockreq *nrp, int secflavour, char *clnt_principal,
 		 * principals. As such, that case cannot yet be handled.
 		 */
 		if (clnt_principal == NULL)
-			auth = rpc_gss_secfind(nrp->nr_client, cred,
+			auth = rpc_gss_secfind_call(nrp->nr_client, cred,
 			    srv_principal, mech_oid, svc);
 		else
 			auth = NULL;
@@ -385,7 +380,6 @@ nfs_getauth(struct nfssockreq *nrp, int secflavour, char *clnt_principal,
 		if (auth != NULL)
 			return (auth);
 		/* fallthrough */
-#endif	/* KGSSAPI */
 	case AUTH_SYS:
 	default:
 		return (authunix_create(cred));
