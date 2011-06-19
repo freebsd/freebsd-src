@@ -140,7 +140,7 @@ evalcmd(int argc, char **argv)
                         STPUTC('\0', concat);
                         p = grabstackstr(concat);
                 }
-                evalstring(p, builtin_flags & EV_TESTED);
+                evalstring(p, builtin_flags);
         } else
                 exitstatus = 0;
         return exitstatus;
@@ -386,6 +386,14 @@ evalcase(union node *n, int flags)
 	for (cp = n->ncase.cases ; cp && evalskip == 0 ; cp = cp->nclist.next) {
 		for (patp = cp->nclist.pattern ; patp ; patp = patp->narg.next) {
 			if (casematch(patp, arglist.list->text)) {
+				while (cp->nclist.next &&
+				    cp->type == NCLISTFALLTHRU) {
+					if (evalskip != 0)
+						break;
+					evaltree(cp->nclist.body,
+					    flags & ~EV_EXIT);
+					cp = cp->nclist.next;
+				}
 				if (evalskip == 0) {
 					evaltree(cp->nclist.body, flags);
 				}
@@ -886,14 +894,13 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 	}
 
 	/* Fork off a child process if necessary. */
-	if (cmd->ncmd.backgnd
-	 || ((cmdentry.cmdtype == CMDNORMAL || cmdentry.cmdtype == CMDUNKNOWN)
+	if (((cmdentry.cmdtype == CMDNORMAL || cmdentry.cmdtype == CMDUNKNOWN)
 	    && ((flags & EV_EXIT) == 0 || have_traps()))
 	 || ((flags & EV_BACKCMD) != 0
 	    && (cmdentry.cmdtype != CMDBUILTIN ||
 		 !safe_builtin(cmdentry.u.index, argc, argv)))) {
 		jp = makejob(cmd, 1);
-		mode = cmd->ncmd.backgnd;
+		mode = FORK_FG;
 		if (flags & EV_BACKCMD) {
 			mode = FORK_NOJOB;
 			if (pipe(pip) < 0)
@@ -908,6 +915,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 				dup2(pip[1], 1);
 				close(pip[1]);
 			}
+			flags &= ~EV_BACKCMD;
 		}
 		flags |= EV_EXIT;
 	}
@@ -1059,8 +1067,7 @@ parent:	/* parent process gets here (if we forked) */
 		backcmd->fd = pip[0];
 		close(pip[1]);
 		backcmd->jp = jp;
-	} else
-		exitstatus = 0;
+	}
 
 out:
 	if (lastarg)

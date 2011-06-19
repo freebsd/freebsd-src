@@ -612,6 +612,12 @@ showvarscmd(int argc __unused, char **argv __unused)
 
 	qsort(vars, n, sizeof(*vars), var_compare);
 	for (i = 0; i < n; i++) {
+		/*
+		 * Skip improper variable names so the output remains usable as
+		 * shell input.
+		 */
+		if (!isassignment(vars[i]))
+			continue;
 		s = strchr(vars[i], '=');
 		s++;
 		outbin(vars[i], s - vars[i], out1);
@@ -683,6 +689,13 @@ exportcmd(int argc, char **argv)
 			for (vp = *vpp ; vp ; vp = vp->next) {
 				if (vp->flags & flag) {
 					if (values) {
+						/*
+						 * Skip improper variable names
+						 * so the output remains usable
+						 * as shell input.
+						 */
+						if (!isassignment(vp->text))
+							continue;
 						out1str(cmdname);
 						out1c(' ');
 					}

@@ -315,13 +315,18 @@ static int
 estimate_redir_addr(int *ac, char ***av)
 {
 	size_t space = sizeof(struct cfg_redir);
-	char *sep;
+	char *sep = **av;
+	u_int c = 0;
 
-	if ((sep = strtok(**av, ",")) != NULL) {
-		space += sizeof(struct cfg_spool);
-		while ((sep = strtok(NULL, ",")) != NULL)
-			space += sizeof(struct cfg_spool);
+	while ((sep = strchr(sep, ',')) != NULL) {
+		c++;
+		sep++;
 	}
+
+	if (c > 0)
+		c++;
+
+	space += c * sizeof(struct cfg_spool);
 
 	return (space);
 }
@@ -370,13 +375,18 @@ static int
 estimate_redir_port(int *ac, char ***av)
 {
 	size_t space = sizeof(struct cfg_redir);
-	char *sep;
+	char *sep = **av;
+	u_int c = 0;
 
-	if ((sep = strtok(**av, ",")) != NULL) {
-		space += sizeof(struct cfg_spool);
-		while ((sep = strtok(NULL, ",")) != NULL)
-			space += sizeof(struct cfg_spool);
+	while ((sep = strchr(sep, ',')) != NULL) {
+		c++;
+		sep++;
 	}
+
+	if (c > 0)
+		c++;
+
+	space += c * sizeof(struct cfg_spool);
 
 	return (space);
 }
@@ -465,10 +475,10 @@ setup_redir_port(char *buf, int *ac, char ***av)
 	 * Extract remote address and optionally port.
 	 */
 	/*
-	 * NB: isalpha(**av) => we've to check that next parameter is really an
+	 * NB: isdigit(**av) => we've to check that next parameter is really an
 	 * option for this redirect entry, else stop here processing arg[cv].
 	 */
-	if (*ac != 0 && !isalpha(***av)) {
+	if (*ac != 0 && isdigit(***av)) {
 		if ((sep = strchr(**av, ':')) != NULL) {
 			if (StrToAddrAndPortRange(**av, &r->raddr, protoName,
 			    &portRange) != 0)
@@ -584,7 +594,7 @@ setup_redir_proto(char *buf, int *ac, char ***av)
 		r->raddr.s_addr = INADDR_ANY;
 	} else {
 		/* see above in setup_redir_port() */
-		if (!isalpha(***av)) {
+		if (isdigit(***av)) {
 			StrToAddr(**av, &r->paddr);
 			(*av)++; (*ac)--;
 
@@ -592,7 +602,7 @@ setup_redir_proto(char *buf, int *ac, char ***av)
 			 * Extract optional remote address.
 			 */
 			/* see above in setup_redir_port() */
-			if (*ac != 0 && !isalpha(***av)) {
+			if (*ac != 0 && isdigit(***av)) {
 				StrToAddr(**av, &r->raddr);
 				(*av)++; (*ac)--;
 			}
@@ -774,6 +784,9 @@ ipfw_config_nat(int ac, char **av)
 			av1++; ac1--;
 			len += estimate_redir_port(&ac1, &av1);
 			av1 += 2; ac1 -= 2;
+			/* Skip optional remoteIP/port */
+			if (ac1 != 0 && isdigit(**av1))
+				av1++; ac1--;
 			break;
 		case TOK_REDIR_PROTO:
 			if (ac1 < 2)
@@ -781,6 +794,11 @@ ipfw_config_nat(int ac, char **av)
 				    "not enough arguments");
 			len += sizeof(struct cfg_redir);
 			av1 += 2; ac1 -= 2;
+			/* Skip optional remoteIP/port */
+			if (ac1 != 0 && isdigit(**av1))
+				av1++; ac1--;
+			if (ac1 != 0 && isdigit(**av1))
+				av1++; ac1--;
 			break;
 		default:
 			errx(EX_DATAERR, "unrecognised option ``%s''", av1[-1]);

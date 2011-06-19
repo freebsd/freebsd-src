@@ -928,8 +928,8 @@ digest_dynamic1(Obj_Entry *obj, int early, const Elf_Dyn **dyn_rpath,
 		    obj->textrel = true;
 		if (dynp->d_un.d_val & DF_BIND_NOW)
 		    obj->bind_now = true;
-		if (dynp->d_un.d_val & DF_STATIC_TLS)
-		    ;
+		/*if (dynp->d_un.d_val & DF_STATIC_TLS)
+		    ;*/
 	    break;
 #ifdef __mips__
 	case DT_MIPS_LOCAL_GOTNO:
@@ -958,8 +958,8 @@ digest_dynamic1(Obj_Entry *obj, int early, const Elf_Dyn **dyn_rpath,
 		    obj->z_noopen = true;
 		if ((dynp->d_un.d_val & DF_1_ORIGIN) && trust)
 		    obj->z_origin = true;
-		if (dynp->d_un.d_val & DF_1_GLOBAL)
-			/* XXX */;
+		/*if (dynp->d_un.d_val & DF_1_GLOBAL)
+		    XXX ;*/
 		if (dynp->d_un.d_val & DF_1_BIND_NOW)
 		    obj->bind_now = true;
 		if (dynp->d_un.d_val & DF_1_NODELETE)

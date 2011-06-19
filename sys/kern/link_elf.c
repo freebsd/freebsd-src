@@ -950,11 +950,11 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 	ef->ddbstrcnt = strcnt;
 	ef->ddbstrtab = ef->strbase;
 
+nosyms:
 	error = link_elf_link_common_finish(lf);
 	if (error != 0)
 		goto out;
 
-nosyms:
 	*result = lf;
 
 out:

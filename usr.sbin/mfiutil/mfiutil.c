@@ -58,6 +58,7 @@ usage(void)
 	fprintf(stderr, "    show drives               - list physical drives\n");
 	fprintf(stderr, "    show events               - display event log\n");
 	fprintf(stderr, "    show firmware             - list firmware images\n");
+	fprintf(stderr, "    show logstate             - display event log sequence numbers\n");
 	fprintf(stderr, "    show volumes              - list logical volumes\n");
 	fprintf(stderr, "    show patrol               - display patrol read status\n");
 	fprintf(stderr, "    show progress             - display status of active operations\n");

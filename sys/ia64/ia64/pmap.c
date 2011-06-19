@@ -559,9 +559,13 @@ pmap_invalidate_page(vm_offset_t va)
 	} while (sem != tag);
 
 	ia64_ptc_ga(va, PAGE_SHIFT << 2);
+	ia64_mf();
+	ia64_srlz_i();
 
 	/* PTC.G leave exclusive */
 	atomic_store_rel_long(&pmap_ptc_g_sem, 0);
+
+	ia64_invala();
 
 	intr_restore(is);
 	critical_exit();
