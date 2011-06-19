@@ -1,7 +1,8 @@
-/*	$NetBSD: cmdtab.c,v 1.44 2005/04/11 01:49:31 lukem Exp $	*/
+/*	$NetBSD: cmdtab.c,v 1.11 2009/05/20 12:53:47 lukem Exp $	*/
+/*	from	NetBSD: cmdtab.c,v 1.51 2009/04/12 10:18:52 lukem Exp	*/
 
 /*-
- * Copyright (c) 1996-2000 The NetBSD Foundation, Inc.
+ * Copyright (c) 1996-2009 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
  * This code is derived from software contributed to The NetBSD Foundation
@@ -15,13 +16,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the NetBSD
- *	Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -65,16 +59,23 @@
  * SUCH DAMAGE.
  */
 
+#include "tnftp.h"
+
+#if 0	/* tnftp */
+
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)cmdtab.c	8.4 (Berkeley) 10/9/94";
 #else
-__RCSID("$NetBSD: cmdtab.c,v 1.44 2005/04/11 01:49:31 lukem Exp $");
+__RCSID(" NetBSD: cmdtab.c,v 1.51 2009/04/12 10:18:52 lukem Exp  ");
 #endif
 #endif /* not lint */
 
 #include <stdio.h>
+
+#endif	/* tnftp */
+
 #include "ftp_var.h"
 
 /*
@@ -100,7 +101,9 @@ HSTR	deletehelp[] =	"delete remote file";
 HSTR	disconhelp[] =	"terminate ftp session";
 HSTR	domachelp[] =	"execute macro";
 HSTR	edithelp[] =	"toggle command line editing";
+HSTR	epsvhelp[] =	"toggle use of EPSV/EPRT on both IPv4 and IPV6 ftp";
 HSTR	epsv4help[] =	"toggle use of EPSV/EPRT on IPv4 ftp";
+HSTR	epsv6help[] =	"toggle use of EPSV/EPRT on IPv6 ftp";
 HSTR	feathelp[] =	"show FEATures supported by remote system";
 HSTR	formhelp[] =	"set file transfer format";
 HSTR	gatehelp[] =	"toggle gate-ftp; specify host[:port] to change proxy";
@@ -211,7 +214,9 @@ struct cmd cmdtab[] = {
 	{ "dir",	H(lshelp),	1, 1, 1, CMPL(rl)	ls },
 	{ "disconnect",	H(disconhelp),	0, 1, 1, CMPL0		disconnect },
 	{ "edit",	H(edithelp),	0, 0, 0, CMPL0		setedit },
+	{ "epsv",	H(epsvhelp),	0, 0, 0, CMPL0		setepsv },
 	{ "epsv4",	H(epsv4help),	0, 0, 0, CMPL0		setepsv4 },
+	{ "epsv6",	H(epsv6help),	0, 0, 0, CMPL0		setepsv6 },
 	{ "exit",	H(quithelp),	0, 0, 0, CMPL0		quit },
 	{ "features",	H(feathelp),	0, 1, 1, CMPL0		feat },
 	{ "fget",	H(fgethelp),	1, 1, 1, CMPL(l)	fget },
@@ -294,7 +299,7 @@ struct cmd cmdtab[] = {
 	{ "verbose",	H(verbosehelp),	0, 0, 0, CMPL0		setverbose },
 	{ "xferbuf",	H(xferbufhelp),	0, 0, 0, CMPL0		setxferbuf },
 	{ "?",		H(helphelp),	0, 0, 1, CMPL(C)	help },
-	{ 0 },
+	{ NULL,		NULL,		0, 0, 0, CMPL0		NULL },
 };
 
 struct option optiontab[] = {
@@ -305,5 +310,5 @@ struct option optiontab[] = {
 	{ "pager",	NULL },
 	{ "prompt",	NULL },
 	{ "rprompt",	NULL },
-	{ 0 },
+	{ NULL,		NULL },
 };

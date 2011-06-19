@@ -1,3 +1,713 @@
+$NetBSD: ChangeLog,v 1.58 2010/01/12 06:58:57 lukem Exp $
+
+Tue Jan 12 06:58:15 UTC 2010	lukem
+
+	* Release as "tnftp 20100108"
+
+	* Rename onoff() argument "bool" to "val".
+
+Tue Jan  5 09:12:01 UTC 2010	lukem
+
+	* If ARG_MAX isn't defined, use the result from sysconf(_SC_ARG_MAX).
+	  Fixes build when using newer glibc.
+
+	* Add libnetbsd.la to the LIBADD for libedit.
+	  Fix provided by Adam Sampson.
+
+Mon Jan  4 06:28:07 UTC 2010	lukem
+
+	* Distribute various files not shipped by default automake rules,
+	  to use 'make dist' instead of 'cvs export'.
+
+Wed Dec 30 00:12:47 UTC 2009	lukem
+
+	* Release as "tnftp 20091122"
+
+Sun Nov 15 10:14:44 UTC 2009	lukem
+
+	* Merge NetBSD ftp from 20090520 to 20090915.  Change:
+		- Rename internal getline() to get_line() to avoid
+		  conflict with libc with former.
+		- Avoid a NULL dereference in an error message.
+
+Sat Nov 14 09:21:19 UTC 2009	lukem
+
+	* Convert to automake & libtool.
+
+Sat Jun  6 07:17:38 UTC 2009	lukem
+
+	* Release as "tnftp 20090606"
+
+Fri May 22 01:11:15 UTC 2009	lukem
+
+	* configure fixes:
+	  - Add the time.h headers to accheck_includes, for the strptime check.
+	  - Remove the check for el_init in libedit; we're always replacing
+	    the library and the presence of strvis() in some versions
+	    confuses other checks.
+
+Wed May 20 13:47:43 UTC 2009	lukem
+
+	* Release as "tnftp 20090520"
+
+	* Merge NetBSD ftp from 20070722 to 20090520.  Changes:
+	    - Only attempt to el_parse() a command unknown by the default
+	      parser if editing is enabled.
+	      Fixes PR 38589.
+	    - Turn off the alarmtimer before resetting the SIGALRM handler
+	      back to SIG_DFL.
+	      Fixes PR 35630.
+	    - Add epsv6 and epsv to disable extended passive mode for ipv6 or
+	      both ipv4 and ipv6 respectively.  This hack is due to our
+	      friends a Juniper Networks who break epsv in ipv6.
+	      Should be fixed in ScreenOS 6.2.X.
+	    - Improve parsing of chunked transfer chunks per RFC2616:
+	      - more stringent chunk-size parsing
+	      - ignore optional trailing ';chunk-ext' stuff, instead of barfing
+	      - detect EOF before final \r\n.
+	    - Use the service name to getaddrinfo() (along with the host
+	      name), so that features such as DNS Service Discovery have a
+	      better chance of working.
+	      Display the service name in various status & error messages.
+	    - Don't getservbyname() the :port component of a URL; RFC 3986
+	      says it's just an unsigned number, not a service name.
+	    - Fix numerous WARNS=4 issues (-Wcast-qual -Wsign-compare).
+	    - Fix -Wshadow issues
+	    - Update copyrights
+	    - Remove clause 3 and 4 from TNF licenses
+	    - Rename HAVE_STRUCT_SOCKADDR_SA_LEN to
+	      HAVE_STRUCT_SOCKADDR_IN_SIN_LEN to accurately reflect the
+	      structure member being used.
+	    - Use AF_INET instead of AF_UNSPEC as the default family if
+	      !defined(INET6).
+
+	* configure improvements:
+	  - Style tweaks.
+	  - Use AC_LANG_PROGRAM() instead of AC_LANG_SOURCE()
+	  - Add a check for strptime() requiring separators between
+	    conversions, and use our replacement one if it does.
+
+Sat Dec 20 15:28:24 UTC 2008	lukem
+
+	* configure improvements:
+	  - Move IPv6 check from tnftp.h to configure.ac (as per tnftpd).
+	  - Rework option descriptions.
+	  - Highlight when tests are for a specific option.
+	  - Move configuration results to the end of the file.
+	  - Display $prefix in configure results.
+
+Fri Aug 15 03:03:36 UTC 2008	lukem
+
+	* Add a "Configuration results" display at the end of configure.
+	  Cosmetic tweaks.
+
+Fri Feb 29 09:45:56 UTC 2008	lukem
+
+	* Support @EXEEXT@ for Cygwin (etc).
+
+Mon Aug  6 04:55:19 UTC 2007	lukem
+
+	* Release as "tnftp 20070806"
+
+	* Add a NEWS file.
+
+	* Reduce differences between NetBSD-ftp and local copy.
+
+	* Merge NetBSD ftp from 20070605 to 20070722.
+	  Changes:
+		- Document about:ftp and about:version.
+
+	* Add autoconf check for (Dante) SOCKS5.
+	  (Needs run-time testing and more portability testing.)
+
+Mon Jul 23 11:44:42 UTC 2007	lukem
+
+	* Don't use non-standard: u_char u_short u_int.
+	  Use uint32_t instead of u_int32_t.
+
+	* Consistently use AS_CASE() and AS_IF() in configure.ac.
+
+	* Don't use defined() with HAVE_DECL_xxx.
+	  Use `LL' instead of `L' suffix for fallback
+	  defines of LLONG_MIN and LLONG_MAX.
+
+Sun Jul 22 12:00:17 UTC 2007	lukem
+
+	* Include <arpa/nameser.h> if available, and provide fallback #defines.
+
+	* Sync with lib/libc/inet/inet_pton.c 1.3:
+		* Sync to bind 9.3.x version
+		* Update ISC copyright
+		* Fix some lint
+
+	* Sync with lib/libc/inet/inet_ntop.c 1.3:
+		* Sync to bind 9.3.x version
+		* Update ISC copyright
+		* Use socklen_t instead of size_t
+		* Use snprintf() instead of SPRINTF()
+		* Improve detection of various boundary conditions
+
+	* Sync to NetBSD glob.h 1.21, glob.c 1.16:
+		* Standards compliance fix
+		* De-lint
+		* Don't overflow when DEBUG is defined.
+
+        * Sync fgetln.c to tools/compat/fgetln.c 1.7:
+		* Clause 3 removal.
+
+	* Sync to config.guess 2007-07-22, config.sub 2007-06-28.
+
+	* Consistency tweaks in configure help strings.
+
+	* Add check for struct sockaddr.sa_len.
+	  Change tests for HAVE_foo to defined(HAVE_foo).
+	  Replace HAVE_SOCKADDR_SA_LEN with HAVE_STRUCT_SOCKADDR_SA_LEN.
+
+	* Remove pretence of supporting SOCKS for now;
+	  no test system is available, and the old
+	  autoconf 2.13 support wasn't upgraded to 2.61.
+
+	* configure.ac style consistency tweaks.
+	  Move autoconf aux files from ./ to build-aux/
+
+	* Remove duplicate HAVE_STRERROR replacement in tnftp.h.
+
+Thu Jun  7 04:47:47 UTC 2007	lukem
+
+	* Merge NetBSD ftp from 20070510 to 20070605.  Changes:
+		- Enforce restriction that (http) proxied URL fetchs don't
+		  support being restarted at this time.
+		  Addresses NetBSD Problem Report 28697.
+		- Display times in RFC2822 form rather than using ctime(3),
+		  since the former is more explicit about the timezone offset.
+		- main: call tzset() to ensure TZ is setup for other <time.h>
+		  functions.
+		- remotemodtime(): use strptime() to parse the reply.
+		- fetch_url(): ensure struct tm is zeroed before calling
+		  strptime().
+		- Modify parse_url() to consistently strip the leading `/'
+		  off ftp URLs.
+		  Fixes NetBSD Problem Report 17617.
+		- Use 'RFCnnnn' (with leading 0) instead of 'RFC nnnn', to be
+		  consistent with the style in the RFC index.
+		- Refer to RFC3916 instead of 1738 or 2732.
+		- Expand the list of supported RFCs in ftp(1) to contain the
+		  document name as well.
+
+Fri May 11 04:39:55 UTC 2007	lukem
+
+	* Update INSTALL and COPYING.
+
+	* Rename HAVE_QUAD_SUPPORT to HAVE_PRINTF_LONG_LONG, and only
+	  require support for 'long long' in that check rather than
+	  needing sizeof(off_t)>=8, as some systems have a separate
+	  off64_t when Large File Support is enabled.
+
+	* config.guess: treat 'i86xen:SunOS:5.*' as 'i86pc:SunOS:5.*'
+
+Thu May 10 15:23:33 UTC 2007	lukem
+
+	* Remove checks for util.h and libutil.h, and replacement for
+	  fparseln(), since fparseln() isn't used any more.
+
+	* Merge NetBSD ftp from 20070418 to 20070510.  Changes:
+		- Switch from fparseln() to the internal getline() when
+		  parsing HTTP headers.  Makes ftp a bit more portable
+		  (not needing fparseln()) at the expense of not supporting
+		  arbitrary long header lines, which I'm not concerned about
+		  because we don't support header line continuation either...
+		- Replace references from draft-ietf-ftpext-mlst-NN to RFC 3659.
+		- Fix misplaced const.
+		- Implement copy_bytes() to copy bytes from one fd to another
+		  via the provided buffer, with optional rate-limiting and
+		  hash-mark printing, using one loop and handle short writes.
+		  Refactor sendrequest() and recvrequest() to use copy_data().
+		  Addresses NetBSD Problem Report 15943.
+
+Wed May  9 05:24:55 UTC 2007	lukem
+
+	* Fix typo in poll()-based implementation of usleep() replacement.
+
+Wed May  9 04:58:50 UTC 2007	lukem
+
+	* Rename configure.in to configure.ac, as the latter is the
+	  preferred name in autoconf 2.61.
+
+	* Convert from autoconf 2.13 to 2.61:
+	  * Use a consistent quoting mechanism.
+	  * Use modern autoconf macros, #define names, etc.
+	  * Search for more header files, and only #include if found.
+	  * Remove old-style config.h.in generation.
+	  This may fix various tests on platforms such as FreeBSD and OS X.
+
+	* Add -Wl,-search_paths_first to LDFLAGS on OS X (Darwin) if the
+	  linker supports it.  This is needed so we use our libedit
+	  rather than the system one.
+
+	XXX: SOCKS support is currently disabled until I update the
+	     autoconf support.
+
+Mon Apr 23 06:04:26 UTC 2007	lukem
+
+	* Merge NetBSD ftp from 20050610 to 20070418.  Changes:
+		- Add '-s srcaddr'.
+		- Use IEC 60027-2 2^N based "KiB", "MiB" (etc) instead of
+		  10^n "KB", "MB", ...
+		- Recognize 307 redirect code.
+		- Suppress printing non-COMPLETE reply strings when EPSV/EPRT
+		  fails and we fall-back to PASV/PORT.  Should fix a problem
+		  with the emacs ftp wrapper.
+		- Fix display of 'Continue with <cmd>' messages.
+		- Prevent segfaults in .netrc parsing.
+		- Flush stdout before each command; ftp as slave process on
+		  a pipe should work.
+		- getpass() can return NULL in some implementations; cope.
+		- Support '-q quittime' when waiting for server replies.
+		- Various spelling & grammatical fixes in the manual.
+		- Plug some memory leaks.
+		- If a file upload (via -u) fails, return an non-zero exit
+		  value based on the index of the file that caused the
+		  problem (a la auto-fetch retrieval).
+		- Coverity fixes for CIDs: 873 874 875 1447 1448 2194 2195 3610
+		- Don't remove trailing character during auth_url()
+		- Fix progressbar display on narrow terminals (<43 columns)
+
+Fri Mar 16 06:00:14 UTC 2007	lukem
+
+	* Change the return value of the replacement gai_strerror()
+	  from "char *" to "const char *", to match the current
+	  standards.
+	  Problem noted by Thomas Klausner.
+
+Thu Oct 26 07:24:22 UTC 2006	lukem
+
+	* Correctly parse "AM" and "PM" in the replacement strptime().
+	  Problem noted by Kathryn Hogg.
+
+Sat Jun 25 06:27:00 UTC 2005	lukem
+
+	* Release as "tnftp 20050625"
+
+	* Simplify the detection & replacement of dirname() and fparseln()
+	  and just use AC_REPLACE_FUNCS.
+	  (We don't care if the vendor has a working version in -lgen or -lutil
+	  instead of -lc; they'll get our replacement version in that case).
+	  Fixes build issue on older Darwin where the previous autoconf check
+	  wouldn't find dirname() in the default system libraries.
+
+	* Only provide a prototype for dirname() if we can't find one in
+	  <libgen.h>
+
+	* Search for NS_IN6ADDRSZ instead of IN6ADDRSZ, since we use the
+	  former and not the latter and older Darwin has the former.
+	  (This allows INET6 support to be enabled on Darwin 7.9.0)
+
+Mon Jun 13 09:22:13 UTC 2005	lukem
+
+	* Tweak SOCKS5 support:
+	    acconfig.h:
+		- fix a comment
+		- ensure close() is replaced
+		- list entries in the same order as aclocal.m4
+		  (and the SOCKS5 FAQ)
+	    aclocal.m4:
+		- ensure getpeername() is replaced
+		- don't replace listen() twice
+
+Fri Jun 10 04:39:33 UTC 2005	lukem
+
+	* Release as "tnftp 20050610"
+
+	* Add dependencies on ${srcdir}/../tnftp.h and ../config.h
+
+	* Merge NetBSD ftp from 20050609 to 20050610.  Changes:
+		- Implement getline() to read a line into a buffer.
+		- Convert to use getline() instead of fgets() whenever reading
+		  user input to ensure that an overly long input line doesn't
+		  leave excess characters for the next input operation to
+		  accidentally use as input.
+		- Zero out the password & account after we've finished with it.
+		- Consistently use getpass(3) (i.e, character echo suppressed)
+		  when reading the account data.  For some reason, historically
+		  the "login" code suppressed echo for Account: yet the "user"
+		  command did not!
+		- Display the hostname in the "getaddrinfo failed" warning.
+		- Appease some -Wcast-qual warnings.  Fixing all of these
+		  requires significant code refactoring.  (mmm, legacy code).
+
+Thu Jun  9 16:49:05 UTC 2005	lukem
+
+	* src, libnetbsd: Excise RCSID block, rather than using
+	  #if 0 ...  #endif.  The point was to minimise RCSID
+	  conflicts, and the latter isn't helping there.
+
+	* Merge NetBSD ftp from 20050531 to 20050609.  Changes:
+		- Only print the "Trying <address>..." message if verbose
+		  and there's more than one struct addrinfo in the
+		  getaddrinfo() result.
+		- Don't use non-standard "u_int".
+
+Wed Jun  1 15:08:01 UTC 2005	lukem
+
+	* Look for dirname(3), which may be in -lgen on IRIX, and
+	  replace it if not found..
+
+Wed Jun  1 11:48:58 UTC 2005	lukem
+
+	* libnetbsd:
+		- Don't use non-standard: u_char u_short u_int.
+		- Use uint32_t instead of u_int32_t.
+		- Don't use register.
+
+	* libedit: Don't use non-standard uint or u_int.
+
+Tue May 31 02:23:08 UTC 2005	lukem
+
+	* tnftp.h: need <libgen.h> for dirname(3)
+
+	* Merge ftp from 20050513 to 20050531.  Changes:
+		- Helps if the definition of xconnect() matches its
+		  declaration....
+		- Fix some cast issues highlighted by Scott Reynolds using
+		  gcc 4 on OSX.4
+		- Use size_t instead of int where appropriate.
+		- Make this compile on sparc64 (size_t != int).
+		- Printf field widths and size_t don't always mix well, so
+		  cast to int.  Fixes build problem for alpha.
+		- Some const cleanups.
+		- tab cleanup
+		- Improve method used in fileindir() to determine if `file'
+		  is in or under `dir': realpath(3) on non-NetBSD systems may
+		  fail if the target filename doesn't exist, so instead use
+		  realpath(3) on the parent directory of `file'.
+		  Per discussion with Todd Eigenschink.
+		- formatbuf(): fix %m and %M to use the hostname, not the
+		  username.
+		- fetch_ftp(): preserve 'anonftp' across a disconnect() so
+		  that multiple ftp auto-fetches on the same command line
+		  login automatically.
+		- auto_fetch(): use an initialized volatile int to appease
+		  IRIX cc.
+
+	* Merge libedit from NetBSD 20050105 to 20050531.  Changes include:
+		- Rui Paulo: Incorrect tok_line and tok_str declarations.
+		- Remove clause 3 from the UCB license.
+		- Luke Mewburn: Don't abuse unconstify'ing a string
+		  and writing to it, because you'll core dump. Also remove
+		  extra const that gives pain to the irix compiler.
+		- Make sure we flush after we prepare when we are unbuffered
+		  otherwise the prompt will not appear immediately.
+		- Terminate the arglist with a NULL instead of 0.
+		  (Shuts up gcc4.x)
+
+Sat May 28 13:19:38 UTC 2005	lukem
+
+	* libnetbsd/strvis.c:
+		- Sync to NetBSD's vis.c 1.33:
+		  Use malloc(3) instead of alloca(3).
+		- Remove extraenous #endif
+
+Fri May 27 05:46:58 UTC 2005	lukem
+
+	* libnetbsd/strvis.c: Sync to NetBSD's vis.c 1.30:
+	  Use a more standard TNF license.
+
+	* libedit/sig.c: Include "src/progressbar.h" for xsignal_restart()
+	  prototype.
+
+	* Ensure that fallback #define of __attribute__ is available.
+	  Fixes build problem on HP-UX with cc.
+
+Thu May 26 14:21:08 UTC 2005	lukem
+
+	* Extend xpoll()'s HAVE_SELECT implementation to support POLLRDNORM,
+	  POLLWRNORM, and POLLRDBAND - the latter using exceptfds.
+	  Per discussion with Christos Zoulas.
+
+Mon May 16 13:33:27 UTC 2005	lukem
+
+	* Pull in <poll.h> or <sys/poll.h> if they exist even if we're
+	  not using poll, as struct pollfd might exist in those.
+	  Fixes build problem on OSX.3.
+
+	* Separate CPPFLAGS from CFLAGS.
+
+	* Sync various files in libnetbsd with the original versions
+	  in NetBSD.  Notable changes
+		- Convert 4 clause UCB license to 3 clause.
+		- Use strlcpy instead of strcpy.
+		- Update ISC copyright.
+		- Use NS_INADDRSZ, NS_IN6ADDRSZ and NS_INT16SZ instead of
+		  equivalents without NS_ prefix.
+		- Use socklen_t instead of size_t where appropriate.
+		- Improve bounds checking.
+		- Don't update the size of allocated storage until
+		  realloc succeeds.
+		- Fix comment about return value.
+		- Reverse the order of two loop invariant to make
+		  'strlcat(0, "foo", 0)' not get a SEGV.
+		- Use Todd C. Miller's latest copyright notice (more loose).
+		- Use "long long" instead of "quad" in various
+		  comments & constants.
+		- Support VIS_HTTPSTYLE.
+		- Implement svis(), strsvis(), strsvisx(), strunvisx().
+
+	* Prefer poll over select when implementing replacement usleep().
+
+Sat May 14 04:44:35 UTC 2005	lukem
+
+	* Release "tnftp 20050514"
+
+	* Fail if we can't find a library with tgetent (needed for libedit).
+	  NetBSD PR pkg/28925.
+	* Improve quoting when using various autoconf macros.
+
+	* Merge NetBSD-ftp 20050513:
+		- Correct the "optlen" argument passed to getsockopt(3) and
+		  setsockopt(3) in various places.  Fixes a problem noted by
+		  Allen Briggs.
+		- Improve warning printed when connect(2) for the data
+		  channel fails.
+
+Wed May 11 04:19:43 UTC 2005	lukem
+
+	* Release "tnftp 20050511"
+
+Wed May 11 04:10:01 UTC 2005	lukem
+
+	* Update the THANKS file.
+
+	* Only use poll() to implement xpoll() if it's available,
+	  otherwise attempt to use select() if that's available,
+	  otherwise #error.
+
+	* Detect if struct pollfd is available in <poll.h> or <sys/poll.h>.
+	  Improve consistency in use of autoconf macros.
+
+Wed May 11 02:42:08 UTC 2005	lukem
+
+	* Merge NetBSD-ftp 20050511:
+		- Use socklen_t instead of int as the 5th argument to
+		  getsockopt().  Improve invocation of setsockopt() and
+		  associated failure messages.
+
+Wed May 11 01:46:29 UTC 2005	lukem
+
+	* Clean up RCSID usage in vendor-derived code, restoring original
+	  IDs where possible.
+
+Wed May 11 00:08:16 UTC 2005	lukem
+
+	* Merge NetBSD-ftp 20050510:
+		- Prevent an overly-long input line causing a core dump when
+		  editing is enabled.
+		  Issue noted by Ryoji Kanai in FreeBSD Problem Report # 77158.
+		- Implement a timeout on the accept(2) in dataconn() and the
+		  connect(2) in xconnect() by temporarily setting O_NONBLOCK
+		  on the socket and using xpoll() to wait for the operation
+		  to succeed.  The timeout used is the '-q quittime' argument
+		  (defaults to 60s for accept(2), and the system default for
+		  connect(2)).  Idea inspired by discussion with Chuck Cranor.
+		  This may (indirectly) fix various problems with timeouts in
+		  active mode through broken firewalls.
+		- Implement xpoll() as a wrapper around poll(2), to make it
+		  easier to replace on systems without a functional poll(2).
+		  Unconditionally use xpoll() instead of conditionally using
+		  select(2) or poll(2).
+		- In fetch_url(), don't call freeaddrinfo(res0) too early, as
+		  we use pointers to its contents later in the function.
+		  Problem found by Onno van der Linden.
+		- Fix ftp url reget when globs are being used.
+		  Provided by Mathieu Arnold <mat@FreeBSD.org>.
+		- Factor out common string processing code eliminating static
+		  buffers, making functions that should be static be static,
+		  and cleaning up const usage. Added a guard against buffer
+		  overflow, but the domap function is a bit too complicated
+		  to tackle right now.
+		- Clean up whitespace.
+		- Expand description of http_proxy by suggesting the use of
+		  RFC 1738 '%xx' encoding for "unsafe URL" characters in
+		  usernames and passwords.
+
+Wed Jan  5 05:53:59 UTC 2005	lukem
+
+	* For now, assume libedit is not up-to-date and use our own version.
+
+	* Merge libedit from NetBSD 20020605 to 20050105.  Changes include:
+		- Improve vi-mode.
+		- Delete-previous-char and delete-next-char without an
+		  argument are not supposed to modify the yank buffer in
+		  emacs-mode.
+		- Improve incremental searching.
+		- Improve memory allocation & usage.
+		- Move UCB-licensed code from 4-clause to 3-clause.
+		- Make the tokenization functions publically available.
+		- Various tty access bug-fixes.
+		- Improve readline emulation.
+
+Tue Jan  4 13:33:40 UTC 2005	lukem
+
+	* Unixware 7.1.1 implements RFC 2133 (Basic Socket Interface
+	  Extensions for IPv6) but not the successor RFC 2553. The configure
+	  script detects this and decides that tnftp needs to compile its own
+	  version of getaddrinfo().  This produces the error message
+	    /usr/include/netdb.h:248: `getaddrinfo' previously defined here
+	  because Unixware provides an implementation of getaddrinfo() in
+	  netdb.h instead of a prototype declaration :-/. Since netdb.h
+	  cannot be omitted, we will always get this definition and tnftp's
+	  version of getaddrinfo will always create a conflict.  This ugly
+	  preprocessor hack works around the problem. Hints for a better
+	  solution welcome.  Fix from pkgsrc/net/tnftp.
+
+	* Workaround poll() being a compatibility function on Darwin 7
+	  (MacOSX 10.3) by adding a custom test for _POLL_EMUL_H_ which
+	  is defined in poll.h on some MacOSX 10.3 systems.  Not all 10.3
+	  systems have poll.h, so only do the poll() test if at least one
+	  of the header files is found.  Fix from pkgsrc/net/tnftp.
+
+	* Add a utimes() replacement (using utime()) for Interix.
+	  From pkgsrc/net/tnftp.
+
+Mon Jan  3 10:21:57 UTC 2005	lukem
+
+	* Release "tnftp 20050103"
+
+	* Merge NetBSD-ftp 20050103:
+		- Forbid filenames returned from mget that aren't in (or below)
+		  the current directory.  The previous behaviour (of trusting
+		  the remote server's response when retrieving the list of
+		  files to mget with prompting disabled) has been in ftp
+		  ~forever, and has been a "known issue" for a long time.
+		  Recently an advisory was published by D.J. Bernstein on
+		  behalf of Yosef Klein warning of the problems with the
+		  previous behaviour, so to alleviate concern I've fixed
+		  this with a sledgehammer.
+		- Remember the local cwd after any operation which may
+		  change it.
+		- Use "remotecwd" instead of "remotepwd".
+		- Add (unsigned char) cast to ctype functions
+		- Ensure that "mname" is set in ls() and mls() so that an
+		  aborted confirm() prints the correct name.
+		  Problem highlighted & suggested fix from PR [bin/17766]
+		  by Steve McClellan.
+		- If an ftp auto-fetch transfer is interrupted by SIGINT
+		  (usually ^C), exit with 130 instead of 1 (or rarely, 0).
+		  This allows an ftp auto-fetch in a shell loop to correctly
+		  terminate the loop.
+		  Should fix PR [pkg/26351], and possibly others.
+		- Save approximately 8K by not including http authentication,
+		  extended status messages and help strings when the
+		  appropriate options are set.
+		- Move UCB-licensed code from 4-clause to 3-clause licence.
+		  Patches provided by Joel Baker in PR 22365, verified by
+		  Alistair Crooks.
+		- Always decode %xx in a url's user & pass components.
+		- Only remember {WWW,Proxy}-Authenticate "Basic" challenges; no
+		  point in tracking any others since ftp doesn't support them.
+		- Improve the parsing of HTTP responses.
+		- Don't base64 encode the trailing NUL in the HTTP basic auth
+		  response.  Problem noted by Eric Haszlakiewicz.
+		- Improve parsing of HTTP response headers to be more RFC2616
+		  compliant, and skip LWS (linear white space; CR, LF, space,
+		  tab) and the end of lines and between the field name and
+		  the field value.  This still isn't 100% compliant, since we
+		  don't support "multi line" responses at this time.
+		  This should fix PR [bin/22611] from TAMURA Kent (although I
+		  can't easily find a http server to reproduce the problem
+		  against.)
+		- Fix a minor memory leak when parsing HTTP response headers.
+		- Don't unnecessarily display a 401/407 error when running
+		  with -V.  Fix from PR [bin/18535] by Jeremy Reed.
+		- Don't warn about "ignored setsockopt" failures unless
+		  debugging is enabled.  Suggested by Todd Vierling.
+		- Allow empty passwords in ftp://user:@host/file auto-fetch
+		  URLs, per RFC 1738.  Requested by Simon Poole.
+		- correct URL syntax in comment
+		- Note potentially surprising file-saving behaviour in case
+		  of HTTP redirects
+		- -n is ignored for auto-fetch transfers
+		- If connect(2) in xconnect() fails with EINTR, call select(2)
+		  on the socket until it's writable or it fails with something
+		  other than EINTR.  This matches the behaviour in SUSv3, and
+		  prevents the problem when pressing ^T (SIGINFO, which is
+		  marked as restartable) during connection setup would cause
+		  ftp to fail with EADDRINUSE or EALREADY when the second
+		  connect(2) was attempted on the same socket.  Problem found
+		  and solution provided by Maxime Henrion <mux@freebsd.org>.
+		- Add -q to usage. From Kouichirou Hiratsuka in PR 26199.
+		- PR/25566: Anders Magnusson: ftp(1) do not like large TCP
+		  windows.  Limit it to 8M.
+
+Mon Oct  6 01:23:03 UTC 2003	lukem
+
+	* configure.in improvements:
+		- When testing for IN6ADDRSZ in <arpa/nameser.h>, pull in
+		  <sys/types.h> first.  From Stoned Elipot <seb @ NetBSD>
+		- Whitespace cleanup
+
+Mon Aug 25 11:45:45 UTC 2003	lukem
+
+	* Release "tnftp 20030825"
+
+	* Add autoconf test for <sys/syslimits.h>; Cygwin needs it for ARG_MAX.
+	  Per discussion with Eugene Kotlyarov <ekot@protek36.esoo.ru>.
+
+Thu Jul 31 07:30:00 UTC 2003	lukem
+
+	* release "tnftp 20030731"
+
+	* merge ftp from NetBSD 20030731 to 20030731b:
+		- Work around broken ftp servers (notably ProFTPd) that can't
+		  even follow RFC 2389, and skip any amount of whitespace
+		  before a FEATure response.  The RFC says 'single space' yet
+		  ProFTPd puts two.  Noted by DervishD <raul@pleyades.net>.
+		- Improve formatting of features[] debug dump.
+		- Invalidate remote directory completion cache if any command
+		  which may change the remote contents completes successfully,
+		  including: del, mdel, ren, mkdir, rmdir, quote, and all
+		  upload commands.  Patch from Yar Tikhiy <yar@freebsd.org>.
+
+	* merge ftp from NetBSD 20030228 to 20030731:
+		- $FTPUSERAGENT overrides the HTTP User-Agent header.
+		  Based on patch from Douwe Kiela <virtus@wanadoo.nl>.
+		- Add about:tnftp
+		- Fix URL in about:netbsd
+		- netbsd.org->NetBSD.org
+		- strlcpy fix in fetch.c
+		- Uppercase "URL"
+		- fix a bogus error message when given a HTTP URL with a
+		  trailing slash
+		- groff fixes in man page
+		- tweak progressbar.c copyright; the stuff jason did in util.c
+		  wasn't migrated to this file
+		- Don't coredump when printing '%n' in the prompt if there's
+		  no username yet.
+		  Fix from Maxim Konovalov <maxim@freebsd.org>
+
+	* Add test for HAVE_IN6ADDRSZ (which older Darwin is lacking),
+	  and only enable INET6 if it exists.
+	  Patch from Amitai Schlair <schmonz@schmonz.com>.
+
+	* Improve ipv6 check for older linux systems that don't provide
+	  sin6_scope_id.
+	  Patch from YAMANO Yuji <Yamano_Yuji@tk-bay.ogis-ri.co.jp>.
+
+Fri Feb 28 10:57:30 UTC 2003	lukem
+
+	* tagged as "tnftp 2.0 beta1"
+
+Fri Feb 28 10:07:07 UTC 2003	lukem
+
+	* renamed to `tnftp' (from `lukemftp')
+
+	* renamed `libukem' to `libnetbsd'
+
+
+Mon Jun 17 06:50:13 UTC 2002	lukem
+
+	* #if USE_GLOB_H, use <glob.h> instead of "ftpglob.h".
+	  Requested by Mike Heffner <mikeh@freebsd.org>
+
 Mon Jun 10 08:12:35 UTC 2002	lukem
 
 	* crank FTP_VERSION from 1.6-beta1 to 1.6-beta2
@@ -223,7 +933,7 @@ Tue Oct  3 10:22:36 EST 2000	lukem
 Mon Sep 25 21:52:12 EST 2000	lukem
 
 	* crank to version 1.5 beta5
-	
+
 Sun Sep 24 13:31:19 EST 2000	lukem
 
 	* merge ftp from NetBSD-current (20000924)
@@ -243,7 +953,7 @@ Sun Sep 24 13:31:19 EST 2000	lukem
 		- in progressmeter() perform the check for foregroundproc() a
 		  little earlier
 		- removed unused variable `items' in list_vertical()
-	
+
 Sat Sep 23 15:43:34 EST 2000	lukem
 
 	* remove unused sverrno in warnx() and errx()
@@ -406,7 +1116,7 @@ Wed Aug  2 23:43:50 EST 2000	lukem
 	* update from NetBSD-current (20000802):
 		- rename NO_QUAD to NO_LONG_LONG, QUAD* -> LL* and add ULL*
 		  (unsigned) equivalents. name change suggested by Klaus
-		  Klein <kjk@netbsd.org>
+		  Klein <kjk@NetBSD.org>
 		- change defined(BSD4_4) || HAVE_SIN_LEN tests into
 		  HAVE_SOCKADDR_SA_LEN, and set the latter if BSD4_4 exists
 
@@ -451,7 +1161,7 @@ Wed Jul 26 18:59:19 EST 2000	lukem
 		- add support for FEAT and OPTS commands with `features' and
 		  `opts'.  (from RFC 2389).
 		- add support for MLST & MLSD (machine parseble listings)
-		  with 'mlst', 'mlsd' and 'pmlsd' (mlsd |$PAGER) commands. 
+		  with 'mlst', 'mlsd' and 'pmlsd' (mlsd |$PAGER) commands.
 		  (from draft-ietf-ftpext-mlst-11)
 		- rename remotesyst() to getremoteinfo(), and modify to parse
 		  the result from FEAT (if supported), and take into account
@@ -473,7 +1183,7 @@ Wed Jul 26 18:59:19 EST 2000	lukem
 		- minor knf (indent goto labels by one space, etc).
 		- simply various command usage handlers by assuming that
 		  argv != NULL except for quit() and disconnect().
-		- errx?/warnx? audit.  do not pass variable alone, use %s. 
+		- errx?/warnx? audit.  do not pass variable alone, use %s.
 
 	* check for issetugid() and don't use in libedit if it doesn't exist.
 
@@ -572,12 +1282,12 @@ Sun Jun  4 18:00:07 EST 2000	lukem
 		- do not pass scoped IPv6 address notation on Host: directive,
 		  since scope identifier is local to the originating node.
 		  do not allow scoped IPv6 address notation in URL, if it is
-		  via proxy. 
+		  via proxy.
 		- fixes from cgd:
 		  * sanity check a length (otherwise certain bogus responses
 		    can crash ftp)
 		  * allow a transfer encoding type of `binary'; certain
-		    firewall vendors return this bogus type... 
+		    firewall vendors return this bogus type...
 		- make debugging output unambiguous on IPv6 numeric addrs
 		  (don't use host:port)
 		- http://[::1]:8080/ is legal.
@@ -705,7 +1415,7 @@ Sun Nov 28 18:20:41 EST 1999	lukem
 	- implement xsl_init() and  xsl_add(); error checking forms of
 	  sl_{init,add}()
 	- fix bug where the second press of <TAB> on an empty word (i.e, list
-	  all options) may have resulted in an strncmp() against NULL. 
+	  all options) may have resulted in an strncmp() against NULL.
 	  (detected by _DIAGASSERT())
 	- in cleanuppeer(), reset username to NULL after free()ing it.
 	  fixes [bin/8870] by Wolfgang Rupprecht <wolfgang@wsrcc.com>
@@ -985,7 +1695,7 @@ Mon Oct  4 10:57:41 EST 1999	lukem
 
 	* Add support for --{en,dis}able-editcomplete (defaults to enabled),
 	  which prevents libedit support from being compiled in.
-	  From Chris G. Demetriou <cgd@netbsd.org>
+	  From Chris G. Demetriou <cgd@NetBSD.org>
 
 Sun Oct  3 16:49:01 EST 1999	lukem
 
