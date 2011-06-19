@@ -530,8 +530,11 @@ nfscl_filllockowner(void *id, u_int8_t *cp, int flags)
 		*cp++ = tl.cval[1];
 		*cp++ = tl.cval[2];
 		*cp = tl.cval[3];
+	} else if ((flags & F_FLOCK) != 0) {
+		bcopy(&id, cp, sizeof(id));
+		bzero(&cp[sizeof(id)], NFSV4CL_LOCKNAMELEN - sizeof(id));
 	} else {
-		printf("nfscl_filllockowner: not F_POSIX\n");
+		printf("nfscl_filllockowner: not F_POSIX or F_FLOCK\n");
 		bzero(cp, NFSV4CL_LOCKNAMELEN);
 	}
 }
