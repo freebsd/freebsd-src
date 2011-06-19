@@ -1,4 +1,5 @@
-/*	$NetBSD: domacro.c,v 1.20 2003/08/07 11:13:53 agc Exp $	*/
+/*	$NetBSD: domacro.c,v 1.8 2009/05/20 12:53:47 lukem Exp $	*/
+/*	from	NetBSD: domacro.c,v 1.22 2009/04/12 10:18:52 lukem Exp	*/
 
 /*
  * Copyright (c) 1985, 1993, 1994
@@ -29,18 +30,24 @@
  * SUCH DAMAGE.
  */
 
+#include "tnftp.h"
+
+#if 0	/* tnftp */
+
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)domacro.c	8.3 (Berkeley) 4/2/94";
 #else
-__RCSID("$NetBSD: domacro.c,v 1.20 2003/08/07 11:13:53 agc Exp $");
+__RCSID(" NetBSD: domacro.c,v 1.22 2009/04/12 10:18:52 lukem Exp  ");
 #endif
 #endif /* not lint */
 
 #include <ctype.h>
 #include <stdio.h>
 #include <string.h>
+
+#endif	/* tnftp */
 
 #include "ftp_var.h"
 
@@ -50,10 +57,11 @@ domacro(int argc, char *argv[])
 	int i, j, count = 2, loopflg = 0;
 	char *cp1, *cp2, line2[FTPBUFLEN];
 	struct cmd *c;
+	char cmdbuf[MAX_C_NAME];
 
 	if ((argc == 0 && argv != NULL) ||
 	    (argc < 2 && !another(&argc, &argv, "macro name"))) {
-		fprintf(ttyout, "usage: %s macro_name [args]\n", argv[0]);
+		UPRINTF("usage: %s macro_name [args]\n", argv[0]);
 		code = -1;
 		return;
 	}
@@ -126,7 +134,8 @@ domacro(int argc, char *argv[])
 				fputs(line, ttyout);
 				putc('\n', ttyout);
 			}
-			margv[0] = c->c_name;
+			(void)strlcpy(cmdbuf, c->c_name, sizeof(cmdbuf));
+			margv[0] = cmdbuf;
 			(*c->c_handler)(margc, margv);
 			if (bell && c->c_bell)
 				(void)putc('\007', ttyout);
