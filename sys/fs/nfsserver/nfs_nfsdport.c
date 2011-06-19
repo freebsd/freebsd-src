@@ -2589,6 +2589,36 @@ nfsvno_pathconf(struct vnode *vp, int flag, register_t *retf,
 	int error;
 
 	error = VOP_PATHCONF(vp, flag, retf);
+	if (error == EOPNOTSUPP || error == EINVAL) {
+		/*
+		 * Some file systems return EINVAL for name arguments not
+		 * supported and some return EOPNOTSUPP for this case.
+		 * So the NFSv3 Pathconf RPC doesn't fail for these cases,
+		 * just fake them.
+		 */
+		switch (flag) {
+		case _PC_LINK_MAX:
+			*retf = LINK_MAX;
+			break;
+		case _PC_NAME_MAX:
+			*retf = NAME_MAX;
+			break;
+		case _PC_CHOWN_RESTRICTED:
+			*retf = 1;
+			break;
+		case _PC_NO_TRUNC:
+			*retf = 1;
+			break;
+		default:
+			/*
+			 * Only happens if a _PC_xxx is added to the server,
+			 * but this isn't updated.
+			 */
+			*retf = 0;
+			printf("nfsrvd pathconf flag=%d not supp\n", flag);
+		};
+		error = 0;
+	}
 	return (error);
 }
 
