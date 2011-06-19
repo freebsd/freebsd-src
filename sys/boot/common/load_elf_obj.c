@@ -196,7 +196,7 @@ static int
 __elfN(obj_loadimage)(struct preloaded_file *fp, elf_file_t ef, u_int64_t off)
 {
 	Elf_Ehdr *hdr;
-	Elf_Shdr *shdr;
+	Elf_Shdr *shdr, *cshdr, *lshdr;
 	vm_offset_t firstaddr, lastaddr;
 	int i, nsym, res, ret, shdrbytes, symstrindex;
 
@@ -294,12 +294,35 @@ __elfN(obj_loadimage)(struct preloaded_file *fp, elf_file_t ef, u_int64_t off)
 	/* Clear the whole area, including bss regions. */
 	kern_bzero(firstaddr, lastaddr - firstaddr);
 
-	/* Now read it all in. */
-	for (i = 0; i < hdr->e_shnum; i++) {
-		if (shdr[i].sh_addr == 0 || shdr[i].sh_type == SHT_NOBITS)
-			continue;
-		if (kern_pread(ef->fd, (vm_offset_t)shdr[i].sh_addr,
-		    shdr[i].sh_size, (off_t)shdr[i].sh_offset) != 0) {
+	/* Figure section with the lowest file offset we haven't loaded yet. */
+	for (cshdr = NULL; /* none */; /* none */)
+	{
+		/*
+		 * Find next section to load. The complexity of this loop is
+		 * O(n^2), but with  the number of sections being typically
+		 * small, we do not care.
+		 */
+		lshdr = cshdr;
+
+		for (i = 0; i < hdr->e_shnum; i++) {
+			if (shdr[i].sh_addr == 0 ||
+			    shdr[i].sh_type == SHT_NOBITS)
+				continue;
+			/* Skip sections that were loaded already. */
+			if (lshdr != NULL &&
+			    lshdr->sh_offset >= shdr[i].sh_offset)
+				continue;
+			/* Find section with smallest offset. */
+			if (cshdr == lshdr ||
+			    cshdr->sh_offset > shdr[i].sh_offset)
+				cshdr = &shdr[i];
+		}
+
+		if (cshdr == lshdr)
+			break;
+
+		if (kern_pread(ef->fd, (vm_offset_t)cshdr->sh_addr,
+		    cshdr->sh_size, (off_t)cshdr->sh_offset) != 0) {
 			printf("\nelf" __XSTRING(__ELF_WORD_SIZE)
 			    "_obj_loadimage: read failed\n");
 			goto out;
