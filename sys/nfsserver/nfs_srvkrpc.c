@@ -418,12 +418,9 @@ nfssvc_addsock(struct file *fp, struct thread *td)
 static int
 nfssvc_nfsd(struct thread *td, struct nfsd_nfsd_args *args)
 {
-#ifdef KGSSAPI
 	char principal[128];
 	int error;
-#endif
 
-#ifdef KGSSAPI
 	if (args) {
 		error = copyinstr(args->principal, principal,
 		    sizeof(principal), NULL);
@@ -434,7 +431,6 @@ nfssvc_nfsd(struct thread *td, struct nfsd_nfsd_args *args)
 		getcredhostname(td->td_ucred, principal + 4,
 		    sizeof(principal) - 4);
 	}
-#endif
 
 	/*
 	 * Only the first nfsd actually does any work.  The RPC code
@@ -449,12 +445,10 @@ nfssvc_nfsd(struct thread *td, struct nfsd_nfsd_args *args)
 
 		NFSD_UNLOCK();
 
-#ifdef KGSSAPI
-		rpc_gss_set_svc_name(principal, "kerberosv5",
+		rpc_gss_set_svc_name_call(principal, "kerberosv5",
 		    GSS_C_INDEFINITE, NFS_PROG, NFS_VER2);
-		rpc_gss_set_svc_name(principal, "kerberosv5",
+		rpc_gss_set_svc_name_call(principal, "kerberosv5",
 		    GSS_C_INDEFINITE, NFS_PROG, NFS_VER3);
-#endif
 
 		if (args) {
 			nfsrv_pool->sp_minthreads = args->minthreads;
@@ -466,10 +460,8 @@ nfssvc_nfsd(struct thread *td, struct nfsd_nfsd_args *args)
 
 		svc_run(nfsrv_pool);
 
-#ifdef KGSSAPI
-		rpc_gss_clear_svc_name(NFS_PROG, NFS_VER2);
-		rpc_gss_clear_svc_name(NFS_PROG, NFS_VER3);
-#endif
+		rpc_gss_clear_svc_name_call(NFS_PROG, NFS_VER2);
+		rpc_gss_clear_svc_name_call(NFS_PROG, NFS_VER3);
 
 		NFSD_LOCK();
 		nfsrv_numnfsd--;

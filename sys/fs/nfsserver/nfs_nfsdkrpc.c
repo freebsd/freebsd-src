@@ -386,18 +386,14 @@ nfsrvd_addsock(struct file *fp)
 int
 nfsrvd_nfsd(struct thread *td, struct nfsd_nfsd_args *args)
 {
-#ifdef KGSSAPI
 	char principal[MAXHOSTNAMELEN + 5];
 	int error;
 	bool_t ret2, ret3, ret4;
-#endif
 
-#ifdef KGSSAPI
 	error = copyinstr(args->principal, principal, sizeof (principal),
 	    NULL);
 	if (error)
 		return (error);
-#endif
 
 	/*
 	 * Only the first nfsd actually does any work. The RPC code
@@ -412,38 +408,29 @@ nfsrvd_nfsd(struct thread *td, struct nfsd_nfsd_args *args)
 
 		NFSD_UNLOCK();
 
-#ifdef KGSSAPI
 		/* An empty string implies AUTH_SYS only. */
 		if (principal[0] != '\0') {
-			ret2 = rpc_gss_set_svc_name(principal, "kerberosv5",
-			    GSS_C_INDEFINITE, NFS_PROG, NFS_VER2);
-			ret3 = rpc_gss_set_svc_name(principal, "kerberosv5",
-			    GSS_C_INDEFINITE, NFS_PROG, NFS_VER3);
-			ret4 = rpc_gss_set_svc_name(principal, "kerberosv5",
-			    GSS_C_INDEFINITE, NFS_PROG, NFS_VER4);
+			ret2 = rpc_gss_set_svc_name_call(principal,
+			    "kerberosv5", GSS_C_INDEFINITE, NFS_PROG, NFS_VER2);
+			ret3 = rpc_gss_set_svc_name_call(principal,
+			    "kerberosv5", GSS_C_INDEFINITE, NFS_PROG, NFS_VER3);
+			ret4 = rpc_gss_set_svc_name_call(principal,
+			    "kerberosv5", GSS_C_INDEFINITE, NFS_PROG, NFS_VER4);
 
-			if (!ret2 || !ret3 || !ret4) {
-				NFSD_LOCK();
-				newnfs_numnfsd--;
-				nfsrvd_init(1);
-				NFSD_UNLOCK();
-				return (EAUTH);
-			}
+			if (!ret2 || !ret3 || !ret4)
+				printf("nfsd: can't register svc name\n");
 		}
-#endif
 
 		nfsrvd_pool->sp_minthreads = args->minthreads;
 		nfsrvd_pool->sp_maxthreads = args->maxthreads;
 			
 		svc_run(nfsrvd_pool);
 
-#ifdef KGSSAPI
 		if (principal[0] != '\0') {
-			rpc_gss_clear_svc_name(NFS_PROG, NFS_VER2);
-			rpc_gss_clear_svc_name(NFS_PROG, NFS_VER3);
-			rpc_gss_clear_svc_name(NFS_PROG, NFS_VER4);
+			rpc_gss_clear_svc_name_call(NFS_PROG, NFS_VER2);
+			rpc_gss_clear_svc_name_call(NFS_PROG, NFS_VER3);
+			rpc_gss_clear_svc_name_call(NFS_PROG, NFS_VER4);
 		}
-#endif
 
 		NFSD_LOCK();
 		newnfs_numnfsd--;
