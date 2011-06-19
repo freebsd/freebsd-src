@@ -1744,7 +1744,7 @@ check_kern_features()
 	local _v
 
 	[ -n "$1" ] || return 1;
-	_v=`eval echo "\\$_rc_cache_kern_features_$1"`
+	eval _v=\$_rc_cache_kern_features_$1
 	[ -n "$_v" ] && return "$_v";
 
 	if ${SYSCTL_N} kern.features.$1 > /dev/null 2>&1; then
