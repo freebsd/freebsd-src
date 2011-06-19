@@ -828,7 +828,7 @@ dt_popc(ulong_t x)
 	x = x + (x >> 32);
 	return (x & 0x7F);
 #else
-# warning need td_popc() implementation
+/* This should be a #warning but for now ignore error. Err: "need td_popc() implementation" */
 #endif
 }
 
