@@ -1,5 +1,5 @@
 /*
- *  $Id: dialog.h,v 1.223 2011/03/02 10:04:09 tom Exp $
+ *  $Id: dialog.h,v 1.224 2011/06/13 14:29:42 tom Exp $
  *
  *  dialog.h -- common declarations for all dialog modules
  *
@@ -44,7 +44,10 @@
 #include <signal.h>	/* fork() etc. */
 #include <math.h>	/* sqrt() */
 
-#undef ERR		/* header conflict with Solaris xpg4 */
+/* header conflict with Solaris xpg4 versus <sys/regset.h> */
+#if defined(ERR) && (ERR == 13)
+#undef ERR
+#endif
 
 #if defined(HAVE_NCURSESW_NCURSES_H)
 #include <ncursesw/ncurses.h>
