@@ -626,17 +626,21 @@ and
 A few Hardware/OEM vendors tend to screw up BIOS settings, thus
 rendering the
 .Nm
-driver useless, which usually results in a state where the
+driver useless.
+This usually results in a state where the
 .Nm
-driver seems to attach and work, but without any sound. Some of
-that cases can be solved by tuning loader.conf variables. But before
-trying to fix problem that way, make sure that problem is really exists
-and the PCM audio device you are using really corresponds to expected
+driver seems to attach and work, but no sound is played.
+Some cases can be solved by tuning
+.Pa loader.conf
+variables.
+Before trying to fix problem that way, make sure that there really is a problem
+and that the PCM audio device in use really corresponds to the expected
 audio connector.
 .Pp
-Some vendors use non-standardized General Purpose I/O (GPIO) pins of codec
-to control external amplifiers. In some cases setting proper combination of
-GPIO bits may be needed to make sound work on specific device.
+Some vendors use non-standardized General Purpose I/O (GPIO) pins of the codec
+to control external amplifiers.
+In some cases setting a combination of GPIO bits may be needed to make
+sound work on a specific device.
 .Pp
 HDMI and DisplayPort audio may also require support from video driver.
 .Pp
