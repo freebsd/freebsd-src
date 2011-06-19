@@ -500,7 +500,7 @@ nfscl_fillclid(u_int64_t clval, char *uuid, u_int8_t *cp, u_int16_t idlen)
  * Fill in a lock owner name. For now, pid + the process's creation time.
  */
 void
-nfscl_filllockowner(struct thread *td, u_int8_t *cp)
+nfscl_filllockowner(void *id, u_int8_t *cp, int flags)
 {
 	union {
 		u_int32_t	lval;
@@ -508,37 +508,32 @@ nfscl_filllockowner(struct thread *td, u_int8_t *cp)
 	} tl;
 	struct proc *p;
 
-if (td == NULL) {
-	printf("NULL td\n");
-	bzero(cp, 12);
-	return;
-}
-	p = td->td_proc;
-if (p == NULL) {
-	printf("NULL pid\n");
-	bzero(cp, 12);
-	return;
-}
-	tl.lval = p->p_pid;
-	*cp++ = tl.cval[0];
-	*cp++ = tl.cval[1];
-	*cp++ = tl.cval[2];
-	*cp++ = tl.cval[3];
-if (p->p_stats == NULL) {
-	printf("pstats null\n");
-	bzero(cp, 8);
-	return;
-}
-	tl.lval = p->p_stats->p_start.tv_sec;
-	*cp++ = tl.cval[0];
-	*cp++ = tl.cval[1];
-	*cp++ = tl.cval[2];
-	*cp++ = tl.cval[3];
-	tl.lval = p->p_stats->p_start.tv_usec;
-	*cp++ = tl.cval[0];
-	*cp++ = tl.cval[1];
-	*cp++ = tl.cval[2];
-	*cp = tl.cval[3];
+	if (id == NULL) {
+		printf("NULL id\n");
+		bzero(cp, NFSV4CL_LOCKNAMELEN);
+		return;
+	}
+	if ((flags & F_POSIX) != 0) {
+		p = (struct proc *)id;
+		tl.lval = p->p_pid;
+		*cp++ = tl.cval[0];
+		*cp++ = tl.cval[1];
+		*cp++ = tl.cval[2];
+		*cp++ = tl.cval[3];
+		tl.lval = p->p_stats->p_start.tv_sec;
+		*cp++ = tl.cval[0];
+		*cp++ = tl.cval[1];
+		*cp++ = tl.cval[2];
+		*cp++ = tl.cval[3];
+		tl.lval = p->p_stats->p_start.tv_usec;
+		*cp++ = tl.cval[0];
+		*cp++ = tl.cval[1];
+		*cp++ = tl.cval[2];
+		*cp = tl.cval[3];
+	} else {
+		printf("nfscl_filllockowner: not F_POSIX\n");
+		bzero(cp, NFSV4CL_LOCKNAMELEN);
+	}
 }
 
 /*
