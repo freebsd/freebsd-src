@@ -1,7 +1,8 @@
-/*	$NetBSD: progressbar.c,v 1.7 2005/04/11 01:49:31 lukem Exp $	*/
+/*	$NetBSD: progressbar.c,v 1.14 2009/05/20 12:53:47 lukem Exp $	*/
+/*	from	NetBSD: progressbar.c,v 1.21 2009/04/12 10:18:52 lukem Exp	*/
 
 /*-
- * Copyright (c) 1997-2003 The NetBSD Foundation, Inc.
+ * Copyright (c) 1997-2009 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
  * This code is derived from software contributed to The NetBSD Foundation
@@ -15,13 +16,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the NetBSD
- *	Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -36,9 +30,13 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "tnftp.h"
+
+#if 0	/* tnftp */
+
 #include <sys/cdefs.h>
 #ifndef lint
-__RCSID("$NetBSD: progressbar.c,v 1.7 2005/04/11 01:49:31 lukem Exp $");
+__RCSID(" NetBSD: progressbar.c,v 1.21 2009/04/12 10:18:52 lukem Exp  ");
 #endif /* not lint */
 
 /*
@@ -46,7 +44,6 @@ __RCSID("$NetBSD: progressbar.c,v 1.7 2005/04/11 01:49:31 lukem Exp $");
  */
 #include <sys/types.h>
 #include <sys/param.h>
-#include <sys/time.h>
 
 #include <err.h>
 #include <errno.h>
@@ -55,12 +52,12 @@ __RCSID("$NetBSD: progressbar.c,v 1.7 2005/04/11 01:49:31 lukem Exp $");
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <tzfile.h>
 #include <unistd.h>
 
-#include "progressbar.h"
+#endif	/* tnftp */
 
-#define SECSPERHOUR	(60 * 60)
-#define SECSPERDAY	((long)60 * 60 * 24)
+#include "progressbar.h"
 
 #if !defined(NO_PROGRESS)
 /*
@@ -72,7 +69,11 @@ foregroundproc(void)
 	static pid_t pgrp = -1;
 
 	if (pgrp == -1)
+#if GETPGRP_VOID
 		pgrp = getpgrp();
+#else /* ! GETPGRP_VOID */
+		pgrp = getpgrp(0);
+#endif /* ! GETPGRP_VOID */
 
 	return (tcgetpgrp(fileno(ttyout)) == pgrp);
 }
@@ -94,10 +95,23 @@ updateprogressmeter(int dummy)
 }
 
 /*
- * List of order of magnitude prefixes.
- * The last is `P', as 2^64 = 16384 Petabytes
+ * List of order of magnitude suffixes, per IEC 60027-2.
  */
-static const char prefixes[] = " KMGTP";
+static const char * const suffixes[] = {
+	"",	/* 2^0  (byte) */
+	"KiB",	/* 2^10 Kibibyte */
+	"MiB",	/* 2^20 Mebibyte */
+	"GiB",	/* 2^30 Gibibyte */
+	"TiB",	/* 2^40 Tebibyte */
+	"PiB",	/* 2^50 Pebibyte */
+	"EiB",	/* 2^60 Exbibyte */
+#if 0
+		/* The following are not necessary for signed 64-bit off_t */
+	"ZiB",	/* 2^70 Zebibyte */
+	"YiB",	/* 2^80 Yobibyte */
+#endif
+};
+#define NSUFFIXES	(int)(sizeof(suffixes) / sizeof(suffixes[0]))
 
 /*
  * Display a transfer progress bar if progress is non-zero.
@@ -124,7 +138,7 @@ progressmeter(int flag)
 	struct timeval td;
 	off_t abbrevsize, bytespersec;
 	double elapsed;
-	int ratio, barlength, i, remaining;
+	int ratio, i, remaining, barlength;
 
 			/*
 			 * Work variables for progress bar.
@@ -135,10 +149,10 @@ progressmeter(int flag)
 			 *	these appropriately.
 			 */
 #endif
-	int len;
+	size_t		len;
 	char		buf[256];	/* workspace for progress bar */
 #ifndef NO_PROGRESS
-#define	BAROVERHEAD	43		/* non `*' portion of progress bar */
+#define	BAROVERHEAD	45		/* non `*' portion of progress bar */
 					/*
 					 * stars should contain at least
 					 * sizeof(buf) - BAROVERHEAD entries
@@ -170,8 +184,8 @@ progressmeter(int flag)
 			    "transfer aborted because stalled for %lu sec.\r\n",
 			    getprogname(), (unsigned long)wait.tv_sec);
 			(void)write(fileno(ttyout), buf, len);
-			(void)xsignal(SIGALRM, SIG_DFL);
 			alarmtimer(0);
+			(void)xsignal(SIGALRM, SIG_DFL);
 			siglongjmp(toplevel, 1);
 		}
 #endif	/* !STANDALONE_PROGRESS */
@@ -188,8 +202,8 @@ progressmeter(int flag)
 			(void)xsignal_restart(SIGALRM, updateprogressmeter, 1);
 			alarmtimer(1);		/* set alarm timer for 1 Hz */
 		} else if (flag == 1) {
-			(void)xsignal(SIGALRM, SIG_DFL);
 			alarmtimer(0);
+			(void)xsignal(SIGALRM, SIG_DFL);
 		}
 	}
 #ifndef NO_PROGRESS
@@ -216,23 +230,24 @@ progressmeter(int flag)
 			 * calculate the length of the `*' bar, ensuring that
 			 * the number of stars won't exceed the buffer size
 			 */
-		barlength = MIN(sizeof(buf) - 1, ttywidth) - BAROVERHEAD;
+		barlength = MIN((int)(sizeof(buf) - 1), ttywidth) - BAROVERHEAD;
 		if (prefix)
-			barlength -= strlen(prefix);
+			barlength -= (int)strlen(prefix);
 		if (barlength > 0) {
 			i = barlength * ratio / 100;
 			len += snprintf(buf + len, BUFLEFT,
-			    "|%.*s%*s|", i, stars, barlength - i, "");
+			    "|%.*s%*s|", i, stars, (int)(barlength - i), "");
 		}
 	}
 
 	abbrevsize = cursize;
-	for (i = 0; abbrevsize >= 100000 && i < sizeof(prefixes); i++)
+	for (i = 0; abbrevsize >= 100000 && i < NSUFFIXES; i++)
 		abbrevsize >>= 10;
-	len += snprintf(buf + len, BUFLEFT, " " LLFP("5") " %c%c ",
+	if (i == NSUFFIXES)
+		i--;
+	len += snprintf(buf + len, BUFLEFT, " " LLFP("5") " %-3s ",
 	    (LLT)abbrevsize,
-	    prefixes[i],
-	    i == 0 ? ' ' : 'B');
+	    suffixes[i]);
 
 	timersub(&now, &start, &td);
 	elapsed = td.tv_sec + (td.tv_usec / 1000000.0);
@@ -243,13 +258,13 @@ progressmeter(int flag)
 		if (elapsed > 0.0)
 			bytespersec /= elapsed;
 	}
-	for (i = 1; bytespersec >= 1024000 && i < sizeof(prefixes); i++)
+	for (i = 1; bytespersec >= 1024000 && i < NSUFFIXES; i++)
 		bytespersec >>= 10;
 	len += snprintf(buf + len, BUFLEFT,
-	    " " LLFP("3") ".%02d %cB/s ",
+	    " " LLFP("3") ".%02d %.2sB/s ",
 	    (LLT)(bytespersec / 1024),
 	    (int)((bytespersec % 1024) * 100 / 1024),
-	    prefixes[i]);
+	    suffixes[i]);
 
 	if (filesize > 0) {
 		if (bytes <= 0 || elapsed <= 0.0 || cursize > filesize) {
@@ -299,7 +314,8 @@ ptransfer(int siginfo)
 	struct timeval now, td, wait;
 	double elapsed;
 	off_t bytespersec;
-	int remaining, hh, i, len;
+	int remaining, hh, i;
+	size_t len;
 
 	char buf[256];		/* Work variable for transfer status. */
 
@@ -334,12 +350,14 @@ ptransfer(int siginfo)
 	len += snprintf(buf + len, BUFLEFT,
 	    "%02d:%02d ", remaining / 60, remaining % 60);
 
-	for (i = 1; bytespersec >= 1024000 && i < sizeof(prefixes); i++)
+	for (i = 1; bytespersec >= 1024000 && i < NSUFFIXES; i++)
 		bytespersec >>= 10;
-	len += snprintf(buf + len, BUFLEFT, "(" LLF ".%02d %cB/s)",
+	if (i == NSUFFIXES)
+		i--;
+	len += snprintf(buf + len, BUFLEFT, "(" LLF ".%02d %.2sB/s)",
 	    (LLT)(bytespersec / 1024),
 	    (int)((bytespersec % 1024) * 100 / 1024),
-	    prefixes[i]);
+	    suffixes[i]);
 
 	if (siginfo && bytes > 0 && elapsed > 0.0 && filesize >= 0
 	    && bytes + restart_point <= filesize) {
@@ -400,6 +418,16 @@ alarmtimer(int wait)
 sigfunc
 xsignal_restart(int sig, sigfunc func, int restartable)
 {
+#ifdef ultrix	/* XXX: this is lame - how do we test sigvec vs. sigaction? */
+	struct sigvec vec, ovec;
+
+	vec.sv_handler = func;
+	sigemptyset(&vec.sv_mask);
+	vec.sv_flags = 0;
+	if (sigvec(sig, &vec, &ovec) < 0)
+		return (SIG_ERR);
+	return (ovec.sv_handler);
+#else	/* ! ultrix */
 	struct sigaction act, oact;
 	act.sa_handler = func;
 
@@ -414,6 +442,7 @@ xsignal_restart(int sig, sigfunc func, int restartable)
 	if (sigaction(sig, &act, &oact) < 0)
 		return (SIG_ERR);
 	return (oact.sa_handler);
+#endif	/* ! ultrix */
 }
 
 /*
@@ -457,7 +486,7 @@ xsignal(int sig, sigfunc func)
 		 * This is unpleasant, but I don't know what would be better.
 		 * Right now, this "can't happen"
 		 */
-		errx(1, "xsignal_restart called with signal %d", sig);
+		errx(1, "xsignal_restart: called with signal %d", sig);
 	}
 
 	return(xsignal_restart(sig, func, restartable));
