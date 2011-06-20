@@ -2230,7 +2230,7 @@ pmap_activate(struct thread *td)
 	PCPU_SET(tlb_ctx, context + 1);
 
 	pm->pm_context[curcpu] = context;
-	CPU_OR(&pm->pm_active, PCPU_PTR(cpumask));
+	CPU_SET(PCPU_GET(cpuid), &pm->pm_active);
 	PCPU_SET(pmap, pm);
 
 	stxa(AA_DMMU_TSB, ASI_DMMU, pm->pm_tsb);
