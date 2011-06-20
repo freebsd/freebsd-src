@@ -786,6 +786,8 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram,
 			    op != NFSV4OP_LOOKUP &&
 			    op != NFSV4OP_GETATTR &&
 			    op != NFSV4OP_GETFH &&
+			    op != NFSV4OP_ACCESS &&
+			    op != NFSV4OP_READLINK &&
 			    op != NFSV4OP_SECINFO)
 				nd->nd_repstat = NFSERR_NOFILEHANDLE;
 			else if (nfsvno_testexp(nd, &vpnes) &&
