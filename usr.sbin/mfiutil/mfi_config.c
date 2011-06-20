@@ -419,8 +419,10 @@ build_array(int fd, char *arrayp, struct array_info *array_info,
 	ar->array_ref = find_next_array(state);
 	for (i = 0; i < array_info->drive_count; i++) {
 		if (verbose)
-			printf("Adding drive %u to array %u\n",
+			printf("Adding drive %s to array %u\n",
+			    mfi_drive_name(NULL,
 			    array_info->drives[i].ref.v.device_id,
+			    MFI_DNAME_DEVICE_ID|MFI_DNAME_HONOR_OPTS),
 			    ar->array_ref);
 		if (ar->size > array_info->drives[i].coerced_size)
 			ar->size = array_info->drives[i].coerced_size;
