@@ -135,6 +135,7 @@ glc_attach(device_t dev)
 	callout_init_mtx(&sc->sc_tick_ch, &sc->sc_mtx, 0);
 	sc->next_txdma_slot = 0;
 	sc->bsy_txdma_slots = 0;
+	sc->sc_next_rxdma_slot = 0;
 	sc->first_used_txdma_slot = -1;
 
 	/*
@@ -374,6 +375,14 @@ glc_tick(void *xsc)
 	struct glc_softc *sc = xsc;
 
 	mtx_assert(&sc->sc_mtx, MA_OWNED);
+
+	/*
+	 * XXX: Sometimes the RX queue gets stuck. Poke it periodically until
+	 * we figure out why. This will fail harmlessly if the RX queue is
+	 * already running.
+	 */
+	lv1_net_start_rx_dma(sc->sc_bus, sc->sc_dev,
+	    sc->sc_rxsoft[sc->sc_next_rxdma_slot].rxs_desc, 0);
 
 	if (sc->sc_wdog_timer == 0 || --sc->sc_wdog_timer != 0) {
 		callout_reset(&sc->sc_tick_ch, hz, glc_tick, sc);
@@ -707,12 +716,19 @@ glc_rxintr(struct glc_softc *sc)
 	struct ifnet *ifp = sc->sc_ifp;
 
 	bus_dmamap_sync(sc->sc_dmadesc_tag, sc->sc_rxdmadesc_map,
-	    BUS_DMASYNC_PREWRITE);
+	    BUS_DMASYNC_POSTREAD);
 
 	restart_rxdma = 0;
 	while ((sc->sc_rxdmadesc[sc->sc_next_rxdma_slot].cmd_stat &
 	   GELIC_DESCR_OWNED) == 0) {
 		i = sc->sc_next_rxdma_slot;
+		sc->sc_next_rxdma_slot++;
+		if (sc->sc_next_rxdma_slot >= GLC_MAX_RX_PACKETS)
+			sc->sc_next_rxdma_slot = 0;
+
+		if (sc->sc_rxdmadesc[i].cmd_stat & GELIC_CMDSTAT_CHAIN_END)
+			restart_rxdma = 1;
+
 		if (sc->sc_rxdmadesc[i].rxerror & GELIC_RXERRORS) {
 			ifp->if_ierrors++;
 			goto requeue;
@@ -738,9 +754,6 @@ glc_rxintr(struct glc_softc *sc)
 		m->m_pkthdr.rcvif = ifp;
 		m->m_len = sc->sc_rxdmadesc[i].valid_size;
 		m->m_pkthdr.len = m->m_len;
-		sc->sc_next_rxdma_slot++;
-		if (sc->sc_next_rxdma_slot >= GLC_MAX_RX_PACKETS)
-			sc->sc_next_rxdma_slot = 0;
 
 		if (sc->sc_rx_vlan >= 0)
 			m_adj(m, 2);
@@ -750,16 +763,18 @@ glc_rxintr(struct glc_softc *sc)
 		mtx_lock(&sc->sc_mtx);
 
 	    requeue:
-		if (sc->sc_rxdmadesc[i].cmd_stat & GELIC_CMDSTAT_CHAIN_END)
-			restart_rxdma = 1;
 		glc_add_rxbuf_dma(sc, i);	
-		if (restart_rxdma) {
-			error = lv1_net_start_rx_dma(sc->sc_bus, sc->sc_dev,
-			    sc->sc_rxsoft[i].rxs_desc, 0);
-			if (error != 0)
-				device_printf(sc->sc_self,
-				    "lv1_net_start_rx_dma error: %d\n", error);
-		}
+	}
+
+	bus_dmamap_sync(sc->sc_dmadesc_tag, sc->sc_rxdmadesc_map,
+	    BUS_DMASYNC_PREWRITE);
+
+	if (restart_rxdma) {
+		error = lv1_net_start_rx_dma(sc->sc_bus, sc->sc_dev,
+		    sc->sc_rxsoft[sc->sc_next_rxdma_slot].rxs_desc, 0);
+		if (error != 0)
+			device_printf(sc->sc_self,
+			    "lv1_net_start_rx_dma error: %d\n", error);
 	}
 }
 
@@ -769,6 +784,9 @@ glc_txintr(struct glc_softc *sc)
 	struct ifnet *ifp = sc->sc_ifp;
 	struct glc_txsoft *txs;
 	int progress = 0, kickstart = 0, error;
+
+	bus_dmamap_sync(sc->sc_dmadesc_tag, sc->sc_txdmadesc_map,
+	    BUS_DMASYNC_POSTREAD);
 
 	while ((txs = STAILQ_FIRST(&sc->sc_txdirtyq)) != NULL) {
 		if (sc->sc_txdmadesc[txs->txs_lastdesc].cmd_stat
@@ -805,7 +823,8 @@ glc_txintr(struct glc_softc *sc)
 	else
 		sc->first_used_txdma_slot = -1;
 
-	if (kickstart && txs != NULL) {
+	if (kickstart || txs != NULL) {
+		/* Speculatively (or necessarily) start the TX queue again */
 		error = lv1_net_start_tx_dma(sc->sc_bus, sc->sc_dev,
 		    sc->sc_txdmadesc_phys +
 		    txs->txs_firstdesc*sizeof(struct glc_dmadesc), 0);
