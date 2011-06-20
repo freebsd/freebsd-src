@@ -1189,6 +1189,7 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 		rt0 = NULL;
 		/* XXX
 		 * "flow-table" only support IPv4 at the moment.
+		 * XXX-BZ as of r205066 it would support IPv6.
 		 */
 #ifdef INET
 		if (dst->sa_family == AF_INET) {
