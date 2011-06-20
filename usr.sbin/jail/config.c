@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "jailp.h"
 
@@ -74,15 +75,19 @@ static const struct ipspec intparams[] = {
 							PF_INTERNAL | PF_BOOL},
     [IP_EXEC_SYSTEM_USER] =	{"exec.system_user",	PF_INTERNAL},
     [IP_EXEC_TIMEOUT] =		{"exec.timeout",	PF_INTERNAL | PF_INT},
+#if defined(INET) || defined(INET6)
     [IP_INTERFACE] =		{"interface",		PF_INTERNAL},
     [IP_IP_HOSTNAME] =		{"ip_hostname",		PF_INTERNAL | PF_BOOL},
+#endif
     [IP_MOUNT] =		{"mount",		PF_INTERNAL},
     [IP_MOUNT_DEVFS] =		{"mount.devfs",		PF_INTERNAL | PF_BOOL},
     [IP_MOUNT_DEVFS_RULESET]=	{"mount.devfs.ruleset",	PF_INTERNAL},
     [IP_MOUNT_FSTAB] =		{"mount.fstab",		PF_INTERNAL},
     [IP_STOP_TIMEOUT] =		{"stop.timeout",	PF_INTERNAL | PF_INT},
     [IP_VNET_INTERFACE] =	{"vnet.interface",	PF_INTERNAL},
+#ifdef INET
     [IP__IP4_IFADDR] =		{"ip4.addr",		PF_INTERNAL | PF_CONV},
+#endif
 #ifdef INET6
     [IP__IP6_IFADDR] =		{"ip6.addr",		PF_INTERNAL | PF_CONV},
 #endif
@@ -96,7 +101,9 @@ static const struct ipspec intparams[] = {
     [KP_ALLOW_SYSVIPC] =	{"allow.sysvipc",	0},
     [KP_ENFORCE_STATFS] =	{"enforce_statfs",	0},
     [KP_HOST_HOSTNAME] =	{"host.hostname",	0},
+#ifdef INET
     [KP_IP4_ADDR] =		{"ip4.addr",		0},
+#endif
 #ifdef INET6
     [KP_IP6_ADDR] =		{"ip6.addr",		0},
 #endif
@@ -427,21 +434,27 @@ string_param(const struct cfparam *p)
 int
 check_intparams(struct cfjail *j)
 {
-	struct in_addr addr4;
-	struct addrinfo hints;
-	struct addrinfo *ai0, *ai;
 	struct cfparam *p;
 	struct cfstring *s;
 	FILE *f;
-	const char *hostname, *val;
+	const char *val;
 	char *cs, *ep, *ln;
-	size_t size, lnlen;
-	int error, gicode, ip4ok, defif, prefix;
-	int mib[4];
+	size_t lnlen;
+	int error;
+#if defined(INET) || defined(INET6)
+	struct addrinfo hints;
+	struct addrinfo *ai0, *ai;
+	const char *hostname;
+	int gicode, defif, prefix;
+#endif
+#ifdef INET
+	struct in_addr addr4;
+	int ip4ok;
 	char avalue4[INET_ADDRSTRLEN];
+#endif
 #ifdef INET6
 	struct in6_addr addr6;
-	int ip6ok, isip6;
+	int ip6ok;
 	char avalue6[INET6_ADDRSTRLEN];
 #endif
 
@@ -471,6 +484,7 @@ check_intparams(struct cfjail *j)
 		}
 	}
 
+#if defined(INET) || defined(INET6)
 	/*
 	 * The ip_hostname parameter looks up the hostname, and adds parameters
 	 * for any IP addresses it finds.
@@ -484,27 +498,32 @@ check_intparams(struct cfjail *j)
 		 * Silently ignore unsupported address families from
 		 * DNS lookups.
 		 */
-		size = 4;
-		ip4ok = sysctlnametomib("security.jail.param.ip4", mib, &size)
-		    == 0;
-#ifdef INET6
-		size = 4;
-		ip6ok = sysctlnametomib("security.jail.param.ip6", mib, &size)
-		    == 0;
+#ifdef INET
+		ip4ok = feature_present("inet");
 #endif
-		if (ip4ok
 #ifdef INET6
-		    || ip6ok
+		ip6ok = feature_present("inet6");
 #endif
-			    ) {
+		if (
+#if defined(INET) && defined(INET6)
+		    ip4ok || ip6ok
+#elif defined(INET)
+		    ip4ok
+#elif defined(INET6)
+		    ip6ok
+#endif
+			 ) {
 			/* Look up the hostname (or get the address) */
 			memset(&hints, 0, sizeof(hints));
 			hints.ai_socktype = SOCK_STREAM;
 			hints.ai_family =
-#ifdef INET6
-			    ip6ok ? (ip4ok ? PF_UNSPEC : PF_INET6) :
-#endif
+#if defined(INET) && defined(INET6)
+			    ip4ok ? (ip6ok ? PF_UNSPEC : PF_INET) :  PF_INET6;
+#elif defined(INET)
 			    PF_INET;
+#elif defined(INET6)
+			    PF_INET6;
+#endif
 			gicode = getaddrinfo(hostname, NULL, &hints, &ai0);
 			if (gicode != 0) {
 				jail_warnx(j, "host.hostname %s: %s", hostname,
@@ -518,6 +537,7 @@ check_intparams(struct cfjail *j)
 				 */
 				for (ai = ai0; ai; ai = ai->ai_next)
 					switch (ai->ai_family) {
+#ifdef INET
 					case AF_INET:
 						memcpy(&addr4,
 						    &((struct sockaddr_in *)
@@ -530,6 +550,7 @@ check_intparams(struct cfjail *j)
 						add_param(j, NULL, KP_IP4_ADDR,
 						    avalue4);
 						break;
+#endif
 #ifdef INET6
 					case AF_INET6:
 						memcpy(&addr6,
@@ -555,43 +576,46 @@ check_intparams(struct cfjail *j)
 	 * and a netmask/suffix for that address.
 	 */
 	defif = string_param(j->intparams[IP_INTERFACE]) != NULL;
-#ifdef INET6
-	for (isip6 = 0; isip6 <= 1; isip6++)
-#else
-#define isip6 0
-	do
-#endif
-	{
-		if (j->intparams[KP_IP4_ADDR + isip6] == NULL)
-			continue;
-		TAILQ_FOREACH(s, &j->intparams[KP_IP4_ADDR + isip6]->val, tq) {
+#ifdef INET
+	if (j->intparams[KP_IP4_ADDR] != NULL) {
+		TAILQ_FOREACH(s, &j->intparams[KP_IP4_ADDR]->val, tq) {
 			cs = strchr(s->s, '|');
 			if (cs || defif)
-				add_param(j, NULL, IP__IP4_IFADDR + isip6,
-				    s->s);
+				add_param(j, NULL, IP__IP4_IFADDR, s->s);
 			if (cs) {
 				strcpy(s->s, cs + 1);
 				s->len -= cs + 1 - s->s;
 			}
 			if ((cs = strchr(s->s, '/'))) {
 				prefix = strtol(cs + 1, &ep, 10);
-				if (
-#ifdef INET6
-				    !isip6 &&
-#endif
-				    *ep == '.'
+				if (*ep == '.'
 				    ? inet_pton(AF_INET, cs + 1, &addr4) != 1
-				    : *ep || prefix < 0 || prefix > (
-#ifdef INET6
-				      isip6 ? 128 :
-#endif
-				      32)) {
+				    : *ep || prefix < 0 || prefix > 32) {
 					jail_warnx(j,
-#ifdef INET6
-					    isip6
-					    ? "ip6.addr: bad prefixlen \"%s\"" :
+					    "ip4.addr: bad netmask \"%s\"", cs);
+					error = -1;	
+				}
+				*cs = '\0';
+				s->len = cs - s->s + 1;
+			}
+		}
+	}
 #endif
-					    "ip4.addr: bad netmask \"%s\"",
+#ifdef INET6
+	if (j->intparams[KP_IP6_ADDR] != NULL) {
+		TAILQ_FOREACH(s, &j->intparams[KP_IP6_ADDR]->val, tq) {
+			cs = strchr(s->s, '|');
+			if (cs || defif)
+				add_param(j, NULL, IP__IP6_IFADDR, s->s);
+			if (cs) {
+				strcpy(s->s, cs + 1);
+				s->len -= cs + 1 - s->s;
+			}
+			if ((cs = strchr(s->s, '/'))) {
+				prefix = strtol(cs + 1, &ep, 10);
+				if (*ep || prefix < 0 || prefix > 128) {
+					jail_warnx(j,
+					    "ip6.addr: bad prefixlen \"%s\"",
 					    cs);
 					error = -1;	
 				}
@@ -600,8 +624,7 @@ check_intparams(struct cfjail *j)
 			}
 		}
 	}
-#ifndef INET6
-	while (0);
+#endif
 #endif
 
 	/*

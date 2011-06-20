@@ -80,7 +80,9 @@ static struct permspec perm_sysctl[] = {
 
 static const enum intparam startcommands[] = {
     0,
+#ifdef INET
     IP__IP4_IFADDR,
+#endif
 #ifdef INET6
     IP__IP6_IFADDR,
 #endif
@@ -109,25 +111,30 @@ static const enum intparam stopcommands[] = {
 #ifdef INET6
     IP__IP6_IFADDR,
 #endif
+#ifdef INET
     IP__IP4_IFADDR,
+#endif
     0
 };
 
 int
 main(int argc, char **argv)
 {
-#ifdef INET6
-	struct in6_addr addr6;
-#endif
 	struct stat st;
 	FILE *jfp;
 	struct cfjail *j;
-	char *cs, *ncs, *JidFile;
+	char *JidFile;
 	size_t sysvallen;
 	unsigned op, pi;
 	int ch, docf, error, i, oldcl, sysval;
 	int dflag, iflag, Rflag;
 	char enforce_statfs[4];
+#if defined(INET) || defined(INET6)
+	char *cs, *ncs;
+#endif
+#if defined(INET) && defined(INET6)
+	struct in6_addr addr6;
+#endif
 
 	op = 0;
 	dflag = iflag = Rflag = 0;
@@ -147,7 +154,9 @@ main(int argc, char **argv)
 			cfname = optarg;
 			break;
 		case 'h':
+#if defined(INET) || defined(INET6)
 			add_param(NULL, NULL, IP_IP_HOSTNAME, NULL);
+#endif
 			docf = 0;
 			break;
 		case 'i':
@@ -219,21 +228,27 @@ main(int argc, char **argv)
 		oldcl = 1;
 		add_param(NULL, NULL, KP_PATH, argv[0]);
 		add_param(NULL, NULL, KP_HOST_HOSTNAME, argv[1]);
+#if defined(INET) || defined(INET6)
 		if (argv[2][0] != '\0') {
 			for (cs = argv[2];; cs = ncs + 1) {
 				ncs = strchr(cs, ',');
 				if (ncs)
 					*ncs = '\0';
 				add_param(NULL, NULL,
-#ifdef INET6
+#if defined(INET) && defined(INET6)
 				    inet_pton(AF_INET6, cs, &addr6) == 1
-				    ? KP_IP6_ADDR :
+				    ? KP_IP6_ADDR : KP_IP4_ADDR,
+#elif defined(INET)
+				    KP_IP4_ADDR,
+#elif defined(INET6)
+				    KP_IP6_ADDR,
 #endif
-				    KP_IP4_ADDR, cs);
+				    cs);
 				if (!ncs)
 					break;
 			}
 		}
+#endif
 		for (i = 3; i < argc; i++)
 			add_param(NULL, NULL, IP_COMMAND, argv[i]);
 		/* Emulate the defaults from security.jail.* sysctls. */
@@ -866,15 +881,18 @@ print_jail(FILE *fp, struct cfjail *j, int oldcl)
 		putc('\t', fp);
 		print_param(fp, j->intparams[KP_HOST_HOSTNAME], ',', 0);
 		putc('\t', fp);
+#ifdef INET
 		print_param(fp, j->intparams[KP_IP4_ADDR], ',', 0);
 #ifdef INET6
-		if (j->intparams[KP_IP6_ADDR] &&
-		    !TAILQ_EMPTY(&j->intparams[KP_IP6_ADDR]->val)) {
-			if (j->intparams[KP_IP4_ADDR] &&
-			    !TAILQ_EMPTY(&j->intparams[KP_IP4_ADDR]->val))
-				putc(',', fp);
-			print_param(fp, j->intparams[KP_IP6_ADDR], ',', 0);
-		}
+		if (j->intparams[KP_IP4_ADDR] &&
+		    !TAILQ_EMPTY(&j->intparams[KP_IP4_ADDR]->val) &&
+		    j->intparams[KP_IP6_ADDR] &&
+		    !TAILQ_EMPTY(&j->intparams[KP_IP6_ADDR]->val))
+		    putc(',', fp);
+#endif
+#endif
+#ifdef INET6
+		print_param(fp, j->intparams[KP_IP6_ADDR], ',', 0);
 #endif
 		putc('\t', fp);
 		print_param(fp, j->intparams[IP_COMMAND], ' ', 0);

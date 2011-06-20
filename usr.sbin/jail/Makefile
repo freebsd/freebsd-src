@@ -15,6 +15,9 @@ CFLAGS+=-I. -I${.CURDIR}
 .if ${MK_INET6_SUPPORT} != "no"
 CFLAGS+= -DINET6
 .endif
+.if ${MK_INET_SUPPORT} != "no"
+CFLAGS+= -DINET
+.endif
 
 CLEANFILES= y.output
 
