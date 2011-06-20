@@ -454,7 +454,7 @@ nfsmout:
 APPLESTATIC int
 nfsrvd_lookup(struct nfsrv_descript *nd, __unused int isdgram,
     vnode_t dp, vnode_t *vpp, fhandle_t *fhp, NFSPROC_T *p,
-    __unused struct nfsexstuff *exp)
+    struct nfsexstuff *exp)
 {
 	struct nameidata named;
 	vnode_t vp, dirp = NULL;
@@ -508,7 +508,15 @@ nfsrvd_lookup(struct nfsrv_descript *nd, __unused int isdgram,
 		vrele(named.ni_startdir);
 	nfsvno_relpathbuf(&named);
 	vp = named.ni_vp;
-	nd->nd_repstat = nfsvno_getfh(vp, fhp, p);
+	if ((nd->nd_flag & ND_NFSV4) != 0 && !NFSVNO_EXPORTED(exp) &&
+	    vp->v_type != VDIR && vp->v_type != VLNK)
+		/*
+		 * Only allow lookup of VDIR and VLNK for traversal of
+		 * non-exported volumes during NFSv4 mounting.
+		 */
+		nd->nd_repstat = ENOENT;
+	if (nd->nd_repstat == 0)
+		nd->nd_repstat = nfsvno_getfh(vp, fhp, p);
 	if (!(nd->nd_flag & ND_NFSV4) && !nd->nd_repstat)
 		nd->nd_repstat = nfsvno_getattr(vp, &nva, nd->nd_cred, p, 1);
 	if (vpp != NULL && nd->nd_repstat == 0)
