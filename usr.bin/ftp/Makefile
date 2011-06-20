@@ -8,18 +8,18 @@
 #
 #CFLAGS+=-DGATE_SERVER=\"ftp-gw.host\" # -DGATE_PORT=21
 
-LUKEMFTP=	${.CURDIR}/../../contrib/lukemftp
-.PATH: ${LUKEMFTP}/src
+TNFTP=	${.CURDIR}/../../contrib/tnftp
+.PATH: ${TNFTP}/src
 
 PROG=	ftp
-SRCS=	cmds.c cmdtab.c complete.c domacro.c fetch.c ftp.c main.c progressbar.c \
-	ruserpass.c util.c
+SRCS=	cmds.c cmdtab.c complete.c domacro.c fetch.c ftp.c main.c \
+	progressbar.c ruserpass.c util.c
 
 .if ${MK_INET6_SUPPORT} != "no"
 CFLAGS+= -DINET6
 .endif
 
-CFLAGS+= -I${.CURDIR} -I${LUKEMFTP}
+CFLAGS+= -I${.CURDIR} -I${TNFTP}
 LDADD=	-ledit -ltermcap -lutil
 DPADD=	${LIBEDIT} ${LIBTERMCAP} ${LIBUTIL}
 
