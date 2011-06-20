@@ -274,6 +274,8 @@ ps3disk_attach(device_t dev)
 	}
 
 	for (i = 0; i < sc->sc_nregs; i++) {
+		struct ps3disk_region *rp = &sc->sc_reg[i];
+
 		d = sc->sc_disk[i] = disk_alloc();
 		d->d_open = ps3disk_open;
 		d->d_close = ps3disk_close;
@@ -293,10 +295,16 @@ ps3disk_attach(device_t dev)
 			mb /= 1024;
 		}
 
-		device_printf(dev, "region %d %ju%cB\n", i, mb, unit);
+		/* Test to see if we can read this region */
+		err = lv1_storage_read(ps3bus_get_device(dev), d->d_unit,
+		    0, 1, rp->r_flags, sc->sc_bounce_lpar, &sc->sc_bounce_tag);
+		device_printf(dev, "region %d %ju%cB%s\n", i, mb, unit,
+		     (err == 0) ? "" : " (hypervisor protected)");
 
-		disk_create(d, DISK_VERSION);
+		if (err == 0)
+			disk_create(d, DISK_VERSION);
 	}
+	err = 0;
 
 	bioq_init(&sc->sc_bioq);
 
