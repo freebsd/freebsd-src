@@ -1829,7 +1829,7 @@ gotit:
 	}
 	UFS_UNLOCK(ump);
 	if (DOINGSOFTDEP(ITOV(ip)))
-		softdep_setup_inomapdep(bp, ip, cg * fs->fs_ipg + ipref);
+		softdep_setup_inomapdep(bp, ip, cg * fs->fs_ipg + ipref, mode);
 	bdwrite(bp);
 	if (ibp != NULL)
 		bawrite(ibp);

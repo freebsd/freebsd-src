@@ -130,7 +130,7 @@ void	softdep_freefile(struct vnode *, ino_t, int);
 int	softdep_request_cleanup(struct fs *, struct vnode *,
 	    struct ucred *, int);
 void	softdep_setup_freeblocks(struct inode *, off_t, int);
-void	softdep_setup_inomapdep(struct buf *, struct inode *, ino_t);
+void	softdep_setup_inomapdep(struct buf *, struct inode *, ino_t, int);
 void	softdep_setup_blkmapdep(struct buf *, struct mount *, ufs2_daddr_t,
 	    int, int);
 void	softdep_setup_allocdirect(struct inode *, ufs_lbn_t, ufs2_daddr_t,
