@@ -1,7 +1,8 @@
-/*	$NetBSD: progressbar.h,v 1.5 2005/02/10 16:00:38 jmc Exp $	*/
+/*	$NetBSD: progressbar.h,v 1.9 2009/05/20 12:53:47 lukem Exp $	*/
+/*	from	NetBSD: progressbar.h,v 1.8 2009/04/12 10:18:52 lukem Exp	*/
 
 /*-
- * Copyright (c) 1996-2003 The NetBSD Foundation, Inc.
+ * Copyright (c) 1996-2009 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
  * This code is derived from software contributed to The NetBSD Foundation
@@ -15,13 +16,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the NetBSD
- *	Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -66,7 +60,7 @@ GLOBAL	int	fromatty;	/* input is from a terminal */
 GLOBAL	int	verbose;	/* print messages coming back from server */
 GLOBAL	int	quit_time;	/* maximum time to wait if stalled */
 
-GLOBAL	char   *direction;	/* direction transfer is occurring */
+GLOBAL	const char  *direction;	/* direction transfer is occurring */
 
 GLOBAL	sigjmp_buf toplevel;	/* non-local goto stuff for cmd scanner */
 #endif	/* !STANDALONE_PROGRESS */
@@ -90,10 +84,19 @@ void	ptransfer(int);
 # define ULLFP(x)	"%" x "lu"
 # define ULLT		unsigned long
 #else
+#if defined(HAVE_PRINTF_QD)
+# define LLF		"%qd"
+# define LLFP(x)	"%" x "qd"
+# define LLT		long long
+# define ULLF		"%qu"
+# define ULLFP(x)	"%" x "qu"
+# define ULLT		unsigned long long
+#else /* !defined(HAVE_PRINTF_QD) */
 # define LLF		"%lld"
 # define LLFP(x)	"%" x "lld"
 # define LLT		long long
 # define ULLF		"%llu"
 # define ULLFP(x)	"%" x "llu"
 # define ULLT		unsigned long long
+#endif /* !defined(HAVE_PRINTF_QD) */
 #endif

@@ -1,7 +1,8 @@
-/*	$NetBSD: main.c,v 1.94 2005/05/13 05:03:49 lukem Exp $	*/
+/*	$NetBSD: main.c,v 1.17 2009/11/15 10:12:37 lukem Exp $	*/
+/*	from	NetBSD: main.c,v 1.117 2009/07/13 19:05:41 roy Exp	*/
 
 /*-
- * Copyright (c) 1996-2004 The NetBSD Foundation, Inc.
+ * Copyright (c) 1996-2009 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
  * This code is derived from software contributed to The NetBSD Foundation
@@ -15,13 +16,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the NetBSD
- *	Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -94,17 +88,22 @@
  * SUCH DAMAGE.
  */
 
+#include "tnftp.h"
+
+#if 0	/* tnftp */
+
 #include <sys/cdefs.h>
 #ifndef lint
-__COPYRIGHT("@(#) Copyright (c) 1985, 1989, 1993, 1994\n\
-	The Regents of the University of California.  All rights reserved.\n");
+__COPYRIGHT("@(#) Copyright (c) 1985, 1989, 1993, 1994\
+ The Regents of the University of California.  All rights reserved.\
+  Copyright 1996-2008 The NetBSD Foundation, Inc.  All rights reserved");
 #endif /* not lint */
 
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)main.c	8.6 (Berkeley) 10/9/94";
 #else
-__RCSID("$NetBSD: main.c,v 1.94 2005/05/13 05:03:49 lukem Exp $");
+__RCSID(" NetBSD: main.c,v 1.117 2009/07/13 19:05:41 roy Exp  ");
 #endif
 #endif /* not lint */
 
@@ -123,8 +122,11 @@ __RCSID("$NetBSD: main.c,v 1.94 2005/05/13 05:03:49 lukem Exp $");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 #include <locale.h>
+
+#endif	/* tnftp */
 
 #define	GLOBAL		/* force GLOBAL decls in ftp_var.h to be declared */
 #include "ftp_var.h"
@@ -134,19 +136,24 @@ __RCSID("$NetBSD: main.c,v 1.94 2005/05/13 05:03:49 lukem Exp $");
 #define	NO_PROXY	"no_proxy"	/* env var with list of non-proxied
 					 * hosts, comma or space separated */
 
-static void	setupoption(char *, char *, char *);
+static void	setupoption(const char *, const char *, const char *);
 int		main(int, char *[]);
 
 int
-main(int argc, char *argv[])
+main(int volatile argc, char **volatile argv)
 {
 	int ch, rval;
 	struct passwd *pw;
-	char *cp, *ep, *anonuser, *anonpass, *upload_path;
-	int dumbterm, s, len, isupload;
+	char *cp, *ep, *anonpass, *upload_path, *src_addr;
+	const char *anonuser;
+	int dumbterm, s, isupload;
+	size_t len;
 	socklen_t slen;
 
+	tzset();
+#if 0	/* tnftp */	/* XXX */
 	setlocale(LC_ALL, "");
+#endif	/* tnftp */
 	setprogname(argv[0]);
 
 	sigint_raised = 0;
@@ -184,14 +191,22 @@ main(int argc, char *argv[])
 	rate_put_incr = DEFAULTINCR;
 #ifdef INET6
 	epsv4 = 1;
+	epsv6 = 1;	
 #else
 	epsv4 = 0;
+	epsv6 = 0;	
 #endif
 	epsv4bad = 0;
+	epsv6bad = 0;
+	src_addr = NULL;
 	upload_path = NULL;
 	isupload = 0;
 	reply_callback = NULL;
+#ifdef INET6
 	family = AF_UNSPEC;
+#else
+	family = AF_INET;	/* force AF_INET if no INET6 support */
+#endif
 
 	netrc[0] = '\0';
 	cp = getenv("NETRC");
@@ -206,15 +221,15 @@ main(int argc, char *argv[])
 	 */
 	s = socket(AF_INET, SOCK_STREAM, 0);
 	if (s == -1)
-		err(1, "can't create socket");
+		err(1, "Can't create socket to determine default socket sizes");
 	slen = sizeof(rcvbuf_size);
 	if (getsockopt(s, SOL_SOCKET, SO_RCVBUF,
 	    (void *)&rcvbuf_size, &slen) == -1)
-		err(1, "unable to get default rcvbuf size");
+		err(1, "Unable to get default rcvbuf size");
 	slen = sizeof(sndbuf_size);
 	if (getsockopt(s, SOL_SOCKET, SO_SNDBUF,
 	    (void *)&sndbuf_size, &slen) == -1)
-		err(1, "unable to get default sndbuf size");
+		err(1, "Unable to get default sndbuf size");
 	(void)close(s);
 					/* sanity check returned buffer sizes */
 	if (rcvbuf_size <= 0)
@@ -227,7 +242,7 @@ main(int argc, char *argv[])
 	if (rcvbuf_size > 8 * 1024 * 1024)
 		rcvbuf_size = 8 * 1024 * 1024;
 
-	marg_sl = xsl_init();
+	marg_sl = ftp_sl_init();
 	if ((tmpdir = getenv("TMPDIR")) == NULL)
 		tmpdir = _PATH_TMP;
 
@@ -245,7 +260,7 @@ main(int argc, char *argv[])
 			passivemode = 1;
 			activefallback = 1;
 		} else
-			warnx("unknown $FTPMODE '%s'; using defaults", cp);
+			warnx("Unknown $FTPMODE `%s'; using defaults", cp);
 	}
 
 	if (strcmp(getprogname(), "pftp") == 0) {
@@ -286,7 +301,7 @@ main(int argc, char *argv[])
 		}
 	}
 
-	while ((ch = getopt(argc, argv, "46AadefginN:o:pP:q:r:RtT:u:vV")) != -1) {
+	while ((ch = getopt(argc, argv, "46AadefginN:o:pP:q:r:Rs:tT:u:vV")) != -1) {
 		switch (ch) {
 		case '4':
 			family = AF_INET;
@@ -311,7 +326,7 @@ main(int argc, char *argv[])
 
 		case 'd':
 			options |= SO_DEBUG;
-			debug++;
+			ftp_debug++;
 			break;
 
 		case 'e':
@@ -361,17 +376,21 @@ main(int argc, char *argv[])
 		case 'q':
 			quit_time = strtol(optarg, &ep, 10);
 			if (quit_time < 1 || *ep != '\0')
-				errx(1, "bad quit value: %s", optarg);
+				errx(1, "Bad quit value: %s", optarg);
 			break;
 
 		case 'r':
 			retry_connect = strtol(optarg, &ep, 10);
 			if (retry_connect < 1 || *ep != '\0')
-				errx(1, "bad retry value: %s", optarg);
+				errx(1, "Bad retry value: %s", optarg);
 			break;
 
 		case 'R':
 			restartautofetch = 1;
+			break;
+
+		case 's':
+			src_addr = optarg;
 			break;
 
 		case 't':
@@ -382,15 +401,18 @@ main(int argc, char *argv[])
 		{
 			int targc;
 			char *targv[6], *oac;
+			char cmdbuf[MAX_C_NAME];
 
 				/* look for `dir,max[,incr]' */
 			targc = 0;
-			targv[targc++] = "-T";
-			oac = xstrdup(optarg);
+			(void)strlcpy(cmdbuf, "-T", sizeof(cmdbuf));
+			targv[targc++] = cmdbuf;
+			oac = ftp_strdup(optarg);
 
 			while ((cp = strsep(&oac, ",")) != NULL) {
 				if (*cp == '\0') {
-					warnx("bad throttle value: %s", optarg);
+					warnx("Bad throttle value `%s'",
+					    optarg);
 					usage();
 					/* NOTREACHED */
 				}
@@ -408,7 +430,7 @@ main(int argc, char *argv[])
 		{
 			isupload = 1;
 			interactive = 0;
-			upload_path = xstrdup(optarg);
+			upload_path = ftp_strdup(optarg);
 
 			break;
 		}
@@ -435,6 +457,22 @@ main(int argc, char *argv[])
 	crflag = 1;	/* strip c.r. on ascii gets */
 	sendport = -1;	/* not using ports */
 
+	if (src_addr != NULL) {
+		struct addrinfo hints;
+		int error;
+
+		memset(&hints, 0, sizeof(hints));
+		hints.ai_family = family;
+		hints.ai_socktype = SOCK_STREAM;
+		hints.ai_flags = AI_PASSIVE;
+		error = getaddrinfo(src_addr, NULL, &hints, &bindai);
+		if (error) {
+		    	errx(1, "Can't lookup `%s': %s", src_addr,
+			    (error == EAI_SYSTEM) ? strerror(errno)
+						  : gai_strerror(error));
+		}
+	}
+
 	/*
 	 * Cache the user name and home directory.
 	 */
@@ -443,7 +481,7 @@ main(int argc, char *argv[])
 	anonuser = "anonymous";
 	cp = getenv("HOME");
 	if (! EMPTYSTRING(cp))
-		localhome = xstrdup(cp);
+		localhome = ftp_strdup(cp);
 	pw = NULL;
 	cp = getlogin();
 	if (cp != NULL)
@@ -452,8 +490,8 @@ main(int argc, char *argv[])
 		pw = getpwuid(getuid());
 	if (pw != NULL) {
 		if (localhome == NULL && !EMPTYSTRING(pw->pw_dir))
-			localhome = xstrdup(pw->pw_dir);
-		localname = xstrdup(pw->pw_name);
+			localhome = ftp_strdup(pw->pw_dir);
+		localname = ftp_strdup(pw->pw_name);
 		anonuser = localname;
 	}
 	if (netrc[0] == '\0' && localhome != NULL) {
@@ -465,7 +503,7 @@ main(int argc, char *argv[])
 		}
 	}
 	if (localhome == NULL)
-		localhome = xstrdup("/");
+		localhome = ftp_strdup("/");
 
 	/*
 	 * Every anonymous FTP server I've encountered will accept the
@@ -475,7 +513,7 @@ main(int argc, char *argv[])
 	 * - thorpej@NetBSD.org
 	 */
 	len = strlen(anonuser) + 2;
-	anonpass = xmalloc(len);
+	anonpass = ftp_malloc(len);
 	(void)strlcpy(anonpass, anonuser, len);
 	(void)strlcat(anonpass, "@",	  len);
 
@@ -502,11 +540,6 @@ main(int argc, char *argv[])
 	(void)xsignal(SIGUSR2, crankrate);
 	(void)xsignal(SIGWINCH, setttywidth);
 
-#ifdef __GNUC__			/* to shut up gcc warnings */
-	(void)&argc;
-	(void)&argv;
-#endif
-
 	if (argc > 0) {
 		if (isupload) {
 			rval = auto_put(argc, argv, upload_path);
@@ -522,22 +555,23 @@ main(int argc, char *argv[])
 			if (rval >= 0)		/* -1 == connected and cd-ed */
 				goto sigint_or_rval_exit;
 		} else {
-			char *xargv[4], *user, *host;
+			char *xargv[4], *uuser, *host;
+			char cmdbuf[MAXPATHLEN];
 
 			if ((rval = sigsetjmp(toplevel, 1)))
 				goto sigint_or_rval_exit;
 			(void)xsignal(SIGINT, intr);
 			(void)xsignal(SIGPIPE, lostpeer);
-			user = NULL;
+			uuser = NULL;
 			host = argv[0];
 			cp = strchr(host, '@');
 			if (cp) {
 				*cp = '\0';
-				user = host;
+				uuser = host;
 				host = cp + 1;
 			}
-			/* XXX discards const */
-			xargv[0] = (char *)getprogname();
+			(void)strlcpy(cmdbuf, getprogname(), sizeof(cmdbuf));
+			xargv[0] = cmdbuf;
 			xargv[1] = host;
 			xargv[2] = argv[1];
 			xargv[3] = NULL;
@@ -545,14 +579,14 @@ main(int argc, char *argv[])
 				int oautologin;
 
 				oautologin = autologin;
-				if (user != NULL) {
+				if (uuser != NULL) {
 					anonftp = 0;
 					autologin = 0;
 				}
 				setpeer(argc+1, xargv);
 				autologin = oautologin;
-				if (connected == 1 && user != NULL)
-					(void)ftp_login(host, user, NULL);
+				if (connected == 1 && uuser != NULL)
+					(void)ftp_login(host, uuser, NULL);
 				if (!retry_connect)
 					break;
 				if (!connected) {
@@ -586,18 +620,18 @@ main(int argc, char *argv[])
 char *
 prompt(void)
 {
-	static char	**prompt;
+	static char	**promptopt;
 	static char	  buf[MAXPATHLEN];
 
-	if (prompt == NULL) {
+	if (promptopt == NULL) {
 		struct option *o;
 
 		o = getoption("prompt");
 		if (o == NULL)
-			errx(1, "no such option `prompt'");
-		prompt = &(o->value);
+			errx(1, "prompt: no such option `prompt'");
+		promptopt = &(o->value);
 	}
-	formatbuf(buf, sizeof(buf), *prompt ? *prompt : DEFAULTPROMPT);
+	formatbuf(buf, sizeof(buf), *promptopt ? *promptopt : DEFAULTPROMPT);
 	return (buf);
 }
 
@@ -607,18 +641,18 @@ prompt(void)
 char *
 rprompt(void)
 {
-	static char	**rprompt;
+	static char	**rpromptopt;
 	static char	  buf[MAXPATHLEN];
 
-	if (rprompt == NULL) {
+	if (rpromptopt == NULL) {
 		struct option *o;
 
 		o = getoption("rprompt");
 		if (o == NULL)
-			errx(1, "no such option `rprompt'");
-		rprompt = &(o->value);
+			errx(1, "rprompt: no such option `rprompt'");
+		rpromptopt = &(o->value);
 	}
-	formatbuf(buf, sizeof(buf), *rprompt ? *rprompt : DEFAULTRPROMPT);
+	formatbuf(buf, sizeof(buf), *rpromptopt ? *rpromptopt : DEFAULTRPROMPT);
 	return (buf);
 }
 
@@ -630,7 +664,12 @@ cmdscanner(void)
 {
 	struct cmd	*c;
 	char		*p;
-	int		 num;
+#ifndef NO_EDITCOMPLETE
+	int		 ch;
+	size_t		 num;
+#endif
+	int		 len;
+	char		 cmdbuf[MAX_C_NAME];
 
 	for (;;) {
 #ifndef NO_EDITCOMPLETE
@@ -641,34 +680,33 @@ cmdscanner(void)
 				p = rprompt();
 				if (*p)
 					fprintf(ttyout, "%s ", p);
-				(void)fflush(ttyout);
 			}
-			if (fgets(line, sizeof(line), stdin) == NULL) {
+			(void)fflush(ttyout);
+			len = get_line(stdin, line, sizeof(line), NULL);
+			switch (len) {
+			case -1:	/* EOF */
+			case -2:	/* error */
 				if (fromatty)
 					putc('\n', ttyout);
 				quit(0, NULL);
-			}
-			num = strlen(line);
-			if (num == 0)
-				break;
-			if (line[--num] == '\n') {
-				if (num == 0)
-					break;
-				line[num] = '\0';
-			} else if (num == sizeof(line) - 2) {
+				/* NOTREACHED */
+			case -3:	/* too long; try again */
 				fputs("Sorry, input line is too long.\n",
 				    ttyout);
-				while ((num = getchar()) != '\n' && num != EOF)
-					/* void */;
+				continue;
+			case 0:		/* empty; try again */
+				continue;
+			default:	/* all ok */
 				break;
-			} /* else it was a line without a newline */
+			}
 #ifndef NO_EDITCOMPLETE
 		} else {
 			const char *buf;
 			HistEvent ev;
 			cursor_pos = NULL;
 
-			buf = el_gets(el, &num);
+			buf = el_gets(el, &ch);
+			num = ch;
 			if (buf == NULL || num == 0) {
 				if (fromatty)
 					putc('\n', ttyout);
@@ -718,7 +756,8 @@ cmdscanner(void)
 			continue;
 		}
 		confirmrest = 0;
-		margv[0] = c->c_name;
+		(void)strlcpy(cmdbuf, c->c_name, sizeof(cmdbuf));
+		margv[0] = cmdbuf;
 		(*c->c_handler)(margc, margv);
 		if (bell && c->c_bell)
 			(void)putc('\007', ttyout);
@@ -777,7 +816,7 @@ makeargv(void)
 	marg_sl->sl_cur = 0;		/* reset to start of marg_sl */
 	for (margc = 0; ; margc++) {
 		argp = slurpstring();
-		xsl_add(marg_sl, argp);
+		ftp_sl_add(marg_sl, argp);
 		if (argp == NULL)
 			break;
 	}
@@ -812,6 +851,8 @@ makeargv(void)
 char *
 slurpstring(void)
 {
+	static char bangstr[2] = { '!', '\0' };
+	static char dollarstr[2] = { '$', '\0' };
 	int got_one = 0;
 	char *sb = stringbase;
 	char *ap = argbase;
@@ -822,7 +863,7 @@ slurpstring(void)
 			case 0:
 				slrflag++;
 				INC_CHKCURSOR(stringbase);
-				return ((*sb == '!') ? "!" : "$");
+				return ((*sb == '!') ? bangstr : dollarstr);
 				/* NOTREACHED */
 			case 1:
 				slrflag++;
@@ -945,27 +986,28 @@ void
 help(int argc, char *argv[])
 {
 	struct cmd *c;
-	char *nargv[1], *p, *cmd;
+	char *nargv[1], *cmd;
+	const char *p;
 	int isusage;
 
 	cmd = argv[0];
 	isusage = (strcmp(cmd, "usage") == 0);
 	if (argc == 0 || (isusage && argc == 1)) {
-		fprintf(ttyout, "usage: %s [command [...]]\n", cmd);
+		UPRINTF("usage: %s [command [...]]\n", cmd);
 		return;
 	}
 	if (argc == 1) {
 		StringList *buf;
 
-		buf = xsl_init();
+		buf = ftp_sl_init();
 		fprintf(ttyout,
 		    "%sommands may be abbreviated.  Commands are:\n\n",
 		    proxy ? "Proxy c" : "C");
 		for (c = cmdtab; (p = c->c_name) != NULL; c++)
 			if (!proxy || c->c_proxy)
-				xsl_add(buf, p);
+				ftp_sl_add(buf, ftp_strdup(p));
 		list_vertical(buf);
-		sl_free(buf, 0);
+		sl_free(buf, 1);
 		return;
 	}
 
@@ -973,6 +1015,7 @@ help(int argc, char *argv[])
 
 	while (--argc > 0) {
 		char *arg;
+		char cmdbuf[MAX_C_NAME];
 
 		arg = *++argv;
 		c = getcmd(arg);
@@ -984,7 +1027,8 @@ help(int argc, char *argv[])
 			    cmd, arg);
 		else {
 			if (isusage) {
-				nargv[0] = c->c_name;
+				(void)strlcpy(cmdbuf, c->c_name, sizeof(cmdbuf));
+				nargv[0] = cmdbuf;
 				(*c->c_handler)(0, nargv);
 			} else
 				fprintf(ttyout, "%-*s\t%s\n", HELPINDENT,
@@ -1014,27 +1058,18 @@ getoptionvalue(const char *name)
 	struct option *c;
 
 	if (name == NULL)
-		errx(1, "getoptionvalue() invoked with NULL name");
+		errx(1, "getoptionvalue: invoked with NULL name");
 	c = getoption(name);
 	if (c != NULL)
 		return (c->value);
-	errx(1, "getoptionvalue() invoked with unknown option `%s'", name);
+	errx(1, "getoptionvalue: invoked with unknown option `%s'", name);
 	/* NOTREACHED */
 }
 
 static void
-setupoption(char *name, char *value, char *defaultvalue)
+setupoption(const char *name, const char *value, const char *defaultvalue)
 {
-	char *nargv[3];
-	int overbose;
-
-	nargv[0] = "setupoption()";
-	nargv[1] = name;
-	nargv[2] = (value ? value : defaultvalue);
-	overbose = verbose;
-	verbose = 0;
-	setoption(3, nargv);
-	verbose = overbose;
+	set_option(name, value ? value : defaultvalue, 0);
 }
 
 void
@@ -1043,9 +1078,10 @@ usage(void)
 	const char *progname = getprogname();
 
 	(void)fprintf(stderr,
-"usage: %s [-46AadefginpRtvV] [-N netrc] [-o outfile] [-P port] [-q quittime]\n"
-"           [-r retry] [-T dir,max[,inc][[user@]host [port]]] [host:path[/]]\n"
-"           [file:///file] [ftp://[user[:pass]@]host[:port]/path[/]]\n"
+"usage: %s [-46AadefginpRtVv] [-N netrc] [-o outfile] [-P port] [-q quittime]\n"
+"           [-r retry] [-s srcaddr] [-T dir,max[,inc]]\n"
+"           [[user@]host [port]] [host:path[/]] [file:///file]\n"
+"           [ftp://[user[:pass]@]host[:port]/path[/]]\n"
 "           [http://[user[:pass]@]host[:port]/path] [...]\n"
 "       %s -u URL file [...]\n", progname, progname);
 	exit(1);
