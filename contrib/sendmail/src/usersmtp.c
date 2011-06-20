@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2006, 2008, 2009 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2006, 2008-2010 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: usersmtp.c,v 8.473 2009/06/17 17:26:51 ca Exp $")
+SM_RCSID("@(#)$Id: usersmtp.c,v 8.485 2010/07/23 21:09:38 ca Exp $")
 
 #include <sysexits.h>
 
@@ -33,7 +33,6 @@ extern void	sm_sasl_free __P((void *));
 **	This protocol is described in RFC821.
 */
 
-#define REPLYCLASS(r)	(((r) / 10) % 10)	/* second digit of reply code */
 #define SMTPCLOSING	421			/* "Service Shutting Down" */
 
 #define ENHSCN(e, d)	((e) == NULL ? (d) : (e))
@@ -136,8 +135,7 @@ smtpinit(m, mci, e, onlyhelo)
 	SmtpPhase = mci->mci_phase = "client greeting";
 	sm_setproctitle(true, e, "%s %s: %s",
 			qid_printname(e), CurHostName, mci->mci_phase);
-	r = reply(m, mci, e, TimeOuts.to_initial, esmtp_check, NULL,
-		XS_DEFAULT);
+	r = reply(m, mci, e, TimeOuts.to_initial, esmtp_check, NULL, XS_GREET);
 	if (r < 0)
 		goto tempfail1;
 	if (REPLYTYPE(r) == 4)
@@ -183,7 +181,7 @@ tryhelo:
 	r = reply(m, mci, e,
 		  bitnset(M_LMTP, m->m_flags) ? TimeOuts.to_lhlo
 					      : TimeOuts.to_helo,
-		  helo_options, NULL, XS_DEFAULT);
+		  helo_options, NULL, XS_EHLO);
 	if (r < 0)
 		goto tempfail1;
 	else if (REPLYTYPE(r) == 5)
@@ -336,7 +334,15 @@ str_union(s1, s2, rpool)
 	l1 = strlen(s1);
 	l2 = strlen(s2);
 	rl = l1 + l2;
-	res = (char *) sm_rpool_malloc(rpool, rl + 2);
+	if (rl <= 0)
+	{
+		sm_syslog(LOG_WARNING, NOQID,
+			  "str_union: stringlen1=%d, stringlen2=%d, sum=%d, status=overflow",
+			  l1, l2, rl);
+		res = NULL;
+	}
+	else
+		res = (char *) sm_rpool_malloc(rpool, rl + 2);
 	if (res == NULL)
 	{
 		if (l1 > l2)
@@ -409,9 +415,7 @@ helo_options(line, firstline, m, mci, e)
 
 	if (firstline)
 	{
-#if SASL
-		mci->mci_saslcap = NULL;
-#endif /* SASL */
+		mci_clr_extensions(mci);
 #if _FFR_IGNORE_EXT_ON_HELO
 		logged = false;
 #endif /* _FFR_IGNORE_EXT_ON_HELO */
@@ -472,7 +476,8 @@ helo_options(line, firstline, m, mci, e)
 #if SASL
 	else if (sm_strcasecmp(line, "auth") == 0)
 	{
-		if (p != NULL && *p != '\0')
+		if (p != NULL && *p != '\0' &&
+		    !bitset(MCIF_AUTH2, mci->mci_flags))
 		{
 			if (mci->mci_saslcap != NULL)
 			{
@@ -484,7 +489,7 @@ helo_options(line, firstline, m, mci, e)
 
 				mci->mci_saslcap = str_union(mci->mci_saslcap,
 							     p, mci->mci_rpool);
-				mci->mci_flags |= MCIF_AUTH;
+				mci->mci_flags |= MCIF_AUTH2;
 			}
 			else
 			{
@@ -501,6 +506,9 @@ helo_options(line, firstline, m, mci, e)
 				}
 			}
 		}
+		if (tTd(95, 5))
+			sm_syslog(LOG_DEBUG, NOQID, "AUTH flags=%lx, mechs=%s",
+				mci->mci_flags, mci->mci_saslcap);
 	}
 #endif /* SASL */
 }
@@ -1606,13 +1614,11 @@ attemptauth(m, mci, e, sai)
 	(void) memset(&ssp, '\0', sizeof(ssp));
 
 	/* XXX should these be options settable via .cf ? */
-	{
-		ssp.max_ssf = MaxSLBits;
-		ssp.maxbufsize = MAXOUTLEN;
+	ssp.max_ssf = MaxSLBits;
+	ssp.maxbufsize = MAXOUTLEN;
 #  if 0
-		ssp.security_flags = SASL_SEC_NOPLAINTEXT;
+	ssp.security_flags = SASL_SEC_NOPLAINTEXT;
 #  endif /* 0 */
-	}
 	saslresult = sasl_setprop(mci->mci_conn, SASL_SEC_PROPS, &ssp);
 	if (saslresult != SASL_OK)
 		return EX_TEMPFAIL;
@@ -2175,7 +2181,7 @@ smtpmailfrom(m, mci, e)
 	SmtpPhase = mci->mci_phase = "client MAIL";
 	sm_setproctitle(true, e, "%s %s: %s", qid_printname(e),
 			CurHostName, mci->mci_phase);
-	r = reply(m, mci, e, TimeOuts.to_mail, NULL, &enhsc, XS_DEFAULT);
+	r = reply(m, mci, e, TimeOuts.to_mail, NULL, &enhsc, XS_MAIL);
 	if (r < 0)
 	{
 		/* communications failure */
@@ -2427,7 +2433,7 @@ smtprcptstat(to, m, mci, e)
 	}
 
 	enhsc = NULL;
-	r = reply(m, mci, e, TimeOuts.to_rcpt, NULL, &enhsc, XS_DEFAULT);
+	r = reply(m, mci, e, TimeOuts.to_rcpt, NULL, &enhsc, XS_RCPT);
 	save_errno = errno;
 	to->q_rstatus = sm_rpool_strdup_x(e->e_rpool, SmtpReplyBuffer);
 	to->q_status = ENHSCN_RPOOL(enhsc, smtptodsn(r), e->e_rpool);
@@ -2588,7 +2594,7 @@ smtpdata(m, mci, e, ctladdr, xstart)
 	mci->mci_state = MCIS_DATA;
 	sm_setproctitle(true, e, "%s %s: %s",
 			qid_printname(e), CurHostName, mci->mci_phase);
-	r = reply(m, mci, e, TimeOuts.to_datainit, NULL, &enhsc, XS_DEFAULT);
+	r = reply(m, mci, e, TimeOuts.to_datainit, NULL, &enhsc, XS_DATA);
 	if (r < 0 || REPLYTYPE(r) == 4)
 	{
 		if (r >= 0)
@@ -2722,7 +2728,7 @@ smtpdata(m, mci, e, ctladdr, xstart)
 			CurHostName, mci->mci_phase);
 	if (bitnset(M_LMTP, m->m_flags))
 		return EX_OK;
-	r = reply(m, mci, e, TimeOuts.to_datafinal, NULL, &enhsc, XS_DEFAULT);
+	r = reply(m, mci, e, TimeOuts.to_datafinal, NULL, &enhsc, XS_EOM);
 	if (r < 0)
 		return EX_TEMPFAIL;
 	if (mci->mci_state == MCIS_DATA)
@@ -2807,7 +2813,7 @@ smtpgetstat(m, mci, e)
 	enhsc = NULL;
 
 	/* check for the results of the transaction */
-	r = reply(m, mci, e, TimeOuts.to_datafinal, NULL, &enhsc, XS_DEFAULT);
+	r = reply(m, mci, e, TimeOuts.to_datafinal, NULL, &enhsc, XS_DATA2);
 	if (r < 0)
 		return EX_TEMPFAIL;
 	xstat = EX_NOTSTICKY;
@@ -2893,8 +2899,7 @@ smtpquit(m, mci, e)
 		SmtpPhase = "client QUIT";
 		mci->mci_state = MCIS_QUITING;
 		smtpmessage("QUIT", m, mci);
-		(void) reply(m, mci, e, TimeOuts.to_quit, NULL, NULL,
-				XS_DEFAULT);
+		(void) reply(m, mci, e, TimeOuts.to_quit, NULL, NULL, XS_QUIT);
 		SuprErrs = oldSuprErrs;
 		if (mci->mci_state == MCIS_CLOSED)
 			goto end;
@@ -3233,14 +3238,17 @@ reply(m, mci, e, timeout, pfunc, enhstat, rtype)
 		if (pfunc != NULL)
 			(*pfunc)(bufp, firstline, m, mci, e);
 
-		firstline = false;
-
 		/* decode the reply code */
 		r = atoi(bufp);
 
 		/* extra semantics: 0xx codes are "informational" */
 		if (r < 100)
+		{
+			firstline = false;
 			continue;
+		}
+
+		firstline = false;
 
 		/* if no continuation lines, return this line */
 		if (bufp[3] != '-')
