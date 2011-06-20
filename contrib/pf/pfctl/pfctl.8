@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 20, 2002
+.Dd June 13, 2011
 .Dt PFCTL 8
 .Os
 .Sh NAME
@@ -35,7 +35,7 @@
 .Sh SYNOPSIS
 .Nm pfctl
 .Bk -words
-.Op Fl AdeghmNnOqRrvz
+.Op Fl AdeghmNnOPqRrvz
 .Op Fl a Ar anchor
 .Oo Fl D Ar macro Ns =
 .Ar value Oc
@@ -350,6 +350,9 @@ without any options will enable
 optimizations, and a second
 .Fl o
 will enable profiling.
+.It Fl P
+Do not perform service name lookup for port specific rules,
+instead display the ports numerically.
 .It Fl p Ar device
 Use the device file
 .Ar device
@@ -670,6 +673,7 @@ Passive operating system fingerprint database.
 .Xr pf.conf 5 ,
 .Xr pf.os 5 ,
 .Xr rc.conf 5 ,
+.Xr services 5 ,
 .Xr sysctl.conf 5 ,
 .Xr authpf 8 ,
 .Xr ftp-proxy 8 ,
