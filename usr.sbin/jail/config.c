@@ -288,7 +288,6 @@ add_param(struct cfjail *j, const struct cfparam *p, enum intparam ipnum,
 	struct cfparam *dp, *np;
 	struct cfstring *s, *ns;
 	struct cfvar *v, *nv;
-	struct ipspec *ips;
 	const char *name;
 	char *cs, *tname;
 	unsigned flags;
@@ -432,7 +431,7 @@ check_intparams(struct cfjail *j)
 	struct addrinfo hints;
 	struct addrinfo *ai0, *ai;
 	struct cfparam *p;
-	struct cfstring *s, *ns;
+	struct cfstring *s;
 	FILE *f;
 	const char *hostname, *val;
 	char *cs, *ep, *ln;

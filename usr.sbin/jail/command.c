@@ -86,7 +86,6 @@ static int kq;
 int
 next_command(struct cfjail *j)
 {
-	const struct cfstring *comstring;
 	enum intparam comparam;
 	int rval, create_failed;
 
@@ -286,6 +285,8 @@ run_command(struct cfjail *j)
 		}
 		requeue(j, &ready);
 		return 1;
+
+	default: ;
 	}
 	/*
 	 * Collect exec arguments.  Internal commands for network and
