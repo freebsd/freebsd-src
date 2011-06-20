@@ -298,6 +298,7 @@ ipfw_main(int oldac, char **oldav)
 	 */
 	co.do_nat = 0;
 	co.do_pipe = 0;
+	co.use_set = 0;
 	if (!strncmp(*av, "nat", strlen(*av)))
  	        co.do_nat = 1;
  	else if (!strncmp(*av, "pipe", strlen(*av)))
