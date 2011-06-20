@@ -140,8 +140,6 @@ static cpu_ipi_single_t spitfire_ipi_single;
 SYSINIT(cpu_mp_unleash, SI_SUB_SMP, SI_ORDER_FIRST, cpu_mp_unleash, NULL);
 
 CTASSERT(MAXCPU <= IDR_CHEETAH_MAX_BN_PAIRS);
-CTASSERT(MAXCPU <= sizeof(u_int) * NBBY);
-CTASSERT(MAXCPU <= sizeof(int) * NBBY);
 
 void
 mp_init(u_int cpu_impl)
@@ -491,13 +489,14 @@ cpu_mp_shutdown(void)
 	int i;
 
 	critical_enter();
-	shutdown_cpus = PCPU_GET(other_cpus);
+	shutdown_cpus = all_cpus;
+	CPU_CLR(PCPU_GET(cpuid), &shutdown_cpus);
 	cpus = shutdown_cpus;
 
 	/* XXX: Stop all the CPUs which aren't already. */
 	if (CPU_CMP(&stopped_cpus, &cpus)) {
 
-		/* pc_other_cpus is just a flat "on" mask without curcpu. */
+		/* cpus is just a flat "on" mask without curcpu. */
 		CPU_NAND(&cpus, &stopped_cpus);
 		stop_cpus(cpus);
 	}
@@ -520,23 +519,23 @@ cpu_ipi_ast(struct trapframe *tf)
 static void
 cpu_ipi_stop(struct trapframe *tf)
 {
-	cpuset_t tcmask;
+	u_int cpuid;
 
 	CTR2(KTR_SMP, "%s: stopped %d", __func__, curcpu);
 	sched_pin();
 	savectx(&stoppcbs[curcpu]);
-	tcmask = PCPU_GET(cpumask);
-	CPU_OR_ATOMIC(&stopped_cpus, &tcmask);
-	while (!CPU_OVERLAP(&started_cpus, &tcmask)) {
-		if (CPU_OVERLAP(&shutdown_cpus, &tcmask)) {
-			CPU_NAND_ATOMIC(&shutdown_cpus, &tcmask);
+	cpuid = PCPU_GET(cpuid);
+	CPU_SET_ATOMIC(cpuid, &stopped_cpus);
+	while (!CPU_ISSET(cpuid, &started_cpus)) {
+		if (CPU_ISSET(cpuid, &shutdown_cpus)) {
+			CPU_CLR_ATOMIC(cpuid, &shutdown_cpus);
 			(void)intr_disable();
 			for (;;)
 				;
 		}
 	}
-	CPU_NAND_ATOMIC(&started_cpus, &tcmask);
-	CPU_NAND_ATOMIC(&stopped_cpus, &tcmask);
+	CPU_CLR_ATOMIC(cpuid, &started_cpus);
+	CPU_CLR_ATOMIC(cpuid, &stopped_cpus);
 	sched_unpin();
 	CTR2(KTR_SMP, "%s: restarted %d", __func__, curcpu);
 }
