@@ -557,15 +557,21 @@ after_sack_rexmit:
 		 * taking into account that we are limited by
 		 * TCP_MAXWIN << tp->rcv_scale.
 		 */
-		long adv = min(recwin, (long)TCP_MAXWIN << tp->rcv_scale) -
-			(tp->rcv_adv - tp->rcv_nxt);
+		long adv;
+		int oldwin;
+
+		adv = min(recwin, (long)TCP_MAXWIN << tp->rcv_scale);
+		if (SEQ_GT(tp->rcv_adv, tp->rcv_nxt)) {
+			oldwin = (tp->rcv_adv - tp->rcv_nxt);
+			adv -= oldwin;
+		} else
+			oldwin = 0;
 
 		/* 
 		 * If the new window size ends up being the same as the old
 		 * size when it is scaled, then don't force a window update.
 		 */
-		if ((tp->rcv_adv - tp->rcv_nxt) >> tp->rcv_scale ==
-		    (adv + tp->rcv_adv - tp->rcv_nxt) >> tp->rcv_scale)
+		if (oldwin >> tp->rcv_scale == (adv + oldwin) >> tp->rcv_scale)
 			goto dontupdate;
 		if (adv >= (long) (2 * tp->t_maxseg))
 			goto send;
@@ -935,7 +941,8 @@ send:
 	if (recwin < (long)(so->so_rcv.sb_hiwat / 4) &&
 	    recwin < (long)tp->t_maxseg)
 		recwin = 0;
-	if (recwin < (long)(tp->rcv_adv - tp->rcv_nxt))
+	if (SEQ_GT(tp->rcv_adv, tp->rcv_nxt) &&
+	    recwin < (long)(tp->rcv_adv - tp->rcv_nxt))
 		recwin = (long)(tp->rcv_adv - tp->rcv_nxt);
 	if (recwin > (long)TCP_MAXWIN << tp->rcv_scale)
 		recwin = (long)TCP_MAXWIN << tp->rcv_scale;
@@ -1239,7 +1246,7 @@ out:
 	 * then remember the size of the advertised window.
 	 * Any pending ACK has now been sent.
 	 */
-	if (recwin > 0 && SEQ_GT(tp->rcv_nxt + recwin, tp->rcv_adv))
+	if (recwin >= 0 && SEQ_GT(tp->rcv_nxt + recwin, tp->rcv_adv))
 		tp->rcv_adv = tp->rcv_nxt + recwin;
 	tp->last_ack_sent = tp->rcv_nxt;
 	tp->t_flags &= ~(TF_ACKNOW | TF_DELACK);
