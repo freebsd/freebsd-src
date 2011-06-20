@@ -48,6 +48,7 @@
 #define PF_OPT_DEBUG		0x0200
 #define PF_OPT_SHOWALL		0x0400
 #define PF_OPT_OPTIMIZE		0x0800
+#define PF_OPT_NUMERIC		0x1000
 #define PF_OPT_MERGE		0x2000
 #define PF_OPT_RECURSE		0x4000
 
@@ -235,7 +236,7 @@ int	pfctl_load_anchors(int, struct pfctl *, struct pfr_buffer *);
 
 void	print_pool(struct pf_pool *, u_int16_t, u_int16_t, sa_family_t, int);
 void	print_src_node(struct pf_src_node *, int);
-void	print_rule(struct pf_rule *, const char *, int);
+void	print_rule(struct pf_rule *, const char *, int, int);
 void	print_tabledef(const char *, int, int, struct node_tinithead *);
 void	print_status(struct pf_status *, int);
 
