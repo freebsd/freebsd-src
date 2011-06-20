@@ -1,10 +1,74 @@
 			SENDMAIL RELEASE NOTES
-      $Id: RELEASE_NOTES,v 8.1963 2009/12/23 04:43:46 ca Exp $
+      $Id: RELEASE_NOTES,v 8.1991 2011/05/15 04:28:16 ca Exp $
 
 
 This listing shows the version of the sendmail binary, the version
 of the sendmail configuration files, the date of release, and a
 summary of the changes in that release.
+
+8.14.5/8.14.5	2011/05/17
+	Do not cache SMTP extensions across connections as the cache
+		is based on hostname which may not be a unique identifier
+		for a server, i.e., different machines may have the
+		same hostname but provide different SMTP extensions.
+		Problem noted by Jim Hermann.
+	Avoid an out-of-bounds access in case a resolver reply for a DNS
+		map lookup returns a size larger than 1K.  Based on a
+		patch from Dr. Werner Fink of SuSE.
+	If a job is aborted using the interrupt signal (e.g., control-C from
+		the keyboard), perform minimal cleanup to avoid invoking
+		functions that are not signal-safe. Note: in previous
+		versions the mail might have been queued up already
+		and would be delivered subsequently, now an interrupt
+		will always remove the queue files and thus prevent
+		delivery.
+	Per RFC 6176, when operating as a TLS client, do not offer SSLv2.
+	Since TLS session resumption is never used as a client, disable
+		use of RFC 4507-style session tickets.
+	Work around gcc4 versions which reverse 25 years of history and
+		no longer align char buffers on the stack, breaking calls
+		to resolver functions on strict alignment platforms.
+		Found by Stuart Henderson of OpenBSD.
+	Read at most two AUTH lines from a server greeting (up to two
+		lines are read because servers may use "AUTH mechs" and
+		"AUTH=mechs"). Otherwise a malicious server may exhaust
+		the memory of the client.  Bug report by Nils of MWR
+		InfoSecurity.
+	Avoid triggering an assertion in the OpenLDAP code when the
+		connection to an LDAP server is lost while making a query.
+		Problem noted and patch provided by Andy Fiddaman.
+	If ConnectOnlyTo is set and sendmail is compiled with NETINET6
+		it would try to use an IPv6 address if an IPv4 (or
+		unparseable) address is specified.
+	If SASLv2 is used, make sure that the macro {auth_authen} is
+		stored in xtext format to avoid problems with parsing
+		it.  Problem noted by Christophe Wolfhugel.
+	CONFIG: FEATURE(`ldap_routing') in 8.14.4 tried to add a missing
+		-T<TMPF> that is required, but failed for some cases
+		that did not use LDAP.  This change has been undone
+		until a better solution can be implemented.  Problem
+		found by Andy Fiddaman.
+	CONFIG: Add cf/ostype/solaris11.m4 for Solaris11 support.
+		Contributed by Casper Dik of Oracle.
+	CONTRIB: qtool.pl: Deal with H entries that do not have a
+		letter between the question marks.  Patch from
+		Stefan Christensen.
+	DOC: Use a better description for the -i option in sendmail.
+		Patch from Mitchell Berger.
+	Portability:
+		Add support for Darwin 10.x (Mac OS X 10.6).
+		Enable HAVE_NANOSLEEP for FreeBSD 3 and later.  Patch
+		from John Marshall.
+		Enable HAVE_NANOSLEEP for OpenBSD 4.3 and later.
+		Use new directory "/system/volatile" for PidFile on
+		Solaris 11.  Patch from Casper Dik of Oracle.
+		Fix compilation on Solaris 11 (and maybe some other
+		OSs) when using OpenSSL 1.0.  Based on patch from
+		Jan Pechanec of Oracle.
+		Set SOCKADDR_LEN_T and SOCKOPT_LEN_T to socklen_t
+		for Solaris 11.  Patch from Roger Faulkner of Oracle.
+	New Files:
+		cf/ostype/solaris11.m4
 
 8.14.4/8.14.4	2009/12/30
 	SECURITY: Handle bogus certificates containing NUL characters

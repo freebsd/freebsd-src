@@ -15,9 +15,9 @@
 #include "map.h"
 
 #if USERDB
-SM_RCSID("@(#)$Id: udb.c,v 8.164 2006/12/19 19:49:51 ca Exp $ (with USERDB)")
+SM_RCSID("@(#)$Id: udb.c,v 8.165 2010/01/10 06:22:00 ca Exp $ (with USERDB)")
 #else /* USERDB */
-SM_RCSID("@(#)$Id: udb.c,v 8.164 2006/12/19 19:49:51 ca Exp $ (without USERDB)")
+SM_RCSID("@(#)$Id: udb.c,v 8.165 2010/01/10 06:22:00 ca Exp $ (without USERDB)")
 #endif /* USERDB */
 
 #if USERDB
@@ -1219,7 +1219,7 @@ _udbx_close()
 #  endif /* DB_VERSION_MAJOR < 2 */
 		}
 		if (tTd(28, 1))
-			sm_dprintf("_udbx_init: db->close(%s)\n",
+			sm_dprintf("_udbx_close: db->close(%s)\n",
 				up->udb_dbname);
 # endif /* NEWDB */
 	}
