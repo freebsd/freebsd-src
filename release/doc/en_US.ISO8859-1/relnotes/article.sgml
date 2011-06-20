@@ -660,6 +660,9 @@
       <para><application>OpenSSL</application> has been updated to
 	version 0.9.8q.</para>
 
+      <para><application>sendmail</application> has been updated to
+	version 8.14.5.</para>
+
       <para>The &man.tcsh.1; program has been updated to version
 	6.17.00.</para>
 
