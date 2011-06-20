@@ -87,15 +87,19 @@ enum intparam {
 	IP_EXEC_SYSTEM_JAIL_USER,/* Get jail_user from system passwd file */
 	IP_EXEC_SYSTEM_USER,	/* Run non-jailed commands as this user */
 	IP_EXEC_TIMEOUT,	/* Time to wait for a command to complete */
+#if defined(INET) || defined(INET6)
 	IP_INTERFACE,		/* Add IP addresses to this interface */
 	IP_IP_HOSTNAME,		/* Get jail IP address(es) from hostname */
+#endif
 	IP_MOUNT,		/* Mount points in fstab(5) form */
 	IP_MOUNT_DEVFS,		/* Mount /dev under prison root */
 	IP_MOUNT_DEVFS_RULESET,	/* Ruleset for the devfs mount */
 	IP_MOUNT_FSTAB,		/* A standard fstab(5) file */
 	IP_STOP_TIMEOUT,	/* Time to wait after sending SIGTERM */
 	IP_VNET_INTERFACE,	/* Assign interface(s) to vnet jail */
+#ifdef INET
 	IP__IP4_IFADDR,		/* Copy of ip4.addr with interface/netmask */
+#endif
 #ifdef INET6
 	IP__IP6_IFADDR,		/* Copy of ip6.addr with interface/prefixlen */
 #endif
@@ -109,7 +113,9 @@ enum intparam {
 	KP_ALLOW_SYSVIPC,
 	KP_ENFORCE_STATFS,
 	KP_HOST_HOSTNAME,
+#ifdef INET
 	KP_IP4_ADDR,
+#endif
 #ifdef INET6
 	KP_IP6_ADDR,
 #endif
