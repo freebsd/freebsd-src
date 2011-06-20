@@ -203,6 +203,7 @@ powerpc/powerpc/syncicache.c	standard
 powerpc/powerpc/sys_machdep.c	standard
 powerpc/powerpc/uio_machdep.c	standard
 powerpc/ps3/ehci_ps3.c		optional	ps3 ehci
+powerpc/ps3/ohci_ps3.c		optional	ps3 ohci
 powerpc/ps3/if_glc.c		optional	ps3 glc
 powerpc/ps3/mmu_ps3.c		optional	ps3
 powerpc/ps3/platform_ps3.c	optional	ps3
