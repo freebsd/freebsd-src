@@ -247,12 +247,15 @@ run_command(struct cfjail *j)
 	const struct cfstring *comstring, *s;
 	login_cap_t *lcap;
 	char **argv;
-	char *cs, *addr, *comcs, *devpath;
+	char *cs, *comcs, *devpath;
 	const char *jidstr, *conslog, *path, *ruleset, *term, *username;
 	enum intparam comparam;
 	size_t comlen;
 	pid_t pid;
 	int argc, bg, clean, consfd, down, fib, i, injail, sjuser, timeout;
+#if defined(INET) || defined(INET6)
+	char *addr;
+#endif
 
 	static char *cleanenv;
 
@@ -295,6 +298,7 @@ run_command(struct cfjail *j)
 	comstring = j->comstring;
 	bg = 0;
 	switch (comparam) {
+#ifdef INET
 	case IP__IP4_IFADDR:
 		argv = alloca(8 * sizeof(char *));
 		*(const char **)&argv[0] = _PATH_IFCONFIG;
@@ -326,6 +330,7 @@ run_command(struct cfjail *j)
 		*(const char **)&argv[argc] = down ? "-alias" : "alias";
 		argv[argc + 1] = NULL;
 		break;
+#endif
 
 #ifdef INET6
 	case IP__IP6_IFADDR:
