@@ -210,6 +210,9 @@ tcp_twstart(struct tcpcb *tp)
 	/*
 	 * Recover last window size sent.
 	 */
+	KASSERT(SEQ_GEQ(tp->rcv_adv, tp->rcv_nxt),
+	    ("tcp_twstart negative window: tp %p rcv_nxt %u rcv_adv %u", tp,
+	    tp->rcv_adv, tp->rcv_nxt));
 	tw->last_win = (tp->rcv_adv - tp->rcv_nxt) >> tp->rcv_scale;
 
 	/*
