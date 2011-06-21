@@ -499,8 +499,8 @@ gpart_autofill(struct gctl_req *req)
 	/* Adjust parameters to stripeoffset */
 	offset = pp->lg_stripeoffset / pp->lg_sectorsize;
 	start = ALIGNUP(start + offset, alignment);
-	if (size + offset > alignment)
-		size = ALIGNDOWN(size + offset, alignment);
+	if (size > alignment)
+		size = ALIGNDOWN(size, alignment);
 
 	first = (off_t)strtoimax(find_geomcfg(gp, "first"), NULL, 0);
 	last = (off_t)strtoimax(find_geomcfg(gp, "last"), NULL, 0);
