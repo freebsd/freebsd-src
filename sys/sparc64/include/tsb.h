@@ -50,7 +50,6 @@ extern struct tte *tsb_kernel;
 extern vm_size_t tsb_kernel_mask;
 extern vm_size_t tsb_kernel_size;
 extern vm_paddr_t tsb_kernel_phys;
-extern u_int tsb_kernel_ldd_phys;
 
 static __inline struct tte *
 tsb_vpntobucket(pmap_t pm, vm_offset_t vpn)
