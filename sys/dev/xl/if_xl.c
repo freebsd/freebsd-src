@@ -334,7 +334,7 @@ xl_dma_map_addr(void *arg, bus_dma_segment_t *segs, int nseg, int error)
  * only a finite amount of time to avoid getting caught in an
  * infinite loop. Normally this delay routine would be a macro,
  * but it isn't called during normal operation so we can afford
- * to make it a function.  Spress warning when card gone.
+ * to make it a function.  Supress warning when card gone.
  */
 static void
 xl_wait(struct xl_softc *sc)
