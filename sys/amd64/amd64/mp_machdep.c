@@ -604,7 +604,7 @@ cpu_mp_announce(void)
 void
 init_secondary(void)
 {
-	cpuset_t tcpuset, tallcpus;
+	cpuset_t tcpuset;
 	struct pcpu *pc;
 	struct nmi_pcpu *np;
 	u_int64_t msr, cr0;
@@ -742,11 +742,6 @@ init_secondary(void)
 	/* XXX Calculation depends on cpu_logical being a power of 2, e.g. 2 */
 	if (cpu_logical > 1 && PCPU_GET(apic_id) % cpu_logical != 0)
 		CPU_OR(&logical_cpus_mask, &tcpuset);
-
-	/* Build our map of 'other' CPUs. */
-	tallcpus = all_cpus;
-	CPU_NAND(&tallcpus, &tcpuset);
-	PCPU_SET(other_cpus, tallcpus);
 
 	if (bootverbose)
 		lapic_dump("AP");
@@ -893,7 +888,6 @@ assign_cpu_ids(void)
 static int
 start_all_aps(void)
 {
-	cpuset_t tallcpus, tcpuset;
 	vm_offset_t va = boot_address + KERNBASE;
 	u_int64_t *pt4, *pt3, *pt2;
 	u_int32_t mpbioswarmvec;
@@ -960,12 +954,6 @@ start_all_aps(void)
 
 		CPU_SET(cpu, &all_cpus);	/* record AP in CPU map */
 	}
-
-	/* build our map of 'other' CPUs */
-	tallcpus = all_cpus;
-	tcpuset = PCPU_GET(cpumask);
-	CPU_NAND(&tallcpus, &tcpuset);
-	PCPU_SET(other_cpus, tallcpus);
 
 	/* restore the warmstart vector */
 	*(u_int32_t *) WARMBOOT_OFF = mpbioswarmvec;
@@ -1349,11 +1337,13 @@ ipi_cpu(int cpu, u_int ipi)
 void
 ipi_all_but_self(u_int ipi)
 {
+	cpuset_t other_cpus;
 
-	sched_pin();
+	other_cpus = all_cpus;
+	CPU_CLR(PCPU_GET(cpuid), &other_cpus);
+
 	if (IPI_IS_BITMAPED(ipi)) {
-		ipi_selected(PCPU_GET(other_cpus), ipi);
-		sched_unpin();
+		ipi_selected(other_cpus, ipi);
 		return;
 	}
 
@@ -1363,8 +1353,7 @@ ipi_all_but_self(u_int ipi)
 	 * Set the mask of receiving CPUs for this purpose.
 	 */
 	if (ipi == IPI_STOP_HARD)
-		CPU_OR_ATOMIC(&ipi_nmi_pending, PCPU_PTR(other_cpus));
-	sched_unpin();
+		CPU_OR_ATOMIC(&ipi_nmi_pending, &other_cpus);
 
 	CTR2(KTR_SMP, "%s: ipi: %x", __func__, ipi);
 	lapic_ipi_vectored(ipi, APIC_IPI_DEST_OTHERS);

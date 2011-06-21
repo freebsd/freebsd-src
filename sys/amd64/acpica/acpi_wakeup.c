@@ -226,7 +226,8 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 		return (ret);
 
 #ifdef SMP
-	wakeup_cpus = PCPU_GET(other_cpus);
+	wakeup_cpus = all_cpus;
+	CPU_CLR(PCPU_GET(cpuid), &wakeup_cpus);
 #endif
 
 	AcpiSetFirmwareWakingVector(WAKECODE_PADDR(sc));
