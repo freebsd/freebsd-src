@@ -658,6 +658,12 @@ cbb_pci_shutdown(device_t brdev)
 	struct cbb_softc *sc = (struct cbb_softc *)device_get_softc(brdev);
 
 	/*
+	 * We're about to pull the rug out from the card, so mark it as
+	 * gone to prevent harm.
+         */
+        sc->cardok = 0;
+
+	/*
 	 * Place the cards in reset, turn off the interrupts and power
 	 * down the socket.
 	 */
