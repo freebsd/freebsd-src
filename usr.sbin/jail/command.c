@@ -77,6 +77,7 @@ static int check_path(struct cfjail *j, const char *pname, const char *path,
 
 static struct cfjails sleeping = TAILQ_HEAD_INITIALIZER(sleeping);
 static struct cfjails runnable = TAILQ_HEAD_INITIALIZER(runnable);
+static struct cfstring dummystring = { .len = 1 };
 static struct phhead phash[PHASH_SIZE];
 static int kq;
 
@@ -88,8 +89,6 @@ next_command(struct cfjail *j)
 {
 	enum intparam comparam;
 	int rval, create_failed;
-
-	static struct cfstring dummystring = { .len = 1 };
 
 	rval = 0;
 	create_failed = (j->flags & (JF_STOP | JF_FAILED)) == JF_FAILED;
@@ -115,7 +114,8 @@ next_command(struct cfjail *j)
 			}
 		}
 		for (; j->comstring != NULL;
-		     j->comstring = create_failed
+		     j->comstring = j->comstring == &dummystring ? NULL :
+			create_failed
 			? TAILQ_PREV(j->comstring, cfstrings, tq)
 			: TAILQ_NEXT(j->comstring, tq)) {
 			if (rval != 0)
@@ -457,7 +457,7 @@ run_command(struct cfjail *j)
 		TAILQ_FOREACH(s, &j->intparams[IP_COMMAND]->val, tq)
 			argv[argc++] = s->s;
 		argv[argc] = NULL;
-		j->comstring = NULL;
+		j->comstring = &dummystring;
 		break;
 
 	default:
