@@ -218,7 +218,7 @@
  * is the total KVA space allocated for kmem_map.
  */
 #ifndef VM_KMEM_SIZE_SCALE
-#define	VM_KMEM_SIZE_SCALE	(3)
+#define	VM_KMEM_SIZE_SCALE	(tsb_kernel_ldd_phys == 0 ? 3 : 1)
 #endif
 
 /*
@@ -238,6 +238,7 @@
 
 #define	UMA_MD_SMALL_ALLOC
 
+extern u_int tsb_kernel_ldd_phys;
 extern vm_offset_t vm_max_kernel_address;
 
 /*
