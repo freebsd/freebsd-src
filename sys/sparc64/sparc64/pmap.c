@@ -384,11 +384,12 @@ pmap_bootstrap(u_int cpu_impl)
 	 * public documentation is available for these, the latter just might
 	 * not support it, yet.
 	 */
-	virtsz = roundup(physsz, PAGE_SIZE_4M << (PAGE_SHIFT - TTE_SHIFT));
 	if (cpu_impl == CPU_IMPL_SPARC64V ||
-	    cpu_impl >= CPU_IMPL_ULTRASPARCIIIp)
+	    cpu_impl >= CPU_IMPL_ULTRASPARCIIIp) {
 		tsb_kernel_ldd_phys = 1;
-	else {
+		virtsz = roundup(5 / 3 * physsz, PAGE_SIZE_4M <<
+		    (PAGE_SHIFT - TTE_SHIFT));
+	} else {
 		dtlb_slots_avail = 0;
 		for (i = 0; i < dtlb_slots; i++) {
 			data = dtlb_get_data(i);
@@ -401,6 +402,8 @@ pmap_bootstrap(u_int cpu_impl)
 		if (cpu_impl >= CPU_IMPL_ULTRASPARCI &&
 		    cpu_impl < CPU_IMPL_ULTRASPARCIII)
 			dtlb_slots_avail /= 2;
+		virtsz = roundup(physsz, PAGE_SIZE_4M <<
+		    (PAGE_SHIFT - TTE_SHIFT));
 		virtsz = MIN(virtsz, (dtlb_slots_avail * PAGE_SIZE_4M) <<
 		    (PAGE_SHIFT - TTE_SHIFT));
 	}
