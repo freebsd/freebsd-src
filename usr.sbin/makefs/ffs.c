@@ -776,9 +776,11 @@ ffs_populate_dir(const char *dir, fsnode *root, fsinfo_t *fsopts)
 			continue;		/* skip hard-linked entries */
 		cur->inode->flags |= FI_WRITTEN;
 
-		if (snprintf(path, sizeof(path), "%s/%s", dir, cur->name)
-		    >= sizeof(path))
-			errx(1, "Pathname too long.");
+		if (cur->contents == NULL) {
+			if (snprintf(path, sizeof(path), "%s/%s", dir,
+			    cur->name) >= sizeof(path))
+				errx(1, "Pathname too long.");
+		}
 
 		if (cur->child != NULL)
 			continue;		/* child creates own inode */
@@ -802,7 +804,8 @@ ffs_populate_dir(const char *dir, fsnode *root, fsinfo_t *fsopts)
 		if (membuf != NULL) {
 			ffs_write_file(&din, cur->inode->ino, membuf, fsopts);
 		} else if (S_ISREG(cur->type)) {
-			ffs_write_file(&din, cur->inode->ino, path, fsopts);
+			ffs_write_file(&din, cur->inode->ino,
+			    (cur->contents) ?  cur->contents : path, fsopts);
 		} else {
 			assert (! S_ISDIR(cur->type));
 			ffs_write_inode(&din, cur->inode->ino, fsopts);

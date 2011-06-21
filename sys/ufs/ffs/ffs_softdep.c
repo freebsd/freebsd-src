@@ -142,10 +142,11 @@ softdep_setup_sbupdate(ump, fs, bp)
 }
 
 void
-softdep_setup_inomapdep(bp, ip, newinum)
+softdep_setup_inomapdep(bp, ip, newinum, mode)
 	struct buf *bp;
 	struct inode *ip;
 	ino_t newinum;
+	int mode;
 {
 
 	panic("softdep_setup_inomapdep called");
@@ -789,6 +790,8 @@ static  void diradd_inode_written(struct diradd *, struct inodedep *);
 static	int handle_written_indirdep(struct indirdep *, struct buf *,
 	    struct buf**);
 static	int handle_written_inodeblock(struct inodedep *, struct buf *);
+static	int jnewblk_rollforward(struct jnewblk *, struct fs *, struct cg *,
+	    uint8_t *);
 static	int handle_written_bmsafemap(struct bmsafemap *, struct buf *);
 static	void handle_written_jaddref(struct jaddref *);
 static	void handle_written_jremref(struct jremref *);
@@ -820,6 +823,8 @@ static	void handle_allocindir_partdone(struct allocindir *);
 static	void initiate_write_filepage(struct pagedep *, struct buf *);
 static	void initiate_write_indirdep(struct indirdep*, struct buf *);
 static	void handle_written_mkdir(struct mkdir *, int);
+static	int jnewblk_rollback(struct jnewblk *, struct fs *, struct cg *,
+	    uint8_t *);
 static	void initiate_write_bmsafemap(struct bmsafemap *, struct buf *);
 static	void initiate_write_inodeblock_ufs1(struct inodedep *, struct buf *);
 static	void initiate_write_inodeblock_ufs2(struct inodedep *, struct buf *);
@@ -935,6 +940,7 @@ static	void wake_worklist(struct worklist *);
 static	void wait_worklist(struct worklist *, char *);
 static	void remove_from_worklist(struct worklist *);
 static	void softdep_flush(void);
+static	void softdep_flushjournal(struct mount *);
 static	int softdep_speedup(void);
 static	void worklist_speedup(void);
 static	int journal_mount(struct mount *, struct fs *, struct ucred *);
@@ -3046,6 +3052,25 @@ jfsync_write(jfsync, jseg, data)
 	rec->jt_extsize = jfsync->jfs_extsize;
 }
 
+static void
+softdep_flushjournal(mp)
+	struct mount *mp;
+{
+	struct jblocks *jblocks;
+	struct ufsmount *ump;
+
+	if ((mp->mnt_kern_flag & MNTK_SUJ) == 0)
+		return;
+	ump = VFSTOUFS(mp);
+	jblocks = ump->softdep_jblocks;
+	ACQUIRE_LOCK(&lk);
+	while (ump->softdep_on_journal) {
+		jblocks->jb_needseg = 1;
+		softdep_process_journal(mp, NULL, MNT_WAIT);
+	}
+	FREE_LOCK(&lk);
+}
+
 /*
  * Flush some journal records to disk.
  */
@@ -4310,7 +4335,6 @@ softdep_setup_create(dp, ip)
 		    inoreflst);
 		KASSERT(jaddref != NULL && jaddref->ja_parent == dp->i_number,
 		    ("softdep_setup_create: No addref structure present."));
-		jaddref->ja_mode = ip->i_mode;
 	}
 	softdep_prelink(dvp, NULL);
 	FREE_LOCK(&lk);
@@ -4417,7 +4441,6 @@ softdep_setup_mkdir(dp, ip)
 		KASSERT(jaddref->ja_parent == dp->i_number, 
 		    ("softdep_setup_mkdir: bad parent %d",
 		    jaddref->ja_parent));
-		jaddref->ja_mode = ip->i_mode;
 		TAILQ_INSERT_BEFORE(&jaddref->ja_ref, &dotaddref->ja_ref,
 		    if_deps);
 	}
@@ -4637,10 +4660,11 @@ softdep_revert_rmdir(dp, ip)
  * Called just after updating the cylinder group block to allocate an inode.
  */
 void
-softdep_setup_inomapdep(bp, ip, newinum)
+softdep_setup_inomapdep(bp, ip, newinum, mode)
 	struct buf *bp;		/* buffer for cylgroup block with inode map */
 	struct inode *ip;	/* inode related to allocation */
 	ino_t newinum;		/* new inode number being allocated */
+	int mode;
 {
 	struct inodedep *inodedep;
 	struct bmsafemap *bmsafemap;
@@ -4657,7 +4681,7 @@ softdep_setup_inomapdep(bp, ip, newinum)
 	 * can be dependent on it.
 	 */
 	if (mp->mnt_kern_flag & MNTK_SUJ) {
-		jaddref = newjaddref(ip, newinum, 0, 0, 0);
+		jaddref = newjaddref(ip, newinum, 0, 0, mode);
 		jaddref->ja_state |= NEWBLOCK;
 	}
 
@@ -5014,14 +5038,12 @@ jnewblk_merge(new, old, wkhd)
 	if (jnewblk->jn_blkno != njnewblk->jn_blkno)
 		panic("jnewblk_merge: Merging disparate blocks.");
 	/*
-	 * The record may be rolled back in the cg update bits
-	 * appropriately.  NEWBLOCK here alerts the cg rollback code
-	 * that the frag bits have changed.
+	 * The record may be rolled back in the cg.
 	 */
 	if (jnewblk->jn_state & UNDONE) {
-		njnewblk->jn_state |= UNDONE | NEWBLOCK;
-		njnewblk->jn_state &= ~ATTACHED;
 		jnewblk->jn_state &= ~UNDONE;
+		njnewblk->jn_state |= UNDONE;
+		njnewblk->jn_state &= ~ATTACHED;
 	}
 	/*
 	 * We modify the newer addref and free the older so that if neither
@@ -10233,6 +10255,70 @@ softdep_setup_blkfree(mp, bp, blkno, frags, wkhd)
 	FREE_LOCK(&lk);
 }
 
+/*
+ * Revert a block allocation when the journal record that describes it
+ * is not yet written.
+ */
+int
+jnewblk_rollback(jnewblk, fs, cgp, blksfree)
+	struct jnewblk *jnewblk;
+	struct fs *fs;
+	struct cg *cgp;
+	uint8_t *blksfree;
+{
+	ufs1_daddr_t fragno;
+	long cgbno, bbase;
+	int frags, blk;
+	int i;
+
+	frags = 0;
+	cgbno = dtogd(fs, jnewblk->jn_blkno);
+	/*
+	 * We have to test which frags need to be rolled back.  We may
+	 * be operating on a stale copy when doing background writes.
+	 */
+	for (i = jnewblk->jn_oldfrags; i < jnewblk->jn_frags; i++)
+		if (isclr(blksfree, cgbno + i))
+			frags++;
+	if (frags == 0)
+		return (0);
+	/*
+	 * This is mostly ffs_blkfree() sans some validation and
+	 * superblock updates.
+	 */
+	if (frags == fs->fs_frag) {
+		fragno = fragstoblks(fs, cgbno);
+		ffs_setblock(fs, blksfree, fragno);
+		ffs_clusteracct(fs, cgp, fragno, 1);
+		cgp->cg_cs.cs_nbfree++;
+	} else {
+		cgbno += jnewblk->jn_oldfrags;
+		bbase = cgbno - fragnum(fs, cgbno);
+		/* Decrement the old frags.  */
+		blk = blkmap(fs, blksfree, bbase);
+		ffs_fragacct(fs, blk, cgp->cg_frsum, -1);
+		/* Deallocate the fragment */
+		for (i = 0; i < frags; i++)
+			setbit(blksfree, cgbno + i);
+		cgp->cg_cs.cs_nffree += frags;
+		/* Add back in counts associated with the new frags */
+		blk = blkmap(fs, blksfree, bbase);
+		ffs_fragacct(fs, blk, cgp->cg_frsum, 1);
+                /* If a complete block has been reassembled, account for it. */
+		fragno = fragstoblks(fs, bbase);
+		if (ffs_isblock(fs, blksfree, fragno)) {
+			cgp->cg_cs.cs_nffree -= fs->fs_frag;
+			ffs_clusteracct(fs, cgp, fragno, 1);
+			cgp->cg_cs.cs_nbfree++;
+		}
+	}
+	stat_jnewblk++;
+	jnewblk->jn_state &= ~ATTACHED;
+	jnewblk->jn_state |= UNDONE;
+
+	return (frags);
+}
+
 static void 
 initiate_write_bmsafemap(bmsafemap, bp)
 	struct bmsafemap *bmsafemap;
@@ -10244,10 +10330,7 @@ initiate_write_bmsafemap(bmsafemap, bp)
 	uint8_t *blksfree;
 	struct cg *cgp;
 	struct fs *fs;
-	int cleared;
 	ino_t ino;
-	long bno;
-	int i;
 
 	if (bmsafemap->sm_state & IOSTARTED)
 		panic("initiate_write_bmsafemap: Already started\n");
@@ -10286,25 +10369,9 @@ initiate_write_bmsafemap(bmsafemap, bp)
 		fs = VFSTOUFS(bmsafemap->sm_list.wk_mp)->um_fs;
 		blksfree = cg_blksfree(cgp);
 		LIST_FOREACH(jnewblk, &bmsafemap->sm_jnewblkhd, jn_deps) {
-			bno = dtogd(fs, jnewblk->jn_blkno);
-			cleared = 0;
-			for (i = jnewblk->jn_oldfrags; i < jnewblk->jn_frags;
-			    i++) {
-				if (isclr(blksfree, bno + i)) {
-					cleared = 1;
-					setbit(blksfree, bno + i);
-				}
-			}
-			/*
-			 * We may not clear the block if it's a background
-			 * copy.  In that case there is no reason to detach
-			 * it.
-			 */
-			if (cleared) {
-				stat_jnewblk++;
-				jnewblk->jn_state &= ~ATTACHED;
-				jnewblk->jn_state |= UNDONE;
-			} else if ((bp->b_xflags & BX_BKGRDMARKER) == 0)
+			if (jnewblk_rollback(jnewblk, fs, cgp, blksfree))
+				continue;
+			if ((bp->b_xflags & BX_BKGRDMARKER) == 0)
 				panic("initiate_write_bmsafemap: block %jd "
 				    "marked free", jnewblk->jn_blkno);
 		}
@@ -10578,6 +10645,9 @@ handle_jwork(wkhd)
 		case D_FREEDEP:
 			free_freedep(WK_FREEDEP(wk));
 			continue;
+		case D_FREEFRAG:
+			rele_jseg(WK_JSEG(WK_FREEFRAG(wk)->ff_jdep));
+			WORKITEM_FREE(wk, D_FREEFRAG);
 		case D_FREEWORK:
 			handle_written_freework(WK_FREEWORK(wk));
 			continue;
@@ -11050,6 +11120,58 @@ bmsafemap_rollbacks(bmsafemap)
 }
 
 /*
+ * Re-apply an allocation when a cg write is complete.
+ */
+static int
+jnewblk_rollforward(jnewblk, fs, cgp, blksfree)
+	struct jnewblk *jnewblk;
+	struct fs *fs;
+	struct cg *cgp;
+	uint8_t *blksfree;
+{
+	ufs1_daddr_t fragno;
+	ufs2_daddr_t blkno;
+	long cgbno, bbase;
+	int frags, blk;
+	int i;
+
+	frags = 0;
+	cgbno = dtogd(fs, jnewblk->jn_blkno);
+	for (i = jnewblk->jn_oldfrags; i < jnewblk->jn_frags; i++) {
+		if (isclr(blksfree, cgbno + i))
+			panic("jnewblk_rollforward: re-allocated fragment");
+		frags++;
+	}
+	if (frags == fs->fs_frag) {
+		blkno = fragstoblks(fs, cgbno);
+		ffs_clrblock(fs, blksfree, (long)blkno);
+		ffs_clusteracct(fs, cgp, blkno, -1);
+		cgp->cg_cs.cs_nbfree--;
+	} else {
+		bbase = cgbno - fragnum(fs, cgbno);
+		cgbno += jnewblk->jn_oldfrags;
+                /* If a complete block had been reassembled, account for it. */
+		fragno = fragstoblks(fs, bbase);
+		if (ffs_isblock(fs, blksfree, fragno)) {
+			cgp->cg_cs.cs_nffree += fs->fs_frag;
+			ffs_clusteracct(fs, cgp, fragno, -1);
+			cgp->cg_cs.cs_nbfree--;
+		}
+		/* Decrement the old frags.  */
+		blk = blkmap(fs, blksfree, bbase);
+		ffs_fragacct(fs, blk, cgp->cg_frsum, -1);
+		/* Allocate the fragment */
+		for (i = 0; i < frags; i++)
+			clrbit(blksfree, cgbno + i);
+		cgp->cg_cs.cs_nffree -= frags;
+		/* Add back in counts associated with the new frags */
+		blk = blkmap(fs, blksfree, bbase);
+		ffs_fragacct(fs, blk, cgp->cg_frsum, 1);
+	}
+	return (frags);
+}
+
+/*
  * Complete a write to a bmsafemap structure.  Roll forward any bitmap
  * changes if it's not a background write.  Set all written dependencies 
  * to DEPCOMPLETE and free the structure if possible.
@@ -11069,9 +11191,7 @@ handle_written_bmsafemap(bmsafemap, bp)
 	struct cg *cgp;
 	struct fs *fs;
 	ino_t ino;
-	long bno;
 	int chgs;
-	int i;
 
 	if ((bmsafemap->sm_state & IOSTARTED) == 0)
 		panic("initiate_write_bmsafemap: Not started\n");
@@ -11121,18 +11241,9 @@ handle_written_bmsafemap(bmsafemap, bp)
 		    jntmp) {
 			if ((jnewblk->jn_state & UNDONE) == 0)
 				continue;
-			bno = dtogd(fs, jnewblk->jn_blkno);
-			for (i = jnewblk->jn_oldfrags; i < jnewblk->jn_frags;
-			    i++) {
-				if (bp->b_xflags & BX_BKGRDMARKER)
-					break;
-				if ((jnewblk->jn_state & NEWBLOCK) == 0 &&
-				    isclr(blksfree, bno + i))
-					panic("handle_written_bmsafemap: "
-					    "re-allocated fragment");
-				clrbit(blksfree, bno + i);
+			if ((bp->b_xflags & BX_BKGRDMARKER) == 0 &&
+			    jnewblk_rollforward(jnewblk, fs, cgp, blksfree))
 				chgs = 1;
-			}
 			jnewblk->jn_state &= ~(UNDONE | NEWBLOCK);
 			jnewblk->jn_state |= ATTACHED;
 			free_jnewblk(jnewblk);
@@ -11826,6 +11937,11 @@ softdep_sync_metadata(struct vnode *vp)
 	 * truncations are started, and inode references are journaled.
 	 */
 	ACQUIRE_LOCK(&lk);
+	/*
+	 * Write all journal records to prevent rollbacks on devvp.
+	 */
+	if (vp->v_type == VCHR)
+		softdep_flushjournal(vp->v_mount);
 	error = flush_inodedep_deps(vp, vp->v_mount, VTOI(vp)->i_number);
 	/*
 	 * Ensure that all truncates are written so we won't find deps on

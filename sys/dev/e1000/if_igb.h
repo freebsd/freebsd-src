@@ -396,11 +396,12 @@ struct adapter {
 	u32		shadow_vfta[IGB_VFTA_SIZE];
 
 	/* Info about the interface */
-	u8		link_active;
+	u16		link_active;
+	u16		fc;
 	u16		link_speed;
 	u16		link_duplex;
 	u32		smartspeed;
-	u32		dma_coalesce;
+	u32		dmac;
 
 	/* Interface queues */
 	struct igb_queue	*queues;

@@ -1102,8 +1102,15 @@ send:
 		m->m_pkthdr.tso_segsz = tp->t_maxopd - optlen;
 	}
 
+#ifdef IPSEC
+	KASSERT(len + hdrlen + ipoptlen - ipsec_optlen == m_length(m, NULL),
+	    ("%s: mbuf chain shorter than expected: %ld + %u + %u - %u != %u",
+	    __func__, len, hdrlen, ipoptlen, ipsec_optlen, m_length(m, NULL)));
+#else
 	KASSERT(len + hdrlen + ipoptlen == m_length(m, NULL),
-	    ("%s: mbuf chain shorter than expected", __func__));
+	    ("%s: mbuf chain shorter than expected: %ld + %u + %u != %u",
+	    __func__, len, hdrlen, ipoptlen, m_length(m, NULL)));
+#endif
 
 	/*
 	 * In transmit state, time the transmission and arrange for

@@ -140,8 +140,6 @@ static cpu_ipi_single_t spitfire_ipi_single;
 SYSINIT(cpu_mp_unleash, SI_SUB_SMP, SI_ORDER_FIRST, cpu_mp_unleash, NULL);
 
 CTASSERT(MAXCPU <= IDR_CHEETAH_MAX_BN_PAIRS);
-CTASSERT(MAXCPU <= sizeof(u_int) * NBBY);
-CTASSERT(MAXCPU <= sizeof(int) * NBBY);
 
 void
 mp_init(u_int cpu_impl)
