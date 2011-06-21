@@ -1,5 +1,6 @@
 #include "IA64FrameLowering.h"
 #include "IA64InstrInfo.h"
+#include "IA64MachineFunctionInfo.h"
 
 #include "llvm/Function.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
@@ -16,6 +17,12 @@ using namespace llvm;
 void
 IA64FrameLowering::emitPrologue(MachineFunction &MF) const
 {
+  IA64MachineFunctionInfo *IA64FI = MF.getInfo<IA64MachineFunctionInfo>();
+  MachineFrameInfo *MFI = MF.getFrameInfo();
+  MachineBasicBlock &MBB = MF.front();
+  const IA64InstrInfo &TII =
+        *static_cast<const IA64InstrInfo*>(MF.getTarget().getInstrInfo());
+
   llvm_unreachable(__func__);
 }
 

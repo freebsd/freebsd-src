@@ -17,6 +17,16 @@ namespace llvm {
 
   public:
     explicit IA64TargetLowering(IA64TargetMachine &TM);
+
+    virtual SDValue LowerFormalArguments(SDValue Chain,
+        CallingConv::ID CallConv, bool isVarArg,
+        const SmallVectorImpl<ISD::InputArg> &Ins, DebugLoc dl,
+        SelectionDAG &DAG, SmallVectorImpl<SDValue> &InVals) const;
+
+    virtual SDValue LowerReturn(SDValue Chain, CallingConv::ID CallConv,
+        bool isVarArg, const SmallVectorImpl<ISD::OutputArg> &Outs,
+        const SmallVectorImpl<SDValue> &OutVals, DebugLoc dl,
+        SelectionDAG &DAG) const;
   };
 
 } // namespace llvm

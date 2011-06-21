@@ -35,6 +35,14 @@ def F2 : IA64Register<"f2">;
 def F3 : IA64Register<"f3">;
 def F4 : IA64Register<"f4">;
 def F5 : IA64Register<"f5">;
+def F8 : IA64Register<"f8">;
+def F9 : IA64Register<"f9">;
+def F10 : IA64Register<"f10">;
+def F11 : IA64Register<"f11">;
+def F12 : IA64Register<"f12">;
+def F13 : IA64Register<"f13">;
+def F14 : IA64Register<"f14">;
+def F15 : IA64Register<"f15">;
 def F16 : IA64Register<"f16">;
 def F17 : IA64Register<"f17">;
 def F18 : IA64Register<"f18">;
@@ -115,8 +123,18 @@ def R4 : IA64Register<"r4">;
 def R5 : IA64Register<"r5">;
 def R6 : IA64Register<"r6">;
 def R7 : IA64Register<"r7">;
+def R8 : IA64Register<"r8">;
 def R12 : IA64Register<"r12">;
 def R13 : IA64Register<"r13">;
+// XXX
+def R32 : IA64Register<"r32">;
+def R33 : IA64Register<"r33">;
+def R34 : IA64Register<"r34">;
+def R35 : IA64Register<"r35">;
+def R36 : IA64Register<"r36">;
+def R37 : IA64Register<"r37">;
+def R38 : IA64Register<"r38">;
+def R39 : IA64Register<"r39">;
 
 // Branch registers
 def B1 : IA64Register<"b1">;
@@ -134,16 +152,22 @@ class IA64RegisterClass<list<ValueType> types, int align, list<Register> regs>
 def Branch : IA64RegisterClass<[i64], 8,
       [B1, B2, B3, B4, B5]>;
 def FloatingPoint : IA64RegisterClass<[f128], 128,
-      [F0, F1, F2, F3, F4, F5, F16, F17, F18, F19, F20, F21, F22, F23,
-       F24, F25, F26, F27, F28, F29, F30, F31]>;
+      [F0, F1, F2, F3, F4, F5, F8, F9, F10, F11, F12, F13, F14, F15, F16,
+       F17, F18, F19, F20, F21, F22, F23, F24, F25, F26, F27, F28, F29,
+       F30, F31]>;
 def General : IA64RegisterClass<[i64], 64,
-      [R0, R1, R4, R5, R6, R7, R12, R13]>;
+      [R0, R1, R4, R5, R6, R7, R8, R12, R13]>;
 def Predicate : IA64RegisterClass<[i1], 0,
       [P0, P1, P2, P3, P4, P5, P16, P17, P18, P19, P20, P21, P22, P23,
        P24, P25, P26, P27, P28, P29, P30, P31, P32, P33, P34, P35, P36,
        P37, P38, P39, P40, P41, P42, P43, P44, P45, P46, P47, P48, P49,
        P50, P51, P52, P53, P54, P55, P56, P57, P58, P59, P60, P61, P62,
        P63]>;
+
+//
+// Calling Convention
+//
+include "IA64CallingConv.td"
 
 //
 // Instructions
