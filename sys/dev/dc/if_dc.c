@@ -1385,7 +1385,7 @@ dc_netcfg_wait(struct dc_softc *sc)
 			break;
 		DELAY(10);
 	}
-	if (i == DC_TIMEOUT) {
+	if (i == DC_TIMEOUT && bus_child_present(sc->dc_dev)) {
 		if (!(isr & DC_ISR_TX_IDLE) && !DC_IS_ASIX(sc))
 			device_printf(sc->dc_dev,
 			    "%s: failed to force tx to idle state\n", __func__);
