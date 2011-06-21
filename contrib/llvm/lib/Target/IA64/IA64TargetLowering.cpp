@@ -34,20 +34,17 @@ IA64TargetLowering::IA64TargetLowering(IA64TargetMachine &tm) :
   TD = getTargetData();
 
   // Set up the register classes.
+  addRegisterClass(MVT::i64, &IA64::BranchRegClass);
   addRegisterClass(MVT::f128, &IA64::FloatingPointRegClass);
   addRegisterClass(MVT::i64, &IA64::GeneralRegClass);
   addRegisterClass(MVT::i1, &IA64::PredicateRegClass);
 
   // Compute derived properties from the register classes
   computeRegisterProperties();
-}
 
-unsigned
-IA64TargetLowering::getFunctionAlignment(const Function *F) const
-{
-  // Functions must have at least 16-byte alignment, but 32-byte alignment
-  // is better because branch targets should be aligned on 32-byte boundaries
-  // to ensure that the front-end can deliver 2 bundles per cycle to the
-  // back-end.
-  return F->hasFnAttr(Attribute::OptimizeForSize) ? 4 : 5;
+  setMinFunctionAlignment(4);
+  setPrefFunctionAlignment(5);
+
+  setJumpBufSize(512);
+  setJumpBufAlignment(16);
 }

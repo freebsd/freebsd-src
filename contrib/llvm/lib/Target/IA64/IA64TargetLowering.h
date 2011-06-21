@@ -17,8 +17,6 @@ namespace llvm {
 
   public:
     explicit IA64TargetLowering(IA64TargetMachine &TM);
-
-    virtual unsigned getFunctionAlignment(const Function *F) const;
   };
 
 } // namespace llvm
