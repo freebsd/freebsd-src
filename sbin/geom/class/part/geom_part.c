@@ -1208,8 +1208,11 @@ gpart_bootcode(struct gctl_req *req, unsigned int fl)
 			if (idx == 0)
 				errx(EXIT_FAILURE, "missing -i option");
 			gpart_write_partcode(gp, idx, partcode, partsize);
-		} else
+		} else {
+			if (partsize != VTOC_BOOTSIZE)
+				errx(EXIT_FAILURE, "invalid bootcode");
 			gpart_write_partcode_vtoc8(gp, idx, partcode);
+		}
 	} else
 		if (bootcode == NULL)
 			errx(EXIT_FAILURE, "no -b nor -p");
