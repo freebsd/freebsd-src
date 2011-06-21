@@ -343,22 +343,23 @@ acpi_parse_resource(ACPI_RESOURCE *res, void *context)
 	if (res->Data.Address.MinAddressFixed == ACPI_ADDRESS_FIXED &&
 	    res->Data.Address.MaxAddressFixed == ACPI_ADDRESS_FIXED) {
 	    if (res->Data.Address.ResourceType == ACPI_MEMORY_RANGE) {
-		ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES, "%s/Memory 0x%x/%d\n",
-		    name, min, length));
+		ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES, "%s/Memory 0x%jx/%ju\n",
+		    name, (uintmax_t)min, (uintmax_t)length));
 		set->set_memory(dev, arc->context, min, length);
 	    } else {
-		ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES, "%s/IO 0x%x/%d\n", name,
-		    min, length));
+		ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES, "%s/IO 0x%jx/%ju\n", name,
+		    (uintmax_t)min, (uintmax_t)length));
 		set->set_ioport(dev, arc->context, min, length);
 	    }
 	} else {
 	    if (res->Data.Address32.ResourceType == ACPI_MEMORY_RANGE) {
-		ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES, "%s/Memory 0x%x-0x%x/%d\n",
-		    name, min, max, length));
+		ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES,
+		    "%s/Memory 0x%jx-0x%jx/%ju\n", name, (uintmax_t)min,
+		    (uintmax_t)max, (uintmax_t)length));
 		set->set_memoryrange(dev, arc->context, min, max, length, gran);
 	    } else {
-		ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES, "%s/IO 0x%x-0x%x/%d\n",
-		    name, min, max, length));
+		ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES, "%s/IO 0x%jx-0x%jx/%ju\n",
+		    name, (uintmax_t)min, (uintmax_t)max, (uintmax_t)length));
 		set->set_iorange(dev, arc->context, min, max, length, gran);
 	    }
 	}		    
