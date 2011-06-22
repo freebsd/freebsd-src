@@ -551,6 +551,7 @@ vendor VTECH		0x0f88	VTech
 vendor FALCOM		0x0f94	Falcom Wireless Communications GmbH
 vendor RIM		0x0fca	Research In Motion
 vendor DYNASTREAM	0x0fcf	Dynastream Innovations
+vendor KONTRON		0x0fe6	Kontron AG
 vendor QUALCOMM		0x1004	Qualcomm
 vendor APACER		0x1005	Apacer
 vendor MOTOROLA4	0x100d	Motorola
@@ -2009,6 +2010,10 @@ product KODAK DC290		0x0112	Digital Science DC290
 product KODAK DC240		0x0120	Digital Science DC240
 product KODAK DC280		0x0130	Digital Science DC280
 
+/* Kontron AG products */
+product KONTRON DM9601		0x8101	USB Ethernet
+product KONTRON JP1082		0x9700	USB Ethernet
+
 /* Konica Corp. Products */
 product KONICA CAMERA		0x0720	Digital Color Camera
 
@@ -2858,6 +2863,7 @@ product SENAO RT3072_5		0x9801	RT3072
 /* ShanTou products */
 product SHANTOU ST268		0x0268	ST268
 product SHANTOU DM9601		0x9601	DM 9601
+product SHANTOU ADM8515		0x8515	ADM8515
 
 /* Shark products */
 product SHARK PA		0x0400	Pocket Adapter
