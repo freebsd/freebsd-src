@@ -37,12 +37,12 @@
 .\" $TSHeader: src/sbin/growfs/growfs.8,v 1.3 2000/12/12 19:31:00 tomsoft Exp $
 .\" $FreeBSD$
 .\"
-.Dd May 8, 2011
+.Dd June 22, 2011
 .Dt GROWFS 8
 .Os
 .Sh NAME
 .Nm growfs
-.Nd grow size of an existing UFS file system
+.Nd expand an existing UFS filesystem
 .Sh SYNOPSIS
 .Nm
 .Op Fl Ny
@@ -58,26 +58,26 @@ Before starting
 .Nm
 the disk must be labeled to a bigger size using
 .Xr bsdlabel 8 .
-If you wish to grow a file system beyond the boundary of
-the slice it resides in, you must re-size the slice using
-.Xr fdisk 8
+If you wish to grow a filesystem beyond the boundary of
+the slice it resides in, you must resize the slice using
+.Xr gpart 8
 before running
 .Nm .
 If you are using volumes you must enlarge them by using
-.Xr vinum 8 .
+.Xr gvinum 8 .
 The
 .Nm
-utility extends the size of the file system on the specified special file.
+utility extends the size of the filesystem on the specified special file.
 Currently
 .Nm
-can only enlarge unmounted file systems.
-Do not try enlarging a mounted file system, your system may panic and you will
-not be able to use the file system any longer.
+can only enlarge unmounted filesystems.
+Do not try enlarging a mounted filesystem, your system may panic and you will
+not be able to use the filesystem any longer.
 Most of the
 .Xr newfs 8
 options cannot be changed by
 .Nm .
-In fact, you can only increase the size of the file system.
+In fact, you can only increase the size of the filesystem.
 Use
 .Xr tunefs 8
 for other changes.
@@ -86,8 +86,8 @@ The following options are available:
 .Bl -tag -width indent
 .It Fl N
 .Dq Test mode .
-Causes the new file system parameters to be printed out without actually
-enlarging the file system.
+Causes the new filesystem parameters to be printed out without actually
+enlarging the filesystem.
 .It Fl y
 .Dq Expert mode .
 Usually
@@ -102,12 +102,12 @@ So use this option with great care!
 .It Fl s Ar size
 Determines the
 .Ar size
-of the file system after enlarging in sectors.
+of the filesystem after enlarging in sectors.
 This value defaults to the size of the raw partition specified in
 .Ar special
 (in other words,
 .Nm
-will enlarge the file system to the size of the entire partition).
+will enlarge the filesystem to the size of the entire partition).
 .El
 .Sh EXAMPLES
 .Dl growfs -s 4194304 /dev/vinum/testvol
@@ -119,12 +119,12 @@ up to 2GB if there is enough space in
 .Sh SEE ALSO
 .Xr bsdlabel 8 ,
 .Xr dumpfs 8 ,
-.Xr fdisk 8 ,
 .Xr ffsinfo 8 ,
 .Xr fsck 8 ,
+.Xr gpart 8 ,
 .Xr newfs 8 ,
 .Xr tunefs 8 ,
-.Xr vinum 8
+.Xr gvinum 8
 .Sh HISTORY
 The
 .Nm
@@ -144,12 +144,12 @@ There may be cases on
 .Fx
 3.x only, when
 .Nm
-does not recognize properly whether or not the file system is mounted and
+does not recognize properly whether or not the filesystem is mounted and
 exits with an error message.
 Then please use
 .Nm
 .Fl y
-if you are sure that the file system is not mounted.
+if you are sure that the filesystem is not mounted.
 It is also recommended to always use
 .Xr fsck 8
 after enlarging (just to be on the safe side).
@@ -183,8 +183,8 @@ on the first cylinder group to verify that
 in the CYLINDER SUMMARY (internal cs) of the CYLINDER GROUP
 .Em cgr0
 has enough blocks.
-As a rule of thumb for default file system parameters one block is needed for
-every 2 GB of total file system size.
+As a rule of thumb for default filesystem parameters one block is needed for
+every 2 GB of total filesystem size.
 .Pp
 Normally
 .Nm
