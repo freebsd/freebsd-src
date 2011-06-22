@@ -562,7 +562,7 @@ msk_miibus_statchg(device_t dev)
 		msk_phy_writereg(sc_if, PHY_ADDR_MARV, PHY_MARV_INT_MASK, 0);
 		/* Disable Rx/Tx MAC. */
 		gmac = GMAC_READ_2(sc, sc_if->msk_port, GM_GP_CTRL);
-		if ((GM_GPCR_RX_ENA | GM_GPCR_TX_ENA) != 0) {
+		if ((gmac & (GM_GPCR_RX_ENA | GM_GPCR_TX_ENA)) != 0) {
 			gmac &= ~(GM_GPCR_RX_ENA | GM_GPCR_TX_ENA);
 			GMAC_WRITE_2(sc, sc_if->msk_port, GM_GP_CTRL, gmac);
 			/* Read again to ensure writing. */
@@ -1030,7 +1030,10 @@ msk_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				}
 			}
 			ifp->if_mtu = ifr->ifr_mtu;
-			msk_init_locked(sc_if);
+			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
+				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+				msk_init_locked(sc_if);
+			}
 		}
 		MSK_IF_UNLOCK(sc_if);
 		break;
@@ -1212,37 +1215,30 @@ msk_phy_power(struct msk_softc *sc, int mode)
 		 */
 		CSR_WRITE_1(sc, B2_Y2_CLK_GATE, val);
 
-		val = CSR_PCI_READ_4(sc, PCI_OUR_REG_1);
-		val &= ~(PCI_Y2_PHY1_POWD | PCI_Y2_PHY2_POWD);
+		our = CSR_PCI_READ_4(sc, PCI_OUR_REG_1);
+		our &= ~(PCI_Y2_PHY1_POWD | PCI_Y2_PHY2_POWD);
 		if (sc->msk_hw_id == CHIP_ID_YUKON_XL) {
 			if (sc->msk_hw_rev > CHIP_REV_YU_XL_A1) {
 				/* Deassert Low Power for 1st PHY. */
-				val |= PCI_Y2_PHY1_COMA;
+				our |= PCI_Y2_PHY1_COMA;
 				if (sc->msk_num_port > 1)
-					val |= PCI_Y2_PHY2_COMA;
+					our |= PCI_Y2_PHY2_COMA;
 			}
 		}
-		/* Release PHY from PowerDown/COMA mode. */
-		CSR_PCI_WRITE_4(sc, PCI_OUR_REG_1, val);
-		switch (sc->msk_hw_id) {
-		case CHIP_ID_YUKON_EC_U:
-		case CHIP_ID_YUKON_EX:
-		case CHIP_ID_YUKON_FE_P:
-		case CHIP_ID_YUKON_UL_2:
-		case CHIP_ID_YUKON_OPT:
-			CSR_WRITE_2(sc, B0_CTST, Y2_HW_WOL_OFF);
-
-			/* Enable all clocks. */
-			CSR_PCI_WRITE_4(sc, PCI_OUR_REG_3, 0);
-			our = CSR_PCI_READ_4(sc, PCI_OUR_REG_4);
-			our &= (PCI_FORCE_ASPM_REQUEST|PCI_ASPM_GPHY_LINK_DOWN|
-			    PCI_ASPM_INT_FIFO_EMPTY|PCI_ASPM_CLKRUN_REQUEST);
+		if (sc->msk_hw_id == CHIP_ID_YUKON_EC_U ||
+		    sc->msk_hw_id == CHIP_ID_YUKON_EX ||
+		    sc->msk_hw_id >= CHIP_ID_YUKON_FE_P) {
+			val = CSR_PCI_READ_4(sc, PCI_OUR_REG_4);
+			val &= (PCI_FORCE_ASPM_REQUEST |
+			    PCI_ASPM_GPHY_LINK_DOWN | PCI_ASPM_INT_FIFO_EMPTY |
+			    PCI_ASPM_CLKRUN_REQUEST);
 			/* Set all bits to 0 except bits 15..12. */
-			CSR_PCI_WRITE_4(sc, PCI_OUR_REG_4, our);
-			our = CSR_PCI_READ_4(sc, PCI_OUR_REG_5);
-			our &= PCI_CTL_TIM_VMAIN_AV_MSK;
-			CSR_PCI_WRITE_4(sc, PCI_OUR_REG_5, our);
+			CSR_PCI_WRITE_4(sc, PCI_OUR_REG_4, val);
+			val = CSR_PCI_READ_4(sc, PCI_OUR_REG_5);
+			val &= PCI_CTL_TIM_VMAIN_AV_MSK;
+			CSR_PCI_WRITE_4(sc, PCI_OUR_REG_5, val);
 			CSR_PCI_WRITE_4(sc, PCI_CFG_REG_1, 0);
+			CSR_WRITE_2(sc, B0_CTST, Y2_HW_WOL_ON);
 			/*
 			 * Disable status race, workaround for
 			 * Yukon EC Ultra & Yukon EX.
@@ -1251,10 +1247,10 @@ msk_phy_power(struct msk_softc *sc, int mode)
 			val |= GLB_GPIO_STAT_RACE_DIS;
 			CSR_WRITE_4(sc, B2_GP_IO, val);
 			CSR_READ_4(sc, B2_GP_IO);
-			break;
-		default:
-			break;
 		}
+		/* Release PHY from PowerDown/COMA mode. */
+		CSR_PCI_WRITE_4(sc, PCI_OUR_REG_1, our);
+
 		for (i = 0; i < sc->msk_num_port; i++) {
 			CSR_WRITE_2(sc, MR_ADDR(i, GMAC_LINK_CTRL),
 			    GMLC_RST_SET);
@@ -1300,28 +1296,33 @@ mskc_reset(struct msk_softc *sc)
 	bus_addr_t addr;
 	uint16_t status;
 	uint32_t val;
-	int i;
-
-	CSR_WRITE_2(sc, B0_CTST, CS_RST_CLR);
+	int i, initram;
 
 	/* Disable ASF. */
-	if (sc->msk_hw_id == CHIP_ID_YUKON_EX) {
-		status = CSR_READ_2(sc, B28_Y2_ASF_HCU_CCSR);
-		/* Clear AHB bridge & microcontroller reset. */
-		status &= ~(Y2_ASF_HCU_CCSR_AHB_RST |
-		    Y2_ASF_HCU_CCSR_CPU_RST_MODE);
-		/* Clear ASF microcontroller state. */
-		status &= ~ Y2_ASF_HCU_CCSR_UC_STATE_MSK;
-		CSR_WRITE_2(sc, B28_Y2_ASF_HCU_CCSR, status);
-	} else
-		CSR_WRITE_1(sc, B28_Y2_ASF_STAT_CMD, Y2_ASF_RESET);
-	CSR_WRITE_2(sc, B0_CTST, Y2_ASF_DISABLE);
-
-	/*
-	 * Since we disabled ASF, S/W reset is required for Power Management.
-	 */
-	CSR_WRITE_2(sc, B0_CTST, CS_RST_SET);
-	CSR_WRITE_2(sc, B0_CTST, CS_RST_CLR);
+	if (sc->msk_hw_id >= CHIP_ID_YUKON_XL &&
+	    sc->msk_hw_id <= CHIP_ID_YUKON_SUPR) {
+		if (sc->msk_hw_id == CHIP_ID_YUKON_EX ||
+		    sc->msk_hw_id == CHIP_ID_YUKON_SUPR) {
+			CSR_WRITE_4(sc, B28_Y2_CPU_WDOG, 0);
+			status = CSR_READ_2(sc, B28_Y2_ASF_HCU_CCSR);
+			/* Clear AHB bridge & microcontroller reset. */
+			status &= ~(Y2_ASF_HCU_CCSR_AHB_RST |
+			    Y2_ASF_HCU_CCSR_CPU_RST_MODE);
+			/* Clear ASF microcontroller state. */
+			status &= ~Y2_ASF_HCU_CCSR_UC_STATE_MSK;
+			status &= ~Y2_ASF_HCU_CCSR_CPU_CLK_DIVIDE_MSK;
+			CSR_WRITE_2(sc, B28_Y2_ASF_HCU_CCSR, status);
+			CSR_WRITE_4(sc, B28_Y2_CPU_WDOG, 0);
+		} else
+			CSR_WRITE_1(sc, B28_Y2_ASF_STAT_CMD, Y2_ASF_RESET);
+		CSR_WRITE_2(sc, B0_CTST, Y2_ASF_DISABLE);
+		/*
+		 * Since we disabled ASF, S/W reset is required for
+		 * Power Management.
+		 */
+		CSR_WRITE_2(sc, B0_CTST, CS_RST_SET);
+		CSR_WRITE_2(sc, B0_CTST, CS_RST_CLR);
+	}
 
 	/* Clear all error bits in the PCI status register. */
 	status = pci_read_config(sc->msk_dev, PCIR_STATUS, 2);
@@ -1362,8 +1363,8 @@ mskc_reset(struct msk_softc *sc)
 	/* Reset GPHY/GMAC Control */
 	for (i = 0; i < sc->msk_num_port; i++) {
 		/* GPHY Control reset. */
-		CSR_WRITE_4(sc, MR_ADDR(i, GPHY_CTRL), GPC_RST_SET);
-		CSR_WRITE_4(sc, MR_ADDR(i, GPHY_CTRL), GPC_RST_CLR);
+		CSR_WRITE_1(sc, MR_ADDR(i, GPHY_CTRL), GPC_RST_SET);
+		CSR_WRITE_1(sc, MR_ADDR(i, GPHY_CTRL), GPC_RST_CLR);
 		/* GMAC Control reset. */
 		CSR_WRITE_4(sc, MR_ADDR(i, GMAC_CTRL), GMC_RST_SET);
 		CSR_WRITE_4(sc, MR_ADDR(i, GMAC_CTRL), GMC_RST_CLR);
@@ -1396,8 +1397,14 @@ mskc_reset(struct msk_softc *sc)
 	CSR_WRITE_1(sc, GMAC_TI_ST_CTRL, GMT_ST_STOP);
 	CSR_WRITE_1(sc, GMAC_TI_ST_CTRL, GMT_ST_CLR_IRQ);
 
+	initram = 0;
+	if (sc->msk_hw_id == CHIP_ID_YUKON_XL ||
+	    sc->msk_hw_id == CHIP_ID_YUKON_EC ||
+	    sc->msk_hw_id == CHIP_ID_YUKON_FE)
+		initram++;
+
 	/* Configure timeout values. */
-	for (i = 0; i < sc->msk_num_port; i++) {
+	for (i = 0; initram > 0 && i < sc->msk_num_port; i++) {
 		CSR_WRITE_2(sc, SELECT_RAM_BUFFER(i, B3_RI_CTRL), RI_RST_SET);
 		CSR_WRITE_2(sc, SELECT_RAM_BUFFER(i, B3_RI_CTRL), RI_RST_CLR);
 		CSR_WRITE_1(sc, SELECT_RAM_BUFFER(i, B3_RI_WTO_R1),
@@ -1708,6 +1715,9 @@ mskc_attach(device_t dev)
 		}
 	}
 
+	/* Enable all clocks before accessing any registers. */
+	CSR_PCI_WRITE_4(sc, PCI_OUR_REG_3, 0);
+
 	CSR_WRITE_2(sc, B0_CTST, CS_RST_CLR);
 	sc->msk_hw_id = CSR_READ_1(sc, B2_CHIP_ID);
 	sc->msk_hw_rev = (CSR_READ_1(sc, B2_MAC_CFG) >> 4) & 0x0f;
@@ -1748,9 +1758,6 @@ mskc_attach(device_t dev)
 	resource_int_value(device_get_name(dev), device_get_unit(dev),
 	    "int_holdoff", &sc->msk_int_holdoff);
 
-	/* Soft reset. */
-	CSR_WRITE_2(sc, B0_CTST, CS_RST_SET);
-	CSR_WRITE_2(sc, B0_CTST, CS_RST_CLR);
 	sc->msk_pmd = CSR_READ_1(sc, B2_PMD_TYP);
 	/* Check number of MACs. */
 	sc->msk_num_port = 1;
@@ -2964,6 +2971,7 @@ mskc_resume(device_t dev)
 
 	MSK_LOCK(sc);
 
+	CSR_PCI_WRITE_4(sc, PCI_OUR_REG_3, 0);
 	mskc_reset(sc);
 	for (i = 0; i < sc->msk_num_port; i++) {
 		if (sc->msk_if[i] != NULL && sc->msk_if[i]->msk_ifp != NULL &&
@@ -3655,37 +3663,24 @@ msk_set_tx_stfwd(struct msk_if_softc *sc_if)
 
 	ifp = sc_if->msk_ifp;
 	sc = sc_if->msk_softc;
-	switch (sc->msk_hw_id) {
-	case CHIP_ID_YUKON_EX:
-		if (sc->msk_hw_rev == CHIP_REV_YU_EX_A0)
-			goto yukon_ex_workaround;
-		if (ifp->if_mtu > ETHERMTU)
-			CSR_WRITE_4(sc,
-			    MR_ADDR(sc_if->msk_port, TX_GMF_CTRL_T),
-			    TX_JUMBO_ENA | TX_STFW_ENA);
-		else
-			CSR_WRITE_4(sc,
-			    MR_ADDR(sc_if->msk_port, TX_GMF_CTRL_T),
-			    TX_JUMBO_DIS | TX_STFW_ENA);
-		break;
-	default:
-yukon_ex_workaround:
+	if ((sc->msk_hw_id == CHIP_ID_YUKON_EX &&
+	    sc->msk_hw_rev != CHIP_REV_YU_EX_A0) ||
+	    sc->msk_hw_id >= CHIP_ID_YUKON_SUPR) {
+		CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, TX_GMF_CTRL_T),
+		    TX_STFW_ENA);
+	} else {
 		if (ifp->if_mtu > ETHERMTU) {
 			/* Set Tx GMAC FIFO Almost Empty Threshold. */
 			CSR_WRITE_4(sc,
 			    MR_ADDR(sc_if->msk_port, TX_GMF_AE_THR),
 			    MSK_ECU_JUMBO_WM << 16 | MSK_ECU_AE_THR);
 			/* Disable Store & Forward mode for Tx. */
-			CSR_WRITE_4(sc,
-			    MR_ADDR(sc_if->msk_port, TX_GMF_CTRL_T),
-			    TX_JUMBO_ENA | TX_STFW_DIS);
+			CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, TX_GMF_CTRL_T),
+			    TX_STFW_DIS);
 		} else {
-			/* Enable Store & Forward mode for Tx. */
-			CSR_WRITE_4(sc,
-			    MR_ADDR(sc_if->msk_port, TX_GMF_CTRL_T),
-			    TX_JUMBO_DIS | TX_STFW_ENA);
+			CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, TX_GMF_CTRL_T),
+			    TX_STFW_ENA);
 		}
-		break;
 	}
 }
 
