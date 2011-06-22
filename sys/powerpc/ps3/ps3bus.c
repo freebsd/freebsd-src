@@ -631,7 +631,8 @@ ps3bus_get_dma_tag(device_t dev, device_t child)
 	struct ps3bus_softc *sc = device_get_softc(dev);
 	int i, err, flags;
 
-	if (dinfo->bustype != PS3_BUSTYPE_SYSBUS)
+	if (dinfo->bustype != PS3_BUSTYPE_SYSBUS &&
+	    dinfo->bustype != PS3_BUSTYPE_STORAGE)
 		return (bus_get_dma_tag(dev));
 
 	mtx_lock(&dinfo->iommu_mtx);
@@ -671,7 +672,15 @@ ps3bus_get_dma_tag(device_t dev, device_t child)
 	    NULL, NULL, BUS_SPACE_MAXSIZE, 0, BUS_SPACE_MAXSIZE,
 	    0, NULL, NULL, &dinfo->dma_tag);
 
-	bus_dma_tag_set_iommu(dinfo->dma_tag, dev, dinfo);
+	/*
+	 * Note: storage devices have IOMMU mappings set up by the hypervisor,
+	 * but use physical, non-translated addresses. The above IOMMU
+	 * initialization is necessary for the hypervisor to be able to set up
+	 * the mappings, but actual DMA mappings should not use the IOMMU
+	 * routines.
+	 */
+	if (dinfo->bustype != PS3_BUSTYPE_STORAGE)
+		bus_dma_tag_set_iommu(dinfo->dma_tag, dev, dinfo);
 
 fail:
 	mtx_unlock(&dinfo->iommu_mtx);
