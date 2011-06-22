@@ -135,7 +135,7 @@ static void
 legacy_pcib_identify(driver_t *driver, device_t parent)
 {
 	int bus, slot, func;
-	u_int8_t  hdrtype;
+	uint8_t  hdrtype;
 	int found = 0;
 	int pcifunchigh;
 	int found824xx = 0;
@@ -178,8 +178,8 @@ legacy_pcib_identify(driver_t *driver, device_t parent)
 			/*
 			 * Read the IDs and class from the device.
 			 */
-			u_int32_t id;
-			u_int8_t class, subclass, busnum;
+			uint32_t id;
+			uint8_t class, subclass, busnum;
 			const char *s;
 			device_t *devs;
 			int ndevs, i;

@@ -62,7 +62,7 @@ legacy_pcib_maxslots(device_t dev)
 
 /* read configuration space register */
 
-u_int32_t
+uint32_t
 legacy_pcib_read_config(device_t dev, u_int bus, u_int slot, u_int func,
 			u_int reg, int bytes)
 {
@@ -73,7 +73,7 @@ legacy_pcib_read_config(device_t dev, u_int bus, u_int slot, u_int func,
 
 void
 legacy_pcib_write_config(device_t dev, u_int bus, u_int slot, u_int func,
-			 u_int reg, u_int32_t data, int bytes)
+			 u_int reg, uint32_t data, int bytes)
 {
 	pci_cfgregwrite(bus, slot, func, reg, data, bytes);
 }
@@ -342,7 +342,7 @@ static void
 legacy_pcib_identify(driver_t *driver, device_t parent)
 {
 	int bus, slot, func;
-	u_int8_t  hdrtype;
+	uint8_t  hdrtype;
 	int found = 0;
 	int pcifunchigh;
 	int found824xx = 0;
@@ -385,8 +385,8 @@ legacy_pcib_identify(driver_t *driver, device_t parent)
 			/*
 			 * Read the IDs and class from the device.
 			 */
-			u_int32_t id;
-			u_int8_t class, subclass, busnum;
+			uint32_t id;
+			uint8_t class, subclass, busnum;
 			const char *s;
 			device_t *devs;
 			int ndevs, i;
