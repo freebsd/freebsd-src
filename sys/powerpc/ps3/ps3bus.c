@@ -631,8 +631,7 @@ ps3bus_get_dma_tag(device_t dev, device_t child)
 	struct ps3bus_softc *sc = device_get_softc(dev);
 	int i, err, flags;
 
-	if (dinfo->bustype != PS3_BUSTYPE_SYSBUS &&
-	    dinfo->bustype != PS3_BUSTYPE_STORAGE)
+	if (dinfo->bustype != PS3_BUSTYPE_SYSBUS)
 		return (bus_get_dma_tag(dev));
 
 	mtx_lock(&dinfo->iommu_mtx);
