@@ -782,6 +782,7 @@ umass_probe_proto(device_t dev, struct usb_attach_arg *uaa)
 	uint32_t proto = umass_get_proto(uaa->iface);
 
 	memset(&ret, 0, sizeof(ret));
+	ret.error = BUS_PROBE_GENERIC;
 
 	/* Search for protocol enforcement */
 
@@ -868,10 +869,6 @@ umass_probe(device_t dev)
 	struct umass_probe_proto temp;
 
 	if (uaa->usb_mode != USB_MODE_HOST) {
-		return (ENXIO);
-	}
-	if (uaa->use_generic == 0) {
-		/* give other drivers a try first */
 		return (ENXIO);
 	}
 	temp = umass_probe_proto(dev, uaa);
