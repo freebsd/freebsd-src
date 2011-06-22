@@ -2440,12 +2440,13 @@ scsi_dev_advinfo(union ccb *start_ccb)
 	struct ccb_dev_advinfo *cdai;
 	off_t amt;
 
+	start_ccb->ccb_h.status = CAM_REQ_INVALID;
 	device = start_ccb->ccb_h.path->device;
 	cdai = &start_ccb->cdai;
 	switch(cdai->buftype) {
 	case CDAI_TYPE_SCSI_DEVID:
 		if (cdai->flags & CDAI_FLAG_STORE)
-			break;
+			return;
 		cdai->provsiz = device->device_id_len;
 		if (device->device_id_len == 0)
 			break;
@@ -2456,7 +2457,7 @@ scsi_dev_advinfo(union ccb *start_ccb)
 		break;
 	case CDAI_TYPE_SERIAL_NUM:
 		if (cdai->flags & CDAI_FLAG_STORE)
-			break;
+			return;
 		cdai->provsiz = device->serial_num_len;
 		if (device->serial_num_len == 0)
 			break;
@@ -2490,7 +2491,7 @@ scsi_dev_advinfo(union ccb *start_ccb)
 		}
 		break;
 	default:
-		break;
+		return;
 	}
 	start_ccb->ccb_h.status = CAM_REQ_CMP;
 
