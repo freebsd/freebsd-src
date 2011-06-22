@@ -32,7 +32,7 @@
 .\"	@(#)tftpd.8	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd September 14, 2000
+.Dd June 22, 2011
 .Dt TFTPD 8
 .Os
 .Sh NAME
@@ -150,9 +150,27 @@ compatible format string for the creation of the suffix if
 .Fl W
 is specified.
 By default the string "%Y%m%d" is used.
-.It Fl d
+.It Fl d, d Ar [value]
 Enables debug output.
-If specified twice, it will log DATA and ACK packets too.
+If
+.Ar value
+is not specified, then the debug level is increased by one
+for each instance of
+.Fl d
+which is specified.
+.Pp
+If
+.Ar value
+is specified, then the debug level is set to 
+.Ar value .
+The debug level is a bitmask implemented in 
+.Pa src/libexec/tftpd/tftp-utils.h .
+Valid values are 0 (DEBUG_NONE), 1 (DEBUG_PACKETS), 2, (DEBUG_SIMPLE),
+4 (DEBUG_OPTIONS), and 8 (DEBUG_ACCESS).  Multiple debug values can be combined
+in the bitmask by logically OR'ing the values.  For example, specifying
+.Fl d
+.Ar 15
+will enable all the debug values.
 .It Fl l
 Log all requests using
 .Xr syslog 3
