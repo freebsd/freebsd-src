@@ -58,6 +58,7 @@
 
 #define	USB_HUB_MAX_DEPTH	5
 #define	USB_EP0_BUFSIZE		1024	/* bytes */
+#define	USB_CS_RESET_LIMIT	20	/* failures = 20 * 50 ms = 1sec */
 
 typedef uint32_t usb_timeout_t;		/* milliseconds */
 typedef uint32_t usb_frlength_t;	/* bytes */
