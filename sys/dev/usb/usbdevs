@@ -1536,6 +1536,7 @@ product EPSON 2480		0x0121	Perfection 2480 scanner
 product EPSON 3590		0x0122	Perfection 3590 scanner
 product EPSON 4990		0x012a	Perfection 4990 Photo scanner
 product EPSON CRESSI_EDY	0x0521	Cressi Edy diving computer
+product EPSON N2ITION3		0x0522	Zeagle N2iTion3 diving computer
 product EPSON STYLUS_875DC	0x0601	Stylus Photo 875DC Card Reader
 product EPSON STYLUS_895	0x0602	Stylus Photo 895 Card Reader
 product EPSON CX5400		0x0808	CX5400 scanner
