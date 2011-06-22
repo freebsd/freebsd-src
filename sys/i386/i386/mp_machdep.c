@@ -288,8 +288,11 @@ topo_probe_0x4(void)
 	 * logical processors that belong to the same core
 	 * as BSP thus deducing number of threads per core.
 	 */
-	cpuid_count(0x04, 0, p);
-	max_cores = ((p[0] >> 26) & 0x3f) + 1;
+	if (cpu_high >= 0x4) {
+		cpuid_count(0x04, 0, p);
+		max_cores = ((p[0] >> 26) & 0x3f) + 1;
+	} else
+		max_cores = 1;
 	core_id_bits = mask_width(max_logical/max_cores);
 	if (core_id_bits < 0)
 		return;
