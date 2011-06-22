@@ -235,12 +235,34 @@ option.
 .Xr services 5 ,
 .Xr syslog.conf 5 ,
 .Xr inetd 8
+.Pp
+The following RFC's are supported:
 .Rs
-.%A K. R. Sollins
+RFC 1350
 .%T The TFTP Protocol (Revision 2)
-.%D July 1992
-.%O RFC 1350, STD 33
 .Re
+.Rs
+RFC 2347
+.%T TFTP Option Extension
+.Re
+.Rs
+RFC 2348
+.%T TFTP Blocksize Option
+.Re
+.Rs
+RFC 2349
+.%T TFTP Timeout Interval and Transfer Size Options
+.Re
+.Pp
+The non-standard
+.Cm rollover
+and
+.Cm blksize2
+TFTP options are mentioned here:
+.Rs
+.%T Extending TFTP
+.%U http://www.compuphase.com/tftp.htm
+.Re 
 .Sh HISTORY
 The
 .Nm
