@@ -28,7 +28,7 @@
 .\"     @(#)tftp.1	8.2 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd October 1, 2003
+.Dd June 22, 2011
 .Dt TFTP 1
 .Os
 .Sh NAME
@@ -70,6 +70,21 @@ Shorthand for "mode ascii"
 .It Cm binary
 Shorthand for "mode binary"
 .Pp
+.It Cm blocksize Ar [size]
+Sets the TFTP blksize option in TFTP Read Request or Write Request packets
+to
+.Ar [size]
+as specified in RFC 2348.  Valid values are between 8 and 65464.
+If no blocksize is specified, then by default a blocksize of 512 bytes
+will be used.
+.Pp
+.It Cm blocksize2 Ar [size]
+Sets the TFTP blksize2 option in TFTP Read Request or Write Request packets
+to
+.Ar [size] .
+Values are restricted to powers of 2 between 8 and 32768.  This is a
+non-standard TFTP option. 
+.Pp
 .It Cm connect Ar host Op Ar port
 Set the
 .Ar host
@@ -92,6 +107,14 @@ command; the remote host can be specified as part of the
 or
 .Cm put
 commands.
+.Pp
+.It Cm debug Ar level
+Enable or disable debugging levels during verbose output.  The value of 
+.Ar level
+can be one of
+.Cm packet, simple, options,
+or
+.Cm access.
 .Pp
 .It Cm get Oo Ar host : Oc Ns Ar file Op Ar localname
 .It Cm get Xo
@@ -130,6 +153,11 @@ or
 The default is
 .Em ascii .
 .Pp
+.It Cm packetdrop [arg]
+Randomly drop
+.Ar arg
+out of 100 packets during a transfer.  This is a debugging feature.
+.Pp
 .It Cm put Ar file Op Oo Ar host : Oc Ns Ar remotename
 .It Cm put Ar file1 file2 ... fileN Op Oo Ar host : Oc Ns Ar remote-directory
 Put a file or set of files to the remote host.
@@ -149,6 +177,17 @@ see the example under the
 .Cm get
 command.
 .Pp
+.It Cm options Ar [arg]
+Enable or disable support for TFTP options.  The valid values of
+.Ar arg
+are
+.Cm on
+(enable RFC 2347 options),
+.Cm off
+(disable RFC 2347 options), and
+.Cm extra
+(toggle support for non-RFC defined options).   
+.Pp
 .It Cm quit
 Exit
 .Nm .
@@ -156,6 +195,15 @@ An end of file also exits.
 .Pp
 .It Cm rexmt Ar retransmission-timeout
 Set the per-packet retransmission timeout, in seconds.
+.Pp
+.It Cm rollover [arg]
+Specify the rollover option in TFTP Read Request or Write
+Request packets.  After 65535 packets have been transmitted, set the block
+counter to
+.Ar arg .
+Valid values of
+.Ar arg
+are 0 and 1.  This is a non-standard TFTP option.
 .Pp
 .It Cm status
 Show current status.
