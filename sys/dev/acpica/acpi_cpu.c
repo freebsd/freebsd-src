@@ -856,6 +856,8 @@ acpi_cpu_cx_list(struct acpi_cpu_softc *sc)
 	sbuf_printf(&sb, "C%d/%d ", i + 1, sc->cpu_cx_states[i].trans_lat);
 	if (sc->cpu_cx_states[i].type < ACPI_STATE_C3)
 	    sc->cpu_non_c3 = i;
+	else
+	    cpu_can_deep_sleep = 1;
     }
     sbuf_trim(&sb);
     sbuf_finish(&sb);

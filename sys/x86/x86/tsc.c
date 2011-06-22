@@ -444,6 +444,19 @@ init_TSC_tc(void)
 		goto init;
 	}
 
+	/*
+	 * We cannot use the TSC if it stops incrementing in deep sleep.
+	 * Currently only Intel CPUs are known for this problem unless
+	 * the invariant TSC bit is set.
+	 */
+	if (cpu_can_deep_sleep && cpu_vendor_id == CPU_VENDOR_INTEL &&
+	    (amd_pminfo & AMDPM_TSC_INVARIANT) == 0) {
+		tsc_timecounter.tc_quality = -1000;
+		if (bootverbose)
+			printf("TSC timecounter disabled: C3 enabled.\n");
+		goto init;
+	}
+
 #ifdef SMP
 	/*
 	 * We can not use the TSC in SMP mode unless the TSCs on all CPUs are
