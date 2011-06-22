@@ -199,7 +199,6 @@ i386/linux/linux_support.s	optional compat_linux	\
 	dependency 	"linux_assym.h"
 i386/linux/linux_sysent.c	optional compat_linux
 i386/linux/linux_sysvec.c	optional compat_linux
-i386/pci/pci_bus.c		optional pci
 i386/pci/pci_cfgreg.c		optional pci
 i386/pci/pci_pir.c		optional pci
 i386/svr4/svr4_locore.s		optional compat_svr4	\
@@ -249,6 +248,7 @@ pc98/pc98/pc98_machdep.c	standard
 x86/isa/atpic.c			optional atpic	
 x86/isa/clock.c			standard
 x86/isa/isa.c			optional isa
+x86/pci/pci_bus.c		optional pci
 x86/x86/busdma_machdep.c	standard
 x86/x86/dump_machdep.c		standard
 x86/x86/io_apic.c		optional apic
