@@ -785,8 +785,9 @@ ipfw_config_nat(int ac, char **av)
 			len += estimate_redir_port(&ac1, &av1);
 			av1 += 2; ac1 -= 2;
 			/* Skip optional remoteIP/port */
-			if (ac1 != 0 && isdigit(**av1))
+			if (ac1 != 0 && isdigit(**av1)) {
 				av1++; ac1--;
+			}
 			break;
 		case TOK_REDIR_PROTO:
 			if (ac1 < 2)
@@ -795,10 +796,12 @@ ipfw_config_nat(int ac, char **av)
 			len += sizeof(struct cfg_redir);
 			av1 += 2; ac1 -= 2;
 			/* Skip optional remoteIP/port */
-			if (ac1 != 0 && isdigit(**av1))
+			if (ac1 != 0 && isdigit(**av1)) {
 				av1++; ac1--;
-			if (ac1 != 0 && isdigit(**av1))
+			}
+			if (ac1 != 0 && isdigit(**av1)) {
 				av1++; ac1--;
+			}
 			break;
 		default:
 			errx(EX_DATAERR, "unrecognised option ``%s''", av1[-1]);
