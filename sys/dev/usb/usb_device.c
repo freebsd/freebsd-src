@@ -1334,7 +1334,6 @@ usb_probe_and_attach(struct usb_device *udev, uint8_t iface_index)
 		uaa.info.bIfaceIndex = i;
 		uaa.info.bIfaceNum =
 		    iface->idesc->bInterfaceNumber;
-		uaa.use_generic = 0;
 		uaa.driver_info = 0;	/* reset driver_info */
 
 		DPRINTFN(2, "iclass=%u/%u/%u iindex=%u/%u\n",
@@ -1343,16 +1342,6 @@ usb_probe_and_attach(struct usb_device *udev, uint8_t iface_index)
 		    uaa.info.bInterfaceProtocol,
 		    uaa.info.bIfaceIndex,
 		    uaa.info.bIfaceNum);
-
-		/* try specific interface drivers first */
-
-		if (usb_probe_and_attach_sub(udev, &uaa)) {
-			/* ignore */
-		}
-		/* try generic interface drivers last */
-
-		uaa.use_generic = 1;
-		uaa.driver_info = 0;	/* reset driver_info */
 
 		if (usb_probe_and_attach_sub(udev, &uaa)) {
 			/* ignore */
