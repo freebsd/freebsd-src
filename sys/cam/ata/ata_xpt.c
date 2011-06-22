@@ -1601,6 +1601,34 @@ ata_device_transport(struct cam_path *path)
 }
 
 static void
+ata_dev_advinfo(union ccb *start_ccb)
+{
+	struct cam_ed *device;
+	struct ccb_dev_advinfo *cdai;
+	off_t amt; 
+
+	start_ccb->ccb_h.status = CAM_REQ_INVALID;
+	device = start_ccb->ccb_h.path->device;
+	cdai = &start_ccb->cdai;
+	switch(cdai->buftype) {
+	case CDAI_TYPE_SERIAL_NUM:
+		if (cdai->flags & CDAI_FLAG_STORE)
+			break;
+		start_ccb->ccb_h.status = CAM_REQ_CMP;
+		cdai->provsiz = device->serial_num_len;
+		if (device->serial_num_len == 0)
+			break;
+		amt = device->serial_num_len;
+		if (cdai->provsiz > cdai->bufsiz)
+			amt = cdai->bufsiz;
+		memcpy(cdai->buf, device->serial_num, amt);
+		break;
+	default:
+		break;
+	}
+}
+
+static void
 ata_action(union ccb *start_ccb)
 {
 
@@ -1651,6 +1679,11 @@ ata_action(union ccb *start_ccb)
 			break;
 		}
 		/* FALLTHROUGH */
+	}
+	case XPT_DEV_ADVINFO:
+	{
+		ata_dev_advinfo(start_ccb);
+		break;
 	}
 	default:
 		xpt_action_default(start_ccb);
