@@ -47,7 +47,9 @@ extern void ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni,
     struct ath_txq *txq, struct ath_buf *bf, struct mbuf *m0);
 extern void ath_tx_tid_init(struct ath_softc *sc, struct ath_node *an);
 extern void ath_tx_tid_cleanup(struct ath_softc *sc, struct ath_node *an);
-extern void ath_tx_tid_hw_queue(struct ath_softc *sc, struct ath_node *an,
+extern void ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an,
+    int tid);
+extern void ath_tx_tid_hw_queue_norm(struct ath_softc *sc, struct ath_node *an,
     int tid);
 extern void ath_tx_hw_queue(struct ath_softc *sc, struct ath_node *an);
 extern void ath_txq_sched(struct ath_softc *sc);

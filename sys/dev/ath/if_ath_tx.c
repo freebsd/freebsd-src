@@ -939,6 +939,12 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	ismcast = IEEE80211_IS_MULTICAST(wh->i_addr1);
 
 	/* A-MPDU TX */
+	/*
+	 * XXX This doesn't hold the node lock!
+	 * XXX So it's possible that another TX process can change
+	 * XXX the AMPDU status from underneath us. This needs to be
+	 * XXX further investigated!
+	 */
 	is_ampdu_tx = ath_tx_ampdu_running(sc, ATH_NODE(ni), tid);
 	is_ampdu_pending = ath_tx_ampdu_pending(sc, ATH_NODE(ni), tid);
 	is_ampdu = is_ampdu_tx | is_ampdu_pending;
@@ -1646,15 +1652,90 @@ ath_tx_tid_cleanup(struct ath_softc *sc, struct ath_node *an)
 }
 
 /*
+ * Handle completion of aggregate frames.
+ */
+static void
+ath_tx_aggr_comp(struct ath_softc *sc, struct ath_buf *bf)
+{
+	/* Success? Complete */
+	ath_tx_default_comp(sc, bf);
+
+	/*
+	 * Not success and have retries left?
+	 *
+	 * Mark as retry, requeue at head of queue
+	 */
+
+	/*
+	 * Not success and out of retries?
+	 *
+	 * Need to wait for the hardware TXQ to finish draining,
+	 * then once we know what was successfully TXed and what
+	 * wasn't, we send a BAR to advance the pointer to that
+	 * place.
+	 */
+}
+
+/*
  * Schedule some packets from the given node/TID to the hardware.
  *
- * For non-aggregate packets, all packets can just be queued.
- * Aggregate destinations will end up having limitations on
- * what can actually be queued here (ie, not more than the
- * block-ack window.)
+ * This is the aggregate version.
  */
 void
-ath_tx_tid_hw_queue(struct ath_softc *sc, struct ath_node *an, int tid)
+ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an, int tid)
+{
+	struct ath_buf *bf;
+	struct ath_txq *txq;
+	struct ath_tid *atid = &an->an_tid[tid];
+
+	for (;;) {
+		ATH_TXQ_LOCK(atid);
+                bf = STAILQ_FIRST(&atid->axq_q);
+		if (bf == NULL) {
+			ATH_TXQ_UNLOCK(atid);
+			break;
+		}
+
+		/* XXX check if seqno is outside of BAW, if so don't queue it */
+
+		/*
+		 * XXX If the seqno is out of BAW, then we should pause this TID
+		 * XXX until a completion for this TID allows the BAW to be advanced.
+		 * XXX Otherwise it's possible that we'll simply keep getting called
+		 * XXX for this node/TID until some TX completion has occured
+		 * XXX and progress can be made.
+		 */
+		ATH_TXQ_REMOVE_HEAD(atid, bf_list);
+		ATH_TXQ_UNLOCK(atid);
+
+		/* Remove from queue */
+		ATH_NODE_LOCK(an);
+		an->an_qdepth--;
+		ATH_NODE_UNLOCK(an);
+
+		txq = bf->bf_state.bfs_txq;
+		/* Sanity check! */
+		if (tid != bf->bf_state.bfs_tid) {
+			device_printf(sc->sc_dev, "%s: bfs_tid %d !="
+			    " tid %d\n",
+			    __func__, bf->bf_state.bfs_tid, tid);
+		}
+
+		/* Set completion handler */
+		bf->bf_comp = ath_tx_aggr_comp;
+
+		/* Punt to hardware or software txq */
+		ath_tx_handoff(sc, txq, bf);
+	}
+}
+
+
+
+/*
+ * Schedule some packets from the given node/TID to the hardware.
+ */
+void
+ath_tx_tid_hw_queue_norm(struct ath_softc *sc, struct ath_node *an, int tid)
 {
 	struct ath_buf *bf;
 	struct ath_txq *txq;
@@ -1695,29 +1776,28 @@ void
 ath_tx_hw_queue(struct ath_softc *sc, struct ath_node *an)
 {
 	struct ath_tid *atid;
-	int i;
+	int tid;
 
 	/*
 	 * For now, just queue from all TIDs in order.
 	 * This is very likely absolutely wrong from a QoS
 	 * perspective but it'll do for now.
 	 */
-	for (i = 0; i < IEEE80211_TID_SIZE; i++) {
-		atid = &an->an_tid[i];
+	for (tid = 0; tid < IEEE80211_TID_SIZE; tid++) {
+		atid = &an->an_tid[tid];
 		ATH_NODE_LOCK(an);
-		if (ath_tx_ampdu_pending(sc, an, i)) {
+		if (ath_tx_ampdu_pending(sc, an, tid)) {
 			ATH_NODE_UNLOCK(an);
 			continue;
 		}
 		ATH_NODE_UNLOCK(an);
-		ath_tx_tid_hw_queue(sc, an, i);
+		if (ath_tx_ampdu_running(sc, an, tid))
+			ath_tx_tid_hw_queue_aggr(sc, an, tid);
+		else
+			ath_tx_tid_hw_queue_norm(sc, an, tid);
 	}
 }
 
-/*
- * XXX this needs to be atomic or ath_node locked
- * XXX This is currently serialised behind the ATH lock
- */
 static int
 ath_txq_node_qlen(struct ath_softc *sc, struct ath_node *an)
 {
@@ -1783,7 +1863,7 @@ ath_tx_ampdu_running(struct ath_softc *sc, struct ath_node *an, int tid)
 {
 	struct ieee80211_tx_ampdu *tap;
 
-	//ATH_NODE_LOCK_ASSERT(an);
+	ATH_NODE_LOCK_ASSERT(an);
 
 	tap = ath_tx_get_tx_tid(an, tid);
 	if (tap == NULL)
@@ -1802,7 +1882,7 @@ ath_tx_ampdu_pending(struct ath_softc *sc, struct ath_node *an, int tid)
 {
 	struct ieee80211_tx_ampdu *tap;
 
-	//ATH_NODE_LOCK_ASSERT(an);
+	ATH_NODE_LOCK_ASSERT(an);
 
 	tap = ath_tx_get_tx_tid(an, tid);
 	if (tap == NULL)
