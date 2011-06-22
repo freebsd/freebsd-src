@@ -523,7 +523,7 @@ xen_smp_intr_init_cpus(void *unused)
 void
 init_secondary(void)
 {
-	cpuset_t tcpuset, tallcpus;
+	cpuset_t tcpuset;
 	vm_offset_t addr;
 	int	gsel_tss;
 	
@@ -613,11 +613,6 @@ init_secondary(void)
 	if (hyperthreading_cpus > 1 &&
 	    PCPU_GET(apic_id) % hyperthreading_cpus != 0)
 		CPU_OR(&hyperthreading_cpus_mask, &tcpuset);
-
-	/* Build our map of 'other' CPUs. */
-	tallcpus = all_cpus;
-	CPU_NAND(&tallcpus, &tcpuset);
-	PCPU_SET(other_cpus, tallcpus);
 #if 0
 	if (bootverbose)
 		lapic_dump("AP");
@@ -731,7 +726,6 @@ assign_cpu_ids(void)
 int
 start_all_aps(void)
 {
-	cpuset_t tallcpus;
 	int x,apic_id, cpu;
 	struct pcpu *pc;
 	
@@ -788,11 +782,6 @@ start_all_aps(void)
 		CPU_SET(cpu, &all_cpus);	/* record AP in CPU map */
 	}
 	
-
-	/* build our map of 'other' CPUs */
-	tallcpus = all_cpus;
-	CPU_NAND(&tallcpus, PCPU_PTR(cpumask));
-	PCPU_SET(other_cpus, tallcpus);
 
 	pmap_invalidate_range(kernel_pmap, 0, NKPT * NBPDR - 1);
 	
@@ -1184,9 +1173,8 @@ ipi_all_but_self(u_int ipi)
 	 * of help in order to understand what is the source.
 	 * Set the mask of receiving CPUs for this purpose.
 	 */
-	sched_pin();
-	other_cpus = PCPU_GET(other_cpus);
-	sched_unpin();
+	other_cpus = all_cpus;
+	CPU_CLR(PCPU_GET(cpuid), &other_cpus);
 	if (ipi == IPI_STOP_HARD)
 		CPU_OR_ATOMIC(&ipi_nmi_pending, &other_cpus);
 

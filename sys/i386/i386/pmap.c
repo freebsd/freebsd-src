@@ -932,16 +932,18 @@ pmap_update_pde_invalidate(vm_offset_t va, pd_entry_t newpde)
 void
 pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 {
-	cpuset_t cpumask, other_cpus;
+	cpuset_t other_cpus;
+	u_int cpuid;
 
 	sched_pin();
 	if (pmap == kernel_pmap || !CPU_CMP(&pmap->pm_active, &all_cpus)) {
 		invlpg(va);
 		smp_invlpg(va);
 	} else {
-		cpumask = PCPU_GET(cpumask);
-		other_cpus = PCPU_GET(other_cpus);
-		if (CPU_OVERLAP(&pmap->pm_active, &cpumask))
+		cpuid = PCPU_GET(cpuid);
+		other_cpus = all_cpus;
+		CPU_CLR(cpuid, &other_cpus);
+		if (CPU_ISSET(cpuid, &pmap->pm_active))
 			invlpg(va);
 		CPU_AND(&other_cpus, &pmap->pm_active);
 		if (!CPU_EMPTY(&other_cpus))
@@ -953,8 +955,9 @@ pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 void
 pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 {
-	cpuset_t cpumask, other_cpus;
+	cpuset_t other_cpus;
 	vm_offset_t addr;
+	u_int cpuid;
 
 	sched_pin();
 	if (pmap == kernel_pmap || !CPU_CMP(&pmap->pm_active, &all_cpus)) {
@@ -962,9 +965,10 @@ pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 			invlpg(addr);
 		smp_invlpg_range(sva, eva);
 	} else {
-		cpumask = PCPU_GET(cpumask);
-		other_cpus = PCPU_GET(other_cpus);
-		if (CPU_OVERLAP(&pmap->pm_active, &cpumask))
+		cpuid = PCPU_GET(cpuid);
+		other_cpus = all_cpus;
+		CPU_CLR(cpuid, &other_cpus);
+		if (CPU_ISSET(cpuid, &pmap->pm_active))
 			for (addr = sva; addr < eva; addr += PAGE_SIZE)
 				invlpg(addr);
 		CPU_AND(&other_cpus, &pmap->pm_active);
@@ -977,16 +981,18 @@ pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 void
 pmap_invalidate_all(pmap_t pmap)
 {
-	cpuset_t cpumask, other_cpus;
+	cpuset_t other_cpus;
+	u_int cpuid;
 
 	sched_pin();
 	if (pmap == kernel_pmap || !CPU_CMP(&pmap->pm_active, &all_cpus)) {
 		invltlb();
 		smp_invltlb();
 	} else {
-		cpumask = PCPU_GET(cpumask);
-		other_cpus = PCPU_GET(other_cpus);
-		if (CPU_OVERLAP(&pmap->pm_active, &cpumask))
+		cpuid = PCPU_GET(cpuid);
+		other_cpus = all_cpus;
+		CPU_CLR(cpuid, &other_cpus);
+		if (CPU_ISSET(cpuid, &pmap->pm_active))
 			invltlb();
 		CPU_AND(&other_cpus, &pmap->pm_active);
 		if (!CPU_EMPTY(&other_cpus))
@@ -1055,12 +1061,8 @@ pmap_update_pde_teardown(void *arg)
 {
 	struct pde_action *act = arg;
 
-	sched_pin();
-	if (CPU_OVERLAP(&act->invalidate, PCPU_PTR(cpumask))) {
-		sched_unpin();
+	if (CPU_ISSET(PCPU_GET(cpuid), &act->invalidate))
 		pmap_update_pde_invalidate(act->va, act->newpde);
-	} else
-		sched_unpin();
 }
 
 /*
@@ -1079,7 +1081,8 @@ pmap_update_pde(pmap_t pmap, vm_offset_t va, pd_entry_t *pde, pd_entry_t newpde)
 
 	sched_pin();
 	cpumask = PCPU_GET(cpumask);
-	other_cpus = PCPU_GET(other_cpus);
+	other_cpus = all_cpus;
+	CPU_CLR(PCPU_GET(cpuid), &other_cpus);
 	if (pmap == kernel_pmap)
 		active = all_cpus;
 	else

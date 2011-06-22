@@ -813,7 +813,8 @@ pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 		smp_invlpg(va);
 	} else {
 		cpumask = PCPU_GET(cpumask);
-		other_cpus = PCPU_GET(other_cpus);
+		other_cpus = all_cpus;
+		CPU_CLR(PCPU_GET(cpuid), &other_cpus);
 		if (CPU_OVERLAP(&pmap->pm_active, &cpumask))
 			invlpg(va);
 		CPU_AND(&other_cpus, &pmap->pm_active);
@@ -840,7 +841,8 @@ pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 		smp_invlpg_range(sva, eva);
 	} else {
 		cpumask = PCPU_GET(cpumask);
-		other_cpus = PCPU_GET(other_cpus);
+		other_cpus = all_cpus;
+		CPU_CLR(PCPU_GET(cpuid), &other_cpus);
 		if (CPU_OVERLAP(&pmap->pm_active, &cpumask))
 			for (addr = sva; addr < eva; addr += PAGE_SIZE)
 				invlpg(addr);
@@ -865,7 +867,8 @@ pmap_invalidate_all(pmap_t pmap)
 		smp_invltlb();
 	} else {
 		cpumask = PCPU_GET(cpumask);
-		other_cpus = PCPU_GET(other_cpus);
+		other_cpus = all_cpus;
+		CPU_CLR(PCPU_GET(cpuid), &other_cpus);
 		if (CPU_OVERLAP(&pmap->pm_active, &cpumask))
 			invltlb();
 		CPU_AND(&other_cpus, &pmap->pm_active);
