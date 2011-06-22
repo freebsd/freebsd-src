@@ -404,7 +404,8 @@ main(int argc, char **argv)
 					continue;
 				if (j->jid > 0)
 					goto jail_create_done;
-				j->comparam = startcommands + 1;
+				j->comparam = startcommands;
+				j->comstring = NULL;
 			}
 			if (next_command(j))
 				continue;
@@ -447,7 +448,8 @@ main(int argc, char **argv)
 						    j->name);
 					goto jail_remove_done;
 				}
-				j->comparam = stopcommands + 1;
+				j->comparam = stopcommands;
+				j->comstring = NULL;
 			} else if ((j->flags & JF_FAILED) && j->jid > 0)
 				goto jail_remove_done;
 			if (next_command(j))
