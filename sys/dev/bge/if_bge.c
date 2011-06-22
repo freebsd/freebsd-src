@@ -2836,7 +2836,7 @@ bge_attach(device_t dev)
 		if (sc->bge_asicrev == BGE_ASICREV_BCM5719 &&
 		    sc->bge_chipid == BGE_CHIPID_BCM5719_A0) {
 			/* Jumbo frame on BCM5719 A0 does not work. */
-			sc->bge_flags &= ~BGE_FLAG_JUMBO_FRAME;
+			sc->bge_flags &= ~BGE_FLAG_JUMBO;
 		}
 		break;
 	case BGE_ASICREV_BCM5755:
