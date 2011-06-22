@@ -141,7 +141,7 @@ libusb10_handle_events_sub(struct libusb_context *ctx, struct timeval *tv)
 		err = LIBUSB_ERROR_IO;
 
 	if (err < 1) {
-		for (i = 0; i != nfds; i++) {
+		for (i = 0; i != (int)nfds; i++) {
 			if (ppdev[i] != NULL) {
 				CTX_UNLOCK(ctx);
 				libusb_unref_device(libusb_get_device(ppdev[i]));
@@ -150,7 +150,7 @@ libusb10_handle_events_sub(struct libusb_context *ctx, struct timeval *tv)
 		}
 		goto do_done;
 	}
-	for (i = 0; i != nfds; i++) {
+	for (i = 0; i != (int)nfds; i++) {
 		if (ppdev[i] != NULL) {
 			dev = libusb_get_device(ppdev[i]);
 
