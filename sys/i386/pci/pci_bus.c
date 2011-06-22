@@ -519,35 +519,45 @@ legacy_pcib_write_ivar(device_t dev, device_t child, int which,
 	return ENOENT;
 }
 
+/*
+ * Helper routine for x86 Host-PCI bridge driver resource allocation.
+ * This is used to adjust the start address of wildcard allocation
+ * requests to avoid low addresses that are known to be problematic.
+ *
+ * If no memory preference is given, use upper 32MB slot most BIOSes
+ * use for their memory window.  This is typically only used on older
+ * laptops that don't have PCI busses behind a PCI bridge, so assuming
+ * > 32MB is likely OK.
+ *	
+ * However, this can cause problems for other chipsets, so we make
+ * this tunable by hw.pci.host_mem_start.
+ */
 SYSCTL_DECL(_hw_pci);
 
-static unsigned long legacy_host_mem_start = 0x80000000;
-TUNABLE_ULONG("hw.pci.host_mem_start", &legacy_host_mem_start);
-SYSCTL_ULONG(_hw_pci, OID_AUTO, host_mem_start, CTLFLAG_RDTUN,
-    &legacy_host_mem_start, 0x80000000,
-    "Limit the host bridge memory to being above this address.  Must be\n\
-set at boot via a tunable.");
+static unsigned long host_mem_start = 0x80000000;
+TUNABLE_ULONG("hw.pci.host_mem_start", &host_mem_start);
+SYSCTL_ULONG(_hw_pci, OID_AUTO, host_mem_start, CTLFLAG_RDTUN, &host_mem_start,
+    0, "Limit the host bridge memory to being above this address.");
+
+u_long
+hostb_alloc_start(int type, u_long start, u_long end, u_long count)
+{
+
+	if (start + count - 1 != end) {
+		if (type == SYS_RES_MEMORY && start < host_mem_start)
+			start = host_mem_start;
+		if (type == SYS_RES_IOPORT && start < 0x1000)
+			start = 0x1000;
+	}
+	return (start);
+}
 
 struct resource *
 legacy_pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
     u_long start, u_long end, u_long count, u_int flags)
 {
-    /*
-     * If no memory preference is given, use upper 32MB slot most
-     * bioses use for their memory window.  Typically other bridges
-     * before us get in the way to assert their preferences on memory.
-     * Hardcoding like this sucks, so a more MD/MI way needs to be
-     * found to do it.  This is typically only used on older laptops
-     * that don't have pci busses behind pci bridge, so assuming > 32MB
-     * is liekly OK.
-     *
-     * However, this can cause problems for other chipsets, so we make
-     * this tunable by hw.pci.host_mem_start.
-     */
-    if (type == SYS_RES_MEMORY && start == 0UL && end == ~0UL)
-	start = legacy_host_mem_start;
-    if (type == SYS_RES_IOPORT && start == 0UL && end == ~0UL)
-	start = 0x1000;
+
+    start = hostb_alloc_start(type, start, end, count);
     return (bus_generic_alloc_resource(dev, child, type, rid, start, end,
 	count, flags));
 }
