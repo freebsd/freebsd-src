@@ -253,6 +253,7 @@ void	cpu_startprofclock(void);
 void	cpu_stopprofclock(void);
 void	cpu_idleclock(void);
 void	cpu_activeclock(void);
+extern int	cpu_can_deep_sleep;
 extern int	cpu_disable_deep_sleep;
 
 int	cr_cansee(struct ucred *u1, struct ucred *u2);

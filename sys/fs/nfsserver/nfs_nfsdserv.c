@@ -172,11 +172,12 @@ nfsrvd_getattr(struct nfsrv_descript *nd, int isdgram,
 	fhandle_t fh;
 	int at_root = 0, error = 0, supports_nfsv4acls;
 	struct nfsreferral *refp;
-	nfsattrbit_t attrbits;
+	nfsattrbit_t attrbits, tmpbits;
 	struct mount *mp;
 	struct vnode *tvp = NULL;
 	struct vattr va;
 	uint64_t mounted_on_fileno = 0;
+	accmode_t accmode;
 
 	if (nd->nd_repstat)
 		return (0);
@@ -197,11 +198,20 @@ nfsrvd_getattr(struct nfsrv_descript *nd, int isdgram,
 			vput(vp);
 			return (0);
 		}
-		if (!nd->nd_repstat)
-			nd->nd_repstat = nfsvno_accchk(vp,
-			    VREAD_ATTRIBUTES,
-			    nd->nd_cred, exp, p, NFSACCCHK_NOOVERRIDE,
-			    NFSACCCHK_VPISLOCKED, NULL);
+		if (nd->nd_repstat == 0) {
+			accmode = 0;
+			NFSSET_ATTRBIT(&tmpbits, &attrbits);
+			if (NFSISSET_ATTRBIT(&tmpbits, NFSATTRBIT_ACL)) {
+				NFSCLRBIT_ATTRBIT(&tmpbits, NFSATTRBIT_ACL);
+				accmode |= VREAD_ACL;
+			}
+			if (NFSNONZERO_ATTRBIT(&tmpbits))
+				accmode |= VREAD_ATTRIBUTES;
+			if (accmode != 0)
+				nd->nd_repstat = nfsvno_accchk(vp, accmode,
+				    nd->nd_cred, exp, p, NFSACCCHK_NOOVERRIDE,
+				    NFSACCCHK_VPISLOCKED, NULL);
+		}
 	}
 	if (!nd->nd_repstat)
 		nd->nd_repstat = nfsvno_getattr(vp, &nva, nd->nd_cred, p, 1);

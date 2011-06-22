@@ -357,32 +357,14 @@ acpi_pcib_map_msi(device_t pcib, device_t dev, int irq, uint64_t *addr,
 	return (PCIB_MAP_MSI(device_get_parent(bus), dev, irq, addr, data));
 }
 
-static u_long acpi_host_mem_start = 0x80000000;
-TUNABLE_ULONG("hw.acpi.host_mem_start", &acpi_host_mem_start);
-
 struct resource *
 acpi_pcib_acpi_alloc_resource(device_t dev, device_t child, int type, int *rid,
     u_long start, u_long end, u_long count, u_int flags)
 {
-    /*
-     * If no memory preference is given, use upper 32MB slot most
-     * bioses use for their memory window.  Typically other bridges
-     * before us get in the way to assert their preferences on memory.
-     * Hardcoding like this sucks, so a more MD/MI way needs to be
-     * found to do it.  This is typically only used on older laptops
-     * that don't have pci busses behind pci bridge, so assuming > 32MB
-     * is likely OK.
-     *
-     * PCI-PCI bridges may allocate smaller ranges for their windows,
-     * but the heuristics here should apply to those, so we allow
-     * several different end addresses.
-     */
-    if (type == SYS_RES_MEMORY && start == 0UL && (end == ~0UL ||
-	end == 0xffffffff))
-	start = acpi_host_mem_start;
-    if (type == SYS_RES_IOPORT && start == 0UL && (end == ~0UL ||
-	end == 0xffff || end == 0xffffffff))
-	start = 0x1000;
+
+#if defined(__i386__) || defined(__amd64__)
+    start = hostb_alloc_start(type, start, end, count);
+#endif
     return (bus_generic_alloc_resource(dev, child, type, rid, start, end,
 	count, flags));
 }
