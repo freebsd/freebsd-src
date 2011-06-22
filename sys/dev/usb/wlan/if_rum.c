@@ -207,7 +207,7 @@ static void		rum_init(void *);
 static void		rum_stop(struct rum_softc *);
 static void		rum_load_microcode(struct rum_softc *, const uint8_t *,
 			    size_t);
-static int		rum_prepare_beacon(struct rum_softc *,
+static void		rum_prepare_beacon(struct rum_softc *,
 			    struct ieee80211vap *);
 static int		rum_raw_xmit(struct ieee80211_node *, struct mbuf *,
 			    const struct ieee80211_bpf_params *);
@@ -2118,7 +2118,7 @@ rum_load_microcode(struct rum_softc *sc, const uint8_t *ucode, size_t size)
 	rum_pause(sc, hz / 8);
 }
 
-static int
+static void
 rum_prepare_beacon(struct rum_softc *sc, struct ieee80211vap *vap)
 {
 	struct ieee80211com *ic = vap->iv_ic;
@@ -2126,9 +2126,12 @@ rum_prepare_beacon(struct rum_softc *sc, struct ieee80211vap *vap)
 	struct rum_tx_desc desc;
 	struct mbuf *m0;
 
+	if (vap->iv_bss->ni_chan == IEEE80211_CHAN_ANYC)
+		return;
+
 	m0 = ieee80211_beacon_alloc(vap->iv_bss, &RUM_VAP(vap)->bo);
 	if (m0 == NULL) {
-		return ENOBUFS;
+		return;
 	}
 
 	tp = &vap->iv_txparms[ieee80211_chan2mode(ic->ic_bsschan)];
@@ -2143,8 +2146,6 @@ rum_prepare_beacon(struct rum_softc *sc, struct ieee80211vap *vap)
 	    m0->m_pkthdr.len);
 
 	m_freem(m0);
-
-	return 0;
 }
 
 static int
