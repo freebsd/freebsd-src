@@ -1018,7 +1018,7 @@ msk_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		if (ifr->ifr_mtu > MSK_JUMBO_MTU || ifr->ifr_mtu < ETHERMIN)
 			error = EINVAL;
 		else if (ifp->if_mtu != ifr->ifr_mtu) {
- 			if (ifr->ifr_mtu > ETHERMTU) {
+			if (ifr->ifr_mtu > ETHERMTU) {
 				if ((sc_if->msk_flags & MSK_FLAG_JUMBO) == 0) {
 					error = EINVAL;
 					MSK_IF_UNLOCK(sc_if);
@@ -1638,7 +1638,7 @@ msk_attach(device_t dev)
 		 * this workaround does not work so disable checksum offload
 		 * for VLAN interface.
 		 */
-        	ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_HWTSO;
+		ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_HWTSO;
 		/*
 		 * Enable Rx checksum offloading for VLAN taggedd frames
 		 * if controller support new descriptor format.
@@ -1923,7 +1923,8 @@ mskc_attach(device_t dev)
 			error = ENXIO;
 			goto fail;
 		}
-		mmd = malloc(sizeof(struct msk_mii_data), M_DEVBUF, M_WAITOK | M_ZERO);
+		mmd = malloc(sizeof(struct msk_mii_data), M_DEVBUF, M_WAITOK |
+		    M_ZERO);
 		if (mmd == NULL) {
 			device_printf(dev, "failed to allocate memory for "
 			    "ivars of PORT_B\n");
@@ -1932,9 +1933,9 @@ mskc_attach(device_t dev)
 		}
 		mmd->port = MSK_PORT_B;
 		mmd->pmd = sc->msk_pmd;
-	 	if (sc->msk_pmd == 'L' || sc->msk_pmd == 'S')
+		if (sc->msk_pmd == 'L' || sc->msk_pmd == 'S')
 			mmd->mii_flags |= MIIF_HAVEFIBER;
-	 	if (sc->msk_pmd == 'P')
+		if (sc->msk_pmd == 'P')
 			mmd->mii_flags |= MIIF_HAVEFIBER | MIIF_MACPRIV0;
 		device_set_ivars(sc->msk_devs[MSK_PORT_B], mmd);
 	}
@@ -3742,10 +3743,10 @@ msk_init_locked(struct msk_if_softc *sc_if)
 		ifp->if_capenable &= ~(IFCAP_TSO4 | IFCAP_TXCSUM);
 	}
 
- 	/* GMAC Control reset. */
- 	CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, GMAC_CTRL), GMC_RST_SET);
- 	CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, GMAC_CTRL), GMC_RST_CLR);
- 	CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, GMAC_CTRL), GMC_F_LOOPB_OFF);
+	/* GMAC Control reset. */
+	CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, GMAC_CTRL), GMC_RST_SET);
+	CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, GMAC_CTRL), GMC_RST_CLR);
+	CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, GMAC_CTRL), GMC_F_LOOPB_OFF);
 	if (sc->msk_hw_id == CHIP_ID_YUKON_EX ||
 	    sc->msk_hw_id == CHIP_ID_YUKON_SUPR)
 		CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, GMAC_CTRL),
@@ -3855,13 +3856,13 @@ msk_init_locked(struct msk_if_softc *sc_if)
 		msk_set_tx_stfwd(sc_if);
 	}
 
- 	if (sc->msk_hw_id == CHIP_ID_YUKON_FE_P &&
- 	    sc->msk_hw_rev == CHIP_REV_YU_FE_P_A0) {
- 		/* Disable dynamic watermark - from Linux. */
- 		reg = CSR_READ_4(sc, MR_ADDR(sc_if->msk_port, TX_GMF_EA));
- 		reg &= ~0x03;
- 		CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, TX_GMF_EA), reg);
- 	}
+	if (sc->msk_hw_id == CHIP_ID_YUKON_FE_P &&
+	    sc->msk_hw_rev == CHIP_REV_YU_FE_P_A0) {
+		/* Disable dynamic watermark - from Linux. */
+		reg = CSR_READ_4(sc, MR_ADDR(sc_if->msk_port, TX_GMF_EA));
+		reg &= ~0x03;
+		CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, TX_GMF_EA), reg);
+	}
 
 	/*
 	 * Disable Force Sync bit and Alloc bit in Tx RAM interface
