@@ -965,6 +965,12 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	if (is_ampdu_tx)
 		seqno = ath_tx_tid_seqno_assign(sc, ni, bf, m0);
 
+	/*
+	 * If needed, the sequence number has been assigned.
+	 * Squirrel it away somewhere easy to get to.
+	 */
+	bf->bf_state.bfs_seqno = M_SEQNO_GET(m0);
+
 #if 0
 	/* Is ampdu pending? fetch the seqno and print it out */
 	if (is_ampdu_pending)
