@@ -517,7 +517,7 @@ static void
 axe_ax88178_init(struct axe_softc *sc)
 {
 	struct usb_ether *ue;
-	int gpio0, phymode;
+	int gpio0, ledmode, phymode;
 	uint16_t eeprom, val;
 
 	ue = &sc->sc_ue;
@@ -531,9 +531,11 @@ axe_ax88178_init(struct axe_softc *sc)
 	if (eeprom == 0xffff) {
 		phymode = AXE_PHY_MODE_MARVELL;
 		gpio0 = 1;
+		ledmode = 0;
 	} else {
 		phymode = eeprom & 0x7f;
 		gpio0 = (eeprom & 0x80) ? 0 : 1;
+		ledmode = eeprom >> 8;
 	}
 
 	if (bootverbose)
@@ -551,9 +553,22 @@ axe_ax88178_init(struct axe_softc *sc)
 			AXE_GPIO_WRITE(AXE_GPIO0_EN | AXE_GPIO2_EN, hz / 4);
 			AXE_GPIO_WRITE(AXE_GPIO0_EN | AXE_GPIO2 | AXE_GPIO2_EN,
 			    hz / 32);
-		} else
+		} else {
 			AXE_GPIO_WRITE(AXE_GPIO_RELOAD_EEPROM | AXE_GPIO1 |
-			    AXE_GPIO1_EN, hz / 32);
+			    AXE_GPIO1_EN, hz / 3);
+			if (ledmode == 1) {
+				AXE_GPIO_WRITE(AXE_GPIO1_EN, hz / 3);
+				AXE_GPIO_WRITE(AXE_GPIO1 | AXE_GPIO1_EN,
+				    hz / 3);
+			} else {
+				AXE_GPIO_WRITE(AXE_GPIO1 | AXE_GPIO1_EN |
+				    AXE_GPIO2 | AXE_GPIO2_EN, hz / 32);
+				AXE_GPIO_WRITE(AXE_GPIO1 | AXE_GPIO1_EN |
+				    AXE_GPIO2_EN, hz / 4);
+				AXE_GPIO_WRITE(AXE_GPIO1 | AXE_GPIO1_EN |
+				    AXE_GPIO2 | AXE_GPIO2_EN, hz / 32);
+			}
+		}
 		break;
 	case AXE_PHY_MODE_CICADA:
 	case AXE_PHY_MODE_CICADA_V2:
