@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 1, 2006
+.Dd June 22, 2011
 .Dt LIBALIAS 3
 .Os
 .Sh NAME
@@ -257,6 +257,16 @@ Normal packet aliasing is not performed.
 See
 .Fn LibAliasProxyRule
 below for details.
+.It Dv PKT_ALIAS_SKIP_GLOBAL
+This option is used by
+.Pa ipfw_nat
+only. Specifying it as a flag to
+.Fn LibAliasSetMode
+has no effect. See section
+.Sx NETWORK ADDRESS TRANSLATION
+in
+.Xr ipfw 8
+for more details.
 .El
 .Ed
 .Pp
