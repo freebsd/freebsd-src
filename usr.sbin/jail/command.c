@@ -88,14 +88,20 @@ int
 next_command(struct cfjail *j)
 {
 	enum intparam comparam;
-	int rval, create_failed;
+	int create_failed;
 
-	rval = 0;
+	if (paralimit == 0) {
+		requeue(j, &runnable);
+		return 1;
+	}
 	create_failed = (j->flags & (JF_STOP | JF_FAILED)) == JF_FAILED;
-	for (; (comparam = *j->comparam);
-	     j->comparam += create_failed ? -1 : 1) {
+	comparam = *j->comparam;
+	for (;;) {
 		if (j->comstring == NULL) {
-			switch (comparam) {
+			j->comparam += create_failed ? -1 : 1;
+			switch ((comparam = *j->comparam)) {
+			case 0:
+				return 0;
 			case IP_MOUNT_DEVFS:
 				if (!bool_param(j->intparams[IP_MOUNT_DEVFS]))
 					continue;
@@ -112,29 +118,25 @@ next_command(struct cfjail *j)
 					cfstrings)
 				    : TAILQ_FIRST(&j->intparams[comparam]->val);
 			}
+		} else {
+			j->comstring = j->comstring == &dummystring ? NULL :
+			    create_failed
+			    ? TAILQ_PREV(j->comstring, cfstrings, tq)
+			    : TAILQ_NEXT(j->comstring, tq);
 		}
-		for (; j->comstring != NULL;
-		     j->comstring = j->comstring == &dummystring ? NULL :
-			create_failed
-			? TAILQ_PREV(j->comstring, cfstrings, tq)
-			: TAILQ_NEXT(j->comstring, tq)) {
-			if (rval != 0)
-				return rval;
-			if (j->comstring->len == 0 || (create_failed &&
-			    (comparam == IP_EXEC_PRESTART || comparam ==
-			    IP_EXEC_START || comparam == IP_COMMAND ||
-			    comparam == IP_EXEC_POSTSTART)))
-				continue;
-			if (paralimit == 0) {
-				requeue(j, &runnable);
-				return 1;
-			}
-			rval = run_command(j);
-			create_failed =
-			    (j->flags & (JF_STOP | JF_FAILED)) == JF_FAILED;
+		if (j->comstring == NULL || j->comstring->len == 0 ||
+		    (create_failed && (comparam == IP_EXEC_PRESTART ||
+		    comparam == IP_EXEC_START || comparam == IP_COMMAND ||
+		    comparam == IP_EXEC_POSTSTART)))
+			continue;
+		switch (run_command(j)) {
+		case -1:
+			failed(j);
+			/* FALLTHROUGH */
+		case 1:
+			return 1;
 		}
 	}
-	return rval;
 }
 
 /*
@@ -178,7 +180,7 @@ finish_command(struct cfjail *j)
 }
 
 /*
- * Check for finished processed or timeouts.
+ * Check for finished processes or timeouts.
  */
 struct cfjail *
 next_proc(int nonblock)
@@ -278,16 +280,13 @@ run_command(struct cfjail *j)
 			else
 				j->flags &= ~JF_PERSIST;
 		} else {
-			if (create_jail(j) < 0) {
-				failed(j);
+			if (create_jail(j) < 0)
 				return -1;
-			}
 			if (verbose >= 0 && (j->name || verbose > 0))
 				jail_note(j, "created\n");
 			dep_done(j, DF_LIGHT);
 		}
-		requeue(j, &ready);
-		return 1;
+		return 0;
 
 	default: ;
 	}
@@ -383,14 +382,11 @@ run_command(struct cfjail *j)
 		if (argc < 3) {
 			jail_warnx(j, "%s: %s: missing information",
 			    j->intparams[comparam]->name, comstring->s);
-			failed(j);
 			return -1;
 		}
 		if (check_path(j, j->intparams[comparam]->name, argv[1], 0,
-		    down ? argv[2] : NULL) < 0) {
-			failed(j);
+		    down ? argv[2] : NULL) < 0)
 			return -1;
-		}
 		if (down) {
 			argv[4] = NULL;
 			argv[3] = argv[1];
@@ -416,16 +412,13 @@ run_command(struct cfjail *j)
 		path = string_param(j->intparams[KP_PATH]);
 		if (path == NULL) {
 			jail_warnx(j, "mount.devfs: no path");
-			failed(j);
 			return -1;
 		}
 		devpath = alloca(strlen(path) + 5);
 		sprintf(devpath, "%s/dev", path);
 		if (check_path(j, "mount.devfs", devpath, 0,
-		    down ? "devfs" : NULL) < 0) {
-			failed(j);
+		    down ? "devfs" : NULL) < 0)
 			return -1;
-		}
 		if (down) {
 			argv = alloca(3 * sizeof(char *));
 			*(const char **)&argv[0] = "/sbin/umount";
@@ -509,15 +502,12 @@ run_command(struct cfjail *j)
 	consfd = 0;
 	if (injail &&
 	    (conslog = string_param(j->intparams[IP_EXEC_CONSOLELOG]))) {
-		if (check_path(j, "exec.consolelog", conslog, 1, NULL) < 0) {
-			failed(j);
+		if (check_path(j, "exec.consolelog", conslog, 1, NULL) < 0)
 			return -1;
-		}
 		consfd =
 		    open(conslog, O_WRONLY | O_CREAT | O_APPEND, DEFFILEMODE);
 		if (consfd < 0) {
 			jail_warnx(j, "open %s: %s", conslog, strerror(errno));
-			failed(j);
 			return -1;
 		}
 	}
@@ -545,12 +535,12 @@ run_command(struct cfjail *j)
 		if (bg) {
 			free(j->comline);
 			j->comline = NULL;
-			requeue(j, &ready);
+			return 0;
 		} else {
 			paralimit--;
 			add_proc(j, pid);
+			return 1;
 		}
-		return 1;
 	}
 	if (bg)
 		setsid();
