@@ -718,7 +718,6 @@ ng_ether_shutdown(node_p node)
 		(void)ifpromisc(priv->ifp, 0);
 		priv->promisc = 0;
 	}
-	priv->autoSrcAddr = 1;		/* reset auto-src-addr flag */
 	NG_NODE_REVIVE(node);		/* Signal ng_rmnode we are persisant */
 
 	return (0);
