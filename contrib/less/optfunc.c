@@ -132,34 +132,6 @@ opt__O(type, s)
 #endif
 
 /*
- * Handlers for -l option.
- */
-	public void
-opt_l(type, s)
-	int type;
-	char *s;
-{
-	int err;
-	int n;
-	char *t;
-	
-	switch (type)
-	{
-	case INIT:
-		t = s;
-		n = getnum(&t, "l", &err);
-		if (err || n <= 0)
-		{
-			error("Line number is required after -l", NULL_PARG);
-			return;
-		}
-		plusoption = TRUE;
-		ungetsc(s);
-		break;
-	}
-}
-
-/*
  * Handlers for -j option.
  */
 	public void
