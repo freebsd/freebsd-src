@@ -738,6 +738,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	 */
 	ath_sysctlattach(sc);
 	ath_sysctl_stats_attach(sc);
+	ath_sysctl_hal_attach(sc);
 
 	if (bootverbose)
 		ieee80211_announce(ic);
