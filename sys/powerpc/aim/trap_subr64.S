@@ -179,9 +179,15 @@ restore_kernsrs:
 	std	%r28,FRAME_AIM_DAR+48(1);				\
 	std	%r29,FRAME_AIM_DSISR+48(1); /* save dsisr/srr0/srr1 */	\
 	std	%r30,FRAME_SRR0+48(1);					\
-	std	%r31,FRAME_SRR1+48(1)
+	std	%r31,FRAME_SRR1+48(1);					\
+	ld	%r13,PC_CURTHREAD(%r2)	/* set kernel curthread */
 
 #define	FRAME_LEAVE(savearea)						\
+/* Disable exceptions: */						\
+	mfmsr	%r2;							\
+	andi.	%r2,%r2,~PSL_EE@l;					\
+	mtmsr	%r2;							\
+	isync;								\
 /* Now restore regs: */							\
 	ld	%r2,FRAME_SRR0+48(%r1);					\
 	ld	%r3,FRAME_SRR1+48(%r1);					\
@@ -233,7 +239,7 @@ restore_kernsrs:
 	mtsprg3	%r3;							\
 /* Disable translation, machine check and recoverability: */		\
 	mfmsr	%r2;							\
-	andi.	%r2,%r2,~(PSL_DR|PSL_IR|PSL_EE|PSL_ME|PSL_RI)@l;	\
+	andi.	%r2,%r2,~(PSL_DR|PSL_IR|PSL_ME|PSL_RI)@l;		\
 	mtmsr	%r2;							\
 	isync;								\
 /* Decide whether we return to user mode: */				\
@@ -526,8 +532,7 @@ CNAME(trapexit):
 	bf	17,1f			/* branch if PSL_PR is false */
 
 	GET_CPUINFO(%r3)		/* get per-CPU pointer */
-	ld	%r4, PC_CURTHREAD(%r3)	/* deref to get curthread */
-	lwz	%r4, TD_FLAGS(%r4)	/* get thread flags value */
+	lwz	%r4, TD_FLAGS(%r13)	/* get thread flags value */
 	lis	%r5, (TDF_ASTPENDING|TDF_NEEDRESCHED)@h
 	ori	%r5,%r5, (TDF_ASTPENDING|TDF_NEEDRESCHED)@l
 	and.	%r4,%r4,%r5

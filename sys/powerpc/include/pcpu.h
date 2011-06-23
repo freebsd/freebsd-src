@@ -135,6 +135,14 @@ struct pmap;
 #ifdef _KERNEL
 
 #define pcpup	((struct pcpu *) powerpc_get_pcpup())
+#ifdef __powerpc64__
+register struct thread *curthread_reg __asm("%r13");
+#else
+register struct thread *curthread_reg __asm("%r2");
+#endif
+#ifdef AIM /* Book-E not yet adapted */
+#define curthread	curthread_reg
+#endif
 
 #define	PCPU_GET(member)	(pcpup->pc_ ## member)
 
