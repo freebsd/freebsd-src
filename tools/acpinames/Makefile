@@ -1,19 +1,58 @@
 #
-# AcpiNames utility
+# acpinames - Load ACPI table and dump namespace. This is a subset
+# of the AcpiExec functionality, it is intended to demonstrate
+# the configurability of ACPICA.
+#
+# NOTE: This makefile is intended to be used in the Linux environment,
+# with the Linux directory structure. It will not work directly
+# on the native ACPICA source tree.
+#
+
+#
+# Configuration
+# Notes:
+#   gcc should be version 4 or greater, otherwise some of the options
+#       used will not be recognized.
+#   Global optimization flags (such as -O2, -Os) are not used, since
+#       they cause issues on some compilers.
+#   The _GNU_SOURCE symbol is required for many hosts.
 #
 PROG = acpinames
 
+HOST =          _LINUX
+NOMAN =         YES
+COMPILE =       $(CC) -c $(CFLAGS) $(CWARNINGFLAGS) -o$@ $?
+
+ACPICA_COMPONENTS =
 ACPICA_SRC =    ../..
 ACPICA_COMMON = $(ACPICA_SRC)/common
-ACPICA_CORE =   $(ACPICA_SRC)
+ACPICA_CORE =   $(ACPICA_SRC)$(ACPICA_COMPONENTS)
 ACPICA_TOOLS =  $(ACPICA_SRC)/tools
 ACPICA_OSL =    $(ACPICA_SRC)/os_specific/service_layers
+INSTALLDIR =    /usr/bin
+INSTALLPROG =   cp --remove-destination $(PROG) $(INSTALLDIR)
 
-NOMAN=	YES
-CFLAGS+= -Wall -g -D_LINUX -DNDEBUG -D_CONSOLE -DACPI_APPLICATION -DACPI_SINGLE_THREADED -DACPI_DEBUGGER -Wstrict-prototypes -I$(ACPICA_SRC)/include -I$(ACPICA_TOOLS)/acpinames
+CFLAGS+= \
+    -D$(HOST) \
+    -D_GNU_SOURCE \
+    -DACPI_NAMES_APP \
+    -I$(ACPICA_SRC)/include \
+    -I$(ACPICA_TOOLS)/acpinames
 
-COMPILE = $(CC) -c $(CFLAGS) -o$@ $?
-LDFLAGS += -lpthread -lrt
+CWARNINGFLAGS = \
+    -ansi \
+    -Wall \
+    -Wbad-function-cast \
+    -Wdeclaration-after-statement \
+    -Werror \
+    -Wformat=2 \
+    -Wmissing-declarations \
+    -Wmissing-prototypes \
+    -Wstrict-aliasing=0 \
+    -Wstrict-prototypes \
+    -Wswitch-default \
+    -Wpointer-arith \
+    -Wundef
 
 OBJS = \
 	anmain.o \
@@ -80,14 +119,11 @@ OBJS = \
 	utxferror.o \
 	utxface.o
 
-
 #
 # Root rule
 #
 $(PROG) : $(OBJS)
-	$(CC) $(LDFLAGS) $(OBJS) -lpthread -o $(PROG)
-	$(COPYPROG)
-
+	$(CC) $(LDFLAGS) $(OBJS) -o $(PROG)
 
 #
 # acpinames source
@@ -101,13 +137,11 @@ anstubs.o :         $(ACPICA_TOOLS)/acpinames/anstubs.c
 antables.o :        $(ACPICA_TOOLS)/acpinames/antables.c
 	$(COMPILE)
 
-
 #
 # ACPICA core source - common
 #
 getopt.o :          $(ACPICA_COMMON)/getopt.c
 	$(COMPILE)
-
 
 #
 # ACPICA core source
@@ -286,7 +320,6 @@ utxferror.o :       $(ACPICA_CORE)/utilities/utxferror.c
 utxface.o :         $(ACPICA_CORE)/utilities/utxface.c
 	$(COMPILE)
 
-
 #
 # Unix OS services layer (OSL)
 #
@@ -294,5 +327,8 @@ osunixxf.o :        $(ACPICA_OSL)/osunixxf.c
 	$(COMPILE)
 
 
-clean : 
+clean :
 	rm -f $(PROG) $(PROG).exe $(OBJS)
+
+install :
+	$(INSTALLPROG)

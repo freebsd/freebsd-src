@@ -1,5 +1,6 @@
 #
-# acpixtract - extract binary ACPI tables from acpidump text output
+# acpihelp - ACPI Help utility. Displays ASL operator syntax and
+# information about ACPI predefined names.
 #
 # NOTE: This makefile is intended to be used in the Linux environment,
 # with the Linux directory structure. It will not work directly
@@ -15,7 +16,7 @@
 #       they cause issues on some compilers.
 #   The _GNU_SOURCE symbol is required for many hosts.
 #
-PROG = acpixtract
+PROG = acpihelp
 
 HOST =          _LINUX
 NOMAN =         YES
@@ -33,6 +34,7 @@ INSTALLPROG =   cp --remove-destination $(PROG) $(INSTALLDIR)
 CFLAGS+= \
     -D$(HOST) \
     -D_GNU_SOURCE \
+    -DACPI_HELP_APP \
     -I$(ACPICA_SRC)/include
 
 CWARNINGFLAGS = \
@@ -51,7 +53,13 @@ CWARNINGFLAGS = \
     -Wundef
 
 OBJS = \
-    acpixtract.o
+	ahamlops.o \
+	ahaslkey.o \
+	ahaslops.o \
+	ahdecode.o \
+	ahpredef.o \
+	ahmain.o \
+	getopt.o
 
 #
 # Root rule
@@ -60,11 +68,31 @@ $(PROG) : $(OBJS)
 	$(CC) $(LDFLAGS) $(OBJS) -o $(PROG)
 
 #
-# acpixtract source
+# acpihelp source
 #
-acpixtract.o :          $(ACPICA_TOOLS)/acpixtract/acpixtract.c
+ahamlops.o :        $(ACPICA_TOOLS)/acpihelp/ahamlops.c
 	$(COMPILE)
 
+ahaslkey.o :        $(ACPICA_TOOLS)/acpihelp/ahaslkey.c
+	$(COMPILE)
+
+ahaslops.o :        $(ACPICA_TOOLS)/acpihelp/ahaslops.c
+	$(COMPILE)
+
+ahdecode.o :        $(ACPICA_TOOLS)/acpihelp/ahdecode.c
+	$(COMPILE)
+
+ahpredef.o :        $(ACPICA_TOOLS)/acpihelp/ahpredef.c
+	$(COMPILE)
+
+ahmain.o :          $(ACPICA_TOOLS)/acpihelp/ahmain.c
+	$(COMPILE)
+
+#
+# ACPICA core source - common
+#
+getopt.o :          $(ACPICA_COMMON)/getopt.c
+	$(COMPILE)
 
 clean :
 	rm -f $(PROG) $(PROG).exe $(OBJS)

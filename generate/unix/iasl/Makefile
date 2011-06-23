@@ -1,15 +1,25 @@
 #
-# iASL compiler
+# iASL compiler/disassembler
+#
+
+#
+# Note: This makefile is intended to be used from within the native
+# ACPICA directory structure, from under generate/unix. It specifically
+# places all object files in a generate/unix subdirectory, not within
+# the various ACPICA source directories. This prevents collisions
+# between different compilations of the same source file with different
+# compile options, and prevents pollution of the source code.
 #
 include ../Makefile.config
-
 PROG = iasl
 
 #
 # Flags specific to iASL compiler
 #
-CFLAGS+= -DACPI_ASL_COMPILER -I$(ASL_COMPILER) -I.
-LDFLAGS+= -lpthread
+CFLAGS+= \
+    -DACPI_ASL_COMPILER \
+    -I$(ASL_COMPILER) \
+    -I.
 
 OBJS = \
 	adfile.o \
@@ -159,14 +169,12 @@ MISC = \
 	dtparser.y.h \
 	dtparserparse.output
 
-
 #
 # Root rule
 #
 $(PROG) : $(INTERMEDIATES) $(OBJS)
 	$(CC) $(LDFLAGS) $(OBJS) -o $(PROG)
 	$(COPYPROG)
-
 
 #
 # Parser and Lexer - intermediate C files
@@ -185,7 +193,6 @@ dtparserparse.c :    $(ASL_COMPILER)/dtparser.y
 	${YACC} ${YFLAGS} -pDtParser -o$@ $?
 	@mv -f dtparserparse.h dtparser.y.h
 
-
 #
 # Parsers and Lexers - final object files
 #
@@ -203,7 +210,6 @@ dtparserlex.o :      dtparserlex.c
 
 dtparserparse.o :    dtparserparse.c
 	$(CC) -c $(CFLAGS) -Wall -Werror -o$@ $?
-
 
 #
 # Compiler source
@@ -304,7 +310,6 @@ asluuid.o :         $(ASL_COMPILER)/asluuid.c
 aslwalks.o :        $(ASL_COMPILER)/aslwalks.c
 	$(COMPILE)
 
-
 #
 # Data Table Compiler
 #
@@ -331,7 +336,6 @@ dttemplate.o :      $(ASL_COMPILER)/dttemplate.c
 
 dtutils.o :         $(ASL_COMPILER)/dtutils.c
 	$(COMPILE)
-
 
 #
 # ACPICA core source - common
@@ -362,7 +366,6 @@ dmtbinfo.o :        $(ACPICA_COMMON)/dmtbinfo.c
 
 getopt.o :          $(ACPICA_COMMON)/getopt.c
 	$(COMPILE)
-
 
 #
 # ACPICA core source
@@ -607,7 +610,6 @@ utxferror.o :       $(ACPICA_CORE)/utilities/utxferror.c
 utxface.o :         $(ACPICA_CORE)/utilities/utxface.c
 	$(COMPILE)
 
-
 #
 # Unix OS services layer (OSL)
 #
@@ -615,8 +617,8 @@ osunixxf.o :        $(ACPICA_OSL)/osunixxf.c
 	$(COMPILE)
 
 
-clean : 
+clean :
 	rm -f $(PROG) $(PROG).exe $(OBJS) $(INTERMEDIATES) $(MISC)
 
-install : 
+install :
 	$(INSTALLPROG)

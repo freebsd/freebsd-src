@@ -1044,60 +1044,6 @@ AcpiOsRemoveInterruptHandler (
 
 /******************************************************************************
  *
- * FUNCTION:    AcpiOsGetThreadId
- *
- * PARAMETERS:  None
- *
- * RETURN:      Id of the running thread
- *
- * DESCRIPTION: Get the Id of the current (running) thread
- *
- *****************************************************************************/
-
-ACPI_THREAD_ID
-AcpiOsGetThreadId (
-    void)
-{
-    DWORD                   ThreadId;
-
-    /* Ensure ID is never 0 */
-
-    ThreadId = GetCurrentThreadId ();
-    return ((ACPI_THREAD_ID) (ThreadId + 1));
-}
-
-
-/******************************************************************************
- *
- * FUNCTION:    AcpiOsExecute
- *
- * PARAMETERS:  Type                - Type of execution
- *              Function            - Address of the function to execute
- *              Context             - Passed as a parameter to the function
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Execute a new thread
- *
- *****************************************************************************/
-
-ACPI_STATUS
-AcpiOsExecute (
-    ACPI_EXECUTE_TYPE       Type,
-    ACPI_OSD_EXEC_CALLBACK  Function,
-    void                    *Context)
-{
-
-#ifndef ACPI_SINGLE_THREADED
-    _beginthread (Function, (unsigned) 0, Context);
-#endif
-
-    return (0);
-}
-
-
-/******************************************************************************
- *
  * FUNCTION:    AcpiOsStall
  *
  * PARAMETERS:  Microseconds        - Time to stall
@@ -1436,4 +1382,61 @@ AcpiOsReleaseObject (
     return (AE_OK);
 }
 
-#endif
+#endif /* ACPI_USE_LOCAL_CACHE */
+
+
+/* Optional multi-thread support */
+
+#ifndef ACPI_SINGLE_THREADED
+/******************************************************************************
+ *
+ * FUNCTION:    AcpiOsGetThreadId
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      Id of the running thread
+ *
+ * DESCRIPTION: Get the Id of the current (running) thread
+ *
+ *****************************************************************************/
+
+ACPI_THREAD_ID
+AcpiOsGetThreadId (
+    void)
+{
+    DWORD                   ThreadId;
+
+    /* Ensure ID is never 0 */
+
+    ThreadId = GetCurrentThreadId ();
+    return ((ACPI_THREAD_ID) (ThreadId + 1));
+}
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    AcpiOsExecute
+ *
+ * PARAMETERS:  Type                - Type of execution
+ *              Function            - Address of the function to execute
+ *              Context             - Passed as a parameter to the function
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Execute a new thread
+ *
+ *****************************************************************************/
+
+ACPI_STATUS
+AcpiOsExecute (
+    ACPI_EXECUTE_TYPE       Type,
+    ACPI_OSD_EXEC_CALLBACK  Function,
+    void                    *Context)
+{
+
+    _beginthread (Function, (unsigned) 0, Context);
+    return (0);
+}
+
+#endif /* ACPI_SINGLE_THREADED */
+

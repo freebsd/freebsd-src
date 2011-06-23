@@ -216,14 +216,20 @@ AcpiNsCheckPredefinedNames (
     }
 
     /*
-     * 1) We have a return value, but if one wasn't expected, just exit, this is
-     * not a problem. For example, if the "Implicit Return" feature is
-     * enabled, methods will always return a value.
+     * Return value validation and possible repair.
      *
-     * 2) If the return value can be of any type, then we cannot perform any
-     * validation, exit.
+     * 1) Don't perform return value validation/repair if this feature
+     * has been disabled via a global option.
+     *
+     * 2) We have a return value, but if one wasn't expected, just exit,
+     * this is not a problem. For example, if the "Implicit Return"
+     * feature is enabled, methods will always return a value.
+     *
+     * 3) If the return value can be of any type, then we cannot perform
+     * any validation, just exit.
      */
-    if ((!Predefined->Info.ExpectedBtypes) ||
+    if (AcpiGbl_DisableAutoRepair ||
+        (!Predefined->Info.ExpectedBtypes) ||
         (Predefined->Info.ExpectedBtypes == ACPI_RTYPE_ALL))
     {
         goto Cleanup;
@@ -237,6 +243,7 @@ AcpiNsCheckPredefinedNames (
         goto Cleanup;
     }
     Data->Predefined = Predefined;
+    Data->Node = Node;
     Data->NodeFlags = Node->Flags;
     Data->Pathname = Pathname;
 

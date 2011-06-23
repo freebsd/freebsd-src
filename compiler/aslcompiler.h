@@ -289,7 +289,7 @@ AslCoreSubsystemError (
 
 int
 AslCompilererror(
-    char                    *s);
+    const char              *s);
 
 void
 AslCommonError (

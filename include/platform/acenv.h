@@ -79,7 +79,7 @@
 #define ACPI_SINGLE_THREADED
 #endif
 
-/* AcpiExec and AcpiBin configuration */
+/* AcpiExec configuration. Multithreaded with full AML debugger */
 
 #ifdef ACPI_EXEC_APP
 #define ACPI_APPLICATION
@@ -88,7 +88,26 @@
 #define ACPI_DBG_TRACK_ALLOCATIONS
 #endif
 
-#ifdef ACPI_BIN_APP
+/* AcpiNames configuration. Single threaded with debugger output enabled. */
+
+#ifdef ACPI_NAMES_APP
+#define ACPI_DEBUGGER
+#define ACPI_APPLICATION
+#define ACPI_SINGLE_THREADED
+#endif
+
+/*
+ * AcpiBin/AcpiHelp/AcpiSrc configuration. All single threaded, with
+ * no debug output.
+ */
+#if (defined ACPI_BIN_APP)   || \
+    (defined ACPI_SRC_APP)
+#define ACPI_APPLICATION
+#define ACPI_SINGLE_THREADED
+#endif
+
+#ifdef ACPI_HELP_APP
+#define ACPI_DEBUG_OUTPUT
 #define ACPI_APPLICATION
 #define ACPI_SINGLE_THREADED
 #endif
