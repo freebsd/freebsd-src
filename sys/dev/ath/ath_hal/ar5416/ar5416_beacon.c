@@ -93,9 +93,9 @@ ar5416BeaconInit(struct ath_hal *ah,
 		/* fall thru... */
 	case HAL_M_HOSTAP:
 		bt.bt_nextdba = (next_beacon -
-			ath_hal_dma_beacon_response_time) << 3;	/* 1/8 TU */
+			ah->ah_config.ah_dma_beacon_response_time) << 3;	/* 1/8 TU */
 		bt.bt_nextswba = (next_beacon -
-			ath_hal_sw_beacon_response_time) << 3;	/* 1/8 TU */
+            ah->ah_config.ah_sw_beacon_response_time) << 3;	/* 1/8 TU */
 		bt.bt_flags |= AR_TIMER_MODE_TBTT
 			    |  AR_TIMER_MODE_DBA
 			    |  AR_TIMER_MODE_SWBA;
