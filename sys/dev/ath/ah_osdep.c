@@ -76,33 +76,6 @@ extern	void DO_HALDEBUG(struct ath_hal *ah, u_int mask, const char* fmt, ...);
 
 /* NB: put this here instead of the driver to avoid circular references */
 SYSCTL_NODE(_hw, OID_AUTO, ath, CTLFLAG_RD, 0, "Atheros driver parameters");
-SYSCTL_NODE(_hw_ath, OID_AUTO, hal, CTLFLAG_RD, 0, "Atheros HAL parameters");
-
-#ifdef AH_DEBUG
-int ath_hal_debug = 0;
-SYSCTL_INT(_hw_ath_hal, OID_AUTO, debug, CTLFLAG_RW, &ath_hal_debug,
-	    0, "Atheros HAL debugging printfs");
-TUNABLE_INT("hw.ath.hal.debug", &ath_hal_debug);
-#endif /* AH_DEBUG */
-
-int ath_hal_ar5416_biasadj = 0;
-SYSCTL_INT(_hw_ath_hal, OID_AUTO, ar5416_biasadj, CTLFLAG_RW,
-	&ath_hal_ar5416_biasadj, 0, "Enable 2ghz AR5416 direction sensitivity"
-	" bias adjust");
-
-/* NB: these are deprecated; they exist for now for compatibility */
-int	ath_hal_dma_beacon_response_time = 2;	/* in TU's */
-SYSCTL_INT(_hw_ath_hal, OID_AUTO, dma_brt, CTLFLAG_RW,
-	   &ath_hal_dma_beacon_response_time, 0,
-	   "Atheros HAL DMA beacon response time");
-int	ath_hal_sw_beacon_response_time = 10;	/* in TU's */
-SYSCTL_INT(_hw_ath_hal, OID_AUTO, sw_brt, CTLFLAG_RW,
-	   &ath_hal_sw_beacon_response_time, 0,
-	   "Atheros HAL software beacon response time");
-int	ath_hal_additional_swba_backoff = 0;	/* in TU's */
-SYSCTL_INT(_hw_ath_hal, OID_AUTO, swba_backoff, CTLFLAG_RW,
-	   &ath_hal_additional_swba_backoff, 0,
-	   "Atheros HAL additional SWBA backoff time");
 
 MALLOC_DEFINE(M_ATH_HAL, "ath_hal", "ath hal data");
 
@@ -146,7 +119,7 @@ ath_hal_ether_sprintf(const u_int8_t *mac)
 void
 DO_HALDEBUG(struct ath_hal *ah, u_int mask, const char* fmt, ...)
 {
-	if ((mask == HAL_DEBUG_UNMASKABLE) || (ath_hal_debug & mask)) {
+	if ((mask == HAL_DEBUG_UNMASKABLE) || (ah->ah_config.ah_debug & mask)) {
 		__va_list ap;
 		va_start(ap, fmt);
 		ath_hal_vprintf(ah, fmt, ap);
@@ -173,6 +146,8 @@ DO_HALDEBUG(struct ath_hal *ah, u_int mask, const char* fmt, ...)
 #include <sys/alq.h>
 #include <sys/pcpu.h>
 #include <dev/ath/ath_hal/ah_decode.h>
+
+SYSCTL_NODE(_hw_ath, OID_AUTO, hal, CTLFLAG_RD, 0, "Atheros HAL parameters");
 
 static	struct alq *ath_hal_alq;
 static	int ath_hal_alq_emitdev;	/* need to emit DEVICE record */

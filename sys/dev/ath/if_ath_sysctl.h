@@ -34,5 +34,5 @@
 
 extern void ath_sysctlattach(struct ath_softc *);
 extern void ath_sysctl_stats_attach(struct ath_softc *sc);
-
+extern void ath_sysctl_hal_attach(struct ath_softc *sc);
 #endif
