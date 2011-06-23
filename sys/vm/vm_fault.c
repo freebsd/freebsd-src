@@ -1095,8 +1095,7 @@ vm_fault_quick_hold_pages(vm_map_t map, vm_offset_t addr, vm_size_t len,
 			 * required in order to call vm_page_dirty().  See
 			 * vm_page_clear_dirty_mask().
 			 */
-#if defined(__amd64__) || defined(__i386__) || defined(__ia64__) || \
-    defined(__mips__)
+#if defined(__amd64__) || defined(__i386__) || defined(__ia64__)
 			vm_page_dirty(*mp);
 #else
 			vm_page_lock_queues();

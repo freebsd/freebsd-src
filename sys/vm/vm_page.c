@@ -2336,8 +2336,7 @@ vm_page_clear_dirty_mask(vm_page_t m, int pagebits)
 	if ((m->oflags & VPO_BUSY) == 0 && (m->flags & PG_WRITEABLE) == 0)
 		m->dirty &= ~pagebits;
 	else {
-#if defined(__amd64__) || defined(__i386__) || defined(__ia64__) || \
-    defined(__mips__)
+#if defined(__amd64__) || defined(__i386__) || defined(__ia64__)
 		/*
 		 * On the aforementioned architectures, the page queues lock
 		 * is not required by the following read-modify-write
