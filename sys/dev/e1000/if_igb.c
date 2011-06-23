@@ -346,6 +346,10 @@ TUNABLE_INT("hw.igb.hdr_split", &igb_header_split);
 static int igb_num_queues = 0;
 TUNABLE_INT("hw.igb.num_queues", &igb_num_queues);
 
+/* How many packets rxeof tries to clean at a time */
+static int igb_rx_process_limit = 100;
+TUNABLE_INT("hw.igb.rx_process_limit", &igb_rx_process_limit);
+
 /*********************************************************************
  *  Device identification routine
  *
@@ -465,7 +469,7 @@ igb_attach(device_t dev)
 	/* Sysctl for limiting the amount of work done in the taskqueue */
 	igb_set_sysctl_value(adapter, "rx_processing_limit",
 	    "max number of rx packets to process",
-	    &adapter->rx_process_limit, 100);
+	    &adapter->rx_process_limit, igb_rx_process_limit);
 
 	/*
 	 * Validate number of transmit and receive descriptors. It
