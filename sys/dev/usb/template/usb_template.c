@@ -49,6 +49,7 @@
 #include <sys/priv.h>
 
 #include <dev/usb/usb.h>
+#include <dev/usb/usb_ioctl.h>
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usbdi_util.h>
 #include "usbdevs.h"
@@ -139,6 +140,31 @@ usb_make_raw_desc(struct usb_temp_setup *temp,
 				ud->bMasterInterface +=
 				    temp->bInterfaceNumber;
 				ud->bSlaveInterface[0] +=
+				    temp->bInterfaceNumber;
+			}
+
+			/* check if we have got an interface association descriptor */
+
+			if ((raw[0] >= sizeof(struct usb_interface_assoc_descriptor)) &&
+			    (raw[1] == UDESC_IFACE_ASSOC)) {
+				struct usb_interface_assoc_descriptor *iad = (void *)dst;
+
+				/* update the interface number */
+
+				iad->bFirstInterface +=
+				    temp->bInterfaceNumber;
+			}
+
+			/* check if we have got a call management descriptor */
+
+			if ((raw[0] >= sizeof(struct usb_cdc_cm_descriptor)) &&
+			    (raw[1] == UDESC_CS_INTERFACE) &&
+			    (raw[2] == UDESCSUB_CDC_CM)) {
+				struct usb_cdc_cm_descriptor *ccd = (void *)dst;
+
+				/* update the interface number */
+
+				ccd->bDataInterface +=
 				    temp->bInterfaceNumber;
 			}
 		}
@@ -475,6 +501,10 @@ usb_make_device_desc(struct usb_temp_setup *temp,
 		case USB_SPEED_VARIABLE:
 			USETW(utd->udd.bcdUSB, 0x0250);
 			utd->udd.bMaxPacketSize = 255;	/* 512 bytes */
+			break;
+		case USB_SPEED_SUPER:
+			USETW(utd->udd.bcdUSB, 0x0300);
+			utd->udd.bMaxPacketSize = 9;	/* 2**9 = 512 bytes */
 			break;
 		default:
 			temp->err = USB_ERR_INVAL;
@@ -1303,14 +1333,26 @@ usb_temp_setup_by_index(struct usb_device *udev, uint16_t index)
 	usb_error_t err;
 
 	switch (index) {
-	case 0:
+	case USB_TEMP_MSC:
 		err = usb_temp_setup(udev, &usb_template_msc);
 		break;
-	case 1:
+	case USB_TEMP_CDCE:
 		err = usb_temp_setup(udev, &usb_template_cdce);
 		break;
-	case 2:
+	case USB_TEMP_MTP:
 		err = usb_temp_setup(udev, &usb_template_mtp);
+		break;
+	case USB_TEMP_MODEM:
+		err = usb_temp_setup(udev, &usb_template_modem);
+		break;
+	case USB_TEMP_AUDIO:
+		err = usb_temp_setup(udev, &usb_template_audio);
+		break;
+	case USB_TEMP_KBD:
+		err = usb_temp_setup(udev, &usb_template_kbd);
+		break;
+	case USB_TEMP_MOUSE:
+		err = usb_temp_setup(udev, &usb_template_mouse);
 		break;
 	default:
 		return (USB_ERR_INVAL);
