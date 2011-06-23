@@ -14,13 +14,14 @@ SRCS=	vnode_if.h \
 	nfs_clsubs.c \
 	nfs_clvfsops.c \
 	nfs_clvnops.c \
+	opt_bootp.h \
 	opt_inet.h \
 	opt_inet6.h \
-	opt_bootp.h \
-	opt_nfsroot.h \
+	opt_kdtrace.h \
+	opt_kgssapi.h \
 	opt_nfs.h \
-	opt_ufs.h \
-	opt_kgssapi.h
+	opt_nfsroot.h \
+	opt_ufs.h
 
 .if !defined(KERNBUILDDIR)
 NFS_INET?=	1	# 0/1 - requires INET to be configured in kernel
