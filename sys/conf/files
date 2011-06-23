@@ -1991,8 +1991,12 @@ dev/usb/quirk/usb_quirk.c	optional usb
 #
 # USB templates
 #
-dev/usb/template/usb_template.c	optional usb_template
+dev/usb/template/usb_template.c		optional usb_template
+dev/usb/template/usb_template_audio.c	optional usb_template
 dev/usb/template/usb_template_cdce.c	optional usb_template
+dev/usb/template/usb_template_kbd.c	optional usb_template
+dev/usb/template/usb_template_modem.c	optional usb_template
+dev/usb/template/usb_template_mouse.c	optional usb_template
 dev/usb/template/usb_template_msc.c	optional usb_template
 dev/usb/template/usb_template_mtp.c	optional usb_template
 #
