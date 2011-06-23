@@ -56,10 +56,10 @@ static void	ps3pic_mask(device_t, u_int);
 static void	ps3pic_unmask(device_t, u_int);
 
 struct ps3pic_softc {
-	uint64_t	*bitmap_thread0;
-	uint64_t	*mask_thread0;
-	uint64_t	*bitmap_thread1;
-	uint64_t	*mask_thread1;
+	volatile uint64_t *bitmap_thread0;
+	volatile uint64_t *mask_thread0;
+	volatile uint64_t *bitmap_thread1;
+	volatile uint64_t *mask_thread1;
 
 	uint64_t	sc_ipi_outlet[2];
 	int		sc_vector[64];
@@ -219,8 +219,8 @@ ps3pic_mask(device_t dev, u_int irq)
 	if (irq == sc->sc_ipi_outlet[0])
 		return;
 
-	sc->mask_thread0[0] &= ~(1UL << (63 - irq));
-	sc->mask_thread1[0] &= ~(1UL << (63 - irq));
+	atomic_clear_64(&sc->mask_thread0[0], 1UL << (63 - irq));
+	atomic_clear_64(&sc->mask_thread1[0], 1UL << (63 - irq));
 
 	lv1_get_logical_ppe_id(&ppe);
 	lv1_did_update_interrupt_mask(ppe, 0);
@@ -234,8 +234,8 @@ ps3pic_unmask(device_t dev, u_int irq)
 	uint64_t ppe;
 
 	sc = device_get_softc(dev);
-	sc->mask_thread0[0] |= (1UL << (63 - irq));
-	sc->mask_thread1[0] |= (1UL << (63 - irq));
+	atomic_set_64(&sc->mask_thread0[0], 1UL << (63 - irq));
+	atomic_set_64(&sc->mask_thread1[0], 1UL << (63 - irq));
 
 	lv1_get_logical_ppe_id(&ppe);
 	lv1_did_update_interrupt_mask(ppe, 0);
