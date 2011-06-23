@@ -498,10 +498,29 @@ extern	void ath_hal_free(void *);
 /* common debugging interfaces */
 #ifdef AH_DEBUG
 #include "ah_debug.h"
+extern	int ath_hal_debug;	/* Global debug flags */
+
+/*
+ * This is used for global debugging, when ahp doesn't yet have the
+ * related debugging state. For example, during probe/attach.
+ */
+#define	HALDEBUG_G(_ah, __m, ...) \
+	do {							\
+		if ((__m) == HAL_DEBUG_UNMASKABLE ||		\
+		    ath_hal_debug & (__m)) {			\
+			DO_HALDEBUG((_ah), (__m), __VA_ARGS__);	\
+		}						\
+	} while (0);
+
+/*
+ * This is used for local debugging, when ahp isn't NULL and
+ * thus may have debug flags set.
+ */
 #define	HALDEBUG(_ah, __m, ...) \
 	do {							\
 		if ((__m) == HAL_DEBUG_UNMASKABLE ||		\
-		    ((_ah != AH_NULL) && (((struct ath_hal*)_ah)->ah_config.ah_debug & (__m)))) {			\
+		    ath_hal_debug & (__m) ||			\
+		    (_ah)->ah_config.ah_debug & (__m)) {	\
 			DO_HALDEBUG((_ah), (__m), __VA_ARGS__);	\
 		}						\
 	} while(0);
