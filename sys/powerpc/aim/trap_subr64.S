@@ -508,6 +508,8 @@ trapagain:
 	lis	%r3,tocbase@ha
 	ld	%r2,tocbase@l(%r3)
 	addi	%r3,%r1,48
+	addi	%r4,%r1,-8		/* Clear any existing reservations */
+	stdcx.	%r3,0,%r4		
 	bl	CNAME(powerpc_interrupt)
 	nop
 
