@@ -31,6 +31,13 @@ S=     ${.CURDIR}/../../..
 
 KMOD=	usb_template
 SRCS=	opt_bus.h opt_usb.h device_if.h bus_if.h usb_if.h vnode_if.h usbdevs.h \
-	usb_template.c usb_template_cdce.c usb_template_msc.c usb_template_mtp.c
+	usb_template.c \
+	usb_template_audio.c \
+	usb_template_cdce.c \
+	usb_template_kbd.c \
+	usb_template_modem.c \
+	usb_template_mouse.c \
+	usb_template_msc.c \
+	usb_template_mtp.c
 
 .include <bsd.kmod.mk>
