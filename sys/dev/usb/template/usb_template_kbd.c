@@ -94,6 +94,8 @@ static const struct usb_temp_interval keyboard_intr_interval = {
 	.bInterval[USB_SPEED_HIGH] = 2 * 8,
 };
 
+/* The following HID descriptor was dumped from a HP keyboard. */
+
 static uint8_t keyboard_hid_descriptor[] = {
 	0x05, 0x01, 0x09, 0x06, 0xa1, 0x01, 0x05, 0x07,
 	0x19, 0xe0, 0x29, 0xe7, 0x15, 0x00, 0x25, 0x01,

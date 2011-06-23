@@ -95,7 +95,12 @@ USB_MAKE_STRING_DESC(STRING_AUDIO_PRODUCT, string_audio_product);
 
 /* prototypes */
 
-/* Audio Mixer description structures */
+/*
+ * Audio Mixer description structures
+ *
+ * Some of the audio descriptors were dumped
+ * from a Creative Labs USB audio device.
+ */
 
 static const uint8_t audio_raw_desc_0[] = {
 	0x0a, 0x24, 0x01, 0x00, 0x01, 0xa9, 0x00, 0x02,
