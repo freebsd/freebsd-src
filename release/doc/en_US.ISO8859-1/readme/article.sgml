@@ -184,8 +184,7 @@
       <para>Lists of locations that mirror &os; can be found in the
 	<ulink
 	url="&url.books.handbook;/mirrors-ftp.html">FTP
-	Sites</ulink> section of the Handbook, or on the <ulink
-	url="http://mirrorlist.FreeBSD.org/"></ulink> Web pages.
+	Sites</ulink> section of the Handbook.
 	Finding a close (in networking terms) mirror from which to
 	download the distribution is highly recommended.</para>
 
