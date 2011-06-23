@@ -87,7 +87,7 @@ copyout(const void *kaddr, void *udaddr, size_t len)
 	if (!is_uaddr(udaddr))
 		return (EFAULT);
 
-	td = PCPU_GET(curthread);
+	td = curthread;
 
 	if (setfault(env)) {
 		td->td_pcb->pcb_onfault = NULL;
@@ -109,7 +109,7 @@ copyin(const void *udaddr, void *kaddr, size_t len)
 	if (!is_uaddr(udaddr) || is_uaddr(kaddr))
 		return (EFAULT);
 
-	td = PCPU_GET(curthread);
+	td = curthread;
 
 	if (setfault(env)) {
 		td->td_pcb->pcb_onfault = NULL;
@@ -135,7 +135,7 @@ copyinstr(const void *udaddr, void *kaddr, size_t len, size_t *done)
 	if (!is_uaddr(udaddr) || is_uaddr(kaddr))
 		return (EFAULT);
 
-	td = PCPU_GET(curthread);
+	td = curthread;
 
 	if (setfault(env)) {
 		td->td_pcb->pcb_onfault = NULL;
@@ -175,7 +175,7 @@ subyte(void *addr, int byte)
 	if (!is_uaddr(addr))
 		return (EFAULT);
 
-	td = PCPU_GET(curthread);
+	td = curthread;
 
 	if (setfault(env)) {
 		td->td_pcb->pcb_onfault = NULL;
@@ -197,7 +197,7 @@ suword(void *addr, long word)
 	if (!is_uaddr(addr))
 		return (EFAULT);
 
-	td = PCPU_GET(curthread);
+	td = curthread;
 
 	if (setfault(env)) {
 		td->td_pcb->pcb_onfault = NULL;
@@ -228,7 +228,7 @@ fubyte(const void *addr)
 	if (!is_uaddr(addr))
 		return (EFAULT);
 
-	td = PCPU_GET(curthread);
+	td = curthread;
 
 	if (setfault(env)) {
 		td->td_pcb->pcb_onfault = NULL;
@@ -251,7 +251,7 @@ fuword(const void *addr)
 	if (!is_uaddr(addr))
 		return (EFAULT);
 
-	td = PCPU_GET(curthread);
+	td = curthread;
 
 	if (setfault(env)) {
 		td->td_pcb->pcb_onfault = NULL;
@@ -288,7 +288,7 @@ casuword(volatile u_long *addr, u_long old, u_long new)
 	if (!((vm_offset_t)addr <= VM_MAXUSER_ADDRESS))
 		return (EFAULT);
 
-	td = PCPU_GET(curthread);
+	td = curthread;
 
 	if (setfault(env)) {
 		td->td_pcb->pcb_onfault = NULL;

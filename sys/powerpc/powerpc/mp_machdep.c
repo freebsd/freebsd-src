@@ -96,10 +96,6 @@ machdep_ap_bootstrap(void)
 	printf("SMP: AP CPU #%d launched\n", PCPU_GET(cpuid));
 	mtx_unlock_spin(&ap_boot_mtx);
 
-	/* Initialize curthread */
-	PCPU_SET(curthread, PCPU_GET(idlethread));
-	PCPU_SET(curpcb, curthread->td_pcb);
-
 	/* Start per-CPU event timers. */
 	cpu_initclocks_ap();
 
