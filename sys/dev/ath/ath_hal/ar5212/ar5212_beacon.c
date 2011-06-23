@@ -84,9 +84,9 @@ ar5212BeaconInit(struct ath_hal *ah,
 	case HAL_M_HOSTAP:
 	case HAL_M_IBSS:
 		bt.bt_nextdba = (next_beacon -
-			ath_hal_dma_beacon_response_time) << 3;	/* 1/8 TU */
+			ah->ah_config.ah_dma_beacon_response_time) << 3; /* 1/8 TU */
 		bt.bt_nextswba = (next_beacon -
-			ath_hal_sw_beacon_response_time) << 3;	/* 1/8 TU */
+            ah->ah_config.ah_sw_beacon_response_time) << 3;	/* 1/8 TU */
 		break;
 	}
 	/*
