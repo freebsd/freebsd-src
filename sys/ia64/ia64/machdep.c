@@ -470,11 +470,11 @@ cpu_switch(struct thread *old, struct thread *new, struct mtx *mtx)
 	if (PCPU_GET(fpcurthread) == old)
 		old->td_frame->tf_special.psr |= IA64_PSR_DFH;
 	if (!savectx(oldpcb)) {
-		atomic_store_rel_ptr(&old->td_lock, mtx);
-
 		newpcb = new->td_pcb;
 		oldpcb->pcb_current_pmap =
 		    pmap_switch(newpcb->pcb_current_pmap);
+
+		atomic_store_rel_ptr(&old->td_lock, mtx);
 
 #if defined(SCHED_ULE) && defined(SMP)
 		while (atomic_load_acq_ptr(&new->td_lock) == &blocked_lock)
