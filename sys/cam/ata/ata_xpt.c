@@ -1678,7 +1678,8 @@ ata_action(union ccb *start_ccb)
 			xpt_done(start_ccb);
 			break;
 		}
-		/* FALLTHROUGH */
+		xpt_action_default(start_ccb);
+		break;
 	}
 	case XPT_DEV_ADVINFO:
 	{
