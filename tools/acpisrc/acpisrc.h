@@ -64,12 +64,13 @@
 #include <errno.h>
 
 
-/* Fixups for non-Win32 compilation */
-#ifndef WIN32
+/* O_BINARY is not always defined */
 #ifndef O_BINARY
 #define O_BINARY    0x0
 #endif
 
+/* Fixups for non-Win32 compilation */
+#ifndef WIN32
 #define mkdir(x) mkdir(x, 0770)
 char * strlwr(char* str);
 #endif

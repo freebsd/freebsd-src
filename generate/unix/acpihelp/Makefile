@@ -1,5 +1,6 @@
 #
-# acpisrc - ACPICA source code conversion utility
+# acpihelp - ACPI Help utility. Displays ASL operator syntax and
+# information about ACPI predefined names.
 #
 
 #
@@ -11,25 +12,23 @@
 # compile options, and prevents pollution of the source code.
 #
 include ../Makefile.config
-PROG = acpisrc
+PROG = acpihelp
 
 #
-# Flags specific to acpisrc
+# Flags specific to acpihelp
 #
 CFLAGS+= \
-    -DACPI_SRC_APP \
-    -I$(ACPICA_TOOLS)/acpisrc
+    -DACPI_HELP_APP \
+    -I$(ACPICA_TOOLS)/acpihelp
 
 OBJS = \
-	ascase.o \
-	asconvrt.o \
-	asfile.o \
-	asmain.o \
-	asremove.o \
-	astable.o \
-	asutils.o \
-	getopt.o \
-	osunixdir.o
+	ahamlops.o \
+	ahaslkey.o \
+	ahaslops.o \
+	ahdecode.o \
+	ahpredef.o \
+	ahmain.o \
+	getopt.o
 
 #
 # Root rule
@@ -39,39 +38,30 @@ $(PROG) : $(OBJS)
 	$(COPYPROG)
 
 #
-# acpisrc source
+# acpihelp source
 #
-ascase.o :          $(ACPICA_TOOLS)/acpisrc/ascase.c
+ahamlops.o :        $(ACPICA_TOOLS)/acpihelp/ahamlops.c
 	$(COMPILE)
 
-asconvrt.o :        $(ACPICA_TOOLS)/acpisrc/asconvrt.c
+ahaslkey.o :        $(ACPICA_TOOLS)/acpihelp/ahaslkey.c
 	$(COMPILE)
 
-asfile.o :          $(ACPICA_TOOLS)/acpisrc/asfile.c
+ahaslops.o :        $(ACPICA_TOOLS)/acpihelp/ahaslops.c
 	$(COMPILE)
 
-asmain.o :          $(ACPICA_TOOLS)/acpisrc/asmain.c
+ahdecode.o :        $(ACPICA_TOOLS)/acpihelp/ahdecode.c
 	$(COMPILE)
 
-asremove.o :        $(ACPICA_TOOLS)/acpisrc/asremove.c
+ahpredef.o :        $(ACPICA_TOOLS)/acpihelp/ahpredef.c
 	$(COMPILE)
 
-astable.o :         $(ACPICA_TOOLS)/acpisrc/astable.c
-	$(COMPILE)
-
-asutils.o :         $(ACPICA_TOOLS)/acpisrc/asutils.c
+ahmain.o :          $(ACPICA_TOOLS)/acpihelp/ahmain.c
 	$(COMPILE)
 
 #
 # ACPICA core source - common
 #
 getopt.o :          $(ACPICA_COMMON)/getopt.c
-	$(COMPILE)
-
-#
-# Unix OS services layer (OSL)
-#
-osunixdir.o :       $(ACPICA_OSL)/osunixdir.c
 	$(COMPILE)
 
 

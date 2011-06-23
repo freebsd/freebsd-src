@@ -1,15 +1,26 @@
 #
-# AcpiNames utility
+# acpinames - Load ACPI table and dump namespace. This is a subset
+# of the AcpiExec functionality, it is intended to demonstrate
+# the configurability of ACPICA.
+#
+
+#
+# Note: This makefile is intended to be used from within the native
+# ACPICA directory structure, from under generate/unix. It specifically
+# places all object files in a generate/unix subdirectory, not within
+# the various ACPICA source directories. This prevents collisions
+# between different compilations of the same source file with different
+# compile options, and prevents pollution of the source code.
 #
 include ../Makefile.config
-
 PROG = acpinames
-
 
 #
 # Flags specific to acpinames utility
 #
-CFLAGS+= -DACPI_APPLICATION -DACPI_SINGLE_THREADED -DACPI_DEBUGGER -I$(ACPICA_TOOLS)/acpinames
+CFLAGS+= \
+    -DACPI_NAMES_APP \
+    -I$(ACPICA_TOOLS)/acpinames
 
 OBJS = \
 	anmain.o \
@@ -76,14 +87,12 @@ OBJS = \
 	utxferror.o \
 	utxface.o
 
-
 #
 # Root rule
 #
 $(PROG) : $(OBJS)
-	$(CC) $(LDFLAGS) $(OBJS) -lpthread -o $(PROG)
+	$(CC) $(LDFLAGS) $(OBJS) -o $(PROG)
 	$(COPYPROG)
-
 
 #
 # acpinames source
@@ -97,13 +106,11 @@ anstubs.o :         $(ACPICA_TOOLS)/acpinames/anstubs.c
 antables.o :        $(ACPICA_TOOLS)/acpinames/antables.c
 	$(COMPILE)
 
-
 #
 # ACPICA core source - common
 #
 getopt.o :          $(ACPICA_COMMON)/getopt.c
 	$(COMPILE)
-
 
 #
 # ACPICA core source
@@ -282,7 +289,6 @@ utxferror.o :       $(ACPICA_CORE)/utilities/utxferror.c
 utxface.o :         $(ACPICA_CORE)/utilities/utxface.c
 	$(COMPILE)
 
-
 #
 # Unix OS services layer (OSL)
 #
@@ -290,8 +296,8 @@ osunixxf.o :        $(ACPICA_OSL)/osunixxf.c
 	$(COMPILE)
 
 
-clean : 
+clean :
 	rm -f $(PROG) $(PROG).exe $(OBJS)
 
-install : 
+install :
 	$(INSTALLPROG)

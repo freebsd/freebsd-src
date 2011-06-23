@@ -411,6 +411,7 @@ typedef struct acpi_predefined_data
     char                        *Pathname;
     const ACPI_PREDEFINED_INFO  *Predefined;
     union acpi_operand_object   *ParentPackage;
+    ACPI_NAMESPACE_NODE         *Node;
     UINT32                      Flags;
     UINT8                       NodeFlags;
 

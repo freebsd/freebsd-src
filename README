@@ -1,58 +1,50 @@
-acpica-unix
------------
+Makefiles for tool generation from the unix tarball
+---------------------------------------------------
 
-This source release includes:
+These makefiles are intended to generate the ACPICA utilities in
+a Linux or Unix-like environment, from the ACPICA source code
+as released in the unix tarball.
+
+Windows binary versions of these tools are available at:
+
+http://www.acpica.org/downloads/binary_tools.php
+
+Documentation is available at acpica.org:
+
+http://www.acpica.org/documentation/
+
+The acpica/source/tools directory contains the following utilities.
+Note: These utilities are tested and supported as 32-bit versions
+only.
+
+acpibin
+acpiexec
+acpihelp
+acpinames
+acpisrc
+acpixtract
+iasl
 
 
-1) a cross-OS AML interpreter
+Requirements
+------------
 
-This is intended to allow commercial and open source operating systems
-to be enabled for ACPI. OS specific code is still needed, but the
-AML interpreter should greatly improve the development speed of ACPI
-support.
-
-The AML interpreter source should be integrated into the kernel's
-build process. We recommend establishing an automated method for
-this, so later versions can also be incorporated easily. Please see
-the documentation on the website for API and other implementation
-information.
-
-
-2) iasl, an ASL compiler/decompiler
-
-iasl compiles ASL (ACPI Source Language) into AML (ACPI Machine
-Language). This AML is suitable for inclusion as a DSDT in system
-firmware. It also can disassemble AML, for debugging purposes.
-
-To compile:
-
-cd compiler
 make
-
-It has been compiled on Linux, but should easily port to other Unix
-environments.
-
-Run 'iasl -h' for more information, or download the binary version for
-documentation in PDF format.
+gcc compiler (4+)
+bison or yacc
+flex or lex
 
 
-3) acpisrc, a source code conversion tool
+Configuration
+-------------
 
-acpisrc converts the standard form of the acpica source release (included
-here) into a version that meets Linux coding guidelines. This consists
-mainly of performing a series of string replacements and transformations
-to the code.
+The Makefiles contain this configuration information:
 
-To compile:
-
-cd tools/acpisrc
-make
-
-It has been compiled on Linux, but should easily port to other Unix
-environments.
+HOST =       _LINUX             /* Host system, must appear in acenv.h */
+CC =         gcc                /* C compiler */
 
 
-4) acpibin, an AML file tool
+1) acpibin, an AML file tool
 
 acpibin compares AML files, dumps AML binary files to text files,
 extracts binary AML from text files, and other AML file
@@ -60,20 +52,86 @@ manipulation.
 
 To compile:
 
-cd tools/acpibin
+cd acpica/source/tools/acpibin
 make
+make install   /* install the binary to /usr/bin */
 
 
-5) acpiexec, a user-space AML interpreter
+2) acpiexec, a user-space AML interpreter
 
 acpiexec allows the loading of ACPI tables and execution of control
-methods from user space.  Useful for debugging AML code and testing
-the AML interpreter.
+methods from user space. Useful for debugging AML code and testing
+the AML interpreter. Hardware access is simulated.
 
 To compile:
 
-cd tools/acpiexec
+cd acpica/source/tools/acpiexec
 make
+make install   /* install the binary to /usr/bin */
 
 
-Thanks -- The ACPI CA Team
+3) acpihelp, syntax help for ASL operators and reserved names
+
+acpihelp displays the syntax for all of the ASL operators, as well
+as information about the ASL/ACPI reserved names (4-char names that
+start with underscore.)
+
+To compile:
+
+cd acpica/source/tools/acpihelp
+make
+make install   /* install the binary to /usr/bin */
+
+
+4) acpinames, load and dump acpi namespace
+
+acpinames loads an ACPI namespace from a binary ACPI table file.
+This is a smaller version of acpiexec that loads an acpi table and
+dumps the resulting namespace. It is primarily intended to demonstrate
+the configurability of ACPICA.
+
+To compile:
+
+cd acpica/source/tools/acpinames
+make
+make install   /* install the binary to /usr/bin */
+
+
+5) acpisrc, a source code conversion tool
+
+acpisrc converts the standard form of the acpica source release (included
+here) into a version that meets Linux coding guidelines. This consists
+mainly of performing a series of string replacements and transformations
+to the code. It can also be used to clean the acpica source and generate
+statistics.
+
+To compile:
+
+cd acpica/source/tools/acpisrc
+make
+make install   /* install the binary to /usr/bin */
+
+
+6) acpixtract, extract binary ACPI tables from an acpidump
+
+acpixtract is used to extract binary ACPI tables from the ASCII text
+output of an acpidump utility (available on several different hosts.)
+
+To compile:
+
+cd acpica/source/tools/acpixtract
+make
+make install   /* install the binary to /usr/bin */
+
+
+7) iasl, an optimizing ASL compiler/disassembler
+
+iasl compiles ASL (ACPI Source Language) into AML (ACPI Machine
+Language). This AML is suitable for inclusion as a DSDT in system
+firmware. It also can disassemble AML, for debugging purposes.
+
+To compile:
+
+cd acpica/source/compiler
+make
+make install   /* install the binary to /usr/bin */
