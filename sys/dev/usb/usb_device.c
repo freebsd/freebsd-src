@@ -1358,17 +1358,18 @@ usb_probe_and_attach(struct usb_device *udev, uint8_t iface_index)
 		    uaa.info.bIfaceIndex,
 		    uaa.info.bIfaceNum);
 
-		if (usb_probe_and_attach_sub(udev, &uaa)) {
-			/* ignore */
-		}
-	}
+		usb_probe_and_attach_sub(udev, &uaa);
 
-	if (uaa.temp_dev) {
-		/* remove the last created child; it is unused */
-
-		if (device_delete_child(udev->parent_dev, uaa.temp_dev)) {
+		/*
+		 * Remove the leftover child, if any, to enforce that
+		 * a new nomatch devd event is generated for the next
+		 * interface if no driver is found:
+		 */
+		if (uaa.temp_dev == NULL)
+			continue;
+		if (device_delete_child(udev->parent_dev, uaa.temp_dev))
 			DPRINTFN(0, "device delete child failed\n");
-		}
+		uaa.temp_dev = NULL;
 	}
 done:
 	if (do_unlock)
