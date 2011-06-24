@@ -218,7 +218,7 @@ Toggle packet tracing.
 Toggle verbose mode.
 .El
 .Sh SEE ALSO
-.Xr tftp 1
+.Xr tftpd 8
 .Pp
 The following RFC's are supported:
 .Rs
@@ -256,6 +256,12 @@ The
 .Nm
 command appeared in
 .Bx 4.3 .
+.Pp
+Edwin Groothuis <edwin@FreeBSD.org> performed a major rewrite of the
+.Xr tftpd 8
+and
+.Nm
+code to support RFC2348.
 .Sh NOTES
 Because there is no user-login or validation within
 the

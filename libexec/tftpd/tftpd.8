@@ -293,6 +293,12 @@ was introduced in
 support for the TFTP Blocksize Option (RFC2348) and the blksize2 option
 was introduced in
 .Fx 7.4 .
+.Pp
+Edwin Groothuis <edwin@FreeBSD.org> performed a major rewrite of the
+.Nm
+and
+.Xr tftp 1
+code to support RFC2348.
 .Sh NOTES
 Files larger than 33488896 octets (65535 blocks) cannot be transferred
 without client and server supporting the TFTP blocksize option (RFC2348),
