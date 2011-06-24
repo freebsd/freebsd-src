@@ -130,7 +130,7 @@ options 	ATH_DIAGAPI
 #options 	ATH_TX99_DIAG
 device		ath_rate_sample	# SampleRate tx rate control for ath
 
-options 	AH_DEBUG
+#options 	AH_DEBUG
 #options 	AH_ASSERT
 options 	AH_PRIVATE_DIAG
 #device		ath_ar5210
