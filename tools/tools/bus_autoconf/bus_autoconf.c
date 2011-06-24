@@ -148,15 +148,8 @@ usb_dump(struct usb_device_id *id, uint32_t nid)
 
 	usb_dump_sub(id, &info);
 
-	if (info.is_iface) {
+	if (info.is_any) {
 		printf("nomatch 10 {\n"
-		    "	match \"system\" \"USB\";\n"
-		    "	match \"subsystem\" \"INTERFACE\";\n"
-		    "	match \"mode\" \"%s\";\n", mode);
-	} else if (info.is_any) {
-		printf("nomatch 10 {\n"
-		    "	match \"system\" \"USB\";\n"
-		    "	match \"subsystem\" \"DEVICE\";\n"
 		    "	match \"mode\" \"%s\";\n", mode);
 	} else {
 		return (n);
