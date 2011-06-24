@@ -100,7 +100,7 @@ __FBSDID("$FreeBSD$");
 /*
  * Various supported device vendors/products.
  */
-static const struct usb_device_id kue_devs[] = {
+static const STRUCT_USB_HOST_ID kue_devs[] = {
 #define	KUE_DEV(v,p) { USB_VP(USB_VENDOR_##v, USB_PRODUCT_##v##_##p) }
 	KUE_DEV(3COM, 3C19250),
 	KUE_DEV(3COM, 3C460),

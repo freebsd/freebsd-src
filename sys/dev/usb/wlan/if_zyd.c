@@ -200,7 +200,7 @@ static const struct zyd_phy_pair zyd_def_phyB[] = ZYD_DEF_PHYB;
 	{ USB_VPI(USB_VENDOR_##v, USB_PRODUCT_##v##_##p, ZYD_ZD1211) }
 #define	ZYD_ZD1211B_DEV(v,p)	\
 	{ USB_VPI(USB_VENDOR_##v, USB_PRODUCT_##v##_##p, ZYD_ZD1211B) }
-static const struct usb_device_id zyd_devs[] = {
+static const STRUCT_USB_HOST_ID zyd_devs[] = {
 	/* ZYD_ZD1211 */
 	ZYD_ZD1211_DEV(3COM2, 3CRUSB10075),
 	ZYD_ZD1211_DEV(ABOCOM, WL54),

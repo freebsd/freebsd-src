@@ -204,7 +204,7 @@ static const struct uchcom_divider_record dividers[] =
 
 #define	NUM_DIVIDERS	(sizeof (dividers) / sizeof (dividers[0]))
 
-static const struct usb_device_id uchcom_devs[] = {
+static const STRUCT_USB_HOST_ID uchcom_devs[] = {
 	{USB_VPI(USB_VENDOR_WCH, USB_PRODUCT_WCH_CH341SER, 0)},
 	{USB_VPI(USB_VENDOR_WCH2, USB_PRODUCT_WCH2_CH341SER, 0)},
 };

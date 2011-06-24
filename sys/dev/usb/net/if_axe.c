@@ -133,7 +133,7 @@ SYSCTL_INT(_hw_usb_axe, OID_AUTO, debug, CTLFLAG_RW, &axe_debug, 0,
 /*
  * Various supported device vendors/products.
  */
-static const struct usb_device_id axe_devs[] = {
+static const STRUCT_USB_HOST_ID axe_devs[] = {
 #define	AXE_DEV(v,p,i) { USB_VPI(USB_VENDOR_##v, USB_PRODUCT_##v##_##p, i) }
 	AXE_DEV(ABOCOM, UF200, 0),
 	AXE_DEV(ACERCM, EP1427X2, 0),
