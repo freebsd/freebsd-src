@@ -745,6 +745,13 @@ static const struct usb_config ukbd_config[UKBD_N_TRANSFER] = {
 	},
 };
 
+/* A match on these entries will load ukbd */
+static const STRUCT_USB_HOST_ID __used ukbd_devs[] = {
+	{USB_IFACE_CLASS(UICLASS_HID),
+	 USB_IFACE_SUBCLASS(UISUBCLASS_BOOT),
+	 USB_IFACE_PROTOCOL(UIPROTO_BOOT_KEYBOARD),},
+};
+
 static int
 ukbd_probe(device_t dev)
 {
