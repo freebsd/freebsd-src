@@ -96,7 +96,7 @@
       <flags>IEEE80211_CHAN_HT20</flags>
     </band>
     <band>
-      <freqband ref="F1_5180_5240"/>
+      <freqband ref="H4_5180_5240"/>
       <maxpower>17</maxpower>
       <flags>IEEE80211_CHAN_HT40</flags>
     </band>
@@ -106,7 +106,7 @@
       <flags>IEEE80211_CHAN_HT20</flags>
     </band>
     <band>
-      <freqband ref="F1_5745_5805"/>
+      <freqband ref="H4_5745_5805"/>
       <maxpower>23</maxpower>
       <flags>IEEE80211_CHAN_HT40</flags>
     </band>
