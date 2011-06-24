@@ -1334,15 +1334,19 @@ uhub_child_pnpinfo_string(device_t parent, device_t child,
 		    "devclass=0x%02x devsubclass=0x%02x "
 		    "sernum=\"%s\" "
 		    "release=0x%04x "
-		    "intclass=0x%02x intsubclass=0x%02x" "%s%s",
+		    "mode=%s "
+		    "intclass=0x%02x intsubclass=0x%02x "
+		    "intprotocol=0x%02x " "%s%s",
 		    UGETW(res.udev->ddesc.idVendor),
 		    UGETW(res.udev->ddesc.idProduct),
 		    res.udev->ddesc.bDeviceClass,
 		    res.udev->ddesc.bDeviceSubClass,
 		    usb_get_serial(res.udev),
 		    UGETW(res.udev->ddesc.bcdDevice),
+		    (res.udev->flags.usb_mode == USB_MODE_HOST) ? "host" : "device",
 		    iface->idesc->bInterfaceClass,
 		    iface->idesc->bInterfaceSubClass,
+		    iface->idesc->bInterfaceProtocol,
 		    iface->pnpinfo ? " " : "",
 		    iface->pnpinfo ? iface->pnpinfo : "");
 	} else {
