@@ -64,13 +64,13 @@ struct tftp_handle;
 
 static int	tftp_open(const char *path, struct open_file *f);
 static int	tftp_close(struct open_file *f);
-static void	tftp_parse_oack(struct tftp_handle *h, char *buf, size_t len);
+static int	tftp_parse_oack(struct tftp_handle *h, char *buf, size_t len);
 static int	tftp_read(struct open_file *f, void *buf, size_t size, size_t *resid);
 static int	tftp_write(struct open_file *f, void *buf, size_t size, size_t *resid);
 static off_t	tftp_seek(struct open_file *f, off_t offset, int where);
 static int	tftp_set_blksize(struct tftp_handle *h, const char *str);
 static int	tftp_stat(struct open_file *f, struct stat *sb);
-static ssize_t sendrecv_tftp(struct tftp_handle *h, 
+static ssize_t sendrecv_tftp(struct tftp_handle *h,
     ssize_t (*sproc)(struct iodesc *, void *, size_t),
     void *sbuf, size_t ssize,
     ssize_t (*rproc)(struct tftp_handle *h, void *, ssize_t, time_t, unsigned short *),
@@ -93,7 +93,7 @@ static int      tftpport = 2000;
 static int	is_open = 0;
 
 /*
- * The legacy TFTP_BLKSIZE value was 512.
+ * The legacy TFTP_BLKSIZE value was SEGSIZE(512).
  * TFTP_REQUESTED_BLKSIZE of 1428 is (Ethernet MTU, less the TFTP, UDP and
  * IP header lengths).
  */
@@ -102,7 +102,7 @@ static int	is_open = 0;
 /*
  * Choose a blksize big enough so we can test with Ethernet
  * Jumbo frames in the future.
- */ 
+ */
 #define TFTP_MAX_BLKSIZE 9008
 
 struct tftp_handle {
@@ -113,7 +113,7 @@ struct tftp_handle {
 	int             off;
 	char           *path;	/* saved for re-requests */
 	unsigned int	tftp_blksize;
-	unsigned long	tftp_tsize; 
+	unsigned long	tftp_tsize;
 	struct {
 		u_char header[HEADER_SIZE];
 		struct tftphdr t;
@@ -121,7 +121,8 @@ struct tftp_handle {
 	} __packed __aligned(4) lastdata;
 };
 
-static const int tftperrors[8] = {
+#define	TFTP_MAX_ERRCODE EOPTNEG
+static const int tftperrors[TFTP_MAX_ERRCODE + 1] = {
 	0,			/* ??? */
 	ENOENT,
 	EPERM,
@@ -129,10 +130,57 @@ static const int tftperrors[8] = {
 	EINVAL,			/* ??? */
 	EINVAL,			/* ??? */
 	EEXIST,
-	EINVAL			/* ??? */
+	EINVAL,			/* ??? */
+	EINVAL,			/* Option negotiation failed. */
 };
 
-static ssize_t 
+static int  tftp_getnextblock(struct tftp_handle *h);
+
+/* send error message back. */
+static void
+tftp_senderr(struct tftp_handle *h, u_short errcode, const char *msg)
+{
+	struct {
+		u_char header[HEADER_SIZE];
+		struct tftphdr  t;
+		u_char space[63]; /* +1 from t */
+	} __packed __aligned(4) wbuf;
+	char           *wtail;
+	int             len;
+
+	len = strlen(msg);
+	if (len > sizeof(wbuf.space))
+		len = sizeof(wbuf.space);
+
+	wbuf.t.th_opcode = htons((u_short) ERROR);
+	wbuf.t.th_code   = htons(errcode);
+
+	wtail = wbuf.t.th_msg;
+	bcopy(msg, wtail, len);
+	wtail[len] = '\0';
+	wtail += len + 1;
+
+	sendudp(h->iodesc, &wbuf.t, wtail - (char *) &wbuf.t);
+}
+
+static void
+tftp_sendack(struct tftp_handle *h)
+{
+	struct {
+		u_char header[HEADER_SIZE];
+		struct tftphdr  t;
+	} __packed __aligned(4) wbuf;
+	char           *wtail;
+
+	wbuf.t.th_opcode = htons((u_short) ACK);
+	wtail = (char *) &wbuf.t.th_block;
+	wbuf.t.th_block = htons((u_short) h->currblock);
+	wtail += 2;
+
+	sendudp(h->iodesc, &wbuf.t, wtail - (char *) &wbuf.t);
+}
+
+static ssize_t
 recvtftp(struct tftp_handle *h, void *pkt, ssize_t len, time_t tleft,
     unsigned short *rtype)
 {
@@ -170,7 +218,7 @@ recvtftp(struct tftp_handle *h, void *pkt, ssize_t len, time_t tleft,
 		return got;
 	}
 	case ERROR:
-		if ((unsigned) ntohs(t->th_code) >= 8) {
+		if ((unsigned) ntohs(t->th_code) > TFTP_MAX_ERRCODE) {
 			printf("illegal tftp error %d\n", ntohs(t->th_code));
 			errno = EIO;
 		} else {
@@ -182,14 +230,30 @@ recvtftp(struct tftp_handle *h, void *pkt, ssize_t len, time_t tleft,
 		return (-1);
 	case OACK: {
 		struct udphdr *uh;
-		int tftp_oack_len = len - sizeof(t->th_opcode); 
-		tftp_parse_oack(h, t->th_u.tu_stuff, tftp_oack_len);
+		int tftp_oack_len;
+
+		/* 
+		 * Unexpected OACK. TFTP transfer already in progress. 
+		 * Drop the pkt.
+		 */
+		if (d->xid != 1) {
+			return (-1);
+		}
+
 		/*
-		 * Remember which port this OACK came from,
-		 * because we need to send the ACK back to it.
+		 * Remember which port this OACK came from, because we need
+		 * to send the ACK or errors back to it.
 		 */
 		uh = (struct udphdr *) pkt - 1;
 		d->destport = uh->uh_sport;
+		
+		/* Parse options ACK-ed by the server. */
+		tftp_oack_len = len - sizeof(t->th_opcode);
+		if (tftp_parse_oack(h, t->th_u.tu_stuff, tftp_oack_len) != 0) {
+			tftp_senderr(h, EOPTNEG, "Malformed OACK");
+			errno = EIO;
+			return (-1);
+		}
 		return (0);
 	}
 	default:
@@ -201,7 +265,7 @@ recvtftp(struct tftp_handle *h, void *pkt, ssize_t len, time_t tleft,
 }
 
 /* send request, expect first block (or error) */
-static int 
+static int
 tftp_makereq(struct tftp_handle *h)
 {
 	struct {
@@ -250,26 +314,28 @@ tftp_makereq(struct tftp_handle *h)
 	h->iodesc->destport = htons(IPPORT_TFTP);
 	h->iodesc->xid = 1;	/* expected block */
 
+	h->currblock = 0;
+	h->islastblock = 0;
+	h->validsize = 0;
+
 	res = sendrecv_tftp(h, &sendudp, &wbuf.t, wtail - (char *) &wbuf.t,
 		       &recvtftp, t, sizeof(*t) + h->tftp_blksize, &rtype);
 
-	if (rtype == OACK) {
-		wbuf.t.th_opcode = htons((u_short)ACK);
-		wtail = (char *) &wbuf.t.th_block;
-		wbuf.t.th_block = htons(0);
-		wtail += 2;
-		rtype = 0;
-		res = sendrecv_tftp(h, &sendudp, &wbuf.t, wtail - (char *) &wbuf.t,
-			       &recvtftp, t, sizeof(*t) + h->tftp_blksize, &rtype);
-	}
+	if (rtype == OACK)
+		return (tftp_getnextblock(h));
+
+	/* Server ignored our blksize request, revert to TFTP default. */
+	h->tftp_blksize = SEGSIZE;
 
 	switch (rtype) {
 		case DATA: {
 			h->currblock = 1;
 			h->validsize = res;
 			h->islastblock = 0;
-			if (res < h->tftp_blksize)
+			if (res < h->tftp_blksize) {
 				h->islastblock = 1;	/* very short file */
+				tftp_sendack(h);
+			}
 			return (0);
 		}
 		case ERROR:
@@ -320,7 +386,7 @@ tftp_getnextblock(struct tftp_handle *h)
 	return (0);
 }
 
-static int 
+static int
 tftp_open(const char *path, struct open_file *f)
 {
 	struct tftp_handle *tftpfile;
@@ -365,7 +431,7 @@ tftp_open(const char *path, struct open_file *f)
 	return (0);
 }
 
-static int 
+static int
 tftp_read(struct open_file *f, void *addr, size_t size,
     size_t *resid /* out */)
 {
@@ -381,9 +447,11 @@ tftp_read(struct open_file *f, void *addr, size_t size,
 
 		needblock = tftpfile->off / tftpfile->tftp_blksize + 1;
 
-		if (tftpfile->currblock > needblock)	/* seek backwards */
+		if (tftpfile->currblock > needblock) {	/* seek backwards */
+			tftp_senderr(tftpfile, 0, "No error: read aborted");
 			tftp_makereq(tftpfile);	/* no error check, it worked
 						 * for open */
+		}
 
 		while (tftpfile->currblock < needblock) {
 			int res;
@@ -452,7 +520,7 @@ tftp_close(struct open_file *f)
 	return (0);
 }
 
-static int 
+static int
 tftp_write(struct open_file *f __unused, void *start __unused, size_t size __unused,
     size_t *resid __unused /* out */)
 {
@@ -473,7 +541,7 @@ tftp_stat(struct open_file *f, struct stat *sb)
 	return (0);
 }
 
-static off_t 
+static off_t
 tftp_seek(struct open_file *f, off_t offset, int where)
 {
 	struct tftp_handle *tftpfile;
@@ -494,7 +562,7 @@ tftp_seek(struct open_file *f, off_t offset, int where)
 }
 
 static ssize_t
-sendrecv_tftp(struct tftp_handle *h, 
+sendrecv_tftp(struct tftp_handle *h,
     ssize_t (*sproc)(struct iodesc *, void *, size_t),
     void *sbuf, size_t ssize,
     ssize_t (*rproc)(struct tftp_handle *, void *, ssize_t, time_t, unsigned short *),
@@ -562,9 +630,9 @@ tftp_set_blksize(struct tftp_handle *h, const char *str)
 
 	/*
 	 * Only accept blksize value if it is numeric.
-	 * RFC2348 specifies that acceptable valuesare 8-65464
-	 * 8-65464 .  Let's choose a limit less than MAXRSPACE
-	*/
+	 * RFC2348 specifies that acceptable values are 8-65464.
+	 * Let's choose a limit less than MAXRSPACE.
+	 */
 	if (*endptr == '\0' && new_blksize >= 8
 	    && new_blksize <= TFTP_MAX_BLKSIZE) {
 		h->tftp_blksize = new_blksize;
@@ -597,13 +665,12 @@ tftp_set_blksize(struct tftp_handle *h, const char *str)
  *    optN, valueN
  *       The final option/value acknowledgment pair.
  */
-static void 
+static int 
 tftp_parse_oack(struct tftp_handle *h, char *buf, size_t len)
 {
 	/* 
 	 *  We parse the OACK strings into an array
 	 *  of name-value pairs.
-	 *  
 	 */
 	char *tftp_options[128] = { 0 };
 	char *val = buf;
@@ -612,17 +679,21 @@ tftp_parse_oack(struct tftp_handle *h, char *buf, size_t len)
 	int blksize_is_set = 0;
 	int tsize = 0;
 	
- 
-	while ( option_idx < 128 && i < len ) {
-		 if (buf[i] == '\0') {
-		    if (&buf[i] > val) {
-		       tftp_options[option_idx] = val;
-		       val = &buf[i] + 1;
-		       ++option_idx;
-		    }
-		 }
-		 ++i;
+	unsigned int orig_blksize;
+
+	while (option_idx < 128 && i < len) {
+		if (buf[i] == '\0') {
+			if (&buf[i] > val) {
+				tftp_options[option_idx] = val;
+				val = &buf[i] + 1;
+				++option_idx;
+			}
+		}
+		++i;
 	}
+
+	/* Save the block size we requested for sanity check later. */
+	orig_blksize = h->tftp_blksize;
 
 	/* 
 	 * Parse individual TFTP options.
@@ -631,27 +702,37 @@ tftp_parse_oack(struct tftp_handle *h, char *buf, size_t len)
 	 */ 
 	for (i = 0; i < option_idx; i += 2) {
 	    if (strcasecmp(tftp_options[i], "blksize") == 0) {
-		if (i + 1 < option_idx) {
+		if (i + 1 < option_idx)
 			blksize_is_set =
 			    tftp_set_blksize(h, tftp_options[i + 1]);
-		}
 	    } else if (strcasecmp(tftp_options[i], "tsize") == 0) {
-		if (i + 1 < option_idx) {
+		if (i + 1 < option_idx)
 			tsize = strtol(tftp_options[i + 1], (char **)NULL, 10);
-		}
+	    } else {
+		/* Do not allow any options we did not expect to be ACKed. */
+		printf("unexpected tftp option '%s'\n", tftp_options[i]);
+		return (-1);
 	    }
 	}
 
 	if (!blksize_is_set) {
 		/*
 		 * If TFTP blksize was not set, try defaulting
-		 * to the legacy TFTP blksize of 512
+		 * to the legacy TFTP blksize of SEGSIZE(512)
 		 */
-		h->tftp_blksize = 512;
+		h->tftp_blksize = SEGSIZE;
+	} else if (h->tftp_blksize > orig_blksize) {
+		/*
+		 * Server should not be proposing block sizes that
+		 * exceed what we said we can handle.
+		 */
+		printf("unexpected blksize %u\n", h->tftp_blksize);
+		return (-1);
 	}
 
 #ifdef TFTP_DEBUG
 	printf("tftp_blksize: %u\n", h->tftp_blksize);
 	printf("tftp_tsize: %lu\n", h->tftp_tsize);
 #endif
+	return 0;
 }
