@@ -959,9 +959,11 @@ MLINKS+=refcount.9 refcount_acquire.9 \
 MLINKS+=resource_int_value.9 resource_long_value.9 \
 	resource_int_value.9 resource_string_value.9
 MLINKS+=rman.9 rman_activate_resource.9 \
+	rman.9 rman_adjust_resource.9 \
 	rman.9 rman_await_resource.9 \
 	rman.9 rman_deactivate_resource.9 \
 	rman.9 rman_fini.9 \
+	rman.9 rman_first_free_region.9 \
 	rman.9 rman_get_bushandle.9 \
 	rman.9 rman_get_bustag.9 \
 	rman.9 rman_get_device.9 \
@@ -972,6 +974,9 @@ MLINKS+=rman.9 rman_activate_resource.9 \
 	rman.9 rman_get_start.9 \
 	rman.9 rman_get_virtual.9 \
 	rman.9 rman_init.9 \
+	rman.9 rman_init_from_resource.9 \
+	rman.9 rman_is_region_manager.9 \
+	rman.9 rman_last_free_region.9 \
 	rman.9 rman_make_alignment_flags.9 \
 	rman.9 rman_manage_region.9 \
 	rman.9 rman_release_resource.9 \

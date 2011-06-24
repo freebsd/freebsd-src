@@ -25,17 +25,22 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 29, 2007
+.Dd April 29, 2011
 .Dt RMAN 9
 .Os
 .Sh NAME
 .Nm rman ,
 .Nm rman_activate_resource ,
+.Nm rman_adjust_resource ,
 .Nm rman_await_resource ,
 .Nm rman_deactivate_resource ,
 .Nm rman_fini ,
 .Nm rman_init ,
+.Nm rman_init_from_resource ,
+.Nm rman_is_region_manager ,
 .Nm rman_manage_region ,
+.Nm rman_first_free_region ,
+.Nm rman_last_free_region ,
 .Nm rman_release_resource ,
 .Nm rman_reserve_resource ,
 .Nm rman_reserve_resource_bound ,
@@ -59,6 +64,8 @@
 .Ft int
 .Fn rman_activate_resource "struct resource *r"
 .Ft int
+.Fn rman_adjust_resource "struct resource *r" "u_long start" "u_long end"
+.Ft int
 .Fn rman_await_resource "struct resource *r" "int pri2" "int timo"
 .Ft int
 .Fn rman_deactivate_resource "struct resource *r"
@@ -67,7 +74,15 @@
 .Ft int
 .Fn rman_init "struct rman *rm"
 .Ft int
+.Fn rman_init_from_resource "struct rman *rm" "struct resource *r"
+.Ft int
+.Fn rman_is_region_manager "struct resource *r" "struct rman *rm"
+.Ft int
 .Fn rman_manage_region "struct rman *rm" "u_long start" "u_long end"
+.Ft int
+.Fn rman_first_free_region "struct rman *rm" "u_long *start" "u_long *end"
+.Ft int
+.Fn rman_last_free_region "struct rman *rm" "u_long *start" "u_long *end"
 .Ft int
 .Fn rman_release_resource "struct resource *r"
 .Ft "struct resource *"
@@ -154,6 +169,14 @@ shall be set to
 The field
 .Va rm_descr
 shall be set to a string that describes the resource to be managed.
+The
+.Va rm_start
+and
+.Va rm_end
+fields may be set to limit the range of acceptable resource addresses.
+If these fields are not set,
+.Fn rman_init
+will initialize them to allow the entire range of resource addresses.
 It also initializes any mutexes associated with the structure.
 If
 .Fn rman_init
@@ -193,10 +216,47 @@ If successful,
 will return 0.
 If the region overlaps with an existing region, it will return
 .Er EBUSY .
+If any part of the region falls outside of the valid address range for
+.Fa rm ,
+it will return
+.Er EINVAL .
 .Er ENOMEM
-will be return when
+will be returned when
 .Fn rman_manage_region
 failed to allocate memory for the region.
+.Pp
+The
+.Fn rman_init_from_resource
+function is a wrapper routine to create a resource manager backed by an
+existing resource.
+It initializes
+.Fa rm
+using
+.Fn rman_init
+and then adds a region to
+.Fa rm
+corresponding to the address range allocated to
+.Fa r
+via
+.Fn rman_manage_region .
+.Pp
+The
+.Fn rman_first_free_region
+and
+.Fn rman_last_free_region
+functions can be used to query a resource manager for its first
+.Pq or last
+unallocated region.
+If
+.Fa rm
+contains no free region,
+these functions will return
+.Er ENOENT .
+Otherwise,
+.Fa *start
+and
+.Fa *end
+are set to the bounds of the free region and zero is returned.
 .Pp
 The
 .Fn rman_reserve_resource_bound
@@ -211,8 +271,9 @@ The caller can specify the
 .Fa start
 and
 .Fa end
-of an acceptable range, as well as
-alignment, and the code will attempt to find a free segment which fits.
+of an acceptable range,
+as well as a boundary restriction and required aligment,
+and the code will attempt to find a free segment which fits.
 The
 .Fa start
 argument is the lowest acceptable starting value of the resource.
@@ -224,6 +285,19 @@ Therefore,
 must be \[<=]
 .Fa end
 for any allocation to happen.
+The aligment requirement
+.Pq if any
+is specified in
+.Fa flags .
+The
+.Fa bound
+argument may be set to specify a boundary restriction such that an
+allocated region may cross an address that is a multiple of the
+boundary.
+The
+.Fa bound
+argument must be a power of two.
+It may be set to zero to specify no boundary restriction.
 The default behavior is to allocate an exclusive segment, unless the
 .Dv RF_SHAREABLE
 or
@@ -239,7 +313,7 @@ function is used to reserve resources within a previously established region.
 It is a simplified interface to
 .Fn rman_reserve_resource_bound
 which passes 0 for the
-.Fa flags
+.Fa bound
 argument.
 .Pp
 The
@@ -248,6 +322,49 @@ function returns the flag mask corresponding to the desired alignment
 .Fa size .
 This should be used when calling
 .Fn rman_reserve_resource_bound .
+.Pp
+The
+.Fn rman_is_region_manager
+function returns true if the allocated resource
+.Fa r
+was allocated from
+.Fa rm .
+Otherwise,
+it returns false.
+.Pp
+The
+.Fn rman_adjust_resource
+function is used to adjust the reserved address range of an allocated resource
+to reserve
+.Fa start
+through
+.Fa end .
+It can be used to grow or shrink one or both ends of the resource range.
+The current implementation does not support entirely relocating the resource
+and will fail with
+.Er EINVAL
+if the new resource range does not overlap the old resource range.
+If either end of the resource range grows and the new resource range would
+conflict with another allocated resource,
+the function will fail with
+.Er EBUSY .
+The
+.Fn rman_adjust_resource
+function does not support adjusting the resource range for shared resources
+and will fail such attempts with
+.Er EINVAL .
+Upon success,
+the resource
+.Fa r
+will have a start address of
+.Fa start
+and an end address of
+.Fa end
+and the function will return zero.
+Note that none of the constraints of the original allocation request such
+as alignment or boundary restrictions are checked by
+.Fn rman_adjust_resource .
+It is the caller's responsibility to enforce any such requirements.
 .Pp
 The
 .Fn rman_release_resource
