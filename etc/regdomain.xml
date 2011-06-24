@@ -138,6 +138,12 @@
       <maxpower>17</maxpower>
     </band>
     <band>
+      <freqband ref="F1_5260_5320"/>
+      <maxpower>20</maxpower>
+      <flags>IEEE80211_CHAN_PASSIVE</flags>
+      <flags>IEEE80211_CHAN_DFS</flags>
+    </band>
+    <band>
       <freqband ref="F1_5745_5805"/>
       <maxpower>23</maxpower>
       <flags>IEEE80211_CHAN_PASSIVE</flags>
@@ -174,6 +180,20 @@
       <freqband ref="H4_5180_5240"/>
       <maxpower>17</maxpower>
       <flags>IEEE80211_CHAN_HT40</flags>
+    </band>
+    <band>
+      <freqband ref="F1_5260_5320"/>
+      <maxpower>20</maxpower>
+      <flags>IEEE80211_CHAN_HT20</flags>
+      <flags>IEEE80211_CHAN_PASSIVE</flags>
+      <flags>IEEE80211_CHAN_DFS</flags>
+    </band>
+    <band>
+      <freqband ref="H4_5260_5320"/>
+      <maxpower>20</maxpower>
+      <flags>IEEE80211_CHAN_HT40</flags>
+      <flags>IEEE80211_CHAN_PASSIVE</flags>
+      <flags>IEEE80211_CHAN_DFS</flags>
     </band>
     <band>
       <freqband ref="F1_5745_5805"/>
