@@ -102,7 +102,7 @@ TUNABLE_INT("hw.usb.urtw.preamble_mode", &urtw_preamble_mode);
 	{ USB_VPI(USB_VENDOR_##v, USB_PRODUCT_##v##_##p, URTW_REV_RTL8187L) }
 #define	URTW_REV_RTL8187B	0
 #define	URTW_REV_RTL8187L	1
-static const struct usb_device_id urtw_devs[] = {
+static const STRUCT_USB_HOST_ID urtw_devs[] = {
 	URTW_DEV_B(NETGEAR, WG111V3),
 	URTW_DEV_B(REALTEK, RTL8187B_0),
 	URTW_DEV_B(REALTEK, RTL8187B_1),

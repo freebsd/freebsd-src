@@ -721,6 +721,11 @@ MODULE_VERSION(umass, 1);
  * USB device probe/attach/detach
  */
 
+static const STRUCT_USB_HOST_ID __used umass_devs[] = {
+	/* generic mass storage class */
+	{USB_IFACE_CLASS(UICLASS_MASS),},
+};
+
 static uint16_t
 umass_get_proto(struct usb_interface *iface)
 {
