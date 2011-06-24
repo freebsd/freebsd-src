@@ -110,6 +110,8 @@ static device_t nexus_add_child(device_t bus, u_int order, const char *name,
 				int unit);
 static	struct resource *nexus_alloc_resource(device_t, device_t, int, int *,
 					      u_long, u_long, u_long, u_int);
+static	int nexus_adjust_resource(device_t, device_t, int, struct resource *,
+				  u_long, u_long);
 #ifdef SMP
 static	int nexus_bind_intr(device_t, device_t, struct resource *, int);
 #endif
@@ -154,6 +156,7 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD(bus_print_child,	nexus_print_child),
 	DEVMETHOD(bus_add_child,	nexus_add_child),
 	DEVMETHOD(bus_alloc_resource,	nexus_alloc_resource),
+	DEVMETHOD(bus_adjust_resource,	nexus_adjust_resource),
 	DEVMETHOD(bus_release_resource,	nexus_release_resource),
 	DEVMETHOD(bus_activate_resource, nexus_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, nexus_deactivate_resource),
@@ -342,6 +345,23 @@ nexus_add_child(device_t bus, u_int order, const char *name, int unit)
 	return(child);
 }
 
+static struct rman *
+nexus_rman(int type)
+{
+	switch (type) {
+	case SYS_RES_IRQ:
+		return (&irq_rman);
+	case SYS_RES_DRQ:
+		return (&drq_rman);
+	case SYS_RES_IOPORT:
+		return (&port_rman);
+	case SYS_RES_MEMORY:
+		return (&mem_rman);
+	default:
+		return (NULL);
+	}
+}
+
 /*
  * Allocate a resource on behalf of child.  NB: child is usually going to be a
  * child of one of our descendants, not a direct child of nexus0.
@@ -374,27 +394,9 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	}
 
 	flags &= ~RF_ACTIVE;
-
-	switch (type) {
-	case SYS_RES_IRQ:
-		rm = &irq_rman;
-		break;
-
-	case SYS_RES_DRQ:
-		rm = &drq_rman;
-		break;
-
-	case SYS_RES_IOPORT:
-		rm = &port_rman;
-		break;
-
-	case SYS_RES_MEMORY:
-		rm = &mem_rman;
-		break;
-
-	default:
-		return 0;
-	}
+	rm = nexus_rman(type);
+	if (rm == NULL)
+		return (NULL);
 
 	rv = rman_reserve_resource(rm, start, end, count, flags, child);
 	if (rv == 0)
@@ -409,6 +411,20 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	}
 
 	return rv;
+}
+
+static int
+nexus_adjust_resource(device_t bus, device_t child, int type,
+    struct resource *r, u_long start, u_long end)
+{
+	struct rman *rm;
+
+	rm = nexus_rman(type);
+	if (rm == NULL)
+		return (ENXIO);
+	if (!rman_is_region_manager(r, rm))
+		return (EINVAL);
+	return (rman_adjust_resource(r, start, end));
 }
 
 static int
