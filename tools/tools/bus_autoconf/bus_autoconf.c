@@ -43,14 +43,66 @@
 
 static char *type;
 static char *file_name;
-static char *module;
 static const char *mode;
 
+struct usb_info;
+static void usb_dump_sub(struct usb_device_id *, struct usb_info *);
+
+/*
+ * To ensure that the correct USB driver is loaded, the driver having
+ * the most information about the device must be probed first. Then
+ * more generic drivers shall be probed.
+ */
 static int
 usb_compare(const void *_a, const void *_b)
 {
 	const struct usb_device_id *a = _a;
 	const struct usb_device_id *b = _b;
+
+	/* vendor matches first */
+
+	if (a->match_flag_vendor > b->match_flag_vendor)
+		return (-1);
+	if (a->match_flag_vendor < b->match_flag_vendor)
+		return (1);
+
+	/* product matches first */
+
+	if (a->match_flag_product > b->match_flag_product)
+		return (-1);
+	if (a->match_flag_product < b->match_flag_product)
+		return (1);
+
+	/* device class matches first */
+
+	if (a->match_flag_dev_class > b->match_flag_dev_class)
+		return (-1);
+	if (a->match_flag_dev_class < b->match_flag_dev_class)
+		return (1);
+
+	if (a->match_flag_dev_subclass > b->match_flag_dev_subclass)
+		return (-1);
+	if (a->match_flag_dev_subclass < b->match_flag_dev_subclass)
+		return (1);
+
+	/* interface class matches first */
+
+	if (a->match_flag_int_class > b->match_flag_int_class)
+		return (-1);
+	if (a->match_flag_int_class < b->match_flag_int_class)
+		return (1);
+
+	if (a->match_flag_int_subclass > b->match_flag_int_subclass)
+		return (-1);
+	if (a->match_flag_int_subclass < b->match_flag_int_subclass)
+		return (1);
+
+	if (a->match_flag_int_protocol > b->match_flag_int_protocol)
+		return (-1);
+	if (a->match_flag_int_protocol < b->match_flag_int_protocol)
+		return (1);
+
+	/* then sort according to value */
 
 	if (a->idVendor > b->idVendor)
 		return (1);
@@ -85,7 +137,9 @@ usb_compare(const void *_a, const void *_b)
 	if (a->bInterfaceProtocol < b->bInterfaceProtocol)
 		return (-1);
 
-	return (0);
+	/* in the end sort by module name */
+
+	return (strcmp(a->module_name, b->module_name));
 }
 
 static void
@@ -105,39 +159,55 @@ static void
 usb_dump_sub(struct usb_device_id *id, struct usb_info *pinfo)
 {
 #if USB_HAVE_COMPAT_LINUX
-	if (id->match_flags & USB_DEVICE_ID_MATCH_VENDOR)
-		id->match_flag_vendor = 1;
-	if (id->match_flags & USB_DEVICE_ID_MATCH_PRODUCT)
-		id->match_flag_product = 1;
-	if (id->match_flags & USB_DEVICE_ID_MATCH_DEV_LO)
-		id->match_flag_dev_lo = 1;
-	if (id->match_flags & USB_DEVICE_ID_MATCH_DEV_HI)
-		id->match_flag_dev_hi = 1;
-	if (id->match_flags & USB_DEVICE_ID_MATCH_DEV_CLASS)
-		id->match_flag_dev_class = 1;
-	if (id->match_flags & USB_DEVICE_ID_MATCH_DEV_SUBCLASS)
-		id->match_flag_dev_subclass = 1;
-	if (id->match_flags & USB_DEVICE_ID_MATCH_DEV_PROTOCOL)
-		id->match_flag_dev_protocol = 1;
-	if (id->match_flags & USB_DEVICE_ID_MATCH_INT_CLASS)
-		id->match_flag_int_class = 1;
-	if (id->match_flags & USB_DEVICE_ID_MATCH_INT_SUBCLASS)
-		id->match_flag_int_subclass = 1;
-	if (id->match_flags & USB_DEVICE_ID_MATCH_INT_PROTOCOL)
-		id->match_flag_int_protocol = 1;
+	if (id->match_flags != 0) {
+		if (id->match_flags & USB_DEVICE_ID_MATCH_VENDOR)
+			id->match_flag_vendor = 1;
+		if (id->match_flags & USB_DEVICE_ID_MATCH_PRODUCT)
+			id->match_flag_product = 1;
+		if (id->match_flags & USB_DEVICE_ID_MATCH_DEV_LO)
+			id->match_flag_dev_lo = 1;
+		if (id->match_flags & USB_DEVICE_ID_MATCH_DEV_HI)
+			id->match_flag_dev_hi = 1;
+		if (id->match_flags & USB_DEVICE_ID_MATCH_DEV_CLASS)
+			id->match_flag_dev_class = 1;
+		if (id->match_flags & USB_DEVICE_ID_MATCH_DEV_SUBCLASS)
+			id->match_flag_dev_subclass = 1;
+		if (id->match_flags & USB_DEVICE_ID_MATCH_DEV_PROTOCOL)
+			id->match_flag_dev_protocol = 1;
+		if (id->match_flags & USB_DEVICE_ID_MATCH_INT_CLASS)
+			id->match_flag_int_class = 1;
+		if (id->match_flags & USB_DEVICE_ID_MATCH_INT_SUBCLASS)
+			id->match_flag_int_subclass = 1;
+		if (id->match_flags & USB_DEVICE_ID_MATCH_INT_PROTOCOL)
+			id->match_flag_int_protocol = 1;
+		id->match_flags = 0;
+	}
 #endif
+	if (pinfo != NULL) {
 
-	pinfo->is_iface = id->match_flag_int_class |
-	    id->match_flag_int_protocol |
-	    id->match_flag_int_subclass;
+		pinfo->is_iface = id->match_flag_int_class |
+		    id->match_flag_int_protocol |
+		    id->match_flag_int_subclass;
 
-	pinfo->is_dev = id->match_flag_dev_class |
-	    id->match_flag_dev_subclass;
+		pinfo->is_dev = id->match_flag_dev_class |
+		    id->match_flag_dev_subclass;
 
-	pinfo->is_vp = id->match_flag_vendor |
-	    id->match_flag_product;
+		pinfo->is_vp = id->match_flag_vendor |
+		    id->match_flag_product;
 
-	pinfo->is_any = pinfo->is_vp + pinfo->is_dev + pinfo->is_iface;
+		pinfo->is_any = pinfo->is_vp + pinfo->is_dev + pinfo->is_iface;
+	}
+}
+
+static char *
+usb_trim(char *ptr)
+{
+	char *end;
+
+	end = strchr(ptr, ' ');
+	if (end)
+		*end = 0;
+	return (ptr);
 }
 
 static uint32_t
@@ -149,7 +219,7 @@ usb_dump(struct usb_device_id *id, uint32_t nid)
 	usb_dump_sub(id, &info);
 
 	if (info.is_any) {
-		printf("nomatch 10 {\n"
+		printf("nomatch 32 {\n"
 		    "	match \"bus\" \"uhub[0-9]+\";\n"
 		    "	match \"mode\" \"%s\";\n", mode);
 	} else {
@@ -212,7 +282,7 @@ usb_dump(struct usb_device_id *id, uint32_t nid)
 		    id->bInterfaceProtocol);
 	}
 	printf("	action \"kldload %s\";\n"
-	    "};\n\n", module);
+	    "};\n\n", usb_trim(id->module_name));
 
 	return (n);
 }
@@ -239,12 +309,21 @@ usb_parse_and_dump(int f, off_t size)
 	}
 	nid = size / sizeof(*id);
 
+	for (x = 0; x != nid; x++) {
+		/* make sure flag bits are correct */
+		usb_dump_sub(id + x, NULL);
+		/* zero terminate string */
+		id[x].module_name[sizeof(id[0].module_name) - 1] = 0;
+	}
+
 	usb_sort(id, nid);
 
 	for (x = 0; x != nid;)
 		x += usb_dump(id + x, nid - x);
 
 	free(id);
+
+	printf("# %d %s entries processed\n\n", (int)nid, type);
 }
 
 static void
@@ -253,7 +332,6 @@ usage(void)
 	fprintf(stderr,
 	    "bus_autoconf - devd config file generator\n"
 	    "	-i <input_binary>\n"
-	    "	-m <module_name>\n"
 	    "	-t <structure_type>\n"
 	    "	-h show usage\n"
 	);
@@ -263,7 +341,7 @@ usage(void)
 int
 main(int argc, char **argv)
 {
-	const char *params = "i:m:ht:";
+	const char *params = "i:ht:";
 	int c;
 	int f;
 	off_t off;
@@ -276,16 +354,13 @@ main(int argc, char **argv)
 		case 't':
 			type = optarg;
 			break;
-		case 'm':
-			module = optarg;
-			break;
 		default:
 			usage();
 			break;
 		}
 	}
 
-	if (type == NULL || module == NULL || file_name == NULL)
+	if (type == NULL || file_name == NULL)
 		usage();
 
 	f = open(file_name, O_RDONLY);
