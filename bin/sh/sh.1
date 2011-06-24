@@ -1629,15 +1629,15 @@ There are two restrictions on this: first, a pattern cannot match
 a string containing a slash, and second,
 a pattern cannot match a string starting with a period
 unless the first character of the pattern is a period.
-The next section describes the patterns used for both
-Pathname Expansion and the
+The next section describes the patterns used for
+Pathname Expansion,
+the four varieties of parameter expansion for substring processing and the
 .Ic case
 command.
 .Ss Shell Patterns
 A pattern consists of normal characters, which match themselves,
 and meta-characters.
 The meta-characters are
-.Ql \&! ,
 .Ql * ,
 .Ql \&? ,
 and
@@ -1667,7 +1667,7 @@ matches a
 .Ql \&[
 rather than introducing a character class.
 A character class matches any of the characters between the square brackets.
-A range of characters may be specified using a minus sign.
+A locale-dependent range of characters may be specified using a minus sign.
 A named class of characters (see
 .Xr wctype 3 )
 may be specified by surrounding the name with
@@ -1680,12 +1680,17 @@ is a shell pattern that matches a single letter.
 The character class may be complemented by making an exclamation point
 .Pq Ql !\&
 the first character of the character class.
+A caret
+.Pq Ql ^
+has the same effect but is non-standard.
 .Pp
 To include a
 .Ql \&]
 in a character class, make it the first character listed
 (after the
-.Ql \&! ,
+.Ql \&!
+or
+.Ql ^ ,
 if any).
 To include a
 .Ql - ,
