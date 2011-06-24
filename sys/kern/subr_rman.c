@@ -138,6 +138,8 @@ rman_init(struct rman *rm)
 		mtx_init(&rman_mtx, "rman head", NULL, MTX_DEF);
 	}
 
+	if (rm->rm_start == 0 && rm->rm_end == 0)
+		rm->rm_end = ~0ul;
 	if (rm->rm_type == RMAN_UNINIT)
 		panic("rman_init");
 	if (rm->rm_type == RMAN_GAUGE)
@@ -162,6 +164,8 @@ rman_manage_region(struct rman *rm, u_long start, u_long end)
 
 	DPRINTF(("rman_manage_region: <%s> request: start %#lx, end %#lx\n",
 	    rm->rm_descr, start, end));
+	if (start < rm->rm_start || end > rm->rm_end)
+		return EINVAL;
 	r = int_alloc_resource(M_NOWAIT);
 	if (r == NULL)
 		return ENOMEM;
