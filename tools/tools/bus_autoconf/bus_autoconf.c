@@ -150,6 +150,7 @@ usb_dump(struct usb_device_id *id, uint32_t nid)
 
 	if (info.is_any) {
 		printf("nomatch 10 {\n"
+		    "	match \"bus\" \"uhub[0-9]+\";\n"
 		    "	match \"mode\" \"%s\";\n", mode);
 	} else {
 		return (n);
