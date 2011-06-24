@@ -133,7 +133,7 @@ xlr_pci_init_resources(void)
 		panic("pci_init_resources irq_rman");
 
 	port_rman.rm_start = 0;
-	port_rman.rm_end = ~0u;
+	port_rman.rm_end = ~0ul;
 	port_rman.rm_type = RMAN_ARRAY;
 	port_rman.rm_descr = "I/O ports";
 	if (rman_init(&port_rman)
@@ -141,7 +141,7 @@ xlr_pci_init_resources(void)
 		panic("pci_init_resources port_rman");
 
 	mem_rman.rm_start = 0;
-	mem_rman.rm_end = ~0u;
+	mem_rman.rm_end = ~0ul;
 	mem_rman.rm_type = RMAN_ARRAY;
 	mem_rman.rm_descr = "I/O memory";
 	if (rman_init(&mem_rman)
