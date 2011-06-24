@@ -32,7 +32,7 @@
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd June 18, 2011
+.Dd June 24, 2011
 .Dt SH 1
 .Os
 .Sh NAME
@@ -994,11 +994,22 @@ described later),
 separated by
 .Ql \&|
 characters.
+Tilde expansion, parameter expansion, command substitution,
+arithmetic expansion and quote removal are applied to the word.
+Then, each pattern is expanded in turn using tilde expansion,
+parameter expansion, command substitution and arithmetic expansion and
+the expanded form of the word is checked against it.
+If a match is found, the corresponding list is executed.
 If the selected list is terminated by the control operator
 .Ql ;&
 instead of
 .Ql ;; ,
-execution continues with the next list.
+execution continues with the next list,
+continuing until a list terminated with
+.Ql ;;
+or the end of the
+.Ic case
+command.
 The exit code of the
 .Ic case
 command is the exit code of the last command executed in the list or
