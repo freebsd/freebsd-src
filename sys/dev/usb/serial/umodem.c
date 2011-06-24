@@ -123,7 +123,7 @@ SYSCTL_INT(_hw_usb_umodem, OID_AUTO, debug, CTLFLAG_RW,
     &umodem_debug, 0, "Debug level");
 #endif
 
-static const struct usb_device_id umodem_devs[] = {
+static const STRUCT_USB_HOST_ID umodem_devs[] = {
 	/* Generic Modem class match */
 	{USB_IFACE_CLASS(UICLASS_CDC),
 		USB_IFACE_SUBCLASS(UISUBCLASS_ABSTRACT_CONTROL_MODEL),

@@ -71,7 +71,6 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <netdb.h>
 
 /* Global defs */
 #ifdef DEBUG

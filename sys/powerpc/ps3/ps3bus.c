@@ -629,7 +629,7 @@ ps3bus_get_dma_tag(device_t dev, device_t child)
 {
 	struct ps3bus_devinfo *dinfo = device_get_ivars(child);
 	struct ps3bus_softc *sc = device_get_softc(dev);
-	int i, err, flags;
+	int i, err, flags, pagesize;
 
 	if (dinfo->bustype != PS3_BUSTYPE_SYSBUS &&
 	    dinfo->bustype != PS3_BUSTYPE_STORAGE)
@@ -646,9 +646,13 @@ ps3bus_get_dma_tag(device_t dev, device_t child)
 	    dinfo->devtype == PS3_DEVTYPE_USB)
 		flags = 2; /* 8-bit mode */
 
+	pagesize = 24; /* log_2(16 MB) */
+	if (dinfo->bustype == PS3_BUSTYPE_STORAGE)
+		pagesize = 12; /* 4 KB */
+
 	for (i = 0; i < sc->rcount; i++) {
 		err = lv1_allocate_device_dma_region(dinfo->bus, dinfo->dev,
-		    sc->regions[i].mr_size, 24 /* log_2(16 MB) */, flags,
+		    sc->regions[i].mr_size, pagesize, flags,
 		    &dinfo->dma_base[i]);
 		if (err != 0) {
 			device_printf(child,

@@ -1244,7 +1244,7 @@ acpi_alloc_resource(device_t bus, device_t child, int type, int *rid,
     /*
      * First attempt at allocating the resource.  For direct children,
      * use resource_list_alloc() to handle reserved resources.  For
-     * other dveices, pass the request up to our parent.
+     * other devices, pass the request up to our parent.
      */
     if (bus == device_get_parent(child)) {
 	ad = device_get_ivars(child);

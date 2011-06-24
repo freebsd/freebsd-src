@@ -247,7 +247,7 @@ static char *uhso_port_type_sysctl[] = {
 /* ifnet device unit allocations */
 static struct unrhdr *uhso_ifnet_unit = NULL;
 
-static const struct usb_device_id uhso_devs[] = {
+static const STRUCT_USB_HOST_ID uhso_devs[] = {
 #define	UHSO_DEV(v,p,i) { USB_VPI(USB_VENDOR_##v, USB_PRODUCT_##v##_##p, i) }
 	/* Option GlobeSurfer iCON 7.2 */
 	UHSO_DEV(OPTION, GSICON72, UHSO_STATIC_IFACE),

@@ -105,13 +105,6 @@ usbd_lookup_id_by_info(const struct usb_device_id *id, usb_size_t sizeof_id,
 		    (id->bDeviceProtocol != info->bDeviceProtocol)) {
 			continue;
 		}
-		if ((info->bDeviceClass == 0xFF) &&
-		    (!(id->match_flag_vendor)) &&
-		    ((id->match_flag_int_class) ||
-		    (id->match_flag_int_subclass) ||
-		    (id->match_flag_int_protocol))) {
-			continue;
-		}
 		if ((id->match_flag_int_class) &&
 		    (id->bInterfaceClass != info->bInterfaceClass)) {
 			continue;

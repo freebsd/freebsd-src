@@ -262,6 +262,8 @@ struct LIBUSB20_DEVICE_DESC_DECODED *libusb20_dev_get_device_desc(struct libusb2
 struct libusb20_config *libusb20_dev_alloc_config(struct libusb20_device *pdev, uint8_t config_index);
 struct libusb20_device *libusb20_dev_alloc(void);
 uint8_t	libusb20_dev_get_address(struct libusb20_device *pdev);
+uint8_t	libusb20_dev_get_parent_address(struct libusb20_device *pdev);
+uint8_t	libusb20_dev_get_parent_port(struct libusb20_device *pdev);
 uint8_t	libusb20_dev_get_bus_number(struct libusb20_device *pdev);
 uint8_t	libusb20_dev_get_mode(struct libusb20_device *pdev);
 uint8_t	libusb20_dev_get_speed(struct libusb20_device *pdev);

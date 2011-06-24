@@ -88,7 +88,7 @@ __FBSDID("$FreeBSD$");
 
 /* Belkin F5U111 adapter covered by NETMATE entry */
 
-static const struct usb_device_id cue_devs[] = {
+static const STRUCT_USB_HOST_ID cue_devs[] = {
 #define	CUE_DEV(v,p) { USB_VP(USB_VENDOR_##v, USB_PRODUCT_##v##_##p) }
 	CUE_DEV(CATC, NETMATE),
 	CUE_DEV(CATC, NETMATE2),

@@ -27,6 +27,8 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+#include <sys/ioctl.h>
+#include <sys/socket.h>
 #include <sys/stat.h>
 
 #include <netinet/in.h>
@@ -249,9 +251,34 @@ read_close(void)
 }
 
 
-int
-synchnet(int peer __unused)
-{
+/* When an error has occurred, it is possible that the two sides
+ * are out of synch.  Ie: that what I think is the other side's
+ * response to packet N is really their response to packet N-1.
+ *
+ * So, to try to prevent that, we flush all the input queued up
+ * for us on the network connection on our host.
+ *
+ * We return the number of packets we flushed (mostly for reporting
+ * when trace is active).
+ */
 
-	return 0;
+int
+synchnet(int peer)			/* socket to flush */
+{
+	int i, j = 0;
+	char rbuf[MAXPKTSIZE];
+	struct sockaddr_storage from;
+	socklen_t fromlen;
+
+	while (1) {
+		(void) ioctl(peer, FIONREAD, &i);
+		if (i) {
+			j++;
+			fromlen = sizeof from;
+			(void) recvfrom(peer, rbuf, sizeof (rbuf), 0,
+				(struct sockaddr *)&from, &fromlen);
+		} else {
+			return(j);
+		}
+	}
 }

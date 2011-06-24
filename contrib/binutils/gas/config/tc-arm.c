@@ -9974,6 +9974,13 @@ do_t_rbit (void)
 }
 
 static void
+do_t_rd_rm (void)
+{
+  inst.instruction |= inst.operands[0].reg << 8;
+  inst.instruction |= inst.operands[1].reg;
+}
+
+static void
 do_t_rev (void)
 {
   if (inst.operands[0].reg <= 7 && inst.operands[1].reg <= 7
@@ -14900,6 +14907,9 @@ static const struct asm_opcode insns[] =
  /* These may simplify to neg.  */
  TCE(rsb,	0600000, ebc00000, 3, (RR, oRR, SH), arit, t_rsb),
  TC3(rsbs,	0700000, ebd00000, 3, (RR, oRR, SH), arit, t_rsb),
+
+ TCE(rrx,      1a00060, ea4f0030, 2, (RR, RR),      rd_rm, t_rd_rm),
+ TCE(rrxs,     1b00060, ea5f0030, 2, (RR, RR),      rd_rm, t_rd_rm),
 
 #undef THUMB_VARIANT
 #define THUMB_VARIANT &arm_ext_v6
