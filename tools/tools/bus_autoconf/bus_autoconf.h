@@ -33,6 +33,9 @@
 
 struct usb_device_id {
 
+	/* Internal field */
+	char	module_name[32];
+
 	/* Hook for driver specific information */
 	unsigned long driver_info;
 
