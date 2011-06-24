@@ -192,7 +192,7 @@ static const struct ucom_callback umct_callback = {
 	.ucom_poll = &umct_poll,
 };
 
-static const struct usb_device_id umct_devs[] = {
+static const STRUCT_USB_HOST_ID umct_devs[] = {
 	{USB_VPI(USB_VENDOR_MCT, USB_PRODUCT_MCT_USB232, 0)},
 	{USB_VPI(USB_VENDOR_MCT, USB_PRODUCT_MCT_SITECOM_USB232, 0)},
 	{USB_VPI(USB_VENDOR_MCT, USB_PRODUCT_MCT_DU_H3SP_USB232, 0)},
