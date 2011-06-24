@@ -289,6 +289,9 @@ int	bus_generic_activate_resource(device_t dev, device_t child, int type,
 device_t
 	bus_generic_add_child(device_t dev, u_int order, const char *name,
 			      int unit);
+int	bus_generic_adjust_resource(device_t bus, device_t child, int type,
+				    struct resource *r, u_long start,
+				    u_long end);
 struct resource *
 	bus_generic_alloc_resource(device_t bus, device_t child, int type,
 				   int *rid, u_long start, u_long end,
@@ -357,6 +360,8 @@ struct resource_spec {
 int bus_alloc_resources(device_t dev, struct resource_spec *rs, struct resource **res);
 void bus_release_resources(device_t dev, const struct resource_spec *rs, struct resource **res);
 
+int	bus_adjust_resource(device_t child, int type, struct resource *r,
+			    u_long start, u_long end);
 struct	resource *bus_alloc_resource(device_t dev, int type, int *rid,
 				     u_long start, u_long end, u_long count,
 				     u_int flags);
