@@ -276,6 +276,10 @@ usb_dump(struct usb_device_id *id, uint32_t nid)
 					break;
 				if (id[n].idVendor != id[0].idVendor)
 					break;
+				if (strcmp(id[n].module_name, id[0].module_name))
+					break;
+				if (strcmp(id[n].module_mode, id[0].module_mode))
+					break;
 				n++;
 			}
 		}
