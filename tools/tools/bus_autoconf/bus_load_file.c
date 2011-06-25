@@ -25,7 +25,48 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _BUS_AUTOCONF_H_
-#define	_BUS_AUTOCONF_H_
+#include <stdio.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <fcntl.h>
+#include <err.h>
+#include <sysexits.h>
+#include <unistd.h>
 
-#endif					/* _BUS_AUTOCONF_H_ */
+#include "bus_load_file.h"
+
+void
+load_file(const char *fname, uint8_t **pptr, uint32_t *plen)
+{
+	uint8_t *ptr;
+	uint32_t len;
+	off_t off;
+	int f;
+
+	f = open(fname, O_RDONLY);
+	if (f < 0)
+		err(EX_NOINPUT, "Cannot open file '%s'", fname);
+
+	off = lseek(f, 0, SEEK_END);
+	if (off <= 0)
+		err(EX_NOINPUT, "Cannot seek to end of file");
+
+	if (lseek(f, 0, SEEK_SET) < 0)
+		err(EX_NOINPUT, "Cannot seek to beginning of file");
+
+	len = off;
+	if (len != off)
+		err(EX_NOINPUT, "File '%s' is too big", fname);
+
+	ptr = malloc(len);
+	if (ptr == NULL)
+		errx(EX_SOFTWARE, "Out of memory");
+
+	if (read(f, ptr, len) != len)
+		err(EX_NOINPUT, "Cannot read all data");
+
+	close(f);
+
+	*pptr = ptr;
+	*plen = len;
+}
