@@ -7,6 +7,7 @@
 #ifdef _KERNEL
 
 #define	IPI_AST			ia64_ipi_ast
+#define	IPI_HARDCLOCK		ia64_ipi_hardclock
 #define	IPI_PREEMPT		ia64_ipi_preempt
 #define	IPI_RENDEZVOUS		ia64_ipi_rndzvs
 #define	IPI_STOP		ia64_ipi_stop
@@ -37,6 +38,7 @@ struct ia64_ap_state {
 };
 
 extern int ia64_ipi_ast;
+extern int ia64_ipi_hardclock;
 extern int ia64_ipi_highfp;
 extern int ia64_ipi_nmi;
 extern int ia64_ipi_preempt;
