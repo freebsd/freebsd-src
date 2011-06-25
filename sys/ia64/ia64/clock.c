@@ -184,8 +184,8 @@ clock_configure(void *dummy)
 	et->et_quality = 1000;
 	et->et_frequency = itc_freq;
 	et->et_min_period.sec = 0;
-	et->et_min_period.frac = ((1ul << 32) / itc_freq) << 32;
-	et->et_max_period.sec = 0xfffffff0 / itc_freq;
+	et->et_min_period.frac = (0x8000000000000000ul / (u_long)(10*hz)) << 1;
+	et->et_max_period.sec = ~0ul;	/* XXX unless itc_freq >= (1<<32) */
 	et->et_max_period.frac = ((0xfffffffeul << 32) / itc_freq) << 32;
 	et->et_start = ia64_clock_start;
 	et->et_stop = ia64_clock_stop;
