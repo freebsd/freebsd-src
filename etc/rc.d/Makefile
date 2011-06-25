@@ -22,7 +22,7 @@ FILES=	DAEMON FILESYSTEMS LOGIN NETWORKING SERVERS \
 	ldconfig local localpkg lockd lpd \
 	mixer motd mountcritlocal mountcritremote mountlate \
 	mdconfig mdconfig2 mountd moused mroute6d mrouted msgs \
-	named natd netif netoptions \
+	named natd netif netoptions netwait \
 	network_ipv6 newsyslog nfsclient nfsd \
 	nfsserver nisdomain nsswitch ntpd ntpdate \
 	othermta \
