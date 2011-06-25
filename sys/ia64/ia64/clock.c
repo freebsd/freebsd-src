@@ -32,9 +32,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/interrupt.h>
 #include <sys/priority.h>
+#include <sys/proc.h>
 #include <sys/queue.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
+#include <sys/timeet.h>
 #include <sys/timetc.h>
 #include <sys/pcpu.h>
 
@@ -45,26 +47,12 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/smp.h>
 
-SYSCTL_NODE(_debug, OID_AUTO, clock, CTLFLAG_RW, 0, "clock statistics");
+#define	CLOCK_ET_OFF		0
+#define	CLOCK_ET_PERIODIC	1
+#define	CLOCK_ET_ONESHOT	2
 
-static int adjust_edges = 0;
-SYSCTL_INT(_debug_clock, OID_AUTO, adjust_edges, CTLFLAG_RD,
-    &adjust_edges, 0, "Number of times ITC got more than 12.5% behind");
-
-static int adjust_excess = 0;
-SYSCTL_INT(_debug_clock, OID_AUTO, adjust_excess, CTLFLAG_RD,
-    &adjust_excess, 0, "Total number of ignored ITC interrupts");
-
-static int adjust_lost = 0;
-SYSCTL_INT(_debug_clock, OID_AUTO, adjust_lost, CTLFLAG_RD,
-    &adjust_lost, 0, "Total number of lost ITC interrupts");
-
-static int adjust_ticks = 0;
-SYSCTL_INT(_debug_clock, OID_AUTO, adjust_ticks, CTLFLAG_RD,
-    &adjust_ticks, 0, "Total number of ITC interrupts with adjustment");
-
+static struct eventtimer ia64_clock_et;
 static u_int ia64_clock_xiv;
-static uint64_t ia64_clock_reload;
 
 #ifndef SMP
 static timecounter_get_t ia64_get_timecount;
@@ -87,75 +75,100 @@ ia64_get_timecount(struct timecounter* tc)
 static u_int
 ia64_ih_clock(struct thread *td, u_int xiv, struct trapframe *tf)
 {
-	uint64_t adj, clk, itc;
-	int64_t delta;
-	int count;
+	struct eventtimer *et;
+	uint64_t itc, load;
+	uint32_t mode;
 
 	PCPU_INC(md.stats.pcs_nclks);
+	intrcnt[INTRCNT_CLOCK]++;
 
-	if (PCPU_GET(cpuid) == 0) {
-		/*
-		 * Clock processing on the BSP.
-		 */
-		intrcnt[INTRCNT_CLOCK]++;
+	itc = ia64_get_itc();
+	PCPU_SET(md.clock, itc);
 
-		itc = ia64_get_itc();
+	mode = PCPU_GET(md.clock_mode);
+	if (mode == CLOCK_ET_PERIODIC) {
+		load = PCPU_GET(md.clock_load);
+		ia64_set_itm(itc + load);
+	} else
+		ia64_set_itv((1 << 16) | xiv);
+	ia64_srlz_d();
 
-		adj = PCPU_GET(md.clockadj);
-		clk = PCPU_GET(md.clock);
-
-		delta = itc - clk;
-		count = 0;
-		while (delta >= ia64_clock_reload) {
-#ifdef SMP
-			ipi_all_but_self(ia64_clock_xiv);
-#endif
-			hardclock(TRAPF_USERMODE(tf), TRAPF_PC(tf));
-			if (profprocs != 0)
-				profclock(TRAPF_USERMODE(tf), TRAPF_PC(tf));
-			statclock(TRAPF_USERMODE(tf));
-			delta -= ia64_clock_reload;
-			clk += ia64_clock_reload;
-			if (adj != 0)
-				adjust_ticks++;
-			count++;
-		}
-		ia64_set_itm(ia64_get_itc() + ia64_clock_reload - adj);
-		ia64_srlz_d();
-		if (count > 0) {
-			adjust_lost += count - 1;
-			if (delta > (ia64_clock_reload >> 3)) {
-				if (adj == 0)
-					adjust_edges++;
-				adj = ia64_clock_reload >> 4;
-			} else
-				adj = 0;
-		} else {
-			adj = 0;
-			adjust_excess++;
-		}
-		PCPU_SET(md.clock, clk);
-		PCPU_SET(md.clockadj, adj);
-	} else {
-		/*
-		 * Clock processing on the BSP.
-		 */
-		hardclock_cpu(TRAPF_USERMODE(tf));
-		if (profprocs != 0)
-			profclock(TRAPF_USERMODE(tf), TRAPF_PC(tf));
-		statclock(TRAPF_USERMODE(tf));
-	}
-
+	et = &ia64_clock_et;
+	if (et->et_active)
+		et->et_event_cb(et, et->et_arg);
 	return (0);
 }
 
 /*
- * Start the real-time and statistics clocks. We use ar.itc and cr.itm
- * to implement a 1000hz clock.
+ * Event timer start method.
+ */
+static int
+ia64_clock_start(struct eventtimer *et, struct bintime *first,
+    struct bintime *period)
+{
+	u_long itc, load;
+	register_t is;
+
+	if (period != NULL) {
+		PCPU_SET(md.clock_mode, CLOCK_ET_PERIODIC);
+		load = (et->et_frequency * (period->frac >> 32)) >> 32;
+		if (period->sec > 0)
+			load += et->et_frequency * period->sec;
+	} else {
+		PCPU_SET(md.clock_mode, CLOCK_ET_ONESHOT);
+		load = 0;
+	}
+
+	PCPU_SET(md.clock_load, load);
+
+	if (first != NULL) {
+		load = (et->et_frequency * (first->frac >> 32)) >> 32;
+		if (first->sec > 0)
+			load += et->et_frequency * first->sec;
+	}
+
+	is = intr_disable();
+	itc = ia64_get_itc();
+	ia64_set_itm(itc + load);
+	ia64_set_itv(ia64_clock_xiv);
+	ia64_srlz_d();
+	intr_restore(is);
+	return (0);
+}
+
+/*
+ * Event timer stop method.
+ */
+static int
+ia64_clock_stop(struct eventtimer *et)
+{
+
+	ia64_set_itv((1 << 16) | ia64_clock_xiv);
+	ia64_srlz_d();
+	PCPU_SET(md.clock_mode, CLOCK_ET_OFF);
+	PCPU_SET(md.clock_load, 0);
+	return (0);
+}
+
+/*
+ * We call cpu_initclocks() on the APs as well. It allows us to
+ * group common initialization in the same function.
  */
 void
 cpu_initclocks()
 {
+
+	ia64_clock_stop(NULL);
+	if (PCPU_GET(cpuid) == 0)
+		cpu_initclocks_bsp();
+	else
+		cpu_initclocks_ap();
+}
+
+static void
+clock_configure(void *dummy)
+{
+	struct eventtimer *et;
 	u_long itc_freq;
 
 	ia64_clock_xiv = ia64_xiv_alloc(PI_REALTIME, IA64_XIV_IPI,
@@ -165,31 +178,23 @@ cpu_initclocks()
 
 	itc_freq = (u_long)ia64_itc_freq() * 1000000ul;
 
-	stathz = hz;
-	ia64_clock_reload = (itc_freq + hz/2) / hz;
+	et = &ia64_clock_et;
+	et->et_name = "ITC";
+	et->et_flags = ET_FLAGS_PERIODIC | ET_FLAGS_ONESHOT | ET_FLAGS_PERCPU;
+	et->et_quality = 1000;
+	et->et_frequency = itc_freq;
+	et->et_min_period.sec = 0;
+	et->et_min_period.frac = ((1ul << 32) / itc_freq) << 32;
+	et->et_max_period.sec = 0xfffffff0 / itc_freq;
+	et->et_max_period.frac = ((0xfffffffeul << 32) / itc_freq) << 32;
+	et->et_start = ia64_clock_start;
+	et->et_stop = ia64_clock_stop;
+	et->et_priv = NULL;
+	et_register(et);
 
 #ifndef SMP
 	ia64_timecounter.tc_frequency = itc_freq;
 	tc_init(&ia64_timecounter);
 #endif
-
-	PCPU_SET(md.clockadj, 0);
-	PCPU_SET(md.clock, ia64_get_itc());
-	ia64_set_itm(PCPU_GET(md.clock) + ia64_clock_reload);
-	ia64_set_itv(ia64_clock_xiv);
-	ia64_srlz_d();
 }
-
-void
-cpu_startprofclock(void)
-{
-
-	/* nothing to do */
-}
-
-void
-cpu_stopprofclock(void)
-{
-
-	/* nothing to do */
-}
+SYSINIT(clkcfg, SI_SUB_CONFIGURE, SI_ORDER_SECOND, clock_configure, NULL);
