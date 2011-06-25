@@ -29,30 +29,6 @@
 OS=FreeBSD
 DOLLAR=$
 
-cleanup()
-{
-   # Cleanup
-   rm -f usb_dual.ids
-   rm -f usb_host.ids
-   rm -f usb_device.ids
-}
-
-usb_format()
-{
-    [ -f ${1} ] || return
-
-    # Split into one and one record
-    split -b 32 ${1} ${1}.
-
-    # Prefix each record by the module name
-    for G in $(ls ${1}.*)
-    do
-      printf "%-32s" ${3} >> ${2}
-      cat ${G} >> ${2}
-      rm -f ${G}
-    done
-}
-
 cat <<EOF
 #
 # ${DOLLAR}${OS}${DOLLAR}
@@ -63,33 +39,34 @@ cat <<EOF
 
 EOF
 
-# Cleanup
-cleanup
+rm -f bus_autoconf_format.bin
+rm -f bus_autoconf_args.txt
 
 for F in $*
 do
 
-# Get module basename
-H=$(basename ${F} | sed -e "s/\.ko//g")
+G=$(basename ${F})
 
-# USB Host
-objcopy -j usb_host_id -O binary ${F} temp.ids 2> /dev/null
-usb_format temp.ids usb_host.ids ${H}
+# Format information
+objcopy -j bus_autoconf_format -O binary ${F} temp.ids 2> /dev/null
+[ -f temp.ids ] && cat temp.ids >> bus_autoconf_format.bin
 
-# USB Device
-objcopy -j usb_device_id -O binary ${F} temp.ids 2> /dev/null
-usb_format temp.ids usb_device.ids ${H}
+# USB Host mode
+objcopy -j usb_host_id -O binary ${F} "usb_host_id,${G}" 2> /dev/null
+[ -f "usb_host_id,${G}" ] && (echo -n " -i usb_host_id,${G}" >> bus_autoconf_args.txt)
+
+# USB Device mode
+objcopy -j usb_device_id -O binary ${F} "usb_device_id,${G}" 2> /dev/null
+[ -f "usb_device_id,${G}" ] && (echo -n " -i usb_device_id,${G}" >> bus_autoconf_args.txt)
 
 # USB Dual mode
-objcopy -j usb_dual_id -O binary ${F} temp.ids 2> /dev/null
-usb_format temp.ids usb_dual.ids ${H}
+objcopy -j usb_dual_id -O binary ${F} "usb_dual_id,${G}" 2> /dev/null
+[ -f "usb_dual_id,${G}" ] && (echo -n " -i usb_dual_id,${G}" >> bus_autoconf_args.txt)
 
 done
 
 # Dump all data
-[ -f usb_dual.ids ] && bus_autoconf -i usb_dual.ids -t usb_dual
-[ -f usb_host.ids ] && bus_autoconf -i usb_host.ids -t usb_host
-[ -f usb_device.ids ] && bus_autoconf -i usb_device.ids -t usb_device
+bus_autoconf -F bus_autoconf_format.bin $(cat bus_autoconf_args.txt)
 
 # Cleanup
-cleanup
+rm -f -- bus_autoconf_format.bin $(cat bus_autoconf_args.txt)
