@@ -25,7 +25,11 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _BUS_AUTOCONF_H_
-#define	_BUS_AUTOCONF_H_
+#ifndef _BUS_SECTIONS_H_
+#define	_BUS_SECTIONS_H_
 
-#endif					/* _BUS_AUTOCONF_H_ */
+uint16_t format_get_section_size(const char *);
+uint8_t	format_get_field(const char *, const char *, const uint8_t *, uint16_t);
+void	format_parse_entries(const uint8_t *, uint32_t);
+
+#endif					/* _BUS_SECTIONS_H_ */
