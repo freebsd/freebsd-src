@@ -19,6 +19,8 @@ INCS=	libprocstat.h
 CFLAGS+=	-I. -I${.CURDIR} -D_KVM_VNODE
 SHLIB_MAJOR=	1
 WITHOUT_MAN=	yes
+DPADD=		${LIBKVM} ${LIBUTIL}
+LDADD=		-lkvm -lutil
 
 .if ${MK_NCP} != "no"
 CFLAGS+=	-DLIBPROCSTAT_NWFS
