@@ -48,11 +48,15 @@ load_file(const char *fname, uint8_t **pptr, uint32_t *plen)
 		err(EX_NOINPUT, "Cannot open file '%s'", fname);
 
 	off = lseek(f, 0, SEEK_END);
-	if (off <= 0)
-		err(EX_NOINPUT, "Cannot seek to end of file");
+	if (off < 0) {
+		err(EX_NOINPUT, "Cannot seek to "
+		    "end of file '%s'", fname);
+	}
 
-	if (lseek(f, 0, SEEK_SET) < 0)
-		err(EX_NOINPUT, "Cannot seek to beginning of file");
+	if (lseek(f, 0, SEEK_SET) < 0) {
+		err(EX_NOINPUT, "Cannot seek to "
+		    "beginning of file '%s'", fname);
+	}
 
 	len = off;
 	if (len != off)
