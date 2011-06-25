@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-FILES=	bluetooth.device.conf devfs.rules periodic.conf rc.conf
+FILES=	bluetooth.device.conf devd.conf devfs.rules periodic.conf rc.conf
 NO_OBJ=
 FILESDIR= /etc/defaults
 
