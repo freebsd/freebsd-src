@@ -476,6 +476,6 @@ You can use "whereis" to search standard binary, manual page and source
 directories for the specified programs. This can be particularly handy
 when you are trying to find where in the ports tree an application is.
 
-Try "whereis netscape" and "whereis whereis".
+Try "whereis firefox" and "whereis whereis".
 		-- Konstantinos Konstantinidis <kkonstan@duth.gr>
 %
