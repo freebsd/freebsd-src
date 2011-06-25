@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 18, 2011
+.Dd June 19, 2011
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -4126,6 +4126,61 @@ Bus address of the USB Bluetooth controller.
 Check the output of
 .Xr usbconfig 8
 on your system to find this information.
+.It Va netwait_enable
+.Pq Vt bool
+If set to
+.Dq Li YES ,
+delays the start of network-reliant services until
+.Va netwait_if
+is up and ICMP packets to a destination defined in
+.Va netwait_ip
+are flowing.
+Link state is examined first, followed by
+.Dq Li pinging
+an IP address to verify network usability.
+If no destination can be reached or timeouts are exceeded,
+network services are started anyway with no guarantee that
+the network is usable.
+Use of this variable requires both
+.Va netwait_ip
+and
+.Va netwait_if
+to be set.
+.It Va netwait_ip
+.Pq Vt str
+Empty by default.
+This variable contains a space-delimited list of IP addresses to
+.Xr ping 8 .
+DNS hostnames should not be used as resolution is not guaranteed
+to be functional at this point.
+If multiple IP addresses are specified,
+each will be tried until one is successful or the list is exhausted.
+.It Va netwait_timeout
+.Pq Vt int
+Indicates the total number of seconds to perform a
+.Dq Li ping
+against each IP address in
+.Va netwait_ip ,
+at a rate of one ping per second.
+If any of the pings are successful,
+full network connectivity is considered reliable.
+The default is 60.
+.It Va netwait_if
+.Pq Vt str
+Empty by default.
+Defines the name of the network interface on which watch for link.
+.Xr ifconfig 8
+is used to monitor the interface, looking for
+.Dq Li status: no carrier .
+Once gone, the link is considered up.
+This can be a
+.Xr vlan 4
+interface if desired.
+.It Va netwait_if_timeout
+.Pq Vt int
+Defines the total number of seconds to wait for link to become usable,
+polled at a 1-second interval.
+The default is 30.
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /etc/defaults/rc.conf" -compact
@@ -4197,6 +4252,7 @@ on your system to find this information.
 .Xr ntpdate 8 ,
 .Xr pfctl 8 ,
 .Xr pflogd 8 ,
+.Xr ping 8 ,
 .Xr powerd 8 ,
 .Xr quotacheck 8 ,
 .Xr quotaon 8 ,
