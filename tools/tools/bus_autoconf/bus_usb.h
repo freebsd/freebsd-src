@@ -25,7 +25,49 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _BUS_AUTOCONF_H_
-#define	_BUS_AUTOCONF_H_
+#ifndef _BUS_USB_H_
+#define	_BUS_USB_H_
 
-#endif					/* _BUS_AUTOCONF_H_ */
+struct usb_device_id {
+
+	/* Internal fields */
+	char	module_name[32];
+	char	module_mode[32];
+	uint8_t	is_iface;
+	uint8_t	is_vp;
+	uint8_t	is_dev;
+	uint8_t	is_any;
+
+	/* Used for product specific matches; the BCD range is inclusive */
+	uint16_t idVendor;
+	uint16_t idProduct;
+	uint16_t bcdDevice_lo;
+	uint16_t bcdDevice_hi;
+
+	/* Used for device class matches */
+	uint8_t	bDeviceClass;
+	uint8_t	bDeviceSubClass;
+	uint8_t	bDeviceProtocol;
+
+	/* Used for interface class matches */
+	uint8_t	bInterfaceClass;
+	uint8_t	bInterfaceSubClass;
+	uint8_t	bInterfaceProtocol;
+
+	/* Select which fields to match against */
+	uint8_t	match_flag_vendor:1;
+	uint8_t	match_flag_product:1;
+	uint8_t	match_flag_dev_lo:1;
+	uint8_t	match_flag_dev_hi:1;
+	uint8_t	match_flag_dev_class:1;
+	uint8_t	match_flag_dev_subclass:1;
+	uint8_t	match_flag_dev_protocol:1;
+	uint8_t	match_flag_int_class:1;
+	uint8_t	match_flag_int_subclass:1;
+	uint8_t	match_flag_int_protocol:1;
+};
+
+void	usb_import_entries(const char *, const char *, const uint8_t *, uint32_t);
+void	usb_dump_entries(void);
+
+#endif					/* _BUS_USB_H_ */
