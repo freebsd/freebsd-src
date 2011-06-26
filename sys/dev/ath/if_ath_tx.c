@@ -1399,7 +1399,7 @@ ath_tx_action_frame_override_queue(struct ath_softc *sc,
  * The node and txnode locks should be held.
  */
 static void
-ath_tx_node_sched(struct ath_softc *sc, struct ath_node *an)
+ath_tx_node_sched(struct ath_softc *sc, struct ath_node *an, int tid)
 {
 	ATH_NODE_LOCK_ASSERT(an);
 	ATH_TXNODE_LOCK_ASSERT(sc);
@@ -1419,7 +1419,7 @@ ath_tx_node_sched(struct ath_softc *sc, struct ath_node *an)
  * The node and txnode locks should be held.
  */
 static void
-ath_tx_node_unsched(struct ath_softc *sc, struct ath_node *an)
+ath_tx_node_unsched(struct ath_softc *sc, struct ath_node *an, int tid)
 {
 	ATH_NODE_LOCK_ASSERT(an);
 	ATH_TXNODE_LOCK_ASSERT(sc);
@@ -1501,7 +1501,7 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_txq *txq,
 	/* Bump queued packet counter */
 	an->an_qdepth++;
 	/* Mark the given node as having packets to dequeue */
-	ath_tx_node_sched(sc, an);
+	ath_tx_node_sched(sc, an, tid);
 	ATH_NODE_UNLOCK(an);
 	ATH_TXNODE_UNLOCK(sc);
 }
@@ -1648,7 +1648,7 @@ ath_tx_tid_cleanup(struct ath_softc *sc, struct ath_node *an)
 		/* Remove any pending hardware TXQ scheduling */
 		ATH_TXNODE_LOCK(sc);
 		ATH_NODE_LOCK(an);
-		ath_tx_node_unsched(sc, an);
+		ath_tx_node_unsched(sc, an, i);
 		ATH_NODE_UNLOCK(an);
 		ATH_TXNODE_UNLOCK(sc);
 
@@ -1783,6 +1783,7 @@ ath_tx_hw_queue(struct ath_softc *sc, struct ath_node *an)
 {
 	struct ath_tid *atid;
 	int tid;
+	int isempty;
 
 	/*
 	 * For now, just queue from all TIDs in order.
@@ -1801,15 +1802,34 @@ ath_tx_hw_queue(struct ath_softc *sc, struct ath_node *an)
 			ath_tx_tid_hw_queue_aggr(sc, an, tid);
 		else
 			ath_tx_tid_hw_queue_norm(sc, an, tid);
+
+		/*
+		 * Check if anything is left in the queue;
+		 * if not, unschedule it.
+		 * Checking this only requires the TXQ lock.
+		 * Unscheduling it requires all the locks.
+		 */
+		ATH_TXQ_LOCK(atid);
+		isempty = (atid->axq_depth == 0);
+		if (isempty) {
+			ATH_TXNODE_LOCK(sc);
+			ATH_NODE_LOCK(an);
+			ath_tx_node_unsched(sc, an, tid);
+			ATH_NODE_UNLOCK(an);
+			ATH_TXNODE_UNLOCK(sc);
+		}
+		ATH_TXQ_UNLOCK(atid);
 	}
 }
 
+#if 0
 static int
 ath_txq_node_qlen(struct ath_softc *sc, struct ath_node *an)
 {
 	ATH_NODE_LOCK_ASSERT(an);
 	return an->an_qdepth;
 }
+#endif
 
 /*
  * Handle scheduling some packets from whichever nodes have
@@ -1825,12 +1845,6 @@ ath_txq_sched(struct ath_softc *sc)
 	STAILQ_FOREACH_SAFE(an, &sc->sc_txnodeq, an_list, next) {
 		/* Try dequeueing packets from the current node */
 		ath_tx_hw_queue(sc, an);
-
-		/* Are any packets left on the node software queue? Remove */
-		ATH_NODE_LOCK(an);
-		if (! ath_txq_node_qlen(sc, an))
-			ath_tx_node_unsched(sc, an);
-		ATH_NODE_UNLOCK(an);
 	}
 	ATH_TXNODE_UNLOCK(sc);
 }
