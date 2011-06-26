@@ -528,6 +528,9 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 		| IEEE80211_C_WPA		/* capable of WPA1+WPA2 */
 		| IEEE80211_C_BGSCAN		/* capable of bg scanning */
 		| IEEE80211_C_TXFRAG		/* handle tx frags */
+#ifdef	ATH_ENABLE_DFS
+		| IEEE80211_C_DFS		/* Enable DFS radar detection */
+#endif
 		;
 	/*
 	 * Query the hal to figure out h/w crypto support.
