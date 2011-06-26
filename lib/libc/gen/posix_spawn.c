@@ -182,7 +182,7 @@ process_file_actions(const posix_spawn_file_actions_t fa)
 		if (error)
 			return (error);
 	}
-	return (0);	
+	return (0);
 }
 
 static int
@@ -193,7 +193,7 @@ do_posix_spawn(pid_t *pid, const char *path,
 {
 	pid_t p;
 	volatile int error = 0;
-	
+
 	p = vfork();
 	switch (p) {
 	case -1:
