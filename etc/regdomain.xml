@@ -341,9 +341,9 @@
   <sku>0x30</sku>
   <netband mode="11b">
     <band>
-	<freqband ref="F1_2412_2472"/>
-	<maxpower>30</maxpower>
-	<flags>IEEE80211_CHAN_B</flags>
+      <freqband ref="F1_2412_2472"/>
+      <maxpower>30</maxpower>
+      <flags>IEEE80211_CHAN_B</flags>
     </band>
   </netband>
   <netband mode="11g">
