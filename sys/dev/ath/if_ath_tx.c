@@ -1869,7 +1869,7 @@ ath_tx_ampdu_running(struct ath_softc *sc, struct ath_node *an, int tid)
 {
 	struct ieee80211_tx_ampdu *tap;
 
-	ATH_NODE_LOCK_ASSERT(an);
+//	ATH_NODE_LOCK_ASSERT(an);
 
 	tap = ath_tx_get_tx_tid(an, tid);
 	if (tap == NULL)
@@ -1888,7 +1888,7 @@ ath_tx_ampdu_pending(struct ath_softc *sc, struct ath_node *an, int tid)
 {
 	struct ieee80211_tx_ampdu *tap;
 
-	ATH_NODE_LOCK_ASSERT(an);
+//	ATH_NODE_LOCK_ASSERT(an);
 
 	tap = ath_tx_get_tx_tid(an, tid);
 	if (tap == NULL)
