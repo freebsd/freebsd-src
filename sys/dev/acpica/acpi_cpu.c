@@ -856,10 +856,8 @@ acpi_cpu_cx_list(struct acpi_cpu_softc *sc)
 	sbuf_printf(&sb, "C%d/%d ", i + 1, sc->cpu_cx_states[i].trans_lat);
 	if (sc->cpu_cx_states[i].type < ACPI_STATE_C3)
 	    sc->cpu_non_c3 = i;
-#ifndef __ia64__
 	else
 	    cpu_can_deep_sleep = 1;
-#endif
     }
     sbuf_trim(&sb);
     sbuf_finish(&sb);
@@ -929,11 +927,9 @@ acpi_cpu_idle()
 
     /* Find the lowest state that has small enough latency. */
     cx_next_idx = 0;
-#ifndef __ia64__
     if (cpu_disable_deep_sleep)
 	i = min(sc->cpu_cx_lowest, sc->cpu_non_c3);
     else
-#endif
 	i = sc->cpu_cx_lowest;
     for (; i >= 0; i--) {
 	if (sc->cpu_cx_states[i].trans_lat * 3 <= sc->cpu_prev_sleep) {

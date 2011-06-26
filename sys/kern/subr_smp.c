@@ -236,12 +236,10 @@ generic_stop_cpus(cpuset_t map, u_int type)
 		/* spin */
 		cpu_spinwait();
 		i++;
-#ifdef DIAGNOSTIC
-		if (i == 100000) {
+		if (i == 100000000) {
 			printf("timeout stopping cpus\n");
 			break;
 		}
-#endif
 	}
 
 	stopping_cpu = NOCPU;

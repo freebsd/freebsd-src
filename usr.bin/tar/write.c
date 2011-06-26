@@ -919,6 +919,7 @@ write_entry_backend(struct bsdtar *bsdtar, struct archive *a,
 		const char *pathname = archive_entry_sourcepath(entry);
 		fd = open(pathname, O_RDONLY | O_BINARY);
 		if (fd == -1) {
+			bsdtar->return_value = 1;
 			if (!bsdtar->verbose)
 				bsdtar_warnc(errno,
 				    "%s: could not open file", pathname);
@@ -1019,6 +1020,12 @@ write_file_data(struct bsdtar *bsdtar, struct archive *a,
 		}
 		progress += bytes_written;
 		bytes_read = read(fd, bsdtar->buff, FILEDATABUFLEN);
+	}
+	if (bytes_read < 0) {
+		bsdtar_warnc(errno,
+			     "%s: Read error",
+			     archive_entry_pathname(entry));
+		bsdtar->return_value = 1;
 	}
 	return 0;
 }

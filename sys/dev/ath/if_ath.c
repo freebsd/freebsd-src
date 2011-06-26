@@ -528,6 +528,9 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 		| IEEE80211_C_WPA		/* capable of WPA1+WPA2 */
 		| IEEE80211_C_BGSCAN		/* capable of bg scanning */
 		| IEEE80211_C_TXFRAG		/* handle tx frags */
+#ifdef	ATH_ENABLE_DFS
+		| IEEE80211_C_DFS		/* Enable DFS radar detection */
+#endif
 		;
 	/*
 	 * Query the hal to figure out h/w crypto support.
@@ -1287,6 +1290,8 @@ ath_resume(struct ath_softc *sc)
 		    HAL_GPIO_MUX_MAC_NETWORK_LED);
 		ath_hal_gpioset(ah, sc->sc_ledpin, !sc->sc_ledon);
 	}
+
+	/* XXX beacons ? */
 }
 
 void
@@ -1589,6 +1594,12 @@ ath_init(void *arg)
 	sc->sc_lastani = 0;
 	sc->sc_lastshortcal = 0;
 	sc->sc_doresetcal = AH_FALSE;
+	/*
+	 * Beacon timers were cleared here; give ath_newstate()
+	 * a hint that the beacon timers should be poked when
+	 * things transition to the RUN state.
+	 */
+	sc->sc_beacons = 0;
 
 	/*
 	 * Setup the hardware after reset: the key cache
@@ -4463,6 +4474,19 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 		 * if we're switching; e.g. 11a to 11b/g.
 		 */
 		ath_chan_change(sc, chan);
+
+		/*
+		 * Reset clears the beacon timers; reset them
+		 * here if needed.
+		 */
+		if (sc->sc_beacons) {		/* restart beacons */
+#ifdef IEEE80211_SUPPORT_TDMA
+			if (sc->sc_tdma)
+				ath_tdma_config(sc, NULL);
+			else
+#endif
+			ath_beacon_config(sc, NULL);
+		}
 
 		/*
 		 * Re-enable interrupts.

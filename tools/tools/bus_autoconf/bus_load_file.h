@@ -25,7 +25,9 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _BUS_AUTOCONF_H_
-#define	_BUS_AUTOCONF_H_
+#ifndef _BUS_LOAD_FILE_H_
+#define	_BUS_LOAD_FILE_H_
 
-#endif					/* _BUS_AUTOCONF_H_ */
+void	load_file(const char *, uint8_t **, uint32_t *);
+
+#endif					/* _BUS_LOAD_FILE_H_ */

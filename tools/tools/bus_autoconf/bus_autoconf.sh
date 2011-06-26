@@ -28,6 +28,7 @@
 
 OS=FreeBSD
 DOLLAR=$
+OBJCOPY=objcopy
 
 cat <<EOF
 #
@@ -39,26 +40,39 @@ cat <<EOF
 
 EOF
 
-for F in $(echo $* | sort)
-do
-H=$(basename ${F} | sed -e "s/\.ko//g")
+rm -f bus_autoconf_format.bin
+rm -f bus_autoconf_args.txt
+rm -f bus_autoconf.ids
 
-# USB Host
-objcopy -j usb_host_id -O binary ${F} ${F}.ids 2> /dev/null
-[ -f ${F}.ids ] && (
-bus_autoconf -i ${F}.ids -t usb_host -m ${H} ;
-rm ${F}.ids
-)
-# USB Device
-objcopy -j usb_device_id -O binary ${F} ${F}.ids 2> /dev/null
-[ -f ${F}.ids ] && (
-bus_autoconf -i ${F}.ids -t usb_device -m ${H} ;
-rm ${F}.ids
-)
+for F in $*
+do
+
+G=$(basename ${F})
+
+# Format information
+${OBJCOPY} -j bus_autoconf_format -O binary ${F} bus_autoconf.ids 2> /dev/null
+[ -f bus_autoconf.ids ] && cat bus_autoconf.ids >> bus_autoconf_format.bin
+
+# USB Host mode
+${OBJCOPY} -j usb_host_id -O binary ${F} "usb_host_id,${G}" 2> /dev/null
+[ -f "usb_host_id,${G}" ] && (echo -n " -i usb_host_id,${G}" >> bus_autoconf_args.txt)
+
+# USB Device mode
+${OBJCOPY} -j usb_device_id -O binary ${F} "usb_device_id,${G}" 2> /dev/null
+[ -f "usb_device_id,${G}" ] && (echo -n " -i usb_device_id,${G}" >> bus_autoconf_args.txt)
+
 # USB Dual mode
-objcopy -j usb_dual_id -O binary ${F} ${F}.ids 2> /dev/null
-[ -f ${F}.ids ] && (
-bus_autoconf -i ${F}.ids -t usb_dual -m ${H} ;
-rm ${F}.ids
-)
+${OBJCOPY} -j usb_dual_id -O binary ${F} "usb_dual_id,${G}" 2> /dev/null
+[ -f "usb_dual_id,${G}" ] && (echo -n " -i usb_dual_id,${G}" >> bus_autoconf_args.txt)
+
 done
+
+# Dump all data
+bus_autoconf -F bus_autoconf_format.bin $(cat bus_autoconf_args.txt)
+
+# Cleanup
+rm -f -- \
+    $(cat bus_autoconf_args.txt) \
+    bus_autoconf_args.txt \
+    bus_autoconf_format.bin \
+    bus_autoconf.ids

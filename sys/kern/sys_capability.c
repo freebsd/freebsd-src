@@ -64,13 +64,6 @@ __FBSDID("$FreeBSD$");
 FEATURE(security_capabilities, "Capsicum Capability Mode");
 
 /*
- * We don't currently have any MIB entries for sysctls, but we do expose
- * security.capabilities so that it's easy to tell if options CAPABILITIES is
- * compiled into the kernel.
- */
-SYSCTL_NODE(_security, OID_AUTO, capabilities, CTLFLAG_RW, 0, "Capsicum");
-
-/*
  * System call to enter capability mode for the process.
  */
 int

@@ -1552,6 +1552,7 @@ dev/pci/isa_pci.c		optional pci isa
 dev/pci/pci.c			optional pci
 dev/pci/pci_if.m		standard
 dev/pci/pci_pci.c		optional pci
+dev/pci/pci_subr.c		optional pci
 dev/pci/pci_user.c		optional pci
 dev/pci/pcib_if.m		standard
 dev/pci/vga_pci.c		optional pci

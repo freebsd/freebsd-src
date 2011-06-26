@@ -36,7 +36,10 @@ PROG=	bus_autoconf
 MAN=
 BINDIR?= /usr/local/bin
 
-SRCS=	bus_autoconf.c
+SRCS+=	bus_autoconf.c
+SRCS+=	bus_load_file.c
+SRCS+=	bus_sections.c
+SRCS+=	bus_usb.c
 
 WARNS=	6
 
