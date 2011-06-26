@@ -754,8 +754,6 @@ k_trap:
 /* Call C interrupt dispatcher: */
 trapagain:
 	addi	%r3,%r1,8
-	addi	%r4,%r1,-4		/* Clear any existing reservations */
-	stwcx.	%r3,0,%r4		
 	bl	CNAME(powerpc_interrupt)
 	.globl	CNAME(trapexit)		/* backtrace code sentinel */
 CNAME(trapexit):
