@@ -158,7 +158,7 @@ snp_read(struct cdev *dev, struct uio *uio, int flag)
 	error = devfs_get_cdevpriv((void **)&ss);
 	if (error != 0)
 		return (error);
-	
+
 	tp = ss->snp_tty;
 	if (tp == NULL || tty_gone(tp))
 		return (EIO);
@@ -198,7 +198,7 @@ snp_write(struct cdev *dev, struct uio *uio, int flag)
 	error = devfs_get_cdevpriv((void **)&ss);
 	if (error != 0)
 		return (error);
-	
+
 	tp = ss->snp_tty;
 	if (tp == NULL || tty_gone(tp))
 		return (EIO);
