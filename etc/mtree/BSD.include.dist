@@ -229,6 +229,8 @@
     ..
     kadm5
     ..
+    lib80211
+    ..
     libmilter
     ..
     lwres
