@@ -4894,8 +4894,8 @@ camisr_runqueue(void *V_queue)
 			 && (--dev->tag_delay_count == 0))
 				xpt_start_tags(ccb_h->path);
 			if (!device_is_send_queued(dev)) {
-				runq = xpt_schedule_dev_sendq(ccb_h->path->bus, 
-				    dev);
+				(void)xpt_schedule_dev_sendq(ccb_h->path->bus, 
+							     dev);
 			}
 		}
 
