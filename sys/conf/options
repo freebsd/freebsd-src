@@ -773,7 +773,8 @@ ATH_TXBUF		opt_ath.h
 ATH_RXBUF		opt_ath.h
 ATH_DIAGAPI		opt_ath.h
 ATH_TX99_DIAG		opt_ath.h
-ATH_ENABLE_11N		opt_ah.h
+ATH_ENABLE_11N		opt_ath.h
+ATH_ENABLE_DFS		opt_ath.h
 
 # options for the Atheros hal
 AH_SUPPORT_AR5416	opt_ah.h
