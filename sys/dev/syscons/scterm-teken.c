@@ -643,7 +643,7 @@ scteken_copy(void *arg, const teken_rect_t *r, const teken_pos_t *p)
 
 			while (src < end) {
 				sc_vtb_move(&scp->vtb, src, dst, width);
-			
+
 				src += scp->xsize;
 				dst += scp->xsize;
 			}
@@ -658,7 +658,7 @@ scteken_copy(void *arg, const teken_rect_t *r, const teken_pos_t *p)
 
 			while (src >= end) {
 				sc_vtb_move(&scp->vtb, src, dst, width);
-			
+
 				src -= scp->xsize;
 				dst -= scp->xsize;
 			}

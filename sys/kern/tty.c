@@ -470,10 +470,10 @@ ttydev_write(struct cdev *dev, struct uio *uio, int ioflag)
 			if (error)
 				goto done;
 		}
- 
- 		tp->t_flags |= TF_BUSY_OUT;
+
+		tp->t_flags |= TF_BUSY_OUT;
 		error = ttydisc_write(tp, uio, ioflag);
- 		tp->t_flags &= ~TF_BUSY_OUT;
+		tp->t_flags &= ~TF_BUSY_OUT;
 		cv_signal(&tp->t_outserwait);
 	}
 
@@ -1054,7 +1054,7 @@ tty_rel_pgrp(struct tty *tp, struct pgrp *pg)
 
 	if (tp->t_pgrp == pg)
 		tp->t_pgrp = NULL;
-	
+
 	tty_unlock(tp);
 }
 
@@ -1241,7 +1241,7 @@ tty_signal_sessleader(struct tty *tp, int sig)
 
 	/* Make signals start output again. */
 	tp->t_flags &= ~TF_STOPPED;
-	
+
 	if (tp->t_session != NULL && tp->t_session->s_leader != NULL) {
 		p = tp->t_session->s_leader;
 		PROC_LOCK(p);
@@ -1305,7 +1305,7 @@ tty_wait(struct tty *tp, struct cv *cv)
 	/* Restart the system call when we may have been revoked. */
 	if (tp->t_revokecnt != revokecnt)
 		return (ERESTART);
-	
+
 	/* Bail out when the device slipped away. */
 	if (tty_gone(tp))
 		return (ENXIO);
@@ -1327,7 +1327,7 @@ tty_timedwait(struct tty *tp, struct cv *cv, int hz)
 	/* Restart the system call when we may have been revoked. */
 	if (tp->t_revokecnt != revokecnt)
 		return (ERESTART);
-	
+
 	/* Bail out when the device slipped away. */
 	if (tty_gone(tp))
 		return (ENXIO);
@@ -1469,7 +1469,7 @@ tty_generic_ioctl(struct tty *tp, u_long cmd, void *data, int fflag,
 				return (error);
 
 			/* XXX: CLOCAL? */
-			
+
 			tp->t_termios.c_cflag = t->c_cflag & ~CIGNORE;
 			tp->t_termios.c_ispeed = t->c_ispeed;
 			tp->t_termios.c_ospeed = t->c_ospeed;
@@ -1708,7 +1708,7 @@ tty_ioctl(struct tty *tp, u_long cmd, void *data, int fflag, struct thread *td)
 
 	if (tty_gone(tp))
 		return (ENXIO);
-	
+
 	error = ttydevsw_ioctl(tp, cmd, data, td);
 	if (error == ENOIOCTL)
 		error = tty_generic_ioctl(tp, cmd, data, fflag, td);
@@ -1786,7 +1786,7 @@ ttyhook_defrint(struct tty *tp, char c, int flags)
 
 	if (ttyhook_rint_bypass(tp, &c, 1) != 1)
 		return (-1);
-	
+
 	return (0);
 }
 
@@ -1812,7 +1812,7 @@ ttyhook_register(struct tty **rtp, struct proc *p, int fd,
 		error = EBADF;
 		goto done1;
 	}
-	
+
 	/*
 	 * Make sure the vnode is bound to a character device.
 	 * Unlocked check for the vnode type is ok there, because we
@@ -1910,7 +1910,7 @@ ttyconsdev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	/* System console has no TTY associated. */
 	if (dev_console->si_drv1 == NULL)
 		return (ENXIO);
-	
+
 	return (ttydev_open(dev, oflags, devtype, td));
 }
 
