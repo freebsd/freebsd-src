@@ -139,19 +139,19 @@
     </band>
     <band>
       <freqband ref="F1_5260_5320"/>
-      <maxpower>20</maxpower>
+      <maxpower>23</maxpower>
       <flags>IEEE80211_CHAN_PASSIVE</flags>
       <flags>IEEE80211_CHAN_DFS</flags>
     </band>
     <band>
       <freqband ref="F1_5500_5580"/>
-      <maxpower>20</maxpower>
+      <maxpower>23</maxpower>
       <flags>IEEE80211_CHAN_PASSIVE</flags>
       <flags>IEEE80211_CHAN_DFS</flags>
     </band>
     <band>
       <freqband ref="F1_5660_5700"/>
-      <maxpower>20</maxpower>
+      <maxpower>23</maxpower>
       <flags>IEEE80211_CHAN_PASSIVE</flags>
       <flags>IEEE80211_CHAN_DFS</flags>
     </band>
@@ -195,42 +195,42 @@
     </band>
     <band>
       <freqband ref="F1_5260_5320"/>
-      <maxpower>20</maxpower>
+      <maxpower>23</maxpower>
       <flags>IEEE80211_CHAN_HT20</flags>
       <flags>IEEE80211_CHAN_PASSIVE</flags>
       <flags>IEEE80211_CHAN_DFS</flags>
     </band>
     <band>
       <freqband ref="H4_5260_5320"/>
-      <maxpower>20</maxpower>
+      <maxpower>23</maxpower>
       <flags>IEEE80211_CHAN_HT40</flags>
       <flags>IEEE80211_CHAN_PASSIVE</flags>
       <flags>IEEE80211_CHAN_DFS</flags>
     </band>
     <band>
       <freqband ref="F1_5500_5580"/>
-      <maxpower>20</maxpower>
+      <maxpower>23</maxpower>
       <flags>IEEE80211_CHAN_HT20</flags>
       <flags>IEEE80211_CHAN_PASSIVE</flags>
       <flags>IEEE80211_CHAN_DFS</flags>
     </band>
     <band>
       <freqband ref="H4_5500_5580"/>
-      <maxpower>20</maxpower>
+      <maxpower>23</maxpower>
       <flags>IEEE80211_CHAN_HT40</flags>
       <flags>IEEE80211_CHAN_PASSIVE</flags>
       <flags>IEEE80211_CHAN_DFS</flags>
     </band>
     <band>
       <freqband ref="F1_5660_5700"/>
-      <maxpower>20</maxpower>
+      <maxpower>23</maxpower>
       <flags>IEEE80211_CHAN_HT20</flags>
       <flags>IEEE80211_CHAN_PASSIVE</flags>
       <flags>IEEE80211_CHAN_DFS</flags>
     </band>
     <band>
       <freqband ref="H4_5660_5700"/>
-      <maxpower>20</maxpower>
+      <maxpower>23</maxpower>
       <flags>IEEE80211_CHAN_HT40</flags>
       <flags>IEEE80211_CHAN_PASSIVE</flags>
       <flags>IEEE80211_CHAN_DFS</flags>
