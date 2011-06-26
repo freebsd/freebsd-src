@@ -53,7 +53,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
-#include <sys/proc.h>
 #include <machine/cpuregs.h>
 #include <machine/pcb.h>
 #include <machine/sigframe.h>
