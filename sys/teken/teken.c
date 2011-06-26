@@ -526,7 +526,7 @@ teken_get_sequence(teken_t *t, unsigned int k)
 	/* Default xterm sequences. */
 	if (k < sizeof special_strings_normal / sizeof(char *))
 		return (special_strings_normal[k]);
-	
+
 	return (NULL);
 }
 
