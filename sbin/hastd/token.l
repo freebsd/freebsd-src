@@ -68,7 +68,7 @@ sha256			{ DP; return SHA256; }
 hole			{ DP; return HOLE; }
 lzf			{ DP; return LZF; }
 [0-9]+			{ DP; yylval.num = atoi(yytext); return NUM; }
-[a-zA-Z0-9\.\-_/\:]+	{ DP; yylval.str = strdup(yytext); return STR; }
+[a-zA-Z0-9\.\-_/\:\[\]]+ { DP; yylval.str = strdup(yytext); return STR; }
 \{			{ DP; depth++; return OB; }
 \}			{ DP; depth--; return CB; }
 #.*$			/* ignore comments */;
