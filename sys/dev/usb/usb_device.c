@@ -1297,6 +1297,21 @@ usb_probe_and_attach(struct usb_device *udev, uint8_t iface_index)
 
 	usb_init_attach_arg(udev, &uaa);
 
+	/*
+	 * If the whole USB device is targeted, invoke the USB event
+	 * handler(s):
+	 */
+	if (iface_index == USB_IFACE_INDEX_ANY) {
+
+		EVENTHANDLER_INVOKE(usb_dev_configured, udev, &uaa);
+
+		if (uaa.dev_state != UAA_DEV_READY) {
+			/* leave device unconfigured */
+			usb_unconfigure(udev, 0);
+			goto done;
+		}
+	}
+
 	/* Check if only one interface should be probed: */
 	if (iface_index != USB_IFACE_INDEX_ANY) {
 		i = iface_index;
@@ -1343,17 +1358,18 @@ usb_probe_and_attach(struct usb_device *udev, uint8_t iface_index)
 		    uaa.info.bIfaceIndex,
 		    uaa.info.bIfaceNum);
 
-		if (usb_probe_and_attach_sub(udev, &uaa)) {
-			/* ignore */
-		}
-	}
+		usb_probe_and_attach_sub(udev, &uaa);
 
-	if (uaa.temp_dev) {
-		/* remove the last created child; it is unused */
-
-		if (device_delete_child(udev->parent_dev, uaa.temp_dev)) {
+		/*
+		 * Remove the leftover child, if any, to enforce that
+		 * a new nomatch devd event is generated for the next
+		 * interface if no driver is found:
+		 */
+		if (uaa.temp_dev == NULL)
+			continue;
+		if (device_delete_child(udev->parent_dev, uaa.temp_dev))
 			DPRINTFN(0, "device delete child failed\n");
-		}
+		uaa.temp_dev = NULL;
 	}
 done:
 	if (do_unlock)
@@ -1526,7 +1542,7 @@ usb_alloc_device(device_t parent_dev, struct usb_bus *bus,
 
 	/* initialise our SX-lock */
 	sx_init_flags(&udev->enum_sx, "USB config SX lock", SX_DUPOK);
-	sx_init_flags(&udev->sr_sx, "USB suspend and resume SX lock", SX_DUPOK);
+	sx_init_flags(&udev->sr_sx, "USB suspend and resume SX lock", SX_NOWITNESS);
 
 	cv_init(&udev->ctrlreq_cv, "WCTRL");
 	cv_init(&udev->ref_cv, "UGONE");
@@ -1833,11 +1849,6 @@ repeat_set_config:
 				goto repeat_set_config;
 			}
 		}
-	}
-	EVENTHANDLER_INVOKE(usb_dev_configured, udev, &uaa);
-	if (uaa.dev_state != UAA_DEV_READY) {
-		/* leave device unconfigured */
-		usb_unconfigure(udev, 0);
 	}
 
 config_done:

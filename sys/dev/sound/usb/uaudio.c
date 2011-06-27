@@ -531,6 +531,15 @@ static driver_t uaudio_driver = {
 	.size = sizeof(struct uaudio_softc),
 };
 
+static const STRUCT_USB_HOST_ID __used uaudio_devs[] = {
+	/* Generic USB audio class match */
+	{USB_IFACE_CLASS(UICLASS_AUDIO),
+	 USB_IFACE_SUBCLASS(UISUBCLASS_AUDIOCONTROL),},
+	/* Generic USB MIDI class match */
+	{USB_IFACE_CLASS(UICLASS_AUDIO),
+	 USB_IFACE_SUBCLASS(UISUBCLASS_MIDISTREAM),},
+};
+
 static int
 uaudio_probe(device_t dev)
 {

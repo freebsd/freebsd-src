@@ -167,9 +167,8 @@ enum {
 	  (((u_int8_t *)(p))[2] << 16) | (((u_int8_t *)(p))[3] << 24)))
 
 /* recognized device vendors/products */
-static const struct usb_device_id uath_devs[] = {
+static const STRUCT_USB_HOST_ID uath_devs[] = {
 #define	UATH_DEV(v,p) { USB_VP(USB_VENDOR_##v, USB_PRODUCT_##v##_##p) }
-	UATH_DEV(ACCTON,		SMCWUSBG),
 	UATH_DEV(ACCTON,		SMCWUSBTG2),
 	UATH_DEV(ATHEROS,		AR5523),
 	UATH_DEV(ATHEROS2,		AR5523_1),

@@ -489,6 +489,24 @@ bbb_attach(struct usb_device *udev, uint8_t iface_index)
 	struct usb_interface_descriptor *id;
 	struct bbb_transfer *sc;
 	usb_error_t err;
+	uint8_t do_unlock;
+
+	/* automatic locking */
+	if (usbd_enum_is_locked(udev)) {
+		do_unlock = 0;
+	} else {
+		do_unlock = 1;
+		usbd_enum_lock(udev);
+	}
+
+	/*
+	 * Make sure any driver which is hooked up to this interface,
+	 * like umass is gone:
+	 */
+	usb_detach_device(udev, iface_index, 0);
+
+	if (do_unlock)
+		usbd_enum_unlock(udev);
 
 	iface = usbd_get_iface(udev, iface_index);
 	if (iface == NULL)

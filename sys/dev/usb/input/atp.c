@@ -240,7 +240,7 @@ struct atp_dev_params {
 	},
 };
 
-static const struct usb_device_id atp_devs[] = {
+static const STRUCT_USB_HOST_ID atp_devs[] = {
 	/* Core Duo MacBook & MacBook Pro */
 	{ USB_VPI(USB_VENDOR_APPLE, 0x0217, ATP_DEV_PARAMS_0) },
 	{ USB_VPI(USB_VENDOR_APPLE, 0x0218, ATP_DEV_PARAMS_0) },
