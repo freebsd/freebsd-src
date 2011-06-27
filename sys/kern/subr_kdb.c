@@ -502,12 +502,11 @@ kdb_thr_select(struct thread *thr)
 int
 kdb_trap(int type, int code, struct trapframe *tf)
 {
-	struct kdb_dbbe *be;
-	register_t intr;
 #ifdef SMP
 	cpuset_t other_cpus;
-	int did_stop_cpus;
 #endif
+	struct kdb_dbbe *be;
+	register_t intr;
 	int handled;
 
 	be = kdb_dbbe;
@@ -521,11 +520,9 @@ kdb_trap(int type, int code, struct trapframe *tf)
 	intr = intr_disable();
 
 #ifdef SMP
-	if ((did_stop_cpus = kdb_stop_cpus) != 0) {
-		other_cpus = all_cpus;
-		CPU_CLR(PCPU_GET(cpuid), &other_cpus);
-		stop_cpus_hard(other_cpus);
-	}
+	other_cpus = all_cpus;
+	CPU_CLR(PCPU_GET(cpuid), &other_cpus);
+	stop_cpus_hard(other_cpus);
 #endif
 
 	kdb_active++;
