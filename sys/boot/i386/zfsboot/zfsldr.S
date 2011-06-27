@@ -34,46 +34,9 @@
 		.set SIZ_SEC,0x200		# Sector size
 
 		.set NSECT,0x80
-		.globl start
+		.globl main
 		.code16
 
-start:		jmp main			# Start recognizably
-
-/*
- * This is the start of a standard BIOS Parameter Block (BPB). Most bootable
- * FAT disks have this at the start of their MBR. While normal BIOS's will
- * work fine without this section, IBM's El Torito emulation "fixes" up the
- * BPB by writing into the memory copy of the MBR. Rather than have data
- * written into our code, we'll define a BPB to work around it.
- * The data marked with (T) indicates a field required for a ThinkPad to
- * recognize the disk and (W) indicates fields written from IBM BIOS code.
- * The use of the BPB is based on what OpenBSD and NetBSD implemented in
- * their boot code but the required fields were determined by trial and error.
- *
- * Note: If additional space is needed in boot1, one solution would be to
- * move the "prompt" message data (below) to replace the OEM ID.
- */
-		.org 0x03, 0x00
-oemid:		.space 0x08, 0x00	# OEM ID
-
-		.org 0x0b, 0x00
-bpb:		.word   512		# sector size (T)
-		.byte	0		# sectors/clustor
-		.word	0		# reserved sectors
-		.byte	0		# number of FATs
-		.word	0		# root entries
-		.word	0		# small sectors
-		.byte	0		# media type (W)
-		.word	0		# sectors/fat
-		.word	18		# sectors per track (T)
-		.word	2		# number of heads (T)
-		.long	0		# hidden sectors (W)
-		.long	0		# large sectors
-
-		.org 0x24, 0x00
-ebpb:		.byte	0		# BIOS physical drive number (W)
-
-		.org 0x25,0x90
 /*
  * Load the rest of zfsboot2 and BTX up, copy the parts to the right locations,
  * and start it all up.
@@ -90,18 +53,17 @@ main:		cld				# String ops inc
 		mov %cx,%ss			# Set up
 		mov $start,%sp			#  stack
 /*
- * If we are on a hard drive, then load the MBR and look for the first
- * FreeBSD slice.  We use the fake partition entry below that points to
- * the MBR when we call nread.  The first pass looks for the first active
- * FreeBSD slice.  The second pass looks for the first non-active FreeBSD
- * slice if the first one fails.
+ * Load the MBR and look for the first FreeBSD slice.  We use the fake
+ * partition entry below that points to the MBR when we call read.
+ * The first pass looks for the first active FreeBSD slice.  The
+ * second pass looks for the first non-active FreeBSD slice if the
+ * first one fails.
  */
+		call check_edd		 	# Make sure EDD works
 		mov $part4,%si			# Dummy partition
-		cmpb $0x80,%dl			# Hard drive?
-		jb main.4			# No
 		xor %eax,%eax			# Read MBR
 		movl $MEM_BUF,%ebx		#  from first
-		callw nread			#  sector
+		call read			#  sector
 		mov $0x1,%cx	 		# Two passes
 main.1: 	mov $MEM_BUF+PRT_OFF,%si	# Partition table
 		movb $0x1,%dh			# Partition
@@ -122,10 +84,6 @@ main.3: 	add $0x10,%si	 		# Next entry
  */
 		mov $msg_part,%si		# Message
 		jmp error			# Error
-/*
- * Floppies use partition 0 of drive 0.
- */
-main.4: 	xor %dx,%dx			# Partition:drive
 
 /*
  * Ok, we have a slice and drive in %dx now, so use that to locate and
@@ -153,7 +111,7 @@ main.5: 	mov %dx,MEM_ARG			# Save args
 		movl $1024,%eax			# Offset to boot2
 		mov $MEM_BTX,%ebx		# Destination buffer
 main.6:		pushal				# Save params
-		callw nread			# Read disk
+		call read			# Read disk
 		popal				# Restore
 		incl %eax			# Advance to
 		add $SIZ_SEC,%ebx		#  next sector
@@ -200,16 +158,16 @@ seta20.3:	sti				# Enable interrupts
 
 
 /*
- * Trampoline used to call read from within zfsldr.  Sets up an EDD
- * packet on the stack and passes it to read.  We assume that the
- * destination address is always segment-aligned.
+ * Read a sector from the disk.  Sets up an EDD packet on the stack
+ * and passes it to read.  We assume that the destination address is
+ * always segment-aligned.
  *
  * %eax		- int     - LBA to read in relative to partition start
  * %ebx		- ptr	  - destination address
  * %dl		- byte    - drive to read from
  * %si		- ptr     - MBR partition entry
  */
-nread:		xor %ecx,%ecx			# Get
+read:		xor %ecx,%ecx			# Get
 		addl 0x8(%si),%eax		#  LBA
 		adc $0,%ecx
 		pushl %ecx			# Starting absolute block
@@ -219,12 +177,13 @@ nread:		xor %ecx,%ecx			# Get
 		push $0				#  transfer buffer
 		push $0x1			# Read 1 sector
 		push $0x10			# Size of packet
-		mov %sp,%bp			# Packet pointer
-		callw read			# Read from disk
-		jc nread.1			# If error, fail
-		lea 0x10(%bp),%sp		# Clear stack
+		mov %sp,%si			# Packet pointer
+		mov $0x42,%ah			# BIOS: Extended
+		int $0x13			#  read
+		jc read.1			# If error, fail
+		lea 0x10(%si),%sp		# Clear stack
 		ret				# If success, return
-nread.1:	mov %ah,%al			# Format
+read.1:		mov %ah,%al			# Format
 		mov $read_err,%di		#  error
 		call hex8			#  code
 		mov $msg_read,%si		# Set the error message and
@@ -250,36 +209,26 @@ putstr.0:	mov $0x7,%bx	 		# Page:attribute
 putstr: 	lodsb				# Get char
 		testb %al,%al			# End of string?
 		jne putstr.0			# No
-
+		ret				# To caller
 /*
- * Reads sectors from the disk.  If EDD is enabled, then check if it is
- * installed and use it if it is.  If it is not installed or not enabled, then
- * fall back to using CHS.  Since we use a LBA, if we are using CHS, we have to
- * fetch the drive parameters from the BIOS and divide it out ourselves.
- * Call with:
- *
- * %dl	- byte     - drive number
- * stack - 10 bytes - EDD Packet
+ * Check to see if the disk supports EDD.  zfsboot requires EDD and does not
+ * support older C/H/S disk I/O.
  */
-read:		cmpb $0x80,%dl			# Hard drive?
-		jb read.1			# No, use CHS
+check_edd:	cmpb $0x80,%dl			# Hard drive?
+		jb check_edd.1 			# No, fail to boot
 		mov $0x55aa,%bx			# Magic
 		push %dx			# Save
 		movb $0x41,%ah			# BIOS: Check
 		int $0x13			#  extensions present
 		pop %dx				# Restore
-		jc read.1			# If error, use CHS
+		jc check_edd.1			# If error, fail
 		cmp $0xaa55,%bx			# Magic?
-		jne read.1			# No, so use CHS
+		jne check_edd.1			# No, so fail
 		testb $0x1,%cl			# Packet interface?
-		jz read.1			# No, so use CHS
-		mov %bp,%si			# Disk packet
-		movb $0x42,%ah			# BIOS: Extended
-		int $0x13			#  read
-		retw				# To caller
-read.1:		mov $msg_chs,%si
-		jmp error
-
+		jz check_edd.1			# No, so fail
+		ret				# EDD ok, keep booting
+check_edd.1:	mov $msg_chs,%si		# Warn that CHS is
+		jmp error			#  unsupported and fail
 /*
  * AL to hex, saving the result to [EDI].
  */
