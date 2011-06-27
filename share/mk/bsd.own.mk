@@ -63,6 +63,15 @@
 # SHAREMODE	ASCII text file mode. [${NOBINMODE}]
 #
 #
+# CONFDIR	Base path for configuration files. [/etc]
+#
+# CONFOWN	Configuration file owner. [root]
+#
+# CONFGRP	Configuration file group. [wheel]
+#
+# CONFMODE	Configuration file mode. [644]
+#
+#
 # DOCDIR	Base path for system documentation (e.g. PSD, USD,
 #		handbook, FAQ etc.). [${SHAREDIR}/doc]
 #
@@ -144,6 +153,11 @@ SHAREDIR?=	/usr/share
 SHAREOWN?=	root
 SHAREGRP?=	wheel
 SHAREMODE?=	${NOBINMODE}
+
+CONFDIR?=	/etc
+CONFOWN?=	root
+CONFGRP?=	wheel
+CONFMODE?=	644
 
 MANDIR?=	${SHAREDIR}/man/man
 MANOWN?=	${SHAREOWN}
