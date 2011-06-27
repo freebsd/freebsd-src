@@ -80,7 +80,7 @@ show_patrol(int ac, char **av)
 	struct mfi_pr_status status;
 	struct mfi_pd_list *list;
 	struct mfi_pd_info info;
-	char label[16];
+	char label[24];
 	time_t now;
 	uint32_t at;
 	int error, fd;
@@ -174,8 +174,10 @@ show_patrol(int ac, char **av)
 				return (error);
 			}
 			if (info.prog_info.active & MFI_PD_PROGRESS_PATROL) {
-				snprintf(label, sizeof(label), "    Drive %u",
-				    list->addr[i].device_id);
+				snprintf(label, sizeof(label), "    Drive %s",
+				    mfi_drive_name(NULL,
+				    list->addr[i].device_id,
+				    MFI_DNAME_DEVICE_ID|MFI_DNAME_HONOR_OPTS));
 				mfi_display_progress(label,
 				    &info.prog_info.patrol);
 			}
