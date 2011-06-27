@@ -230,9 +230,13 @@ drop_privs(struct hast_resource *res)
 	 * ioctls and secondary uses ioctls to handle BIO_DELETE and BIO_FLUSH.
 	 * For now capsicum is only used to sandbox hastctl.
 	 */
-	if (res == NULL)
+	if (res == NULL) {
 		capsicum = (cap_enter() == 0);
-	else
+		if (!capsicum) {
+			pjdlog_common(LOG_DEBUG, 1, errno,
+			    "Unable to sandbox using capsicum");
+		}
+	} else
 		capsicum = false;
 
 	/*
