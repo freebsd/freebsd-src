@@ -684,9 +684,9 @@ u3g_test_autoinst(void *arg, struct usb_device *udev,
 		return;		/* no device match */
 
 	if (bootverbose) {
-		printf("Ejecting 0x%04x:0x%04x using method %ld\n",
-		       uaa->info.idVendor, uaa->info.idProduct,
-		       USB_GET_DRIVER_INFO(uaa));
+		printf("Ejecting %s %s using method %ld\n",
+		       usb_get_manufacturer(udev),
+		       usb_get_product(udev), method);
 	}
 
 	switch (method) {
