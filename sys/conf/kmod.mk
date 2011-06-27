@@ -132,6 +132,10 @@ CFLAGS+=	-mlongcall -fno-omit-frame-pointer
 CFLAGS+=	-G0 -fno-pic -mno-abicalls -mlong-calls
 .endif
 
+.if defined(DEBUG) || defined(DEBUG_FLAGS)
+CTFFLAGS+=      -g
+.endif
+
 .if defined(FIRMWS)
 .if !exists(@)
 ${KMOD:S/$/.c/}: @
@@ -197,6 +201,9 @@ ${KMOD}.kld: ${OBJS}
 ${FULLPROG}: ${OBJS}
 .endif
 	${LD} ${LDFLAGS} -r -d -o ${.TARGET} ${OBJS}
+.if defined(WITH_CTF)
+	${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${OBJS}
+.endif
 .if defined(EXPORT_SYMS)
 .if ${EXPORT_SYMS} != YES
 .if ${EXPORT_SYMS} == NO
