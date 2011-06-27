@@ -57,7 +57,7 @@ zfsboot1: zfsldr.out
 	objcopy -S -O binary zfsldr.out ${.TARGET}
 
 zfsldr.out: zfsldr.o
-	${LD} ${LDFLAGS} -e start -Ttext ${ORG1} -o ${.TARGET} zfsldr.o
+	${LD} ${LDFLAGS} -e main -Ttext ${ORG1} -o ${.TARGET} zfsldr.o
 
 CLEANFILES+=	zfsboot2 zfsboot.ld zfsboot.ldr zfsboot.bin zfsboot.out \
 		zfsboot.o zfsboot.s zfsboot.s.tmp sio.o cons.o drv.o util.o
