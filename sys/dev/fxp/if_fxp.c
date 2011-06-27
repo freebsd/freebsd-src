@@ -3041,6 +3041,8 @@ static const struct ucode {
 #endif
 	{ FXP_REV_82551_F, UCODE(fxp_ucode_d102e),
 	    D102_E_CPUSAVER_DWORD, D102_E_CPUSAVER_BUNDLE_MAX_DWORD },
+	{ FXP_REV_82551_10, UCODE(fxp_ucode_d102e),
+	    D102_E_CPUSAVER_DWORD, D102_E_CPUSAVER_BUNDLE_MAX_DWORD },
 	{ 0, NULL, 0, 0, 0 }
 };
 
