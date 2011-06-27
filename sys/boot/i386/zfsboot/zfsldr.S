@@ -34,7 +34,7 @@
 		.set SIZ_SEC,0x200		# Sector size
 
 		.set NSECT,0x80
-		.globl main
+		.globl start
 		.code16
 
 /*
@@ -46,7 +46,7 @@
  * Setup the segment registers to flat addressing (segment 0) and setup the
  * stack to end just below the start of our code.
  */
-main:		cld				# String ops inc
+start:		cld				# String ops inc
 		xor %cx,%cx			# Zero
 		mov %cx,%es			# Address
 		mov %cx,%ds			#  data
