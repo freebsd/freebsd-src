@@ -182,7 +182,7 @@ MODULE_DEPEND(u3g, ucom, 1, 1, 1);
 MODULE_DEPEND(u3g, usb, 1, 1, 1);
 MODULE_VERSION(u3g, 1);
 
-static const struct usb_device_id u3g_devs[] = {
+static const STRUCT_USB_HOST_ID u3g_devs[] = {
 #define	U3G_DEV(v,p,i) { USB_VPI(USB_VENDOR_##v, USB_PRODUCT_##v##_##p, i) }
 	U3G_DEV(ACERP, H10, 0),
 	U3G_DEV(AIRPLUS, MCD650, 0),

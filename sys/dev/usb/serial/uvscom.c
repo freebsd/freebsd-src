@@ -233,7 +233,7 @@ static const struct ucom_callback uvscom_callback = {
 	.ucom_poll = &uvscom_poll,
 };
 
-static const struct usb_device_id uvscom_devs[] = {
+static const STRUCT_USB_HOST_ID uvscom_devs[] = {
 	/* SUNTAC U-Cable type A4 */
 	{USB_VPI(USB_VENDOR_SUNTAC, USB_PRODUCT_SUNTAC_AS144L4, 0)},
 	/* SUNTAC U-Cable type D2 */
