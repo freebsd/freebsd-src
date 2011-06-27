@@ -1,6 +1,8 @@
 #include "IA64.h"
 #include "IA64Subtarget.h"
 
+#include "llvm/Support/Host.h"
+
 #include "IA64GenSubtarget.inc"
 
 using namespace llvm;
