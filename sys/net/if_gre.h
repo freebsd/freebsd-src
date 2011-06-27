@@ -68,8 +68,6 @@ struct gre_softc {
 
 	const struct encaptab *encap;	/* encapsulation cookie */
 
-	int called;		/* infinite recursion preventer */
-
 	uint32_t key;		/* key included in outgoing GRE packets */
 				/* zero means none */
 
