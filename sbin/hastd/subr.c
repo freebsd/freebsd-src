@@ -31,7 +31,9 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#ifdef HAVE_CAPSICUM
 #include <sys/capability.h>
+#endif
 #include <sys/param.h>
 #include <sys/disk.h>
 #include <sys/ioctl.h>
@@ -230,6 +232,7 @@ drop_privs(struct hast_resource *res)
 	 * ioctls and secondary uses ioctls to handle BIO_DELETE and BIO_FLUSH.
 	 * For now capsicum is only used to sandbox hastctl.
 	 */
+#ifdef HAVE_CAPSICUM
 	if (res == NULL) {
 		capsicum = (cap_enter() == 0);
 		if (!capsicum) {
@@ -237,6 +240,7 @@ drop_privs(struct hast_resource *res)
 			    "Unable to sandbox using capsicum");
 		}
 	} else
+#endif
 		capsicum = false;
 
 	/*
