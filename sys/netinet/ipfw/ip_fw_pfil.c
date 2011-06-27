@@ -58,6 +58,10 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_fw.h>
+#ifdef INET6
+#include <netinet/ip6.h>
+#include <netinet6/ip6_var.h>
+#endif
 #include <netinet/ipfw/ip_fw_private.h>
 #include <netgraph/ng_ipfw.h>
 
@@ -265,7 +269,7 @@ ipfw_divert(struct mbuf **m0, int incoming, struct ipfw_rule_ref *rule,
 	 * If not tee, consume packet and send it to divert socket.
 	 */
 	struct mbuf *clone;
-	struct ip *ip;
+	struct ip *ip = mtod(*m0, struct ip *);
 	struct m_tag *tag;
 
 	/* Cloning needed for tee? */
@@ -289,8 +293,9 @@ ipfw_divert(struct mbuf **m0, int incoming, struct ipfw_rule_ref *rule,
 	 * Note that we now have the 'reass' ipfw option so if we care
 	 * we can do it before a 'tee'.
 	 */
-	ip = mtod(clone, struct ip *);
-	if (!tee && ntohs(ip->ip_off) & (IP_MF | IP_OFFMASK)) {
+	if (!tee) switch (ip->ip_v) {
+	case IPVERSION:
+	    if (ntohs(ip->ip_off) & (IP_MF | IP_OFFMASK)) {
 		int hlen;
 		struct mbuf *reass;
 
@@ -312,7 +317,26 @@ ipfw_divert(struct mbuf **m0, int incoming, struct ipfw_rule_ref *rule,
 		else
 			ip->ip_sum = in_cksum(reass, hlen);
 		clone = reass;
+	    }
+	    break;
+#ifdef INET6
+	case IPV6_VERSION >> 4:
+	    {
+	    struct ip6_hdr *const ip6 = mtod(clone, struct ip6_hdr *);
+
+		if (ip6->ip6_nxt == IPPROTO_FRAGMENT) {
+			int nxt, off;
+
+			off = sizeof(struct ip6_hdr);
+			nxt = frag6_input(&clone, &off, 0);
+			if (nxt == IPPROTO_DONE)
+				return (0);
+		}
+		break;
+	    }
+#endif
 	}
+
 	/* attach a tag to the packet with the reinject info */
 	tag = m_tag_alloc(MTAG_IPFW_RULE, 0,
 		    sizeof(struct ipfw_rule_ref), M_NOWAIT);
