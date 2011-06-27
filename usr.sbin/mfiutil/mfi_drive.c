@@ -45,6 +45,87 @@
 
 MFI_TABLE(top, drive);
 
+/*
+ * Print the name of a drive either by drive number as %2u or by enclosure:slot
+ * as Exx:Sxx (or both).  Use default unless command line options override it
+ * and the command allows this (which we usually do unless we already print
+ * both).  We prefer pinfo if given, otherwise try to look it up by device_id.
+ */
+const char *
+mfi_drive_name(struct mfi_pd_info *pinfo, uint16_t device_id, uint32_t def)
+{
+	struct mfi_pd_info info;
+	static char buf[16];
+	char *p;
+	int error, fd, len;
+
+	if ((def & MFI_DNAME_HONOR_OPTS) != 0 &&
+	    (mfi_opts & (MFI_DNAME_ES|MFI_DNAME_DEVICE_ID)) != 0)
+		def = mfi_opts & (MFI_DNAME_ES|MFI_DNAME_DEVICE_ID);
+
+	buf[0] = '\0';
+	if (pinfo == NULL && def & MFI_DNAME_ES) {
+		/* Fallback in case of error, just ignore flags. */
+		if (device_id == 0xffff)
+			snprintf(buf, sizeof(buf), "MISSING");
+		else
+			snprintf(buf, sizeof(buf), "%2u", device_id);
+
+		fd = mfi_open(mfi_unit);
+		if (fd < 0) {
+			warn("mfi_open");
+			return (buf);
+		}
+
+		/* Get the info for this drive. */
+		if (mfi_pd_get_info(fd, device_id, &info, NULL) < 0) {
+			warn("Failed to fetch info for drive %2u", device_id);
+			close(fd);
+			return (buf);
+		}
+
+		close(fd);
+		pinfo = &info;
+	}
+
+	p = buf;
+	len = sizeof(buf);
+	if (def & MFI_DNAME_DEVICE_ID) {
+		if (device_id == 0xffff)
+			error = snprintf(p, len, "MISSING");
+		else
+			error = snprintf(p, len, "%2u", device_id);
+		if (error >= 0) {
+			p += error;
+			len -= error;
+		}
+	}
+	if ((def & (MFI_DNAME_ES|MFI_DNAME_DEVICE_ID)) ==
+	    (MFI_DNAME_ES|MFI_DNAME_DEVICE_ID) && len >= 2) {
+		*p++ = ' ';
+		len--;
+		*p = '\0';
+		len--;
+	}
+	if (def & MFI_DNAME_ES) {
+		if (pinfo->encl_device_id == 0xffff)
+			error = snprintf(p, len, "S%u",
+			    pinfo->slot_number);
+		else if (pinfo->encl_device_id == pinfo->ref.v.device_id)
+			error = snprintf(p, len, "E%u",
+			    pinfo->encl_index);
+		else
+			error = snprintf(p, len, "E%u:S%u",
+			    pinfo->encl_index, pinfo->slot_number);
+		if (error >= 0) {
+			p += error;
+			len -= error;
+		}
+	}
+
+	return (buf);
+}
+
 const char *
 mfi_pdstate(enum mfi_pd_state state)
 {
@@ -547,7 +628,9 @@ drive_progress(int ac, char **av)
 		mfi_display_progress("Clear", &info.prog_info.clear);
 	if ((info.prog_info.active & (MFI_PD_PROGRESS_REBUILD |
 	    MFI_PD_PROGRESS_PATROL | MFI_PD_PROGRESS_CLEAR)) == 0)
-		printf("No activity in progress for drive %u.\n", device_id);
+		printf("No activity in progress for drive %s.\n",
+		mfi_drive_name(NULL, device_id,
+		    MFI_DNAME_DEVICE_ID|MFI_DNAME_HONOR_OPTS));
 
 	return (0);
 }

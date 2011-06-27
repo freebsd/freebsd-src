@@ -258,7 +258,7 @@ print_ld(struct mfi_ld_info *info, int state_len)
 }
 
 static void
-print_pd(struct mfi_pd_info *info, int state_len, int location)
+print_pd(struct mfi_pd_info *info, int state_len)
 {
 	const char *s;
 	char buf[6];
@@ -273,15 +273,6 @@ print_pd(struct mfi_pd_info *info, int state_len, int location)
 	s = mfi_pd_inq_string(info);
 	if (s != NULL)
 		printf(" %s", s);
-	if (!location)
-		return;
-	if (info->encl_device_id == 0xffff)
-		printf(" slot %d", info->slot_number);
-	else if (info->encl_device_id == info->ref.v.device_id)
-		printf(" enclosure %d", info->encl_index);
-	else
-		printf(" enclosure %d, slot %d", info->encl_index,
-		    info->slot_number);
 }
 
 static int
@@ -329,16 +320,16 @@ show_config(int ac, char **av)
 		    ar->num_drives);
 		for (j = 0; j < ar->num_drives; j++) {
 			device_id = ar->pd[j].ref.v.device_id;
-			if (device_id == 0xffff)
-				printf("        drive MISSING\n");
-			else {
-				printf("        drive %u ", device_id);
+			printf("        drive %s ", mfi_drive_name(NULL,
+			    device_id,
+			    MFI_DNAME_DEVICE_ID|MFI_DNAME_HONOR_OPTS));
+			if (device_id != 0xffff) {
 				if (mfi_pd_get_info(fd, device_id, &pinfo,
 				    NULL) < 0)
 					printf("%s",
 					    mfi_pdstate(ar->pd[j].fw_state));
 				else
-					print_pd(&pinfo, -1, 1);
+					print_pd(&pinfo, -1);
 				printf("\n");
 			}
 		}
@@ -367,13 +358,14 @@ show_config(int ac, char **av)
 
 	for (i = 0; i < config->spares_count; i++) {
 		sp = (struct mfi_spare *)p;
-		printf("    %s spare %u ",
+		printf("    %s spare %s ",
 		    sp->spare_type & MFI_SPARE_DEDICATED ? "dedicated" :
-		    "global", sp->ref.v.device_id);
+		    "global", mfi_drive_name(NULL, sp->ref.v.device_id,
+		    MFI_DNAME_DEVICE_ID|MFI_DNAME_HONOR_OPTS));
 		if (mfi_pd_get_info(fd, sp->ref.v.device_id, &pinfo, NULL) < 0)
 			printf("%s", mfi_pdstate(MFI_PD_STATE_HOT_SPARE));
 		else
-			print_pd(&pinfo, -1, 1);
+			print_pd(&pinfo, -1);
 		if (sp->spare_type & MFI_SPARE_DEDICATED) {
 			printf(" backs:\n");
 			for (j = 0; j < sp->array_count; j++)
@@ -534,7 +526,11 @@ show_drives(int ac, char **av)
 			goto error;
 		}
 
-		print_pd(&info, state_len, 1);
+		printf("%s ", mfi_drive_name(&info, list->addr[i].device_id,
+		    MFI_DNAME_DEVICE_ID));
+		print_pd(&info, state_len);
+		printf(" %s", mfi_drive_name(&info, list->addr[i].device_id,
+		    MFI_DNAME_ES));
 		printf("\n");
 	}
 error:
@@ -719,18 +715,21 @@ show_progress(int ac, char **av)
 		}
 
 		if (pinfo.prog_info.active & MFI_PD_PROGRESS_REBUILD) {
-			printf("drive %u ", device_id);
+			printf("drive %s ", mfi_drive_name(NULL, device_id,
+			    MFI_DNAME_DEVICE_ID|MFI_DNAME_HONOR_OPTS));
 			mfi_display_progress("Rebuild", &pinfo.prog_info.rbld);
 			busy = 1;
 		}
 		if (pinfo.prog_info.active & MFI_PD_PROGRESS_PATROL) {
-			printf("drive %u ", device_id);
+			printf("drive %s ", mfi_drive_name(NULL, device_id,
+			    MFI_DNAME_DEVICE_ID|MFI_DNAME_HONOR_OPTS));
 			mfi_display_progress("Patrol Read",
 			    &pinfo.prog_info.patrol);
 			busy = 1;
 		}
 		if (pinfo.prog_info.active & MFI_PD_PROGRESS_CLEAR) {
-			printf("drive %u ", device_id);
+			printf("drive %s ", mfi_drive_name(NULL, device_id,
+			    MFI_DNAME_DEVICE_ID|MFI_DNAME_HONOR_OPTS));
 			mfi_display_progress("Clear", &pinfo.prog_info.clear);
 			busy = 1;
 		}

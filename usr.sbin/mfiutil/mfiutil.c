@@ -45,11 +45,13 @@ MFI_TABLE(top, abort);
 
 int mfi_unit;
 
+u_int mfi_opts;
+
 static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: mfiutil [-u unit] <command> ...\n\n");
+	fprintf(stderr, "usage: mfiutil [-de] [-u unit] <command> ...\n\n");
 	fprintf(stderr, "Commands include:\n");
 	fprintf(stderr, "    version\n");
 	fprintf(stderr, "    show adapter              - display controller information\n");
@@ -58,6 +60,7 @@ usage(void)
 	fprintf(stderr, "    show drives               - list physical drives\n");
 	fprintf(stderr, "    show events               - display event log\n");
 	fprintf(stderr, "    show firmware             - list firmware images\n");
+	fprintf(stderr, "    show logstate             - display event log sequence numbers\n");
 	fprintf(stderr, "    show volumes              - list logical volumes\n");
 	fprintf(stderr, "    show patrol               - display patrol read status\n");
 	fprintf(stderr, "    show progress             - display status of active operations\n");
@@ -107,8 +110,14 @@ main(int ac, char **av)
 	struct mfiutil_command **cmd;
 	int ch;
 
-	while ((ch = getopt(ac, av, "u:")) != -1) {
+	while ((ch = getopt(ac, av, "deu:")) != -1) {
 		switch (ch) {
+		case 'd':
+			mfi_opts |= MFI_DNAME_DEVICE_ID;
+			break;
+		case 'e':
+			mfi_opts |= MFI_DNAME_ES;
+			break;
 		case 'u':
 			mfi_unit = atoi(optarg);
 			break;
