@@ -3012,8 +3012,10 @@ static uint32_t fxp_ucode_d101a[] = D101_A_RCVBUNDLE_UCODE;
 static uint32_t fxp_ucode_d101b0[] = D101_B0_RCVBUNDLE_UCODE;
 static uint32_t fxp_ucode_d101ma[] = D101M_B_RCVBUNDLE_UCODE;
 static uint32_t fxp_ucode_d101s[] = D101S_RCVBUNDLE_UCODE;
+#ifdef notyet
 static uint32_t fxp_ucode_d102[] = D102_B_RCVBUNDLE_UCODE;
 static uint32_t fxp_ucode_d102c[] = D102_C_RCVBUNDLE_UCODE;
+#endif
 static uint32_t fxp_ucode_d102e[] = D102_E_RCVBUNDLE_UCODE;
 
 #define UCODE(x)	x, sizeof(x)/sizeof(uint32_t)
@@ -3031,10 +3033,12 @@ static const struct ucode {
 	    D101M_CPUSAVER_DWORD, D101M_CPUSAVER_BUNDLE_MAX_DWORD },
 	{ FXP_REV_82559S_A, UCODE(fxp_ucode_d101s),
 	    D101S_CPUSAVER_DWORD, D101S_CPUSAVER_BUNDLE_MAX_DWORD },
+#ifdef notyet
 	{ FXP_REV_82550, UCODE(fxp_ucode_d102),
 	    D102_B_CPUSAVER_DWORD, D102_B_CPUSAVER_BUNDLE_MAX_DWORD },
 	{ FXP_REV_82550_C, UCODE(fxp_ucode_d102c),
 	    D102_C_CPUSAVER_DWORD, D102_C_CPUSAVER_BUNDLE_MAX_DWORD },
+#endif
 	{ FXP_REV_82551_F, UCODE(fxp_ucode_d102e),
 	    D102_E_CPUSAVER_DWORD, D102_E_CPUSAVER_BUNDLE_MAX_DWORD },
 	{ 0, NULL, 0, 0, 0 }
