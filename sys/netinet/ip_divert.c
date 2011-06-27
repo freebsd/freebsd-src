@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #error "IPDIVERT requires INET."
 #endif
 #endif
+#include "opt_inet6.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -62,6 +63,10 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
+#ifdef INET6
+#include <netinet/ip6.h>
+#include <netinet6/ip6_var.h>
+#endif
 #ifdef SCTP
 #include <netinet/sctp_crc32.h>
 #endif
@@ -312,10 +317,10 @@ static int
 div_output(struct socket *so, struct mbuf *m, struct sockaddr_in *sin,
     struct mbuf *control)
 {
+	struct ip *const ip = mtod(m, struct ip *);
 	struct m_tag *mtag;
 	struct ipfw_rule_ref *dt;
 	int error = 0;
-	struct mbuf *options;
 
 	/*
 	 * An mbuf may hasn't come from userland, but we pretend
@@ -367,71 +372,103 @@ div_output(struct socket *so, struct mbuf *m, struct sockaddr_in *sin,
 
 	/* Reinject packet into the system as incoming or outgoing */
 	if (!sin || sin->sin_addr.s_addr == 0) {
-		struct ip *const ip = mtod(m, struct ip *);
+		struct mbuf *options = NULL;
 		struct inpcb *inp;
 
 		dt->info |= IPFW_IS_DIVERT | IPFW_INFO_OUT;
 		inp = sotoinpcb(so);
 		INP_RLOCK(inp);
-		/*
-		 * Don't allow both user specified and setsockopt options,
-		 * and don't allow packet length sizes that will crash
-		 */
-		if (((ip->ip_hl != (sizeof (*ip) >> 2)) && inp->inp_options) ||
-		     ((u_short)ntohs(ip->ip_len) > m->m_pkthdr.len)) {
-			error = EINVAL;
-			INP_RUNLOCK(inp);
-			m_freem(m);
-		} else {
+		switch (ip->ip_v) {
+		case IPVERSION:
+			/*
+			 * Don't allow both user specified and setsockopt
+			 * options, and don't allow packet length sizes that
+			 * will crash.
+			 */
+			if ((((ip->ip_hl << 2) != sizeof(struct ip)) &&
+			    inp->inp_options != NULL) ||
+			    ((u_short)ntohs(ip->ip_len) > m->m_pkthdr.len)) {
+				error = EINVAL;
+				INP_RUNLOCK(inp);
+				goto cantsend;
+			}
+
 			/* Convert fields to host order for ip_output() */
 			ip->ip_len = ntohs(ip->ip_len);
 			ip->ip_off = ntohs(ip->ip_off);
+			break;
+#ifdef INET6
+		case IPV6_VERSION >> 4:
+		    {
+			struct ip6_hdr *const ip6 = mtod(m, struct ip6_hdr *);
 
-			/* Send packet to output processing */
-			KMOD_IPSTAT_INC(ips_rawout);		/* XXX */
+			/* Don't allow packet length sizes that will crash */
+			if (((u_short)ntohs(ip6->ip6_plen) > m->m_pkthdr.len)) {
+				error = EINVAL;
+				INP_RUNLOCK(inp);
+				goto cantsend;
+			}
+
+			ip6->ip6_plen = ntohs(ip6->ip6_plen);
+		    }
+#endif
+		default:
+			error = EINVAL;
+			INP_RUNLOCK(inp);
+			goto cantsend;
+		}
+
+		/* Send packet to output processing */
+		KMOD_IPSTAT_INC(ips_rawout);		/* XXX */
 
 #ifdef MAC
-			mac_inpcb_create_mbuf(inp, m);
+		mac_inpcb_create_mbuf(inp, m);
 #endif
-			/*
-			 * Get ready to inject the packet into ip_output().
-			 * Just in case socket options were specified on the
-			 * divert socket, we duplicate them.  This is done
-			 * to avoid having to hold the PCB locks over the call
-			 * to ip_output(), as doing this results in a number of
-			 * lock ordering complexities.
-			 *
-			 * Note that we set the multicast options argument for
-			 * ip_output() to NULL since it should be invariant that
-			 * they are not present.
-			 */
-			KASSERT(inp->inp_moptions == NULL,
-			    ("multicast options set on a divert socket"));
-			options = NULL;
-			/*
-			 * XXXCSJP: It is unclear to me whether or not it makes
-			 * sense for divert sockets to have options.  However,
-			 * for now we will duplicate them with the INP locks
-			 * held so we can use them in ip_output() without
-			 * requring a reference to the pcb.
-			 */
-			if (inp->inp_options != NULL) {
-				options = m_dup(inp->inp_options, M_DONTWAIT);
-				if (options == NULL)
-					error = ENOBUFS;
+		/*
+		 * Get ready to inject the packet into ip_output().
+		 * Just in case socket options were specified on the
+		 * divert socket, we duplicate them.  This is done
+		 * to avoid having to hold the PCB locks over the call
+		 * to ip_output(), as doing this results in a number of
+		 * lock ordering complexities.
+		 *
+		 * Note that we set the multicast options argument for
+		 * ip_output() to NULL since it should be invariant that
+		 * they are not present.
+		 */
+		KASSERT(inp->inp_moptions == NULL,
+		    ("multicast options set on a divert socket"));
+		/*
+		 * XXXCSJP: It is unclear to me whether or not it makes
+		 * sense for divert sockets to have options.  However,
+		 * for now we will duplicate them with the INP locks
+		 * held so we can use them in ip_output() without
+		 * requring a reference to the pcb.
+		 */
+		if (inp->inp_options != NULL) {
+			options = m_dup(inp->inp_options, M_NOWAIT);
+			if (options == NULL) {
+				INP_RUNLOCK(inp);
+				error = ENOBUFS;
+				goto cantsend;
 			}
-			INP_RUNLOCK(inp);
-			if (error == ENOBUFS) {
-				m_freem(m);
-				return (error);
-			}
-			error = ip_output(m, options, NULL,
-			    ((so->so_options & SO_DONTROUTE) ?
-			    IP_ROUTETOIF : 0) | IP_ALLOWBROADCAST |
-			    IP_RAWOUTPUT, NULL, NULL);
-			if (options != NULL)
-				m_freem(options);
 		}
+		INP_RUNLOCK(inp);
+
+		switch (ip->ip_v) {
+		case IPVERSION:
+			error = ip_output(m, options, NULL,
+			    ((so->so_options & SO_DONTROUTE) ? IP_ROUTETOIF : 0)
+			    | IP_ALLOWBROADCAST | IP_RAWOUTPUT, NULL, NULL);
+			break;
+#ifdef INET6
+		case IPV6_VERSION >> 4:
+			error = ip6_output(m, NULL, NULL, 0, NULL, NULL, NULL);
+			break;
+#endif
+		}
+		if (options != NULL)
+			m_freem(options);
 	} else {
 		dt->info |= IPFW_IS_DIVERT | IPFW_INFO_IN;
 		if (m->m_pkthdr.rcvif == NULL) {
@@ -456,14 +493,26 @@ div_output(struct socket *so, struct mbuf *m, struct sockaddr_in *sin,
 		mac_socket_create_mbuf(so, m);
 #endif
 		/* Send packet to input processing via netisr */
-		netisr_queue_src(NETISR_IP, (uintptr_t)so, m);
+		switch (ip->ip_v) {
+		case IPVERSION:
+			netisr_queue_src(NETISR_IP, (uintptr_t)so, m);
+			break;
+#ifdef INET6
+		case IPV6_VERSION >> 4:
+			netisr_queue_src(NETISR_IPV6, (uintptr_t)so, m);
+			break;
+#endif
+		default:
+			error = EINVAL;
+			goto cantsend;
+		}
 	}
 
-	return error;
+	return (error);
 
 cantsend:
 	m_freem(m);
-	return error;
+	return (error);
 }
 
 static int
