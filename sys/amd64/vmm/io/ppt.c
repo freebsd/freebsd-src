@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/pciio.h>
 #include <sys/rman.h>
+#include <sys/smp.h>
 
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>

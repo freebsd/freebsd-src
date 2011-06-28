@@ -51,6 +51,10 @@ void DIBuilder::createCompileUnit(unsigned Lang, StringRef Filename,
     ConstantInt::get(Type::getInt32Ty(VMContext), RunTimeVer)
   };
   TheCU = DICompileUnit(MDNode::get(VMContext, Elts));
+
+  // Create a named metadata so that it is easier to find cu in a module.
+  NamedMDNode *NMD = M.getOrInsertNamedMetadata("llvm.dbg.cu");
+  NMD->addOperand(TheCU);
 }
 
 /// createFile - Create a file descriptor to hold debugging information
@@ -156,12 +160,12 @@ DIType DIBuilder::createReferenceType(DIType RTy) {
 
 /// createTypedef - Create debugging information entry for a typedef.
 DIType DIBuilder::createTypedef(DIType Ty, StringRef Name, DIFile File,
-                                unsigned LineNo) {
+                                unsigned LineNo, DIDescriptor Context) {
   // typedefs are encoded in DIDerivedType format.
   assert(Ty.Verify() && "Invalid typedef type!");
   Value *Elts[] = {
     GetTagConstant(VMContext, dwarf::DW_TAG_typedef),
-    Ty.getContext(),
+    Context,
     MDString::get(VMContext, Name),
     File,
     ConstantInt::get(Type::getInt32Ty(VMContext), LineNo),

@@ -66,6 +66,19 @@ the
 .Fa status
 area contains termination information about the process that exited
 as defined below.
+The
+.Fn wait
+call is the same as
+.Fn wait4
+with a
+.Fa wpid
+value of -1,
+with an
+.Fa options
+value of zero,
+and a
+.Fa rusage
+value of zero.
 .Pp
 The
 .Fn wait4

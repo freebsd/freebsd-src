@@ -111,7 +111,7 @@ struct vlapic *vm_lapic(struct vm *vm, int cpu);
 int vm_get_capability(struct vm *vm, int vcpu, int type, int *val);
 int vm_set_capability(struct vm *vm, int vcpu, int type, int val);
 void vm_activate_cpu(struct vm *vm, int vcpu);
-cpumask_t vm_active_cpus(struct vm *vm);
+cpuset_t vm_active_cpus(struct vm *vm);
 
 /*
  * Return 1 if device indicated by bus/slot/func is supposed to be a
@@ -134,12 +134,6 @@ static int __inline
 vcpu_is_running(struct vm *vm, int vcpu, int *hostcpu)
 {
 	return (vm_get_run_state(vm, vcpu, hostcpu) == VCPU_RUNNING);
-}
-
-static cpumask_t __inline
-vcpu_mask(int vcpuid)
-{
-	return ((cpumask_t)1 << vcpuid);
 }
 
 #endif	/* KERNEL */

@@ -788,7 +788,7 @@ mfi_aen_setup(struct mfi_softc *sc, uint32_t seq_start)
 
 	class_locale.members.reserved = 0;
 	class_locale.members.locale = mfi_event_locale;
-	class_locale.members.class  = mfi_event_class;
+	class_locale.members.evt_class  = mfi_event_class;
 
 	if (seq_start == 0) {
 		error = mfi_get_log_state(sc, &log_state);
@@ -1082,8 +1082,8 @@ mfi_decode_evt(struct mfi_softc *sc, struct mfi_evt_detail *detail)
 {
 
 	device_printf(sc->mfi_dev, "%d (%s/0x%04x/%s) - %s\n", detail->seq,
-	    format_timestamp(detail->time), detail->class.members.locale,
-	    format_class(detail->class.members.class), detail->description);
+	    format_timestamp(detail->time), detail->evt_class.members.locale,
+	    format_class(detail->evt_class.members.evt_class), detail->description);
 }
 
 static int
@@ -1099,16 +1099,16 @@ mfi_aen_register(struct mfi_softc *sc, int seq, int locale)
 	if (sc->mfi_aen_cm != NULL) {
 		prior_aen.word =
 		    ((uint32_t *)&sc->mfi_aen_cm->cm_frame->dcmd.mbox)[1];
-		if (prior_aen.members.class <= current_aen.members.class &&
+		if (prior_aen.members.evt_class <= current_aen.members.evt_class &&
 		    !((prior_aen.members.locale & current_aen.members.locale)
 		    ^current_aen.members.locale)) {
 			return (0);
 		} else {
 			prior_aen.members.locale |= current_aen.members.locale;
-			if (prior_aen.members.class
-			    < current_aen.members.class)
-				current_aen.members.class =
-				    prior_aen.members.class;
+			if (prior_aen.members.evt_class
+			    < current_aen.members.evt_class)
+				current_aen.members.evt_class =
+				    prior_aen.members.evt_class;
 			mfi_abort(sc, sc->mfi_aen_cm);
 		}
 	}
@@ -1199,7 +1199,7 @@ mfi_parse_entries(struct mfi_softc *sc, int start_seq, int stop_seq)
 
 	class_locale.members.reserved = 0;
 	class_locale.members.locale = mfi_event_locale;
-	class_locale.members.class  = mfi_event_class;
+	class_locale.members.evt_class  = mfi_event_class;
 
 	size = sizeof(struct mfi_evt_list) + sizeof(struct mfi_evt_detail)
 		* (MAX_EVENTS - 1);

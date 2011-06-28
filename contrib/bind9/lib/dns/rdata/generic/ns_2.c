@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ns_2.c,v 1.46 2007/06/19 23:47:17 tbox Exp $ */
+/* $Id: ns_2.c,v 1.46 2007-06-19 23:47:17 tbox Exp $ */
 
 /* Reviewed: Wed Mar 15 18:15:00 PST 2000 by bwelling */
 

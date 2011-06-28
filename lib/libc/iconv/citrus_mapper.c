@@ -337,7 +337,9 @@ _citrus_mapper_open(struct _citrus_mapper_area *__restrict ma,
 		goto quit;
 
 	/* open mapper */
+	UNLOCK;
 	ret = mapper_open(ma, &cm, module, variable);
+	WLOCK;
 	if (ret)
 		goto quit;
 	cm->cm_key = strdup(mapname);

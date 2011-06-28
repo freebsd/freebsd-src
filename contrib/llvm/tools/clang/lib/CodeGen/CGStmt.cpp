@@ -773,10 +773,8 @@ void CodeGenFunction::EmitReturnStmt(const ReturnStmt &S) {
 void CodeGenFunction::EmitDeclStmt(const DeclStmt &S) {
   // As long as debug info is modeled with instructions, we have to ensure we
   // have a place to insert here and write the stop point here.
-  if (getDebugInfo()) {
-    EnsureInsertPoint();
+  if (getDebugInfo() && HaveInsertPoint())
     EmitStopPoint(&S);
-  }
 
   for (DeclStmt::const_decl_iterator I = S.decl_begin(), E = S.decl_end();
        I != E; ++I)
@@ -999,7 +997,7 @@ static CSFC_Result CollectStatementsForCase(const Stmt *S,
       // If we're looking for the case, just see if we can skip each of the
       // substatements.
       for (; Case && I != E; ++I) {
-        HadSkippedDecl |= isa<DeclStmt>(I);
+        HadSkippedDecl |= isa<DeclStmt>(*I);
         
         switch (CollectStatementsForCase(*I, Case, FoundCase, ResultStmts)) {
         case CSFC_Failure: return CSFC_Failure;
@@ -1224,7 +1222,7 @@ SimplifyConstraint(const char *Constraint, const TargetInfo &Target,
   while (*Constraint) {
     switch (*Constraint) {
     default:
-      Result += Target.convertConstraint(*Constraint);
+      Result += Target.convertConstraint(Constraint);
       break;
     // Ignore these
     case '*':
@@ -1422,8 +1420,8 @@ void CodeGenFunction::EmitAsmStmt(const AsmStmt &S) {
     const Expr *OutExpr = S.getOutputExpr(i);
     OutExpr = OutExpr->IgnoreParenNoopCasts(getContext());
 
-    OutputConstraint = AddVariableConstraints(OutputConstraint, *OutExpr, Target,
-                                             CGM, S);
+    OutputConstraint = AddVariableConstraints(OutputConstraint, *OutExpr,
+                                              Target, CGM, S);
 
     LValue Dest = EmitLValue(OutExpr);
     if (!Constraints.empty())

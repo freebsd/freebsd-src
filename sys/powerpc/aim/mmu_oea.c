@@ -118,11 +118,14 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/queue.h>
+#include <sys/cpuset.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
 #include <sys/msgbuf.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/sched.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/vmmeter.h>
@@ -584,24 +587,7 @@ moea_pte_change(struct pte *pt, struct pte *pvo_pt, vm_offset_t va)
 /*
  * Quick sort callout for comparing memory regions.
  */
-static int	mr_cmp(const void *a, const void *b);
 static int	om_cmp(const void *a, const void *b);
-
-static int
-mr_cmp(const void *a, const void *b)
-{
-	const struct	mem_region *regiona;
-	const struct	mem_region *regionb;
-
-	regiona = a;
-	regionb = b;
-	if (regiona->mr_start < regionb->mr_start)
-		return (-1);
-	else if (regiona->mr_start > regionb->mr_start)
-		return (1);
-	else
-		return (0);
-}
 
 static int
 om_cmp(const void *a, const void *b)
@@ -720,7 +706,6 @@ moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 	mem_regions(&pregions, &pregions_sz, &regions, &regions_sz);
 	CTR0(KTR_PMAP, "moea_bootstrap: physical memory");
 
-	qsort(pregions, pregions_sz, sizeof(*pregions), mr_cmp);
 	for (i = 0; i < pregions_sz; i++) {
 		vm_offset_t pa;
 		vm_offset_t end;
@@ -749,7 +734,7 @@ moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 
 	if (sizeof(phys_avail)/sizeof(phys_avail[0]) < regions_sz)
 		panic("moea_bootstrap: phys_avail too small");
-	qsort(regions, regions_sz, sizeof(*regions), mr_cmp);
+
 	phys_avail_count = 0;
 	physsz = 0;
 	hwphyssz = 0;
@@ -838,7 +823,7 @@ moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 	PMAP_LOCK_INIT(kernel_pmap);
 	for (i = 0; i < 16; i++)
 		kernel_pmap->pm_sr[i] = EMPTY_SEGMENT + i;
-	kernel_pmap->pm_active = ~0;
+	CPU_FILL(&kernel_pmap->pm_active);
 
 	/*
 	 * Set up the Open Firmware mappings
@@ -960,7 +945,9 @@ moea_activate(mmu_t mmu, struct thread *td)
 	pm = &td->td_proc->p_vmspace->vm_pmap;
 	pmr = pm->pmap_phys;
 
-	pm->pm_active |= PCPU_GET(cpumask);
+	sched_pin();
+	CPU_OR(&pm->pm_active, PCPU_PTR(cpumask));
+	sched_unpin();
 	PCPU_SET(curpmap, pmr);
 }
 
@@ -970,7 +957,9 @@ moea_deactivate(mmu_t mmu, struct thread *td)
 	pmap_t	pm;
 
 	pm = &td->td_proc->p_vmspace->vm_pmap;
-	pm->pm_active &= ~PCPU_GET(cpumask);
+	sched_pin();
+	CPU_NAND(&pm->pm_active, PCPU_PTR(cpumask));
+	sched_unpin();
 	PCPU_SET(curpmap, NULL);
 }
 

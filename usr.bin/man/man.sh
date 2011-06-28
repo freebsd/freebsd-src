@@ -112,7 +112,11 @@ check_man() {
 		setup_cattool $manpage
 		decho "    Found manpage $manpage"
 
-		if exists "$2" && is_newer $found $manpage; then
+		if [ -n "${use_width}" ]; then
+			# non-standard width
+			unset use_cat
+			decho "    Skipping catpage: non-standard page width"
+		elif exists "$2" && is_newer $found $manpage; then
 			# cat page found and is newer, use that
 			use_cat=yes
 			catpage=$found
@@ -275,7 +279,7 @@ man_check_for_so() {
 # Usage: man_display_page
 # Display either the manpage or catpage depending on the use_cat variable
 man_display_page() {
-	local EQN COL NROFF PIC TBL TROFF REFER VGRIND
+	local EQN NROFF PIC TBL TROFF REFER VGRIND
 	local IFS l nroff_dev pipeline preproc_arg tool
 
 	# We are called with IFS set to colon. This causes really weird
@@ -290,10 +294,10 @@ man_display_page() {
 			ret=0
 		else
 			if [ $debug -gt 0 ]; then
-				decho "Command: $cattool $catpage | $PAGER"
+				decho "Command: $cattool $catpage | $MANPAGER"
 				ret=0
 			else
-				eval "$cattool $catpage | $PAGER"
+				eval "$cattool $catpage | $MANPAGER"
 				ret=$?
 			fi
 		fi
@@ -343,7 +347,7 @@ man_display_page() {
 		# Allow language specific calls to override the default
 		# set of utilities.
 		l=$(echo $man_lang | tr [:lower:] [:upper:])
-		for tool in EQN COL NROFF PIC TBL TROFF REFER VGRIND; do
+		for tool in EQN NROFF PIC TBL TROFF REFER VGRIND; do
 			eval "$tool=\${${tool}_$l:-\$$tool}"
 		done
 		;;
@@ -351,6 +355,14 @@ man_display_page() {
 		EQN="$EQN -Tascii"
 		;;
 	esac
+
+	if [ -z "$MANCOLOR" ]; then
+		NROFF="$NROFF -P-c"
+	fi
+
+	if [ -n "${use_width}" ]; then
+		NROFF="$NROFF -rLL=${use_width}n -rLT=${use_width}n"
+	fi
 
 	if [ -n "$MANROFFSEQ" ]; then
 		set -- -$MANROFFSEQ
@@ -360,7 +372,7 @@ man_display_page() {
 			g)	;; # Ignore for compatability.
 			p)	pipeline="$pipeline | $PIC" ;;
 			r)	pipeline="$pipeline | $REFER" ;;
-			t)	pipeline="$pipeline | $TBL"; use_col=yes ;;
+			t)	pipeline="$pipeline | $TBL" ;;
 			v)	pipeline="$pipeline | $VGRIND" ;;
 			*)	usage ;;
 			esac
@@ -369,19 +381,12 @@ man_display_page() {
 		pipeline="${pipeline#" | "}"
 	else
 		pipeline="$TBL"
-		use_col=yes
 	fi
 
 	if [ -n "$tflag" ]; then
 		pipeline="$pipeline | $TROFF"
 	else
-		pipeline="$pipeline | $NROFF"
-
-		if [ -n "$use_col" ]; then
-			pipeline="$pipeline | $COL"
-		fi
-
-		pipeline="$pipeline | $PAGER"
+		pipeline="$pipeline | $NROFF | $MANPAGER"
 	fi
 
 	if [ $debug -gt 0 ]; then
@@ -483,7 +488,7 @@ man_parse_args() {
 	while getopts 'M:P:S:adfhkm:op:tw' cmd_arg; do
 		case "${cmd_arg}" in
 		M)	MANPATH=$OPTARG ;;
-		P)	PAGER=$OPTARG ;;
+		P)	MANPAGER=$OPTARG ;;
 		S)	MANSECT=$OPTARG ;;
 		a)	aflag=aflag ;;
 		d)	debug=$(( $debug + 1 )) ;;
@@ -562,6 +567,35 @@ man_setup() {
 
 	build_manpath
 	man_setup_locale
+	man_setup_width
+}
+
+# Usage: man_setup_width
+# Set up page width.
+man_setup_width() {
+	local sizes
+
+	unset use_width
+	case "$MANWIDTH" in
+	[0-9]*)
+		if [ "$MANWIDTH" -gt 0 2>/dev/null ]; then
+			use_width=$MANWIDTH
+		fi
+		;;
+	[Tt][Tt][Yy])
+		if { sizes=$($STTY size 0>&3 2>/dev/null); } 3>&1; then
+			set -- $sizes
+			if [ $2 -gt 80 ]; then
+				use_width=$(($2-2))
+			fi
+		fi
+		;;
+	esac
+	if [ -n "$use_width" ]; then
+		decho "Using non-standard page width: ${use_width}"
+	else
+		decho 'Using standard page width'
+	fi
 }
 
 # Usage: man_setup_locale
@@ -667,7 +701,7 @@ parse_file() {
 				manlocales="$manlocales:$tstr"
 				;;
 		MANCONFIG*)	decho "    MANCONFIG" 3
-				trim "${line#MANCONF}"
+				trim "${line#MANCONFIG}"
 				config_local="$tstr"
 				;;
 		# Set variables in the form of FOO_BAR
@@ -778,7 +812,7 @@ search_whatis() {
 	bad=${bad#\\n}
 
 	if [ -n "$good" ]; then
-		echo -e "$good" | $PAGER
+		echo -e "$good" | $MANPAGER
 	fi
 
 	if [ -n "$bad" ]; then
@@ -802,13 +836,21 @@ setup_cattool() {
 }
 
 # Usage: setup_pager
-# Correctly sets $PAGER
+# Correctly sets $MANPAGER
 setup_pager() {
 	# Setup pager.
-	if [ -z "$PAGER" ]; then
-		PAGER="more -s"
+	if [ -z "$MANPAGER" ]; then
+		if [ -n "$MANCOLOR" ]; then
+			MANPAGER="less -sR"
+		else
+			if [ -n "$PAGER" ]; then
+				MANPAGER="$PAGER"
+			else
+				MANPAGER="more -s"
+			fi
+		fi
 	fi
-	decho "Using pager: $PAGER"
+	decho "Using pager: $MANPAGER"
 }
 
 # Usage: trim string
@@ -891,15 +933,15 @@ do_whatis() {
 
 # User's PATH setting decides on the groff-suite to pick up.
 EQN=eqn
-NROFF='groff -S -P-c -Wall -mtty-char -man'
+NROFF='groff -S -P-h -Wall -mtty-char -man'
 PIC=pic
 REFER=refer
 TBL=tbl
-TROFF='groff -S -P-c -man'
+TROFF='groff -S -man'
 VGRIND=vgrind
 
-COL=/usr/bin/col
 LOCALE=/usr/bin/locale
+STTY=/bin/stty
 SYSCTL=/sbin/sysctl
 
 debug=0

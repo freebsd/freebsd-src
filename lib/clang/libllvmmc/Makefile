@@ -31,6 +31,7 @@ SRCS=	ELFObjectWriter.cpp \
 	MCSectionMachO.cpp \
 	MCStreamer.cpp \
 	MCSymbol.cpp \
+	MCWin64EH.cpp \
 	MachObjectWriter.cpp \
 	TargetAsmBackend.cpp \
 	WinCOFFObjectWriter.cpp \

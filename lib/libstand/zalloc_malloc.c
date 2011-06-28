@@ -110,7 +110,7 @@ Free(void *ptr, const char *file, int line)
 	    return;
 	}
 	if (*((signed char *)res + res->ga_Bytes - 1) != -2)
-	    panic("free: guard2 fail @ %p + %d from %s:%d", ptr, res->ga_Bytes - MALLOCALIGN, file, line);
+	    panic("free: guard2 fail @ %p + %zu from %s:%d", ptr, res->ga_Bytes - MALLOCALIGN, file, line);
 	*((signed char *)res + res->ga_Bytes - 1) = -1;
 #endif
 

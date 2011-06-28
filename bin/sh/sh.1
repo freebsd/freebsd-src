@@ -32,7 +32,7 @@
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd May 21, 2011
+.Dd June 18, 2011
 .Dt SH 1
 .Os
 .Sh NAME
@@ -124,8 +124,8 @@ If the environment variable
 .Ev ENV
 is set on entry to a shell, or is set in the
 .Pa .profile
-of a login shell, the shell then reads commands from the file named in
-.Ev ENV .
+of a login shell, the shell then subjects its value to parameter expansion
+and arithmetic expansion and reads commands from the named file.
 Therefore, a user should place commands that are to be executed only
 at login time in the
 .Pa .profile
@@ -241,6 +241,10 @@ tested, all commands of the function are considered to be tested as
 well.
 .It Fl f Li noglob
 Disable pathname expansion.
+.It Fl h Li trackall
+A do-nothing option for
+.Tn POSIX
+compliance.
 .It Fl I Li ignoreeof
 Ignore
 .Dv EOF Ap s
@@ -324,7 +328,7 @@ Useful for debugging.
 Write each command
 (preceded by the value of the
 .Va PS4
-variable)
+variable subjected to parameter expansion and arithmetic expansion)
 to standard error before it is executed.
 Useful for debugging.
 .El
@@ -372,7 +376,7 @@ The following is a list of valid operators:
 .It Control operators:
 .Bl -column "XXX" "XXX" "XXX" "XXX" "XXX" -offset center -compact
 .It Li & Ta Li && Ta Li ( Ta Li ) Ta Li \en
-.It Li ;; Ta Li ; Ta Li | Ta Li ||
+.It Li ;; Ta Li ;& Ta Li ; Ta Li | Ta Li ||
 .El
 .It Redirection operators:
 .Bl -column "XXX" "XXX" "XXX" "XXX" "XXX" -offset center -compact
@@ -990,6 +994,11 @@ described later),
 separated by
 .Ql \&|
 characters.
+If the selected list is terminated by the control operator
+.Ql ;&
+instead of
+.Ql ;; ,
+execution continues with the next list.
 The exit code of the
 .Ic case
 command is the exit code of the last command executed in the list or
@@ -1536,10 +1545,7 @@ except that the built-in commands
 and
 .Ic trap
 return information about the main shell environment
-if they are the only command in a command substitution
-and the substitutions in the command cannot cause side effects
-(such as from assigning values to variables or referencing
-.Li $! ).
+if they are the only command in a command substitution.
 .Ss Arithmetic Expansion
 Arithmetic expansion provides a mechanism for evaluating an arithmetic
 expression and substituting its value.
@@ -1651,6 +1657,15 @@ matches a
 rather than introducing a character class.
 A character class matches any of the characters between the square brackets.
 A range of characters may be specified using a minus sign.
+A named class of characters (see
+.Xr wctype 3 )
+may be specified by surrounding the name with
+.Ql \&[:
+and
+.Ql :\&] .
+For example,
+.Ql \&[\&[:alpha:\&]\&]
+is a shell pattern that matches a single letter.
 The character class may be complemented by making an exclamation point
 .Pq Ql !\&
 the first character of the character class.
@@ -2575,6 +2590,7 @@ will return the argument.
 .Xr execve 2 ,
 .Xr getrlimit 2 ,
 .Xr umask 2 ,
+.Xr wctype 3 ,
 .Xr editrc 5
 .Sh HISTORY
 A

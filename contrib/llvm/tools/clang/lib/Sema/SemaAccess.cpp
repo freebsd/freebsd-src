@@ -146,8 +146,10 @@ struct AccessTarget : public AccessedEntity {
                MemberNonce _,
                CXXRecordDecl *NamingClass,
                DeclAccessPair FoundDecl,
-               QualType BaseObjectType)
-    : AccessedEntity(Context, Member, NamingClass, FoundDecl, BaseObjectType) {
+               QualType BaseObjectType,
+               bool IsUsingDecl = false)
+    : AccessedEntity(Context, Member, NamingClass, FoundDecl, BaseObjectType),
+      IsUsingDeclaration(IsUsingDecl) {
     initialize();
   }
 
@@ -216,6 +218,7 @@ private:
     DeclaringClass = DeclaringClass->getCanonicalDecl();
   }
 
+  bool IsUsingDeclaration : 1;
   bool HasInstanceContext : 1;
   mutable bool CalculatedInstanceContext : 1;
   mutable const CXXRecordDecl *InstanceContext;
@@ -445,8 +448,8 @@ static AccessResult MatchesFriend(Sema &S,
       continue;
 
     // If the template names don't match, it can't be a dependent
-    // match.  This isn't true in C++0x because of template aliases.
-    if (!S.LangOpts.CPlusPlus0x && CTD->getDeclName() != Friend->getDeclName())
+    // match.
+    if (CTD->getDeclName() != Friend->getDeclName())
       continue;
 
     // If the class's context can't instantiate to the friend's
@@ -1129,6 +1132,44 @@ static void DiagnoseBadAccess(Sema &S, SourceLocation Loc,
   DiagnoseAccessPath(S, EC, Entity);
 }
 
+/// MSVC has a bug where if during an using declaration name lookup, 
+/// the declaration found is unaccessible (private) and that declaration 
+/// was bring into scope via another using declaration whose target
+/// declaration is accessible (public) then no error is generated.
+/// Example:
+///   class A {
+///   public:
+///     int f();
+///   };
+///   class B : public A {
+///   private:
+///     using A::f;
+///   };
+///   class C : public B {
+///   private:
+///     using B::f;
+///   };
+///
+/// Here, B::f is private so this should fail in Standard C++, but 
+/// because B::f refers to A::f which is public MSVC accepts it.
+static bool IsMicrosoftUsingDeclarationAccessBug(Sema& S, 
+                                                 SourceLocation AccessLoc,
+                                                 AccessTarget &Entity) {
+  if (UsingShadowDecl *Shadow =
+                         dyn_cast<UsingShadowDecl>(Entity.getTargetDecl())) {
+    const NamedDecl *OrigDecl = Entity.getTargetDecl()->getUnderlyingDecl();
+    if (Entity.getTargetDecl()->getAccess() == AS_private && 
+        (OrigDecl->getAccess() == AS_public ||
+         OrigDecl->getAccess() == AS_protected)) {
+      S.Diag(AccessLoc, diag::war_ms_using_declaration_inaccessible) 
+        << Shadow->getUsingDecl()->getQualifiedNameAsString()
+        << OrigDecl->getQualifiedNameAsString();
+      return true;
+    }
+  }
+  return false;
+}
+
 /// Determines whether the accessed entity is accessible.  Public members
 /// have been weeded out by this point.
 static AccessResult IsAccessible(Sema &S,
@@ -1231,6 +1272,10 @@ static AccessResult CheckEffectiveAccess(Sema &S,
                                          SourceLocation Loc,
                                          AccessTarget &Entity) {
   assert(Entity.getAccess() != AS_public && "called for public access!");
+
+  if (S.getLangOptions().Microsoft &&
+      IsMicrosoftUsingDeclarationAccessBug(S, Loc, Entity))
+    return AR_accessible;
 
   switch (IsAccessible(S, EC, Entity)) {
   case AR_dependent:
@@ -1415,29 +1460,47 @@ Sema::AccessResult Sema::CheckConstructorAccess(SourceLocation UseLoc,
   AccessTarget AccessEntity(Context, AccessTarget::Member, NamingClass,
                             DeclAccessPair::make(Constructor, Access),
                             QualType());
+  PartialDiagnostic PD(PDiag());
   switch (Entity.getKind()) {
   default:
-    AccessEntity.setDiag(IsCopyBindingRefToTemp
-                         ? diag::ext_rvalue_to_reference_access_ctor
-                         : diag::err_access_ctor);
+    PD = PDiag(IsCopyBindingRefToTemp
+                 ? diag::ext_rvalue_to_reference_access_ctor
+                 : diag::err_access_ctor);
+
     break;
 
   case InitializedEntity::EK_Base:
-    AccessEntity.setDiag(PDiag(diag::err_access_base)
-                          << Entity.isInheritedVirtualBase()
-                          << Entity.getBaseSpecifier()->getType()
-                          << getSpecialMember(Constructor));
+    PD = PDiag(diag::err_access_base_ctor);
+    PD << Entity.isInheritedVirtualBase()
+       << Entity.getBaseSpecifier()->getType() << getSpecialMember(Constructor);
     break;
 
   case InitializedEntity::EK_Member: {
     const FieldDecl *Field = cast<FieldDecl>(Entity.getDecl());
-    AccessEntity.setDiag(PDiag(diag::err_access_field)
-                          << Field->getType()
-                          << getSpecialMember(Constructor));
+    PD = PDiag(diag::err_access_field_ctor);
+    PD << Field->getType() << getSpecialMember(Constructor);
     break;
   }
 
   }
+
+  return CheckConstructorAccess(UseLoc, Constructor, Access, PD);
+}
+
+/// Checks access to a constructor.
+Sema::AccessResult Sema::CheckConstructorAccess(SourceLocation UseLoc,
+                                                CXXConstructorDecl *Constructor,
+                                                AccessSpecifier Access,
+                                                PartialDiagnostic PD) {
+  if (!getLangOptions().AccessControl ||
+      Access == AS_public)
+    return AR_accessible;
+
+  CXXRecordDecl *NamingClass = Constructor->getParent();
+  AccessTarget AccessEntity(Context, AccessTarget::Member, NamingClass,
+                            DeclAccessPair::make(Constructor, Access),
+                            QualType());
+  AccessEntity.setDiag(PD);
 
   return CheckAccess(*this, UseLoc, AccessEntity);
 }
@@ -1465,7 +1528,8 @@ Sema::AccessResult Sema::CheckDirectMemberAccess(SourceLocation UseLoc,
 Sema::AccessResult Sema::CheckAllocationAccess(SourceLocation OpLoc,
                                                SourceRange PlacementRange,
                                                CXXRecordDecl *NamingClass,
-                                               DeclAccessPair Found) {
+                                               DeclAccessPair Found,
+                                               bool Diagnose) {
   if (!getLangOptions().AccessControl ||
       !NamingClass ||
       Found.getAccess() == AS_public)
@@ -1473,8 +1537,9 @@ Sema::AccessResult Sema::CheckAllocationAccess(SourceLocation OpLoc,
 
   AccessTarget Entity(Context, AccessTarget::Member, NamingClass, Found,
                       QualType());
-  Entity.setDiag(diag::err_access)
-    << PlacementRange;
+  if (Diagnose)
+    Entity.setDiag(diag::err_access)
+      << PlacementRange;
 
   return CheckAccess(*this, OpLoc, Entity);
 }
@@ -1573,9 +1638,8 @@ void Sema::CheckLookupAccess(const LookupResult &R) {
     if (I.getAccess() != AS_public) {
       AccessTarget Entity(Context, AccessedEntity::Member,
                           R.getNamingClass(), I.getPair(),
-                          R.getBaseObjectType());
+                          R.getBaseObjectType(), R.isUsingDeclaration());
       Entity.setDiag(diag::err_access);
-
       CheckAccess(*this, R.getNameLoc(), Entity);
     }
   }

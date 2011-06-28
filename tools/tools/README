@@ -16,6 +16,7 @@ cfi		Common Flash Interface (CFI) tool
 commitsdb	A tool for reconstructing commit history using md5
 		checksums of the commit logs.
 crypto		Test and exercise tools related to the crypto framework
+cxgbetool	A tool for the cxgbe(4) driver.
 diffburst	OBSOLETE: equivalent functionality is available via split -p.
 		For example: "split -p ^diff < patchfile". See split(1).
 editing		Editor modes and the like to help editing FreeBSD code.

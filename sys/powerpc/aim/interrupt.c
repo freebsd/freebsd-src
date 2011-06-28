@@ -100,10 +100,8 @@ powerpc_interrupt(struct trapframe *framep)
 	default:
 		/* Re-enable interrupts if applicable. */
 		ee = framep->srr1 & PSL_EE;
-		if (ee != 0) {
+		if (ee != 0)
 			mtmsr(mfmsr() | ee);
-			isync();
-		}
 		trap(framep);
 	}	        
 }

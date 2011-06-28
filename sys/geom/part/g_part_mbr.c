@@ -253,15 +253,14 @@ g_part_mbr_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 {
 	struct g_provider *pp;
 	struct g_part_mbr_table *table;
-	uint32_t msize;
 
 	pp = gpp->gpp_provider;
 	if (pp->sectorsize < MBRSIZE)
 		return (ENOSPC);
 
-	msize = MIN(pp->mediasize / pp->sectorsize, UINT32_MAX);
 	basetable->gpt_first = basetable->gpt_sectors;
-	basetable->gpt_last = msize - (msize % basetable->gpt_sectors) - 1;
+	basetable->gpt_last = MIN(pp->mediasize / pp->sectorsize,
+	    UINT32_MAX) - 1;
 
 	table = (struct g_part_mbr_table *)basetable;
 	le16enc(table->mbr + DOSMAGICOFFSET, DOSMAGIC);
@@ -424,12 +423,13 @@ g_part_mbr_read(struct g_part_table *basetable, struct g_consumer *cp)
 	struct g_part_mbr_table *table;
 	struct g_part_mbr_entry *entry;
 	u_char *buf, *p;
-	off_t chs, msize;
+	off_t chs, msize, first;
 	u_int sectors, heads;
 	int error, index;
 
 	pp = cp->provider;
 	table = (struct g_part_mbr_table *)basetable;
+	first = basetable->gpt_sectors;
 	msize = MIN(pp->mediasize / pp->sectorsize, UINT32_MAX);
 
 	buf = g_read_data(cp, 0L, pp->sectorsize, &error);
@@ -462,7 +462,8 @@ g_part_mbr_read(struct g_part_table *basetable, struct g_consumer *cp)
 				basetable->gpt_heads = heads;
 			}
 		}
-
+		if (ent.dp_start < first)
+			first = ent.dp_start;
 		entry = (struct g_part_mbr_entry *)g_part_new_entry(basetable,
 		    index + 1, ent.dp_start, ent.dp_start + ent.dp_size - 1);
 		entry->ent = ent;
@@ -470,7 +471,10 @@ g_part_mbr_read(struct g_part_table *basetable, struct g_consumer *cp)
 
 	basetable->gpt_entries = NDOSPART;
 	basetable->gpt_first = basetable->gpt_sectors;
-	basetable->gpt_last = msize - (msize % basetable->gpt_sectors) - 1;
+	basetable->gpt_last = msize - 1;
+
+	if (first < basetable->gpt_first)
+		basetable->gpt_first = 1;
 
 	g_free(buf);
 	return (0);

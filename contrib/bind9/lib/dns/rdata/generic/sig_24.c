@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: sig_24.c,v 1.66 2007/06/19 23:47:17 tbox Exp $ */
+/* $Id: sig_24.c,v 1.66 2007-06-19 23:47:17 tbox Exp $ */
 
 /* Reviewed: Fri Mar 17 09:05:02 PST 2000 by gson */
 

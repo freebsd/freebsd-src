@@ -226,6 +226,48 @@
 #define	NFSPROC_COMMIT		21
 
 /*
+ * The lower numbers -> 21 are used by NFSv2 and v3. These define higher
+ * numbers used by NFSv4.
+ * NFS_V3NPROCS is one greater than the last V3 op and NFS_NPROCS is
+ * one greater than the last number.
+ */
+#ifndef	NFS_V3NPROCS
+#define	NFS_V3NPROCS		22
+
+#define	NFSPROC_LOOKUPP		22
+#define	NFSPROC_SETCLIENTID	23
+#define	NFSPROC_SETCLIENTIDCFRM	24
+#define	NFSPROC_LOCK		25
+#define	NFSPROC_LOCKU		26
+#define	NFSPROC_OPEN		27
+#define	NFSPROC_CLOSE		28
+#define	NFSPROC_OPENCONFIRM	29
+#define	NFSPROC_LOCKT		30
+#define	NFSPROC_OPENDOWNGRADE	31
+#define	NFSPROC_RENEW		32
+#define	NFSPROC_PUTROOTFH	33
+#define	NFSPROC_RELEASELCKOWN	34
+#define	NFSPROC_DELEGRETURN	35
+#define	NFSPROC_RETDELEGREMOVE	36
+#define	NFSPROC_RETDELEGRENAME1	37
+#define	NFSPROC_RETDELEGRENAME2	38
+#define	NFSPROC_GETACL		39
+#define	NFSPROC_SETACL		40
+
+/*
+ * Must be defined as one higher than the last Proc# above.
+ */
+#define	NFSV4_NPROCS		41
+#endif	/* NFS_V3NPROCS */
+
+/*
+ * Define NFS_NPROCS as NFSV4_NPROCS for the experimental kernel code.
+ */
+#ifndef	NFS_NPROCS
+#define	NFS_NPROCS		NFSV4_NPROCS
+#endif
+
+/*
  * NFSPROC_NOOP is a fake op# that can't be the same as any V2/3/4 Procedure
  * or Operation#. Since the NFS V4 Op #s go higher, use NFSV4OP_NOPS, which
  * is one greater than the highest Op#.

@@ -153,7 +153,8 @@ div_init(void)
 	 * place for hashbase == NULL.
 	 */
 	in_pcbinfo_init(&V_divcbinfo, "div", &V_divcb, 1, 1, "divcb",
-	    div_inpcb_init, div_inpcb_fini, UMA_ZONE_NOFREE);
+	    div_inpcb_init, div_inpcb_fini, UMA_ZONE_NOFREE,
+	    IPI_HASHFIELDS_NONE);
 }
 
 static void
@@ -530,7 +531,9 @@ div_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	((struct sockaddr_in *)nam)->sin_addr.s_addr = INADDR_ANY;
 	INP_INFO_WLOCK(&V_divcbinfo);
 	INP_WLOCK(inp);
+	INP_HASH_WLOCK(&V_divcbinfo);
 	error = in_pcbbind(inp, nam, td->td_ucred);
+	INP_HASH_WUNLOCK(&V_divcbinfo);
 	INP_WUNLOCK(inp);
 	INP_INFO_WUNLOCK(&V_divcbinfo);
 	return error;
@@ -659,9 +662,9 @@ div_pcblist(SYSCTL_HANDLER_ARGS)
 	INP_INFO_WLOCK(&V_divcbinfo);
 	for (i = 0; i < n; i++) {
 		inp = inp_list[i];
-		INP_WLOCK(inp);
-		if (!in_pcbrele(inp))
-			INP_WUNLOCK(inp);
+		INP_RLOCK(inp);
+		if (!in_pcbrele_rlocked(inp))
+			INP_RUNLOCK(inp);
 	}
 	INP_INFO_WUNLOCK(&V_divcbinfo);
 

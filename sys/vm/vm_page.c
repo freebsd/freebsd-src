@@ -729,7 +729,12 @@ vm_page_sleep(vm_page_t m, const char *msg)
 /*
  *	vm_page_dirty:
  *
- *	make page all dirty
+ *	Set all bits in the page's dirty field.
+ *
+ *	The object containing the specified page must be locked if the call is
+ *	made from the machine-independent layer.  If, however, the call is
+ *	made from the pmap layer, then the page queues lock may be required.
+ *	See vm_page_clear_dirty_mask().
  */
 void
 vm_page_dirty(vm_page_t m)
@@ -2325,15 +2330,41 @@ vm_page_clear_dirty_mask(vm_page_t m, int pagebits)
 	/*
 	 * If the object is locked and the page is neither VPO_BUSY nor
 	 * PG_WRITEABLE, then the page's dirty field cannot possibly be
-	 * modified by a concurrent pmap operation. 
+	 * set by a concurrent pmap operation. 
 	 */
 	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 	if ((m->oflags & VPO_BUSY) == 0 && (m->flags & PG_WRITEABLE) == 0)
 		m->dirty &= ~pagebits;
 	else {
+#if defined(__amd64__) || defined(__i386__) || defined(__ia64__) || \
+    defined(__mips__)
+		/*
+		 * On the aforementioned architectures, the page queues lock
+		 * is not required by the following read-modify-write
+		 * operation.  The combination of the object's lock and an
+		 * atomic operation suffice.  Moreover, the pmap layer on
+		 * these architectures can call vm_page_dirty() without
+		 * holding the page queues lock.
+		 */
+#if PAGE_SIZE == 4096
+		atomic_clear_char(&m->dirty, pagebits);
+#elif PAGE_SIZE == 8192
+		atomic_clear_short(&m->dirty, pagebits);
+#elif PAGE_SIZE == 16384
+		atomic_clear_int(&m->dirty, pagebits);
+#else
+#error "PAGE_SIZE is not supported."
+#endif
+#else
+		/*
+		 * Otherwise, the page queues lock is required to ensure that
+		 * a concurrent pmap operation does not set the page's dirty
+		 * field during the following read-modify-write operation.
+		 */
 		vm_page_lock_queues();
 		m->dirty &= ~pagebits;
 		vm_page_unlock_queues();
+#endif
 	}
 }
 
@@ -2635,6 +2666,23 @@ vm_page_cowsetup(vm_page_t m)
 	VM_OBJECT_UNLOCK(m->object);
 	return (0);
 }
+
+#ifdef INVARIANTS
+void
+vm_page_object_lock_assert(vm_page_t m)
+{
+
+	/*
+	 * Certain of the page's fields may only be modified by the
+	 * holder of the containing object's lock or the setter of the
+	 * page's VPO_BUSY flag.  Unfortunately, the setter of the
+	 * VPO_BUSY flag is not recorded, and thus cannot be checked
+	 * here.
+	 */
+	if (m->object != NULL && (m->oflags & VPO_BUSY) == 0)
+		VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+}
+#endif
 
 #include "opt_ddb.h"
 #ifdef DDB

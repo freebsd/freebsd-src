@@ -94,6 +94,7 @@ S       - toggle the displaying of system processes\n\
 a       - toggle the displaying of process titles\n\
 t       - toggle the display of this process\n\
 u       - display processes for only one user (+ selects all users)\n\
+z       - toggle the displaying of the system idle process\n\
 \n\
 \n", stdout);
     }

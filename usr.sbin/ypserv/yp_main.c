@@ -216,7 +216,7 @@ reaper(int sig)
 static void
 usage(void)
 {
-	fprintf(stderr, "usage: ypserv [-h] [-d] [-n] [-p path] [-P port]\n");
+	fprintf(stderr, "usage: ypserv [-h addr] [-d] [-n] [-p path] [-P port]\n");
 	exit(1);
 }
 

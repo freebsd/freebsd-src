@@ -126,6 +126,10 @@ gv_read_header(struct g_consumer *cp, struct gv_hdr *m_hdr)
 	pp = cp->provider;
 	KASSERT(pp != NULL, ("gv_read_header: null pp"));
 
+	if ((GV_HDR_OFFSET % pp->sectorsize) != 0 ||
+	    (GV_HDR_LEN % pp->sectorsize) != 0)
+		return (ENODEV);
+
 	d_hdr = g_read_data(cp, GV_HDR_OFFSET, pp->sectorsize, NULL);
 	if (d_hdr == NULL)
 		return (-1);

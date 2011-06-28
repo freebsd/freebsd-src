@@ -234,7 +234,7 @@ CGBitFieldInfo CGBitFieldInfo::MakeInfo(CodeGenTypes &Types,
     CharUnits::fromQuantity(Types.getTargetData().getTypeAllocSize(Ty));
   uint64_t TypeSizeInBits = Types.getContext().toBits(TypeSizeInBytes);
 
-  bool IsSigned = FD->getType()->isSignedIntegerType();
+  bool IsSigned = FD->getType()->isSignedIntegerOrEnumerationType();
 
   if (FieldSize > TypeSizeInBits) {
     // We have a wide bit-field. The extra bits are only used for padding, so
@@ -753,8 +753,7 @@ bool CGRecordLayoutBuilder::LayoutFields(const RecordDecl *D) {
       // Zero-length bitfields following non-bitfield members are
       // ignored:
       const FieldDecl *FD =  (*Field);
-      if (Types.getContext().ZeroBitfieldFollowsNonBitfield(FD, LastFD) ||
-          Types.getContext().ZeroBitfieldFollowsBitfield(FD, LastFD)) {
+      if (Types.getContext().ZeroBitfieldFollowsNonBitfield(FD, LastFD)) {
         --FieldNo;
         continue;
       }
@@ -997,8 +996,7 @@ CGRecordLayout *CodeGenTypes::ComputeRecordLayout(const RecordDecl *D) {
     if (IsMsStruct) {
       // Zero-length bitfields following non-bitfield members are
       // ignored:
-      if (getContext().ZeroBitfieldFollowsNonBitfield(FD, LastFD) ||
-          getContext().ZeroBitfieldFollowsBitfield(FD, LastFD)) {
+      if (getContext().ZeroBitfieldFollowsNonBitfield(FD, LastFD)) {
         --i;
         continue;
       }

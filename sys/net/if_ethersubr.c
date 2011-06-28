@@ -561,7 +561,7 @@ ether_ipfw_chk(struct mbuf **m0, struct ifnet *dst, int shared)
  * mbuf chain m with the ethernet header at the front.
  */
 static void
-ether_input(struct ifnet *ifp, struct mbuf *m)
+ether_input_internal(struct ifnet *ifp, struct mbuf *m)
 {
 	struct ether_header *eh;
 	u_short etype;
@@ -752,6 +752,46 @@ ether_input(struct ifnet *ifp, struct mbuf *m)
 
 	ether_demux(ifp, m);
 	CURVNET_RESTORE();
+}
+
+/*
+ * Ethernet input dispatch; by default, direct dispatch here regardless of
+ * global configuration.
+ */
+static void
+ether_nh_input(struct mbuf *m)
+{
+
+	ether_input_internal(m->m_pkthdr.rcvif, m);
+}
+
+static struct netisr_handler	ether_nh = {
+	.nh_name = "ether",
+	.nh_handler = ether_nh_input,
+	.nh_proto = NETISR_ETHER,
+	.nh_policy = NETISR_POLICY_SOURCE,
+	.nh_dispatch = NETISR_DISPATCH_DIRECT,
+};
+
+static void
+ether_init(__unused void *arg)
+{
+
+	netisr_register(&ether_nh);
+}
+SYSINIT(ether, SI_SUB_INIT_IF, SI_ORDER_ANY, ether_init, NULL);
+
+static void
+ether_input(struct ifnet *ifp, struct mbuf *m)
+{
+
+	/*
+	 * We will rely on rcvif being set properly in the deferred context,
+	 * so assert it is correct here.
+	 */
+	KASSERT(m->m_pkthdr.rcvif == ifp, ("%s: ifnet mismatch", __func__));
+
+	netisr_dispatch(NETISR_ETHER, m);
 }
 
 /*

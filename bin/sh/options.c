@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include "memalloc.h"
 #include "error.h"
 #include "mystring.h"
+#include "builtins.h"
 #ifndef NO_HISTORY
 #include "myhistedit.h"
 #endif
@@ -83,6 +84,7 @@ void
 procargs(int argc, char **argv)
 {
 	int i;
+	char *scriptname;
 
 	argptr = argv;
 	if (argc > 0)
@@ -105,8 +107,9 @@ procargs(int argc, char **argv)
 			optlist[i].val = 0;
 	arg0 = argv[0];
 	if (sflag == 0 && minusc == NULL) {
-		commandname = arg0 = *argptr++;
-		setinputfile(commandname, 0);
+		scriptname = *argptr++;
+		setinputfile(scriptname, 0);
+		commandname = arg0 = scriptname;
 	}
 	/* POSIX 1003.2: first arg after -c cmd is $0, remainder $1... */
 	if (argptr && minusc && *argptr)

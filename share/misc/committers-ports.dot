@@ -67,6 +67,7 @@ chinsan [label="Chinsan Huang\nchinsan@FreeBSD.org\n2007/06/12"]
 clement [label="Clement Laforet\nclement@FreeBSD.org\n2003/12/17"]
 clsung [label="Cheng-Lung Sung\nclsung@FreeBSD.org\n2004/8/18"]
 cperciva [label="Colin Percival\ncperciva@FreeBSD.org\n2006/01/31"]
+crees [label="Chris Rees\ncrees@FreeBSD.org\n2011/06/11"]
 culot [label="Frederic Culot\nculot@FreeBSD.org\n2010/10/16"]
 daichi [label="Daichi Goto\ndaichi@FreeBSD.org\n2002/10/17"]
 danfe [label="Alexey Dokuchaev\ndanfe@FreeBSD.org\n2004/08/20"]
@@ -97,6 +98,7 @@ itetcu [label="Ion-Mihai Tetcu\nitetcu@FreeBSD.org\n2006/06/07"]
 jacula [label="Giuseppe Pilichi\njacula@FreeBSD.org\n2010/04/05"]
 jadawin [label="Philippe Audeoud\njadawin@FreeBSD.org\n2008/03/02"]
 jkim [label="Jung-uk Kim\njkim@FreeBSD.org\n2007/09/12"]
+jlaffaye [label="Julien Laffaye\njlaffaye@FreeBSD.org\n2011/06/06"]
 jmelo [label="Jean Milanez Melo\njmelo@FreeBSD.org\n2006/03/31"]
 joerg [label="Joerg Wunsch\njoerg@FreeBSD.org\n1994/08/22"]
 johans [label="Johan Selst\njohans@FreeBSD.org\n2006/04/01"]
@@ -164,6 +166,7 @@ skreuzer [label="Steven Kreuzer\nskreuzer@FreeBSD.org\n2009/03/25"]
 sobomax[label="Maxim Sobolev\nsobomax@FreeBSD.org\n2000/05/17"]
 stas [label="Stanislav Sedov\nstas@FreeBSD.org\n2006/09/18"]
 stefan [label="Stefan Walter\nstefan@FreeBSD.org\n2006/05/07"]
+stephen [label="Stephen Montgomery-Smith\nstephen@FreeBSD.org\n2011/06/13"]
 sunpoet [label="Po-Chuan Hsieh\nsunpoet@FreeBSD.org\n2010/09/21"]
 sylvio [label="Sylvio Cesar Teixeira\nsylvio@FreeBSD.org\n2009/10/29"]
 swills [label="Steve Wills\nswills@FreeBSD.org\n2010/09/03"]
@@ -203,6 +206,8 @@ arved -> markus
 arved -> stefan
 
 asami -> obrien
+
+bapt -> jlaffaye
 
 beat -> decke
 
@@ -255,6 +260,7 @@ flz -> romain
 
 gabor -> lippe
 gabor -> pgj
+gabor -> stephen
 
 garga -> acm
 garga -> alepulver
@@ -307,6 +313,7 @@ lioux -> pat
 
 lwhsu -> yzlin
 
+maho -> stephen
 maho -> tota
 
 marcus -> ahze
@@ -372,6 +379,8 @@ philip -> koitsu
 
 rafan -> chinsan
 
+rene -> crees
+
 sahil -> culot
 
 sat -> beech
@@ -401,6 +410,7 @@ tabthorpe -> dhn
 tabthorpe -> fluffy
 tabthorpe -> jacula
 tabthorpe -> jadawin
+tabthorpe -> jlaffaye
 tabthorpe -> pgj
 tabthorpe -> rene
 

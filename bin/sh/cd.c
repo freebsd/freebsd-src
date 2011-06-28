@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include "mystring.h"
 #include "show.h"
 #include "cd.h"
+#include "builtins.h"
 
 static int cdlogical(char *);
 static int cdphysical(char *);
@@ -86,6 +87,7 @@ cdcmd(int argc, char **argv)
 	struct stat statb;
 	int ch, phys, print = 0, getcwderr = 0;
 	int rc;
+	int errno1 = ENOENT;
 
 	optreset = 1; optind = 1; opterr = 0; /* initialize getopt */
 	phys = Pflag;
@@ -122,7 +124,10 @@ cdcmd(int argc, char **argv)
 		else
 			dest = ".";
 	}
-	if (*dest == '/' || (path = bltinlookup("CDPATH", 1)) == NULL)
+	if (dest[0] == '/' ||
+	    (dest[0] == '.' && (dest[1] == '/' || dest[1] == '\0')) ||
+	    (dest[0] == '.' && dest[1] == '.' && (dest[2] == '/' || dest[2] == '\0')) ||
+	    (path = bltinlookup("CDPATH", 1)) == NULL)
 		path = nullstr;
 	while ((p = padvance(&path, dest)) != NULL) {
 		if (stat(p, &statb) >= 0 && S_ISDIR(statb.st_mode)) {
@@ -138,9 +143,11 @@ cdcmd(int argc, char **argv)
 			rc = docd(p, print, phys);
 			if (rc >= 0)
 				return getcwderr ? rc : 0;
+			if (errno != ENOENT)
+				errno1 = errno;
 		}
 	}
-	error("can't cd to %s", dest);
+	error("%s: %s", dest, strerror(errno1));
 	/*NOTREACHED*/
 	return 0;
 }

@@ -37,6 +37,7 @@ static char sccsid[] = "@(#)bt_split.c	8.10 (Berkeley) 1/9/95";
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+#include <sys/param.h>
 
 #include <limits.h>
 #include <stdio.h>
@@ -482,7 +483,7 @@ bt_rroot(BTREE *t, PAGE *h, PAGE *l, PAGE *r)
 	WR_RINTERNAL(dest,
 	    l->flags & P_RLEAF ? NEXTINDEX(l) : rec_total(l), l->pgno);
 
-	h->linp[1] = h->upper -= NRINTERNAL;
+	__PAST_END(h->linp, 1) = h->upper -= NRINTERNAL;
 	dest = (char *)h + h->upper;
 	WR_RINTERNAL(dest,
 	    r->flags & P_RLEAF ? NEXTINDEX(r) : rec_total(r), r->pgno);
@@ -534,7 +535,7 @@ bt_broot(BTREE *t, PAGE *h, PAGE *l, PAGE *r)
 	case P_BLEAF:
 		bl = GETBLEAF(r, 0);
 		nbytes = NBINTERNAL(bl->ksize);
-		h->linp[1] = h->upper -= nbytes;
+		__PAST_END(h->linp, 1) = h->upper -= nbytes;
 		dest = (char *)h + h->upper;
 		WR_BINTERNAL(dest, bl->ksize, r->pgno, 0);
 		memmove(dest, bl->bytes, bl->ksize);
@@ -550,7 +551,7 @@ bt_broot(BTREE *t, PAGE *h, PAGE *l, PAGE *r)
 	case P_BINTERNAL:
 		bi = GETBINTERNAL(r, 0);
 		nbytes = NBINTERNAL(bi->ksize);
-		h->linp[1] = h->upper -= nbytes;
+		__PAST_END(h->linp, 1) = h->upper -= nbytes;
 		dest = (char *)h + h->upper;
 		memmove(dest, bi, nbytes);
 		((BINTERNAL *)dest)->pgno = r->pgno;

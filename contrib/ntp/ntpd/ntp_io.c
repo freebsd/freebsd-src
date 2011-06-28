@@ -1753,7 +1753,12 @@ void
 enable_multicast_if(struct interface *iface, struct sockaddr_storage *maddr)
 {
 #ifdef MCAST
+#ifdef IP_MULTICAST_LOOP
 	/*u_char*/ TYPEOF_IP_MULTICAST_LOOP off = 0;
+#endif
+#ifdef IPV6_MULTICAST_LOOP
+	u_int off6 = 0;		/* RFC 3493, 5.2. defines type unsigned int */
+#endif
 
 	switch (maddr->ss_family)
 	{
@@ -1797,9 +1802,9 @@ enable_multicast_if(struct interface *iface, struct sockaddr_storage *maddr)
 		 * Don't send back to itself, but allow it to fail to set it
 		 */
 		if (setsockopt(iface->fd, IPPROTO_IPV6, IPV6_MULTICAST_LOOP,
-		       (char *) &off, sizeof(off)) == -1) {
+		       (char *) &off6, sizeof(off6)) == -1) {
 			netsyslog(LOG_ERR,
-			"setsockopt IP_MULTICAST_LOOP failure: %m on socket %d, addr %s for multicast address %s",
+			"setsockopt IPV6_MULTICAST_LOOP failure: %m on socket %d, addr %s for multicast address %s",
 			iface->fd, stoa(&iface->sin), stoa(maddr));
 		}
 #endif

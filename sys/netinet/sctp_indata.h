@@ -83,11 +83,6 @@ struct mbuf *
 sctp_build_ctl_nchunk(struct sctp_inpcb *inp,
     struct sctp_sndrcvinfo *sinfo);
 
-char *
-sctp_build_ctl_cchunk(struct sctp_inpcb *inp,
-    int *control_len,
-    struct sctp_sndrcvinfo *sinfo);
-
 void sctp_set_rwnd(struct sctp_tcb *, struct sctp_association *);
 
 uint32_t

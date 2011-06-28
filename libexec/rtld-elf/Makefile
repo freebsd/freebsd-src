@@ -17,6 +17,7 @@ RTLD_ARCH=	${MACHINE_CPUARCH}
 .endif
 CFLAGS+=	-I${.CURDIR}/${RTLD_ARCH} -I${.CURDIR}
 .if ${MACHINE_ARCH} == "powerpc64"
+CFLAGS+=	-mcall-aixdesc
 LDFLAGS+=	-nostdlib -e _rtld_start
 .else
 LDFLAGS+=	-nostdlib -e .rtld_start

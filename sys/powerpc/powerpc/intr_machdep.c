@@ -67,6 +67,7 @@
 #include <sys/kernel.h>
 #include <sys/queue.h>
 #include <sys/bus.h>
+#include <sys/cpuset.h>
 #include <sys/interrupt.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
@@ -98,7 +99,7 @@ struct powerpc_intr {
 	u_int	intline;
 	u_int	vector;
 	u_int	cntindex;
-	cpumask_t cpu;
+	cpuset_t cpu;
 	enum intr_trigger trig;
 	enum intr_polarity pol;
 };
@@ -205,7 +206,7 @@ intr_lookup(u_int irq)
 #ifdef SMP
 	i->cpu = all_cpus;
 #else
-	i->cpu = 1;
+	CPU_SETOF(0, &i->cpu);
 #endif
 
 	for (vector = 0; vector < INTR_VECTORS && vector <= nvectors;
@@ -296,7 +297,7 @@ powerpc_assign_intr_cpu(void *arg, u_char cpu)
 	if (cpu == NOCPU)
 		i->cpu = all_cpus;
 	else
-		i->cpu = 1 << cpu;
+		CPU_SETOF(cpu, &i->cpu);
 
 	if (!cold && i->pic != NULL && i->pic == root_pic)
 		PIC_BIND(i->pic, i->intline, i->cpu);

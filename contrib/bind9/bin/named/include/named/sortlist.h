@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: sortlist.h,v 1.11 2007/06/19 23:46:59 tbox Exp $ */
+/* $Id: sortlist.h,v 1.11 2007-06-19 23:46:59 tbox Exp $ */
 
 #ifndef NAMED_SORTLIST_H
 #define NAMED_SORTLIST_H 1

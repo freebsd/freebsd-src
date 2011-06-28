@@ -1613,6 +1613,101 @@ dqflush(struct vnode *vp)
 }
 
 /*
+ * The following three functions are provided for the adjustment of
+ * quotas by the soft updates code.
+ */
+#ifdef SOFTUPDATES
+/*
+ * Acquire a reference to the quota structures associated with a vnode.
+ * Return count of number of quota structures found.
+ */
+int
+quotaref(vp, qrp)
+	struct vnode *vp;
+	struct dquot **qrp;
+{
+	struct inode *ip;
+	struct dquot *dq;
+	int i, found;
+
+	for (i = 0; i < MAXQUOTAS; i++)
+		qrp[i] = NODQUOT;
+	/*
+	 * Disk quotas must be turned off for system files.  Currently
+	 * snapshot and quota files.
+	 */
+	if ((vp->v_vflag & VV_SYSTEM) != 0)
+		return (0);
+	/*
+	 * Iterate through and copy active quotas.
+	 */
+	found = 0;
+	ip = VTOI(vp);
+	for (i = 0; i < MAXQUOTAS; i++) {
+		if ((dq = ip->i_dquot[i]) == NODQUOT)
+			continue;
+		DQREF(dq);
+		qrp[i] = dq;
+		found++;
+	}
+	return (found);
+}
+
+/*
+ * Release a set of quota structures obtained from a vnode.
+ */
+void
+quotarele(qrp)
+	struct dquot **qrp;
+{
+	struct dquot *dq;
+	int i;
+
+	for (i = 0; i < MAXQUOTAS; i++) {
+		if ((dq = qrp[i]) == NODQUOT)
+			continue;
+		dqrele(NULL, dq);
+	}
+}
+
+/*
+ * Adjust the number of blocks associated with a quota.
+ * Positive numbers when adding blocks; negative numbers when freeing blocks.
+ */
+void
+quotaadj(qrp, ump, blkcount)
+	struct dquot **qrp;
+	struct ufsmount *ump;
+	int64_t blkcount;
+{
+	struct dquot *dq;
+	ufs2_daddr_t ncurblocks;
+	int i;
+
+	if (blkcount == 0)
+		return;
+	for (i = 0; i < MAXQUOTAS; i++) {
+		if ((dq = qrp[i]) == NODQUOT)
+			continue;
+		DQI_LOCK(dq);
+		DQI_WAIT(dq, PINOD+1, "adjqta");
+		ncurblocks = dq->dq_curblocks + blkcount;
+		if (ncurblocks >= 0)
+			dq->dq_curblocks = ncurblocks;
+		else
+			dq->dq_curblocks = 0;
+		if (blkcount < 0)
+			dq->dq_flags &= ~DQ_BLKS;
+		else if (dq->dq_curblocks + blkcount >= dq->dq_bsoftlimit &&
+			 dq->dq_curblocks < dq->dq_bsoftlimit)
+			dq->dq_btime = time_second + ump->um_btime[i];
+		dq->dq_flags |= DQ_MOD;
+		DQI_UNLOCK(dq);
+	}
+}
+#endif /* SOFTUPDATES */
+
+/*
  * 32-bit / 64-bit conversion functions.
  *
  * 32-bit quota records are stored in native byte order.  Attention must

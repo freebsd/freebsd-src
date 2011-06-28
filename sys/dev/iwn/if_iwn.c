@@ -401,6 +401,8 @@ static devclass_t iwn_devclass;
 
 DRIVER_MODULE(iwn, pci, iwn_driver, iwn_devclass, 0, 0);
 
+MODULE_VERSION(iwn, 1);
+
 MODULE_DEPEND(iwn, firmware, 1, 1, 1);
 MODULE_DEPEND(iwn, pci, 1, 1, 1);
 MODULE_DEPEND(iwn, wlan, 1, 1, 1);
@@ -565,6 +567,7 @@ iwn_attach(device_t dev)
 	ic->ic_caps =
 		  IEEE80211_C_STA		/* station mode supported */
 		| IEEE80211_C_MONITOR		/* monitor mode supported */
+		| IEEE80211_C_BGSCAN		/* background scanning */
 		| IEEE80211_C_TXPMGT		/* tx power management */
 		| IEEE80211_C_SHSLOT		/* short slot time supported */
 		| IEEE80211_C_WPA
@@ -574,8 +577,6 @@ iwn_attach(device_t dev)
 #endif
 		| IEEE80211_C_WME		/* WME */
 		;
-	if (sc->hw_type != IWN_HW_REV_TYPE_4965)
-		ic->ic_caps |= IEEE80211_C_BGSCAN; /* background scanning */
 
 	/* Read MAC address, channels, etc from EEPROM. */
 	if ((error = iwn_read_eeprom(sc, macaddr)) != 0) {
@@ -605,9 +606,9 @@ iwn_attach(device_t dev)
 		ic->ic_htcaps =
 			  IEEE80211_HTCAP_SMPS_OFF	/* SMPS mode disabled */
 			| IEEE80211_HTCAP_SHORTGI20	/* short GI in 20MHz */
-#ifdef notyet
 			| IEEE80211_HTCAP_CHWIDTH40	/* 40MHz channel width*/
 			| IEEE80211_HTCAP_SHORTGI40	/* short GI in 40MHz */
+#ifdef notyet
 			| IEEE80211_HTCAP_GREENFIELD
 #if IWN_RBUF_SIZE == 8192
 			| IEEE80211_HTCAP_MAXAMSDU_7935	/* max A-MSDU length */
@@ -2104,6 +2105,7 @@ rate2plcp(int rate)
 static void
 iwn_newassoc(struct ieee80211_node *ni, int isnew)
 {
+#define	RV(v)	((v) & IEEE80211_RATE_VAL)
 	struct ieee80211com *ic = ni->ni_ic;
 	struct iwn_softc *sc = ic->ic_ifp->if_softc;
 	struct iwn_node *wn = (void *)ni;
@@ -2117,7 +2119,7 @@ iwn_newassoc(struct ieee80211_node *ni, int isnew)
 	if (IEEE80211_IS_CHAN_HT(ni->ni_chan)) {
 		ridx = ni->ni_rates.rs_nrates - 1;
 		for (i = ni->ni_htrates.rs_nrates - 1; i >= 0; i--) {
-			plcp = ni->ni_htrates.rs_rates[i] | IWN_RFLAG_MCS;
+			plcp = RV(ni->ni_htrates.rs_rates[i]) | IWN_RFLAG_MCS;
 			if (IEEE80211_IS_CHAN_HT40(ni->ni_chan)) {
 				plcp |= IWN_RFLAG_HT40;
 				if (ni->ni_htcap & IEEE80211_HTCAP_SHORTGI40)
@@ -2129,8 +2131,7 @@ iwn_newassoc(struct ieee80211_node *ni, int isnew)
 			else
 				plcp |= IWN_RFLAG_ANT(txant1);
 			if (ridx >= 0) {
-				rate = ni->ni_rates.rs_rates[ridx];
-				rate &= IEEE80211_RATE_VAL;
+				rate = RV(ni->ni_rates.rs_rates[ridx]);
 				wn->ridx[rate] = plcp;
 			}
 			wn->ridx[IEEE80211_RATE_MCS | i] = plcp;
@@ -2138,8 +2139,7 @@ iwn_newassoc(struct ieee80211_node *ni, int isnew)
 		}
 	} else {
 		for (i = 0; i < ni->ni_rates.rs_nrates; i++) {
-			rate = ni->ni_rates.rs_rates[i] & IEEE80211_RATE_VAL;
-
+			rate = RV(ni->ni_rates.rs_rates[i]);
 			plcp = rate2plcp(rate);
 			ridx = ic->ic_rt->rateCodeToIndex[rate];
 			if (ridx < IWN_RIDX_OFDM6 &&
@@ -2149,6 +2149,7 @@ iwn_newassoc(struct ieee80211_node *ni, int isnew)
 			wn->ridx[rate] = htole32(plcp);
 		}
 	}
+#undef	RV
 }
 
 static int
@@ -3313,7 +3314,8 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 	}
 	ac = M_WME_GETAC(m);
 
-	if (IEEE80211_AMPDU_RUNNING(&ni->ni_tx_ampdu[ac])) {
+	if (IEEE80211_QOS_HAS_SEQ(wh) &&
+	    IEEE80211_AMPDU_RUNNING(&ni->ni_tx_ampdu[ac])) {
 		struct ieee80211_tx_ampdu *tap = &ni->ni_tx_ampdu[ac];
 
 		ring = &sc->txq[*(int *)tap->txa_private];
@@ -3991,6 +3993,7 @@ iwn5000_add_node(struct iwn_softc *sc, struct iwn_node_info *node, int async)
 static int
 iwn_set_link_quality(struct iwn_softc *sc, struct ieee80211_node *ni)
 {
+#define	RV(v)	((v) & IEEE80211_RATE_VAL)
 	struct iwn_node *wn = (void *)ni;
 	struct ieee80211_rateset *rs = &ni->ni_rates;
 	struct iwn_cmd_link_quality linkq;
@@ -4017,11 +4020,11 @@ iwn_set_link_quality(struct iwn_softc *sc, struct ieee80211_node *ni)
 		if (IEEE80211_IS_CHAN_HT(ni->ni_chan))
 			rate = IEEE80211_RATE_MCS | txrate;
 		else
-			rate = rs->rs_rates[txrate] & IEEE80211_RATE_VAL;
+			rate = RV(rs->rs_rates[txrate]);
 		linkq.retry[i] = wn->ridx[rate];
 
 		if ((le32toh(wn->ridx[rate]) & IWN_RFLAG_MCS) &&
-		    (le32toh(wn->ridx[rate]) & 0xff) > 7)
+		    RV(le32toh(wn->ridx[rate])) > 7)
 			linkq.mimo = i + 1;
 
 		/* Next retry at immediate lower bit-rate. */
@@ -4029,6 +4032,7 @@ iwn_set_link_quality(struct iwn_softc *sc, struct ieee80211_node *ni)
 			txrate--;
 	}
 	return iwn_cmd(sc, IWN_CMD_LINK_QUALITY, &linkq, sizeof linkq, 1);
+#undef	RV
 }
 
 /*
@@ -5159,7 +5163,7 @@ iwn_scan(struct iwn_softc *sc)
 	if (IEEE80211_IS_CHAN_A(ic->ic_curchan) &&
 	    sc->hw_type == IWN_HW_REV_TYPE_4965) {
 		/* Ant A must be avoided in 5GHz because of an HW bug. */
-		rxchain |= IWN_RXCHAIN_FORCE_SEL(IWN_ANT_BC);
+		rxchain |= IWN_RXCHAIN_FORCE_SEL(IWN_ANT_B);
 	} else	/* Use all available RX antennas. */
 		rxchain |= IWN_RXCHAIN_FORCE_SEL(sc->rxchainmask);
 	hdr->rxchain = htole16(rxchain);
@@ -5170,14 +5174,19 @@ iwn_scan(struct iwn_softc *sc)
 	tx->id = sc->broadcast_id;
 	tx->lifetime = htole32(IWN_LIFETIME_INFINITE);
 
-	if (IEEE80211_IS_CHAN_A(ic->ic_curchan)) {
+	if (IEEE80211_IS_CHAN_5GHZ(ic->ic_curchan)) {
 		/* Send probe requests at 6Mbps. */
 		tx->rate = htole32(0xd);
 		rs = &ic->ic_sup_rates[IEEE80211_MODE_11A];
 	} else {
 		hdr->flags = htole32(IWN_RXON_24GHZ | IWN_RXON_AUTO);
-		/* Send probe requests at 1Mbps. */
-		tx->rate = htole32(10 | IWN_RFLAG_CCK);
+		if (sc->hw_type == IWN_HW_REV_TYPE_4965 &&
+		    sc->rxon.associd && sc->rxon.chan > 14)
+			tx->rate = htole32(0xd);
+		else {
+			/* Send probe requests at 1Mbps. */
+			tx->rate = htole32(10 | IWN_RFLAG_CCK);
+		}
 		rs = &ic->ic_sup_rates[IEEE80211_MODE_11G];
 	}
 	/* Use the first valid TX antenna. */

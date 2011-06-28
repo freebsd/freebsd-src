@@ -664,7 +664,7 @@ pmap_bootstrap(u_int cpu_impl)
 	pm = kernel_pmap;
 	for (i = 0; i < MAXCPU; i++)
 		pm->pm_context[i] = TLB_CTX_KERNEL;
-	pm->pm_active = ~0;
+	CPU_FILL(&pm->pm_active);
 
 	/*
 	 * Flush all non-locked TLB entries possibly left over by the
@@ -1189,7 +1189,7 @@ pmap_pinit0(pmap_t pm)
 	PMAP_LOCK_INIT(pm);
 	for (i = 0; i < MAXCPU; i++)
 		pm->pm_context[i] = TLB_CTX_KERNEL;
-	pm->pm_active = 0;
+	CPU_ZERO(&pm->pm_active);
 	pm->pm_tsb = NULL;
 	pm->pm_tsb_obj = NULL;
 	bzero(&pm->pm_stats, sizeof(pm->pm_stats));
@@ -1229,7 +1229,7 @@ pmap_pinit(pmap_t pm)
 	mtx_lock_spin(&sched_lock);
 	for (i = 0; i < MAXCPU; i++)
 		pm->pm_context[i] = -1;
-	pm->pm_active = 0;
+	CPU_ZERO(&pm->pm_active);
 	mtx_unlock_spin(&sched_lock);
 
 	VM_OBJECT_LOCK(pm->pm_tsb_obj);
@@ -1278,7 +1278,7 @@ pmap_release(pmap_t pm)
 	 *   to a kernel thread, leaving the pmap pointer unchanged.
 	 */
 	mtx_lock_spin(&sched_lock);
-	SLIST_FOREACH(pc, &cpuhead, pc_allcpu)
+	STAILQ_FOREACH(pc, &cpuhead, pc_allcpu)
 		if (pc->pc_pmap == pm)
 			pc->pc_pmap = NULL;
 	mtx_unlock_spin(&sched_lock);
@@ -2217,10 +2217,9 @@ pmap_activate(struct thread *td)
 	struct pmap *pm;
 	int context;
 
+	critical_enter();
 	vm = td->td_proc->p_vmspace;
 	pm = vmspace_pmap(vm);
-
-	mtx_lock_spin(&sched_lock);
 
 	context = PCPU_GET(tlb_ctx);
 	if (context == PCPU_GET(tlb_ctx_max)) {
@@ -2229,17 +2228,18 @@ pmap_activate(struct thread *td)
 	}
 	PCPU_SET(tlb_ctx, context + 1);
 
+	mtx_lock_spin(&sched_lock);
 	pm->pm_context[curcpu] = context;
-	pm->pm_active |= PCPU_GET(cpumask);
+	CPU_SET(PCPU_GET(cpuid), &pm->pm_active);
 	PCPU_SET(pmap, pm);
+	mtx_unlock_spin(&sched_lock);
 
 	stxa(AA_DMMU_TSB, ASI_DMMU, pm->pm_tsb);
 	stxa(AA_IMMU_TSB, ASI_IMMU, pm->pm_tsb);
 	stxa(AA_DMMU_PCXR, ASI_DMMU, (ldxa(AA_DMMU_PCXR, ASI_DMMU) &
 	    TLB_CXR_PGSZ_MASK) | context);
 	flush(KERNBASE);
-
-	mtx_unlock_spin(&sched_lock);
+	critical_exit();
 }
 
 void

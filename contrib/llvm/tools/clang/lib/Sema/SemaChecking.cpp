@@ -318,9 +318,13 @@ bool Sema::CheckFunctionCall(FunctionDecl *FDecl, CallExpr *TheCall) {
                           TheCall->getCallee()->getLocStart());
   }
 
-  // Memset handling
-  if (FnInfo->isStr("memset"))
-    CheckMemsetArguments(TheCall);
+  // Memset/memcpy/memmove handling
+  if (FDecl->getLinkage() == ExternalLinkage &&
+      (!getLangOptions().CPlusPlus || FDecl->isExternC())) {
+    if (FnInfo->isStr("memset") || FnInfo->isStr("memcpy") || 
+        FnInfo->isStr("memmove"))
+      CheckMemsetcpymoveArguments(TheCall, FnInfo);
+  }
 
   return false;
 }
@@ -1832,49 +1836,59 @@ void Sema::CheckFormatString(const StringLiteral *FExpr,
 
 //===--- CHECK: Standard memory functions ---------------------------------===//
 
+/// \brief Determine whether the given type is a dynamic class type (e.g.,
+/// whether it has a vtable).
+static bool isDynamicClassType(QualType T) {
+  if (CXXRecordDecl *Record = T->getAsCXXRecordDecl())
+    if (CXXRecordDecl *Definition = Record->getDefinition())
+      if (Definition->isDynamicClass())
+        return true;
+  
+  return false;
+}
+
 /// \brief Check for dangerous or invalid arguments to memset().
 ///
-/// This issues warnings on known problematic or dangerous or unspecified
-/// arguments to the standard 'memset' function call.
+/// This issues warnings on known problematic, dangerous or unspecified
+/// arguments to the standard 'memset', 'memcpy', and 'memmove' function calls.
 ///
 /// \param Call The call expression to diagnose.
-void Sema::CheckMemsetArguments(const CallExpr *Call) {
+void Sema::CheckMemsetcpymoveArguments(const CallExpr *Call,
+                                       const IdentifierInfo *FnName) {
   // It is possible to have a non-standard definition of memset.  Validate
   // we have the proper number of arguments, and if not, abort further
   // checking.
   if (Call->getNumArgs() != 3)
     return;
 
-  const Expr *Dest = Call->getArg(0)->IgnoreParenImpCasts();
+  unsigned LastArg = FnName->isStr("memset")? 1 : 2;
+  for (unsigned ArgIdx = 0; ArgIdx != LastArg; ++ArgIdx) {
+    const Expr *Dest = Call->getArg(ArgIdx)->IgnoreParenImpCasts();
 
-  // The type checking for this warning is moderately expensive, only do it
-  // when enabled.
-  if (getDiagnostics().getDiagnosticLevel(diag::warn_non_pod_memset,
-                                          Dest->getExprLoc()) ==
-      Diagnostic::Ignored)
-    return;
+    QualType DestTy = Dest->getType();
+    if (const PointerType *DestPtrTy = DestTy->getAs<PointerType>()) {
+      QualType PointeeTy = DestPtrTy->getPointeeType();
+      if (PointeeTy->isVoidType())
+        continue;
 
-  QualType DestTy = Dest->getType();
-  if (const PointerType *DestPtrTy = DestTy->getAs<PointerType>()) {
-    QualType PointeeTy = DestPtrTy->getPointeeType();
-    if (PointeeTy->isVoidType())
-      return;
+      // Always complain about dynamic classes.
+      if (isDynamicClassType(PointeeTy)) {
+        DiagRuntimeBehavior(
+          Dest->getExprLoc(), Dest,
+          PDiag(diag::warn_dyn_class_memaccess)
+            << ArgIdx << FnName << PointeeTy 
+            << Call->getCallee()->getSourceRange());
+      } else {
+        continue;
+      }
 
-    // Check the C++11 POD definition regardless of language mode; it is more
-    // relaxed than earlier definitions and we don't want spurrious warnings.
-    if (PointeeTy->isCXX11PODType())
-      return;
-
-    DiagRuntimeBehavior(
-      Dest->getExprLoc(), Dest,
-      PDiag(diag::warn_non_pod_memset)
-        << PointeeTy << Call->getCallee()->getSourceRange());
-
-    SourceRange ArgRange = Call->getArg(0)->getSourceRange();
-    DiagRuntimeBehavior(
-      Dest->getExprLoc(), Dest,
-      PDiag(diag::note_non_pod_memset_silence)
-        << FixItHint::CreateInsertion(ArgRange.getBegin(), "(void*)"));
+      SourceRange ArgRange = Call->getArg(0)->getSourceRange();
+      DiagRuntimeBehavior(
+        Dest->getExprLoc(), Dest,
+        PDiag(diag::note_bad_memaccess_silence)
+          << FixItHint::CreateInsertion(ArgRange.getBegin(), "(void*)"));
+      break;
+    }
   }
 }
 
@@ -2391,7 +2405,7 @@ IntRange GetValueRange(ASTContext &C, APValue &result, QualType Ty,
   // the sign right on this one case.  It would be nice if APValue
   // preserved this.
   assert(result.isLValue());
-  return IntRange(MaxWidth, Ty->isUnsignedIntegerType());
+  return IntRange(MaxWidth, Ty->isUnsignedIntegerOrEnumerationType());
 }
 
 /// Pseudo-evaluate the given integer expression, estimating the
@@ -2565,7 +2579,8 @@ IntRange GetExprRange(ASTContext &C, Expr *E, unsigned MaxWidth) {
     llvm::APSInt BitWidthAP = BitField->getBitWidth()->EvaluateAsInt(C);
     unsigned BitWidth = BitWidthAP.getZExtValue();
 
-    return IntRange(BitWidth, BitField->getType()->isUnsignedIntegerType());
+    return IntRange(BitWidth, 
+                    BitField->getType()->isUnsignedIntegerOrEnumerationType());
   }
 
   return IntRange::forValueOfType(C, E->getType());
@@ -2981,6 +2996,13 @@ void CheckImplicitConversion(Sema &S, Expr *E, QualType T,
 
   if (!Source->isIntegerType() || !Target->isIntegerType())
     return;
+
+  if ((E->isNullPointerConstant(S.Context, Expr::NPC_ValueDependentIsNotNull)
+           == Expr::NPCK_GNUNull) && Target->isIntegerType()) {
+    S.Diag(E->getExprLoc(), diag::warn_impcast_null_pointer_to_integer)
+        << E->getSourceRange() << clang::SourceRange(CC);
+    return;
+  }
 
   IntRange SourceRange = GetExprRange(S.Context, E);
   IntRange TargetRange = IntRange::forTargetOfCanonicalType(S.Context, Target);

@@ -121,6 +121,9 @@ typedef enum {
 
 	HAL_CAP_RTS_AGGR_LIMIT	= 42,	/* aggregation limit with RTS */
 	HAL_CAP_4ADDR_AGGR	= 43,	/* hardware is capable of 4addr aggregation */
+	HAL_CAP_DFS_DMN		= 44,	/* current DFS domain */
+	HAL_CAP_EXT_CHAN_DFS	= 45,	/* DFS support for extension channel */
+	HAL_CAP_COMBINED_RADAR_RSSI	= 46,	/* Is combined RSSI for radar accurate */
 
 	HAL_CAP_AUTO_SLEEP	= 48,	/* hardware can go to network sleep
 					   automatically after waking up to receive TIM */
@@ -133,6 +136,7 @@ typedef enum {
 	HAL_CAP_HT20_SGI	= 96,	/* hardware supports HT20 short GI */
 
 	HAL_CAP_RXTSTAMP_PREC	= 100,	/* rx desc tstamp precision (bits) */
+	HAL_CAP_ENHANCED_DFS_SUPPORT	= 117,	/* hardware supports enhanced DFS */
 
 	/* The following are private to the FreeBSD HAL (224 onward) */
 
@@ -669,6 +673,90 @@ typedef struct {
 } HAL_CHANNEL_SURVEY;
 
 /*
+ * ANI commands.
+ *
+ * These are used both internally and externally via the diagnostic
+ * API.
+ *
+ * Note that this is NOT the ANI commands being used via the INTMIT
+ * capability - that has a different mapping for some reason.
+ */
+typedef enum {
+	HAL_ANI_PRESENT = 0,			/* is ANI support present */
+	HAL_ANI_NOISE_IMMUNITY_LEVEL = 1,	/* set level */
+	HAL_ANI_OFDM_WEAK_SIGNAL_DETECTION = 2,	/* enable/disable */
+	HAL_ANI_CCK_WEAK_SIGNAL_THR = 3,	/* enable/disable */
+	HAL_ANI_FIRSTEP_LEVEL = 4,		/* set level */
+	HAL_ANI_SPUR_IMMUNITY_LEVEL = 5,	/* set level */
+	HAL_ANI_MODE = 6,			/* 0 => manual, 1 => auto (XXX do not change) */
+	HAL_ANI_PHYERR_RESET = 7,		/* reset phy error stats */
+} HAL_ANI_CMD;
+
+/*
+ * This is the layout of the ANI INTMIT capability.
+ *
+ * Notice that the command values differ to HAL_ANI_CMD.
+ */
+typedef enum {
+	HAL_CAP_INTMIT_PRESENT = 0,
+	HAL_CAP_INTMIT_ENABLE = 1,
+	HAL_CAP_INTMIT_NOISE_IMMUNITY_LEVEL = 2,
+	HAL_CAP_INTMIT_OFDM_WEAK_SIGNAL_LEVEL = 3,
+	HAL_CAP_INTMIT_CCK_WEAK_SIGNAL_THR = 4,
+	HAL_CAP_INTMIT_FIRSTEP_LEVEL = 5,
+	HAL_CAP_INTMIT_SPUR_IMMUNITY_LEVEL = 6
+} HAL_CAP_INTMIT_CMD;
+
+typedef struct {
+	int32_t		pe_firpwr;	/* FIR pwr out threshold */
+	int32_t		pe_rrssi;	/* Radar rssi thresh */
+	int32_t		pe_height;	/* Pulse height thresh */
+	int32_t		pe_prssi;	/* Pulse rssi thresh */
+	int32_t		pe_inband;	/* Inband thresh */
+
+	/* The following params are only for AR5413 and later */
+	u_int32_t	pe_relpwr;	/* Relative power threshold in 0.5dB steps */
+	u_int32_t	pe_relstep;	/* Pulse Relative step threshold in 0.5dB steps */
+	u_int32_t	pe_maxlen;	/* Max length of radar sign in 0.8us units */
+	HAL_BOOL	pe_usefir128;	/* Use the average in-band power measured over 128 cycles */
+	HAL_BOOL	pe_blockradar;	/*
+					 * Enable to block radar check if pkt detect is done via OFDM
+					 * weak signal detect or pkt is detected immediately after tx
+					 * to rx transition
+					 */
+	HAL_BOOL	pe_enmaxrssi;	/*
+					 * Enable to use the max rssi instead of the last rssi during
+					 * fine gain changes for radar detection
+					 */
+	HAL_BOOL	pe_extchannel;	/* Enable DFS on ext channel */
+} HAL_PHYERR_PARAM;
+
+#define	HAL_PHYERR_PARAM_NOVAL	65535
+#define	HAL_PHYERR_PARAM_ENABLE	0x8000	/* Enable/Disable if applicable */
+
+
+/*
+ * Flag for setting QUIET period
+ */
+typedef enum {
+	HAL_QUIET_DISABLE		= 0x0,
+	HAL_QUIET_ENABLE		= 0x1,
+	HAL_QUIET_ADD_CURRENT_TSF	= 0x2,	/* add current TSF to next_start offset */
+	HAL_QUIET_ADD_SWBA_RESP_TIME	= 0x4,	/* add beacon response time to next_start offset */
+} HAL_QUIET_FLAG;
+
+#define	HAL_DFS_EVENT_PRICH		0x0000001
+
+struct dfs_event {
+	uint64_t	re_full_ts;	/* 64-bit full timestamp from interrupt time */
+	uint32_t	re_ts;		/* Original 15 bit recv timestamp */
+	uint8_t		re_rssi;	/* rssi of radar event */
+	uint8_t		re_dur;		/* duration of radar pulse */
+	uint32_t	re_flags;	/* Flags (see above) */
+};
+typedef struct dfs_event HAL_DFS_EVENT;
+
+/*
  * Hardware Access Layer (HAL) API.
  *
  * Clients of the HAL call ath_hal_attach to obtain a reference to an
@@ -842,6 +930,18 @@ struct ath_hal {
 	u_int	  __ahdecl(*ah_getCTSTimeout)(struct ath_hal*);
 	HAL_BOOL  __ahdecl(*ah_setDecompMask)(struct ath_hal*, uint16_t, int);
 	void	  __ahdecl(*ah_setCoverageClass)(struct ath_hal*, uint8_t, int);
+	HAL_STATUS	__ahdecl(*ah_setQuiet)(struct ath_hal *ah, uint32_t period,
+				uint32_t duration, uint32_t nextStart,
+				HAL_QUIET_FLAG flag);
+
+	/* DFS functions */
+	void	  __ahdecl(*ah_enableDfs)(struct ath_hal *ah,
+				HAL_PHYERR_PARAM *pe);
+	void	  __ahdecl(*ah_getDfsThresh)(struct ath_hal *ah,
+				HAL_PHYERR_PARAM *pe);
+	HAL_BOOL  __ahdecl(*ah_procRadarEvent)(struct ath_hal *ah,
+				struct ath_rx_status *rxs, uint64_t fulltsf,
+				const char *buf, HAL_DFS_EVENT *event);
 
 	/* Key Cache Functions */
 	uint32_t __ahdecl(*ah_getKeyCacheSize)(struct ath_hal*);

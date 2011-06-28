@@ -110,6 +110,53 @@ g_waitidlelock(void)
 }
 #endif
 
+struct g_attrchanged_args {
+	struct g_provider *pp;
+	const char *attr;
+};
+
+static void
+g_attr_changed_event(void *arg, int flag)
+{
+	struct g_attrchanged_args *args;
+	struct g_provider *pp;
+	struct g_consumer *cp;
+	struct g_consumer *next_cp;
+
+	args = arg;
+	pp = args->pp;
+
+	g_topology_assert();
+	if (flag != EV_CANCEL && g_shutdown == 0) {
+
+		/*
+		 * Tell all consumers of the change.
+		 */
+		LIST_FOREACH_SAFE(cp, &pp->consumers, consumers, next_cp) {
+			if (cp->geom->attrchanged != NULL)
+				cp->geom->attrchanged(cp, args->attr);
+		}
+	}
+	g_free(args);
+}
+
+int
+g_attr_changed(struct g_provider *pp, const char *attr, int flag)
+{
+	struct g_attrchanged_args *args;
+	int error;
+
+	args = g_malloc(sizeof *args, flag);
+	if (args == NULL)
+		return (ENOMEM);
+	args->pp = pp;
+	args->attr = attr;
+	error = g_post_event(g_attr_changed_event, args, flag, pp, NULL);
+	if (error != 0)
+		g_free(args);
+	return (error);
+}
+
 void
 g_orphan_provider(struct g_provider *pp, int error)
 {

@@ -70,6 +70,8 @@ __FBSDID("$FreeBSD$");
 #include "memalloc.h"
 #include "error.h"
 #include "mystring.h"
+#include "var.h"
+#include "builtins.h"
 
 
 static struct job *jobtab;	/* array of jobs */
@@ -798,6 +800,7 @@ forkshell(struct job *jp, union node *n, int mode)
 		handler = &main_handler;
 		closescript();
 		INTON;
+		forcelocal = 0;
 		clear_traps();
 #if JOBS
 		jobctl = 0;		/* do job control only in root shell */
@@ -820,7 +823,7 @@ forkshell(struct job *jp, union node *n, int mode)
 			    ! fd0_redirected_p ()) {
 				close(0);
 				if (open(_PATH_DEVNULL, O_RDONLY) != 0)
-					error("Can't open %s: %s",
+					error("cannot open %s: %s",
 					    _PATH_DEVNULL, strerror(errno));
 			}
 		}
@@ -832,7 +835,7 @@ forkshell(struct job *jp, union node *n, int mode)
 			    ! fd0_redirected_p ()) {
 				close(0);
 				if (open(_PATH_DEVNULL, O_RDONLY) != 0)
-					error("Can't open %s: %s",
+					error("cannot open %s: %s",
 					    _PATH_DEVNULL, strerror(errno));
 			}
 		}
@@ -1121,7 +1124,7 @@ backgndpidset(void)
 pid_t
 backgndpidval(void)
 {
-	if (bgjob != NULL)
+	if (bgjob != NULL && !forcelocal)
 		bgjob->remembered = 1;
 	return backgndpid;
 }

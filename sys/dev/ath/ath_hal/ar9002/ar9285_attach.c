@@ -98,7 +98,7 @@ ar9285AniSetup(struct ath_hal *ah)
                 .period                 = 100,
         };
 	/* NB: disable ANI noise immmunity for reliable RIFS rx */
-	AH5416(ah)->ah_ani_function &= ~ HAL_ANI_NOISE_IMMUNITY_LEVEL;
+	AH5416(ah)->ah_ani_function &= ~(1 << HAL_ANI_NOISE_IMMUNITY_LEVEL);
 
         ar5416AniAttach(ah, &aniparams, &aniparams, AH_TRUE);
 }
@@ -414,6 +414,7 @@ ar9285FillCapabilityInfo(struct ath_hal *ah)
 	pCap->halRifsTxSupport = AH_TRUE;
 	pCap->halRtsAggrLimit = 64*1024;	/* 802.11n max */
 	pCap->halExtChanDfsSupport = AH_TRUE;
+	pCap->halUseCombinedRadarRssi = AH_TRUE;
 #if 0
 	/* XXX bluetooth */
 	pCap->halBtCoexSupport = AH_TRUE;

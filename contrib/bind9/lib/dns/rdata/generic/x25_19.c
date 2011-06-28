@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: x25_19.c,v 1.39 2007/06/19 23:47:17 tbox Exp $ */
+/* $Id: x25_19.c,v 1.39 2007-06-19 23:47:17 tbox Exp $ */
 
 /* Reviewed: Thu Mar 16 16:15:57 PST 2000 by bwelling */
 

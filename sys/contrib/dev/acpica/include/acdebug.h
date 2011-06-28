@@ -277,6 +277,7 @@ void
 AcpiDbExecute (
     char                    *Name,
     char                    **Args,
+    ACPI_OBJECT_TYPE        *Types,
     UINT32                  Flags);
 
 void
@@ -356,6 +357,12 @@ ACPI_STATUS
 AcpiDbUserCommands (
     char                    Prompt,
     ACPI_PARSE_OBJECT       *Op);
+
+char *
+AcpiDbGetNextToken (
+    char                    *String,
+    char                    **Next,
+    ACPI_OBJECT_TYPE        *ReturnType);
 
 
 /*

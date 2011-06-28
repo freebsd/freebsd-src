@@ -101,7 +101,7 @@ struct g_command PUBSYM(class_commands)[] = {
 		{ 'l', "label", G_VAL_OPTIONAL, G_TYPE_STRING },
 		{ 'f', "flags", GPART_FLAGS, G_TYPE_STRING },
 		G_OPT_SENTINEL },
-	    "[-a alignment] [-b start] [-s size] -t type [-i index] "
+	    "-t type [-a alignment] [-b start] [-s size] [-i index] "
 		"[-l label] [-f flags] geom"
 	},
 	{ "backup", 0, gpart_backup, G_NULL_OPTS,
@@ -113,7 +113,7 @@ struct g_command PUBSYM(class_commands)[] = {
 		{ 'i', GPART_PARAM_INDEX, G_VAL_OPTIONAL, G_TYPE_NUMBER },
 		{ 'f', "flags", GPART_FLAGS, G_TYPE_STRING },
 		G_OPT_SENTINEL },
-	    "[-b bootcode] [-p partcode] [-i index] [-f flags] geom"
+	    "[-b bootcode] [-p partcode -i index] [-f flags] geom"
 	},
 	{ "commit", 0, gpart_issue, G_NULL_OPTS,
 	    "geom"
@@ -157,7 +157,7 @@ struct g_command PUBSYM(class_commands)[] = {
 		{ 'r', "show_rawtype", NULL, G_TYPE_BOOL },
 		{ 'p', "show_providers", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL },
-	    "[-lrp] [geom ...]"
+	    "[-l | -r] [-p] [geom ...]"
 	},
 	{ "undo", 0, gpart_issue, G_NULL_OPTS,
 	    "geom"
@@ -175,7 +175,7 @@ struct g_command PUBSYM(class_commands)[] = {
 		{ 'i', GPART_PARAM_INDEX, NULL, G_TYPE_NUMBER },
 		{ 'f', "flags", GPART_FLAGS, G_TYPE_STRING },
 		G_OPT_SENTINEL },
-	    "[-a alignment] [-s size] -i index [-f flags] geom"
+	    "-i index [-a alignment] [-s size] [-f flags] geom"
 	},
 	{ "restore", 0, gpart_restore, {
 		{ 'F', "force", NULL, G_TYPE_BOOL },
@@ -295,8 +295,8 @@ fmtattrib(struct gprovider *pp)
 	return (buf);
 }
 
-#define	ALIGNDOWN(d, a)		(-(a) & (d))
-#define	ALIGNUP(d, a)		(-(-(a) & -(d)))
+#define	ALIGNDOWN(d, a)	((d) - (d) % (a))
+#define	ALIGNUP(d, a)	((d) % (a) ? (d) - (d) % (a) + (a): (d))
 
 static int
 gpart_autofill_resize(struct gctl_req *req)
@@ -306,7 +306,7 @@ gpart_autofill_resize(struct gctl_req *req)
 	struct ggeom *gp;
 	struct gprovider *pp;
 	off_t last, size, start, new_size;
-	off_t lba, new_lba, alignment;
+	off_t lba, new_lba, alignment, offset;
 	const char *s;
 	int error, idx;
 
@@ -341,6 +341,10 @@ gpart_autofill_resize(struct gctl_req *req)
 			errc(EXIT_FAILURE, error, "Invalid alignment param");
 		if (alignment == 0)
 			errx(EXIT_FAILURE, "Invalid alignment param");
+	} else {
+		lba = pp->lg_stripesize / pp->lg_sectorsize;
+		if (lba > 0)
+			alignment = lba;
 	}
 	error = gctl_delete_param(req, "alignment");
 	if (error)
@@ -356,12 +360,10 @@ gpart_autofill_resize(struct gctl_req *req)
 		/* no autofill necessary. */
 		if (alignment == 1)
 			goto done;
-		if (new_size > alignment)
-			new_size = ALIGNDOWN(new_size, alignment);
 	}
 
+	offset = pp->lg_stripeoffset / pp->lg_sectorsize;
 	last = (off_t)strtoimax(find_geomcfg(gp, "last"), NULL, 0);
-	last = ALIGNDOWN(last, alignment);
 	LIST_FOREACH(pp, &gp->lg_provider, lg_provider) {
 		s = find_provcfg(pp, "index");
 		if (s == NULL)
@@ -375,24 +377,32 @@ gpart_autofill_resize(struct gctl_req *req)
 	s = find_provcfg(pp, "start");
 	start = (off_t)strtoimax(s, NULL, 0);
 	s = find_provcfg(pp, "end");
-	lba = (off_t)strtoimax(s, NULL, 0) + 1;
+	lba = (off_t)strtoimax(s, NULL, 0);
+	size = lba - start + 1;
 
-	if (lba > last) {
-		geom_deletetree(&mesh);
-		return (ENOSPC);
+	if (new_size > 0 && new_size <= size) {
+		/* The start offset may be not aligned, so we align the end
+		 * offset and then calculate the size.
+		 */
+		new_size = ALIGNDOWN(start + offset + new_size,
+		    alignment) - start - offset;
+		goto done;
 	}
-	size = lba - start;
-	pp = find_provider(gp, lba);
-	if (pp == NULL)
-		new_size = ALIGNDOWN(last - start + 1, alignment);
-	else {
+
+	pp = find_provider(gp, lba + 1);
+	if (pp == NULL) {
+		new_size = ALIGNDOWN(last + offset + 1, alignment) -
+		    start - offset;
+		if (new_size < size)
+			return (ENOSPC);
+	} else {
 		s = find_provcfg(pp, "start");
 		new_lba = (off_t)strtoimax(s, NULL, 0);
 		/*
 		 * Is there any free space between current and
 		 * next providers?
 		 */
-		new_lba = ALIGNUP(new_lba, alignment);
+		new_lba = ALIGNDOWN(new_lba + offset, alignment) - offset;
 		if (new_lba > lba)
 			new_size = new_lba - start;
 		else {
@@ -482,10 +492,12 @@ gpart_autofill(struct gctl_req *req)
 	if (has_size && has_start && !has_alignment)
 		goto done;
 
-	/* Adjust parameters to offset value for better alignment */
-	s = find_provcfg(pp, "offset");
-	offset = (s == NULL) ? 0:
-	    (off_t)strtoimax(s, NULL, 0) / pp->lg_sectorsize;
+	len = pp->lg_stripesize / pp->lg_sectorsize;
+	if (len > 0 && !has_alignment)
+		alignment = len;
+
+	/* Adjust parameters to stripeoffset */
+	offset = pp->lg_stripeoffset / pp->lg_sectorsize;
 	start = ALIGNUP(start + offset, alignment);
 	if (size + offset > alignment)
 		size = ALIGNDOWN(size + offset, alignment);
@@ -915,6 +927,7 @@ gpart_restore(struct gctl_req *req, unsigned int fl __unused)
 			gctl_ro_param(r, "size", -1, argv[3]);
 			if (rl != 0 && label != NULL)
 				gctl_ro_param(r, "label", -1, argv[4]);
+			gctl_ro_param(r, "alignment", -1, GPART_AUTOFILL);
 			gctl_ro_param(r, "arg0", -1, s);
 			error = gpart_autofill(r);
 			if (error != 0)

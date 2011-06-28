@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/systm.h>
+#include <sys/smp.h>
 
 #include <machine/clock.h>
 #include <x86/apicreg.h>
@@ -439,12 +440,11 @@ static int
 lapic_process_icr(struct vlapic *vlapic, uint64_t icrval)
 {
 	int i;
-	cpumask_t dmask, thiscpumask;
+	cpuset_t dmask;
 	uint32_t dest, vec, mode;
 	
-	thiscpumask = vcpu_mask(vlapic->vcpuid);
+	CPU_ZERO(&dmask);
 
-	dmask = 0;
 	dest = icrval >> 32;
 	vec = icrval & APIC_VECTOR_MASK;
 	mode = icrval & APIC_DELMODE_MASK;
@@ -452,26 +452,27 @@ lapic_process_icr(struct vlapic *vlapic, uint64_t icrval)
 	if (mode == APIC_DELMODE_FIXED || mode == APIC_DELMODE_NMI) {
 		switch (icrval & APIC_DEST_MASK) {
 		case APIC_DEST_DESTFLD:
-			dmask = vcpu_mask(dest);
+			CPU_SETOF(dest, &dmask);
 			break;
 		case APIC_DEST_SELF:
-			dmask = thiscpumask;
+			CPU_SETOF(vlapic->vcpuid, &dmask);
 			break;
 		case APIC_DEST_ALLISELF:
 			dmask = vm_active_cpus(vlapic->vm);
 			break;
 		case APIC_DEST_ALLESELF:
-			dmask = vm_active_cpus(vlapic->vm) & ~thiscpumask;
+			dmask = vm_active_cpus(vlapic->vm);
+			CPU_CLR(vlapic->vcpuid, &dmask);
 			break;
 		}
 
-		for (i = 0; i < VM_MAXCPU; i++) {
-			if (dmask & vcpu_mask(i)) {
-				if (mode == APIC_DELMODE_FIXED)
-					lapic_set_intr(vlapic->vm, i, vec);
-				else
-					vm_inject_nmi(vlapic->vm, i);
-			}
+		while ((i = cpusetobj_ffs(&dmask)) != 0) {
+			i--;
+			CPU_CLR(i, &dmask);
+			if (mode == APIC_DELMODE_FIXED)
+				lapic_set_intr(vlapic->vm, i, vec);
+			else
+				vm_inject_nmi(vlapic->vm, i);
 		}
 
 		return (0);	/* handled completely in the kernel */

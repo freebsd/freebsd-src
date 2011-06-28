@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rp_17.c,v 1.42 2007/06/19 23:47:17 tbox Exp $ */
+/* $Id: rp_17.c,v 1.42 2007-06-19 23:47:17 tbox Exp $ */
 
 /* RFC1183 */
 

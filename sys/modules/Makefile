@@ -156,6 +156,8 @@ SUBDIR=	${_3dfx} \
 	jme \
 	joy \
 	kbdmux \
+	kgssapi \
+	kgssapi_krb5 \
 	khelp \
 	krpc \
 	ksyms \

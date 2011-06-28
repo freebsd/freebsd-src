@@ -750,6 +750,11 @@ DEF_TRAVERSE_TYPE(DecltypeType, {
     TRY_TO(TraverseStmt(T->getUnderlyingExpr()));
   })
 
+DEF_TRAVERSE_TYPE(UnaryTransformType, {
+    TRY_TO(TraverseType(T->getBaseType()));
+    TRY_TO(TraverseType(T->getUnderlyingType()));
+    })
+
 DEF_TRAVERSE_TYPE(AutoType, {
     TRY_TO(TraverseType(T->getDeducedType()));
   })
@@ -964,6 +969,10 @@ DEF_TRAVERSE_TYPELOC(TypeOfType, {
 // FIXME: location of underlying expr
 DEF_TRAVERSE_TYPELOC(DecltypeType, {
     TRY_TO(TraverseStmt(TL.getTypePtr()->getUnderlyingExpr()));
+  })
+
+DEF_TRAVERSE_TYPELOC(UnaryTransformType, {
+    TRY_TO(TraverseTypeLoc(TL.getUnderlyingTInfo()->getTypeLoc()));
   })
 
 DEF_TRAVERSE_TYPELOC(AutoType, {
@@ -1366,6 +1375,11 @@ DEF_TRAVERSE_DECL(TypeAliasDecl, {
     // We shouldn't traverse D->getTypeForDecl(); it's a result of
     // declaring the type alias, not something that was written in the
     // source.
+  })
+
+DEF_TRAVERSE_DECL(TypeAliasTemplateDecl, {
+    TRY_TO(TraverseDecl(D->getTemplatedDecl()));
+    TRY_TO(TraverseTemplateParameterListHelper(D->getTemplateParameters()));
   })
 
 DEF_TRAVERSE_DECL(UnresolvedUsingTypenameDecl, {
@@ -1967,6 +1981,9 @@ DEF_TRAVERSE_STMT(FloatingLiteral, { })
 DEF_TRAVERSE_STMT(ImaginaryLiteral, { })
 DEF_TRAVERSE_STMT(StringLiteral, { })
 DEF_TRAVERSE_STMT(ObjCStringLiteral, { })
+  
+// Traverse OpenCL: AsType, Convert.
+DEF_TRAVERSE_STMT(AsTypeExpr, { })
 
 // FIXME: look at the following tricky-seeming exprs to see if we
 // need to recurse on anything.  These are ones that have methods

@@ -37,6 +37,7 @@
 #error "no assembler-serviceable parts inside"
 #endif
 
+#include <sys/_cpuset.h>
 #include <sys/queue.h>
 #include <sys/vmmeter.h>
 #include <sys/resource.h>
@@ -162,9 +163,7 @@ struct pcpu {
 	uint64_t	pc_switchtime;		/* cpu_ticks() at last csw */
 	int		pc_switchticks;		/* `ticks' at last csw */
 	u_int		pc_cpuid;		/* This cpu number */
-	cpumask_t	pc_cpumask;		/* This cpu mask */
-	cpumask_t	pc_other_cpus;		/* Mask of all other cpus */
-	SLIST_ENTRY(pcpu) pc_allcpu;
+	STAILQ_ENTRY(pcpu) pc_allcpu;
 	struct lock_list_entry *pc_spinlocks;
 #ifdef KTR
 	char		pc_name[PCPU_NAME_LEN];	/* String name for KTR */
@@ -197,11 +196,23 @@ struct pcpu {
 	 * if only to make kernel debugging easier.
 	 */
 	PCPU_MD_FIELDS;
+
+	/*
+	 * XXX
+	 * For the time being, keep the cpuset_t objects as the very last
+	 * members of the structure.
+	 * They are actually tagged to be removed soon, but as long as this
+	 * does not happen, it is necessary to find a way to implement
+	 * easilly interfaces to userland and leaving them last makes that
+	 * possible.
+	 */
+	cpuset_t	pc_cpumask;		/* This cpu mask */
+	cpuset_t	pc_other_cpus;		/* Mask of all other cpus */
 } __aligned(CACHE_LINE_SIZE);
 
 #ifdef _KERNEL
 
-SLIST_HEAD(cpuhead, pcpu);
+STAILQ_HEAD(cpuhead, pcpu);
 
 extern struct cpuhead cpuhead;
 extern struct pcpu *cpuid_to_pcpu[MAXCPU];

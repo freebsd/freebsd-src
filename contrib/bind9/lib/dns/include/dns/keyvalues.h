@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: keyvalues.h,v 1.23.48.4 2010/01/15 23:47:33 tbox Exp $ */
+/* $Id: keyvalues.h,v 1.23.48.4 2010-01-15 23:47:33 tbox Exp $ */
 
 #ifndef DNS_KEYVALUES_H
 #define DNS_KEYVALUES_H 1

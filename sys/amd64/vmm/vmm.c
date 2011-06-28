@@ -97,11 +97,11 @@ struct vm {
 	char		name[VM_MAX_NAMELEN];
 
 	/*
-	 * Mask of active vcpus.
+	 * Set of active vcpus.
 	 * An active vcpu is one that has been started implicitly (BSP) or
 	 * explicitly (AP) by sending it a startup ipi.
 	 */
-	cpumask_t	active_cpus;
+	cpuset_t	active_cpus;
 };
 
 static struct vmm_ops *ops;
@@ -720,10 +720,10 @@ vm_activate_cpu(struct vm *vm, int vcpuid)
 {
 
 	if (vcpuid >= 0 && vcpuid < VM_MAXCPU)
-		vm->active_cpus |= vcpu_mask(vcpuid);
+		CPU_SET(vcpuid, &vm->active_cpus);
 }
 
-cpumask_t
+cpuset_t
 vm_active_cpus(struct vm *vm)
 {
 

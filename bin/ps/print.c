@@ -341,6 +341,22 @@ s_uname(KINFO *k)
 }
 
 void
+egroupname(KINFO *k, VARENT *ve)
+{
+	VAR *v;
+
+	v = ve->var;
+	(void)printf("%-*s", v->width,
+	    group_from_gid(k->ki_p->ki_groups[0], 0));
+}
+
+int
+s_egroupname(KINFO *k)
+{
+	return (strlen(group_from_gid(k->ki_p->ki_groups[0], 0)));
+}
+
+void
 rgroupname(KINFO *k, VARENT *ve)
 {
 	VAR *v;

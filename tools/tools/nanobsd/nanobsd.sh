@@ -418,7 +418,7 @@ populate_slice ( ) (
 	echo "Creating ${dev} with ${dir} (mounting on ${mnt})"
 	newfs_part $dev $mnt $lbl
 	cd ${dir}
-	find . -print | grep -Ev '/(CVS|\.svn)' | cpio -Ldumpv ${mnt}
+	find . -print | grep -Ev '/(CVS|\.svn)' | cpio -dumpv ${mnt}
 	df -i ${mnt}
 	umount ${mnt}
 )

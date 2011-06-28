@@ -24,6 +24,7 @@
 #include "llvm/Support/Threading.h"
 #include "SymbolTableListTraitsImpl.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringExtras.h"
 using namespace llvm;
 
@@ -76,6 +77,12 @@ unsigned Argument::getArgNo() const {
 bool Argument::hasByValAttr() const {
   if (!getType()->isPointerTy()) return false;
   return getParent()->paramHasAttr(getArgNo()+1, Attribute::ByVal);
+}
+
+unsigned Argument::getParamAlignment() const {
+  assert(getType()->isPointerTy() && "Only pointers have alignments");
+  return getParent()->getParamAlignment(getArgNo()+1);
+  
 }
 
 /// hasNestAttr - Return true if this argument has the nest attribute on
@@ -403,6 +410,38 @@ bool Function::hasAddressTaken(const User* *PutOffender) const {
     if (!CS.isCallee(I))
       return PutOffender ? (*PutOffender = U, true) : true;
   }
+  return false;
+}
+
+/// callsFunctionThatReturnsTwice - Return true if the function has a call to
+/// setjmp or other function that gcc recognizes as "returning twice".
+///
+/// FIXME: Remove after <rdar://problem/8031714> is fixed.
+/// FIXME: Is the obove FIXME valid?
+bool Function::callsFunctionThatReturnsTwice() const {
+  const Module *M = this->getParent();
+  static const char *ReturnsTwiceFns[] = {
+    "_setjmp",
+    "setjmp",
+    "sigsetjmp",
+    "setjmp_syscall",
+    "savectx",
+    "qsetjmp",
+    "vfork",
+    "getcontext"
+  };
+
+  for (unsigned I = 0; I < array_lengthof(ReturnsTwiceFns); ++I)
+    if (const Function *Callee = M->getFunction(ReturnsTwiceFns[I])) {
+      if (!Callee->use_empty())
+        for (Value::const_use_iterator
+               I = Callee->use_begin(), E = Callee->use_end();
+             I != E; ++I)
+          if (const CallInst *CI = dyn_cast<CallInst>(*I))
+            if (CI->getParent()->getParent() == this)
+              return true;
+    }
+
   return false;
 }
 

@@ -85,8 +85,9 @@ namespace sys {
     /// This function waits for the program to exit. This function will block
     /// the current program until the invoked program exits.
     /// @returns an integer result code indicating the status of the program.
-    /// A zero or positive value indicates the result code of the program. A
-    /// negative value is the signal number on which it terminated.
+    /// A zero or positive value indicates the result code of the program.
+    /// -1 indicates failure to execute
+    /// -2 indicates a crash during execution or timeout
     /// @see Execute
     /// @brief Waits for the program to exit.
     int Wait

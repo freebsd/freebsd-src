@@ -307,6 +307,8 @@ struct ieee80211com {
 				    int status, int baparamset, int batimeout);
 	void			(*ic_addba_stop)(struct ieee80211_node *,
 				    struct ieee80211_tx_ampdu *);
+	void			(*ic_addba_response_timeout)(struct ieee80211_node *,
+				    struct ieee80211_tx_ampdu *);
 	/* BAR response received */
 	void			(*ic_bar_response)(struct ieee80211_node *,
 				    struct ieee80211_tx_ampdu *, int status);

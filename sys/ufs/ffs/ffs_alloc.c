@@ -116,7 +116,6 @@ static ufs2_daddr_t ffs_clusteralloc(struct inode *, u_int, ufs2_daddr_t, int,
 static ino_t	ffs_dirpref(struct inode *);
 static ufs2_daddr_t ffs_fragextend(struct inode *, u_int, ufs2_daddr_t,
 		    int, int);
-static void	ffs_fserr(struct fs *, ino_t, char *);
 static ufs2_daddr_t	ffs_hashalloc
 		(struct inode *, u_int, ufs2_daddr_t, int, int, allocfcn_t *);
 static ufs2_daddr_t ffs_nodealloccg(struct inode *, u_int, ufs2_daddr_t, int,
@@ -217,13 +216,13 @@ nospace:
 	(void) chkdq(ip, -btodb(size), cred, FORCE);
 	UFS_LOCK(ump);
 #endif
-	if (reclaimed == 0) {
+	if (reclaimed == 0 && (flags & IO_BUFLOCKED) == 0) {
 		reclaimed = 1;
 		softdep_request_cleanup(fs, ITOV(ip), cred, FLUSH_BLOCKS_WAIT);
 		goto retry;
 	}
 	UFS_UNLOCK(ump);
-	if (ppsratecheck(&lastfail, &curfail, 1)) {
+	if (reclaimed > 0 && ppsratecheck(&lastfail, &curfail, 1)) {
 		ffs_fserr(fs, ip->i_number, "filesystem full");
 		uprintf("\n%s: write failed, filesystem is full\n",
 		    fs->fs_fsmnt);
@@ -391,7 +390,7 @@ retry:
 		bp->b_blkno = fsbtodb(fs, bno);
 		if (!DOINGSOFTDEP(vp))
 			ffs_blkfree(ump, fs, ip->i_devvp, bprev, (long)osize,
-			    ip->i_number, NULL);
+			    ip->i_number, vp->v_type, NULL);
 		delta = btodb(nsize - osize);
 		DIP_SET(ip, i_blocks, DIP(ip, i_blocks) + delta);
 		if (flags & IO_EXT)
@@ -418,21 +417,21 @@ nospace:
 	/*
 	 * no space available
 	 */
-	if (reclaimed == 0) {
+	if (reclaimed == 0 && (flags & IO_BUFLOCKED) == 0) {
 		reclaimed = 1;
-		softdep_request_cleanup(fs, vp, cred, FLUSH_BLOCKS_WAIT);
 		UFS_UNLOCK(ump);
 		if (bp) {
 			brelse(bp);
 			bp = NULL;
 		}
 		UFS_LOCK(ump);
+		softdep_request_cleanup(fs, vp, cred, FLUSH_BLOCKS_WAIT);
 		goto retry;
 	}
 	UFS_UNLOCK(ump);
 	if (bp)
 		brelse(bp);
-	if (ppsratecheck(&lastfail, &curfail, 1)) {
+	if (reclaimed > 0 && ppsratecheck(&lastfail, &curfail, 1)) {
 		ffs_fserr(fs, ip->i_number, "filesystem full");
 		uprintf("\n%s: write failed, filesystem is full\n",
 		    fs->fs_fsmnt);
@@ -671,7 +670,7 @@ ffs_reallocblks_ufs1(ap)
 		if (!DOINGSOFTDEP(vp))
 			ffs_blkfree(ump, fs, ip->i_devvp,
 			    dbtofsb(fs, buflist->bs_children[i]->b_blkno),
-			    fs->fs_bsize, ip->i_number, NULL);
+			    fs->fs_bsize, ip->i_number, vp->v_type, NULL);
 		buflist->bs_children[i]->b_blkno = fsbtodb(fs, blkno);
 #ifdef INVARIANTS
 		if (!ffs_checkblk(ip,
@@ -879,7 +878,7 @@ ffs_reallocblks_ufs2(ap)
 		if (!DOINGSOFTDEP(vp))
 			ffs_blkfree(ump, fs, ip->i_devvp,
 			    dbtofsb(fs, buflist->bs_children[i]->b_blkno),
-			    fs->fs_bsize, ip->i_number, NULL);
+			    fs->fs_bsize, ip->i_number, vp->v_type, NULL);
 		buflist->bs_children[i]->b_blkno = fsbtodb(fs, blkno);
 #ifdef INVARIANTS
 		if (!ffs_checkblk(ip,
@@ -1022,7 +1021,7 @@ dup_alloc:
 		(*vpp)->v_op = &ffs_vnodeops1;
 	return (0);
 noinodes:
-	if (fs->fs_pendinginodes > 0 && reclaimed == 0) {
+	if (reclaimed == 0) {
 		reclaimed = 1;
 		softdep_request_cleanup(fs, pvp, cred, FLUSH_INODES_WAIT);
 		goto retry;
@@ -1830,7 +1829,7 @@ gotit:
 	}
 	UFS_UNLOCK(ump);
 	if (DOINGSOFTDEP(ITOV(ip)))
-		softdep_setup_inomapdep(bp, ip, cg * fs->fs_ipg + ipref);
+		softdep_setup_inomapdep(bp, ip, cg * fs->fs_ipg + ipref, mode);
 	bdwrite(bp);
 	if (ibp != NULL)
 		bawrite(ibp);
@@ -1873,10 +1872,7 @@ ffs_blkfree_cg(ump, fs, devvp, bno, size, inum, dephd)
 		/* devvp is a normal disk device */
 		dev = devvp->v_rdev;
 		cgblkno = fsbtodb(fs, cgtod(fs, cg));
-		ASSERT_VOP_LOCKED(devvp, "ffs_blkfree");
-		if ((devvp->v_vflag & VV_COPYONWRITE) &&
-		    ffs_snapblkfree(fs, devvp, bno, size, inum))
-			return;
+		ASSERT_VOP_LOCKED(devvp, "ffs_blkfree_cg");
 	}
 #ifdef INVARIANTS
 	if ((u_int)size > fs->fs_bsize || fragoff(fs, size) != 0 ||
@@ -1884,7 +1880,7 @@ ffs_blkfree_cg(ump, fs, devvp, bno, size, inum, dephd)
 		printf("dev=%s, bno = %jd, bsize = %ld, size = %ld, fs = %s\n",
 		    devtoname(dev), (intmax_t)bno, (long)fs->fs_bsize,
 		    size, fs->fs_fsmnt);
-		panic("ffs_blkfree: bad size");
+		panic("ffs_blkfree_cg: bad size");
 	}
 #endif
 	if ((u_int)bno >= fs->fs_size) {
@@ -1918,7 +1914,7 @@ ffs_blkfree_cg(ump, fs, devvp, bno, size, inum, dephd)
 			}
 			printf("dev = %s, block = %jd, fs = %s\n",
 			    devtoname(dev), (intmax_t)bno, fs->fs_fsmnt);
-			panic("ffs_blkfree: freeing free block");
+			panic("ffs_blkfree_cg: freeing free block");
 		}
 		ffs_setblock(fs, blksfree, fragno);
 		ffs_clusteracct(fs, cgp, fragno, 1);
@@ -1941,7 +1937,7 @@ ffs_blkfree_cg(ump, fs, devvp, bno, size, inum, dephd)
 				printf("dev = %s, block = %jd, fs = %s\n",
 				    devtoname(dev), (intmax_t)(bno + i),
 				    fs->fs_fsmnt);
-				panic("ffs_blkfree: freeing free frag");
+				panic("ffs_blkfree_cg: freeing free frag");
 			}
 			setbit(blksfree, cgbno + i);
 		}
@@ -2017,19 +2013,31 @@ ffs_blkfree_trim_completed(bip)
 }
 
 void
-ffs_blkfree(ump, fs, devvp, bno, size, inum, dephd)
+ffs_blkfree(ump, fs, devvp, bno, size, inum, vtype, dephd)
 	struct ufsmount *ump;
 	struct fs *fs;
 	struct vnode *devvp;
 	ufs2_daddr_t bno;
 	long size;
 	ino_t inum;
+	enum vtype vtype;
 	struct workhead *dephd;
 {
 	struct mount *mp;
 	struct bio *bip;
 	struct ffs_blkfree_trim_params *tp;
 
+	/*
+	 * Check to see if a snapshot wants to claim the block.
+	 * Check that devvp is a normal disk device, not a snapshot,
+	 * it has a snapshot(s) associated with it, and one of the
+	 * snapshots wants to claim the block.
+	 */
+	if (devvp->v_type != VREG &&
+	    (devvp->v_vflag & VV_COPYONWRITE) &&
+	    ffs_snapblkfree(fs, devvp, bno, size, inum, vtype, dephd)) {
+		return;
+	}
 	if (!ump->um_candelete) {
 		ffs_blkfree_cg(ump, fs, devvp, bno, size, inum, dephd);
 		return;
@@ -2327,7 +2335,7 @@ ffs_mapsearch(fs, cgp, bpref, allocsiz)
  * The form of the error message is:
  *	fs: error message
  */
-static void
+void
 ffs_fserr(fs, inum, cp)
 	struct fs *fs;
 	ino_t inum;
@@ -2348,8 +2356,8 @@ ffs_fserr(fs, inum, cp)
  *	specified inode by the specified amount. Under normal
  *	operation the count should always go down. Decrementing
  *	the count to zero will cause the inode to be freed.
- * adjblkcnt(inode, amt) - adjust the number of blocks used to
- *	by the specifed amount.
+ * adjblkcnt(inode, amt) - adjust the number of blocks used by the
+ *	inode by the specified amount.
  * adjndir, adjbfree, adjifree, adjffree, adjnumclusters(amt) -
  *	adjust the superblock summary.
  * freedirs(inode, count) - directory inodes [inode..inode + count - 1]
@@ -2564,7 +2572,7 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 			if (blksize > blkcnt)
 				blksize = blkcnt;
 			ffs_blkfree(ump, fs, ump->um_devvp, blkno,
-			    blksize * fs->fs_fsize, ROOTINO, NULL);
+			    blksize * fs->fs_fsize, ROOTINO, VDIR, NULL);
 			blkno += blksize;
 			blkcnt -= blksize;
 			blksize = fs->fs_frag;

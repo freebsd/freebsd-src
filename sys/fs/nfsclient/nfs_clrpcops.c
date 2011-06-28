@@ -68,7 +68,7 @@ static int nfsrpc_setattrrpc(vnode_t , struct vattr *, nfsv4stateid_t *,
     struct ucred *, NFSPROC_T *, struct nfsvattr *, int *, void *);
 static int nfsrpc_readrpc(vnode_t , struct uio *, struct ucred *,
     nfsv4stateid_t *, NFSPROC_T *, struct nfsvattr *, int *, void *);
-static int nfsrpc_writerpc(vnode_t , struct uio *, int *, u_char *,
+static int nfsrpc_writerpc(vnode_t , struct uio *, int *, int *,
     struct ucred *, nfsv4stateid_t *, NFSPROC_T *, struct nfsvattr *, int *,
     void *);
 static int nfsrpc_createv23(vnode_t , char *, int, struct vattr *,
@@ -1369,7 +1369,7 @@ nfsmout:
  * will then deadlock.
  */
 APPLESTATIC int
-nfsrpc_write(vnode_t vp, struct uio *uiop, int *iomode, u_char *verfp,
+nfsrpc_write(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
     struct ucred *cred, NFSPROC_T *p, struct nfsvattr *nap, int *attrflagp,
     void *stuff, int called_from_strategy)
 {
@@ -1382,6 +1382,7 @@ nfsrpc_write(vnode_t vp, struct uio *uiop, int *iomode, u_char *verfp,
 	nfsv4stateid_t stateid;
 	void *lckp;
 
+	*must_commit = 0;
 	if (nmp->nm_clp != NULL)
 		clidrev = nmp->nm_clp->nfsc_clientidrev;
 	newcred = cred;
@@ -1412,7 +1413,7 @@ nfsrpc_write(vnode_t vp, struct uio *uiop, int *iomode, u_char *verfp,
 		if (nostateid)
 			error = 0;
 		else
-			error = nfsrpc_writerpc(vp, uiop, iomode, verfp,
+			error = nfsrpc_writerpc(vp, uiop, iomode, must_commit,
 			    newcred, &stateid, p, nap, attrflagp, stuff);
 		if (error == NFSERR_STALESTATEID)
 			nfscl_initiate_recovery(nmp->nm_clp);
@@ -1447,7 +1448,7 @@ nfsrpc_write(vnode_t vp, struct uio *uiop, int *iomode, u_char *verfp,
  */
 static int
 nfsrpc_writerpc(vnode_t vp, struct uio *uiop, int *iomode,
-    u_char *verfp, struct ucred *cred, nfsv4stateid_t *stateidp,
+    int *must_commit, struct ucred *cred, nfsv4stateid_t *stateidp,
     NFSPROC_T *p, struct nfsvattr *nap, int *attrflagp, void *stuff)
 {
 	u_int32_t *tl;
@@ -1585,14 +1586,16 @@ nfsrpc_writerpc(vnode_t vp, struct uio *uiop, int *iomode,
 				else if (committed == NFSWRITE_DATASYNC &&
 					commit == NFSWRITE_UNSTABLE)
 					committed = commit;
-				if (verfp != NULL)
-					NFSBCOPY((caddr_t)tl, verfp, NFSX_VERF);
 				NFSLOCKMNT(nmp);
 				if (!NFSHASWRITEVERF(nmp)) {
 					NFSBCOPY((caddr_t)tl,
 					    (caddr_t)&nmp->nm_verf[0],
 					    NFSX_VERF);
 					NFSSETWRITEVERF(nmp);
+	    			} else if (NFSBCMP(tl, nmp->nm_verf,
+				    NFSX_VERF)) {
+					*must_commit = 1;
+					NFSBCOPY(tl, nmp->nm_verf, NFSX_VERF);
 				}
 				NFSUNLOCKMNT(nmp);
 			}
@@ -3456,7 +3459,7 @@ nfsmout:
  */
 APPLESTATIC int
 nfsrpc_advlock(vnode_t vp, off_t size, int op, struct flock *fl,
-    int reclaim, struct ucred *cred, NFSPROC_T *p)
+    int reclaim, struct ucred *cred, NFSPROC_T *p, void *id, int flags)
 {
 	struct nfscllockowner *lp;
 	struct nfsclclient *clp;
@@ -3508,11 +3511,11 @@ nfsrpc_advlock(vnode_t vp, off_t size, int op, struct flock *fl,
 		error = nfscl_getcl(vp, cred, p, &clp);
 		if (error)
 			return (error);
-		error = nfscl_lockt(vp, clp, off, len, fl, p);
+		error = nfscl_lockt(vp, clp, off, len, fl, p, id, flags);
 		if (!error) {
 			clidrev = clp->nfsc_clientidrev;
 			error = nfsrpc_lockt(nd, vp, clp, off, len, fl, cred,
-			    p);
+			    p, id, flags);
 		} else if (error == -1) {
 			error = 0;
 		}
@@ -3527,7 +3530,7 @@ nfsrpc_advlock(vnode_t vp, off_t size, int op, struct flock *fl,
 			return (error);
 		do {
 		    error = nfscl_relbytelock(vp, off, len, cred, p, callcnt,
-			clp, &lp, &dorpc);
+			clp, id, flags, &lp, &dorpc);
 		    /*
 		     * If it returns a NULL lp, we're done.
 		     */
@@ -3535,7 +3538,7 @@ nfsrpc_advlock(vnode_t vp, off_t size, int op, struct flock *fl,
 			if (callcnt == 0)
 			    nfscl_clientrelease(clp);
 			else
-			    nfscl_releasealllocks(clp, vp, p);
+			    nfscl_releasealllocks(clp, vp, p, id, flags);
 			return (error);
 		    }
 		    if (nmp->nm_clp != NULL)
@@ -3569,10 +3572,10 @@ nfsrpc_advlock(vnode_t vp, off_t size, int op, struct flock *fl,
 		    }
 		    callcnt++;
 		} while (error == 0 && nd->nd_repstat == 0);
-		nfscl_releasealllocks(clp, vp, p);
+		nfscl_releasealllocks(clp, vp, p, id, flags);
 	    } else if (op == F_SETLK) {
 		error = nfscl_getbytelock(vp, off, len, fl->l_type, cred, p,
-		    NULL, 0, NULL, NULL, &lp, &newone, &donelocally);
+		    NULL, 0, id, flags, NULL, NULL, &lp, &newone, &donelocally);
 		if (error || donelocally) {
 			return (error);
 		}
@@ -3622,7 +3625,7 @@ nfsrpc_advlock(vnode_t vp, off_t size, int op, struct flock *fl,
 APPLESTATIC int
 nfsrpc_lockt(struct nfsrv_descript *nd, vnode_t vp,
     struct nfsclclient *clp, u_int64_t off, u_int64_t len, struct flock *fl,
-    struct ucred *cred, NFSPROC_T *p)
+    struct ucred *cred, NFSPROC_T *p, void *id, int flags)
 {
 	u_int32_t *tl;
 	int error, type, size;
@@ -3640,7 +3643,7 @@ nfsrpc_lockt(struct nfsrv_descript *nd, vnode_t vp,
 	tl += 2;
 	*tl++ = clp->nfsc_clientid.lval[0];
 	*tl = clp->nfsc_clientid.lval[1];
-	nfscl_filllockowner(p, own);
+	nfscl_filllockowner(id, own, flags);
 	(void) nfsm_strtom(nd, own, NFSV4CL_LOCKNAMELEN);
 	error = nfscl_request(nd, vp, p, cred, NULL);
 	if (error)

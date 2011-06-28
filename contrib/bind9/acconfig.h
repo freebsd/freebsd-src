@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: acconfig.h,v 1.51.334.2 2009/02/16 23:47:15 tbox Exp $ */
+/* $Id: acconfig.h,v 1.51.334.2 2009-02-16 23:47:15 tbox Exp $ */
 
 /*! \file */
 

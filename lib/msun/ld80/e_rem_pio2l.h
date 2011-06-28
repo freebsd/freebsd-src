@@ -70,10 +70,7 @@ pio2_2t =  6.36831716351095013979e-25L,	/*  0xc51701b839a25205.0p-144 */
 pio2_3t = -2.75299651904407171810e-37L;	/* -0xbb5bf6c7ddd660ce.0p-185 */
 #endif
 
-#ifdef INLINE_REM_PIO2L
-static inline __always_inline
-#endif
-int
+static inline __always_inline int
 __ieee754_rem_pio2l(long double x, long double *y)
 {
 	union IEEEl2bits u,u1;
@@ -85,7 +82,7 @@ __ieee754_rem_pio2l(long double x, long double *y)
 	u.e = x;
 	expsign = u.xbits.expsign;
 	ex = expsign & 0x7fff;
-	if (ex < BIAS + 25 || ex == BIAS + 25 && u.bits.manh < 0xc90fdaa2) {
+	if (ex < BIAS + 25 || (ex == BIAS + 25 && u.bits.manh < 0xc90fdaa2)) {
 	    /* |x| ~< 2^25*(pi/2), medium size */
 	    /* Use a specialized rint() to get fn.  Assume round-to-nearest. */
 	    fn = x*invpio2+0x1.8p63;

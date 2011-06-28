@@ -127,6 +127,8 @@ struct inode {
 #define	IN_EA_LOCKED	0x0200
 #define	IN_EA_LOCKWAIT	0x0400
 
+#define	IN_TRUNCATED	0x0800		/* Journaled truncation pending. */
+
 #define i_devvp i_ump->um_devvp
 #define i_umbufobj i_ump->um_bo
 #define i_dirhash i_un.dirhash

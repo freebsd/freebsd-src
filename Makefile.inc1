@@ -12,6 +12,7 @@
 #	-DNO_KERNELOBJ do not run ${MAKE} obj in ${MAKE} buildkernel
 #	-DNO_PORTSUPDATE do not update ports in ${MAKE} update
 #	-DNO_DOCUPDATE do not update doc in ${MAKE} update
+#	-DNO_WWWUPDATE do not update www in ${MAKE} update
 #	-DNO_CTF do not run the DTrace CTF conversion tools on built objects
 #	LOCAL_DIRS="list of dirs" to add additional dirs to the SUBDIR list
 #	TARGET="machine" to crossbuild world for a different machine type
@@ -904,7 +905,7 @@ doxygen:
 #
 # update
 #
-# Update the source tree, by running cvsup and/or running cvs to update to the
+# Update the source tree(s), by running cvsup/cvs/svn to update to the
 # latest copy.
 #
 update:
@@ -926,6 +927,9 @@ update:
 .endif
 .if defined(DOCSUPFILE) && !defined(NO_DOCUPDATE)
 	@${SUP} ${SUPFLAGS} ${DOCSUPFILE}
+.endif
+.if defined(WWWSUPFILE) && !defined(NO_WWWUPDATE)
+	@${SUP} ${SUPFLAGS} ${WWWSUPFILE}
 .endif
 .endif
 .if defined(CVS_UPDATE)

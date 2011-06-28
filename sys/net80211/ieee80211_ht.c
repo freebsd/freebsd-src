@@ -217,6 +217,9 @@ static int ieee80211_addba_response(struct ieee80211_node *ni,
 	int code, int baparamset, int batimeout);
 static void ieee80211_addba_stop(struct ieee80211_node *ni,
 	struct ieee80211_tx_ampdu *tap);
+static void null_addba_response_timeout(struct ieee80211_node *ni,
+	struct ieee80211_tx_ampdu *tap);
+
 static void ieee80211_bar_response(struct ieee80211_node *ni,
 	struct ieee80211_tx_ampdu *tap, int status);
 static void ampdu_tx_stop(struct ieee80211_tx_ampdu *tap);
@@ -234,6 +237,7 @@ ieee80211_ht_attach(struct ieee80211com *ic)
 	ic->ic_ampdu_enable = ieee80211_ampdu_enable;
 	ic->ic_addba_request = ieee80211_addba_request;
 	ic->ic_addba_response = ieee80211_addba_response;
+	ic->ic_addba_response_timeout = null_addba_response_timeout;
 	ic->ic_addba_stop = ieee80211_addba_stop;
 	ic->ic_bar_response = ieee80211_bar_response;
 	ic->ic_ampdu_rx_start = ampdu_rx_start;
@@ -1691,14 +1695,23 @@ ampdu_tx_stop(struct ieee80211_tx_ampdu *tap)
 	tap->txa_flags &= ~(IEEE80211_AGGR_SETUP | IEEE80211_AGGR_NAK);
 }
 
+/*
+ * ADDBA response timeout.
+ *
+ * If software aggregation and per-TID queue management was done here,
+ * that queue would be unpaused after the ADDBA timeout occurs.
+ */
 static void
 addba_timeout(void *arg)
 {
 	struct ieee80211_tx_ampdu *tap = arg;
+	struct ieee80211_node *ni = tap->txa_ni;
+	struct ieee80211com *ic = ni->ni_ic;
 
 	/* XXX ? */
 	tap->txa_flags &= ~IEEE80211_AGGR_XCHGPEND;
 	tap->txa_attempts++;
+	ic->ic_addba_response_timeout(ni, tap);
 }
 
 static void
@@ -1719,6 +1732,12 @@ addba_stop_timeout(struct ieee80211_tx_ampdu *tap)
 		callout_stop(&tap->txa_timer);
 		tap->txa_flags &= ~IEEE80211_AGGR_XCHGPEND;
 	}
+}
+
+static void
+null_addba_response_timeout(struct ieee80211_node *ni,
+    struct ieee80211_tx_ampdu *tap)
+{
 }
 
 /*
@@ -2520,6 +2539,7 @@ ieee80211_add_htcap_body(uint8_t *frm, struct ieee80211_node *ni)
 	frm[1] = (v) >> 8;			\
 	frm += 2;				\
 } while (0)
+	struct ieee80211com *ic = ni->ni_ic;
 	struct ieee80211vap *vap = ni->ni_vap;
 	uint16_t caps, extcaps;
 	int rxmax, density;
@@ -2543,6 +2563,17 @@ ieee80211_add_htcap_body(uint8_t *frm, struct ieee80211_node *ni)
 		/* use advertised setting (XXX locally constraint) */
 		rxmax = MS(ni->ni_htparam, IEEE80211_HTCAP_MAXRXAMPDU);
 		density = MS(ni->ni_htparam, IEEE80211_HTCAP_MPDUDENSITY);
+
+		/*
+		 * NB: Hardware might support HT40 on some but not all
+		 * channels. We can't determine this earlier because only
+		 * after association the channel is upgraded to HT based
+		 * on the negotiated capabilities.
+		 */
+		if (ni->ni_chan != IEEE80211_CHAN_ANYC &&
+		    findhtchan(ic, ni->ni_chan, IEEE80211_CHAN_HT40U) == NULL &&
+		    findhtchan(ic, ni->ni_chan, IEEE80211_CHAN_HT40D) == NULL)
+			caps &= ~IEEE80211_HTCAP_CHWIDTH40;
 	} else {
 		/* override 20/40 use based on current channel */
 		if (IEEE80211_IS_CHAN_HT40(ni->ni_chan))
