@@ -625,19 +625,18 @@ pmap_init(void)
 static __inline void
 pmap_invalidate_all_local(pmap_t pmap)
 {
+	u_int cpuid;
+
+	cpuid = PCPU_GET(cpuid);
 
 	if (pmap == kernel_pmap) {
 		tlb_invalidate_all();
 		return;
 	}
-	sched_pin();
-	if (CPU_OVERLAP(&pmap->pm_active, PCPU_PTR(cpumask))) {
-		sched_unpin();
+	if (CPU_ISSET(cpuid, &pmap->pm_active))
 		tlb_invalidate_all_user(pmap);
-	} else {
-		sched_unpin();
-		pmap->pm_asid[PCPU_GET(cpuid)].gen = 0;
-	}
+	else
+		pmap->pm_asid[cpuid].gen = 0;
 }
 
 #ifdef SMP
@@ -666,21 +665,20 @@ pmap_invalidate_all(pmap_t pmap)
 static __inline void
 pmap_invalidate_page_local(pmap_t pmap, vm_offset_t va)
 {
+	u_int cpuid;
+
+	cpuid = PCPU_GET(cpuid);
 
 	if (is_kernel_pmap(pmap)) {
 		tlb_invalidate_address(pmap, va);
 		return;
 	}
-	sched_pin();
-	if (pmap->pm_asid[PCPU_GET(cpuid)].gen != PCPU_GET(asid_generation)) {
-		sched_unpin();
+	if (pmap->pm_asid[cpuid].gen != PCPU_GET(asid_generation))
 		return;
-	} else if (!CPU_OVERLAP(&pmap->pm_active, PCPU_PTR(cpumask))) {
-		pmap->pm_asid[PCPU_GET(cpuid)].gen = 0;
-		sched_unpin();
+	else if (!CPU_ISSET(cpuid, &pmap->pm_active)) {
+		pmap->pm_asid[cpuid].gen = 0;
 		return;
 	}
-	sched_unpin();
 	tlb_invalidate_address(pmap, va);
 }
 
@@ -719,21 +717,20 @@ pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 static __inline void
 pmap_update_page_local(pmap_t pmap, vm_offset_t va, pt_entry_t pte)
 {
+	u_int cpuid;
+
+	cpuid = PCPU_GET(cpuid);
 
 	if (is_kernel_pmap(pmap)) {
 		tlb_update(pmap, va, pte);
 		return;
 	}
-	sched_pin();
-	if (pmap->pm_asid[PCPU_GET(cpuid)].gen != PCPU_GET(asid_generation)) {
-		sched_unpin();
+	if (pmap->pm_asid[cpuid].gen != PCPU_GET(asid_generation))
 		return;
-	} else if (!CPU_OVERLAP(&pmap->pm_active, PCPU_PTR(cpumask))) {
-		pmap->pm_asid[PCPU_GET(cpuid)].gen = 0;
-		sched_unpin();
+	else if (!CPU_ISSET(cpuid, &pmap->pm_active)) {
+		pmap->pm_asid[cpuid].gen = 0;
 		return;
 	}
-	sched_unpin();
 	tlb_update(pmap, va, pte);
 }
 
@@ -2953,19 +2950,21 @@ pmap_activate(struct thread *td)
 {
 	pmap_t pmap, oldpmap;
 	struct proc *p = td->td_proc;
+	u_int cpuid;
 
 	critical_enter();
 
 	pmap = vmspace_pmap(p->p_vmspace);
 	oldpmap = PCPU_GET(curpmap);
+	cpuid = PCPU_GET(cpuid);
 
 	if (oldpmap)
-		CPU_NAND_ATOMIC(&oldpmap->pm_active, PCPU_PTR(cpumask));
-	CPU_OR_ATOMIC(&pmap->pm_active, PCPU_PTR(cpumask));
+		CPU_CLR_ATOMIC(cpuid, &oldpmap->pm_active);
+	CPU_SET_ATOMIC(cpuid, &pmap->pm_active);
 	pmap_asid_alloc(pmap);
 	if (td == curthread) {
 		PCPU_SET(segbase, pmap->pm_segtab);
-		mips_wr_entryhi(pmap->pm_asid[PCPU_GET(cpuid)].asid);
+		mips_wr_entryhi(pmap->pm_asid[cpuid].asid);
 	}
 
 	PCPU_SET(curpmap, pmap);

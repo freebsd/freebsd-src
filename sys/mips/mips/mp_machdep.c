@@ -75,8 +75,11 @@ ipi_send(struct pcpu *pc, int ipi)
 void
 ipi_all_but_self(int ipi)
 {
+	cpuset_t other_cpus;
 
-	ipi_selected(PCPU_GET(other_cpus), ipi);
+	other_cpus = all_cpus;
+	CPU_CLR(PCPU_GET(cpuid), &other_cpus);
+	ipi_selected(other_cpus, ipi);
 }
 
 /* Send an IPI to a set of cpus. */
@@ -86,7 +89,7 @@ ipi_selected(cpuset_t cpus, int ipi)
 	struct pcpu *pc;
 
 	STAILQ_FOREACH(pc, &cpuhead, pc_allcpu) {
-		if (CPU_OVERLAP(&cpus, &pc->pc_cpumask)) {
+		if (CPU_ISSET(pc->pc_cpuid, &cpus)) {
 			CTR3(KTR_SMP, "%s: pc: %p, ipi: %x\n", __func__, pc,
 			    ipi);
 			ipi_send(pc, ipi);
@@ -109,13 +112,10 @@ ipi_cpu(int cpu, u_int ipi)
 static int
 mips_ipi_handler(void *arg)
 {
-	int cpu;
-	cpuset_t cpumask;
-	u_int	ipi, ipi_bitmap;
+	u_int	cpu, ipi, ipi_bitmap;
 	int	bit;
 
 	cpu = PCPU_GET(cpuid);
-	cpumask = PCPU_GET(cpumask);
 
 	platform_ipi_clear();	/* quiesce the pending ipi interrupt */
 
@@ -150,14 +150,14 @@ mips_ipi_handler(void *arg)
 			tlb_save();
 
 			/* Indicate we are stopped */
-			CPU_OR_ATOMIC(&stopped_cpus, &cpumask);
+			CPU_SET_ATOMIC(cpu, &stopped_cpus);
 
 			/* Wait for restart */
-			while (!CPU_OVERLAP(&started_cpus, &cpumask))
+			while (!CPU_ISSET(cpu, &started_cpus))
 				cpu_spinwait();
 
-			CPU_NAND_ATOMIC(&started_cpus, &cpumask);
-			CPU_NAND_ATOMIC(&stopped_cpus, &cpumask);
+			CPU_CLR_ATOMIC(cpu, &started_cpus);
+			CPU_CLR_ATOMIC(cpu, &stopped_cpus);
 			CTR0(KTR_SMP, "IPI_STOP (restart)");
 			break;
 		case IPI_PREEMPT:
@@ -243,7 +243,7 @@ void
 cpu_mp_start(void)
 {
 	int error, cpuid;
-	cpuset_t cpumask, ocpus;
+	cpuset_t cpumask;
 
 	mtx_init(&ap_boot_mtx, "ap boot", NULL, MTX_SPIN);
 
@@ -269,16 +269,11 @@ cpu_mp_start(void)
 		}
 		CPU_SET(cpuid, &all_cpus);
 	}
-
-	ocpus = all_cpus;
-	CPU_CLR(PCPU_GET(cpuid), &ocpus);
-	PCPU_SET(other_cpus, ocpus);
 }
 
 void
 smp_init_secondary(u_int32_t cpuid)
 {
-	cpuset_t ocpus;
 
 	/* TLB */
 	mips_wr_wired(0);
@@ -315,11 +310,6 @@ smp_init_secondary(u_int32_t cpuid)
 	smp_cpus++;
 
 	CTR1(KTR_SMP, "SMP: AP CPU #%d launched", PCPU_GET(cpuid));
-
-	/* Build our map of 'other' CPUs. */
-	ocpus = all_cpus;
-	CPU_CLR(PCPU_GET(cpuid), &ocpus);
-	PCPU_SET(other_cpus, ocpus);
 
 	if (bootverbose)
 		printf("SMP: AP CPU #%d launched.\n", PCPU_GET(cpuid));
