@@ -2209,7 +2209,7 @@ gem_setladrf(struct gem_softc *sc, u_int enable)
 	 * Turn off the RX MAC and the hash filter as required by the Sun GEM
 	 * programming restrictions.
 	 */
-	v = sc->sc_mac_rxcfg & GEM_MAC_RX_HASH_FILTER;
+	v = sc->sc_mac_rxcfg & ~GEM_MAC_RX_HASH_FILTER;
 	GEM_BANK1_WRITE_4(sc, GEM_MAC_RX_CONFIG, v);
 	GEM_BANK1_BARRIER(sc, GEM_MAC_RX_CONFIG, 4,
 	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
