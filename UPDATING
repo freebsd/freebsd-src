@@ -22,6 +22,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 9.x IS SLOW:
 	machines to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20110628:
+	The packet filter (pf) code has been updated to OpenBSD 4.5.
+	You need to update userland tools to be in sync with kernel.
+
 20110608:
 	The following sysctls and tunables are retired on x86 platforms:
 		machdep.hlt_cpus

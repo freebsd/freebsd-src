@@ -1,4 +1,4 @@
-.\"	$OpenBSD: pf.4,v 1.58 2007/02/09 11:39:06 henning Exp $
+.\"	$OpenBSD: pf.4,v 1.62 2008/09/10 14:57:37 jmc Exp $
 .\"
 .\" Copyright (C) 2001, Kjell Wooding.  All rights reserved.
 .\"
@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 7, 2005
+.Dd September 10 2008
 .Dt PF 4
 .Os
 .Sh NAME
@@ -294,14 +294,17 @@ if another process is concurrently updating a ruleset.
 Add a state entry.
 .Bd -literal
 struct pfioc_state {
-	u_int32_t	 nr;
-	struct pf_state	 state;
+	struct pfsync_state	state;
 };
 .Ed
 .It Dv DIOCGETSTATE Fa "struct pfioc_state *ps"
-Extract the entry with the specified number
-.Va nr
-from the state table.
+Extract the entry identified by the
+.Va id
+and
+.Va creatorid
+fields of the
+.Va state
+structure from the state table.
 .It Dv DIOCKILLSTATES Fa "struct pfioc_state_kill *psk"
 Remove matching entries from the state table.
 This ioctl returns the number of killed states in
@@ -1049,12 +1052,14 @@ internal interface description.
 The filtering process is the same as for
 .Dv DIOCIGETIFACES .
 .Bd -literal
-#define PFI_IFLAG_SKIP		0x0100	/* skip filtering on interface */
+#define PFI_IFLAG_SKIP	0x0100	/* skip filtering on interface */
 .Ed
 .It Dv DIOCCLRIFFLAG Fa "struct pfioc_iface *io"
 Works as
 .Dv DIOCSETIFFLAG
 above but clears the flags.
+.It Dv DIOCKILLSRCNODES Fa "struct pfioc_iface *io"
+Explicitly remove source tracking nodes.
 .El
 .Sh FILES
 .Bl -tag -width /dev/pf -compact
@@ -1133,6 +1138,7 @@ main(int argc, char *argv[])
 .Xr altq 4 ,
 .Xr if_bridge 4 ,
 .Xr pflog 4 ,
+.Xr pflow 4 ,
 .Xr pfsync 4 ,
 .Xr pfctl 8 ,
 .Xr altq 9

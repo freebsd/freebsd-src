@@ -1,4 +1,4 @@
-/*	$OpenBSD: pf_norm.c,v 1.107 2006/04/16 00:59:52 pascoe Exp $ */
+/*	$OpenBSD: pf_norm.c,v 1.114 2009/01/29 14:11:45 henning Exp $ */
 
 /*
  * Copyright 2001 Niels Provos <provos@citi.umich.edu>
@@ -34,9 +34,9 @@
 __FBSDID("$FreeBSD$");
 
 #ifdef DEV_PFLOG
-#define	NPFLOG DEV_PFLOG
+#define	NPFLOG	DEV_PFLOG
 #else
-#define	NPFLOG 0
+#define	NPFLOG	0
 #endif
 #else
 #include "pflog.h"
@@ -78,8 +78,6 @@ __FBSDID("$FreeBSD$");
 #include <net/pfvar.h>
 
 #ifndef __FreeBSD__
-#include <inttypes.h>
-
 struct pf_frent {
 	LIST_ENTRY(pf_frent) fr_next;
 	struct ip *fr_ip;
@@ -118,17 +116,35 @@ struct pf_fragment {
 };
 #endif
 
+#ifdef __FreeBSD__
+TAILQ_HEAD(pf_fragqueue, pf_fragment);
+TAILQ_HEAD(pf_cachequeue, pf_fragment);
+VNET_DEFINE(struct pf_fragqueue,	pf_fragqueue);
+#define	V_pf_fragqueue			VNET(pf_fragqueue)
+VNET_DEFINE(struct pf_cachequeue,	pf_cachequeue);
+#define	V_pf_cachequeue			VNET(pf_cachequeue)
+#else
 TAILQ_HEAD(pf_fragqueue, pf_fragment)	pf_fragqueue;
 TAILQ_HEAD(pf_cachequeue, pf_fragment)	pf_cachequeue;
+#endif
 
 #ifndef __FreeBSD__
 static __inline int	 pf_frag_compare(struct pf_fragment *,
 			    struct pf_fragment *);
 #else
-static int	 pf_frag_compare(struct pf_fragment *,
+static int		 pf_frag_compare(struct pf_fragment *,
 			    struct pf_fragment *);
 #endif
+
+#ifdef __FreeBSD__
+RB_HEAD(pf_frag_tree, pf_fragment);
+VNET_DEFINE(struct pf_frag_tree,	pf_frag_tree);
+#define	V_pf_frag_tree			VNET(pf_frag_tree)
+VNET_DEFINE(struct pf_frag_tree,	pf_cache_tree);
+#define	V_pf_cache_tree			VNET(pf_cache_tree)
+#else
 RB_HEAD(pf_frag_tree, pf_fragment)	pf_frag_tree, pf_cache_tree;
+#endif
 RB_PROTOTYPE(pf_frag_tree, pf_fragment, fr_entry, pf_frag_compare);
 RB_GENERATE(pf_frag_tree, pf_fragment, fr_entry, pf_frag_compare);
 
@@ -143,24 +159,45 @@ struct mbuf		*pf_reassemble(struct mbuf **, struct pf_fragment **,
 struct mbuf		*pf_fragcache(struct mbuf **, struct ip*,
 			    struct pf_fragment **, int, int, int *);
 int			 pf_normalize_tcpopt(struct pf_rule *, struct mbuf *,
-			    struct tcphdr *, int);
-
+			    struct tcphdr *, int, sa_family_t);
+void			 pf_scrub_ip(struct mbuf **, u_int32_t, u_int8_t,
+			    u_int8_t);
+#ifdef INET6
+void			 pf_scrub_ip6(struct mbuf **, u_int8_t);
+#endif
+#ifdef __FreeBSD__
+#define	DPFPRINTF(x) do {				\
+	if (V_pf_status.debug >= PF_DEBUG_MISC) {	\
+		printf("%s: ", __func__);		\
+		printf x ;				\
+	}						\
+} while(0)
+#else
 #define	DPFPRINTF(x) do {				\
 	if (pf_status.debug >= PF_DEBUG_MISC) {		\
 		printf("%s: ", __func__);		\
 		printf x ;				\
 	}						\
 } while(0)
+#endif
 
 /* Globals */
 #ifdef __FreeBSD__
-uma_zone_t		 pf_frent_pl, pf_frag_pl, pf_cache_pl, pf_cent_pl;
-uma_zone_t		 pf_state_scrub_pl;
+VNET_DEFINE(uma_zone_t,		pf_frent_pl);
+VNET_DEFINE(uma_zone_t,		pf_frag_pl);
+VNET_DEFINE(uma_zone_t,		pf_cache_pl);
+VNET_DEFINE(uma_zone_t,		pf_cent_pl);
+VNET_DEFINE(uma_zone_t,		pf_state_scrub_pl);
+
+VNET_DEFINE(int,		pf_nfrents);
+#define	V_pf_nfrents		VNET(pf_nfrents)
+VNET_DEFINE(int,		pf_ncache);
+#define	V_pf_ncache		VNET(pf_ncache)
 #else
 struct pool		 pf_frent_pl, pf_frag_pl, pf_cache_pl, pf_cent_pl;
 struct pool		 pf_state_scrub_pl;
-#endif
 int			 pf_nfrents, pf_ncache;
+#endif
 
 void
 pf_normalize_init(void)
@@ -171,9 +208,9 @@ pf_normalize_init(void)
 	 * No high water mark support(It's hint not hard limit).
 	 * uma_zone_set_max(pf_frag_pl, PFFRAG_FRAG_HIWAT);
 	 */
-	uma_zone_set_max(pf_frent_pl, PFFRAG_FRENT_HIWAT);
-	uma_zone_set_max(pf_cache_pl, PFFRAG_FRCACHE_HIWAT);
-	uma_zone_set_max(pf_cent_pl, PFFRAG_FRCENT_HIWAT);
+	uma_zone_set_max(V_pf_frent_pl, PFFRAG_FRENT_HIWAT);
+	uma_zone_set_max(V_pf_cache_pl, PFFRAG_FRCACHE_HIWAT);
+	uma_zone_set_max(V_pf_cent_pl, PFFRAG_FRCENT_HIWAT);
 #else
 	pool_init(&pf_frent_pl, sizeof(struct pf_frent), 0, 0, 0, "pffrent",
 	    NULL);
@@ -192,8 +229,13 @@ pf_normalize_init(void)
 	pool_sethardlimit(&pf_cent_pl, PFFRAG_FRCENT_HIWAT, NULL, 0);
 #endif
 
+#ifdef __FreeBSD__
+	TAILQ_INIT(&V_pf_fragqueue);
+	TAILQ_INIT(&V_pf_cachequeue);
+#else
 	TAILQ_INIT(&pf_fragqueue);
 	TAILQ_INIT(&pf_cachequeue);
+#endif
 }
 
 #ifdef __FreeBSD__
@@ -224,14 +266,20 @@ void
 pf_purge_expired_fragments(void)
 {
 	struct pf_fragment	*frag;
+#ifdef __FreeBSD__
+	u_int32_t		 expire = time_second -
+				    V_pf_default_rule.timeout[PFTM_FRAG];
+#else
 	u_int32_t		 expire = time_second -
 				    pf_default_rule.timeout[PFTM_FRAG];
+#endif
 
-	while ((frag = TAILQ_LAST(&pf_fragqueue, pf_fragqueue)) != NULL) {
 #ifdef __FreeBSD__
+	while ((frag = TAILQ_LAST(&V_pf_fragqueue, pf_fragqueue)) != NULL) {
 		KASSERT((BUFFER_FRAGMENTS(frag)),
-			("BUFFER_FRAGMENTS(frag) == 0: %s", __FUNCTION__));
+		    ("BUFFER_FRAGMENTS(frag) == 0: %s", __FUNCTION__));
 #else
+	while ((frag = TAILQ_LAST(&pf_fragqueue, pf_fragqueue)) != NULL) {
 		KASSERT(BUFFER_FRAGMENTS(frag));
 #endif
 		if (frag->fr_timeout > expire)
@@ -241,11 +289,12 @@ pf_purge_expired_fragments(void)
 		pf_free_fragment(frag);
 	}
 
-	while ((frag = TAILQ_LAST(&pf_cachequeue, pf_cachequeue)) != NULL) {
 #ifdef __FreeBSD__
+	while ((frag = TAILQ_LAST(&V_pf_cachequeue, pf_cachequeue)) != NULL) {
 		KASSERT((!BUFFER_FRAGMENTS(frag)),
-			("BUFFER_FRAGMENTS(frag) != 0: %s", __FUNCTION__));
+		    ("BUFFER_FRAGMENTS(frag) != 0: %s", __FUNCTION__));
 #else
+	while ((frag = TAILQ_LAST(&pf_cachequeue, pf_cachequeue)) != NULL) {
 		KASSERT(!BUFFER_FRAGMENTS(frag));
 #endif
 		if (frag->fr_timeout > expire)
@@ -254,8 +303,8 @@ pf_purge_expired_fragments(void)
 		DPFPRINTF(("expiring %d(%p)\n", frag->fr_id, frag));
 		pf_free_fragment(frag);
 #ifdef __FreeBSD__
-		KASSERT((TAILQ_EMPTY(&pf_cachequeue) ||
-		    TAILQ_LAST(&pf_cachequeue, pf_cachequeue) != frag),
+		KASSERT((TAILQ_EMPTY(&V_pf_cachequeue) ||
+		    TAILQ_LAST(&V_pf_cachequeue, pf_cachequeue) != frag),
 		    ("!(TAILQ_EMPTY() || TAILQ_LAST() == farg): %s",
 		    __FUNCTION__));
 #else
@@ -275,22 +324,44 @@ pf_flush_fragments(void)
 	struct pf_fragment	*frag;
 	int			 goal;
 
+#ifdef __FreeBSD__
+	goal = V_pf_nfrents * 9 / 10;
+	DPFPRINTF(("trying to free > %d frents\n",
+	    V_pf_nfrents - goal));
+	while (goal < V_pf_nfrents) {
+#else
 	goal = pf_nfrents * 9 / 10;
 	DPFPRINTF(("trying to free > %d frents\n",
 	    pf_nfrents - goal));
 	while (goal < pf_nfrents) {
+#endif
+#ifdef __FreeBSD__
+		frag = TAILQ_LAST(&V_pf_fragqueue, pf_fragqueue);
+#else
 		frag = TAILQ_LAST(&pf_fragqueue, pf_fragqueue);
+#endif
 		if (frag == NULL)
 			break;
 		pf_free_fragment(frag);
 	}
 
 
+#ifdef __FreeBSD__
+	goal = V_pf_ncache * 9 / 10;
+	DPFPRINTF(("trying to free > %d cache entries\n",
+	    V_pf_ncache - goal));
+	while (goal < V_pf_ncache) {
+#else
 	goal = pf_ncache * 9 / 10;
 	DPFPRINTF(("trying to free > %d cache entries\n",
 	    pf_ncache - goal));
 	while (goal < pf_ncache) {
+#endif
+#ifdef __FreeBSD__
+		frag = TAILQ_LAST(&V_pf_cachequeue, pf_cachequeue);
+#else
 		frag = TAILQ_LAST(&pf_cachequeue, pf_cachequeue);
+#endif
 		if (frag == NULL)
 			break;
 		pf_free_fragment(frag);
@@ -312,8 +383,13 @@ pf_free_fragment(struct pf_fragment *frag)
 			LIST_REMOVE(frent, fr_next);
 
 			m_freem(frent->fr_m);
+#ifdef __FreeBSD__
+			pool_put(&V_pf_frent_pl, frent);
+			V_pf_nfrents--;
+#else
 			pool_put(&pf_frent_pl, frent);
 			pf_nfrents--;
+#endif
 		}
 	} else {
 		for (frcache = LIST_FIRST(&frag->fr_cache); frcache;
@@ -325,15 +401,18 @@ pf_free_fragment(struct pf_fragment *frag)
 			    LIST_FIRST(&frag->fr_cache)->fr_off >
 			    frcache->fr_end),
 			    ("! (LIST_EMPTY() || LIST_FIRST()->fr_off >"
-                             " frcache->fr_end): %s", __FUNCTION__));
+			      " frcache->fr_end): %s", __FUNCTION__));
+
+			pool_put(&V_pf_cent_pl, frcache);
+			V_pf_ncache--;
 #else
 			KASSERT(LIST_EMPTY(&frag->fr_cache) ||
 			    LIST_FIRST(&frag->fr_cache)->fr_off >
 			    frcache->fr_end);
-#endif
 
 			pool_put(&pf_cent_pl, frcache);
 			pf_ncache--;
+#endif
 		}
 	}
 
@@ -362,11 +441,21 @@ pf_find_fragment(struct ip *ip, struct pf_frag_tree *tree)
 		/* XXX Are we sure we want to update the timeout? */
 		frag->fr_timeout = time_second;
 		if (BUFFER_FRAGMENTS(frag)) {
+#ifdef __FreeBSD__
+			TAILQ_REMOVE(&V_pf_fragqueue, frag, frag_next);
+			TAILQ_INSERT_HEAD(&V_pf_fragqueue, frag, frag_next);
+#else
 			TAILQ_REMOVE(&pf_fragqueue, frag, frag_next);
 			TAILQ_INSERT_HEAD(&pf_fragqueue, frag, frag_next);
+#endif
 		} else {
+#ifdef __FreeBSD__
+			TAILQ_REMOVE(&V_pf_cachequeue, frag, frag_next);
+			TAILQ_INSERT_HEAD(&V_pf_cachequeue, frag, frag_next);
+#else
 			TAILQ_REMOVE(&pf_cachequeue, frag, frag_next);
 			TAILQ_INSERT_HEAD(&pf_cachequeue, frag, frag_next);
+#endif
 		}
 	}
 
@@ -379,13 +468,25 @@ void
 pf_remove_fragment(struct pf_fragment *frag)
 {
 	if (BUFFER_FRAGMENTS(frag)) {
+#ifdef __FreeBSD__
+		RB_REMOVE(pf_frag_tree, &V_pf_frag_tree, frag);
+		TAILQ_REMOVE(&V_pf_fragqueue, frag, frag_next);
+		pool_put(&V_pf_frag_pl, frag);
+#else
 		RB_REMOVE(pf_frag_tree, &pf_frag_tree, frag);
 		TAILQ_REMOVE(&pf_fragqueue, frag, frag_next);
 		pool_put(&pf_frag_pl, frag);
+#endif
 	} else {
+#ifdef __FreeBSD__
+		RB_REMOVE(pf_frag_tree, &V_pf_cache_tree, frag);
+		TAILQ_REMOVE(&V_pf_cachequeue, frag, frag_next);
+		pool_put(&V_pf_cache_pl, frag);
+#else
 		RB_REMOVE(pf_frag_tree, &pf_cache_tree, frag);
 		TAILQ_REMOVE(&pf_cachequeue, frag, frag_next);
 		pool_put(&pf_cache_pl, frag);
+#endif
 	}
 }
 
@@ -416,10 +517,18 @@ pf_reassemble(struct mbuf **m0, struct pf_fragment **frag,
 
 	/* Create a new reassembly queue for this packet */
 	if (*frag == NULL) {
+#ifdef __FreeBSD__
+		*frag = pool_get(&V_pf_frag_pl, PR_NOWAIT);
+#else
 		*frag = pool_get(&pf_frag_pl, PR_NOWAIT);
+#endif
 		if (*frag == NULL) {
 			pf_flush_fragments();
+#ifdef __FreeBSD__
+			*frag = pool_get(&V_pf_frag_pl, PR_NOWAIT);
+#else
 			*frag = pool_get(&pf_frag_pl, PR_NOWAIT);
+#endif
 			if (*frag == NULL)
 				goto drop_fragment;
 		}
@@ -433,8 +542,13 @@ pf_reassemble(struct mbuf **m0, struct pf_fragment **frag,
 		(*frag)->fr_timeout = time_second;
 		LIST_INIT(&(*frag)->fr_queue);
 
+#ifdef __FreeBSD__
+		RB_INSERT(pf_frag_tree, &V_pf_frag_tree, *frag);
+		TAILQ_INSERT_HEAD(&V_pf_fragqueue, *frag, frag_next);
+#else
 		RB_INSERT(pf_frag_tree, &pf_frag_tree, *frag);
 		TAILQ_INSERT_HEAD(&pf_fragqueue, *frag, frag_next);
+#endif
 
 		/* We do not have a previous fragment */
 		frep = NULL;
@@ -499,8 +613,13 @@ pf_reassemble(struct mbuf **m0, struct pf_fragment **frag,
 		next = LIST_NEXT(frea, fr_next);
 		m_freem(frea->fr_m);
 		LIST_REMOVE(frea, fr_next);
+#ifdef __FreeBSD__
+		pool_put(&V_pf_frent_pl, frea);
+		V_pf_nfrents--;
+#else
 		pool_put(&pf_frent_pl, frea);
 		pf_nfrents--;
+#endif
 	}
 
  insert:
@@ -560,26 +679,36 @@ pf_reassemble(struct mbuf **m0, struct pf_fragment **frag,
 	m2 = m->m_next;
 	m->m_next = NULL;
 	m_cat(m, m2);
+#ifdef __FreeBSD__
+	pool_put(&V_pf_frent_pl, frent);
+	V_pf_nfrents--;
+#else
 	pool_put(&pf_frent_pl, frent);
 	pf_nfrents--;
+#endif
 	for (frent = next; frent != NULL; frent = next) {
 		next = LIST_NEXT(frent, fr_next);
 
 		m2 = frent->fr_m;
+#ifdef __FreeBSD__
+		pool_put(&V_pf_frent_pl, frent);
+		V_pf_nfrents--;
+#else
 		pool_put(&pf_frent_pl, frent);
 		pf_nfrents--;
+#endif
 #ifdef __FreeBSD__
 		m->m_pkthdr.csum_flags &= m2->m_pkthdr.csum_flags;
 		m->m_pkthdr.csum_data += m2->m_pkthdr.csum_data;
 #endif
 		m_cat(m, m2);
 	}
+
 #ifdef __FreeBSD__
 	while (m->m_pkthdr.csum_data & 0xffff0000)
 		m->m_pkthdr.csum_data = (m->m_pkthdr.csum_data & 0xffff) +
 		    (m->m_pkthdr.csum_data >> 16);
 #endif
-
 	ip->ip_src = (*frag)->fr_src;
 	ip->ip_dst = (*frag)->fr_dst;
 
@@ -606,8 +735,13 @@ pf_reassemble(struct mbuf **m0, struct pf_fragment **frag,
 
  drop_fragment:
 	/* Oops - fail safe - drop packet */
+#ifdef __FreeBSD__
+	pool_put(&V_pf_frent_pl, frent);
+	V_pf_nfrents--;
+#else
 	pool_put(&pf_frent_pl, frent);
 	pf_nfrents--;
+#endif
 	m_freem(m);
 	return (NULL);
 }
@@ -632,22 +766,40 @@ pf_fragcache(struct mbuf **m0, struct ip *h, struct pf_fragment **frag, int mff,
 
 	/* Create a new range queue for this packet */
 	if (*frag == NULL) {
+#ifdef __FreeBSD__
+		*frag = pool_get(&V_pf_cache_pl, PR_NOWAIT);
+#else
 		*frag = pool_get(&pf_cache_pl, PR_NOWAIT);
+#endif
 		if (*frag == NULL) {
 			pf_flush_fragments();
+#ifdef __FreeBSD__
+			*frag = pool_get(&V_pf_cache_pl, PR_NOWAIT);
+#else
 			*frag = pool_get(&pf_cache_pl, PR_NOWAIT);
+#endif
 			if (*frag == NULL)
 				goto no_mem;
 		}
 
 		/* Get an entry for the queue */
+#ifdef __FreeBSD__
+		cur = pool_get(&V_pf_cent_pl, PR_NOWAIT);
+		if (cur == NULL) {
+			pool_put(&V_pf_cache_pl, *frag);
+#else
 		cur = pool_get(&pf_cent_pl, PR_NOWAIT);
 		if (cur == NULL) {
 			pool_put(&pf_cache_pl, *frag);
+#endif
 			*frag = NULL;
 			goto no_mem;
 		}
+#ifdef __FreeBSD__
+		V_pf_ncache++;
+#else
 		pf_ncache++;
+#endif
 
 		(*frag)->fr_flags = PFFRAG_NOBUFFER;
 		(*frag)->fr_max = 0;
@@ -662,8 +814,13 @@ pf_fragcache(struct mbuf **m0, struct ip *h, struct pf_fragment **frag, int mff,
 		LIST_INIT(&(*frag)->fr_cache);
 		LIST_INSERT_HEAD(&(*frag)->fr_cache, cur, fr_next);
 
+#ifdef __FreeBSD__
+		RB_INSERT(pf_frag_tree, &V_pf_cache_tree, *frag);
+		TAILQ_INSERT_HEAD(&V_pf_cachequeue, *frag, frag_next);
+#else
 		RB_INSERT(pf_frag_tree, &pf_cache_tree, *frag);
 		TAILQ_INSERT_HEAD(&pf_cachequeue, *frag, frag_next);
+#endif
 
 		DPFPRINTF(("fragcache[%d]: new %d-%d\n", h->ip_id, off, max));
 
@@ -782,10 +939,18 @@ pf_fragcache(struct mbuf **m0, struct ip *h, struct pf_fragment **frag, int mff,
 			    h->ip_id, -precut, frp->fr_off, frp->fr_end, off,
 			    max));
 
+#ifdef __FreeBSD__
+			cur = pool_get(&V_pf_cent_pl, PR_NOWAIT);
+#else
 			cur = pool_get(&pf_cent_pl, PR_NOWAIT);
+#endif
 			if (cur == NULL)
 				goto no_mem;
+#ifdef __FreeBSD__
+			V_pf_ncache++;
+#else
 			pf_ncache++;
+#endif
 
 			cur->fr_off = off;
 			cur->fr_end = max;
@@ -842,10 +1007,18 @@ pf_fragcache(struct mbuf **m0, struct ip *h, struct pf_fragment **frag, int mff,
 			    h->ip_id, -aftercut, off, max, fra->fr_off,
 			    fra->fr_end));
 
+#ifdef __FreeBSD__
+			cur = pool_get(&V_pf_cent_pl, PR_NOWAIT);
+#else
 			cur = pool_get(&pf_cent_pl, PR_NOWAIT);
+#endif
 			if (cur == NULL)
 				goto no_mem;
+#ifdef __FreeBSD__
+			V_pf_ncache++;
+#else
 			pf_ncache++;
+#endif
 
 			cur->fr_off = off;
 			cur->fr_end = max;
@@ -863,8 +1036,13 @@ pf_fragcache(struct mbuf **m0, struct ip *h, struct pf_fragment **frag, int mff,
 				    max, fra->fr_off, fra->fr_end));
 				fra->fr_off = cur->fr_off;
 				LIST_REMOVE(cur, fr_next);
+#ifdef __FreeBSD__
+				pool_put(&V_pf_cent_pl, cur);
+				V_pf_ncache--;
+#else
 				pool_put(&pf_cent_pl, cur);
 				pf_ncache--;
+#endif
 				cur = NULL;
 
 			} else if (frp && fra->fr_off <= frp->fr_end) {
@@ -881,8 +1059,13 @@ pf_fragcache(struct mbuf **m0, struct ip *h, struct pf_fragment **frag, int mff,
 				    max, fra->fr_off, fra->fr_end));
 				fra->fr_off = frp->fr_off;
 				LIST_REMOVE(frp, fr_next);
+#ifdef __FreeBSD__
+				pool_put(&V_pf_cent_pl, frp);
+				V_pf_ncache--;
+#else
 				pool_put(&pf_cent_pl, frp);
 				pf_ncache--;
+#endif
 				frp = NULL;
 
 			}
@@ -965,6 +1148,7 @@ pf_normalize_ip(struct mbuf **m0, int dir, struct pfi_kif *kif, u_short *reason,
 	u_int16_t		 max;
 	int			 ip_len;
 	int			 ip_off;
+	int			 tag = -1;
 
 	r = TAILQ_FIRST(pf_main_ruleset.rules[PF_RULESET_SCRUB].active.ptr);
 	while (r != NULL) {
@@ -985,6 +1169,12 @@ pf_normalize_ip(struct mbuf **m0, int dir, struct pfi_kif *kif, u_short *reason,
 		    (struct pf_addr *)&h->ip_dst.s_addr, AF_INET,
 		    r->dst.neg, NULL))
 			r = r->skip[PF_SKIP_DST_ADDR].ptr;
+#ifdef __FreeBSD__
+		else if (r->match_tag && !pf_match_tag(m, r, &tag, pd->pf_mtag))
+#else
+		else if (r->match_tag && !pf_match_tag(m, r, &tag))
+#endif
+			r = TAILQ_NEXT(r, entries);
 		else
 			break;
 	}
@@ -1043,7 +1233,11 @@ pf_normalize_ip(struct mbuf **m0, int dir, struct pfi_kif *kif, u_short *reason,
 	if ((r->rule_flag & (PFRULE_FRAGCROP|PFRULE_FRAGDROP)) == 0) {
 		/* Fully buffer all of the fragments */
 
+#ifdef __FreeBSD__
+		frag = pf_find_fragment(h, &V_pf_frag_tree);
+#else
 		frag = pf_find_fragment(h, &pf_frag_tree);
+#endif
 
 		/* Check if we saw the last fragment already */
 		if (frag != NULL && (frag->fr_flags & PFFRAG_SEENLAST) &&
@@ -1051,12 +1245,20 @@ pf_normalize_ip(struct mbuf **m0, int dir, struct pfi_kif *kif, u_short *reason,
 			goto bad;
 
 		/* Get an entry for the fragment queue */
+#ifdef __FreeBSD__
+		frent = pool_get(&V_pf_frent_pl, PR_NOWAIT);
+#else
 		frent = pool_get(&pf_frent_pl, PR_NOWAIT);
+#endif
 		if (frent == NULL) {
 			REASON_SET(reason, PFRES_MEMORY);
 			return (PF_DROP);
 		}
+#ifdef __FreeBSD__
+		V_pf_nfrents++;
+#else
 		pf_nfrents++;
+#endif
 		frent->fr_ip = h;
 		frent->fr_m = m;
 
@@ -1087,7 +1289,11 @@ pf_normalize_ip(struct mbuf **m0, int dir, struct pfi_kif *kif, u_short *reason,
 		/* non-buffering fragment cache (drops or masks overlaps) */
 		int	nomem = 0;
 
+#ifdef __FreeBSD__
 		if (dir == PF_OUT && pd->pf_mtag->flags & PF_TAG_FRAGCACHE) {
+#else
+		if (dir == PF_OUT && m->m_pkthdr.pf.flags & PF_TAG_FRAGCACHE) {
+#endif
 			/*
 			 * Already passed the fragment cache in the
 			 * input direction.  If we continued, it would
@@ -1096,7 +1302,11 @@ pf_normalize_ip(struct mbuf **m0, int dir, struct pfi_kif *kif, u_short *reason,
 			goto fragment_pass;
 		}
 
+#ifdef __FreeBSD__
+		frag = pf_find_fragment(h, &V_pf_cache_tree);
+#else
 		frag = pf_find_fragment(h, &pf_cache_tree);
+#endif
 
 		/* Check if we saw the last fragment already */
 		if (frag != NULL && (frag->fr_flags & PFFRAG_SEENLAST) &&
@@ -1127,7 +1337,11 @@ pf_normalize_ip(struct mbuf **m0, int dir, struct pfi_kif *kif, u_short *reason,
 		}
 #endif
 		if (dir == PF_IN)
+#ifdef __FreeBSD__
 			pd->pf_mtag->flags |= PF_TAG_FRAGCACHE;
+#else
+			m->m_pkthdr.pf.flags |= PF_TAG_FRAGCACHE;
+#endif
 
 		if (frag != NULL && (frag->fr_flags & PFFRAG_DROP))
 			goto drop;
@@ -1143,33 +1357,11 @@ pf_normalize_ip(struct mbuf **m0, int dir, struct pfi_kif *kif, u_short *reason,
 		h->ip_sum = pf_cksum_fixup(h->ip_sum, ip_off, h->ip_off, 0);
 	}
 
-	/* Enforce a minimum ttl, may cause endless packet loops */
-	if (r->min_ttl && h->ip_ttl < r->min_ttl) {
-		u_int16_t ip_ttl = h->ip_ttl;
-
-		h->ip_ttl = r->min_ttl;
-		h->ip_sum = pf_cksum_fixup(h->ip_sum, ip_ttl, h->ip_ttl, 0);
-	}
-
-	if (r->rule_flag & PFRULE_RANDOMID) {
-		u_int16_t ip_id = h->ip_id;
-
-		h->ip_id = ip_randomid();
-		h->ip_sum = pf_cksum_fixup(h->ip_sum, ip_id, h->ip_id, 0);
-	}
-	if ((r->rule_flag & (PFRULE_FRAGCROP|PFRULE_FRAGDROP)) == 0)
-		pd->flags |= PFDESC_IP_REAS;
-
-	return (PF_PASS);
+	/* not missing a return here */
 
  fragment_pass:
-	/* Enforce a minimum ttl, may cause endless packet loops */
-	if (r->min_ttl && h->ip_ttl < r->min_ttl) {
-		u_int16_t ip_ttl = h->ip_ttl;
+	pf_scrub_ip(&m, r->rule_flag, r->min_ttl, r->set_tos);
 
-		h->ip_ttl = r->min_ttl;
-		h->ip_sum = pf_cksum_fixup(h->ip_sum, ip_ttl, h->ip_ttl, 0);
-	}
 	if ((r->rule_flag & (PFRULE_FRAGCROP|PFRULE_FRAGDROP)) == 0)
 		pd->flags |= PFDESC_IP_REAS;
 	return (PF_PASS);
@@ -1339,9 +1531,7 @@ pf_normalize_ip6(struct mbuf **m0, int dir, struct pfi_kif *kif,
 	if (sizeof(struct ip6_hdr) + plen > m->m_pkthdr.len)
 		goto shortpkt;
 
-	/* Enforce a minimum ttl, may cause endless packet loops */
-	if (r->min_ttl && h->ip6_hlim < r->min_ttl)
-		h->ip6_hlim = r->min_ttl;
+	pf_scrub_ip6(&m, r->min_ttl);
 
 	return (PF_PASS);
 
@@ -1479,12 +1669,16 @@ pf_normalize_tcp(int dir, struct pfi_kif *kif, struct mbuf *m, int ipoff,
 	}
 
 	/* Process options */
-	if (r->max_mss && pf_normalize_tcpopt(r, m, th, off))
+	if (r->max_mss && pf_normalize_tcpopt(r, m, th, off, pd->af))
 		rewrite = 1;
 
 	/* copy back packet headers if we sanitized */
 	if (rewrite)
+#ifdef __FreeBSD__
 		m_copyback(m, off, sizeof(*th), (caddr_t)th);
+#else
+		m_copyback(m, off, sizeof(*th), th);
+#endif
 
 	return (PF_PASS);
 
@@ -1506,11 +1700,13 @@ pf_normalize_tcp_init(struct mbuf *m, int off, struct pf_pdesc *pd,
 #ifdef __FreeBSD__
 	KASSERT((src->scrub == NULL), 
 	    ("pf_normalize_tcp_init: src->scrub != NULL"));
+
+	src->scrub = pool_get(&V_pf_state_scrub_pl, PR_NOWAIT);
 #else
 	KASSERT(src->scrub == NULL);
-#endif
 
 	src->scrub = pool_get(&pf_state_scrub_pl, PR_NOWAIT);
+#endif
 	if (src->scrub == NULL)
 		return (1);
 	bzero(src->scrub, sizeof(*src->scrub));
@@ -1586,10 +1782,17 @@ pf_normalize_tcp_init(struct mbuf *m, int off, struct pf_pdesc *pd,
 void
 pf_normalize_tcp_cleanup(struct pf_state *state)
 {
+#ifdef __FreeBSD__
+	if (state->src.scrub)
+		pool_put(&V_pf_state_scrub_pl, state->src.scrub);
+	if (state->dst.scrub)
+		pool_put(&V_pf_state_scrub_pl, state->dst.scrub);
+#else
 	if (state->src.scrub)
 		pool_put(&pf_state_scrub_pl, state->src.scrub);
 	if (state->dst.scrub)
 		pool_put(&pf_state_scrub_pl, state->dst.scrub);
+#endif
 
 	/* Someday... flush the TCP segment reassembly descriptors. */
 }
@@ -1667,7 +1870,11 @@ pf_normalize_tcp_stateful(struct mbuf *m, int off, struct pf_pdesc *pd,
 
 				if (got_ts) {
 					/* Huh?  Multiple timestamps!? */
+#ifdef __FreeBSD__
+					if (V_pf_status.debug >= PF_DEBUG_MISC) {
+#else
 					if (pf_status.debug >= PF_DEBUG_MISC) {
+#endif
 						DPFPRINTF(("multiple TS??"));
 						pf_print_state(state);
 						printf("\n");
@@ -1736,7 +1943,11 @@ pf_normalize_tcp_stateful(struct mbuf *m, int off, struct pf_pdesc *pd,
 	if (src->scrub && (src->scrub->pfss_flags & PFSS_PAWS) &&
 	    (uptime.tv_sec - src->scrub->pfss_last.tv_sec > TS_MAX_IDLE ||
 	    time_second - state->creation > TS_MAX_CONN))  {
+#ifdef __FreeBSD__
+		if (V_pf_status.debug >= PF_DEBUG_MISC) {
+#else
 		if (pf_status.debug >= PF_DEBUG_MISC) {
+#endif
 			DPFPRINTF(("src idled out of PAWS\n"));
 			pf_print_state(state);
 			printf("\n");
@@ -1746,7 +1957,11 @@ pf_normalize_tcp_stateful(struct mbuf *m, int off, struct pf_pdesc *pd,
 	}
 	if (dst->scrub && (dst->scrub->pfss_flags & PFSS_PAWS) &&
 	    uptime.tv_sec - dst->scrub->pfss_last.tv_sec > TS_MAX_IDLE) {
+#ifdef __FreeBSD__
+		if (V_pf_status.debug >= PF_DEBUG_MISC) {
+#else
 		if (pf_status.debug >= PF_DEBUG_MISC) {
+#endif
 			DPFPRINTF(("dst idled out of PAWS\n"));
 			pf_print_state(state);
 			printf("\n");
@@ -1807,7 +2022,7 @@ pf_normalize_tcp_stateful(struct mbuf *m, int off, struct pf_pdesc *pd,
 		 *    network conditions that re-order packets and
 		 *    cause our view of them to decrease.  For now the
 		 *    only lowerbound we can safely determine is that
-		 *    the TS echo will never be less than the orginal
+		 *    the TS echo will never be less than the original
 		 *    TS.  XXX There is probably a better lowerbound.
 		 *    Remove TS_MAX_CONN with better lowerbound check.
 		 *        tescr >= other original TS
@@ -1830,7 +2045,11 @@ pf_normalize_tcp_stateful(struct mbuf *m, int off, struct pf_pdesc *pd,
 		 * this packet.
 		 */
 		if ((ts_fudge = state->rule.ptr->timeout[PFTM_TS_DIFF]) == 0)
+#ifdef __FreeBSD__
+			ts_fudge = V_pf_default_rule.timeout[PFTM_TS_DIFF];
+#else
 			ts_fudge = pf_default_rule.timeout[PFTM_TS_DIFF];
+#endif
 
 
 		/* Calculate max ticks since the last timestamp */
@@ -1838,7 +2057,7 @@ pf_normalize_tcp_stateful(struct mbuf *m, int off, struct pf_pdesc *pd,
 #define TS_MICROSECS	1000000		/* microseconds per second */
 #ifdef __FreeBSD__
 #ifndef timersub
-#define timersub(tvp, uvp, vvp)						\
+#define	timersub(tvp, uvp, vvp)						\
 	do {								\
 		(vvp)->tv_sec = (tvp)->tv_sec - (uvp)->tv_sec;		\
 		(vvp)->tv_usec = (tvp)->tv_usec - (uvp)->tv_usec;	\
@@ -1895,7 +2114,11 @@ pf_normalize_tcp_stateful(struct mbuf *m, int off, struct pf_pdesc *pd,
 			    "\n", dst->scrub->pfss_tsval,
 			    dst->scrub->pfss_tsecr, dst->scrub->pfss_tsval0));
 #endif
+#ifdef __FreeBSD__
+			if (V_pf_status.debug >= PF_DEBUG_MISC) {
+#else
 			if (pf_status.debug >= PF_DEBUG_MISC) {
+#endif
 				pf_print_state(state);
 				pf_print_flags(th->th_flags);
 				printf("\n");
@@ -1943,7 +2166,11 @@ pf_normalize_tcp_stateful(struct mbuf *m, int off, struct pf_pdesc *pd,
 			 * Hey!  Someone tried to sneak a packet in.  Or the
 			 * stack changed its RFC1323 behavior?!?!
 			 */
+#ifdef __FreeBSD__
+			if (V_pf_status.debug >= PF_DEBUG_MISC) {
+#else
 			if (pf_status.debug >= PF_DEBUG_MISC) {
+#endif
 				DPFPRINTF(("Did not receive expected RFC1323 "
 				    "timestamp\n"));
 				pf_print_state(state);
@@ -1970,7 +2197,11 @@ pf_normalize_tcp_stateful(struct mbuf *m, int off, struct pf_pdesc *pd,
 			src->scrub->pfss_flags |= PFSS_DATA_TS;
 		else {
 			src->scrub->pfss_flags |= PFSS_DATA_NOTS;
+#ifdef __FreeBSD__
+			if (V_pf_status.debug >= PF_DEBUG_MISC && dst->scrub &&
+#else
 			if (pf_status.debug >= PF_DEBUG_MISC && dst->scrub &&
+#endif
 			    (dst->scrub->pfss_flags & PFSS_TIMESTAMP)) {
 				/* Don't warn if other host rejected RFC1323 */
 				DPFPRINTF(("Broken RFC1323 stack did not "
@@ -2018,17 +2249,25 @@ pf_normalize_tcp_stateful(struct mbuf *m, int off, struct pf_pdesc *pd,
 
 int
 pf_normalize_tcpopt(struct pf_rule *r, struct mbuf *m, struct tcphdr *th,
-    int off)
+    int off, sa_family_t af)
 {
 	u_int16_t	*mss;
 	int		 thoff;
 	int		 opt, cnt, optlen = 0;
 	int		 rewrite = 0;
-	u_char		*optp;
+#ifdef __FreeBSD__
+	u_char		 opts[TCP_MAXOLEN];
+#else
+	u_char		 opts[MAX_TCPOPTLEN];
+#endif
+	u_char		*optp = opts;
 
 	thoff = th->th_off << 2;
 	cnt = thoff - sizeof(struct tcphdr);
-	optp = mtod(m, caddr_t) + off + sizeof(struct tcphdr);
+
+	if (cnt > 0 && !pf_pull_hdr(m, off + sizeof(*th), opts, cnt,
+	    NULL, NULL, af))
+		return (rewrite);
 
 	for (; cnt > 0; cnt -= optlen, optp += optlen) {
 		opt = optp[0];
@@ -2058,5 +2297,63 @@ pf_normalize_tcpopt(struct pf_rule *r, struct mbuf *m, struct tcphdr *th,
 		}
 	}
 
+	if (rewrite)
+		m_copyback(m, off + sizeof(*th), thoff - sizeof(*th), opts);
+
 	return (rewrite);
 }
+
+void
+pf_scrub_ip(struct mbuf **m0, u_int32_t flags, u_int8_t min_ttl, u_int8_t tos)
+{
+	struct mbuf		*m = *m0;
+	struct ip		*h = mtod(m, struct ip *);
+
+	/* Clear IP_DF if no-df was requested */
+	if (flags & PFRULE_NODF && h->ip_off & htons(IP_DF)) {
+		u_int16_t ip_off = h->ip_off;
+
+		h->ip_off &= htons(~IP_DF);
+		h->ip_sum = pf_cksum_fixup(h->ip_sum, ip_off, h->ip_off, 0);
+	}
+
+	/* Enforce a minimum ttl, may cause endless packet loops */
+	if (min_ttl && h->ip_ttl < min_ttl) {
+		u_int16_t ip_ttl = h->ip_ttl;
+
+		h->ip_ttl = min_ttl;
+		h->ip_sum = pf_cksum_fixup(h->ip_sum, ip_ttl, h->ip_ttl, 0);
+	}
+
+	/* Enforce tos */
+	if (flags & PFRULE_SET_TOS) {
+		u_int16_t	ov, nv;
+
+		ov = *(u_int16_t *)h;
+		h->ip_tos = tos;
+		nv = *(u_int16_t *)h;
+
+		h->ip_sum = pf_cksum_fixup(h->ip_sum, ov, nv, 0);
+	}
+
+	/* random-id, but not for fragments */
+	if (flags & PFRULE_RANDOMID && !(h->ip_off & ~htons(IP_DF))) {
+		u_int16_t ip_id = h->ip_id;
+
+		h->ip_id = ip_randomid();
+		h->ip_sum = pf_cksum_fixup(h->ip_sum, ip_id, h->ip_id, 0);
+	}
+}
+
+#ifdef INET6
+void
+pf_scrub_ip6(struct mbuf **m0, u_int8_t min_ttl)
+{
+	struct mbuf		*m = *m0;
+	struct ip6_hdr		*h = mtod(m, struct ip6_hdr *);
+
+	/* Enforce a minimum ttl, may cause endless packet loops */
+	if (min_ttl && h->ip6_hlim < min_ttl)
+		h->ip6_hlim = min_ttl;
+}
+#endif
