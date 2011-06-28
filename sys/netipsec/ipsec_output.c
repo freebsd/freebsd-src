@@ -191,6 +191,8 @@ ipsec_process_done(struct mbuf *m, struct ipsecrequest *isr)
 	}
 	key_sa_recordxfer(sav, m);		/* record data transfer */
 
+	m_addr_changed(m);
+
 	/*
 	 * We're done with IPsec processing, transmit the packet using the
 	 * appropriate network protocol (IP or IPv6). SPD lookup will be

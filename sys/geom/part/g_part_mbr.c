@@ -237,14 +237,16 @@ static int
 g_part_mbr_bootcode(struct g_part_table *basetable, struct g_part_parms *gpp)
 {
 	struct g_part_mbr_table *table;
-	size_t codesz;
+	uint32_t dsn;
 
-	codesz = DOSPARTOFF;
+	if (gpp->gpp_codesize != MBRSIZE)
+		return (ENODEV);
+
 	table = (struct g_part_mbr_table *)basetable;
-	bzero(table->mbr, codesz);
-	codesz = MIN(codesz,  gpp->gpp_codesize);
-	if (codesz > 0)
-		bcopy(gpp->gpp_codeptr, table->mbr, codesz);
+	dsn = *(uint32_t *)(table->mbr + DOSDSNOFF);
+	bcopy(gpp->gpp_codeptr, table->mbr, DOSPARTOFF);
+	if (dsn != 0)
+		*(uint32_t *)(table->mbr + DOSDSNOFF) = dsn;
 	return (0);
 }
 

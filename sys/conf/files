@@ -386,13 +386,13 @@ contrib/pf/net/pf_if.c		optional pf inet \
 	compile-with "${NORMAL_C} -I$S/contrib/pf"
 contrib/pf/net/pf_ioctl.c	optional pf inet \
 	compile-with "${NORMAL_C} -I$S/contrib/pf"
+contrib/pf/net/pf_lb.c		optional pf inet \
+	compile-with "${NORMAL_C} -I$S/contrib/pf"
 contrib/pf/net/pf_norm.c	optional pf inet \
 	compile-with "${NORMAL_C} -I$S/contrib/pf"
 contrib/pf/net/pf_osfp.c	optional pf inet \
 	compile-with "${NORMAL_C} -I$S/contrib/pf"
 contrib/pf/net/pf_ruleset.c	optional pf inet \
-	compile-with "${NORMAL_C} -I$S/contrib/pf"
-contrib/pf/net/pf_subr.c	optional pf inet \
 	compile-with "${NORMAL_C} -I$S/contrib/pf"
 contrib/pf/net/pf_table.c	optional pf inet \
 	compile-with "${NORMAL_C} -I$S/contrib/pf"

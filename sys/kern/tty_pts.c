@@ -295,7 +295,7 @@ ptsdev_ioctl(struct file *fp, u_long cmd, void *data,
 			return (EINVAL);
 		return copyout(p, fgn->buf, i);
 	}
-	
+
 	/*
 	 * We need to implement TIOCGPGRP and TIOCGSID here again. When
 	 * called on the pseudo-terminal master, it should not check if
@@ -563,7 +563,7 @@ ptsdev_stat(struct file *fp, struct stat *sb, struct ucred *active_cred,
 	sb->st_uid = dev->si_uid;
 	sb->st_gid = dev->si_gid;
 	sb->st_mode = dev->si_mode | S_IFCHR;
-	
+
 	return (0);
 }
 
@@ -823,7 +823,7 @@ posix_openpt(struct thread *td, struct posix_openpt_args *uap)
 	 */
 	if (uap->flags & ~(O_RDWR|O_NOCTTY))
 		return (EINVAL);
-	
+
 	error = falloc(td, &fp, &fd, 0);
 	if (error)
 		return (error);
