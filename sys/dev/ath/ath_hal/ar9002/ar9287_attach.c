@@ -119,13 +119,13 @@ ar9287Attach(uint16_t devid, HAL_SOFTC sc,
 	HAL_BOOL rfStatus;
 	int8_t pwr_table_offset;
 
-	HALDEBUG(AH_NULL, HAL_DEBUG_ATTACH, "%s: sc %p st %p sh %p\n",
+	HALDEBUG_G(AH_NULL, HAL_DEBUG_ATTACH, "%s: sc %p st %p sh %p\n",
 	    __func__, sc, (void*) st, (void*) sh);
 
 	/* NB: memory is returned zero'd */
 	ahp9287 = ath_hal_malloc(sizeof (struct ath_hal_9287));
 	if (ahp9287 == AH_NULL) {
-		HALDEBUG(AH_NULL, HAL_DEBUG_ANY,
+		HALDEBUG_G(AH_NULL, HAL_DEBUG_ANY,
 		    "%s: cannot allocate memory for state block\n", __func__);
 		*status = HAL_ENOMEM;
 		return AH_NULL;
@@ -320,6 +320,7 @@ ar9287Attach(uint16_t devid, HAL_SOFTC sc,
 	/* Read Reg Domain */
 	AH_PRIVATE(ah)->ah_currentRD =
 	    ath_hal_eepromGet(ah, AR_EEP_REGDMN_0, AH_NULL);
+	AH_PRIVATE(ah)->ah_currentRDext = AR9287_RDEXT_DEFAULT;
 
 	/*
 	 * ah_miscMode is populated by ar5416FillCapabilityInfo()

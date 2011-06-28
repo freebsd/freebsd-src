@@ -191,7 +191,7 @@ procstat_getprocs(struct procstat *procstat, int what, int arg,
 		len = *count * sizeof(*p);
 		p = malloc(len);
 		if (p == NULL) {
-			warnx("malloc(%zd)", len);
+			warnx("malloc(%zu)", len);
 			goto fail;
 		}
 		bcopy(p0, p, len);
@@ -213,7 +213,7 @@ procstat_getprocs(struct procstat *procstat, int what, int arg,
 		}
 		p = malloc(len);
 		if (p == NULL) {
-			warnx("malloc(%zd)", len);
+			warnx("malloc(%zu)", len);
 			goto fail;
 		}
 		error = sysctl(name, 4, p, &len, NULL, 0);
@@ -229,7 +229,7 @@ procstat_getprocs(struct procstat *procstat, int what, int arg,
 		*count = len / sizeof(*p);
 		return (p);
 	} else {
-		warnx("unknown access method");
+		warnx("unknown access method: %d", procstat->type);
 		return (NULL);
 	}
 fail:
@@ -271,11 +271,11 @@ procstat_freefiles(struct procstat *procstat, struct filestat_list *head)
 	}
 	free(head);
 	if (procstat->vmentries != NULL) {
-		free (procstat->vmentries);
+		free(procstat->vmentries);
 		procstat->vmentries = NULL;
 	}
 	if (procstat->files != NULL) {
-		free (procstat->files);
+		free(procstat->files);
 		procstat->files = NULL;
 	}
 }
@@ -426,7 +426,7 @@ procstat_getfiles_kvm(struct procstat *procstat, struct kinfo_proc *kp, int mmap
 	nfiles = filed.fd_lastfile + 1;
 	ofiles = malloc(nfiles * sizeof(struct file *));
 	if (ofiles == NULL) {
-		warn("malloc(%zd)", nfiles * sizeof(struct file *));
+		warn("malloc(%zu)", nfiles * sizeof(struct file *));
 		goto do_mmapped;
 	}
 	if (!kvm_read_all(kd, (unsigned long)filed.fd_ofiles, ofiles,
@@ -522,7 +522,8 @@ do_mmapped:
 			fflags = 0;
 			if (prot & VM_PROT_READ)
 				fflags = PS_FST_FFLAG_READ;
-			if (prot & VM_PROT_WRITE)
+			if ((vmentry.eflags & MAP_ENTRY_COW) == 0 &&
+			    prot & VM_PROT_WRITE)
 				fflags |= PS_FST_FFLAG_WRITE;
 
 			/*
@@ -696,7 +697,8 @@ procstat_getfiles_sysctl(struct procstat *procstat, struct kinfo_proc *kp, int m
 			fflags = 0;
 			if (kve->kve_protection & KVME_PROT_READ)
 				fflags = PS_FST_FFLAG_READ;
-			if (kve->kve_protection & KVME_PROT_WRITE)
+			if ((kve->kve_flags & KVME_FLAG_COW) == 0 &&
+			    kve->kve_protection & KVME_PROT_WRITE)
 				fflags |= PS_FST_FFLAG_WRITE;
 			offset = kve->kve_offset;
 			refcount = kve->kve_ref_count;
@@ -726,7 +728,7 @@ procstat_get_pipe_info(struct procstat *procstat, struct filestat *fst,
 	} else if (procstat->type == PROCSTAT_SYSCTL) {
 		return (procstat_get_pipe_info_sysctl(fst, ps, errbuf));
 	} else {
-		warnx("unknow access method: %d", procstat->type);
+		warnx("unknown access method: %d", procstat->type);
 		snprintf(errbuf, _POSIX2_LINE_MAX, "error");
 		return (1);
 	}
@@ -790,7 +792,7 @@ procstat_get_pts_info(struct procstat *procstat, struct filestat *fst,
 	} else if (procstat->type == PROCSTAT_SYSCTL) {
 		return (procstat_get_pts_info_sysctl(fst, pts, errbuf));
 	} else {
-		warnx("unknow access method: %d", procstat->type);
+		warnx("unknown access method: %d", procstat->type);
 		snprintf(errbuf, _POSIX2_LINE_MAX, "error");
 		return (1);
 	}
@@ -852,7 +854,7 @@ procstat_get_vnode_info(struct procstat *procstat, struct filestat *fst,
 	} else if (procstat->type == PROCSTAT_SYSCTL) {
 		return (procstat_get_vnode_info_sysctl(fst, vn, errbuf));
 	} else {
-		warnx("unknow access method: %d", procstat->type);
+		warnx("unknown access method: %d", procstat->type);
 		snprintf(errbuf, _POSIX2_LINE_MAX, "error");
 		return (1);
 	}
@@ -1059,7 +1061,7 @@ procstat_get_socket_info(struct procstat *procstat, struct filestat *fst,
 	} else if (procstat->type == PROCSTAT_SYSCTL) {
 		return (procstat_get_socket_info_sysctl(fst, sock, errbuf));
 	} else {
-		warnx("unknow access method: %d", procstat->type);
+		warnx("unknown access method: %d", procstat->type);
 		snprintf(errbuf, _POSIX2_LINE_MAX, "error");
 		return (1);
 	}
@@ -1283,7 +1285,7 @@ vntype2psfsttype(int type)
 static char *
 getmnton(kvm_t *kd, struct mount *m)
 {
-	static struct mount mnt;
+	struct mount mnt;
 	static struct mtab {
 		struct mtab *next;
 		struct mount *m;
@@ -1302,7 +1304,7 @@ getmnton(kvm_t *kd, struct mount *m)
 		err(1, NULL);
 	mt->m = m;
 	bcopy(&mnt.mnt_stat.f_mntonname[0], &mt->mntonname[0], MNAMELEN);
-	mnt.mnt_stat.f_mntonname[MNAMELEN] = '\0';
+	mt->mntonname[MNAMELEN] = '\0';
 	mt->next = mhead;
 	mhead = mt;
 	return (mt->mntonname);

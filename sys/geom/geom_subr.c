@@ -350,6 +350,7 @@ g_new_geomf(struct g_class *mp, const char *fmt, ...)
 	/* Fill in defaults from class */
 	gp->start = mp->start;
 	gp->spoiled = mp->spoiled;
+	gp->attrchanged = mp->attrchanged;
 	gp->dumpconf = mp->dumpconf;
 	gp->access = mp->access;
 	gp->orphan = mp->orphan;

@@ -27,11 +27,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/param.h>
-#include <machine/cpuregs.h>
-
-#include <mips/sentry5/s5reg.h>
-
 #include "opt_ddb.h"
 
 #include <sys/param.h>
@@ -74,6 +69,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/sigframe.h>
 #include <machine/trap.h>
 #include <machine/vmparam.h>
+
+#include <mips/sentry5/s5reg.h>
 
 #ifdef CFE
 #include <dev/cfe/cfe_api.h>

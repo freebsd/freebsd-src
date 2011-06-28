@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/file.h>
-#include <sys/param.h>
 #include <sys/stat.h>
 
 #include <netinet/in.h>
@@ -840,8 +839,8 @@ help(int argc, char *argv[])
 			printf("%-*s\t%s\n", (int)HELPINDENT, c->name, c->help);
 
 		printf("\n[-] : You shouldn't use these ones anymore.\n");
-		printf("[*] : RFC2834 options support required.\n");
-		printf("[**] : Non-standard RFC2834 option.\n");
+		printf("[*] : RFC2347 options support required.\n");
+		printf("[**] : Non-standard RFC2347 option.\n");
 		return;
 	}
 	while (--argc > 0) {

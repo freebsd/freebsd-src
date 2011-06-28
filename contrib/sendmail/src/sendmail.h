@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2009 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2011 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -52,7 +52,7 @@
 
 #ifdef _DEFINE
 # ifndef lint
-SM_UNUSED(static char SmailId[]) = "@(#)$Id: sendmail.h,v 8.1068 2009/12/18 17:08:01 ca Exp $";
+SM_UNUSED(static char SmailId[]) = "@(#)$Id: sendmail.h,v 8.1089 2011/03/15 23:14:36 ca Exp $";
 # endif /* ! lint */
 #endif /* _DEFINE */
 
@@ -327,7 +327,7 @@ typedef struct address ADDRESS;
 				 (s) == QS_SENT || \
 				 (s) == QS_DISCARDED)
 #define QS_IS_DEAD(s)		((s) >= QS_DONTSEND)
-
+#define QS_IS_TEMPFAIL(s)	((s) == QS_QUEUEUP || (s) == QS_RETRY)
 
 #define NULLADDR	((ADDRESS *) NULL)
 
@@ -721,16 +721,19 @@ MCI
 #if STARTTLS
 #define MCIF_TLS	0x00100000	/* STARTTLS supported */
 #define MCIF_TLSACT	0x00200000	/* STARTTLS active */
-#define MCIF_EXTENS	(MCIF_EXPN | MCIF_SIZE | MCIF_8BITMIME | MCIF_DSN | MCIF_8BITOK | MCIF_AUTH | MCIF_ENHSTAT | MCIF_TLS)
 #else /* STARTTLS */
-#define MCIF_EXTENS	(MCIF_EXPN | MCIF_SIZE | MCIF_8BITMIME | MCIF_DSN | MCIF_8BITOK | MCIF_AUTH | MCIF_ENHSTAT)
+#define MCIF_TLS	0
+#define MCIF_TLSACT	0
 #endif /* STARTTLS */
 #define MCIF_DLVR_BY	0x00400000	/* DELIVERBY */
 #if _FFR_IGNORE_EXT_ON_HELO
 # define MCIF_HELO	0x00800000	/* we used HELO: ignore extensions */
 #endif /* _FFR_IGNORE_EXT_ON_HELO */
 #define MCIF_INLONGLINE 0x01000000	/* in the middle of a long line */
+#define MCIF_AUTH2	0x02000000	/* got 2 AUTH lines */
 #define MCIF_ONLY_EHLO	0x10000000	/* use only EHLO in smtpinit */
+
+#define MCIF_EXTENS	(MCIF_EXPN | MCIF_SIZE | MCIF_8BITMIME | MCIF_DSN | MCIF_8BITOK | MCIF_AUTH | MCIF_ENHSTAT | MCIF_TLS | MCIF_AUTH2)
 
 /* states */
 #define MCIS_CLOSED	0		/* no traffic on this connection */
@@ -749,6 +752,7 @@ extern void	mci_close __P((MCI *, char *where));
 extern void	mci_dump __P((SM_FILE_T *, MCI *, bool));
 extern void	mci_dump_all __P((SM_FILE_T *, bool));
 extern void	mci_flush __P((bool, MCI *));
+extern void	mci_clr_extensions __P((MCI *));
 extern MCI	*mci_get __P((char *, MAILER *));
 extern int	mci_lock_host __P((MCI *));
 extern bool	mci_match __P((char *, MAILER *));
@@ -1167,6 +1171,33 @@ struct hostsig_t
 
 typedef struct hostsig_t HOSTSIG_T;
 
+/*
+**  The standard udp packet size PACKETSZ (512) is not sufficient for some
+**  nameserver answers containing very many resource records. The resolver
+**  may switch to tcp and retry if it detects udp packet overflow.
+**  Also note that the resolver routines res_query and res_search return
+**  the size of the *un*truncated answer in case the supplied answer buffer
+**  it not big enough to accommodate the entire answer.
+*/
+
+# ifndef MAXPACKET
+#  define MAXPACKET 8192	/* max packet size used internally by BIND */
+# endif /* ! MAXPACKET */
+
+/*
+**  The resolver functions res_{send,query,querydomain} expect the
+**  answer buffer to be aligned, but some versions of gcc4 reverse
+**  25 years of history and no longer align char buffers on the
+**  stack, resulting in crashes on strict-alignment platforms.  Use
+**  this union when putting the buffer on the stack to force the
+**  alignment, then cast to (HEADER *) or (unsigned char *) as needed.
+*/
+typedef union
+{
+	HEADER		qb1;
+	unsigned char	qb2[MAXPACKET];
+} querybuf;
+
 /* functions */
 extern bool	getcanonname __P((char *, int, bool, int *));
 extern int	getmxrr __P((char *, char **, unsigned short *, bool, int *, bool, int *));
@@ -1246,11 +1277,15 @@ MAP
 #define MF_OPENBOGUS	0x00800000	/* open failed, don't call map_close */
 #define MF_CLOSING	0x01000000	/* map is being closed */
 
-#define DYNOPENMAP(map) if (!bitset(MF_OPEN, (map)->map_mflags)) \
-	{	\
-		if (!openmap(map))	\
-			return NULL;	\
-	}
+#define DYNOPENMAP(map) \
+	do		\
+	{		\
+		if (!bitset(MF_OPEN, (map)->map_mflags)) \
+		{	\
+			if (!openmap(map))	\
+				return NULL;	\
+		}	\
+	} while (0)
 
 
 /* indices for map_actions */
@@ -1569,8 +1604,19 @@ extern void	stabapply __P((void (*)(STAB *, int), int));
 
 #if _FFR_LOCAL_DAEMON
 EXTERN bool	LocalDaemon;
+# if NETINET6
+EXTERN bool	V6LoopbackAddrFound;	/* found an IPv6 loopback address */
+#  define SETV6LOOPBACKADDRFOUND(sa)	\
+	do	\
+	{	\
+		if (isloopback(sa))	\
+			V6LoopbackAddrFound = true;	\
+	} while (0)
+# endif /* NETINET6 */
 #else /* _FFR_LOCAL_DAEMON */
 # define LocalDaemon	false
+# define V6LoopbackAddrFound	false
+# define SETV6LOOPBACKADDRFOUND(sa)
 #endif /* _FFR_LOCAL_DAEMON */
 
 /* Note: see also include/sendmail/pathnames.h: GET_CLIENT_CF */
@@ -1585,6 +1631,7 @@ EXTERN bool	LocalDaemon;
 #define SM_DEFER	'd'		/* defer map lookups as well as queue */
 #define SM_VERIFY	'v'		/* verify only (used internally) */
 #define DM_NOTSET	(-1)	/* DeliveryMode (per daemon) option not set */
+# define SM_IS_INTERACTIVE(m)	((m) == SM_DELIVER)
 
 #define WILL_BE_QUEUED(m)	((m) == SM_QUEUE || (m) == SM_DEFER)
 
@@ -2100,7 +2147,11 @@ extern void	inittimeouts __P((char *, bool));
 */
 
 /* macros for debugging flags */
-#define tTd(flag, level)	(tTdvect[flag] >= (unsigned char)level)
+#if NOT_SENDMAIL
+# define tTd(flag, level)	(tTdvect[flag] >= (unsigned char)level)
+#else
+# define tTd(flag, level)	(tTdvect[flag] >= (unsigned char)level && !IntSig)
+#endif
 #define tTdlevel(flag)		(tTdvect[flag])
 
 /* variables */
@@ -2123,22 +2174,26 @@ extern unsigned char	tTdvect[100];	/* trace vector */
 */
 
 /* set exit status */
-#define setstat(s)	{ \
-				if (ExitStat == EX_OK || ExitStat == EX_TEMPFAIL) \
-					ExitStat = s; \
-			}
+#define setstat(s)	\
+	do		\
+	{		\
+		if (ExitStat == EX_OK || ExitStat == EX_TEMPFAIL) \
+			ExitStat = s; \
+	} while (0)
 
 
 #define STRUCTCOPY(s, d)	d = s
 
 /* free a pointer if it isn't NULL and set it to NULL */
 #define SM_FREE_CLR(p)	\
-			if ((p) != NULL) \
-			{ \
-				sm_free(p); \
-				(p) = NULL; \
-			} \
-			else
+	do		\
+	{		\
+		if ((p) != NULL) \
+		{ \
+			sm_free(p); \
+			(p) = NULL; \
+		} \
+	} while (0)
 
 /*
 **  Update a permanent string variable with a new value.
@@ -2185,6 +2240,15 @@ extern unsigned char	tTdvect[100];	/* trace vector */
 #define XS_DEFAULT	0
 #define XS_STARTTLS	1
 #define XS_AUTH		2
+#define XS_GREET	3
+#define XS_EHLO		4
+#define XS_MAIL		5
+#define XS_RCPT		6
+#define XS_DATA		7
+#define XS_EOM		8
+#define XS_DATA2	9
+#define XS_RCPT2	10
+#define XS_QUIT		15
 
 /*
 **  Global variables.
@@ -2363,6 +2427,7 @@ EXTERN char	*RunAsUserName;	/* user to become for bulk of run */
 EXTERN char	*SafeFileEnv;	/* chroot location for file delivery */
 EXTERN char	*ServiceSwitchFile;	/* backup service switch */
 EXTERN char	*volatile ShutdownRequest;/* a sendmail shutdown has been requested */
+EXTERN bool	volatile IntSig;
 EXTERN char	*SmtpGreeting;	/* SMTP greeting message (old $e macro) */
 EXTERN char	*SmtpPhase;	/* current phase in SMTP processing */
 EXTERN char	SmtpError[MAXLINE];	/* save failure error messages */
@@ -2390,6 +2455,9 @@ extern const SM_EXC_TYPE_T EtypeQuickAbort; /* type of a QuickAbort exception */
 
 
 EXTERN int ConnectionRateWindowSize;
+#if STARTTLS && USE_OPENSSL_ENGINE
+EXTERN bool	SSLEngineInitialized;
+#endif /* STARTTLS && USE_OPENSSL_ENGINE */
 
 /*
 **  Declarations of useful functions
@@ -2442,6 +2510,8 @@ extern int	smtprcpt __P((ADDRESS *, MAILER *, MCI *, ENVELOPE *, ADDRESS *, time
 extern void	smtprset __P((MAILER *, MCI *, ENVELOPE *));
 
 #define REPLYTYPE(r)	((r) / 100)		/* first digit of reply code */
+#define REPLYCLASS(r)	(((r) / 10) % 10)	/* second digit of reply code */
+#define REPLYMINOR(r)	((r) % 10)	/* last digit of reply code */
 #define ISSMTPCODE(c)	(isascii(c[0]) && isdigit(c[0]) && \
 		    isascii(c[1]) && isdigit(c[1]) && \
 		    isascii(c[2]) && isdigit(c[2]))

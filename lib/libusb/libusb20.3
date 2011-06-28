@@ -159,6 +159,10 @@ USB access library (libusb -lusb)
 .Ft uint8_t
 .Fn libusb20_dev_get_address "struct libusb20_device *pdev"
 .Ft uint8_t
+.Fn libusb20_dev_get_parent_address "struct libusb20_device *pdev"
+.Ft uint8_t
+.Fn libusb20_dev_get_parent_port "struct libusb20_device *pdev"
+.Ft uint8_t
 .Fn libusb20_dev_get_bus_number "struct libusb20_device *pdev"
 .Ft uint8_t
 .Fn libusb20_dev_get_mode "struct libusb20_device *pdev"
@@ -756,12 +760,31 @@ is an internal function to allocate a new USB device.
 .Fn libusb20_dev_get_address
 returns the internal and not necessarily the real
 hardware address of the given USB device.
+Valid addresses start at one.
+.
+.Pp
+.
+.Fn libusb20_dev_get_parent_address
+returns the internal and not necessarily the real hardware address of
+the given parent USB HUB device.
+This value is zero for the root HUB which usually has a device address
+equal to one.
+Valid addresses start at one.
+.
+.Pp
+.
+.Fn libusb20_dev_get_parent_port
+returns the port number on the parent USB HUB device.
+This value is zero for the root HUB which usually has a device address
+equal to one.
+Valid port numbers start at one.
 .
 .Pp
 .
 .Fn libusb20_dev_get_bus_number
 returns the internal bus number which the given USB
 device belongs to.
+Valid bus numbers start at zero.
 .
 .Pp
 .

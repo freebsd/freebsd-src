@@ -21,6 +21,7 @@
  */
 
 #include <sys/types.h>
+#include <sys/param.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
@@ -1121,8 +1122,11 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 			break;
 
 		case O_NAT:
-			PRINT_UINT_ARG("nat ", cmd->arg1);
- 			break;
+			if (cmd->arg1 != 0)
+				PRINT_UINT_ARG("nat ", cmd->arg1);
+			else
+				printf("nat global");
+			break;
 
 		case O_SETFIB:
 			PRINT_UINT_ARG("setfib ", cmd->arg1);
@@ -2738,9 +2742,14 @@ ipfw_add(char *av[])
 		break;
 
 	case TOK_NAT:
- 		action->opcode = O_NAT;
- 		action->len = F_INSN_SIZE(ipfw_insn_nat);
-		goto chkarg;
+		action->opcode = O_NAT;
+		action->len = F_INSN_SIZE(ipfw_insn_nat);
+		if (_substrcmp(*av, "global") == 0) {
+			action->arg1 = 0;
+			av++;
+			break;
+		} else
+			goto chkarg;
 
 	case TOK_QUEUE:
 		action->opcode = O_QUEUE;
@@ -3559,7 +3568,7 @@ read_options:
 			}
 			if (lookup_key[j] <= 0)
 				errx(EX_USAGE, "format: cannot lookup on %s", *av);
-			c->d[1] = j; // i converted to option
+			__PAST_END(c->d, 1) = j; // i converted to option
 			av++;
 			cmd->arg1 = strtoul(*av, &p, 0);
 			if (p && *p)

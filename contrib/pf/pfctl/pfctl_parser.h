@@ -48,6 +48,7 @@
 #define PF_OPT_DEBUG		0x0200
 #define PF_OPT_SHOWALL		0x0400
 #define PF_OPT_OPTIMIZE		0x0800
+#define PF_OPT_NUMERIC		0x1000
 #define PF_OPT_MERGE		0x2000
 #define PF_OPT_RECURSE		0x4000
 
@@ -171,10 +172,10 @@ struct node_queue_opt {
 #define	SIMPLEQ_END(head)		NULL
 #define	SIMPLEQ_EMPTY			STAILQ_EMPTY
 #define	SIMPLEQ_NEXT			STAILQ_NEXT
-/*#define SIMPLEQ_FOREACH		STAILQ_FOREACH*/
-#define	SIMPLEQ_FOREACH(var, head, field)	\
-    for((var) = SIMPLEQ_FIRST(head);		\
-	(var) != SIMPLEQ_END(head);		\
+/*#define	SIMPLEQ_FOREACH			STAILQ_FOREACH*/
+#define	SIMPLEQ_FOREACH(var, head, field)		\
+    for((var) = SIMPLEQ_FIRST(head);			\
+	(var) != SIMPLEQ_END(head);			\
 	(var) = SIMPLEQ_NEXT(var, field))
 #define	SIMPLEQ_INIT			STAILQ_INIT
 #define	SIMPLEQ_INSERT_HEAD		STAILQ_INSERT_HEAD
@@ -212,7 +213,7 @@ struct pf_opt_rule {
 
 TAILQ_HEAD(pf_opt_queue, pf_opt_rule);
 
-int	pfctl_rules(int, char *, FILE *, int, int, char *, struct pfr_buffer *);
+int	pfctl_rules(int, char *, int, int, char *, struct pfr_buffer *);
 int	pfctl_optimize_ruleset(struct pfctl *, struct pf_ruleset *);
 
 int	pfctl_add_rule(struct pfctl *, struct pf_rule *, const char *);
@@ -229,13 +230,13 @@ int	pfctl_set_hostid(struct pfctl *, u_int32_t);
 int	pfctl_set_debug(struct pfctl *, char *);
 int	pfctl_set_interface_flags(struct pfctl *, char *, int, int);
 
-int	parse_rules(FILE *, struct pfctl *);
+int	parse_config(char *, struct pfctl *);
 int	parse_flags(char *);
 int	pfctl_load_anchors(int, struct pfctl *, struct pfr_buffer *);
 
 void	print_pool(struct pf_pool *, u_int16_t, u_int16_t, sa_family_t, int);
 void	print_src_node(struct pf_src_node *, int);
-void	print_rule(struct pf_rule *, const char *, int);
+void	print_rule(struct pf_rule *, const char *, int, int);
 void	print_tabledef(const char *, int, int, struct node_tinithead *);
 void	print_status(struct pf_status *, int);
 

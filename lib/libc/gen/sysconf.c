@@ -599,11 +599,11 @@ yesno:
 
 #ifdef _SC_CPUSET_SIZE
 	case _SC_CPUSET_SIZE:
-		len = sizeof(lvalue);
-		if (sysctlbyname("kern.sched.cpusetsize", &lvalue, &len, NULL,
+		len = sizeof(value);
+		if (sysctlbyname("kern.sched.cpusetsize", &value, &len, NULL,
 		    0) == -1)
 			return (-1);
-		return (lvalue);
+		return ((long)value);
 #endif
 
 	default:

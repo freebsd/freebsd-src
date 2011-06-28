@@ -33,6 +33,10 @@
 #ifndef _UFS_FFS_EXTERN_H
 #define	_UFS_FFS_EXTERN_H
 
+#ifndef _KERNEL
+#error "No user-serving parts inside"
+#else
+
 struct buf;
 struct cg;
 struct fid;
@@ -57,7 +61,7 @@ int	ffs_balloc_ufs2(struct vnode *a_vp, off_t a_startoffset, int a_size,
             struct ucred *a_cred, int a_flags, struct buf **a_bpp);
 int	ffs_blkatoff(struct vnode *, off_t, char **, struct buf **);
 void	ffs_blkfree(struct ufsmount *, struct fs *, struct vnode *,
-	    ufs2_daddr_t, long, ino_t, struct workhead *);
+	    ufs2_daddr_t, long, ino_t, enum vtype, struct workhead *);
 ufs2_daddr_t ffs_blkpref_ufs1(struct inode *, ufs_lbn_t, int, ufs1_daddr_t *);
 ufs2_daddr_t ffs_blkpref_ufs2(struct inode *, ufs_lbn_t, int, ufs2_daddr_t *);
 int	ffs_checkfreefile(struct fs *, struct vnode *, ino_t);
@@ -69,6 +73,7 @@ int	ffs_flushfiles(struct mount *, int, struct thread *);
 void	ffs_fragacct(struct fs *, int, int32_t [], int);
 int	ffs_freefile(struct ufsmount *, struct fs *, struct vnode *, ino_t,
 	    int, struct workhead *);
+void	ffs_fserr(struct fs *, ino_t, char *);
 int	ffs_isblock(struct fs *, u_char *, ufs1_daddr_t);
 int	ffs_isfreeblock(struct fs *, u_char *, ufs1_daddr_t);
 void	ffs_load_inode(struct buf *, struct inode *, struct fs *, ino_t);
@@ -81,7 +86,7 @@ int	ffs_realloccg(struct inode *, ufs2_daddr_t, ufs2_daddr_t,
 int	ffs_sbupdate(struct ufsmount *, int, int);
 void	ffs_setblock(struct fs *, u_char *, ufs1_daddr_t);
 int	ffs_snapblkfree(struct fs *, struct vnode *, ufs2_daddr_t, long, ino_t,
-	    struct workhead *);
+	    enum vtype, struct workhead *);
 void	ffs_snapremove(struct vnode *vp);
 int	ffs_snapshot(struct mount *mp, char *snapfile);
 void	ffs_snapshot_mount(struct mount *mp);
@@ -125,7 +130,7 @@ void	softdep_freefile(struct vnode *, ino_t, int);
 int	softdep_request_cleanup(struct fs *, struct vnode *,
 	    struct ucred *, int);
 void	softdep_setup_freeblocks(struct inode *, off_t, int);
-void	softdep_setup_inomapdep(struct buf *, struct inode *, ino_t);
+void	softdep_setup_inomapdep(struct buf *, struct inode *, ino_t, int);
 void	softdep_setup_blkmapdep(struct buf *, struct mount *, ufs2_daddr_t,
 	    int, int);
 void	softdep_setup_allocdirect(struct inode *, ufs_lbn_t, ufs2_daddr_t,
@@ -175,5 +180,7 @@ struct snapdata {
 	daddr_t *sn_blklist;
 	struct lock sn_lock;
 };
+
+#endif /* _KERNEL */
 
 #endif /* !_UFS_FFS_EXTERN_H */

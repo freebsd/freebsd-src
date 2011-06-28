@@ -384,11 +384,12 @@ pmap_bootstrap(u_int cpu_impl)
 	 * public documentation is available for these, the latter just might
 	 * not support it, yet.
 	 */
-	virtsz = roundup(physsz, PAGE_SIZE_4M << (PAGE_SHIFT - TTE_SHIFT));
 	if (cpu_impl == CPU_IMPL_SPARC64V ||
-	    cpu_impl >= CPU_IMPL_ULTRASPARCIIIp)
+	    cpu_impl >= CPU_IMPL_ULTRASPARCIIIp) {
 		tsb_kernel_ldd_phys = 1;
-	else {
+		virtsz = roundup(5 / 3 * physsz, PAGE_SIZE_4M <<
+		    (PAGE_SHIFT - TTE_SHIFT));
+	} else {
 		dtlb_slots_avail = 0;
 		for (i = 0; i < dtlb_slots; i++) {
 			data = dtlb_get_data(i);
@@ -401,6 +402,8 @@ pmap_bootstrap(u_int cpu_impl)
 		if (cpu_impl >= CPU_IMPL_ULTRASPARCI &&
 		    cpu_impl < CPU_IMPL_ULTRASPARCIII)
 			dtlb_slots_avail /= 2;
+		virtsz = roundup(physsz, PAGE_SIZE_4M <<
+		    (PAGE_SHIFT - TTE_SHIFT));
 		virtsz = MIN(virtsz, (dtlb_slots_avail * PAGE_SIZE_4M) <<
 		    (PAGE_SHIFT - TTE_SHIFT));
 	}
@@ -2217,10 +2220,9 @@ pmap_activate(struct thread *td)
 	struct pmap *pm;
 	int context;
 
+	critical_enter();
 	vm = td->td_proc->p_vmspace;
 	pm = vmspace_pmap(vm);
-
-	mtx_lock_spin(&sched_lock);
 
 	context = PCPU_GET(tlb_ctx);
 	if (context == PCPU_GET(tlb_ctx_max)) {
@@ -2229,17 +2231,18 @@ pmap_activate(struct thread *td)
 	}
 	PCPU_SET(tlb_ctx, context + 1);
 
+	mtx_lock_spin(&sched_lock);
 	pm->pm_context[curcpu] = context;
-	CPU_OR(&pm->pm_active, PCPU_PTR(cpumask));
+	CPU_SET(PCPU_GET(cpuid), &pm->pm_active);
 	PCPU_SET(pmap, pm);
+	mtx_unlock_spin(&sched_lock);
 
 	stxa(AA_DMMU_TSB, ASI_DMMU, pm->pm_tsb);
 	stxa(AA_IMMU_TSB, ASI_IMMU, pm->pm_tsb);
 	stxa(AA_DMMU_PCXR, ASI_DMMU, (ldxa(AA_DMMU_PCXR, ASI_DMMU) &
 	    TLB_CXR_PGSZ_MASK) | context);
 	flush(KERNBASE);
-
-	mtx_unlock_spin(&sched_lock);
+	critical_exit();
 }
 
 void

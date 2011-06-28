@@ -116,12 +116,6 @@ VNET_DEFINE(int, rttrash);		/* routes not in table but not freed */
 static VNET_DEFINE(uma_zone_t, rtzone);		/* Routing table UMA zone. */
 #define	V_rtzone	VNET(rtzone)
 
-#if 0
-/* default fib for tunnels to use */
-u_int tunnel_fib = 0;
-SYSCTL_INT(_net, OID_AUTO, tunnelfib, CTLFLAG_RD, &tunnel_fib, 0, "");
-#endif
-
 /*
  * handler for net.my_fibnum
  */
@@ -1189,6 +1183,7 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 		rt0 = NULL;
 		/* XXX
 		 * "flow-table" only support IPv4 at the moment.
+		 * XXX-BZ as of r205066 it would support IPv6.
 		 */
 #ifdef INET
 		if (dst->sa_family == AF_INET) {

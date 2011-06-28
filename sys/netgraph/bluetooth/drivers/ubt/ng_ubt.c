@@ -382,14 +382,14 @@ static const struct usb_config		ubt_config[UBT_N_TRANSFER] =
  * where VENDOR_ID and PRODUCT_ID are hex numbers.
  */
 
-static const struct usb_device_id ubt_ignore_devs[] = 
+static const STRUCT_USB_HOST_ID ubt_ignore_devs[] = 
 {
 	/* AVM USB Bluetooth-Adapter BlueFritz! v1.0 */
 	{ USB_VPI(USB_VENDOR_AVM, 0x2200, 0) },
 };
 
 /* List of supported bluetooth devices */
-static const struct usb_device_id ubt_devs[] =
+static const STRUCT_USB_HOST_ID ubt_devs[] =
 {
 	/* Generic Bluetooth class devices */
 	{ USB_IFACE_CLASS(UDCLASS_WIRELESS),

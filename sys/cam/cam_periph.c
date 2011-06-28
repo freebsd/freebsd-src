@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/devicestat.h>
 #include <sys/bus.h>
+#include <sys/sbuf.h>
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 
@@ -301,6 +302,38 @@ cam_periph_find(struct cam_path *path, char *name)
 	}
 	xpt_unlock_buses();
 	return(NULL);
+}
+
+/*
+ * Find a peripheral structure with the specified path, target, lun, 
+ * and (optionally) type.  If the name is NULL, this function will return
+ * the first peripheral driver that matches the specified path.
+ */
+int
+cam_periph_list(struct cam_path *path, struct sbuf *sb)
+{
+	struct periph_driver **p_drv;
+	struct cam_periph *periph;
+	int count;
+
+	count = 0;
+	xpt_lock_buses();
+	for (p_drv = periph_drivers; *p_drv != NULL; p_drv++) {
+
+		TAILQ_FOREACH(periph, &(*p_drv)->units, unit_links) {
+			if (xpt_path_comp(periph->path, path) != 0)
+				continue;
+
+			if (sbuf_len(sb) != 0)
+				sbuf_cat(sb, ",");
+
+			sbuf_printf(sb, "%s%d", periph->periph_name,
+				    periph->unit_number);
+			count++;
+		}
+	}
+	xpt_unlock_buses();
+	return (count);
 }
 
 cam_status
@@ -654,12 +687,12 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 		dirs[1] = CAM_DIR_IN;
 		numbufs = 2;
 		break;
-	case XPT_GDEV_ADVINFO:
-		if (ccb->cgdai.bufsiz == 0)
+	case XPT_DEV_ADVINFO:
+		if (ccb->cdai.bufsiz == 0)
 			return (0);
 
-		data_ptrs[0] = (uint8_t **)&ccb->cgdai.buf;
-		lengths[0] = ccb->cgdai.bufsiz;
+		data_ptrs[0] = (uint8_t **)&ccb->cdai.buf;
+		lengths[0] = ccb->cdai.bufsiz;
 		dirs[0] = CAM_DIR_IN;
 		numbufs = 1;
 
@@ -813,9 +846,9 @@ cam_periph_unmapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 		data_ptrs[0] = &ccb->smpio.smp_request;
 		data_ptrs[1] = &ccb->smpio.smp_response;
 		break;
-	case XPT_GDEV_ADVINFO:
+	case XPT_DEV_ADVINFO:
 		numbufs = min(mapinfo->num_bufs_used, 1);
-		data_ptrs[0] = (uint8_t **)&ccb->cgdai.buf;
+		data_ptrs[0] = (uint8_t **)&ccb->cdai.buf;
 		break;
 	default:
 		/* allow ourselves to be swapped once again */

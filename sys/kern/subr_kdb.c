@@ -88,20 +88,6 @@ SYSCTL_PROC(_debug_kdb, OID_AUTO, trap_code, CTLTYPE_INT | CTLFLAG_RW, NULL, 0,
     kdb_sysctl_trap_code, "I", "set to cause a page fault via code access");
 
 /*
- * Flag indicating whether or not to IPI the other CPUs to stop them on
- * entering the debugger.  Sometimes, this will result in a deadlock as
- * stop_cpus() waits for the other cpus to stop, so we allow it to be
- * disabled.  In order to maximize the chances of success, use a hard
- * stop for that.
- */
-#ifdef SMP
-static int kdb_stop_cpus = 1;
-SYSCTL_INT(_debug_kdb, OID_AUTO, stop_cpus, CTLFLAG_RW | CTLFLAG_TUN,
-    &kdb_stop_cpus, 0, "stop other CPUs when entering the debugger");
-TUNABLE_INT("debug.kdb.stop_cpus", &kdb_stop_cpus);
-#endif
-
-/*
  * Flag to indicate to debuggers why the debugger was entered.
  */
 const char * volatile kdb_why = KDB_WHY_UNSET;
@@ -244,29 +230,44 @@ kdb_reboot(void)
 #define	KEY_CRTLP	16	/* ^P */
 #define	KEY_CRTLR	18	/* ^R */
 
+/* States of th KDB "alternate break sequence" detecting state machine. */
+enum {
+	KDB_ALT_BREAK_SEEN_NONE,
+	KDB_ALT_BREAK_SEEN_CR,
+	KDB_ALT_BREAK_SEEN_CR_TILDE,
+};
+
 int
 kdb_alt_break(int key, int *state)
 {
 	int brk;
 
+	/* All states transition to KDB_ALT_BREAK_SEEN_CR on a CR. */
+	if (key == KEY_CR) {
+		*state = KDB_ALT_BREAK_SEEN_CR;
+		return (0);
+	}
+
 	brk = 0;
 	switch (*state) {
-	case 0:
-		if (key == KEY_CR)
-			*state = 1;
-		break;
-	case 1:
+	case KDB_ALT_BREAK_SEEN_CR:
+		*state = KDB_ALT_BREAK_SEEN_NONE;
 		if (key == KEY_TILDE)
-			*state = 2;
+			*state = KDB_ALT_BREAK_SEEN_CR_TILDE;
 		break;
-	case 2:
+	case KDB_ALT_BREAK_SEEN_CR_TILDE:
+		*state = KDB_ALT_BREAK_SEEN_NONE;
 		if (key == KEY_CRTLB)
 			brk = KDB_REQ_DEBUGGER;
 		else if (key == KEY_CRTLP)
 			brk = KDB_REQ_PANIC;
 		else if (key == KEY_CRTLR)
 			brk = KDB_REQ_REBOOT;
-		*state = 0;
+		break;
+	case KDB_ALT_BREAK_SEEN_NONE:
+	default:
+		*state = KDB_ALT_BREAK_SEEN_NONE;
+		break;
 	}
 	return (brk);
 }
@@ -500,9 +501,6 @@ kdb_trap(int type, int code, struct trapframe *tf)
 {
 	struct kdb_dbbe *be;
 	register_t intr;
-#ifdef SMP
-	int did_stop_cpus;
-#endif
 	int handled;
 
 	be = kdb_dbbe;
@@ -516,8 +514,7 @@ kdb_trap(int type, int code, struct trapframe *tf)
 	intr = intr_disable();
 
 #ifdef SMP
-	if ((did_stop_cpus = kdb_stop_cpus) != 0)
-		stop_cpus_hard(PCPU_GET(other_cpus));
+	stop_cpus_hard(PCPU_GET(other_cpus));
 #endif
 
 	kdb_active++;
@@ -543,8 +540,7 @@ kdb_trap(int type, int code, struct trapframe *tf)
 	kdb_active--;
 
 #ifdef SMP
-	if (did_stop_cpus)
-		restart_cpus(stopped_cpus);
+	restart_cpus(stopped_cpus);
 #endif
 
 	intr_restore(intr);

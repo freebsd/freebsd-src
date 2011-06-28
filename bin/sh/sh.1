@@ -32,7 +32,7 @@
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd June 10, 2011
+.Dd June 24, 2011
 .Dt SH 1
 .Os
 .Sh NAME
@@ -241,6 +241,10 @@ tested, all commands of the function are considered to be tested as
 well.
 .It Fl f Li noglob
 Disable pathname expansion.
+.It Fl h Li trackall
+A do-nothing option for
+.Tn POSIX
+compliance.
 .It Fl I Li ignoreeof
 Ignore
 .Dv EOF Ap s
@@ -372,7 +376,7 @@ The following is a list of valid operators:
 .It Control operators:
 .Bl -column "XXX" "XXX" "XXX" "XXX" "XXX" -offset center -compact
 .It Li & Ta Li && Ta Li ( Ta Li ) Ta Li \en
-.It Li ;; Ta Li ; Ta Li | Ta Li ||
+.It Li ;; Ta Li ;& Ta Li ; Ta Li | Ta Li ||
 .El
 .It Redirection operators:
 .Bl -column "XXX" "XXX" "XXX" "XXX" "XXX" -offset center -compact
@@ -990,6 +994,22 @@ described later),
 separated by
 .Ql \&|
 characters.
+Tilde expansion, parameter expansion, command substitution,
+arithmetic expansion and quote removal are applied to the word.
+Then, each pattern is expanded in turn using tilde expansion,
+parameter expansion, command substitution and arithmetic expansion and
+the expanded form of the word is checked against it.
+If a match is found, the corresponding list is executed.
+If the selected list is terminated by the control operator
+.Ql ;&
+instead of
+.Ql ;; ,
+execution continues with the next list,
+continuing until a list terminated with
+.Ql ;;
+or the end of the
+.Ic case
+command.
 The exit code of the
 .Ic case
 command is the exit code of the last command executed in the list or
@@ -1536,10 +1556,7 @@ except that the built-in commands
 and
 .Ic trap
 return information about the main shell environment
-if they are the only command in a command substitution
-and the substitutions in the command cannot cause side effects
-(such as from assigning values to variables or referencing
-.Li $! ).
+if they are the only command in a command substitution.
 .Ss Arithmetic Expansion
 Arithmetic expansion provides a mechanism for evaluating an arithmetic
 expression and substituting its value.
@@ -1612,15 +1629,15 @@ There are two restrictions on this: first, a pattern cannot match
 a string containing a slash, and second,
 a pattern cannot match a string starting with a period
 unless the first character of the pattern is a period.
-The next section describes the patterns used for both
-Pathname Expansion and the
+The next section describes the patterns used for
+Pathname Expansion,
+the four varieties of parameter expansion for substring processing and the
 .Ic case
 command.
 .Ss Shell Patterns
 A pattern consists of normal characters, which match themselves,
 and meta-characters.
 The meta-characters are
-.Ql \&! ,
 .Ql * ,
 .Ql \&? ,
 and
@@ -1650,16 +1667,30 @@ matches a
 .Ql \&[
 rather than introducing a character class.
 A character class matches any of the characters between the square brackets.
-A range of characters may be specified using a minus sign.
+A locale-dependent range of characters may be specified using a minus sign.
+A named class of characters (see
+.Xr wctype 3 )
+may be specified by surrounding the name with
+.Ql \&[:
+and
+.Ql :\&] .
+For example,
+.Ql \&[\&[:alpha:\&]\&]
+is a shell pattern that matches a single letter.
 The character class may be complemented by making an exclamation point
 .Pq Ql !\&
 the first character of the character class.
+A caret
+.Pq Ql ^
+has the same effect but is non-standard.
 .Pp
 To include a
 .Ql \&]
 in a character class, make it the first character listed
 (after the
-.Ql \&! ,
+.Ql \&!
+or
+.Ql ^ ,
 if any).
 To include a
 .Ql - ,
@@ -2575,6 +2606,7 @@ will return the argument.
 .Xr execve 2 ,
 .Xr getrlimit 2 ,
 .Xr umask 2 ,
+.Xr wctype 3 ,
 .Xr editrc 5
 .Sh HISTORY
 A

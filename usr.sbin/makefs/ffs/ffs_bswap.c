@@ -41,14 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <ufs/ufs/dinode.h>
 #include "ffs/ufs_bswap.h"
 #include <ufs/ffs/fs.h>
-/* XXX temporary */
-struct ufsmount;
-struct bufobj;
-struct mount;
-struct vnode;
-typedef int vfs_vget_t(struct mount *mp, ino_t ino, int flags,
-                    struct vnode **vpp);
-#include <ufs/ffs/ffs_extern.h>
 
 #if !defined(_KERNEL)
 #include <stddef.h>

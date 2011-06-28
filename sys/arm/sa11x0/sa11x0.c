@@ -58,7 +58,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/reboot.h>
 #include <sys/malloc.h>
-#include <sys/bus.h>
 #include <sys/interrupt.h>
 #include <sys/module.h>
 #include <sys/rman.h>
@@ -74,7 +73,6 @@ __FBSDID("$FreeBSD$");
 #include <arm/sa11x0/sa11x0_dmacreg.h>
 #include <arm/sa11x0/sa11x0_ppcreg.h>
 #include <arm/sa11x0/sa11x0_gpioreg.h>
-#include <machine/bus.h>
 
 extern void sa11x0_activateirqs(void);
 

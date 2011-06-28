@@ -87,10 +87,11 @@ ASENTRY(ofwcall)
 	 * later.
 	 */
 	mr	%r5,%r1
-	lis	%r1,(ofwstk+OFWSTKSZ-16)@ha
-	addi	%r1,%r1,(ofwstk+OFWSTKSZ-16)@l
-	stw	%r5,8(%r1)	/* Save real stack pointer */
-	stw	%r6,12(%r1)	/* Save old MSR */
+	lis	%r1,(ofwstk+OFWSTKSZ-32)@ha
+	addi	%r1,%r1,(ofwstk+OFWSTKSZ-32)@l
+	stw	%r5,20(%r1)	/* Save real stack pointer */
+	stw	%r2,24(%r1)	/* Save curthread */
+	stw	%r6,28(%r1)	/* Save old MSR */
 	li	%r5,0
 	stw	%r5,4(%r1)
 	stw	%r5,0(%r1)
@@ -100,8 +101,9 @@ ASENTRY(ofwcall)
 	bctrl
 
 	/* Reload stack pointer and MSR from the OFW stack */
-	lwz	%r6,12(%r1)
-	lwz	%r1,8(%r1)
+	lwz	%r6,28(%r1)
+	lwz	%r2,24(%r1)
+	lwz	%r1,20(%r1)
 
 	/* Now set the real MSR */
 	mtmsr	%r6

@@ -1,4 +1,4 @@
-/*	$OpenBSD: pfctl_parser.c,v 1.234 2006/10/31 23:46:24 mcbride Exp $ */
+/*	$OpenBSD: pfctl_parser.c,v 1.240 2008/06/10 20:55:02 mcbride Exp $ */
 
 /*
  * Copyright (c) 2001 Daniel Hartmeier
@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#include <limits.h>
 #include <netdb.h>
 #include <stdarg.h>
 #include <errno.h>
@@ -64,11 +63,11 @@ __FBSDID("$FreeBSD$");
 #include "pfctl.h"
 
 void		 print_op (u_int8_t, const char *, const char *);
-void		 print_port (u_int8_t, u_int16_t, u_int16_t, const char *);
+void		 print_port (u_int8_t, u_int16_t, u_int16_t, const char *, int);
 void		 print_ugid (u_int8_t, unsigned, unsigned, const char *, unsigned);
 void		 print_flags (u_int8_t);
 void		 print_fromto(struct pf_rule_addr *, pf_osfp_t,
-		    struct pf_rule_addr *, u_int8_t, u_int8_t, int);
+		    struct pf_rule_addr *, u_int8_t, u_int8_t, int, int);
 int		 ifa_skip_if(const char *filter, struct node_host *p);
 
 struct node_host	*ifa_grouplookup(const char *, int);
@@ -320,12 +319,15 @@ print_op(u_int8_t op, const char *a1, const char *a2)
 }
 
 void
-print_port(u_int8_t op, u_int16_t p1, u_int16_t p2, const char *proto)
+print_port(u_int8_t op, u_int16_t p1, u_int16_t p2, const char *proto, int numeric)
 {
 	char		 a1[6], a2[6];
 	struct servent	*s;
 
-	s = getservbyport(p1, proto);
+	if (!numeric)
+		s = getservbyport(p1, proto);
+	else
+		s = NULL;
 	p1 = ntohs(p1);
 	p2 = ntohs(p2);
 	snprintf(a1, sizeof(a1), "%u", p1);
@@ -363,7 +365,7 @@ print_flags(u_int8_t f)
 
 void
 print_fromto(struct pf_rule_addr *src, pf_osfp_t osfp, struct pf_rule_addr *dst,
-    sa_family_t af, u_int8_t proto, int verbose)
+    sa_family_t af, u_int8_t proto, int verbose, int numeric)
 {
 	char buf[PF_OSFP_LEN*3];
 	if (src->addr.type == PF_ADDR_ADDRMASK &&
@@ -384,7 +386,8 @@ print_fromto(struct pf_rule_addr *src, pf_osfp_t osfp, struct pf_rule_addr *dst,
 		if (src->port_op)
 			print_port(src->port_op, src->port[0],
 			    src->port[1],
-			    proto == IPPROTO_TCP ? "tcp" : "udp");
+			    proto == IPPROTO_TCP ? "tcp" : "udp",
+			    numeric);
 		if (osfp != PF_OSFP_ANY)
 			printf(" os \"%s\"", pfctl_lookup_fingerprint(osfp, buf,
 			    sizeof(buf)));
@@ -396,7 +399,8 @@ print_fromto(struct pf_rule_addr *src, pf_osfp_t osfp, struct pf_rule_addr *dst,
 		if (dst->port_op)
 			print_port(dst->port_op, dst->port[0],
 			    dst->port[1],
-			    proto == IPPROTO_TCP ? "tcp" : "udp");
+			    proto == IPPROTO_TCP ? "tcp" : "udp",
+			    numeric);
 	}
 }
 
@@ -495,7 +499,7 @@ print_status(struct pf_status *s, int opts)
 	running = s->running ? "Enabled" : "Disabled";
 
 	if (s->since) {
-		unsigned	sec, min, hrs, day = runtime;
+		unsigned int	sec, min, hrs, day = runtime;
 
 		sec = day % 60;
 		day /= 60;
@@ -576,7 +580,11 @@ print_status(struct pf_status *s, int opts)
 		    s->src_nodes, "");
 		for (i = 0; i < SCNT_MAX; i++) {
 			printf("  %-25s %14lld ", pf_scounters[i],
-				   (unsigned long long)s->scounters[i]);
+#ifdef __FreeBSD__
+				    (long long)s->scounters[i]);
+#else
+				    s->scounters[i]);
+#endif
 			if (runtime > 0)
 				printf("%14.1f/s\n",
 				    (double)s->scounters[i] / (double)runtime);
@@ -673,7 +681,7 @@ print_src_node(struct pf_src_node *sn, int opts)
 }
 
 void
-print_rule(struct pf_rule *r, const char *anchor_call, int verbose)
+print_rule(struct pf_rule *r, const char *anchor_call, int verbose, int numeric)
 {
 	static const char *actiontypes[] = { "pass", "block", "scrub",
 	    "no scrub", "nat", "no nat", "binat", "no binat", "rdr", "no rdr" };
@@ -800,7 +808,7 @@ print_rule(struct pf_rule *r, const char *anchor_call, int verbose)
 			printf(" proto %u", r->proto);
 	}
 	print_fromto(&r->src, r->os_fingerprint, &r->dst, r->af, r->proto,
-	    verbose);
+	    verbose, numeric);
 	if (r->uid.op)
 		print_ugid(r->uid.op, r->uid.uid[0], r->uid.uid[1], "user",
 		    UID_MAX);
@@ -947,6 +955,12 @@ print_rule(struct pf_rule *r, const char *anchor_call, int verbose)
 			printf("sloppy");
 			opts = 0;
 		}
+		if (r->rule_flag & PFRULE_PFLOW) {
+			if (!opts)
+				printf(", ");
+			printf("pflow");
+			opts = 0;
+		}
 		for (i = 0; i < PFTM_MAX; ++i)
 			if (r->timeout[i]) {
 				int j;
@@ -974,6 +988,8 @@ print_rule(struct pf_rule *r, const char *anchor_call, int verbose)
 		printf(" min-ttl %d", r->min_ttl);
 	if (r->max_mss)
 		printf(" max-mss %d", r->max_mss);
+	if (r->rule_flag & PFRULE_SET_TOS)
+		printf(" set-tos 0x%2.2x", r->set_tos);
 	if (r->allow_opts)
 		printf(" allow-opts");
 	if (r->action == PF_SCRUB) {
@@ -1002,6 +1018,26 @@ print_rule(struct pf_rule *r, const char *anchor_call, int verbose)
 	}
 	if (r->rtableid != -1)
 		printf(" rtable %u", r->rtableid);
+	if (r->divert.port) {
+#ifdef __FreeBSD__
+		printf(" divert-to %u", ntohs(r->divert.port));
+#else
+		if (PF_AZERO(&r->divert.addr, r->af)) {
+			printf(" divert-reply");
+		} else {
+			/* XXX cut&paste from print_addr */
+			char buf[48];
+
+			printf(" divert-to ");
+			if (inet_ntop(r->af, &r->divert.addr, buf,
+			    sizeof(buf)) == NULL)
+				printf("?");
+			else
+				printf("%s", buf);
+			printf(" port %u", ntohs(r->divert.port));
+		}
+#endif
+	}
 	if (!anchor_call[0] && (r->action == PF_NAT ||
 	    r->action == PF_BINAT || r->action == PF_RDR)) {
 		printf(" -> ");
@@ -1022,6 +1058,8 @@ print_tabledef(const char *name, int flags, int addrs,
 		printf(" const");
 	if (flags & PFR_TFLAG_PERSIST)
 		printf(" persist");
+	if (flags & PFR_TFLAG_COUNTERS)
+		printf(" counters");
 	SIMPLEQ_FOREACH(ti, nodes, entries) {
 		if (ti->file) {
 			printf(" file \"%s\"", ti->file);

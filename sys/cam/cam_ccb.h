@@ -144,8 +144,8 @@ typedef enum {
 				/* Device statistics (error counts, etc.) */
 	XPT_FREEZE_QUEUE	= 0x0d,
 				/* Freeze device queue */
-	XPT_GDEV_ADVINFO	= 0x0e,
-				/* Advanced device information */
+	XPT_DEV_ADVINFO		= 0x0e,
+				/* Get/Set Device advanced information */
 /* SCSI Control Functions: 0x10->0x1F */
 	XPT_ABORT		= 0x10,
 				/* Abort the specified CCB */
@@ -391,15 +391,24 @@ typedef enum {
 	DEV_MATCH_TARGET	= 0x002,
 	DEV_MATCH_LUN		= 0x004,
 	DEV_MATCH_INQUIRY	= 0x008,
+	DEV_MATCH_DEVID		= 0x010,
 	DEV_MATCH_ANY		= 0x00f
 } dev_pattern_flags;
 
+struct device_id_match_pattern {
+	uint8_t id_len;
+	uint8_t id[256];
+};
+
 struct device_match_pattern {
-	path_id_t				path_id;
-	target_id_t				target_id;
-	lun_id_t				target_lun;
-	struct scsi_static_inquiry_pattern	inq_pat;
-	dev_pattern_flags			flags;
+	path_id_t					path_id;
+	target_id_t					target_id;
+	lun_id_t					target_lun;
+	dev_pattern_flags				flags;
+	union {
+		struct scsi_static_inquiry_pattern	inq_pat;
+		struct device_id_match_pattern		devid_pat;
+	} data;	
 };
 
 typedef enum {
@@ -745,6 +754,7 @@ struct ccb_relsim {
  * Definitions for the asynchronous callback CCB fields.
  */
 typedef enum {
+	AC_ADVINFO_CHANGED	= 0x2000,/* Advance info might have changes */
 	AC_CONTRACT		= 0x1000,/* A contractual callback */
 	AC_GETDEV_CHANGED	= 0x800,/* Getdev info might have changed */
 	AC_INQ_CHANGED		= 0x400,/* Inquiry info might have changed */
@@ -1094,19 +1104,20 @@ struct ccb_eng_exec {	/* This structure must match SCSIIO size */
 #define XPT_CCB_INVALID	-1	/* for signaling a bad CCB to free */
 
 /*
- * CCB for getting advanced device information.  This operates in a fashion
+ * CCB for working with advanced device information.  This operates in a fashion
  * similar to XPT_GDEV_TYPE.  Specify the target in ccb_h, the buffer
  * type requested, and provide a buffer size/buffer to write to.  If the
- * buffer is too small, the handler will set GDEVAI_FLAG_MORE.
+ * buffer is too small, provsiz will be larger than bufsiz.
  */
-struct ccb_getdev_advinfo {
+struct ccb_dev_advinfo {
 	struct ccb_hdr ccb_h;
 	uint32_t flags;
-#define	CGDAI_FLAG_TRANSPORT	0x1
-#define	CGDAI_FLAG_PROTO	0x2
+#define	CDAI_FLAG_STORE		0x1	/* If set, action becomes store */
 	uint32_t buftype;		/* IN: Type of data being requested */
 	/* NB: buftype is interpreted on a per-transport basis */
-#define	CGDAI_TYPE_SCSI_DEVID	1
+#define	CDAI_TYPE_SCSI_DEVID	1
+#define	CDAI_TYPE_SERIAL_NUM	2
+#define	CDAI_TYPE_PHYS_PATH	3
 	off_t bufsiz;			/* IN: Size of external buffer */
 #define	CAM_SCSI_DEVID_MAXLEN	65536	/* length in buffer is an uint16_t */
 	off_t provsiz;			/* OUT: Size required/used */
@@ -1151,7 +1162,7 @@ union ccb {
 	struct 	ccb_rescan		crcn;
 	struct  ccb_debug		cdbg;
 	struct	ccb_ataio		ataio;
-	struct	ccb_getdev_advinfo	cgdai;
+	struct	ccb_dev_advinfo		cdai;
 };
 
 __BEGIN_DECLS

@@ -2014,6 +2014,7 @@ product KODAK DC280		0x0130	Digital Science DC280
 
 /* Kontron AG products */
 product KONTRON DM9601		0x8101	USB Ethernet
+product KONTRON JP1082		0x9700	USB Ethernet
 
 /* Konica Corp. Products */
 product KONICA CAMERA		0x0720	Digital Color Camera

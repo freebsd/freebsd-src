@@ -444,6 +444,19 @@ init_TSC_tc(void)
 		goto init;
 	}
 
+	/*
+	 * We cannot use the TSC if it stops incrementing in deep sleep.
+	 * Currently only Intel CPUs are known for this problem unless
+	 * the invariant TSC bit is set.
+	 */
+	if (cpu_can_deep_sleep && cpu_vendor_id == CPU_VENDOR_INTEL &&
+	    (amd_pminfo & AMDPM_TSC_INVARIANT) == 0) {
+		tsc_timecounter.tc_quality = -1000;
+		if (bootverbose)
+			printf("TSC timecounter disabled: C3 enabled.\n");
+		goto init;
+	}
+
 #ifdef SMP
 	/*
 	 * We can not use the TSC in SMP mode unless the TSCs on all CPUs are
@@ -461,7 +474,7 @@ init_TSC_tc(void)
 		tsc_timecounter.tc_quality = 1000;
 
 init:
-	for (shift = 0; shift < 32 && (tsc_freq >> shift) > max_freq; shift++)
+	for (shift = 0; shift < 31 && (tsc_freq >> shift) > max_freq; shift++)
 		;
 	if (shift > 0) {
 		tsc_timecounter.tc_get_timecount = tsc_get_timecount_low;
@@ -579,6 +592,9 @@ tsc_get_timecount(struct timecounter *tc __unused)
 static u_int
 tsc_get_timecount_low(struct timecounter *tc)
 {
+	uint32_t rv;
 
-	return (rdtsc() >> (int)(intptr_t)tc->tc_priv);
+	__asm __volatile("rdtsc; shrd %%cl, %%edx, %0"
+	: "=a" (rv) : "c" ((int)(intptr_t)tc->tc_priv) : "edx");
+	return (rv);
 }

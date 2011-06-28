@@ -118,7 +118,7 @@ powerpc_decr_interrupt(struct trapframe *framep)
 	struct thread *td;
 	struct trapframe *oldframe;
 
-	td = PCPU_GET(curthread);
+	td = curthread;
 	critical_enter();
 	atomic_add_int(&td->td_intr_nesting_level, 1);
 	oldframe = td->td_intr_frame;

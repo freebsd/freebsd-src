@@ -1416,6 +1416,19 @@ freebsd32_pwrite(struct thread *td, struct freebsd32_pwrite_args *uap)
 	return (pwrite(td, &ap));
 }
 
+#ifdef COMPAT_43
+int
+ofreebsd32_lseek(struct thread *td, struct ofreebsd32_lseek_args *uap)
+{
+	struct lseek_args nuap;
+
+	nuap.fd = uap->fd;
+	nuap.offset = uap->offset;
+	nuap.whence = uap->whence;
+	return (lseek(td, &nuap));
+}
+#endif
+
 int
 freebsd32_lseek(struct thread *td, struct freebsd32_lseek_args *uap)
 {
