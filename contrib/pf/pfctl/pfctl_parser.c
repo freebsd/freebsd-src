@@ -1,4 +1,4 @@
-/*	$OpenBSD: pfctl_parser.c,v 1.234 2006/10/31 23:46:24 mcbride Exp $ */
+/*	$OpenBSD: pfctl_parser.c,v 1.240 2008/06/10 20:55:02 mcbride Exp $ */
 
 /*
  * Copyright (c) 2001 Daniel Hartmeier
@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#include <limits.h>
 #include <netdb.h>
 #include <stdarg.h>
 #include <errno.h>
@@ -500,7 +499,7 @@ print_status(struct pf_status *s, int opts)
 	running = s->running ? "Enabled" : "Disabled";
 
 	if (s->since) {
-		unsigned	sec, min, hrs, day = runtime;
+		unsigned int	sec, min, hrs, day = runtime;
 
 		sec = day % 60;
 		day /= 60;
@@ -581,7 +580,11 @@ print_status(struct pf_status *s, int opts)
 		    s->src_nodes, "");
 		for (i = 0; i < SCNT_MAX; i++) {
 			printf("  %-25s %14lld ", pf_scounters[i],
-				   (unsigned long long)s->scounters[i]);
+#ifdef __FreeBSD__
+				    (long long)s->scounters[i]);
+#else
+				    s->scounters[i]);
+#endif
 			if (runtime > 0)
 				printf("%14.1f/s\n",
 				    (double)s->scounters[i] / (double)runtime);
@@ -952,6 +955,12 @@ print_rule(struct pf_rule *r, const char *anchor_call, int verbose, int numeric)
 			printf("sloppy");
 			opts = 0;
 		}
+		if (r->rule_flag & PFRULE_PFLOW) {
+			if (!opts)
+				printf(", ");
+			printf("pflow");
+			opts = 0;
+		}
 		for (i = 0; i < PFTM_MAX; ++i)
 			if (r->timeout[i]) {
 				int j;
@@ -979,6 +988,8 @@ print_rule(struct pf_rule *r, const char *anchor_call, int verbose, int numeric)
 		printf(" min-ttl %d", r->min_ttl);
 	if (r->max_mss)
 		printf(" max-mss %d", r->max_mss);
+	if (r->rule_flag & PFRULE_SET_TOS)
+		printf(" set-tos 0x%2.2x", r->set_tos);
 	if (r->allow_opts)
 		printf(" allow-opts");
 	if (r->action == PF_SCRUB) {
@@ -1007,6 +1018,26 @@ print_rule(struct pf_rule *r, const char *anchor_call, int verbose, int numeric)
 	}
 	if (r->rtableid != -1)
 		printf(" rtable %u", r->rtableid);
+	if (r->divert.port) {
+#ifdef __FreeBSD__
+		printf(" divert-to %u", ntohs(r->divert.port));
+#else
+		if (PF_AZERO(&r->divert.addr, r->af)) {
+			printf(" divert-reply");
+		} else {
+			/* XXX cut&paste from print_addr */
+			char buf[48];
+
+			printf(" divert-to ");
+			if (inet_ntop(r->af, &r->divert.addr, buf,
+			    sizeof(buf)) == NULL)
+				printf("?");
+			else
+				printf("%s", buf);
+			printf(" port %u", ntohs(r->divert.port));
+		}
+#endif
+	}
 	if (!anchor_call[0] && (r->action == PF_NAT ||
 	    r->action == PF_BINAT || r->action == PF_RDR)) {
 		printf(" -> ");
@@ -1027,6 +1058,8 @@ print_tabledef(const char *name, int flags, int addrs,
 		printf(" const");
 	if (flags & PFR_TFLAG_PERSIST)
 		printf(" persist");
+	if (flags & PFR_TFLAG_COUNTERS)
+		printf(" counters");
 	SIMPLEQ_FOREACH(ti, nodes, entries) {
 		if (ti->file) {
 			printf(" file \"%s\"", ti->file);

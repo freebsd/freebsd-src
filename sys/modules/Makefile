@@ -241,6 +241,7 @@ SUBDIR=	${_3dfx} \
 	pcn \
 	${_pf} \
 	${_pflog} \
+	${_pfsync} \
 	plip \
 	${_pmc} \
 	portalfs \
@@ -382,6 +383,9 @@ _netgraph=	netgraph
 	${MK_INET6_SUPPORT} != "no")) || defined(ALL_MODULES)
 _pf=		pf
 _pflog=		pflog
+.if ${MK_INET_SUPPORT} != "no"
+_pfsync=	pfsync
+.endif
 .endif
 
 .if ${MACHINE_CPUARCH} == "i386"

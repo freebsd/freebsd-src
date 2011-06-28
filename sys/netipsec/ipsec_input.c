@@ -473,6 +473,8 @@ ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav,
 
 	key_sa_recordxfer(sav, m);		/* record data transfer */
 
+	m_addr_changed(m);
+
 #ifdef DEV_ENC
 	encif->if_ipackets++;
 	encif->if_ibytes += m->m_pkthdr.len;
