@@ -49,9 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if_types.h>
 #include <net/netisr.h>
 
-#include <sys/mbuf.h>
-#include <sys/socket.h>
-#include <net/netisr.h>
 #include <net/route.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>

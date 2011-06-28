@@ -38,8 +38,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <machine/bus.h>
 
-#include <machine/bus.h>
-
 #include <dev/fdc/fdcvar.h>
 #include <dev/pccard/pccardvar.h>
 #include "pccarddevs.h"
