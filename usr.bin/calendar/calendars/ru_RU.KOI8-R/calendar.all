@@ -10,7 +10,6 @@
 #include <ru_RU.KOI8-R/calendar.common>
 #include <ru_RU.KOI8-R/calendar.holiday>
 #include <ru_RU.KOI8-R/calendar.military>
-#include <ru_RU.KOI8-R/calendar.msk>
 #include <ru_RU.KOI8-R/calendar.orthodox>
 #include <ru_RU.KOI8-R/calendar.pagan>
 
