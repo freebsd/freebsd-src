@@ -1,4 +1,4 @@
-/*	$OpenBSD: authpf.c,v 1.104 2007/02/24 17:35:08 beck Exp $	*/
+/*	$OpenBSD: authpf.c,v 1.112 2009/01/10 19:08:53 miod Exp $	*/
 
 /*
  * Copyright (C) 1998 - 2007 Bob Beck (beck@openbsd.org).
@@ -19,7 +19,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/param.h>
+#include <sys/types.h>
 #include <sys/file.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <login_cap.h>
 #include <pwd.h>
+#include <grp.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -48,10 +49,11 @@ __FBSDID("$FreeBSD$");
 #include "pathnames.h"
 
 static int	read_config(FILE *);
-static void	print_message(char *);
-static int	allowed_luser(char *);
-static int	check_luser(char *, char *);
+static void	print_message(const char *);
+static int	allowed_luser(struct passwd *);
+static int	check_luser(const char *, char *);
 static int	remove_stale_rulesets(void);
+static int	recursive_ruleset_purge(char *, char *);
 static int	change_filter(int, const char *, const char *);
 static int	change_table(int, const char *);
 static void	authpf_kill_states(void);
@@ -60,8 +62,10 @@ int	dev;			/* pf device */
 char	anchorname[PF_ANCHOR_NAME_SIZE] = "authpf";
 char	rulesetname[MAXPATHLEN - PF_ANCHOR_NAME_SIZE - 2];
 char	tablename[PF_TABLE_NAME_SIZE] = "authpf_users";
+int	user_ip = 1;	/* controls whether $user_ip is set */
 
 FILE	*pidfp;
+int	pidfd = -1;
 char	 luser[MAXLOGNAME];	/* username */
 char	 ipsrc[256];		/* ip as a string */
 char	 pidfile[MAXPATHLEN];	/* we save pid in this file. */
@@ -75,6 +79,7 @@ static __dead2 void	do_death(int);
 #else
 static __dead void	do_death(int);
 #endif
+extern char *__progname;	/* program name */
 
 /*
  * User shell for authenticating gateways. Sole purpose is to allow
@@ -83,21 +88,24 @@ static __dead void	do_death(int);
  * up. Meant to be used only from ssh(1) connections.
  */
 int
-main(int argc, char *argv[])
+main(void)
 {
-	int		 lockcnt = 0, n, pidfd;
+	int		 lockcnt = 0, n;
 	FILE		*config;
 	struct in6_addr	 ina;
 	struct passwd	*pw;
 	char		*cp;
 	gid_t		 gid;
 	uid_t		 uid;
-	char		*shell;
+	const char	*shell;
 	login_cap_t	*lc;
+
+	if (strcmp(__progname, "-authpf-noip") == 0)
+                user_ip = 0;
 
 	config = fopen(PATH_CONFFILE, "r");
 	if (config == NULL) {
-		syslog(LOG_ERR, "can not open %s (%m)", PATH_CONFFILE);
+		syslog(LOG_ERR, "cannot open %s (%m)", PATH_CONFFILE);
 		exit(1);
 	}
 
@@ -142,23 +150,34 @@ main(int argc, char *argv[])
 	}
 
 	if ((lc = login_getclass(pw->pw_class)) != NULL)
-		shell = (char *)login_getcapstr(lc, "shell", pw->pw_shell,
+		shell = login_getcapstr(lc, "shell", pw->pw_shell,
 		    pw->pw_shell);
 	else
 		shell = pw->pw_shell;
 
+#ifndef __FreeBSD__
 	login_close(lc);
+#endif
 
-	if (strcmp(shell, PATH_AUTHPF_SHELL)) {
+	if (strcmp(shell, PATH_AUTHPF_SHELL) && 
+	    strcmp(shell, PATH_AUTHPF_SHELL_NOIP)) {
 		syslog(LOG_ERR, "wrong shell for user %s, uid %u",
 		    pw->pw_name, pw->pw_uid);
+#ifdef __FreeBSD__
+	login_close(lc);
+#else
 		if (shell != pw->pw_shell)
 			free(shell);
+#endif
 		goto die;
 	}
 
+#ifdef __FreeBSD__
+	login_close(lc);
+#else
 	if (shell != pw->pw_shell)
 		free(shell);
+#endif
 
 	/*
 	 * Paranoia, but this data _does_ come from outside authpf, and
@@ -181,12 +200,21 @@ main(int argc, char *argv[])
 	}
 
 
-	/* Make our entry in /var/authpf as /var/authpf/ipaddr */
-	n = snprintf(pidfile, sizeof(pidfile), "%s/%s", PATH_PIDFILE, ipsrc);
+	/* Make our entry in /var/authpf as ipaddr or username */
+	n = snprintf(pidfile, sizeof(pidfile), "%s/%s",
+	    PATH_PIDFILE, user_ip ? ipsrc : luser);
 	if (n < 0 || (u_int)n >= sizeof(pidfile)) {
 		syslog(LOG_ERR, "path to pidfile too long");
 		goto die;
 	}
+
+	signal(SIGTERM, need_death);
+	signal(SIGINT, need_death);
+	signal(SIGALRM, need_death);
+	signal(SIGPIPE, need_death);
+	signal(SIGHUP, need_death);
+	signal(SIGQUIT, need_death);
+	signal(SIGTSTP, need_death);
 
 	/*
 	 * If someone else is already using this ip, then this person
@@ -241,15 +269,17 @@ main(int argc, char *argv[])
 		}
 
 		/*
-		 * we try to kill the previous process and acquire the lock
+		 * We try to kill the previous process and acquire the lock
 		 * for 10 seconds, trying once a second. if we can't after
-		 * 10 attempts we log an error and give up
+		 * 10 attempts we log an error and give up.
 		 */
-		if (++lockcnt > 10) {
-			syslog(LOG_ERR, "cannot kill previous authpf (pid %d)",
-			    otherpid);
+		if (want_death || ++lockcnt > 10) {
+			if (!want_death)
+				syslog(LOG_ERR, "cannot kill previous authpf (pid %d)",
+				    otherpid);
 			fclose(pidfp);
 			pidfp = NULL;
+			pidfd = -1;
 			goto dogdeath;
 		}
 		sleep(1);
@@ -260,6 +290,7 @@ main(int argc, char *argv[])
 		 */
 		fclose(pidfp);
 		pidfp = NULL;
+		pidfd = -1;
 	} while (1);
 	
 	/* whack the group list */
@@ -277,7 +308,7 @@ main(int argc, char *argv[])
 	}
 	openlog("authpf", LOG_PID | LOG_NDELAY, LOG_DAEMON);
 
-	if (!check_luser(PATH_BAN_DIR, luser) || !allowed_luser(luser)) {
+	if (!check_luser(PATH_BAN_DIR, luser) || !allowed_luser(pw)) {
 		syslog(LOG_INFO, "user %s prohibited", luser);
 		do_death(0);
 	}
@@ -302,19 +333,12 @@ main(int argc, char *argv[])
 		printf("Unable to modify filters\r\n");
 		do_death(0);
 	}
-	if (change_table(1, ipsrc) == -1) {
+	if (user_ip && change_table(1, ipsrc) == -1) {
 		printf("Unable to modify table\r\n");
 		change_filter(0, luser, ipsrc);
 		do_death(0);
 	}
 
-	signal(SIGTERM, need_death);
-	signal(SIGINT, need_death);
-	signal(SIGALRM, need_death);
-	signal(SIGPIPE, need_death);
-	signal(SIGHUP, need_death);
-	signal(SIGQUIT, need_death);
-	signal(SIGTSTP, need_death);
 	while (1) {
 		printf("\r\nHello %s. ", luser);
 		printf("You are authenticated from host \"%s\"\r\n", ipsrc);
@@ -337,8 +361,6 @@ dogdeath:
 	sleep(180); /* them lusers read reaaaaal slow */
 die:
 	do_death(0);
-
-	/* NOTREACHED */
 }
 
 /*
@@ -361,6 +383,8 @@ read_config(FILE *f)
 		}
 		i++;
 		len = strlen(buf);
+		if (len == 0)
+			continue;
 		if (buf[len - 1] != '\n' && !feof(f)) {
 			syslog(LOG_ERR, "line %d too long in %s", i,
 			    PATH_CONFFILE);
@@ -413,7 +437,7 @@ parse_error:
  * they've been bad or we're unavailable.
  */
 static void
-print_message(char *filename)
+print_message(const char *filename)
 {
 	char	 buf[1024];
 	FILE	*f;
@@ -436,6 +460,7 @@ print_message(char *filename)
  * allowed_luser checks to see if user "luser" is allowed to
  * use this gateway by virtue of being listed in an allowed
  * users file, namely /etc/authpf/authpf.allow .
+ * Users may be listed by <username>, %<group>, or @<login_class>.
  *
  * If /etc/authpf/authpf.allow does not exist, then we assume that
  * all users who are allowed in by sshd(8) are permitted to
@@ -444,9 +469,9 @@ print_message(char *filename)
  * the session terminates in the same manner as being banned.
  */
 static int
-allowed_luser(char *luser)
+allowed_luser(struct passwd *pw)
 {
-	char	*buf, *lbuf;
+	char *buf,*lbuf;
 	int	 matched;
 	size_t	 len;
 	FILE	*f;
@@ -476,8 +501,14 @@ allowed_luser(char *luser)
 		 * "public" gateway, such as it is, so let
 		 * everyone use it.
 		 */
+		int gl_init = 0, ngroups = NGROUPS + 1;
+		gid_t groups[NGROUPS + 1];
+
 		lbuf = NULL;
+		matched = 0;
+
 		while ((buf = fgetln(f, &len))) {
+			
 			if (buf[len - 1] == '\n')
 				buf[len - 1] = '\0';
 			else {
@@ -488,7 +519,40 @@ allowed_luser(char *luser)
 				buf = lbuf;
 			}
 
-			matched = strcmp(luser, buf) == 0 || strcmp("*", buf) == 0;
+			if (buf[0] == '@') {
+				/* check login class */
+				if (strcmp(pw->pw_class, buf + 1) == 0)
+					matched++;
+			} else if (buf[0] == '%') {
+				/* check group membership */
+				int cnt; 
+				struct group *group;
+
+				if ((group = getgrnam(buf + 1)) == NULL) {
+					syslog(LOG_ERR,
+					    "invalid group '%s' in %s (%s)",
+					    buf + 1, PATH_ALLOWFILE,
+				 	    strerror(errno));
+					return (0);
+				}
+
+				if (!gl_init) {
+					(void) getgrouplist(pw->pw_name,
+					    pw->pw_gid, groups, &ngroups);
+					gl_init++;
+				}
+			
+				for ( cnt = 0; cnt < ngroups; cnt++) {
+					if (group->gr_gid == groups[cnt]) {
+						matched++;
+						break;
+					}
+				}
+			} else {
+				/* check username and wildcard */
+				matched = strcmp(pw->pw_name, buf) == 0 ||
+				    strcmp("*", buf) == 0;
+			}
 
 			if (lbuf != NULL) {
 				free(lbuf);
@@ -496,13 +560,13 @@ allowed_luser(char *luser)
 			}
 
 			if (matched)
-				return (1); /* matched an allowed username */
+				return (1); /* matched an allowed user/group */
 		}
 		syslog(LOG_INFO, "denied access to %s: not listed in %s",
-		    luser, PATH_ALLOWFILE);
+		    pw->pw_name, PATH_ALLOWFILE);
 
 		/* reuse buf */
-		buf = "\n\nSorry, you are not allowed to use this facility!\n";
+		sprintf(buf, "%s", "\n\nSorry, you are not allowed to use this facility!\n");
 		fputs(buf, stdout);
 	}
 	fflush(stdout);
@@ -520,13 +584,13 @@ allowed_luser(char *luser)
  * going to be un-banned.)
  */
 static int
-check_luser(char *luserdir, char *luser)
+check_luser(const char *luserdir, char *l_user)
 {
 	FILE	*f;
 	int	 n;
 	char	 tmp[MAXPATHLEN];
 
-	n = snprintf(tmp, sizeof(tmp), "%s/%s", luserdir, luser);
+	n = snprintf(tmp, sizeof(tmp), "%s/%s", luserdir, l_user);
 	if (n < 0 || (u_int)n >= sizeof(tmp)) {
 		syslog(LOG_ERR, "provided banned directory line too long (%s)",
 		    luserdir);
@@ -555,7 +619,7 @@ check_luser(char *luserdir, char *luser)
 		 * tell what they can do and where they can go.
 		 */
 		syslog(LOG_INFO, "denied access to %s: %s exists",
-		    luser, tmp);
+		    l_user, tmp);
 
 		/* reuse tmp */
 		strlcpy(tmp, "\n\n-**- Sorry, you have been banned! -**-\n\n",
@@ -581,7 +645,7 @@ static int
 remove_stale_rulesets(void)
 {
 	struct pfioc_ruleset	 prs;
-	u_int32_t		 nr, mnr;
+	u_int32_t		 nr;
 
 	memset(&prs, 0, sizeof(prs));
 	strlcpy(prs.path, anchorname, sizeof(prs.path));
@@ -592,13 +656,12 @@ remove_stale_rulesets(void)
 			return (1);
 	}
 
-	mnr = prs.nr;
-	nr = 0;
-	while (nr < mnr) {
+	nr = prs.nr;
+	while (nr) {
 		char	*s, *t;
 		pid_t	 pid;
 
-		prs.nr = nr;
+		prs.nr = nr - 1;
 		if (ioctl(dev, DIOCGETRULESET, &prs))
 			return (1);
 		errno = 0;
@@ -610,119 +673,159 @@ remove_stale_rulesets(void)
 		if (!prs.name[0] || errno ||
 		    (*s && (t == prs.name || *s != ')')))
 			return (1);
-		if (kill(pid, 0) && errno != EPERM) {
-			int			i;
-			struct pfioc_trans_e	t_e[PF_RULESET_MAX+1];
-			struct pfioc_trans	t;
-
-			bzero(&t, sizeof(t));
-			bzero(t_e, sizeof(t_e));
-			t.size = PF_RULESET_MAX+1;
-			t.esize = sizeof(t_e[0]);
-			t.array = t_e;
-			for (i = 0; i < PF_RULESET_MAX+1; ++i) {
-				t_e[i].rs_num = i;
-				snprintf(t_e[i].anchor, sizeof(t_e[i].anchor),
-				    "%s/%s", anchorname, prs.name);
-			}
-			t_e[PF_RULESET_MAX].rs_num = PF_RULESET_TABLE;
-			if ((ioctl(dev, DIOCXBEGIN, &t) ||
-			    ioctl(dev, DIOCXCOMMIT, &t)) &&
-			    errno != EINVAL)
+		if ((kill(pid, 0) && errno != EPERM) || pid == getpid()) {
+			if (recursive_ruleset_purge(anchorname, prs.name))
 				return (1);
-			mnr--;
-		} else
-			nr++;
+		}
+		nr--;
 	}
 	return (0);
+}
+
+static int
+recursive_ruleset_purge(char *an, char *rs)
+{
+	struct pfioc_trans_e     *t_e = NULL;
+	struct pfioc_trans	 *t = NULL;
+	struct pfioc_ruleset	 *prs = NULL;
+	int			  i;
+
+
+	/* purge rules */
+	errno = 0;
+	if ((t = calloc(1, sizeof(struct pfioc_trans))) == NULL)
+		goto no_mem;
+	if ((t_e = calloc(PF_RULESET_MAX+1,
+	    sizeof(struct pfioc_trans_e))) == NULL)
+		goto no_mem;
+	t->size = PF_RULESET_MAX+1;
+	t->esize = sizeof(struct pfioc_trans_e);
+	t->array = t_e;
+	for (i = 0; i < PF_RULESET_MAX+1; ++i) {
+		t_e[i].rs_num = i;
+		snprintf(t_e[i].anchor, sizeof(t_e[i].anchor), "%s/%s", an, rs);
+	}
+	t_e[PF_RULESET_MAX].rs_num = PF_RULESET_TABLE;
+	if ((ioctl(dev, DIOCXBEGIN, t) ||
+	    ioctl(dev, DIOCXCOMMIT, t)) &&
+	    errno != EINVAL)
+		goto cleanup;
+
+	/* purge any children */
+	if ((prs = calloc(1, sizeof(struct pfioc_ruleset))) == NULL)
+		goto no_mem;
+	snprintf(prs->path, sizeof(prs->path), "%s/%s", an, rs);
+	if (ioctl(dev, DIOCGETRULESETS, prs)) {
+		if (errno != EINVAL)
+			goto cleanup;
+		errno = 0;
+	} else {
+		int nr = prs->nr;
+
+		while (nr) {
+			prs->nr = 0;
+			if (ioctl(dev, DIOCGETRULESET, prs))
+				goto cleanup;
+
+			if (recursive_ruleset_purge(prs->path, prs->name))
+				goto cleanup;
+			nr--;
+		}
+	}
+
+no_mem:
+	if (errno == ENOMEM)
+		syslog(LOG_ERR, "calloc failed");
+
+cleanup:
+	free(t);
+	free(t_e);
+	free(prs);
+	return (errno);
 }
 
 /*
  * Add/remove filter entries for user "luser" from ip "ipsrc"
  */
 static int
-change_filter(int add, const char *luser, const char *ipsrc)
+change_filter(int add, const char *l_user, const char *ip_src)
 {
-	char	*pargv[13] = {
-		"pfctl", "-p", "/dev/pf", "-q", "-a", "anchor/ruleset",
-		"-D", "user_ip=X", "-D", "user_id=X", "-f",
-		"file", NULL
-	};
 	char	*fdpath = NULL, *userstr = NULL, *ipstr = NULL;
 	char	*rsn = NULL, *fn = NULL;
 	pid_t	pid;
 	gid_t   gid;
 	int	s;
 
-	if (luser == NULL || !luser[0] || ipsrc == NULL || !ipsrc[0]) {
-		syslog(LOG_ERR, "invalid luser/ipsrc");
-		goto error;
-	}
-
-	if (asprintf(&rsn, "%s/%s", anchorname, rulesetname) == -1)
-		goto no_mem;
-	if (asprintf(&fdpath, "/dev/fd/%d", dev) == -1)
-		goto no_mem;
-	if (asprintf(&ipstr, "user_ip=%s", ipsrc) == -1)
-		goto no_mem;
-	if (asprintf(&userstr, "user_id=%s", luser) == -1)
-		goto no_mem;
-
 	if (add) {
 		struct stat sb;
+		char *pargv[13] = {
+			"pfctl", "-p", "/dev/pf", "-q", "-a", "anchor/ruleset",
+			"-D", "user_id=X", "-D", "user_ip=X", "-f", "file", NULL
+		};
 
-		if (asprintf(&fn, "%s/%s/authpf.rules", PATH_USER_DIR, luser)
-		    == -1)
+		if (l_user == NULL || !l_user[0] || ip_src == NULL || !ip_src[0]) {
+			syslog(LOG_ERR, "invalid luser/ipsrc");
+			goto error;
+		}
+
+		if (asprintf(&rsn, "%s/%s", anchorname, rulesetname) == -1)
+			goto no_mem;
+		if (asprintf(&fdpath, "/dev/fd/%d", dev) == -1)
+			goto no_mem;
+		if (asprintf(&ipstr, "user_ip=%s", ip_src) == -1)
+			goto no_mem;
+		if (asprintf(&userstr, "user_id=%s", l_user) == -1)
+			goto no_mem;
+		if (asprintf(&fn, "%s/%s/authpf.rules",
+		    PATH_USER_DIR, l_user) == -1)
 			goto no_mem;
 		if (stat(fn, &sb) == -1) {
 			free(fn);
 			if ((fn = strdup(PATH_PFRULES)) == NULL)
 				goto no_mem;
 		}
-	}
-	pargv[2] = fdpath;
-	pargv[5] = rsn;
-	pargv[7] = userstr;
-	pargv[9] = ipstr;
-	if (!add)
-		pargv[11] = "/dev/null";
-	else
-		pargv[11] = fn;
-
-	switch (pid = fork()) {
-	case -1:
-		syslog(LOG_ERR, "fork failed");
-		goto error;
-	case 0:
-		/* revoke group privs before exec */
-		gid = getgid();
-		if (setregid(gid, gid) == -1) {
-			err(1, "setregid");
+		pargv[2] = fdpath;
+		pargv[5] = rsn;
+		pargv[7] = userstr;
+		if (user_ip) {
+			pargv[9] = ipstr;
+			pargv[11] = fn;
+		} else {
+			pargv[8] = "-f";
+			pargv[9] = fn;
+			pargv[10] = NULL;
 		}
-		execvp(PATH_PFCTL, pargv);
-		warn("exec of %s failed", PATH_PFCTL);
-		_exit(1);
-	}
 
-	/* parent */
-	waitpid(pid, &s, 0);
-	if (s != 0) {
-		syslog(LOG_ERR, "pfctl exited abnormally");
-		goto error;
-	}
+		switch (pid = fork()) {
+		case -1:
+			syslog(LOG_ERR, "fork failed");
+			goto error;
+		case 0:
+			/* revoke group privs before exec */
+			gid = getgid();
+			if (setregid(gid, gid) == -1) {
+				err(1, "setregid");
+			}
+			execvp(PATH_PFCTL, pargv);
+			warn("exec of %s failed", PATH_PFCTL);
+			_exit(1);
+		}
 
-	if (add) {
+		/* parent */
+		waitpid(pid, &s, 0);
+		if (s != 0) {
+			syslog(LOG_ERR, "pfctl exited abnormally");
+			goto error;
+		}
+
 		gettimeofday(&Tstart, NULL);
-		syslog(LOG_INFO, "allowing %s, user %s", ipsrc, luser);
+		syslog(LOG_INFO, "allowing %s, user %s", ip_src, l_user);
 	} else {
+		remove_stale_rulesets();
+
 		gettimeofday(&Tend, NULL);
-#ifdef __FreeBSD__
-		syslog(LOG_INFO, "removed %s, user %s - duration %jd seconds",
-		    ipsrc, luser, (intmax_t)(Tend.tv_sec - Tstart.tv_sec));
-#else
-		syslog(LOG_INFO, "removed %s, user %s - duration %ld seconds",
-		    ipsrc, luser, Tend.tv_sec - Tstart.tv_sec);
-#endif
+		syslog(LOG_INFO, "removed %s, user %s - duration %ju seconds",
+		    ip_src, l_user, (uintmax_t)(Tend.tv_sec - Tstart.tv_sec));
 	}
 	return (0);
 no_mem:
@@ -740,7 +843,7 @@ error:
  * Add/remove this IP from the "authpf_users" table.
  */
 static int
-change_table(int add, const char *ipsrc)
+change_table(int add, const char *ip_src)
 {
 	struct pfioc_table	io;
 	struct pfr_addr		addr;
@@ -753,12 +856,12 @@ change_table(int add, const char *ipsrc)
 	io.pfrio_size = 1;
 
 	bzero(&addr, sizeof(addr));
-	if (ipsrc == NULL || !ipsrc[0])
+	if (ip_src == NULL || !ip_src[0])
 		return (-1);
-	if (inet_pton(AF_INET, ipsrc, &addr.pfra_ip4addr) == 1) {
+	if (inet_pton(AF_INET, ip_src, &addr.pfra_ip4addr) == 1) {
 		addr.pfra_af = AF_INET;
 		addr.pfra_net = 32;
-	} else if (inet_pton(AF_INET6, ipsrc, &addr.pfra_ip6addr) == 1) {
+	} else if (inet_pton(AF_INET6, ip_src, &addr.pfra_ip6addr) == 1) {
 		addr.pfra_af = AF_INET6;
 		addr.pfra_net = 128;
 	} else {
@@ -769,7 +872,7 @@ change_table(int add, const char *ipsrc)
 	if (ioctl(dev, add ? DIOCRADDADDRS : DIOCRDELADDRS, &io) &&
 	    errno != ESRCH) {
 		syslog(LOG_ERR, "cannot %s %s from table %s: %s",
-		    add ? "add" : "remove", ipsrc, tablename,
+		    add ? "add" : "remove", ip_src, tablename,
 		    strerror(errno));
 		return (-1);
 	}
@@ -821,7 +924,7 @@ authpf_kill_states(void)
 
 /* signal handler that makes us go away properly */
 static void
-need_death(int signo)
+need_death(int signo __unused)
 {
 	want_death = 1;
 }
@@ -840,11 +943,12 @@ do_death(int active)
 
 	if (active) {
 		change_filter(0, luser, ipsrc);
-		change_table(0, ipsrc);
-		authpf_kill_states();
-		remove_stale_rulesets();
+		if (user_ip) {
+			change_table(0, ipsrc);
+			authpf_kill_states();
+		}
 	}
-	if (pidfile[0] && (pidfp != NULL))
+	if (pidfile[0] && pidfd != -1)
 		if (unlink(pidfile) == -1)
 			syslog(LOG_ERR, "cannot unlink %s (%m)", pidfile);
 	exit(ret);
