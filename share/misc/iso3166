@@ -1,5 +1,8 @@
 # $FreeBSD$
 #
+# Please consult with http://www.FreeBSD.org/internal/i18n.html before
+# making changes to this file.
+#
 # ISO 3166 country codes
 # This includes many places that are not legally independent countries,
 # but which is it convenient to refer to separately from their
@@ -13,7 +16,7 @@
 # been deleted unless necessary to distinguish two countries.
 #
 # The ISO3166 Maintenance Agency can be found at:
-#	http://www.iso.ch/iso/en/prods-services/iso3166ma/index.html
+#	http://www.iso.org/iso/country_codes.htm
 #
 # two	three	number	name
 AF	AFG	004	Afghanistan
@@ -42,8 +45,9 @@ BZ	BLZ	084	Belize
 BJ	BEN	204	Benin
 BM	BMU	060	Bermuda
 BT	BTN	064	Bhutan
-BO	BOL	068	Bolivia
-BA	BIH	070	Bosnia and Herzegowina
+BO	BOL	068	Bolivia, Plurinational State of
+BQ	BES	535	Bonaire, Saint Eustatius and Saba
+BA	BIH	070	Bosnia and Herzegovina
 BW	BWA	072	Botswana
 BV	BVT	074	Bouvet Island
 BR	BRA	076	Brazil
@@ -65,13 +69,14 @@ CX	CXR	162	Christmas Island
 CC	CCK	166	Cocos (Keeling) Islands
 CO	COL	170	Colombia
 KM	COM	174	Comoros
-CG	COG	178	Congo (Rep.)
-CD	COD	180	Congo (Dem. Rep.)
+CG	COG	178	Congo
+CD	COD	180	Congo, the Democratic Republic of the
 CK	COK	184	Cook Islands
 CR	CRI	188	Costa Rica
 CI	CIV	384	Cote d'Ivoire
 HR	HRV	191	Croatia
 CU	CUB	192	Cuba
+CW	CUW	531	Curacao
 CY	CYP	196	Cyprus
 CZ	CZE	203	Czech Republic
 DK	DNK	208	Denmark
@@ -86,7 +91,7 @@ GQ	GNQ	226	Equatorial Guinea
 ER	ERI	232	Eritrea
 EE	EST	233	Estonia
 ET	ETH	231	Ethiopia
-FK	FLK	238	Falkland Islands
+FK	FLK	238	Falkland Islands (Malvinas)
 FO	FRO	234	Faroe Islands
 FJ	FJI	242	Fiji
 FI	FIN	246	Finland
@@ -111,14 +116,14 @@ GN	GIN	324	Guinea
 GW	GNB	624	Guinea-Bissau
 GY	GUY	328	Guyana
 HT	HTI	332	Haiti
-HM	HMD	334	Heard and McDonald Islands
+HM	HMD	334	Heard Island and McDonald Islands
 HN	HND	340	Honduras
 HK	HKG	344	Hong Kong
 HU	HUN	348	Hungary
 IS	ISL	352	Iceland
 IN	IND	356	India
 ID	IDN	360	Indonesia
-IR	IRN	364	Iran
+IR	IRN	364	Iran, Islamic Republic of
 IQ	IRQ	368	Iraq
 IE	IRL	372	Ireland
 IM	IMN	833	Isle of Man
@@ -131,8 +136,8 @@ JO	JOR	400	Jordan
 KZ	KAZ	398	Kazakhstan
 KE	KEN	404	Kenya
 KI	KIR	296	Kiribati
-KP	PRK	408	Korea (Democratic People's Republic of)
-KR	KOR	410	Korea (Republic of)
+KP	PRK	408	Korea, Democratic People's Republic of
+KR	KOR	410	Korea, Republic of
 KW	KWT	414	Kuwait
 KG	KGZ	417	Kyrgyzstan
 LA	LAO	418	Lao People's Democratic Republic
@@ -145,7 +150,7 @@ LI	LIE	438	Liechtenstein
 LT	LTU	440	Lithuania
 LU	LUX	442	Luxembourg
 MO	MAC	446	Macao
-MK	MKD	807	Macedonia (The Former Yugoslav Republic of)
+MK	MKD	807	Macedonia, the Former Yugoslav Republic of
 MG	MDG	450	Madagascar
 MW	MWI	454	Malawi
 MY	MYS	458	Malaysia
@@ -158,8 +163,8 @@ MR	MRT	478	Mauritania
 MU	MUS	480	Mauritius
 YT	MYT	175	Mayotte
 MX	MEX	484	Mexico
-FM	FSM	583	Micronesia (Federated States of)
-MD	MDA	498	Moldova
+FM	FSM	583	Micronesia, Federated States of
+MD	MDA	498	Moldova, Republic of
 MC	MCO	492	Monaco
 MN	MNG	496	Mongolia
 ME	MNE	499	Montenegro
@@ -171,7 +176,6 @@ NA	NAM	516	Namibia
 NR	NRU	520	Nauru
 NP	NPL	524	Nepal
 NL	NLD	528	Netherlands
-AN	ANT	530	Netherlands Antilles
 NC	NCL	540	New Caledonia
 NZ	NZL	554	New Zealand
 NI	NIC	558	Nicaragua
@@ -184,9 +188,9 @@ NO	NOR	578	Norway
 OM	OMN	512	Oman
 PK	PAK	586	Pakistan
 PW	PLW	585	Palau
-PS	PSE	275	Occupied Palestinian Territory
+PS	PSE	275	Palestinian Territory, Occupied
 PA	PAN	591	Panama
-PG	PNG	598	Papua-New Guinea
+PG	PNG	598	Papua New Guinea
 PY	PRY	600	Paraguay
 PE	PER	604	Peru
 PH	PHL	608	Philippines
@@ -202,7 +206,7 @@ RW	RWA	646	Rwanda
 BL	BLM	652	Saint Barthelemy
 KN	KNA	659	Saint Kitts and Nevis
 LC	LCA	662	Saint Lucia
-MF	MAF	663	Saint Martin (French part)
+MF	MAF	663	Saint Martin (French Part)
 VC	VCT	670	Saint Vincent and the Grenadines
 WS	WSM	882	Samoa
 SM	SMR	674	San Marino
@@ -213,6 +217,7 @@ RS	SRB	688	Serbia
 SC	SYC	690	Seychelles
 SL	SLE	694	Sierra Leone
 SG	SGP	702	Singapore
+SX	SXM	534	Sint Maarten (Dutch part)
 SK	SVK	703	Slovakia
 SI	SVN	705	Slovenia
 SB	SLB	090	Solomon Islands
@@ -221,18 +226,18 @@ ZA	ZAF	710	South Africa
 GS	SGS	239	South Georgia and the South Sandwich Islands
 ES	ESP	724	Spain
 LK	LKA	144	Sri Lanka
-SH	SHN	654	St. Helena
-PM	SPM	666	St. Pierre and Miquelon
+SH	SHN	654	Saint Helena, Ascension and Tristan da Cunha
+PM	SPM	666	Saint Pierre and Miquelon
 SD	SDN	736	Sudan
 SR	SUR	740	Suriname
-SJ	SJM	744	Svalbard and Jan Mayen Islands
+SJ	SJM	744	Svalbard and Jan Mayen
 SZ	SWZ	748	Swaziland
 SE	SWE	752	Sweden
 CH	CHE	756	Switzerland
 SY	SYR	760	Syrian Arab Republic
 TW	TWN	158	Taiwan
 TJ	TJK	762	Tajikistan
-TZ	TZA	834	Tanzania
+TZ	TZA	834	Tanzania, United Republic of
 TH	THA	764	Thailand
 TG	TGO	768	Togo
 TK	TKL	772	Tokelau
@@ -252,12 +257,12 @@ UM	UMI	581	United States Minor Outlying Islands
 UY	URY	858	Uruguay
 UZ	UZB	860	Uzbekistan
 VU	VUT	548	Vanuatu
-VA	VAT	336	Vatican City State
-VE	VEN	862	Venezuela
+VA	VAT	336	Holy See (Vatican City State)
+VE	VEN	862	Venezuela, Bolivarian Republic of
 VN	VNM	704	Viet Nam
-VG	VGB	092	Virgin Islands (British)
-VI	VIR	850	Virgin Islands (U.S.)
-WF	WLF	876	Wallis and Futuna Islands
+VG	VGB	092	Virgin Islands, British
+VI	VIR	850	Virgin Islands, U.S.
+WF	WLF	876	Wallis and Futuna
 EH	ESH	732	Western Sahara
 YE	YEM	887	Yemen
 ZM	ZMB	894	Zambia
@@ -392,7 +397,7 @@ ZW	ZWE	716	Zimbabwe
 # Newsletter III-41 1993-07-28
 #   MAURITIUS, changes outside this document
 #
-# Newletter III-42 1993-07-12
+# Newsletter III-42 1993-07-12
 #   SAINT VINCENT AND THE GRENADINES, changes outside this document
 #
 # Newsletter III-43 1993-07-12
@@ -423,15 +428,15 @@ ZW	ZWE	716	Zimbabwe
 #   Czechoslovakia officially deleted
 #
 # Newsletter III-52, 1993-07-02
-#   Angola, changing information not included in this file. Offical name
+#   Angola, changing information not included in this file. Official name
 #   change to Republic of Angola
 #
 # Newsletter III-53, 1993-07-12
-#   Madagascar, changing information not included in this file. Official 
+#   Madagascar, changing information not included in this file. Official
 #   name change to Republic of Madagascar
 #
 # Newsletter III-54, 1993-07-23
-#   South Georgia and the South Sandwich Islands, previously covered by 
+#   South Georgia and the South Sandwich Islands, previously covered by
 #   Falkland Islands
 #
 # Newsletter III-55, 1993-07-16
@@ -447,23 +452,23 @@ ZW	ZWE	716	Zimbabwe
 #
 # Newsletter III-58, 1993-07-16
 #   Afghanistan, changing information not included in this file
-#   Official name change to Islamic State of Afghanistan  
+#   Official name change to Islamic State of Afghanistan
 #
-# Newsletter III-32, 1993-07-25 ammendment
-#   Kyrgyzstan, changing information not included in this file. Offical name
+# Newsletter III-32, 1993-07-25 amendment
+#   Kyrgyzstan, changing information not included in this file. Official name
 #   change to Kyrgyz Republic
 #
 # Newsletter III-59, 1994-01-26
-#   Andorra, changing information not included in this file. Offical name
+#   Andorra, changing information not included in this file. Official name
 #   change to Pricipality of Andorra
 #
 # Newsletter III-60, 1994-01-26
-#   Cambodia, changing information not included in this file. Offical name
+#   Cambodia, changing information not included in this file. Official name
 #   change to Kingdom of Cambodia
 #
 # Thu Feb 10 1994
 # At this point the fourth edition of ISO 3166 appears. It can *now* be
-# ordered from national standards institutions. The RIPE NCC will continue 
+# ordered from national standards institutions. The RIPE NCC will continue
 # tracking changes.
 #
 # [deletia]
@@ -518,3 +523,27 @@ ZW	ZWE	716	Zimbabwe
 #
 # Newsletter VI-1 2007-09-21
 #  Added SAINT BARTHELEMY (BL) and SAINT MARTIN (MF).
+#
+# Newsletter VI-2 2008-04-25
+#  Name changes for Moldova, Montenegro and other minor corrections.
+#
+# Newsletter VI-3 2008-09-09
+#  Name change for Nepal and other minor corrections.
+#  Not relevant to this file.
+#
+# Newsletter VI-4 2009-01-07
+#  Name change for the Republic of Moldova and other minor corrections.
+#
+# Newsletter VI-5 2009-03-03
+#  Name change for Bolivarian Republic of Venezuela and other minor corrections.
+#
+# Newsletter VI-6 2009-05-08
+#  Name change for Plurinational State of Bolivia.
+#
+# Newsletter VI-7 2010-02-22
+#  Name change for Saint Helena, Ascension and Tristan da Cunha
+#
+# Newsletter VI-8 2010-12-15
+#  BONAIRE, SAINT EUSTATIUS AND SABA (BQ), CURACAO (CW) and
+#  SINT MAARTEN (DUTCH PART) (SX) added as new entries.
+#  NETHERLANDS ANTILLES (AN) removed.
