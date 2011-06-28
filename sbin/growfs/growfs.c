@@ -160,7 +160,7 @@ static void	get_dev_size(int, int *);
 
 /* ************************************************************ growfs ***** */
 /*
- * Here we actually start growing the filesystem. We basically read the
+ * Here we actually start growing the file system. We basically read the
  * cylinder summary from the first cylinder group as we want to update
  * this on the fly during our various operations. First we handle the
  * changes in the former last cylinder group. Afterwards we create all new
@@ -231,7 +231,7 @@ growfs(int fsi, int fso, unsigned int Nflag)
 	updjcg(osblock.fs_ncg-1, modtime, fsi, fso, Nflag);
 
 	/*
-	 * Dump out summary information about filesystem.
+	 * Dump out summary information about file system.
 	 */
 #	define B2MBFACTOR (1 / (1024.0 * 1024.0))
 	printf("growfs: %.1fMB (%jd sectors) block size %d, fragment size %d\n",
@@ -435,7 +435,7 @@ initcg(int cylno, time_t modtime, int fso, unsigned int Nflag)
 	if (acg.cg_nextfreeoff > (unsigned)sblock.fs_cgsize) {
 		/*
 		 * This should never happen as we would have had that panic
-		 * already on filesystem creation
+		 * already on file system creation
 		 */
 		errx(37, "panic: cylinder group too big");
 	}
@@ -446,7 +446,7 @@ initcg(int cylno, time_t modtime, int fso, unsigned int Nflag)
 			acg.cg_cs.cs_nifree--;
 		}
 	/*
-	 * For the old filesystem, we have to initialize all the inodes.
+	 * For the old file system, we have to initialize all the inodes.
 	 */
 	if (sblock.fs_magic == FS_UFS1_MAGIC) {
 		bzero(iobuf, sblock.fs_bsize);
@@ -670,7 +670,7 @@ cond_bl_upd(ufs2_daddr_t *block, struct gfs_bpp *field, int fsi, int fso,
 /* ************************************************************ updjcg ***** */
 /*
  * Here we do all needed work for the former last cylinder group. It has to be
- * changed in any case, even if the filesystem ended exactly on the end of
+ * changed in any case, even if the file system ended exactly on the end of
  * this group, as there is some slightly inconsistent handling of the number
  * of cylinders in the cylinder group. We start again by reading the cylinder
  * group from disk. If the last block was not fully available, we first handle
@@ -780,7 +780,7 @@ updjcg(int cylno, time_t modtime, int fsi, int fso, unsigned int Nflag)
 	 * the rotational layout tables and the cluster summary.  This is
 	 * also done per fragment for the first new block if the old file
 	 * system end was not on a block boundary, per fragment for the new
-	 * last block if the new filesystem end is not on a block boundary,
+	 * last block if the new file system end is not on a block boundary,
 	 * and per block for all space in between.
 	 *
 	 * Handle the first new block here if it was partially available
@@ -804,7 +804,7 @@ updjcg(int cylno, time_t modtime, int fsi, int fso, unsigned int Nflag)
 			/*
 			 * Check if the fragment just created could join an
 			 * already existing fragment at the former end of the
-			 * filesystem.
+			 * file system.
 			 */
 			if(isblock(&sblock, cg_blksfree(&acg),
 			    ((osblock.fs_size - cgbase(&sblock, cylno))/
@@ -931,7 +931,7 @@ updjcg(int cylno, time_t modtime, int fsi, int fso, unsigned int Nflag)
  * Option (1) is considered to be less intrusive to the structure of the file-
  * system. So we try to stick to that whenever possible. If there is not enough
  * space in the cylinder group containing the cylinder summary we have to use
- * method (2). In case of active snapshots in the filesystem we probably can
+ * method (2). In case of active snapshots in the file system we probably can
  * completely avoid implementing copy on write if we stick to method (2) only.
  */
 static void
@@ -1287,7 +1287,7 @@ updcsloc(time_t modtime, int fsi, int fso, unsigned int Nflag)
 		/*
 		 * No cluster handling is needed here, as there was at least
 		 * one fragment in use by the cylinder summary in the old
-		 * filesystem.
+		 * file system.
 		 * No block-free counter handling here as this block was not
 		 * a free block.
 		 */
@@ -1597,7 +1597,7 @@ wtfs(ufs2_daddr_t bno, size_t size, void *bf, int fso, unsigned int Nflag)
 /*
  * Here we allocate a free block in the current cylinder group. It is assumed,
  * that acg contains the current cylinder group. As we may take a block from
- * somewhere in the filesystem we have to handle cluster summary here.
+ * somewhere in the file system we have to handle cluster summary here.
  */
 static ufs2_daddr_t
 alloc(void)
@@ -1939,9 +1939,9 @@ get_dev_size(int fd, int *size)
 /* ************************************************************** main ***** */
 /*
  * growfs(8)  is a utility which allows to increase the size of an existing
- * ufs filesystem. Currently this can only be done on unmounted filesystem.
+ * ufs file system. Currently this can only be done on unmounted file system.
  * It recognizes some command line options to specify the new desired size,
- * and it does some basic checkings. The old filesystem size is determined
+ * and it does some basic checkings. The old file system size is determined
  * and after some more checks like we can really access the new last block
  * on the disk etc. we calculate the new parameters for the superblock. After
  * having done this we just call growfs() which will do the work.  Before
@@ -1953,11 +1953,11 @@ get_dev_size(int fd, int *size)
  * are lucky, then we only have to handle our blocks to be relocated in that
  * way.
  * Also we have to consider in what order we actually update the critical
- * data structures of the filesystem to make sure, that in case of a disaster
+ * data structures of the file system to make sure, that in case of a disaster
  * fsck(8) is still able to restore any lost data.
  * The foreseen last step then will be to provide for growing even mounted
- * filesystems. There we have to extend the mount() system call to provide
- * userland access to the filesystem locking facility.
+ * file systems. There we have to extend the mount() system call to provide
+ * userland access to the file system locking facility.
  */
 int
 main(int argc, char **argv)
@@ -2088,7 +2088,7 @@ main(int argc, char **argv)
     }
 
 	/*
-	 * Check if that partition is suitable for growing a filesystem.
+	 * Check if that partition is suitable for growing a file system.
 	 */
 	if (p_size < 1) {
 		errx(1, "partition is unavailable");
@@ -2146,7 +2146,7 @@ main(int argc, char **argv)
 	if(ExpertFlag == 0) {
 		for(j=0; j<FSMAXSNAP; j++) {
 			if(sblock.fs_snapinum[j]) {
-				errx(1, "active snapshot found in filesystem; "
+				errx(1, "active snapshot found in file system; "
 				    "please remove all snapshots before "
 				    "using growfs");
 			}
@@ -2159,7 +2159,7 @@ main(int argc, char **argv)
 
 	if (ExpertFlag == 0 && Nflag == 0) {
 		printf("We strongly recommend you to make a backup "
-		    "before growing the filesystem.\n"
+		    "before growing the file system.\n"
 		    "Did you backup your data (Yes/No)? ");
 		fgets(reply, (int)sizeof(reply), stdin);
 		if (strcmp(reply, "Yes\n")){
@@ -2168,10 +2168,10 @@ main(int argc, char **argv)
 		}
 	}
 
-	printf("New filesystem size is %jd frags\n", (intmax_t)sblock.fs_size);
+	printf("New file system size is %jd frags\n", (intmax_t)sblock.fs_size);
 
 	/*
-	 * Try to access our new last block in the filesystem. Even if we
+	 * Try to access our new last block in the file system. Even if we
 	 * later on realize we have to abort our operation, on that block
 	 * there should be no data, so we can't destroy something yet.
 	 */
@@ -2180,7 +2180,7 @@ main(int argc, char **argv)
 
 	/*
 	 * Now calculate new superblock values and check for reasonable
-	 * bound for new filesystem size:
+	 * bound for new file system size:
 	 *     fs_size:    is derived from label or user input
 	 *     fs_dsize:   should get updated in the routines creating or
 	 *                 updating the cylinder groups on the fly
@@ -2189,7 +2189,7 @@ main(int argc, char **argv)
 	 */
 
 	/*
-	 * Update the number of cylinders and cylinder groups in the filesystem.
+	 * Update the number of cylinders and cylinder groups in the file system.
 	 */
 	if (sblock.fs_magic == FS_UFS1_MAGIC) {
 		sblock.fs_old_ncyl =
