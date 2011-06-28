@@ -183,9 +183,11 @@ init_remote(struct hast_resource *res, struct nv *nvin)
 	unsigned char *map;
 	size_t mapsize;
 
+#ifdef notyet
 	/* Setup direction. */
 	if (proto_send(res->hr_remoteout, NULL, 0) == -1)
 		pjdlog_errno(LOG_WARNING, "Unable to set connection direction");
+#endif
 
 	map = NULL;
 	mapsize = 0;
@@ -351,9 +353,11 @@ init_remote(struct hast_resource *res, struct nv *nvin)
 	if (map != NULL)
 		free(map);
 	nv_free(nvout);
+#ifdef notyet
 	/* Setup direction. */
 	if (proto_recv(res->hr_remotein, NULL, 0) == -1)
 		pjdlog_errno(LOG_WARNING, "Unable to set connection direction");
+#endif
 	if (res->hr_secondary_localcnt > res->hr_primary_remotecnt &&
 	     res->hr_primary_localcnt > res->hr_secondary_remotecnt) {
 		/* Exit on split-brain. */
@@ -514,6 +518,7 @@ requnpack(struct hast_resource *res, struct hio *hio)
 		goto end;
 	}
 	switch (hio->hio_cmd) {
+	case HIO_FLUSH:
 	case HIO_KEEPALIVE:
 		break;
 	case HIO_READ:
@@ -610,6 +615,20 @@ recv_thread(void *arg)
 			    hio);
 			QUEUE_INSERT(send, hio);
 			continue;
+		}
+		switch (hio->hio_cmd) {
+		case HIO_READ:
+			res->hr_stat_read++;
+			break;
+		case HIO_WRITE:
+			res->hr_stat_write++;
+			break;
+		case HIO_DELETE:
+			res->hr_stat_delete++;
+			break;
+		case HIO_FLUSH:
+			res->hr_stat_flush++;
+			break;
 		}
 		reqlog(LOG_DEBUG, 2, -1, hio,
 		    "recv: (%p) Got request header: ", hio);

@@ -341,6 +341,17 @@ control_status(struct nv *nv)
 		printf("  dirty: %ju (%NB)\n",
 		    (uintmax_t)nv_get_uint64(nv, "dirty%u", ii),
 		    (intmax_t)nv_get_uint64(nv, "dirty%u", ii));
+		printf("  statistics:\n");
+		printf("    reads: %ju\n",
+		    (uint64_t)nv_get_uint64(nv, "stat_read%u", ii));
+		printf("    writes: %ju\n",
+		    (uint64_t)nv_get_uint64(nv, "stat_write%u", ii));
+		printf("    deletes: %ju\n",
+		    (uint64_t)nv_get_uint64(nv, "stat_delete%u", ii));
+		printf("    flushes: %ju\n",
+		    (uint64_t)nv_get_uint64(nv, "stat_flush%u", ii));
+		printf("    activemap updates: %ju\n",
+		    (uint64_t)nv_get_uint64(nv, "stat_activemap_update%u", ii));
 	}
 	return (ret);
 }
