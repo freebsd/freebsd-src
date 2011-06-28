@@ -1991,7 +1991,7 @@ pmc_hook_handler(struct thread *td, int function, void *arg)
 		 * had already processed the interrupt).  We don't
 		 * lose the interrupt sample.
 		 */
-		atomic_clear_int(&pmc_cpumask, (1 << PCPU_GET(cpuid)));
+		CPU_CLR_ATOMIC(PCPU_GET(cpuid), &pmc_cpumask);
 		pmc_process_samples(PCPU_GET(cpuid));
 		break;
 
@@ -4083,7 +4083,7 @@ pmc_process_interrupt(int cpu, struct pmc *pm, struct trapframe *tf,
 
  done:
 	/* mark CPU as needing processing */
-	atomic_set_int(&pmc_cpumask, (1 << cpu));
+	CPU_SET_ATOMIC(cpu, &pmc_cpumask);
 
 	return (error);
 }
@@ -4193,7 +4193,7 @@ pmc_process_samples(int cpu)
 			break;
 		if (ps->ps_nsamples == PMC_SAMPLE_INUSE) {
 			/* Need a rescan at a later time. */
-			atomic_set_int(&pmc_cpumask, (1 << cpu));
+			CPU_SET_ATOMIC(cpu, &pmc_cpumask);
 			break;
 		}
 
@@ -4782,7 +4782,7 @@ pmc_cleanup(void)
 	PMCDBG(MOD,INI,0, "%s", "cleanup");
 
 	/* switch off sampling */
-	pmc_cpumask = 0;
+	CPU_ZERO(&pmc_cpumask);
 	pmc_intr = NULL;
 
 	sx_xlock(&pmc_sx);

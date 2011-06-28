@@ -664,6 +664,7 @@ lbn_offset(struct fs *fs, int level)
 #define	JOP_FREEBLK	4	/* Free a block or a tree of blocks. */
 #define	JOP_MVREF	5	/* Move a reference from one off to another. */
 #define	JOP_TRUNC	6	/* Partial truncation record. */
+#define	JOP_SYNC	7	/* fsync() complete record. */
 
 #define	JREC_SIZE	32	/* Record and segment header size. */
 
@@ -729,7 +730,7 @@ struct jblkrec {
 
 /*
  * Truncation record.  Records a partial truncation so that it may be
- * completed later.
+ * completed at check time.  Also used for sync records.
  */
 struct jtrncrec {
 	uint32_t	jt_op;

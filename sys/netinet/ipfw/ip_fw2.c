@@ -84,6 +84,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip6.h>
 #include <netinet/icmp6.h>
 #ifdef INET6
+#include <netinet6/in6_pcb.h>
 #include <netinet6/scope6_var.h>
 #include <netinet6/ip6_var.h>
 #endif
@@ -646,20 +647,26 @@ send_reject(struct ip_fw_args *args, int code, int iplen, struct ip *ip)
  * we tried and failed, or any other value if successful.
  */
 static int
-check_uidgid(ipfw_insn_u32 *insn, int proto, struct ifnet *oif,
-    struct in_addr dst_ip, u_int16_t dst_port, struct in_addr src_ip,
-    u_int16_t src_port, int *ugid_lookupp,
-    struct ucred **uc, struct inpcb *inp)
+check_uidgid(ipfw_insn_u32 *insn, struct ip_fw_args *args, int *ugid_lookupp,
+    struct ucred **uc)
 {
 #ifndef __FreeBSD__
+	/* XXX */
 	return cred_check(insn, proto, oif,
 	    dst_ip, dst_port, src_ip, src_port,
 	    (struct bsd_ucred *)uc, ugid_lookupp, ((struct mbuf *)inp)->m_skb);
 #else  /* FreeBSD */
+	struct in_addr src_ip, dst_ip;
 	struct inpcbinfo *pi;
-	int wildcard;
-	struct inpcb *pcb;
+	struct ipfw_flow_id *id;
+	struct inpcb *pcb, *inp;
+	struct ifnet *oif;
+	int lookupflags;
 	int match;
+
+	id = &args->f_id;
+	inp = args->inp;
+	oif = args->oif;
 
 	/*
 	 * Check to see if the UDP or TCP stack supplied us with
@@ -681,31 +688,53 @@ check_uidgid(ipfw_insn_u32 *insn, int proto, struct ifnet *oif,
 	 */
 	if (*ugid_lookupp == -1)
 		return (0);
-	if (proto == IPPROTO_TCP) {
-		wildcard = 0;
+	if (id->proto == IPPROTO_TCP) {
+		lookupflags = 0;
 		pi = &V_tcbinfo;
-	} else if (proto == IPPROTO_UDP) {
-		wildcard = INPLOOKUP_WILDCARD;
+	} else if (id->proto == IPPROTO_UDP) {
+		lookupflags = INPLOOKUP_WILDCARD;
 		pi = &V_udbinfo;
 	} else
 		return 0;
+	lookupflags |= INPLOOKUP_RLOCKPCB;
 	match = 0;
 	if (*ugid_lookupp == 0) {
-		INP_INFO_RLOCK(pi);
-		pcb =  (oif) ?
-			in_pcblookup_hash(pi,
-				dst_ip, htons(dst_port),
-				src_ip, htons(src_port),
-				wildcard, oif) :
-			in_pcblookup_hash(pi,
-				src_ip, htons(src_port),
-				dst_ip, htons(dst_port),
-				wildcard, NULL);
+		if (id->addr_type == 6) {
+#ifdef INET6
+			if (oif == NULL)
+				pcb = in6_pcblookup_mbuf(pi,
+				    &id->src_ip6, htons(id->src_port),
+				    &id->dst_ip6, htons(id->dst_port),
+				    lookupflags, oif, args->m);
+			else
+				pcb = in6_pcblookup_mbuf(pi,
+				    &id->dst_ip6, htons(id->dst_port),
+				    &id->src_ip6, htons(id->src_port),
+				    lookupflags, oif, args->m);
+#else
+			*ugid_lookupp = -1;
+			return (0);
+#endif
+		} else {
+			src_ip.s_addr = htonl(id->src_ip);
+			dst_ip.s_addr = htonl(id->dst_ip);
+			if (oif == NULL)
+				pcb = in_pcblookup_mbuf(pi,
+				    src_ip, htons(id->src_port),
+				    dst_ip, htons(id->dst_port),
+				    lookupflags, oif, args->m);
+			else
+				pcb = in_pcblookup_mbuf(pi,
+				    dst_ip, htons(id->dst_port),
+				    src_ip, htons(id->src_port),
+				    lookupflags, oif, args->m);
+		}
 		if (pcb != NULL) {
+			INP_RLOCK_ASSERT(pcb);
 			*uc = crhold(pcb->inp_cred);
 			*ugid_lookupp = 1;
+			INP_RUNLOCK(pcb);
 		}
-		INP_INFO_RUNLOCK(pi);
 		if (*ugid_lookupp == 0) {
 			/*
 			 * We tried and failed, set the variable to -1
@@ -714,14 +743,14 @@ check_uidgid(ipfw_insn_u32 *insn, int proto, struct ifnet *oif,
 			*ugid_lookupp = -1;
 			return (0);
 		}
-	} 
+	}
 	if (insn->o.opcode == O_UID)
 		match = ((*uc)->cr_uid == (uid_t)insn->d[0]);
 	else if (insn->o.opcode == O_GID)
 		match = groupmember((gid_t)insn->d[0], *uc);
 	else if (insn->o.opcode == O_JAIL)
 		match = ((*uc)->cr_prison->pr_id == (int)insn->d[0]);
-	return match;
+	return (match);
 #endif /* __FreeBSD__ */
 }
 
@@ -1259,22 +1288,17 @@ do {								\
 				 * as this ensures that we have a
 				 * packet with the ports info.
 				 */
-				if (offset!=0)
-					break;
-				if (is_ipv6) /* XXX to be fixed later */
+				if (offset != 0)
 					break;
 				if (proto == IPPROTO_TCP ||
 				    proto == IPPROTO_UDP)
 					match = check_uidgid(
 						    (ipfw_insn_u32 *)cmd,
-						    proto, oif,
-						    dst_ip, dst_port,
-						    src_ip, src_port, &ucred_lookup,
+						    args, &ucred_lookup,
 #ifdef __FreeBSD__
-						    &ucred_cache, args->inp);
+						    &ucred_cache);
 #else
-						    (void *)&ucred_cache,
-						    (struct inpcb *)args->m);
+						    (void *)&ucred_cache);
 #endif
 				break;
 
@@ -1389,18 +1413,15 @@ do {								\
 					else if (v == 4 || v == 5) {
 					    check_uidgid(
 						(ipfw_insn_u32 *)cmd,
-						proto, oif,
-						dst_ip, dst_port,
-						src_ip, src_port, &ucred_lookup,
+						args, &ucred_lookup,
 #ifdef __FreeBSD__
-						&ucred_cache, args->inp);
+						&ucred_cache);
 					    if (v == 4 /* O_UID */)
 						key = ucred_cache->cr_uid;
 					    else if (v == 5 /* O_JAIL */)
 						key = ucred_cache->cr_prison->pr_id;
 #else /* !__FreeBSD__ */
-						(void *)&ucred_cache,
-						(struct inpcb *)args->m);
+						(void *)&ucred_cache);
 					    if (v ==4 /* O_UID */)
 						key = ucred_cache.uid;
 					    else if (v == 5 /* O_JAIL */)
@@ -1827,21 +1848,32 @@ do {								\
 				else
 					break;
 
+				/*
+				 * XXXRW: so_user_cookie should almost
+				 * certainly be inp_user_cookie?
+				 */
+
 				/* For incomming packet, lookup up the 
 				inpcb using the src/dest ip/port tuple */
 				if (inp == NULL) {
-					INP_INFO_RLOCK(pi);
-					inp = in_pcblookup_hash(pi, 
+					inp = in_pcblookup(pi, 
 						src_ip, htons(src_port),
 						dst_ip, htons(dst_port),
-						0, NULL);
-					INP_INFO_RUNLOCK(pi);
-				}
-				
-				if (inp && inp->inp_socket) {
-					tablearg = inp->inp_socket->so_user_cookie;
-					if (tablearg)
-						match = 1;
+						INPLOOKUP_RLOCKPCB, NULL);
+					if (inp != NULL) {
+						tablearg =
+						    inp->inp_socket->so_user_cookie;
+						if (tablearg)
+							match = 1;
+						INP_RUNLOCK(inp);
+					}
+				} else {
+					if (inp->inp_socket) {
+						tablearg =
+						    inp->inp_socket->so_user_cookie;
+						if (tablearg)
+							match = 1;
+					}
 				}
 				break;
 			}
@@ -2106,7 +2138,8 @@ do {								\
 			case O_FORWARD_IP:
 				if (args->eh)	/* not valid on layer2 pkts */
 					break;
-				if (!q || dyn_dir == MATCH_FORWARD) {
+				if (q == NULL || q->rule != f ||
+				    dyn_dir == MATCH_FORWARD) {
 				    struct sockaddr_in *sa;
 				    sa = &(((ipfw_insn_sa *)cmd)->sa);
 				    if (sa->sin_addr.s_addr == INADDR_ANY) {
@@ -2137,14 +2170,21 @@ do {								\
 				done = 1;       /* exit outer loop */
 				break;
 
-			case O_SETFIB:
+			case O_SETFIB: {
+				uint32_t fib;
+
 				f->pcnt++;	/* update stats */
 				f->bcnt += pktlen;
 				f->timestamp = time_uptime;
-				M_SETFIB(m, cmd->arg1);
-				args->f_id.fib = cmd->arg1;
+				fib = (cmd->arg1 == IP_FW_TABLEARG) ? tablearg:
+				    cmd->arg1;
+				if (fib >= rt_numfibs)
+					fib = 0;
+				M_SETFIB(m, fib);
+				args->f_id.fib = fib;
 				l = 0;		/* exit inner loop */
 				break;
+		        }
 
 			case O_NAT:
  				if (!IPFW_NAT_LOADED) {
@@ -2154,6 +2194,13 @@ do {								\
 				    int nat_id;
 
 				    set_match(args, f_pos, chain);
+				    /* Check if this is 'global' nat rule */
+				    if (cmd->arg1 == 0) {
+					    retval = ipfw_nat_ptr(args, NULL, m);
+					    l = 0;
+					    done = 1;
+					    break;
+				    }
 				    t = ((ipfw_insn_nat *)cmd)->nat;
 				    if (t == NULL) {
 					nat_id = (cmd->arg1 == IP_FW_TABLEARG) ?

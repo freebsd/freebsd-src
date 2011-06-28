@@ -273,6 +273,35 @@ ar5416Set11nRxClear(struct ath_hal *ah, HAL_HT_RXCLEAR rxclear)
     }
 }
 
+/* XXX shouldn't be here! */
+#define	TU_TO_USEC(_tu)		((_tu) << 10)
+
+HAL_STATUS
+ar5416SetQuiet(struct ath_hal *ah, uint32_t period, uint32_t duration,
+    uint32_t nextStart, HAL_QUIET_FLAG flag)
+{
+	uint32_t period_us = TU_TO_USEC(period); /* convert to us unit */
+	uint32_t nextStart_us = TU_TO_USEC(nextStart); /* convert to us unit */
+	if (flag & HAL_QUIET_ENABLE) {
+		if ((!nextStart) || (flag & HAL_QUIET_ADD_CURRENT_TSF)) {
+			/* Add the nextStart offset to the current TSF */
+			nextStart_us += OS_REG_READ(ah, AR_TSF_L32);
+		}
+		if (flag & HAL_QUIET_ADD_SWBA_RESP_TIME) {
+			nextStart_us += ath_hal_sw_beacon_response_time;
+		}
+		OS_REG_RMW_FIELD(ah, AR_QUIET1, AR_QUIET1_QUIET_ACK_CTS_ENABLE, 1);
+		OS_REG_WRITE(ah, AR_QUIET2, SM(duration, AR_QUIET2_QUIET_DUR));
+		OS_REG_WRITE(ah, AR_QUIET_PERIOD, period_us);
+		OS_REG_WRITE(ah, AR_NEXT_QUIET, nextStart_us);
+		OS_REG_SET_BIT(ah, AR_TIMER_MODE, AR_TIMER_MODE_QUIET);
+	} else {
+		OS_REG_CLR_BIT(ah, AR_TIMER_MODE, AR_TIMER_MODE_QUIET);
+	}
+	return HAL_OK;
+}
+#undef	TU_TO_USEC
+
 HAL_STATUS
 ar5416GetCapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
         uint32_t capability, uint32_t *result)
@@ -560,3 +589,122 @@ ar5416DetectBBHang(struct ath_hal *ah)
 #undef N
 }
 #undef NUM_STATUS_READS
+
+/*
+ * Get the radar parameter values and return them in the pe
+ * structure
+ */
+void
+ar5416GetDfsThresh(struct ath_hal *ah, HAL_PHYERR_PARAM *pe)
+{
+	uint32_t val, temp;
+
+	val = OS_REG_READ(ah, AR_PHY_RADAR_0);
+
+	temp = MS(val,AR_PHY_RADAR_0_FIRPWR);
+	temp |= 0xFFFFFF80;
+	pe->pe_firpwr = temp;
+	pe->pe_rrssi = MS(val, AR_PHY_RADAR_0_RRSSI);
+	pe->pe_height =  MS(val, AR_PHY_RADAR_0_HEIGHT);
+	pe->pe_prssi = MS(val, AR_PHY_RADAR_0_PRSSI);
+	pe->pe_inband = MS(val, AR_PHY_RADAR_0_INBAND);
+
+	val = OS_REG_READ(ah, AR_PHY_RADAR_1);
+	temp = val & AR_PHY_RADAR_1_RELPWR_ENA;
+	pe->pe_relpwr = MS(val, AR_PHY_RADAR_1_RELPWR_THRESH);
+	if (temp)
+		pe->pe_relpwr |= HAL_PHYERR_PARAM_ENABLE;
+	temp = val & AR_PHY_RADAR_1_RELSTEP_CHECK;
+	pe->pe_relstep = MS(val, AR_PHY_RADAR_1_RELSTEP_THRESH);
+	if (temp)
+		pe->pe_relstep |= HAL_PHYERR_PARAM_ENABLE;
+	pe->pe_maxlen = MS(val, AR_PHY_RADAR_1_MAXLEN);
+	pe->pe_extchannel = !! (OS_REG_READ(ah, AR_PHY_RADAR_EXT) &
+	    AR_PHY_RADAR_EXT_ENA);
+}
+
+/*
+ * Enable radar detection and set the radar parameters per the
+ * values in pe
+ */
+void
+ar5416EnableDfs(struct ath_hal *ah, HAL_PHYERR_PARAM *pe)
+{
+	uint32_t val;
+
+	val = OS_REG_READ(ah, AR_PHY_RADAR_0);
+
+	if (pe->pe_firpwr != HAL_PHYERR_PARAM_NOVAL) {
+		val &= ~AR_PHY_RADAR_0_FIRPWR;
+		val |= SM(pe->pe_firpwr, AR_PHY_RADAR_0_FIRPWR);
+	}
+	if (pe->pe_rrssi != HAL_PHYERR_PARAM_NOVAL) {
+		val &= ~AR_PHY_RADAR_0_RRSSI;
+		val |= SM(pe->pe_rrssi, AR_PHY_RADAR_0_RRSSI);
+	}
+	if (pe->pe_height != HAL_PHYERR_PARAM_NOVAL) {
+		val &= ~AR_PHY_RADAR_0_HEIGHT;
+		val |= SM(pe->pe_height, AR_PHY_RADAR_0_HEIGHT);
+	}
+	if (pe->pe_prssi != HAL_PHYERR_PARAM_NOVAL) {
+		val &= ~AR_PHY_RADAR_0_PRSSI;
+		val |= SM(pe->pe_prssi, AR_PHY_RADAR_0_PRSSI);
+	}
+	if (pe->pe_inband != HAL_PHYERR_PARAM_NOVAL) {
+		val &= ~AR_PHY_RADAR_0_INBAND;
+		val |= SM(pe->pe_inband, AR_PHY_RADAR_0_INBAND);
+	}
+
+	/*Enable FFT data*/
+	val |= AR_PHY_RADAR_0_FFT_ENA;
+
+	OS_REG_WRITE(ah, AR_PHY_RADAR_0, val | AR_PHY_RADAR_0_ENA);
+
+	val = OS_REG_READ(ah, AR_PHY_RADAR_1);
+	val |= (AR_PHY_RADAR_1_MAX_RRSSI | AR_PHY_RADAR_1_BLOCK_CHECK);
+
+	if (pe->pe_maxlen != HAL_PHYERR_PARAM_NOVAL) {
+		val &= ~AR_PHY_RADAR_1_MAXLEN;
+		val |= SM(pe->pe_maxlen, AR_PHY_RADAR_1_MAXLEN);
+	}
+	OS_REG_WRITE(ah, AR_PHY_RADAR_1, val);
+
+	/*
+	 * Enable HT/40 if the upper layer asks;
+	 * it should check the channel is HT/40 and HAL_CAP_EXT_CHAN_DFS
+	 * is available.
+	 */
+	if (pe->pe_extchannel)
+		OS_REG_SET_BIT(ah, AR_PHY_RADAR_EXT, AR_PHY_RADAR_EXT_ENA);
+	else
+		OS_REG_CLR_BIT(ah, AR_PHY_RADAR_EXT, AR_PHY_RADAR_EXT_ENA);
+
+	if (pe->pe_relstep != HAL_PHYERR_PARAM_NOVAL) {
+		val = OS_REG_READ(ah, AR_PHY_RADAR_1);
+		val &= ~AR_PHY_RADAR_1_RELSTEP_THRESH;
+		val |= SM(pe->pe_relstep, AR_PHY_RADAR_1_RELSTEP_THRESH);
+		OS_REG_WRITE(ah, AR_PHY_RADAR_1, val);
+	}
+	if (pe->pe_relpwr != HAL_PHYERR_PARAM_NOVAL) {
+		val = OS_REG_READ(ah, AR_PHY_RADAR_1);
+		val &= ~AR_PHY_RADAR_1_RELPWR_THRESH;
+		val |= SM(pe->pe_relpwr, AR_PHY_RADAR_1_RELPWR_THRESH);
+		OS_REG_WRITE(ah, AR_PHY_RADAR_1, val);
+	}
+}
+
+/*
+ * Extract the radar event information from the given phy error.
+ *
+ * Returns AH_TRUE if the phy error was actually a phy error,
+ * AH_FALSE if the phy error wasn't a phy error.
+ */
+HAL_BOOL
+ar5416ProcessRadarEvent(struct ath_hal *ah, struct ath_rx_status *rxs,
+    uint64_t fulltsf, const char *buf, HAL_DFS_EVENT *event)
+{
+	/*
+	 * For now, this isn't implemented.
+	 */
+	return AH_FALSE;
+}

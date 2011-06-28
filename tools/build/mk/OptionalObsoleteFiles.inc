@@ -7,11 +7,8 @@
 
 .if ${MK_ACCT} == no
 OLD_FILES+=etc/periodic/daily/310.accounting
-OLD_FILES+=etc/periodic/monthly/200.accounting
-OLD_FILES+=usr/sbin/ac
 OLD_FILES+=usr/sbin/accton
 OLD_FILES+=usr/sbin/sa
-OLD_FILES+=usr/share/man/man8/ac.8.gz
 OLD_FILES+=usr/share/man/man8/accton.8.gz
 OLD_FILES+=usr/share/man/man8/sa.8.gz
 .endif
@@ -3328,6 +3325,24 @@ OLD_FILES+=usr/share/man/man8/telnetd.8.gz
 #.if ${MK_USB} == no
 # to be filled in
 #.endif
+
+.if ${MK_UTMPX} == no
+OLD_FILES+=etc/periodic/monthly/200.accounting
+OLD_FILES+=usr/bin/last
+OLD_FILES+=usr/bin/users
+OLD_FILES+=usr/bin/who
+OLD_FILES+=usr/bin/wtmpcvt
+OLD_FILES+=usr/sbin/ac
+OLD_FILES+=usr/sbin/lastlogin
+OLD_FILES+=usr/sbin/utxrm
+OLD_FILES+=usr/share/man/man1/last.1.gz
+OLD_FILES+=usr/share/man/man1/users.1.gz
+OLD_FILES+=usr/share/man/man1/who.1.gz
+OLD_FILES+=usr/share/man/man1/wtmpcvt.1.gz
+OLD_FILES+=usr/share/man/man8/ac.8.gz
+OLD_FILES+=usr/share/man/man8/lastlogin.8.gz
+OLD_FILES+=usr/share/man/man8/utxrm.8.gz
+.endif
 
 .if ${MK_WIRELESS} == no
 OLD_FILES+=etc/regdomain.xml

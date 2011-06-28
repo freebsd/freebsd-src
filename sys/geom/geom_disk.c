@@ -154,6 +154,12 @@ g_disk_access(struct g_provider *pp, int r, int w, int e)
 		}
 		pp->mediasize = dp->d_mediasize;
 		pp->sectorsize = dp->d_sectorsize;
+		if (dp->d_flags & DISKFLAG_CANDELETE)
+			pp->flags |= G_PF_CANDELETE;
+		else
+			pp->flags &= ~G_PF_CANDELETE;
+		pp->stripeoffset = dp->d_stripeoffset;
+		pp->stripesize = dp->d_stripesize;
 		dp->d_flags |= DISKFLAG_OPEN;
 		if (dp->d_maxsize == 0) {
 			printf("WARNING: Disk drive %s%d has no d_maxsize\n",
@@ -341,6 +347,15 @@ g_disk_start(struct bio *bp)
 		} while (bp2 != NULL);
 		break;
 	case BIO_GETATTR:
+		/* Give the driver a chance to override */
+		if (dp->d_getattr != NULL) {
+			if (bp->bio_disk == NULL)
+				bp->bio_disk = dp;
+			error = dp->d_getattr(bp);
+			if (error != -1)
+				break;
+			error = EJUSTRETURN;
+		}
 		if (g_handleattr_int(bp, "GEOM::candelete",
 		    (dp->d_flags & DISKFLAG_CANDELETE) != 0))
 			break;
@@ -574,6 +589,18 @@ disk_gone(struct disk *dp)
 	if (gp != NULL)
 		LIST_FOREACH(pp, &gp->provider, provider)
 			g_wither_provider(pp, ENXIO);
+}
+
+void
+disk_attr_changed(struct disk *dp, const char *attr, int flag)
+{
+	struct g_geom *gp;
+	struct g_provider *pp;
+
+	gp = dp->d_geom;
+	if (gp != NULL)
+		LIST_FOREACH(pp, &gp->provider, provider)
+			(void)g_attr_changed(pp, attr, flag);
 }
 
 static void

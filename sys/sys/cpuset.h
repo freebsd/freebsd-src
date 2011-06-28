@@ -32,22 +32,9 @@
 #ifndef _SYS_CPUSET_H_
 #define	_SYS_CPUSET_H_
 
-#ifdef _KERNEL
-#define	CPU_SETSIZE	MAXCPU
-#endif
+#include <sys/_cpuset.h>
 
-#define	CPU_MAXSIZE	128
-
-#ifndef	CPU_SETSIZE
-#define	CPU_SETSIZE	CPU_MAXSIZE
-#endif
-
-#define	_NCPUBITS	(sizeof(long) * NBBY)	/* bits per mask */
-#define	_NCPUWORDS	howmany(CPU_SETSIZE, _NCPUBITS)
-
-typedef	struct _cpuset {
-	long	__bits[howmany(CPU_SETSIZE, _NCPUBITS)];
-} cpuset_t;
+#define	CPUSETBUFSIZ	((2 + sizeof(long) * 2) * _NCPUWORDS)
 
 #define	__cpuset_mask(n)	((long)1 << ((n) % _NCPUBITS))
 #define	CPU_CLR(n, p)	((p)->__bits[(n)/_NCPUBITS] &= ~__cpuset_mask(n))
@@ -66,11 +53,25 @@ typedef	struct _cpuset {
 		(p)->__bits[__i] = -1;			\
 } while (0)
 
+#define	CPU_SETOF(n, p) do {					\
+	CPU_ZERO(p);						\
+	((p)->__bits[(n)/_NCPUBITS] = __cpuset_mask(n));	\
+} while (0)
+
 /* Is p empty. */
 #define	CPU_EMPTY(p) __extension__ ({			\
 	__size_t __i;					\
 	for (__i = 0; __i < _NCPUWORDS; __i++)		\
 		if ((p)->__bits[__i])			\
+			break;				\
+	__i == _NCPUWORDS;				\
+})
+
+/* Is p full set. */
+#define	CPU_ISFULLSET(p) __extension__ ({		\
+	__size_t __i;					\
+	for (__i = 0; __i < _NCPUWORDS; __i++)		\
+		if ((p)->__bits[__i] != (long)-1)	\
 			break;				\
 	__i == _NCPUWORDS;				\
 })
@@ -122,6 +123,33 @@ typedef	struct _cpuset {
 	__size_t __i;					\
 	for (__i = 0; __i < _NCPUWORDS; __i++)		\
 		(d)->__bits[__i] &= ~(s)->__bits[__i];	\
+} while (0)
+
+#define	CPU_CLR_ATOMIC(n, p)						\
+	atomic_clear_long(&(p)->__bits[(n)/_NCPUBITS], __cpuset_mask(n))
+
+#define	CPU_SET_ATOMIC(n, p)						\
+	atomic_set_long(&(p)->__bits[(n)/_NCPUBITS], __cpuset_mask(n))
+
+#define	CPU_OR_ATOMIC(d, s) do {			\
+	__size_t __i;					\
+	for (__i = 0; __i < _NCPUWORDS; __i++)		\
+		atomic_set_long(&(d)->__bits[__i],	\
+		    (s)->__bits[__i]);			\
+} while (0)
+
+#define	CPU_NAND_ATOMIC(d, s) do {			\
+	__size_t __i;					\
+	for (__i = 0; __i < _NCPUWORDS; __i++)		\
+		atomic_clear_long(&(d)->__bits[__i],	\
+		    (s)->__bits[__i]);			\
+} while (0)
+
+#define	CPU_COPY_STORE_REL(f, t) do {				\
+	__size_t __i;						\
+	for (__i = 0; __i < _NCPUWORDS; __i++)			\
+		atomic_store_rel_long(&(t)->__bits[__i],	\
+		    (f)->__bits[__i]);				\
 } while (0)
 
 /*
@@ -184,6 +212,9 @@ void	cpuset_rel(struct cpuset *);
 int	cpuset_setthread(lwpid_t id, cpuset_t *);
 int	cpuset_create_root(struct prison *, struct cpuset **);
 int	cpuset_setproc_update_set(struct proc *, struct cpuset *);
+int	cpusetobj_ffs(const cpuset_t *);
+char	*cpusetobj_strprint(char *, const cpuset_t *);
+int	cpusetobj_strscan(cpuset_t *, const char *);
 
 #else
 __BEGIN_DECLS

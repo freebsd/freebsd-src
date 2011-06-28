@@ -58,6 +58,7 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <wchar.h>
 
 #ifdef SHELL
 #define main printfcmd
@@ -537,10 +538,23 @@ static int
 asciicode(void)
 {
 	int ch;
+	wchar_t wch;
+	mbstate_t mbs;
 
-	ch = **gargv;
-	if (ch == '\'' || ch == '"')
-		ch = (*gargv)[1];
+	ch = (unsigned char)**gargv;
+	if (ch == '\'' || ch == '"') {
+		memset(&mbs, 0, sizeof(mbs));
+		switch (mbrtowc(&wch, *gargv + 1, MB_LEN_MAX, &mbs)) {
+		case (size_t)-2:
+		case (size_t)-1:
+			wch = (unsigned char)gargv[0][1];
+			break;
+		case 0:
+			wch = 0;
+			break;
+		}
+		ch = wch;
+	}
 	++gargv;
 	return (ch);
 }

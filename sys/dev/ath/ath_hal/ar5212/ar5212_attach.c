@@ -127,6 +127,12 @@ static const struct ath_hal_private ar5212hal = {{
 	.ah_getCTSTimeout		= ar5212GetCTSTimeout,
 	.ah_setDecompMask               = ar5212SetDecompMask,
 	.ah_setCoverageClass            = ar5212SetCoverageClass,
+	.ah_setQuiet			= ar5212SetQuiet,
+
+	/* DFS Functions */
+	.ah_enableDfs			= ar5212EnableDfs,
+	.ah_getDfsThresh		= ar5212GetDfsThresh,
+	.ah_procRadarEvent		= ar5212ProcessRadarEvent,
 
 	/* Key Cache Functions */
 	.ah_getKeyCacheSize		= ar5212GetKeyCacheSize,
@@ -203,6 +209,9 @@ ar5212AniSetup(struct ath_hal *ah)
 		ar5212AniAttach(ah, &tmp, &tmp, AH_TRUE);
 	} else
 		ar5212AniAttach(ah, &aniparams, &aniparams, AH_TRUE);
+
+	/* Set overridable ANI methods */
+	AH5212(ah)->ah_aniControl = ar5212AniControl;
 }
 
 /*

@@ -10,7 +10,7 @@ top \- display and update information about the top cpu processes
 .SH SYNOPSIS
 .B top
 [
-.B \-abCHIijnPqStuv
+.B \-abCHIijnPqStuvz
 ] [
 .BI \-d count
 ] [
@@ -89,6 +89,10 @@ Use \*(lqbatch\*(rq mode.  In this mode, all input from the terminal is
 ignored.  Interrupt characters (such as ^C and ^\e) still have an effect.
 This is the default on a dumb terminal, or when the output is not a terminal.
 .TP
+.B \-H
+Display each thread for a multithreaded process individually.
+By default a single summary line is displayed for each process.
+.TP
 .B \-i
 Use \*(lqinteractive\*(rq mode.  In this mode, any input is immediately
 read for processing.  See the section on \*(lqInteractive Mode\*(rq
@@ -141,6 +145,9 @@ numbers are displayed instead of the names.
 Write version number information to stderr then exit immediately.
 No other processing takes place when this option is used.  To see current
 revision information while top is running, use the help command \*(lq?\*(rq.
+.TP
+.B \-z
+Do not display the system idle process.
 .TP
 .BI \-d count
 Show only
@@ -289,6 +296,9 @@ or
 .BR r enice
 command.
 .TP
+.B H
+Toggle the display of threads.
+.TP
 .B i
 (or
 .BR I )
@@ -303,6 +313,9 @@ ID.
 Toggle the display of the
 .I top
 process.
+.TP
+.B z
+Toggle the display of the system idle process.
 .SH "THE DISPLAY"
 The actual display varies depending on the specific variant of Unix
 that the machine is running.  This description may not exactly match
@@ -352,8 +365,11 @@ the order of the processes, and
 COMMAND is the name of the command that the process is currently running
 (if the process is swapped out, this column is marked \*(lq<swapped>\*(rq).
 .SH NOTES
-The \*(lqABANDONED\*(rq state (known in the kernel as \*(lqSWAIT\*(rq) was
-abandoned, thus the name.  A process should never end up in this state.
+If a process is in the \*(lqSLEEP\*(rq or \*(lqLOCK\*(rq state,
+the state column will report the name of the event or lock on which the
+process is waiting.
+Lock names are prefixed with an asterisk \*(lq*\*(rq while sleep events
+are not.
 .SH AUTHOR
 William LeFebvre, EECS Department, Northwestern University
 .SH ENVIRONMENT

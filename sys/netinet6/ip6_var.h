@@ -316,6 +316,9 @@ VNET_DECLARE(int, ip6_maxfragpackets);	/* Maximum packets in reassembly
 VNET_DECLARE(int, ip6_maxfrags);	/* Maximum fragments in reassembly
 					 * queue */
 VNET_DECLARE(int, ip6_accept_rtadv);	/* Acts as a host not a router */
+VNET_DECLARE(int, ip6_no_radr);		/* No defroute from RA */
+VNET_DECLARE(int, ip6_norbit_raif);	/* Disable R-bit in NA on RA
+					 * receiving IF. */
 VNET_DECLARE(int, ip6_keepfaith);	/* Firewall Aided Internet Translator */
 VNET_DECLARE(int, ip6_log_interval);
 VNET_DECLARE(time_t, ip6_log_time);
@@ -327,6 +330,8 @@ VNET_DECLARE(int, ip6_dad_count);	/* DupAddrDetectionTransmits */
 #define	V_ip6_maxfragpackets		VNET(ip6_maxfragpackets)
 #define	V_ip6_maxfrags			VNET(ip6_maxfrags)
 #define	V_ip6_accept_rtadv		VNET(ip6_accept_rtadv)
+#define	V_ip6_no_radr			VNET(ip6_no_radr)
+#define	V_ip6_norbit_raif		VNET(ip6_norbit_raif)
 #define	V_ip6_keepfaith			VNET(ip6_keepfaith)
 #define	V_ip6_log_interval		VNET(ip6_log_interval)
 #define	V_ip6_log_time			VNET(ip6_log_time)

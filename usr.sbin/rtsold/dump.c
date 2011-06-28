@@ -34,10 +34,12 @@
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/socket.h>
+#include <sys/queue.h>
 
 #include <net/if.h>
 #include <netinet/in.h>
 #include <netinet/icmp6.h>
+#include <arpa/inet.h>
 
 #include <syslog.h>
 #include <time.h>
@@ -52,47 +54,73 @@ static FILE *fp;
 extern struct ifinfo *iflist;
 
 static void dump_interface_status(void);
-static const char *sec2str(time_t);
 static const char * const ifstatstr[] = {"IDLE", "DELAY", "PROBE", "DOWN", "TENTATIVE"};
 
 static void
 dump_interface_status(void)
 {
-	struct ifinfo *ifinfo;
+	struct ifinfo *ifi;
+	struct rainfo *rai;
+	struct ra_opt *rao;
 	struct timeval now;
+	char ntopbuf[INET6_ADDRSTRLEN];
 
 	gettimeofday(&now, NULL);
 
-	for (ifinfo = iflist; ifinfo; ifinfo = ifinfo->next) {
-		fprintf(fp, "Interface %s\n", ifinfo->ifname);
+	TAILQ_FOREACH(ifi, &ifinfo_head, ifi_next) {
+		fprintf(fp, "Interface %s\n", ifi->ifname);
 		fprintf(fp, "  probe interval: ");
-		if (ifinfo->probeinterval) {
-			fprintf(fp, "%d\n", ifinfo->probeinterval);
-			fprintf(fp, "  probe timer: %d\n", ifinfo->probetimer);
+		if (ifi->probeinterval) {
+			fprintf(fp, "%d\n", ifi->probeinterval);
+			fprintf(fp, "  probe timer: %d\n", ifi->probetimer);
 		} else {
 			fprintf(fp, "infinity\n");
 			fprintf(fp, "  no probe timer\n");
 		}
 		fprintf(fp, "  interface status: %s\n",
-		    ifinfo->active > 0 ? "active" : "inactive");
+		    ifi->active > 0 ? "active" : "inactive");
 		fprintf(fp, "  other config: %s\n",
-		    ifinfo->otherconfig ? "on" : "off");
-		fprintf(fp, "  rtsold status: %s\n", ifstatstr[ifinfo->state]);
+		    ifi->otherconfig ? "on" : "off");
+		fprintf(fp, "  rtsold status: %s\n", ifstatstr[ifi->state]);
 		fprintf(fp, "  carrier detection: %s\n",
-		    ifinfo->mediareqok ? "available" : "unavailable");
+		    ifi->mediareqok ? "available" : "unavailable");
 		fprintf(fp, "  probes: %d, dadcount = %d\n",
-		    ifinfo->probes, ifinfo->dadcount);
-		if (ifinfo->timer.tv_sec == tm_max.tv_sec &&
-		    ifinfo->timer.tv_usec == tm_max.tv_usec)
+		    ifi->probes, ifi->dadcount);
+		if (ifi->timer.tv_sec == tm_max.tv_sec &&
+		    ifi->timer.tv_usec == tm_max.tv_usec)
 			fprintf(fp, "  no timer\n");
 		else {
 			fprintf(fp, "  timer: interval=%d:%d, expire=%s\n",
-			    (int)ifinfo->timer.tv_sec,
-			    (int)ifinfo->timer.tv_usec,
-			    (ifinfo->expire.tv_sec < now.tv_sec) ? "expired"
-			    : sec2str(ifinfo->expire.tv_sec - now.tv_sec));
+			    (int)ifi->timer.tv_sec,
+			    (int)ifi->timer.tv_usec,
+			    (ifi->expire.tv_sec < now.tv_sec) ? "expired"
+			    : sec2str(&ifi->expire));
 		}
-		fprintf(fp, "  number of valid RAs: %d\n", ifinfo->racnt);
+		fprintf(fp, "  number of valid RAs: %d\n", ifi->racnt);
+
+		TAILQ_FOREACH(rai, &ifi->ifi_rainfo, rai_next) {
+			fprintf(fp, "   RA from %s\n",
+			    inet_ntop(AF_INET6, &rai->rai_saddr.sin6_addr,
+				ntopbuf, sizeof(ntopbuf)));
+			TAILQ_FOREACH(rao, &rai->rai_ra_opt, rao_next) {
+				fprintf(fp, "    option: ");
+				switch (rao->rao_type) {
+				case ND_OPT_RDNSS:
+					fprintf(fp, "RDNSS: %s (expire: %s)\n",
+					    (char *)rao->rao_msg,
+					    sec2str(&rao->rao_expire));
+					break;
+				case ND_OPT_DNSSL:
+					fprintf(fp, "DNSSL: %s (expire: %s)\n",
+					    (char *)rao->rao_msg,
+					    sec2str(&rao->rao_expire));
+					break;
+				default:
+					break;
+				}
+			}
+			fprintf(fp, "\n");
+		}
 	}
 }
 
@@ -108,8 +136,8 @@ rtsold_dump_file(const char *dumpfile)
 	fclose(fp);
 }
 
-static const char *
-sec2str(time_t total)
+const char *
+sec2str(const struct timeval *total)
 {
 	static char result[256];
 	int days, hours, mins, secs;
@@ -117,11 +145,19 @@ sec2str(time_t total)
 	char *p = result;
 	char *ep = &result[sizeof(result)];
 	int n;
+	struct timeval now;
+	time_t tsec;
 
-	days = total / 3600 / 24;
-	hours = (total / 3600) % 24;
-	mins = (total / 60) % 60;
-	secs = total % 60;
+	gettimeofday(&now, NULL);
+	tsec  = total->tv_sec;
+	tsec += total->tv_usec / 1000000;
+	tsec -= now.tv_sec;
+	tsec -= now.tv_usec / 1000000;
+
+	days = tsec / 3600 / 24;
+	hours = (tsec / 3600) % 24;
+	mins = (tsec / 60) % 60;
+	secs = tsec % 60;
 
 	if (days) {
 		first = 0;
@@ -145,5 +181,6 @@ sec2str(time_t total)
 		p += n;
 	}
 	snprintf(p, ep - p, "%ds", secs);
-	return(result);
+
+	return (result);
 }

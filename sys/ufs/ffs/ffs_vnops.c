@@ -212,26 +212,32 @@ retry:
 int
 ffs_syncvnode(struct vnode *vp, int waitfor)
 {
-	struct inode *ip = VTOI(vp);
+	struct inode *ip;
 	struct bufobj *bo;
 	struct buf *bp;
 	struct buf *nbp;
-	int s, error, wait, passes, skipmeta;
 	ufs_lbn_t lbn;
+	int error, wait, passes;
 
-	wait = (waitfor == MNT_WAIT);
-	lbn = lblkno(ip->i_fs, (ip->i_size + ip->i_fs->fs_bsize - 1));
-	bo = &vp->v_bufobj;
+	ip = VTOI(vp);
 	ip->i_flag &= ~IN_NEEDSYNC;
+	bo = &vp->v_bufobj;
+
+	/*
+	 * When doing MNT_WAIT we must first flush all dependencies
+	 * on the inode.
+	 */
+	if (DOINGSOFTDEP(vp) && waitfor == MNT_WAIT &&
+	    (error = softdep_sync_metadata(vp)) != 0)
+		return (error);
 
 	/*
 	 * Flush all dirty buffers associated with a vnode.
 	 */
-	passes = NIADDR + 1;
-	skipmeta = 0;
-	if (wait)
-		skipmeta = 1;
-	s = splbio();
+	error = 0;
+	passes = 0;
+	wait = 0;	/* Always do an async pass first. */
+	lbn = lblkno(ip->i_fs, (ip->i_size + ip->i_fs->fs_bsize - 1));
 	BO_LOCK(bo);
 loop:
 	TAILQ_FOREACH(bp, &bo->bo_dirty.bv_hd, b_bobufs)
@@ -239,70 +245,53 @@ loop:
 	TAILQ_FOREACH_SAFE(bp, &bo->bo_dirty.bv_hd, b_bobufs, nbp) {
 		/*
 		 * Reasons to skip this buffer: it has already been considered
-		 * on this pass, this pass is the first time through on a
-		 * synchronous flush request and the buffer being considered
-		 * is metadata, the buffer has dependencies that will cause
+		 * on this pass, the buffer has dependencies that will cause
 		 * it to be redirtied and it has not already been deferred,
 		 * or it is already being written.
 		 */
 		if ((bp->b_vflags & BV_SCANNED) != 0)
 			continue;
 		bp->b_vflags |= BV_SCANNED;
-		if ((skipmeta == 1 && bp->b_lblkno < 0))
+		/* Flush indirects in order. */
+		if (waitfor == MNT_WAIT && bp->b_lblkno <= -NDADDR &&
+		    lbn_level(bp->b_lblkno) >= passes)
 			continue;
+		if (bp->b_lblkno > lbn)
+			panic("ffs_syncvnode: syncing truncated data.");
 		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT, NULL))
 			continue;
 		BO_UNLOCK(bo);
-		if (!wait && !LIST_EMPTY(&bp->b_dep) &&
-		    (bp->b_flags & B_DEFERRED) == 0 &&
-		    buf_countdeps(bp, 0)) {
-			bp->b_flags |= B_DEFERRED;
-			BUF_UNLOCK(bp);
-			BO_LOCK(bo);
-			continue;
-		}
 		if ((bp->b_flags & B_DELWRI) == 0)
 			panic("ffs_fsync: not dirty");
 		/*
-		 * If this is a synchronous flush request, or it is not a
-		 * file or device, start the write on this buffer immediately.
+		 * Check for dependencies and potentially complete them.
 		 */
-		if (wait || (vp->v_type != VREG && vp->v_type != VBLK)) {
-
-			/*
-			 * On our final pass through, do all I/O synchronously
-			 * so that we can find out if our flush is failing
-			 * because of write errors.
-			 */
-			if (passes > 0 || !wait) {
-				if ((bp->b_flags & B_CLUSTEROK) && !wait) {
-					(void) vfs_bio_awrite(bp);
-				} else {
-					bremfree(bp);
-					splx(s);
-					(void) bawrite(bp);
-					s = splbio();
-				}
-			} else {
-				bremfree(bp);
-				splx(s);
-				if ((error = bwrite(bp)) != 0)
-					return (error);
-				s = splbio();
+		if (!LIST_EMPTY(&bp->b_dep) &&
+		    (error = softdep_sync_buf(vp, bp,
+		    wait ? MNT_WAIT : MNT_NOWAIT)) != 0) {
+			/* I/O error. */
+			if (error != EBUSY) {
+				BUF_UNLOCK(bp);
+				return (error);
 			}
-		} else if ((vp->v_type == VREG) && (bp->b_lblkno >= lbn)) {
-			/*
-			 * If the buffer is for data that has been truncated
-			 * off the file, then throw it away.
-			 */
+			/* If we deferred once, don't defer again. */
+		    	if ((bp->b_flags & B_DEFERRED) == 0) {
+				bp->b_flags |= B_DEFERRED;
+				BUF_UNLOCK(bp);
+				goto next;
+			}
+		}
+		if (wait) {
 			bremfree(bp);
-			bp->b_flags |= B_INVAL | B_NOCACHE;
-			splx(s);
-			brelse(bp);
-			s = splbio();
-		} else
-			vfs_bio_awrite(bp);
-
+			if ((error = bwrite(bp)) != 0)
+				return (error);
+		} else if ((bp->b_flags & B_CLUSTEROK)) {
+			(void) vfs_bio_awrite(bp);
+		} else {
+			bremfree(bp);
+			(void) bawrite(bp);
+		}
+next:
 		/*
 		 * Since we may have slept during the I/O, we need
 		 * to start from a known point.
@@ -310,51 +299,44 @@ loop:
 		BO_LOCK(bo);
 		nbp = TAILQ_FIRST(&bo->bo_dirty.bv_hd);
 	}
-	/*
-	 * If we were asked to do this synchronously, then go back for
-	 * another pass, this time doing the metadata.
-	 */
-	if (skipmeta) {
-		skipmeta = 0;
-		goto loop;
-	}
-
-	if (wait) {
-		bufobj_wwait(bo, 3, 0);
+	if (waitfor != MNT_WAIT) {
 		BO_UNLOCK(bo);
-
-		/*
-		 * Ensure that any filesystem metatdata associated
-		 * with the vnode has been written.
-		 */
-		splx(s);
-		if ((error = softdep_sync_metadata(vp)) != 0)
-			return (error);
-		s = splbio();
-
-		BO_LOCK(bo);
-		if (bo->bo_dirty.bv_cnt > 0) {
-			/*
-			 * Block devices associated with filesystems may
-			 * have new I/O requests posted for them even if
-			 * the vnode is locked, so no amount of trying will
-			 * get them clean. Thus we give block devices a
-			 * good effort, then just give up. For all other file
-			 * types, go around and try again until it is clean.
-			 */
-			if (passes > 0) {
-				passes -= 1;
-				goto loop;
-			}
-#ifdef INVARIANTS
-			if (!vn_isdisk(vp, NULL))
-				vprint("ffs_fsync: dirty", vp);
-#endif
+		return (ffs_update(vp, waitfor));
+	}
+	/* Drain IO to see if we're done. */
+	bufobj_wwait(bo, 0, 0);
+	/*
+	 * Block devices associated with filesystems may have new I/O
+	 * requests posted for them even if the vnode is locked, so no
+	 * amount of trying will get them clean.  We make several passes
+	 * as a best effort.
+	 *
+	 * Regular files may need multiple passes to flush all dependency
+	 * work as it is possible that we must write once per indirect
+	 * level, once for the leaf, and once for the inode and each of
+	 * these will be done with one sync and one async pass.
+	 */
+	if (bo->bo_dirty.bv_cnt > 0) {
+		/* Write the inode after sync passes to flush deps. */
+		if (wait && DOINGSOFTDEP(vp)) {
+			BO_UNLOCK(bo);
+			ffs_update(vp, MNT_WAIT);
+			BO_LOCK(bo);
 		}
+		/* switch between sync/async. */
+		wait = !wait;
+		if (wait == 1 || ++passes < NIADDR + 2)
+			goto loop;
+#ifdef INVARIANTS
+		if (!vn_isdisk(vp, NULL))
+			vprint("ffs_fsync: dirty", vp);
+#endif
 	}
 	BO_UNLOCK(bo);
-	splx(s);
-	return (ffs_update(vp, wait));
+	error = ffs_update(vp, MNT_WAIT);
+	if (DOINGSUJ(vp))
+		softdep_journal_fsync(VTOI(vp));
+	return (error);
 }
 
 static int

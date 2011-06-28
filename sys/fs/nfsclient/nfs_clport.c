@@ -34,6 +34,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_kdtrace.h"
+
 /*
  * generally, I don't like #includes inside .h files, but it seems to
  * be the easiest way to handle the port.
@@ -42,6 +44,26 @@ __FBSDID("$FreeBSD$");
 #include <fs/nfs/nfsport.h>
 #include <netinet/if_ether.h>
 #include <net/if_types.h>
+
+#include <fs/nfsclient/nfs_kdtrace.h>
+
+#ifdef KDTRACE_HOOKS
+dtrace_nfsclient_attrcache_flush_probe_func_t
+		dtrace_nfscl_attrcache_flush_done_probe;
+uint32_t	nfscl_attrcache_flush_done_id;
+
+dtrace_nfsclient_attrcache_get_hit_probe_func_t
+		dtrace_nfscl_attrcache_get_hit_probe;
+uint32_t	nfscl_attrcache_get_hit_id;
+
+dtrace_nfsclient_attrcache_get_miss_probe_func_t
+		dtrace_nfscl_attrcache_get_miss_probe;
+uint32_t	nfscl_attrcache_get_miss_id;
+
+dtrace_nfsclient_attrcache_load_probe_func_t
+		dtrace_nfscl_attrcache_load_done_probe;
+uint32_t	nfscl_attrcache_load_done_id;
+#endif /* !KDTRACE_HOOKS */
 
 extern u_int32_t newnfs_true, newnfs_false, newnfs_xdrneg1;
 extern struct vop_vector newnfs_vnodeops;
@@ -407,6 +429,7 @@ nfscl_loadattrcache(struct vnode **vpp, struct nfsvattr *nap, void *nvaper,
 				 */
 				vap->va_size = np->n_size;
 				np->n_attrstamp = 0;
+				KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(vp);
 			} else if (np->n_flag & NMODIFIED) {
 				/*
 				 * We've modified the file: Use the larger
@@ -439,9 +462,11 @@ nfscl_loadattrcache(struct vnode **vpp, struct nfsvattr *nap, void *nvaper,
 	 * We detect this by for the mtime moving back. We invalidate the 
 	 * attrcache when this happens.
 	 */
-	if (timespeccmp(&mtime_save, &vap->va_mtime, >))
+	if (timespeccmp(&mtime_save, &vap->va_mtime, >)) {
 		/* Size changed or mtime went backwards */
 		np->n_attrstamp = 0;
+		KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(vp);
+	}
 	if (vaper != NULL) {
 		NFSBCOPY((caddr_t)vap, (caddr_t)vaper, sizeof(*vap));
 		if (np->n_flag & NCHG) {
@@ -451,6 +476,10 @@ nfscl_loadattrcache(struct vnode **vpp, struct nfsvattr *nap, void *nvaper,
 				vaper->va_mtime = np->n_mtim;
 		}
 	}
+#ifdef KDTRACE_HOOKS
+	if (np->n_attrstamp != 0)
+		KDTRACE_NFS_ATTRCACHE_LOAD_DONE(vp, vap, 0);
+#endif
 	NFSUNLOCKNODE(np);
 	return (0);
 }
@@ -500,7 +529,7 @@ nfscl_fillclid(u_int64_t clval, char *uuid, u_int8_t *cp, u_int16_t idlen)
  * Fill in a lock owner name. For now, pid + the process's creation time.
  */
 void
-nfscl_filllockowner(struct thread *td, u_int8_t *cp)
+nfscl_filllockowner(void *id, u_int8_t *cp, int flags)
 {
 	union {
 		u_int32_t	lval;
@@ -508,37 +537,35 @@ nfscl_filllockowner(struct thread *td, u_int8_t *cp)
 	} tl;
 	struct proc *p;
 
-if (td == NULL) {
-	printf("NULL td\n");
-	bzero(cp, 12);
-	return;
-}
-	p = td->td_proc;
-if (p == NULL) {
-	printf("NULL pid\n");
-	bzero(cp, 12);
-	return;
-}
-	tl.lval = p->p_pid;
-	*cp++ = tl.cval[0];
-	*cp++ = tl.cval[1];
-	*cp++ = tl.cval[2];
-	*cp++ = tl.cval[3];
-if (p->p_stats == NULL) {
-	printf("pstats null\n");
-	bzero(cp, 8);
-	return;
-}
-	tl.lval = p->p_stats->p_start.tv_sec;
-	*cp++ = tl.cval[0];
-	*cp++ = tl.cval[1];
-	*cp++ = tl.cval[2];
-	*cp++ = tl.cval[3];
-	tl.lval = p->p_stats->p_start.tv_usec;
-	*cp++ = tl.cval[0];
-	*cp++ = tl.cval[1];
-	*cp++ = tl.cval[2];
-	*cp = tl.cval[3];
+	if (id == NULL) {
+		printf("NULL id\n");
+		bzero(cp, NFSV4CL_LOCKNAMELEN);
+		return;
+	}
+	if ((flags & F_POSIX) != 0) {
+		p = (struct proc *)id;
+		tl.lval = p->p_pid;
+		*cp++ = tl.cval[0];
+		*cp++ = tl.cval[1];
+		*cp++ = tl.cval[2];
+		*cp++ = tl.cval[3];
+		tl.lval = p->p_stats->p_start.tv_sec;
+		*cp++ = tl.cval[0];
+		*cp++ = tl.cval[1];
+		*cp++ = tl.cval[2];
+		*cp++ = tl.cval[3];
+		tl.lval = p->p_stats->p_start.tv_usec;
+		*cp++ = tl.cval[0];
+		*cp++ = tl.cval[1];
+		*cp++ = tl.cval[2];
+		*cp = tl.cval[3];
+	} else if ((flags & F_FLOCK) != 0) {
+		bcopy(&id, cp, sizeof(id));
+		bzero(&cp[sizeof(id)], NFSV4CL_LOCKNAMELEN - sizeof(id));
+	} else {
+		printf("nfscl_filllockowner: not F_POSIX or F_FLOCK\n");
+		bzero(cp, NFSV4CL_LOCKNAMELEN);
+	}
 }
 
 /*
@@ -943,6 +970,7 @@ nfscl_getmyip(struct nfsmount *nmp, int *isinet6p)
 		sad.sin_family = AF_INET;
 		sad.sin_len = sizeof (struct sockaddr_in);
 		sad.sin_addr.s_addr = sin->sin_addr.s_addr;
+		CURVNET_SET(CRED_TO_VNET(nmp->nm_sockreq.nr_cred));
 		rt = rtalloc1((struct sockaddr *)&sad, 0, 0UL);
 		if (rt != NULL) {
 			if (rt->rt_ifp != NULL &&
@@ -956,6 +984,7 @@ nfscl_getmyip(struct nfsmount *nmp, int *isinet6p)
 			}
 			RTFREE_LOCKED(rt);
 		}
+		CURVNET_RESTORE();
 #ifdef INET6
 	} else if (nmp->nm_nam->sa_family == AF_INET6) {
 		struct sockaddr_in6 sad6, *sin6;
@@ -966,6 +995,7 @@ nfscl_getmyip(struct nfsmount *nmp, int *isinet6p)
 		sad6.sin6_family = AF_INET6;
 		sad6.sin6_len = sizeof (struct sockaddr_in6);
 		sad6.sin6_addr = sin6->sin6_addr;
+		CURVNET_SET(CRED_TO_VNET(nmp->nm_sockreq.nr_cred));
 		rt = rtalloc1((struct sockaddr *)&sad6, 0, 0UL);
 		if (rt != NULL) {
 			if (rt->rt_ifp != NULL &&
@@ -980,6 +1010,7 @@ nfscl_getmyip(struct nfsmount *nmp, int *isinet6p)
 			}
 			RTFREE_LOCKED(rt);
 		}
+		CURVNET_RESTORE();
 #endif
 	}
 	return (retp);

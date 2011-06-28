@@ -11,7 +11,7 @@ SUBDIR= ${_binutils} \
 	${_dtc} \
 	${_gdb} \
 	${_gperf} \
-	${_grep} \
+	grep \
 	${_groff} \
 	patch \
 	${_rcs} \
@@ -25,10 +25,6 @@ _gperf=		gperf
 .if ${MK_GROFF} != "no"
 _groff=		groff
 .endif
-.endif
-
-.if ${MK_BSD_GREP} != "yes"
-_grep=          grep
 .endif
 
 .if ${MK_CVS} != "no"

@@ -564,7 +564,7 @@ struct cpu_search {
 
 #define	CPUSET_FOREACH(cpu, mask)				\
 	for ((cpu) = 0; (cpu) <= mp_maxid; (cpu)++)		\
-		if ((mask) & 1 << (cpu))
+		if (CPU_ISSET(cpu, &mask))
 
 static __inline int cpu_search(struct cpu_group *cg, struct cpu_search *low,
     struct cpu_search *high, const int match);
@@ -2650,15 +2650,16 @@ static int
 sysctl_kern_sched_topology_spec_internal(struct sbuf *sb, struct cpu_group *cg,
     int indent)
 {
+	char cpusetbuf[CPUSETBUFSIZ];
 	int i, first;
 
 	sbuf_printf(sb, "%*s<group level=\"%d\" cache-level=\"%d\">\n", indent,
 	    "", 1 + indent / 2, cg->cg_level);
-	sbuf_printf(sb, "%*s <cpu count=\"%d\" mask=\"0x%x\">", indent, "",
-	    cg->cg_count, cg->cg_mask);
+	sbuf_printf(sb, "%*s <cpu count=\"%d\" mask=\"%s\">", indent, "",
+	    cg->cg_count, cpusetobj_strprint(cpusetbuf, &cg->cg_mask));
 	first = TRUE;
 	for (i = 0; i < MAXCPU; i++) {
-		if ((cg->cg_mask & (1 << i)) != 0) {
+		if (CPU_ISSET(i, &cg->cg_mask)) {
 			if (!first)
 				sbuf_printf(sb, ", ");
 			else

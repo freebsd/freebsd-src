@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/smp.h>
 #include <sys/vmmeter.h>
+#include <sys/_cpuset.h>
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>
@@ -58,6 +59,8 @@ ASSYM(KSTACK_PAGES, KSTACK_PAGES);
 ASSYM(PCPU_PAGES, PCPU_PAGES);
 
 ASSYM(TAR_VPN_SHIFT, TAR_VPN_SHIFT);
+
+ASSYM(_NCPUBITS, _NCPUBITS);
 
 #ifdef SUN4U
 ASSYM(TLB_DEMAP_ALL, TLB_DEMAP_ALL);
@@ -137,7 +140,6 @@ ASSYM(MAXCOMLEN, MAXCOMLEN);
 ASSYM(PC_CURTHREAD, offsetof(struct pcpu, pc_curthread));
 ASSYM(PC_CURPCB, offsetof(struct pcpu, pc_curpcb));
 ASSYM(PC_CPUID, offsetof(struct pcpu, pc_cpuid));
-ASSYM(PC_CPUMASK, offsetof(struct pcpu, pc_cpumask));
 ASSYM(PC_IRHEAD, offsetof(struct pcpu, pc_irhead));
 ASSYM(PC_IRTAIL, offsetof(struct pcpu, pc_irtail));
 ASSYM(PC_IRFREE, offsetof(struct pcpu, pc_irfree));

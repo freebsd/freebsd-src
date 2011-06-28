@@ -117,6 +117,8 @@ ath_hal_mac_name(struct ath_hal *ah)
 		return "9280";
 	case AR_XSREV_VERSION_KITE:
 		return "9285";
+	case AR_XSREV_VERSION_KIWI:
+		return "9287";
 	}
 	return "????";
 }
@@ -608,6 +610,10 @@ ath_hal_getcapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 		return HAL_OK;
 	case HAL_CAP_4ADDR_AGGR:
 		return pCap->hal4AddrAggrSupport ? HAL_OK : HAL_ENOTSUPP;
+	case HAL_CAP_EXT_CHAN_DFS:
+		return pCap->halExtChanDfsSupport ? HAL_OK : HAL_ENOTSUPP;
+	case HAL_CAP_COMBINED_RADAR_RSSI:
+		return pCap->halUseCombinedRadarRssi ? HAL_OK : HAL_ENOTSUPP;
 	case HAL_CAP_AUTO_SLEEP:
 		return pCap->halAutoSleepSupport ? HAL_OK : HAL_ENOTSUPP;
 	case HAL_CAP_MBSSID_AGGR_SUPPORT:
@@ -624,6 +630,8 @@ ath_hal_getcapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 	case HAL_CAP_RXTSTAMP_PREC:	/* rx desc tstamp precision (bits) */
 		*result = pCap->halTstampPrecision;
 		return HAL_OK;
+	case HAL_CAP_ENHANCED_DFS_SUPPORT:
+		return pCap->halEnhancedDfsSupport ? HAL_OK : HAL_ENOTSUPP;
 
 	/* FreeBSD-specific entries for now */
 	case HAL_CAP_RXORN_FATAL:	/* HAL_INT_RXORN treated as fatal  */

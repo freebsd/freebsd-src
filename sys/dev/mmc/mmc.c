@@ -1445,37 +1445,37 @@ mmc_read_ivar(device_t bus, device_t child, int which, uintptr_t *result)
 	default:
 		return (EINVAL);
 	case MMC_IVAR_DSR_IMP:
-		*(int *)result = ivar->csd.dsr_imp;
+		*result = ivar->csd.dsr_imp;
 		break;
 	case MMC_IVAR_MEDIA_SIZE:
-		*(off_t *)result = ivar->sec_count;
+		*result = ivar->sec_count;
 		break;
 	case MMC_IVAR_RCA:
-		*(int *)result = ivar->rca;
+		*result = ivar->rca;
 		break;
 	case MMC_IVAR_SECTOR_SIZE:
-		*(int *)result = MMC_SECTOR_SIZE;
+		*result = MMC_SECTOR_SIZE;
 		break;
 	case MMC_IVAR_TRAN_SPEED:
-		*(int *)result = mmcbr_get_clock(bus);
+		*result = mmcbr_get_clock(bus);
 		break;
 	case MMC_IVAR_READ_ONLY:
-		*(int *)result = ivar->read_only;
+		*result = ivar->read_only;
 		break;
 	case MMC_IVAR_HIGH_CAP:
-		*(int *)result = ivar->high_cap;
+		*result = ivar->high_cap;
 		break;
 	case MMC_IVAR_CARD_TYPE:
-		*(int *)result = ivar->mode;
+		*result = ivar->mode;
 		break;
 	case MMC_IVAR_BUS_WIDTH:
-		*(int *)result = ivar->bus_width;
+		*result = ivar->bus_width;
 		break;
 	case MMC_IVAR_ERASE_SECTOR:
-		*(int *)result = ivar->erase_sector;
+		*result = ivar->erase_sector;
 		break;
 	case MMC_IVAR_MAX_DATA:
-		*(int *)result = mmcbr_get_max_data(bus);
+		*result = mmcbr_get_max_data(bus);
 		break;
 	}
 	return (0);

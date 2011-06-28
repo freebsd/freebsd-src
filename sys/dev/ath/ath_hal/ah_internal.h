@@ -200,8 +200,10 @@ typedef struct {
 			halRifsTxSupport		: 1,
 			hal4AddrAggrSupport		: 1,
 			halExtChanDfsSupport		: 1,
+			halUseCombinedRadarRssi		: 1,
 			halForcePpmSupport		: 1,
 			halEnhancedPmSupport		: 1,
+			halEnhancedDfsSupport		: 1,
 			halMbssidAggrSupport		: 1,
 			halBssidMatchSupport		: 1,
 			hal4kbSplitTransSupport		: 1,
@@ -417,18 +419,6 @@ extern	HAL_BOOL ath_hal_setTxQProps(struct ath_hal *ah,
 		HAL_TX_QUEUE_INFO *qi, const HAL_TXQ_INFO *qInfo);
 extern	HAL_BOOL ath_hal_getTxQProps(struct ath_hal *ah,
 		HAL_TXQ_INFO *qInfo, const HAL_TX_QUEUE_INFO *qi);
-
-typedef enum {
-	HAL_ANI_PRESENT = 0x1,			/* is ANI support present */
-	HAL_ANI_NOISE_IMMUNITY_LEVEL = 0x2,	/* set level */
-	HAL_ANI_OFDM_WEAK_SIGNAL_DETECTION = 0x4,	/* enable/disable */
-	HAL_ANI_CCK_WEAK_SIGNAL_THR = 0x8,		/* enable/disable */
-	HAL_ANI_FIRSTEP_LEVEL = 0x10,			/* set level */
-	HAL_ANI_SPUR_IMMUNITY_LEVEL = 0x20,		/* set level */
-	HAL_ANI_MODE = 0x40,	/* 0 => manual, 1 => auto (XXX do not change) */
-	HAL_ANI_PHYERR_RESET =0x80,			/* reset phy error stats */
-	HAL_ANI_ALL = 0xff
-} HAL_ANI_CMD;
 
 #define	HAL_SPUR_VAL_MASK		0x3FFF
 #define	HAL_SPUR_CHAN_WIDTH		87

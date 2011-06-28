@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/smp.h>
 
 #include <machine/vmm.h>
 #include "vmm_ipi.h"

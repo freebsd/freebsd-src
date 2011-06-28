@@ -161,6 +161,20 @@ The minimum is 80, and the maximum is 4096.
 If set to 1, enable Adaptive Interrupt Moderation.
 The default is to enable Adaptive Interrupt Moderation.
 .El
+.Sh FILES
+.Bl -tag -width /dev/led/igb*
+.It Pa /dev/led/igb*
+identification LED device nodes
+.El
+.Sh EXAMPLES
+Make the identification LED of igb0 blink:
+.Pp
+.Dl "echo f2 > /dev/led/igb0"
+.Pp
+Turn the identification LED of igb0 off again:
+.Pp
+.Dl "echo 0 > /dev/led/igb0"
+.Pp
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "igb%d: Unable to allocate bus resource: memory"
@@ -180,20 +194,6 @@ If an issue is identified with the released source code on the supported kernel
 with a supported adapter, email the specific information related to the
 issue to
 .Aq freebsdnic@mailbox.intel.com .
-.Sh FILES
-.Bl -tag -width /dev/led/igb*
-.It Pa /dev/led/igb*
-identification LED device nodes
-.El
-.Sh EXAMPLES
-Make the identification LED of igb0 blink:
-.Pp
-.Dl "echo f2 > /dev/led/igb0"
-.Pp
-Turn the identification LED of igb0 off again:
-.Pp
-.Dl "echo 0 > /dev/led/igb0"
-.Pp
 .Sh SEE ALSO
 .Xr altq 4 ,
 .Xr arp 4 ,

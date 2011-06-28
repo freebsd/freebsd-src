@@ -3,7 +3,7 @@
 
 .include <bsd.own.mk>
 
-SUBDIR= adduser \
+SUBDIR=	adduser \
 	arp \
 	bootparamd \
 	burncd \
@@ -34,7 +34,6 @@ SUBDIR= adduser \
 	inetd \
 	iostat \
 	kldxref \
-	lastlogin \
 	mailwrapper \
 	makefs \
 	manctl \
@@ -89,7 +88,6 @@ SUBDIR= adduser \
 	trpt \
 	tzsetup \
 	ugidfw \
-	utxrm \
 	vipw \
 	wake \
 	watch \
@@ -99,7 +97,6 @@ SUBDIR= adduser \
 # NB: keep these sorted by MK_* knobs
 
 .if ${MK_ACCT} != "no"
-SUBDIR+=	ac
 SUBDIR+=	accton
 SUBDIR+=	sa
 .endif
@@ -297,6 +294,12 @@ SUBDIR+=	uathload
 SUBDIR+=	uhsoctl
 SUBDIR+=	usbconfig
 SUBDIR+=	usbdump
+.endif
+
+.if ${MK_UTMPX} != "no"
+SUBDIR+=	ac
+SUBDIR+=	lastlogin
+SUBDIR+=	utxrm
 .endif
 
 .if ${MK_WIRELESS} != "no"

@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/msgbuf.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/sched.h>
 #include <sys/smp.h>
 #include <sys/vmmeter.h>
 
@@ -90,9 +91,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/pte.h>
 
 #include "mmu_if.h"
-
-#define DEBUG
-#undef DEBUG
 
 #ifdef  DEBUG
 #define debugf(fmt, args...) printf(fmt, ##args)
@@ -393,7 +391,7 @@ tlb_miss_lock(void)
 	if (!smp_started)
 		return;
 
-	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
+	STAILQ_FOREACH(pc, &cpuhead, pc_allcpu) {
 		if (pc != pcpup) {
 
 			CTR3(KTR_PMAP, "%s: tlb miss LOCK of CPU=%d, "
@@ -419,7 +417,7 @@ tlb_miss_unlock(void)
 	if (!smp_started)
 		return;
 
-	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
+	STAILQ_FOREACH(pc, &cpuhead, pc_allcpu) {
 		if (pc != pcpup) {
 			CTR2(KTR_PMAP, "%s: tlb miss UNLOCK of CPU=%d",
 			    __func__, pc->pc_cpuid);
@@ -946,7 +944,7 @@ pte_find(mmu_t mmu, pmap_t pmap, vm_offset_t va)
 /**************************************************************************/
 
 /*
- * This is called during e500_init, before the system is really initialized.
+ * This is called during booke_init, before the system is really initialized.
  */
 static void
 mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
@@ -1228,7 +1226,7 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 		    PTE_VALID;
 	}
 	/* Mark kernel_pmap active on all CPUs */
-	kernel_pmap->pm_active = ~0;
+	CPU_FILL(&kernel_pmap->pm_active);
 
 	/*******************************************************/
 	/* Final setup */
@@ -1483,7 +1481,7 @@ mmu_booke_pinit(mmu_t mmu, pmap_t pmap)
 	PMAP_LOCK_INIT(pmap);
 	for (i = 0; i < MAXCPU; i++)
 		pmap->pm_tid[i] = TID_NONE;
-	pmap->pm_active = 0;
+	CPU_ZERO(&kernel_pmap->pm_active);
 	bzero(&pmap->pm_stats, sizeof(pmap->pm_stats));
 	bzero(&pmap->pm_pdir, sizeof(pte_t *) * PDIR_NENTRIES);
 	TAILQ_INIT(&pmap->pm_ptbl_list);
@@ -1838,7 +1836,7 @@ mmu_booke_activate(mmu_t mmu, struct thread *td)
 
 	mtx_lock_spin(&sched_lock);
 
-	atomic_set_int(&pmap->pm_active, PCPU_GET(cpumask));
+	CPU_OR_ATOMIC(&pmap->pm_active, PCPU_PTR(cpumask));
 	PCPU_SET(curpmap, pmap);
 	
 	if (pmap->pm_tid[PCPU_GET(cpuid)] == TID_NONE)
@@ -1867,7 +1865,9 @@ mmu_booke_deactivate(mmu_t mmu, struct thread *td)
 	CTR5(KTR_PMAP, "%s: td=%p, proc = '%s', id = %d, pmap = 0x%08x",
 	    __func__, td, td->td_proc->p_comm, td->td_proc->p_pid, pmap);
 
-	atomic_clear_int(&pmap->pm_active, PCPU_GET(cpumask));
+	sched_pin();
+	CPU_NAND_ATOMIC(&pmap->pm_active, PCPU_PTR(cpumask));
+	sched_unpin();
 	PCPU_SET(curpmap, NULL);
 }
 
@@ -3019,24 +3019,18 @@ tlb1_init(vm_offset_t ccsrbar)
 {
 	uint32_t mas0;
 
-	/* TLB1[1] is used to map the kernel. Save that entry. */
-	mas0 = MAS0_TLBSEL(1) | MAS0_ESEL(1);
+	/* TLB1[0] is used to map the kernel. Save that entry. */
+	mas0 = MAS0_TLBSEL(1) | MAS0_ESEL(0);
 	mtspr(SPR_MAS0, mas0);
 	__asm __volatile("isync; tlbre");
 
-	tlb1[1].mas1 = mfspr(SPR_MAS1);
-	tlb1[1].mas2 = mfspr(SPR_MAS2);
-	tlb1[1].mas3 = mfspr(SPR_MAS3);
+	tlb1[0].mas1 = mfspr(SPR_MAS1);
+	tlb1[0].mas2 = mfspr(SPR_MAS2);
+	tlb1[0].mas3 = mfspr(SPR_MAS3);
 
-	/* Map in CCSRBAR in TLB1[0] */
-	tlb1_idx = 0;
+	/* Map in CCSRBAR in TLB1[1] */
+	tlb1_idx = 1;
 	tlb1_set_entry(CCSRBAR_VA, ccsrbar, CCSRBAR_SIZE, _TLB_ENTRY_IO);
-	/*
-	 * Set the next available TLB1 entry index. Note TLB[1] is reserved
-	 * for initial mapping of kernel text+data, which was set early in
-	 * locore, we need to skip this [busy] entry.
-	 */
-	tlb1_idx = 2;
 
 	/* Setup TLB miss defaults */
 	set_mas4_defaults();

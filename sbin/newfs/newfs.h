@@ -47,8 +47,8 @@
  *	sectorsize <= DESFRAGSIZE <= DESBLKSIZE
  *	DESBLKSIZE / DESFRAGSIZE <= 8
  */
-#define	DFL_FRAGSIZE	2048
-#define	DFL_BLKSIZE	16384
+#define	DFL_FRAGSIZE	4096
+#define	DFL_BLKSIZE	32768
 
 /*
  * Cylinder groups may have up to MAXBLKSPERCG blocks. The actual

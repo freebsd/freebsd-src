@@ -232,6 +232,9 @@ identifycpu(void)
 		case 0x00:
 			model_name = "Montecito";
 			break;
+		case 0x01:
+			model_name = "Montvale";
+			break;
 		}
 		break;
 	}
@@ -316,7 +319,7 @@ cpu_startup(void *dummy)
 	/*
 	 * Create sysctl tree for per-CPU information.
 	 */
-	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
+	STAILQ_FOREACH(pc, &cpuhead, pc_allcpu) {
 		snprintf(nodename, sizeof(nodename), "%u", pc->pc_cpuid);
 		sysctl_ctx_init(&pc->pc_md.sysctl_ctx);
 		pc->pc_md.sysctl_tree = SYSCTL_ADD_NODE(&pc->pc_md.sysctl_ctx,
@@ -411,12 +414,34 @@ cpu_halt()
 void
 cpu_idle(int busy)
 {
-	struct ia64_pal_result res;
+	register_t ie;
 
-	if (cpu_idle_hook != NULL)
+#if 0
+	if (!busy) {
+		critical_enter();
+		cpu_idleclock();
+	}
+#endif
+
+	ie = intr_disable();
+	KASSERT(ie != 0, ("%s called with interrupts disabled\n", __func__));
+
+	if (sched_runnable())
+		ia64_enable_intr();
+	else if (cpu_idle_hook != NULL) {
 		(*cpu_idle_hook)();
-	else
-		res = ia64_call_pal_static(PAL_HALT_LIGHT, 0, 0, 0);
+		/* The hook must enable interrupts! */
+	} else {
+		ia64_call_pal_static(PAL_HALT_LIGHT, 0, 0, 0);
+		ia64_enable_intr();
+	}
+
+#if 0
+	if (!busy) {
+		cpu_activeclock();
+		critical_exit();
+	}
+#endif
 }
 
 int
@@ -644,9 +669,12 @@ calculate_frequencies(void)
 {
 	struct ia64_sal_result sal;
 	struct ia64_pal_result pal;
+	register_t ie;
 
+	ie = intr_disable();
 	sal = ia64_sal_entry(SAL_FREQ_BASE, 0, 0, 0, 0, 0, 0, 0);
 	pal = ia64_call_pal_static(PAL_FREQ_RATIOS, 0, 0, 0);
+	intr_restore(ie);
 
 	if (sal.sal_status == 0 && pal.pal_status == 0) {
 		if (bootverbose) {
@@ -760,6 +788,8 @@ ia64_init(void)
 	ia64_xiv_init();
 	ia64_sal_init();
 	calculate_frequencies();
+
+	set_cputicker(ia64_get_itc, (u_long)itc_freq * 1000000, 0);
 
 	/*
 	 * Setup the PCPU data for the bootstrap processor. It is needed

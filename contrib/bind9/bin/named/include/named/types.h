@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: types.h,v 1.29 2008/01/17 23:46:59 tbox Exp $ */
+/* $Id: types.h,v 1.29 2008-01-17 23:46:59 tbox Exp $ */
 
 #ifndef NAMED_TYPES_H
 #define NAMED_TYPES_H 1

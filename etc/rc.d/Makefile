@@ -18,11 +18,11 @@ FILES=	DAEMON FILESYSTEMS LOGIN NETWORKING SERVERS \
 	ip6addrctl ipfilter ipfs ipfw ipmon \
 	ipnat ipsec ipxrouted \
 	jail \
-	kadmind kerberos keyserv kldxref kpasswdd \
+	kadmind kerberos keyserv kld kldxref kpasswdd \
 	ldconfig local localpkg lockd lpd \
 	mixer motd mountcritlocal mountcritremote mountlate \
 	mdconfig mdconfig2 mountd moused mroute6d mrouted msgs \
-	named natd netif netoptions \
+	named natd netif netoptions netwait \
 	newsyslog nfsclient nfscbd nfsd \
 	nfsserver nfsuserd nisdomain nsswitch ntpd ntpdate \
 	othermta \

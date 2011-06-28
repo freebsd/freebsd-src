@@ -249,6 +249,7 @@ public:
   static const TST TST_typeofType = clang::TST_typeofType;
   static const TST TST_typeofExpr = clang::TST_typeofExpr;
   static const TST TST_decltype = clang::TST_decltype;
+  static const TST TST_underlyingType = clang::TST_underlyingType;
   static const TST TST_auto = clang::TST_auto;
   static const TST TST_unknown_anytype = clang::TST_unknown_anytype;
   static const TST TST_error = clang::TST_error;
@@ -344,7 +345,8 @@ private:
   void SaveStorageSpecifierAsWritten();
 
   static bool isTypeRep(TST T) {
-    return (T == TST_typename || T == TST_typeofType);
+    return (T == TST_typename || T == TST_typeofType ||
+            T == TST_underlyingType);
   }
   static bool isExprRep(TST T) {
     return (T == TST_typeofExpr || T == TST_decltype);
@@ -461,6 +463,14 @@ public:
   SourceLocation getConstSpecLoc() const { return TQ_constLoc; }
   SourceLocation getRestrictSpecLoc() const { return TQ_restrictLoc; }
   SourceLocation getVolatileSpecLoc() const { return TQ_volatileLoc; }
+
+  /// \brief Clear out all of the type qualifiers.
+  void ClearTypeQualifiers() {
+    TypeQualifiers = 0;
+    TQ_constLoc = SourceLocation();
+    TQ_restrictLoc = SourceLocation();
+    TQ_volatileLoc = SourceLocation();
+  }
 
   // function-specifier
   bool isInlineSpecified() const { return FS_inline_specified; }
@@ -1068,8 +1078,8 @@ struct DeclaratorChunk {
     /// If this is an invalid location, there is no ref-qualifier.
     unsigned RefQualifierLoc;
 
-    /// \brief When ExceptionSpecType isn't EST_None, the location of the
-    /// keyword introducing the spec.
+    /// \brief When ExceptionSpecType isn't EST_None or EST_Delayed, the
+    /// location of the keyword introducing the spec.
     unsigned ExceptionSpecLoc;
 
     /// ArgInfo - This is a pointer to a new[]'d array of ParamInfo objects that
@@ -1332,7 +1342,8 @@ public:
     CXXCatchContext,     // C++ catch exception-declaration
     BlockLiteralContext,  // Block literal declarator.
     TemplateTypeArgContext, // Template type argument.
-    AliasDeclContext     // C++0x alias-declaration.
+    AliasDeclContext,    // C++0x alias-declaration.
+    AliasTemplateContext // C++0x alias-declaration template.
   };
 
 private:
@@ -1474,6 +1485,7 @@ public:
 
     case TypeNameContext:
     case AliasDeclContext:
+    case AliasTemplateContext:
     case PrototypeContext:
     case ObjCPrototypeContext:
     case TemplateParamContext:
@@ -1503,6 +1515,7 @@ public:
 
     case TypeNameContext:
     case AliasDeclContext:
+    case AliasTemplateContext:
     case ObjCPrototypeContext:
     case BlockLiteralContext:
     case TemplateTypeArgContext:
@@ -1531,6 +1544,7 @@ public:
     case CXXCatchContext:
     case TypeNameContext:
     case AliasDeclContext:
+    case AliasTemplateContext:
     case BlockLiteralContext:
     case TemplateTypeArgContext:
       return false;
@@ -1600,6 +1614,29 @@ public:
     assert(!DeclTypeInfo.empty() && "No type chunks to drop.");
     DeclTypeInfo.front().destroy();
     DeclTypeInfo.erase(DeclTypeInfo.begin());
+  }
+
+  /// isArrayOfUnknownBound - This method returns true if the declarator
+  /// is a declarator for an array of unknown bound (looking through
+  /// parentheses).
+  bool isArrayOfUnknownBound() const {
+    for (unsigned i = 0, i_end = DeclTypeInfo.size(); i < i_end; ++i) {
+      switch (DeclTypeInfo[i].Kind) {
+      case DeclaratorChunk::Paren:
+        continue;
+      case DeclaratorChunk::Function:
+      case DeclaratorChunk::Pointer:
+      case DeclaratorChunk::Reference:
+      case DeclaratorChunk::BlockPointer:
+      case DeclaratorChunk::MemberPointer:
+        return false;
+      case DeclaratorChunk::Array:
+        return !DeclTypeInfo[i].Arr.NumElts;
+      }
+      llvm_unreachable("Invalid type chunk");
+      return false;
+    }
+    return false;
   }
 
   /// isFunctionDeclarator - This method returns true if the declarator

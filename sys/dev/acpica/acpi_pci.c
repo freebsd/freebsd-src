@@ -209,38 +209,24 @@ acpi_pci_update_device(ACPI_HANDLE handle, device_t pci_child)
 	device_t child;
 
 	/*
-	 * Lookup and remove the unused device that acpi0 creates when it walks
-	 * the namespace creating devices.
+	 * Occasionally a PCI device may show up as an ACPI device
+	 * with a _HID.  (For example, the TabletPC TC1000 has a
+	 * second PCI-ISA bridge that has a _HID for an
+	 * acpi_sysresource device.)  In that case, leave ACPI-CA's
+	 * device data pointing at the ACPI-enumerated device.
 	 */
 	child = acpi_get_device(handle);
 	if (child != NULL) {
-		if (device_is_alive(child)) {
-			/*
-			 * The TabletPC TC1000 has a second PCI-ISA bridge
-			 * that has a _HID for an acpi_sysresource device.
-			 * In that case, leave ACPI-CA's device data pointing
-			 * at the ACPI-enumerated device.
-			 */
-			device_printf(child,
-			    "Conflicts with PCI device %d:%d:%d\n",
-			    pci_get_bus(pci_child), pci_get_slot(pci_child),
-			    pci_get_function(pci_child));
-			return;
-		}
 		KASSERT(device_get_parent(child) ==
 		    devclass_get_device(devclass_find("acpi"), 0),
 		    ("%s: child (%s)'s parent is not acpi0", __func__,
 		    acpi_name(handle)));
-		device_delete_child(device_get_parent(child), child);
+		return;
 	}
 
 	/*
 	 * Update ACPI-CA to use the PCI enumerated device_t for this handle.
 	 */
-	status = AcpiDetachData(handle, acpi_fake_objhandler);
-	if (ACPI_FAILURE(status))
-		printf("WARNING: Unable to detach object data from %s - %s\n",
-		    acpi_name(handle), AcpiFormatException(status));
 	status = AcpiAttachData(handle, acpi_fake_objhandler, pci_child);
 	if (ACPI_FAILURE(status))
 		printf("WARNING: Unable to attach object data to %s - %s\n",

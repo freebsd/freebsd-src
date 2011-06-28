@@ -82,7 +82,7 @@ ar9160AniSetup(struct ath_hal *ah)
 	};
 
 	/* NB: disable ANI noise immmunity for reliable RIFS rx */
-	AH5416(ah)->ah_ani_function &= ~ HAL_ANI_NOISE_IMMUNITY_LEVEL;
+	AH5416(ah)->ah_ani_function &= ~(1 << HAL_ANI_NOISE_IMMUNITY_LEVEL);
 	ar5416AniAttach(ah, &aniparams, &aniparams, AH_TRUE);
 }
 
@@ -293,6 +293,7 @@ ar9160FillCapabilityInfo(struct ath_hal *ah)
 	pCap->halRifsTxSupport = AH_TRUE;
 	pCap->halRtsAggrLimit = 64*1024;	/* 802.11n max */
 	pCap->halExtChanDfsSupport = AH_TRUE;
+	pCap->halUseCombinedRadarRssi = AH_TRUE;
 	pCap->halAutoSleepSupport = AH_FALSE;	/* XXX? */
 	pCap->halMbssidAggrSupport = AH_TRUE;
 	pCap->hal4AddrAggrSupport = AH_TRUE;

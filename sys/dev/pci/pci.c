@@ -2576,6 +2576,17 @@ pci_add_map(device_t bus, device_t dev, int reg, struct resource_list *rl,
 	uint16_t cmd;
 	struct resource *res;
 
+	/*
+	 * The BAR may already exist if the device is a CardBus card
+	 * whose CIS is stored in this BAR.
+	 */
+	pm = pci_find_bar(dev, reg);
+	if (pm != NULL) {
+		maprange = pci_maprange(pm->pm_value);
+		barlen = maprange == 64 ? 2 : 1;
+		return (barlen);
+	}
+
 	pci_read_bar(dev, reg, &map, &testval);
 	if (PCI_BAR_MEM(map)) {
 		type = SYS_RES_MEMORY;

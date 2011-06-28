@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/bus.h>
+#include <sys/cpuset.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/pcpu.h>
@@ -157,7 +158,7 @@ cpu_mp_start(void)
 			    cpu.cr_cpuid);
 			goto next;
 		}
-		if (all_cpus & (1 << cpu.cr_cpuid)) {
+		if (CPU_ISSET(cpu.cr_cpuid, &all_cpus)) {
 			printf("SMP: cpu%d: skipped - duplicate ID\n",
 			    cpu.cr_cpuid);
 			goto next;
@@ -174,9 +175,9 @@ cpu_mp_start(void)
 			pc->pc_cpuid = bsp.cr_cpuid;
 			pc->pc_bsp = 1;
 		}
-		pc->pc_cpumask = 1 << pc->pc_cpuid;
+		CPU_SETOF(pc->pc_cpuid, &pc->pc_cpumask);
 		pc->pc_hwref = cpu.cr_hwref;
-		all_cpus |= pc->pc_cpumask;
+		CPU_OR(&all_cpus, &pc->pc_cpumask);
 next:
 		error = platform_smp_next_cpu(&cpu);
 	}
@@ -212,9 +213,10 @@ cpu_mp_unleash(void *dummy)
 
 	cpus = 0;
 	smp_cpus = 0;
-	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
+	STAILQ_FOREACH(pc, &cpuhead, pc_allcpu) {
 		cpus++;
-		pc->pc_other_cpus = all_cpus & ~pc->pc_cpumask;
+		pc->pc_other_cpus = all_cpus;
+		CPU_NAND(&pc->pc_other_cpus, &pc->pc_cpumask);
 		if (!pc->pc_bsp) {
 			if (bootverbose)
 				printf("Waking up CPU %d (dev=%x)\n",
@@ -236,7 +238,7 @@ cpu_mp_unleash(void *dummy)
 				    pc->pc_cpuid, pc->pc_pir, pc->pc_awake);
 			smp_cpus++;
 		} else
-			stopped_cpus |= (1 << pc->pc_cpuid);
+			CPU_SET(pc->pc_cpuid, &stopped_cpus);
 	}
 
 	ap_awake = 1;
@@ -276,7 +278,7 @@ SYSINIT(start_aps, SI_SUB_SMP, SI_ORDER_FIRST, cpu_mp_unleash, NULL);
 int
 powerpc_ipi_handler(void *arg)
 {
-	cpumask_t self;
+	cpuset_t self;
 	uint32_t ipimask;
 	int msg;
 
@@ -311,11 +313,11 @@ powerpc_ipi_handler(void *arg)
 			savectx(&stoppcbs[PCPU_GET(cpuid)]);
 			self = PCPU_GET(cpumask);
 			savectx(PCPU_GET(curpcb));
-			atomic_set_int(&stopped_cpus, self);
-			while ((started_cpus & self) == 0)
+			CPU_OR_ATOMIC(&stopped_cpus, &self);
+			while (!CPU_OVERLAP(&started_cpus, &self))
 				cpu_spinwait();
-			atomic_clear_int(&started_cpus, self);
-			atomic_clear_int(&stopped_cpus, self);
+			CPU_NAND_ATOMIC(&started_cpus, &self);
+			CPU_NAND_ATOMIC(&stopped_cpus, &self);
 			CTR1(KTR_SMP, "%s: IPI_STOP (restart)", __func__);
 			break;
 		case IPI_HARDCLOCK:
@@ -343,12 +345,12 @@ ipi_send(struct pcpu *pc, int ipi)
 
 /* Send an IPI to a set of cpus. */
 void
-ipi_selected(cpumask_t cpus, int ipi)
+ipi_selected(cpuset_t cpus, int ipi)
 {
 	struct pcpu *pc;
 
-	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
-		if (cpus & pc->pc_cpumask)
+	STAILQ_FOREACH(pc, &cpuhead, pc_allcpu) {
+		if (CPU_OVERLAP(&cpus, &pc->pc_cpumask))
 			ipi_send(pc, ipi);
 	}
 }
@@ -367,7 +369,7 @@ ipi_all_but_self(int ipi)
 {
 	struct pcpu *pc;
 
-	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
+	STAILQ_FOREACH(pc, &cpuhead, pc_allcpu) {
 		if (pc != pcpup)
 			ipi_send(pc, ipi);
 	}

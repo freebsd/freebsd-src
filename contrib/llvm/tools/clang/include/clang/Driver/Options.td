@@ -238,8 +238,8 @@ def emit_llvm : Flag<"-emit-llvm">,
 def exported__symbols__list : Separate<"-exported_symbols_list">;
 def e : JoinedOrSeparate<"-e">;
 def fPIC : Flag<"-fPIC">, Group<f_Group>;
-def fPIE : Flag<"-fPIE">, Group<f_Group>;
-def fno_PIE : Flag<"-fno-PIE">, Group<f_Group>;
+def fPIE : Flag<"-fPIE">, Group<f_Group>, Flags<[NoArgumentUnused]>;
+def fno_PIE : Flag<"-fno-PIE">, Group<f_Group>, Flags<[NoArgumentUnused]>;
 def faccess_control : Flag<"-faccess-control">, Group<f_Group>;
 def fallow_unsupported : Flag<"-fallow-unsupported">, Group<f_Group>;
 def fapple_kext : Flag<"-fapple-kext">, Group<f_Group>;
@@ -278,6 +278,7 @@ def fdiagnostics_parseable_fixits : Flag<"-fdiagnostics-parseable-fixits">, Grou
 def fdiagnostics_show_option : Flag<"-fdiagnostics-show-option">, Group<f_Group>;
 def fdiagnostics_show_name : Flag<"-fdiagnostics-show-name">, Group<f_Group>;
 def fdiagnostics_show_note_include_stack : Flag<"-fdiagnostics-show-note-include-stack">, Group<f_Group>;
+def fdiagnostics_format_EQ : Joined<"-fdiagnostics-format=">, Group<f_clang_Group>;
 def fdiagnostics_show_category_EQ : Joined<"-fdiagnostics-show-category=">, Group<f_clang_Group>;
 def fdollars_in_identifiers : Flag<"-fdollars-in-identifiers">, Group<f_Group>;
 def fdwarf2_cfi_asm : Flag<"-fdwarf2-cfi-asm">, Group<f_Group>;
@@ -299,6 +300,8 @@ def fno_for_scope : Flag<"-fno-for-scope">, Group<f_Group>;
 def ffreestanding : Flag<"-ffreestanding">, Group<f_Group>;
 def fformat_extensions: Flag<"-fformat-extensions">;
 def fgnu_keywords : Flag<"-fgnu-keywords">, Group<f_Group>;
+def fgnu89_inline : Flag<"-fgnu89-inline">, Group<f_Group>;
+def fno_gnu89_inline : Flag<"-fno-gnu89-inline">, Group<f_Group>;
 def fgnu_runtime : Flag<"-fgnu-runtime">, Group<f_Group>;
 def fheinous_gnu_extensions : Flag<"-fheinous-gnu-extensions">;
 def filelist : Separate<"-filelist">, Flags<[LinkerInput]>;
@@ -390,6 +393,10 @@ def fobjc_gc_only : Flag<"-fobjc-gc-only">, Group<f_Group>;
 def fobjc_gc : Flag<"-fobjc-gc">, Group<f_Group>;
 def fobjc_legacy_dispatch : Flag<"-fobjc-legacy-dispatch">, Group<f_Group>;
 def fobjc_new_property : Flag<"-fobjc-new-property">, Group<clang_ignored_f_Group>;
+def fobjc_infer_related_result_type : Flag<"-fobjc-infer-related-result-type">, 
+                                      Group<f_Group>;
+def fno_objc_infer_related_result_type : Flag<
+  "-fno-objc-infer-related-result-type">, Group<f_Group>;
 
 // Objective-C ABI options.
 def fobjc_abi_version_EQ : Joined<"-fobjc-abi-version=">, Group<f_Group>;
@@ -407,8 +414,8 @@ def foutput_class_dir_EQ : Joined<"-foutput-class-dir=">, Group<f_Group>;
 def fpascal_strings : Flag<"-fpascal-strings">, Group<f_Group>;
 def fpch_preprocess : Flag<"-fpch-preprocess">, Group<f_Group>;
 def fpic : Flag<"-fpic">, Group<f_Group>;
-def fpie : Flag<"-fpie">, Group<f_Group>;
-def fno_pie : Flag<"-fno-pie">, Group<f_Group>;
+def fpie : Flag<"-fpie">, Group<f_Group>, Flags<[NoArgumentUnused]>;
+def fno_pie : Flag<"-fno-pie">, Group<f_Group>, Flags<[NoArgumentUnused]>;
 def fprofile_arcs : Flag<"-fprofile-arcs">, Group<f_Group>;
 def fprofile_generate : Flag<"-fprofile-generate">, Group<f_Group>;
 def framework : Separate<"-framework">, Flags<[LinkerInput]>;
@@ -419,6 +426,7 @@ def fshort_enums : Flag<"-fshort-enums">, Group<f_Group>;
 def freorder_blocks : Flag<"-freorder-blocks">, Group<clang_ignored_f_Group>;
 def fshort_wchar : Flag<"-fshort-wchar">, Group<f_Group>;
 def fshow_overloads_EQ : Joined<"-fshow-overloads=">, Group<f_Group>;
+def fshow_column : Flag<"-fshow-column">, Group<f_Group>;
 def fshow_source_location : Flag<"-fshow-source-location">, Group<f_Group>;
 def fspell_checking : Flag<"-fspell-checking">, Group<f_Group>;
 def fsigned_bitfields : Flag<"-fsigned-bitfields">, Group<f_Group>;
@@ -514,6 +522,7 @@ def mlinker_version_EQ : Joined<"-mlinker-version=">, Flags<[NoForward]>;
 def mllvm : Separate<"-mllvm">;
 def mmacosx_version_min_EQ : Joined<"-mmacosx-version-min=">, Group<m_Group>;
 def mms_bitfields : Flag<"-mms-bitfields">, Group<m_Group>;
+def mstackrealign : Flag<"-mstackrealign">, Group<m_Group>;
 def mmmx : Flag<"-mmmx">, Group<m_x86_Features_Group>;
 def mno_3dnowa : Flag<"-mno-3dnowa">, Group<m_x86_Features_Group>;
 def mno_3dnow : Flag<"-mno-3dnow">, Group<m_x86_Features_Group>;

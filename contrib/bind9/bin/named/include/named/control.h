@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: control.h,v 1.25 2007/06/19 23:46:59 tbox Exp $ */
+/* $Id: control.h,v 1.25 2007-06-19 23:46:59 tbox Exp $ */
 
 #ifndef NAMED_CONTROL_H
 #define NAMED_CONTROL_H 1

@@ -57,7 +57,7 @@ SUBDIR=	alias \
 	getconf \
 	getent \
 	getopt \
-	${_grep} \
+	grep \
 	gzip \
 	head \
 	hexdump \
@@ -74,7 +74,6 @@ SUBDIR=	alias \
 	ktrace \
 	ktrdump \
 	lam \
-	last \
 	lastcomm \
 	ldd \
 	leave \
@@ -170,7 +169,6 @@ SUBDIR=	alias \
 	unzip \
 	units \
 	unvis \
-	users \
 	uudecode \
 	uuencode \
 	vi \
@@ -182,10 +180,8 @@ SUBDIR=	alias \
 	what \
 	whereis \
 	which \
-	who \
 	whois \
 	write \
-	wtmpcvt \
 	xargs \
 	xinstall \
 	${_xlint} \
@@ -225,10 +221,6 @@ SUBDIR+=	bluetooth
 
 .if ${MK_BSD_CPIO} != "no"
 SUBDIR+=	cpio
-.endif
-
-.if ${MK_BSD_GREP} != "no"
-_grep=		grep
 .endif
 
 .if ${MK_CALENDAR} != "no"
@@ -340,6 +332,13 @@ SUBDIR+=	yacc
 .if ${MK_USB} != "no"
 SUBDIR+=	usbhidaction
 SUBDIR+=	usbhidctl
+.endif
+
+.if ${MK_UTMPX} != "no"
+SUBDIR+=	last
+SUBDIR+=	users
+SUBDIR+=	who
+SUBDIR+=	wtmpcvt
 .endif
 
 .include <bsd.arch.inc.mk>

@@ -206,7 +206,7 @@ ksched_setscheduler(struct ksched *ksched,
 		if (param->sched_priority >= 0 &&
 			param->sched_priority <= (PRI_MAX_TIMESHARE - PRI_MIN_TIMESHARE)) {
 			rtp.type = RTP_PRIO_NORMAL;
-			rtp.prio = p4prio_to_rtpprio(param->sched_priority);
+			rtp.prio = p4prio_to_tsprio(param->sched_priority);
 			rtp_to_pri(&rtp, td);
 		} else
 			e = EINVAL;

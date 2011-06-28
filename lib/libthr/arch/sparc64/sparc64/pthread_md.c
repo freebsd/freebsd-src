@@ -24,9 +24,10 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <rtld_tls.h>
@@ -37,13 +38,11 @@ struct tcb *
 _tcb_ctor(struct pthread *thread, int initial)
 {
 	struct tcb *tcb;
-	void *oldtls;
 
 	if (initial)
-		oldtls = _tp;
+		tcb = _tcb_get();
 	else
-		oldtls = NULL;
-	tcb = _rtld_allocate_tls(oldtls, sizeof(struct tcb), 16);
+		tcb = _rtld_allocate_tls(NULL, sizeof(struct tcb), 16);
 	if (tcb)
 		tcb->tcb_thread = thread;
 	return (tcb);
@@ -52,5 +51,6 @@ _tcb_ctor(struct pthread *thread, int initial)
 void
 _tcb_dtor(struct tcb *tcb)
 {
+
 	_rtld_free_tls(tcb, sizeof(struct tcb), 16);
 }

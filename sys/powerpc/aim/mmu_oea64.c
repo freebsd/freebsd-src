@@ -118,11 +118,14 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/queue.h>
+#include <sys/cpuset.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
 #include <sys/msgbuf.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/sched.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/vmmeter.h>
@@ -162,8 +165,8 @@ __FBSDID("$FreeBSD$");
 void moea64_release_vsid(uint64_t vsid);
 uintptr_t moea64_get_unique_vsid(void); 
 
-#define DISABLE_TRANS(msr)	msr = mfmsr(); mtmsr(msr & ~PSL_DR); isync()
-#define ENABLE_TRANS(msr)	mtmsr(msr); isync()
+#define DISABLE_TRANS(msr)	msr = mfmsr(); mtmsr(msr & ~PSL_DR)
+#define ENABLE_TRANS(msr)	mtmsr(msr)
 
 #define	VSID_MAKE(sr, hash)	((sr) | (((hash) & 0xfffff) << 4))
 #define	VSID_TO_HASH(vsid)	(((vsid) >> 4) & 0xfffff)
@@ -473,24 +476,7 @@ moea64_calc_wimg(vm_offset_t pa, vm_memattr_t ma)
 /*
  * Quick sort callout for comparing memory regions.
  */
-static int	mr_cmp(const void *a, const void *b);
 static int	om_cmp(const void *a, const void *b);
-
-static int
-mr_cmp(const void *a, const void *b)
-{
-	const struct	mem_region *regiona;
-	const struct	mem_region *regionb;
-
-	regiona = a;
-	regionb = b;
-	if (regiona->mr_start < regionb->mr_start)
-		return (-1);
-	else if (regiona->mr_start > regionb->mr_start)
-		return (1);
-	else
-		return (0);
-}
 
 static int
 om_cmp(const void *a, const void *b)
@@ -707,10 +693,9 @@ moea64_early_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelen
 	mem_regions(&pregions, &pregions_sz, &regions, &regions_sz);
 	CTR0(KTR_PMAP, "moea64_bootstrap: physical memory");
 
-	qsort(pregions, pregions_sz, sizeof(*pregions), mr_cmp);
 	if (sizeof(phys_avail)/sizeof(phys_avail[0]) < regions_sz)
 		panic("moea64_bootstrap: phys_avail too small");
-	qsort(regions, regions_sz, sizeof(*regions), mr_cmp);
+
 	phys_avail_count = 0;
 	physsz = 0;
 	hwphyssz = 0;
@@ -845,7 +830,7 @@ moea64_mid_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 	#endif
 
 	kernel_pmap->pmap_phys = kernel_pmap;
-	kernel_pmap->pm_active = ~0;
+	CPU_FILL(&kernel_pmap->pm_active);
 
 	PMAP_LOCK_INIT(kernel_pmap);
 
@@ -895,7 +880,7 @@ moea64_late_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend
 	 * Initialize MMU and remap early physical mappings
 	 */
 	MMU_CPU_BOOTSTRAP(mmup,0);
-	mtmsr(mfmsr() | PSL_DR | PSL_IR); isync();
+	mtmsr(mfmsr() | PSL_DR | PSL_IR);
 	pmap_bootstrapped++;
 	bs_remap_earlyboot();
 
@@ -1013,7 +998,9 @@ moea64_activate(mmu_t mmu, struct thread *td)
 	pmap_t	pm;
 
 	pm = &td->td_proc->p_vmspace->vm_pmap;
-	pm->pm_active |= PCPU_GET(cpumask);
+	sched_pin();
+	CPU_OR(&pm->pm_active, PCPU_PTR(cpumask));
+	sched_unpin();
 
 	#ifdef __powerpc64__
 	PCPU_SET(userslb, pm->pm_slb);
@@ -1028,7 +1015,9 @@ moea64_deactivate(mmu_t mmu, struct thread *td)
 	pmap_t	pm;
 
 	pm = &td->td_proc->p_vmspace->vm_pmap;
-	pm->pm_active &= ~(PCPU_GET(cpumask));
+	sched_pin();
+	CPU_NAND(&pm->pm_active, PCPU_PTR(cpumask));
+	sched_unpin();
 	#ifdef __powerpc64__
 	PCPU_SET(userslb, NULL);
 	#else
@@ -2580,8 +2569,8 @@ moea64_sync_icache(mmu_t mmu, pmap_t pm, vm_offset_t va, vm_size_t sz)
 		lim = round_page(va);
 		len = MIN(lim - va, sz);
 		pvo = moea64_pvo_find_va(pm, va & ~ADDR_POFF);
-		if (pvo != NULL) {
-			pa = (pvo->pvo_pte.pte.pte_lo & LPTE_RPGN) |
+		if (pvo != NULL && !(pvo->pvo_pte.lpte.pte_lo & LPTE_I)) {
+			pa = (pvo->pvo_pte.lpte.pte_lo & LPTE_RPGN) |
 			    (va & ADDR_POFF);
 			moea64_syncicache(mmu, pm, va, pa, len);
 		}

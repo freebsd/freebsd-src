@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
+#include <sys/smp.h>
 
 #include <machine/vmm.h>
 #include "vmm_stat.h"

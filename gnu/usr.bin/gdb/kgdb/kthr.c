@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/cpuset.h>
 #include <sys/proc.h>
 #include <sys/types.h>
 #include <sys/signal.h>
@@ -37,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include <defs.h>
 #include <frame-unwind.h>
@@ -48,7 +50,7 @@ static CORE_ADDR dumppcb;
 static int dumptid;
 
 static CORE_ADDR stoppcbs;
-static __cpumask_t stopped_cpus;
+static cpuset_t stopped_cpus;
 
 static struct kthr *first;
 struct kthr *curkthr;
@@ -76,6 +78,7 @@ kgdb_thr_init(void)
 {
 	struct proc p;
 	struct thread td;
+	long cpusetsize;
 	struct kthr *kt;
 	CORE_ADDR addr;
 	uintptr_t paddr;
@@ -102,10 +105,11 @@ kgdb_thr_init(void)
 		dumptid = -1;
 
 	addr = kgdb_lookup("stopped_cpus");
-	if (addr != 0)
-		kvm_read(kvm, addr, &stopped_cpus, sizeof(stopped_cpus));
-	else
-		stopped_cpus = 0;
+	CPU_ZERO(&stopped_cpus);
+	cpusetsize = sysconf(_SC_CPUSET_SIZE);
+	if (cpusetsize != -1 && (u_long)cpusetsize <= sizeof(cpuset_t) &&
+	    addr != 0)
+		kvm_read(kvm, addr, &stopped_cpus, cpusetsize);
 
 	stoppcbs = kgdb_lookup("stoppcbs");
 
@@ -126,8 +130,8 @@ kgdb_thr_init(void)
 			kt->kaddr = addr;
 			if (td.td_tid == dumptid)
 				kt->pcb = dumppcb;
-			else if (td.td_state == TDS_RUNNING && ((1 << td.td_oncpu) & stopped_cpus)
-				&& stoppcbs != 0)
+			else if (td.td_state == TDS_RUNNING && stoppcbs != 0 &&
+			    CPU_ISSET(td.td_oncpu, &stopped_cpus))
 				kt->pcb = (uintptr_t) stoppcbs + sizeof(struct pcb) * td.td_oncpu;
 			else
 				kt->pcb = (uintptr_t)td.td_pcb;

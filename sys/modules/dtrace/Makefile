@@ -4,6 +4,7 @@
 .include "Makefile.inc"
 
 SUBDIR=		dtmalloc	\
+		dtnfscl		\
 		dtnfsclient	\
 		dtrace		\
 		dtraceall	\

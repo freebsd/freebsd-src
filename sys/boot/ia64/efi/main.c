@@ -153,9 +153,7 @@ main(int argc, CHAR16 *argv[])
 	 */
 	cons_probe();
 
-	printf("\n");
-	printf("%s, Revision %s\n", bootprog_name, bootprog_rev);
-	printf("(%s, %s)\n", bootprog_maker, bootprog_date);
+	printf("\n%s, Revision %s\n", bootprog_name, bootprog_rev);
 
 	find_pal_proc();
 
@@ -214,6 +212,18 @@ static int
 command_quit(int argc, char *argv[])
 {
 	exit(0);
+	/* NOTREACHED */
+	return (CMD_OK);
+}
+
+COMMAND_SET(reboot, "reboot", "reboot the system", command_reboot);
+ 
+static int
+command_reboot(int argc, char *argv[])
+{
+
+	RS->ResetSystem(EfiResetWarm, EFI_SUCCESS, 0, NULL);
+	/* NOTREACHED */
 	return (CMD_OK);
 }
 
@@ -584,4 +594,25 @@ command_hcdp(int argc, char *argv[])
 	}
 	printf("<EOT>\n");
 	return (CMD_OK);
+}
+
+COMMAND_SET(about, "about", "about the loader", command_about);
+
+extern uint64_t _start_plabel[];
+
+static int
+command_about(int argc, char *argv[])
+{
+	EFI_LOADED_IMAGE *img;
+
+	printf("%s\n", bootprog_name);
+	printf("revision %s\n", bootprog_rev);
+	printf("built by %s\n", bootprog_maker);
+	printf("built on %s\n", bootprog_date);
+
+	printf("\n");
+
+	BS->HandleProtocol(IH, &imgid, (VOID**)&img);
+	printf("image loaded at %p\n", img->ImageBase);
+	printf("entry at %#lx (%#lx)\n", _start_plabel[0], _start_plabel[1]);
 }

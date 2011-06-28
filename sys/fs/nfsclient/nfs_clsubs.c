@@ -35,6 +35,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_kdtrace.h"
+
 /*
  * These functions support the macros and help fiddle mbuf chains for
  * the nfs op functions. They do things like create the rpc header and
@@ -68,6 +70,7 @@ __FBSDID("$FreeBSD$");
 #include <fs/nfsclient/nfsnode.h>
 #include <fs/nfsclient/nfsmount.h>
 #include <fs/nfsclient/nfs.h>
+#include <fs/nfsclient/nfs_kdtrace.h>
 
 #include <netinet/in.h>
 
@@ -238,6 +241,7 @@ ncl_getattrcache(struct vnode *vp, struct vattr *vaper)
 #ifdef NFS_ACDEBUG
 		mtx_unlock(&Giant);	/* ncl_printf() */
 #endif
+		KDTRACE_NFS_ATTRCACHE_GET_MISS(vp);
 		return( ENOENT);
 	}
 	newnfsstats.attrcache_hits++;
@@ -267,6 +271,7 @@ ncl_getattrcache(struct vnode *vp, struct vattr *vaper)
 #ifdef NFS_ACDEBUG
 	mtx_unlock(&Giant);	/* ncl_printf() */
 #endif
+	KDTRACE_NFS_ATTRCACHE_GET_HIT(vp, vap);
 	return (0);
 }
 

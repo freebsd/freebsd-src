@@ -99,7 +99,6 @@ typedef	__clockid_t	clockid_t;
 #define	_CLOCKID_T_DECLARED
 #endif
 
-typedef	__cpumask_t	cpumask_t;
 typedef	__critical_t	critical_t;	/* Critical section value */
 typedef	__int64_t	daddr_t;	/* disk address */
 

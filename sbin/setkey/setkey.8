@@ -441,13 +441,14 @@ protocols other than TCP, UDP and ICMP may not be suitable to use with IPsec.
 .It Ar policy
 .Ar policy
 is expressed in one of the following three formats:
-.Bd -ragged -offset indent
+.Pp
+.Bl -tag -compact
 .It Fl P Ar direction Li discard
 .It Fl P Ar direction Li none
 .It Xo Fl P Ar direction Li ipsec
 .Ar protocol/mode/src-dst/level Op ...
 .Xc
-.Ed
+.El
 .Pp
 The direction of a policy must be specified as
 one of:

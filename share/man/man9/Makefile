@@ -860,6 +860,22 @@ MLINKS+=\
 	mbuf.9 mtod.9 \
 	mbuf.9 M_TRAILINGSPACE.9 \
 	mbuf.9 M_WRITABLE.9
+MLINKS+=\
+	mbuf_tags.9 m_tag_alloc.9 \
+	mbuf_tags.9 m_tag_copy.9 \
+	mbuf_tags.9 m_tag_copy_chain.9 \
+	mbuf_tags.9 m_tag_delete.9 \
+	mbuf_tags.9 m_tag_delete_chain.9 \
+	mbuf_tags.9 m_tag_delete_nonpersistent.9 \
+	mbuf_tags.9 m_tag_find.9 \
+	mbuf_tags.9 m_tag_first.9 \
+	mbuf_tags.9 m_tag_free.9 \
+	mbuf_tags.9 m_tag_get.9 \
+	mbuf_tags.9 m_tag_init.9 \
+	mbuf_tags.9 m_tag_locate.9 \
+	mbuf_tags.9 m_tag_next.9 \
+	mbuf_tags.9 m_tag_prepend.9 \
+	mbuf_tags.9 m_tag_unlink.9
 MLINKS+=MD5.9 MD5Init.9 \
 	MD5.9 MD5Transform.9
 MLINKS+=mdchain.9 md_append_record.9 \

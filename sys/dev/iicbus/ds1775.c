@@ -49,33 +49,29 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
-
-#define FCU_ZERO_C_TO_K     2732
+#include <powerpc/powermac/powermac_thermal.h>
 
 /* Drivebay sensor: LM75/DS1775. */
 #define DS1775_TEMP         0x0
-
-struct ds1775_sensor {
-	char    location[32];
-};
 
 /* Regular bus attachment functions */
 static int  ds1775_probe(device_t);
 static int  ds1775_attach(device_t);
 
+struct ds1775_softc {
+	struct pmac_therm	sc_sensor;
+	device_t		sc_dev;
+	struct intr_config_hook enum_hook;
+	uint32_t                sc_addr;
+};
+
 /* Utility functions */
+static int  ds1775_sensor_read(struct ds1775_softc *sc);
 static int  ds1775_sensor_sysctl(SYSCTL_HANDLER_ARGS);
 static void ds1775_start(void *xdev);
 static int  ds1775_read_2(device_t dev, uint32_t addr, uint8_t reg,
 			  uint16_t *data);
 
-struct ds1775_softc {
-	device_t		sc_dev;
-	struct intr_config_hook enum_hook;
-	uint32_t                sc_addr;
-	struct ds1775_sensor    *sc_sensors;
-
-};
 static device_method_t  ds1775_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		ds1775_probe),
@@ -92,26 +88,33 @@ static driver_t ds1775_driver = {
 static devclass_t ds1775_devclass;
 
 DRIVER_MODULE(ds1755, iicbus, ds1775_driver, ds1775_devclass, 0, 0);
-MALLOC_DEFINE(M_DS1775, "ds1775", "Temp-Monitor DS1775");
 
 static int
 ds1775_read_2(device_t dev, uint32_t addr, uint8_t reg, uint16_t *data)
 {
 	uint8_t buf[4];
+	int err, try = 0;
 
 	struct iic_msg msg[2] = {
 	    { addr, IIC_M_WR | IIC_M_NOSTOP, 1, &reg },
 	    { addr, IIC_M_RD, 2, buf },
 	};
 
-	if (iicbus_transfer(dev, msg, 2) != 0) {
-		device_printf(dev, "iicbus read failed\n");
-		return (EIO);
+	for (;;)
+	{
+		err = iicbus_transfer(dev, msg, 2);
+		if (err != 0)
+			goto retry;
+
+		*data = *((uint16_t*)buf);
+		return (0);
+	retry:
+		if (++try > 5) {
+			device_printf(dev, "iicbus read failed\n");
+			return (-1);
+		}
+		pause("ds1775_read_2", hz);
 	}
-
-	*data = *((uint16_t*)buf);
-
-	return (0);
 }
 
 static int
@@ -169,7 +172,6 @@ ds1775_start(void *xdev)
 {
 	phandle_t child;
 	struct ds1775_softc *sc;
-	struct ds1775_sensor *sens;
 	struct sysctl_oid *sensroot_oid;
 	struct sysctl_ctx_list *ctx;
 	ssize_t plen;
@@ -183,30 +185,43 @@ ds1775_start(void *xdev)
 
 	child = ofw_bus_get_node(dev);
 
-	sc->sc_sensors = malloc (sizeof(struct ds1775_sensor),
-				 M_DS1775, M_WAITOK | M_ZERO);
-
-	sens = sc->sc_sensors;
-
 	ctx = device_get_sysctl_ctx(dev);
 	sensroot_oid = device_get_sysctl_tree(dev);
 
-	plen = OF_getprop(child, "hwsensor-location", sens->location,
-			  sizeof(sens->location));
+	if (OF_getprop(child, "hwsensor-zone", &sc->sc_sensor.zone,
+		       sizeof(int)) < 0)
+		sc->sc_sensor.zone = 0;
+
+	plen = OF_getprop(child, "hwsensor-location", sc->sc_sensor.name,
+			  sizeof(sc->sc_sensor.name));
 	units = "C";
 
 	if (plen == -1) {
 		strcpy(sysctl_name, "sensor");
 	} else {
-		for (i = 0; i < strlen(sens->location); i++) {
-			sysctl_name[i] = tolower(sens->location[i]);
+		for (i = 0; i < strlen(sc->sc_sensor.name); i++) {
+			sysctl_name[i] = tolower(sc->sc_sensor.name[i]);
 			if (isspace(sysctl_name[i]))
 				sysctl_name[i] = '_';
 		}
 		sysctl_name[i] = 0;
 	}
 
-	sprintf(sysctl_desc,"%s (%s)", sens->location, units);
+	/* Make up target temperatures. These are low, for the drive bay. */
+	if (sc->sc_sensor.zone == 0) {
+		sc->sc_sensor.target_temp = 500 + ZERO_C_TO_K;
+		sc->sc_sensor.max_temp = 600 + ZERO_C_TO_K;
+	}
+	else {
+		sc->sc_sensor.target_temp = 300 + ZERO_C_TO_K;
+		sc->sc_sensor.max_temp = 600 + ZERO_C_TO_K;
+	}
+
+	sc->sc_sensor.read =
+	    (int (*)(struct pmac_therm *sc))(ds1775_sensor_read);
+	pmac_thermal_sensor_register(&sc->sc_sensor);
+
+	sprintf(sysctl_desc,"%s (%s)", sc->sc_sensor.name, units);
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(sensroot_oid), OID_AUTO,
 			sysctl_name,
 			CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, dev,
@@ -216,44 +231,38 @@ ds1775_start(void *xdev)
 }
 
 static int
-ds1775_sensor_read(device_t dev, struct ds1775_sensor *sens, int *temp)
+ds1775_sensor_read(struct ds1775_softc *sc)
 {
-	struct ds1775_softc *sc;
 	uint16_t buf[2];
 	uint16_t read;
+	int err;
 
-	sc = device_get_softc(dev);
-
-	ds1775_read_2(sc->sc_dev, sc->sc_addr, DS1775_TEMP, buf);
+	err = ds1775_read_2(sc->sc_dev, sc->sc_addr, DS1775_TEMP, buf);
+	if (err < 0)
+		return (-1);
 
 	read = *((int16_t *)buf);
 
 	/* The default mode of the ADC is 9 bit, the resolution is 0.5 C per
 	   bit. The temperature is in tenth kelvin.
 	*/
-	*temp = ((int16_t)(read) >> 7) * 5;
-
-	return (0);
+	return (((int16_t)(read) >> 7) * 5 + ZERO_C_TO_K);
 }
+
 static int
 ds1775_sensor_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	device_t dev;
 	struct ds1775_softc *sc;
-	struct ds1775_sensor *sens;
-	int value;
 	int error;
 	unsigned int temp;
 
 	dev = arg1;
 	sc = device_get_softc(dev);
-	sens = &sc->sc_sensors[arg2];
 
-	error = ds1775_sensor_read(dev, sens, &value);
-	if (error != 0)
-		return (error);
-
-	temp = value + FCU_ZERO_C_TO_K;
+	temp = ds1775_sensor_read(sc);
+	if (temp < 0)
+		return (EIO);
 
 	error = sysctl_handle_int(oidp, &temp, 0, req);
 

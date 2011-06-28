@@ -15,6 +15,7 @@
 #include "llvm/MC/MCParser/MCAsmLexer.h"
 #include "llvm/MC/MCParser/MCAsmParser.h"
 #include "llvm/MC/MCParser/MCParsedAsmOperand.h"
+#include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCExpr.h"
@@ -1240,6 +1241,8 @@ tryParseMSRMaskOperand(SmallVectorImpl<MCParsedAsmOperand*> &Operands) {
         FlagsVal = 0; // No flag
     }
   } else if (SpecReg == "cpsr" || SpecReg == "spsr") {
+    if (Flags == "all") // cpsr_all is an alias for cpsr_fc
+      Flags = "fc";
     for (int i = 0, e = Flags.size(); i != e; ++i) {
       unsigned Flag = StringSwitch<unsigned>(Flags.substr(i, 1))
       .Case("c", 1)
@@ -1827,10 +1830,11 @@ GetMnemonicAcceptInfo(StringRef Mnemonic, bool &CanAcceptCarrySet,
       Mnemonic == "rrx" || Mnemonic == "ror" || Mnemonic == "sub" ||
       Mnemonic == "smull" || Mnemonic == "add" || Mnemonic == "adc" ||
       Mnemonic == "mul" || Mnemonic == "bic" || Mnemonic == "asr" ||
-      Mnemonic == "umlal" || Mnemonic == "orr" || Mnemonic == "mov" ||
+      Mnemonic == "umlal" || Mnemonic == "orr" || Mnemonic == "mvn" ||
       Mnemonic == "rsb" || Mnemonic == "rsc" || Mnemonic == "orn" ||
       Mnemonic == "sbc" || Mnemonic == "mla" || Mnemonic == "umull" ||
-      Mnemonic == "eor" || Mnemonic == "smlal" || Mnemonic == "mvn") {
+      Mnemonic == "eor" || Mnemonic == "smlal" ||
+      (Mnemonic == "mov" && !isThumb)) {
     CanAcceptCarrySet = true;
   } else {
     CanAcceptCarrySet = false;
@@ -1849,7 +1853,8 @@ GetMnemonicAcceptInfo(StringRef Mnemonic, bool &CanAcceptCarrySet,
 
   if (isThumb)
     if (Mnemonic == "bkpt" || Mnemonic == "mcr" || Mnemonic == "mcrr" ||
-        Mnemonic == "mrc" || Mnemonic == "mrrc" || Mnemonic == "cdp")
+        Mnemonic == "mrc" || Mnemonic == "mrrc" || Mnemonic == "cdp" ||
+        Mnemonic == "mov")
       CanAcceptPredicationCode = false;
 }
 
@@ -2099,14 +2104,28 @@ bool ARMAsmParser::ParseDirectiveThumb(SMLoc L) {
 /// ParseDirectiveThumbFunc
 ///  ::= .thumbfunc symbol_name
 bool ARMAsmParser::ParseDirectiveThumbFunc(SMLoc L) {
-  const AsmToken &Tok = Parser.getTok();
-  if (Tok.isNot(AsmToken::Identifier) && Tok.isNot(AsmToken::String))
-    return Error(L, "unexpected token in .thumb_func directive");
-  StringRef Name = Tok.getString();
-  Parser.Lex(); // Consume the identifier token.
+  const MCAsmInfo &MAI = getParser().getStreamer().getContext().getAsmInfo();
+  bool isMachO = MAI.hasSubsectionsViaSymbols();
+  StringRef Name;
+
+  // Darwin asm has function name after .thumb_func direction
+  // ELF doesn't
+  if (isMachO) {
+    const AsmToken &Tok = Parser.getTok();
+    if (Tok.isNot(AsmToken::Identifier) && Tok.isNot(AsmToken::String))
+      return Error(L, "unexpected token in .thumb_func directive");
+    Name = Tok.getString();
+    Parser.Lex(); // Consume the identifier token.
+  }
+
   if (getLexer().isNot(AsmToken::EndOfStatement))
     return Error(L, "unexpected token in directive");
   Parser.Lex();
+
+  // FIXME: assuming function name will be the line following .thumb_func
+  if (!isMachO) {
+    Name = Parser.getTok().getString();
+  }
 
   // Mark symbol as a thumb symbol.
   MCSymbol *Func = getParser().getContext().GetOrCreateSymbol(Name);

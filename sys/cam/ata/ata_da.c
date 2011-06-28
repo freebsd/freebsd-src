@@ -89,7 +89,8 @@ typedef enum {
 } ada_flags;
 
 typedef enum {
-	ADA_Q_NONE		= 0x00
+	ADA_Q_NONE		= 0x00,
+	ADA_Q_4K		= 0x01,
 } ada_quirks;
 
 typedef enum {
@@ -113,11 +114,12 @@ struct disk_params {
 	u_int64_t sectors;	/* Total number sectors */
 };
 
-#define TRIM_MAX_BLOCKS	4
-#define TRIM_MAX_RANGES	TRIM_MAX_BLOCKS * 64
+#define TRIM_MAX_BLOCKS	8
+#define TRIM_MAX_RANGES	(TRIM_MAX_BLOCKS * 64)
+#define TRIM_MAX_BIOS	(TRIM_MAX_RANGES * 4)
 struct trim_request {
 	uint8_t		data[TRIM_MAX_RANGES * 8];
-	struct bio	*bps[TRIM_MAX_RANGES];
+	struct bio	*bps[TRIM_MAX_BIOS];
 };
 
 struct ada_softc {
@@ -153,6 +155,86 @@ struct ada_quirk_entry {
 
 static struct ada_quirk_entry ada_quirk_table[] =
 {
+	{
+		/* Hitachi Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "Hitachi H??????????E3*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/* Samsung Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "SAMSUNG HD204UI*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/* Seagate Barracuda Green Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "ST????DL*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/* Seagate Momentus Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "ST9500423AS*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/* Seagate Momentus Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "ST9500424AS*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/* Seagate Momentus Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "ST9750420AS*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/* Seagate Momentus Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "ST9750422AS*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/* Seagate Momentus Thin Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "ST???LT*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/* WDC Caviar Green Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "WDC WD????RS*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/* WDC Caviar Green Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "WDC WD????RX*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/* WDC Caviar Green Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "WDC WD??????RS*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/* WDC Caviar Green Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "WDC WD??????RX*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/* WDC Scorpio Black Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "WDC WD???PKT*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/* WDC Scorpio Black Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "WDC WD?????PKT*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/* WDC Scorpio Blue Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "WDC WD???PVT*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/* WDC Scorpio Blue Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "WDC WD?????PVT*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
 	{
 		/* Default */
 		{
@@ -730,6 +812,25 @@ adasysctlinit(void *context, int pending)
 	cam_periph_release(periph);
 }
 
+static int
+adagetattr(struct bio *bp)
+{
+	int ret = -1;
+	struct cam_periph *periph;
+
+	if (bp->bio_disk == NULL || bp->bio_disk->d_drv1 == NULL)
+		return ENXIO;
+	periph = (struct cam_periph *)bp->bio_disk->d_drv1;
+	if (periph->path == NULL)
+		return ENXIO;
+
+	ret = xpt_getattr(bp->bio_data, bp->bio_length, bp->bio_attribute,
+	    periph->path);
+	if (ret == 0)
+		bp->bio_completed = bp->bio_length;
+	return ret;
+}
+
 static cam_status
 adaregister(struct cam_periph *periph, void *arg)
 {
@@ -740,7 +841,7 @@ adaregister(struct cam_periph *periph, void *arg)
 	struct disk_params *dp;
 	caddr_t match;
 	u_int maxio;
-	int legacy_id;
+	int legacy_id, quirks;
 
 	cgd = (struct ccb_getdev *)arg;
 	if (periph == NULL) {
@@ -815,6 +916,11 @@ adaregister(struct cam_periph *periph, void *arg)
 	 */
 	(void)cam_periph_hold(periph, PRIBIO);
 	mtx_unlock(periph->sim->mtx);
+	snprintf(announce_buf, sizeof(announce_buf),
+	    "kern.cam.ada.%d.quirks", periph->unit_number);
+	quirks = softc->quirks;
+	TUNABLE_INT_FETCH(announce_buf, &quirks);
+	softc->quirks = quirks;
 	softc->write_cache = -1;
 	snprintf(announce_buf, sizeof(announce_buf),
 	    "kern.cam.ada.%d.write_cache", periph->unit_number);
@@ -830,6 +936,7 @@ adaregister(struct cam_periph *periph, void *arg)
 	softc->disk->d_open = adaopen;
 	softc->disk->d_close = adaclose;
 	softc->disk->d_strategy = adastrategy;
+	softc->disk->d_getattr = adagetattr;
 	softc->disk->d_dump = adadump;
 	softc->disk->d_name = "ada";
 	softc->disk->d_drv1 = periph;
@@ -851,8 +958,6 @@ adaregister(struct cam_periph *periph, void *arg)
 	    ((softc->flags & ADA_FLAG_CAN_CFA) &&
 	    !(softc->flags & ADA_FLAG_CAN_48BIT)))
 		softc->disk->d_flags |= DISKFLAG_CANDELETE;
-	strlcpy(softc->disk->d_ident, cgd->serial_num,
-	    MIN(sizeof(softc->disk->d_ident), cgd->serial_num_len + 1));
 	strlcpy(softc->disk->d_descr, cgd->ident_data.model,
 	    MIN(sizeof(softc->disk->d_descr), sizeof(cgd->ident_data.model)));
 	softc->disk->d_hba_vendor = cpi.hba_vendor;
@@ -870,6 +975,9 @@ adaregister(struct cam_periph *periph, void *arg)
 		softc->disk->d_stripeoffset = (softc->disk->d_stripesize -
 		    ata_logical_sector_offset(&cgd->ident_data)) %
 		    softc->disk->d_stripesize;
+	} else if (softc->quirks & ADA_Q_4K) {
+		softc->disk->d_stripesize = 4096;
+		softc->disk->d_stripeoffset = 0;
 	}
 	softc->disk->d_fwsectors = softc->params.secs_per_track;
 	softc->disk->d_fwheads = softc->params.heads;
@@ -978,7 +1086,8 @@ adastart(struct cam_periph *periph, union ccb *start_ccb)
 		    (bp = bioq_first(&softc->trim_queue)) != 0) {
 			struct trim_request *req = &softc->trim_req;
 			struct bio *bp1;
-			int bps = 0, ranges = 0;
+			uint64_t lastlba = (uint64_t)-1;
+			int bps = 0, c, lastcount = 0, off, ranges = 0;
 
 			softc->trim_running = 1;
 			bzero(req, sizeof(*req));
@@ -989,10 +1098,22 @@ adastart(struct cam_periph *periph, union ccb *start_ccb)
 				    softc->params.secsize;
 
 				bioq_remove(&softc->trim_queue, bp1);
-				while (count > 0) {
-					int c = min(count, 0xffff);
-					int off = ranges * 8;
 
+				/* Try to extend the previous range. */
+				if (lba == lastlba) {
+					c = min(count, 0xffff - lastcount);
+					lastcount += c;
+					off = (ranges - 1) * 8;
+					req->data[off + 6] = lastcount & 0xff;
+					req->data[off + 7] =
+					    (lastcount >> 8) & 0xff;
+					count -= c;
+					lba += c;
+				}
+
+				while (count > 0) {
+					c = min(count, 0xffff);
+					off = ranges * 8;
 					req->data[off + 0] = lba & 0xff;
 					req->data[off + 1] = (lba >> 8) & 0xff;
 					req->data[off + 2] = (lba >> 16) & 0xff;
@@ -1003,11 +1124,14 @@ adastart(struct cam_periph *periph, union ccb *start_ccb)
 					req->data[off + 7] = (c >> 8) & 0xff;
 					lba += c;
 					count -= c;
+					lastcount = c;
 					ranges++;
 				}
+				lastlba = lba;
 				req->bps[bps++] = bp1;
 				bp1 = bioq_first(&softc->trim_queue);
-				if (bp1 == NULL ||
+				if (bps >= TRIM_MAX_BIOS ||
+				    bp1 == NULL ||
 				    bp1->bio_bcount / softc->params.secsize >
 				    (softc->trim_max_ranges - ranges) * 0xffff)
 					break;
@@ -1281,8 +1405,7 @@ adadone(struct cam_periph *periph, union ccb *done_ccb)
 			    (struct trim_request *)ataio->data_ptr;
 			int i;
 
-			for (i = 1; i < softc->trim_max_ranges &&
-			    req->bps[i]; i++) {
+			for (i = 1; i < TRIM_MAX_BIOS && req->bps[i]; i++) {
 				struct bio *bp1 = req->bps[i];
 				
 				bp1->bio_resid = bp->bio_resid;

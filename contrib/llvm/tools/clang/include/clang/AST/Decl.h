@@ -1365,6 +1365,8 @@ private:
   bool HasWrittenPrototype : 1;
   bool IsDeleted : 1;
   bool IsTrivial : 1; // sunk from CXXMethodDecl
+  bool IsDefaulted : 1; // sunk from CXXMethoDecl
+  bool IsExplicitlyDefaulted : 1; //sunk from CXXMethodDecl
   bool HasImplicitReturnZero : 1;
   bool IsLateTemplateParsed : 1;
 
@@ -1448,6 +1450,7 @@ protected:
       IsInline(isInlineSpecified), IsInlineSpecified(isInlineSpecified),
       IsVirtualAsWritten(false), IsPure(false), HasInheritedPrototype(false),
       HasWrittenPrototype(true), IsDeleted(false), IsTrivial(false),
+      IsDefaulted(false), IsExplicitlyDefaulted(false),
       HasImplicitReturnZero(false), IsLateTemplateParsed(false),
       EndRangeLoc(NameInfo.getEndLoc()),
       TemplateOrSpecialization(),
@@ -1512,6 +1515,20 @@ public:
     return hasBody(Definition);
   }
 
+  /// hasTrivialBody - Returns whether the function has a trivial body that does
+  /// not require any specific codegen.
+  bool hasTrivialBody() const;
+
+  /// isDefined - Returns true if the function is defined at all, including
+  /// a deleted definition. Except for the behavior when the function is
+  /// deleted, behaves like hasBody.
+  bool isDefined(const FunctionDecl *&Definition) const;
+
+  virtual bool isDefined() const {
+    const FunctionDecl* Definition;
+    return isDefined(Definition);
+  }
+
   /// getBody - Retrieve the body (definition) of the function. The
   /// function body might be in any of the (re-)declarations of this
   /// function. The variant that accepts a FunctionDecl pointer will
@@ -1529,10 +1546,17 @@ public:
   /// isThisDeclarationADefinition - Returns whether this specific
   /// declaration of the function is also a definition. This does not
   /// determine whether the function has been defined (e.g., in a
-  /// previous definition); for that information, use getBody.
-  /// FIXME: Should return true if function is deleted or defaulted. However,
-  /// CodeGenModule.cpp uses it, and I don't know if this would break it.
+  /// previous definition); for that information, use isDefined. Note
+  /// that this returns false for a defaulted function unless that function
+  /// has been implicitly defined (possibly as deleted).
   bool isThisDeclarationADefinition() const {
+    return IsDeleted || Body || IsLateTemplateParsed;
+  }
+
+  /// doesThisDeclarationHaveABody - Returns whether this specific
+  /// declaration of the function has a body - that is, if it is a non-
+  /// deleted definition.
+  bool doesThisDeclarationHaveABody() const {
     return Body || IsLateTemplateParsed;
   }
 
@@ -1565,6 +1589,16 @@ public:
   /// the class has been fully built by Sema.
   bool isTrivial() const { return IsTrivial; }
   void setTrivial(bool IT) { IsTrivial = IT; }
+
+  /// Whether this function is defaulted per C++0x. Only valid for
+  /// special member functions. 
+  bool isDefaulted() const { return IsDefaulted; }
+  void setDefaulted(bool D = true) { IsDefaulted = D; }
+
+  /// Whether this function is explicitly defaulted per C++0x. Only valid
+  /// for special member functions.
+  bool isExplicitlyDefaulted() const { return IsExplicitlyDefaulted; }
+  void setExplicitlyDefaulted(bool ED = true) { IsExplicitlyDefaulted = ED; }
 
   /// Whether falling off this function implicitly returns null/zero.
   /// If a more specific implicit return value is required, front-ends
@@ -1605,12 +1639,29 @@ public:
   ///   Integer(long double) = delete; // no construction from long double
   /// };
   /// @endcode
-  bool isDeleted() const { return IsDeleted; }
-  void setDeleted(bool D = true) { IsDeleted = D; }
+  // If a function is deleted, its first declaration must be.
+  bool isDeleted() const { return getCanonicalDecl()->IsDeleted; }
+  bool isDeletedAsWritten() const { return IsDeleted && !IsDefaulted; }
+  void setDeletedAsWritten(bool D = true) { IsDeleted = D; }
 
-  /// \brief Determines whether this is a function "main", which is
-  /// the entry point into an executable program.
+  /// \brief Determines whether this function is "main", which is the
+  /// entry point into an executable program.
   bool isMain() const;
+
+  /// \brief Determines whether this operator new or delete is one
+  /// of the reserved global placement operators:
+  ///    void *operator new(size_t, void *);
+  ///    void *operator new[](size_t, void *);
+  ///    void operator delete(void *, void *);
+  ///    void operator delete[](void *, void *);
+  /// These functions have special behavior under [new.delete.placement]:
+  ///    These functions are reserved, a C++ program may not define
+  ///    functions that displace the versions in the Standard C++ library.
+  ///    The provisions of [basic.stc.dynamic] do not apply to these
+  ///    reserved placement forms of operator new and operator delete.
+  ///
+  /// This function must be an allocation or deallocation function.
+  bool isReservedGlobalPlacementOperator() const;
 
   /// \brief Determines whether this function is a function with
   /// external, C linkage.
@@ -1902,20 +1953,33 @@ class FieldDecl : public DeclaratorDecl {
   bool Mutable : 1;
   mutable unsigned CachedFieldIndex : 31;
 
-  Expr *BitWidth;
+  /// \brief A pointer to either the in-class initializer for this field (if
+  /// the boolean value is false), or the bit width expression for this bit
+  /// field (if the boolean value is true).
+  ///
+  /// We can safely combine these two because in-class initializers are not
+  /// permitted for bit-fields.
+  ///
+  /// If the boolean is false and the initializer is null, then this field has
+  /// an in-class initializer which has not yet been parsed and attached.
+  llvm::PointerIntPair<Expr *, 1, bool> InitializerOrBitWidth;
 protected:
   FieldDecl(Kind DK, DeclContext *DC, SourceLocation StartLoc,
             SourceLocation IdLoc, IdentifierInfo *Id,
-            QualType T, TypeSourceInfo *TInfo, Expr *BW, bool Mutable)
+            QualType T, TypeSourceInfo *TInfo, Expr *BW, bool Mutable,
+            bool HasInit)
     : DeclaratorDecl(DK, DC, IdLoc, Id, T, TInfo, StartLoc),
-      Mutable(Mutable), CachedFieldIndex(0), BitWidth(BW) {
+      Mutable(Mutable), CachedFieldIndex(0),
+      InitializerOrBitWidth(BW, !HasInit) {
+    assert(!(BW && HasInit) && "got initializer for bitfield");
   }
 
 public:
   static FieldDecl *Create(const ASTContext &C, DeclContext *DC,
                            SourceLocation StartLoc, SourceLocation IdLoc,
                            IdentifierInfo *Id, QualType T,
-                           TypeSourceInfo *TInfo, Expr *BW, bool Mutable);
+                           TypeSourceInfo *TInfo, Expr *BW, bool Mutable,
+                           bool HasInit);
 
   /// getFieldIndex - Returns the index of this field within its record,
   /// as appropriate for passing to ASTRecordLayout::getFieldOffset.
@@ -1928,10 +1992,12 @@ public:
   void setMutable(bool M) { Mutable = M; }
 
   /// isBitfield - Determines whether this field is a bitfield.
-  bool isBitField() const { return BitWidth != NULL; }
+  bool isBitField() const {
+    return InitializerOrBitWidth.getInt() && InitializerOrBitWidth.getPointer();
+  }
 
   /// @brief Determines whether this is an unnamed bitfield.
-  bool isUnnamedBitfield() const { return BitWidth != NULL && !getDeclName(); }
+  bool isUnnamedBitfield() const { return isBitField() && !getDeclName(); }
 
   /// isAnonymousStructOrUnion - Determines whether this field is a
   /// representative for an anonymous struct or union. Such fields are
@@ -1939,8 +2005,37 @@ public:
   /// store the data for the anonymous union or struct.
   bool isAnonymousStructOrUnion() const;
 
-  Expr *getBitWidth() const { return BitWidth; }
-  void setBitWidth(Expr *BW) { BitWidth = BW; }
+  Expr *getBitWidth() const {
+    return isBitField() ? InitializerOrBitWidth.getPointer() : 0;
+  }
+  void setBitWidth(Expr *BW) {
+    assert(!InitializerOrBitWidth.getPointer() &&
+           "bit width or initializer already set");
+    InitializerOrBitWidth.setPointer(BW);
+    InitializerOrBitWidth.setInt(1);
+  }
+
+  /// hasInClassInitializer - Determine whether this member has a C++0x in-class
+  /// initializer.
+  bool hasInClassInitializer() const {
+    return !InitializerOrBitWidth.getInt();
+  }
+  /// getInClassInitializer - Get the C++0x in-class initializer for this
+  /// member, or null if one has not been set. If a valid declaration has an
+  /// in-class initializer, but this returns null, then we have not parsed and
+  /// attached it yet.
+  Expr *getInClassInitializer() const {
+    return hasInClassInitializer() ? InitializerOrBitWidth.getPointer() : 0;
+  }
+  /// setInClassInitializer - Set the C++0x in-class initializer for this member.
+  void setInClassInitializer(Expr *Init);
+  /// removeInClassInitializer - Remove the C++0x in-class initializer from this
+  /// member.
+  void removeInClassInitializer() {
+    assert(!InitializerOrBitWidth.getInt() && "no initializer to remove");
+    InitializerOrBitWidth.setPointer(0);
+    InitializerOrBitWidth.setInt(1);
+  }
 
   /// getParent - Returns the parent of this field declaration, which
   /// is the struct in which this method is defined.

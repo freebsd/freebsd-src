@@ -53,6 +53,7 @@ static struct _s_x nat_params[] = {
  	{ "deny_in",		TOK_DENY_INC },
  	{ "same_ports",		TOK_SAME_PORTS },
  	{ "unreg_only",		TOK_UNREG_ONLY },
+	{ "skip_global",	TOK_SKIP_GLOBAL },
  	{ "reset",		TOK_RESET_ADDR },
  	{ "reverse",		TOK_ALIAS_REV },
  	{ "proxy_only",		TOK_PROXY_ONLY },
@@ -314,13 +315,18 @@ static int
 estimate_redir_addr(int *ac, char ***av)
 {
 	size_t space = sizeof(struct cfg_redir);
-	char *sep;
+	char *sep = **av;
+	u_int c = 0;
 
-	if ((sep = strtok(**av, ",")) != NULL) {
-		space += sizeof(struct cfg_spool);
-		while ((sep = strtok(NULL, ",")) != NULL)
-			space += sizeof(struct cfg_spool);
+	while ((sep = strchr(sep, ',')) != NULL) {
+		c++;
+		sep++;
 	}
+
+	if (c > 0)
+		c++;
+
+	space += c * sizeof(struct cfg_spool);
 
 	return (space);
 }
@@ -369,13 +375,18 @@ static int
 estimate_redir_port(int *ac, char ***av)
 {
 	size_t space = sizeof(struct cfg_redir);
-	char *sep;
+	char *sep = **av;
+	u_int c = 0;
 
-	if ((sep = strtok(**av, ",")) != NULL) {
-		space += sizeof(struct cfg_spool);
-		while ((sep = strtok(NULL, ",")) != NULL)
-			space += sizeof(struct cfg_spool);
+	while ((sep = strchr(sep, ',')) != NULL) {
+		c++;
+		sep++;
 	}
+
+	if (c > 0)
+		c++;
+
+	space += c * sizeof(struct cfg_spool);
 
 	return (space);
 }
@@ -464,10 +475,10 @@ setup_redir_port(char *buf, int *ac, char ***av)
 	 * Extract remote address and optionally port.
 	 */
 	/*
-	 * NB: isalpha(**av) => we've to check that next parameter is really an
+	 * NB: isdigit(**av) => we've to check that next parameter is really an
 	 * option for this redirect entry, else stop here processing arg[cv].
 	 */
-	if (*ac != 0 && !isalpha(***av)) {
+	if (*ac != 0 && isdigit(***av)) {
 		if ((sep = strchr(**av, ':')) != NULL) {
 			if (StrToAddrAndPortRange(**av, &r->raddr, protoName,
 			    &portRange) != 0)
@@ -583,7 +594,7 @@ setup_redir_proto(char *buf, int *ac, char ***av)
 		r->raddr.s_addr = INADDR_ANY;
 	} else {
 		/* see above in setup_redir_port() */
-		if (!isalpha(***av)) {
+		if (isdigit(***av)) {
 			StrToAddr(**av, &r->paddr);
 			(*av)++; (*ac)--;
 
@@ -591,7 +602,7 @@ setup_redir_proto(char *buf, int *ac, char ***av)
 			 * Extract optional remote address.
 			 */
 			/* see above in setup_redir_port() */
-			if (*ac != 0 && !isalpha(***av)) {
+			if (*ac != 0 && isdigit(***av)) {
 				StrToAddr(**av, &r->raddr);
 				(*av)++; (*ac)--;
 			}
@@ -628,6 +639,9 @@ print_nat_config(unsigned char *buf)
 		} else if (n->mode & PKT_ALIAS_SAME_PORTS) {
 			printf(" same_ports");
 			n->mode &= ~PKT_ALIAS_SAME_PORTS;
+		} else if (n->mode & PKT_ALIAS_SKIP_GLOBAL) {
+			printf(" skip_global");
+			n->mode &= ~PKT_ALIAS_SKIP_GLOBAL;
 		} else if (n->mode & PKT_ALIAS_UNREGISTERED_ONLY) {
 			printf(" unreg_only");
 			n->mode &= ~PKT_ALIAS_UNREGISTERED_ONLY;
@@ -721,16 +735,18 @@ ipfw_config_nat(int ac, char **av)
 {
 	struct cfg_nat *n;		/* Nat instance configuration. */
 	int i, off, tok, ac1;
-	char *id, *buf, **av1;
+	char *id, *buf, **av1, *end;
 	size_t len;
 
 	av++; ac--;
 	/* Nat id. */
-	if (ac && isdigit(**av)) {
-		id = *av;
-		ac--; av++;
-	} else
+	if (ac == 0)
 		errx(EX_DATAERR, "missing nat id");
+	id = *av;
+	i = (int)strtol(id, &end, 0);
+	if (i <= 0 || *end != '\0')
+		errx(EX_DATAERR, "illegal nat id: %s", id);
+	av++; ac--;
 	if (ac == 0)
 		errx(EX_DATAERR, "missing option");
 
@@ -744,10 +760,11 @@ ipfw_config_nat(int ac, char **av)
 		case TOK_IP:
 		case TOK_IF:
 			ac1--; av1++;
-			break;	    
+			break;
 		case TOK_ALOG:
 		case TOK_DENY_INC:
 		case TOK_SAME_PORTS:
+		case TOK_SKIP_GLOBAL:
 		case TOK_UNREG_ONLY:
 		case TOK_RESET_ADDR:
 		case TOK_ALIAS_REV:
@@ -767,6 +784,9 @@ ipfw_config_nat(int ac, char **av)
 			av1++; ac1--;
 			len += estimate_redir_port(&ac1, &av1);
 			av1 += 2; ac1 -= 2;
+			/* Skip optional remoteIP/port */
+			if (ac1 != 0 && isdigit(**av1))
+				av1++; ac1--;
 			break;
 		case TOK_REDIR_PROTO:
 			if (ac1 < 2)
@@ -774,6 +794,11 @@ ipfw_config_nat(int ac, char **av)
 				    "not enough arguments");
 			len += sizeof(struct cfg_redir);
 			av1 += 2; ac1 -= 2;
+			/* Skip optional remoteIP/port */
+			if (ac1 != 0 && isdigit(**av1))
+				av1++; ac1--;
+			if (ac1 != 0 && isdigit(**av1))
+				av1++; ac1--;
 			break;
 		default:
 			errx(EX_DATAERR, "unrecognised option ``%s''", av1[-1]);
@@ -787,7 +812,6 @@ ipfw_config_nat(int ac, char **av)
 	off = sizeof(*n);
 	memset(buf, 0, len);
 	n = (struct cfg_nat *)buf;
-	i = atoi(id);
 	n->id = i;
 
 	while (ac > 0) {
@@ -819,6 +843,9 @@ ipfw_config_nat(int ac, char **av)
 			break;
 		case TOK_UNREG_ONLY:
 			n->mode |= PKT_ALIAS_UNREGISTERED_ONLY;
+			break;
+		case TOK_SKIP_GLOBAL:
+			n->mode |= PKT_ALIAS_SKIP_GLOBAL;
 			break;
 		case TOK_RESET_ADDR:
 			n->mode |= PKT_ALIAS_RESET_ON_ADDR_CHANGE;

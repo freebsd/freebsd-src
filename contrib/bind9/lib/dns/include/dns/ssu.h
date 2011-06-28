@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ssu.h,v 1.24 2008/01/18 23:46:58 tbox Exp $ */
+/* $Id: ssu.h,v 1.24 2008-01-18 23:46:58 tbox Exp $ */
 
 #ifndef DNS_SSU_H
 #define DNS_SSU_H 1

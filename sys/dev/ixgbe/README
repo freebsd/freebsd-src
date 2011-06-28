@@ -1,8 +1,8 @@
-FreeBSD Driver for 10 Gigabit PCI Express Server Adapters
-=============================================
+FreeBSD Driver for Intel(R) Ethernet 10 Gigabit PCI Express Server Adapters
+============================================================================
 /*$FreeBSD$*/
 
-May 14, 2008
+November 12, 2010
 
 
 Contents
@@ -11,15 +11,15 @@ Contents
 - Overview
 - Supported Adapters
 - Building and Installation
-- Additional Configurations
+- Additional Configurations and Tuning
 - Known Limitations
 
 
 Overview
 ========
 
-This file describes the FreeBSD* driver for the 10 Gigabit PCIE Family of 
-Adapters.  Drivers has been developed for use with FreeBSD 7 or later.
+This file describes the FreeBSD* driver for the Intel(R) Ethernet 10 Gigabit 
+Family of Adapters.  Driver has been developed for use with FreeBSD 7.2 or later.
 
 For questions related to hardware requirements, refer to the documentation
 supplied with your Intel 10GbE adapter.  All hardware requirements listed
@@ -29,100 +29,98 @@ apply to use with FreeBSD.
 Supported Adapters
 ==================
 
-The following Intel network adapters are compatible with the drivers in this 
-release:
-
-Controller  Adapter Name                      Physical Layer
-----------  ------------                      --------------
-82598EB     Intel(R) 10 Gigabit XF SR/AF      10G Base -LR (850 nm optical fiber) 
-            Dual Port Server Adapter          10G Base -SR (1310 nm optical fiber) 
-82598EB     Intel(R) 10 Gigabit XF SR/LR 
-            Server Adapter
-            Intel(R) 82598EB 10 Gigabit AF 
-            Network Connection
-            Intel(R) 82598EB 10 Gigabit AT 
-            CX4 Network Connection
+The driver in this release is compatible with 82598 and 82599-based Intel 
+Network Connections.
               
+SFP+ Devices with Pluggable Optics
+----------------------------------
 
-Building and Installation
-=========================
+82599-BASED ADAPTERS  
 
-NOTE: You must have kernel sources installed in order to compile the driver
-      module.
+NOTE: If your 82599-based Intel(R) Ethernet Network Adapter came with Intel 
+optics, or is an Intel(R) Ethernet Server Adapter X520-2, then it only supports
+Intel optics and/or the direct attach cables listed below.
 
-      In the instructions below, x.x.x is the driver version as indicated in
-      the name of the driver tar. 
+When 82599-based SFP+ devices are connected back to back, they should be set to
+the same Speed setting via Ethtool. Results may vary if you mix speed settings. 
+ 
+Supplier    Type                                             Part Numbers
 
-1. Move the base driver tar file to the directory of your choice. For 
-   example, use /home/username/ixgbe or /usr/local/src/ixgbe.
+SR Modules			
+Intel 	    DUAL RATE 1G/10G SFP+ SR (bailed)                FTLX8571D3BCV-IT	
+Intel	    DUAL RATE 1G/10G SFP+ SR (bailed)                AFBR-703SDZ-IN2
+Intel      DUAL RATE 1G/10G SFP+ SR (bailed)                 AFBR-703SDDZ-IN1	
+LR Modules			
+Intel 	    DUAL RATE 1G/10G SFP+ LR (bailed)                FTLX1471D3BCV-IT	
+Intel	    DUAL RATE 1G/10G SFP+ LR (bailed)                AFCT-701SDZ-IN2	
+Intel       DUAL RATE 1G/10G SFP+ LR (bailed)                AFCT-701SDDZ-IN1
 
-2. Untar/unzip the archive:
-     tar xfz ixgbe-x.x.x.tar.gz
+The following is a list of 3rd party SFP+ modules and direct attach cables that
+have received some testing. Not all modules are applicable to all devices.
 
-3. To install man page:
-     cd ixgbe-x.x.x
-     gzip -c ixgbe.4 > /usr/share/man/man4/ixgbee.4.gz
+Supplier   Type                                              Part Numbers
 
-4. To load the driver onto a running system:
-     cd ixgbe-x.x.x/src
-     make load
+Finisar    SFP+ SR bailed, 10g single rate                   FTLX8571D3BCL
+Avago      SFP+ SR bailed, 10g single rate                   AFBR-700SDZ
+Finisar    SFP+ LR bailed, 10g single rate                   FTLX8571D3BCV-IT
+		
+Finisar    DUAL RATE 1G/10G SFP+ SR (No Bail)	             FTLX8571D3QCV-IT
+Avago	   DUAL RATE 1G/10G SFP+ SR (No Bail)	             AFBR-703SDZ-IN1	
+Finisar	   DUAL RATE 1G/10G SFP+ LR (No Bail)	             FTLX1471D3QCV-IT
+Avago	   DUAL RATE 1G/10G SFP+ LR (No Bail)	             AFCT-701SDZ-IN1
+Finistar   1000BASE-T SFP                                    FCLF8522P2BTL
+Avago      1000BASE-T SFP                                    ABCU-5710RZ
+		
+82599-based adapters support all passive and active limiting direct attach 
+cables that comply with SFF-8431 v4.1 and SFF-8472 v10.4 specifications.
 
-5. To assign an IP address to the interface, enter the following:
-     ifconfig ix<interface_num> <IP_address>
+Laser turns off for SFP+ when ifconfig down
+--------------------------------------------------------
+"ifconfig down" turns off the laser for 82599-based SFP+ fiber adapters.
+"ifconfig up" turns on the later.
 
-6. Verify that the interface works. Enter the following, where <IP_address>
-   is the IP address for another machine on the same subnet as the interface
-   that is being tested:
-     ping <IP_address>
+82598-BASED ADAPTERS
 
-7. If you want the driver to load automatically when the system is booted:
+NOTES for 82598-Based Adapters: 
+- Intel(R) Ethernet Network Adapters that support removable optical modules 
+  only support their original module type (i.e., the Intel(R) 10 Gigabit SR 
+  Dual Port Express Module only supports SR optical modules). If you plug 
+  in a different type of module, the driver will not load.
+- Hot Swapping/hot plugging optical modules is not supported.  
+- Only single speed, 10 gigabit modules are supported.  
+- LAN on Motherboard (LOMs) may support DA, SR, or LR modules. Other module 
+  types are not supported. Please see your system documentation for details.  
 
-     cd ixgbe-x.x.x/src
-     make
-     make install
-        
-    Edit /boot/loader.conf, and add the following line:
-     ixgbe_load="YES"
+The following is a list of 3rd party SFP+ modules and direct attach cables that have 
+received some testing. Not all modules are applicable to all devices.
 
-     OR
+Supplier   Type                                              Part Numbers
 
-     compile the driver into the kernel (see item 8).
+Finisar    SFP+ SR bailed, 10g single rate                   FTLX8571D3BCL
+Avago      SFP+ SR bailed, 10g single rate                   AFBR-700SDZ
+Finisar    SFP+ LR bailed, 10g single rate                   FTLX1471D3BCL
+	
+82598-based adapters support all passive direct attach cables that comply 
+with SFF-8431 v4.1 and SFF-8472 v10.4 specifications. Active direct attach 
+cables are not supported.
 
-
-   Edit /etc/rc.conf, and create the appropriate ifconfig_ixgbe<interface_num> 
-   entry:
-
-     ifconfig_ix<interface_num>="<ifconfig_settings>"
-
-     Example usage:
-
-     ifconfig_ix0="inet 192.168.10.1 netmask 255.255.255.0"
-
-     NOTE: For assistance, see the ifconfig man page.
-
-8. If you want to compile the driver into the kernel, enter:
-
-     FreeBSD 7 or later:
-
-     cd ixgbe-x.x.x/src
-
-     cp *.[ch] /usr/src/sys/dev/ixgbe
-   
-     cp Makefile.kernel /usr/src/sys/modules/ixgbe/Makefile
-
-     Edit the kernel configuration file (i.e., GENERIC or MYKERNEL) in 
-     /usr/src/sys/i386/conf (replace "i386" with the appropriate system 
-     architecture if necessary), and ensure the following line is present:
-
-    device ixgbe
-
-   Compile and install the kernel.  The system must be reboot for the kernel 
-   updates to take affect.  For additional information on compiling the kernel, 
-   consult the FreeBSD operating system documentation.
-
+Third party optic modules and cables referred to above are listed only for the 
+purpose of highlighting third party specifications and potential compatibility, 
+and are not recommendations or endorsements or sponsorship of any third party's
+product by Intel. Intel is not endorsing or promoting products made by any 
+third party and the third party reference is provided only to share information
+regarding certain optic modules and cables with the above specifications. There
+may be other manufacturers or suppliers, producing or supplying optic modules 
+and cables with similar or matching descriptions. Customers must use their own 
+discretion and diligence to purchase optic modules and cables from any third 
+party of their choice. Customer are solely responsible for assessing the 
+suitability of the product and/or devices and for the selection of the vendor 
+for purchasing any product. INTEL ASSUMES NO LIABILITY WHATSOEVER, AND INTEL
+DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTY, RELATING TO SALE AND/OR USE OF 
+SUCH THIRD PARTY PRODUCTS OR SELECTION OF VENDOR BY CUSTOMERS.
 
 Configuration and Tuning
-=========================
+========================
 
 The driver supports Transmit/Receive Checksum Offload and Jumbo Frames on
 all 10 Gigabit adapters. 
@@ -143,7 +141,7 @@ all 10 Gigabit adapters.
   The Jumbo Frames MTU range for Intel Adapters is 1500 to 16114. The default
   MTU range is 1500. To modify the setting, enter the following:
 
-        ifconfig ix <interface_num> <hostname or IP address> mtu 9000
+        ifconfig ix<interface_num> <hostname or IP address> mtu 9000
 
   To confirm an interface's MTU value, use the ifconfig command. To confirm
   the MTU used between two specific devices, use:
@@ -200,6 +198,8 @@ all 10 Gigabit adapters.
   TSO
   ---
 
+  TSO is enabled by default.
+
   To disable:
 
          ifconfig <interface_num> -tso 
@@ -209,23 +209,21 @@ all 10 Gigabit adapters.
          ifconfig <interface_num> tso
 
   LRO
-  ___
+  ---
   
-   Large Receive Offload is available in version 1.4.4, it is on
-   by default. It can be toggled off and on by using:
-	sysctl dev.ix.X.enable_lro=[0,1]
+  Large Receive Offload is available in the driver; it is on by default. 
+  It can be disabled by using:
+         ifconfig <interface_num> -lro
+  To enable:
+         ifconfig <interface_num> lro
 
-   NOTE: when changing this feature you MUST be sure the interface
-   is reinitialized, it is easy to do this with ifconfig down/up.
-   The LRO code will ultimately move into the kernel stack code,
-   but for this first release it was included with the driver.
 
   Important system configuration changes:
   ---------------------------------------
 
-  When there is a choice run on a 64bit OS rather than 32, it makes
-  a significant difference in improvement.
-
+  When there is a choice run on a 64bit OS rather than 32, it makes a 
+  significant difference in improvement.
+  
   The default scheduler SCHED_4BSD is not smart about SMP locality issues. 
   Significant improvement can be achieved by switching to the ULE scheduler.
 
@@ -233,22 +231,67 @@ all 10 Gigabit adapters.
   SCHED_ULE. Note that this is only advisable on FreeBSD 7, on 6.X there have
   been stability problems with ULE.
 
-  Change the file /etc/sysctl.conf, add the line:  
+  The interface can generate high number of interrupts. To avoid running 
+  into the limit set by the kernel, adjust hw.intr_storm_threshold 
+  setting using sysctl:
  
-         hw.intr_storm_threshold: 8000 (the default is 1000)
+       sysctl hw.intr_storm_threshold=9000 (the default is 1000)
+
+  For this change to take effect on boot, edit /etc/sysctl.conf and add the 
+  line:  
+       hw.intr_storm_threshold=9000
+
+  If you still see Interrupt Storm detected messages, increase the limit to a
+  higher number.
 
   Best throughput results are seen with a large MTU; use 9000 if possible. 
 
-  The default number of descriptors is 256, increasing this to 1024 or even 
-  2048 may improve performance.
+  The default number of descriptors is 1024, increasing this to 2K or even 
+  4K may improve performance in some workloads, but change carefully.
 
 
 Known Limitations
 =================
+
+For known hardware and troubleshooting issues, refer to the following website.
+
+    http://support.intel.com/support/go/network/adapter/home.htm
+
+Either select the link for your adapter or perform a search for the adapter 
+number. The adapter's page lists many issues. For a complete list of hardware
+issues download your adapter's user guide and read the Release Notes. 
+
+  UDP stress test with 10GbE driver
+  ---------------------------------  
   Under small packets UDP stress test with 10GbE driver, the FreeBSD system 
   will drop UDP packets due to the fullness of socket buffers. You may want 
   to change the driver's Flow Control variables to the minimum value for 
   controlling packet reception.
+
+  Attempting to configure larger MTUs with a large numbers of processors may 
+  generate the error message "ix0:could not setup receive structures"
+  --------------------------------------------------------------------------
+  When using the ixgbe driver with RSS autoconfigured based on the number of 
+  cores (the default setting) and that number is larger than 4, increase the 
+  memory resources allocated for the mbuf pool as follows:
+
+  Add to the sysctl.conf file for the system:
+
+  kern.ipc.nmbclusters=262144
+  kern.ipc.nmbjumbop=262144
+
+  Lower than expected performance on dual port 10GbE devices
+  ----------------------------------------------------------
+  Some PCI-E x8 slots are actually configured as x4 slots. These slots have 
+  insufficient bandwidth for full 10Gbe line rate with dual port 10GbE devices.
+  The driver can detect this situation and will write the following message in
+  the system log: "PCI-Express bandwidth available for this card is not 
+  sufficient for optimal performance. For optimal performance a x8 PCI-Express 
+  slot is required."
+
+  If this error occurs, moving your adapter to a true x8 slot will resolve the 
+  issue.
+
 
 
 Support
@@ -256,11 +299,11 @@ Support
 
 For general information and support, go to the Intel support website at:
 
-        http://support.intel.com
+        www.intel.com/support/
 
 If an issue is identified with the released source code on the supported
 kernel with a supported adapter, email the specific information related to 
-the issue to freebsd@intel.com.
+the issue to freebsd@intel.com
 
 
 

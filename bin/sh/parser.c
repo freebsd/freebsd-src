@@ -240,8 +240,8 @@ list(int nlflag, int erflag)
 		n2 = andor();
 		tok = readtoken();
 		if (tok == TBACKGND) {
-			if (n2->type == NCMD || n2->type == NPIPE) {
-				n2->ncmd.backgnd = 1;
+			if (n2->type == NPIPE) {
+				n2->npipe.backgnd = 1;
 			} else if (n2->type == NREDIR) {
 				n2->type = NBACKGND;
 			} else {
@@ -542,10 +542,13 @@ TRACE(("expecting DO got %s %s\n", tokname[got], got == TWORD ? wordtext : ""));
 
 			checkkwd = CHKNL | CHKKWD | CHKALIAS;
 			if ((t = readtoken()) != TESAC) {
-				if (t != TENDCASE)
-					synexpect(TENDCASE);
+				if (t == TENDCASE)
+					;
+				else if (t == TFALLTHRU)
+					cp->type = NCLISTFALLTHRU;
 				else
-					checkkwd = CHKNL | CHKKWD, readtoken();
+					synexpect(TENDCASE);
+				checkkwd = CHKNL | CHKKWD, readtoken();
 			}
 			cpp = &cp->nclist.next;
 		}
@@ -686,7 +689,6 @@ simplecmd(union node **rpp, union node *redir)
 	*rpp = NULL;
 	n = (union node *)stalloc(sizeof (struct ncmd));
 	n->type = NCMD;
-	n->ncmd.backgnd = 0;
 	n->ncmd.args = args;
 	n->ncmd.redirect = redir;
 	return n;
@@ -931,8 +933,11 @@ xxreadtoken(void)
 			pungetc();
 			RETURN(TPIPE);
 		case ';':
-			if (pgetc() == ';')
+			c = pgetc();
+			if (c == ';')
 				RETURN(TENDCASE);
+			else if (c == '&')
+				RETURN(TFALLTHRU);
 			pungetc();
 			RETURN(TSEMI);
 		case '(':
@@ -2028,4 +2033,48 @@ getprompt(void *unused __unused)
 			ps[i] = *fmt;
 	ps[i] = '\0';
 	return (ps);
+}
+
+
+const char *
+expandstr(char *ps)
+{
+	union node n;
+	struct jmploc jmploc;
+	struct jmploc *const savehandler = handler;
+	const int saveprompt = doprompt;
+	struct parsefile *const savetopfile = getcurrentfile();
+	struct parser_temp *const saveparser_temp = parser_temp;
+	const char *result = NULL;
+
+	if (!setjmp(jmploc.loc)) {
+		handler = &jmploc;
+		parser_temp = NULL;
+		setinputstring(ps, 1);
+		doprompt = 0;
+		readtoken1(pgetc(), DQSYNTAX, "\n\n", 0);
+		if (backquotelist != NULL)
+			error("Command substitution not allowed here");
+
+		n.narg.type = NARG;
+		n.narg.next = NULL;
+		n.narg.text = wordtext;
+		n.narg.backquote = backquotelist;
+
+		expandarg(&n, NULL, 0);
+		result = stackblock();
+		INTOFF;
+	}
+	handler = savehandler;
+	doprompt = saveprompt;
+	popfilesupto(savetopfile);
+	if (parser_temp != saveparser_temp) {
+		parser_temp_free_all();
+		parser_temp = saveparser_temp;
+	}
+	if (result != NULL) {
+		INTON;
+	} else if (exception == EXINT)
+		raise(SIGINT);
+	return result;
 }

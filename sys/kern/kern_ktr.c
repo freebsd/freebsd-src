@@ -40,8 +40,10 @@ __FBSDID("$FreeBSD$");
 #include "opt_alq.h"
 
 #include <sys/param.h>
+#include <sys/queue.h>
 #include <sys/alq.h>
 #include <sys/cons.h>
+#include <sys/cpuset.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/libkern.h>
@@ -68,10 +70,6 @@ __FBSDID("$FreeBSD$");
 #define	KTR_MASK	(0)
 #endif
 
-#ifndef KTR_CPUMASK
-#define	KTR_CPUMASK	(~0)
-#endif
-
 #ifndef KTR_TIME
 #define	KTR_TIME	get_cyclecount()
 #endif
@@ -83,11 +81,6 @@ __FBSDID("$FreeBSD$");
 FEATURE(ktr, "Kernel support for KTR kernel tracing facility");
 
 SYSCTL_NODE(_debug, OID_AUTO, ktr, CTLFLAG_RD, 0, "KTR options");
-
-int	ktr_cpumask = KTR_CPUMASK;
-TUNABLE_INT("debug.ktr.cpumask", &ktr_cpumask);
-SYSCTL_INT(_debug_ktr, OID_AUTO, cpumask, CTLFLAG_RW,
-    &ktr_cpumask, 0, "Bitmask of CPUs on which KTR logging is enabled");
 
 int	ktr_mask = KTR_MASK;
 TUNABLE_INT("debug.ktr.mask", &ktr_mask);
@@ -105,6 +98,54 @@ SYSCTL_INT(_debug_ktr, OID_AUTO, entries, CTLFLAG_RD,
 int	ktr_version = KTR_VERSION;
 SYSCTL_INT(_debug_ktr, OID_AUTO, version, CTLFLAG_RD,
     &ktr_version, 0, "Version of the KTR interface");
+
+cpuset_t ktr_cpumask;
+static char ktr_cpumask_str[CPUSETBUFSIZ];
+TUNABLE_STR("debug.ktr.cpumask", ktr_cpumask_str, sizeof(ktr_cpumask_str));
+
+static void
+ktr_cpumask_initializer(void *dummy __unused)
+{
+
+	CPU_FILL(&ktr_cpumask);
+#ifdef KTR_CPUMASK
+	if (cpusetobj_strscan(&ktr_cpumask, KTR_CPUMASK) == -1)
+		CPU_FILL(&ktr_cpumask);
+#endif
+
+	/*
+	 * TUNABLE_STR() runs with SI_ORDER_MIDDLE priority, thus it must be
+	 * already set, if necessary.
+	 */
+	if (ktr_cpumask_str[0] != '\0' &&
+	    cpusetobj_strscan(&ktr_cpumask, ktr_cpumask_str) == -1)
+		CPU_FILL(&ktr_cpumask);
+}
+SYSINIT(ktr_cpumask_initializer, SI_SUB_TUNABLES, SI_ORDER_ANY,
+    ktr_cpumask_initializer, NULL);
+
+static int
+sysctl_debug_ktr_cpumask(SYSCTL_HANDLER_ARGS)
+{
+	char lktr_cpumask_str[CPUSETBUFSIZ];
+	cpuset_t imask;
+	int error;
+
+	cpusetobj_strprint(lktr_cpumask_str, &ktr_cpumask);
+	error = sysctl_handle_string(oidp, lktr_cpumask_str,
+	    sizeof(lktr_cpumask_str), req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	if (cpusetobj_strscan(&imask, lktr_cpumask_str) == -1)
+		return (EINVAL);
+	CPU_COPY(&imask, &ktr_cpumask);
+
+	return (error);
+}
+SYSCTL_PROC(_debug_ktr, OID_AUTO, cpumask,
+    CTLFLAG_RW | CTLFLAG_MPSAFE | CTLTYPE_STRING, NULL, 0,
+    sysctl_debug_ktr_cpumask, "S",
+    "Bitmask of CPUs on which KTR logging is enabled");
 
 volatile int	ktr_idx = 0;
 struct	ktr_entry ktr_buf[KTR_ENTRIES];
@@ -213,7 +254,7 @@ ktr_tracepoint(u_int mask, const char *file, int line, const char *format,
 	if ((ktr_mask & mask) == 0)
 		return;
 	cpu = KTR_CPU;
-	if (((1 << cpu) & ktr_cpumask) == 0)
+	if (!CPU_ISSET(cpu, &ktr_cpumask))
 		return;
 #if defined(KTR_VERBOSE) || defined(KTR_ALQ)
 	td = curthread;
