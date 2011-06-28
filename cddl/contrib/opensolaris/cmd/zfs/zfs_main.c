@@ -21,7 +21,7 @@
 
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright 2010 Nexenta Systems, Inc. All rights reserved.
+ * Copyright 2011 Nexenta Systems, Inc. All rights reserved.
  */
 
 #include <assert.h>
@@ -1292,7 +1292,7 @@ static int
 zfs_do_get(int argc, char **argv)
 {
 	zprop_get_cbdata_t cb = { 0 };
-	int i, c, flags = 0;
+	int i, c, flags = ZFS_ITER_ARGS_CAN_BE_PATHS;
 	char *value, *fields;
 	int ret;
 	int limit = 0;
