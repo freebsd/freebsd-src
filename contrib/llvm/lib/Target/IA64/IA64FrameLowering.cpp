@@ -1,3 +1,5 @@
+#define DEBUG_TYPE "ia64-frame-lowering"
+
 #include "IA64FrameLowering.h"
 #include "IA64InstrInfo.h"
 #include "IA64MachineFunctionInfo.h"
@@ -11,6 +13,7 @@
 #include "llvm/Target/TargetData.h"
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Support/Debug.h"
 
 using namespace llvm;
 
@@ -23,14 +26,15 @@ IA64FrameLowering::emitPrologue(MachineFunction &MF) const
   const IA64InstrInfo &TII =
         *static_cast<const IA64InstrInfo*>(MF.getTarget().getInstrInfo());
 
-  llvm_unreachable(__func__);
+  DEBUG(dbgs() << "XXX: IA64FrameLowering::" << __func__ << "\n");
 }
 
 void
 IA64FrameLowering::emitEpilogue(MachineFunction &MF, MachineBasicBlock &MBB)
     const
 {
-  llvm_unreachable(__func__);
+
+  DEBUG(dbgs() << "XXX: IA64FrameLowering::" << __func__ << "\n");
 }
 
 bool

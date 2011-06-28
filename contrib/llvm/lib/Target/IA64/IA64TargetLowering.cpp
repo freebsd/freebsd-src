@@ -60,6 +60,8 @@ IA64TargetLowering::LowerFormalArguments(SDValue Chain,
   MachineFunction &MF = DAG.getMachineFunction();
   SDValue Val;
 
+  DEBUG(dbgs() << "XXX: IA64TargetLowering::" << __func__ << "\n");
+
   for (unsigned ArgNo = 0, e = Ins.size(); ArgNo != e; ++ArgNo) {
     EVT vt = Ins[ArgNo].VT;
 
@@ -82,5 +84,9 @@ IA64TargetLowering::LowerReturn(SDValue Chain, CallingConv::ID CallConv,
     const SmallVectorImpl<SDValue> &OutVals, DebugLoc dl,
     SelectionDAG &DAG) const
 {
+  MachineFunction &MF = DAG.getMachineFunction();
+
+  DEBUG(dbgs() << "XXX: IA64TargetLowering::" <<__func__ << "\n");
+
   return Chain;
 }

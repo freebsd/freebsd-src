@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	llvmtransformutils
 
 SRCDIR=	lib/Transforms/Utils
@@ -27,6 +29,11 @@ SRCS=	AddrModeMatcher.cpp \
 	SimplifyCFG.cpp \
 	UnifyFunctionExitNodes.cpp \
 	ValueMapper.cpp
+
+.if ${MK_CLANG_EXTRAS} != "no"
+SRCS+=	SimplifyInstructions.cpp \
+	Utils.cpp
+.endif
 
 TGHDRS=	Intrinsics
 

@@ -18,6 +18,7 @@ SRCS=	\
 
 TGHDRS=	\
 	Intrinsics \
+	IA64GenCallingConv \
 	IA64GenDAGISel \
 	IA64GenInstrInfo \
 	IA64GenInstrNames \
