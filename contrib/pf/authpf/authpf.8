@@ -1,5 +1,5 @@
 .\" $FreeBSD$
-.\" $OpenBSD: authpf.8,v 1.43 2007/02/24 17:21:04 beck Exp $
+.\" $OpenBSD: authpf.8,v 1.47 2009/01/06 03:11:50 mcbride Exp $
 .\"
 .\" Copyright (c) 1998-2007 Bob Beck (beck@openbsd.org>.  All rights reserved.
 .\"
@@ -15,14 +15,16 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd March 28, 2006
+.Dd January 6 2009
 .Dt AUTHPF 8
 .Os
 .Sh NAME
-.Nm authpf
+.Nm authpf ,
+.Nm authpf-noip
 .Nd authenticating gateway user shell
 .Sh SYNOPSIS
 .Nm authpf
+.Nm authpf-noip
 .Sh DESCRIPTION
 .Nm
 is a user shell for authenticating gateways.
@@ -31,47 +33,63 @@ It is used to change
 rules when a user authenticates and starts a session with
 .Xr sshd 8
 and to undo these changes when the user's session exits.
-It is designed for changing filter and translation rules for an individual
-source IP address as long as a user maintains an active
-.Xr ssh 1
-session.
 Typical use would be for a gateway that authenticates users before
 allowing them Internet use, or a gateway that allows different users into
 different places.
+Combined with properly set up filter rules and secure switches,
 .Nm
-logs the successful start and end of a session to
-.Xr syslogd 8 .
-This, combined with properly set up filter rules and secure switches,
 can be used to ensure users are held accountable for their network traffic.
-.Pp
-.Nm
-can add filter and translation rules using the syntax described in
-.Xr pf.conf 5 .
-.Nm
-requires that the
-.Xr pf 4
-system be enabled and a 
-.Xr fdescfs 5
-file system be mounted at
-.Pa /dev/fd
-before use.
-.Nm
-can also maintain the list of IP address of connected users
-in the "authpf_users"
-.Pa table .
-.Pp
-.Nm
-is meant to be used with users who can connect via
+It is meant to be used with users who can connect via
 .Xr ssh 1
-only.
-On startup,
+only, and requires the
+.Xr pf 4
+subsystem to be enabled.
+.Pp
+.Nm authpf-noip
+is a user shell
+which allows multiple connections to take
+place from the same IP address.
+It is useful primarily in cases where connections are tunneled via
+the gateway system, and can be directly associated with the user name.
+It cannot ensure accountability when
+classifying connections by IP address;
+in this case the client's IP address
+is not provided to the packet filter via the
+.Ar client_ip
+macro or the
+.Ar authpf_users
+table.
+Additionally, states associated with the client IP address
+are not purged when the session is ended.
+.Pp
+To use either
+.Nm
+or
+.Nm authpf-noip ,
+the user's shell needs to be set to
+.Pa /usr/sbin/authpf
+or
+.Pa /usr/sbin/authpf-noip .
+.Pp
+.Nm
+uses the
+.Xr pf.conf 5
+syntax to change filter and translation rules for an individual
+user or client IP address as long as a user maintains an active
+.Xr ssh 1
+session, and logs the successful start and end of a session to
+.Xr syslogd 8 .
 .Nm
 retrieves the client's connecting IP address via the
 .Ev SSH_CLIENT
 environment variable and, after performing additional access checks,
 reads a template file to determine what filter and translation rules
-(if any) to add.
-On session exit the same rules that were added at startup are removed.
+(if any) to add, and
+maintains the list of IP addresses of connected users in the
+.Ar authpf_users
+table.
+On session exit the same rules and table entries that were added at startup
+are removed, and all states associated with the client's IP address are purged.
 .Pp
 Each
 .Nm
@@ -185,6 +203,9 @@ It is also possible to configure
 to only allow specific users access.
 This is done by listing their login names, one per line, in
 .Pa /etc/authpf/authpf.allow .
+A group of users can also be indicated by prepending "%" to the group name,
+and all members of a login class can be indicated by prepending "@" to the
+login class name.
 If "*" is found on a line, then all usernames match.
 If
 .Nm
@@ -297,7 +318,8 @@ They have a
 wireless network which they would like to protect from unauthorized use.
 To accomplish this, they create the file
 .Pa /etc/authpf/authpf.allow
-which lists their login ids, one per line.
+which lists their login ids, group prepended with "%", or login class
+prepended with "@", one per line.
 At this point, even if eve could authenticate to
 .Xr sshd 8 ,
 she would not be allowed to use the gateway.
@@ -501,6 +523,31 @@ table <authpf_users> persist
 anchor "authpf/*" from <authpf_users>
 rdr-anchor "authpf/*" from <authpf_users>
 .Ed
+.Pp
+.Sy Tunneled users
+\- normally
+.Nm
+allows only one session per client IP address.
+However in some cases, such as when connections are tunneled via
+.Xr ssh 1
+or
+.Xr ipsec 4 ,
+the connections can be authorized based on the userid of the user instead of
+the client IP address.
+In this case it is appropriate to use
+.Nm authpf-noip
+to allow multiple users behind a NAT gateway to connect.
+In the
+.Pa /etc/authpf/authpf.rules
+example below, the remote user could tunnel a remote desktop session to their
+workstation:
+.Bd -literal
+internal_if="bge0"
+workstation_ip="10.2.3.4"
+
+pass out on $internal_if from (self) to $workstation_ip port 3389 \e
+       user $user_id
+.Ed
 .Sh FILES
 .Bl -tag -width "/etc/authpf/authpf.conf" -compact
 .It Pa /etc/authpf/authpf.conf
@@ -512,7 +559,6 @@ rdr-anchor "authpf/*" from <authpf_users>
 .Sh SEE ALSO
 .Xr pf 4 ,
 .Xr pf.conf 5 ,
-.Xr fdescfs 5 ,
 .Xr securelevel 7 ,
 .Xr ftp-proxy 8
 .Sh HISTORY

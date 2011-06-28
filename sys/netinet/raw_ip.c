@@ -100,6 +100,9 @@ void	(*ip_divert_ptr)(struct mbuf *, int);
 int	(*ng_ipfw_input_p)(struct mbuf **, int,
 			struct ip_fw_args *, int);
 
+/* Hook for telling pf that the destination address changed */
+void	(*m_addr_chg_pf_p)(struct mbuf *m);
+
 #ifdef INET
 /*
  * Hooks for multicast routing. They all default to NULL, so leave them not

@@ -4,8 +4,8 @@
 
 .PATH: ${.CURDIR}/../../contrib/pf/net
 
-KMOD=	pflog
-SRCS=	if_pflog.c \
+KMOD=	pfsync
+SRCS=	if_pfsync.c \
 	opt_pf.h opt_inet.h opt_inet6.h opt_bpf.h
 
 CFLAGS+= -I${.CURDIR}/../../contrib/pf
