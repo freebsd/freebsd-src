@@ -300,11 +300,17 @@ MODULE_DEPEND(igb, ether, 1, 1, 1);
  *  Tunable default values.
  *********************************************************************/
 
+SYSCTL_NODE(_hw, OID_AUTO, igb, CTLFLAG_RD, 0, "IGB driver parameters");
+
 /* Descriptor defaults */
 static int igb_rxd = IGB_DEFAULT_RXD;
 static int igb_txd = IGB_DEFAULT_TXD;
 TUNABLE_INT("hw.igb.rxd", &igb_rxd);
 TUNABLE_INT("hw.igb.txd", &igb_txd);
+SYSCTL_INT(_hw_igb, OID_AUTO, rxd, CTLFLAG_RDTUN, &igb_rxd, 0,
+    "Number of receive descriptors per queue");
+SYSCTL_INT(_hw_igb, OID_AUTO, txd, CTLFLAG_RDTUN, &igb_txd, 0,
+    "Number of transmit descriptors per queue");
 
 /*
 ** AIM: Adaptive Interrupt Moderation
@@ -314,6 +320,8 @@ TUNABLE_INT("hw.igb.txd", &igb_txd);
 */
 static int igb_enable_aim = TRUE;
 TUNABLE_INT("hw.igb.enable_aim", &igb_enable_aim);
+SYSCTL_INT(_hw_igb, OID_AUTO, enable_aim, CTLFLAG_RW, &igb_enable_aim, 0,
+    "Enable adaptive interrupt moderation");
 
 /*
  * MSIX should be the default for best performance,
@@ -321,12 +329,16 @@ TUNABLE_INT("hw.igb.enable_aim", &igb_enable_aim);
  */         
 static int igb_enable_msix = 1;
 TUNABLE_INT("hw.igb.enable_msix", &igb_enable_msix);
+SYSCTL_INT(_hw_igb, OID_AUTO, enable_msix, CTLFLAG_RDTUN, &igb_enable_msix, 0,
+    "Enable MSI-X interrupts");
 
 /*
 ** Tuneable Interrupt rate
 */
 static int igb_max_interrupt_rate = 8000;
 TUNABLE_INT("hw.igb.max_interrupt_rate", &igb_max_interrupt_rate);
+SYSCTL_INT(_hw_igb, OID_AUTO, max_interrupt_rate, CTLFLAG_RDTUN,
+    &igb_max_interrupt_rate, 0, "Maximum interrupts per second");
 
 /*
 ** Header split causes the packet header to
@@ -338,6 +350,8 @@ TUNABLE_INT("hw.igb.max_interrupt_rate", &igb_max_interrupt_rate);
 */
 static bool igb_header_split = FALSE;
 TUNABLE_INT("hw.igb.hdr_split", &igb_header_split);
+SYSCTL_INT(_hw_igb, OID_AUTO, header_split, CTLFLAG_RDTUN, &igb_header_split, 0,
+    "Enable receive mbuf header split");
 
 /*
 ** This will autoconfigure based on
@@ -345,10 +359,15 @@ TUNABLE_INT("hw.igb.hdr_split", &igb_header_split);
 */
 static int igb_num_queues = 0;
 TUNABLE_INT("hw.igb.num_queues", &igb_num_queues);
+SYSCTL_INT(_hw_igb, OID_AUTO, num_queues, CTLFLAG_RDTUN, &igb_num_queues, 0,
+    "Number of queues to configure, 0 indicates autoconfigure");
 
 /* How many packets rxeof tries to clean at a time */
 static int igb_rx_process_limit = 100;
 TUNABLE_INT("hw.igb.rx_process_limit", &igb_rx_process_limit);
+SYSCTL_INT(_hw_igb, OID_AUTO, rx_process_limit, CTLFLAG_RDTUN,
+    &igb_rx_process_limit, 0,
+    "Maximum number of received packets to process at a time, -1 means unlimited");
 
 /*********************************************************************
  *  Device identification routine
@@ -435,10 +454,9 @@ igb_attach(device_t dev)
 	    OID_AUTO, "nvm", CTLTYPE_INT|CTLFLAG_RW, adapter, 0,
 	    igb_sysctl_nvm_info, "I", "NVM Information");
 
-	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    OID_AUTO, "enable_aim", CTLTYPE_INT|CTLFLAG_RW,
-	    &igb_enable_aim, 1, "Interrupt Moderation");
+	igb_set_sysctl_value(adapter, "enable_aim",
+	    "Interrupt Moderation", &adapter->enable_aim,
+	    igb_enable_aim);
 
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
@@ -1498,7 +1516,7 @@ igb_msix_que(void *arg)
 
 	more_rx = igb_rxeof(que, adapter->rx_process_limit, NULL);
 
-	if (igb_enable_aim == FALSE)
+	if (adapter->enable_aim == FALSE)
 		goto no_calc;
 	/*
 	** Do Adaptive Interrupt Moderation:
