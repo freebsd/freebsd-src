@@ -88,6 +88,7 @@ struct g_part_gpt_entry {
 
 static void g_gpt_printf_utf16(struct sbuf *, uint16_t *, size_t);
 static void g_gpt_utf8_to_utf16(const uint8_t *, uint16_t *, size_t);
+static void g_gpt_set_defaults(struct g_part_table *, struct g_provider *);
 
 static int g_part_gpt_add(struct g_part_table *, struct g_part_entry *,
     struct g_part_parms *);
@@ -493,12 +494,7 @@ g_part_gpt_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 	table->mbr[DOSPARTOFF + 6] = 0xff;		/* esect */
 	table->mbr[DOSPARTOFF + 7] = 0xff;		/* ecyl */
 	le32enc(table->mbr + DOSPARTOFF + 8, 1);	/* start */
-	le32enc(table->mbr + DOSPARTOFF + 12, MIN(last, 0xffffffffLL));
-
-	table->lba[GPT_ELT_PRIHDR] = 1;
-	table->lba[GPT_ELT_PRITBL] = 2;
-	table->lba[GPT_ELT_SECHDR] = last;
-	table->lba[GPT_ELT_SECTBL] = last - tblsz;
+	le32enc(table->mbr + DOSPARTOFF + 12, MIN(last, UINT32_MAX));
 
 	/* Allocate space for the header */
 	table->hdr = g_malloc(sizeof(struct gpt_hdr), M_WAITOK | M_ZERO);
@@ -506,14 +502,11 @@ g_part_gpt_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 	bcopy(GPT_HDR_SIG, table->hdr->hdr_sig, sizeof(table->hdr->hdr_sig));
 	table->hdr->hdr_revision = GPT_HDR_REVISION;
 	table->hdr->hdr_size = offsetof(struct gpt_hdr, padding);
-	table->hdr->hdr_lba_start = 2 + tblsz;
-	table->hdr->hdr_lba_end = last - tblsz - 1;
 	kern_uuidgen(&table->hdr->hdr_uuid, 1);
 	table->hdr->hdr_entries = basetable->gpt_entries;
 	table->hdr->hdr_entsz = sizeof(struct gpt_ent);
 
-	basetable->gpt_first = table->hdr->hdr_lba_start;
-	basetable->gpt_last = table->hdr->hdr_lba_end;
+	g_gpt_set_defaults(basetable, pp);
 	return (0);
 }
 
@@ -815,32 +808,10 @@ g_part_gpt_read(struct g_part_table *basetable, struct g_consumer *cp)
 static int
 g_part_gpt_recover(struct g_part_table *basetable)
 {
-	struct g_part_gpt_table *table;
-	struct g_provider *pp;
-	uint64_t last;
-	size_t tblsz;
 
-	table = (struct g_part_gpt_table *)basetable;
-	pp = LIST_FIRST(&basetable->gpt_gp->consumer)->provider;
-	last = pp->mediasize / pp->sectorsize - 1;
-	tblsz = (table->hdr->hdr_entries * table->hdr->hdr_entsz +
-	    pp->sectorsize - 1) / pp->sectorsize;
-
-	table->lba[GPT_ELT_PRIHDR] = 1;
-	table->lba[GPT_ELT_PRITBL] = 2;
-	table->lba[GPT_ELT_SECHDR] = last;
-	table->lba[GPT_ELT_SECTBL] = last - tblsz;
-	table->state[GPT_ELT_PRIHDR] = GPT_STATE_OK;
-	table->state[GPT_ELT_PRITBL] = GPT_STATE_OK;
-	table->state[GPT_ELT_SECHDR] = GPT_STATE_OK;
-	table->state[GPT_ELT_SECTBL] = GPT_STATE_OK;
-	table->hdr->hdr_lba_start = 2 + tblsz;
-	table->hdr->hdr_lba_end = last - tblsz - 1;
-
-	basetable->gpt_first = table->hdr->hdr_lba_start;
-	basetable->gpt_last = table->hdr->hdr_lba_end;
+	g_gpt_set_defaults(basetable,
+	    LIST_FIRST(&basetable->gpt_gp->consumer)->provider);
 	basetable->gpt_corrupt = 0;
-
 	return (0);
 }
 
@@ -1036,6 +1007,34 @@ g_part_gpt_write(struct g_part_table *basetable, struct g_consumer *cp)
  out:
 	g_free(buf);
 	return (error);
+}
+
+static void
+g_gpt_set_defaults(struct g_part_table *basetable, struct g_provider *pp)
+{
+	struct g_part_gpt_table *table;
+	quad_t last;
+	size_t tblsz;
+
+	table = (struct g_part_gpt_table *)basetable;
+	last = pp->mediasize / pp->sectorsize - 1;
+	tblsz = (basetable->gpt_entries * sizeof(struct gpt_ent) +
+	    pp->sectorsize - 1) / pp->sectorsize;
+
+	table->lba[GPT_ELT_PRIHDR] = 1;
+	table->lba[GPT_ELT_PRITBL] = 2;
+	table->lba[GPT_ELT_SECHDR] = last;
+	table->lba[GPT_ELT_SECTBL] = last - tblsz;
+	table->state[GPT_ELT_PRIHDR] = GPT_STATE_OK;
+	table->state[GPT_ELT_PRITBL] = GPT_STATE_OK;
+	table->state[GPT_ELT_SECHDR] = GPT_STATE_OK;
+	table->state[GPT_ELT_SECTBL] = GPT_STATE_OK;
+
+	table->hdr->hdr_lba_start = 2 + tblsz;
+	table->hdr->hdr_lba_end = last - tblsz - 1;
+
+	basetable->gpt_first = table->hdr->hdr_lba_start;
+	basetable->gpt_last = table->hdr->hdr_lba_end;
 }
 
 static void
