@@ -3120,8 +3120,8 @@ pmap_remove_all(vm_page_t m)
 	pmap_t curpm;
 	int flags = 0;
 
-	KASSERT((m->flags & PG_FICTITIOUS) == 0,
-	    ("pmap_remove_all: page %p is fictitious", m));
+	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	    ("pmap_remove_all: page %p is not managed", m));
 	if (TAILQ_EMPTY(&m->md.pv_list))
 		return;
 	vm_page_lock_queues();
