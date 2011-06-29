@@ -1424,8 +1424,8 @@ pmap_remove_all(vm_page_t m)
 	pmap_t oldpmap;
 	pv_entry_t pv;
 
-	KASSERT((m->flags & PG_FICTITIOUS) == 0,
-	    ("pmap_remove_all: page %p is fictitious", m));
+	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	    ("pmap_remove_all: page %p is not managed", m));
 	vm_page_lock_queues();
 	while ((pv = TAILQ_FIRST(&m->md.pv_list)) != NULL) {
 		struct ia64_lpte *pte;
