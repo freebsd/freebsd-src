@@ -185,7 +185,6 @@ static int vr_miibus_readreg(device_t, int, int);
 static int vr_miibus_writereg(device_t, int, int, int);
 static void vr_miibus_statchg(device_t);
 
-static void vr_link_task(void *, int);
 static void vr_cam_mask(struct vr_softc *, uint32_t, int);
 static int vr_cam_data(struct vr_softc *, int, int, uint8_t *);
 static void vr_set_filter(struct vr_softc *);
@@ -226,7 +225,6 @@ static device_method_t vr_methods[] = {
 	DEVMETHOD(miibus_readreg,	vr_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	vr_miibus_writereg),
 	DEVMETHOD(miibus_statchg,	vr_miibus_statchg),
-	DEVMETHOD(miibus_linkchg,	vr_miibus_statchg),
 
 	{ NULL, NULL }
 };
@@ -290,22 +288,13 @@ vr_miibus_writereg(device_t dev, int phy, int reg, int data)
 	return (0);
 }
 
-static void
-vr_miibus_statchg(device_t dev)
-{
-	struct vr_softc		*sc;
-
-	sc = device_get_softc(dev);
-	taskqueue_enqueue(taskqueue_swi, &sc->vr_link_task);
-}
-
 /*
  * In order to fiddle with the
  * 'full-duplex' and '100Mbps' bits in the netconfig register, we
  * first have to put the transmit and/or receive logic in the idle state.
  */
 static void
-vr_link_task(void *arg, int pending)
+vr_miibus_statchg(device_t dev)
 {
 	struct vr_softc		*sc;
 	struct mii_data		*mii;
@@ -313,22 +302,25 @@ vr_link_task(void *arg, int pending)
 	int			lfdx, mfdx;
 	uint8_t			cr0, cr1, fc;
 
-	sc = (struct vr_softc *)arg;
-
-	VR_LOCK(sc);
+	sc = device_get_softc(dev);
 	mii = device_get_softc(sc->vr_miibus);
 	ifp = sc->vr_ifp;
 	if (mii == NULL || ifp == NULL ||
-	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
-		VR_UNLOCK(sc);
+	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 		return;
-	}
 
-	if (mii->mii_media_status & IFM_ACTIVE) {
-		if (IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE)
+	sc->vr_link = 0;
+	if ((mii->mii_media_status & (IFM_ACTIVE | IFM_AVALID)) ==
+	    (IFM_ACTIVE | IFM_AVALID)) {
+		switch (IFM_SUBTYPE(mii->mii_media_active)) {
+		case IFM_10_T:
+		case IFM_100_TX:
 			sc->vr_link = 1;
-	} else
-		sc->vr_link = 0;
+			break;
+		default:
+			break;
+		}
+	}
 
 	if (sc->vr_link != 0) {
 		cr0 = CSR_READ_1(sc, VR_CR0);
@@ -384,11 +376,8 @@ vr_link_task(void *arg, int pending)
 			    "%s: Tx/Rx shutdown error -- resetting\n",
 			    __func__);
 			sc->vr_flags |= VR_F_RESTART;
-			VR_UNLOCK(sc);
-			return;
 		}
 	}
-	VR_UNLOCK(sc);
 }
 
 
@@ -621,7 +610,6 @@ vr_attach(device_t dev)
 	mtx_init(&sc->vr_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF);
 	callout_init_mtx(&sc->vr_stat_callout, &sc->vr_mtx, 0);
-	TASK_INIT(&sc->vr_link_task, 0, vr_link_task, sc);
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
 	    OID_AUTO, "stats", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
@@ -841,7 +829,6 @@ vr_detach(device_t dev)
 		vr_stop(sc);
 		VR_UNLOCK(sc);
 		callout_drain(&sc->vr_stat_callout);
-		taskqueue_drain(taskqueue_swi, &sc->vr_link_task);
 		ether_ifdetach(ifp);
 	}
 	if (sc->vr_miibus)
@@ -1556,6 +1543,8 @@ vr_tick(void *xsc)
 
 	mii = device_get_softc(sc->vr_miibus);
 	mii_tick(mii);
+	if (sc->vr_link == 0)
+		vr_miibus_statchg(sc->vr_dev);
 	vr_watchdog(sc);
 	callout_reset(&sc->vr_stat_callout, hz, vr_tick, sc);
 }
@@ -2155,6 +2144,10 @@ vr_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 	sc = ifp->if_softc;
 	mii = device_get_softc(sc->vr_miibus);
 	VR_LOCK(sc);
+	if ((ifp->if_flags & IFF_UP) == 0) {
+		VR_UNLOCK(sc);
+		return;
+	}
 	mii_pollstat(mii);
 	VR_UNLOCK(sc);
 	ifmr->ifm_active = mii->mii_media_active;
