@@ -2708,7 +2708,15 @@ vm_map_entry_delete(vm_map_t map, vm_map_entry_t entry)
 		    ((object->flags & (OBJ_NOSPLIT|OBJ_ONEMAPPING)) == OBJ_ONEMAPPING ||
 		    object == kernel_object || object == kmem_object)) {
 			vm_object_collapse(object);
-			vm_object_page_remove(object, offidxstart, offidxend, FALSE);
+
+			/*
+			 * The option OBJPR_NOTMAPPED can be passed here
+			 * because vm_map_delete() already performed
+			 * pmap_remove() on the only mapping to this range
+			 * of pages. 
+			 */
+			vm_object_page_remove(object, offidxstart, offidxend,
+			    OBJPR_NOTMAPPED);
 			if (object->type == OBJT_SWAP)
 				swap_pager_freespace(object, offidxstart, count);
 			if (offidxend >= object->size &&
