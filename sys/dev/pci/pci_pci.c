@@ -36,14 +36,16 @@ __FBSDID("$FreeBSD$");
  */
 
 #include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/bus.h>
-#include <machine/bus.h>
+#include <sys/kernel.h>
+#include <sys/libkern.h>
+#include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/rman.h>
 #include <sys/sysctl.h>
+#include <sys/systm.h>
 
+#include <machine/bus.h>
 #include <machine/resource.h>
 
 #include <dev/pci/pcivar.h>
@@ -68,8 +70,13 @@ static device_method_t pcib_methods[] = {
     DEVMETHOD(bus_read_ivar,		pcib_read_ivar),
     DEVMETHOD(bus_write_ivar,		pcib_write_ivar),
     DEVMETHOD(bus_alloc_resource,	pcib_alloc_resource),
+#ifdef NEW_PCIB
+    DEVMETHOD(bus_adjust_resource,	pcib_adjust_resource),
+    DEVMETHOD(bus_release_resource,	pcib_release_resource),
+#else
     DEVMETHOD(bus_adjust_resource,	bus_generic_adjust_resource),
     DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
+#endif
     DEVMETHOD(bus_activate_resource,	bus_generic_activate_resource),
     DEVMETHOD(bus_deactivate_resource,	bus_generic_deactivate_resource),
     DEVMETHOD(bus_setup_intr,		bus_generic_setup_intr),
@@ -93,6 +100,243 @@ static devclass_t pcib_devclass;
 
 DEFINE_CLASS_0(pcib, pcib_driver, pcib_methods, sizeof(struct pcib_softc));
 DRIVER_MODULE(pcib, pci, pcib_driver, pcib_devclass, 0, 0);
+
+#ifdef NEW_PCIB
+/*
+ * XXX Todo:
+ * - properly handle the ISA enable bit.  If it is set, we should change
+ *   the behavior of the I/O window resource and rman to not allocate the
+ *   blocked ranges (upper 768 bytes of each 1K in the first 64k of the
+ *   I/O port address space).
+ */
+
+/*
+ * Is a resource from a child device sub-allocated from one of our
+ * resource managers?
+ */
+static int
+pcib_is_resource_managed(struct pcib_softc *sc, int type, struct resource *r)
+{
+
+	switch (type) {
+	case SYS_RES_IOPORT:
+		return (rman_is_region_manager(r, &sc->io.rman));
+	case SYS_RES_MEMORY:
+		/* Prefetchable resources may live in either memory rman. */
+		if (rman_get_flags(r) & RF_PREFETCHABLE &&
+		    rman_is_region_manager(r, &sc->pmem.rman))
+			return (1);
+		return (rman_is_region_manager(r, &sc->mem.rman));
+	}
+	return (0);
+}
+
+static int
+pcib_is_window_open(struct pcib_window *pw)
+{
+
+	return (pw->valid && pw->base < pw->limit);
+}
+
+/*
+ * XXX: If RF_ACTIVE did not also imply allocating a bus space tag and
+ * handle for the resource, we could pass RF_ACTIVE up to the PCI bus
+ * when allocating the resource windows and rely on the PCI bus driver
+ * to do this for us.
+ */
+static void
+pcib_activate_window(struct pcib_softc *sc, int type)
+{
+
+	PCI_ENABLE_IO(device_get_parent(sc->dev), sc->dev, type);
+}
+
+static void
+pcib_write_windows(struct pcib_softc *sc, int mask)
+{
+	device_t dev;
+	uint32_t val;
+
+	dev = sc->dev;
+	if (sc->io.valid && mask & WIN_IO) {
+		val = pci_read_config(dev, PCIR_IOBASEL_1, 1);
+		if ((val & PCIM_BRIO_MASK) == PCIM_BRIO_32) {
+			pci_write_config(dev, PCIR_IOBASEH_1,
+			    sc->io.base >> 16, 2);
+			pci_write_config(dev, PCIR_IOLIMITH_1,
+			    sc->io.limit >> 16, 2);
+		}
+		pci_write_config(dev, PCIR_IOBASEL_1, sc->io.base >> 8, 1);
+		pci_write_config(dev, PCIR_IOLIMITL_1, sc->io.limit >> 8, 1);
+	}
+
+	if (mask & WIN_MEM) {
+		pci_write_config(dev, PCIR_MEMBASE_1, sc->mem.base >> 16, 2);
+		pci_write_config(dev, PCIR_MEMLIMIT_1, sc->mem.limit >> 16, 2);
+	}
+
+	if (sc->pmem.valid && mask & WIN_PMEM) {
+		val = pci_read_config(dev, PCIR_PMBASEL_1, 2);
+		if ((val & PCIM_BRPM_MASK) == PCIM_BRPM_64) {
+			pci_write_config(dev, PCIR_PMBASEH_1,
+			    sc->pmem.base >> 32, 4);
+			pci_write_config(dev, PCIR_PMLIMITH_1,
+			    sc->pmem.limit >> 32, 4);
+		}
+		pci_write_config(dev, PCIR_PMBASEL_1, sc->pmem.base >> 16, 2);
+		pci_write_config(dev, PCIR_PMLIMITL_1, sc->pmem.limit >> 16, 2);
+	}
+}
+
+static void
+pcib_alloc_window(struct pcib_softc *sc, struct pcib_window *w, int type,
+    int flags, pci_addr_t max_address)
+{
+	char buf[64];
+	int error, rid;
+
+	if (max_address != (u_long)max_address)
+		max_address = ~0ul;
+	w->rman.rm_start = 0;
+	w->rman.rm_end = max_address;
+	w->rman.rm_type = RMAN_ARRAY;
+	snprintf(buf, sizeof(buf), "%s %s window",
+	    device_get_nameunit(sc->dev), w->name);
+	w->rman.rm_descr = strdup(buf, M_DEVBUF);
+	error = rman_init(&w->rman);
+	if (error)
+		panic("Failed to initialize %s %s rman",
+		    device_get_nameunit(sc->dev), w->name);
+
+	if (!pcib_is_window_open(w))
+		return;
+
+	if (w->base > max_address || w->limit > max_address) {
+		device_printf(sc->dev,
+		    "initial %s window has too many bits, ignoring\n", w->name);
+		return;
+	}
+	rid = w->reg;
+	w->res = bus_alloc_resource(sc->dev, type, &rid, w->base, w->limit,
+	    w->limit - w->base + 1, flags);
+	if (w->res == NULL) {
+		device_printf(sc->dev,
+		    "failed to allocate initial %s window: %#jx-%#jx\n",
+		    w->name, (uintmax_t)w->base, (uintmax_t)w->limit);
+		w->base = max_address;
+		w->limit = 0;
+		pcib_write_windows(sc, w->mask);
+		return;
+	}
+	pcib_activate_window(sc, type);
+
+	error = rman_manage_region(&w->rman, rman_get_start(w->res),
+	    rman_get_end(w->res));
+	if (error)
+		panic("Failed to initialize rman with resource");
+}
+
+/*
+ * Initialize I/O windows.
+ */
+static void
+pcib_probe_windows(struct pcib_softc *sc)
+{
+	pci_addr_t max;
+	device_t dev;
+	uint32_t val;
+
+	dev = sc->dev;
+
+	/* Determine if the I/O port window is implemented. */
+	val = pci_read_config(dev, PCIR_IOBASEL_1, 1);
+	if (val == 0) {
+		/*
+		 * If 'val' is zero, then only 16-bits of I/O space
+		 * are supported.
+		 */
+		pci_write_config(dev, PCIR_IOBASEL_1, 0xff, 1);
+		if (pci_read_config(dev, PCIR_IOBASEL_1, 1) != 0) {
+			sc->io.valid = 1;
+			pci_write_config(dev, PCIR_IOBASEL_1, 0, 1);
+		}
+	} else
+		sc->io.valid = 1;
+
+	/* Read the existing I/O port window. */
+	if (sc->io.valid) {
+		sc->io.reg = PCIR_IOBASEL_1;
+		sc->io.step = 12;
+		sc->io.mask = WIN_IO;
+		sc->io.name = "I/O port";
+		if ((val & PCIM_BRIO_MASK) == PCIM_BRIO_32) {
+			sc->io.base = PCI_PPBIOBASE(
+			    pci_read_config(dev, PCIR_IOBASEH_1, 2), val);
+			sc->io.limit = PCI_PPBIOLIMIT(
+			    pci_read_config(dev, PCIR_IOLIMITH_1, 2),
+			    pci_read_config(dev, PCIR_IOLIMITL_1, 1));
+			max = 0xffffffff;
+		} else {
+			sc->io.base = PCI_PPBIOBASE(0, val);
+			sc->io.limit = PCI_PPBIOLIMIT(0,
+			    pci_read_config(dev, PCIR_IOLIMITL_1, 1));
+			max = 0xffff;
+		}
+		pcib_alloc_window(sc, &sc->io, SYS_RES_IOPORT, 0, max);
+	}
+
+	/* Read the existing memory window. */
+	sc->mem.valid = 1;
+	sc->mem.reg = PCIR_MEMBASE_1;
+	sc->mem.step = 20;
+	sc->mem.mask = WIN_MEM;
+	sc->mem.name = "memory";
+	sc->mem.base = PCI_PPBMEMBASE(0,
+	    pci_read_config(dev, PCIR_MEMBASE_1, 2));
+	sc->mem.limit = PCI_PPBMEMLIMIT(0,
+	    pci_read_config(dev, PCIR_MEMLIMIT_1, 2));
+	pcib_alloc_window(sc, &sc->mem, SYS_RES_MEMORY, 0, 0xffffffff);
+
+	/* Determine if the prefetchable memory window is implemented. */
+	val = pci_read_config(dev, PCIR_PMBASEL_1, 2);
+	if (val == 0) {
+		/*
+		 * If 'val' is zero, then only 32-bits of memory space
+		 * are supported.
+		 */
+		pci_write_config(dev, PCIR_PMBASEL_1, 0xffff, 2);
+		if (pci_read_config(dev, PCIR_PMBASEL_1, 2) != 0) {
+			sc->pmem.valid = 1;
+			pci_write_config(dev, PCIR_PMBASEL_1, 0, 2);
+		}
+	} else
+		sc->pmem.valid = 1;
+
+	/* Read the existing prefetchable memory window. */
+	if (sc->pmem.valid) {
+		sc->pmem.reg = PCIR_PMBASEL_1;
+		sc->pmem.step = 20;
+		sc->pmem.mask = WIN_PMEM;
+		sc->pmem.name = "prefetch";
+		if ((val & PCIM_BRPM_MASK) == PCIM_BRPM_64) {
+			sc->pmem.base = PCI_PPBMEMBASE(
+			    pci_read_config(dev, PCIR_PMBASEH_1, 4), val);
+			sc->pmem.limit = PCI_PPBMEMLIMIT(
+			    pci_read_config(dev, PCIR_PMLIMITH_1, 4),
+			    pci_read_config(dev, PCIR_PMLIMITL_1, 2));
+			max = 0xffffffffffffffff;
+		} else {
+			sc->pmem.base = PCI_PPBMEMBASE(0, val);
+			sc->pmem.limit = PCI_PPBMEMLIMIT(0,
+			    pci_read_config(dev, PCIR_PMLIMITL_1, 2));
+			max = 0xffffffff;
+		}
+		pcib_alloc_window(sc, &sc->pmem, SYS_RES_MEMORY,
+		    RF_PREFETCHABLE, max);
+	}
+}
+
+#else
 
 /*
  * Is the prefetch window open (eg, can we allocate memory in it?)
@@ -120,6 +364,7 @@ pcib_is_io_open(struct pcib_softc *sc)
 {
 	return (sc->iobase > 0 && sc->iobase < sc->iolimit);
 }
+#endif
 
 /*
  * Generic device interface
@@ -139,7 +384,9 @@ void
 pcib_attach_common(device_t dev)
 {
     struct pcib_softc	*sc;
+#ifndef NEW_PCIB
     uint8_t		iolow;
+#endif
     struct sysctl_ctx_list *sctx;
     struct sysctl_oid	*soid;
 
@@ -172,6 +419,7 @@ pcib_attach_common(device_t dev)
     SYSCTL_ADD_UINT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "subbus",
       CTLFLAG_RD, &sc->subbus, 0, "Subordinate bus number");
 
+#ifndef NEW_PCIB
     /*
      * Determine current I/O decode.
      */
@@ -216,6 +464,7 @@ pcib_attach_common(device_t dev)
 	    sc->pmemlimit = PCI_PPBMEMLIMIT(0,
 		pci_read_config(dev, PCIR_PMLIMITL_1, 2));
     }
+#endif
 
     /*
      * Quirk handling.
@@ -286,18 +535,35 @@ pcib_attach_common(device_t dev)
     if ((pci_get_devid(dev) & 0xff00ffff) == 0x24008086 ||
       pci_read_config(dev, PCIR_PROGIF, 1) == PCIP_BRIDGE_PCI_SUBTRACTIVE)
 	sc->flags |= PCIB_SUBTRACTIVE;
-	
+
+#ifdef NEW_PCIB
+    pcib_probe_windows(sc);
+#endif
     if (bootverbose) {
 	device_printf(dev, "  domain            %d\n", sc->domain);
 	device_printf(dev, "  secondary bus     %d\n", sc->secbus);
 	device_printf(dev, "  subordinate bus   %d\n", sc->subbus);
-	device_printf(dev, "  I/O decode        0x%x-0x%x\n", sc->iobase, sc->iolimit);
+#ifdef NEW_PCIB
+	if (pcib_is_window_open(&sc->io))
+	    device_printf(dev, "  I/O decode        0x%jx-0x%jx\n",
+	      (uintmax_t)sc->io.base, (uintmax_t)sc->io.limit);
+	if (pcib_is_window_open(&sc->mem))
+	    device_printf(dev, "  memory decode     0x%jx-0x%jx\n",
+	      (uintmax_t)sc->mem.base, (uintmax_t)sc->mem.limit);
+	if (pcib_is_window_open(&sc->pmem))
+	    device_printf(dev, "  prefetched decode 0x%jx-0x%jx\n",
+	      (uintmax_t)sc->pmem.base, (uintmax_t)sc->pmem.limit);
+#else
+	if (pcib_is_io_open(sc))
+	    device_printf(dev, "  I/O decode        0x%x-0x%x\n",
+	      sc->iobase, sc->iolimit);
 	if (pcib_is_nonprefetch_open(sc))
 	    device_printf(dev, "  memory decode     0x%jx-0x%jx\n",
 	      (uintmax_t)sc->membase, (uintmax_t)sc->memlimit);
 	if (pcib_is_prefetch_open(sc))
 	    device_printf(dev, "  prefetched decode 0x%jx-0x%jx\n",
 	      (uintmax_t)sc->pmembase, (uintmax_t)sc->pmemlimit);
+#endif
 	else
 	    device_printf(dev, "  no prefetched decode\n");
 	if (sc->flags & PCIB_SUBTRACTIVE)
@@ -368,6 +634,378 @@ pcib_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
     return(ENOENT);
 }
 
+#ifdef NEW_PCIB
+static const char *
+pcib_child_name(device_t child)
+{
+	static char buf[64];
+
+	if (device_get_nameunit(child) != NULL)
+		return (device_get_nameunit(child));
+	snprintf(buf, sizeof(buf), "pci%d:%d:%d:%d", pci_get_domain(child),
+	    pci_get_bus(child), pci_get_slot(child), pci_get_function(child));
+	return (buf);
+}
+
+/*
+ * Attempt to allocate a resource from the existing resources assigned
+ * to a window.
+ */
+static struct resource *
+pcib_suballoc_resource(struct pcib_softc *sc, struct pcib_window *w,
+    device_t child, int type, int *rid, u_long start, u_long end, u_long count,
+    u_int flags)
+{
+	struct resource *res;
+
+	if (!pcib_is_window_open(w))
+		return (NULL);
+
+	res = rman_reserve_resource(&w->rman, start, end, count,
+	    flags & ~RF_ACTIVE, child);
+	if (res == NULL)
+		return (NULL);
+
+	if (bootverbose)
+		device_printf(sc->dev,
+		    "allocated %s range (%#lx-%#lx) for rid %x of %s\n",
+		    w->name, rman_get_start(res), rman_get_end(res), *rid,
+		    pcib_child_name(child));
+	rman_set_rid(res, *rid);
+
+	/*
+	 * If the resource should be active, pass that request up the
+	 * tree.  This assumes the parent drivers can handle
+	 * activating sub-allocated resources.
+	 */
+	if (flags & RF_ACTIVE) {
+		if (bus_activate_resource(child, type, *rid, res) != 0) {
+			rman_release_resource(res);
+			return (NULL);
+		}
+	}
+
+	return (res);
+}
+
+/*
+ * Attempt to grow a window to make room for a given resource request.
+ * The 'step' parameter is log_2 of the desired I/O window's alignment.
+ */
+static int
+pcib_grow_window(struct pcib_softc *sc, struct pcib_window *w, int type,
+    u_long start, u_long end, u_long count, u_int flags)
+{
+	u_long align, start_free, end_free, front, back;
+	int error, rid;
+
+	/*
+	 * Clamp the desired resource range to the maximum address
+	 * this window supports.  Reject impossible requests.
+	 */
+	if (!w->valid)
+		return (EINVAL);
+	if (end > w->rman.rm_end)
+		end = w->rman.rm_end;
+	if (start + count - 1 > end || start + count < start)
+		return (EINVAL);
+
+	/*
+	 * If there is no resource at all, just try to allocate enough
+	 * aligned space for this resource.
+	 */
+	if (w->res == NULL) {
+		if (RF_ALIGNMENT(flags) < w->step) {
+			flags &= ~RF_ALIGNMENT_MASK;
+			flags |= RF_ALIGNMENT_LOG2(w->step);
+		}
+		start &= ~((1ul << w->step) - 1);
+		end |= ((1ul << w->step) - 1);
+		count = roundup2(count, 1ul << w->step);
+		rid = w->reg;
+		w->res = bus_alloc_resource(sc->dev, type, &rid, start, end,
+		    count, flags & ~RF_ACTIVE);
+		if (w->res == NULL) {
+			if (bootverbose)
+				device_printf(sc->dev,
+		    "failed to allocate initial %s window (%#lx-%#lx,%#lx)\n",
+				    w->name, start, end, count);
+			return (ENXIO);
+		}
+		if (bootverbose)
+			device_printf(sc->dev,
+			    "allocated initial %s window of %#lx-%#lx\n",
+			    w->name, rman_get_start(w->res),
+			    rman_get_end(w->res));
+		error = rman_manage_region(&w->rman, rman_get_start(w->res),
+		    rman_get_end(w->res));
+		if (error) {
+			if (bootverbose)
+				device_printf(sc->dev,
+				    "failed to add initial %s window to rman\n",
+				    w->name);
+			bus_release_resource(sc->dev, type, w->reg, w->res);
+			w->res = NULL;
+			return (error);
+		}
+		pcib_activate_window(sc, type);
+		goto updatewin;
+	}
+
+	/*
+	 * See if growing the window would help.  Compute the minimum
+	 * amount of address space needed on both the front and back
+	 * ends of the existing window to satisfy the allocation.
+	 *
+	 * For each end, build a candidate region adjusting for the
+	 * required alignment, etc.  If there is a free region at the
+	 * edge of the window, grow from the inner edge of the free
+	 * region.  Otherwise grow from the window boundary.
+	 *
+	 * XXX: Special case: if w->res is completely empty and the
+	 * request size is larger than w->res, we should find the
+	 * optimal aligned buffer containing w->res and allocate that.
+	 */
+	if (bootverbose)
+		device_printf(sc->dev,
+		    "attempting to grow %s window for (%#lx-%#lx,%#lx)\n",
+		    w->name, start, end, count);
+	align = 1ul << RF_ALIGNMENT(flags);
+	if (start < rman_get_start(w->res)) {
+		if (rman_first_free_region(&w->rman, &start_free, &end_free) !=
+		    0 || start_free != rman_get_start(w->res))
+			end_free = rman_get_start(w->res) - 1;
+		if (end_free > end)
+			end_free = end;
+
+		/* Move end_free down until it is properly aligned. */
+		end_free &= ~(align - 1);
+		end_free--;
+		front = end_free - (count - 1);
+
+		/*
+		 * The resource would now be allocated at (front,
+		 * end_free).  Ensure that fits in the (start, end)
+		 * bounds.  end_free is checked above.  If 'front' is
+		 * ok, ensure it is properly aligned for this window.
+		 * Also check for underflow.
+		 */
+		if (front >= start && front <= end_free) {
+			if (bootverbose)
+				printf("\tfront candidate range: %#lx-%#lx\n",
+				    front, end_free);
+			front &= (1ul << w->step) - 1;
+			front = rman_get_start(w->res) - front;
+		} else
+			front = 0;
+	} else
+		front = 0;
+	if (end > rman_get_end(w->res)) {
+		if (rman_last_free_region(&w->rman, &start_free, &end_free) !=
+		    0 || end_free != rman_get_end(w->res))
+			start_free = rman_get_end(w->res) + 1;
+		if (start_free < start)
+			start_free = start;
+
+		/* Move start_free up until it is properly aligned. */
+		start_free = roundup2(start_free, align);
+		back = start_free + count - 1;
+
+		/*
+		 * The resource would now be allocated at (start_free,
+		 * back).  Ensure that fits in the (start, end)
+		 * bounds.  start_free is checked above.  If 'back' is
+		 * ok, ensure it is properly aligned for this window.
+		 * Also check for overflow.
+		 */
+		if (back <= end && start_free <= back) {
+			if (bootverbose)
+				printf("\tback candidate range: %#lx-%#lx\n",
+				    start_free, back);
+			back = roundup2(back + 1, w->step) - 1;
+			back -= rman_get_end(w->res);
+		} else
+			back = 0;
+	} else
+		back = 0;
+
+	/*
+	 * Try to allocate the smallest needed region first.
+	 * If that fails, fall back to the other region.
+	 */
+	error = ENOSPC;
+	while (front != 0 || back != 0) {
+		if (front != 0 && (front <= back || back == 0)) {
+			error = bus_adjust_resource(sc->dev, type, w->res,
+			    rman_get_start(w->res) - front,
+			    rman_get_end(w->res));
+			if (error == 0)
+				break;
+			front = 0;
+		} else {
+			error = bus_adjust_resource(sc->dev, type, w->res,
+			    rman_get_start(w->res),
+			    rman_get_end(w->res) + back);
+			if (error == 0)
+				break;
+			back = 0;
+		}
+	}
+
+	if (error)
+		return (error);
+	if (bootverbose)
+		device_printf(sc->dev, "grew %s window to %#lx-%#lx\n",
+		    w->name, rman_get_start(w->res), rman_get_end(w->res));
+
+	/* Add the newly allocated region to the resource manager. */
+	if (w->base != rman_get_start(w->res)) {
+		KASSERT(w->limit == rman_get_end(w->res), ("both ends moved"));
+		error = rman_manage_region(&w->rman, rman_get_start(w->res),
+		    w->base - 1);
+	} else {
+		KASSERT(w->limit != rman_get_end(w->res),
+		    ("neither end moved"));
+		error = rman_manage_region(&w->rman, w->limit + 1,
+		    rman_get_end(w->res));
+	}
+	if (error) {
+		if (bootverbose)
+			device_printf(sc->dev,
+			    "failed to expand %s resource manager\n", w->name);
+		bus_adjust_resource(sc->dev, type, w->res, w->base, w->limit);
+		return (error);
+	}
+
+updatewin:
+	/* Save the new window. */
+	w->base = rman_get_start(w->res);
+	w->limit = rman_get_end(w->res);
+	KASSERT((w->base & ((1ul << w->step) - 1)) == 0,
+	    ("start address is not aligned"));
+	KASSERT((w->limit & ((1ul << w->step) - 1)) == (1ul << w->step) - 1,
+	    ("end address is not aligned"));
+	pcib_write_windows(sc, w->mask);
+	return (0);
+}
+
+/*
+ * We have to trap resource allocation requests and ensure that the bridge
+ * is set up to, or capable of handling them.
+ */
+struct resource *
+pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
+    u_long start, u_long end, u_long count, u_int flags)
+{
+	struct pcib_softc *sc;
+	struct resource *r;
+
+	sc = device_get_softc(dev);
+
+	/*
+	 * VGA resources are decoded iff the VGA enable bit is set in
+	 * the bridge control register.  VGA resources do not fall into
+	 * the resource windows and are passed up to the parent.
+	 */
+	if ((type == SYS_RES_IOPORT && pci_is_vga_ioport_range(start, end)) ||
+	    (type == SYS_RES_MEMORY && pci_is_vga_memory_range(start, end))) {
+		if (sc->bridgectl & PCIB_BCR_VGA_ENABLE)
+			return (bus_generic_alloc_resource(dev, child, type,
+			    rid, start, end, count, flags));
+		else
+			return (NULL);
+	}
+
+	switch (type) {
+	case SYS_RES_IOPORT:
+		r = pcib_suballoc_resource(sc, &sc->io, child, type, rid, start,
+		    end, count, flags);
+		if (r != NULL)
+			break;
+		if (pcib_grow_window(sc, &sc->io, type, start, end, count,
+		    flags) == 0)
+			r = pcib_suballoc_resource(sc, &sc->io, child, type,
+			    rid, start, end, count, flags);
+		break;
+	case SYS_RES_MEMORY:
+		/*
+		 * For prefetchable resources, prefer the prefetchable
+		 * memory window, but fall back to the regular memory
+		 * window if that fails.  Try both windows before
+		 * attempting to grow a window in case the firmware
+		 * has used a range in the regular memory window to
+		 * map a prefetchable BAR.
+		 */
+		if (flags & RF_PREFETCHABLE) {
+			r = pcib_suballoc_resource(sc, &sc->pmem, child, type,
+			    rid, start, end, count, flags);
+			if (r != NULL)
+				break;
+		}
+		r = pcib_suballoc_resource(sc, &sc->mem, child, type, rid,
+		    start, end, count, flags);
+		if (r != NULL)
+			break;
+		if (flags & RF_PREFETCHABLE) {
+			if (pcib_grow_window(sc, &sc->pmem, type, start, end,
+			    count, flags) == 0) {
+				r = pcib_suballoc_resource(sc, &sc->pmem, child,
+				    type, rid, start, end, count, flags);
+				if (r != NULL)
+					break;
+			}
+		}
+		if (pcib_grow_window(sc, &sc->mem, type, start, end, count,
+		    flags & ~RF_PREFETCHABLE) == 0)
+			r = pcib_suballoc_resource(sc, &sc->mem, child, type,
+			    rid, start, end, count, flags);
+		break;
+	default:
+		return (bus_generic_alloc_resource(dev, child, type, rid,
+		    start, end, count, flags));
+	}
+
+	/*
+	 * If attempts to suballocate from the window fail but this is a
+	 * subtractive bridge, pass the request up the tree.
+	 */
+	if (sc->flags & PCIB_SUBTRACTIVE && r == NULL)
+		return (bus_generic_alloc_resource(dev, child, type, rid,
+		    start, end, count, flags));
+	return (r);
+}
+
+int
+pcib_adjust_resource(device_t bus, device_t child, int type, struct resource *r,
+    u_long start, u_long end)
+{
+	struct pcib_softc *sc;
+
+	sc = device_get_softc(bus);
+	if (pcib_is_resource_managed(sc, type, r))
+		return (rman_adjust_resource(r, start, end));
+	return (bus_generic_adjust_resource(bus, child, type, r, start, end));
+}
+
+int
+pcib_release_resource(device_t dev, device_t child, int type, int rid,
+    struct resource *r)
+{
+	struct pcib_softc *sc;
+	int error;
+
+	sc = device_get_softc(dev);
+	if (pcib_is_resource_managed(sc, type, r)) {
+		if (rman_get_flags(r) & RF_ACTIVE) {
+			error = bus_deactivate_resource(child, type, rid, r);
+			if (error)
+				return (error);
+		}
+		return (rman_release_resource(r));
+	}
+	return (bus_generic_release_resource(dev, child, type, rid, r));
+}
+#else
 /*
  * We have to trap resource allocation requests and ensure that the bridge
  * is set up to, or capable of handling them.
@@ -523,6 +1161,7 @@ pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	return (bus_generic_alloc_resource(dev, child, type, rid, start, end,
 	    count, flags));
 }
+#endif
 
 /*
  * PCIB interface.
