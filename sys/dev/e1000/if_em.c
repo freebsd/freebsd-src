@@ -330,42 +330,71 @@ MODULE_DEPEND(em, ether, 1, 1, 1);
 #define CSUM_TSO	0
 #endif
 
+SYSCTL_NODE(_hw, OID_AUTO, em, CTLFLAG_RD, 0, "EM driver parameters");
+
 static int em_tx_int_delay_dflt = EM_TICKS_TO_USECS(EM_TIDV);
 static int em_rx_int_delay_dflt = EM_TICKS_TO_USECS(EM_RDTR);
 TUNABLE_INT("hw.em.tx_int_delay", &em_tx_int_delay_dflt);
 TUNABLE_INT("hw.em.rx_int_delay", &em_rx_int_delay_dflt);
+SYSCTL_INT(_hw_em, OID_AUTO, tx_int_delay, CTLFLAG_RDTUN, &em_tx_int_delay_dflt,
+    0, "Default transmit interrupt delay in usecs");
+SYSCTL_INT(_hw_em, OID_AUTO, rx_int_delay, CTLFLAG_RDTUN, &em_rx_int_delay_dflt,
+    0, "Default receive interrupt delay in usecs");
 
 static int em_tx_abs_int_delay_dflt = EM_TICKS_TO_USECS(EM_TADV);
 static int em_rx_abs_int_delay_dflt = EM_TICKS_TO_USECS(EM_RADV);
 TUNABLE_INT("hw.em.tx_abs_int_delay", &em_tx_abs_int_delay_dflt);
 TUNABLE_INT("hw.em.rx_abs_int_delay", &em_rx_abs_int_delay_dflt);
+SYSCTL_INT(_hw_em, OID_AUTO, tx_abs_int_delay, CTLFLAG_RDTUN,
+    &em_tx_abs_int_delay_dflt, 0,
+    "Default transmit interrupt delay limit in usecs");
+SYSCTL_INT(_hw_em, OID_AUTO, rx_abs_int_delay, CTLFLAG_RDTUN,
+    &em_rx_abs_int_delay_dflt, 0,
+    "Default receive interrupt delay limit in usecs");
 
 static int em_rxd = EM_DEFAULT_RXD;
 static int em_txd = EM_DEFAULT_TXD;
 TUNABLE_INT("hw.em.rxd", &em_rxd);
 TUNABLE_INT("hw.em.txd", &em_txd);
+SYSCTL_INT(_hw_em, OID_AUTO, rxd, CTLFLAG_RDTUN, &em_rxd, 0,
+    "Number of receive descriptors per queue");
+SYSCTL_INT(_hw_em, OID_AUTO, txd, CTLFLAG_RDTUN, &em_txd, 0,
+    "Number of transmit descriptors per queue");
 
 static int em_smart_pwr_down = FALSE;
 TUNABLE_INT("hw.em.smart_pwr_down", &em_smart_pwr_down);
+SYSCTL_INT(_hw_em, OID_AUTO, smart_pwr_down, CTLFLAG_RDTUN, &em_smart_pwr_down,
+    0, "Set to true to leave smart power down enabled on newer adapters");
 
 /* Controls whether promiscuous also shows bad packets */
 static int em_debug_sbp = FALSE;
 TUNABLE_INT("hw.em.sbp", &em_debug_sbp);
+SYSCTL_INT(_hw_em, OID_AUTO, sbp, CTLFLAG_RDTUN, &em_debug_sbp, 0,
+    "Show bad packets in promiscuous mode");
 
 static int em_enable_msix = TRUE;
 TUNABLE_INT("hw.em.enable_msix", &em_enable_msix);
+SYSCTL_INT(_hw_em, OID_AUTO, enable_msix, CTLFLAG_RDTUN, &em_enable_msix, 0,
+    "Enable MSI-X interrupts");
 
 /* How many packets rxeof tries to clean at a time */
 static int em_rx_process_limit = 100;
 TUNABLE_INT("hw.em.rx_process_limit", &em_rx_process_limit);
+SYSCTL_INT(_hw_em, OID_AUTO, rx_process_limit, CTLFLAG_RDTUN,
+    &em_rx_process_limit, 0,
+    "Maximum number of received packets to process at a time, -1 means unlimited");
 
 /* Flow control setting - default to FULL */
 static int em_fc_setting = e1000_fc_full;
 TUNABLE_INT("hw.em.fc_setting", &em_fc_setting);
+SYSCTL_INT(_hw_em, OID_AUTO, fc_setting, CTLFLAG_RDTUN, &em_fc_setting, 0,
+    "Flow control");
 
 /* Energy efficient ethernet - default to OFF */
 static int eee_setting = 0;
 TUNABLE_INT("hw.em.eee_setting", &eee_setting);
+SYSCTL_INT(_hw_em, OID_AUTO, eee_setting, CTLFLAG_RDTUN, &eee_setting, 0,
+    "Enable Energy Efficient Ethernet");
 
 /* Global used in WOL setup with multiport cards */
 static int global_quad_port_a = 0;
