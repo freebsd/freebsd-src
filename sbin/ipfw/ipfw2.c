@@ -214,6 +214,8 @@ static struct _s_x rule_actions[] = {
 	{ "nat",		TOK_NAT },
 	{ "reass",		TOK_REASS },
 	{ "setfib",		TOK_SETFIB },
+	{ "call",		TOK_CALL },
+	{ "return",		TOK_RETURN },
 	{ NULL, 0 }	/* terminator */
 };
 
@@ -1134,6 +1136,13 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 
 		case O_REASS:
 			printf("reass");
+			break;
+
+		case O_CALLRETURN:
+			if (cmd->len & F_NOT)
+				printf("return");
+			else
+				PRINT_UINT_ARG("call ", cmd->arg1);
 			break;
 
 		default:
@@ -2771,6 +2780,9 @@ ipfw_add(char *av[])
 		goto chkarg;
 	case TOK_TEE:
 		action->opcode = O_TEE;
+		goto chkarg;
+	case TOK_CALL:
+		action->opcode = O_CALLRETURN;
 chkarg:
 		if (!av[0])
 			errx(EX_USAGE, "missing argument for %s", *(av - 1));
@@ -2861,6 +2873,10 @@ chkarg:
 
 	case TOK_REASS:
 		action->opcode = O_REASS;
+		break;
+
+	case TOK_RETURN:
+		fill_cmd(action, O_CALLRETURN, F_NOT, 0);
 		break;
 
 	default:
