@@ -25,6 +25,8 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 9.x IS SLOW:
 20110628:
 	The packet filter (pf) code has been updated to OpenBSD 4.5.
 	You need to update userland tools to be in sync with kernel.
+	This update breaks backward compatibility with earlier pfsync(4)
+	versions.  Care must be taken when updating redundant firewall setups.
 
 20110608:
 	The following sysctls and tunables are retired on x86 platforms:
