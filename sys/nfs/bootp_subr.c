@@ -44,6 +44,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_bootp.h"
+#include "opt_nfs.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -1699,6 +1700,9 @@ bootpc_init(void)
 	}
 
 	rootdevnames[0] = "nfs:";
+#ifdef NFSCLIENT
+	rootdevnames[1] = "oldnfs:";
+#endif
 	mountopts(&nd->root_args, NULL);
 
 	for (ifctx = gctx->interfaces; ifctx != NULL; ifctx = ifctx->next)
