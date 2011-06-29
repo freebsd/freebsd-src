@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 14, 2011
+.Dd June 29, 2011
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -822,6 +822,78 @@ skipto, but care should be used, as no destination caching
 is possible in this case so the rules are always walked to find it,
 starting from the 
 .Cm skipto .
+.It Cm call Ar number | tablearg
+The current rule number is saved in the internal stack and
+ruleset processing continues with the first rule numbered
+.Ar number
+or higher.
+If later a rule with the
+.Cm return
+action is encountered, the processing returns to the first rule
+with number of this
+.Cm call
+rule plus one or higher
+(the same behaviour as with packets returning from
+.Xr divert 4
+socket after a
+.Cm divert
+action).
+This could be used to make somewhat like an assembly language
+.Dq subroutine
+calls to rules with common checks for different interfaces, etc.
+.Pp
+Rule with any number could be called, not just forward jumps as with
+.Cm skipto .
+So, to prevent endless loops in case of mistakes, both
+.Cm call
+and
+.Cm return
+actions don't do any jumps and simply go to the next rule if memory
+can't be allocated or stack overflowed/undeflowed.
+.Pp
+Internally stack for rule numbers is implemented using
+.Xr mbuf_tags 9
+facility and currently has size of 16 entries.
+As mbuf tags are lost when packet leaves the kernel,
+.Cm divert
+should not be used in subroutines to avoid endless loops
+and other undesired effects.
+.It Cm return
+Takes rule number saved to internal stack by the last
+.Cm call
+action and returns ruleset processing to the first rule
+with number greater than number of corresponding
+.Cm call
+rule. See description of the
+.Cm call
+action for more details.
+.Pp
+Note that
+.Cm return
+rules usually end a
+.Dq subroutine
+and thus are unconditional, but
+.Nm
+command-line utility currently requires every action except
+.Cm check-state
+to have body.
+While it is sometimes useful to return only on some packets,
+usually you want to print just
+.Dq return
+for readability.
+A workaround for this is to use new syntax and
+.Fl c
+switch:
+.Pp
+.Bd -literal -offset indent
+# Add a rule without actual body
+ipfw add 2999 return via any
+
+# List rules without "from any to any" part
+ipfw -c list
+.Ed
+.Pp
+This cosmetic annoyance may be fixed in future releases.
 .It Cm tee Ar port
 Send a copy of packets matching this rule to the
 .Xr divert 4
@@ -3253,3 +3325,18 @@ for the respective conversations.
 To avoid failures of network error detection and path MTU discovery,
 ICMP error messages may need to be allowed explicitly through static
 rules.
+.Pp
+Rules using
+.Cm call
+and
+.Cm return
+actions may lead to confusing behaviour if ruleset has mistakes,
+and/or interaction with other subsystems (netgraph, dummynet, etc.) is used.
+One possible case for this is packet leaving
+.Nm
+in subroutine on the input pass, while later on output encountering unpaired
+.Cm return
+first.
+As the call stack is kept intact after input pass, packet will suddenly
+return to the rule number used on input pass, not on output one.
+Order of processing should be checked carefully to avoid such mistakes.

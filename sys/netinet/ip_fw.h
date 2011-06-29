@@ -57,6 +57,12 @@
 #define IP_FW_TABLEARG		65535	/* XXX should use 0 */
 
 /*
+ * Number of entries in the call stack of the call/return commands.
+ * Call stack currently is an uint16_t array with rule numbers.
+ */
+#define	IPFW_CALLSTACK_SIZE	16
+
+/*
  * The kernel representation of ipfw rules is made of a list of
  * 'instructions' (for all practical purposes equivalent to BPF
  * instructions), which specify which fields of the packet
@@ -194,6 +200,8 @@ enum ipfw_opcodes {		/* arguments (4 byte each)	*/
 	O_FIB,			/* arg1=FIB desired fib number */
 	
 	O_SOCKARG,		/* socket argument */
+
+	O_CALLRETURN,		/* arg1=called rule number */
 
 	O_LAST_OPCODE		/* not an opcode!		*/
 };

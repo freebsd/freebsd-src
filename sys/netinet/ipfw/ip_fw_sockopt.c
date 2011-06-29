@@ -752,6 +752,7 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 #endif
 		case O_SKIPTO:
 		case O_REASS:
+		case O_CALLRETURN:
 check_size:
 			if (cmdlen != F_INSN_SIZE(ipfw_insn))
 				goto bad_size;
