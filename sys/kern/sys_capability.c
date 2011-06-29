@@ -36,7 +36,7 @@
  *
  */
 
-#include "opt_capabilities.h"
+#include "opt_capsicum.h"
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -59,7 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma.h>
 #include <vm/vm.h>
 
-#ifdef CAPABILITIES
+#ifdef CAPABILITY_MODE
 
 FEATURE(security_capabilities, "Capsicum Capability Mode");
 
@@ -99,7 +99,7 @@ cap_getmode(struct thread *td, struct cap_getmode_args *uap)
 	return (copyout(&i, uap->modep, sizeof(i)));
 }
 
-#else /* !CAPABILITIES */
+#else /* !CAPABILITY_MODE */
 
 int
 cap_enter(struct thread *td, struct cap_enter_args *uap)
@@ -115,4 +115,4 @@ cap_getmode(struct thread *td, struct cap_getmode_args *uap)
 	return (ENOSYS);
 }
 
-#endif /* CAPABILITIES */
+#endif /* CAPABILITY_MODE */

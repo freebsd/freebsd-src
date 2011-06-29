@@ -32,7 +32,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_capabilities.h"
+#include "opt_capsicum.h"
 #include "opt_kstack_pages.h"
 
 #include <sys/param.h>
@@ -111,7 +111,7 @@ sysarch(td, uap)
 
 	AUDIT_ARG_CMD(uap->op);
 
-#ifdef CAPABILITIES
+#ifdef CAPABILITY_MODE
 	/*
 	 * Whitelist of operations which are safe enough for capability mode.
 	 */
