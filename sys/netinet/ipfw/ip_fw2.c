@@ -2095,6 +2095,123 @@ do {								\
 			    continue;
 			    break;	/* not reached */
 
+			case O_CALLRETURN: {
+				/*
+				 * Implementation of `subroutine' call/return,
+				 * in the stack carried in an mbuf tag. This
+				 * is different from `skipto' in that any call
+				 * address is possible (`skipto' must prevent
+				 * backward jumps to avoid endless loops).
+				 * We have `return' action when F_NOT flag is
+				 * present. The `m_tag_id' field is used as
+				 * stack pointer.
+				 */
+				struct m_tag *mtag;
+				uint16_t jmpto, *stack;
+
+#define	IS_CALL		((cmd->len & F_NOT) == 0)
+#define	IS_RETURN	((cmd->len & F_NOT) != 0)
+				/*
+				 * Hand-rolled version of m_tag_locate() with
+				 * wildcard `type'.
+				 * If not already tagged, allocate new tag.
+				 */
+				mtag = m_tag_first(m);
+				while (mtag != NULL) {
+					if (mtag->m_tag_cookie ==
+					    MTAG_IPFW_CALL)
+						break;
+					mtag = m_tag_next(m, mtag);
+				}
+				if (mtag == NULL && IS_CALL) {
+					mtag = m_tag_alloc(MTAG_IPFW_CALL, 0,
+					    IPFW_CALLSTACK_SIZE *
+					    sizeof(uint16_t), M_NOWAIT);
+					if (mtag != NULL)
+						m_tag_prepend(m, mtag);
+				}
+
+				/*
+				 * On error both `call' and `return' just
+				 * continue with next rule.
+				 */
+				if (IS_RETURN && (mtag == NULL ||
+				    mtag->m_tag_id == 0)) {
+					l = 0;		/* exit inner loop */
+					break;
+				}
+				if (IS_CALL && (mtag == NULL ||
+				    mtag->m_tag_id >= IPFW_CALLSTACK_SIZE)) {
+					printf("ipfw: call stack error, "
+					    "go to next rule\n");
+					l = 0;		/* exit inner loop */
+					break;
+				}
+
+				f->pcnt++;	/* update stats */
+				f->bcnt += pktlen;
+				f->timestamp = time_uptime;
+				stack = (uint16_t *)(mtag + 1);
+
+				/*
+				 * The `call' action may use cached f_pos
+				 * (in f->next_rule), whose version is written
+				 * in f->next_rule.
+				 * The `return' action, however, doesn't have
+				 * fixed jump address in cmd->arg1 and can't use
+				 * cache.
+				 */
+				if (IS_CALL) {
+					stack[mtag->m_tag_id] = f->rulenum;
+					mtag->m_tag_id++;
+					if (cmd->arg1 != IP_FW_TABLEARG &&
+					    (uintptr_t)f->x_next == chain->id) {
+						f_pos = (uintptr_t)f->next_rule;
+					} else {
+						jmpto = (cmd->arg1 ==
+						    IP_FW_TABLEARG) ? tablearg:
+						    cmd->arg1;
+						f_pos = ipfw_find_rule(chain,
+						    jmpto, 0);
+						/* update the cache */
+						if (cmd->arg1 !=
+						    IP_FW_TABLEARG) {
+							f->next_rule =
+							    (void *)(uintptr_t)
+							    f_pos;
+							f->x_next =
+							    (void *)(uintptr_t)
+							    chain->id;
+						}
+					}
+				} else {	/* `return' action */
+					mtag->m_tag_id--;
+					jmpto = stack[mtag->m_tag_id] + 1;
+					f_pos = ipfw_find_rule(chain, jmpto, 0);
+				}
+
+				/*
+				 * Skip disabled rules, and re-enter
+				 * the inner loop with the correct
+				 * f_pos, f, l and cmd.
+				 * Also clear cmdlen and skip_or
+				 */
+				for (; f_pos < chain->n_rules - 1 &&
+				    (V_set_disable &
+				    (1 << chain->map[f_pos]->set)); f_pos++)
+					;
+				/* Re-enter the inner loop at the dest rule. */
+				f = chain->map[f_pos];
+				l = f->cmd_len;
+				cmd = f->cmd;
+				cmdlen = 0;
+				skip_or = 0;
+				continue;
+				break;	/* NOTREACHED */
+			}
+#undef IS_CALL
+#undef IS_RETURN
+
 			case O_REJECT:
 				/*
 				 * Drop the packet and send a reject notice
