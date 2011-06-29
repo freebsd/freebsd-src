@@ -39,6 +39,24 @@
  */
 DECLARE_CLASS(pcib_driver);
 
+#ifdef NEW_PCIB
+#define	WIN_IO		0x1
+#define	WIN_MEM		0x2
+#define	WIN_PMEM	0x4
+
+struct pcib_window {
+	pci_addr_t	base;		/* base address */
+	pci_addr_t	limit;		/* topmost address */
+	struct rman	rman;
+	struct resource *res;
+	int		reg;		/* resource id from parent */
+	int		valid;
+	int		mask;		/* WIN_* bitmask of this window */
+	int		step;		/* log_2 of window granularity */
+	const char	*name;
+};
+#endif
+
 /*
  * Bridge-specific data.
  */
@@ -53,12 +71,18 @@ struct pcib_softc
     u_int	pribus;		/* primary bus number */
     u_int	secbus;		/* secondary bus number */
     u_int	subbus;		/* subordinate bus number */
+#ifdef NEW_PCIB
+    struct pcib_window io;	/* I/O port window */
+    struct pcib_window mem;	/* memory window */
+    struct pcib_window pmem;	/* prefetchable memory window */
+#else
     pci_addr_t	pmembase;	/* base address of prefetchable memory */
     pci_addr_t	pmemlimit;	/* topmost address of prefetchable memory */
     pci_addr_t	membase;	/* base address of memory window */
     pci_addr_t	memlimit;	/* topmost address of memory window */
     uint32_t	iobase;		/* base address of port window */
     uint32_t	iolimit;	/* topmost address of port window */
+#endif
     uint16_t	secstat;	/* secondary bus status register */
     uint16_t	bridgectl;	/* bridge control register */
     uint8_t	seclat;		/* secondary bus latency timer */
@@ -74,6 +98,12 @@ int		pcib_read_ivar(device_t dev, device_t child, int which, uintptr_t *result);
 int		pcib_write_ivar(device_t dev, device_t child, int which, uintptr_t value);
 struct resource *pcib_alloc_resource(device_t dev, device_t child, int type, int *rid, 
 					    u_long start, u_long end, u_long count, u_int flags);
+#ifdef NEW_PCIB
+int		pcib_adjust_resource(device_t bus, device_t child, int type,
+    struct resource *r, u_long start, u_long end);
+int		pcib_release_resource(device_t dev, device_t child, int type, int rid,
+    struct resource *r);
+#endif
 int		pcib_maxslots(device_t dev);
 uint32_t	pcib_read_config(device_t dev, u_int b, u_int s, u_int f, u_int reg, int width);
 void		pcib_write_config(device_t dev, u_int b, u_int s, u_int f, u_int reg, uint32_t val, int width);
