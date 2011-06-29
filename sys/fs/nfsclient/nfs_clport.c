@@ -388,6 +388,7 @@ nfscl_loadattrcache(struct vnode **vpp, struct nfsvattr *nap, void *nvaper,
 		np->n_vattr.na_mtime = nap->na_mtime;
 		np->n_vattr.na_ctime = nap->na_ctime;
 		np->n_vattr.na_fsid = nap->na_fsid;
+		np->n_vattr.na_mode = nap->na_mode;
 	} else {
 		NFSBCOPY((caddr_t)nap, (caddr_t)&np->n_vattr,
 		    sizeof (struct nfsvattr));
