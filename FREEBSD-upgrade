@@ -55,3 +55,10 @@ bin/92839 for details.
 A patch to fix IPV6_MULTICAST_LOOP was committed to head as r222444 and
 filed as http://bugs.ntp.org/show_bug.cgi?id=1936.  Check if still needed
 or re-apply on update.
+
+A patch to fix badhost sendto() logging was committed to head as r223626.
+The patch is not applicable to later upstream versions.
+
+A patch to fix various problems in case of fqdn resolving fails on
+startup was committed to head as r223667.  The patch is not applicable
+to later upstream versions.
