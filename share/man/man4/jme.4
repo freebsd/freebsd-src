@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 20, 2010
+.Dd June 29, 2011
 .Dt JME 4
 .Os
 .Sh NAME
@@ -178,3 +178,17 @@ address once station address is reprogrammed via eFuse.
 It is highly recommended not to reprogram station address and
 it is responsibility of administrator to store original station
 address into a safe place when station address should be changed.
+.Pp
+There are two known 1000baseT link establishment issues with JMC25x.
+If the full mask revision number of JMC25x controller is less than
+or equal to 4 and link partner enabled IEEE 802.3az Energy Efficient
+Ethernet feature,  the controller would not be able to establish a
+1000baseT link.
+Also if the length of cable is longer than 120 meters, controller
+can not establish a 1000baseT link.
+The known workaround for the issue is to force manual link
+configuration with 100baseTX instead of relying on auto-negotiation.
+The full mask revision number of controller could be checked with
+verbose kernel boot option.
+Use lower nibble of chip revision number to get full mask revision of
+the controller. 
