@@ -168,6 +168,12 @@ struct vm_object {
 #define OBJPC_INVAL	0x2			/* invalidate */
 #define OBJPC_NOSYNC	0x4			/* skip if PG_NOSYNC */
 
+/*
+ * The following options are supported by vm_object_page_remove().
+ */
+#define	OBJPR_CLEANONLY	0x1		/* Don't remove dirty pages. */
+#define	OBJPR_NOTMAPPED	0x2		/* Don't unmap pages. */
+
 TAILQ_HEAD(object_q, vm_object);
 
 extern struct object_q vm_object_list;	/* list of allocated objects */
@@ -219,7 +225,8 @@ void vm_object_set_writeable_dirty (vm_object_t);
 void vm_object_init (void);
 void vm_object_page_clean(vm_object_t object, vm_ooffset_t start,
     vm_ooffset_t end, int flags);
-void vm_object_page_remove (vm_object_t, vm_pindex_t, vm_pindex_t, boolean_t);
+void vm_object_page_remove(vm_object_t object, vm_pindex_t start,
+    vm_pindex_t end, int options);
 boolean_t vm_object_populate(vm_object_t, vm_pindex_t, vm_pindex_t);
 void vm_object_print(long addr, boolean_t have_addr, long count, char *modif);
 void vm_object_reference (vm_object_t);

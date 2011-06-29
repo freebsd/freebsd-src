@@ -1711,8 +1711,8 @@ pmap_remove_all(vm_page_t m)
 	pv_entry_t pv;
 	pt_entry_t *pte, tpte;
 
-	KASSERT((m->flags & PG_FICTITIOUS) == 0,
-	    ("pmap_remove_all: page %p is fictitious", m));
+	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	    ("pmap_remove_all: page %p is not managed", m));
 	vm_page_lock_queues();
 
 	if (m->md.pv_flags & PV_TABLE_REF)

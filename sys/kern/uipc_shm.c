@@ -264,7 +264,7 @@ shm_dotruncate(struct shmfd *shmfd, off_t length)
 		/* Toss in memory pages. */
 		if (nobjsize < object->size)
 			vm_object_page_remove(object, nobjsize, object->size,
-			    FALSE);
+			    0);
 
 		/* Toss pages from swap. */
 		if (object->type == OBJT_SWAP)
