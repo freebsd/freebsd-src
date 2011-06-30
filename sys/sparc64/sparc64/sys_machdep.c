@@ -26,8 +26,11 @@
  * $FreeBSD$
  */
 
+#include "opt_capsicum.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/capability.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
@@ -52,6 +55,24 @@ int
 sysarch(struct thread *td, struct sysarch_args *uap)
 {
 	int error;
+
+#ifdef CAPABILITY_MODE
+	/*
+	 * When adding new operations, add a new case statement here to
+	 * explicitly indicate whether or not the operation is safe to
+	 * perform in capability mode.
+	 */
+	if (IN_CAPABILITY_MODE(td)) {
+		switch (uap->op) {
+		case SPARC_SIGTRAMP_INSTALL:
+		case SPARC_UTRAP_INSTALL:
+			break;
+
+		default:
+			return (ECAPMODE);
+		}
+	}
+#endif
 
 	mtx_lock(&Giant);
 	switch (uap->op) {
