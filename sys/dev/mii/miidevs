@@ -248,6 +248,7 @@ model xxMARVELL E1111		0x000c Marvell 88E1111 Gigabit PHY
 model xxMARVELL E1116		0x0021 Marvell 88E1116 Gigabit PHY
 model xxMARVELL E1116R		0x0024 Marvell 88E1116R Gigabit PHY
 model xxMARVELL E1118		0x0022 Marvell 88E1118 Gigabit PHY
+model xxMARVELL E1149R		0x0025 Marvell 88E1149R Quad Gigabit PHY
 model xxMARVELL E3016		0x0026 Marvell 88E3016 10/100 Fast Ethernet PHY
 model xxMARVELL PHYG65G		0x0027 Marvell PHYG65G Gigabit PHY
 model MARVELL E1000		0x0005 Marvell 88E1000 Gigabit PHY
