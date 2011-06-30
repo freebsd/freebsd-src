@@ -1561,54 +1561,85 @@ fdavail(struct thread *td, int n)
 int
 falloc(struct thread *td, struct file **resultfp, int *resultfd, int flags)
 {
-	struct proc *p = td->td_proc;
 	struct file *fp;
-	int error, i;
+	int error, fd;
+
+	error = falloc_noinstall(td, &fp);
+	if (error)
+		return (error);		/* no reference held on error */
+
+	error = finstall(td, fp, &fd, flags);
+	if (error) {
+		fdrop(fp, td);		/* one reference (fp only) */
+		return (error);
+	}
+
+	if (resultfp != NULL)
+		*resultfp = fp;		/* copy out result */
+	else
+		fdrop(fp, td);		/* release local reference */
+
+	if (resultfd != NULL)
+		*resultfd = fd;
+
+	return (0);
+}
+
+/*
+ * Create a new open file structure without allocating a file descriptor.
+ */
+int
+falloc_noinstall(struct thread *td, struct file **resultfp)
+{
+	struct file *fp;
 	int maxuserfiles = maxfiles - (maxfiles / 20);
 	static struct timeval lastfail;
 	static int curfail;
 
-	fp = uma_zalloc(file_zone, M_WAITOK | M_ZERO);
+	KASSERT(resultfp != NULL, ("%s: resultfp == NULL", __func__));
+
 	if ((openfiles >= maxuserfiles &&
 	    priv_check(td, PRIV_MAXFILES) != 0) ||
 	    openfiles >= maxfiles) {
 		if (ppsratecheck(&lastfail, &curfail, 1)) {
-			printf("kern.maxfiles limit exceeded by uid %i, please see tuning(7).\n",
-				td->td_ucred->cr_ruid);
+			printf("kern.maxfiles limit exceeded by uid %i, "
+			    "please see tuning(7).\n", td->td_ucred->cr_ruid);
 		}
-		uma_zfree(file_zone, fp);
 		return (ENFILE);
 	}
 	atomic_add_int(&openfiles, 1);
-
-	/*
-	 * If the process has file descriptor zero open, add the new file
-	 * descriptor to the list of open files at that point, otherwise
-	 * put it at the front of the list of open files.
-	 */
+	fp = uma_zalloc(file_zone, M_WAITOK | M_ZERO);
 	refcount_init(&fp->f_count, 1);
-	if (resultfp)
-		fhold(fp);
 	fp->f_cred = crhold(td->td_ucred);
 	fp->f_ops = &badfileops;
 	fp->f_data = NULL;
 	fp->f_vnode = NULL;
-	FILEDESC_XLOCK(p->p_fd);
-	if ((error = fdalloc(td, 0, &i))) {
-		FILEDESC_XUNLOCK(p->p_fd);
-		fdrop(fp, td);
-		if (resultfp)
-			fdrop(fp, td);
+	*resultfp = fp;
+	return (0);
+}
+
+/*
+ * Install a file in a file descriptor table.
+ */
+int
+finstall(struct thread *td, struct file *fp, int *fd, int flags)
+{
+	struct filedesc *fdp = td->td_proc->p_fd;
+	int error;
+
+	KASSERT(fd != NULL, ("%s: fd == NULL", __func__));
+	KASSERT(fp != NULL, ("%s: fp == NULL", __func__));
+
+	FILEDESC_XLOCK(fdp);
+	if ((error = fdalloc(td, 0, fd))) {
+		FILEDESC_XUNLOCK(fdp);
 		return (error);
 	}
-	p->p_fd->fd_ofiles[i] = fp;
+	fhold(fp);
+	fdp->fd_ofiles[*fd] = fp;
 	if ((flags & O_CLOEXEC) != 0)
-		p->p_fd->fd_ofileflags[i] |= UF_EXCLOSE;
-	FILEDESC_XUNLOCK(p->p_fd);
-	if (resultfp)
-		*resultfp = fp;
-	if (resultfd)
-		*resultfd = i;
+		fdp->fd_ofileflags[*fd] |= UF_EXCLOSE;
+	FILEDESC_XUNLOCK(fdp);
 	return (0);
 }
 
