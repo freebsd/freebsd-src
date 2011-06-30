@@ -107,6 +107,7 @@ static const struct mii_phydesc e1000phys[] = {
 	MII_PHY_DESC(xxMARVELL, E1116),
 	MII_PHY_DESC(xxMARVELL, E1116R),
 	MII_PHY_DESC(xxMARVELL, E1118),
+	MII_PHY_DESC(xxMARVELL, E1149R),
 	MII_PHY_DESC(xxMARVELL, E3016),
 	MII_PHY_DESC(xxMARVELL, PHYG65G),
 	MII_PHY_END
@@ -147,6 +148,7 @@ e1000phy_attach(device_t dev)
 			sc->mii_flags |= MIIF_HAVEFIBER;
 		break;
 	case MII_MODEL_xxMARVELL_E1149:
+	case MII_MODEL_xxMARVELL_E1149R:
 		/*
 		 * Some 88E1149 PHY's page select is initialized to
 		 * point to other bank instead of copper/fiber bank
@@ -208,6 +210,7 @@ e1000phy_reset(struct mii_softc *sc)
 		case MII_MODEL_xxMARVELL_E1116:
 		case MII_MODEL_xxMARVELL_E1118:
 		case MII_MODEL_xxMARVELL_E1149:
+		case MII_MODEL_xxMARVELL_E1149R:
 		case MII_MODEL_xxMARVELL_PHYG65G:
 			/* Disable energy detect mode. */
 			reg &= ~E1000_SCR_EN_DETECT_MASK;
@@ -240,7 +243,8 @@ e1000phy_reset(struct mii_softc *sc)
 		PHY_WRITE(sc, E1000_SCR, reg);
 
 		if (sc->mii_mpd_model == MII_MODEL_xxMARVELL_E1116 ||
-		    sc->mii_mpd_model == MII_MODEL_xxMARVELL_E1149) {
+		    sc->mii_mpd_model == MII_MODEL_xxMARVELL_E1149 ||
+		    sc->mii_mpd_model == MII_MODEL_xxMARVELL_E1149R) {
 			PHY_WRITE(sc, E1000_EADR, 2);
 			reg = PHY_READ(sc, E1000_SCR);
 			reg |= E1000_SCR_RGMII_POWER_UP;
