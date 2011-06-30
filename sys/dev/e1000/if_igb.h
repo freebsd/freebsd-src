@@ -402,6 +402,7 @@ struct adapter {
 	u16		link_duplex;
 	u32		smartspeed;
 	u32		dmac;
+	int		enable_aim;
 
 	/* Interface queues */
 	struct igb_queue	*queues;

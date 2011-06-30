@@ -2927,8 +2927,8 @@ pmap_remove_all(vm_page_t m)
 	vm_offset_t va;
 	vm_page_t free;
 
-	KASSERT((m->flags & PG_FICTITIOUS) == 0,
-	    ("pmap_remove_all: page %p is fictitious", m));
+	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	    ("pmap_remove_all: page %p is not managed", m));
 	free = NULL;
 	vm_page_lock_queues();
 	sched_pin();
