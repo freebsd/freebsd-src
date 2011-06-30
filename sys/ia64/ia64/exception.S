@@ -50,9 +50,6 @@ __FBSDID("$FreeBSD$");
 
 	.section .ivt.data, "aw"
 
-	.global pmap_ptc_g_sem
-pmap_ptc_g_sem:	data8	0
-
 	.global ia64_kptdir
 ia64_kptdir:	data8	0
 
@@ -151,58 +148,51 @@ ENTRY_NOPROFILE(exception_save, 0)
 }
 {	.mmi
 	mov		ar.rsc=0
-	sub		r19=r23,r30
-	add		r31=8,r30
-	;;
-}
-{	.mmi
 	mov		r22=cr.iip
-	nop		0
 	addl		r29=NTLBRT_SAVE,r0	// 22-bit restart token.
 	;;
 }
 
 	/*
-	 * We have a 1KB aligned trapframe, pointed to by sp. If we write
-	 * to the trapframe, we may trigger a data nested TLB fault. By
-	 * aligning the trapframe on a 1KB boundary, we guarantee that if
-	 * we get a data nested TLB fault, it will be on the very first
-	 * write. Since the data nested TLB fault does not preserve any
-	 * state, we have to be careful what we clobber. Consequently, we
-	 * have to be careful what we use here. Below a list of registers
-	 * that are currently alive:
+	 * We have a 1KB aligned trapframe, pointed to by r30. We can't
+	 * reliably write to the trapframe using virtual addressing, due
+	 * to the fact that TC entries we depend on can be removed by:
+	 * 1.  ptc.g instructions issued by other threads/cores/CPUs, or
+	 * 2.  TC modifications in another thread on the same core.
+	 * When our TC entry gets removed, we get nested TLB faults and
+	 * since no state is saved, we can only deal with those when
+	 * explicitly coded and expected.
+	 * As such, we switch to physical addressing and account for the
+	 * fact that the tpa instruction can cause a nested TLB fault.
+	 * Since the data nested TLB fault does not preserve any state,
+	 * we have to be careful what we clobber. Consequently, we have
+	 * to be careful what we use here. Below a list of registers that
+	 * are considered alive:
 	 *	r16,r17=arguments
 	 *	r18=pr, r19=length, r20=unat, r21=rsc, r22=iip, r23=TOS
-	 *	r29=restart point
-	 *	r30,r31=trapframe pointers
+	 *	r29=restart token
+	 *	r30=trapframe pointers
 	 *	p14,p15=memory stack switch
 	 */
-
-	/* PTC.G enter non-exclusive */
-	mov	r24 = ar.ccv
-	movl	r25 = pmap_ptc_g_sem
-	;;
-.ptc_g_0:
-	ld8.acq	r26 = [r25]
-	;;
-	tbit.nz	p12, p0 = r26, 63
-(p12)	br.cond.spnt.few .ptc_g_0
-	;;
-	mov	ar.ccv = r26
-	adds	r27 = 1, r26
-	;;
-	cmpxchg8.rel	r27 = [r25], r27, ar.ccv
-	;;
-	cmp.ne	p12, p0 = r26, r27
-(p12)	br.cond.spnt.few .ptc_g_0
-	;;
-	mov	ar.ccv = r24
-
 exception_save_restart:
+	tpa		r24=r30			// Nested TLB fault possible
+	sub		r19=r23,r30
+	nop		0
+	;;
+
+	rsm		psr.dt
+	add		r29=16,r19		// Clobber restart token
+	mov		r30=r24
+	;;
+	srlz.d
+	add		r31=8,r24
+	;;
+
+	// r18=pr, r19=length, r20=unat, r21=rsc, r22=iip, r23=TOS
+	// r29=delta
 {	.mmi
 	st8		[r30]=r19,16		// length
 	st8		[r31]=r0,16		// flags
-	add		r29=16,r19		// Clobber restart token
 	;;
 }
 {	.mmi
@@ -218,6 +208,7 @@ exception_save_restart:
 	;;
 }
 	// r18=pr, r19=rnat, r20=bspstore, r21=rsc, r22=iip, r23=rp
+	// r24=pfs
 {	.mmi
 	st8		[r30]=r23,16		// rp
 	st8		[r31]=r18,16		// pr
@@ -275,7 +266,7 @@ exception_save_restart:
 	sub		r18=r18,r20
 	;;
 }
-	// r19=ifs, r22=iip
+	// r18=ndirty, r19=ifs, r22=iip
 {	.mmi
 	st8		[r31]=r18,16		// ndirty
 	st8		[r30]=r19,16		// cfm
@@ -431,27 +422,10 @@ exception_save_restart:
 	;;
 }
 {	.mlx
-	ssm		psr.ic|psr.dfh
+	ssm		psr.dt|psr.ic|psr.dfh
 	movl		gp=__gp
 	;;
 }
-
-	/* PTC.G leave non-exclusive */
-	srlz.d
-	movl	r25 = pmap_ptc_g_sem
-	;;
-.ptc_g_1:
-	ld8.acq r26 = [r25]
-	;;
-	mov	ar.ccv = r26
-	adds	r27 = -1, r26
-	;;
-	cmpxchg8.rel	r27 = [r25], r27, ar.ccv
-	;;
-	cmp.ne	p12, p0 = r26, r27
-(p12)	br.cond.spnt.few .ptc_g_1
-	;;
-
 {	.mib
 	srlz.d
 	nop		0
@@ -469,34 +443,52 @@ END(exception_save)
 ENTRY_NOPROFILE(exception_restore, 0)
 {	.mmi
 	rsm		psr.i
-	add		r3=SIZEOF_TRAPFRAME-16,sp
-	add		r2=SIZEOF_TRAPFRAME,sp
-	;;
-}
-{	.mmi
-	srlz.d
-	add		r8=SIZEOF_SPECIAL+32,sp
+	add		sp=16,sp
 	nop		0
 	;;
 }
-	// The next load can trap. Let it be...
-	ldf.fill	f15=[r2],-32		// f15
-	ldf.fill	f14=[r3],-32		// f14
-	add		sp=16,sp
+
+	// The next instruction can fault. Let it be...
+	tpa		r9=sp
 	;;
-	ldf.fill	f13=[r2],-32		// f13
-	ldf.fill	f12=[r3],-32		// f12
+	rsm		psr.dt|psr.ic
+	add		r8=SIZEOF_SPECIAL+16,r9
 	;;
-	ldf.fill	f11=[r2],-32		// f11
-	ldf.fill	f10=[r3],-32		// f10
-	;;
-	ldf.fill	f9=[r2],-32		// f9
-	ldf.fill	f8=[r3],-32		// f8
-	;;
-	ldf.fill	f7=[r2],-24		// f7
-	ldf.fill	f6=[r3],-16		// f6
+	srlz.d
+	add		r2=SIZEOF_TRAPFRAME-16,r9
+	add		r3=SIZEOF_TRAPFRAME-32,r9
 	;;
 
+{	.mmi
+	ldf.fill	f15=[r2],-32		// f15
+	ldf.fill	f14=[r3],-32		// f14
+	nop		0
+	;;
+}
+{	.mmi
+	ldf.fill	f13=[r2],-32		// f13
+	ldf.fill	f12=[r3],-32		// f12
+	nop		0
+	;;
+}
+{	.mmi
+	ldf.fill	f11=[r2],-32		// f11
+	ldf.fill	f10=[r3],-32		// f10
+	nop		0
+	;;
+}
+{	.mmi
+	ldf.fill	f9=[r2],-32		// f9
+	ldf.fill	f8=[r3],-32		// f8
+	nop		0
+	;;
+}
+{	.mmi
+	ldf.fill	f7=[r2],-24		// f7
+	ldf.fill	f6=[r3],-16		// f6
+	nop		0
+	;;
+}
 {	.mmi
 	ld8		r8=[r8]			// unat (after)
 	;;
@@ -553,53 +545,53 @@ ENTRY_NOPROFILE(exception_restore, 0)
 	bsw.0
 	;;
 }
+{	.mii
+	ld8		r16=[r9]		// tf_length
+	add		r31=16,r9
+	add		r30=24,r9
+}
 {	.mmi
 	ld8.fill	r15=[r3],-16		// r15
 	ld8.fill	r14=[r2],-16		// r14
-	add		r31=16,sp
+	nop		0
 	;;
 }
 {	.mmi
-	ld8		r16=[sp]		// tf_length
 	ld8.fill	r11=[r3],-16		// r11
-	add		r30=24,sp
-	;;
-}
-{	.mmi
 	ld8.fill	r10=[r2],-16		// r10
-	ld8.fill	r9=[r3],-16		// r9
 	add		r16=r16,sp		// ar.k7
 	;;
 }
 {	.mmi
+	ld8.fill	r9=[r3],-16		// r9
 	ld8.fill	r8=[r2],-16		// r8
-	ld8.fill	r3=[r3]			// r3
+	nop		0
 	;;
 }
-	// We want nested TLB faults from here on...
-	rsm		psr.ic|psr.i
+{	.mmi
+	ld8.fill	r3=[r3]			// r3
 	ld8.fill	r2=[r2]			// r2
 	nop		0
 	;;
-	srlz.d
-	ld8.fill	sp=[r31],16		// sp
-	nop		0
-	;;
+}
 
+	ld8.fill	sp=[r31],16		// sp
 	ld8		r17=[r30],16		// unat
-	ld8		r29=[r31],16		// rp
 	;;
+	ld8		r29=[r31],16		// rp
 	ld8		r18=[r30],16		// pr
+	;;
 	ld8		r28=[r31],16		// pfs
+	ld8		r20=[r30],24		// bspstore
 	mov		rp=r29
 	;;
-	ld8		r20=[r30],24		// bspstore
 	ld8		r21=[r31],24		// rnat
 	mov		ar.pfs=r28
 	;;
 	ld8.fill	r26=[r30],16		// tp
 	ld8		r22=[r31],16		// rsc
 	;;
+
 {	.mmi
 	ld8		r23=[r30],16		// fpsr
 	ld8		r24=[r31],16		// psr
@@ -636,6 +628,11 @@ ENTRY_NOPROFILE(exception_restore, 0)
 	addl		r29=NTLBRT_RESTORE,r0	// 22-bit restart token 
 	;;
 }
+
+	ssm		psr.dt
+	;;
+	srlz.d
+
 exception_restore_restart:
 {	.mmi
 	mov		r30=ar.bspstore
@@ -1015,15 +1012,33 @@ IVT_ENTRY(Data_Nested_TLB, 0x1400)
 	// here are direct mapped region 7 addresses, we have no problem
 	// constructing physical addresses.
 
-{	.mlx
-	nop		0
-	movl		r27=ia64_kptdir
+{	.mmi
+	mov		cr.ifa=r30
+	mov		r26=rr[r30]
+	extr.u		r27=r30,61,3
 	;;
 }
 {	.mii
-	ld8		r27=[r27]
-	extr.u		r28=r30,3*PAGE_SHIFT-8, PAGE_SHIFT-3	// dir L0 index
-	extr.u		r26=r30,2*PAGE_SHIFT-5, PAGE_SHIFT-3	// dir L1 index
+	nop		0
+	dep		r26=0,r26,0,2
+	cmp.eq		p12,p13=7,r27
+	;;
+}
+{	.mii
+	mov		cr.itir=r26
+(p12)	dep		r28=0,r30,61,3
+(p13)	extr.u		r28=r30,3*PAGE_SHIFT-8, PAGE_SHIFT-3	// dir L0 index
+	;;
+}
+{	.mlx
+(p12)	add		r28=PTE_PRESENT+PTE_ACCESSED+PTE_DIRTY+PTE_PL_KERN+PTE_AR_RWX+PTE_MA_WB,r28
+(p13)	movl		r27=ia64_kptdir
+	;;
+}
+{	.mib
+(p13)	ld8		r27=[r27]
+(p13)	extr.u		r26=r30,2*PAGE_SHIFT-5, PAGE_SHIFT-3	// dir L1 index
+(p12)	br.cond.spnt.few 1f
 	;;
 }
 {	.mmi
@@ -1040,58 +1055,48 @@ IVT_ENTRY(Data_Nested_TLB, 0x1400)
 	extr.u		r28=r30,PAGE_SHIFT,PAGE_SHIFT-5		// pte index
 	;;
 }
-{	.mmi
+{	.mii
 	shladd		r27=r26,3,r27
+	shl		r28=r28,5
 	;;
-	mov		r26=rr[r30]
 	dep		r27=0,r27,61,3
 	;;
 }
-{	.mii
 	ld8		r27=[r27]				// pte page
-	shl		r28=r28,5
-	dep		r26=0,r26,0,2
 	;;
-}
-{	.mmi
 	add		r27=r28,r27
 	;;
-	mov		cr.ifa=r30
 	dep		r27=0,r27,61,3
 	;;
-}
-{	.mmi
-	ld8		r28=[r27]		// pte
+	ld8		r28=[r27]				// pte
 	;;
-	mov		cr.itir=r26
 	or		r28=PTE_DIRTY+PTE_ACCESSED,r28
 	;;
-}
-{	.mmi
 	st8		[r27]=r28
 	;;
-	addl		r26=NTLBRT_SAVE,r0
-	addl		r27=NTLBRT_RESTORE,r0
-}
+	ssm		psr.dt
+	;;
+1:
 {	.mmi
 	itc.d		r28
 	;;
-	ssm		psr.dt
-	cmp.eq		p12,p0=r29,r26
+	addl		r26=NTLBRT_SAVE,r0
+	addl		r27=NTLBRT_RESTORE,r0
 	;;
 }
-{	.mib
+{	.mmi
 	srlz.d
+	cmp.eq		p12,p0=r29,r26
 	cmp.eq		p13,p0=r29,r27
-(p12)	br.cond.sptk.few	exception_save_restart
 	;;
 }
-{	.mib
+{	.mbb
 	nop		0
-	nop		0
+(p12)	br.cond.sptk.few	exception_save_restart
 (p13)	br.cond.sptk.few	exception_restore_restart
 	;;
 }
+
 {	.mlx
 	mov		r26=ar.bsp
 	movl		r29=kstack
