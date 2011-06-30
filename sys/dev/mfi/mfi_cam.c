@@ -54,12 +54,9 @@ __FBSDID("$FreeBSD$");
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_message.h>
 
-#include <sys/bus.h>
-#include <sys/conf.h>
 #include <machine/md_var.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
-#include <sys/rman.h>
 
 #include <dev/mfi/mfireg.h>
 #include <dev/mfi/mfi_ioctl.h>

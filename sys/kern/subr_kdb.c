@@ -88,20 +88,6 @@ SYSCTL_PROC(_debug_kdb, OID_AUTO, trap_code, CTLTYPE_INT | CTLFLAG_RW, NULL, 0,
     kdb_sysctl_trap_code, "I", "set to cause a page fault via code access");
 
 /*
- * Flag indicating whether or not to IPI the other CPUs to stop them on
- * entering the debugger.  Sometimes, this will result in a deadlock as
- * stop_cpus() waits for the other cpus to stop, so we allow it to be
- * disabled.  In order to maximize the chances of success, use a hard
- * stop for that.
- */
-#ifdef SMP
-static int kdb_stop_cpus = 1;
-SYSCTL_INT(_debug_kdb, OID_AUTO, stop_cpus, CTLFLAG_RW | CTLFLAG_TUN,
-    &kdb_stop_cpus, 0, "stop other CPUs when entering the debugger");
-TUNABLE_INT("debug.kdb.stop_cpus", &kdb_stop_cpus);
-#endif
-
-/*
  * Flag to indicate to debuggers why the debugger was entered.
  */
 const char * volatile kdb_why = KDB_WHY_UNSET;
@@ -515,9 +501,6 @@ kdb_trap(int type, int code, struct trapframe *tf)
 {
 	struct kdb_dbbe *be;
 	register_t intr;
-#ifdef SMP
-	int did_stop_cpus;
-#endif
 	int handled;
 
 	be = kdb_dbbe;
@@ -531,8 +514,7 @@ kdb_trap(int type, int code, struct trapframe *tf)
 	intr = intr_disable();
 
 #ifdef SMP
-	if ((did_stop_cpus = kdb_stop_cpus) != 0)
-		stop_cpus_hard(PCPU_GET(other_cpus));
+	stop_cpus_hard(PCPU_GET(other_cpus));
 #endif
 
 	kdb_active++;
@@ -558,8 +540,7 @@ kdb_trap(int type, int code, struct trapframe *tf)
 	kdb_active--;
 
 #ifdef SMP
-	if (did_stop_cpus)
-		restart_cpus(stopped_cpus);
+	restart_cpus(stopped_cpus);
 #endif
 
 	intr_restore(intr);

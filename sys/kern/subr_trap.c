@@ -44,7 +44,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_capabilities.h"
+#include "opt_capsicum.h"
 #include "opt_ktrace.h"
 #include "opt_kdtrace.h"
 #include "opt_sched.h"
@@ -313,7 +313,7 @@ syscallenter(struct thread *td, struct syscall_args *sa)
 				goto retval;
 		}
 
-#ifdef CAPABILITIES
+#ifdef CAPABILITY_MODE
 		/*
 		 * In capability mode, we only allow access to system calls
 		 * flagged with SYF_CAPENABLED.

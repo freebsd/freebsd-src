@@ -142,7 +142,7 @@ void
 ttyinq_free(struct ttyinq *ti)
 {
 	struct ttyinq_block *tib;
-	
+
 	ttyinq_flush(ti);
 	ti->ti_quota = 0;
 
@@ -276,7 +276,7 @@ ttyinq_write(struct ttyinq *ti, const void *buf, size_t nbytes, int quote)
 	struct ttyinq_block *tib;
 	unsigned int boff;
 	size_t l;
-	
+
 	while (nbytes > 0) {
 		boff = ti->ti_end % TTYINQ_DATASIZE;
 
@@ -313,7 +313,7 @@ ttyinq_write(struct ttyinq *ti, const void *buf, size_t nbytes, int quote)
 		nbytes -= l;
 		ti->ti_end += l;
 	}
-	
+
 	return (cbuf - (const char *)buf);
 }
 
@@ -397,7 +397,7 @@ ttyinq_peekchar(struct ttyinq *ti, char *c, int *quote)
 
 	*c = tib->tib_data[boff];
 	*quote = GETBIT(tib, boff);
-	
+
 	return (0);
 }
 

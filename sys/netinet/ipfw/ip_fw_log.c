@@ -304,6 +304,13 @@ ipfw_log(struct ip_fw *f, u_int hlen, struct ip_fw_args *args,
 		case O_REASS:
 			action = "Reass";
 			break;
+		case O_CALLRETURN:
+			if (cmd->len & F_NOT)
+				action = "Return";
+			else
+				snprintf(SNPARGS(action2, 0), "Call %d",
+				    cmd->arg1);
+			break;
 		default:
 			action = "UNKNOWN";
 			break;

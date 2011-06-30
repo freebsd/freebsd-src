@@ -369,6 +369,14 @@ decode_tuple_end(device_t cbdev, device_t child, int id,
  * Functions to read the a tuple from the card
  */
 
+/*
+ * Read CIS bytes out of the config space.  We have to read it 4 bytes at a
+ * time and do the usual mask and shift to return the bytes.  The standard
+ * defines the byte order to be little endian.  pci_read_config converts it to
+ * host byte order.  This is why we have no endian conversion functions: the
+ * shifts wind up being endian neutral.  This is also why we avoid the obvious
+ * memcpy optimization.
+ */
 static int
 cardbus_read_tuple_conf(device_t cbdev, device_t child, uint32_t start,
     uint32_t *off, int *tupleid, int *len, uint8_t *tupledata)
@@ -379,12 +387,11 @@ cardbus_read_tuple_conf(device_t cbdev, device_t child, uint32_t start,
 
 	loc = start + *off;
 
-	e = pci_read_config(child, loc - loc % 4, 4);
-	for (j = loc % 4; j > 0; j--)
-		e >>= 8;
+	e = pci_read_config(child, loc & ~0x3, 4);
+	e >>= 8 * (loc & 0x3);
 	*len = 0;
 	for (i = loc, j = -2; j < *len; j++, i++) {
-		if (i % 4 == 0)
+		if ((i & 0x3) == 0)
 			e = pci_read_config(child, i, 4);
 		if (j == -2)
 			*tupleid = 0xff & e;
@@ -398,6 +405,10 @@ cardbus_read_tuple_conf(device_t cbdev, device_t child, uint32_t start,
 	return (0);
 }
 
+/*
+ * Read the CIS data out of memroy.  We indirect through the bus space
+ * routines to ensure proper byte ordering conversions when necessary.
+ */
 static int
 cardbus_read_tuple_mem(device_t cbdev, struct resource *res, uint32_t start,
     uint32_t *off, int *tupleid, int *len, uint8_t *tupledata)
@@ -580,7 +591,7 @@ cardbus_parse_cis(device_t cbdev, device_t child,
 	expect_linktarget = TRUE;
 	if ((start = pci_read_config(child, PCIR_CIS, 4)) == 0) {
 		DEVPRINTF((cbdev, "Warning: CIS pointer is 0: (no CIS)\n"));
-		return (ENXIO);
+		return (0);
 	}
 	DEVPRINTF((cbdev, "CIS pointer is %#x\n", start));
 	off = 0;

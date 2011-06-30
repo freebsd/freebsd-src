@@ -264,8 +264,11 @@ prthumanval(int len, u_int64_t bytes)
 {
 	char buf[len + 1];
 
-	humanize_number(buf, sizeof(buf), bytes, "", HN_AUTOSCALE,
-	    HN_B | HN_NOSPACE | HN_DECIMAL);
+	/*
+	 * Limit the width to 5 bytes as that is what users expect.
+	 */
+	humanize_number(buf, sizeof(buf) < 5 ? sizeof(buf) : 5, bytes, "",
+	    HN_AUTOSCALE, HN_B | HN_NOSPACE | HN_DECIMAL);
 
 	(void)printf(" %*s", len, buf);
 }
@@ -352,10 +355,13 @@ showquotas(int type, u_long id, const char *name)
 			prthumanval(7, dbtob(qup->dqblk.dqb_bhardlimit));
 		} else {
 			printf(" %7ju%c %7ju %7ju",
-			    dbtob(1024) * (uintmax_t)qup->dqblk.dqb_curblocks,
+			    (uintmax_t)dbtob(qup->dqblk.dqb_curblocks)
+				/ 1024,
 			    (msgb == NULL) ? ' ' : '*',
-			    dbtob(1024) * (uintmax_t)qup->dqblk.dqb_bsoftlimit,
-			    dbtob(1024) * (uintmax_t)qup->dqblk.dqb_bhardlimit);
+			    (uintmax_t)dbtob(qup->dqblk.dqb_bsoftlimit)
+				/ 1024,
+			    (uintmax_t)dbtob(qup->dqblk.dqb_bhardlimit)
+				/ 1024);
 		}
 		if (msgb != NULL)
 			bgrace = timeprt(qup->dqblk.dqb_btime);

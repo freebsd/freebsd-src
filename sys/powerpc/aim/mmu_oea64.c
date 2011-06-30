@@ -1715,7 +1715,7 @@ moea64_kextract(mmu_t mmu, vm_offset_t va)
 	pvo = moea64_pvo_find_va(kernel_pmap, va);
 	KASSERT(pvo != NULL, ("moea64_kextract: no addr found for %#" PRIxPTR,
 	    va));
-	pa = (pvo->pvo_pte.lpte.pte_lo & LPTE_RPGN) + (va - PVO_VADDR(pvo));
+	pa = (pvo->pvo_pte.lpte.pte_lo & LPTE_RPGN) | (va - PVO_VADDR(pvo));
 	PMAP_UNLOCK(kernel_pmap);
 	return (pa);
 }

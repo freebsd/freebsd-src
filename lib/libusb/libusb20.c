@@ -1057,6 +1057,18 @@ libusb20_dev_get_address(struct libusb20_device *pdev)
 }
 
 uint8_t
+libusb20_dev_get_parent_address(struct libusb20_device *pdev)
+{
+	return (pdev->parent_address);
+}
+
+uint8_t
+libusb20_dev_get_parent_port(struct libusb20_device *pdev)
+{
+	return (pdev->parent_port);
+}
+
+uint8_t
 libusb20_dev_get_bus_number(struct libusb20_device *pdev)
 {
 	return (pdev->bus_number);

@@ -77,6 +77,7 @@ void ia64_ap_startup(void);
 struct ia64_ap_state ia64_ap_state;
 
 int ia64_ipi_ast;
+int ia64_ipi_hardclock;
 int ia64_ipi_highfp;
 int ia64_ipi_nmi;
 int ia64_ipi_preempt;
@@ -104,6 +105,16 @@ ia64_ih_ast(struct thread *td, u_int xiv, struct trapframe *tf)
 
 	PCPU_INC(md.stats.pcs_nasts);
 	CTR1(KTR_SMP, "IPI_AST, cpuid=%d", PCPU_GET(cpuid));
+	return (0);
+}
+
+static u_int
+ia64_ih_hardclock(struct thread *td, u_int xiv, struct trapframe *tf)
+{
+
+	PCPU_INC(md.stats.pcs_nhardclocks);
+	CTR1(KTR_SMP, "IPI_HARDCLOCK, cpuid=%d", PCPU_GET(cpuid));
+	hardclockintr();
 	return (0);
 }
 
@@ -233,10 +244,11 @@ ia64_ap_startup(void)
 
 	CTR1(KTR_SMP, "SMP: cpu%d launched", PCPU_GET(cpuid));
 
-	/* Mask interval timer interrupts on APs. */
-	ia64_set_itv(0x10000);
+	cpu_initclocks();
+
 	ia64_set_tpr(0);
 	ia64_srlz_d();
+
 	ia64_enable_intr();
 
 	sched_throw(NULL);
@@ -413,6 +425,8 @@ cpu_mp_unleash(void *dummy)
 
 	/* Allocate XIVs for IPIs */
 	ia64_ipi_ast = ia64_xiv_alloc(PI_DULL, IA64_XIV_IPI, ia64_ih_ast);
+	ia64_ipi_hardclock = ia64_xiv_alloc(PI_REALTIME, IA64_XIV_IPI,
+	    ia64_ih_hardclock);
 	ia64_ipi_highfp = ia64_xiv_alloc(PI_AV, IA64_XIV_IPI, ia64_ih_highfp);
 	ia64_ipi_preempt = ia64_xiv_alloc(PI_SOFT, IA64_XIV_IPI,
 	    ia64_ih_preempt);

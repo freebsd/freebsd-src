@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 cyclic_clock_func_t	cyclic_clock_func = NULL;
 #endif
 
+int			cpu_can_deep_sleep = 0;	/* C3 state is available. */
 int			cpu_disable_deep_sleep = 0; /* Timer dies in C3. */
 
 static void		setuptimer(void);

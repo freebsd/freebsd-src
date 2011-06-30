@@ -87,7 +87,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/resource.h>
-#include <sys/bus.h>
 #include <sys/rman.h>
 
 #include <dev/mii/mii.h>

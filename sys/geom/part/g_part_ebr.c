@@ -59,6 +59,9 @@ FEATURE(geom_part_ebr_compat,
 
 struct g_part_ebr_table {
 	struct g_part_table	base;
+#ifndef GEOM_PART_EBR_COMPAT
+	u_char		ebr[EBRSIZE];
+#endif
 };
 
 struct g_part_ebr_entry {
@@ -459,7 +462,7 @@ g_part_ebr_read(struct g_part_table *basetable, struct g_consumer *cp)
 	u_char *buf;
 	off_t ofs, msize;
 	u_int lba;
-	int error, index, sum;
+	int error, index;
 
 	pp = cp->provider;
 	table = (struct g_part_ebr_table *)basetable;
@@ -482,20 +485,11 @@ g_part_ebr_read(struct g_part_table *basetable, struct g_consumer *cp)
 			printf("GEOM: %s: invalid entries in the EBR ignored.\n",
 			    pp->name);
 		}
-		/* We do not support bootcode for EBR. If bootcode area is
-		 * not zeroes, then mark this EBR as corrupt to do not break
-		 * anything for another OS'es.
-		 */
-		if (lba == 0) {
-			sum = 0;
-			for (index = 0; index < DOSPARTOFF; index++)
-				sum += buf[index];
-			if (sum != 0) {
-				basetable->gpt_corrupt = 1;
-				printf("GEOM: %s: EBR has non empty bootcode.\n",
-				    pp->name);
-			}
-		}
+#ifndef GEOM_PART_EBR_COMPAT
+		/* Save the first EBR, it can contain a boot code */
+		if (lba == 0)
+			bcopy(buf, table->ebr, sizeof(table->ebr));
+#endif
 		g_free(buf);
 
 		if (ent[0].dp_typ == 0)
@@ -583,6 +577,9 @@ g_part_ebr_type(struct g_part_table *basetable, struct g_part_entry *baseentry,
 static int
 g_part_ebr_write(struct g_part_table *basetable, struct g_consumer *cp)
 {
+#ifndef GEOM_PART_EBR_COMPAT
+	struct g_part_ebr_table *table;
+#endif
 	struct g_provider *pp;
 	struct g_part_entry *baseentry, *next;
 	struct g_part_ebr_entry *entry;
@@ -592,6 +589,10 @@ g_part_ebr_write(struct g_part_table *basetable, struct g_consumer *cp)
 
 	pp = cp->provider;
 	buf = g_malloc(pp->sectorsize, M_WAITOK | M_ZERO);
+#ifndef GEOM_PART_EBR_COMPAT
+	table = (struct g_part_ebr_table *)basetable;
+	bcopy(table->ebr, buf, DOSPARTOFF);
+#endif
 	le16enc(buf + DOSMAGICOFFSET, DOSMAGIC);
 
 	baseentry = LIST_FIRST(&basetable->gpt_entry);
@@ -644,7 +645,10 @@ g_part_ebr_write(struct g_part_table *basetable, struct g_consumer *cp)
 
 		error = g_write_data(cp, baseentry->gpe_start * pp->sectorsize,
 		    buf, pp->sectorsize);
-
+#ifndef GEOM_PART_EBR_COMPAT
+		if (baseentry->gpe_start == 0)
+			bzero(buf, DOSPARTOFF);
+#endif
 		baseentry = next;
 	} while (!error && baseentry != NULL);
 

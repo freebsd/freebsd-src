@@ -1,4 +1,4 @@
-/*	$OpenBSD: pf_osfp.c,v 1.12 2006/12/13 18:14:10 itojun Exp $ */
+/*	$OpenBSD: pf_osfp.c,v 1.14 2008/06/12 18:17:01 henning Exp $ */
 
 /*
  * Copyright (c) 2003 Mike Frantzen <frantzen@w4g.org>
@@ -25,7 +25,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/socket.h>
 #ifdef _KERNEL
-# include <sys/systm.h>
+#include <sys/systm.h>
+#ifndef __FreeBSD__
+#include <sys/pool.h>
+#endif
 #endif /* _KERNEL */
 #include <sys/mbuf.h>
 
@@ -42,10 +45,17 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/in6_var.h>
 #endif
 
+
 #ifdef _KERNEL
-# define DPFPRINTF(format, x...)		\
+#ifdef __FreeBSD__
+#define	DPFPRINTF(format, x...)		\
+	if (V_pf_status.debug >= PF_DEBUG_NOISY)	\
+		printf(format , ##x)
+#else
+#define	DPFPRINTF(format, x...)		\
 	if (pf_status.debug >= PF_DEBUG_NOISY)	\
 		printf(format , ##x)
+#endif
 #ifdef __FreeBSD__
 typedef uma_zone_t pool_t;
 #else
@@ -55,33 +65,43 @@ typedef struct pool pool_t;
 #else
 /* Userland equivalents so we can lend code to tcpdump et al. */
 
-# include <arpa/inet.h>
-# include <errno.h>
-# include <stdio.h>
-# include <stdlib.h>
-# include <string.h>
-# include <netdb.h>
-# define pool_t			int
-# define pool_get(pool, flags)	malloc(*(pool))
-# define pool_put(pool, item)	free(item)
-# define pool_init(pool, size, a, ao, f, m, p)	(*(pool)) = (size)
+#include <arpa/inet.h>
+#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <netdb.h>
+#define	pool_t			int
+#define	pool_get(pool, flags)	malloc(*(pool))
+#define	pool_put(pool, item)	free(item)
+#define	pool_init(pool, size, a, ao, f, m, p)	(*(pool)) = (size)
 
-# ifdef __FreeBSD__
-# define NTOHS(x) (x) = ntohs((u_int16_t)(x))
-# endif
+#ifdef __FreeBSD__
+#define	NTOHS(x) (x) = ntohs((u_int16_t)(x))
+#endif
 
-# ifdef PFDEBUG
-#  include <sys/stdarg.h>
-#  define DPFPRINTF(format, x...)	fprintf(stderr, format , ##x)
-# else
-#  define DPFPRINTF(format, x...)	((void)0)
-# endif /* PFDEBUG */
+#ifdef PFDEBUG
+#include <sys/stdarg.h>
+#define	DPFPRINTF(format, x...)	fprintf(stderr, format , ##x)
+#else
+#define	DPFPRINTF(format, x...)	((void)0)
+#endif /* PFDEBUG */
 #endif /* _KERNEL */
 
 
+#ifdef __FreeBSD__
+SLIST_HEAD(pf_osfp_list, pf_os_fingerprint);
+VNET_DEFINE(struct pf_osfp_list,	pf_osfp_list);
+#define	V_pf_osfp_list			VNET(pf_osfp_list)
+VNET_DEFINE(pool_t,			pf_osfp_entry_pl);
+#define	pf_osfp_entry_pl		VNET(pf_osfp_entry_pl)
+VNET_DEFINE(pool_t,			pf_osfp_pl);
+#define	pf_osfp_pl			VNET(pf_osfp_pl)
+#else
 SLIST_HEAD(pf_osfp_list, pf_os_fingerprint) pf_osfp_list;
 pool_t pf_osfp_entry_pl;
 pool_t pf_osfp_pl;
+#endif
 
 struct pf_os_fingerprint	*pf_osfp_find(struct pf_osfp_list *,
 				    struct pf_os_fingerprint *, u_int8_t);
@@ -264,7 +284,11 @@ pf_osfp_fingerprint_hdr(const struct ip *ip, const struct ip6_hdr *ip6, const st
 	    (fp.fp_flags & PF_OSFP_WSCALE_DC) ? "*" : "",
 	    fp.fp_wscale);
 
+#ifdef __FreeBSD__
+	if ((fpresult = pf_osfp_find(&V_pf_osfp_list, &fp,
+#else
 	if ((fpresult = pf_osfp_find(&pf_osfp_list, &fp,
+#endif
 	    PF_OSFP_MAXTTL_OFFSET)))
 		return (&fpresult->fp_oses);
 	return (NULL);
@@ -310,20 +334,23 @@ pf_osfp_initialize(void)
 {
 #if defined(__FreeBSD__) && defined(_KERNEL)
 	int error = ENOMEM;
-	
+
 	do {
 		pf_osfp_entry_pl = pf_osfp_pl = NULL;
 		UMA_CREATE(pf_osfp_entry_pl, struct pf_osfp_entry, "pfospfen");
 		UMA_CREATE(pf_osfp_pl, struct pf_os_fingerprint, "pfosfp");
 		error = 0;
 	} while(0);
+
+	SLIST_INIT(&V_pf_osfp_list);
 #else
 	pool_init(&pf_osfp_entry_pl, sizeof(struct pf_osfp_entry), 0, 0, 0,
 	    "pfosfpen", &pool_allocator_nointr);
 	pool_init(&pf_osfp_pl, sizeof(struct pf_os_fingerprint), 0, 0, 0,
 	    "pfosfp", &pool_allocator_nointr);
-#endif
 	SLIST_INIT(&pf_osfp_list);
+#endif
+
 #ifdef __FreeBSD__
 #ifdef _KERNEL
 	return (error);
@@ -337,6 +364,7 @@ pf_osfp_initialize(void)
 void
 pf_osfp_cleanup(void)
 {
+
 	UMA_DESTROY(pf_osfp_entry_pl);
 	UMA_DESTROY(pf_osfp_pl);
 }
@@ -349,8 +377,13 @@ pf_osfp_flush(void)
 	struct pf_os_fingerprint *fp;
 	struct pf_osfp_entry *entry;
 
+#ifdef __FreeBSD__
+	while ((fp = SLIST_FIRST(&V_pf_osfp_list))) {
+		SLIST_REMOVE_HEAD(&V_pf_osfp_list, fp_next);
+#else
 	while ((fp = SLIST_FIRST(&pf_osfp_list))) {
 		SLIST_REMOVE_HEAD(&pf_osfp_list, fp_next);
+#endif
 		while ((entry = SLIST_FIRST(&fp->fp_oses))) {
 			SLIST_REMOVE_HEAD(&fp->fp_oses, fp_entry);
 			pool_put(&pf_osfp_entry_pl, entry);
@@ -377,6 +410,7 @@ pf_osfp_add(struct pf_osfp_ioctl *fpioc)
 	fpadd.fp_wscale = fpioc->fp_wscale;
 	fpadd.fp_ttl = fpioc->fp_ttl;
 
+#if 0	/* XXX RYAN wants to fix logging */
 	DPFPRINTF("adding osfp %s %s %s = %s%d:%d:%d:%s%d:0x%llx %d "
 	    "(TS=%s,M=%s%d,W=%s%d) %x\n",
 	    fpioc->fp_os.fp_class_nm, fpioc->fp_os.fp_version_nm,
@@ -400,17 +434,31 @@ pf_osfp_add(struct pf_osfp_ioctl *fpioc)
 	    (fpadd.fp_flags & PF_OSFP_WSCALE_DC) ? "*" : "",
 	    fpadd.fp_wscale,
 	    fpioc->fp_os.fp_os);
+#endif
 
-
+#ifdef __FreeBSD__
+	if ((fp = pf_osfp_find_exact(&V_pf_osfp_list, &fpadd))) {
+#else
 	if ((fp = pf_osfp_find_exact(&pf_osfp_list, &fpadd))) {
+#endif
 		 SLIST_FOREACH(entry, &fp->fp_oses, fp_entry) {
 			if (PF_OSFP_ENTRY_EQ(entry, &fpioc->fp_os))
 				return (EEXIST);
 		}
-		if ((entry = pool_get(&pf_osfp_entry_pl, PR_NOWAIT)) == NULL)
+		if ((entry = pool_get(&pf_osfp_entry_pl,
+#ifdef __FreeBSD__
+		    PR_NOWAIT)) == NULL)
+#else
+		    PR_WAITOK|PR_LIMITFAIL)) == NULL)
+#endif
 			return (ENOMEM);
 	} else {
-		if ((fp = pool_get(&pf_osfp_pl, PR_NOWAIT)) == NULL)
+		if ((fp = pool_get(&pf_osfp_pl,
+#ifdef __FreeBSD__
+		    PR_NOWAIT)) == NULL)
+#else
+		    PR_WAITOK|PR_LIMITFAIL)) == NULL)
+#endif
 			return (ENOMEM);
 		memset(fp, 0, sizeof(*fp));
 		fp->fp_tcpopts = fpioc->fp_tcpopts;
@@ -422,11 +470,20 @@ pf_osfp_add(struct pf_osfp_ioctl *fpioc)
 		fp->fp_wscale = fpioc->fp_wscale;
 		fp->fp_ttl = fpioc->fp_ttl;
 		SLIST_INIT(&fp->fp_oses);
-		if ((entry = pool_get(&pf_osfp_entry_pl, PR_NOWAIT)) == NULL) {
+		if ((entry = pool_get(&pf_osfp_entry_pl,
+#ifdef __FreeBSD__
+		    PR_NOWAIT)) == NULL) {
+#else
+		    PR_WAITOK|PR_LIMITFAIL)) == NULL) {
+#endif
 			pool_put(&pf_osfp_pl, fp);
 			return (ENOMEM);
 		}
+#ifdef __FreeBSD__
+		pf_osfp_insert(&V_pf_osfp_list, fp);
+#else
 		pf_osfp_insert(&pf_osfp_list, fp);
+#endif
 	}
 	memcpy(entry, &fpioc->fp_os, sizeof(*entry));
 
@@ -452,7 +509,7 @@ pf_osfp_find(struct pf_osfp_list *list, struct pf_os_fingerprint *find,
 {
 	struct pf_os_fingerprint *f;
 
-#define MATCH_INT(_MOD, _DC, _field)					\
+#define	MATCH_INT(_MOD, _DC, _field)					\
 	if ((f->fp_flags & _DC) == 0) {					\
 		if ((f->fp_flags & _MOD) == 0) {			\
 			if (f->_field != find->_field)			\
@@ -480,10 +537,11 @@ pf_osfp_find(struct pf_osfp_list *list, struct pf_os_fingerprint *find,
 				if (find->fp_mss == 0)
 					continue;
 
-/* Some "smart" NAT devices and DSL routers will tweak the MSS size and
+/*
+ * Some "smart" NAT devices and DSL routers will tweak the MSS size and
  * will set it to whatever is suitable for the link type.
  */
-#define SMART_MSS	1460
+#define	SMART_MSS	1460
 				if ((find->fp_wsize % find->fp_mss ||
 				    find->fp_wsize / find->fp_mss !=
 				    f->fp_wsize) &&
@@ -495,8 +553,8 @@ pf_osfp_find(struct pf_osfp_list *list, struct pf_os_fingerprint *find,
 				if (find->fp_mss == 0)
 					continue;
 
-#define MTUOFF	(sizeof(struct ip) + sizeof(struct tcphdr))
-#define SMART_MTU	(SMART_MSS + MTUOFF)
+#define	MTUOFF		(sizeof(struct ip) + sizeof(struct tcphdr))
+#define	SMART_MTU	(SMART_MSS + MTUOFF)
 				if ((find->fp_wsize % (find->fp_mss + MTUOFF) ||
 				    find->fp_wsize / (find->fp_mss + MTUOFF) !=
 				    f->fp_wsize) &&
@@ -567,7 +625,11 @@ pf_osfp_get(struct pf_osfp_ioctl *fpioc)
 
 
 	memset(fpioc, 0, sizeof(*fpioc));
+#ifdef __FreeBSD__
+	SLIST_FOREACH(fp, &V_pf_osfp_list, fp_next) {
+#else
 	SLIST_FOREACH(fp, &pf_osfp_list, fp_next) {
+#endif
 		SLIST_FOREACH(entry, &fp->fp_oses, fp_entry) {
 			if (i++ == num) {
 				fpioc->fp_mss = fp->fp_mss;
@@ -594,7 +656,11 @@ pf_osfp_validate(void)
 {
 	struct pf_os_fingerprint *f, *f2, find;
 
+#ifdef __FreeBSD__
+	SLIST_FOREACH(f, &V_pf_osfp_list, fp_next) {
+#else
 	SLIST_FOREACH(f, &pf_osfp_list, fp_next) {
+#endif
 		memcpy(&find, f, sizeof(find));
 
 		/* We do a few MSS/th_win percolations to make things unique */
@@ -606,7 +672,11 @@ pf_osfp_validate(void)
 			find.fp_wsize *= (find.fp_mss + 40);
 		else if (f->fp_flags & PF_OSFP_WSIZE_MOD)
 			find.fp_wsize *= 2;
+#ifdef __FreeBSD__
+		if (f != (f2 = pf_osfp_find(&V_pf_osfp_list, &find, 0))) {
+#else
 		if (f != (f2 = pf_osfp_find(&pf_osfp_list, &find, 0))) {
+#endif
 			if (f2)
 				printf("Found \"%s %s %s\" instead of "
 				    "\"%s %s %s\"\n",

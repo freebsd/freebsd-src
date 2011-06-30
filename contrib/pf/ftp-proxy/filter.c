@@ -1,4 +1,4 @@
-/*	$OpenBSD: filter.c,v 1.5 2006/12/01 07:31:21 camield Exp $ */
+/*	$OpenBSD: filter.c,v 1.8 2008/06/13 07:25:26 claudio Exp $ */
 
 /*
  * Copyright (c) 2004, 2005 Camiel Dobbelaar, <cd@sentia.nl>
@@ -53,7 +53,7 @@ static struct pfioc_rule	pfr;
 static struct pfioc_trans	pft;
 static struct pfioc_trans_e	pfte[TRANS_SIZE];
 static int dev, rule_log;
-static char *qname;
+static const char *qname, *tagname;
 
 int
 add_filter(u_int32_t id, u_int8_t dir, struct sockaddr *src,
@@ -159,11 +159,12 @@ do_rollback(void)
 }
 
 void
-init_filter(char *opt_qname, int opt_verbose)
+init_filter(const char *opt_qname, const char *opt_tagname, int opt_verbose)
 {
 	struct pf_status status;
 
 	qname = opt_qname;
+	tagname = opt_tagname;
 
 	if (opt_verbose == 1)
 		rule_log = PF_LOG;
@@ -172,7 +173,7 @@ init_filter(char *opt_qname, int opt_verbose)
 
 	dev = open("/dev/pf", O_RDWR);	
 	if (dev == -1)
-		err(1, "/dev/pf");
+		err(1, "open /dev/pf");
 	if (ioctl(dev, DIOCGETSTATUS, &status) == -1)
 		err(1, "DIOCGETSTATUS");
 	if (!status.running)
@@ -280,9 +281,9 @@ prepare_rule(u_int32_t id, int rs_num, struct sockaddr *src,
 	switch (rs_num) {
 	case PF_RULESET_FILTER:
 		/*
-		 * pass quick [log] inet[6] proto tcp \
+		 * pass [quick] [log] inet[6] proto tcp \
 		 *     from $src to $dst port = $d_port flags S/SA keep state
-		 *     (max 1) [queue qname]
+		 *     (max 1) [queue qname] [tag tagname]
 		 */
 		pfr.rule.action = PF_PASS;
 		pfr.rule.quick = 1;
@@ -293,6 +294,11 @@ prepare_rule(u_int32_t id, int rs_num, struct sockaddr *src,
 		pfr.rule.max_states = 1;
 		if (qname != NULL)
 			strlcpy(pfr.rule.qname, qname, sizeof pfr.rule.qname);
+		if (tagname != NULL) {
+			pfr.rule.quick = 0;
+			strlcpy(pfr.rule.tagname, tagname,
+                                sizeof pfr.rule.tagname);
+		}
 		break;
 	case PF_RULESET_NAT:
 		/*

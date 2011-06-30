@@ -719,3 +719,43 @@ ath_sysctl_stats_attach(struct ath_softc *sc)
 	/* Attach the RX phy error array */
 	ath_sysctl_stats_attach_rxphyerr(sc, child);
 }
+
+/*
+ * This doesn't necessarily belong here (because it's HAL related, not
+ * driver related).
+ */
+void
+ath_sysctl_hal_attach(struct ath_softc *sc)
+{
+	struct sysctl_oid *tree = device_get_sysctl_tree(sc->sc_dev);
+	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(sc->sc_dev);
+	struct sysctl_oid_list *child = SYSCTL_CHILDREN(tree);
+
+	tree = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "hal", CTLFLAG_RD,
+	    NULL, "Atheros HAL parameters");
+	child = SYSCTL_CHILDREN(tree);
+
+	sc->sc_ah->ah_config.ah_debug = 0;
+	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "debug", CTLFLAG_RW,
+	    &sc->sc_ah->ah_config.ah_debug, 0, "Atheros HAL debugging printfs");
+
+	sc->sc_ah->ah_config.ah_ar5416_biasadj = 0;
+	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "ar5416_biasadj", CTLFLAG_RW,
+	    &sc->sc_ah->ah_config.ah_ar5416_biasadj, 0,
+	    "Enable 2ghz AR5416 direction sensitivity bias adjust");
+
+	sc->sc_ah->ah_config.ah_dma_beacon_response_time = 2;
+	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "dma_brt", CTLFLAG_RW,
+	    &sc->sc_ah->ah_config.ah_dma_beacon_response_time, 0,
+	    "Atheros HAL DMA beacon response time");
+
+	sc->sc_ah->ah_config.ah_sw_beacon_response_time = 10;
+	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "sw_brt", CTLFLAG_RW,
+	    &sc->sc_ah->ah_config.ah_sw_beacon_response_time, 0,
+	    "Atheros HAL software beacon response time");
+
+	sc->sc_ah->ah_config.ah_additional_swba_backoff = 0;
+	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "swba_backoff", CTLFLAG_RW,
+	    &sc->sc_ah->ah_config.ah_additional_swba_backoff, 0,
+	    "Atheros HAL additional SWBA backoff time");
+}

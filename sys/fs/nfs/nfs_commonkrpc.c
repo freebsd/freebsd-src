@@ -526,6 +526,20 @@ newnfs_request(struct nfsrv_descript *nd, struct nfsmount *nmp,
 		else
 			secflavour = RPCSEC_GSS_KRB5;
 		srv_principal = NFSMNT_SRVKRBNAME(nmp);
+	} else if (nmp != NULL && !NFSHASKERB(nmp) &&
+	    nd->nd_procnum != NFSPROC_NULL &&
+	    (nd->nd_flag & ND_USEGSSNAME) != 0) {
+		/*
+		 * Use the uid that did the mount when the RPC is doing
+		 * NFSv4 system operations, as indicated by the
+		 * ND_USEGSSNAME flag, for the AUTH_SYS case.
+		 */
+		saved_uid = cred->cr_uid;
+		if (nmp->nm_uid != (uid_t)-1)
+			cred->cr_uid = nmp->nm_uid;
+		else
+			cred->cr_uid = 0;
+		set_uid = 1;
 	}
 
 	if (nmp != NULL) {
@@ -719,6 +733,8 @@ tryagain:
 				while (NFSD_MONOSEC < waituntil)
 					(void) nfs_catnap(PZERO, 0, "nfstry");
 				trylater_delay *= 2;
+				m_freem(nd->nd_mrep);
+				nd->nd_mrep = NULL;
 				goto tryagain;
 			}
 

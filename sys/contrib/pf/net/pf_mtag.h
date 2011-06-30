@@ -37,15 +37,17 @@
 #define	PF_TAG_GENERATED		0x01
 #define	PF_TAG_FRAGCACHE		0x02
 #define	PF_TAG_TRANSLATE_LOCALHOST	0x04
+#define	PF_PACKET_LOOPED		0x08
+#define	PF_FASTFWD_OURS_PRESENT		0x10
 
 struct pf_mtag {
 	void		*hdr;		/* saved hdr pos in mbuf, for ECN */
-	u_int		 rtableid;	/* alternate routing table id */
+	void		*statekey;	/* pf stackside statekey */
 	u_int32_t	 qid;		/* queue id */
+	u_int		 rtableid;	/* alternate routing table id */
 	u_int16_t	 tag;		/* tag id */
 	u_int8_t	 flags;
 	u_int8_t	 routed;
-	sa_family_t	 af;		/* for ECN */
 };
 
 static __inline struct pf_mtag *pf_find_mtag(struct mbuf *);

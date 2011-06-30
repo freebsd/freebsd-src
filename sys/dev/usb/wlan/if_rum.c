@@ -85,7 +85,7 @@ SYSCTL_INT(_hw_usb_rum, OID_AUTO, debug, CTLFLAG_RW, &rum_debug, 0,
     "Debug level");
 #endif
 
-static const struct usb_device_id rum_devs[] = {
+static const STRUCT_USB_HOST_ID rum_devs[] = {
 #define	RUM_DEV(v,p)  { USB_VP(USB_VENDOR_##v, USB_PRODUCT_##v##_##p) }
     RUM_DEV(ABOCOM, HWU54DM),
     RUM_DEV(ABOCOM, RT2573_2),
