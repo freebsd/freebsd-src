@@ -3571,8 +3571,18 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 			size_t size;
 
 			SCTP_CHECK_AND_CAST(sca, optval, struct sctp_authkey, optsize);
+			if (sca->sca_keylength == 0) {
+				size = optsize - sizeof(struct sctp_authkey);
+			} else {
+				if (sca->sca_keylength + sizeof(struct sctp_authkey) <= optsize) {
+					size = sca->sca_keylength;
+				} else {
+					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
+					error = EINVAL;
+					break;
+				}
+			}
 			SCTP_FIND_STCB(inp, stcb, sca->sca_assoc_id);
-			size = optsize - sizeof(struct sctp_authkey);
 
 			if (stcb) {
 				shared_keys = &stcb->asoc.shared_keys;
