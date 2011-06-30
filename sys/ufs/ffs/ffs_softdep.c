@@ -12081,6 +12081,7 @@ top:
 			continue;
 
 		case D_FREEWORK:
+		case D_FREEDEP:
 			continue;
 
 		default:

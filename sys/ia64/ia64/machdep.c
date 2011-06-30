@@ -347,6 +347,11 @@ cpu_startup(void *dummy)
 
 		SYSCTL_ADD_ULONG(&pc->pc_md.sysctl_ctx,
 		    SYSCTL_CHILDREN(pc->pc_md.sysctl_tree), OID_AUTO,
+		    "nhardclocks", CTLFLAG_RD, &pcs->pcs_nhardclocks,
+		    "Number of IPI_HARDCLOCK interrupts");
+
+		SYSCTL_ADD_ULONG(&pc->pc_md.sysctl_ctx,
+		    SYSCTL_CHILDREN(pc->pc_md.sysctl_tree), OID_AUTO,
 		    "nhighfps", CTLFLAG_RD, &pcs->pcs_nhighfps,
 		    "Number of IPI_HIGH_FP interrupts");
 
@@ -416,12 +421,10 @@ cpu_idle(int busy)
 {
 	register_t ie;
 
-#if 0
 	if (!busy) {
 		critical_enter();
 		cpu_idleclock();
 	}
-#endif
 
 	ie = intr_disable();
 	KASSERT(ie != 0, ("%s called with interrupts disabled\n", __func__));
@@ -436,12 +439,10 @@ cpu_idle(int busy)
 		ia64_enable_intr();
 	}
 
-#if 0
 	if (!busy) {
 		cpu_activeclock();
 		critical_exit();
 	}
-#endif
 }
 
 int
@@ -470,11 +471,11 @@ cpu_switch(struct thread *old, struct thread *new, struct mtx *mtx)
 	if (PCPU_GET(fpcurthread) == old)
 		old->td_frame->tf_special.psr |= IA64_PSR_DFH;
 	if (!savectx(oldpcb)) {
-		atomic_store_rel_ptr(&old->td_lock, mtx);
-
 		newpcb = new->td_pcb;
 		oldpcb->pcb_current_pmap =
 		    pmap_switch(newpcb->pcb_current_pmap);
+
+		atomic_store_rel_ptr(&old->td_lock, mtx);
 
 #if defined(SCHED_ULE) && defined(SMP)
 		while (atomic_load_acq_ptr(&new->td_lock) == &blocked_lock)

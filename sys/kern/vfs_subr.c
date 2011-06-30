@@ -1190,8 +1190,8 @@ bufobj_invalbuf(struct bufobj *bo, int flags, int slpflag, int slptimeo)
 	 */
 	if (bo->bo_object != NULL && (flags & (V_ALT | V_NORMAL)) == 0) {
 		VM_OBJECT_LOCK(bo->bo_object);
-		vm_object_page_remove(bo->bo_object, 0, 0,
-			(flags & V_SAVE) ? TRUE : FALSE);
+		vm_object_page_remove(bo->bo_object, 0, 0, (flags & V_SAVE) ?
+		    OBJPR_CLEANONLY : 0);
 		VM_OBJECT_UNLOCK(bo->bo_object);
 	}
 
@@ -3590,9 +3590,6 @@ vn_isdisk(struct vnode *vp, int *errp)
  * and optional call-by-reference privused argument allowing vaccess()
  * to indicate to the caller whether privilege was used to satisfy the
  * request (obsoleted).  Returns 0 on success, or an errno on failure.
- *
- * The ifdef'd CAPABILITIES version is here for reference, but is not
- * actually used.
  */
 int
 vaccess(enum vtype type, mode_t file_mode, uid_t file_uid, gid_t file_gid,

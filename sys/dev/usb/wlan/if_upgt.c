@@ -170,7 +170,7 @@ static int	upgt_tx_start(struct upgt_softc *, struct mbuf *,
 
 static const char *upgt_fwname = "upgt-gw3887";
 
-static const struct usb_device_id upgt_devs_2[] = {
+static const STRUCT_USB_HOST_ID upgt_devs[] = {
 #define	UPGT_DEV(v,p) { USB_VP(USB_VENDOR_##v, USB_PRODUCT_##v##_##p) }
 	/* version 2 devices */
 	UPGT_DEV(ACCTON,	PRISM_GT),
@@ -236,7 +236,7 @@ upgt_match(device_t dev)
 	if (uaa->info.bIfaceIndex != UPGT_IFACE_INDEX)
 		return (ENXIO);
 
-	return (usbd_lookup_id_by_uaa(upgt_devs_2, sizeof(upgt_devs_2), uaa));
+	return (usbd_lookup_id_by_uaa(upgt_devs, sizeof(upgt_devs), uaa));
 }
 
 static int

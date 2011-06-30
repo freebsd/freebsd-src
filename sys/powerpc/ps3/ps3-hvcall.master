@@ -11,6 +11,34 @@ enum lpar_id {
 	PS3_LPAR_ID_PME		= 0x01,
 };
 
+/* Return codes from hypercalls */
+#define LV1_SUCCESS			0
+#define LV1_RESOURCE_SHORTAGE		-2
+#define LV1_NO_PRIVILEGE		-3
+#define LV1_DENIED_BY_POLICY		-4
+#define LV1_ACCESS_VIOLATION		-5
+#define LV1_NO_ENTRY			-6
+#define LV1_DUPLICATE_ENTRY		-7
+#define LV1_TYPE_MISMATCH		-8
+#define LV1_BUSY			-9
+#define LV1_EMPTY			-10
+#define LV1_WRONG_STATE			-11
+#define LV1_NO_MATCH			-13
+#define LV1_ALREADY_CONNECTED		-14
+#define LV1_UNSUPPORTED_PARAMETER_VALUE	-15
+#define LV1_CONDITION_NOT_SATISFIED	-16
+#define LV1_ILLEGAL_PARAMETER_VALUE	-17
+#define LV1_BAD_OPTION			-18
+#define LV1_IMPLEMENTATION_LIMITATION	-19
+#define LV1_NOT_IMPLEMENTED		-20
+#define LV1_INVALID_CLASS_ID		-21
+#define LV1_CONSTRAINT_NOT_SATISFIED	-22
+#define LV1_ALIGNMENT_ERROR		-23
+#define LV1_HARDWARE_ERROR		-24
+#define LV1_INVALID_DATA_FORMAT		-25
+#define LV1_INVALID_OPERATION		-26
+#define LV1_INTERNAL_ERROR		-32768
+
 static inline uint64_t
 lv1_repository_string(const char *str)
 {

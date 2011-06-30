@@ -14,7 +14,8 @@
 . /etc/rc.subr
 
 name="netwait"
-rc_var=`set_rcvar`
+rcvar=`set_rcvar`
+
 start_cmd="${name}_start"
 stop_cmd=":"
 

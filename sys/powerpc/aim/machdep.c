@@ -303,7 +303,7 @@ powerpc_init(vm_offset_t startkernel, vm_offset_t endkernel,
 	 */
 	pc = __pcpu;
 	pcpu_init(pc, 0, sizeof(struct pcpu));
-	pc->pc_curthread = &thread0;
+	curthread_reg = pc->pc_curthread = &thread0;
 	pc->pc_cpuid = 0;
 
 	__asm __volatile("mtsprg 0, %0" :: "r"(pc));
@@ -745,7 +745,7 @@ kcopy(const void *src, void *dst, size_t len)
 	faultbuf	env, *oldfault;
 	int		rv;
 
-	td = PCPU_GET(curthread);
+	td = curthread;
 	oldfault = td->td_pcb->pcb_onfault;
 	if ((rv = setfault(env)) != 0) {
 		td->td_pcb->pcb_onfault = oldfault;

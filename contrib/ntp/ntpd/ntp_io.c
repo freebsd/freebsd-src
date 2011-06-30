@@ -2716,14 +2716,14 @@ sendpkt(
 
 	for (slot = ERRORCACHESIZE; --slot >= 0; )
 		if(dest->ss_family == AF_INET) {
-			if (badaddrs[slot].port == ((struct sockaddr_in*)dest)->sin_port &&
+			if (badaddrs[slot].port == SRCPORT(dest) &&
 				badaddrs[slot].addr.s_addr == ((struct sockaddr_in*)dest)->sin_addr.s_addr)
 			break;
 		}
 #ifdef INCLUDE_IPV6_SUPPORT
 		else if (dest->ss_family == AF_INET6) {
-			if (badaddrs6[slot].port == ((struct sockaddr_in6*)dest)->sin6_port &&
-				badaddrs6[slot].addr.s6_addr == ((struct sockaddr_in6*)dest)->sin6_addr.s6_addr)
+			if (badaddrs6[slot].port == SRCPORT(dest) &&
+				!memcmp(&badaddrs6[slot].addr, &((struct sockaddr_in6*)dest)->sin6_addr, sizeof(struct in6_addr)))
 			break;
 		}
 #endif /* INCLUDE_IPV6_SUPPORT */

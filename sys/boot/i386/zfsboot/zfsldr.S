@@ -16,7 +16,6 @@
  */
 
 /* Memory Locations */
-		.set MEM_REL,0x700		# Relocation address
 		.set MEM_ARG,0x900		# Arguments
 		.set MEM_ORG,0x7c00		# Origin
 		.set MEM_BUF,0x8000		# Load area
@@ -38,43 +37,6 @@
 		.globl start
 		.code16
 
-start:		jmp main			# Start recognizably
-
-/*
- * This is the start of a standard BIOS Parameter Block (BPB). Most bootable
- * FAT disks have this at the start of their MBR. While normal BIOS's will
- * work fine without this section, IBM's El Torito emulation "fixes" up the
- * BPB by writing into the memory copy of the MBR. Rather than have data
- * written into our code, we'll define a BPB to work around it.
- * The data marked with (T) indicates a field required for a ThinkPad to
- * recognize the disk and (W) indicates fields written from IBM BIOS code.
- * The use of the BPB is based on what OpenBSD and NetBSD implemented in
- * their boot code but the required fields were determined by trial and error.
- *
- * Note: If additional space is needed in boot1, one solution would be to
- * move the "prompt" message data (below) to replace the OEM ID.
- */
-		.org 0x03, 0x00
-oemid:		.space 0x08, 0x00	# OEM ID
-
-		.org 0x0b, 0x00
-bpb:		.word   512		# sector size (T)
-		.byte	0		# sectors/clustor
-		.word	0		# reserved sectors
-		.byte	0		# number of FATs
-		.word	0		# root entries
-		.word	0		# small sectors
-		.byte	0		# media type (W)
-		.word	0		# sectors/fat
-		.word	18		# sectors per track (T)
-		.word	2		# number of heads (T)
-		.long	0		# hidden sectors (W)
-		.long	0		# large sectors
-
-		.org 0x24, 0x00
-ebpb:		.byte	0		# BIOS physical drive number (W)
-
-		.org 0x25,0x90
 /*
  * Load the rest of zfsboot2 and BTX up, copy the parts to the right locations,
  * and start it all up.
@@ -84,33 +46,24 @@ ebpb:		.byte	0		# BIOS physical drive number (W)
  * Setup the segment registers to flat addressing (segment 0) and setup the
  * stack to end just below the start of our code.
  */
-main:		cld				# String ops inc
+start:		cld				# String ops inc
 		xor %cx,%cx			# Zero
 		mov %cx,%es			# Address
 		mov %cx,%ds			#  data
 		mov %cx,%ss			# Set up
 		mov $start,%sp			#  stack
 /*
- * Relocate ourself to MEM_REL.  Since %cx == 0, the inc %ch sets
- * %cx == 0x100.
+ * Load the MBR and look for the first FreeBSD slice.  We use the fake
+ * partition entry below that points to the MBR when we call read.
+ * The first pass looks for the first active FreeBSD slice.  The
+ * second pass looks for the first non-active FreeBSD slice if the
+ * first one fails.
  */
-		mov %sp,%si			# Source
-		mov $MEM_REL,%di		# Destination
-		incb %ch			# Word count
-		rep				# Copy
-		movsw				#  code
-/*
- * If we are on a hard drive, then load the MBR and look for the first
- * FreeBSD slice.  We use the fake partition entry below that points to
- * the MBR when we call nread.  The first pass looks for the first active
- * FreeBSD slice.  The second pass looks for the first non-active FreeBSD
- * slice if the first one fails.
- */
-		mov $part4,%si			# Partition
-		cmpb $0x80,%dl			# Hard drive?
-		jb main.4			# No
-		movb $0x1,%dh			# Block count
-		callw nread			# Read MBR
+		call check_edd		 	# Make sure EDD works
+		mov $part4,%si			# Dummy partition
+		xor %eax,%eax			# Read MBR
+		movl $MEM_BUF,%ebx		#  from first
+		call read			#  sector
 		mov $0x1,%cx	 		# Two passes
 main.1: 	mov $MEM_BUF+PRT_OFF,%si	# Partition table
 		movb $0x1,%dh			# Partition
@@ -131,60 +84,55 @@ main.3: 	add $0x10,%si	 		# Next entry
  */
 		mov $msg_part,%si		# Message
 		jmp error			# Error
-/*
- * Floppies use partition 0 of drive 0.
- */
-main.4: 	xor %dx,%dx			# Partition:drive
 
 /*
  * Ok, we have a slice and drive in %dx now, so use that to locate and
  * load boot2.  %si references the start of the slice we are looking
- * for, so go ahead and load up the 64 sectors starting at sector 1024
+ * for, so go ahead and load up the 128 sectors starting at sector 1024
  * (i.e. after the two vdev labels).  We don't have do anything fancy
  * here to allow for an extra copy of boot1 and a partition table
  * (compare to this section of the UFS bootstrap) so we just load it
- * all at 0x8000. The first part of boot2 is BTX, which wants to run
+ * all at 0x9000. The first part of boot2 is BTX, which wants to run
  * at 0x9000. The boot2.bin binary starts right after the end of BTX,
  * so we have to figure out where the start of it is and then move the
- * binary to 0xc000. After we have moved the client, we relocate BTX
- * itself to 0x9000 - doing it in this order means that none of the
- * memcpy regions overlap which would corrupt the copy.  Normally, BTX
- * clients start at MEM_USR, or 0xa000, but when we use btxld to
- * create zfsboot2, we use an entry point of 0x2000.  That entry point is
- * relative to MEM_USR; thus boot2.bin starts at 0xc000.
+ * binary to 0xc000.  Normally, BTX clients start at MEM_USR, or 0xa000,
+ * but when we use btxld to create zfsboot2, we use an entry point of
+ * 0x2000.  That entry point is relative to MEM_USR; thus boot2.bin
+ * starts at 0xc000.
  *
  * The load area and the target area for the client overlap so we have
  * to use a decrementing string move. We also play segment register
  * games with the destination address for the move so that the client
  * can be larger than 16k (which would overflow the zero segment since
- * the client starts at 0xc000). Relocating BTX is easy since the load
- * area and target area do not overlap.
+ * the client starts at 0xc000).
  */
 main.5: 	mov %dx,MEM_ARG			# Save args
-		movb $NSECT,%dh			# Sector count
+		mov $NSECT,%cx			# Sector count
 		movl $1024,%eax			# Offset to boot2
-		callw nread.1			# Read disk
-main.6:		mov $MEM_BUF,%si		# BTX (before reloc)
-		mov 0xa(%si),%bx		# Get BTX length and set
+		mov $MEM_BTX,%ebx		# Destination buffer
+main.6:		pushal				# Save params
+		call read			# Read disk
+		popal				# Restore
+		incl %eax			# Advance to
+		add $SIZ_SEC,%ebx		#  next sector
+		loop main.6			# If not last, read another
+		mov MEM_BTX+0xa,%bx		# Get BTX length
 		mov $NSECT*SIZ_SEC-1,%di	# Size of load area (less one)
-		mov %di,%si			# End of load
-		add $MEM_BUF,%si		#  area
+		mov %di,%si			# End of load area, 0x9000 rel
 		sub %bx,%di			# End of client, 0xc000 rel
 		mov %di,%cx			# Size of
 		inc %cx				#  client
+		mov $(MEM_BTX)>>4,%dx		# Segment
+		mov %dx,%ds			#   addressing 0x9000
 		mov $(MEM_USR+2*SIZ_PAG)>>4,%dx	# Segment
 		mov %dx,%es			#   addressing 0xc000
 		std				# Move with decrement
 		rep				# Relocate
 		movsb				#  client
-		mov %ds,%dx			# Back to
-		mov %dx,%es			#  zero segment
-		mov $MEM_BUF,%si		# BTX (before reloc)
-		mov $MEM_BTX,%di		# BTX
-		mov %bx,%cx			# Get BTX length
-		cld				# Increment this time
-		rep				# Relocate
-		movsb				#  BTX
+		cld				# Back to increment
+		xor %dx,%dx			# Back
+		mov %ds,%dx			#  to zero
+		mov %dx,%es			#  segment
 
 /*
  * Enable A20 so we can access memory above 1 meg.
@@ -210,33 +158,37 @@ seta20.3:	sti				# Enable interrupts
 
 
 /*
- * Trampoline used to call read from within zfsldr.  Sets up an EDD
- * packet on the stack and passes it to read.
+ * Read a sector from the disk.  Sets up an EDD packet on the stack
+ * and passes it to read.  We assume that the destination address is
+ * always segment-aligned.
  *
  * %eax		- int     - LBA to read in relative to partition start
+ * %ebx		- ptr	  - destination address
  * %dl		- byte    - drive to read from
- * %dh		- byte    - num sectors to read
  * %si		- ptr     - MBR partition entry
  */
-nread:		xor %eax,%eax			# Sector offset in partition
-nread.1:	xor %ecx,%ecx			# Get
+read:		xor %ecx,%ecx			# Get
 		addl 0x8(%si),%eax		#  LBA
 		adc $0,%ecx
 		pushl %ecx			# Starting absolute block
 		pushl %eax			#  block number
-		push %es			# Address of
-		push $MEM_BUF			#  transfer buffer
-		xor %ax,%ax			# Number of
-		movb %dh,%al			#  blocks to
-		push %ax			#  transfer
+		shr $4,%ebx			# Convert to segment
+		push %bx			# Address of
+		push $0				#  transfer buffer
+		push $0x1			# Read 1 sector
 		push $0x10			# Size of packet
-		mov %sp,%bp			# Packet pointer
-		callw read			# Read from disk
-		lea 0x10(%bp),%sp		# Clear stack
-		jnc return			# If success, return
-		mov $msg_read,%si		# Otherwise, set the error
-						#  message and fall through to
-						#  the error routine
+		mov %sp,%si			# Packet pointer
+		mov $0x42,%ah			# BIOS: Extended
+		int $0x13			#  read
+		jc read.1			# If error, fail
+		lea 0x10(%si),%sp		# Clear stack
+		ret				# If success, return
+read.1:		mov %ah,%al			# Format
+		mov $read_err,%di		#  error
+		call hex8			#  code
+		mov $msg_read,%si		# Set the error message and
+						#  fall through to the error
+						#  routine
 /*
  * Print out the error message pointed to by %ds:(%si) followed
  * by a prompt, wait for a keypress, and then reboot the machine.
@@ -257,51 +209,49 @@ putstr.0:	mov $0x7,%bx	 		# Page:attribute
 putstr: 	lodsb				# Get char
 		testb %al,%al			# End of string?
 		jne putstr.0			# No
-
+		ret				# To caller
 /*
- * Overused return code.  ereturn is used to return an error from the
- * read function.  Since we assume putstr succeeds, we (ab)use the
- * same code when we return from putstr.
+ * Check to see if the disk supports EDD.  zfsboot requires EDD and does not
+ * support older C/H/S disk I/O.
  */
-ereturn:	movb $0x1,%ah			# Invalid
-		stc				#  argument
-return: 	retw				# To caller
-/*
- * Reads sectors from the disk.  If EDD is enabled, then check if it is
- * installed and use it if it is.  If it is not installed or not enabled, then
- * fall back to using CHS.  Since we use a LBA, if we are using CHS, we have to
- * fetch the drive parameters from the BIOS and divide it out ourselves.
- * Call with:
- *
- * %dl	- byte     - drive number
- * stack - 10 bytes - EDD Packet
- */
-read:		cmpb $0x80,%dl			# Hard drive?
-		jb read.1			# No, use CHS
+check_edd:	cmpb $0x80,%dl			# Hard drive?
+		jb check_edd.1 			# No, fail to boot
 		mov $0x55aa,%bx			# Magic
 		push %dx			# Save
 		movb $0x41,%ah			# BIOS: Check
 		int $0x13			#  extensions present
 		pop %dx				# Restore
-		jc read.1			# If error, use CHS
+		jc check_edd.1			# If error, fail
 		cmp $0xaa55,%bx			# Magic?
-		jne read.1			# No, so use CHS
+		jne check_edd.1			# No, so fail
 		testb $0x1,%cl			# Packet interface?
-		jz read.1			# No, so use CHS
-		mov %bp,%si			# Disk packet
-		movb $0x42,%ah			# BIOS: Extended
-		int $0x13			#  read
-		retw				# To caller
-read.1:		mov $msg_chs,%si
-		jmp error
-msg_chs:	.asciz "CHS not supported"
+		jz check_edd.1			# No, so fail
+		ret				# EDD ok, keep booting
+check_edd.1:	mov $msg_chs,%si		# Warn that CHS is
+		jmp error			#  unsupported and fail
+/*
+ * AL to hex, saving the result to [EDI].
+ */
+hex8:		push %ax			# Save
+		shrb $0x4,%al			# Do upper
+		call hex8.1			#  4
+		pop %ax				# Restore
+hex8.1: 	andb $0xf,%al			# Get lower 4
+		cmpb $0xa,%al			# Convert
+		sbbb $0x69,%al			#  to hex
+		das				#  digit
+		orb $0x20,%al			# To lower case
+		stosb				# Save char
+		ret				# (Recursive)
 
 /* Messages */
 
-msg_read:	.asciz "Read"
-msg_part:	.asciz "Boot"
+msg_chs:	.asciz "CHS not supported"
+msg_read:	.ascii "Read error: "
+read_err:	.asciz "XX"
+msg_part:	.asciz "Boot error"
 
-prompt: 	.asciz " error\r\n"
+prompt: 	.asciz "\r\n"
 
 		.org PRT_OFF,0x90
 

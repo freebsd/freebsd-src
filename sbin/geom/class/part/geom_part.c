@@ -362,7 +362,7 @@ gpart_autofill_resize(struct gctl_req *req)
 			goto done;
 	}
 
-	offset = pp->lg_stripeoffset / pp->lg_sectorsize;
+	offset = (pp->lg_stripeoffset / pp->lg_sectorsize) % alignment;
 	last = (off_t)strtoimax(find_geomcfg(gp, "last"), NULL, 0);
 	LIST_FOREACH(pp, &gp->lg_provider, lg_provider) {
 		s = find_provcfg(pp, "index");
@@ -497,10 +497,10 @@ gpart_autofill(struct gctl_req *req)
 		alignment = len;
 
 	/* Adjust parameters to stripeoffset */
-	offset = pp->lg_stripeoffset / pp->lg_sectorsize;
+	offset = (pp->lg_stripeoffset / pp->lg_sectorsize) % alignment;
 	start = ALIGNUP(start + offset, alignment);
-	if (size + offset > alignment)
-		size = ALIGNDOWN(size + offset, alignment);
+	if (size > alignment)
+		size = ALIGNDOWN(size, alignment);
 
 	first = (off_t)strtoimax(find_geomcfg(gp, "first"), NULL, 0);
 	last = (off_t)strtoimax(find_geomcfg(gp, "last"), NULL, 0);
@@ -1208,8 +1208,11 @@ gpart_bootcode(struct gctl_req *req, unsigned int fl)
 			if (idx == 0)
 				errx(EXIT_FAILURE, "missing -i option");
 			gpart_write_partcode(gp, idx, partcode, partsize);
-		} else
+		} else {
+			if (partsize != VTOC_BOOTSIZE)
+				errx(EXIT_FAILURE, "invalid bootcode");
 			gpart_write_partcode_vtoc8(gp, idx, partcode);
+		}
 	} else
 		if (bootcode == NULL)
 			errx(EXIT_FAILURE, "no -b nor -p");

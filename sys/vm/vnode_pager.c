@@ -387,7 +387,7 @@ vnode_pager_setsize(vp, nsize)
 		 */
 		if (nobjsize < object->size)
 			vm_object_page_remove(object, nobjsize, object->size,
-			    FALSE);
+			    0);
 		/*
 		 * this gets rid of garbage at the end of a page that is now
 		 * only partially backed by the vnode.

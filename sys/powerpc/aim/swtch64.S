@@ -69,7 +69,7 @@
  * void cpu_throw(struct thread *old, struct thread *new)
  */
 ENTRY(cpu_throw)
-	mr	%r15, %r4
+	mr	%r13, %r4
 	b	cpu_switchin
 
 /*
@@ -83,7 +83,6 @@ ENTRY(cpu_switch)
 	ld	%r6,TD_PCB(%r3)		/* Get the old thread's PCB ptr */
 	std	%r12,PCB_CONTEXT(%r6)	/* Save the non-volatile GP regs.
 					   These can now be used for scratch */
-	std	%r13,PCB_CONTEXT+1*8(%r6)	
 	std	%r14,PCB_CONTEXT+2*8(%r6)	
 	std	%r15,PCB_CONTEXT+3*8(%r6)	
 	std	%r16,PCB_CONTEXT+4*8(%r6)	
@@ -111,7 +110,7 @@ ENTRY(cpu_switch)
 	std	%r2,PCB_TOC(%r6)	/* Save the TOC pointer */
 	
 	mr	%r14,%r3		/* Copy the old thread ptr... */
-	mr	%r15,%r4		/* and the new thread ptr in scratch */
+	mr	%r13,%r4		/* and the new thread ptr in curthread*/
 	mr	%r16,%r5		/* and the new lock */
 	mr	%r17,%r6		/* and the PCB */
 	
@@ -148,19 +147,19 @@ cpu_switchin:
 	lis	%r6,blocked_lock@ha
 	addi	%r6,%r6,blocked_lock@l
 blocked_loop:
-	ld	%r7,TD_LOCK(%r15)
+	ld	%r7,TD_LOCK(%r13)
 	cmpd	%r6,%r7 
 	beq	blocked_loop
 #endif
 
 	mfsprg	%r7,0			/* Get the pcpu pointer */
-	std	%r15,PC_CURTHREAD(%r7)	/* Store new current thread */
-	ld	%r17,TD_PCB(%r15)	/* Store new current PCB */
+	std	%r13,PC_CURTHREAD(%r7)	/* Store new current thread */
+	ld	%r17,TD_PCB(%r13)	/* Store new current PCB */
 	std	%r17,PC_CURPCB(%r7)
 
 	stdu	%r1,-48(%r1)
 
-	mr	%r3,%r15		/* Get new thread ptr */
+	mr	%r3,%r13		/* Get new thread ptr */
 	bl	pmap_activate		/* Activate the new address space */
 	nop
 
@@ -168,7 +167,7 @@ blocked_loop:
 	/* Restore FPU context if needed */
 	andi.	%r6, %r6, PCB_FPU
 	beq	.L3
-	mr	%r3,%r15		/* Pass curthread to enable_fpu */
+	mr	%r3,%r13		/* Pass curthread to enable_fpu */
 	bl	enable_fpu
 	nop
 
@@ -177,7 +176,7 @@ blocked_loop:
 	/* Restore Altivec context if needed */
 	andi.	%r6, %r6, PCB_VEC
 	beq	.L4
-	mr	%r3,%r15		/* Pass curthread to enable_vec */
+	mr	%r3,%r13		/* Pass curthread to enable_vec */
 	bl	enable_vec
 	nop
 
@@ -186,7 +185,6 @@ blocked_loop:
 	addi	%r1,%r1,48
 	mr	%r3,%r17		/* Recover PCB ptr */
 	ld	%r12,PCB_CONTEXT(%r3)	/* Load the non-volatile GP regs. */
-	ld	%r13,PCB_CONTEXT+1*8(%r3)	
 	ld	%r14,PCB_CONTEXT+2*8(%r3)	
 	ld	%r15,PCB_CONTEXT+3*8(%r3)	
 	ld	%r16,PCB_CONTEXT+4*8(%r3)	

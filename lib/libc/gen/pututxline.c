@@ -57,7 +57,7 @@ futx_open(const char *file)
 		errno = EFTYPE;
 		return (NULL);
 	}
-	
+
 	fp = fdopen(fd, "r+");
 	if (fp == NULL) {
 		_close(fd);
@@ -103,7 +103,7 @@ utx_active_add(const struct futx *fu)
 			/* Allow us to overwrite unused records. */
 			if (partial == -1) {
 				partial = ftello(fp);
-				/* 
+				/*
 				 * Distinguish errors from valid values so we
 				 * don't overwrite good data by accident.
 				 */

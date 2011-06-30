@@ -253,7 +253,7 @@ static struct ucom_callback umcs7840_callback = {
 	.ucom_poll = &umcs7840_poll,
 };
 
-static const struct usb_device_id umcs7840_devs[] = {
+static const STRUCT_USB_HOST_ID umcs7840_devs[] = {
 	{USB_VPI(USB_VENDOR_MOSCHIP, USB_PRODUCT_MOSCHIP_MCS7820, 0)},
 	{USB_VPI(USB_VENDOR_MOSCHIP, USB_PRODUCT_MOSCHIP_MCS7840, 0)},
 };

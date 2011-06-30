@@ -57,7 +57,6 @@ static const char rcsid[] =
 #include <pwd.h>
 #include <string.h>
 #include <sys/resource.h>
-#include <stdlib.h>
 #include "ypupdated_extern.h"
 
 #ifdef YP

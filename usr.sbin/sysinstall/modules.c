@@ -32,7 +32,6 @@
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/linker.h>
-#include <fcntl.h>
 #include <dirent.h>
 #include <fcntl.h>
 #include <fnmatch.h>

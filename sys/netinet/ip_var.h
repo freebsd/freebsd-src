@@ -286,6 +286,7 @@ enum {
 };
 #define MTAG_IPFW	1148380143	/* IPFW-tagged cookie */
 #define MTAG_IPFW_RULE	1262273568	/* rule reference */
+#define	MTAG_IPFW_CALL	1308397630	/* call stack */
 
 struct ip_fw_args;
 typedef int	(*ip_fw_chk_ptr_t)(struct ip_fw_args *args);
