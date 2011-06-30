@@ -55,7 +55,10 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_capsicum.h"
+
 #include <sys/param.h>
+#include <sys/capability.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
@@ -485,6 +488,14 @@ shm_open(struct thread *td, struct shm_open_args *uap)
 	Fnv32_t fnv;
 	mode_t cmode;
 	int fd, error;
+
+#ifdef CAPABILITY_MODE
+	/*
+	 * shm_open(2) is only allowed for anonymous objects.
+	 */
+	if (IN_CAPABILITY_MODE(td) && (uap->path != SHM_ANON))
+		return (ECAPMODE);
+#endif
 
 	if ((uap->flags & O_ACCMODE) != O_RDONLY &&
 	    (uap->flags & O_ACCMODE) != O_RDWR)
