@@ -64,6 +64,7 @@ struct socket;
 #define	DTYPE_SEM	9	/* posix semaphore */
 #define	DTYPE_PTS	10	/* pseudo teletype master device */
 #define	DTYPE_DEV	11	/* Device specific fd type */
+#define	DTYPE_CAPABILITY	12	/* capability */
 
 #ifdef _KERNEL
 
