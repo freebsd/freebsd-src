@@ -404,6 +404,10 @@ Wtraditional
 C ObjC Var(warn_traditional)
 Warn about features not present in traditional C
 
+Wtrampolines
+Common Var(warn_trampolines)
+Warn when trampolines are emitted
+
 Wtrigraphs
 C ObjC C++ ObjC++
 Warn if trigraphs are encountered that might affect the meaning of the program
