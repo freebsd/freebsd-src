@@ -492,6 +492,8 @@ command
 command and arguments
 .It Cm cpu
 short-term CPU usage factor (for scheduling)
+.It Cm emul
+system-call emulation environment
 .It Cm etime
 elapsed running time, format
 .Op days- Ns
@@ -527,6 +529,8 @@ lock currently blocked on (as a symbolic name)
 login name of user who started the session
 .It Cm lstart
 time started
+.It Cm lwp
+process thread-id
 .It Cm majflt
 total page faults
 .It Cm minflt
@@ -542,6 +546,8 @@ nice value (alias
 .Cm ni )
 .It Cm nivcsw
 total involuntary context switches
+.It Cm nlwp
+number of threads tied to a process
 .It Cm nsigs
 total signals taken (alias
 .Cm nsignals )
@@ -562,8 +568,6 @@ pageins (same as majflt)
 process group number
 .It Cm pid
 process ID
-.It Cm poip
-pageouts in progress
 .It Cm ppid
 parent process ID
 .It Cm pri
@@ -574,8 +578,6 @@ core residency time (in seconds; 127 = infinity)
 real group ID
 .It Cm rgroup
 group name (from rgid)
-.It Cm rlink
-reverse link on run queue, or 0
 .It Cm rss
 resident set size
 .It Cm rtprio
@@ -630,8 +632,6 @@ text size (in Kbytes)
 control terminal name (two letter abbreviation)
 .It Cm tty
 full name of control terminal
-.It Cm uprocp
-process pointer
 .It Cm ucomm
 name to be used for accounting
 .It Cm uid
@@ -640,6 +640,8 @@ effective user ID (alias
 .It Cm upr
 scheduling priority on return from system call (alias
 .Cm usrpri )
+.It Cm uprocp
+process pointer
 .It Cm user
 user name (from UID)
 .It Cm usertime
