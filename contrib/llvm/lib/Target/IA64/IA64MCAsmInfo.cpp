@@ -10,5 +10,6 @@ IA64MCAsmInfo::IA64MCAsmInfo(const Target &T, StringRef TT) {
   Data16bitsDirective = "\tdata2\t";
   Data32bitsDirective = "\tdata4\t";
   Data64bitsDirective = "\tdata8\t";
+  GlobalDirective = "\t.global\t";
   ZeroDirective = NULL;
 }
