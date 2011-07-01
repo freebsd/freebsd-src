@@ -89,6 +89,8 @@ typedef	__blkcnt_t	blkcnt_t;
 #define	_BLKCNT_T_DECLARED
 #endif
 
+typedef	__cap_rights_t	cap_rights_t;
+
 #ifndef _CLOCK_T_DECLARED
 typedef	__clock_t	clock_t;
 #define	_CLOCK_T_DECLARED
