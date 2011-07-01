@@ -93,6 +93,8 @@ static uuid_t ms_basic_data = GPT_ENT_TYPE_MS_BASIC_DATA;
 
 #endif
 
+#if defined(LOADER_GPT_SUPPORT) || defined(LOADER_MBR_SUPPORT)
+
 /* Given a size in 512 byte sectors, convert it to a human-readable number. */
 static char *
 display_size(uint64_t size)
@@ -115,6 +117,10 @@ display_size(uint64_t size)
 	sprintf(buf, "%.6ld%cB", (long)size, unit);
 	return (buf);
 }
+
+#endif
+
+#ifdef LOADER_MBR_SUPPORT
 
 static void
 disk_checkextended(struct disk_devdesc *dev,
@@ -469,7 +475,7 @@ disk_printslice(struct disk_devdesc *dev, int slice,
 	pager_output(line);
 }
 
-int
+static int
 disk_printmbr(struct disk_devdesc *dev, char *prefix, int verbose)
 {
 	struct dos_partition	*slicetab;
@@ -487,6 +493,8 @@ disk_printmbr(struct disk_devdesc *dev, char *prefix, int verbose)
 	free(slicetab);
 	return (0);
 }
+
+#endif
 
 #ifdef LOADER_GPT_SUPPORT
 
@@ -630,7 +638,7 @@ disk_bestgpt(struct gpt_part *gpt, int ngpt)
 	return (prefpart);
 }
 
-int
+static int
 disk_opengpt(struct disk_devdesc *dev)
 {
 	struct gpt_part		*gpt = NULL, *gp;
@@ -759,6 +767,7 @@ disk_open(struct disk_devdesc *dev)
 {
 	int rc;
 
+	rc = 0;
 	/*
 	 * While we are reading disk metadata, make sure we do it relative
 	 * to the start of the disk
@@ -769,7 +778,9 @@ disk_open(struct disk_devdesc *dev)
 	rc = disk_opengpt(dev);
 	if (rc)
 #endif
+#ifdef LOADER_MBR_SUPPORT
 		rc = disk_openmbr(dev);
+#endif
 
 	return (rc);
 }
@@ -777,12 +788,12 @@ disk_open(struct disk_devdesc *dev)
 void
 disk_print(struct disk_devdesc *dev, char *prefix, int verbose)
 {
-	int			rc;
 
 #ifdef LOADER_GPT_SUPPORT
-	rc = disk_printgpt(dev, prefix, verbose);
-	if (rc == 0)
+	if (disk_printgpt(dev, prefix, verbose) == 0)
 		return;
 #endif
+#ifdef LOADER_MBR_SUPPORT
 	disk_printmbr(dev, prefix, verbose);
+#endif
 }
