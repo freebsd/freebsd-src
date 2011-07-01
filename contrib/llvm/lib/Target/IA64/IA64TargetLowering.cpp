@@ -52,6 +52,20 @@ IA64TargetLowering::IA64TargetLowering(IA64TargetMachine &tm) :
 }
 
 SDValue
+IA64TargetLowering::LowerCall(SDValue Chain, SDValue Callee,
+    CallingConv::ID CallConv, bool isVarArg, bool &isTailCall,
+    const SmallVectorImpl<ISD::OutputArg> &Outs,
+    const SmallVectorImpl<SDValue> &OutVals,
+    const SmallVectorImpl<ISD::InputArg> &Ins, DebugLoc dl, SelectionDAG &DAG,
+    SmallVectorImpl<SDValue> &InVals) const
+{
+
+  DEBUG(dbgs() << "XXX: IA64TargetLowering::" <<__func__ << "\n");
+
+  return Chain;
+}
+
+SDValue
 IA64TargetLowering::LowerFormalArguments(SDValue Chain,
     CallingConv::ID CallConv, bool isVarArg,
     const SmallVectorImpl<ISD::InputArg> &Ins, DebugLoc dl, SelectionDAG &DAG,
