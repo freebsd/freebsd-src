@@ -44,7 +44,17 @@
 	(TD_V | TD_4M | (TLB_DIRECT_ADDRESS_MASK - TLB_DIRECT_PAGE_MASK))
 
 #define	TLB_DAR_SLOT_SHIFT		(3)
-#define	TLB_DAR_SLOT(slot)		((slot) << TLB_DAR_SLOT_SHIFT)
+#define	TLB_DAR_TLB_SHIFT		(16)
+#define	TLB_DAR_SLOT(tlb, slot)						\
+	((tlb) << TLB_DAR_TLB_SHIFT | (slot) << TLB_DAR_SLOT_SHIFT)
+#define	TLB_DAR_T16			(0)	/* US-III{,i,+}, IV{,+} */
+#define	TLB_DAR_T32			(0)	/* US-I, II{,e,i} */
+#define	TLB_DAR_DT512_0			(2)	/* US-III{,i,+}, IV{,+} */
+#define	TLB_DAR_DT512_1			(3)	/* US-III{,i,+}, IV{,+} */
+#define	TLB_DAR_IT128			(2)	/* US-III{,i,+}, IV */
+#define	TLB_DAR_IT512			(2)	/* US-IV+ */
+#define	TLB_DAR_FTLB			(0)	/* SPARC64 V, VI, VII, VIIIfx */
+#define	TLB_DAR_STLB			(2)	/* SPARC64 V, VI, VII, VIIIfx */
 
 #define	TAR_VPN_SHIFT			(13)
 #define	TAR_CTX_MASK			((1 << TAR_VPN_SHIFT) - 1)
@@ -155,6 +165,9 @@ tlb_flush_user_t cheetah_tlb_flush_user;
 
 tlb_flush_nonlocked_t spitfire_tlb_flush_nonlocked;
 tlb_flush_user_t spitfire_tlb_flush_user;
+
+tlb_flush_nonlocked_t zeus_tlb_flush_nonlocked;
+tlb_flush_user_t zeus_tlb_flush_user;
 
 extern tlb_flush_nonlocked_t *tlb_flush_nonlocked;
 extern tlb_flush_user_t *tlb_flush_user;

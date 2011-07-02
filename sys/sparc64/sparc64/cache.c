@@ -169,12 +169,12 @@ cache_init(struct pcpu *pcpu)
 		tlb_flush_nonlocked = cheetah_tlb_flush_nonlocked;
 		tlb_flush_user = cheetah_tlb_flush_user;
 	} else if (pcpu->pc_impl == CPU_IMPL_SPARC64V) {
-		cache_enable = cheetah_cache_enable;
+		cache_enable = zeus_cache_enable;
 		cache_flush = zeus_cache_flush;
 		dcache_page_inval = zeus_dcache_page_inval;
 		icache_page_inval = zeus_icache_page_inval;
-		tlb_flush_nonlocked = cheetah_tlb_flush_nonlocked;
-		tlb_flush_user = cheetah_tlb_flush_user;
+		tlb_flush_nonlocked = zeus_tlb_flush_nonlocked;
+		tlb_flush_user = zeus_tlb_flush_user;
 	} else if (pcpu->pc_impl >= CPU_IMPL_ULTRASPARCI &&
 	    pcpu->pc_impl < CPU_IMPL_ULTRASPARCIII) {
 		cache_enable = spitfire_cache_enable;
