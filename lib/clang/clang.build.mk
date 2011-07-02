@@ -65,6 +65,15 @@ ${arch:T}Gen${hdr:H:C/$/.inc.h/}: ${LLVM_SRCS}/lib/Target/${arch:H}/${arch:T}.td
 	${TBLGEN} ${hdr:T:C/,/ /g} \
 	    ${LLVM_SRCS}/lib/Target/${arch:H}/${arch:T}.td > ${.TARGET}
 . endfor
+
+. for hdr in \
+	RegisterInfo.h	\
+	RegisterInfo	\
+	RegisterNames
+${arch:T}Gen${hdr}.inc.h: \
+	${LLVM_SRCS}/lib/Target/${arch:H}/${arch:T}RegisterInfo.td
+. endfor
+
 .endfor
 
 ARMGenDecoderTables.inc.h: ${LLVM_SRCS}/lib/Target/ARM/ARM.td
