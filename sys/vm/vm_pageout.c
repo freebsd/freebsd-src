@@ -216,15 +216,21 @@ static void vm_req_vmdaemon(int req);
 #endif
 static void vm_pageout_page_stats(void);
 
+/*
+ * Initialize a dummy page for marking the caller's place in the specified
+ * paging queue.  In principle, this function only needs to set the flag
+ * PG_MARKER.  Nonetheless, it sets the flag VPO_BUSY and initializes the hold
+ * count to one as safety precautions.
+ */ 
 static void
 vm_pageout_init_marker(vm_page_t marker, u_short queue)
 {
 
 	bzero(marker, sizeof(*marker));
-	marker->flags = PG_FICTITIOUS | PG_MARKER;
+	marker->flags = PG_MARKER;
 	marker->oflags = VPO_BUSY;
 	marker->queue = queue;
-	marker->wire_count = 1;
+	marker->hold_count = 1;
 }
 
 /*
