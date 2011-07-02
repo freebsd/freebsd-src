@@ -1162,7 +1162,8 @@ options 	MAC_STUB
 options 	MAC_TEST
 
 # Support for Capsicum
-options 	CAPABILITY_MODE
+options 	CAPABILITIES	# fine-grained rights on file descriptors
+options 	CAPABILITY_MODE	# sandboxes with no global namespace access
 
 
 #####################################################################
