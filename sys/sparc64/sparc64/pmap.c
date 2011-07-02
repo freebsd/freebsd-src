@@ -247,7 +247,7 @@ PMAP_STATS_VAR(pmap_ncopy_page_soc);
 PMAP_STATS_VAR(pmap_nnew_thread);
 PMAP_STATS_VAR(pmap_nnew_thread_oc);
 
-static inline u_long dtlb_get_data(u_int slot);
+static inline u_long dtlb_get_data(u_int tlb, u_int slot);
 
 /*
  * Quick sort callout for comparing memory regions
@@ -288,15 +288,21 @@ om_cmp(const void *a, const void *b)
 }
 
 static inline u_long
-dtlb_get_data(u_int slot)
+dtlb_get_data(u_int tlb, u_int slot)
 {
+	u_long data;
+	register_t s;
 
+	slot = TLB_DAR_SLOT(tlb, slot);
 	/*
-	 * We read ASI_DTLB_DATA_ACCESS_REG twice in order to work
-	 * around errata of USIII and beyond.
+	 * We read ASI_DTLB_DATA_ACCESS_REG twice back-to-back in order to
+	 * work around errata of USIII and beyond.
 	 */
-	(void)ldxa(TLB_DAR_SLOT(slot), ASI_DTLB_DATA_ACCESS_REG);
-	return (ldxa(TLB_DAR_SLOT(slot), ASI_DTLB_DATA_ACCESS_REG));
+	s = intr_disable();
+	(void)ldxa(slot, ASI_DTLB_DATA_ACCESS_REG);
+	data = ldxa(slot, ASI_DTLB_DATA_ACCESS_REG);
+	intr_restore(s);
+	return (data);
 }
 
 /*
@@ -392,7 +398,9 @@ pmap_bootstrap(u_int cpu_impl)
 	} else {
 		dtlb_slots_avail = 0;
 		for (i = 0; i < dtlb_slots; i++) {
-			data = dtlb_get_data(i);
+			data = dtlb_get_data(cpu_impl ==
+			    CPU_IMPL_ULTRASPARCIII ? TLB_DAR_T16 :
+			    TLB_DAR_T32, i);
 			if ((data & (TD_V | TD_L)) != (TD_V | TD_L))
 				dtlb_slots_avail++;
 		}

@@ -140,47 +140,45 @@ spitfire_icache_page_inval(vm_paddr_t pa)
 }
 
 /*
- * Flush all non-locked mappings from the TLB.
+ * Flush all non-locked mappings from the TLBs.
  */
 void
 spitfire_tlb_flush_nonlocked(void)
 {
-	int i;
+	u_int i;
+	u_int slot;
 
 	for (i = 0; i < SPITFIRE_TLB_ENTRIES; i++) {
-		if ((ldxa(TLB_DAR_SLOT(i), ASI_DTLB_DATA_ACCESS_REG) &
-		    TD_L) == 0)
-			stxa_sync(TLB_DAR_SLOT(i),
-			    ASI_DTLB_DATA_ACCESS_REG, 0);
-		if ((ldxa(TLB_DAR_SLOT(i), ASI_ITLB_DATA_ACCESS_REG) &
-		    TD_L) == 0)
-			stxa_sync(TLB_DAR_SLOT(i),
-			    ASI_ITLB_DATA_ACCESS_REG, 0);
+		slot = TLB_DAR_SLOT(TLB_DAR_T32, i);
+		if ((ldxa(slot, ASI_DTLB_DATA_ACCESS_REG) & TD_L) == 0)
+			stxa_sync(slot, ASI_DTLB_DATA_ACCESS_REG, 0);
+		if ((ldxa(slot, ASI_ITLB_DATA_ACCESS_REG) & TD_L) == 0)
+			stxa_sync(slot, ASI_ITLB_DATA_ACCESS_REG, 0);
 	}
 }
 
 /*
- * Flush all user mappings from the TLB.
+ * Flush all user mappings from the TLBs.
  */
 void
 spitfire_tlb_flush_user(void)
 {
 	u_long data;
 	u_long tag;
-	int i;
+	u_int i;
+	u_int slot;
 
 	for (i = 0; i < SPITFIRE_TLB_ENTRIES; i++) {
-		data = ldxa(TLB_DAR_SLOT(i), ASI_DTLB_DATA_ACCESS_REG);
-		tag = ldxa(TLB_DAR_SLOT(i), ASI_DTLB_TAG_READ_REG);
+		slot = TLB_DAR_SLOT(TLB_DAR_T32, i);
+		data = ldxa(slot, ASI_DTLB_DATA_ACCESS_REG);
+		tag = ldxa(slot, ASI_DTLB_TAG_READ_REG);
 		if ((data & TD_V) != 0 && (data & TD_L) == 0 &&
 		    TLB_TAR_CTX(tag) != TLB_CTX_KERNEL)
-			stxa_sync(TLB_DAR_SLOT(i),
-			    ASI_DTLB_DATA_ACCESS_REG, 0);
-		data = ldxa(TLB_DAR_SLOT(i), ASI_ITLB_DATA_ACCESS_REG);
-		tag = ldxa(TLB_DAR_SLOT(i), ASI_ITLB_TAG_READ_REG);
+			stxa_sync(slot, ASI_DTLB_DATA_ACCESS_REG, 0);
+		data = ldxa(slot, ASI_ITLB_DATA_ACCESS_REG);
+		tag = ldxa(slot, ASI_ITLB_TAG_READ_REG);
 		if ((data & TD_V) != 0 && (data & TD_L) == 0 &&
 		    TLB_TAR_CTX(tag) != TLB_CTX_KERNEL)
-			stxa_sync(TLB_DAR_SLOT(i),
-			    ASI_ITLB_DATA_ACCESS_REG, 0);
+			stxa_sync(slot, ASI_ITLB_DATA_ACCESS_REG, 0);
 	}
 }
