@@ -774,9 +774,9 @@ void
 usage()
 {
 	(void)fprintf(stderr,
-"usage: install [-bCcpSsv] [-B suffix] [-f flags] [-g group] [-m mode]\n"
+"usage: install [-bCcMpSsv] [-B suffix] [-f flags] [-g group] [-m mode]\n"
 "               [-o owner] file1 file2\n"
-"       install [-bCcpSsv] [-B suffix] [-f flags] [-g group] [-m mode]\n"
+"       install [-bCcMpSsv] [-B suffix] [-f flags] [-g group] [-m mode]\n"
 "               [-o owner] file1 ... fileN directory\n"
 "       install -d [-v] [-g group] [-m mode] [-o owner] directory ...\n");
 	exit(EX_USAGE);
