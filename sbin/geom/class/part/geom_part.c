@@ -828,8 +828,8 @@ gpart_restore(struct gctl_req *req, unsigned int fl __unused)
 				    classp->lg_name);
 				gctl_ro_param(r, "verb", -1, "destroy");
 				gctl_ro_param(r, "flags", -1, "restore");
-				gctl_ro_param(r, "force", sizeof(forced),
-				    &forced);
+				gctl_ro_param(r, "force", -1,
+				    forced ? "1": "0");
 				gctl_ro_param(r, "geom", -1, s);
 				errstr = gctl_issue(r);
 				if (errstr != NULL && errstr[0] != '\0') {
