@@ -2012,7 +2012,7 @@ pmap_collect(pmap_t locked_pmap, struct vpgqueues *vpq)
 
 	sched_pin();
 	TAILQ_FOREACH(m, &vpq->pl, pageq) {
-		if (m->hold_count || m->busy)
+		if ((m->flags & PG_MARKER) != 0 || m->hold_count || m->busy)
 			continue;
 		TAILQ_FOREACH_SAFE(pv, &m->md.pv_list, pv_list, next_pv) {
 			va = pv->pv_va;
