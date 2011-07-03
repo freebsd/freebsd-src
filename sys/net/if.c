@@ -58,6 +58,8 @@
 #include <sys/taskqueue.h>
 #include <sys/domain.h>
 #include <sys/jail.h>
+#include <sys/priv.h>
+
 #include <machine/stdarg.h>
 #include <vm/uma.h>
 
@@ -2133,6 +2135,20 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 
 		getmicrotime(&ifp->if_lastchange);
 		free(odescrbuf, M_IFDESCR);
+		break;
+
+	case SIOCGIFFIB:
+		ifr->ifr_fib = ifp->if_fib;
+		break;
+
+	case SIOCSIFFIB:
+		error = priv_check(td, PRIV_NET_SETIFFIB);
+		if (error)
+			return (error);
+		if (ifr->ifr_fib >= rt_numfibs)
+			return (EINVAL);
+
+		ifp->if_fib = ifr->ifr_fib;
 		break;
 
 	case SIOCSIFFLAGS:

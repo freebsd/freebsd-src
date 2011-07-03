@@ -196,6 +196,7 @@ struct ifnet {
 	void	*if_pf_kif;
 	void	*if_lagg;		/* lagg glue */
 	u_char	 if_alloctype;		/* if_type at time of allocation */
+	u_int	if_fib;			/* interface FIB */
 
 	/*
 	 * Spare fields are added so that we can modify sensitive data
