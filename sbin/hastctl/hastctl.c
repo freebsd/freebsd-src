@@ -491,9 +491,8 @@ main(int argc, char *argv[])
 		    cfg->hc_controladdr);
 	}
 
-	if (drop_privs() != 0)
+	if (drop_privs(NULL) != 0)
 		exit(EX_CONFIG);
-	pjdlog_debug(1, "Privileges successfully dropped.");
 
 	/* Send the command to the server... */
 	if (hast_proto_send(NULL, controlconn, nv, NULL, 0) < 0) {
