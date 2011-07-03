@@ -472,6 +472,7 @@ static struct usb_quirk_entry usb_quirks[USB_DEV_QUIRKS_MAX] = {
 	USB_QUIRK(ROLAND, SD20, 0x0000, 0xffff, UQ_AU_VENDOR_CLASS),
 	USB_QUIRK(ROLAND, SD80, 0x0000, 0xffff, UQ_AU_VENDOR_CLASS),
 	USB_QUIRK(ROLAND, UA700, 0x0000, 0xffff, UQ_AU_VENDOR_CLASS),
+	USB_QUIRK(MEDELI, DD305, 0x0000, 0xffff, UQ_SINGLE_CMD_MIDI, UQ_MATCH_VENDOR_ONLY),
 };
 #undef USB_QUIRK_VP
 #undef USB_QUIRK
@@ -538,6 +539,7 @@ static const char *usb_quirk_str[USB_QUIRK_MAX] = {
 	[UQ_MSC_EJECT_TCT]		= "UQ_MSC_EJECT_TCT",
 	[UQ_BAD_MIDI]			= "UQ_BAD_MIDI",
 	[UQ_AU_VENDOR_CLASS]		= "UQ_AU_VENDOR_CLASS",
+	[UQ_SINGLE_CMD_MIDI]		= "UQ_SINGLE_CMD_MIDI",
 };
 
 /*------------------------------------------------------------------------*

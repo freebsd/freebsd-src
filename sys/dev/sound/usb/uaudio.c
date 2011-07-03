@@ -192,7 +192,7 @@ struct uaudio_chan {
 };
 
 #define	UMIDI_CABLES_MAX   16		/* units */
-#define	UMIDI_TX_FRAMES	   64		/* units */
+#define	UMIDI_TX_FRAMES	   128		/* units */
 #define	UMIDI_TX_BUFFER    (UMIDI_TX_FRAMES * 4)	/* bytes */
 
 enum {
@@ -236,6 +236,7 @@ struct umidi_chan {
 	uint8_t	curr_cable;
 	uint8_t	max_cable;
 	uint8_t	valid;
+	uint8_t single_command;
 };
 
 struct uaudio_softc {
@@ -499,7 +500,6 @@ static const struct usb_config
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
 		.bufsize = UMIDI_TX_BUFFER,
-		.frames = UMIDI_TX_FRAMES,
 		.callback = &umidi_bulk_write_callback,
 	},
 
@@ -3565,6 +3565,7 @@ tr_setup:
 		nframes = 0;	/* reset */
 		start_cable = chan->curr_cable;
 		tr_any = 0;
+		pc = usbd_xfer_get_frame(xfer, 0);
 
 		while (1) {
 
@@ -3592,15 +3593,11 @@ tr_setup:
 					    sub->temp_cmd[0], sub->temp_cmd[1],
 					    sub->temp_cmd[2], sub->temp_cmd[3]);
 
-					usbd_xfer_set_frame_offset(xfer, 4 * nframes, nframes);
-					usbd_xfer_set_frame_len(xfer, nframes, 4);
-
-					pc = usbd_xfer_get_frame(xfer, nframes);
-
-					usbd_copy_in(pc, 0, sub->temp_cmd, 4);
+					usbd_copy_in(pc, nframes * 4, sub->temp_cmd, 4);
 
 					nframes++;
-					if (nframes >= UMIDI_TX_FRAMES)
+
+					if ((nframes >= UMIDI_TX_FRAMES) || (chan->single_command != 0))
 						break;
 				} else {
 					continue;
@@ -3618,9 +3615,9 @@ tr_setup:
 			}
 		}
 
-		if (nframes > 0) {
+		if (nframes != 0) {
 			DPRINTF("Transferring %d frames\n", (int)nframes);
-			usbd_xfer_set_frames(xfer, nframes);
+			usbd_xfer_set_frame_len(xfer, 0, 4 * nframes);
 			usbd_transfer_submit(xfer);
 		}
 		break;
@@ -3791,6 +3788,9 @@ umidi_probe(device_t dev)
 	int unit = device_get_unit(dev);
 	int error;
 	uint32_t n;
+
+	if (usb_test_quirk(uaa, UQ_SINGLE_CMD_MIDI))
+		chan->single_command = 1;
 
 	if (usbd_set_alt_interface_index(sc->sc_udev, chan->iface_index,
 	    chan->iface_alt_index)) {
