@@ -31,15 +31,20 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
+#ifdef HAVE_CAPSICUM
+#include <sys/capability.h>
+#endif
+#include <sys/param.h>
 #include <sys/disk.h>
 #include <sys/ioctl.h>
+#include <sys/jail.h>
 #include <sys/stat.h>
 
 #include <errno.h>
 #include <fcntl.h>
 #include <pwd.h>
 #include <stdarg.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -145,12 +150,15 @@ role2str(int role)
 }
 
 int
-drop_privs(void)
+drop_privs(struct hast_resource *res)
 {
+	char jailhost[sizeof(res->hr_name) * 2];
+	struct jail jailst;
 	struct passwd *pw;
 	uid_t ruid, euid, suid;
 	gid_t rgid, egid, sgid;
 	gid_t gidset[1];
+	bool capsicum, jailed;
 
 	/*
 	 * According to getpwnam(3) we have to clear errno before calling the
@@ -170,10 +178,34 @@ drop_privs(void)
 			return (-1);
 		}
 	}
-	if (chroot(pw->pw_dir) == -1) {
-		KEEP_ERRNO(pjdlog_errno(LOG_ERR,
-		    "Unable to change root directory to %s", pw->pw_dir));
-		return (-1);
+
+	bzero(&jailst, sizeof(jailst));
+	jailst.version = JAIL_API_VERSION;
+	jailst.path = pw->pw_dir;
+	if (res == NULL) {
+		(void)snprintf(jailhost, sizeof(jailhost), "hastctl");
+	} else {
+		(void)snprintf(jailhost, sizeof(jailhost), "hastd: %s (%s)",
+		    res->hr_name, role2str(res->hr_role));
+	}
+	jailst.hostname = jailhost;
+	jailst.jailname = NULL;
+	jailst.ip4s = 0;
+	jailst.ip4 = NULL;
+	jailst.ip6s = 0;
+	jailst.ip6 = NULL;
+	if (jail(&jailst) >= 0) {
+		jailed = true;
+	} else {
+		jailed = false;
+		pjdlog_errno(LOG_WARNING,
+		    "Unable to jail to directory to %s", pw->pw_dir);
+		if (chroot(pw->pw_dir) == -1) {
+			KEEP_ERRNO(pjdlog_errno(LOG_ERR,
+			    "Unable to change root directory to %s",
+			    pw->pw_dir));
+			return (-1);
+		}
 	}
 	PJDLOG_VERIFY(chdir("/") == 0);
 	gidset[0] = pw->pw_gid;
@@ -195,6 +227,23 @@ drop_privs(void)
 	}
 
 	/*
+	 * Until capsicum doesn't allow ioctl(2) we cannot use it to sandbox
+	 * primary and secondary worker processes, as primary uses GGATE
+	 * ioctls and secondary uses ioctls to handle BIO_DELETE and BIO_FLUSH.
+	 * For now capsicum is only used to sandbox hastctl.
+	 */
+#ifdef HAVE_CAPSICUM
+	if (res == NULL) {
+		capsicum = (cap_enter() == 0);
+		if (!capsicum) {
+			pjdlog_common(LOG_DEBUG, 1, errno,
+			    "Unable to sandbox using capsicum");
+		}
+	} else
+#endif
+		capsicum = false;
+
+	/*
 	 * Better be sure that everything succeeded.
 	 */
 	PJDLOG_VERIFY(getresuid(&ruid, &euid, &suid) == 0);
@@ -208,6 +257,10 @@ drop_privs(void)
 	PJDLOG_VERIFY(getgroups(0, NULL) == 1);
 	PJDLOG_VERIFY(getgroups(1, gidset) == 1);
 	PJDLOG_VERIFY(gidset[0] == pw->pw_gid);
+
+	pjdlog_debug(1,
+	    "Privileges successfully dropped using %s%s+setgid+setuid.",
+	    capsicum ? "capsicum+" : "", jailed ? "jail" : "chroot");
 
 	return (0);
 }
