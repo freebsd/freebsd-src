@@ -114,7 +114,6 @@ static struct nfscldeleg *nfscl_finddeleg(struct nfsclclient *, u_int8_t *,
     int);
 static int nfscl_checkconflict(struct nfscllockownerhead *, struct nfscllock *,
     u_int8_t *, struct nfscllock **);
-static void nfscl_freelockowner(struct nfscllockowner *, int);
 static void nfscl_freealllocks(struct nfscllockownerhead *, int);
 static int nfscl_localconflict(struct nfsclclient *, u_int8_t *, int,
     struct nfscllock *, u_int8_t *, struct nfscldeleg *, struct nfscllock **);
@@ -1450,7 +1449,7 @@ nfscl_freeopenowner(struct nfsclowner *owp, int local)
 /*
  * Free up a byte range lock owner structure.
  */
-static void
+APPLESTATIC void
 nfscl_freelockowner(struct nfscllockowner *lp, int local)
 {
 	struct nfscllock *lop, *nlop;
