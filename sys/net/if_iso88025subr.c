@@ -680,6 +680,7 @@ iso88025_input(ifp, m)
 		break;
 	}
 
+	M_SETFIB(m, ifp->if_fib);
 	netisr_dispatch(isr, m);
 	return;
 

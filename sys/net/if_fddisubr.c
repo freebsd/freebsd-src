@@ -550,6 +550,7 @@ fddi_input(ifp, m)
 		ifp->if_noproto++;
 		goto dropanyway;
 	}
+	M_SETFIB(m, ifp->if_fib);
 	netisr_dispatch(isr, m);
 	return;
 
