@@ -195,7 +195,7 @@ struct ifnet {
 					/* protected by if_addr_mtx */
 	void	*if_pf_kif;
 	void	*if_lagg;		/* lagg glue */
-	u_char	 if_alloctype;		/* if_type at time of allocation */
+	u_char	if_alloctype;		/* if_type at time of allocation */
 	u_int	if_fib;			/* interface FIB */
 
 	/*
@@ -203,7 +203,7 @@ struct ifnet {
 	 * structures without changing the kernel binary interface, and must
 	 * be used with care where binary compatibility is required.
 	 */
-	char	 if_cspare[3];
+	char	if_cspare[3];
 	char	*if_description;	/* interface description */
 	void	*if_pspare[7];
 	int	if_ispare[4];
