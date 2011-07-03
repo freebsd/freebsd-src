@@ -929,6 +929,7 @@ tunwrite(struct cdev *dev, struct uio *uio, int flag)
 	ifp->if_ibytes += m->m_pkthdr.len;
 	ifp->if_ipackets++;
 	CURVNET_SET(ifp->if_vnet);
+	M_SETFIB(m, ifp->if_fib);
 	netisr_dispatch(isr, m);
 	CURVNET_RESTORE();
 	return (0);
