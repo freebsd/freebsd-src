@@ -438,6 +438,7 @@ int nfscl_getcl(vnode_t, struct ucred *, NFSPROC_T *,
 struct nfsclclient *nfscl_findcl(struct nfsmount *);
 void nfscl_clientrelease(struct nfsclclient *);
 void nfscl_freelock(struct nfscllock *, int);
+void nfscl_freelockowner(struct nfscllockowner *, int);
 int nfscl_getbytelock(vnode_t, u_int64_t, u_int64_t, short,
     struct ucred *, NFSPROC_T *, struct nfsclclient *, int, void *, int,
     u_int8_t *, u_int8_t *, struct nfscllockowner **, int *, int *);
