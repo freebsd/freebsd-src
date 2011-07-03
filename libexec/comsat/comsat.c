@@ -219,7 +219,7 @@ notify(struct utmp *utp, char file[], off_t offset, int folder)
 		dsyslog(LOG_DEBUG, "%s: wrong mode on %s", utp->ut_name, tty);
 		return;
 	}
-	dsyslog(LOG_DEBUG, "notify %s on %s\n", utp->ut_name, tty);
+	dsyslog(LOG_DEBUG, "notify %s on %s", utp->ut_name, tty);
 	switch (fork()) {
 	case -1:
 		syslog(LOG_NOTICE, "fork failed (%m)");
