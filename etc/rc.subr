@@ -1066,7 +1066,7 @@ load_rc_config()
 
 	# Set defaults if defined.
 	for _var in $rcvar $rcvars; do
-		_defval=`eval echo "\\\$${_var}_defval"`
+		eval _defval=\$${_var}_defval
 		if [ -n "$_defval" ]; then
 			eval : \${$_var:=\$${_var}_defval}
 		fi
@@ -1074,9 +1074,9 @@ load_rc_config()
 
 	# check obsolete rc.conf variables
 	for _var in $rcvars_obsolete; do
-		_v=`eval echo \\$$_var`
-		_msg=`eval echo \\$${_var}_obsolete_msg`
-		_new=`eval echo \\$${_var}_newvar`
+		eval _v=\$$_var
+		eval _msg=\$${_var}_obsolete_msg
+		eval _new=\$${_var}_newvar
 		case $_v in
 		"")
 			;;
