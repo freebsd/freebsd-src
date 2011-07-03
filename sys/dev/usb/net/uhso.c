@@ -1754,6 +1754,7 @@ uhso_if_rxflush(void *arg)
 
 		/* Dispatch to IP layer */
 		BPF_MTAP(sc->sc_ifp, m);
+		M_SETFIB(m, ifp->if_fib);
 		netisr_dispatch(isr, m);
 		m = m0 != NULL ? m0 : NULL;
 		mtx_lock(&sc->sc_mtx);

@@ -308,6 +308,7 @@ icintr(device_t dev, int event, char *ptr)
 		top = m_devget(sc->ic_ifbuf + ICHDRLEN, len, 0, sc->ic_ifp, 0);
 		if (top) {
 			mtx_unlock(&sc->ic_lock);
+			M_SETFIB(top, sc->ic_ifp->if_fib);
 			netisr_dispatch(NETISR_IP, top);
 			mtx_lock(&sc->ic_lock);
 		}
