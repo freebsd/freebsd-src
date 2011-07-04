@@ -12510,33 +12510,36 @@ softdep_request_cleanup(fs, vp, cred, resource)
 	int error;
 
 	mp = vp->v_mount;
-	ump = VTOI(vp)->i_ump;
+	ump = VFSTOUFS(mp);
 	mtx_assert(UFS_MTX(ump), MA_OWNED);
 	if (resource == FLUSH_BLOCKS_WAIT)
 		stat_cleanup_blkrequests += 1;
 	else
 		stat_cleanup_inorequests += 1;
+
 	/*
 	 * If we are being called because of a process doing a
-	 * copy-on-write, then it is not safe to update the vnode
-	 * as we may recurse into the copy-on-write routine.
+	 * copy-on-write, then it is not safe to process any
+	 * worklist items as we will recurse into the copyonwrite
+	 * routine.  This will result in an incoherent snapshot.
 	 */
-	if (!(curthread->td_pflags & TDP_COWINPROGRESS)) {
-		UFS_UNLOCK(ump);
-		error = ffs_update(vp, 1);
+	if (curthread->td_pflags & TDP_COWINPROGRESS)
+		return (0);
+	UFS_UNLOCK(ump);
+	error = ffs_update(vp, 1);
+	if (error != 0) {
 		UFS_LOCK(ump);
-		if (error != 0)
-			return (0);
+		return (0);
 	}
 	/*
 	 * If we are in need of resources, consider pausing for
 	 * tickdelay to give ourselves some breathing room.
 	 */
-	UFS_UNLOCK(ump);
 	ACQUIRE_LOCK(&lk);
+	process_removes(vp);
+	process_truncates(vp);
 	request_cleanup(UFSTOVFS(ump), resource);
 	FREE_LOCK(&lk);
-	UFS_LOCK(ump);
 	/*
 	 * Now clean up at least as many resources as we will need.
 	 *
@@ -12568,29 +12571,23 @@ softdep_request_cleanup(fs, vp, cred, resource)
 			    roundup((fs->fs_dsize * fs->fs_minfree / 100) -
 			    fs->fs_cstotal.cs_nffree, fs->fs_frag));
 	} else {
+		UFS_LOCK(ump);
 		printf("softdep_request_cleanup: Unknown resource type %d\n",
 		    resource);
 		return (0);
 	}
 	starttime = time_second;
 retry:
-	while ((resource == FLUSH_BLOCKS_WAIT && ump->softdep_on_worklist > 0 &&
-		fs->fs_cstotal.cs_nbfree <= needed) ||
-	       (resource == FLUSH_INODES_WAIT && fs->fs_pendinginodes > 0 &&
-		fs->fs_cstotal.cs_nifree <= needed)) {
-		UFS_UNLOCK(ump);
+	if ((resource == FLUSH_BLOCKS_WAIT && ump->softdep_on_worklist > 0 &&
+	    fs->fs_cstotal.cs_nbfree <= needed) ||
+	    (resource == FLUSH_INODES_WAIT && fs->fs_pendinginodes > 0 &&
+	    fs->fs_cstotal.cs_nifree <= needed)) {
 		ACQUIRE_LOCK(&lk);
-		process_removes(vp);
-		process_truncates(vp);
 		if (ump->softdep_on_worklist > 0 &&
-		    process_worklist_item(UFSTOVFS(ump), 1, LK_NOWAIT) != 0) {
+		    process_worklist_item(UFSTOVFS(ump),
+		    ump->softdep_on_worklist, LK_NOWAIT) != 0)
 			stat_worklist_push += 1;
-			FREE_LOCK(&lk);
-			UFS_LOCK(ump);
-			continue;
-		}
 		FREE_LOCK(&lk);
-		UFS_LOCK(ump);
 	}
 	/*
 	 * If we still need resources and there are no more worklist
@@ -12604,7 +12601,6 @@ retry:
 	     fs->fs_cstotal.cs_nbfree <= needed) ||
 	    (resource == FLUSH_INODES_WAIT && fs->fs_pendinginodes > 0 &&
 	     fs->fs_cstotal.cs_nifree <= needed)) {
-		UFS_UNLOCK(ump);
 		MNT_ILOCK(mp);
 		MNT_VNODE_FOREACH(lvp, mp, mvp) {
 			VI_LOCK(lvp);
@@ -12633,7 +12629,6 @@ retry:
 			VOP_FSYNC(lvp, MNT_NOWAIT, curthread);
 			VOP_UNLOCK(lvp, 0);
 		}
-		UFS_LOCK(ump);
 		if (ump->softdep_on_worklist > 0) {
 			stat_cleanup_retries += 1;
 			goto retry;
@@ -12642,6 +12637,7 @@ retry:
 	}
 	if (time_second - starttime > stat_cleanup_high_delay)
 		stat_cleanup_high_delay = time_second - starttime;
+	UFS_LOCK(ump);
 	return (1);
 }
 
