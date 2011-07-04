@@ -281,7 +281,6 @@ sun4u_startcpu(phandle_t cpu, void *func, u_long arg)
 void
 cpu_mp_start(void)
 {
-	cpuset_t ocpus;
 
 	mtx_init(&ipi_mtx, "ipi", NULL, MTX_SPIN);
 
@@ -298,9 +297,6 @@ cpu_mp_start(void)
 	KASSERT(!isjbus || mp_ncpus <= IDR_JALAPENO_MAX_BN_PAIRS,
 	    ("%s: can only IPI a maximum of %d JBus-CPUs",
 	    __func__, IDR_JALAPENO_MAX_BN_PAIRS));
-	ocpus = all_cpus;
-	CPU_CLR(curcpu, &ocpus);
-	PCPU_SET(other_cpus, ocpus);
 	smp_active = 1;
 }
 
@@ -422,7 +418,6 @@ cpu_mp_unleash(void *v)
 void
 cpu_mp_bootstrap(struct pcpu *pc)
 {
-	cpuset_t ocpus;
 	volatile struct cpu_start_args *csa;
 
 	csa = &cpu_start_args;
@@ -466,9 +461,6 @@ cpu_mp_bootstrap(struct pcpu *pc)
 
 	smp_cpus++;
 	KASSERT(curthread != NULL, ("%s: curthread", __func__));
-	ocpus = all_cpus;
-	CPU_CLR(curcpu, &ocpus);
-	PCPU_SET(other_cpus, ocpus);
 	printf("SMP: AP CPU #%d Launched!\n", curcpu);
 
 	csa->csa_count--;

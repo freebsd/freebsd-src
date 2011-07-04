@@ -602,8 +602,8 @@ cpu_reset()
 	u_int cnt;
 
 	if (smp_active) {
-		sched_pin();
-		map = PCPU_GET(other_cpus);
+		map = all_cpus;
+		CPU_CLR(PCPU_GET(cpuid), &map);
 		CPU_NAND(&map, &stopped_cpus);
 		if (!CPU_EMPTY(&map)) {
 			printf("cpu_reset: Stopping other CPUs\n");
@@ -612,7 +612,6 @@ cpu_reset()
 
 		if (PCPU_GET(cpuid) != 0) {
 			cpu_reset_proxyid = PCPU_GET(cpuid);
-			sched_unpin();
 			cpustop_restartfunc = cpu_reset_proxy;
 			cpu_reset_proxy_active = 0;
 			printf("cpu_reset: Restarting BSP\n");
@@ -632,8 +631,7 @@ cpu_reset()
 
 			while (1);
 			/* NOTREACHED */
-		} else
-			sched_unpin();
+		}
 
 		DELAY(1000000);
 	}
@@ -802,7 +800,8 @@ sf_buf_alloc(struct vm_page *m, int flags)
 	struct sf_head *hash_list;
 	struct sf_buf *sf;
 #ifdef SMP
-	cpuset_t cpumask, other_cpus;
+	cpuset_t other_cpus;
+	u_int cpuid;
 #endif
 	int error;
 
@@ -877,13 +876,14 @@ sf_buf_alloc(struct vm_page *m, int flags)
 		CPU_ZERO(&sf->cpumask);
 shootdown:
 	sched_pin();
-	cpumask = PCPU_GET(cpumask);
-	if (!CPU_OVERLAP(&cpumask, &sf->cpumask)) {
-		CPU_OR(&sf->cpumask, &cpumask);
+	cpuid = PCPU_GET(cpuid);
+	if (!CPU_ISSET(cpuid, &sf->cpumask)) {
+		CPU_SET(cpuid, &sf->cpumask);
 		invlpg(sf->kva);
 	}
 	if ((flags & SFB_CPUPRIVATE) == 0) {
-		other_cpus = PCPU_GET(other_cpus);
+		other_cpus = all_cpus;
+		CPU_CLR(cpuid, &other_cpus);
 		CPU_NAND(&other_cpus, &sf->cpumask);
 		if (!CPU_EMPTY(&other_cpus)) {
 			CPU_OR(&sf->cpumask, &other_cpus);
