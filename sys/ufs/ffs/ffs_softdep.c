@@ -880,6 +880,7 @@ static	inline void setup_freeext(struct freeblks *, struct inode *, int, int);
 static	inline void setup_freeindir(struct freeblks *, struct inode *, int,
 	    ufs_lbn_t, int);
 static	inline struct freeblks *newfreeblks(struct mount *, struct inode *);
+static	void freeblks_free(struct ufsmount *, struct freeblks *, int);
 static	void indir_trunc(struct freework *, ufs2_daddr_t, ufs_lbn_t);
 ufs2_daddr_t blkcount(struct fs *, ufs2_daddr_t, off_t);
 static	int trunc_check_buf(struct buf *, int *, ufs_lbn_t, int, int);
@@ -5751,7 +5752,6 @@ newfreeblks(mp, ip)
 	freeblks->fb_modrev = DIP(ip, i_modrev);
 	freeblks->fb_devvp = ip->i_devvp;
 	freeblks->fb_chkcnt = 0;
-	freeblks->fb_freecnt = 0;
 	freeblks->fb_len = 0;
 
 	return (freeblks);
@@ -6199,7 +6199,7 @@ softdep_journal_freeblocks(ip, cred, length, flags)
 	quotaref(vp, freeblks->fb_quota);
 	(void) chkdq(ip, -datablocks, NOCRED, 0);
 #endif
-	freeblks->fb_chkcnt = datablocks;
+	freeblks->fb_chkcnt = -datablocks;
 	UFS_LOCK(ip->i_ump);
 	fs->fs_pendingblocks += datablocks;
 	UFS_UNLOCK(ip->i_ump);
@@ -6429,7 +6429,7 @@ softdep_setup_freeblocks(ip, length, flags)
 	quotaref(vp, freeblks->fb_quota);
 	(void) chkdq(ip, -datablocks, NOCRED, 0);
 #endif
-	freeblks->fb_chkcnt = datablocks;
+	freeblks->fb_chkcnt = -datablocks;
 	UFS_LOCK(ip->i_ump);
 	fs->fs_pendingblocks += datablocks;
 	UFS_UNLOCK(ip->i_ump);
@@ -7284,8 +7284,8 @@ freework_freeblock(freework)
 		freeblks->fb_cgwait++;
 		WORKLIST_INSERT(&wkhd, &freework->fw_list);
 	}
-	freeblks->fb_freecnt += btodb(bsize);
 	FREE_LOCK(&lk);
+	freeblks_free(ump, freeblks, btodb(bsize));
 	ffs_blkfree(ump, fs, freeblks->fb_devvp, freework->fw_blkno, bsize,
 	    freeblks->fb_inum, freeblks->fb_vtype, &wkhd);
 	ACQUIRE_LOCK(&lk);
@@ -7459,6 +7459,33 @@ handle_workitem_freeblocks(freeblks, flags)
 }
 
 /*
+ * Handle completion of block free via truncate.  This allows fs_pending
+ * to track the actual free block count more closely than if we only updated
+ * it at the end.  We must be careful to handle cases where the block count
+ * on free was incorrect.
+ */
+static void
+freeblks_free(ump, freeblks, blocks)
+	struct ufsmount *ump;
+	struct freeblks *freeblks;
+	int blocks;
+{
+	struct fs *fs;
+	ufs2_daddr_t remain;
+
+	UFS_LOCK(ump);
+	remain = -freeblks->fb_chkcnt;
+	freeblks->fb_chkcnt += blocks;
+	if (remain > 0) {
+		if (remain < blocks)
+			blocks = remain;
+		fs = ump->um_fs;
+		fs->fs_pendingblocks -= blocks;
+	}
+	UFS_UNLOCK(ump);
+}
+
+/*
  * Once all of the freework workitems are complete we can retire the
  * freeblocks dependency and any journal work awaiting completion.  This
  * can not be called until all other dependencies are stable on disk.
@@ -7478,7 +7505,7 @@ handle_complete_freeblocks(freeblks, flags)
 	ump = VFSTOUFS(freeblks->fb_list.wk_mp);
 	fs = ump->um_fs;
 	flags = LK_EXCLUSIVE | flags;
-	spare = freeblks->fb_freecnt - freeblks->fb_chkcnt;
+	spare = freeblks->fb_chkcnt;
 
 	/*
 	 * If we did not release the expected number of blocks we may have
@@ -7501,9 +7528,9 @@ handle_complete_freeblocks(freeblks, flags)
 		}
 		vput(vp);
 	}
-	if (freeblks->fb_chkcnt) {
+	if (spare < 0) {
 		UFS_LOCK(ump);
-		fs->fs_pendingblocks -= freeblks->fb_chkcnt;
+		fs->fs_pendingblocks += spare;
 		UFS_UNLOCK(ump);
 	}
 #ifdef QUOTA
@@ -7559,7 +7586,7 @@ indir_trunc(freework, dbn, lbn)
 	ufs2_daddr_t nb, nnb, *bap2 = 0;
 	ufs_lbn_t lbnadd, nlbn;
 	int i, nblocks, ufs1fmt;
-	int fs_pendingblocks;
+	int freedblocks;
 	int goingaway;
 	int freedeps;
 	int needj;
@@ -7701,16 +7728,18 @@ indir_trunc(freework, dbn, lbn)
 		bp->b_flags |= B_INVAL | B_NOCACHE;
 		brelse(bp);
 	}
-	fs_pendingblocks = 0;
+	freedblocks = 0;
 	if (level == 0)
-		fs_pendingblocks = (nblocks * cnt);
+		freedblocks = (nblocks * cnt);
+	if (needj == 0)
+		freedblocks += nblocks;
+	freeblks_free(ump, freeblks, freedblocks);
 	/*
 	 * If we are journaling set up the ref counts and offset so this
 	 * indirect can be completed when its children are free.
 	 */
 	if (needj) {
 		ACQUIRE_LOCK(&lk);
-		freeblks->fb_freecnt += fs_pendingblocks;
 		freework->fw_off = i;
 		freework->fw_ref += freedeps;
 		freework->fw_ref -= NINDIR(fs) + 1;
@@ -7724,12 +7753,10 @@ indir_trunc(freework, dbn, lbn)
 	/*
 	 * If we're not journaling we can free the indirect now.
 	 */
-	fs_pendingblocks += nblocks;
 	dbn = dbtofsb(fs, dbn);
 	ffs_blkfree(ump, fs, freeblks->fb_devvp, dbn, fs->fs_bsize,
 	    freeblks->fb_inum, freeblks->fb_vtype, NULL);
 	/* Non SUJ softdep does single-threaded truncations. */
-	freeblks->fb_freecnt += fs_pendingblocks;
 	if (freework->fw_blkno == dbn) {
 		freework->fw_state |= ALLCOMPLETE;
 		ACQUIRE_LOCK(&lk);
