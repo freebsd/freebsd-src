@@ -405,6 +405,7 @@ nfsrvd_updatecache(struct nfsrv_descript *nd, struct socket *so)
 {
 	struct nfsrvcache *rp;
 	struct nfsrvcache *retrp = NULL;
+	mbuf_t m;
 
 	rp = nd->nd_rp;
 	if (!rp)
@@ -457,9 +458,9 @@ nfsrvd_updatecache(struct nfsrv_descript *nd, struct socket *so)
 		}
 		if ((nd->nd_flag & ND_NFSV2) &&
 		    nfsv2_repstat[newnfsv2_procid[nd->nd_procnum]]) {
-			NFSUNLOCKCACHE();
 			rp->rc_status = nd->nd_repstat;
 			rp->rc_flag |= RC_REPSTATUS;
+			NFSUNLOCKCACHE();
 		} else {
 			if (!(rp->rc_flag & RC_UDP)) {
 			    nfsrc_tcpsavedreplies++;
@@ -469,9 +470,11 @@ nfsrvd_updatecache(struct nfsrv_descript *nd, struct socket *so)
 				    nfsrc_tcpsavedreplies;
 			}
 			NFSUNLOCKCACHE();
-			rp->rc_reply = m_copym(nd->nd_mreq, 0, M_COPYALL,
-			    M_WAIT);
+			m = m_copym(nd->nd_mreq, 0, M_COPYALL, M_WAIT);
+			NFSLOCKCACHE();
+			rp->rc_reply = m;
 			rp->rc_flag |= RC_REPMBUF;
+			NFSUNLOCKCACHE();
 		}
 		if (rp->rc_flag & RC_UDP) {
 			rp->rc_timestamp = NFSD_MONOSEC +
@@ -518,6 +521,7 @@ nfsrvd_delcache(struct nfsrvcache *rp)
 APPLESTATIC void
 nfsrvd_sentcache(struct nfsrvcache *rp, struct socket *so, int err)
 {
+	tcp_seq tmp_seq;
 
 	if (!(rp->rc_flag & RC_LOCKED))
 		panic("nfsrvd_sentcache not locked");
@@ -526,8 +530,12 @@ nfsrvd_sentcache(struct nfsrvcache *rp, struct socket *so, int err)
 		     so->so_proto->pr_domain->dom_family != AF_INET6) ||
 		     so->so_proto->pr_protocol != IPPROTO_TCP)
 			panic("nfs sent cache");
-		if (nfsrv_getsockseqnum(so, &rp->rc_tcpseq))
+		if (nfsrv_getsockseqnum(so, &tmp_seq)) {
+			NFSLOCKCACHE();
+			rp->rc_tcpseq = tmp_seq;
 			rp->rc_flag |= RC_TCPSEQ;
+			NFSUNLOCKCACHE();
+		}
 	}
 	nfsrc_unlock(rp);
 }
@@ -687,8 +695,11 @@ nfsrc_lock(struct nfsrvcache *rp)
 static void
 nfsrc_unlock(struct nfsrvcache *rp)
 {
+
+	NFSLOCKCACHE();
 	rp->rc_flag &= ~RC_LOCKED;
 	nfsrc_wanted(rp);
+	NFSUNLOCKCACHE();
 }
 
 /*
