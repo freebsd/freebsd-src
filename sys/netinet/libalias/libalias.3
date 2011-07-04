@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 22, 2011
+.Dd July 04, 2011
 .Dt LIBALIAS 3
 .Os
 .Sh NAME
@@ -52,7 +52,7 @@ machine on the local network.
 .Pp
 A certain amount of flexibility is built into the packet aliasing engine.
 In the simplest mode of operation, a many-to-one address mapping takes
-place between local network and the packet aliasing host.
+place between the local network and the packet aliasing host.
 This is known as IP masquerading.
 In addition, one-to-one mappings between local and public addresses can
 also be implemented, which is known as static NAT.
@@ -61,15 +61,11 @@ linked to different public addresses, comprising several distinct
 many-to-one mappings.
 Also, a given public address and port can be statically redirected to a
 private address/port.
-.Pp
-The packet aliasing engine was designed to operate in user space outside
-of the kernel, without any access to private kernel data structure, but
-the source code can also be ported to a kernel environment.
 .Sh INITIALIZATION AND CONTROL
 One special function,
 .Fn LibAliasInit ,
-must always be called before any packet handling may be performed and
-the returned instance pointer passed to all the other functions.
+must always be called before any packet handling may be performed, and
+the returned instance pointer must be passed to all the other functions.
 Normally, the
 .Fn LibAliasSetAddress
 function is called afterwards, to set the default aliasing address.
@@ -118,8 +114,8 @@ prior to any packet handling.
 This function has no return value and is used to clear any
 resources attached to internal data structures.
 .Pp
-This functions should be called when a program stops using the aliasing
-engine; it does, amongst other things, clear out any firewall holes.
+This function should be called when a program stops using the aliasing
+engine; amongst other things, it clears out any firewall holes.
 To provide backwards compatibility and extra security, it is added to
 the
 .Xr atexit 3
@@ -135,7 +131,7 @@ local area network are aliased.
 All outgoing packets are re-mapped to this address unless overridden by a
 static address mapping established by
 .Fn LibAliasRedirectAddr .
-If this function is not called, and no static rules match, an outgoing
+If this function has not been called, and no static rules match, an outgoing
 packet retains its source address.
 .Pp
 If the
@@ -150,7 +146,7 @@ address may or may not change on successive dial-up attempts.
 If the
 .Dv PKT_ALIAS_RESET_ON_ADDR_CHANGE
 mode bit is set to zero, this function can also be used to dynamically change
-the aliasing address on a packet to packet basis (it is a low overhead call).
+the aliasing address on a packet-to-packet basis (it is a low overhead call).
 .Pp
 It is mandatory that this function be called prior to any packet handling.
 .Ed
@@ -170,7 +166,7 @@ The following mode bits are defined in
 .It Dv PKT_ALIAS_LOG
 Enables logging into
 .Pa /var/log/alias.log .
-Each time an aliasing link is created or deleted, the log file is appended
+Each time an aliasing link is created or deleted, the log file is appended to
 with the current number of ICMP, TCP and UDP links.
 Mainly useful for debugging when the log file is viewed continuously with
 .Xr tail 1 .
@@ -186,7 +182,7 @@ Response packets to connections or transactions initiated from the packet
 aliasing host or local network will be unaffected.
 This mode bit is useful for implementing a one-way firewall.
 .It Dv PKT_ALIAS_SAME_PORTS
-If this mode bit is set, the packet aliasing engine will attempt to leave
+If this mode bit is set, the packet-aliasing engine will attempt to leave
 the alias port numbers unchanged from the actual local port numbers.
 This can be done as long as the quintuple (proto, alias addr, alias port,
 remote addr, remote port) is unique.
@@ -211,7 +207,7 @@ Standard Class A, B and C unregistered addresses are:
 192.168.0.0  ->  192.168.255.255  (Class C subnets)
 .Ed
 .Pp
-This option is useful in the case that packet aliasing host has both
+This option is useful in the case that the packet aliasing host has both
 registered and unregistered subnets on different interfaces.
 The registered subnet is fully accessible to the outside world, so traffic
 from it does not need to be passed through the packet aliasing engine.
@@ -229,8 +225,9 @@ of an address change.
 .It Dv PKT_ALIAS_PUNCH_FW
 This option makes
 .Nm
-`punch holes' in an
-.Xr ipfirewall 4
+.Dq punch holes
+in an
+.Xr ipfirewall 4 -
 based firewall for FTP/IRC DCC connections.
 The holes punched are bound by from/to IP address and port; it will not be
 possible to use a hole for another connection.
@@ -240,9 +237,9 @@ To cater to unexpected death of a program using
 (e.g.\& kill -9),
 changing the state of the flag will clear the entire firewall range
 allocated for holes.
-This will also happen on the initial call to
-.Fn LibAliasSetFWBase .
-This call must happen prior to setting this flag.
+This clearing will also happen on the initial call to
+.Fn LibAliasSetFWBase ,
+which must happen prior to setting this flag.
 .It Dv PKT_ALIAS_REVERSE
 This option makes
 .Nm
@@ -260,9 +257,11 @@ below for details.
 .It Dv PKT_ALIAS_SKIP_GLOBAL
 This option is used by
 .Pa ipfw_nat
-only. Specifying it as a flag to
+only.
+Specifying it as a flag to
 .Fn LibAliasSetMode
-has no effect. See section
+has no effect.
+See section
 .Sx NETWORK ADDRESS TRANSLATION
 in
 .Xr ipfw 8
@@ -273,10 +272,10 @@ for more details.
 .Ft void
 .Fn LibAliasSetFWBase "struct libalias *" "unsigned int base" "unsigned int num"
 .Bd -ragged -offset indent
-Set firewall range allocated for punching firewall holes (with the
+Set the firewall range allocated for punching firewall holes (with the
 .Dv PKT_ALIAS_PUNCH_FW
 flag).
-The range will be cleared for all rules on initialization.
+The range is cleared for all rules on initialization.
 .Ed
 .Pp
 .Ft void
@@ -302,7 +301,7 @@ the two packet handling functions,
 .Fn LibAliasIn
 and
 .Fn LibAliasOut ,
-comprise minimal set of functions needed for a basic IP masquerading
+comprise the minimal set of functions needed for a basic IP masquerading
 implementation.
 .Pp
 .Ft int
@@ -323,11 +322,11 @@ Return codes:
 The packet aliasing process was successful.
 .It Dv PKT_ALIAS_IGNORED
 The packet was ignored and not de-aliased.
-This can happen if the protocol is unrecognized, possibly an ICMP message
-type is not handled or if incoming packets for new connections are being
-ignored (if
+This can happen if the protocol is unrecognized, as for an ICMP message
+type that is not handled, or if incoming packets for new connections are being
+ignored (if the
 .Dv PKT_ALIAS_DENY_INCOMING
-mode bit was set by
+mode bit was set using
 .Fn LibAliasSetMode ) .
 .It Dv PKT_ALIAS_UNRESOLVED_FRAGMENT
 This is returned when a fragment cannot be resolved because the header
@@ -418,7 +417,7 @@ is called to change the address after
 .Fn LibAliasRedirectPort
 is called, a zero reference will track this change.
 .Pp
-If the link is further set up to operate for a load sharing, then
+If the link is further set up to operate with load sharing, then
 .Fa local_addr
 and
 .Fa local_port
@@ -433,7 +432,7 @@ Likewise, if
 .Fa remote_port
 is zero, this indicates to redirect packets originating from any remote
 port number.
-Almost always, the remote port specification will be zero, but non-zero
+The remote port specification will almost always be zero, but non-zero
 remote addresses can sometimes be useful for firewalling.
 If two calls to
 .Fn LibAliasRedirectPort
@@ -485,9 +484,10 @@ is called to change the address after
 .Fn LibAliasRedirectAddr
 is called, a zero reference will track this change.
 .Pp
-If the link is further set up to operate for a load sharing, then
+If the link is further set up to operate with load sharing, then the
 .Fa local_addr
-is ignored, and is selected dynamically from the server pool, as described in
+argument is ignored, and is selected dynamically from the server pool,
+as described in
 .Fn LibAliasAddServer
 below.
 .Pp
@@ -542,12 +542,12 @@ up for Load Sharing using IP Network Address Translation (RFC 2391, LSNAT).
 LSNAT operates as follows.
 A client attempts to access a server by using the server virtual address.
 The LSNAT router transparently redirects the request to one of the hosts
-in server pool, selected using a real-time load sharing algorithm.
+in the server pool, using a real-time load sharing algorithm.
 Multiple sessions may be initiated from the same client, and each session
-could be directed to a different host based on load balance across server
-pool hosts at the time.
-If load share is desired for just a few specific services, the configuration
-on LSNAT could be defined to restrict load share for just the services
+could be directed to a different host based on the load balance across server
+pool hosts when the sessions are initiated.
+If load sharing is desired for just a few specific services, the configuration
+on LSNAT could be defined to restrict load sharing to just the services
 desired.
 .Pp
 Currently, only the simplest selection algorithm is implemented, where a
@@ -606,8 +606,8 @@ The parameter
 is the pointer returned by either of the redirection functions.
 If an invalid pointer is passed to
 .Fn LibAliasRedirectDelete ,
-then a program crash or unpredictable operation could result, so it is
-necessary to be careful using this function.
+then a program crash or unpredictable operation could result, so
+care is needed when using this function.
 .Ed
 .Pp
 .Ft int
@@ -714,7 +714,7 @@ access, or to restrict access to certain external machines.
 .Bd -ragged -offset indent
 This function specifies that any IP packet with protocol number of
 .Fa proto
-from a given remote address to an alias address be
+from a given remote address to an alias address will be
 redirected to a specified local address.
 .Pp
 If
@@ -829,10 +829,12 @@ is the pointer to the packet to be de-aliased.
 "struct in_addr alias_addr" "u_short src_port" "u_short dst_port" \
 "int alias_param" "int link_type"
 .Bd -ragged -offset indent
-This function adds new state to instance hash table.
-Zero can be specified instead of dst_address and/or dst port.
-This makes link partially specified dynamic.
-However due to hashing method such links can be resolved on inbound (ext -> int) only.
+This function adds new state to the instance hash table.
+The dst_address and/or dst_port may be given as zero, which
+introduces some dynamic character into the link, since
+LibAliasSetAddress can change the address that is used.
+However, in the current implementation, such links can only be used
+for inbound (ext -> int) traffic.
 .Ed
 .Pp
 .Ft void
@@ -1119,9 +1121,9 @@ SLIST_HEAD(dll_chain, dll) dll_chain ...
 .Ed
 .Pp
 .Va handler_chain
-keep tracks of all the protocol handlers loaded, while
+keeps track of all the protocol handlers loaded, while
 .Va ddl_chain
-takes care of userland modules loaded.
+tracks which userland modules are loaded.
 .Pp
 .Va handler_chain
 is composed of
@@ -1143,12 +1145,12 @@ struct proto_handler {
 where:
 .Bl -inset
 .It Va pri
-is the priority assigned to a protocol handler, lower
+is the priority assigned to a protocol handler; lower priority
 is better.
 .It Va dir
 is the direction of packets: ingoing or outgoing.
 .It Va proto
-says at which protocol this packet belongs: IP, TCP or UDP.
+indicates to which protocol this packet belongs: IP, TCP or UDP.
 .It Va fingerprint
 points to the fingerprint function while protohandler points
 to the protocol handler function.
@@ -1156,8 +1158,8 @@ to the protocol handler function.
 .Pp
 The
 .Va fingerprint
-function has the double of scope of checking if the
-incoming packet is found and if it belongs to any categories that this
+function has the dual role of checking if the
+incoming packet is found, and if it belongs to any categories that this
 module can handle.
 .Pp
 The
@@ -1172,8 +1174,8 @@ When a packet enters
 if it meets a module hook,
 .Va handler_chain
 is searched to see if there is an handler that matches
-this type of a packet (it checks protocol and direction of packet), then if
-more than one handler is found, it starts with the module with
+this type of a packet (it checks protocol and direction of packet).
+Then, if more than one handler is found, it starts with the module with
 the lowest priority number: it calls the
 .Va fingerprint
 function and interprets the result.
@@ -1211,8 +1213,8 @@ structure, then
 is called.
 The
 .Fn find_handler
-function is responsible for walking out the handler
-chain, it receives as input parameters:
+function is responsible for walking the handler
+chain; it receives as input parameters:
 .Bl -tag -width indent
 .It Fa IN
 direction
@@ -1236,9 +1238,9 @@ supporting INcoming UDP packets.
 .Pp
 As was mentioned earlier,
 .Nm
-in userland is a bit different, cause
-care has to be taken of module handling too (avoiding duplicate load of
-module, avoiding module with same name, etc.) so
+in userland is a bit different, as
+care must be taken in module handling as well (avoiding duplicate load of
+modules, avoiding modules with same name, etc.) so
 .Va dll_chain
 was introduced.
 .Pp
@@ -1252,9 +1254,8 @@ When an application calls
 .Nm
 first unloads all the loaded modules, then reloads all the modules listed in
 .Pa /etc/libalias.conf :
-for every module loaded, a new entry to
-.Va dll_chain
-is added.
+for every module loaded, a new entry is added to
+.Va dll_chain .
 .Pp
 .Va dll_chain
 is composed of
@@ -1291,8 +1292,8 @@ There is a module (called
 .Pa alias_dummy.[ch] )
 in
 .Nm
-that can be used as a skeleton for future work, here we analyse some parts of that
-module.
+that can be used as a skeleton for future work.
+Here we analyse some parts of that module.
 From
 .Pa alias_dummy.c :
 .Bd -literal
@@ -1305,7 +1306,7 @@ The variable
 is the
 .Dq "most important thing"
 in a module
-cause it describes the handlers present and lets the outside world use
+since it describes the handlers present and lets the outside world use
 it in an opaque way.
 .Pp
 It must ALWAYS be present in every module, and it MUST retain
@@ -1348,7 +1349,7 @@ mod_handler(module_t mod, int type, void *data)
 .Ed
 When running as KLD,
 .Fn mod_handler
-register/deregister the module using
+registers/deregisters the module using
 .Fn attach_handlers
 and
 .Fn detach_handlers ,
