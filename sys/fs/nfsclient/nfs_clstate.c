@@ -95,7 +95,7 @@ int nfscl_deleghighwater = NFSCLDELEGHIGHWATER;
 
 static int nfscl_delegcnt = 0;
 static int nfscl_getopen(struct nfsclownerhead *, u_int8_t *, int, u_int8_t *,
-    NFSPROC_T *, u_int32_t, struct nfsclowner **, struct nfsclopen **);
+    u_int8_t *, u_int32_t, struct nfscllockowner **, struct nfsclopen **);
 static void nfscl_clrelease(struct nfsclclient *);
 static void nfscl_cleanclient(struct nfsclclient *);
 static void nfscl_expireclient(struct nfsclclient *, struct nfsmount *,
@@ -521,25 +521,20 @@ nfscl_getstateid(vnode_t vp, u_int8_t *nfhp, int fhlen, u_int32_t mode,
 		 * for a matching OpenOwner and use that.
 		 */
 		nfscl_filllockowner(p->td_proc, own, F_POSIX);
-		error = nfscl_getopen(&clp->nfsc_owner, nfhp, fhlen, NULL, p,
-		    mode, NULL, &op);
-		if (error == 0) {
-			/* now look for a lockowner */
-			LIST_FOREACH(lp, &op->nfso_lock, nfsl_list) {
-				if (!NFSBCMP(lp->nfsl_owner, own,
-				    NFSV4CL_LOCKNAMELEN)) {
-					stateidp->seqid =
-					    lp->nfsl_stateid.seqid;
-					stateidp->other[0] =
-					    lp->nfsl_stateid.other[0];
-					stateidp->other[1] =
-					    lp->nfsl_stateid.other[1];
-					stateidp->other[2] =
-					    lp->nfsl_stateid.other[2];
-					NFSUNLOCKCLSTATE();
-					return (0);
-				}
-			}
+		lp = NULL;
+		error = nfscl_getopen(&clp->nfsc_owner, nfhp, fhlen, own, own,
+		    mode, &lp, &op);
+		if (error == 0 && lp != NULL) {
+			stateidp->seqid =
+			    lp->nfsl_stateid.seqid;
+			stateidp->other[0] =
+			    lp->nfsl_stateid.other[0];
+			stateidp->other[1] =
+			    lp->nfsl_stateid.other[1];
+			stateidp->other[2] =
+			    lp->nfsl_stateid.other[2];
+			NFSUNLOCKCLSTATE();
+			return (0);
 		}
 	}
 	if (op == NULL) {
@@ -578,55 +573,74 @@ nfscl_getstateid(vnode_t vp, u_int8_t *nfhp, int fhlen, u_int32_t mode,
 }
 
 /*
- * Get an existing open. Search up the parentage tree for a match and
- * return with the first one found.
+ * Search for a matching file, mode and, optionally, lockowner.
  */
 static int
 nfscl_getopen(struct nfsclownerhead *ohp, u_int8_t *nfhp, int fhlen,
-    u_int8_t *rown, NFSPROC_T *p, u_int32_t mode, struct nfsclowner **owpp,
-    struct nfsclopen **opp)
+    u_int8_t *openown, u_int8_t *lockown, u_int32_t mode,
+    struct nfscllockowner **lpp, struct nfsclopen **opp)
 {
-	struct nfsclowner *owp = NULL;
-	struct nfsclopen *op;
-	NFSPROC_T *nproc;
-	u_int8_t own[NFSV4CL_LOCKNAMELEN], *ownp;
+	struct nfsclowner *owp;
+	struct nfsclopen *op, *rop, *rop2;
+	struct nfscllockowner *lp;
+	int keep_looping;
 
-	nproc = p;
-	op = NULL;
-	while (op == NULL && (nproc != NULL || rown != NULL)) {
-		if (nproc != NULL) {
-			nfscl_filllockowner(nproc->td_proc, own, F_POSIX);
-			ownp = own;
-		} else {
-			ownp = rown;
-		}
-		/* Search the client list */
-		LIST_FOREACH(owp, ohp, nfsow_list) {
-			if (!NFSBCMP(owp->nfsow_owner, ownp,
-			    NFSV4CL_LOCKNAMELEN))
-				break;
-		}
-		if (owp != NULL) {
-			/* and look for the correct open */
-			LIST_FOREACH(op, &owp->nfsow_open, nfso_list) {
-				if (op->nfso_fhlen == fhlen &&
-				    !NFSBCMP(op->nfso_fh, nfhp, fhlen)
-				    && (op->nfso_mode & mode) == mode) {
-					break;
+	if (lpp != NULL)
+		*lpp = NULL;
+	/*
+	 * rop will be set to the open to be returned. There are three
+	 * variants of this, all for an open of the correct file:
+	 * 1 - A match of lockown.
+	 * 2 - A match of the openown, when no lockown match exists.
+	 * 3 - A match for any open, if no openown or lockown match exists.
+	 * Looking for #2 over #3 probably isn't necessary, but since
+	 * RFC3530 is vague w.r.t. the relationship between openowners and
+	 * lockowners, I think this is the safer way to go.
+	 */
+	rop = NULL;
+	rop2 = NULL;
+	keep_looping = 1;
+	/* Search the client list */
+	owp = LIST_FIRST(ohp);
+	while (owp != NULL && keep_looping != 0) {
+		/* and look for the correct open */
+		op = LIST_FIRST(&owp->nfsow_open);
+		while (op != NULL && keep_looping != 0) {
+			if (op->nfso_fhlen == fhlen &&
+			    !NFSBCMP(op->nfso_fh, nfhp, fhlen)
+			    && (op->nfso_mode & mode) == mode) {
+				if (lpp != NULL) {
+					/* Now look for a matching lockowner. */
+					LIST_FOREACH(lp, &op->nfso_lock,
+					    nfsl_list) {
+						if (!NFSBCMP(lp->nfsl_owner,
+						    lockown,
+						    NFSV4CL_LOCKNAMELEN)) {
+							*lpp = lp;
+							rop = op;
+							keep_looping = 0;
+							break;
+						}
+					}
 				}
+				if (rop == NULL && !NFSBCMP(owp->nfsow_owner,
+				    openown, NFSV4CL_LOCKNAMELEN)) {
+					rop = op;
+					if (lpp == NULL)
+						keep_looping = 0;
+				}
+				if (rop2 == NULL)
+					rop2 = op;
 			}
+			op = LIST_NEXT(op, nfso_list);
 		}
-		if (rown != NULL)
-			break;
-		if (op == NULL)
-			nproc = nfscl_getparent(nproc);
+		owp = LIST_NEXT(owp, nfsow_list);
 	}
-	if (op == NULL) {
+	if (rop == NULL)
+		rop = rop2;
+	if (rop == NULL)
 		return (EBADF);
-	}
-	if (owpp)
-		*owpp = owp;
-	*opp = op;
+	*opp = rop;
 	return (0);
 }
 
@@ -891,16 +905,16 @@ nfscl_getbytelock(vnode_t vp, u_int64_t off, u_int64_t len,
 	struct nfscldeleg *dp = NULL, *ldp = NULL;
 	struct nfscllockownerhead *lhp = NULL;
 	struct nfsnode *np;
-	u_int8_t own[NFSV4CL_LOCKNAMELEN], *ownp;
+	u_int8_t own[NFSV4CL_LOCKNAMELEN], *ownp, openown[NFSV4CL_LOCKNAMELEN];
+	u_int8_t *openownp;
 	int error = 0, ret, donelocally = 0;
 	u_int32_t mode;
 
-	if (type == F_WRLCK)
-		mode = NFSV4OPEN_ACCESSWRITE;
-	else
-		mode = NFSV4OPEN_ACCESSREAD;
+	/* For Lock Ops, the open mode doesn't matter, so use 0 to match any. */
+	mode = 0;
 	np = VTONFS(vp);
 	*lpp = NULL;
+	lp = NULL;
 	*newonep = 0;
 	*donelocallyp = 0;
 
@@ -940,9 +954,12 @@ nfscl_getbytelock(vnode_t vp, u_int64_t off, u_int64_t len,
 	op = NULL;
 	if (recovery) {
 		ownp = rownp;
+		openownp = ropenownp;
 	} else {
 		nfscl_filllockowner(id, own, flags);
 		ownp = own;
+		nfscl_filllockowner(p->td_proc, openown, F_POSIX);
+		openownp = openown;
 	}
 	if (!recovery) {
 		NFSLOCKCLSTATE();
@@ -961,13 +978,13 @@ nfscl_getbytelock(vnode_t vp, u_int64_t off, u_int64_t len,
 			dp = NULL;
 	}
 	if (dp != NULL) {
-		/* Now, find the associated open to get the correct openowner */
+		/* Now, find an open and maybe a lockowner. */
 		ret = nfscl_getopen(&dp->nfsdl_owner, np->n_fhp->nfh_fh,
-		    np->n_fhp->nfh_len, NULL, p, mode, NULL, &op);
+		    np->n_fhp->nfh_len, openownp, ownp, mode, NULL, &op);
 		if (ret)
 			ret = nfscl_getopen(&clp->nfsc_owner,
-			    np->n_fhp->nfh_fh, np->n_fhp->nfh_len, NULL, p,
-			    mode, NULL, &op);
+			    np->n_fhp->nfh_fh, np->n_fhp->nfh_len, openownp,
+			    ownp, mode, NULL, &op);
 		if (!ret) {
 			lhp = &dp->nfsdl_lock;
 			TAILQ_REMOVE(&clp->nfsc_deleg, dp, nfsdl_list);
@@ -980,16 +997,11 @@ nfscl_getbytelock(vnode_t vp, u_int64_t off, u_int64_t len,
 	}
 	if (!donelocally) {
 		/*
-		 * Get the related Open.
+		 * Get the related Open and maybe lockowner.
 		 */
-		if (recovery)
-			error = nfscl_getopen(&clp->nfsc_owner,
-			    np->n_fhp->nfh_fh, np->n_fhp->nfh_len, ropenownp,
-			    NULL, mode, NULL, &op);
-		else
-			error = nfscl_getopen(&clp->nfsc_owner,
-			    np->n_fhp->nfh_fh, np->n_fhp->nfh_len, NULL, p,
-			    mode, NULL, &op);
+		error = nfscl_getopen(&clp->nfsc_owner,
+		    np->n_fhp->nfh_fh, np->n_fhp->nfh_len, openownp,
+		    ownp, mode, &lp, &op);
 		if (!error)
 			lhp = &op->nfso_lock;
 	}
@@ -1010,10 +1022,11 @@ nfscl_getbytelock(vnode_t vp, u_int64_t off, u_int64_t len,
 	/*
 	 * Ok, see if a lockowner exists and create one, as required.
 	 */
-	LIST_FOREACH(lp, lhp, nfsl_list) {
-		if (!NFSBCMP(lp->nfsl_owner, ownp, NFSV4CL_LOCKNAMELEN))
-			break;
-	}
+	if (lp == NULL)
+		LIST_FOREACH(lp, lhp, nfsl_list) {
+			if (!NFSBCMP(lp->nfsl_owner, ownp, NFSV4CL_LOCKNAMELEN))
+				break;
+		}
 	if (lp == NULL) {
 		NFSBCOPY(ownp, nlp->nfsl_owner, NFSV4CL_LOCKNAMELEN);
 		if (recovery)
