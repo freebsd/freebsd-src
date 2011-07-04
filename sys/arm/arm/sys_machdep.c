@@ -109,18 +109,20 @@ sysarch(td, uap)
 
 #ifdef CAPABILITY_MODE
 	/*
-	 * Whitelist of operations which are safe enough for capability mode.
+	 * When adding new operations, add a new case statement here to
+	 * explicitly indicate whether or not the operation is safe to
+	 * perform in capability mode.
 	 */
 	if (IN_CAPABILITY_MODE(td)) {
 		switch (uap->op) {
-			case ARM_SYNC_ICACHE:
-			case ARM_DRAIN_WRITEBUF:
-			case ARM_SET_TP:
-			case ARM_GET_TP:
-				break;
+		case ARM_SYNC_ICACHE:
+		case ARM_DRAIN_WRITEBUF:
+		case ARM_SET_TP:
+		case ARM_GET_TP:
+			break;
 
-			default:
-				return (ECAPMODE);
+		default:
+			return (ECAPMODE);
 		}
 	}
 #endif

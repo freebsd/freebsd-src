@@ -86,6 +86,7 @@ if_show_ifnet(struct ifnet *ifp)
 	IF_DB_PRINTF("%d", if_snd.ifq_drv_maxlen);
 	IF_DB_PRINTF("%d", if_snd.altq_type);
 	IF_DB_PRINTF("%x", if_snd.altq_flags);
+	IF_DB_PRINTF("%u", if_fib);
 #undef IF_DB_PRINTF
 }
 

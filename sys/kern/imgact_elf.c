@@ -31,10 +31,12 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_capsicum.h"
 #include "opt_compat.h"
 #include "opt_core.h"
 
 #include <sys/param.h>
+#include <sys/capability.h>
 #include <sys/exec.h>
 #include <sys/fcntl.h>
 #include <sys/imgact.h>
@@ -577,6 +579,15 @@ __elfN(load_file)(struct proc *p, const char *file, u_long *addr,
 	u_long rbase;
 	u_long base_addr = 0;
 	int vfslocked, error, i, numsegs;
+
+#ifdef CAPABILITY_MODE
+	/*
+	 * XXXJA: This check can go away once we are sufficiently confident
+	 * that the checks in namei() are correct.
+	 */
+	if (IN_CAPABILITY_MODE(curthread))
+		return (ECAPMODE);
+#endif
 
 	tempdata = malloc(sizeof(*tempdata), M_TEMP, M_WAITOK);
 	nd = &tempdata->nd;

@@ -91,7 +91,7 @@ static const char	*dev_console_filename;
 			HUPCL|CLOCAL|CCTS_OFLOW|CRTS_IFLOW|CDTR_IFLOW|\
 			CDSR_OFLOW|CCAR_OFLOW)
 
-#define	TTY_CALLOUT(tp,d) ((d) != (tp)->t_dev && (d) != dev_console)
+#define	TTY_CALLOUT(tp,d) (dev2unit(d) & TTYUNIT_CALLOUT)
 
 /*
  * Set TTY buffer sizes.
@@ -772,6 +772,10 @@ ttyil_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		goto done;
 	}
 
+	error = ttydevsw_cioctl(tp, dev2unit(dev), cmd, data, td);
+	if (error != ENOIOCTL)
+		goto done;
+
 	switch (cmd) {
 	case TIOCGETA:
 		/* Obtain terminal flags through tcgetattr(). */
@@ -878,6 +882,13 @@ ttydevsw_defioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
 }
 
 static int
+ttydevsw_defcioctl(struct tty *tp, int unit, u_long cmd, caddr_t data, struct thread *td)
+{
+
+	return (ENOIOCTL);
+}
+
+static int
 ttydevsw_defparam(struct tty *tp, struct termios *t)
 {
 
@@ -955,6 +966,7 @@ tty_alloc_mutex(struct ttydevsw *tsw, void *sc, struct mtx *mutex)
 	PATCH_FUNC(outwakeup);
 	PATCH_FUNC(inwakeup);
 	PATCH_FUNC(ioctl);
+	PATCH_FUNC(cioctl);
 	PATCH_FUNC(param);
 	PATCH_FUNC(modem);
 	PATCH_FUNC(mmap);
@@ -1190,13 +1202,13 @@ tty_makedev(struct tty *tp, struct ucred *cred, const char *fmt, ...)
 
 	/* Slave call-in devices. */
 	if (tp->t_flags & TF_INITLOCK) {
-		dev = make_dev_cred(&ttyil_cdevsw, 0, cred,
+		dev = make_dev_cred(&ttyil_cdevsw, TTYUNIT_INIT, cred,
 		    uid, gid, mode, "%s%s.init", prefix, name);
 		dev_depends(tp->t_dev, dev);
 		dev->si_drv1 = tp;
 		dev->si_drv2 = &tp->t_termios_init_in;
 
-		dev = make_dev_cred(&ttyil_cdevsw, 0, cred,
+		dev = make_dev_cred(&ttyil_cdevsw, TTYUNIT_LOCK, cred,
 		    uid, gid, mode, "%s%s.lock", prefix, name);
 		dev_depends(tp->t_dev, dev);
 		dev->si_drv1 = tp;
@@ -1205,20 +1217,22 @@ tty_makedev(struct tty *tp, struct ucred *cred, const char *fmt, ...)
 
 	/* Call-out devices. */
 	if (tp->t_flags & TF_CALLOUT) {
-		dev = make_dev_cred(&ttydev_cdevsw, 0, cred,
+		dev = make_dev_cred(&ttydev_cdevsw, TTYUNIT_CALLOUT, cred,
 		    UID_UUCP, GID_DIALER, 0660, "cua%s", name);
 		dev_depends(tp->t_dev, dev);
 		dev->si_drv1 = tp;
 
 		/* Slave call-out devices. */
 		if (tp->t_flags & TF_INITLOCK) {
-			dev = make_dev_cred(&ttyil_cdevsw, 0, cred,
+			dev = make_dev_cred(&ttyil_cdevsw, 
+			    TTYUNIT_CALLOUT | TTYUNIT_INIT, cred,
 			    UID_UUCP, GID_DIALER, 0660, "cua%s.init", name);
 			dev_depends(tp->t_dev, dev);
 			dev->si_drv1 = tp;
 			dev->si_drv2 = &tp->t_termios_init_out;
 
-			dev = make_dev_cred(&ttyil_cdevsw, 0, cred,
+			dev = make_dev_cred(&ttyil_cdevsw,
+			    TTYUNIT_CALLOUT | TTYUNIT_LOCK, cred,
 			    UID_UUCP, GID_DIALER, 0660, "cua%s.lock", name);
 			dev_depends(tp->t_dev, dev);
 			dev->si_drv1 = tp;

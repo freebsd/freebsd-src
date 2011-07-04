@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2003 Jake Burkholder.
- * Copyright (c) 2005, 2008, 2010 Marius Strobl <marius@FreeBSD.org>
+ * Copyright (c) 2005 - 2011 Marius Strobl <marius@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,8 +28,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_pmap.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/lock.h>
@@ -45,17 +43,19 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpufunc.h>
 #include <machine/dcr.h>
 #include <machine/lsu.h>
-#include <machine/mcntl.h>
 #include <machine/smp.h>
 #include <machine/tlb.h>
 #include <machine/ver.h>
 #include <machine/vmparam.h>
 
 #define	CHEETAH_ICACHE_TAG_LOWER	0x30
+#define	CHEETAH_T16_ENTRIES		16
+#define	CHEETAH_DT512_ENTRIES		512
+#define	CHEETAH_IT128_ENTRIES		128
+#define	CHEETAH_IT512_ENTRIES		512
 
 /*
- * CPU-specific initialization - this is used for both the Sun Cheetah and
- * later as well as the Fujitsu Zeus and later CPUs.
+ * CPU-specific initialization for Sun Cheetah and later CPUs
  */
 void
 cheetah_init(u_int cpu_impl)
@@ -77,14 +77,6 @@ cheetah_init(u_int cpu_impl)
 	stxa(AA_DMMU_TSB_NEXT_REG, ASI_DMMU, 0);
 	stxa(AA_IMMU_TSB_NEXT_REG, ASI_IMMU, 0);
 	membar(Sync);
-
-	if (cpu_impl == CPU_IMPL_SPARC64V) {
-		/* Ensure MCNTL_JPS1_TSBP is 0. */
-		val = ldxa(AA_MCNTL, ASI_MCNTL);
-		val &= ~MCNTL_JPS1_TSBP;
-		stxa(AA_MCNTL, ASI_MCNTL, val);
-		return;
-	}
 
 	/*
 	 * Configure the first large dTLB to hold 4MB pages (e.g. for direct
@@ -223,33 +215,92 @@ cheetah_icache_page_inval(vm_paddr_t pa __unused)
 
 }
 
-#define	cheetah_dmap_all() do {						\
-	stxa(TLB_DEMAP_ALL, ASI_DMMU_DEMAP, 0);				\
-	stxa(TLB_DEMAP_ALL, ASI_IMMU_DEMAP, 0);				\
-	flush(KERNBASE);						\
-} while (0)
-
 /*
- * Flush all non-locked mappings from the TLB.
+ * Flush all non-locked mappings from the TLBs.
  */
 void
 cheetah_tlb_flush_nonlocked(void)
 {
 
-	cheetah_dmap_all();
+	stxa(TLB_DEMAP_ALL, ASI_DMMU_DEMAP, 0);
+	stxa(TLB_DEMAP_ALL, ASI_IMMU_DEMAP, 0);
+	flush(KERNBASE);
 }
 
 /*
- * Flush all user mappings from the TLB.
+ * Flush all user mappings from the TLBs.
  */
 void
-cheetah_tlb_flush_user()
+cheetah_tlb_flush_user(void)
 {
+	u_long data, tag;
+	register_t s;
+	u_int i, slot;
 
 	/*
-	 * Just use cheetah_dmap_all() and accept somes TLB misses
-	 * rather than searching all 1040 D-TLB and 144 I-TLB slots
-	 * for non-kernel mappings.
+	 * We read ASI_{D,I}TLB_DATA_ACCESS_REG twice back-to-back in order
+	 * to work around errata of USIII and beyond.
 	 */
-	cheetah_dmap_all();
+	for (i = 0; i < CHEETAH_T16_ENTRIES; i++) {
+		slot = TLB_DAR_SLOT(TLB_DAR_T16, i);
+		s = intr_disable();
+		(void)ldxa(slot, ASI_DTLB_DATA_ACCESS_REG);
+		data = ldxa(slot, ASI_DTLB_DATA_ACCESS_REG);
+		intr_restore(s);
+		tag = ldxa(slot, ASI_DTLB_TAG_READ_REG);
+		if ((data & TD_V) != 0 && (data & TD_L) == 0 &&
+		    TLB_TAR_CTX(tag) != TLB_CTX_KERNEL)
+			stxa_sync(slot, ASI_DTLB_DATA_ACCESS_REG, 0);
+		s = intr_disable();
+		(void)ldxa(slot, ASI_ITLB_DATA_ACCESS_REG);
+		data = ldxa(slot, ASI_ITLB_DATA_ACCESS_REG);
+		intr_restore(s);
+		tag = ldxa(slot, ASI_ITLB_TAG_READ_REG);
+		if ((data & TD_V) != 0 && (data & TD_L) == 0 &&
+		    TLB_TAR_CTX(tag) != TLB_CTX_KERNEL)
+			stxa_sync(slot, ASI_ITLB_DATA_ACCESS_REG, 0);
+	}
+	for (i = 0; i < CHEETAH_DT512_ENTRIES; i++) {
+		slot = TLB_DAR_SLOT(TLB_DAR_DT512_0, i);
+		s = intr_disable();
+		(void)ldxa(slot, ASI_DTLB_DATA_ACCESS_REG);
+		data = ldxa(slot, ASI_DTLB_DATA_ACCESS_REG);
+		intr_restore(s);
+		tag = ldxa(slot, ASI_DTLB_TAG_READ_REG);
+		if ((data & TD_V) != 0 && TLB_TAR_CTX(tag) != TLB_CTX_KERNEL)
+			stxa_sync(slot, ASI_DTLB_DATA_ACCESS_REG, 0);
+		slot = TLB_DAR_SLOT(TLB_DAR_DT512_1, i);
+		s = intr_disable();
+		(void)ldxa(slot, ASI_ITLB_DATA_ACCESS_REG);
+		data = ldxa(slot, ASI_DTLB_DATA_ACCESS_REG);
+		intr_restore(s);
+		tag = ldxa(slot, ASI_DTLB_TAG_READ_REG);
+		if ((data & TD_V) != 0 && TLB_TAR_CTX(tag) != TLB_CTX_KERNEL)
+			stxa_sync(slot, ASI_DTLB_DATA_ACCESS_REG, 0);
+	}
+	if (PCPU_GET(impl) == CPU_IMPL_ULTRASPARCIVp) {
+		for (i = 0; i < CHEETAH_IT512_ENTRIES; i++) {
+			slot = TLB_DAR_SLOT(TLB_DAR_IT512, i);
+			s = intr_disable();
+			(void)ldxa(slot, ASI_ITLB_DATA_ACCESS_REG);
+			data = ldxa(slot, ASI_ITLB_DATA_ACCESS_REG);
+			intr_restore(s);
+			tag = ldxa(slot, ASI_ITLB_TAG_READ_REG);
+			if ((data & TD_V) != 0 &&
+			    TLB_TAR_CTX(tag) != TLB_CTX_KERNEL)
+				stxa_sync(slot, ASI_ITLB_DATA_ACCESS_REG, 0);
+		}
+	} else {
+		for (i = 0; i < CHEETAH_IT128_ENTRIES; i++) {
+			slot = TLB_DAR_SLOT(TLB_DAR_IT128, i);
+			s = intr_disable();
+			(void)ldxa(slot, ASI_ITLB_DATA_ACCESS_REG);
+			data = ldxa(slot, ASI_ITLB_DATA_ACCESS_REG);
+			tag = ldxa(slot, ASI_ITLB_TAG_READ_REG);
+			intr_restore(s);
+			if ((data & TD_V) != 0 &&
+			    TLB_TAR_CTX(tag) != TLB_CTX_KERNEL)
+				stxa_sync(slot, ASI_ITLB_DATA_ACCESS_REG, 0);
+		}
+	}
 }
