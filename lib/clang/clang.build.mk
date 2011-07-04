@@ -61,17 +61,14 @@ Intrinsics.inc.h: ${LLVM_SRCS}/include/llvm/Intrinsics.td
 	RegisterInfo/-gen-register-desc \
 	RegisterNames/-gen-register-enums \
 	Subtarget/-gen-subtarget
-${arch:T}Gen${hdr:H:C/$/.inc.h/}: ${LLVM_SRCS}/lib/Target/${arch:H}/${arch:T}.td
+${arch:T}Gen${hdr:H:C/$/.inc.h/}: \
+    ${LLVM_SRCS}/lib/Target/${arch:H}/${arch:T}.td \
+    ${LLVM_SRCS}/lib/Target/${arch:H}/${arch:T}CallingConv.td \
+    ${LLVM_SRCS}/lib/Target/${arch:H}/${arch:T}InstrFormats.td \
+    ${LLVM_SRCS}/lib/Target/${arch:H}/${arch:T}InstrInfo.td \
+    ${LLVM_SRCS}/lib/Target/${arch:H}/${arch:T}RegisterInfo.td
 	${TBLGEN} ${hdr:T:C/,/ /g} \
 	    ${LLVM_SRCS}/lib/Target/${arch:H}/${arch:T}.td > ${.TARGET}
-. endfor
-
-. for hdr in \
-	RegisterInfo.h	\
-	RegisterInfo	\
-	RegisterNames
-${arch:T}Gen${hdr}.inc.h: \
-	${LLVM_SRCS}/lib/Target/${arch:H}/${arch:T}RegisterInfo.td
 . endfor
 
 .endfor
