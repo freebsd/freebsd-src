@@ -38,9 +38,49 @@
 #include <sys/cdefs.h>
 #include <sys/types.h>
 
+#include <sys/file.h>
+
+/*
+ * Possible rights on capabilities.
+ *
+ * Notes:
+ * Some system calls don't require a capability in order to perform an
+ * operation on an fd.  These include: close, dup, dup2.
+ *
+ * sendfile is authorized using CAP_READ on the file and CAP_WRITE on the
+ * socket.
+ *
+ * mmap() and aio*() system calls will need special attention as they may
+ * involve reads or writes depending a great deal on context.
+ */
+#define	CAP_READ		0x0000000000000001ULL	/* read/recv */
+#define	CAP_WRITE		0x0000000000000002ULL	/* write/send */
+#define	CAP_MMAP		0x0000000000000004ULL	/* mmap */
+#define	CAP_MAPEXEC		0x0000000000000008ULL	/* mmap(2) as exec */
+#define	CAP_MASK_VALID		0x000000000000000fULL
+
 #ifdef _KERNEL
 
 #define IN_CAPABILITY_MODE(td) (td->td_ucred->cr_flags & CRED_FLAG_CAPMODE)
+
+/*
+ * Unwrap a capability if its rights mask is a superset of 'rights'.
+ *
+ * Unwrapping a non-capability is effectively a no-op; the value of fp_cap
+ * is simply copied into fpp.
+ */
+int	cap_funwrap(struct file *fp_cap, cap_rights_t rights,
+	    struct file **fpp);
+int	cap_funwrap_mmap(struct file *fp_cap, cap_rights_t rights,
+	    u_char *maxprotp, struct file **fpp);
+
+/*
+ * For the purposes of procstat(1) and similar tools, allow kern_descrip.c to
+ * extract the rights from a capability.  However, this should not be used by
+ * kernel code generally, instead cap_funwrap() should be used in order to
+ * keep all access control in one place.
+ */
+cap_rights_t	cap_rights(struct file *fp_cap);
 
 #else /* !_KERNEL */
 
