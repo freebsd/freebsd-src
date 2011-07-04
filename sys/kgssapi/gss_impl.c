@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <kgssapi/gssapi_impl.h>
 #include <rpc/rpc.h>
 #include <rpc/rpc_com.h>
+#include <rpc/rpcsec_gss.h>
 
 #include "gssd.h"
 #include "kgss_if.h"
@@ -253,8 +254,40 @@ kgss_copy_buffer(const gss_buffer_t from, gss_buffer_t to)
 static int
 kgssapi_modevent(module_t mod, int type, void *data)
 {
+	int error = 0;
 
-	return (0);
+	switch (type) {
+	case MOD_LOAD:
+		rpc_gss_entries.rpc_gss_secfind = rpc_gss_secfind;
+		rpc_gss_entries.rpc_gss_secpurge = rpc_gss_secpurge;
+		rpc_gss_entries.rpc_gss_seccreate = rpc_gss_seccreate;
+		rpc_gss_entries.rpc_gss_set_defaults = rpc_gss_set_defaults;
+		rpc_gss_entries.rpc_gss_max_data_length =
+		    rpc_gss_max_data_length;
+		rpc_gss_entries.rpc_gss_get_error = rpc_gss_get_error;
+		rpc_gss_entries.rpc_gss_mech_to_oid = rpc_gss_mech_to_oid;
+		rpc_gss_entries.rpc_gss_oid_to_mech = rpc_gss_oid_to_mech;
+		rpc_gss_entries.rpc_gss_qop_to_num = rpc_gss_qop_to_num;
+		rpc_gss_entries.rpc_gss_get_mechanisms = rpc_gss_get_mechanisms;
+		rpc_gss_entries.rpc_gss_get_versions = rpc_gss_get_versions;
+		rpc_gss_entries.rpc_gss_is_installed = rpc_gss_is_installed;
+		rpc_gss_entries.rpc_gss_set_svc_name = rpc_gss_set_svc_name;
+		rpc_gss_entries.rpc_gss_clear_svc_name = rpc_gss_clear_svc_name;
+		rpc_gss_entries.rpc_gss_getcred = rpc_gss_getcred;
+		rpc_gss_entries.rpc_gss_set_callback = rpc_gss_set_callback;
+		rpc_gss_entries.rpc_gss_clear_callback = rpc_gss_clear_callback;
+		rpc_gss_entries.rpc_gss_get_principal_name =
+		    rpc_gss_get_principal_name;
+		rpc_gss_entries.rpc_gss_svc_max_data_length =
+		    rpc_gss_svc_max_data_length;
+		break;
+	case MOD_UNLOAD:
+		/* Unloading of the kgssapi module isn't supported. */
+		/* FALLTHROUGH */
+	default:
+		error = EOPNOTSUPP;
+	};
+	return (error);
 }
 static moduledata_t kgssapi_mod = {
 	"kgssapi",
