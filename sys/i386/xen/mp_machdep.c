@@ -523,8 +523,8 @@ xen_smp_intr_init_cpus(void *unused)
 void
 init_secondary(void)
 {
-	cpuset_t tcpuset, tallcpus;
 	vm_offset_t addr;
+	u_int	cpuid;
 	int	gsel_tss;
 	
 	
@@ -601,23 +601,18 @@ init_secondary(void)
 #endif
 	smp_cpus++;
 
-	CTR1(KTR_SMP, "SMP: AP CPU #%d Launched", PCPU_GET(cpuid));
-	printf("SMP: AP CPU #%d Launched!\n", PCPU_GET(cpuid));
-	tcpuset = PCPU_GET(cpumask);
+	cpuid = PCPU_GET(cpuid);
+	CTR1(KTR_SMP, "SMP: AP CPU #%d Launched", cpuid);
+	printf("SMP: AP CPU #%d Launched!\n", cpuid);
 
 	/* Determine if we are a logical CPU. */
 	if (logical_cpus > 1 && PCPU_GET(apic_id) % logical_cpus != 0)
-		CPU_OR(&logical_cpus_mask, &tcpuset);
+		CPU_SET(cpuid, &logical_cpus_mask);
 	
 	/* Determine if we are a hyperthread. */
 	if (hyperthreading_cpus > 1 &&
 	    PCPU_GET(apic_id) % hyperthreading_cpus != 0)
-		CPU_OR(&hyperthreading_cpus_mask, &tcpuset);
-
-	/* Build our map of 'other' CPUs. */
-	tallcpus = all_cpus;
-	CPU_NAND(&tallcpus, &tcpuset);
-	PCPU_SET(other_cpus, tallcpus);
+		CPU_SET(cpuid, &hyperthreading_cpus_mask);
 #if 0
 	if (bootverbose)
 		lapic_dump("AP");
@@ -731,7 +726,6 @@ assign_cpu_ids(void)
 int
 start_all_aps(void)
 {
-	cpuset_t tallcpus;
 	int x,apic_id, cpu;
 	struct pcpu *pc;
 	
@@ -788,11 +782,6 @@ start_all_aps(void)
 		CPU_SET(cpu, &all_cpus);	/* record AP in CPU map */
 	}
 	
-
-	/* build our map of 'other' CPUs */
-	tallcpus = all_cpus;
-	CPU_NAND(&tallcpus, PCPU_PTR(cpumask));
-	PCPU_SET(other_cpus, tallcpus);
 
 	pmap_invalidate_range(kernel_pmap, 0, NKPT * NBPDR - 1);
 	
@@ -1031,9 +1020,7 @@ smp_targeted_tlb_shootdown(cpuset_t mask, u_int vector, vm_offset_t addr1, vm_of
 		if (othercpus < 1)
 			return;
 	} else {
-		critical_enter();
-		CPU_NAND(&mask, PCPU_PTR(cpumask));
-		critical_exit();
+		CPU_CLR(PCPU_GET(cpuid), &mask);
 		if (CPU_EMPTY(&mask))
 			return;
 	}
@@ -1184,9 +1171,8 @@ ipi_all_but_self(u_int ipi)
 	 * of help in order to understand what is the source.
 	 * Set the mask of receiving CPUs for this purpose.
 	 */
-	sched_pin();
-	other_cpus = PCPU_GET(other_cpus);
-	sched_unpin();
+	other_cpus = all_cpus;
+	CPU_CLR(PCPU_GET(cpuid), &other_cpus);
 	if (ipi == IPI_STOP_HARD)
 		CPU_OR_ATOMIC(&ipi_nmi_pending, &other_cpus);
 
@@ -1197,7 +1183,7 @@ ipi_all_but_self(u_int ipi)
 int
 ipi_nmi_handler()
 {
-	cpuset_t cpumask;
+	u_int cpuid;
 
 	/*
 	 * As long as there is not a simple way to know about a NMI's
@@ -1205,13 +1191,11 @@ ipi_nmi_handler()
 	 * the global pending bitword an IPI_STOP_HARD has been issued
 	 * and should be handled.
 	 */
-	sched_pin();
-	cpumask = PCPU_GET(cpumask);
-	sched_unpin();
-	if (!CPU_OVERLAP(&ipi_nmi_pending, &cpumask))
+	cpuid = PCPU_GET(cpuid);
+	if (!CPU_ISSET(cpuid, &ipi_nmi_pending))
 		return (1);
 
-	CPU_NAND_ATOMIC(&ipi_nmi_pending, &cpumask);
+	CPU_CLR_ATOMIC(cpuid, &ipi_nmi_pending);
 	cpustop_handler();
 	return (0);
 }
@@ -1223,25 +1207,21 @@ ipi_nmi_handler()
 void
 cpustop_handler(void)
 {
-	cpuset_t cpumask;
 	int cpu;
 
-	sched_pin();
-	cpumask = PCPU_GET(cpumask);
 	cpu = PCPU_GET(cpuid);
-	sched_unpin();
 
 	savectx(&stoppcbs[cpu]);
 
 	/* Indicate that we are stopped */
-	CPU_OR_ATOMIC(&stopped_cpus, &cpumask);
+	CPU_SET_ATOMIC(cpu, &stopped_cpus);
 
 	/* Wait for restart */
-	while (!CPU_OVERLAP(&started_cpus, &cpumask))
+	while (!CPU_ISSET(cpu, &started_cpus))
 	    ia32_pause();
 
-	CPU_NAND_ATOMIC(&started_cpus, &cpumask);
-	CPU_NAND_ATOMIC(&stopped_cpus, &cpumask);
+	CPU_CLR_ATOMIC(cpu, &started_cpus);
+	CPU_CLR_ATOMIC(cpu, &stopped_cpus);
 
 	if (cpu == 0 && cpustop_restartfunc != NULL) {
 		cpustop_restartfunc();

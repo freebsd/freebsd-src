@@ -802,7 +802,8 @@ pmap_cache_bits(int mode, boolean_t is_pde)
 void
 pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 {
-	cpuset_t cpumask, other_cpus;
+	cpuset_t other_cpus;
+	u_int cpuid;
 
 	CTR2(KTR_PMAP, "pmap_invalidate_page: pmap=%p va=0x%x",
 	    pmap, va);
@@ -812,9 +813,10 @@ pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 		invlpg(va);
 		smp_invlpg(va);
 	} else {
-		cpumask = PCPU_GET(cpumask);
-		other_cpus = PCPU_GET(other_cpus);
-		if (CPU_OVERLAP(&pmap->pm_active, &cpumask))
+		cpuid = PCPU_GET(cpuid);
+		other_cpus = all_cpus;
+		CPU_CLR(cpuid, &other_cpus);
+		if (CPU_ISSET(cpuid, &pmap->pm_active))
 			invlpg(va);
 		CPU_AND(&other_cpus, &pmap->pm_active);
 		if (!CPU_EMPTY(&other_cpus))
@@ -827,8 +829,9 @@ pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 void
 pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 {
-	cpuset_t cpumask, other_cpus;
+	cpuset_t other_cpus;
 	vm_offset_t addr;
+	u_int cpuid;
 
 	CTR3(KTR_PMAP, "pmap_invalidate_page: pmap=%p eva=0x%x sva=0x%x",
 	    pmap, sva, eva);
@@ -839,9 +842,10 @@ pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 			invlpg(addr);
 		smp_invlpg_range(sva, eva);
 	} else {
-		cpumask = PCPU_GET(cpumask);
-		other_cpus = PCPU_GET(other_cpus);
-		if (CPU_OVERLAP(&pmap->pm_active, &cpumask))
+		cpuid = PCPU_GET(cpuid);
+		other_cpus = all_cpus;
+		CPU_CLR(cpuid, &other_cpus);
+		if (CPU_ISSET(cpuid, &pmap->pm_active))
 			for (addr = sva; addr < eva; addr += PAGE_SIZE)
 				invlpg(addr);
 		CPU_AND(&other_cpus, &pmap->pm_active);
@@ -855,7 +859,8 @@ pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 void
 pmap_invalidate_all(pmap_t pmap)
 {
-	cpuset_t cpumask, other_cpus;
+	cpuset_t other_cpus;
+	u_int cpuid;
 
 	CTR1(KTR_PMAP, "pmap_invalidate_page: pmap=%p", pmap);
 
@@ -864,9 +869,10 @@ pmap_invalidate_all(pmap_t pmap)
 		invltlb();
 		smp_invltlb();
 	} else {
-		cpumask = PCPU_GET(cpumask);
-		other_cpus = PCPU_GET(other_cpus);
-		if (CPU_OVERLAP(&pmap->pm_active, &cpumask))
+		cpuid = PCPU_GET(cpuid);
+		other_cpus = all_cpus;
+		CPU_CLR(cpuid, &other_cpus);
+		if (CPU_ISSET(cpuid, &pmap->pm_active))
 			invltlb();
 		CPU_AND(&other_cpus, &pmap->pm_active);
 		if (!CPU_EMPTY(&other_cpus))
@@ -1708,12 +1714,12 @@ pmap_lazyfix_action(void)
 }
 
 static void
-pmap_lazyfix_self(cpuset_t mymask)
+pmap_lazyfix_self(u_int cpuid)
 {
 
 	if (rcr3() == lazyptd)
 		load_cr3(PCPU_GET(curpcb)->pcb_cr3);
-	CPU_NAND_ATOMIC(lazymask, &mymask);
+	CPU_CLR_ATOMIC(cpuid, lazymask);
 }
 
 
@@ -1721,7 +1727,7 @@ static void
 pmap_lazyfix(pmap_t pmap)
 {
 	cpuset_t mymask, mask;
-	u_int spins;
+	u_int cpuid, spins;
 	int lsb;
 
 	mask = pmap->pm_active;
@@ -1739,10 +1745,13 @@ pmap_lazyfix(pmap_t pmap)
 #else
 		lazyptd = vtophys(pmap->pm_pdir);
 #endif
-		mymask = PCPU_GET(cpumask);
+		cpuid = PCPU_GET(cpuid);
+
+		/* Use a cpuset just for having an easy check. */
+		CPU_SETOF(cpuid, &mymask);
 		if (!CPU_CMP(&mask, &mymask)) {
 			lazymask = &pmap->pm_active;
-			pmap_lazyfix_self(mymask);
+			pmap_lazyfix_self(cpuid);
 		} else {
 			atomic_store_rel_int((u_int *)&lazymask,
 			    (u_int)&pmap->pm_active);
@@ -4126,17 +4135,19 @@ void
 pmap_activate(struct thread *td)
 {
 	pmap_t	pmap, oldpmap;
+	u_int	cpuid;
 	u_int32_t  cr3;
 
 	critical_enter();
 	pmap = vmspace_pmap(td->td_proc->p_vmspace);
 	oldpmap = PCPU_GET(curpmap);
+	cpuid = PCPU_GET(cpuid);
 #if defined(SMP)
-	CPU_NAND_ATOMIC(&oldpmap->pm_active, PCPU_PTR(cpumask));
-	CPU_OR_ATOMIC(&pmap->pm_active, PCPU_PTR(cpumask));
+	CPU_CLR_ATOMIC(cpuid, &oldpmap->pm_active);
+	CPU_SET_ATOMIC(cpuid, &pmap->pm_active);
 #else
-	CPU_NAND(&oldpmap->pm_active, PCPU_PTR(cpumask));
-	CPU_OR(&pmap->pm_active, PCPU_PTR(cpumask));
+	CPU_CLR(cpuid, &oldpmap->pm_active);
+	CPU_SET(cpuid, &pmap->pm_active);
 #endif
 #ifdef PAE
 	cr3 = vtophys(pmap->pm_pdpt);
