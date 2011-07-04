@@ -536,8 +536,7 @@ struct freeblks {
 #endif
 	uint64_t fb_modrev;		/* Inode revision at start of trunc. */
 	off_t	fb_len;			/* Length we're truncating to. */
-	ufs2_daddr_t fb_chkcnt;		/* Expected blks released. */
-	ufs2_daddr_t fb_freecnt;	/* Actual blocks released. */
+	ufs2_daddr_t fb_chkcnt;		/* Blocks released. */
 	ino_t	fb_inum;		/* inode owner of blocks */
 	enum	vtype fb_vtype;		/* inode owner's file type */
 	uid_t	fb_uid;			/* uid of previous owner of blocks */
