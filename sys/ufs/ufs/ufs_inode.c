@@ -120,15 +120,14 @@ ufs_inactive(ap)
 	isize = ip->i_size;
 	if (ip->i_ump->um_fstype == UFS2)
 		isize += ip->i_din2->di_extsize;
-	if (ip->i_effnlink <= 0 && isize && !UFS_RDONLY(ip)) {
+	if (ip->i_effnlink <= 0 && isize && !UFS_RDONLY(ip))
+		error = UFS_TRUNCATE(vp, (off_t)0, IO_EXT | IO_NORMAL,
+		    NOCRED, td);
+	if (ip->i_nlink <= 0 && ip->i_mode && !UFS_RDONLY(ip)) {
 #ifdef QUOTA
 		if (!getinoquota(ip))
 			(void)chkiq(ip, -1, NOCRED, FORCE);
 #endif
-		error = UFS_TRUNCATE(vp, (off_t)0, IO_EXT | IO_NORMAL,
-		    NOCRED, td);
-	}
-	if (ip->i_nlink <= 0 && ip->i_mode && !UFS_RDONLY(ip)) {
 #ifdef UFS_EXTATTR
 		ufs_extattr_vnode_inactive(vp, td);
 #endif
