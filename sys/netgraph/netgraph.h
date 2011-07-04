@@ -493,11 +493,11 @@ _ng_node_ref(node_p node, char *file, int line)
 	_NG_NODE_REF(node);
 }
 
-static __inline int
+static __inline void
 _ng_node_unref(node_p node, char *file, int line)
 {
 	_chknode(node, file, line);
-	return (_NG_NODE_UNREF(node));
+	_NG_NODE_UNREF(node);
 }
 
 static __inline void
