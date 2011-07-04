@@ -105,6 +105,12 @@ if_nametosdl(char *name)
 	lim = buf + len;
 	for (next = buf; next < lim; next += ifm->ifm_msglen) {
 		ifm = (struct if_msghdr *)next;
+		if (ifm->ifm_version != RTM_VERSION) {
+			syslog(LOG_ERR,
+			    "<%s> RTM_VERSION mismatch (%d != %d).",
+			    __func__, ifm->ifm_version, RTM_VERSION);
+			continue;
+		}
 		if (ifm->ifm_type == RTM_IFINFO) {
 			sa = (struct sockaddr *)(ifm + 1);
 			get_rtaddrs(ifm->ifm_addrs, sa, rti_info);
