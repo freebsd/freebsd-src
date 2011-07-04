@@ -7,6 +7,15 @@
 
 namespace llvm {
 
+  namespace IA64ISD {
+
+    enum {
+      FIRST_NUMBER = ISD::BUILTIN_OP_END,
+      RET_FLAG,		// Return with a flag operand (in operand 0).
+    };
+
+  } // namespace IA64ISD
+
   class IA64Subtarget;
   class IA64TargetMachine;
 
@@ -17,6 +26,8 @@ namespace llvm {
 
   public:
     explicit IA64TargetLowering(IA64TargetMachine &TM);
+
+    virtual const char *getTargetNodeName(unsigned Opcode) const;
 
     virtual SDValue LowerCall(SDValue Chain, SDValue Callee,
         CallingConv::ID CallConv, bool isVarArg, bool &isTailCall,

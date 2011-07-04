@@ -28,6 +28,8 @@
 
 using namespace llvm;
 
+#include "IA64GenCallingConv.inc"
+
 IA64TargetLowering::IA64TargetLowering(IA64TargetMachine &tm) :
     TargetLowering(tm, new TargetLoweringObjectFileELF()),
     Subtarget(*tm.getSubtargetImpl()),
@@ -36,10 +38,10 @@ IA64TargetLowering::IA64TargetLowering(IA64TargetMachine &tm) :
   TD = getTargetData();
 
   // Set up the register classes.
-  addRegisterClass(MVT::i64, &IA64::BranchRegClass);
-  addRegisterClass(MVT::f128, &IA64::FloatingPointRegClass);
-  addRegisterClass(MVT::i64, &IA64::GeneralRegClass);
-  addRegisterClass(MVT::i1, &IA64::PredicateRegClass);
+  addRegisterClass(MVT::i64, &IA64::BRRegClass);
+  addRegisterClass(MVT::f128, &IA64::FRRegClass);
+  addRegisterClass(MVT::i64, &IA64::GRRegClass);
+  addRegisterClass(MVT::i1, &IA64::PRegClass);
 
   // Compute derived properties from the register classes
   computeRegisterProperties();
@@ -49,6 +51,18 @@ IA64TargetLowering::IA64TargetLowering(IA64TargetMachine &tm) :
 
   setJumpBufSize(512);
   setJumpBufAlignment(16);
+}
+
+const char *
+IA64TargetLowering::getTargetNodeName(unsigned Opcode) const
+{
+  const char *nn;
+
+  switch (Opcode) {
+  case IA64ISD::RET_FLAG:	nn = "IA64ISD::RET_FLAG"; break;
+  default:			nn = NULL; break;
+  }
+  return nn;
 }
 
 SDValue
@@ -72,21 +86,37 @@ IA64TargetLowering::LowerFormalArguments(SDValue Chain,
     SmallVectorImpl<SDValue> &InVals) const
 {
   MachineFunction &MF = DAG.getMachineFunction();
-  SDValue Val;
+  SmallVector<CCValAssign, 16> ArgLocs;
+  CCState CCInfo(CallConv, isVarArg, MF, getTargetMachine(), ArgLocs,
+      *DAG.getContext());
 
   DEBUG(dbgs() << "XXX: IA64TargetLowering::" << __func__ << "\n");
 
-  for (unsigned ArgNo = 0, e = Ins.size(); ArgNo != e; ++ArgNo) {
-    EVT vt = Ins[ArgNo].VT;
+  CCInfo.AllocateStack(0, 8);
+  CCInfo.AnalyzeFormalArguments(Ins, CC_IA64);
 
-    unsigned VReg =
-          MF.getRegInfo().createVirtualRegister(&IA64::GeneralRegClass);
-    MF.getRegInfo().addLiveIn(IA64::R32, VReg);
-    Val = DAG.getCopyFromReg(Chain, dl, VReg, MVT::i64);
-    InVals.push_back(Val);
+  for (unsigned i = 0, e = ArgLocs.size(); i != e; ++i) {
+    CCValAssign &VA = ArgLocs[i];
+    EVT ValVT = VA.getValVT();
+    TargetRegisterClass *RC;
 
-    DEBUG(dbgs() << ArgNo << ": " << vt.getSimpleVT().SimpleTy << " -> " <<
-          VReg << "\n:");
+    if (!VA.isRegLoc())
+      llvm_unreachable(__func__);
+
+    switch (ValVT.getSimpleVT().SimpleTy) {
+    case MVT::i64:
+      RC = &IA64::GRRegClass;
+      break;
+    default:
+      llvm_unreachable(__func__);
+    }
+
+    unsigned Reg = MF.addLiveIn(VA.getLocReg(), RC);
+    SDValue ArgValue = DAG.getCopyFromReg(Chain, dl, Reg, ValVT);
+    InVals.push_back(ArgValue);
+
+    DEBUG(dbgs() << i << ": " << ValVT.getSimpleVT().SimpleTy << " -> " <<
+          Reg << "\n");
   }
 
   return Chain;
@@ -99,8 +129,34 @@ IA64TargetLowering::LowerReturn(SDValue Chain, CallingConv::ID CallConv,
     SelectionDAG &DAG) const
 {
   MachineFunction &MF = DAG.getMachineFunction();
+  SmallVector<CCValAssign, 16> RVLocs;
+  CCState CCInfo(CallConv, isVarArg, MF, getTargetMachine(), RVLocs,
+      *DAG.getContext());
+  CCInfo.AnalyzeReturn(Outs, RetCC_IA64);
 
   DEBUG(dbgs() << "XXX: IA64TargetLowering::" <<__func__ << "\n");
 
-  return Chain;
+  if (MF.getRegInfo().liveout_empty()) {
+    for (unsigned i = 0; i != RVLocs.size(); ++i)
+      MF.getRegInfo().addLiveOut(RVLocs[i].getLocReg());
+  }
+
+  SDValue Flag;
+
+  for (unsigned i = 0; i != RVLocs.size(); ++i) {
+    CCValAssign &VA = RVLocs[i];
+
+    if (!VA.isRegLoc())
+      llvm_unreachable(__func__);
+
+    Chain = DAG.getCopyToReg(Chain, dl, VA.getLocReg(), OutVals[i], Flag);
+    Flag = Chain.getValue(1);
+  }
+
+  SDValue result;
+  if (Flag.getNode())
+    result = DAG.getNode(IA64ISD::RET_FLAG, dl, MVT::Other, Chain, Flag);
+  else
+    result = DAG.getNode(IA64ISD::RET_FLAG, dl, MVT::Other, Chain);
+  return result;
 }

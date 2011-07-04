@@ -54,5 +54,24 @@ IA64MCInstLower::LowerSymbolOperand(const MachineOperand &MO, MCSymbol *Sym)
 void
 IA64MCInstLower::Lower(const MachineInstr *MI, MCInst &OutMI) const
 {
-  llvm_unreachable(__func__);
+
+  OutMI.setOpcode(MI->getOpcode());
+
+  for (unsigned i = 0, e = MI->getNumOperands(); i != e; ++i) {
+    const MachineOperand &MO = MI->getOperand(i);
+
+    MCOperand MCOp;
+    switch (MO.getType()) {
+    case MachineOperand::MO_Register:
+      if (MO.isImplicit())
+        continue;
+      MCOp = MCOperand::CreateReg(MO.getReg());
+      break;
+    default:
+      MI->dump();
+      llvm_unreachable(__func__);
+    }
+
+    OutMI.addOperand(MCOp);
+  }
 }

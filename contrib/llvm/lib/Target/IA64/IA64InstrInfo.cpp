@@ -20,3 +20,21 @@ IA64InstrInfo::IA64InstrInfo(IA64TargetMachine &tm) :
 {
   // nothing to do
 }
+
+void
+IA64InstrInfo::copyPhysReg(MachineBasicBlock &MBB,
+    MachineBasicBlock::iterator MI, DebugLoc DL, unsigned DestReg,
+    unsigned SrcReg, bool KillSrc) const
+{
+  bool GRDest = IA64::GRRegClass.contains(DestReg);
+  bool GRSrc  = IA64::GRRegClass.contains(SrcReg);
+
+  if (GRDest && GRSrc) {
+    MachineInstrBuilder MIB = BuildMI(MBB, MI, DL, get(IA64::ADD), DestReg);
+    MIB.addReg(IA64::R0);
+    MIB.addReg(SrcReg, getKillRegState(KillSrc));
+    return;
+  }
+
+  llvm_unreachable(__func__);
+}

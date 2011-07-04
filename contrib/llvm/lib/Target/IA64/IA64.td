@@ -1,6 +1,5 @@
 include "llvm/Target/Target.td"
 
-include "IA64RegisterInfo.td"
 
 //
 // Subtargets
@@ -24,20 +23,19 @@ def : IA64Impl<"montecito", [FeatureLongBranch]>;
 def : IA64Impl<"montvale", [FeatureLongBranch]>;
 
 //
-// Calling Convention
+// Registers
 //
-include "IA64CallingConv.td"
+include "IA64RegisterInfo.td"
 
 //
 // Instructions
 //
-class IA64Instruction<dag outs, dag ins> : Instruction {
-  let Namespace = "IA64";
-  let OutOperandList = outs;
-  let InOperandList = ins;
-}
+include "IA64InstrInfo.td"
 
-def NOP : IA64Instruction<(outs), (ins)>;
+//
+// Calling Convention
+//
+include "IA64CallingConv.td"
 
 def IA64InstrInfo : InstrInfo;
 

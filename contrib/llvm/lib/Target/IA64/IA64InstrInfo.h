@@ -22,6 +22,9 @@ namespace llvm {
     ///
     virtual const TargetRegisterInfo &getRegisterInfo() const { return RI; }
 
+    virtual void copyPhysReg(MachineBasicBlock &MBB,
+        MachineBasicBlock::iterator MI, DebugLoc DL, unsigned DestReg,
+        unsigned SrcReg, bool KillSrc) const;
   };
 
 } // namespace llvm
