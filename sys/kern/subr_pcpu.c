@@ -87,7 +87,6 @@ pcpu_init(struct pcpu *pcpu, int cpuid, size_t size)
 	KASSERT(cpuid >= 0 && cpuid < MAXCPU,
 	    ("pcpu_init: invalid cpuid %d", cpuid));
 	pcpu->pc_cpuid = cpuid;
-	CPU_SETOF(cpuid, &pcpu->pc_cpumask);
 	cpuid_to_pcpu[cpuid] = pcpu;
 	STAILQ_INSERT_TAIL(&cpuhead, pcpu, pc_allcpu);
 	cpu_pcpu_init(pcpu, cpuid, size);

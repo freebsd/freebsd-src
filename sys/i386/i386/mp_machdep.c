@@ -658,12 +658,11 @@ cpu_mp_announce(void)
 void
 init_secondary(void)
 {
-	cpuset_t tcpuset, tallcpus;
 	struct pcpu *pc;
 	vm_offset_t addr;
 	int	gsel_tss;
 	int	x, myid;
-	u_int	cr0;
+	u_int	cpuid, cr0;
 
 	/* bootAP is set in start_ap() to our ID. */
 	myid = bootAP;
@@ -758,8 +757,9 @@ init_secondary(void)
 #endif
 
 	/* A quick check from sanity claus */
+	cpuid = PCPU_GET(cpuid);
 	if (PCPU_GET(apic_id) != lapic_id()) {
-		printf("SMP: cpuid = %d\n", PCPU_GET(cpuid));
+		printf("SMP: cpuid = %d\n", cpuid);
 		printf("SMP: actual apic_id = %d\n", lapic_id());
 		printf("SMP: correct apic_id = %d\n", PCPU_GET(apic_id));
 		panic("cpuid mismatch! boom!!");
@@ -781,19 +781,13 @@ init_secondary(void)
 
 	smp_cpus++;
 
-	CTR1(KTR_SMP, "SMP: AP CPU #%d Launched", PCPU_GET(cpuid));
-	printf("SMP: AP CPU #%d Launched!\n", PCPU_GET(cpuid));
-	tcpuset = PCPU_GET(cpumask);
+	CTR1(KTR_SMP, "SMP: AP CPU #%d Launched", cpuid);
+	printf("SMP: AP CPU #%d Launched!\n", cpuid);
 
 	/* Determine if we are a logical CPU. */
 	/* XXX Calculation depends on cpu_logical being a power of 2, e.g. 2 */
 	if (cpu_logical > 1 && PCPU_GET(apic_id) % cpu_logical != 0)
-		CPU_OR(&logical_cpus_mask, &tcpuset);
-
-	/* Build our map of 'other' CPUs. */
-	tallcpus = all_cpus;
-	CPU_NAND(&tallcpus, &tcpuset);
-	PCPU_SET(other_cpus, tallcpus);
+		CPU_SET(cpuid, &logical_cpus_mask);
 
 	if (bootverbose)
 		lapic_dump("AP");
@@ -934,7 +928,6 @@ assign_cpu_ids(void)
 static int
 start_all_aps(void)
 {
-	cpuset_t tallcpus;
 #ifndef PC98
 	u_char mpbiosreason;
 #endif
@@ -996,11 +989,6 @@ start_all_aps(void)
 
 		CPU_SET(cpu, &all_cpus);	/* record AP in CPU map */
 	}
-
-	/* build our map of 'other' CPUs */
-	tallcpus = all_cpus;
-	CPU_NAND(&tallcpus, PCPU_PTR(cpumask));
-	PCPU_SET(other_cpus, tallcpus);
 
 	/* restore the warmstart vector */
 	*(u_int32_t *) WARMBOOT_OFF = mpbioswarmvec;
@@ -1253,9 +1241,7 @@ smp_targeted_tlb_shootdown(cpuset_t mask, u_int vector, vm_offset_t addr1, vm_of
 		if (othercpus < 1)
 			return;
 	} else {
-		sched_pin();
-		CPU_NAND(&mask, PCPU_PTR(cpumask));
-		sched_unpin();
+		CPU_CLR(PCPU_GET(cpuid), &mask);
 		if (CPU_EMPTY(&mask))
 			return;
 	}
@@ -1452,11 +1438,12 @@ ipi_cpu(int cpu, u_int ipi)
 void
 ipi_all_but_self(u_int ipi)
 {
+	cpuset_t other_cpus;
 
-	sched_pin();
+	other_cpus = all_cpus;
+	CPU_CLR(PCPU_GET(cpuid), &other_cpus);
 	if (IPI_IS_BITMAPED(ipi)) {
-		ipi_selected(PCPU_GET(other_cpus), ipi);
-		sched_unpin();
+		ipi_selected(other_cpus, ipi);
 		return;
 	}
 
@@ -1466,8 +1453,7 @@ ipi_all_but_self(u_int ipi)
 	 * Set the mask of receiving CPUs for this purpose.
 	 */
 	if (ipi == IPI_STOP_HARD)
-		CPU_OR_ATOMIC(&ipi_nmi_pending, PCPU_PTR(other_cpus));
-	sched_unpin();
+		CPU_OR_ATOMIC(&ipi_nmi_pending, &other_cpus);
 
 	CTR2(KTR_SMP, "%s: ipi: %x", __func__, ipi);
 	lapic_ipi_vectored(ipi, APIC_IPI_DEST_OTHERS);
@@ -1476,7 +1462,7 @@ ipi_all_but_self(u_int ipi)
 int
 ipi_nmi_handler()
 {
-	cpuset_t cpumask;
+	u_int cpuid;
 
 	/*
 	 * As long as there is not a simple way to know about a NMI's
@@ -1484,13 +1470,11 @@ ipi_nmi_handler()
 	 * the global pending bitword an IPI_STOP_HARD has been issued
 	 * and should be handled.
 	 */
-	sched_pin();
-	cpumask = PCPU_GET(cpumask);
-	sched_unpin();
-	if (!CPU_OVERLAP(&ipi_nmi_pending, &cpumask))
+	cpuid = PCPU_GET(cpuid);
+	if (!CPU_ISSET(cpuid, &ipi_nmi_pending))
 		return (1);
 
-	CPU_NAND_ATOMIC(&ipi_nmi_pending, &cpumask);
+	CPU_CLR_ATOMIC(cpuid, &ipi_nmi_pending);
 	cpustop_handler();
 	return (0);
 }
@@ -1502,25 +1486,21 @@ ipi_nmi_handler()
 void
 cpustop_handler(void)
 {
-	cpuset_t cpumask;
 	u_int cpu;
 
-	sched_pin();
 	cpu = PCPU_GET(cpuid);
-	cpumask = PCPU_GET(cpumask);
-	sched_unpin();
 
 	savectx(&stoppcbs[cpu]);
 
 	/* Indicate that we are stopped */
-	CPU_OR_ATOMIC(&stopped_cpus, &cpumask);
+	CPU_SET_ATOMIC(cpu, &stopped_cpus);
 
 	/* Wait for restart */
-	while (!CPU_OVERLAP(&started_cpus, &cpumask))
+	while (!CPU_ISSET(cpu, &started_cpus))
 	    ia32_pause();
 
-	CPU_NAND_ATOMIC(&started_cpus, &cpumask);
-	CPU_NAND_ATOMIC(&stopped_cpus, &cpumask);
+	CPU_CLR_ATOMIC(cpu, &started_cpus);
+	CPU_CLR_ATOMIC(cpu, &stopped_cpus);
 
 	if (cpu == 0 && cpustop_restartfunc != NULL) {
 		cpustop_restartfunc();

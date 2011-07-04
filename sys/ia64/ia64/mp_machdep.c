@@ -150,18 +150,18 @@ ia64_ih_rndzvs(struct thread *td, u_int xiv, struct trapframe *tf)
 static u_int
 ia64_ih_stop(struct thread *td, u_int xiv, struct trapframe *tf)
 {
-	cpuset_t mybit;
+	u_int cpuid;
 
 	PCPU_INC(md.stats.pcs_nstops);
-	mybit = PCPU_GET(cpumask);
+	cpuid = PCPU_GET(cpuid);
 
 	savectx(PCPU_PTR(md.pcb));
 
-	CPU_OR_ATOMIC(&stopped_cpus, &mybit);
-	while (!CPU_OVERLAP(&started_cpus, &mybit))
+	CPU_SET_ATOMIC(cpuid, &stopped_cpus);
+	while (!CPU_ISSET(cpuid, &started_cpus))
 		cpu_spinwait();
-	CPU_NAND_ATOMIC(&started_cpus, &mybit);
-	CPU_NAND_ATOMIC(&stopped_cpus, &mybit);
+	CPU_CLR_ATOMIC(cpuid, &started_cpus);
+	CPU_CLR_ATOMIC(cpuid, &stopped_cpus);
 	return (0);
 }
 
@@ -371,8 +371,6 @@ cpu_mp_start()
 
 	STAILQ_FOREACH(pc, &cpuhead, pc_allcpu) {
 		pc->pc_md.current_pmap = kernel_pmap;
-		pc->pc_other_cpus = all_cpus;
-		CPU_NAND(&pc->pc_other_cpus, &pc->pc_cpumask);
 		/* The BSP is obviously running already. */
 		if (pc->pc_cpuid == 0) {
 			pc->pc_md.awake = 1;
@@ -478,7 +476,7 @@ ipi_selected(cpuset_t cpus, int ipi)
 	struct pcpu *pc;
 
 	STAILQ_FOREACH(pc, &cpuhead, pc_allcpu) {
-		if (CPU_OVERLAP(&cpus, &pc->pc_cpumask))
+		if (CPU_ISSET(pc->pc_cpuid, &cpus))
 			ipi_send(pc, ipi);
 	}
 }
