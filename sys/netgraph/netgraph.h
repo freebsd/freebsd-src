@@ -53,6 +53,7 @@
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/refcount.h>
 
 #ifdef HAVE_KERNEL_OPTION_HEADERS
 #include "opt_netgraph.h"
@@ -137,7 +138,7 @@ struct ng_hook {
  * If you can't do it with these you probably shouldn;t be doing it.
  */
 void ng_unref_hook(hook_p hook); /* don't move this */
-#define	_NG_HOOK_REF(hook)	atomic_add_int(&(hook)->hk_refs, 1)
+#define	_NG_HOOK_REF(hook)	refcount_acquire(&(hook)->hk_refs)
 #define _NG_HOOK_NAME(hook)	((hook)->hk_name)
 #define _NG_HOOK_UNREF(hook)	ng_unref_hook(hook)
 #define	_NG_HOOK_SET_PRIVATE(hook, val)	do {(hook)->hk_private = val;} while (0)
@@ -396,11 +397,11 @@ struct ng_node {
  * Public methods for nodes.
  * If you can't do it with these you probably shouldn't be doing it.
  */
-int	ng_unref_node(node_p node); /* don't move this */
+void	ng_unref_node(node_p node); /* don't move this */
 #define _NG_NODE_NAME(node)	((node)->nd_name + 0)
 #define _NG_NODE_HAS_NAME(node)	((node)->nd_name[0] + 0)
 #define _NG_NODE_ID(node)	((node)->nd_ID + 0)
-#define	_NG_NODE_REF(node)	atomic_add_int(&(node)->nd_refs, 1)
+#define	_NG_NODE_REF(node)	refcount_acquire(&(node)->nd_refs)
 #define	_NG_NODE_UNREF(node)	ng_unref_node(node)
 #define	_NG_NODE_SET_PRIVATE(node, val)	do {(node)->nd_private = val;} while (0)
 #define	_NG_NODE_PRIVATE(node)	((node)->nd_private)
