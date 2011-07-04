@@ -857,6 +857,7 @@ reply:
 	ah->ar_pro = htons(ETHERTYPE_IP); /* let's be sure! */
 	m->m_len = sizeof(*ah) + (2 * ah->ar_pln) + (2 * ah->ar_hln);   
 	m->m_pkthdr.len = m->m_len;   
+	m->m_pkthdr.rcvif = NULL;
 	sa.sa_family = AF_ARP;
 	sa.sa_len = 2;
 	(*ifp->if_output)(ifp, m, &sa, NULL);
