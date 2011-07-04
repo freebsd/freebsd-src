@@ -541,6 +541,7 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 		m_freem(m->m_next);
 		m->m_next = NULL;
 		m->m_data = (caddr_t)ipgen;
+		m_addr_changed(m);
 		/* m_len is set later */
 		tlen = 0;
 #define xchg(a,b,type) { type t; t=a; a=b; b=t; }
