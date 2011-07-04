@@ -131,17 +131,11 @@
 #define	CPU_SET_ATOMIC(n, p)						\
 	atomic_set_long(&(p)->__bits[(n)/_NCPUBITS], __cpuset_mask(n))
 
+/* Convenience functions catering special cases. */ 
 #define	CPU_OR_ATOMIC(d, s) do {			\
 	__size_t __i;					\
 	for (__i = 0; __i < _NCPUWORDS; __i++)		\
 		atomic_set_long(&(d)->__bits[__i],	\
-		    (s)->__bits[__i]);			\
-} while (0)
-
-#define	CPU_NAND_ATOMIC(d, s) do {			\
-	__size_t __i;					\
-	for (__i = 0; __i < _NCPUWORDS; __i++)		\
-		atomic_clear_long(&(d)->__bits[__i],	\
 		    (s)->__bits[__i]);			\
 } while (0)
 
