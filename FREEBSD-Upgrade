@@ -55,6 +55,8 @@
 
 	$ sed -i.orig -e '/\/tests/d; /docutil/d; /\/xsl/d;' \
 		configure.in Makefile.in */Makefile.in
+	
+	Remove mention of doxygen and related files from config.in
 
    Please do not commit this change. You only need this to generate config.h.
 
