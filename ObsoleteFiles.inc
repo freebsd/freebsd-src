@@ -38,6 +38,10 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20110705: the switch of default NFS client to the new one
+OLD_FILES+=sbin/mount_newnfs
+OLD_FILES+=usr/share/man/man8/mount_newnfs.8.gz
+OLD_FILES+=usr/include/nfsclient/nfs_kdtrace.h
 # 20110502: new clang import which bumps version from 2.9 to 3.0
 OLD_FILES+=usr/include/clang/2.9/emmintrin.h
 OLD_FILES+=usr/include/clang/2.9/mm_malloc.h
