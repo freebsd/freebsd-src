@@ -504,19 +504,20 @@ ng_netflow_rcvmsg (node_p node, item_p item, hook_p lasthook)
 		}
 		case NGM_NETFLOW_SHOW:
 		{
-			uint32_t *last;
-
-			if (msg->header.arglen != sizeof(uint32_t))
+			if (msg->header.arglen != sizeof(struct ngnf_show_header))
 				ERROUT(EINVAL);
-
-			last = (uint32_t *)msg->data;
 
 			NG_MKRESPONSE(resp, msg, NGRESP_SIZE, M_NOWAIT);
 
 			if (!resp)
 				ERROUT(ENOMEM);
 
-			error = ng_netflow_flow_show(priv, *last, resp);
+			error = ng_netflow_flow_show(priv,
+			    (struct ngnf_show_header *)msg->data,
+			    (struct ngnf_show_header *)resp->data);
+
+			if (error)
+				NG_FREE_MSG(resp);
 
 			break;
 		}
