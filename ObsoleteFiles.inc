@@ -38,6 +38,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20110705: files moved so both NFS clients can share them
+OLD_FILES+=usr/include/nfsclient/krpc.h
+OLD_FILES+=usr/include/nfsclient/nfsdiskless.h
 # 20110705: the switch of default NFS client to the new one
 OLD_FILES+=sbin/mount_newnfs
 OLD_FILES+=usr/share/man/man8/mount_newnfs.8.gz
