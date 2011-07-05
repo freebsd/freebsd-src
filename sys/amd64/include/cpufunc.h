@@ -467,16 +467,18 @@ load_es(u_short sel)
 }
 
 static __inline void
-cpu_monitor(const void *addr, int extensions, int hints)
+cpu_monitor(const void *addr, u_long extensions, u_int hints)
 {
-	__asm __volatile("monitor;"
-	    : :"a" (addr), "c" (extensions), "d"(hints));
+
+	__asm __volatile("monitor"
+	    : : "a" (addr), "c" (extensions), "d" (hints));
 }
 
 static __inline void
-cpu_mwait(int extensions, int hints)
+cpu_mwait(u_long extensions, u_int hints)
 {
-	__asm __volatile("mwait;" : :"a" (hints), "c" (extensions));
+
+	__asm __volatile("mwait" : : "a" (hints), "c" (extensions));
 }
 
 #ifdef _KERNEL
