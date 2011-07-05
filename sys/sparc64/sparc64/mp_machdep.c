@@ -139,8 +139,6 @@ static cpu_ipi_single_t spitfire_ipi_single;
 
 SYSINIT(cpu_mp_unleash, SI_SUB_SMP, SI_ORDER_FIRST, cpu_mp_unleash, NULL);
 
-CTASSERT(MAXCPU <= IDR_CHEETAH_MAX_BN_PAIRS);
-
 void
 mp_init(u_int cpu_impl)
 {
@@ -696,6 +694,8 @@ cheetah_ipi_selected(cpuset_t cpus, u_long d0, u_long d1, u_long d2)
 				    ASI_SDB_INTR_W, 0);
 				membar(Sync);
 				bnp++;
+				if (bnp == IDR_CHEETAH_MAX_BN_PAIRS)
+					break;
 			}
 		}
 		while (((ids = ldxa(0, ASI_INTR_DISPATCH_STATUS)) &
