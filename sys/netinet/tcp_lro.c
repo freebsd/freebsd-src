@@ -277,6 +277,14 @@ tcp_lro_rx(struct lro_ctrl *cntl, struct mbuf *m_head, uint32_t csum)
 		    lro->dest_port == tcp->th_dport &&
 		    lro->source_ip == ip->ip_src.s_addr && 
 		    lro->dest_ip == ip->ip_dst.s_addr) {
+			/* Flush now if appending will result in overflow. */
+			if (lro->len > (65535 - tcp_data_len)) {
+				SLIST_REMOVE(&cntl->lro_active, lro,
+					     lro_entry, next);
+				tcp_lro_flush(cntl, lro);
+				break;
+			}
+
 			/* Try to append it */
 
 			if (__predict_false(seq != lro->next_seq ||
