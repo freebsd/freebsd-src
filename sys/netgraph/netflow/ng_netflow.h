@@ -33,7 +33,7 @@
 #define	_NG_NETFLOW_H_
 
 #define NG_NETFLOW_NODE_TYPE	"netflow"
-#define NGM_NETFLOW_COOKIE	1299079728
+#define NGM_NETFLOW_COOKIE	1309868867
 
 #define	NG_NETFLOW_MAXIFACES	USHRT_MAX
 
@@ -133,6 +133,19 @@ struct ng_netflow_setmtu {
 	uint16_t mtu;		/* MTU for packet */
 };
 
+/* This structure is used in NGM_NETFLOW_SHOW request/responce */
+struct ngnf_show_header {
+	u_char		version;	/* IPv4 or IPv6 */
+	uint32_t	hash_id;	/* current hash index */
+	uint32_t	list_id;	/* current record number in given hash */
+	uint32_t	nentries;	/* number of records in response */
+};
+
+/* XXXGL
+ * Somewhere flow_rec6 is casted to flow_rec, and flow6_entry_data is
+ * casted to flow_entry_data. After casting, fle->r.fib is accessed.
+ * So beginning of these structs up to fib should be kept common.
+ */
 
 /* This is unique data, which identifies flow */
 struct flow_rec {
@@ -233,29 +246,24 @@ struct flow6_entry_data {
  * without overflowing socket receive buffer
  */
 #define NREC_AT_ONCE		1000
-#define NGRESP_SIZE		(sizeof(struct ngnf_flows) + (NREC_AT_ONCE * \
+#define NREC6_AT_ONCE		(NREC_AT_ONCE * sizeof(struct flow_entry_data) / \
+				sizeof(struct flow6_entry_data))
+#define NGRESP_SIZE		(sizeof(struct ngnf_show_header) + (NREC_AT_ONCE * \
 				sizeof(struct flow_entry_data)))
 #define SORCVBUF_SIZE		(NGRESP_SIZE + 2 * sizeof(struct ng_mesg))
-
-/* This struct is returned to userland, when "show cache ip flow" */
-struct ngnf_flows {
-	uint32_t		nentries;
-	uint32_t		last;
-	struct flow_entry_data	entries[0];
-};
 
 /* Everything below is for kernel */
 
 #ifdef _KERNEL
 
 struct flow_entry {
-	struct flow_entry_data	f;
 	TAILQ_ENTRY(flow_entry)	fle_hash;	/* entries in hash slot */
+	struct flow_entry_data	f;
 };
 
 struct flow6_entry {
+	TAILQ_ENTRY(flow_entry)	fle_hash;	/* entries in hash slot */
 	struct flow6_entry_data	f;
-	TAILQ_ENTRY(flow6_entry)	fle6_hash;	/* entries in hash slot */
 };
 /* Parsing declarations */
 
@@ -402,7 +410,7 @@ struct netflow {
 	/* IPv6 support */
 #ifdef INET6
 	uma_zone_t		zone6;
-	struct flow6_hash_entry	*hash6;
+	struct flow_hash_entry	*hash6;
 #endif
 	/* Multiple FIB support */
 	fib_export_p		fib_data[RT_NUMFIBS]; /* array of pointers to fib-specific data */
@@ -428,11 +436,6 @@ typedef struct netflow *priv_p;
 struct flow_hash_entry {
 	struct mtx		mtx;
 	TAILQ_HEAD(fhead, flow_entry) head;
-};
-
-struct flow6_hash_entry {
-	struct mtx		mtx;
-	TAILQ_HEAD(f6head, flow6_entry) head;
 };
 
 #define	ERROUT(x)	{ error = (x); goto done; }
@@ -465,7 +468,7 @@ void	ng_netflow_copyinfo(priv_p, struct ng_netflow_info *);
 timeout_t ng_netflow_expire;
 int 	ng_netflow_flow_add(priv_p, fib_export_p, struct ip *, caddr_t, uint8_t, uint8_t, unsigned int);
 int	ng_netflow_flow6_add(priv_p, fib_export_p, struct ip6_hdr *, caddr_t , uint8_t, uint8_t, unsigned int);
-int	ng_netflow_flow_show(priv_p, uint32_t last, struct ng_mesg *);
+int	ng_netflow_flow_show(priv_p, struct ngnf_show_header *req, struct ngnf_show_header *resp);
 
 void	ng_netflow_v9_cache_init(priv_p);
 void	ng_netflow_v9_cache_flush(priv_p);
