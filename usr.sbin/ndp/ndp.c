@@ -153,7 +153,6 @@ static void getdefif(void);
 static void setdefif(char *);
 #endif
 static char *sec2str(time_t);
-static char *ether_str(struct sockaddr_dl *);
 static void ts_print(const struct timeval *);
 
 #ifdef ICMPV6CTL_ND6_DRLIST
@@ -820,17 +819,14 @@ getnbrinfo(addr, ifindex, warning)
 }
 
 static char *
-ether_str(sdl)
-	struct sockaddr_dl *sdl;
+ether_str(struct sockaddr_dl *sdl)
 {
 	static char hbuf[NI_MAXHOST];
-	u_char *cp;
 
-	if (sdl->sdl_alen) {
-		cp = (u_char *)LLADDR(sdl);
-		snprintf(hbuf, sizeof(hbuf), "%x:%x:%x:%x:%x:%x",
-		    cp[0], cp[1], cp[2], cp[3], cp[4], cp[5]);
-	} else
+	if (sdl->sdl_alen > 0)
+		strlcpy(hbuf, ether_ntoa((struct ether_addr *)LLADDR(sdl)),
+		    sizeof(hbuf));
+	else
 		snprintf(hbuf, sizeof(hbuf), "(incomplete)");
 
 	return(hbuf);
