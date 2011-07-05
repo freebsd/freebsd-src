@@ -152,6 +152,9 @@ struct pmap kernel_pmap_store;
 static vm_paddr_t pmap_bootstrap_alloc(vm_size_t size, uint32_t colors);
 
 static void pmap_bootstrap_set_tte(struct tte *tp, u_long vpn, u_long data);
+static void pmap_cache_remove(vm_page_t m, vm_offset_t va);
+static int pmap_protect_tte(struct pmap *pm1, struct pmap *pm2,
+    struct tte *tp, vm_offset_t va);
 
 /*
  * Map the given physical page at the specified virtual address in the
@@ -956,7 +959,7 @@ pmap_cache_enter(vm_page_t m, vm_offset_t va)
 	return (0);
 }
 
-void
+static void
 pmap_cache_remove(vm_page_t m, vm_offset_t va)
 {
 	struct tte *tp;
@@ -1415,7 +1418,7 @@ pmap_remove_all(vm_page_t m)
 	vm_page_unlock_queues();
 }
 
-int
+static int
 pmap_protect_tte(struct pmap *pm, struct pmap *pm2, struct tte *tp,
     vm_offset_t va)
 {
@@ -1984,7 +1987,7 @@ pmap_page_wired_mappings(vm_page_t m)
 
 /*
  * Remove all pages from specified address space, this aids process exit
- * speeds.  This is much faster than pmap_remove n the case of running down
+ * speeds.  This is much faster than pmap_remove in the case of running down
  * an entire address space.  Only works for the current pmap.
  */
 void
