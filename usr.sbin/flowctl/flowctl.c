@@ -46,6 +46,7 @@ static const char rcs_id[] =
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysexits.h>
 #include <unistd.h>
 
 #include <netgraph.h>
@@ -54,21 +55,32 @@ static const char rcs_id[] =
 #define	CISCO_SH_FLOW_HEADER	"SrcIf         SrcIPaddress    DstIf         DstIPaddress    Pr SrcP DstP  Pkts\n"
 #define	CISCO_SH_FLOW	"%-13s %-15s %-13s %-15s %2u %4.4x %4.4x %6lu\n"
 
+#define	CISCO_SH_FLOW6_HEADER	"SrcIf         SrcIPaddress                   DstIf         DstIPaddress                   Pr SrcP DstP  Pkts\n"
+#define	CISCO_SH_FLOW6	"%-13s %-30s %-13s %-30s %2u %4.4x %4.4x %6lu\n"
+
 #define	CISCO_SH_VERB_FLOW_HEADER "SrcIf          SrcIPaddress    DstIf          DstIPaddress    Pr TOS Flgs  Pkts\n" \
 "Port Msk AS                    Port Msk AS    NextHop              B/Pk  Active\n"
 
 #define	CISCO_SH_VERB_FLOW "%-14s %-15s %-14s %-15s %2u %3x %4x %6lu\n" \
 	"%4.4x /%-2u %-5u                 %4.4x /%-2u %-5u %-15s %9u %8u\n\n"
 
-static int flow_cache_print(struct ngnf_flows *recs);
-static int flow_cache_print_verbose(struct ngnf_flows *recs);
-static int ctl_show(int, char **);
+#define	CISCO_SH_VERB_FLOW6_HEADER "SrcIf          SrcIPaddress                   DstIf          DstIPaddress                   Pr TOS Flgs  Pkts\n" \
+"Port Msk AS                    Port Msk AS    NextHop                             B/Pk  Active\n"
+
+#define	CISCO_SH_VERB_FLOW6 "%-14s %-30s %-14s %-30s %2u %3x %4x %6lu\n" \
+	"%4.4x /%-2u %-5u                 %4.4x /%-2u %-5u %-30s %9u %8u\n\n"
+static void flow_cache_print(struct ngnf_show_header *resp);
+static void flow_cache_print6(struct ngnf_show_header *resp);
+static void flow_cache_print_verbose(struct ngnf_show_header *resp);
+static void flow_cache_print6_verbose(struct ngnf_show_header *resp);
+static void ctl_show(int, char **);
+static void do_show(int, void (*func)(struct ngnf_show_header *));
 static void help(void);
 static void execute_command(int, char **);
 
 struct ip_ctl_cmd {
 	char	*cmd_name;
-	int	(*cmd_func)(int argc, char **argv);
+	void	(*cmd_func)(int argc, char **argv);
 };
 
 struct ip_ctl_cmd cmds[] = {
@@ -77,7 +89,7 @@ struct ip_ctl_cmd cmds[] = {
 };
 
 int	cs;
-char	ng_nodename[NG_PATHSIZ];
+char	*ng_path;
 
 int
 main(int argc, char **argv)
@@ -85,7 +97,6 @@ main(int argc, char **argv)
 	int c;
 	char sname[NG_NODESIZ];
 	int rcvbuf = SORCVBUF_SIZE;
-	char	*ng_name;
 
 	/* parse options */
 	while ((c = getopt(argc, argv, "d:")) != -1) {
@@ -98,13 +109,11 @@ main(int argc, char **argv)
 
 	argc -= optind;
 	argv += optind;
-	ng_name = argv[0];
-	if (ng_name == NULL)
+	ng_path = argv[0];
+	if (ng_path == NULL || (strlen(ng_path) > NG_PATHSIZ))
 		help();
 	argc--;
 	argv++;
-
-	snprintf(ng_nodename, sizeof(ng_nodename), "%s:", ng_name);
 
 	/* create control socket. */
 	snprintf(sname, sizeof(sname), "flowctl%i", getpid());
@@ -145,74 +154,99 @@ execute_command(int argc, char **argv)
 	(*cmds[cindex].cmd_func)(argc, argv);
 }
 
-static int
+static void
 ctl_show(int argc, char **argv)
 {
-	struct ng_mesg *ng_mesg;
-	struct ngnf_flows *data;
-	char path[NG_PATHSIZ];
-	int token, nread, last = 0;
-	int verbose = 0;
+	int ipv4 = 1, ipv6 = 1, verbose = 0;
+
+	if (argc > 0 && !strncmp(argv[0], "ipv4", 4)) {
+		ipv6 = 0;
+		argc--;
+		argv++;
+	}
+	if (argc > 0 && !strncmp(argv[0], "ipv6", 4)) {
+		ipv4 = 0;
+		argc--;
+		argv++;
+	}
 
 	if (argc > 0 && !strncmp(argv[0], "verbose", strlen(argv[0])))
 		verbose = 1;
 
+	if (ipv4) {
+		if (verbose)
+			do_show(4, &flow_cache_print_verbose);
+		else
+			do_show(4, &flow_cache_print);
+	}
+
+	if (ipv6) {
+		if (verbose)
+			do_show(6, &flow_cache_print6_verbose);
+		else
+			do_show(6, &flow_cache_print6);
+	}
+}
+
+static void
+do_show(int version, void (*func)(struct ngnf_show_header *))
+{
+	struct ng_mesg *ng_mesg;
+	struct ngnf_show_header req, *resp;
+	int token, nread;
+
 	ng_mesg = alloca(SORCVBUF_SIZE);
 
-	if (verbose)
-		printf(CISCO_SH_VERB_FLOW_HEADER);
-	else
-		printf(CISCO_SH_FLOW_HEADER);
+	req.version = version;
+	req.hash_id = req.list_id = 0;
 
 	for (;;) {
 		/* request set of accounting records */
-		token = NgSendMsg(cs, ng_nodename, NGM_NETFLOW_COOKIE,
-		    NGM_NETFLOW_SHOW, (void *)&last, sizeof(last));
+		token = NgSendMsg(cs, ng_path, NGM_NETFLOW_COOKIE,
+		    NGM_NETFLOW_SHOW, (void *)&req, sizeof(req));
 		if (token == -1)
 			err(1, "NgSendMsg(NGM_NETFLOW_SHOW)");
 
 		/* read reply */
-		nread = NgRecvMsg(cs, ng_mesg, SORCVBUF_SIZE, path);
+		nread = NgRecvMsg(cs, ng_mesg, SORCVBUF_SIZE, NULL);
 		if (nread == -1)
 			err(1, "NgRecvMsg() failed");
 
 		if (ng_mesg->header.token != token)
 			err(1, "NgRecvMsg(NGM_NETFLOW_SHOW): token mismatch");
 
-		data = (struct ngnf_flows*)ng_mesg->data;
-		if ((ng_mesg->header.arglen < (sizeof(*data))) ||
-		    (ng_mesg->header.arglen < (sizeof(*data) +
-		    (data->nentries * sizeof(struct flow_entry_data)))))
+		resp = (struct ngnf_show_header *)ng_mesg->data;
+		if ((ng_mesg->header.arglen < (sizeof(*resp))) ||
+		    (ng_mesg->header.arglen < (sizeof(*resp) +
+		    (resp->nentries * sizeof(struct flow_entry_data)))))
 			err(1, "NgRecvMsg(NGM_NETFLOW_SHOW): arglen too small");
 
-		if (verbose)
-			(void )flow_cache_print_verbose(data);
-		else
-			(void )flow_cache_print(data);
+		(*func)(resp);
 
-		if (data->last != 0)
-			last = data->last;
+		if (resp->hash_id != 0)
+			req.hash_id = resp->hash_id;
 		else
 			break;
+		req.list_id = resp->list_id;
 	}
-	
-	return (0);
 }
 
-static int
-flow_cache_print(struct ngnf_flows *recs)
+static void
+flow_cache_print(struct ngnf_show_header *resp)
 {
 	struct flow_entry_data *fle;
 	char src[INET_ADDRSTRLEN], dst[INET_ADDRSTRLEN];
 	char src_if[IFNAMSIZ], dst_if[IFNAMSIZ];
 	int i;
 
-	/* quick check */
-	if (recs->nentries == 0)
-		return (0);
+	if (resp->version != 4)
+		errx(EX_SOFTWARE, "%s: version mismatch: %u",
+		    __func__, resp->version);
 
-	fle = recs->entries;
-	for (i = 0; i < recs->nentries; i++, fle++) {
+	printf(CISCO_SH_FLOW_HEADER);
+
+	fle = (struct flow_entry_data *)(resp + 1);
+	for (i = 0; i < resp->nentries; i++, fle++) {
 		inet_ntop(AF_INET, &fle->r.r_src, src, sizeof(src));
 		inet_ntop(AF_INET, &fle->r.r_dst, dst, sizeof(dst));
 		printf(CISCO_SH_FLOW,
@@ -226,24 +260,57 @@ flow_cache_print(struct ngnf_flows *recs)
 			fle->packets);
 			
 	}
-	
-	return (i);
 }
 
-static int
-flow_cache_print_verbose(struct ngnf_flows *recs)
+#ifdef INET6
+static void
+flow_cache_print6(struct ngnf_show_header *resp)
+{
+	struct flow6_entry_data *fle6;
+	char src6[INET6_ADDRSTRLEN], dst6[INET6_ADDRSTRLEN];
+	char src_if[IFNAMSIZ], dst_if[IFNAMSIZ];
+	int i;
+
+	if (resp->version != 6)
+		errx(EX_SOFTWARE, "%s: version mismatch: %u",
+		    __func__, resp->version);
+
+	printf(CISCO_SH_FLOW6_HEADER);
+
+	fle6 = (struct flow6_entry_data *)(resp + 1);
+	for (i = 0; i < resp->nentries; i++, fle6++) {
+		inet_ntop(AF_INET6, &fle6->r.src.r_src6, src6, sizeof(src6));
+		inet_ntop(AF_INET6, &fle6->r.dst.r_dst6, dst6, sizeof(dst6));
+		printf(CISCO_SH_FLOW6,
+			if_indextoname(fle6->fle_i_ifx, src_if),
+			src6,
+			if_indextoname(fle6->fle_o_ifx, dst_if),
+			dst6,
+			fle6->r.r_ip_p,
+			ntohs(fle6->r.r_sport),
+			ntohs(fle6->r.r_dport),
+			fle6->packets);
+			
+	}
+}
+#endif
+
+static void
+flow_cache_print_verbose(struct ngnf_show_header *resp)
 {
 	struct flow_entry_data *fle;
 	char src[INET_ADDRSTRLEN], dst[INET_ADDRSTRLEN], next[INET_ADDRSTRLEN];
 	char src_if[IFNAMSIZ], dst_if[IFNAMSIZ];
 	int i;
 
-	/* quick check */
-	if (recs->nentries == 0)
-		return (0);
+	if (resp->version != 4)
+		errx(EX_SOFTWARE, "%s: version mismatch: %u",
+		    __func__, resp->version);
 
-	fle = recs->entries;
-	for (i = 0; i < recs->nentries; i++, fle++) {
+	printf(CISCO_SH_VERB_FLOW_HEADER);
+
+	fle = (struct flow_entry_data *)(resp + 1);
+	for (i = 0; i < resp->nentries; i++, fle++) {
 		inet_ntop(AF_INET, &fle->r.r_src, src, sizeof(src));
 		inet_ntop(AF_INET, &fle->r.r_dst, dst, sizeof(dst));
 		inet_ntop(AF_INET, &fle->next_hop, next, sizeof(next));
@@ -267,9 +334,49 @@ flow_cache_print_verbose(struct ngnf_flows *recs)
 			0);
 			
 	}
-	
-	return (i);
 }
+
+#ifdef INET6
+static void
+flow_cache_print6_verbose(struct ngnf_show_header *resp)
+{
+	struct flow6_entry_data *fle6;
+	char src6[INET6_ADDRSTRLEN], dst6[INET6_ADDRSTRLEN], next6[INET6_ADDRSTRLEN];
+	char src_if[IFNAMSIZ], dst_if[IFNAMSIZ];
+	int i;
+
+	if (resp->version != 6)
+		errx(EX_SOFTWARE, "%s: version mismatch: %u",
+		    __func__, resp->version);
+
+	printf(CISCO_SH_VERB_FLOW6_HEADER);
+
+	fle6 = (struct flow6_entry_data *)(resp + 1);
+	for (i = 0; i < resp->nentries; i++, fle6++) {
+		inet_ntop(AF_INET6, &fle6->r.src.r_src6, src6, sizeof(src6));
+		inet_ntop(AF_INET6, &fle6->r.dst.r_dst6, dst6, sizeof(dst6));
+		inet_ntop(AF_INET6, &fle6->n.next_hop6, next6, sizeof(next6));
+		printf(CISCO_SH_VERB_FLOW6,
+			if_indextoname(fle6->fle_i_ifx, src_if),
+			src6,
+			if_indextoname(fle6->fle_o_ifx, dst_if),
+			dst6,
+			fle6->r.r_ip_p,
+			fle6->r.r_tos,
+			fle6->tcp_flags,
+			fle6->packets,
+			ntohs(fle6->r.r_sport),
+			fle6->src_mask,
+			0,
+			ntohs(fle6->r.r_dport),
+			fle6->dst_mask,
+			0,
+			next6,
+			(u_int)(fle6->bytes / fle6->packets),
+			0);
+	}
+}
+#endif
 
 static void
 help(void)
