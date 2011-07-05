@@ -37,6 +37,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_capsicum.h"
 #include "opt_compat.h"
 #include "opt_ddb.h"
 #include "opt_ktrace.h"
@@ -44,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 
+#include <sys/capability.h>
 #include <sys/conf.h>
 #include <sys/domain.h>
 #include <sys/fcntl.h>
@@ -91,6 +93,7 @@ __FBSDID("$FreeBSD$");
 #include <security/audit/audit.h>
 
 #include <vm/uma.h>
+#include <vm/vm.h>
 
 #include <ddb/ddb.h>
 
@@ -2259,15 +2262,27 @@ fget_unlocked(struct filedesc *fdp, int fd)
  * If the descriptor doesn't exist or doesn't match 'flags', EBADF is
  * returned.
  *
+ * If the FGET_GETCAP flag is set, the capability itself will be returned.
+ * Calling _fget() with FGET_GETCAP on a non-capability will return EINVAL.
+ * Otherwise, if the file is a capability, its rights will be checked against
+ * the capability rights mask, and if successful, the object will be unwrapped.
+ *
  * If an error occured the non-zero error is returned and *fpp is set to
  * NULL.  Otherwise *fpp is held and set and zero is returned.  Caller is
  * responsible for fdrop().
  */
+#define	FGET_GETCAP	0x00000001
 static __inline int
-_fget(struct thread *td, int fd, struct file **fpp, int flags)
+_fget(struct thread *td, int fd, struct file **fpp, int flags,
+    cap_rights_t needrights, cap_rights_t *haverights, u_char *maxprotp,
+    int fget_flags)
 {
 	struct filedesc *fdp;
 	struct file *fp;
+#ifdef CAPABILITIES
+	struct file *fp_fromcap;
+	int error;
+#endif
 
 	*fpp = NULL;
 	if (td == NULL || (fdp = td->td_proc->p_fd) == NULL)
@@ -2278,6 +2293,47 @@ _fget(struct thread *td, int fd, struct file **fpp, int flags)
 		fdrop(fp, td);
 		return (EBADF);
 	}
+
+#ifdef CAPABILITIES
+	/*
+	 * If a capability has been requested, return the capability directly.
+	 * Otherwise, check capability rights, extract the underlying object,
+	 * and check its access flags.
+	 */
+	if (fget_flags & FGET_GETCAP) {
+		if (fp->f_type != DTYPE_CAPABILITY) {
+			fdrop(fp, td);
+			return (EINVAL);
+		}
+	} else {
+		if (maxprotp == NULL)
+			error = cap_funwrap(fp, needrights, &fp_fromcap);
+		else
+			error = cap_funwrap_mmap(fp, needrights, maxprotp,
+			    &fp_fromcap);
+		if (error) {
+			fdrop(fp, td);
+			return (error);
+		}
+
+		/*
+		 * If we've unwrapped a file, drop the original capability
+		 * and hold the new descriptor.  fp after this point refers to
+		 * the actual (unwrapped) object, not the capability.
+		 */
+		if (fp != fp_fromcap) {
+			fhold(fp_fromcap);
+			fdrop(fp, td);
+			fp = fp_fromcap;
+		}
+	}
+#else /* !CAPABILITIES */
+	KASSERT(fp->f_type != DTYPE_CAPABILITY,
+	    ("%s: saw capability", __func__));
+	if (maxprotp != NULL)
+		*maxprotp = VM_PROT_ALL;
+#endif /* CAPABILITIES */
+
 	/*
 	 * FREAD and FWRITE failure return EBADF as per POSIX.
 	 *
@@ -2296,22 +2352,35 @@ int
 fget(struct thread *td, int fd, struct file **fpp)
 {
 
-	return(_fget(td, fd, fpp, 0));
+	return(_fget(td, fd, fpp, 0, 0, NULL, NULL, 0));
 }
 
 int
 fget_read(struct thread *td, int fd, struct file **fpp)
 {
 
-	return(_fget(td, fd, fpp, FREAD));
+	return(_fget(td, fd, fpp, FREAD, 0, NULL, NULL, 0));
 }
 
 int
 fget_write(struct thread *td, int fd, struct file **fpp)
 {
 
-	return(_fget(td, fd, fpp, FWRITE));
+	return(_fget(td, fd, fpp, FWRITE, 0, NULL, NULL, 0));
 }
+
+/*
+ * Unlike the other fget() calls, which will accept and check capability rights
+ * but never return capabilities, fgetcap() returns the capability but doesn't
+ * check capability rights.
+ */
+int
+fgetcap(struct thread *td, int fd, struct file **fpp)
+{
+
+	return (_fget(td, fd, fpp, 0, 0, NULL, NULL, FGET_GETCAP));
+}
+
 
 /*
  * Like fget() but loads the underlying vnode, or returns an error if the
@@ -2327,7 +2396,7 @@ _fgetvp(struct thread *td, int fd, struct vnode **vpp, int flags)
 	int error;
 
 	*vpp = NULL;
-	if ((error = _fget(td, fd, &fp, flags)) != 0)
+	if ((error = _fget(td, fd, &fp, flags, 0, NULL, NULL, 0)) != 0)
 		return (error);
 	if (fp->f_vnode == NULL) {
 		error = EINVAL;
@@ -2383,7 +2452,7 @@ fgetsock(struct thread *td, int fd, struct socket **spp, u_int *fflagp)
 	*spp = NULL;
 	if (fflagp != NULL)
 		*fflagp = 0;
-	if ((error = _fget(td, fd, &fp, 0)) != 0)
+	if ((error = _fget(td, fd, &fp, 0, 0, NULL, NULL, 0)) != 0)
 		return (error);
 	if (fp->f_type != DTYPE_SOCKET) {
 		error = ENOTSOCK;
