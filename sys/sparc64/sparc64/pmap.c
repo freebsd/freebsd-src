@@ -1387,6 +1387,8 @@ pmap_remove_all(vm_page_t m)
 	struct tte *tp;
 	vm_offset_t va;
 
+	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	    ("pmap_remove_all: page %p is not managed", m));
 	vm_page_lock_queues();
 	for (tp = TAILQ_FIRST(&m->md.tte_list); tp != NULL; tp = tpn) {
 		tpn = TAILQ_NEXT(tp, tte_link);
