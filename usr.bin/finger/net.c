@@ -230,7 +230,7 @@ trying(const struct addrinfo *ai)
 	printf("Trying %s...\n", buf);
 }
 
-void
+static void
 cleanup(int sig __unused)
 {
 #define	ERRSTR	"Timed out.\n"
