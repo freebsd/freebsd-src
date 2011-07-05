@@ -179,6 +179,7 @@ extern volatile int openfiles;	/* actual number of open files */
 int fget(struct thread *td, int fd, struct file **fpp);
 int fget_read(struct thread *td, int fd, struct file **fpp);
 int fget_write(struct thread *td, int fd, struct file **fpp);
+int fgetcap(struct thread *td, int fd, struct file **fpp);
 int _fdrop(struct file *fp, struct thread *td);
 
 /*
