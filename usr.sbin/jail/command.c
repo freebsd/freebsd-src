@@ -150,11 +150,15 @@ finish_command(struct cfjail *j)
 	if (!(j->flags & JF_SLEEPQ))
 		return 0;
 	j->flags &= ~JF_SLEEPQ;
-	if (*j->comparam != IP_STOP_TIMEOUT) {
-		paralimit++;
-		if (!TAILQ_EMPTY(&runnable))
-			requeue(TAILQ_FIRST(&runnable), &ready);
+	if (*j->comparam == IP_STOP_TIMEOUT)
+	{
+		j->flags &= ~JF_TIMEOUT;
+		j->pstatus = 0;
+		return 0;
 	}
+	paralimit++;
+	if (!TAILQ_EMPTY(&runnable))
+		requeue(TAILQ_FIRST(&runnable), &ready);
 	error = 0;
 	if (j->flags & JF_TIMEOUT) {
 		j->flags &= ~JF_TIMEOUT;
@@ -270,8 +274,8 @@ run_command(struct cfjail *j)
 
 	case IP__OP:
 		if (down) {
-			if (jail_remove(j->jid) == 0 && verbose >= 0 &&
-			    (verbose > 0 || (j->flags & JF_STOP
+			(void)jail_remove(j->jid);
+			if (verbose > 0 || (verbose == 0 && (j->flags & JF_STOP
 			    ? note_remove : j->name != NULL)))
 			    jail_note(j, "removed\n");
 			j->jid = -1;
