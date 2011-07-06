@@ -127,8 +127,9 @@ again:
 		args.rule = *((struct ipfw_rule_ref *)(tag+1));
 		m_tag_delete(*m0, tag);
 		if (args.rule.info & IPFW_ONEPASS) {
-			SET_HOST_IPLEN(mtod(*m0, struct ip *));
-			return 0;
+			if (mtod(*m0, struct ip *)->ip_v == 4)
+				SET_HOST_IPLEN(mtod(*m0, struct ip *));
+			return (0);
 		}
 	}
 

@@ -664,7 +664,6 @@ dummynet_send(struct mbuf *m)
 			break;
 
 		case DIR_OUT | PROTO_IPV6:
-			SET_HOST_IPLEN(mtod(m, struct ip *));
 			ip6_output(m, NULL, NULL, IPV6_FORWARDING, NULL, NULL, NULL);
 			break;
 #endif
