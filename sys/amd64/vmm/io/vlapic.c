@@ -443,8 +443,6 @@ lapic_process_icr(struct vlapic *vlapic, uint64_t icrval)
 	cpuset_t dmask;
 	uint32_t dest, vec, mode;
 	
-	CPU_ZERO(&dmask);
-
 	dest = icrval >> 32;
 	vec = icrval & APIC_VECTOR_MASK;
 	mode = icrval & APIC_DELMODE_MASK;
