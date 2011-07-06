@@ -217,8 +217,10 @@ dev_pager_getpages(object, m, count, reqpage)
 	memattr = object->memattr;
 	VM_OBJECT_UNLOCK(object);
 	csw = dev_refthread(dev, &ref);
-	if (csw == NULL)
-		panic("dev_pager_getpage: no cdevsw");
+	if (csw == NULL) {
+		VM_OBJECT_LOCK(object);
+		return (VM_PAGER_FAIL);
+	}
 	td = curthread;
 	fpop = td->td_fpop;
 	td->td_fpop = NULL;
