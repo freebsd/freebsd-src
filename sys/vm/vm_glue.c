@@ -222,12 +222,14 @@ vslock(void *addr, size_t len)
 #endif
 	error = vm_map_wire(&curproc->p_vmspace->vm_map, start, end,
 	    VM_MAP_WIRE_SYSTEM | VM_MAP_WIRE_NOHOLES);
+#ifdef RACCT
 	if (error != KERN_SUCCESS) {
 		PROC_LOCK(curproc);
 		racct_set(curproc, RACCT_MEMLOCK, 
 		    ptoa(pmap_wired_count(vm_map_pmap(&curproc->p_vmspace->vm_map))));
 		PROC_UNLOCK(curproc);
 	}
+#endif
 	/*
 	 * Return EFAULT on error to match copy{in,out}() behaviour
 	 * rather than returning ENOMEM like mlock() would.
@@ -244,10 +246,12 @@ vsunlock(void *addr, size_t len)
 	    trunc_page((vm_offset_t)addr), round_page((vm_offset_t)addr + len),
 	    VM_MAP_WIRE_SYSTEM | VM_MAP_WIRE_NOHOLES);
 
+#ifdef RACCT
 	PROC_LOCK(curproc);
 	racct_set(curproc, RACCT_MEMLOCK,
 	    ptoa(pmap_wired_count(vm_map_pmap(&curproc->p_vmspace->vm_map))));
 	PROC_UNLOCK(curproc);
+#endif
 }
 
 /*

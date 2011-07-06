@@ -734,11 +734,13 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp)
 		return (fork_norfproc(td, flags));
 	}
 
+#ifdef RACCT
 	PROC_LOCK(p1);
 	error = racct_add(p1, RACCT_NPROC, 1);
 	PROC_UNLOCK(p1);
 	if (error != 0)
 		return (EAGAIN);
+#endif
 
 	mem_charged = 0;
 	vm2 = NULL;
@@ -822,6 +824,7 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp)
 		goto fail;
 	}
 
+#ifdef RACCT
 	/*
 	 * After fork, there is exactly one thread running.
 	 */
@@ -832,6 +835,7 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp)
 		error = EAGAIN;
 		goto fail;
 	}
+#endif
 
 	/*
 	 * Increment the count of procs running with this uid. Don't allow
@@ -874,9 +878,11 @@ fail1:
 		vmspace_free(vm2);
 	uma_zfree(proc_zone, newproc);
 	pause("fork", hz / 2);
+#ifdef RACCT
 	PROC_LOCK(p1);
 	racct_sub(p1, RACCT_NPROC, 1);
 	PROC_UNLOCK(p1);
+#endif
 	return (error);
 }
 
