@@ -970,6 +970,7 @@ struct ngnf_show_header *resp)
 			if (hsh->mtx.mtx_lock & MTX_CONTESTED) {
 				resp->hash_id = i;
 				resp->list_id = list_id;
+				mtx_unlock(&hsh->mtx);
 				return (0);
 			}
 
@@ -1001,6 +1002,7 @@ struct ngnf_show_header *resp)
 				 * we simply skip to next hash_id.
 				 */
 				resp->list_id = list_id + 1;
+				mtx_unlock(&hsh->mtx);
 				return (0);
 			}
 		}
