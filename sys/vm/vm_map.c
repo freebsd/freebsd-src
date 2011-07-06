@@ -318,6 +318,7 @@ static void
 vmspace_container_reset(struct proc *p)
 {
 
+#ifdef RACCT
 	PROC_LOCK(p);
 	racct_set(p, RACCT_DATA, 0);
 	racct_set(p, RACCT_STACK, 0);
@@ -325,6 +326,7 @@ vmspace_container_reset(struct proc *p)
 	racct_set(p, RACCT_MEMLOCK, 0);
 	racct_set(p, RACCT_VMEM, 0);
 	PROC_UNLOCK(p);
+#endif
 }
 
 static inline void
@@ -3305,7 +3307,9 @@ vm_map_growstack(struct proc *p, vm_offset_t addr)
 #ifdef notyet
 	uint64_t limit;
 #endif
+#ifdef RACCT
 	int error;
+#endif
 
 Retry:
 	PROC_LOCK(p);
@@ -3404,6 +3408,7 @@ Retry:
 		vm_map_unlock_read(map);
 		return (KERN_NO_SPACE);
 	}
+#ifdef RACCT
 	PROC_LOCK(p);
 	if (is_procstack &&
 	    racct_set(p, RACCT_STACK, ctob(vm->vm_ssize) + grow_amount)) {
@@ -3412,6 +3417,7 @@ Retry:
 		return (KERN_NO_SPACE);
 	}
 	PROC_UNLOCK(p);
+#endif
 
 	/* Round up the grow amount modulo SGROWSIZ */
 	grow_amount = roundup (grow_amount, sgrowsiz);
@@ -3435,6 +3441,7 @@ Retry:
 		rv = KERN_NO_SPACE;
 		goto out;
 	}
+#ifdef RACCT
 	PROC_LOCK(p);
 	if (racct_set(p, RACCT_VMEM, map->size + grow_amount)) {
 		PROC_UNLOCK(p);
@@ -3443,6 +3450,7 @@ Retry:
 		goto out;
 	}
 	PROC_UNLOCK(p);
+#endif
 
 	if (vm_map_lock_upgrade(map))
 		goto Retry;
@@ -3542,6 +3550,7 @@ Retry:
 	}
 
 out:
+#ifdef RACCT
 	if (rv != KERN_SUCCESS) {
 		PROC_LOCK(p);
 		error = racct_set(p, RACCT_VMEM, map->size);
@@ -3550,6 +3559,7 @@ out:
 		KASSERT(error == 0, ("decreasing RACCT_STACK failed"));
 		PROC_UNLOCK(p);
 	}
+#endif
 
 	return (rv);
 }

@@ -672,6 +672,7 @@ shmget_allocate_segment(td, uap, mode)
 		shm_last_free = -1;
 	}
 	shmseg = &shmsegs[segnum];
+#ifdef RACCT
 	PROC_LOCK(td->td_proc);
 	if (racct_add(td->td_proc, RACCT_NSHM, 1)) {
 		PROC_UNLOCK(td->td_proc);
@@ -683,6 +684,7 @@ shmget_allocate_segment(td, uap, mode)
 		return (ENOMEM);
 	}
 	PROC_UNLOCK(td->td_proc);
+#endif
 	/*
 	 * In case we sleep in malloc(), mark the segment present but deleted
 	 * so that noone else tries to create the same key.
@@ -699,10 +701,12 @@ shmget_allocate_segment(td, uap, mode)
 	shm_object = vm_pager_allocate(shm_use_phys ? OBJT_PHYS : OBJT_SWAP,
 	    0, size, VM_PROT_DEFAULT, 0, cred);
 	if (shm_object == NULL) {
+#ifdef RACCT
 		PROC_LOCK(td->td_proc);
 		racct_sub(td->td_proc, RACCT_NSHM, 1);
 		racct_sub(td->td_proc, RACCT_SHMSIZE, size);
 		PROC_UNLOCK(td->td_proc);
+#endif
 		return (ENOMEM);
 	}
 	VM_OBJECT_LOCK(shm_object);

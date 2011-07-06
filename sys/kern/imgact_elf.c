@@ -1115,6 +1115,7 @@ __elfN(coredump)(struct thread *td, struct vnode *vp, off_t limit, int flags)
 	hdrsize = 0;
 	__elfN(puthdr)(td, (void *)NULL, &hdrsize, seginfo.count);
 
+#ifdef RACCT
 	PROC_LOCK(td->td_proc);
 	error = racct_add(td->td_proc, RACCT_CORE, hdrsize + seginfo.size);
 	PROC_UNLOCK(td->td_proc);
@@ -1122,6 +1123,7 @@ __elfN(coredump)(struct thread *td, struct vnode *vp, off_t limit, int flags)
 		error = EFAULT;
 		goto done;
 	}
+#endif
 	if (hdrsize + seginfo.size >= limit) {
 		error = EFAULT;
 		goto done;
