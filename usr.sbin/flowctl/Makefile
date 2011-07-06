@@ -14,7 +14,8 @@ LDADD=  -lnetgraph
 .if ${MK_INET6_SUPPORT} != "no"
 CFLAGS+= -DINET6
 .endif
-
-CFLAGS+= -I.
+.if ${MK_INET_SUPPORT} != "no"
+CFLAGS+= -DINET
+.endif
 
 .include <bsd.prog.mk>

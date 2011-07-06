@@ -69,12 +69,18 @@ static const char rcs_id[] =
 
 #define	CISCO_SH_VERB_FLOW6 "%-14s %-30s %-14s %-30s %2u %3x %4x %6lu\n" \
 	"%4.4x /%-2u %-5u                 %4.4x /%-2u %-5u %-30s %9u %8u\n\n"
+#ifdef INET
 static void flow_cache_print(struct ngnf_show_header *resp);
-static void flow_cache_print6(struct ngnf_show_header *resp);
 static void flow_cache_print_verbose(struct ngnf_show_header *resp);
+#endif
+#ifdef INET6 
+static void flow_cache_print6(struct ngnf_show_header *resp);
 static void flow_cache_print6_verbose(struct ngnf_show_header *resp);
+#endif
 static void ctl_show(int, char **);
+#if defined(INET) || defined(INET6)
 static void do_show(int, void (*func)(struct ngnf_show_header *));
+#endif
 static void help(void);
 static void execute_command(int, char **);
 
@@ -157,7 +163,10 @@ execute_command(int argc, char **argv)
 static void
 ctl_show(int argc, char **argv)
 {
-	int ipv4 = 1, ipv6 = 1, verbose = 0;
+	int ipv4, ipv6, verbose = 0;
+
+	ipv4 = feature_present("inet");
+	ipv6 = feature_present("inet6");
 
 	if (argc > 0 && !strncmp(argv[0], "ipv4", 4)) {
 		ipv6 = 0;
@@ -173,21 +182,26 @@ ctl_show(int argc, char **argv)
 	if (argc > 0 && !strncmp(argv[0], "verbose", strlen(argv[0])))
 		verbose = 1;
 
+#ifdef INET
 	if (ipv4) {
 		if (verbose)
 			do_show(4, &flow_cache_print_verbose);
 		else
 			do_show(4, &flow_cache_print);
 	}
+#endif
 
+#ifdef INET6
 	if (ipv6) {
 		if (verbose)
 			do_show(6, &flow_cache_print6_verbose);
 		else
 			do_show(6, &flow_cache_print6);
 	}
+#endif
 }
 
+#if defined(INET) || defined(INET6)
 static void
 do_show(int version, void (*func)(struct ngnf_show_header *))
 {
@@ -230,7 +244,9 @@ do_show(int version, void (*func)(struct ngnf_show_header *))
 		req.list_id = resp->list_id;
 	}
 }
+#endif
 
+#ifdef INET
 static void
 flow_cache_print(struct ngnf_show_header *resp)
 {
@@ -261,6 +277,7 @@ flow_cache_print(struct ngnf_show_header *resp)
 			
 	}
 }
+#endif
 
 #ifdef INET6
 static void
@@ -295,6 +312,7 @@ flow_cache_print6(struct ngnf_show_header *resp)
 }
 #endif
 
+#ifdef INET
 static void
 flow_cache_print_verbose(struct ngnf_show_header *resp)
 {
@@ -335,6 +353,7 @@ flow_cache_print_verbose(struct ngnf_show_header *resp)
 			
 	}
 }
+#endif
 
 #ifdef INET6
 static void
