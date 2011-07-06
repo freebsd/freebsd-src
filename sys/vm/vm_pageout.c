@@ -1640,7 +1640,9 @@ vm_daemon()
 	struct thread *td;
 	struct vmspace *vm;
 	int breakout, swapout_flags, tryagain, attempts;
+#ifdef RACCT
 	uint64_t rsize, ravailable;
+#endif
 
 	while (TRUE) {
 		mtx_lock(&vm_daemon_mtx);
@@ -1722,6 +1724,7 @@ again:
 				vm_pageout_map_deactivate_pages(
 				    &vm->vm_map, limit);
 			}
+#ifdef RACCT
 			rsize = IDX_TO_OFF(size);
 			PROC_LOCK(p);
 			racct_set(p, RACCT_RSS, rsize);
@@ -1750,6 +1753,7 @@ again:
 				if (rsize > ravailable)
 					tryagain = 1;
 			}
+#endif
 			vmspace_free(vm);
 		}
 		sx_sunlock(&allproc_lock);

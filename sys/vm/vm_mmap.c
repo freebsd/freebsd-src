@@ -1019,19 +1019,23 @@ mlock(td, uap)
 	PROC_UNLOCK(proc);
 	if (npages + cnt.v_wire_count > vm_page_max_wired)
 		return (EAGAIN);
+#ifdef RACCT
 	PROC_LOCK(proc);
 	error = racct_set(proc, RACCT_MEMLOCK, nsize);
 	PROC_UNLOCK(proc);
 	if (error != 0)
 		return (ENOMEM);
+#endif
 	error = vm_map_wire(&proc->p_vmspace->vm_map, start, end,
 	    VM_MAP_WIRE_USER | VM_MAP_WIRE_NOHOLES);
+#ifdef RACCT
 	if (error != KERN_SUCCESS) {
 		PROC_LOCK(proc);
 		racct_set(proc, RACCT_MEMLOCK,
 		    ptoa(pmap_wired_count(vm_map_pmap(&proc->p_vmspace->vm_map))));
 		PROC_UNLOCK(proc);
 	}
+#endif
 	return (error == KERN_SUCCESS ? 0 : ENOMEM);
 }
 
@@ -1074,11 +1078,13 @@ mlockall(td, uap)
 	if (error)
 		return (error);
 #endif
+#ifdef RACCT
 	PROC_LOCK(td->td_proc);
 	error = racct_set(td->td_proc, RACCT_MEMLOCK, map->size);
 	PROC_UNLOCK(td->td_proc);
 	if (error != 0)
 		return (ENOMEM);
+#endif
 
 	if (uap->how & MCL_FUTURE) {
 		vm_map_lock(map);
@@ -1098,12 +1104,14 @@ mlockall(td, uap)
 		    VM_MAP_WIRE_USER|VM_MAP_WIRE_HOLESOK);
 		error = (error == KERN_SUCCESS ? 0 : EAGAIN);
 	}
+#ifdef RACCT
 	if (error != KERN_SUCCESS) {
 		PROC_LOCK(td->td_proc);
 		racct_set(td->td_proc, RACCT_MEMLOCK,
 		    ptoa(pmap_wired_count(vm_map_pmap(&td->td_proc->p_vmspace->vm_map))));
 		PROC_UNLOCK(td->td_proc);
 	}
+#endif
 
 	return (error);
 }
@@ -1138,11 +1146,13 @@ munlockall(td, uap)
 	/* Forcibly unwire all pages. */
 	error = vm_map_unwire(map, vm_map_min(map), vm_map_max(map),
 	    VM_MAP_WIRE_USER|VM_MAP_WIRE_HOLESOK);
+#ifdef RACCT
 	if (error == KERN_SUCCESS) {
 		PROC_LOCK(td->td_proc);
 		racct_set(td->td_proc, RACCT_MEMLOCK, 0);
 		PROC_UNLOCK(td->td_proc);
 	}
+#endif
 
 	return (error);
 }
@@ -1177,11 +1187,13 @@ munlock(td, uap)
 		return (EINVAL);
 	error = vm_map_unwire(&td->td_proc->p_vmspace->vm_map, start, end,
 	    VM_MAP_WIRE_USER | VM_MAP_WIRE_NOHOLES);
+#ifdef RACCT
 	if (error == KERN_SUCCESS) {
 		PROC_LOCK(td->td_proc);
 		racct_sub(td->td_proc, RACCT_MEMLOCK, ptoa(end - start));
 		PROC_UNLOCK(td->td_proc);
 	}
+#endif
 	return (error == KERN_SUCCESS ? 0 : ENOMEM);
 }
 

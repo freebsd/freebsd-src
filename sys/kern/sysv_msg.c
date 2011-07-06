@@ -620,6 +620,7 @@ msgget(td, uap)
 			error = ENOSPC;
 			goto done2;
 		}
+#ifdef RACCT
 		PROC_LOCK(td->td_proc);
 		error = racct_add(td->td_proc, RACCT_NMSGQ, 1);
 		PROC_UNLOCK(td->td_proc);
@@ -627,6 +628,7 @@ msgget(td, uap)
 			error = ENOSPC;
 			goto done2;
 		}
+#endif
 		DPRINTF(("msqid %d is available\n", msqid));
 		msqkptr->u.msg_perm.key = key;
 		msqkptr->u.msg_perm.cuid = cred->cr_uid;
@@ -685,7 +687,9 @@ kern_msgsnd(td, msqid, msgp, msgsz, msgflg, mtype)
 	register struct msqid_kernel *msqkptr;
 	register struct msg *msghdr;
 	short next;
+#ifdef RACCT
 	size_t saved_msgsz;
+#endif
 
 	if (!prison_allow(td->td_ucred, PR_ALLOW_SYSVIPC))
 		return (ENOSYS);
@@ -723,6 +727,7 @@ kern_msgsnd(td, msqid, msgp, msgsz, msgflg, mtype)
 		goto done2;
 #endif
 
+#ifdef RACCT
 	PROC_LOCK(td->td_proc);
 	if (racct_add(td->td_proc, RACCT_MSGQQUEUED, 1)) {
 		PROC_UNLOCK(td->td_proc);
@@ -737,6 +742,7 @@ kern_msgsnd(td, msqid, msgp, msgsz, msgflg, mtype)
 		goto done2;
 	}
 	PROC_UNLOCK(td->td_proc);
+#endif
 
 	segs_needed = (msgsz + msginfo.msgssz - 1) / msginfo.msgssz;
 	DPRINTF(("msgsz=%zu, msgssz=%d, segs_needed=%d\n", msgsz,
@@ -991,12 +997,14 @@ kern_msgsnd(td, msqid, msgp, msgsz, msgflg, mtype)
 	wakeup(msqkptr);
 	td->td_retval[0] = 0;
 done3:
+#ifdef RACCT
 	if (error != 0) {
 		PROC_LOCK(td->td_proc);
 		racct_sub(td->td_proc, RACCT_MSGQQUEUED, 1);
 		racct_sub(td->td_proc, RACCT_MSGQSIZE, saved_msgsz);
 		PROC_UNLOCK(td->td_proc);
 	}
+#endif
 done2:
 	mtx_unlock(&msq_mtx);
 	return (error);
