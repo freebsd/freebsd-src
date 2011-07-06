@@ -3284,7 +3284,8 @@ check_body:
 				sa = &(((ipfw_insn_sa *)cmd)->sa);
 				if (args->eh)	/* not valid on layer2 pkts */
 					break;
-				if (!q || dyn_dir == MATCH_FORWARD) {
+				if (q == NULL || q->rule != f ||
+				    dyn_dir == MATCH_FORWARD) {
 					if (sa->sin_addr.s_addr == INADDR_ANY) {
 						bcopy(sa, &args->hopstore,
 							sizeof(*sa));
