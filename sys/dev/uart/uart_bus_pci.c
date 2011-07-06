@@ -112,6 +112,8 @@ static struct pci_id pci_ns8250_ids[] = {
 { 0x151f, 0x0000, 0xffff, 0, "TOPIC Semiconductor TP560 56k modem", 0x10 },
 { 0x9710, 0x9835, 0x1000, 1, "NetMos NM9835 Serial Port", 0x10 },
 { 0x9710, 0x9865, 0xa000, 0x1000, "NetMos NM9865 Serial Port", 0x10 },
+{ 0x9710, 0x9900, 0xa000, 0x1000,
+	"MosChip MCS9900 PCIe to Peripheral Controller", 0x10 },
 { 0x9710, 0x9901, 0xa000, 0x1000,
 	"MosChip MCS9901 PCIe to Peripheral Controller", 0x10 },
 { 0xdeaf, 0x9051, 0xffff, 0, "Middle Digital PC Weasel Serial Port", 0x10 },
