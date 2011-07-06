@@ -931,6 +931,7 @@ semget(struct thread *td, struct semget_args *uap)
 			error = ENOSPC;
 			goto done2;
 		}
+#ifdef RACCT
 		PROC_LOCK(td->td_proc);
 		error = racct_add(td->td_proc, RACCT_NSEM, nsems);
 		PROC_UNLOCK(td->td_proc);
@@ -938,6 +939,7 @@ semget(struct thread *td, struct semget_args *uap)
 			error = ENOSPC;
 			goto done2;
 		}
+#endif
 		DPRINTF(("semid %d is available\n", semid));
 		mtx_lock(&sema_mtx[semid]);
 		KASSERT((sema[semid].u.sem_perm.mode & SEM_ALLOC) == 0,
@@ -1023,12 +1025,14 @@ semop(struct thread *td, struct semop_args *uap)
 		    nsops));
 		return (E2BIG);
 	} else {
+#ifdef RACCT
 		PROC_LOCK(td->td_proc);
 		if (nsops > racct_get_available(td->td_proc, RACCT_NSEMOP)) {
 			PROC_UNLOCK(td->td_proc);
 			return (E2BIG);
 		}
 		PROC_UNLOCK(td->td_proc);
+#endif
 
 		sops = malloc(nsops * sizeof(*sops), M_TEMP, M_WAITOK);
 	}

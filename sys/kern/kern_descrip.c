@@ -821,6 +821,7 @@ do_dup(struct thread *td, int flags, int old, int new,
 			 * descriptors, just put the limit on the size of the file
 			 * descriptor table.
 			 */
+#ifdef RACCT
 			PROC_LOCK(p);
 			error = racct_set(p, RACCT_NOFILE, new + 1);
 			PROC_UNLOCK(p);
@@ -829,6 +830,7 @@ do_dup(struct thread *td, int flags, int old, int new,
 				fdrop(fp, td);
 				return (EMFILE);
 			}
+#endif
 			fdgrowtable(fdp, new + 1);
 		}
 		if (fdp->fd_ofiles[new] == NULL)
@@ -1476,7 +1478,10 @@ fdalloc(struct thread *td, int minfd, int *result)
 {
 	struct proc *p = td->td_proc;
 	struct filedesc *fdp = p->p_fd;
-	int fd = -1, maxfd, error;
+	int fd = -1, maxfd;
+#ifdef RACCT
+	int error;
+#endif
 
 	FILEDESC_XLOCK_ASSERT(fdp);
 
@@ -1499,11 +1504,13 @@ fdalloc(struct thread *td, int minfd, int *result)
 			return (EMFILE);
 		if (fd < fdp->fd_nfiles)
 			break;
+#ifdef RACCT
 		PROC_LOCK(p);
 		error = racct_set(p, RACCT_NOFILE, min(fdp->fd_nfiles * 2, maxfd));
 		PROC_UNLOCK(p);
 		if (error != 0)
 			return (EMFILE);
+#endif
 		fdgrowtable(fdp, min(fdp->fd_nfiles * 2, maxfd));
 	}
 
@@ -1819,9 +1826,11 @@ fdfree(struct thread *td)
 	if (fdp == NULL)
 		return;
 
+#ifdef RACCT
 	PROC_LOCK(td->td_proc);
 	racct_set(td->td_proc, RACCT_NOFILE, 0);
 	PROC_UNLOCK(td->td_proc);
+#endif
 
 	/* Check for special need to clear POSIX style locks */
 	fdtol = td->td_proc->p_fdtol;
