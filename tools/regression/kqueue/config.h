@@ -1,7 +1,7 @@
-/* AUTOMATICALLY GENERATED -- DO NOT EDIT */
-/* $FreeBSD$ */
-#define HAVE_ERR_H
-#define HAVE_SYS_EVENT_H
+# $FreeBSD$
+
+#define HAVE_ERR_H 1
+#define HAVE_SYS_EVENT_H 1
 #define HAVE_EV_DISPATCH 1
 #define HAVE_EV_RECEIPT 1
 #undef HAVE_NOTE_TRUNCATE
