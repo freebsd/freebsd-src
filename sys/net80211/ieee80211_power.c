@@ -102,7 +102,7 @@ ieee80211_power_vdetach(struct ieee80211vap *vap)
 void
 ieee80211_psq_init(struct ieee80211_psq *psq, const char *name)
 {
-	memset(psq, 0, sizeof(psq));
+	memset(psq, 0, sizeof(*psq));
 	psq->psq_maxlen = IEEE80211_PS_MAX_QUEUE;
 	IEEE80211_PSQ_INIT(psq, name);		/* OS-dependent setup */
 }
