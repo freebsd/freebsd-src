@@ -263,17 +263,27 @@ ipfw_nat(struct ip_fw_args *args, struct cfg_nat *t, struct mbuf *m)
 	else
 		retval = LibAliasOut(t->lib, c,
 			mcl->m_len + M_TRAILINGSPACE(mcl));
-	if (retval == PKT_ALIAS_RESPOND) {
-		m->m_flags |= M_SKIP_FIREWALL;
-		retval = PKT_ALIAS_OK;
-	}
-	if (retval != PKT_ALIAS_OK &&
-	    retval != PKT_ALIAS_FOUND_HEADER_FRAGMENT) {
+
+	/*
+	 * We drop packet when:
+	 * 1. libalias returns PKT_ALIAS_ERROR;
+	 * 2. For incoming packets:
+	 *	a) for unresolved fragments;
+	 *	b) libalias returns PKT_ALIAS_IGNORED and
+	 *		PKT_ALIAS_DENY_INCOMING flag is set.
+	 */
+	if (retval == PKT_ALIAS_ERROR ||
+	    (args->oif == NULL && (retval == PKT_ALIAS_UNRESOLVED_FRAGMENT ||
+	    (retval == PKT_ALIAS_IGNORED &&
+	    (t->lib->packetAliasMode & PKT_ALIAS_DENY_INCOMING) != 0)))) {
 		/* XXX - should i add some logging? */
 		m_free(mcl);
 		args->m = NULL;
 		return (IP_FW_DENY);
 	}
+
+	if (retval == PKT_ALIAS_RESPOND)
+		m->m_flags |= M_SKIP_FIREWALL;
 	mcl->m_pkthdr.len = mcl->m_len = ntohs(ip->ip_len);
 
 	/*
