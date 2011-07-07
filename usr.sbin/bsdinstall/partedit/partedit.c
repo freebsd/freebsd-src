@@ -305,7 +305,7 @@ apply_changes(struct gmesh *mesh)
 	fprintf(fstab, "# Device\tMountpoint\tFStype\tOptions\tDump\tPass#\n");
 	TAILQ_FOREACH(md, &part_metadata, metadata) {
 		if (md->fstab != NULL)
-			fprintf(fstab, "%s\t%s\t%s\t%s\t%d\t%d\n",
+			fprintf(fstab, "%s\t%s\t\t%s\t%s\t%d\t%d\n",
 			    md->fstab->fs_spec, md->fstab->fs_file,
 			    md->fstab->fs_vfstype, md->fstab->fs_mntops,
 			    md->fstab->fs_freq, md->fstab->fs_passno);
