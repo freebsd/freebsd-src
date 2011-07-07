@@ -694,11 +694,13 @@ match:
 		    bcmp(ar_sha(ah), &la->ll_addr, ifp->if_addrlen)) {
 			if (la->la_flags & LLE_STATIC) {
 				LLE_WUNLOCK(la);
-				log(LOG_ERR,
-				    "arp: %*D attempts to modify permanent "
-				    "entry for %s on %s\n",
-				    ifp->if_addrlen, (u_char *)ar_sha(ah), ":",
-				    inet_ntoa(isaddr), ifp->if_xname);
+				if (log_arp_permanent_modify)
+					log(LOG_ERR,
+					    "arp: %*D attempts to modify "
+					    "permanent entry for %s on %s\n",
+					    ifp->if_addrlen,
+					    (u_char *)ar_sha(ah), ":",
+					    inet_ntoa(isaddr), ifp->if_xname);
 				goto reply;
 			}
 			if (log_arp_movements) {
