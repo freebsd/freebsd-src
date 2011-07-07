@@ -206,11 +206,9 @@ SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, isn_reseed_interval, CTLFLAG_RW,
     &VNET_NAME(tcp_isn_reseed_interval), 0,
     "Seconds between reseeding of ISN secret");
 
-#ifdef TCP_SORECEIVE_STREAM
 static int	tcp_soreceive_stream = 0;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, soreceive_stream, CTLFLAG_RDTUN,
     &tcp_soreceive_stream, 0, "Using soreceive_stream for TCP sockets");
-#endif
 
 #ifdef TCP_SIGNATURE
 static int	tcp_sig_checksigs = 1;
@@ -337,13 +335,13 @@ tcp_init(void)
 	tcp_finwait2_timeout = TCPTV_FINWAIT2_TIMEOUT;
 	tcp_tcbhashsize = hashsize;
 
-#ifdef TCP_SORECEIVE_STREAM
 	TUNABLE_INT_FETCH("net.inet.tcp.soreceive_stream", &tcp_soreceive_stream);
 	if (tcp_soreceive_stream) {
 		tcp_usrreqs.pru_soreceive = soreceive_stream;
+#ifdef INET6
 		tcp6_usrreqs.pru_soreceive = soreceive_stream;
+#endif /* INET6 */
 	}
-#endif
 
 #ifdef INET6
 #define TCP_MINPROTOHDR (sizeof(struct ip6_hdr) + sizeof(struct tcphdr))
