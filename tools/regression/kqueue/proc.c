@@ -16,6 +16,11 @@
  * $FreeBSD$
  */
 
+#include <sys/stat.h>
+
+#include <err.h>
+
+#include "config.h"
 #include "common.h"
 
 static int sigusr1_caught = 0;
@@ -37,6 +42,11 @@ add_and_delete(void)
     /* Create a child that waits to be killed and then exits */
     pid = fork();
     if (pid == 0) {
+        struct stat s;
+        if ((fstat(kqfd, &s) != -1) || (errno != EBADF))
+            err(1, "%s:%d - %s: fstat(kqfd) in child did not return EBADF",
+                __FILE__, __LINE__, __func__);
+
         pause();
         exit(2);
     }
@@ -52,6 +62,7 @@ add_and_delete(void)
 
     test_begin("kevent(EVFILT_PROC, EV_DELETE)");
 
+    sleep(1);
     test_no_kevents();
     kevent_add(kqfd, &kev, pid, EVFILT_PROC, EV_DELETE, 0, 0, NULL);
     if (kill(pid, SIGKILL) < 0)
@@ -63,6 +74,7 @@ add_and_delete(void)
 
 }
 
+#ifdef TODO
 static void
 event_trigger(void)
 {
@@ -93,7 +105,6 @@ event_trigger(void)
     success();
 }
 
-#ifdef TODO
 void
 test_kevent_signal_disable(void)
 {
@@ -225,7 +236,10 @@ test_evfilt_proc()
     signal(SIGUSR1, sig_handler);
 
     add_and_delete();
+
+#if TODO
     event_trigger();
+#endif
 
     signal(SIGUSR1, SIG_DFL);
 
