@@ -43,6 +43,7 @@
 #include <machine/in_cksum.h>
 
 #include <netinet/libalias/alias.h>
+#include <netinet/libalias/alias_local.h>
 
 #include <netgraph/ng_message.h>
 #include <netgraph/ng_parse.h>
@@ -703,16 +704,27 @@ ng_nat_rcvdata(hook_p hook, item_p item )
 	KASSERT(m->m_pkthdr.len == ntohs(ip->ip_len),
 	    ("ng_nat: ip_len != m_pkthdr.len"));
 
+	/*
+	 * We drop packet when:
+	 * 1. libalias returns PKT_ALIAS_ERROR;
+	 * 2. For incoming packets:
+	 *	a) for unresolved fragments;
+	 *	b) libalias returns PKT_ALIAS_IGNORED and
+	 *		PKT_ALIAS_DENY_INCOMING flag is set.
+	 */
 	if (hook == priv->in) {
 		rval = LibAliasIn(priv->lib, c, m->m_len + M_TRAILINGSPACE(m));
-		if (rval != PKT_ALIAS_OK &&
-		    rval != PKT_ALIAS_FOUND_HEADER_FRAGMENT) {
+		if (rval == PKT_ALIAS_ERROR ||
+		    rval == PKT_ALIAS_UNRESOLVED_FRAGMENT ||
+		    (rval == PKT_ALIAS_IGNORED &&
+		     (priv->lib->packetAliasMode &
+		      PKT_ALIAS_DENY_INCOMING) != 0)) {
 			NG_FREE_ITEM(item);
 			return (EINVAL);
 		}
 	} else if (hook == priv->out) {
 		rval = LibAliasOut(priv->lib, c, m->m_len + M_TRAILINGSPACE(m));
-		if (rval != PKT_ALIAS_OK) {
+		if (rval == PKT_ALIAS_ERROR) {
 			NG_FREE_ITEM(item);
 			return (EINVAL);
 		}
