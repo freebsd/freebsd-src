@@ -173,7 +173,7 @@ racct_sub_racct(struct racct *dest, const struct racct *src)
 	 * Update resource usage in dest.
 	 */
 	for (i = 0; i <= RACCT_MAX; i++) {
-		if (!racct_is_sloppy(i)) {
+		if (!RACCT_IS_SLOPPY(i)) {
 			KASSERT(dest->r_resources[i] >= 0,
 			    ("racct propagation meltdown: dest < 0"));
 			KASSERT(src->r_resources[i] >= 0,
@@ -181,10 +181,10 @@ racct_sub_racct(struct racct *dest, const struct racct *src)
 			KASSERT(src->r_resources[i] <= dest->r_resources[i],
 			    ("racct propagation meltdown: src > dest"));
 		}
-		if (racct_is_reclaimable(i)) {
+		if (RACCT_IS_RECLAIMABLE(i)) {
 			dest->r_resources[i] -= src->r_resources[i];
 			if (dest->r_resources[i] < 0) {
-				KASSERT(racct_is_sloppy(i),
+				KASSERT(RACCT_IS_SLOPPY(i),
 				    ("racct_sub_racct: usage < 0"));
 				dest->r_resources[i] = 0;
 			}
@@ -218,9 +218,9 @@ racct_destroy_locked(struct racct **racctp)
 	racct = *racctp;
 
 	for (i = 0; i <= RACCT_MAX; i++) {
-		if (racct_is_sloppy(i))
+		if (RACCT_IS_SLOPPY(i))
 			continue;
-		if (!racct_is_reclaimable(i))
+		if (!RACCT_IS_RECLAIMABLE(i))
 			continue;
 		KASSERT(racct->r_resources[i] == 0,
 		    ("destroying non-empty racct: "
@@ -255,7 +255,7 @@ racct_alloc_resource(struct racct *racct, int resource,
 
 	racct->r_resources[resource] += amount;
 	if (racct->r_resources[resource] < 0) {
-		KASSERT(racct_is_sloppy(resource),
+		KASSERT(RACCT_IS_SLOPPY(resource),
 		    ("racct_alloc_resource: usage < 0"));
 		racct->r_resources[resource] = 0;
 	}
@@ -285,7 +285,7 @@ racct_add(struct proc *p, int resource, uint64_t amount)
 	mtx_lock(&racct_lock);
 #ifdef RCTL
 	error = rctl_enforce(p, resource, amount);
-	if (error && racct_is_deniable(resource)) {
+	if (error && RACCT_IS_DENIABLE(resource)) {
 		SDT_PROBE(racct, kernel, rusage, add_failure, p, resource,
 		    amount, 0, 0);
 		mtx_unlock(&racct_lock);
@@ -373,14 +373,14 @@ racct_set_locked(struct proc *p, int resource, uint64_t amount)
 
 	diff = amount - p->p_racct->r_resources[resource];
 #ifdef notyet
-	KASSERT(diff >= 0 || racct_is_reclaimable(resource),
+	KASSERT(diff >= 0 || RACCT_IS_RECLAIMABLE(resource),
 	    ("racct_set: usage of non-reclaimable resource %d dropping",
 	     resource));
 #endif
 #ifdef RCTL
 	if (diff > 0) {
 		error = rctl_enforce(p, resource, diff);
-		if (error && racct_is_deniable(resource)) {
+		if (error && RACCT_IS_DENIABLE(resource)) {
 			SDT_PROBE(racct, kernel, rusage, set_failure, p,
 			    resource, amount, 0, 0);
 			return (error);
@@ -489,7 +489,7 @@ racct_sub(struct proc *p, int resource, uint64_t amount)
 	 * We need proc lock to dereference p->p_ucred.
 	 */
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	KASSERT(racct_is_reclaimable(resource),
+	KASSERT(RACCT_IS_RECLAIMABLE(resource),
 	    ("racct_sub: called for non-reclaimable resource %d", resource));
 
 	mtx_lock(&racct_lock);
@@ -512,7 +512,7 @@ racct_sub_cred_locked(struct ucred *cred, int resource, uint64_t amount)
 	    0, 0);
 
 #ifdef notyet
-	KASSERT(racct_is_reclaimable(resource),
+	KASSERT(RACCT_IS_RECLAIMABLE(resource),
 	    ("racct_sub_cred: called for non-reclaimable resource %d",
 	     resource));
 #endif
@@ -564,7 +564,7 @@ racct_proc_fork(struct proc *parent, struct proc *child)
 	 */
 	for (i = 0; i <= RACCT_MAX; i++) {
 		if (parent->p_racct->r_resources[i] == 0 ||
-		    !racct_is_inheritable(i))
+		    !RACCT_IS_INHERITABLE(i))
 			continue;
 
 		error = racct_set_locked(child, i,
