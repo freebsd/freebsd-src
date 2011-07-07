@@ -687,6 +687,8 @@ tryagain:
 				while (NFSD_MONOSEC < waituntil)
 					(void) nfs_catnap(PZERO, 0, "nfstry");
 				trylater_delay *= 2;
+				m_freem(nd->nd_mrep);
+				nd->nd_mrep = NULL;
 				goto tryagain;
 			}
 
