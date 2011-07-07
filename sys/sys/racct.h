@@ -86,31 +86,31 @@ extern int racct_types[];
  * visible to the userland.  It gets fixed up when retrieving resource
  * usage or adding rules.
  */
-#define	racct_is_in_thousands(X)	(racct_types[X] & RACCT_IN_THOUSANDS)
+#define	RACCT_IS_IN_THOUSANDS(X)	(racct_types[X] & RACCT_IN_THOUSANDS)
 
 /*
  * Resource usage can drop, as opposed to only grow.
  */
-#define	racct_is_reclaimable(X)	(racct_types[X] & RACCT_RECLAIMABLE)
+#define	RACCT_IS_RECLAIMABLE(X)	(racct_types[X] & RACCT_RECLAIMABLE)
 
 /*
  * Children inherit resource usage.
  */
-#define	racct_is_inheritable(X)	(racct_types[X] & RACCT_INHERITABLE)
+#define	RACCT_IS_INHERITABLE(X)	(racct_types[X] & RACCT_INHERITABLE)
 
 /*
  * racct_{add,set}(9) can actually return an error and not update resource
  * usage counters.  Note that even when resource is not deniable, allocating
  * resource might cause signals to be sent by RCTL code.
  */
-#define	racct_is_deniable(X)		(racct_types[X] & RACCT_DENIABLE)
+#define	RACCT_IS_DENIABLE(X)		(racct_types[X] & RACCT_DENIABLE)
 
 /*
  * Per-process resource usage information makes no sense, but per-credential
  * one does.  This kind of resources are usually allocated for process, but
  * freed using credentials.
  */
-#define	racct_is_sloppy(X)		(racct_types[X] & RACCT_SLOPPY)
+#define	RACCT_IS_SLOPPY(X)		(racct_types[X] & RACCT_SLOPPY)
 
 /*
  * The 'racct' structure defines resource consumption for a particular
