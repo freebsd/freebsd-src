@@ -1,7 +1,7 @@
 #
 # $FreeBSD$
 #
-# Copyright (c) 2008 Hans Petter Selasky. All rights reserved.
+# Copyright (c) 2011 Hans Petter Selasky. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -25,27 +25,11 @@
 # SUCH DAMAGE.
 #
 
-SUBDIR = usb
-SUBDIR += ehci musb ohci uhci xhci uss820dci ${_at91dci} ${_atmegadci}
-SUBDIR += rum run uath upgt usie ural zyd ${_urtw}
-SUBDIR += atp uhid ukbd ums udbp ufm uep
-SUBDIR += ucom u3g uark ubsa ubser uchcom ucycom ufoma uftdi ugensa uipaq ulpt \
-	  umct umcs umodem umoscom uplcom uslcom uvisor uvscom
-SUBDIR += uether aue axe cdce cue kue mos rue udav uhso ipheth
-SUBDIR += usfs umass urio
-SUBDIR += quirk template
+.PATH: ${.CURDIR}/../../../dev/usb/net
 
-.if ${MACHINE_CPUARCH} == "amd64"
-_urtw=		urtw
-.endif
+KMOD = usie
+SRCS = if_usie.c
+SRCS += opt_bus.h opt_usb.h device_if.h bus_if.h \
+	usb_if.h usbdevs.h opt_inet.h
 
-.if ${MACHINE_CPUARCH} == "arm"
-_at91dci=	at91dci
-_atmegadci=	atmegadci
-.endif
-
-.if ${MACHINE_CPUARCH} == "i386"
-_urtw=		urtw
-.endif
-
-.include <bsd.subdir.mk>
+.include <bsd.kmod.mk>
