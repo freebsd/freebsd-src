@@ -1780,11 +1780,11 @@ fdcopy(struct filedesc *fdp)
 		FILEDESC_XUNLOCK(newfdp);
 		FILEDESC_SLOCK(fdp);
 	}
-	/* copy everything except kqueue descriptors */
+	/* copy all passable descriptors (i.e. not kqueue) */
 	newfdp->fd_freefile = -1;
 	for (i = 0; i <= fdp->fd_lastfile; ++i) {
 		if (fdisused(fdp, i) &&
-		    fdp->fd_ofiles[i]->f_type != DTYPE_KQUEUE &&
+		    (fdp->fd_ofiles[i]->f_ops->fo_flags & DFLAG_PASSABLE) &&
 		    fdp->fd_ofiles[i]->f_ops != &badfileops) {
 			newfdp->fd_ofiles[i] = fdp->fd_ofiles[i];
 			newfdp->fd_ofileflags[i] = fdp->fd_ofileflags[i];
