@@ -900,6 +900,7 @@ product AIRPLUS MCD650		0x3198	MCD650 modem
 
 /* AirPrime products */
 product AIRPRIME PC5220		0x0112	CDMA Wireless PC Card
+product AIRPRIME USB308		0x68A3	USB308 HSPA+ USB Modem
 
 /* AirTies products */
 product AIRTIES RT3070		0x2310	RT3070
