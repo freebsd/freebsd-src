@@ -154,7 +154,7 @@ zfree(MemPool *mp, void *ptr, iaddr_t bytes)
     if ((char *)ptr < (char *)mp->mp_Base || 
 	(char *)ptr + bytes > (char *)mp->mp_End ||
 	((iaddr_t)ptr & MEMNODE_SIZE_MASK) != 0)
-	panic("zfree(%p,%ju): wild pointer", ptr, bytes);
+	panic("zfree(%p,%ju): wild pointer", ptr, (uintmax_t)bytes);
 
     /*
      * free the segment
@@ -177,8 +177,10 @@ zfree(MemPool *mp, void *ptr, iaddr_t bytes)
 		/*
 		 * range check
 		 */
-		if ((char *)ptr + bytes > (char *)mn)
-		    panic("zfree(%p,%ju): corrupt memlist1",ptr, bytes);
+		if ((char *)ptr + bytes > (char *)mn) {
+		    panic("zfree(%p,%ju): corrupt memlist1", ptr,
+			(uintmax_t)bytes);
+		}
 
 		/*
 		 * merge against next area or create independant area
@@ -208,8 +210,10 @@ zfree(MemPool *mp, void *ptr, iaddr_t bytes)
 		return;
 		/* NOT REACHED */
 	    }
-	    if ((char *)ptr < (char *)mn + mn->mr_Bytes)
-		panic("zfree(%p,%ju): corrupt memlist2", ptr, bytes);
+	    if ((char *)ptr < (char *)mn + mn->mr_Bytes) {
+		panic("zfree(%p,%ju): corrupt memlist2", ptr,
+		    (uintmax_t)bytes);
+	    }
 	}
 	/*
 	 * We are beyond the last MemNode, append new MemNode.  Merge against
