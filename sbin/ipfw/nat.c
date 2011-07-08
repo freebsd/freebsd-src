@@ -281,13 +281,6 @@ StrToAddrAndPortRange (const char* str, struct in_addr* addr, char* proto,
 
 /* End of stuff taken from natd.c. */
 
-#define INC_ARGCV() do {	\
-	(*_av)++;		\
-	(*_ac)--;		\
-	av = *_av;		\
-	ac = *_ac;		\
-} while(0)
-
 /*
  * The next 3 functions add support for the addr, port and proto redirect and
  * their logic is loosely based on SetupAddressRedirect(), SetupPortRedirect()
@@ -318,121 +311,117 @@ StrToAddrAndPortRange (const char* str, struct in_addr* addr, char* proto,
  */
 
 static int
-setup_redir_addr(char *spool_buf, unsigned int len,
-		 int *_ac, char ***_av)
+estimate_redir_addr(int *ac, char ***av)
 {
-	char **av, *sep; /* Token separator. */
-	/* Temporary buffer used to hold server pool ip's. */
-	char tmp_spool_buf[NAT_BUF_LEN];
-	int ac, space, lsnat;
-	struct cfg_redir *r;
-	struct cfg_spool *tmp;
+	size_t space = sizeof(struct cfg_redir);
+	char *sep = **av;
+	u_int c = 0;
 
-	av = *_av;
-	ac = *_ac;
-	space = 0;
-	lsnat = 0;
-	if (len >= SOF_REDIR) {
-		r = (struct cfg_redir *)spool_buf;
-		/* Skip cfg_redir at beginning of buf. */
-		spool_buf = &spool_buf[SOF_REDIR];
-		space = SOF_REDIR;
-		len -= SOF_REDIR;
-	} else
-		goto nospace;
-	r->mode = REDIR_ADDR;
-	/* Extract local address. */
-	if (ac == 0)
-		errx(EX_DATAERR, "redirect_addr: missing local address");
-	sep = strchr(*av, ',');
-	if (sep) {		/* LSNAT redirection syntax. */
-		r->laddr.s_addr = INADDR_NONE;
-		/* Preserve av, copy spool servers to tmp_spool_buf. */
-		strncpy(tmp_spool_buf, *av, strlen(*av)+1);
-		lsnat = 1;
-	} else
-		StrToAddr(*av, &r->laddr);
-	INC_ARGCV();
-
-	/* Extract public address. */
-	if (ac == 0)
-		errx(EX_DATAERR, "redirect_addr: missing public address");
-	StrToAddr(*av, &r->paddr);
-	INC_ARGCV();
-
-	/* Setup LSNAT server pool. */
-	if (sep) {
-		sep = strtok(tmp_spool_buf, ",");
-		while (sep != NULL) {
-			tmp = (struct cfg_spool *)spool_buf;
-			if (len < SOF_SPOOL)
-				goto nospace;
-			len -= SOF_SPOOL;
-			space += SOF_SPOOL;
-			StrToAddr(sep, &tmp->addr);
-			tmp->port = ~0;
-			r->spool_cnt++;
-			/* Point to the next possible cfg_spool. */
-			spool_buf = &spool_buf[SOF_SPOOL];
-			sep = strtok(NULL, ",");
-		}
+	while ((sep = strchr(sep, ',')) != NULL) {
+		c++;
+		sep++;
 	}
-	return(space);
-nospace:
-	errx(EX_DATAERR, "redirect_addr: buf is too small\n");
+
+	if (c > 0)
+		c++;
+
+	space += c * sizeof(struct cfg_spool);
+
+	return (space);
 }
 
 static int
-setup_redir_port(char *spool_buf, unsigned int len,
-		 int *_ac, char ***_av)
+setup_redir_addr(char *buf, int *ac, char ***av)
 {
-	char **av, *sep, *protoName;
-	char tmp_spool_buf[NAT_BUF_LEN];
-	int ac, space, lsnat;
 	struct cfg_redir *r;
-	struct cfg_spool *tmp;
+	char *sep;
+	size_t space;
+
+	r = (struct cfg_redir *)buf;
+	r->mode = REDIR_ADDR;
+	/* Skip cfg_redir at beginning of buf. */
+	buf = &buf[sizeof(struct cfg_redir)];
+	space = sizeof(struct cfg_redir);
+
+	/* Extract local address. */
+	if ((sep = strtok(**av, ",")) != NULL) {
+		struct cfg_spool *spool;
+
+		/* Setup LSNAT server pool. */
+		r->laddr.s_addr = INADDR_NONE;
+		while (sep != NULL) {
+			spool = (struct cfg_spool *)buf;
+			space += sizeof(struct cfg_spool);
+			StrToAddr(sep, &spool->addr);
+			spool->port = ~0;
+			r->spool_cnt++;
+			/* Point to the next possible cfg_spool. */
+			buf = &buf[sizeof(struct cfg_spool)];
+			sep = strtok(NULL, ",");
+		}
+	} else
+		StrToAddr(**av, &r->laddr);
+	(*av)++; (*ac)--;
+
+	/* Extract public address. */
+	StrToAddr(**av, &r->paddr);
+	(*av)++; (*ac)--;
+
+	return (space);
+}
+
+static int
+estimate_redir_port(int *ac, char ***av)
+{
+	size_t space = sizeof(struct cfg_redir);
+	char *sep = **av;
+	u_int c = 0;
+
+	while ((sep = strchr(sep, ',')) != NULL) {
+		c++;
+		sep++;
+	}
+
+	if (c > 0)
+		c++;
+
+	space += c * sizeof(struct cfg_spool);
+
+	return (space);
+}
+
+static int
+setup_redir_port(char *buf, int *ac, char ***av)
+{
+	struct cfg_redir *r;
+	char *sep, *protoName, *lsnat = NULL;
+	size_t space;
 	u_short numLocalPorts;
 	port_range portRange;
 
-	av = *_av;
-	ac = *_ac;
-	space = 0;
-	lsnat = 0;
 	numLocalPorts = 0;
 
-	if (len >= SOF_REDIR) {
-		r = (struct cfg_redir *)spool_buf;
-		/* Skip cfg_redir at beginning of buf. */
-		spool_buf = &spool_buf[SOF_REDIR];
-		space = SOF_REDIR;
-		len -= SOF_REDIR;
-	} else
-		goto nospace;
+	r = (struct cfg_redir *)buf;
 	r->mode = REDIR_PORT;
+	/* Skip cfg_redir at beginning of buf. */
+	buf = &buf[sizeof(struct cfg_redir)];
+	space = sizeof(struct cfg_redir);
+
 	/*
 	 * Extract protocol.
 	 */
-	if (ac == 0)
-		errx (EX_DATAERR, "redirect_port: missing protocol");
-	r->proto = StrToProto(*av);
-	protoName = *av;
-	INC_ARGCV();
+	r->proto = StrToProto(**av);
+	protoName = **av;
+	(*av)++; (*ac)--;
 
 	/*
 	 * Extract local address.
 	 */
-	if (ac == 0)
-		errx (EX_DATAERR, "redirect_port: missing local address");
-
-	sep = strchr(*av, ',');
-	/* LSNAT redirection syntax. */
-	if (sep) {
+	if ((sep = strchr(**av, ',')) != NULL) {
 		r->laddr.s_addr = INADDR_NONE;
 		r->lport = ~0;
 		numLocalPorts = 1;
-		/* Preserve av, copy spool servers to tmp_spool_buf. */
-		strncpy(tmp_spool_buf, *av, strlen(*av)+1);
-		lsnat = 1;
+		lsnat = **av;
 	} else {
 		/*
 		 * The sctp nat does not allow the port numbers to be mapped to
@@ -440,40 +429,36 @@ setup_redir_port(char *spool_buf, unsigned int len,
 		 * in the target port field.
 		 */
 		if (r->proto == IPPROTO_SCTP) {
-			if (strchr (*av, ':'))
+			if (strchr(**av, ':'))
 				errx(EX_DATAERR, "redirect_port:"
-				    "port numbers do not change in sctp, so do not "
-				    "specify them as part of the target");
+				    "port numbers do not change in sctp, so do "
+				    "not specify them as part of the target");
 			else
-				StrToAddr(*av, &r->laddr);
+				StrToAddr(**av, &r->laddr);
 		} else {
-			if (StrToAddrAndPortRange (*av, &r->laddr, protoName,
-				&portRange) != 0)
-				errx(EX_DATAERR, "redirect_port:"
+			if (StrToAddrAndPortRange(**av, &r->laddr, protoName,
+			    &portRange) != 0)
+				errx(EX_DATAERR, "redirect_port: "
 				    "invalid local port range");
 
 			r->lport = GETLOPORT(portRange);
 			numLocalPorts = GETNUMPORTS(portRange);
 		}
 	}
-	INC_ARGCV();
+	(*av)++; (*ac)--;
 
 	/*
 	 * Extract public port and optionally address.
 	 */
-	if (ac == 0)
-		errx (EX_DATAERR, "redirect_port: missing public port");
-
-	sep = strchr (*av, ':');
-	if (sep) {
-		if (StrToAddrAndPortRange (*av, &r->paddr, protoName,
+	if ((sep = strchr(**av, ':')) != NULL) {
+		if (StrToAddrAndPortRange(**av, &r->paddr, protoName,
 		    &portRange) != 0)
-			errx(EX_DATAERR, "redirect_port:"
+			errx(EX_DATAERR, "redirect_port: "
 			    "invalid public port range");
 	} else {
 		r->paddr.s_addr = INADDR_ANY;
-		if (StrToPortRange (*av, protoName, &portRange) != 0)
-			errx(EX_DATAERR, "redirect_port:"
+		if (StrToPortRange(**av, protoName, &portRange) != 0)
+			errx(EX_DATAERR, "redirect_port: "
 			    "invalid public port range");
 	}
 
@@ -483,28 +468,27 @@ setup_redir_port(char *spool_buf, unsigned int len,
 		r->lport = r->pport;
 	}
 	r->pport_cnt = GETNUMPORTS(portRange);
-	INC_ARGCV();
+	(*av)++; (*ac)--;
 
 	/*
 	 * Extract remote address and optionally port.
 	 */
 	/*
-	 * NB: isalpha(**av) => we've to check that next parameter is really an
+	 * NB: isdigit(**av) => we've to check that next parameter is really an
 	 * option for this redirect entry, else stop here processing arg[cv].
 	 */
-	if (ac != 0 && !isalpha(**av)) {
-		sep = strchr (*av, ':');
-		if (sep) {
-			if (StrToAddrAndPortRange (*av, &r->raddr, protoName,
+	if (*ac != 0 && isdigit(***av)) {
+		if ((sep = strchr(**av, ':')) != NULL) {
+			if (StrToAddrAndPortRange(**av, &r->raddr, protoName,
 			    &portRange) != 0)
-				errx(EX_DATAERR, "redirect_port:"
+				errx(EX_DATAERR, "redirect_port: "
 				    "invalid remote port range");
 		} else {
 			SETLOPORT(portRange, 0);
 			SETNUMPORTS(portRange, 1);
-			StrToAddr (*av, &r->raddr);
+			StrToAddr(**av, &r->raddr);
 		}
-		INC_ARGCV();
+		(*av)++; (*ac)--;
 	} else {
 		SETLOPORT(portRange, 0);
 		SETNUMPORTS(portRange, 1);
@@ -517,7 +501,7 @@ setup_redir_port(char *spool_buf, unsigned int len,
 	 * Make sure port ranges match up, then add the redirect ports.
 	 */
 	if (numLocalPorts != r->pport_cnt)
-		errx(EX_DATAERR, "redirect_port:"
+		errx(EX_DATAERR, "redirect_port: "
 		    "port ranges must be equal in size");
 
 	/* Remote port range is allowed to be '0' which means all ports. */
@@ -526,20 +510,18 @@ setup_redir_port(char *spool_buf, unsigned int len,
 		errx(EX_DATAERR, "redirect_port: remote port must"
 		    "be 0 or equal to local port range in size");
 
-	/*
-	 * Setup LSNAT server pool.
-	 */
-	if (lsnat) {
-		sep = strtok(tmp_spool_buf, ",");
+	/* Setup LSNAT server pool. */
+	if (lsnat != NULL) {
+		struct cfg_spool *spool;
+
+		sep = strtok(lsnat, ",");
 		while (sep != NULL) {
-			tmp = (struct cfg_spool *)spool_buf;
-			if (len < SOF_SPOOL)
-				goto nospace;
-			len -= SOF_SPOOL;
-			space += SOF_SPOOL;
+			spool = (struct cfg_spool *)buf;
+			space += sizeof(struct cfg_spool);
 			/*
-			 * The sctp nat does not allow the port numbers to be mapped to new port numbers
-			 * Therefore, no ports are to be specified in the target port field
+			 * The sctp nat does not allow the port numbers to
+			 * be mapped to new port numbers. Therefore, no ports
+			 * are to be specified in the target port field.
 			 */
 			if (r->proto == IPPROTO_SCTP) {
 				if (strchr (sep, ':')) {
@@ -548,11 +530,11 @@ setup_redir_port(char *spool_buf, unsigned int len,
 					    "sctp, so do not specify them as "
 					    "part of the target");
 				} else {
-					StrToAddr(sep, &tmp->addr);
-					tmp->port = r->pport;
+					StrToAddr(sep, &spool->addr);
+					spool->port = r->pport;
 				}
 			} else {
-				if (StrToAddrAndPortRange(sep, &tmp->addr,
+				if (StrToAddrAndPortRange(sep, &spool->addr,
 					protoName, &portRange) != 0)
 					errx(EX_DATAERR, "redirect_port:"
 					    "invalid local port range");
@@ -560,88 +542,73 @@ setup_redir_port(char *spool_buf, unsigned int len,
 					errx(EX_DATAERR, "redirect_port: "
 					    "local port must be single in "
 					    "this context");
-				tmp->port = GETLOPORT(portRange);
+				spool->port = GETLOPORT(portRange);
 			}
 			r->spool_cnt++;
 			/* Point to the next possible cfg_spool. */
-			spool_buf = &spool_buf[SOF_SPOOL];
+			buf = &buf[sizeof(struct cfg_spool)];
 			sep = strtok(NULL, ",");
 		}
 	}
+
 	return (space);
-nospace:
-	errx(EX_DATAERR, "redirect_port: buf is too small\n");
 }
 
 static int
-setup_redir_proto(char *spool_buf, unsigned int len,
-		 int *_ac, char ***_av)
+setup_redir_proto(char *buf, int *ac, char ***av)
 {
-	char **av;
-	int ac, space;
-	struct protoent *protoent;
 	struct cfg_redir *r;
+	struct protoent *protoent;
+	size_t space;
 
-	av = *_av;
-	ac = *_ac;
-	if (len >= SOF_REDIR) {
-		r = (struct cfg_redir *)spool_buf;
-		/* Skip cfg_redir at beginning of buf. */
-		spool_buf = &spool_buf[SOF_REDIR];
-		space = SOF_REDIR;
-		len -= SOF_REDIR;
-	} else
-		goto nospace;
+	r = (struct cfg_redir *)buf;
 	r->mode = REDIR_PROTO;
+	/* Skip cfg_redir at beginning of buf. */
+	buf = &buf[sizeof(struct cfg_redir)];
+	space = sizeof(struct cfg_redir);
+
 	/*
 	 * Extract protocol.
 	 */
-	if (ac == 0)
-		errx(EX_DATAERR, "redirect_proto: missing protocol");
-
-	protoent = getprotobyname(*av);
+	protoent = getprotobyname(**av);
 	if (protoent == NULL)
-		errx(EX_DATAERR, "redirect_proto: unknown protocol %s", *av);
+		errx(EX_DATAERR, "redirect_proto: unknown protocol %s", **av);
 	else
 		r->proto = protoent->p_proto;
 
-	INC_ARGCV();
+	(*av)++; (*ac)--;
 
 	/*
 	 * Extract local address.
 	 */
-	if (ac == 0)
-		errx(EX_DATAERR, "redirect_proto: missing local address");
-	else
-		StrToAddr(*av, &r->laddr);
+	StrToAddr(**av, &r->laddr);
 
-	INC_ARGCV();
+	(*av)++; (*ac)--;
 
 	/*
 	 * Extract optional public address.
 	 */
-	if (ac == 0) {
+	if (*ac == 0) {
 		r->paddr.s_addr = INADDR_ANY;
 		r->raddr.s_addr = INADDR_ANY;
 	} else {
 		/* see above in setup_redir_port() */
-		if (!isalpha(**av)) {
-			StrToAddr(*av, &r->paddr);
-			INC_ARGCV();
+		if (isdigit(***av)) {
+			StrToAddr(**av, &r->paddr);
+			(*av)++; (*ac)--;
 
 			/*
 			 * Extract optional remote address.
 			 */
 			/* see above in setup_redir_port() */
-			if (ac!=0 && !isalpha(**av)) {
-				StrToAddr(*av, &r->raddr);
-				INC_ARGCV();
+			if (*ac != 0 && isdigit(***av)) {
+				StrToAddr(**av, &r->raddr);
+				(*av)++; (*ac)--;
 			}
 		}
 	}
+
 	return (space);
-nospace:
-	errx(EX_DATAERR, "redirect_proto: buf is too small\n");
 }
 
 static void
@@ -763,30 +730,103 @@ void
 ipfw_config_nat(int ac, char **av)
 {
 	struct cfg_nat *n;		/* Nat instance configuration. */
-	int i, len, off, tok;
-	char *id, buf[NAT_BUF_LEN]; 	/* Buffer for serialized data. */
+	int i, off, tok, ac1;
+	char *id, *buf, **av1, *end;
+	size_t len;
 
-	len = NAT_BUF_LEN;
-	/* Offset in buf: save space for n at the beginning. */
-	off = sizeof(*n);
-	memset(buf, 0, sizeof(buf));
-	n = (struct cfg_nat *)buf;
-
-	av++; ac--;
+	av++;
+	ac--;
 	/* Nat id. */
-	if (ac && isdigit(**av)) {
-		id = *av;
-		i = atoi(*av);
-		ac--; av++;
-		n->id = i;
-	} else
+	if (ac == 0)
 		errx(EX_DATAERR, "missing nat id");
+	id = *av;
+	i = (int)strtol(id, &end, 0);
+	if (i <= 0 || *end != '\0')
+		errx(EX_DATAERR, "illegal nat id: %s", id);
+	av++;
+	ac--;
 	if (ac == 0)
 		errx(EX_DATAERR, "missing option");
 
+	len = sizeof(struct cfg_nat);
+	ac1 = ac;
+	av1 = av;
+	while (ac1 > 0) {
+		tok = match_token(nat_params, *av1);
+		ac1--;
+		av1++;
+		switch (tok) {
+		case TOK_IP:
+		case TOK_IF:
+			ac1--;
+			av1++;
+			break;	    
+		case TOK_ALOG:
+		case TOK_DENY_INC:
+		case TOK_SAME_PORTS:
+		case TOK_UNREG_ONLY:
+		case TOK_RESET_ADDR:
+		case TOK_ALIAS_REV:
+		case TOK_PROXY_ONLY:
+			break;
+		case TOK_REDIR_ADDR:
+			if (ac1 < 2)
+				errx(EX_DATAERR, "redirect_addr: "
+				    "not enough arguments");
+			len += estimate_redir_addr(&ac1, &av1);
+			av1 += 2;
+			ac1 -= 2;
+			break;
+		case TOK_REDIR_PORT:
+			if (ac1 < 3)
+				errx(EX_DATAERR, "redirect_port: "
+				    "not enough arguments");
+			av1++;
+			ac1--;
+			len += estimate_redir_port(&ac1, &av1);
+			av1 += 2;
+			ac1 -= 2;
+			/* Skip optional remoteIP/port */
+			if (ac1 != 0 && isdigit(**av1)) {
+				av1++;
+				ac1--;
+			}
+			break;
+		case TOK_REDIR_PROTO:
+			if (ac1 < 2)
+				errx(EX_DATAERR, "redirect_proto: "
+				    "not enough arguments");
+			len += sizeof(struct cfg_redir);
+			av1 += 2;
+			ac1 -= 2;
+			/* Skip optional remoteIP/port */
+			if (ac1 != 0 && isdigit(**av1)) {
+				av1++;
+				ac1--;
+			}
+			if (ac1 != 0 && isdigit(**av1)) {
+				av1++;
+				ac1--;
+			}
+			break;
+		default:
+			errx(EX_DATAERR, "unrecognised option ``%s''", av1[-1]);
+		}
+	}
+
+	if ((buf = malloc(len)) == NULL)
+		errx(EX_OSERR, "malloc failed");
+
+	/* Offset in buf: save space for n at the beginning. */
+	off = sizeof(*n);
+	memset(buf, 0, len);
+	n = (struct cfg_nat *)buf;
+	n->id = i;
+
 	while (ac > 0) {
 		tok = match_token(nat_params, *av);
-		ac--; av++;
+		ac--;
+		av++;
 		switch (tok) {
 		case TOK_IP:
 			if (ac == 0)
@@ -794,13 +834,15 @@ ipfw_config_nat(int ac, char **av)
 			if (!inet_aton(av[0], &(n->ip)))
 				errx(EX_DATAERR, "bad ip address ``%s''",
 				    av[0]);
-			ac--; av++;
+			ac--;
+			av++;
 			break;
 		case TOK_IF:
 			if (ac == 0)
 				errx(EX_DATAERR, "missing option");
 			set_addr_dynamic(av[0], n);
-			ac--; av++;
+			ac--;
+			av++;
 			break;
 		case TOK_ALOG:
 			n->mode |= PKT_ALIAS_LOG;
@@ -832,21 +874,18 @@ ipfw_config_nat(int ac, char **av)
 		case TOK_REDIR_PROTO:
 			switch (tok) {
 			case TOK_REDIR_ADDR:
-				i = setup_redir_addr(&buf[off], len, &ac, &av);
+				i = setup_redir_addr(&buf[off], &ac, &av);
 				break;
 			case TOK_REDIR_PORT:
-				i = setup_redir_port(&buf[off], len, &ac, &av);
+				i = setup_redir_port(&buf[off], &ac, &av);
 				break;
 			case TOK_REDIR_PROTO:
-				i = setup_redir_proto(&buf[off], len, &ac, &av);
+				i = setup_redir_proto(&buf[off], &ac, &av);
 				break;
 			}
 			n->redir_cnt++;
 			off += i;
-			len -= i;
 			break;
-		default:
-			errx(EX_DATAERR, "unrecognised option ``%s''", av[-1]);
 		}
 	}
 
@@ -879,7 +918,8 @@ ipfw_show_nat(int ac, char **av)
 	data = NULL;
 	frule = 0;
 	lrule = IPFW_DEFAULT_RULE; /* max ipfw rule number */
-	ac--; av++;
+	ac--;
+	av++;
 
 	if (co.test_only)
 		return;
