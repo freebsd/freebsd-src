@@ -483,6 +483,18 @@ pmap_vhpt_population(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
+vm_offset_t
+pmap_page_to_va(vm_page_t m)
+{
+	vm_paddr_t pa;
+	vm_offset_t va;
+
+	pa = VM_PAGE_TO_PHYS(m);
+	va = (m->md.memattr == VM_MEMATTR_UNCACHEABLE) ? IA64_PHYS_TO_RR6(pa) :
+	    IA64_PHYS_TO_RR7(pa);
+	return (va);
+}
+
 /*
  *	Initialize a vm_page's machine-dependent fields.
  */
@@ -492,6 +504,7 @@ pmap_page_init(vm_page_t m)
 
 	TAILQ_INIT(&m->md.pv_list);
 	m->md.pv_list_count = 0;
+	m->md.memattr = VM_MEMATTR_DEFAULT;
 }
 
 /*
@@ -702,8 +715,7 @@ pmap_growkernel(vm_offset_t addr)
 			if (!nkpg)
 				panic("%s: cannot add dir. page", __func__);
 
-			dir1 = (struct ia64_lpte **) 
-			    IA64_PHYS_TO_RR7(VM_PAGE_TO_PHYS(nkpg));
+			dir1 = (struct ia64_lpte **)pmap_page_to_va(nkpg);
 			bzero(dir1, PAGE_SIZE);
 			ia64_kptdir[KPTE_DIR0_INDEX(kernel_vm_end)] = dir1;
 		}
@@ -713,8 +725,7 @@ pmap_growkernel(vm_offset_t addr)
 		if (!nkpg)
 			panic("%s: cannot add PTE page", __func__);
 
-		leaf = (struct ia64_lpte *)
-		    IA64_PHYS_TO_RR7(VM_PAGE_TO_PHYS(nkpg));
+		leaf = (struct ia64_lpte *)pmap_page_to_va(nkpg);
 		bzero(leaf, PAGE_SIZE);
 		dir1[KPTE_DIR1_INDEX(kernel_vm_end)] = leaf;
 
@@ -1125,6 +1136,14 @@ pmap_pte_prot(pmap_t pm, struct ia64_lpte *pte, vm_prot_t prot)
 	pte->pte |= prot2ar[(prot & VM_PROT_ALL) >> 1];
 }
 
+static PMAP_INLINE void
+pmap_pte_attr(struct ia64_lpte *pte, vm_memattr_t ma)
+{
+
+	pte->pte &= ~PTE_MA_MASK;
+	pte->pte |= (ma & PTE_MA_MASK);
+}
+
 /*
  * Set a pte to contain a valid mapping and enter it in the VHPT. If
  * the pte was orginally valid, then its assumed to already be in the
@@ -1137,8 +1156,9 @@ pmap_set_pte(struct ia64_lpte *pte, vm_offset_t va, vm_offset_t pa,
     boolean_t wired, boolean_t managed)
 {
 
-	pte->pte &= PTE_PROT_MASK | PTE_PL_MASK | PTE_AR_MASK | PTE_ED;
-	pte->pte |= PTE_PRESENT | PTE_MA_WB;
+	pte->pte &= PTE_PROT_MASK | PTE_MA_MASK | PTE_PL_MASK |
+	    PTE_AR_MASK | PTE_ED;
+	pte->pte |= PTE_PRESENT;
 	pte->pte |= (managed) ? PTE_MANAGED : (PTE_DIRTY | PTE_ACCESSED);
 	pte->pte |= (wired) ? PTE_WIRED : 0;
 	pte->pte |= pa & PTE_PPN_MASK;
@@ -1255,6 +1275,7 @@ pmap_qenter(vm_offset_t va, vm_page_t *m, int count)
 		else
 			pmap_enter_vhpt(pte, va);
 		pmap_pte_prot(kernel_pmap, pte, VM_PROT_ALL);
+		pmap_pte_attr(pte, m[i]->md.memattr);
 		pmap_set_pte(pte, va, VM_PAGE_TO_PHYS(m[i]), FALSE, FALSE);
 		va += PAGE_SIZE;
 	}
@@ -1296,6 +1317,7 @@ pmap_kenter(vm_offset_t va, vm_offset_t pa)
 	else
 		pmap_enter_vhpt(pte, va);
 	pmap_pte_prot(kernel_pmap, pte, VM_PROT_ALL);
+	pmap_pte_attr(pte, VM_MEMATTR_DEFAULT);
 	pmap_set_pte(pte, va, pa, FALSE, FALSE);
 }
 
@@ -1606,6 +1628,7 @@ validate:
 	 * adds the pte to the VHPT if necessary.
 	 */
 	pmap_pte_prot(pmap, pte, prot);
+	pmap_pte_attr(pte, m->md.memattr);
 	pmap_set_pte(pte, va, pa, wired, managed);
 
 	/* Invalidate the I-cache when needed. */
@@ -1711,6 +1734,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 		pmap_enter_vhpt(pte, va);
 		pmap_pte_prot(pmap, pte,
 		    prot & (VM_PROT_READ | VM_PROT_EXECUTE));
+		pmap_pte_attr(pte, m->md.memattr);
 		pmap_set_pte(pte, va, VM_PAGE_TO_PHYS(m), FALSE, managed);
 
 		if (prot & VM_PROT_EXECUTE)
@@ -1793,8 +1817,10 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 void
 pmap_zero_page(vm_page_t m)
 {
-	vm_offset_t va = IA64_PHYS_TO_RR7(VM_PAGE_TO_PHYS(m));
-	bzero((caddr_t) va, PAGE_SIZE);
+	void *p;
+
+	p = (void *)pmap_page_to_va(m);
+	bzero(p, PAGE_SIZE);
 }
 
 
@@ -1809,8 +1835,10 @@ pmap_zero_page(vm_page_t m)
 void
 pmap_zero_page_area(vm_page_t m, int off, int size)
 {
-	vm_offset_t va = IA64_PHYS_TO_RR7(VM_PAGE_TO_PHYS(m));
-	bzero((char *)(caddr_t)va + off, size);
+	char *p;
+
+	p = (void *)pmap_page_to_va(m);
+	bzero(p + off, size);
 }
 
 
@@ -1823,8 +1851,10 @@ pmap_zero_page_area(vm_page_t m, int off, int size)
 void
 pmap_zero_page_idle(vm_page_t m)
 {
-	vm_offset_t va = IA64_PHYS_TO_RR7(VM_PAGE_TO_PHYS(m));
-	bzero((caddr_t) va, PAGE_SIZE);
+	void *p;
+
+	p = (void *)pmap_page_to_va(m);
+	bzero(p, PAGE_SIZE);
 }
 
 
@@ -1837,9 +1867,11 @@ pmap_zero_page_idle(vm_page_t m)
 void
 pmap_copy_page(vm_page_t msrc, vm_page_t mdst)
 {
-	vm_offset_t src = IA64_PHYS_TO_RR7(VM_PAGE_TO_PHYS(msrc));
-	vm_offset_t dst = IA64_PHYS_TO_RR7(VM_PAGE_TO_PHYS(mdst));
-	bcopy((caddr_t) src, (caddr_t) dst, PAGE_SIZE);
+	void *dst, *src;
+
+	src = (void *)pmap_page_to_va(msrc);
+	dst = (void *)pmap_page_to_va(mdst);
+	bcopy(src, dst, PAGE_SIZE);
 }
 
 /*
@@ -2186,6 +2218,7 @@ pmap_remove_write(vm_page_t m)
 			}
 			prot &= ~VM_PROT_WRITE;
 			pmap_pte_prot(pmap, pte, prot);
+			pmap_pte_attr(pte, m->md.memattr);
 			pmap_invalidate_page(pv->pv_va);
 		}
 		pmap_switch(oldpmap);
@@ -2219,6 +2252,63 @@ pmap_unmapdev(vm_offset_t va, vm_size_t size)
 }
 
 /*
+ * Sets the memory attribute for the specified page.
+ */
+static void
+pmap_page_set_memattr_1(void *arg)
+{
+	struct ia64_pal_result res;
+	register_t is;
+	uintptr_t pp = (uintptr_t)arg;
+
+	is = intr_disable();
+	res = ia64_call_pal_static(pp, 0, 0, 0);
+	intr_restore(is);
+}
+
+void
+pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma)
+{
+	struct ia64_lpte *pte;
+	pmap_t oldpmap;
+	pv_entry_t pv;
+	void *va;
+
+	vm_page_lock_queues();
+	m->md.memattr = ma;
+	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
+		PMAP_LOCK(pv->pv_pmap);
+		oldpmap = pmap_switch(pv->pv_pmap);
+		pte = pmap_find_vhpt(pv->pv_va);
+		KASSERT(pte != NULL, ("pte"));
+		pmap_pte_attr(pte, ma);
+		pmap_invalidate_page(pv->pv_va);
+		pmap_switch(oldpmap);
+		PMAP_UNLOCK(pv->pv_pmap);
+	}
+	vm_page_unlock_queues();
+
+	if (ma == VM_MEMATTR_UNCACHEABLE) {
+#ifdef SMP
+		smp_rendezvous(NULL, pmap_page_set_memattr_1, NULL,
+		    (void *)PAL_PREFETCH_VISIBILITY);
+#else
+		pmap_page_set_memattr_1((void *)PAL_PREFETCH_VISIBILITY);
+#endif
+		va = (void *)pmap_page_to_va(m);
+		critical_enter();
+		cpu_flush_dcache(va, PAGE_SIZE);
+		critical_exit();
+#ifdef SMP
+		smp_rendezvous(NULL, pmap_page_set_memattr_1, NULL,
+		    (void *)PAL_MC_DRAIN);
+#else
+		pmap_page_set_memattr_1((void *)PAL_MC_DRAIN);
+#endif
+	}
+}
+
+/*
  * perform the pmap work for mincore
  */
 int
@@ -2228,7 +2318,7 @@ pmap_mincore(pmap_t pmap, vm_offset_t addr, vm_paddr_t *locked_pa)
 	struct ia64_lpte *pte, tpte;
 	vm_paddr_t pa;
 	int val;
-	
+
 	PMAP_LOCK(pmap);
 retry:
 	oldpmap = pmap_switch(pmap);
