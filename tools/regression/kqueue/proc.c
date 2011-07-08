@@ -43,9 +43,9 @@ add_and_delete(void)
     pid = fork();
     if (pid == 0) {
         struct stat s;
-        if ((fstat(kqfd, &s) != -1) || (errno != EBADF))
-            err(1, "%s:%d - %s: fstat(kqfd) in child did not return EBADF",
-                __FILE__, __LINE__, __func__);
+        if (fstat(kqfd, &s) != -1)
+            errx(1, "kqueue inherited across fork! (%s() at %s:%d)",
+	        __func__, __FILE__, __LINE__);
 
         pause();
         exit(2);
