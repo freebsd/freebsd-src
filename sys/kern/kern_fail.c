@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/proc.h>
 #include <sys/sbuf.h>
 
 #include <machine/stdarg.h>
@@ -114,7 +115,7 @@ struct fail_point_entry {
 	int		fe_arg;		/**< argument to type (e.g. return value) */
 	int		fe_prob;	/**< likelihood of firing in millionths */
 	int		fe_count;	/**< number of times to fire, 0 means always */
-
+	pid_t		fe_pid;		/**< only fail for this process */
 	TAILQ_ENTRY(fail_point_entry) fe_entries; /**< next entry in fail point */
 };
 
@@ -227,6 +228,8 @@ fail_point_eval_nontrivial(struct fail_point *fp, int *return_value)
 		if (ent->fe_prob < PROB_MAX &&
 		    ent->fe_prob < random() % PROB_MAX)
 			continue;
+		if (ent->fe_pid != NO_PID && ent->fe_pid != curproc->p_pid)
+			continue;
 
 		switch (ent->fe_type) {
 		case FAIL_POINT_PANIC:
@@ -315,6 +318,8 @@ fail_point_get(struct fail_point *fp, struct sbuf *sb)
 		sbuf_printf(sb, "%s", fail_type_strings[ent->fe_type].name);
 		if (ent->fe_arg)
 			sbuf_printf(sb, "(%d)", ent->fe_arg);
+		if (ent->fe_pid != NO_PID)
+			sbuf_printf(sb, "[pid %d]", ent->fe_pid);
 		if (TAILQ_NEXT(ent, fe_entries))
 			sbuf_printf(sb, "->");
 	}
@@ -451,6 +456,7 @@ parse_term(struct fail_point_entries *ents, char *p)
 
 	ent = fp_malloc(sizeof *ent, M_WAITOK | M_ZERO);
 	ent->fe_prob = PROB_MAX;
+	ent->fe_pid = NO_PID;
 	TAILQ_INSERT_TAIL(ents, ent, fe_entries);
 
 	/*
@@ -458,6 +464,7 @@ parse_term(struct fail_point_entries *ents, char *p)
 	 *     ( (<float> "%") | (<integer> "*" ) )*
 	 *     <type>
 	 *     [ "(" <integer> ")" ]
+	 *     [ "[pid " <integer> "]" ]
 	 */
 
 	/* ( (<float> "%") | (<integer> "*" ) )* */
@@ -498,6 +505,17 @@ parse_term(struct fail_point_entries *ents, char *p)
 		return (NULL);
 	ent->fe_arg = strtol(p, &p, 0);
 	if (*p++ != ')')
+		return (NULL);
+
+	/* [ "[pid " <integer> "]" ] */
+#define	PID_STRING	"[pid "
+	if (strncmp(p, PID_STRING, sizeof(PID_STRING) - 1) != 0)
+		return (p);
+	p += sizeof(PID_STRING) - 1;
+	if (!isdigit(*p))
+		return (NULL);
+	ent->fe_pid = strtol(p, &p, 0);
+	if (*p++ != ']')
 		return (NULL);
 
 	return (p);
