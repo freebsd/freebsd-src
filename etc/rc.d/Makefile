@@ -24,7 +24,7 @@ FILES=	DAEMON FILESYSTEMS LOGIN NETWORKING SERVERS \
 	mdconfig mdconfig2 mountd moused mroute6d mrouted msgs \
 	named natd netif netoptions netwait \
 	newsyslog nfsclient nfscbd nfsd \
-	nfsserver nfsuserd nisdomain nsswitch ntpd ntpdate \
+	nfsuserd nisdomain nsswitch ntpd ntpdate \
 	othermta \
 	pf pflog pfsync \
 	powerd power_profile ppp pppoed pwcheck \

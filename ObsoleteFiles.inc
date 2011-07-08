@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20110707: script no longer needed by /etc/rc.d/nfsd
+OLD_FILES+=etc/rc.d/nfsserver
 # 20110705: files moved so both NFS clients can share them
 OLD_FILES+=usr/include/nfsclient/krpc.h
 OLD_FILES+=usr/include/nfsclient/nfsdiskless.h
