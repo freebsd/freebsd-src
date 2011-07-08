@@ -39,6 +39,7 @@
 #define ZALLOCDEBUG
 
 #include <string.h>
+#include <sys/stdint.h>
 #include "stand.h"
 
 typedef uintptr_t iaddr_t;	/* unsigned int same size as pointer	*/
