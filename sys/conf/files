@@ -1918,6 +1918,7 @@ dev/usb/net/if_kue.c		optional kue
 dev/usb/net/if_mos.c		optional mos
 dev/usb/net/if_rue.c		optional rue
 dev/usb/net/if_udav.c		optional udav
+dev/usb/net/if_usie.c		optional usie
 dev/usb/net/usb_ethernet.c	optional aue | axe | cdce | cue | kue | mos | \
 					 rue | udav
 dev/usb/net/uhso.c		optional uhso
@@ -1970,8 +1971,8 @@ dev/usb/serial/uvscom.c		optional uvscom
 dev/usb/serial/usb_serial.c 	optional ucom | u3g | uark | ubsa | ubser | \
 					 uchcom | ucycom | ufoma | uftdi | \
 					 ugensa | uipaq | umcs | umct | \
-					 umodem | umoscom | uplcom | uslcom | \
-					 uvisor | uvscom
+					 umodem | umoscom | uplcom | usie | \
+					 uslcom | uvisor | uvscom
 #
 # USB misc drivers
 #
