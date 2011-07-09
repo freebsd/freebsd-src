@@ -1,7 +1,6 @@
 /*-
  * Copyright (c) 2011 Anybots Inc
  * written by Akinori Furukoshi <moonlightakkiy@yahoo.ca>
- * reviewed by Hans Petter Selasky <hselasky@freebsd.org>
  *  - ucom part is based on u3g.c
  *
  * Redistribution and use in source and binary forms, with or without
