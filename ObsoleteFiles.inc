@@ -38,6 +38,10 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20110709: Catch up with removal of these functions.
+OLD_FILES+=usr/share/man/man9/vm_page_copy.9.gz
+OLD_FILES+=usr/share/man/man9/vm_page_protect.9.gz
+OLD_FILES+=usr/share/man/man9/vm_page_zero_fill.9.gz
 # 20110707: script no longer needed by /etc/rc.d/nfsd
 OLD_FILES+=etc/rc.d/nfsserver
 # 20110705: files moved so both NFS clients can share them
