@@ -40,13 +40,16 @@ struct val {
 	} u;
 } ;
 
+char		**av;
+int		nonposix;
 struct val *result;
 
 void		assert_to_integer(struct val *);
-int		chk_div(intmax_t, intmax_t);
-int		chk_minus(intmax_t, intmax_t, intmax_t);
-int		chk_plus(intmax_t, intmax_t, intmax_t);
-int		chk_times(intmax_t, intmax_t, intmax_t);
+void		assert_div(intmax_t, intmax_t);
+void		assert_minus(intmax_t, intmax_t, intmax_t);
+void		assert_plus(intmax_t, intmax_t, intmax_t);
+void		assert_times(intmax_t, intmax_t, intmax_t);
+int		compare_vals(struct val *, struct val *);
 void		free_value(struct val *);
 int		is_integer(const char *);
 int		isstring(struct val *);
@@ -73,8 +76,6 @@ int		yyerror(const char *);
 int		yylex(void);
 int		yyparse(void);
 
-static int	nonposix;
-char **av;
 %}
 
 %union
@@ -344,138 +345,77 @@ op_and(struct val *a, struct val *b)
 	}
 }
 
-struct val *
-op_eq(struct val *a, struct val *b)
+int
+compare_vals(struct val *a, struct val *b)
 {
-	struct val *r;
+	int r;
 
-	if (isstring (a) || isstring (b)) {
-		to_string (a);
-		to_string (b);	
-		r = make_integer ((intmax_t)(strcoll (a->u.s, b->u.s) == 0));
+	if (isstring(a) || isstring(b)) {
+		to_string(a);
+		to_string(b);
+		r = strcoll(a->u.s, b->u.s);
 	} else {
 		assert_to_integer(a);
 		assert_to_integer(b);
-		r = make_integer ((intmax_t)(a->u.i == b->u.i));
+		if (a->u.i > b->u.i)
+			r = 1;
+		else if (a->u.i < b->u.i)
+			r = -1;
+		else
+			r = 0;
 	}
 
-	free_value (a);
-	free_value (b);
-	return r;
+	free_value(a);
+	free_value(b);
+	return (r);
+}
+
+struct val *
+op_eq(struct val *a, struct val *b)
+{
+	return (make_integer((intmax_t)(compare_vals(a, b) == 0)));
 }
 
 struct val *
 op_gt(struct val *a, struct val *b)
 {
-	struct val *r;
-
-	if (isstring (a) || isstring (b)) {
-		to_string (a);
-		to_string (b);
-		r = make_integer ((intmax_t)(strcoll (a->u.s, b->u.s) > 0));
-	} else {
-		assert_to_integer(a);
-		assert_to_integer(b);
-		r = make_integer ((intmax_t)(a->u.i > b->u.i));
-	}
-
-	free_value (a);
-	free_value (b);
-	return r;
+	return (make_integer((intmax_t)(compare_vals(a, b) > 0)));
 }
 
 struct val *
 op_lt(struct val *a, struct val *b)
 {
-	struct val *r;
-
-	if (isstring (a) || isstring (b)) {
-		to_string (a);
-		to_string (b);
-		r = make_integer ((intmax_t)(strcoll (a->u.s, b->u.s) < 0));
-	} else {
-		assert_to_integer(a);
-		assert_to_integer(b);
-		r = make_integer ((intmax_t)(a->u.i < b->u.i));
-	}
-
-	free_value (a);
-	free_value (b);
-	return r;
+	return (make_integer((intmax_t)(compare_vals(a, b) < 0)));
 }
 
 struct val *
 op_ge(struct val *a, struct val *b)
 {
-	struct val *r;
-
-	if (isstring (a) || isstring (b)) {
-		to_string (a);
-		to_string (b);
-		r = make_integer ((intmax_t)(strcoll (a->u.s, b->u.s) >= 0));
-	} else {
-		assert_to_integer(a);
-		assert_to_integer(b);
-		r = make_integer ((intmax_t)(a->u.i >= b->u.i));
-	}
-
-	free_value (a);
-	free_value (b);
-	return r;
+	return (make_integer((intmax_t)(compare_vals(a, b) >= 0)));
 }
 
 struct val *
 op_le(struct val *a, struct val *b)
 {
-	struct val *r;
-
-	if (isstring (a) || isstring (b)) {
-		to_string (a);
-		to_string (b);
-		r = make_integer ((intmax_t)(strcoll (a->u.s, b->u.s) <= 0));
-	} else {
-		assert_to_integer(a);
-		assert_to_integer(b);
-		r = make_integer ((intmax_t)(a->u.i <= b->u.i));
-	}
-
-	free_value (a);
-	free_value (b);
-	return r;
+	return (make_integer((intmax_t)(compare_vals(a, b) <= 0)));
 }
 
 struct val *
 op_ne(struct val *a, struct val *b)
 {
-	struct val *r;
-
-	if (isstring (a) || isstring (b)) {
-		to_string (a);
-		to_string (b);
-		r = make_integer ((intmax_t)(strcoll (a->u.s, b->u.s) != 0));
-	} else {
-		assert_to_integer(a);
-		assert_to_integer(b);
-		r = make_integer ((intmax_t)(a->u.i != b->u.i));
-	}
-
-	free_value (a);
-	free_value (b);
-	return r;
+	return (make_integer((intmax_t)(compare_vals(a, b) != 0)));
 }
 
-int
-chk_plus(intmax_t a, intmax_t b, intmax_t r)
+void
+assert_plus(intmax_t a, intmax_t b, intmax_t r)
 {
-
-	/* sum of two positive numbers must be positive */
-	if (a > 0 && b > 0 && r <= 0)
-		return 1;
-	/* sum of two negative numbers must be negative */
-	if (a < 0 && b < 0 && r >= 0)
-		return 1;
-	/* all other cases are OK */
-	return 0;
+	/*
+	 * sum of two positive numbers must be positive,
+	 * sum of two negative numbers must be negative
+	 */
+	if ((a > 0 && b > 0 && r <= 0) ||
+	    (a < 0 && b < 0 && r >= 0))
+		errx(ERR_EXIT, "overflow");
 }
 
 struct val *
@@ -487,28 +427,22 @@ op_plus(struct val *a, struct val *b)
 	assert_to_integer(b);
 
 	r = make_integer(a->u.i + b->u.i);
-	if (chk_plus(a->u.i, b->u.i, r->u.i)) {
-		errx(ERR_EXIT, "overflow");
-	}
+	assert_plus(a->u.i, b->u.i, r->u.i);
 
 	free_value (a);
 	free_value (b);
 	return r;
 }
 
-int
-chk_minus(intmax_t a, intmax_t b, intmax_t r)
+void
+assert_minus(intmax_t a, intmax_t b, intmax_t r)
 {
 
 	/* special case subtraction of INTMAX_MIN */
-	if (b == INTMAX_MIN) {
-		if (a >= 0)
-			return 1;
-		else
-			return 0;
-	}
-	/* this is allowed for b != INTMAX_MIN */
-	return chk_plus (a, -b, r);
+	if (b == INTMAX_MIN && a < 0)
+		errx(ERR_EXIT, "overflow");
+	/* check addition of negative subtrahend */
+	assert_plus(a, -b, r);
 }
 
 struct val *
@@ -520,25 +454,22 @@ op_minus(struct val *a, struct val *b)
 	assert_to_integer(b);
 
 	r = make_integer(a->u.i - b->u.i);
-	if (chk_minus(a->u.i, b->u.i, r->u.i)) {
-		errx(ERR_EXIT, "overflow");
-	}
+	assert_minus(a->u.i, b->u.i, r->u.i);
 
 	free_value (a);
 	free_value (b);
 	return r;
 }
 
-int
-chk_times(intmax_t a, intmax_t b, intmax_t r)
+void
+assert_times(intmax_t a, intmax_t b, intmax_t r)
 {
-	/* special case: first operand is 0, no overflow possible */
-	if (a == 0)
-		return 0;
-	/* verify that result of division matches second operand */
-	if (r / a != b)
-		return 1;
-	return 0;
+	/*
+	 * if first operand is 0, no overflow is possible,
+	 * else result of division test must match second operand
+	 */
+	if (a != 0 && r / a != b)
+		errx(ERR_EXIT, "overflow");
 }
 
 struct val *
@@ -550,24 +481,21 @@ op_times(struct val *a, struct val *b)
 	assert_to_integer(b);
 
 	r = make_integer(a->u.i * b->u.i);
-	if (chk_times(a->u.i, b->u.i, r->u.i)) {
-		errx(ERR_EXIT, "overflow");
-	}
+	assert_times(a->u.i, b->u.i, r->u.i);
 
 	free_value (a);
 	free_value (b);
 	return (r);
 }
 
-int
-chk_div(intmax_t a, intmax_t b)
+void
+assert_div(intmax_t a, intmax_t b)
 {
-	/* div by zero has been taken care of before */
+	if (b == 0)
+		errx(ERR_EXIT, "division by zero");
 	/* only INTMAX_MIN / -1 causes overflow */
 	if (a == INTMAX_MIN && b == -1)
-		return 1;
-	/* everything else is OK */
-	return 0;
+		errx(ERR_EXIT, "overflow");
 }
 
 struct val *
@@ -578,12 +506,8 @@ op_div(struct val *a, struct val *b)
 	assert_to_integer(a);
 	assert_to_integer(b);
 
-	if (b->u.i == 0) {
-		errx(ERR_EXIT, "division by zero");
-	}
-	if (chk_div(a->u.i, b->u.i)) {
-		errx(ERR_EXIT, "overflow");
-	}
+	/* assert based on operands only, not on result */
+	assert_div(a->u.i, b->u.i);
 	r = make_integer(a->u.i / b->u.i);
 
 	free_value (a);
@@ -598,9 +522,8 @@ op_rem(struct val *a, struct val *b)
 
 	assert_to_integer(a);
 	assert_to_integer(b);
-	if (b->u.i == 0) {
-		errx(ERR_EXIT, "division by zero");
-	}
+	/* pass a=1 to only check for div by zero */
+	assert_div(1, b->u.i);
 	r = make_integer(a->u.i % b->u.i);
 
 	free_value (a);
