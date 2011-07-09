@@ -1,6 +1,6 @@
 %{
 /*-
- * Written by Pace Willisson (pace@blitz.com) 
+ * Written by Pace Willisson (pace@blitz.com)
  * and placed in the public domain.
  *
  * Largely rewritten by J.T. Conklin (jtc@wimsey.com)
@@ -21,7 +21,7 @@
 #include <string.h>
 #include <regex.h>
 #include <unistd.h>
-  
+
 /*
  * POSIX specifies a specific error code for syntax errors.  We exit
  * with this code for all errors.
@@ -42,7 +42,7 @@ struct val {
 
 char		**av;
 int		nonposix;
-struct val *result;
+struct val	*result;
 
 void		assert_to_integer(struct val *);
 void		assert_div(intmax_t, intmax_t);
@@ -52,7 +52,7 @@ void		assert_times(intmax_t, intmax_t, intmax_t);
 int		compare_vals(struct val *, struct val *);
 void		free_value(struct val *);
 int		is_integer(const char *);
-int		isstring(struct val *);
+int		is_string(struct val *);
 int		is_zero_or_null(struct val *);
 struct val	*make_integer(intmax_t);
 struct val	*make_str(const char *);
@@ -99,22 +99,21 @@ start: expr { result = $$; }
 
 expr:	TOKEN
 	| '(' expr ')' { $$ = $2; }
-	| expr '|' expr { $$ = op_or ($1, $3); }
-	| expr '&' expr { $$ = op_and ($1, $3); }
-	| expr '=' expr { $$ = op_eq ($1, $3); }
-	| expr '>' expr { $$ = op_gt ($1, $3); }
-	| expr '<' expr { $$ = op_lt ($1, $3); }
-	| expr GE expr  { $$ = op_ge ($1, $3); }
-	| expr LE expr  { $$ = op_le ($1, $3); }
-	| expr NE expr  { $$ = op_ne ($1, $3); }
-	| expr '+' expr { $$ = op_plus ($1, $3); }
-	| expr '-' expr { $$ = op_minus ($1, $3); }
-	| expr '*' expr { $$ = op_times ($1, $3); }
-	| expr '/' expr { $$ = op_div ($1, $3); }
-	| expr '%' expr { $$ = op_rem ($1, $3); }
-	| expr ':' expr { $$ = op_colon ($1, $3); }
+	| expr '|' expr { $$ = op_or($1, $3); }
+	| expr '&' expr { $$ = op_and($1, $3); }
+	| expr '=' expr { $$ = op_eq($1, $3); }
+	| expr '>' expr { $$ = op_gt($1, $3); }
+	| expr '<' expr { $$ = op_lt($1, $3); }
+	| expr GE expr  { $$ = op_ge($1, $3); }
+	| expr LE expr  { $$ = op_le($1, $3); }
+	| expr NE expr  { $$ = op_ne($1, $3); }
+	| expr '+' expr { $$ = op_plus($1, $3); }
+	| expr '-' expr { $$ = op_minus($1, $3); }
+	| expr '*' expr { $$ = op_times($1, $3); }
+	| expr '/' expr { $$ = op_div($1, $3); }
+	| expr '%' expr { $$ = op_rem($1, $3); }
+	| expr ':' expr { $$ = op_colon($1, $3); }
 	;
-
 
 %%
 
@@ -123,14 +122,13 @@ make_integer(intmax_t i)
 {
 	struct val *vp;
 
-	vp = (struct val *) malloc (sizeof (*vp));
-	if (vp == NULL) {
+	vp = (struct val *)malloc(sizeof(*vp));
+	if (vp == NULL)
 		errx(ERR_EXIT, "malloc() failed");
-	}
 
 	vp->type = integer;
 	vp->u.i  = i;
-	return vp; 
+	return (vp);
 }
 
 struct val *
@@ -138,27 +136,24 @@ make_str(const char *s)
 {
 	struct val *vp;
 
-	vp = (struct val *) malloc (sizeof (*vp));
-	if (vp == NULL || ((vp->u.s = strdup (s)) == NULL)) {
+	vp = (struct val *)malloc(sizeof(*vp));
+	if (vp == NULL || ((vp->u.s = strdup(s)) == NULL))
 		errx(ERR_EXIT, "malloc() failed");
-	}
 
 	if (is_integer(s))
 		vp->type = numeric_string;
 	else
 		vp->type = string;
 
-	return vp;
+	return (vp);
 }
-
 
 void
 free_value(struct val *vp)
 {
 	if (vp->type == string || vp->type == numeric_string)
-		free (vp->u.s);	
+		free(vp->u.s);
 }
-
 
 int
 to_integer(struct val *vp)
@@ -171,14 +166,13 @@ to_integer(struct val *vp)
 		i  = strtoimax(vp->u.s, (char **)NULL, 10);
 		/* just keep as numeric_string, if the conversion fails */
 		if (errno != ERANGE) {
-			free (vp->u.s);
+			free(vp->u.s);
 			vp->u.i = i;
 			vp->type = integer;
 		}
 	}
 	return (vp->type == integer);
 }
-
 
 void
 assert_to_integer(struct val *vp)
@@ -212,7 +206,6 @@ to_string(struct val *vp)
 	vp->u.s  = tmp;
 }
 
-
 int
 is_integer(const char *s)
 {
@@ -231,14 +224,12 @@ is_integer(const char *s)
 	return (*s == '\0');
 }
 
-
 int
-isstring(struct val *vp)
+is_string(struct val *vp)
 {
 	/* only TRUE if this string is not a valid integer */
 	return (vp->type == string);
 }
-
 
 int
 yylex(void)
@@ -250,10 +241,10 @@ yylex(void)
 
 	p = *av++;
 
-	if (strlen (p) == 1) {
-		if (strchr ("|&=<>+-*/%:()", *p))
+	if (strlen(p) == 1) {
+		if (strchr("|&=<>+-*/%:()", *p))
 			return (*p);
-	} else if (strlen (p) == 2 && p[1] == '=') {
+	} else if (strlen(p) == 2 && p[1] == '=') {
 		switch (*p) {
 		case '>': return (GE);
 		case '<': return (LE);
@@ -261,19 +252,17 @@ yylex(void)
 		}
 	}
 
-	yylval.val = make_str (p);
+	yylval.val = make_str(p);
 	return (TOKEN);
 }
 
 int
 is_zero_or_null(struct val *vp)
 {
-	if (vp->type == integer) {
+	if (vp->type == integer)
 		return (vp->u.i == 0);
-	} else {
-		return (*vp->u.s == 0 || (to_integer (vp) && vp->u.i == 0));
-	}
-	/* NOTREACHED */
+
+	return (*vp->u.s == 0 || (to_integer(vp) && vp->u.i == 0));
 }
 
 int
@@ -281,23 +270,22 @@ main(int argc, char *argv[])
 {
 	int c;
 
-	setlocale (LC_ALL, "");
+	setlocale(LC_ALL, "");
 	if (getenv("EXPR_COMPAT") != NULL
 	    || check_utility_compat("expr")) {
 		av = argv + 1;
 		nonposix = 1;
 	} else {
-		while ((c = getopt(argc, argv, "e")) != -1)
+		while ((c = getopt(argc, argv, "e")) != -1) {
 			switch (c) {
 			case 'e':
 				nonposix = 1;
 				break;
-
 			default:
-				fprintf(stderr,
+				errx(ERR_EXIT,
 				    "usage: expr [-e] expression\n");
-				exit(ERR_EXIT);
 			}
+		}
 		av = argv + optind;
 	}
 
@@ -317,7 +305,6 @@ yyerror(const char *s __unused)
 	errx(ERR_EXIT, "syntax error");
 }
 
-
 struct val *
 op_or(struct val *a, struct val *b)
 {
@@ -335,12 +322,12 @@ op_or(struct val *a, struct val *b)
 struct val *
 op_and(struct val *a, struct val *b)
 {
-	if (is_zero_or_null (a) || is_zero_or_null (b)) {
-		free_value (a);
-		free_value (b);
-		return (make_integer ((intmax_t)0));
+	if (is_zero_or_null(a) || is_zero_or_null(b)) {
+		free_value(a);
+		free_value(b);
+		return (make_integer((intmax_t)0));
 	} else {
-		free_value (b);
+		free_value(b);
 		return (a);
 	}
 }
@@ -350,7 +337,7 @@ compare_vals(struct val *a, struct val *b)
 {
 	int r;
 
-	if (isstring(a) || isstring(b)) {
+	if (is_string(a) || is_string(b)) {
 		to_string(a);
 		to_string(b);
 		r = strcoll(a->u.s, b->u.s);
@@ -425,19 +412,17 @@ op_plus(struct val *a, struct val *b)
 
 	assert_to_integer(a);
 	assert_to_integer(b);
-
 	r = make_integer(a->u.i + b->u.i);
 	assert_plus(a->u.i, b->u.i, r->u.i);
 
-	free_value (a);
-	free_value (b);
-	return r;
+	free_value(a);
+	free_value(b);
+	return (r);
 }
 
 void
 assert_minus(intmax_t a, intmax_t b, intmax_t r)
 {
-
 	/* special case subtraction of INTMAX_MIN */
 	if (b == INTMAX_MIN && a < 0)
 		errx(ERR_EXIT, "overflow");
@@ -452,13 +437,12 @@ op_minus(struct val *a, struct val *b)
 
 	assert_to_integer(a);
 	assert_to_integer(b);
-
 	r = make_integer(a->u.i - b->u.i);
 	assert_minus(a->u.i, b->u.i, r->u.i);
 
-	free_value (a);
-	free_value (b);
-	return r;
+	free_value(a);
+	free_value(b);
+	return (r);
 }
 
 void
@@ -479,12 +463,11 @@ op_times(struct val *a, struct val *b)
 
 	assert_to_integer(a);
 	assert_to_integer(b);
-
 	r = make_integer(a->u.i * b->u.i);
 	assert_times(a->u.i, b->u.i, r->u.i);
 
-	free_value (a);
-	free_value (b);
+	free_value(a);
+	free_value(b);
 	return (r);
 }
 
@@ -505,16 +488,15 @@ op_div(struct val *a, struct val *b)
 
 	assert_to_integer(a);
 	assert_to_integer(b);
-
 	/* assert based on operands only, not on result */
 	assert_div(a->u.i, b->u.i);
 	r = make_integer(a->u.i / b->u.i);
 
-	free_value (a);
-	free_value (b);
-	return r;
+	free_value(a);
+	free_value(b);
+	return (r);
 }
-	
+
 struct val *
 op_rem(struct val *a, struct val *b)
 {
@@ -526,11 +508,11 @@ op_rem(struct val *a, struct val *b)
 	assert_div(1, b->u.i);
 	r = make_integer(a->u.i % b->u.i);
 
-	free_value (a);
-	free_value (b);
-	return r;
+	free_value(a);
+	free_value(b);
+	return (r);
 }
-	
+
 struct val *
 op_colon(struct val *a, struct val *b)
 {
@@ -545,33 +527,30 @@ op_colon(struct val *a, struct val *b)
 	to_string(b);
 
 	/* compile regular expression */
-	if ((eval = regcomp (&rp, b->u.s, 0)) != 0) {
-		regerror (eval, &rp, errbuf, sizeof(errbuf));
+	if ((eval = regcomp(&rp, b->u.s, 0)) != 0) {
+		regerror(eval, &rp, errbuf, sizeof(errbuf));
 		errx(ERR_EXIT, "%s", errbuf);
 	}
 
 	/* compare string against pattern */
 	/* remember that patterns are anchored to the beginning of the line */
-	if (regexec(&rp, a->u.s, (size_t)2, rm, 0) == 0 && rm[0].rm_so == 0) {
+	if (regexec(&rp, a->u.s, (size_t)2, rm, 0) == 0 && rm[0].rm_so == 0)
 		if (rm[1].rm_so >= 0) {
 			*(a->u.s + rm[1].rm_eo) = '\0';
-			v = make_str (a->u.s + rm[1].rm_so);
+			v = make_str(a->u.s + rm[1].rm_so);
 
-		} else {
-			v = make_integer ((intmax_t)(rm[0].rm_eo - rm[0].rm_so));
-		}
-	} else {
-		if (rp.re_nsub == 0) {
-			v = make_integer ((intmax_t)0);
-		} else {
-			v = make_str ("");
-		}
-	}
+		} else
+			v = make_integer((intmax_t)(rm[0].rm_eo - rm[0].rm_so));
+	else
+		if (rp.re_nsub == 0)
+			v = make_integer((intmax_t)0);
+		else
+			v = make_str("");
 
 	/* free arguments and pattern buffer */
-	free_value (a);
-	free_value (b);
-	regfree (&rp);
+	free_value(a);
+	free_value(b);
+	regfree(&rp);
 
-	return v;
+	return (v);
 }
