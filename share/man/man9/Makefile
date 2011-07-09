@@ -318,7 +318,6 @@ MAN=	accept_filter.9 \
 	vm_page_alloc.9 \
 	vm_page_bits.9 \
 	vm_page_cache.9 \
-	vm_page_copy.9 \
 	vm_page_deactivate.9 \
 	vm_page_dontneed.9 \
 	vm_page_flag.9 \
@@ -328,12 +327,10 @@ MAN=	accept_filter.9 \
 	vm_page_insert.9 \
 	vm_page_io.9 \
 	vm_page_lookup.9 \
-	vm_page_protect.9 \
 	vm_page_rename.9 \
 	vm_page_sleep_if_busy.9 \
 	vm_page_wakeup.9 \
 	vm_page_wire.9 \
-	vm_page_zero_fill.9 \
 	vm_set_page_size.9 \
 	vn_fullpath.9 \
 	vn_isdisk.9 \
