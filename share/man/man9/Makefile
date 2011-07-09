@@ -296,7 +296,6 @@ MAN=	accept_filter.9 \
 	vm_fault_prefault.9 \
 	vm_map.9 \
 	vm_map_check_protection.9 \
-	vm_map_clean.9 \
 	vm_map_create.9 \
 	vm_map_delete.9 \
 	vm_map_entry_resize_free.9 \
@@ -314,6 +313,7 @@ MAN=	accept_filter.9 \
 	vm_map_simplify_entry.9 \
 	vm_map_stack.9 \
 	vm_map_submap.9 \
+	vm_map_sync.9 \
 	vm_map_wire.9 \
 	vm_page_alloc.9 \
 	vm_page_bits.9 \
