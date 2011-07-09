@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20110709: vm_map_clean.9 -> vm_map_sync.9
+OLD_FILES+=usr/share/man/man9/vm_map_clean.9.gz
 # 20110709: Catch up with removal of these functions.
 OLD_FILES+=usr/share/man/man9/vm_page_copy.9.gz
 OLD_FILES+=usr/share/man/man9/vm_page_protect.9.gz
