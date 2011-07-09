@@ -192,7 +192,8 @@ struct uaudio_chan {
 };
 
 #define	UMIDI_CABLES_MAX   16		/* units */
-#define	UMIDI_BULK_SIZE  1024		/* bytes */
+#define	UMIDI_TX_FRAMES	   128		/* units */
+#define	UMIDI_TX_BUFFER    (UMIDI_TX_FRAMES * 4)	/* bytes */
 
 enum {
 	UMIDI_TX_TRANSFER,
@@ -235,6 +236,7 @@ struct umidi_chan {
 	uint8_t	curr_cable;
 	uint8_t	max_cable;
 	uint8_t	valid;
+	uint8_t single_command;
 };
 
 struct uaudio_softc {
@@ -497,8 +499,7 @@ static const struct usb_config
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
-		.bufsize = UMIDI_BULK_SIZE,
-		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
+		.bufsize = UMIDI_TX_BUFFER,
 		.callback = &umidi_bulk_write_callback,
 	},
 
@@ -507,7 +508,7 @@ static const struct usb_config
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
 		.bufsize = 4,	/* bytes */
-		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,.proxy_buffer = 1,},
+		.flags = {.short_xfer_ok = 1,.proxy_buffer = 1,},
 		.callback = &umidi_bulk_read_callback,
 	},
 };
@@ -3541,7 +3542,7 @@ umidi_bulk_write_callback(struct usb_xfer *xfer, usb_error_t error)
 	struct umidi_sub_chan *sub;
 	struct usb_page_cache *pc;
 	uint32_t actlen;
-	uint16_t total_length;
+	uint16_t nframes;
 	uint8_t buf;
 	uint8_t start_cable;
 	uint8_t tr_any;
@@ -3549,6 +3550,10 @@ umidi_bulk_write_callback(struct usb_xfer *xfer, usb_error_t error)
 
 	usbd_xfer_status(xfer, &len, NULL, NULL, NULL);
 
+	/*
+	 * NOTE: Some MIDI devices only accept 4 bytes of data per
+	 * short terminated USB transfer.
+	 */
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
 		DPRINTF("actlen=%d bytes\n", len);
@@ -3557,7 +3562,7 @@ umidi_bulk_write_callback(struct usb_xfer *xfer, usb_error_t error)
 tr_setup:
 		DPRINTF("start\n");
 
-		total_length = 0;	/* reset */
+		nframes = 0;	/* reset */
 		start_cable = chan->curr_cable;
 		tr_any = 0;
 		pc = usbd_xfer_get_frame(xfer, 0);
@@ -3569,51 +3574,50 @@ tr_setup:
 			sub = &chan->sub[chan->curr_cable];
 
 			if (sub->write_open) {
-				usb_fifo_get_data(sub->fifo.fp[USB_FIFO_TX],
-				    pc, total_length, 1, &actlen, 0);
+				usb_fifo_get_data_linear(sub->fifo.fp[USB_FIFO_TX],
+				    &buf, 1, &actlen, 0);
 			} else {
 				actlen = 0;
 			}
 
 			if (actlen) {
-				usbd_copy_out(pc, total_length, &buf, 1);
 
 				tr_any = 1;
 
-				DPRINTF("byte=0x%02x\n", buf);
+				DPRINTF("byte=0x%02x from FIFO %u\n", buf,
+				    (unsigned int)chan->curr_cable);
 
 				if (umidi_convert_to_usb(sub, chan->curr_cable, buf)) {
 
-					DPRINTF("sub= %02x %02x %02x %02x\n",
+					DPRINTF("sub=0x%02x 0x%02x 0x%02x 0x%02x\n",
 					    sub->temp_cmd[0], sub->temp_cmd[1],
 					    sub->temp_cmd[2], sub->temp_cmd[3]);
 
-					usbd_copy_in(pc, total_length,
-					    sub->temp_cmd, 4);
+					usbd_copy_in(pc, nframes * 4, sub->temp_cmd, 4);
 
-					total_length += 4;
+					nframes++;
 
-					if (total_length >= UMIDI_BULK_SIZE) {
+					if ((nframes >= UMIDI_TX_FRAMES) || (chan->single_command != 0))
 						break;
-					}
 				} else {
 					continue;
 				}
 			}
+
 			chan->curr_cable++;
-			if (chan->curr_cable >= chan->max_cable) {
+			if (chan->curr_cable >= chan->max_cable)
 				chan->curr_cable = 0;
-			}
+
 			if (chan->curr_cable == start_cable) {
-				if (tr_any == 0) {
+				if (tr_any == 0)
 					break;
-				}
 				tr_any = 0;
 			}
 		}
 
-		if (total_length) {
-			usbd_xfer_set_frame_len(xfer, 0, total_length);
+		if (nframes != 0) {
+			DPRINTF("Transferring %d frames\n", (int)nframes);
+			usbd_xfer_set_frame_len(xfer, 0, 4 * nframes);
 			usbd_transfer_submit(xfer);
 		}
 		break;
@@ -3784,6 +3788,9 @@ umidi_probe(device_t dev)
 	int unit = device_get_unit(dev);
 	int error;
 	uint32_t n;
+
+	if (usb_test_quirk(uaa, UQ_SINGLE_CMD_MIDI))
+		chan->single_command = 1;
 
 	if (usbd_set_alt_interface_index(sc->sc_udev, chan->iface_index,
 	    chan->iface_alt_index)) {
