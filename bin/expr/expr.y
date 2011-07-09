@@ -42,13 +42,15 @@ struct val {
 
 struct val *result;
 
+void		assert_to_integer(struct val *);
 int		chk_div(intmax_t, intmax_t);
 int		chk_minus(intmax_t, intmax_t, intmax_t);
 int		chk_plus(intmax_t, intmax_t, intmax_t);
 int		chk_times(intmax_t, intmax_t, intmax_t);
 void		free_value(struct val *);
-int		is_zero_or_null(struct val *);
+int		is_integer(const char *);
 int		isstring(struct val *);
+int		is_zero_or_null(struct val *);
 struct val	*make_integer(intmax_t);
 struct val	*make_str(const char *);
 struct val	*op_and(struct val *, struct val *);
@@ -65,13 +67,13 @@ struct val	*op_or(struct val *, struct val *);
 struct val	*op_plus(struct val *, struct val *);
 struct val	*op_rem(struct val *, struct val *);
 struct val	*op_times(struct val *, struct val *);
-intmax_t	to_integer(struct val *);
+int		to_integer(struct val *);
 void		to_string(struct val *);
 int		yyerror(const char *);
 int		yylex(void);
 int		yyparse(void);
 
-static int	eflag;
+static int	nonposix;
 char **av;
 %}
 
@@ -134,37 +136,16 @@ struct val *
 make_str(const char *s)
 {
 	struct val *vp;
-	char *ep;
 
 	vp = (struct val *) malloc (sizeof (*vp));
 	if (vp == NULL || ((vp->u.s = strdup (s)) == NULL)) {
 		errx(ERR_EXIT, "malloc() failed");
 	}
 
-	/*
-	 * Previously we tried to scan the string to see if it ``looked like''
-	 * an integer (erroneously, as it happened).  Let strtoimax() do the
-	 * dirty work.  We could cache the value, except that we are using
-	 * a union and need to preserve the original string form until we
-	 * are certain that it is not needed.
-	 *
-	 * IEEE Std.1003.1-2001 says:
-	 * /integer/ An argument consisting only of an (optional) unary minus  
-	 *	     followed by digits.          
-	 *
-	 * This means that arguments which consist of digits followed by
-	 * non-digits MUST NOT be considered integers.  strtoimax() will
-	 * figure this out for us.
-	 */
-	if (eflag)
-		(void)strtoimax(s, &ep, 10);
-	else
-		(void)strtol(s, &ep, 10);
-
-	if (*ep != '\0')
-		vp->type = string;
-	else	
+	if (is_integer(s))
 		vp->type = numeric_string;
+	else
+		vp->type = string;
 
 	return vp;
 }
@@ -178,31 +159,33 @@ free_value(struct val *vp)
 }
 
 
-intmax_t
+int
 to_integer(struct val *vp)
 {
 	intmax_t i;
 
-	if (vp->type == integer)
-		return 1;
-
-	if (vp->type == string)
-		return 0;
-
-	/* vp->type == numeric_string, make it numeric */
-	errno = 0;
-	if (eflag) {
+	/* we can only convert numeric_string to integer, here */
+	if (vp->type == numeric_string) {
+		errno = 0;
 		i  = strtoimax(vp->u.s, (char **)NULL, 10);
-		if (errno == ERANGE)
-			err(ERR_EXIT, NULL);
-	} else {
-		i = strtol(vp->u.s, (char **)NULL, 10);
+		/* just keep as numeric_string, if the conversion fails */
+		if (errno != ERANGE) {
+			free (vp->u.s);
+			vp->u.i = i;
+			vp->type = integer;
+		}
 	}
+	return (vp->type == integer);
+}
 
-	free (vp->u.s);
-	vp->u.i = i;
-	vp->type = integer;
-	return 1;
+
+void
+assert_to_integer(struct val *vp)
+{
+	if (vp->type == string)
+		errx(ERR_EXIT, "not a decimal number: '%s'", vp->u.s);
+	if (!to_integer(vp))
+		errx(ERR_EXIT, "operand too large: '%s'", vp->u.s);
 }
 
 void
@@ -226,6 +209,25 @@ to_string(struct val *vp)
 	sprintf(tmp, "%jd", vp->u.i);
 	vp->type = string;
 	vp->u.s  = tmp;
+}
+
+
+int
+is_integer(const char *s)
+{
+	if (nonposix) {
+		if (*s == '\0')
+			return (1);
+		while (isspace((unsigned char)*s))
+			s++;
+	}
+	if (*s == '-' || (nonposix && *s == '+'))
+		s++;
+	if (*s == '\0')
+		return (0);
+	while (isdigit((unsigned char)*s))
+		s++;
+	return (*s == '\0');
 }
 
 
@@ -282,12 +284,12 @@ main(int argc, char *argv[])
 	if (getenv("EXPR_COMPAT") != NULL
 	    || check_utility_compat("expr")) {
 		av = argv + 1;
-		eflag = 1;
+		nonposix = 1;
 	} else {
 		while ((c = getopt(argc, argv, "e")) != -1)
 			switch (c) {
 			case 'e':
-				eflag = 1;
+				nonposix = 1;
 				break;
 
 			default:
@@ -318,15 +320,17 @@ yyerror(const char *s __unused)
 struct val *
 op_or(struct val *a, struct val *b)
 {
-	if (is_zero_or_null (a)) {
-		free_value (a);
-		return (b);
-	} else {
-		free_value (b);
+	if (!is_zero_or_null(a)) {
+		free_value(b);
 		return (a);
 	}
+	free_value(a);
+	if (!is_zero_or_null(b))
+		return (b);
+	free_value(b);
+	return (make_integer((intmax_t)0));
 }
-		
+
 struct val *
 op_and(struct val *a, struct val *b)
 {
@@ -350,8 +354,8 @@ op_eq(struct val *a, struct val *b)
 		to_string (b);	
 		r = make_integer ((intmax_t)(strcoll (a->u.s, b->u.s) == 0));
 	} else {
-		(void)to_integer(a);
-		(void)to_integer(b);
+		assert_to_integer(a);
+		assert_to_integer(b);
 		r = make_integer ((intmax_t)(a->u.i == b->u.i));
 	}
 
@@ -370,8 +374,8 @@ op_gt(struct val *a, struct val *b)
 		to_string (b);
 		r = make_integer ((intmax_t)(strcoll (a->u.s, b->u.s) > 0));
 	} else {
-		(void)to_integer(a);
-		(void)to_integer(b);
+		assert_to_integer(a);
+		assert_to_integer(b);
 		r = make_integer ((intmax_t)(a->u.i > b->u.i));
 	}
 
@@ -390,8 +394,8 @@ op_lt(struct val *a, struct val *b)
 		to_string (b);
 		r = make_integer ((intmax_t)(strcoll (a->u.s, b->u.s) < 0));
 	} else {
-		(void)to_integer(a);
-		(void)to_integer(b);
+		assert_to_integer(a);
+		assert_to_integer(b);
 		r = make_integer ((intmax_t)(a->u.i < b->u.i));
 	}
 
@@ -410,8 +414,8 @@ op_ge(struct val *a, struct val *b)
 		to_string (b);
 		r = make_integer ((intmax_t)(strcoll (a->u.s, b->u.s) >= 0));
 	} else {
-		(void)to_integer(a);
-		(void)to_integer(b);
+		assert_to_integer(a);
+		assert_to_integer(b);
 		r = make_integer ((intmax_t)(a->u.i >= b->u.i));
 	}
 
@@ -430,8 +434,8 @@ op_le(struct val *a, struct val *b)
 		to_string (b);
 		r = make_integer ((intmax_t)(strcoll (a->u.s, b->u.s) <= 0));
 	} else {
-		(void)to_integer(a);
-		(void)to_integer(b);
+		assert_to_integer(a);
+		assert_to_integer(b);
 		r = make_integer ((intmax_t)(a->u.i <= b->u.i));
 	}
 
@@ -450,8 +454,8 @@ op_ne(struct val *a, struct val *b)
 		to_string (b);
 		r = make_integer ((intmax_t)(strcoll (a->u.s, b->u.s) != 0));
 	} else {
-		(void)to_integer(a);
-		(void)to_integer(b);
+		assert_to_integer(a);
+		assert_to_integer(b);
 		r = make_integer ((intmax_t)(a->u.i != b->u.i));
 	}
 
@@ -479,17 +483,13 @@ op_plus(struct val *a, struct val *b)
 {
 	struct val *r;
 
-	if (!to_integer(a) || !to_integer(b)) {
-		errx(ERR_EXIT, "non-numeric argument");
-	}
+	assert_to_integer(a);
+	assert_to_integer(b);
 
-	if (eflag) {
-		r = make_integer(a->u.i + b->u.i);
-		if (chk_plus(a->u.i, b->u.i, r->u.i)) {
-			errx(ERR_EXIT, "overflow");
-		}
-	} else
-		r = make_integer((long)a->u.i + (long)b->u.i);
+	r = make_integer(a->u.i + b->u.i);
+	if (chk_plus(a->u.i, b->u.i, r->u.i)) {
+		errx(ERR_EXIT, "overflow");
+	}
 
 	free_value (a);
 	free_value (b);
@@ -516,17 +516,13 @@ op_minus(struct val *a, struct val *b)
 {
 	struct val *r;
 
-	if (!to_integer(a) || !to_integer(b)) {
-		errx(ERR_EXIT, "non-numeric argument");
-	}
+	assert_to_integer(a);
+	assert_to_integer(b);
 
-	if (eflag) {
-		r = make_integer(a->u.i - b->u.i);
-		if (chk_minus(a->u.i, b->u.i, r->u.i)) {
-			errx(ERR_EXIT, "overflow");
-		}
-	} else
-		r = make_integer((long)a->u.i - (long)b->u.i);
+	r = make_integer(a->u.i - b->u.i);
+	if (chk_minus(a->u.i, b->u.i, r->u.i)) {
+		errx(ERR_EXIT, "overflow");
+	}
 
 	free_value (a);
 	free_value (b);
@@ -550,17 +546,13 @@ op_times(struct val *a, struct val *b)
 {
 	struct val *r;
 
-	if (!to_integer(a) || !to_integer(b)) {
-		errx(ERR_EXIT, "non-numeric argument");
-	}
+	assert_to_integer(a);
+	assert_to_integer(b);
 
-	if (eflag) {
-		r = make_integer(a->u.i * b->u.i);
-		if (chk_times(a->u.i, b->u.i, r->u.i)) {
-			errx(ERR_EXIT, "overflow");
-		}
-	} else
-		r = make_integer((long)a->u.i * (long)b->u.i);
+	r = make_integer(a->u.i * b->u.i);
+	if (chk_times(a->u.i, b->u.i, r->u.i)) {
+		errx(ERR_EXIT, "overflow");
+	}
 
 	free_value (a);
 	free_value (b);
@@ -583,21 +575,16 @@ op_div(struct val *a, struct val *b)
 {
 	struct val *r;
 
-	if (!to_integer(a) || !to_integer(b)) {
-		errx(ERR_EXIT, "non-numeric argument");
-	}
+	assert_to_integer(a);
+	assert_to_integer(b);
 
 	if (b->u.i == 0) {
 		errx(ERR_EXIT, "division by zero");
 	}
-
-	if (eflag) {
-		r = make_integer(a->u.i / b->u.i);
-		if (chk_div(a->u.i, b->u.i)) {
-			errx(ERR_EXIT, "overflow");
-		}
-	} else
-		r = make_integer((long)a->u.i / (long)b->u.i);
+	if (chk_div(a->u.i, b->u.i)) {
+		errx(ERR_EXIT, "overflow");
+	}
+	r = make_integer(a->u.i / b->u.i);
 
 	free_value (a);
 	free_value (b);
@@ -609,19 +596,12 @@ op_rem(struct val *a, struct val *b)
 {
 	struct val *r;
 
-	if (!to_integer(a) || !to_integer(b)) {
-		errx(ERR_EXIT, "non-numeric argument");
-	}
-
+	assert_to_integer(a);
+	assert_to_integer(b);
 	if (b->u.i == 0) {
 		errx(ERR_EXIT, "division by zero");
 	}
-
-	if (eflag)
-		r = make_integer(a->u.i % b->u.i);
-	        /* chk_rem necessary ??? */
-	else
-		r = make_integer((long)a->u.i % (long)b->u.i);
+	r = make_integer(a->u.i % b->u.i);
 
 	free_value (a);
 	free_value (b);
