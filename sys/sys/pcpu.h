@@ -146,7 +146,7 @@ struct rm_queue {
 	struct rm_queue* volatile rmq_prev;
 };
 
-#define	PCPU_NAME_LEN (sizeof("CPU ") + sizeof(__XSTRING(MAXCPU) + 1))
+#define	PCPU_NAME_LEN (sizeof("CPU ") + sizeof(__XSTRING(MAXCPU)) - 1)
 
 /*
  * This structure maps out the global data that needs to be kept on a
