@@ -217,7 +217,11 @@ int	copyinstr(const void * __restrict udaddr, void * __restrict kaddr,
 	    __nonnull(1) __nonnull(2);
 int	copyin(const void * __restrict udaddr, void * __restrict kaddr,
 	    size_t len) __nonnull(1) __nonnull(2);
+int	copyin_nofault(const void * __restrict udaddr, void * __restrict kaddr,
+	    size_t len) __nonnull(1) __nonnull(2);
 int	copyout(const void * __restrict kaddr, void * __restrict udaddr,
+	    size_t len) __nonnull(1) __nonnull(2);
+int	copyout_nofault(const void * __restrict kaddr, void * __restrict udaddr,
 	    size_t len) __nonnull(1) __nonnull(2);
 
 int	fubyte(const void *base);
