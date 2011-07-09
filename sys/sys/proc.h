@@ -914,7 +914,7 @@ void	thread_wait(struct proc *p);
 struct thread	*thread_find(struct proc *p, lwpid_t tid);
 
 static __inline int
-thread_pflags_set(int flags)
+curthread_pflags_set(int flags)
 {
 	struct thread *td;
 	int save;
@@ -926,7 +926,7 @@ thread_pflags_set(int flags)
 }
 
 static __inline void
-thread_pflags_restore(int save)
+curthread_pflags_restore(int save)
 {
 
 	curthread->td_pflags &= save;
