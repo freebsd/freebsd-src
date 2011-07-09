@@ -57,9 +57,8 @@ fi
 if [ -d $2/usr/doc ]; then 
 	cp /etc/resolv.conf $2/etc/resolv.conf
 
-	# Build ports to build the docs, then build the docs
+	# Build ports to build release documentation
 	chroot $2 /bin/sh -c 'pkg_add -r docproj || (cd /usr/ports/textproc/docproj && make install clean BATCH=yes WITHOUT_X11=yes JADETEX=no WITHOUT_PYTHON=yes)'
-	chroot $2 make -C /usr/doc $MAKE_FLAGS 'FORMATS=html html-split txt' URLS_ABSOLUTE=YES
 fi
 
 chroot $2 make -C /usr/src $MAKE_FLAGS buildworld buildkernel
