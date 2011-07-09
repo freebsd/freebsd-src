@@ -31,6 +31,7 @@
 .Nm xdr_reference ,
 .Nm xdr_setpos ,
 .Nm xdr_short ,
+.Nm xdr_sizeof,
 .Nm xdrstdio_create ,
 .Nm xdr_string ,
 .Nm xdr_u_char ,
@@ -560,6 +561,18 @@ A filter primitive that translates between C
 .Vt short
 integers and their external representations.
 This routine returns one if it succeeds, zero otherwise.
+.Pp
+.It Xo
+.Ft unsigned long
+.Xc
+.It Xo
+.Fn xdr_sizeof "xdrproc_t func" "void *data"
+.Xc
+.Pp
+This routine returns the amount of memory required to encode
+.Fa data
+using filter
+.Fa func .
 .Pp
 .It Li "#ifdef _STDIO_H_"
 .It Li "/* XDR using stdio library */"
