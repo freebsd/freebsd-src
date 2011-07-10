@@ -75,12 +75,9 @@ struct vpollinfo {
  * Lock reference:
  *	c - namecache mutex
  *	f - freelist mutex
- *	G - Giant
  *	i - interlock
- *	m - mntvnodes mutex
+ *	m - mount point interlock
  *	p - pollinfo lock
- *	s - spechash mutex
- *	S - syncer mutex
  *	u - Only a reference to the vnode is needed to read.
  *	v - vnode lock
  *
@@ -165,7 +162,7 @@ struct vnode {
 	/*
 	 * Hooks for various subsystems and features.
 	 */
-	struct vpollinfo *v_pollinfo;		/* G Poll events, p for *v_pi */
+	struct vpollinfo *v_pollinfo;		/* i Poll events, p for *v_pi */
 	struct label *v_label;			/* MAC label for vnode */
 	struct lockf *v_lockf;			/* Byte-level lock list */
 };
