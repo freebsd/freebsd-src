@@ -1424,7 +1424,7 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 	if (td->td_proc->p_vmspace->vm_map.size + size >
 	    lim_cur(td->td_proc, RLIMIT_VMEM)) {
 		PROC_UNLOCK(td->td_proc);
-		return(ENOMEM);
+		return (ENOMEM);
 	}
 	if (racct_set(td->td_proc, RACCT_VMEM,
 	    td->td_proc->p_vmspace->vm_map.size + size)) {
