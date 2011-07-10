@@ -29,6 +29,7 @@ __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
 #include <sys/queue.h>
+#include <sys/wait.h>
 
 #include <errno.h>
 #include <fcntl.h>
@@ -216,7 +217,9 @@ do_posix_spawn(pid_t *pid, const char *path,
 		error = errno;
 		_exit(127);
 	default:
-		if (pid != NULL)
+		if (error != 0)
+			_waitpid(p, NULL, WNOHANG);
+		else if (pid != NULL)
 			*pid = p;
 		return (error);
 	}
