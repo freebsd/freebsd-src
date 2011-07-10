@@ -37,6 +37,7 @@ COMM=	${SYS}/dev/advansys/*.[ch] \
 	${SYS}/fs/smbfs/*.[ch] \
 	${SYS}/fs/udf/*.[ch] \
 	${SYS}/fs/unionfs/*.[ch] \
+	${SYS}/geom/*.[ch] \
 	${SYS}/kern/*.[ch] \
 	${SYS}/net/*.[ch] \
 	${SYS}/netatalk/*.[ch] \
@@ -55,6 +56,7 @@ COMM=	${SYS}/dev/advansys/*.[ch] \
 	${SYS}/sys/*.[ch]
 
 COMMDIR1= ${SYS}/conf \
+	${SYS}/geom \
 	${SYS}/kern \
 	${SYS}/net \
 	${SYS}/netatalk \
