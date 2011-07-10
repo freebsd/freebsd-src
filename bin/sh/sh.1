@@ -32,7 +32,7 @@
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd June 24, 2011
+.Dd July 10, 2011
 .Dt SH 1
 .Os
 .Sh NAME
@@ -861,7 +861,9 @@ causes asynchronous execution of the preceding AND-OR-list.
 .Ss Background Commands (&)
 If a command is terminated by the control operator ampersand
 .Pq Ql & ,
-the shell executes the command asynchronously;
+the shell executes the command in a subshell environment (see
+.Sx Grouping Commands Together
+below) and asynchronously;
 the shell does not wait for the command to finish
 before executing the next command.
 .Pp
@@ -1024,7 +1026,41 @@ or
 .D1 Li { Ar list Ns Li \&; }
 .Pp
 The first form executes the commands in a subshell environment.
-Note that built-in commands thus executed do not affect the current shell.
+A subshell environment has its own copy of:
+.Pp
+.Bl -enum
+.It
+The current working directory as set by
+.Ic cd .
+.It
+The file creation mask as set by
+.Ic umask .
+.It
+References to open files.
+.It
+Traps as set by
+.Ic trap .
+.It
+Known jobs.
+.It
+Positional parameters and variables.
+.It
+Shell options.
+.It
+Shell functions.
+.It
+Shell aliases.
+.El
+.Pp
+These are copied from the parent shell environment,
+except that trapped (but not ignored) signals are reset to the default action
+and known jobs are cleared.
+Any changes do not affect the parent shell environment.
+.Pp
+A subshell environment may be implemented as a child process or differently.
+If job control is enabled in an interactive shell,
+commands grouped in parentheses can be suspended and continued as a unit.
+.Pp
 The second form never forks another shell,
 so it is slightly more efficient.
 Grouping commands together this way allows the user to
@@ -1552,10 +1588,12 @@ The command is executed in a subshell environment,
 except that the built-in commands
 .Ic jobid ,
 .Ic jobs ,
-.Ic times
 and
 .Ic trap
-return information about the main shell environment
+return information about the parent shell environment
+and
+.Ic times
+returns information about the same process
 if they are the only command in a command substitution.
 .Ss Arithmetic Expansion
 Arithmetic expansion provides a mechanism for evaluating an arithmetic
@@ -2359,8 +2397,8 @@ If there are zero positional parameters, shifting does not do anything.
 A built-in equivalent of
 .Xr test 1 .
 .It Ic times
-Print the amount of time spent executing the shell and its children.
-The first output line shows the user and system times for the shell
+Print the amount of time spent executing the shell process and its children.
+The first output line shows the user and system times for the shell process
 itself, the second one contains the user and system times for the
 children.
 .It Ic trap Oo Ar action Oc Ar signal ...
@@ -2386,7 +2424,7 @@ Omitting the
 .Ar action
 is another way to request the default action, for compatibility reasons this
 usage is not recommended though.
-In a subshell environment,
+In a subshell or utility environment,
 the shell resets trapped (but not ignored) signals to the default action.
 The
 .Ic trap
