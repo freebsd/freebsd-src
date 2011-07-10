@@ -273,7 +273,10 @@ ffs_mount(struct mount *mp)
 				softdep_unmount(mp);
 			DROP_GIANT();
 			g_topology_lock();
-			g_access(ump->um_cp, 0, -1, 0);
+			/*
+			 * Drop our write and exclusive access.
+			 */
+			g_access(ump->um_cp, 0, -1, -1);
 			g_topology_unlock();
 			PICKUP_GIANT();
 			fs->fs_ronly = 1;
@@ -327,13 +330,9 @@ ffs_mount(struct mount *mp)
 			DROP_GIANT();
 			g_topology_lock();
 			/*
-			 * If we're the root device, we may not have an E count
-			 * yet, get it now.
+			 * Request exclusive write access.
 			 */
-			if (ump->um_cp->ace == 0)
-				error = g_access(ump->um_cp, 0, 1, 1);
-			else
-				error = g_access(ump->um_cp, 0, 1, 0);
+			error = g_access(ump->um_cp, 0, 1, 1);
 			g_topology_unlock();
 			PICKUP_GIANT();
 			if (error)
@@ -665,13 +664,6 @@ ffs_mountfs(devvp, mp, td)
 	DROP_GIANT();
 	g_topology_lock();
 	error = g_vfs_open(devvp, &cp, "ffs", ronly ? 0 : 1);
-
-	/*
-	 * If we are a root mount, drop the E flag so fsck can do its magic.
-	 * We will pick it up again when we remount R/W.
-	 */
-	if (error == 0 && ronly && (mp->mnt_flag & MNT_ROOTFS))
-		error = g_access(cp, 0, 0, -1);
 	g_topology_unlock();
 	PICKUP_GIANT();
 	VOP_UNLOCK(devvp, 0);
@@ -932,7 +924,7 @@ ffs_mountfs(devvp, mp, td)
 	strlcpy(fs->fs_fsmnt, mp->mnt_stat.f_mntonname, MAXMNTLEN);
 	mp->mnt_stat.f_iosize = fs->fs_bsize;
 
-	if( mp->mnt_flag & MNT_ROOTFS) {
+	if (mp->mnt_flag & MNT_ROOTFS) {
 		/*
 		 * Root mount; update timestamp in mount structure.
 		 * this will be used by the common root mount code
