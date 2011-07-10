@@ -38,8 +38,8 @@
 #define DMALLOCDEBUG		/* add debugging code to gather stats */
 #define ZALLOCDEBUG
 
-#include <string.h>
 #include <sys/stdint.h>
+#include <string.h>
 #include "stand.h"
 
 typedef uintptr_t iaddr_t;	/* unsigned int same size as pointer	*/
