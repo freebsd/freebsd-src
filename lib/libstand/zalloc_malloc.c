@@ -126,7 +126,7 @@ Free(void *ptr, const char *file, int line)
 void *
 Calloc(size_t n1, size_t n2, const char *file, int line)
 {
-    iaddr_t bytes = (iaddr_t)n1 * (iaddr_t)n2;
+    uintptr_t bytes = (uintptr_t)n1 * (uintptr_t)n2;
     void *res;
 
     if ((res = Malloc(bytes, file, line)) != NULL) {

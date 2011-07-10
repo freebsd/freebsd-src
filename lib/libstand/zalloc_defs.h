@@ -39,19 +39,10 @@
 #define ZALLOCDEBUG
 
 #include <sys/stdint.h>
-#include <string.h>
 #include "stand.h"
-
-typedef uintptr_t iaddr_t;	/* unsigned int same size as pointer	*/
-typedef intptr_t saddr_t;	/* signed int same size as pointer	*/
 #include "zalloc_mem.h"
 
-#define Prototype extern
 #define Library extern
-
-#ifndef NULL
-#define NULL	((void *)0)
-#endif
 
 /*
  * block extension for sbrk()
@@ -61,8 +52,7 @@ typedef intptr_t saddr_t;	/* signed int same size as pointer	*/
 #define BLKEXTENDMASK	(BLKEXTEND - 1)
 
 /*
- * required malloc alignment.  Use sizeof(long double) for architecture
- * independance.
+ * required malloc alignment.  Just hardwire to 16.
  *
  * Note: if we implement a more sophisticated realloc, we should ensure that
  * MALLOCALIGN is at least as large as MemNode.
@@ -73,10 +63,8 @@ typedef struct Guard {
     size_t	ga_Magic;	/* must be at least 32 bits */
 } Guard;
 
-#define MATYPE		long double
-#define MALLOCALIGN	((sizeof(MATYPE) > sizeof(Guard)) ? sizeof(MATYPE) : sizeof(Guard))
+#define MALLOCALIGN	16
 #define GAMAGIC		0x55FF44FD
 #define GAFREE		0x5F54F4DF
 
 #include "zalloc_protos.h"
-
