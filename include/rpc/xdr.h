@@ -285,45 +285,43 @@ struct xdr_discrim {
  * These are the "generic" xdr routines.
  */
 __BEGIN_DECLS
-extern bool_t		xdr_void(void);
-extern bool_t		xdr_int(XDR *, int *);
-extern bool_t		xdr_u_int(XDR *, u_int *);
-extern bool_t		xdr_long(XDR *, long *);
-extern bool_t		xdr_u_long(XDR *, u_long *);
-extern bool_t		xdr_short(XDR *, short *);
-extern bool_t		xdr_u_short(XDR *, u_short *);
-extern bool_t		xdr_int16_t(XDR *, int16_t *);
-extern bool_t		xdr_u_int16_t(XDR *, u_int16_t *);
-extern bool_t		xdr_uint16_t(XDR *, u_int16_t *);
-extern bool_t		xdr_int32_t(XDR *, int32_t *);
-extern bool_t		xdr_u_int32_t(XDR *, u_int32_t *);
-extern bool_t		xdr_uint32_t(XDR *, u_int32_t *);
-extern bool_t		xdr_int64_t(XDR *, int64_t *);
-extern bool_t		xdr_u_int64_t(XDR *, u_int64_t *);
-extern bool_t		xdr_uint64_t(XDR *, u_int64_t *);
-extern bool_t		xdr_bool(XDR *, bool_t *);
-extern bool_t		xdr_enum(XDR *, enum_t *);
-extern bool_t		xdr_array(XDR *, char **, u_int *, u_int, u_int,
-			    xdrproc_t);
-extern bool_t		xdr_bytes(XDR *, char **, u_int *, u_int);
-extern bool_t		xdr_opaque(XDR *, char *, u_int);
-extern bool_t		xdr_string(XDR *, char **, u_int);
-extern bool_t		xdr_union(XDR *, enum_t *, char *,
-			    const struct xdr_discrim *, xdrproc_t);
-extern bool_t		xdr_char(XDR *, char *);
-extern bool_t		xdr_u_char(XDR *, u_char *);
-extern bool_t		xdr_vector(XDR *, char *, u_int, u_int, xdrproc_t);
-extern bool_t		xdr_float(XDR *, float *);
-extern bool_t		xdr_double(XDR *, double *);
-extern bool_t		xdr_quadruple(XDR *, long double *);
-extern bool_t		xdr_reference(XDR *, char **, u_int, xdrproc_t);
-extern bool_t		xdr_pointer(XDR *, char **, u_int, xdrproc_t);
-extern bool_t		xdr_wrapstring(XDR *, char **);
-extern void		xdr_free(xdrproc_t, void *);
-extern bool_t		xdr_hyper(XDR *, quad_t *);
-extern bool_t		xdr_u_hyper(XDR *, u_quad_t *);
-extern bool_t		xdr_longlong_t(XDR *, quad_t *);
-extern bool_t		xdr_u_longlong_t(XDR *, u_quad_t *);
+extern bool_t	xdr_void(void);
+extern bool_t	xdr_int(XDR *, int *);
+extern bool_t	xdr_u_int(XDR *, u_int *);
+extern bool_t	xdr_long(XDR *, long *);
+extern bool_t	xdr_u_long(XDR *, u_long *);
+extern bool_t	xdr_short(XDR *, short *);
+extern bool_t	xdr_u_short(XDR *, u_short *);
+extern bool_t	xdr_int16_t(XDR *, int16_t *);
+extern bool_t	xdr_u_int16_t(XDR *, u_int16_t *);
+extern bool_t	xdr_uint16_t(XDR *, u_int16_t *);
+extern bool_t	xdr_int32_t(XDR *, int32_t *);
+extern bool_t	xdr_u_int32_t(XDR *, u_int32_t *);
+extern bool_t	xdr_uint32_t(XDR *, u_int32_t *);
+extern bool_t	xdr_int64_t(XDR *, int64_t *);
+extern bool_t	xdr_u_int64_t(XDR *, u_int64_t *);
+extern bool_t	xdr_uint64_t(XDR *, u_int64_t *);
+extern bool_t	xdr_bool(XDR *, bool_t *);
+extern bool_t	xdr_enum(XDR *, enum_t *);
+extern bool_t	xdr_array(XDR *, char **, u_int *, u_int, u_int, xdrproc_t);
+extern bool_t	xdr_bytes(XDR *, char **, u_int *, u_int);
+extern bool_t	xdr_opaque(XDR *, char *, u_int);
+extern bool_t	xdr_string(XDR *, char **, u_int);
+extern bool_t	xdr_union(XDR *, enum_t *, char *, const struct xdr_discrim *, xdrproc_t);
+extern bool_t	xdr_char(XDR *, char *);
+extern bool_t	xdr_u_char(XDR *, u_char *);
+extern bool_t	xdr_vector(XDR *, char *, u_int, u_int, xdrproc_t);
+extern bool_t	xdr_float(XDR *, float *);
+extern bool_t	xdr_double(XDR *, double *);
+extern bool_t	xdr_quadruple(XDR *, long double *);
+extern bool_t	xdr_reference(XDR *, char **, u_int, xdrproc_t);
+extern bool_t	xdr_pointer(XDR *, char **, u_int, xdrproc_t);
+extern bool_t	xdr_wrapstring(XDR *, char **);
+extern void	xdr_free(xdrproc_t, void *);
+extern bool_t	xdr_hyper(XDR *, quad_t *);
+extern bool_t	xdr_u_hyper(XDR *, u_quad_t *);
+extern bool_t	xdr_longlong_t(XDR *, quad_t *);
+extern bool_t	xdr_u_longlong_t(XDR *, u_quad_t *);
 extern unsigned long	xdr_sizeof(xdrproc_t, void *);
 __END_DECLS
 
