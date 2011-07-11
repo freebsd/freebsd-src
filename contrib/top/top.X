@@ -205,6 +205,7 @@ The options
 .BR \-H ,
 .BR \-I ,
 .BR \-j ,
+.BR \-P ,
 .BR \-S ,
 .BR \-t ,
 .BR \-u ,
@@ -313,6 +314,9 @@ Toggle the display of idle processes.
 Toggle the display of
 .IR jail (8)
 ID.
+.TP
+.B P
+Toggle the display of per-CPU statistics.
 .TP
 .B t
 Toggle the display of the
