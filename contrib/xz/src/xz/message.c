@@ -94,7 +94,7 @@ static volatile sig_atomic_t progress_needs_updating = false;
 
 /// Signal handler for SIGALRM
 static void
-progress_signal_handler(int sig lzma_attribute((unused)))
+progress_signal_handler(int sig lzma_attribute((__unused__)))
 {
 	progress_needs_updating = true;
 	return;
@@ -726,7 +726,11 @@ vmessage(enum message_verbosity v, const char *fmt, va_list ap)
 
 		progress_flush(false);
 
-		fprintf(stderr, "%s: ", progname);
+		// TRANSLATORS: This is the program name in the beginning
+		// of the line in messages. Usually it becomes "xz: ".
+		// This is a translatable string because French needs
+		// a space before a colon.
+		fprintf(stderr, _("%s: "), progname);
 		vfprintf(stderr, fmt, ap);
 		fputc('\n', stderr);
 
