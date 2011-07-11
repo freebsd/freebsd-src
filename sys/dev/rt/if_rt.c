@@ -2390,7 +2390,7 @@ rt_sysctl_attach(struct rt_softc *sc)
 
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
 	    "TXQ3_data_queued", CTLFLAG_RD, &sc->tx_ring[3].data_queued,
-	    "Tx AC3 data queued");
+	    0, "Tx AC3 data queued");
 
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
 	    "TXQ2_desc_queued", CTLFLAG_RD, &sc->tx_ring[2].desc_queued,
