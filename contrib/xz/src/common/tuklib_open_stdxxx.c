@@ -39,12 +39,14 @@ tuklib_open_stdxxx(int err_status)
 					| (i == 0 ? O_WRONLY : O_RDONLY));
 
 			if (fd != i) {
+				if (fd != -1)
+					(void)close(fd);
+
 				// Something went wrong. Exit with the
 				// exit status we were given. Don't try
 				// to print an error message, since stderr
 				// may very well be non-existent. This
 				// error should be extremely rare.
-				(void)close(fd);
 				exit(err_status);
 			}
 		}
