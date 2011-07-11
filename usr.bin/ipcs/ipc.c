@@ -120,7 +120,7 @@ sysctlgatherstruct(void *addr, size_t size, struct scgs_vector *vecarr)
 		if (rv == -1)
 			err(1, "sysctlbyname: %s", xp->sysctl);
 		if (tsiz != xp->size)
-			errx(1, "%s size mismatch (expected %d, got %d)",
+			errx(1, "%s size mismatch (expected %zu, got %zu)",
 			    xp->sysctl, xp->size, tsiz);
 	}
 }
@@ -199,7 +199,7 @@ kget(int idx, void *addr, size_t size)
 				err(1, "sysctlbyname: %s", sym2sysctl[idx]);
 			if (tsiz != size)
 				errx(1, "%s size mismatch "
-				    "(expected %d, got %d)",
+				    "(expected %zu, got %zu)",
 				    sym2sysctl[idx], size, tsiz);
 			break;
 		}
