@@ -1020,7 +1020,7 @@ restart:
 			    case CMD_thrtog:
 				ps.thread = !ps.thread;
 				new_message(MT_standout | MT_delayed,
-				    "Displaying threads %s",
+				    " Displaying threads %s",
 				    ps.thread ? "separately" : "as a count");
 				header_text = format_header(uname_field);
 				reset_display();
@@ -1029,7 +1029,7 @@ restart:
 			    case CMD_wcputog:
 				ps.wcpu = !ps.wcpu;
 				new_message(MT_standout | MT_delayed,
-				    "Displaying %sCPU",
+				    " Displaying %sCPU",
 				    ps.wcpu ? "W" : "");
 				header_text = format_header(uname_field);
 				reset_display();
