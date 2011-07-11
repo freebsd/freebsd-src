@@ -59,6 +59,7 @@
 #include <sys/module.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
+#include <sys/sbuf.h>
 #include <sys/sysctl.h>
 #include "gs_scheduler.h"
 
