@@ -239,19 +239,48 @@ static const char *format_nice(const struct kinfo_proc *pp);
 static void getsysctl(const char *name, void *ptr, size_t len);
 static int swapmode(int *retavail, int *retfree);
 
+void
+toggle_pcpustats(struct statics *statics)
+{
+
+	if (ncpus == 1)
+		return;
+
+	/* Adjust display based on ncpus */
+	if (pcpu_stats) {
+		y_mem += ncpus - 1;	/* 3 */
+		y_swap += ncpus - 1;	/* 4 */
+		y_idlecursor += ncpus - 1; /* 5 */
+		y_message += ncpus - 1;	/* 5 */
+		y_header += ncpus - 1;	/* 6 */
+		y_procs += ncpus - 1;	/* 7 */
+		Header_lines += ncpus - 1; /* 7 */
+		statics->ncpus = ncpus;
+	} else {
+		y_mem = 3;
+		y_swap = 4;
+		y_idlecursor = 5;
+		y_message = 5;
+		y_header = 6;
+		y_procs = 7;
+		Header_lines = 7;
+		statics->ncpus = 1;
+	}
+}
+
 int
 machine_init(struct statics *statics, char do_unames)
 {
-	int pagesize;
-	size_t modelen;
+	int i, j, empty, pagesize;
+	size_t size;
 	struct passwd *pw;
 
-	modelen = sizeof(smpmode);
-	if ((sysctlbyname("machdep.smp_active", &smpmode, &modelen,
+	size = sizeof(smpmode);
+	if ((sysctlbyname("machdep.smp_active", &smpmode, &size,
 	    NULL, 0) != 0 &&
-	    sysctlbyname("kern.smp.active", &smpmode, &modelen,
+	    sysctlbyname("kern.smp.active", &smpmode, &size,
 	    NULL, 0) != 0) ||
-	    modelen != sizeof(smpmode))
+	    size != sizeof(smpmode))
 		smpmode = 0;
 
 	if (do_unames) {
@@ -299,51 +328,37 @@ machine_init(struct statics *statics, char do_unames)
 	statics->order_names = ordernames;
 #endif
 
-	/* Adjust display based on ncpus */
-	if (pcpu_stats) {
-		int i, j, empty;
-		size_t size;
-
-		cpumask = 0;
-		ncpus = 0;
-		GETSYSCTL("kern.smp.maxcpus", maxcpu);
-		size = sizeof(long) * maxcpu * CPUSTATES;
-		times = malloc(size);
-		if (times == NULL)
-			err(1, "malloc %zd bytes", size);
-		if (sysctlbyname("kern.cp_times", times, &size, NULL, 0) == -1)
-			err(1, "sysctlbyname kern.cp_times");
-		pcpu_cp_time = calloc(1, size);
-		maxid = (size / CPUSTATES / sizeof(long)) - 1;
-		for (i = 0; i <= maxid; i++) {
-			empty = 1;
-			for (j = 0; empty && j < CPUSTATES; j++) {
-				if (times[i * CPUSTATES + j] != 0)
-					empty = 0;
-			}
-			if (!empty) {
-				cpumask |= (1ul << i);
-				ncpus++;
-			}
+	/* Allocate state for per-CPU stats. */
+	cpumask = 0;
+	ncpus = 0;
+	GETSYSCTL("kern.smp.maxcpus", maxcpu);
+	size = sizeof(long) * maxcpu * CPUSTATES;
+	times = malloc(size);
+	if (times == NULL)
+		err(1, "malloc %zd bytes", size);
+	if (sysctlbyname("kern.cp_times", times, &size, NULL, 0) == -1)
+		err(1, "sysctlbyname kern.cp_times");
+	pcpu_cp_time = calloc(1, size);
+	maxid = (size / CPUSTATES / sizeof(long)) - 1;
+	for (i = 0; i <= maxid; i++) {
+		empty = 1;
+		for (j = 0; empty && j < CPUSTATES; j++) {
+			if (times[i * CPUSTATES + j] != 0)
+				empty = 0;
 		}
-
-		if (ncpus > 1) {
-			y_mem += ncpus - 1;	/* 3 */
-			y_swap += ncpus - 1;	/* 4 */
-			y_idlecursor += ncpus - 1; /* 5 */
-			y_message += ncpus - 1;	/* 5 */
-			y_header += ncpus - 1;	/* 6 */
-			y_procs += ncpus - 1;	/* 7 */
-			Header_lines += ncpus - 1; /* 7 */
+		if (!empty) {
+			cpumask |= (1ul << i);
+			ncpus++;
 		}
-		size = sizeof(long) * ncpus * CPUSTATES;
-		pcpu_cp_old = calloc(1, size);
-		pcpu_cp_diff = calloc(1, size);
-		pcpu_cpu_states = calloc(1, size);
-		statics->ncpus = ncpus;
-	} else {
-		statics->ncpus = 1;
 	}
+	size = sizeof(long) * ncpus * CPUSTATES;
+	pcpu_cp_old = calloc(1, size);
+	pcpu_cp_diff = calloc(1, size);
+	pcpu_cpu_states = calloc(1, size);
+	statics->ncpus = 1;
+
+	if (pcpu_stats)
+		toggle_pcpustats(statics);
 
 	/* all done! */
 	return (0);
@@ -398,14 +413,11 @@ get_system_info(struct system_info *si)
 	int i, j;
 	size_t size;
 
-	/* get the cp_time array */
-	if (pcpu_stats) {
-		size = (maxid + 1) * CPUSTATES * sizeof(long);
-		if (sysctlbyname("kern.cp_times", pcpu_cp_time, &size, NULL, 0) == -1)
-			err(1, "sysctlbyname kern.cp_times");
-	} else {
-		GETSYSCTL("kern.cp_time", cp_time);
-	}
+	/* get the CPU stats */
+	size = (maxid + 1) * CPUSTATES * sizeof(long);
+	if (sysctlbyname("kern.cp_times", pcpu_cp_time, &size, NULL, 0) == -1)
+		err(1, "sysctlbyname kern.cp_times");
+	GETSYSCTL("kern.cp_time", cp_time);
 	GETSYSCTL("vm.loadavg", sysload);
 	GETSYSCTL("kern.lastpid", lastpid);
 
@@ -413,21 +425,17 @@ get_system_info(struct system_info *si)
 	for (i = 0; i < 3; i++)
 		si->load_avg[i] = (double)sysload.ldavg[i] / sysload.fscale;
 
-	if (pcpu_stats) {
-		for (i = j = 0; i <= maxid; i++) {
-			if ((cpumask & (1ul << i)) == 0)
-				continue;
-			/* convert cp_time counts to percentages */
-			percentages(CPUSTATES, &pcpu_cpu_states[j * CPUSTATES],
-			    &pcpu_cp_time[j * CPUSTATES],
-			    &pcpu_cp_old[j * CPUSTATES],
-			    &pcpu_cp_diff[j * CPUSTATES]);
-			j++;
-		}
-	} else {
-		/* convert cp_time counts to percentages */
-		percentages(CPUSTATES, cpu_states, cp_time, cp_old, cp_diff);
+	/* convert cp_time counts to percentages */
+	for (i = j = 0; i <= maxid; i++) {
+		if ((cpumask & (1ul << i)) == 0)
+			continue;
+		percentages(CPUSTATES, &pcpu_cpu_states[j * CPUSTATES],
+		    &pcpu_cp_time[j * CPUSTATES],
+		    &pcpu_cp_old[j * CPUSTATES],
+		    &pcpu_cp_diff[j * CPUSTATES]);
+		j++;
 	}
+	percentages(CPUSTATES, cpu_states, cp_time, cp_old, cp_diff);
 
 	/* sum memory & swap statistics */
 	{
