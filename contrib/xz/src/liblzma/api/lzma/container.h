@@ -66,6 +66,10 @@
  * This function is a wrapper for lzma_raw_encoder_memusage().
  *
  * \param       preset  Compression preset (level and possible flags)
+ *
+ * \return      Number of bytes of memory required for the given
+ *              preset when encoding. If an error occurs, for example
+ *              due to unsupported preset, UINT64_MAX is returned.
  */
 extern LZMA_API(uint64_t) lzma_easy_encoder_memusage(uint32_t preset)
 		lzma_nothrow lzma_attr_pure;
@@ -77,6 +81,11 @@ extern LZMA_API(uint64_t) lzma_easy_encoder_memusage(uint32_t preset)
  * This function is a wrapper for lzma_raw_decoder_memusage().
  *
  * \param       preset  Compression preset (level and possible flags)
+ *
+ * \return      Number of bytes of memory required to decompress a file
+ *              that was compressed using the given preset. If an error
+ *              occurs, for example due to unsupported preset, UINT64_MAX
+ *              is returned.
  */
 extern LZMA_API(uint64_t) lzma_easy_decoder_memusage(uint32_t preset)
 		lzma_nothrow lzma_attr_pure;
@@ -148,6 +157,7 @@ extern LZMA_API(lzma_ret) lzma_easy_encoder(
  *
  * \return      - LZMA_OK: Encoding was successful.
  *              - LZMA_BUF_ERROR: Not enough output buffer space.
+ *              - LZMA_UNSUPPORTED_CHECK
  *              - LZMA_OPTIONS_ERROR
  *              - LZMA_MEM_ERROR
  *              - LZMA_DATA_ERROR
@@ -171,6 +181,7 @@ extern LZMA_API(lzma_ret) lzma_easy_buffer_encode(
  *
  * \return      - LZMA_OK: Initialization was successful.
  *              - LZMA_MEM_ERROR
+ *              - LZMA_UNSUPPORTED_CHECK
  *              - LZMA_OPTIONS_ERROR
  *              - LZMA_PROG_ERROR
  */
@@ -250,6 +261,7 @@ extern LZMA_API(size_t) lzma_stream_buffer_bound(size_t uncompressed_size)
  *
  * \return      - LZMA_OK: Encoding was successful.
  *              - LZMA_BUF_ERROR: Not enough output buffer space.
+ *              - LZMA_UNSUPPORTED_CHECK
  *              - LZMA_OPTIONS_ERROR
  *              - LZMA_MEM_ERROR
  *              - LZMA_DATA_ERROR
