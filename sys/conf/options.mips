@@ -70,3 +70,11 @@ OCTEON_BOARD_CAPK_0100ND	opt_cvmx.h
 # Options that control the Atheros SoC peripherals
 #
 ARGE_DEBUG			opt_global.h
+
+#
+# Options that control the Ralink RT305xF Etherenet MAC.
+#
+IF_RT_DEBUG			opt_if_rt.h
+IF_RT_PHY_SUPPORT		opt_if_rt.h
+IF_RT_RING_DATA_COUNT		opt_if_rt.h
+
