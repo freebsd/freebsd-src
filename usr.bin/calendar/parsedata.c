@@ -548,6 +548,24 @@ parsedaymonth(char *date, int *yearp, int *monthp, int *dayp, int *flags,
 			continue;
 		}
 
+		/* Every so-manied dayofweek of every month of the year */
+		if (lflags == (F_DAYOFWEEK | F_MODIFIERINDEX | F_VARIABLE)) {
+			offset = indextooffset(modifierindex);
+
+			for (m = 0; m < 12; m++) {
+				dow = first_dayofweek_of_month(year, m);
+				d = (idayofweek - dow + 8) % 7;
+				d += (offset - 1) * 7;
+				if (remember_ymd(year, m, d)) {
+					remember(&remindex,
+					    yearp, monthp, dayp, edp,
+					    year, m, d, NULL);
+					continue;
+				}
+			}
+			continue;
+		}
+
 		/* A certain dayofweek of a month */
 		if (lflags ==
 		    (F_MONTH | F_DAYOFWEEK | F_MODIFIERINDEX | F_VARIABLE)) {
@@ -917,6 +935,16 @@ indextooffset(char *s)
 {
 	int i;
 	struct fixs *n;
+
+	if (s[0] == '+' || s[0] == '-') {
+		char ss[9];
+		for (i = -100; i < 100; i++) {
+			sprintf(ss, "%s%d", (i > 0) ? "+" : "", i);
+			if (strcmp(ss, s) == 0)
+				return (i);
+		}
+		return (0);
+	}
 
 	for (i = 0; i < 6; i++) {
 		if (strcasecmp(s, sequences[i]) == 0) {
