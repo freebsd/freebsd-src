@@ -818,6 +818,8 @@ showflags(int flags)
 static const char *
 getmonthname(int i)
 {
+	if (i <= 0 || i > 12)
+		return ("");
 	if (nmonths[i - 1].len != 0 && nmonths[i - 1].name != NULL)
 		return (nmonths[i - 1].name);
 	return (months[i - 1]);
