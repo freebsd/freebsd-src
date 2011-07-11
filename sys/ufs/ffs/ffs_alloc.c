@@ -2032,7 +2032,11 @@ ffs_blkfree(ump, fs, devvp, bno, size, inum)
 	    ffs_snapblkfree(fs, devvp, bno, size, inum)) {
 		return;
 	}
-	if (!ump->um_candelete) {
+	/*
+	 * Nothing to delay if TRIM is disabled, or the operation is
+	 * performed on the snapshot.
+	 */
+	if (!ump->um_candelete || devvp->v_type == VREG) {
 		ffs_blkfree_cg(ump, fs, devvp, bno, size, inum);
 		return;
 	}
