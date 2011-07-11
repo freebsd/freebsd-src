@@ -28,8 +28,10 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/types.h>
 #include <sys/libkern.h>
 #include <sys/malloc.h>
+#include <sys/sbuf.h>
 
 #include <geom/geom.h>
 #include <geom/vinum/geom_vinum_var.h>

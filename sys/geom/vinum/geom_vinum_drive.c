@@ -27,8 +27,10 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/types.h>
 #include <sys/endian.h>
 #include <sys/malloc.h>
+#include <sys/sbuf.h>
 #include <sys/systm.h>
 
 #include <geom/geom.h>
