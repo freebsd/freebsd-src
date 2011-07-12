@@ -15,12 +15,14 @@ SRCS=	cd9660.c	\
 VERSION_DEF=	${.CURDIR}/Versions.def
 SYMBOL_MAPS=	${.CURDIR}/Symbol.map
 
-INCS=	libprocstat.h
+INCS=		libprocstat.h
 CFLAGS+=	-I. -I${.CURDIR} -D_KVM_VNODE
 SHLIB_MAJOR=	1
-WITHOUT_MAN=	yes
+
 DPADD=		${LIBKVM} ${LIBUTIL}
 LDADD=		-lkvm -lutil
+
+MAN=		libprocstat.3
 
 .if ${MK_NCP} != "no"
 CFLAGS+=	-DLIBPROCSTAT_NWFS
