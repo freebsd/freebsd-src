@@ -611,7 +611,7 @@ main(int argc, char *argv[])
 	dir = bpb.bpbResSectors + (bpb.bpbFATsecs ? bpb.bpbFATsecs : bpb.bpbBigFATsecs) * bpb.bpbFATs;
 	memset(&si_sa, 0, sizeof(si_sa));
 	si_sa.sa_handler = infohandler;
-	if (sigaction(SIGINFO, &si_sa, 0) == -1)
+	if (sigaction(SIGINFO, &si_sa, NULL) == -1)
 		err(1, "sigaction SIGINFO");
 	for (lsn = 0; lsn < dir + (fat == 32 ? bpb.bpbSecPerClust : rds); lsn++) {
 	    if (got_siginfo) {
