@@ -192,41 +192,29 @@ struct ip6protosw inet6sw[] = {
 },
 #ifdef SCTP
 {
-	.pr_type =	SOCK_DGRAM,
-	.pr_domain =	&inet6domain,
-        .pr_protocol =	IPPROTO_SCTP,
-        .pr_flags =	PR_WANTRCVD,
-        .pr_input =	sctp6_input,
-        .pr_ctlinput =  sctp6_ctlinput,
-        .pr_ctloutput = sctp_ctloutput,
-        .pr_drain =	sctp_drain,
+	.pr_type =		SOCK_SEQPACKET,
+	.pr_domain =		&inet6domain,
+	.pr_protocol =		IPPROTO_SCTP,
+	.pr_flags =		PR_WANTRCVD,
+	.pr_input =		sctp6_input,
+	.pr_ctlinput =		sctp6_ctlinput,
+	.pr_ctloutput =	sctp_ctloutput,
+	.pr_drain =		sctp_drain,
 #ifndef INET	/* Do not call initialization twice. */
-	.pr_init =	sctp_init,
+	.pr_init =		sctp_init,
 #endif
-        .pr_usrreqs =	&sctp6_usrreqs
+	.pr_usrreqs =		&sctp6_usrreqs
 },
 {
-	.pr_type =	SOCK_SEQPACKET,
-	.pr_domain =	&inet6domain,
-        .pr_protocol =	IPPROTO_SCTP,
-        .pr_flags =	PR_WANTRCVD,
-        .pr_input =	sctp6_input,
-        .pr_ctlinput =  sctp6_ctlinput,
-        .pr_ctloutput = sctp_ctloutput,
-        .pr_drain =	sctp_drain,
-        .pr_usrreqs =	&sctp6_usrreqs
-},
-
-{
-	.pr_type =	SOCK_STREAM,
-	.pr_domain =	&inet6domain,
-        .pr_protocol =	IPPROTO_SCTP,
-        .pr_flags =	PR_WANTRCVD,
-        .pr_input =	sctp6_input,
-        .pr_ctlinput =  sctp6_ctlinput,
-        .pr_ctloutput = sctp_ctloutput,
-        .pr_drain =	sctp_drain,
-        .pr_usrreqs =	&sctp6_usrreqs
+	.pr_type =		SOCK_STREAM,
+	.pr_domain =		&inet6domain,
+	.pr_protocol =		IPPROTO_SCTP,
+	.pr_flags =		PR_WANTRCVD,
+	.pr_input =		sctp6_input,
+	.pr_ctlinput =	sctp6_ctlinput,
+	.pr_ctloutput =		sctp_ctloutput,
+	.pr_drain =		sctp_drain,
+	.pr_usrreqs =		&sctp6_usrreqs
 },
 #endif /* SCTP */
 {
