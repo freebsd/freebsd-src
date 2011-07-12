@@ -163,7 +163,7 @@ struct protosw inetsw[] = {
 },
 #ifdef SCTP
 { 
-	.pr_type =		SOCK_DGRAM,
+	.pr_type =		SOCK_SEQPACKET,
 	.pr_domain =		&inetdomain,
 	.pr_protocol =		IPPROTO_SCTP,
 	.pr_flags =		PR_WANTRCVD,
@@ -177,18 +177,6 @@ struct protosw inetsw[] = {
 	.pr_drain =		sctp_drain,
 	.pr_usrreqs =		&sctp_usrreqs
 },
-{
-	.pr_type =		SOCK_SEQPACKET,
-	.pr_domain =		&inetdomain,
-	.pr_protocol =		IPPROTO_SCTP,
-	.pr_flags =		PR_WANTRCVD,
-	.pr_input =		sctp_input,
-	.pr_ctlinput =		sctp_ctlinput,
-	.pr_ctloutput =		sctp_ctloutput,
-	.pr_drain =		sctp_drain,
-	.pr_usrreqs =		&sctp_usrreqs
-},
-
 { 
 	.pr_type =		SOCK_STREAM,
 	.pr_domain =		&inetdomain,
