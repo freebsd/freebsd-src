@@ -251,17 +251,26 @@ makemsg(char *fname)
 			err(1, "can't read %s", fname);
 		setegid(egid);
 	}
-	while (fgets(lbuf, sizeof(lbuf), stdin))
-		for (cnt = 0, p = lbuf; (ch = *p) != '\0'; ++p, ++cnt) {
+	cnt = 0;
+	while (fgets(lbuf, sizeof(lbuf), stdin)) {
+		for (p = lbuf; (ch = *p) != '\0'; ++p, ++cnt) {
 			if (ch == '\r') {
+				putc('\r', fp);
 				cnt = 0;
-			} else if (cnt == 79 || ch == '\n') {
+				continue;
+			} else if (ch == '\n') {
 				for (; cnt < 79; ++cnt)
 					putc(' ', fp);
 				putc('\r', fp);
 				putc('\n', fp);
+				break;
+			}
+			if (cnt == 79) {
+				putc('\r', fp);
+				putc('\n', fp);
 				cnt = 0;
-			} else if (((ch & 0x80) && ch < 0xA0) ||
+			}
+			if (((ch & 0x80) && ch < 0xA0) ||
 				   /* disable upper controls */
 				   (!isprint(ch) && !isspace(ch) &&
 				    ch != '\a' && ch != '\b')
@@ -290,11 +299,10 @@ makemsg(char *fname)
 						cnt = 0;
 					}
 				}
-				putc(ch, fp);
-			} else {
-				putc(ch, fp);
 			}
+			putc(ch, fp);
 		}
+	}
 	(void)fprintf(fp, "%79s\r\n", " ");
 	rewind(fp);
 
