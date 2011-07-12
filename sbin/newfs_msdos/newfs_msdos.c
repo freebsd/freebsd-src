@@ -44,6 +44,7 @@ static const char rcsid[] =
 #include <fcntl.h>
 #include <inttypes.h>
 #include <paths.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -216,6 +217,9 @@ static const u_int8_t bootcode[] = {
     0
 };
 
+static volatile sig_atomic_t got_siginfo;
+static void infohandler(int);
+
 static void check_mounted(const char *, mode_t);
 static void getstdfmt(const char *, struct bpb *);
 static void getdiskinfo(int, const char *, const char *, int,
@@ -243,6 +247,7 @@ main(int argc, char *argv[])
     int opt_N = 0;
     int Iflag = 0, mflag = 0, oflag = 0;
     char buf[MAXPATHLEN];
+    struct sigaction si_sa;
     struct stat sb;
     struct timeval tv;
     struct bpb bpb;
@@ -604,7 +609,19 @@ main(int argc, char *argv[])
 	if (!(img = malloc(bpb.bpbBytesPerSec)))
 	    err(1, NULL);
 	dir = bpb.bpbResSectors + (bpb.bpbFATsecs ? bpb.bpbFATsecs : bpb.bpbBigFATsecs) * bpb.bpbFATs;
+	memset(&si_sa, 0, sizeof(si_sa));
+	si_sa.sa_handler = infohandler;
+	if (sigaction(SIGINFO, &si_sa, 0) == -1)
+		err(1, "sigaction SIGINFO");
 	for (lsn = 0; lsn < dir + (fat == 32 ? bpb.bpbSecPerClust : rds); lsn++) {
+	    if (got_siginfo) {
+		    fprintf(stderr,"%s: writing sector %u of %u (%u%%)\n",
+			fname, lsn,
+			(dir + (fat == 32 ? bpb.bpbSecPerClust: rds)),
+			(lsn * 100) / (dir +
+			    (fat == 32 ? bpb.bpbSecPerClust: rds)));
+		    got_siginfo = 0;
+	    }
 	    x = lsn;
 	    if (opt_B &&
 		fat == 32 && bpb.bpbBackup != MAXU16 &&
@@ -1016,4 +1033,11 @@ usage(void)
 	    "\t-s file system size (sectors)\n"
 	    "\t-u sectors/track\n");
 	exit(1);
+}
+
+static void
+infohandler(int sig __unused)
+{
+
+	got_siginfo = 1;
 }
