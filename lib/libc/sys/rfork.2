@@ -5,7 +5,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 15, 2011
+.Dd July 12, 2011
 .Dt RFORK 2
 .Os
 .Sh NAME
@@ -84,8 +84,18 @@ Note that a lot of code will not run correctly in such an environment.
 .It Dv RFSIGSHARE
 If set, the kernel will force sharing the sigacts structure between the
 child and the parent.
+.It Dv RFTSIGZMB
+If set, the kernel will deliver a specified signal to the parent
+upon the child exit, instead of default SIGCHLD.
+The signal number
+.Dv signum
+is specified by oring the
+.Dv RFTSIGFLAGS(signum)
+expression into
+.Fa flags .
+Specifying signal number 0 disables signal delivery upon the child exit.
 .It Dv RFLINUXTHPN
-If set, the kernel will return SIGUSR1 instead of SIGCHILD upon thread
+If set, the kernel will deliver SIGUSR1 instead of SIGCHLD upon thread
 exit for the child.
 This is intended to mimic certain Linux clone behaviour.
 .El
@@ -164,6 +174,8 @@ would be exceeded (see
 Both the RFFDG and the RFCFDG flags were specified.
 .It Bq Er EINVAL
 Any flags not listed above were specified.
+.It Bq Er EINVAL
+An invalid signal number was specified.
 .It Bq Er ENOMEM
 There is insufficient swap space for the new process.
 .El
