@@ -726,6 +726,7 @@ get_process_info(struct system_info *si, struct process_select *sel,
 			prev_pp = pp;
 		} else {
 			prev_pp->ki_pctcpu += pp->ki_pctcpu;
+			prev_pp->ki_runtime += pp->ki_runtime;
 		}
 	}
 
