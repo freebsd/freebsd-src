@@ -1527,8 +1527,8 @@ nfsrpc_writerpc(vnode_t vp, struct uio *uiop, int *iomode,
 		 * deadlock, is that the upcall times out and allows
 		 * the write to complete. However, progress is so slow
 		 * that it might just as well be deadlocked.
-		 * So, we just get the attributes that change with each
-		 * write Op.
+		 * As such, we get the rest of the attributes, but not
+		 * Owner or Owner_group.
 		 * nb: nfscl_loadattrcache() needs to be told that these
 		 *     partial attributes from a write rpc are being
 		 *     passed in, via a argument flag.
