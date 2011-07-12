@@ -251,8 +251,9 @@ makemsg(char *fname)
 			err(1, "can't read %s", fname);
 		setegid(egid);
 	}
+	cnt = 0;
 	while (fgets(lbuf, sizeof(lbuf), stdin)) {
-		for (cnt = 0, p = lbuf; (ch = *p) != '\0'; ++p, ++cnt) {
+		for (p = lbuf; (ch = *p) != '\0'; ++p, ++cnt) {
 			if (ch == '\r') {
 				putc('\r', fp);
 				cnt = 0;
