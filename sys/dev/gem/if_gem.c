@@ -121,7 +121,7 @@ static void	gem_rint_timeout(void *arg);
 #endif
 static inline void gem_rxcksum(struct mbuf *m, uint64_t flags);
 static void	gem_rxdrain(struct gem_softc *sc);
-static void	gem_setladrf(struct gem_softc *sc, u_int enable);
+static void	gem_setladrf(struct gem_softc *sc);
 static void	gem_start(struct ifnet *ifp);
 static void	gem_start_locked(struct ifnet *ifp);
 static void	gem_stop(struct ifnet *ifp, int disable);
@@ -772,24 +772,22 @@ gem_reset_rxdma(struct gem_softc *sc)
 	    GEM_RX_CONFIG_CXM_START_SHFT) |
 	    (GEM_THRSH_1024 << GEM_RX_CONFIG_FIFO_THRS_SHIFT) |
 	    (ETHER_ALIGN << GEM_RX_CONFIG_FBOFF_SHFT));
-	/* Adjust for the SBus clock probably isn't worth the fuzz. */
+	/* Adjusting for the SBus clock probably isn't worth the fuzz. */
 	GEM_BANK1_WRITE_4(sc, GEM_RX_BLANKING,
 	    ((6 * (sc->sc_flags & GEM_PCI66) != 0 ? 2 : 1) <<
 	    GEM_RX_BLANKING_TIME_SHIFT) | 6);
 	GEM_BANK1_WRITE_4(sc, GEM_RX_PAUSE_THRESH,
 	    (3 * sc->sc_rxfifosize / 256) |
 	    ((sc->sc_rxfifosize / 256) << 12));
-	/*
-	 * Clear the RX filter and reprogram it.  This will also set the
-	 * current RX MAC configuration.
-	 */
-	gem_setladrf(sc, 0);
 	GEM_BANK1_WRITE_4(sc, GEM_RX_CONFIG,
 	    GEM_BANK1_READ_4(sc, GEM_RX_CONFIG) | GEM_RX_CONFIG_RXDMA_EN);
 	GEM_BANK1_WRITE_4(sc, GEM_MAC_RX_MASK,
 	    GEM_MAC_RX_DONE | GEM_MAC_RX_FRAME_CNT);
-	GEM_BANK1_WRITE_4(sc, GEM_MAC_RX_CONFIG,
-	    sc->sc_mac_rxcfg | GEM_MAC_RX_ENABLE);
+	/*
+	 * Clear the RX filter and reprogram it.  This will also set the
+	 * current RX MAC configuration and enable it.
+	 */
+	gem_setladrf(sc);
 }
 
 static int
@@ -983,7 +981,6 @@ gem_init_locked(struct gem_softc *sc)
 	gem_init_regs(sc);
 
 	/* step 5.  RX MAC registers & counters */
-	gem_setladrf(sc, 0);
 
 	/* step 6 & 7.  Program Descriptor Ring Base Addresses. */
 	/* NOTE: we use only 32-bit DMA addresses here. */
@@ -1055,7 +1052,7 @@ gem_init_locked(struct gem_softc *sc)
 	    (ETHER_ALIGN << GEM_RX_CONFIG_FBOFF_SHFT) |
 	    GEM_RX_CONFIG_RXDMA_EN);
 
-	/* Adjust for the SBus clock probably isn't worth the fuzz. */
+	/* Adjusting for the SBus clock probably isn't worth the fuzz. */
 	GEM_BANK1_WRITE_4(sc, GEM_RX_BLANKING,
 	    ((6 * (sc->sc_flags & GEM_PCI66) != 0 ? 2 : 1) <<
 	    GEM_RX_BLANKING_TIME_SHIFT) | 6);
@@ -1072,10 +1069,14 @@ gem_init_locked(struct gem_softc *sc)
 
 	/* step 12.  RX_MAC Configuration Register */
 	v = GEM_BANK1_READ_4(sc, GEM_MAC_RX_CONFIG);
-	v |= GEM_MAC_RX_ENABLE | GEM_MAC_RX_STRIP_CRC;
-	(void)gem_disable_rx(sc);
-	sc->sc_mac_rxcfg = v & ~GEM_MAC_RX_ENABLE;
-	GEM_BANK1_WRITE_4(sc, GEM_MAC_RX_CONFIG, v);
+	v &= ~GEM_MAC_RX_ENABLE;
+	v |= GEM_MAC_RX_STRIP_CRC;
+	sc->sc_mac_rxcfg = v;
+	/*
+	 * Clear the RX filter and reprogram it.  This will also set the
+	 * current RX MAC configuration and enable it.
+	 */
+	gem_setladrf(sc);
 
 	/* step 13.  TX_MAC Configuration Register */
 	v = GEM_BANK1_READ_4(sc, GEM_MAC_TX_CONFIG);
@@ -2156,7 +2157,7 @@ gem_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0 &&
 			    ((ifp->if_flags ^ sc->sc_ifflags) &
 			    (IFF_ALLMULTI | IFF_PROMISC)) != 0)
-				gem_setladrf(sc, 1);
+				gem_setladrf(sc);
 			else
 				gem_init_locked(sc);
 		} else if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
@@ -2174,7 +2175,7 @@ gem_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	case SIOCDELMULTI:
 		GEM_LOCK(sc);
 		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
-			gem_setladrf(sc, 1);
+			gem_setladrf(sc);
 		GEM_UNLOCK(sc);
 		break;
 	case SIOCGIFMEDIA:
@@ -2199,7 +2200,7 @@ gem_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 }
 
 static void
-gem_setladrf(struct gem_softc *sc, u_int enable)
+gem_setladrf(struct gem_softc *sc)
 {
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ifmultiaddr *inm;
@@ -2269,7 +2270,5 @@ gem_setladrf(struct gem_softc *sc, u_int enable)
 
  chipit:
 	sc->sc_mac_rxcfg = v;
-	if (enable)
-		v |= GEM_MAC_RX_ENABLE;
-	GEM_BANK1_WRITE_4(sc, GEM_MAC_RX_CONFIG, v);
+	GEM_BANK1_WRITE_4(sc, GEM_MAC_RX_CONFIG, v | GEM_MAC_RX_ENABLE);
 }
