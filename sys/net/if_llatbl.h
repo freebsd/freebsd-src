@@ -146,15 +146,12 @@ struct lltable {
 	int			llt_af;
 	struct ifnet		*llt_ifp;
 
-	struct llentry *	(*llt_new)(const struct sockaddr *, u_int);
 	void			(*llt_free)(struct lltable *, struct llentry *);
 	void			(*llt_prefix_free)(struct lltable *,
 				    const struct sockaddr *prefix,
 				    const struct sockaddr *mask);
 	struct llentry *	(*llt_lookup)(struct lltable *, u_int flags,
 				    const struct sockaddr *l3addr);
-	int			(*llt_rtcheck)(struct ifnet *, u_int flags,
-				    const struct sockaddr *);
 	int			(*llt_dump)(struct lltable *,
 				     struct sysctl_req *);
 };

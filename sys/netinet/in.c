@@ -1399,6 +1399,18 @@ in_lltable_rtcheck(struct ifnet *ifp, u_int flags, const struct sockaddr *l3addr
 
 	/* XXX rtalloc1 should take a const param */
 	rt = rtalloc1(__DECONST(struct sockaddr *, l3addr), 0, 0);
+
+	/*
+	 * If the gateway for an existing host route matches the target L3
+	 * address, allow for ARP to proceed.
+	 */
+	if (rt != NULL && (rt->rt_flags & (RTF_HOST|RTF_GATEWAY)) &&
+	    rt->rt_gateway->sa_family == AF_INET &&
+	    memcmp(rt->rt_gateway->sa_data, l3addr->sa_data, 4) == 0) {
+		RTFREE_LOCKED(rt);
+		return (0);
+	}
+
 	if (rt == NULL || (!(flags & LLE_PUB) &&
 			   ((rt->rt_flags & RTF_GATEWAY) || 
 			    (rt->rt_ifp != ifp)))) {
@@ -1581,10 +1593,8 @@ in_domifattach(struct ifnet *ifp)
 
 	llt = lltable_init(ifp, AF_INET);
 	if (llt != NULL) {
-		llt->llt_new = in_lltable_new;
 		llt->llt_free = in_lltable_free;
 		llt->llt_prefix_free = in_lltable_prefix_free;
-		llt->llt_rtcheck = in_lltable_rtcheck;
 		llt->llt_lookup = in_lltable_lookup;
 		llt->llt_dump = in_lltable_dump;
 	}
