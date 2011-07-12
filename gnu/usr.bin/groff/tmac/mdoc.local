@@ -56,6 +56,7 @@
 .ds doc-str-Lb-libnetgraph Netgraph User Library (libnetgraph, \-lnetgraph)
 .ds doc-str-Lb-libpmc      Performance Monitoring Counters Interface Library (libpmc, \-lpmc)
 .ds doc-str-Lb-libproc     Processor Monitoring and Analysis Library (libproc, \-lproc)
+.ds doc-str-Lb-libprocstat Process and Files Information Retrieval (libprocstat, \-lprocstat)
 .ds doc-str-Lb-librpcsec_gss RPC GSS-API Authentication Library (librpcsec_gss, \-lrpcsec_gss)
 .ds doc-str-Lb-librpcsvc   RPC Service Library (librpcsvc, \-lrpcsvc)
 .ds doc-str-Lb-librtld_db  Run-time Linker Debugging Library (librtld_db, \-lrtld_db)
