@@ -2834,7 +2834,7 @@ mxge_media_init(mxge_softc_t *sc)
 			return;
 		}
 	}
-	if (*ptr == 'C') {
+	if (*ptr == 'C' || *(ptr +1) == 'C') {
 		/* -C is CX4 */
 		sc->connector = MXGE_CX4;
 		mxge_media_set(sc, IFM_10G_CX4);
