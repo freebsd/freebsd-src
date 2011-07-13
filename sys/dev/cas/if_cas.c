@@ -203,7 +203,7 @@ cas_attach(struct cas_softc *sc)
 	IFQ_SET_READY(&ifp->if_snd);
 
 	callout_init_mtx(&sc->sc_tick_ch, &sc->sc_mtx, 0);
-	callout_init(&sc->sc_rx_ch, 1);
+	callout_init_mtx(&sc->sc_rx_ch, &sc->sc_mtx, 0);
 	/* Create local taskq. */
 	TASK_INIT(&sc->sc_intr_task, 0, cas_intr_task, sc);
 	TASK_INIT(&sc->sc_tx_task, 1, cas_tx_task, ifp);
@@ -1599,7 +1599,7 @@ cas_rint_timeout(void *arg)
 {
 	struct cas_softc *sc = arg;
 
-	CAS_LOCK_ASSERT(sc, MA_NOTOWNED);
+	CAS_LOCK_ASSERT(sc, MA_OWNED);
 
 	cas_rint(sc);
 }
@@ -1614,7 +1614,7 @@ cas_rint(struct cas_softc *sc)
 	uint32_t rxhead;
 	u_int idx, idx2, len, off, skip;
 
-	CAS_LOCK_ASSERT(sc, MA_NOTOWNED);
+	CAS_LOCK_ASSERT(sc, MA_OWNED);
 
 	callout_stop(&sc->sc_rx_ch);
 
@@ -1742,7 +1742,9 @@ cas_rint(struct cas_softc *sc)
 					cas_rxcksum(m, CAS_GET(word4,
 					    CAS_RC4_TCP_CSUM));
 				/* Pass it on. */
+				CAS_UNLOCK(sc);
 				(*ifp->if_input)(ifp, m);
+				CAS_LOCK(sc);
 			} else
 				ifp->if_iqdrops++;
 
@@ -1838,7 +1840,9 @@ cas_rint(struct cas_softc *sc)
 					cas_rxcksum(m, CAS_GET(word4,
 					    CAS_RC4_TCP_CSUM));
 				/* Pass it on. */
+				CAS_UNLOCK(sc);
 				(*ifp->if_input)(ifp, m);
+				CAS_LOCK(sc);
 			} else
 				ifp->if_iqdrops++;
 
@@ -1876,7 +1880,7 @@ cas_free(void *arg1, void *arg2)
 {
 	struct cas_rxdsoft *rxds;
 	struct cas_softc *sc;
-	u_int idx;
+	u_int idx, locked;
 
 #if __FreeBSD_version < 800016
 	rxds = arg2;
@@ -1894,17 +1898,18 @@ cas_free(void *arg1, void *arg2)
 	 * NB: this function can be called via m_freem(9) within
 	 * this driver!
 	 */
-
+	if ((locked = CAS_LOCK_OWNED(sc)) == 0)
+		CAS_LOCK(sc);
 	cas_add_rxdesc(sc, idx);
+	if (locked == 0)
+		CAS_UNLOCK(sc);
 }
 
 static inline void
 cas_add_rxdesc(struct cas_softc *sc, u_int idx)
 {
-	u_int locked;
 
-	if ((locked = CAS_LOCK_OWNED(sc)) == 0)
-		CAS_LOCK(sc);
+	CAS_LOCK_ASSERT(sc, MA_OWNED);
 
 	bus_dmamap_sync(sc->sc_rdmatag, sc->sc_rxdsoft[idx].rxds_dmamap,
 	    BUS_DMASYNC_PREREAD);
@@ -1922,9 +1927,6 @@ cas_add_rxdesc(struct cas_softc *sc, u_int idx)
 		CAS_WRITE_4(sc, CAS_RX_KICK,
 		    (sc->sc_rxdptr + CAS_NRXDESC - 4) & CAS_NRXDESC_MASK);
 	}
-
-	if (locked == 0)
-		CAS_UNLOCK(sc);
 }
 
 static void
@@ -1932,7 +1934,7 @@ cas_eint(struct cas_softc *sc, u_int status)
 {
 	struct ifnet *ifp = sc->sc_ifp;
 
-	CAS_LOCK_ASSERT(sc, MA_NOTOWNED);
+	CAS_LOCK_ASSERT(sc, MA_OWNED);
 
 	ifp->if_ierrors++;
 
@@ -1949,7 +1951,7 @@ cas_eint(struct cas_softc *sc, u_int status)
 	printf("\n");
 
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-	cas_init(sc);
+	cas_init_locked(sc);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		taskqueue_enqueue(sc->sc_tq, &sc->sc_tx_task);
 }
@@ -1986,6 +1988,7 @@ cas_intr_task(void *arg, int pending __unused)
 	if (__predict_false((status & CAS_INTR_SUMMARY) == 0))
 		goto done;
 
+	CAS_LOCK(sc);
 #ifdef CAS_DEBUG
 	CTR4(KTR_CAS, "%s: %s: cplt %x, status %x",
 	    device_get_name(sc->sc_dev), __func__,
@@ -2025,6 +2028,7 @@ cas_intr_task(void *arg, int pending __unused)
 	    (CAS_INTR_TX_TAG_ERR | CAS_INTR_RX_TAG_ERR |
 	    CAS_INTR_RX_LEN_MMATCH | CAS_INTR_PCI_ERROR_INT)) != 0)) {
 		cas_eint(sc, status);
+		CAS_UNLOCK(sc);
 		return;
 	}
 
@@ -2032,7 +2036,7 @@ cas_intr_task(void *arg, int pending __unused)
 		status2 = CAS_READ_4(sc, CAS_MAC_TX_STATUS);
 		if ((status2 &
 		    (CAS_MAC_TX_UNDERRUN | CAS_MAC_TX_MAX_PKT_ERR)) != 0)
-			sc->sc_ifp->if_oerrors++;
+			ifp->if_oerrors++;
 		else if ((status2 & ~CAS_MAC_TX_FRAME_XMTD) != 0)
 			device_printf(sc->sc_dev,
 			    "MAC TX fault, status %x\n", status2);
@@ -2041,7 +2045,7 @@ cas_intr_task(void *arg, int pending __unused)
 	if (__predict_false(status & CAS_INTR_RX_MAC_INT)) {
 		status2 = CAS_READ_4(sc, CAS_MAC_RX_STATUS);
 		if ((status2 & CAS_MAC_RX_OVERFLOW) != 0)
-			sc->sc_ifp->if_ierrors++;
+			ifp->if_ierrors++;
 		else if ((status2 & ~CAS_MAC_RX_FRAME_RCVD) != 0)
 			device_printf(sc->sc_dev,
 			    "MAC RX fault, status %x\n", status2);
@@ -2061,16 +2065,15 @@ cas_intr_task(void *arg, int pending __unused)
 	}
 
 	if ((status &
-	    (CAS_INTR_TX_INT_ME | CAS_INTR_TX_ALL | CAS_INTR_TX_DONE)) != 0) {
-		CAS_LOCK(sc);
+	    (CAS_INTR_TX_INT_ME | CAS_INTR_TX_ALL | CAS_INTR_TX_DONE)) != 0)
 		cas_tint(sc);
-		CAS_UNLOCK(sc);
-	}
 
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
+		CAS_UNLOCK(sc);
 		return;
-	else if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+	} else if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		taskqueue_enqueue(sc->sc_tq, &sc->sc_tx_task);
+	CAS_UNLOCK(sc);
 
 	status = CAS_READ_4(sc, CAS_STATUS_ALIAS);
 	if (__predict_false((status & CAS_INTR_SUMMARY) != 0)) {
@@ -2403,7 +2406,7 @@ cas_mii_statchg(device_t dev)
 	CAS_WRITE_4(sc, CAS_MAC_XIF_CONF, v);
 
 	sc->sc_mac_rxcfg = rxcfg;
-	if ((sc->sc_ifp->if_drv_flags & IFF_DRV_RUNNING) != 0 &&
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0 &&
 	    (sc->sc_flags & CAS_LINK) != 0) {
 		CAS_WRITE_4(sc, CAS_MAC_TX_CONF,
 		    txcfg | CAS_MAC_TX_CONF_EN);
