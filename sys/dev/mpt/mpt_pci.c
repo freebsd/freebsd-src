@@ -193,8 +193,6 @@ __FBSDID("$FreeBSD$");
 #define	PCIM_CMD_SERRESPEN	0x0100
 #endif
 
-
-
 static int mpt_pci_probe(device_t);
 static int mpt_pci_attach(device_t);
 static void mpt_free_bus_resources(struct mpt_softc *mpt);
@@ -362,7 +360,6 @@ mpt_set_options(struct mpt_softc *mpt)
 		mpt->cfg_role = tval;
 		mpt->do_cfg_role = 1;
 	}
-
 	tval = 0;
 	mpt->msi_enable = 0;
 	if (resource_int_value(device_get_name(mpt->dev),
@@ -371,7 +368,6 @@ mpt_set_options(struct mpt_softc *mpt)
 	}
 }
 #endif
-
 
 static void
 mpt_link_peer(struct mpt_softc *mpt)
@@ -410,7 +406,6 @@ mpt_unlink_peer(struct mpt_softc *mpt)
 		mpt->mpt2->mpt2 = NULL;
 	}
 }
-
 
 static int
 mpt_pci_attach(device_t dev)
@@ -687,7 +682,6 @@ mpt_free_bus_resources(struct mpt_softc *mpt)
 	MPT_LOCK_DESTROY(mpt);
 }
 
-
 /*
  * Disconnect ourselves from the system.
  */
@@ -711,7 +705,6 @@ mpt_pci_detach(device_t dev)
 	}
 	return(0);
 }
-
 
 /*
  * Disable the hardware
@@ -808,8 +801,6 @@ mpt_dma_mem_alloc(struct mpt_softc *mpt)
 	return (0);
 }
 
-
-
 /* Deallocate memory that was allocated by mpt_dma_mem_alloc 
  */
 static void
@@ -831,8 +822,6 @@ mpt_dma_mem_free(struct mpt_softc *mpt)
 	mpt->request_pool = 0;
 
 }
-
-
 
 /* Reads modifiable (via PCI transactions) config registers */
 static void
