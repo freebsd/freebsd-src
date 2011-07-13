@@ -205,7 +205,7 @@ keepdirty_find(struct activemap *amp, int extent)
 	return (kd);
 }
 
-static void
+static bool
 keepdirty_add(struct activemap *amp, int extent)
 {
 	struct keepdirty *kd;
@@ -217,7 +217,7 @@ keepdirty_add(struct activemap *amp, int extent)
 		 */
 		TAILQ_REMOVE(&amp->am_keepdirty, kd, kd_next);
 		TAILQ_INSERT_HEAD(&amp->am_keepdirty, kd, kd_next);
-		return;
+		return (false);
 	}
 	/*
 	 * Add new element, but first remove the most unused one if
@@ -238,6 +238,8 @@ keepdirty_add(struct activemap *amp, int extent)
 		amp->am_nkeepdirty++;
 		TAILQ_INSERT_HEAD(&amp->am_keepdirty, kd, kd_next);
 	}
+
+	return (true);
 }
 
 static void
@@ -308,9 +310,9 @@ activemap_write_start(struct activemap *amp, off_t offset, off_t length)
 			assert(!bit_test(amp->am_memmap, ext));
 			bit_set(amp->am_memmap, ext);
 			amp->am_ndirty++;
-			modified = true;
 		}
-		keepdirty_add(amp, ext);
+		if (keepdirty_add(amp, ext))
+			modified = true;
 	}
 
 	return (modified);
@@ -345,7 +347,8 @@ activemap_write_complete(struct activemap *amp, off_t offset, off_t length)
 		if (--amp->am_memtab[ext] == 0) {
 			bit_clear(amp->am_memmap, ext);
 			amp->am_ndirty--;
-			modified = true;
+			if (keepdirty_find(amp, ext) == NULL)
+				modified = true;
 		}
 	}
 
