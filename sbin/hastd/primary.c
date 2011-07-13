@@ -1688,7 +1688,7 @@ ggate_send_thread(void *arg)
 		if (ggio->gctl_error == 0 && ggio->gctl_cmd == BIO_WRITE) {
 			mtx_lock(&res->hr_amp_lock);
 			if (activemap_write_complete(res->hr_amp,
-				ggio->gctl_offset, ggio->gctl_length)) {
+			    ggio->gctl_offset, ggio->gctl_length)) {
 				res->hr_stat_activemap_update++;
 				(void)hast_activemap_flush(res);
 			}
