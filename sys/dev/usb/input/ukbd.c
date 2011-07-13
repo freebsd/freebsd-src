@@ -59,6 +59,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/callout.h>
 #include <sys/malloc.h>
 #include <sys/priv.h>
+#include <sys/proc.h>
+#include <sys/sched.h>
 #include <sys/kdb.h>
 
 #include <dev/usb/usb.h>
@@ -386,6 +388,33 @@ ukbd_put_key(struct ukbd_softc *sc, uint32_t key)
 }
 
 static void
+ukbd_yield(void)
+{
+	struct thread *td = curthread;
+	uint32_t old_prio;
+
+	DROP_GIANT();
+
+	thread_lock(td);
+
+	/* get current priority */
+	old_prio = td->td_base_pri;
+
+	/* set new priority */
+	sched_prio(td, td->td_user_pri);
+
+	/* cause a task switch */
+	mi_switch(SW_INVOL | SWT_RELINQUISH, NULL);
+
+	/* restore priority */
+	sched_prio(td, old_prio);
+
+	thread_unlock(td);
+
+	PICKUP_GIANT();
+}
+
+static void
 ukbd_do_poll(struct ukbd_softc *sc, uint8_t wait)
 {
 	DPRINTFN(2, "polling\n");
@@ -396,8 +425,9 @@ ukbd_do_poll(struct ukbd_softc *sc, uint8_t wait)
 
 	if (kdb_active == 0) {
 		while (sc->sc_inputs == 0) {
-			/* make sure the USB code gets a chance to run */
-			pause("UKBD", 1);
+
+			/* give USB threads a chance to run */
+			ukbd_yield();
 
 			/* check if we should wait */
 			if (!wait)
