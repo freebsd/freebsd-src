@@ -1297,10 +1297,19 @@ nfs_sync(struct mount *mp, int waitfor, struct thread *td)
 	struct vnode *vp, *mvp;
 	int error, allerror = 0;
 
+	MNT_ILOCK(mp);
+       /*
+	* If a forced dismount is in progress, return from here so that
+	* the umount(2) syscall doesn't get stuck in VFS_SYNC() before
+	* calling VFS_UNMOUNT().
+	*/
+	if ((mp->mnt_kern_flag & MNTK_UNMOUNTF) != 0) {
+		MNT_IUNLOCK(mp);
+		return (EBADF);
+	}
 	/*
 	 * Force stale buffer cache information to be flushed.
 	 */
-	MNT_ILOCK(mp);
 loop:
 	MNT_VNODE_FOREACH(vp, mp, mvp) {
 		VI_LOCK(vp);

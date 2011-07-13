@@ -28,7 +28,7 @@
 .\"     @(#)umount.8	8.2 (Berkeley) 5/8/95
 .\" $FreeBSD$
 .\"
-.Dd July 18, 2003
+.Dd May 31, 2011
 .Dt UMOUNT 8
 .Os
 .Sh NAME
@@ -77,6 +77,9 @@ The file system is forcibly unmounted.
 Active special devices continue to work,
 but all other files return errors if further accesses are attempted.
 The root file system cannot be forcibly unmounted.
+For NFS, a forced dismount can take up to 1 minute or more to
+complete against an unresponsive server and may throw away
+data not yet written to the server for this case.
 .It Fl h Ar host
 Only file systems mounted from the specified host will be
 unmounted.
