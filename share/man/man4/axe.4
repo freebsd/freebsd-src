@@ -30,12 +30,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 16, 2011
+.Dd July 14, 2011
 .Dt AXE 4
 .Os
 .Sh NAME
 .Nm axe
-.Nd "ASIX Electronics AX88172/178/772 USB Ethernet driver"
+.Nd "ASIX Electronics AX88x7x/760 USB Ethernet driver"
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your
@@ -59,12 +59,14 @@ if_axe_load="YES"
 The
 .Nm
 driver provides support for USB Ethernet adapters based on the ASIX
-Electronics AX88172, AX88178 and AX88772 USB 2.0 chipsets.
+Electronics AX88172, AX88178, AX88772, AX88772A, AX88772B and AX88760
+USB 2.0 chipsets.
 .Pp
-The AX88172 and AX88178 are USB 2.0 devices that contain a 10/100
+The AX88172, AX88772, AX88772A, AX88772B and AX88760 contain a 10/100
 Ethernet MAC with MII interface and are designed to work with both
 Ethernet and HomePNA transceivers.
-The AX88772 will additionally support 10/100/1000 MACs.
+The AX88178 has a 10/100/1000 Ethernet MAC with GMII/RGMII interface
+for interfacing with Gigabit Ethernet PHY.
 .Pp
 These devices will operate with
 both USB 1.x and USB 2.0 controllers, however performance with 1.x
@@ -85,43 +87,48 @@ driver supports the following media types:
 .It Cm autoselect
 Enable autoselection of the media type and options.
 The user can manually override
-the autoselected mode by adding media options to the
-.Pa /etc/rc.conf
-file.
+the autoselected mode by adding media options to
+.Xr rc.conf 5 .
 .It Cm 10baseT/UTP
 Set 10Mbps operation.
 The
+.Xr ifconfig 8
 .Cm mediaopt
-option can also be used to enable
+option can also be used to select either
 .Cm full-duplex
-operation.
-Not specifying
-.Cm full-duplex
-implies
+or
 .Cm half-duplex
-mode.
+modes.
 .It Cm 100baseTX
 Set 100Mbps (Fast Ethernet) operation.
 The
+.Xr ifconfig 8
 .Cm mediaopt
-option can also be used to enable
+option can also be used to select either
 .Cm full-duplex
-operation.
-Not specifying
-.Cm full-duplex
-implies
+or
 .Cm half-duplex
-mode.
+modes.
+.It Cm 1000baseT
+Set 1000Mbps (Gigabit Ethernet) operation (AX88178 only).
+The
+.Xr ifconfig 8
+.Cm mediaopt
+option can also be used to select either
+.Cm full-duplex
+or
+.Cm half-duplex
+modes.
 .El
 .Pp
 The
 .Nm
 driver supports the following media options:
-.Bl -tag -width ".Cm 10baseT/UTP"
+.Bl -tag -width ".Cm full-duplex"
 .It Cm full-duplex
 Force full duplex operation.
-The interface will operate in
-half duplex mode if this media option is not specified.
+.It Cm half-duplex
+Force half duplex operation.
 .El
 .Pp
 For more information on configuring this device, see
@@ -129,8 +136,8 @@ For more information on configuring this device, see
 .Sh HARDWARE
 The
 .Nm
-driver supports ASIX Electronics AX88172/AX88178/AX88772 based USB Ethernet
-adapters including:
+driver supports ASIX Electronics AX88172/AX88178/AX88772/AX88772A/AX88772B/AX88760
+based USB Ethernet adapters including:
 .Pp
 AX88172:
 .Bl -bullet -compact
@@ -138,6 +145,8 @@ AX88172:
 AboCom UF200
 .It
 Acer Communications EP1427X2
+.It
+ASIX AX88172
 .It
 ATen UC210T
 .It
@@ -167,6 +176,8 @@ System TALKS Inc.\& SGC-X2UL
 AX88178:
 .Bl -bullet -compact
 .It
+ASIX AX88178
+.It
 Belkin F5D5055
 .It
 Logitec LAN-GTJ/U2A
@@ -181,9 +192,9 @@ Sitecom Europe LN-028
 AX88772:
 .Bl -bullet -compact
 .It
-Buffalo (Melco Inc.) LUA3-U2-ATX
+ASIX AX88772
 .It
-Cisco-Linksys USB200Mv2
+Buffalo (Melco Inc.) LUA3-U2-ATX
 .It
 D-Link DUBE100B1
 .It
@@ -191,6 +202,27 @@ Planex UE-200TX-G
 .It
 Planex UE-200TX-G2
 .El
+.Pp
+AX88772A:
+.Bl -bullet -compact
+.It
+ASIX AX88772A
+.It
+Cisco-Linksys USB200Mv2
+.El
+.Pp
+AX88772B:
+.Bl -bullet -compact
+.It
+ASIX AX88772B
+.El
+.Pp
+AX88760:
+.Bl -bullet -compact
+.It
+ASIX AX88760
+.El
+.It
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "axe%d: watchdog timeout"
@@ -209,7 +241,7 @@ The driver failed to allocate an mbuf for the receiver ring.
 .Xr rgephy 4 ,
 .Xr ifconfig 8
 .Rs
-.%T "ASIX AX88172 AX88178 and AX88772 data sheets"
+.%T "ASIX AX88x7x and AX88760 data sheets"
 .%U http://www.asix.com.tw
 .Re
 .Sh HISTORY
