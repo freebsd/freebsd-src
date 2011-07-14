@@ -337,7 +337,9 @@ tcp_init(void)
 
 	TUNABLE_INT_FETCH("net.inet.tcp.soreceive_stream", &tcp_soreceive_stream);
 	if (tcp_soreceive_stream) {
+#ifdef INET
 		tcp_usrreqs.pru_soreceive = soreceive_stream;
+#endif
 #ifdef INET6
 		tcp6_usrreqs.pru_soreceive = soreceive_stream;
 #endif /* INET6 */
