@@ -174,6 +174,7 @@ SUBDIR+=	rip6query
 SUBDIR+=	route6d
 SUBDIR+=	rrenumd
 SUBDIR+=	rtadvd
+SUBDIR+=	rtadvctl
 SUBDIR+=	rtsold
 SUBDIR+=	traceroute6
 .endif
