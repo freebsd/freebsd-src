@@ -1,8 +1,93 @@
--- $Id: CHANGES,v 1.333 2011/03/02 10:06:37 tom Exp $
+-- $Id: CHANGES,v 1.360 2011/07/07 23:35:10 tom Exp $
 -- Thomas E. Dickey <dickey@invisible-island.net>
 
 This version of dialog was originally from a Debian snapshot.  I've done this
 to it:
+
+2011/07/07
+	+ modify util.c to work better with old versions of ncurses:
+	  + suppress use of wchgat() before fix in 20060715 which is needed
+	    for simple shadow manipulation used here in 2011/06/30 (report
+	    by xDog Walker).
+	  + add a null-pointer check in dlg_print_scrolled()
+	+ fix a regression in dlg_getc() introduced by changes to intercept
+	  F1 for help-popup (report by xDog Walker).
+
+2011/06/30
+	+ correct license statement for prgbox.c (Debian #632198).
+	+ correct layout when "--colors" is used, by discounting characters in
+	  the escape sequences from the column counts (report by xDog Walker).
+	+ modify dlg_checklist() so that only one item in the list can
+	  initially be selected (report by xDog Walker).
+	+ add/use macro dlg_enter_buttoncode() to improve implementation of
+	  "--nook" option (report by xDog Walker).
+	+ add option "--no-nl-expand" to suppress the conversion of "\n"
+	  strings into newlines (request by xDog Walker).
+	+ modify LIB_CREATE symbol in makefile.in to include the library
+	  dependencies such as ncurses.  This is needed when dynamically
+	  loading the library (report/analysis by xDog Walker).
+	+ modify dlg_exit_label() to suppress the Cancel button, for
+	  consistency.
+	+ modify dlg_exit_label() to honor the --nook option, except when there
+	  is no other button, e.g., the help-button.
+	+ modify dlg_exit_buttoncode() so that it returns the proper code for
+	  help-button (report by xDog Walker).
+	+ correct loop limit when processing "--column-separator" (report by
+	  xDog Walker).
+	+ modify handling of "--version" and "--help" to ensure that they are
+	  processed, and exit before widgets.  Separate "--print-version"
+	  from "--version", allowing its output to be interspersed with
+	  widget output (report by xDog Walker).
+	+ correct a few places where "--version" or "--help" options went
+	  always to stdout rather than allowing redirection with the "--stderr"
+	  option (report by xDog Walker).
+	+ improve repainting after erasing a widget and its shadow.
+	+ add "--hline" and "--hfile" options for compatibility with FreeBSD
+	  dialog (request by Devin Teske).
+	+ add dialog version message when opening a trace file (request by
+	  xDog Walker).
+	+ show filename of rc-file in traces.
+	+ add piped-in data for gauge widget to traces.
+	+ add entrypoints to gauge widget, for allocating, updating and freeing
+	  the widget (adapted from patch by Stephen Hurd).
+	+ fix a reference to freed memory in the gauge widget.
+	+ fix --no-mouse option by actually closing the mouse (report by
+	  xDog Walker).
+	+ add sk.po from
+		http://translationproject.org/latest/dialog/
+	+ limit Solaris xpg4 portability fix for redefinition of ERR to cover
+	  the specific value found in <sys/regset.h>, in case an application
+	  includes dialog.h after curses.h (FreeBSD #156601, report by Jaakko
+	  Heinonen, Stephen Hurd).
+	+ updated configure macros:
+	  + CF_CURSES_CPPFLAGS,
+	  + CF_CURSES_LIBS, make checks for special libraries on hpux10 and
+	    sunos4 optional
+	  + CF_CURSES_FUNCS, workaround for bug in gcc 4.2.1 (FreeBSD 8.1)
+	    which caused part of test program to be omitted, i.e., when it saw
+	    two return-statements in a row it omitted the _first_ one.  Also
+	    add expression to pointer check to help FreeBSD's linker decide it
+	    should be validated.  Just an assignment was not enough.  Also, add
+	    check for unctrl.h
+	  + CF_CURSES_HEADER, change order for curses.h / ncurses.h pairs to
+	    put ncurses.h first, which will tend to provide the same #define's
+	    as in CF_NCURSES_HEADER (report by Dennis Preiser).
+	  + CF_CURSES_TERM_H, modify to avoid spurious check for
+	    <curses.hterm.h> if there is no ncurses version.  Look for
+	    ncurses's term.h anyway, to work around breakage by packagers who
+	    separate ncurses' header files.
+	  + CF_DISABLE_RPATH_HACK, fix garbled message
+	  + CF_LD_RPATH_OPT, add mirbsd
+	  + CF_MAKEFLAGS, filter out GNU make's entering/leaving messages. 
+	    This only appeared when using the macro in a dpkg script, though it
+	    should have in other cases.
+	  + CF_RPATH_HACK, add a check for libraries not found, e.g., from
+	    suppressed functionality of gcc in linking from /usr/local/lib, and
+	    add a -L option to help work around this.
+	  + CF_XOPEN_SOURCE, workaround for cygwin to get ncurses' configure
+	    script to define _XOPEN_SOURCE_EXTENDED (cygwin's features.h
+	    doesn't do anything, so it needs a crutch).
+	+ updated config.guess, config.sub
 
 2011/03/02
 	+ add --prgbox and --programbox (adapted from patch by David Boyd).
@@ -649,7 +734,7 @@ to it:
 	  colors to be the same, provided that bold attribute is set.
 	  Also improved the logic for choosing a background color when the
 	  foreground and background are the same (report by Erika Pacholleck).
-	+ update configure script macro CF_XOPEN_SOURCE, ensuring that the
+	+ updated configure script macro CF_XOPEN_SOURCE, ensuring that the
 	  _POSIX_C_SOURCE value is defined with a specific value (bug report
 	  originally for lynx).
 	+ fix configure script so that po/makefile is generated properly when

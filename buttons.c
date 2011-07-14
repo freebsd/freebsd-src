@@ -1,5 +1,5 @@
 /*
- *  $Id: buttons.c,v 1.84 2011/01/19 00:27:53 tom Exp $
+ *  $Id: buttons.c,v 1.86 2011/06/28 10:46:46 tom Exp $
  *
  *  buttons.c -- draw buttons, e.g., OK/Cancel
  *
@@ -442,16 +442,23 @@ const char **
 dlg_exit_label(void)
 {
     const char **result;
+    DIALOG_VARS save;
 
     if (dialog_vars.extra_button) {
+	dlg_save_vars(&save);
+	dialog_vars.nocancel = TRUE;
 	result = dlg_ok_labels();
+	dlg_restore_vars(&save);
     } else {
 	static const char *labels[3];
 	int n = 0;
 
-	labels[n++] = my_exit_label();
+	if (!dialog_vars.nook)
+	    labels[n++] = my_exit_label();
 	if (dialog_vars.help_button)
 	    labels[n++] = my_help_label();
+	if (n == 0)
+	    labels[n++] = my_exit_label();
 	labels[n] = 0;
 
 	result = labels;
@@ -465,7 +472,17 @@ dlg_exit_label(void)
 int
 dlg_exit_buttoncode(int button)
 {
-    return dlg_ok_buttoncode(button);
+    int result;
+    DIALOG_VARS save;
+
+    dlg_save_vars(&save);
+    dialog_vars.nocancel = TRUE;
+
+    result = dlg_ok_buttoncode(button);
+
+    dlg_restore_vars(&save);
+
+    return result;
 }
 
 const char **

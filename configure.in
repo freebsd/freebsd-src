@@ -1,4 +1,4 @@
-dnl $Id: configure.in,v 1.64 2011/03/01 00:59:50 tom Exp $
+dnl $Id: configure.in,v 1.65 2011/06/27 10:42:27 tom Exp $
 dnl Process this file with autoconf to produce a configure script.
 dnl ---------------------------------------------------------------------------
 dnl Copyright 1999-2010,2011 -- Thomas E. Dickey
@@ -225,6 +225,7 @@ getparx \
 getpary \
 getparyx \
 use_default_colors \
+wchgat \
 wget_wch \
 )
 

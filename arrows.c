@@ -1,5 +1,5 @@
 /*
- *  $Id: arrows.c,v 1.33 2011/01/19 00:27:53 tom Exp $
+ *  $Id: arrows.c,v 1.36 2011/06/27 09:13:56 tom Exp $
  *
  *  arrows.c -- draw arrows to indicate end-of-range for lists
  *
@@ -36,6 +36,10 @@
 #define add_acs(win, code) waddch(win, dlg_boxchar(code))
 #endif
 
+/* size of decorations */
+#define ON_LEFT 4
+#define ON_RIGHT 3
+
 #ifdef HAVE_COLOR
 static chtype
 merge_colors(chtype foreground, chtype background)
@@ -58,6 +62,36 @@ merge_colors(chtype foreground, chtype background)
 #else
 #define merge_colors(f,b) (f)
 #endif
+
+/*
+ * If we have help-line text, e.g., from "--hline", draw it between the other
+ * decorations at the bottom of the dialog window.
+ */
+void
+dlg_draw_helpline(WINDOW *win, bool decorations)
+{
+    int cur_x, cur_y;
+    int bottom;
+
+    if (dialog_vars.help_line != 0
+	&& (bottom = getmaxy(win) - 1) > 0) {
+	chtype attr = A_NORMAL;
+	const int *cols = dlg_index_columns(dialog_vars.help_line);
+	int other = decorations ? (ON_LEFT + ON_RIGHT) : 0;
+	int avail = (getmaxx(win) - other - 2);
+	int limit = dlg_limit_columns(dialog_vars.help_line, avail, 0);
+
+	if (limit > 0) {
+	    getyx(win, cur_y, cur_x);
+	    other = decorations ? ON_LEFT : 0;
+	    (void) wmove(win, bottom, other + (avail - limit) / 2);
+	    waddch(win, '[');
+	    dlg_print_text(win, dialog_vars.help_line, cols[limit], &attr);
+	    waddch(win, ']');
+	    wmove(win, cur_y, cur_x);
+	}
+    }
+}
 
 void
 dlg_draw_arrows2(WINDOW *win,
@@ -94,7 +128,7 @@ dlg_draw_arrows2(WINDOW *win,
 	    (void) waddstr(win, "(-)");
 	} else {
 	    wattrset(win, attr);
-	    (void) whline(win, dlg_boxchar(ACS_HLINE), 4);
+	    (void) whline(win, dlg_boxchar(ACS_HLINE), ON_LEFT);
 	}
     }
     mouse_mkbutton(top, x - 1, 6, KEY_PPAGE);
@@ -106,7 +140,7 @@ dlg_draw_arrows2(WINDOW *win,
 	(void) waddstr(win, "(+)");
     } else {
 	wattrset(win, borderattr);
-	(void) whline(win, dlg_boxchar(ACS_HLINE), 4);
+	(void) whline(win, dlg_boxchar(ACS_HLINE), ON_LEFT);
     }
     mouse_mkbutton(bottom, x - 1, 6, KEY_NPAGE);
 
@@ -141,6 +175,7 @@ dlg_draw_scrollbar(WINDOW *win,
     getyx(win, oldy, oldx);
     getmaxyx(win, maxy, maxx);
 
+    dlg_draw_helpline(win, TRUE);
     if (bottom_arrow || top_arrow || dialog_state.use_scrollbar) {
 	percent = (!total_data
 		   ? 100
@@ -213,6 +248,7 @@ dlg_draw_arrows(WINDOW *win,
 		int top,
 		int bottom)
 {
+    dlg_draw_helpline(win, TRUE);
     dlg_draw_arrows2(win,
 		     top_arrow,
 		     bottom_arrow,
