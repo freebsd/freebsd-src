@@ -5199,7 +5199,7 @@ newfreefrag(ip, blkno, size, lbn)
 	freefrag->ff_blkno = blkno;
 	freefrag->ff_fragsize = size;
 
-	if (fs->fs_flags & FS_SUJ) {
+	if ((ip->i_ump->um_mountp->mnt_kern_flag & MNTK_SUJ) != 0) {
 		freefrag->ff_jdep = (struct worklist *)
 		    newjfreefrag(freefrag, ip, blkno, size, lbn);
 	} else {
@@ -8928,7 +8928,7 @@ softdep_setup_sbupdate(ump, fs, bp)
 	struct sbdep *sbdep;
 	struct worklist *wk;
 
-	if ((fs->fs_flags & FS_SUJ) == 0)
+	if ((ump->um_mountp->mnt_kern_flag & MNTK_SUJ) == 0)
 		return;
 	LIST_FOREACH(wk, &bp->b_dep, wk_list)
 		if (wk->wk_type == D_SBDEP)
