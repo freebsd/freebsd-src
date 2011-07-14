@@ -525,32 +525,31 @@ ng_attach_cntl(struct socket *so)
 {
 	struct ngsock *priv;
 	struct ngpcb *pcbp;
+	node_p node;
 	int error;
+
+	/* Setup protocol control block */
+	if ((error = ng_attach_common(so, NG_CONTROL)) != 0)
+		return (error);
+	pcbp = sotongpcb(so);
+
+	/* Make the generic node components */
+	if ((error = ng_make_node_common(&typestruct, &node)) != 0) {
+		ng_detach_common(pcbp, NG_CONTROL);
+		return (error);
+	}
 
 	/* Allocate node private info */
 	priv = malloc(sizeof(*priv), M_NETGRAPH_SOCK, M_WAITOK | M_ZERO);
 
-	/* Setup protocol control block */
-	if ((error = ng_attach_common(so, NG_CONTROL)) != 0) {
-		free(priv, M_NETGRAPH_SOCK);
-		return (error);
-	}
-	pcbp = sotongpcb(so);
+	/* Initialize mutex. */
+	mtx_init(&priv->mtx, "ng_socket", NULL, MTX_DEF);
 
 	/* Link the pcb the private data. */
 	priv->ctlsock = pcbp;
 	pcbp->sockdata = priv;
 	priv->refs++;
-
-	/* Initialize mutex. */
-	mtx_init(&priv->mtx, "ng_socket", NULL, MTX_DEF);
-
-	/* Make the generic node components */
-	if ((error = ng_make_node_common(&typestruct, &priv->node)) != 0) {
-		free(priv, M_NETGRAPH_SOCK);
-		ng_detach_common(pcbp, NG_CONTROL);
-		return (error);
-	}
+	priv->node = node;
 
 	/* Store a hint for netstat(1). */
 	priv->node_id = priv->node->nd_ID;
