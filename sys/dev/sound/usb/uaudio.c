@@ -192,7 +192,7 @@ struct uaudio_chan {
 };
 
 #define	UMIDI_CABLES_MAX   16		/* units */
-#define	UMIDI_TX_FRAMES	   128		/* units */
+#define	UMIDI_TX_FRAMES	   256		/* units */
 #define	UMIDI_TX_BUFFER    (UMIDI_TX_FRAMES * 4)	/* bytes */
 
 enum {
