@@ -149,9 +149,6 @@ struct sem_undo {
 #endif
 
 /* shouldn't need tuning */
-#ifndef SEMMAP
-#define SEMMAP	30		/* # of entries in semaphore map */
-#endif
 #ifndef SEMMSL
 #define SEMMSL	SEMMNS		/* max # of semaphores per id */
 #endif
@@ -182,7 +179,6 @@ struct sem_undo {
  * semaphore info struct
  */
 struct seminfo seminfo = {
-                SEMMAP,         /* # of entries in semaphore map */
                 SEMMNI,         /* # of semaphore identifiers */
                 SEMMNS,         /* # of semaphores in system */
                 SEMMNU,         /* # of undo structures in system */
@@ -194,8 +190,6 @@ struct seminfo seminfo = {
                 SEMAEM          /* adjust on exit max value */
 };
 
-SYSCTL_INT(_kern_ipc, OID_AUTO, semmap, CTLFLAG_RW, &seminfo.semmap, 0,
-    "Number of entries in the semaphore map");
 SYSCTL_INT(_kern_ipc, OID_AUTO, semmni, CTLFLAG_RDTUN, &seminfo.semmni, 0,
     "Number of semaphore identifiers");
 SYSCTL_INT(_kern_ipc, OID_AUTO, semmns, CTLFLAG_RDTUN, &seminfo.semmns, 0,
@@ -255,7 +249,6 @@ seminit(void)
 {
 	int i, error;
 
-	TUNABLE_INT_FETCH("kern.ipc.semmap", &seminfo.semmap);
 	TUNABLE_INT_FETCH("kern.ipc.semmni", &seminfo.semmni);
 	TUNABLE_INT_FETCH("kern.ipc.semmns", &seminfo.semmns);
 	TUNABLE_INT_FETCH("kern.ipc.semmnu", &seminfo.semmnu);
