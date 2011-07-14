@@ -3,6 +3,7 @@
 
 /*
  * Copyright (C) 1998 WIDE Project.
+ * Copyright (C) 2011 Hiroki Sato <hrs@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,6 +30,17 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+
+#define	ELM_MALLOC(p,error_action)					\
+	do {								\
+		p = malloc(sizeof(*p));					\
+		if (p == NULL) {					\
+			syslog(LOG_ERR, "<%s> malloc failed: %s",	\
+			    __func__, strerror(errno));			\
+			error_action;					\
+		}							\
+		memset(p, 0, sizeof(*p));				\
+	} while(0)
 
 #define IN6ADDR_LINKLOCAL_ALLNODES_INIT				\
 	{{{ 0xff, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,	\
@@ -183,12 +195,10 @@ struct	rainfo {
 	int			rai_waiting;
 
 	/* interface information */
-	int	rai_ifindex;
+	struct ifinfo *rai_ifinfo;
+
 	int	rai_advlinkopt;	/* bool: whether include link-layer addr opt */
 	int	rai_advifprefix;	/* bool: gather IF prefixes? */
-	struct sockaddr_dl *rai_sdl;
-	char	rai_ifname[IFNAMSIZ];
-	u_int32_t	rai_phymtu;	/* mtu of the physical interface */
 
 	/* Router configuration variables */
 	u_short	rai_lifetime;		/* AdvDefaultLifetime */
@@ -218,18 +228,42 @@ struct	rainfo {
 	size_t	rai_ra_datalen;
 	u_char	*rai_ra_data;
 
-	/* statistics */
-	u_quad_t rai_raoutput;		/* # of RAs sent */
-	u_quad_t rai_rainput;		/* # of RAs received */
-	u_quad_t rai_rainconsistent;	/* # of RAs inconsistent with ours */
-	u_quad_t rai_rsinput;		/* # of RSs received */
-
 	/* info about soliciter */
 	TAILQ_HEAD(, soliciter) rai_soliciter;	/* recent solication source */
 };
 
-/* Interface list including RA information */
+/* RA information list */
 extern TAILQ_HEAD(railist_head_t, rainfo) railist;
+
+#define	IFI_STATE_UNCONFIGURED	0
+#define	IFI_STATE_CONFIGURED	1
+
+struct	ifinfo {
+	TAILQ_ENTRY(ifinfo)	ifi_next;
+
+	u_int16_t	ifi_state;
+	u_int16_t	ifi_persist;
+	u_int16_t	ifi_ifindex;
+	char	ifi_ifname[IFNAMSIZ];
+	u_int8_t	ifi_type;
+	u_int16_t	ifi_flags;
+	u_int32_t	ifi_nd_flags;
+	u_int32_t	ifi_phymtu;
+	struct sockaddr_dl	ifi_sdl;
+
+	struct rainfo	*ifi_rainfo;
+
+	/* statistics */
+	u_int64_t ifi_raoutput;		/* # of RAs sent */
+	u_int64_t ifi_rainput;		/* # of RAs received */
+	u_int64_t ifi_rainconsistent;	/* # of inconsistent recv'd RAs  */
+	u_int64_t ifi_rsinput;		/* # of RSs received */
+};
+
+/* Interface list */
+extern TAILQ_HEAD(ifilist_head_t, ifinfo) ifilist;
+
+extern char *mcastif;
 
 struct rtadvd_timer	*ra_timeout(void *);
 void			ra_timer_update(void *, struct timeval *);
@@ -237,6 +271,8 @@ void			ra_output(struct rainfo *);
 
 int			prefix_match(struct in6_addr *, int,
 			    struct in6_addr *, int);
-struct rainfo		*if_indextorainfo(int);
+struct ifinfo		*if_indextoifinfo(int);
 struct prefix		*find_prefix(struct rainfo *,
 			    struct in6_addr *, int);
+void			rtadvd_set_reload(int);
+void			rtadvd_set_die(int);
