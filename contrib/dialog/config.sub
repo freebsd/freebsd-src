@@ -2,9 +2,9 @@
 # Configuration validation subroutine script.
 #   Copyright (C) 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
 #   2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010
-#   Free Software Foundation, Inc.
+#   2011 Free Software Foundation, Inc.
 
-timestamp='2010-09-11'
+timestamp='2011-04-01'
 
 # This file is (in principle) common to ALL GNU software.
 # The presence of a machine in this file suggests that SOME GNU software
@@ -76,8 +76,8 @@ version="\
 GNU config.sub ($timestamp)
 
 Copyright (C) 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
-2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010 Free
-Software Foundation, Inc.
+2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011
+Free Software Foundation, Inc.
 
 This is free software; see the source for copying conditions.  There is NO
 warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."
@@ -175,10 +175,10 @@ case $os in
 		os=-chorusos
 		basic_machine=$1
 		;;
- 	-chorusrdb)
- 		os=-chorusrdb
+	-chorusrdb)
+		os=-chorusrdb
 		basic_machine=$1
- 		;;
+		;;
 	-hiux*)
 		os=-hiuxwe2
 		;;
@@ -283,12 +283,13 @@ case $basic_machine in
 	| moxie \
 	| mt \
 	| msp430 \
-	| nds32 | nds32le | nds32be\
+	| nds32 | nds32le | nds32be \
 	| nios | nios2 \
 	| ns16k | ns32k \
+	| open8 \
 	| or32 \
 	| pdp10 | pdp11 | pj | pjl \
-	| powerpc | powerpc64 | powerpc64le | powerpcle | ppcbe \
+	| powerpc | powerpc64 | powerpc64le | powerpcle \
 	| pyramid \
 	| rx \
 	| score \
@@ -296,12 +297,12 @@ case $basic_machine in
 	| sh64 | sh64le \
 	| sparc | sparc64 | sparc64b | sparc64v | sparc86x | sparclet | sparclite \
 	| sparcv8 | sparcv9 | sparcv9b | sparcv9v \
-	| spu | strongarm \
-	| tahoe | thumb | tic4x | tic54x | tic55x | tic6x | tic80 | tron \
+	| spu \
+	| tahoe | tic4x | tic54x | tic55x | tic6x | tic80 | tron \
 	| ubicom32 \
 	| v850 | v850e \
 	| we32k \
-	| x86 | xc16x | xscale | xscalee[bl] | xstormy16 | xtensa \
+	| x86 | xc16x | xstormy16 | xtensa \
 	| z8k | z80)
 		basic_machine=$basic_machine-unknown
 		;;
@@ -324,7 +325,15 @@ case $basic_machine in
 	ms1)
 		basic_machine=mt-unknown
 		;;
-
+	strongarm | thumb | xscale)
+		basic_machine=arm-unknown
+		;;
+	xscaleeb)
+		basic_machine=armeb-unknown
+		;;
+	xscaleel)
+		basic_machine=armel-unknown
+		;;
 	# We use `pc' rather than `unknown'
 	# because (1) that's what they normally are, and
 	# (2) the word "unknown" tends to confuse beginning users.
@@ -382,24 +391,25 @@ case $basic_machine in
 	| nds32-* | nds32le-* | nds32be-* \
 	| nios-* | nios2-* \
 	| none-* | np1-* | ns16k-* | ns32k-* \
+	| open8-* \
 	| orion-* \
 	| pdp10-* | pdp11-* | pj-* | pjl-* | pn-* | power-* \
-	| powerpc-* | powerpc64-* | powerpc64le-* | powerpcle-* | ppcbe-* \
+	| powerpc-* | powerpc64-* | powerpc64le-* | powerpcle-* \
 	| pyramid-* \
 	| romp-* | rs6000-* | rx-* \
 	| sh-* | sh[1234]-* | sh[24]a-* | sh[24]aeb-* | sh[23]e-* | sh[34]eb-* | sheb-* | shbe-* \
 	| shle-* | sh[1234]le-* | sh3ele-* | sh64-* | sh64le-* \
 	| sparc-* | sparc64-* | sparc64b-* | sparc64v-* | sparc86x-* | sparclet-* \
 	| sparclite-* \
-	| sparcv8-* | sparcv9-* | sparcv9b-* | sparcv9v-* | strongarm-* | sv1-* | sx?-* \
-	| tahoe-* | thumb-* \
+	| sparcv8-* | sparcv9-* | sparcv9b-* | sparcv9v-* | sv1-* | sx?-* \
+	| tahoe-* \
 	| tic30-* | tic4x-* | tic54x-* | tic55x-* | tic6x-* | tic80-* \
 	| tile-* | tilegx-* \
 	| tron-* \
 	| ubicom32-* \
 	| v850-* | v850e-* | vax-* \
 	| we32k-* \
-	| x86-* | x86_64-* | xc16x-* | xps100-* | xscale-* | xscalee[bl]-* \
+	| x86-* | x86_64-* | xc16x-* | xps100-* \
 	| xstormy16-* | xtensa*-* \
 	| ymp-* \
 	| z8k-* | z80-*)
@@ -539,7 +549,7 @@ case $basic_machine in
 		basic_machine=craynv-cray
 		os=-unicosmp
 		;;
-	cr16)
+	cr16 | cr16-*)
 		basic_machine=cr16-unknown
 		os=-elf
 		;;
@@ -826,10 +836,10 @@ case $basic_machine in
 		basic_machine=v70-nec
 		os=-sysv
 		;;
-	next | m*-next )
+	next | m*-next)
 		basic_machine=m68k-next
 		case $os in
-		    -nextstep* )
+		    -nextstep*)
 			;;
 		    -ns2*)
 		      os=-nextstep2
@@ -948,11 +958,14 @@ case $basic_machine in
 	pn)
 		basic_machine=pn-gould
 		;;
-	power)	basic_machine=power-ibm
+	power)
+		basic_machine=power-ibm
 		;;
-	ppc)	basic_machine=powerpc-unknown
+	ppc | ppcbe)
+		basic_machine=powerpc-unknown
 		;;
-	ppc-*)	basic_machine=powerpc-`echo $basic_machine | sed 's/^[^-]*-//'`
+	ppc-* | ppcbe-*)
+		basic_machine=powerpc-`echo $basic_machine | sed 's/^[^-]*-//'`
 		;;
 	ppcle | powerpclittle | ppc-le | powerpc-little)
 		basic_machine=powerpcle-unknown
@@ -960,9 +973,11 @@ case $basic_machine in
 	ppcle-* | powerpclittle-*)
 		basic_machine=powerpcle-`echo $basic_machine | sed 's/^[^-]*-//'`
 		;;
-	ppc64)	basic_machine=powerpc64-unknown
+	ppc64)
+		basic_machine=powerpc64-unknown
 		;;
-	ppc64-*) basic_machine=powerpc64-`echo $basic_machine | sed 's/^[^-]*-//'`
+	ppc64-*)
+		basic_machine=powerpc64-`echo $basic_machine | sed 's/^[^-]*-//'`
 		;;
 	ppc64le | powerpc64little | ppc64-le | powerpc64-little)
 		basic_machine=powerpc64le-unknown
@@ -1045,6 +1060,9 @@ case $basic_machine in
 	stratus)
 		basic_machine=i860-stratus
 		os=-sysv4
+		;;
+	strongarm-* | thumb-*)
+		basic_machine=arm-`echo $basic_machine | sed 's/^[^-]*-//'`
 		;;
 	sun2)
 		basic_machine=m68000-sun
@@ -1177,6 +1195,9 @@ case $basic_machine in
 		;;
 	xps | xps100)
 		basic_machine=xps100-honeywell
+		;;
+	xscale-* | xscalee[bl]-*)
+		basic_machine=`echo $basic_machine | sed 's/^xscale/arm/'`
 		;;
 	ymp)
 		basic_machine=ymp-cray
@@ -1400,7 +1421,7 @@ case $os in
 	-nova*)
 		os=-rtmk-nova
 		;;
-	-ns2 )
+	-ns2)
 		os=-nextstep2
 		;;
 	-nsk*)
@@ -1597,7 +1618,7 @@ case $basic_machine in
 	m88k-omron*)
 		os=-luna
 		;;
-	*-next )
+	*-next)
 		os=-nextstep
 		;;
 	*-sequent)

@@ -1,10 +1,10 @@
 #! /bin/sh
 # Attempt to guess a canonical system name.
 #   Copyright (C) 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-#   2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010
-#   Free Software Foundation, Inc.
+#   2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
+#   2911 Free Software Foundation, Inc.
 
-timestamp='2010-09-24'
+timestamp='2011-01-01'
 
 # This file is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by
@@ -57,8 +57,8 @@ GNU config.guess ($timestamp)
 
 Originally written by Per Bothner.
 Copyright (C) 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
-2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010 Free
-Software Foundation, Inc.
+2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011
+Free Software Foundation, Inc.
 
 This is free software; see the source for copying conditions.  There is NO
 warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."
@@ -92,7 +92,7 @@ if test $# != 0; then
   exit 1
 fi
 
-trap 'exit 1' HUP INT TERM
+trap 'exit 1' 1 2 15
 
 # CC_FOR_BUILD -- compiler used by this script. Note that the use of a
 # compiler to aid in system detection is discouraged as it requires
@@ -106,7 +106,7 @@ trap 'exit 1' HUP INT TERM
 
 set_cc_for_build='
 trap "exitcode=\$?; (rm -f \$tmpfiles 2>/dev/null; rmdir \$tmp 2>/dev/null) && exit \$exitcode" 0 ;
-trap "rm -f \$tmpfiles 2>/dev/null; rmdir \$tmp 2>/dev/null; exit 1" HUP INT PIPE TERM ;
+trap "rm -f \$tmpfiles 2>/dev/null; rmdir \$tmp 2>/dev/null; exit 1" 1 2 13 15 ;
 : ${TMPDIR=/tmp} ;
  { tmp=`(umask 077 && mktemp -d "$TMPDIR/cgXXXXXX") 2>/dev/null` && test -n "$tmp" && test -d "$tmp" ; } ||
  { test -n "$RANDOM" && tmp=$TMPDIR/cg$$-$RANDOM && (umask 077 && mkdir $tmp) ; } ||
@@ -270,7 +270,10 @@ case "${UNAME_MACHINE}:${UNAME_SYSTEM}:${UNAME_RELEASE}:${UNAME_VERSION}" in
 	# A Xn.n version is an unreleased experimental baselevel.
 	# 1.2 uses "1.2" for uname -r.
 	echo ${UNAME_MACHINE}-dec-osf`echo ${UNAME_RELEASE} | sed -e 's/^[PVTX]//' | tr 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' 'abcdefghijklmnopqrstuvwxyz'`
-	exit ;;
+	# Reset EXIT trap before exiting to avoid spurious non-zero exit code.
+	exitcode=$?
+	trap '' 0
+	exit $exitcode ;;
     Alpha\ *:Windows_NT*:*)
 	# How do we know it's Interix rather than the generic POSIX subsystem?
 	# Should we change UNAME_MACHINE based on the output of uname instead
@@ -326,8 +329,8 @@ case "${UNAME_MACHINE}:${UNAME_SYSTEM}:${UNAME_RELEASE}:${UNAME_VERSION}" in
 	    sparc) echo sparc-icl-nx7; exit ;;
 	esac ;;
     s390x:SunOS:*:*)
-    	echo ${UNAME_MACHINE}-ibm-solaris2`echo ${UNAME_RELEASE}|sed -e 's/[^.]*//'`
-    	exit ;;
+	echo ${UNAME_MACHINE}-ibm-solaris2`echo ${UNAME_RELEASE}|sed -e 's/[^.]*//'`
+	exit ;;
     sun4H:SunOS:5.*:*)
 	echo sparc-hal-solaris2`echo ${UNAME_RELEASE}|sed -e 's/[^.]*//'`
 	exit ;;
@@ -495,7 +498,7 @@ EOF
 	else
 	    echo i586-dg-dgux${UNAME_RELEASE}
 	fi
- 	exit ;;
+	exit ;;
     M88*:DolphinOS:*:*)	# DolphinOS (SVR3)
 	echo m88k-dolphin-sysv3
 	exit ;;
@@ -820,8 +823,8 @@ EOF
 		echo x86_64-unknown-interix${UNAME_RELEASE}
 		exit ;;
 	    IA64)
-	    	echo ia64-unknown-interix${UNAME_RELEASE}
-	    	exit ;;
+		echo ia64-unknown-interix${UNAME_RELEASE}
+		exit ;;
 	esac ;;
     [345]86:Windows_95:* | [345]86:Windows_98:* | [345]86:Windows_NT:*)
 	echo i${UNAME_MACHINE}-pc-mks
@@ -934,14 +937,14 @@ EOF
 	test x"${CPU}" != x && { echo "${CPU}-unknown-linux-gnu"; exit; }
 	;;
     or32:Linux:*:*)
-    	echo or32-unknown-linux-gnu
-    	exit ;;
+	echo or32-unknown-linux-gnu
+	exit ;;
     padre:Linux:*:*)
 	echo sparc-unknown-linux-gnu
 	exit ;;
     parisc64:Linux:*:* | hppa64:Linux:*:*)
-    	echo hppa64-unknown-linux-gnu
-    	exit ;;
+	echo hppa64-unknown-linux-gnu
+	exit ;;
     parisc:Linux:*:* | hppa:Linux:*:*)
 	# Look for CPU level
 	case `grep '^cpu[^a-z]*:' /proc/cpuinfo 2>/dev/null | cut -d' ' -f2` in

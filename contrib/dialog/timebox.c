@@ -1,5 +1,5 @@
 /*
- * $Id: timebox.c,v 1.43 2011/01/18 01:07:45 Garrett.Cooper Exp $
+ * $Id: timebox.c,v 1.45 2011/06/27 08:20:22 tom Exp $
  *
  *  timebox.c -- implements the timebox dialog
  *
@@ -148,6 +148,7 @@ dialog_timebox(const char *title,
     /* *INDENT-OFF* */
     static DLG_KEYS_BINDING binding[] = {
 	DLG_KEYS_DATA( DLGK_DELETE_RIGHT,KEY_DC ),
+	HELPKEY_BINDINGS,
 	ENTERKEY_BINDINGS,
 	DLG_KEYS_DATA( DLGK_ENTER,	' ' ),
 	DLG_KEYS_DATA( DLGK_FIELD_FIRST,KEY_HOME ),
@@ -223,6 +224,7 @@ dialog_timebox(const char *title,
     dlg_draw_box(dialog, 0, 0, height, width, dialog_attr, border_attr);
     dlg_draw_bottom_box(dialog);
     dlg_draw_title(dialog, title);
+    dlg_draw_helpline(dialog, FALSE);
 
     wattrset(dialog, dialog_attr);
     dlg_print_autowrap(dialog, prompt, height, width);
