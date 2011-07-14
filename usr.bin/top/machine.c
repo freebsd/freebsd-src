@@ -701,17 +701,16 @@ get_process_info(struct system_info *si, struct process_select *sel,
 			/* skip zombies */
 			continue;
 
+		if (!show_kidle && pp->ki_tdflags & TDF_IDLETD)
+			/* skip kernel idle process */
+			continue;
+		    
 		if (displaymode == DISP_CPU && !show_idle &&
 		    (pp->ki_pctcpu == 0 ||
 		     pp->ki_stat == SSTOP || pp->ki_stat == SIDL))
 			/* skip idle or non-running processes */
 			continue;
 
-		if (displaymode == DISP_CPU && !show_kidle &&
-		    pp->ki_tdflags & TDF_IDLETD)
-			/* skip kernel idle process */
-			continue;
-		    
 		if (displaymode == DISP_IO && !show_idle && p_io == 0)
 			/* skip processes that aren't doing I/O */
 			continue;
