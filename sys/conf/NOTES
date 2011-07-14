@@ -2833,9 +2833,6 @@ options 	VERBOSE_SYSINIT
 #####################################################################
 # SYSV IPC KERNEL PARAMETERS
 #
-# Maximum number of entries in a semaphore map.
-options 	SEMMAP=31
-
 # Maximum number of System V semaphores that can be used on the system at
 # one time.
 options 	SEMMNI=11
