@@ -14,11 +14,12 @@ hint.nvram.1.maxsize=0x4000
 hint.nvram.1.flags=3 # 1 = No check, 2 = Format Generic
 
 # on-board Ralink Frame Engine
-#hint.rt.0.at="nexus0"
-#hint.rt.0.maddr=0x12000000
-#hint.rt.0.msize=0x200000
-#hint.rt.0.irq=9
-hint.rt.0.macaddr="00:18:e7:d5:83:90"
+hint.rt.0.at="nexus0"
+hint.rt.0.maddr=0x10100000
+hint.rt.0.msize=0x10000
+hint.rt.0.irq=3
+# macaddr can be statically set
+#hint.rt.0.macaddr="xx:xx:xx:xx:xx:xx"
 
 # on-board Ralink 2872 802.11n core
 hint.rt2860.0.at="nexus0"
