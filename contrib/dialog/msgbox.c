@@ -1,9 +1,9 @@
 /*
- *  $Id: msgbox.c,v 1.64 2010/01/15 10:50:17 tom Exp $
+ *  $Id: msgbox.c,v 1.66 2011/06/27 08:36:28 tom Exp $
  *
  *  msgbox.c -- implements the message box and info box
  *
- *  Copyright 2000-2009,2010	Thomas E. Dickey
+ *  Copyright 2000-2010,2011	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -37,6 +37,7 @@ dialog_msgbox(const char *title, const char *cprompt, int height, int width,
 {
     /* *INDENT-OFF* */
     static DLG_KEYS_BINDING binding[] = {
+	HELPKEY_BINDINGS,
 	ENTERKEY_BINDINGS,
 	DLG_KEYS_DATA( DLGK_ENTER,	' ' ),
 	SCROLLKEY_BINDINGS,
@@ -103,6 +104,7 @@ dialog_msgbox(const char *title, const char *cprompt, int height, int width,
 	dlg_draw_bottom_box(dialog);
 	mouse_mkbutton(height - 2, width / 2 - 4, 6, '\n');
 	dlg_draw_buttons(dialog, height - 2, 0, buttons, button, FALSE, width);
+	dlg_draw_helpline(dialog, FALSE);
 
 	while (result == DLG_EXIT_UNKNOWN) {
 	    if (show) {
@@ -172,6 +174,7 @@ dialog_msgbox(const char *title, const char *cprompt, int height, int width,
 	}
     } else {
 	dlg_print_scrolled(dialog, prompt, offset, page, width, pauseopt);
+	dlg_draw_helpline(dialog, FALSE);
 	wrefresh(dialog);
 	result = DLG_EXIT_OK;
     }

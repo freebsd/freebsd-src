@@ -1,5 +1,5 @@
 /*
- * $Id: dialog.c,v 1.186 2011/03/02 09:58:29 tom Exp $
+ * $Id: dialog.c,v 1.193 2011/06/29 09:10:56 tom Exp $
  *
  *  cdialog - Display simple dialog boxes from shell scripts
  *
@@ -71,7 +71,9 @@ typedef enum {
     ,o_gauge
     ,o_help
     ,o_help_button
+    ,o_help_file
     ,o_help_label
+    ,o_help_line
     ,o_help_status
     ,o_icon
     ,o_ignore
@@ -96,6 +98,7 @@ typedef enum {
     ,o_no_label
     ,o_no_lines
     ,o_no_mouse
+    ,o_no_nl_expand
     ,o_no_shadow
     ,o_nocancel
     ,o_noitem
@@ -137,6 +140,7 @@ typedef enum {
     ,o_title
     ,o_trim
     ,o_under_mouse
+    ,o_version
     ,o_visit_items
     ,o_wmclass
     ,o_yes_label
@@ -215,6 +219,8 @@ static const Options options[] = {
     { "help-button",	o_help_button,		1, "" },
     { "help-label",	o_help_label,		1, "<str>" },
     { "help-status",	o_help_status,		1, "" },
+    { "hfile",		o_help_file,		1, "<str>" },
+    { "hline",		o_help_line,		1, "<str>" },
     { "icon",		o_icon,			1, NULL },
     { "ignore",		o_ignore,		1, "" },
     { "infobox",	o_infobox,		2, "<text> <height> <width>" },
@@ -239,6 +245,7 @@ static const Options options[] = {
     { "no-label",	o_no_label,		1, "<str>" },
     { "no-lines",	o_no_lines, 		1, "" },
     { "no-mouse",	o_no_mouse,		1, "" },
+    { "no-nl-expand",	o_no_nl_expand,		1, "" },
     { "no-ok",		o_nook,			1, "" },
     { "no-shadow",	o_no_shadow,		1, "" },
     { "nocancel",	o_nocancel,		1, NULL }, /* see --no-cancel */
@@ -281,7 +288,7 @@ static const Options options[] = {
     { "title",		o_title,		1, "<title>" },
     { "trim",		o_trim,			1, "" },
     { "under-mouse", 	o_under_mouse,		1, NULL },
-    { "version",	o_print_version,	5, "" },
+    { "version",	o_version,		5, "" },
     { "visit-items", 	o_visit_items,		1, "" },
     { "wmclass",	o_wmclass,		1, NULL },
     { "yes-label",	o_yes_label,		1, "<str>" },
@@ -872,6 +879,7 @@ call_mixed_gauge(CALLARGS)
 }
 #endif
 
+#ifdef HAVE_DLG_GAUGE
 static int
 call_prgbox(CALLARGS)
 {
@@ -891,6 +899,7 @@ call_prgbox(CALLARGS)
 			    numeric_arg(av, 2),
 			    numeric_arg(av, 3), TRUE));
 }
+#endif
 
 #ifdef HAVE_DLG_GAUGE
 static int
@@ -1089,6 +1098,15 @@ compare_opts(const void *a, const void *b)
 }
 
 /*
+ * Print program's version.
+ */
+static void
+PrintVersion(FILE *fp)
+{
+    fprintf(fp, "Version: %s\n", dialog_version());
+}
+
+/*
  * Print program help-message
  */
 static void
@@ -1121,6 +1139,9 @@ Help(void)
     size_t limit = sizeof(options) / sizeof(options[0]);
     size_t j, k;
     const Options **opts;
+
+    end_dialog();
+    dialog_state.output = stdout;
 
     opts = dlg_calloc(const Options *, limit);
     assert_ptr(opts, "Help");
@@ -1191,6 +1212,9 @@ process_common_options(int argc, char **argv, int offset, bool output)
 	case o_cr_wrap:
 	    dialog_vars.cr_wrap = TRUE;
 	    break;
+	case o_no_nl_expand:
+	    dialog_vars.no_nl_expand = TRUE;
+	    break;
 	case o_no_collapse:
 	    dialog_vars.nocollapse = TRUE;
 	    break;
@@ -1236,6 +1260,12 @@ process_common_options(int argc, char **argv, int offset, bool output)
 	case o_item_help:
 	    dialog_vars.item_help = TRUE;
 	    break;
+	case o_help_line:
+	    dialog_vars.help_line = optionString(argv, &offset);
+	    break;
+	case o_help_file:
+	    dialog_vars.help_file = optionString(argv, &offset);
+	    break;
 	case o_help_button:
 	    dialog_vars.help_button = TRUE;
 	    break;
@@ -1274,7 +1304,7 @@ process_common_options(int argc, char **argv, int offset, bool output)
 	    break;
 	case o_print_version:
 	    if (output) {
-		fprintf(stdout, "Version: %s\n", dialog_version());
+		PrintVersion(dialog_state.output);
 	    }
 	    break;
 	case o_separator:
@@ -1356,6 +1386,7 @@ process_common_options(int argc, char **argv, int offset, bool output)
 	    break;
 	case o_no_mouse:
 	    dialog_state.no_mouse = TRUE;
+	    mouse_close();
 	    break;
 	case o_noitem:
 	case o_fullbutton:
@@ -1474,6 +1505,9 @@ main(int argc, char *argv[])
      * that.  We can only write to one of them.  If --stdout is used, that
      * can interfere with initializing the curses library, so we want to
      * know explicitly if it is used.
+     *
+     * Also, look for any --version or --help message, processing those
+     * immediately.
      */
     while (offset < argc) {
 	int base = offset;
@@ -1497,6 +1531,14 @@ main(int argc, char *argv[])
 	case o_keep_tite:
 	    keep_tite = TRUE;
 	    break;
+	case o_version:
+	    dialog_state.output = stdout;
+	    PrintVersion(dialog_state.output);
+	    exit(DLG_EXIT_OK);
+	    break;
+	case o_help:
+	    Help();
+	    break;
 	default:
 	    ++offset;
 	    continue;
@@ -1512,7 +1554,11 @@ main(int argc, char *argv[])
     offset = 1;
     init_result(my_buffer);
 
-    if (argc == 2) {		/* if we don't want clear screen */
+    /*
+     * Dialog's output may be redirected (see above).  Handle the special
+     * case of options that only report information without interaction.
+     */
+    if (argc == 2) {
 	switch (lookupOption(argv[1], 7)) {
 	case o_print_maxsize:
 	    (void) initscr();
@@ -1521,7 +1567,7 @@ main(int argc, char *argv[])
 	    fprintf(dialog_state.output, "MaxSize: %d, %d\n", SLINES, SCOLS);
 	    break;
 	case o_print_version:
-	    fprintf(stdout, "Version: %s\n", dialog_version());
+	    PrintVersion(dialog_state.output);
 	    break;
 	case o_clear:
 	    initscr();
@@ -1531,8 +1577,6 @@ main(int argc, char *argv[])
 	case o_ignore:
 	    break;
 	default:
-	case o_help:
-	    dialog_state.output = stdout;
 	    Help();
 	    break;
 	}
@@ -1621,6 +1665,8 @@ main(int argc, char *argv[])
 	    case o_unknown:
 	    case o_title:
 	    case o_backtitle:
+	    case o_help_line:
+	    case o_help_file:
 		break;
 	    default:
 		if (argv[j] != 0) {
