@@ -73,8 +73,7 @@ struct nlist symbols[] = {
 			X(shmseg, sizeof(u_long))			\
 			X(shmall, sizeof(u_long))
 
-#define	SEMINFO_XVEC	X(semmap, sizeof(int))				\
-			X(semmni, sizeof(int))				\
+#define	SEMINFO_XVEC	X(semmni, sizeof(int))				\
 			X(semmns, sizeof(int))				\
 			X(semmnu, sizeof(int))				\
 			X(semmsl, sizeof(int))				\
