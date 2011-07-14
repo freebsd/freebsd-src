@@ -92,9 +92,9 @@ options		IPFIREWALL_DEFAULT_TO_ACCEPT
 
 device		random
 device		loop
-# RT3050F, RT3052F have only pseudo PHYs
-#device		mii
-#device		miibus
+# RT3050F, RT3052F have only pseudo PHYs, so mii not required
+device		rt
+
 device 		pty			# Pseudo-ttys (telnet etc)
 device		ether
 device 		bpf			# Berkeley packet filter
