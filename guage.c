@@ -1,5 +1,5 @@
 /*
- *  $Id: guage.c,v 1.52 2011/01/17 10:39:28 tom Exp $
+ *  $Id: guage.c,v 1.60 2011/06/27 00:52:28 tom Exp $
  *
  *  guage.c -- implements the gauge dialog
  *
@@ -35,8 +35,9 @@
 
 #define isMarker(buf) !strncmp(buf, "XXX", (size_t) 3)
 
-typedef struct {
-    DIALOG_CALLBACK obj;
+typedef struct _my_obj {
+    DIALOG_CALLBACK obj;	/* has to be first in struct */
+    struct _my_obj *next;
     WINDOW *text;
     const char *title;
     char *prompt;
@@ -47,6 +48,43 @@ typedef struct {
     char line[MAX_LEN + 1];
 } MY_OBJ;
 
+static MY_OBJ *all_objects;
+
+static int
+valid(MY_OBJ * obj)
+{
+    MY_OBJ *list = all_objects;
+    int result = 0;
+
+    while (list != 0) {
+	if (list == obj) {
+	    result = 1;
+	    break;
+	}
+	list = list->next;
+    }
+    return result;
+}
+
+static void
+delink(MY_OBJ * obj)
+{
+    MY_OBJ *p = all_objects;
+    MY_OBJ *q = 0;
+    while (p != 0) {
+	if (p == obj) {
+	    if (q != 0) {
+		q->next = p->next;
+	    } else {
+		all_objects = p->next;
+	    }
+	    break;
+	}
+	q = p;
+	p = p->next;
+    }
+}
+
 static int
 read_data(char *buffer, FILE *fp)
 {
@@ -55,6 +93,7 @@ read_data(char *buffer, FILE *fp)
     if (feof(fp)) {
 	result = 0;
     } else if (fgets(buffer, MY_LEN, fp) != 0) {
+	DLG_TRACE(("read_data:%s", buffer));
 	dlg_trim_string(buffer);
 	result = 1;
     } else {
@@ -88,6 +127,7 @@ repaint_text(MY_OBJ * obj)
 	dlg_draw_title(dialog, obj->title);
 
 	wattrset(dialog, dialog_attr);
+	dlg_draw_helpline(dialog, FALSE);
 	dlg_print_autowrap(dialog, obj->prompt, obj->height, obj->width);
 
 	dlg_draw_box(dialog,
@@ -179,6 +219,7 @@ handle_input(DIALOG_CALLBACK * cb)
     } else {
 	if (feof(dialog_state.pipe_input) ||
 	    (ferror(dialog_state.pipe_input) && errno != EINTR)) {
+	    delink(obj);
 	    dlg_remove_callback(cb);
 	}
     }
@@ -202,7 +243,8 @@ handle_my_getc(DIALOG_CALLBACK * cb, int ch, int fkey, int *result)
     if (cb != 0) {
 	if (!fkey && (ch == ERR)) {
 	    (void) handle_input(cb);
-	    status = (cb->input != 0);
+	    /* cb might be freed in handle_input */
+	    status = (valid((MY_OBJ *) cb) && (cb->input != 0));
 	}
     } else {
 	status = FALSE;
@@ -215,9 +257,85 @@ my_cleanup(DIALOG_CALLBACK * cb)
 {
     MY_OBJ *obj = (MY_OBJ *) cb;
 
-    if (obj != 0) {
-	if (obj->prompt != obj->prompt_buf)
+    if (valid(obj)) {
+	if (obj->prompt != obj->prompt_buf) {
 	    free(obj->prompt);
+	    obj->prompt = obj->prompt_buf;
+	}
+	delink(obj);
+    }
+}
+
+void
+dlg_update_gauge(void *objptr, int percent)
+{
+    MY_OBJ *obj = (MY_OBJ *) objptr;
+
+    curs_set(0);
+    obj->percent = percent;
+    repaint_text(obj);
+}
+
+/*
+ * Allocates a new object and fills it as per the arguments
+ */
+void *
+dlg_allocate_gauge(const char *title,
+		   const char *cprompt,
+		   int height,
+		   int width,
+		   int percent)
+{
+    int x, y;
+    char *prompt = dlg_strclone(cprompt);
+    WINDOW *dialog;
+    MY_OBJ *obj = 0;
+
+    dlg_tab_correct_str(prompt);
+
+    dlg_auto_size(title, prompt, &height, &width, MIN_HIGH, MIN_WIDE);
+    dlg_print_size(height, width);
+    dlg_ctl_size(height, width);
+
+    /* center dialog box on screen */
+    x = dlg_box_x_ordinate(width);
+    y = dlg_box_y_ordinate(height);
+
+    dialog = dlg_new_window(height, width, y, x);
+
+    obj = dlg_calloc(MY_OBJ, 1);
+    assert_ptr(obj, "dialog_gauge");
+
+    obj->obj.input = dialog_state.pipe_input;
+    obj->obj.win = dialog;
+    obj->obj.keep_win = TRUE;
+    obj->obj.bg_task = TRUE;
+    obj->obj.handle_getc = handle_my_getc;
+    obj->obj.handle_input = handle_input;
+
+    obj->title = title;
+    obj->prompt = prompt;
+    obj->percent = percent;
+    obj->height = height;
+    obj->width = width;
+
+    obj->next = all_objects;
+    all_objects = obj;
+
+    return (void *) obj;
+}
+
+void
+dlg_free_gauge(void *objptr)
+{
+    MY_OBJ *obj = (MY_OBJ *) objptr;
+
+    curs_set(1);
+    if (valid(obj)) {
+	delink(obj);
+	obj->obj.keep_win = FALSE;
+	dlg_remove_callback(&(obj->obj));
+	free(obj);
     }
 }
 
@@ -236,80 +354,46 @@ dialog_gauge(const char *title,
 	     int width,
 	     int percent)
 {
-#ifdef KEY_RESIZE
-    int old_height = height;
-    int old_width = width;
-#endif
     int fkey;
     int ch, result;
-    int x, y;
-    char *prompt = dlg_strclone(cprompt);
-    WINDOW *dialog;
-    MY_OBJ *obj = 0;
+    void *objptr = dlg_allocate_gauge(title, cprompt, height, width, percent);
+    MY_OBJ *obj = (MY_OBJ *) objptr;
 
-    curs_set(0);
-
-    dlg_tab_correct_str(prompt);
-
-#ifdef KEY_RESIZE
-  retry:
-#endif
-
-    dlg_auto_size(title, prompt, &height, &width, MIN_HIGH, MIN_WIDE);
-    dlg_print_size(height, width);
-    dlg_ctl_size(height, width);
-
-    /* center dialog box on screen */
-    x = dlg_box_x_ordinate(width);
-    y = dlg_box_y_ordinate(height);
-
-    dialog = dlg_new_window(height, width, y, x);
-
-    if (obj == 0) {
-	MY_OBJ **objref;
-
-	obj = dlg_calloc(MY_OBJ, 1);
-	assert_ptr(obj, "dialog_gauge");
-
-	objref = &obj;
-	obj->obj.input = dialog_state.pipe_input;
-	obj->obj.win = dialog;
-	obj->obj.keep_win = TRUE;
-	obj->obj.bg_task = TRUE;
-	obj->obj.handle_getc = handle_my_getc;
-	obj->obj.handle_input = handle_input;
-	obj->title = title;
-	obj->prompt = prompt;
-	obj->percent = percent;
-	obj->height = height;
-	obj->width = width;
-	dlg_add_callback_ref((DIALOG_CALLBACK **) objref, my_cleanup);
-    } else {
-	obj->obj.win = dialog;
-    }
-
-    repaint_text(obj);
+    dlg_add_callback_ref((DIALOG_CALLBACK **) & obj, my_cleanup);
+    dlg_update_gauge(obj, percent);
 
     do {
-	ch = dlg_getc(dialog, &fkey);
+	ch = dlg_getc(obj->obj.win, &fkey);
 #ifdef KEY_RESIZE
 	if (fkey && ch == KEY_RESIZE) {
-	    /* reset data */
-	    height = old_height;
-	    width = old_width;
-	    /* repaint */
-	    dlg_clear();
-	    dlg_del_window(dialog);
-	    refresh();
+	    MY_OBJ *oldobj = obj;
+
 	    dlg_mouse_free_regions();
-	    goto retry;
+
+	    obj = dlg_allocate_gauge(title,
+				     cprompt,
+				     height,
+				     width,
+				     oldobj->percent);
+
+	    /* avoid breaking new window in dlg_remove_callback */
+	    oldobj->obj.caller = 0;
+	    oldobj->obj.input = 0;
+	    oldobj->obj.keep_win = FALSE;
+
+	    /* remove the old version of the gauge */
+	    dlg_clear();
+	    dlg_remove_callback(&(oldobj->obj));
+	    refresh();
+
+	    dlg_add_callback_ref((DIALOG_CALLBACK **) & obj, my_cleanup);
+	    dlg_update_gauge(obj, obj->percent);
 	}
 #endif
     }
-    while (handle_my_getc(&(obj->obj), ch, fkey, &result));
+    while (valid(obj) && handle_my_getc(&(obj->obj), ch, fkey, &result));
 
-    curs_set(1);
-    dlg_del_window(dialog);
+    dlg_free_gauge(obj);
 
     return (DLG_EXIT_OK);
 }
