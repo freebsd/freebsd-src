@@ -197,11 +197,15 @@ a user to set his or her own defaults.  The number of processes to display
 can also be specified in the environment variable
 .BR TOP .
 The options
+.BR \-a ,
+.BR \-C ,
+.BR \-H ,
 .BR \-I ,
+.BR \-j ,
 .BR \-S ,
-.BR \-u ,
+.BR \-t ,
 and
-.B \-t
+.B \-u
 are actually toggles.  A second specification of any of these options
 will negate the first.  Thus a user who has the environment variable
 .B TOP
