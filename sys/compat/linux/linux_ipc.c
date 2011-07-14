@@ -575,7 +575,15 @@ linux_semctl(struct thread *td, struct linux_semctl_args *args)
 		return (error);
 	case LINUX_IPC_INFO:
 	case LINUX_SEM_INFO:
-		bcopy(&seminfo, &linux_seminfo, sizeof(linux_seminfo) );
+		bcopy(&seminfo, &linux_seminfo.semmni, sizeof(linux_seminfo) -
+		    sizeof(linux_seminfo.semmap) );
+		/*
+		 * Linux does not use the semmap field either but populates it
+		 * with the defined value from SEMMAP, which really is redefined
+		 * to SEMMNS, which they define as SEMMNI * SEMMSL.
+		 * Try to simulate this returning our dynamic semmns value.
+		 */
+		linux_seminfo.semmap = linux_seminfo.semmns;
 /* XXX BSD equivalent?
 #define used_semids 10
 #define used_sems 10
