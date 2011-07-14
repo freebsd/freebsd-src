@@ -142,6 +142,7 @@ static const STRUCT_USB_HOST_ID axe_devs[] = {
 	AXE_DEV(ASIX, AX88178, AXE_FLAG_178),
 	AXE_DEV(ASIX, AX88772, AXE_FLAG_772),
 	AXE_DEV(ASIX, AX88772A, AXE_FLAG_772A),
+	AXE_DEV(ASIX, AX88772B, AXE_FLAG_772B),
 	AXE_DEV(ATEN, UC210T, 0),
 	AXE_DEV(BELKIN, F5D5055, AXE_FLAG_178),
 	AXE_DEV(BILLIONTON, USB2AR, 0),
@@ -190,7 +191,9 @@ static void	axe_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 static int	axe_cmd(struct axe_softc *, int, int, int, void *);
 static void	axe_ax88178_init(struct axe_softc *);
 static void	axe_ax88772_init(struct axe_softc *);
+static void	axe_ax88772_phywake(struct axe_softc *);
 static void	axe_ax88772a_init(struct axe_softc *);
+static void	axe_ax88772b_init(struct axe_softc *);
 static int	axe_get_phyno(struct axe_softc *, int);
 
 static const struct usb_config axe_config[AXE_N_TRANSFER] = {
@@ -215,6 +218,17 @@ static const struct usb_config axe_config[AXE_N_TRANSFER] = {
 		.callback = axe_bulk_read_callback,
 		.timeout = 0,	/* no timeout */
 	},
+};
+
+static const struct ax88772b_mfb ax88772b_mfb_table[] = {
+	{ 0x8000, 0x8001, 2048 },
+	{ 0x8100, 0x8147, 4096},
+	{ 0x8200, 0x81EB, 6144},
+	{ 0x8300, 0x83D7, 8192},
+	{ 0x8400, 0x851E, 16384},
+	{ 0x8500, 0x8666, 20480},
+	{ 0x8600, 0x87AE, 24576},
+	{ 0x8700, 0x8A3D, 32768}
 };
 
 static device_method_t axe_methods[] = {
@@ -669,16 +683,11 @@ axe_ax88772_init(struct axe_softc *sc)
 }
 
 static void
-axe_ax88772a_init(struct axe_softc *sc)
+axe_ax88772_phywake(struct axe_softc *sc)
 {
 	struct usb_ether *ue;
-	uint16_t eeprom;
 
 	ue = &sc->sc_ue;
-	axe_cmd(sc, AXE_CMD_SROM_READ, 0, 0x0017, &eeprom);
-	eeprom = le16toh(eeprom);
-	/* Reload EEPROM. */
-	AXE_GPIO_WRITE(AXE_GPIO_RELOAD_EEPROM, hz / 32);
 	if (sc->sc_phyno == AXE_772_PHY_NO_EPHY) {
 		/* Manually select internal(embedded) PHY - MAC mode. */
 		axe_cmd(sc, AXE_CMD_SW_PHY_SELECT, 0, AXE_SW_PHY_SELECT_SS_ENB |
@@ -704,6 +713,55 @@ axe_ax88772a_init(struct axe_softc *sc)
 	uether_pause(&sc->sc_ue, hz / 32);
 	axe_cmd(sc, AXE_CMD_SW_RESET_REG, 0, AXE_SW_RESET_IPRL, NULL);
 	uether_pause(&sc->sc_ue, hz / 32);
+}
+
+static void
+axe_ax88772a_init(struct axe_softc *sc)
+{
+	struct usb_ether *ue;
+
+	ue = &sc->sc_ue;
+	/* Reload EEPROM. */
+	AXE_GPIO_WRITE(AXE_GPIO_RELOAD_EEPROM, hz / 32);
+	axe_ax88772_phywake(sc);
+	/* Stop MAC. */
+	axe_cmd(sc, AXE_CMD_RXCTL_WRITE, 0, 0, NULL);
+}
+
+static void
+axe_ax88772b_init(struct axe_softc *sc)
+{
+	struct usb_ether *ue;
+	uint16_t eeprom;
+	uint8_t *eaddr;
+	int i;
+
+	ue = &sc->sc_ue;
+	/* Reload EEPROM. */
+	AXE_GPIO_WRITE(AXE_GPIO_RELOAD_EEPROM, hz / 32);
+	/*
+	 * Save PHY power saving configuration(high byte) and
+	 * clear EEPROM checksum value(low byte).
+	 */
+	axe_cmd(sc, AXE_CMD_SROM_READ, 0, AXE_EEPROM_772B_PHY_PWRCFG, &eeprom);
+	sc->sc_pwrcfg = le16toh(eeprom) & 0xFF00;
+
+	/*
+	 * Auto-loaded default station address from internal ROM is
+	 * 00:00:00:00:00:00 such that an explicit access to EEPROM
+	 * is required to get real station address.
+	 */
+	eaddr = ue->ue_eaddr;
+	for (i = 0; i < ETHER_ADDR_LEN / 2; i++) {
+		axe_cmd(sc, AXE_CMD_SROM_READ, 0, AXE_EEPROM_772B_NODE_ID + i,
+		    &eeprom);
+		eeprom = le16toh(eeprom);
+		*eaddr++ = (uint8_t)(eeprom & 0xFF);
+		*eaddr++ = (uint8_t)((eeprom >> 8) & 0xFF);
+	}
+	/* Wakeup PHY. */
+	axe_ax88772_phywake(sc);
+	/* Stop MAC. */
 	axe_cmd(sc, AXE_CMD_RXCTL_WRITE, 0, 0, NULL);
 }
 
@@ -732,6 +790,8 @@ axe_reset(struct axe_softc *sc)
 		axe_ax88772_init(sc);
 	else if (sc->sc_flags & AXE_FLAG_772A)
 		axe_ax88772a_init(sc);
+	else if (sc->sc_flags & AXE_FLAG_772B)
+		axe_ax88772b_init(sc);
 }
 
 static void
@@ -755,29 +815,29 @@ axe_attach_post(struct usb_ether *ue)
 		sc->sc_phyno = 0;
 	}
 
+	/* Initialize controller and get station address. */
 	if (sc->sc_flags & AXE_FLAG_178) {
 		axe_ax88178_init(sc);
 		sc->sc_tx_bufsz = 16 * 1024;
+		axe_cmd(sc, AXE_178_CMD_READ_NODEID, 0, 0, ue->ue_eaddr);
 	} else if (sc->sc_flags & AXE_FLAG_772) {
 		axe_ax88772_init(sc);
 		sc->sc_tx_bufsz = 8 * 1024;
+		axe_cmd(sc, AXE_178_CMD_READ_NODEID, 0, 0, ue->ue_eaddr);
 	} else if (sc->sc_flags & AXE_FLAG_772A) {
 		axe_ax88772a_init(sc);
 		sc->sc_tx_bufsz = 8 * 1024;
-	}
-
-	/*
-	 * Get station address.
-	 */
-	if (AXE_IS_178_FAMILY(sc))
 		axe_cmd(sc, AXE_178_CMD_READ_NODEID, 0, 0, ue->ue_eaddr);
-	else
+	} else if (sc->sc_flags & AXE_FLAG_772B) {
+		axe_ax88772b_init(sc);
+		sc->sc_tx_bufsz = 8 * 1024;
+	} else
 		axe_cmd(sc, AXE_172_CMD_READ_NODEID, 0, 0, ue->ue_eaddr);
 
 	/*
 	 * Fetch IPG values.
 	 */
-	if (sc->sc_flags & AXE_FLAG_772A) {
+	if (sc->sc_flags & (AXE_FLAG_772A | AXE_FLAG_772B)) {
 		/* Set IPG values. */
 		sc->sc_ipgs[0] = 0x15;
 		sc->sc_ipgs[1] = 0x16;
@@ -1104,18 +1164,30 @@ axe_init(struct usb_ether *ue)
 		axe_cmd(sc, AXE_172_CMD_WRITE_IPG2, 0, sc->sc_ipgs[2], NULL);
 	}
 
-	/* Enable receiver, set RX mode */
+	/* AX88772B uses different maximum frame burst configuration. */
+	if (sc->sc_flags & AXE_FLAG_772B)
+		axe_cmd(sc, AXE_772B_CMD_RXCTL_WRITE_CFG,
+		    ax88772b_mfb_table[AX88772B_MFB_16K].threshold,
+		    ax88772b_mfb_table[AX88772B_MFB_16K].byte_cnt, NULL);
+
+	/* Enable receiver, set RX mode. */
 	rxmode = (AXE_RXCMD_MULTICAST | AXE_RXCMD_ENABLE);
 	if (AXE_IS_178_FAMILY(sc)) {
-#if 0
-		rxmode |= AXE_178_RXCMD_MFB_2048;	/* chip default */
-#else
-		/*
-		 * Default Rx buffer size is too small to get
-		 * maximum performance.
-		 */
-		rxmode |= AXE_178_RXCMD_MFB_16384;
-#endif
+		if (sc->sc_flags & AXE_FLAG_772B) {
+			/*
+			 * Select RX header format type 1.  Aligning IP
+			 * header on 4 byte boundary is not needed
+			 * because we always copy the received frame in
+			 * RX handler.
+			 */
+			rxmode |= AXE_772B_RXCMD_HDR_TYPE_1;
+		} else {
+			/*
+			 * Default Rx buffer size is too small to get
+			 * maximum performance.
+			 */
+			rxmode |= AXE_178_RXCMD_MFB_16384;
+		}
 	} else {
 		rxmode |= AXE_172_RXCMD_UNICAST;
 	}
