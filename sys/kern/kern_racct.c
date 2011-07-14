@@ -103,7 +103,7 @@ SDT_PROBE_DEFINE2(racct, kernel, racct, leave, leave, "struct racct *",
 
 int racct_types[] = {
 	[RACCT_CPU] =
-		RACCT_IN_THOUSANDS,
+		RACCT_IN_MILLIONS,
 	[RACCT_DATA] =
 		RACCT_RECLAIMABLE | RACCT_INHERITABLE | RACCT_DENIABLE,
 	[RACCT_STACK] =
@@ -141,7 +141,7 @@ int racct_types[] = {
 	[RACCT_SHMSIZE] =
 		RACCT_RECLAIMABLE | RACCT_DENIABLE | RACCT_SLOPPY,
 	[RACCT_WALLCLOCK] =
-		RACCT_IN_THOUSANDS };
+		RACCT_IN_MILLIONS };
 
 static void
 racct_add_racct(struct racct *dest, const struct racct *src)
