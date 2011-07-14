@@ -1326,6 +1326,41 @@ static const template i386_optab[] = {
 /* Need to ensure only "mwait %eax,%ecx" is accepted.  */
 {"mwait",     2, 0x0f01, 0xc9, CpuPNI, FP|ImmExt,	{ Reg32, Reg32, 0} },
 
+/* Supplemental Streaming SIMD extensions 3 Instructions.  */
+
+{"phaddw",    2,   0x0f3801,X, CpuSSSE3, NoSuf|IgnoreSize|Modrm,	{ RegMMX|LongMem, RegMMX, 0 } },
+{"phaddw",    2, 0x660f3801,X, CpuSSSE3, NoSuf|IgnoreSize|Modrm,	{ RegXMM|LLongMem, RegXMM, 0 } },
+{"phaddd",    2,   0x0f3802,X, CpuSSSE3, NoSuf|IgnoreSize|Modrm,	{ RegMMX|LongMem, RegMMX, 0 } },
+{"phaddd",    2, 0x660f3802,X, CpuSSSE3, NoSuf|IgnoreSize|Modrm,	{ RegXMM|LLongMem, RegXMM, 0 } },
+{"phaddsw",   2,   0x0f3803,X, CpuSSSE3, NoSuf|IgnoreSize|Modrm,	{ RegMMX|LongMem, RegMMX, 0 } },
+{"phaddsw",   2, 0x660f3803,X, CpuSSSE3, NoSuf|IgnoreSize|Modrm,	{ RegXMM|LLongMem, RegXMM, 0 } },
+{"phsubw",    2,   0x0f3805,X, CpuSSSE3, NoSuf|IgnoreSize|Modrm,	{ RegMMX|LongMem, RegMMX, 0 } },
+{"phsubw",    2, 0x660f3805,X, CpuSSSE3, NoSuf|IgnoreSize|Modrm,	{ RegXMM|LLongMem, RegXMM, 0 } },
+{"phsubd",    2,   0x0f3806,X, CpuSSSE3, NoSuf|IgnoreSize|Modrm,	{ RegMMX|LongMem, RegMMX, 0 } },
+{"phsubd",    2, 0x660f3806,X, CpuSSSE3, NoSuf|IgnoreSize|Modrm,	{ RegXMM|LLongMem, RegXMM, 0 } },
+{"phsubsw",   2,   0x0f3807,X, CpuSSSE3, NoSuf|IgnoreSize|Modrm,	{ RegMMX|LongMem, RegMMX, 0 } },
+{"phsubsw",   2, 0x660f3807,X, CpuSSSE3, NoSuf|IgnoreSize|Modrm,	{ RegXMM|LLongMem, RegXMM, 0 } },
+{"pmaddubsw", 2,   0x0f3804,X, CpuSSSE3, NoSuf|IgnoreSize|Modrm,	{ RegMMX|LongMem, RegMMX, 0 } },
+{"pmaddubsw", 2, 0x660f3804,X, CpuSSSE3, NoSuf|IgnoreSize|Modrm,	{ RegXMM|LLongMem, RegXMM, 0 } },
+{"pmulhrsw", 2,    0x0f380b,X, CpuSSSE3, NoSuf|IgnoreSize|Modrm,	{ RegMMX|LongMem, RegMMX, 0 } },
+{"pmulhrsw", 2,  0x660f380b,X, CpuSSSE3, NoSuf|IgnoreSize|Modrm,	{ RegXMM|LLongMem, RegXMM, 0 } },
+{"pshufb",   2,    0x0f3800,X, CpuSSSE3, NoSuf|IgnoreSize|Modrm,	{ RegMMX|LongMem, RegMMX, 0 } },
+{"pshufb",   2,  0x660f3800,X, CpuSSSE3, NoSuf|IgnoreSize|Modrm,	{ RegXMM|LLongMem, RegXMM, 0 } },
+{"psignb",   2,    0x0f3808,X, CpuSSSE3, NoSuf|IgnoreSize|Modrm,	{ RegMMX|LongMem, RegMMX, 0 } },
+{"psignb",   2,  0x660f3808,X, CpuSSSE3, NoSuf|IgnoreSize|Modrm,	{ RegXMM|LLongMem, RegXMM, 0 } },
+{"psignw",   2,    0x0f3809,X, CpuSSSE3, NoSuf|IgnoreSize|Modrm,	{ RegMMX|LongMem, RegMMX, 0 } },
+{"psignw",   2,  0x660f3809,X, CpuSSSE3, NoSuf|IgnoreSize|Modrm,	{ RegXMM|LLongMem, RegXMM, 0 } },
+{"psignd",   2,    0x0f380a,X, CpuSSSE3, NoSuf|IgnoreSize|Modrm,	{ RegMMX|LongMem, RegMMX, 0 } },
+{"psignd",   2,  0x660f380a,X, CpuSSSE3, NoSuf|IgnoreSize|Modrm,	{ RegXMM|LLongMem, RegXMM, 0 } },
+{"palignr",  3,    0x0f3a0f,X, CpuSSSE3, NoSuf|IgnoreSize|Modrm,	{ Imm8, RegMMX|LongMem, RegMMX } },
+{"palignr",  3,  0x660f3a0f,X, CpuSSSE3, NoSuf|IgnoreSize|Modrm,	{ Imm8, RegXMM|LLongMem, RegXMM } },
+{"pabsb",    2,    0x0f381c,X, CpuSSSE3, NoSuf|IgnoreSize|Modrm,	{ RegMMX|LongMem, RegMMX, 0 } },
+{"pabsb",    2,  0x660f381c,X, CpuSSSE3, NoSuf|IgnoreSize|Modrm,	{ RegXMM|LLongMem, RegXMM, 0 } },
+{"pabsw",    2,    0x0f381d,X, CpuSSSE3, NoSuf|IgnoreSize|Modrm,	{ RegMMX|LongMem, RegMMX, 0 } },
+{"pabsw",    2,  0x660f381d,X, CpuSSSE3, NoSuf|IgnoreSize|Modrm,	{ RegXMM|LLongMem, RegXMM, 0 } },
+{"pabsd",    2,    0x0f381e,X, CpuSSSE3, NoSuf|IgnoreSize|Modrm,	{ RegMMX|LongMem, RegMMX, 0 } },
+{"pabsd",    2,  0x660f381e,X, CpuSSSE3, NoSuf|IgnoreSize|Modrm,	{ RegXMM|LLongMem, RegXMM, 0 } },
+
 /* AMD 3DNow! instructions.  */
 
 {"prefetch", 1, 0x0f0d,	   0, Cpu3dnow, FP|Modrm,		{ ByteMem, 0, 0 } },
@@ -1362,13 +1397,16 @@ static const template i386_optab[] = {
 {"swapgs",   0, 0x0f01, 0xf8, Cpu64,	NoSuf|ImmExt,		{ 0, 0, 0} },
 
 /* VIA PadLock extensions. */
-{"xstorerng", 0, 0x0fa7c0, X, Cpu686|CpuPadLock, NoSuf|IsString, { 0, 0, 0} },
-{"xcryptecb", 0, 0xf30fa7c8, X, Cpu686|CpuPadLock, NoSuf|IsString, { 0, 0, 0} },
-{"xcryptcbc", 0, 0xf30fa7d0, X, Cpu686|CpuPadLock, NoSuf|IsString, { 0, 0, 0} },
-{"xcryptcfb", 0, 0xf30fa7e0, X, Cpu686|CpuPadLock, NoSuf|IsString, { 0, 0, 0} },
-{"xcryptofb", 0, 0xf30fa7e8, X, Cpu686|CpuPadLock, NoSuf|IsString, { 0, 0, 0} },
-/* alias for xstorerng */
-{"xstore", 0, 0x0fa7c0, X, Cpu686|CpuPadLock, NoSuf|IsString, { 0, 0, 0} },
+{"xstorerng", 0, 0x000fa7, 0xc0, Cpu686|CpuPadLock, NoSuf|IsString|ImmExt, { 0, 0, 0} },
+{"xcryptecb", 0, 0xf30fa7, 0xc8, Cpu686|CpuPadLock, NoSuf|IsString|ImmExt, { 0, 0, 0} },
+{"xcryptcbc", 0, 0xf30fa7, 0xd0, Cpu686|CpuPadLock, NoSuf|IsString|ImmExt, { 0, 0, 0} },
+{"xcryptcfb", 0, 0xf30fa7, 0xe0, Cpu686|CpuPadLock, NoSuf|IsString|ImmExt, { 0, 0, 0} },
+{"xcryptofb", 0, 0xf30fa7, 0xe8, Cpu686|CpuPadLock, NoSuf|IsString|ImmExt, { 0, 0, 0} },
+{"montmul",   0, 0xf30fa6, 0xc0, Cpu686|CpuPadLock, NoSuf|IsString|ImmExt, { 0, 0, 0} },
+{"xsha1",     0, 0xf30fa6, 0xc8, Cpu686|CpuPadLock, NoSuf|IsString|ImmExt, { 0, 0, 0} },
+{"xsha256",   0, 0xf30fa6, 0xd0, Cpu686|CpuPadLock, NoSuf|IsString|ImmExt, { 0, 0, 0} },
+/* Alias for xstorerng.  */
+{"xstore",    0, 0x000fa7, 0xc0, Cpu686|CpuPadLock, NoSuf|IsString|ImmExt, { 0, 0, 0} },
 
 /* sentinel */
 {NULL, 0, 0, 0, 0, 0, { 0, 0, 0} }

@@ -1,3 +1,16 @@
+2006-09-28  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* i386.h: Replace CpuMNI with CpuSSSE3.
+
+2006-02-27  H.J. Lu <hongjiu.lu@intel.com>
+
+	* i386.h (i386_optab): Support Intel Merom New Instructions.
+
+2005-04-12  Mark Kettenis  <kettenis@gnu.org>
+
+	* i386.h (i386_optab): Mark VIA PadLock instructions as ImmExt and
+	adjust them accordingly.
+
 2004-04-08  Alan Modra  <amodra@bigpond.net.au>
 
 	Apply from mainline.

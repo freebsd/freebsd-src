@@ -3150,24 +3150,33 @@ output_insn ()
       /* Output normal instructions here.  */
       char *p;
       unsigned char *q;
+      unsigned int prefix;
 
-      /* All opcodes on i386 have either 1 or 2 bytes, PadLock instructions
-	 have 3 bytes.  We may use one more higher byte to specify a prefix
-	 the instruction requires.  */
-      if ((i.tm.cpu_flags & CpuPadLock) != 0
-	  && (i.tm.base_opcode & 0xff000000) != 0)
-        {
-	  unsigned int prefix;
-	  prefix = (i.tm.base_opcode >> 24) & 0xff;
-
-	  if (prefix != REPE_PREFIX_OPCODE
-	      || i.prefix[LOCKREP_PREFIX] != REPE_PREFIX_OPCODE)
+      /* All opcodes on i386 have either 1 or 2 bytes.  Supplemental
+	 Streaming SIMD extensions 3 Instructions have 3 bytes.  We may
+	 use one more higher byte to specify a prefix the instruction
+	 requires.  */
+      if ((i.tm.cpu_flags & CpuSSSE3) != 0)
+	{
+	  if (i.tm.base_opcode & 0xff000000)
+	    {
+	      prefix = (i.tm.base_opcode >> 24) & 0xff;
+	      goto check_prefix;
+	    }
+	}
+      else if ((i.tm.base_opcode & 0xff0000) != 0)
+	{
+	  prefix = (i.tm.base_opcode >> 16) & 0xff;
+	  if ((i.tm.cpu_flags & CpuPadLock) != 0)
+	    {
+check_prefix:
+	      if (prefix != REPE_PREFIX_OPCODE
+		  || i.prefix[LOCKREP_PREFIX] != REPE_PREFIX_OPCODE)
+		add_prefix (prefix);
+	    }
+	  else
 	    add_prefix (prefix);
 	}
-      else
-	if ((i.tm.cpu_flags & CpuPadLock) == 0
-	    && (i.tm.base_opcode & 0xff0000) != 0)
-	  add_prefix ((i.tm.base_opcode >> 16) & 0xff);
 
       /* The prefix bytes.  */
       for (q = i.prefix;
@@ -3188,7 +3197,7 @@ output_insn ()
 	}
       else
 	{
-	  if ((i.tm.cpu_flags & CpuPadLock) != 0)
+	  if ((i.tm.cpu_flags & CpuSSSE3) != 0)
 	    {
 	      p = frag_more (3);
 	      *p++ = (i.tm.base_opcode >> 16) & 0xff;
