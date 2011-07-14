@@ -1,3 +1,23 @@
+2006-09-28  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* config/tc-i386.h (CpuMNI): Renamed to ...
+	(CpuSSSE3): This.
+	(CpuUnknownFlags): Updated.
+	* config/tc-i386.c: Updated.
+
+2006-02-27  H.J. Lu <hongjiu.lu@intel.com>
+
+	* gas/config/tc-i386.c (output_insn): Support Intel Merom New
+	Instructions.
+
+	* gas/config/tc-i386.h (CpuMNI): New.
+	(CpuUnknownFlags): Add CpuMNI.
+
+2005-04-12  Mark Kettenis  <kettenis@gnu.org>
+
+	* config/tc-i386.c (output_insn): Handle VIA PadLock instructions
+	similar to other instructions now that they're marked as ImmExt.
+
 2004-05-23  Alan Modra  <amodra@bigpond.net.au>
 
 	* expr.c (operand, operator): Don't reject '++' and '--'.

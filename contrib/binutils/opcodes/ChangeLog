@@ -1,3 +1,17 @@
+2006-02-27  H.J. Lu <hongjiu.lu@intel.com>
+
+	* i386-dis.c (IS_3BYTE_OPCODE): New for 3-byte opcodes used by
+	Intel Merom New Instructions.
+	(THREE_BYTE_0): Likewise.
+	(THREE_BYTE_1): Likewise.
+	(three_byte_table): Likewise.
+	(dis386_twobyte): Use THREE_BYTE_0 for entry 0x38. Use
+	THREE_BYTE_1 for entry 0x3a.
+	(twobyte_has_modrm): Updated.
+	(twobyte_uses_SSE_prefix): Likewise.
+	(print_insn): Handle 3-byte opcodes used by Intel Merom New
+	Instructions.
+
 2004-05-13  Nick Clifton  <nickc@redhat.com>
 
 	* po/fr.po: Updated French translation.
