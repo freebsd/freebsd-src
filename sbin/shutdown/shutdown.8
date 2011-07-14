@@ -28,7 +28,7 @@
 .\"     @(#)shutdown.8	8.2 (Berkeley) 4/27/95
 .\" $FreeBSD$
 .\"
-.Dd December 30, 2010
+.Dd July 13, 2011
 .Dt SHUTDOWN 8
 .Os
 .Sh NAME
@@ -83,20 +83,20 @@ If one of the
 .Fl p
 or
 .Fl r
-is specified,
+options are specified,
 .Nm
 will execute
 .Xr halt 8
 or
 .Xr reboot 8
-instead of sending signal to
+instead of sending a signal to
 .Xr init 8 .
 .It Fl n
 If the
 .Fl o
-is specified, prevent the file system cache from being flushed by passing
+option is specified, prevent the file system cache from being flushed by passing
 .Fl n
-option to
+to
 .Xr halt 8
 or
 .Xr reboot 8 .
@@ -106,10 +106,10 @@ This option should probably not be used.
 is the time at which
 .Nm
 will bring the system down and
-may be the word
+may be the case-insensitive word
 .Ar now
 (indicating an immediate shutdown) or
-specify a future time in one of two formats:
+a future time in one of two formats:
 .Ar +number ,
 or
 .Ar yymmddhhmm ,
@@ -148,7 +148,7 @@ exits.
 .Pp
 At shutdown time a message is written to the system log, containing the
 time of shutdown, the person who initiated the shutdown and the reason.
-Corresponding signal is then sent to
+The corresponding signal is then sent to
 .Xr init 8
 to respectively halt, reboot or bring the system down to single-user state
 (depending on the above options).
@@ -176,16 +176,18 @@ utility will place the system into single user mode at the
 .Ar time
 specified.
 .Pp
-Calling utility as
-.Nm poweroff
-is equivalent of calling:
+Calling
+.Dq Nm poweroff
+is equivalent to running:
 .Bd -literal -offset indent
 shutdown -p now
 .Ed
 .Sh FILES
 .Bl -tag -width /var/run/nologin -compact
 .It Pa /var/run/nologin
-tells login not to let anyone log in
+tells
+.Xr login 1
+not to let anyone log in
 .El
 .Sh COMPATIBILITY
 The hours and minutes in the second time format may be separated by
