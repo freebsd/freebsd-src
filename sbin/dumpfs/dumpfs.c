@@ -68,6 +68,7 @@ static const char rcsid[] =
 #include <fcntl.h>
 #include <fstab.h>
 #include <libufs.h>
+#include <paths.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -146,7 +147,7 @@ int
 dumpfsid(void)
 {
 
-	printf("/dev/ufsid/%x%x\n", afs.fs_id[0], afs.fs_id[1]);
+	printf("%sufsid/%08x%08x\n", _PATH_DEV, afs.fs_id[0], afs.fs_id[1]);
 	return 0;
 }
 
