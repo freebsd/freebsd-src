@@ -856,7 +856,7 @@ format_next_process(caddr_t handle, char *(*get_userid)(int), int flags)
 		    (args = kvm_getargv(kd, pp, cmdlengthdelta)) == NULL ||
 		    !(*args)) {
 			if (ps.thread && pp->ki_flag & P_HADTHREADS &&
-		    	pp->ki_ocomm[0]) {
+		    	    pp->ki_ocomm[0]) {
 				snprintf(cmdbuf, cmdlengthdelta,
 				    "{%s}", pp->ki_ocomm);
 			} else {
