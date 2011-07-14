@@ -369,9 +369,19 @@
       <flags>IEEE80211_CHAN_HT20</flags>
     </band>
     <band>
+      <freqband ref="H4_4920_4980"/>
+      <maxpower>23</maxpower>
+      <flags>IEEE80211_CHAN_HT40</flags>
+    </band>
+    <band>
       <freqband ref="F1_5040_5080"/>
       <maxpower>23</maxpower>
       <flags>IEEE80211_CHAN_HT20</flags>
+    </band>
+    <band>
+      <freqband ref="H4_5040_5080"/>
+      <maxpower>23</maxpower>
+      <flags>IEEE80211_CHAN_HT40</flags>
     </band>
     <band>
       <freqband ref="F1_5180_5240"/>
@@ -1664,7 +1674,12 @@
 </freqband>
 <freqband id="F1_4920_4980">
   <freqstart>4920</freqstart> <freqend>4980</freqend>
-  <chanwidth>20</chanwidth> <chansep>5</chansep>
+  <chanwidth>20</chanwidth> <chansep>20</chansep>
+  <flags>IEEE80211_CHAN_A</flags>
+</freqband>
+<freqband id="H4_4920_4980">
+  <freqstart>4920</freqstart> <freqend>4980</freqend>
+  <chanwidth>40</chanwidth> <chansep>20</chansep>
   <flags>IEEE80211_CHAN_A</flags>
 </freqband>
 <freqband id="F1_4950_4980">
@@ -1675,6 +1690,11 @@
 <freqband id="F1_5040_5080">
   <freqstart>5040</freqstart> <freqend>5080</freqend>
   <chanwidth>20</chanwidth> <chansep>20</chansep>
+  <flags>IEEE80211_CHAN_A</flags>
+</freqband>
+<freqband id="H4_5040_5080">
+  <freqstart>5040</freqstart> <freqend>5080</freqend>
+  <chanwidth>40</chanwidth> <chansep>20</chansep>
   <flags>IEEE80211_CHAN_A</flags>
 </freqband>
 <freqband id="F1_5120_5240">
