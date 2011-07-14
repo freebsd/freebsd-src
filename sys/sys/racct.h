@@ -73,7 +73,7 @@ struct ucred;
 /*
  * Resource properties.
  */
-#define	RACCT_IN_THOUSANDS	0x01
+#define	RACCT_IN_MILLIONS	0x01
 #define	RACCT_RECLAIMABLE	0x02
 #define	RACCT_INHERITABLE	0x04
 #define	RACCT_DENIABLE		0x08
@@ -82,11 +82,11 @@ struct ucred;
 extern int racct_types[];
 
 /*
- * Amount stored in c_resources[] is thousand times bigger than what's
+ * Amount stored in c_resources[] is 10**6 times bigger than what's
  * visible to the userland.  It gets fixed up when retrieving resource
  * usage or adding rules.
  */
-#define	RACCT_IS_IN_THOUSANDS(X)	(racct_types[X] & RACCT_IN_THOUSANDS)
+#define	RACCT_IS_IN_MILLIONS(X)	(racct_types[X] & RACCT_IN_MILLIONS)
 
 /*
  * Resource usage can drop, as opposed to only grow.
