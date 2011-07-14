@@ -1,3 +1,15 @@
+cdialog (20110707) unstable; urgency=high
+
+  * fix a regression in dlg_getc() from 20110630 changes.
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Thu, 07 Jul 2011 18:10:47 -0400
+
+cdialog (20110630) unstable; urgency=high
+
+  * various bug-fixes reported in FreeBSD.
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Mon, 13 Jun 2011 05:44:17 -0400
+
 cdialog (20110302) unstable; urgency=high
 
   * Add --prgbox and --progressbox
