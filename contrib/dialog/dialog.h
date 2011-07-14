@@ -1,5 +1,5 @@
 /*
- *  $Id: dialog.h,v 1.224 2011/06/13 14:29:42 tom Exp $
+ *  $Id: dialog.h,v 1.231 2011/06/29 09:51:00 tom Exp $
  *
  *  dialog.h -- common declarations for all dialog modules
  *
@@ -143,6 +143,7 @@
 
 #define DLG_CTRL(n)	((n) & 0x1f)	/* CTRL is preferred, but conflicts */
 
+#define CHR_HELP	DLG_CTRL('E')
 #define CHR_BACKSPACE	DLG_CTRL('H')
 #define CHR_REPAINT	DLG_CTRL('L')
 #define CHR_KILL	DLG_CTRL('U')
@@ -479,6 +480,11 @@ typedef struct {
     /* 1.1-20100118 */
     char *date_format;		/* option "--date-format" */
     char *time_format;		/* option "--time-format" */
+    /* 1.1-20110629 */
+    char *help_line;		/* option "--hline" */
+    char *help_file;		/* option "--hfile" */
+    bool in_helpfile;		/* flag to prevent recursion in --hfile */
+    bool no_nl_expand;		/* option "--no-nl-expand" */
 } DIALOG_VARS;
 
 #define USE_ITEM_HELP(s)        (dialog_vars.item_help && (s) != 0)
@@ -533,6 +539,7 @@ extern int dialog_editbox(const char * /*title*/, const char * /*file*/, int /*h
 extern int dialog_form(const char * /*title*/, const char * /*cprompt*/, int /*height*/, int /*width*/, int /*form_height*/, int /*item_no*/, char ** /*items*/);
 extern int dialog_fselect(const char * /*title*/, const char * /*path*/, int /*height*/, int /*width*/);
 extern int dialog_gauge(const char * /*title*/, const char * /*cprompt*/, int /*height*/, int /*width*/, int /*percent*/);
+extern int dialog_helpfile(const char * /*title*/, const char * /*file*/, int /*height*/, int /*width*/);
 extern int dialog_inputbox(const char * /*title*/, const char * /*cprompt*/, int /*height*/, int /*width*/, const char * /*init*/, const int /*password*/);
 extern int dialog_menu(const char * /*title*/, const char * /*cprompt*/, int /*height*/, int /*width*/, int /*menu_height*/, int /*item_no*/, char ** /*items*/);
 extern int dialog_mixedform(const char * /*title*/, const char * /*cprompt*/, int /*height*/, int /*width*/, int /*form_height*/, int /*item_no*/, char ** /*items*/);
@@ -587,6 +594,7 @@ extern int dlg_eat_argv(int * /* argcp */, char *** /* argvp */, int /* start */
 /* arrows.c */
 extern void dlg_draw_arrows(WINDOW * /*dialog*/, int /*top_arrow*/, int /*bottom_arrow*/, int /*x*/, int /*top*/, int /*bottom*/);
 extern void dlg_draw_arrows2(WINDOW * /*dialog*/, int /*top_arrow*/, int /*bottom_arrow*/, int /*x*/, int /*top*/, int /*bottom*/, chtype /*attr*/, chtype /*borderattr*/);
+extern void dlg_draw_helpline(WINDOW * /*dialog*/, bool /*decorations*/);
 extern void dlg_draw_scrollbar(WINDOW * /*dialog*/, long /* first_data */, long /* this_data */, long /* next_data */, long /* total_data */, int /* left */, int /* right */, int /*top*/, int /*bottom*/, chtype /*attr*/, chtype /*borderattr*/);
 
 /* buttons.c */
@@ -621,6 +629,11 @@ extern int dlg_editbox(const char */*title*/, char ***/*list*/, int */*rows*/, i
 extern int dlg_default_formitem(DIALOG_FORMITEM * /*items*/);
 extern int dlg_ordinate(const char * /*s*/);
 extern void dlg_free_formitems(DIALOG_FORMITEM * /*items*/);
+
+/* guage.c */
+extern void * dlg_allocate_gauge(const char * /* title */, const char * /* cprompt */, int /* height */, int /* width */, int /* percent */);
+extern void dlg_free_gauge(void * /* objptr */);
+extern void dlg_update_gauge(void * /* objptr */, int /* percent */);
 
 /* inputstr.c */
 extern bool dlg_edit_string(char * /*string*/, int * /*offset*/, int /*key*/, int /*fkey*/, bool /*force*/);
@@ -741,6 +754,12 @@ extern void dlg_trace(const char * /*fname*/);
 #ifdef KEY_RESIZE
 extern void dlg_move_window(WINDOW * /*win*/, int /*height*/, int /*width*/, int /*y*/, int /*x*/);
 #endif
+
+/*
+ * Normally "enter" means "ok".  Use this macro to handle the explicit
+ * check for DLGK_ENTER:
+ */
+#define dlg_enter_buttoncode(code) (dialog_vars.nook ? DLG_EXIT_OK : dlg_ok_buttoncode(code))
 
 /*
  * The following stuff is needed for mouse support
