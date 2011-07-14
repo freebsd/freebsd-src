@@ -260,8 +260,12 @@ mfi_transition_firmware(struct mfi_softc *sc)
 		case MFI_FWSTATE_FLUSH_CACHE:
 			max_wait = 20;
 			break;
+		case MFI_FWSTATE_BOOT_MESSAGE_PENDING:
+			MFI_WRITE4(sc, MFI_IDB, MFI_FWINIT_HOTPLUG);
+			max_wait = 10;
+			break;
 		default:
-			device_printf(sc->mfi_dev,"Unknown firmware state %d\n",
+			device_printf(sc->mfi_dev,"Unknown firmware state %#x\n",
 			    fw_state);
 			return (ENXIO);
 		}
@@ -273,7 +277,7 @@ mfi_transition_firmware(struct mfi_softc *sc)
 				break;
 		}
 		if (fw_state == cur_state) {
-			device_printf(sc->mfi_dev, "firmware stuck in state "
+			device_printf(sc->mfi_dev, "Firmware stuck in state "
 			    "%#x\n", fw_state);
 			return (ENXIO);
 		}
