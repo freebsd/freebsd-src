@@ -25,10 +25,9 @@ links::
 	    (cd $$i && { rm -f tags; ln -s ../tags tags; }) done
 
 SI386=	${SYS}/i386/acpica/*.[ch] ${SYS}/i386/bios/*.[ch] \
-	${SYS}/i386/pci/*.[ch] ${SYS}/i386/pci/*.[ch] \
 	${SYS}/i386/i386/*.[ch] ${SYS}/i386/ibcs2/*.[ch] \
 	${SYS}/i386/include/*.[ch] ${SYS}/i386/isa/*.[ch] \
-	${SYS}/i386/linux/*.[ch]
+	${SYS}/i386/linux/*.[ch] ${SYS}/i386/pci/*.[ch]
 AI386=	${SYS}/i386/i386/*.s
 
 tags::
