@@ -72,6 +72,8 @@ typedef struct MPCTH {
 	u_char  reserved;
 }      *mpcth_t;
 
+/* Base table entries */
+
 #define	MPCT_ENTRY_PROCESSOR	0
 #define	MPCT_ENTRY_BUS		1
 #define	MPCT_ENTRY_IOAPIC	2
@@ -132,7 +134,56 @@ typedef struct INTENTRY {
 #define	INTENTRY_FLAGS_TRIGGER_EDGE		0x4
 #define	INTENTRY_FLAGS_TRIGGER_LEVEL		0xc
 
-/* descriptions of MP basetable entries */
+/* Extended table entries */
+
+typedef	struct EXTENTRY {
+	u_char	type;
+	u_char	length;
+}      *ext_entry_ptr;
+
+#define	MPCT_EXTENTRY_SAS	0x80
+#define	MPCT_EXTENTRY_BHD	0x81
+#define	MPCT_EXTENTRY_CBASM	0x82
+
+typedef struct SASENTRY {
+	u_char	type;
+	u_char	length;
+	u_char	bus_id;
+	u_char	address_type;
+	uint64_t address_base;
+	uint64_t address_length;
+} __attribute__((__packed__)) *sas_entry_ptr;
+
+#define	SASENTRY_TYPE_IO	0
+#define	SASENTRY_TYPE_MEMORY	1
+#define	SASENTRY_TYPE_PREFETCH	2
+
+typedef struct BHDENTRY {
+	u_char	type;
+	u_char	length;
+	u_char	bus_id;
+	u_char	bus_info;
+	u_char	parent_bus;
+	u_char	reserved[3];
+}      *bhd_entry_ptr;
+
+#define	BHDENTRY_INFO_SUBTRACTIVE_DECODE	0x1
+
+typedef struct CBASMENTRY {
+	u_char	type;
+	u_char	length;
+	u_char	bus_id;
+	u_char	address_mod;
+	u_int	predefined_range;
+}      *cbasm_entry_ptr;
+
+#define	CBASMENTRY_ADDRESS_MOD_ADD		0x0
+#define	CBASMENTRY_ADDRESS_MOD_SUBTRACT		0x1
+
+#define	CBASMENTRY_RANGE_ISA_IO		0
+#define	CBASMENTRY_RANGE_VGA_IO		1
+
+/* descriptions of MP table entries */
 typedef struct BASETABLE_ENTRY {
 	u_char  type;
 	u_char  length;
@@ -140,6 +191,15 @@ typedef struct BASETABLE_ENTRY {
 }       basetable_entry;
 
 #ifdef _KERNEL
+#ifdef NEW_PCIB
+struct mptable_hostb_softc {
+	struct pcib_host_resources sc_host_res;
+	int		sc_decodes_vga_io;
+	int		sc_decodes_isa_io;
+};
+
+void	mptable_pci_host_res_init(device_t pcib);
+#endif
 int	mptable_pci_probe_table(int bus);
 int	mptable_pci_route_interrupt(device_t pcib, device_t dev, int pin);
 #endif

@@ -247,6 +247,7 @@ STAILQ_HEAD(resource_list, resource_list_entry);
 
 #define	RLE_RESERVED		0x0001	/* Reserved by the parent bus. */
 #define	RLE_ALLOCATED		0x0002	/* Reserved resource is allocated. */
+#define	RLE_PREFETCH		0x0004	/* Resource is a prefetch range. */
 
 void	resource_list_init(struct resource_list *rl);
 void	resource_list_free(struct resource_list *rl);
