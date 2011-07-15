@@ -767,18 +767,6 @@ pcib_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 }
 
 #ifdef NEW_PCIB
-static const char *
-pcib_child_name(device_t child)
-{
-	static char buf[64];
-
-	if (device_get_nameunit(child) != NULL)
-		return (device_get_nameunit(child));
-	snprintf(buf, sizeof(buf), "pci%d:%d:%d:%d", pci_get_domain(child),
-	    pci_get_bus(child), pci_get_slot(child), pci_get_function(child));
-	return (buf);
-}
-
 /*
  * Attempt to allocate a resource from the existing resources assigned
  * to a window.
