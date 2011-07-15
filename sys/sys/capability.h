@@ -110,6 +110,18 @@ int	cap_enter(void);
  */
 int	cap_getmode(u_int* modep);
 
+/*
+ * cap_new(): Create a new capability derived from an existing file
+ * descriptor with the specified rights.  If the existing file descriptor is
+ * a capability, then the new rights must be a subset of the existing rights.
+ */
+int	cap_new(int fd, cap_rights_t rights);
+
+/*
+ * cap_getrights(): Query the rights on a capability.
+ */
+int	cap_getrights(int fd, cap_rights_t *rightsp);
+
 __END_DECLS
 
 #endif /* !_KERNEL */
