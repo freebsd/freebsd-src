@@ -2253,14 +2253,14 @@ device		sound
 #			conjunction with snd_sbc.
 # snd_sbc:		Creative SoundBlaster ISA PnP/non-PnP.
 #			Supports ESS and Avance ISA chips as well.
-# snd_spicds:		SPI codec driver, needed by Envy24/Envy24HT drivers.
 # snd_solo:		ESS Solo-1x PCI.
+# snd_spicds:		SPI codec driver, needed by Envy24/Envy24HT drivers.
 # snd_t4dwave:		Trident 4DWave DX/NX PCI, Sis 7018 PCI and Acer Labs
 #			M5451 PCI.
+# snd_uaudio:		USB audio.
 # snd_via8233:		VIA VT8233x PCI.
 # snd_via82c686:	VIA VT82C686A PCI.
 # snd_vibes:		S3 Sonicvibes PCI.
-# snd_uaudio:		USB audio.
 
 device		snd_ad1816
 device		snd_als4000
@@ -2290,10 +2290,10 @@ device		snd_sbc
 device		snd_solo
 device		snd_spicds
 device		snd_t4dwave
+device		snd_uaudio
 device		snd_via8233
 device		snd_via82c686
 device		snd_vibes
-device		snd_uaudio
 
 # For non-PnP sound cards:
 hint.pcm.0.at="isa"
