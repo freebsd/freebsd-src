@@ -170,7 +170,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 	 * If we'll need to use it or we're updating it,
 	 * then create the base home directory if necessary
 	 */
-	if (arg != NULL || getarg(args, 'm') != NULL) {
+	if ((arg != NULL || getarg(args, 'm') != NULL) && (getarg(args, 'd') == NULL)) {
 		int	l = strlen(cnf->home);
 
 		if (l > 1 && cnf->home[l-1] == '/')	/* Shave off any trailing path delimiter */
