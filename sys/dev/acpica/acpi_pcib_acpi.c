@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
+#include <sys/limits.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/rman.h>
@@ -62,6 +63,9 @@ struct acpi_hpcib_softc {
     int			ap_bus;		/* bios-assigned bus number */
 
     ACPI_BUFFER		ap_prt;		/* interrupt routing table */
+#ifdef NEW_PCIB
+    struct pcib_host_resources ap_host_res;
+#endif
 };
 
 static int		acpi_pcib_acpi_probe(device_t bus);
@@ -87,6 +91,11 @@ static struct resource *acpi_pcib_acpi_alloc_resource(device_t dev,
 			    device_t child, int type, int *rid,
 			    u_long start, u_long end, u_long count,
 			    u_int flags);
+#ifdef NEW_PCIB
+static int		acpi_pcib_acpi_adjust_resource(device_t dev,
+			    device_t child, int type, struct resource *r,
+			    u_long start, u_long end);
+#endif
 
 static device_method_t acpi_pcib_acpi_methods[] = {
     /* Device interface */
@@ -101,7 +110,11 @@ static device_method_t acpi_pcib_acpi_methods[] = {
     DEVMETHOD(bus_read_ivar,		acpi_pcib_read_ivar),
     DEVMETHOD(bus_write_ivar,		acpi_pcib_write_ivar),
     DEVMETHOD(bus_alloc_resource,	acpi_pcib_acpi_alloc_resource),
+#ifdef NEW_PCIB
+    DEVMETHOD(bus_adjust_resource,	acpi_pcib_acpi_adjust_resource),
+#else
     DEVMETHOD(bus_adjust_resource,	bus_generic_adjust_resource),
+#endif
     DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
     DEVMETHOD(bus_activate_resource,	bus_generic_activate_resource),
     DEVMETHOD(bus_deactivate_resource,	bus_generic_deactivate_resource),
@@ -149,6 +162,120 @@ acpi_pcib_acpi_probe(device_t dev)
     return (0);
 }
 
+#ifdef NEW_PCIB
+static ACPI_STATUS
+acpi_pcib_producer_handler(ACPI_RESOURCE *res, void *context)
+{
+	struct acpi_hpcib_softc *sc;
+	UINT64 length, min, max;
+	u_int flags;
+	int error, type;
+
+	sc = context;
+	switch (res->Type) {
+	case ACPI_RESOURCE_TYPE_START_DEPENDENT:
+	case ACPI_RESOURCE_TYPE_END_DEPENDENT:
+		panic("host bridge has depenedent resources");
+	case ACPI_RESOURCE_TYPE_ADDRESS16:
+	case ACPI_RESOURCE_TYPE_ADDRESS32:
+	case ACPI_RESOURCE_TYPE_ADDRESS64:
+	case ACPI_RESOURCE_TYPE_EXTENDED_ADDRESS64:
+		if (res->Data.Address.ProducerConsumer != ACPI_PRODUCER)
+			break;
+		switch (res->Type) {
+		case ACPI_RESOURCE_TYPE_ADDRESS16:
+			min = res->Data.Address16.Minimum;
+			max = res->Data.Address16.Maximum;
+			length = res->Data.Address16.AddressLength;
+			break;
+		case ACPI_RESOURCE_TYPE_ADDRESS32:
+			min = res->Data.Address32.Minimum;
+			max = res->Data.Address32.Maximum;
+			length = res->Data.Address32.AddressLength;
+			break;
+		case ACPI_RESOURCE_TYPE_ADDRESS64:
+			min = res->Data.Address64.Minimum;
+			max = res->Data.Address64.Maximum;
+			length = res->Data.Address64.AddressLength;
+			break;
+		default:
+			KASSERT(res->Type ==
+			    ACPI_RESOURCE_TYPE_EXTENDED_ADDRESS64,
+			    ("should never happen"));
+			min = res->Data.ExtAddress64.Minimum;
+			max = res->Data.ExtAddress64.Maximum;
+			length = res->Data.ExtAddress64.AddressLength;
+			break;
+		}
+		if (length == 0 ||
+		    res->Data.Address.MinAddressFixed != ACPI_ADDRESS_FIXED ||
+		    res->Data.Address.MaxAddressFixed != ACPI_ADDRESS_FIXED)
+			break;
+		flags = 0;
+		switch (res->Data.Address.ResourceType) {
+		case ACPI_MEMORY_RANGE:
+			type = SYS_RES_MEMORY;
+			if (res->Type != ACPI_RESOURCE_TYPE_EXTENDED_ADDRESS64) {
+				if (res->Data.Address.Info.Mem.Caching ==
+				    ACPI_PREFETCHABLE_MEMORY)
+					flags |= RF_PREFETCHABLE;
+			} else {
+				/*
+				 * XXX: Parse prefetch flag out of
+				 * TypeSpecific.
+				 */
+			}
+			break;
+		case ACPI_IO_RANGE:
+			type = SYS_RES_IOPORT;
+			break;
+#ifdef PCI_RES_BUS
+		case ACPI_BUS_NUMBER_RANGE:
+			type = PCI_RES_BUS;
+			break;
+#endif
+		default:
+			return (AE_OK);
+		}
+
+		/* XXX: Not sure this is correct? */
+		if (res->Data.Address.Decode != ACPI_POS_DECODE) {
+			device_printf(sc->ap_dev,
+		    "Ignoring %d range (%#jx-%#jx) due to negative decode\n",
+			    type, (uintmax_t)min, (uintmax_t)max);
+			break;
+		}
+		if (min + length - 1 != max)
+			device_printf(sc->ap_dev,
+			    "Length mismatch for %d range: %jx vs %jx\n", type,
+			    (uintmax_t)max - min + 1, (uintmax_t)length);
+#ifdef __i386__
+		if (min > ULONG_MAX) {
+			device_printf(sc->ap_dev,
+			    "Ignoring %d range above 4GB (%#jx-%#jx)\n",
+			    type, (uintmax_t)min, (uintmax_t)max);
+			break;
+		}
+		if (max > ULONG_MAX) {
+			device_printf(sc->ap_dev,
+       		    "Truncating end of %d range above 4GB (%#jx-%#jx)\n",
+			    type, (uintmax_t)min, (uintmax_t)max);
+			max = ULONG_MAX;
+		}
+#endif
+		error = pcib_host_res_decodes(&sc->ap_host_res, type, min, max,
+		    flags);
+		if (error)
+			panic("Failed to manage %d range (%#jx-%#jx): %d",
+			    type, (uintmax_t)min, (uintmax_t)max, error);
+		break;
+	default:
+		break;
+	}
+	return (AE_OK);
+}
+#endif
+
 static int
 acpi_pcib_acpi_attach(device_t dev)
 {
@@ -178,6 +305,22 @@ acpi_pcib_acpi_attach(device_t dev)
 	/* If it's not found, assume 0. */
 	sc->ap_segment = 0;
     }
+
+#ifdef NEW_PCIB
+    /*
+     * Determine which address ranges this bridge decodes and setup
+     * resource managers for those ranges.
+     */
+    if (pcib_host_res_init(sc->ap_dev, &sc->ap_host_res) != 0)
+	    panic("failed to init hostb resources");
+    if (!acpi_disabled("hostres")) {
+	status = AcpiWalkResources(sc->ap_handle, "_CRS",
+	    acpi_pcib_producer_handler, sc);
+	if (ACPI_FAILURE(status) && status != AE_NOT_FOUND)
+	    device_printf(sc->ap_dev, "failed to parse resources: %s\n",
+		AcpiFormatException(status));
+    }
+#endif
 
     /*
      * Get our base bus number by evaluating _BBN.
@@ -361,10 +504,33 @@ struct resource *
 acpi_pcib_acpi_alloc_resource(device_t dev, device_t child, int type, int *rid,
     u_long start, u_long end, u_long count, u_int flags)
 {
+#ifdef NEW_PCIB
+    struct acpi_hpcib_softc *sc;
+#endif
 
 #if defined(__i386__) || defined(__amd64__)
     start = hostb_alloc_start(type, start, end, count);
 #endif
+
+#ifdef NEW_PCIB
+    sc = device_get_softc(dev);
+    return (pcib_host_res_alloc(&sc->ap_host_res, child, type, rid, start, end,
+	count, flags));
+#else
     return (bus_generic_alloc_resource(dev, child, type, rid, start, end,
 	count, flags));
+#endif
 }
+
+#ifdef NEW_PCIB
+int
+acpi_pcib_acpi_adjust_resource(device_t dev, device_t child, int type,
+    struct resource *r, u_long start, u_long end)
+{
+	struct acpi_hpcib_softc *sc;
+
+	sc = device_get_softc(dev);
+	return (pcib_host_res_adjust(&sc->ap_host_res, child, type, r, start,
+	    end));
+}
+#endif

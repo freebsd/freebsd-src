@@ -32,21 +32,30 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
+#include <sys/limits.h>
 #include <sys/malloc.h>
+#ifdef NEW_PCIB
+#include <sys/rman.h>
+#endif
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 
+#include <dev/pci/pcivar.h>
+#ifdef NEW_PCIB
+#include <dev/pci/pcib_private.h>
+#endif
 #include <x86/apicreg.h>
 #include <x86/mptable.h>
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
 #include <machine/apicvar.h>
 #include <machine/md_var.h>
+#ifdef NEW_PCIB
+#include <machine/resource.h>
+#endif
 #include <machine/specialreg.h>
-
-#include <dev/pci/pcivar.h>
 
 /* string defined by the Intel MP Spec as identifying the MP table */
 #define	MP_SIG			0x5f504d5f	/* _MP_ */
@@ -67,6 +76,7 @@ __FBSDID("$FreeBSD$");
 #define BIOS_COUNT		(BIOS_SIZE/4)
 
 typedef	void mptable_entry_handler(u_char *entry, void *arg);
+typedef	void mptable_extended_entry_handler(ext_entry_ptr entry, void *arg);
 
 static basetable_entry basetable_entry_types[] =
 {
@@ -146,6 +156,7 @@ struct pci_route_interrupt_args {
 
 static mpfps_t mpfps;
 static mpcth_t mpct;
+static ext_entry_ptr mpet;
 static void *ioapics[MAX_APIC_ID + 1];
 static bus_datum *busses;
 static int mptable_nioapics, mptable_nbusses, mptable_maxbusid;
@@ -181,6 +192,8 @@ static void	mptable_probe_cpus_handler(u_char *entry, void *arg __unused);
 static void	mptable_register(void *dummy);
 static int	mptable_setup_local(void);
 static int	mptable_setup_io(void);
+static void	mptable_walk_extended_table(
+    mptable_extended_entry_handler *handler, void *arg);
 static void	mptable_walk_table(mptable_entry_handler *handler, void *arg);
 static int	search_for_sig(u_int32_t target, int count);
 
@@ -281,6 +294,11 @@ found:
 			    __func__);
 			return (ENXIO);
 		}
+		if (mpct->extended_table_length != 0 &&
+		    mpct->extended_table_length + mpct->base_table_length +
+		    (uintptr_t)mpfps->pap < 1024 * 1024)
+			mpet = (ext_entry_ptr)((char *)mpct +
+			    mpct->base_table_length);
 		if (mpct->signature[0] != 'P' || mpct->signature[1] != 'C' ||
 		    mpct->signature[2] != 'M' || mpct->signature[3] != 'P') {
 			printf("%s: MP Config Table has bad signature: %c%c%c%c\n",
@@ -393,7 +411,7 @@ SYSINIT(mptable_register, SI_SUB_TUNABLES - 1, SI_ORDER_FIRST, mptable_register,
     NULL);
 
 /*
- * Call the handler routine for each entry in the MP config table.
+ * Call the handler routine for each entry in the MP config base table.
  */
 static void
 mptable_walk_table(mptable_entry_handler *handler, void *arg)
@@ -416,6 +434,25 @@ mptable_walk_table(mptable_entry_handler *handler, void *arg)
 		}
 		handler(entry, arg);
 		entry += basetable_entry_types[*entry].length;
+	}
+}
+
+/*
+ * Call the handler routine for each entry in the MP config extended
+ * table.
+ */
+static void
+mptable_walk_extended_table(mptable_extended_entry_handler *handler, void *arg)
+{
+	ext_entry_ptr end, entry;
+
+	if (mpet == NULL)
+		return;
+	entry = mpet;
+	end = (ext_entry_ptr)((char *)mpet + mpct->extended_table_length);
+	while (entry < end) {
+		handler(entry, arg);
+		entry = (ext_entry_ptr)((char *)entry + entry->length);
 	}
 }
 
@@ -1053,3 +1090,133 @@ mptable_pci_route_interrupt(device_t pcib, device_t dev, int pin)
 		    'A' + pin, args.vector);
 	return (args.vector);
 }
+
+#ifdef NEW_PCIB
+struct host_res_args {
+	struct mptable_hostb_softc *sc;
+	device_t dev;
+	u_char	bus;
+};
+
+/*
+ * Initialize a Host-PCI bridge so it can restrict resource allocation
+ * requests to the resources it actually decodes according to MP
+ * config table extended entries.
+ */
+static void
+mptable_host_res_handler(ext_entry_ptr entry, void *arg)
+{
+	struct host_res_args *args;
+	cbasm_entry_ptr cbasm;
+	sas_entry_ptr sas;
+	const char *name;
+	uint64_t start, end;
+	int error, *flagp, flags, type;
+
+	args = arg;
+	switch (entry->type) {
+	case MPCT_EXTENTRY_SAS:
+		sas = (sas_entry_ptr)entry;
+		if (sas->bus_id != args->bus)
+			break;
+		switch (sas->address_type) {
+		case SASENTRY_TYPE_IO:
+			type = SYS_RES_IOPORT;
+			flags = 0;
+			break;
+		case SASENTRY_TYPE_MEMORY:
+			type = SYS_RES_MEMORY;
+			flags = 0;
+			break;
+		case SASENTRY_TYPE_PREFETCH:
+			type = SYS_RES_MEMORY;
+			flags = RF_PREFETCHABLE;
+			break;
+		default:
+			printf(
+	    "MPTable: Unknown systems address space type for bus %u: %d\n",
+			    sas->bus_id, sas->address_type);
+			return;
+		}
+		start = sas->address_base;
+		end = sas->address_base + sas->address_length - 1;
+#ifdef __i386__
+		if (start > ULONG_MAX) {
+			device_printf(args->dev,
+			    "Ignoring %d range above 4GB (%#jx-%#jx)\n",
+			    type, (uintmax_t)start, (uintmax_t)end);
+			break;
+		}
+		if (end > ULONG_MAX) {
+			device_printf(args->dev,
+		    "Truncating end of %d range above 4GB (%#jx-%#jx)\n",
+			    type, (uintmax_t)start, (uintmax_t)end);
+			end = ULONG_MAX;
+		}
+#endif
+		error = pcib_host_res_decodes(&args->sc->sc_host_res, type,
+		    start, end, flags);
+		if (error)
+			panic("Failed to manage %d range (%#jx-%#jx): %d",
+			    type, (uintmax_t)start, (uintmax_t)end, error);
+		break;
+	case MPCT_EXTENTRY_CBASM:
+		cbasm = (cbasm_entry_ptr)entry;
+		if (cbasm->bus_id != args->bus)
+			break;
+		switch (cbasm->predefined_range) {
+		case CBASMENTRY_RANGE_ISA_IO:
+			flagp = &args->sc->sc_decodes_isa_io;
+			name = "ISA I/O";
+			break;
+		case CBASMENTRY_RANGE_VGA_IO:
+			flagp = &args->sc->sc_decodes_vga_io;
+			name = "VGA I/O";
+			break;
+		default:
+			printf(
+    "MPTable: Unknown compatiblity address space range for bus %u: %d\n",
+			    cbasm->bus_id, cbasm->predefined_range);
+			return;
+		}
+		if (*flagp != 0)
+			printf(
+		    "MPTable: Duplicate compatibility %s range for bus %u\n",
+			    name, cbasm->bus_id);
+		switch (cbasm->address_mod) {
+		case CBASMENTRY_ADDRESS_MOD_ADD:
+			*flagp = 1;
+			if (bootverbose)
+				device_printf(args->dev, "decoding %s ports\n",
+				    name);
+			break;
+		case CBASMENTRY_ADDRESS_MOD_SUBTRACT:
+			*flagp = -1;
+			if (bootverbose)
+				device_printf(args->dev,
+				    "not decoding %s ports\n", name);
+			break;
+		default:
+			printf(
+	    "MPTable: Unknown compatibility address space modifier: %u\n",
+			    cbasm->address_mod);
+			break;
+		}
+		break;
+	}
+}
+
+void
+mptable_pci_host_res_init(device_t pcib)
+{
+	struct host_res_args args;
+
+	KASSERT(pci0 != -1, ("do not know how to map PCI bus IDs"));
+	args.bus = pci_get_bus(pcib) + pci0;
+	args.dev = pcib;
+	args.sc = device_get_softc(pcib);
+	if (pcib_host_res_init(pcib, &args.sc->sc_host_res) != 0)
+		panic("failed to init hostb resources");
+	mptable_walk_extended_table(mptable_host_res_handler, &args);
+}
+#endif
