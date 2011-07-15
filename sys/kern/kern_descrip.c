@@ -1160,7 +1160,7 @@ kern_close(td, fd)
 	int fd;
 {
 	struct filedesc *fdp;
-	struct file *fp;
+	struct file *fp, *fp_object;
 	int error;
 	int holdleaders;
 
@@ -1195,8 +1195,14 @@ kern_close(td, fd)
 	 * added, and deleteing a knote for the new fd.
 	 */
 	knote_fdclose(td, fd);
-	if (fp->f_type == DTYPE_MQUEUE)
-		mq_fdclose(td, fd, fp);
+
+	/*
+	 * When we're closing an fd with a capability, we need to notify
+	 * mqueue if the underlying object is of type mqueue.
+	 */
+	(void)cap_funwrap(fp, 0, &fp_object);
+	if (fp_object->f_type == DTYPE_MQUEUE)
+		mq_fdclose(td, fd, fp_object);
 	FILEDESC_XUNLOCK(fdp);
 
 	error = closef(fp, td);
@@ -2146,6 +2152,7 @@ closef(struct file *fp, struct thread *td)
 	struct flock lf;
 	struct filedesc_to_leader *fdtol;
 	struct filedesc *fdp;
+	struct file *fp_object;
 
 	/*
 	 * POSIX record locking dictates that any close releases ALL
@@ -2158,11 +2165,15 @@ closef(struct file *fp, struct thread *td)
 	 * NULL thread pointer when there really is no owning
 	 * context that might have locks, or the locks will be
 	 * leaked.
+	 *
+	 * If this is a capability, we do lock processing under the underlying
+	 * node, not the capability itself.
 	 */
-	if (fp->f_type == DTYPE_VNODE && td != NULL) {
+	(void)cap_funwrap(fp, 0, &fp_object);
+	if ((fp_object->f_type == DTYPE_VNODE) && (td != NULL)) {
 		int vfslocked;
 
-		vp = fp->f_vnode;
+		vp = fp_object->f_vnode;
 		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 		if ((td->td_proc->p_leader->p_flag & P_ADVLOCK) != 0) {
 			lf.l_whence = SEEK_SET;
@@ -2192,7 +2203,7 @@ closef(struct file *fp, struct thread *td)
 				lf.l_start = 0;
 				lf.l_len = 0;
 				lf.l_type = F_UNLCK;
-				vp = fp->f_vnode;
+				vp = fp_object->f_vnode;
 				(void) VOP_ADVLOCK(vp,
 						   (caddr_t)fdtol->fdl_leader,
 						   F_UNLCK, &lf, F_POSIX);
@@ -2497,6 +2508,9 @@ fputsock(struct socket *so)
 
 /*
  * Handle the last reference to a file being closed.
+ *
+ * No special capability handling here, as the capability's fo_close will run
+ * instead of the object here, and perform any necessary drop on the object.
  */
 int
 _fdrop(struct file *fp, struct thread *td)
