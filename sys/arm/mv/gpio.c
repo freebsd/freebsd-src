@@ -197,10 +197,7 @@ mv_gpio_attach(device_t dev)
 		}
 	}
 
-	/*
-	 * GPIO lines setup is already done at this stage (see mv_machdep.c).
-	 */
-	return (0);
+	return (platform_gpio_init());
 }
 
 static int
@@ -565,20 +562,6 @@ mv_handle_gpios_prop(phandle_t ctrl, pcell_t *gpios, int len)
 
 	if (fdt_regsize(ctrl, &gpio_ctrl, &size))
 		return (ENXIO);
-	/*
-	 * Since to set up GPIO we use the same functions as GPIO driver, and
-	 * mv_gpio_softc is NULL at this early stage, we need to create a fake
-	 * softc and set mv_gpio_softc pointer to that newly created object.
-	 * After successful GPIO setup, the [shared] pointer will be set back
-	 * to NULL.
-	 */
-	mv_gpio_softc = &sc;
-
-	sc.bst = fdtbus_bs_tag;
-	gpio_ctrl += fdt_immr_va;
-
-	if (bus_space_map(sc.bst, gpio_ctrl, size, 0, &sc.bsh) != 0)
-		return (ENXIO);
 
 	if (OF_getprop(ctrl, "pin-count", &pincnt, sizeof(pcell_t)) < 0)
 		return (ENXIO);
@@ -612,8 +595,6 @@ mv_handle_gpios_prop(phandle_t ctrl, pcell_t *gpios, int len)
 		gpios += gpio_cells + inc;
 	}
 
-	/* Reset pointer. */
-	mv_gpio_softc = NULL;
 	return (0);
 }
 
