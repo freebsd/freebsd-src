@@ -64,6 +64,12 @@
 #define IN_CAPABILITY_MODE(td) (td->td_ucred->cr_flags & CRED_FLAG_CAPMODE)
 
 /*
+ * Create a capability to wrap a file object.
+ */
+int	kern_capwrap(struct thread *td, struct file *fp, cap_rights_t rights,
+	    struct file **cap, int *capfd);
+
+/*
  * Unwrap a capability if its rights mask is a superset of 'rights'.
  *
  * Unwrapping a non-capability is effectively a no-op; the value of fp_cap
