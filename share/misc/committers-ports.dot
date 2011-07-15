@@ -183,6 +183,7 @@ wen [label="Wen Heping\nwen@FreeBSD.org\n2010/12/13"]
 wxs [label="Wesley Shields\nwxs@FreeBSD.org\n2008/01/03"]
 xride [label="Soeren Straarup\nxride@FreeBSD.org\n2006/09/27"]
 yzlin [label="Yi-Jheng Lin\nyzlin@FreeBSD.org\n2009/07/19"]
+zi [label="Ryan Steinmetz\nzi@FreeBSD.org\n2011/07/14"]
 znerd [label="Ernst de Haan\nznerd@FreeBSD.org\n2001/11/15"]
 
 # Here are the mentor/mentee relationships.
@@ -413,6 +414,7 @@ tabthorpe -> jadawin
 tabthorpe -> jlaffaye
 tabthorpe -> pgj
 tabthorpe -> rene
+tabthorpe -> zi
 
 thierry -> jadawin
 
@@ -428,5 +430,6 @@ wxs -> jsa
 wxs -> sahil
 wxs -> skreuzer
 wxs -> swills
+wxs -> zi
 
 }
