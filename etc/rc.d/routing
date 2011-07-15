@@ -287,7 +287,7 @@ options_inet()
 
 	if checkyesno gateway_enable; then
 		ropts_init
-		echo -n ' IPv4 gateway=YES'
+		echo ' IPv4 gateway=YES'
 		${SYSCTL} net.inet.ip.forwarding=1 > /dev/null
 	else
 		${SYSCTL} net.inet.ip.forwarding=0 > /dev/null
@@ -322,7 +322,7 @@ options_inet6()
 {
 	if checkyesno ipv6_gateway_enable; then
 		ropts_init
-		echo -n ' IPv6 gateway=YES'
+		echo ' IPv6 gateway=YES'
 		${SYSCTL} net.inet6.ip6.forwarding=1 > /dev/null
 	else
 		${SYSCTL} net.inet6.ip6.forwarding=0 > /dev/null
