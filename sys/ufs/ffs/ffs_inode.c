@@ -90,7 +90,7 @@ ffs_update(vp, waitfor)
 		return (0);
 	ip->i_flag &= ~(IN_LAZYACCESS | IN_LAZYMOD | IN_MODIFIED);
 	fs = ip->i_fs;
-	if (fs->fs_ronly)
+	if (fs->fs_ronly && ip->i_ump->um_fsckpid == 0)
 		return (0);
 	error = bread(ip->i_devvp, fsbtodb(fs, ino_to_fsba(fs, ip->i_number)),
 		(int)fs->fs_bsize, NOCRED, &bp);
