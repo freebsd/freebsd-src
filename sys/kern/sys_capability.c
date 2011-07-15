@@ -212,6 +212,59 @@ cap_rights(struct file *fp_cap)
 }
 
 /*
+ * System call to create a new capability reference to either an existing
+ * file object or an an existing capability.
+ */
+int
+cap_new(struct thread *td, struct cap_new_args *uap)
+{
+	int error, capfd;
+	int fd = uap->fd;
+	struct file *fp, *fcapp;
+	cap_rights_t rights = uap->rights;
+
+	AUDIT_ARG_FD(fd);
+#ifdef notyet	/* capability auditing will follow in a few commits */
+	AUDIT_ARG_RIGHTS(rights);
+#endif
+	error = fget(td, fd, &fp);
+	if (error)
+		return (error);
+	AUDIT_ARG_FILE(td->td_proc, fp);
+	error = kern_capwrap(td, fp, rights, &fcapp, &capfd);
+	if (error)
+		return (error);
+
+	/*
+	 * Release our reference to the file (kern_capwrap has held a reference
+	 * for the filedesc array).
+	 */
+	fdrop(fp, td);
+	td->td_retval[0] = capfd;
+	return (0);
+}
+
+/*
+ * System call to query the rights mask associated with a capability.
+ */
+int
+cap_getrights(struct thread *td, struct cap_getrights_args *uap)
+{
+	struct capability *cp;
+	struct file *fp;
+	int error;
+
+	AUDIT_ARG_FD(uap->fd);
+	error = fgetcap(td, uap->fd, &fp);
+	if (error)
+		return (error);
+	cp = fp->f_data;
+	error = copyout(&cp->cap_rights, uap->rightsp, sizeof(*uap->rightsp));
+	fdrop(fp, td);
+	return (error);
+}
+
+/*
  * Create a capability to wrap around an existing file.
  */
 int
@@ -422,6 +475,20 @@ capability_stat(struct file *fp, struct stat *sb, struct ucred *active_cred,
  * Stub Capability functions for when options CAPABILITIES isn't compiled
  * into the kernel.
  */
+int
+cap_new(struct thread *td, struct cap_new_args *uap)
+{
+
+	return (ENOSYS);
+}
+
+int
+cap_getrights(struct thread *td, struct cap_getrights_args *uap)
+{
+
+	return (ENOSYS);
+}
+
 int
 cap_funwrap(struct file *fp_cap, cap_rights_t rights, struct file **fpp)
 {
