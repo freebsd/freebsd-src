@@ -340,6 +340,7 @@ initarm(void *mdp, void *unused __unused)
 #endif
 		}
 
+		preload_addr_relocate = KERNVIRTADDR - KERNPHYSADDR;
 	} else {
 		/* Fall back to hardcoded metadata. */
 		lastaddr = fake_preload_metadata();
