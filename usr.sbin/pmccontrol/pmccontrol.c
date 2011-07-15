@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/queue.h>
+#include <sys/cpuset.h>
 #include <sys/sysctl.h>
 
 #include <assert.h>
@@ -220,9 +221,10 @@ pmcc_do_enable_disable(struct pmcc_op_list *op_list)
 static int
 pmcc_do_list_state(void)
 {
-	size_t dummy;
+	cpuset_t logical_cpus_mask;
+	long cpusetsize;
+	size_t setsize;
 	int c, cpu, n, npmc, ncpu;
-	unsigned int logical_cpus_mask;
 	struct pmc_info *pd;
 	struct pmc_pmcinfo *pi;
 	const struct pmc_cpuinfo *pc;
@@ -234,17 +236,22 @@ pmcc_do_list_state(void)
 	       pmc_name_of_cputype(pc->pm_cputype),
 		pc->pm_npmc);
 
-	dummy = sizeof(logical_cpus_mask);
+	/* Determine the set of logical CPUs. */
+	cpusetsize = sysconf(_SC_CPUSET_SIZE);
+	if (cpusetsize == -1 || (u_long)cpusetsize > sizeof(cpuset_t))
+		err(EX_OSERR, "Cannot determine which CPUs are logical");
+	CPU_ZERO(&logical_cpus_mask);
+	setsize = (size_t)cpusetsize;
 	if (sysctlbyname("machdep.logical_cpus_mask", &logical_cpus_mask,
-		&dummy, NULL, 0) < 0)
-		logical_cpus_mask = 0;
+	    &setsize, NULL, 0) < 0)
+		CPU_ZERO(&logical_cpus_mask);
 
 	ncpu = pc->pm_ncpu;
 
 	for (c = cpu = 0; cpu < ncpu; cpu++) {
 #if	defined(__i386__) || defined(__amd64__)
 		if (pc->pm_cputype == PMC_CPU_INTEL_PIV &&
-		    (logical_cpus_mask & (1 << cpu)))
+		    CPU_ISSET(cpu, &logical_cpus_mask))
 			continue; /* skip P4-style 'logical' cpus */
 #endif
 		if (pmc_pmcinfo(cpu, &pi) < 0) {
