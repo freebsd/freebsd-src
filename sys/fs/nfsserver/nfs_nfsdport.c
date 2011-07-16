@@ -282,7 +282,7 @@ nfsvno_namei(struct nfsrv_descript *nd, struct nameidata *ndp,
 		return (ENOTDIR);
 	}
 	if (islocked)
-		NFSVOPUNLOCK(dp, 0, p);
+		NFSVOPUNLOCK(dp, 0);
 	VREF(dp);
 	*retdirp = dp;
 	if (NFSVNO_EXRDONLY(exp))
@@ -351,7 +351,7 @@ nfsvno_namei(struct nfsrv_descript *nd, struct nameidata *ndp,
 			if ((cnp->cn_flags & (SAVENAME | SAVESTART)) == 0)
 				nfsvno_relpathbuf(ndp);
 			if (ndp->ni_vp && !lockleaf)
-				NFSVOPUNLOCK(ndp->ni_vp, 0, p);
+				NFSVOPUNLOCK(ndp->ni_vp, 0);
 			break;
 		}
 
@@ -359,7 +359,7 @@ nfsvno_namei(struct nfsrv_descript *nd, struct nameidata *ndp,
 		 * Validate symlink
 		 */
 		if ((cnp->cn_flags & LOCKPARENT) && ndp->ni_pathlen == 1)
-			NFSVOPUNLOCK(ndp->ni_dvp, 0, p);
+			NFSVOPUNLOCK(ndp->ni_dvp, 0);
 		if (!(nd->nd_flag & ND_PUBLOOKUP)) {
 			error = EINVAL;
 			goto badlink2;
@@ -2868,14 +2868,14 @@ nfsvno_advlock(struct vnode *vp, int ftype, u_int64_t first,
 	fl.l_pid = (pid_t)0;
 	fl.l_sysid = (int)nfsv4_sysid;
 
-	NFSVOPUNLOCK(vp, 0, td);
+	NFSVOPUNLOCK(vp, 0);
 	if (ftype == F_UNLCK)
 		error = VOP_ADVLOCK(vp, (caddr_t)td->td_proc, F_UNLCK, &fl,
 		    (F_POSIX | F_REMOTE));
 	else
 		error = VOP_ADVLOCK(vp, (caddr_t)td->td_proc, F_SETLK, &fl,
 		    (F_POSIX | F_REMOTE));
-	NFSVOPLOCK(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	NFSVOPLOCK(vp, LK_EXCLUSIVE | LK_RETRY);
 	return (error);
 }
 
