@@ -2006,7 +2006,7 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
 				if (error == 0)
 					error = VOP_GETACL(vp, ACL_TYPE_NFS4,
 					    naclp, cred, p);
-				VOP_UNLOCK(vp, 0);
+				NFSVOPUNLOCK(vp, 0);
 			} else
 				error = NFSERR_PERM;
 			if (error != 0) {

@@ -4099,7 +4099,7 @@ nfsrv_updatestable(NFSPROC_T *p)
 	if (NFSVOPLOCK(vp, LK_EXCLUSIVE) == 0) {
 		error = nfsvno_setattr(vp, &nva, NFSFPCRED(sf->nsf_fp), p,
 		    NULL);
-		VOP_UNLOCK(vp, 0);
+		NFSVOPUNLOCK(vp, 0);
 	} else
 		error = EPERM;
 	vn_finished_write(mp);
@@ -4249,7 +4249,7 @@ nfsrv_clientconflict(struct nfsclient *clp, int *haslockp, vnode_t vp,
 	if (*haslockp == 0) {
 		NFSUNLOCKSTATE();
 		lktype = VOP_ISLOCKED(vp);
-		VOP_UNLOCK(vp, 0);
+		NFSVOPUNLOCK(vp, 0);
 		NFSLOCKV4ROOTMUTEX();
 		nfsv4_relref(&nfsv4rootfs_lock);
 		do {
@@ -4417,7 +4417,7 @@ nfsrv_delegconflict(struct nfsstate *stp, int *haslockp, NFSPROC_T *p,
 	if (*haslockp == 0) {
 		NFSUNLOCKSTATE();
 		lktype = VOP_ISLOCKED(vp);
-		VOP_UNLOCK(vp, 0);
+		NFSVOPUNLOCK(vp, 0);
 		NFSLOCKV4ROOTMUTEX();
 		nfsv4_relref(&nfsv4rootfs_lock);
 		do {
@@ -4628,7 +4628,7 @@ nfsd_recalldelegation(vnode_t vp, NFSPROC_T *p)
 	do {
 		if (NFSVOPLOCK(vp, LK_EXCLUSIVE) == 0) {
 			error = nfsrv_checkremove(vp, 0, p);
-			VOP_UNLOCK(vp, 0);
+			NFSVOPUNLOCK(vp, 0);
 		} else
 			error = EPERM;
 		if (error == NFSERR_DELAY) {
