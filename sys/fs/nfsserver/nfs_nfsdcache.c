@@ -308,6 +308,7 @@ nfsrvd_getcache(struct nfsrv_descript *nd, struct socket *so)
 		ret = nfsrc_gettcp(nd, newrp);
 	}
 	nfsrc_trimcache(nd->nd_sockref, so);
+	NFSEXITCODE2(0, nd);
 	return (ret);
 }
 
@@ -373,7 +374,7 @@ loop:
 			}
 			nfsrc_unlock(rp);
 			free((caddr_t)newrp, M_NFSRVCACHE);
-			return (ret);
+			goto out;
 		}
 	}
 	newnfsstats.srvcache_misses++;
@@ -394,7 +395,11 @@ loop:
 	TAILQ_INSERT_TAIL(&nfsrvudplru, newrp, rc_lru);
 	NFSUNLOCKCACHE();
 	nd->nd_rp = newrp;
-	return (RC_DOIT);
+	ret = RC_DOIT;
+
+out:
+	NFSEXITCODE2(0, nd);
+	return (ret);
 }
 
 /*
@@ -436,8 +441,7 @@ nfsrvd_updatecache(struct nfsrv_descript *nd, struct socket *so)
 		    M_COPYALL, M_WAIT);
 		rp->rc_timestamp = NFSD_MONOSEC + NFSRVCACHE_TCPTIMEOUT;
 		nfsrc_unlock(rp);
-		nfsrc_trimcache(nd->nd_sockref, so);
-		return (retrp);
+		goto out;
 	}
 
 	/*
@@ -492,7 +496,10 @@ nfsrvd_updatecache(struct nfsrv_descript *nd, struct socket *so)
 		nfsrc_freecache(rp);
 		NFSUNLOCKCACHE();
 	}
+
+out:
 	nfsrc_trimcache(nd->nd_sockref, so);
+	NFSEXITCODE2(0, nd);
 	return (retrp);
 }
 
@@ -656,7 +663,7 @@ tryagain:
 		}
 		nfsrc_unlock(rp);
 		free((caddr_t)newrp, M_NFSRVCACHE);
-		return (ret);
+		goto out;
 	}
 	newnfsstats.srvcache_misses++;
 	newnfsstats.srvcache_size++;
@@ -670,7 +677,11 @@ tryagain:
 	LIST_INSERT_HEAD(hp, newrp, rc_hash);
 	NFSUNLOCKCACHE();
 	nd->nd_rp = newrp;
-	return (RC_DOIT);
+	ret = RC_DOIT;
+
+out:
+	NFSEXITCODE2(0, nd);
+	return (ret);
 }
 
 /*

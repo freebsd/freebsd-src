@@ -166,7 +166,7 @@ newnfs_connect(struct nfsmount *nmp, struct nfssockreq *nrp,
 	CLIENT *client;
 	struct netconfig *nconf;
 	struct socket *so;
-	int one = 1, retries, error;
+	int one = 1, retries, error = 0;
 	struct thread *td = curthread;
 
 	/*
@@ -222,7 +222,7 @@ newnfs_connect(struct nfsmount *nmp, struct nfssockreq *nrp,
 	    nrp->nr_soproto, td->td_ucred, td);
 	if (error) {
 		td->td_ucred = origcred;
-		return (error);
+		goto out;
 	}
 	do {
 	    if (error != 0 && pktscale > 2)
@@ -253,7 +253,7 @@ newnfs_connect(struct nfsmount *nmp, struct nfssockreq *nrp,
 	soclose(so);
 	if (error) {
 		td->td_ucred = origcred;
-		return (error);
+		goto out;
 	}
 
 	client = clnt_reconnect_create(nconf, saddr, nrp->nr_prog,
@@ -307,7 +307,10 @@ newnfs_connect(struct nfsmount *nmp, struct nfssockreq *nrp,
 
 	/* Restore current thread's credentials. */
 	td->td_ucred = origcred;
-	return (0);
+
+out:
+	NFSEXITCODE(error);
+	return (error);
 }
 
 /*
