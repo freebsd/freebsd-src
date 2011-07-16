@@ -32,11 +32,18 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#ifdef NEW_PCIB
+#include <sys/rman.h>
+#endif
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 
+#ifdef NEW_PCIB
+#include <dev/pci/pcivar.h>
+#include <dev/pci/pcib_private.h>
+#endif
 #include <x86/apicreg.h>
 #include <x86/mptable.h>
 #include <machine/frame.h>
