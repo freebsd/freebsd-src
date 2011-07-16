@@ -135,7 +135,7 @@ nfsrv_setclient(struct nfsrv_descript *nd, struct nfsclient **new_clpp,
     nfsquad_t *clientidp, nfsquad_t *confirmp, NFSPROC_T *p)
 {
 	struct nfsclient *clp = NULL, *new_clp = *new_clpp;
-	int i;
+	int i, error = 0;
 	struct nfsstate *stp, *tstp;
 	struct sockaddr_in *sad, *rad;
 	int zapit = 0, gotit, hasstate = 0, igotlock;
@@ -144,8 +144,10 @@ nfsrv_setclient(struct nfsrv_descript *nd, struct nfsclient **new_clpp,
 	/*
 	 * Check for state resource limit exceeded.
 	 */
-	if (nfsrv_openpluslock > NFSRV_V4STATELIMIT)
-		return (NFSERR_RESOURCE);
+	if (nfsrv_openpluslock > NFSRV_V4STATELIMIT) {
+		error = NFSERR_RESOURCE;
+		goto out;
+	}
 
 	if (nfsrv_issuedelegs == 0 ||
 	    ((nd->nd_flag & ND_GSS) != 0 && nfsrv_nogsscallback != 0))
@@ -228,7 +230,7 @@ nfsrv_setclient(struct nfsrv_descript *nd, struct nfsclient **new_clpp,
 		if (zapit)
 			nfsrv_zapclient(clp, p);
 		*new_clpp = NULL;
-		return (0);
+		goto out;
 	}
 
 	/*
@@ -274,7 +276,8 @@ nfsrv_setclient(struct nfsrv_descript *nd, struct nfsclient **new_clpp,
 		NFSLOCKV4ROOTMUTEX();
 		nfsv4_unlock(&nfsv4rootfs_lock, 1);
 		NFSUNLOCKV4ROOTMUTEX();
-		return (NFSERR_CLIDINUSE);
+		error = NFSERR_CLIDINUSE;
+		goto out;
 	    }
 	}
 
@@ -335,7 +338,7 @@ nfsrv_setclient(struct nfsrv_descript *nd, struct nfsclient **new_clpp,
 		}
 		nfsrv_zapclient(clp, p);
 		*new_clpp = NULL;
-		return (0);
+		goto out;
 	}
 	/*
 	 * id and verifier match, so update the net address info
@@ -388,7 +391,10 @@ nfsrv_setclient(struct nfsrv_descript *nd, struct nfsclient **new_clpp,
 	}
 	nfsrv_zapclient(clp, p);
 	*new_clpp = NULL;
-	return (0);
+
+out:
+	NFSEXITCODE2(error, nd);
+	return (error);
 }
 
 /*
@@ -406,8 +412,10 @@ nfsrv_getclient(nfsquad_t clientid, int opflags, struct nfsclient **clpp,
 
 	if (clpp)
 		*clpp = NULL;
-	if (nfsrvboottime != clientid.lval[0])
-		return (NFSERR_STALECLIENTID);
+	if (nfsrvboottime != clientid.lval[0]) {
+		error = NFSERR_STALECLIENTID;
+		goto out;
+	}
 
 	/*
 	 * If called with opflags == CLOPS_RENEW, the State Lock is
@@ -450,7 +458,7 @@ nfsrv_getclient(nfsquad_t clientid, int opflags, struct nfsclient **clpp,
 		} else if (opflags != CLOPS_RENEW) {
 			NFSUNLOCKSTATE();
 		}
-		return (error);
+		goto out;
 	}
 
 	/*
@@ -526,6 +534,9 @@ nfsrv_getclient(nfsquad_t clientid, int opflags, struct nfsclient **clpp,
 	}
 	if (clpp)
 		*clpp = clp;
+
+out:
+	NFSEXITCODE2(error, nd);
 	return (error);
 }
 
@@ -537,7 +548,7 @@ APPLESTATIC int
 nfsrv_adminrevoke(struct nfsd_clid *revokep, NFSPROC_T *p)
 {
 	struct nfsclient *clp = NULL;
-	int i;
+	int i, error = 0;
 	int gotit, igotlock;
 
 	/*
@@ -570,7 +581,8 @@ nfsrv_adminrevoke(struct nfsd_clid *revokep, NFSPROC_T *p)
 		NFSLOCKV4ROOTMUTEX();
 		nfsv4_unlock(&nfsv4rootfs_lock, 0);
 		NFSUNLOCKV4ROOTMUTEX();
-		return (EPERM);
+		error = EPERM;
+		goto out;
 	}
 
 	/*
@@ -590,7 +602,10 @@ nfsrv_adminrevoke(struct nfsd_clid *revokep, NFSPROC_T *p)
 	NFSLOCKV4ROOTMUTEX();
 	nfsv4_unlock(&nfsv4rootfs_lock, 0);
 	NFSUNLOCKV4ROOTMUTEX();
-	return (0);
+
+out:
+	NFSEXITCODE(error);
+	return (error);
 }
 
 /*
@@ -1229,6 +1244,7 @@ nfsrv_getstate(struct nfsclient *clp, nfsv4stateid_t *stateidp, __unused u_int32
 {
 	struct nfsstate *stp;
 	struct nfsstatehead *hp;
+	int error = 0;
 
 	*stpp = NULL;
 	hp = NFSSTATEHASH(clp, *stateidp);
@@ -1241,10 +1257,15 @@ nfsrv_getstate(struct nfsclient *clp, nfsv4stateid_t *stateidp, __unused u_int32
 	/*
 	 * If no state id in list, return NFSERR_BADSTATEID.
 	 */
-	if (stp == LIST_END(hp))
-		return (NFSERR_BADSTATEID);
+	if (stp == LIST_END(hp)) {
+		error = NFSERR_BADSTATEID;
+		goto out;
+	}
 	*stpp = stp;
-	return (0);
+
+out:
+	NFSEXITCODE(error);
+	return (error);
 }
 
 /*
@@ -1323,14 +1344,16 @@ nfsrv_lockctrl(vnode_t vp, struct nfsstate **new_stpp,
 	error = nfsrv_checkrestart(clientid, new_stp->ls_flags,
 	    &new_stp->ls_stateid, specialid);
 	if (error)
-		return (error);
+		goto out;
 
 	/*
 	 * Check for state resource limit exceeded.
 	 */
 	if ((new_stp->ls_flags & NFSLCK_LOCK) &&
-	    nfsrv_openpluslock > NFSRV_V4STATELIMIT)
-		return (NFSERR_RESOURCE);
+	    nfsrv_openpluslock > NFSRV_V4STATELIMIT) {
+		error = NFSERR_RESOURCE;
+		goto out;
+	}
 
 	/*
 	 * For the lock case, get another nfslock structure,
@@ -1546,14 +1569,7 @@ tryagain:
 			nfsrv_unlocklf(lfp);
 		}
 		NFSUNLOCKSTATE();
-		if (other_lop)
-			FREE((caddr_t)other_lop, M_NFSDLOCK);
-		if (haslock) {
-			NFSLOCKV4ROOTMUTEX();
-			nfsv4_unlock(&nfsv4rootfs_lock, 1);
-			NFSUNLOCKV4ROOTMUTEX();
-		}
-		return (error);
+		goto out;
 	}
 
 	/*
@@ -1582,15 +1598,7 @@ tryagain:
 				error = NFSERR_BADSTATEID;
 		}
 		NFSUNLOCKSTATE();
-		if (haslock) {
-			NFSLOCKV4ROOTMUTEX();
-			nfsv4_unlock(&nfsv4rootfs_lock, 1);
-			NFSUNLOCKV4ROOTMUTEX();
-		}
-		/*
-		 * Called to lock or unlock, so the lock has gone away.
-		 */
-		return (error);
+		goto out;
 	}
 
 	/*
@@ -1638,14 +1646,8 @@ tryagain:
 				nfsrv_unlocklf(lfp);
 			}
 			NFSUNLOCKSTATE();
-			if (other_lop)
-				FREE((caddr_t)other_lop, M_NFSDLOCK);
-			if (haslock) {
-				NFSLOCKV4ROOTMUTEX();
-				nfsv4_unlock(&nfsv4rootfs_lock, 1);
-				NFSUNLOCKV4ROOTMUTEX();
-			}
-			return (NFSERR_OPENMODE);
+			error = NFSERR_OPENMODE;
+			goto out;
 		}
 	    } else
 		mystp = NULL;
@@ -1670,27 +1672,18 @@ tryagain:
 			    }
 			    if (ret == 0)
 				NFSUNLOCKSTATE();
-			    if (haslock) {
-				NFSLOCKV4ROOTMUTEX();
-				nfsv4_unlock(&nfsv4rootfs_lock, 1);
-				NFSUNLOCKV4ROOTMUTEX();
-			    }
 			    if (ret == 2)
-				return (NFSERR_PERM);
+				error = NFSERR_PERM;
 			    else
-				return (NFSERR_OPENMODE);
+				error = NFSERR_OPENMODE;
+			    goto out;
 			}
 		    }
 		}
 
 		/* We're outta here */
 		NFSUNLOCKSTATE();
-		if (haslock) {
-			NFSLOCKV4ROOTMUTEX();
-			nfsv4_unlock(&nfsv4rootfs_lock, 1);
-			NFSUNLOCKV4ROOTMUTEX();
-		}
-		return (0);
+		goto out;
 	    }
 	}
 
@@ -1708,18 +1701,14 @@ tryagain:
 				lckstp = NULL;
 				goto tryagain;
 			}
-			return (ret);
+			error = ret;
+			goto out;
 		}
 		if (!(new_stp->ls_flags & NFSLCK_CHECK) ||
 		    (LIST_EMPTY(&lfp->lf_open) && LIST_EMPTY(&lfp->lf_lock) &&
 		     LIST_EMPTY(&lfp->lf_deleg))) {
 			NFSUNLOCKSTATE();
-			if (haslock) {
-				NFSLOCKV4ROOTMUTEX();
-				nfsv4_unlock(&nfsv4rootfs_lock, 1);
-				NFSUNLOCKV4ROOTMUTEX();
-			}
-			return (0);
+			goto out;
 		}
 	}
 
@@ -1773,7 +1762,8 @@ tryagain:
 			lckstp = NULL;
 			goto tryagain;
 		    }
-		    return (ret);
+		    error = ret;
+		    goto out;
 		}
 		/* Never gets here. */
 	    }
@@ -1801,12 +1791,7 @@ tryagain:
 			nfsrv_unlocklf(lfp);
 		}
 		NFSUNLOCKSTATE();
-		if (haslock) {
-			NFSLOCKV4ROOTMUTEX();
-			nfsv4_unlock(&nfsv4rootfs_lock, 1);
-			NFSUNLOCKV4ROOTMUTEX();
-		}
-		return (0);
+		goto out;
 	}
 
 	/*
@@ -1877,12 +1862,7 @@ tryagain:
 		}
 		if (ret == 0)
 			NFSUNLOCKSTATE();
-		if (haslock) {
-			NFSLOCKV4ROOTMUTEX();
-			nfsv4_unlock(&nfsv4rootfs_lock, 1);
-			NFSUNLOCKV4ROOTMUTEX();
-		}
-		return (error);
+		goto out;
 	    }
 	  }
 	}
@@ -1892,12 +1872,7 @@ tryagain:
 	 */
 	if (new_stp->ls_flags & (NFSLCK_TEST | NFSLCK_CHECK)) {
 		NFSUNLOCKSTATE();
-		if (haslock) {
-			NFSLOCKV4ROOTMUTEX();
-			nfsv4_unlock(&nfsv4rootfs_lock, 1);
-			NFSUNLOCKV4ROOTMUTEX();
-		}
-		return (0);
+		goto out;
 	}
 
 	/*
@@ -1950,6 +1925,8 @@ tryagain:
 		nfsrv_unlocklf(lfp);
 	}
 	NFSUNLOCKSTATE();
+
+out:
 	if (haslock) {
 		NFSLOCKV4ROOTMUTEX();
 		nfsv4_unlock(&nfsv4rootfs_lock, 1);
@@ -1957,7 +1934,8 @@ tryagain:
 	}
 	if (other_lop)
 		FREE((caddr_t)other_lop, M_NFSDLOCK);
-	return (0);
+	NFSEXITCODE2(error, nd);
+	return (error);
 }
 
 /*
@@ -1974,7 +1952,7 @@ nfsrv_opencheck(nfsquad_t clientid, nfsv4stateid_t *stateidp,
 	struct nfsclient *clp;
 	struct nfsstate *ownerstp;
 	struct nfslockfile *lfp, *new_lfp;
-	int error, haslock = 0, ret, readonly = 0, getfhret = 0;
+	int error = 0, haslock = 0, ret, readonly = 0, getfhret = 0;
 
 	if ((new_stp->ls_flags & NFSLCK_SHAREBITS) == NFSLCK_READACCESS)
 		readonly = 1;
@@ -1984,7 +1962,7 @@ nfsrv_opencheck(nfsquad_t clientid, nfsv4stateid_t *stateidp,
 	error = nfsrv_checkrestart(clientid, new_stp->ls_flags,
 		&new_stp->ls_stateid, 0);
 	if (error)
-		return (error);
+		goto out;
 
 	/*
 	 * Check for state resource limit exceeded.
@@ -1993,8 +1971,10 @@ nfsrv_opencheck(nfsquad_t clientid, nfsv4stateid_t *stateidp,
 	 * returns NFSERR_RESOURCE and the limit is just a rather
 	 * arbitrary high water mark, so no harm is done.
 	 */
-	if (nfsrv_openpluslock > NFSRV_V4STATELIMIT)
-		return (NFSERR_RESOURCE);
+	if (nfsrv_openpluslock > NFSRV_V4STATELIMIT) {
+		error = NFSERR_RESOURCE;
+		goto out;
+	}
 
 tryagain:
 	MALLOC(new_lfp, struct nfslockfile *, sizeof (struct nfslockfile),
@@ -2052,7 +2032,7 @@ tryagain:
 			NFSUNLOCKV4ROOTMUTEX();
 		}
 		free((caddr_t)new_lfp, M_NFSDLOCKFILE);
-		return (error);
+		goto out;
 	}
 
 	/*
@@ -2062,7 +2042,7 @@ tryagain:
 	if (vp == NULL) {
 		NFSUNLOCKSTATE();
 		FREE((caddr_t)new_lfp, M_NFSDLOCKFILE);
-		return (0);
+		goto out;
 	}
 
 	/*
@@ -2082,7 +2062,7 @@ tryagain:
 			nfsv4_unlock(&nfsv4rootfs_lock, 1);
 			NFSUNLOCKV4ROOTMUTEX();
 		}
-		return (error);
+		goto out;
 	}
 
 	/*
@@ -2113,7 +2093,8 @@ tryagain:
 			nfsv4_unlock(&nfsv4rootfs_lock, 1);
 			NFSUNLOCKV4ROOTMUTEX();
 		}
-		return (NFSERR_EXPIRED);
+		error = NFSERR_EXPIRED;
+		goto out;
 	    }
 	}
 
@@ -2148,7 +2129,7 @@ tryagain:
 				nfsv4_unlock(&nfsv4rootfs_lock, 1);
 				NFSUNLOCKV4ROOTMUTEX();
 			}
-			return (error);
+			goto out;
 		}
 	}
 
@@ -2189,7 +2170,8 @@ tryagain:
 			     */
 			    if (ret == -1)
 				goto tryagain;
-			    return (ret);
+			    error = ret;
+			    goto out;
 			}
 		}
 		stp = nstp;
@@ -2201,7 +2183,10 @@ tryagain:
 		nfsv4_unlock(&nfsv4rootfs_lock, 1);
 		NFSUNLOCKV4ROOTMUTEX();
 	}
-	return (0);
+
+out:
+	NFSEXITCODE2(error, nd);
+	return (error);
 }
 
 /*
@@ -2218,7 +2203,7 @@ nfsrv_openctrl(struct nfsrv_descript *nd, vnode_t vp,
 	struct nfsstate *openstp = NULL, *new_open, *ownerstp, *new_deleg;
 	struct nfslockfile *lfp, *new_lfp;
 	struct nfsclient *clp;
-	int error, haslock = 0, ret, delegate = 1, writedeleg = 1;
+	int error = 0, haslock = 0, ret, delegate = 1, writedeleg = 1;
 	int readonly = 0, cbret = 1, getfhret = 0;
 
 	if ((new_stp->ls_flags & NFSLCK_SHAREBITS) == NFSLCK_READACCESS)
@@ -2234,7 +2219,8 @@ nfsrv_openctrl(struct nfsrv_descript *nd, vnode_t vp,
 	if (error) {
 		printf("Nfsd: openctrl unexpected restart err=%d\n",
 		    error);
-		return (NFSERR_EXPIRED);
+		error = NFSERR_EXPIRED;
+		goto out;
 	}
 
 tryagain:
@@ -2305,7 +2291,8 @@ tryagain:
 			nfsv4_unlock(&nfsv4rootfs_lock, 1);
 			NFSUNLOCKV4ROOTMUTEX();
 		}
-		return (NFSERR_EXPIRED);
+		error = NFSERR_EXPIRED;
+		goto out;
 	}
 
 	if (new_stp->ls_flags & NFSLCK_RECLAIM)
@@ -2332,7 +2319,7 @@ tryagain:
 			nfsv4_unlock(&nfsv4rootfs_lock, 1);
 			NFSUNLOCKV4ROOTMUTEX();
 		}
-		return (error);
+		goto out;
 	}
 
 	/*
@@ -2366,7 +2353,8 @@ tryagain:
 			nfsv4_unlock(&nfsv4rootfs_lock, 1);
 			NFSUNLOCKV4ROOTMUTEX();
 		}
-		return (NFSERR_EXPIRED);
+		error = NFSERR_EXPIRED;
+		goto out;
 	    }
 
 	    /*
@@ -2431,7 +2419,7 @@ tryagain:
 			free((caddr_t)new_open, M_NFSDSTATE);
 			free((caddr_t)new_deleg, M_NFSDSTATE);
 			printf("nfsd openctrl unexpected client cnfl\n");
-			return (error);
+			goto out;
 		    }
 		}
 	}
@@ -2482,7 +2470,8 @@ tryagain:
 				openstp = NULL;
 				goto tryagain;
 			    }
-			    return (ret);
+			    error = ret;
+			    goto out;
 			}
 		    }
 		}
@@ -2855,6 +2844,9 @@ tryagain:
 		FREE((caddr_t)new_open, M_NFSDSTATE);
 	if (new_deleg)
 		FREE((caddr_t)new_deleg, M_NFSDSTATE);
+
+out:
+	NFSEXITCODE2(error, nd);
 	return (error);
 }
 
@@ -2869,7 +2861,7 @@ nfsrv_openupdate(vnode_t vp, struct nfsstate *new_stp, nfsquad_t clientid,
 	struct nfsclient *clp;
 	struct nfslockfile *lfp;
 	u_int32_t bits;
-	int error, gotstate = 0, len = 0;
+	int error = 0, gotstate = 0, len = 0;
 	u_char client[NFSV4_OPAQUELIMIT];
 
 	/*
@@ -2878,7 +2870,7 @@ nfsrv_openupdate(vnode_t vp, struct nfsstate *new_stp, nfsquad_t clientid,
 	error = nfsrv_checkrestart(clientid, new_stp->ls_flags,
 	    &new_stp->ls_stateid, 0);
 	if (error)
-		return (error);
+		goto out;
 
 	NFSLOCKSTATE();
 	/*
@@ -2925,7 +2917,7 @@ nfsrv_openupdate(vnode_t vp, struct nfsstate *new_stp, nfsquad_t clientid,
 		    nfsrv_nootherstate(stp))
 			nfsrv_freeopenowner(stp->ls_openowner, 0, p);
 		NFSUNLOCKSTATE();
-		return (error);
+		goto out;
 	}
 
 	/*
@@ -2978,7 +2970,8 @@ nfsrv_openupdate(vnode_t vp, struct nfsstate *new_stp, nfsquad_t clientid,
 		bits = (new_stp->ls_flags & NFSLCK_SHAREBITS);
 		if (~(stp->ls_flags) & bits) {
 			NFSUNLOCKSTATE();
-			return (NFSERR_INVAL);
+			error = NFSERR_INVAL;
+			goto out;
 		}
 		stp->ls_flags = (bits | NFSLCK_OPEN);
 		stp->ls_stateid.seqid++;
@@ -2993,6 +2986,9 @@ nfsrv_openupdate(vnode_t vp, struct nfsstate *new_stp, nfsquad_t clientid,
 		nfsrv_writestable(client, len, NFSNST_NEWSTATE, p);
 		nfsrv_backupstable();
 	}
+
+out:
+	NFSEXITCODE2(error, nd);
 	return (error);
 }
 
@@ -3005,7 +3001,7 @@ nfsrv_delegupdate(nfsquad_t clientid, nfsv4stateid_t *stateidp,
 {
 	struct nfsstate *stp;
 	struct nfsclient *clp;
-	int error;
+	int error = 0;
 	fhandle_t fh;
 
 	/*
@@ -3014,7 +3010,7 @@ nfsrv_delegupdate(nfsquad_t clientid, nfsv4stateid_t *stateidp,
 	if (vp) {
 		error = nfsvno_getfh(vp, &fh, p);
 		if (error)
-			return (error);
+			goto out;
 	}
 	/*
 	 * Check for restart conditions (client and server).
@@ -3050,25 +3046,31 @@ nfsrv_delegupdate(nfsquad_t clientid, nfsv4stateid_t *stateidp,
 	 */
 	if (error == NFSERR_EXPIRED && op == NFSV4OP_DELEGPURGE) {
 		NFSUNLOCKSTATE();
-		return (0);
+		error = 0;
+		goto out;
 	}
 	if (error) {
 		NFSUNLOCKSTATE();
-		return (error);
+		goto out;
 	}
 
 	if (op == NFSV4OP_DELEGRETURN) {
 		if (NFSBCMP((caddr_t)&fh, (caddr_t)&stp->ls_lfp->lf_fh,
 		    sizeof (fhandle_t))) {
 			NFSUNLOCKSTATE();
-			return (NFSERR_BADSTATEID);
+			error = NFSERR_BADSTATEID;
+			goto out;
 		}
 		nfsrv_freedeleg(stp);
 	} else {
 		nfsrv_freedeleglist(&clp->lc_olddeleg);
 	}
 	NFSUNLOCKSTATE();
-	return (0);
+	error = 0;
+
+out:
+	NFSEXITCODE(error);
+	return (error);
 }
 
 /*
@@ -3080,7 +3082,7 @@ nfsrv_releaselckown(struct nfsstate *new_stp, nfsquad_t clientid,
 {
 	struct nfsstate *stp, *nstp, *openstp, *ownstp;
 	struct nfsclient *clp;
-	int error;
+	int error = 0;
 
 	/*
 	 * Check for restart conditions (client and server).
@@ -3088,7 +3090,7 @@ nfsrv_releaselckown(struct nfsstate *new_stp, nfsquad_t clientid,
 	error = nfsrv_checkrestart(clientid, new_stp->ls_flags,
 	    &new_stp->ls_stateid, 0);
 	if (error)
-		return (error);
+		goto out;
 
 	NFSLOCKSTATE();
 	/*
@@ -3098,7 +3100,7 @@ nfsrv_releaselckown(struct nfsstate *new_stp, nfsquad_t clientid,
 	    (nfsquad_t)((u_quad_t)0), NULL, p);
 	if (error) {
 		NFSUNLOCKSTATE();
-		return (error);
+		goto out;
 	}
 	LIST_FOREACH(ownstp, &clp->lc_open, ls_list) {
 	    LIST_FOREACH(openstp, &ownstp->ls_open, ls_list) {
@@ -3116,7 +3118,8 @@ nfsrv_releaselckown(struct nfsstate *new_stp, nfsquad_t clientid,
 			    nfsrv_freelockowner(stp, NULL, 0, p);
 			} else {
 			    NFSUNLOCKSTATE();
-			    return (NFSERR_LOCKSHELD);
+			    error = NFSERR_LOCKSHELD;
+			    goto out;
 			}
 		    }
 		    stp = nstp;
@@ -3124,7 +3127,10 @@ nfsrv_releaselckown(struct nfsstate *new_stp, nfsquad_t clientid,
 	    }
 	}
 	NFSUNLOCKSTATE();
-	return (0);
+
+out:
+	NFSEXITCODE(error);
+	return (error);
 }
 
 /*
@@ -3151,6 +3157,7 @@ nfsrv_getlockfh(vnode_t vp, u_short flags,
 		panic("nfsrv_getlockfh");
 	}
 	error = nfsvno_getfh(vp, fhp, p);
+	NFSEXITCODE(error);
 	return (error);
 }
 
@@ -3406,6 +3413,7 @@ static int
 nfsrv_checkseqid(struct nfsrv_descript *nd, u_int32_t seqid,
     struct nfsstate *stp, struct nfsrvcache *op)
 {
+	int error = 0;
 
 	if (op != nd->nd_rp)
 		panic("nfsrvstate checkseqid");
@@ -3421,20 +3429,27 @@ nfsrv_checkseqid(struct nfsrv_descript *nd, u_int32_t seqid,
 		stp->ls_op = op;
 		nfsrvd_refcache(op);
 		stp->ls_seq = seqid;
-		return (0);
+		goto out;
 	} else if (stp->ls_seq == seqid && stp->ls_op &&
 		op->rc_xid == stp->ls_op->rc_xid &&
 		op->rc_refcnt == 0 &&
 		op->rc_reqlen == stp->ls_op->rc_reqlen &&
 		op->rc_cksum == stp->ls_op->rc_cksum) {
-		if (stp->ls_op->rc_flag & RC_INPROG)
-			return (NFSERR_DONTREPLY);
+		if (stp->ls_op->rc_flag & RC_INPROG) {
+			error = NFSERR_DONTREPLY;
+			goto out;
+		}
 		nd->nd_rp = stp->ls_op;
 		nd->nd_rp->rc_flag |= RC_INPROG;
 		nfsrvd_delcache(op);
-		return (NFSERR_REPLYFROMCACHE);
+		error = NFSERR_REPLYFROMCACHE;
+		goto out;
 	}
-	return (NFSERR_BADSEQID);
+	error = NFSERR_BADSEQID;
+
+out:
+	NFSEXITCODE2(error, nd);
+	return (error);
 }
 
 /*
@@ -3558,6 +3573,7 @@ nfsrv_getclientipaddr(struct nfsrv_descript *nd, struct nfsclient *clp)
 		clp->lc_program = 0;
 	}
 nfsmout:
+	NFSEXITCODE2(error, nd);
 	return (error);
 }
 
@@ -3590,7 +3606,7 @@ static int
 nfsrv_checkrestart(nfsquad_t clientid, u_int32_t flags,
     nfsv4stateid_t *stateidp, int specialid)
 {
-	int ret;
+	int ret = 0;
 
 	/*
 	 * First check for a server restart. Open, LockT, ReleaseLockOwner
@@ -3598,11 +3614,15 @@ nfsrv_checkrestart(nfsquad_t clientid, u_int32_t flags,
 	 */
 	if (flags &
 	    (NFSLCK_OPEN | NFSLCK_TEST | NFSLCK_RELEASE | NFSLCK_DELEGPURGE)) {
-		if (clientid.lval[0] != nfsrvboottime)
-			return (NFSERR_STALECLIENTID);
+		if (clientid.lval[0] != nfsrvboottime) {
+			ret = NFSERR_STALECLIENTID;
+			goto out;
+		}
 	} else if (stateidp->other[0] != nfsrvboottime &&
-		specialid == 0)
-		return (NFSERR_STALESTATEID);
+		specialid == 0) {
+		ret = NFSERR_STALESTATEID;
+		goto out;
+	}
 
 	/*
 	 * Read, Write, Setattr and LockT can return NFSERR_GRACE and do
@@ -3610,11 +3630,14 @@ nfsrv_checkrestart(nfsquad_t clientid, u_int32_t flags,
 	 * (The others will be checked, as required, later.)
 	 */
 	if (!(flags & (NFSLCK_CHECK | NFSLCK_TEST)))
-		return (0);
+		goto out;
 
 	NFSLOCKSTATE();
 	ret = nfsrv_checkgrace(flags);
 	NFSUNLOCKSTATE();
+
+out:
+	NFSEXITCODE(ret);
 	return (ret);
 }
 
@@ -3624,13 +3647,18 @@ nfsrv_checkrestart(nfsquad_t clientid, u_int32_t flags,
 static int
 nfsrv_checkgrace(u_int32_t flags)
 {
+	int error = 0;
 
 	if (nfsrv_stablefirst.nsf_flags & NFSNSF_GRACEOVER) {
-		if (flags & NFSLCK_RECLAIM)
-			return (NFSERR_NOGRACE);
+		if (flags & NFSLCK_RECLAIM) {
+			error = NFSERR_NOGRACE;
+			goto out;
+		}
 	} else {
-		if (!(flags & NFSLCK_RECLAIM))
-			return (NFSERR_GRACE);
+		if (!(flags & NFSLCK_RECLAIM)) {
+			error = NFSERR_GRACE;
+			goto out;
+		}
 
 		/*
 		 * If grace is almost over and we are still getting Reclaims,
@@ -3641,7 +3669,10 @@ nfsrv_checkgrace(u_int32_t flags)
 			nfsrv_stablefirst.nsf_eograce = NFSD_MONOSEC +
 				NFSRV_LEASEDELTA;
 	}
-	return (0);
+
+out:
+	NFSEXITCODE(error);
+	return (error);
 }
 
 /*
@@ -3790,6 +3821,8 @@ nfsrv_docallback(struct nfsclient *clp, int procnum,
 	} else {
 		NFSUNLOCKSTATE();
 	}
+
+	NFSEXITCODE(error);
 	return (error);
 }
 
@@ -4317,7 +4350,8 @@ nfsrv_delegconflict(struct nfsstate *stp, int *haslockp, NFSPROC_T *p,
 		if (clp->lc_delegtime < NFSD_MONOSEC) {
 			nfsrv_freedeleg(stp);
 			NFSUNLOCKSTATE();
-			return (-1);
+			error = -1;
+			goto out;
 		}
 		NFSUNLOCKSTATE();
 		/*
@@ -4332,7 +4366,8 @@ nfsrv_delegconflict(struct nfsstate *stp, int *haslockp, NFSPROC_T *p,
 			nfsv4_unlock(&nfsv4rootfs_lock, 1);
 			NFSUNLOCKV4ROOTMUTEX();
 		}
-		return (NFSERR_DELAY);
+		error = NFSERR_DELAY;
+		goto out;
 	}
 
 	/*
@@ -4388,7 +4423,8 @@ nfsrv_delegconflict(struct nfsstate *stp, int *haslockp, NFSPROC_T *p,
 		    retrycnt++;
 		} while ((error == NFSERR_BADSTATEID ||
 		    error == NFSERR_BADHANDLE) && retrycnt < NFSV4_CBRETRYCNT);
-		return (NFSERR_DELAY);
+		error = NFSERR_DELAY;
+		goto out;
 	}
 
 	if (clp->lc_expiry >= NFSD_MONOSEC &&
@@ -4404,7 +4440,8 @@ nfsrv_delegconflict(struct nfsstate *stp, int *haslockp, NFSPROC_T *p,
 			nfsv4_unlock(&nfsv4rootfs_lock, 1);
 			NFSUNLOCKV4ROOTMUTEX();
 		}
-		return (NFSERR_DELAY);
+		error = NFSERR_DELAY;
+		goto out;
 	}
 
 	/*
@@ -4432,9 +4469,11 @@ nfsrv_delegconflict(struct nfsstate *stp, int *haslockp, NFSPROC_T *p,
 			NFSLOCKV4ROOTMUTEX();
 			nfsv4_unlock(&nfsv4rootfs_lock, 1);
 			NFSUNLOCKV4ROOTMUTEX();
-			return (NFSERR_PERM);
+			error = NFSERR_PERM;
+			goto out;
 		}
-		return (-1);
+		error = -1;
+		goto out;
 	}
 
 	NFSUNLOCKSTATE();
@@ -4459,7 +4498,11 @@ nfsrv_delegconflict(struct nfsstate *stp, int *haslockp, NFSPROC_T *p,
 	}
 	if (zapped_clp)
 		nfsrv_zapclient(clp, p);
-	return (-1);
+	error = -1;
+
+out:
+	NFSEXITCODE(error);
+	return (error);
 }
 
 /*
@@ -4491,8 +4534,8 @@ tryagain:
 			NFSUNLOCKV4ROOTMUTEX();
 		}
 		if (error == -1)
-			return (0);
-		return (error);
+			error = 0;
+		goto out;
 	}
 
 	/*
@@ -4511,7 +4554,7 @@ tryagain:
 			nfsv4_unlock(&nfsv4rootfs_lock, 1);
 			NFSUNLOCKV4ROOTMUTEX();
 		}
-		return (error);
+		goto out;
 	}
 
 	/*
@@ -4532,6 +4575,9 @@ tryagain:
 		nfsv4_unlock(&nfsv4rootfs_lock, 1);
 		NFSUNLOCKV4ROOTMUTEX();
 	}
+
+out:
+	NFSEXITCODE(error);
 	return (error);
 }
 
@@ -4549,7 +4595,7 @@ nfsrv_cleandeleg(vnode_t vp, struct nfslockfile *lfp,
     struct nfsclient *clp, int *haslockp, NFSPROC_T *p)
 {
 	struct nfsstate *stp, *nstp;
-	int ret;
+	int ret = 0;
 
 	stp = LIST_FIRST(&lfp->lf_deleg);
 	while (stp != LIST_END(&lfp->lf_deleg)) {
@@ -4561,12 +4607,14 @@ nfsrv_cleandeleg(vnode_t vp, struct nfslockfile *lfp,
 				 * nfsrv_delegconflict() unlocks state
 				 * when it returns non-zero.
 				 */
-				return (ret);
+				goto out;
 			}
 		}
 		stp = nstp;
 	}
-	return (0);
+out:
+	NFSEXITCODE(ret);
+	return (ret);
 }
 
 /*
@@ -4700,7 +4748,7 @@ nfsrv_checksetattr(vnode_t vp, struct nfsrv_descript *nd,
 	    NFSISSET_ATTRBIT(attrbitp, NFSATTRBIT_ACL))
 		stp->ls_flags |= NFSLCK_SETATTR;
 	if (stp->ls_flags == 0)
-		return (0);
+		goto out;
 	lop->lo_end = NFS64BITSSET;
 	lop->lo_flags = NFSLCK_WRITE;
 	stp->ls_ownerlen = 0;
@@ -4712,6 +4760,9 @@ nfsrv_checksetattr(vnode_t vp, struct nfsrv_descript *nd,
 	stp->ls_stateid.other[2] = stateidp->other[2];
 	error = nfsrv_lockctrl(vp, &stp, &lop, NULL, clientid,
 	    stateidp, exp, nd, p);
+
+out:
+	NFSEXITCODE2(error, nd);
 	return (error);
 }
 
@@ -4731,13 +4782,13 @@ nfsrv_checkgetattr(struct nfsrv_descript *nd, vnode_t vp,
 	struct nfsclient *clp;
 	struct nfsvattr nva;
 	fhandle_t nfh;
-	int error;
+	int error = 0;
 	nfsattrbit_t cbbits;
 	u_quad_t delegfilerev;
 
 	NFSCBGETATTR_ATTRBIT(attrbitp, &cbbits);
 	if (!NFSNONZERO_ATTRBIT(&cbbits))
-		return (0);
+		goto out;
 
 	/*
 	 * Get the lock file structure.
@@ -4750,8 +4801,8 @@ nfsrv_checkgetattr(struct nfsrv_descript *nd, vnode_t vp,
 	if (error) {
 		NFSUNLOCKSTATE();
 		if (error == -1)
-			return (0);
-		return (error);
+			error = 0;
+		goto out;
 	}
 
 	/*
@@ -4763,7 +4814,7 @@ nfsrv_checkgetattr(struct nfsrv_descript *nd, vnode_t vp,
 	}
 	if (stp == LIST_END(&lfp->lf_deleg)) {
 		NFSUNLOCKSTATE();
-		return (0);
+		goto out;
 	}
 	clp = stp->ls_clp;
 	delegfilerev = stp->ls_filerev;
@@ -4783,7 +4834,7 @@ nfsrv_checkgetattr(struct nfsrv_descript *nd, vnode_t vp,
 	     clp->lc_clientid.qval == nd->nd_clientid.qval) ||
 	     nfsaddr2_match(clp->lc_req.nr_nam, nd->nd_nam)) {
 		NFSUNLOCKSTATE();
-		return (0);
+		goto out;
 	}
 
 	/*
@@ -4814,7 +4865,11 @@ nfsrv_checkgetattr(struct nfsrv_descript *nd, vnode_t vp,
 	} else {
 		NFSUNLOCKSTATE();
 	}
-	return (0);
+	error = 0;
+
+out:
+	NFSEXITCODE2(error, nd);
+	return (error);
 }
 
 /*
@@ -4997,6 +5052,8 @@ nfsrv_locallock(vnode_t vp, struct nfslockfile *lfp, int flags,
 		/* handle fragment past end of list */
 		error = nfsrv_dolocal(vp, lfp, flags, NFSLCK_UNLOCK, first,
 		    end, cfp, p);
+
+	NFSEXITCODE(error);
 	return (error);
 }
 
@@ -5079,7 +5136,7 @@ nfsrv_dolocal(vnode_t vp, struct nfslockfile *lfp, int flags, int oldflags,
     uint64_t first, uint64_t end, struct nfslockconflict *cfp, NFSPROC_T *p)
 {
 	struct nfsrollback *rlp;
-	int error, ltype, oldltype;
+	int error = 0, ltype, oldltype;
 
 	if (flags & NFSLCK_WRITE)
 		ltype = F_WRLCK;
@@ -5095,7 +5152,7 @@ nfsrv_dolocal(vnode_t vp, struct nfslockfile *lfp, int flags, int oldflags,
 		oldltype = F_UNLCK;
 	if (ltype == oldltype || (oldltype == F_WRLCK && ltype == F_RDLCK))
 		/* nothing to do */
-		return (0);
+		goto out;
 	error = nfsvno_advlock(vp, ltype, first, end, p);
 	if (error != 0) {
 		if (cfp != NULL) {
@@ -5116,6 +5173,9 @@ nfsrv_dolocal(vnode_t vp, struct nfslockfile *lfp, int flags, int oldflags,
 		rlp->rlck_type = oldltype;
 		LIST_INSERT_HEAD(&lfp->lf_rollback, rlp, rlck_list);
 	}
+
+out:
+	NFSEXITCODE(error);
 	return (error);
 }
 
