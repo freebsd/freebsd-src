@@ -430,7 +430,7 @@ nfsrvd_dorpc(struct nfsrv_descript *nd, int isdgram,
 	} else {
 		if (nfs_retfh[nd->nd_procnum] == 1) {
 			if (vp)
-				NFSVOPUNLOCK(vp, 0, p);
+				NFSVOPUNLOCK(vp, 0);
 			error = (*(nfsrv3_procs1[nd->nd_procnum]))(nd, isdgram,
 			    vp, NULL, (fhandle_t *)fh.nfsrvfh_data, p, &nes);
 		} else if (nfs_retfh[nd->nd_procnum] == 2) {
