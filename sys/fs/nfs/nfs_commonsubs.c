@@ -660,9 +660,9 @@ nfsrv_dissectacl(struct nfsrv_descript *nd, NFSACL_T *aclp, int *aclerrp,
 	aclsize = NFSX_UNSIGNED;
 	acecnt = fxdr_unsigned(int, *tl);
 	if (acecnt > ACL_MAX_ENTRIES)
-		aceerr = 1;
+		aceerr = NFSERR_ATTRNOTSUPP;
 	if (nfsrv_useacl == 0)
-		aceerr = 1;
+		aceerr = NFSERR_ATTRNOTSUPP;
 	for (i = 0; i < acecnt; i++) {
 		if (aclp && !aceerr)
 			error = nfsrv_dissectace(nd, &aclp->acl_entry[i],
