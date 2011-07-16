@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2006, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2006, 2007, 2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: sshfp_44.c,v 1.7 2007-06-19 23:47:17 tbox Exp $ */
+/* $Id: sshfp_44.c,v 1.9 2009-12-04 22:06:37 tbox Exp $ */
 
 /* RFC 4255 */
 
@@ -257,6 +257,11 @@ checknames_sshfp(ARGS_CHECKNAMES) {
 	UNUSED(bad);
 
 	return (ISC_TRUE);
+}
+
+static inline int
+casecompare_sshfp(ARGS_COMPARE) {
+	return (compare_sshfp(rdata1, rdata2));
 }
 
 #endif	/* RDATA_GENERIC_SSHFP_44_C */

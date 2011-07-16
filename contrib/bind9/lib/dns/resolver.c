@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: resolver.c,v 1.384.14.30.4.1 2011-06-21 20:13:23 each Exp $ */
+/* $Id: resolver.c,v 1.428.6.5.2.1 2011-06-21 20:15:53 each Exp $ */
 
 /*! \file */
 
@@ -103,6 +103,14 @@
 #define FCTXTRACE(m)
 #define FTRACE(m)
 #define QTRACE(m)
+#endif
+
+#ifndef DEFAULT_QUERY_TIMEOUT
+#define DEFAULT_QUERY_TIMEOUT 30  /* The default time in seconds for the whole query to live. */
+#endif
+
+#ifndef MAXIMUM_QUERY_TIMEOUT
+#define MAXIMUM_QUERY_TIMEOUT 30 /* The maximum time in seconds for the whole query to live. */
 #endif
 
 /*%
@@ -273,6 +281,8 @@ struct fetchctx {
 	unsigned int			findfail;
 	unsigned int			valfail;
 	isc_boolean_t			timeout;
+	dns_adbaddrinfo_t 		*addrinfo;
+	isc_sockaddr_t			*client;
 };
 
 #define FCTX_MAGIC			ISC_MAGIC('F', '!', '!', '!')
@@ -384,6 +394,7 @@ struct dns_resolver {
 	unsigned int			spillatmin;
 	isc_timer_t *			spillattimer;
 	isc_boolean_t			zero_no_soa_ttl;
+	unsigned int			query_timeout;
 
 	/* Locked by lock. */
 	unsigned int			references;
@@ -1035,6 +1046,7 @@ fctx_sendevents(fetchctx_t *fctx, isc_result_t result, int line) {
 		ISC_LIST_UNLINK(fctx->events, event, ev_link);
 		task = event->ev_sender;
 		event->ev_sender = fctx;
+		event->vresult = fctx->vresult;
 		if (!HAVE_ANSWER(fctx))
 			event->result = result;
 
@@ -1742,9 +1754,8 @@ resquery_send(resquery_t *query) {
 	if ((query->options & DNS_FETCHOPT_NOVALIDATE) != 0) {
 		fctx->qmessage->flags |= DNS_MESSAGEFLAG_CD;
 	} else if (res->view->enablevalidation) {
-		result = dns_keytable_issecuredomain(res->view->secroots,
-						     &fctx->name,
-						     &secure_domain);
+		result = dns_view_issecuredomain(res->view, &fctx->name,
+						 &secure_domain);
 		if (result != ISC_R_SUCCESS)
 			secure_domain = ISC_FALSE;
 		if (res->view->dlv != NULL)
@@ -2285,7 +2296,7 @@ add_bad(fetchctx_t *fctx, dns_adbaddrinfo_t *addrinfo, isc_result_t reason,
 	char code[64];
 	isc_buffer_t b;
 	isc_sockaddr_t *sa;
-	const char *sep1, *sep2;
+	const char *spc = "";
 	isc_sockaddr_t *address = &addrinfo->sockaddr;
 
 	if (reason == DNS_R_LAME)
@@ -2331,18 +2342,14 @@ add_bad(fetchctx_t *fctx, dns_adbaddrinfo_t *addrinfo, isc_result_t reason,
 		isc_buffer_init(&b, code, sizeof(code) - 1);
 		dns_rcode_totext(fctx->rmessage->rcode, &b);
 		code[isc_buffer_usedlength(&b)] = '\0';
-		sep1 = "(";
-		sep2 = ") ";
+		spc = " ";
 	} else if (reason == DNS_R_UNEXPECTEDOPCODE) {
 		isc_buffer_init(&b, code, sizeof(code) - 1);
 		dns_opcode_totext((dns_opcode_t)fctx->rmessage->opcode, &b);
 		code[isc_buffer_usedlength(&b)] = '\0';
-		sep1 = "(";
-		sep2 = ") ";
+		spc = " ";
 	} else {
 		code[0] = '\0';
-		sep1 = "";
-		sep2 = "";
 	}
 	dns_name_format(&fctx->name, namebuf, sizeof(namebuf));
 	dns_rdatatype_format(fctx->type, typebuf, sizeof(typebuf));
@@ -2350,82 +2357,18 @@ add_bad(fetchctx_t *fctx, dns_adbaddrinfo_t *addrinfo, isc_result_t reason,
 	isc_sockaddr_format(address, addrbuf, sizeof(addrbuf));
 	isc_log_write(dns_lctx, DNS_LOGCATEGORY_LAME_SERVERS,
 		      DNS_LOGMODULE_RESOLVER, ISC_LOG_INFO,
-		      "%s %s%s%sresolving '%s/%s/%s': %s",
-		      dns_result_totext(reason), sep1, code, sep2,
+		      "error (%s%s%s) resolving '%s/%s/%s': %s",
+		      dns_result_totext(reason), spc, code,
 		      namebuf, typebuf, classbuf, addrbuf);
 }
 
 /*
- * Return 'bits' bits of random entropy from fctx->rand_buf,
- * refreshing it by calling isc_random_get() whenever the requested
- * number of bits is greater than the number in the buffer.
- */
-static inline isc_uint32_t
-random_bits(fetchctx_t *fctx, isc_uint32_t bits) {
-	isc_uint32_t ret = 0;
-
-	REQUIRE(VALID_FCTX(fctx));
-	REQUIRE(bits <= 32);
-	if (bits == 0)
-		return (0);
-
-	if (bits >= fctx->rand_bits) {
-		/* if rand_bits == 0, this is unnecessary but harmless */
-		bits -= fctx->rand_bits;
-		ret = fctx->rand_buf << bits;
-
-		/* refresh random buffer now */
-		isc_random_get(&fctx->rand_buf);
-		fctx->rand_bits = sizeof(fctx->rand_buf) * CHAR_BIT;
-	}
-
-	if (bits > 0) {
-		isc_uint32_t mask = 0xffffffff;
-		if (bits < 32) {
-			mask = (1 << bits) - 1;
-		}
-
-		ret |= fctx->rand_buf & mask;
-		fctx->rand_buf >>= bits;
-		fctx->rand_bits -= bits;
-	}
-
-	return (ret);
-}
-
-/*
- * Add some random jitter to a server's RTT value so that the
- * order of queries will be unpredictable.
- *
- * RTT values of servers which have been tried are fuzzed by 128 ms.
- * Servers that haven't been tried yet have their RTT set to a random
- * value between 0 ms and 7 ms; they should get to go first, but in
- * unpredictable order.
- */
-static inline void
-randomize_srtt(fetchctx_t *fctx, dns_adbaddrinfo_t *ai) {
-	if (TRIED(ai)) {
-		ai->srtt >>= 10; /* convert to milliseconds, near enough */
-		ai->srtt |= (ai->srtt & 0x80) | random_bits(fctx, 7);
-		ai->srtt <<= 10; /* now back to microseconds */
-	} else
-		ai->srtt = random_bits(fctx, 3) << 10;
-}
-
-/*
- * Sort addrinfo list by RTT (with random jitter)
+ * Sort addrinfo list by RTT.
  */
 static void
-sort_adbfind(fetchctx_t *fctx, dns_adbfind_t *find) {
+sort_adbfind(dns_adbfind_t *find) {
 	dns_adbaddrinfo_t *best, *curr;
 	dns_adbaddrinfolist_t sorted;
-
-	/* Add jitter to SRTT values */
-	curr = ISC_LIST_HEAD(find->list);
-	while (curr != NULL) {
-		randomize_srtt(fctx, curr);
-		curr = ISC_LIST_NEXT(curr, publink);
-	}
 
 	/* Lame N^2 bubble sort. */
 	ISC_LIST_INIT(sorted);
@@ -2444,19 +2387,19 @@ sort_adbfind(fetchctx_t *fctx, dns_adbfind_t *find) {
 }
 
 /*
- * Sort a list of finds by server RTT (with random jitter)
+ * Sort a list of finds by server RTT.
  */
 static void
-sort_finds(fetchctx_t *fctx, dns_adbfindlist_t *findlist) {
+sort_finds(dns_adbfindlist_t *findlist) {
 	dns_adbfind_t *best, *curr;
 	dns_adbfindlist_t sorted;
 	dns_adbaddrinfo_t *addrinfo, *bestaddrinfo;
 
-	/* Sort each find's addrinfo list by SRTT (after adding jitter) */
+	/* Sort each find's addrinfo list by SRTT. */
 	for (curr = ISC_LIST_HEAD(*findlist);
 	     curr != NULL;
 	     curr = ISC_LIST_NEXT(curr, publink))
-		sort_adbfind(fctx, curr);
+		sort_adbfind(curr);
 
 	/* Lame N^2 bubble sort. */
 	ISC_LIST_INIT(sorted);
@@ -2841,8 +2784,8 @@ fctx_getaddresses(fetchctx_t *fctx, isc_boolean_t badcache) {
 		 * We've found some addresses.  We might still be looking
 		 * for more addresses.
 		 */
-		sort_finds(fctx, &fctx->finds);
-		sort_finds(fctx, &fctx->altfinds);
+		sort_finds(&fctx->finds);
+		sort_finds(&fctx->altfinds);
 		result = ISC_R_SUCCESS;
 	}
 
@@ -3471,6 +3414,7 @@ fctx_join(fetchctx_t *fctx, isc_task_t *task, isc_sockaddr_t *client,
 	else
 		ISC_LIST_APPEND(fctx->events, event, ev_link);
 	fctx->references++;
+	fctx->client = client;
 
 	fetch->magic = DNS_FETCH_MAGIC;
 	fetch->private = fctx;
@@ -3569,6 +3513,8 @@ fctx_create(dns_resolver_t *res, dns_name_t *name, dns_rdatatype_t type,
 	fctx->rand_buf = 0;
 	fctx->rand_bits = 0;
 	fctx->timeout = ISC_FALSE;
+	fctx->addrinfo = NULL;
+	fctx->client = NULL;
 
 	dns_name_init(&fctx->nsname, NULL);
 	fctx->nsfetch = NULL;
@@ -3658,7 +3604,7 @@ fctx_create(dns_resolver_t *res, dns_name_t *name, dns_rdatatype_t type,
 	/*
 	 * Compute an expiration time for the entire fetch.
 	 */
-	isc_interval_set(&interval, 30, 0);             /* XXXRTH constant */
+	isc_interval_set(&interval, res->query_timeout, 0);
 	iresult = isc_time_nowplusinterval(&fctx->expires, &interval);
 	if (iresult != ISC_R_SUCCESS) {
 		UNEXPECTED_ERROR(__FILE__, __LINE__,
@@ -3800,6 +3746,33 @@ log_lame(fetchctx_t *fctx, dns_adbaddrinfo_t *addrinfo) {
 		      namebuf, domainbuf, addrbuf);
 }
 
+static inline void
+log_formerr(fetchctx_t *fctx, const char *format, ...) {
+	char nsbuf[ISC_SOCKADDR_FORMATSIZE];
+	char clbuf[ISC_SOCKADDR_FORMATSIZE];
+	const char *clmsg = "";
+	char msgbuf[2048];
+	va_list args;
+
+	va_start(args, format);
+	vsnprintf(msgbuf, sizeof(msgbuf), format, args);
+	va_end(args);
+
+	isc_sockaddr_format(&fctx->addrinfo->sockaddr, nsbuf, sizeof(nsbuf));
+
+	if (fctx->client != NULL) {
+		clmsg = " for client ";
+		isc_sockaddr_format(fctx->client, clbuf, sizeof(clbuf));
+	} else {
+		clbuf[0] = '\0';
+	}
+
+	isc_log_write(dns_lctx, DNS_LOGCATEGORY_RESOLVER,
+		      DNS_LOGMODULE_RESOLVER, ISC_LOG_NOTICE,
+		      "DNS format error from %s resolving %s%s%s: %s",
+		      nsbuf, fctx->info, clmsg, clbuf, msgbuf);
+}
+
 static inline isc_result_t
 same_question(fetchctx_t *fctx) {
 	isc_result_t result;
@@ -3814,8 +3787,10 @@ same_question(fetchctx_t *fctx) {
 	/*
 	 * XXXRTH  Currently we support only one question.
 	 */
-	if (message->counts[DNS_SECTION_QUESTION] != 1)
+	if (message->counts[DNS_SECTION_QUESTION] != 1) {
+		log_formerr(fctx, "too many questions");
 		return (DNS_R_FORMERR);
+	}
 
 	result = dns_message_firstname(message, DNS_SECTION_QUESTION);
 	if (result != ISC_R_SUCCESS)
@@ -3825,10 +3800,21 @@ same_question(fetchctx_t *fctx) {
 	rdataset = ISC_LIST_HEAD(name->list);
 	INSIST(rdataset != NULL);
 	INSIST(ISC_LIST_NEXT(rdataset, link) == NULL);
+
 	if (fctx->type != rdataset->type ||
 	    fctx->res->rdclass != rdataset->rdclass ||
-	    !dns_name_equal(&fctx->name, name))
+	    !dns_name_equal(&fctx->name, name)) {
+		char namebuf[DNS_NAME_FORMATSIZE];
+		char class[DNS_RDATACLASS_FORMATSIZE];
+		char type[DNS_RDATATYPE_FORMATSIZE];
+
+		dns_name_format(name, namebuf, sizeof(namebuf));
+		dns_rdataclass_format(rdataset->rdclass, class, sizeof(class));
+		dns_rdatatype_format(rdataset->type, type, sizeof(type));
+		log_formerr(fctx, "question section mismatch: got %s/%s/%s",
+			    namebuf, class, type);
 		return (DNS_R_FORMERR);
+	}
 
 	return (ISC_R_SUCCESS);
 }
@@ -3958,6 +3944,7 @@ validated(isc_task_t *task, isc_event_t *event) {
 	REQUIRE(!ISC_LIST_EMPTY(fctx->validators));
 
 	vevent = (dns_validatorevent_t *)event;
+	fctx->vresult = vevent->result;
 
 	FCTXTRACE("received validation completion event");
 
@@ -4331,8 +4318,8 @@ cache_name(fetchctx_t *fctx, dns_name_t *name, dns_adbaddrinfo_t *addrinfo,
 	 * Is DNSSEC validation required for this name?
 	 */
 	if (res->view->enablevalidation) {
-		result = dns_keytable_issecuredomain(res->view->secroots, name,
-						     &secure_domain);
+		result = dns_view_issecuredomain(res->view, name,
+						 &secure_domain);
 		if (result != ISC_R_SUCCESS)
 			return (result);
 
@@ -4804,8 +4791,8 @@ ncache_message(fetchctx_t *fctx, dns_adbaddrinfo_t *addrinfo,
 	 * Is DNSSEC validation required for this name?
 	 */
 	if (fctx->res->view->enablevalidation) {
-		result = dns_keytable_issecuredomain(res->view->secroots, name,
-						     &secure_domain);
+		result = dns_view_issecuredomain(res->view, name,
+						 &secure_domain);
 		if (result != ISC_R_SUCCESS)
 			return (result);
 
@@ -4949,7 +4936,9 @@ mark_related(dns_name_t *name, dns_rdataset_t *rdataset,
 }
 
 static isc_result_t
-check_related(void *arg, dns_name_t *addname, dns_rdatatype_t type) {
+check_section(void *arg, dns_name_t *addname, dns_rdatatype_t type,
+	      dns_section_t section)
+{
 	fetchctx_t *fctx = arg;
 	isc_result_t result;
 	dns_name_t *name;
@@ -4960,15 +4949,19 @@ check_related(void *arg, dns_name_t *addname, dns_rdatatype_t type) {
 
 	REQUIRE(VALID_FCTX(fctx));
 
+#if CHECK_FOR_GLUE_IN_ANSWER
+	if (section == DNS_SECTION_ANSWER && type != dns_rdatatype_a)
+		return (ISC_R_SUCCESS);
+#endif
+
 	if (GLUING(fctx))
 		gluing = ISC_TRUE;
 	else
 		gluing = ISC_FALSE;
 	name = NULL;
 	rdataset = NULL;
-	result = dns_message_findname(fctx->rmessage, DNS_SECTION_ADDITIONAL,
-				      addname, dns_rdatatype_any, 0, &name,
-				      NULL);
+	result = dns_message_findname(fctx->rmessage, section, addname,
+				      dns_rdatatype_any, 0, &name, NULL);
 	if (result == ISC_R_SUCCESS) {
 		external = ISC_TF(!dns_name_issubdomain(name, &fctx->domain));
 		if (type == dns_rdatatype_a) {
@@ -5005,6 +4998,21 @@ check_related(void *arg, dns_name_t *addname, dns_rdatatype_t type) {
 
 	return (ISC_R_SUCCESS);
 }
+
+static isc_result_t
+check_related(void *arg, dns_name_t *addname, dns_rdatatype_t type) {
+	return (check_section(arg, addname, type, DNS_SECTION_ADDITIONAL));
+}
+
+#ifndef CHECK_FOR_GLUE_IN_ANSWER
+#define CHECK_FOR_GLUE_IN_ANSWER 0
+#endif
+#if CHECK_FOR_GLUE_IN_ANSWER
+static isc_result_t
+check_answer(void *arg, dns_name_t *addname, dns_rdatatype_t type) {
+	return (check_section(arg, addname, type, DNS_SECTION_ANSWER));
+}
+#endif
 
 static void
 chase_additional(fetchctx_t *fctx) {
@@ -5062,8 +5070,8 @@ cname_target(dns_rdataset_t *rdataset, dns_name_t *tname) {
 }
 
 static inline isc_result_t
-dname_target(dns_rdataset_t *rdataset, dns_name_t *qname, dns_name_t *oname,
-	     dns_fixedname_t *fixeddname)
+dname_target(fetchctx_t *fctx, dns_rdataset_t *rdataset, dns_name_t *qname,
+	     dns_name_t *oname, dns_fixedname_t *fixeddname)
 {
 	isc_result_t result;
 	dns_rdata_t rdata = DNS_RDATA_INIT;
@@ -5076,7 +5084,6 @@ dname_target(dns_rdataset_t *rdataset, dns_name_t *qname, dns_name_t *oname,
 	/*
 	 * Get the target name of the DNAME.
 	 */
-
 	result = dns_rdataset_first(rdataset);
 	if (result != ISC_R_SUCCESS)
 		return (result);
@@ -5090,7 +5097,14 @@ dname_target(dns_rdataset_t *rdataset, dns_name_t *qname, dns_name_t *oname,
 	 */
 	namereln = dns_name_fullcompare(qname, oname, &order, &nlabels);
 	if (namereln != dns_namereln_subdomain) {
+		char qbuf[DNS_NAME_FORMATSIZE];
+		char obuf[DNS_NAME_FORMATSIZE];
+
 		dns_rdata_freestruct(&dname);
+		dns_name_format(qname, qbuf, sizeof(qbuf));
+		dns_name_format(oname, obuf, sizeof(obuf));
+		log_formerr(fctx, "unrelated DNAME in answer: "
+				   "%s is not in %s", qbuf, obuf);
 		return (DNS_R_FORMERR);
 	}
 	dns_fixedname_init(&prefix);
@@ -5103,16 +5117,147 @@ dname_target(dns_rdataset_t *rdataset, dns_name_t *qname, dns_name_t *oname,
 	return (result);
 }
 
+static isc_boolean_t
+is_answeraddress_allowed(dns_view_t *view, dns_name_t *name,
+			 dns_rdataset_t *rdataset)
+{
+	isc_result_t result;
+	dns_rdata_t rdata = DNS_RDATA_INIT;
+	struct in_addr ina;
+	struct in6_addr in6a;
+	isc_netaddr_t netaddr;
+	char addrbuf[ISC_NETADDR_FORMATSIZE];
+	char namebuf[DNS_NAME_FORMATSIZE];
+	char classbuf[64];
+	char typebuf[64];
+	int match;
+
+	/* By default, we allow any addresses. */
+	if (view->denyansweracl == NULL)
+		return (ISC_TRUE);
+
+	/*
+	 * If the owner name matches one in the exclusion list, either exactly
+	 * or partially, allow it.
+	 */
+	if (view->answeracl_exclude != NULL) {
+		dns_rbtnode_t *node = NULL;
+
+		result = dns_rbt_findnode(view->answeracl_exclude, name, NULL,
+					  &node, NULL, 0, NULL, NULL);
+
+		if (result == ISC_R_SUCCESS || result == DNS_R_PARTIALMATCH)
+			return (ISC_TRUE);
+	}
+
+	/*
+	 * Otherwise, search the filter list for a match for each address
+	 * record.  If a match is found, the address should be filtered,
+	 * so should the entire answer.
+	 */
+	for (result = dns_rdataset_first(rdataset);
+	     result == ISC_R_SUCCESS;
+	     result = dns_rdataset_next(rdataset)) {
+		dns_rdata_reset(&rdata);
+		dns_rdataset_current(rdataset, &rdata);
+		if (rdataset->type == dns_rdatatype_a) {
+			INSIST(rdata.length == sizeof(ina.s_addr));
+			memcpy(&ina.s_addr, rdata.data, sizeof(ina.s_addr));
+			isc_netaddr_fromin(&netaddr, &ina);
+		} else {
+			INSIST(rdata.length == sizeof(in6a.s6_addr));
+			memcpy(in6a.s6_addr, rdata.data, sizeof(in6a.s6_addr));
+			isc_netaddr_fromin6(&netaddr, &in6a);
+		}
+
+		result = dns_acl_match(&netaddr, NULL, view->denyansweracl,
+				       &view->aclenv, &match, NULL);
+
+		if (result == ISC_R_SUCCESS && match > 0) {
+			isc_netaddr_format(&netaddr, addrbuf, sizeof(addrbuf));
+			dns_name_format(name, namebuf, sizeof(namebuf));
+			dns_rdatatype_format(rdataset->type, typebuf,
+					     sizeof(typebuf));
+			dns_rdataclass_format(rdataset->rdclass, classbuf,
+					      sizeof(classbuf));
+			isc_log_write(dns_lctx, DNS_LOGCATEGORY_RESOLVER,
+				      DNS_LOGMODULE_RESOLVER, ISC_LOG_NOTICE,
+				      "answer address %s denied for %s/%s/%s",
+				      addrbuf, namebuf, typebuf, classbuf);
+			return (ISC_FALSE);
+		}
+	}
+
+	return (ISC_TRUE);
+}
+
+static isc_boolean_t
+is_answertarget_allowed(dns_view_t *view, dns_name_t *name,
+			dns_rdatatype_t type, dns_name_t *tname,
+			dns_name_t *domain)
+{
+	isc_result_t result;
+	dns_rbtnode_t *node = NULL;
+	char qnamebuf[DNS_NAME_FORMATSIZE];
+	char tnamebuf[DNS_NAME_FORMATSIZE];
+	char classbuf[64];
+	char typebuf[64];
+
+	/* By default, we allow any target name. */
+	if (view->denyanswernames == NULL)
+		return (ISC_TRUE);
+
+	/*
+	 * If the owner name matches one in the exclusion list, either exactly
+	 * or partially, allow it.
+	 */
+	if (view->answernames_exclude != NULL) {
+		result = dns_rbt_findnode(view->answernames_exclude, name, NULL,
+					  &node, NULL, 0, NULL, NULL);
+		if (result == ISC_R_SUCCESS || result == DNS_R_PARTIALMATCH)
+			return (ISC_TRUE);
+	}
+
+	/*
+	 * If the target name is a subdomain of the search domain, allow it.
+	 */
+	if (dns_name_issubdomain(tname, domain))
+		return (ISC_TRUE);
+
+	/*
+	 * Otherwise, apply filters.
+	 */
+	result = dns_rbt_findnode(view->denyanswernames, tname, NULL, &node,
+				  NULL, 0, NULL, NULL);
+	if (result == ISC_R_SUCCESS || result == DNS_R_PARTIALMATCH) {
+		dns_name_format(name, qnamebuf, sizeof(qnamebuf));
+		dns_name_format(tname, tnamebuf, sizeof(tnamebuf));
+		dns_rdatatype_format(type, typebuf, sizeof(typebuf));
+		dns_rdataclass_format(view->rdclass, classbuf,
+				      sizeof(classbuf));
+		isc_log_write(dns_lctx, DNS_LOGCATEGORY_RESOLVER,
+			      DNS_LOGMODULE_RESOLVER, ISC_LOG_NOTICE,
+			      "%s target %s denied for %s/%s",
+			      typebuf, tnamebuf, qnamebuf, classbuf);
+		return (ISC_FALSE);
+	}
+
+	return (ISC_TRUE);
+}
+
 /*
  * Handle a no-answer response (NXDOMAIN, NXRRSET, or referral).
- * If bind8_ns_resp is ISC_TRUE, this is a suspected BIND 8
- * response to an NS query that should be treated as a referral
- * even though the NS records occur in the answer section
- * rather than the authority section.
+ * If look_in_options has LOOK_FOR_NS_IN_ANSWER then we look in the answer
+ * section for the NS RRset if the query type is NS; if it has
+ * LOOK_FOR_GLUE_IN_ANSWER we look for glue incorrectly returned in the answer
+ * section for A and AAAA queries.
  */
+#define LOOK_FOR_NS_IN_ANSWER 0x1
+#define LOOK_FOR_GLUE_IN_ANSWER 0x2
+
 static isc_result_t
 noanswer_response(fetchctx_t *fctx, dns_name_t *oqname,
-		  isc_boolean_t bind8_ns_resp)
+		  unsigned int look_in_options)
 {
 	isc_result_t result;
 	dns_message_t *message;
@@ -5120,10 +5265,15 @@ noanswer_response(fetchctx_t *fctx, dns_name_t *oqname,
 	dns_rdataset_t *rdataset, *ns_rdataset;
 	isc_boolean_t aa, negative_response;
 	dns_rdatatype_t type;
-	dns_section_t section =
-		bind8_ns_resp ? DNS_SECTION_ANSWER : DNS_SECTION_AUTHORITY;
+	dns_section_t section;
 
 	FCTXTRACE("noanswer_response");
+
+	if ((look_in_options & LOOK_FOR_NS_IN_ANSWER) != 0) {
+		INSIST(fctx->type == dns_rdatatype_ns);
+		section = DNS_SECTION_ANSWER;
+	} else
+		section = DNS_SECTION_AUTHORITY;
 
 	message = fctx->rmessage;
 
@@ -5197,8 +5347,22 @@ noanswer_response(fetchctx_t *fctx, dns_name_t *oqname,
 					type = rdataset->covers;
 				if (((type == dns_rdatatype_ns ||
 				      type == dns_rdatatype_soa) &&
-				     !dns_name_issubdomain(qname, name)))
+				     !dns_name_issubdomain(qname, name))) {
+					char qbuf[DNS_NAME_FORMATSIZE];
+					char nbuf[DNS_NAME_FORMATSIZE];
+					char tbuf[DNS_RDATATYPE_FORMATSIZE];
+					dns_rdatatype_format(fctx->type, tbuf,
+							     sizeof(tbuf));
+					dns_name_format(name, nbuf,
+							     sizeof(nbuf));
+					dns_name_format(qname, qbuf,
+							     sizeof(qbuf));
+					log_formerr(fctx,
+						    "unrelated %s %s in "
+						    "%s authority section",
+						    tbuf, qbuf, nbuf);
 					return (DNS_R_FORMERR);
+				}
 				if (type == dns_rdatatype_ns) {
 					/*
 					 * NS or RRSIG NS.
@@ -5208,8 +5372,14 @@ noanswer_response(fetchctx_t *fctx, dns_name_t *oqname,
 					if (rdataset->type ==
 					    dns_rdatatype_ns) {
 						if (ns_name != NULL &&
-						    name != ns_name)
+						    name != ns_name) {
+							log_formerr(fctx,
+								"multiple NS "
+								"RRsets in "
+								"authority "
+								"section");
 							return (DNS_R_FORMERR);
+						}
 						ns_name = name;
 						ns_rdataset = rdataset;
 					}
@@ -5228,8 +5398,14 @@ noanswer_response(fetchctx_t *fctx, dns_name_t *oqname,
 					if (rdataset->type ==
 					    dns_rdatatype_soa) {
 						if (soa_name != NULL &&
-						    name != soa_name)
+						    name != soa_name) {
+							log_formerr(fctx,
+								"multiple SOA "
+								"RRs in "
+								"authority "
+								"section");
 							return (DNS_R_FORMERR);
+						}
 						soa_name = name;
 					}
 					name->attributes |=
@@ -5305,15 +5481,25 @@ noanswer_response(fetchctx_t *fctx, dns_name_t *oqname,
 					 *
 					 * These should only be here if
 					 * this is a referral, and there
-					 * should only be one DS.
+					 * should only be one DS RRset.
 					 */
-					if (ns_name == NULL)
+					if (ns_name == NULL) {
+						log_formerr(fctx,
+							    "DS with no "
+							    "referral");
 						return (DNS_R_FORMERR);
+					}
 					if (rdataset->type ==
 					    dns_rdatatype_ds) {
 						if (ds_name != NULL &&
-						    name != ds_name)
+						    name != ds_name) {
+							log_formerr(fctx,
+								"DS doesn't "
+								"match "
+								"referral "
+								"(NS)");
 							return (DNS_R_FORMERR);
+						}
 						ds_name = name;
 					}
 					name->attributes |=
@@ -5363,6 +5549,7 @@ noanswer_response(fetchctx_t *fctx, dns_name_t *oqname,
 			/*
 			 * The responder is insane.
 			 */
+			log_formerr(fctx, "invalid response");
 			return (DNS_R_FORMERR);
 		}
 	}
@@ -5370,8 +5557,10 @@ noanswer_response(fetchctx_t *fctx, dns_name_t *oqname,
 	/*
 	 * If we found both NS and SOA, they should be the same name.
 	 */
-	if (ns_name != NULL && soa_name != NULL && ns_name != soa_name)
+	if (ns_name != NULL && soa_name != NULL && ns_name != soa_name) {
+		log_formerr(fctx, "NS/SOA mismatch");
 		return (DNS_R_FORMERR);
+	}
 
 	/*
 	 * Do we have a referral?  (We only want to follow a referral if
@@ -5384,14 +5573,18 @@ noanswer_response(fetchctx_t *fctx, dns_name_t *oqname,
 		 * progress.  We return DNS_R_FORMERR so that we'll keep
 		 * trying other servers.
 		 */
-		if (dns_name_equal(ns_name, &fctx->domain))
+		if (dns_name_equal(ns_name, &fctx->domain)) {
+			log_formerr(fctx, "non-improving referral");
 			return (DNS_R_FORMERR);
+		}
 
 		/*
 		 * If the referral name is not a parent of the query
 		 * name, consider the responder insane.
 		 */
 		if (! dns_name_issubdomain(&fctx->name, ns_name)) {
+			/* Logged twice */
+			log_formerr(fctx, "referral to non-parent");
 			FCTXTRACE("referral to non-parent");
 			return (DNS_R_FORMERR);
 		}
@@ -5405,6 +5598,20 @@ noanswer_response(fetchctx_t *fctx, dns_name_t *oqname,
 		fctx->attributes |= FCTX_ATTR_GLUING;
 		(void)dns_rdataset_additionaldata(ns_rdataset, check_related,
 						  fctx);
+#if CHECK_FOR_GLUE_IN_ANSWER
+		/*
+		 * Look in the answer section for "glue" that is incorrectly
+		 * returned as a answer.  This is needed if the server also
+		 * minimizes the response size by not adding records to the
+		 * additional section that are in the answer section or if
+		 * the record gets dropped due to message size constraints.
+		 */
+		if ((look_in_options & LOOK_FOR_GLUE_IN_ANSWER) != 0 &&
+		    (fctx->type == dns_rdatatype_aaaa ||
+		     fctx->type == dns_rdatatype_a))
+			(void)dns_rdataset_additionaldata(ns_rdataset,
+							  check_answer, fctx);
+#endif
 		fctx->attributes &= ~FCTX_ATTR_GLUING;
 		/*
 		 * NS rdatasets with 0 TTL cause problems.
@@ -5460,6 +5667,7 @@ answer_response(fetchctx_t *fctx) {
 	unsigned int aflag;
 	dns_rdatatype_t type;
 	dns_fixedname_t dname, fqname;
+	dns_view_t *view;
 
 	FCTXTRACE("answer_response");
 
@@ -5482,6 +5690,7 @@ answer_response(fetchctx_t *fctx) {
 		aa = ISC_FALSE;
 	qname = &fctx->name;
 	type = fctx->type;
+	view = fctx->res->view;
 	result = dns_message_firstname(message, DNS_SECTION_ANSWER);
 	while (!done && result == ISC_R_SUCCESS) {
 		name = NULL;
@@ -5500,8 +5709,21 @@ answer_response(fetchctx_t *fctx) {
 					 * NSEC3 records are not allowed to
 					 * appear in the answer section.
 					 */
+					log_formerr(fctx, "NSEC3 in answer");
 					return (DNS_R_FORMERR);
 				}
+
+				/*
+				 * Apply filters, if given, on answers to reject
+				 * a malicious attempt of rebinding.
+				 */
+				if ((rdataset->type == dns_rdatatype_a ||
+				     rdataset->type == dns_rdatatype_aaaa) &&
+				    !is_answeraddress_allowed(view, name,
+							      rdataset)) {
+					return (DNS_R_SERVFAIL);
+				}
+
 				if (rdataset->type == type && !found_cname) {
 					/*
 					 * We've found an ordinary answer.
@@ -5540,8 +5762,16 @@ answer_response(fetchctx_t *fctx) {
 					 */
 					if (type == dns_rdatatype_rrsig ||
 					    type == dns_rdatatype_dnskey ||
-					    type == dns_rdatatype_nsec)
+					    type == dns_rdatatype_nsec ||
+					    type == dns_rdatatype_nsec3) {
+						char buf[DNS_RDATATYPE_FORMATSIZE];
+						dns_rdatatype_format(fctx->type,
+							      buf, sizeof(buf));
+						log_formerr(fctx,
+							    "CNAME response "
+							    "for %s RR", buf);
 						return (DNS_R_FORMERR);
+					}
 					found = ISC_TRUE;
 					found_cname = ISC_TRUE;
 					want_chaining = ISC_TRUE;
@@ -5550,6 +5780,14 @@ answer_response(fetchctx_t *fctx) {
 							      &tname);
 					if (result != ISC_R_SUCCESS)
 						return (result);
+					/* Apply filters on the target name. */
+					if (!is_answertarget_allowed(view,
+							name,
+							rdataset->type,
+							&tname,
+							&fctx->domain)) {
+						return (DNS_R_SERVFAIL);
+					}
 				} else if (rdataset->type == dns_rdatatype_rrsig
 					   && rdataset->covers ==
 					   dns_rdatatype_cname
@@ -5650,6 +5888,8 @@ answer_response(fetchctx_t *fctx) {
 			     rdataset != NULL;
 			     rdataset = ISC_LIST_NEXT(rdataset, link)) {
 				isc_boolean_t found_dname = ISC_FALSE;
+				dns_name_t *dname_name;
+
 				found = ISC_FALSE;
 				aflag = 0;
 				if (rdataset->type == dns_rdatatype_dname) {
@@ -5660,12 +5900,15 @@ answer_response(fetchctx_t *fctx) {
 					 * If we're not chaining, then the
 					 * DNAME should not be external.
 					 */
-					if (!chaining && external)
+					if (!chaining && external) {
+						log_formerr(fctx,
+							    "external DNAME");
 						return (DNS_R_FORMERR);
+					}
 					found = ISC_TRUE;
 					want_chaining = ISC_TRUE;
 					aflag = DNS_RDATASETATTR_ANSWER;
-					result = dname_target(rdataset,
+					result = dname_target(fctx, rdataset,
 							      qname, name,
 							      &dname);
 					if (result == ISC_R_NOSPACE) {
@@ -5679,6 +5922,15 @@ answer_response(fetchctx_t *fctx) {
 						return (result);
 					else
 						found_dname = ISC_TRUE;
+
+					dname_name = dns_fixedname_name(&dname);
+					if (!is_answertarget_allowed(view,
+							qname,
+							rdataset->type,
+							dname_name,
+							&fctx->domain)) {
+						return (DNS_R_SERVFAIL);
+					}
 				} else if (rdataset->type == dns_rdatatype_rrsig
 					   && rdataset->covers ==
 					   dns_rdatatype_dname) {
@@ -5766,8 +6018,10 @@ answer_response(fetchctx_t *fctx) {
 	/*
 	 * We should have found an answer.
 	 */
-	if (!have_answer)
+	if (!have_answer) {
+		log_formerr(fctx, "reply has no answer");
 		return (DNS_R_FORMERR);
+	}
 
 	/*
 	 * This response is now potentially cacheable.
@@ -5784,15 +6038,18 @@ answer_response(fetchctx_t *fctx) {
 		 * If it isn't a noanswer response, no harm will be
 		 * done.
 		 */
-		return (noanswer_response(fctx, qname, ISC_FALSE));
+		return (noanswer_response(fctx, qname, 0));
 	}
 
 	/*
 	 * We didn't end with an incomplete chain, so the rcode should be
 	 * "no error".
 	 */
-	if (message->rcode != dns_rcode_noerror)
+	if (message->rcode != dns_rcode_noerror) {
+		log_formerr(fctx, "CNAME/DNAME chain complete, but RCODE "
+				  "indicates error");
 		return (DNS_R_FORMERR);
+	}
 
 	/*
 	 * Examine the authority section (if there is one).
@@ -6129,6 +6386,39 @@ log_packet(dns_message_t *message, int level, isc_mem_t *mctx) {
 		isc_mem_put(mctx, buf, len);
 }
 
+static isc_boolean_t
+iscname(fetchctx_t *fctx) {
+	isc_result_t result;
+
+	result = dns_message_findname(fctx->rmessage, DNS_SECTION_ANSWER,
+				      &fctx->name, dns_rdatatype_cname, 0,
+				      NULL, NULL);
+	return (result == ISC_R_SUCCESS ? ISC_TRUE : ISC_FALSE);
+}
+
+static isc_boolean_t
+betterreferral(fetchctx_t *fctx) {
+	isc_result_t result;
+	dns_name_t *name;
+	dns_rdataset_t *rdataset;
+	dns_message_t *message = fctx->rmessage;
+
+	for (result = dns_message_firstname(message, DNS_SECTION_AUTHORITY);
+	     result == ISC_R_SUCCESS;
+	     result = dns_message_nextname(message, DNS_SECTION_AUTHORITY)) {
+		name = NULL;
+		dns_message_currentname(message, DNS_SECTION_AUTHORITY, &name);
+		if (!isstrictsubdomain(name, &fctx->domain))
+			continue;
+		for (rdataset = ISC_LIST_HEAD(name->list);
+		     rdataset != NULL;
+		     rdataset = ISC_LIST_NEXT(rdataset, link))
+			if (rdataset->type == dns_rdatatype_ns)
+				return (ISC_TRUE);
+	}
+	return (ISC_FALSE);
+}
+
 static void
 resquery_response(isc_task_t *task, isc_event_t *event) {
 	isc_result_t result = ISC_R_SUCCESS;
@@ -6180,6 +6470,7 @@ resquery_response(isc_task_t *task, isc_event_t *event) {
 
 	fctx->timeouts = 0;
 	fctx->timeout = ISC_FALSE;
+	fctx->addrinfo = query->addrinfo;
 
 	/*
 	 * XXXRTH  We should really get the current time just once.  We
@@ -6476,6 +6767,7 @@ resquery_response(isc_task_t *task, isc_event_t *event) {
 				 * cannot make any more progress with this
 				 * fetch.
 				 */
+				log_formerr(fctx, "server sent FORMERR");
 				result = DNS_R_FORMERR;
 			}
 		} else if (message->rcode == dns_rcode_yxdomain) {
@@ -6590,27 +6882,62 @@ resquery_response(isc_task_t *task, isc_event_t *event) {
 	    (message->rcode == dns_rcode_noerror ||
 	     message->rcode == dns_rcode_nxdomain)) {
 		/*
-		 * We've got answers.  However, if we sent
-		 * a BIND 8 server an NS query, it may have
-		 * incorrectly responded with a non-authoritative
-		 * answer instead of a referral.  Since this
-		 * answer lacks the SIGs necessary to do DNSSEC
-		 * validation, we must invoke the following special
-		 * kludge to treat it as a referral.
+		 * [normal case]
+		 * We've got answers.  If it has an authoritative answer or an
+		 * answer from a forwarder, we're done.
 		 */
-		if (fctx->type == dns_rdatatype_ns &&
-		    (message->flags & DNS_MESSAGEFLAG_AA) == 0 &&
-		    !ISFORWARDER(query->addrinfo))
-		{
-			result = noanswer_response(fctx, NULL, ISC_TRUE);
+		if ((message->flags & DNS_MESSAGEFLAG_AA) != 0 ||
+		    ISFORWARDER(query->addrinfo))
+			result = answer_response(fctx);
+		else if (iscname(fctx) &&
+			 fctx->type != dns_rdatatype_any &&
+			 fctx->type != dns_rdatatype_cname) {
+			/*
+			 * A BIND8 server could return a non-authoritative
+			 * answer when a CNAME is followed.  We should treat
+			 * it as a valid answer.
+			 */
+			result = answer_response(fctx);
+		} else if (fctx->type != dns_rdatatype_ns &&
+			   !betterreferral(fctx)) {
+			/*
+			 * Lame response !!!.
+			 */
+			result = answer_response(fctx);
+		} else {
+			if (fctx->type == dns_rdatatype_ns) {
+				/*
+				 * A BIND 8 server could incorrectly return a
+				 * non-authoritative answer to an NS query
+				 * instead of a referral. Since this answer
+				 * lacks the SIGs necessary to do DNSSEC
+				 * validation, we must invoke the following
+				 * special kludge to treat it as a referral.
+				 */
+				result = noanswer_response(fctx, NULL,
+						   LOOK_FOR_NS_IN_ANSWER);
+			} else {
+				/*
+				 * Some other servers may still somehow include
+				 * an answer when it should return a referral
+				 * with an empty answer.  Check to see if we can
+				 * treat this as a referral by ignoring the
+				 * answer.  Further more, there may be an
+				 * implementation that moves A/AAAA glue records
+				 * to the answer section for that type of
+				 * delegation when the query is for that glue
+				 * record.  LOOK_FOR_GLUE_IN_ANSWER will handle
+				 * such a corner case.
+				 */
+				result = noanswer_response(fctx, NULL,
+						   LOOK_FOR_GLUE_IN_ANSWER);
+			}
 			if (result != DNS_R_DELEGATION) {
 				/*
-				 * The answer section must have contained
-				 * something other than the NS records
-				 * we asked for.  Since AA is not set
-				 * and the server is not a forwarder,
-				 * it is technically lame and it's easier
-				 * to treat it as such than to figure out
+				 * At this point, AA is not set, the response
+				 * is not a referral, and the server is not a
+				 * forwarder.  It is technically lame and it's
+				 * easier to treat it as such than to figure out
 				 * some more elaborate course of action.
 				 */
 				broken_server = DNS_R_LAME;
@@ -6619,7 +6946,6 @@ resquery_response(isc_task_t *task, isc_event_t *event) {
 			}
 			goto force_referral;
 		}
-		result = answer_response(fctx);
 		if (result != ISC_R_SUCCESS) {
 			if (result == DNS_R_FORMERR)
 				keep_trying = ISC_TRUE;
@@ -6631,7 +6957,7 @@ resquery_response(isc_task_t *task, isc_event_t *event) {
 		/*
 		 * NXDOMAIN, NXRDATASET, or referral.
 		 */
-		result = noanswer_response(fctx, NULL, ISC_FALSE);
+		result = noanswer_response(fctx, NULL, 0);
 		if (result == DNS_R_CHASEDSSERVERS) {
 		} else if (result == DNS_R_DELEGATION) {
 		force_referral:
@@ -7043,6 +7369,7 @@ dns_resolver_create(dns_view_t *view,
 	res->spillatmax = 100;
 	res->spillattimer = NULL;
 	res->zero_no_soa_ttl = ISC_FALSE;
+	res->query_timeout = DEFAULT_QUERY_TIMEOUT;
 	res->ndisps = 0;
 	res->nextdisp = 0; /* meaningless at this point, but init it */
 	res->nbuckets = ntasks;
@@ -7194,6 +7521,7 @@ dns_resolver_create(dns_view_t *view,
 	return (result);
 }
 
+#ifdef BIND9
 static void
 prime_done(isc_task_t *task, isc_event_t *event) {
 	dns_resolver_t *res;
@@ -7299,16 +7627,15 @@ dns_resolver_prime(dns_resolver_t *res) {
 		}
 	}
 }
+#endif /* BIND9 */
 
 void
 dns_resolver_freeze(dns_resolver_t *res) {
-
 	/*
 	 * Freeze resolver.
 	 */
 
 	REQUIRE(VALID_RESOLVER(res));
-	REQUIRE(!res->frozen);
 
 	res->frozen = ISC_TRUE;
 }
@@ -8340,4 +8667,23 @@ dns_resolver_getoptions(dns_resolver_t *resolver) {
 	REQUIRE(VALID_RESOLVER(resolver));
 
 	return (resolver->options);
+}
+
+unsigned int
+dns_resolver_gettimeout(dns_resolver_t *resolver) {
+	REQUIRE(VALID_RESOLVER(resolver));
+
+	return (resolver->query_timeout);
+}
+
+void
+dns_resolver_settimeout(dns_resolver_t *resolver, unsigned int seconds) {
+	REQUIRE(VALID_RESOLVER(resolver));
+
+	if (seconds == 0)
+		seconds = DEFAULT_QUERY_TIMEOUT;
+	if (seconds > MAXIMUM_QUERY_TIMEOUT)
+		seconds = MAXIMUM_QUERY_TIMEOUT;
+
+	resolver->query_timeout = seconds;
 }

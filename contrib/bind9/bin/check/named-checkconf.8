@@ -1,4 +1,4 @@
-.\" Copyright (C) 2004, 2005, 2007 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2004, 2005, 2007, 2009 Internet Systems Consortium, Inc. ("ISC")
 .\" Copyright (C) 2000-2002 Internet Software Consortium.
 .\" 
 .\" Permission to use, copy, modify, and/or distribute this software for any
@@ -13,7 +13,7 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: named-checkconf.8,v 1.30.334.1 2009-07-11 01:55:20 tbox Exp $
+.\" $Id: named-checkconf.8,v 1.33 2009-12-29 01:14:03 tbox Exp $
 .\"
 .hy 0
 .ad l
@@ -33,11 +33,29 @@
 named\-checkconf \- named configuration file syntax checking tool
 .SH "SYNOPSIS"
 .HP 16
-\fBnamed\-checkconf\fR [\fB\-h\fR] [\fB\-v\fR] [\fB\-j\fR] [\fB\-t\ \fR\fB\fIdirectory\fR\fR] {filename} [\fB\-z\fR]
+\fBnamed\-checkconf\fR [\fB\-h\fR] [\fB\-v\fR] [\fB\-j\fR] [\fB\-t\ \fR\fB\fIdirectory\fR\fR] {filename} [\fB\-p\fR] [\fB\-z\fR]
 .SH "DESCRIPTION"
 .PP
 \fBnamed\-checkconf\fR
-checks the syntax, but not the semantics, of a named configuration file.
+checks the syntax, but not the semantics, of a
+\fBnamed\fR
+configuration file. The file is parsed and checked for syntax errors, along with all files included by it. If no file is specified,
+\fI/etc/named.conf\fR
+is read by default.
+.PP
+Note: files that
+\fBnamed\fR
+reads in separate parser contexts, such as
+\fIrndc.key\fR
+and
+\fIbind.keys\fR, are not automatically read by
+\fBnamed\-checkconf\fR. Configuration errors in these files may cause
+\fBnamed\fR
+to fail to run, even if
+\fBnamed\-checkconf\fR
+was successful.
+\fBnamed\-checkconf\fR
+can be run on these files explicitly, however.
 .SH "OPTIONS"
 .PP
 \-h
@@ -57,6 +75,13 @@ so that include directives in the configuration file are processed as if run by 
 Print the version of the
 \fBnamed\-checkconf\fR
 program and exit.
+.RE
+.PP
+\-p
+.RS 4
+Print out the
+\fInamed.conf\fR
+and included files in canonical form if no errors were detected.
 .RE
 .PP
 \-z
@@ -88,7 +113,7 @@ BIND 9 Administrator Reference Manual.
 .PP
 Internet Systems Consortium
 .SH "COPYRIGHT"
-Copyright \(co 2004, 2005, 2007 Internet Systems Consortium, Inc. ("ISC")
+Copyright \(co 2004, 2005, 2007, 2009 Internet Systems Consortium, Inc. ("ISC")
 .br
 Copyright \(co 2000\-2002 Internet Software Consortium.
 .br

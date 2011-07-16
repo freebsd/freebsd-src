@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2007, 2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: mr_9.c,v 1.42 2007-06-19 23:47:17 tbox Exp $ */
+/* $Id: mr_9.c,v 1.44 2009-12-04 22:06:37 tbox Exp $ */
 
 /* Reviewed: Wed Mar 15 21:30:35 EST 2000 by tale */
 
@@ -69,7 +69,7 @@ totext_mr(ARGS_TOTEXT) {
 
 static inline isc_result_t
 fromwire_mr(ARGS_FROMWIRE) {
-        dns_name_t name;
+	dns_name_t name;
 
 	REQUIRE(type == 9);
 
@@ -78,8 +78,8 @@ fromwire_mr(ARGS_FROMWIRE) {
 
 	dns_decompress_setmethods(dctx, DNS_COMPRESS_GLOBAL14);
 
-        dns_name_init(&name, NULL);
-        return (dns_name_fromwire(&name, source, dctx, options, target));
+	dns_name_init(&name, NULL);
+	return (dns_name_fromwire(&name, source, dctx, options, target));
 }
 
 static inline isc_result_t
@@ -226,6 +226,11 @@ checknames_mr(ARGS_CHECKNAMES) {
 	UNUSED(bad);
 
 	return (ISC_TRUE);
+}
+
+static inline int
+casecompare_mr(ARGS_COMPARE) {
+	return (compare_mr(rdata1, rdata2));
 }
 
 #endif	/* RDATA_GENERIC_MR_9_C */

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: message.c,v 1.245.50.7.6.3 2011-06-21 20:13:22 each Exp $ */
+/* $Id: message.c,v 1.254.186.3 2011-06-21 20:15:47 each Exp $ */
 
 /*! \file */
 
@@ -1804,6 +1804,36 @@ wrong_priority(dns_rdataset_t *rds, int pass, dns_rdatatype_t preferred_glue) {
 	return (ISC_TRUE);
 }
 
+#ifdef ALLOW_FILTER_AAAA_ON_V4
+/*
+ * Decide whether to not answer with an AAAA record and its RRSIG
+ */
+static inline isc_boolean_t
+norender_rdataset(const dns_rdataset_t *rdataset, unsigned int options)
+{
+	switch (rdataset->type) {
+	case dns_rdatatype_aaaa:
+		if ((options & DNS_MESSAGERENDER_FILTER_AAAA) == 0)
+			return (ISC_FALSE);
+		break;
+
+	case dns_rdatatype_rrsig:
+		if ((options & DNS_MESSAGERENDER_FILTER_AAAA) == 0 ||
+		    rdataset->covers != dns_rdatatype_aaaa)
+			return (ISC_FALSE);
+		break;
+
+	default:
+		return (ISC_FALSE);
+	}
+
+	if (rdataset->rdclass != dns_rdataclass_in)
+		return (ISC_FALSE);
+
+	return (ISC_TRUE);
+}
+
+#endif
 isc_result_t
 dns_message_rendersection(dns_message_t *msg, dns_section_t sectionid,
 			  unsigned int options)
@@ -1931,6 +1961,23 @@ dns_message_rendersection(dns_message_t *msg, dns_section_t sectionid,
 						      preferred_glue))
 					goto next;
 
+#ifdef ALLOW_FILTER_AAAA_ON_V4
+				/*
+				 * Suppress AAAAs if asked and we are
+				 * not doing DNSSEC or are breaking DNSSEC.
+				 * Say so in the AD bit if we break DNSSEC.
+				 */
+				if (norender_rdataset(rdataset, options) &&
+				    sectionid != DNS_SECTION_QUESTION) {
+					if (sectionid == DNS_SECTION_ANSWER ||
+					    sectionid == DNS_SECTION_AUTHORITY)
+					    msg->flags &= ~DNS_MESSAGEFLAG_AD;
+					if (OPTOUT(rdataset))
+					    msg->flags &= ~DNS_MESSAGEFLAG_AD;
+					goto next;
+				}
+
+#endif
 				st = *(msg->buffer);
 
 				count = 0;
@@ -3071,6 +3118,7 @@ dns_message_sectiontotext(dns_message_t *msg, dns_section_t section,
 	dns_name_t *name, empty_name;
 	dns_rdataset_t *rdataset;
 	isc_result_t result;
+	isc_boolean_t seensoa = ISC_FALSE;
 
 	REQUIRE(DNS_MESSAGE_VALID(msg));
 	REQUIRE(target != NULL);
@@ -3100,6 +3148,15 @@ dns_message_sectiontotext(dns_message_t *msg, dns_section_t section,
 		for (rdataset = ISC_LIST_HEAD(name->list);
 		     rdataset != NULL;
 		     rdataset = ISC_LIST_NEXT(rdataset, link)) {
+			if (section == DNS_SECTION_ANSWER &&
+			    rdataset->type == dns_rdatatype_soa) {
+				if ((flags & DNS_MESSAGETEXTFLAG_OMITSOA) != 0)
+					continue;
+				if (seensoa &&
+				    (flags & DNS_MESSAGETEXTFLAG_ONESOA) != 0)
+					continue;
+				seensoa = ISC_TRUE;
+			}
 			if (section == DNS_SECTION_QUESTION) {
 				ADD_STRING(target, ";");
 				result = dns_master_questiontotext(name,

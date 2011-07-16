@@ -13,7 +13,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: rules.in,v 1.64.130.2 2009-01-10 23:46:57 tbox Exp $
+# $Id: rules.in,v 1.68 2009-09-01 18:40:25 jinmei Exp $
 
 ###
 ### Common Makefile rules for BIND 9.
@@ -35,6 +35,8 @@ sysconfdir =	@sysconfdir@
 localstatedir =	@localstatedir@
 mandir =	@mandir@
 datarootdir =   @datarootdir@
+export_libdir =	@export_libdir@
+export_includedir = @export_includedir@
 
 DESTDIR =
 
@@ -122,7 +124,7 @@ ALL_CPPFLAGS = \
 ALL_CFLAGS = ${EXT_CFLAGS} ${ALL_CPPFLAGS} ${CFLAGS} \
 	${ALWAYS_WARNINGS} ${STD_CWARNINGS} ${CWARNINGS}
 
-.c.@O@:
+@BIND9_CO_RULE@
 	${LIBTOOL_MODE_COMPILE} ${CC} ${ALL_CFLAGS} -c $<
 
 SHELL = @SHELL@
@@ -134,12 +136,83 @@ PURIFY = @PURIFY@
 
 MKDEP = ${SHELL} ${top_builddir}/make/mkdep
 
+###
+### This is a template compound command to build an executable binary with
+### an internal symbol table.
+### This process is tricky.  We first link all objects including a tentative
+### empty symbol table, then get a tentative list of symbols from the resulting
+### binary ($@tmp0).  Next, we re-link all objects, but this time with the
+### symbol table just created ($tmp@1).  The set of symbols should be the same,
+### but the corresponding addresses would be changed due to the difference on
+### the size of symbol tables.  So we create the symbol table and re-create the
+### objects once again.  Finally, we check the symbol table embedded in the
+### final binaryis consistent with the binary itself; otherwise the process is
+### terminated.
+###
+### To minimize the overhead of creating symbol tables, the autoconf switch
+### --enable-symtable takes an argument so that the symbol table can be created
+### on a per application basis: unless the argument is set to "all", the symbol
+### table is created only when a shell (environment) variable "MAKE_SYMTABLE" is
+### set to a non-null value in the rule to build the executable binary.
+###
+### Each Makefile.in that uses this macro is expected to define "LIBS" and
+### "NOSYMLIBS"; the former includes libisc with an empty symbol table, and
+### the latter includes libisc without the definition of a symbol table.
+### The rule to make the executable binary will look like this
+### binary@EXEEXT@: ${OBJS}
+###     #export MAKE_SYMTABLE="yes"; \  <- enable if symtable is always needed
+###	export BASEOBJS="${OBJS}"; \
+###	${FINALBUILDCMD}
+###
+### Normally, ${LIBS} includes all necessary libraries to build the binary;
+### there are some exceptions however, where the rule lists some of the
+### necessary libraries explicitly in addition to (or instead of) ${LIBS},
+### like this:
+### binary@EXEEXT@: ${OBJS}
+###     cc -o $@ ${OBJS} ${OTHERLIB1} ${OTHERLIB2} ${lIBS}
+### in order to modify such a rule to use this compound command, a separate
+### variable "LIBS0" should be deinfed for the explicitly listed libraries,
+### while making sure ${LIBS} still includes libisc.  So the above rule would
+### be modified as follows:
+### binary@EXEEXT@: ${OBJS}
+###	export BASEOBJS="${OBJS}"; \
+###	export LIBS0="${OTHERLIB1} ${OTHERLIB2}"; \
+###     ${FINALBUILDCMD}
+### See bin/check/Makefile.in for a complete example of the use of LIBS0.
+###
+FINALBUILDCMD = if [ X"${MKSYMTBL_PROGRAM}" = X -o X"$${MAKE_SYMTABLE:-${ALWAYS_MAKE_SYMTABLE}}" = X ] ; then \
+		${LIBTOOL_MODE_LINK} ${PURIFY} ${CC} ${CFLAGS} ${LDFLAGS} \
+		-o $@ $${BASEOBJS} $${LIBS0} ${LIBS}; \
+	else \
+		rm -f $@tmp0; \
+		${LIBTOOL_MODE_LINK} ${PURIFY} ${CC} ${CFLAGS} ${LDFLAGS} \
+		-o $@tmp0 $${BASEOBJS} $${LIBS0} ${LIBS} || exit 1; \
+		rm -f $@-symtbl.c $@-symtbl.@O@; \
+		${MKSYMTBL_PROGRAM} ${top_srcdir}/util/mksymtbl.pl \
+		-o $@-symtbl.c $@tmp0 || exit 1; \
+		$(MAKE) $@-symtbl.@O@ || exit 1; \
+		rm -f $@tmp1; \
+		${LIBTOOL_MODE_LINK} ${PURIFY} ${CC} ${CFLAGS} ${LDFLAGS} \
+		-o $@tmp1 $${BASEOBJS} $@-symtbl.@O@ $${LIBS0} ${NOSYMLIBS} || exit 1; \
+		rm -f $@-symtbl.c $@-symtbl.@O@; \
+		${MKSYMTBL_PROGRAM} ${top_srcdir}/util/mksymtbl.pl \
+		-o $@-symtbl.c $@tmp1 || exit 1; \
+		$(MAKE) $@-symtbl.@O@ || exit 1; \
+		${LIBTOOL_MODE_LINK} ${PURIFY} ${CC} ${CFLAGS} ${LDFLAGS} \
+		-o $@tmp2 $${BASEOBJS} $@-symtbl.@O@ $${LIBS0} ${NOSYMLIBS}; \
+		${MKSYMTBL_PROGRAM} ${top_srcdir}/util/mksymtbl.pl \
+		-o $@-symtbl2.c $@tmp2; \
+		diff $@-symtbl.c $@-symtbl2.c || exit 1;\
+		mv $@tmp2 $@; \
+		rm -f $@tmp0 $@tmp1 $@tmp2 $@-symtbl2.c; \
+	fi
+
 cleandir: distclean
 superclean: maintainer-clean
 
 clean distclean maintainer-clean::
-	rm -f *.@O@ *.o *.lo *.la core *.core .depend
-	rm -rf .libs
+	rm -f *.@O@ *.o *.lo *.la core *.core *-symtbl.c *tmp0 *tmp1 *tmp2
+	rm -rf .depend .libs
 
 distclean maintainer-clean::
 	rm -f Makefile
@@ -215,6 +288,16 @@ PERL =			@PERL@
 LATEX =			@LATEX@
 PDFLATEX =		@PDFLATEX@
 W3M =			@W3M@
+
+###
+### Script language program used to create internal symbol tables
+###
+MKSYMTBL_PROGRAM =	@MKSYMTBL_PROGRAM@
+
+###
+### Switch to create internal symbol table selectively
+###
+ALWAYS_MAKE_SYMTABLE =	@ALWAYS_MAKE_SYMTABLE@
 
 ###
 ### DocBook -> HTML

@@ -1,5 +1,5 @@
 /*
- * Portions Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 2004-2010  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 2000-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -29,7 +29,7 @@
  * IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dst_parse.h,v 1.11 2008-05-15 00:50:26 each Exp $ */
+/* $Id: dst_parse.h,v 1.17 2010-12-23 23:47:08 tbox Exp $ */
 
 /*! \file */
 #ifndef DST_DST_PARSE_H
@@ -39,11 +39,13 @@
 
 #include <dst/dst.h>
 
-#define MAJOR_VERSION		1
-#define MINOR_VERSION		2
-
 #define MAXFIELDSIZE		512
-#define MAXFIELDS		12
+
+/*
+ * Maximum number of fields in a private file is 18 (12 algorithm-
+ * specific fields for RSA, plus 6 generic fields).
+ */
+#define MAXFIELDS		12+6
 
 #define TAG_SHIFT		4
 #define TAG_ALG(tag)		((unsigned int)(tag) >> TAG_SHIFT)
@@ -75,6 +77,9 @@
 #define TAG_DSA_BASE		((DST_ALG_DSA << TAG_SHIFT) + 2)
 #define TAG_DSA_PRIVATE		((DST_ALG_DSA << TAG_SHIFT) + 3)
 #define TAG_DSA_PUBLIC		((DST_ALG_DSA << TAG_SHIFT) + 4)
+
+#define GOST_NTAGS		1
+#define TAG_GOST_PRIVASN1	((DST_ALG_ECCGOST << TAG_SHIFT) + 0)
 
 #define OLD_HMACMD5_NTAGS	1
 #define HMACMD5_NTAGS		2
@@ -121,11 +126,11 @@ ISC_LANG_BEGINDECLS
 void
 dst__privstruct_free(dst_private_t *priv, isc_mem_t *mctx);
 
-int
+isc_result_t
 dst__privstruct_parse(dst_key_t *key, unsigned int alg, isc_lex_t *lex,
 		      isc_mem_t *mctx, dst_private_t *priv);
 
-int
+isc_result_t
 dst__privstruct_writefile(const dst_key_t *key, const dst_private_t *priv,
 			  const char *directory);
 

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: stats.h,v 1.18.56.2 2009-01-29 23:47:44 tbox Exp $ */
+/* $Id: stats.h,v 1.20 2009-01-27 23:47:54 tbox Exp $ */
 
 #ifndef DNS_STATS_H
 #define DNS_STATS_H 1
