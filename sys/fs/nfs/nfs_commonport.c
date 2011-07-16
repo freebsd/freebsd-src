@@ -549,7 +549,7 @@ nfs_supportsnfsv4acls(struct vnode *vp)
 
 	if (nfsrv_useacl == 0)
 		return (0);
-	error = VOP_PATHCONF(vp, _PC_ACL_NFS4, &retval);
+	error = nfsvno_pathconf(vp, _PC_ACL_NFS4, &retval, NULL, NULL);
 	if (error == 0 && retval != 0)
 		return (1);
 	return (0);
