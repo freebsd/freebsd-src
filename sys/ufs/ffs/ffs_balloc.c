@@ -228,9 +228,7 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 	if (num < 1)
 		panic ("ffs_balloc_ufs1: ufs_getlbns returned indirect block");
 #endif
-	saved_inbdflush = ~TDP_INBDFLUSH | (curthread->td_pflags &
-	    TDP_INBDFLUSH);
-	curthread->td_pflags |= TDP_INBDFLUSH;
+	saved_inbdflush = curthread_pflags_set(TDP_INBDFLUSH);
 	/*
 	 * Fetch the first indirect block allocating if necessary.
 	 */
@@ -244,7 +242,7 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 		pref = ffs_blkpref_ufs1(ip, lbn, 0, (ufs1_daddr_t *)0);
 	        if ((error = ffs_alloc(ip, lbn, pref, (int)fs->fs_bsize,
 		    flags, cred, &newb)) != 0) {
-			curthread->td_pflags &= saved_inbdflush;
+			curthread_pflags_restore(saved_inbdflush);
 			return (error);
 		}
 		nb = newb;
@@ -337,7 +335,7 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 	 * If asked only for the indirect block, then return it.
 	 */
 	if (flags & BA_METAONLY) {
-		curthread->td_pflags &= saved_inbdflush;
+		curthread_pflags_restore(saved_inbdflush);
 		*bpp = bp;
 		return (0);
 	}
@@ -375,7 +373,7 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 				bp->b_flags |= B_CLUSTEROK;
 			bdwrite(bp);
 		}
-		curthread->td_pflags &= saved_inbdflush;
+		curthread_pflags_restore(saved_inbdflush);
 		*bpp = nbp;
 		return (0);
 	}
@@ -397,11 +395,11 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 		nbp = getblk(vp, lbn, fs->fs_bsize, 0, 0, 0);
 		nbp->b_blkno = fsbtodb(fs, nb);
 	}
-	curthread->td_pflags &= saved_inbdflush;
+	curthread_pflags_restore(saved_inbdflush);
 	*bpp = nbp;
 	return (0);
 fail:
-	curthread->td_pflags &= saved_inbdflush;
+	curthread_pflags_restore(saved_inbdflush);
 	/*
 	 * If we have failed to allocate any blocks, simply return the error.
 	 * This is the usual case and avoids the need to fsync the file.
@@ -734,9 +732,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 	if (num < 1)
 		panic ("ffs_balloc_ufs2: ufs_getlbns returned indirect block");
 #endif
-	saved_inbdflush = ~TDP_INBDFLUSH | (curthread->td_pflags &
-	    TDP_INBDFLUSH);
-	curthread->td_pflags |= TDP_INBDFLUSH;
+	saved_inbdflush = curthread_pflags_set(TDP_INBDFLUSH);
 	/*
 	 * Fetch the first indirect block allocating if necessary.
 	 */
@@ -750,7 +746,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 		pref = ffs_blkpref_ufs2(ip, lbn, 0, (ufs2_daddr_t *)0);
 	        if ((error = ffs_alloc(ip, lbn, pref, (int)fs->fs_bsize,
 		    flags, cred, &newb)) != 0) {
-			curthread->td_pflags &= saved_inbdflush;
+			curthread_pflags_restore(saved_inbdflush);
 			return (error);
 		}
 		nb = newb;
@@ -843,7 +839,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 	 * If asked only for the indirect block, then return it.
 	 */
 	if (flags & BA_METAONLY) {
-		curthread->td_pflags &= saved_inbdflush;
+		curthread_pflags_restore(saved_inbdflush);
 		*bpp = bp;
 		return (0);
 	}
@@ -881,7 +877,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 				bp->b_flags |= B_CLUSTEROK;
 			bdwrite(bp);
 		}
-		curthread->td_pflags &= saved_inbdflush;
+		curthread_pflags_restore(saved_inbdflush);
 		*bpp = nbp;
 		return (0);
 	}
@@ -909,11 +905,11 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 		nbp = getblk(vp, lbn, fs->fs_bsize, 0, 0, 0);
 		nbp->b_blkno = fsbtodb(fs, nb);
 	}
-	curthread->td_pflags &= saved_inbdflush;
+	curthread_pflags_restore(saved_inbdflush);
 	*bpp = nbp;
 	return (0);
 fail:
-	curthread->td_pflags &= saved_inbdflush;
+	curthread_pflags_restore(saved_inbdflush);
 	/*
 	 * If we have failed to allocate any blocks, simply return the error.
 	 * This is the usual case and avoids the need to fsync the file.
