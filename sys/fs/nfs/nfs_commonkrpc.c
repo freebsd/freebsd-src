@@ -715,8 +715,10 @@ tryagain:
 		NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
 		nd->nd_repstat = fxdr_unsigned(u_int32_t, *tl);
 		if (nd->nd_repstat != 0) {
-			if ((nd->nd_repstat == NFSERR_DELAY &&
+			if (((nd->nd_repstat == NFSERR_DELAY ||
+			      nd->nd_repstat == NFSERR_GRACE) &&
 			     (nd->nd_flag & ND_NFSV4) &&
+			     nd->nd_procnum != NFSPROC_DELEGRETURN &&
 			     nd->nd_procnum != NFSPROC_SETATTR &&
 			     nd->nd_procnum != NFSPROC_READ &&
 			     nd->nd_procnum != NFSPROC_WRITE &&
