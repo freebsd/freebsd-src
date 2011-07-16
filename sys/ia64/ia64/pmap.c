@@ -66,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma.h>
 
 #include <machine/bootinfo.h>
+#include <machine/efi.h>
 #include <machine/md_var.h>
 #include <machine/pal.h>
 
@@ -2235,12 +2236,37 @@ pmap_remove_write(vm_page_t m)
  * NOT real memory.
  */
 void *
-pmap_mapdev(vm_paddr_t pa, vm_size_t size)
+pmap_mapdev(vm_paddr_t pa, vm_size_t sz)
 {
+	static void *last_va = NULL;
+	static vm_paddr_t last_pa = 0;
+	static vm_size_t last_sz = 0;
+	struct efi_md *md;
 	vm_offset_t va;
 
-	va = pa | IA64_RR_BASE(6);
-	return ((void *)va);
+	if (pa == last_pa && sz == last_sz)
+		return (last_va);
+
+	md = efi_md_find(pa);
+	if (md == NULL) {
+		printf("%s: [%#lx..%#lx] not covered by memory descriptor\n",
+		    __func__, pa, pa + sz - 1);
+		return (NULL);
+	}
+
+	if (md->md_type == EFI_MD_TYPE_FREE) {
+		printf("%s: [%#lx..%#lx] is in DRAM\n", __func__, pa,
+		    pa + sz - 1);
+                return (NULL);
+	}
+
+	va = (md->md_attr & EFI_MD_ATTR_WB) ? IA64_PHYS_TO_RR7(pa) :
+	    IA64_PHYS_TO_RR6(pa);
+
+	last_va = (void *)va;
+	last_pa = pa;
+	last_sz = sz;
+	return (last_va);
 }
 
 /*
