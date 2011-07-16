@@ -192,8 +192,10 @@ static void	mptable_probe_cpus_handler(u_char *entry, void *arg __unused);
 static void	mptable_register(void *dummy);
 static int	mptable_setup_local(void);
 static int	mptable_setup_io(void);
+#ifdef NEW_PCIB
 static void	mptable_walk_extended_table(
     mptable_extended_entry_handler *handler, void *arg);
+#endif
 static void	mptable_walk_table(mptable_entry_handler *handler, void *arg);
 static int	search_for_sig(u_int32_t target, int count);
 
@@ -437,6 +439,7 @@ mptable_walk_table(mptable_entry_handler *handler, void *arg)
 	}
 }
 
+#ifdef NEW_PCIB
 /*
  * Call the handler routine for each entry in the MP config extended
  * table.
@@ -455,6 +458,7 @@ mptable_walk_extended_table(mptable_extended_entry_handler *handler, void *arg)
 		entry = (ext_entry_ptr)((char *)entry + entry->length);
 	}
 }
+#endif
 
 static void
 mptable_probe_cpus_handler(u_char *entry, void *arg)
