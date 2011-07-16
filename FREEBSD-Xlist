@@ -2,6 +2,8 @@
 
 # Misc. stuff
 .cvsignore
+bin/named/bindkeys.pl
+bin/pkcs11
 bind.keys
 configure
 contrib
@@ -9,6 +11,7 @@ docutil
 isc-config.sh.1
 isc-config.sh.docbook
 isc-config.sh.html
+util
 
 # Tests
 bin/tests
@@ -23,11 +26,13 @@ doc/xsl
 
 # Windows directories
 bin/check/win32
+bin/confgen/win32
 bin/dig/win32
 bin/dnssec/win32
 bin/named/win32
 bin/nsupdate/win32
 bin/rndc/win32
+bin/tools/win32
 bin/win32
 config.h.win32
 lib/bind9/win32
