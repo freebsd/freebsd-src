@@ -1449,7 +1449,7 @@ nfsrvd_rename(struct nfsrv_descript *nd, int isdgram,
 		if (tdp) {
 			tdirfor_ret = nfsvno_getattr(tdp, &tdirfor, nd->nd_cred,
 			    p, 1);
-			NFSVOPUNLOCK(tdp, 0, p);
+			NFSVOPUNLOCK(tdp, 0);
 		}
 	}
 	NFSNAMEICNDSET(&tond.ni_cnd, nd->nd_cred, RENAME, LOCKPARENT | LOCKLEAF | NOCACHE | SAVESTART);
@@ -1554,7 +1554,7 @@ nfsrvd_link(struct nfsrv_descript *nd, int isdgram,
 		nfsrv_wcc(nd, dirfor_ret, &dirfor, diraft_ret, &diraft);
 		return (0);
 	}
-	NFSVOPUNLOCK(vp, 0, p);
+	NFSVOPUNLOCK(vp, 0);
 	if (vnode_vtype(vp) == VDIR) {
 		if (nd->nd_flag & ND_NFSV4)
 			nd->nd_repstat = NFSERR_ISDIR;
@@ -1584,7 +1584,7 @@ nfsrvd_link(struct nfsrv_descript *nd, int isdgram,
 			nfsd_fhtovp(nd, &dfh, LK_EXCLUSIVE, &dp, &tnes, NULL, 0,
 			    p);
 			if (dp)
-				NFSVOPUNLOCK(dp, 0, p);
+				NFSVOPUNLOCK(dp, 0);
 		}
 	}
 	NFSNAMEICNDSET(&named.ni_cnd, nd->nd_cred, CREATE,
@@ -1868,7 +1868,7 @@ nfsrvd_mkdirsub(struct nfsrv_descript *nd, struct nameidata *ndp,
 			nd->nd_repstat = nfsvno_getattr(vp, nvap, nd->nd_cred,
 			    p, 1);
 		if (vpp && !nd->nd_repstat) {
-			NFSVOPUNLOCK(vp, 0, p);
+			NFSVOPUNLOCK(vp, 0);
 			*vpp = vp;
 		} else {
 			vput(vp);
@@ -2765,7 +2765,7 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 	 * (ie: Leave the NFSVOPUNLOCK() about here.)
 	 */
 	if (vp)
-		NFSVOPUNLOCK(vp, 0, p);
+		NFSVOPUNLOCK(vp, 0);
 	if (stp)
 		FREE((caddr_t)stp, M_NFSDSTATE);
 	if (!nd->nd_repstat && dirp)
