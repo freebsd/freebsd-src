@@ -116,7 +116,7 @@ nfsvno_getattr(struct vnode *vp, struct nfsvattr *nvap, struct ucred *cred,
 		 * locked by this thread or not locked by this thread.
 		 * As such, shared lock it, if not exclusively locked.
 		 */
-		if (VOP_ISLOCKED(vp) != LK_EXCLUSIVE) {
+		if (NFSVOPISLOCKED(vp) != LK_EXCLUSIVE) {
 			lockedit = 1;
 			NFSVOPLOCK(vp, LK_SHARED | LK_RETRY);
 		}
