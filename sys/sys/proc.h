@@ -897,6 +897,25 @@ void	thread_unthread(struct thread *td);
 void	thread_wait(struct proc *p);
 struct thread	*thread_find(struct proc *p, lwpid_t tid);
 
+static __inline int
+curthread_pflags_set(int flags)
+{
+	struct thread *td;
+	int save;
+
+	td = curthread;
+	save = ~flags | (td->td_pflags & flags);
+	td->td_pflags |= flags;
+	return (save);
+}
+
+static __inline void
+curthread_pflags_restore(int save)
+{
+
+	curthread->td_pflags &= save;
+}
+
 #endif	/* _KERNEL */
 
 #endif	/* !_SYS_PROC_H_ */
