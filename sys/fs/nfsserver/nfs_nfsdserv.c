@@ -235,7 +235,7 @@ nfsrvd_getattr(struct nfsrv_descript *nd, int isdgram,
 				} else
 					at_root = 0;
 				vfs_ref(mp);
-				VOP_UNLOCK(vp, 0);
+				NFSVOPUNLOCK(vp, 0);
 				if (at_root != 0) {
 					if ((nd->nd_repstat =
 					     NFSVOPLOCK(tvp, LK_SHARED)) == 0) {
@@ -1276,7 +1276,7 @@ nfsrvd_mknod(struct nfsrv_descript *nd, __unused int isdgram,
 			nd->nd_repstat = nfsvno_getattr(vp, &nva, nd->nd_cred,
 			    p, 1);
 		if (vpp != NULL && nd->nd_repstat == 0) {
-			VOP_UNLOCK(vp, 0);
+			NFSVOPUNLOCK(vp, 0);
 			*vpp = vp;
 		} else
 			vput(vp);
@@ -1735,7 +1735,7 @@ nfsrvd_symlinksub(struct nfsrv_descript *nd, struct nameidata *ndp,
 				    nvap, nd->nd_cred, p, 1);
 		}
 		if (vpp != NULL && nd->nd_repstat == 0) {
-			VOP_UNLOCK(ndp->ni_vp, 0);
+			NFSVOPUNLOCK(ndp->ni_vp, 0);
 			*vpp = ndp->ni_vp;
 		} else
 			vput(ndp->ni_vp);
