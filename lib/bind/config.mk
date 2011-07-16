@@ -78,11 +78,6 @@ CFLAGS+=	-D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64
 .if ${MK_BIND_SIGCHASE} == "yes"
 CFLAGS+=	-DDIG_SIGCHASE
 .endif
-.if ${MK_BIND_XML} == "yes"
-CFLAGS+=	-DHAVE_LIBXML2
-CFLAGS+=	-I/usr/local/include -I/usr/local/include/libxml2
-CFLAGS+=	-L/usr/local/lib -lxml2 -lz -liconv -lm
-.endif
 
 # Link against BIND libraries
 .if ${MK_BIND_LIBS} == "no"
@@ -118,6 +113,18 @@ BIND_LDADD=	${BIND_DPADD}
 .if ${MK_OPENSSL} != "no"
 CRYPTO_DPADD=	${LIBCRYPTO}
 CRYPTO_LDADD=	-lcrypto
+.endif
+
+.if ${MK_BIND_XML} == "yes"
+CFLAGS+=	-DHAVE_LIBXML2
+CFLAGS+=	-I/usr/local/include -I/usr/local/include/libxml2
+.if ${MK_BIND_LIBS} != "no"
+CFLAGS+=	-L/usr/local/lib
+BIND_LDADD+=	-lxml2 -lz -liconv -lm
+.else
+BIND_DPADD+=	/usr/local/lib/libxml2.a ${LIBZ} 
+BIND_DPADD+=	/usr/local/lib/libiconv.a ${LIBM}
+.endif
 .endif
 
 PTHREAD_DPADD=	${LIBPTHREAD}
