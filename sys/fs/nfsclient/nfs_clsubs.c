@@ -143,7 +143,7 @@ ncl_upgrade_vnlock(struct vnode *vp)
 	int old_lock;
 
 	ASSERT_VOP_LOCKED(vp, "ncl_upgrade_vnlock");
-	old_lock = VOP_ISLOCKED(vp);
+	old_lock = NFSVOPISLOCKED(vp);
 	if (old_lock != LK_EXCLUSIVE) {
 		KASSERT(old_lock == LK_SHARED,
 		    ("ncl_upgrade_vnlock: wrong old_lock %d", old_lock));
