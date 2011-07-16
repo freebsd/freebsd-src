@@ -59,7 +59,8 @@ nfsrv_dissectace(struct nfsrv_descript *nd, struct acl_entry *acep,
 	mask = fxdr_unsigned(u_int32_t, *tl++);
 	len = fxdr_unsigned(int, *tl);
 	if (len < 0) {
-		return (NFSERR_BADXDR);
+		error = NFSERR_BADXDR;
+		goto nfsmout;
 	} else if (len == 0) {
 		/* Netapp filers return a 0 length who for nil users */
 		acep->ae_tag = ACL_UNDEFINED_TAG;
@@ -68,7 +69,8 @@ nfsrv_dissectace(struct nfsrv_descript *nd, struct acl_entry *acep,
 		acep->ae_entry_type = ACL_ENTRY_TYPE_DENY;
 		if (acesizep)
 			*acesizep = 4 * NFSX_UNSIGNED;
-		return (0);
+		error = 0;
+		goto nfsmout;
 	}
 	if (len > NFSV4_SMALLSTR)
 		name = malloc(len + 1, M_NFSSTRING, M_WAITOK);
@@ -78,7 +80,7 @@ nfsrv_dissectace(struct nfsrv_descript *nd, struct acl_entry *acep,
 	if (error) {
 		if (len > NFSV4_SMALLSTR)
 			free(name, M_NFSSTRING);
-		return (error);
+		goto nfsmout;
 	}
 	if (len == 6) {
 		if (!NFSBCMP(name, "OWNER@", 6)) {
@@ -171,8 +173,9 @@ nfsrv_dissectace(struct nfsrv_descript *nd, struct acl_entry *acep,
 	*aceerrp = aceerr;
 	if (acesizep)
 		*acesizep = NFSM_RNDUP(len) + (4 * NFSX_UNSIGNED);
-	return (0);
+	error = 0;
 nfsmout:
+	NFSEXITCODE(error);
 	return (error);
 }
 
@@ -184,6 +187,7 @@ nfsrv_acemasktoperm(u_int32_t acetype, u_int32_t mask, int owner,
     enum vtype type, acl_perm_t *permp)
 {
 	acl_perm_t perm = 0x0;
+	int error = 0;
 
 	if (mask & NFSV4ACE_READDATA) {
 		mask &= ~NFSV4ACE_READDATA;
@@ -257,10 +261,15 @@ nfsrv_acemasktoperm(u_int32_t acetype, u_int32_t mask, int owner,
 		mask &= ~NFSV4ACE_SYNCHRONIZE;
 		perm |= ACL_SYNCHRONIZE;
 	}
-	if (mask != 0)
-		return (NFSERR_ATTRNOTSUPP);
+	if (mask != 0) {
+		error = NFSERR_ATTRNOTSUPP;
+		goto out;
+	}
 	*permp = perm;
-	return (0);
+
+out:
+	NFSEXITCODE(error);
+	return (error);
 }
 
 /* local functions */
@@ -445,19 +454,26 @@ nfsrv_setacl(vnode_t vp, NFSACL_T *aclp, struct ucred *cred,
 {
 	int error;
 
-	if (nfsrv_useacl == 0 || nfs_supportsnfsv4acls(vp) == 0)
-		return (NFSERR_ATTRNOTSUPP);
+	if (nfsrv_useacl == 0 || nfs_supportsnfsv4acls(vp) == 0) {
+		error = NFSERR_ATTRNOTSUPP;
+		goto out;
+	}
 	/*
 	 * With NFSv4 ACLs, chmod(2) may need to add additional entries.
 	 * Make sure it has enough room for that - splitting every entry
 	 * into two and appending "canonical six" entries at the end.
 	 * Cribbed out of kern/vfs_acl.c - Rick M.
 	 */
-	if (aclp->acl_cnt > (ACL_MAX_ENTRIES - 6) / 2)
-		return (NFSERR_ATTRNOTSUPP);
+	if (aclp->acl_cnt > (ACL_MAX_ENTRIES - 6) / 2) {
+		error = NFSERR_ATTRNOTSUPP;
+		goto out;
+	}
 	error = VOP_ACLCHECK(vp, ACL_TYPE_NFS4, aclp, cred, p);
 	if (!error)
 		error = VOP_SETACL(vp, ACL_TYPE_NFS4, aclp, cred, p);
+
+out:
+	NFSEXITCODE(error);
 	return (error);
 }
 
