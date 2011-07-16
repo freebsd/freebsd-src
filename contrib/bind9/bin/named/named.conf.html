@@ -1,5 +1,5 @@
 <!--
- - Copyright (C) 2004-2008 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2011 Internet Systems Consortium, Inc. ("ISC")
  - 
  - Permission to use, copy, modify, and/or distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
@@ -13,7 +13,7 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: named.conf.html,v 1.45.48.1 2009-07-11 01:55:21 tbox Exp $ -->
+<!-- $Id: named.conf.html,v 1.53.12.1 2011-02-03 12:29:12 tbox Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
@@ -31,7 +31,7 @@
 <div class="cmdsynopsis"><p><code class="command">named.conf</code> </p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543342"></a><h2>DESCRIPTION</h2>
+<a name="id2543352"></a><h2>DESCRIPTION</h2>
 <p><code class="filename">named.conf</code> is the configuration file
       for
       <span><strong class="command">named</strong></span>.  Statements are enclosed
@@ -50,14 +50,14 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543370"></a><h2>ACL</h2>
+<a name="id2543380"></a><h2>ACL</h2>
 <div class="literallayout"><p><br>
 acl <em class="replaceable"><code>string</code></em> { <em class="replaceable"><code>address_match_element</code></em>; ... };<br>
 <br>
 </p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543386"></a><h2>KEY</h2>
+<a name="id2543396"></a><h2>KEY</h2>
 <div class="literallayout"><p><br>
 key <em class="replaceable"><code>domain_name</code></em> {<br>
 	algorithm <em class="replaceable"><code>string</code></em>;<br>
@@ -66,7 +66,7 @@ key <em class="replaceable"><code>domain_name</code></em> {<br>
 </p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543405"></a><h2>MASTERS</h2>
+<a name="id2543415"></a><h2>MASTERS</h2>
 <div class="literallayout"><p><br>
 masters <em class="replaceable"><code>string</code></em> [<span class="optional"> port <em class="replaceable"><code>integer</code></em> </span>] {<br>
 	( <em class="replaceable"><code>masters</code></em> | <em class="replaceable"><code>ipv4_address</code></em> [<span class="optional">port <em class="replaceable"><code>integer</code></em></span>] |<br>
@@ -75,7 +75,7 @@ masters <em class="replaceable"><code>string</code></em> [<span class="optional"
 </p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543451"></a><h2>SERVER</h2>
+<a name="id2543461"></a><h2>SERVER</h2>
 <div class="literallayout"><p><br>
 server ( <em class="replaceable"><code>ipv4_address[<span class="optional">/prefixlen</span>]</code></em> | <em class="replaceable"><code>ipv6_address[<span class="optional">/prefixlen</span>]</code></em> ) {<br>
 	bogus <em class="replaceable"><code>boolean</code></em>;<br>
@@ -97,7 +97,7 @@ server ( <em class="replaceable"><code>ipv4_address[<span class="optional">/pref
 </p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543520"></a><h2>TRUSTED-KEYS</h2>
+<a name="id2543529"></a><h2>TRUSTED-KEYS</h2>
 <div class="literallayout"><p><br>
 trusted-keys {<br>
 	<em class="replaceable"><code>domain_name</code></em> <em class="replaceable"><code>flags</code></em> <em class="replaceable"><code>protocol</code></em> <em class="replaceable"><code>algorithm</code></em> <em class="replaceable"><code>key</code></em>; ... <br>
@@ -105,7 +105,15 @@ trusted-keys {<br>
 </p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543545"></a><h2>CONTROLS</h2>
+<a name="id2543555"></a><h2>MANAGED-KEYS</h2>
+<div class="literallayout"><p><br>
+managed-keys {<br>
+	<em class="replaceable"><code>domain_name</code></em> <code class="constant">initial-key</code> <em class="replaceable"><code>flags</code></em> <em class="replaceable"><code>protocol</code></em> <em class="replaceable"><code>algorithm</code></em> <em class="replaceable"><code>key</code></em>; ... <br>
+};<br>
+</p></div>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2543584"></a><h2>CONTROLS</h2>
 <div class="literallayout"><p><br>
 controls {<br>
 	inet ( <em class="replaceable"><code>ipv4_address</code></em> | <em class="replaceable"><code>ipv6_address</code></em> | * )<br>
@@ -117,7 +125,7 @@ controls {<br>
 </p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543580"></a><h2>LOGGING</h2>
+<a name="id2543619"></a><h2>LOGGING</h2>
 <div class="literallayout"><p><br>
 logging {<br>
 	channel <em class="replaceable"><code>string</code></em> {<br>
@@ -135,7 +143,7 @@ logging {<br>
 </p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543619"></a><h2>LWRES</h2>
+<a name="id2543657"></a><h2>LWRES</h2>
 <div class="literallayout"><p><br>
 lwres {<br>
 	listen-on [<span class="optional"> port <em class="replaceable"><code>integer</code></em> </span>] {<br>
@@ -148,7 +156,7 @@ lwres {<br>
 </p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543660"></a><h2>OPTIONS</h2>
+<a name="id2543699"></a><h2>OPTIONS</h2>
 <div class="literallayout"><p><br>
 options {<br>
 	avoid-v4-udp-ports { <em class="replaceable"><code>port</code></em>; ... };<br>
@@ -184,6 +192,7 @@ options {<br>
 	tcp-listen-queue <em class="replaceable"><code>integer</code></em>;<br>
 	tkey-dhkey <em class="replaceable"><code>quoted_string</code></em> <em class="replaceable"><code>integer</code></em>;<br>
 	tkey-gssapi-credential <em class="replaceable"><code>quoted_string</code></em>;<br>
+	tkey-gssapi-keytab <em class="replaceable"><code>quoted_string</code></em>;<br>
 	tkey-domain <em class="replaceable"><code>quoted_string</code></em>;<br>
 	transfers-per-ns <em class="replaceable"><code>integer</code></em>;<br>
 	transfers-in <em class="replaceable"><code>integer</code></em>;<br>
@@ -212,6 +221,7 @@ options {<br>
 	queryport-pool-ports <em class="replaceable"><code>integer</code></em>;<br>
 	queryport-pool-updateinterval <em class="replaceable"><code>integer</code></em>;<br>
 	cleaning-interval <em class="replaceable"><code>integer</code></em>;<br>
+	resolver-query-timeout <em class="replaceable"><code>integer</code></em>;<br>
 	min-roots <em class="replaceable"><code>integer</code></em>; // not implemented<br>
 	lame-ttl <em class="replaceable"><code>integer</code></em>;<br>
 	max-ncache-ttl <em class="replaceable"><code>integer</code></em>;<br>
@@ -242,8 +252,20 @@ options {<br>
 	dnssec-enable <em class="replaceable"><code>boolean</code></em>;<br>
 	dnssec-validation <em class="replaceable"><code>boolean</code></em>;<br>
 	dnssec-lookaside <em class="replaceable"><code>string</code></em> trust-anchor <em class="replaceable"><code>string</code></em>;<br>
+	dnssec-lookaside ( <em class="replaceable"><code>auto</code></em> | <em class="replaceable"><code>domain</code></em> trust-anchor <em class="replaceable"><code>domain</code></em> );<br>
 	dnssec-must-be-secure <em class="replaceable"><code>string</code></em> <em class="replaceable"><code>boolean</code></em>;<br>
 	dnssec-accept-expired <em class="replaceable"><code>boolean</code></em>;<br>
+<br>
+	dns64-server <em class="replaceable"><code>string</code></em>;<br>
+	dns64-contact <em class="replaceable"><code>string</code></em>;<br>
+	dns64 <em class="replaceable"><code>prefix</code></em> {<br>
+		clients { <font color="red">&lt;replacable&gt;acl&lt;/replacable&gt;</font>; };<br>
+		exclude { <font color="red">&lt;replacable&gt;acl&lt;/replacable&gt;</font>; };<br>
+		mapped { <font color="red">&lt;replacable&gt;acl&lt;/replacable&gt;</font>; };<br>
+		break-dnssec <em class="replaceable"><code>boolean</code></em>;<br>
+		recursive-only <em class="replaceable"><code>boolean</code></em>;<br>
+		suffix <em class="replaceable"><code>ipv6_address</code></em>;<br>
+	};<br>
 <br>
 	empty-server <em class="replaceable"><code>string</code></em>;<br>
 	empty-contact <em class="replaceable"><code>string</code></em>;<br>
@@ -261,6 +283,7 @@ options {<br>
 	allow-update { <em class="replaceable"><code>address_match_element</code></em>; ... };<br>
 	allow-update-forwarding { <em class="replaceable"><code>address_match_element</code></em>; ... };<br>
 	update-check-ksk <em class="replaceable"><code>boolean</code></em>;<br>
+	dnssec-dnskey-kskonly <em class="replaceable"><code>boolean</code></em>;<br>
 <br>
 	masterfile-format ( text | raw );<br>
 	notify <em class="replaceable"><code>notifytype</code></em>;<br>
@@ -307,9 +330,18 @@ options {<br>
 <br>
 	zone-statistics <em class="replaceable"><code>boolean</code></em>;<br>
 	key-directory <em class="replaceable"><code>quoted_string</code></em>;<br>
+	managed-keys-directory <em class="replaceable"><code>quoted_string</code></em>;<br>
+	auto-dnssec <code class="constant">allow</code>|<code class="constant">maintain</code>|<code class="constant">create</code>|<code class="constant">off</code>;<br>
 	try-tcp-refresh <em class="replaceable"><code>boolean</code></em>;<br>
 	zero-no-soa-ttl <em class="replaceable"><code>boolean</code></em>;<br>
 	zero-no-soa-ttl-cache <em class="replaceable"><code>boolean</code></em>;<br>
+	dnssec-secure-to-insecure <em class="replaceable"><code>boolean</code></em>;<br>
+	deny-answer-addresses {<br>
+		<em class="replaceable"><code>address_match_list</code></em><br>
+	} [<span class="optional"> except-from { <em class="replaceable"><code>namelist</code></em> } </span>];<br>
+	deny-answer-aliases {<br>
+		<em class="replaceable"><code>namelist</code></em><br>
+	} [<span class="optional"> except-from { <em class="replaceable"><code>namelist</code></em> } </span>];<br>
 <br>
 	nsec3-test-zone <em class="replaceable"><code>boolean</code></em>;  // testing only<br>
 <br>
@@ -329,7 +361,7 @@ options {<br>
 </p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2544452"></a><h2>VIEW</h2>
+<a name="id2544577"></a><h2>VIEW</h2>
 <div class="literallayout"><p><br>
 view <em class="replaceable"><code>string</code></em> <em class="replaceable"><code>optional_class</code></em> {<br>
 	match-clients { <em class="replaceable"><code>address_match_element</code></em>; ... };<br>
@@ -350,7 +382,8 @@ view <em class="replaceable"><code>string</code></em> <em class="replaceable"><c
 	};<br>
 <br>
 	trusted-keys {<br>
-		<em class="replaceable"><code>string</code></em> <em class="replaceable"><code>integer</code></em> <em class="replaceable"><code>integer</code></em> <em class="replaceable"><code>integer</code></em> <em class="replaceable"><code>quoted_string</code></em>; ...<br>
+		<em class="replaceable"><code>string</code></em> <em class="replaceable"><code>integer</code></em> <em class="replaceable"><code>integer</code></em> <em class="replaceable"><code>integer</code></em> <em class="replaceable"><code>quoted_string</code></em>;<br>
+		[<span class="optional">...</span>]<br>
 	};<br>
 <br>
 	allow-recursion { <em class="replaceable"><code>address_match_element</code></em>; ... };<br>
@@ -375,6 +408,7 @@ view <em class="replaceable"><code>string</code></em> <em class="replaceable"><c
 	queryport-pool-ports <em class="replaceable"><code>integer</code></em>;<br>
 	queryport-pool-updateinterval <em class="replaceable"><code>integer</code></em>;<br>
 	cleaning-interval <em class="replaceable"><code>integer</code></em>;<br>
+	resolver-query-timeout <em class="replaceable"><code>integer</code></em>;<br>
 	min-roots <em class="replaceable"><code>integer</code></em>; // not implemented<br>
 	lame-ttl <em class="replaceable"><code>integer</code></em>;<br>
 	max-ncache-ttl <em class="replaceable"><code>integer</code></em>;<br>
@@ -408,6 +442,17 @@ view <em class="replaceable"><code>string</code></em> <em class="replaceable"><c
 	dnssec-must-be-secure <em class="replaceable"><code>string</code></em> <em class="replaceable"><code>boolean</code></em>;<br>
 	dnssec-accept-expired <em class="replaceable"><code>boolean</code></em>;<br>
 <br>
+	dns64-server <em class="replaceable"><code>string</code></em>;<br>
+	dns64-contact <em class="replaceable"><code>string</code></em>;<br>
+	dns64 <em class="replaceable"><code>prefix</code></em> {<br>
+		clients { <font color="red">&lt;replacable&gt;acl&lt;/replacable&gt;</font>; };<br>
+		exclude { <font color="red">&lt;replacable&gt;acl&lt;/replacable&gt;</font>; };<br>
+		mapped { <font color="red">&lt;replacable&gt;acl&lt;/replacable&gt;</font>; };<br>
+		break-dnssec <em class="replaceable"><code>boolean</code></em>;<br>
+		recursive-only <em class="replaceable"><code>boolean</code></em>;<br>
+		suffix <em class="replaceable"><code>ipv6_address</code></em>;<br>
+	};<br>
+<br>
 	empty-server <em class="replaceable"><code>string</code></em>;<br>
 	empty-contact <em class="replaceable"><code>string</code></em>;<br>
 	empty-zones-enable <em class="replaceable"><code>boolean</code></em>;<br>
@@ -424,6 +469,7 @@ view <em class="replaceable"><code>string</code></em> <em class="replaceable"><c
 	allow-update { <em class="replaceable"><code>address_match_element</code></em>; ... };<br>
 	allow-update-forwarding { <em class="replaceable"><code>address_match_element</code></em>; ... };<br>
 	update-check-ksk <em class="replaceable"><code>boolean</code></em>;<br>
+	dnssec-dnskey-kskonly <em class="replaceable"><code>boolean</code></em>;<br>
 <br>
 	masterfile-format ( text | raw );<br>
 	notify <em class="replaceable"><code>notifytype</code></em>;<br>
@@ -468,6 +514,7 @@ view <em class="replaceable"><code>string</code></em> <em class="replaceable"><c
 	key-directory <em class="replaceable"><code>quoted_string</code></em>;<br>
 	zero-no-soa-ttl <em class="replaceable"><code>boolean</code></em>;<br>
 	zero-no-soa-ttl-cache <em class="replaceable"><code>boolean</code></em>;<br>
+	dnssec-secure-to-insecure <em class="replaceable"><code>boolean</code></em>;<br>
 <br>
 	allow-v6-synthesis { <em class="replaceable"><code>address_match_element</code></em>; ... }; // obsolete<br>
 	fetch-glue <em class="replaceable"><code>boolean</code></em>; // obsolete<br>
@@ -477,7 +524,7 @@ view <em class="replaceable"><code>string</code></em> <em class="replaceable"><c
 </p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2545113"></a><h2>ZONE</h2>
+<a name="id2545280"></a><h2>ZONE</h2>
 <div class="literallayout"><p><br>
 zone <em class="replaceable"><code>string</code></em> <em class="replaceable"><code>optional_class</code></em> {<br>
 	type ( master | slave | stub | hint |<br>
@@ -501,20 +548,23 @@ zone <em class="replaceable"><code>string</code></em> <em class="replaceable"><c
 	ixfr-from-differences <em class="replaceable"><code>boolean</code></em>;<br>
 	journal <em class="replaceable"><code>quoted_string</code></em>;<br>
 	zero-no-soa-ttl <em class="replaceable"><code>boolean</code></em>;<br>
+	dnssec-secure-to-insecure <em class="replaceable"><code>boolean</code></em>;<br>
 <br>
 	allow-query { <em class="replaceable"><code>address_match_element</code></em>; ... };<br>
 	allow-query-on { <em class="replaceable"><code>address_match_element</code></em>; ... };<br>
 	allow-transfer { <em class="replaceable"><code>address_match_element</code></em>; ... };<br>
 	allow-update { <em class="replaceable"><code>address_match_element</code></em>; ... };<br>
 	allow-update-forwarding { <em class="replaceable"><code>address_match_element</code></em>; ... };<br>
-	update-policy {<br>
+	update-policy <em class="replaceable"><code>local</code></em> | <em class="replaceable"><code> {<br>
 		( grant | deny ) <em class="replaceable"><code>string</code></em><br>
 		( name | subdomain | wildcard | self | selfsub | selfwild |<br>
                   krb5-self | ms-self | krb5-subdomain | ms-subdomain |<br>
-		  tcp-self | 6to4-self ) <em class="replaceable"><code>string</code></em><br>
-		<em class="replaceable"><code>rrtypelist</code></em>; ...<br>
-	};<br>
+		  tcp-self | zonesub | 6to4-self ) <em class="replaceable"><code>string</code></em><br>
+		<em class="replaceable"><code>rrtypelist</code></em>;<br>
+		[<span class="optional">...</span>]<br>
+	}</code></em>;<br>
 	update-check-ksk <em class="replaceable"><code>boolean</code></em>;<br>
+	dnssec-dnskey-kskonly <em class="replaceable"><code>boolean</code></em>;<br>
 <br>
 	masterfile-format ( text | raw );<br>
 	notify <em class="replaceable"><code>notifytype</code></em>;<br>
@@ -569,12 +619,12 @@ zone <em class="replaceable"><code>string</code></em> <em class="replaceable"><c
 </p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2545410"></a><h2>FILES</h2>
+<a name="id2545659"></a><h2>FILES</h2>
 <p><code class="filename">/etc/named.conf</code>
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2545421"></a><h2>SEE ALSO</h2>
+<a name="id2545671"></a><h2>SEE ALSO</h2>
 <p><span class="citerefentry"><span class="refentrytitle">named</span>(8)</span>,
       <span class="citerefentry"><span class="refentrytitle">named-checkconf</span>(8)</span>,
       <span class="citerefentry"><span class="refentrytitle">rndc</span>(8)</span>,

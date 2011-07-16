@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: hmacmd5.h,v 1.12 2007-06-19 23:47:18 tbox Exp $ */
+/* $Id: hmacmd5.h,v 1.14 2009-02-06 23:47:42 tbox Exp $ */
 
 /*! \file isc/hmacmd5.h
  * \brief This is the header file for the HMAC-MD5 keyed hash algorithm
@@ -27,14 +27,23 @@
 
 #include <isc/lang.h>
 #include <isc/md5.h>
+#include <isc/platform.h>
 #include <isc/types.h>
 
 #define ISC_HMACMD5_KEYLENGTH 64
+
+#ifdef ISC_PLATFORM_OPENSSLHASH
+#include <openssl/hmac.h>
+
+typedef HMAC_CTX isc_hmacmd5_t;
+
+#else
 
 typedef struct {
 	isc_md5_t md5ctx;
 	unsigned char key[ISC_HMACMD5_KEYLENGTH];
 } isc_hmacmd5_t;
+#endif
 
 ISC_LANG_BEGINDECLS
 

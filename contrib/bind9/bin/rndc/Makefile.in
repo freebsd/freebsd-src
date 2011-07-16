@@ -1,4 +1,4 @@
-# Copyright (C) 2004, 2007  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004, 2007, 2009  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 2000-2002  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -13,7 +13,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: Makefile.in,v 1.44 2007-06-18 23:47:22 tbox Exp $
+# $Id: Makefile.in,v 1.49 2009-12-05 23:31:40 each Exp $
 
 srcdir =	@srcdir@
 VPATH =		@srcdir@
@@ -32,6 +32,7 @@ CWARNINGS =
 ISCCFGLIBS =	../../lib/isccfg/libisccfg.@A@
 ISCCCLIBS =	../../lib/isccc/libisccc.@A@
 ISCLIBS =	../../lib/isc/libisc.@A@
+ISCNOSYMLIBS =	../../lib/isc/libisc-nosymtbl.@A@
 DNSLIBS =	../../lib/dns/libdns.@A@ @DNS_CRYPTO_LIBS@
 BIND9LIBS =	../../lib/bind9/libbind9.@A@
 
@@ -41,25 +42,22 @@ ISCDEPLIBS =	../../lib/isc/libisc.@A@
 DNSDEPLIBS =	../../lib/dns/libdns.@A@
 BIND9DEPLIBS =	../../lib/bind9/libbind9.@A@
 
-RNDCLIBS =	${ISCCFGLIBS} ${ISCCCLIBS} ${BIND9LIBS} ${DNSLIBS} ${ISCLIBS} @LIBS@
+LIBS =		${ISCLIBS} @LIBS@
+NOSYMLIBS =	${ISCNOSYMLIBS} @LIBS@
+
 RNDCDEPLIBS =	${ISCCFGDEPLIBS} ${ISCCCDEPLIBS} ${BIND9DEPLIBS} ${DNSDEPLIBS} ${ISCDEPLIBS}
 
-CONFLIBS =	${DNSLIBS} ${ISCLIBS} @LIBS@
 CONFDEPLIBS =	${DNSDEPLIBS} ${ISCDEPLIBS}
 
-SRCS=		rndc.c rndc-confgen.c
+SRCS=		rndc.c
 
-SUBDIRS =	unix
+TARGETS =	rndc@EXEEXT@
 
-TARGETS =	rndc@EXEEXT@ rndc-confgen@EXEEXT@
+MANPAGES =	rndc.8 rndc.conf.5
 
-MANPAGES =	rndc.8 rndc-confgen.8 rndc.conf.5
-
-HTMLPAGES =	rndc.html rndc-confgen.html rndc.conf.html
+HTMLPAGES =	rndc.html rndc.conf.html
 
 MANOBJS =	${MANPAGES} ${HTMLPAGES}
-
-UOBJS =		unix/os.@O@
 
 @BIND9_MAKE_RULES@
 
@@ -70,18 +68,10 @@ rndc.@O@: rndc.c
 		-DRNDC_KEYFILE=\"${sysconfdir}/rndc.key\" \
 		-c ${srcdir}/rndc.c
 
-rndc-confgen.@O@: rndc-confgen.c
-	${LIBTOOL_MODE_COMPILE} ${CC} ${ALL_CFLAGS} \
-		-DRNDC_KEYFILE=\"${sysconfdir}/rndc.key\" \
-		-c ${srcdir}/rndc-confgen.c
-
 rndc@EXEEXT@: rndc.@O@ util.@O@ ${RNDCDEPLIBS}
-	${LIBTOOL_MODE_LINK} ${PURIFY} ${CC} ${CFLAGS} ${LDFLAGS} -o $@ rndc.@O@ util.@O@ \
-		${RNDCLIBS}
-
-rndc-confgen@EXEEXT@: rndc-confgen.@O@ util.@O@ ${UOBJS} ${CONFDEPLIBS} 
-	${LIBTOOL_MODE_LINK} ${PURIFY} ${CC} ${CFLAGS} ${LDFLAGS} -o $@ rndc-confgen.@O@ util.@O@ \
-		${UOBJS} ${CONFLIBS}
+	export BASEOBJS="rndc.@O@ util.@O@"; \
+	export LIBS0="${ISCCFGLIBS} ${ISCCCLIBS} ${BIND9LIBS} ${DNSLIBS}"; \
+	${FINALBUILDCMD}
 
 doc man:: ${MANOBJS}
 
@@ -93,11 +83,9 @@ installdirs:
 	$(SHELL) ${top_srcdir}/mkinstalldirs ${DESTDIR}${mandir}/man8
 	$(SHELL) ${top_srcdir}/mkinstalldirs ${DESTDIR}${mandir}/man5
 
-install:: rndc@EXEEXT@ rndc-confgen@EXEEXT@ installdirs
+install:: rndc@EXEEXT@ installdirs
 	${LIBTOOL_MODE_INSTALL} ${INSTALL_PROGRAM} rndc@EXEEXT@ ${DESTDIR}${sbindir}
-	${LIBTOOL_MODE_INSTALL} ${INSTALL_PROGRAM} rndc-confgen@EXEEXT@ ${DESTDIR}${sbindir}
 	${INSTALL_DATA} ${srcdir}/rndc.8 ${DESTDIR}${mandir}/man8
-	${INSTALL_DATA} ${srcdir}/rndc-confgen.8 ${DESTDIR}${mandir}/man8
 	${INSTALL_DATA} ${srcdir}/rndc.conf.5 ${DESTDIR}${mandir}/man5
 
 clean distclean maintainer-clean::

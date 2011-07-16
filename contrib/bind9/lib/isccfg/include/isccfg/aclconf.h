@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2010  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: aclconf.h,v 1.10 2007-10-12 04:17:18 each Exp $ */
+/* $Id: aclconf.h,v 1.12 2010-08-13 23:47:04 tbox Exp $ */
 
 #ifndef ISCCFG_ACLCONF_H
 #define ISCCFG_ACLCONF_H 1
@@ -44,9 +44,15 @@ cfg_aclconfctx_init(cfg_aclconfctx_t *ctx);
  */
 
 void
-cfg_aclconfctx_destroy(cfg_aclconfctx_t *ctx);
+cfg_aclconfctx_clone(cfg_aclconfctx_t *src, cfg_aclconfctx_t *dest);
 /*
- * Destroy an ACL configuration context.
+ * Copy the contents of one ACL configuration context into another.
+ */
+
+void
+cfg_aclconfctx_clear(cfg_aclconfctx_t *ctx);
+/*
+ * Clear the contents of an ACL configuration context.
  */
 
 isc_result_t

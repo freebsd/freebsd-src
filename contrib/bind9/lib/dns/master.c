@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: master.c,v 1.171.120.2 2009-01-18 23:47:40 tbox Exp $ */
+/* $Id: master.c,v 1.178 2009-09-01 00:22:26 jinmei Exp $ */
 
 /*! \file */
 
@@ -85,7 +85,11 @@
  */
 #define TOKENSIZ (8*1024)
 
-#define DNS_MASTER_BUFSZ 2048
+/*%
+ * Buffers sizes for $GENERATE.
+ */
+#define DNS_MASTER_LHS 2048
+#define DNS_MASTER_RHS MINTSIZ
 
 typedef ISC_LIST(dns_rdatalist_t) rdatalist_head_t;
 
@@ -614,6 +618,57 @@ loadctx_create(dns_masterformat_t format, isc_mem_t *mctx,
 	return (result);
 }
 
+static const char *hex = "0123456789abcdef0123456789ABCDEF";
+
+/*%
+ * Convert value into a nibble sequence from least significant to most
+ * significant nibble.  Zero fill upper most significant nibbles if
+ * required to make the width.
+ *
+ * Returns the number of characters that should have been written without
+ * counting the terminating NUL.
+ */
+static unsigned int
+nibbles(char *numbuf, size_t length, unsigned int width, char mode, int value) {
+	unsigned int count = 0;
+
+	/*
+	 * This reserve space for the NUL string terminator.
+	 */
+	if (length > 0U) {
+		*numbuf = '\0';
+		length--;
+	}
+	do {
+		char val = hex[(value & 0x0f) + ((mode == 'n') ? 0 : 16)];
+		value >>= 4;
+		if (length > 0U) {
+			*numbuf++ = val;
+			*numbuf = '\0';
+			length--;
+		}
+		if (width > 0)
+			width--;
+		count++;
+		/*
+		 * If width is non zero then we need to add a label seperator.
+		 * If value is non zero then we need to add another label and
+		 * that requires a label seperator.
+		 */
+		if (width > 0 || value != 0) {
+			if (length > 0U) {
+				*numbuf++ = '.';
+				*numbuf = '\0';
+				length--;
+			}
+			if (width > 0)
+				width--;
+			count++;
+		}
+	} while (value != 0 || width > 0);
+	return (count);
+}
+
 static isc_result_t
 genname(char *name, int it, char *buffer, size_t length) {
 	char fmt[sizeof("%04000000000d")];
@@ -624,6 +679,7 @@ genname(char *name, int it, char *buffer, size_t length) {
 	isc_textregion_t r;
 	unsigned int n;
 	unsigned int width;
+	isc_boolean_t nibblemode;
 
 	r.base = buffer;
 	r.length = length;
@@ -638,10 +694,11 @@ genname(char *name, int it, char *buffer, size_t length) {
 				isc_textregion_consume(&r, 1);
 				continue;
 			}
+			nibblemode = ISC_FALSE;
 			strcpy(fmt, "%d");
 			/* Get format specifier. */
 			if (*name == '{' ) {
-				n = sscanf(name, "{%d,%u,%1[doxX]}",
+				n = sscanf(name, "{%d,%u,%1[doxXnN]}",
 					   &delta, &width, mode);
 				switch (n) {
 				case 1:
@@ -651,6 +708,8 @@ genname(char *name, int it, char *buffer, size_t length) {
 						     "%%0%ud", width);
 					break;
 				case 3:
+					if (mode[0] == 'n' || mode[0] == 'N')
+						nibblemode = ISC_TRUE;
 					n = snprintf(fmt, sizeof(fmt),
 						     "%%0%u%c", width, mode[0]);
 					break;
@@ -663,7 +722,12 @@ genname(char *name, int it, char *buffer, size_t length) {
 				while (*name != '\0' && *name++ != '}')
 					continue;
 			}
-			n = snprintf(numbuf, sizeof(numbuf), fmt, it + delta);
+			if (nibblemode)
+				n = nibbles(numbuf, sizeof(numbuf), width,
+					    mode[0], it + delta);
+			else
+				n = snprintf(numbuf, sizeof(numbuf), fmt,
+					     it + delta);
 			if (n >= sizeof(numbuf))
 				return (ISC_R_NOSPACE);
 			cp = numbuf;
@@ -746,8 +810,8 @@ generate(dns_loadctx_t *lctx, char *range, char *lhs, char *gtype, char *rhs,
 	ISC_LIST_INIT(head);
 
 	target_mem = isc_mem_get(lctx->mctx, target_size);
-	rhsbuf = isc_mem_get(lctx->mctx, DNS_MASTER_BUFSZ);
-	lhsbuf = isc_mem_get(lctx->mctx, DNS_MASTER_BUFSZ);
+	rhsbuf = isc_mem_get(lctx->mctx, DNS_MASTER_RHS);
+	lhsbuf = isc_mem_get(lctx->mctx, DNS_MASTER_LHS);
 	if (target_mem == NULL || rhsbuf == NULL || lhsbuf == NULL) {
 		result = ISC_R_NOMEMORY;
 		goto error_cleanup;
@@ -778,35 +842,13 @@ generate(dns_loadctx_t *lctx, char *range, char *lhs, char *gtype, char *rhs,
 		goto insist_cleanup;
 	}
 
-	switch (type) {
-	case dns_rdatatype_ns:
-	case dns_rdatatype_ptr:
-	case dns_rdatatype_cname:
-	case dns_rdatatype_dname:
-		break;
-
-	case dns_rdatatype_a:
-	case dns_rdatatype_aaaa:
-		if (lctx->zclass == dns_rdataclass_in ||
-		    lctx->zclass == dns_rdataclass_ch ||
-		    lctx->zclass == dns_rdataclass_hs)
-			break;
-		/* FALLTHROUGH */
-	default:
-	       (*callbacks->error)(callbacks,
-				  "%s: %s:%lu: unsupported type '%s'",
-				  "$GENERATE", source, line, gtype);
-		result = ISC_R_NOTIMPLEMENTED;
-		goto error_cleanup;
-	}
-
 	ISC_LIST_INIT(rdatalist.rdata);
 	ISC_LINK_INIT(&rdatalist, link);
 	for (i = start; i <= stop; i += step) {
-		result = genname(lhs, i, lhsbuf, DNS_MASTER_BUFSZ);
+		result = genname(lhs, i, lhsbuf, DNS_MASTER_LHS);
 		if (result != ISC_R_SUCCESS)
 			goto error_cleanup;
-		result = genname(rhs, i, rhsbuf, DNS_MASTER_BUFSZ);
+		result = genname(rhs, i, rhsbuf, DNS_MASTER_RHS);
 		if (result != ISC_R_SUCCESS)
 			goto error_cleanup;
 
@@ -820,6 +862,7 @@ generate(dns_loadctx_t *lctx, char *range, char *lhs, char *gtype, char *rhs,
 
 		if ((lctx->options & DNS_MASTER_ZONE) != 0 &&
 		    (lctx->options & DNS_MASTER_SLAVE) == 0 &&
+		    (lctx->options & DNS_MASTER_KEY) == 0 &&
 		    !dns_name_issubdomain(owner, lctx->top))
 		{
 			char namebuf[DNS_NAME_FORMATSIZE];
@@ -880,9 +923,9 @@ generate(dns_loadctx_t *lctx, char *range, char *lhs, char *gtype, char *rhs,
 	if (target_mem != NULL)
 		isc_mem_put(lctx->mctx, target_mem, target_size);
 	if (lhsbuf != NULL)
-		isc_mem_put(lctx->mctx, lhsbuf, DNS_MASTER_BUFSZ);
+		isc_mem_put(lctx->mctx, lhsbuf, DNS_MASTER_LHS);
 	if (rhsbuf != NULL)
-		isc_mem_put(lctx->mctx, rhsbuf, DNS_MASTER_BUFSZ);
+		isc_mem_put(lctx->mctx, rhsbuf, DNS_MASTER_RHS);
 	return (result);
 }
 
@@ -1270,7 +1313,8 @@ load_text(dns_loadctx_t *lctx) {
 					goto log_and_cleanup;
 				}
 				/* RHS */
-				GETTOKEN(lctx->lex, 0, &token, ISC_FALSE);
+				GETTOKEN(lctx->lex, ISC_LEXOPT_QSTRING,
+					 &token, ISC_FALSE);
 				rhs = isc_mem_strdup(mctx, DNS_AS_STR(token));
 				if (rhs == NULL) {
 					result = ISC_R_NOMEMORY;
@@ -1338,7 +1382,7 @@ load_text(dns_loadctx_t *lctx) {
 			isc_buffer_setactive(&buffer,
 					     token.value.as_region.length);
 			result = dns_name_fromtext(new_name, &buffer,
-					  ictx->origin, ISC_FALSE, NULL);
+					  ictx->origin, 0, NULL);
 			if (MANYERRS(lctx, result)) {
 				SETRESULT(lctx, result);
 				LOGIT(result);
@@ -1459,6 +1503,7 @@ load_text(dns_loadctx_t *lctx) {
 			}
 			if ((lctx->options & DNS_MASTER_ZONE) != 0 &&
 			    (lctx->options & DNS_MASTER_SLAVE) == 0 &&
+			    (lctx->options & DNS_MASTER_KEY) == 0 &&
 			    !dns_name_issubdomain(new_name, lctx->top))
 			{
 				char namebuf[DNS_NAME_FORMATSIZE];
