@@ -36,12 +36,11 @@ SRCS+=		os.c
 SRCS+=		builtin.c client.c config.c control.c \
 		controlconf.c interfacemgr.c \
 		listenlist.c log.c logconf.c main.c notify.c \
-		query.c server.c sortlist.c \
+		query.c server.c sortlist.c statschannel.c \
 		tkeyconf.c tsigconf.c update.c xfrout.c \
 		zoneconf.c \
 		lwaddr.c lwresd.c lwdclient.c lwderror.c lwdgabn.c \
-		lwdgnba.c lwdgrbn.c lwdnoop.c lwsearch.c \
-		statschannel.c
+		lwdgnba.c lwdgrbn.c lwdnoop.c lwsearch.c
 
 CFLAGS+=	-DCONFIGARGS="\"${CONFIGARGS}\""
 
