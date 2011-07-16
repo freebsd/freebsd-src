@@ -3,26 +3,22 @@
 BIND_DIR=	${.CURDIR}/../../contrib/bind9
 LIB_BIND_REL=	../../lib/bind
 LIB_BIND_DIR=	${.CURDIR}/${LIB_BIND_REL}
-SRCDIR=		${BIND_DIR}/bin/rndc
+SRCDIR=		${BIND_DIR}/bin/tools
 
 .include	"${LIB_BIND_DIR}/config.mk"
 
-PROG=		rndc
+PROG=		arpaname
 
 .PATH: ${SRCDIR}
-SRCS+=		rndc.c util.c
+SRCS+=		arpaname.c
 
-CFLAGS+=	-I${SRCDIR}/include -I${LIB_BIND_DIR}
-CFLAGS+=	-I${BIND_DIR}/lib/isc/${ISC_ATOMIC_ARCH}/include
-
-WARNS?=		3
+CFLAGS+=	-I${SRCDIR}/unix/include -I${SRCDIR}/include
 
 DPADD+=		${BIND_DPADD} ${CRYPTO_DPADD} ${PTHREAD_DPADD}
 LDADD+=		${BIND_LDADD} ${CRYPTO_LDADD} ${PTHREAD_LDADD}
 
-MAN=		rndc.8 rndc.conf.5
+WARNS?=		3
 
-MANFILTER=	sed -e "s@/etc/rndc\.conf@/etc/namedb/rndc.conf@g" \
-		-e "s@/etc/rndc\.key@/etc/namedb/rndc.key@g"
+MAN=		arpaname.1
 
 .include <bsd.prog.mk>

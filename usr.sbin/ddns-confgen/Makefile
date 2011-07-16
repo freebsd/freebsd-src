@@ -7,13 +7,13 @@ SRCDIR=		${BIND_DIR}/bin/confgen
 
 .include	"${LIB_BIND_DIR}/config.mk"
 
-PROG=		rndc-confgen
+PROG=		ddns-confgen
 
 .PATH: ${SRCDIR}/unix
 SRCS+=		os.c
 
 .PATH: ${SRCDIR}
-SRCS+=		rndc-confgen.c keygen.c util.c
+SRCS+=		ddns-confgen.c keygen.c util.c
 
 CFLAGS+=	-I${SRCDIR}/unix/include -I${SRCDIR}/include -I${LIB_BIND_DIR}
 
@@ -22,7 +22,7 @@ WARNS?=		3
 DPADD+=		${BIND_DPADD} ${CRYPTO_DPADD} ${PTHREAD_DPADD}
 LDADD+=		${BIND_LDADD} ${CRYPTO_LDADD} ${PTHREAD_LDADD}
 
-MAN=		rndc-confgen.8
+MAN=		ddns-confgen.8
 
 MANFILTER=	sed -e 's@fI/etc\\fR.*@fI/etc/namedb\\fR@' \
 		-e '/^sysconfdir$$/d' \
