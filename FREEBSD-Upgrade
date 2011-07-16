@@ -54,6 +54,8 @@
    directories from the configure and Makefile templates:
 
 	$ sed -i.orig -e '/\/tests/d; /docutil/d; /\/xsl/d;' \
+		-e '/contrib\/check-secure-delegation.pl/d;' \
+		-e '/contrib\/zone-edit.sh/d;' \
 		configure.in Makefile.in */Makefile.in
 	
 	Remove mention of doxygen and related files from configure.in
@@ -66,7 +68,7 @@
 	$ ./configure --prefix=/usr \
 		--without-libxml2 --without-idn \
 		--infodir=/usr/share/info --mandir=/usr/share/man \
-		--enable-threads --disable-ipv6 \
+		--enable-threads --disable-ipv6 --disable-symtable \
 		--enable-getifaddrs --disable-linux-caps \
 		--with-openssl=/usr --with-randomdev=/dev/random
 
@@ -109,13 +111,21 @@
 	src/usr.bin/host		bind9/bin/dig
 	src/usr.bin/nslookup		bind9/bin/dig
 	src/usr.bin/nsupdate		bind9/bin/nsupdate
+	src/usr.sbin/arpaname		bind9/bin/tools
+	src/usr.sbin/ddns-confgen	bind9/bin/confgen
 	src/usr.sbin/dnssec-dsfromkey	bind9/bin/dnssec
 	src/usr.sbin/dnssec-keyfromlabel bind9/bin/dnssec
 	src/usr.sbin/dnssec-keygen	bind9/bin/dnssec
+	src/usr.sbin/dnssec-revoke	bind9/bin/dnssec
+	src/usr.sbin/dnssec-settime	bind9/bin/dnssec
 	src/usr.sbin/dnssec-signzone	bind9/bin/dnssec
+	src/usr.sbin/genrandom		bind9/bin/tools
+	src/usr.sbin/isc-hmac-fixup	bind9/bin/tools
 	src/usr.sbin/named		bind9/bin/named
 	src/usr.sbin/named-checkconf	bind9/bin/check
 	src/usr.sbin/named-checkzone	bind9/bin/check
+	src/usr.sbin/named-journalprint	bind9/bin/tools
+	src/usr.sbin/nsec3hash		bind9/bin/tools
 	src/usr.sbin/rndc		bind9/bin/rndc
 	src/usr.sbin/rndc-confgen	bind9/bin/rndc
 
