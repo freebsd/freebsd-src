@@ -191,13 +191,15 @@ typedef struct BASETABLE_ENTRY {
 }       basetable_entry;
 
 #ifdef _KERNEL
-#ifdef NEW_PCIB
 struct mptable_hostb_softc {
+#ifdef NEW_PCIB
 	struct pcib_host_resources sc_host_res;
 	int		sc_decodes_vga_io;
 	int		sc_decodes_isa_io;
+#endif
 };
 
+#ifdef NEW_PCIB
 void	mptable_pci_host_res_init(device_t pcib);
 #endif
 int	mptable_pci_probe_table(int bus);
