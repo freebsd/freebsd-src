@@ -4096,7 +4096,7 @@ nfsrv_updatestable(NFSPROC_T *p)
 	NFSVNO_SETATTRVAL(&nva, size, 0);
 	vp = NFSFPVNODE(sf->nsf_fp);
 	vn_start_write(vp, &mp, V_WAIT);
-	if (vn_lock(vp, LK_EXCLUSIVE) == 0) {
+	if (NFSVOPLOCK(vp, LK_EXCLUSIVE) == 0) {
 		error = nfsvno_setattr(vp, &nva, NFSFPCRED(sf->nsf_fp), p,
 		    NULL);
 		VOP_UNLOCK(vp, 0);
@@ -4231,7 +4231,7 @@ nfsrv_checkstable(struct nfsclient *clp)
  * Return 0 to indicate the conflict can't be revoked and 1 to indicate
  * the revocation worked and the conflicting client is "bye, bye", so it
  * can be tried again.
- * Return 2 to indicate that the vnode is VI_DOOMED after vn_lock().
+ * Return 2 to indicate that the vnode is VI_DOOMED after NFSVOPLOCK().
  * Unlocks State before a non-zero value is returned.
  */
 static int
@@ -4258,7 +4258,7 @@ nfsrv_clientconflict(struct nfsclient *clp, int *haslockp, vnode_t vp,
 		} while (!gotlock);
 		NFSUNLOCKV4ROOTMUTEX();
 		*haslockp = 1;
-		vn_lock(vp, lktype | LK_RETRY);
+		NFSVOPLOCK(vp, lktype | LK_RETRY);
 		if ((vp->v_iflag & VI_DOOMED) != 0)
 			return (2);
 		else
@@ -4426,7 +4426,7 @@ nfsrv_delegconflict(struct nfsstate *stp, int *haslockp, NFSPROC_T *p,
 		} while (!gotlock);
 		NFSUNLOCKV4ROOTMUTEX();
 		*haslockp = 1;
-		vn_lock(vp, lktype | LK_RETRY);
+		NFSVOPLOCK(vp, lktype | LK_RETRY);
 		if ((vp->v_iflag & VI_DOOMED) != 0) {
 			*haslockp = 0;
 			NFSLOCKV4ROOTMUTEX();
@@ -4626,7 +4626,7 @@ nfsd_recalldelegation(vnode_t vp, NFSPROC_T *p)
 	NFSGETNANOTIME(&mytime);
 	starttime = (u_int32_t)mytime.tv_sec;
 	do {
-		if (vn_lock(vp, LK_EXCLUSIVE) == 0) {
+		if (NFSVOPLOCK(vp, LK_EXCLUSIVE) == 0) {
 			error = nfsrv_checkremove(vp, 0, p);
 			VOP_UNLOCK(vp, 0);
 		} else
