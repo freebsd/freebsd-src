@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: kx_36.c,v 1.45 2007-06-19 23:47:17 tbox Exp $ */
+/* $Id: kx_36.c,v 1.47 2009-12-04 22:06:37 tbox Exp $ */
 
 /* Reviewed: Thu Mar 16 17:24:54 PST 2000 by explorer */
 
@@ -85,7 +85,7 @@ totext_in_kx(ARGS_TOTEXT) {
 
 static inline isc_result_t
 fromwire_in_kx(ARGS_FROMWIRE) {
-        dns_name_t name;
+	dns_name_t name;
 	isc_region_t sregion;
 
 	REQUIRE(type == 36);
@@ -96,7 +96,7 @@ fromwire_in_kx(ARGS_FROMWIRE) {
 
 	dns_decompress_setmethods(dctx, DNS_COMPRESS_NONE);
 
-        dns_name_init(&name, NULL);
+	dns_name_init(&name, NULL);
 
 	isc_buffer_activeregion(source, &sregion);
 	if (sregion.length < 2)
@@ -283,6 +283,11 @@ checknames_in_kx(ARGS_CHECKNAMES) {
 	UNUSED(bad);
 
 	return (ISC_TRUE);
+}
+
+static inline int
+casecompare_in_kx(ARGS_COMPARE) {
+	return (compare_in_kx(rdata1, rdata2));
 }
 
 #endif	/* RDATA_IN_1_KX_36_C */

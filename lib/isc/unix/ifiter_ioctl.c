@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ifiter_ioctl.c,v 1.60.120.2 2009-01-18 23:47:41 tbox Exp $ */
+/* $Id: ifiter_ioctl.c,v 1.62 2009-01-18 23:48:14 tbox Exp $ */
 
 /*! \file
  * \brief

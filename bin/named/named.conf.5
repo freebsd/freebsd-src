@@ -1,4 +1,4 @@
-.\" Copyright (C) 2004-2008 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2004-2011 Internet Systems Consortium, Inc. ("ISC")
 .\" 
 .\" Permission to use, copy, modify, and/or distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -12,7 +12,7 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: named.conf.5,v 1.36.48.1 2009-07-11 01:55:21 tbox Exp $
+.\" $Id: named.conf.5,v 1.44.12.1 2011-02-03 12:29:12 tbox Exp $
 .\"
 .hy 0
 .ad l
@@ -102,6 +102,15 @@ trusted\-keys {
 };
 .fi
 .RE
+.SH "MANAGED\-KEYS"
+.sp
+.RS 4
+.nf
+managed\-keys {
+	\fIdomain_name\fR \fBinitial\-key\fR \fIflags\fR \fIprotocol\fR \fIalgorithm\fR \fIkey\fR; ... 
+};
+.fi
+.RE
 .SH "CONTROLS"
 .sp
 .RS 4
@@ -186,6 +195,7 @@ options {
 	tcp\-listen\-queue \fIinteger\fR;
 	tkey\-dhkey \fIquoted_string\fR \fIinteger\fR;
 	tkey\-gssapi\-credential \fIquoted_string\fR;
+	tkey\-gssapi\-keytab \fIquoted_string\fR;
 	tkey\-domain \fIquoted_string\fR;
 	transfers\-per\-ns \fIinteger\fR;
 	transfers\-in \fIinteger\fR;
@@ -214,6 +224,7 @@ options {
 	queryport\-pool\-ports \fIinteger\fR;
 	queryport\-pool\-updateinterval \fIinteger\fR;
 	cleaning\-interval \fIinteger\fR;
+	resolver\-query\-timeout \fIinteger\fR;
 	min\-roots \fIinteger\fR; // not implemented
 	lame\-ttl \fIinteger\fR;
 	max\-ncache\-ttl \fIinteger\fR;
@@ -244,8 +255,19 @@ options {
 	dnssec\-enable \fIboolean\fR;
 	dnssec\-validation \fIboolean\fR;
 	dnssec\-lookaside \fIstring\fR trust\-anchor \fIstring\fR;
+	dnssec\-lookaside ( \fIauto\fR | \fIdomain\fR trust\-anchor \fIdomain\fR );
 	dnssec\-must\-be\-secure \fIstring\fR \fIboolean\fR;
 	dnssec\-accept\-expired \fIboolean\fR;
+	dns64\-server \fIstring\fR;
+	dns64\-contact \fIstring\fR;
+	dns64 \fIprefix\fR {
+		clients { <replacable>acl</replacable>; };
+		exclude { <replacable>acl</replacable>; };
+		mapped { <replacable>acl</replacable>; };
+		break\-dnssec \fIboolean\fR;
+		recursive\-only \fIboolean\fR;
+		suffix \fIipv6_address\fR;
+	};
 	empty\-server \fIstring\fR;
 	empty\-contact \fIstring\fR;
 	empty\-zones\-enable \fIboolean\fR;
@@ -260,6 +282,7 @@ options {
 	allow\-update { \fIaddress_match_element\fR; ... };
 	allow\-update\-forwarding { \fIaddress_match_element\fR; ... };
 	update\-check\-ksk \fIboolean\fR;
+	dnssec\-dnskey\-kskonly \fIboolean\fR;
 	masterfile\-format ( text | raw );
 	notify \fInotifytype\fR;
 	notify\-source ( \fIipv4_address\fR | * ) [ port ( \fIinteger\fR | * ) ];
@@ -299,9 +322,18 @@ options {
 	use\-alt\-transfer\-source \fIboolean\fR;
 	zone\-statistics \fIboolean\fR;
 	key\-directory \fIquoted_string\fR;
+	managed\-keys\-directory \fIquoted_string\fR;
+	auto\-dnssec \fBallow\fR|\fBmaintain\fR|\fBcreate\fR|\fBoff\fR;
 	try\-tcp\-refresh \fIboolean\fR;
 	zero\-no\-soa\-ttl \fIboolean\fR;
 	zero\-no\-soa\-ttl\-cache \fIboolean\fR;
+	dnssec\-secure\-to\-insecure \fIboolean\fR;
+	deny\-answer\-addresses {
+		\fIaddress_match_list\fR
+	} [ except\-from { \fInamelist\fR } ];
+	deny\-answer\-aliases {
+		\fInamelist\fR
+	} [ except\-from { \fInamelist\fR } ];
 	nsec3\-test\-zone \fIboolean\fR;  // testing only
 	allow\-v6\-synthesis { \fIaddress_match_element\fR; ... }; // obsolete
 	deallocate\-on\-exit \fIboolean\fR; // obsolete
@@ -337,7 +369,8 @@ view \fIstring\fR \fIoptional_class\fR {
 		...
 	};
 	trusted\-keys {
-		\fIstring\fR \fIinteger\fR \fIinteger\fR \fIinteger\fR \fIquoted_string\fR; ...
+		\fIstring\fR \fIinteger\fR \fIinteger\fR \fIinteger\fR \fIquoted_string\fR;
+		[...]
 	};
 	allow\-recursion { \fIaddress_match_element\fR; ... };
 	allow\-recursion\-on { \fIaddress_match_element\fR; ... };
@@ -361,6 +394,7 @@ view \fIstring\fR \fIoptional_class\fR {
 	queryport\-pool\-ports \fIinteger\fR;
 	queryport\-pool\-updateinterval \fIinteger\fR;
 	cleaning\-interval \fIinteger\fR;
+	resolver\-query\-timeout \fIinteger\fR;
 	min\-roots \fIinteger\fR; // not implemented
 	lame\-ttl \fIinteger\fR;
 	max\-ncache\-ttl \fIinteger\fR;
@@ -393,6 +427,16 @@ view \fIstring\fR \fIoptional_class\fR {
 	dnssec\-lookaside \fIstring\fR trust\-anchor \fIstring\fR;
 	dnssec\-must\-be\-secure \fIstring\fR \fIboolean\fR;
 	dnssec\-accept\-expired \fIboolean\fR;
+	dns64\-server \fIstring\fR;
+	dns64\-contact \fIstring\fR;
+	dns64 \fIprefix\fR {
+		clients { <replacable>acl</replacable>; };
+		exclude { <replacable>acl</replacable>; };
+		mapped { <replacable>acl</replacable>; };
+		break\-dnssec \fIboolean\fR;
+		recursive\-only \fIboolean\fR;
+		suffix \fIipv6_address\fR;
+	};
 	empty\-server \fIstring\fR;
 	empty\-contact \fIstring\fR;
 	empty\-zones\-enable \fIboolean\fR;
@@ -407,6 +451,7 @@ view \fIstring\fR \fIoptional_class\fR {
 	allow\-update { \fIaddress_match_element\fR; ... };
 	allow\-update\-forwarding { \fIaddress_match_element\fR; ... };
 	update\-check\-ksk \fIboolean\fR;
+	dnssec\-dnskey\-kskonly \fIboolean\fR;
 	masterfile\-format ( text | raw );
 	notify \fInotifytype\fR;
 	notify\-source ( \fIipv4_address\fR | * ) [ port ( \fIinteger\fR | * ) ];
@@ -445,6 +490,7 @@ view \fIstring\fR \fIoptional_class\fR {
 	key\-directory \fIquoted_string\fR;
 	zero\-no\-soa\-ttl \fIboolean\fR;
 	zero\-no\-soa\-ttl\-cache \fIboolean\fR;
+	dnssec\-secure\-to\-insecure \fIboolean\fR;
 	allow\-v6\-synthesis { \fIaddress_match_element\fR; ... }; // obsolete
 	fetch\-glue \fIboolean\fR; // obsolete
 	maintain\-ixfr\-base \fIboolean\fR; // obsolete
@@ -476,19 +522,22 @@ zone \fIstring\fR \fIoptional_class\fR {
 	ixfr\-from\-differences \fIboolean\fR;
 	journal \fIquoted_string\fR;
 	zero\-no\-soa\-ttl \fIboolean\fR;
+	dnssec\-secure\-to\-insecure \fIboolean\fR;
 	allow\-query { \fIaddress_match_element\fR; ... };
 	allow\-query\-on { \fIaddress_match_element\fR; ... };
 	allow\-transfer { \fIaddress_match_element\fR; ... };
 	allow\-update { \fIaddress_match_element\fR; ... };
 	allow\-update\-forwarding { \fIaddress_match_element\fR; ... };
-	update\-policy {
-		( grant | deny ) \fIstring\fR
+	update\-policy \fIlocal\fR | \fI {
+		( grant | deny ) \fR\fI\fIstring\fR\fR\fI
 		( name | subdomain | wildcard | self | selfsub | selfwild |
                   krb5\-self | ms\-self | krb5\-subdomain | ms\-subdomain |
-		  tcp\-self | 6to4\-self ) \fIstring\fR
-		\fIrrtypelist\fR; ...
-	};
+		  tcp\-self | zonesub | 6to4\-self ) \fR\fI\fIstring\fR\fR\fI
+		\fR\fI\fIrrtypelist\fR\fR\fI;
+		\fR\fI[...]\fR\fI
+	}\fR;
 	update\-check\-ksk \fIboolean\fR;
+	dnssec\-dnskey\-kskonly \fIboolean\fR;
 	masterfile\-format ( text | raw );
 	notify \fInotifytype\fR;
 	notify\-source ( \fIipv4_address\fR | * ) [ port ( \fIinteger\fR | * ) ];
@@ -544,5 +593,5 @@ zone \fIstring\fR \fIoptional_class\fR {
 \fBrndc\fR(8),
 BIND 9 Administrator Reference Manual.
 .SH "COPYRIGHT"
-Copyright \(co 2004\-2008 Internet Systems Consortium, Inc. ("ISC")
+Copyright \(co 2004\-2011 Internet Systems Consortium, Inc. ("ISC")
 .br

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2010  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2011  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: sdb.c,v 1.66.48.6 2010-08-16 05:21:42 marka Exp $ */
+/* $Id: sdb.c,v 1.76 2011-01-13 04:59:25 tbox Exp $ */
 
 /*! \file */
 
@@ -450,7 +450,7 @@ getnode(dns_sdballnodes_t *allnodes, const char *name, dns_sdbnode_t **nodep) {
 	isc_buffer_init(&b, name, strlen(name));
 	isc_buffer_add(&b, strlen(name));
 
-	result = dns_name_fromtext(newname, &b, origin, ISC_FALSE, NULL);
+	result = dns_name_fromtext(newname, &b, origin, 0, NULL);
 	if (result != ISC_R_SUCCESS)
 		return (result);
 
@@ -1245,6 +1245,8 @@ static dns_dbmethods_t sdb_methods = {
 	ispersistent,
 	overmem,
 	settask,
+	NULL,
+	NULL,
 	NULL,
 	NULL,
 	NULL,

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: platform.h.in,v 1.48.84.4 2010-06-03 23:47:49 tbox Exp $ */
+/* $Id: platform.h.in,v 1.56 2010-12-18 01:56:23 each Exp $ */
 
 #ifndef ISC_PLATFORM_H
 #define ISC_PLATFORM_H 1
@@ -146,6 +146,11 @@
  */
 @ISC_PLATFORM_HAVEDEVPOLL@
 
+/*! \brief
+ * Define if we want to log backtrace
+ */
+@ISC_PLATFORM_USEBACKTRACE@
+
 /*
  *** Printing.
  ***/
@@ -213,6 +218,12 @@
  * the GSSAPI header.
  */
 @ISC_PLATFORM_GSSAPIHEADER@
+
+/*
+ * Defined to <gssapi_krb5.h> or <gssapi/gssapi_krb5.h> for how to
+ * include the GSSAPI KRB5 header.
+ */
+@ISC_PLATFORM_GSSAPI_KRB5_HEADER@
 
 /*
  * Defined to <krb5.h> or <krb5/krb5.h> for how to include
@@ -289,6 +300,17 @@
  * Define if the platform has <strings.h>.
  */
 @ISC_PLATFORM_HAVESTRINGSH@
+
+/*
+ * Define if the hash functions must be provided by OpenSSL.
+ */
+@ISC_PLATFORM_OPENSSLHASH@
+
+/*
+ * Defines for the noreturn attribute.
+ */
+@ISC_PLATFORM_NORETURN_PRE@
+@ISC_PLATFORM_NORETURN_POST@
 
 /***
  ***	Windows dll support.

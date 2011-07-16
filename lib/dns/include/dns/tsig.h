@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007, 2010  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2009-2011  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: tsig.h,v 1.51.332.4 2010-12-09 01:12:55 marka Exp $ */
+/* $Id: tsig.h,v 1.59 2011-01-11 23:47:13 tbox Exp $ */
 
 #ifndef DNS_TSIG_H
 #define DNS_TSIG_H 1
@@ -25,6 +25,7 @@
 #include <isc/lang.h>
 #include <isc/refcount.h>
 #include <isc/rwlock.h>
+#include <isc/stdio.h>
 #include <isc/stdtime.h>
 
 #include <dns/types.h>
@@ -69,6 +70,7 @@ struct dns_tsig_keyring {
 	unsigned int generated;
 	unsigned int maxgenerated;
 	ISC_LIST(dns_tsigkey_t) lru;
+	unsigned int references;
 };
 
 struct dns_tsigkey {
@@ -253,15 +255,39 @@ dns_tsigkeyring_create(isc_mem_t *mctx, dns_tsig_keyring_t **ringp);
  *\li		#ISC_R_NOMEMORY
  */
 
+isc_result_t
+dns_tsigkeyring_add(dns_tsig_keyring_t *ring, dns_name_t *name,
+		    dns_tsigkey_t *tkey);
+/*%<
+ *      Place a TSIG key onto a key ring.
+ *
+ *	Requires:
+ *\li		'ring', 'name' and 'tkey' are not NULL
+ *
+ *	Returns:
+ *\li		#ISC_R_SUCCESS
+ *\li		Any other value indicates failure.
+ */
+
 
 void
-dns_tsigkeyring_destroy(dns_tsig_keyring_t **ringp);
+dns_tsigkeyring_attach(dns_tsig_keyring_t *source, dns_tsig_keyring_t **target);
+
+void
+dns_tsigkeyring_detach(dns_tsig_keyring_t **ringp);
+
+isc_result_t
+dns_tsigkeyring_dumpanddetach(dns_tsig_keyring_t **ringp, FILE *fp);
+
 /*%<
  *	Destroy a TSIG key ring.
  *
  *	Requires:
  *\li		'ringp' is not NULL
  */
+
+void
+dns_keyring_restore(dns_tsig_keyring_t *ring, FILE *fp);
 
 ISC_LANG_ENDDECLS
 
