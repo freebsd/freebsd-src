@@ -1,12 +1,4 @@
 # $FreeBSD$
 files	"../nlm/files.xlp"
-cpu	CPU_NLMXLP
+cpu	CPU_NLM
 
-#
-# XXXMIPS: It's a stub, isn't it?
-#
-#option	HW_PAGEWALKER
-#option	MMU_HASH_MODE  # enables hash based lookup into extended TLBs
-#option	MMU_CLOCK_GATING # enables clock gating on MMU
-#option	MMU_GLOBAL_MODE  # enables global mode of sharing all TLBs with all h/w threads
-#option	NOFPU

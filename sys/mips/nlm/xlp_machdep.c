@@ -214,8 +214,7 @@ xlp_parse_mmu_options(void)
 
 unsupp:
 	printf("ERROR : Unsupported CPU mask [use 1,2 or 4 threads per core].\n"
-	    "\tcore0 thread mask [%lx], boot cpu mask [%lx]\n"
-	    "\tUsing default, 16 TLB entries per CPU, split mode\n", 
+	    "\tcore0 thread mask [%lx], boot cpu mask [%lx].\n",
 	    (u_long)core0_thr_mask, (u_long)cpu_map);
 	panic("Invalid CPU mask - halting.\n");
 	return;
@@ -495,8 +494,6 @@ platform_start(__register_t a0 __unused,
 	xlp_pic_init();
 
 	mips_timer_init_params(xlp_cpu_frequency, 0);
-
-	printf("Platform specific startup now completes\n");
 }
 
 void 
@@ -630,6 +627,7 @@ platform_ipi_intrnum(void)
 void
 platform_ipi_send(int cpuid)
 {
+
 	nlm_pic_send_ipi(xlp_pic_base, 0, xlp_cpuid_to_hwtid[cpuid],
 	    platform_ipi_intrnum(), 0);
 }

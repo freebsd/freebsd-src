@@ -257,13 +257,14 @@ xlp_handle_msg_vc(int vc, int max_msgs)
 			continue;
 		}
 		he = &msgmap[srcid];
-		if(he->action == NULL) {
+		if(he->action != NULL)
+			(he->action)(vc, size, code, srcid, &msg, he->arg);
+#if 0 /* debug */
+		else
 			printf("[%s]: No Handler for message from stn_id=%d,"
 			    " vc=%d, size=%d, msg0=%jx, dropping message\n",
 			    __func__, srcid, vc, size, (uintmax_t)msg.msg[0]);
-			continue;
-		}
-		(he->action)(vc, size, code, srcid, &msg, he->arg);
+#endif
 	}
 
 	return (i);

@@ -80,6 +80,11 @@ __FBSDID("$FreeBSD$");
 
 struct mips_cache_ops mips_cache_ops;
 
+static void
+cache_noop(vm_offset_t va, vm_size_t size)
+{
+}
+
 void
 mips_config_cache(struct mips_cpuinfo * cpuinfo)
 {
@@ -94,8 +99,13 @@ mips_config_cache(struct mips_cpuinfo * cpuinfo)
 		break;
 	case 32:
 		mips_cache_ops.mco_icache_sync_all = mipsNN_icache_sync_all_32;
+#ifdef CPU_NLM
+		mips_cache_ops.mco_icache_sync_range =
+		    mipsNN_icache_sync_range_index_32;
+#else
 		mips_cache_ops.mco_icache_sync_range =
 		    mipsNN_icache_sync_range_32;
+#endif
 		mips_cache_ops.mco_icache_sync_range_index =
 		    mipsNN_icache_sync_range_index_32;
 		break;
@@ -143,16 +153,26 @@ mips_config_cache(struct mips_cpuinfo * cpuinfo)
 		mips_cache_ops.mco_pdcache_wbinv_all =
 		    mips_cache_ops.mco_intern_pdcache_wbinv_all =
 		    mipsNN_pdcache_wbinv_all_32;
+#ifdef CPU_NLM
+		mips_cache_ops.mco_pdcache_wbinv_range =
+		    mipsNN_pdcache_wbinv_range_index_32;
+#else
 		mips_cache_ops.mco_pdcache_wbinv_range =
 		    mipsNN_pdcache_wbinv_range_32;
+#endif
 		mips_cache_ops.mco_pdcache_wbinv_range_index =
 		    mips_cache_ops.mco_intern_pdcache_wbinv_range_index =
 		    mipsNN_pdcache_wbinv_range_index_32;
 		mips_cache_ops.mco_pdcache_inv_range =
 		    mipsNN_pdcache_inv_range_32;
+#if defined(CPU_RMI) || defined(CPU_NLM)
+		mips_cache_ops.mco_pdcache_wb_range =
+		    mips_cache_ops.mco_intern_pdcache_wb_range = cache_noop;
+#else
 		mips_cache_ops.mco_pdcache_wb_range =
 		    mips_cache_ops.mco_intern_pdcache_wb_range =
 		    mipsNN_pdcache_wb_range_32;
+#endif
 		break;
 #ifdef CPU_CNMIPS
 	case 128:
