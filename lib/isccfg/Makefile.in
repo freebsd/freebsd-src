@@ -1,4 +1,4 @@
-# Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004, 2005, 2007, 2009, 2011  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 2001-2003  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -13,7 +13,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: Makefile.in,v 1.18 2007-06-19 23:47:22 tbox Exp $
+# $Id: Makefile.in,v 1.21.244.1.2.1 2011-06-02 23:47:37 tbox Exp $
 
 srcdir =	@srcdir@
 VPATH =		@srcdir@
@@ -27,7 +27,7 @@ top_srcdir =	@top_srcdir@
 
 CINCLUDES =	-I. ${DNS_INCLUDES} ${ISC_INCLUDES} ${ISCCFG_INCLUDES}
 
-CDEFINES =      @USE_DLZ@
+CDEFINES =	@USE_DLZ@
 CWARNINGS =
 
 ISCLIBS =	../../lib/isc/libisc.@A@
@@ -68,7 +68,7 @@ libisccfg.la: ${OBJS}
 	 ${LIBTOOL_MODE_LINK} \
 		${CC} ${ALL_CFLAGS} ${LDFLAGS} -o libisccfg.la -rpath ${libdir} \
 		-version-info ${LIBINTERFACE}:${LIBREVISION}:${LIBAGE} \
-		${OBJS} ${LIBS} ${DNSLIBS} ${ISCCCLIBS} ${ISCLIBS}
+		${OBJS} ${DNSLIBS} ${ISCCCLIBS} ${ISCLIBS} ${LIBS}
 
 timestamp: libisccfg.@A@
 	touch timestamp

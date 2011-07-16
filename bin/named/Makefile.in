@@ -1,4 +1,4 @@
-# Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004-2010  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 1998-2002  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -13,7 +13,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: Makefile.in,v 1.101 2008-09-23 17:25:47 jinmei Exp $
+# $Id: Makefile.in,v 1.114 2010-12-22 09:00:40 marka Exp $
 
 srcdir =	@srcdir@
 VPATH =		@srcdir@
@@ -43,9 +43,9 @@ DLZDRIVER_LIBS =	@DLZ_DRIVER_LIBS@
 CINCLUDES =	-I${srcdir}/include -I${srcdir}/unix/include -I. \
 		${LWRES_INCLUDES} ${DNS_INCLUDES} ${BIND9_INCLUDES} \
 		${ISCCFG_INCLUDES} ${ISCCC_INCLUDES} ${ISC_INCLUDES} \
-		${DLZDRIVER_INCLUDES} ${DBDRIVER_INCLUDES}
+		${DLZDRIVER_INCLUDES} ${DBDRIVER_INCLUDES} @DST_OPENSSL_INC@
 
-CDEFINES =      @USE_DLZ@
+CDEFINES =      @USE_DLZ@ @USE_PKCS11@ @USE_OPENSSL@
 
 CWARNINGS =
 
@@ -53,6 +53,7 @@ DNSLIBS =	../../lib/dns/libdns.@A@ @DNS_CRYPTO_LIBS@
 ISCCFGLIBS =	../../lib/isccfg/libisccfg.@A@
 ISCCCLIBS =	../../lib/isccc/libisccc.@A@
 ISCLIBS =	../../lib/isc/libisc.@A@
+ISCNOSYMLIBS =	../../lib/isc/libisc-nosymtbl.@A@
 LWRESLIBS =	../../lib/lwres/liblwres.@A@
 BIND9LIBS =	../../lib/bind9/libbind9.@A@
 
@@ -68,6 +69,10 @@ DEPLIBS =	${LWRESDEPLIBS} ${DNSDEPLIBS} ${BIND9DEPLIBS} \
 
 LIBS =		${LWRESLIBS} ${DNSLIBS} ${BIND9LIBS} \
 		${ISCCFGLIBS} ${ISCCCLIBS} ${ISCLIBS} \
+		${DLZDRIVER_LIBS} ${DBDRIVER_LIBS} @LIBS@
+
+NOSYMLIBS =	${LWRESLIBS} ${DNSLIBS} ${BIND9LIBS} \
+		${ISCCFGLIBS} ${ISCCCLIBS} ${ISCNOSYMLIBS} \
 		${DLZDRIVER_LIBS} ${DBDRIVER_LIBS} @LIBS@
 
 SUBDIRS =	unix
@@ -86,10 +91,12 @@ OBJS =		builtin.@O@ client.@O@ config.@O@ control.@O@ \
 
 UOBJS =		unix/os.@O@
 
+SYMOBJS =	symtbl.@O@
+
 SRCS =		builtin.c client.c config.c control.c \
 		controlconf.c interfacemgr.c \
 		listenlist.c log.c logconf.c main.c notify.c \
-		query.c server.c sortlist.c statschannel.c \
+		query.c server.c sortlist.c statschannel.c symtbl.c symtbl-empty.c \
 		tkeyconf.c tsigconf.c update.c xfrout.c \
 		zoneconf.c \
 		lwaddr.c lwresd.c lwdclient.c lwderror.c lwdgabn.c \
@@ -111,15 +118,20 @@ main.@O@: main.c
 		-DNS_LOCALSTATEDIR=\"${localstatedir}\" \
 		-DNS_SYSCONFDIR=\"${sysconfdir}\" -c ${srcdir}/main.c
 
-config.@O@: config.c
+bind.keys.h: ${top_srcdir}/bind.keys ${srcdir}/bindkeys.pl
+	${PERL} ${srcdir}/bindkeys.pl < ${top_srcdir}/bind.keys > $@
+
+config.@O@: config.c bind.keys.h
 	${LIBTOOL_MODE_COMPILE} ${CC} ${ALL_CFLAGS} \
 		-DVERSION=\"${VERSION}\" \
 		-DNS_LOCALSTATEDIR=\"${localstatedir}\" \
+		-DNS_SYSCONFDIR=\"${sysconfdir}\" \
 		-c ${srcdir}/config.c
 
 named@EXEEXT@: ${OBJS} ${UOBJS} ${DEPLIBS}
-	${LIBTOOL_MODE_LINK} ${PURIFY} ${CC} ${CFLAGS} ${LDFLAGS} -o $@ \
-	${OBJS} ${UOBJS} ${LIBS}
+	export MAKE_SYMTABLE="yes"; \
+	export BASEOBJS="${OBJS} ${UOBJS}"; \
+	${FINALBUILDCMD}
 
 lwresd@EXEEXT@: named@EXEEXT@
 	rm -f lwresd@EXEEXT@
@@ -133,7 +145,10 @@ docclean manclean maintainer-clean::
 clean distclean maintainer-clean::
 	rm -f ${TARGETS} ${OBJS}
 
-bind9.xsl.h: bind9.xsl convertxsl.pl
+maintainer-clean::
+	rm -f bind.keys.h
+
+bind9.xsl.h: bind9.xsl ${srcdir}/convertxsl.pl
 	${PERL} ${srcdir}/convertxsl.pl < ${srcdir}/bind9.xsl > bind9.xsl.h
 
 depend: bind9.xsl.h

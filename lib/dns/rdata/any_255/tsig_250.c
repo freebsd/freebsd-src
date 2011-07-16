@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: tsig_250.c,v 1.63 2007-06-19 23:47:17 tbox Exp $ */
+/* $Id: tsig_250.c,v 1.65 2009-12-04 22:06:37 tbox Exp $ */
 
 /* Reviewed: Thu Mar 16 13:39:43 PST 2000 by gson */
 
@@ -592,6 +592,11 @@ checknames_any_tsig(ARGS_CHECKNAMES) {
 	UNUSED(bad);
 
 	return (ISC_TRUE);
+}
+
+static inline int
+casecompare_any_tsig(ARGS_COMPARE) {
+	return (compare_any_tsig(rdata1, rdata2));
 }
 
 #endif	/* RDATA_ANY_255_TSIG_250_C */

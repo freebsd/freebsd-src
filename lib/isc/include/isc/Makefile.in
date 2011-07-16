@@ -13,7 +13,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: Makefile.in,v 1.64.12.2 2009-02-12 23:47:22 tbox Exp $
+# $Id: Makefile.in,v 1.68 2009-12-05 23:31:41 each Exp $
 
 srcdir =	@srcdir@
 VPATH =		@srcdir@
@@ -26,15 +26,15 @@ top_srcdir =	@top_srcdir@
 # machine generated.  The latter are handled specially in the
 # install target below.
 #
-HEADERS =	app.h assertions.h base64.h bitstring.h boolean.h buffer.h \
-		bufferlist.h commandline.h entropy.h error.h event.h \
+HEADERS =	app.h assertions.h base64.h bind9.h bitstring.h boolean.h \
+		buffer.h bufferlist.h commandline.h entropy.h error.h event.h \
 		eventclass.h file.h formatcheck.h fsaccess.h \
 		hash.h heap.h hex.h hmacmd5.h \
 		httpd.h \
 		interfaceiter.h @ISC_IPV6_H@ iterated_hash.h lang.h lex.h \
 		lfsr.h lib.h list.h log.h \
-		magic.h md5.h mem.h msgcat.h msgs.h \
-		mutexblock.h netaddr.h ondestroy.h os.h parseint.h \
+		magic.h md5.h mem.h msgcat.h msgs.h mutexblock.h \
+		namespace.h netaddr.h ondestroy.h os.h parseint.h \
 		print.h quota.h radix.h random.h ratelimiter.h \
 		refcount.h region.h resource.h \
 		result.h resultclass.h rwlock.h serial.h sha1.h sha2.h \
