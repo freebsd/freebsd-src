@@ -861,7 +861,7 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram,
 			}
 			if (nfsv4_opflag[op].modifyfs)
 				vn_start_write(savevp, &temp_mp, V_WAIT);
-			if (vn_lock(savevp, LK_EXCLUSIVE) == 0) {
+			if (NFSVOPLOCK(savevp, LK_EXCLUSIVE) == 0) {
 				VREF(vp);
 				VREF(savevp);
 				error = (*(nfsrv4_ops2[op]))(nd, isdgram,
@@ -878,7 +878,7 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram,
 					if (nfsv4_opflag[op].modifyfs)
 						vn_start_write(vp, &temp_mp,
 						    V_WAIT);
-					if (vn_lock(vp, nfsv4_opflag[op].lktype)
+					if (NFSVOPLOCK(vp, nfsv4_opflag[op].lktype)
 					    == 0)
 						VREF(vp);
 					else

@@ -2001,7 +2001,7 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
 		    supports_nfsv4acls == 0)) {
 			NFSCLRBIT_ATTRBIT(retbitp, NFSATTRBIT_ACL);
 		} else if (naclp != NULL) {
-			if (vn_lock(vp, LK_SHARED) == 0) {
+			if (NFSVOPLOCK(vp, LK_SHARED) == 0) {
 				error = VOP_ACCESSX(vp, VREAD_ACL, cred, p);
 				if (error == 0)
 					error = VOP_GETACL(vp, ACL_TYPE_NFS4,
