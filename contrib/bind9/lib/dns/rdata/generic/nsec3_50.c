@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: nsec3_50.c,v 1.4.48.2 2009-01-18 23:47:41 tbox Exp $ */
+/* $Id: nsec3_50.c,v 1.7 2009-12-04 21:09:34 marka Exp $ */
 
 /*
  * Copyright (C) 2004  Nominet, Ltd.
@@ -476,6 +476,11 @@ checknames_nsec3(ARGS_CHECKNAMES) {
 	UNUSED(bad);
 
 	return (ISC_TRUE);
+}
+
+static inline int
+casecompare_nsec3(ARGS_COMPARE) {
+	return (compare_nsec3(rdata1, rdata2));
 }
 
 #endif	/* RDATA_GENERIC_NSEC3_50_C */

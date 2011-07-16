@@ -1,4 +1,4 @@
-# Copyright (C) 2004, 2005, 2007, 2008  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004, 2005, 2007-2009  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 2000-2002  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -13,7 +13,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: Makefile.in,v 1.35 2008-11-07 02:28:49 marka Exp $
+# $Id: Makefile.in,v 1.42 2009-12-05 23:31:40 each Exp $
 
 srcdir =	@srcdir@
 VPATH =		@srcdir@
@@ -25,11 +25,12 @@ top_srcdir =	@top_srcdir@
 
 CINCLUDES =	${DNS_INCLUDES} ${ISC_INCLUDES}
 
-CDEFINES =	-DVERSION=\"${VERSION}\" 
+CDEFINES =	-DVERSION=\"${VERSION}\" @USE_PKCS11@
 CWARNINGS =
 
 DNSLIBS =	../../lib/dns/libdns.@A@ @DNS_CRYPTO_LIBS@
 ISCLIBS =	../../lib/isc/libisc.@A@
+ISCNOSYMLIBS =	../../lib/isc/libisc-nosymtbl.@A@
 
 DNSDEPLIBS =	../../lib/dns/libdns.@A@
 ISCDEPLIBS =	../../lib/isc/libisc.@A@
@@ -38,44 +39,56 @@ DEPLIBS =	${DNSDEPLIBS} ${ISCDEPLIBS}
 
 LIBS =		${DNSLIBS} ${ISCLIBS} @LIBS@
 
+NOSYMLIBS =	${DNSLIBS} ${ISCNOSYMLIBS} @LIBS@
+
 # Alphabetically
 TARGETS =	dnssec-keygen@EXEEXT@ dnssec-signzone@EXEEXT@ \
-		dnssec-keyfromlabel@EXEEXT@ dnssec-dsfromkey@EXEEXT@
+		dnssec-keyfromlabel@EXEEXT@ dnssec-dsfromkey@EXEEXT@ \
+		dnssec-revoke@EXEEXT@ dnssec-settime@EXEEXT@
 
 OBJS =		dnssectool.@O@
 
 SRCS =		dnssec-dsfromkey.c dnssec-keyfromlabel.c dnssec-keygen.c \
-		dnssec-signzone.c dnssectool.c
+		dnssec-revoke.c dnssec-settime.c dnssec-signzone.c dnssectool.c
 
 MANPAGES =	dnssec-dsfromkey.8 dnssec-keyfromlabel.8 dnssec-keygen.8 \
-		dnssec-signzone.8
+		dnssec-revoke.8 dnssec-settime.8 dnssec-signzone.8
 
 HTMLPAGES =	dnssec-dsfromkey.html dnssec-keyfromlabel.html \
-		dnssec-keygen.html dnssec-signzone.html 
+		dnssec-keygen.html dnssec-revoke.html \
+		dnssec-settime.html dnssec-signzone.html 
 
 MANOBJS =	${MANPAGES} ${HTMLPAGES}
 
 @BIND9_MAKE_RULES@
 
 dnssec-dsfromkey@EXEEXT@: dnssec-dsfromkey.@O@ ${OBJS} ${DEPLIBS}
-	${LIBTOOL_MODE_LINK} ${PURIFY} ${CC} ${CFLAGS} ${LDFLAGS} -o $@ \
-	dnssec-dsfromkey.@O@ ${OBJS} ${LIBS}
+	export BASEOBJS="dnssec-dsfromkey.@O@ ${OBJS}"; \
+	${FINALBUILDCMD}
 
 dnssec-keyfromlabel@EXEEXT@: dnssec-keyfromlabel.@O@ ${OBJS} ${DEPLIBS}
-	${LIBTOOL_MODE_LINK} ${PURIFY} ${CC} ${CFLAGS} ${LDFLAGS} -o $@ \
-	dnssec-keyfromlabel.@O@ ${OBJS} ${LIBS}
+	export BASEOBJS="dnssec-keyfromlabel.@O@ ${OBJS}"; \
+	${FINALBUILDCMD}
 
 dnssec-keygen@EXEEXT@: dnssec-keygen.@O@ ${OBJS} ${DEPLIBS}
-	${LIBTOOL_MODE_LINK} ${PURIFY} ${CC} ${CFLAGS} ${LDFLAGS} -o $@ \
-	dnssec-keygen.@O@ ${OBJS} ${LIBS}
+	export BASEOBJS="dnssec-keygen.@O@ ${OBJS}"; \
+	${FINALBUILDCMD}
 
 dnssec-signzone.@O@: dnssec-signzone.c
 	${LIBTOOL_MODE_COMPILE} ${CC} ${ALL_CFLAGS} -DVERSION=\"${VERSION}\" \
 		-c ${srcdir}/dnssec-signzone.c
 
 dnssec-signzone@EXEEXT@: dnssec-signzone.@O@ ${OBJS} ${DEPLIBS}
+	export BASEOBJS="dnssec-signzone.@O@ ${OBJS}"; \
+	${FINALBUILDCMD}
+
+dnssec-revoke@EXEEXT@: dnssec-revoke.@O@ ${OBJS} ${DEPLIBS}
 	${LIBTOOL_MODE_LINK} ${PURIFY} ${CC} ${CFLAGS} ${LDFLAGS} -o $@ \
-	dnssec-signzone.@O@ ${OBJS} ${LIBS}
+	dnssec-revoke.@O@ ${OBJS} ${LIBS}
+
+dnssec-settime@EXEEXT@: dnssec-settime.@O@ ${OBJS} ${DEPLIBS}
+	${LIBTOOL_MODE_LINK} ${PURIFY} ${CC} ${CFLAGS} ${LDFLAGS} -o $@ \
+	dnssec-settime.@O@ ${OBJS} ${LIBS}
 
 doc man:: ${MANOBJS}
 

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ncache.c,v 1.43.48.7.6.3 2011-06-21 20:13:22 each Exp $ */
+/* $Id: ncache.c,v 1.50.124.1.2.3 2011-06-21 20:15:47 each Exp $ */
 
 /*! \file */
 
@@ -35,7 +35,7 @@
 #define DNS_NCACHE_RDATA 20U
 
 /*
- * The format of an ncache rdata is a sequence of one or more records of
+ * The format of an ncache rdata is a sequence of zero or more records of
  * the following format:
  *
  *	owner name
@@ -223,42 +223,6 @@ dns_ncache_addoptout(dns_message_t *message, dns_db_t *cache,
 		return (result);
 
 	if (trust == 0xffff) {
-		/*
-		 * We didn't find any authority data from which to create a
-		 * negative cache rdataset.  In particular, we have no SOA.
-		 *
-		 * We trust that the caller wants negative caching, so this
-		 * means we have a "type 3 nxdomain" or "type 3 nodata"
-		 * response (see RFC2308 for details).
-		 *
-		 * We will now build a suitable negative cache rdataset that
-		 * will cause zero bytes to be emitted when converted to
-		 * wire format.
-		 */
-
-		/*
-		 * The ownername must exist, but it doesn't matter what value
-		 * it has.  We use the root name.
-		 */
-		dns_name_toregion(dns_rootname, &r);
-		result = isc_buffer_copyregion(&buffer, &r);
-		if (result != ISC_R_SUCCESS)
-			return (result);
-		/*
-		 * Copy the type and a zero rdata count to the buffer.
-		 */
-		isc_buffer_availableregion(&buffer, &r);
-		if (r.length < 5)
-			return (ISC_R_NOSPACE);
-		isc_buffer_putuint16(&buffer, 0);	/* type */
-		/*
-		 * RFC2308, section 5, says that negative answers without
-		 * SOAs should not be cached.
-		 */
-		ttl = 0;
-		/*
-		 * Set trust.
-		 */
 		if ((message->flags & DNS_MESSAGEFLAG_AA) != 0 &&
 		    message->counts[DNS_SECTION_ANSWER] == 0) {
 			/*
@@ -268,22 +232,7 @@ dns_ncache_addoptout(dns_message_t *message, dns_db_t *cache,
 			trust = dns_trust_authauthority;
 		} else
 			trust = dns_trust_additional;
-		isc_buffer_putuint8(&buffer, (unsigned char)trust); /* trust */
-		isc_buffer_putuint16(&buffer, 0);	/* count */
-
-		/*
-		 * Now add it to the cache.
-		 */
-		if (next >= DNS_NCACHE_RDATA)
-			return (ISC_R_NOSPACE);
-		dns_rdata_init(&rdata[next]);
-		isc_buffer_remainingregion(&buffer, &r);
-		rdata[next].data = r.base;
-		rdata[next].length = r.length;
-		rdata[next].rdclass = ncrdatalist.rdclass;
-		rdata[next].type = 0;
-		rdata[next].flags = 0;
-		ISC_LIST_APPEND(ncrdatalist.rdata, &rdata[next], link);
+		ttl = 0;
 	}
 
 	INSIST(trust != 0xffff);

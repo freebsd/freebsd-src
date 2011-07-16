@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007, 2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2010  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: nslookup.c,v 1.117.334.5 2009-10-20 01:11:22 marka Exp $ */
+/* $Id: nslookup.c,v 1.127 2010-11-17 23:47:08 tbox Exp $ */
 
 #include <config.h>
 
@@ -539,22 +539,6 @@ static void
 safecpy(char *dest, char *src, int size) {
 	strncpy(dest, src, size);
 	dest[size-1] = 0;
-}
-
-static isc_result_t
-parse_uint(isc_uint32_t *uip, const char *value, isc_uint32_t max,
-	   const char *desc) {
-	isc_uint32_t n;
-	isc_result_t result = isc_parse_uint32(&n, value, 10);
-	if (result == ISC_R_SUCCESS && n > max)
-		result = ISC_R_RANGE;
-	if (result != ISC_R_SUCCESS) {
-		printf("invalid %s '%s': %s\n", desc,
-		       value, isc_result_totext(result));
-		return result;
-	}
-	*uip = n;
-	return (ISC_R_SUCCESS);
 }
 
 static void

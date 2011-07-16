@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007-2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007-2009, 2011  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: db.c,v 1.88.50.2 2009-06-23 00:19:34 tbox Exp $ */
+/* $Id: db.c,v 1.97 2011-01-13 04:59:25 tbox Exp $ */
 
 /*! \file */
 
@@ -34,10 +34,12 @@
 
 #include <dns/callbacks.h>
 #include <dns/db.h>
+#include <dns/dbiterator.h>
 #include <dns/log.h>
 #include <dns/master.h>
 #include <dns/rdata.h>
 #include <dns/rdataset.h>
+#include <dns/rdatasetiter.h>
 #include <dns/result.h>
 
 /***
@@ -61,14 +63,18 @@ struct dns_dbimplementation {
  */
 
 #include "rbtdb.h"
+#ifdef BIND9
 #include "rbtdb64.h"
+#endif
 
 static ISC_LIST(dns_dbimplementation_t) implementations;
 static isc_rwlock_t implock;
 static isc_once_t once = ISC_ONCE_INIT;
 
 static dns_dbimplementation_t rbtimp;
+#ifdef BIND9
 static dns_dbimplementation_t rbt64imp;
+#endif
 
 static void
 initialize(void) {
@@ -80,15 +86,19 @@ initialize(void) {
 	rbtimp.driverarg = NULL;
 	ISC_LINK_INIT(&rbtimp, link);
 
+#ifdef BIND9
 	rbt64imp.name = "rbt64";
 	rbt64imp.create = dns_rbtdb64_create;
 	rbt64imp.mctx = NULL;
 	rbt64imp.driverarg = NULL;
 	ISC_LINK_INIT(&rbt64imp, link);
+#endif
 
 	ISC_LIST_INIT(implementations);
 	ISC_LIST_APPEND(implementations, &rbtimp, link);
+#ifdef BIND9
 	ISC_LIST_APPEND(implementations, &rbt64imp, link);
+#endif
 }
 
 static inline dns_dbimplementation_t *
@@ -290,6 +300,7 @@ dns_db_class(dns_db_t *db) {
 	return (db->rdclass);
 }
 
+#ifdef BIND9
 isc_result_t
 dns_db_beginload(dns_db_t *db, dns_addrdatasetfunc_t *addp,
 		 dns_dbload_t **dbloadp) {
@@ -318,14 +329,19 @@ dns_db_endload(dns_db_t *db, dns_dbload_t **dbloadp) {
 
 isc_result_t
 dns_db_load(dns_db_t *db, const char *filename) {
-	return (dns_db_load2(db, filename, dns_masterformat_text));
+	return (dns_db_load3(db, filename, dns_masterformat_text, 0));
 }
 
 isc_result_t
 dns_db_load2(dns_db_t *db, const char *filename, dns_masterformat_t format) {
+	return (dns_db_load3(db, filename, format, 0));
+}
+
+isc_result_t
+dns_db_load3(dns_db_t *db, const char *filename, dns_masterformat_t format,
+	     unsigned int options) {
 	isc_result_t result, eresult;
 	dns_rdatacallbacks_t callbacks;
-	unsigned int options = 0;
 
 	/*
 	 * Load master file 'filename' into 'db'.
@@ -376,6 +392,7 @@ dns_db_dump2(dns_db_t *db, dns_dbversion_t *version, const char *filename,
 
 	return ((db->methods->dump)(db, version, filename, masterformat));
 }
+#endif /* BIND9 */
 
 /***
  *** Version Methods
@@ -921,8 +938,27 @@ dns_db_getsigningtime(dns_db_t *db, dns_rdataset_t *rdataset, dns_name_t *name)
 }
 
 void
-dns_db_resigned(dns_db_t *db, dns_rdataset_t *rdataset, dns_dbversion_t *version)
+dns_db_resigned(dns_db_t *db, dns_rdataset_t *rdataset,
+		dns_dbversion_t *version)
 {
 	if (db->methods->resigned != NULL)
 		(db->methods->resigned)(db, rdataset, version);
+}
+
+void
+dns_db_rpz_enabled(dns_db_t *db, dns_rpz_st_t *st)
+{
+	if (db->methods->rpz_enabled != NULL)
+		(db->methods->rpz_enabled)(db, st);
+}
+
+isc_result_t
+dns_db_rpz_findips(dns_rpz_zone_t *rpz, dns_rpz_type_t rpz_type,
+		   dns_zone_t *zone, dns_db_t *db, dns_dbversion_t *version,
+		   dns_rdataset_t *ardataset, dns_rpz_st_t *st)
+{
+	if (db->methods->rpz_findips == NULL)
+		return (ISC_R_NOTIMPLEMENTED);
+	return ((db->methods->rpz_findips)(rpz, rpz_type, zone, db, version,
+					   ardataset, st));
 }
