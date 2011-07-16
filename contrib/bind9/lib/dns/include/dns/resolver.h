@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2010  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2011  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: resolver.h,v 1.60.56.5 2010-02-25 10:56:41 tbox Exp $ */
+/* $Id: resolver.h,v 1.67.86.1.2.1 2011-06-02 23:47:36 tbox Exp $ */
 
 #ifndef DNS_RESOLVER_H
 #define DNS_RESOLVER_H 1
@@ -81,6 +81,7 @@ typedef struct dns_fetchevent {
 	dns_fixedname_t			foundname;
 	isc_sockaddr_t *		client;
 	dns_messageid_t			id;
+	isc_result_t			vresult;
 } dns_fetchevent_t;
 
 /*
@@ -179,7 +180,7 @@ dns_resolver_freeze(dns_resolver_t *res);
  *
  * Requires:
  *
- *\li	'res' is a valid, unfrozen resolver.
+ *\li	'res' is a valid resolver.
  *
  * Ensures:
  *
@@ -490,6 +491,27 @@ dns_resolver_setmustbesecure(dns_resolver_t *resolver, dns_name_t *name,
 
 isc_boolean_t
 dns_resolver_getmustbesecure(dns_resolver_t *resolver, dns_name_t *name);
+
+
+void
+dns_resolver_settimeout(dns_resolver_t *resolver, unsigned int seconds);
+/*%<
+ * Set the length of time the resolver will work on a query, in seconds.
+ *
+ * If timeout is 0, the default timeout will be applied.
+ *
+ * Requires:
+ * \li  resolver to be valid.
+ */
+
+unsigned int
+dns_resolver_gettimeout(dns_resolver_t *resolver);
+/*%<
+ * Get the current length of time the resolver will work on a query, in seconds.
+ *
+ * Requires:
+ * \li  resolver to be valid.
+ */
 
 void
 dns_resolver_setclientsperquery(dns_resolver_t *resolver,

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: byaddr.c,v 1.39 2007-06-19 23:47:16 tbox Exp $ */
+/* $Id: byaddr.c,v 1.41 2009-09-02 23:48:02 tbox Exp $ */
 
 /*! \file */
 
@@ -42,25 +42,6 @@
 /*
  * XXXRTH  We could use a static event...
  */
-
-struct dns_byaddr {
-	/* Unlocked. */
-	unsigned int		magic;
-	isc_mem_t *		mctx;
-	isc_mutex_t		lock;
-	dns_fixedname_t		name;
-	/* Locked by lock. */
-	unsigned int		options;
-	dns_lookup_t *		lookup;
-	isc_task_t *		task;
-	dns_byaddrevent_t *	event;
-	isc_boolean_t		canceled;
-};
-
-#define BYADDR_MAGIC			ISC_MAGIC('B', 'y', 'A', 'd')
-#define VALID_BYADDR(b)			ISC_MAGIC_VALID(b, BYADDR_MAGIC)
-
-#define MAX_RESTARTS 16
 
 static char hex_digits[] = {
 	'0', '1', '2', '3', '4', '5', '6', '7',
@@ -125,9 +106,28 @@ dns_byaddr_createptrname2(isc_netaddr_t *address, unsigned int options,
 	len = (unsigned int)strlen(textname);
 	isc_buffer_init(&buffer, textname, len);
 	isc_buffer_add(&buffer, len);
-	return (dns_name_fromtext(name, &buffer, dns_rootname,
-				  ISC_FALSE, NULL));
+	return (dns_name_fromtext(name, &buffer, dns_rootname, 0, NULL));
 }
+
+#ifdef BIND9
+struct dns_byaddr {
+	/* Unlocked. */
+	unsigned int		magic;
+	isc_mem_t *		mctx;
+	isc_mutex_t		lock;
+	dns_fixedname_t		name;
+	/* Locked by lock. */
+	unsigned int		options;
+	dns_lookup_t *		lookup;
+	isc_task_t *		task;
+	dns_byaddrevent_t *	event;
+	isc_boolean_t		canceled;
+};
+
+#define BYADDR_MAGIC			ISC_MAGIC('B', 'y', 'A', 'd')
+#define VALID_BYADDR(b)			ISC_MAGIC_VALID(b, BYADDR_MAGIC)
+
+#define MAX_RESTARTS 16
 
 static inline isc_result_t
 copy_ptr_targets(dns_byaddr_t *byaddr, dns_rdataset_t *rdataset) {
@@ -314,3 +314,4 @@ dns_byaddr_destroy(dns_byaddr_t **byaddrp) {
 
 	*byaddrp = NULL;
 }
+#endif /* BIND9 */

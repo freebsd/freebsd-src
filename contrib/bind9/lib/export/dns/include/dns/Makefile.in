@@ -1,0 +1,56 @@
+# Copyright (C) 2009  Internet Systems Consortium, Inc. ("ISC")
+#
+# Permission to use, copy, modify, and/or distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+# REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+# AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+# INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+# LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+# OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+# PERFORMANCE OF THIS SOFTWARE.
+
+# $Id: Makefile.in,v 1.4 2009-09-18 07:18:04 jinmei Exp $
+
+srcdir =	@srcdir@
+top_srcdir =	@top_srcdir@
+
+@BIND9_VERSION@
+
+HEADERS =	acl.h adb.h byaddr.h \
+		cache.h callbacks.h cert.h client.h compress.h \
+		db.h dbiterator.h diff.h dispatch.h dlz.h dnssec.h \
+		ds.h events.h fixedname.h ecdb.h \
+		forward.h iptable.h \
+		keytable.h keyvalues.h \
+		lib.h log.h \
+		master.h masterdump.h message.h \
+		name.h ncache.h nsec.h nsec3.h \
+		peer.h portlist.h \
+		rbt.h rcode.h rdata.h rdataclass.h \
+		rdatalist.h rdataset.h rdatasetiter.h rdataslab.h rdatatype.h \
+		request.h resolver.h result.h \
+		secalg.h secproto.h soa.h stats.h \
+		tcpmsg.h time.h tsec.h tsig.h ttl.h types.h \
+		validator.h version.h view.h
+
+GENHEADERS =	enumclass.h enumtype.h rdatastruct.h
+
+SUBDIRS =
+TARGETS =
+
+@BIND9_MAKE_RULES@
+
+installdirs:
+	$(SHELL) ${top_srcdir}/mkinstalldirs ${DESTDIR}${export_includedir}/dns
+
+install:: installdirs
+	for i in ${HEADERS}; do \
+		${INSTALL_DATA} ${top_srcdir}/lib/dns/include/dns/$$i \
+		${DESTDIR}${export_includedir}/dns ; \
+	done
+	for i in ${GENHEADERS}; do \
+		${INSTALL_DATA} $$i ${DESTDIR}${export_includedir}/dns ; \
+	done

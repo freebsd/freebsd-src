@@ -13,18 +13,18 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: dnssec-signzone.8,v 1.47.44.8 2009-11-07 01:56:11 tbox Exp $
+.\" $Id: dnssec-signzone.8,v 1.59 2009-12-04 01:13:44 tbox Exp $
 .\"
 .hy 0
 .ad l
 .\"     Title: dnssec\-signzone
 .\"    Author: 
 .\" Generator: DocBook XSL Stylesheets v1.71.1 <http://docbook.sf.net/>
-.\"      Date: June 08, 2009
+.\"      Date: June 05, 2009
 .\"    Manual: BIND9
 .\"    Source: BIND9
 .\"
-.TH "DNSSEC\-SIGNZONE" "8" "June 08, 2009" "BIND9" "BIND9"
+.TH "DNSSEC\-SIGNZONE" "8" "June 05, 2009" "BIND9" "BIND9"
 .\" disable hyphenation
 .nh
 .\" disable justification (adjust text to left margin only)
@@ -33,15 +33,13 @@
 dnssec\-signzone \- DNSSEC zone signing tool
 .SH "SYNOPSIS"
 .HP 16
-\fBdnssec\-signzone\fR [\fB\-a\fR] [\fB\-c\ \fR\fB\fIclass\fR\fR] [\fB\-d\ \fR\fB\fIdirectory\fR\fR] [\fB\-e\ \fR\fB\fIend\-time\fR\fR] [\fB\-f\ \fR\fB\fIoutput\-file\fR\fR] [\fB\-g\fR] [\fB\-h\fR] [\fB\-k\ \fR\fB\fIkey\fR\fR] [\fB\-l\ \fR\fB\fIdomain\fR\fR] [\fB\-i\ \fR\fB\fIinterval\fR\fR] [\fB\-I\ \fR\fB\fIinput\-format\fR\fR] [\fB\-j\ \fR\fB\fIjitter\fR\fR] [\fB\-N\ \fR\fB\fIsoa\-serial\-format\fR\fR] [\fB\-o\ \fR\fB\fIorigin\fR\fR] [\fB\-O\ \fR\fB\fIoutput\-format\fR\fR] [\fB\-p\fR] [\fB\-P\fR] [\fB\-r\ \fR\fB\fIrandomdev\fR\fR] [\fB\-s\ \fR\fB\fIstart\-time\fR\fR] [\fB\-t\fR] [\fB\-v\ \fR\fB\fIlevel\fR\fR] [\fB\-z\fR] [\fB\-3\ \fR\fB\fIsalt\fR\fR] [\fB\-H\ \fR\fB\fIiterations\fR\fR] [\fB\-A\fR] {zonefile} [key...]
+\fBdnssec\-signzone\fR [\fB\-a\fR] [\fB\-c\ \fR\fB\fIclass\fR\fR] [\fB\-d\ \fR\fB\fIdirectory\fR\fR] [\fB\-E\ \fR\fB\fIengine\fR\fR] [\fB\-e\ \fR\fB\fIend\-time\fR\fR] [\fB\-f\ \fR\fB\fIoutput\-file\fR\fR] [\fB\-g\fR] [\fB\-h\fR] [\fB\-K\ \fR\fB\fIdirectory\fR\fR] [\fB\-k\ \fR\fB\fIkey\fR\fR] [\fB\-l\ \fR\fB\fIdomain\fR\fR] [\fB\-i\ \fR\fB\fIinterval\fR\fR] [\fB\-I\ \fR\fB\fIinput\-format\fR\fR] [\fB\-j\ \fR\fB\fIjitter\fR\fR] [\fB\-N\ \fR\fB\fIsoa\-serial\-format\fR\fR] [\fB\-o\ \fR\fB\fIorigin\fR\fR] [\fB\-O\ \fR\fB\fIoutput\-format\fR\fR] [\fB\-p\fR] [\fB\-P\fR] [\fB\-r\ \fR\fB\fIrandomdev\fR\fR] [\fB\-S\fR] [\fB\-s\ \fR\fB\fIstart\-time\fR\fR] [\fB\-T\ \fR\fB\fIttl\fR\fR] [\fB\-t\fR] [\fB\-u\fR] [\fB\-v\ \fR\fB\fIlevel\fR\fR] [\fB\-x\fR] [\fB\-z\fR] [\fB\-3\ \fR\fB\fIsalt\fR\fR] [\fB\-H\ \fR\fB\fIiterations\fR\fR] [\fB\-A\fR] {zonefile} [key...]
 .SH "DESCRIPTION"
 .PP
 \fBdnssec\-signzone\fR
-signs a zone. It generates NSEC and RRSIG records and produces a signed version of the zone. It also generates a
-\fIkeyset\-\fR
-file containing the key\-signing keys for the zone, and if signing a zone which contains delegations, it can optionally generate DS records for the child zones from their
-\fIkeyset\-\fR
-files.
+signs a zone. It generates NSEC and RRSIG records and produces a signed version of the zone. The security status of delegations from the signed zone (that is, whether the child zones are secure or not) is determined by the presence or absence of a
+\fIkeyset\fR
+file for each child zone.
 .SH "OPTIONS"
 .PP
 \-a
@@ -54,6 +52,45 @@ Verify all generated signatures.
 Specifies the DNS class of the zone.
 .RE
 .PP
+\-C
+.RS 4
+Compatibility mode: Generate a
+\fIkeyset\-\fR\fI\fIzonename\fR\fR
+file in addition to
+\fIdsset\-\fR\fI\fIzonename\fR\fR
+when signing a zone, for use by older versions of
+\fBdnssec\-signzone\fR.
+.RE
+.PP
+\-d \fIdirectory\fR
+.RS 4
+Look for
+\fIdsset\-\fR
+or
+\fIkeyset\-\fR
+files in
+\fBdirectory\fR.
+.RE
+.PP
+\-E \fIengine\fR
+.RS 4
+Uses a crypto hardware (OpenSSL engine) for the crypto operations it supports, for instance signing with private keys from a secure key store. When compiled with PKCS#11 support it defaults to pkcs11; the empty name resets it to no engine.
+.RE
+.PP
+\-g
+.RS 4
+Generate DS records for child zones from
+\fIdsset\-\fR
+or
+\fIkeyset\-\fR
+file. Existing DS records will be removed.
+.RE
+.PP
+\-K \fIdirectory\fR
+.RS 4
+Key repository: Specify a directory to search for DNSSEC keys. If not specified, defaults to the current directory.
+.RE
+.PP
 \-k \fIkey\fR
 .RS 4
 Treat specified key as a key signing key ignoring any key flags. This option may be specified multiple times.
@@ -62,22 +99,6 @@ Treat specified key as a key signing key ignoring any key flags. This option may
 \-l \fIdomain\fR
 .RS 4
 Generate a DLV set in addition to the key (DNSKEY) and DS sets. The domain is appended to the name of the records.
-.RE
-.PP
-\-d \fIdirectory\fR
-.RS 4
-Look for
-\fIkeyset\fR
-files in
-\fBdirectory\fR
-as the directory
-.RE
-.PP
-\-g
-.RS 4
-If the zone contains any delegations, and there are
-\fIkeyset\-\fR
-files for any of the child zones, then DS records for the child zones will be generated from the keys in those files. Existing DS records will be removed.
 .RE
 .PP
 \-s \fIstart\-time\fR
@@ -93,6 +114,9 @@ Specify the date and time when the generated RRSIG records expire. As with
 \fBstart\-time\fR, an absolute time is indicated in YYYYMMDDHHMMSS notation. A time relative to the start time is indicated with +N, which is N seconds from the start time. A time relative to the current time is indicated with now+N. If no
 \fBend\-time\fR
 is specified, 30 days from the start time is used as a default.
+\fBend\-time\fR
+must be later than
+\fBstart\-time\fR.
 .RE
 .PP
 \-f \fIoutput\-file\fR
@@ -208,9 +232,53 @@ specifies the name of a character device or file containing random data to be us
 indicates that keyboard input should be used.
 .RE
 .PP
+\-S
+.RS 4
+Smart signing: Instructs
+\fBdnssec\-signzone\fR
+to search the key repository for keys that match the zone being signed, and to include them in the zone if appropriate.
+.sp
+When a key is found, its timing metadata is examined to determine how it should be used, according to the following rules. Each successive rule takes priority over the prior ones:
+.RS 4
+.PP
+.RS 4
+If no timing metadata has been set for the key, the key is published in the zone and used to sign the zone.
+.RE
+.PP
+.RS 4
+If the key's publication date is set and is in the past, the key is published in the zone.
+.RE
+.PP
+.RS 4
+If the key's activation date is set and in the past, the key is published (regardless of publication date) and used to sign the zone.
+.RE
+.PP
+.RS 4
+If the key's revocation date is set and in the past, and the key is published, then the key is revoked, and the revoked key is used to sign the zone.
+.RE
+.PP
+.RS 4
+If either of the key's unpublication or deletion dates are set and in the past, the key is NOT published or used to sign the zone, regardless of any other metadata.
+.RE
+.RE
+.RE
+.PP
+\-T \fIttl\fR
+.RS 4
+Specifies the TTL to be used for new DNSKEY records imported into the zone from the key repository. If not specified, the default is the minimum TTL value from the zone's SOA record. This option is ignored when signing without
+\fB\-S\fR, since DNSKEY records are not imported from the key repository in that case. It is also ignored if there are any pre\-existing DNSKEY records at the zone apex, in which case new records' TTL values will be set to match them.
+.RE
+.PP
 \-t
 .RS 4
 Print statistics at completion.
+.RE
+.PP
+\-u
+.RS 4
+Update NSEC/NSEC3 chain when re\-signing a previously signed zone. With this option, a zone signed with NSEC can be switched to NSEC3, or a zone signed with NSEC3 can be switch to NSEC or to NSEC3 with different parameters. Without this option,
+\fBdnssec\-signzone\fR
+will retain the existing chain when re\-signing.
 .RE
 .PP
 \-v \fIlevel\fR
@@ -218,24 +286,40 @@ Print statistics at completion.
 Sets the debugging level.
 .RE
 .PP
+\-x
+.RS 4
+Only sign the DNSKEY RRset with key\-signing keys, and omit signatures from zone\-signing keys. (This is similar to the
+\fBdnssec\-dnskey\-kskonly yes;\fR
+zone option in
+\fBnamed\fR.)
+.RE
+.PP
 \-z
 .RS 4
-Ignore KSK flag on key when determining what to sign.
+Ignore KSK flag on key when determining what to sign. This causes KSK\-flagged keys to sign all records, not just the DNSKEY RRset. (This is similar to the
+\fBupdate\-check\-ksk no;\fR
+zone option in
+\fBnamed\fR.)
 .RE
 .PP
 \-3 \fIsalt\fR
 .RS 4
-Generate a NSEC3 chain with the given hex encoded salt. A dash (\fIsalt\fR) can be used to indicate that no salt is to be used when generating the NSEC3 chain.
+Generate an NSEC3 chain with the given hex encoded salt. A dash (\fIsalt\fR) can be used to indicate that no salt is to be used when generating the NSEC3 chain.
 .RE
 .PP
 \-H \fIiterations\fR
 .RS 4
-When generating a NSEC3 chain use this many interations. The default is 100.
+When generating an NSEC3 chain, use this many interations. The default is 10.
 .RE
 .PP
 \-A
 .RS 4
-When generating a NSEC3 chain set the OPTOUT flag on all NSEC3 records and do not generate NSEC3 records for insecure delegations.
+When generating an NSEC3 chain set the OPTOUT flag on all NSEC3 records and do not generate NSEC3 records for insecure delegations.
+.sp
+Using this option twice (i.e.,
+\fB\-AA\fR) turns the OPTOUT flag off for all records. This is useful when using the
+\fB\-u\fR
+option to modify an NSEC3 chain which previously had OPTOUT set.
 .RE
 .PP
 zonefile
@@ -253,9 +337,11 @@ The following command signs the
 \fBexample.com\fR
 zone with the DSA key generated by
 \fBdnssec\-keygen\fR
-(Kexample.com.+003+17247). The zone's keys must be in the master file (\fIdb.example.com\fR). This invocation looks for
-\fIkeyset\fR
-files, in the current directory, so that DS records can be generated from them (\fB\-g\fR).
+(Kexample.com.+003+17247). Because the
+\fB\-S\fR
+option is not being used, the zone's keys must be in the master file (\fIdb.example.com\fR). This invocation looks for
+\fIdsset\fR
+files, in the current directory, so that DS records can be imported from them (\fB\-g\fR).
 .sp
 .RS 4
 .nf
@@ -283,18 +369,6 @@ db.example.com.signed
 %
 .fi
 .RE
-.SH "KNOWN BUGS"
-.PP
-\fBdnssec\-signzone\fR
-was designed so that it could sign a zone partially, using only a subset of the DNSSEC keys needed to produce a fully\-signed zone. This permits a zone administrator, for example, to sign a zone with one key on one machine, move the resulting partially\-signed zone to a second machine, and sign it again with a second key.
-.PP
-An unfortunate side\-effect of this flexibility is that
-\fBdnssec\-signzone\fR
-does not check to make sure it's signing a zone with any valid keys at all. An attempt to sign a zone without any keys will appear to succeed, producing a "signed" zone with no signatures. There is no warning issued when a zone is not fully signed.
-.PP
-This will be corrected in a future release. In the meantime, ISC recommends examining the output of
-\fBdnssec\-signzone\fR
-to confirm that the zone is properly signed by all keys before using it.
 .SH "SEE ALSO"
 .PP
 \fBdnssec\-keygen\fR(8),

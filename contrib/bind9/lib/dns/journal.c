@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: journal.c,v 1.103.48.8 2010-11-17 23:45:45 tbox Exp $ */
+/* $Id: journal.c,v 1.112 2010-11-17 23:47:08 tbox Exp $ */
 
 #include <config.h>
 
@@ -562,11 +562,9 @@ journal_open(isc_mem_t *mctx, const char *filename, isc_boolean_t write,
 
 	if (result == ISC_R_FILENOTFOUND) {
 		if (create) {
-			isc_log_write(JOURNAL_COMMON_LOGARGS,
-				      ISC_LOG_INFO,
+			isc_log_write(JOURNAL_COMMON_LOGARGS, ISC_LOG_DEBUG(1),
 				      "journal file %s does not exist, "
-				      "creating it",
-				      j->filename);
+				      "creating it", j->filename);
 			CHECK(journal_file_create(mctx, filename));
 			/*
 			 * Retry.
