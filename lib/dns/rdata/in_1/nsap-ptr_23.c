@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: nsap-ptr_23.c,v 1.38 2007-06-19 23:47:17 tbox Exp $ */
+/* $Id: nsap-ptr_23.c,v 1.40 2009-12-04 22:06:37 tbox Exp $ */
 
 /* Reviewed: Fri Mar 17 10:16:02 PST 2000 by gson */
 
@@ -73,7 +73,7 @@ totext_in_nsap_ptr(ARGS_TOTEXT) {
 
 static inline isc_result_t
 fromwire_in_nsap_ptr(ARGS_FROMWIRE) {
-        dns_name_t name;
+	dns_name_t name;
 
 	REQUIRE(type == 23);
 	REQUIRE(rdclass == 1);
@@ -83,8 +83,8 @@ fromwire_in_nsap_ptr(ARGS_FROMWIRE) {
 
 	dns_decompress_setmethods(dctx, DNS_COMPRESS_NONE);
 
-        dns_name_init(&name, NULL);
-        return (dns_name_fromwire(&name, source, dctx, options, target));
+	dns_name_init(&name, NULL);
+	return (dns_name_fromwire(&name, source, dctx, options, target));
 }
 
 static inline isc_result_t
@@ -240,6 +240,11 @@ checknames_in_nsap_ptr(ARGS_CHECKNAMES) {
 	UNUSED(bad);
 
 	return (ISC_TRUE);
+}
+
+static inline int
+casecompare_in_nsap_ptr(ARGS_COMPARE) {
+	return (compare_in_nsap_ptr(rdata1, rdata2));
 }
 
 #endif	/* RDATA_IN_1_NSAP_PTR_23_C */

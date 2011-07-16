@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2009, 2010  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2001-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: control.h,v 1.25 2007-06-19 23:46:59 tbox Exp $ */
+/* $Id: control.h,v 1.31 2010-08-16 22:21:06 marka Exp $ */
 
 #ifndef NAMED_CONTROL_H
 #define NAMED_CONTROL_H 1
@@ -42,6 +42,7 @@
 #define NS_COMMAND_DUMPSTATS	"stats"
 #define NS_COMMAND_QUERYLOG	"querylog"
 #define NS_COMMAND_DUMPDB	"dumpdb"
+#define NS_COMMAND_SECROOTS	"secroots"
 #define NS_COMMAND_TRACE	"trace"
 #define NS_COMMAND_NOTRACE	"notrace"
 #define NS_COMMAND_FLUSH	"flush"
@@ -57,6 +58,10 @@
 #define NS_COMMAND_NULL		"null"
 #define NS_COMMAND_NOTIFY	"notify"
 #define NS_COMMAND_VALIDATION	"validation"
+#define NS_COMMAND_SIGN 	"sign"
+#define NS_COMMAND_LOADKEYS 	"loadkeys"
+#define NS_COMMAND_ADDZONE	"addzone"
+#define NS_COMMAND_DELZONE	"delzone"
 
 isc_result_t
 ns_controls_create(ns_server_t *server, ns_controls_t **ctrlsp);

@@ -13,18 +13,18 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: nsupdate.1,v 1.3.48.4 2010-07-10 02:06:17 tbox Exp $
+.\" $Id: nsupdate.1,v 1.13 2010-07-10 01:14:19 tbox Exp $
 .\"
 .hy 0
 .ad l
 .\"     Title: nsupdate
 .\"    Author: 
 .\" Generator: DocBook XSL Stylesheets v1.71.1 <http://docbook.sf.net/>
-.\"      Date: Jun 30, 2000
+.\"      Date: Aug 25, 2009
 .\"    Manual: BIND9
 .\"    Source: BIND9
 .\"
-.TH "NSUPDATE" "1" "Jun 30, 2000" "BIND9" "BIND9"
+.TH "NSUPDATE" "1" "Aug 25, 2009" "BIND9" "BIND9"
 .\" disable hyphenation
 .nh
 .\" disable justification (adjust text to left margin only)
@@ -33,11 +33,11 @@
 nsupdate \- Dynamic DNS update utility
 .SH "SYNOPSIS"
 .HP 9
-\fBnsupdate\fR [\fB\-d\fR] [\fB\-D\fR] [[\fB\-g\fR] | [\fB\-o\fR] | [\fB\-y\ \fR\fB\fI[hmac:]\fR\fIkeyname:secret\fR\fR] | [\fB\-k\ \fR\fB\fIkeyfile\fR\fR]] [\fB\-t\ \fR\fB\fItimeout\fR\fR] [\fB\-u\ \fR\fB\fIudptimeout\fR\fR] [\fB\-r\ \fR\fB\fIudpretries\fR\fR] [\fB\-R\ \fR\fB\fIrandomdev\fR\fR] [\fB\-v\fR] [filename]
+\fBnsupdate\fR [\fB\-d\fR] [\fB\-D\fR] [[\fB\-g\fR] | [\fB\-o\fR] | [\fB\-l\fR] | [\fB\-y\ \fR\fB\fI[hmac:]\fR\fIkeyname:secret\fR\fR] | [\fB\-k\ \fR\fB\fIkeyfile\fR\fR]] [\fB\-t\ \fR\fB\fItimeout\fR\fR] [\fB\-u\ \fR\fB\fIudptimeout\fR\fR] [\fB\-r\ \fR\fB\fIudpretries\fR\fR] [\fB\-R\ \fR\fB\fIrandomdev\fR\fR] [\fB\-v\fR] [filename]
 .SH "DESCRIPTION"
 .PP
 \fBnsupdate\fR
-is used to submit Dynamic DNS Update requests as defined in RFC2136 to a name server. This allows resource records to be added or removed from a zone without manually editing the zone file. A single update request can contain requests to add or remove more than one resource record.
+is used to submit Dynamic DNS Update requests as defined in RFC 2136 to a name server. This allows resource records to be added or removed from a zone without manually editing the zone file. A single update request can contain requests to add or remove more than one resource record.
 .PP
 Zones that are under dynamic control via
 \fBnsupdate\fR
@@ -60,7 +60,11 @@ option makes
 report additional debugging information to
 \fB\-d\fR.
 .PP
-Transaction signatures can be used to authenticate the Dynamic DNS updates. These use the TSIG resource record type described in RFC2845 or the SIG(0) record described in RFC3535 and RFC2931 or GSS\-TSIG as described in RFC3645. TSIG relies on a shared secret that should only be known to
+The
+\fB\-L\fR
+option with an integer argument of zero or higher sets the logging debug level. If zero, logging is disabled.
+.PP
+Transaction signatures can be used to authenticate the Dynamic DNS updates. These use the TSIG resource record type described in RFC 2845 or the SIG(0) record described in RFC 2535 and RFC 2931 or GSS\-TSIG as described in RFC 3645. TSIG relies on a shared secret that should only be known to
 \fBnsupdate\fR
 and the name server. Currently, the only supported encryption algorithm for TSIG is HMAC\-MD5, which is defined in RFC 2104. Once other algorithms are defined for TSIG, applications will need to ensure they select the appropriate algorithm as well as the key when authenticating each other. For instance, suitable
 \fBkey\fR
@@ -71,22 +75,22 @@ statements would be added to
 so that the name server can associate the appropriate secret key and algorithm with the IP address of the client application that will be using TSIG authentication. SIG(0) uses public key cryptography. To use a SIG(0) key, the public key must be stored in a KEY record in a zone served by the name server.
 \fBnsupdate\fR
 does not read
-\fI/etc/named.conf\fR. GSS\-TSIG uses Kerberos credentials.
+\fI/etc/named.conf\fR.
+.PP
+GSS\-TSIG uses Kerberos credentials. Standard GSS\-TSIG mode is switched on with the
+\fB\-g\fR
+flag. A non\-standards\-compliant variant of GSS\-TSIG used by Windows 2000 can be switched on with the
+\fB\-o\fR
+flag.
 .PP
 \fBnsupdate\fR
 uses the
 \fB\-y\fR
 or
 \fB\-k\fR
-option to provide the shared secret needed to generate a TSIG record for authenticating Dynamic DNS update requests, default type HMAC\-MD5. These options are mutually exclusive. With the
-\fB\-k\fR
-option,
-\fBnsupdate\fR
-reads the shared secret from the file
-\fIkeyfile\fR, whose name is of the form
-\fIK{name}.+157.+{random}.private\fR. For historical reasons, the file
-\fIK{name}.+157.+{random}.key\fR
-must also be present. When the
+option to provide the shared secret needed to generate a TSIG record for authenticating Dynamic DNS update requests, default type HMAC\-MD5. These options are mutually exclusive.
+.PP
+When the
 \fB\-y\fR
 option is used, a signature is generated from
 [\fIhmac:\fR]\fIkeyname:secret.\fR
@@ -99,17 +103,37 @@ option is discouraged because the shared secret is supplied as a command line ar
 \fBps\fR(1)
 or in a history file maintained by the user's shell.
 .PP
-The
+With the
+\fB\-k\fR
+option,
+\fBnsupdate\fR
+reads the shared secret from the file
+\fIkeyfile\fR. Keyfiles may be in two formats: a single file containing a
+\fInamed.conf\fR\-format
+\fBkey\fR
+statement, which may be generated automatically by
+\fBddns\-confgen\fR, or a pair of files whose names are of the format
+\fIK{name}.+157.+{random}.key\fR
+and
+\fIK{name}.+157.+{random}.private\fR, which can be generated by
+\fBdnssec\-keygen\fR. The
 \fB\-k\fR
 may also be used to specify a SIG(0) key used to authenticate Dynamic DNS update requests. In this case, the key specified is not an HMAC\-MD5 key.
 .PP
-The
-\fB\-g\fR
-and
-\fB\-o\fR
-specify that GSS\-TSIG is to be used. The
-\fB\-o\fR
-should only be used with old Microsoft Windows 2000 servers.
+\fBnsupdate\fR
+can be run in a local\-host only mode using the
+\fB\-l\fR
+flag. This sets the server address to localhost (disabling the
+\fBserver\fR
+so that the server address cannot be overridden). Connections to the local server will use a TSIG key found in
+\fI/var/run/named/session.key\fR, which is automatically generated by
+\fBnamed\fR
+if any local master zone has set
+\fBupdate\-policy\fR
+to
+\fBlocal\fR. The location of this key file can be overridden with the
+\fB\-k\fR
+option.
 .PP
 By default,
 \fBnsupdate\fR
@@ -118,6 +142,10 @@ uses UDP to send update requests to the name server unless they are too large to
 option makes
 \fBnsupdate\fR
 use a TCP connection. This may be preferable when a batch of update requests is made.
+.PP
+The
+\fB\-p\fR
+sets the default port number to use for connections to a name server. The default is 53.
 .PP
 The
 \fB\-t\fR
@@ -367,12 +395,17 @@ with IP address 172.16.1.1 is added. The newly\-added record has a 1 day TTL (86
 .sp
 .PP
 The prerequisite condition gets the name server to check that there are no resource records of any type for
-\fBnickname.example.com\fR. If there are, the update request fails. If this name does not exist, a CNAME for it is added. This ensures that when the CNAME is added, it cannot conflict with the long\-standing rule in RFC1034 that a name must not exist as any other record type if it exists as a CNAME. (The rule has been updated for DNSSEC in RFC2535 to allow CNAMEs to have RRSIG, DNSKEY and NSEC records.)
+\fBnickname.example.com\fR. If there are, the update request fails. If this name does not exist, a CNAME for it is added. This ensures that when the CNAME is added, it cannot conflict with the long\-standing rule in RFC 1034 that a name must not exist as any other record type if it exists as a CNAME. (The rule has been updated for DNSSEC in RFC 2535 to allow CNAMEs to have RRSIG, DNSKEY and NSEC records.)
 .SH "FILES"
 .PP
 \fB/etc/resolv.conf\fR
 .RS 4
 used to identify default name server
+.RE
+.PP
+\fB/var/run/named/session.key\fR
+.RS 4
+sets the default TSIG key for use in local\-only mode
 .RE
 .PP
 \fBK{name}.+157.+{random}.key\fR
@@ -388,14 +421,15 @@ base\-64 encoding of HMAC\-MD5 key created by
 .RE
 .SH "SEE ALSO"
 .PP
-\fBRFC2136\fR(),
-\fBRFC3007\fR(),
-\fBRFC2104\fR(),
-\fBRFC2845\fR(),
-\fBRFC1034\fR(),
-\fBRFC2535\fR(),
-\fBRFC2931\fR(),
+RFC 2136,
+RFC 3007,
+RFC 2104,
+RFC 2845,
+RFC 1034,
+RFC 2535,
+RFC 2931,
 \fBnamed\fR(8),
+\fBddns\-confgen\fR(8),
 \fBdnssec\-keygen\fR(8).
 .SH "BUGS"
 .PP

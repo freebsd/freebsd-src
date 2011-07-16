@@ -18,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: dnssec-keygen.docbook,v 1.22.44.4 2010-01-15 23:47:33 tbox Exp $ -->
+<!-- $Id: dnssec-keygen.docbook,v 1.36 2010-12-23 04:07:59 marka Exp $ -->
 <refentry id="man.dnssec-keygen">
   <refentryinfo>
     <date>June 30, 2000</date>
@@ -57,20 +57,34 @@
   <refsynopsisdiv>
     <cmdsynopsis>
       <command>dnssec-keygen</command>
-      <arg choice="req">-a <replaceable class="parameter">algorithm</replaceable></arg>
-      <arg choice="req">-b <replaceable class="parameter">keysize</replaceable></arg>
-      <arg choice="req">-n <replaceable class="parameter">nametype</replaceable></arg>
+      <arg><option>-a <replaceable class="parameter">algorithm</replaceable></option></arg>
+      <arg ><option>-b <replaceable class="parameter">keysize</replaceable></option></arg>
+      <arg><option>-n <replaceable class="parameter">nametype</replaceable></option></arg>
+      <arg><option>-3</option></arg>
+      <arg><option>-A <replaceable class="parameter">date/offset</replaceable></option></arg>
+      <arg><option>-C</option></arg>
       <arg><option>-c <replaceable class="parameter">class</replaceable></option></arg>
+      <arg><option>-D <replaceable class="parameter">date/offset</replaceable></option></arg>
+      <arg><option>-E <replaceable class="parameter">engine</replaceable></option></arg>
       <arg><option>-e</option></arg>
       <arg><option>-f <replaceable class="parameter">flag</replaceable></option></arg>
+      <arg><option>-G</option></arg>
       <arg><option>-g <replaceable class="parameter">generator</replaceable></option></arg>
       <arg><option>-h</option></arg>
+      <arg><option>-I <replaceable class="parameter">date/offset</replaceable></option></arg>
+      <arg><option>-i <replaceable class="parameter">interval</replaceable></option></arg>
+      <arg><option>-K <replaceable class="parameter">directory</replaceable></option></arg>
       <arg><option>-k</option></arg>
+      <arg><option>-P <replaceable class="parameter">date/offset</replaceable></option></arg>
       <arg><option>-p <replaceable class="parameter">protocol</replaceable></option></arg>
+      <arg><option>-q</option></arg>
+      <arg><option>-R <replaceable class="parameter">date/offset</replaceable></option></arg>
       <arg><option>-r <replaceable class="parameter">randomdev</replaceable></option></arg>
+      <arg><option>-S <replaceable class="parameter">key</replaceable></option></arg>
       <arg><option>-s <replaceable class="parameter">strength</replaceable></option></arg>
       <arg><option>-t <replaceable class="parameter">type</replaceable></option></arg>
       <arg><option>-v <replaceable class="parameter">level</replaceable></option></arg>
+      <arg><option>-z</option></arg>
       <arg choice="req">name</arg>
     </cmdsynopsis>
   </refsynopsisdiv>
@@ -80,7 +94,8 @@
     <para><command>dnssec-keygen</command>
       generates keys for DNSSEC (Secure DNS), as defined in RFC 2535
       and RFC 4034.  It can also generate keys for use with
-      TSIG (Transaction Signatures), as defined in RFC 2845.
+      TSIG (Transaction Signatures) as defined in RFC 2845, or TKEY
+      (Transaction Key) as defined in RFC 2930.
     </para>
     <para>
       The <option>name</option> of the key is specified on the command
@@ -99,11 +114,18 @@
           <para>
             Selects the cryptographic algorithm.  For DNSSEC keys, the value
             of <option>algorithm</option> must be one of RSAMD5, RSASHA1,
-            DSA, NSEC3RSASHA1, NSEC3DSA, RSASHA256 or RSASHA512.
-            For TSIG/TKEY, the value must
+	    DSA, NSEC3RSASHA1, NSEC3DSA, RSASHA256, RSASHA512 or ECCGOST.
+	    For TSIG/TKEY, the value must
             be DH (Diffie Hellman), HMAC-MD5, HMAC-SHA1, HMAC-SHA224,
             HMAC-SHA256, HMAC-SHA384, or HMAC-SHA512.  These values are
             case insensitive.
+          </para>
+          <para>
+            If no algorithm is specified, then RSASHA1 will be used by
+            default, unless the <option>-3</option> option is specified,
+            in which case NSEC3RSASHA1 will be used instead.  (If
+            <option>-3</option> is used and an algorithm is specified,
+            that algorithm will be checked for compatibility with NSEC3.)
           </para>
           <para>
             Note 1: that for DNSSEC, RSASHA1 is a mandatory to implement
@@ -111,7 +133,8 @@
 	    mandatory.
           </para>
           <para>
-            Note 2: HMAC-MD5 and DH automatically set the -k flag.
+            Note 2: DH, HMAC-MD5, and HMAC-SHA1 through HMAC-SHA512
+            automatically set the -T KEY option.
           </para>
         </listitem>
       </varlistentry>
@@ -126,6 +149,15 @@
             128 and 4096 bits.  DSA keys must be between 512 and 1024
             bits and an exact multiple of 64.  HMAC keys must be
             between 1 and 512 bits.
+          </para>
+          <para>
+            The key size does not need to be specified if using a default
+            algorithm.  The default key size is 1024 bits for zone signing
+            keys (ZSK's) and 2048 bits for key signing keys (KSK's,
+            generated with <option>-f KSK</option>).  However, if an
+            algorithm is explicitly specified with the <option>-a</option>,
+            then there is no default key size, and the <option>-b</option>
+            must be used.
           </para>
         </listitem>
       </varlistentry>
@@ -146,11 +178,51 @@
       </varlistentry>
 
       <varlistentry>
+        <term>-3</term>
+        <listitem>
+          <para>
+	    Use an NSEC3-capable algorithm to generate a DNSSEC key.
+            If this option is used and no algorithm is explicitly
+            set on the command line, NSEC3RSASHA1 will be used by
+            default. Note that RSASHA256, RSASHA512 and ECCGOST algorithms
+	    are NSEC3-capable.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-C</term>
+        <listitem>
+          <para>
+	    Compatibility mode:  generates an old-style key, without
+	    any metadata.  By default, <command>dnssec-keygen</command>
+	    will include the key's creation date in the metadata stored
+	    with the private key, and other dates may be set there as well
+	    (publication date, activation date, etc).  Keys that include
+	    this data may be incompatible with older versions of BIND; the
+	    <option>-C</option> option suppresses them.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
         <term>-c <replaceable class="parameter">class</replaceable></term>
         <listitem>
           <para>
             Indicates that the DNS record containing the key should have
             the specified class.  If not specified, class IN is used.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-E <replaceable class="parameter">engine</replaceable></term>
+        <listitem>
+          <para>
+            Uses a crypto hardware (OpenSSL engine) for random number
+            and, when supported, key generation. When compiled with PKCS#11
+            support it defaults to pkcs11; the empty name resets it to
+            no engine.
           </para>
         </listitem>
       </varlistentry>
@@ -169,7 +241,17 @@
         <listitem>
           <para>
             Set the specified flag in the flag field of the KEY/DNSKEY record.
-            		The only recognized flag is KSK (Key Signing Key) DNSKEY.
+            The only recognized flags are KSK (Key Signing Key) and REVOKE.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-G</term>
+        <listitem>
+          <para>
+            Generate a key, but do not publish it or sign with it.  This
+            option is incompatible with -P and -A.
           </para>
         </listitem>
       </varlistentry>
@@ -197,10 +279,19 @@
       </varlistentry>
 
       <varlistentry>
+        <term>-K <replaceable class="parameter">directory</replaceable></term>
+        <listitem>
+          <para>
+            Sets the directory in which the key files are to be written.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
         <term>-k</term>
         <listitem>
           <para>
-            Generate KEY records rather than DNSKEY records.
+            Deprecated in favor of -T KEY.
           </para>
         </listitem>
       </varlistentry>
@@ -213,6 +304,25 @@
             is a number between 0 and 255.  The default is 3 (DNSSEC).
             Other possible values for this argument are listed in
             RFC 2535 and its successors.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-q</term>
+        <listitem>
+          <para>
+            Quiet mode: Suppresses unnecessary output, including
+            progress indication.  Without this option, when
+            <command>dnssec-keygen</command> is run interactively
+            to generate an RSA or DSA key pair, it will print a string
+            of symbols to <filename>stderr</filename> indicating the
+            progress of the key generation.  A '.' indicates that a
+            random number has been found which passed an initial
+            sieve test; '+' means a number has passed a single
+            round of the Miller-Rabin primality test; a space
+            means that the number has passed all the tests and is
+            a satisfactory key.
           </para>
         </listitem>
       </varlistentry>
@@ -235,12 +345,43 @@
       </varlistentry>
 
       <varlistentry>
+        <term>-S <replaceable class="parameter">key</replaceable></term>
+        <listitem>
+          <para>
+            Create a new key which is an explicit successor to an
+            existing key.  The name, algorithm, size, and type of the
+            key will be set to match the existing key.  The activation
+            date of the new key will be set to the inactivation date of
+            the existing one.  The publication date will be set to the
+            activation date minus the prepublication interval, which
+            defaults to 30 days.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
         <term>-s <replaceable class="parameter">strength</replaceable></term>
         <listitem>
           <para>
             Specifies the strength value of the key.  The strength is
             a number between 0 and 15, and currently has no defined
             purpose in DNSSEC.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-T <replaceable class="parameter">rrtype</replaceable></term>
+        <listitem>
+          <para>
+            Specifies the resource record type to use for the key.
+            <option>rrtype</option> must be either DNSKEY or KEY.  The
+            default is DNSKEY when using a DNSSEC algorithm, but it can be
+            overridden to KEY for use with SIG(0).
+          <para>
+          </para>
+            Using any TSIG algorithm (HMAC-* or DH) forces this option
+            to KEY.
           </para>
         </listitem>
       </varlistentry>
@@ -268,6 +409,109 @@
 
     </variablelist>
   </refsect1>
+
+  <refsect1>
+    <title>TIMING OPTIONS</title>
+
+    <para>
+      Dates can be expressed in the format YYYYMMDD or YYYYMMDDHHMMSS.
+      If the argument begins with a '+' or '-', it is interpreted as
+      an offset from the present time.  For convenience, if such an offset
+      is followed by one of the suffixes 'y', 'mo', 'w', 'd', 'h', or 'mi',
+      then the offset is computed in years (defined as 365 24-hour days,
+      ignoring leap years), months (defined as 30 24-hour days), weeks,
+      days, hours, or minutes, respectively.  Without a suffix, the offset
+      is computed in seconds.
+    </para>
+
+    <variablelist>
+      <varlistentry>
+        <term>-P <replaceable class="parameter">date/offset</replaceable></term>
+        <listitem>
+          <para>
+            Sets the date on which a key is to be published to the zone.
+            After that date, the key will be included in the zone but will
+            not be used to sign it.  If not set, and if the -G option has
+            not been used, the default is "now".
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-A <replaceable class="parameter">date/offset</replaceable></term>
+        <listitem>
+          <para>
+            Sets the date on which the key is to be activated.  After that
+            date, the key will be included in the zone and used to sign
+            it.  If not set, and if the -G option has not been used, the
+            default is "now".
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-R <replaceable class="parameter">date/offset</replaceable></term>
+        <listitem>
+          <para>
+            Sets the date on which the key is to be revoked.  After that
+            date, the key will be flagged as revoked.  It will be included
+            in the zone and will be used to sign it.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-I <replaceable class="parameter">date/offset</replaceable></term>
+        <listitem>
+          <para>
+            Sets the date on which the key is to be retired.  After that
+            date, the key will still be included in the zone, but it
+            will not be used to sign it.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-D <replaceable class="parameter">date/offset</replaceable></term>
+        <listitem>
+          <para>
+            Sets the date on which the key is to be deleted.  After that
+            date, the key will no longer be included in the zone.  (It
+            may remain in the key repository, however.)
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-i <replaceable class="parameter">interval</replaceable></term>
+        <listitem>
+          <para>
+            Sets the prepublication interval for a key.  If set, then
+            the publication and activation dates must be separated by at least
+            this much time.  If the activation date is specified but the
+            publication date isn't, then the publication date will default
+            to this much time before the activation date; conversely, if
+            the publication date is specified but activation date isn't,
+            then activation will be set to this much time after publication.
+          </para>
+          <para>
+            If the key is being created as an explicit successor to another
+            key, then the default prepublication interval is 30 days; 
+            otherwise it is zero.
+          </para>
+          <para>
+            As with date offsets, if the argument is followed by one of
+            the suffixes 'y', 'mo', 'w', 'd', 'h', or 'mi', then the
+            interval is measured in years, months, weeks, days, hours,
+            or minutes, respectively.  Without a suffix, the interval is
+            measured in seconds.
+          </para>
+        </listitem>
+      </varlistentry>
+
+    </variablelist>
+  </refsect1>
+
 
   <refsect1>
     <title>GENERATED KEYS</title>

@@ -2,7 +2,7 @@
                "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
 	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2010  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003  Internet Software Consortium.
  -
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -18,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: dig.docbook,v 1.42.44.3 2009-02-02 04:42:48 marka Exp $ -->
+<!-- $Id: dig.docbook,v 1.47 2010-03-04 23:50:34 tbox Exp $ -->
 <refentry id="man.dig">
 
   <refentryinfo>
@@ -44,6 +44,7 @@
       <year>2007</year>
       <year>2008</year>
       <year>2009</year>
+      <year>2010</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
     <copyright>
@@ -765,6 +766,17 @@
             </para>
           </listitem>
         </varlistentry>
+
+	<varlistentry>
+	  <term><option>+[no]onesoa</option></term>
+	  <listitem>
+	    <para>
+	      Print only one (starting) SOA record when performing
+	      an AXFR. The default is to print both the starting and
+	      ending SOA records.
+	    </para>
+	  </listitem>
+	</varlistentry>
 
         <varlistentry>
           <term><option>+[no]fail</option></term>

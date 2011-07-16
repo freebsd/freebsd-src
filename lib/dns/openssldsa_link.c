@@ -1,5 +1,5 @@
 /*
- * Portions Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 2004-2009, 2011  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -29,7 +29,7 @@
  * IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: openssldsa_link.c,v 1.13.120.2 2009-01-14 23:47:26 tbox Exp $ */
+/* $Id: openssldsa_link.c,v 1.20 2011-01-11 23:47:13 tbox Exp $ */
 
 #ifdef OPENSSL
 #ifndef USE_EVP
@@ -313,15 +313,40 @@ openssldsa_compare(const dst_key_t *key1, const dst_key_t *key2) {
 	return (ISC_TRUE);
 }
 
-static isc_result_t
-openssldsa_generate(dst_key_t *key, int unused) {
 #if OPENSSL_VERSION_NUMBER > 0x00908000L
-	BN_GENCB cb;
+static int
+progress_cb(int p, int n, BN_GENCB *cb)
+{
+	union {
+		void *dptr;
+		void (*fptr)(int);
+	} u;
+
+	UNUSED(n);
+
+	u.dptr = cb->arg;
+	if (u.fptr != NULL)
+		u.fptr(p);
+	return (1);
+}
 #endif
+
+static isc_result_t
+openssldsa_generate(dst_key_t *key, int unused, void (*callback)(int)) {
 	DSA *dsa;
 	unsigned char rand_array[ISC_SHA1_DIGESTLENGTH];
 	isc_result_t result;
+#if OPENSSL_VERSION_NUMBER > 0x00908000L
+	BN_GENCB cb;
+	union {
+		void *dptr;
+		void (*fptr)(int);
+	} u;
 
+#else
+
+	UNUSED(callback);
+#endif
 	UNUSED(unused);
 
 	result = dst__entropy_getdata(rand_array, sizeof(rand_array),
@@ -334,7 +359,12 @@ openssldsa_generate(dst_key_t *key, int unused) {
 	if (dsa == NULL)
 		return (dst__openssl_toresult(DST_R_OPENSSLFAILURE));
 
-	BN_GENCB_set_old(&cb, NULL, NULL);
+	if (callback == NULL) {
+		BN_GENCB_set_old(&cb, NULL, NULL);
+	} else {
+		u.fptr = callback;
+		BN_GENCB_set(&cb, &progress_cb, u.dptr);
+	}
 
 	if (!DSA_generate_parameters_ex(dsa, key->key_size, rand_array,
 					ISC_SHA1_DIGESTLENGTH,  NULL, NULL,
@@ -512,7 +542,7 @@ openssldsa_tofile(const dst_key_t *key, const char *directory) {
 }
 
 static isc_result_t
-openssldsa_parse(dst_key_t *key, isc_lex_t *lexer) {
+openssldsa_parse(dst_key_t *key, isc_lex_t *lexer, dst_key_t *pub) {
 	dst_private_t priv;
 	isc_result_t ret;
 	int i;
@@ -520,6 +550,7 @@ openssldsa_parse(dst_key_t *key, isc_lex_t *lexer) {
 	isc_mem_t *mctx = key->mctx;
 #define DST_RET(a) {ret = a; goto err;}
 
+	UNUSED(pub);
 	/* read private key file */
 	ret = dst__privstruct_parse(key, DST_ALG_DSA, lexer, mctx, &priv);
 	if (ret != ISC_R_SUCCESS)
@@ -587,6 +618,8 @@ static dst_func_t openssldsa_functions = {
 	openssldsa_parse,
 	NULL, /*%< cleanup */
 	NULL, /*%< fromlabel */
+	NULL, /*%< dump */
+	NULL, /*%< restore */
 };
 
 isc_result_t

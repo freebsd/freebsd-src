@@ -1,5 +1,5 @@
 <!--
- - Copyright (C) 2004-2010 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2011 Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003 Internet Software Consortium.
  - 
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -14,7 +14,7 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: man.named.html,v 1.99.14.22 2010-08-20 02:05:37 tbox Exp $ -->
+<!-- $Id: man.named.html,v 1.185.8.1.2.1 2011-06-09 03:41:10 tbox Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
@@ -23,7 +23,7 @@
 <link rel="start" href="Bv9ARM.html" title="BIND 9 Administrator Reference Manual">
 <link rel="up" href="Bv9ARM.ch10.html" title="Manual pages">
 <link rel="prev" href="man.named-checkzone.html" title="named-checkzone">
-<link rel="next" href="man.nsupdate.html" title="nsupdate">
+<link rel="next" href="man.named-journalprint.html" title="named-journalprint">
 </head>
 <body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF">
 <div class="navheader">
@@ -33,7 +33,7 @@
 <td width="20%" align="left">
 <a accesskey="p" href="man.named-checkzone.html">Prev</a> </td>
 <th width="60%" align="center">Manual pages</th>
-<td width="20%" align="right"> <a accesskey="n" href="man.nsupdate.html">Next</a>
+<td width="20%" align="right"> <a accesskey="n" href="man.named-journalprint.html">Next</a>
 </td>
 </tr>
 </table>
@@ -47,10 +47,10 @@
 </div>
 <div class="refsynopsisdiv">
 <h2>Synopsis</h2>
-<div class="cmdsynopsis"><p><code class="command">named</code>  [<code class="option">-4</code>] [<code class="option">-6</code>] [<code class="option">-c <em class="replaceable"><code>config-file</code></em></code>] [<code class="option">-d <em class="replaceable"><code>debug-level</code></em></code>] [<code class="option">-f</code>] [<code class="option">-g</code>] [<code class="option">-m <em class="replaceable"><code>flag</code></em></code>] [<code class="option">-n <em class="replaceable"><code>#cpus</code></em></code>] [<code class="option">-p <em class="replaceable"><code>port</code></em></code>] [<code class="option">-s</code>] [<code class="option">-S <em class="replaceable"><code>#max-socks</code></em></code>] [<code class="option">-t <em class="replaceable"><code>directory</code></em></code>] [<code class="option">-u <em class="replaceable"><code>user</code></em></code>] [<code class="option">-v</code>] [<code class="option">-V</code>] [<code class="option">-x <em class="replaceable"><code>cache-file</code></em></code>]</p></div>
+<div class="cmdsynopsis"><p><code class="command">named</code>  [<code class="option">-4</code>] [<code class="option">-6</code>] [<code class="option">-c <em class="replaceable"><code>config-file</code></em></code>] [<code class="option">-d <em class="replaceable"><code>debug-level</code></em></code>] [<code class="option">-E <em class="replaceable"><code>engine-name</code></em></code>] [<code class="option">-f</code>] [<code class="option">-g</code>] [<code class="option">-m <em class="replaceable"><code>flag</code></em></code>] [<code class="option">-n <em class="replaceable"><code>#cpus</code></em></code>] [<code class="option">-p <em class="replaceable"><code>port</code></em></code>] [<code class="option">-s</code>] [<code class="option">-S <em class="replaceable"><code>#max-socks</code></em></code>] [<code class="option">-t <em class="replaceable"><code>directory</code></em></code>] [<code class="option">-u <em class="replaceable"><code>user</code></em></code>] [<code class="option">-v</code>] [<code class="option">-V</code>] [<code class="option">-x <em class="replaceable"><code>cache-file</code></em></code>]</p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2610009"></a><h2>DESCRIPTION</h2>
+<a name="id2638058"></a><h2>DESCRIPTION</h2>
 <p><span><strong class="command">named</strong></span>
       is a Domain Name System (DNS) server,
       part of the BIND 9 distribution from ISC.  For more
@@ -65,7 +65,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2610040"></a><h2>OPTIONS</h2>
+<a name="id2638089"></a><h2>OPTIONS</h2>
 <div class="variablelist"><dl>
 <dt><span class="term">-4</span></dt>
 <dd><p>
@@ -96,6 +96,14 @@
             Set the daemon's debug level to <em class="replaceable"><code>debug-level</code></em>.
             Debugging traces from <span><strong class="command">named</strong></span> become
             more verbose as the debug level increases.
+          </p></dd>
+<dt><span class="term">-E <em class="replaceable"><code>engine-name</code></em></span></dt>
+<dd><p>
+            Use a crypto hardware (OpenSSL engine) for the crypto operations
+            it supports, for instance re-signing with private keys from
+            a secure key store. When compiled with PKCS#11 support
+            <em class="replaceable"><code>engine-name</code></em>
+            defaults to pkcs11, the empty name resets it to no engine.
           </p></dd>
 <dt><span class="term">-f</span></dt>
 <dd><p>
@@ -238,7 +246,7 @@
 </dl></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2612619"></a><h2>SIGNALS</h2>
+<a name="id2640076"></a><h2>SIGNALS</h2>
 <p>
       In routine operation, signals should not be used to control
       the nameserver; <span><strong class="command">rndc</strong></span> should be used
@@ -259,7 +267,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2652264"></a><h2>CONFIGURATION</h2>
+<a name="id2640126"></a><h2>CONFIGURATION</h2>
 <p>
       The <span><strong class="command">named</strong></span> configuration file is too complex
       to describe in detail here.  A complete description is provided
@@ -276,7 +284,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2652313"></a><h2>FILES</h2>
+<a name="id2674514"></a><h2>FILES</h2>
 <div class="variablelist"><dl>
 <dt><span class="term"><code class="filename">/etc/named.conf</code></span></dt>
 <dd><p>
@@ -289,7 +297,7 @@
 </dl></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2652357"></a><h2>SEE ALSO</h2>
+<a name="id2674694"></a><h2>SEE ALSO</h2>
 <p><em class="citetitle">RFC 1033</em>,
       <em class="citetitle">RFC 1034</em>,
       <em class="citetitle">RFC 1035</em>,
@@ -302,7 +310,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2652427"></a><h2>AUTHOR</h2>
+<a name="id2674764"></a><h2>AUTHOR</h2>
 <p><span class="corpauthor">Internet Systems Consortium</span>
     </p>
 </div>
@@ -314,14 +322,14 @@
 <td width="40%" align="left">
 <a accesskey="p" href="man.named-checkzone.html">Prev</a> </td>
 <td width="20%" align="center"><a accesskey="u" href="Bv9ARM.ch10.html">Up</a></td>
-<td width="40%" align="right"> <a accesskey="n" href="man.nsupdate.html">Next</a>
+<td width="40%" align="right"> <a accesskey="n" href="man.named-journalprint.html">Next</a>
 </td>
 </tr>
 <tr>
 <td width="40%" align="left" valign="top">
 <span class="application">named-checkzone</span> </td>
 <td width="20%" align="center"><a accesskey="h" href="Bv9ARM.html">Home</a></td>
-<td width="40%" align="right" valign="top"> <span class="application">nsupdate</span>
+<td width="40%" align="right" valign="top"> <span class="application">named-journalprint</span>
 </td>
 </tr>
 </table>
