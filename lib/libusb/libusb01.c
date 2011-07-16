@@ -203,6 +203,12 @@ usb_get_string(usb_dev_handle * dev, int strindex,
 {
 	int err;
 
+	if (dev == NULL)
+		return (-1);
+
+	if (buflen > 65535)
+		buflen = 65535;
+
 	err = libusb20_dev_req_string_sync((void *)dev,
 	    strindex, langid, buf, buflen);
 
@@ -217,6 +223,12 @@ usb_get_string_simple(usb_dev_handle * dev, int strindex,
     char *buf, size_t buflen)
 {
 	int err;
+
+	if (dev == NULL)
+		return (-1);
+
+	if (buflen > 65535)
+		buflen = 65535;
 
 	err = libusb20_dev_req_string_simple_sync((void *)dev,
 	    strindex, buf, buflen);
@@ -233,6 +245,12 @@ usb_get_descriptor_by_endpoint(usb_dev_handle * udev, int ep, uint8_t type,
 {
 	memset(buf, 0, size);
 
+	if (udev == NULL)
+		return (-1);
+
+	if (size > 65535)
+		size = 65535;
+
 	return (usb_control_msg(udev, ep | USB_ENDPOINT_IN,
 	    USB_REQ_GET_DESCRIPTOR, (type << 8) + ep_index, 0,
 	    buf, size, 1000));
@@ -243,6 +261,12 @@ usb_get_descriptor(usb_dev_handle * udev, uint8_t type, uint8_t desc_index,
     void *buf, int size)
 {
 	memset(buf, 0, size);
+
+	if (udev == NULL)
+		return (-1);
+
+	if (size > 65535)
+		size = 65535;
 
 	return (usb_control_msg(udev, USB_ENDPOINT_IN, USB_REQ_GET_DESCRIPTOR,
 	    (type << 8) + desc_index, 0, buf, size, 1000));
@@ -942,4 +966,50 @@ struct usb_bus *
 usb_get_busses(void)
 {
 	return (usb_busses);
+}
+
+int
+usb_get_driver_np(usb_dev_handle * dev, int interface, char *name, int namelen)
+{
+	struct libusb20_device *pdev;
+	char *ptr;
+	int err;
+
+	pdev = (void *)dev;
+
+	if (pdev == NULL)
+		return (-1);
+	if (namelen < 1)
+		return (-1);
+	if (namelen > 255)
+		namelen = 255;
+
+	err = libusb20_dev_get_iface_desc(pdev, interface, name, namelen);
+	if (err != 0)
+		return (-1);
+
+	/* we only want the driver name */
+	ptr = strstr(name, ":");
+	if (ptr != NULL)
+		*ptr = 0;
+
+	return (0);
+}
+
+int
+usb_detach_kernel_driver_np(usb_dev_handle * dev, int interface)
+{
+	struct libusb20_device *pdev;
+	int err;
+
+	pdev = (void *)dev;
+
+	if (pdev == NULL)
+		return (-1);
+
+	err = libusb20_dev_detach_kernel_driver(pdev, interface);
+	if (err != 0)
+		return (-1);
+
+	return (0);
 }

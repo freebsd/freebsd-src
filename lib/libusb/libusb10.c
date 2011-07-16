@@ -719,6 +719,8 @@ libusb_get_driver(struct libusb20_device *pdev, int interface,
 		return (LIBUSB_ERROR_INVALID_PARAM);
 	if (namelen < 1)
 		return (LIBUSB_ERROR_INVALID_PARAM);
+	if (namelen > 255)
+		namelen = 255;
 
 	err = libusb20_dev_get_iface_desc(
 	    pdev, interface, name, namelen);
