@@ -55,6 +55,7 @@
 #include <sys/proc.h>
 #include <sys/syslog.h>
 #include <sys/socket.h>
+#include <sys/taskqueue.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -336,6 +337,7 @@ ng_ether_detach(struct ifnet *ifp)
 	const node_p node = IFP2NG(ifp);
 	const priv_p priv = NG_NODE_PRIVATE(node);
 
+	taskqueue_drain(taskqueue_swi, &ifp->if_linktask);
 	NG_NODE_REALLY_DIE(node);	/* Force real removal of node */
 	/*
 	 * We can't assume the ifnet is still around when we run shutdown
