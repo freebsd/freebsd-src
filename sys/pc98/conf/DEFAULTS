@@ -27,3 +27,5 @@ options 	GEOM_PART_PC98
 
 # enable support for native hardware
 device		atpic
+
+options 	NEW_PCIB
