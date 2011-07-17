@@ -42,8 +42,8 @@ void f7(e7 a0) {
 
 // Test merging/passing of upper eightbyte with X87 class.
 //
-// CHECK: define void @f8_1(%struct.s19* sret %agg.result)
-// CHECK: define void @f8_2(%struct.s19* byval align 16 %a0)
+// CHECK: define void @f8_1(%union.u8* sret %agg.result)
+// CHECK: define void @f8_2(%union.u8* byval align 16 %a0)
 union u8 {
   long double a;
   int b;
@@ -58,7 +58,7 @@ struct s9 { int a; int b; int : 0; } f9(void) { while (1) {} }
 struct s10 { int a; int b; int : 0; };
 void f10(struct s10 a0) {}
 
-// CHECK: define void @f11(%struct.s19* sret %agg.result)
+// CHECK: define void @f11(%union.anon* sret %agg.result)
 union { long double a; float b; } f11() { while (1) {} }
 
 // CHECK: define i32 @f12_0()
@@ -147,7 +147,7 @@ struct f24s { long a; int b; };
 struct f23S f24(struct f23S *X, struct f24s *P2) {
   return *X;
   
-  // CHECK: define %struct.f24s @f24(%struct.f23S* %X, %struct.f24s* %P2)
+  // CHECK: define { i64, i32 } @f24(%struct.f23S* %X, %struct.f24s* %P2)
 }
 
 // rdar://8248065
@@ -169,7 +169,7 @@ struct foo26 {
 };
 
 struct foo26 f26(struct foo26 *P) {
-  // CHECK: define %struct.foo26 @f26(%struct.foo26* %P)
+  // CHECK: define { i32*, float* } @f26(%struct.foo26* %P)
   return *P;
 }
 
@@ -259,3 +259,48 @@ void f9122143()
   func(ss);
 }
 
+// CHECK: define double @f36(double %arg.coerce)
+typedef unsigned v2i32 __attribute((__vector_size__(8)));
+v2i32 f36(v2i32 arg) { return arg; }
+
+// CHECK: declare void @f38(<8 x float>)
+// CHECK: declare void @f37(<8 x float>)
+typedef float __m256 __attribute__ ((__vector_size__ (32)));
+typedef struct {
+  __m256 m;
+} s256;
+
+s256 x38;
+__m256 x37;
+
+void f38(s256 x);
+void f37(__m256 x);
+void f39() { f38(x38); f37(x37); }
+
+// The two next tests make sure that the struct below is passed
+// in the same way regardless of avx being used
+
+// CHECK: declare void @func40(%struct.t128* byval align 16)
+typedef float __m128 __attribute__ ((__vector_size__ (16)));
+typedef struct t128 {
+  __m128 m;
+  __m128 n;
+} two128;
+
+extern void func40(two128 s);
+void func41(two128 s) {
+  func40(s);
+}
+
+// CHECK: declare void @func42(%struct.t128_2* byval align 16)
+typedef struct xxx {
+  __m128 array[2];
+} Atwo128;
+typedef struct t128_2 {
+  Atwo128 x;
+} SA;
+
+extern void func42(SA s);
+void func43(SA s) {
+  func42(s);
+}

@@ -29,7 +29,9 @@
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCCodeEmitter.h"
 #include "llvm/MC/MCContext.h"
+#include "llvm/MC/MCInstrInfo.h"
 #include "llvm/MC/MCStreamer.h"
+#include "llvm/MC/MCSubtargetInfo.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/FormattedStream.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -47,11 +49,13 @@
 #include "llvm/Target/TargetAsmInfo.h"
 #include "llvm/Target/TargetAsmParser.h"
 #include "llvm/Target/TargetData.h"
+#include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetLowering.h"
 #include "llvm/Target/TargetLoweringObjectFile.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetRegistry.h"
 #include "llvm/Target/TargetSelect.h"
+#include "llvm/Target/TargetSubtargetInfo.h"
 using namespace clang;
 using namespace clang::driver;
 using namespace llvm;
@@ -252,7 +256,7 @@ static bool ExecuteAssembler(AssemblerInvocation &Opts, Diagnostic &Diags) {
   // it later.
   SrcMgr.setIncludeDirs(Opts.IncludePaths);
 
-  OwningPtr<MCAsmInfo> MAI(TheTarget->createAsmInfo(Opts.Triple));
+  OwningPtr<MCAsmInfo> MAI(TheTarget->createMCAsmInfo(Opts.Triple));
   assert(MAI && "Unable to create target asm info!");
 
   bool IsBinary = Opts.OutputType == AssemblerInvocation::FT_Obj;
@@ -261,7 +265,8 @@ static bool ExecuteAssembler(AssemblerInvocation &Opts, Diagnostic &Diags) {
     return false;
 
   // FIXME: We shouldn't need to do this (and link in codegen).
-  OwningPtr<TargetMachine> TM(TheTarget->createTargetMachine(Opts.Triple, ""));
+  OwningPtr<TargetMachine> TM(TheTarget->createTargetMachine(Opts.Triple,
+                                                             "", ""));
   if (!TM) {
     Diags.Report(diag::err_target_unknown_triple) << Opts.Triple;
     return false;
@@ -278,14 +283,16 @@ static bool ExecuteAssembler(AssemblerInvocation &Opts, Diagnostic &Diags) {
     TM->getTargetLowering()->getObjFileLowering();
   const_cast<TargetLoweringObjectFile&>(TLOF).Initialize(Ctx, *TM);
 
+  const MCSubtargetInfo &STI = TM->getSubtarget<MCSubtargetInfo>();
+
   // FIXME: There is a bit of code duplication with addPassesToEmitFile.
   if (Opts.OutputType == AssemblerInvocation::FT_Asm) {
     MCInstPrinter *IP =
-      TheTarget->createMCInstPrinter(*TM, Opts.OutputAsmVariant, *MAI);
+      TheTarget->createMCInstPrinter(Opts.OutputAsmVariant, *MAI);
     MCCodeEmitter *CE = 0;
     TargetAsmBackend *TAB = 0;
     if (Opts.ShowEncoding) {
-      CE = TheTarget->createCodeEmitter(*TM, Ctx);
+      CE = TheTarget->createCodeEmitter(*TM->getInstrInfo(), STI, Ctx);
       TAB = TheTarget->createAsmBackend(Opts.Triple);
     }
     Str.reset(TheTarget->createAsmStreamer(Ctx, *Out, /*asmverbose*/true,
@@ -297,7 +304,8 @@ static bool ExecuteAssembler(AssemblerInvocation &Opts, Diagnostic &Diags) {
   } else {
     assert(Opts.OutputType == AssemblerInvocation::FT_Obj &&
            "Invalid file type!");
-    MCCodeEmitter *CE = TheTarget->createCodeEmitter(*TM, Ctx);
+    MCCodeEmitter *CE = TheTarget->createCodeEmitter(*TM->getInstrInfo(),
+                                                     STI, Ctx);
     TargetAsmBackend *TAB = TheTarget->createAsmBackend(Opts.Triple);
     Str.reset(TheTarget->createObjectStreamer(Opts.Triple, Ctx, *TAB, *Out,
                                               CE, Opts.RelaxAll,
@@ -307,7 +315,8 @@ static bool ExecuteAssembler(AssemblerInvocation &Opts, Diagnostic &Diags) {
 
   OwningPtr<MCAsmParser> Parser(createMCAsmParser(*TheTarget, SrcMgr, Ctx,
                                                   *Str.get(), *MAI));
-  OwningPtr<TargetAsmParser> TAP(TheTarget->createAsmParser(*Parser, *TM));
+  OwningPtr<TargetAsmParser>
+    TAP(TheTarget->createAsmParser(const_cast<MCSubtargetInfo&>(STI), *Parser));
   if (!TAP) {
     Diags.Report(diag::err_target_unknown_triple) << Opts.Triple;
     return false;
@@ -347,6 +356,9 @@ int cc1as_main(const char **ArgBegin, const char **ArgEnd,
   InitializeAllTargetInfos();
   // FIXME: We shouldn't need to initialize the Target(Machine)s.
   InitializeAllTargets();
+  InitializeAllMCAsmInfos();
+  InitializeAllMCInstrInfos();
+  InitializeAllMCSubtargetInfos();
   InitializeAllAsmPrinters();
   InitializeAllAsmParsers();
 

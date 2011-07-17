@@ -148,7 +148,7 @@ namespace PR10053 {
   template<typename T> struct A {
     T t;
     A() {
-      f(t); // expected-error {{call to function 'f' that is neither visible in the template definition nor found by argument dependent lookup}}
+      f(t); // expected-error {{call to function 'f' that is neither visible in the template definition nor found by argument-dependent lookup}}
     }
   };
 
@@ -160,7 +160,7 @@ namespace PR10053 {
   namespace N {
     namespace M {
       template<typename T> int g(T t) {
-        f(t); // expected-error {{call to function 'f' that is neither visible in the template definition nor found by argument dependent lookup}}
+        f(t); // expected-error {{call to function 'f' that is neither visible in the template definition nor found by argument-dependent lookup}}
       };
     }
 
@@ -187,7 +187,7 @@ namespace PR10053 {
   // Example from www/compatibility.html
   namespace my_file {
     template <typename T> T Squared(T x) {
-      return Multiply(x, x); // expected-error {{neither visible in the template definition nor found by argument dependent lookup}}
+      return Multiply(x, x); // expected-error {{neither visible in the template definition nor found by argument-dependent lookup}}
     }
 
     int Multiply(int x, int y) { // expected-note {{should be declared prior to the call site}}
@@ -203,7 +203,7 @@ namespace PR10053 {
   namespace my_file2 {
     template<typename T>
     void Dump(const T& value) {
-      std::cout << value << "\n"; // expected-error {{neither visible in the template definition nor found by argument dependent lookup}}
+      std::cout << value << "\n"; // expected-error {{neither visible in the template definition nor found by argument-dependent lookup}}
     }
 
     namespace ns {
@@ -222,7 +222,7 @@ namespace PR10053 {
   namespace my_file2_a {
     template<typename T>
     void Dump(const T &value) {
-      print(std::cout, value); // expected-error 4{{neither visible in the template definition nor found by argument dependent lookup}}
+      print(std::cout, value); // expected-error 4{{neither visible in the template definition nor found by argument-dependent lookup}}
     }
 
     namespace ns {
@@ -248,7 +248,7 @@ namespace PR10053 {
   namespace unary {
     template<typename T>
     T Negate(const T& value) {
-      return !value; // expected-error {{call to function 'operator!' that is neither visible in the template definition nor found by argument dependent lookup}}
+      return !value; // expected-error {{call to function 'operator!' that is neither visible in the template definition nor found by argument-dependent lookup}}
     }
 
     namespace ns {
@@ -260,5 +260,35 @@ namespace PR10053 {
     void Use() {
       Negate(ns::Data()); // expected-note {{requested here}}
     }
+  }
+}
+
+namespace PR10187 {
+  namespace A {
+    template<typename T>
+    struct S {
+      void f() {
+        for (auto &a : e)
+          __range(a); // expected-error {{undeclared identifier '__range'}}
+      }
+      int e[10];
+    };
+    void g() {
+      S<int>().f(); // expected-note {{here}}
+    }
+  }
+
+  namespace B {
+    template<typename T> void g(); // expected-note {{not viable}}
+    template<typename T> void f() {
+      g<int>(T()); // expected-error {{no matching function}}
+    }
+
+    namespace {
+      struct S {};
+    }
+    void g(S);
+
+    template void f<S>(); // expected-note {{here}}
   }
 }

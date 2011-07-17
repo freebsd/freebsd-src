@@ -251,6 +251,14 @@ private:
   bool ErrorOccurred;
   bool FatalErrorOccurred;
 
+  /// \brief Indicates that an unrecoverable error has occurred.
+  bool UnrecoverableErrorOccurred;
+  
+  /// \brief Toggles for DiagnosticErrorTrap to check whether an error occurred
+  /// during a parsing section, e.g. during parsing a function.
+  bool TrapErrorOccurred;
+  bool TrapUnrecoverableErrorOccurred;
+
   /// LastDiagLevel - This is the level of the last diagnostic emitted.  This is
   /// used to emit continuation diagnostics with the same level as the
   /// diagnostic that they follow.
@@ -269,13 +277,15 @@ private:
   /// can use this information to avoid redundancy across arguments.
   ///
   /// This is a hack to avoid a layering violation between libbasic and libsema.
-  typedef void (*ArgToStringFnTy)(ArgumentKind Kind, intptr_t Val,
-                                  const char *Modifier, unsigned ModifierLen,
-                                  const char *Argument, unsigned ArgumentLen,
-                                  const ArgumentValue *PrevArgs,
-                                  unsigned NumPrevArgs,
-                                  llvm::SmallVectorImpl<char> &Output,
-                                  void *Cookie);
+  typedef void (*ArgToStringFnTy)(
+      ArgumentKind Kind, intptr_t Val,
+      const char *Modifier, unsigned ModifierLen,
+      const char *Argument, unsigned ArgumentLen,
+      const ArgumentValue *PrevArgs,
+      unsigned NumPrevArgs,
+      llvm::SmallVectorImpl<char> &Output,
+      void *Cookie,
+      llvm::SmallVectorImpl<intptr_t> &QualTypeVals);
   void *ArgToStringCookie;
   ArgToStringFnTy ArgToStringFn;
 
@@ -432,7 +442,12 @@ public:
 
   bool hasErrorOccurred() const { return ErrorOccurred; }
   bool hasFatalErrorOccurred() const { return FatalErrorOccurred; }
-
+  
+  /// \brief Determine whether any kind of unrecoverable error has occurred.
+  bool hasUnrecoverableErrorOccurred() const {
+    return FatalErrorOccurred || UnrecoverableErrorOccurred;
+  }
+  
   unsigned getNumWarnings() const { return NumWarnings; }
 
   void setNumWarnings(unsigned NumWarnings) {
@@ -452,9 +467,11 @@ public:
                           const char *Modifier, unsigned ModLen,
                           const char *Argument, unsigned ArgLen,
                           const ArgumentValue *PrevArgs, unsigned NumPrevArgs,
-                          llvm::SmallVectorImpl<char> &Output) const {
+                          llvm::SmallVectorImpl<char> &Output,
+                          llvm::SmallVectorImpl<intptr_t> &QualTypeVals) const {
     ArgToStringFn(Kind, Val, Modifier, ModLen, Argument, ArgLen,
-                  PrevArgs, NumPrevArgs, Output, ArgToStringCookie);
+                  PrevArgs, NumPrevArgs, Output, ArgToStringCookie,
+                  QualTypeVals);
   }
 
   void SetArgToStringFn(ArgToStringFnTy Fn, void *Cookie) {
@@ -621,20 +638,28 @@ private:
 /// queried.
 class DiagnosticErrorTrap {
   Diagnostic &Diag;
-  unsigned PrevErrors;
 
 public:
   explicit DiagnosticErrorTrap(Diagnostic &Diag)
-    : Diag(Diag), PrevErrors(Diag.NumErrors) {}
+    : Diag(Diag) { reset(); }
 
   /// \brief Determine whether any errors have occurred since this
   /// object instance was created.
   bool hasErrorOccurred() const {
-    return Diag.NumErrors > PrevErrors;
+    return Diag.TrapErrorOccurred;
+  }
+
+  /// \brief Determine whether any unrecoverable errors have occurred since this
+  /// object instance was created.
+  bool hasUnrecoverableErrorOccurred() const {
+    return Diag.TrapUnrecoverableErrorOccurred;
   }
 
   // Set to initial state of "no errors occurred".
-  void reset() { PrevErrors = Diag.NumErrors; }
+  void reset() {
+    Diag.TrapErrorOccurred = false;
+    Diag.TrapUnrecoverableErrorOccurred = false;
+  }
 };
 
 //===----------------------------------------------------------------------===//

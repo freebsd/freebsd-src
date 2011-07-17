@@ -62,6 +62,7 @@ def ExitTimeDestructors : DiagGroup<"exit-time-destructors">;
 def FourByteMultiChar : DiagGroup<"four-char-constants">;
 def GlobalConstructors : DiagGroup<"global-constructors">;
 def : DiagGroup<"idiomatic-parentheses">;
+def BitwiseOpParentheses: DiagGroup<"bitwise-op-parentheses">;
 def LogicalOpParentheses: DiagGroup<"logical-op-parentheses">;
 def IgnoredQualifiers : DiagGroup<"ignored-qualifiers">;
 def : DiagGroup<"import">;
@@ -115,6 +116,7 @@ def SignCompare : DiagGroup<"sign-compare">;
 def : DiagGroup<"stack-protector">;
 def : DiagGroup<"switch-default">;
 def : DiagGroup<"synth">;
+def SizeofArrayArgument : DiagGroup<"sizeof-array-argument">;
 def TautologicalCompare : DiagGroup<"tautological-compare">;
 def HeaderHygiene : DiagGroup<"header-hygiene">;
 
@@ -168,6 +170,15 @@ def ImplicitAtomic : DiagGroup<"implicit-atomic-properties">;
 def CustomAtomic : DiagGroup<"custom-atomic-properties">;
 def AtomicProperties : DiagGroup<"atomic-properties",
                                  [ImplicitAtomic, CustomAtomic]>;
+def AutomaticReferenceCountingABI : DiagGroup<"arc-abi">;
+def ARCUnsafeRetainedAssign : DiagGroup<"arc-unsafe-retained-assign">;
+def ARCRetainCycles : DiagGroup<"arc-retain-cycles">;
+def ARCNonPodMemAccess : DiagGroup<"arc-non-pod-memaccess">;
+def AutomaticReferenceCounting : DiagGroup<"arc",
+                                           [AutomaticReferenceCountingABI,
+                                            ARCUnsafeRetainedAssign,
+                                            ARCRetainCycles,
+                                            ARCNonPodMemAccess]>;
 def Selector : DiagGroup<"selector">;
 def NonfragileAbi2 : DiagGroup<"nonfragile-abi2">;
 def Protocol : DiagGroup<"protocol">;
@@ -192,7 +203,8 @@ def DuplicateArgDecl : DiagGroup<"duplicate-method-arg">;
 // in -Wparentheses because most users who use -Wparentheses explicitly
 // do not want these warnings.
 def Parentheses : DiagGroup<"parentheses",
-                            [LogicalOpParentheses]>;
+                            [LogicalOpParentheses,
+                             BitwiseOpParentheses]>;
 
 // -Wconversion has its own warnings, but we split a few out for
 // legacy reasons:
@@ -217,12 +229,12 @@ def Unused : DiagGroup<"unused",
 
 // Format settings.
 def FormatSecurity : DiagGroup<"format-security">;
+def FormatY2K : DiagGroup<"format-y2k">;
 def Format : DiagGroup<"format",
                        [FormatExtraArgs, FormatZeroLength, NonNull,
-                        FormatSecurity]>,
+                        FormatSecurity, FormatY2K]>,
              DiagCategory<"Format String Issue">;
 def FormatNonLiteral : DiagGroup<"format-nonliteral", [FormatSecurity]>;
-def FormatY2K : DiagGroup<"format-y2k", [Format]>;
 def Format2 : DiagGroup<"format=2",
                         [FormatNonLiteral, FormatSecurity, FormatY2K]>;
 
@@ -248,6 +260,7 @@ def Most : DiagGroup<"most", [
     ReturnType,
     SelfAssignment,
     Switch,
+    SizeofArrayArgument,
     Trigraphs,
     Uninitialized,
     UnknownPragmas,
@@ -283,3 +296,6 @@ def GNU : DiagGroup<"gnu", [GNUDesignator, VLA]>;
 
 // A warning group for warnings about Microsoft extensions.
 def Microsoft : DiagGroup<"microsoft">;
+
+def ObjCNonUnifiedException : DiagGroup<"objc-nonunified-exceptions">;
+

@@ -317,7 +317,7 @@ would be rewritten to be:
     int flags;   //refcount;
     int size;
     int captured_i;
-  } i = { NULL, &i, 0, sizeof(struct _block_byref_i), 11 };
+  } i = { NULL, &i, 0, sizeof(struct _block_byref_i), 10 };
 
   i.forwarding->captured_i = 11;
 
@@ -476,7 +476,7 @@ struct _block_byref_obj {
     int size;
     void (*byref_keep)(struct _block_byref_i *dst, struct _block_byref_i *src);
     void (*byref_dispose)(struct _block_byref_i *);
-    int captured_obj;
+    id captured_obj;
 };
 
 void _block_byref_obj_keep(struct _block_byref_voidBlock *dst, struct _block_byref_voidBlock *src) {

@@ -74,6 +74,11 @@ void foo() {
   X = 4 // expected-error{{expected ';' after expression}}
 }
 
+// rdar://9045701
+void test9045701(int x) {
+#define VALUE 0
+  x = VALUE // expected-error{{expected ';' after expression}}
+}
 
 // rdar://7980651
 typedef int intptr_t;  // expected-note {{'intptr_t' declared here}}
@@ -83,4 +88,13 @@ void test1(void) {
   int x = 2: // expected-error {{expected ';' at end of declaration}}
   int y = x;
   int z = y;
+}
+
+void test2(int x) {
+#define VALUE2 VALUE+VALUE
+#define VALUE3 VALUE+0
+#define VALUE4(x) x+0
+  x = VALUE2 // expected-error{{expected ';' after expression}}
+  x = VALUE3 // expected-error{{expected ';' after expression}}
+  x = VALUE4(0) // expected-error{{expected ';' after expression}}
 }

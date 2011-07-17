@@ -124,9 +124,8 @@ void Parser::SuggestParentheses(SourceLocation Loc, unsigned DK,
 
 /// MatchRHSPunctuation - For punctuation with a LHS and RHS (e.g. '['/']'),
 /// this helper function matches and consumes the specified RHS token if
-/// present.  If not present, it emits the specified diagnostic indicating
-/// that the parser failed to match the RHS of the token at LHSLoc.  LHSName
-/// should be the name of the unmatched LHS token.
+/// present.  If not present, it emits a corresponding diagnostic indicating
+/// that the parser failed to match the RHS of the token at LHSLoc.
 SourceLocation Parser::MatchRHSPunctuation(tok::TokenKind RHSTok,
                                            SourceLocation LHSLoc) {
 
@@ -486,6 +485,7 @@ void Parser::Initialize() {
 /// ParseTopLevelDecl - Parse one top-level declaration, return whatever the
 /// action tells us to.  This returns true if the EOF was encountered.
 bool Parser::ParseTopLevelDecl(DeclGroupPtrTy &Result) {
+  DelayedCleanupPoint CleanupRAII(TopLevelDeclCleanupPool);
 
   while (Tok.is(tok::annot_pragma_unused))
     HandlePragmaUnused();
@@ -548,6 +548,7 @@ void Parser::ParseTranslationUnit() {
 Parser::DeclGroupPtrTy
 Parser::ParseExternalDeclaration(ParsedAttributesWithRange &attrs,
                                  ParsingDeclSpec *DS) {
+  DelayedCleanupPoint CleanupRAII(TopLevelDeclCleanupPool);
   ParenBraceBracketBalancer BalancerRAIIObj(*this);
   
   Decl *SingleDecl = 0;
@@ -1155,6 +1156,18 @@ Parser::ExprResult Parser::ParseSimpleAsm(SourceLocation *EndLoc) {
   return move(Result);
 }
 
+/// \brief Get the TemplateIdAnnotation from the token and put it in the
+/// cleanup pool so that it gets destroyed when parsing the current top level
+/// declaration is finished.
+TemplateIdAnnotation *Parser::takeTemplateIdAnnotation(const Token &tok) {
+  assert(tok.is(tok::annot_template_id) && "Expected template-id token");
+  TemplateIdAnnotation *
+      Id = static_cast<TemplateIdAnnotation *>(tok.getAnnotationValue());
+  TopLevelDeclCleanupPool.delayMemberFunc< TemplateIdAnnotation,
+                                          &TemplateIdAnnotation::Destroy>(Id);
+  return Id;
+}
+
 /// TryAnnotateTypeOrScopeToken - If the current token position is on a
 /// typename (possibly qualified in C++) or a C++ scope specifier not followed
 /// by a typename, TryAnnotateTypeOrScopeToken will replace one or more tokens
@@ -1209,8 +1222,7 @@ bool Parser::TryAnnotateTypeOrScopeToken(bool EnteringContext) {
                                      *Tok.getIdentifierInfo(),
                                      Tok.getLocation());
     } else if (Tok.is(tok::annot_template_id)) {
-      TemplateIdAnnotation *TemplateId
-        = static_cast<TemplateIdAnnotation *>(Tok.getAnnotationValue());
+      TemplateIdAnnotation *TemplateId = takeTemplateIdAnnotation(Tok);
       if (TemplateId->Kind == TNK_Function_template) {
         Diag(Tok, diag::err_typename_refers_to_non_type_template)
           << Tok.getAnnotationRange();
@@ -1228,7 +1240,6 @@ bool Parser::TryAnnotateTypeOrScopeToken(bool EnteringContext) {
                                      TemplateId->LAngleLoc,
                                      TemplateArgsPtr, 
                                      TemplateId->RAngleLoc);
-      TemplateId->Destroy();
     } else {
       Diag(Tok, diag::err_expected_type_name_after_typename)
         << SS.getRange();
@@ -1311,8 +1322,7 @@ bool Parser::TryAnnotateTypeOrScopeToken(bool EnteringContext) {
   }
 
   if (Tok.is(tok::annot_template_id)) {
-    TemplateIdAnnotation *TemplateId
-      = static_cast<TemplateIdAnnotation *>(Tok.getAnnotationValue());
+    TemplateIdAnnotation *TemplateId = takeTemplateIdAnnotation(Tok);
     if (TemplateId->Kind == TNK_Type_template) {
       // A template-id that refers to a type was parsed into a
       // template-id annotation in a context where we weren't allowed
