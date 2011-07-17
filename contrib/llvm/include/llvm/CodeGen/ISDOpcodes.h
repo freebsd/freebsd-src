@@ -232,7 +232,7 @@ namespace ISD {
     SMULO, UMULO,
 
     // Simple binary floating point operators.
-    FADD, FSUB, FMUL, FDIV, FREM,
+    FADD, FSUB, FMUL, FMA, FDIV, FREM,
 
     // FCOPYSIGN(X, Y) - Return the value of X with the sign of Y.  NOTE: This
     // DAG node does not require that X and Y have the same type, just that they
@@ -580,7 +580,8 @@ namespace ISD {
 
     // PREFETCH - This corresponds to a prefetch intrinsic. It takes chains are
     // their first operand. The other operands are the address to prefetch,
-    // read / write specifier, and locality specifier.
+    // read / write specifier, locality specifier and instruction / data cache
+    // specifier.
     PREFETCH,
 
     // OUTCHAIN = MEMBARRIER(INCHAIN, load-load, load-store, store-load,

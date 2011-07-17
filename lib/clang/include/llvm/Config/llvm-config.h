@@ -60,8 +60,14 @@
 /* LLVM name for the native TargetInfo init function, if available */
 #define LLVM_NATIVE_TARGETINFO LLVMInitializeX86TargetInfo
 
+/* LLVM name for the native MCAsmInfo init function, if available */
+#define LLVM_NATIVE_MCASMINFO LLVMInitializeX86MCAsmInfo
+
 /* LLVM name for the native AsmPrinter init function, if available */
 #define LLVM_NATIVE_ASMPRINTER LLVMInitializeX86AsmPrinter
+
+/* LLVM name for the native AsmPrinter init function, if available */
+#define LLVM_NATIVE_ASMPARSER LLVMInitializeX86AsmParser
 
 /* Define if this is Unixish platform */
 #define LLVM_ON_UNIX 1

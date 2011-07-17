@@ -106,8 +106,8 @@ public:
   bool use_empty_except_constants();
 
   /// getType - Global values are always pointers.
-  inline const PointerType *getType() const {
-    return reinterpret_cast<const PointerType*>(User::getType());
+  inline PointerType *getType() const {
+    return reinterpret_cast<PointerType*>(User::getType());
   }
 
   static LinkageTypes getLinkOnceLinkage(bool ODR) {
@@ -258,16 +258,12 @@ public:
 
 /// @}
 
-  /// Override from Constant class. No GlobalValue's are null values so this
-  /// always returns false.
-  virtual bool isNullValue() const { return false; }
-
   /// Override from Constant class.
   virtual void destroyConstant();
 
   /// isDeclaration - Return true if the primary definition of this global 
-  /// value is outside of the current translation unit...
-  virtual bool isDeclaration() const = 0;
+  /// value is outside of the current translation unit.
+  bool isDeclaration() const;
 
   /// removeFromParent - This method unlinks 'this' from the containing module,
   /// but does not delete it.

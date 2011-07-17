@@ -452,6 +452,34 @@ ObjCMethodFamily ObjCMethodDecl::getMethodFamily() const {
     if (!isInstanceMethod())
       family = OMF_None;
     break;
+      
+  case OMF_performSelector:
+    if (!isInstanceMethod() ||
+        !getResultType()->isObjCIdType())
+      family = OMF_None;
+    else {
+      unsigned noParams = param_size();
+      if (noParams < 1 || noParams > 3)
+        family = OMF_None;
+      else {
+        ObjCMethodDecl::arg_type_iterator it = arg_type_begin();
+        QualType ArgT = (*it);
+        if (!ArgT->isObjCSelType()) {
+          family = OMF_None;
+          break;
+        }
+        while (--noParams) {
+          it++;
+          ArgT = (*it);
+          if (!ArgT->isObjCIdType()) {
+            family = OMF_None;
+            break;
+          }
+        }
+      }
+    }
+    break;
+      
   }
 
   // Cache the result.
@@ -474,8 +502,34 @@ void ObjCMethodDecl::createImplicitParams(ASTContext &Context,
   } else // we have a factory method.
     selfTy = Context.getObjCClassType();
 
-  setSelfDecl(ImplicitParamDecl::Create(Context, this, SourceLocation(),
-                                        &Context.Idents.get("self"), selfTy));
+  bool selfIsPseudoStrong = false;
+  bool selfIsConsumed = false;
+  if (isInstanceMethod() && Context.getLangOptions().ObjCAutoRefCount) {
+    selfIsConsumed = hasAttr<NSConsumesSelfAttr>();
+
+    // 'self' is always __strong.  It's actually pseudo-strong except
+    // in init methods, though.
+    Qualifiers qs;
+    qs.setObjCLifetime(Qualifiers::OCL_Strong);
+    selfTy = Context.getQualifiedType(selfTy, qs);
+
+    // In addition, 'self' is const unless this is an init method.
+    if (getMethodFamily() != OMF_init) {
+      selfTy = selfTy.withConst();
+      selfIsPseudoStrong = true;
+    }
+  }
+
+  ImplicitParamDecl *self
+    = ImplicitParamDecl::Create(Context, this, SourceLocation(),
+                                &Context.Idents.get("self"), selfTy);
+  setSelfDecl(self);
+
+  if (selfIsConsumed)
+    self->addAttr(new (Context) NSConsumedAttr(SourceLocation(), Context));
+
+  if (selfIsPseudoStrong)
+    self->setARCPseudoStrong(true);
 
   setCmdDecl(ImplicitParamDecl::Create(Context, this, SourceLocation(),
                                        &Context.Idents.get("_cmd"),

@@ -702,8 +702,12 @@ private:
     /// \brief Whether this variable is the for-range-declaration in a C++0x
     /// for-range statement.
     unsigned CXXForRangeDecl : 1;
+
+    /// \brief Whether this variable is an ARC pseudo-__strong
+    /// variable;  see isARCPseudoStrong() for details.
+    unsigned ARCPseudoStrong : 1;
   };
-  enum { NumVarDeclBits = 13 }; // two reserved bits for now
+  enum { NumVarDeclBits = 13 }; // one reserved bit
 
   friend class ASTDeclReader;
   friend class StmtIteratorBase;
@@ -975,6 +979,20 @@ public:
 
   void setInit(Expr *I);
 
+  /// \brief Determine whether this variable is a reference that
+  /// extends the lifetime of its temporary initializer. 
+  ///
+  /// A reference extends the lifetime of its temporary initializer if
+  /// it's initializer is an rvalue that would normally go out of scope
+  /// at the end of the initializer (a full expression). In such cases,
+  /// the reference itself takes ownership of the temporary, which will
+  /// be destroyed when the reference goes out of scope. For example:
+  ///
+  /// \code
+  /// const int &r = 1.0; // creates a temporary of type 'int'
+  /// \endcode
+  bool extendsLifetimeOfTemporary() const;
+
   EvaluatedStmt *EnsureEvaluatedStmt() const {
     EvaluatedStmt *Eval = Init.dyn_cast<EvaluatedStmt *>();
     if (!Eval) {
@@ -1102,6 +1120,13 @@ public:
   /// a C++0x for-range statement.
   bool isCXXForRangeDecl() const { return VarDeclBits.CXXForRangeDecl; }
   void setCXXForRangeDecl(bool FRD) { VarDeclBits.CXXForRangeDecl = FRD; }
+
+  /// \brief Determine whether this variable is an ARC pseudo-__strong
+  /// variable.  A pseudo-__strong variable has a __strong-qualified
+  /// type but does not actually retain the object written into it.
+  /// Generally such variables are also 'const' for safety.
+  bool isARCPseudoStrong() const { return VarDeclBits.ARCPseudoStrong; }
+  void setARCPseudoStrong(bool ps) { VarDeclBits.ARCPseudoStrong = ps; }
   
   /// \brief If this variable is an instantiated static data member of a
   /// class template specialization, returns the templated static data member
@@ -2013,6 +2038,11 @@ public:
            "bit width or initializer already set");
     InitializerOrBitWidth.setPointer(BW);
     InitializerOrBitWidth.setInt(1);
+  }
+  /// removeBitWidth - Remove the bitfield width from this member.
+  void removeBitWidth() {
+    assert(isBitField() && "no bit width to remove");
+    InitializerOrBitWidth.setPointer(0);
   }
 
   /// hasInClassInitializer - Determine whether this member has a C++0x in-class
@@ -2955,6 +2985,8 @@ public:
   capture_const_iterator capture_end() const { return Captures + NumCaptures; }
 
   bool capturesCXXThis() const { return CapturesCXXThis; }
+
+  bool capturesVariable(const VarDecl *var) const;
 
   void setCaptures(ASTContext &Context,
                    const Capture *begin,

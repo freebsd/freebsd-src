@@ -326,9 +326,7 @@ void Preprocessor::HandlePragmaSystemHeader(Token &SysHeaderTok) {
   if (PLoc.isInvalid())
     return;
   
-  unsigned FilenameLen = strlen(PLoc.getFilename());
-  unsigned FilenameID = SourceMgr.getLineTableFilenameID(PLoc.getFilename(),
-                                                         FilenameLen);
+  unsigned FilenameID = SourceMgr.getLineTableFilenameID(PLoc.getFilename());
 
   // Notify the client, if desired, that we are in a new source file.
   if (Callbacks)
@@ -370,7 +368,7 @@ void Preprocessor::HandlePragmaDependency(Token &DependencyTok) {
   const DirectoryLookup *CurDir;
   const FileEntry *File = LookupFile(Filename, isAngled, 0, CurDir, NULL, NULL);
   if (File == 0) {
-    Diag(FilenameTok, diag::err_pp_file_not_found) << Filename;
+    Diag(FilenameTok, diag::warn_pp_file_not_found) << Filename;
     return;
   }
 
@@ -454,8 +452,7 @@ void Preprocessor::HandlePragmaComment(Token &Tok) {
       return;
     }
 
-    ArgumentString = std::string(Literal.GetString(),
-                                 Literal.GetString()+Literal.GetStringLength());
+    ArgumentString = Literal.GetString();
   }
 
   // FIXME: If the kind is "compiler" warn if the string is present (it is
@@ -531,7 +528,7 @@ void Preprocessor::HandlePragmaMessage(Token &Tok) {
     return;
   }
 
-  llvm::StringRef MessageString(Literal.GetString(), Literal.GetStringLength());
+  llvm::StringRef MessageString(Literal.GetString());
 
   if (ExpectClosingParen) {
     if (Tok.isNot(tok::r_paren)) {
@@ -839,8 +836,11 @@ struct PragmaDebugHandler : public PragmaHandler {
 
 /// PragmaDiagnosticHandler - e.g. '#pragma GCC diagnostic ignored "-Wformat"'
 struct PragmaDiagnosticHandler : public PragmaHandler {
+private:
+  const char *Namespace;
 public:
-  explicit PragmaDiagnosticHandler() : PragmaHandler("diagnostic") {}
+  explicit PragmaDiagnosticHandler(const char *NS) :
+    PragmaHandler("diagnostic"), Namespace(NS) {}
   virtual void HandlePragma(Preprocessor &PP, PragmaIntroducerKind Introducer,
                             Token &DiagToken) {
     SourceLocation DiagLoc = DiagToken.getLocation();
@@ -851,6 +851,7 @@ public:
       return;
     }
     IdentifierInfo *II = Tok.getIdentifierInfo();
+    PPCallbacks *Callbacks = PP.getPPCallbacks();
 
     diag::Mapping Map;
     if (II->isStr("warning"))
@@ -864,10 +865,13 @@ public:
     else if (II->isStr("pop")) {
       if (!PP.getDiagnostics().popMappings(DiagLoc))
         PP.Diag(Tok, diag::warn_pragma_diagnostic_cannot_pop);
-
+      else if (Callbacks)
+        Callbacks->PragmaDiagnosticPop(DiagLoc, Namespace);
       return;
     } else if (II->isStr("push")) {
       PP.getDiagnostics().pushMappings(DiagLoc);
+      if (Callbacks)
+        Callbacks->PragmaDiagnosticPush(DiagLoc, Namespace);
       return;
     } else {
       PP.Diag(Tok, diag::warn_pragma_diagnostic_invalid);
@@ -906,7 +910,7 @@ public:
       return;
     }
 
-    llvm::StringRef WarningName(Literal.GetString(), Literal.GetStringLength());
+    llvm::StringRef WarningName(Literal.GetString());
 
     if (WarningName.size() < 3 || WarningName[0] != '-' ||
         WarningName[1] != 'W') {
@@ -919,6 +923,8 @@ public:
                                                       Map, DiagLoc))
       PP.Diag(StrToks[0].getLocation(),
               diag::warn_pragma_diagnostic_unknown_warning) << WarningName;
+    else if (Callbacks)
+      Callbacks->PragmaDiagnostic(DiagLoc, Namespace, Map, WarningName);
   }
 };
 
@@ -1013,13 +1019,13 @@ void Preprocessor::RegisterBuiltinPragmas() {
   AddPragmaHandler("GCC", new PragmaPoisonHandler());
   AddPragmaHandler("GCC", new PragmaSystemHeaderHandler());
   AddPragmaHandler("GCC", new PragmaDependencyHandler());
-  AddPragmaHandler("GCC", new PragmaDiagnosticHandler());
+  AddPragmaHandler("GCC", new PragmaDiagnosticHandler("GCC"));
   // #pragma clang ...
   AddPragmaHandler("clang", new PragmaPoisonHandler());
   AddPragmaHandler("clang", new PragmaSystemHeaderHandler());
   AddPragmaHandler("clang", new PragmaDebugHandler());
   AddPragmaHandler("clang", new PragmaDependencyHandler());
-  AddPragmaHandler("clang", new PragmaDiagnosticHandler());
+  AddPragmaHandler("clang", new PragmaDiagnosticHandler("clang"));
 
   AddPragmaHandler("STDC", new PragmaSTDC_FENV_ACCESSHandler());
   AddPragmaHandler("STDC", new PragmaSTDC_CX_LIMITED_RANGEHandler());

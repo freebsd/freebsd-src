@@ -37,12 +37,14 @@
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/STLExtras.h"
 
+#define GET_REGINFO_TARGET_DESC
+#include "MBlazeGenRegisterInfo.inc"
+
 using namespace llvm;
 
 MBlazeRegisterInfo::
 MBlazeRegisterInfo(const MBlazeSubtarget &ST, const TargetInstrInfo &tii)
-  : MBlazeGenRegisterInfo(MBlaze::ADJCALLSTACKDOWN, MBlaze::ADJCALLSTACKUP),
-    Subtarget(ST), TII(tii) {}
+  : MBlazeGenRegisterInfo(), Subtarget(ST), TII(tii) {}
 
 /// getRegisterNumbering - Given the enum value for some register, e.g.
 /// MBlaze::R0, return the number that it corresponds to (e.g. 0).
@@ -359,6 +361,3 @@ int MBlazeRegisterInfo::getDwarfRegNum(unsigned RegNo, bool isEH) const {
 int MBlazeRegisterInfo::getLLVMRegNum(unsigned DwarfRegNo, bool isEH) const {
   return MBlazeGenRegisterInfo::getLLVMRegNumFull(DwarfRegNo,0);
 }
-
-#include "MBlazeGenRegisterInfo.inc"
-

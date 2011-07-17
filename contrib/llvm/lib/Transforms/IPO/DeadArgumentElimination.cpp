@@ -208,7 +208,7 @@ bool DAE::DeleteDeadVarargs(Function &Fn) {
   // the old function, but doesn't have isVarArg set.
   const FunctionType *FTy = Fn.getFunctionType();
 
-  std::vector<const Type*> Params(FTy->param_begin(), FTy->param_end());
+  std::vector<Type*> Params(FTy->param_begin(), FTy->param_end());
   FunctionType *NFTy = FunctionType::get(FTy->getReturnType(),
                                                 Params, false);
   unsigned NumArgs = Params.size();
@@ -244,11 +244,11 @@ bool DAE::DeleteDeadVarargs(Function &Fn) {
     Instruction *New;
     if (InvokeInst *II = dyn_cast<InvokeInst>(Call)) {
       New = InvokeInst::Create(NF, II->getNormalDest(), II->getUnwindDest(),
-                               Args.begin(), Args.end(), "", Call);
+                               Args, "", Call);
       cast<InvokeInst>(New)->setCallingConv(CS.getCallingConv());
       cast<InvokeInst>(New)->setAttributes(PAL);
     } else {
-      New = CallInst::Create(NF, Args.begin(), Args.end(), "", Call);
+      New = CallInst::Create(NF, Args, "", Call);
       cast<CallInst>(New)->setCallingConv(CS.getCallingConv());
       cast<CallInst>(New)->setAttributes(PAL);
       if (cast<CallInst>(Call)->isTailCall())
@@ -647,7 +647,7 @@ bool DAE::RemoveDeadStuffFromFunction(Function *F) {
   // Start by computing a new prototype for the function, which is the same as
   // the old function, but has fewer arguments and a different return type.
   const FunctionType *FTy = F->getFunctionType();
-  std::vector<const Type*> Params;
+  std::vector<Type*> Params;
 
   // Set up to build a new list of parameter attributes.
   SmallVector<AttributeWithIndex, 8> AttributesVec;
@@ -659,13 +659,13 @@ bool DAE::RemoveDeadStuffFromFunction(Function *F) {
 
   // Find out the new return value.
 
-  const Type *RetTy = FTy->getReturnType();
+  Type *RetTy = FTy->getReturnType();
   const Type *NRetTy = NULL;
   unsigned RetCount = NumRetVals(F);
 
   // -1 means unused, other numbers are the new index
   SmallVector<int, 5> NewRetIdxs(RetCount, -1);
-  std::vector<const Type*> RetTypes;
+  std::vector<Type*> RetTypes;
   if (RetTy->isVoidTy()) {
     NRetTy = RetTy;
   } else {
@@ -822,11 +822,11 @@ bool DAE::RemoveDeadStuffFromFunction(Function *F) {
     Instruction *New;
     if (InvokeInst *II = dyn_cast<InvokeInst>(Call)) {
       New = InvokeInst::Create(NF, II->getNormalDest(), II->getUnwindDest(),
-                               Args.begin(), Args.end(), "", Call);
+                               Args, "", Call);
       cast<InvokeInst>(New)->setCallingConv(CS.getCallingConv());
       cast<InvokeInst>(New)->setAttributes(NewCallPAL);
     } else {
-      New = CallInst::Create(NF, Args.begin(), Args.end(), "", Call);
+      New = CallInst::Create(NF, Args, "", Call);
       cast<CallInst>(New)->setCallingConv(CS.getCallingConv());
       cast<CallInst>(New)->setAttributes(NewCallPAL);
       if (cast<CallInst>(Call)->isTailCall())

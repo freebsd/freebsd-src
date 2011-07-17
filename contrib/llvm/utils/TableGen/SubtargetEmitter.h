@@ -15,7 +15,7 @@
 #define SUBTARGET_EMITTER_H
 
 #include "TableGenBackend.h"
-#include "llvm/Target/TargetInstrItineraries.h"
+#include "llvm/MC/MCInstrItineraries.h"
 #include <vector>
 #include <map>
 #include <string>
@@ -30,8 +30,8 @@ class SubtargetEmitter : public TableGenBackend {
   bool HasItineraries;
 
   void Enumeration(raw_ostream &OS, const char *ClassName, bool isBits);
-  void FeatureKeyValues(raw_ostream &OS);
-  void CPUKeyValues(raw_ostream &OS);
+  unsigned FeatureKeyValues(raw_ostream &OS);
+  unsigned CPUKeyValues(raw_ostream &OS);
   unsigned CollectAllItinClasses(raw_ostream &OS,
                                  std::map<std::string,unsigned> &ItinClassesMap,
                                  std::vector<Record*> &ItinClassList);
@@ -52,7 +52,8 @@ class SubtargetEmitter : public TableGenBackend {
                          std::vector<std::vector<InstrItinerary> > &ProcList);
   void EmitProcessorLookup(raw_ostream &OS);
   void EmitData(raw_ostream &OS);
-  void ParseFeaturesFunction(raw_ostream &OS);
+  void ParseFeaturesFunction(raw_ostream &OS, unsigned NumFeatures,
+                             unsigned NumProcs);
 
 public:
   SubtargetEmitter(RecordKeeper &R) : Records(R), HasItineraries(false) {}

@@ -128,10 +128,10 @@ bool ARMGlobalMerge::doMerge(SmallVectorImpl<GlobalVariable*> &Globals,
   for (size_t i = 0, e = Globals.size(); i != e; ) {
     size_t j = 0;
     uint64_t MergedSize = 0;
-    std::vector<const Type*> Tys;
+    std::vector<Type*> Tys;
     std::vector<Constant*> Inits;
     for (j = i; j != e; ++j) {
-      const Type *Ty = Globals[j]->getType()->getElementType();
+      Type *Ty = Globals[j]->getType()->getElementType();
       MergedSize += TD->getTypeAllocSize(Ty);
       if (MergedSize > MaxOffset) {
         break;
@@ -175,7 +175,9 @@ bool ARMGlobalMerge::doInitialization(Module &M) {
       continue;
 
     // Ignore fancy-aligned globals for now.
-    if (I->getAlignment() != 0)
+    unsigned Alignment = I->getAlignment();
+    const Type *Ty = I->getType()->getElementType();
+    if (Alignment > TD->getABITypeAlignment(Ty))
       continue;
 
     // Ignore all 'special' globals.
@@ -183,7 +185,7 @@ bool ARMGlobalMerge::doInitialization(Module &M) {
         I->getName().startswith(".llvm."))
       continue;
 
-    if (TD->getTypeAllocSize(I->getType()->getElementType()) < MaxOffset) {
+    if (TD->getTypeAllocSize(Ty) < MaxOffset) {
       const TargetLoweringObjectFile &TLOF = TLI->getObjFileLowering();
       if (TLOF.getKindForGlobal(I, TLI->getTargetMachine()).isBSSLocal())
         BSSGlobals.push_back(I);

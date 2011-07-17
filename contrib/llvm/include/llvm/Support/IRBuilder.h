@@ -82,12 +82,25 @@ public:
     InsertPt = I;
     SetCurrentDebugLocation(I->getDebugLoc());
   }
-  
+
   /// SetInsertPoint - This specifies that created instructions should be
   /// inserted at the specified point.
   void SetInsertPoint(BasicBlock *TheBB, BasicBlock::iterator IP) {
     BB = TheBB;
     InsertPt = IP;
+  }
+
+  /// SetInsertPoint(Use) - Find the nearest point that dominates this use, and
+  /// specify that created instructions should be inserted at this point.
+  void SetInsertPoint(Use &U) {
+    Instruction *UseInst = cast<Instruction>(U.getUser());
+    if (PHINode *Phi = dyn_cast<PHINode>(UseInst)) {
+      BasicBlock *PredBB = Phi->getIncomingBlock(U);
+      assert(U != PredBB->getTerminator() && "critical edge not split");
+      SetInsertPoint(PredBB, PredBB->getTerminator());
+      return;
+    }
+    SetInsertPoint(UseInst);
   }
 
   /// SetCurrentDebugLocation - Set location information used by debugging
@@ -98,7 +111,7 @@ public:
 
   /// getCurrentDebugLocation - Get location information used by debugging
   /// information.
-  const DebugLoc &getCurrentDebugLocation() const { return CurDbgLocation; }
+  DebugLoc getCurrentDebugLocation() const { return CurDbgLocation; }
 
   /// SetInstDebugLocation - If this builder has a current debug location, set
   /// it on the specified instruction.
@@ -109,8 +122,8 @@ public:
 
   /// getCurrentFunctionReturnType - Get the return type of the current function
   /// that we're emitting into.
-  const Type *getCurrentFunctionReturnType() const;
-  
+  Type *getCurrentFunctionReturnType() const;
+
   /// InsertPoint - A saved insertion point.
   class InsertPoint {
     BasicBlock *Block;
@@ -198,7 +211,7 @@ public:
   ConstantInt *getInt64(uint64_t C) {
     return ConstantInt::get(getInt64Ty(), C);
   }
-  
+
   /// getInt - Get a constant integer value.
   ConstantInt *getInt(const APInt &AI) {
     return ConstantInt::get(Context, AI);
@@ -209,46 +222,46 @@ public:
   //===--------------------------------------------------------------------===//
 
   /// getInt1Ty - Fetch the type representing a single bit
-  const IntegerType *getInt1Ty() {
+  IntegerType *getInt1Ty() {
     return Type::getInt1Ty(Context);
   }
 
   /// getInt8Ty - Fetch the type representing an 8-bit integer.
-  const IntegerType *getInt8Ty() {
+  IntegerType *getInt8Ty() {
     return Type::getInt8Ty(Context);
   }
 
   /// getInt16Ty - Fetch the type representing a 16-bit integer.
-  const IntegerType *getInt16Ty() {
+  IntegerType *getInt16Ty() {
     return Type::getInt16Ty(Context);
   }
 
   /// getInt32Ty - Fetch the type resepresenting a 32-bit integer.
-  const IntegerType *getInt32Ty() {
+  IntegerType *getInt32Ty() {
     return Type::getInt32Ty(Context);
   }
 
   /// getInt64Ty - Fetch the type representing a 64-bit integer.
-  const IntegerType *getInt64Ty() {
+  IntegerType *getInt64Ty() {
     return Type::getInt64Ty(Context);
   }
 
   /// getFloatTy - Fetch the type representing a 32-bit floating point value.
-  const Type *getFloatTy() {
+  Type *getFloatTy() {
     return Type::getFloatTy(Context);
   }
 
   /// getDoubleTy - Fetch the type representing a 64-bit floating point value.
-  const Type *getDoubleTy() {
+  Type *getDoubleTy() {
     return Type::getDoubleTy(Context);
   }
 
   /// getVoidTy - Fetch the type representing void.
-  const Type *getVoidTy() {
+  Type *getVoidTy() {
     return Type::getVoidTy(Context);
   }
 
-  const PointerType *getInt8PtrTy(unsigned AddrSpace = 0) {
+  PointerType *getInt8PtrTy(unsigned AddrSpace = 0) {
     return Type::getInt8PtrTy(Context, AddrSpace);
   }
 
@@ -263,7 +276,7 @@ public:
                          bool isVolatile = false, MDNode *TBAATag = 0) {
     return CreateMemSet(Ptr, Val, getInt64(Size), Align, isVolatile, TBAATag);
   }
-  
+
   CallInst *CreateMemSet(Value *Ptr, Value *Val, Value *Size, unsigned Align,
                          bool isVolatile = false, MDNode *TBAATag = 0);
 
@@ -274,7 +287,7 @@ public:
                          bool isVolatile = false, MDNode *TBAATag = 0) {
     return CreateMemCpy(Dst, Src, getInt64(Size), Align, isVolatile, TBAATag);
   }
-  
+
   CallInst *CreateMemCpy(Value *Dst, Value *Src, Value *Size, unsigned Align,
                          bool isVolatile = false, MDNode *TBAATag = 0);
 
@@ -285,9 +298,9 @@ public:
                           bool isVolatile = false, MDNode *TBAATag = 0) {
     return CreateMemMove(Dst, Src, getInt64(Size), Align, isVolatile, TBAATag);
   }
-  
+
   CallInst *CreateMemMove(Value *Dst, Value *Src, Value *Size, unsigned Align,
-                          bool isVolatile = false, MDNode *TBAATag = 0);  
+                          bool isVolatile = false, MDNode *TBAATag = 0);
 
   /// CreateLifetimeStart - Create a lifetime.start intrinsic.  If the pointer
   /// isn't i8* it will be converted.
@@ -341,7 +354,13 @@ public:
     SetInsertPoint(IP);
     SetCurrentDebugLocation(IP->getDebugLoc());
   }
-  
+
+  explicit IRBuilder(Use &U)
+    : IRBuilderBase(U->getContext()), Folder() {
+    SetInsertPoint(U);
+    SetCurrentDebugLocation(cast<Instruction>(U.getUser())->getDebugLoc());
+  }
+
   IRBuilder(BasicBlock *TheBB, BasicBlock::iterator IP, const T& F)
     : IRBuilderBase(TheBB->getContext()), Folder(F) {
     SetInsertPoint(TheBB, IP);
@@ -430,34 +449,30 @@ public:
 
   InvokeInst *CreateInvoke(Value *Callee, BasicBlock *NormalDest,
                            BasicBlock *UnwindDest, const Twine &Name = "") {
-    Value *Args[] = { 0 };
-    return Insert(InvokeInst::Create(Callee, NormalDest, UnwindDest, Args,
-                                     Args), Name);
+    return Insert(InvokeInst::Create(Callee, NormalDest, UnwindDest,
+                                     ArrayRef<Value *>()),
+                  Name);
   }
   InvokeInst *CreateInvoke(Value *Callee, BasicBlock *NormalDest,
                            BasicBlock *UnwindDest, Value *Arg1,
                            const Twine &Name = "") {
-    Value *Args[] = { Arg1 };
-    return Insert(InvokeInst::Create(Callee, NormalDest, UnwindDest, Args,
-                                     Args+1), Name);
+    return Insert(InvokeInst::Create(Callee, NormalDest, UnwindDest, Arg1),
+                  Name);
   }
   InvokeInst *CreateInvoke3(Value *Callee, BasicBlock *NormalDest,
                             BasicBlock *UnwindDest, Value *Arg1,
                             Value *Arg2, Value *Arg3,
                             const Twine &Name = "") {
     Value *Args[] = { Arg1, Arg2, Arg3 };
-    return Insert(InvokeInst::Create(Callee, NormalDest, UnwindDest, Args,
-                                     Args+3), Name);
+    return Insert(InvokeInst::Create(Callee, NormalDest, UnwindDest, Args),
+                  Name);
   }
   /// CreateInvoke - Create an invoke instruction.
-  template<typename RandomAccessIterator>
   InvokeInst *CreateInvoke(Value *Callee, BasicBlock *NormalDest,
-                           BasicBlock *UnwindDest,
-                           RandomAccessIterator ArgBegin,
-                           RandomAccessIterator ArgEnd,
+                           BasicBlock *UnwindDest, ArrayRef<Value *> Args,
                            const Twine &Name = "") {
-    return Insert(InvokeInst::Create(Callee, NormalDest, UnwindDest,
-                                     ArgBegin, ArgEnd), Name);
+    return Insert(InvokeInst::Create(Callee, NormalDest, UnwindDest, Args),
+                  Name);
   }
 
   UnwindInst *CreateUnwind() {
@@ -1107,33 +1122,27 @@ public:
   CallInst *CreateCall2(Value *Callee, Value *Arg1, Value *Arg2,
                         const Twine &Name = "") {
     Value *Args[] = { Arg1, Arg2 };
-    return Insert(CallInst::Create(Callee, Args, Args+2), Name);
+    return Insert(CallInst::Create(Callee, Args), Name);
   }
   CallInst *CreateCall3(Value *Callee, Value *Arg1, Value *Arg2, Value *Arg3,
                         const Twine &Name = "") {
     Value *Args[] = { Arg1, Arg2, Arg3 };
-    return Insert(CallInst::Create(Callee, Args, Args+3), Name);
+    return Insert(CallInst::Create(Callee, Args), Name);
   }
   CallInst *CreateCall4(Value *Callee, Value *Arg1, Value *Arg2, Value *Arg3,
                         Value *Arg4, const Twine &Name = "") {
     Value *Args[] = { Arg1, Arg2, Arg3, Arg4 };
-    return Insert(CallInst::Create(Callee, Args, Args+4), Name);
+    return Insert(CallInst::Create(Callee, Args), Name);
   }
   CallInst *CreateCall5(Value *Callee, Value *Arg1, Value *Arg2, Value *Arg3,
                         Value *Arg4, Value *Arg5, const Twine &Name = "") {
     Value *Args[] = { Arg1, Arg2, Arg3, Arg4, Arg5 };
-    return Insert(CallInst::Create(Callee, Args, Args+5), Name);
+    return Insert(CallInst::Create(Callee, Args), Name);
   }
 
-  CallInst *CreateCall(Value *Callee, ArrayRef<Value *> Arg,
+  CallInst *CreateCall(Value *Callee, ArrayRef<Value *> Args,
                        const Twine &Name = "") {
-    return Insert(CallInst::Create(Callee, Arg.begin(), Arg.end(), Name));
-  }
-
-  template<typename RandomAccessIterator>
-  CallInst *CreateCall(Value *Callee, RandomAccessIterator ArgBegin,
-                       RandomAccessIterator ArgEnd, const Twine &Name = "") {
-    return Insert(CallInst::Create(Callee, ArgBegin, ArgEnd), Name);
+    return Insert(CallInst::Create(Callee, Args, Name));
   }
 
   Value *CreateSelect(Value *C, Value *True, Value *False,
@@ -1175,43 +1184,21 @@ public:
     return Insert(new ShuffleVectorInst(V1, V2, Mask), Name);
   }
 
-  Value *CreateExtractValue(Value *Agg, unsigned Idx,
-                            const Twine &Name = "") {
-    if (Constant *AggC = dyn_cast<Constant>(Agg))
-      return Insert(Folder.CreateExtractValue(AggC, &Idx, 1), Name);
-    return Insert(ExtractValueInst::Create(Agg, Idx), Name);
-  }
-
-  template<typename RandomAccessIterator>
   Value *CreateExtractValue(Value *Agg,
-                            RandomAccessIterator IdxBegin,
-                            RandomAccessIterator IdxEnd,
+                            ArrayRef<unsigned> Idxs,
                             const Twine &Name = "") {
     if (Constant *AggC = dyn_cast<Constant>(Agg))
-      return Insert(Folder.CreateExtractValue(AggC, IdxBegin, IdxEnd-IdxBegin),
-                    Name);
-    return Insert(ExtractValueInst::Create(Agg, IdxBegin, IdxEnd), Name);
+      return Insert(Folder.CreateExtractValue(AggC, Idxs), Name);
+    return Insert(ExtractValueInst::Create(Agg, Idxs), Name);
   }
 
-  Value *CreateInsertValue(Value *Agg, Value *Val, unsigned Idx,
-                           const Twine &Name = "") {
-    if (Constant *AggC = dyn_cast<Constant>(Agg))
-      if (Constant *ValC = dyn_cast<Constant>(Val))
-        return Insert(Folder.CreateInsertValue(AggC, ValC, &Idx, 1), Name);
-    return Insert(InsertValueInst::Create(Agg, Val, Idx), Name);
-  }
-
-  template<typename RandomAccessIterator>
   Value *CreateInsertValue(Value *Agg, Value *Val,
-                           RandomAccessIterator IdxBegin,
-                           RandomAccessIterator IdxEnd,
+                           ArrayRef<unsigned> Idxs,
                            const Twine &Name = "") {
     if (Constant *AggC = dyn_cast<Constant>(Agg))
       if (Constant *ValC = dyn_cast<Constant>(Val))
-        return Insert(Folder.CreateInsertValue(AggC, ValC, IdxBegin,
-                                               IdxEnd - IdxBegin),
-                      Name);
-    return Insert(InsertValueInst::Create(Agg, Val, IdxBegin, IdxEnd), Name);
+        return Insert(Folder.CreateInsertValue(AggC, ValC, Idxs), Name);
+    return Insert(InsertValueInst::Create(Agg, Val, Idxs), Name);
   }
 
   //===--------------------------------------------------------------------===//
@@ -1238,7 +1225,7 @@ public:
   Value *CreatePtrDiff(Value *LHS, Value *RHS, const Twine &Name = "") {
     assert(LHS->getType() == RHS->getType() &&
            "Pointer subtraction operand types must match!");
-    const PointerType *ArgType = cast<PointerType>(LHS->getType());
+    PointerType *ArgType = cast<PointerType>(LHS->getType());
     Value *LHS_int = CreatePtrToInt(LHS, Type::getInt64Ty(Context));
     Value *RHS_int = CreatePtrToInt(RHS, Type::getInt64Ty(Context));
     Value *Difference = CreateSub(LHS_int, RHS_int);

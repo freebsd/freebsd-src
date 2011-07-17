@@ -22,7 +22,9 @@
 #include "llvm/Module.h"
 #include "llvm/Pass.h"
 #include "llvm/PassManager.h"
-#include "llvm/TypeSymbolTable.h"
+#include "llvm/MC/MCAsmInfo.h"
+#include "llvm/MC/MCInstrInfo.h"
+#include "llvm/MC/MCSubtargetInfo.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -32,7 +34,7 @@
 #include "llvm/Config/config.h"
 #include <algorithm>
 #include <set>
-
+#include <map>
 using namespace llvm;
 
 static cl::opt<std::string>
@@ -75,6 +77,16 @@ extern "C" void LLVMInitializeCppBackendTarget() {
   RegisterTargetMachine<CPPTargetMachine> X(TheCppBackendTarget);
 }
 
+extern "C" void LLVMInitializeCppBackendMCAsmInfo() {}
+
+extern "C" void LLVMInitializeCppBackendMCInstrInfo() {
+  RegisterMCInstrInfo<MCInstrInfo> X(TheCppBackendTarget);
+}
+
+extern "C" void LLVMInitializeCppBackendMCSubtargetInfo() {
+  RegisterMCSubtargetInfo<MCSubtargetInfo> X(TheCppBackendTarget);
+}
+
 namespace {
   typedef std::vector<const Type*> TypeList;
   typedef std::map<const Type*,std::string> TypeMap;
@@ -92,8 +104,6 @@ namespace {
     uint64_t uniqueNum;
     TypeMap TypeNames;
     ValueMap ValueNames;
-    TypeMap UnresolvedTypes;
-    TypeList TypeStack;
     NameSet UsedNames;
     TypeSet DefinedTypes;
     ValueSet DefinedValues;
@@ -140,8 +150,7 @@ namespace {
     inline void printCppName(const Value* val);
 
     void printAttributes(const AttrListPtr &PAL, const std::string &name);
-    bool printTypeInternal(const Type* Ty);
-    inline void printType(const Type* Ty);
+    void printType(const Type* Ty);
     void printTypes(const Module* M);
 
     void printConstant(const Constant *CPV);
@@ -188,24 +197,9 @@ static std::string getTypePrefix(const Type *Ty) {
   case Type::ArrayTyID:    return "array_";
   case Type::PointerTyID:  return "ptr_";
   case Type::VectorTyID:   return "packed_";
-  case Type::OpaqueTyID:   return "opaque_";
   default:                 return "other_";
   }
   return "unknown_";
-}
-
-// Looks up the type in the symbol table and returns a pointer to its name or
-// a null pointer if it wasn't found. Note that this isn't the same as the
-// Mode::getTypeName function which will return an empty string, not a null
-// pointer if the name is not found.
-static const std::string *
-findTypeName(const TypeSymbolTable& ST, const Type* Ty) {
-  TypeSymbolTable::const_iterator TI = ST.begin();
-  TypeSymbolTable::const_iterator TE = ST.end();
-  for (;TI != TE; ++TI)
-    if (TI->second == Ty)
-      return &(TI->first);
-  return 0;
 }
 
 void CppWriter::error(const std::string& msg) {
@@ -379,18 +373,20 @@ std::string CppWriter::getCppName(const Type* Ty) {
   case Type::StructTyID:      prefix = "StructTy_"; break;
   case Type::ArrayTyID:       prefix = "ArrayTy_"; break;
   case Type::PointerTyID:     prefix = "PointerTy_"; break;
-  case Type::OpaqueTyID:      prefix = "OpaqueTy_"; break;
   case Type::VectorTyID:      prefix = "VectorTy_"; break;
   default:                    prefix = "OtherTy_"; break; // prevent breakage
   }
 
   // See if the type has a name in the symboltable and build accordingly
-  const std::string* tName = findTypeName(TheModule->getTypeSymbolTable(), Ty);
   std::string name;
-  if (tName)
-    name = std::string(prefix) + *tName;
-  else
-    name = std::string(prefix) + utostr(uniqueNum++);
+  if (const StructType *STy = dyn_cast<StructType>(Ty))
+    if (STy->hasName())
+      name = STy->getName();
+  
+  if (name.empty())
+    name = utostr(uniqueNum++);
+  
+  name = std::string(prefix) + name;
   sanitize(name);
 
   // Save the name
@@ -503,65 +499,38 @@ void CppWriter::printAttributes(const AttrListPtr &PAL,
   }
 }
 
-bool CppWriter::printTypeInternal(const Type* Ty) {
+void CppWriter::printType(const Type* Ty) {
   // We don't print definitions for primitive types
   if (Ty->isPrimitiveType() || Ty->isIntegerTy())
-    return false;
+    return;
 
   // If we already defined this type, we don't need to define it again.
   if (DefinedTypes.find(Ty) != DefinedTypes.end())
-    return false;
+    return;
 
   // Everything below needs the name for the type so get it now.
   std::string typeName(getCppName(Ty));
-
-  // Search the type stack for recursion. If we find it, then generate this
-  // as an OpaqueType, but make sure not to do this multiple times because
-  // the type could appear in multiple places on the stack. Once the opaque
-  // definition is issued, it must not be re-issued. Consequently we have to
-  // check the UnresolvedTypes list as well.
-  TypeList::const_iterator TI = std::find(TypeStack.begin(), TypeStack.end(),
-                                          Ty);
-  if (TI != TypeStack.end()) {
-    TypeMap::const_iterator I = UnresolvedTypes.find(Ty);
-    if (I == UnresolvedTypes.end()) {
-      Out << "PATypeHolder " << typeName;
-      Out << "_fwd = OpaqueType::get(mod->getContext());";
-      nl(Out);
-      UnresolvedTypes[Ty] = typeName;
-    }
-    return true;
-  }
-
-  // We're going to print a derived type which, by definition, contains other
-  // types. So, push this one we're printing onto the type stack to assist with
-  // recursive definitions.
-  TypeStack.push_back(Ty);
 
   // Print the type definition
   switch (Ty->getTypeID()) {
   case Type::FunctionTyID:  {
     const FunctionType* FT = cast<FunctionType>(Ty);
-    Out << "std::vector<const Type*>" << typeName << "_args;";
+    Out << "std::vector<Type*>" << typeName << "_args;";
     nl(Out);
     FunctionType::param_iterator PI = FT->param_begin();
     FunctionType::param_iterator PE = FT->param_end();
     for (; PI != PE; ++PI) {
       const Type* argTy = static_cast<const Type*>(*PI);
-      bool isForward = printTypeInternal(argTy);
+      printType(argTy);
       std::string argName(getCppName(argTy));
       Out << typeName << "_args.push_back(" << argName;
-      if (isForward)
-        Out << "_fwd";
       Out << ");";
       nl(Out);
     }
-    bool isForward = printTypeInternal(FT->getReturnType());
+    printType(FT->getReturnType());
     std::string retTypeName(getCppName(FT->getReturnType()));
     Out << "FunctionType* " << typeName << " = FunctionType::get(";
     in(); nl(Out) << "/*Result=*/" << retTypeName;
-    if (isForward)
-      Out << "_fwd";
     Out << ",";
     nl(Out) << "/*Params=*/" << typeName << "_args,";
     nl(Out) << "/*isVarArg=*/" << (FT->isVarArg() ? "true" : "false") << ");";
@@ -571,23 +540,37 @@ bool CppWriter::printTypeInternal(const Type* Ty) {
   }
   case Type::StructTyID: {
     const StructType* ST = cast<StructType>(Ty);
-    Out << "std::vector<const Type*>" << typeName << "_fields;";
+    if (!ST->isAnonymous()) {
+      Out << "StructType *" << typeName << " = ";
+      Out << "StructType::createNamed(mod->getContext(), \"";
+      printEscapedString(ST->getName());
+      Out << "\");";
+      nl(Out);
+      // Indicate that this type is now defined.
+      DefinedTypes.insert(Ty);
+    }
+
+    Out << "std::vector<Type*>" << typeName << "_fields;";
     nl(Out);
     StructType::element_iterator EI = ST->element_begin();
     StructType::element_iterator EE = ST->element_end();
     for (; EI != EE; ++EI) {
       const Type* fieldTy = static_cast<const Type*>(*EI);
-      bool isForward = printTypeInternal(fieldTy);
+      printType(fieldTy);
       std::string fieldName(getCppName(fieldTy));
       Out << typeName << "_fields.push_back(" << fieldName;
-      if (isForward)
-        Out << "_fwd";
       Out << ");";
       nl(Out);
     }
-    Out << "StructType* " << typeName << " = StructType::get("
-        << "mod->getContext(), "
-        << typeName << "_fields, /*isPacked=*/"
+
+    if (ST->isAnonymous()) {
+      Out << "StructType *" << typeName << " = ";
+      Out << "StructType::get(" << "mod->getContext(), ";
+    } else {
+      Out << typeName << "->setBody(";
+    }
+
+    Out << typeName << "_fields, /*isPacked=*/"
         << (ST->isPacked() ? "true" : "false") << ");";
     nl(Out);
     break;
@@ -595,122 +578,55 @@ bool CppWriter::printTypeInternal(const Type* Ty) {
   case Type::ArrayTyID: {
     const ArrayType* AT = cast<ArrayType>(Ty);
     const Type* ET = AT->getElementType();
-    bool isForward = printTypeInternal(ET);
-    std::string elemName(getCppName(ET));
-    Out << "ArrayType* " << typeName << " = ArrayType::get("
-        << elemName << (isForward ? "_fwd" : "")
-        << ", " << utostr(AT->getNumElements()) << ");";
-    nl(Out);
+    printType(ET);
+    if (DefinedTypes.find(Ty) == DefinedTypes.end()) {
+      std::string elemName(getCppName(ET));
+      Out << "ArrayType* " << typeName << " = ArrayType::get("
+          << elemName
+          << ", " << utostr(AT->getNumElements()) << ");";
+      nl(Out);
+    }
     break;
   }
   case Type::PointerTyID: {
     const PointerType* PT = cast<PointerType>(Ty);
     const Type* ET = PT->getElementType();
-    bool isForward = printTypeInternal(ET);
-    std::string elemName(getCppName(ET));
-    Out << "PointerType* " << typeName << " = PointerType::get("
-        << elemName << (isForward ? "_fwd" : "")
-        << ", " << utostr(PT->getAddressSpace()) << ");";
-    nl(Out);
+    printType(ET);
+    if (DefinedTypes.find(Ty) == DefinedTypes.end()) {
+      std::string elemName(getCppName(ET));
+      Out << "PointerType* " << typeName << " = PointerType::get("
+          << elemName
+          << ", " << utostr(PT->getAddressSpace()) << ");";
+      nl(Out);
+    }
     break;
   }
   case Type::VectorTyID: {
     const VectorType* PT = cast<VectorType>(Ty);
     const Type* ET = PT->getElementType();
-    bool isForward = printTypeInternal(ET);
-    std::string elemName(getCppName(ET));
-    Out << "VectorType* " << typeName << " = VectorType::get("
-        << elemName << (isForward ? "_fwd" : "")
-        << ", " << utostr(PT->getNumElements()) << ");";
-    nl(Out);
-    break;
-  }
-  case Type::OpaqueTyID: {
-    Out << "OpaqueType* " << typeName;
-    Out << " = OpaqueType::get(mod->getContext());";
-    nl(Out);
+    printType(ET);
+    if (DefinedTypes.find(Ty) == DefinedTypes.end()) {
+      std::string elemName(getCppName(ET));
+      Out << "VectorType* " << typeName << " = VectorType::get("
+          << elemName
+          << ", " << utostr(PT->getNumElements()) << ");";
+      nl(Out);
+    }
     break;
   }
   default:
     error("Invalid TypeID");
   }
 
-  // If the type had a name, make sure we recreate it.
-  const std::string* progTypeName =
-    findTypeName(TheModule->getTypeSymbolTable(),Ty);
-  if (progTypeName) {
-    Out << "mod->addTypeName(\"" << *progTypeName << "\", "
-        << typeName << ");";
-    nl(Out);
-  }
-
-  // Pop us off the type stack
-  TypeStack.pop_back();
-
   // Indicate that this type is now defined.
   DefinedTypes.insert(Ty);
 
-  // Early resolve as many unresolved types as possible. Search the unresolved
-  // types map for the type we just printed. Now that its definition is complete
-  // we can resolve any previous references to it. This prevents a cascade of
-  // unresolved types.
-  TypeMap::iterator I = UnresolvedTypes.find(Ty);
-  if (I != UnresolvedTypes.end()) {
-    Out << "cast<OpaqueType>(" << I->second
-        << "_fwd.get())->refineAbstractTypeTo(" << I->second << ");";
-    nl(Out);
-    Out << I->second << " = cast<";
-    switch (Ty->getTypeID()) {
-    case Type::FunctionTyID: Out << "FunctionType"; break;
-    case Type::ArrayTyID:    Out << "ArrayType"; break;
-    case Type::StructTyID:   Out << "StructType"; break;
-    case Type::VectorTyID:   Out << "VectorType"; break;
-    case Type::PointerTyID:  Out << "PointerType"; break;
-    case Type::OpaqueTyID:   Out << "OpaqueType"; break;
-    default:                 Out << "NoSuchDerivedType"; break;
-    }
-    Out << ">(" << I->second << "_fwd.get());";
-    nl(Out); nl(Out);
-    UnresolvedTypes.erase(I);
-  }
-
   // Finally, separate the type definition from other with a newline.
   nl(Out);
-
-  // We weren't a recursive type
-  return false;
-}
-
-// Prints a type definition. Returns true if it could not resolve all the
-// types in the definition but had to use a forward reference.
-void CppWriter::printType(const Type* Ty) {
-  assert(TypeStack.empty());
-  TypeStack.clear();
-  printTypeInternal(Ty);
-  assert(TypeStack.empty());
 }
 
 void CppWriter::printTypes(const Module* M) {
-  // Walk the symbol table and print out all its types
-  const TypeSymbolTable& symtab = M->getTypeSymbolTable();
-  for (TypeSymbolTable::const_iterator TI = symtab.begin(), TE = symtab.end();
-       TI != TE; ++TI) {
-
-    // For primitive types and types already defined, just add a name
-    TypeMap::const_iterator TNI = TypeNames.find(TI->second);
-    if (TI->second->isIntegerTy() || TI->second->isPrimitiveType() ||
-        TNI != TypeNames.end()) {
-      Out << "mod->addTypeName(\"";
-      printEscapedString(TI->first);
-      Out << "\", " << getCppName(TI->second) << ");";
-      nl(Out);
-      // For everything else, define the type
-    } else {
-      printType(TI->second);
-    }
-  }
-
-  // Add all of the global variables to the value table...
+  // Add all of the global variables to the value table.
   for (Module::const_global_iterator I = TheModule->global_begin(),
          E = TheModule->global_end(); I != E; ++I) {
     if (I->hasInitializer())
@@ -989,12 +905,12 @@ void CppWriter::printVariableUses(const GlobalVariable *GV) {
   nl(Out);
   printType(GV->getType());
   if (GV->hasInitializer()) {
-    Constant *Init = GV->getInitializer();
+    const Constant *Init = GV->getInitializer();
     printType(Init->getType());
-    if (Function *F = dyn_cast<Function>(Init)) {
+    if (const Function *F = dyn_cast<Function>(Init)) {
       nl(Out)<< "/ Function Declarations"; nl(Out);
       printFunctionHead(F);
-    } else if (GlobalVariable* gv = dyn_cast<GlobalVariable>(Init)) {
+    } else if (const GlobalVariable* gv = dyn_cast<GlobalVariable>(Init)) {
       nl(Out) << "// Global Variable Declarations"; nl(Out);
       printVariableHead(gv);
       
@@ -1353,9 +1269,10 @@ void CppWriter::printInstruction(const Instruction *I,
     printEscapedString(phi->getName());
     Out << "\", " << bbname << ");";
     nl(Out);
-    for (unsigned i = 0; i < phi->getNumOperands(); i+=2) {
+    for (unsigned i = 0; i < phi->getNumIncomingValues(); ++i) {
       Out << iName << "->addIncoming("
-          << opNames[i] << ", " << opNames[i+1] << ");";
+          << opNames[PHINode::getOperandNumForIncomingValue(i)] << ", "
+          << getOpName(phi->getIncomingBlock(i)) << ");";
       nl(Out);
     }
     break;
@@ -1954,8 +1871,8 @@ void CppWriter::printVariable(const std::string& fname,
   Out << "}\n";
 }
 
-void CppWriter::printType(const std::string& fname,
-                          const std::string& typeName) {
+void CppWriter::printType(const std::string &fname,
+                          const std::string &typeName) {
   const Type* Ty = TheModule->getTypeByName(typeName);
   if (!Ty) {
     error(std::string("Type '") + typeName + "' not found in input module");

@@ -15,7 +15,9 @@
 #define X86REGISTERINFO_H
 
 #include "llvm/Target/TargetRegisterInfo.h"
-#include "X86GenRegisterInfo.h.inc"
+
+#define GET_REGINFO_HEADER
+#include "X86GenRegisterInfo.inc"
 
 namespace llvm {
   class Type;
@@ -56,10 +58,6 @@ private:
   ///
   unsigned SlotSize;
 
-  /// StackAlign - Default stack alignment.
-  ///
-  unsigned StackAlign;
-
   /// StackPtr - X86 physical register used as stack ptr.
   ///
   unsigned StackPtr;
@@ -75,8 +73,6 @@ public:
   /// register identifier.
   static unsigned getX86RegNum(unsigned RegNo);
 
-  unsigned getStackAlignment() const { return StackAlign; }
-
   /// getDwarfRegNum - allows modification of X86GenRegisterInfo::getDwarfRegNum
   /// (created by TableGen) for target dependencies.
   int getDwarfRegNum(unsigned RegNum, bool isEH) const;
@@ -84,6 +80,10 @@ public:
 
   // FIXME: This should be tablegen'd like getDwarfRegNum is
   int getSEHRegNum(unsigned i) const;
+
+  /// getCompactUnwindRegNum - This function maps the register to the number for
+  /// compact unwind encoding. Return -1 if the register isn't valid.
+  int getCompactUnwindRegNum(unsigned RegNum, bool isEH) const;
 
   /// Code Generation virtual methods...
   /// 

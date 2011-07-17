@@ -240,6 +240,14 @@ public:
     return getTypeWidth(IntMaxType);
   }
 
+  /// getRegisterWidth - Return the "preferred" register width on this target.
+  uint64_t getRegisterWidth() const {
+    // Currently we assume the register width on the target matches the pointer
+    // width, we can introduce a new variable for this if/when some target wants
+    // it.
+    return LongWidth; 
+  }
+
   /// getUserLabelPrefix - This returns the default value of the
   /// __USER_LABEL_PREFIX__ macro, which is the prefix given to user symbols by
   /// default.  On most platforms this is "_", but it is "" on some, and "." on
@@ -294,6 +302,11 @@ public:
   /// getVAListDeclaration - Return the declaration to use for
   /// __builtin_va_list, which is target-specific.
   virtual const char *getVAListDeclaration() const = 0;
+
+  /// isValidClobber - Returns whether the passed in string is
+  /// a valid clobber in an inline asm statement. This is used by
+  /// Sema.
+  bool isValidClobber(llvm::StringRef Name) const;
 
   /// isValidGCCRegisterName - Returns whether the passed in string
   /// is a valid register name according to GCC. This is used by Sema for
@@ -394,6 +407,11 @@ public:
   struct GCCRegAlias {
     const char * const Aliases[5];
     const char * const Register;
+  };
+
+  struct AddlRegName {
+    const char * const Names[5];
+    const unsigned RegNum;
   };
 
   virtual bool useGlobalsForAutomaticVariables() const { return false; }
@@ -511,6 +529,7 @@ public:
 
   // getRegParmMax - Returns maximal number of args passed in registers.
   unsigned getRegParmMax() const {
+    assert(RegParmMax < 7 && "RegParmMax value is larger than AST can handle");
     return RegParmMax;
   }
 
@@ -566,6 +585,11 @@ protected:
                               unsigned &NumNames) const = 0;
   virtual void getGCCRegAliases(const GCCRegAlias *&Aliases,
                                 unsigned &NumAliases) const = 0;
+  virtual void getGCCAddlRegNames(const AddlRegName *&Addl,
+				  unsigned &NumAddl) const {
+    Addl = 0;
+    NumAddl = 0;
+  }
   virtual bool validateAsmConstraint(const char *&Name,
                                      TargetInfo::ConstraintInfo &info) const= 0;
 };

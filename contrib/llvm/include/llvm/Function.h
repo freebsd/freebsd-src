@@ -128,8 +128,8 @@ public:
 
   ~Function();
 
-  const Type *getReturnType() const;           // Return the type of the ret val
-  const FunctionType *getFunctionType() const; // Return the FunctionType for me
+  Type *getReturnType() const;           // Return the type of the ret val
+  FunctionType *getFunctionType() const; // Return the FunctionType for me
 
   /// getContext - Return a pointer to the LLVMContext associated with this 
   /// function, or NULL if this function is not bound to a context yet.
@@ -138,12 +138,6 @@ public:
   /// isVarArg - Return true if this function takes a variable number of
   /// arguments.
   bool isVarArg() const;
-
-  /// isDeclaration - Is the body of this function unknown? (The basic block 
-  /// list is empty if so.) This is true for function declarations, but not 
-  /// true for function definitions.
-  ///
-  virtual bool isDeclaration() const { return BasicBlocks.empty(); }
 
   /// getIntrinsicID - This method returns the ID number of the specified
   /// function, or Intrinsic::not_intrinsic if the function is not an

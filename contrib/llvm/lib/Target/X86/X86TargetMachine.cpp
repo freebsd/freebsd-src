@@ -11,7 +11,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "X86MCAsmInfo.h"
 #include "X86TargetMachine.h"
 #include "X86.h"
 #include "llvm/PassManager.h"
@@ -23,22 +22,6 @@
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/Target/TargetRegistry.h"
 using namespace llvm;
-
-static MCAsmInfo *createMCAsmInfo(const Target &T, StringRef TT) {
-  Triple TheTriple(TT);
-
-  if (TheTriple.isOSDarwin() || TheTriple.getEnvironment() == Triple::MachO) {
-    if (TheTriple.getArch() == Triple::x86_64)
-      return new X86_64MCAsmInfoDarwin(TheTriple);
-    else
-      return new X86MCAsmInfoDarwin(TheTriple);
-  }
-
-  if (TheTriple.isOSWindows())
-    return new X86MCAsmInfoCOFF(TheTriple);
-
-  return new X86ELFMCAsmInfo(TheTriple);
-}
 
 static MCStreamer *createMCStreamer(const Target &T, const std::string &TT,
                                     MCContext &Ctx, TargetAsmBackend &TAB,
@@ -62,15 +45,11 @@ extern "C" void LLVMInitializeX86Target() {
   RegisterTargetMachine<X86_32TargetMachine> X(TheX86_32Target);
   RegisterTargetMachine<X86_64TargetMachine> Y(TheX86_64Target);
 
-  // Register the target asm info.
-  RegisterAsmInfoFn A(TheX86_32Target, createMCAsmInfo);
-  RegisterAsmInfoFn B(TheX86_64Target, createMCAsmInfo);
-
   // Register the code emitter.
   TargetRegistry::RegisterCodeEmitter(TheX86_32Target,
-                                      createX86_32MCCodeEmitter);
+                                      createX86MCCodeEmitter);
   TargetRegistry::RegisterCodeEmitter(TheX86_64Target,
-                                      createX86_64MCCodeEmitter);
+                                      createX86MCCodeEmitter);
 
   // Register the asm backend.
   TargetRegistry::RegisterAsmBackend(TheX86_32Target,
@@ -87,8 +66,9 @@ extern "C" void LLVMInitializeX86Target() {
 
 
 X86_32TargetMachine::X86_32TargetMachine(const Target &T, const std::string &TT,
+                                         const std::string &CPU,
                                          const std::string &FS)
-  : X86TargetMachine(T, TT, FS, false),
+  : X86TargetMachine(T, TT, CPU, FS, false),
     DataLayout(getSubtargetImpl()->isTargetDarwin() ?
                "e-p:32:32-f64:32:64-i64:32:64-f80:128:128-f128:128:128-n8:16:32" :
                (getSubtargetImpl()->isTargetCygMing() ||
@@ -103,8 +83,9 @@ X86_32TargetMachine::X86_32TargetMachine(const Target &T, const std::string &TT,
 
 
 X86_64TargetMachine::X86_64TargetMachine(const Target &T, const std::string &TT,
+                                         const std::string &CPU, 
                                          const std::string &FS)
-  : X86TargetMachine(T, TT, FS, true),
+  : X86TargetMachine(T, TT, CPU, FS, true),
     DataLayout("e-p:64:64-s:64-f64:64:64-i64:64:64-f80:128:128-f128:128:128-n8:16:32:64"),
     InstrInfo(*this),
     TSInfo(*this),
@@ -115,9 +96,10 @@ X86_64TargetMachine::X86_64TargetMachine(const Target &T, const std::string &TT,
 /// X86TargetMachine ctor - Create an X86 target.
 ///
 X86TargetMachine::X86TargetMachine(const Target &T, const std::string &TT,
+                                   const std::string &CPU,
                                    const std::string &FS, bool is64Bit)
-  : LLVMTargetMachine(T, TT),
-    Subtarget(TT, FS, is64Bit),
+  : LLVMTargetMachine(T, TT, CPU, FS),
+    Subtarget(TT, CPU, FS, StackAlignmentOverride, is64Bit),
     FrameLowering(*this, Subtarget),
     ELFWriterInfo(is64Bit, true) {
   DefRelocModel = getRelocationModel();
@@ -182,6 +164,10 @@ X86TargetMachine::X86TargetMachine(const Target &T, const std::string &TT,
   // Finally, if we have "none" as our PIC style, force to static mode.
   if (Subtarget.getPICStyle() == PICStyles::None)
     setRelocationModel(Reloc::Static);
+
+  // default to hard float ABI
+  if (FloatABIType == FloatABI::Default)
+    FloatABIType = FloatABI::Hard;    
 }
 
 //===----------------------------------------------------------------------===//

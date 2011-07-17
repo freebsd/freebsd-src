@@ -79,7 +79,9 @@ namespace llvm {
       BuildPairF64,
       ExtractElementF64,
 
-      WrapperPIC
+      WrapperPIC,
+
+      DynAlloc
     };
   }
 
@@ -165,10 +167,6 @@ namespace llvm {
 
     std::pair<unsigned, const TargetRegisterClass*>
               getRegForInlineAsmConstraint(const std::string &Constraint,
-              EVT VT) const;
-
-    std::vector<unsigned>
-    getRegClassForInlineAsmConstraint(const std::string &Constraint,
               EVT VT) const;
 
     virtual bool isOffsetFoldingLegal(const GlobalAddressSDNode *GA) const;
