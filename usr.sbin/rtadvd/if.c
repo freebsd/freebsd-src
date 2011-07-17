@@ -3,6 +3,7 @@
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
+ * Copyright (C) 2011 Hiroki Sato <hrs@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -35,19 +36,24 @@
 #include <sys/sysctl.h>
 #include <sys/ioctl.h>
 #include <net/if.h>
-#include <net/if_types.h>
-#include <net/ethernet.h>
-#include <ifaddrs.h>
-#include <net/route.h>
 #include <net/if_dl.h>
+#include <net/if_types.h>
+#include <net/if_var.h>
+#include <net/ethernet.h>
+#include <net/route.h>
 #include <netinet/in.h>
+#include <netinet/in_var.h>
+#include <netinet/ip6.h>
 #include <netinet/icmp6.h>
+#include <netinet6/nd6.h>
 #include <unistd.h>
 #include <errno.h>
 #include <netdb.h>
 #include <stdlib.h>
 #include <string.h>
 #include <syslog.h>
+
+#include "pathnames.h"
 #include "rtadvd.h"
 #include "if.h"
 
@@ -59,14 +65,34 @@
 	    ((ap)->sa_len ? ROUNDUP((ap)->sa_len, sizeof(u_long)) :	\
 	    sizeof(u_long)))
 
-struct if_msghdr **iflist;
-int iflist_init_ok;
-size_t ifblock_size;
-char *ifblock;
+struct sockaddr_in6 sin6_linklocal_allnodes = {
+        .sin6_len =     sizeof(sin6_linklocal_allnodes),
+        .sin6_family =  AF_INET6,
+        .sin6_addr =    IN6ADDR_LINKLOCAL_ALLNODES_INIT,
+};
 
-static void	get_iflist(char **buf, size_t *size);
-static void	parse_iflist(struct if_msghdr ***ifmlist_p,
-		    char *buf, size_t bufsize);
+struct sockaddr_in6 sin6_linklocal_allrouters = {
+        .sin6_len =     sizeof(sin6_linklocal_allrouters),
+        .sin6_family =  AF_INET6,
+        .sin6_addr =    IN6ADDR_LINKLOCAL_ALLROUTERS_INIT,
+};
+
+struct sockaddr_in6 sin6_sitelocal_allrouters = {
+        .sin6_len =     sizeof(sin6_sitelocal_allrouters),
+        .sin6_family =  AF_INET6,
+        .sin6_addr =    IN6ADDR_SITELOCAL_ALLROUTERS_INIT,
+};
+
+struct sockinfo sock = { .si_fd = -1, .si_name = NULL };
+struct sockinfo rtsock = { .si_fd = -1, .si_name = NULL };
+struct sockinfo ctrlsock = { .si_fd = -1, .si_name = _PATH_CTRL_SOCK };
+
+char *mcastif;
+
+static void		get_rtaddrs(int, struct sockaddr *,
+			    struct sockaddr **);
+static struct if_msghdr	*get_next_msghdr(struct if_msghdr *,
+			    struct if_msghdr *);
 
 static void
 get_rtaddrs(int addrs, struct sockaddr *sa, struct sockaddr **rti_info)
@@ -81,133 +107,6 @@ get_rtaddrs(int addrs, struct sockaddr *sa, struct sockaddr **rti_info)
 		else
 			rti_info[i] = NULL;
 	}
-}
-
-struct sockaddr_dl *
-if_nametosdl(char *name)
-{
-	int mib[6] = {CTL_NET, AF_ROUTE, 0, 0, NET_RT_IFLIST, 0};
-	char *buf, *next, *lim;
-	size_t len;
-	struct if_msghdr *ifm;
-	struct sockaddr *sa, *rti_info[RTAX_MAX];
-	struct sockaddr_dl *sdl = NULL, *ret_sdl;
-
-	if (sysctl(mib, 6, NULL, &len, NULL, 0) < 0)
-		return (NULL);
-	if ((buf = malloc(len)) == NULL)
-		return (NULL);
-	if (sysctl(mib, 6, buf, &len, NULL, 0) < 0) {
-		free(buf);
-		return (NULL);
-	}
-
-	lim = buf + len;
-	for (next = buf; next < lim; next += ifm->ifm_msglen) {
-		ifm = (struct if_msghdr *)next;
-		if (ifm->ifm_version != RTM_VERSION) {
-			syslog(LOG_ERR,
-			    "<%s> RTM_VERSION mismatch (%d != %d).",
-			    __func__, ifm->ifm_version, RTM_VERSION);
-			continue;
-		}
-		if (ifm->ifm_type == RTM_IFINFO) {
-			sa = (struct sockaddr *)(ifm + 1);
-			get_rtaddrs(ifm->ifm_addrs, sa, rti_info);
-			if ((sa = rti_info[RTAX_IFP]) != NULL) {
-				if (sa->sa_family == AF_LINK) {
-					sdl = (struct sockaddr_dl *)sa;
-					if (strlen(name) != sdl->sdl_nlen)
-						continue; /* not same len */
-					if (strncmp(&sdl->sdl_data[0],
-						    name,
-						    sdl->sdl_nlen) == 0) {
-						break;
-					}
-				}
-			}
-		}
-	}
-	if (next == lim) {
-		/* search failed */
-		free(buf);
-		return (NULL);
-	}
-
-	if ((ret_sdl = malloc(sdl->sdl_len)) == NULL)
-		goto end;
-	memcpy((caddr_t)ret_sdl, (caddr_t)sdl, sdl->sdl_len);
-
-end:
-	free(buf);
-	return (ret_sdl);
-}
-
-int
-if_getmtu(char *name)
-{
-	struct ifaddrs *ifap, *ifa;
-	struct if_data *ifd;
-	u_long mtu = 0;
-
-	if (getifaddrs(&ifap) < 0)
-		return (0);
-	for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
-		if (strcmp(ifa->ifa_name, name) == 0) {
-			ifd = ifa->ifa_data;
-			if (ifd)
-				mtu = ifd->ifi_mtu;
-			break;
-		}
-	}
-	freeifaddrs(ifap);
-
-#ifdef SIOCGIFMTU		/* XXX: this ifdef may not be necessary */
-	if (mtu == 0) {
-		struct ifreq ifr;
-		int s;
-
-		if ((s = socket(AF_INET6, SOCK_DGRAM, 0)) < 0)
-			return (0);
-
-		ifr.ifr_addr.sa_family = AF_INET6;
-		strncpy(ifr.ifr_name, name,
-			sizeof(ifr.ifr_name));
-		if (ioctl(s, SIOCGIFMTU, (caddr_t)&ifr) < 0) {
-			close(s);
-			return (0);
-		}
-		close(s);
-
-		mtu = ifr.ifr_mtu;
-	}
-#endif
-
-	return (mtu);
-}
-
-/* give interface index and its old flags, then new flags returned */
-int
-if_getflags(int ifindex, int oifflags)
-{
-	struct ifreq ifr;
-	int s;
-
-	if ((s = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) {
-		syslog(LOG_ERR, "<%s> socket: %s", __func__,
-		    strerror(errno));
-		return (oifflags & ~IFF_UP);
-	}
-
-	if_indextoname(ifindex, ifr.ifr_name);
-	if (ioctl(s, SIOCGIFFLAGS, (caddr_t)&ifr) < 0) {
-		syslog(LOG_ERR, "<%s> ioctl:SIOCGIFFLAGS: failed for %s",
-		    __func__, ifr.ifr_name);
-		close(s);
-		return (oifflags & ~IFF_UP);
-	}
-	close(s);
-	return (ifr.ifr_flags);
 }
 
 #define ROUNDUP8(a) (1 + (((a) - 1) | 7))
@@ -378,47 +277,23 @@ get_rtm_ifindex(char *buf)
 }
 
 int
-get_ifm_ifindex(char *buf)
-{
-	struct if_msghdr *ifm = (struct if_msghdr *)buf;
-
-	return ((int)ifm->ifm_index);
-}
-
-int
-get_ifam_ifindex(char *buf)
-{
-	struct ifa_msghdr *ifam = (struct ifa_msghdr *)buf;
-
-	return ((int)ifam->ifam_index);
-}
-
-int
-get_ifm_flags(char *buf)
-{
-	struct if_msghdr *ifm = (struct if_msghdr *)buf;
-
-	return (ifm->ifm_flags);
-}
-
-int
 get_prefixlen(char *buf)
 {
 	struct rt_msghdr *rtm = (struct rt_msghdr *)buf;
 	struct sockaddr *sa, *rti_info[RTAX_MAX];
-	u_char *p, *lim;
+	char *p, *lim;
 
 	sa = (struct sockaddr *)(rtm + 1);
 	get_rtaddrs(rtm->rtm_addrs, sa, rti_info);
 	sa = rti_info[RTAX_NETMASK];
 
-	p = (u_char *)(&SIN6(sa)->sin6_addr);
-	lim = (u_char *)sa + sa->sa_len;
+	p = (char *)(&SIN6(sa)->sin6_addr);
+	lim = (char *)sa + sa->sa_len;
 	return prefixlen(p, lim);
 }
 
 int
-prefixlen(u_char *p, u_char *lim)
+prefixlen(unsigned char *p, unsigned char *lim)
 {
 	int masklen;
 
@@ -458,140 +333,418 @@ prefixlen(u_char *p, u_char *lim)
 	return (masklen);
 }
 
-int
-rtmsg_type(char *buf)
+struct ifinfo *
+update_persist_ifinfo(struct ifilist_head_t *ifi_head, const char *ifname)
 {
-	struct rt_msghdr *rtm = (struct rt_msghdr *)buf;
+	struct ifinfo *ifi;
+	int ifindex;
 
-	return (rtm->rtm_type);
-}
-
-int
-rtmsg_len(char *buf)
-{
-	struct rt_msghdr *rtm = (struct rt_msghdr *)buf;
-
-	return (rtm->rtm_msglen);
-}
-
-int
-ifmsg_len(char *buf)
-{
-	struct if_msghdr *ifm = (struct if_msghdr *)buf;
-
-	return (ifm->ifm_msglen);
-}
-
-/*
- * alloc buffer and get if_msghdrs block from kernel,
- * and put them into the buffer
- */
-static void
-get_iflist(char **buf, size_t *size)
-{
-	int mib[6];
-
-	mib[0] = CTL_NET;
-	mib[1] = PF_ROUTE;
-	mib[2] = 0;
-	mib[3] = AF_INET6;
-	mib[4] = NET_RT_IFLIST;
-	mib[5] = 0;
-
-	if (sysctl(mib, 6, NULL, size, NULL, 0) < 0) {
-		syslog(LOG_ERR, "<%s> sysctl: iflist size get failed",
-		    __func__);
-		exit(1);
-	}
-	if ((*buf = malloc(*size)) == NULL) {
-		syslog(LOG_ERR, "<%s> malloc failed", __func__);
-		exit(1);
-	}
-	if (sysctl(mib, 6, *buf, size, NULL, 0) < 0) {
-		syslog(LOG_ERR, "<%s> sysctl: iflist get failed",
-		     __func__);
-		exit(1);
-	}
-	return;
-}
-
-/*
- * alloc buffer and parse if_msghdrs block passed as arg,
- * and init the buffer as list of pointers ot each of the if_msghdr.
- */
-static void
-parse_iflist(struct if_msghdr ***ifmlist_p, char *buf, size_t bufsize)
-{
-	int iflentry_size, malloc_size;
-	struct if_msghdr *ifm;
-	struct ifa_msghdr *ifam;
-	char *lim;
-
-	/*
-	 * Estimate least size of an iflist entry, to be obtained from kernel.
-	 * Should add sizeof(sockaddr) ??
-	 */
-	iflentry_size = sizeof(struct if_msghdr);
-	/* roughly estimate max list size of pointers to each if_msghdr */
-	malloc_size = (bufsize/iflentry_size) * sizeof(size_t);
-	if ((*ifmlist_p = (struct if_msghdr **)malloc(malloc_size)) == NULL) {
-		syslog(LOG_ERR, "<%s> malloc failed", __func__);
-		exit(1);
-	}
-
-	lim = buf + bufsize;
-	for (ifm = (struct if_msghdr *)buf; ifm < (struct if_msghdr *)lim;) {
-		if (ifm->ifm_msglen == 0) {
-			syslog(LOG_WARNING, "<%s> ifm_msglen is 0 "
-			    "(buf=%p lim=%p ifm=%p)", __func__,
-			    buf, lim, ifm);
-			return;
-		}
-
-		if (ifm->ifm_type == RTM_IFINFO) {
-			(*ifmlist_p)[ifm->ifm_index] = ifm;
+	ifi = NULL;
+	ifindex = if_nametoindex(ifname);
+	TAILQ_FOREACH(ifi, ifi_head, ifi_next) {
+		if (ifindex != 0) {
+			if (ifindex == ifi->ifi_ifindex)
+				break;
 		} else {
-			syslog(LOG_ERR, "out of sync parsing NET_RT_IFLIST\n"
-			    "expected %d, got %d\n msglen = %d\n"
-			    "buf:%p, ifm:%p, lim:%p\n",
-			    RTM_IFINFO, ifm->ifm_type, ifm->ifm_msglen,
-			    buf, ifm, lim);
-			exit (1);
-		}
-		for (ifam = (struct ifa_msghdr *)
-			((char *)ifm + ifm->ifm_msglen);
-		     ifam < (struct ifa_msghdr *)lim;
-		     ifam = (struct ifa_msghdr *)
-		     	((char *)ifam + ifam->ifam_msglen)) {
-			/* just for safety */
-			if (!ifam->ifam_msglen) {
-				syslog(LOG_WARNING, "<%s> ifa_msglen is 0 "
-				    "(buf=%p lim=%p ifam=%p)", __func__,
-				    buf, lim, ifam);
-				return;
-			}
-			if (ifam->ifam_type != RTM_NEWADDR)
+			if (strncmp(ifname, ifi->ifi_ifname,
+				sizeof(ifi->ifi_ifname)) == 0)
 				break;
 		}
-		ifm = (struct if_msghdr *)ifam;
 	}
+
+	if (ifi == NULL) {
+		/* A new ifinfo element is needed. */
+		syslog(LOG_DEBUG, "<%s> new entry: %s", __func__,
+		    ifname);
+
+		ELM_MALLOC(ifi, exit(1));
+		ifi->ifi_ifindex = 0;
+		strncpy(ifi->ifi_ifname, ifname, sizeof(ifi->ifi_ifname)-1);
+		ifi->ifi_ifname[sizeof(ifi->ifi_ifname)-1] = '\0';
+		ifi->ifi_rainfo = NULL;
+		ifi->ifi_state = IFI_STATE_UNCONFIGURED;
+		TAILQ_INSERT_TAIL(ifi_head, ifi, ifi_next);
+	}
+
+	ifi->ifi_persist = 1;
+
+	syslog(LOG_DEBUG, "<%s> %s is marked PERSIST", __func__,
+	    ifi->ifi_ifname);
+	syslog(LOG_DEBUG, "<%s> %s is state = %d", __func__,
+	    ifi->ifi_ifname, ifi->ifi_state);
+	return (ifi);
 }
 
-void
-init_iflist(void)
+int
+update_ifinfo_nd_flags(struct ifinfo *ifi)
 {
-	syslog(LOG_DEBUG,
-	    "<%s> generate iflist.", __func__);
+	struct in6_ndireq nd;
+	int s;
+	int error;
 
-	if (ifblock) {
-		free(ifblock);
-		ifblock_size = 0;
+	if ((s = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) {
+		syslog(LOG_ERR,
+		    "<%s> socket() failed.", __func__);
+		return (1);
 	}
-	if (iflist)
-		free(iflist);
-	/* get iflist block from kernel */
-	get_iflist(&ifblock, &ifblock_size);
+	/* ND flags */
+	memset(&nd, 0, sizeof(nd));
+	strncpy(nd.ifname, ifi->ifi_ifname,
+	    sizeof(nd.ifname));
+	error = ioctl(s, SIOCGIFINFO_IN6, (caddr_t)&nd);
+	if (error) {
+		close(s);
+		syslog(LOG_ERR,
+		    "<%s> ioctl() failed.", __func__);
+		return (1);
+	}
+	ifi->ifi_nd_flags = nd.ndi.flags;
+	close(s);
 
-	/* make list of pointers to each if_msghdr */
-	parse_iflist(&iflist, ifblock, ifblock_size);
+	return (0);
+}
+
+struct ifinfo *
+update_ifinfo(struct ifilist_head_t *ifi_head, int ifindex)
+{
+	struct if_msghdr *ifm;
+	struct ifinfo *ifi = NULL;
+	struct sockaddr *sa;
+	struct sockaddr *rti_info[RTAX_MAX];
+	char *msg;
+	size_t len;
+	char *lim;
+	int mib[] = { CTL_NET, PF_ROUTE, 0, AF_INET6, NET_RT_IFLIST, 0 };
+	int error;
+
+	syslog(LOG_DEBUG, "<%s> enter", __func__);
+
+	if (sysctl(mib, sizeof(mib)/sizeof(mib[0]), NULL, &len, NULL, 0) <
+	    0) {
+		syslog(LOG_ERR,
+		    "<%s> sysctl: NET_RT_IFLIST size get failed", __func__);
+		exit(1);
+	}
+	if ((msg = malloc(len)) == NULL) {
+		syslog(LOG_ERR, "<%s> malloc failed", __func__);
+		exit(1);
+	}
+	if (sysctl(mib, sizeof(mib)/sizeof(mib[0]), msg, &len, NULL, 0) <
+	    0) {
+		syslog(LOG_ERR,
+		    "<%s> sysctl: NET_RT_IFLIST get failed", __func__);
+		exit(1);
+	}
+
+	lim = msg + len;
+	for (ifm = (struct if_msghdr *)msg;
+	     ifm != NULL && ifm < (struct if_msghdr *)lim;
+	     ifm = get_next_msghdr(ifm,(struct if_msghdr *)lim)) {
+		int ifi_new;
+
+		syslog(LOG_DEBUG, "<%s> ifm = %p, lim = %p, diff = %zu",
+		    __func__, ifm, lim, (char *)lim - (char *)ifm);
+
+		if (ifm->ifm_version != RTM_VERSION) {
+			syslog(LOG_ERR,
+			    "<%s> ifm_vesrion mismatch", __func__);
+			exit(1);
+		}
+		if (ifm->ifm_msglen == 0) {
+			syslog(LOG_WARNING,
+			    "<%s> ifm_msglen is 0", __func__);
+			free(msg);
+			return (NULL);
+		}
+
+		ifi_new = 0;
+		if (ifm->ifm_type == RTM_IFINFO) {
+			struct ifreq ifr;
+			int s;
+			char ifname[IFNAMSIZ];
+
+			syslog(LOG_DEBUG, "<%s> RTM_IFINFO found. "
+			    "ifm_index = %d, ifindex = %d",
+			    __func__, ifm->ifm_index, ifindex);
+
+			/* when ifindex is specified */
+			if (ifindex != UPDATE_IFINFO_ALL &&
+			    ifindex != ifm->ifm_index)
+				continue;
+
+			/* lookup an entry with the same ifindex */
+			TAILQ_FOREACH(ifi, ifi_head, ifi_next) {
+				if (ifm->ifm_index == ifi->ifi_ifindex)
+					break;
+				if_indextoname(ifm->ifm_index, ifname);
+				if (strncmp(ifname, ifi->ifi_ifname,
+					sizeof(ifname)) == 0)
+					break;
+			}
+			if (ifi == NULL) {
+				syslog(LOG_DEBUG,
+				    "<%s> new entry for idx=%d",
+				    __func__, ifm->ifm_index);
+				ELM_MALLOC(ifi, exit(1));
+				ifi->ifi_rainfo = NULL;
+				ifi->ifi_state = IFI_STATE_UNCONFIGURED;
+				ifi->ifi_persist = 0;
+				ifi_new = 1;
+			}
+			/* ifindex */
+			ifi->ifi_ifindex = ifm->ifm_index;
+
+			/* ifname */
+			if_indextoname(ifm->ifm_index, ifi->ifi_ifname);
+			if (ifi->ifi_ifname == NULL) {
+				syslog(LOG_WARNING,
+				    "<%s> ifname not found (idx=%d)",
+				    __func__, ifm->ifm_index);
+				if (ifi_new)
+					free(ifi);
+				continue;
+			}
+
+			if ((s = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) {
+				syslog(LOG_ERR,
+				    "<%s> socket() failed.", __func__);
+				if (ifi_new)
+					free(ifi);
+				continue;
+			}
+
+			/* MTU  */
+			ifi->ifi_phymtu = ifm->ifm_data.ifi_mtu;
+			if (ifi->ifi_phymtu == 0) {
+				memset(&ifr, 0, sizeof(ifr));
+				ifr.ifr_addr.sa_family = AF_INET6;
+				strncpy(ifr.ifr_name, ifi->ifi_ifname,
+				    sizeof(ifr.ifr_name));
+				error = ioctl(s, SIOCGIFMTU, (caddr_t)&ifr);
+				if (error) {
+					close(s);
+					syslog(LOG_ERR,
+					    "<%s> ioctl() failed.",
+					    __func__);
+					if (ifi_new)
+						free(ifi);
+					continue;
+				}
+				ifi->ifi_phymtu = ifr.ifr_mtu;
+				if (ifi->ifi_phymtu == 0) {
+					syslog(LOG_WARNING,
+					    "<%s> no interface mtu info"
+					    " on %s.  %d will be used.",
+					    __func__, ifi->ifi_ifname,
+					    IPV6_MMTU);
+					ifi->ifi_phymtu = IPV6_MMTU;
+				}
+			}
+			close(s);
+
+			/* ND flags */
+			error = update_ifinfo_nd_flags(ifi);
+			if (error) {
+				if (ifi_new)
+					free(ifi);
+				continue;
+			}
+
+			/* SDL */
+			sa = (struct sockaddr *)(ifm + 1);
+			get_rtaddrs(ifm->ifm_addrs, sa, rti_info);
+			if ((sa = rti_info[RTAX_IFP]) != NULL) {
+				if (sa->sa_family == AF_LINK) {
+					memcpy(&ifi->ifi_sdl,
+					    (struct sockaddr_dl *)sa,
+					    sizeof(ifi->ifi_sdl));
+				}
+			} else
+				memset(&ifi->ifi_sdl, 0,
+				    sizeof(ifi->ifi_sdl));
+
+			/* flags */
+			ifi->ifi_flags = ifm->ifm_flags;
+
+			/* type */
+			ifi->ifi_type = ifm->ifm_type;
+		} else {
+			syslog(LOG_ERR,
+			    "out of sync parsing NET_RT_IFLIST\n"
+			    "expected %d, got %d\n msglen = %d\n",
+			    RTM_IFINFO, ifm->ifm_type, ifm->ifm_msglen);
+			exit(1);
+		}
+
+		if (ifi_new) {
+			syslog(LOG_DEBUG,
+			    "<%s> adding %s(idx=%d) to ifilist",
+			    __func__, ifi->ifi_ifname, ifi->ifi_ifindex);
+			TAILQ_INSERT_TAIL(ifi_head, ifi, ifi_next);
+		}
+	}
+	free(msg);
+
+	if (mcastif != NULL) {
+		error = sock_mc_rr_update(&sock, mcastif);
+		if (error)
+			exit(1);
+	}
+
+	return (ifi);
+}
+
+static struct if_msghdr *
+get_next_msghdr(struct if_msghdr *ifm, struct if_msghdr *lim)
+{
+	struct ifa_msghdr *ifam;
+
+	for (ifam = (struct ifa_msghdr *)((char *)ifm + ifm->ifm_msglen);
+	     ifam < (struct ifa_msghdr *)lim;
+	     ifam = (struct ifa_msghdr *)((char *)ifam + ifam->ifam_msglen)) {
+		if (!ifam->ifam_msglen) {
+			syslog(LOG_WARNING,
+			    "<%s> ifa_msglen is 0", __func__);
+			return (NULL);
+		}
+		if (ifam->ifam_type != RTM_NEWADDR)
+			break;
+	}
+
+	return ((struct if_msghdr *)ifam);
+}
+
+int
+getinet6sysctl(int code)
+{
+	int mib[] = { CTL_NET, PF_INET6, IPPROTO_IPV6, 0 };
+	int value;
+	size_t size;
+
+	mib[3] = code;
+	size = sizeof(value);
+	if (sysctl(mib, sizeof(mib)/sizeof(mib[0]), &value, &size, NULL, 0)
+	    < 0) {
+		syslog(LOG_ERR, "<%s>: failed to get ip6 sysctl(%d): %s",
+		    __func__, code,
+		    strerror(errno));
+		return (-1);
+	}
+	else
+		return (value);
+}
+
+
+int
+sock_mc_join(struct sockinfo *s, int ifindex)
+{
+	struct ipv6_mreq mreq;
+	char ifname[IFNAMSIZ];
+
+	syslog(LOG_DEBUG, "<%s> enter", __func__);
+
+	if (ifindex == 0)
+		return (1);
+
+	/*
+	 * join all routers multicast address on each advertising
+	 * interface.
+	 */
+	memset(&mreq, 0, sizeof(mreq));
+	/* XXX */
+	memcpy(&mreq.ipv6mr_multiaddr.s6_addr,
+	    &sin6_linklocal_allrouters.sin6_addr,
+	    sizeof(mreq.ipv6mr_multiaddr.s6_addr));
+
+	mreq.ipv6mr_interface = ifindex;
+	if (setsockopt(s->si_fd, IPPROTO_IPV6, IPV6_JOIN_GROUP, &mreq,
+		sizeof(mreq)) < 0) {
+		syslog(LOG_ERR,
+		    "<%s> IPV6_JOIN_GROUP(link) on %s: %s",
+		    __func__, if_indextoname(ifindex, ifname),
+		    strerror(errno));
+		return (1);
+	}
+	syslog(LOG_DEBUG,
+	    "<%s> %s: join link-local all-routers MC group",
+	    __func__, if_indextoname(ifindex, ifname));
+
+	return (0);
+}
+
+int
+sock_mc_leave(struct sockinfo *s, int ifindex)
+{
+	struct ipv6_mreq mreq;
+	char ifname[IFNAMSIZ];
+
+	syslog(LOG_DEBUG, "<%s> enter", __func__);
+
+	if (ifindex == 0)
+		return (1);
+
+	/*
+	 * join all routers multicast address on each advertising
+	 * interface.
+	 */
+
+	memset(&mreq, 0, sizeof(mreq));
+	/* XXX */
+	memcpy(&mreq.ipv6mr_multiaddr.s6_addr,
+	    &sin6_linklocal_allrouters.sin6_addr,
+	    sizeof(mreq.ipv6mr_multiaddr.s6_addr));
+
+	mreq.ipv6mr_interface = ifindex;
+	if (setsockopt(s->si_fd, IPPROTO_IPV6, IPV6_LEAVE_GROUP, &mreq,
+		sizeof(mreq)) < 0) {
+		syslog(LOG_ERR,
+		    "<%s> IPV6_JOIN_LEAVE(link) on %s: %s",
+		    __func__, if_indextoname(ifindex, ifname),
+		    strerror(errno));
+		return (1);
+	}
+	syslog(LOG_DEBUG,
+	    "<%s> %s: leave link-local all-routers MC group",
+	    __func__, if_indextoname(ifindex, ifname));
+
+	return (0);
+}
+
+int
+sock_mc_rr_update(struct sockinfo *s, char *mif)
+{
+	struct ipv6_mreq mreq;
+
+	syslog(LOG_DEBUG, "<%s> enter", __func__);
+
+	if (mif == NULL)
+		return (1);
+	/*
+	 * When attending router renumbering, join all-routers site-local
+	 * multicast group.
+	 */
+	/* XXX */
+	memcpy(&mreq.ipv6mr_multiaddr.s6_addr,
+	    &sin6_sitelocal_allrouters.sin6_addr,
+	    sizeof(mreq.ipv6mr_multiaddr.s6_addr));
+	if ((mreq.ipv6mr_interface = if_nametoindex(mif)) == 0) {
+		syslog(LOG_ERR,
+		    "<%s> invalid interface: %s",
+		    __func__, mif);
+		return (1);
+	}
+
+	if (setsockopt(s->si_fd, IPPROTO_IPV6, IPV6_JOIN_GROUP,
+		&mreq, sizeof(mreq)) < 0) {
+		syslog(LOG_ERR,
+		    "<%s> IPV6_JOIN_GROUP(site) on %s: %s",
+		    __func__, mif, strerror(errno));
+		return (1);
+	}
+
+	syslog(LOG_DEBUG,
+	    "<%s> %s: join site-local all-routers MC group",
+	    __func__, mif);
+
+	return (0);
 }
