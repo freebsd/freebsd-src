@@ -107,6 +107,13 @@ BIND_DPADD=	${LIBBIND9} ${LIBDNS} ${LIBISCCC} ${LIBISCCFG} \
 		${LIBISC} ${LIBLWRES}
 .if ${MK_BIND_LIBS} != "no"
 BIND_LDADD=	-lbind9 -ldns -lisccc -lisccfg -lisc -llwres
+CFLAGS+=	-I${BIND_DIR}/lib/isc/include
+CFLAGS+=	-I${BIND_DIR}/lib/isc/unix/include
+CFLAGS+=	-I${BIND_DIR}/lib/isc/pthreads/include
+CFLAGS+=	-I${.CURDIR}/../dns
+CFLAGS+=	-I${BIND_DIR}/lib/dns/include
+CFLAGS+=	-I${BIND_DIR}/lib/isccfg/include
+CFLAGS+=	-I${.CURDIR}/../isc
 .else
 BIND_LDADD=	${BIND_DPADD}
 .endif
@@ -121,8 +128,7 @@ CRYPTO_LDADD=	-lcrypto
 CFLAGS+=	-DHAVE_LIBXML2
 CFLAGS+=	-I/usr/local/include -I/usr/local/include/libxml2
 .if ${MK_BIND_LIBS} != "no"
-CFLAGS+=	-L/usr/local/lib
-BIND_LDADD+=	-lxml2 -lz -liconv -lm
+BIND_LDADD+=	-L/usr/local/lib -lxml2 -lz -liconv -lm
 .else
 BIND_DPADD+=	/usr/local/lib/libxml2.a ${LIBZ} 
 BIND_DPADD+=	/usr/local/lib/libiconv.a ${LIBM}
