@@ -44,6 +44,7 @@
 #undef	HAVE_LIBACL
 #define	HAVE_LIBARCHIVE 1
 #define	HAVE_LIMITS_H 1
+#define	HAVE_LINK 1
 #undef	HAVE_LINUX_EXT2_FS_H
 #undef	HAVE_LINUX_FS_H
 #define	HAVE_LOCALE_H 1
@@ -77,5 +78,5 @@
 #define	HAVE_TIME_H 1
 #define	HAVE_UNISTD_H 1
 #define	HAVE_WCTYPE_H 1
+#define	HAVE_WCSCMP 1
 #undef	HAVE_WINDOWS_H
-
