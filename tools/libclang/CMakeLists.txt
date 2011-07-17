@@ -1,4 +1,6 @@
 set(LLVM_USED_LIBS
+  clangARCMigrate
+  clangRewrite
   clangFrontend
   clangDriver
   clangSerialization
@@ -14,6 +16,7 @@ set( LLVM_LINK_COMPONENTS
   )
 
 set(SOURCES
+  ARCMigrate.cpp
   CIndex.cpp
   CIndexCXX.cpp
   CIndexCodeCompletion.cpp

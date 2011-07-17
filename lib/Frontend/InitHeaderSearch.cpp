@@ -45,7 +45,7 @@ class InitHeaderSearch {
   std::vector<std::pair<IncludeDirGroup, DirectoryLookup> > IncludePath;
   typedef std::vector<std::pair<IncludeDirGroup,
                       DirectoryLookup> >::const_iterator path_iterator;
-  HeaderSearch& Headers;
+  HeaderSearch &Headers;
   bool Verbose;
   std::string IncludeSysroot;
   bool IsNotEmptyOrRoot;
@@ -78,7 +78,8 @@ public:
 
   /// AddMinGW64CXXPaths - Add the necessary paths to support
   /// libstdc++ of x86_64-w64-mingw32 aka mingw-w64.
-  void AddMinGW64CXXPaths(llvm::StringRef Base);
+  void AddMinGW64CXXPaths(llvm::StringRef Base,
+                          llvm::StringRef Version);
 
   /// AddDelimitedPaths - Add a list of paths delimited by the system PATH
   /// separator. The processing follows that of the CPATH variable for gcc.
@@ -90,7 +91,8 @@ public:
 
   // AddDefaultCPlusPlusIncludePaths -  Add paths that should be searched when
   //  compiling c++.
-  void AddDefaultCPlusPlusIncludePaths(const llvm::Triple &triple);
+  void AddDefaultCPlusPlusIncludePaths(const llvm::Triple &triple,
+                                       const HeaderSearchOptions &HSOpts);
 
   /// AddDefaultSystemIncludePaths - Adds the default system include paths so
   ///  that e.g. stdio.h is found.
@@ -103,7 +105,7 @@ public:
   void Realize(const LangOptions &Lang);
 };
 
-}
+}  // end anonymous namespace.
 
 void InitHeaderSearch::AddPath(const llvm::Twine &Path,
                                IncludeDirGroup Group, bool isCXXAware,
@@ -216,12 +218,16 @@ void InitHeaderSearch::AddMinGWCPlusPlusIncludePaths(llvm::StringRef Base,
           CXXSystem, true, false, false);
 }
 
-void InitHeaderSearch::AddMinGW64CXXPaths(llvm::StringRef Base) {
-  AddPath(Base,
+void InitHeaderSearch::AddMinGW64CXXPaths(llvm::StringRef Base,
+                                          llvm::StringRef Version) {
+  // Assumes Base is HeaderSearchOpts' ResourceDir
+  AddPath(Base + "/../../../include/c++/" + Version,
           CXXSystem, true, false, false);
-  AddPath(Base + "/x86_64-w64-mingw32",
+  AddPath(Base + "/../../../include/c++/" + Version + "/x86_64-w64-mingw32",
           CXXSystem, true, false, false);
-  AddPath(Base + "/backward",
+  AddPath(Base + "/../../../include/c++/" + Version + "/i686-w64-mingw32",
+          CXXSystem, true, false, false);
+  AddPath(Base + "/../../../include/c++/" + Version + "/backward",
           CXXSystem, true, false, false);
 }
 
@@ -245,24 +251,23 @@ static bool getSystemRegistryString(const char *keyPath, const char *valueName,
   DWORD valueSize = maxLength - 1;
   long lResult;
   bool returnValue = false;
+  
   if (strncmp(keyPath, "HKEY_CLASSES_ROOT\\", 18) == 0) {
     hRootKey = HKEY_CLASSES_ROOT;
     subKey = keyPath + 18;
-  }
-  else if (strncmp(keyPath, "HKEY_USERS\\", 11) == 0) {
+  } else if (strncmp(keyPath, "HKEY_USERS\\", 11) == 0) {
     hRootKey = HKEY_USERS;
     subKey = keyPath + 11;
-  }
-  else if (strncmp(keyPath, "HKEY_LOCAL_MACHINE\\", 19) == 0) {
+  } else if (strncmp(keyPath, "HKEY_LOCAL_MACHINE\\", 19) == 0) {
     hRootKey = HKEY_LOCAL_MACHINE;
     subKey = keyPath + 19;
-  }
-  else if (strncmp(keyPath, "HKEY_CURRENT_USER\\", 18) == 0) {
+  } else if (strncmp(keyPath, "HKEY_CURRENT_USER\\", 18) == 0) {
     hRootKey = HKEY_CURRENT_USER;
     subKey = keyPath + 18;
   }
   else
-    return(false);
+    return false;
+  
   const char *placeHolder = strstr(subKey, "$VERSION");
   char bestName[256];
   bestName[0] = '\0';
@@ -338,7 +343,7 @@ static bool getSystemRegistryString(const char *keyPath, const char *valueName,
       RegCloseKey(hKey);
     }
   }
-  return(returnValue);
+  return returnValue;
 }
 #else // _MSC_VER
   // Read registry string.
@@ -351,12 +356,12 @@ static bool getSystemRegistryString(const char*, const char*, char*, size_t) {
 static bool getVisualStudioDir(std::string &path) {
   // First check the environment variables that vsvars32.bat sets.
   const char* vcinstalldir = getenv("VCINSTALLDIR");
-  if(vcinstalldir) {
+  if (vcinstalldir) {
     char *p = const_cast<char *>(strstr(vcinstalldir, "\\VC"));
     if (p)
       *p = '\0';
     path = vcinstalldir;
-    return(true);
+    return true;
   }
 
   char vsIDEInstallDir[256];
@@ -374,56 +379,52 @@ static bool getVisualStudioDir(std::string &path) {
     if (p)
       *p = '\0';
     path = vsIDEInstallDir;
-    return(true);
+    return true;
   }
-  else if (hasVCExpressDir && vsExpressIDEInstallDir[0]) {
+  
+  if (hasVCExpressDir && vsExpressIDEInstallDir[0]) {
     char *p = (char*)strstr(vsExpressIDEInstallDir, "\\Common7\\IDE");
     if (p)
       *p = '\0';
     path = vsExpressIDEInstallDir;
-    return(true);
+    return true;
   }
-  else {
-    // Try the environment.
-    const char* vs100comntools = getenv("VS100COMNTOOLS");
-    const char* vs90comntools = getenv("VS90COMNTOOLS");
-    const char* vs80comntools = getenv("VS80COMNTOOLS");
-    const char* vscomntools = NULL;
 
-    // Try to find the version that we were compiled with
-    if(false) {}
-    #if (_MSC_VER >= 1600)  // VC100
-    else if(vs100comntools) {
-      vscomntools = vs100comntools;
-    }
-    #elif (_MSC_VER == 1500) // VC80
-    else if(vs90comntools) {
-      vscomntools = vs90comntools;
-    }
-    #elif (_MSC_VER == 1400) // VC80
-    else if(vs80comntools) {
-      vscomntools = vs80comntools;
-    }
-    #endif
-    // Otherwise find any version we can
-    else if (vs100comntools)
-      vscomntools = vs100comntools;
-    else if (vs90comntools)
-      vscomntools = vs90comntools;
-    else if (vs80comntools)
-      vscomntools = vs80comntools;
+  // Try the environment.
+  const char *vs100comntools = getenv("VS100COMNTOOLS");
+  const char *vs90comntools = getenv("VS90COMNTOOLS");
+  const char *vs80comntools = getenv("VS80COMNTOOLS");
+  const char *vscomntools = NULL;
 
-    if (vscomntools && *vscomntools) {
-      char *p = const_cast<char *>(strstr(vscomntools, "\\Common7\\Tools"));
-      if (p)
-        *p = '\0';
-      path = vscomntools;
-      return(true);
-    }
-    else
-      return(false);
+  // Try to find the version that we were compiled with
+  if(false) {}
+  #if (_MSC_VER >= 1600)  // VC100
+  else if(vs100comntools) {
+    vscomntools = vs100comntools;
   }
-  return(false);
+  #elif (_MSC_VER == 1500) // VC80
+  else if(vs90comntools) {
+    vscomntools = vs90comntools;
+  }
+  #elif (_MSC_VER == 1400) // VC80
+  else if(vs80comntools) {
+    vscomntools = vs80comntools;
+  }
+  #endif
+  // Otherwise find any version we can
+  else if (vs100comntools)
+    vscomntools = vs100comntools;
+  else if (vs90comntools)
+    vscomntools = vs90comntools;
+  else if (vs80comntools)
+    vscomntools = vs80comntools;
+
+  if (vscomntools && *vscomntools) {
+    const char *p = strstr(vscomntools, "\\Common7\\Tools");
+    path = p ? std::string(vscomntools, p) : vscomntools;
+    return true;
+  }
+  return false;
 }
 
   // Get Windows SDK installation directory.
@@ -432,7 +433,9 @@ static bool getWindowsSDKDir(std::string &path) {
   // Try the Windows registry.
   bool hasSDKDir = getSystemRegistryString(
    "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Microsoft SDKs\\Windows\\$VERSION",
-    "InstallationFolder", windowsSDKInstallDir, sizeof(windowsSDKInstallDir) - 1);
+                                           "InstallationFolder",
+                                           windowsSDKInstallDir,
+                                           sizeof(windowsSDKInstallDir) - 1);
     // If we have both vc80 and vc90, pick version we were compiled with.
   if (hasSDKDir && windowsSDKInstallDir[0]) {
     path = windowsSDKInstallDir;
@@ -548,17 +551,28 @@ void InitHeaderSearch::AddDefaultCIncludePaths(const llvm::Triple &triple,
     AddPath("/boot/develop/headers/posix", System, true, false, false);
     AddPath("/boot/develop/headers",  System, true, false, false);
     break;
+  case llvm::Triple::RTEMS:
+    break;
   case llvm::Triple::Cygwin:
     AddPath("/usr/include/w32api", System, true, false, false);
     break;
-  case llvm::Triple::MinGW32:
-    // FIXME: We should be aware of i686-w64-mingw32.
-    if (triple.getArch() == llvm::Triple::x86_64)
-      AddPath("c:/mingw/x86_64-w64-mingw32/include",
-              System, true, false, false);
-    AddPath("/mingw/include", System, true, false, false);
-    AddPath("c:/mingw/include", System, true, false, false);
+  case llvm::Triple::MinGW32: { 
+      // mingw-w64 crt include paths
+      llvm::sys::Path P(HSOpts.ResourceDir);
+      P.appendComponent("../../../i686-w64-mingw32/include"); // <sysroot>/i686-w64-mingw32/include
+      AddPath(P.str(), System, true, false, false);
+      P = llvm::sys::Path(HSOpts.ResourceDir);
+      P.appendComponent("../../../x86_64-w64-mingw32/include"); // <sysroot>/x86_64-w64-mingw32/include
+      AddPath(P.str(), System, true, false, false);
+      // mingw.org crt include paths
+      P = llvm::sys::Path(HSOpts.ResourceDir);
+      P.appendComponent("../../../include"); // <sysroot>/include
+      AddPath(P.str(), System, true, false, false);
+      AddPath("/mingw/include", System, true, false, false);
+      AddPath("c:/mingw/include", System, true, false, false); 
+    }
     break;
+      
   case llvm::Triple::Linux:
     // Generic Debian multiarch support:
     if (triple.getArch() == llvm::Triple::x86_64) {
@@ -576,11 +590,12 @@ void InitHeaderSearch::AddDefaultCIncludePaths(const llvm::Triple &triple,
     break;
   }
 
-  AddPath("/usr/include", System, false, false, false);
+  if ( os != llvm::Triple::RTEMS )
+    AddPath("/usr/include", System, false, false, false);
 }
 
 void InitHeaderSearch::
-AddDefaultCPlusPlusIncludePaths(const llvm::Triple &triple) {
+AddDefaultCPlusPlusIncludePaths(const llvm::Triple &triple, const HeaderSearchOptions &HSOpts) {
   llvm::Triple::OSType os = triple.getOS();
   llvm::StringRef CxxIncludeRoot(CXX_INCLUDE_ROOT);
   if (CxxIncludeRoot != "") {
@@ -640,20 +655,19 @@ AddDefaultCPlusPlusIncludePaths(const llvm::Triple &triple) {
     AddMinGWCPlusPlusIncludePaths("/usr/lib/gcc", "i686-pc-cygwin", "3.4.4");
     break;
   case llvm::Triple::MinGW32:
-    // FIXME: We should be aware of i686-w64-mingw32.
-    if (triple.getArch() == llvm::Triple::x86_64) {
-      // mingw-w64-20110207
-      AddMinGW64CXXPaths("c:/mingw/x86_64-w64-mingw32/include/c++/4.5.3");
-      // mingw-w64-20101129
-      AddMinGW64CXXPaths("c:/mingw/x86_64-w64-mingw32/include/c++/4.5.2");
-    }
-    // Try gcc 4.5.2 (MSYS)
-    AddMinGWCPlusPlusIncludePaths("/mingw/lib/gcc", "mingw32", "4.5.2");
-    // Try gcc 4.5.0
+    // mingw-w64 C++ include paths (i686-w64-mingw32 and x86_64-w64-mingw32)
+    AddMinGW64CXXPaths(HSOpts.ResourceDir, "4.5.0");
+    AddMinGW64CXXPaths(HSOpts.ResourceDir, "4.5.1");
+    AddMinGW64CXXPaths(HSOpts.ResourceDir, "4.5.2");
+    AddMinGW64CXXPaths(HSOpts.ResourceDir, "4.5.3");
+    AddMinGW64CXXPaths(HSOpts.ResourceDir, "4.6.0");
+    AddMinGW64CXXPaths(HSOpts.ResourceDir, "4.6.1");
+    AddMinGW64CXXPaths(HSOpts.ResourceDir, "4.6.2");
+    AddMinGW64CXXPaths(HSOpts.ResourceDir, "4.7.0");
+    // mingw.org C++ include paths
+    AddMinGWCPlusPlusIncludePaths("/mingw/lib/gcc", "mingw32", "4.5.2"); //MSYS
     AddMinGWCPlusPlusIncludePaths("c:/MinGW/lib/gcc", "mingw32", "4.5.0");
-    // Try gcc 4.4.0
     AddMinGWCPlusPlusIncludePaths("c:/MinGW/lib/gcc", "mingw32", "4.4.0");
-    // Try gcc 4.3.0
     AddMinGWCPlusPlusIncludePaths("c:/MinGW/lib/gcc", "mingw32", "4.3.0");
     break;
   case llvm::Triple::DragonFly:
@@ -733,6 +747,9 @@ AddDefaultCPlusPlusIncludePaths(const llvm::Triple &triple) {
                                 "x86_64-redhat-linux", "32", "", triple);
     AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.5.1",
                                 "i686-redhat-linux", "", "", triple);
+    // RHEL5(gcc44)
+    AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.4.4",
+                                "x86_64-redhat-linux6E", "32", "", triple);
     // Fedora 13
     AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.4.4",
                                 "x86_64-redhat-linux", "32", "", triple);
@@ -814,6 +831,10 @@ AddDefaultCPlusPlusIncludePaths(const llvm::Triple &triple) {
                                 "x86_64-unknown-linux-gnu", "", "", triple);
 
     // Arch Linux gcc 4.6
+    AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.6.1",
+                                "i686-pc-linux-gnu", "", "", triple);
+    AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.6.1",
+                                "x86_64-unknown-linux-gnu", "", "", triple);
     AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.6.0",
                                 "i686-pc-linux-gnu", "", "", triple);
     AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.6.0",
@@ -918,8 +939,12 @@ AddDefaultCPlusPlusIncludePaths(const llvm::Triple &triple) {
 void InitHeaderSearch::AddDefaultSystemIncludePaths(const LangOptions &Lang,
                                                     const llvm::Triple &triple,
                                             const HeaderSearchOptions &HSOpts) {
-  if (Lang.CPlusPlus && HSOpts.UseStandardCXXIncludes)
-    AddDefaultCPlusPlusIncludePaths(triple);
+  if (Lang.CPlusPlus && HSOpts.UseStandardCXXIncludes) {
+    if (HSOpts.UseLibcxx)
+      AddPath("/usr/include/c++/v1", CXXSystem, true, false, false);
+    else
+      AddDefaultCPlusPlusIncludePaths(triple, HSOpts);
+  }
 
   AddDefaultCIncludePaths(triple, HSOpts);
 
@@ -1017,23 +1042,24 @@ void InitHeaderSearch::Realize(const LangOptions &Lang) {
   std::vector<DirectoryLookup> SearchList;
   SearchList.reserve(IncludePath.size());
 
-  /* Quoted arguments go first. */
+  // Quoted arguments go first.
   for (path_iterator it = IncludePath.begin(), ie = IncludePath.end();
        it != ie; ++it) {
     if (it->first == Quoted)
       SearchList.push_back(it->second);
   }
-  /* Deduplicate and remember index */
+  // Deduplicate and remember index.
   RemoveDuplicates(SearchList, 0, Verbose);
-  unsigned quoted = SearchList.size();
+  unsigned NumQuoted = SearchList.size();
 
   for (path_iterator it = IncludePath.begin(), ie = IncludePath.end();
        it != ie; ++it) {
     if (it->first == Angled)
       SearchList.push_back(it->second);
   }
-  RemoveDuplicates(SearchList, quoted, Verbose);
-  unsigned angled = SearchList.size();
+
+  RemoveDuplicates(SearchList, NumQuoted, Verbose);
+  unsigned NumAngled = SearchList.size();
 
   for (path_iterator it = IncludePath.begin(), ie = IncludePath.end();
        it != ie; ++it) {
@@ -1047,16 +1073,19 @@ void InitHeaderSearch::Realize(const LangOptions &Lang) {
       SearchList.push_back(it->second);
   }
 
-  RemoveDuplicates(SearchList, angled, Verbose);
+  // Remove duplicates across both the Angled and System directories.  GCC does
+  // this and failing to remove duplicates across these two groups breaks
+  // #include_next.
+  RemoveDuplicates(SearchList, NumQuoted, Verbose);
 
   bool DontSearchCurDir = false;  // TODO: set to true if -I- is set?
-  Headers.SetSearchPaths(SearchList, quoted, angled, DontSearchCurDir);
+  Headers.SetSearchPaths(SearchList, NumQuoted, NumAngled, DontSearchCurDir);
 
   // If verbose, print the list of directories that will be searched.
   if (Verbose) {
     llvm::errs() << "#include \"...\" search starts here:\n";
     for (unsigned i = 0, e = SearchList.size(); i != e; ++i) {
-      if (i == quoted)
+      if (i == NumQuoted)
         llvm::errs() << "#include <...> search starts here:\n";
       const char *Name = SearchList[i].getName();
       const char *Suffix;
@@ -1084,7 +1113,7 @@ void clang::ApplyHeaderSearchOptions(HeaderSearch &HS,
   for (unsigned i = 0, e = HSOpts.UserEntries.size(); i != e; ++i) {
     const HeaderSearchOptions::Entry &E = HSOpts.UserEntries[i];
     Init.AddPath(E.Path, E.Group, false, E.IsUserSupplied, E.IsFramework,
-                 !E.IsSysRootRelative);
+                 E.IgnoreSysRoot);
   }
 
   // Add entries from CPATH and friends.

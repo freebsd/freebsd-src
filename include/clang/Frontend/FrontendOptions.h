@@ -24,7 +24,6 @@ namespace frontend {
     ASTDumpXML,             ///< Parse ASTs and dump them in XML.
     ASTPrint,               ///< Parse ASTs and print them.
     ASTView,                ///< Parse ASTs and view them in Graphviz.
-    BoostCon,               ///< BoostCon mode.
     CreateModule,           ///< Create module definition
     DumpRawTokens,          ///< Dump out raw tokens.
     DumpTokens,             ///< Dump out preprocessed tokens.
@@ -76,6 +75,15 @@ public:
   unsigned ShowVersion : 1;                ///< Show the -version text.
   unsigned FixWhatYouCan : 1;              ///< Apply fixes even if there are
                                            /// unfixable errors.
+
+  enum {
+    ARCMT_None,
+    ARCMT_Check,
+    ARCMT_Modify,
+    ARCMT_Migrate
+  } ARCMTAction;
+
+  std::string ARCMTMigrateDir;
 
   /// The input files and their types.
   std::vector<std::pair<InputKind, std::string> > Inputs;
@@ -131,6 +139,7 @@ public:
     ShowStats = 0;
     ShowTimers = 0;
     ShowVersion = 0;
+    ARCMTAction = ARCMT_None;
   }
 
   /// getInputKindForExtension - Return the appropriate input kind for a file

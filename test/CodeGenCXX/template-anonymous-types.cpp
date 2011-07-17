@@ -32,6 +32,6 @@ void test() {
   // CHECK: define internal void @"_ZN1XIN1S3$_1EEC2ES1_"(%struct.X* %this, i32 %t) unnamed_addr
   //
   // FOO's instantiation of X:
-  // CHECK: define internal i32 @"_ZN1XIN1S3$_0EE1fEv"(%struct.X* %this)
-  // CHECK: define internal void @"_ZN1XIN1S3$_0EEC2ES1_"(%struct.X* %this, i32 %t) unnamed_addr
+  // CHECK: define internal i32 @"_ZN1XIN1S3$_0EE1fEv"(%struct.X.0* %this)
+  // CHECK: define internal void @"_ZN1XIN1S3$_0EEC2ES1_"(%struct.X.0* %this, i32 %t) unnamed_addr
 }

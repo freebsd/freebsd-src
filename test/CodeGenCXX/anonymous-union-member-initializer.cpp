@@ -86,7 +86,7 @@ namespace test3 {
   // CHECK-NEXT: [[UNION:%.*]] = getelementptr inbounds {{.*}} [[THIS]], i32 0, i32 0
   // CHECK-NEXT: [[STRUCT:%.*]] = bitcast {{.*}}* [[UNION]] to 
   // CHECK-NEXT: [[CALLBACK:%.*]] = getelementptr inbounds {{.*}} [[STRUCT]], i32 0, i32 0
-  // CHECK-NEXT: store void (i8*)* null, void (i8*)** [[CALLBACK]]
+  // CHECK: store 
   // CHECK-NEXT: [[UNION:%.*]] = getelementptr inbounds {{.*}} [[THIS]], i32 0, i32 0
   // CHECK-NEXT: [[STRUCT:%.*]] = bitcast {{.*}}* [[UNION]] to 
   // CHECK-NEXT: [[CVALUE:%.*]] = getelementptr inbounds {{.*}} [[STRUCT]], i32 0, i32 1
@@ -114,3 +114,19 @@ template <typename T> struct Foo {
   };
 };
 Foo<int> f;
+
+namespace PR9683 {
+  struct QueueEntry {
+    union {
+      struct {
+        void* mPtr;
+        union {
+          unsigned mSubmissionTag;
+        };
+      };
+      unsigned mValue;
+    };
+    QueueEntry() {}
+  };
+  QueueEntry QE;
+}

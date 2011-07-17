@@ -21,21 +21,21 @@ struct D { ~D(); };
 // PR6205: The casts should not require global initializers
 // CHECK: @_ZN6PR59741cE = external global %"struct.PR5974::C"
 // CHECK: @_ZN6PR59741aE = global %"struct.PR5974::A"* getelementptr inbounds (%"struct.PR5974::C"* @_ZN6PR59741cE, i32 0, i32 0)
-// CHECK: @_ZN6PR59741bE = global %"struct.PR5974::A"* bitcast (i8* getelementptr (i8* bitcast (%"struct.PR5974::C"* @_ZN6PR59741cE to i8*), i64 4) to %"struct.PR5974::A"*), align 8
+// CHECK: @_ZN6PR59741bE = global %"struct.PR5974::B"* bitcast (i8* getelementptr (i8* bitcast (%"struct.PR5974::C"* @_ZN6PR59741cE to i8*), i64 4) to %"struct.PR5974::B"*), align 8
 
 // CHECK: call void @_ZN1AC1Ev(%struct.A* @a)
 // CHECK: call i32 @__cxa_atexit(void (i8*)* bitcast (void (%struct.A*)* @_ZN1AD1Ev to void (i8*)*), i8* getelementptr inbounds (%struct.A* @a, i32 0, i32 0), i8* bitcast (i8** @__dso_handle to i8*))
 A a;
 
-// CHECK: call void @_ZN1BC1Ev(%struct.A* @b)
-// CHECK: call i32 @__cxa_atexit(void (i8*)* bitcast (void (%struct.A*)* @_ZN1BD1Ev to void (i8*)*), i8* getelementptr inbounds (%struct.A* @b, i32 0, i32 0), i8* bitcast (i8** @__dso_handle to i8*))
+// CHECK: call void @_ZN1BC1Ev(%struct.B* @b)
+// CHECK: call i32 @__cxa_atexit(void (i8*)* bitcast (void (%struct.B*)* @_ZN1BD1Ev to void (i8*)*), i8* getelementptr inbounds (%struct.B* @b, i32 0, i32 0), i8* bitcast (i8** @__dso_handle to i8*))
 B b;
 
 // PR6205: this should not require a global initializer
 // CHECK-NOT: call void @_ZN1CC1Ev(%struct.C* @c)
 C c;
 
-// CHECK: call i32 @__cxa_atexit(void (i8*)* bitcast (void (%struct.A*)* @_ZN1DD1Ev to void (i8*)*), i8* getelementptr inbounds (%struct.A* @d, i32 0, i32 0), i8* bitcast (i8** @__dso_handle to i8*))
+// CHECK: call i32 @__cxa_atexit(void (i8*)* bitcast (void (%struct.D*)* @_ZN1DD1Ev to void (i8*)*), i8* getelementptr inbounds (%struct.D* @d, i32 0, i32 0), i8* bitcast (i8** @__dso_handle to i8*))
 D d;
 
 // <rdar://problem/7458115>
@@ -70,6 +70,20 @@ namespace test3 {
   const char *test() { return var; }
 }
 
+namespace test6 {
+  struct A {
+    A();
+  };
+  extern int foo();
+
+  // This needs an initialization function and guard variables.
+  // CHECK: load i8* bitcast (i64* @_ZGVN5test61xE
+  // CHECK: [[CALL:%.*]] = call i32 @_ZN5test63fooEv
+  // CHECK-NEXT: store i32 [[CALL]], i32* @_ZN5test61xE
+  // CHECK-NEXT: store i64 1, i64* @_ZGVN5test61xE
+  __attribute__((weak)) int x = foo();
+}
+
 namespace PR5974 {
   struct A { int a; };
   struct B { int b; };
@@ -97,15 +111,6 @@ namespace test5 {
   };
 }
 
-namespace test6 {
-  struct A {
-    A();
-  };
-  extern int foo();
-
-  // This needs an initialization function but not guard variables.
-  __attribute__((weak)) int x = foo();
-}
 
 // At the end of the file, we check that y is initialized before z.
 

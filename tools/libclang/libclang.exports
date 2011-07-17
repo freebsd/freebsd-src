@@ -6,6 +6,7 @@ clang_annotateTokens
 clang_codeCompleteAt
 clang_codeCompleteGetDiagnostic
 clang_codeCompleteGetNumDiagnostics
+clang_codeCompleteGetContexts
 clang_constructUSR_ObjCCategory
 clang_constructUSR_ObjCClass
 clang_constructUSR_ObjCIvar
@@ -112,6 +113,7 @@ clang_getTranslationUnitSpelling
 clang_getTypeDeclaration
 clang_getTypeKindSpelling
 clang_hashCursor
+clang_isAttribute
 clang_isConstQualifiedType
 clang_isCursorDefinition
 clang_isDeclaration
@@ -135,3 +137,7 @@ clang_toggleCrashRecovery
 clang_tokenize
 clang_visitChildren
 clang_visitChildrenWithBlock
+clang_getRemappings
+clang_remap_getNumFiles
+clang_remap_getFilenames
+clang_remap_dispose

@@ -71,7 +71,21 @@ void test_f3(int ***ip, volatile int ***vip) {
   A<int> a0 = f3(ip);
   A<volatile int> a1 = f3(vip);
 }
-                             
+
+// Also accept conversions for pointer types which require removing
+// [[noreturn]].
+namespace noreturn_stripping {
+  template <class R>
+  void f(R (*function)());
+
+  void g() __attribute__ ((__noreturn__));
+  void h();
+  void test() {
+    f(g);
+    f(h);
+  }
+}
+
 //   - If P is a class, and P has the form template-id, then A can be a 
 //     derived class of the deduced A. Likewise, if P is a pointer to a class
 //     of the form template-id, A can be a pointer to a derived class pointed 
@@ -122,4 +136,13 @@ namespace N {
     N::F<T0>(d); // Fails
     N::F<T1>(d); // OK
   }
+}
+
+namespace PR9233 {
+  template<typename T> void f(const T **q); // expected-note{{candidate template ignored: substitution failure [with T = int]}}
+
+  void g(int **p) {
+    f(p); // expected-error{{no matching function for call to 'f'}}
+  }
+
 }

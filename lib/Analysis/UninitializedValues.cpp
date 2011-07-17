@@ -288,28 +288,28 @@ class DataflowWorklist {
 public:
   DataflowWorklist(const CFG &cfg) : enqueuedBlocks(cfg.getNumBlockIDs()) {}
   
-  void enqueue(const CFGBlock *block);
   void enqueueSuccessors(const CFGBlock *block);
   const CFGBlock *dequeue();
-  
 };
 }
 
-void DataflowWorklist::enqueue(const CFGBlock *block) {
-  if (!block)
-    return;
-  unsigned idx = block->getBlockID();
-  if (enqueuedBlocks[idx])
-    return;
-  worklist.push_back(block);
-  enqueuedBlocks[idx] = true;
-}
-
 void DataflowWorklist::enqueueSuccessors(const clang::CFGBlock *block) {
+  unsigned OldWorklistSize = worklist.size();
   for (CFGBlock::const_succ_iterator I = block->succ_begin(),
        E = block->succ_end(); I != E; ++I) {
-    enqueue(*I);
+    const CFGBlock *Successor = *I;
+    if (!Successor || enqueuedBlocks[Successor->getBlockID()])
+      continue;
+    worklist.push_back(Successor);
+    enqueuedBlocks[Successor->getBlockID()] = true;
   }
+  if (OldWorklistSize == 0 || OldWorklistSize == worklist.size())
+    return;
+
+  // Rotate the newly added blocks to the start of the worklist so that it forms
+  // a proper queue when we pop off the end of the worklist.
+  std::rotate(worklist.begin(), worklist.begin() + OldWorklistSize,
+              worklist.end());
 }
 
 const CFGBlock *DataflowWorklist::dequeue() {
@@ -654,14 +654,18 @@ static bool runOnBlock(const CFGBlock *block, const CFG &cfg,
   return vals.updateValueVectorWithScratch(block);
 }
 
-void clang::runUninitializedVariablesAnalysis(const DeclContext &dc,
-                                              const CFG &cfg,
-                                              AnalysisContext &ac,
-                                              UninitVariablesHandler &handler) {
+void clang::runUninitializedVariablesAnalysis(
+    const DeclContext &dc,
+    const CFG &cfg,
+    AnalysisContext &ac,
+    UninitVariablesHandler &handler,
+    UninitVariablesAnalysisStats &stats) {
   CFGBlockValues vals(cfg);
   vals.computeSetOfDeclarations(dc);
   if (vals.hasNoDeclarations())
     return;
+
+  stats.NumVariablesAnalyzed = vals.getNumEntries();
 
   // Mark all variables uninitialized at the entry.
   const CFGBlock &entry = cfg.getEntry();
@@ -684,7 +688,8 @@ void clang::runUninitializedVariablesAnalysis(const DeclContext &dc,
 
   while (const CFGBlock *block = worklist.dequeue()) {
     // Did the block change?
-    bool changed = runOnBlock(block, cfg, ac, vals, wasAnalyzed);    
+    bool changed = runOnBlock(block, cfg, ac, vals, wasAnalyzed);
+    ++stats.NumBlockVisits;
     if (changed || !previouslyVisited[block->getBlockID()])
       worklist.enqueueSuccessors(block);    
     previouslyVisited[block->getBlockID()] = true;
@@ -692,11 +697,12 @@ void clang::runUninitializedVariablesAnalysis(const DeclContext &dc,
   
   // Run through the blocks one more time, and report uninitialized variabes.
   for (CFG::const_iterator BI = cfg.begin(), BE = cfg.end(); BI != BE; ++BI) {
-    if (wasAnalyzed[(*BI)->getBlockID()])
+    if (wasAnalyzed[(*BI)->getBlockID()]) {
       runOnBlock(*BI, cfg, ac, vals, wasAnalyzed, &handler,
                  /* flagBlockUses */ true);
+      ++stats.NumBlockVisits;
+    }
   }
 }
 
 UninitVariablesHandler::~UninitVariablesHandler() {}
-

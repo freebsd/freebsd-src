@@ -116,6 +116,7 @@ typedef struct _NSZone NSZone;
 - (id)retain;
 - (oneway void)release;
 - (id)autorelease;
+- (id)init;
 @end  @protocol NSCopying  - (id)copyWithZone:(NSZone *)zone;
 @end  @protocol NSMutableCopying  - (id)mutableCopyWithZone:(NSZone *)zone;
 @end  @protocol NSCoding  - (void)encodeWithCoder:(NSCoder *)aCoder;
@@ -517,7 +518,7 @@ void f17(int x, CFTypeRef p) {
 @implementation TestReturnNotOwnedWhenExpectedOwned
 - (NSString*)newString {
   NSString *s = [NSString stringWithUTF8String:"hello"];
-  return s; // expected-warning{{Object with +0 retain counts returned to caller where a +1 (owning) retain count is expected}}
+  return s; // expected-warning{{Object with a +0 retain count returned to caller where a +1 (owning) retain count is expected}}
 }
 @end
 
@@ -735,7 +736,7 @@ typedef CFTypeRef OtherRef;
 - (id)initReturningNewClassBad2 {
   [self release];
   self = [[RDar6320065Subclass alloc] init];
-  return [self autorelease]; // expected-warning{{Object with +0 retain counts returned to caller where a +1 (owning) retain count is expected}}
+  return [self autorelease]; // expected-warning{{Object with a +0 retain count returned to caller where a +1 (owning) retain count is expected}}
 }
 
 @end
@@ -1302,7 +1303,7 @@ CFDateRef returnsRetainedCFDate()  {
 }
 
 - (CFDateRef) newCFRetainedAsCFNoAttr {
-  return (CFDateRef)[(id)[self returnsCFRetainedAsCF] autorelease]; // expected-warning{{Object with +0 retain counts returned to caller where a +1 (owning) retain count is expected}}
+  return (CFDateRef)[(id)[self returnsCFRetainedAsCF] autorelease]; // expected-warning{{Object with a +0 retain count returned to caller where a +1 (owning) retain count is expected}}
 }
 
 - (NSDate*) alsoReturnsRetained {
@@ -1445,7 +1446,7 @@ static void rdar_8724287(CFErrorRef error)
     while (error_to_dump != ((void*)0)) {
         CFDictionaryRef info;
 
-        info = CFErrorCopyUserInfo(error_to_dump); // expected-warning{{Potential leak of an object allocated on line 1448 and stored into 'info'}}
+        info = CFErrorCopyUserInfo(error_to_dump); // expected-warning{{Potential leak of an object allocated on line 1449 and stored into 'info'}}
 
         if (info != ((void*)0)) {
         }
@@ -1461,3 +1462,81 @@ extern void rdar_9234108_helper(void *key, void * CF_CONSUMED value);
 void rdar_9234108() {
   rdar_9234108_helper(0, CFStringCreate());
 }
+
+// <rdar://problem/9726279> - Make sure that objc_method_family works
+// to override naming conventions.
+struct TwoDoubles {
+  double one;
+  double two;
+};
+typedef struct TwoDoubles TwoDoubles;
+
+@interface NSValue (Mine)
+- (id)_prefix_initWithTwoDoubles:(TwoDoubles)twoDoubles __attribute__((objc_method_family(init)));
+@end
+
+@implementation NSValue (Mine)
+- (id)_prefix_initWithTwoDoubles:(TwoDoubles)twoDoubles
+{
+  return [self init];
+}
+@end
+
+void rdar9726279() {
+  TwoDoubles twoDoubles = { 0.0, 0.0 };
+  NSValue *value = [[NSValue alloc] _prefix_initWithTwoDoubles:twoDoubles];
+  [value release];
+}
+
+// <rdar://problem/9732321>
+// Test camelcase support for CF conventions.  While Core Foundation APIs
+// don't use camel casing, other code is allowed to use it.
+CFArrayRef camelcase_create_1() {
+  return CFArrayCreateMutable(0, 10, &kCFTypeArrayCallBacks); // no-warning
+}
+
+CFArrayRef camelcase_createno() {
+  return CFArrayCreateMutable(0, 10, &kCFTypeArrayCallBacks); // expected-warning {{leak}}
+}
+
+CFArrayRef camelcase_copy() {
+  return CFArrayCreateMutable(0, 10, &kCFTypeArrayCallBacks); // no-warning
+}
+
+CFArrayRef camelcase_copying() {
+  return CFArrayCreateMutable(0, 10, &kCFTypeArrayCallBacks); // expected-warning {{leak}}
+}
+
+CFArrayRef copyCamelCase() {
+  return CFArrayCreateMutable(0, 10, &kCFTypeArrayCallBacks); // no-warning
+}
+
+CFArrayRef __copyCamelCase() {
+  return CFArrayCreateMutable(0, 10, &kCFTypeArrayCallBacks); // no-warning
+}
+
+CFArrayRef __createCamelCase() {
+  return CFArrayCreateMutable(0, 10, &kCFTypeArrayCallBacks); // no-warning
+}
+
+CFArrayRef camel_create() {
+  return CFArrayCreateMutable(0, 10, &kCFTypeArrayCallBacks); // no-warning
+}
+
+
+CFArrayRef camel_creat() {
+  return CFArrayCreateMutable(0, 10, &kCFTypeArrayCallBacks); // expected-warning {{leak}}
+}
+
+CFArrayRef camel_copy() {
+  return CFArrayCreateMutable(0, 10, &kCFTypeArrayCallBacks); // no-warning
+}
+
+CFArrayRef camel_copyMachine() {
+  return CFArrayCreateMutable(0, 10, &kCFTypeArrayCallBacks); // no-warning
+}
+
+CFArrayRef camel_copymachine() {
+  return CFArrayCreateMutable(0, 10, &kCFTypeArrayCallBacks); // expected-warning {{leak}}
+}
+

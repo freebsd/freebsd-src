@@ -143,6 +143,8 @@ def femit_coverage_data: Flag<"-femit-coverage-data">,
 def coverage_file : Separate<"-coverage-file">,
   HelpText<"Emit coverage data to this filename. The extension will be replaced.">;
 def coverage_file_EQ : Joined<"-coverage-file=">, Alias<coverage_file>;
+def fuse_register_sized_bitfield_access: Flag<"-fuse-register-sized-bitfield-access">,
+  HelpText<"Use register sized accesses to bit-fields, when possible.">;
 def relaxed_aliasing : Flag<"-relaxed-aliasing">,
   HelpText<"Turn off Type Based Alias Analysis">;
 def masm_verbose : Flag<"-masm-verbose">,
@@ -157,6 +159,8 @@ def mfloat_abi : Separate<"-mfloat-abi">,
   HelpText<"The float ABI to use">;
 def mlimit_float_precision : Separate<"-mlimit-float-precision">,
   HelpText<"Limit float precision to the given value">;
+def mno_exec_stack : Flag<"-mnoexecstack">,
+  HelpText<"Mark the file as not needing an executable stack">;
 def mno_zero_initialized_in_bss : Flag<"-mno-zero-initialized-in-bss">,
   HelpText<"Do not put zero initialized data in the BSS">;
 def momit_leaf_frame_pointer : Flag<"-momit-leaf-frame-pointer">,
@@ -204,6 +208,7 @@ def MQ : Separate<"-MQ">, HelpText<"Specify target to quote for dependency">;
 def MT : Separate<"-MT">, HelpText<"Specify target for dependency">;
 def MP : Flag<"-MP">,
   HelpText<"Create phony target for each dependency (other than main file)">;
+def MG : Flag<"-MG">, HelpText<"Add missing headers to dependency list">;
 
 //===----------------------------------------------------------------------===//
 // Diagnostic Options
@@ -259,7 +264,7 @@ def ftabstop : Separate<"-ftabstop">, MetaVarName<"<N>">,
 def ferror_limit : Separate<"-ferror-limit">, MetaVarName<"<N>">,
   HelpText<"Set the maximum number of errors to emit before stopping (0 = no limit).">;
 def fmacro_backtrace_limit : Separate<"-fmacro-backtrace-limit">, MetaVarName<"<N>">,
-  HelpText<"Set the maximum number of entries to print in a macro instantiation backtrace (0 = no limit).">;
+  HelpText<"Set the maximum number of entries to print in a macro expansion backtrace (0 = no limit).">;
 def ftemplate_backtrace_limit : Separate<"-ftemplate-backtrace-limit">, MetaVarName<"<N>">,
   HelpText<"Set the maximum number of entries to print in a template instantiation backtrace (0 = no limit).">;
 def fmessage_length : Separate<"-fmessage-length">, MetaVarName<"<N>">,
@@ -352,8 +357,6 @@ def ast_dump_xml : Flag<"-ast-dump-xml">,
   HelpText<"Build ASTs and then debug dump them in a verbose XML format">;
 def ast_view : Flag<"-ast-view">,
   HelpText<"Build ASTs and view them with GraphViz">;
-def boostcon : Flag<"-boostcon">,
-  HelpText<"BoostCon workshop mode">;
 def print_decl_contexts : Flag<"-print-decl-contexts">,
   HelpText<"Print DeclContexts and their Decls">;
 def emit_pth : Flag<"-emit-pth">,
@@ -382,6 +385,15 @@ def rewrite_macros : Flag<"-rewrite-macros">,
 def create_module : Flag<"-create-module">,
   HelpText<"Create a module definition file">;
 }
+
+def arcmt_check : Flag<"-arcmt-check">,
+  HelpText<"Check for ARC migration issues that need manual handling">;
+def arcmt_modify : Flag<"-arcmt-modify">,
+  HelpText<"Apply modifications to files to conform to ARC">;
+def arcmt_migrate : Flag<"-arcmt-migrate">,
+  HelpText<"Apply modifications and produces temporary files that conform to ARC">;
+def arcmt_migrate_directory : Separate<"-arcmt-migrate-directory">,
+  HelpText<"Directory for temporary files produced during ARC migration">;
 
 def import_module : Separate<"-import-module">,
   HelpText<"Import a module definition file">;
@@ -452,6 +464,8 @@ def fhidden_weak_vtables : Flag<"-fhidden-weak-vtables">,
   HelpText<"Generate weak vtables and RTTI with hidden visibility">;
 def std_EQ : Joined<"-std=">,
   HelpText<"Language standard to compile for">;
+def stdlib_EQ : Joined<"-stdlib=">,
+  HelpText<"C++ standard library to use">;
 def fmath_errno : Flag<"-fmath-errno">,
   HelpText<"Require math functions to indicate errors by setting errno">;
 def fms_extensions : Flag<"-fms-extensions">,
@@ -479,6 +493,18 @@ def fconstant_string_class : Separate<"-fconstant-string-class">,
   HelpText<"Specify the class to use for constant Objective-C string objects.">;
 def fno_constant_cfstrings : Flag<"-fno-constant-cfstrings">,
   HelpText<"Enable creation of CodeFoundation-type constant strings">;
+def fobjc_arc : Flag<"-fobjc-arc">,
+  HelpText<"Synthesize retain and release calls for Objective-C pointers">;
+def fobjc_arc_cxxlib_EQ : Joined<"-fobjc-arc-cxxlib=">,
+  HelpText<"Objective-C++ Automatic Reference Counting standard library kind">;
+def fobjc_arc_exceptions : Flag<"-fobjc-arc-exceptions">,
+  HelpText<"Use EH-safe code when synthesizing retains and releases in -fobjc-arc">;
+def fobjc_runtime_has_arc : Flag<"-fobjc-runtime-has-arc">,
+  HelpText<"The target Objective-C runtime provides ARC entrypoints">;
+def fobjc_runtime_has_weak : Flag<"-fobjc-runtime-has-weak">,
+  HelpText<"The target Objective-C runtime supports ARC weak operations">;
+def fobjc_runtime_has_terminate : Flag<"-fobjc-runtime-has-terminate">,
+  HelpText<"The target Objective-C runtime provides an objc_terminate entrypoint">;
 def fobjc_gc : Flag<"-fobjc-gc">,
   HelpText<"Enable Objective-C garbage collection">;
 def fobjc_gc_only : Flag<"-fobjc-gc-only">,
@@ -493,8 +519,10 @@ def print_ivar_layout : Flag<"-print-ivar-layout">,
   HelpText<"Enable Objective-C Ivar layout bitmap print trace">;
 def fobjc_nonfragile_abi : Flag<"-fobjc-nonfragile-abi">,
   HelpText<"enable objective-c's nonfragile abi">;
-def fobjc_infer_related_result_type : Flag<"-fobjc-infer-related-result-type">,
-  HelpText<"infer Objective-C related result type based on method family">;
+def fno_objc_infer_related_result_type : Flag<
+    "-fno-objc-infer-related-result-type">,
+  HelpText<
+    "do not infer Objective-C related result type based on method family">;
 def ftrapv : Flag<"-ftrapv">,
   HelpText<"Trap on integer overflow">;
 def ftrapv_handler : Separate<"-ftrapv-handler">,
@@ -554,6 +582,8 @@ def fdelayed_template_parsing : Flag<"-fdelayed-template-parsing">,
            "translation unit ">;
 def funknown_anytype : Flag<"-funknown-anytype">,
   HelpText<"Enable parser support for the __unknown_anytype type; for testing purposes only">;
+def fdebugger_support : Flag<"-fdebugger-support">,
+  HelpText<"Enable special debugger support behavior">;
 def fdeprecated_macro : Flag<"-fdeprecated-macro">,
   HelpText<"Defines the __DEPRECATED macro">;
 def fno_deprecated_macro : Flag<"-fno-deprecated-macro">,

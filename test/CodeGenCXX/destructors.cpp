@@ -40,11 +40,11 @@ namespace PR7526 {
 
   struct allocator_derived : allocator { };
 
-  // CHECK: define void @_ZN6PR75269allocatorD2Ev(%"struct.PR5529::A"* %this) unnamed_addr
+  // CHECK: define void @_ZN6PR75269allocatorD2Ev(%"struct.PR7526::allocator"* %this) unnamed_addr
   // CHECK: call void @__cxa_call_unexpected
   allocator::~allocator() throw() { foo(); }
 
-  // CHECK: define linkonce_odr void @_ZN6PR752617allocator_derivedD1Ev(%"struct.PR5529::A"* %this) unnamed_addr
+  // CHECK: define linkonce_odr void @_ZN6PR752617allocator_derivedD1Ev(%"struct.PR7526::allocator_derived"* %this) unnamed_addr
   // CHECK-NOT: call void @__cxa_call_unexpected
   // CHECK:     }
   void foo() {
@@ -145,10 +145,10 @@ namespace test1 {
   P::~P() {} // CHECK: define void @_ZN5test11PD2Ev(%"struct.test1::P"* %this) unnamed_addr
 
   struct Q : A, B { ~Q(); };
-  Q::~Q() {} // CHECK: define void @_ZN5test11QD2Ev(%"struct.test1::M"* %this) unnamed_addr
+  Q::~Q() {} // CHECK: define void @_ZN5test11QD2Ev(%"struct.test1::Q"* %this) unnamed_addr
 
   struct R : A { ~R(); };
-  R::~R() { A a; } // CHECK: define void @_ZN5test11RD2Ev(%"struct.test1::M"* %this) unnamed_addr
+  R::~R() { A a; } // CHECK: define void @_ZN5test11RD2Ev(%"struct.test1::R"* %this) unnamed_addr
 
   struct S : A { ~S(); int x; };
   S::~S() {} // alias tested above
@@ -168,7 +168,7 @@ namespace test2 {
   struct B : A { ~B(); };
 
   B::~B() {}
-  // CHECK: define void @_ZN5test21BD2Ev(%"struct.test1::M"* %this) unnamed_addr
+  // CHECK: define void @_ZN5test21BD2Ev(%"struct.test2::B"* %this) unnamed_addr
   // CHECK: call void @_ZN5test21AD2Ev
 }
 
@@ -233,28 +233,28 @@ namespace test4 {
 namespace test5 {
   struct A { ~A(); };
 
-  // This is really unnecessarily verbose; we should be using phis,
-  // even at -O0.
-
   // CHECK: define void @_ZN5test53fooEv()
   // CHECK:      [[ELEMS:%.*]] = alloca [5 x [[A:%.*]]], align
-  // CHECK-NEXT: [[IVAR:%.*]] = alloca i64
-  // CHECK:      [[ELEMSARRAY:%.*]] = bitcast [5 x [[A]]]* [[ELEMS]] to [[A]]
-  // CHECK-NEXT: store i64 5, i64* [[IVAR]]
+  // CHECK-NEXT: [[EXN:%.*]] = alloca i8*
+  // CHECK-NEXT: [[SEL:%.*]] = alloca i32
+  // CHECK-NEXT: [[EHCLEANUP:%.*]] = alloca i32
+  // CHECK-NEXT: [[BEGIN:%.*]] = getelementptr inbounds [5 x [[A]]]* [[ELEMS]], i32 0, i32 0
+  // CHECK-NEXT: [[END:%.*]] = getelementptr inbounds [[A]]* [[BEGIN]], i64 5
   // CHECK-NEXT: br label
-  // CHECK:      [[I:%.*]] = load i64* [[IVAR]]
-  // CHECK-NEXT: icmp ne i64 [[I]], 0
-  // CHECK-NEXT: br i1
-  // CHECK:      [[I:%.*]] = load i64* [[IVAR]]
-  // CHECK-NEXT: [[I2:%.*]] = sub i64 [[I]], 1
-  // CHECK-NEXT: getelementptr inbounds [[A]]* [[ELEMSARRAY]], i64 [[I2]]
-  // CHECK-NEXT: call void @_ZN5test51AD1Ev(
-  // CHECK-NEXT: br label
-  // CHECK:      [[I:%.*]] = load i64* [[IVAR]]
-  // CHECK-NEXT: [[I1:%.*]] = sub i64 [[I]], 1
-  // CHECK-NEXT: store i64 [[I1]], i64* [[IVAR]]
-  // CHECK-NEXT: br label
+  // CHECK:      [[POST:%.*]] = phi [[A]]* [ [[END]], {{%.*}} ], [ [[ELT:%.*]], {{%.*}} ]
+  // CHECK-NEXT: [[ELT]] = getelementptr inbounds [[A]]* [[POST]], i64 -1
+  // CHECK-NEXT: invoke void @_ZN5test51AD1Ev([[A]]* [[ELT]])
+  // CHECK:      [[T0:%.*]] = icmp eq [[A]]* [[ELT]], [[BEGIN]]
+  // CHECK-NEXT: br i1 [[T0]],
   // CHECK:      ret void
+  // lpad
+  // CHECK:      [[EMPTY:%.*]] = icmp eq [[A]]* [[BEGIN]], [[ELT]]
+  // CHECK-NEXT: br i1 [[EMPTY]]
+  // CHECK:      [[AFTER:%.*]] = phi [[A]]* [ [[ELT]], {{%.*}} ], [ [[CUR:%.*]], {{%.*}} ]
+  // CHECK-NEXT: [[CUR:%.*]] = getelementptr inbounds [[A]]* [[AFTER]], i64 -1
+  // CHECK-NEXT: invoke void @_ZN5test51AD1Ev([[A]]* [[CUR]])
+  // CHECK:      [[DONE:%.*]] = icmp eq [[A]]* [[CUR]], [[BEGIN]]
+  // CHECK-NEXT: br i1 [[DONE]],
   void foo() {
     A elems[5];
   }

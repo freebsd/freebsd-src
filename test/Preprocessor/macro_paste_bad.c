@@ -32,4 +32,3 @@ XX     // expected-error {{attempt to use a poisoned identifier}}
 #define VA __VA_ ## ARGS__
 int VA;   // expected-warning {{__VA_ARGS__ can only appear in the expansion of a C99 variadic macro}}
 
-

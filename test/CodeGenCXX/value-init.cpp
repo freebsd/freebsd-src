@@ -105,34 +105,24 @@ void f() {
   // CHECK: call void @_ZN6PR98014TestC1Ei
   // CHECK-NOT: call void @llvm.memset.p0i8.i64
   // CHECK: call void @_ZN6PR98014TestC1Ev
-  // CHECK-NOT: call void @llvm.memset.p0i8.i64
-  // CHECK: call void @_ZN6PR98014TestC1Ev
   Test partial[3] = { 1 };
 
   // CHECK-NOT: call void @llvm.memset.p0i8.i64
   // CHECK: call void @_ZN6PR98014TestC1Ev
-  // CHECK-NOT: call void @llvm.memset.p0i8.i64
-  // CHECK: call void @_ZN6PR98014TestC1Ev
-  // CHECK-NOT: call void @llvm.memset.p0i8.i64
-  // CHECK: call void @_ZN6PR98014TestC1Ev
+  // CHECK-NOT: call void @_ZN6PR98014TestC1Ev
   Test empty[3] = {};
 
   // CHECK: call void @llvm.memset.p0i8.i64
   // CHECK-NOT: call void @llvm.memset.p0i8.i64
   // CHECK: call void @_ZN6PR98015Test2C1Ev
-  // CHECK-NOT: call void @llvm.memset.p0i8.i64
-  // CHECK: call void @_ZN6PR98015Test2C1Ev
-  // CHECK-NOT: call void @llvm.memset.p0i8.i64
-  // CHECK: call void @_ZN6PR98015Test2C1Ev
+  // CHECK-NOT: call void @_ZN6PR98015Test2C1Ev
   Test2 empty2[3] = {};
 
   // CHECK: call void @llvm.memset.p0i8.i64
   // CHECK-NOT: call void @llvm.memset.p0i8.i64
   // CHECK: call void @_ZN6PR98015Test3C1Ev
   // CHECK-NOT: call void @llvm.memset.p0i8.i64
-  // CHECK: call void @_ZN6PR98015Test3C1Ev
-  // CHECK-NOT: call void @llvm.memset.p0i8.i64
-  // CHECK: call void @_ZN6PR98015Test3C1Ev
+  // CHECK-NOT: call void @_ZN6PR98015Test3C1Ev
   Test3 empty3[3] = {};
 }
 
@@ -189,10 +179,7 @@ namespace zeroinit {
     X3<int>().f();
   }
 
-  // CHECK: define linkonce_odr void @_ZN8zeroinit2X3IiEC2Ev(%"struct.zeroinit::X3"* %this) unnamed_addr
-  // CHECK: call void @llvm.memset.p0i8.i64
-  // CHECK-NEXT: call void @_ZN8zeroinit2X2IiEC2Ev
-  // CHECK-NEXT: ret void
+  // More checks at EOF
 }
 
 namespace PR8726 {
@@ -207,3 +194,51 @@ void f(const C& c) {
 }
 
 }
+
+// rdar://problem/9355931
+namespace test6 {
+  struct A { A(); A(int); };
+
+  void test() {
+    A arr[10][20] = { 5 };
+  };
+  // CHECK:    define void @_ZN5test64testEv()
+  // CHECK:      [[ARR:%.*]] = alloca [10 x [20 x [[A:%.*]]]],
+
+  // CHECK-NEXT: [[INNER:%.*]] = getelementptr inbounds [10 x [20 x [[A]]]]* [[ARR]], i64 0, i64 0
+  // CHECK-NEXT: [[T0:%.*]] = getelementptr inbounds [20 x [[A]]]* [[INNER]], i64 0, i64 0
+  // CHECK-NEXT: call void @_ZN5test61AC1Ei([[A]]* [[T0]], i32 5)
+  // CHECK-NEXT: [[BEGIN:%.*]] = getelementptr inbounds [[A]]* [[T0]], i64 1
+  // CHECK-NEXT: [[END:%.*]] = getelementptr inbounds [[A]]* [[T0]], i64 20
+  // CHECK-NEXT: br label
+  // CHECK:      [[CUR:%.*]] = phi [[A]]* [ [[BEGIN]], {{%.*}} ], [ [[NEXT:%.*]], {{%.*}} ]
+  // CHECK-NEXT: call void @_ZN5test61AC1Ev([[A]]* [[CUR]])
+  // CHECK-NEXT: [[NEXT]] = getelementptr inbounds [[A]]* [[CUR]], i64 1
+  // CHECK-NEXT: [[T0:%.*]] = icmp eq [[A]]* [[NEXT]], [[END]]
+  // CHECK-NEXT: br i1
+
+  // CHECK:      [[BEGIN:%.*]] = getelementptr inbounds [20 x [[A]]]* [[INNER]], i64 1
+  // CHECK-NEXT: [[END:%.*]] = getelementptr inbounds [20 x [[A]]]* [[INNER]], i64 10
+  // CHECK-NEXT: br label
+  // CHECK:      [[CUR:%.*]] = phi [20 x [[A]]]* [ [[BEGIN]], {{%.*}} ], [ [[NEXT:%.*]], {{%.*}} ]
+
+  // Inner loop.
+  // CHECK-NEXT: [[IBEGIN:%.*]] = getelementptr inbounds [20 x [[A]]]* [[CUR]], i32 0, i32 0
+  // CHECK-NEXT: [[IEND:%.*]] = getelementptr inbounds [[A]]* [[IBEGIN]], i64 20
+  // CHECK-NEXT: br label
+  // CHECK:      [[ICUR:%.*]] = phi [[A]]* [ [[IBEGIN]], {{%.*}} ], [ [[INEXT:%.*]], {{%.*}} ]
+  // CHECK-NEXT: call void @_ZN5test61AC1Ev([[A]]* [[ICUR]])
+  // CHECK-NEXT: [[INEXT:%.*]] = getelementptr inbounds [[A]]* [[ICUR]], i64 1
+  // CHECK-NEXT: [[T0:%.*]] = icmp eq [[A]]* [[INEXT]], [[IEND]]
+  // CHECK-NEXT: br i1 [[T0]],
+
+  // CHECK:      [[NEXT]] = getelementptr inbounds [20 x [[A]]]* [[CUR]], i64 1
+  // CHECK-NEXT: [[T0:%.*]] = icmp eq [20 x [[A]]]* [[NEXT]], [[END]]
+  // CHECK-NEXT: br i1 [[T0]]
+  // CHECK:      ret void
+}
+
+// CHECK: define linkonce_odr void @_ZN8zeroinit2X3IiEC2Ev(%"struct.zeroinit::X3"* %this) unnamed_addr
+// CHECK: call void @llvm.memset.p0i8.i64
+// CHECK-NEXT: call void @_ZN8zeroinit2X2IiEC2Ev
+// CHECK-NEXT: ret void

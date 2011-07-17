@@ -352,3 +352,18 @@ int test52(int a, int b) {
   }
   return x; // expected-warning {{variable 'x' may be uninitialized when used here}}
 }
+
+// This CFG caused the uninitialized values warning to inf-loop.
+extern int PR10379_g();
+void PR10379_f(int *len) {
+  int new_len; // expected-note {{variable 'new_len' is declared here}} expected-note{{add initialization to silence this warning}}
+  for (int i = 0; i < 42 && PR10379_g() == 0; i++) {
+    if (PR10379_g() == 1)
+      continue;
+    if (PR10379_g() == 2)
+      PR10379_f(&new_len);
+    else if (PR10379_g() == 3)
+      PR10379_f(&new_len);
+    *len += new_len; // expected-warning {{variable 'new_len' may be uninitialized when used here}}
+  }
+}
