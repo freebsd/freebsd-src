@@ -585,7 +585,7 @@ APPLESTATIC void
 nfsrpc_doclose(struct nfsmount *nmp, struct nfsclopen *op, NFSPROC_T *p)
 {
 	struct nfsrv_descript nfsd, *nd = &nfsd;
-	struct nfscllockowner *lp;
+	struct nfscllockowner *lp, *nlp;
 	struct nfscllock *lop, *nlop;
 	struct ucred *tcred;
 	u_int64_t off = 0, len = 0;
@@ -642,6 +642,14 @@ nfsrpc_doclose(struct nfsmount *nmp, struct nfsclopen *op, NFSPROC_T *p)
 			}
 			nfscl_freelock(lop, 0);
 		}
+		/*
+		 * Do a ReleaseLockOwner.
+		 * The lock owner name nfsl_owner may be used by other opens for
+		 * other files but the lock_owner4 name that nfsrpc_rellockown()
+		 * puts on the wire has the file handle for this file appended
+		 * to it, so it can be done now.
+		 */
+		(void)nfsrpc_rellockown(nmp, lp, tcred, p);
 	}
 
 	/*
@@ -659,20 +667,8 @@ nfsrpc_doclose(struct nfsmount *nmp, struct nfsclopen *op, NFSPROC_T *p)
 	NFSLOCKCLSTATE();
 	nfscl_lockunlock(&op->nfso_own->nfsow_rwlock);
 
-	/*
-	 * Move the lockowner to nfsc_defunctlockowner,
-	 * so the Renew thread will do the ReleaseLockOwner
-	 * Op on it later. There might still be other
-	 * opens using the same lockowner name.
-	 */
-	lp = LIST_FIRST(&op->nfso_lock);
-	if (lp != NULL) {
-		while (LIST_NEXT(lp, nfsl_list) != NULL)
-			lp = LIST_NEXT(lp, nfsl_list);
-		LIST_PREPEND(&nmp->nm_clp->nfsc_defunctlockowner,
-		    &op->nfso_lock, lp, nfsl_list);
-		LIST_INIT(&op->nfso_lock);
-	}
+	LIST_FOREACH_SAFE(lp, &op->nfso_lock, nfsl_list, nlp)
+		nfscl_freelockowner(lp, 0);
 	nfscl_freeopen(op, 0);
 	NFSUNLOCKCLSTATE();
 	NFSFREECRED(tcred);
@@ -3629,7 +3625,8 @@ nfsrpc_lockt(struct nfsrv_descript *nd, vnode_t vp,
 {
 	u_int32_t *tl;
 	int error, type, size;
-	u_int8_t own[NFSV4CL_LOCKNAMELEN];
+	uint8_t own[NFSV4CL_LOCKNAMELEN + NFSX_V4FHMAX];
+	struct nfsnode *np;
 
 	NFSCL_REQSTART(nd, NFSPROC_LOCKT, vp);
 	NFSM_BUILD(tl, u_int32_t *, 7 * NFSX_UNSIGNED);
@@ -3644,7 +3641,10 @@ nfsrpc_lockt(struct nfsrv_descript *nd, vnode_t vp,
 	*tl++ = clp->nfsc_clientid.lval[0];
 	*tl = clp->nfsc_clientid.lval[1];
 	nfscl_filllockowner(id, own, flags);
-	(void) nfsm_strtom(nd, own, NFSV4CL_LOCKNAMELEN);
+	np = VTONFS(vp);
+	NFSBCOPY(np->n_fhp->nfh_fh, &own[NFSV4CL_LOCKNAMELEN],
+	    np->n_fhp->nfh_len);
+	(void)nfsm_strtom(nd, own, NFSV4CL_LOCKNAMELEN + np->n_fhp->nfh_len);
 	error = nfscl_request(nd, vp, p, cred, NULL);
 	if (error)
 		return (error);
@@ -3744,6 +3744,7 @@ nfsrpc_lock(struct nfsrv_descript *nd, struct nfsmount *nmp, vnode_t vp,
 {
 	u_int32_t *tl;
 	int error, size;
+	uint8_t own[NFSV4CL_LOCKNAMELEN + NFSX_V4FHMAX];
 
 	nfscl_reqstart(nd, NFSPROC_LOCK, nmp, nfhp, fhlen, NULL);
 	NFSM_BUILD(tl, u_int32_t *, 7 * NFSX_UNSIGNED);
@@ -3768,7 +3769,9 @@ nfsrpc_lock(struct nfsrv_descript *nd, struct nfsmount *nmp, vnode_t vp,
 	    *tl++ = txdr_unsigned(lp->nfsl_seqid);
 	    *tl++ = lp->nfsl_open->nfso_own->nfsow_clp->nfsc_clientid.lval[0];
 	    *tl = lp->nfsl_open->nfso_own->nfsow_clp->nfsc_clientid.lval[1];
-	    (void) nfsm_strtom(nd, lp->nfsl_owner, NFSV4CL_LOCKNAMELEN);
+	    NFSBCOPY(lp->nfsl_owner, own, NFSV4CL_LOCKNAMELEN);
+	    NFSBCOPY(nfhp, &own[NFSV4CL_LOCKNAMELEN], fhlen);
+	    (void)nfsm_strtom(nd, own, NFSV4CL_LOCKNAMELEN + fhlen);
 	} else {
 	    *tl = newnfs_false;
 	    NFSM_BUILD(tl, u_int32_t *, NFSX_STATEID + NFSX_UNSIGNED);
@@ -4029,12 +4032,17 @@ nfsrpc_rellockown(struct nfsmount *nmp, struct nfscllockowner *lp,
 	struct nfsrv_descript nfsd, *nd = &nfsd;
 	u_int32_t *tl;
 	int error;
+	uint8_t own[NFSV4CL_LOCKNAMELEN + NFSX_V4FHMAX];
 
 	nfscl_reqstart(nd, NFSPROC_RELEASELCKOWN, nmp, NULL, 0, NULL);
 	NFSM_BUILD(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
 	*tl++ = nmp->nm_clp->nfsc_clientid.lval[0];
 	*tl = nmp->nm_clp->nfsc_clientid.lval[1];
-	(void) nfsm_strtom(nd, lp->nfsl_owner, NFSV4CL_LOCKNAMELEN);
+	NFSBCOPY(lp->nfsl_owner, own, NFSV4CL_LOCKNAMELEN);
+	NFSBCOPY(lp->nfsl_open->nfso_fh, &own[NFSV4CL_LOCKNAMELEN],
+	    lp->nfsl_open->nfso_fhlen);
+	(void)nfsm_strtom(nd, own, NFSV4CL_LOCKNAMELEN +
+	    lp->nfsl_open->nfso_fhlen);
 	nd->nd_flag |= ND_USEGSSNAME;
 	error = newnfs_request(nd, nmp, NULL, &nmp->nm_sockreq, NULL, p, cred,
 	    NFS_PROG, NFS_VER4, NULL, 1, NULL);
