@@ -3,6 +3,7 @@
 
 /*
  * Copyright (C) 1998 WIDE Project.
+ * Copyright (C) 2011 Hiroki Sato <hrs@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,6 +30,17 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+
+#define	ELM_MALLOC(p,error_action)					\
+	do {								\
+		p = malloc(sizeof(*p));					\
+		if (p == NULL) {					\
+			syslog(LOG_ERR, "<%s> malloc failed: %s",	\
+			    __func__, strerror(errno));			\
+			error_action;					\
+		}							\
+		memset(p, 0, sizeof(*p));				\
+	} while(0)
 
 #define IN6ADDR_LINKLOCAL_ALLNODES_INIT				\
 	{{{ 0xff, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,	\
@@ -101,28 +113,26 @@ struct prefix {
 	 */
 	struct rtadvd_timer *pfx_timer;
 
-	u_int32_t	pfx_validlifetime;	/* AdvValidLifetime */
-	long		pfx_vltimeexpire;	/* Expiration of vltime */
-	u_int32_t	pfx_preflifetime;	/* AdvPreferredLifetime */
-	long		pfx_pltimeexpire;	/* Expiration of pltime */
-	u_int		pfx_onlinkflg;		/* bool: AdvOnLinkFlag */
-	u_int		pfx_autoconfflg;	/* bool: AdvAutonomousFlag */
+	uint32_t	pfx_validlifetime;	/* AdvValidLifetime */
+	uint32_t       	pfx_vltimeexpire;	/* Expiration of vltime */
+	uint32_t	pfx_preflifetime;	/* AdvPreferredLifetime */
+	uint32_t	pfx_pltimeexpire;	/* Expiration of pltime */
+	int		pfx_onlinkflg;		/* bool: AdvOnLinkFlag */
+	int		pfx_autoconfflg;	/* bool: AdvAutonomousFlag */
 	int		pfx_prefixlen;
 	int		pfx_origin;		/* From kernel or config */
 
 	struct in6_addr	pfx_prefix;
 };
 
-#ifdef ROUTEINFO
 struct rtinfo {
 	TAILQ_ENTRY(rtinfo)	rti_next;
 
-	u_int32_t	rti_ltime;	/* route lifetime */
-	u_int		rti_rtpref;	/* route preference */
+	uint32_t	rti_ltime;	/* route lifetime */
+	int		rti_rtpref;	/* route preference */
 	int		rti_prefixlen;
 	struct in6_addr	rti_prefix;
 };
-#endif
 
 struct rdnss_addr {
 	TAILQ_ENTRY(rdnss_addr)	ra_next;
@@ -134,8 +144,7 @@ struct rdnss {
 	TAILQ_ENTRY(rdnss) rd_next;
 
 	TAILQ_HEAD(, rdnss_addr) rd_list;	/* list of DNS servers */
-	int rd_cnt;		/* number of DNS servers */
-	u_int32_t rd_ltime;	/* number of seconds valid */
+	uint32_t rd_ltime;	/* number of seconds valid */
 };
 
 /*
@@ -160,7 +169,7 @@ struct dnssl {
 	TAILQ_ENTRY(dnssl)	dn_next;
 
 	TAILQ_HEAD(, dnssl_addr) dn_list;	/* list of search domains */
-	u_int32_t dn_ltime;			/* number of seconds valid */
+	uint32_t dn_ltime;			/* number of seconds valid */
 };
 
 struct soliciter {
@@ -173,70 +182,117 @@ struct	rainfo {
 	/* pointer for list */
 	TAILQ_ENTRY(rainfo)	rai_next;
 
-	/* timer related parameters */
-	struct rtadvd_timer	*rai_timer;
-	/* counter for the first few advertisements */
-	int			rai_initcounter;
-	/* timestamp when the latest RA was sent */
-	struct timeval		rai_lastsent;
-	/* number of RS waiting for RA */
-	int			rai_waiting;
-
 	/* interface information */
-	int	rai_ifindex;
-	int	rai_advlinkopt;	/* bool: whether include link-layer addr opt */
+	struct ifinfo *rai_ifinfo;
+
+	int	rai_advlinkopt;		/* bool: whether include link-layer addr opt */
 	int	rai_advifprefix;	/* bool: gather IF prefixes? */
-	struct sockaddr_dl *rai_sdl;
-	char	rai_ifname[IFNAMSIZ];
-	u_int32_t	rai_phymtu;	/* mtu of the physical interface */
 
 	/* Router configuration variables */
-	u_short	rai_lifetime;		/* AdvDefaultLifetime */
-	u_int	rai_maxinterval;	/* MaxRtrAdvInterval */
-	u_int	rai_mininterval;	/* MinRtrAdvInterval */
+	uint16_t	rai_lifetime;		/* AdvDefaultLifetime */
+	uint16_t	rai_maxinterval;	/* MaxRtrAdvInterval */
+	uint16_t	rai_mininterval;	/* MinRtrAdvInterval */
 	int 	rai_managedflg;		/* AdvManagedFlag */
 	int	rai_otherflg;		/* AdvOtherConfigFlag */
 
 	int	rai_rtpref;		/* router preference */
-	u_int32_t rai_linkmtu;		/* AdvLinkMTU */
-	u_int32_t rai_reachabletime;	/* AdvReachableTime */
-	u_int32_t rai_retranstimer;	/* AdvRetransTimer */
-	u_int	rai_hoplimit;		/* AdvCurHopLimit */
+	uint32_t	rai_linkmtu;		/* AdvLinkMTU */
+	uint32_t	rai_reachabletime;	/* AdvReachableTime */
+	uint32_t	rai_retranstimer;	/* AdvRetransTimer */
+	uint8_t	rai_hoplimit;		/* AdvCurHopLimit */
 
 	TAILQ_HEAD(, prefix) rai_prefix;/* AdvPrefixList(link head) */
 	int	rai_pfxs;		/* number of prefixes */
 
-	long	rai_clockskew;	/* used for consisitency check of lifetimes */
+	uint16_t	rai_clockskew;	/* used for consisitency check of lifetimes */
 
 	TAILQ_HEAD(, rdnss) rai_rdnss;	/* DNS server list */
 	TAILQ_HEAD(, dnssl) rai_dnssl;	/* search domain list */
-#ifdef ROUTEINFO
 	TAILQ_HEAD(, rtinfo) rai_route;	/* route information option (link head) */
 	int	rai_routes;		/* number of route information options */
-#endif
 	/* actual RA packet data and its length */
 	size_t	rai_ra_datalen;
-	u_char	*rai_ra_data;
-
-	/* statistics */
-	u_quad_t rai_raoutput;		/* # of RAs sent */
-	u_quad_t rai_rainput;		/* # of RAs received */
-	u_quad_t rai_rainconsistent;	/* # of RAs inconsistent with ours */
-	u_quad_t rai_rsinput;		/* # of RSs received */
+	char	*rai_ra_data;
 
 	/* info about soliciter */
 	TAILQ_HEAD(, soliciter) rai_soliciter;	/* recent solication source */
 };
 
-/* Interface list including RA information */
+/* RA information list */
 extern TAILQ_HEAD(railist_head_t, rainfo) railist;
+
+/*
+ * ifi_state:
+ *
+ *           (INIT)
+ *              |
+ *              | update_ifinfo()
+ *              | update_persist_ifinfo()
+ *              v
+ *         UNCONFIGURED
+ *               |  ^
+ *   loadconfig()|  |rm_ifinfo(), ra_output()
+ *      (MC join)|  |(MC leave)
+ *               |  |
+ *               |  |
+ *               v  |
+ *         TRANSITIVE
+ *               |  ^
+ *    ra_output()|  |getconfig()
+ *               |  |
+ *               |  |
+ *               |  |
+ *               v  |
+ *         CONFIGURED
+ *
+ *
+ */
+#define	IFI_STATE_UNCONFIGURED	0
+#define	IFI_STATE_CONFIGURED	1
+#define	IFI_STATE_TRANSITIVE	2
+
+struct	ifinfo {
+	TAILQ_ENTRY(ifinfo)	ifi_next;
+
+	uint16_t	ifi_state;
+	uint16_t	ifi_persist;
+	uint16_t	ifi_ifindex;
+	char	ifi_ifname[IFNAMSIZ];
+	uint8_t	ifi_type;
+	uint16_t	ifi_flags;
+	uint32_t	ifi_nd_flags;
+	uint32_t	ifi_phymtu;
+	struct sockaddr_dl	ifi_sdl;
+
+	struct rainfo	*ifi_rainfo;
+	struct rainfo	*ifi_rainfo_trans;
+	uint16_t	ifi_burstcount;
+	uint32_t	ifi_burstinterval;
+	struct rtadvd_timer	*ifi_ra_timer;
+	/* timestamp when the latest RA was sent */
+	struct timeval		ifi_ra_lastsent;
+	uint16_t	ifi_rs_waitcount;
+
+	/* statistics */
+	uint64_t ifi_raoutput;		/* # of RAs sent */
+	uint64_t ifi_rainput;		/* # of RAs received */
+	uint64_t ifi_rainconsistent;	/* # of inconsistent recv'd RAs  */
+	uint64_t ifi_rsinput;		/* # of RSs received */
+};
+
+/* Interface list */
+extern TAILQ_HEAD(ifilist_head_t, ifinfo) ifilist;
+
+extern char *mcastif;
 
 struct rtadvd_timer	*ra_timeout(void *);
 void			ra_timer_update(void *, struct timeval *);
-void			ra_output(struct rainfo *);
+void			ra_output(struct ifinfo *);
 
 int			prefix_match(struct in6_addr *, int,
 			    struct in6_addr *, int);
-struct rainfo		*if_indextorainfo(int);
+struct ifinfo		*if_indextoifinfo(int);
 struct prefix		*find_prefix(struct rainfo *,
 			    struct in6_addr *, int);
+void			rtadvd_set_reload(int);
+void			rtadvd_set_shutdown(int);
