@@ -412,7 +412,7 @@ x86/x86/io_apic.c		optional apic
 x86/x86/local_apic.c		optional apic
 x86/x86/mca.c			standard
 x86/x86/mptable.c		optional apic native
-x86/x86/mptable_pci.c		optional apic pci
+x86/x86/mptable_pci.c		optional apic native pci
 x86/x86/msi.c			optional apic pci
 x86/x86/nexus.c			standard
 x86/x86/tsc.c			standard
