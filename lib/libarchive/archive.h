@@ -52,7 +52,9 @@
 /* These should match the types used in 'struct stat' */
 #if defined(_WIN32) && !defined(__CYGWIN__)
 #define	__LA_INT64_T	__int64
-# if	defined(_WIN64)
+# if defined(_SSIZE_T_DEFINED)
+#  define	__LA_SSIZE_T	ssize_t
+# elif defined(_WIN64)
 #  define	__LA_SSIZE_T	__int64
 # else
 #  define	__LA_SSIZE_T	long
@@ -127,13 +129,13 @@ extern "C" {
  *             (ARCHIVE_API_VERSION * 1000000 + ARCHIVE_API_FEATURE * 1000)
  * #endif
  */
-#define	ARCHIVE_VERSION_NUMBER 2007901
+#define	ARCHIVE_VERSION_NUMBER 2008004
 __LA_DECL int		archive_version_number(void);
 
 /*
  * Textual name/version of the library, useful for version displays.
  */
-#define	ARCHIVE_VERSION_STRING "libarchive 2.7.901a"
+#define	ARCHIVE_VERSION_STRING "libarchive 2.8.4"
 __LA_DECL const char *	archive_version_string(void);
 
 #if ARCHIVE_VERSION_NUMBER < 3000000
@@ -319,6 +321,7 @@ __LA_DECL int		 archive_read_support_compression_program_signature
 				(struct archive *, const char *,
 				    const void * /* match */, size_t);
 
+__LA_DECL int		 archive_read_support_compression_rpm(struct archive *);
 __LA_DECL int		 archive_read_support_compression_uu(struct archive *);
 __LA_DECL int		 archive_read_support_compression_xz(struct archive *);
 
@@ -331,6 +334,7 @@ __LA_DECL int		 archive_read_support_format_iso9660(struct archive *);
 __LA_DECL int		 archive_read_support_format_mtree(struct archive *);
 __LA_DECL int		 archive_read_support_format_raw(struct archive *);
 __LA_DECL int		 archive_read_support_format_tar(struct archive *);
+__LA_DECL int		 archive_read_support_format_xar(struct archive *);
 __LA_DECL int		 archive_read_support_format_zip(struct archive *);
 
 
