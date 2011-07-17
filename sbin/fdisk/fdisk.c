@@ -108,9 +108,9 @@ typedef struct cmd {
     char		cmd;
     int			n_args;
     struct arg {
-	char	argtype;
-	int	arg_val;
-	char	*arg_str;
+	char		argtype;
+	unsigned long	arg_val;
+	char *		arg_str;
     }			args[MAX_ARGS];
 } CMD;
 
@@ -990,7 +990,7 @@ parse_config_line(char *line, CMD *command)
 	    if (isalpha(*cp))
 		command->args[command->n_args].argtype = *cp++;
 	    end = NULL;
-	    command->args[command->n_args].arg_val = strtol(cp, &end, 0);
+	    command->args[command->n_args].arg_val = strtoul(cp, &end, 0);
  	    if (cp == end || (!isspace(*end) && *end != '\0')) {
  		char ch;
  		end = cp;
