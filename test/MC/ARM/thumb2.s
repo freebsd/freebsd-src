@@ -49,6 +49,22 @@
 @ CHECK: mov.w	r0, #66846720           @ encoding: [0x7f,0x70,0x4f,0xf0]
   mov.w	r0, #66846720
 
+@ Aliases w/ the vanilla 'mov' mnemonic, and explicit alternative selection.
+  mov r2, #0xbf000000
+  mov r1, #0x100
+  mov r3, #32
+  mov.w r3, #32
+  movw r3, #32
+
+@ CHECK: mov.w r2, #3204448256 @ encoding: [0x4f,0xf0,0x3f,0x42]
+@ CHECK: mov.w r1, #256 @ encoding: [0x4f,0xf4,0x80,0x71]
+@ CHECK: mov r3, #32 @ encoding: [0x20,0x23]
+@ CHECK: mov.w r3, #32 @ encoding: [0x4f,0xf0,0x20,0x03]
+@ CHECK: movw  r3, #32 @ encoding: [0x40,0xf2,0x20,0x03]
+
+
+
+
 @ CHECK: rrx	r0, r0                  @ encoding: [0x30,0x00,0x4f,0xea]
   rrx	r0, r0
 
@@ -173,6 +189,18 @@
 @ CHECK: vmsr  fpsid, r0 @ encoding: [0xe0,0xee,0x10,0x0a]
   vmsr  fpsid, r0
 
+@ CHECK: mcr  p7, #1, r5, c1, c1, #4 @ encoding: [0x21,0xee,0x91,0x57]
+        mcr  p7, #1, r5, c1, c1, #4
+
+@ CHECK: mrc  p14, #0, r1, c1, c2, #4 @ encoding: [0x11,0xee,0x92,0x1e]
+        mrc  p14, #0, r1, c1, c2, #4
+
+@ CHECK: mcrr  p7, #1, r5, r4, c1 @ encoding: [0x44,0xec,0x11,0x57]
+        mcrr  p7, #1, r5, r4, c1
+
+@ CHECK: mrrc  p7, #1, r5, r4, c1 @ encoding: [0x54,0xec,0x11,0x57]
+        mrrc  p7, #1, r5, r4, c1
+
 @ CHECK: mcr2  p7, #1, r5, c1, c1, #4 @ encoding: [0x21,0xfe,0x91,0x57]
         mcr2  p7, #1, r5, c1, c1, #4
 
@@ -184,6 +212,9 @@
 
 @ CHECK: mrrc2  p7, #1, r5, r4, c1 @ encoding: [0x54,0xfc,0x11,0x57]
         mrrc2  p7, #1, r5, r4, c1
+
+@ CHECK: cdp  p7, #1, c1, c1, c1, #4 @ encoding: [0x11,0xee,0x81,0x17]
+        cdp  p7, #1, c1, c1, c1, #4
 
 @ CHECK: cdp2  p7, #1, c1, c1, c1, #4 @ encoding: [0x11,0xfe,0x81,0x17]
         cdp2  p7, #1, c1, c1, c1, #4
@@ -302,3 +333,23 @@
   ldrexd  r0, r1, [r0]
 @ CHECK: ssat16  r0, #7, r0 @ encoding: [0x20,0xf3,0x06,0x00]
   ssat16  r0, #7, r0
+
+  and r1, #0xff
+  and r1, r1, #0xff
+  orr r1, 0x100
+  orr r1, r1, 0x100
+  eor r1, 0x100
+  eor r1, r1, 0x100
+  bic r1, 0x100
+  bic r1, r1, 0x100
+
+@ CHECK: and r1, r1, #255 @ encoding: [0x01,0xf0,0xff,0x01]
+@ CHECK: and r1, r1, #255 @ encoding: [0x01,0xf0,0xff,0x01]
+@ CHECK: orr r1, r1, #256 @ encoding: [0x41,0xf4,0x80,0x71]
+@ CHECK: orr r1, r1, #256 @ encoding: [0x41,0xf4,0x80,0x71]
+@ CHECK: eor r1, r1, #256 @ encoding: [0x81,0xf4,0x80,0x71]
+@ CHECK: eor r1, r1, #256 @ encoding: [0x81,0xf4,0x80,0x71]
+@ CHECK: bic r1, r1, #256 @ encoding: [0x21,0xf4,0x80,0x71]
+@ CHECK: bic r1, r1, #256 @ encoding: [0x21,0xf4,0x80,0x71]
+
+

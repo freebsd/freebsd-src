@@ -1,6 +1,6 @@
 ; RUN: llc < %s -march=thumb -mattr=-thumb2 | not grep pld
-; RUN: llc < %s -march=thumb -mattr=+v7a        | FileCheck %s -check-prefix=THUMB2
-; RUN: llc < %s -march=arm   -mattr=+v7a        | FileCheck %s -check-prefix=ARM
+; RUN: llc < %s -march=thumb -mattr=+v7         | FileCheck %s -check-prefix=THUMB2
+; RUN: llc < %s -march=arm   -mattr=+v7         | FileCheck %s -check-prefix=ARM
 ; RUN: llc < %s -march=arm   -mcpu=cortex-a9-mp | FileCheck %s -check-prefix=ARM-MP
 ; rdar://8601536
 
@@ -17,8 +17,8 @@ entry:
 ; THUMB2: t1:
 ; THUMB2-NOT: pldw [r0]
 ; THUMB2: pld [r0]
-  tail call void @llvm.prefetch( i8* %ptr, i32 1, i32 3 )
-  tail call void @llvm.prefetch( i8* %ptr, i32 0, i32 3 )
+  tail call void @llvm.prefetch( i8* %ptr, i32 1, i32 3, i32 1 )
+  tail call void @llvm.prefetch( i8* %ptr, i32 0, i32 3, i32 1 )
   ret void
 }
 
@@ -30,7 +30,7 @@ entry:
 ; THUMB2: t2:
 ; THUMB2: pld [r0, #1023]
   %tmp = getelementptr i8* %ptr, i32 1023
-  tail call void @llvm.prefetch( i8* %tmp, i32 0, i32 3 )
+  tail call void @llvm.prefetch( i8* %tmp, i32 0, i32 3, i32 1 )
   ret void
 }
 
@@ -45,7 +45,7 @@ entry:
   %tmp1 = lshr i32 %offset, 2
   %tmp2 = add i32 %base, %tmp1
   %tmp3 = inttoptr i32 %tmp2 to i8*
-  tail call void @llvm.prefetch( i8* %tmp3, i32 0, i32 3 )
+  tail call void @llvm.prefetch( i8* %tmp3, i32 0, i32 3, i32 1 )
   ret void
 }
 
@@ -59,8 +59,19 @@ entry:
   %tmp1 = shl i32 %offset, 2
   %tmp2 = add i32 %base, %tmp1
   %tmp3 = inttoptr i32 %tmp2 to i8*
-  tail call void @llvm.prefetch( i8* %tmp3, i32 0, i32 3 )
+  tail call void @llvm.prefetch( i8* %tmp3, i32 0, i32 3, i32 1 )
   ret void
 }
 
-declare void @llvm.prefetch(i8*, i32, i32) nounwind 
+declare void @llvm.prefetch(i8*, i32, i32, i32) nounwind
+
+define void @t5(i8* %ptr) nounwind  {
+entry:
+; ARM: t5:
+; ARM: pli [r0]
+
+; THUMB2: t5:
+; THUMB2: pli [r0]
+  tail call void @llvm.prefetch( i8* %ptr, i32 0, i32 3, i32 0 )
+  ret void
+}

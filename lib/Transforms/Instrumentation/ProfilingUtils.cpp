@@ -62,8 +62,7 @@ void llvm::InsertProfilingInitCall(Function *MainFn, const char *FnName,
   }
   Args[3] = ConstantInt::get(Type::getInt32Ty(Context), NumElements);
 
-  CallInst *InitCall = CallInst::Create(InitFn, Args.begin(), Args.end(),
-                                        "newargc", InsertPos);
+  CallInst *InitCall = CallInst::Create(InitFn, Args, "newargc", InsertPos);
 
   // If argc or argv are not available in main, just pass null values in.
   Function::arg_iterator AI;
@@ -134,7 +133,7 @@ void llvm::IncrementCounterInBlock(BasicBlock *BB, unsigned CounterNum,
 void llvm::InsertProfilingShutdownCall(Function *Callee, Module *Mod) {
   // llvm.global_dtors is an array of type { i32, void ()* }. Prepare those
   // types.
-  const Type *GlobalDtorElems[2] = {
+  Type *GlobalDtorElems[2] = {
     Type::getInt32Ty(Mod->getContext()),
     FunctionType::get(Type::getVoidTy(Mod->getContext()), false)->getPointerTo()
   };
@@ -164,7 +163,8 @@ void llvm::InsertProfilingShutdownCall(Function *Callee, Module *Mod) {
   GlobalVariable *GlobalDtors = new GlobalVariable(
       *Mod, ArrayType::get(GlobalDtorElemTy, 1), false,
       GlobalValue::AppendingLinkage, NULL, "llvm.global_dtors");
-  dtors.push_back(ConstantStruct::get(Mod->getContext(), Elem, 2, false));
+                                    
+  dtors.push_back(ConstantStruct::get(GlobalDtorElemTy, Elem));
   GlobalDtors->setInitializer(ConstantArray::get(
       cast<ArrayType>(GlobalDtors->getType()->getElementType()), dtors));
 }

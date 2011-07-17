@@ -81,6 +81,12 @@ if(PYTHONINTERP_FOUND)
   set(ENABLE_SHARED ${LLVM_SHARED_LIBS_ENABLED})
   set(SHLIBPATH_VAR ${SHLIBPATH_VAR})
 
+  if(LLVM_ENABLE_ASSERTIONS AND NOT MSVC_IDE)
+    set(ENABLE_ASSERTIONS "1")
+  else()
+    set(ENABLE_ASSERTIONS "0")
+  endif()
+
   configure_file(
     ${CMAKE_CURRENT_SOURCE_DIR}/lit.site.cfg.in
     ${CMAKE_CURRENT_BINARY_DIR}/lit.site.cfg

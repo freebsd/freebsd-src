@@ -64,6 +64,7 @@ add_llvm_unittest(ADT
   ADT/ImmutableSetTest.cpp
   ADT/IntEqClassesTest.cpp
   ADT/IntervalMapTest.cpp
+  ADT/PackedVectorTest.cpp
   ADT/SmallBitVectorTest.cpp
   ADT/SmallStringTest.cpp
   ADT/SmallVectorTest.cpp
@@ -105,7 +106,6 @@ add_llvm_unittest(Transforms/Utils
 
 set(VMCoreSources
   VMCore/ConstantsTest.cpp
-  VMCore/DerivedTypesTest.cpp
   VMCore/InstructionsTest.cpp
   VMCore/MetadataTest.cpp
   VMCore/PassManagerTest.cpp

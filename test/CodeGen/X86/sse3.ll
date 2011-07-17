@@ -1,6 +1,6 @@
-; These are tests for SSE3 codegen.  Yonah has SSE3 and earlier but not SSSE3+.
+; These are tests for SSE3 codegen.
 
-; RUN: llc < %s -march=x86-64 -mcpu=yonah -mtriple=i686-apple-darwin9 -O3 \
+; RUN: llc < %s -march=x86-64 -mcpu=nocona -mtriple=i686-apple-darwin9 -O3 \
 ; RUN:              | FileCheck %s --check-prefix=X64
 
 ; Test for v8xi16 lowering where we extract the first element of the vector and
@@ -169,10 +169,10 @@ define internal void @t10() nounwind {
 ; X64: 	t10:
 ; X64: 		pextrw	$4, [[X0:%xmm[0-9]+]], %eax
 ; X64: 		unpcklpd [[X1:%xmm[0-9]+]]
-; X64: 		pshuflw	$8, [[X1]], [[X1]]
-; X64: 		pinsrw	$2, %eax, [[X1]]
+; X64: 		pshuflw	$8, [[X1]], [[X2:%xmm[0-9]+]]
+; X64: 		pinsrw	$2, %eax, [[X2]]
 ; X64: 		pextrw	$6, [[X0]], %eax
-; X64: 		pinsrw	$3, %eax, [[X1]]
+; X64: 		pinsrw	$3, %eax, [[X2]]
 }
 
 

@@ -557,6 +557,9 @@
 /* LLVM name for the native TargetInfo init function, if available */
 #cmakedefine LLVM_NATIVE_TARGETINFO LLVMInitialize${LLVM_NATIVE_ARCH}TargetInfo
 
+/* LLVM name for the native MCAsmInfo init function, if available */
+#cmakedefine LLVM_NATIVE_MCASMINFO LLVMInitialize${LLVM_NATIVE_ARCH}MCAsmInfo
+
 /* Define if this is Unixish platform */
 #cmakedefine LLVM_ON_UNIX ${LLVM_ON_UNIX}
 
@@ -685,9 +688,6 @@
 /* Define to 1 if `lex' declares `yytext' as a `char *' by default, not a
    `char[]'. */
 #undef YYTEXT_POINTER
-
-/* Define to a type to use for `mode_t' if it is not otherwise available. */
-#cmakedefine mode_t ${mode_t}
 
 /* Define to a function replacing strtoll */
 #cmakedefine strtoll ${strtoll}

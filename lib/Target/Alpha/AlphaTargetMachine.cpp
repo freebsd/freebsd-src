@@ -11,7 +11,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "Alpha.h"
-#include "AlphaMCAsmInfo.h"
 #include "AlphaTargetMachine.h"
 #include "llvm/PassManager.h"
 #include "llvm/Support/FormattedStream.h"
@@ -21,15 +20,15 @@ using namespace llvm;
 extern "C" void LLVMInitializeAlphaTarget() { 
   // Register the target.
   RegisterTargetMachine<AlphaTargetMachine> X(TheAlphaTarget);
-  RegisterAsmInfo<AlphaMCAsmInfo> Y(TheAlphaTarget);
 }
 
 AlphaTargetMachine::AlphaTargetMachine(const Target &T, const std::string &TT,
+                                       const std::string &CPU,
                                        const std::string &FS)
-  : LLVMTargetMachine(T, TT),
+  : LLVMTargetMachine(T, TT, CPU, FS),
     DataLayout("e-f128:128:128-n64"),
     FrameLowering(Subtarget),
-    Subtarget(TT, FS),
+    Subtarget(TT, CPU, FS),
     TLInfo(*this),
     TSInfo(*this) {
   setRelocationModel(Reloc::PIC_);

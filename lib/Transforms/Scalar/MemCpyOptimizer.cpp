@@ -487,7 +487,8 @@ bool MemCpyOpt::processStore(StoreInst *SI, BasicBlock::iterator &BBI) {
   // happen to be using a load-store pair to implement it, rather than
   // a memcpy.
   if (LoadInst *LI = dyn_cast<LoadInst>(SI->getOperand(0))) {
-    if (!LI->isVolatile() && LI->hasOneUse()) {
+    if (!LI->isVolatile() && LI->hasOneUse() &&
+        LI->getParent() == SI->getParent()) {
       MemDepResult ldep = MD->getDependency(LI);
       CallInst *C = 0;
       if (ldep.isClobber() && !isa<MemCpyInst>(ldep.getInst()))
@@ -496,17 +497,14 @@ bool MemCpyOpt::processStore(StoreInst *SI, BasicBlock::iterator &BBI) {
       if (C) {
         // Check that nothing touches the dest of the "copy" between
         // the call and the store.
-        MemDepResult sdep = MD->getDependency(SI);
-        if (!sdep.isNonLocal()) {
-          bool FoundCall = false;
-          for (BasicBlock::iterator I = SI, E = sdep.getInst(); I != E; --I) {
-            if (&*I == C) {
-              FoundCall = true;
-              break;
-            }
-          }
-          if (!FoundCall)
+        AliasAnalysis &AA = getAnalysis<AliasAnalysis>();
+        AliasAnalysis::Location StoreLoc = AA.getLocation(SI);
+        for (BasicBlock::iterator I = --BasicBlock::iterator(SI),
+                                  E = C; I != E; --I) {
+          if (AA.getModRefInfo(&*I, StoreLoc) != AliasAnalysis::NoModRef) {
             C = 0;
+            break;
+          }
         }
       }
 
@@ -842,11 +840,11 @@ bool MemCpyOpt::processMemMove(MemMoveInst *M) {
   
   // If not, then we know we can transform this.
   Module *Mod = M->getParent()->getParent()->getParent();
-  const Type *ArgTys[3] = { M->getRawDest()->getType(),
-                            M->getRawSource()->getType(),
-                            M->getLength()->getType() };
+  Type *ArgTys[3] = { M->getRawDest()->getType(),
+                      M->getRawSource()->getType(),
+                      M->getLength()->getType() };
   M->setCalledFunction(Intrinsic::getDeclaration(Mod, Intrinsic::memcpy,
-                                                 ArgTys, 3));
+                                                 ArgTys));
 
   // MemDep may have over conservative information about this instruction, just
   // conservatively flush it from the cache.

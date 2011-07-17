@@ -12,13 +12,12 @@ LIBRARYNAME = LLVMBlackfinCodeGen
 TARGET = Blackfin
 
 # Make sure that tblgen is run, first thing.
-BUILT_SOURCES = BlackfinGenRegisterInfo.h.inc BlackfinGenRegisterNames.inc \
-                BlackfinGenRegisterInfo.inc BlackfinGenInstrNames.inc \
-                BlackfinGenInstrInfo.inc BlackfinGenAsmWriter.inc \
-                BlackfinGenDAGISel.inc BlackfinGenSubtarget.inc \
+BUILT_SOURCES = BlackfinGenRegisterInfo.inc BlackfinGenInstrInfo.inc \
+		BlackfinGenAsmWriter.inc \
+                BlackfinGenDAGISel.inc BlackfinGenSubtargetInfo.inc \
 		BlackfinGenCallingConv.inc BlackfinGenIntrinsics.inc
 
-DIRS = TargetInfo
+DIRS = TargetInfo MCTargetDesc
 
 include $(LEVEL)/Makefile.common
 

@@ -2,8 +2,10 @@
 
 define i32 @t1(i32 %a, i32 %b, i32 %c, i32 %d) nounwind {
 ; CHECK: t1:
-; CHECK: it ne
+; CHECK: ittt ne
 ; CHECK: cmpne
+; CHECK: addne
+; CHECK: bxne lr
 	switch i32 %c, label %cond_next [
 		 i32 1, label %cond_true
 		 i32 7, label %cond_true
@@ -70,8 +72,9 @@ entry:
 define void @t3(i32 %a, i32 %b) nounwind {
 entry:
 ; CHECK: t3:
-; CHECK: it lt
-; CHECK: poplt {r7, pc}
+; CHECK: itt ge
+; CHECK: movge r0, r1
+; CHECK: blge  _foo
 	%tmp1 = icmp sgt i32 %a, 10		; <i1> [#uses=1]
 	br i1 %tmp1, label %cond_true, label %UnifiedReturnBlock
 

@@ -33,11 +33,13 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 
+#define GET_REGINFO_TARGET_DESC
+#include "XCoreGenRegisterInfo.inc"
+
 using namespace llvm;
 
 XCoreRegisterInfo::XCoreRegisterInfo(const TargetInstrInfo &tii)
-  : XCoreGenRegisterInfo(XCore::ADJCALLSTACKDOWN, XCore::ADJCALLSTACKUP),
-    TII(tii) {
+  : XCoreGenRegisterInfo(), TII(tii) {
 }
 
 // helper functions
@@ -193,7 +195,16 @@ XCoreRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   #endif
 
   Offset += StackSize;
-  
+
+  unsigned FrameReg = getFrameRegister(MF);
+
+  // Special handling of DBG_VALUE instructions.
+  if (MI.isDebugValue()) {
+    MI.getOperand(i).ChangeToRegister(FrameReg, false /*isDef*/);
+    MI.getOperand(i+1).ChangeToImmediate(Offset);
+    return;
+  }
+
   // fold constant into offset.
   Offset += MI.getOperand(i + 1).getImm();
   MI.getOperand(i + 1).ChangeToImmediate(0);
@@ -205,7 +216,7 @@ XCoreRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   Offset/=4;
   
   bool FP = TFI->hasFP(MF);
-  
+
   unsigned Reg = MI.getOperand(0).getReg();
   bool isKill = MI.getOpcode() == XCore::STWFI && MI.getOperand(0).isKill();
 
@@ -216,7 +227,6 @@ XCoreRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   
   if (FP) {
     bool isUs = isImmUs(Offset);
-    unsigned FramePtr = XCore::R10;
     
     if (!isUs) {
       if (!RS)
@@ -228,18 +238,18 @@ XCoreRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
       switch (MI.getOpcode()) {
       case XCore::LDWFI:
         BuildMI(MBB, II, dl, TII.get(XCore::LDW_3r), Reg)
-              .addReg(FramePtr)
+              .addReg(FrameReg)
               .addReg(ScratchReg, RegState::Kill);
         break;
       case XCore::STWFI:
         BuildMI(MBB, II, dl, TII.get(XCore::STW_3r))
               .addReg(Reg, getKillRegState(isKill))
-              .addReg(FramePtr)
+              .addReg(FrameReg)
               .addReg(ScratchReg, RegState::Kill);
         break;
       case XCore::LDAWFI:
         BuildMI(MBB, II, dl, TII.get(XCore::LDAWF_l3r), Reg)
-              .addReg(FramePtr)
+              .addReg(FrameReg)
               .addReg(ScratchReg, RegState::Kill);
         break;
       default:
@@ -249,18 +259,18 @@ XCoreRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
       switch (MI.getOpcode()) {
       case XCore::LDWFI:
         BuildMI(MBB, II, dl, TII.get(XCore::LDW_2rus), Reg)
-              .addReg(FramePtr)
+              .addReg(FrameReg)
               .addImm(Offset);
         break;
       case XCore::STWFI:
         BuildMI(MBB, II, dl, TII.get(XCore::STW_2rus))
               .addReg(Reg, getKillRegState(isKill))
-              .addReg(FramePtr)
+              .addReg(FrameReg)
               .addImm(Offset);
         break;
       case XCore::LDAWFI:
         BuildMI(MBB, II, dl, TII.get(XCore::LDAWF_l2rus), Reg)
-              .addReg(FramePtr)
+              .addReg(FrameReg)
               .addImm(Offset);
         break;
       default:
@@ -328,6 +338,3 @@ unsigned XCoreRegisterInfo::getFrameRegister(const MachineFunction &MF) const {
 unsigned XCoreRegisterInfo::getRARegister() const {
   return XCore::LR;
 }
-
-#include "XCoreGenRegisterInfo.inc"
-

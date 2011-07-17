@@ -29,13 +29,23 @@ namespace bitc {
 
     // Module sub-block id's.
     PARAMATTR_BLOCK_ID,
-    TYPE_BLOCK_ID,
+    
+    /// TYPE_BLOCK_ID_OLD - This is the type descriptor block in LLVM 2.9 and
+    /// earlier, replaced with TYPE_BLOCK_ID2.  FIXME: Remove in LLVM 3.1.
+    TYPE_BLOCK_ID_OLD,
+    
     CONSTANTS_BLOCK_ID,
     FUNCTION_BLOCK_ID,
-    TYPE_SYMTAB_BLOCK_ID,
+    
+    /// TYPE_SYMTAB_BLOCK_ID_OLD - This type descriptor is from LLVM 2.9 and
+    /// earlier bitcode files.  FIXME: Remove in LLVM 3.1
+    TYPE_SYMTAB_BLOCK_ID_OLD,
+    
     VALUE_SYMTAB_BLOCK_ID,
     METADATA_BLOCK_ID,
-    METADATA_ATTACHMENT_ID
+    METADATA_ATTACHMENT_ID,
+    
+    TYPE_BLOCK_ID_NEW
   };
 
 
@@ -72,31 +82,38 @@ namespace bitc {
 
   /// TYPE blocks have codes for each type primitive they use.
   enum TypeCodes {
-    TYPE_CODE_NUMENTRY =  1,   // NUMENTRY: [numentries]
+    TYPE_CODE_NUMENTRY =  1,    // NUMENTRY: [numentries]
 
     // Type Codes
-    TYPE_CODE_VOID     =  2,   // VOID
-    TYPE_CODE_FLOAT    =  3,   // FLOAT
-    TYPE_CODE_DOUBLE   =  4,   // DOUBLE
-    TYPE_CODE_LABEL    =  5,   // LABEL
-    TYPE_CODE_OPAQUE   =  6,   // OPAQUE
-    TYPE_CODE_INTEGER  =  7,   // INTEGER: [width]
-    TYPE_CODE_POINTER  =  8,   // POINTER: [pointee type]
-    TYPE_CODE_FUNCTION =  9,   // FUNCTION: [vararg, retty, paramty x N]
-    TYPE_CODE_STRUCT   = 10,   // STRUCT: [ispacked, eltty x N]
-    TYPE_CODE_ARRAY    = 11,   // ARRAY: [numelts, eltty]
-    TYPE_CODE_VECTOR   = 12,   // VECTOR: [numelts, eltty]
+    TYPE_CODE_VOID     =  2,    // VOID
+    TYPE_CODE_FLOAT    =  3,    // FLOAT
+    TYPE_CODE_DOUBLE   =  4,    // DOUBLE
+    TYPE_CODE_LABEL    =  5,    // LABEL
+    TYPE_CODE_OPAQUE   =  6,    // OPAQUE
+    TYPE_CODE_INTEGER  =  7,    // INTEGER: [width]
+    TYPE_CODE_POINTER  =  8,    // POINTER: [pointee type]
+    TYPE_CODE_FUNCTION =  9,    // FUNCTION: [vararg, retty, paramty x N]
+    
+    // FIXME: This is the encoding used for structs in LLVM 2.9 and earlier.
+    // REMOVE this in LLVM 3.1
+    TYPE_CODE_STRUCT_OLD = 10,  // STRUCT: [ispacked, eltty x N]
+    TYPE_CODE_ARRAY    = 11,    // ARRAY: [numelts, eltty]
+    TYPE_CODE_VECTOR   = 12,    // VECTOR: [numelts, eltty]
 
     // These are not with the other floating point types because they're
     // a late addition, and putting them in the right place breaks
     // binary compatibility.
-    TYPE_CODE_X86_FP80 = 13,   // X86 LONG DOUBLE
-    TYPE_CODE_FP128    = 14,   // LONG DOUBLE (112 bit mantissa)
-    TYPE_CODE_PPC_FP128= 15,   // PPC LONG DOUBLE (2 doubles)
+    TYPE_CODE_X86_FP80 = 13,    // X86 LONG DOUBLE
+    TYPE_CODE_FP128    = 14,    // LONG DOUBLE (112 bit mantissa)
+    TYPE_CODE_PPC_FP128= 15,    // PPC LONG DOUBLE (2 doubles)
 
-    TYPE_CODE_METADATA = 16,   // METADATA
+    TYPE_CODE_METADATA = 16,    // METADATA
 
-    TYPE_CODE_X86_MMX = 17     // X86 MMX
+    TYPE_CODE_X86_MMX = 17,     // X86 MMX
+    
+    TYPE_CODE_STRUCT_ANON = 18, // STRUCT_ANON: [ispacked, eltty x N]
+    TYPE_CODE_STRUCT_NAME = 19, // STRUCT_NAME: [strchr x N]
+    TYPE_CODE_STRUCT_NAMED = 20 // STRUCT_NAMED: [ispacked, eltty x N]
   };
 
   // The type symbol table only has one code (TST_ENTRY_CODE).
@@ -112,20 +129,16 @@ namespace bitc {
 
   enum MetadataCodes {
     METADATA_STRING        = 1,   // MDSTRING:      [values]
-    // FIXME: Remove NODE in favor of NODE2 in LLVM 3.0
-    METADATA_NODE          = 2,   // NODE with potentially invalid metadata
-    // FIXME: Remove FN_NODE in favor of FN_NODE2 in LLVM 3.0
-    METADATA_FN_NODE       = 3,   // FN_NODE with potentially invalid metadata
+    // 2 is unused.
+    // 3 is unused.
     METADATA_NAME          = 4,   // STRING:        [values]
-    // FIXME: Remove NAMED_NODE in favor of NAMED_NODE2 in LLVM 3.0
-    METADATA_NAMED_NODE    = 5,   // NAMED_NODE with potentially invalid metadata
+    // 5 is unused.
     METADATA_KIND          = 6,   // [n x [id, name]]
-    // FIXME: Remove ATTACHMENT in favor of ATTACHMENT2 in LLVM 3.0
-    METADATA_ATTACHMENT    = 7,   // ATTACHMENT with potentially invalid metadata
-    METADATA_NODE2         = 8,   // NODE2:         [n x (type num, value num)]
-    METADATA_FN_NODE2      = 9,   // FN_NODE2:      [n x (type num, value num)]
-    METADATA_NAMED_NODE2   = 10,  // NAMED_NODE2:   [n x mdnodes]
-    METADATA_ATTACHMENT2   = 11   // [m x [value, [n x [id, mdnode]]]
+    // 7 is unused.
+    METADATA_NODE          = 8,   // NODE:          [n x (type num, value num)]
+    METADATA_FN_NODE       = 9,   // FN_NODE:       [n x (type num, value num)]
+    METADATA_NAMED_NODE    = 10,  // NAMED_NODE:    [n x mdnodes]
+    METADATA_ATTACHMENT    = 11   // [m x [value, [n x [id, mdnode]]]
   };
   // The constants block (CONSTANTS_BLOCK_ID) describes emission for each
   // constant and maintains an implicit current type value.
@@ -227,21 +240,18 @@ namespace bitc {
     FUNC_CODE_INST_UNREACHABLE = 15, // UNREACHABLE
 
     FUNC_CODE_INST_PHI         = 16, // PHI:        [ty, val0,bb0, ...]
-    FUNC_CODE_INST_MALLOC      = 17, // MALLOC:     [instty, op, align]
-    FUNC_CODE_INST_FREE        = 18, // FREE:       [opty, op]
+    // 17 is unused.
+    // 18 is unused.
     FUNC_CODE_INST_ALLOCA      = 19, // ALLOCA:     [instty, op, align]
     FUNC_CODE_INST_LOAD        = 20, // LOAD:       [opty, op, align, vol]
-    // FIXME: Remove STORE in favor of STORE2 in LLVM 3.0
-    FUNC_CODE_INST_STORE       = 21, // STORE:      [valty,val,ptr, align, vol]
-    // FIXME: Remove CALL in favor of CALL2 in LLVM 3.0
-    FUNC_CODE_INST_CALL        = 22, // CALL with potentially invalid metadata
+    // 21 is unused.
+    // 22 is unused.
     FUNC_CODE_INST_VAARG       = 23, // VAARG:      [valistty, valist, instty]
     // This store code encodes the pointer type, rather than the value type
     // this is so information only available in the pointer type (e.g. address
     // spaces) is retained.
-    FUNC_CODE_INST_STORE2      = 24, // STORE:      [ptrty,ptr,val, align, vol]
-    // FIXME: Remove GETRESULT in favor of EXTRACTVAL in LLVM 3.0
-    FUNC_CODE_INST_GETRESULT   = 25, // GETRESULT:  [ty, opval, n]
+    FUNC_CODE_INST_STORE       = 24, // STORE:      [ptrty,ptr,val, align, vol]
+    // 25 is unused.
     FUNC_CODE_INST_EXTRACTVAL  = 26, // EXTRACTVAL: [n x operands]
     FUNC_CODE_INST_INSERTVAL   = 27, // INSERTVAL:  [n x operands]
     // fcmp/icmp returning Int1TY or vector of Int1Ty. Same as CMP, exists to
@@ -251,14 +261,12 @@ namespace bitc {
     FUNC_CODE_INST_VSELECT     = 29, // VSELECT:    [ty,opval,opval,predty,pred]
     FUNC_CODE_INST_INBOUNDS_GEP= 30, // INBOUNDS_GEP: [n x operands]
     FUNC_CODE_INST_INDIRECTBR  = 31, // INDIRECTBR: [opty, op0, op1, ...]
-    
-    // FIXME: Remove DEBUG_LOC in favor of DEBUG_LOC2 in LLVM 3.0
-    FUNC_CODE_DEBUG_LOC        = 32, // DEBUG_LOC with potentially invalid metadata
+    // 32 is unused.
     FUNC_CODE_DEBUG_LOC_AGAIN  = 33, // DEBUG_LOC_AGAIN
 
-    FUNC_CODE_INST_CALL2       = 34, // CALL2:      [attr, fnty, fnid, args...]
+    FUNC_CODE_INST_CALL        = 34, // CALL:       [attr, fnty, fnid, args...]
 
-    FUNC_CODE_DEBUG_LOC2       = 35  // DEBUG_LOC2: [Line,Col,ScopeVal, IAVal]
+    FUNC_CODE_DEBUG_LOC        = 35  // DEBUG_LOC:  [Line,Col,ScopeVal, IAVal]
   };
 } // End bitc namespace
 } // End llvm namespace

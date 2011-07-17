@@ -5,7 +5,6 @@ add_llvm_library(LLVMTransformUtils
   BreakCriticalEdges.cpp
   BuildLibCalls.cpp
   CloneFunction.cpp
-  CloneLoop.cpp
   CloneModule.cpp
   CodeExtractor.cpp
   DemoteRegToStack.cpp
@@ -15,6 +14,7 @@ add_llvm_library(LLVMTransformUtils
   Local.cpp
   LoopSimplify.cpp
   LoopUnroll.cpp
+  LowerExpectIntrinsic.cpp
   LowerInvoke.cpp
   LowerSwitch.cpp
   Mem2Reg.cpp

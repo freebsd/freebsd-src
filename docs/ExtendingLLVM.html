@@ -146,7 +146,7 @@ cases, new nodes have been added to allow many targets to perform a common task
 complicated behavior in a single node (rotate).</p>
 
 <ol>
-<li><tt>include/llvm/CodeGen/SelectionDAGNodes.h</tt>:
+<li><tt>include/llvm/CodeGen/ISDOpcodes.h</tt>:
     Add an enum value for the new SelectionDAG node.</li>
 <li><tt>lib/CodeGen/SelectionDAG/SelectionDAG.cpp</tt>:
     Add code to print the node to <tt>getOperationName</tt>.  If your new node
@@ -384,7 +384,7 @@ void calcTypeName(const Type *Ty,
 
   <a href="http://llvm.org/">The LLVM Compiler Infrastructure</a>
   <br>
-  Last modified: $Date: 2011-04-23 02:30:22 +0200 (Sat, 23 Apr 2011) $
+  Last modified: $Date: 2011-06-30 08:37:07 +0200 (Thu, 30 Jun 2011) $
 </address>
 
 </body>

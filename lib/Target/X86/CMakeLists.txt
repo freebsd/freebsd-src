@@ -1,18 +1,15 @@
 set(LLVM_TARGET_DEFINITIONS X86.td)
 
-tablegen(X86GenRegisterInfo.h.inc -gen-register-desc-header)
-tablegen(X86GenRegisterNames.inc -gen-register-enums)
-tablegen(X86GenRegisterInfo.inc -gen-register-desc)
+tablegen(X86GenRegisterInfo.inc -gen-register-info)
 tablegen(X86GenDisassemblerTables.inc -gen-disassembler)
-tablegen(X86GenInstrNames.inc -gen-instr-enums)
-tablegen(X86GenInstrInfo.inc -gen-instr-desc)
+tablegen(X86GenInstrInfo.inc -gen-instr-info)
 tablegen(X86GenAsmWriter.inc -gen-asm-writer)
 tablegen(X86GenAsmWriter1.inc -gen-asm-writer -asmwriternum=1)
 tablegen(X86GenAsmMatcher.inc -gen-asm-matcher)
 tablegen(X86GenDAGISel.inc -gen-dag-isel)
 tablegen(X86GenFastISel.inc -gen-fast-isel)
 tablegen(X86GenCallingConv.inc -gen-callingconv)
-tablegen(X86GenSubtarget.inc -gen-subtarget)
+tablegen(X86GenSubtargetInfo.inc -gen-subtarget)
 tablegen(X86GenEDInfo.inc -gen-enhanced-disassembly-info)
 
 set(sources
@@ -30,7 +27,6 @@ set(sources
   X86InstrInfo.cpp
   X86JITInfo.cpp
   X86MachObjectWriter.cpp
-  X86MCAsmInfo.cpp
   X86MCCodeEmitter.cpp 
   X86MCInstLower.cpp
   X86RegisterInfo.cpp
@@ -60,5 +56,6 @@ add_llvm_target(X86CodeGen ${sources})
 add_subdirectory(AsmParser)
 add_subdirectory(Disassembler)
 add_subdirectory(InstPrinter)
+add_subdirectory(MCTargetDesc)
 add_subdirectory(TargetInfo)
 add_subdirectory(Utils)

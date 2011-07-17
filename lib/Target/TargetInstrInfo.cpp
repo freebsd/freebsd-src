@@ -12,42 +12,37 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Target/TargetInstrInfo.h"
-#include "llvm/Target/TargetInstrItineraries.h"
 #include "llvm/Target/TargetRegisterInfo.h"
 #include "llvm/CodeGen/SelectionDAGNodes.h"
 #include "llvm/MC/MCAsmInfo.h"
+#include "llvm/MC/MCInstrItineraries.h"
 #include "llvm/Support/ErrorHandling.h"
 #include <cctype>
 using namespace llvm;
 
 //===----------------------------------------------------------------------===//
-//  TargetOperandInfo
-//===----------------------------------------------------------------------===//
-
-/// getRegClass - Get the register class for the operand, handling resolution
-/// of "symbolic" pointer register classes etc.  If this is not a register
-/// operand, this returns null.
-const TargetRegisterClass *
-TargetOperandInfo::getRegClass(const TargetRegisterInfo *TRI) const {
-  if (isLookupPtrRegClass())
-    return TRI->getPointerRegClass(RegClass);
-  // Instructions like INSERT_SUBREG do not have fixed register classes.
-  if (RegClass < 0)
-    return 0;
-  // Otherwise just look it up normally.
-  return TRI->getRegClass(RegClass);
-}
-
-//===----------------------------------------------------------------------===//
 //  TargetInstrInfo
 //===----------------------------------------------------------------------===//
 
-TargetInstrInfo::TargetInstrInfo(const TargetInstrDesc* Desc,
-                                 unsigned numOpcodes)
-  : Descriptors(Desc), NumOpcodes(numOpcodes) {
+TargetInstrInfo::~TargetInstrInfo() {
 }
 
-TargetInstrInfo::~TargetInstrInfo() {
+const TargetRegisterClass*
+TargetInstrInfo::getRegClass(const MCInstrDesc &MCID, unsigned OpNum,
+                             const TargetRegisterInfo *TRI) const {
+  if (OpNum >= MCID.getNumOperands())
+    return 0;
+
+  short RegClass = MCID.OpInfo[OpNum].RegClass;
+  if (MCID.OpInfo[OpNum].isLookupPtrRegClass())
+    return TRI->getPointerRegClass(RegClass);
+
+  // Instructions like INSERT_SUBREG do not have fixed register classes.
+  if (RegClass < 0)
+    return 0;
+
+  // Otherwise just look it up normally.
+  return TRI->getRegClass(RegClass);
 }
 
 unsigned
@@ -135,13 +130,13 @@ void TargetInstrInfo::insertNoop(MachineBasicBlock &MBB,
 
 
 bool TargetInstrInfo::isUnpredicatedTerminator(const MachineInstr *MI) const {
-  const TargetInstrDesc &TID = MI->getDesc();
-  if (!TID.isTerminator()) return false;
+  const MCInstrDesc &MCID = MI->getDesc();
+  if (!MCID.isTerminator()) return false;
 
   // Conditional branch is a special case.
-  if (TID.isBranch() && !TID.isBarrier())
+  if (MCID.isBranch() && !MCID.isBarrier())
     return true;
-  if (!TID.isPredicable())
+  if (!MCID.isPredicable())
     return true;
   return !isPredicated(MI);
 }

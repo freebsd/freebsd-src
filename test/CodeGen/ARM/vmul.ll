@@ -439,9 +439,9 @@ define <2 x i64> @vmull_extvec_u32(<2 x i32> %arg) nounwind {
 }
 
 ; rdar://9197392
-define void @distribue(i16* %dst, i8* %src, i32 %mul) nounwind {
+define void @distribute(i16* %dst, i8* %src, i32 %mul) nounwind {
 entry:
-; CHECK: distribue:
+; CHECK: distribute:
 ; CHECK: vmull.u8 [[REG1:(q[0-9]+)]], d{{.*}}, [[REG2:(d[0-9]+)]]
 ; CHECK: vmlal.u8 [[REG1]], d{{.*}}, [[REG2]]
   %0 = trunc i32 %mul to i8
@@ -471,9 +471,9 @@ declare void @llvm.arm.neon.vst1.v8i16(i8*, <8 x i16>, i32) nounwind
 
 %struct.uint8x8_t = type { <8 x i8> }
 
-define void @distribue2(%struct.uint8x8_t* nocapture %dst, i8* %src, i32 %mul) nounwind {
+define void @distribute2(%struct.uint8x8_t* nocapture %dst, i8* %src, i32 %mul) nounwind {
 entry:
-; CHECK: distribue2
+; CHECK: distribute2
 ; CHECK-NOT: vadd.i8
 ; CHECK: vmul.i8
 ; CHECK: vmla.i8
@@ -488,6 +488,28 @@ entry:
   %8 = bitcast double %7 to <8 x i8>
   %9 = add <8 x i8> %6, %8
   %10 = mul <8 x i8> %9, %2
+  %11 = getelementptr inbounds %struct.uint8x8_t* %dst, i32 0, i32 0
+  store <8 x i8> %10, <8 x i8>* %11, align 8
+  ret void
+}
+
+define void @distribute2_commutative(%struct.uint8x8_t* nocapture %dst, i8* %src, i32 %mul) nounwind {
+entry:
+; CHECK: distribute2_commutative
+; CHECK-NOT: vadd.i8
+; CHECK: vmul.i8
+; CHECK: vmla.i8
+  %0 = trunc i32 %mul to i8
+  %1 = insertelement <8 x i8> undef, i8 %0, i32 0
+  %2 = shufflevector <8 x i8> %1, <8 x i8> undef, <8 x i32> zeroinitializer
+  %3 = tail call <16 x i8> @llvm.arm.neon.vld1.v16i8(i8* %src, i32 1)
+  %4 = bitcast <16 x i8> %3 to <2 x double>
+  %5 = extractelement <2 x double> %4, i32 1
+  %6 = bitcast double %5 to <8 x i8>
+  %7 = extractelement <2 x double> %4, i32 0
+  %8 = bitcast double %7 to <8 x i8>
+  %9 = add <8 x i8> %6, %8
+  %10 = mul <8 x i8> %2, %9
   %11 = getelementptr inbounds %struct.uint8x8_t* %dst, i32 0, i32 0
   store <8 x i8> %10, <8 x i8>* %11, align 8
   ret void

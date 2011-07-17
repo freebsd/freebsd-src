@@ -259,7 +259,7 @@ public:
   /// getIntPtrType - Return an unsigned integer type that is the same size or
   /// greater to the host pointer size.
   ///
-  const IntegerType *getIntPtrType(LLVMContext &C) const;
+  IntegerType *getIntPtrType(LLVMContext &C) const;
 
   /// getIndexedOffset - return the offset from the beginning of the type for
   /// the specified indices.  This is used to implement getelementptr.
@@ -271,12 +271,6 @@ public:
   /// of the struct, its size, and the offsets of its fields.  Note that this
   /// information is lazily cached.
   const StructLayout *getStructLayout(const StructType *Ty) const;
-
-  /// InvalidateStructLayoutInfo - TargetData speculatively caches StructLayout
-  /// objects.  If a TargetData object is alive when types are being refined and
-  /// removed, this method must be called whenever a StructType is removed to
-  /// avoid a dangling pointer in this cache.
-  void InvalidateStructLayoutInfo(const StructType *Ty) const;
 
   /// getPreferredAlignment - Return the preferred alignment of the specified
   /// global.  This includes an explicitly requested alignment (if the global

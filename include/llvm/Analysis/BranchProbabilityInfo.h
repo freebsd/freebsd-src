@@ -15,8 +15,9 @@
 #define LLVM_ANALYSIS_BRANCHPROBABILITYINFO_H
 
 #include "llvm/InitializePasses.h"
+#include "llvm/Pass.h"
+#include "llvm/ADT/DenseMap.h"
 #include "llvm/Support/BranchProbability.h"
-#include "llvm/Analysis/LoopInfo.h"
 
 namespace llvm {
 
@@ -25,6 +26,11 @@ class raw_ostream;
 class BranchProbabilityInfo : public FunctionPass {
 
   // Default weight value. Used when we don't have information about the edge.
+  // TODO: DEFAULT_WEIGHT makes sense during static predication, when none of
+  // the successors have a weight yet. But it doesn't make sense when providing
+  // weight to an edge that may have siblings with non-zero weights. This can
+  // be handled various ways, but it's probably fine for an edge with unknown
+  // weight to just "inherit" the non-zero weight of an adjacent successor.
   static const uint32_t DEFAULT_WEIGHT = 16;
 
   typedef std::pair<BasicBlock *, BasicBlock *> Edge;
@@ -41,10 +47,7 @@ public:
     initializeBranchProbabilityInfoPass(*PassRegistry::getPassRegistry());
   }
 
-  void getAnalysisUsage(AnalysisUsage &AU) const {
-    AU.addRequired<LoopInfo>();
-    AU.setPreservesAll();
-  }
+  void getAnalysisUsage(AnalysisUsage &AU) const;
 
   bool runOnFunction(Function &F);
 

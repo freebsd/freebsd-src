@@ -1804,8 +1804,7 @@ LSRInstance::OptimizeLoopTermCond() {
         ExitingBlock->getInstList().insert(TermBr, Cond);
 
         // Clone the IVUse, as the old use still exists!
-        CondUse = &IU.AddUser(Cond, CondUse->getOperandValToReplace(),
-                              CondUse->getPhi());
+        CondUse = &IU.AddUser(Cond, CondUse->getOperandValToReplace());
         TermBr->replaceUsesOfWith(OldCond, Cond);
       }
     }
@@ -2768,7 +2767,7 @@ void LSRInstance::GenerateCrossUseConstantOffsets() {
         // value to the immediate would produce a value closer to zero than the
         // immediate itself, then the formula isn't worthwhile.
         if (const SCEVConstant *C = dyn_cast<SCEVConstant>(NewF.ScaledReg))
-          if (C->getValue()->getValue().isNegative() !=
+          if (C->getValue()->isNegative() !=
                 (NewF.AM.BaseOffs < 0) &&
               (C->getValue()->getValue().abs() * APInt(BitWidth, F.AM.Scale))
                 .ule(abs64(NewF.AM.BaseOffs)))
@@ -3699,7 +3698,7 @@ LSRInstance::ImplementSolution(const SmallVectorImpl<const Formula *> &Solution,
   // we can remove them after we are done working.
   SmallVector<WeakVH, 16> DeadInsts;
 
-  SCEVExpander Rewriter(SE);
+  SCEVExpander Rewriter(SE, "lsr");
   Rewriter.disableCanonicalMode();
   Rewriter.setIVIncInsertPos(L, IVIncInsertPos);
 
