@@ -6,8 +6,7 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer
- *    in this position and unchanged.
+ *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
@@ -22,21 +21,30 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+#include "test.h"
+__FBSDID("$FreeBSD$");
 
-#ifndef LAFE_PATHMATCH_H
-#define LAFE_PATHMATCH_H
+DEFINE_TEST(test_option_l)
+{
+	int r;
 
-/* Don't anchor at beginning unless the pattern starts with "^" */
-#define PATHMATCH_NO_ANCHOR_START	1
-/* Don't anchor at end unless the pattern ends with "$" */
-#define PATHMATCH_NO_ANCHOR_END 	2
+	/* Create a file. */
+	assertMakeFile("f", 0644, "a");
 
-/* Note that "^" and "$" are not special unless you set the corresponding
- * flag above. */
+	/* Copy the file to the "copy" dir. */
+	r = systemf("echo f | %s -pd copy >copy.out 2>copy.err",
+	    testprog);
+	assertEqualInt(r, 0);
 
-int pathmatch(const char *p, const char *s, int flags);
+	/* Check that the copy is a true copy and not a link. */
+	assertIsNotHardlink("f", "copy/f");
 
-#endif
+	/* Copy the file to the "link" dir with the -l option. */
+	r = systemf("echo f | %s -pld link >link.out 2>link.err",
+	    testprog);
+	assertEqualInt(r, 0);
+
+	/* Check that this is a link and not a copy. */
+	assertIsHardlink("f", "link/f");
+}

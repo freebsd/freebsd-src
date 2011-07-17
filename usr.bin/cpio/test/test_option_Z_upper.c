@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009 Joerg Sonnenberger
+ * Copyright (c) 2003-2009 Tim Kientzle
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -21,17 +21,36 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+#include "test.h"
+__FBSDID("$FreeBSD$");
 
-#ifndef LAFE_LINE_READER_H
-#define LAFE_LINE_READER_H
+DEFINE_TEST(test_option_Z_upper)
+{
+	char *p;
+	int r;
+	size_t s;
 
-struct line_reader;
+	/* Create a file. */
+	assertMakeFile("f", 0644, "a");
 
-struct line_reader *line_reader(const char *, int nullSeparator);
-const char *line_reader_next(struct line_reader *);
-void	line_reader_free(struct line_reader *);
-
-#endif
+	/* Archive it with compress compression. */
+	r = systemf("echo f | %s -oZ >archive.out 2>archive.err",
+	    testprog);
+	p = slurpfile(&s, "archive.err");
+	p[s] = '\0';
+	if (r != 0) {
+		if (strstr(p, "compression not available") != NULL) {
+			skipping("This version of bsdcpio was compiled "
+			    "without compress support");
+			return;
+		}
+		failure("-Z option is broken");
+		assertEqualInt(r, 0);
+		return;
+	}
+	/* Check that the archive file has a compress signature. */
+	p = slurpfile(&s, "archive.out");
+	assert(s > 2);
+	assertEqualMem(p, "\x1f\x9d", 2);
+}

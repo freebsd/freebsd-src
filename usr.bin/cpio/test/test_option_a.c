@@ -23,10 +23,10 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-#if defined(_WIN32) && !defined(__CYGWIN__)
-#include <sys/utime.h>
-#else
+#if defined(HAVE_UTIME_H)
 #include <utime.h>
+#elif defined(HAVE_SYS_UTIME_H)
+#include <sys/utime.h>
 #endif
 __FBSDID("$FreeBSD$");
 
@@ -57,19 +57,15 @@ test_create(void)
 	struct utimbuf times;
 	static const int numfiles = sizeof(files) / sizeof(files[0]);
 	int i;
-	int fd;
 
 	for (i = 0; i < numfiles; ++i) {
-		fd = open(files[i].name, O_CREAT | O_WRONLY, 0644);
-		assert(fd >= 0);
 		/*
 		 * Note: Have to write at least one byte to the file.
 		 * cpio doesn't bother reading the file if it's zero length,
 		 * so the atime never gets changed in that case, which
 		 * makes the tests below rather pointless.
 		 */
-		assertEqualInt(1, write(fd, "a", 1));
-		close(fd);
+		assertMakeFile(files[i].name, 0644, "a");
 
 		/* If utime() isn't supported on your platform, just
 		 * #ifdef this section out.  Most of the test below is
@@ -87,26 +83,21 @@ test_create(void)
 	}
 
 	/* Wait until the atime on the last file is actually in the past. */
-	/* If utime() is supported above, there's no sleep here which
-	 * makes the test faster. */
-	while (files[numfiles - 1].atime_sec >= time(NULL))
-		sleep(1);
+	sleepUntilAfter(files[numfiles - 1].atime_sec);
 }
 
 DEFINE_TEST(test_option_a)
 {
 	struct stat st;
 	int r;
-	int f;
-	char buff[64];
+	char *p;
 
 	/* Create all of the test files. */
 	test_create();
 
 	/* Sanity check; verify that atimes really do get modified. */
-	f = open(files[0].name, O_RDONLY);
-	assertEqualInt(1, read(f,buff, 1));
-	assertEqualInt(0, close(f));
+	assert((p = slurpfile(NULL, "f0")) != NULL);
+	free(p);
 	assertEqualInt(0, stat("f0", &st));
 	if (st.st_atime == files[0].atime_sec) {
 		skipping("Cannot verify -a option\n"
