@@ -578,10 +578,10 @@ linux_semctl(struct thread *td, struct linux_semctl_args *args)
 		bcopy(&seminfo, &linux_seminfo.semmni, sizeof(linux_seminfo) -
 		    sizeof(linux_seminfo.semmap) );
 		/*
-		 * Linux does not use the semmap field either but populates it
-		 * with the defined value from SEMMAP, which really is redefined
-		 * to SEMMNS, which they define as SEMMNI * SEMMSL.
-		 * Try to simulate this returning our dynamic semmns value.
+		 * Linux does not use the semmap field but populates it with
+		 * the defined value from SEMMAP, which really is redefined to
+		 * SEMMNS, which they define as SEMMNI * SEMMSL.  Try to
+		 * simulate this returning our dynamic semmns value.
 		 */
 		linux_seminfo.semmap = linux_seminfo.semmns;
 /* XXX BSD equivalent?
