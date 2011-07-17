@@ -31,33 +31,28 @@ __FBSDID("$FreeBSD$");
 
 DEFINE_TEST(test_passthrough_dotdot)
 {
-	struct stat st;
-	int fd, r;
-	int filelist;
-	int oldumask;
+	int r;
+	FILE *filelist;
 
-	oldumask = umask(0);
+	assertUmask(0);
 
 	/*
 	 * Create an assortment of files on disk.
 	 */
-	filelist = open("filelist", O_CREAT | O_WRONLY, 0644);
+	filelist = fopen("filelist", "w");
 
 	/* Directory. */
-	assertEqualInt(0, mkdir("dir", 0755));
-	assertEqualInt(0, chdir("dir"));
+	assertMakeDir("dir", 0755);
+	assertChdir("dir");
 
-	write(filelist, ".\n", 2);
+	fprintf(filelist, ".\n");
 
 	/* File with 10 bytes content. */
-	fd = open("file", O_CREAT | O_WRONLY, 0642);
-	assert(fd >= 0);
-	assertEqualInt(10, write(fd, "123456789", 10));
-	close(fd);
-	write(filelist, "file\n", 5);
+	assertMakeFile("file", 0642, "1234567890");
+	fprintf(filelist, "file\n");
 
 	/* All done. */
-	close(filelist);
+	fclose(filelist);
 
 
 	/*
@@ -68,26 +63,14 @@ DEFINE_TEST(test_passthrough_dotdot)
 	failure("Error invoking %s -pd ..", testprog);
 	assertEqualInt(r, 0);
 
-	assertEqualInt(0, chdir(".."));
+	assertChdir("..");
 
 	/* Verify stderr and stdout. */
 	assertTextFileContents("../.\n../file\n1 block\n", "stderr");
 	assertEmptyFile("stdout");
 
 	/* Regular file. */
-	r = lstat("file", &st);
-	failure("Failed to stat file, errno=%d", errno);
-	assertEqualInt(r, 0);
-	if (r == 0) {
-		assert(S_ISREG(st.st_mode));
-#if defined(_WIN32) && !defined(__CYGWIN__)
-		assertEqualInt(0600, st.st_mode & 0700);
-#else
-		assertEqualInt(0642, st.st_mode & 0777);
-#endif
-		assertEqualInt(10, st.st_size);
-		assertEqualInt(1, st.st_nlink);
-	}
-
-	umask(oldumask);
+	assertIsReg("file", 0642);
+	assertFileSize("file", 10);
+	assertFileNLinks("file", 1);
 }
