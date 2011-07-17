@@ -26,8 +26,8 @@
 #include "llvm/Bitcode/ReaderWriter.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCContext.h"
+#include "llvm/MC/SubtargetFeature.h"
 #include "llvm/Target/Mangler.h"
-#include "llvm/Target/SubtargetFeature.h"
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/Target/TargetData.h"
 #include "llvm/Target/TargetMachine.h"
@@ -73,6 +73,8 @@ LTOCodeGenerator::LTOCodeGenerator()
       _nativeObjectFile(NULL)
 {
     InitializeAllTargets();
+    InitializeAllMCAsmInfos();
+    InitializeAllMCSubtargetInfos();
     InitializeAllAsmPrinters();
 }
 
@@ -262,9 +264,9 @@ bool LTOCodeGenerator::determineTarget(std::string& errMsg)
 
         // construct LTModule, hand over ownership of module and target
         SubtargetFeatures Features;
-        Features.getDefaultSubtargetFeatures(_mCpu, llvm::Triple(Triple));
+        Features.getDefaultSubtargetFeatures(llvm::Triple(Triple));
         std::string FeatureStr = Features.getString();
-        _target = march->createTargetMachine(Triple, FeatureStr);
+        _target = march->createTargetMachine(Triple, _mCpu, FeatureStr);
     }
     return false;
 }

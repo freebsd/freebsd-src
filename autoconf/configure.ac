@@ -35,8 +35,8 @@ AC_INIT([[llvm]],[[3.0svn]],[llvmbugs@cs.uiuc.edu])
 
 dnl Provide a copyright substitution and ensure the copyright notice is included
 dnl in the output of --version option of the generated configure script.
-AC_SUBST(LLVM_COPYRIGHT,["Copyright (c) 2003-2010 University of Illinois at Urbana-Champaign."])
-AC_COPYRIGHT([Copyright (c) 2003-2010 University of Illinois at Urbana-Champaign.])
+AC_SUBST(LLVM_COPYRIGHT,["Copyright (c) 2003-2011 University of Illinois at Urbana-Champaign."])
+AC_COPYRIGHT([Copyright (c) 2003-2011 University of Illinois at Urbana-Champaign.])
 
 dnl Indicate that we require autoconf 2.59 or later. Ths is needed because we
 dnl use some autoconf macros only available in 2.59.
@@ -297,6 +297,8 @@ AC_CACHE_CHECK([type of operating system we're going to target],
     llvm_cv_target_os_type="MingW" ;;
   *-*-haiku*)
     llvm_cv_target_os_type="Haiku" ;;
+  *-*-rtems*)
+    llvm_cv_target_os_type="RTEMS" ;;
   *-unknown-eabi*)
     llvm_cv_target_os_type="Freestanding" ;;
   *)
@@ -656,6 +658,7 @@ for a_target in $TARGETS_TO_BUILD; do
       [LLVM architecture name for the native architecture, if available])
     LLVM_NATIVE_TARGET="LLVMInitialize${LLVM_NATIVE_ARCH}Target"
     LLVM_NATIVE_TARGETINFO="LLVMInitialize${LLVM_NATIVE_ARCH}TargetInfo"
+    LLVM_NATIVE_MCASMINFO="LLVMInitialize${LLVM_NATIVE_ARCH}MCAsmInfo"
     LLVM_NATIVE_ASMPRINTER="LLVMInitialize${LLVM_NATIVE_ARCH}AsmPrinter"
     if test -f ${srcdir}/lib/Target/${LLVM_NATIVE_ARCH}/AsmParser/Makefile ; then
       LLVM_NATIVE_ASMPARSER="LLVMInitialize${LLVM_NATIVE_ARCH}AsmParser"
@@ -664,6 +667,8 @@ for a_target in $TARGETS_TO_BUILD; do
       [LLVM name for the native Target init function, if available])
     AC_DEFINE_UNQUOTED(LLVM_NATIVE_TARGETINFO, $LLVM_NATIVE_TARGETINFO,
       [LLVM name for the native TargetInfo init function, if available])
+    AC_DEFINE_UNQUOTED(LLVM_NATIVE_MCASMINFO, $LLVM_NATIVE_MCASMINFO,
+      [LLVM name for the native MCAsmInfo init function, if available])
     AC_DEFINE_UNQUOTED(LLVM_NATIVE_ASMPRINTER, $LLVM_NATIVE_ASMPRINTER,
       [LLVM name for the native AsmPrinter init function, if available])
     if test -f ${srcdir}/lib/Target/${LLVM_NATIVE_ARCH}/AsmParser/Makefile ; then
@@ -831,6 +836,17 @@ case "$withval" in
 esac
 AC_SUBST(EXTRA_OPTIONS,$EXTRA_OPTIONS)
 
+dnl Specify extra linker build options
+AC_ARG_WITH(extra-ld-options,
+  AS_HELP_STRING([--with-extra-ld-options],
+                 [Specify additional options to link LLVM with]),,
+                 withval=default)
+case "$withval" in
+  default) EXTRA_LD_OPTIONS= ;;
+  *) EXTRA_LD_OPTIONS=$withval ;;
+esac
+AC_SUBST(EXTRA_LD_OPTIONS,$EXTRA_LD_OPTIONS)
+
 dnl Allow specific bindings to be specified for building (or not)
 AC_ARG_ENABLE([bindings],AS_HELP_STRING([--enable-bindings],
     [Build specific language bindings: all,auto,none,{binding-name} (default=auto)]),,
@@ -922,6 +938,14 @@ if test "x$WITH_BINUTILS_INCDIR" != xdefault ; then
      AC_MSG_ERROR([Invalid path to directory containing plugin-api.h.]);
   fi
 fi
+
+dnl Specify the URL where bug reports should be submitted.
+AC_ARG_WITH(bug-report-url,
+  AS_HELP_STRING([--with-bug-report-url],
+    [Specify the URL where bug reports should be submitted (default=http://llvm.org)]),,
+    withval="http://llvm.org")
+AC_DEFINE_UNQUOTED(BUG_REPORT_URL,"$withval",
+                   [Bug report URL.])
 
 dnl --enable-libffi : check whether the user wants to turn off libffi:
 AC_ARG_ENABLE(libffi,AS_HELP_STRING(

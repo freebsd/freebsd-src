@@ -6,7 +6,7 @@ define i32 @t1(i32 %c) nounwind readnone {
 entry:
 ; ARM: t1:
 ; ARM: mov [[R1:r[0-9]+]], #101
-; ARM: orr [[R1b:r[0-9]+]], [[R1]], #1, #24
+; ARM: orr [[R1b:r[0-9]+]], [[R1]], #256
 ; ARM: movgt r0, #123
 
 ; ARMT2: t1:
@@ -27,7 +27,7 @@ entry:
 ; ARM: t2:
 ; ARM: mov r0, #123
 ; ARM: movgt r0, #101
-; ARM: orrgt r0, r0, #1, #24
+; ARM: orrgt r0, r0, #256
 
 ; ARMT2: t2:
 ; ARMT2: mov r0, #123
@@ -75,4 +75,40 @@ entry:
   %0 = icmp slt i32 %a, %b
   %1 = select i1 %0, i32 4283826005, i32 %x
   ret i32 %1
+}
+
+; rdar://9758317
+define i32 @t5(i32 %a) nounwind {
+entry:
+; ARM: t5:
+; ARM-NOT: mov
+; ARM: cmp r0, #1
+; ARM-NOT: mov
+; ARM: movne r0, #0
+
+; THUMB2: t5:
+; THUMB2-NOT: mov
+; THUMB2: cmp r0, #1
+; THUMB2: it ne
+; THUMB2: movne r0, #0
+  %cmp = icmp eq i32 %a, 1
+  %conv = zext i1 %cmp to i32
+  ret i32 %conv
+}
+
+define i32 @t6(i32 %a) nounwind {
+entry:
+; ARM: t6:
+; ARM-NOT: mov
+; ARM: cmp r0, #0
+; ARM: movne r0, #1
+
+; THUMB2: t6:
+; THUMB2-NOT: mov
+; THUMB2: cmp r0, #0
+; THUMB2: it ne
+; THUMB2: movne r0, #1
+  %tobool = icmp ne i32 %a, 0
+  %lnot.ext = zext i1 %tobool to i32
+  ret i32 %lnot.ext
 }

@@ -1421,13 +1421,6 @@ public:
   /// is for this target.
   virtual ConstraintType getConstraintType(const std::string &Constraint) const;
 
-  /// getRegClassForInlineAsmConstraint - Given a constraint letter (e.g. "r"),
-  /// return a list of registers that can be used to satisfy the constraint.
-  /// This should only be used for C_RegisterClass constraints.
-  virtual std::vector<unsigned>
-  getRegClassForInlineAsmConstraint(const std::string &Constraint,
-                                    EVT VT) const;
-
   /// getRegForInlineAsmConstraint - Given a physical register constraint (e.g.
   /// {edx}), return the register number and the register class for the
   /// register.
@@ -1547,6 +1540,8 @@ public:
   //===--------------------------------------------------------------------===//
   // Div utility functions
   //
+  SDValue BuildExactSDIV(SDValue Op1, SDValue Op2, DebugLoc dl,
+                         SelectionDAG &DAG) const;
   SDValue BuildSDIV(SDNode *N, SelectionDAG &DAG,
                       std::vector<SDNode*>* Created) const;
   SDValue BuildUDIV(SDNode *N, SelectionDAG &DAG,
@@ -1836,9 +1831,8 @@ private:
 
         // Build a new vector type and check if it is legal.
         MVT NVT = MVT::getVectorVT(EltVT.getSimpleVT(), NumElts);
-
         // Found a legal promoted vector type.
-        if (ValueTypeActions.getTypeAction(NVT) == TypeLegal)
+        if (NVT != MVT() && ValueTypeActions.getTypeAction(NVT) == TypeLegal)
           return LegalizeKind(TypePromoteInteger,
                               EVT::getVectorVT(Context, EltVT, NumElts));
       }
@@ -1853,6 +1847,7 @@ private:
       // If there is no simple vector type with this many elements then there
       // cannot be a larger legal vector type.  Note that this assumes that
       // there are no skipped intermediate vector types in the simple types.
+      if (!EltVT.isSimple()) break;
       MVT LargerVector = MVT::getVectorVT(EltVT.getSimpleVT(), NumElts);
       if (LargerVector == MVT()) break;
 

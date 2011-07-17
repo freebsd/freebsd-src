@@ -33,6 +33,8 @@ add_llvm_library(LLVMCodeGen
   LocalStackSlotAllocation.cpp
   LowerSubregs.cpp
   MachineBasicBlock.cpp
+  MachineBlockFrequency.cpp
+  MachineBranchProbabilityInfo.cpp
   MachineCSE.cpp
   MachineDominators.cpp
   MachineFunction.cpp
@@ -58,7 +60,6 @@ add_llvm_library(LLVMCodeGen
   Passes.cpp
   PeepholeOptimizer.cpp
   PostRASchedulerList.cpp
-  PreAllocSplitting.cpp
   ProcessImplicitDefs.cpp
   PrologEpilogInserter.cpp
   PseudoSourceValue.cpp
@@ -78,7 +79,6 @@ add_llvm_library(LLVMCodeGen
   ScoreboardHazardRecognizer.cpp
   ShadowStackGC.cpp
   ShrinkWrapping.cpp
-  SimpleRegisterCoalescing.cpp
   SjLjEHPrepare.cpp
   SlotIndexes.cpp
   Spiller.cpp

@@ -1,4 +1,4 @@
-; RUN: llc < %s -march=arm -mattr=+neon | FileCheck %s
+; RUN: llc < %s -march=arm -mattr=+neon,+v6t2 | FileCheck %s
 
 ; Radar 7449043
 %struct.int32x4_t = type { <4 x i32> }
@@ -57,4 +57,44 @@ define i32 @t5() nounwind {
 entry:
 call void asm sideeffect "flds s15, $0 \0A", "*^Uvm,~{s15}"(float* @k.2126) nounwind
 ret i32 0
+}
+
+; Radar 9307836 & 9119939
+
+define float @t6(float %y) nounwind {
+entry:
+; CHECK: t6
+; CHECK: flds s15, s0
+  %0 = tail call float asm "flds s15, $0", "=x"() nounwind
+  ret float %0
+}
+
+; Radar 9307836 & 9119939
+
+define double @t7(double %y) nounwind {
+entry:
+; CHECK: t7
+; CHECK: flds s15, d0
+  %0 = tail call double asm "flds s15, $0", "=x"() nounwind
+  ret double %0
+}
+
+; Radar 9307836 & 9119939
+
+define float @t8(float %y) nounwind {
+entry:
+; CHECK: t8
+; CHECK: flds s15, s0
+  %0 = tail call float asm "flds s15, $0", "=t"() nounwind
+  ret float %0
+}
+
+; Radar 9307836 & 9119939
+
+define i32 @t9(i32 %r0) nounwind {
+entry:
+; CHECK: t9
+; CHECK: movw r0, #27182
+  %0 = tail call i32 asm "movw $0, $1", "=r,j"(i32 27182) nounwind
+  ret i32 %0
 }

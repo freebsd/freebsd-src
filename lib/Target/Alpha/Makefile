@@ -12,12 +12,10 @@ LIBRARYNAME = LLVMAlphaCodeGen
 TARGET = Alpha
 
 # Make sure that tblgen is run, first thing.
-BUILT_SOURCES = AlphaGenRegisterInfo.h.inc AlphaGenRegisterNames.inc \
-                AlphaGenRegisterInfo.inc AlphaGenInstrNames.inc \
-                AlphaGenInstrInfo.inc \
+BUILT_SOURCES = AlphaGenRegisterInfo.inc AlphaGenInstrInfo.inc \
                 AlphaGenAsmWriter.inc AlphaGenDAGISel.inc \
-                AlphaGenCallingConv.inc AlphaGenSubtarget.inc
+                AlphaGenCallingConv.inc AlphaGenSubtargetInfo.inc
 
-DIRS = TargetInfo
+DIRS = TargetInfo MCTargetDesc
 
 include $(LEVEL)/Makefile.common

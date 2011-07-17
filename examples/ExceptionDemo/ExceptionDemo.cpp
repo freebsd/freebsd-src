@@ -190,7 +190,7 @@ static llvm::ConstantInt *ourExceptionThrownState;
 static llvm::ConstantInt *ourExceptionCaughtState;
 
 typedef std::vector<std::string> ArgNames;
-typedef std::vector<const llvm::Type*> ArgTypes;
+typedef std::vector<llvm::Type*> ArgTypes;
 
 //
 // Code Generation Utilities
@@ -895,7 +895,7 @@ void generateStringPrint(llvm::LLVMContext &context,
   
   llvm::Value *cast = 
   builder.CreatePointerCast(stringVar, 
-                            builder.getInt8Ty()->getPointerTo());
+                            builder.getInt8PtrTy());
   builder.CreateCall(printFunct, cast);
 }
 
@@ -939,7 +939,7 @@ void generateIntegerPrint(llvm::LLVMContext &context,
   
   llvm::Value *cast = 
   builder.CreateBitCast(stringVar, 
-                        builder.getInt8Ty()->getPointerTo());
+                        builder.getInt8PtrTy());
   builder.CreateCall2(&printFunct, &toPrint, cast);
 }
 
@@ -987,7 +987,7 @@ static llvm::BasicBlock *createFinallyBlock(llvm::LLVMContext &context,
                          ourExceptionNotThrownState);
   
   const llvm::PointerType *exceptionStorageType = 
-  builder.getInt8Ty()->getPointerTo();
+      builder.getInt8PtrTy();
   *exceptionStorage = 
   createEntryBlockAlloca(toAddTo,
                          "exceptionStorage",
@@ -1239,7 +1239,7 @@ llvm::Function *createCatchWrappedInvokeFunction(llvm::Module &module,
   llvm::Function *personality = module.getFunction("ourPersonality");
   llvm::Value *functPtr = 
   builder.CreatePointerCast(personality, 
-                            builder.getInt8Ty()->getPointerTo());
+                            builder.getInt8PtrTy());
   
   args.clear();
   args.push_back(unwindException);
@@ -1622,7 +1622,7 @@ void runExceptionThrow(llvm::ExecutionEngine *engine,
 // End test functions
 //
 
-typedef llvm::ArrayRef<const llvm::Type*> TypeArray;
+typedef llvm::ArrayRef<llvm::Type*> TypeArray;
 
 /// This initialization routine creates type info globals and 
 /// adds external function declarations to module.
@@ -1650,8 +1650,7 @@ static void createStandardUtilityFunctions(unsigned numTypeInfos,
   
   // Create our type info type
   ourTypeInfoType = llvm::StructType::get(context, 
-                                          TypeArray(builder.getInt32Ty()));
-  
+                      TypeArray(builder.getInt32Ty()));
   // Create OurException type
   ourExceptionType = llvm::StructType::get(context, 
                                            TypeArray(ourTypeInfoType));
@@ -1661,7 +1660,9 @@ static void createStandardUtilityFunctions(unsigned numTypeInfos,
   // Note: Declaring only a portion of the _Unwind_Exception struct.
   //       Does this cause problems?
   ourUnwindExceptionType =
-    llvm::StructType::get(context, TypeArray(builder.getInt64Ty()));
+    llvm::StructType::get(context, 
+                    TypeArray(builder.getInt64Ty()));
+
   struct OurBaseException_t dummyException;
   
   // Calculate offset of OurException::unwindException member.
@@ -1727,7 +1728,7 @@ static void createStandardUtilityFunctions(unsigned numTypeInfos,
   
   argTypes.clear();
   argTypes.push_back(builder.getInt32Ty());
-  argTypes.push_back(builder.getInt8Ty()->getPointerTo());
+  argTypes.push_back(builder.getInt8PtrTy());
   
   argNames.clear();
   
@@ -1746,7 +1747,7 @@ static void createStandardUtilityFunctions(unsigned numTypeInfos,
   
   argTypes.clear();
   argTypes.push_back(builder.getInt64Ty());
-  argTypes.push_back(builder.getInt8Ty()->getPointerTo());
+  argTypes.push_back(builder.getInt8PtrTy());
   
   argNames.clear();
   
@@ -1764,7 +1765,7 @@ static void createStandardUtilityFunctions(unsigned numTypeInfos,
   retType = builder.getVoidTy();
   
   argTypes.clear();
-  argTypes.push_back(builder.getInt8Ty()->getPointerTo());
+  argTypes.push_back(builder.getInt8PtrTy());
   
   argNames.clear();
   
@@ -1800,7 +1801,7 @@ static void createStandardUtilityFunctions(unsigned numTypeInfos,
   retType = builder.getVoidTy();
   
   argTypes.clear();
-  argTypes.push_back(builder.getInt8Ty()->getPointerTo());
+  argTypes.push_back(builder.getInt8PtrTy());
   
   argNames.clear();
   
@@ -1815,7 +1816,7 @@ static void createStandardUtilityFunctions(unsigned numTypeInfos,
   
   // createOurException
   
-  retType = builder.getInt8Ty()->getPointerTo();
+  retType = builder.getInt8PtrTy();
   
   argTypes.clear();
   argTypes.push_back(builder.getInt32Ty());
@@ -1836,7 +1837,7 @@ static void createStandardUtilityFunctions(unsigned numTypeInfos,
   retType = builder.getInt32Ty();
   
   argTypes.clear();
-  argTypes.push_back(builder.getInt8Ty()->getPointerTo());
+  argTypes.push_back(builder.getInt8PtrTy());
   
   argNames.clear();
   
@@ -1856,7 +1857,7 @@ static void createStandardUtilityFunctions(unsigned numTypeInfos,
   retType = builder.getInt32Ty();
   
   argTypes.clear();
-  argTypes.push_back(builder.getInt8Ty()->getPointerTo());
+  argTypes.push_back(builder.getInt8PtrTy());
   
   argNames.clear();
   
@@ -1879,8 +1880,8 @@ static void createStandardUtilityFunctions(unsigned numTypeInfos,
   argTypes.push_back(builder.getInt32Ty());
   argTypes.push_back(builder.getInt32Ty());
   argTypes.push_back(builder.getInt64Ty());
-  argTypes.push_back(builder.getInt8Ty()->getPointerTo());
-  argTypes.push_back(builder.getInt8Ty()->getPointerTo());
+  argTypes.push_back(builder.getInt8PtrTy());
+  argTypes.push_back(builder.getInt8PtrTy());
   
   argNames.clear();
   

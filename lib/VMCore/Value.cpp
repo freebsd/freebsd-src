@@ -35,22 +35,21 @@ using namespace llvm;
 //                                Value Class
 //===----------------------------------------------------------------------===//
 
-static inline const Type *checkType(const Type *Ty) {
+static inline Type *checkType(const Type *Ty) {
   assert(Ty && "Value defined with a null type: Error!");
-  return Ty;
+  return const_cast<Type*>(Ty);
 }
 
 Value::Value(const Type *ty, unsigned scid)
   : SubclassID(scid), HasValueHandle(0),
-    SubclassOptionalData(0), SubclassData(0), VTy(checkType(ty)),
+    SubclassOptionalData(0), SubclassData(0), VTy((Type*)checkType(ty)),
     UseList(0), Name(0) {
+  // FIXME: Why isn't this in the subclass gunk??
   if (isa<CallInst>(this) || isa<InvokeInst>(this))
-    assert((VTy->isFirstClassType() || VTy->isVoidTy() ||
-            ty->isOpaqueTy() || VTy->isStructTy()) &&
-           "invalid CallInst  type!");
+    assert((VTy->isFirstClassType() || VTy->isVoidTy() || VTy->isStructTy()) &&
+           "invalid CallInst type!");
   else if (!isa<Constant>(this) && !isa<BasicBlock>(this))
-    assert((VTy->isFirstClassType() || VTy->isVoidTy() ||
-            ty->isOpaqueTy()) &&
+    assert((VTy->isFirstClassType() || VTy->isVoidTy()) &&
            "Cannot create non-first-class values except for constants!");
 }
 
@@ -281,17 +280,16 @@ void Value::takeName(Value *V) {
 }
 
 
-// uncheckedReplaceAllUsesWith - This is exactly the same as replaceAllUsesWith,
-// except that it doesn't have all of the asserts.  The asserts fail because we
-// are half-way done resolving types, which causes some types to exist as two
-// different Type*'s at the same time.  This is a sledgehammer to work around
-// this problem.
-//
-void Value::uncheckedReplaceAllUsesWith(Value *New) {
+void Value::replaceAllUsesWith(Value *New) {
+  assert(New && "Value::replaceAllUsesWith(<null>) is invalid!");
+  assert(New != this && "this->replaceAllUsesWith(this) is NOT valid!");
+  assert(New->getType() == getType() &&
+         "replaceAllUses of value with new value of different type!");
+
   // Notify all ValueHandles (if present) that this value is going away.
   if (HasValueHandle)
     ValueHandleBase::ValueIsRAUWd(this, New);
-
+  
   while (!use_empty()) {
     Use &U = *UseList;
     // Must handle Constants specially, we cannot call replaceUsesOfWith on a
@@ -302,18 +300,12 @@ void Value::uncheckedReplaceAllUsesWith(Value *New) {
         continue;
       }
     }
-
+    
     U.set(New);
   }
-}
-
-void Value::replaceAllUsesWith(Value *New) {
-  assert(New && "Value::replaceAllUsesWith(<null>) is invalid!");
-  assert(New != this && "this->replaceAllUsesWith(this) is NOT valid!");
-  assert(New->getType() == getType() &&
-         "replaceAllUses of value with new value of different type!");
-
-  uncheckedReplaceAllUsesWith(New);
+  
+  if (BasicBlock *BB = dyn_cast<BasicBlock>(this))
+    BB->replaceSuccessorsPhiUsesWith(cast<BasicBlock>(New));
 }
 
 Value *Value::stripPointerCasts() {

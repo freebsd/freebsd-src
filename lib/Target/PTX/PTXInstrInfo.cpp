@@ -18,27 +18,29 @@
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/SelectionDAG.h"
 #include "llvm/CodeGen/SelectionDAGNodes.h"
+#include "llvm/Target/TargetRegistry.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 
-using namespace llvm;
-
+#define GET_INSTRINFO_CTOR
 #include "PTXGenInstrInfo.inc"
 
+using namespace llvm;
+
 PTXInstrInfo::PTXInstrInfo(PTXTargetMachine &_TM)
-  : TargetInstrInfoImpl(PTXInsts, array_lengthof(PTXInsts)),
+  : PTXGenInstrInfo(),
     RI(_TM, *this), TM(_TM) {}
 
 static const struct map_entry {
   const TargetRegisterClass *cls;
   const int opcode;
 } map[] = {
-  { &PTX::RRegu16RegClass, PTX::MOVU16rr },
-  { &PTX::RRegu32RegClass, PTX::MOVU32rr },
-  { &PTX::RRegu64RegClass, PTX::MOVU64rr },
-  { &PTX::RRegf32RegClass, PTX::MOVF32rr },
-  { &PTX::RRegf64RegClass, PTX::MOVF64rr },
-  { &PTX::PredsRegClass,   PTX::MOVPREDrr }
+  { &PTX::RegI16RegClass, PTX::MOVU16rr },
+  { &PTX::RegI32RegClass, PTX::MOVU32rr },
+  { &PTX::RegI64RegClass, PTX::MOVU64rr },
+  { &PTX::RegF32RegClass, PTX::MOVF32rr },
+  { &PTX::RegF64RegClass, PTX::MOVF64rr },
+  { &PTX::RegPredRegClass,   PTX::MOVPREDrr }
 };
 
 void PTXInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
@@ -47,8 +49,8 @@ void PTXInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
                                bool KillSrc) const {
   for (int i = 0, e = sizeof(map)/sizeof(map[0]); i != e; ++ i) {
     if (map[i].cls->contains(DstReg, SrcReg)) {
-      const TargetInstrDesc &TID = get(map[i].opcode);
-      MachineInstr *MI = BuildMI(MBB, I, DL, TID, DstReg).
+      const MCInstrDesc &MCID = get(map[i].opcode);
+      MachineInstr *MI = BuildMI(MBB, I, DL, MCID, DstReg).
         addReg(SrcReg, getKillRegState(KillSrc));
       AddDefaultPredicate(MI);
       return;
@@ -69,8 +71,8 @@ bool PTXInstrInfo::copyRegToReg(MachineBasicBlock &MBB,
 
   for (int i = 0, e = sizeof(map)/sizeof(map[0]); i != e; ++ i)
     if (DstRC == map[i].cls) {
-      const TargetInstrDesc &TID = get(map[i].opcode);
-      MachineInstr *MI = BuildMI(MBB, I, DL, TID, DstReg).addReg(SrcReg);
+      const MCInstrDesc &MCID = get(map[i].opcode);
+      MachineInstr *MI = BuildMI(MBB, I, DL, MCID, DstReg).addReg(SrcReg);
       AddDefaultPredicate(MI);
       return true;
     }
@@ -155,7 +157,7 @@ DefinesPredicate(MachineInstr *MI,
 
   const MachineOperand &MO = MI->getOperand(0);
 
-  if (!MO.isReg() || RI.getRegClass(MO.getReg()) != &PTX::PredsRegClass)
+  if (!MO.isReg() || RI.getRegClass(MO.getReg()) != &PTX::RegPredRegClass)
     return false;
 
   Pred.push_back(MO);
@@ -178,13 +180,13 @@ AnalyzeBranch(MachineBasicBlock &MBB,
 
   MachineBasicBlock::const_iterator iter = MBB.end();
   const MachineInstr& instLast1 = *--iter;
-  const TargetInstrDesc &desc1 = instLast1.getDesc();
+  const MCInstrDesc &desc1 = instLast1.getDesc();
   // for special case that MBB has only 1 instruction
   const bool IsSizeOne = MBB.size() == 1;
   // if IsSizeOne is true, *--iter and instLast2 are invalid
   // we put a dummy value in instLast2 and desc2 since they are used
   const MachineInstr& instLast2 = IsSizeOne ? instLast1 : *--iter;
-  const TargetInstrDesc &desc2 = IsSizeOne ? desc1 : instLast2.getDesc();
+  const MCInstrDesc &desc2 = IsSizeOne ? desc1 : instLast2.getDesc();
 
   DEBUG(dbgs() << "\n");
   DEBUG(dbgs() << "AnalyzeBranch: opcode: " << instLast1.getOpcode() << "\n");
@@ -288,6 +290,77 @@ InsertBranch(MachineBasicBlock &MBB,
   }
 }
 
+// Memory operand folding for spills
+void PTXInstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
+                                       MachineBasicBlock::iterator MII,
+                                     unsigned SrcReg, bool isKill, int FrameIdx,
+                                       const TargetRegisterClass *RC,
+                                       const TargetRegisterInfo *TRI) const {
+  MachineInstr& MI = *MII;
+  DebugLoc DL = MI.getDebugLoc();
+
+  DEBUG(dbgs() << "storeRegToStackSlot: " << MI);
+
+  int OpCode;
+
+  // Select the appropriate opcode based on the register class
+  if (RC == PTX::RegI16RegisterClass) {
+    OpCode = PTX::STACKSTOREI16;
+  }  else if (RC == PTX::RegI32RegisterClass) {
+    OpCode = PTX::STACKSTOREI32;
+  }  else if (RC == PTX::RegI64RegisterClass) {
+    OpCode = PTX::STACKSTOREI32;
+  }  else if (RC == PTX::RegF32RegisterClass) {
+    OpCode = PTX::STACKSTOREF32;
+  }  else if (RC == PTX::RegF64RegisterClass) {
+    OpCode = PTX::STACKSTOREF64;
+  } else {
+    llvm_unreachable("Unknown PTX register class!");
+  }
+
+  // Build the store instruction (really a mov)
+  MachineInstrBuilder MIB = BuildMI(MBB, MII, DL, get(OpCode));
+  MIB.addFrameIndex(FrameIdx);
+  MIB.addReg(SrcReg);
+
+  AddDefaultPredicate(MIB);
+}
+
+void PTXInstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
+                                        MachineBasicBlock::iterator MII,
+                                        unsigned DestReg, int FrameIdx,
+                                        const TargetRegisterClass *RC,
+                                        const TargetRegisterInfo *TRI) const {
+  MachineInstr& MI = *MII;
+  DebugLoc DL = MI.getDebugLoc();
+
+  DEBUG(dbgs() << "loadRegToStackSlot: " << MI);
+
+  int OpCode;
+
+  // Select the appropriate opcode based on the register class
+  if (RC == PTX::RegI16RegisterClass) {
+    OpCode = PTX::STACKLOADI16;
+  } else if (RC == PTX::RegI32RegisterClass) {
+    OpCode = PTX::STACKLOADI32;
+  } else if (RC == PTX::RegI64RegisterClass) {
+    OpCode = PTX::STACKLOADI32;
+  } else if (RC == PTX::RegF32RegisterClass) {
+    OpCode = PTX::STACKLOADF32;
+  } else if (RC == PTX::RegF64RegisterClass) {
+    OpCode = PTX::STACKLOADF64;
+  } else {
+    llvm_unreachable("Unknown PTX register class!");
+  }
+
+  // Build the load instruction (really a mov)
+  MachineInstrBuilder MIB = BuildMI(MBB, MII, DL, get(OpCode));
+  MIB.addReg(DestReg);
+  MIB.addFrameIndex(FrameIdx);
+
+  AddDefaultPredicate(MIB);
+}
+
 // static helper routines
 
 MachineSDNode *PTXInstrInfo::
@@ -316,7 +389,7 @@ void PTXInstrInfo::AddDefaultPredicate(MachineInstr *MI) {
 }
 
 bool PTXInstrInfo::IsAnyKindOfBranch(const MachineInstr& inst) {
-  const TargetInstrDesc &desc = inst.getDesc();
+  const MCInstrDesc &desc = inst.getDesc();
   return desc.isTerminator() || desc.isBranch() || desc.isIndirectBranch();
 }
 

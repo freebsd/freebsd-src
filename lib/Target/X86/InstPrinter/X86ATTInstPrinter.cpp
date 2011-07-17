@@ -15,30 +15,23 @@
 #define DEBUG_TYPE "asm-printer"
 #include "X86ATTInstPrinter.h"
 #include "X86InstComments.h"
-#include "X86Subtarget.h"
+#include "MCTargetDesc/X86MCTargetDesc.h"
 #include "llvm/MC/MCInst.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/Format.h"
 #include "llvm/Support/FormattedStream.h"
-#include "X86GenInstrNames.inc"
 #include <map>
 using namespace llvm;
 
 // Include the auto-generated portion of the assembly writer.
 #define GET_INSTRUCTION_NAME
 #define PRINT_ALIAS_INSTR
-#include "X86GenRegisterNames.inc"
 #include "X86GenAsmWriter.inc"
-#undef PRINT_ALIAS_INSTR
-#undef GET_INSTRUCTION_NAME
 
-X86ATTInstPrinter::X86ATTInstPrinter(TargetMachine &TM, const MCAsmInfo &MAI)
+X86ATTInstPrinter::X86ATTInstPrinter(const MCAsmInfo &MAI)
   : MCInstPrinter(MAI) {
-  // Initialize the set of available features.
-  setAvailableFeatures(ComputeAvailableFeatures(
-            &TM.getSubtarget<X86Subtarget>()));
 }
 
 void X86ATTInstPrinter::printRegName(raw_ostream &OS,

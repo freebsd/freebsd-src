@@ -40,7 +40,7 @@ define i32* @test4({ i32 }* %I) {
         %B = getelementptr { i32 }* %A, i64 0, i32 0
         ret i32* %B
 ; CHECK: @test4
-; CHECK: getelementptr %intstruct* %I, i64 1, i32 0
+; CHECK: getelementptr { i32 }* %I, i64 1, i32 0
 }
 
 define void @test5(i8 %B) {
@@ -52,14 +52,6 @@ define void @test5(i8 %B) {
 ; CHECK: store i8 %B, i8* getelementptr inbounds ([10 x i8]* @Global, i64 0, i64 4)
 }
 
-define i32* @test6() {
-        %M = malloc [4 x i32] 
-        %A = getelementptr [4 x i32]* %M, i64 0, i64 0
-        %B = getelementptr i32* %A, i64 2             
-        ret i32* %B
-; CHECK: @test6
-; CHECK: getelementptr i8* %malloccall, i64 8
-}
 
 define i32* @test7(i32* %I, i64 %C, i64 %D) {
         %A = getelementptr i32* %I, i64 %C 
@@ -94,7 +86,7 @@ define i1 @test10({ i32, i32 }* %x, { i32, i32 }* %y) {
         %tmp.4 = icmp eq i32* %tmp.1, %tmp.3       
         ret i1 %tmp.4
 ; CHECK: @test10
-; CHECK: icmp eq %pair* %x, %y
+; CHECK: icmp eq { i32, i32 }* %x, %y
 }
 
 define i1 @test11({ i32, i32 }* %X) {
@@ -102,7 +94,7 @@ define i1 @test11({ i32, i32 }* %X) {
         %Q = icmp eq i32* %P, null             
         ret i1 %Q
 ; CHECK: @test11
-; CHECK: icmp eq %pair* %X, null
+; CHECK: icmp eq { i32, i32 }* %X, null
 }
 
 
@@ -234,19 +226,6 @@ define i1 @test23() {
         ret i1 %B
 ; CHECK: @test23
 ; CHECK: ret i1 false
-}
-
-%"java/lang/Object" = type { %struct.llvm_java_object_base }
-%"java/lang/StringBuffer" = type { %"java/lang/Object", i32, { %"java/lang/Object", i32, [0 x i16] }*, i1 }
-%struct.llvm_java_object_base = type opaque
-
-define void @test24() {
-bc0:
-        %tmp53 = getelementptr %"java/lang/StringBuffer"* null, i32 0, i32 1            ; <i32*> [#uses=1]
-        store i32 0, i32* %tmp53
-        ret void
-; CHECK: @test24
-; CHECK: store i32 0, i32* getelementptr (%"java/lang/StringBuffer"* null, i64 0, i32 1)
 }
 
 define void @test25() {
@@ -476,4 +455,20 @@ define i32* @test38(i32* %I, i32 %n) {
 ; CHECK: @test38
 ; CHECK: = sext i32 %n to i64
 ; CHECK: %A = getelementptr i32* %I, i64 %
+}
+
+; Test that we don't duplicate work when the second gep is a "bitcast".
+%pr10322_t = type { i8* }
+declare void @pr10322_f2(%pr10322_t*)
+declare void @pr10322_f3(i8**)
+define void @pr10322_f1(%pr10322_t* %foo) {
+entry:
+  %arrayidx8 = getelementptr inbounds %pr10322_t* %foo, i64 2
+  call void @pr10322_f2(%pr10322_t* %arrayidx8) nounwind
+  %tmp2 = getelementptr inbounds %pr10322_t* %arrayidx8, i64 0, i32 0
+  call void @pr10322_f3(i8** %tmp2) nounwind
+  ret void
+
+; CHECK: @pr10322_f1
+; CHECK: %tmp2 = getelementptr inbounds %pr10322_t* %arrayidx8, i64 0, i32 0
 }

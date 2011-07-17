@@ -18,6 +18,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "FastISelEmitter.h"
+#include "Error.h"
 #include "Record.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/VectorExtras.h"
@@ -247,10 +248,12 @@ struct OperandsSignature {
       
       // For now, the only other thing we accept is register operands.
       const CodeGenRegisterClass *RC = 0;
+      if (OpLeafRec->isSubClassOf("RegisterOperand"))
+        OpLeafRec = OpLeafRec->getValueAsDef("RegClass");
       if (OpLeafRec->isSubClassOf("RegisterClass"))
         RC = &Target.getRegisterClass(OpLeafRec);
       else if (OpLeafRec->isSubClassOf("Register"))
-        RC = Target.getRegisterClassForRegister(OpLeafRec);
+        RC = Target.getRegBank().getRegClassForRegister(OpLeafRec);
       else
         return false;
 
@@ -406,15 +409,7 @@ static std::string PhyRegForNode(TreePatternNode *Op,
   PhysReg += static_cast<StringInit*>(OpLeafRec->getValue( \
              "Namespace")->getValue())->getValue();
   PhysReg += "::";
-
-  std::vector<CodeGenRegister> Regs = Target.getRegisters();
-  for (unsigned i = 0; i < Regs.size(); ++i) {
-    if (Regs[i].TheDef == OpLeafRec) {
-      PhysReg += Regs[i].getName();
-      break;
-    }
-  }
-
+  PhysReg += Target.getRegBank().getReg(OpLeafRec)->getName();
   return PhysReg;
 }
 
@@ -461,6 +456,8 @@ void FastISelMap::collectPatterns(CodeGenDAGPatterns &CGP) {
     std::string SubRegNo;
     if (Op->getName() != "EXTRACT_SUBREG") {
       Record *Op0Rec = II.Operands[0].Rec;
+      if (Op0Rec->isSubClassOf("RegisterOperand"))
+        Op0Rec = Op0Rec->getValueAsDef("RegClass");
       if (!Op0Rec->isSubClassOf("RegisterClass"))
         continue;
       DstRC = &Target.getRegisterClass(Op0Rec);

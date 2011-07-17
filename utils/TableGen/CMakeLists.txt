@@ -25,6 +25,7 @@ add_llvm_utility(tblgen
   DAGISelMatcher.cpp
   DisassemblerEmitter.cpp
   EDEmitter.cpp
+  Error.cpp
   FastISelEmitter.cpp
   FixedLenDecoderEmitter.cpp
   InstrEnumEmitter.cpp
@@ -33,6 +34,7 @@ add_llvm_utility(tblgen
   LLVMCConfigurationEmitter.cpp
   NeonEmitter.cpp
   OptParserEmitter.cpp
+  PseudoLoweringEmitter.cpp
   Record.cpp
   RegisterInfoEmitter.cpp
   SetTheory.cpp

@@ -123,9 +123,6 @@ $(BUILT_SOURCES) : $(ObjMakefiles)
 reconfigure:
 	$(Echo) Reconfiguring $(PROJ_OBJ_ROOT)
 	$(Verb) cd $(PROJ_OBJ_ROOT) && \
-	  if test -w $(PROJ_OBJ_ROOT)/config.cache ; then \
-	    $(RM) $(PROJ_OBJ_ROOT)/config.cache ; \
-	  fi ; \
 	  $(ConfigStatusScript) --recheck $(ConfigureScriptFLAGS) && \
 	  $(ConfigStatusScript)
 
@@ -133,9 +130,6 @@ reconfigure:
 $(ConfigStatusScript): $(ConfigureScript)
 	$(Echo) Reconfiguring with $<
 	$(Verb) cd $(PROJ_OBJ_ROOT) && \
-	  if test -w $(PROJ_OBJ_ROOT)/config.cache ; then \
-	    $(RM) $(PROJ_OBJ_ROOT)/config.cache ; \
-	  fi ; \
 	  $(ConfigStatusScript) --recheck $(ConfigureScriptFLAGS) && \
 	  $(ConfigStatusScript)
 
@@ -581,6 +575,10 @@ endif
 #----------------------------------------------------------
 # Options To Invoke Tools
 #----------------------------------------------------------
+
+ifdef EXTRA_LD_OPTIONS
+LD.Flags += $(EXTRA_LD_OPTIONS)
+endif
 
 ifndef NO_PEDANTIC
 CompileCommonOpts += -pedantic -Wno-long-long
@@ -1379,7 +1377,7 @@ endif
 #---------------------------------------------------------
 
 ifeq ($(HOST_OS),Darwin)
-ifdef TOOL_ORDER_FINE
+ifdef TOOL_ORDER_FILE
 
 LD.Flags += -Wl,-order_file,$(TOOL_ORDER_FILE)
 
@@ -1722,30 +1720,15 @@ TDFiles := $(strip $(wildcard $(PROJ_SRC_DIR)/*.td) \
 # All of these files depend on tblgen and the .td files.
 $(INCTMPFiles) : $(TBLGEN) $(TDFiles)
 
-$(TARGET:%=$(ObjDir)/%GenRegisterNames.inc.tmp): \
-$(ObjDir)/%GenRegisterNames.inc.tmp : %.td $(ObjDir)/.dir
-	$(Echo) "Building $(<F) register names with tblgen"
-	$(Verb) $(TableGen) -gen-register-enums -o $(call SYSPATH, $@) $<
-
-$(TARGET:%=$(ObjDir)/%GenRegisterInfo.h.inc.tmp): \
-$(ObjDir)/%GenRegisterInfo.h.inc.tmp : %.td $(ObjDir)/.dir
-	$(Echo) "Building $(<F) register information header with tblgen"
-	$(Verb) $(TableGen) -gen-register-desc-header -o $(call SYSPATH, $@) $<
-
 $(TARGET:%=$(ObjDir)/%GenRegisterInfo.inc.tmp): \
 $(ObjDir)/%GenRegisterInfo.inc.tmp : %.td $(ObjDir)/.dir
 	$(Echo) "Building $(<F) register info implementation with tblgen"
-	$(Verb) $(TableGen) -gen-register-desc -o $(call SYSPATH, $@) $<
-
-$(TARGET:%=$(ObjDir)/%GenInstrNames.inc.tmp): \
-$(ObjDir)/%GenInstrNames.inc.tmp : %.td $(ObjDir)/.dir
-	$(Echo) "Building $(<F) instruction names with tblgen"
-	$(Verb) $(TableGen) -gen-instr-enums -o $(call SYSPATH, $@) $<
+	$(Verb) $(TableGen) -gen-register-info -o $(call SYSPATH, $@) $<
 
 $(TARGET:%=$(ObjDir)/%GenInstrInfo.inc.tmp): \
 $(ObjDir)/%GenInstrInfo.inc.tmp : %.td $(ObjDir)/.dir
 	$(Echo) "Building $(<F) instruction information with tblgen"
-	$(Verb) $(TableGen) -gen-instr-desc -o $(call SYSPATH, $@) $<
+	$(Verb) $(TableGen) -gen-instr-info -o $(call SYSPATH, $@) $<
 
 $(TARGET:%=$(ObjDir)/%GenAsmWriter.inc.tmp): \
 $(ObjDir)/%GenAsmWriter.inc.tmp : %.td $(ObjDir)/.dir
@@ -1766,6 +1749,11 @@ $(TARGET:%=$(ObjDir)/%GenMCCodeEmitter.inc.tmp): \
 $(ObjDir)/%GenMCCodeEmitter.inc.tmp: %.td $(ObjDir)/.dir
 	$(Echo) "Building $(<F) MC code emitter with tblgen"
 	$(Verb) $(TableGen) -gen-emitter -mc-emitter -o $(call SYSPATH, $@) $<
+
+$(TARGET:%=$(ObjDir)/%GenMCPseudoLowering.inc.tmp): \
+$(ObjDir)/%GenMCPseudoLowering.inc.tmp: %.td $(ObjDir)/.dir
+	$(Echo) "Building $(<F) MC Pseudo instruction expander with tblgen"
+	$(Verb) $(TableGen) -gen-pseudo-lowering -o $(call SYSPATH, $@) $<
 
 $(TARGET:%=$(ObjDir)/%GenCodeEmitter.inc.tmp): \
 $(ObjDir)/%GenCodeEmitter.inc.tmp: %.td $(ObjDir)/.dir
@@ -1792,8 +1780,8 @@ $(ObjDir)/%GenFastISel.inc.tmp : %.td $(ObjDir)/.dir
 	$(Echo) "Building $(<F) \"fast\" instruction selector implementation with tblgen"
 	$(Verb) $(TableGen) -gen-fast-isel -o $(call SYSPATH, $@) $<
 
-$(TARGET:%=$(ObjDir)/%GenSubtarget.inc.tmp): \
-$(ObjDir)/%GenSubtarget.inc.tmp : %.td $(ObjDir)/.dir
+$(TARGET:%=$(ObjDir)/%GenSubtargetInfo.inc.tmp): \
+$(ObjDir)/%GenSubtargetInfo.inc.tmp : %.td $(ObjDir)/.dir
 	$(Echo) "Building $(<F) subtarget information with tblgen"
 	$(Verb) $(TableGen) -gen-subtarget -o $(call SYSPATH, $@) $<
 

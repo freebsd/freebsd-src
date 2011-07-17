@@ -14,13 +14,14 @@
 #include "llvm/Function.h"
 #include "llvm/GlobalValue.h"
 #include "llvm/LLVMContext.h"
+#include "llvm/ADT/ArrayRef.h"
 
 using namespace llvm;
 
 namespace {
 
 Function *makeFakeFunction() {
-  std::vector<const Type*> params;
+  std::vector<Type*> params;
   const FunctionType *FTy =
       FunctionType::get(Type::getVoidTy(getGlobalContext()), params, false);
   return Function::Create(FTy, GlobalValue::ExternalLinkage);

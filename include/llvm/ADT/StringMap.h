@@ -140,7 +140,7 @@ public:
   /// StringMapEntry object.
   const char *getKeyData() const {return reinterpret_cast<const char*>(this+1);}
 
-  const char *first() const { return getKeyData(); }
+  StringRef first() const { return StringRef(getKeyData(), getKeyLength()); }
 
   /// Create - Create a StringMapEntry for the specified key and default
   /// construct the value.
@@ -307,7 +307,7 @@ public:
     return ValueTy();
   }
 
-  ValueTy& operator[](StringRef Key) {
+  ValueTy &operator[](StringRef Key) {
     return GetOrCreateValue(Key).getValue();
   }
 
@@ -355,8 +355,7 @@ public:
   /// exists, return it.  Otherwise, default construct a value, insert it, and
   /// return.
   template <typename InitTy>
-  StringMapEntry<ValueTy> &GetOrCreateValue(StringRef Key,
-                                            InitTy Val) {
+  MapEntryTy &GetOrCreateValue(StringRef Key, InitTy Val) {
     unsigned BucketNo = LookupBucketFor(Key);
     ItemBucket &Bucket = TheTable[BucketNo];
     if (Bucket.Item && Bucket.Item != getTombstoneVal())
@@ -378,20 +377,8 @@ public:
     return *NewItem;
   }
 
-  StringMapEntry<ValueTy> &GetOrCreateValue(StringRef Key) {
+  MapEntryTy &GetOrCreateValue(StringRef Key) {
     return GetOrCreateValue(Key, ValueTy());
-  }
-
-  template <typename InitTy>
-  StringMapEntry<ValueTy> &GetOrCreateValue(const char *KeyStart,
-                                            const char *KeyEnd,
-                                            InitTy Val) {
-    return GetOrCreateValue(StringRef(KeyStart, KeyEnd - KeyStart), Val);
-  }
-
-  StringMapEntry<ValueTy> &GetOrCreateValue(const char *KeyStart,
-                                            const char *KeyEnd) {
-    return GetOrCreateValue(StringRef(KeyStart, KeyEnd - KeyStart));
   }
 
   /// remove - Remove the specified key/value pair from the map, but do not

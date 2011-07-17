@@ -74,16 +74,14 @@
             <ol>
               <li><a href="#t_array">Array Type</a></li>
               <li><a href="#t_struct">Structure Type</a></li>
-              <li><a href="#t_pstruct">Packed Structure Type</a></li>
+              <li><a href="#t_opaque">Opaque Type</a></li>
               <li><a href="#t_vector">Vector Type</a></li>
             </ol>
           </li>
           <li><a href="#t_function">Function Type</a></li>
           <li><a href="#t_pointer">Pointer Type</a></li>
-          <li><a href="#t_opaque">Opaque Type</a></li>
         </ol>
       </li>
-      <li><a href="#t_uprefs">Type Up-references</a></li>
     </ol>
   </li>
   <li><a href="#constants">Constants</a>
@@ -241,6 +239,7 @@
           <li><a href="#int_pow">'<tt>llvm.pow.*</tt>' Intrinsic</a></li>
           <li><a href="#int_exp">'<tt>llvm.exp.*</tt>' Intrinsic</a></li>
           <li><a href="#int_log">'<tt>llvm.log.*</tt>' Intrinsic</a></li>
+          <li><a href="#int_fma">'<tt>llvm.fma.*</tt>' Intrinsic</a></li>
         </ol>
       </li>
       <li><a href="#int_manip">Bit Manipulation Intrinsics</a>
@@ -1164,6 +1163,11 @@ define void @f() optsize { ... }
       Most of the functions in the Windows system DLLs in Windows XP SP2 or
       higher were compiled in this fashion.</dd>
 
+  <dt><tt><b>nonlazybind</b></tt></dt>
+  <dd>This attribute suppresses lazy symbol binding for the function. This
+      may make calls to the function faster, at the cost of extra program
+      startup time if the function is not called during program startup.</dd>
+
   <dt><tt><b>inlinehint</b></tt></dt>
   <dd>This attribute indicates that the source code contained a hint that inlining
       this function is desirable (such as the "inline" keyword in C/C++).  It
@@ -1529,7 +1533,6 @@ synchronization behavior.</p>
           <a href="#t_function">function</a>,
           <a href="#t_pointer">pointer</a>,
           <a href="#t_struct">structure</a>,
-          <a href="#t_pstruct">packed structure</a>,
           <a href="#t_vector">vector</a>,
           <a href="#t_opaque">opaque</a>.
       </td>
@@ -1697,7 +1700,9 @@ synchronization behavior.</p>
    possible to have a two dimensional array, using an array as the element type
    of another array.</p>
 
-   
+</div>
+  
+
 <!-- _______________________________________________________________________ -->
 <h4>
   <a name="t_aggregate">Aggregate Types</a>
@@ -1836,9 +1841,7 @@ synchronization behavior.</p>
 
 <h5>Overview:</h5>
 <p>The structure type is used to represent a collection of data members together
-   in memory.  The packing of the field types is defined to match the ABI of the
-   underlying processor.  The elements of a structure may be any type that has a
-   size.</p>
+  in memory.  The elements of a structure may be any type that has a size.</p>
 
 <p>Structures in memory are accessed using '<tt><a href="#i_load">load</a></tt>'
    and '<tt><a href="#i_store">store</a></tt>' by getting a pointer to a field
@@ -1846,65 +1849,75 @@ synchronization behavior.</p>
    Structures in registers are accessed using the
    '<tt><a href="#i_extractvalue">extractvalue</a></tt>' and
    '<tt><a href="#i_insertvalue">insertvalue</a></tt>' instructions.</p>
+  
+<p>Structures may optionally be "packed" structures, which indicate that the 
+  alignment of the struct is one byte, and that there is no padding between
+  the elements.  In non-packed structs, padding between field types is defined
+  by the target data string to match the underlying processor.</p>
+
+<p>Structures can either be "anonymous" or "named".  An anonymous structure is
+  defined inline with other types (e.g. <tt>{i32, i32}*</tt>) and a named types
+  are always defined at the top level with a name.  Anonmyous types are uniqued
+  by their contents and can never be recursive since there is no way to write
+  one.  Named types can be recursive.
+</p>
+  
 <h5>Syntax:</h5>
 <pre>
-  { &lt;type list&gt; }
+  %T1 = type { &lt;type list&gt; }     <i>; Named normal struct type</i>
+  %T2 = type &lt;{ &lt;type list&gt; }&gt;   <i>; Named packed struct type</i>
 </pre>
-
+  
 <h5>Examples:</h5>
 <table class="layout">
   <tr class="layout">
     <td class="left"><tt>{ i32, i32, i32 }</tt></td>
     <td class="left">A triple of three <tt>i32</tt> values</td>
-  </tr><tr class="layout">
+  </tr>
+  <tr class="layout">
     <td class="left"><tt>{&nbsp;float,&nbsp;i32&nbsp;(i32)&nbsp;*&nbsp;}</tt></td>
     <td class="left">A pair, where the first element is a <tt>float</tt> and the
       second element is a <a href="#t_pointer">pointer</a> to a
       <a href="#t_function">function</a> that takes an <tt>i32</tt>, returning
       an <tt>i32</tt>.</td>
   </tr>
+  <tr class="layout">
+    <td class="left"><tt>&lt;{ i8, i32 }&gt;</tt></td>
+    <td class="left">A packed struct known to be 5 bytes in size.</td>
+  </tr>
 </table>
 
 </div>
-
+  
 <!-- _______________________________________________________________________ -->
 <h4>
-  <a name="t_pstruct">Packed Structure Type</a>
+  <a name="t_opaque">Opaque Type</a>
 </h4>
 
 <div>
 
 <h5>Overview:</h5>
-<p>The packed structure type is used to represent a collection of data members
-   together in memory.  There is no padding between fields.  Further, the
-   alignment of a packed structure is 1 byte.  The elements of a packed
-   structure may be any type that has a size.</p>
-
-<p>Structures are accessed using '<tt><a href="#i_load">load</a></tt> and
-   '<tt><a href="#i_store">store</a></tt>' by getting a pointer to a field with
-   the '<tt><a href="#i_getelementptr">getelementptr</a></tt>' instruction.</p>
+<p>Opaque types are used to represent named structure types that do not have a
+   body specified.  This corresponds (for example) to the C notion of a forward 
+   declared structure.</p>
 
 <h5>Syntax:</h5>
 <pre>
-  &lt; { &lt;type list&gt; } &gt;
+  %X = type opaque
+  %52 = type opaque
 </pre>
 
 <h5>Examples:</h5>
 <table class="layout">
   <tr class="layout">
-    <td class="left"><tt>&lt; { i32, i32, i32 } &gt;</tt></td>
-    <td class="left">A triple of three <tt>i32</tt> values</td>
-  </tr><tr class="layout">
-  <td class="left">
-<tt>&lt;&nbsp;{&nbsp;float,&nbsp;i32&nbsp;(i32)*&nbsp;}&nbsp;&gt;</tt></td>
-    <td class="left">A pair, where the first element is a <tt>float</tt> and the
-      second element is a <a href="#t_pointer">pointer</a> to a
-      <a href="#t_function">function</a> that takes an <tt>i32</tt>, returning
-      an <tt>i32</tt>.</td>
+    <td class="left"><tt>opaque</tt></td>
+    <td class="left">An opaque type.</td>
   </tr>
 </table>
 
 </div>
+
+
 
 <!-- _______________________________________________________________________ -->
 <h4>
@@ -1990,86 +2003,6 @@ synchronization behavior.</p>
     <td class="left">Vector of 2 64-bit integer values.</td>
   </tr>
 </table>
-
-</div>
-
-<!-- _______________________________________________________________________ -->
-<h4>
-  <a name="t_opaque">Opaque Type</a>
-</h4>
-
-<div>
-
-<h5>Overview:</h5>
-<p>Opaque types are used to represent unknown types in the system.  This
-   corresponds (for example) to the C notion of a forward declared structure
-   type.  In LLVM, opaque types can eventually be resolved to any type (not just
-   a structure type).</p>
-
-<h5>Syntax:</h5>
-<pre>
-  opaque
-</pre>
-
-<h5>Examples:</h5>
-<table class="layout">
-  <tr class="layout">
-    <td class="left"><tt>opaque</tt></td>
-    <td class="left">An opaque type.</td>
-  </tr>
-</table>
-
-</div>
-
-</div>
-
-<!-- ======================================================================= -->
-<h3>
-  <a name="t_uprefs">Type Up-references</a>
-</h3>
-
-<div>
-
-<h5>Overview:</h5>
-<p>An "up reference" allows you to refer to a lexically enclosing type without
-   requiring it to have a name. For instance, a structure declaration may
-   contain a pointer to any of the types it is lexically a member of.  Example
-   of up references (with their equivalent as named type declarations)
-   include:</p>
-
-<pre>
-   { \2 * }                %x = type { %x* }
-   { \2 }*                 %y = type { %y }*
-   \1*                     %z = type %z*
-</pre>
-
-<p>An up reference is needed by the asmprinter for printing out cyclic types
-   when there is no declared name for a type in the cycle.  Because the
-   asmprinter does not want to print out an infinite type string, it needs a
-   syntax to handle recursive types that have no names (all names are optional
-   in llvm IR).</p>
-
-<h5>Syntax:</h5>
-<pre>
-   \&lt;level&gt;
-</pre>
-
-<p>The level is the count of the lexical type that is being referred to.</p>
-
-<h5>Examples:</h5>
-<table class="layout">
-  <tr class="layout">
-    <td class="left"><tt>\1*</tt></td>
-    <td class="left">Self-referential pointer.</td>
-  </tr>
-  <tr class="layout">
-    <td class="left"><tt>{ { \3*, i8 }, i32 }</tt></td>
-    <td class="left">Recursive structure where the upref refers to the out-most
-                     structure.</td>
-  </tr>
-</table>
-
-</div>
 
 </div>
 
@@ -6064,7 +5997,7 @@ LLVM</a>.</p>
 
 <h5>Syntax:</h5>
 <pre>
-  declare void @llvm.prefetch(i8* &lt;address&gt;, i32 &lt;rw&gt;, i32 &lt;locality&gt;)
+  declare void @llvm.prefetch(i8* &lt;address&gt;, i32 &lt;rw&gt;, i32 &lt;locality&gt;, i32 &lt;cache type&gt;)
 </pre>
 
 <h5>Overview:</h5>
@@ -6077,8 +6010,10 @@ LLVM</a>.</p>
 <p><tt>address</tt> is the address to be prefetched, <tt>rw</tt> is the
    specifier determining if the fetch should be for a read (0) or write (1),
    and <tt>locality</tt> is a temporal locality specifier ranging from (0) - no
-   locality, to (3) - extremely local keep in cache.  The <tt>rw</tt>
-   and <tt>locality</tt> arguments must be constant integers.</p>
+   locality, to (3) - extremely local keep in cache. The <tt>cache type</tt>
+   specifies whether the prefetch is performed on the data (1) or instruction (0)
+   cache. The <tt>rw</tt>, <tt>locality</tt> and <tt>cache type</tt> arguments
+   must be constant integers.</p>
 
 <h5>Semantics:</h5>
 <p>This intrinsic does not modify the behavior of the program.  In particular,
@@ -6563,6 +6498,37 @@ LLVM</a>.</p>
 <p>This function returns the same values as the libm <tt>log</tt> functions
    would, and handles error conditions in the same way.</p>
 
+<h4>
+  <a name="int_fma">'<tt>llvm.fma.*</tt>' Intrinsic</a>
+</h4>
+
+<div>
+
+<h5>Syntax:</h5>
+<p>This is an overloaded intrinsic. You can use <tt>llvm.fma</tt> on any
+   floating point or vector of floating point type. Not all targets support all
+   types however.</p>
+
+<pre>
+  declare float     @llvm.fma.f32(float  %a, float  %b, float  %c)
+  declare double    @llvm.fma.f64(double %a, double %b, double %c)
+  declare x86_fp80  @llvm.fma.f80(x86_fp80 %a, x86_fp80 %b, x86_fp80 %c)
+  declare fp128     @llvm.fma.f128(fp128 %a, fp128 %b, fp128 %c)
+  declare ppc_fp128 @llvm.fma.ppcf128(ppc_fp128 %a, ppc_fp128 %b, ppc_fp128 %c)
+</pre>
+
+<h5>Overview:</h5>
+<p>The '<tt>llvm.fma.*</tt>' intrinsics perform the fused multiply-add
+   operation.</p>
+
+<h5>Arguments:</h5>
+<p>The argument and return value are floating point numbers of the same
+   type.</p>
+
+<h5>Semantics:</h5>
+<p>This function returns the same values as the libm <tt>fma</tt> functions
+   would.</p>
+
 </div>
 
 <!-- ======================================================================= -->
@@ -6619,7 +6585,8 @@ LLVM</a>.</p>
 
 <h5>Syntax:</h5>
 <p>This is an overloaded intrinsic. You can use llvm.ctpop on any integer bit
-   width. Not all targets support all bit widths however.</p>
+   width, or on any vector with integer elements. Not all targets support all
+  bit widths or vector types, however.</p>
 
 <pre>
   declare i8 @llvm.ctpop.i8(i8  &lt;src&gt;)
@@ -6627,6 +6594,7 @@ LLVM</a>.</p>
   declare i32 @llvm.ctpop.i32(i32 &lt;src&gt;)
   declare i64 @llvm.ctpop.i64(i64 &lt;src&gt;)
   declare i256 @llvm.ctpop.i256(i256 &lt;src&gt;)
+  declare &lt;2 x i32&gt; @llvm.ctpop.v2i32(&lt;2 x i32&gt; &lt;src&gt;)
 </pre>
 
 <h5>Overview:</h5>
@@ -6635,10 +6603,12 @@ LLVM</a>.</p>
 
 <h5>Arguments:</h5>
 <p>The only argument is the value to be counted.  The argument may be of any
-   integer type.  The return type must match the argument type.</p>
+   integer type, or a vector with integer elements.
+   The return type must match the argument type.</p>
 
 <h5>Semantics:</h5>
-<p>The '<tt>llvm.ctpop</tt>' intrinsic counts the 1's in a variable.</p>
+<p>The '<tt>llvm.ctpop</tt>' intrinsic counts the 1's in a variable, or within each
+   element of a vector.</p>
 
 </div>
 
@@ -6651,7 +6621,8 @@ LLVM</a>.</p>
 
 <h5>Syntax:</h5>
 <p>This is an overloaded intrinsic. You can use <tt>llvm.ctlz</tt> on any
-   integer bit width. Not all targets support all bit widths however.</p>
+   integer bit width, or any vector whose elements are integers. Not all
+   targets support all bit widths or vector types, however.</p>
 
 <pre>
   declare i8 @llvm.ctlz.i8 (i8  &lt;src&gt;)
@@ -6659,6 +6630,7 @@ LLVM</a>.</p>
   declare i32 @llvm.ctlz.i32(i32 &lt;src&gt;)
   declare i64 @llvm.ctlz.i64(i64 &lt;src&gt;)
   declare i256 @llvm.ctlz.i256(i256 &lt;src&gt;)
+  declare &lt;2 x i32&gt; @llvm.ctlz.v2i32(&lt;2 x i32&gt; &lt;src;gt)
 </pre>
 
 <h5>Overview:</h5>
@@ -6667,11 +6639,13 @@ LLVM</a>.</p>
 
 <h5>Arguments:</h5>
 <p>The only argument is the value to be counted.  The argument may be of any
-   integer type. The return type must match the argument type.</p>
+   integer type, or any vector type with integer element type.
+   The return type must match the argument type.</p>
 
 <h5>Semantics:</h5>
 <p>The '<tt>llvm.ctlz</tt>' intrinsic counts the leading (most significant)
-   zeros in a variable.  If the src == 0 then the result is the size in bits of
+   zeros in a variable, or within each element of the vector if the operation
+   is of vector type.  If the src == 0 then the result is the size in bits of
    the type of src. For example, <tt>llvm.ctlz(i32 2) = 30</tt>.</p>
 
 </div>
@@ -6685,7 +6659,8 @@ LLVM</a>.</p>
 
 <h5>Syntax:</h5>
 <p>This is an overloaded intrinsic. You can use <tt>llvm.cttz</tt> on any
-   integer bit width. Not all targets support all bit widths however.</p>
+   integer bit width, or any vector of integer elements. Not all targets
+   support all bit widths or vector types, however.</p>
 
 <pre>
   declare i8 @llvm.cttz.i8 (i8  &lt;src&gt;)
@@ -6693,6 +6668,7 @@ LLVM</a>.</p>
   declare i32 @llvm.cttz.i32(i32 &lt;src&gt;)
   declare i64 @llvm.cttz.i64(i64 &lt;src&gt;)
   declare i256 @llvm.cttz.i256(i256 &lt;src&gt;)
+  declase &lt;2 x i32&gt; @llvm.cttz.v2i32(&lt;2 x i32&gt; &lt;src&gt;)
 </pre>
 
 <h5>Overview:</h5>
@@ -6701,11 +6677,13 @@ LLVM</a>.</p>
 
 <h5>Arguments:</h5>
 <p>The only argument is the value to be counted.  The argument may be of any
-   integer type.  The return type must match the argument type.</p>
+   integer type, or a vectory with integer element type..  The return type
+   must match the argument type.</p>
 
 <h5>Semantics:</h5>
 <p>The '<tt>llvm.cttz</tt>' intrinsic counts the trailing (least significant)
-   zeros in a variable.  If the src == 0 then the result is the size in bits of
+   zeros in a variable, or within each element of a vector.
+   If the src == 0 then the result is the size in bits of
    the type of src.  For example, <tt>llvm.cttz(2) = 1</tt>.</p>
 
 </div>
@@ -7302,7 +7280,7 @@ LLVM</a>.</p>
             store i32 4, %ptr
 
 %result1  = load i32* %ptr      <i>; yields {i32}:result1 = 4</i>
-            call void @llvm.memory.barrier(i1 false, i1 true, i1 false, i1 false)
+            call void @llvm.memory.barrier(i1 false, i1 true, i1 false, i1 false, i1 true)
                                 <i>; guarantee the above finishes</i>
             store i32 8, %ptr   <i>; before this begins</i>
 </pre>
@@ -8017,7 +7995,7 @@ LLVM</a>.</p>
 
   <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
   <a href="http://llvm.org/">The LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2011-05-27 02:36:31 +0200 (Fri, 27 May 2011) $
+  Last modified: $Date: 2011-07-09 19:41:24 +0200 (Sat, 09 Jul 2011) $
 </address>
 
 </body>

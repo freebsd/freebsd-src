@@ -46,8 +46,8 @@ def X86cmpsd   : SDNode<"X86ISD::FSETCCsd",    SDTX86Cmpsd>;
 def X86pshufb  : SDNode<"X86ISD::PSHUFB",
                  SDTypeProfile<1, 2, [SDTCisVT<0, v16i8>, SDTCisSameAs<0,1>,
                                       SDTCisSameAs<0,2>]>>;
-def X86pandn   : SDNode<"X86ISD::PANDN", 
-                 SDTypeProfile<1, 2, [SDTCisVT<0, v2i64>, SDTCisSameAs<0,1>,
+def X86andnp   : SDNode<"X86ISD::ANDNP",
+                 SDTypeProfile<1, 2, [SDTCisVec<0>, SDTCisSameAs<0,1>,
                                       SDTCisSameAs<0,2>]>>;
 def X86psignb  : SDNode<"X86ISD::PSIGNB", 
                  SDTypeProfile<1, 2, [SDTCisVT<0, v16i8>, SDTCisSameAs<0,1>,
@@ -168,11 +168,13 @@ def ssmem : Operand<v4f32> {
   let PrintMethod = "printf32mem";
   let MIOperandInfo = (ops ptr_rc, i8imm, ptr_rc_nosp, i32imm, i8imm);
   let ParserMatchClass = X86MemAsmOperand;
+  let OperandType = "OPERAND_MEMORY";
 }
 def sdmem : Operand<v2f64> {
   let PrintMethod = "printf64mem";
   let MIOperandInfo = (ops ptr_rc, i8imm, ptr_rc_nosp, i32imm, i8imm);
   let ParserMatchClass = X86MemAsmOperand;
+  let OperandType = "OPERAND_MEMORY";
 }
 
 //===----------------------------------------------------------------------===//
@@ -301,6 +303,7 @@ def bc_v2i64 : PatFrag<(ops node:$in), (v2i64 (bitconvert node:$in))>;
 
 // 256-bit bitconvert pattern fragments
 def bc_v8i32 : PatFrag<(ops node:$in), (v8i32 (bitconvert node:$in))>;
+def bc_v4i64 : PatFrag<(ops node:$in), (v4i64 (bitconvert node:$in))>;
 
 def vzmovl_v2i64 : PatFrag<(ops node:$src),
                            (bitconvert (v2i64 (X86vzmovl
