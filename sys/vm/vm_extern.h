@@ -66,6 +66,7 @@ int vm_fault_wire(vm_map_t, vm_offset_t, vm_offset_t, boolean_t, boolean_t);
 int vm_forkproc(struct thread *, struct proc *, struct thread *, struct vmspace *, int);
 void vm_waitproc(struct proc *);
 int vm_mmap(vm_map_t, vm_offset_t *, vm_size_t, vm_prot_t, vm_prot_t, int, objtype_t, void *, vm_ooffset_t);
+int vm_mmap_to_errno(int rv);
 void vm_set_page_size(void);
 void vm_sync_icache(vm_map_t, vm_offset_t, vm_size_t);
 struct vmspace *vmspace_alloc(vm_offset_t, vm_offset_t);

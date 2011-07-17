@@ -1434,6 +1434,13 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 		vm_map_wire(map, *addr, *addr + size,
 		    VM_MAP_WIRE_USER|VM_MAP_WIRE_NOHOLES);
 
+	return (vm_mmap_to_errno(rv));
+}
+
+int
+vm_mmap_to_errno(int rv)
+{
+
 	switch (rv) {
 	case KERN_SUCCESS:
 		return (0);
