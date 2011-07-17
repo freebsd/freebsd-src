@@ -795,7 +795,6 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 	struct dqblk dqb;
 	uid_t savuid;
 #endif
-	register_t chownres;
 
 	if (compare) {
 		retnotsup = 0;
@@ -1038,7 +1037,8 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 				    acl_free(naclp);
 				    goto nfsmout;
 				}
-				if (aceerr || nfsrv_compareacl(aclp, naclp))
+				if (aceerr || aclp == NULL ||
+				    nfsrv_compareacl(aclp, naclp))
 				    *retcmpp = NFSERR_NOTSAME;
 				acl_free(naclp);
 			    } else {
@@ -1128,12 +1128,8 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 			NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
 			if (compare) {
 				if (!(*retcmpp)) {
-					error = nfsvno_pathconf(vp,
-					    _PC_CHOWN_RESTRICTED, &chownres,
-					    nd->nd_cred, p);
-					if (*tl != (chownres != 0 ?
-					    newnfs_true : newnfs_false))
-						*retcmpp = NFSERR_NOTSAME;
+				    if (*tl != newnfs_true)
+					*retcmpp = NFSERR_NOTSAME;
 				}
 			} else if (pc != NULL) {
 				pc->pc_chownrestricted =
@@ -1987,7 +1983,6 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
 	struct dqblk dqb;
 	uid_t savuid;
 #endif
-	register_t chownres;
 
 	/*
 	 * First, set the bits that can be filled and get fsinfo.
@@ -2167,9 +2162,7 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
 			break;
 		case NFSATTRBIT_CHOWNRESTRICTED:
 			NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
-			error = nfsvno_pathconf(vp, _PC_CHOWN_RESTRICTED,
-			    &chownres, nd->nd_cred, p);
-			*tl = (chownres ? newnfs_true : newnfs_false);
+			*tl = newnfs_true;
 			retnum += NFSX_UNSIGNED;
 			break;
 		case NFSATTRBIT_FILEHANDLE:
