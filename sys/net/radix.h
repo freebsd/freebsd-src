@@ -132,6 +132,7 @@ struct radix_node_head {
 		(struct radix_node *rn, struct radix_node_head *head);
 	struct	radix_node rnh_nodes[3];	/* empty tree for common case */
 	int	rnh_multipath;			/* multipath capable ? */
+	u_int	rnh_spare;			/* route caching */
 #ifdef _KERNEL
 	struct	rwlock rnh_lock;		/* locks entire radix tree */
 #endif
