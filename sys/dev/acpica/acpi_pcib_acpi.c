@@ -238,13 +238,6 @@ acpi_pcib_producer_handler(ACPI_RESOURCE *res, void *context)
 			return (AE_OK);
 		}
 
-		/* XXX: Not sure this is correct? */
-		if (res->Data.Address.Decode != ACPI_POS_DECODE) {
-			device_printf(sc->ap_dev,
-		    "Ignoring %d range (%#jx-%#jx) due to negative decode\n",
-			    type, (uintmax_t)min, (uintmax_t)max);
-			break;
-		}
 		if (min + length - 1 != max)
 			device_printf(sc->ap_dev,
 			    "Length mismatch for %d range: %jx vs %jx\n", type,
