@@ -1156,7 +1156,7 @@ LESS(1)                                                                LESS(1)
             next      8bcccbcc18b95.bb125.bb
 
        If neither LESSCHARSET nor LESSCHARDEF is set, but any of  the  strings
-       "UTF-8",  "UTF8",  "utf-8" or "utf8" is found in the LC_ALL, LC_TYPE or
+       "UTF-8",  "UTF8", "utf-8" or "utf8" is found in the LC_ALL, LC_CTYPE or
        LANG environment variables, then the default character set is utf-8.
 
        If that string is not found, but your  system  supports  the  [4msetlocale[0m
@@ -1580,4 +1580,4 @@ LESS(1)                                                                LESS(1)
 
 
 
-                           Version 443: 09 Apr 2011                    LESS(1)
+                           Version 444: 09 Jun 2011                    LESS(1)

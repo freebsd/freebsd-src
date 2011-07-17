@@ -85,6 +85,7 @@ void Preprocessor::RegisterBuiltinMacros() {
 
   // Clang Extensions.
   Ident__has_feature      = RegisterBuiltinMacro(*this, "__has_feature");
+  Ident__has_extension    = RegisterBuiltinMacro(*this, "__has_extension");
   Ident__has_builtin      = RegisterBuiltinMacro(*this, "__has_builtin");
   Ident__has_attribute    = RegisterBuiltinMacro(*this, "__has_attribute");
   Ident__has_include      = RegisterBuiltinMacro(*this, "__has_include");
@@ -525,8 +526,8 @@ static void ComputeDATE_TIME(SourceLocation &DATELoc, SourceLocation &TIMELoc,
 }
 
 
-/// HasFeature - Return true if we recognize and implement the specified feature
-/// specified by the identifier.
+/// HasFeature - Return true if we recognize and implement the feature
+/// specified by the identifier as a standard language feature.
 static bool HasFeature(const Preprocessor &PP, const IdentifierInfo *II) {
   const LangOptions &LangOpts = PP.getLangOptions();
 
@@ -550,13 +551,17 @@ static bool HasFeature(const Preprocessor &PP, const IdentifierInfo *II) {
            .Case("cxx_exceptions", LangOpts.Exceptions)
            .Case("cxx_rtti", LangOpts.RTTI)
            .Case("enumerator_attributes", true)
-           .Case("generic_selections", true)
            .Case("objc_nonfragile_abi", LangOpts.ObjCNonFragileABI)
            .Case("objc_weak_class", LangOpts.ObjCNonFragileABI)
            .Case("ownership_holds", true)
            .Case("ownership_returns", true)
            .Case("ownership_takes", true)
+           // C1X features
+           .Case("c_generic_selections", LangOpts.C1X)
+           .Case("c_static_assert", LangOpts.C1X)
            // C++0x features
+           .Case("cxx_access_control_sfinae", LangOpts.CPlusPlus0x)
+           .Case("cxx_alias_templates", LangOpts.CPlusPlus0x)
            .Case("cxx_attributes", LangOpts.CPlusPlus0x)
            .Case("cxx_auto_type", LangOpts.CPlusPlus0x)
            .Case("cxx_decltype", LangOpts.CPlusPlus0x)
@@ -566,7 +571,7 @@ static bool HasFeature(const Preprocessor &PP, const IdentifierInfo *II) {
            .Case("cxx_inline_namespaces", LangOpts.CPlusPlus0x)
          //.Case("cxx_lambdas", false)
            .Case("cxx_noexcept", LangOpts.CPlusPlus0x)
-         //.Case("cxx_nullptr", false)
+           .Case("cxx_nullptr", LangOpts.CPlusPlus0x)
            .Case("cxx_override_control", LangOpts.CPlusPlus0x)
            .Case("cxx_range_for", LangOpts.CPlusPlus0x)
            .Case("cxx_reference_qualified_functions", LangOpts.CPlusPlus0x)
@@ -591,11 +596,42 @@ static bool HasFeature(const Preprocessor &PP, const IdentifierInfo *II) {
            .Case("is_empty", LangOpts.CPlusPlus)
            .Case("is_enum", LangOpts.CPlusPlus)
            .Case("is_literal", LangOpts.CPlusPlus)
+           .Case("is_standard_layout", LangOpts.CPlusPlus)
            .Case("is_pod", LangOpts.CPlusPlus)
            .Case("is_polymorphic", LangOpts.CPlusPlus)
            .Case("is_trivial", LangOpts.CPlusPlus)
+           .Case("is_trivially_copyable", LangOpts.CPlusPlus)
            .Case("is_union", LangOpts.CPlusPlus)
            .Case("tls", PP.getTargetInfo().isTLSSupported())
+           .Default(false);
+}
+
+/// HasExtension - Return true if we recognize and implement the feature
+/// specified by the identifier, either as an extension or a standard language
+/// feature.
+static bool HasExtension(const Preprocessor &PP, const IdentifierInfo *II) {
+  if (HasFeature(PP, II))
+    return true;
+
+  // If the use of an extension results in an error diagnostic, extensions are
+  // effectively unavailable, so just return false here.
+  if (PP.getDiagnostics().getExtensionHandlingBehavior()==Diagnostic::Ext_Error)
+    return false;
+
+  const LangOptions &LangOpts = PP.getLangOptions();
+
+  // Because we inherit the feature list from HasFeature, this string switch
+  // must be less restrictive than HasFeature's.
+  return llvm::StringSwitch<bool>(II->getName())
+           // C1X features supported by other languages as extensions.
+           .Case("c_generic_selections", true)
+           .Case("c_static_assert", true)
+           // C++0x features supported by other languages as extensions.
+           .Case("cxx_deleted_functions", LangOpts.CPlusPlus)
+           .Case("cxx_inline_namespaces", LangOpts.CPlusPlus)
+           .Case("cxx_override_control", LangOpts.CPlusPlus)
+           .Case("cxx_reference_qualified_functions", LangOpts.CPlusPlus)
+           .Case("cxx_rvalue_references", LangOpts.CPlusPlus)
            .Default(false);
 }
 
@@ -847,10 +883,11 @@ void Preprocessor::ExpandBuiltinMacro(Token &Tok) {
     // __COUNTER__ expands to a simple numeric value.
     OS << CounterValue++;
     Tok.setKind(tok::numeric_constant);
-  } else if (II == Ident__has_feature ||
-             II == Ident__has_builtin ||
+  } else if (II == Ident__has_feature   ||
+             II == Ident__has_extension ||
+             II == Ident__has_builtin   ||
              II == Ident__has_attribute) {
-    // The argument to these two builtins should be a parenthesized identifier.
+    // The argument to these builtins should be a parenthesized identifier.
     SourceLocation StartLoc = Tok.getLocation();
 
     bool IsValid = false;
@@ -879,6 +916,8 @@ void Preprocessor::ExpandBuiltinMacro(Token &Tok) {
       Value = FeatureII->getBuiltinID() != 0;
     } else if (II == Ident__has_attribute)
       Value = HasAttribute(FeatureII);
+    else if (II == Ident__has_extension)
+      Value = HasExtension(*this, FeatureII);
     else {
       assert(II == Ident__has_feature && "Must be feature check");
       Value = HasFeature(*this, FeatureII);

@@ -701,8 +701,9 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options,
 	 */
 	if (p->p_oppid && (t = pfind(p->p_oppid)) != NULL) {
 		PROC_LOCK(p);
-		p->p_oppid = 0;
 		proc_reparent(p, t);
+		p->p_pptr->p_dbg_child--;
+		p->p_oppid = 0;
 		PROC_UNLOCK(p);
 		pksignal(t, SIGCHLD, p->p_ksi);
 		wakeup(t);
@@ -743,9 +744,11 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options,
 	 * Destroy resource accounting information associated with the process.
 	 */
 	racct_proc_exit(p);
+#ifdef RACCT
 	PROC_LOCK(p->p_pptr);
 	racct_sub(p->p_pptr, RACCT_NPROC, 1);
 	PROC_UNLOCK(p->p_pptr);
+#endif
 
 	/*
 	 * Free credentials, arguments, and sigacts.
@@ -794,7 +797,8 @@ kern_wait(struct thread *td, pid_t pid, int *status, int options,
 		pid = -q->p_pgid;
 		PROC_UNLOCK(q);
 	}
-	if (options &~ (WUNTRACED|WNOHANG|WCONTINUED|WNOWAIT|WLINUXCLONE))
+	/* If we don't know the option, just return. */
+	if (options & ~(WUNTRACED|WNOHANG|WCONTINUED|WNOWAIT|WLINUXCLONE))
 		return (EINVAL);
 loop:
 	if (q->p_flag & P_STATCHILD) {
@@ -873,7 +877,10 @@ loop:
 	}
 	if (nfound == 0) {
 		sx_xunlock(&proctree_lock);
-		return (ECHILD);
+		if (td->td_proc->p_dbg_child)
+			return (0);
+		else
+			return (ECHILD);
 	}
 	if (options & WNOHANG) {
 		sx_xunlock(&proctree_lock);
@@ -900,19 +907,23 @@ loop:
 void
 proc_reparent(struct proc *child, struct proc *parent)
 {
+#ifdef RACCT
 	int locked;
+#endif
 
 	sx_assert(&proctree_lock, SX_XLOCKED);
 	PROC_LOCK_ASSERT(child, MA_OWNED);
 	if (child->p_pptr == parent)
 		return;
 
+#ifdef RACCT
 	locked = PROC_LOCKED(parent);
 	if (!locked)
 		PROC_LOCK(parent);
 	racct_add_force(parent, RACCT_NPROC, 1);
 	if (!locked)
 		PROC_UNLOCK(parent);
+#endif
 	PROC_LOCK(child->p_pptr);
 	racct_sub(child->p_pptr, RACCT_NPROC, 1);
 	sigqueue_take(child->p_ksi);

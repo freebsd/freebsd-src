@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ctype.h>
 #include <sys/fcntl.h>
 #include <sys/malloc.h>
+#include <sys/sbuf.h>
 #include <sys/sysctl.h>
 #include <sys/devicestat.h>
 #include <machine/md_var.h>
@@ -347,6 +348,15 @@ g_disk_start(struct bio *bp)
 		} while (bp2 != NULL);
 		break;
 	case BIO_GETATTR:
+		/* Give the driver a chance to override */
+		if (dp->d_getattr != NULL) {
+			if (bp->bio_disk == NULL)
+				bp->bio_disk = dp;
+			error = dp->d_getattr(bp);
+			if (error != -1)
+				break;
+			error = EJUSTRETURN;
+		}
 		if (g_handleattr_int(bp, "GEOM::candelete",
 		    (dp->d_flags & DISKFLAG_CANDELETE) != 0))
 			break;
@@ -580,6 +590,18 @@ disk_gone(struct disk *dp)
 	if (gp != NULL)
 		LIST_FOREACH(pp, &gp->provider, provider)
 			g_wither_provider(pp, ENXIO);
+}
+
+void
+disk_attr_changed(struct disk *dp, const char *attr, int flag)
+{
+	struct g_geom *gp;
+	struct g_provider *pp;
+
+	gp = dp->d_geom;
+	if (gp != NULL)
+		LIST_FOREACH(pp, &gp->provider, provider)
+			(void)g_attr_changed(pp, attr, flag);
 }
 
 static void

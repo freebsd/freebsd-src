@@ -93,11 +93,13 @@ typedef struct _fsnode {
 	uint32_t	 type;		/* type of entry */
 	fsinode		*inode;		/* actual inode data */
 	char		*symlink;	/* symlink target */
+	char		*contents;	/* file to provide contents */
 	char		*name;		/* file name */
 	int		flags;		/* misc flags */
 } fsnode;
 
 #define	FSNODE_F_HASSPEC	0x01	/* fsnode has a spec entry */
+#define	FSNODE_F_OPTIONAL	0x02	/* fsnode is optional */
 
 /*
  * fsinfo_t - contains various settings and parameters pertaining to
@@ -147,6 +149,7 @@ typedef struct {
 void		apply_specfile(const char *, const char *, fsnode *, int);
 void		dump_fsnodes(const char *, fsnode *);
 const char *	inode_type(mode_t);
+fsnode *	read_mtree(const char *, fsnode *);
 int		set_option(option_t *, const char *, const char *);
 fsnode *	walk_dir(const char *, fsnode *);
 void		free_fsnodes(fsnode *);

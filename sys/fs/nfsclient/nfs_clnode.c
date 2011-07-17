@@ -35,6 +35,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_kdtrace.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/fcntl.h>
@@ -53,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <fs/nfsclient/nfsnode.h>
 #include <fs/nfsclient/nfsmount.h>
 #include <fs/nfsclient/nfs.h>
+#include <fs/nfsclient/nfs_kdtrace.h>
 
 #include <nfs/nfs_lock.h>
 
@@ -300,7 +303,9 @@ ncl_invalcaches(struct vnode *vp)
 	mtx_lock(&np->n_mtx);
 	for (i = 0; i < NFS_ACCESSCACHESIZE; i++)
 		np->n_accesscache[i].stamp = 0;
+	KDTRACE_NFS_ACCESSCACHE_FLUSH_DONE(vp);
 	np->n_attrstamp = 0;
+	KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(vp);
 	mtx_unlock(&np->n_mtx);
 }
 

@@ -395,5 +395,6 @@ void		setinodebuf(ino_t);
 int		setup(char *dev);
 void		gjournal_check(const char *filesys);
 int		suj_check(const char *filesys);
+void		update_maps(struct cg *, struct cg*, int);
 
 #endif	/* !_FSCK_H_ */

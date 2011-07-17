@@ -7,6 +7,7 @@ CFLAGS+=-I${.CURDIR}
 SRCS=	cd9660.c ffs.c \
 	getid.c \
 	makefs.c \
+	mtree.c \
 	walk.c
 MAN=	makefs.8
 
@@ -25,5 +26,8 @@ SRCS+=	misc.c spec.c
 
 .PATH:	${.CURDIR}/../../sys/ufs/ffs
 SRCS+=	ffs_tables.c
+
+DPADD=  ${LIBSBUF}
+LDADD=  -lsbuf
 
 .include <bsd.prog.mk>

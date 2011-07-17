@@ -180,7 +180,7 @@ MODULE_VERSION(ucycom, 1);
 /*
  * Supported devices
  */
-static const struct usb_device_id ucycom_devs[] = {
+static const STRUCT_USB_HOST_ID ucycom_devs[] = {
 	{USB_VPI(USB_VENDOR_DELORME, USB_PRODUCT_DELORME_EARTHMATE, MODEL_CY7C64013)},
 };
 

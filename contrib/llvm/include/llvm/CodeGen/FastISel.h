@@ -241,6 +241,15 @@ protected:
                            unsigned Op0, bool Op0IsKill,
                            unsigned Op1, bool Op1IsKill);
 
+  /// FastEmitInst_rrr - Emit a MachineInstr with three register operands
+  /// and a result register in the given register class.
+  ///
+  unsigned FastEmitInst_rrr(unsigned MachineInstOpcode,
+                           const TargetRegisterClass *RC,
+                           unsigned Op0, bool Op0IsKill,
+                           unsigned Op1, bool Op1IsKill,
+                           unsigned Op2, bool Op2IsKill);
+
   /// FastEmitInst_ri - Emit a MachineInstr with a register operand,
   /// an immediate, and a result register in the given register class.
   ///
@@ -301,7 +310,7 @@ protected:
   /// the CFG.
   void FastEmitBranch(MachineBasicBlock *MBB, DebugLoc DL);
 
-  unsigned UpdateValueMap(const Value* I, unsigned Reg);
+  void UpdateValueMap(const Value* I, unsigned Reg, unsigned NumRegs = 1);
 
   unsigned createResultReg(const TargetRegisterClass *RC);
 
@@ -333,6 +342,8 @@ private:
   bool SelectBitCast(const User *I);
 
   bool SelectCast(const User *I, unsigned Opcode);
+
+  bool SelectExtractValue(const User *I);
 
   /// HandlePHINodesInSuccessorBlocks - Handle PHI nodes in successor blocks.
   /// Emit code to ensure constants are copied into registers when needed.

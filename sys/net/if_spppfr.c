@@ -280,6 +280,8 @@ drop:		++ifp->if_ierrors;
 	if (! (ifp->if_flags & IFF_UP))
 		goto drop;
 
+	M_SETFIB(m, ifp->if_fib);
+
 	/* Check queue. */
 	if (netisr_queue(isr, m)) {	/* (0) on success. */
 		if (debug)

@@ -15,7 +15,7 @@ ORG1=	0x7c00
 ORG2=	0x2000
 
 CFLAGS=	-DBOOTPROG=\"zfsboot\" \
-	-Os -g \
+	-Os \
 	-fno-guess-branch-probability \
 	-fomit-frame-pointer \
 	-fno-unit-at-a-time \
@@ -86,6 +86,9 @@ zfsboot.out: ${BTXCRT} zfsboot.o sio.o drv.o cons.o util.o
 	${LD} ${LDFLAGS} -Ttext ${ORG2} -o ${.TARGET} ${.ALLSRC} ${LIBSTAND}
 
 zfsboot.o: zfsboot.s
+.if ${CC:T:Mclang} == "clang"
+	${CC} ${ACFLAGS} -c zfsboot.s
+.endif
 
 SRCS=	zfsboot.c
 

@@ -664,6 +664,7 @@ Parser::isExpressionOrTypeSpecifierSimple(tok::TokenKind Kind) {
   case tok::kw___is_pod:
   case tok::kw___is_polymorphic:
   case tok::kw___is_trivial:
+  case tok::kw___is_trivially_copyable:
   case tok::kw___is_union:
   case tok::kw___uuidof:
     return TPResult::True();
@@ -693,6 +694,7 @@ Parser::isExpressionOrTypeSpecifierSimple(tok::TokenKind Kind) {
   case tok::kw_char16_t:
   case tok::kw_char32_t:
   case tok::kw_decltype:
+  case tok::kw___underlying_type:
   case tok::kw_thread_local:
   case tok::kw__Decimal32:
   case tok::kw__Decimal64:
@@ -1009,6 +1011,10 @@ Parser::TPResult Parser::isCXXDeclarationSpecifier() {
 
   // C++0x decltype support.
   case tok::kw_decltype:
+    return TPResult::True();
+
+  // C++0x type traits support
+  case tok::kw___underlying_type:
     return TPResult::True();
 
   default:

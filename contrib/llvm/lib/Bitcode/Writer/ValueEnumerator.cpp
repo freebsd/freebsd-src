@@ -452,7 +452,6 @@ void ValueEnumerator::EnumerateAttributes(const AttrListPtr &PAL) {
   }
 }
 
-
 void ValueEnumerator::incorporateFunction(const Function &F) {
   InstructionCount = 0;
   NumModuleValues = Values.size();

@@ -206,7 +206,7 @@ MODULE_DEPEND(uftdi, ucom, 1, 1, 1);
 MODULE_DEPEND(uftdi, usb, 1, 1, 1);
 MODULE_VERSION(uftdi, 1);
 
-static struct usb_device_id uftdi_devs[] = {
+static STRUCT_USB_HOST_ID uftdi_devs[] = {
 #define	UFTDI_DEV(v,p,t) \
   { USB_VPI(USB_VENDOR_##v, USB_PRODUCT_##v##_##p, UFTDI_TYPE_##t) }
 	UFTDI_DEV(ATMEL, STK541, 8U232AM),

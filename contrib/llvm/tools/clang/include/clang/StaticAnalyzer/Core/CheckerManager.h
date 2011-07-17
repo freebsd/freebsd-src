@@ -18,6 +18,7 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/FoldingSet.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/Store.h"
 #include <vector>
 
 namespace clang {
@@ -48,6 +49,18 @@ public:
 };
 
 template <typename T> class CheckerFn;
+
+template <typename RET, typename P1, typename P2, typename P3, typename P4>
+class CheckerFn<RET(P1, P2, P3, P4)> {
+  typedef RET (*Func)(void *, P1, P2, P3, P4);
+  Func Fn;
+public:
+  void *Checker;
+  CheckerFn(void *checker, Func fn) : Fn(fn), Checker(checker) { }
+  RET operator()(P1 p1, P2 p2, P3 p3, P4 p4) const { 
+    return Fn(Checker, p1, p2, p3, p4);
+  } 
+};
 
 template <typename RET, typename P1, typename P2, typename P3>
 class CheckerFn<RET(P1, P2, P3)> {
@@ -224,9 +237,11 @@ public:
   bool wantsRegionChangeUpdate(const GRState *state);
 
   /// \brief Run checkers for region changes.
-  const GRState *runCheckersForRegionChanges(const GRState *state,
-                                             const MemRegion * const *Begin,
-                                             const MemRegion * const *End);
+  const GRState *
+  runCheckersForRegionChanges(const GRState *state,
+                            const StoreManager::InvalidatedSymbols *invalidated,
+                              const MemRegion * const *Begin,
+                              const MemRegion * const *End);
 
   /// \brief Run checkers for handling assumptions on symbolic values.
   const GRState *runCheckersForEvalAssume(const GRState *state,
@@ -237,6 +252,11 @@ public:
                               const ExplodedNodeSet &Src,
                               const CallExpr *CE, ExprEngine &Eng,
                               GraphExpander *defaultEval = 0);
+  
+  /// \brief Run checkers for the entire Translation Unit.
+  void runCheckersOnEndOfTranslationUnit(const TranslationUnitDecl* TU,
+                                         AnalysisManager &mgr,
+                                         BugReporter &BR);
 
 //===----------------------------------------------------------------------===//
 // Internal registration functions for AST traversing.
@@ -283,6 +303,7 @@ public:
   typedef CheckerFn<void (const GRState *,SymbolReaper &)> CheckLiveSymbolsFunc;
   
   typedef CheckerFn<const GRState * (const GRState *,
+                                const StoreManager::InvalidatedSymbols *symbols,
                                      const MemRegion * const *begin,
                                      const MemRegion * const *end)>
       CheckRegionChangesFunc;
@@ -295,6 +316,10 @@ public:
   
   typedef CheckerFn<bool (const CallExpr *, CheckerContext &)>
       EvalCallFunc;
+
+  typedef CheckerFn<void (const TranslationUnitDecl *,
+                          AnalysisManager&, BugReporter &)>
+      CheckEndOfTranslationUnit;
 
   typedef bool (*HandlesStmtFunc)(const Stmt *D);
   void _registerForPreStmt(CheckStmtFunc checkfn,
@@ -325,6 +350,8 @@ public:
   void _registerForEvalAssume(EvalAssumeFunc checkfn);
 
   void _registerForEvalCall(EvalCallFunc checkfn);
+
+  void _registerForEndOfTranslationUnit(CheckEndOfTranslationUnit checkfn);
 
 //===----------------------------------------------------------------------===//
 // Internal registration functions for events.
@@ -445,6 +472,8 @@ private:
   std::vector<EvalAssumeFunc> EvalAssumeCheckers;
 
   std::vector<EvalCallFunc> EvalCallCheckers;
+
+  std::vector<CheckEndOfTranslationUnit> EndOfTranslationUnitCheckers;
 
   struct EventInfo {
     llvm::SmallVector<CheckEventFunc, 4> Checkers;

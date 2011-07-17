@@ -337,6 +337,7 @@
 #define	PRIV_NET_GIF		416	/* Administer gif interface. */
 #define	PRIV_NET_SETIFVNET	417	/* Move interface to vnet. */
 #define	PRIV_NET_SETIFDESCR	418	/* Set interface description. */
+#define	PRIV_NET_SETIFFIB	419	/* Set interface fib. */
 
 /*
  * 802.11-related privileges.

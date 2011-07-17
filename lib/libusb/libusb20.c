@@ -1057,6 +1057,18 @@ libusb20_dev_get_address(struct libusb20_device *pdev)
 }
 
 uint8_t
+libusb20_dev_get_parent_address(struct libusb20_device *pdev)
+{
+	return (pdev->parent_address);
+}
+
+uint8_t
+libusb20_dev_get_parent_port(struct libusb20_device *pdev)
+{
+	return (pdev->parent_port);
+}
+
+uint8_t
 libusb20_dev_get_bus_number(struct libusb20_device *pdev)
 {
 	return (pdev->bus_number);
@@ -1068,6 +1080,8 @@ libusb20_dev_get_iface_desc(struct libusb20_device *pdev,
 {
 	if ((buf == NULL) || (len == 0))
 		return (LIBUSB20_ERROR_INVALID_PARAM);
+
+	buf[0] = 0;		/* set default string value */
 
 	return (pdev->beMethods->dev_get_iface_desc(
 	    pdev, iface_index, buf, len));

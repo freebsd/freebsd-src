@@ -1,4 +1,8 @@
 # $FreeBSD$
 
+.if ${MK_FDT} != "no"
+SUBDIR+=		fdt
+.endif
+
 SUBDIR+=		ofw
 SUBDIR+=		uboot

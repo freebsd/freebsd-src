@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/eventhandler.h>
 #include <sys/malloc.h>
 #include <sys/cons.h>
+#include <geom/geom.h>
 #include <geom/geom_disk.h>
 #endif /* _KERNEL */
 
@@ -727,7 +728,8 @@ daclose(struct disk *dp)
 
 	softc = (struct da_softc *)periph->softc;
 
-	if ((softc->quirks & DA_Q_NO_SYNC_CACHE) == 0) {
+	if ((softc->quirks & DA_Q_NO_SYNC_CACHE) == 0
+	 && (softc->flags & DA_FLAG_PACK_INVALID) == 0) {
 		union	ccb *ccb;
 
 		ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
@@ -932,6 +934,25 @@ dadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t leng
 	return (0);
 }
 
+static int
+dagetattr(struct bio *bp)
+{
+	int ret = -1;
+	struct cam_periph *periph;
+
+	if (bp->bio_disk == NULL || bp->bio_disk->d_drv1 == NULL)
+		return ENXIO;
+	periph = (struct cam_periph *)bp->bio_disk->d_drv1;
+	if (periph->path == NULL)
+		return ENXIO;
+
+	ret = xpt_getattr(bp->bio_data, bp->bio_length, bp->bio_attribute,
+	    periph->path);
+	if (ret == 0)
+		bp->bio_completed = bp->bio_length;
+	return ret;
+}
+
 static void
 dainit(void)
 {
@@ -977,7 +998,8 @@ daoninvalidate(struct cam_periph *periph)
 	bioq_flush(&softc->bio_queue, NULL, ENXIO);
 
 	disk_gone(softc->disk);
-	xpt_print(periph->path, "lost device\n");
+	xpt_print(periph->path, "lost device - %d outstanding\n",
+		  softc->outstanding_cmds);
 }
 
 static void
@@ -1044,6 +1066,20 @@ daasync(void *callback_arg, u_int32_t code,
 		 && status != CAM_REQ_INPROG)
 			printf("daasync: Unable to attach to new device "
 				"due to status 0x%x\n", status);
+		return;
+	}
+	case AC_ADVINFO_CHANGED:
+	{
+		uintptr_t buftype;
+
+		buftype = (uintptr_t)arg;
+		if (buftype == CDAI_TYPE_PHYS_PATH) {
+			struct da_softc *softc;
+
+			softc = periph->softc;
+			disk_attr_changed(softc->disk, "GEOM::physpath",
+					  M_NOWAIT);
+		}
 		break;
 	}
 	case AC_SENT_BDR:
@@ -1060,12 +1096,12 @@ daasync(void *callback_arg, u_int32_t code,
 		softc->flags |= DA_FLAG_RETRY_UA;
 		LIST_FOREACH(ccbh, &softc->pending_ccbs, periph_links.le)
 			ccbh->ccb_state |= DA_CCB_RETRY_UA;
-		/* FALLTHROUGH*/
-	}
-	default:
-		cam_periph_async(periph, code, path, arg);
 		break;
 	}
+	default:
+		break;
+	}
+	cam_periph_async(periph, code, path, arg);
 }
 
 static void
@@ -1231,17 +1267,6 @@ daregister(struct cam_periph *periph, void *arg)
 	TASK_INIT(&softc->sysctl_task, 0, dasysctlinit, periph);
 
 	/*
-	 * Add async callbacks for bus reset and
-	 * bus device reset calls.  I don't bother
-	 * checking if this fails as, in most cases,
-	 * the system will function just fine without
-	 * them and the only alternative would be to
-	 * not attach the device on failure.
-	 */
-	xpt_register_async(AC_SENT_BDR | AC_BUS_RESET | AC_LOST_DEVICE,
-			   daasync, periph, periph->path);
-
-	/*
 	 * Take an exclusive refcount on the periph while dastart is called
 	 * to finish the probe.  The reference will be dropped in dadone at
 	 * the end of probe.
@@ -1301,6 +1326,7 @@ daregister(struct cam_periph *periph, void *arg)
 	softc->disk->d_close = daclose;
 	softc->disk->d_strategy = dastrategy;
 	softc->disk->d_dump = dadump;
+	softc->disk->d_getattr = dagetattr;
 	softc->disk->d_name = "da";
 	softc->disk->d_drv1 = periph;
 	if (cpi.maxio == 0)
@@ -1313,8 +1339,6 @@ daregister(struct cam_periph *periph, void *arg)
 	softc->disk->d_flags = 0;
 	if ((softc->quirks & DA_Q_NO_SYNC_CACHE) == 0)
 		softc->disk->d_flags |= DISKFLAG_CANFLUSHCACHE;
-	strlcpy(softc->disk->d_ident, cgd->serial_num,
-	    MIN(sizeof(softc->disk->d_ident), cgd->serial_num_len + 1));
 	cam_strvis(softc->disk->d_descr, cgd->inq_data.vendor,
 	    sizeof(cgd->inq_data.vendor), sizeof(softc->disk->d_descr));
 	strlcat(softc->disk->d_descr, " ", sizeof(softc->disk->d_descr));
@@ -1327,6 +1351,25 @@ daregister(struct cam_periph *periph, void *arg)
 	softc->disk->d_hba_subdevice = cpi.hba_subdevice;
 	disk_create(softc->disk, DISK_VERSION);
 	mtx_lock(periph->sim->mtx);
+
+	/*
+	 * Add async callbacks for events of interest.
+	 * I don't bother checking if this fails as,
+	 * in most cases, the system will function just
+	 * fine without them and the only alternative
+	 * would be to not attach the device on failure.
+	 */
+	xpt_register_async(AC_SENT_BDR | AC_BUS_RESET
+			 | AC_LOST_DEVICE | AC_ADVINFO_CHANGED,
+			   daasync, periph, periph->path);
+
+	/*
+	 * Emit an attribute changed notification just in case 
+	 * physical path information arrived before our async
+	 * event handler was registered, but after anyone attaching
+	 * to our disk device polled it.
+	 */
+	disk_attr_changed(softc->disk, "GEOM::physpath", M_NOWAIT);
 
 	xpt_schedule(periph, CAM_PRIORITY_DEV);
 
@@ -1558,7 +1601,7 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 		if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
 			int error;
 			int sf;
-			
+
 			if ((csio->ccb_h.ccb_state & DA_CCB_RETRY_UA) != 0)
 				sf = SF_RETRY_UA;
 			else
@@ -1573,8 +1616,17 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 				return;
 			}
 			if (error != 0) {
+				int queued_error;
 
-				if (error == ENXIO) {
+				/*
+				 * return all queued I/O with EIO, so that
+				 * the client can retry these I/Os in the
+				 * proper order should it attempt to recover.
+				 */
+				queued_error = EIO;
+
+				if (error == ENXIO
+				 && (softc->flags & DA_FLAG_PACK_INVALID)== 0) {
 					/*
 					 * Catastrophic error.  Mark our pack as
 					 * invalid.
@@ -1586,14 +1638,10 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 					xpt_print(periph->path,
 					    "Invalidating pack\n");
 					softc->flags |= DA_FLAG_PACK_INVALID;
+					queued_error = ENXIO;
 				}
-
-				/*
-				 * return all queued I/O with EIO, so that
-				 * the client can retry these I/Os in the
-				 * proper order should it attempt to recover.
-				 */
-				bioq_flush(&softc->bio_queue, NULL, EIO);
+				bioq_flush(&softc->bio_queue, NULL,
+					   queued_error);
 				bp->bio_error = error;
 				bp->bio_resid = bp->bio_bcount;
 				bp->bio_flags |= BIO_ERROR;
@@ -1625,6 +1673,11 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 		softc->outstanding_cmds--;
 		if (softc->outstanding_cmds == 0)
 			softc->flags |= DA_FLAG_WENT_IDLE;
+
+		if ((softc->flags & DA_FLAG_PACK_INVALID) != 0) {
+			xpt_print(periph->path, "oustanding %d\n",
+				  softc->outstanding_cmds);
+		}
 
 		biodone(bp);
 		break;

@@ -36,6 +36,7 @@ CPU_HAVEFPU	opt_global.h
 CPU_SB1 	opt_global.h
 CPU_CNMIPS	opt_global.h
 CPU_RMI		opt_global.h
+CPU_NLM		opt_global.h
 
 ISA_MIPS1	opt_cputype.h
 ISA_MIPS3	opt_cputype.h
@@ -70,3 +71,11 @@ OCTEON_BOARD_CAPK_0100ND	opt_cvmx.h
 # Options that control the Atheros SoC peripherals
 #
 ARGE_DEBUG			opt_global.h
+
+#
+# Options that control the Ralink RT305xF Etherenet MAC.
+#
+IF_RT_DEBUG			opt_if_rt.h
+IF_RT_PHY_SUPPORT		opt_if_rt.h
+IF_RT_RING_DATA_COUNT		opt_if_rt.h
+

@@ -327,6 +327,11 @@ MODULE_DEPEND(ufoma, ucom, 1, 1, 1);
 MODULE_DEPEND(ufoma, usb, 1, 1, 1);
 MODULE_VERSION(ufoma, 1);
 
+static const STRUCT_USB_HOST_ID ufoma_devs[] = {
+	{USB_IFACE_CLASS(UICLASS_CDC),
+	 USB_IFACE_SUBCLASS(UISUBCLASS_MCPC),},
+};
+
 static int
 ufoma_probe(device_t dev)
 {
@@ -334,30 +339,31 @@ ufoma_probe(device_t dev)
 	struct usb_interface_descriptor *id;
 	struct usb_config_descriptor *cd;
 	usb_mcpc_acm_descriptor *mad;
+	int error;
 
-	if (uaa->usb_mode != USB_MODE_HOST) {
+	if (uaa->usb_mode != USB_MODE_HOST)
 		return (ENXIO);
-	}
+
+	error = usbd_lookup_id_by_uaa(ufoma_devs, sizeof(ufoma_devs), uaa);
+	if (error)
+		return (error);
+
 	id = usbd_get_interface_descriptor(uaa->iface);
 	cd = usbd_get_config_descriptor(uaa->device);
 
-	if ((id == NULL) ||
-	    (cd == NULL) ||
-	    (id->bInterfaceClass != UICLASS_CDC) ||
-	    (id->bInterfaceSubClass != UISUBCLASS_MCPC)) {
+	if (id == NULL || cd == NULL)
 		return (ENXIO);
-	}
+
 	mad = ufoma_get_intconf(cd, id, UDESC_VS_INTERFACE, UDESCSUB_MCPC_ACM);
-	if (mad == NULL) {
+	if (mad == NULL)
 		return (ENXIO);
-	}
+
 #ifndef UFOMA_HANDSFREE
 	if ((mad->bType == UMCPC_ACM_TYPE_AB5) ||
-	    (mad->bType == UMCPC_ACM_TYPE_AB6)) {
+	    (mad->bType == UMCPC_ACM_TYPE_AB6))
 		return (ENXIO);
-	}
 #endif
-	return (0);
+	return (BUS_PROBE_GENERIC);
 }
 
 static int

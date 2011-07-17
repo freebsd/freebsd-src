@@ -1580,9 +1580,12 @@ safe_callback(struct safe_softc *sc, struct safe_ringentry *re)
 				 * SHA-1 ICV's are byte-swapped; fix 'em up
 				 * before copy them to their destination.
 				 */
-				bswap32(re->re_sastate.sa_saved_indigest[0]);
-				bswap32(re->re_sastate.sa_saved_indigest[1]);
-				bswap32(re->re_sastate.sa_saved_indigest[2]);
+				re->re_sastate.sa_saved_indigest[0] =
+				    bswap32(re->re_sastate.sa_saved_indigest[0]);
+				re->re_sastate.sa_saved_indigest[1] =
+				    bswap32(re->re_sastate.sa_saved_indigest[1]);
+				re->re_sastate.sa_saved_indigest[2] =
+				    bswap32(re->re_sastate.sa_saved_indigest[2]);
 			}
 			crypto_copyback(crp->crp_flags, crp->crp_buf,
 			    crd->crd_inject,

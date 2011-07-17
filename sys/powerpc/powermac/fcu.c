@@ -510,7 +510,7 @@ fcu_fill_fan_prop(device_t dev)
 			sc->sc_fans[j].fan.set =
 			    (int (*)(struct pmac_fan *, int))(fcu_fan_set_rpm);
 		} else {
-			sc->sc_fans[j].fan.min_rpm = 40;	/* Percent */
+			sc->sc_fans[j].fan.min_rpm = 30;	/* Percent */
 			sc->sc_fans[j].fan.max_rpm = 100;
 			sc->sc_fans[j].fan.read = NULL;
 			sc->sc_fans[j].fan.set =

@@ -440,11 +440,27 @@ void CompileUnit::addBlockByrefAddress(DbgVariable *&DV, DIE *Die,
 }
 
 /// addConstantValue - Add constant value entry in variable DIE.
-bool CompileUnit::addConstantValue(DIE *Die, const MachineOperand &MO) {
+bool CompileUnit::addConstantValue(DIE *Die, const MachineOperand &MO,
+                                   DIType Ty) {
   assert (MO.isImm() && "Invalid machine operand!");
   DIEBlock *Block = new (DIEValueAllocator) DIEBlock();
-  unsigned Imm = MO.getImm();
-  addUInt(Block, 0, dwarf::DW_FORM_udata, Imm);
+  unsigned form = dwarf::DW_FORM_udata;
+  switch (Ty.getSizeInBits()) {
+    case 8: form = dwarf::DW_FORM_data1; break;
+    case 16: form = dwarf::DW_FORM_data2; break;
+    case 32: form = dwarf::DW_FORM_data4; break;
+    case 64: form = dwarf::DW_FORM_data8; break;
+    default: break;
+  }
+
+  DIBasicType BTy(Ty);
+  if (BTy.Verify() &&
+      (BTy.getEncoding()  == dwarf::DW_ATE_signed 
+       || BTy.getEncoding() == dwarf::DW_ATE_signed_char))
+    addSInt(Block, 0, form, MO.getImm());
+  else
+    addUInt(Block, 0, form, MO.getImm());
+
   addBlock(Die, dwarf::DW_AT_const_value, 0, Block);
   return true;
 }
@@ -477,13 +493,21 @@ bool CompileUnit::addConstantFPValue(DIE *Die, const MachineOperand &MO) {
 /// addConstantValue - Add constant value entry in variable DIE.
 bool CompileUnit::addConstantValue(DIE *Die, ConstantInt *CI,
                                    bool Unsigned) {
-  if (CI->getBitWidth() <= 64) {
+  unsigned CIBitWidth = CI->getBitWidth();
+  if (CIBitWidth <= 64) {
+    unsigned form = 0;
+    switch (CIBitWidth) {
+    case 8: form = dwarf::DW_FORM_data1; break;
+    case 16: form = dwarf::DW_FORM_data2; break;
+    case 32: form = dwarf::DW_FORM_data4; break;
+    case 64: form = dwarf::DW_FORM_data8; break;
+    default: 
+      form = Unsigned ? dwarf::DW_FORM_udata : dwarf::DW_FORM_sdata;
+    }
     if (Unsigned)
-      addUInt(Die, dwarf::DW_AT_const_value, dwarf::DW_FORM_udata,
-              CI->getZExtValue());
+      addUInt(Die, dwarf::DW_AT_const_value, form, CI->getZExtValue());
     else
-      addSInt(Die, dwarf::DW_AT_const_value, dwarf::DW_FORM_sdata,
-              CI->getSExtValue());
+      addSInt(Die, dwarf::DW_AT_const_value, form, CI->getSExtValue());
     return true;
   }
 
@@ -581,8 +605,37 @@ void CompileUnit::addType(DIE *Entity, DIType Ty) {
   // Set up proxy.
   Entry = createDIEEntry(Buffer);
   insertDIEEntry(Ty, Entry);
-
   Entity->addValue(dwarf::DW_AT_type, dwarf::DW_FORM_ref4, Entry);
+
+  // If this is a complete composite type then include it in the
+  // list of global types.
+  addGlobalType(Ty);
+}
+
+/// addGlobalType - Add a new global type to the compile unit.
+///
+void CompileUnit::addGlobalType(DIType Ty) {
+  DIDescriptor Context = Ty.getContext();
+  if (Ty.isCompositeType() && !Ty.getName().empty() && !Ty.isForwardDecl() 
+      && (Context.isCompileUnit() || Context.isFile() || Context.isNameSpace()))
+    if (DIEEntry *Entry = getDIEEntry(Ty))
+      GlobalTypes[Ty.getName()] = Entry->getEntry();
+}
+
+/// addPubTypes - Add type for pubtypes section.
+void CompileUnit::addPubTypes(DISubprogram SP) {
+  DICompositeType SPTy = SP.getType();
+  unsigned SPTag = SPTy.getTag();
+  if (SPTag != dwarf::DW_TAG_subroutine_type)
+    return;
+
+  DIArray Args = SPTy.getTypeArray();
+  for (unsigned i = 0, e = Args.getNumElements(); i != e; ++i) {
+    DIType ATy(Args.getElement(i));
+    if (!ATy.Verify())
+      continue;
+    addGlobalType(ATy);
+  }
 }
 
 /// constructTypeDIE - Construct basic type die from DIBasicType.
@@ -745,6 +798,10 @@ void CompileUnit::constructTypeDIE(DIE &Buffer, DICompositeType CTy) {
       addToContextOwner(&Buffer, Context);
     }
 
+    if (CTy.isObjcClassComplete())
+      addUInt(&Buffer, dwarf::DW_AT_APPLE_objc_complete_type,
+              dwarf::DW_FORM_flag, 1);
+
     if (Tag == dwarf::DW_TAG_class_type) 
       addTemplateParams(Buffer, CTy.getTemplateParams());
 
@@ -807,6 +864,20 @@ CompileUnit::getOrCreateTemplateValueParameterDIE(DITemplateValueParameter TPV) 
   addUInt(ParamDIE, dwarf::DW_AT_const_value, dwarf::DW_FORM_udata, 
           TPV.getValue());
   return ParamDIE;
+}
+
+/// getOrCreateNameSpace - Create a DIE for DINameSpace.
+DIE *CompileUnit::getOrCreateNameSpace(DINameSpace NS) {
+  DIE *NDie = getDIE(NS);
+  if (NDie)
+    return NDie;
+  NDie = new DIE(dwarf::DW_TAG_namespace);
+  insertDIE(NS, NDie);
+  if (!NS.getName().empty())
+    addString(NDie, dwarf::DW_AT_name, dwarf::DW_FORM_string, NS.getName());
+  addSourceLine(NDie, NS);
+  addToContextOwner(NDie, NS.getContext());
+  return NDie;
 }
 
 /// constructSubrangeDIE - Construct subrange DIE from DISubrange.

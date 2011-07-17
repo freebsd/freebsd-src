@@ -2523,8 +2523,7 @@ sctp_inpcb_alloc(struct socket *so, uint32_t vrf_id)
 
 	so->so_pcb = (caddr_t)inp;
 
-	if ((SCTP_SO_TYPE(so) == SOCK_DGRAM) ||
-	    (SCTP_SO_TYPE(so) == SOCK_SEQPACKET)) {
+	if (SCTP_SO_TYPE(so) == SOCK_SEQPACKET) {
 		/* UDP style socket */
 		inp->sctp_flags = (SCTP_PCB_FLAGS_UDPTYPE |
 		    SCTP_PCB_FLAGS_UNBOUND);
@@ -3721,13 +3720,6 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 		(void)sctp_m_free(ip_pcb->inp_options);
 		ip_pcb->inp_options = 0;
 	}
-#ifdef INET
-	if (ip_pcb->inp_moptions) {
-		inp_freemoptions(ip_pcb->inp_moptions);
-		ip_pcb->inp_moptions = 0;
-	}
-#endif
-
 #ifdef INET6
 	if (ip_pcb->inp_vflag & INP_IPV6) {
 		struct in6pcb *in6p;
@@ -4196,11 +4188,11 @@ try_again:
 		return (0);
 	}
 	/*
-	 * We don't allow assoc id to be 0, this is needed otherwise if the
-	 * id were to wrap we would have issues with some socket options.
+	 * We don't allow assoc id to be one of SCTP_FUTURE_ASSOC,
+	 * SCTP_CURRENT_ASSOC and SCTP_ALL_ASSOC.
 	 */
-	if (inp->sctp_associd_counter == 0) {
-		inp->sctp_associd_counter++;
+	if (inp->sctp_associd_counter <= SCTP_ALL_ASSOC) {
+		inp->sctp_associd_counter = SCTP_ALL_ASSOC + 1;
 	}
 	id = inp->sctp_associd_counter;
 	inp->sctp_associd_counter++;
@@ -4793,7 +4785,7 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 					/* Held for PD-API clear that. */
 					sq->pdapi_aborted = 1;
 					sq->held_length = 0;
-					if (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_PDAPIEVNT) && (so != NULL)) {
+					if (sctp_stcb_is_feature_on(inp, stcb, SCTP_PCB_FLAGS_PDAPIEVNT) && (so != NULL)) {
 						/*
 						 * Need to add a PD-API
 						 * aborted indication.

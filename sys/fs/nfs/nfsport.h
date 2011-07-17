@@ -267,6 +267,7 @@
  * NFS_V3NPROCS is one greater than the last V3 op and NFS_NPROCS is
  * one greater than the last number.
  */
+#ifndef	NFS_V3NPROCS
 #define	NFS_V3NPROCS		22
 
 #define	NFSPROC_LOOKUPP		22
@@ -293,6 +294,7 @@
  * Must be defined as one higher than the last Proc# above.
  */
 #define	NFSV4_NPROCS		41
+#endif	/* NFS_V3NPROCS */
 
 /*
  * Stats structure
@@ -358,7 +360,9 @@ struct ext_nfsstats {
 /*
  * Define NFS_NPROCS as NFSV4_NPROCS for the experimental kernel code.
  */
+#ifndef	NFS_NPROCS
 #define	NFS_NPROCS		NFSV4_NPROCS
+#endif
 
 #include <fs/nfs/nfskpiport.h>
 #include <fs/nfs/nfsdport.h>
@@ -832,10 +836,13 @@ void nfsd_mntinit(void);
 
 /*
  * Define these for vnode lock/unlock ops.
+ *
+ * These are good abstractions to macro out, so that they can be added to
+ * later, for debugging or stats, etc.
  */
-#define	NFSVOPLOCK(v, f, p)	vn_lock((v), (f))
-#define	NFSVOPUNLOCK(v, f, p)	VOP_UNLOCK((v), (f))
-#define	NFSVOPISLOCKED(v, p)	VOP_ISLOCKED((v))
+#define	NFSVOPLOCK(v, f)	vn_lock((v), (f))
+#define	NFSVOPUNLOCK(v, f)	VOP_UNLOCK((v), (f))
+#define	NFSVOPISLOCKED(v)	VOP_ISLOCKED((v))
 
 /*
  * Define ncl_hash().

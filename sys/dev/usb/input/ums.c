@@ -355,6 +355,13 @@ static const struct usb_config ums_config[UMS_N_TRANSFER] = {
 	},
 };
 
+/* A match on these entries will load ums */
+static const STRUCT_USB_HOST_ID __used ums_devs[] = {
+	{USB_IFACE_CLASS(UICLASS_HID),
+	 USB_IFACE_SUBCLASS(UISUBCLASS_BOOT),
+	 USB_IFACE_PROTOCOL(UIPROTO_MOUSE),},
+};
+
 static int
 ums_probe(device_t dev)
 {

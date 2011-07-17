@@ -340,6 +340,7 @@ initarm(void *mdp, void *unused __unused)
 #endif
 		}
 
+		preload_addr_relocate = KERNVIRTADDR - KERNPHYSADDR;
 	} else {
 		/* Fall back to hardcoded metadata. */
 		lastaddr = fake_preload_metadata();
@@ -511,13 +512,8 @@ initarm(void *mdp, void *unused __unused)
 	if (platform_mpp_init() != 0)
 		while (1);
 
-	/*
-	 * Initialize GPIO as early as possible.
-	 */
-	if (platform_gpio_init() != 0)
-		while (1);
-
 	cninit();
+
 	physmem = memsize / PAGE_SIZE;
 
 	debugf("initarm: console initialized\n");

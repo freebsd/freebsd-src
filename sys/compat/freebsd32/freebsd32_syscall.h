@@ -25,7 +25,7 @@
 #define	FREEBSD32_SYS_chown	16
 #define	FREEBSD32_SYS_break	17
 #define	FREEBSD32_SYS_freebsd4_freebsd32_getfsstat	18
-				/* 19 is obsolete olseek */
+				/* 19 is old freebsd32_lseek */
 #define	FREEBSD32_SYS_getpid	20
 #define	FREEBSD32_SYS_mount	21
 #define	FREEBSD32_SYS_unmount	22
@@ -411,6 +411,8 @@
 #define	FREEBSD32_SYS_freebsd32_msgctl	511
 #define	FREEBSD32_SYS_freebsd32_shmctl	512
 #define	FREEBSD32_SYS_lpathconf	513
+#define	FREEBSD32_SYS_cap_new	514
+#define	FREEBSD32_SYS_cap_getrights	515
 #define	FREEBSD32_SYS_cap_enter	516
 #define	FREEBSD32_SYS_cap_getmode	517
 #define	FREEBSD32_SYS_freebsd32_pselect	522

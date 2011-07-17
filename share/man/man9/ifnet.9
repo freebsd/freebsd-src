@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 1, 2009
+.Dd July 3, 2011
 .Dt IFNET 9
 .Os
 .Sh NAME
@@ -1169,11 +1169,12 @@ list.
 Caller must have appropriate privilege.
 (No call-down to driver.)
 .It Dv SIOCGIFCAP
+.It Dv SIOCGIFFIB
 .It Dv SIOCGIFFLAGS
 .It Dv SIOCGIFMETRIC
 .It Dv SIOCGIFMTU
 .It Dv SIOCGIFPHYS
-Get interface capabilities, flags, metric, MTU, medium selection.
+Get interface capabilities, FIB, flags, metric, MTU, medium selection.
 (No call-down to driver.)
 .Pp
 .It Dv SIOCSIFCAP
@@ -1192,6 +1193,12 @@ and
 .Va if_data.ifi_hwassist
 appropriately.
 .Pp
+.It Dv SIOCSIFFIB
+Sets interface FIB.
+Caller must have appropriate privilege.
+FIB values start at 0 and values greater or equals than
+.Va net.fibs
+are considered invalid.
 .It Dv SIOCSIFFLAGS
 Change interface flags.
 Caller must have appropriate privilege.

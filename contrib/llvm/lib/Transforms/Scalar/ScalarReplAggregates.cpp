@@ -30,6 +30,7 @@
 #include "llvm/LLVMContext.h"
 #include "llvm/Module.h"
 #include "llvm/Pass.h"
+#include "llvm/Analysis/DIBuilder.h"
 #include "llvm/Analysis/Dominators.h"
 #include "llvm/Analysis/Loads.h"
 #include "llvm/Analysis/ValueTracking.h"
@@ -341,7 +342,8 @@ void ConvertToScalarInfo::MergeInType(const Type *In, uint64_t Offset,
     // If we're accessing something that could be an element of a vector, see
     // if the implied vector agrees with what we already have and if Offset is
     // compatible with it.
-    if (Offset % EltSize == 0 && AllocaSize % EltSize == 0) {
+    if (Offset % EltSize == 0 && AllocaSize % EltSize == 0 &&
+        (!VectorTy || Offset * 8 < VectorTy->getPrimitiveSizeInBits())) {
       if (!VectorTy) {
         VectorTy = VectorType::get(In, AllocaSize/EltSize);
         return;
@@ -741,8 +743,9 @@ ConvertScalar_ExtractValue(Value *FromVal, const Type *ToType,
   // If the result alloca is a vector type, this is either an element
   // access or a bitcast to another vector type of the same size.
   if (const VectorType *VTy = dyn_cast<VectorType>(FromType)) {
+    unsigned FromTypeSize = TD.getTypeAllocSize(FromType);
     unsigned ToTypeSize = TD.getTypeAllocSize(ToType);
-    if (ToTypeSize == AllocaSize) {
+    if (FromTypeSize == ToTypeSize) {
       // If the two types have the same primitive size, use a bit cast.
       // Otherwise, it is two vectors with the same element type that has
       // the same allocation size but different number of elements so use
@@ -754,13 +757,13 @@ ConvertScalar_ExtractValue(Value *FromVal, const Type *ToType,
         return CreateShuffleVectorCast(FromVal, ToType, Builder);
     }
 
-    if (isPowerOf2_64(AllocaSize / ToTypeSize)) {
+    if (isPowerOf2_64(FromTypeSize / ToTypeSize)) {
       assert(!(ToType->isVectorTy() && Offset != 0) && "Can't extract a value "
              "of a smaller vector type at a nonzero offset.");
 
       const Type *CastElementTy = getScaledElementType(FromType, ToType,
                                                        ToTypeSize * 8);
-      unsigned NumCastVectorElements = AllocaSize / ToTypeSize;
+      unsigned NumCastVectorElements = FromTypeSize / ToTypeSize;
 
       LLVMContext &Context = FromVal->getContext();
       const Type *CastTy = VectorType::get(CastElementTy,
@@ -1051,8 +1054,9 @@ namespace {
 class AllocaPromoter : public LoadAndStorePromoter {
   AllocaInst *AI;
 public:
-  AllocaPromoter(const SmallVectorImpl<Instruction*> &Insts, SSAUpdater &S)
-    : LoadAndStorePromoter(Insts, S), AI(0) {}
+  AllocaPromoter(const SmallVectorImpl<Instruction*> &Insts, SSAUpdater &S,
+                 DbgDeclareInst *DD, DIBuilder *&DB)
+    : LoadAndStorePromoter(Insts, S, DD, DB), AI(0) {}
   
   void run(AllocaInst *AI, const SmallVectorImpl<Instruction*> &Insts) {
     // Remember which alloca we're promoting (for isInstInList).
@@ -1329,7 +1333,6 @@ static bool tryToMakeAllocaBePromotable(AllocaInst *AI, const TargetData *TD) {
   return true;
 }
 
-
 bool SROA::performPromotion(Function &F) {
   std::vector<AllocaInst*> Allocas;
   DominatorTree *DT = 0;
@@ -1340,6 +1343,7 @@ bool SROA::performPromotion(Function &F) {
 
   bool Changed = false;
   SmallVector<Instruction*, 64> Insts;
+  DIBuilder *DIB = 0;
   while (1) {
     Allocas.clear();
 
@@ -1363,14 +1367,21 @@ bool SROA::performPromotion(Function &F) {
         for (Value::use_iterator UI = AI->use_begin(), E = AI->use_end();
              UI != E; ++UI)
           Insts.push_back(cast<Instruction>(*UI));
-        
-        AllocaPromoter(Insts, SSA).run(AI, Insts);
+
+        DbgDeclareInst *DDI = FindAllocaDbgDeclare(AI);
+        if (DDI && !DIB)
+          DIB = new DIBuilder(*AI->getParent()->getParent()->getParent());
+        AllocaPromoter(Insts, SSA, DDI, DIB).run(AI, Insts);
         Insts.clear();
       }
     }
     NumPromoted += Allocas.size();
     Changed = true;
   }
+
+  // FIXME: Is there a better way to handle the lazy initialization of DIB
+  // so that there doesn't need to be an explicit delete?
+  delete DIB;
 
   return Changed;
 }
@@ -1831,9 +1842,10 @@ void SROA::RewriteForScalarRepl(Instruction *I, AllocaInst *AI, uint64_t Offset,
         //   %insert = insertvalue { i32, i32 } %insert.0, i32 %load.1, 1
         // (Also works for arrays instead of structs)
         Value *Insert = UndefValue::get(LIType);
+        IRBuilder<> Builder(LI);
         for (unsigned i = 0, e = NewElts.size(); i != e; ++i) {
-          Value *Load = new LoadInst(NewElts[i], "load", LI);
-          Insert = InsertValueInst::Create(Insert, Load, i, "insert", LI);
+          Value *Load = Builder.CreateLoad(NewElts[i], "load");
+          Insert = Builder.CreateInsertValue(Insert, Load, i, "insert");
         }
         LI->replaceAllUsesWith(Insert);
         DeadInsts.push_back(LI);
@@ -1858,9 +1870,10 @@ void SROA::RewriteForScalarRepl(Instruction *I, AllocaInst *AI, uint64_t Offset,
         //   %val.1 = extractvalue { i32, i32 } %val, 1
         //   store i32 %val.1, i32* %alloc.1
         // (Also works for arrays instead of structs)
+        IRBuilder<> Builder(SI);
         for (unsigned i = 0, e = NewElts.size(); i != e; ++i) {
-          Value *Extract = ExtractValueInst::Create(Val, i, Val->getName(), SI);
-          new StoreInst(Extract, NewElts[i], SI);
+          Value *Extract = Builder.CreateExtractValue(Val, i, Val->getName());
+          Builder.CreateStore(Extract, NewElts[i]);
         }
         DeadInsts.push_back(SI);
       } else if (SIType->isIntegerTy() &&
@@ -2481,19 +2494,22 @@ static bool isOnlyCopiedFromConstantGlobal(Value *V, MemTransferInst *&TheCopy,
     }
 
     if (CallSite CS = U) {
-      // If this is a readonly/readnone call site, then we know it is just a
-      // load and we can ignore it.
-      if (CS.onlyReadsMemory())
-        continue;
-
       // If this is the function being called then we treat it like a load and
       // ignore it.
       if (CS.isCallee(UI))
         continue;
 
+      // If this is a readonly/readnone call site, then we know it is just a
+      // load (but one that potentially returns the value itself), so we can
+      // ignore it if we know that the value isn't captured.
+      unsigned ArgNo = CS.getArgumentNo(UI);
+      if (CS.onlyReadsMemory() &&
+          (CS.getInstruction()->use_empty() ||
+           CS.paramHasAttr(ArgNo+1, Attribute::NoCapture)))
+        continue;
+
       // If this is being passed as a byval argument, the caller is making a
       // copy, so it is only a read of the alloca.
-      unsigned ArgNo = CS.getArgumentNo(UI);
       if (CS.paramHasAttr(ArgNo+1, Attribute::ByVal))
         continue;
     }

@@ -306,9 +306,7 @@ nfs_disconnect(struct nfsmount *nmp)
 		client = nmp->nm_client;
 		nmp->nm_client = NULL;
 		mtx_unlock(&nmp->nm_mtx);
-#ifdef KGSSAPI
-		rpc_gss_secpurge(client);
-#endif
+		rpc_gss_secpurge_call(client);
 		CLNT_CLOSE(client);
 		CLNT_RELEASE(client);
 	} else
@@ -325,18 +323,15 @@ nfs_safedisconnect(struct nfsmount *nmp)
 static AUTH *
 nfs_getauth(struct nfsmount *nmp, struct ucred *cred)
 {
-#ifdef KGSSAPI
 	rpc_gss_service_t svc;
 	AUTH *auth;
-#endif
 
 	switch (nmp->nm_secflavor) {
-#ifdef KGSSAPI
 	case RPCSEC_GSS_KRB5:
 	case RPCSEC_GSS_KRB5I:
 	case RPCSEC_GSS_KRB5P:
 		if (!nmp->nm_mech_oid)
-			if (!rpc_gss_mech_to_oid("kerberosv5",
+			if (!rpc_gss_mech_to_oid_call("kerberosv5",
 			    &nmp->nm_mech_oid))
 				return (NULL);
 		if (nmp->nm_secflavor == RPCSEC_GSS_KRB5)
@@ -345,12 +340,11 @@ nfs_getauth(struct nfsmount *nmp, struct ucred *cred)
 			svc = rpc_gss_svc_integrity;
 		else
 			svc = rpc_gss_svc_privacy;
-		auth = rpc_gss_secfind(nmp->nm_client, cred,
+		auth = rpc_gss_secfind_call(nmp->nm_client, cred,
 		    nmp->nm_principal, nmp->nm_mech_oid, svc);
 		if (auth)
 			return (auth);
 		/* fallthrough */
-#endif
 	case AUTH_SYS:
 	default:
 		return (authunix_create(cred));

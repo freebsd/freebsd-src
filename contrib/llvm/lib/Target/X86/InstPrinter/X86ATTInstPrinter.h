@@ -26,6 +26,7 @@ class X86ATTInstPrinter : public MCInstPrinter {
 public:
   X86ATTInstPrinter(TargetMachine &TM, const MCAsmInfo &MAI);
   
+  virtual void printRegName(raw_ostream &OS, unsigned RegNo) const;
   virtual void printInst(const MCInst *MI, raw_ostream &OS);
   virtual StringRef getOpcodeName(unsigned Opcode) const;
 

@@ -256,6 +256,8 @@ in_gif_output(struct ifnet *ifp, int family, struct mbuf *m)
 #endif
 	}
 
+	m_addr_changed(m);
+
 	error = ip_output(m, NULL, &sc->gif_ro, 0, NULL, NULL);
 
 	if (!(GIF2IFP(sc)->if_flags & IFF_LINK0) &&

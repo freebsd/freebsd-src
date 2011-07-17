@@ -386,13 +386,13 @@ contrib/pf/net/pf_if.c		optional pf inet \
 	compile-with "${NORMAL_C} -I$S/contrib/pf"
 contrib/pf/net/pf_ioctl.c	optional pf inet \
 	compile-with "${NORMAL_C} -I$S/contrib/pf"
+contrib/pf/net/pf_lb.c		optional pf inet \
+	compile-with "${NORMAL_C} -I$S/contrib/pf"
 contrib/pf/net/pf_norm.c	optional pf inet \
 	compile-with "${NORMAL_C} -I$S/contrib/pf"
 contrib/pf/net/pf_osfp.c	optional pf inet \
 	compile-with "${NORMAL_C} -I$S/contrib/pf"
 contrib/pf/net/pf_ruleset.c	optional pf inet \
-	compile-with "${NORMAL_C} -I$S/contrib/pf"
-contrib/pf/net/pf_subr.c	optional pf inet \
 	compile-with "${NORMAL_C} -I$S/contrib/pf"
 contrib/pf/net/pf_table.c	optional pf inet \
 	compile-with "${NORMAL_C} -I$S/contrib/pf"
@@ -1552,6 +1552,7 @@ dev/pci/isa_pci.c		optional pci isa
 dev/pci/pci.c			optional pci
 dev/pci/pci_if.m		standard
 dev/pci/pci_pci.c		optional pci
+dev/pci/pci_subr.c		optional pci
 dev/pci/pci_user.c		optional pci
 dev/pci/pcib_if.m		standard
 dev/pci/vga_pci.c		optional pci
@@ -1917,6 +1918,7 @@ dev/usb/net/if_kue.c		optional kue
 dev/usb/net/if_mos.c		optional mos
 dev/usb/net/if_rue.c		optional rue
 dev/usb/net/if_udav.c		optional udav
+dev/usb/net/if_usie.c		optional usie
 dev/usb/net/usb_ethernet.c	optional aue | axe | cdce | cue | kue | mos | \
 					 rue | udav
 dev/usb/net/uhso.c		optional uhso
@@ -1969,8 +1971,8 @@ dev/usb/serial/uvscom.c		optional uvscom
 dev/usb/serial/usb_serial.c 	optional ucom | u3g | uark | ubsa | ubser | \
 					 uchcom | ucycom | ufoma | uftdi | \
 					 ugensa | uipaq | umcs | umct | \
-					 umodem | umoscom | uplcom | uslcom | \
-					 uvisor | uvscom
+					 umodem | umoscom | uplcom | usie | \
+					 uslcom | uvisor | uvscom
 #
 # USB misc drivers
 #
@@ -1991,8 +1993,12 @@ dev/usb/quirk/usb_quirk.c	optional usb
 #
 # USB templates
 #
-dev/usb/template/usb_template.c	optional usb_template
+dev/usb/template/usb_template.c		optional usb_template
+dev/usb/template/usb_template_audio.c	optional usb_template
 dev/usb/template/usb_template_cdce.c	optional usb_template
+dev/usb/template/usb_template_kbd.c	optional usb_template
+dev/usb/template/usb_template_modem.c	optional usb_template
+dev/usb/template/usb_template_mouse.c	optional usb_template
 dev/usb/template/usb_template_msc.c	optional usb_template
 dev/usb/template/usb_template_mtp.c	optional usb_template
 #
@@ -3152,41 +3158,41 @@ ofed/drivers/net/mlx4/en_tx.c			optional mlxen		\
 	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/net/mlx4/"
 
 ofed/drivers/infiniband/hw/mthca/mthca_allocator.c	optional mthca	\
-	no-depend compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/mthca/"
+	no-depend compile-with "${OFED_C}"
 ofed/drivers/infiniband/hw/mthca/mthca_av.c		optional mthca	\
-	no-depend compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/mthca/"
+	no-depend compile-with "${OFED_C}"
 ofed/drivers/infiniband/hw/mthca/mthca_catas.c		optional mthca	\
-	no-depend compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/mthca/"
+	no-depend compile-with "${OFED_C}"
 ofed/drivers/infiniband/hw/mthca/mthca_cmd.c		optional mthca	\
-	no-depend compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/mthca/"
+	no-depend compile-with "${OFED_C}"
 ofed/drivers/infiniband/hw/mthca/mthca_cq.c		optional mthca	\
-	no-depend compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/mthca/"
+	no-depend compile-with "${OFED_C}"
 ofed/drivers/infiniband/hw/mthca/mthca_eq.c		optional mthca	\
-	no-depend compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/mthca/"
+	no-depend compile-with "${OFED_C}"
 ofed/drivers/infiniband/hw/mthca/mthca_mad.c		optional mthca	\
-	no-depend compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/mthca/"
+	no-depend compile-with "${OFED_C}"
 ofed/drivers/infiniband/hw/mthca/mthca_main.c		optional mthca	\
-	no-depend compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/mthca/"
+	no-depend compile-with "${OFED_C}"
 ofed/drivers/infiniband/hw/mthca/mthca_mcg.c		optional mthca	\
-	no-depend compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/mthca/"
+	no-depend compile-with "${OFED_C}"
 ofed/drivers/infiniband/hw/mthca/mthca_memfree.c	optional mthca	\
-	no-depend compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/mthca/"
+	no-depend compile-with "${OFED_C}"
 ofed/drivers/infiniband/hw/mthca/mthca_mr.c		optional mthca	\
-	no-depend compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/mthca/"
+	no-depend compile-with "${OFED_C}"
 ofed/drivers/infiniband/hw/mthca/mthca_pd.c		optional mthca	\
-	no-depend compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/mthca/"
+	no-depend compile-with "${OFED_C}"
 ofed/drivers/infiniband/hw/mthca/mthca_profile.c	optional mthca	\
-	no-depend compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/mthca/"
+	no-depend compile-with "${OFED_C}"
 ofed/drivers/infiniband/hw/mthca/mthca_provider.c	optional mthca	\
-	no-depend compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/mthca/"
+	no-depend compile-with "${OFED_C}"
 ofed/drivers/infiniband/hw/mthca/mthca_qp.c		optional mthca	\
-	no-depend compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/mthca/"
+	no-depend compile-with "${OFED_C}"
 ofed/drivers/infiniband/hw/mthca/mthca_reset.c		optional mthca	\
-	no-depend compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/mthca/"
+	no-depend compile-with "${OFED_C}"
 ofed/drivers/infiniband/hw/mthca/mthca_srq.c		optional mthca	\
-	no-depend compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/mthca/"
+	no-depend compile-with "${OFED_C}"
 ofed/drivers/infiniband/hw/mthca/mthca_uar.c		optional mthca	\
-	no-depend compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/mthca/"
+	no-depend compile-with "${OFED_C}"
 
 # crypto support
 opencrypto/cast.c		optional crypto | ipsec

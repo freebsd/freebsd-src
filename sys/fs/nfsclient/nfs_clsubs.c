@@ -35,6 +35,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_kdtrace.h"
+
 /*
  * These functions support the macros and help fiddle mbuf chains for
  * the nfs op functions. They do things like create the rpc header and
@@ -68,6 +70,7 @@ __FBSDID("$FreeBSD$");
 #include <fs/nfsclient/nfsnode.h>
 #include <fs/nfsclient/nfsmount.h>
 #include <fs/nfsclient/nfs.h>
+#include <fs/nfsclient/nfs_kdtrace.h>
 
 #include <netinet/in.h>
 
@@ -140,12 +143,12 @@ ncl_upgrade_vnlock(struct vnode *vp)
 	int old_lock;
 
 	ASSERT_VOP_LOCKED(vp, "ncl_upgrade_vnlock");
-	old_lock = VOP_ISLOCKED(vp);
+	old_lock = NFSVOPISLOCKED(vp);
 	if (old_lock != LK_EXCLUSIVE) {
 		KASSERT(old_lock == LK_SHARED,
 		    ("ncl_upgrade_vnlock: wrong old_lock %d", old_lock));
 		/* Upgrade to exclusive lock, this might block */
-		vn_lock(vp, LK_UPGRADE | LK_RETRY);
+		NFSVOPLOCK(vp, LK_UPGRADE | LK_RETRY);
   	}
 	return (old_lock);
 }
@@ -156,7 +159,7 @@ ncl_downgrade_vnlock(struct vnode *vp, int old_lock)
 	if (old_lock != LK_EXCLUSIVE) {
 		KASSERT(old_lock == LK_SHARED, ("wrong old_lock %d", old_lock));
 		/* Downgrade from exclusive lock. */
-		vn_lock(vp, LK_DOWNGRADE | LK_RETRY);
+		NFSVOPLOCK(vp, LK_DOWNGRADE | LK_RETRY);
   	}
 }
 
@@ -238,6 +241,7 @@ ncl_getattrcache(struct vnode *vp, struct vattr *vaper)
 #ifdef NFS_ACDEBUG
 		mtx_unlock(&Giant);	/* ncl_printf() */
 #endif
+		KDTRACE_NFS_ATTRCACHE_GET_MISS(vp);
 		return( ENOENT);
 	}
 	newnfsstats.attrcache_hits++;
@@ -267,6 +271,7 @@ ncl_getattrcache(struct vnode *vp, struct vattr *vaper)
 #ifdef NFS_ACDEBUG
 	mtx_unlock(&Giant);	/* ncl_printf() */
 #endif
+	KDTRACE_NFS_ATTRCACHE_GET_HIT(vp, vap);
 	return (0);
 }
 

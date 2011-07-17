@@ -372,7 +372,11 @@ bool LICM::canSinkOrHoistInst(Instruction &I) {
     return !pointerInvalidatedByLoop(LI->getOperand(0), Size,
                                      LI->getMetadata(LLVMContext::MD_tbaa));
   } else if (CallInst *CI = dyn_cast<CallInst>(&I)) {
-    // Handle obvious cases efficiently.
+    // Don't sink or hoist dbg info; it's legal, but not useful.
+    if (isa<DbgInfoIntrinsic>(I))
+      return false;
+
+    // Handle simple cases by querying alias analysis.
     AliasAnalysis::ModRefBehavior Behavior = AA->getModRefBehavior(CI);
     if (Behavior == AliasAnalysis::DoesNotAccessMemory)
       return true;
@@ -445,8 +449,7 @@ void LICM::sink(Instruction &I) {
   // enough that we handle it as a special (more efficient) case.  It is more
   // efficient to handle because there are no PHI nodes that need to be placed.
   if (ExitBlocks.size() == 1) {
-    if (!isa<DbgInfoIntrinsic>(I) && 
-        !DT->dominates(I.getParent(), ExitBlocks[0])) {
+    if (!DT->dominates(I.getParent(), ExitBlocks[0])) {
       // Instruction is not used, just delete it.
       CurAST->deleteValue(&I);
       // If I has users in unreachable blocks, eliminate.
@@ -602,13 +605,15 @@ namespace {
     SmallPtrSet<Value*, 4> &PointerMustAliases;
     SmallVectorImpl<BasicBlock*> &LoopExitBlocks;
     AliasSetTracker &AST;
+    DebugLoc DL;
   public:
     LoopPromoter(Value *SP,
                  const SmallVectorImpl<Instruction*> &Insts, SSAUpdater &S,
                  SmallPtrSet<Value*, 4> &PMA,
-                 SmallVectorImpl<BasicBlock*> &LEB, AliasSetTracker &ast)
-      : LoadAndStorePromoter(Insts, S), SomePtr(SP), PointerMustAliases(PMA),
-        LoopExitBlocks(LEB), AST(ast) {}
+                 SmallVectorImpl<BasicBlock*> &LEB, AliasSetTracker &ast,
+                 DebugLoc dl)
+      : LoadAndStorePromoter(Insts, S, 0, 0), SomePtr(SP),
+        PointerMustAliases(PMA), LoopExitBlocks(LEB), AST(ast), DL(dl) {}
     
     virtual bool isInstInList(Instruction *I,
                               const SmallVectorImpl<Instruction*> &) const {
@@ -629,7 +634,8 @@ namespace {
         BasicBlock *ExitBlock = LoopExitBlocks[i];
         Value *LiveInValue = SSA.GetValueInMiddleOfBlock(ExitBlock);
         Instruction *InsertPos = ExitBlock->getFirstNonPHI();
-        new StoreInst(LiveInValue, SomePtr, InsertPos);
+        StoreInst *NewSI = new StoreInst(LiveInValue, SomePtr, InsertPos);
+        NewSI->setDebugLoc(DL);
       }
     }
 
@@ -727,6 +733,12 @@ void LICM::PromoteAliasSet(AliasSet &AS) {
   Changed = true;
   ++NumPromoted;
 
+  // Grab a debug location for the inserted loads/stores; given that the
+  // inserted loads/stores have little relation to the original loads/stores,
+  // this code just arbitrarily picks a location from one, since any debug
+  // location is better than none.
+  DebugLoc DL = LoopUses[0]->getDebugLoc();
+
   SmallVector<BasicBlock*, 8> ExitBlocks;
   CurLoop->getUniqueExitBlocks(ExitBlocks);
   
@@ -734,13 +746,14 @@ void LICM::PromoteAliasSet(AliasSet &AS) {
   SmallVector<PHINode*, 16> NewPHIs;
   SSAUpdater SSA(&NewPHIs);
   LoopPromoter Promoter(SomePtr, LoopUses, SSA, PointerMustAliases, ExitBlocks,
-                        *CurAST);
+                        *CurAST, DL);
   
   // Set up the preheader to have a definition of the value.  It is the live-out
   // value from the preheader that uses in the loop will use.
   LoadInst *PreheaderLoad =
     new LoadInst(SomePtr, SomePtr->getName()+".promoted",
                  Preheader->getTerminator());
+  PreheaderLoad->setDebugLoc(DL);
   SSA.AddAvailableValue(Preheader, PreheaderLoad);
 
   // Rewrite all the loads in the loop and remember all the definitions from

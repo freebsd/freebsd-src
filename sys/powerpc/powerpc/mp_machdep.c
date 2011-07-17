@@ -96,10 +96,6 @@ machdep_ap_bootstrap(void)
 	printf("SMP: AP CPU #%d launched\n", PCPU_GET(cpuid));
 	mtx_unlock_spin(&ap_boot_mtx);
 
-	/* Initialize curthread */
-	PCPU_SET(curthread, PCPU_GET(idlethread));
-	PCPU_SET(curpcb, curthread->td_pcb);
-
 	/* Start per-CPU event timers. */
 	cpu_initclocks_ap();
 
@@ -175,9 +171,8 @@ cpu_mp_start(void)
 			pc->pc_cpuid = bsp.cr_cpuid;
 			pc->pc_bsp = 1;
 		}
-		CPU_SETOF(pc->pc_cpuid, &pc->pc_cpumask);
 		pc->pc_hwref = cpu.cr_hwref;
-		CPU_OR(&all_cpus, &pc->pc_cpumask);
+		CPU_SET(pc->pc_cpuid, &all_cpus);
 next:
 		error = platform_smp_next_cpu(&cpu);
 	}
@@ -215,8 +210,6 @@ cpu_mp_unleash(void *dummy)
 	smp_cpus = 0;
 	STAILQ_FOREACH(pc, &cpuhead, pc_allcpu) {
 		cpus++;
-		pc->pc_other_cpus = all_cpus;
-		CPU_NAND(&pc->pc_other_cpus, &pc->pc_cpumask);
 		if (!pc->pc_bsp) {
 			if (bootverbose)
 				printf("Waking up CPU %d (dev=%x)\n",
@@ -278,7 +271,7 @@ SYSINIT(start_aps, SI_SUB_SMP, SI_ORDER_FIRST, cpu_mp_unleash, NULL);
 int
 powerpc_ipi_handler(void *arg)
 {
-	cpuset_t self;
+	u_int cpuid;
 	uint32_t ipimask;
 	int msg;
 
@@ -310,14 +303,14 @@ powerpc_ipi_handler(void *arg)
 			 */
 			CTR1(KTR_SMP, "%s: IPI_STOP or IPI_STOP_HARD (stop)",
 			    __func__);
-			savectx(&stoppcbs[PCPU_GET(cpuid)]);
-			self = PCPU_GET(cpumask);
+			cpuid = PCPU_GET(cpuid);
+			savectx(&stoppcbs[cpuid]);
 			savectx(PCPU_GET(curpcb));
-			CPU_OR_ATOMIC(&stopped_cpus, &self);
-			while (!CPU_OVERLAP(&started_cpus, &self))
+			CPU_SET_ATOMIC(cpuid, &stopped_cpus);
+			while (!CPU_ISSET(cpuid, &started_cpus))
 				cpu_spinwait();
-			CPU_NAND_ATOMIC(&started_cpus, &self);
-			CPU_NAND_ATOMIC(&stopped_cpus, &self);
+			CPU_CLR_ATOMIC(cpuid, &stopped_cpus);
+			CPU_CLR_ATOMIC(cpuid, &started_cpus);
 			CTR1(KTR_SMP, "%s: IPI_STOP (restart)", __func__);
 			break;
 		case IPI_HARDCLOCK:
@@ -350,7 +343,7 @@ ipi_selected(cpuset_t cpus, int ipi)
 	struct pcpu *pc;
 
 	STAILQ_FOREACH(pc, &cpuhead, pc_allcpu) {
-		if (CPU_OVERLAP(&cpus, &pc->pc_cpumask))
+		if (CPU_ISSET(pc->pc_cpuid, &cpus))
 			ipi_send(pc, ipi);
 	}
 }

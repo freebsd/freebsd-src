@@ -100,8 +100,6 @@ static unsigned GetEncodedBinaryOpcode(unsigned Opcode) {
   }
 }
 
-
-
 static void WriteStringRecord(unsigned Code, const std::string &Str,
                               unsigned AbbrevToUse, BitstreamWriter &Stream) {
   SmallVector<unsigned, 64> Vals;
@@ -446,7 +444,6 @@ static void WriteModuleInfo(const Module *M, const ValueEnumerator &VE,
     Stream.EmitRecord(bitc::MODULE_CODE_FUNCTION, Vals, AbbrevToUse);
     Vals.clear();
   }
-
 
   // Emit the alias information.
   for (Module::const_alias_iterator AI = M->alias_begin(), E = M->alias_end();
@@ -871,8 +868,6 @@ static void WriteConstants(unsigned FirstVal, unsigned LastVal,
         break;
       }
     } else if (const BlockAddress *BA = dyn_cast<BlockAddress>(C)) {
-      assert(BA->getFunction() == BA->getBasicBlock()->getParent() &&
-             "Malformed blockaddress");
       Code = bitc::CST_CODE_BLOCKADDRESS;
       Record.push_back(VE.getTypeID(BA->getFunction()->getType()));
       Record.push_back(VE.getValueID(BA->getFunction()));
@@ -1514,9 +1509,9 @@ static void WriteModule(const Module *M, BitstreamWriter &Stream) {
   WriteModuleMetadata(M, VE, Stream);
 
   // Emit function bodies.
-  for (Module::const_iterator I = M->begin(), E = M->end(); I != E; ++I)
-    if (!I->isDeclaration())
-      WriteFunction(*I, VE, Stream);
+  for (Module::const_iterator F = M->begin(), E = M->end(); F != E; ++F)
+    if (!F->isDeclaration())
+      WriteFunction(*F, VE, Stream);
 
   // Emit metadata.
   WriteModuleMetadataStore(M, Stream);

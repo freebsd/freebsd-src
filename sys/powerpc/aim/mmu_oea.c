@@ -945,9 +945,7 @@ moea_activate(mmu_t mmu, struct thread *td)
 	pm = &td->td_proc->p_vmspace->vm_pmap;
 	pmr = pm->pmap_phys;
 
-	sched_pin();
-	CPU_OR(&pm->pm_active, PCPU_PTR(cpumask));
-	sched_unpin();
+	CPU_SET(PCPU_GET(cpuid), &pm->pm_active);
 	PCPU_SET(curpmap, pmr);
 }
 
@@ -957,9 +955,7 @@ moea_deactivate(mmu_t mmu, struct thread *td)
 	pmap_t	pm;
 
 	pm = &td->td_proc->p_vmspace->vm_pmap;
-	sched_pin();
-	CPU_NAND(&pm->pm_active, PCPU_PTR(cpumask));
-	sched_unpin();
+	CPU_CLR(PCPU_GET(cpuid), &pm->pm_active);
 	PCPU_SET(curpmap, NULL);
 }
 

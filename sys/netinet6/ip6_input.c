@@ -504,6 +504,13 @@ ip6_input(struct mbuf *m)
 		goto bad;
 	}
 #endif
+#ifdef IPSEC
+	/*
+	 * Bypass packet filtering for packets previously handled by IPsec.
+	 */
+	if (ip6_ipsec_filtertunnel(m))
+		goto passin;
+#endif /* IPSEC */
 
 	/*
 	 * Run through list of hooks for input packets.

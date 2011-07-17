@@ -37,6 +37,7 @@ struct pcpu_stats {
 	u_long		pcs_nasts;		/* IPI_AST counter. */
 	u_long		pcs_nclks;		/* Clock interrupt counter. */
 	u_long		pcs_nextints;		/* ExtINT counter. */
+	u_long		pcs_nhardclocks;	/* IPI_HARDCLOCK counter. */
 	u_long		pcs_nhighfps;		/* IPI_HIGH_FP counter. */
 	u_long		pcs_nhwints;		/* Hardware int. counter. */
 	u_long		pcs_npreempts;		/* IPI_PREEMPT counter. */
@@ -51,7 +52,8 @@ struct pcpu_md {
 	vm_offset_t	vhpt;			/* Address of VHPT */
 	uint64_t	lid;			/* local CPU ID */
 	uint64_t	clock;			/* Clock counter. */
-	uint64_t	clockadj;		/* Clock adjust. */
+	uint64_t	clock_load;		/* Clock reload value. */
+	uint32_t	clock_mode;		/* Clock ET mode */
 	uint32_t	awake:1;		/* CPU is awake? */
 	struct pcpu_stats stats;		/* Interrupt stats. */
 #ifdef _KERNEL

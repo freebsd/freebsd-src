@@ -253,6 +253,23 @@ public:
     else removeFnAttr(Attribute::NoUnwind);
   }
 
+  /// @brief True if the ABI mandates (or the user requested) that this
+  /// function be in a unwind table.
+  bool hasUWTable() const {
+    return hasFnAttr(Attribute::UWTable);
+  }
+  void setHasUWTable(bool HasUWTable = true) {
+    if (HasUWTable)
+      addFnAttr(Attribute::UWTable);
+    else
+      removeFnAttr(Attribute::UWTable);
+  }
+
+  /// @brief True if this function needs an unwind table.
+  bool needsUnwindTableEntry() const {
+    return hasUWTable() || !doesNotThrow();
+  }
+
   /// @brief Determine if the function returns a structure through first 
   /// pointer argument.
   bool hasStructRetAttr() const {
@@ -413,6 +430,10 @@ public:
   /// offending user for diagnostic purposes.
   ///
   bool hasAddressTaken(const User** = 0) const;
+
+  /// callsFunctionThatReturnsTwice - Return true if the function has a call to
+  /// setjmp or other function that gcc recognizes as "returning twice".
+  bool callsFunctionThatReturnsTwice() const;
 
 private:
   // Shadow Value::setValueSubclassData with a private forwarding method so that

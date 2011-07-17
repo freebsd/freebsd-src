@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,15 +15,18 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: soa.c,v 1.8 2007-06-19 23:47:16 tbox Exp $ */
+/* $Id: soa.c,v 1.12 2009-09-10 02:18:40 each Exp $ */
 
 /*! \file */
 
 #include <config.h>
+#include <string.h>
 
+#include <isc/buffer.h>
 #include <isc/util.h>
 
 #include <dns/rdata.h>
+#include <dns/rdatastruct.h>
 #include <dns/soa.h>
 
 static inline isc_uint32_t
@@ -58,6 +61,39 @@ soa_get(dns_rdata_t *rdata, int offset) {
 	INSIST(rdata->length >= 20);
 	INSIST(offset >= 0 && offset <= 16);
 	return (decode_uint32(rdata->data + rdata->length - 20 + offset));
+}
+
+isc_result_t
+dns_soa_buildrdata(dns_name_t *origin, dns_name_t *contact,
+		   dns_rdataclass_t rdclass,
+		   isc_uint32_t serial, isc_uint32_t refresh,
+		   isc_uint32_t retry, isc_uint32_t expire,
+		   isc_uint32_t minimum, unsigned char *buffer,
+		   dns_rdata_t *rdata) {
+	dns_rdata_soa_t soa;
+	isc_buffer_t rdatabuf;
+
+	REQUIRE(origin != NULL);
+	REQUIRE(contact != NULL);
+
+	memset(buffer, 0, DNS_SOA_BUFFERSIZE);
+	isc_buffer_init(&rdatabuf, buffer, DNS_SOA_BUFFERSIZE);
+
+	soa.common.rdtype = dns_rdatatype_soa;
+	soa.common.rdclass = rdclass;
+	soa.mctx = NULL;
+	soa.serial = serial;
+	soa.refresh = refresh;
+	soa.retry = retry;
+	soa.expire = expire;
+	soa.minimum = minimum;
+	dns_name_init(&soa.origin, NULL);
+	dns_name_clone(origin, &soa.origin);
+	dns_name_init(&soa.contact, NULL);
+	dns_name_clone(contact, &soa.contact);
+
+	return (dns_rdata_fromstruct(rdata, rdclass, dns_rdatatype_soa,
+				      &soa, &rdatabuf));
 }
 
 isc_uint32_t

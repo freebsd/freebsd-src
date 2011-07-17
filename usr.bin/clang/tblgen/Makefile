@@ -15,6 +15,7 @@ SRCS=	ARMDecoderEmitter.cpp \
 	CodeEmitterGen.cpp \
 	CodeGenDAGPatterns.cpp \
 	CodeGenInstruction.cpp \
+	CodeGenRegisters.cpp \
 	CodeGenTarget.cpp \
 	DAGISelEmitter.cpp \
 	DAGISelMatcher.cpp \
@@ -33,6 +34,7 @@ SRCS=	ARMDecoderEmitter.cpp \
 	OptParserEmitter.cpp \
 	Record.cpp \
 	RegisterInfoEmitter.cpp \
+	SetTheory.cpp \
 	StringMatcher.cpp \
 	SubtargetEmitter.cpp \
 	TGLexer.cpp \

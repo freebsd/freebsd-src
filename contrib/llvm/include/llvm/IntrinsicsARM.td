@@ -36,6 +36,16 @@ let TargetPrefix = "arm" in {  // All intrinsics start with "llvm.arm.".
 }
 
 //===----------------------------------------------------------------------===//
+// Load and Store exclusive doubleword
+
+let TargetPrefix = "arm" in {  // All intrinsics start with "llvm.arm.".
+  def int_arm_strexd : Intrinsic<[llvm_i32_ty], [llvm_i32_ty, llvm_i32_ty,
+                                  llvm_ptr_ty], [IntrReadWriteArgMem]>;
+  def int_arm_ldrexd : Intrinsic<[llvm_i32_ty, llvm_i32_ty], [llvm_ptr_ty],
+                                 [IntrReadArgMem]>;
+}
+
+//===----------------------------------------------------------------------===//
 // VFP
 
 let TargetPrefix = "arm" in {  // All intrinsics start with "llvm.arm.".
@@ -47,6 +57,43 @@ let TargetPrefix = "arm" in {  // All intrinsics start with "llvm.arm.".
                                     [IntrNoMem]>;
   def int_arm_vcvtru    : Intrinsic<[llvm_float_ty], [llvm_anyfloat_ty],
                                     [IntrNoMem]>;
+}
+
+//===----------------------------------------------------------------------===//
+// Coprocessor
+
+let TargetPrefix = "arm" in {  // All intrinsics start with "llvm.arm.".
+  // Move to coprocessor
+  def int_arm_mcr : GCCBuiltin<"__builtin_arm_mcr">,
+     Intrinsic<[], [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty,
+                    llvm_i32_ty, llvm_i32_ty, llvm_i32_ty], []>;
+  def int_arm_mcr2 : GCCBuiltin<"__builtin_arm_mcr2">,
+     Intrinsic<[], [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty,
+                    llvm_i32_ty, llvm_i32_ty, llvm_i32_ty], []>;
+
+  // Move from coprocessor
+  def int_arm_mrc : GCCBuiltin<"__builtin_arm_mrc">,
+     Intrinsic<[llvm_i32_ty], [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty,
+                               llvm_i32_ty, llvm_i32_ty], []>;
+  def int_arm_mrc2 : GCCBuiltin<"__builtin_arm_mrc2">,
+     Intrinsic<[llvm_i32_ty], [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty,
+                               llvm_i32_ty, llvm_i32_ty], []>;
+
+  // Coprocessor data processing
+  def int_arm_cdp : GCCBuiltin<"__builtin_arm_cdp">,
+     Intrinsic<[], [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty,
+                    llvm_i32_ty, llvm_i32_ty, llvm_i32_ty], []>;
+  def int_arm_cdp2 : GCCBuiltin<"__builtin_arm_cdp2">,
+     Intrinsic<[], [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty,
+                    llvm_i32_ty, llvm_i32_ty, llvm_i32_ty], []>;
+
+  // Move from two registers to coprocessor
+  def int_arm_mcrr : GCCBuiltin<"__builtin_arm_mcrr">,
+     Intrinsic<[], [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty,
+                    llvm_i32_ty, llvm_i32_ty], []>;
+  def int_arm_mcrr2 : GCCBuiltin<"__builtin_arm_mcrr2">,
+     Intrinsic<[], [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty,
+                    llvm_i32_ty, llvm_i32_ty], []>;
 }
 
 //===----------------------------------------------------------------------===//

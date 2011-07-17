@@ -320,7 +320,6 @@ private:
                                        AddStmtChoice asc);
   CFGBlock *VisitCXXTemporaryObjectExpr(CXXTemporaryObjectExpr *C, 
                                         AddStmtChoice asc);
-  CFGBlock *VisitCXXMemberCallExpr(CXXMemberCallExpr *C, AddStmtChoice asc);
   CFGBlock *VisitCallExpr(CallExpr *C, AddStmtChoice asc);
   CFGBlock *VisitCaseStmt(CaseStmt *C);
   CFGBlock *VisitChooseExpr(ChooseExpr *C, AddStmtChoice asc);
@@ -398,6 +397,8 @@ private:
     if (alwaysAdd(S))
       cachedEntry->second = B;
 
+    // All block-level expressions should have already been IgnoreParens()ed.
+    assert(!isa<Expr>(S) || cast<Expr>(S)->IgnoreParens() == S);
     B->appendStmt(const_cast<Stmt*>(S), cfg->getBumpVectorContext());
   }
   void appendInitializer(CFGBlock *B, CXXCtorInitializer *I) {
@@ -444,7 +445,7 @@ private:
       return Result.Val.getInt().getBoolValue();
 
     if (Result.Val.isLValue()) {
-      Expr *e = Result.Val.getLValueBase();
+      const Expr *e = Result.Val.getLValueBase();
       const CharUnits &c = Result.Val.getLValueOffset();        
       if (!e && c.isZero())
         return false;        
@@ -842,11 +843,14 @@ void CFGBuilder::prependAutomaticObjDtorsWithTerminator(CFGBlock* Blk,
 ///   blocks for ternary operators, &&, and ||.  We also process "," and
 ///   DeclStmts (which may contain nested control-flow).
 CFGBlock* CFGBuilder::Visit(Stmt * S, AddStmtChoice asc) {
-tryAgain:
   if (!S) {
     badCFG = true;
     return 0;
   }
+
+  if (Expr *E = dyn_cast<Expr>(S))
+    S = E->IgnoreParens();
+
   switch (S->getStmtClass()) {
     default:
       return VisitStmt(S, asc);
@@ -868,6 +872,7 @@ tryAgain:
 
     case Stmt::CallExprClass:
     case Stmt::CXXOperatorCallExprClass:
+    case Stmt::CXXMemberCallExprClass:
       return VisitCallExpr(cast<CallExpr>(S), asc);
 
     case Stmt::CaseStmtClass:
@@ -902,9 +907,6 @@ tryAgain:
 
     case Stmt::CXXTemporaryObjectExprClass:
       return VisitCXXTemporaryObjectExpr(cast<CXXTemporaryObjectExpr>(S), asc);
-
-    case Stmt::CXXMemberCallExprClass:
-      return VisitCXXMemberCallExpr(cast<CXXMemberCallExpr>(S), asc);
 
     case Stmt::CXXThrowExprClass:
       return VisitCXXThrowExpr(cast<CXXThrowExpr>(S));
@@ -959,10 +961,6 @@ tryAgain:
 
     case Stmt::ObjCForCollectionStmtClass:
       return VisitObjCForCollectionStmt(cast<ObjCForCollectionStmt>(S));
-
-    case Stmt::ParenExprClass:
-      S = cast<ParenExpr>(S)->getSubExpr();
-      goto tryAgain;
 
     case Stmt::NullStmtClass:
       return Block;
@@ -1153,11 +1151,18 @@ static bool CanThrow(Expr *E, ASTContext &Ctx) {
 }
 
 CFGBlock *CFGBuilder::VisitCallExpr(CallExpr *C, AddStmtChoice asc) {
-  // If this is a call to a no-return function, this stops the block here.
-  bool NoReturn = false;
-  if (getFunctionExtInfo(*C->getCallee()->getType()).getNoReturn()) {
-    NoReturn = true;
+  // Compute the callee type.
+  QualType calleeType = C->getCallee()->getType();
+  if (calleeType == Context->BoundMemberTy) {
+    QualType boundType = Expr::findBoundMemberType(C->getCallee());
+
+    // We should only get a null bound type if processing a dependent
+    // CFG.  Recover by assuming nothing.
+    if (!boundType.isNull()) calleeType = boundType;
   }
+
+  // If this is a call to a no-return function, this stops the block here.
+  bool NoReturn = getFunctionExtInfo(*calleeType).getNoReturn();
 
   bool AddEHEdge = false;
 
@@ -1314,6 +1319,12 @@ CFGBlock *CFGBuilder::VisitConditionalOperator(AbstractConditionalOperator *C,
 }
 
 CFGBlock *CFGBuilder::VisitDeclStmt(DeclStmt *DS) {
+  // Check if the Decl is for an __label__.  If so, elide it from the
+  // CFG entirely.
+  if (isa<LabelDecl>(*DS->decl_begin()))
+    return Block;
+  
+  // This case also handles static_asserts.
   if (DS->isSingleDecl())
     return VisitDeclSubExpr(DS);
 
@@ -1346,7 +1357,14 @@ CFGBlock *CFGBuilder::VisitDeclStmt(DeclStmt *DS) {
 /// DeclStmts and initializers in them.
 CFGBlock *CFGBuilder::VisitDeclSubExpr(DeclStmt* DS) {
   assert(DS->isSingleDecl() && "Can handle single declarations only.");
-
+  Decl *D = DS->getSingleDecl();
+ 
+  if (isa<StaticAssertDecl>(D)) {
+    // static_asserts aren't added to the CFG because they do not impact
+    // runtime semantics.
+    return Block;
+  }
+  
   VarDecl *VD = dyn_cast<VarDecl>(DS->getSingleDecl());
 
   if (!VD) {
@@ -2686,13 +2704,6 @@ CFGBlock *CFGBuilder::VisitCXXTemporaryObjectExpr(CXXTemporaryObjectExpr *C,
   return VisitChildren(C);
 }
 
-CFGBlock *CFGBuilder::VisitCXXMemberCallExpr(CXXMemberCallExpr *C,
-                                             AddStmtChoice asc) {
-  autoCreateBlock();
-  appendStmt(Block, C);
-  return VisitChildren(C);
-}
-
 CFGBlock *CFGBuilder::VisitImplicitCastExpr(ImplicitCastExpr *E,
                                             AddStmtChoice asc) {
   if (asc.alwaysAdd(*this, E)) {
@@ -3039,6 +3050,7 @@ static BlkExprMapTy* PopulateBlkExprMap(CFG& cfg) {
       if (!CS)
         continue;
       if (Expr* Exp = dyn_cast<Expr>(CS->getStmt())) {
+        assert((Exp->IgnoreParens() == Exp) && "No parens on block-level exps");
 
         if (BinaryOperator* B = dyn_cast<BinaryOperator>(Exp)) {
           // Assignment expressions that are not nested within another
@@ -3046,13 +3058,16 @@ static BlkExprMapTy* PopulateBlkExprMap(CFG& cfg) {
           // another expression.
           if (B->isAssignmentOp() && !SubExprAssignments.count(Exp))
             continue;
-        } else if (const StmtExpr* Terminator = dyn_cast<StmtExpr>(Exp)) {
+        } else if (const StmtExpr* SE = dyn_cast<StmtExpr>(Exp)) {
           // Special handling for statement expressions.  The last statement in
           // the statement expression is also a block-level expr.
-          const CompoundStmt* C = Terminator->getSubStmt();
+          const CompoundStmt* C = SE->getSubStmt();
           if (!C->body_empty()) {
+            const Stmt *Last = C->body_back();
+            if (const Expr *LastEx = dyn_cast<Expr>(Last))
+              Last = LastEx->IgnoreParens();
             unsigned x = M->size();
-            (*M)[C->body_back()] = x;
+            (*M)[Last] = x;
           }
         }
 
@@ -3066,8 +3081,8 @@ static BlkExprMapTy* PopulateBlkExprMap(CFG& cfg) {
     Stmt* S = (*I)->getTerminatorCondition();
 
     if (S && M->find(S) == M->end()) {
-        unsigned x = M->size();
-        (*M)[S] = x;
+      unsigned x = M->size();
+      (*M)[S] = x;
     }
   }
 

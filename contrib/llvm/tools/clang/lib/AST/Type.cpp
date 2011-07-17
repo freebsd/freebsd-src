@@ -517,7 +517,7 @@ bool Type::isIntegerType() const {
   if (const EnumType *ET = dyn_cast<EnumType>(CanonicalType))
     // Incomplete enum types are not treated as integer types.
     // FIXME: In C++, enum types are never integer types.
-    return ET->getDecl()->isComplete();
+    return ET->getDecl()->isComplete() && !ET->getDecl()->isScoped();
   return false;
 }
 
@@ -641,10 +641,24 @@ bool Type::isSignedIntegerType() const {
   if (const EnumType *ET = dyn_cast<EnumType>(CanonicalType)) {
     // Incomplete enum types are not treated as integer types.
     // FIXME: In C++, enum types are never integer types.
-    if (ET->getDecl()->isComplete())
+    if (ET->getDecl()->isComplete() && !ET->getDecl()->isScoped())
       return ET->getDecl()->getIntegerType()->isSignedIntegerType();
   }
 
+  return false;
+}
+
+bool Type::isSignedIntegerOrEnumerationType() const {
+  if (const BuiltinType *BT = dyn_cast<BuiltinType>(CanonicalType)) {
+    return BT->getKind() >= BuiltinType::Char_S &&
+    BT->getKind() <= BuiltinType::Int128;
+  }
+  
+  if (const EnumType *ET = dyn_cast<EnumType>(CanonicalType)) {
+    if (ET->getDecl()->isComplete())
+      return ET->getDecl()->getIntegerType()->isSignedIntegerType();
+  }
+  
   return false;
 }
 
@@ -667,10 +681,24 @@ bool Type::isUnsignedIntegerType() const {
   if (const EnumType *ET = dyn_cast<EnumType>(CanonicalType)) {
     // Incomplete enum types are not treated as integer types.
     // FIXME: In C++, enum types are never integer types.
-    if (ET->getDecl()->isComplete())
+    if (ET->getDecl()->isComplete() && !ET->getDecl()->isScoped())
       return ET->getDecl()->getIntegerType()->isUnsignedIntegerType();
   }
 
+  return false;
+}
+
+bool Type::isUnsignedIntegerOrEnumerationType() const {
+  if (const BuiltinType *BT = dyn_cast<BuiltinType>(CanonicalType)) {
+    return BT->getKind() >= BuiltinType::Bool &&
+    BT->getKind() <= BuiltinType::UInt128;
+  }
+  
+  if (const EnumType *ET = dyn_cast<EnumType>(CanonicalType)) {
+    if (ET->getDecl()->isComplete())
+      return ET->getDecl()->getIntegerType()->isUnsignedIntegerType();
+  }
+  
   return false;
 }
 
@@ -954,10 +982,37 @@ bool Type::isTrivialType() const {
   if (const RecordType *RT = BaseTy->getAs<RecordType>()) {
     if (const CXXRecordDecl *ClassDecl =
         dyn_cast<CXXRecordDecl>(RT->getDecl())) {
-      // C++0x [class]p5:
-      //   A trivial class is a class that has a trivial default constructor
-      if (!ClassDecl->hasTrivialConstructor()) return false;
-      //   and is trivially copyable.
+      if (!ClassDecl->isTrivial()) return false;
+    }
+
+    return true;
+  }
+
+  // No other types can match.
+  return false;
+}
+
+bool Type::isTriviallyCopyableType() const {
+  if (isDependentType())
+    return false;
+
+  // C++0x [basic.types]p9
+  //   Scalar types, trivially copyable class types, arrays of such types, and
+  //   cv-qualified versions of these types are collectively called trivial
+  //   types.
+  const Type *BaseTy = getBaseElementTypeUnsafe();
+  assert(BaseTy && "NULL element type");
+
+  // Return false for incomplete types after skipping any incomplete array types
+  // which are expressly allowed by the standard and thus our API.
+  if (BaseTy->isIncompleteType())
+    return false;
+ 
+  // As an extension, Clang treats vector types as Scalar types.
+  if (BaseTy->isScalarType() || BaseTy->isVectorType()) return true;
+  if (const RecordType *RT = BaseTy->getAs<RecordType>()) {
+    if (const CXXRecordDecl *ClassDecl =
+        dyn_cast<CXXRecordDecl>(RT->getDecl())) {
       if (!ClassDecl->isTriviallyCopyable()) return false;
     }
 
@@ -1027,11 +1082,7 @@ bool Type::isCXX11PODType() const {
         dyn_cast<CXXRecordDecl>(RT->getDecl())) {
       // C++11 [class]p10:
       //   A POD struct is a non-union class that is both a trivial class [...]
-      // C++11 [class]p5:
-      //   A trivial class is a class that has a trivial default constructor
-      if (!ClassDecl->hasTrivialConstructor()) return false;
-      //   and is trivially copyable.
-      if (!ClassDecl->isTriviallyCopyable()) return false;
+      if (!ClassDecl->isTrivial()) return false;
 
       // C++11 [class]p10:
       //   A POD struct is a non-union class that is both a trivial class and
@@ -1484,6 +1535,16 @@ static TagDecl *getInterestingTagDecl(TagDecl *decl) {
   return decl;
 }
 
+UnaryTransformType::UnaryTransformType(QualType BaseType,
+                                       QualType UnderlyingType,
+                                       UTTKind UKind,
+                                       QualType CanonicalType)
+  : Type(UnaryTransform, CanonicalType, UnderlyingType->isDependentType(),
+         UnderlyingType->isVariablyModifiedType(),
+         BaseType->containsUnexpandedParameterPack())
+  , BaseType(BaseType), UnderlyingType(UnderlyingType), UKind(UKind)
+{}
+
 TagDecl *TagType::getDecl() const {
   return getInterestingTagDecl(decl);
 }
@@ -1559,13 +1620,13 @@ anyDependentTemplateArguments(const TemplateArgument *Args, unsigned N) {
 
 TemplateSpecializationType::
 TemplateSpecializationType(TemplateName T,
-                           const TemplateArgument *Args,
-                           unsigned NumArgs, QualType Canon)
+                           const TemplateArgument *Args, unsigned NumArgs,
+                           QualType Canon, QualType AliasedType)
   : Type(TemplateSpecialization,
          Canon.isNull()? QualType(this, 0) : Canon,
-         T.isDependent(), false, T.containsUnexpandedParameterPack()),
-    Template(T), NumArgs(NumArgs) 
-{
+         Canon.isNull()? T.isDependent() : Canon->isDependentType(),
+         false, T.containsUnexpandedParameterPack()),
+    Template(T), NumArgs(NumArgs) {
   assert(!T.getAsDependentTemplateName() && 
          "Use DependentTemplateSpecializationType for dependent template-name");
   assert((!Canon.isNull() ||
@@ -1576,7 +1637,12 @@ TemplateSpecializationType(TemplateName T,
     = reinterpret_cast<TemplateArgument *>(this + 1);
   for (unsigned Arg = 0; Arg < NumArgs; ++Arg) {
     // Update dependent and variably-modified bits.
-    if (Args[Arg].isDependent())
+    // If the canonical type exists and is non-dependent, the template
+    // specialization type can be non-dependent even if one of the type
+    // arguments is. Given:
+    //   template<typename T> using U = int;
+    // U<T> is always non-dependent, irrespective of the type T.
+    if (Canon.isNull() && Args[Arg].isDependent())
       setDependent();
     if (Args[Arg].getKind() == TemplateArgument::Type &&
         Args[Arg].getAsType()->isVariablyModifiedType())
@@ -1585,6 +1651,15 @@ TemplateSpecializationType(TemplateName T,
       setContainsUnexpandedParameterPack();
 
     new (&TemplateArgs[Arg]) TemplateArgument(Args[Arg]);
+  }
+
+  // Store the aliased type if this is a type alias template specialization.
+  bool IsTypeAlias = !AliasedType.isNull();
+  assert(IsTypeAlias == isTypeAlias() &&
+         "allocated wrong size for type alias");
+  if (IsTypeAlias) {
+    TemplateArgument *Begin = reinterpret_cast<TemplateArgument *>(this + 1);
+    *reinterpret_cast<QualType*>(Begin + getNumArgs()) = AliasedType;
   }
 }
 
@@ -1597,6 +1672,11 @@ TemplateSpecializationType::Profile(llvm::FoldingSetNodeID &ID,
   T.Profile(ID);
   for (unsigned Idx = 0; Idx < NumArgs; ++Idx)
     Args[Idx].Profile(ID, Context);
+}
+
+bool TemplateSpecializationType::isTypeAlias() const {
+  TemplateDecl *D = Template.getAsTemplateDecl();
+  return D && isa<TypeAliasTemplateDecl>(D);
 }
 
 QualType

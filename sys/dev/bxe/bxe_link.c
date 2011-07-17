@@ -1168,15 +1168,17 @@ bxe_set_parallel_detection(struct link_params *params, uint8_t phy_flags)
 		control2 |= MDIO_SERDES_DIGITAL_A_1000X_CONTROL2_PRL_DT_EN;
 	else
 		control2 &= ~MDIO_SERDES_DIGITAL_A_1000X_CONTROL2_PRL_DT_EN;
-	DBPRINT(sc, 1, "params->speed_cap_mask = 0x%x, control2 = 0x%x\n",
-	    params->speed_cap_mask, control2);
+
+	DBPRINT(sc, BXE_VERBOSE_PHY, "%s(): params->speed_cap_mask = 0x%x, "
+	    "control2 = 0x%x\n", __FUNCTION__, params->speed_cap_mask, control2);
+
 	CL45_WR_OVER_CL22(sc, params->port, params->phy_addr,
 	    MDIO_REG_BANK_SERDES_DIGITAL, MDIO_SERDES_DIGITAL_A_1000X_CONTROL2,
 	    control2);
 
 	if ((phy_flags & PHY_XGXS_FLAG) && (params->speed_cap_mask &
 	    PORT_HW_CFG_SPEED_CAPABILITY_D0_10G)) {
-		DBPRINT(sc, BXE_INFO, "XGXS\n");
+		DBPRINT(sc, BXE_VERBOSE_PHY, "%s(): XGXS\n", __FUNCTION__);
 
 		CL45_WR_OVER_CL22(sc, params->port, params->phy_addr,
 		    MDIO_REG_BANK_10G_PARALLEL_DETECT,
@@ -1688,7 +1690,9 @@ bxe_flow_ctrl_resolve(struct link_params *params, struct link_vars *vars,
 		}
 		bxe_pause_resolve(vars, pause_result);
 	}
-	DBPRINT(sc, BXE_INFO, "flow_ctrl 0x%x\n", vars->flow_ctrl);
+
+	DBPRINT(sc, BXE_VERBOSE_PHY, "%s(): flow_ctrl 0x%x\n",
+	    __FUNCTION__, vars->flow_ctrl);
 }
 
 static void
@@ -1698,13 +1702,16 @@ bxe_check_fallback_to_cl37(struct link_params *params)
 	uint16_t rx_status, ustat_val, cl37_fsm_recieved;
 
 	sc = params->sc;
-	DBPRINT(sc, BXE_INFO, "bxe_check_fallback_to_cl37\n");
+
+	DBPRINT(sc, BXE_VERBOSE_PHY, "%s(): IEEE 802.3 Clause 37 Fallback\n",
+	     __FUNCTION__);
+
 	CL45_RD_OVER_CL22(sc, params->port, params->phy_addr, MDIO_REG_BANK_RX0,
 	    MDIO_RX0_RX_STATUS, &rx_status);
 	if ((rx_status & MDIO_RX0_RX_STATUS_SIGDET) !=
 	    (MDIO_RX0_RX_STATUS_SIGDET)) {
 		DBPRINT(sc, BXE_VERBOSE_PHY,
-		    "Signal is not detected. Restoring CL73."
+		    "No signal detected. Restoring CL73."
 		    "rx_status(0x80b0) = 0x%x\n", rx_status);
 		CL45_WR_OVER_CL22(sc, params->port, params->phy_addr,
 		    MDIO_REG_BANK_CL73_IEEEB0, MDIO_CL73_IEEEB0_CL73_AN_CONTROL,
@@ -1738,7 +1745,9 @@ bxe_check_fallback_to_cl37(struct link_params *params)
 	CL45_WR_OVER_CL22(sc, params->port, params->phy_addr,
 	    MDIO_REG_BANK_CL73_IEEEB0, MDIO_CL73_IEEEB0_CL73_AN_CONTROL, 0);
 	bxe_restart_autoneg(params, 0);
-	DBPRINT(sc, BXE_INFO, "Disabling CL73, and restarting CL37 autoneg\n");
+
+	DBPRINT(sc, BXE_INFO, "%s(): Disabling CL73 and restarting CL37 "
+	    "autoneg\n", __FUNCTION__);
 }
 
 static void
@@ -3391,7 +3400,8 @@ bxe_init_internal_phy(struct link_params *params, struct link_vars *vars,
 		    ((XGXS_EXT_PHY_TYPE(params->ext_phy_config) ==
 		    PORT_HW_CFG_XGXS_EXT_PHY_TYPE_DIRECT) &&
 		    params->loopback_mode == LOOPBACK_EXT)) {
-			DBPRINT(sc, BXE_INFO, "not SGMII, no AN\n");
+			DBPRINT(sc, BXE_VERBOSE_PHY, "%s(): Not SGMII, no AN\n",
+			    __FUNCTION__);
 
 			/* Disable autoneg. */
 			bxe_set_autoneg(params, vars, 0);
@@ -5338,9 +5348,6 @@ bxe_set_led(struct link_params *params, uint8_t mode, uint32_t speed)
 	emac_base = port ? GRCBASE_EMAC1 : GRCBASE_EMAC0;
 	ext_phy_type = XGXS_EXT_PHY_TYPE(params->ext_phy_config);
 
-	DBPRINT(sc, BXE_INFO, "bxe_set_led: port %x, mode %d\n", port, mode);
-	DBPRINT(sc, BXE_VERBOSE_PHY, "speed 0x%x, hw_led_mode 0x%x\n", speed,
-	    hw_led_mode);
 	switch (mode) {
 	case LED_MODE_OFF:
 		REG_WR(sc, NIG_REG_LED_10G_P0 + port * 4, 0);
@@ -5382,7 +5389,7 @@ bxe_set_led(struct link_params *params, uint8_t mode, uint32_t speed)
 	default:
 		rc = -EINVAL;
 		DBPRINT(sc, BXE_VERBOSE_PHY,
-		    "bxe_set_led: Invalid led mode %d\n", mode);
+		    "%s(): Invalid led mode (%d)!\n", __FUNCTION__, mode);
 		break;
 	}
 	return (rc);
@@ -5635,7 +5642,10 @@ bxe_link_reset(struct link_params *params, struct link_vars *vars,
 	ext_phy_type = XGXS_EXT_PHY_TYPE(ext_phy_config);
 	val = REG_RD(sc, params->shmem_base + offsetof(struct shmem_region,
 	    dev_info.port_feature_config[params->port].config));
-	DBPRINT(sc, BXE_INFO, "Resetting the link of port %d\n", port);
+
+	DBPRINT(sc, BXE_INFO, "%s(): Resetting port %d link.\n",
+	    __FUNCTION__, port);
+
 	/* Disable attentions. */
 	vars->link_status = 0;
 	bxe_update_mng(params, vars->link_status);

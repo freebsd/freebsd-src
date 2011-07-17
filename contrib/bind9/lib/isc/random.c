@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: random.c,v 1.25.332.2 2009-07-16 23:47:17 tbox Exp $ */
+/* $Id: random.c,v 1.28 2009-07-16 05:52:46 marka Exp $ */
 
 /*! \file */
 
@@ -103,7 +103,7 @@ isc_uint32_t
 isc_random_jitter(isc_uint32_t max, isc_uint32_t jitter) {
 	isc_uint32_t rnd;
 
-	REQUIRE(jitter < max);
+	REQUIRE(jitter < max || (jitter == 0 && max == 0));
 
 	if (jitter == 0)
 		return (max);

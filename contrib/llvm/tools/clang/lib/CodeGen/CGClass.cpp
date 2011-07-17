@@ -520,6 +520,7 @@ static void EmitMemberInitializer(CodeGenFunction &CGF,
                                   FunctionArgList &Args) {
   assert(MemberInit->isAnyMemberInitializer() &&
          "Must have member initializer!");
+  assert(MemberInit->getInit() && "Must have initializer!");
   
   // non-static data member initializers.
   FieldDecl *Field = MemberInit->getAnyMember();
@@ -726,18 +727,107 @@ void CodeGenFunction::EmitCtorPrologue(const CXXConstructorDecl *CD,
        B != E; ++B) {
     CXXCtorInitializer *Member = (*B);
     
-    if (Member->isBaseInitializer())
+    if (Member->isBaseInitializer()) {
       EmitBaseInitializer(*this, ClassDecl, Member, CtorType);
-    else if (Member->isAnyMemberInitializer())
+    } else {
+      assert(Member->isAnyMemberInitializer() &&
+            "Delegating initializer on non-delegating constructor");
       MemberInitializers.push_back(Member);
-    else
-      llvm_unreachable("Delegating initializer on non-delegating constructor");
+    }
   }
 
   InitializeVTablePointers(ClassDecl);
 
   for (unsigned I = 0, E = MemberInitializers.size(); I != E; ++I)
     EmitMemberInitializer(*this, ClassDecl, MemberInitializers[I], CD, Args);
+}
+
+static bool
+FieldHasTrivialDestructorBody(ASTContext &Context, const FieldDecl *Field);
+
+static bool
+HasTrivialDestructorBody(ASTContext &Context, 
+                         const CXXRecordDecl *BaseClassDecl,
+                         const CXXRecordDecl *MostDerivedClassDecl)
+{
+  // If the destructor is trivial we don't have to check anything else.
+  if (BaseClassDecl->hasTrivialDestructor())
+    return true;
+
+  if (!BaseClassDecl->getDestructor()->hasTrivialBody())
+    return false;
+
+  // Check fields.
+  for (CXXRecordDecl::field_iterator I = BaseClassDecl->field_begin(),
+       E = BaseClassDecl->field_end(); I != E; ++I) {
+    const FieldDecl *Field = *I;
+    
+    if (!FieldHasTrivialDestructorBody(Context, Field))
+      return false;
+  }
+
+  // Check non-virtual bases.
+  for (CXXRecordDecl::base_class_const_iterator I = 
+       BaseClassDecl->bases_begin(), E = BaseClassDecl->bases_end();
+       I != E; ++I) {
+    if (I->isVirtual())
+      continue;
+
+    const CXXRecordDecl *NonVirtualBase =
+      cast<CXXRecordDecl>(I->getType()->castAs<RecordType>()->getDecl());
+    if (!HasTrivialDestructorBody(Context, NonVirtualBase,
+                                  MostDerivedClassDecl))
+      return false;
+  }
+
+  if (BaseClassDecl == MostDerivedClassDecl) {
+    // Check virtual bases.
+    for (CXXRecordDecl::base_class_const_iterator I = 
+         BaseClassDecl->vbases_begin(), E = BaseClassDecl->vbases_end();
+         I != E; ++I) {
+      const CXXRecordDecl *VirtualBase =
+        cast<CXXRecordDecl>(I->getType()->castAs<RecordType>()->getDecl());
+      if (!HasTrivialDestructorBody(Context, VirtualBase,
+                                    MostDerivedClassDecl))
+        return false;      
+    }
+  }
+
+  return true;
+}
+
+static bool
+FieldHasTrivialDestructorBody(ASTContext &Context,
+                              const FieldDecl *Field)
+{
+  QualType FieldBaseElementType = Context.getBaseElementType(Field->getType());
+
+  const RecordType *RT = FieldBaseElementType->getAs<RecordType>();
+  if (!RT)
+    return true;
+  
+  CXXRecordDecl *FieldClassDecl = cast<CXXRecordDecl>(RT->getDecl());
+  return HasTrivialDestructorBody(Context, FieldClassDecl, FieldClassDecl);
+}
+
+/// CanSkipVTablePointerInitialization - Check whether we need to initialize
+/// any vtable pointers before calling this destructor.
+static bool CanSkipVTablePointerInitialization(ASTContext &Context,
+                                               const CXXDestructorDecl *Dtor) {
+  if (!Dtor->hasTrivialBody())
+    return false;
+
+  // Check the fields.
+  const CXXRecordDecl *ClassDecl = Dtor->getParent();
+  for (CXXRecordDecl::field_iterator I = ClassDecl->field_begin(),
+       E = ClassDecl->field_end(); I != E; ++I) {
+    const FieldDecl *Field = *I;
+
+    if (!FieldHasTrivialDestructorBody(Context, Field))
+      return false;
+  }
+
+  return true;
 }
 
 /// EmitDestructorBody - Emits the body of the current destructor.
@@ -791,7 +881,8 @@ void CodeGenFunction::EmitDestructorBody(FunctionArgList &Args) {
     EnterDtorCleanups(Dtor, Dtor_Base);
 
     // Initialize the vtable pointers before entering the body.
-    InitializeVTablePointers(Dtor->getParent());
+    if (!CanSkipVTablePointerInitialization(getContext(), Dtor))
+        InitializeVTablePointers(Dtor->getParent());
 
     if (isTryBody)
       EmitStmt(cast<CXXTryStmt>(Body)->getTryBlock());
@@ -1269,6 +1360,23 @@ CodeGenFunction::EmitDelegateCXXConstructorCall(const CXXConstructorDecl *Ctor,
            ReturnValueSlot(), DelegateArgs, Ctor);
 }
 
+namespace {
+  struct CallDelegatingCtorDtor : EHScopeStack::Cleanup {
+    const CXXDestructorDecl *Dtor;
+    llvm::Value *Addr;
+    CXXDtorType Type;
+
+    CallDelegatingCtorDtor(const CXXDestructorDecl *D, llvm::Value *Addr,
+                           CXXDtorType Type)
+      : Dtor(D), Addr(Addr), Type(Type) {}
+
+    void Emit(CodeGenFunction &CGF, bool IsForEH) {
+      CGF.EmitCXXDestructorCall(Dtor, Type, /*ForVirtualBase=*/false,
+                                Addr);
+    }
+  };
+}
+
 void
 CodeGenFunction::EmitDelegatingCXXConstructorCall(const CXXConstructorDecl *Ctor,
                                                   const FunctionArgList &Args) {
@@ -1279,8 +1387,17 @@ CodeGenFunction::EmitDelegatingCXXConstructorCall(const CXXConstructorDecl *Ctor
   AggValueSlot AggSlot = AggValueSlot::forAddr(ThisPtr, false, /*Lifetime*/ true);
 
   EmitAggExpr(Ctor->init_begin()[0]->getInit(), AggSlot);
-}
 
+  const CXXRecordDecl *ClassDecl = Ctor->getParent();
+  if (CGM.getLangOptions().Exceptions && !ClassDecl->hasTrivialDestructor()) {
+    CXXDtorType Type =
+      CurGD.getCtorType() == Ctor_Complete ? Dtor_Complete : Dtor_Base;
+
+    EHStack.pushCleanup<CallDelegatingCtorDtor>(EHCleanup,
+                                                ClassDecl->getDestructor(),
+                                                ThisPtr, Type);
+  }
+}
 
 void CodeGenFunction::EmitCXXDestructorCall(const CXXDestructorDecl *DD,
                                             CXXDtorType Type,
@@ -1493,4 +1610,137 @@ llvm::Value *CodeGenFunction::GetVTablePtr(llvm::Value *This,
                                            const llvm::Type *Ty) {
   llvm::Value *VTablePtrSrc = Builder.CreateBitCast(This, Ty->getPointerTo());
   return Builder.CreateLoad(VTablePtrSrc, "vtable");
+}
+
+static const CXXRecordDecl *getMostDerivedClassDecl(const Expr *Base) {
+  const Expr *E = Base;
+  
+  while (true) {
+    E = E->IgnoreParens();
+    if (const CastExpr *CE = dyn_cast<CastExpr>(E)) {
+      if (CE->getCastKind() == CK_DerivedToBase || 
+          CE->getCastKind() == CK_UncheckedDerivedToBase ||
+          CE->getCastKind() == CK_NoOp) {
+        E = CE->getSubExpr();
+        continue;
+      }
+    }
+
+    break;
+  }
+
+  QualType DerivedType = E->getType();
+  if (const PointerType *PTy = DerivedType->getAs<PointerType>())
+    DerivedType = PTy->getPointeeType();
+
+  return cast<CXXRecordDecl>(DerivedType->castAs<RecordType>()->getDecl());
+}
+
+// FIXME: Ideally Expr::IgnoreParenNoopCasts should do this, but it doesn't do
+// quite what we want.
+static const Expr *skipNoOpCastsAndParens(const Expr *E) {
+  while (true) {
+    if (const ParenExpr *PE = dyn_cast<ParenExpr>(E)) {
+      E = PE->getSubExpr();
+      continue;
+    }
+
+    if (const CastExpr *CE = dyn_cast<CastExpr>(E)) {
+      if (CE->getCastKind() == CK_NoOp) {
+        E = CE->getSubExpr();
+        continue;
+      }
+    }
+    if (const UnaryOperator *UO = dyn_cast<UnaryOperator>(E)) {
+      if (UO->getOpcode() == UO_Extension) {
+        E = UO->getSubExpr();
+        continue;
+      }
+    }
+    return E;
+  }
+}
+
+/// canDevirtualizeMemberFunctionCall - Checks whether the given virtual member
+/// function call on the given expr can be devirtualized.
+/// expr can be devirtualized.
+static bool canDevirtualizeMemberFunctionCall(const Expr *Base, 
+                                              const CXXMethodDecl *MD) {
+  // If the most derived class is marked final, we know that no subclass can
+  // override this member function and so we can devirtualize it. For example:
+  //
+  // struct A { virtual void f(); }
+  // struct B final : A { };
+  //
+  // void f(B *b) {
+  //   b->f();
+  // }
+  //
+  const CXXRecordDecl *MostDerivedClassDecl = getMostDerivedClassDecl(Base);
+  if (MostDerivedClassDecl->hasAttr<FinalAttr>())
+    return true;
+
+  // If the member function is marked 'final', we know that it can't be
+  // overridden and can therefore devirtualize it.
+  if (MD->hasAttr<FinalAttr>())
+    return true;
+
+  // Similarly, if the class itself is marked 'final' it can't be overridden
+  // and we can therefore devirtualize the member function call.
+  if (MD->getParent()->hasAttr<FinalAttr>())
+    return true;
+
+  Base = skipNoOpCastsAndParens(Base);
+  if (const DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(Base)) {
+    if (const VarDecl *VD = dyn_cast<VarDecl>(DRE->getDecl())) {
+      // This is a record decl. We know the type and can devirtualize it.
+      return VD->getType()->isRecordType();
+    }
+    
+    return false;
+  }
+  
+  // We can always devirtualize calls on temporary object expressions.
+  if (isa<CXXConstructExpr>(Base))
+    return true;
+  
+  // And calls on bound temporaries.
+  if (isa<CXXBindTemporaryExpr>(Base))
+    return true;
+  
+  // Check if this is a call expr that returns a record type.
+  if (const CallExpr *CE = dyn_cast<CallExpr>(Base))
+    return CE->getCallReturnType()->isRecordType();
+
+  // We can't devirtualize the call.
+  return false;
+}
+
+static bool UseVirtualCall(ASTContext &Context,
+                           const CXXOperatorCallExpr *CE,
+                           const CXXMethodDecl *MD) {
+  if (!MD->isVirtual())
+    return false;
+  
+  // When building with -fapple-kext, all calls must go through the vtable since
+  // the kernel linker can do runtime patching of vtables.
+  if (Context.getLangOptions().AppleKext)
+    return true;
+
+  return !canDevirtualizeMemberFunctionCall(CE->getArg(0), MD);
+}
+
+llvm::Value *
+CodeGenFunction::EmitCXXOperatorMemberCallee(const CXXOperatorCallExpr *E,
+                                             const CXXMethodDecl *MD,
+                                             llvm::Value *This) {
+  const FunctionProtoType *FPT = MD->getType()->castAs<FunctionProtoType>();
+  const llvm::Type *Ty =
+    CGM.getTypes().GetFunctionType(CGM.getTypes().getFunctionInfo(MD),
+                                   FPT->isVariadic());
+
+  if (UseVirtualCall(getContext(), E, MD))
+    return BuildVirtualCall(MD, This, Ty);
+
+  return CGM.GetAddrOfFunction(MD, Ty);
 }

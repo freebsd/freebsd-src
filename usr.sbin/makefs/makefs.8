@@ -40,7 +40,7 @@
 .Os
 .Sh NAME
 .Nm makefs
-.Nd create a file system image from a directory tree
+.Nd create a file system image from a directory tree or a mtree manifest
 .Sh SYNOPSIS
 .Nm
 .Op Fl x
@@ -57,14 +57,16 @@
 .Op Fl s Ar image-size
 .Op Fl t Ar fs-type
 .Ar image-file
-.Ar directory
+.Ar directory | manifest
 .Sh DESCRIPTION
 The utility
 .Nm
 creates a file system image into
 .Ar image-file
 from the directory tree
-.Ar directory .
+.Ar directory
+or from the mtree manifest
+.Ar manifest .
 No special devices or privileges are required to perform this task.
 .Pp
 The options are as follows:
@@ -106,6 +108,8 @@ as an
 .Xr mtree 8
 .Sq specfile
 specification.
+This option has no effect when the image is created from a mtree manifest
+rather than a directory.
 .Pp
 If a specfile entry exists in the underlying file system, its
 permissions and modification time will be used unless specifically
@@ -330,6 +334,7 @@ Use RockRidge extensions (for longer filenames, etc.).
 Volume set identifier of the image.
 .El
 .Sh SEE ALSO
+.Xr mtree 5 ,
 .Xr mtree 8 ,
 .Xr newfs 8
 .Sh HISTORY

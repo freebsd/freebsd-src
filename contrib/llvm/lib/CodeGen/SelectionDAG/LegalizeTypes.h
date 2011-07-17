@@ -57,16 +57,6 @@ public:
     // 1+ - This is a node which has this many unprocessed operands.
   };
 private:
-  enum LegalizeAction {
-    Legal,           // The target natively supports this type.
-    PromoteInteger,  // Replace this integer type with a larger one.
-    ExpandInteger,   // Split this integer type into two of half the size.
-    SoftenFloat,     // Convert this float type to a same size integer type.
-    ExpandFloat,     // Split this float type into two of half the size.
-    ScalarizeVector, // Replace this one-element vector with its element type.
-    SplitVector,     // Split this vector type into two of half the size.
-    WidenVector      // This vector type should be widened into a larger vector.
-  };
 
   /// ValueTypeActions - This is a bitvector that contains two bits for each
   /// simple value type, where the two bits correspond to the LegalizeAction
@@ -74,41 +64,13 @@ private:
   TargetLowering::ValueTypeActionImpl ValueTypeActions;
 
   /// getTypeAction - Return how we should legalize values of this type.
-  LegalizeAction getTypeAction(EVT VT) const {
-    switch (ValueTypeActions.getTypeAction(VT)) {
-    default:
-      assert(false && "Unknown legalize action!");
-    case TargetLowering::Legal:
-      return Legal;
-    case TargetLowering::Promote:
-      // Promote can mean
-      //   1) For integers, use a larger integer type (e.g. i8 -> i32).
-      //   2) For vectors, use a wider vector type (e.g. v3i32 -> v4i32).
-      if (!VT.isVector())
-        return PromoteInteger;
-      return WidenVector;
-    case TargetLowering::Expand:
-      // Expand can mean
-      // 1) split scalar in half, 2) convert a float to an integer,
-      // 3) scalarize a single-element vector, 4) split a vector in two.
-      if (!VT.isVector()) {
-        if (VT.isInteger())
-          return ExpandInteger;
-        if (VT.getSizeInBits() ==
-                TLI.getTypeToTransformTo(*DAG.getContext(), VT).getSizeInBits())
-          return SoftenFloat;
-        return ExpandFloat;
-      }
-
-      if (VT.getVectorNumElements() == 1)
-        return ScalarizeVector;
-      return SplitVector;
-    }
+  TargetLowering::LegalizeTypeAction getTypeAction(EVT VT) const {
+    return TLI.getTypeAction(*DAG.getContext(), VT);
   }
 
   /// isTypeLegal - Return true if this type is legal on this target.
   bool isTypeLegal(EVT VT) const {
-    return ValueTypeActions.getTypeAction(VT) == TargetLowering::Legal;
+    return TLI.getTypeAction(*DAG.getContext(), VT) == TargetLowering::TypeLegal;
   }
 
   /// IgnoreNodeResults - Pretend all of this node's results are legal.
@@ -248,6 +210,11 @@ private:
   SDValue PromoteIntRes_AssertZext(SDNode *N);
   SDValue PromoteIntRes_Atomic1(AtomicSDNode *N);
   SDValue PromoteIntRes_Atomic2(AtomicSDNode *N);
+  SDValue PromoteIntRes_EXTRACT_SUBVECTOR(SDNode *N);
+  SDValue PromoteIntRes_VECTOR_SHUFFLE(SDNode *N);
+  SDValue PromoteIntRes_BUILD_VECTOR(SDNode *N);
+  SDValue PromoteIntRes_SCALAR_TO_VECTOR(SDNode *N);
+  SDValue PromoteIntRes_INSERT_VECTOR_ELT(SDNode *N);
   SDValue PromoteIntRes_BITCAST(SDNode *N);
   SDValue PromoteIntRes_BSWAP(SDNode *N);
   SDValue PromoteIntRes_BUILD_PAIR(SDNode *N);
@@ -289,6 +256,9 @@ private:
   SDValue PromoteIntOp_BUILD_VECTOR(SDNode *N);
   SDValue PromoteIntOp_CONVERT_RNDSAT(SDNode *N);
   SDValue PromoteIntOp_INSERT_VECTOR_ELT(SDNode *N, unsigned OpNo);
+  SDValue PromoteIntOp_EXTRACT_ELEMENT(SDNode *N);
+  SDValue PromoteIntOp_EXTRACT_VECTOR_ELT(SDNode *N);
+  SDValue PromoteIntOp_CONCAT_VECTORS(SDNode *N);
   SDValue PromoteIntOp_MEMBARRIER(SDNode *N);
   SDValue PromoteIntOp_SCALAR_TO_VECTOR(SDNode *N);
   SDValue PromoteIntOp_SELECT(SDNode *N, unsigned OpNo);

@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 29, 2011
+.Dd June 20, 2011
 .Dt MFIUTIL 8
 .Os
 .Sh NAME
@@ -43,6 +43,8 @@
 .Op Fl u Ar unit
 .Cm show battery
 .Nm
+.Op Fl d
+.Op Fl e
 .Op Fl u Ar unit
 .Cm show config
 .Nm
@@ -63,9 +65,13 @@
 .Op Fl u Ar unit
 .Cm show logstate
 .Nm
+.Op Fl d
+.Op Fl e
 .Op Fl u Ar unit
 .Cm show patrol
 .Nm
+.Op Fl d
+.Op Fl e
 .Op Fl u Ar unit
 .Cm show progress
 .Nm
@@ -155,15 +161,19 @@ If no unit is specified,
 then unit 0 is used.
 .El
 .Pp
-Volumes may be specified in two forms.
-First,
-a volume may be identified by its target ID.
-Second,
-on the volume may be specified by the corresponding
-.Em mfidX
-device,
-such as
-.Em mfid0 .
+Various commands accept either or both of the two options:
+.Bl -tag -width indent
+.It Fl d
+Print numeric device IDs as drive identifier.
+This is the default.
+Useful in combination with
+.Fl e
+to print both, numeric device IDs and enclosure:slot information.
+.It Fl e
+Print drive identifiers in enclosure:slot form.
+See next paragraph on format details in context of input rather than
+output.
+.El
 .Pp
 Drives may be specified in two forms.
 First,
@@ -183,6 +193,16 @@ and
 .Ar yy
 is the slot for each drive as displayed in
 .Cm show drives .
+.Pp
+Volumes may be specified in two forms.
+First,
+a volume may be identified by its target ID.
+Second,
+on the volume may be specified by the corresponding
+.Em mfidX
+device,
+such as
+.Em mfid0 .
 .Pp
 The
 .Nm

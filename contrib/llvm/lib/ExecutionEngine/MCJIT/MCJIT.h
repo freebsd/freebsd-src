@@ -76,22 +76,12 @@ public:
     MCJITCtor = createJIT;
   }
 
-  // FIXME: This routine is scheduled for termination. Do not use it.
-  static TargetMachine *selectTarget(Module *M,
-                                     StringRef MArch,
-                                     StringRef MCPU,
-                                     const SmallVectorImpl<std::string>& MAttrs,
-                                     std::string *Err);
-
   static ExecutionEngine *createJIT(Module *M,
                                     std::string *ErrorStr,
                                     JITMemoryManager *JMM,
                                     CodeGenOpt::Level OptLevel,
                                     bool GVsWithCode,
-                                    CodeModel::Model CMM,
-                                    StringRef MArch,
-                                    StringRef MCPU,
-                                    const SmallVectorImpl<std::string>& MAttrs);
+                                    TargetMachine *TM);
 
   // @}
 };

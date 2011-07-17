@@ -108,8 +108,6 @@ struct rt_metrics {
 #endif
 
 extern u_int rt_numfibs;	/* number fo usable routing tables */
-extern u_int tunnel_fib;	/* tunnels use these */
-extern u_int fwd_fib;		/* packets being forwarded use these routes */
 /*
  * XXX kernel function pointer `rt_output' is visible to applications.
  */

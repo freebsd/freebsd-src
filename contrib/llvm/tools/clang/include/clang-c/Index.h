@@ -222,6 +222,14 @@ CINDEX_LINKAGE CXString clang_getFileName(CXFile SFile);
 CINDEX_LINKAGE time_t clang_getFileTime(CXFile SFile);
 
 /**
+ * \brief Determine whether the given header is guarded against
+ * multiple inclusions, either with the conventional
+ * #ifndef/#define/#endif macro guards or with #pragma once.
+ */
+CINDEX_LINKAGE unsigned 
+clang_isFileMultipleIncludeGuarded(CXTranslationUnit tu, CXFile file);
+
+/**
  * \brief Retrieve a file handle within the given translation unit.
  *
  * \param tu the translation unit
@@ -821,7 +829,18 @@ enum CXTranslationUnit_Flags {
    * Note: this is a *temporary* option that is available only while
    * we are testing C++ precompiled preamble support.
    */
-  CXTranslationUnit_CXXChainedPCH = 0x20
+  CXTranslationUnit_CXXChainedPCH = 0x20,
+  
+  /**
+   * \brief Used to indicate that the "detailed" preprocessing record,
+   * if requested, should also contain nested macro instantiations.
+   *
+   * Nested macro instantiations (i.e., macro instantiations that occur
+   * inside another macro instantiation) can, in some code bases, require
+   * a large amount of storage to due preprocessor metaprogramming. Moreover,
+   * its fairly rare that this information is useful for libclang clients.
+   */
+  CXTranslationUnit_NestedMacroInstantiations = 0x40
 };
 
 /**
@@ -1027,12 +1046,14 @@ enum CXTUResourceUsageKind {
   CXTUResourceUsage_SourceManager_Membuffer_MMap = 8,
   CXTUResourceUsage_ExternalASTSource_Membuffer_Malloc = 9, 
   CXTUResourceUsage_ExternalASTSource_Membuffer_MMap = 10, 
+  CXTUResourceUsage_Preprocessor = 11,
+  CXTUResourceUsage_PreprocessingRecord = 12,
   CXTUResourceUsage_MEMORY_IN_BYTES_BEGIN = CXTUResourceUsage_AST,
   CXTUResourceUsage_MEMORY_IN_BYTES_END =
-    CXTUResourceUsage_ExternalASTSource_Membuffer_MMap,
+    CXTUResourceUsage_PreprocessingRecord,
 
   CXTUResourceUsage_First = CXTUResourceUsage_AST,
-  CXTUResourceUsage_Last = CXTUResourceUsage_ExternalASTSource_Membuffer_MMap
+  CXTUResourceUsage_Last = CXTUResourceUsage_PreprocessingRecord
 };
 
 /**
@@ -1166,8 +1187,12 @@ enum CXCursorKind {
   CXCursor_UsingDeclaration              = 35,
   /** \brief A C++ alias declaration */
   CXCursor_TypeAliasDecl                 = 36,
+  /** \brief An Objective-C @synthesize definition. */
+  CXCursor_ObjCSynthesizeDecl            = 37,
+  /** \brief An Objective-C @dynamic definition. */
+  CXCursor_ObjCDynamicDecl               = 38,
   CXCursor_FirstDecl                     = CXCursor_UnexposedDecl,
-  CXCursor_LastDecl                      = CXCursor_TypeAliasDecl,
+  CXCursor_LastDecl                      = CXCursor_ObjCDynamicDecl,
 
   /* References */
   CXCursor_FirstRef                      = 40, /* Decl references */
@@ -2244,6 +2269,13 @@ CINDEX_LINKAGE CXCursor clang_getCanonicalCursor(CXCursor);
  * declared 'static'.
  */
 CINDEX_LINKAGE unsigned clang_CXXMethod_isStatic(CXCursor C);
+
+/**
+ * \brief Determine if a C++ member function or member function template is
+ * explicitly declared 'virtual' or if it overrides a virtual method from
+ * one of the base classes.
+ */
+CINDEX_LINKAGE unsigned clang_CXXMethod_isVirtual(CXCursor C);
 
 /**
  * \brief Given a cursor that represents a template, determine

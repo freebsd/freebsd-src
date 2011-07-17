@@ -32,6 +32,7 @@
 
 extern int getconfig(int);
 extern int rmconfig(int);
+extern int loadconfig(char *[], const int);
 extern void delete_prefix(struct prefix *);
 extern void invalidate_prefix(struct prefix *);
 extern void update_prefix(struct prefix *);

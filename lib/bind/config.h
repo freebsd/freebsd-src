@@ -3,7 +3,7 @@
 /* config.h.  Generated from config.h.in by configure.  */
 /* config.h.in.  Generated from configure.in by autoheader.  */
 /*
- * Copyright (C) 2004, 2005, 2007, 2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -19,7 +19,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: acconfig.h,v 1.51.334.2 2009/02/16 23:47:15 tbox Exp $ */
+/* $Id: acconfig.h,v 1.53 2008-12-01 23:47:44 tbox Exp $ */
 
 /*! \file */
 
@@ -150,6 +150,9 @@ int sigwait(const unsigned int *set, int *sig);
 /* Define if building universal (internal helper macro) */
 /* #undef AC_APPLE_UNIVERSAL_BUILD */
 
+/* Define to enable the "filter-aaaa-on-v4" option. */
+/* #undef ALLOW_FILTER_AAAA_ON_V4 */
+
 /* Define if recvmsg() does not meet all of the BSD socket API specifications.
    */
 /* #undef BROKEN_RECVMSG */
@@ -159,6 +162,12 @@ int sigwait(const unsigned int *set, int *sig);
 
 /* Define to enable "rrset-order fixed" syntax. */
 /* #undef DNS_RDATASET_FIXED */
+
+/* Define to enable rpz-nsdname rules. */
+/* #undef ENABLE_RPZ_NSDNAME */
+
+/* Define to enable rpz-nsip rules. */
+/* #undef ENABLE_RPZ_NSIP */
 
 /* Solaris hack to get select_large_fdset. */
 /* #undef FD_SETSIZE */
@@ -193,8 +202,14 @@ int sigwait(const unsigned int *set, int *sig);
 /* Define to 1 if you have the <gssapi/gssapi.h> header file. */
 /* #undef HAVE_GSSAPI_GSSAPI_H */
 
+/* Define to 1 if you have the <gssapi/gssapi_krb5.h> header file. */
+/* #undef HAVE_GSSAPI_GSSAPI_KRB5_H */
+
 /* Define to 1 if you have the <gssapi.h> header file. */
 /* #undef HAVE_GSSAPI_H */
+
+/* Define to 1 if you have the <gssapi_krb5.h> header file. */
+/* #undef HAVE_GSSAPI_KRB5_H */
 
 /* Define to 1 if you have the <inttypes.h> header file. */
 #define HAVE_INTTYPES_H 1
@@ -213,6 +228,9 @@ int sigwait(const unsigned int *set, int *sig);
 
 /* Define to 1 if you have the `cap' library (-lcap). */
 /* #undef HAVE_LIBCAP */
+
+/* if system have backtrace function */
+/* #undef HAVE_LIBCTRACE */
 
 /* Define to 1 if you have the `c_r' library (-lc_r). */
 /* #undef HAVE_LIBC_R */
@@ -250,8 +268,26 @@ int sigwait(const unsigned int *set, int *sig);
 /* Define to 1 if you have the <net/if6.h> header file. */
 /* #undef HAVE_NET_IF6_H */
 
+/* Define if your OpenSSL version supports GOST. */
+/* #undef HAVE_OPENSSL_GOST */
+
+/* Define to 1 if you have the <regex.h> header file. */
+#define HAVE_REGEX_H 1
+
+/* Define to 1 if you have the `setegid' function. */
+#define HAVE_SETEGID 1
+
+/* Define to 1 if you have the `seteuid' function. */
+#define HAVE_SETEUID 1
+
 /* Define to 1 if you have the `setlocale' function. */
 #define HAVE_SETLOCALE 1
+
+/* Define to 1 if you have the `setresgid' function. */
+#define HAVE_SETRESGID 1
+
+/* Define to 1 if you have the `setresuid' function. */
+#define HAVE_SETRESUID 1
 
 /* Define to 1 if you have the <stdint.h> header file. */
 #define HAVE_STDINT_H 1
@@ -306,6 +342,15 @@ int sigwait(const unsigned int *set, int *sig);
 
 /* Define to 1 if you have the <unistd.h> header file. */
 #define HAVE_UNISTD_H 1
+
+/* return type of gai_strerror */
+#define IRS_GAISTRERROR_RETURN_T const char *
+
+/* Define to the buffer length type used by getnameinfo(3). */
+#define IRS_GETNAMEINFO_BUFLEN_T size_t
+
+/* Define to the flags type used by getnameinfo(3). */
+#define IRS_GETNAMEINFO_FLAGS_T int
 
 /* Define to the sub-directory in which libtool stores uninstalled libraries.
    */
@@ -368,11 +413,8 @@ int sigwait(const unsigned int *set, int *sig);
 /* Define to empty if `const' does not conform to ANSI C. */
 /* #undef const */
 
-/* Define to `__inline__' or `__inline' if that's what the C compiler
-   calls it, or to nothing if 'inline' is not supported under any name.  */
-#ifndef __cplusplus
+/* Define to empty if your compiler does not support "static inline". */
 #define inline /**/
-#endif
 
 /* Define to `unsigned int' if <sys/types.h> does not define. */
 /* #undef size_t */

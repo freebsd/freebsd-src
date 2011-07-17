@@ -115,6 +115,7 @@ struct scsi_request_sense
 {
 	u_int8_t opcode;
 	u_int8_t byte2;
+#define	SRS_DESC	0x01
 	u_int8_t unused[2];
 	u_int8_t length;
 	u_int8_t control;
@@ -128,17 +129,33 @@ struct scsi_test_unit_ready
 	u_int8_t control;
 };
 
-struct scsi_send_diag
-{
-	u_int8_t opcode;
-	u_int8_t byte2;
-#define	SSD_UOL		0x01
-#define	SSD_DOL		0x02
-#define	SSD_SELFTEST	0x04
-#define	SSD_PF		0x10
-	u_int8_t unused[1];
-	u_int8_t paramlen[2];
-	u_int8_t control;
+struct scsi_receive_diag {
+	uint8_t opcode;
+	uint8_t byte2;
+#define SRD_PCV		0x01
+	uint8_t page_code;
+	uint8_t length[2]; 
+	uint8_t control;
+};
+
+struct scsi_send_diag {
+	uint8_t opcode;
+	uint8_t byte2;
+#define SSD_UNITOFFL				0x01
+#define SSD_DEVOFFL				0x02
+#define SSD_SELFTEST				0x04
+#define SSD_PF					0x10
+#define SSD_SELF_TEST_CODE_MASK			0xE0
+#define SSD_SELF_TEST_CODE_SHIFT		5
+#define		SSD_SELF_TEST_CODE_NONE		0x00
+#define		SSD_SELF_TEST_CODE_BG_SHORT	0x01
+#define		SSD_SELF_TEST_CODE_BG_EXTENDED	0x02
+#define		SSD_SELF_TEST_CODE_BG_ABORT	0x04
+#define		SSD_SELF_TEST_CODE_FG_SHORT	0x05
+#define		SSD_SELF_TEST_CODE_FG_EXTENDED	0x06
+	uint8_t	reserved;
+	uint8_t	length[2];
+	uint8_t control;
 };
 
 struct scsi_sense
@@ -894,11 +911,12 @@ struct scsi_vpd_id_naa_basic
 	uint8_t	naa : 4;
 	uint8_t naa_desig : 4;
 	*/
+#define	SVPD_ID_NAA_NAA_SHIFT		4
 #define	SVPD_ID_NAA_IEEE_EXT		0x02
 #define	SVPD_ID_NAA_LOCAL_REG		0x03
 #define	SVPD_ID_NAA_IEEE_REG		0x05
 #define	SVPD_ID_NAA_IEEE_REG_EXT	0x06
-	uint8_t	naa_data[0];
+	uint8_t	naa_data[];
 };
 
 struct scsi_vpd_id_naa_ieee_extended_id
@@ -1322,7 +1340,12 @@ void		scsi_print_inquiry(struct scsi_inquiry_data *inq_data);
 
 u_int		scsi_calc_syncsrate(u_int period_factor);
 u_int		scsi_calc_syncparam(u_int period);
-uint8_t *	scsi_get_sas_addr(struct scsi_vpd_device_id *id, uint32_t len);
+
+typedef int	(*scsi_devid_checkfn_t)(uint8_t *);
+int		scsi_devid_is_naa_ieee_reg(uint8_t *bufp);
+int		scsi_devid_is_sas_target(uint8_t *bufp);
+uint8_t *	scsi_get_devid(struct scsi_vpd_device_id *id, uint32_t len,
+			       scsi_devid_checkfn_t ck_fn);
 
 void		scsi_test_unit_ready(struct ccb_scsiio *csio, u_int32_t retries,
 				     void (*cbfcnp)(struct cam_periph *, 
@@ -1439,6 +1462,22 @@ void		scsi_synchronize_cache(struct ccb_scsiio *csio,
 				       u_int32_t begin_lba, u_int16_t lb_count,
 				       u_int8_t sense_len, u_int32_t timeout);
 
+void scsi_receive_diagnostic_results(struct ccb_scsiio *csio, u_int32_t retries,
+				     void (*cbfcnp)(struct cam_periph *,
+						    union ccb*),
+				     uint8_t tag_action, int pcv,
+				     uint8_t page_code, uint8_t *data_ptr,
+				     uint16_t allocation_length,
+				     uint8_t sense_len, uint32_t timeout);
+
+void scsi_send_diagnostic(struct ccb_scsiio *csio, u_int32_t retries,
+			  void (*cbfcnp)(struct cam_periph *, union ccb *),
+			  uint8_t tag_action, int unit_offline,
+			  int device_offline, int self_test, int page_format,
+			  int self_test_code, uint8_t *data_ptr,
+			  uint16_t param_list_length, uint8_t sense_len,
+			  uint32_t timeout);
+
 void scsi_read_write(struct ccb_scsiio *csio, u_int32_t retries,
 		     void (*cbfcnp)(struct cam_periph *, union ccb *),
 		     u_int8_t tag_action, int readop, u_int8_t byte2, 
@@ -1455,6 +1494,8 @@ void scsi_start_stop(struct ccb_scsiio *csio, u_int32_t retries,
 int		scsi_inquiry_match(caddr_t inqbuffer, caddr_t table_entry);
 int		scsi_static_inquiry_match(caddr_t inqbuffer,
 					  caddr_t table_entry);
+int		scsi_devid_match(uint8_t *rhs, size_t rhs_len,
+				 uint8_t *lhs, size_t lhs_len);
 
 static __inline void scsi_extract_sense(struct scsi_sense_data *sense,
 					int *error_code, int *sense_key,

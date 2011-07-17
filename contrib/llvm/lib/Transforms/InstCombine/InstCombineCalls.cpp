@@ -111,10 +111,10 @@ Instruction *InstCombiner::SimplifyMemTransfer(MemIntrinsic *MI) {
   
   Value *Src = Builder->CreateBitCast(MI->getArgOperand(1), NewSrcPtrTy);
   Value *Dest = Builder->CreateBitCast(MI->getArgOperand(0), NewDstPtrTy);
-  Instruction *L = new LoadInst(Src, "tmp", MI->isVolatile(), SrcAlign);
-  InsertNewInstBefore(L, *MI);
-  InsertNewInstBefore(new StoreInst(L, Dest, MI->isVolatile(), DstAlign),
-                      *MI);
+  LoadInst *L = Builder->CreateLoad(Src, MI->isVolatile());
+  L->setAlignment(SrcAlign);
+  StoreInst *S = Builder->CreateStore(L, Dest, MI->isVolatile());
+  S->setAlignment(DstAlign);
 
   // Set the size of the copy to 0, it will be deleted on the next iteration.
   MI->setArgOperand(2, Constant::getNullValue(MemOpLength->getType()));
@@ -154,8 +154,9 @@ Instruction *InstCombiner::SimplifyMemSet(MemSetInst *MI) {
     
     // Extract the fill value and store.
     uint64_t Fill = FillC->getZExtValue()*0x0101010101010101ULL;
-    InsertNewInstBefore(new StoreInst(ConstantInt::get(ITy, Fill),
-                                      Dest, false, Alignment), *MI);
+    StoreInst *S = Builder->CreateStore(ConstantInt::get(ITy, Fill), Dest,
+                                        MI->isVolatile());
+    S->setAlignment(Alignment);
     
     // Set the size of the copy to 0, it will be deleted on the next iteration.
     MI->setLength(Constant::getNullValue(LenC->getType()));
@@ -405,20 +406,21 @@ Instruction *InstCombiner::visitCallInst(CallInst &CI) {
       if (LHSKnownNegative && RHSKnownNegative) {
         // The sign bit is set in both cases: this MUST overflow.
         // Create a simple add instruction, and insert it into the struct.
-        Instruction *Add = BinaryOperator::CreateAdd(LHS, RHS, "", &CI);
-        Worklist.Add(Add);
+        Value *Add = Builder->CreateAdd(LHS, RHS);
+        Add->takeName(&CI);
         Constant *V[] = {
-          UndefValue::get(LHS->getType()),ConstantInt::getTrue(II->getContext())
+          UndefValue::get(LHS->getType()),
+          ConstantInt::getTrue(II->getContext())
         };
         Constant *Struct = ConstantStruct::get(II->getContext(), V, 2, false);
         return InsertValueInst::Create(Struct, Add, 0);
       }
-      
+
       if (LHSKnownPositive && RHSKnownPositive) {
         // The sign bit is clear in both cases: this CANNOT overflow.
         // Create a simple add instruction, and insert it into the struct.
-        Instruction *Add = BinaryOperator::CreateNUWAdd(LHS, RHS, "", &CI);
-        Worklist.Add(Add);
+        Value *Add = Builder->CreateNUWAdd(LHS, RHS);
+        Add->takeName(&CI);
         Constant *V[] = {
           UndefValue::get(LHS->getType()),
           ConstantInt::getFalse(II->getContext())
@@ -583,6 +585,28 @@ Instruction *InstCombiner::visitCallInst(CallInst &CI) {
     if (Value *V = SimplifyDemandedVectorElts(II->getArgOperand(0),
                                               DemandedElts, UndefElts)) {
       II->setArgOperand(0, V);
+      return II;
+    }
+    break;
+  }
+
+
+  case Intrinsic::x86_sse41_pmovsxbw:
+  case Intrinsic::x86_sse41_pmovsxwd:
+  case Intrinsic::x86_sse41_pmovsxdq:
+  case Intrinsic::x86_sse41_pmovzxbw:
+  case Intrinsic::x86_sse41_pmovzxwd:
+  case Intrinsic::x86_sse41_pmovzxdq: {
+    // pmov{s|z}x ignores the upper half of their input vectors.
+    unsigned VWidth =
+      cast<VectorType>(II->getArgOperand(0)->getType())->getNumElements();
+    unsigned LowHalfElts = VWidth / 2;
+    APInt InputDemandedElts(APInt::getBitsSet(VWidth, 0, LowHalfElts));
+    APInt UndefElts(VWidth, 0);
+    if (Value *TmpV = SimplifyDemandedVectorElts(II->getArgOperand(0),
+                                                 InputDemandedElts,
+                                                 UndefElts)) {
+      II->setArgOperand(0, TmpV);
       return II;
     }
     break;
@@ -813,7 +837,7 @@ Instruction *InstCombiner::visitCallSite(CallSite CS) {
       // If OldCall dues not return void then replaceAllUsesWith undef.
       // This allows ValueHandlers and custom metadata to adjust itself.
       if (!OldCall->getType()->isVoidTy())
-        OldCall->replaceAllUsesWith(UndefValue::get(OldCall->getType()));
+        ReplaceInstUsesWith(*OldCall, UndefValue::get(OldCall->getType()));
       if (isa<CallInst>(OldCall))
         return EraseInstFromFunction(*OldCall);
       
@@ -835,8 +859,8 @@ Instruction *InstCombiner::visitCallSite(CallSite CS) {
     // If CS does not return void then replaceAllUsesWith undef.
     // This allows ValueHandlers and custom metadata to adjust itself.
     if (!CS.getInstruction()->getType()->isVoidTy())
-      CS.getInstruction()->
-        replaceAllUsesWith(UndefValue::get(CS.getInstruction()->getType()));
+      ReplaceInstUsesWith(*CS.getInstruction(),
+                          UndefValue::get(CS.getInstruction()->getType()));
 
     if (InvokeInst *II = dyn_cast<InvokeInst>(CS.getInstruction())) {
       // Don't break the CFG, insert a dummy cond branch.
@@ -1084,15 +1108,15 @@ bool InstCombiner::transformConstExprCastCall(CallSite CS) {
 
   Instruction *NC;
   if (InvokeInst *II = dyn_cast<InvokeInst>(Caller)) {
-    NC = InvokeInst::Create(Callee, II->getNormalDest(), II->getUnwindDest(),
-                            Args.begin(), Args.end(),
-                            Caller->getName(), Caller);
+    NC = Builder->CreateInvoke(Callee, II->getNormalDest(),
+                               II->getUnwindDest(), Args.begin(), Args.end());
+    NC->takeName(II);
     cast<InvokeInst>(NC)->setCallingConv(II->getCallingConv());
     cast<InvokeInst>(NC)->setAttributes(NewCallerPAL);
   } else {
-    NC = CallInst::Create(Callee, Args.begin(), Args.end(),
-                          Caller->getName(), Caller);
     CallInst *CI = cast<CallInst>(Caller);
+    NC = Builder->CreateCall(Callee, Args.begin(), Args.end());
+    NC->takeName(CI);
     if (CI->isTailCall())
       cast<CallInst>(NC)->setTailCall();
     cast<CallInst>(NC)->setCallingConv(CI->getCallingConv());
@@ -1106,6 +1130,7 @@ bool InstCombiner::transformConstExprCastCall(CallSite CS) {
       Instruction::CastOps opcode =
         CastInst::getCastOpcode(NC, false, OldRetTy, false);
       NV = NC = CastInst::Create(opcode, NC, OldRetTy, "tmp");
+      NC->setDebugLoc(Caller->getDebugLoc());
 
       // If this is an invoke instruction, we should insert it after the first
       // non-phi, instruction in the normal successor block.
@@ -1123,8 +1148,8 @@ bool InstCombiner::transformConstExprCastCall(CallSite CS) {
   }
 
   if (!Caller->use_empty())
-    Caller->replaceAllUsesWith(NV);
-  
+    ReplaceInstUsesWith(*Caller, NV);
+
   EraseInstFromFunction(*Caller);
   return true;
 }
@@ -1189,7 +1214,7 @@ Instruction *InstCombiner::transformCallThroughTrampoline(CallSite CS) {
             // Add the chain argument and attributes.
             Value *NestVal = Tramp->getArgOperand(2);
             if (NestVal->getType() != NestTy)
-              NestVal = new BitCastInst(NestVal, NestTy, "nest", Caller);
+              NestVal = Builder->CreateBitCast(NestVal, NestTy, "nest");
             NewArgs.push_back(NestVal);
             NewAttrs.push_back(AttributeWithIndex::get(NestIdx, NestAttr));
           }
@@ -1255,24 +1280,19 @@ Instruction *InstCombiner::transformCallThroughTrampoline(CallSite CS) {
       if (InvokeInst *II = dyn_cast<InvokeInst>(Caller)) {
         NewCaller = InvokeInst::Create(NewCallee,
                                        II->getNormalDest(), II->getUnwindDest(),
-                                       NewArgs.begin(), NewArgs.end(),
-                                       Caller->getName(), Caller);
+                                       NewArgs.begin(), NewArgs.end());
         cast<InvokeInst>(NewCaller)->setCallingConv(II->getCallingConv());
         cast<InvokeInst>(NewCaller)->setAttributes(NewPAL);
       } else {
-        NewCaller = CallInst::Create(NewCallee, NewArgs.begin(), NewArgs.end(),
-                                     Caller->getName(), Caller);
+        NewCaller = CallInst::Create(NewCallee, NewArgs.begin(), NewArgs.end());
         if (cast<CallInst>(Caller)->isTailCall())
           cast<CallInst>(NewCaller)->setTailCall();
         cast<CallInst>(NewCaller)->
           setCallingConv(cast<CallInst>(Caller)->getCallingConv());
         cast<CallInst>(NewCaller)->setAttributes(NewPAL);
       }
-      if (!Caller->getType()->isVoidTy())
-        Caller->replaceAllUsesWith(NewCaller);
-      Caller->eraseFromParent();
-      Worklist.Remove(Caller);
-      return 0;
+
+      return NewCaller;
     }
   }
 

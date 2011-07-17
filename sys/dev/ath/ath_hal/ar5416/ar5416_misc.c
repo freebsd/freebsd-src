@@ -288,7 +288,7 @@ ar5416SetQuiet(struct ath_hal *ah, uint32_t period, uint32_t duration,
 			nextStart_us += OS_REG_READ(ah, AR_TSF_L32);
 		}
 		if (flag & HAL_QUIET_ADD_SWBA_RESP_TIME) {
-			nextStart_us += ath_hal_sw_beacon_response_time;
+			nextStart_us += ah->ah_config.ah_sw_beacon_response_time;
 		}
 		OS_REG_RMW_FIELD(ah, AR_QUIET1, AR_QUIET1_QUIET_ACK_CTS_ENABLE, 1);
 		OS_REG_WRITE(ah, AR_QUIET2, SM(duration, AR_QUIET2_QUIET_DUR));

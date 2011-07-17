@@ -214,7 +214,9 @@
 #define FFS_SET_CWD		12	/* set current directory */
 #define	FFS_SET_DOTDOT		13	/* set inode number for ".." */
 #define	FFS_UNLINK		14	/* remove a name in the filesystem */
-#define	FFS_MAXID		15	/* number of valid ffs ids */
+#define	FFS_SET_INODE		15	/* update an on-disk inode */
+#define	FFS_SET_BUFOUTPUT	16	/* set buffered writing on descriptor */
+#define	FFS_MAXID		16	/* number of valid ffs ids */
 
 /*
  * Command structure passed in to the filesystem to adjust filesystem values.
@@ -664,6 +666,7 @@ lbn_offset(struct fs *fs, int level)
 #define	JOP_FREEBLK	4	/* Free a block or a tree of blocks. */
 #define	JOP_MVREF	5	/* Move a reference from one off to another. */
 #define	JOP_TRUNC	6	/* Partial truncation record. */
+#define	JOP_SYNC	7	/* fsync() complete record. */
 
 #define	JREC_SIZE	32	/* Record and segment header size. */
 
@@ -729,7 +732,7 @@ struct jblkrec {
 
 /*
  * Truncation record.  Records a partial truncation so that it may be
- * completed later.
+ * completed at check time.  Also used for sync records.
  */
 struct jtrncrec {
 	uint32_t	jt_op;

@@ -158,7 +158,7 @@ def t2addrmode_so_reg : Operand<i32>,
 //
 def t2addrmode_reg : Operand<i32> {
   let PrintMethod = "printAddrMode7Operand";
-  let MIOperandInfo = (ops tGPR);
+  let MIOperandInfo = (ops GPR);
   let ParserMatchClass = MemMode7AsmOperand;
 }
 
@@ -1973,9 +1973,9 @@ class T2SatI<dag oops, dag iops, InstrItinClass itin,
 }
 
 def t2SSAT: T2SatI<
-                (outs rGPR:$Rd), (ins i32imm:$sat_imm, rGPR:$Rn, shift_imm:$sh),
-                NoItinerary, "ssat", "\t$Rd, $sat_imm, $Rn$sh",
-                [/* For disassembly only; pattern left blank */]> {
+              (outs rGPR:$Rd), (ins ssat_imm:$sat_imm, rGPR:$Rn, shift_imm:$sh),
+              NoItinerary, "ssat", "\t$Rd, $sat_imm, $Rn$sh",
+              [/* For disassembly only; pattern left blank */]> {
   let Inst{31-27} = 0b11110;
   let Inst{25-22} = 0b1100;
   let Inst{20} = 0;
@@ -1983,9 +1983,9 @@ def t2SSAT: T2SatI<
 }
 
 def t2SSAT16: T2SatI<
-                   (outs rGPR:$Rd), (ins i32imm:$sat_imm, rGPR:$Rn), NoItinerary,
-                   "ssat16", "\t$Rd, $sat_imm, $Rn",
-                   [/* For disassembly only; pattern left blank */]> {
+                (outs rGPR:$Rd), (ins ssat_imm:$sat_imm, rGPR:$Rn), NoItinerary,
+                "ssat16", "\t$Rd, $sat_imm, $Rn",
+                [/* For disassembly only; pattern left blank */]> {
   let Inst{31-27} = 0b11110;
   let Inst{25-22} = 0b1100;
   let Inst{20} = 0;
@@ -2881,7 +2881,9 @@ def t2LDREX  : Thumb2I<(outs rGPR:$Rt), (ins t2addrmode_reg:$addr), AddrModeNone
   let Inst{19-16} = addr;
   let Inst{15-12} = Rt;
 }
-def t2LDREXD : T2I_ldrex<0b11, (outs rGPR:$Rt, rGPR:$Rt2), (ins t2addrmode_reg:$addr),
+let hasExtraDefRegAllocReq = 1 in
+def t2LDREXD : T2I_ldrex<0b11, (outs rGPR:$Rt, rGPR:$Rt2),
+                         (ins t2addrmode_reg:$addr),
                          AddrModeNone, Size4Bytes, NoItinerary,
                          "ldrexd", "\t$Rt, $Rt2, $addr", "",
                          [], {?, ?, ?, ?}> {
@@ -2912,6 +2914,9 @@ def t2STREX  : Thumb2I<(outs rGPR:$Rd), (ins rGPR:$Rt, t2addrmode_reg:$addr),
   let Inst{19-16} = addr;
   let Inst{15-12} = Rt;
 }
+}
+
+let hasExtraSrcRegAllocReq = 1, Constraints = "@earlyclobber $Rd" in
 def t2STREXD : T2I_strex<0b11, (outs rGPR:$Rd),
                          (ins rGPR:$Rt, rGPR:$Rt2, t2addrmode_reg:$addr),
                          AddrModeNone, Size4Bytes, NoItinerary,
@@ -2919,7 +2924,6 @@ def t2STREXD : T2I_strex<0b11, (outs rGPR:$Rd),
                          {?, ?, ?, ?}> {
   bits<4> Rt2;
   let Inst{11-8} = Rt2;
-}
 }
 
 // Clear-Exclusive is for disassembly only.
@@ -2965,10 +2969,9 @@ let isCall = 1,
 //   all of the callee-saved resgisters, which is exactly what we want.
 //   $val is a scratch register for our use.
 let Defs =
-  [ R0,  R1,  R2,  R3,  R4,  R5,  R6,  R7,  R8,  R9,  R10, R11, R12, LR,  D0,
-    D1,  D2,  D3,  D4,  D5,  D6,  D7,  D8,  D9,  D10, D11, D12, D13, D14, D15,
-    D16, D17, D18, D19, D20, D21, D22, D23, D24, D25, D26, D27, D28, D29, D30,
-    D31 ], hasSideEffects = 1, isBarrier = 1, isCodeGenOnly = 1 in {
+  [ R0,  R1,  R2,  R3,  R4,  R5,  R6,  R7,  R8,  R9,  R10, R11, R12, LR, CPSR,
+    QQQQ0, QQQQ1, QQQQ2, QQQQ3 ],
+  hasSideEffects = 1, isBarrier = 1, isCodeGenOnly = 1 in {
   def t2Int_eh_sjlj_setjmp : Thumb2XI<(outs), (ins tGPR:$src, tGPR:$val),
                                AddrModeNone, SizeSpecial, NoItinerary, "", "",
                           [(set R0, (ARMeh_sjlj_setjmp tGPR:$src, tGPR:$val))]>,
@@ -2976,7 +2979,7 @@ let Defs =
 }
 
 let Defs =
-  [ R0,  R1,  R2,  R3,  R4,  R5,  R6,  R7,  R8,  R9,  R10, R11, R12, LR ],
+  [ R0,  R1,  R2,  R3,  R4,  R5,  R6,  R7,  R8,  R9,  R10, R11, R12, LR, CPSR ],
   hasSideEffects = 1, isBarrier = 1, isCodeGenOnly = 1 in {
   def t2Int_eh_sjlj_setjmp_nofp : Thumb2XI<(outs), (ins tGPR:$src, tGPR:$val),
                                AddrModeNone, SizeSpecial, NoItinerary, "", "",
@@ -3347,9 +3350,10 @@ def t2MSR : T2SpecialReg<0b111100111000 /* op31-20 */, 0b10 /* op15-14 */,
 // Move between coprocessor and ARM core register -- for disassembly only
 //
 
-class t2MovRCopro<string opc, bit direction, dag oops, dag iops>
+class t2MovRCopro<string opc, bit direction, dag oops, dag iops,
+                  list<dag> pattern>
   : T2Cop<oops, iops, !strconcat(opc, "\t$cop, $opc1, $Rt, $CRn, $CRm, $opc2"),
-          [/* For disassembly only; pattern left blank */]> {
+          pattern> {
   let Inst{27-24} = 0b1110;
   let Inst{20} = direction;
   let Inst{4} = 1;
@@ -3371,15 +3375,21 @@ class t2MovRCopro<string opc, bit direction, dag oops, dag iops>
 
 def t2MCR2 : t2MovRCopro<"mcr2", 0 /* from ARM core register to coprocessor */,
              (outs), (ins p_imm:$cop, i32imm:$opc1, GPR:$Rt, c_imm:$CRn,
-                          c_imm:$CRm, i32imm:$opc2)>;
+                          c_imm:$CRm, i32imm:$opc2),
+             [(int_arm_mcr2 imm:$cop, imm:$opc1, GPR:$Rt, imm:$CRn,
+                            imm:$CRm, imm:$opc2)]>;
 def t2MRC2 : t2MovRCopro<"mrc2", 1 /* from coprocessor to ARM core register */,
              (outs GPR:$Rt), (ins p_imm:$cop, i32imm:$opc1, c_imm:$CRn,
-                                  c_imm:$CRm, i32imm:$opc2)>;
+                                  c_imm:$CRm, i32imm:$opc2), []>;
 
-class t2MovRRCopro<string opc, bit direction>
+def : T2v6Pat<(int_arm_mrc2 imm:$cop, imm:$opc1, imm:$CRn,
+                            imm:$CRm, imm:$opc2),
+              (t2MRC2 imm:$cop, imm:$opc1, imm:$CRn, imm:$CRm, imm:$opc2)>;
+
+class t2MovRRCopro<string opc, bit direction,
+                   list<dag> pattern = [/* For disassembly only */]>
   : T2Cop<(outs), (ins p_imm:$cop, i32imm:$opc1, GPR:$Rt, GPR:$Rt2, c_imm:$CRm),
-          !strconcat(opc, "\t$cop, $opc1, $Rt, $Rt2, $CRm"),
-          [/* For disassembly only; pattern left blank */]> {
+          !strconcat(opc, "\t$cop, $opc1, $Rt, $Rt2, $CRm"), pattern> {
   let Inst{27-24} = 0b1100;
   let Inst{23-21} = 0b010;
   let Inst{20} = direction;
@@ -3398,7 +3408,9 @@ class t2MovRRCopro<string opc, bit direction>
 }
 
 def t2MCRR2 : t2MovRRCopro<"mcrr2",
-                           0 /* from ARM core register to coprocessor */>;
+                           0 /* from ARM core register to coprocessor */,
+                           [(int_arm_mcrr2 imm:$cop, imm:$opc1, GPR:$Rt,
+                                           GPR:$Rt2, imm:$CRm)]>;
 def t2MRRC2 : t2MovRRCopro<"mrrc2",
                            1 /* from coprocessor to ARM core register */>;
 
@@ -3409,7 +3421,8 @@ def t2MRRC2 : t2MovRRCopro<"mrrc2",
 def t2CDP2 : T2Cop<(outs), (ins p_imm:$cop, i32imm:$opc1,
                    c_imm:$CRd, c_imm:$CRn, c_imm:$CRm, i32imm:$opc2),
                    "cdp2\t$cop, $opc1, $CRd, $CRn, $CRm, $opc2",
-                   [/* For disassembly only; pattern left blank */]> {
+                   [(int_arm_cdp2 imm:$cop, imm:$opc1, imm:$CRd, imm:$CRn,
+                                  imm:$CRm, imm:$opc2)]> {
   let Inst{27-24} = 0b1110;
 
   bits<4> opc1;

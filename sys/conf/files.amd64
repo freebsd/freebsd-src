@@ -128,7 +128,6 @@ amd64/amd64/trap.c		standard
 amd64/amd64/uio_machdep.c	standard
 amd64/amd64/uma_machdep.c	standard
 amd64/amd64/vm_machdep.c	standard
-amd64/pci/pci_bus.c		optional	pci
 amd64/pci/pci_cfgreg.c		optional	pci
 crypto/aesni/aesencdec_amd64.S	optional aesni
 crypto/aesni/aeskeys_amd64.S	optional aesni
@@ -315,7 +314,8 @@ x86/isa/isa.c			standard
 x86/isa/isa_dma.c		standard
 x86/isa/nmi.c			standard
 x86/isa/orm.c			optional	isa
-x86/pci/qpi.c			standard
+x86/pci/pci_bus.c		optional	pci
+x86/pci/qpi.c			optional	pci
 x86/x86/busdma_machdep.c	standard
 x86/x86/dump_machdep.c		standard
 x86/x86/io_apic.c		standard

@@ -260,8 +260,12 @@ mfi_transition_firmware(struct mfi_softc *sc)
 		case MFI_FWSTATE_FLUSH_CACHE:
 			max_wait = 20;
 			break;
+		case MFI_FWSTATE_BOOT_MESSAGE_PENDING:
+			MFI_WRITE4(sc, MFI_IDB, MFI_FWINIT_HOTPLUG);
+			max_wait = 10;
+			break;
 		default:
-			device_printf(sc->mfi_dev,"Unknown firmware state %d\n",
+			device_printf(sc->mfi_dev,"Unknown firmware state %#x\n",
 			    fw_state);
 			return (ENXIO);
 		}
@@ -273,7 +277,7 @@ mfi_transition_firmware(struct mfi_softc *sc)
 				break;
 		}
 		if (fw_state == cur_state) {
-			device_printf(sc->mfi_dev, "firmware stuck in state "
+			device_printf(sc->mfi_dev, "Firmware stuck in state "
 			    "%#x\n", fw_state);
 			return (ENXIO);
 		}
@@ -1149,7 +1153,8 @@ mfi_aen_complete(struct mfi_command *cm)
 	if (sc->mfi_aen_cm == NULL)
 		return;
 
-	if (sc->mfi_aen_cm->cm_aen_abort || hdr->cmd_status == 0xff) {
+	if (sc->mfi_aen_cm->cm_aen_abort ||
+	    hdr->cmd_status == MFI_STAT_INVALID_STATUS) {
 		sc->mfi_aen_cm->cm_aen_abort = 0;
 		aborted = 1;
 	} else {
@@ -1405,7 +1410,7 @@ mfi_bio_complete(struct mfi_command *cm)
 	hdr = &cm->cm_frame->header;
 	sc = cm->cm_sc;
 
-	if ((hdr->cmd_status != 0) || (hdr->scsi_status != 0)) {
+	if ((hdr->cmd_status != MFI_STAT_OK) || (hdr->scsi_status != 0)) {
 		bio->bio_flags |= BIO_ERROR;
 		bio->bio_error = EIO;
 		device_printf(sc->mfi_dev, "I/O error, status= %d "
@@ -1549,7 +1554,7 @@ mfi_send_frame(struct mfi_softc *sc, struct mfi_command *cm)
 		cm->cm_timestamp = time_uptime;
 		mfi_enqueue_busy(cm);
 	} else {
-		hdr->cmd_status = 0xff;
+		hdr->cmd_status = MFI_STAT_INVALID_STATUS;
 		hdr->flags |= MFI_FRAME_DONT_POST_IN_REPLY_QUEUE;
 	}
 
@@ -1574,14 +1579,14 @@ mfi_send_frame(struct mfi_softc *sc, struct mfi_command *cm)
 		return (0);
 
 	/* This is a polled command, so busy-wait for it to complete. */
-	while (hdr->cmd_status == 0xff) {
+	while (hdr->cmd_status == MFI_STAT_INVALID_STATUS) {
 		DELAY(1000);
 		tm -= 1;
 		if (tm <= 0)
 			break;
 	}
 
-	if (hdr->cmd_status == 0xff) {
+	if (hdr->cmd_status == MFI_STAT_INVALID_STATUS) {
 		device_printf(sc->mfi_dev, "Frame %p timed out "
 			      "command 0x%X\n", hdr, cm->cm_frame->dcmd.opcode);
 		return (ETIMEDOUT);

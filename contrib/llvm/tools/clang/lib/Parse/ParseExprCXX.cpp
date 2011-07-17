@@ -280,8 +280,11 @@ bool Parser::ParseOptionalCXXScopeSpecifier(CXXScopeSpec &SS,
                                       : TemplateId->TemplateNameLoc;
         SS.SetInvalid(SourceRange(StartLoc, CCLoc));
       }
-      
-      TemplateId->Destroy();
+
+      // If we are caching tokens we will process the TemplateId again,
+      // otherwise destroy it.
+      if (!PP.isBacktrackEnabled())
+        TemplateId->Destroy();
       continue;
     }
 
@@ -806,42 +809,55 @@ ExprResult Parser::ParseCXXThis() {
 /// Can be interpreted either as function-style casting ("int(x)")
 /// or class type construction ("ClassType(x,y,z)")
 /// or creation of a value-initialized type ("int()").
+/// See [C++ 5.2.3].
 ///
 ///       postfix-expression: [C++ 5.2p1]
-///         simple-type-specifier '(' expression-list[opt] ')'      [C++ 5.2.3]
-///         typename-specifier '(' expression-list[opt] ')'         [TODO]
+///         simple-type-specifier '(' expression-list[opt] ')'
+/// [C++0x] simple-type-specifier braced-init-list
+///         typename-specifier '(' expression-list[opt] ')'
+/// [C++0x] typename-specifier braced-init-list
 ///
 ExprResult
 Parser::ParseCXXTypeConstructExpression(const DeclSpec &DS) {
   Declarator DeclaratorInfo(DS, Declarator::TypeNameContext);
   ParsedType TypeRep = Actions.ActOnTypeName(getCurScope(), DeclaratorInfo).get();
 
-  assert(Tok.is(tok::l_paren) && "Expected '('!");
-  GreaterThanIsOperatorScope G(GreaterThanIsOperator, true);
+  assert((Tok.is(tok::l_paren) ||
+          (getLang().CPlusPlus0x && Tok.is(tok::l_brace)))
+         && "Expected '(' or '{'!");
 
-  SourceLocation LParenLoc = ConsumeParen();
+  if (Tok.is(tok::l_brace)) {
 
-  ExprVector Exprs(Actions);
-  CommaLocsTy CommaLocs;
+    // FIXME: Convert to a proper type construct expression.
+    return ParseBraceInitializer();
 
-  if (Tok.isNot(tok::r_paren)) {
-    if (ParseExpressionList(Exprs, CommaLocs)) {
-      SkipUntil(tok::r_paren);
-      return ExprError();
+  } else {
+    GreaterThanIsOperatorScope G(GreaterThanIsOperator, true);
+
+    SourceLocation LParenLoc = ConsumeParen();
+
+    ExprVector Exprs(Actions);
+    CommaLocsTy CommaLocs;
+
+    if (Tok.isNot(tok::r_paren)) {
+      if (ParseExpressionList(Exprs, CommaLocs)) {
+        SkipUntil(tok::r_paren);
+        return ExprError();
+      }
     }
+
+    // Match the ')'.
+    SourceLocation RParenLoc = MatchRHSPunctuation(tok::r_paren, LParenLoc);
+
+    // TypeRep could be null, if it references an invalid typedef.
+    if (!TypeRep)
+      return ExprError();
+
+    assert((Exprs.size() == 0 || Exprs.size()-1 == CommaLocs.size())&&
+           "Unexpected number of commas!");
+    return Actions.ActOnCXXTypeConstructExpr(TypeRep, LParenLoc, move_arg(Exprs),
+                                             RParenLoc);
   }
-
-  // Match the ')'.
-  SourceLocation RParenLoc = MatchRHSPunctuation(tok::r_paren, LParenLoc);
-
-  // TypeRep could be null, if it references an invalid typedef.
-  if (!TypeRep)
-    return ExprError();
-
-  assert((Exprs.size() == 0 || Exprs.size()-1 == CommaLocs.size())&&
-         "Unexpected number of commas!");
-  return Actions.ActOnCXXTypeConstructExpr(TypeRep, LParenLoc, move_arg(Exprs),
-                                           RParenLoc);
 }
 
 /// ParseCXXCondition - if/switch/while condition expression.
@@ -959,6 +975,7 @@ bool Parser::isCXXSimpleTypeSpecifier() const {
   case tok::kw_bool:
   case tok::kw_decltype:
   case tok::kw_typeof:
+  case tok::kw___underlying_type:
     return true;
 
   default:
@@ -1723,7 +1740,7 @@ bool Parser::ParseUnqualifiedId(CXXScopeSpec &SS, bool EnteringContext,
 ///
 ///        new-initializer:
 ///                   '(' expression-list[opt] ')'
-/// [C++0x]           braced-init-list                                   [TODO]
+/// [C++0x]           braced-init-list
 ///
 ExprResult
 Parser::ParseCXXNewExpression(bool UseGlobal, SourceLocation Start) {
@@ -1812,6 +1829,9 @@ Parser::ParseCXXNewExpression(bool UseGlobal, SourceLocation Start) {
       SkipUntil(tok::semi, /*StopAtSemi=*/true, /*DontConsume=*/true);
       return ExprError();
     }
+  } else if (Tok.is(tok::l_brace)) {
+    // FIXME: Have to communicate the init-list to ActOnCXXNew.
+    ParseBraceInitializer();
   }
 
   return Actions.ActOnCXXNew(Start, UseGlobal, PlacementLParen,
@@ -1921,7 +1941,8 @@ static UnaryTypeTrait UnaryTypeTraitFromTokKind(tok::TokenKind kind) {
   case tok::kw___has_nothrow_constructor: return UTT_HasNothrowConstructor;
   case tok::kw___has_nothrow_copy:           return UTT_HasNothrowCopy;
   case tok::kw___has_trivial_assign:      return UTT_HasTrivialAssign;
-  case tok::kw___has_trivial_constructor: return UTT_HasTrivialConstructor;
+  case tok::kw___has_trivial_constructor:
+                                    return UTT_HasTrivialDefaultConstructor;
   case tok::kw___has_trivial_copy:           return UTT_HasTrivialCopy;
   case tok::kw___has_trivial_destructor:  return UTT_HasTrivialDestructor;
   case tok::kw___has_virtual_destructor:  return UTT_HasVirtualDestructor;
@@ -1954,6 +1975,7 @@ static UnaryTypeTrait UnaryTypeTraitFromTokKind(tok::TokenKind kind) {
   case tok::kw___is_signed:                  return UTT_IsSigned;
   case tok::kw___is_standard_layout:         return UTT_IsStandardLayout;
   case tok::kw___is_trivial:                 return UTT_IsTrivial;
+  case tok::kw___is_trivially_copyable:      return UTT_IsTriviallyCopyable;
   case tok::kw___is_union:                return UTT_IsUnion;
   case tok::kw___is_unsigned:                return UTT_IsUnsigned;
   case tok::kw___is_void:                    return UTT_IsVoid;

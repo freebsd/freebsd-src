@@ -241,7 +241,7 @@ ar5416Attach(uint16_t devid, HAL_SOFTC sc,
 	HAL_STATUS ecode;
 	HAL_BOOL rfStatus;
 
-	HALDEBUG(AH_NULL, HAL_DEBUG_ATTACH, "%s: sc %p st %p sh %p\n",
+	HALDEBUG_G(AH_NULL, HAL_DEBUG_ATTACH, "%s: sc %p st %p sh %p\n",
 	    __func__, sc, (void*) st, (void*) sh);
 
 	/* NB: memory is returned zero'd */
@@ -250,7 +250,7 @@ ar5416Attach(uint16_t devid, HAL_SOFTC sc,
 		sizeof(ar5416Addac)
 	);
 	if (ahp5416 == AH_NULL) {
-		HALDEBUG(AH_NULL, HAL_DEBUG_ANY,
+		HALDEBUG_G(AH_NULL, HAL_DEBUG_ANY,
 		    "%s: cannot allocate memory for state block\n", __func__);
 		*status = HAL_ENOMEM;
 		return AH_NULL;

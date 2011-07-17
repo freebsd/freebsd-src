@@ -345,6 +345,7 @@ bool CheckerManager::wantsRegionChangeUpdate(const GRState *state) {
 /// \brief Run checkers for region changes.
 const GRState *
 CheckerManager::runCheckersForRegionChanges(const GRState *state,
+                            const StoreManager::InvalidatedSymbols *invalidated,
                                             const MemRegion * const *Begin,
                                             const MemRegion * const *End) {
   for (unsigned i = 0, e = RegionChangesCheckers.size(); i != e; ++i) {
@@ -352,7 +353,7 @@ CheckerManager::runCheckersForRegionChanges(const GRState *state,
     // bail out.
     if (!state)
       return NULL;
-    state = RegionChangesCheckers[i].CheckFn(state, Begin, End);
+    state = RegionChangesCheckers[i].CheckFn(state, invalidated, Begin, End);
   }
   return state;
 }
@@ -413,6 +414,15 @@ void CheckerManager::runCheckersForEvalCall(ExplodedNodeSet &Dst,
         Dst.insert(Pred);
     }
   }
+}
+
+/// \brief Run checkers for the entire Translation Unit.
+void CheckerManager::runCheckersOnEndOfTranslationUnit(
+                                                  const TranslationUnitDecl *TU,
+                                                  AnalysisManager &mgr,
+                                                  BugReporter &BR) {
+  for (unsigned i = 0, e = EndOfTranslationUnitCheckers.size(); i != e; ++i)
+    EndOfTranslationUnitCheckers[i](TU, mgr, BR);
 }
 
 //===----------------------------------------------------------------------===//
@@ -492,6 +502,11 @@ void CheckerManager::_registerForEvalAssume(EvalAssumeFunc checkfn) {
 
 void CheckerManager::_registerForEvalCall(EvalCallFunc checkfn) {
   EvalCallCheckers.push_back(checkfn);
+}
+
+void CheckerManager::_registerForEndOfTranslationUnit(
+                                            CheckEndOfTranslationUnit checkfn) {
+  EndOfTranslationUnitCheckers.push_back(checkfn);
 }
 
 //===----------------------------------------------------------------------===//

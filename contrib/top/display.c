@@ -151,6 +151,26 @@ int display_resize()
     return(smart_terminal ? lines : Largest);
 }
 
+int display_updatecpus(statics)
+
+struct statics *statics;
+
+{
+    register int lines;
+    register int i;
+    
+    /* call resize to do the dirty work */
+    lines = display_resize();
+    num_cpus = statics->ncpus;
+    cpustates_column = 5;	/* CPU: */
+    if (num_cpus != 1)
+    cpustates_column += 2;	/* CPU 0: */
+    for (i = num_cpus; i > 9; i /= 10)
+	cpustates_column++;
+
+    return(lines);
+}
+    
 int display_init(statics)
 
 struct statics *statics;
@@ -161,14 +181,7 @@ struct statics *statics;
     register int *ip;
     register int i;
 
-    /* call resize to do the dirty work */
-    lines = display_resize();
-    num_cpus = statics->ncpus;
-    cpustates_column = 5;	/* CPU: */
-    if (num_cpus != 1)
-    cpustates_column += 2;	/* CPU 0: */
-    for (i = num_cpus; i > 9; i /= 10)
-	cpustates_column++;
+    lines = display_updatecpus(statics);
 
     /* only do the rest if we need to */
     if (lines > -1)
@@ -698,21 +711,13 @@ char *text;
 	int width;
 
 	s = NULL;
-	width = screen_width;
+	width = display_width;
 	header_length = strlen(text);
 	if (header_length >= width) {
 		s = malloc((width + 1) * sizeof(char));
 		if (s == NULL)
 			return (NULL);
 		strncpy(s, text, width);
-		s[width] = '\0';
-	} else {
-		s = malloc((width + 1) * sizeof(char));
-		if (s == NULL)
-			return (NULL);
-		strncpy(s, text, width);
-		while (screen_width > header_length)
-			s[header_length++] = ' ';
 		s[width] = '\0';
 	}
 	return (s);
@@ -738,7 +743,7 @@ char *text;
     if (header_status == ON)
     {
 	putchar('\n');
-	standout(text, stdout);
+	fputs(text, stdout);
 	lastline++;
     }
     else if (header_status == ERASE)

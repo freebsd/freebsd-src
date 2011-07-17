@@ -155,7 +155,7 @@ fpom(int year, double utcoffset, double *ffms, double *fnms)
 	tomorrow = potm(days_tomorrow);		/* 31 December 00:00:01 */
 	olddir = today > tomorrow ? -1 : +1;
 
-	yeardays = 1 + isleap(year) ? DAYSPERLEAPYEAR : DAYSPERYEAR; /* reuse */
+	yeardays = 1 + (isleap(year) ? DAYSPERLEAPYEAR : DAYSPERYEAR); /* reuse */
 	for (d = 0; d <= yeardays; d++) {
 		today = potm(days_today);
 		tomorrow = potm(days_tomorrow);

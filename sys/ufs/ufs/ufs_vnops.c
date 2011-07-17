@@ -1838,6 +1838,8 @@ ufs_mkdir(ap)
 #ifdef QUOTA
 		if ((error = getinoquota(ip)) ||
 	    	    (error = chkiq(ip, 1, ucp, 0))) {
+			if (DOINGSOFTDEP(tvp))
+				softdep_revert_link(dp, ip);
 			UFS_VFREE(tvp, ip->i_number, dmode);
 			vput(tvp);
 			return (error);
@@ -1850,6 +1852,8 @@ ufs_mkdir(ap)
 #ifdef QUOTA
 	if ((error = getinoquota(ip)) ||
 	    (error = chkiq(ip, 1, cnp->cn_cred, 0))) {
+		if (DOINGSOFTDEP(tvp))
+			softdep_revert_link(dp, ip);
 		UFS_VFREE(tvp, ip->i_number, dmode);
 		vput(tvp);
 		return (error);
@@ -2608,6 +2612,8 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 #ifdef QUOTA
 		if ((error = getinoquota(ip)) ||
 	    	    (error = chkiq(ip, 1, ucp, 0))) {
+			if (DOINGSOFTDEP(tvp))
+				softdep_revert_link(pdir, ip);
 			UFS_VFREE(tvp, ip->i_number, mode);
 			vput(tvp);
 			return (error);
@@ -2620,6 +2626,8 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 #ifdef QUOTA
 	if ((error = getinoquota(ip)) ||
 	    (error = chkiq(ip, 1, cnp->cn_cred, 0))) {
+		if (DOINGSOFTDEP(tvp))
+			softdep_revert_link(pdir, ip);
 		UFS_VFREE(tvp, ip->i_number, mode);
 		vput(tvp);
 		return (error);

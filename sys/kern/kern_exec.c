@@ -27,12 +27,14 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_capsicum.h"
 #include "opt_hwpmc_hooks.h"
 #include "opt_kdtrace.h"
 #include "opt_ktrace.h"
 #include "opt_vm.h"
 
 #include <sys/param.h>
+#include <sys/capability.h>
 #include <sys/systm.h>
 #include <sys/eventhandler.h>
 #include <sys/lock.h>
@@ -415,6 +417,18 @@ do_execve(td, args, mac_p)
 
 interpret:
 	if (args->fname != NULL) {
+#ifdef CAPABILITY_MODE
+		/*
+		 * While capability mode can't reach this point via direct
+		 * path arguments to execve(), we also don't allow
+		 * interpreters to be used in capability mode (for now).
+		 * Catch indirect lookups and return a permissions error.
+		 */
+		if (IN_CAPABILITY_MODE(td)) {
+			error = ECAPMODE;
+			goto exec_fail;
+		}
+#endif
 		error = namei(&nd);
 		if (error)
 			goto exec_fail;
@@ -631,6 +645,13 @@ interpret:
 	 * Don't honor setuid/setgid if the filesystem prohibits it or if
 	 * the process is being traced.
 	 *
+	 * We disable setuid/setgid/etc in compatibility mode on the basis
+	 * that most setugid applications are not written with that
+	 * environment in mind, and will therefore almost certainly operate
+	 * incorrectly. In principle there's no reason that setugid
+	 * applications might not be useful in capability mode, so we may want
+	 * to reconsider this conservative design choice in the future.
+	 *
 	 * XXXMAC: For the time being, use NOSUID to also prohibit
 	 * transitions on the file system.
 	 */
@@ -646,6 +667,9 @@ interpret:
 #endif
 
 	if (credential_changing &&
+#ifdef CAPABILITY_MODE
+	    ((oldcred->cr_flags & CRED_FLAG_CAPMODE) == 0) &&
+#endif
 	    (imgp->vp->v_mount->mnt_flag & MNT_NOSUID) == 0 &&
 	    (p->p_flag & P_TRACED) == 0) {
 		/*

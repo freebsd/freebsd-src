@@ -19,6 +19,60 @@
 using namespace llvm;
 using namespace PatternMatch;
 
+
+/// simplifyValueKnownNonZero - The specific integer value is used in a context
+/// where it is known to be non-zero.  If this allows us to simplify the
+/// computation, do so and return the new operand, otherwise return null.
+static Value *simplifyValueKnownNonZero(Value *V, InstCombiner &IC) {
+  // If V has multiple uses, then we would have to do more analysis to determine
+  // if this is safe.  For example, the use could be in dynamically unreached
+  // code.
+  if (!V->hasOneUse()) return 0;
+  
+  bool MadeChange = false;
+
+  // ((1 << A) >>u B) --> (1 << (A-B))
+  // Because V cannot be zero, we know that B is less than A.
+  Value *A = 0, *B = 0, *PowerOf2 = 0;
+  if (match(V, m_LShr(m_OneUse(m_Shl(m_Value(PowerOf2), m_Value(A))),
+                      m_Value(B))) &&
+      // The "1" can be any value known to be a power of 2.
+      isPowerOfTwo(PowerOf2, IC.getTargetData())) {
+    A = IC.Builder->CreateSub(A, B, "tmp");
+    return IC.Builder->CreateShl(PowerOf2, A);
+  }
+  
+  // (PowerOfTwo >>u B) --> isExact since shifting out the result would make it
+  // inexact.  Similarly for <<.
+  if (BinaryOperator *I = dyn_cast<BinaryOperator>(V))
+    if (I->isLogicalShift() &&
+        isPowerOfTwo(I->getOperand(0), IC.getTargetData())) {
+      // We know that this is an exact/nuw shift and that the input is a
+      // non-zero context as well.
+      if (Value *V2 = simplifyValueKnownNonZero(I->getOperand(0), IC)) {
+        I->setOperand(0, V2);
+        MadeChange = true;
+      }
+      
+      if (I->getOpcode() == Instruction::LShr && !I->isExact()) {
+        I->setIsExact();
+        MadeChange = true;
+      }
+      
+      if (I->getOpcode() == Instruction::Shl && !I->hasNoUnsignedWrap()) {
+        I->setHasNoUnsignedWrap();
+        MadeChange = true;
+      }
+    }
+
+  // TODO: Lots more we could do here:
+  //    If V is a phi node, we can call this on each of its operands.
+  //    "select cond, X, 0" can simplify to "X".
+  
+  return MadeChange ? V : 0;
+}
+
+
 /// MultiplyOverflows - True if the multiply can not be expressed in an int
 /// this size.
 static bool MultiplyOverflows(ConstantInt *C1, ConstantInt *C2, bool sign) {
@@ -79,6 +133,29 @@ Instruction *InstCombiner::visitMul(BinaryOperator &I) {
           match(Op0, m_Add(m_Value(X), m_ConstantInt(C1)))) {
         Value *Add = Builder->CreateMul(X, CI, "tmp");
         return BinaryOperator::CreateAdd(Add, Builder->CreateMul(C1, CI));
+      }
+    }
+
+    // (Y - X) * (-(2**n)) -> (X - Y) * (2**n), for positive nonzero n
+    // (Y + const) * (-(2**n)) -> (-constY) * (2**n), for positive nonzero n
+    // The "* (2**n)" thus becomes a potential shifting opportunity.
+    {
+      const APInt &   Val = CI->getValue();
+      const APInt &PosVal = Val.abs();
+      if (Val.isNegative() && PosVal.isPowerOf2()) {
+        Value *X = 0, *Y = 0;
+        if (Op0->hasOneUse()) {
+          ConstantInt *C1;
+          Value *Sub = 0;
+          if (match(Op0, m_Sub(m_Value(Y), m_Value(X))))
+            Sub = Builder->CreateSub(X, Y, "suba");
+          else if (match(Op0, m_Add(m_Value(Y), m_ConstantInt(C1))))
+            Sub = Builder->CreateSub(Builder->CreateNeg(C1), Y, "subc");
+          if (Sub)
+            return
+              BinaryOperator::CreateMul(Sub,
+                                        ConstantInt::get(Y->getType(), PosVal));
+        }
       }
     }
   }
@@ -293,6 +370,12 @@ bool InstCombiner::SimplifyDivRemOfSelect(BinaryOperator &I) {
 Instruction *InstCombiner::commonIDivTransforms(BinaryOperator &I) {
   Value *Op0 = I.getOperand(0), *Op1 = I.getOperand(1);
 
+  // The RHS is known non-zero.
+  if (Value *V = simplifyValueKnownNonZero(I.getOperand(1), *this)) {
+    I.setOperand(1, V);
+    return &I;
+  }
+  
   // Handle cases involving: [su]div X, (select Cond, Y, Z)
   // This does not apply for fdiv.
   if (isa<SelectInst>(Op1) && SimplifyDivRemOfSelect(I))
@@ -499,11 +582,17 @@ Instruction *InstCombiner::visitFDiv(BinaryOperator &I) {
 Instruction *InstCombiner::commonIRemTransforms(BinaryOperator &I) {
   Value *Op0 = I.getOperand(0), *Op1 = I.getOperand(1);
 
+  // The RHS is known non-zero.
+  if (Value *V = simplifyValueKnownNonZero(I.getOperand(1), *this)) {
+    I.setOperand(1, V);
+    return &I;
+  }
+
   // Handle cases involving: rem X, (select Cond, Y, Z)
   if (isa<SelectInst>(Op1) && SimplifyDivRemOfSelect(I))
     return &I;
 
-  if (ConstantInt *RHS = dyn_cast<ConstantInt>(Op1)) {
+  if (isa<ConstantInt>(Op1)) {
     if (Instruction *Op0I = dyn_cast<Instruction>(Op0)) {
       if (SelectInst *SI = dyn_cast<SelectInst>(Op0I)) {
         if (Instruction *R = FoldOpIntoSelect(I, SI))

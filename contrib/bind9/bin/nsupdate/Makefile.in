@@ -1,4 +1,4 @@
-# Copyright (C) 2004, 2006-2008  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004, 2006-2009  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 2000-2002  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -13,7 +13,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: Makefile.in,v 1.29 2008-08-29 23:47:22 tbox Exp $
+# $Id: Makefile.in,v 1.36 2009-12-05 23:31:40 each Exp $
 
 srcdir =	@srcdir@
 VPATH =		@srcdir@
@@ -24,7 +24,7 @@ top_srcdir =	@top_srcdir@
 @BIND9_MAKE_INCLUDES@
 
 CINCLUDES =	${LWRES_INCLUDES} ${DNS_INCLUDES} ${BIND9_INCLUDES} \
-		${ISC_INCLUDES} @DST_GSSAPI_INC@
+		${ISC_INCLUDES} ${ISCCFG_INCLUDES} @DST_GSSAPI_INC@
 
 CDEFINES =	@USE_GSSAPI@
 CWARNINGS =
@@ -33,6 +33,7 @@ LWRESLIBS =	../../lib/lwres/liblwres.@A@
 DNSLIBS =	../../lib/dns/libdns.@A@ @DNS_CRYPTO_LIBS@
 BIND9LIBS =	../../lib/bind9/libbind9.@A@
 ISCLIBS =	../../lib/isc/libisc.@A@
+ISCNOSYMLIBS =	../../lib/isc/libisc-nosymtbl.@A@
 ISCCFGLIBS =	../../lib/isccfg/libisccfg.@A@
 
 LWRESDEPLIBS =	../../lib/lwres/liblwres.@A@
@@ -43,7 +44,9 @@ ISCCFGDEPLIBS =	../../lib/isccfg/libisccfg.@A@
 
 DEPLIBS =	${DNSDEPLIBS} ${BIND9DEPLIBS} ${ISCDEPLIBS} ${ISCCFGDEPLIBS}
 
-LIBS =		${LWRESLIBS} ${DNSLIBS} ${BIND9LIBS} ${ISCLIBS} ${ISCCFGLIBS} @LIBS@
+LIBS =		${LWRESLIBS} ${DNSLIBS} ${BIND9LIBS} ${ISCCFGLIBS} ${ISCLIBS} @LIBS@
+
+NOSYMLIBS =	${LWRESLIBS} ${DNSLIBS} ${BIND9LIBS} ${ISCCFGLIBS} ${ISCNOSYMLIBS} @LIBS@
 
 SUBDIRS =
 
@@ -63,8 +66,14 @@ MANOBJS =	${MANPAGES} ${HTMLPAGES}
 
 @BIND9_MAKE_RULES@
 
+nsupdate.@O@: nsupdate.c
+	${LIBTOOL_MODE_COMPILE} ${CC} ${ALL_CFLAGS} \
+		-DSESSION_KEYFILE=\"${localstatedir}/run/named/session.key\" \
+		-c ${srcdir}/nsupdate.c
+
 nsupdate@EXEEXT@: nsupdate.@O@ ${UOBJS} ${DEPLIBS}
-	${LIBTOOL_MODE_LINK} ${PURIFY} ${CC} ${CFLAGS} ${LDFLAGS} -o $@ nsupdate.@O@ ${UOBJS} ${LIBS}
+	export BASEOBJS="nsupdate.@O@ ${UOBJS}"; \
+	${FINALBUILDCMD}
 
 doc man:: ${MANOBJS}
 

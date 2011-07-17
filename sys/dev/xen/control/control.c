@@ -173,8 +173,6 @@ static struct xctrl_shutdown_reason xctrl_shutdown_reasons[] = {
 };
 
 struct xctrl_softc {
-
-	/** Must be first */
 	struct xs_watch    xctrl_watch;	
 };
 
@@ -199,6 +197,7 @@ extern void xencons_resume(void);
 static void
 xctrl_suspend()
 {
+	u_int cpuid;
 	int i, j, k, fpp;
 	unsigned long max_pfn, start_info_mfn;
 
@@ -212,11 +211,11 @@ xctrl_suspend()
 	thread_lock(td);
 	sched_bind(td, 0);
 	thread_unlock(td);
-	KASSERT(PCPU_GET(cpuid) == 0, ("xen_suspend: not running on cpu 0"));
+	cpuid = PCPU_GET(cpuid);
+	KASSERT(cpuid == 0, ("xen_suspend: not running on cpu 0"));
 
-	sched_pin();
-	map = PCPU_GET(other_cpus);
-	sched_unpin();
+	map = all_cpus;
+	CPU_CLR(cpuid, &map);
 	CPU_NAND(&map, &stopped_cpus);
 	if (!CPU_EMPTY(&map))
 		stop_cpus(map);
@@ -450,6 +449,7 @@ xctrl_attach(device_t dev)
 	/* Activate watch */
 	xctrl->xctrl_watch.node = "control/shutdown";
 	xctrl->xctrl_watch.callback = xctrl_on_watch_event;
+	xctrl->xctrl_watch.callback_data = (uintptr_t)xctrl;
 	xs_register_watch(&xctrl->xctrl_watch);
 
 #ifndef XENHVM

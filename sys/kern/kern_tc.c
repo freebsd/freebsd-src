@@ -492,6 +492,12 @@ tc_windup(void)
 
 	/* Now is a good time to change timecounters. */
 	if (th->th_counter != timecounter) {
+#ifndef __arm__
+		if ((timecounter->tc_flags & TC_FLAGS_C3STOP) != 0)
+			cpu_disable_deep_sleep++;
+		if ((th->th_counter->tc_flags & TC_FLAGS_C3STOP) != 0)
+			cpu_disable_deep_sleep--;
+#endif
 		th->th_counter = timecounter;
 		th->th_offset_count = ncount;
 		tc_min_ticktock_freq = max(1, timecounter->tc_frequency /

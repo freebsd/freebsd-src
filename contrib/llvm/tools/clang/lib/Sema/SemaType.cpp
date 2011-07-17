@@ -15,6 +15,7 @@
 #include "clang/Sema/Template.h"
 #include "clang/Basic/OpenCL.h"
 #include "clang/AST/ASTContext.h"
+#include "clang/AST/ASTMutationListener.h"
 #include "clang/AST/CXXInheritance.h"
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/DeclTemplate.h"
@@ -836,6 +837,18 @@ static QualType ConvertDeclSpecToType(Sema &S, TypeProcessingState &state) {
     }
     break;
   }
+  case DeclSpec::TST_underlyingType:
+    Result = S.GetTypeFromParser(DS.getRepAsType());
+    assert(!Result.isNull() && "Didn't get a type for __underlying_type?");
+    Result = S.BuildUnaryTransformType(Result,
+                                       UnaryTransformType::EnumUnderlyingType,
+                                       DS.getTypeSpecTypeLoc());
+    if (Result.isNull()) {
+      Result = Context.IntTy;
+      declarator.setInvalidType(true);
+    }
+    break; 
+
   case DeclSpec::TST_auto: {
     // TypeQuals handled by caller.
     Result = Context.getAutoType(QualType());
@@ -1048,6 +1061,9 @@ QualType Sema::BuildPointerType(QualType T,
 QualType Sema::BuildReferenceType(QualType T, bool SpelledAsLValue,
                                   SourceLocation Loc,
                                   DeclarationName Entity) {
+  assert(Context.getCanonicalType(T) != Context.OverloadTy && 
+         "Unresolved overloaded function type");
+  
   // C++0x [dcl.ref]p6:
   //   If a typedef (7.1.3), a type template-parameter (14.3.1), or a 
   //   decltype-specifier (7.1.6.2) denotes a type TR that is a reference to a 
@@ -1464,41 +1480,37 @@ static void DiagnoseIgnoredQualifiers(unsigned Quals,
   FixItHint VolatileFixIt;
   FixItHint RestrictFixIt;
 
+  const SourceManager &SM = S.getSourceManager();
+
   // FIXME: The locations here are set kind of arbitrarily. It'd be nicer to
   // find a range and grow it to encompass all the qualifiers, regardless of
   // the order in which they textually appear.
   if (Quals & Qualifiers::Const) {
     ConstFixIt = FixItHint::CreateRemoval(ConstQualLoc);
-    Loc = ConstQualLoc;
-    ++NumQuals;
     QualStr = "const";
+    ++NumQuals;
+    if (!Loc.isValid() || SM.isBeforeInTranslationUnit(ConstQualLoc, Loc))
+      Loc = ConstQualLoc;
   }
   if (Quals & Qualifiers::Volatile) {
     VolatileFixIt = FixItHint::CreateRemoval(VolatileQualLoc);
-    if (NumQuals == 0) {
-      Loc = VolatileQualLoc;
-      QualStr = "volatile";
-    } else {
-      QualStr += " volatile";
-    }
+    QualStr += (NumQuals == 0 ? "volatile" : " volatile");
     ++NumQuals;
+    if (!Loc.isValid() || SM.isBeforeInTranslationUnit(VolatileQualLoc, Loc))
+      Loc = VolatileQualLoc;
   }
   if (Quals & Qualifiers::Restrict) {
     RestrictFixIt = FixItHint::CreateRemoval(RestrictQualLoc);
-    if (NumQuals == 0) {
-      Loc = RestrictQualLoc;
-      QualStr = "restrict";
-    } else {
-      QualStr += " restrict";
-    }
+    QualStr += (NumQuals == 0 ? "restrict" : " restrict");
     ++NumQuals;
+    if (!Loc.isValid() || SM.isBeforeInTranslationUnit(RestrictQualLoc, Loc))
+      Loc = RestrictQualLoc;
   }
 
   assert(NumQuals > 0 && "No known qualifiers?");
 
   S.Diag(Loc, diag::warn_qual_return_type)
-    << QualStr << NumQuals
-    << ConstFixIt << VolatileFixIt << RestrictFixIt;
+    << QualStr << NumQuals << ConstFixIt << VolatileFixIt << RestrictFixIt;
 }
 
 /// GetTypeForDeclarator - Convert the type for the specified
@@ -1581,6 +1593,8 @@ TypeSourceInfo *Sema::GetTypeForDeclarator(Declarator &D, Scope *S,
       Error = 0; // Function prototype
       break;
     case Declarator::MemberContext:
+      if (D.getDeclSpec().getStorageClassSpec() == DeclSpec::SCS_static)
+        break;
       switch (cast<TagDecl>(CurContext)->getTagKind()) {
       case TTK_Enum: assert(0 && "unhandled tag kind"); break;
       case TTK_Struct: Error = 1; /* Struct member */ break;
@@ -1601,6 +1615,7 @@ TypeSourceInfo *Sema::GetTypeForDeclarator(Declarator &D, Scope *S,
       Error = 7; // Template type argument
       break;
     case Declarator::AliasDeclContext:
+    case Declarator::AliasTemplateContext:
       Error = 9; // Type alias
       break;
     case Declarator::TypeNameContext:
@@ -1659,7 +1674,8 @@ TypeSourceInfo *Sema::GetTypeForDeclarator(Declarator &D, Scope *S,
   // Does this declaration declare a typedef-name?
   bool IsTypedefName =
     D.getDeclSpec().getStorageClassSpec() == DeclSpec::SCS_typedef ||
-    D.getContext() == Declarator::AliasDeclContext;
+    D.getContext() == Declarator::AliasDeclContext ||
+    D.getContext() == Declarator::AliasTemplateContext;
 
   // Walk the DeclTypeInfo, building the recursive type as we go.
   // DeclTypeInfos are ordered from the identifier out, which is
@@ -1839,7 +1855,8 @@ TypeSourceInfo *Sema::GetTypeForDeclarator(Declarator &D, Scope *S,
       // anyway.
       if (IsTypedefName && FTI.getExceptionSpecType())
         Diag(FTI.getExceptionSpecLoc(), diag::err_exception_spec_in_typedef)
-          << (D.getContext() == Declarator::AliasDeclContext);
+          << (D.getContext() == Declarator::AliasDeclContext ||
+              D.getContext() == Declarator::AliasTemplateContext);
 
       if (!FTI.NumArgs && !FTI.isVariadic && !getLangOptions().CPlusPlus) {
         // Simple void foo(), where the incoming T is the result type.
@@ -2204,6 +2221,7 @@ TypeSourceInfo *Sema::GetTypeForDeclarator(Declarator &D, Scope *S,
     case Declarator::ObjCPrototypeContext: // FIXME: special diagnostic here?
     case Declarator::TypeNameContext:
     case Declarator::AliasDeclContext:
+    case Declarator::AliasTemplateContext:
     case Declarator::MemberContext:
     case Declarator::BlockContext:
     case Declarator::ForContext:
@@ -2361,6 +2379,16 @@ namespace {
     void VisitTypeOfTypeLoc(TypeOfTypeLoc TL) {
       assert(DS.getTypeSpecType() == DeclSpec::TST_typeofType);
       TL.setTypeofLoc(DS.getTypeSpecTypeLoc());
+      TL.setParensRange(DS.getTypeofParensRange());
+      assert(DS.getRepAsType());
+      TypeSourceInfo *TInfo = 0;
+      Sema::GetTypeFromParser(DS.getRepAsType(), &TInfo);
+      TL.setUnderlyingTInfo(TInfo);
+    }
+    void VisitUnaryTransformTypeLoc(UnaryTransformTypeLoc TL) {
+      // FIXME: This holds only because we only have one unary transform.
+      assert(DS.getTypeSpecType() == DeclSpec::TST_underlyingType);
+      TL.setKWLoc(DS.getTypeSpecTypeLoc());
       TL.setParensRange(DS.getTypeofParensRange());
       assert(DS.getRepAsType());
       TypeSourceInfo *TInfo = 0;
@@ -2640,13 +2668,17 @@ TypeResult Sema::ActOnTypeName(Scope *S, Declarator &D) {
     CheckExtraCXXDefaultArguments(D);
 
     // C++0x [dcl.type]p3:
-    //   A type-specifier-seq shall not define a class or enumeration
-    //   unless it appears in the type-id of an alias-declaration
-    //   (7.1.3).
-    if (OwnedTag && OwnedTag->isDefinition() &&
-        D.getContext() != Declarator::AliasDeclContext)
-      Diag(OwnedTag->getLocation(), diag::err_type_defined_in_type_specifier)
-        << Context.getTypeDeclType(OwnedTag);
+    //   A type-specifier-seq shall not define a class or enumeration unless
+    //   it appears in the type-id of an alias-declaration (7.1.3) that is not
+    //   the declaration of a template-declaration.
+    if (OwnedTag && OwnedTag->isDefinition()) {
+      if (D.getContext() == Declarator::AliasTemplateContext)
+        Diag(OwnedTag->getLocation(), diag::err_type_defined_in_alias_template)
+          << Context.getTypeDeclType(OwnedTag);
+      else if (D.getContext() != Declarator::AliasDeclContext)
+        Diag(OwnedTag->getLocation(), diag::err_type_defined_in_type_specifier)
+          << Context.getTypeDeclType(OwnedTag);
+    }
   }
 
   return CreateParsedType(T, TInfo);
@@ -3213,6 +3245,82 @@ static void processTypeAttrs(TypeProcessingState &state, QualType &type,
   } while ((attrs = next));
 }
 
+/// \brief Ensure that the type of the given expression is complete.
+///
+/// This routine checks whether the expression \p E has a complete type. If the
+/// expression refers to an instantiable construct, that instantiation is
+/// performed as needed to complete its type. Furthermore
+/// Sema::RequireCompleteType is called for the expression's type (or in the
+/// case of a reference type, the referred-to type).
+///
+/// \param E The expression whose type is required to be complete.
+/// \param PD The partial diagnostic that will be printed out if the type cannot
+/// be completed.
+///
+/// \returns \c true if the type of \p E is incomplete and diagnosed, \c false
+/// otherwise.
+bool Sema::RequireCompleteExprType(Expr *E, const PartialDiagnostic &PD,
+                                   std::pair<SourceLocation,
+                                             PartialDiagnostic> Note) {
+  QualType T = E->getType();
+
+  // Fast path the case where the type is already complete.
+  if (!T->isIncompleteType())
+    return false;
+
+  // Incomplete array types may be completed by the initializer attached to
+  // their definitions. For static data members of class templates we need to
+  // instantiate the definition to get this initializer and complete the type.
+  if (T->isIncompleteArrayType()) {
+    if (DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(E->IgnoreParens())) {
+      if (VarDecl *Var = dyn_cast<VarDecl>(DRE->getDecl())) {
+        if (Var->isStaticDataMember() &&
+            Var->getInstantiatedFromStaticDataMember()) {
+          
+          MemberSpecializationInfo *MSInfo = Var->getMemberSpecializationInfo();
+          assert(MSInfo && "Missing member specialization information?");
+          if (MSInfo->getTemplateSpecializationKind()
+                != TSK_ExplicitSpecialization) {
+            // If we don't already have a point of instantiation, this is it.
+            if (MSInfo->getPointOfInstantiation().isInvalid()) {
+              MSInfo->setPointOfInstantiation(E->getLocStart());
+              
+              // This is a modification of an existing AST node. Notify 
+              // listeners.
+              if (ASTMutationListener *L = getASTMutationListener())
+                L->StaticDataMemberInstantiated(Var);
+            }
+            
+            InstantiateStaticDataMemberDefinition(E->getExprLoc(), Var);
+            
+            // Update the type to the newly instantiated definition's type both
+            // here and within the expression.
+            if (VarDecl *Def = Var->getDefinition()) {
+              DRE->setDecl(Def);
+              T = Def->getType();
+              DRE->setType(T);
+              E->setType(T);
+            }
+          }
+          
+          // We still go on to try to complete the type independently, as it
+          // may also require instantiations or diagnostics if it remains
+          // incomplete.
+        }
+      }
+    }
+  }
+
+  // FIXME: Are there other cases which require instantiating something other
+  // than the type to complete the type of an expression?
+
+  // Look through reference types and complete the referred type.
+  if (const ReferenceType *Ref = T->getAs<ReferenceType>())
+    T = Ref->getPointeeType();
+
+  return RequireCompleteType(E->getExprLoc(), T, PD, Note);
+}
+
 /// @brief Ensure that the type T is a complete type.
 ///
 /// This routine checks whether the type @p T is complete in any
@@ -3362,4 +3470,28 @@ QualType Sema::BuildDecltypeType(Expr *E, SourceLocation Loc) {
   E = ER.take();
   
   return Context.getDecltypeType(E);
+}
+
+QualType Sema::BuildUnaryTransformType(QualType BaseType,
+                                       UnaryTransformType::UTTKind UKind,
+                                       SourceLocation Loc) {
+  switch (UKind) {
+  case UnaryTransformType::EnumUnderlyingType:
+    if (!BaseType->isDependentType() && !BaseType->isEnumeralType()) {
+      Diag(Loc, diag::err_only_enums_have_underlying_types);
+      return QualType();
+    } else {
+      QualType Underlying = BaseType;
+      if (!BaseType->isDependentType()) {
+        EnumDecl *ED = BaseType->getAs<EnumType>()->getDecl();
+        assert(ED && "EnumType has no EnumDecl");
+        DiagnoseUseOfDecl(ED, Loc);
+        Underlying = ED->getIntegerType();
+      }
+      assert(!Underlying.isNull());
+      return Context.getUnaryTransformType(BaseType, Underlying,
+                                        UnaryTransformType::EnumUnderlyingType);
+    }
+  }
+  llvm_unreachable("unknown unary transform type");
 }

@@ -143,7 +143,7 @@ static __noinline int
 ieee80211_ioctl_getchaninfo(struct ieee80211vap *vap, struct ieee80211req *ireq)
 {
 	struct ieee80211com *ic = vap->iv_ic;
-	int space;
+	uint32_t space;
 
 	space = __offsetof(struct ieee80211req_chaninfo,
 			ic_chans[ic->ic_nchans]);
@@ -207,7 +207,7 @@ ieee80211_ioctl_getstastats(struct ieee80211vap *vap, struct ieee80211req *ireq)
 {
 	struct ieee80211_node *ni;
 	uint8_t macaddr[IEEE80211_ADDR_LEN];
-	const int off = __offsetof(struct ieee80211req_sta_stats, is_stats);
+	const size_t off = __offsetof(struct ieee80211req_sta_stats, is_stats);
 	int error;
 
 	if (ireq->i_len < off)
@@ -323,7 +323,7 @@ ieee80211_ioctl_getscanresults(struct ieee80211vap *vap,
 	if (req.space > ireq->i_len)
 		req.space = ireq->i_len;
 	if (req.space > 0) {
-		size_t space;
+		uint32_t space;
 		void *p;
 
 		space = req.space;
@@ -458,7 +458,7 @@ get_sta_info(void *arg, struct ieee80211_node *ni)
 
 static __noinline int
 getstainfo_common(struct ieee80211vap *vap, struct ieee80211req *ireq,
-	struct ieee80211_node *ni, int off)
+	struct ieee80211_node *ni, size_t off)
 {
 	struct ieee80211com *ic = vap->iv_ic;
 	struct stainforeq req;
@@ -503,7 +503,7 @@ static __noinline int
 ieee80211_ioctl_getstainfo(struct ieee80211vap *vap, struct ieee80211req *ireq)
 {
 	uint8_t macaddr[IEEE80211_ADDR_LEN];
-	const int off = __offsetof(struct ieee80211req_sta_req, info);
+	const size_t off = __offsetof(struct ieee80211req_sta_req, info);
 	struct ieee80211_node *ni;
 	int error;
 

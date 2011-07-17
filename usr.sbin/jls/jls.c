@@ -404,7 +404,7 @@ print_jail(int pflags, int jflags)
 		    (!ip4_ok || params[1].jp_valuelen == 0) ? "-"
 		    : inet_ntoa(*(struct in_addr *)params[1].jp_value),
 #else
-		    "-"
+		    "-",
 #endif
 		    (char *)params[2-!ip4_ok].jp_value,
 		    (char *)params[3-!ip4_ok].jp_value);

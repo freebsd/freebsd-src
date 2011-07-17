@@ -221,6 +221,9 @@ namespace {
       const { return 0; }
     unsigned getAddrMode6AddressOpValue(const MachineInstr &MI, unsigned Op)
       const { return 0; }
+    unsigned getAddrMode6OneLane32AddressOpValue(const MachineInstr &MI,
+                                                 unsigned Op)
+      const { return 0; }
     unsigned getAddrMode6DupAddressOpValue(const MachineInstr &MI, unsigned Op)
       const { return 0; }
     unsigned getAddrMode6OffsetOpValue(const MachineInstr &MI, unsigned Op)
@@ -229,6 +232,8 @@ namespace {
                                             unsigned Op) const { return 0; }
     unsigned getMsbOpValue(const MachineInstr &MI,
                            unsigned Op) const { return 0; }
+    unsigned getSsatBitPosValue(const MachineInstr &MI,
+                                unsigned Op) const { return 0; }
     uint32_t getLdStmModeOpValue(const MachineInstr &MI, unsigned OpIdx)
       const {return 0; }
     uint32_t getLdStSORegOpValue(const MachineInstr &MI, unsigned OpIdx)
@@ -1371,6 +1376,12 @@ void ARMCodeEmitter::emitMiscArithInstruction(const MachineInstr &MI) {
 
   // Set the conditional execution predicate
   Binary |= II->getPredicate(&MI) << ARMII::CondShift;
+
+  // PKH instructions are finished at this point
+  if (TID.Opcode == ARM::PKHBT || TID.Opcode == ARM::PKHTB) {
+    emitWordLE(Binary);
+    return;
+  }
 
   unsigned OpIdx = 0;
 
