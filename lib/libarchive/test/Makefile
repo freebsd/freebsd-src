@@ -45,6 +45,8 @@ TESTS= \
 	test_read_format_cpio_odc.c		\
 	test_read_format_cpio_svr4_gzip.c	\
 	test_read_format_cpio_svr4c_Z.c		\
+	test_read_format_cpio_svr4_bzip2_rpm.c	\
+	test_read_format_cpio_svr4_gzip_rpm.c	\
 	test_read_format_empty.c		\
 	test_read_format_gtar_gz.c		\
 	test_read_format_gtar_lzma.c		\
@@ -69,6 +71,7 @@ TESTS= \
 	test_read_format_tlz.c			\
 	test_read_format_txz.c			\
 	test_read_format_tz.c			\
+	test_read_format_xar.c			\
 	test_read_format_zip.c			\
 	test_read_large.c			\
 	test_read_pax_truncated.c		\

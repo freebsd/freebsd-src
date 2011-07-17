@@ -6,7 +6,8 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    notice, this list of conditions and the following disclaimer
+ *    in this position and unchanged.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
@@ -21,23 +22,25 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
-#include "archive_platform.h"
-__FBSDID("$FreeBSD$");
+#ifndef MATCHING_H
+#define MATCHING_H
 
-#include "archive.h"
+struct lafe_matching;
 
-int
-archive_read_support_format_all(struct archive *a)
-{
-	archive_read_support_format_ar(a);
-	archive_read_support_format_cpio(a);
-	archive_read_support_format_empty(a);
-	archive_read_support_format_iso9660(a);
-	archive_read_support_format_mtree(a);
-	archive_read_support_format_tar(a);
-	archive_read_support_format_xar(a);
-	archive_read_support_format_zip(a);
-	return (ARCHIVE_OK);
-}
+int	lafe_exclude(struct lafe_matching **matching, const char *pattern);
+int	lafe_exclude_from_file(struct lafe_matching **matching,
+			       const char *pathname);
+int	lafe_include(struct lafe_matching **matching, const char *pattern);
+int	lafe_include_from_file(struct lafe_matching **matching,
+			       const char *pathname, int nullSeparator);
+
+int	lafe_excluded(struct lafe_matching *, const char *pathname);
+void	lafe_cleanup_exclusions(struct lafe_matching **);
+int	lafe_unmatched_inclusions(struct lafe_matching *);
+int	lafe_unmatched_inclusions_warn(struct lafe_matching *, const char *msg);
+
+#endif

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003-2007 Tim Kientzle
+ * Copyright (c) 2009 Joerg Sonnenberger
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -21,23 +21,17 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
-#include "archive_platform.h"
-__FBSDID("$FreeBSD$");
+#ifndef LAFE_LINE_READER_H
+#define LAFE_LINE_READER_H
 
-#include "archive.h"
+struct lafe_line_reader;
 
-int
-archive_read_support_format_all(struct archive *a)
-{
-	archive_read_support_format_ar(a);
-	archive_read_support_format_cpio(a);
-	archive_read_support_format_empty(a);
-	archive_read_support_format_iso9660(a);
-	archive_read_support_format_mtree(a);
-	archive_read_support_format_tar(a);
-	archive_read_support_format_xar(a);
-	archive_read_support_format_zip(a);
-	return (ARCHIVE_OK);
-}
+struct lafe_line_reader *lafe_line_reader(const char *, int nullSeparator);
+const char *lafe_line_reader_next(struct lafe_line_reader *);
+void	lafe_line_reader_free(struct lafe_line_reader *);
+
+#endif
