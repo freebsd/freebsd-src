@@ -27,7 +27,8 @@ __FBSDID("$FreeBSD$");
 
 DEFINE_TEST(test_option_q)
 {
-	int fd;
+	FILE *f;
+	int r;
 
 	/*
 	 * Create an archive with several different versions of the
@@ -39,38 +40,38 @@ DEFINE_TEST(test_option_q)
 	 * what we use to build up the test archive.
 	 */
 
-	fd = open("foo", O_CREAT | O_WRONLY, 0644);
-	assert(fd >= 0);
-	assertEqualInt(4, write(fd, "foo1", 4));
-	close(fd);
+	f = fopen("foo", "w");
+	assert(f != NULL);
+	fprintf(f, "foo1");
+	fclose(f);
 
 	assertEqualInt(0, systemf("%s -cf archive.tar foo", testprog));
 
-	fd = open("foo", O_TRUNC | O_WRONLY, 0644);
-	assert(fd >= 0);
-	assertEqualInt(4, write(fd, "foo2", 4));
-	close(fd);
+	f = fopen("foo", "w");
+	assert(f != NULL);
+	fprintf(f, "foo2");
+	fclose(f);
 
 	assertEqualInt(0, systemf("%s -rf archive.tar foo", testprog));
 
-	fd = open("bar", O_CREAT | O_WRONLY, 0644);
-	assert(fd >= 0);
-	assertEqualInt(4, write(fd, "bar1", 4));
-	close(fd);
+	f = fopen("bar", "w");
+	assert(f != NULL);
+	fprintf(f, "bar1");
+	fclose(f);
 
 	assertEqualInt(0, systemf("%s -rf archive.tar bar", testprog));
 
-	fd = open("foo", O_TRUNC | O_WRONLY, 0644);
-	assert(fd >= 0);
-	assertEqualInt(4, write(fd, "foo3", 4));
-	close(fd);
+	f = fopen("foo", "w");
+	assert(f != NULL);
+	fprintf(f, "foo3");
+	fclose(f);
 
 	assertEqualInt(0, systemf("%s -rf archive.tar foo", testprog));
 
-	fd = open("bar", O_TRUNC | O_WRONLY, 0644);
-	assert(fd >= 0);
-	assertEqualInt(4, write(fd, "bar2", 4));
-	close(fd);
+	f = fopen("bar", "w");
+	assert(f != NULL);
+	fprintf(f, "bar2");
+	fclose(f);
 
 	assertEqualInt(0, systemf("%s -rf archive.tar bar", testprog));
 
@@ -80,46 +81,49 @@ DEFINE_TEST(test_option_q)
 	 */
 
 	/* Test 1: -q foo should only extract the first foo. */
-	assertEqualInt(0, mkdir("test1", 0755));
-	assertEqualInt(0, chdir("test1"));
-	assertEqualInt(0,
-	    systemf("%s -xf ../archive.tar -q foo >test.out 2>test.err",
-		testprog));
+	assertMakeDir("test1", 0755);
+	assertChdir("test1");
+	r = systemf("%s -xf ../archive.tar -q foo >test.out 2>test.err",
+	    testprog);
+	failure("Fatal error trying to use -q option");
+	if (!assertEqualInt(0, r))
+		return;
+
 	assertFileContents("foo1", 4, "foo");
 	assertEmptyFile("test.out");
 	assertEmptyFile("test.err");
-	assertEqualInt(0, chdir(".."));
+	assertChdir("..");
 
 	/* Test 2: -q foo bar should extract up to the first bar. */
-	assertEqualInt(0, mkdir("test2", 0755));
-	assertEqualInt(0, chdir("test2"));
+	assertMakeDir("test2", 0755);
+	assertChdir("test2");
 	assertEqualInt(0,
 	    systemf("%s -xf ../archive.tar -q foo bar >test.out 2>test.err", testprog));
 	assertFileContents("foo2", 4, "foo");
 	assertFileContents("bar1", 4, "bar");
 	assertEmptyFile("test.out");
 	assertEmptyFile("test.err");
-	assertEqualInt(0, chdir(".."));
+	assertChdir("..");
 
 	/* Test 3: Same as test 2, but use --fast-read spelling. */
-	assertEqualInt(0, mkdir("test3", 0755));
-	assertEqualInt(0, chdir("test3"));
+	assertMakeDir("test3", 0755);
+	assertChdir("test3");
 	assertEqualInt(0,
 	    systemf("%s -xf ../archive.tar --fast-read foo bar >test.out 2>test.err", testprog));
 	assertFileContents("foo2", 4, "foo");
 	assertFileContents("bar1", 4, "bar");
 	assertEmptyFile("test.out");
 	assertEmptyFile("test.err");
-	assertEqualInt(0, chdir(".."));
+	assertChdir("..");
 
 	/* Test 4: Without -q, should extract everything. */
-	assertEqualInt(0, mkdir("test4", 0755));
-	assertEqualInt(0, chdir("test4"));
+	assertMakeDir("test4", 0755);
+	assertChdir("test4");
 	assertEqualInt(0,
 	    systemf("%s -xf ../archive.tar foo bar >test.out 2>test.err", testprog));
 	assertFileContents("foo3", 4, "foo");
 	assertFileContents("bar2", 4, "bar");
 	assertEmptyFile("test.out");
 	assertEmptyFile("test.err");
-	assertEqualInt(0, chdir(".."));
+	assertChdir("..");
 }
