@@ -80,10 +80,12 @@ __FBSDID("$FreeBSD$");
 
 struct mips_cache_ops mips_cache_ops;
 
+#if defined(MIPS_DISABLE_L1_CACHE) || defined(CPU_RMI) || defined(CPU_NLM)
 static void
 cache_noop(vm_offset_t va, vm_size_t size)
 {
 }
+#endif
 
 void
 mips_config_cache(struct mips_cpuinfo * cpuinfo)
