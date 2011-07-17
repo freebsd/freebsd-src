@@ -90,7 +90,7 @@ ffs_update(vp, waitfor)
 		return (0);
 	ip->i_flag &= ~(IN_LAZYACCESS | IN_LAZYMOD | IN_MODIFIED);
 	fs = ip->i_fs;
-	if (fs->fs_ronly)
+	if (fs->fs_ronly && ip->i_ump->um_fsckpid == 0)
 		return (0);
 	error = bread(ip->i_devvp, fsbtodb(fs, ino_to_fsba(fs, ip->i_number)),
 		(int)fs->fs_bsize, NOCRED, &bp);
@@ -128,7 +128,7 @@ ffs_pages_remove(struct vnode *vp, vm_pindex_t start, vm_pindex_t end)
 	if ((object = vp->v_object) == NULL)
 		return;
 	VM_OBJECT_LOCK(object);
-	vm_object_page_remove(object, start, end, FALSE);
+	vm_object_page_remove(object, start, end, 0);
 	VM_OBJECT_UNLOCK(object);
 }
 

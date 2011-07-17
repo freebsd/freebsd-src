@@ -197,9 +197,12 @@ kdb_sysctl_trap_code(SYSCTL_HANDLER_ARGS)
 void
 kdb_panic(const char *msg)
 {
-	
 #ifdef SMP
-	stop_cpus_hard(PCPU_GET(other_cpus));
+	cpuset_t other_cpus;
+
+	other_cpus = all_cpus;
+	CPU_CLR(PCPU_GET(cpuid), &other_cpus);
+	stop_cpus_hard(other_cpus);
 #endif
 	printf("KDB: panic\n");
 	panic("%s", msg);
@@ -415,7 +418,7 @@ kdb_thr_ctx(struct thread *thr)
 #if defined(SMP) && defined(KDB_STOPPEDPCB)
 	STAILQ_FOREACH(pc, &cpuhead, pc_allcpu)  {
 		if (pc->pc_curthread == thr &&
-		    CPU_OVERLAP(&stopped_cpus, &pc->pc_cpumask))
+		    CPU_ISSET(pc->pc_cpuid, &stopped_cpus))
 			return (KDB_STOPPEDPCB(pc));
 	}
 #endif
@@ -499,6 +502,9 @@ kdb_thr_select(struct thread *thr)
 int
 kdb_trap(int type, int code, struct trapframe *tf)
 {
+#ifdef SMP
+	cpuset_t other_cpus;
+#endif
 	struct kdb_dbbe *be;
 	register_t intr;
 	int handled;
@@ -514,7 +520,9 @@ kdb_trap(int type, int code, struct trapframe *tf)
 	intr = intr_disable();
 
 #ifdef SMP
-	stop_cpus_hard(PCPU_GET(other_cpus));
+	other_cpus = all_cpus;
+	CPU_CLR(PCPU_GET(cpuid), &other_cpus);
+	stop_cpus_hard(other_cpus);
 #endif
 
 	kdb_active++;

@@ -31,6 +31,7 @@ options		PS3			#Sony Playstation 3
 options		MAMBO			#IBM Mambo Full System Simulator
 
 options 	SCHED_ULE		#ULE scheduler
+options 	PREEMPTION		#Enable kernel thread preemption
 options 	INET			#InterNETworking
 options 	INET6			#IPv6 communications protocols
 options 	SCTP			#Stream Control Transmission Protocol

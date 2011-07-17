@@ -2261,6 +2261,7 @@ suj_build(void)
 				blk_build((struct jblkrec *)rec);
 				break;
 			case JOP_TRUNC:
+			case JOP_SYNC:
 				ino_build_trunc((struct jtrncrec *)rec);
 				break;
 			default:

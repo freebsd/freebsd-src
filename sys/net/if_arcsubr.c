@@ -608,6 +608,7 @@ arc_input(struct ifnet *ifp, struct mbuf *m)
 		m_freem(m);
 		return;
 	}
+	M_SETFIB(m, ifp->if_fib);
 	netisr_dispatch(isr, m);
 }
 

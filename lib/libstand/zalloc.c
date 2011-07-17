@@ -77,7 +77,7 @@ __FBSDID("$FreeBSD$");
  */
 
 void *
-znalloc(MemPool *mp, iaddr_t bytes)
+znalloc(MemPool *mp, uintptr_t bytes)
 {
     /*
      * align according to pool object size (can be 0).  This is
@@ -136,7 +136,7 @@ znalloc(MemPool *mp, iaddr_t bytes)
  */
 
 void
-zfree(MemPool *mp, void *ptr, iaddr_t bytes)
+zfree(MemPool *mp, void *ptr, uintptr_t bytes)
 {
     /*
      * align according to pool object size (can be 0).  This is
@@ -153,8 +153,8 @@ zfree(MemPool *mp, void *ptr, iaddr_t bytes)
 
     if ((char *)ptr < (char *)mp->mp_Base || 
 	(char *)ptr + bytes > (char *)mp->mp_End ||
-	((iaddr_t)ptr & MEMNODE_SIZE_MASK) != 0)
-	panic("zfree(%p,%ju): wild pointer", ptr, bytes);
+	((uintptr_t)ptr & MEMNODE_SIZE_MASK) != 0)
+	panic("zfree(%p,%ju): wild pointer", ptr, (uintmax_t)bytes);
 
     /*
      * free the segment
@@ -177,8 +177,10 @@ zfree(MemPool *mp, void *ptr, iaddr_t bytes)
 		/*
 		 * range check
 		 */
-		if ((char *)ptr + bytes > (char *)mn)
-		    panic("zfree(%p,%ju): corrupt memlist1",ptr, bytes);
+		if ((char *)ptr + bytes > (char *)mn) {
+		    panic("zfree(%p,%ju): corrupt memlist1", ptr,
+			(uintmax_t)bytes);
+		}
 
 		/*
 		 * merge against next area or create independant area
@@ -208,8 +210,10 @@ zfree(MemPool *mp, void *ptr, iaddr_t bytes)
 		return;
 		/* NOT REACHED */
 	    }
-	    if ((char *)ptr < (char *)mn + mn->mr_Bytes)
-		panic("zfree(%p,%ju): corrupt memlist2", ptr, bytes);
+	    if ((char *)ptr < (char *)mn + mn->mr_Bytes) {
+		panic("zfree(%p,%ju): corrupt memlist2", ptr,
+		    (uintmax_t)bytes);
+	    }
 	}
 	/*
 	 * We are beyond the last MemNode, append new MemNode.  Merge against
@@ -241,7 +245,7 @@ zfree(MemPool *mp, void *ptr, iaddr_t bytes)
  */
 
 void
-zextendPool(MemPool *mp, void *base, iaddr_t bytes)
+zextendPool(MemPool *mp, void *base, uintptr_t bytes)
 {
     if (mp->mp_Size == 0) {
 	mp->mp_Base = base;

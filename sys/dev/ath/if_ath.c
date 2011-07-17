@@ -4693,6 +4693,7 @@ ath_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	struct ieee80211_node *ni = NULL;
 	int i, error, stamode;
 	u_int32_t rfilt;
+	int csa_run_transition = 0;
 	static const HAL_LED_STATE leds[] = {
 	    HAL_LED_INIT,	/* IEEE80211_S_INIT */
 	    HAL_LED_SCAN,	/* IEEE80211_S_SCAN */
@@ -4707,6 +4708,9 @@ ath_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	DPRINTF(sc, ATH_DEBUG_STATE, "%s: %s -> %s\n", __func__,
 		ieee80211_state_name[vap->iv_state],
 		ieee80211_state_name[nstate]);
+
+	if (vap->iv_state == IEEE80211_S_CSA && nstate == IEEE80211_S_RUN)
+		csa_run_transition = 1;
 
 	callout_drain(&sc->sc_cal_ch);
 	ath_hal_setledstate(ah, leds[nstate]);	/* set LED */
@@ -4814,8 +4818,14 @@ ath_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			 * Defer beacon timer configuration to the next
 			 * beacon frame so we have a current TSF to use
 			 * (any TSF collected when scanning is likely old).
+			 * However if it's due to a CSA -> RUN transition,
+			 * force a beacon update so we pick up a lack of
+			 * beacons from an AP in CAC and thus force a
+			 * scan.
 			 */
 			sc->sc_syncbeacon = 1;
+			if (csa_run_transition)
+				ath_beacon_config(sc, vap);
 			break;
 		case IEEE80211_M_MONITOR:
 			/*

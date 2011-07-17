@@ -1,3 +1,328 @@
+commit edf339227a966f24aebe1845fcca9429b8f6e318
+Author: Anders F Bjorklund <afb@users.sourceforge.net>
+Date:   Fri Nov 5 12:56:11 2010 +0100
+
+    add build script for macosx universal
+
+commit 7fcc6334ea8923550ba6b5347ff99dc8432234b0
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Thu Jun 16 12:15:29 2011 +0300
+
+    liblzma: Remove unneeded semicolon.
+
+commit 631f4d3ae6adfda84d1a110781d9402c12e16cfc
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Sat May 28 16:43:26 2011 +0300
+
+    Don't call close(-1) in tuklib_open_stdxxx() on error.
+    
+    Thanks to Jim Meyering.
+
+commit c89faf4c9e5970e7f7f8a25521ed9aa62d1a2d9a
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Sat May 28 09:47:56 2011 +0300
+
+    Translations: Update Italian translation.
+    
+    Thanks to Milo Casagrande.
+
+commit 6fe2fc9b6ab5bf6848140823e9536370834f42fb
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Sat May 28 08:46:04 2011 +0300
+
+    Tests: Add a test file for the bug in the previous commit.
+
+commit 6c4d4db2bc8d8b682bd927144d37daa2ab21a6d6
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Fri May 27 22:25:44 2011 +0300
+
+    xz: Fix error handling in xz -lvv.
+    
+    It could do an invalid free() and read past the end
+    of the uninitialized filters array.
+
+commit 844f84fcad9670c543550edf7c7e42630c8f7715
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Fri May 27 22:09:49 2011 +0300
+
+    liblzma: Handle allocation failures correctly in lzma_index_init().
+    
+    Thanks to Jim Meyering.
+
+commit 240e8b9791df597063a3b68d04ffcb3aa4f2de6a
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Mon May 23 18:30:30 2011 +0300
+
+    Build: Set GZIP_ENV=-9n in top-level Makefile.am.
+
+commit e32cb264ea72a4459810f30abad70dae5a4fa17d
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Sat May 21 16:59:22 2011 +0300
+
+    Bump version and soname for 5.0.3.
+
+commit 65cff45f8fd1c250491557157cce0f5f38481082
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Sat May 21 16:56:53 2011 +0300
+
+    Update NEWS for 5.0.3.
+
+commit 316c67ffdae1f811ac95e838d5290a013bff4ca7
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Sat May 21 16:28:44 2011 +0300
+
+    Add French translation.
+    
+    It is known that the BCJ filter --help text is only
+    partially translated.
+
+commit 1931175eea6d09c0845d6e8e334a7333647f11c0
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Sat May 21 15:12:10 2011 +0300
+
+    xz: Translate also the string used to print the program name.
+    
+    French needs a space before a colon, e.g. "xz : foo error".
+
+commit 841dc1f891b48b23f84c0f0e0c86c7c4e4bdcdf5
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Tue May 17 12:26:28 2011 +0300
+
+    Update THANKS.
+
+commit 0f7e2d36240ebf1159d5fb85d8cd7422337a0d3f
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Tue May 17 12:21:33 2011 +0300
+
+    Update INSTALL with a note about linker problem on OpenSolaris x86.
+
+commit 793d857e01e1725f16fc0c8af8172c91a9e38617
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Tue May 17 12:01:37 2011 +0300
+
+    Build: Fix initialization of enable_check_* variables in configure.ac.
+    
+    This doesn't matter much in practice since it is unlikely
+    that anyone would have such environment variable names.
+    
+    Thanks to Wim Lewis.
+
+commit afcff45cee04c5c7d9c333504046ffb63d1418b5
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Tue May 17 11:54:38 2011 +0300
+
+    Add underscores to attributes (__attribute((__foo__))).
+
+commit 22159c6ba2300a006f2e46ce85ae132e2d2f7d57
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Mon Apr 18 19:35:49 2011 +0300
+
+    Update THANKS.
+
+commit 5e3499059515033d1ce44b6fb0fa49183c7ac633
+Author: Martin Väth <vaeth@mathematik.uni-wuerzburg.de>
+Date:   Fri Apr 15 04:54:49 2011 -0400
+
+    xzgrep: fix typo in $0 parsing
+    
+    Reported-by: Diego Elio Pettenò <flameeyes@gentoo.org>
+    Signed-off-by: Martin Väth <vaeth@mathematik.uni-wuerzburg.de>
+    Signed-off-by: Mike Frysinger <vapier@gentoo.org>
+
+commit 1125611b9b8d4a209b6a73d2c76e1b39c065972a
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Tue Apr 12 11:59:49 2011 +0300
+
+    Remove doubled words from documentation and comments.
+    
+    Spot candidates by running these commands:
+      git ls-files |xargs perl -0777 -n \
+        -e 'while (/\b(then?|[iao]n|i[fst]|but|f?or|at|and|[dt]o)\s+\1\b/gims)' \
+        -e '{$n=($` =~ tr/\n/\n/ + 1); ($v=$&)=~s/\n/\\n/g; print "$ARGV:$n:$v\n"}'
+    
+    Thanks to Jim Meyering for the original patch.
+
+commit 3f8fa53837bae8b44f3addf19923e26401336c3d
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Mon Apr 11 21:04:13 2011 +0300
+
+    liblzma: Document lzma_easy_(enc|dec)oder_memusage() better too.
+
+commit 320d734c20d0776e3eb80f6b5984ddeb494715b5
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Mon Apr 11 20:59:07 2011 +0300
+
+    liblzma: Document lzma_raw_(enc|dec)oder_memusage() better.
+    
+    It didn't mention the return value that is used if
+    an error occurs.
+
+commit 2ee4edeffc8d9734bf68230df31b20ac6a94c9b5
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Mon Apr 11 13:59:50 2011 +0300
+
+    liblzma: Don't create an empty Block in lzma_stream_buffer_encode().
+    
+    Empty Block was created if the input buffer was empty.
+    Empty Block wastes a few bytes of space, but more importantly
+    it triggers a bug in XZ Utils 5.0.1 and older when trying
+    to decompress such a file. 5.0.1 and older consider such
+    files to be corrupt. I thought that no encoder creates empty
+    Blocks when releasing 5.0.2 but I was wrong.
+
+commit 73f56fb87d54091d0c4fd22d70e6f042902e3b63
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Mon Apr 11 13:28:40 2011 +0300
+
+    liblzma: Fix API docs to mention LZMA_UNSUPPORTED_CHECK.
+    
+    This return value was missing from the API comments of
+    four functions.
+
+commit 4ce1cf97a88ae1640a380dd19cbc255d729f966b
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Mon Apr 11 13:21:28 2011 +0300
+
+    liblzma: Validate encoder arguments better.
+    
+    The biggest problem was that the integrity check type
+    wasn't validated, and e.g. lzma_easy_buffer_encode()
+    would create a corrupt .xz Stream if given an unsupported
+    Check ID. Luckily applications don't usually try to use
+    an unsupport Check ID, so this bug is unlikely to cause
+    many real-world problems.
+
+commit 972f05d7a4268dbe42573701f83faa45d03249eb
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Sat Apr 9 18:29:30 2011 +0300
+
+    Update THANKS.
+
+commit 28154eeaf6e3442cd1e174f4e81266d60c4dac60
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Sat Apr 9 18:28:58 2011 +0300
+
+    liblzma: Add missing #ifdefs to filter_common.c.
+    
+    Passing --disable-decoders to configure broke a few
+    encoders due to missing #ifdefs in filter_common.c.
+    
+    Thanks to Jason Gorski for the patch.
+
+commit aa95516d3d509c6b7895ee519004afcf500a0759
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Sat Apr 2 14:49:56 2011 +0300
+
+    liblzma: Fix a memory leak in stream_encoder.c.
+    
+    It leaks old filter options structures (hundred bytes or so)
+    every time the lzma_stream is reinitialized. With the xz tool,
+    this happens when compressing multiple files.
+
+commit 58f52c72f49562a08042da9a2f4bbdf4dd162d0c
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Fri Apr 1 08:47:46 2011 +0300
+
+    Bumped version and liblzma soname to 5.0.2.
+
+commit 162779682e01d15f0ce386ef7f40d1be05ad0053
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Fri Apr 1 08:47:20 2011 +0300
+
+    Updated NEWS for 5.0.2.
+
+commit 45553f9b4b0175c292023010dc41520347004852
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Thu Mar 31 15:06:58 2011 +0300
+
+    Update INSTALL with another note about IRIX.
+
+commit af9d48d5515eadef689b1ce9ffb91e4dbcbc7f35
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Thu Mar 31 12:22:55 2011 +0300
+
+    Tests: Add a new file to test empty LZMA2 streams.
+
+commit d099ef9f517b59ab8e3b6f6aa0543c3643983470
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Thu Mar 31 11:54:48 2011 +0300
+
+    liblzma: Fix decoding of LZMA2 streams having no uncompressed data.
+    
+    The decoder considered empty LZMA2 streams to be corrupt.
+    This shouldn't matter much with .xz files, because no encoder
+    creates empty LZMA2 streams in .xz. This bug is more likely
+    to cause problems in applications that use raw LZMA2 streams.
+
+commit df87249b26e79a75fd91041e85512944fc247b57
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Thu Mar 24 01:42:49 2011 +0200
+
+    Scripts: Better fix for xzgrep.
+    
+    Now it uses "grep -q".
+    
+    Thanks to Gregory Margo.
+
+commit 68c453e1c7b09dc9c7d2ef9d994c46f5b367f5d3
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Thu Mar 24 01:22:18 2011 +0200
+
+    Updated THANKS.
+
+commit b441d39855516ae618faffd5156261b8b413394f
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Thu Mar 24 01:21:32 2011 +0200
+
+    Scripts: Fix xzgrep -l.
+    
+    It didn't work at all. It tried to use the -q option
+    for grep, but it appended it after "--". This works
+    around it by redirecting to /dev/null. The downside
+    is that this can be slower with big files compared
+    to proper use of "grep -q".
+    
+    Thanks to Gregory Margo.
+
+commit 82d5164839517f55daeadd9ee88c76425db30224
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Fri Feb 4 22:49:31 2011 +0200
+
+    xz: Clean up suffix.c.
+    
+    struct suffix_pair isn't needed in compresed_name()
+    so get rid of it there.
+
+commit 6decc8b41882c2250f0450eb87b83c9fbf495e95
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Fri Feb 4 11:29:47 2011 +0200
+
+    xz: Check if the file already has custom suffix when compressing.
+    
+    Now "xz -S .test foo.test" refuses to compress the
+    file because it already has the suffix .test. The man
+    page had it documented this way already.
+
+commit ecda90061df8d39399e707e5c76c2ec0a0f400e5
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Wed Feb 2 23:01:51 2011 +0200
+
+    Updated THANKS.
+
+commit 0fda1ae5b1aa0a5c629a09e5228db8ba1cd0dd5f
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Wed Feb 2 23:00:33 2011 +0200
+
+    Translations: Add Polish translation.
+    
+    Thanks to Jakub Bogusz.
+
+commit 00be32978fedc5038748438bf685ac1713d1db83
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Wed Feb 2 22:24:00 2011 +0200
+
+    Updated THANKS.
+
 commit 7232fcf96bf4bd5f9cd4fc6c93ca2912c665e004
 Author: Lasse Collin <lasse.collin@tukaani.org>
 Date:   Fri Jan 28 20:26:38 2011 +0200

@@ -29,7 +29,7 @@
 #ifndef	_MACHINE_INTR_MACHDEP_H_
 #define	_MACHINE_INTR_MACHDEP_H_
 
-#ifdef CPU_RMI
+#if defined(CPU_RMI) || defined(CPU_NLM)
 #define XLR_MAX_INTR 64 
 #else
 #define NHARD_IRQS	6

@@ -2,3 +2,4 @@
 
 SUBDIR+=		efi
 SUBDIR+=		zfs
+SUBDIR+=		userboot

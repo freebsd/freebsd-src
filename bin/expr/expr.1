@@ -50,25 +50,25 @@ and writes the result on standard output.
 All operators and operands must be passed as separate arguments.
 Several of the operators have special meaning to command interpreters
 and must therefore be quoted appropriately.
-All integer operands are interpreted in base 10.
-.Pp
-Arithmetic operations are performed using signed integer math.
-If the
-.Fl e
-flag is specified, arithmetic uses the C
-.Vt intmax_t
-data type (the largest integral type available), and
+All integer operands are interpreted in base 10 and must consist of only
+an optional leading minus sign followed by one or more digits (unless
+less strict parsing has been enabled for backwards compatibilty with
+prior versions of
 .Nm
-will detect arithmetic overflow and return an error indication.
-If a numeric operand is specified which is so large as to overflow
-conversion to an integer, it is parsed as a string instead.
-If
+in
+.Fx ) .
+.Pp
+Arithmetic operations are performed using signed integer math with a
+range according to the C
+.Vt intmax_t
+data type (the largest signed integral type available).
+All conversions and operations are checked for overflow.
+Overflow results in program termination with an error message on stdout
+and with an error status.
+.Pp
+The
 .Fl e
-is not specified, arithmetic operations and parsing of integer
-arguments will overflow silently according to the rules of the C
-standard, using the
-.Vt long
-data type.
+option enables backwards compatible behaviour as detailed below.
 .Pp
 Operators are listed below in order of increasing precedence; all
 are left-associative.
@@ -82,7 +82,9 @@ Return the evaluation of
 .Ar expr1
 if it is neither an empty string nor zero;
 otherwise, returns the evaluation of
-.Ar expr2 .
+.Ar expr2
+if it is not an empty string;
+otherwise, returns zero.
 .It Ar expr1 Li & Ar expr2
 Return the evaluation of
 .Ar expr1
@@ -163,25 +165,26 @@ function (with a
 .Fa utility
 argument of
 .Dq Li expr )
-is used to determine whether compatibility mode should be enabled.
+is used to determine whether backwards compatibility mode should be enabled.
 This feature is intended for use as a transition and debugging aid, when
 .Nm
 is used in complex scripts which cannot easily be recast to avoid the
 non-portable usage.
-Enabling compatibility mode
-also implicitly enables the
+Enabling backwards compatibility mode also implicitly enables the
 .Fl e
 option, since this matches the historic behavior of
 .Nm
 in
-.Fx .
+.Fx . This option makes number parsing less strict and permits leading
+white space and an optional leading plus sign. In addition, empty operands
+have an implied value of zero in numeric context.
 For historical reasons, defining the environment variable
 .Ev EXPR_COMPAT
-also enables compatibility mode.
+also enables backwards compatibility mode.
 .Sh ENVIRONMENT
 .Bl -tag -width ".Ev EXPR_COMPAT"
 .It Ev EXPR_COMPAT
-If set, enables compatibility mode.
+If set, enables backwards compatibility mode.
 .El
 .Sh EXIT STATUS
 The
@@ -270,8 +273,37 @@ expands to the required number.
 The
 .Nm
 utility conforms to
-.St -p1003.1-2001 ,
-provided that compatibility mode is not enabled.
+.St -p1003.1-2008 ,
+provided that backwards compatibility mode is not enabled.
+.Pp
+Backwards compatibility mode performs less strict checks of numeric arguments:
+.Bl -bullet
+.It
+An empty operand string is interpreted as 0.
+.El
+.Bl -bullet
+.It
+Leading white space and/or a plus sign before an otherwise valid positive
+numberic operand are allowed and will be ignored.
+.El
+.Pp
+The extended arithmetic range and overflow checks do not conflict with
+POSIX's requirement that arithmetic be done using signed longs, since
+they only make a difference to the result in cases where using signed
+longs would give undefined behavior.
+.Pp
+According to the
+.Tn POSIX
+standard, the use of string arguments
+.Va length ,
+.Va substr ,
+.Va index ,
+or
+.Va match
+produces undefined results. In this version of
+.Nm ,
+these arguments are treated just as their respective string values.
+.Pp
 The
 .Fl e
 flag is an extension.

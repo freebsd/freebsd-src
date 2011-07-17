@@ -120,13 +120,21 @@ SUBDIR+=	authpf
 SUBDIR+=	dnssec-dsfromkey
 SUBDIR+=	dnssec-keyfromlabel
 SUBDIR+=	dnssec-keygen
+SUBDIR+=	dnssec-revoke
+SUBDIR+=	dnssec-settime
 SUBDIR+=	dnssec-signzone
 .endif
 .if ${MK_BIND_NAMED} != "no"
+SUBDIR+=	arpaname
+SUBDIR+=	ddns-confgen
+SUBDIR+=	genrandom
+SUBDIR+=	isc-hmac-fixup
 SUBDIR+=	named
 SUBDIR+=	named-checkconf
 SUBDIR+=	named-checkzone
+SUBDIR+=	named-journalprint
 SUBDIR+=	named.reload
+SUBDIR+=	nsec3hash
 SUBDIR+=	rndc
 SUBDIR+=	rndc-confgen
 .endif

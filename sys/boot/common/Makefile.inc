@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-SRCS+=	boot.c commands.c console.c devopen.c interp.c 
+SRCS+=	boot.c commands.c console.c devopen.c disk.c interp.c 
 SRCS+=	interp_backslash.c interp_parse.c ls.c misc.c 
 SRCS+=	module.c panic.c
 

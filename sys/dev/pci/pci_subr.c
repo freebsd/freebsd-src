@@ -33,9 +33,10 @@ __FBSDID("$FreeBSD$");
  * provide PCI domains.
  */
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/rman.h>
+#include <sys/systm.h>
 
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
@@ -128,3 +129,157 @@ host_pcib_get_busno(pci_read_config_fn read_config, int bus, int slot, int func,
 
 	return 1;
 }
+
+#ifdef NEW_PCIB
+/*
+ * Return a pointer to a pretty name for a PCI device.  If the device
+ * has a driver attached, the device's name is used, otherwise a name
+ * is generated from the device's PCI address.
+ */
+const char *
+pcib_child_name(device_t child)
+{
+	static char buf[64];
+
+	if (device_get_nameunit(child) != NULL)
+		return (device_get_nameunit(child));
+	snprintf(buf, sizeof(buf), "pci%d:%d:%d:%d", pci_get_domain(child),
+	    pci_get_bus(child), pci_get_slot(child), pci_get_function(child));
+	return (buf);
+}
+
+/*
+ * Some Host-PCI bridge drivers know which resource ranges they can
+ * decode and should only allocate subranges to child PCI devices.
+ * This API provides a way to manage this.  The bridge drive should
+ * initialize this structure during attach and call
+ * pcib_host_res_decodes() on each resource range it decodes.  It can
+ * then use pcib_host_res_alloc() and pcib_host_res_adjust() as helper
+ * routines for BUS_ALLOC_RESOURCE() and BUS_ADJUST_RESOURCE().  This
+ * API assumes that resources for any decoded ranges can be safely
+ * allocated from the parent via bus_generic_alloc_resource().
+ */
+int
+pcib_host_res_init(device_t pcib, struct pcib_host_resources *hr)
+{
+
+	hr->hr_pcib = pcib;
+	resource_list_init(&hr->hr_rl);
+	return (0);
+}
+
+int
+pcib_host_res_free(device_t pcib, struct pcib_host_resources *hr)
+{
+
+	resource_list_free(&hr->hr_rl);
+	return (0);
+}
+
+int
+pcib_host_res_decodes(struct pcib_host_resources *hr, int type, u_long start,
+    u_long end, u_int flags)
+{
+	struct resource_list_entry *rle;
+	int rid;
+
+	if (bootverbose)
+		device_printf(hr->hr_pcib, "decoding %d %srange %#lx-%#lx\n",
+		    type, flags & RF_PREFETCHABLE ? "prefetchable ": "", start,
+		    end);
+	rid = resource_list_add_next(&hr->hr_rl, type, start, end,
+	    end - start + 1);
+	if (flags & RF_PREFETCHABLE) {
+		KASSERT(type == SYS_RES_MEMORY,
+		    ("only memory is prefetchable"));
+		rle = resource_list_find(&hr->hr_rl, type, rid);
+		rle->flags = RLE_PREFETCH;
+	}
+	return (0);
+}
+
+struct resource *
+pcib_host_res_alloc(struct pcib_host_resources *hr, device_t dev, int type,
+    int *rid, u_long start, u_long end, u_long count, u_int flags)
+{
+	struct resource_list_entry *rle;
+	struct resource *r;
+	u_long new_start, new_end;
+
+	if (flags & RF_PREFETCHABLE)
+		KASSERT(type == SYS_RES_MEMORY,
+		    ("only memory is prefetchable"));
+
+	rle = resource_list_find(&hr->hr_rl, type, 0);
+	if (rle == NULL) {
+		/*
+		 * No decoding ranges for this resource type, just pass
+		 * the request up to the parent.
+		 */
+		return (bus_generic_alloc_resource(hr->hr_pcib, dev, type, rid,
+		    start, end, count, flags));
+	}
+
+restart:
+	/* Try to allocate from each decoded range. */
+	for (; rle != NULL; rle = STAILQ_NEXT(rle, link)) {
+		if (rle->type != type)
+			continue;
+		if (((flags & RF_PREFETCHABLE) != 0) !=
+		    ((rle->flags & RLE_PREFETCH) != 0))
+			continue;
+		new_start = ulmax(start, rle->start);
+		new_end = ulmin(end, rle->end);
+		if (new_start > new_end ||
+		    new_start + count - 1 > new_end ||
+		    new_start + count < new_start)
+			continue;
+		r = bus_generic_alloc_resource(hr->hr_pcib, dev, type, rid,
+		    new_start, new_end, count, flags);
+		if (r != NULL) {
+			if (bootverbose)
+				device_printf(hr->hr_pcib,
+			    "allocated type %d (%#lx-%#lx) for rid %x of %s\n",
+				    type, rman_get_start(r), rman_get_end(r),
+				    *rid, pcib_child_name(dev));
+			return (r);
+		}
+	}
+
+	/*
+	 * If we failed to find a prefetch range for a memory
+	 * resource, try again without prefetch.
+	 */
+	if (flags & RF_PREFETCHABLE) {
+		flags &= ~RF_PREFETCHABLE;
+		rle = resource_list_find(&hr->hr_rl, type, 0);
+		goto restart;
+	}
+	return (NULL);
+}
+
+int
+pcib_host_res_adjust(struct pcib_host_resources *hr, device_t dev, int type,
+    struct resource *r, u_long start, u_long end)
+{
+	struct resource_list_entry *rle;
+
+	rle = resource_list_find(&hr->hr_rl, type, 0);
+	if (rle == NULL) {
+		/*
+		 * No decoding ranges for this resource type, just pass
+		 * the request up to the parent.
+		 */
+		return (bus_generic_adjust_resource(hr->hr_pcib, dev, type, r,
+		    start, end));
+	}
+
+	/* Only allow adjustments that stay within a decoded range. */
+	for (; rle != NULL; rle = STAILQ_NEXT(rle, link)) {
+		if (rle->start <= start && rle->end >= end)
+			return (bus_generic_adjust_resource(hr->hr_pcib, dev,
+			    type, r, start, end));
+	}
+	return (ERANGE);
+}
+#endif /* NEW_PCIB */

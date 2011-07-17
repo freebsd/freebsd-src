@@ -139,8 +139,6 @@ static cpu_ipi_single_t spitfire_ipi_single;
 
 SYSINIT(cpu_mp_unleash, SI_SUB_SMP, SI_ORDER_FIRST, cpu_mp_unleash, NULL);
 
-CTASSERT(MAXCPU <= IDR_CHEETAH_MAX_BN_PAIRS);
-
 void
 mp_init(u_int cpu_impl)
 {
@@ -281,7 +279,6 @@ sun4u_startcpu(phandle_t cpu, void *func, u_long arg)
 void
 cpu_mp_start(void)
 {
-	cpuset_t ocpus;
 
 	mtx_init(&ipi_mtx, "ipi", NULL, MTX_SPIN);
 
@@ -298,9 +295,6 @@ cpu_mp_start(void)
 	KASSERT(!isjbus || mp_ncpus <= IDR_JALAPENO_MAX_BN_PAIRS,
 	    ("%s: can only IPI a maximum of %d JBus-CPUs",
 	    __func__, IDR_JALAPENO_MAX_BN_PAIRS));
-	ocpus = all_cpus;
-	CPU_CLR(curcpu, &ocpus);
-	PCPU_SET(other_cpus, ocpus);
 	smp_active = 1;
 }
 
@@ -422,15 +416,16 @@ cpu_mp_unleash(void *v)
 void
 cpu_mp_bootstrap(struct pcpu *pc)
 {
-	cpuset_t ocpus;
 	volatile struct cpu_start_args *csa;
 
 	csa = &cpu_start_args;
 
 	/* Do CPU-specific initialization. */
-	if (pc->pc_impl == CPU_IMPL_SPARC64V ||
-	    pc->pc_impl >= CPU_IMPL_ULTRASPARCIII)
+	if (pc->pc_impl >= CPU_IMPL_ULTRASPARCIII)
 		cheetah_init(pc->pc_impl);
+	else if (pc->pc_impl == CPU_IMPL_SPARC64V)
+		zeus_init(pc->pc_impl);
+
 	/*
 	 * Enable the caches.  Note that his may include applying workarounds.
 	 */
@@ -464,9 +459,6 @@ cpu_mp_bootstrap(struct pcpu *pc)
 
 	smp_cpus++;
 	KASSERT(curthread != NULL, ("%s: curthread", __func__));
-	ocpus = all_cpus;
-	CPU_CLR(curcpu, &ocpus);
-	PCPU_SET(other_cpus, ocpus);
 	printf("SMP: AP CPU #%d Launched!\n", curcpu);
 
 	csa->csa_count--;
@@ -702,6 +694,8 @@ cheetah_ipi_selected(cpuset_t cpus, u_long d0, u_long d1, u_long d2)
 				    ASI_SDB_INTR_W, 0);
 				membar(Sync);
 				bnp++;
+				if (bnp == IDR_CHEETAH_MAX_BN_PAIRS)
+					break;
 			}
 		}
 		while (((ids = ldxa(0, ASI_INTR_DISPATCH_STATUS)) &

@@ -1,0 +1,166 @@
+.\" Copyright (C) 2009, 2010 Internet Systems Consortium, Inc. ("ISC")
+.\" 
+.\" Permission to use, copy, modify, and/or distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\" 
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+.\" REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+.\" AND FITNESS. IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+.\" INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+.\" LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+.\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+.\" PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" $Id: dnssec-settime.8,v 1.14 2010-08-17 01:15:26 tbox Exp $
+.\"
+.hy 0
+.ad l
+.\"     Title: dnssec\-settime
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.71.1 <http://docbook.sf.net/>
+.\"      Date: July 15, 2009
+.\"    Manual: BIND9
+.\"    Source: BIND9
+.\"
+.TH "DNSSEC\-SETTIME" "8" "July 15, 2009" "BIND9" "BIND9"
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.SH "NAME"
+dnssec\-settime \- Set the key timing metadata for a DNSSEC key
+.SH "SYNOPSIS"
+.HP 15
+\fBdnssec\-settime\fR [\fB\-f\fR] [\fB\-K\ \fR\fB\fIdirectory\fR\fR] [\fB\-P\ \fR\fB\fIdate/offset\fR\fR] [\fB\-A\ \fR\fB\fIdate/offset\fR\fR] [\fB\-R\ \fR\fB\fIdate/offset\fR\fR] [\fB\-I\ \fR\fB\fIdate/offset\fR\fR] [\fB\-D\ \fR\fB\fIdate/offset\fR\fR] [\fB\-h\fR] [\fB\-v\ \fR\fB\fIlevel\fR\fR] [\fB\-E\ \fR\fB\fIengine\fR\fR] {keyfile}
+.SH "DESCRIPTION"
+.PP
+\fBdnssec\-settime\fR
+reads a DNSSEC private key file and sets the key timing metadata as specified by the
+\fB\-P\fR,
+\fB\-A\fR,
+\fB\-R\fR,
+\fB\-I\fR, and
+\fB\-D\fR
+options. The metadata can then be used by
+\fBdnssec\-signzone\fR
+or other signing software to determine when a key is to be published, whether it should be used for signing a zone, etc.
+.PP
+If none of these options is set on the command line, then
+\fBdnssec\-settime\fR
+simply prints the key timing metadata already stored in the key.
+.PP
+When key metadata fields are changed, both files of a key pair (\fIKnnnn.+aaa+iiiii.key\fR
+and
+\fIKnnnn.+aaa+iiiii.private\fR) are regenerated. Metadata fields are stored in the private file. A human\-readable description of the metadata is also placed in comments in the key file.
+.SH "OPTIONS"
+.PP
+\-f
+.RS 4
+Force an update of an old\-format key with no metadata fields. Without this option,
+\fBdnssec\-settime\fR
+will fail when attempting to update a legacy key. With this option, the key will be recreated in the new format, but with the original key data retained. The key's creation date will be set to the present time.
+.RE
+.PP
+\-K \fIdirectory\fR
+.RS 4
+Sets the directory in which the key files are to reside.
+.RE
+.PP
+\-h
+.RS 4
+Emit usage message and exit.
+.RE
+.PP
+\-v \fIlevel\fR
+.RS 4
+Sets the debugging level.
+.RE
+.PP
+\-E \fIengine\fR
+.RS 4
+Use the given OpenSSL engine. When compiled with PKCS#11 support it defaults to pkcs11; the empty name resets it to no engine.
+.RE
+.SH "TIMING OPTIONS"
+.PP
+Dates can be expressed in the format YYYYMMDD or YYYYMMDDHHMMSS. If the argument begins with a '+' or '\-', it is interpreted as an offset from the present time. For convenience, if such an offset is followed by one of the suffixes 'y', 'mo', 'w', 'd', 'h', or 'mi', then the offset is computed in years (defined as 365 24\-hour days, ignoring leap years), months (defined as 30 24\-hour days), weeks, days, hours, or minutes, respectively. Without a suffix, the offset is computed in seconds. To unset a date, use 'none'.
+.PP
+\-P \fIdate/offset\fR
+.RS 4
+Sets the date on which a key is to be published to the zone. After that date, the key will be included in the zone but will not be used to sign it.
+.RE
+.PP
+\-A \fIdate/offset\fR
+.RS 4
+Sets the date on which the key is to be activated. After that date, the key will be included in the zone and used to sign it.
+.RE
+.PP
+\-R \fIdate/offset\fR
+.RS 4
+Sets the date on which the key is to be revoked. After that date, the key will be flagged as revoked. It will be included in the zone and will be used to sign it.
+.RE
+.PP
+\-I \fIdate/offset\fR
+.RS 4
+Sets the date on which the key is to be retired. After that date, the key will still be included in the zone, but it will not be used to sign it.
+.RE
+.PP
+\-D \fIdate/offset\fR
+.RS 4
+Sets the date on which the key is to be deleted. After that date, the key will no longer be included in the zone. (It may remain in the key repository, however.)
+.RE
+.PP
+\-S \fIpredecessor key\fR
+.RS 4
+Select a key for which the key being modified will be an explicit successor. The name, algorithm, size, and type of the predecessor key must exactly match those of the key being modified. The activation date of the successor key will be set to the inactivation date of the predecessor. The publication date will be set to the activation date minus the prepublication interval, which defaults to 30 days.
+.RE
+.PP
+\-i \fIinterval\fR
+.RS 4
+Sets the prepublication interval for a key. If set, then the publication and activation dates must be separated by at least this much time. If the activation date is specified but the publication date isn't, then the publication date will default to this much time before the activation date; conversely, if the publication date is specified but activation date isn't, then activation will be set to this much time after publication.
+.sp
+If the key is being set to be an explicit successor to another key, then the default prepublication interval is 30 days; otherwise it is zero.
+.sp
+As with date offsets, if the argument is followed by one of the suffixes 'y', 'mo', 'w', 'd', 'h', or 'mi', then the interval is measured in years, months, weeks, days, hours, or minutes, respectively. Without a suffix, the interval is measured in seconds.
+.RE
+.SH "PRINTING OPTIONS"
+.PP
+\fBdnssec\-settime\fR
+can also be used to print the timing metadata associated with a key.
+.PP
+\-u
+.RS 4
+Print times in UNIX epoch format.
+.RE
+.PP
+\-p \fIC/P/A/R/I/D/all\fR
+.RS 4
+Print a specific metadata value or set of metadata values. The
+\fB\-p\fR
+option may be followed by one or more of the following letters to indicate which value or values to print:
+\fBC\fR
+for the creation date,
+\fBP\fR
+for the publication date,
+\fBA\fR
+for the activation date,
+\fBR\fR
+for the revocation date,
+\fBI\fR
+for the inactivation date, or
+\fBD\fR
+for the deletion date. To print all of the metadata, use
+\fB\-p all\fR.
+.RE
+.SH "SEE ALSO"
+.PP
+\fBdnssec\-keygen\fR(8),
+\fBdnssec\-signzone\fR(8),
+BIND 9 Administrator Reference Manual,
+RFC 5011.
+.SH "AUTHOR"
+.PP
+Internet Systems Consortium
+.SH "COPYRIGHT"
+Copyright \(co 2009, 2010 Internet Systems Consortium, Inc. ("ISC")
+.br

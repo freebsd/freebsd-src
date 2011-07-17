@@ -142,7 +142,7 @@ error:	fprintf(stderr, "rpcbind: will start from scratch\n");
 }
 
 void
-write_warmstart()
+write_warmstart(void)
 {
 	(void) write_struct(RPCBFILE, (xdrproc_t)xdr_rpcblist_ptr, &list_rbl);
 #ifdef PORTMAP
@@ -152,7 +152,7 @@ write_warmstart()
 }
 
 void
-read_warmstart()
+read_warmstart(void)
 {
 	rpcblist_ptr tmp_rpcbl = NULL;
 #ifdef PORTMAP

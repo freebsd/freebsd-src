@@ -99,6 +99,8 @@ enum tokens {
 	TOK_CHECKSTATE,
 	TOK_NAT,
 	TOK_REASS,
+	TOK_CALL,
+	TOK_RETURN,
 
 	TOK_ALTQ,
 	TOK_LOG,

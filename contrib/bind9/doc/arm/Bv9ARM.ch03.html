@@ -1,5 +1,5 @@
 <!--
- - Copyright (C) 2004-2010 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2011 Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003 Internet Software Consortium.
  - 
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -14,7 +14,7 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: Bv9ARM.ch03.html,v 1.71.48.4 2010-01-24 01:55:25 tbox Exp $ -->
+<!-- $Id: Bv9ARM.ch03.html,v 1.83 2011-01-21 01:14:13 tbox Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
@@ -47,14 +47,14 @@
 <dl>
 <dt><span class="sect1"><a href="Bv9ARM.ch03.html#sample_configuration">Sample Configurations</a></span></dt>
 <dd><dl>
-<dt><span class="sect2"><a href="Bv9ARM.ch03.html#id2567764">A Caching-only Name Server</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch03.html#id2567780">An Authoritative-only Name Server</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch03.html#id2567767">A Caching-only Name Server</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch03.html#id2567988">An Authoritative-only Name Server</a></span></dt>
 </dl></dd>
-<dt><span class="sect1"><a href="Bv9ARM.ch03.html#id2568007">Load Balancing</a></span></dt>
-<dt><span class="sect1"><a href="Bv9ARM.ch03.html#id2568361">Name Server Operations</a></span></dt>
+<dt><span class="sect1"><a href="Bv9ARM.ch03.html#id2568010">Load Balancing</a></span></dt>
+<dt><span class="sect1"><a href="Bv9ARM.ch03.html#id2568364">Name Server Operations</a></span></dt>
 <dd><dl>
-<dt><span class="sect2"><a href="Bv9ARM.ch03.html#id2568366">Tools for Use With the Name Server Daemon</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch03.html#id2570006">Signals</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch03.html#id2568370">Tools for Use With the Name Server Daemon</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch03.html#id2570385">Signals</a></span></dt>
 </dl></dd>
 </dl>
 </div>
@@ -68,7 +68,7 @@
 <a name="sample_configuration"></a>Sample Configurations</h2></div></div></div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2567764"></a>A Caching-only Name Server</h3></div></div></div>
+<a name="id2567767"></a>A Caching-only Name Server</h3></div></div></div>
 <p>
           The following sample configuration is appropriate for a caching-only
           name server for use by clients internal to a corporation.  All
@@ -82,10 +82,13 @@
 // Two corporate subnets we wish to allow queries from.
 acl corpnets { 192.168.4.0/24; 192.168.7.0/24; };
 options {
-     directory "/etc/namedb";           // Working directory
+     // Working directory
+     directory "/etc/namedb";
+
      allow-query { corpnets; };
 };
-// Provide a reverse mapping for the loopback address 127.0.0.1
+// Provide a reverse mapping for the loopback
+// address 127.0.0.1
 zone "0.0.127.in-addr.arpa" {
      type master;
      file "localhost.rev";
@@ -95,7 +98,7 @@ zone "0.0.127.in-addr.arpa" {
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2567780"></a>An Authoritative-only Name Server</h3></div></div></div>
+<a name="id2567988"></a>An Authoritative-only Name Server</h3></div></div></div>
 <p>
           This sample configuration is for an authoritative-only server
           that is the master server for "<code class="filename">example.com</code>"
@@ -103,13 +106,18 @@ zone "0.0.127.in-addr.arpa" {
         </p>
 <pre class="programlisting">
 options {
-     directory "/etc/namedb";           // Working directory
-     allow-query-cache { none; };       // Do not allow access to cache
-     allow-query { any; };              // This is the default
-     recursion no;                      // Do not provide recursive service
+     // Working directory
+     directory "/etc/namedb";
+     // Do not allow access to cache
+     allow-query-cache { none; };
+     // This is the default
+     allow-query { any; };
+     // Do not provide recursive service
+     recursion no;
 };
 
-// Provide a reverse mapping for the loopback address 127.0.0.1
+// Provide a reverse mapping for the loopback
+// address 127.0.0.1
 zone "0.0.127.in-addr.arpa" {
      type master;
      file "localhost.rev";
@@ -119,7 +127,8 @@ zone "0.0.127.in-addr.arpa" {
 zone "example.com" {
      type master;
      file "example.com.db";
-     // IP addresses of slave servers allowed to transfer example.com
+     // IP addresses of slave servers allowed to
+     // transfer example.com
      allow-transfer {
           192.168.4.14;
           192.168.5.53;
@@ -137,7 +146,7 @@ zone "eng.example.com" {
 </div>
 <div class="sect1" lang="en">
 <div class="titlepage"><div><div><h2 class="title" style="clear: both">
-<a name="id2568007"></a>Load Balancing</h2></div></div></div>
+<a name="id2568010"></a>Load Balancing</h2></div></div></div>
 <p>
         A primitive form of load balancing can be achieved in
         the <acronym class="acronym">DNS</acronym> by using multiple records
@@ -273,17 +282,17 @@ zone "eng.example.com" {
       </p>
 <p>
         For more detail on ordering responses, check the
-        <span><strong class="command">rrset-order</strong></span> substatement in the
+        <span><strong class="command">rrset-order</strong></span> sub-statement in the
         <span><strong class="command">options</strong></span> statement, see
         <a href="Bv9ARM.ch06.html#rrset_ordering">RRset Ordering</a>.
       </p>
 </div>
 <div class="sect1" lang="en">
 <div class="titlepage"><div><div><h2 class="title" style="clear: both">
-<a name="id2568361"></a>Name Server Operations</h2></div></div></div>
+<a name="id2568364"></a>Name Server Operations</h2></div></div></div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2568366"></a>Tools for Use With the Name Server Daemon</h3></div></div></div>
+<a name="id2568370"></a>Tools for Use With the Name Server Daemon</h3></div></div></div>
 <p>
           This section describes several indispensable diagnostic,
           administrative and monitoring tools available to the system
@@ -463,6 +472,60 @@ zone "eng.example.com" {
 <dd><p>
                         Retransfer the given zone from the master.
                       </p></dd>
+<dt><span class="term"><strong class="userinput"><code>sign <em class="replaceable"><code>zone</code></em>
+                        [<span class="optional"><em class="replaceable"><code>class</code></em>
+           [<span class="optional"><em class="replaceable"><code>view</code></em></span>]</span>]</code></strong></span></dt>
+<dd>
+<p>
+                        Fetch all DNSSEC keys for the given zone
+                        from the key directory (see
+                        <span><strong class="command">key-directory</strong></span> in
+                        <a href="Bv9ARM.ch06.html#options" title="options Statement Definition and
+          Usage">the section called &#8220;<span><strong class="command">options</strong></span> Statement Definition and
+          Usage&#8221;</a>).  If they are within
+                        their publication period, merge them into the
+                        zone's DNSKEY RRset.  If the DNSKEY RRset
+                        is changed, then the zone is automatically
+                        re-signed with the new key set.
+                      </p>
+<p>
+                        This command requires that the
+                        <span><strong class="command">auto-dnssec</strong></span> zone option to be set
+                        to <code class="literal">allow</code>,
+                        <code class="literal">maintain</code>, or
+                        <code class="literal">create</code>,  and also requires
+                        the zone to be configured to allow dynamic DNS.
+                        See <a href="Bv9ARM.ch06.html#dynamic_update_policies" title="Dynamic Update Policies">the section called &#8220;Dynamic Update Policies&#8221;</a> for
+                        more details.
+                      </p>
+</dd>
+<dt><span class="term"><strong class="userinput"><code>loadkeys <em class="replaceable"><code>zone</code></em>
+                        [<span class="optional"><em class="replaceable"><code>class</code></em>
+           [<span class="optional"><em class="replaceable"><code>view</code></em></span>]</span>]</code></strong></span></dt>
+<dd>
+<p>
+                        Fetch all DNSSEC keys for the given zone
+                        from the key directory (see
+                        <span><strong class="command">key-directory</strong></span> in
+                        <a href="Bv9ARM.ch06.html#options" title="options Statement Definition and
+          Usage">the section called &#8220;<span><strong class="command">options</strong></span> Statement Definition and
+          Usage&#8221;</a>).  If they are within
+                        their publication period, merge them into the
+                        zone's DNSKEY RRset.  Unlike <span><strong class="command">rndc
+                        sign</strong></span>, however, the zone is not
+                        immediately re-signed by the new keys, but is
+                        allowed to incrementally re-sign over time.
+                      </p>
+<p>
+                        This command requires that the
+                        <span><strong class="command">auto-dnssec</strong></span> zone option to
+                        be set to <code class="literal">maintain</code> or
+                        <code class="literal">create</code>, and also requires
+                        the zone to be configured to allow dynamic DNS.
+                        See <a href="Bv9ARM.ch06.html#dynamic_update_policies" title="Dynamic Update Policies">the section called &#8220;Dynamic Update Policies&#8221;</a> for
+                        more details.
+                      </p>
+</dd>
 <dt><span class="term"><strong class="userinput"><code>freeze
                         [<span class="optional"><em class="replaceable"><code>zone</code></em>
        [<span class="optional"><em class="replaceable"><code>class</code></em>
@@ -536,6 +599,14 @@ zone "eng.example.com" {
                         specified, all
                         views are dumped.
                       </p></dd>
+<dt><span class="term"><strong class="userinput"><code>secroots
+                        [<span class="optional"><em class="replaceable"><code>view ...</code></em></span>]</code></strong></span></dt>
+<dd><p>
+                        Dump the server's security roots to the secroots
+                        file for the specified views.  If no view is
+                        specified, security roots for all
+                        views are dumped.
+                      </p></dd>
 <dt><span class="term"><strong class="userinput"><code>stop [<span class="optional">-p</span>]</code></strong></span></dt>
 <dd><p>
                         Stop the server, making sure any recent changes
@@ -598,6 +669,57 @@ zone "eng.example.com" {
                         Note <span><strong class="command">dnssec-enable</strong></span> also needs to be
                         set to <strong class="userinput"><code>yes</code></strong> to be effective.
                         It defaults to enabled.
+                      </p></dd>
+<dt><span class="term"><strong class="userinput"><code>addzone
+                        <em class="replaceable"><code>zone</code></em>
+                        [<span class="optional"><em class="replaceable"><code>class</code></em>
+                        [<span class="optional"><em class="replaceable"><code>view</code></em></span>]</span>]
+                        <em class="replaceable"><code>configuration</code></em>
+                    </code></strong></span></dt>
+<dd>
+<p>
+                        Add a zone while the server is running.  This
+                        command requires the
+                        <span><strong class="command">allow-new-zones</strong></span> option to be set
+                        to <strong class="userinput"><code>yes</code></strong>.  The
+                        <em class="replaceable"><code>configuration</code></em> string
+                        specified on the command line is the zone
+                        configuration text that would ordinarily be
+                        placed in <code class="filename">named.conf</code>.
+                      </p>
+<p>
+                        The configuration is saved in a file called
+                       <code class="filename"><em class="replaceable"><code>hash</code></em>.nzf</code>,
+                        where <em class="replaceable"><code>hash</code></em> is a
+                        cryptographic hash generated from the name of
+                        the view.  When <span><strong class="command">named</strong></span> is
+                        restarted, the file will be loaded into the view
+                        configuration, so that zones that were added
+                        can persist after a restart.
+                      </p>
+<p>
+                        This sample <span><strong class="command">addzone</strong></span> command
+                        would add the zone <code class="literal">example.com</code>
+                        to the default view:
+                      </p>
+<p>
+<code class="prompt">$ </code><strong class="userinput"><code>rndc addzone example.com '{ type master; file "example.com.db"; };'</code></strong>
+                      </p>
+<p>
+                        (Note the brackets and semi-colon around the zone
+                        configuration text.)
+                      </p>
+</dd>
+<dt><span class="term"><strong class="userinput"><code>delzone
+                        <em class="replaceable"><code>zone</code></em>
+                        [<span class="optional"><em class="replaceable"><code>class</code></em>
+                        [<span class="optional"><em class="replaceable"><code>view</code></em></span>]</span>]
+                    </code></strong></span></dt>
+<dd><p>
+                        Delete a zone while the server is running.
+                        Only zones that were originally added via
+                        <span><strong class="command">rndc addzone</strong></span> can be deleted
+                        in this matter.
                       </p></dd>
 </dl></div>
 <p>
@@ -699,7 +821,8 @@ zone "eng.example.com" {
 <pre class="programlisting">
 key rndc_key {
      algorithm "hmac-md5";
-     secret "c3Ryb25nIGVub3VnaCBmb3IgYSBtYW4gYnV0IG1hZGUgZm9yIGEgd29tYW4K";
+     secret
+       "c3Ryb25nIGVub3VnaCBmb3IgYSBtYW4gYnV0IG1hZGUgZm9yIGEgd29tYW4K";
 };
 options {
      default-server 127.0.0.1;
@@ -721,7 +844,8 @@ options {
                 </p>
 <pre class="programlisting">
 controls {
-        inet 127.0.0.1 allow { localhost; } keys { rndc_key; };
+        inet 127.0.0.1
+            allow { localhost; } keys { rndc_key; };
 };
 </pre>
 <p>
@@ -749,7 +873,7 @@ controls {
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2570006"></a>Signals</h3></div></div></div>
+<a name="id2570385"></a>Signals</h3></div></div></div>
 <p>
           Certain UNIX signals cause the name server to take specific
           actions, as described in the following table.  These signals can

@@ -1,5 +1,5 @@
 /*
- *  $Id: util.c,v 1.211 2011/01/19 00:31:43 tom Exp $
+ *  $Id: util.c,v 1.227 2011/07/07 23:42:30 tom Exp $
  *
  *  util.c -- miscellaneous utilities for dialog
  *
@@ -37,6 +37,20 @@
 #endif
 #endif
 
+#if defined(HAVE_WCHGAT)
+#  if defined(NCURSES_VERSION_PATCH)
+#    if NCURSES_VERSION_PATCH >= 20060715
+#      define USE_WCHGAT 1
+#    else
+#      define USE_WCHGAT 0
+#    endif
+#  else
+#    define USE_WCHGAT 1
+#  endif
+#else
+#  define USE_WCHGAT 0
+#endif
+
 /* globals */
 DIALOG_STATE dialog_state;
 DIALOG_VARS dialog_vars;
@@ -60,6 +74,8 @@ DIALOG_VARS dialog_vars;
 #endif
 
 #define DATA(atr,upr,lwr,cmt) { atr COLOR_DATA(upr) RC_DATA(lwr,cmt) }
+
+#define UseShadow(dw) ((dw) != 0 && (dw)->normal != 0 && (dw)->shadow != 0)
 
 /*
  * Table of color and attribute values, default is for mono display.
@@ -411,7 +427,7 @@ dlg_get_attrs(WINDOW *win)
 {
     chtype result;
 #ifdef HAVE_GETATTRS
-    result = getattrs(win);
+    result = (chtype) getattrs(win);
 #else
     attr_t my_result;
     short my_pair;
@@ -487,6 +503,7 @@ end_dialog(void)
     }
 }
 
+#define ESCAPE_LEN 3
 #define isOurEscape(p) (((p)[0] == '\\') && ((p)[1] == 'Z') && ((p)[2] != 0))
 
 static int
@@ -500,7 +517,7 @@ centered(int width, const char *string)
     if (dialog_vars.colors) {
 	for (n = 0; n < len; ++n) {
 	    if (isOurEscape(string + n)) {
-		hide += 3;
+		hide += ESCAPE_LEN;
 	    }
 	}
     }
@@ -661,6 +678,7 @@ dlg_print_line(WINDOW *win,
 {
     const char *wrap_ptr = prompt;
     const char *test_ptr = prompt;
+    const char *hide_ptr = 0;
     const int *cols = dlg_index_columns(prompt);
     const int *indx = dlg_index_wchars(prompt);
     int wrap_inx = 0;
@@ -687,8 +705,9 @@ dlg_print_line(WINDOW *win,
 	    wrap_inx = n;
 	    *x = cur_x;
 	} else if (isOurEscape(test_ptr)) {
-	    hidden += 3;
-	    n += 2;
+	    hide_ptr = test_ptr;
+	    hidden += ESCAPE_LEN;
+	    n += (ESCAPE_LEN - 1);
 	}
 	cur_x = lm + tabbed + cols[n + 1];
 	if (cur_x > (rm + hidden))
@@ -725,6 +744,23 @@ dlg_print_line(WINDOW *win,
 #endif
 
     /*
+     * If we found hidden text past the last point that we will display,
+     * discount that from the displayed length.
+     */
+    if ((hide_ptr != 0) && (hide_ptr >= wrap_ptr)) {
+	hidden -= ESCAPE_LEN;
+	test_ptr = wrap_ptr;
+	while (test_ptr < wrap_ptr) {
+	    if (isOurEscape(test_ptr)) {
+		hidden -= ESCAPE_LEN;
+		test_ptr += ESCAPE_LEN;
+	    } else {
+		++test_ptr;
+	    }
+	}
+    }
+
+    /*
      * Print the line if we have a window pointer.  Otherwise this routine
      * is just being called for sizing the window.
      */
@@ -735,6 +771,8 @@ dlg_print_line(WINDOW *win,
     /* *x tells the calling function how long the line was */
     if (*x == 1)
 	*x = rm;
+
+    *x -= hidden;
 
     /* Find the start of the next line and return a pointer to it */
     test_ptr = wrap_ptr;
@@ -863,43 +901,49 @@ dlg_print_scrolled(WINDOW *win,
 	    high = len;
 #endif
 	dummy = newwin(high, width, 0, 0);
-	wbkgdset(dummy, dialog_attr | ' ');
-	wattrset(dummy, dialog_attr);
-	werase(dummy);
-	dlg_print_autowrap(dummy, prompt, high, width);
-	getyx(dummy, y, x);
+	if (dummy == 0) {
+	    wattrset(win, dialog_attr);
+	    dlg_print_autowrap(win, prompt, height + 1 + (3 * MARGIN), width);
+	    last = 0;
+	} else {
+	    wbkgdset(dummy, dialog_attr | ' ');
+	    wattrset(dummy, dialog_attr);
+	    werase(dummy);
+	    dlg_print_autowrap(dummy, prompt, high, width);
+	    getyx(dummy, y, x);
 
-	copywin(dummy,		/* srcwin */
-		win,		/* dstwin */
-		offset + MARGIN,	/* sminrow */
-		MARGIN,		/* smincol */
-		MARGIN,		/* dminrow */
-		MARGIN,		/* dmincol */
-		height,		/* dmaxrow */
-		wide,		/* dmaxcol */
-		FALSE);
+	    copywin(dummy,	/* srcwin */
+		    win,	/* dstwin */
+		    offset + MARGIN,	/* sminrow */
+		    MARGIN,	/* smincol */
+		    MARGIN,	/* dminrow */
+		    MARGIN,	/* dmincol */
+		    height,	/* dmaxrow */
+		    wide,	/* dmaxcol */
+		    FALSE);
 
-	delwin(dummy);
+	    delwin(dummy);
 
-	/* if the text is incomplete, or we have scrolled, show the percentage */
-	if (y > 0 && wide > 4) {
-	    percent = (int) ((height + offset) * 100.0 / y);
-	    if (percent < 0)
-		percent = 0;
-	    if (percent > 100)
-		percent = 100;
-	    if (offset != 0 || percent != 100) {
-		(void) wattrset(win, position_indicator_attr);
-		(void) wmove(win, MARGIN + height, wide - 4);
-		(void) sprintf(buffer, "%d%%", percent);
-		(void) waddstr(win, buffer);
-		if ((len = (int) strlen(buffer)) < 4) {
-		    wattrset(win, border_attr);
-		    whline(win, dlg_boxchar(ACS_HLINE), 4 - len);
+	    /* if the text is incomplete, or we have scrolled, show the percentage */
+	    if (y > 0 && wide > 4) {
+		percent = (int) ((height + offset) * 100.0 / y);
+		if (percent < 0)
+		    percent = 0;
+		if (percent > 100)
+		    percent = 100;
+		if (offset != 0 || percent != 100) {
+		    (void) wattrset(win, position_indicator_attr);
+		    (void) wmove(win, MARGIN + height, wide - 4);
+		    (void) sprintf(buffer, "%d%%", percent);
+		    (void) waddstr(win, buffer);
+		    if ((len = (int) strlen(buffer)) < 4) {
+			wattrset(win, border_attr);
+			whline(win, dlg_boxchar(ACS_HLINE), 4 - len);
+		    }
 		}
 	    }
+	    last = (y - height);
 	}
-	last = (y - height);
     } else
 #endif
     {
@@ -1037,6 +1081,25 @@ longest_word(const char *string)
     return result;
 }
 
+static int
+count_real_columns(const char *text)
+{
+    int result = dlg_count_columns(text);
+    if (result && dialog_vars.colors) {
+	int hidden = 0;
+	while (*text) {
+	    if (isOurEscape(text)) {
+		hidden += ESCAPE_LEN;
+		text += ESCAPE_LEN;
+	    } else {
+		++text;
+	    }
+	}
+	result -= hidden;
+    }
+    return result;
+}
+
 /*
  * if (height or width == -1) Maximize()
  * if (height or width == 0), justify and return actual limits.
@@ -1074,7 +1137,7 @@ real_auto_size(const char *title,
     } else if (prompt != 0) {
 	wide = MAX(title_length, mincols);
 	if (strchr(prompt, '\n') == 0) {
-	    double val = dialog_state.aspect_ratio * dlg_count_columns(prompt);
+	    double val = dialog_state.aspect_ratio * count_real_columns(prompt);
 	    double xxx = sqrt(val);
 	    int tmp = (int) xxx;
 	    wide = MAX(wide, tmp);
@@ -1190,6 +1253,27 @@ dlg_auto_sizefile(const char *title,
     (void) fclose(fd);
 }
 
+static chtype
+dlg_get_cell_attrs(WINDOW *win)
+{
+    chtype result;
+#ifdef USE_WIDE_CURSES
+    cchar_t wch;
+    wchar_t cc;
+    attr_t attrs;
+    short pair;
+    if (win_wch(win, &wch) == OK
+	&& getcchar(&wch, &cc, &attrs, &pair, NULL) == OK) {
+	result = attrs;
+    } else {
+	result = 0;
+    }
+#else
+    result = winch(win) & (A_ATTRIBUTES & ~A_COLOR);
+#endif
+    return result;
+}
+
 /*
  * Draw a rectangular box with line drawing characters.
  *
@@ -1239,53 +1323,220 @@ dlg_draw_box(WINDOW *win, int y, int x, int height, int width,
     wattrset(win, save);
 }
 
+static DIALOG_WINDOWS *
+find_window(WINDOW *win)
+{
+    DIALOG_WINDOWS *result = 0;
+    DIALOG_WINDOWS *p;
+
+    for (p = dialog_state.all_windows; p != 0; p = p->next) {
+	if (p->normal == win) {
+	    result = p;
+	    break;
+	}
+    }
+    return result;
+}
+
 #ifdef HAVE_COLOR
+/*
+ * If we have wchgat(), use that for updating shadow attributes, to work with
+ * wide-character data.
+ */
+
+/*
+ * Check if the given point is "in" the given window.  If so, return the window
+ * pointer, otherwise null.
+ */
+static WINDOW *
+in_window(WINDOW *win, int y, int x)
+{
+    WINDOW *result = 0;
+    int y_base = getbegy(win);
+    int x_base = getbegx(win);
+    int y_last = getmaxy(win) + y_base;
+    int x_last = getmaxx(win) + x_base;
+
+    if (y >= y_base && y <= y_last && x >= x_base && x <= x_last)
+	result = win;
+    return result;
+}
+
+static WINDOW *
+window_at_cell(DIALOG_WINDOWS * dw, int y, int x)
+{
+    WINDOW *result = 0;
+    DIALOG_WINDOWS *p;
+    int y_want = y + getbegy(dw->shadow);
+    int x_want = x + getbegx(dw->shadow);
+
+    for (p = dialog_state.all_windows; p != 0; p = p->next) {
+	if (dw->normal != p->normal
+	    && dw->shadow != p->normal
+	    && (result = in_window(p->normal, y_want, x_want)) != 0) {
+	    break;
+	}
+    }
+    if (result == 0) {
+	result = stdscr;
+    }
+    return result;
+}
+
+static bool
+in_shadow(WINDOW *normal, WINDOW *shadow, int y, int x)
+{
+    bool result = FALSE;
+    int ybase = getbegy(normal);
+    int ylast = getmaxy(normal) + ybase;
+    int xbase = getbegx(normal);
+    int xlast = getmaxx(normal) + xbase;
+
+    y += getbegy(shadow);
+    x += getbegx(shadow);
+
+    if (y >= ybase + SHADOW_ROWS
+	&& y < ylast + SHADOW_ROWS
+	&& x >= xlast
+	&& x < xlast + SHADOW_COLS) {
+	/* in the right-side */
+	result = TRUE;
+    } else if (y >= ylast
+	       && y < ylast + SHADOW_ROWS
+	       && x >= ybase + SHADOW_COLS
+	       && x < ylast + SHADOW_COLS) {
+	/* check the bottom */
+	result = TRUE;
+    }
+
+    return result;
+}
+
+/*
+ * When erasing a shadow, check each cell to make sure that it is not part of
+ * another box's shadow.  This is a little complicated since most shadows are
+ * merged onto stdscr.
+ */
+static bool
+last_shadow(DIALOG_WINDOWS * dw, int y, int x)
+{
+    DIALOG_WINDOWS *p;
+    bool result = TRUE;
+
+    for (p = dialog_state.all_windows; p != 0; p = p->next) {
+	if (p->normal != dw->normal
+	    && in_shadow(p->normal, dw->shadow, y, x)) {
+	    result = FALSE;
+	    break;
+	}
+    }
+    return result;
+}
+
+static void
+repaint_cell(DIALOG_WINDOWS * dw, bool draw, int y, int x)
+{
+    WINDOW *win = dw->shadow;
+    WINDOW *cellwin;
+    int y2, x2;
+
+    if ((cellwin = window_at_cell(dw, y, x)) != 0
+	&& (draw || last_shadow(dw, y, x))
+	&& (y2 = (y + getbegy(win) - getbegy(cellwin))) >= 0
+	&& (x2 = (x + getbegx(win) - getbegx(cellwin))) >= 0
+	&& wmove(cellwin, y2, x2) != ERR) {
+	chtype the_cell = dlg_get_attrs(cellwin);
+	chtype the_attr = (draw ? shadow_attr : the_cell);
+
+	if (dlg_get_cell_attrs(cellwin) & A_ALTCHARSET) {
+	    the_attr |= A_ALTCHARSET;
+	}
+#if USE_WCHGAT
+	wchgat(cellwin, 1,
+	       the_attr & (chtype) (~A_COLOR),
+	       PAIR_NUMBER(the_attr),
+	       NULL);
+#else
+	{
+	    chtype the_char = ((winch(cellwin) & A_CHARTEXT) | the_attr);
+	    (void) waddch(cellwin, the_char);
+	}
+#endif
+	wnoutrefresh(cellwin);
+    }
+}
+
+#define RepaintCell(dw, draw, y, x) repaint_cell(dw, draw, y, x)
+
+static void
+repaint_shadow(DIALOG_WINDOWS * dw, bool draw, int y, int x, int height, int width)
+{
+    int i, j;
+
+    if (UseShadow(dw)) {
+#if !USE_WCHGAT
+	chtype save = dlg_get_attrs(dw->shadow);
+	wattrset(dw->shadow, draw ? shadow_attr : screen_attr);
+#endif
+	for (i = 0; i < SHADOW_ROWS; ++i) {
+	    for (j = 0; j < width; ++j) {
+		RepaintCell(dw, draw, i + y + height, j + x + SHADOW_COLS);
+	    }
+	}
+	for (i = 0; i < height; i++) {
+	    for (j = 0; j < SHADOW_COLS; ++j) {
+		RepaintCell(dw, draw, i + y + SHADOW_ROWS, j + x + width);
+	    }
+	}
+	(void) wnoutrefresh(dw->shadow);
+#if !USE_WCHGAT
+	wattrset(dw->shadow, save);
+#endif
+    }
+}
+
 /*
  * Draw a shadow on the parent window corresponding to the right- and
  * bottom-edge of the child window, to give a 3-dimensional look.
  */
 static void
-draw_childs_shadow(WINDOW *parent, WINDOW *child)
+draw_childs_shadow(DIALOG_WINDOWS * dw)
 {
-    if (has_colors()) {		/* Whether terminal supports color? */
-	chtype save = dlg_get_attrs(parent);
+    if (UseShadow(dw)) {
+	repaint_shadow(dw,
+		       TRUE,
+		       getbegy(dw->normal) - getbegy(dw->shadow),
+		       getbegx(dw->normal) - getbegx(dw->shadow),
+		       getmaxy(dw->normal),
+		       getmaxx(dw->normal));
+    }
+}
 
-	dlg_draw_shadow(parent,
-			getbegy(child) - getbegy(parent),
-			getbegx(child) - getbegx(parent),
-			getmaxy(child),
-			getmaxx(child));
-	wattrset(parent, save);
+/*
+ * Erase a shadow on the parent window corresponding to the right- and
+ * bottom-edge of the child window.
+ */
+static void
+erase_childs_shadow(DIALOG_WINDOWS * dw)
+{
+    if (UseShadow(dw)) {
+	repaint_shadow(dw,
+		       FALSE,
+		       getbegy(dw->normal) - getbegy(dw->shadow),
+		       getbegx(dw->normal) - getbegx(dw->shadow),
+		       getmaxy(dw->normal),
+		       getmaxx(dw->normal));
     }
 }
 
 /*
  * Draw shadows along the right and bottom edge to give a more 3D look
- * to the boxes
+ * to the boxes.
  */
 void
 dlg_draw_shadow(WINDOW *win, int y, int x, int height, int width)
 {
-    int i, j;
-
-    if (has_colors()) {		/* Whether terminal supports color? */
-	wattrset(win, shadow_attr);
-	for (i = 0; i < SHADOW_ROWS; ++i) {
-	    for (j = 0; j < width; ++j) {
-		if (wmove(win, i + y + height, j + x + SHADOW_COLS) != ERR) {
-		    (void) waddch(win, winch(win) & (chtype) (~A_COLOR));
-		}
-	    }
-	}
-	for (i = 0; i < height; i++) {
-	    for (j = 0; j < SHADOW_COLS; ++j) {
-		if (wmove(win, i + y + SHADOW_ROWS, j + x + width) != ERR) {
-		    (void) waddch(win, winch(win) & (chtype) (~A_COLOR));
-		}
-	    }
-	}
-	(void) wnoutrefresh(win);
-    }
+    repaint_shadow(find_window(win), TRUE, y, x, height, width);
 }
 #endif /* HAVE_COLOR */
 
@@ -1340,6 +1591,10 @@ dlg_exit(int code)
 	code = DLG_EXIT_HELP;
 	goto retry;
     }
+#ifdef HAVE_DLG_TRACE
+    dlg_trace((const char *) 0);	/* close it */
+#endif
+
 #ifdef NO_LEAKS
     _dlg_inputstr_leaks();
 #if defined(NCURSES_VERSION) && defined(HAVE__NC_FREE_AND_EXIT)
@@ -1650,6 +1905,8 @@ dlg_del_window(WINDOW *win)
     }
 
     if (q) {
+	if (dialog_state.all_windows != 0)
+	    erase_childs_shadow(q);
 	delwin(q->normal);
 	dlg_unregister_window(q->normal);
 	free(q);
@@ -1663,26 +1920,13 @@ dlg_del_window(WINDOW *win)
 WINDOW *
 dlg_new_window(int height, int width, int y, int x)
 {
-    WINDOW *win;
-    DIALOG_WINDOWS *p = dlg_calloc(DIALOG_WINDOWS, 1);
-
-    if ((win = newwin(height, width, y, x)) == 0) {
-	dlg_exiterr("Can't make new window at (%d,%d), size (%d,%d).\n",
-		    y, x, height, width);
-    }
-    p->next = dialog_state.all_windows;
-    p->normal = win;
-    dialog_state.all_windows = p;
-#ifdef HAVE_COLOR
-    if (dialog_state.use_shadow) {
-	draw_childs_shadow(p->shadow = stdscr, win);
-    }
-#endif
-
-    (void) keypad(win, TRUE);
-    return win;
+    return dlg_new_modal_window(stdscr, height, width, y, x);
 }
 
+/*
+ * "Modal" windows differ from normal ones by having a shadow in a window
+ * separate from the standard screen.
+ */
 WINDOW *
 dlg_new_modal_window(WINDOW *parent, int height, int width, int y, int x)
 {
@@ -1699,7 +1943,8 @@ dlg_new_modal_window(WINDOW *parent, int height, int width, int y, int x)
     dialog_state.all_windows = p;
 #ifdef HAVE_COLOR
     if (dialog_state.use_shadow) {
-	draw_childs_shadow(p->shadow = parent, win);
+	p->shadow = parent;
+	draw_childs_shadow(p);
     }
 #endif
 
@@ -1714,19 +1959,12 @@ dlg_new_modal_window(WINDOW *parent, int height, int width, int y, int x)
 void
 dlg_move_window(WINDOW *win, int height, int width, int y, int x)
 {
-    DIALOG_WINDOWS *p, *q;
+    DIALOG_WINDOWS *p;
 
     if (win != 0) {
 	dlg_ctl_size(height, width);
 
-	for (p = dialog_state.all_windows; p != 0; p = q) {
-	    q = p->next;
-	    if (p->normal == win) {
-		break;
-	    }
-	}
-
-	if (p != 0) {
+	if ((p = find_window(win)) != 0) {
 	    (void) wresize(win, height, width);
 	    (void) mvwin(win, y, x);
 #ifdef HAVE_COLOR
@@ -1741,8 +1979,7 @@ dlg_move_window(WINDOW *win, int height, int width, int y, int x)
 	    (void) refresh();
 
 #ifdef HAVE_COLOR
-	    if (p->shadow)
-		draw_childs_shadow(p->shadow, win);
+	    draw_childs_shadow(p);
 #endif
 	}
     }
@@ -1883,7 +2120,7 @@ dlg_trim_string(char *s)
     char *base = s;
     char *p1;
     char *p = s;
-    int has_newlines = (strstr(s, "\\n") != 0);
+    int has_newlines = !dialog_vars.no_nl_expand && (strstr(s, "\\n") != 0);
 
     while (*p != '\0') {
 	if (*p == TAB && !dialog_vars.nocollapse)

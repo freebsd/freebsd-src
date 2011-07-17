@@ -320,11 +320,12 @@ ia64_handle_intr(struct trapframe *tf)
 	td->td_intr_frame = tf;
 
 	do {
-		ia64_set_eoi(0);
-		ia64_srlz_d();
 		CTR2(KTR_INTR, "INTR: ITC=%u, XIV=%u",
 		    (u_int)tf->tf_special.ifa, xiv);
-		(ia64_handler[xiv])(td, xiv, tf);
+		if (!(ia64_handler[xiv])(td, xiv, tf)) {
+			ia64_set_eoi(0);
+			ia64_srlz_d();
+		}
 		xiv = ia64_get_ivr();
 		ia64_srlz_d();
 	} while (xiv != 15);

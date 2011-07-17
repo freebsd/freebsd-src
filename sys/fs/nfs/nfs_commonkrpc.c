@@ -166,7 +166,7 @@ newnfs_connect(struct nfsmount *nmp, struct nfssockreq *nrp,
 	CLIENT *client;
 	struct netconfig *nconf;
 	struct socket *so;
-	int one = 1, retries, error;
+	int one = 1, retries, error = 0;
 	struct thread *td = curthread;
 
 	/*
@@ -222,7 +222,7 @@ newnfs_connect(struct nfsmount *nmp, struct nfssockreq *nrp,
 	    nrp->nr_soproto, td->td_ucred, td);
 	if (error) {
 		td->td_ucred = origcred;
-		return (error);
+		goto out;
 	}
 	do {
 	    if (error != 0 && pktscale > 2)
@@ -253,7 +253,7 @@ newnfs_connect(struct nfsmount *nmp, struct nfssockreq *nrp,
 	soclose(so);
 	if (error) {
 		td->td_ucred = origcred;
-		return (error);
+		goto out;
 	}
 
 	client = clnt_reconnect_create(nconf, saddr, nrp->nr_prog,
@@ -307,7 +307,10 @@ newnfs_connect(struct nfsmount *nmp, struct nfssockreq *nrp,
 
 	/* Restore current thread's credentials. */
 	td->td_ucred = origcred;
-	return (0);
+
+out:
+	NFSEXITCODE(error);
+	return (error);
 }
 
 /*
@@ -712,8 +715,10 @@ tryagain:
 		NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
 		nd->nd_repstat = fxdr_unsigned(u_int32_t, *tl);
 		if (nd->nd_repstat != 0) {
-			if ((nd->nd_repstat == NFSERR_DELAY &&
+			if (((nd->nd_repstat == NFSERR_DELAY ||
+			      nd->nd_repstat == NFSERR_GRACE) &&
 			     (nd->nd_flag & ND_NFSV4) &&
+			     nd->nd_procnum != NFSPROC_DELEGRETURN &&
 			     nd->nd_procnum != NFSPROC_SETATTR &&
 			     nd->nd_procnum != NFSPROC_READ &&
 			     nd->nd_procnum != NFSPROC_WRITE &&

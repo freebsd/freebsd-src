@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2010  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: aclconf.c,v 1.22.34.4 2009-10-01 23:47:17 tbox Exp $ */
+/* $Id: aclconf.c,v 1.29 2010-08-13 23:47:03 tbox Exp $ */
 
 #include <config.h>
 
@@ -39,7 +39,7 @@ cfg_aclconfctx_init(cfg_aclconfctx_t *ctx) {
 }
 
 void
-cfg_aclconfctx_destroy(cfg_aclconfctx_t *ctx) {
+cfg_aclconfctx_clear(cfg_aclconfctx_t *ctx) {
 	dns_acl_t *dacl, *next;
 
 	for (dacl = ISC_LIST_HEAD(ctx->named_acl_cache);
@@ -48,6 +48,23 @@ cfg_aclconfctx_destroy(cfg_aclconfctx_t *ctx) {
 	{
 		next = ISC_LIST_NEXT(dacl, nextincache);
 		dns_acl_detach(&dacl);
+	}
+}
+
+void
+cfg_aclconfctx_clone(cfg_aclconfctx_t *src, cfg_aclconfctx_t *dest) {
+	dns_acl_t *dacl, *next;
+	REQUIRE(src != NULL && dest != NULL);
+
+	cfg_aclconfctx_init(dest);
+	for (dacl = ISC_LIST_HEAD(src->named_acl_cache);
+	     dacl != NULL;
+	     dacl = next)
+	{
+		dns_acl_t *copy;
+		next = ISC_LIST_NEXT(dacl, nextincache);
+		dns_acl_attach(dacl, &copy);
+		ISC_LIST_APPEND(dest->named_acl_cache, copy, nextincache);
 	}
 }
 
@@ -150,7 +167,7 @@ convert_keyname(const cfg_obj_t *keyobj, isc_log_t *lctx, isc_mem_t *mctx,
 	isc_buffer_add(&buf, keylen);
 	dns_fixedname_init(&fixname);
 	result = dns_name_fromtext(dns_fixedname_name(&fixname), &buf,
-				   dns_rootname, ISC_FALSE, NULL);
+				   dns_rootname, 0, NULL);
 	if (result != ISC_R_SUCCESS) {
 		cfg_obj_log(keyobj, lctx, ISC_LOG_WARNING,
 			    "key name '%s' is not a valid domain name",

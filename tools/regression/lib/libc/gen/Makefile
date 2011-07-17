@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-TESTS=	test-fmtcheck test-fnmatch test-fpclassify test-wordexp
+TESTS=	test-fmtcheck test-fnmatch test-fpclassify test-posix_spawn test-wordexp
 
 .PHONY: tests
 tests: ${TESTS}

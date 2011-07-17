@@ -33,6 +33,31 @@
 #ifndef __PCIB_PRIVATE_H__
 #define	__PCIB_PRIVATE_H__
 
+#ifdef NEW_PCIB
+/*
+ * Data structure and routines that Host to PCI bridge drivers can use
+ * to restrict allocations for child devices to ranges decoded by the
+ * bridge.
+ */
+struct pcib_host_resources {
+	device_t	hr_pcib;
+	struct resource_list hr_rl;
+};
+
+int		pcib_host_res_init(device_t pcib,
+		    struct pcib_host_resources *hr);
+int		pcib_host_res_free(device_t pcib,
+		    struct pcib_host_resources *hr);
+int		pcib_host_res_decodes(struct pcib_host_resources *hr, int type,
+		    u_long start, u_long end, u_int flags);
+struct resource *pcib_host_res_alloc(struct pcib_host_resources *hr,
+		    device_t dev, int type, int *rid, u_long start, u_long end,
+		    u_long count, u_int flags);
+int		pcib_host_res_adjust(struct pcib_host_resources *hr,
+		    device_t dev, int type, struct resource *r, u_long start,
+		    u_long end);
+#endif
+
 /*
  * Export portions of generic PCI:PCI bridge support so that it can be
  * used by subclasses.
@@ -90,6 +115,9 @@ struct pcib_softc
 
 typedef uint32_t pci_read_config_fn(int b, int s, int f, int reg, int width);
 
+#ifdef NEW_PCIB
+const char	*pcib_child_name(device_t child);
+#endif
 int		host_pcib_get_busno(pci_read_config_fn read_config, int bus,
     int slot, int func, uint8_t *busnum);
 int		pcib_attach(device_t dev);

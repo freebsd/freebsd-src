@@ -1,5 +1,5 @@
 /*
- *  $Id: fselect.c,v 1.76 2011/01/16 22:20:16 tom Exp $
+ *  $Id: fselect.c,v 1.78 2011/06/29 09:48:21 tom Exp $
  *
  *  fselect.c -- implements the file-selector box
  *
@@ -532,12 +532,14 @@ dlg_fselect(const char *title, const char *path, int height, int width, int dsel
 {
     /* *INDENT-OFF* */
     static DLG_KEYS_BINDING binding[] = {
+	HELPKEY_BINDINGS,
 	ENTERKEY_BINDINGS,
 	NAVIGATE_BINDINGS,
 	END_KEYS_BINDING
     };
     static DLG_KEYS_BINDING binding2[] = {
 	INPUTSTR_BINDINGS,
+	HELPKEY_BINDINGS,
 	ENTERKEY_BINDINGS,
 	NAVIGATE_BINDINGS,
 	END_KEYS_BINDING
@@ -795,7 +797,7 @@ dlg_fselect(const char *title, const char *path, int height, int width, int dsel
 		}
 		/* FALLTHRU */
 	    case DLGK_ENTER:
-		result = (state > 0) ? dlg_ok_buttoncode(state) : DLG_EXIT_OK;
+		result = (state > 0) ? dlg_enter_buttoncode(state) : DLG_EXIT_OK;
 		continue;
 #ifdef KEY_RESIZE
 	    case KEY_RESIZE:

@@ -99,17 +99,17 @@ static struct dict subjectnames[] = {
 	{ NULL, -1 }};
 
 static struct dict resourcenames[] = {
-	{ "cpu", RACCT_CPU },
-	{ "data", RACCT_DATA },
-	{ "stack", RACCT_STACK },
-	{ "core", RACCT_CORE },
-	{ "rss", RACCT_RSS },
-	{ "memlock", RACCT_MEMLOCK },
-	{ "nproc", RACCT_NPROC },
-	{ "nofile", RACCT_NOFILE },
-	{ "vmem", RACCT_VMEM },
-	{ "npts", RACCT_NPTS },
-	{ "swap", RACCT_SWAP },
+	{ "cputime", RACCT_CPU },
+	{ "datasize", RACCT_DATA },
+	{ "stacksize", RACCT_STACK },
+	{ "coredumpsize", RACCT_CORE },
+	{ "memoryuse", RACCT_RSS },
+	{ "memorylocked", RACCT_MEMLOCK },
+	{ "maxproc", RACCT_NPROC },
+	{ "openfiles", RACCT_NOFILE },
+	{ "vmemoryuse", RACCT_VMEM },
+	{ "pseudoterminals", RACCT_NPTS },
+	{ "swapuse", RACCT_SWAP },
 	{ "nthr", RACCT_NTHR },
 	{ "msgqqueued", RACCT_MSGQQUEUED },
 	{ "msgqsize", RACCT_MSGQSIZE },
@@ -907,7 +907,7 @@ rctl_string_to_rule(char *rulestr, struct rctl_rule **rulep)
 		error = str2int64(amountstr, &rule->rr_amount);
 		if (error != 0)
 			goto out;
-		if (racct_is_in_thousands(rule->rr_resource))
+		if (RACCT_IS_IN_MILLIONS(rule->rr_resource))
 			rule->rr_amount *= 1000;
 	}
 
@@ -947,7 +947,7 @@ rctl_rule_add(struct rctl_rule *rule)
 
 	/*
 	 * Some rules just don't make sense.  Note that the one below
-	 * cannot be rewritten using racct_is_deniable(); the RACCT_PCTCPU,
+	 * cannot be rewritten using RACCT_IS_DENIABLE(); the RACCT_PCTCPU,
 	 * for example, is not deniable in the racct sense, but the
 	 * limit is enforced in a different way, so "deny" rules for %CPU
 	 * do make sense.
@@ -958,7 +958,7 @@ rctl_rule_add(struct rctl_rule *rule)
 		return (EOPNOTSUPP);
 
 	if (rule->rr_per == RCTL_SUBJECT_TYPE_PROCESS &&
-	    racct_is_sloppy(rule->rr_resource))
+	    RACCT_IS_SLOPPY(rule->rr_resource))
 		return (EOPNOTSUPP);
 
 	/*
@@ -1152,8 +1152,8 @@ rctl_rule_to_sbuf(struct sbuf *sb, const struct rctl_rule *rule)
 
 	amount = rule->rr_amount;
 	if (amount != RCTL_AMOUNT_UNDEFINED &&
-	    racct_is_in_thousands(rule->rr_resource))
-		amount /= 1000;
+	    RACCT_IS_IN_MILLIONS(rule->rr_resource))
+		amount /= 1000000;
 
 	sbuf_printf(sb, "%s:%s=%jd",
 	    rctl_resource_name(rule->rr_resource),
@@ -1219,10 +1219,10 @@ rctl_racct_to_sbuf(struct racct *racct, int sloppy)
 
 	sb = sbuf_new_auto();
 	for (i = 0; i <= RACCT_MAX; i++) {
-		if (sloppy == 0 && racct_is_sloppy(i))
+		if (sloppy == 0 && RACCT_IS_SLOPPY(i))
 			continue;
 		amount = racct->r_resources[i];
-		if (racct_is_in_thousands(i))
+		if (RACCT_IS_IN_MILLIONS(i))
 			amount /= 1000;
 		sbuf_printf(sb, "%s=%jd,", rctl_resource_name(i), amount);
 	}

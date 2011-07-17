@@ -1,5 +1,5 @@
 <!--
- - Copyright (C) 2004-2010 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2011 Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003 Internet Software Consortium.
  - 
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -14,7 +14,7 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: man.named-checkconf.html,v 1.92.14.22 2010-08-20 02:05:39 tbox Exp $ -->
+<!-- $Id: man.named-checkconf.html,v 1.174.8.1.2.1 2011-06-09 03:41:10 tbox Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
@@ -47,17 +47,30 @@
 </div>
 <div class="refsynopsisdiv">
 <h2>Synopsis</h2>
-<div class="cmdsynopsis"><p><code class="command">named-checkconf</code>  [<code class="option">-h</code>] [<code class="option">-v</code>] [<code class="option">-j</code>] [<code class="option">-t <em class="replaceable"><code>directory</code></em></code>] {filename} [<code class="option">-z</code>]</p></div>
+<div class="cmdsynopsis"><p><code class="command">named-checkconf</code>  [<code class="option">-h</code>] [<code class="option">-v</code>] [<code class="option">-j</code>] [<code class="option">-t <em class="replaceable"><code>directory</code></em></code>] {filename} [<code class="option">-p</code>] [<code class="option">-z</code>]</p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2608468"></a><h2>DESCRIPTION</h2>
+<a name="id2617782"></a><h2>DESCRIPTION</h2>
 <p><span><strong class="command">named-checkconf</strong></span>
-      checks the syntax, but not the semantics, of a named
-      configuration file.
+      checks the syntax, but not the semantics, of a
+      <span><strong class="command">named</strong></span> configuration file.  The file is parsed
+      and checked for syntax errors, along with all files included by it.
+      If no file is specified, <code class="filename">/etc/named.conf</code> is read
+      by default.
+    </p>
+<p>
+      Note: files that <span><strong class="command">named</strong></span> reads in separate
+      parser contexts, such as <code class="filename">rndc.key</code> and
+      <code class="filename">bind.keys</code>, are not automatically read
+      by <span><strong class="command">named-checkconf</strong></span>.  Configuration
+      errors in these files may cause <span><strong class="command">named</strong></span> to
+      fail to run, even if <span><strong class="command">named-checkconf</strong></span> was
+      successful.  <span><strong class="command">named-checkconf</strong></span> can be run
+      on these files explicitly, however.
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2608482"></a><h2>OPTIONS</h2>
+<a name="id2617852"></a><h2>OPTIONS</h2>
 <div class="variablelist"><dl>
 <dt><span class="term">-h</span></dt>
 <dd><p>
@@ -65,8 +78,7 @@
           </p></dd>
 <dt><span class="term">-t <em class="replaceable"><code>directory</code></em></span></dt>
 <dd><p>
-            Chroot to <code class="filename">directory</code> so that
-            include
+            Chroot to <code class="filename">directory</code> so that include
             directives in the configuration file are processed as if
             run by a similarly chrooted named.
           </p></dd>
@@ -74,6 +86,11 @@
 <dd><p>
             Print the version of the <span><strong class="command">named-checkconf</strong></span>
             program and exit.
+          </p></dd>
+<dt><span class="term">-p</span></dt>
+<dd><p>
+	    Print out the <code class="filename">named.conf</code> and included files
+	    in canonical form if no errors were detected.
           </p></dd>
 <dt><span class="term">-z</span></dt>
 <dd><p>
@@ -92,21 +109,21 @@
 </dl></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2608598"></a><h2>RETURN VALUES</h2>
+<a name="id2617987"></a><h2>RETURN VALUES</h2>
 <p><span><strong class="command">named-checkconf</strong></span>
       returns an exit status of 1 if
       errors were detected and 0 otherwise.
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2608885"></a><h2>SEE ALSO</h2>
+<a name="id2618001"></a><h2>SEE ALSO</h2>
 <p><span class="citerefentry"><span class="refentrytitle">named</span>(8)</span>,
       <span class="citerefentry"><span class="refentrytitle">named-checkzone</span>(8)</span>,
       <em class="citetitle">BIND 9 Administrator Reference Manual</em>.
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2608915"></a><h2>AUTHOR</h2>
+<a name="id2618030"></a><h2>AUTHOR</h2>
 <p><span class="corpauthor">Internet Systems Consortium</span>
     </p>
 </div>

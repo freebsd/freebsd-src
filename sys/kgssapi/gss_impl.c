@@ -282,7 +282,11 @@ kgssapi_modevent(module_t mod, int type, void *data)
 		    rpc_gss_svc_max_data_length;
 		break;
 	case MOD_UNLOAD:
-		/* Unloading of the kgssapi module isn't supported. */
+		/*
+		 * Unloading of the kgssapi module is not currently supported.
+		 * If somebody wants this, we would need to keep track of
+		 * currently executing threads and make sure the count is 0.
+		 */
 		/* FALLTHROUGH */
 	default:
 		error = EOPNOTSUPP;

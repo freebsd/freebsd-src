@@ -43,7 +43,7 @@ static const struct {
 		.changes_size = true,
 	},
 #endif
-#ifdef HAVE_DECODER_LZMA2
+#if defined(HAVE_ENCODER_LZMA2) || defined(HAVE_DECODER_LZMA2)
 	{
 		.id = LZMA_FILTER_LZMA2,
 		.options_size = sizeof(lzma_options_lzma),
@@ -52,7 +52,7 @@ static const struct {
 		.changes_size = true,
 	},
 #endif
-#ifdef HAVE_DECODER_X86
+#if defined(HAVE_ENCODER_X86) || defined(HAVE_DECODER_X86)
 	{
 		.id = LZMA_FILTER_X86,
 		.options_size = sizeof(lzma_options_bcj),
@@ -70,7 +70,7 @@ static const struct {
 		.changes_size = false,
 	},
 #endif
-#ifdef HAVE_DECODER_IA64
+#if defined(HAVE_ENCODER_IA64) || defined(HAVE_DECODER_IA64)
 	{
 		.id = LZMA_FILTER_IA64,
 		.options_size = sizeof(lzma_options_bcj),

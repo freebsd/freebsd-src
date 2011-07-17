@@ -1450,6 +1450,8 @@ sctty_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
 
     case GIO_KEYMAP:		/* get keyboard translation table */
     case PIO_KEYMAP:		/* set keyboard translation table */
+    case OGIO_KEYMAP:		/* get keyboard translation table (compat) */
+    case OPIO_KEYMAP:		/* set keyboard translation table (compat) */
     case GIO_DEADKEYMAP:	/* get accent key translation table */
     case PIO_DEADKEYMAP:	/* set accent key translation table */
     case GETFKEY:		/* get function key string */

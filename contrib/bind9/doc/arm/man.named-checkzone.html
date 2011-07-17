@@ -1,5 +1,5 @@
 <!--
- - Copyright (C) 2004-2010 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2011 Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003 Internet Software Consortium.
  - 
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -14,7 +14,7 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: man.named-checkzone.html,v 1.98.14.22 2010-08-20 02:05:37 tbox Exp $ -->
+<!-- $Id: man.named-checkzone.html,v 1.183.8.1.2.1 2011-06-09 03:41:10 tbox Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
@@ -47,11 +47,11 @@
 </div>
 <div class="refsynopsisdiv">
 <h2>Synopsis</h2>
-<div class="cmdsynopsis"><p><code class="command">named-checkzone</code>  [<code class="option">-d</code>] [<code class="option">-h</code>] [<code class="option">-j</code>] [<code class="option">-q</code>] [<code class="option">-v</code>] [<code class="option">-c <em class="replaceable"><code>class</code></em></code>] [<code class="option">-f <em class="replaceable"><code>format</code></em></code>] [<code class="option">-F <em class="replaceable"><code>format</code></em></code>] [<code class="option">-i <em class="replaceable"><code>mode</code></em></code>] [<code class="option">-k <em class="replaceable"><code>mode</code></em></code>] [<code class="option">-m <em class="replaceable"><code>mode</code></em></code>] [<code class="option">-M <em class="replaceable"><code>mode</code></em></code>] [<code class="option">-n <em class="replaceable"><code>mode</code></em></code>] [<code class="option">-s <em class="replaceable"><code>style</code></em></code>] [<code class="option">-S <em class="replaceable"><code>mode</code></em></code>] [<code class="option">-t <em class="replaceable"><code>directory</code></em></code>] [<code class="option">-w <em class="replaceable"><code>directory</code></em></code>] [<code class="option">-D</code>] [<code class="option">-W <em class="replaceable"><code>mode</code></em></code>] {zonename} {filename}</p></div>
-<div class="cmdsynopsis"><p><code class="command">named-compilezone</code>  [<code class="option">-d</code>] [<code class="option">-j</code>] [<code class="option">-q</code>] [<code class="option">-v</code>] [<code class="option">-c <em class="replaceable"><code>class</code></em></code>] [<code class="option">-C <em class="replaceable"><code>mode</code></em></code>] [<code class="option">-f <em class="replaceable"><code>format</code></em></code>] [<code class="option">-F <em class="replaceable"><code>format</code></em></code>] [<code class="option">-i <em class="replaceable"><code>mode</code></em></code>] [<code class="option">-k <em class="replaceable"><code>mode</code></em></code>] [<code class="option">-m <em class="replaceable"><code>mode</code></em></code>] [<code class="option">-n <em class="replaceable"><code>mode</code></em></code>] [<code class="option">-o <em class="replaceable"><code>filename</code></em></code>] [<code class="option">-s <em class="replaceable"><code>style</code></em></code>] [<code class="option">-t <em class="replaceable"><code>directory</code></em></code>] [<code class="option">-w <em class="replaceable"><code>directory</code></em></code>] [<code class="option">-D</code>] [<code class="option">-W <em class="replaceable"><code>mode</code></em></code>] {<code class="option">-o <em class="replaceable"><code>filename</code></em></code>} {zonename} {filename}</p></div>
+<div class="cmdsynopsis"><p><code class="command">named-checkzone</code>  [<code class="option">-d</code>] [<code class="option">-h</code>] [<code class="option">-j</code>] [<code class="option">-q</code>] [<code class="option">-v</code>] [<code class="option">-c <em class="replaceable"><code>class</code></em></code>] [<code class="option">-f <em class="replaceable"><code>format</code></em></code>] [<code class="option">-F <em class="replaceable"><code>format</code></em></code>] [<code class="option">-i <em class="replaceable"><code>mode</code></em></code>] [<code class="option">-k <em class="replaceable"><code>mode</code></em></code>] [<code class="option">-m <em class="replaceable"><code>mode</code></em></code>] [<code class="option">-M <em class="replaceable"><code>mode</code></em></code>] [<code class="option">-n <em class="replaceable"><code>mode</code></em></code>] [<code class="option">-o <em class="replaceable"><code>filename</code></em></code>] [<code class="option">-r <em class="replaceable"><code>mode</code></em></code>] [<code class="option">-s <em class="replaceable"><code>style</code></em></code>] [<code class="option">-S <em class="replaceable"><code>mode</code></em></code>] [<code class="option">-t <em class="replaceable"><code>directory</code></em></code>] [<code class="option">-w <em class="replaceable"><code>directory</code></em></code>] [<code class="option">-D</code>] [<code class="option">-W <em class="replaceable"><code>mode</code></em></code>] {zonename} {filename}</p></div>
+<div class="cmdsynopsis"><p><code class="command">named-compilezone</code>  [<code class="option">-d</code>] [<code class="option">-j</code>] [<code class="option">-q</code>] [<code class="option">-v</code>] [<code class="option">-c <em class="replaceable"><code>class</code></em></code>] [<code class="option">-C <em class="replaceable"><code>mode</code></em></code>] [<code class="option">-f <em class="replaceable"><code>format</code></em></code>] [<code class="option">-F <em class="replaceable"><code>format</code></em></code>] [<code class="option">-i <em class="replaceable"><code>mode</code></em></code>] [<code class="option">-k <em class="replaceable"><code>mode</code></em></code>] [<code class="option">-m <em class="replaceable"><code>mode</code></em></code>] [<code class="option">-n <em class="replaceable"><code>mode</code></em></code>] [<code class="option">-r <em class="replaceable"><code>mode</code></em></code>] [<code class="option">-s <em class="replaceable"><code>style</code></em></code>] [<code class="option">-t <em class="replaceable"><code>directory</code></em></code>] [<code class="option">-w <em class="replaceable"><code>directory</code></em></code>] [<code class="option">-D</code>] [<code class="option">-W <em class="replaceable"><code>mode</code></em></code>] {<code class="option">-o <em class="replaceable"><code>filename</code></em></code>} {zonename} {filename}</p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2609661"></a><h2>DESCRIPTION</h2>
+<a name="id2619464"></a><h2>DESCRIPTION</h2>
 <p><span><strong class="command">named-checkzone</strong></span>
       checks the syntax and integrity of a zone file.  It performs the
       same checks as <span><strong class="command">named</strong></span> does when loading a
@@ -71,7 +71,7 @@
      </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2609712"></a><h2>OPTIONS</h2>
+<a name="id2619514"></a><h2>OPTIONS</h2>
 <div class="variablelist"><dl>
 <dt><span class="term">-d</span></dt>
 <dd><p>
@@ -195,6 +195,14 @@
 	    write to standard out.
 	    This is mandatory for <span><strong class="command">named-compilezone</strong></span>.
           </p></dd>
+<dt><span class="term">-r <em class="replaceable"><code>mode</code></em></span></dt>
+<dd><p>
+            Check for records that are treated as different by DNSSEC but
+	    are semantically equal in plain DNS.  
+            Possible modes are <span><strong class="command">"fail"</strong></span>,
+            <span><strong class="command">"warn"</strong></span> (default) and
+            <span><strong class="command">"ignore"</strong></span>.
+	  </p></dd>
 <dt><span class="term">-s <em class="replaceable"><code>style</code></em></span></dt>
 <dd><p>
 	    Specify the style of the dumped zone file.
@@ -257,14 +265,14 @@
 </dl></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2660557"></a><h2>RETURN VALUES</h2>
+<a name="id2672646"></a><h2>RETURN VALUES</h2>
 <p><span><strong class="command">named-checkzone</strong></span>
       returns an exit status of 1 if
       errors were detected and 0 otherwise.
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2660571"></a><h2>SEE ALSO</h2>
+<a name="id2672660"></a><h2>SEE ALSO</h2>
 <p><span class="citerefentry"><span class="refentrytitle">named</span>(8)</span>,
       <span class="citerefentry"><span class="refentrytitle">named-checkconf</span>(8)</span>,
       <em class="citetitle">RFC 1035</em>,
@@ -272,7 +280,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2660604"></a><h2>AUTHOR</h2>
+<a name="id2672693"></a><h2>AUTHOR</h2>
 <p><span class="corpauthor">Internet Systems Consortium</span>
     </p>
 </div>
