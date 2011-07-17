@@ -57,7 +57,8 @@ static int p31b_sysctl_proc(SYSCTL_HANDLER_ARGS);
 SYSCTL_DECL(_p1003_1b);
 
 #define P1B_SYSCTL(num, name)  \
-	SYSCTL_INT(_p1003_1b, num, name, CTLFLAG_RD, facility + num - 1, 0, "");
+	SYSCTL_INT(_p1003_1b, num, name, CTLFLAG_RD | CTLFLAG_CAPRD, \
+	facility + num - 1, 0, "");
 #define P1B_SYSCTL_RW(num, name)  \
 	SYSCTL_PROC(_p1003_1b, num, name, CTLTYPE_INT | CTLFLAG_RW, NULL, num, \
 	    p31b_sysctl_proc, "I", "");
@@ -67,7 +68,7 @@ SYSCTL_DECL(_p1003_1b);
 SYSCTL_DECL(_kern_p1003_1b);
 
 #define P1B_SYSCTL(num, name)  \
-	SYSCTL_INT(_kern_p1003_1b, OID_AUTO, name, CTLFLAG_RD, \
+	SYSCTL_INT(_kern_p1003_1b, OID_AUTO, name, CTLFLAG_RD | CTLFLAG_CAPRD, \
 	    facility + num - 1, 0, "");
 #define P1B_SYSCTL_RW(num, name)  \
 	SYSCTL_PROC(_p1003_1b, OID_AUTO, name, CTLTYPE_INT | CTLFLAG_RW, NULL, \

@@ -57,7 +57,7 @@ __FBSDID("$FreeBSD$");
 
 SYSCTL_NODE(, 0,	  sysctl, CTLFLAG_RW, 0,
 	"Sysctl internal magic");
-SYSCTL_NODE(, CTL_KERN,	  kern,   CTLFLAG_RW, 0,
+SYSCTL_NODE(, CTL_KERN,	  kern,   CTLFLAG_RW|CTLFLAG_CAPRD, 0,
 	"High kernel, proc, limits &c");
 SYSCTL_NODE(, CTL_VM,	  vm,     CTLFLAG_RW, 0,
 	"Virtual memory");
@@ -90,23 +90,23 @@ SYSCTL_NODE(, OID_AUTO, regression, CTLFLAG_RW, 0,
 SYSCTL_STRING(_kern, OID_AUTO, ident, CTLFLAG_RD|CTLFLAG_MPSAFE,
     kern_ident, 0, "Kernel identifier");
 
-SYSCTL_STRING(_kern, KERN_OSRELEASE, osrelease, CTLFLAG_RD|CTLFLAG_MPSAFE,
-    osrelease, 0, "Operating system release");
+SYSCTL_STRING(_kern, KERN_OSRELEASE, osrelease, CTLFLAG_RD|CTLFLAG_MPSAFE|
+    CTLFLAG_CAPRD, osrelease, 0, "Operating system release");
 
-SYSCTL_INT(_kern, KERN_OSREV, osrevision, CTLFLAG_RD,
+SYSCTL_INT(_kern, KERN_OSREV, osrevision, CTLFLAG_RD|CTLFLAG_CAPRD,
     0, BSD, "Operating system revision");
 
 SYSCTL_STRING(_kern, KERN_VERSION, version, CTLFLAG_RD|CTLFLAG_MPSAFE,
     version, 0, "Kernel version");
 
-SYSCTL_STRING(_kern, KERN_OSTYPE, ostype, CTLFLAG_RD|CTLFLAG_MPSAFE,
-    ostype, 0, "Operating system type");
+SYSCTL_STRING(_kern, KERN_OSTYPE, ostype, CTLFLAG_RD|CTLFLAG_MPSAFE|
+    CTLFLAG_CAPRD, ostype, 0, "Operating system type");
 
 /*
  * NOTICE: The *userland* release date is available in
  * /usr/include/osreldate.h
  */
-SYSCTL_INT(_kern, KERN_OSRELDATE, osreldate, CTLFLAG_RD,
+SYSCTL_INT(_kern, KERN_OSRELDATE, osreldate, CTLFLAG_RD|CTLFLAG_CAPRD,
     &osreldate, 0, "Kernel release date");
 
 SYSCTL_INT(_kern, KERN_MAXPROC, maxproc, CTLFLAG_RDTUN,
@@ -118,24 +118,24 @@ SYSCTL_INT(_kern, KERN_MAXPROCPERUID, maxprocperuid, CTLFLAG_RW,
 SYSCTL_INT(_kern, OID_AUTO, maxusers, CTLFLAG_RDTUN,
     &maxusers, 0, "Hint for kernel tuning");
 
-SYSCTL_INT(_kern, KERN_ARGMAX, argmax, CTLFLAG_RD,
+SYSCTL_INT(_kern, KERN_ARGMAX, argmax, CTLFLAG_RD|CTLFLAG_CAPRD,
     0, ARG_MAX, "Maximum bytes of argument to execve(2)");
 
-SYSCTL_INT(_kern, KERN_POSIX1, posix1version, CTLFLAG_RD,
+SYSCTL_INT(_kern, KERN_POSIX1, posix1version, CTLFLAG_RD|CTLFLAG_CAPRD,
     0, _POSIX_VERSION, "Version of POSIX attempting to comply to");
 
-SYSCTL_INT(_kern, KERN_NGROUPS, ngroups, CTLFLAG_RDTUN,
+SYSCTL_INT(_kern, KERN_NGROUPS, ngroups, CTLFLAG_RDTUN|CTLFLAG_CAPRD,
     &ngroups_max, 0,
     "Maximum number of supplemental groups a user can belong to");
 
-SYSCTL_INT(_kern, KERN_JOB_CONTROL, job_control, CTLFLAG_RD,
+SYSCTL_INT(_kern, KERN_JOB_CONTROL, job_control, CTLFLAG_RD|CTLFLAG_CAPRD,
     0, 1, "Whether job control is available");
 
 #ifdef _POSIX_SAVED_IDS
-SYSCTL_INT(_kern, KERN_SAVED_IDS, saved_ids, CTLFLAG_RD,
+SYSCTL_INT(_kern, KERN_SAVED_IDS, saved_ids, CTLFLAG_RD|CTLFLAG_CAPRD,
     0, 1, "Whether saved set-group/user ID is available");
 #else
-SYSCTL_INT(_kern, KERN_SAVED_IDS, saved_ids, CTLFLAG_RD,
+SYSCTL_INT(_kern, KERN_SAVED_IDS, saved_ids, CTLFLAG_RD|CTLFLAG_CAPRD,
     0, 0, "Whether saved set-group/user ID is available");
 #endif
 
@@ -144,13 +144,13 @@ char kernelname[MAXPATHLEN] = "/kernel";	/* XXX bloat */
 SYSCTL_STRING(_kern, KERN_BOOTFILE, bootfile, CTLFLAG_RW,
     kernelname, sizeof kernelname, "Name of kernel file booted");
 
-SYSCTL_INT(_hw, HW_NCPU, ncpu, CTLFLAG_RD,
+SYSCTL_INT(_hw, HW_NCPU, ncpu, CTLFLAG_RD|CTLFLAG_CAPRD,
     &mp_ncpus, 0, "Number of active CPUs");
 
-SYSCTL_INT(_hw, HW_BYTEORDER, byteorder, CTLFLAG_RD,
+SYSCTL_INT(_hw, HW_BYTEORDER, byteorder, CTLFLAG_RD|CTLFLAG_CAPRD,
     0, BYTE_ORDER, "System byte order");
 
-SYSCTL_INT(_hw, HW_PAGESIZE, pagesize, CTLFLAG_RD,
+SYSCTL_INT(_hw, HW_PAGESIZE, pagesize, CTLFLAG_RD|CTLFLAG_CAPRD,
     0, PAGE_SIZE, "System memory page size");
 
 static int
@@ -167,7 +167,7 @@ sysctl_kern_arnd(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_kern, KERN_ARND, arandom,
-    CTLTYPE_OPAQUE | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
+    CTLTYPE_OPAQUE | CTLFLAG_RD | CTLFLAG_MPSAFE | CTLFLAG_CAPRD, NULL, 0,
     sysctl_kern_arnd, "", "arc4rand");
 
 static int
@@ -448,6 +448,8 @@ FEATURE(compat_freebsd7, "Compatible with FreeBSD 7");
  * This is really cheating.  These actually live in the libc, something
  * which I'm not quite sure is a good idea anyway, but in order for
  * getnext and friends to actually work, we define dummies here.
+ *
+ * XXXRW: These probably should be CTLFLAG_CAPRD.
  */
 SYSCTL_STRING(_user, USER_CS_PATH, cs_path, CTLFLAG_RD,
     "", 0, "PATH that finds all the standard utilities");
