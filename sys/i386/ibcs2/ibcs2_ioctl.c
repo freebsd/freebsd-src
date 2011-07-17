@@ -654,12 +654,12 @@ ibcs2_ioctl(td, uap)
 		break;
 
 	case IBCS2_GIO_KEYMAP:      /* Get keyboard map table */
-	        uap->cmd = GIO_KEYMAP;
+	        uap->cmd = OGIO_KEYMAP;
 	        error = ioctl(td, (struct ioctl_args *)uap);
 		break;
 
 	case IBCS2_PIO_KEYMAP:      /* Set keyboard map table */
-	        uap->cmd = PIO_KEYMAP;
+	        uap->cmd = OPIO_KEYMAP;
 	        error = ioctl(td, (struct ioctl_args *)uap);
 		break;
 
