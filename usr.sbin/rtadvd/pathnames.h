@@ -2,6 +2,5 @@
 /* 	$FreeBSD$	*/
 
 #define	_PATH_RTADVDCONF "/etc/rtadvd.conf"
-#define	_PATH_RTADVDDUMP "/var/run/rtadvd.dump"
 #define	_PATH_RTADVDPID "/var/run/rtadvd.pid"
-
+#define	_PATH_CTRL_SOCK	"/var/run/rtadvd.sock"

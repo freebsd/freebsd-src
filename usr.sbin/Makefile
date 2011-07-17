@@ -178,6 +178,7 @@ SUBDIR+=	ndp
 SUBDIR+=	rip6query
 SUBDIR+=	route6d
 SUBDIR+=	rrenumd
+SUBDIR+=	rtadvctl
 SUBDIR+=	rtadvd
 SUBDIR+=	rtsold
 SUBDIR+=	traceroute6
