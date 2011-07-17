@@ -63,11 +63,11 @@ options 	NO_SWAPPING
 
 #Debugging options
 options 	KTRACE			# ktrace(1) support
-options 	DDB
-options 	KDB
-options 	GDB
-options 	BREAK_TO_DEBUGGER
-options 	ALT_BREAK_TO_DEBUGGER
+#options 	DDB
+#options 	KDB
+#options 	GDB
+#options 	BREAK_TO_DEBUGGER
+#options 	ALT_BREAK_TO_DEBUGGER
 #options 	DEADLKRES		#Enable the deadlock resolver
 #options 	INVARIANTS		#Enable calls of extra sanity checking
 #options 	INVARIANT_SUPPORT	#Extra sanity checks of internal structures, required by INVARIANTS
