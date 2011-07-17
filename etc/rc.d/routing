@@ -48,7 +48,6 @@ routing_start()
 		done
 		;;
 	esac
-	[ -n "${_ropts_initdone}" ] && echo '.'
 }
 
 routing_stop()
@@ -250,19 +249,19 @@ static_ipx()
 {
 }
 
-_ropts_initdone=
 ropts_init()
 {
 	if [ -z "${_ropts_initdone}" ]; then
-		echo -n 'Additional routing options:'
+		echo -n "Additional $1 routing options:"
 		_ropts_initdone=yes
 	fi
 }
 
 options_inet()
 {
+	_ropts_initdone=
 	if checkyesno icmp_bmcastecho; then
-		ropts_init
+		ropts_init inet
 		echo -n ' broadcast ping responses=YES'
 		${SYSCTL} net.inet.icmp.bmcastecho=1 > /dev/null
 	else
@@ -270,7 +269,7 @@ options_inet()
 	fi
 
 	if checkyesno icmp_drop_redirect; then
-		ropts_init
+		ropts_init inet
 		echo -n ' ignore ICMP redirect=YES'
 		${SYSCTL} net.inet.icmp.drop_redirect=1 > /dev/null
 	else
@@ -278,7 +277,7 @@ options_inet()
 	fi
 
 	if checkyesno icmp_log_redirect; then
-		ropts_init
+		ropts_init inet
 		echo -n ' log ICMP redirect=YES'
 		${SYSCTL} net.inet.icmp.log_redirect=1 > /dev/null
 	else
@@ -286,15 +285,15 @@ options_inet()
 	fi
 
 	if checkyesno gateway_enable; then
-		ropts_init
-		echo ' IPv4 gateway=YES'
+		ropts_init inet
+		echo -n ' gateway=YES'
 		${SYSCTL} net.inet.ip.forwarding=1 > /dev/null
 	else
 		${SYSCTL} net.inet.ip.forwarding=0 > /dev/null
 	fi
 
 	if checkyesno forward_sourceroute; then
-		ropts_init
+		ropts_init inet
 		echo -n ' do source routing=YES'
 		${SYSCTL} net.inet.ip.sourceroute=1 > /dev/null
 	else
@@ -302,7 +301,7 @@ options_inet()
 	fi
 
 	if checkyesno accept_sourceroute; then
-		ropts_init
+		ropts_init inet
 		echo -n ' accept source routing=YES'
 		${SYSCTL} net.inet.ip.accept_sourceroute=1 > /dev/null
 	else
@@ -310,38 +309,51 @@ options_inet()
 	fi
 
 	if checkyesno arpproxy_all; then
-		ropts_init
+		ropts_init inet
 		echo -n ' ARP proxyall=YES'
 		${SYSCTL} net.link.ether.inet.proxyall=1 > /dev/null
 	else
 		${SYSCTL} net.link.ether.inet.proxyall=0 > /dev/null
 	fi
+
+	[ -n "${_ropts_initdone}" ] && echo '.'
 }
 
 options_inet6()
 {
+	_ropts_initdone=
+
 	if checkyesno ipv6_gateway_enable; then
-		ropts_init
-		echo ' IPv6 gateway=YES'
+		ropts_init inet6
+		echo -n ' gateway=YES'
 		${SYSCTL} net.inet6.ip6.forwarding=1 > /dev/null
 	else
 		${SYSCTL} net.inet6.ip6.forwarding=0 > /dev/null
 	fi
+
+	[ -n "${_ropts_initdone}" ] && echo '.'
 }
 
 options_atm()
 {
+	_ropts_initdone=
+
+	[ -n "${_ropts_initdone}" ] && echo '.'
 }
 
 options_ipx()
 {
+	_ropts_initdone=
+
 	if checkyesno ipxgateway_enable; then
-		ropts_init
-		echo -n ' IPX gateway=YES'
+		ropts_init ipx
+		echo -n ' gateway=YES'
 		${SYSCTL} net.ipx.ipx.ipxforwarding=1 > /dev/null
 	else
 		${SYSCTL} net.ipx.ipx.ipxforwarding=0 > /dev/null
 	fi
+
+	[ -n "${_ropts_initdone}" ] && echo '.'
 }
 
 load_rc_config $name
