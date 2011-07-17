@@ -7,7 +7,7 @@ CPIO_SRCDIR=${.CURDIR}/..
 CPIO_SRCS= cmdline.c
 
 .PATH:	${.CURDIR}/../../../lib/libarchive/libarchive_fe
-TAR_SRCS= err.c pathmatch.c
+CPIO_SRCS+= err.c pathmatch.c
 
 TESTS=	\
 	test_0.c				\
@@ -40,7 +40,6 @@ TESTS=	\
 # Build the test program
 SRCS= list.h					\
 	${CPIO_SRCS}				\
-	${TAR_SRCS}				\
 	${TESTS}				\
 	main.c
 
