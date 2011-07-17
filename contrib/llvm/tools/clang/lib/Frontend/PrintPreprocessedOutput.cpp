@@ -26,6 +26,7 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Config/config.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/ErrorHandling.h"
 #include <cstdio>
 using namespace clang;
 
@@ -122,6 +123,12 @@ public:
   virtual void PragmaComment(SourceLocation Loc, const IdentifierInfo *Kind,
                              const std::string &Str);
   virtual void PragmaMessage(SourceLocation Loc, llvm::StringRef Str);
+  virtual void PragmaDiagnosticPush(SourceLocation Loc,
+                                    llvm::StringRef Namespace);
+  virtual void PragmaDiagnosticPop(SourceLocation Loc,
+                                   llvm::StringRef Namespace);
+  virtual void PragmaDiagnostic(SourceLocation Loc, llvm::StringRef Namespace,
+                                diag::Mapping Map, llvm::StringRef Str);
 
   bool HandleFirstTokOnLine(Token &Tok);
   bool MoveToLine(SourceLocation Loc) {
@@ -189,7 +196,7 @@ bool PrintPPOutputPPCallbacks::MoveToLine(unsigned LineNo) {
     if (LineNo-CurLine == 1)
       OS << '\n';
     else if (LineNo == CurLine)
-      return false;    // Spelling line moved, but instantiation line didn't.
+      return false;    // Spelling line moved, but expansion line didn't.
     else {
       const char *NewLines = "\n\n\n\n\n\n\n\n";
       OS.write(NewLines, LineNo-CurLine);
@@ -361,12 +368,49 @@ void PrintPPOutputPPCallbacks::PragmaMessage(SourceLocation Loc,
   EmittedTokensOnThisLine = true;
 }
 
+void PrintPPOutputPPCallbacks::
+PragmaDiagnosticPush(SourceLocation Loc, llvm::StringRef Namespace) {
+  MoveToLine(Loc);
+  OS << "#pragma " << Namespace << " diagnostic push";
+  EmittedTokensOnThisLine = true;
+}
+
+void PrintPPOutputPPCallbacks::
+PragmaDiagnosticPop(SourceLocation Loc, llvm::StringRef Namespace) {
+  MoveToLine(Loc);
+  OS << "#pragma " << Namespace << " diagnostic pop";
+  EmittedTokensOnThisLine = true;
+}
+
+void PrintPPOutputPPCallbacks::
+PragmaDiagnostic(SourceLocation Loc, llvm::StringRef Namespace,
+                 diag::Mapping Map, llvm::StringRef Str) {
+  MoveToLine(Loc);
+  OS << "#pragma " << Namespace << " diagnostic ";
+  switch (Map) {
+  default: llvm_unreachable("unexpected diagnostic kind");
+  case diag::MAP_WARNING:
+    OS << "warning";
+    break;
+  case diag::MAP_ERROR:
+    OS << "error";
+    break;
+  case diag::MAP_IGNORE:
+    OS << "ignored";
+    break;
+  case diag::MAP_FATAL:
+    OS << "fatal";
+    break;
+  }
+  OS << " \"" << Str << '"';
+  EmittedTokensOnThisLine = true;
+}
 
 /// HandleFirstTokOnLine - When emitting a preprocessed file in -E mode, this
 /// is called for the first token on each new line.  If this really is the start
 /// of a new logical line, handle it and return true, otherwise return false.
 /// This may not be the start of a logical line because the "start of line"
-/// marker is set for spelling lines, not instantiation ones.
+/// marker is set for spelling lines, not expansion ones.
 bool PrintPPOutputPPCallbacks::HandleFirstTokOnLine(Token &Tok) {
   // Figure out what line we went to and insert the appropriate number of
   // newline characters.

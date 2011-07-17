@@ -217,10 +217,10 @@ Instruction *InstCombiner::visitCallInst(CallInst &CI) {
         if (GVSrc->isConstant()) {
           Module *M = CI.getParent()->getParent()->getParent();
           Intrinsic::ID MemCpyID = Intrinsic::memcpy;
-          const Type *Tys[3] = { CI.getArgOperand(0)->getType(),
-                                 CI.getArgOperand(1)->getType(),
-                                 CI.getArgOperand(2)->getType() };
-          CI.setCalledFunction(Intrinsic::getDeclaration(M, MemCpyID, Tys, 3));
+          Type *Tys[3] = { CI.getArgOperand(0)->getType(),
+                           CI.getArgOperand(1)->getType(),
+                           CI.getArgOperand(2)->getType() };
+          CI.setCalledFunction(Intrinsic::getDeclaration(M, MemCpyID, Tys));
           Changed = true;
         }
     }
@@ -355,7 +355,9 @@ Instruction *InstCombiner::visitCallInst(CallInst &CI) {
   case Intrinsic::cttz: {
     // If all bits below the first known one are known zero,
     // this value is constant.
-    const IntegerType *IT = cast<IntegerType>(II->getArgOperand(0)->getType());
+    const IntegerType *IT = dyn_cast<IntegerType>(II->getArgOperand(0)->getType());
+    // FIXME: Try to simplify vectors of integers.
+    if (!IT) break;
     uint32_t BitWidth = IT->getBitWidth();
     APInt KnownZero(BitWidth, 0);
     APInt KnownOne(BitWidth, 0);
@@ -372,7 +374,9 @@ Instruction *InstCombiner::visitCallInst(CallInst &CI) {
   case Intrinsic::ctlz: {
     // If all bits above the first known one are known zero,
     // this value is constant.
-    const IntegerType *IT = cast<IntegerType>(II->getArgOperand(0)->getType());
+    const IntegerType *IT = dyn_cast<IntegerType>(II->getArgOperand(0)->getType());
+    // FIXME: Try to simplify vectors of integers.
+    if (!IT) break;
     uint32_t BitWidth = IT->getBitWidth();
     APInt KnownZero(BitWidth, 0);
     APInt KnownOne(BitWidth, 0);
@@ -412,7 +416,8 @@ Instruction *InstCombiner::visitCallInst(CallInst &CI) {
           UndefValue::get(LHS->getType()),
           ConstantInt::getTrue(II->getContext())
         };
-        Constant *Struct = ConstantStruct::get(II->getContext(), V, 2, false);
+        const StructType *ST = cast<StructType>(II->getType());
+        Constant *Struct = ConstantStruct::get(ST, V);
         return InsertValueInst::Create(Struct, Add, 0);
       }
 
@@ -425,7 +430,8 @@ Instruction *InstCombiner::visitCallInst(CallInst &CI) {
           UndefValue::get(LHS->getType()),
           ConstantInt::getFalse(II->getContext())
         };
-        Constant *Struct = ConstantStruct::get(II->getContext(), V, 2, false);
+        const StructType *ST = cast<StructType>(II->getType());
+        Constant *Struct = ConstantStruct::get(ST, V);
         return InsertValueInst::Create(Struct, Add, 0);
       }
     }
@@ -452,7 +458,8 @@ Instruction *InstCombiner::visitCallInst(CallInst &CI) {
           UndefValue::get(II->getArgOperand(0)->getType()),
           ConstantInt::getFalse(II->getContext())
         };
-        Constant *Struct = ConstantStruct::get(II->getContext(), V, 2, false);
+        Constant *Struct =
+          ConstantStruct::get(cast<StructType>(II->getType()), V);
         return InsertValueInst::Create(Struct, II->getArgOperand(0), 0);
       }
     }
@@ -472,7 +479,8 @@ Instruction *InstCombiner::visitCallInst(CallInst &CI) {
           UndefValue::get(II->getArgOperand(0)->getType()),
           ConstantInt::getFalse(II->getContext())
         };
-        Constant *Struct = ConstantStruct::get(II->getContext(), V, 2, false);
+        Constant *Struct = 
+          ConstantStruct::get(cast<StructType>(II->getType()), V);
         return InsertValueInst::Create(Struct, II->getArgOperand(0), 0);
       }
     }
@@ -503,7 +511,7 @@ Instruction *InstCombiner::visitCallInst(CallInst &CI) {
         UndefValue::get(LHS->getType()),
         Builder->getFalse()
       };
-      Constant *Struct = ConstantStruct::get(II->getContext(), V, 2, false);
+      Constant *Struct = ConstantStruct::get(cast<StructType>(II->getType()),V);
       return InsertValueInst::Create(Struct, Mul, 0);
     }
   } // FALL THROUGH
@@ -532,7 +540,8 @@ Instruction *InstCombiner::visitCallInst(CallInst &CI) {
           UndefValue::get(II->getArgOperand(0)->getType()),
           ConstantInt::getFalse(II->getContext())
         };
-        Constant *Struct = ConstantStruct::get(II->getContext(), V, 2, false);
+        Constant *Struct = 
+          ConstantStruct::get(cast<StructType>(II->getType()), V);
         return InsertValueInst::Create(Struct, II->getArgOperand(0), 0);
       }
     }
@@ -1109,13 +1118,13 @@ bool InstCombiner::transformConstExprCastCall(CallSite CS) {
   Instruction *NC;
   if (InvokeInst *II = dyn_cast<InvokeInst>(Caller)) {
     NC = Builder->CreateInvoke(Callee, II->getNormalDest(),
-                               II->getUnwindDest(), Args.begin(), Args.end());
+                               II->getUnwindDest(), Args);
     NC->takeName(II);
     cast<InvokeInst>(NC)->setCallingConv(II->getCallingConv());
     cast<InvokeInst>(NC)->setAttributes(NewCallerPAL);
   } else {
     CallInst *CI = cast<CallInst>(Caller);
-    NC = Builder->CreateCall(Callee, Args.begin(), Args.end());
+    NC = Builder->CreateCall(Callee, Args);
     NC->takeName(CI);
     if (CI->isTailCall())
       cast<CallInst>(NC)->setTailCall();
@@ -1178,7 +1187,7 @@ Instruction *InstCombiner::transformCallThroughTrampoline(CallSite CS) {
   const AttrListPtr &NestAttrs = NestF->getAttributes();
   if (!NestAttrs.isEmpty()) {
     unsigned NestIdx = 1;
-    const Type *NestTy = 0;
+    Type *NestTy = 0;
     Attributes NestAttr = Attribute::None;
 
     // Look for a parameter marked with the 'nest' attribute.
@@ -1240,7 +1249,7 @@ Instruction *InstCombiner::transformCallThroughTrampoline(CallSite CS) {
       // Handle this by synthesizing a new function type, equal to FTy
       // with the chain parameter inserted.
 
-      std::vector<const Type*> NewTypes;
+      std::vector<Type*> NewTypes;
       NewTypes.reserve(FTy->getNumParams()+1);
 
       // Insert the chain's type into the list of parameter types, which may
@@ -1280,11 +1289,11 @@ Instruction *InstCombiner::transformCallThroughTrampoline(CallSite CS) {
       if (InvokeInst *II = dyn_cast<InvokeInst>(Caller)) {
         NewCaller = InvokeInst::Create(NewCallee,
                                        II->getNormalDest(), II->getUnwindDest(),
-                                       NewArgs.begin(), NewArgs.end());
+                                       NewArgs);
         cast<InvokeInst>(NewCaller)->setCallingConv(II->getCallingConv());
         cast<InvokeInst>(NewCaller)->setAttributes(NewPAL);
       } else {
-        NewCaller = CallInst::Create(NewCallee, NewArgs.begin(), NewArgs.end());
+        NewCaller = CallInst::Create(NewCallee, NewArgs);
         if (cast<CallInst>(Caller)->isTailCall())
           cast<CallInst>(NewCaller)->setTailCall();
         cast<CallInst>(NewCaller)->

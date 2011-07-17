@@ -26,13 +26,14 @@
 #include "DAGISelEmitter.h"
 #include "DisassemblerEmitter.h"
 #include "EDEmitter.h"
+#include "Error.h"
 #include "FastISelEmitter.h"
-#include "InstrEnumEmitter.h"
 #include "InstrInfoEmitter.h"
 #include "IntrinsicEmitter.h"
 #include "LLVMCConfigurationEmitter.h"
 #include "NeonEmitter.h"
 #include "OptParserEmitter.h"
+#include "PseudoLoweringEmitter.h"
 #include "Record.h"
 #include "RegisterInfoEmitter.h"
 #include "ARMDecoderEmitter.h"
@@ -53,10 +54,13 @@ using namespace llvm;
 enum ActionType {
   PrintRecords,
   GenEmitter,
-  GenRegisterEnums, GenRegister, GenRegisterHeader,
-  GenInstrEnums, GenInstrs, GenAsmWriter, GenAsmMatcher,
+  GenRegisterInfo,
+  GenInstrInfo,
+  GenAsmWriter,
+  GenAsmMatcher,
   GenARMDecoder,
   GenDisassembler,
+  GenPseudoLowering,
   GenCallingConv,
   GenClangAttrClasses,
   GenClangAttrImpl,
@@ -92,15 +96,9 @@ namespace {
                                "Print all records to stdout (default)"),
                     clEnumValN(GenEmitter, "gen-emitter",
                                "Generate machine code emitter"),
-                    clEnumValN(GenRegisterEnums, "gen-register-enums",
-                               "Generate enum values for registers"),
-                    clEnumValN(GenRegister, "gen-register-desc",
-                               "Generate a register info description"),
-                    clEnumValN(GenRegisterHeader, "gen-register-desc-header",
-                               "Generate a register info description header"),
-                    clEnumValN(GenInstrEnums, "gen-instr-enums",
-                               "Generate enum values for instructions"),
-                    clEnumValN(GenInstrs, "gen-instr-desc",
+                    clEnumValN(GenRegisterInfo, "gen-register-info",
+                               "Generate registers and register classes info"),
+                    clEnumValN(GenInstrInfo, "gen-instr-info",
                                "Generate instruction descriptions"),
                     clEnumValN(GenCallingConv, "gen-callingconv",
                                "Generate calling convention descriptions"),
@@ -110,6 +108,8 @@ namespace {
                                "Generate decoders for ARM/Thumb"),
                     clEnumValN(GenDisassembler, "gen-disassembler",
                                "Generate disassembler"),
+                    clEnumValN(GenPseudoLowering, "gen-pseudo-lowering",
+                               "Generate pseudo instruction lowering"),
                     clEnumValN(GenAsmMatcher, "gen-asm-matcher",
                                "Generate assembly instruction matcher"),
                     clEnumValN(GenDAGISel, "gen-dag-isel",
@@ -194,12 +194,6 @@ namespace {
 }
 
 
-static SourceMgr SrcMgr;
-
-void llvm::PrintError(SMLoc ErrorLoc, const Twine &Msg) {
-  SrcMgr.PrintMessage(ErrorLoc, Msg, "error");
-}
-
 int main(int argc, char **argv) {
   RecordKeeper Records;
 
@@ -266,20 +260,10 @@ int main(int argc, char **argv) {
     case GenEmitter:
       CodeEmitterGen(Records).run(Out.os());
       break;
-
-    case GenRegisterEnums:
-      RegisterInfoEmitter(Records).runEnums(Out.os());
-      break;
-    case GenRegister:
+    case GenRegisterInfo:
       RegisterInfoEmitter(Records).run(Out.os());
       break;
-    case GenRegisterHeader:
-      RegisterInfoEmitter(Records).runHeader(Out.os());
-      break;
-    case GenInstrEnums:
-      InstrEnumEmitter(Records).run(Out.os());
-      break;
-    case GenInstrs:
+    case GenInstrInfo:
       InstrInfoEmitter(Records).run(Out.os());
       break;
     case GenCallingConv:
@@ -333,6 +317,9 @@ int main(int argc, char **argv) {
       break;
     case GenDisassembler:
       DisassemblerEmitter(Records).run(Out.os());
+      break;
+    case GenPseudoLowering:
+      PseudoLoweringEmitter(Records).run(Out.os());
       break;
     case GenOptParserDefs:
       OptParserEmitter(Records, true).run(Out.os());
@@ -403,13 +390,11 @@ int main(int argc, char **argv) {
     return 0;
 
   } catch (const TGError &Error) {
-    errs() << argv[0] << ": error:\n";
-    PrintError(Error.getLoc(), Error.getMessage());
-
+    PrintError(Error);
   } catch (const std::string &Error) {
-    errs() << argv[0] << ": " << Error << "\n";
+    PrintError(Error);
   } catch (const char *Error) {
-    errs() << argv[0] << ": " << Error << "\n";
+    PrintError(Error);
   } catch (...) {
     errs() << argv[0] << ": Unknown unexpected exception occurred.\n";
   }

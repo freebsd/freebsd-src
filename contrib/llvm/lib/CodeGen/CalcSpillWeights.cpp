@@ -188,6 +188,7 @@ void VirtRegAuxInfo::CalculateWeightAndHint(LiveInterval &li) {
 
 void VirtRegAuxInfo::CalculateRegClass(unsigned reg) {
   MachineRegisterInfo &MRI = MF.getRegInfo();
+  const TargetInstrInfo *TII = MF.getTarget().getInstrInfo();
   const TargetRegisterInfo *TRI = MF.getTarget().getRegisterInfo();
   const TargetRegisterClass *OldRC = MRI.getRegClass(reg);
   const TargetRegisterClass *NewRC = TRI->getLargestLegalSuperClass(OldRC);
@@ -202,8 +203,11 @@ void VirtRegAuxInfo::CalculateRegClass(unsigned reg) {
     // TRI doesn't have accurate enough information to model this yet.
     if (I.getOperand().getSubReg())
       return;
+    // Inline asm instuctions don't remember their constraints.
+    if (I->isInlineAsm())
+      return;
     const TargetRegisterClass *OpRC =
-      I->getDesc().getRegClass(I.getOperandNo(), TRI);
+      TII->getRegClass(I->getDesc(), I.getOperandNo(), TRI);
     if (OpRC)
       NewRC = getCommonSubClass(NewRC, OpRC);
     if (!NewRC || NewRC == OldRC)

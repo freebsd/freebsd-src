@@ -86,7 +86,7 @@ namespace {
     // that is currently available in a physical register.
     LiveRegMap LiveVirtRegs;
 
-    DenseMap<unsigned, MachineInstr *> LiveDbgValueMap;
+    DenseMap<unsigned, SmallVector<MachineInstr *, 4> > LiveDbgValueMap;
 
     // RegState - Track the state of a physical register.
     enum RegState {
@@ -118,7 +118,7 @@ namespace {
     // SkippedInstrs - Descriptors of instructions whose clobber list was
     // ignored because all registers were spilled. It is still necessary to
     // mark all the clobbered registers as used by the function.
-    SmallPtrSet<const TargetInstrDesc*, 4> SkippedInstrs;
+    SmallPtrSet<const MCInstrDesc*, 4> SkippedInstrs;
 
     // isBulkSpilling - This flag is set when LiveRegMap will be cleared
     // completely after spilling all live registers. LiveRegMap entries should
@@ -272,7 +272,9 @@ void RAFast::spillVirtReg(MachineBasicBlock::iterator MI,
     // If this register is used by DBG_VALUE then insert new DBG_VALUE to
     // identify spilled location as the place to find corresponding variable's
     // value.
-    if (MachineInstr *DBG = LiveDbgValueMap.lookup(LRI->first)) {
+    SmallVector<MachineInstr *, 4> &LRIDbgValues = LiveDbgValueMap[LRI->first];
+    for (unsigned li = 0, le = LRIDbgValues.size(); li != le; ++li) {
+      MachineInstr *DBG = LRIDbgValues[li];
       const MDNode *MDPtr =
         DBG->getOperand(DBG->getNumOperands()-1).getMetadata();
       int64_t Offset = 0;
@@ -291,9 +293,11 @@ void RAFast::spillVirtReg(MachineBasicBlock::iterator MI,
         MachineBasicBlock *MBB = DBG->getParent();
         MBB->insert(MI, NewDV);
         DEBUG(dbgs() << "Inserting debug info due to spill:" << "\n" << *NewDV);
-        LiveDbgValueMap[LRI->first] = NewDV;
       }
     }
+    // Now this register is spilled there is should not be any DBG_VALUE pointing
+    // to this register because they are all pointing to spilled value now.
+    LRIDbgValues.clear();
     if (SpillKill)
       LR.LastUse = 0; // Don't kill register again
   }
@@ -419,7 +423,7 @@ void RAFast::definePhysReg(MachineInstr *MI, unsigned PhysReg,
 // Returns spillImpossible when PhysReg or an alias can't be spilled.
 unsigned RAFast::calcSpillCost(unsigned PhysReg) const {
   if (UsedInInstr.test(PhysReg)) {
-    DEBUG(dbgs() << "PhysReg: " << PhysReg << " is already used in instr.\n");
+    DEBUG(dbgs() << PrintReg(PhysReg, TRI) << " is already used in instr.\n");
     return spillImpossible;
   }
   switch (unsigned VirtReg = PhysRegState[PhysReg]) {
@@ -428,15 +432,15 @@ unsigned RAFast::calcSpillCost(unsigned PhysReg) const {
   case regFree:
     return 0;
   case regReserved:
-    DEBUG(dbgs() << "VirtReg: " << VirtReg << " corresponding to PhysReg: "
-          << PhysReg << " is reserved already.\n");
+    DEBUG(dbgs() << PrintReg(VirtReg, TRI) << " corresponding "
+                 << PrintReg(PhysReg, TRI) << " is reserved already.\n");
     return spillImpossible;
   default:
     return LiveVirtRegs.lookup(VirtReg).Dirty ? spillDirty : spillClean;
   }
 
   // This is a disabled register, add up cost of aliases.
-  DEBUG(dbgs() << "\tRegister: " << PhysReg << " is disabled.\n");
+  DEBUG(dbgs() << PrintReg(PhysReg, TRI) << " is disabled.\n");
   unsigned Cost = 0;
   for (const unsigned *AS = TRI->getAliasSet(PhysReg);
        unsigned Alias = *AS; ++AS) {
@@ -487,14 +491,12 @@ void RAFast::allocVirtReg(MachineInstr *MI, LiveRegEntry &LRE, unsigned Hint) {
 
   // Take hint when possible.
   if (Hint) {
-    switch(calcSpillCost(Hint)) {
-    default:
-      definePhysReg(MI, Hint, regFree);
-      // Fall through.
-    case 0:
+    // Ignore the hint if we would have to spill a dirty register.
+    unsigned Cost = calcSpillCost(Hint);
+    if (Cost < spillDirty) {
+      if (Cost)
+        definePhysReg(MI, Hint, regFree);
       return assignVirtToPhysReg(LRE, Hint);
-    case spillImpossible:
-      break;
     }
   }
 
@@ -513,7 +515,7 @@ void RAFast::allocVirtReg(MachineInstr *MI, LiveRegEntry &LRE, unsigned Hint) {
   unsigned BestReg = 0, BestCost = spillImpossible;
   for (ArrayRef<unsigned>::iterator I = AO.begin(), E = AO.end(); I != E; ++I) {
     unsigned Cost = calcSpillCost(*I);
-    DEBUG(dbgs() << "\tRegister: " << *I << "\n");
+    DEBUG(dbgs() << "\tRegister: " << PrintReg(*I, TRI) << "\n");
     DEBUG(dbgs() << "\tCost: " << Cost << "\n");
     DEBUG(dbgs() << "\tBestCost: " << BestCost << "\n");
     // Cost is 0 when all aliases are already disabled.
@@ -528,16 +530,10 @@ void RAFast::allocVirtReg(MachineInstr *MI, LiveRegEntry &LRE, unsigned Hint) {
     return assignVirtToPhysReg(LRE, BestReg);
   }
 
-  // Nothing we can do.
-  std::string msg;
-  raw_string_ostream Msg(msg);
-  Msg << "Ran out of registers during register allocation!";
-  if (MI->isInlineAsm()) {
-    Msg << "\nPlease check your inline asm statement for "
-        << "invalid constraints:\n";
-    MI->print(Msg, TM);
-  }
-  report_fatal_error(Msg.str());
+  // Nothing we can do. Report an error and keep going with a bad allocation.
+  MI->emitError("ran out of registers during register allocation");
+  definePhysReg(MI, *AO.begin(), regFree);
+  assignVirtToPhysReg(LRE, *AO.begin());
 }
 
 /// defineVirtReg - Allocate a register for VirtReg and mark it as dirty.
@@ -724,7 +720,8 @@ void RAFast::handleThroughOperands(MachineInstr *MI,
     if (!MO.isReg() || (MO.isDef() && !MO.isEarlyClobber())) continue;
     unsigned Reg = MO.getReg();
     if (!Reg || !TargetRegisterInfo::isPhysicalRegister(Reg)) continue;
-    DEBUG(dbgs() << "\tSetting reg " << Reg << " as used in instr\n");
+    DEBUG(dbgs() << "\tSetting " << PrintReg(Reg, TRI)
+                 << " as used in instr\n");
     UsedInInstr.set(Reg);
   }
 
@@ -774,7 +771,7 @@ void RAFast::AllocateBasicBlock() {
   // Otherwise, sequentially allocate each instruction in the MBB.
   while (MII != MBB->end()) {
     MachineInstr *MI = MII++;
-    const TargetInstrDesc &TID = MI->getDesc();
+    const MCInstrDesc &MCID = MI->getDesc();
     DEBUG({
         dbgs() << "\n>> " << *MI << "Regs:";
         for (unsigned Reg = 1, E = TRI->getNumRegs(); Reg != E; ++Reg) {
@@ -818,7 +815,7 @@ void RAFast::AllocateBasicBlock() {
           if (!MO.isReg()) continue;
           unsigned Reg = MO.getReg();
           if (!TargetRegisterInfo::isVirtualRegister(Reg)) continue;
-          LiveDbgValueMap[Reg] = MI;
+          LiveDbgValueMap[Reg].push_back(MI);
           LiveRegMap::iterator LRI = LiveVirtRegs.find(Reg);
           if (LRI != LiveVirtRegs.end())
             setPhysReg(MI, i, LRI->second.PhysReg);
@@ -887,7 +884,7 @@ void RAFast::AllocateBasicBlock() {
         VirtOpEnd = i+1;
         if (MO.isUse()) {
           hasTiedOps = hasTiedOps ||
-                                TID.getOperandConstraint(i, TOI::TIED_TO) != -1;
+                              MCID.getOperandConstraint(i, MCOI::TIED_TO) != -1;
         } else {
           if (MO.isEarlyClobber())
             hasEarlyClobbers = true;
@@ -917,7 +914,7 @@ void RAFast::AllocateBasicBlock() {
     // We didn't detect inline asm tied operands above, so just make this extra
     // pass for all inline asm.
     if (MI->isInlineAsm() || hasEarlyClobbers || hasPartialRedefs ||
-        (hasTiedOps && (hasPhysDefs || TID.getNumDefs() > 1))) {
+        (hasTiedOps && (hasPhysDefs || MCID.getNumDefs() > 1))) {
       handleThroughOperands(MI, VirtDead);
       // Don't attempt coalescing when we have funny stuff going on.
       CopyDst = 0;
@@ -962,7 +959,7 @@ void RAFast::AllocateBasicBlock() {
     }
 
     unsigned DefOpEnd = MI->getNumOperands();
-    if (TID.isCall()) {
+    if (MCID.isCall()) {
       // Spill all virtregs before a call. This serves two purposes: 1. If an
       // exception is thrown, the landing pad is going to expect to find
       // registers in their spill slots, and 2. we don't have to wade through
@@ -973,7 +970,7 @@ void RAFast::AllocateBasicBlock() {
 
       // The imp-defs are skipped below, but we still need to mark those
       // registers as used by the function.
-      SkippedInstrs.insert(&TID);
+      SkippedInstrs.insert(&MCID);
     }
 
     // Third scan.
@@ -1059,7 +1056,7 @@ bool RAFast::runOnMachineFunction(MachineFunction &Fn) {
   MRI->closePhysRegsUsed(*TRI);
 
   // Add the clobber lists for all the instructions we skipped earlier.
-  for (SmallPtrSet<const TargetInstrDesc*, 4>::const_iterator
+  for (SmallPtrSet<const MCInstrDesc*, 4>::const_iterator
        I = SkippedInstrs.begin(), E = SkippedInstrs.end(); I != E; ++I)
     if (const unsigned *Defs = (*I)->getImplicitDefs())
       while (*Defs)

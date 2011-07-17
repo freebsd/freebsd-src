@@ -19,6 +19,7 @@
 #include "clang/Driver/Driver.h"
 #include "clang/Driver/DriverDiagnostic.h"
 #include "clang/Driver/HostInfo.h"
+#include "clang/Driver/ObjCRuntime.h"
 #include "clang/Driver/OptTable.h"
 #include "clang/Driver/Option.h"
 #include "clang/Driver/Options.h"
@@ -26,6 +27,7 @@
 
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringExtras.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/MemoryBuffer.h"
@@ -34,6 +36,8 @@
 #include "llvm/Support/system_error.h"
 
 #include <cstdlib> // ::getenv
+
+#include "llvm/Config/config.h" // for CXX_INCLUDE_ROOT
 
 #ifndef CLANG_PREFIX
 #define CLANG_PREFIX
@@ -45,7 +49,8 @@ using namespace clang::driver::toolchains;
 /// Darwin - Darwin tool chain for i386 and x86_64.
 
 Darwin::Darwin(const HostInfo &Host, const llvm::Triple& Triple)
-  : ToolChain(Host, Triple), TargetInitialized(false)
+  : ToolChain(Host, Triple), TargetInitialized(false),
+    ARCRuntimeForSimulator(ARCSimulator_None)
 {
   // Compute the initial Darwin version based on the host.
   bool HadExtra;
@@ -72,6 +77,39 @@ types::ID Darwin::LookupTypeForExtension(const char *Ext) const {
 
 bool Darwin::HasNativeLLVMSupport() const {
   return true;
+}
+
+bool Darwin::hasARCRuntime() const {
+  // FIXME: Remove this once there is a proper way to detect an ARC runtime
+  // for the simulator.
+  switch (ARCRuntimeForSimulator) {
+  case ARCSimulator_None:
+    break;
+  case ARCSimulator_HasARCRuntime:
+    return true;
+  case ARCSimulator_NoARCRuntime:
+    return false;
+  }
+
+  if (isTargetIPhoneOS())
+    return !isIPhoneOSVersionLT(5);
+  else
+    return !isMacosxVersionLT(10, 7);
+}
+
+/// Darwin provides an ARC runtime starting in MacOS X 10.7 and iOS 5.0.
+void Darwin::configureObjCRuntime(ObjCRuntime &runtime) const {
+  if (runtime.getKind() != ObjCRuntime::NeXT)
+    return ToolChain::configureObjCRuntime(runtime);
+
+  runtime.HasARC = runtime.HasWeak = hasARCRuntime();
+
+  // So far, objc_terminate is only available in iOS 5.
+  // FIXME: do the simulator logic properly.
+  if (!ARCRuntimeForSimulator && isTargetIPhoneOS())
+    runtime.HasTerminate = !isIPhoneOSVersionLT(5);
+  else
+    runtime.HasTerminate = false;
 }
 
 // FIXME: Can we tablegen this?
@@ -324,6 +362,45 @@ void DarwinClang::AddLinkSearchPathArgs(const ArgList &Args,
     CmdArgs.push_back(Args.MakeArgString("-L" + P.str()));
 }
 
+void DarwinClang::AddLinkARCArgs(const ArgList &Args,
+                                 ArgStringList &CmdArgs) const {
+  
+  CmdArgs.push_back("-force_load");    
+  llvm::sys::Path P(getDriver().ClangExecutable);
+  P.eraseComponent(); // 'clang'
+  P.eraseComponent(); // 'bin'
+  P.appendComponent("lib");
+  P.appendComponent("arc");
+  P.appendComponent("libarclite_");
+  std::string s = P.str();
+  // Mash in the platform.
+  if (isTargetIPhoneOS())
+    s += "iphoneos";
+  // FIXME: isTargetIphoneOSSimulator() is not returning true.
+  else if (ARCRuntimeForSimulator != ARCSimulator_None)
+    s += "iphonesimulator";
+  else
+    s += "macosx";
+  s += ".a";
+
+  CmdArgs.push_back(Args.MakeArgString(s));
+}
+
+void DarwinClang::AddLinkRuntimeLib(const ArgList &Args,
+                                    ArgStringList &CmdArgs, 
+                                    const char *DarwinStaticLib) const {
+  llvm::sys::Path P(getDriver().ResourceDir);
+  P.appendComponent("lib");
+  P.appendComponent("darwin");
+  P.appendComponent(DarwinStaticLib);
+  
+  // For now, allow missing resource libraries to support developers who may
+  // not have compiler-rt checked out or integrated into their build.
+  bool Exists;
+  if (!llvm::sys::fs::exists(P.str(), Exists) && Exists)
+    CmdArgs.push_back(Args.MakeArgString(P.str()));
+}
+
 void DarwinClang::AddLinkRuntimeLibArgs(const ArgList &Args,
                                         ArgStringList &CmdArgs) const {
   // Darwin doesn't support real static executables, don't link any runtime
@@ -345,7 +422,6 @@ void DarwinClang::AddLinkRuntimeLibArgs(const ArgList &Args,
   CmdArgs.push_back("-lSystem");
 
   // Select the dynamic runtime library and the target specific static library.
-  const char *DarwinStaticLib = 0;
   if (isTargetIPhoneOS()) {
     // If we are compiling as iOS / simulator, don't attempt to link libgcc_s.1,
     // it never went into the SDK.
@@ -353,7 +429,7 @@ void DarwinClang::AddLinkRuntimeLibArgs(const ArgList &Args,
         CmdArgs.push_back("-lgcc_s.1");
 
     // We currently always need a static runtime library for iOS.
-    DarwinStaticLib = "libclang_rt.ios.a";
+    AddLinkRuntimeLib(Args, CmdArgs, "libclang_rt.ios.a");
   } else {
     // The dynamic runtime library was merged with libSystem for 10.6 and
     // beyond; only 10.4 and 10.5 need an additional runtime library.
@@ -371,26 +447,42 @@ void DarwinClang::AddLinkRuntimeLibArgs(const ArgList &Args,
     // libSystem. Therefore, we still must provide a runtime library just for
     // the tiny tiny handful of projects that *might* use that symbol.
     if (isMacosxVersionLT(10, 5)) {
-      DarwinStaticLib = "libclang_rt.10.4.a";
+      AddLinkRuntimeLib(Args, CmdArgs, "libclang_rt.10.4.a");
     } else {
       if (getTriple().getArch() == llvm::Triple::x86)
-        DarwinStaticLib = "libclang_rt.eprintf.a";
+        AddLinkRuntimeLib(Args, CmdArgs, "libclang_rt.eprintf.a");
+      AddLinkRuntimeLib(Args, CmdArgs, "libclang_rt.osx.a");
     }
   }
+}
 
-  /// Add the target specific static library, if needed.
-  if (DarwinStaticLib) {
-    llvm::sys::Path P(getDriver().ResourceDir);
-    P.appendComponent("lib");
-    P.appendComponent("darwin");
-    P.appendComponent(DarwinStaticLib);
+static inline llvm::StringRef SimulatorVersionDefineName() {
+  return "__IPHONE_OS_VERSION_MIN_REQUIRED";
+}
 
-    // For now, allow missing resource libraries to support developers who may
-    // not have compiler-rt checked out or integrated into their build.
-    bool Exists;
-    if (!llvm::sys::fs::exists(P.str(), Exists) && Exists)
-      CmdArgs.push_back(Args.MakeArgString(P.str()));
-  }
+/// \brief Parse the simulator version define:
+/// __IPHONE_OS_VERSION_MIN_REQUIRED=([0-9])([0-9][0-9])([0-9][0-9])
+// and return the grouped values as integers, e.g:
+//   __IPHONE_OS_VERSION_MIN_REQUIRED=40201
+// will return Major=4, Minor=2, Micro=1.
+static bool GetVersionFromSimulatorDefine(llvm::StringRef define,
+                                          unsigned &Major, unsigned &Minor,
+                                          unsigned &Micro) {
+  assert(define.startswith(SimulatorVersionDefineName()));
+  llvm::StringRef name, version;
+  llvm::tie(name, version) = define.split('=');
+  if (version.empty())
+    return false;
+  std::string verstr = version.str();
+  char *end;
+  unsigned num = (unsigned) strtol(verstr.c_str(), &end, 10);
+  if (*end != '\0')
+    return false;
+  Major = num / 10000;
+  num = num % 10000;
+  Minor = num / 100;
+  Micro = num % 100;
+  return true;
 }
 
 void Darwin::AddDeploymentTarget(DerivedArgList &Args) const {
@@ -400,6 +492,27 @@ void Darwin::AddDeploymentTarget(DerivedArgList &Args) const {
   Arg *iOSVersion = Args.getLastArg(options::OPT_miphoneos_version_min_EQ);
   Arg *iOSSimVersion = Args.getLastArg(
     options::OPT_mios_simulator_version_min_EQ);
+
+  // FIXME: HACK! When compiling for the simulator we don't get a
+  // '-miphoneos-version-min' to help us know whether there is an ARC runtime
+  // or not; try to parse a __IPHONE_OS_VERSION_MIN_REQUIRED
+  // define passed in command-line.
+  if (!iOSVersion) {
+    for (arg_iterator it = Args.filtered_begin(options::OPT_D),
+           ie = Args.filtered_end(); it != ie; ++it) {
+      llvm::StringRef define = (*it)->getValue(Args);
+      if (define.startswith(SimulatorVersionDefineName())) {
+        unsigned Major, Minor, Micro;
+        if (GetVersionFromSimulatorDefine(define, Major, Minor, Micro) &&
+            Major < 10 && Minor < 100 && Micro < 100) {
+          ARCRuntimeForSimulator = Major < 5 ? ARCSimulator_NoARCRuntime
+                                             : ARCSimulator_HasARCRuntime;
+        }
+        break;
+      }
+    }
+  }
+
   if (OSXVersion && (iOSVersion || iOSSimVersion)) {
     getDriver().Diag(clang::diag::err_drv_argument_not_allowed_with)
           << OSXVersion->getAsString(Args)
@@ -591,8 +704,13 @@ DerivedArgList *Darwin::TranslateArgs(const DerivedArgList &Args,
     Arg *A = *it;
 
     if (A->getOption().matches(options::OPT_Xarch__)) {
+      // Skip this argument unless the architecture matches either the toolchain
+      // triple arch, or the arch being bound.
+      //
       // FIXME: Canonicalize name.
-      if (getArchName() != A->getValue(Args, 0))
+      llvm::StringRef XarchArch = A->getValue(Args, 0);
+      if (!(XarchArch == getArchName()  ||
+            (BoundArch && XarchArch == BoundArch)))
         continue;
 
       Arg *OriginalArg = A;
@@ -1363,7 +1481,7 @@ static std::string findGCCBaseLibDir(const std::string &GccTriple) {
     ret.append(Version);
     return ret;
   }
-  static const char* GccVersions[] = {"4.6.0", "4.6",
+  static const char* GccVersions[] = {"4.6.1", "4.6.0", "4.6",
                                       "4.5.2", "4.5.1", "4.5",
                                       "4.4.5", "4.4.4", "4.4.3", "4.4",
                                       "4.3.4", "4.3.3", "4.3.2", "4.3",
@@ -1425,6 +1543,9 @@ Linux::Linux(const HostInfo &Host, const llvm::Triple &Triple)
     else if (!llvm::sys::fs::exists("/usr/lib/gcc/x86_64-pc-linux-gnu",
              Exists) && Exists)
       GccTriple = "x86_64-pc-linux-gnu";
+    else if (!llvm::sys::fs::exists("/usr/lib/gcc/x86_64-redhat-linux6E",
+             Exists) && Exists)
+      GccTriple = "x86_64-redhat-linux6E";
     else if (!llvm::sys::fs::exists("/usr/lib/gcc/x86_64-redhat-linux",
              Exists) && Exists)
       GccTriple = "x86_64-redhat-linux";

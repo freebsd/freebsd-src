@@ -20,7 +20,7 @@
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/ASTDiagnostic.h"
 #include "clang/Basic/TargetInfo.h"
-#include <cstdio>
+#include "llvm/Support/raw_ostream.h"
 using namespace clang;
 
 static struct StmtClassNameTable {
@@ -54,23 +54,24 @@ void Stmt::PrintStats() {
   getStmtInfoTableEntry(Stmt::NullStmtClass);
 
   unsigned sum = 0;
-  fprintf(stderr, "*** Stmt/Expr Stats:\n");
+  llvm::errs() << "\n*** Stmt/Expr Stats:\n";
   for (int i = 0; i != Stmt::lastStmtConstant+1; i++) {
     if (StmtClassInfo[i].Name == 0) continue;
     sum += StmtClassInfo[i].Counter;
   }
-  fprintf(stderr, "  %d stmts/exprs total.\n", sum);
+  llvm::errs() << "  " << sum << " stmts/exprs total.\n";
   sum = 0;
   for (int i = 0; i != Stmt::lastStmtConstant+1; i++) {
     if (StmtClassInfo[i].Name == 0) continue;
     if (StmtClassInfo[i].Counter == 0) continue;
-    fprintf(stderr, "    %d %s, %d each (%d bytes)\n",
-            StmtClassInfo[i].Counter, StmtClassInfo[i].Name,
-            StmtClassInfo[i].Size,
-            StmtClassInfo[i].Counter*StmtClassInfo[i].Size);
+    llvm::errs() << "    " << StmtClassInfo[i].Counter << " "
+                 << StmtClassInfo[i].Name << ", " << StmtClassInfo[i].Size
+                 << " each (" << StmtClassInfo[i].Counter*StmtClassInfo[i].Size
+                 << " bytes)\n";
     sum += StmtClassInfo[i].Counter*StmtClassInfo[i].Size;
   }
-  fprintf(stderr, "Total bytes = %d\n", sum);
+
+  llvm::errs() << "Total bytes = " << sum << "\n";
 }
 
 void Stmt::addStmtClass(StmtClass s) {
@@ -82,6 +83,18 @@ static bool StatSwitch = false;
 bool Stmt::CollectingStats(bool Enable) {
   if (Enable) StatSwitch = true;
   return StatSwitch;
+}
+
+Stmt *Stmt::IgnoreImplicit() {
+  Stmt *s = this;
+
+  if (ExprWithCleanups *ewc = dyn_cast<ExprWithCleanups>(s))
+    s = ewc->getSubExpr();
+
+  while (ImplicitCastExpr *ice = dyn_cast<ImplicitCastExpr>(s))
+    s = ice->getSubExpr();
+
+  return s;
 }
 
 namespace {
@@ -365,6 +378,10 @@ unsigned AsmStmt::AnalyzeAsmString(llvm::SmallVectorImpl<AsmStringPiece>&Pieces,
     // Handle %x4 and %x[foo] by capturing x as the modifier character.
     char Modifier = '\0';
     if (isalpha(EscapedChar)) {
+      if (CurPtr == StrEnd) { // Premature end.
+        DiagOffs = CurPtr-StrStart-1;
+        return diag::err_asm_invalid_escape;
+      }
       Modifier = EscapedChar;
       EscapedChar = *CurPtr++;
     }

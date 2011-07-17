@@ -16,7 +16,9 @@
 
 #include "ARM.h"
 #include "llvm/Target/TargetRegisterInfo.h"
-#include "ARMGenRegisterInfo.h.inc"
+
+#define GET_REGINFO_HEADER
+#include "ARMGenRegisterInfo.inc"
 
 namespace llvm {
   class ARMSubtarget;
@@ -134,10 +136,9 @@ public:
   unsigned getRegPressureLimit(const TargetRegisterClass *RC,
                                MachineFunction &MF) const;
 
-  std::pair<TargetRegisterClass::iterator,TargetRegisterClass::iterator>
-  getAllocationOrder(const TargetRegisterClass *RC,
-                     unsigned HintType, unsigned HintReg,
-                     const MachineFunction &MF) const;
+  ArrayRef<unsigned> getRawAllocationOrder(const TargetRegisterClass *RC,
+                                           unsigned HintType, unsigned HintReg,
+                                           const MachineFunction &MF) const;
 
   unsigned ResolveRegAllocHint(unsigned Type, unsigned Reg,
                                const MachineFunction &MF) const;

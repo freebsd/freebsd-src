@@ -151,6 +151,9 @@ void CodeGenFunction::EmitStmt(const Stmt *S) {
   case Stmt::ObjCForCollectionStmtClass:
     EmitObjCForCollectionStmt(cast<ObjCForCollectionStmt>(*S));
     break;
+  case Stmt::ObjCAutoreleasePoolStmtClass:
+    EmitObjCAutoreleasePoolStmt(cast<ObjCAutoreleasePoolStmt>(*S));
+    break;
       
   case Stmt::CXXTryStmtClass:
     EmitCXXTryStmt(cast<CXXTryStmt>(*S));
@@ -764,7 +767,7 @@ void CodeGenFunction::EmitReturnStmt(const ReturnStmt &S) {
   } else if (RV->getType()->isAnyComplexType()) {
     EmitComplexExprIntoAddr(RV, ReturnValue, false);
   } else {
-    EmitAggExpr(RV, AggValueSlot::forAddr(ReturnValue, false, true));
+    EmitAggExpr(RV, AggValueSlot::forAddr(ReturnValue, Qualifiers(), true));
   }
 
   EmitBranchThroughCleanup(ReturnBlock);
@@ -1275,11 +1278,16 @@ AddVariableConstraints(const std::string &Constraint, const Expr &AsmExpr,
     return Constraint;
   llvm::StringRef Register = Attr->getLabel();
   assert(Target.isValidGCCRegisterName(Register));
-  // FIXME: We should check which registers are compatible with "r" or "x".
-  if (Constraint != "r" && Constraint != "x") {
+  // We're using validateOutputConstraint here because we only care if
+  // this is a register constraint.
+  TargetInfo::ConstraintInfo Info(Constraint, "");
+  if (Target.validateOutputConstraint(Info) &&
+      !Info.allowsRegister()) {
     CGM.ErrorUnsupported(&Stmt, "__asm__");
     return Constraint;
   }
+  // Canonicalize the register here before returning it.
+  Register = Target.getNormalizedGCCRegisterName(Register);
   return "{" + Register.str() + "}";
 }
 
@@ -1291,7 +1299,7 @@ CodeGenFunction::EmitAsmInputLValue(const AsmStmt &S,
   llvm::Value *Arg;
   if (Info.allowsRegister() || !Info.allowsMemory()) {
     if (!CodeGenFunction::hasAggregateLLVMType(InputType)) {
-      Arg = EmitLoadOfLValue(InputValue, InputType).getScalarVal();
+      Arg = EmitLoadOfLValue(InputValue).getScalarVal();
     } else {
       const llvm::Type *Ty = ConvertType(InputType);
       uint64_t Size = CGM.getTargetData().getTypeSizeInBits(Ty);
@@ -1400,15 +1408,15 @@ void CodeGenFunction::EmitAsmStmt(const AsmStmt &S) {
 
   std::vector<LValue> ResultRegDests;
   std::vector<QualType> ResultRegQualTys;
-  std::vector<const llvm::Type *> ResultRegTypes;
-  std::vector<const llvm::Type *> ResultTruncRegTypes;
-  std::vector<const llvm::Type*> ArgTypes;
+  std::vector<llvm::Type *> ResultRegTypes;
+  std::vector<llvm::Type *> ResultTruncRegTypes;
+  std::vector<llvm::Type*> ArgTypes;
   std::vector<llvm::Value*> Args;
 
   // Keep track of inout constraints.
   std::string InOutConstraints;
   std::vector<llvm::Value*> InOutArgs;
-  std::vector<const llvm::Type*> InOutArgTypes;
+  std::vector<llvm::Type*> InOutArgTypes;
 
   for (unsigned i = 0, e = S.getNumOutputs(); i != e; i++) {
     TargetInfo::ConstraintInfo &Info = OutputConstraintInfos[i];
@@ -1457,7 +1465,7 @@ void CodeGenFunction::EmitAsmStmt(const AsmStmt &S) {
           ResultRegTypes.back() = ConvertType(InputTy);
         }
       }
-      if (const llvm::Type* AdjTy = 
+      if (llvm::Type* AdjTy = 
             getTargetHooks().adjustInlineAsmType(*this, OutputConstraint,
                                                  ResultRegTypes.back()))
         ResultRegTypes.back() = AdjTy;
@@ -1550,6 +1558,7 @@ void CodeGenFunction::EmitAsmStmt(const AsmStmt &S) {
   for (unsigned i = 0, e = S.getNumClobbers(); i != e; i++) {
     llvm::StringRef Clobber = S.getClobber(i)->getString();
 
+    if (Clobber != "memory" && Clobber != "cc")
     Clobber = Target.getNormalizedGCCRegisterName(Clobber);
 
     if (i != 0 || NumConstraints != 0)
@@ -1582,7 +1591,7 @@ void CodeGenFunction::EmitAsmStmt(const AsmStmt &S) {
   llvm::InlineAsm *IA =
     llvm::InlineAsm::get(FTy, AsmString, Constraints,
                          S.isVolatile() || S.getNumOutputs() == 0);
-  llvm::CallInst *Result = Builder.CreateCall(IA, Args.begin(), Args.end());
+  llvm::CallInst *Result = Builder.CreateCall(IA, Args);
   Result->addAttribute(~0, llvm::Attribute::NoUnwind);
 
   // Slap the source location of the inline asm into a !srcloc metadata on the
@@ -1629,7 +1638,6 @@ void CodeGenFunction::EmitAsmStmt(const AsmStmt &S) {
       }
     }
 
-    EmitStoreThroughLValue(RValue::get(Tmp), ResultRegDests[i],
-                           ResultRegQualTys[i]);
+    EmitStoreThroughLValue(RValue::get(Tmp), ResultRegDests[i]);
   }
 }

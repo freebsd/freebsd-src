@@ -52,14 +52,14 @@ static uint64_t LookupFieldBitOffset(CodeGen::CodeGenModule &CGM,
   // implemented. This should be fixed to get the information from the layout
   // directly.
   unsigned Index = 0;
-  llvm::SmallVector<ObjCIvarDecl*, 16> Ivars;
-  CGM.getContext().ShallowCollectObjCIvars(Container, Ivars);
-  for (unsigned k = 0, e = Ivars.size(); k != e; ++k) {
-    if (Ivar == Ivars[k])
+  ObjCInterfaceDecl *IDecl = const_cast<ObjCInterfaceDecl*>(Container);
+
+  for (ObjCIvarDecl *IVD = IDecl->all_declared_ivar_begin(); 
+       IVD; IVD = IVD->getNextIvar()) {
+    if (Ivar == IVD)
       break;
     ++Index;
   }
-  assert(Index != Ivars.size() && "Ivar is not inside container!");
   assert(Index < RL->getFieldCount() && "Ivar is not inside record layout!");
 
   return RL->getFieldOffset(Index);
@@ -134,7 +134,7 @@ LValue CGObjCRuntime::EmitValueForIvarAtOffset(CodeGen::CodeGenFunction &CGF,
                              ContainingTypeSize, ContainingTypeAlign));
 
   return LValue::MakeBitfield(V, *Info,
-                              IvarTy.getCVRQualifiers() | CVRQualifiers);
+                              IvarTy.withCVRQualifiers(CVRQualifiers));
 }
 
 namespace {
@@ -151,13 +151,13 @@ namespace {
     bool MightThrow;
     llvm::Value *Fn;
 
-    void Emit(CodeGenFunction &CGF, bool IsForEH) {
+    void Emit(CodeGenFunction &CGF, Flags flags) {
       if (!MightThrow) {
         CGF.Builder.CreateCall(Fn)->setDoesNotThrow();
         return;
       }
 
-      CGF.EmitCallOrInvoke(Fn, 0, 0);
+      CGF.EmitCallOrInvoke(Fn);
     }
   };
 }
@@ -175,10 +175,8 @@ void CGObjCRuntime::EmitTryCatchStmt(CodeGenFunction &CGF,
 
   CodeGenFunction::FinallyInfo FinallyInfo;
   if (const ObjCAtFinallyStmt *Finally = S.getFinallyStmt())
-    FinallyInfo = CGF.EnterFinallyBlock(Finally->getFinallyBody(),
-                                        beginCatchFn,
-                                        endCatchFn,
-                                        exceptionRethrowFn);
+    FinallyInfo.enter(CGF, Finally->getFinallyBody(),
+                      beginCatchFn, endCatchFn, exceptionRethrowFn);
 
   llvm::SmallVector<CatchHandler, 8> Handlers;
 
@@ -266,9 +264,9 @@ void CGObjCRuntime::EmitTryCatchStmt(CodeGenFunction &CGF,
   // Go back to the try-statement fallthrough.
   CGF.Builder.restoreIP(SavedIP);
 
-  // Pop out of the normal cleanup on the finally.
+  // Pop out of the finally.
   if (S.getFinallyStmt())
-    CGF.ExitFinallyBlock(FinallyInfo);
+    FinallyInfo.exit(CGF);
 
   if (Cont.isValid())
     CGF.EmitBlock(Cont.getBlock());
@@ -281,7 +279,7 @@ namespace {
     CallSyncExit(llvm::Value *SyncExitFn, llvm::Value *SyncArg)
       : SyncExitFn(SyncExitFn), SyncArg(SyncArg) {}
 
-    void Emit(CodeGenFunction &CGF, bool IsForEHCleanup) {
+    void Emit(CodeGenFunction &CGF, Flags flags) {
       CGF.Builder.CreateCall(SyncExitFn, SyncArg)->setDoesNotThrow();
     }
   };

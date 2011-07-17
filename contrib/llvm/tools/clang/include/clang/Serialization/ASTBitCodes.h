@@ -371,7 +371,11 @@ namespace clang {
 
       /// \brief Record code for the table of offsets into the block
       /// of file source-location information.
-      FILE_SOURCE_LOCATION_OFFSETS = 45
+      FILE_SOURCE_LOCATION_OFFSETS = 45,
+      
+      /// \brief Record code for the set of known namespaces, which are used
+      /// for typo correction.
+      KNOWN_NAMESPACES = 46
 
     };
 
@@ -388,8 +392,8 @@ namespace clang {
       /// SM_SLOC_BUFFER_ENTRY record.
       SM_SLOC_BUFFER_BLOB = 3,
       /// \brief Describes a source location entry (SLocEntry) for a
-      /// macro instantiation.
-      SM_SLOC_INSTANTIATION_ENTRY = 4,
+      /// macro expansion.
+      SM_SLOC_EXPANSION_ENTRY = 4,
       /// \brief Describes the SourceManager's line table, with
       /// information about #line directives.
       SM_LINE_TABLE = 5
@@ -416,9 +420,8 @@ namespace clang {
 
     /// \brief Record types used within a preprocessor detail block.
     enum PreprocessorDetailRecordTypes {
-      /// \brief Describes a macro instantiation within the preprocessing 
-      /// record.
-      PPD_MACRO_INSTANTIATION = 0,
+      /// \brief Describes a macro expansion within the preprocessing record.
+      PPD_MACRO_EXPANSION = 0,
       
       /// \brief Describes a macro definition within the preprocessing record.
       PPD_MACRO_DEFINITION = 1,
@@ -922,6 +925,8 @@ namespace clang {
       EXPR_OBJC_MESSAGE_EXPR,
       /// \brief An ObjCIsa Expr record.
       EXPR_OBJC_ISA,
+      /// \breif An ObjCIndirectCopyRestoreExpr record.
+      EXPR_OBJC_INDIRECT_COPY_RESTORE,
 
       /// \brief An ObjCForCollectionStmt record.
       STMT_OBJC_FOR_COLLECTION,
@@ -935,6 +940,8 @@ namespace clang {
       STMT_OBJC_AT_SYNCHRONIZED,
       /// \brief An ObjCAtThrowStmt record.
       STMT_OBJC_AT_THROW,
+      /// \brief An ObjCAutoreleasePoolStmt record.
+      STMT_OBJC_AUTORELEASE_POOL,
 
       // C++
       
@@ -968,8 +975,6 @@ namespace clang {
       EXPR_CXX_NULL_PTR_LITERAL,  // CXXNullPtrLiteralExpr
       EXPR_CXX_TYPEID_EXPR,       // CXXTypeidExpr (of expr).
       EXPR_CXX_TYPEID_TYPE,       // CXXTypeidExpr (of type).
-      EXPR_CXX_UUIDOF_EXPR,       // CXXUuidofExpr (of expr).
-      EXPR_CXX_UUIDOF_TYPE,       // CXXUuidofExpr (of type).
       EXPR_CXX_THIS,              // CXXThisExpr
       EXPR_CXX_THROW,             // CXXThrowExpr
       EXPR_CXX_DEFAULT_ARG,       // CXXDefaultArgExpr
@@ -999,14 +1004,25 @@ namespace clang {
       
       EXPR_PACK_EXPANSION,        // PackExpansionExpr
       EXPR_SIZEOF_PACK,           // SizeOfPackExpr
+      EXPR_SUBST_NON_TYPE_TEMPLATE_PARM, // SubstNonTypeTemplateParmExpr
       EXPR_SUBST_NON_TYPE_TEMPLATE_PARM_PACK,// SubstNonTypeTemplateParmPackExpr
-
-      // CUDA
-
-      EXPR_CUDA_KERNEL_CALL,       // CUDAKernelCallExpr
+      EXPR_MATERIALIZE_TEMPORARY, // MaterializeTemporaryExpr
       
+      // CUDA
+      EXPR_CUDA_KERNEL_CALL,       // CUDAKernelCallExpr      
+
       // OpenCL
-      EXPR_ASTYPE // An AsTypeExpr record.
+      EXPR_ASTYPE,                 // AsTypeExpr
+
+      // Microsoft
+      EXPR_CXX_UUIDOF_EXPR,       // CXXUuidofExpr (of expr).
+      EXPR_CXX_UUIDOF_TYPE,       // CXXUuidofExpr (of type).
+      STMT_SEH_EXCEPT,            // SEHExceptStmt
+      STMT_SEH_FINALLY,           // SEHFinallyStmt
+      STMT_SEH_TRY,               // SEHTryStmt
+      
+      // ARC
+      EXPR_OBJC_BRIDGED_CAST       // ObjCBridgedCastExpr
     };
 
     /// \brief The kinds of designators that can occur in a
