@@ -258,6 +258,10 @@ namespace clang {
   /// including the various preprocessing directives processed, macros 
   /// instantiated, etc.
   class PreprocessingRecord : public PPCallbacks {
+    /// \brief Whether we should include nested macro instantiations in
+    /// the preprocessing record.
+    bool IncludeNestedMacroInstantiations;
+    
     /// \brief Allocator used to store preprocessing objects.
     llvm::BumpPtrAllocator BumpAlloc;
 
@@ -281,7 +285,8 @@ namespace clang {
     void MaybeLoadPreallocatedEntities() const ;
     
   public:
-    PreprocessingRecord();
+    /// \brief Construct 
+    explicit PreprocessingRecord(bool IncludeNestedMacroInstantiations);
     
     /// \brief Allocate memory in the preprocessing record.
     void *Allocate(unsigned Size, unsigned Align = 8) {
@@ -290,6 +295,10 @@ namespace clang {
     
     /// \brief Deallocate memory in the preprocessing record.
     void Deallocate(void *Ptr) { }
+    
+    size_t getTotalMemory() const {
+      return BumpAlloc.getTotalMemory();
+    }
     
     // Iteration over the preprocessed entities.
     typedef std::vector<PreprocessedEntity *>::iterator iterator;

@@ -189,23 +189,6 @@ namespace {
   }
 }
 
-/// Determines if the given record type has a mutable field.
-static bool hasMutableField(const CXXRecordDecl *record) {
-  for (CXXRecordDecl::field_iterator
-         i = record->field_begin(), e = record->field_end(); i != e; ++i)
-    if ((*i)->isMutable())
-      return true;
-
-  for (CXXRecordDecl::base_class_const_iterator
-         i = record->bases_begin(), e = record->bases_end(); i != e; ++i) {
-    const RecordType *record = i->getType()->castAs<RecordType>();
-    if (hasMutableField(cast<CXXRecordDecl>(record->getDecl())))
-      return true;
-  }
-
-  return false;
-}
-
 /// Determines if the given type is safe for constant capture in C++.
 static bool isSafeForCXXConstantCapture(QualType type) {
   const RecordType *recordType =
@@ -222,7 +205,7 @@ static bool isSafeForCXXConstantCapture(QualType type) {
 
   // Otherwise, we just have to make sure there aren't any mutable
   // fields that might have changed since initialization.
-  return !hasMutableField(record);
+  return !record->hasMutableFields();
 }
 
 /// It is illegal to modify a const object after initialization.
@@ -262,7 +245,7 @@ static CharUnits getLowBit(CharUnits v) {
 }
 
 static void initializeForBlockHeader(CodeGenModule &CGM, CGBlockInfo &info,
-                                std::vector<const llvm::Type*> &elementTypes) {
+                    llvm::SmallVectorImpl<const llvm::Type*> &elementTypes) {
   ASTContext &C = CGM.getContext();
 
   // The header is basically a 'struct { void *; int; int; void *; void *; }'.
@@ -299,7 +282,7 @@ static void computeBlockInfo(CodeGenModule &CGM, CGBlockInfo &info) {
   ASTContext &C = CGM.getContext();
   const BlockDecl *block = info.getBlockDecl();
 
-  std::vector<const llvm::Type*> elementTypes;
+  llvm::SmallVector<const llvm::Type*, 8> elementTypes;
   initializeForBlockHeader(CGM, info, elementTypes);
 
   if (!block->hasCaptures()) {
@@ -321,7 +304,11 @@ static void computeBlockInfo(CodeGenModule &CGM, CGBlockInfo &info) {
     const DeclContext *DC = block->getDeclContext();
     for (; isa<BlockDecl>(DC); DC = cast<BlockDecl>(DC)->getDeclContext())
       ;
-    QualType thisType = cast<CXXMethodDecl>(DC)->getThisType(C);
+    QualType thisType;
+    if (const CXXRecordDecl *RD = dyn_cast<CXXRecordDecl>(DC))
+      thisType = C.getPointerType(C.getRecordType(RD));
+    else
+      thisType = cast<CXXMethodDecl>(DC)->getThisType(C);
 
     const llvm::Type *llvmType = CGM.getTypes().ConvertType(thisType);
     std::pair<CharUnits,CharUnits> tinfo
@@ -720,9 +707,8 @@ RValue CodeGenFunction::EmitBlockCallExpr(const CallExpr* E,
   BlockLiteral = Builder.CreateBitCast(BlockLiteral, VoidPtrTy, "tmp");
 
   // Add the block literal.
-  QualType VoidPtrTy = getContext().getPointerType(getContext().VoidTy);
   CallArgList Args;
-  Args.add(RValue::get(BlockLiteral), VoidPtrTy);
+  Args.add(RValue::get(BlockLiteral), getContext().VoidPtrTy);
 
   QualType FnType = BPT->getPointeeType();
 
@@ -1063,6 +1049,10 @@ CodeGenFunction::GenerateCopyHelperFunction(const CGBlockInfo &blockInfo) {
   IdentifierInfo *II
     = &CGM.getContext().Idents.get("__copy_helper_block_");
 
+  // Check if we should generate debug info for this block helper function.
+  if (CGM.getModuleDebugInfo())
+    DebugInfo = CGM.getModuleDebugInfo();
+
   FunctionDecl *FD = FunctionDecl::Create(C,
                                           C.getTranslationUnitDecl(),
                                           SourceLocation(),
@@ -1149,6 +1139,10 @@ CodeGenFunction::GenerateDestroyHelperFunction(const CGBlockInfo &blockInfo) {
   llvm::Function *Fn =
     llvm::Function::Create(LTy, llvm::GlobalValue::InternalLinkage,
                            "__destroy_helper_block_", &CGM.getModule());
+
+  // Check if we should generate debug info for this block destroy function.
+  if (CGM.getModuleDebugInfo())
+    DebugInfo = CGM.getModuleDebugInfo();
 
   IdentifierInfo *II
     = &CGM.getContext().Idents.get("__destroy_helper_block_");
@@ -1508,29 +1502,29 @@ const llvm::Type *CodeGenFunction::BuildByRefType(const VarDecl *D) {
   
   QualType Ty = D->getType();
 
-  std::vector<const llvm::Type *> Types;
+  llvm::SmallVector<const llvm::Type *, 8> types;
   
   llvm::PATypeHolder ByRefTypeHolder = llvm::OpaqueType::get(getLLVMContext());
   
   // void *__isa;
-  Types.push_back(Int8PtrTy);
+  types.push_back(Int8PtrTy);
   
   // void *__forwarding;
-  Types.push_back(llvm::PointerType::getUnqual(ByRefTypeHolder));
+  types.push_back(llvm::PointerType::getUnqual(ByRefTypeHolder));
   
   // int32_t __flags;
-  Types.push_back(Int32Ty);
+  types.push_back(Int32Ty);
     
   // int32_t __size;
-  Types.push_back(Int32Ty);
+  types.push_back(Int32Ty);
 
   bool HasCopyAndDispose = getContext().BlockRequiresCopying(Ty);
   if (HasCopyAndDispose) {
     /// void *__copy_helper;
-    Types.push_back(Int8PtrTy);
+    types.push_back(Int8PtrTy);
     
     /// void *__destroy_helper;
-    Types.push_back(Int8PtrTy);
+    types.push_back(Int8PtrTy);
   }
 
   bool Packed = false;
@@ -1553,11 +1547,11 @@ const llvm::Type *CodeGenFunction::BuildByRefType(const VarDecl *D) {
     if (NumPaddingBytes > 0) {
       const llvm::Type *Ty = llvm::Type::getInt8Ty(getLLVMContext());
       // FIXME: We need a sema error for alignment larger than the minimum of
-      // the maximal stack alignmint and the alignment of malloc on the system.
+      // the maximal stack alignment and the alignment of malloc on the system.
       if (NumPaddingBytes > 1)
         Ty = llvm::ArrayType::get(Ty, NumPaddingBytes);
     
-      Types.push_back(Ty);
+      types.push_back(Ty);
 
       // We want a packed struct.
       Packed = true;
@@ -1565,9 +1559,9 @@ const llvm::Type *CodeGenFunction::BuildByRefType(const VarDecl *D) {
   }
 
   // T x;
-  Types.push_back(ConvertTypeForMem(Ty));
+  types.push_back(ConvertTypeForMem(Ty));
   
-  const llvm::Type *T = llvm::StructType::get(getLLVMContext(), Types, Packed);
+  const llvm::Type *T = llvm::StructType::get(getLLVMContext(), types, Packed);
   
   cast<llvm::OpaqueType>(ByRefTypeHolder.get())->refineAbstractTypeTo(T);
   CGM.getModule().addTypeName("struct.__block_byref_" + D->getNameAsString(), 
@@ -1575,7 +1569,7 @@ const llvm::Type *CodeGenFunction::BuildByRefType(const VarDecl *D) {
   
   Info.first = ByRefTypeHolder.get();
   
-  Info.second = Types.size() - 1;
+  Info.second = types.size() - 1;
   
   return Info.first;
 }

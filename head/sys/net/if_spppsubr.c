@@ -737,6 +737,7 @@ sppp_input(struct ifnet *ifp, struct mbuf *m)
 		goto drop;
 
 	SPPP_UNLOCK(sp);
+	M_SETFIB(m, ifp->if_fib);
 	/* Check queue. */
 	if (netisr_queue(isr, m)) {	/* (0) on success. */
 		if (debug)

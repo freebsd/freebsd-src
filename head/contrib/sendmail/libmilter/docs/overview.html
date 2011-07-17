@@ -4,7 +4,7 @@
 </HEAD>
 <BODY>
 <!--
-$Id: overview.html,v 1.20 2009/11/13 18:15:05 ca Exp $
+$Id: overview.html,v 1.21 2010/12/14 20:59:52 ca Exp $
 -->
 
 <H1>Technical Overview</H1>
@@ -126,7 +126,7 @@ messages may be sent in a single connection.
 Note also that a message or connection may be aborted by
 either the remote host or the MTA
 at any point during the SMTP transaction.
-f this occurs during a message (between the MAIL command and the final "."),
+If this occurs during a message (between the MAIL command and the final "."),
 the filter's
 <A HREF="xxfi_abort.html">xxfi_abort</A> routine will be called.
 <A HREF="xxfi_close.html">xxfi_close</A> is called any time the

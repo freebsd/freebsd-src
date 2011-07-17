@@ -239,6 +239,12 @@ int	setuse(struct thread *, struct mount *, u_long, int, void *);
 int	getquotasize(struct thread *, struct mount *, u_long, int, void *);
 vfs_quotactl_t ufs_quotactl;
 
+#ifdef SOFTUPDATES
+int	quotaref(struct vnode *, struct dquot **);
+void	quotarele(struct dquot **);
+void	quotaadj(struct dquot **, struct ufsmount *, int64_t);
+#endif /* SOFTUPDATES */
+
 #else /* !_KERNEL */
 
 #include <sys/cdefs.h>

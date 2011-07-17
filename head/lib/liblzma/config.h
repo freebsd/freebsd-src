@@ -59,10 +59,10 @@
 #define PACKAGE "xz"
 #define PACKAGE_BUGREPORT "lasse.collin@tukaani.org"
 #define PACKAGE_NAME "XZ Utils"
-#define PACKAGE_STRING "XZ Utils 5.0.0"
+#define PACKAGE_STRING "XZ Utils 5.0.3"
 #define PACKAGE_TARNAME "xz"
 #define PACKAGE_URL "http://tukaani.org/xz/"
-#define PACKAGE_VERSION "5.0.0"
+#define PACKAGE_VERSION "5.0.3"
 #define SIZEOF_SIZE_T 8
 #define STDC_HEADERS 1
 #define TUKLIB_CPUCORES_SYSCTL 1
@@ -82,8 +82,12 @@
 #ifndef __EXTENSIONS__
 # define __EXTENSIONS__ 1
 #endif
-#define VERSION "5.0.0"
+#define VERSION "5.0.3"
 #if defined(__FreeBSD__)
+#include <sys/_types.h>
+#if defined(__NO_STRICT_ALIGNMENT)
+#define TUKLIB_FAST_UNALIGNED_ACCESS 1
+#endif
 #include <machine/endian.h>
 #if _BYTE_ORDER == _BIG_ENDIAN
 # define WORDS_BIGENDIAN 1

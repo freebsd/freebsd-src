@@ -1,4 +1,4 @@
-.\" $Id: dialog.3,v 1.60 2011/03/02 10:19:12 tom Exp $
+.\" $Id: dialog.3,v 1.68 2011/06/29 09:07:36 tom Exp $
 .\" Copyright 2005-2010,2011  Thomas E. Dickey
 .\"
 .\" This program is free software; you can redistribute it and/or modify
@@ -21,11 +21,24 @@
 .ds l dialog
 .ds L Dialog
 .ds D DIALOG
+.
+.de ES
+.ne 8
+.IP
+..
+.de EX
+.RS +10
+.nf
+..
+.de EE
+.fi
+.RE
+..
 .\" Bulleted paragraph
 .de bP
 .IP \(bu 4
 ..
-.TH \*D 3 "" "$Date: 2011/03/02 10:19:12 $"
+.TH \*D 3 "" "$Date: 2011/06/29 09:07:36 $"
 .SH NAME
 \*l \- widgets and utilities for the \*p program
 .SH SYNOPSIS
@@ -66,7 +79,7 @@ Colors and video attributes are categorized and associated with
 settings in the configuration file
 (see the discussion of \fI$DIALOGRC\fP in \fB\*p\fP(1)).
 The \fIDIALOG_ATR(n)\fP macro is used for defining the references
-to the combined color and attribute table \fIdlg_color_table[]\fP.
+to the combined color and attribute table \fBdlg_color_table[]\fP.
 .PP
 The \fB\*p\fP application passes its command-line parameters
 to the widget functions.  Some of those parameters are single values,
@@ -85,7 +98,7 @@ These include definitions based on the generated \fI<dlg_config.h>\fP header.
 .SH DATA STRUCTURES
 All of the global data for the \fB\*l\fP library is stored in
 a few structures: \fIDIALOG_STATE\fP, \fIDIALOG_VARS\fP and \fIDIALOG_COLORS\fP.
-The corresponding \fIdialog_state\fP, \fIdialog_vars\fP and \fIdlg_color_table\fP
+The corresponding \fBdialog_state\fP, \fBdialog_vars\fP and \fBdlg_color_table\fP
 global variables should be initialized to zeros,
 and then populated with the data to use.
 A few of these must be nonzero for the corresponding widgets to function.
@@ -133,7 +146,7 @@ prefer to write results to the standard output,
 e.g., by using the "\fB--stdout\fP" option.
 .\" ---------------------------------------------------------------------------
 .IP \fIDIALOG_STATE.output_count
-This is incremented by \fIdlg_does_output\fP,
+This is incremented by \fBdlg_does_output\fP,
 which is called by each widget that writes text to the output.
 The \fB\*p\fP application uses that to decide if it should
 also write a separator, i.e.,
@@ -205,12 +218,15 @@ suppress shadows that would be drawn to the right and bottom of each dialog box.
 This corresponds to the command-line option "\fB--visit-items\fP".
 .\" ---------------------------------------------------------------------------
 .PP
-The \fB\*p\fP application resets the \fIdialog_vars\fP data before
+The \fB\*p\fP application resets the \fBdialog_vars\fP data before
 accepting options to invoke each widget.
 Most of the \fIDIALOG_VARS\fP members are set directly from \fB\*p\fP's
 command-line options:
 .\" ---------------------------------------------------------------------------
 .IP \fIDIALOG_VARS.ascii_lines
+This corresponds to the command-line option "\fB--ascii-lines\fP.
+It causes line-drawing to be done with ASCII characters, e.g., "+" and "-".
+See \fIDIALOG_VARS.no_lines\fP.
 .\" ---------------------------------------------------------------------------
 .IP \fIDIALOG_VARS.backtitle
 This corresponds to the command-line option "\fB--backtitle\fP \fIbacktitle\fP".
@@ -344,9 +360,19 @@ and the item-help text will be written to \fB\*p\fP's output after the token "HE
 Otherwise, the return status will indicate that the Help button was pressed,
 and no message printed.
 .\" ---------------------------------------------------------------------------
+.IP \fIDIALOG_VARS.help_file
+This corresponds to the command-line option "\fB--hfile\fP \fIstring\fP".
+The given filename is passed to \fBdialog_helpfile\fP when the user
+presses F1.
+.\" ---------------------------------------------------------------------------
 .IP \fIDIALOG_VARS.help_label
 This corresponds to the command-line option "\fB--help-label\fP \fIstring\fP".
 The given string overrides the label used for "Help" buttons.
+.\" ---------------------------------------------------------------------------
+.IP \fIDIALOG_VARS.help_line
+This corresponds to the command-line option "\fB--hline\fP \fIstring\fP".
+The given string is displayed in the bottom of dialog windows,
+like a subtitle.
 .\" ---------------------------------------------------------------------------
 .IP \fIDIALOG_VARS.help_status
 This corresponds to the command-line option "\fB--help-status\fP".
@@ -391,6 +417,10 @@ This corresponds to the command-line option "\fB--insecure\fP".
 If true, make the password widget friendlier but less secure,
 by echoing asterisks for each character.
 .\" ---------------------------------------------------------------------------
+.IP \fIDIALOG_VARS.in_helpfile
+This variable is used to prevent \fBdialog_helpfile\fP from showing
+anything, e.g., if F1 were pressed within a help-file display. 
+.\" ---------------------------------------------------------------------------
 .IP \fIDIALOG_VARS.item_help
 This corresponds to the command-line option "\fB--item-help\fP".
 If true,
@@ -423,6 +453,14 @@ This corresponds to the command-line option "\fB--no-label\fP \fIstring\fP".
 The given string overrides the label used for "No" buttons.
 .\" ---------------------------------------------------------------------------
 .IP \fIDIALOG_VARS.no_lines
+This corresponds to the command-line option "\fB--no-lines\fP.
+It suppresses line-drawing.
+See \fIDIALOG_VARS.ascii_lines\fP.
+.\" ---------------------------------------------------------------------------
+.IP \fIDIALOG_VARS.no_nl_expand
+This corresponds to the command-line option "\fB--no-nl-expand\fP".
+If false, \fBdlg_trim_string\fP converts literal "\\n" substrings
+in a message into newlines.
 .\" ---------------------------------------------------------------------------
 .IP \fIDIALOG_VARS.nocancel
 This corresponds to the command-line option "\fB--no-cancel\fP".
@@ -537,24 +575,31 @@ Other parameters depend on the box type.
 .IP \fBdialog_calendar
 implements the "\fB--calendar\fP" option.
 .RS
-.IP title
+.TP 5
+.B const char * \fItitle
 is the title on the top of the widget.
-.IP subtitle
+.TP 5
+.B const char * \fIsubtitle
 is the prompt text shown within the widget.
-.IP height
+.TP 5
+.B int \fIheight
 is the height excluding the fixed-height calendar grid.
-.IP width
+.TP 5
+.B int \fIwidth
 is the overall width of the box,
 which is adjusted up to the calendar grid's minimum width if needed.
-.IP day
+.TP 5
+.B int \fIday
 is the initial day of the week shown,
 counting zero as Sunday.
 If the value is negative, the current day of the week is used.
-.IP month
+.TP 5
+.B int \fImonth
 is the initial month of the year shown,
 counting one as January.
 If the value is negative, the current month of the year is used.
-.IP year
+.TP 5
+.B int \fIyear
 is the initial year shown.
 If the value is negative, the current year is used.
 .RE
@@ -563,22 +608,29 @@ If the value is negative, the current year is used.
 implements the "\fB--checklist\fP" and "\fB--radiolist\fP" options
 depending on the \fIflag\fP parameter.
 .RS
-.IP title
+.TP 5
+.B const char * \fItitle
 is the title on the top of the widget.
-.IP cprompt
+.TP 5
+.B const char * \fIcprompt
 is the prompt text shown within the widget.
-.IP height
+.TP 5
+.B int \fIheight
 is the desired height of the box.
 If zero, the height is adjusted to use the available screen size.
-.IP width
+.TP 5
+.B int \fIwidth
 is the desired width of the box.
 If zero, the height is adjusted to use the available screen size.
-.IP list_height
+.TP 5
+.B int \fIlist_height
 is the minimum height to reserve for displaying the list.
 If zero, it is computed based on the given \fIheight\fP and \fIwidth\fP.
-.IP item_no
+.TP 5
+.B int \fIitem_no
 is the number of rows in \fIitems\fP.
-.IP items
+.TP 5
+.B int \fIitems
 is an array of strings which is viewed either as a list of rows
 .RS
 \fItag item status \fR
@@ -589,7 +641,7 @@ or
 \fItag item status help\fR
 .RE
 .IP
-depending on whether \fIdialog_vars.item_help\fP is set.
+depending on whether \fBdialog_vars.item_help\fP is set.
 .IP flag
 is either \fIFLAG_CHECK\fP, for checklists,
 or \fIFLAG_RADIO\fP for radiolists.
@@ -598,15 +650,19 @@ or \fIFLAG_RADIO\fP for radiolists.
 .IP \fBdialog_dselect
 implements the "\fB--dselect\fP" option.
 .RS
-.IP title
+.TP 5
+.B const char * \fItitle
 is the title on the top of the widget.
-.IP path
+.TP 5
+.B const char * \fIpath
 is the preselected value to show in the input-box,
 which is used also to set the directory- and file-windows.
-.IP height
+.TP 5
+.B int \fIheight
 is the height excluding the minimum needed to show the dialog box framework.
 If zero, the height is based on the screen size.
-.IP width
+.TP 5
+.B int \fIwidth
 is the desired width of the box.
 If zero, the height is based on the screen size.
 .RE
@@ -614,14 +670,18 @@ If zero, the height is based on the screen size.
 .IP \fBdialog_editbox
 implements the "\fB--editbox\fP" option.
 .RS
-.IP title
+.TP 5
+.B const char * \fItitle
 is the title on the top of the widget.
-.IP file
+.TP 5
+.B const char * \fIfile
 is the name of the file from which to read.
-.IP height
+.TP 5
+.B int \fIheight
 is the desired height of the box.
 If zero, the height is adjusted to use the available screen size.
-.IP width
+.TP 5
+.B int \fIwidth
 is the desired width of the box.
 If zero, the height is adjusted to use the available screen size.
 .RE
@@ -629,22 +689,29 @@ If zero, the height is adjusted to use the available screen size.
 .IP \fBdialog_form
 implements the "\fB--form\fP" option.
 .RS
-.IP title
+.TP 5
+.B const char * \fItitle
 is the title on the top of the widget.
-.IP cprompt
+.TP 5
+.B const char * \fIcprompt
 is the prompt text shown within the widget.
-.IP height
+.TP 5
+.B int \fIheight
 is the desired height of the box.
 If zero, the height is adjusted to use the available screen size.
-.IP width
+.TP 5
+.B int \fIwidth
 is the desired width of the box.
 If zero, the height is adjusted to use the available screen size.
-.IP form_height
+.TP 5
+.B int \fIform_height
 is the minimum height to reserve for displaying the list.
 If zero, it is computed based on the given \fIheight\fP and \fIwidth\fP.
-.IP item_no
+.TP 5
+.B int \fIitem_no
 is the number of rows in \fIitems\fP.
-.IP items
+.TP 5
+.B int \fIitems
 is an array of strings which is viewed either as a list of rows
 .RS
 \fIName NameY NameX Text TextY TextX FLen ILen\fR
@@ -655,39 +722,53 @@ or
 \fIName NameY NameX Text TextY TextX FLen ILen Help\fR
 .RE
 .IP
-depending on whether \fIdialog_vars.item_help\fP is set.
+depending on whether \fBdialog_vars.item_help\fP is set.
 .RE
 .\" ************************************************************************
 .IP \fBdialog_fselect
 implements the "\fB--fselect\fP" option.
 .RS
-.IP title
+.TP 5
+.B const char * \fItitle
 is the title on the top of the widget.
-.IP path
+.TP 5
+.B const char * \fIpath
 is the preselected value to show in the input-box,
 which is used also to set the directory- and file-windows.
-.IP height
+.TP 5
+.B int \fIheight
 is the height excluding the minimum needed to show the dialog box framework.
 If zero, the height is based on the screen size.
-.IP width
+.TP 5
+.B int \fIwidth
 is the desired width of the box.
 If zero, the height is based on the screen size.
 .RE
 .\" ************************************************************************
 .IP \fBdialog_gauge
 implements the "\fB--gauge\fP" option.
+Alternatively, a simpler or customized gauge widget can be 
+setup using
+\fBdlg_allocate_gauge\fP,
+\fBdlg_update_gauge\fP and
+\fBdlg_free_gauge\fP.
 .RS
-.IP title
+.TP 5
+.B const char * \fItitle
 is the title on the top of the widget.
-.IP cprompt
+.TP 5
+.B const char * \fIcprompt
 is the prompt text shown within the widget.
-.IP height
+.TP 5
+.B int \fIheight
 is the desired height of the box.
 If zero, the height is based on the screen size.
-.IP width
+.TP 5
+.B int \fIwidth
 is the desired width of the box.
 If zero, the height is based on the screen size.
-.IP percent
+.TP 5
+.B int \fIpercent
 is the percentage to show in the progress bar.
 .RE
 .\" ************************************************************************
@@ -695,43 +776,79 @@ is the percentage to show in the progress bar.
 implements the "\fB--inputbox\fP" or
 "\fB--password\fP" option, depending on the value of \fIpassword\fP.
 .RS
-.IP title
+.TP 5
+.B const char * \fItitle
 is the title on the top of the widget.
-.IP cprompt
+.TP 5
+.B const char * \fIcprompt
 is the prompt text shown within the widget.
-.IP height
+.TP 5
+.B int \fIheight
 is the desired height of the box.
 If zero, the height is based on the screen size.
-.IP width
+.TP 5
+.B int \fIwidth
 is the desired width of the box.
 If zero, the height is based on the screen size.
-.IP init
+.TP 5
+.B const char * \fIinit
 is the initial value of the input box, whose length is taken into account
 when auto-sizing the width of the dialog box.
-.IP password
+.TP 5
+.B int \fIpassword
 if true, causes typed input to be echoed as asterisks.
+.RE
+.\" ************************************************************************
+.IP \fBdialog_helpfile
+implements the "\fB--hfile\fP" option.
+.RS
+.TP 5
+.B const char * \fItitle
+is the title on the top of the widget.
+.TP 5
+.B const char * \fIfile
+is the name of a file containing the text to display.
+This function is internally bound to F1 (function key "1"),
+passing \fBdialog_vars.help_file\fP as a parameter.
+The \fBdialog\fP program sets that variable when the \fB--hfile\fP option
+is given.
+.TP 5
+.B int \fIheight
+is the desired height of the box.
+If zero, the height is based on the screen size.
+.TP 5
+.B int \fIwidth
+is the desired width of the box.
+If zero, the height is based on the screen size.
 .RE
 .\" ************************************************************************
 .IP \fBdialog_menu
 implements the "\fB--menu\fP" or "\fB--inputmenu\fP" option
-depending on whether \fIdialog_vars.input_menu\fP is set.
+depending on whether \fBdialog_vars.input_menu\fP is set.
 .RS
-.IP title
+.TP 5
+.B const char * \fItitle
 is the title on the top of the widget.
-.IP cprompt
+.TP 5
+.B const char * \fIcprompt
 is the prompt text shown within the widget.
-.IP height
+.TP 5
+.B int \fIheight
 is the desired height of the box.
 If zero, the height is based on the screen size.
-.IP width
+.TP 5
+.B int \fIwidth
 is the desired width of the box.
 If zero, the height is based on the screen size.
-.IP menu_height
+.TP 5
+.B int \fImenu_height
 is the minimum height to reserve for displaying the list.
 If zero, it is computed based on the given \fIheight\fP and \fIwidth\fP.
-.IP item_no
+.TP 5
+.B int \fIitem_no
 is the number of rows in \fIitems\fP.
-.IP items
+.TP 5
+.B int \fIitems
 is an array of strings which is viewed either as a list of rows
 .RS
 \fItag item\fR
@@ -742,28 +859,35 @@ or
 \fItag item help\fR
 .RE
 .IP
-depending on whether \fIdialog_vars.item_help\fP is set.
+depending on whether \fBdialog_vars.item_help\fP is set.
 .RE
 .\" ************************************************************************
 .IP \fBdialog_mixedform
 implements the "\fB--mixedform\fP" option.
 .RS
-.IP title
+.TP 5
+.B const char * \fItitle
 is the title on the top of the widget.
-.IP cprompt
+.TP 5
+.B const char * \fIcprompt
 is the prompt text shown within the widget.
-.IP height
+.TP 5
+.B int \fIheight
 is the desired height of the box.
 If zero, the height is adjusted to use the available screen size.
-.IP width
+.TP 5
+.B int \fIwidth
 is the desired width of the box.
 If zero, the height is adjusted to use the available screen size.
-.IP form_height
+.TP 5
+.B int \fIform_height
 is the minimum height to reserve for displaying the list.
 If zero, it is computed based on the given \fIheight\fP and \fIwidth\fP.
-.IP item_no
+.TP 5
+.B int \fIitem_no
 is the number of rows in \fIitems\fP.
-.IP items
+.TP 5
+.B int \fIitems
 is an array of strings which is viewed either as a list of rows
 .RS
 \fIName NameY NameX Text TextY TextX FLen ILen Ityp\fR
@@ -774,27 +898,33 @@ or
 \fIName NameY NameX Text TextY TextX FLen ILen Ityp Help\fR
 .RE
 .IP
-depending on whether \fIdialog_vars.item_help\fP is set.
+depending on whether \fBdialog_vars.item_help\fP is set.
 .RE
 .\" ************************************************************************
 .IP \fBdialog_mixedgauge
 implements the "\fB--mixedgauge\fP" option
 .RS
-.IP title
+.TP 5
+.B const char * \fItitle
 is the title on the top of the widget.
-.IP cprompt
+.TP 5
+.B const char * \fIcprompt
 is the caption text shown within the widget.
-.IP height
+.TP 5
+.B int \fIheight
 is the desired height of the box.
 If zero, the height is based on the screen size.
-.IP width
+.TP 5
+.B int \fIwidth
 is the desired width of the box.
 If zero, the height is based on the screen size.
 .IP percent
 is the percentage to show in the progress bar.
-.IP item_no
+.TP 5
+.B int \fIitem_no
 is the number of rows in \fIitems\fP.
-.IP items
+.TP 5
+.B int \fIitems
 is an array of strings which is viewed as a list of \fItag\fP and \fIitem\fP values.
 The \fItag\fP values are listed, one per row, in the list at the top of
 the widget.
@@ -832,17 +962,22 @@ Other strings are displayed as is.
 implements the "\fB--msgbox\fP" or "\fB--infobox\fP" option
 depending on whether \fIpauseopt\fP is set.
 .RS
-.IP title
+.TP 5
+.B const char * \fItitle
 is the title on the top of the widget.
-.IP cprompt
+.TP 5
+.B const char * \fIcprompt
 is the prompt text shown within the widget.
-.IP height
+.TP 5
+.B int \fIheight
 is the desired height of the box.
 If zero, the height is based on the screen size.
-.IP width
+.TP 5
+.B int \fIwidth
 is the desired width of the box.
 If zero, the height is based on the screen size.
-.IP pauseopt
+.TP 5
+.B int \fIpauseopt
 if true, an "OK" button will be shown,
 and the dialog will wait for it to complete.
 With an "OK" button, it is denoted a "msgbox",
@@ -852,35 +987,45 @@ without an "OK" button, it is denoted an "infobox".
 .IP \fBdialog_pause
 implements the "\fB--pause\fP" option.
 .RS
-.IP title
+.TP 5
+.B const char * \fItitle
 is the title on the top of the widget.
-.IP height
+.TP 5
+.B int \fIheight
 is the desired height of the box.
 If zero, the height is based on the screen size.
-.IP width
+.TP 5
+.B int \fIwidth
 is the desired width of the box.
 If zero, the height is based on the screen size.
-.IP seconds
+.TP 5
+.B int \fIseconds
 is the timeout to use for the progress bar.
 .RE
 .\" ************************************************************************
 .IP \fBdialog_prgbox
 implements the "\fB--prgbox\fP" option.
 .RS
-.IP title
+.TP 5
+.B const char * \fItitle
 is the title on the top of the widget.
-.IP cprompt
+.TP 5
+.B const char * \fIcprompt
 is the prompt text shown within the widget.
 If empty or null, no prompt is shown.
-.IP command
+.TP 5
+.B const char * \fIcommand
 is the name of the command to execute.
-.IP height
+.TP 5
+.B int \fIheight
 is the desired height of the box.
 If zero, the height is based on the screen size.
-.IP width
+.TP 5
+.B int \fIwidth
 is the desired width of the box.
 If zero, the height is based on the screen size.
-.IP pauseopt
+.TP 5
+.B int \fIpauseopt
 if true, an "OK" button will be shown,
 and the dialog will wait for it to complete.
 .RE
@@ -888,15 +1033,19 @@ and the dialog will wait for it to complete.
 .IP \fBdialog_progressbox
 implements the "\fB--progressbox\fP" option.
 .RS
-.IP title
+.TP 5
+.B const char * \fItitle
 is the title on the top of the widget.
-.IP cprompt
+.TP 5
+.B const char * \fIcprompt
 is the prompt text shown within the widget.
 If empty or null, no prompt is shown.
-.IP height
+.TP 5
+.B int \fIheight
 is the desired height of the box.
 If zero, the height is based on the screen size.
-.IP width
+.TP 5
+.B int \fIwidth
 is the desired width of the box.
 If zero, the height is based on the screen size.
 .RE
@@ -905,19 +1054,24 @@ If zero, the height is based on the screen size.
 implements the "\fB--tailbox\fP" or "\fB--tailboxbg\fP" option
 depending on whether \fIbg_task\fP is set.
 .RS
-.IP title
+.TP 5
+.B const char * \fItitle
 is the title on the top of the widget.
-.IP file
+.TP 5
+.B const char * \fIfile
 is the name of the file to display in the dialog.
-.IP height
+.TP 5
+.B int \fIheight
 is the desired height of the box.
 If zero, the height is based on the screen size.
-.IP width
+.TP 5
+.B int \fIwidth
 is the desired width of the box.
 If zero, the height is based on the screen size.
-.IP bg_task
+.TP 5
+.B int \fIbg_task
 if true,
-the window is added to the callback list in \fIdialog_state\fP,
+the window is added to the callback list in \fBdialog_state\fP,
 and the application will poll for the window to be updated.
 Otherwise an "OK" button is added to the window,
 and it will be closed when the button is activated.
@@ -926,14 +1080,18 @@ and it will be closed when the button is activated.
 .IP \fBdialog_textbox
 implements the "\fB--textbox\fP" option.
 .RS
-.IP title
+.TP 5
+.B const char * \fItitle
 is the title on the top of the widget.
-.IP file
+.TP 5
+.B const char * \fIfile
 is the name of the file to display in the dialog.
-.IP height
+.TP 5
+.B int \fIheight
 is the desired height of the box.
 If zero, the height is based on the screen size.
-.IP width
+.TP 5
+.B int \fIwidth
 is the desired width of the box.
 If zero, the height is based on the screen size.
 .RE
@@ -941,25 +1099,32 @@ If zero, the height is based on the screen size.
 .IP \fBdialog_timebox
 implements the "\fB--timebox\fP" option.
 .RS
-.IP title
+.TP 5
+.B const char * \fItitle
 is the title on the top of the widget.
-.IP subtitle
+.TP 5
+.B const char * \fIsubtitle
 is the prompt text shown within the widget.
-.IP height
+.TP 5
+.B int \fIheight
 is the desired height of the box.
 If zero, the height is based on the screen size.
-.IP width
+.TP 5
+.B int \fIwidth
 is the desired width of the box.
 If zero, the height is based on the screen size.
-.IP hour
+.TP 5
+.B int \fIhour
 is the initial hour shown.
 If the value is negative, the current hour is used.
 Returns DLG_EXIT_ERROR if the value specified is greater than or equal to 24.
-.IP minute
+.TP 5
+.B int \fIminute
 is the initial minute shown.
 If the value is negative, the current minute is used.
 Returns DLG_EXIT_ERROR if the value specified is greater than or equal to 60.
-.IP second
+.TP 5
+.B int \fIsecond
 is the initial second shown.
 If the value is negative, the current second is used.
 Returns DLG_EXIT_ERROR if the value specified is greater than or equal to 60.
@@ -968,14 +1133,18 @@ Returns DLG_EXIT_ERROR if the value specified is greater than or equal to 60.
 .IP \fBdialog_yesno
 implements the "\fB--yesno\fP" option.
 .RS
-.IP title
+.TP 5
+.B const char * \fItitle
 is the title on the top of the widget.
-.IP cprompt
+.TP 5
+.B const char * \fIcprompt
 is the prompt text shown within the widget.
-.IP height
+.TP 5
+.B int \fIheight
 is the desired height of the box.
 If zero, the height is based on the screen size.
-.IP width
+.TP 5
+.B int \fIwidth
 is the desired width of the box.
 If zero, the height is based on the screen size.
 .RE
@@ -989,7 +1158,7 @@ Bowing to longstanding usage, the functions that initialize the
 display and end it are named \fIinit_dialog\fP and \fIend_dialog\fP.
 .PP
 The only non-widget function whose name begins with "\fIdialog_\fP"
-is \fIdialog_version\fP, which returns the version number of the
+is \fBdialog_version\fP, which returns the version number of the
 library as a string.
 .
 .PP
@@ -1076,6 +1245,30 @@ This is the size of the struct for each row of the array.
 .TP 5
 .B int \fInum_rows
 This is the number of rows in the array.
+.RE
+.\" ---------------------------------------------------------------------------
+.TP 5
+.B dlg_allocate_gauge
+Allocates a gauge widget.
+Use \fBdlg_update_gauge\fP to display the result.
+.RS
+.TP 5
+.B const char * \fItitle
+is the title string to display at the top of the widget.
+.TP 5
+.B const char * \fIcprompt
+is the prompt text shown within the widget.
+.TP 5
+.B int \fIheight
+is the desired height of the box.
+If zero, the height is adjusted to use the available screen size.
+.TP 5
+.B int \fIwidth
+is the desired width of the box.
+If zero, the height is adjusted to use the available screen size.
+.TP 5
+.B int \fIpercent
+is the percentage to show in the progress bar.
 .RE
 .\" ---------------------------------------------------------------------------
 .TP 5
@@ -1325,7 +1518,7 @@ is the number of \fIitems\fP in the list.
 .TP 5
 .B dlg_calc_listw
 This function is obsolete, provided for library-compatibility.
-It is replaced by \fIdlg_calc_list_width\fP.
+It is replaced by \fBdlg_calc_list_width\fP.
 .RS
 .TP 5
 .B int \fIitem_no
@@ -1541,7 +1734,7 @@ It is terminated by an entry with a null \fIname\fP field.
 .TP 5
 .B dlg_default_item
 This function is obsolete, provided for library-compatibility.
-It is replaced by \fIdlg_default_formitem\fP and \fIdlg_default_listitem\fP.
+It is replaced by \fBdlg_default_formitem\fP and \fBdlg_default_listitem\fP.
 .RS
 .TP 5
 .B char ** \fIitems
@@ -1698,6 +1891,18 @@ is true if the buttons are arranged in a column rather than a row.
 .TP 5
 .B int \fIlimit
 is the number of columns (or rows if \fIvertical\fP) allowed for the display.
+.RE
+.\" ---------------------------------------------------------------------------
+.TP 5
+.B dlg_draw_helpline
+draw the text in \fBdialog_vars.help_line\fP at the bottom of the given window.
+.RS
+.TP 5
+.B WINDOW * \fIdialog
+is the window to modify.
+.TP 5
+.B bool \fIdecorations
+if true, allow room for the scrolling arrows.
 .RE
 .\" ---------------------------------------------------------------------------
 .TP 5
@@ -1898,7 +2103,8 @@ Quit program killing all \fBtailboxbg\fP widgets.
 .B const char * \fIfmt
 is the format of the \fBprintf\fP-like message to write.
 .TP 5
-.
+.B ...
+.br
 are the variables to apply to the \fIfmt\fP format.
 .RE
 .\" ---------------------------------------------------------------------------
@@ -2011,6 +2217,15 @@ Free memory owned by a list of DIALOG_FORMITEM's.
 .TP 5
 .B DIALOG_FORMITEM * \fIitems
 is the list to free.
+.RE
+.\" ---------------------------------------------------------------------------
+.TP 5
+.B dlg_free_gauge
+Remove the gauge widget from the screen and free its associated memory.
+.RS
+.TP 5
+.B void *\fIobjptr
+points to the gauge widget.
 .RE
 .\" ---------------------------------------------------------------------------
 .TP 5
@@ -2615,23 +2830,29 @@ applied to the string.
 .B dlg_progressbox
 implements the "\fB--prgbox\fP" and "\fB--progressbox\fP" options.
 .RS
-.IP title
+.TP 5
+.B const char * \fItitle
 is the title on the top of the widget.
-.IP cprompt
+.TP 5
+.B const char * \fIcprompt
 is the prompt text shown within the widget.
 If empty or null, no prompt is shown.
-.IP height
+.TP 5
+.B int \fIheight
 is the desired height of the box.
 If zero, the height is based on the screen size.
-.IP width
+.TP 5
+.B int \fIwidth
 is the desired width of the box.
 If zero, the height is based on the screen size.
-.IP pauseopt
+.TP 5
+.B int \fIpauseopt
 if true, an "OK" button will be shown,
 and the dialog will wait for it to complete.
 With an "OK" button, it is denoted a "programbox",
 without an "OK" button, it is denoted a "progressbox".
-.IP fp
+.TP 5
+.B FILE * \fIfp
 is the file pointer, which may be a pipe or a regular file.
 .RE
 .\" ---------------------------------------------------------------------------
@@ -2865,16 +3086,66 @@ Some of these may be values declared in the DLG_KEYS_ENUM.
 .RE
 .\" ---------------------------------------------------------------------------
 .TP 5
+.B dlg_trace_msg
+Write a formatted message to the trace file.
+.RS
+.TP 5
+.B const char * \fIfmt
+is the format of the \fBprintf\fP-like message to write.
+.TP 5
+.B ...
+.br
+are the variables to apply to the \fIfmt\fP format.
+.RE
+.IP
+Use the DLG_TRACE macro for portability, in case the trace
+feature is not compiled into the library.
+It uses an extra level of parentheses to work with a variable number of
+parameters, e.g.,
+.ES
+.EX
+DLG_TRACE(("this is dialog version %s\\n", dialog_version()));
+.EE
+.\" ---------------------------------------------------------------------------
+.TP 5
 .B dlg_trace_win
 If \fBdialog_state.trace\fP is set, 
 log a printable picture of the given window.
 .\" ---------------------------------------------------------------------------
 .TP 5
 .B dlg_trim_string
-Change embedded "\\n" substrings to '\\n' characters and tabs to single spaces.
-If there are no "\\n"s, the function strips all extra spaces, for justification.
-If it has "\\n"'s, the function preserves extra spaces.
-If \fBdialog_vars.cr_wrap\fP is set, the function preserves '\\n's.
+The \fBdialog\fP program uses this in each widget to adjust the
+message string,
+which may contain the newline character (referred to as '\\n')
+and/or the special substring "\\n"
+(which can be translated into a newline character).
+.IP
+There are several optional features:
+.RS
+.bP
+Unless \fBdialog_vars.no_nl_expand\fP is set,
+.RS
+.bP
+If it has "\\n" substrings,
+the function preserves extra spaces.
+For instance, spaces following a newline (substring or character)
+are preserved to use as an indentation.
+.bP
+The function changes embedded "\\n" substrings to '\\n' characters.
+.RE
+.bP
+If \fBdialog_vars.no_nl_expand\fP is not set,
+or if there are no "\\n" substrings,
+this function strips all extra spaces to simplify justification.
+.bP
+If \fBdialog_vars.cr_wrap\fP is set,
+the function preserves '\\n' newline characters.
+Otherwise, each '\\n' newline character is converted to a space.
+.bP
+Unless \fBdialog_vars.nocollapse\fP is set,
+each tab character is converted to a space,
+and sequences of blanks (space or tab) are reduced to a single space.
+.RE
 .RS
 .TP 5
 .B char * \fIsrc
@@ -2888,6 +3159,18 @@ Remove the bindings for a given window.
 .TP 5
 .B WINDOW * \fIwin
 is the window from which to remove bindings
+.RE
+.\" ---------------------------------------------------------------------------
+.TP 5
+.B dlg_update_gauge
+Update a gauge widget to show a different percentage value.
+.RS
+.TP 5
+.B void *\fIobjptr
+points to the gauge object to update.
+.TP 5
+.B int \fIpercent
+is the new percentage value to display.
 .RE
 .\" ---------------------------------------------------------------------------
 .TP 5

@@ -65,7 +65,6 @@ void	ipi_cpu(int cpu, u_int ipi);
 int	ipi_nmi_handler(void);
 void	ipi_selected(cpuset_t cpus, u_int ipi);
 u_int	mp_bootaddress(u_int);
-int	mp_grab_cpu_hlt(void);
 void	smp_cache_flush(void);
 void	smp_invlpg(vm_offset_t addr);
 void	smp_masked_invlpg(cpuset_t mask, vm_offset_t addr);

@@ -91,8 +91,8 @@ SparcTargetLowering::LowerReturn(SDValue Chain,
   SmallVector<CCValAssign, 16> RVLocs;
 
   // CCState - Info about the registers and stack slot.
-  CCState CCInfo(CallConv, isVarArg, DAG.getTarget(),
-                 RVLocs, *DAG.getContext());
+  CCState CCInfo(CallConv, isVarArg, DAG.getMachineFunction(),
+		 DAG.getTarget(), RVLocs, *DAG.getContext());
 
   // Analize return values.
   CCInfo.AnalyzeReturn(Outs, RetCC_Sparc32);
@@ -139,7 +139,7 @@ SparcTargetLowering::LowerReturn(SDValue Chain,
   if (Flag.getNode())
     return DAG.getNode(SPISD::RET_FLAG, dl, MVT::Other, Chain,
                        RetAddrOffsetNode, Flag);
-  return DAG.getNode(SPISD::RET_FLAG, dl, MVT::Other, Chain, 
+  return DAG.getNode(SPISD::RET_FLAG, dl, MVT::Other, Chain,
                      RetAddrOffsetNode);
 }
 
@@ -161,8 +161,8 @@ SparcTargetLowering::LowerFormalArguments(SDValue Chain,
 
   // Assign locations to all of the incoming arguments.
   SmallVector<CCValAssign, 16> ArgLocs;
-  CCState CCInfo(CallConv, isVarArg, getTargetMachine(),
-                 ArgLocs, *DAG.getContext());
+  CCState CCInfo(CallConv, isVarArg, DAG.getMachineFunction(),
+		 getTargetMachine(), ArgLocs, *DAG.getContext());
   CCInfo.AnalyzeFormalArguments(Ins, CC_Sparc32);
 
   const unsigned StackOffset = 92;
@@ -182,8 +182,6 @@ SparcTargetLowering::LowerFormalArguments(SDValue Chain,
     }
 
     if (VA.isRegLoc()) {
-      EVT RegVT = VA.getLocVT();
-
       if (VA.needsCustom()) {
         assert(VA.getLocVT() == MVT::f64);
         unsigned VRegHi = RegInfo.createVirtualRegister(&SP::IntRegsRegClass);
@@ -362,8 +360,8 @@ SparcTargetLowering::LowerCall(SDValue Chain, SDValue Callee,
 
   // Analyze operands of the call, assigning locations to each operand.
   SmallVector<CCValAssign, 16> ArgLocs;
-  CCState CCInfo(CallConv, isVarArg, DAG.getTarget(), ArgLocs,
-                 *DAG.getContext());
+  CCState CCInfo(CallConv, isVarArg, DAG.getMachineFunction(),
+		 DAG.getTarget(), ArgLocs, *DAG.getContext());
   CCInfo.AnalyzeCallOperands(Outs, CC_Sparc32);
 
   // Get the size of the outgoing arguments stack space requirement.
@@ -593,8 +591,8 @@ SparcTargetLowering::LowerCall(SDValue Chain, SDValue Callee,
 
   // Assign locations to each value returned by this call.
   SmallVector<CCValAssign, 16> RVLocs;
-  CCState RVInfo(CallConv, isVarArg, DAG.getTarget(),
-                 RVLocs, *DAG.getContext());
+  CCState RVInfo(CallConv, isVarArg, DAG.getMachineFunction(),
+		 DAG.getTarget(), RVLocs, *DAG.getContext());
 
   RVInfo.AnalyzeCallResult(Ins, RetCC_Sparc32);
 
@@ -800,6 +798,8 @@ SparcTargetLowering::SparcTargetLowering(TargetMachine &TM)
 
   if (TM.getSubtarget<SparcSubtarget>().isV9())
     setOperationAction(ISD::CTPOP, MVT::i32, Legal);
+
+  setMinFunctionAlignment(2);
 
   computeRegisterProperties();
 }
@@ -1289,9 +1289,4 @@ bool
 SparcTargetLowering::isOffsetFoldingLegal(const GlobalAddressSDNode *GA) const {
   // The Sparc target isn't yet aware of offsets.
   return false;
-}
-
-/// getFunctionAlignment - Return the Log2 alignment of this function.
-unsigned SparcTargetLowering::getFunctionAlignment(const Function *) const {
-  return 2;
 }

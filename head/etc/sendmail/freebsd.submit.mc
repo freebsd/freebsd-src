@@ -25,4 +25,3 @@ define(`confBIND_OPTS', `WorkAroundBrokenAAAA')dnl
 dnl
 dnl If you use IPv6 only, change [127.0.0.1] to [IPv6:::1]
 FEATURE(`msp', `[127.0.0.1]')dnl
-

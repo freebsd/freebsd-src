@@ -209,6 +209,8 @@ vm_fault(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
     int fault_flags)
 {
 
+	if ((curthread->td_pflags & TDP_NOFAULTING) != 0)
+		return (KERN_PROTECTION_FAILURE);
 	return (vm_fault_hold(map, vaddr, fault_type, fault_flags, NULL));
 }
 
@@ -1089,10 +1091,19 @@ vm_fault_quick_hold_pages(vm_map_t map, vm_offset_t addr, vm_size_t len,
 			 * caller's changes may go unnoticed because they are
 			 * performed through an unmanaged mapping or by a DMA
 			 * operation.
+			 *
+			 * The object lock is not held here.  Therefore, like
+			 * a pmap operation, the page queues lock may be
+			 * required in order to call vm_page_dirty().  See
+			 * vm_page_clear_dirty_mask().
 			 */
+#if defined(__amd64__) || defined(__i386__) || defined(__ia64__)
+			vm_page_dirty(*mp);
+#else
 			vm_page_lock_queues();
 			vm_page_dirty(*mp);
 			vm_page_unlock_queues();
+#endif
 		}
 	}
 	if (pmap_failed) {
@@ -1465,4 +1476,18 @@ vm_fault_additional_pages(m, rbehind, rahead, marray, reqpage)
 
 	/* return number of pages */
 	return i;
+}
+
+int
+vm_fault_disable_pagefaults(void)
+{
+
+	return (curthread_pflags_set(TDP_NOFAULTING));
+}
+
+void
+vm_fault_enable_pagefaults(int save)
+{
+
+	curthread_pflags_restore(save);
 }

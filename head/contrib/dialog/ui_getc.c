@@ -1,5 +1,5 @@
 /*
- *  $Id: ui_getc.c,v 1.59 2011/02/28 10:56:15 tom Exp $
+ *  $Id: ui_getc.c,v 1.63 2011/07/07 22:05:58 tom Exp $
  *
  *  ui_getc.c - user interface glue for getc()
  *
@@ -385,6 +385,9 @@ prev_callback(DIALOG_CALLBACK * p)
     return p;
 }
 
+#define isBeforeChr(chr) ((chr) == before_chr && !before_fkey)
+#define isBeforeFkey(chr) ((chr) == before_chr && before_fkey)
+
 /*
  * Read a character from the given window.  Handle repainting here (to simplify
  * things in the calling application).  Also, if input-callback(s) are set up,
@@ -396,7 +399,8 @@ dlg_getc(WINDOW *win, int *fkey)
 {
     WINDOW *save_win = win;
     int ch = ERR;
-    int before_lookup;
+    int before_chr;
+    int before_fkey;
     int result;
     bool done = FALSE;
     bool literal = FALSE;
@@ -411,6 +415,8 @@ dlg_getc(WINDOW *win, int *fkey)
 	wtimeout(win, interval);
 
     while (!done) {
+	bool handle_others = FALSE;
+
 	/*
 	 * If there was no pending file-input, check the keyboard.
 	 */
@@ -420,80 +426,108 @@ dlg_getc(WINDOW *win, int *fkey)
 	    continue;
 	}
 
-	before_lookup = ch;
+	before_chr = ch;
+	before_fkey = *fkey;
+
 	ch = dlg_lookup_key(win, ch, fkey);
 	dlg_trace_chr(ch, *fkey);
 
 	current = time((time_t *) 0);
 
-	switch (ch) {
-	case CHR_LITERAL:
-	    if (!literal) {
-		literal = TRUE;
-		keypad(win, FALSE);
-		continue;
-	    }
-	    break;
-	case CHR_REPAINT:
-	    (void) touchwin(win);
-	    (void) wrefresh(curscr);
-	    break;
-	case ERR:		/* wtimeout() in effect; check for file I/O */
-	    if (interval > 0
-		&& current >= expired) {
-		dlg_exiterr("timeout");
-	    }
-	    if (!valid_file(stdin)
-		|| !valid_file(dialog_state.screen_output)) {
-		ch = ESC;
-		done = TRUE;
-	    } else if (check_inputs()) {
-		if (handle_inputs(win))
-		    dlg_raise_window(win);
-		else
-		    done = TRUE;
-	    } else {
-		done = (interval <= 0);
-	    }
-	    break;
-	case DLGK_FIELD_PREV:
-	    /* FALLTHRU */
-	case KEY_BTAB:
-	    /* FALLTHRU */
-	case DLGK_FIELD_NEXT:
-	    /* FALLTHRU */
-	case TAB:
-	    /* Handle tab/backtab as a special case for traversing between the
-	     * nominal "current" window, and other windows having callbacks. 
-	     * If the nominal (control) window closes, we'll close the windows
-	     * with callbacks.
-	     */
-	    if (dialog_state.getc_callbacks != 0 &&
-		(before_lookup == TAB ||
-		 before_lookup == KEY_BTAB)) {
-		if (before_lookup == TAB)
-		    p = next_callback(p);
-		else
-		    p = prev_callback(p);
-		if ((dialog_state.getc_redirect = p) != 0) {
-		    win = p->win;
-		} else {
-		    win = save_win;
+	/*
+	 * If we acquired a fkey value, then it is one of dialog's builtin
+	 * codes such as DLGK_HELPFILE.
+	 */
+	if (!*fkey || *fkey != before_fkey) {
+	    switch (ch) {
+	    case CHR_LITERAL:
+		if (!literal) {
+		    literal = TRUE;
+		    keypad(win, FALSE);
+		    continue;
 		}
-		dlg_raise_window(win);
 		break;
-	    }
-	    /* FALLTHRU */
-	default:
+	    case CHR_REPAINT:
+		(void) touchwin(win);
+		(void) wrefresh(curscr);
+		break;
+	    case ERR:		/* wtimeout() in effect; check for file I/O */
+		if (interval > 0
+		    && current >= expired) {
+		    dlg_exiterr("timeout");
+		}
+		if (!valid_file(stdin)
+		    || !valid_file(dialog_state.screen_output)) {
+		    ch = ESC;
+		    done = TRUE;
+		} else if (check_inputs()) {
+		    if (handle_inputs(win))
+			dlg_raise_window(win);
+		    else
+			done = TRUE;
+		} else {
+		    done = (interval <= 0);
+		}
+		break;
+	    case DLGK_HELPFILE:
+		if (dialog_vars.help_file) {
+		    int yold, xold;
+		    getyx(win, yold, xold);
+		    dialog_helpfile("HELP", dialog_vars.help_file, 0, 0);
+		    dlg_raise_window(win);
+		    wmove(win, yold, xold);
+		}
+		continue;
+	    case DLGK_FIELD_PREV:
+		/* FALLTHRU */
+	    case KEY_BTAB:
+		/* FALLTHRU */
+	    case DLGK_FIELD_NEXT:
+		/* FALLTHRU */
+	    case TAB:
+		/* Handle tab/backtab as a special case for traversing between
+		 * the nominal "current" window, and other windows having
+		 * callbacks.  If the nominal (control) window closes, we'll
+		 * close the windows with callbacks.
+		 */
+		if (dialog_state.getc_callbacks != 0 &&
+		    (isBeforeChr(TAB) ||
+		     isBeforeFkey(KEY_BTAB))) {
+		    p = (isBeforeChr(TAB)
+			 ? next_callback(p)
+			 : prev_callback(p));
+		    if ((dialog_state.getc_redirect = p) != 0) {
+			win = p->win;
+		    } else {
+			win = save_win;
+		    }
+		    dlg_raise_window(win);
+		    break;
+		}
+		/* FALLTHRU */
+	    default:
 #ifdef NO_LEAKS
-	    if (before_lookup == DLG_CTRL('P')) {
-		/* for testing, ^P closes the connection */
-		close(0);
-		close(1);
-		close(2);
-		break;
-	    }
+		if (isBeforeChr(DLG_CTRL('P'))) {
+		    /* for testing, ^P closes the connection */
+		    close(0);
+		    close(1);
+		    close(2);
+		    break;
+		}
 #endif
+		handle_others = TRUE;
+		break;
+#ifdef HAVE_DLG_TRACE
+	    case CHR_TRACE:
+		dlg_trace_win(win);
+		break;
+#endif
+	    }
+	} else {
+	    handle_others = TRUE;
+	}
+
+	if (handle_others) {
 	    if ((p = dialog_state.getc_redirect) != 0) {
 		if (!(p->handle_getc(p, ch, *fkey, &result))) {
 		    dlg_remove_callback(p);
@@ -503,12 +537,6 @@ dlg_getc(WINDOW *win, int *fkey)
 	    } else {
 		done = TRUE;
 	    }
-	    break;
-#ifdef HAVE_DLG_TRACE
-	case CHR_TRACE:
-	    dlg_trace_win(win);
-	    break;
-#endif
 	}
     }
     if (literal)

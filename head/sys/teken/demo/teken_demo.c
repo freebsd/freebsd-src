@@ -88,7 +88,7 @@ printchar(const teken_pos_t *p)
 
 	getyx(stdscr, y, x);
 
- 	px = &buffer[p->tp_col][p->tp_row];
+	px = &buffer[p->tp_col][p->tp_row];
 
 	/* Convert Unicode to UTF-8. */
 	if (px->c < 0x80) {
@@ -169,10 +169,10 @@ test_copy(void *s __unused, const teken_rect_t *r, const teken_pos_t *p)
 	 * Copying is a little tricky. We must make sure we do it in
 	 * correct order, to make sure we don't overwrite our own data.
 	 */
-	
+
 	nrow = r->tr_end.tp_row - r->tr_begin.tp_row;
 	ncol = r->tr_end.tp_col - r->tr_begin.tp_col;
-	
+
 	if (p->tp_row < r->tr_begin.tp_row) {
 		/* Copy from top to bottom. */
 		if (p->tp_col < r->tr_begin.tp_col) {

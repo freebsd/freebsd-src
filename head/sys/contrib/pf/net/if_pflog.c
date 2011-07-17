@@ -1,4 +1,4 @@
-/*	$OpenBSD: if_pflog.c,v 1.22 2006/12/15 09:31:20 otto Exp $	*/
+/*	$OpenBSD: if_pflog.c,v 1.26 2007/10/18 21:58:18 mpf Exp $	*/
 /*
  * The authors of this code are John Ioannidis (ji@tla.org),
  * Angelos D. Keromytis (kermit@csd.uch.gr) and 
@@ -99,11 +99,11 @@ __FBSDID("$FreeBSD$");
 #include <net/pfvar.h>
 #include <net/if_pflog.h>
 
-#ifdef INET
 #ifdef __FreeBSD__
+#ifdef INET
 #include <machine/in_cksum.h>
-#endif
-#endif
+#endif /* INET */
+#endif /* __FreeBSD__ */
 
 #define PFLOGMTU	(32768 + MHLEN + MLEN)
 
@@ -115,7 +115,11 @@ __FBSDID("$FreeBSD$");
 
 void	pflogattach(int);
 int	pflogoutput(struct ifnet *, struct mbuf *, struct sockaddr *,
-    		       struct route *);
+#ifdef __FreeBSD__
+	    struct route *);
+#else
+	    struct rtentry *);
+#endif
 int	pflogioctl(struct ifnet *, u_long, caddr_t);
 void	pflogstart(struct ifnet *);
 #ifdef __FreeBSD__
@@ -128,17 +132,13 @@ int	pflog_clone_destroy(struct ifnet *);
 
 LIST_HEAD(, pflog_softc)	pflogif_list;
 #ifdef __FreeBSD__
-IFC_SIMPLE_DECLARE(pflog, 1);    
+IFC_SIMPLE_DECLARE(pflog, 1);
 #else
 struct if_clone	pflog_cloner =
     IF_CLONE_INITIALIZER("pflog", pflog_clone_create, pflog_clone_destroy);
 #endif
 
 struct ifnet	*pflogifs[PFLOGIFS_MAX];	/* for fast access */
-
-#ifndef __FreeBSD__
-extern int ifqmaxlen;
-#endif
 
 void
 pflogattach(int npflog)
@@ -147,9 +147,6 @@ pflogattach(int npflog)
 	LIST_INIT(&pflogif_list);
 	for (i = 0; i < PFLOGIFS_MAX; i++)
 		pflogifs[i] = NULL;
-#ifndef __FreeBSD__
-	(void) pflog_clone_create(&pflog_cloner, 0);
-#endif
 	if_clone_attach(&pflog_cloner);
 }
 
@@ -168,9 +165,9 @@ pflog_clone_create(struct if_clone *ifc, int unit)
 	if (unit >= PFLOGIFS_MAX)
 		return (EINVAL);
 
-	if ((pflogif = malloc(sizeof(*pflogif), M_DEVBUF, M_NOWAIT)) == NULL)
+	if ((pflogif = malloc(sizeof(*pflogif),
+	    M_DEVBUF, M_NOWAIT|M_ZERO)) == NULL)
 		return (ENOMEM);
-	bzero(pflogif, sizeof(*pflogif));
 
 	pflogif->sc_unit = unit;
 #ifdef __FreeBSD__
@@ -209,6 +206,7 @@ pflog_clone_create(struct if_clone *ifc, int unit)
 
 	s = splnet();
 #ifdef __FreeBSD__
+	/* XXX: Why pf(4) lock?! Better add a pflog lock?! */
 	PF_LOCK();
 #endif
 	LIST_INSERT_HEAD(&pflogif_list, pflogif, sc_list);
@@ -289,7 +287,11 @@ pflogstart(struct ifnet *ifp)
 
 int
 pflogoutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
-       struct route *ro)
+#ifdef __FreeBSD__
+	struct route *rt)
+#else
+	struct rtentry *rt)
+#endif
 {
 	m_freem(m);
 	return (0);
@@ -300,9 +302,6 @@ int
 pflogioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	switch (cmd) {
-	case SIOCSIFADDR:
-	case SIOCAIFADDR:
-	case SIOCSIFDSTADDR:
 	case SIOCSIFFLAGS:
 #ifdef __FreeBSD__
 		if (ifp->if_flags & IFF_UP)
@@ -317,7 +316,7 @@ pflogioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 #endif
 		break;
 	default:
-		return (EINVAL);
+		return (ENOTTY);
 	}
 
 	return (0);
@@ -333,7 +332,7 @@ pflog_packet(struct pfi_kif *kif, struct mbuf *m, sa_family_t af, u_int8_t dir,
 	struct pfloghdr hdr;
 
 	if (kif == NULL || m == NULL || rm == NULL || pd == NULL)
-		return (-1);
+		return ( 1);
 
 	if ((ifn = pflogifs[rm->logif]) == NULL || !ifn->if_bpf)
 		return (0);
@@ -347,7 +346,7 @@ pflog_packet(struct pfi_kif *kif, struct mbuf *m, sa_family_t af, u_int8_t dir,
 
 	if (am == NULL) {
 		hdr.rulenr = htonl(rm->nr);
-		hdr.subrulenr = -1;
+		hdr.subrulenr =  1;
 	} else {
 		hdr.rulenr = htonl(am->nr);
 		hdr.subrulenr = htonl(rm->nr);
@@ -357,11 +356,11 @@ pflog_packet(struct pfi_kif *kif, struct mbuf *m, sa_family_t af, u_int8_t dir,
 	}
 	if (rm->log & PF_LOG_SOCKET_LOOKUP && !pd->lookup.done)
 #ifdef __FreeBSD__
-		/* 
+		/*
 		 * XXX: This should not happen as we force an early lookup
 		 * via debug.pfugidhack
 		 */
-		 ; /* empty */
+		; /* empty */
 #else
 		pd->lookup.done = pf_socket_lookup(dir, pd);
 #endif

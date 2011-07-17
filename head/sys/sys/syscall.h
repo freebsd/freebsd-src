@@ -430,6 +430,8 @@
 #define	SYS_msgctl	511
 #define	SYS_shmctl	512
 #define	SYS_lpathconf	513
+#define	SYS_cap_new	514
+#define	SYS_cap_getrights	515
 #define	SYS_cap_enter	516
 #define	SYS_cap_getmode	517
 #define	SYS_pselect	522

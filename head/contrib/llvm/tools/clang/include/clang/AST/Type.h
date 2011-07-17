@@ -294,9 +294,15 @@ public:
   /// Generally this answers the question of whether an object with the other
   /// qualifiers can be safely used as an object with these qualifiers.
   bool compatiblyIncludes(Qualifiers other) const {
-    // Non-CVR qualifiers must match exactly.  CVR qualifiers may subset.
-    return ((Mask & ~CVRMask) == (other.Mask & ~CVRMask)) &&
-           (((Mask & CVRMask) | (other.Mask & CVRMask)) == (Mask & CVRMask));
+    return 
+      // Address spaces must match exactly.
+      getAddressSpace() == other.getAddressSpace() &&
+      // ObjC GC qualifiers can match, be added, or be removed, but can't be
+      // changed.
+      (getObjCGCAttr() == other.getObjCGCAttr() ||
+       !hasObjCGCAttr() || !other.hasObjCGCAttr()) &&
+      // CVR qualifiers may subset.
+      (((Mask & CVRMask) | (other.Mask & CVRMask)) == (Mask & CVRMask));
   }
 
   /// \brief Determine whether this set of qualifiers is a strict superset of
@@ -530,6 +536,14 @@ public:
   }
   QualType withConst() const {
     return withFastQualifiers(Qualifiers::Const);
+  }
+
+  /// addVolatile - add the specified type qualifier to this QualType.  
+  void addVolatile() {
+    addFastQualifiers(Qualifiers::Volatile);
+  }
+  QualType withVolatile() const {
+    return withFastQualifiers(Qualifiers::Volatile);
   }
 
   void addFastQualifiers(unsigned TQs) {
@@ -1183,6 +1197,10 @@ public:
   /// (C++0x [basic.types]p9)
   bool isTrivialType() const;
 
+  /// isTriviallyCopyableType - Return true if this is a trivially copyable type
+  /// (C++0x [basic.types]p9
+  bool isTriviallyCopyableType() const;
+
   /// \brief Test if this type is a standard-layout type.
   /// (C++0x [basic.type]p9)
   bool isStandardLayoutType() const;
@@ -1418,15 +1436,21 @@ public:
 
   /// isSignedIntegerType - Return true if this is an integer type that is
   /// signed, according to C99 6.2.5p4 [char, signed char, short, int, long..],
-  /// an enum decl which has a signed representation, or a vector of signed
-  /// integer element type.
+  /// or an enum decl which has a signed representation.
   bool isSignedIntegerType() const;
 
   /// isUnsignedIntegerType - Return true if this is an integer type that is
-  /// unsigned, according to C99 6.2.5p6 [which returns true for _Bool], an enum
-  /// decl which has an unsigned representation, or a vector of unsigned integer
-  /// element type.
+  /// unsigned, according to C99 6.2.5p6 [which returns true for _Bool], 
+  /// or an enum decl which has an unsigned representation.
   bool isUnsignedIntegerType() const;
+
+  /// Determines whether this is an integer type that is signed or an 
+  /// enumeration types whose underlying type is a signed integer type.
+  bool isSignedIntegerOrEnumerationType() const;
+  
+  /// Determines whether this is an integer type that is unsigned or an 
+  /// enumeration types whose underlying type is a unsigned integer type.
+  bool isUnsignedIntegerOrEnumerationType() const;
 
   /// isConstantSizeType - Return true if this is not a variable sized type,
   /// according to the rules of C99 6.7.5p3.  It is not legal to call this on
@@ -2580,6 +2604,7 @@ public:
   }
   bool isNothrow(ASTContext &Ctx) const {
     ExceptionSpecificationType EST = getExceptionSpecType();
+    assert(EST != EST_Delayed);
     if (EST == EST_DynamicNone || EST == EST_BasicNoexcept)
       return true;
     if (EST != EST_ComputedNoexcept)
@@ -2807,6 +2832,39 @@ public:
 
   static void Profile(llvm::FoldingSetNodeID &ID, const ASTContext &Context,
                       Expr *E);
+};
+
+/// \brief A unary type transform, which is a type constructed from another
+class UnaryTransformType : public Type {
+public:
+  enum UTTKind {
+    EnumUnderlyingType
+  };
+
+private:
+  /// The untransformed type.
+  QualType BaseType;
+  /// The transformed type if not dependent, otherwise the same as BaseType.
+  QualType UnderlyingType;
+
+  UTTKind UKind;
+protected:
+  UnaryTransformType(QualType BaseTy, QualType UnderlyingTy, UTTKind UKind,
+                     QualType CanonicalTy);
+  friend class ASTContext;
+public:
+  bool isSugared() const { return !isDependentType(); }
+  QualType desugar() const { return UnderlyingType; }
+
+  QualType getUnderlyingType() const { return UnderlyingType; }
+  QualType getBaseType() const { return BaseType; }
+
+  UTTKind getUTTKind() const { return UKind; }
+  
+  static bool classof(const Type *T) {
+    return T->getTypeClass() == UnaryTransform;
+  }
+  static bool classof(const UnaryTransformType *) { return true; }
 };
 
 class TagType : public Type {
@@ -3201,6 +3259,10 @@ public:
 /// Other template specialization types, for which the template name
 /// is dependent, may be canonical types. These types are always
 /// dependent.
+///
+/// An instance of this type is followed by an array of TemplateArgument*s,
+/// then, if the template specialization type is for a type alias template,
+/// a QualType representing the non-canonical aliased type.
 class TemplateSpecializationType
   : public Type, public llvm::FoldingSetNode {
   /// \brief The name of the template being specialized.
@@ -3212,7 +3274,8 @@ class TemplateSpecializationType
 
   TemplateSpecializationType(TemplateName T,
                              const TemplateArgument *Args,
-                             unsigned NumArgs, QualType Canon);
+                             unsigned NumArgs, QualType Canon,
+                             QualType Aliased);
 
   friend class ASTContext;  // ASTContext creates these
 
@@ -3247,6 +3310,16 @@ public:
     return isa<InjectedClassNameType>(getCanonicalTypeInternal());
   }
 
+  /// True if this template specialization type is for a type alias
+  /// template.
+  bool isTypeAlias() const;
+  /// Get the aliased type, if this is a specialization of a type alias
+  /// template.
+  QualType getAliasedType() const {
+    assert(isTypeAlias() && "not a type alias template specialization");
+    return *reinterpret_cast<const QualType*>(end());
+  }
+
   typedef const TemplateArgument * iterator;
 
   iterator begin() const { return getArgs(); }
@@ -3268,12 +3341,14 @@ public:
   const TemplateArgument &getArg(unsigned Idx) const; // in TemplateBase.h
 
   bool isSugared() const {
-    return !isDependentType() || isCurrentInstantiation();
+    return !isDependentType() || isCurrentInstantiation() || isTypeAlias();
   }
   QualType desugar() const { return getCanonicalTypeInternal(); }
 
   void Profile(llvm::FoldingSetNodeID &ID, const ASTContext &Ctx) {
     Profile(ID, Template, getArgs(), NumArgs, Ctx);
+    if (isTypeAlias())
+      getAliasedType().Profile(ID);
   }
 
   static void Profile(llvm::FoldingSetNodeID &ID, TemplateName T,

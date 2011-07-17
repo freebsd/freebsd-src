@@ -68,12 +68,7 @@ base.txz:
 # Set up mergemaster root database
 	sh ${.CURDIR}/scripts/mm-mtree.sh -F \
 	    "TARGET_ARCH=${TARGET_ARCH} TARGET=${TARGET}" -D "${DISTDIR}/base"
-# Merge handbook, etc. from doc tree into src tree doc distribution
-.if !defined(NODOC)
-	cd ${DOCDIR} && ${IMAKE} all install \
-	    DOCDIR=${DISTDIR}/doc/usr/share/doc 'FORMATS=html html-split txt' \
-	    INSTALL_COMPRESSED='' URLS_ABSOLUTE=YES
-.endif
+# Package all components
 	cd ${WORLDDIR} && ${IMAKE} packageworld DISTDIR=${DISTDIR}
 	mv ${DISTDIR}/*.txz ${.OBJDIR}
 
@@ -110,8 +105,8 @@ reldoc:
 system: packagesystem
 # Install system
 	-mkdir ${.OBJDIR}/release
-	cd ${WORLDDIR} && ${IMAKE} installkernel installworld distribution DESTDIR=${.OBJDIR}/release
-	-rm ${.OBJDIR}/release/boot/kernel/*.symbols
+	cd ${WORLDDIR} && ${IMAKE} installkernel installworld distribution \
+	    DESTDIR=${.OBJDIR}/release WITHOUT_RESCUE=1 WITHOUT_KERNEL_SYMBOLS=1
 # Copy distfiles
 	mkdir ${.OBJDIR}/release/usr/freebsd-dist
 	cp ${.OBJDIR}/*.txz ${.OBJDIR}/MANIFEST \
@@ -135,8 +130,9 @@ bootonly: packagesystem
 	    WITHOUT_BIND_DNSSEC=1 WITHOUT_BIND_ETC=1 WITHOUT_BIND_MTREE=1 \
 	    WITHOUT_BIND_NAMED=1 WITHOUT_GAMES=1 WITHOUT_GROFF=1 \
 	    WITHOUT_INSTALLLIB=1 WITHOUT_LIB32=1 WITHOUT_MAIL=1 \
-	    WITHOUT_NCP=1 WITHOUT_TOOLCHAIN=1 WITHOUT_RESCUE=1 WITHOUT_DICT=1
-	-rm ${.OBJDIR}/bootonly/boot/kernel/*.symbols
+	    WITHOUT_NCP=1 WITHOUT_TOOLCHAIN=1 WITHOUT_PROFILE=1 \
+	    WITHOUT_INSTALLIB=1 WITHOUT_RESCUE=1 WITHOUT_DICT=1 \
+	    WITHOUT_KERNEL_SYMBOLS=1
 # Copy manifest only (no distfiles) to get checksums
 	mkdir ${.OBJDIR}/bootonly/usr/freebsd-dist
 	cp ${.OBJDIR}/MANIFEST ${.OBJDIR}/bootonly/usr/freebsd-dist

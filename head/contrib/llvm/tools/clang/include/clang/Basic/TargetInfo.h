@@ -368,11 +368,14 @@ public:
                            ConstraintInfo *OutputConstraints,
                            unsigned NumOutputs, unsigned &Index) const;
 
-  virtual std::string convertConstraint(const char Constraint) const {
+  // Constraint parm will be left pointing at the last character of
+  // the constraint.  In practice, it won't be changed unless the
+  // constraint is longer than one character.
+  virtual std::string convertConstraint(const char *&Constraint) const {
     // 'p' defaults to 'r', but can be overridden by targets.
-    if (Constraint == 'p')
+    if (*Constraint == 'p')
       return std::string("r");
-    return std::string(1, Constraint);
+    return std::string(1, *Constraint);
   }
 
   // Returns a string of target-specific clobbers, in LLVM format.

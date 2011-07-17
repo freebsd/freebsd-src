@@ -1,4 +1,4 @@
-.\"	$OpenBSD: ftp-proxy.8,v 1.7 2006/12/30 13:01:54 camield Exp $
+.\"	$OpenBSD: ftp-proxy.8,v 1.11 2008/02/26 18:52:53 henning Exp $
 .\"
 .\" Copyright (c) 2004, 2005 Camiel Dobbelaar, <cd@sentia.nl>
 .\"
@@ -16,14 +16,15 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 28, 2004
+.Dd February 26, 2008
 .Dt FTP-PROXY 8
 .Os
 .Sh NAME
 .Nm ftp-proxy
 .Nd Internet File Transfer Protocol proxy daemon
 .Sh SYNOPSIS
-.Nm ftp-proxy
+.Nm
+.Bk -words
 .Op Fl 6Adrv
 .Op Fl a Ar address
 .Op Fl b Ar address
@@ -33,7 +34,9 @@
 .Op Fl p Ar port
 .Op Fl q Ar queue
 .Op Fl R Ar address
+.Op Fl T Ar tag
 .Op Fl t Ar timeout
+.Ek
 .Sh DESCRIPTION
 .Nm
 is a proxy for the Internet File Transfer Protocol.
@@ -58,7 +61,7 @@ facility for this.
 Assuming the FTP control connection is from $client to $server, the
 proxy connected to the server using the $proxy source address, and
 $port is negotiated, then
-.Nm ftp-proxy
+.Nm
 adds the following rules to the various anchors.
 (These example rules use inet, but the proxy also supports inet6.)
 .Pp
@@ -130,6 +133,20 @@ connections to another proxy.
 .It Fl r
 Rewrite sourceport to 20 in active mode to suit ancient clients that insist
 on this RFC property.
+.It Fl T Ar tag
+The filter rules will add tag
+.Ar tag
+to data connections, and not match quick.
+This way alternative rules that use the
+.Ar tagged
+keyword can be implemented following the
+.Nm
+anchor.
+These rules can use special
+.Xr pf 4
+features like route-to, reply-to, label, rtable, overload, etc. that
+.Nm
+does not implement itself.
 .It Fl t Ar timeout
 Number of seconds that the control connection can be idle, before the
 proxy will disconnect.
@@ -172,7 +189,7 @@ does not allow the ruleset to be modified if the system is running at a
 .Xr securelevel 7
 higher than 1.
 At that level
-.Nm ftp-proxy
+.Nm
 cannot add rules to the anchors and FTP data connections may get blocked.
 .Pp
 Negotiated data connection ports below 1024 are not allowed.
@@ -181,5 +198,5 @@ The negotiated IP address for active modes is ignored for security
 reasons.
 This makes third party file transfers impossible.
 .Pp
-.Nm ftp-proxy
+.Nm
 chroots to "/var/empty" and changes to user "proxy" to drop privileges.

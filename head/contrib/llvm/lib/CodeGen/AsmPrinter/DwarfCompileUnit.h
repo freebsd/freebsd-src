@@ -87,9 +87,7 @@ public:
 
   /// addGlobalType - Add a new global type to the compile unit.
   ///
-  void addGlobalType(StringRef Name, DIE *Die) {
-    GlobalTypes[Name] = Die;
-  }
+  void addGlobalType(DIType Ty);
 
   /// getDIE - Returns the debug information entry map slot for the
   /// specified debug variable.
@@ -104,7 +102,7 @@ public:
     MDNodeToDieMap.insert(std::make_pair(N, D));
   }
 
-  /// getDIEEntry - Returns the debug information entry for the speciefied
+  /// getDIEEntry - Returns the debug information entry for the specified
   /// debug variable.
   DIEEntry *getDIEEntry(const MDNode *N) {
     DenseMap<const MDNode *, DIEEntry *>::iterator I =
@@ -182,7 +180,7 @@ public:
                   const MachineLocation &Location);
 
   /// addConstantValue - Add constant value entry in variable DIE.
-  bool addConstantValue(DIE *Die, const MachineOperand &MO);
+  bool addConstantValue(DIE *Die, const MachineOperand &MO, DIType Ty);
   bool addConstantValue(DIE *Die, ConstantInt *CI, bool Unsigned);
 
   /// addConstantFPValue - Add constant value entry in variable DIE.

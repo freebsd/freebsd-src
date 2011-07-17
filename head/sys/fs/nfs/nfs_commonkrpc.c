@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
  */
 
 #include "opt_inet6.h"
+#include "opt_kdtrace.h"
 #include "opt_kgssapi.h"
 #include "opt_nfs.h"
 
@@ -63,6 +64,28 @@ __FBSDID("$FreeBSD$");
 #include <kgssapi/krb5/kcrypto.h>
 
 #include <fs/nfs/nfsport.h>
+
+#ifdef KDTRACE_HOOKS
+#include <sys/dtrace_bsd.h>
+
+dtrace_nfsclient_nfs23_start_probe_func_t
+		dtrace_nfscl_nfs234_start_probe;
+
+dtrace_nfsclient_nfs23_done_probe_func_t
+		dtrace_nfscl_nfs234_done_probe;
+
+/*
+ * Registered probes by RPC type.
+ */
+uint32_t	nfscl_nfs2_start_probes[NFS_NPROCS + 1];
+uint32_t	nfscl_nfs2_done_probes[NFS_NPROCS + 1];
+
+uint32_t	nfscl_nfs3_start_probes[NFS_NPROCS + 1];
+uint32_t	nfscl_nfs3_done_probes[NFS_NPROCS + 1];
+
+uint32_t	nfscl_nfs4_start_probes[NFS_NPROCS + 1];
+uint32_t	nfscl_nfs4_done_probes[NFS_NPROCS + 1];
+#endif
 
 NFSSTATESPINLOCK;
 NFSREQSPINLOCK;
@@ -143,7 +166,7 @@ newnfs_connect(struct nfsmount *nmp, struct nfssockreq *nrp,
 	CLIENT *client;
 	struct netconfig *nconf;
 	struct socket *so;
-	int one = 1, retries, error;
+	int one = 1, retries, error = 0;
 	struct thread *td = curthread;
 
 	/*
@@ -199,7 +222,7 @@ newnfs_connect(struct nfsmount *nmp, struct nfssockreq *nrp,
 	    nrp->nr_soproto, td->td_ucred, td);
 	if (error) {
 		td->td_ucred = origcred;
-		return (error);
+		goto out;
 	}
 	do {
 	    if (error != 0 && pktscale > 2)
@@ -230,7 +253,7 @@ newnfs_connect(struct nfsmount *nmp, struct nfssockreq *nrp,
 	soclose(so);
 	if (error) {
 		td->td_ucred = origcred;
-		return (error);
+		goto out;
 	}
 
 	client = clnt_reconnect_create(nconf, saddr, nrp->nr_prog,
@@ -284,7 +307,10 @@ newnfs_connect(struct nfsmount *nmp, struct nfssockreq *nrp,
 
 	/* Restore current thread's credentials. */
 	td->td_ucred = origcred;
-	return (0);
+
+out:
+	NFSEXITCODE(error);
+	return (error);
 }
 
 /*
@@ -300,9 +326,7 @@ newnfs_disconnect(struct nfssockreq *nrp)
 		client = nrp->nr_client;
 		nrp->nr_client = NULL;
 		mtx_unlock(&nrp->nr_mtx);
-#ifdef KGSSAPI
-		rpc_gss_secpurge(client);
-#endif
+		rpc_gss_secpurge_call(client);
 		CLNT_CLOSE(client);
 		CLNT_RELEASE(client);
 	} else {
@@ -314,21 +338,18 @@ static AUTH *
 nfs_getauth(struct nfssockreq *nrp, int secflavour, char *clnt_principal,
     char *srv_principal, gss_OID mech_oid, struct ucred *cred)
 {
-#ifdef KGSSAPI
 	rpc_gss_service_t svc;
 	AUTH *auth;
 #ifdef notyet
 	rpc_gss_options_req_t req_options;
 #endif
-#endif
 
 	switch (secflavour) {
-#ifdef KGSSAPI
 	case RPCSEC_GSS_KRB5:
 	case RPCSEC_GSS_KRB5I:
 	case RPCSEC_GSS_KRB5P:
 		if (!mech_oid) {
-			if (!rpc_gss_mech_to_oid("kerberosv5", &mech_oid))
+			if (!rpc_gss_mech_to_oid_call("kerberosv5", &mech_oid))
 				return (NULL);
 		}
 		if (secflavour == RPCSEC_GSS_KRB5)
@@ -344,7 +365,7 @@ nfs_getauth(struct nfssockreq *nrp, int secflavour, char *clnt_principal,
 		req_options.input_channel_bindings = NULL;
 		req_options.enc_type = nfs_keytab_enctype;
 
-		auth = rpc_gss_secfind(nrp->nr_client, cred,
+		auth = rpc_gss_secfind_call(nrp->nr_client, cred,
 		    clnt_principal, srv_principal, mech_oid, svc,
 		    &req_options);
 #else
@@ -354,7 +375,7 @@ nfs_getauth(struct nfssockreq *nrp, int secflavour, char *clnt_principal,
 		 * principals. As such, that case cannot yet be handled.
 		 */
 		if (clnt_principal == NULL)
-			auth = rpc_gss_secfind(nrp->nr_client, cred,
+			auth = rpc_gss_secfind_call(nrp->nr_client, cred,
 			    srv_principal, mech_oid, svc);
 		else
 			auth = NULL;
@@ -362,7 +383,6 @@ nfs_getauth(struct nfssockreq *nrp, int secflavour, char *clnt_principal,
 		if (auth != NULL)
 			return (auth);
 		/* fallthrough */
-#endif	/* KGSSAPI */
 	case AUTH_SYS:
 	default:
 		return (authunix_create(cred));
@@ -509,6 +529,20 @@ newnfs_request(struct nfsrv_descript *nd, struct nfsmount *nmp,
 		else
 			secflavour = RPCSEC_GSS_KRB5;
 		srv_principal = NFSMNT_SRVKRBNAME(nmp);
+	} else if (nmp != NULL && !NFSHASKERB(nmp) &&
+	    nd->nd_procnum != NFSPROC_NULL &&
+	    (nd->nd_flag & ND_USEGSSNAME) != 0) {
+		/*
+		 * Use the uid that did the mount when the RPC is doing
+		 * NFSv4 system operations, as indicated by the
+		 * ND_USEGSSNAME flag, for the AUTH_SYS case.
+		 */
+		saved_uid = cred->cr_uid;
+		if (nmp->nm_uid != (uid_t)-1)
+			cred->cr_uid = nmp->nm_uid;
+		else
+			cred->cr_uid = 0;
+		set_uid = 1;
 	}
 
 	if (nmp != NULL) {
@@ -568,6 +602,29 @@ newnfs_request(struct nfsrv_descript *nd, struct nfsmount *nmp,
 		if ((nd->nd_flag & ND_NFSV4) && procnum == NFSV4PROC_COMPOUND)
 			MALLOC(rep, struct nfsreq *, sizeof(struct nfsreq),
 			    M_NFSDREQ, M_WAITOK);
+#ifdef KDTRACE_HOOKS
+		if (dtrace_nfscl_nfs234_start_probe != NULL) {
+			uint32_t probe_id;
+			int probe_procnum;
+	
+			if (nd->nd_flag & ND_NFSV4) {
+				probe_id =
+				    nfscl_nfs4_start_probes[nd->nd_procnum];
+				probe_procnum = nd->nd_procnum;
+			} else if (nd->nd_flag & ND_NFSV3) {
+				probe_id = nfscl_nfs3_start_probes[procnum];
+				probe_procnum = procnum;
+			} else {
+				probe_id =
+				    nfscl_nfs2_start_probes[nd->nd_procnum];
+				probe_procnum = procnum;
+			}
+			if (probe_id != 0)
+				(dtrace_nfscl_nfs234_start_probe)
+				    (probe_id, vp, nd->nd_mreq, cred,
+				     probe_procnum);
+		}
+#endif
 	}
 	trycnt = 0;
 tryagain:
@@ -658,8 +715,10 @@ tryagain:
 		NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
 		nd->nd_repstat = fxdr_unsigned(u_int32_t, *tl);
 		if (nd->nd_repstat != 0) {
-			if ((nd->nd_repstat == NFSERR_DELAY &&
+			if (((nd->nd_repstat == NFSERR_DELAY ||
+			      nd->nd_repstat == NFSERR_GRACE) &&
 			     (nd->nd_flag & ND_NFSV4) &&
+			     nd->nd_procnum != NFSPROC_DELEGRETURN &&
 			     nd->nd_procnum != NFSPROC_SETATTR &&
 			     nd->nd_procnum != NFSPROC_READ &&
 			     nd->nd_procnum != NFSPROC_WRITE &&
@@ -679,6 +738,8 @@ tryagain:
 				while (NFSD_MONOSEC < waituntil)
 					(void) nfs_catnap(PZERO, 0, "nfstry");
 				trylater_delay *= 2;
+				m_freem(nd->nd_mrep);
+				nd->nd_mrep = NULL;
 				goto tryagain;
 			}
 
@@ -761,6 +822,27 @@ tryagain:
 				nd->nd_repstat = NFSERR_STALEDONTRECOVER;
 		}
 	}
+
+#ifdef KDTRACE_HOOKS
+	if (nmp != NULL && dtrace_nfscl_nfs234_done_probe != NULL) {
+		uint32_t probe_id;
+		int probe_procnum;
+
+		if (nd->nd_flag & ND_NFSV4) {
+			probe_id = nfscl_nfs4_done_probes[nd->nd_procnum];
+			probe_procnum = nd->nd_procnum;
+		} else if (nd->nd_flag & ND_NFSV3) {
+			probe_id = nfscl_nfs3_done_probes[procnum];
+			probe_procnum = procnum;
+		} else {
+			probe_id = nfscl_nfs2_done_probes[nd->nd_procnum];
+			probe_procnum = procnum;
+		}
+		if (probe_id != 0)
+			(dtrace_nfscl_nfs234_done_probe)(probe_id, vp,
+			    nd->nd_mreq, cred, probe_procnum, 0);
+	}
+#endif
 
 	m_freem(nd->nd_mreq);
 	AUTH_DESTROY(auth);

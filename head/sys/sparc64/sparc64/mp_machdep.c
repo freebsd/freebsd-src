@@ -139,10 +139,6 @@ static cpu_ipi_single_t spitfire_ipi_single;
 
 SYSINIT(cpu_mp_unleash, SI_SUB_SMP, SI_ORDER_FIRST, cpu_mp_unleash, NULL);
 
-CTASSERT(MAXCPU <= IDR_CHEETAH_MAX_BN_PAIRS);
-CTASSERT(MAXCPU <= sizeof(u_int) * NBBY);
-CTASSERT(MAXCPU <= sizeof(int) * NBBY);
-
 void
 mp_init(u_int cpu_impl)
 {
@@ -283,7 +279,6 @@ sun4u_startcpu(phandle_t cpu, void *func, u_long arg)
 void
 cpu_mp_start(void)
 {
-	cpuset_t ocpus;
 
 	mtx_init(&ipi_mtx, "ipi", NULL, MTX_SPIN);
 
@@ -300,9 +295,6 @@ cpu_mp_start(void)
 	KASSERT(!isjbus || mp_ncpus <= IDR_JALAPENO_MAX_BN_PAIRS,
 	    ("%s: can only IPI a maximum of %d JBus-CPUs",
 	    __func__, IDR_JALAPENO_MAX_BN_PAIRS));
-	ocpus = all_cpus;
-	CPU_CLR(curcpu, &ocpus);
-	PCPU_SET(other_cpus, ocpus);
 	smp_active = 1;
 }
 
@@ -424,15 +416,16 @@ cpu_mp_unleash(void *v)
 void
 cpu_mp_bootstrap(struct pcpu *pc)
 {
-	cpuset_t ocpus;
 	volatile struct cpu_start_args *csa;
 
 	csa = &cpu_start_args;
 
 	/* Do CPU-specific initialization. */
-	if (pc->pc_impl == CPU_IMPL_SPARC64V ||
-	    pc->pc_impl >= CPU_IMPL_ULTRASPARCIII)
+	if (pc->pc_impl >= CPU_IMPL_ULTRASPARCIII)
 		cheetah_init(pc->pc_impl);
+	else if (pc->pc_impl == CPU_IMPL_SPARC64V)
+		zeus_init(pc->pc_impl);
+
 	/*
 	 * Enable the caches.  Note that his may include applying workarounds.
 	 */
@@ -466,9 +459,6 @@ cpu_mp_bootstrap(struct pcpu *pc)
 
 	smp_cpus++;
 	KASSERT(curthread != NULL, ("%s: curthread", __func__));
-	ocpus = all_cpus;
-	CPU_CLR(curcpu, &ocpus);
-	PCPU_SET(other_cpus, ocpus);
 	printf("SMP: AP CPU #%d Launched!\n", curcpu);
 
 	csa->csa_count--;
@@ -491,13 +481,14 @@ cpu_mp_shutdown(void)
 	int i;
 
 	critical_enter();
-	shutdown_cpus = PCPU_GET(other_cpus);
+	shutdown_cpus = all_cpus;
+	CPU_CLR(PCPU_GET(cpuid), &shutdown_cpus);
 	cpus = shutdown_cpus;
 
 	/* XXX: Stop all the CPUs which aren't already. */
 	if (CPU_CMP(&stopped_cpus, &cpus)) {
 
-		/* pc_other_cpus is just a flat "on" mask without curcpu. */
+		/* cpus is just a flat "on" mask without curcpu. */
 		CPU_NAND(&cpus, &stopped_cpus);
 		stop_cpus(cpus);
 	}
@@ -520,23 +511,23 @@ cpu_ipi_ast(struct trapframe *tf)
 static void
 cpu_ipi_stop(struct trapframe *tf)
 {
-	cpuset_t tcmask;
+	u_int cpuid;
 
 	CTR2(KTR_SMP, "%s: stopped %d", __func__, curcpu);
 	sched_pin();
 	savectx(&stoppcbs[curcpu]);
-	tcmask = PCPU_GET(cpumask);
-	CPU_OR_ATOMIC(&stopped_cpus, &tcmask);
-	while (!CPU_OVERLAP(&started_cpus, &tcmask)) {
-		if (CPU_OVERLAP(&shutdown_cpus, &tcmask)) {
-			CPU_NAND_ATOMIC(&shutdown_cpus, &tcmask);
+	cpuid = PCPU_GET(cpuid);
+	CPU_SET_ATOMIC(cpuid, &stopped_cpus);
+	while (!CPU_ISSET(cpuid, &started_cpus)) {
+		if (CPU_ISSET(cpuid, &shutdown_cpus)) {
+			CPU_CLR_ATOMIC(cpuid, &shutdown_cpus);
 			(void)intr_disable();
 			for (;;)
 				;
 		}
 	}
-	CPU_NAND_ATOMIC(&started_cpus, &tcmask);
-	CPU_NAND_ATOMIC(&stopped_cpus, &tcmask);
+	CPU_CLR_ATOMIC(cpuid, &started_cpus);
+	CPU_CLR_ATOMIC(cpuid, &stopped_cpus);
 	sched_unpin();
 	CTR2(KTR_SMP, "%s: restarted %d", __func__, curcpu);
 }
@@ -703,6 +694,8 @@ cheetah_ipi_selected(cpuset_t cpus, u_long d0, u_long d1, u_long d2)
 				    ASI_SDB_INTR_W, 0);
 				membar(Sync);
 				bnp++;
+				if (bnp == IDR_CHEETAH_MAX_BN_PAIRS)
+					break;
 			}
 		}
 		while (((ids = ldxa(0, ASI_INTR_DISPATCH_STATUS)) &

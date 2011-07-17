@@ -47,7 +47,7 @@ struct timecounter {
 		 */
 	u_int 			tc_counter_mask;
 		/* This mask should mask off any unimplemented bits. */
-	u_int64_t		tc_frequency;
+	uint64_t		tc_frequency;
 		/* Frequency of the counter in Hz. */
 	char			*tc_name;
 		/* Name of the timecounter. */
@@ -57,6 +57,8 @@ struct timecounter {
 		 * another timecounter higher means better.  Negative
 		 * means "only use at explicit request".
 		 */
+	u_int			tc_flags;
+#define	TC_FLAGS_C3STOP		1	/* Timer dies in C3. */
 
 	void			*tc_priv;
 		/* Pointer to the timecounter's private parts. */

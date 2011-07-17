@@ -54,6 +54,11 @@ ata_sata_phy_check_events(device_t dev, int port)
     u_int32_t error, status;
 
     ata_sata_scr_read(ch, port, ATA_SERROR, &error);
+
+    /* Check that SError value is sane. */
+    if (error == 0xffffffff)
+	return;
+
     /* Clear set error bits/interrupt. */
     if (error)
 	ata_sata_scr_write(ch, port, ATA_SERROR, error);
@@ -163,18 +168,18 @@ ata_sata_phy_reset(device_t dev, int port, int quick)
 
     if (bootverbose) {
 	if (port < 0) {
-	    device_printf(dev, "hardware reset ...\n");
+	    device_printf(dev, "hard reset ...\n");
 	} else {
-	    device_printf(dev, "p%d: hardware reset ...\n", port);
+	    device_printf(dev, "p%d: hard reset ...\n", port);
 	}
     }
     for (retry = 0; retry < 10; retry++) {
 	for (loop = 0; loop < 10; loop++) {
 	    if (ata_sata_scr_write(ch, port, ATA_SCONTROL, ATA_SC_DET_RESET))
-		return (0);
+		goto fail;
 	    ata_udelay(100);
 	    if (ata_sata_scr_read(ch, port, ATA_SCONTROL, &val))
-		return (0);
+		goto fail;
 	    if ((val & ATA_SC_DET_MASK) == ATA_SC_DET_RESET)
 		break;
 	}
@@ -183,15 +188,26 @@ ata_sata_phy_reset(device_t dev, int port, int quick)
 	    if (ata_sata_scr_write(ch, port, ATA_SCONTROL,
 		    ATA_SC_DET_IDLE | ((ch->pm_level > 0) ? 0 :
 		    ATA_SC_IPM_DIS_PARTIAL | ATA_SC_IPM_DIS_SLUMBER)))
-		return (0);
+		goto fail;
 	    ata_udelay(100);
 	    if (ata_sata_scr_read(ch, port, ATA_SCONTROL, &val))
-		return (0);
+		goto fail;
 	    if ((val & ATA_SC_DET_MASK) == 0)
 		return ata_sata_connect(ch, port, 0);
 	}
     }
-    return 0;
+fail:
+    /* Clear SATA error register. */
+    ata_sata_scr_write(ch, port, ATA_SERROR, 0xffffffff);
+
+    if (bootverbose) {
+	if (port < 0) {
+	    device_printf(dev, "hard reset failed\n");
+	} else {
+	    device_printf(dev, "p%d: hard reset failed\n", port);
+	}
+    }
+    return (0);
 }
 
 int

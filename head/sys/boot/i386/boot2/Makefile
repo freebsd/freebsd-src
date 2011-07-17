@@ -89,6 +89,9 @@ boot2.out: ${BTXCRT} boot2.o sio.o
 	${LD} ${LDFLAGS} -Ttext ${ORG2} -o ${.TARGET} ${.ALLSRC}
 
 boot2.o: boot2.s
+.if ${CC:T:Mclang} == "clang"
+	${CC} ${ACFLAGS} -c boot2.s
+.endif
 
 SRCS=	boot2.c boot2.h
 

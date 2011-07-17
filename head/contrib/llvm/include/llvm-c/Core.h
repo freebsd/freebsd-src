@@ -282,6 +282,8 @@ typedef enum {
   LLVMRealPredicateTrue   /**< Always true (always folded) */
 } LLVMRealPredicate;
 
+void LLVMInitializeCore(LLVMPassRegistryRef R);
+
 
 /*===-- Error handling ----------------------------------------------------===*/
 
@@ -1164,6 +1166,7 @@ namespace llvm {
     for (LLVMValueRef *I = Vals, *E = Vals + Length; I != E; ++I)
       cast<T>(*I);
     #endif
+    (void)Length;
     return reinterpret_cast<T**>(Vals);
   }
   

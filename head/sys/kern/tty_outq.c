@@ -119,7 +119,7 @@ void
 ttyoutq_free(struct ttyoutq *to)
 {
 	struct ttyoutq_block *tob;
-	
+
 	ttyoutq_flush(to);
 	to->to_quota = 0;
 

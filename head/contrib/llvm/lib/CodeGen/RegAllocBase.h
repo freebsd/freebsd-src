@@ -39,6 +39,7 @@
 
 #include "llvm/ADT/OwningPtr.h"
 #include "LiveIntervalUnion.h"
+#include "RegisterClassInfo.h"
 
 namespace llvm {
 
@@ -91,6 +92,7 @@ protected:
   MachineRegisterInfo *MRI;
   VirtRegMap *VRM;
   LiveIntervals *LIS;
+  RegisterClassInfo RegClassInfo;
   LiveUnionArray PhysReg2LiveUnion;
 
   // Current queries, one per physreg. They must be reinitialized each time we
@@ -112,6 +114,10 @@ protected:
     Queries[PhysReg].init(UserTag, &VirtReg, &PhysReg2LiveUnion[PhysReg]);
     return Queries[PhysReg];
   }
+
+  // Invalidate all cached information about virtual registers - live ranges may
+  // have changed.
+  void invalidateVirtRegs() { ++UserTag; }
 
   // The top-level driver. The output is a VirtRegMap that us updated with
   // physical register assignments.

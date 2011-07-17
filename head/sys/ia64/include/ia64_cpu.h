@@ -266,7 +266,7 @@ ia64_ptc_e(uint64_t v)
 static __inline void
 ia64_ptc_g(uint64_t va, uint64_t log2size)
 {
-	__asm __volatile("ptc.g %0,%1;; srlz.i;;" :: "r"(va), "r"(log2size));
+	__asm __volatile("ptc.g %0,%1;;" :: "r"(va), "r"(log2size));
 }
 
 /*
@@ -275,7 +275,7 @@ ia64_ptc_g(uint64_t va, uint64_t log2size)
 static __inline void
 ia64_ptc_ga(uint64_t va, uint64_t log2size)
 {
-	__asm __volatile("ptc.ga %0,%1;; srlz.i;;" :: "r"(va), "r"(log2size));
+	__asm __volatile("ptc.ga %0,%1;;" :: "r"(va), "r"(log2size));
 }
 
 /*
@@ -285,6 +285,15 @@ static __inline void
 ia64_ptc_l(uint64_t va, uint64_t log2size)
 {
 	__asm __volatile("ptc.l %0,%1;; srlz.i;;" :: "r"(va), "r"(log2size));
+}
+
+/*
+ * Invalidate the ALAT on the local processor.
+ */
+static __inline void
+ia64_invala(void)
+{
+	__asm __volatile("invala;;");
 }
 
 /*

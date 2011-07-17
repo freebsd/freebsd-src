@@ -726,11 +726,13 @@ init_remote(struct hast_resource *res, struct proto_conn **inp,
 		(void)hast_activemap_flush(res);
 	}
 	nv_free(nvin);
+#ifdef notyet
 	/* Setup directions. */
 	if (proto_send(out, NULL, 0) == -1)
 		pjdlog_errno(LOG_WARNING, "Unable to set connection direction");
 	if (proto_recv(in, NULL, 0) == -1)
 		pjdlog_errno(LOG_WARNING, "Unable to set connection direction");
+#endif
 	pjdlog_info("Connected to %s.", res->hr_remoteaddr);
 	if (inp != NULL && outp != NULL) {
 		*inp = in;
@@ -1685,8 +1687,11 @@ ggate_send_thread(void *arg)
 		}
 		if (ggio->gctl_error == 0 && ggio->gctl_cmd == BIO_WRITE) {
 			mtx_lock(&res->hr_amp_lock);
-			activemap_write_complete(res->hr_amp,
-			    ggio->gctl_offset, ggio->gctl_length);
+			if (activemap_write_complete(res->hr_amp,
+			    ggio->gctl_offset, ggio->gctl_length)) {
+				res->hr_stat_activemap_update++;
+				(void)hast_activemap_flush(res);
+			}
 			mtx_unlock(&res->hr_amp_lock);
 		}
 		if (ggio->gctl_cmd == BIO_WRITE) {

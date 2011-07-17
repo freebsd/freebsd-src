@@ -279,7 +279,9 @@ namespace clang {
       /// generate the AST file.
       ORIGINAL_FILE_NAME = 19,
 
-      /// Record #20 intentionally left blank.
+      /// \brief Record code for the file ID of the original file used to 
+      /// generate the AST file.
+      ORIGINAL_FILE_ID = 20,
       
       /// \brief Record code for the version control branch and revision
       /// information of the compiler used to build this AST file.
@@ -362,7 +364,15 @@ namespace clang {
       FP_PRAGMA_OPTIONS = 42,
 
       /// \brief Record code for enabled OpenCL extensions.
-      OPENCL_EXTENSIONS = 43
+      OPENCL_EXTENSIONS = 43,
+
+      /// \brief The list of delegating constructor declarations.
+      DELEGATING_CTORS = 44,
+
+      /// \brief Record code for the table of offsets into the block
+      /// of file source-location information.
+      FILE_SOURCE_LOCATION_OFFSETS = 45
+
     };
 
     /// \brief Record types used within a source manager block.
@@ -504,6 +514,9 @@ namespace clang {
     /// NUM_PREDEF_TYPE_IDs.
     const unsigned NUM_PREDEF_TYPE_IDS = 100;
 
+    /// \brief The number of allowed abbreviations in bits
+    const unsigned NUM_ALLOWED_ABBREVS_SIZE = 4;
+
     /// \brief Record codes for each kind of type.
     ///
     /// These constants describe the type records that can occur within a
@@ -584,7 +597,9 @@ namespace clang {
       /// \brief A SubstTemplateTypeParmPackType record.
       TYPE_SUBST_TEMPLATE_TYPE_PARM_PACK = 37,
       /// \brief A AutoType record.
-      TYPE_AUTO                  = 38
+      TYPE_AUTO                  = 38,
+      /// \brief A UnaryTransformType record.
+      TYPE_UNARY_TRANSFORM       = 39
     };
 
     /// \brief The type IDs for special types constructed by semantic
@@ -758,6 +773,8 @@ namespace clang {
       DECL_NON_TYPE_TEMPLATE_PARM,
       /// \brief A TemplateTemplateParmDecl record.
       DECL_TEMPLATE_TEMPLATE_PARM,
+      /// \brief A TypeAliasTemplateDecl record.
+      DECL_TYPE_ALIAS_TEMPLATE,
       /// \brief A StaticAssertDecl record.
       DECL_STATIC_ASSERT,
       /// \brief A record containing CXXBaseSpecifiers.
@@ -986,7 +1003,10 @@ namespace clang {
 
       // CUDA
 
-      EXPR_CUDA_KERNEL_CALL       // CUDAKernelCallExpr
+      EXPR_CUDA_KERNEL_CALL,       // CUDAKernelCallExpr
+      
+      // OpenCL
+      EXPR_ASTYPE // An AsTypeExpr record.
     };
 
     /// \brief The kinds of designators that can occur in a
@@ -1001,6 +1021,15 @@ namespace clang {
       DESIG_ARRAY       = 2,
       /// \brief GNU array range designator.
       DESIG_ARRAY_RANGE = 3
+    };
+
+    /// \brief The different kinds of data that can occur in a
+    /// CtorInitializer.
+    enum CtorInitializerType {
+      CTOR_INITIALIZER_BASE,
+      CTOR_INITIALIZER_DELEGATING,
+      CTOR_INITIALIZER_MEMBER,
+      CTOR_INITIALIZER_INDIRECT_MEMBER
     };
 
     /// @}

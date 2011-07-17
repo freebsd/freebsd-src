@@ -194,7 +194,6 @@
 	public void unmark ();
 	public void opt_o ();
 	public void opt__O ();
-	public void opt_l ();
 	public void opt_j ();
 	public void calc_jump_sline ();
 	public void opt_shift ();

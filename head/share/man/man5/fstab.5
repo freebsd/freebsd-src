@@ -70,7 +70,8 @@ remote file system to be mounted.
 The second field,
 .Pq Fa fs_file ,
 describes the mount point for the file system.
-For swap partitions, this field should be specified as ``none''.
+For swap partitions, this field should be specified as
+.Dq none .
 .Pp
 The third field,
 .Pq Fa fs_vfstype ,
@@ -125,7 +126,11 @@ sync,noatime,-m=644,-M=755,-u=foo,-g=bar
 in the option field of
 .Nm .
 .Pp
-If the options ``userquota'' and/or ``groupquota'' are specified,
+If the options
+.Dq userquota
+and/or
+.Dq groupquota
+are specified,
 the file system is automatically processed by the
 .Xr quotacheck 8
 command, and user and/or group disk quotas are enabled with
@@ -147,14 +152,18 @@ this location can be specified as:
 userquota=/var/quotas/tmp.user
 .Ed
 .Pp
-If the option ``failok'' is specified,
+If the option
+.Dq failok
+is specified,
 the system will ignore any error which happens during the mount of that filesystem,
 which would otherwise cause the system to drop into single user mode.
 This option is implemented by the
 .Xr mount 8
 command and will not be passed to the kernel.
 .Pp
-If the option ``noauto'' is specified, the file system will not be automatically
+If the option
+.Dq noauto
+is specified, the file system will not be automatically
 mounted at system startup.
 Note that, for network file systems
 of third party types
@@ -177,13 +186,19 @@ field (it is not deleted from the
 field).
 If
 .Fa fs_type
-is ``rw'' or ``ro'' then the file system whose name is given in the
+is
+.Dq rw
+or
+.Dq ro
+then the file system whose name is given in the
 .Fa fs_file
 field is normally mounted read-write or read-only on the
 specified special file.
 If
 .Fa fs_type
-is ``sw'' then the special file is made available as a piece of swap
+is
+.Dq sw
+then the special file is made available as a piece of swap
 space by the
 .Xr swapon 8
 command at the end of the system reboot procedure.
@@ -194,7 +209,9 @@ and
 are unused.
 If
 .Fa fs_type
-is specified as ``xx'' the entry is ignored.
+is specified as
+.Dq xx
+the entry is ignored.
 This is useful to show disk partitions which are currently unused.
 .Pp
 The fifth field,

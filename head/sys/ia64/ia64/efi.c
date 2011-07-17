@@ -161,20 +161,67 @@ efi_get_time(struct efi_tm *tm)
 struct efi_md *
 efi_md_first(void)
 {
+	struct efi_md *md;
 
 	if (bootinfo->bi_memmap == 0)
 		return (NULL);
-	return ((struct efi_md *)bootinfo->bi_memmap);
+	md = (struct efi_md *)bootinfo->bi_memmap;
+	return (md);
+}
+
+struct efi_md *
+efi_md_last(void)
+{
+	struct efi_md *md;
+
+	if (bootinfo->bi_memmap == 0)
+		return (NULL);
+	md = (struct efi_md *)(bootinfo->bi_memmap + bootinfo->bi_memmap_size -
+	    bootinfo->bi_memdesc_size);
+	return (md);
 }
 
 struct efi_md *
 efi_md_next(struct efi_md *md)
 {
-	uint64_t plim;
+	struct efi_md *lim;
 
-	plim = bootinfo->bi_memmap + bootinfo->bi_memmap_size;
+	lim = efi_md_last();
 	md = (struct efi_md *)((uintptr_t)md + bootinfo->bi_memdesc_size);
-	return ((md >= (struct efi_md *)plim) ? NULL : md);
+	return ((md > lim) ? NULL : md);
+}
+
+struct efi_md *
+efi_md_prev(struct efi_md *md)
+{
+	struct efi_md *lim;
+
+	lim = efi_md_first();
+	md = (struct efi_md *)((uintptr_t)md - bootinfo->bi_memdesc_size);
+	return ((md < lim) ? NULL : md);
+}
+
+struct efi_md *
+efi_md_find(vm_paddr_t pa)
+{
+	static struct efi_md *last = NULL;
+	struct efi_md *md, *p0, *p1;
+
+	md = (last != NULL) ? last : efi_md_first();
+	p1 = p0 = NULL;
+	while (md != NULL && md != p1) {
+		if (pa >= md->md_phys &&
+		    pa < md->md_phys + md->md_pages * EFI_PAGE_SIZE) {
+			last = md;
+			return (md);
+		}
+
+		p1 = p0;
+		p0 = md;
+		md = (pa < md->md_phys) ? efi_md_prev(md) : efi_md_next(md);
+	}
+
+	return (NULL);
 }
 
 void

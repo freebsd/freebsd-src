@@ -54,6 +54,9 @@ extern char *strrchr ();
 /* for MAXPATHLEN */
 #ifdef HAVE_SYS_PARAM_H
 #include <sys/param.h>
+#ifndef __PAST_END
+# define __PAST_END(array, offset) (((typeof(*(array)) *)(array))[offset])
+#endif
 #endif
 #ifdef PATH_MAX
 # define LD_PATHMAX PATH_MAX

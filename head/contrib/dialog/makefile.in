@@ -1,4 +1,4 @@
-# $Id: makefile.in,v 1.78 2011/03/02 09:57:24 tom Exp $
+# $Id: makefile.in,v 1.79 2011/06/25 00:27:56 tom Exp $
 # template makefile for DIALOG
 ##############################################################################
 # Copyright (c) 1999-2010,2011 Thomas E. Dickey                              #
@@ -134,6 +134,7 @@ OBJECTS = $(EXTRAOBJS) \
 	columns$o \
 	dlg_keys$o \
 	editbox$o \
+	help$o \
 	inputbox$o \
 	inputstr$o \
 	menubox$o \

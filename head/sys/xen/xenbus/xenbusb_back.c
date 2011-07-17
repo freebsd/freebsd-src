@@ -208,57 +208,79 @@ xenbusb_back_get_otherend_node(device_t dev, struct xenbus_device_ivars *ivars)
 
 	if (error == 0) {
 		ivars->xd_otherend_path = strdup(otherend_path, M_XENBUS);
+		ivars->xd_otherend_path_len = strlen(otherend_path);
 		free(otherend_path, M_XENSTORE);
 	}
 	return (error);
 }
 
 /**
- * \brief Backend XenBus child instance variable write access method.
- *
- * \param dev    The NewBus device representing this XenBus bus.
- * \param child	 The NewBus device representing a child of dev%'s XenBus bus.
- * \param index	 The index of the instance variable to access.
- * \param value  The new value to set in the instance variable accessed.
- *
- * \return  On success, 0. Otherwise an errno value indicating the
- *          type of failure.
- *
- * Xenbus_back overrides this method so that it can trap state transitions
- * of local backend devices and clean up their XenStore entries as necessary
- * during device instance teardown.
+ * \brief Backend XenBus method implementing responses to peer state changes.
+ * 
+ * \param bus       The XenBus bus parent of child.
+ * \param child     The XenBus child whose peer stat has changed.
+ * \param state     The current state of the peer.
  */
-static int
-xenbusb_back_write_ivar(device_t dev, device_t child, int index,
-			uintptr_t value)
+static void
+xenbusb_back_otherend_changed(device_t bus, device_t child,
+			      enum xenbus_state peer_state)
 {
-	int error;
+	/* Perform default processing of state. */
+	xenbusb_otherend_changed(bus, child, peer_state);
 
-	error = xenbusb_write_ivar(dev, child, index, value); 
+	/*
+	 * "Online" devices are never fully detached in the
+	 * newbus sense.  Only the front<->back connection is
+	 * torn down.  If the front returns to the initialising
+	 * state after closing a previous connection, signal
+	 * our willingness to reconnect and that all necessary
+	 * XenStore data for feature negotiation is present.
+	 */
+	if (peer_state == XenbusStateInitialising
+	 && xenbus_dev_is_online(child) != 0
+	 && xenbus_get_state(child) == XenbusStateClosed)
+		xenbus_set_state(child, XenbusStateInitWait);
+}
 
-	if (index == XENBUS_IVAR_STATE
-	 && (enum xenbus_state)value == XenbusStateClosed
-	 && xenbus_dev_is_online(child) == 0) {
+/**
+ * \brief Backend XenBus method implementing responses to local
+ *        XenStore changes.
+ * 
+ * \param bus    The XenBus bus parent of child.
+ * \param child  The XenBus child whose peer stat has changed.
+ * \param_path   The tree relative sub-path to the modified node.  The empty
+ *               string indicates the root of the tree was destroyed.
+ */
+static void
+xenbusb_back_localend_changed(device_t bus, device_t child, const char *path)
+{
 
-		/*
-		 * Cleanup the hotplug entry in the XenStore if
-		 * present.  The control domain expects any userland
-		 * component associated with this device to destroy
-		 * this node in order to signify it is safe to 
-		 * teardown the device.  However, not all backends
-		 * rely on userland components, and those that
-		 * do should either use a communication channel
-		 * other than the XenStore, or ensure the hotplug
-		 * data is already cleaned up.
-		 *
-		 * This removal ensures that no matter what path
-		 * is taken to mark a back-end closed, the control
-		 * domain will understand that it is closed.
-		 */
-		xs_rm(XST_NIL, xenbus_get_node(child), "hotplug-status");
-	}
+	xenbusb_localend_changed(bus, child, path);
 
-	return (error);
+	if (strcmp(path, "/state") != 0
+	 && strcmp(path, "/online") != 0)
+		return;
+
+	if (xenbus_get_state(child) != XenbusStateClosed
+	 || xenbus_dev_is_online(child) != 0)
+		return;
+
+	/*
+	 * Cleanup the hotplug entry in the XenStore if
+	 * present.  The control domain expects any userland
+	 * component associated with this device to destroy
+	 * this node in order to signify it is safe to 
+	 * teardown the device.  However, not all backends
+	 * rely on userland components, and those that
+	 * do should either use a communication channel
+	 * other than the XenStore, or ensure the hotplug
+	 * data is already cleaned up.
+	 *
+	 * This removal ensures that no matter what path
+	 * is taken to mark a back-end closed, the control
+	 * domain will understand that it is closed.
+	 */
+	xs_rm(XST_NIL, xenbus_get_node(child), "hotplug-status");
 }
 
 /*-------------------- Private Device Attachment Data  -----------------------*/
@@ -275,7 +297,7 @@ static device_method_t xenbusb_back_methods[] = {
 	/* Bus Interface */ 
 	DEVMETHOD(bus_print_child,      xenbusb_print_child),
 	DEVMETHOD(bus_read_ivar,        xenbusb_read_ivar), 
-	DEVMETHOD(bus_write_ivar,       xenbusb_back_write_ivar), 
+	DEVMETHOD(bus_write_ivar,       xenbusb_write_ivar), 
 	DEVMETHOD(bus_alloc_resource,   bus_generic_alloc_resource),
 	DEVMETHOD(bus_release_resource, bus_generic_release_resource),
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
@@ -284,6 +306,8 @@ static device_method_t xenbusb_back_methods[] = {
 	/* XenBus Bus Interface */
 	DEVMETHOD(xenbusb_enumerate_type, xenbusb_back_enumerate_type),
 	DEVMETHOD(xenbusb_get_otherend_node, xenbusb_back_get_otherend_node),
+	DEVMETHOD(xenbusb_otherend_changed, xenbusb_back_otherend_changed),
+	DEVMETHOD(xenbusb_localend_changed, xenbusb_back_localend_changed),
 	{ 0, 0 } 
 }; 
 

@@ -83,6 +83,7 @@ show_logstate(int ac, char **av)
 	if (mfi_event_get_info(fd, &info, NULL) < 0) {
 		error = errno;
 		warn("Failed to get event log info");
+		close(fd);
 		return (error);
 	}
 
@@ -550,6 +551,7 @@ show_events(int ac, char **av)
 	if (mfi_event_get_info(fd, &info, NULL) < 0) {
 		error = errno;
 		warn("Failed to get event log info");
+		close(fd);
 		return (error);
 	}
 
@@ -570,6 +572,7 @@ show_events(int ac, char **av)
 			if (parse_class(optarg, &filter.members.evt_class) < 0) {
 				error = errno;
 				warn("Error parsing event class");
+				close(fd);
 				return (error);
 			}
 			break;
@@ -577,6 +580,7 @@ show_events(int ac, char **av)
 			if (parse_locale(optarg, &filter.members.locale) < 0) {
 				error = errno;
 				warn("Error parsing event locale");
+				close(fd);
 				return (error);
 			}
 			break;
@@ -584,6 +588,7 @@ show_events(int ac, char **av)
 			val = strtol(optarg, &cp, 0);
 			if (*cp != '\0' || val <= 0) {
 				warnx("Invalid event count");
+				close(fd);
 				return (EINVAL);
 			}
 			num_events = val;
@@ -593,6 +598,7 @@ show_events(int ac, char **av)
 			break;
 		case '?':
 		default:
+			close(fd);
 			return (EINVAL);
 		}
 	}
@@ -604,28 +610,33 @@ show_events(int ac, char **av)
 	    (num_events - 1);
 	if (size > getpagesize()) {
 		warnx("Event count is too high");
+		close(fd);
 		return (EINVAL);
 	}
 
 	/* Handle optional start and stop sequence numbers. */
 	if (ac > 2) {
 		warnx("show events: extra arguments");
+		close(fd);
 		return (EINVAL);
 	}
 	if (ac > 0 && parse_seq(&info, av[0], &start) < 0) {
 		error = errno;
 		warn("Error parsing starting sequence number");
+		close(fd);
 		return (error);
 	}
 	if (ac > 1 && parse_seq(&info, av[1], &stop) < 0) {
 		error = errno;
 		warn("Error parsing ending sequence number");
+		close(fd);
 		return (error);
 	}
 
 	list = malloc(size);
 	if (list == NULL) {
 		warnx("malloc failed");
+		close(fd);
 		return (ENOMEM);
 	}
 	for (seq = start;;) {
@@ -633,6 +644,8 @@ show_events(int ac, char **av)
 		    &status) < 0) {
 			error = errno;
 			warn("Failed to fetch events");
+			free(list);
+			close(fd);
 			return (error);
 		}
 		if (status == MFI_STAT_NOT_FOUND) {
@@ -642,6 +655,8 @@ show_events(int ac, char **av)
 		}
 		if (status != MFI_STAT_OK) {
 			warnx("Error fetching events: %s", mfi_status(status));
+			free(list);
+			close(fd);
 			return (EIO);
 		}
 

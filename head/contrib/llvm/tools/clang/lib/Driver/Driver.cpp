@@ -46,14 +46,14 @@
 using namespace clang::driver;
 using namespace clang;
 
-Driver::Driver(llvm::StringRef _ClangExecutable,
-               llvm::StringRef _DefaultHostTriple,
-               llvm::StringRef _DefaultImageName,
+Driver::Driver(llvm::StringRef ClangExecutable,
+               llvm::StringRef DefaultHostTriple,
+               llvm::StringRef DefaultImageName,
                bool IsProduction, bool CXXIsProduction,
-               Diagnostic &_Diags)
-  : Opts(createDriverOptTable()), Diags(_Diags),
-    ClangExecutable(_ClangExecutable), UseStdLib(true),
-    DefaultHostTriple(_DefaultHostTriple), DefaultImageName(_DefaultImageName),
+               Diagnostic &Diags)
+  : Opts(createDriverOptTable()), Diags(Diags),
+    ClangExecutable(ClangExecutable), UseStdLib(true),
+    DefaultHostTriple(DefaultHostTriple), DefaultImageName(DefaultImageName),
     DriverTitle("clang \"gcc-compatible\" driver"),
     Host(0),
     CCPrintOptionsFilename(0), CCPrintHeadersFilename(0),
@@ -398,9 +398,10 @@ void Driver::PrintVersion(const Compilation &C, llvm::raw_ostream &OS) const {
 /// PrintDiagnosticCategories - Implement the --print-diagnostic-categories
 /// option.
 static void PrintDiagnosticCategories(llvm::raw_ostream &OS) {
-  for (unsigned i = 1; // Skip the empty category.
-       const char *CategoryName = DiagnosticIDs::getCategoryNameFromID(i); ++i)
-    OS << i << ',' << CategoryName << '\n';
+  // Skip the empty category.
+  for (unsigned i = 1, max = DiagnosticIDs::getNumberOfCategories();
+       i != max; ++i)
+    OS << i << ',' << DiagnosticIDs::getCategoryNameFromID(i) << '\n';
 }
 
 bool Driver::HandleImmediateArgs(const Compilation &C) {
@@ -569,14 +570,14 @@ void Driver::PrintActions(const Compilation &C) const {
     PrintActions1(C, *it, Ids);
 }
 
-/// \brief Check whether the given input tree contains any compilation (or
-/// assembly) actions.
-static bool ContainsCompileAction(const Action *A) {
+/// \brief Check whether the given input tree contains any compilation or
+/// assembly actions.
+static bool ContainsCompileOrAssembleAction(const Action *A) {
   if (isa<CompileJobAction>(A) || isa<AssembleJobAction>(A))
     return true;
 
   for (Action::const_iterator it = A->begin(), ie = A->end(); it != ie; ++it)
-    if (ContainsCompileAction(*it))
+    if (ContainsCompileOrAssembleAction(*it))
       return true;
 
   return false;
@@ -667,7 +668,7 @@ void Driver::BuildUniversalActions(const ToolChain &TC,
       Arg *A = Args.getLastArg(options::OPT_g_Group);
       if (A && !A->getOption().matches(options::OPT_g0) &&
           !A->getOption().matches(options::OPT_gstabs) &&
-          ContainsCompileAction(Actions.back())) {
+          ContainsCompileOrAssembleAction(Actions.back())) {
         ActionList Inputs;
         Inputs.push_back(Actions.back());
         Actions.pop_back();

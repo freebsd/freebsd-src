@@ -33,13 +33,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/acct.h>
 
-#include <ctype.h>
-#include <err.h>
 #include <errno.h>
-#include <fcntl.h>
 #include <stddef.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
 int	 readrec_forward(FILE *f, struct acctv2 *av2);

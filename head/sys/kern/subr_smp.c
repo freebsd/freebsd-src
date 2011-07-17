@@ -142,7 +142,7 @@ mp_start(void *dummy)
 	/* Probe for MP hardware. */
 	if (smp_disabled != 0 || cpu_mp_probe() == 0) {
 		mp_ncpus = 1;
-		all_cpus = PCPU_GET(cpumask);
+		CPU_SETOF(PCPU_GET(cpuid), &all_cpus);
 		return;
 	}
 
@@ -236,12 +236,10 @@ generic_stop_cpus(cpuset_t map, u_int type)
 		/* spin */
 		cpu_spinwait();
 		i++;
-#ifdef DIAGNOSTIC
-		if (i == 100000) {
+		if (i == 100000000) {
 			printf("timeout stopping cpus\n");
 			break;
 		}
-#endif
 	}
 
 	stopping_cpu = NOCPU;
@@ -708,7 +706,7 @@ mp_setvariables_for_up(void *dummy)
 {
 	mp_ncpus = 1;
 	mp_maxid = PCPU_GET(cpuid);
-	all_cpus = PCPU_GET(cpumask);
+	CPU_SETOF(mp_maxid, &all_cpus);
 	KASSERT(PCPU_GET(cpuid) == 0, ("UP must have a CPU ID of zero"));
 }
 SYSINIT(cpu_mp_setvariables, SI_SUB_TUNABLES, SI_ORDER_FIRST,

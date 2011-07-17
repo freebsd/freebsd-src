@@ -54,25 +54,6 @@ static bool isUsedOutsideOfDefiningBlock(const Instruction *I) {
   return false;
 }
 
-/// isOnlyUsedInEntryBlock - If the specified argument is only used in the
-/// entry block, return true.  This includes arguments used by switches, since
-/// the switch may expand into multiple basic blocks.
-static bool isOnlyUsedInEntryBlock(const Argument *A, bool EnableFastISel) {
-  // With FastISel active, we may be splitting blocks, so force creation
-  // of virtual registers for all non-dead arguments.
-  if (EnableFastISel)
-    return A->use_empty();
-
-  const BasicBlock *Entry = A->getParent()->begin();
-  for (Value::const_use_iterator UI = A->use_begin(), E = A->use_end();
-       UI != E; ++UI) {
-    const User *U = *UI;
-    if (cast<Instruction>(U)->getParent() != Entry || isa<SwitchInst>(U))
-      return false;  // Use not in entry block.
-  }
-  return true;
-}
-
 FunctionLoweringInfo::FunctionLoweringInfo(const TargetLowering &tli)
   : TLI(tli) {
 }
@@ -86,15 +67,9 @@ void FunctionLoweringInfo::set(const Function &fn, MachineFunction &mf) {
   SmallVector<ISD::OutputArg, 4> Outs;
   GetReturnInfo(Fn->getReturnType(),
                 Fn->getAttributes().getRetAttributes(), Outs, TLI);
-  CanLowerReturn = TLI.CanLowerReturn(Fn->getCallingConv(), Fn->isVarArg(),
+  CanLowerReturn = TLI.CanLowerReturn(Fn->getCallingConv(), *MF,
+				      Fn->isVarArg(),
                                       Outs, Fn->getContext());
-
-  // Create a vreg for each argument register that is not dead and is used
-  // outside of the entry block for the function.
-  for (Function::const_arg_iterator AI = Fn->arg_begin(), E = Fn->arg_end();
-       AI != E; ++AI)
-    if (!isOnlyUsedInEntryBlock(AI, EnableFastISel))
-      InitializeRegForValue(AI);
 
   // Initialize the mapping of values to registers.  This is only set up for
   // instruction values that are used outside of the block that defines
@@ -180,6 +155,10 @@ void FunctionLoweringInfo::set(const Function &fn, MachineFunction &mf) {
     for (BasicBlock::const_iterator I = BB->begin();
          const PHINode *PN = dyn_cast<PHINode>(I); ++I) {
       if (PN->use_empty()) continue;
+
+      // Skip empty types
+      if (PN->getType()->isEmptyTy())
+        continue;
 
       DebugLoc DL = PN->getDebugLoc();
       unsigned PHIReg = ValueMap[PN];
@@ -343,7 +322,7 @@ void FunctionLoweringInfo::ComputePHILiveOutRegInfo(const PHINode *PN) {
       APInt Zero(BitWidth, 0);
       DestLOI.KnownZero = Zero;
       DestLOI.KnownOne = Zero;
-      return;      
+      return;
     }
 
     if (ConstantInt *CI = dyn_cast<ConstantInt>(V)) {
@@ -375,18 +354,18 @@ void FunctionLoweringInfo::ComputePHILiveOutRegInfo(const PHINode *PN) {
 /// setByValArgumentFrameIndex - Record frame index for the byval
 /// argument. This overrides previous frame index entry for this argument,
 /// if any.
-void FunctionLoweringInfo::setByValArgumentFrameIndex(const Argument *A, 
+void FunctionLoweringInfo::setByValArgumentFrameIndex(const Argument *A,
                                                       int FI) {
   assert (A->hasByValAttr() && "Argument does not have byval attribute!");
   ByValArgFrameIndexMap[A] = FI;
 }
-  
+
 /// getByValArgumentFrameIndex - Get frame index for the byval argument.
 /// If the argument does not have any assigned frame index then 0 is
 /// returned.
 int FunctionLoweringInfo::getByValArgumentFrameIndex(const Argument *A) {
   assert (A->hasByValAttr() && "Argument does not have byval attribute!");
-  DenseMap<const Argument *, int>::iterator I = 
+  DenseMap<const Argument *, int>::iterator I =
     ByValArgFrameIndexMap.find(A);
   if (I != ByValArgFrameIndexMap.end())
     return I->second;

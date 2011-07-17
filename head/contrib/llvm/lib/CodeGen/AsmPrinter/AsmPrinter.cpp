@@ -189,21 +189,22 @@ bool AsmPrinter::doInitialization(Module &M) {
   if (MAI->doesSupportDebugInformation())
     DD = new DwarfDebug(this, &M);
 
-  if (MAI->doesSupportExceptionHandling())
-    switch (MAI->getExceptionHandlingType()) {
-    default:
-    case ExceptionHandling::DwarfTable:
-      DE = new DwarfTableException(this);
-      break;
-    case ExceptionHandling::DwarfCFI:
-      DE = new DwarfCFIException(this);
-      break;
-    case ExceptionHandling::ARM:
-      DE = new ARMException(this);
-      break;
-    }
+  switch (MAI->getExceptionHandlingType()) {
+  case ExceptionHandling::None:
+    return false;
+  case ExceptionHandling::SjLj:
+  case ExceptionHandling::DwarfCFI:
+    DE = new DwarfCFIException(this);
+    return false;
+  case ExceptionHandling::ARM:
+    DE = new ARMException(this);
+    return false;
+  case ExceptionHandling::Win64:
+    DE = new Win64Exception(this);
+    return false;
+  }
 
-  return false;
+  llvm_unreachable("Unknown exception type.");
 }
 
 void AsmPrinter::EmitLinkage(unsigned Linkage, MCSymbol *GVSym) const {
@@ -268,7 +269,7 @@ void AsmPrinter::EmitGlobalVariable(const GlobalVariable *GV) {
   }
 
   MCSymbol *GVSym = Mang->getSymbol(GV);
-  EmitVisibility(GVSym, GV->getVisibility());
+  EmitVisibility(GVSym, GV->getVisibility(), !GV->isDeclaration());
 
   if (!GV->hasInitializer())   // External globals require no extra code.
     return;
@@ -592,30 +593,29 @@ static bool EmitDebugValueComment(const MachineInstr *MI, AsmPrinter &AP) {
   return true;
 }
 
-bool AsmPrinter::needsCFIMoves() {
-  if (UnwindTablesMandatory)
-    return true;
+AsmPrinter::CFIMoveType AsmPrinter::needsCFIMoves() {
+  if (MAI->getExceptionHandlingType() == ExceptionHandling::DwarfCFI &&
+      MF->getFunction()->needsUnwindTableEntry())
+    return CFI_M_EH;
 
-  if (MMI->hasDebugInfo() && !MAI->doesDwarfRequireFrameSection())
-    return true;
+  if (MMI->hasDebugInfo())
+    return CFI_M_Debug;
 
-  if (MF->getFunction()->doesNotThrow())
-    return false;
+  return CFI_M_None;
+}
 
-  return true;
+bool AsmPrinter::needsSEHMoves() {
+  return MAI->getExceptionHandlingType() == ExceptionHandling::Win64 &&
+    MF->getFunction()->needsUnwindTableEntry();
 }
 
 void AsmPrinter::emitPrologLabel(const MachineInstr &MI) {
   MCSymbol *Label = MI.getOperand(0).getMCSymbol();
 
-  if (MAI->doesDwarfRequireFrameSection() ||
-      MAI->getExceptionHandlingType() != ExceptionHandling::DwarfCFI)
-    OutStreamer.EmitLabel(Label);
-
   if (MAI->getExceptionHandlingType() != ExceptionHandling::DwarfCFI)
     return;
 
-  if (!needsCFIMoves())
+  if (needsCFIMoves() == CFI_M_None)
     return;
 
   MachineModuleInfo &MMI = MF->getMMI();
@@ -768,30 +768,25 @@ getDebugValueLocation(const MachineInstr *MI) const {
   return MachineLocation();
 }
 
-/// getDwarfRegOpSize - get size required to emit given machine location using
-/// dwarf encoding.
-unsigned AsmPrinter::getDwarfRegOpSize(const MachineLocation &MLoc) const {
-  const TargetRegisterInfo *RI = TM.getRegisterInfo();
-  unsigned DWReg = RI->getDwarfRegNum(MLoc.getReg(), false);
-  if (int Offset = MLoc.getOffset()) {
-    // If the value is at a certain offset from frame register then
-    // use DW_OP_breg.
-    if (DWReg < 32)
-      return 1 + MCAsmInfo::getSLEB128Size(Offset);
-    else
-      return 1 + MCAsmInfo::getULEB128Size(MLoc.getReg()) 
-        + MCAsmInfo::getSLEB128Size(Offset);
-  }
-  if (DWReg < 32)
-    return 1;
-
-  return 1 + MCAsmInfo::getULEB128Size(DWReg);
-}
-
 /// EmitDwarfRegOp - Emit dwarf register operation.
 void AsmPrinter::EmitDwarfRegOp(const MachineLocation &MLoc) const {
   const TargetRegisterInfo *TRI = TM.getRegisterInfo();
-  unsigned Reg = TRI->getDwarfRegNum(MLoc.getReg(), false);
+  int Reg = TRI->getDwarfRegNum(MLoc.getReg(), false);
+
+  for (const unsigned *SR = TRI->getSuperRegisters(MLoc.getReg());
+       *SR && Reg < 0; ++SR) {
+    Reg = TRI->getDwarfRegNum(*SR, false);
+    // FIXME: Get the bit range this register uses of the superregister
+    // so that we can produce a DW_OP_bit_piece
+  }
+
+  // FIXME: Handle cases like a super register being encoded as
+  // DW_OP_reg 32 DW_OP_piece 4 DW_OP_reg 33
+
+  // FIXME: We have no reasonable way of handling errors in here. The
+  // caller might be in the middle of an dwarf expression. We should
+  // probably assert that Reg >= 0 once debug info generation is more mature.
+
   if (int Offset =  MLoc.getOffset()) {
     if (Reg < 32) {
       OutStreamer.AddComment(
@@ -816,6 +811,8 @@ void AsmPrinter::EmitDwarfRegOp(const MachineLocation &MLoc) const {
       EmitULEB128(Reg);
     }
   }
+
+  // FIXME: Produce a DW_OP_bit_piece if we used a superregister
 }
 
 bool AsmPrinter::doFinalization(Module &M) {

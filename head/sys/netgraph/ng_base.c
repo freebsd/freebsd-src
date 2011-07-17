@@ -772,18 +772,14 @@ ng_rmnode(node_p node, hook_p dummy1, void *dummy2, int dummy3)
  * Remove a reference to the node, possibly the last.
  * deadnode always acts as it it were the last.
  */
-int
+void
 ng_unref_node(node_p node)
 {
-	int v;
 
-	if (node == &ng_deadnode) {
-		return (0);
-	}
+	if (node == &ng_deadnode)
+		return;
 
-	v = atomic_fetchadd_int(&node->nd_refs, -1);
-
-	if (v == 1) { /* we were the last */
+	if (refcount_release(&node->nd_refs)) { /* we were the last */
 
 		mtx_lock(&ng_namehash_mtx);
 		node->nd_type->refs--; /* XXX maybe should get types lock? */
@@ -797,7 +793,6 @@ ng_unref_node(node_p node)
 		mtx_destroy(&node->nd_input_queue.q_mtx);
 		NG_FREE_NODE(node);
 	}
-	return (v - 1);
 }
 
 /************************************************************************
@@ -963,15 +958,11 @@ ng_unname(node_p node)
 void
 ng_unref_hook(hook_p hook)
 {
-	int v;
 
-	if (hook == &ng_deadhook) {
+	if (hook == &ng_deadhook)
 		return;
-	}
 
-	v = atomic_fetchadd_int(&hook->hk_refs, -1);
-
-	if (v == 1) { /* we were the last */
+	if (refcount_release(&hook->hk_refs)) { /* we were the last */
 		if (_NG_HOOK_NODE(hook)) /* it'll probably be ng_deadnode */
 			_NG_NODE_UNREF((_NG_HOOK_NODE(hook)));
 		NG_FREE_HOOK(hook);

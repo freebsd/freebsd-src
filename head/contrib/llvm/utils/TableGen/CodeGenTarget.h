@@ -65,12 +65,9 @@ class CodeGenTarget {
   Record *TargetRec;
 
   mutable DenseMap<const Record*, CodeGenInstruction*> Instructions;
-  mutable std::vector<CodeGenRegister> Registers;
-  mutable std::vector<Record*> SubRegIndices;
+  mutable CodeGenRegBank *RegBank;
   mutable std::vector<CodeGenRegisterClass> RegisterClasses;
   mutable std::vector<MVT::SimpleValueType> LegalValueTypes;
-  void ReadRegisters() const;
-  void ReadSubRegIndices() const;
   void ReadRegisterClasses() const;
   void ReadInstructions() const;
   void ReadLegalValueTypes() const;
@@ -98,28 +95,16 @@ public:
   ///
   Record *getAsmWriter() const;
 
+  /// getRegBank - Return the register bank description.
+  CodeGenRegBank &getRegBank() const;
+
   const std::vector<CodeGenRegister> &getRegisters() const {
-    if (Registers.empty()) ReadRegisters();
-    return Registers;
+    return getRegBank().getRegisters();
   }
 
   /// getRegisterByName - If there is a register with the specific AsmName,
   /// return it.
   const CodeGenRegister *getRegisterByName(StringRef Name) const;
-
-  const std::vector<Record*> &getSubRegIndices() const {
-    if (SubRegIndices.empty()) ReadSubRegIndices();
-    return SubRegIndices;
-  }
-
-  // Map a SubRegIndex Record to its number.
-  unsigned getSubRegIndexNo(Record *idx) const {
-    if (SubRegIndices.empty()) ReadSubRegIndices();
-    std::vector<Record*>::const_iterator i =
-      std::find(SubRegIndices.begin(), SubRegIndices.end(), idx);
-    assert(i != SubRegIndices.end() && "Not a SubRegIndex");
-    return (i - SubRegIndices.begin()) + 1;
-  }
 
   const std::vector<CodeGenRegisterClass> &getRegisterClasses() const {
     if (RegisterClasses.empty()) ReadRegisterClasses();

@@ -84,6 +84,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip6.h>
 #include <netinet/icmp6.h>
 #ifdef INET6
+#include <netinet6/in6_pcb.h>
 #include <netinet6/scope6_var.h>
 #include <netinet6/ip6_var.h>
 #endif
@@ -646,20 +647,26 @@ send_reject(struct ip_fw_args *args, int code, int iplen, struct ip *ip)
  * we tried and failed, or any other value if successful.
  */
 static int
-check_uidgid(ipfw_insn_u32 *insn, int proto, struct ifnet *oif,
-    struct in_addr dst_ip, u_int16_t dst_port, struct in_addr src_ip,
-    u_int16_t src_port, int *ugid_lookupp,
-    struct ucred **uc, struct inpcb *inp)
+check_uidgid(ipfw_insn_u32 *insn, struct ip_fw_args *args, int *ugid_lookupp,
+    struct ucred **uc)
 {
 #ifndef __FreeBSD__
+	/* XXX */
 	return cred_check(insn, proto, oif,
 	    dst_ip, dst_port, src_ip, src_port,
 	    (struct bsd_ucred *)uc, ugid_lookupp, ((struct mbuf *)inp)->m_skb);
 #else  /* FreeBSD */
+	struct in_addr src_ip, dst_ip;
 	struct inpcbinfo *pi;
+	struct ipfw_flow_id *id;
+	struct inpcb *pcb, *inp;
+	struct ifnet *oif;
 	int lookupflags;
-	struct inpcb *pcb;
 	int match;
+
+	id = &args->f_id;
+	inp = args->inp;
+	oif = args->oif;
 
 	/*
 	 * Check to see if the UDP or TCP stack supplied us with
@@ -681,10 +688,10 @@ check_uidgid(ipfw_insn_u32 *insn, int proto, struct ifnet *oif,
 	 */
 	if (*ugid_lookupp == -1)
 		return (0);
-	if (proto == IPPROTO_TCP) {
+	if (id->proto == IPPROTO_TCP) {
 		lookupflags = 0;
 		pi = &V_tcbinfo;
-	} else if (proto == IPPROTO_UDP) {
+	} else if (id->proto == IPPROTO_UDP) {
 		lookupflags = INPLOOKUP_WILDCARD;
 		pi = &V_udbinfo;
 	} else
@@ -692,19 +699,36 @@ check_uidgid(ipfw_insn_u32 *insn, int proto, struct ifnet *oif,
 	lookupflags |= INPLOOKUP_RLOCKPCB;
 	match = 0;
 	if (*ugid_lookupp == 0) {
-		/*
-		 * XXXRW: If we had the mbuf here, could use
-		 * in_pcblookup_mbuf().
-		 */
-		pcb =  (oif) ?
-			in_pcblookup(pi,
-				dst_ip, htons(dst_port),
-				src_ip, htons(src_port),
-				lookupflags, oif) :
-			in_pcblookup(pi,
-				src_ip, htons(src_port),
-				dst_ip, htons(dst_port),
-				lookupflags, NULL);
+		if (id->addr_type == 6) {
+#ifdef INET6
+			if (oif == NULL)
+				pcb = in6_pcblookup_mbuf(pi,
+				    &id->src_ip6, htons(id->src_port),
+				    &id->dst_ip6, htons(id->dst_port),
+				    lookupflags, oif, args->m);
+			else
+				pcb = in6_pcblookup_mbuf(pi,
+				    &id->dst_ip6, htons(id->dst_port),
+				    &id->src_ip6, htons(id->src_port),
+				    lookupflags, oif, args->m);
+#else
+			*ugid_lookupp = -1;
+			return (0);
+#endif
+		} else {
+			src_ip.s_addr = htonl(id->src_ip);
+			dst_ip.s_addr = htonl(id->dst_ip);
+			if (oif == NULL)
+				pcb = in_pcblookup_mbuf(pi,
+				    src_ip, htons(id->src_port),
+				    dst_ip, htons(id->dst_port),
+				    lookupflags, oif, args->m);
+			else
+				pcb = in_pcblookup_mbuf(pi,
+				    dst_ip, htons(id->dst_port),
+				    src_ip, htons(id->src_port),
+				    lookupflags, oif, args->m);
+		}
 		if (pcb != NULL) {
 			INP_RLOCK_ASSERT(pcb);
 			*uc = crhold(pcb->inp_cred);
@@ -719,14 +743,14 @@ check_uidgid(ipfw_insn_u32 *insn, int proto, struct ifnet *oif,
 			*ugid_lookupp = -1;
 			return (0);
 		}
-	} 
+	}
 	if (insn->o.opcode == O_UID)
 		match = ((*uc)->cr_uid == (uid_t)insn->d[0]);
 	else if (insn->o.opcode == O_GID)
 		match = groupmember((gid_t)insn->d[0], *uc);
 	else if (insn->o.opcode == O_JAIL)
 		match = ((*uc)->cr_prison->pr_id == (int)insn->d[0]);
-	return match;
+	return (match);
 #endif /* __FreeBSD__ */
 }
 
@@ -1264,22 +1288,17 @@ do {								\
 				 * as this ensures that we have a
 				 * packet with the ports info.
 				 */
-				if (offset!=0)
-					break;
-				if (is_ipv6) /* XXX to be fixed later */
+				if (offset != 0)
 					break;
 				if (proto == IPPROTO_TCP ||
 				    proto == IPPROTO_UDP)
 					match = check_uidgid(
 						    (ipfw_insn_u32 *)cmd,
-						    proto, oif,
-						    dst_ip, dst_port,
-						    src_ip, src_port, &ucred_lookup,
+						    args, &ucred_lookup,
 #ifdef __FreeBSD__
-						    &ucred_cache, args->inp);
+						    &ucred_cache);
 #else
-						    (void *)&ucred_cache,
-						    (struct inpcb *)args->m);
+						    (void *)&ucred_cache);
 #endif
 				break;
 
@@ -1394,18 +1413,15 @@ do {								\
 					else if (v == 4 || v == 5) {
 					    check_uidgid(
 						(ipfw_insn_u32 *)cmd,
-						proto, oif,
-						dst_ip, dst_port,
-						src_ip, src_port, &ucred_lookup,
+						args, &ucred_lookup,
 #ifdef __FreeBSD__
-						&ucred_cache, args->inp);
+						&ucred_cache);
 					    if (v == 4 /* O_UID */)
 						key = ucred_cache->cr_uid;
 					    else if (v == 5 /* O_JAIL */)
 						key = ucred_cache->cr_prison->pr_id;
 #else /* !__FreeBSD__ */
-						(void *)&ucred_cache,
-						(struct inpcb *)args->m);
+						(void *)&ucred_cache);
 					    if (v ==4 /* O_UID */)
 						key = ucred_cache.uid;
 					    else if (v == 5 /* O_JAIL */)
@@ -1654,10 +1670,6 @@ do {								\
 					break;
 				}
 				at->qid = altq->qid;
-				if (is_ipv4)
-					at->af = AF_INET;
-				else
-					at->af = AF_LINK;
 				at->hdr = ip;
 				break;
 			}
@@ -2083,6 +2095,123 @@ do {								\
 			    continue;
 			    break;	/* not reached */
 
+			case O_CALLRETURN: {
+				/*
+				 * Implementation of `subroutine' call/return,
+				 * in the stack carried in an mbuf tag. This
+				 * is different from `skipto' in that any call
+				 * address is possible (`skipto' must prevent
+				 * backward jumps to avoid endless loops).
+				 * We have `return' action when F_NOT flag is
+				 * present. The `m_tag_id' field is used as
+				 * stack pointer.
+				 */
+				struct m_tag *mtag;
+				uint16_t jmpto, *stack;
+
+#define	IS_CALL		((cmd->len & F_NOT) == 0)
+#define	IS_RETURN	((cmd->len & F_NOT) != 0)
+				/*
+				 * Hand-rolled version of m_tag_locate() with
+				 * wildcard `type'.
+				 * If not already tagged, allocate new tag.
+				 */
+				mtag = m_tag_first(m);
+				while (mtag != NULL) {
+					if (mtag->m_tag_cookie ==
+					    MTAG_IPFW_CALL)
+						break;
+					mtag = m_tag_next(m, mtag);
+				}
+				if (mtag == NULL && IS_CALL) {
+					mtag = m_tag_alloc(MTAG_IPFW_CALL, 0,
+					    IPFW_CALLSTACK_SIZE *
+					    sizeof(uint16_t), M_NOWAIT);
+					if (mtag != NULL)
+						m_tag_prepend(m, mtag);
+				}
+
+				/*
+				 * On error both `call' and `return' just
+				 * continue with next rule.
+				 */
+				if (IS_RETURN && (mtag == NULL ||
+				    mtag->m_tag_id == 0)) {
+					l = 0;		/* exit inner loop */
+					break;
+				}
+				if (IS_CALL && (mtag == NULL ||
+				    mtag->m_tag_id >= IPFW_CALLSTACK_SIZE)) {
+					printf("ipfw: call stack error, "
+					    "go to next rule\n");
+					l = 0;		/* exit inner loop */
+					break;
+				}
+
+				f->pcnt++;	/* update stats */
+				f->bcnt += pktlen;
+				f->timestamp = time_uptime;
+				stack = (uint16_t *)(mtag + 1);
+
+				/*
+				 * The `call' action may use cached f_pos
+				 * (in f->next_rule), whose version is written
+				 * in f->next_rule.
+				 * The `return' action, however, doesn't have
+				 * fixed jump address in cmd->arg1 and can't use
+				 * cache.
+				 */
+				if (IS_CALL) {
+					stack[mtag->m_tag_id] = f->rulenum;
+					mtag->m_tag_id++;
+					if (cmd->arg1 != IP_FW_TABLEARG &&
+					    (uintptr_t)f->x_next == chain->id) {
+						f_pos = (uintptr_t)f->next_rule;
+					} else {
+						jmpto = (cmd->arg1 ==
+						    IP_FW_TABLEARG) ? tablearg:
+						    cmd->arg1;
+						f_pos = ipfw_find_rule(chain,
+						    jmpto, 0);
+						/* update the cache */
+						if (cmd->arg1 !=
+						    IP_FW_TABLEARG) {
+							f->next_rule =
+							    (void *)(uintptr_t)
+							    f_pos;
+							f->x_next =
+							    (void *)(uintptr_t)
+							    chain->id;
+						}
+					}
+				} else {	/* `return' action */
+					mtag->m_tag_id--;
+					jmpto = stack[mtag->m_tag_id] + 1;
+					f_pos = ipfw_find_rule(chain, jmpto, 0);
+				}
+
+				/*
+				 * Skip disabled rules, and re-enter
+				 * the inner loop with the correct
+				 * f_pos, f, l and cmd.
+				 * Also clear cmdlen and skip_or
+				 */
+				for (; f_pos < chain->n_rules - 1 &&
+				    (V_set_disable &
+				    (1 << chain->map[f_pos]->set)); f_pos++)
+					;
+				/* Re-enter the inner loop at the dest rule. */
+				f = chain->map[f_pos];
+				l = f->cmd_len;
+				cmd = f->cmd;
+				cmdlen = 0;
+				skip_or = 0;
+				continue;
+				break;	/* NOTREACHED */
+			}
+#undef IS_CALL
+#undef IS_RETURN
+
 			case O_REJECT:
 				/*
 				 * Drop the packet and send a reject notice
@@ -2178,6 +2307,13 @@ do {								\
 				    int nat_id;
 
 				    set_match(args, f_pos, chain);
+				    /* Check if this is 'global' nat rule */
+				    if (cmd->arg1 == 0) {
+					    retval = ipfw_nat_ptr(args, NULL, m);
+					    l = 0;
+					    done = 1;
+					    break;
+				    }
 				    t = ((ipfw_insn_nat *)cmd)->nat;
 				    if (t == NULL) {
 					nat_id = (cmd->arg1 == IP_FW_TABLEARG) ?

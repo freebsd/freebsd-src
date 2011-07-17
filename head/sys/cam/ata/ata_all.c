@@ -270,6 +270,7 @@ ata_print_ident(struct ata_params *ident_data)
 		   sizeof(revision));
 	printf("<%s %s> %s-%d",
 	    product, revision,
+	    (ident_data->config == ATA_PROTO_CFA) ? "CFA" :
 	    (ident_data->config & ATA_PROTO_ATAPI) ? "ATAPI" : "ATA",
 	    ata_version(ident_data->version_major));
 	if (ident_data->satacapabilities && ident_data->satacapabilities != 0xffff) {

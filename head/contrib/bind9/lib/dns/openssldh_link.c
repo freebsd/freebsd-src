@@ -1,5 +1,5 @@
 /*
- * Portions Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 2004-2009, 2011  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -31,7 +31,7 @@
 
 /*
  * Principal Author: Brian Wellington
- * $Id: openssldh_link.c,v 1.14 2008-04-01 23:47:10 tbox Exp $
+ * $Id: openssldh_link.c,v 1.20 2011-01-11 23:47:13 tbox Exp $
  */
 
 #ifdef OPENSSL
@@ -149,12 +149,37 @@ openssldh_paramcompare(const dst_key_t *key1, const dst_key_t *key2) {
 	return (ISC_TRUE);
 }
 
+#if OPENSSL_VERSION_NUMBER > 0x00908000L
+static int
+progress_cb(int p, int n, BN_GENCB *cb)
+{
+	union {
+		void *dptr;
+		void (*fptr)(int);
+	} u;
+
+	UNUSED(n);
+
+	u.dptr = cb->arg;
+	if (u.fptr != NULL)
+		u.fptr(p);
+	return (1);
+}
+#endif
+
 static isc_result_t
-openssldh_generate(dst_key_t *key, int generator) {
+openssldh_generate(dst_key_t *key, int generator, void (*callback)(int)) {
+	DH *dh = NULL;
 #if OPENSSL_VERSION_NUMBER > 0x00908000L
 	BN_GENCB cb;
+	union {
+		void *dptr;
+		void (*fptr)(int);
+	} u;
+#else
+
+	UNUSED(callback);
 #endif
-	DH *dh = NULL;
 
 	if (generator == 0) {
 		if (key->key_size == 768 ||
@@ -181,7 +206,12 @@ openssldh_generate(dst_key_t *key, int generator) {
 		if (dh == NULL)
 			return (dst__openssl_toresult(DST_R_OPENSSLFAILURE));
 
-		BN_GENCB_set_old(&cb, NULL, NULL);
+		if (callback == NULL) {
+			BN_GENCB_set_old(&cb, NULL, NULL);
+		} else {
+			u.fptr = callback;
+			BN_GENCB_set(&cb, &progress_cb, u.dptr);
+		}
 
 		if (!DH_generate_parameters_ex(dh, key->key_size, generator,
 					       &cb)) {
@@ -476,7 +506,7 @@ openssldh_tofile(const dst_key_t *key, const char *directory) {
 }
 
 static isc_result_t
-openssldh_parse(dst_key_t *key, isc_lex_t *lexer) {
+openssldh_parse(dst_key_t *key, isc_lex_t *lexer, dst_key_t *pub) {
 	dst_private_t priv;
 	isc_result_t ret;
 	int i;
@@ -484,6 +514,7 @@ openssldh_parse(dst_key_t *key, isc_lex_t *lexer) {
 	isc_mem_t *mctx;
 #define DST_RET(a) {ret = a; goto err;}
 
+	UNUSED(pub);
 	mctx = key->mctx;
 
 	/* read private key file */
@@ -609,6 +640,8 @@ static dst_func_t openssldh_functions = {
 	openssldh_parse,
 	openssldh_cleanup,
 	NULL, /*%< fromlabel */
+	NULL, /*%< dump */
+	NULL, /*%< restore */
 };
 
 isc_result_t

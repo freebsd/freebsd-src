@@ -89,7 +89,8 @@
 18	AUE_GETFSSTAT	COMPAT4	{ int freebsd32_getfsstat( \
 				    struct statfs32 *buf, long bufsize, \
 				    int flags); }
-19	AUE_LSEEK	OBSOL	olseek
+19	AUE_LSEEK	COMPAT	{ int freebsd32_lseek(int fd, int offset, \
+				    int whence); }
 20	AUE_GETPID	NOPROTO	{ pid_t getpid(void); }
 21	AUE_MOUNT	NOPROTO	{ int mount(char *type, char *path, \
 				    int flags, caddr_t data); }
@@ -956,8 +957,9 @@
 512	AUE_SHMCTL	NOSTD	{ int freebsd32_shmctl(int shmid, int cmd, \
 				    struct shmid_ds32 *buf); }
 513	AUE_LPATHCONF	NOPROTO	{ int lpathconf(char *path, int name); }
-514	AUE_CAP_NEW	UNIMPL	cap_new
-515	AUE_CAP_GETRIGHTS	UNIMPL	cap_getrights
+514	AUE_CAP_NEW	NOPROTO	{ int cap_new(int fd, u_int64_t rights); }
+515	AUE_CAP_GETRIGHTS	NOPROTO	{ int cap_getrights(int fd, \
+				    u_int64_t *rightsp); }
 516	AUE_CAP_ENTER	NOPROTO	{ int cap_enter(void); }
 517	AUE_CAP_GETMODE	NOPROTO	{ int cap_getmode(u_int *modep); }
 518	AUE_PDFORK	UNIMPL	pdfork

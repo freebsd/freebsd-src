@@ -177,6 +177,10 @@ gem_pci_attach(device_t dev)
 	if (pci_get_intpin(dev) == 0)
 		pci_set_intpin(dev, 1);
 
+	/* Set the PCI latency timer for Sun ERIs. */
+	if (sc->sc_variant == GEM_SUN_ERI)
+		pci_write_config(dev, PCIR_LATTIMER, GEM_ERI_LATENCY_TIMER, 1);
+
 	sc->sc_dev = dev;
 	sc->sc_flags |= GEM_PCI;
 

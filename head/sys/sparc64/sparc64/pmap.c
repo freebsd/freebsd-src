@@ -152,6 +152,9 @@ struct pmap kernel_pmap_store;
 static vm_paddr_t pmap_bootstrap_alloc(vm_size_t size, uint32_t colors);
 
 static void pmap_bootstrap_set_tte(struct tte *tp, u_long vpn, u_long data);
+static void pmap_cache_remove(vm_page_t m, vm_offset_t va);
+static int pmap_protect_tte(struct pmap *pm1, struct pmap *pm2,
+    struct tte *tp, vm_offset_t va);
 
 /*
  * Map the given physical page at the specified virtual address in the
@@ -247,7 +250,7 @@ PMAP_STATS_VAR(pmap_ncopy_page_soc);
 PMAP_STATS_VAR(pmap_nnew_thread);
 PMAP_STATS_VAR(pmap_nnew_thread_oc);
 
-static inline u_long dtlb_get_data(u_int slot);
+static inline u_long dtlb_get_data(u_int tlb, u_int slot);
 
 /*
  * Quick sort callout for comparing memory regions
@@ -288,15 +291,21 @@ om_cmp(const void *a, const void *b)
 }
 
 static inline u_long
-dtlb_get_data(u_int slot)
+dtlb_get_data(u_int tlb, u_int slot)
 {
+	u_long data;
+	register_t s;
 
+	slot = TLB_DAR_SLOT(tlb, slot);
 	/*
-	 * We read ASI_DTLB_DATA_ACCESS_REG twice in order to work
-	 * around errata of USIII and beyond.
+	 * We read ASI_DTLB_DATA_ACCESS_REG twice back-to-back in order to
+	 * work around errata of USIII and beyond.
 	 */
-	(void)ldxa(TLB_DAR_SLOT(slot), ASI_DTLB_DATA_ACCESS_REG);
-	return (ldxa(TLB_DAR_SLOT(slot), ASI_DTLB_DATA_ACCESS_REG));
+	s = intr_disable();
+	(void)ldxa(slot, ASI_DTLB_DATA_ACCESS_REG);
+	data = ldxa(slot, ASI_DTLB_DATA_ACCESS_REG);
+	intr_restore(s);
+	return (data);
 }
 
 /*
@@ -384,14 +393,17 @@ pmap_bootstrap(u_int cpu_impl)
 	 * public documentation is available for these, the latter just might
 	 * not support it, yet.
 	 */
-	virtsz = roundup(physsz, PAGE_SIZE_4M << (PAGE_SHIFT - TTE_SHIFT));
 	if (cpu_impl == CPU_IMPL_SPARC64V ||
-	    cpu_impl >= CPU_IMPL_ULTRASPARCIIIp)
+	    cpu_impl >= CPU_IMPL_ULTRASPARCIIIp) {
 		tsb_kernel_ldd_phys = 1;
-	else {
+		virtsz = roundup(5 / 3 * physsz, PAGE_SIZE_4M <<
+		    (PAGE_SHIFT - TTE_SHIFT));
+	} else {
 		dtlb_slots_avail = 0;
 		for (i = 0; i < dtlb_slots; i++) {
-			data = dtlb_get_data(i);
+			data = dtlb_get_data(cpu_impl ==
+			    CPU_IMPL_ULTRASPARCIII ? TLB_DAR_T16 :
+			    TLB_DAR_T32, i);
 			if ((data & (TD_V | TD_L)) != (TD_V | TD_L))
 				dtlb_slots_avail++;
 		}
@@ -401,6 +413,8 @@ pmap_bootstrap(u_int cpu_impl)
 		if (cpu_impl >= CPU_IMPL_ULTRASPARCI &&
 		    cpu_impl < CPU_IMPL_ULTRASPARCIII)
 			dtlb_slots_avail /= 2;
+		virtsz = roundup(physsz, PAGE_SIZE_4M <<
+		    (PAGE_SHIFT - TTE_SHIFT));
 		virtsz = MIN(virtsz, (dtlb_slots_avail * PAGE_SIZE_4M) <<
 		    (PAGE_SHIFT - TTE_SHIFT));
 	}
@@ -945,7 +959,7 @@ pmap_cache_enter(vm_page_t m, vm_offset_t va)
 	return (0);
 }
 
-void
+static void
 pmap_cache_remove(vm_page_t m, vm_offset_t va)
 {
 	struct tte *tp;
@@ -1283,6 +1297,7 @@ pmap_release(pmap_t pm)
 			pc->pc_pmap = NULL;
 	mtx_unlock_spin(&sched_lock);
 
+	pmap_qremove((vm_offset_t)pm->pm_tsb, TSB_PAGES);
 	obj = pm->pm_tsb_obj;
 	VM_OBJECT_LOCK(obj);
 	KASSERT(obj->ref_count == 1, ("pmap_release: tsbobj ref count != 1"));
@@ -1294,7 +1309,6 @@ pmap_release(pmap_t pm)
 		vm_page_free_zero(m);
 	}
 	VM_OBJECT_UNLOCK(obj);
-	pmap_qremove((vm_offset_t)pm->pm_tsb, TSB_PAGES);
 	PMAP_LOCK_DESTROY(pm);
 }
 
@@ -1376,6 +1390,8 @@ pmap_remove_all(vm_page_t m)
 	struct tte *tp;
 	vm_offset_t va;
 
+	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	    ("pmap_remove_all: page %p is not managed", m));
 	vm_page_lock_queues();
 	for (tp = TAILQ_FIRST(&m->md.tte_list); tp != NULL; tp = tpn) {
 		tpn = TAILQ_NEXT(tp, tte_link);
@@ -1402,7 +1418,7 @@ pmap_remove_all(vm_page_t m)
 	vm_page_unlock_queues();
 }
 
-int
+static int
 pmap_protect_tte(struct pmap *pm, struct pmap *pm2, struct tte *tp,
     vm_offset_t va)
 {
@@ -1971,7 +1987,7 @@ pmap_page_wired_mappings(vm_page_t m)
 
 /*
  * Remove all pages from specified address space, this aids process exit
- * speeds.  This is much faster than pmap_remove n the case of running down
+ * speeds.  This is much faster than pmap_remove in the case of running down
  * an entire address space.  Only works for the current pmap.
  */
 void
@@ -2217,10 +2233,9 @@ pmap_activate(struct thread *td)
 	struct pmap *pm;
 	int context;
 
+	critical_enter();
 	vm = td->td_proc->p_vmspace;
 	pm = vmspace_pmap(vm);
-
-	mtx_lock_spin(&sched_lock);
 
 	context = PCPU_GET(tlb_ctx);
 	if (context == PCPU_GET(tlb_ctx_max)) {
@@ -2229,17 +2244,18 @@ pmap_activate(struct thread *td)
 	}
 	PCPU_SET(tlb_ctx, context + 1);
 
+	mtx_lock_spin(&sched_lock);
 	pm->pm_context[curcpu] = context;
-	CPU_OR(&pm->pm_active, PCPU_PTR(cpumask));
+	CPU_SET(PCPU_GET(cpuid), &pm->pm_active);
 	PCPU_SET(pmap, pm);
+	mtx_unlock_spin(&sched_lock);
 
 	stxa(AA_DMMU_TSB, ASI_DMMU, pm->pm_tsb);
 	stxa(AA_IMMU_TSB, ASI_IMMU, pm->pm_tsb);
 	stxa(AA_DMMU_PCXR, ASI_DMMU, (ldxa(AA_DMMU_PCXR, ASI_DMMU) &
 	    TLB_CXR_PGSZ_MASK) | context);
 	flush(KERNBASE);
-
-	mtx_unlock_spin(&sched_lock);
+	critical_exit();
 }
 
 void

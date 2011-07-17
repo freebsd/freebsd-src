@@ -297,7 +297,7 @@ static int pci_usb_takeover = 1;
 static int pci_usb_takeover = 0;
 #endif
 TUNABLE_INT("hw.pci.usb_early_takeover", &pci_usb_takeover);
-SYSCTL_INT(_hw_pci, OID_AUTO, usb_early_takeover, CTLFLAG_RD | CTLFLAG_TUN,
+SYSCTL_INT(_hw_pci, OID_AUTO, usb_early_takeover, CTLFLAG_RDTUN,
     &pci_usb_takeover, 1, "Enable early takeover of USB controllers.\n\
 Disable this if you depend on BIOS emulation of USB devices, that is\n\
 you use USB devices (like keyboard or mouse) but do not load USB drivers");
@@ -340,6 +340,21 @@ pci_find_device(uint16_t vendor, uint16_t device)
 	STAILQ_FOREACH(dinfo, &pci_devq, pci_links) {
 		if ((dinfo->cfg.vendor == vendor) &&
 		    (dinfo->cfg.device == device)) {
+			return (dinfo->cfg.dev);
+		}
+	}
+
+	return (NULL);
+}
+
+device_t
+pci_find_class(uint8_t class, uint8_t subclass)
+{
+	struct pci_devinfo *dinfo;
+
+	STAILQ_FOREACH(dinfo, &pci_devq, pci_links) {
+		if (dinfo->cfg.baseclass == class &&
+		    dinfo->cfg.subclass == subclass) {
 			return (dinfo->cfg.dev);
 		}
 	}
@@ -1338,8 +1353,11 @@ pci_alloc_msix_method(device_t dev, device_t child, int *count)
 	for (i = 0; i < max; i++) {
 		/* Allocate a message. */
 		error = PCIB_ALLOC_MSIX(device_get_parent(dev), child, &irq);
-		if (error)
+		if (error) {
+			if (i == 0)
+				return (error);
 			break;
+		}
 		resource_list_add(&dinfo->resources, SYS_RES_IRQ, i + 1, irq,
 		    irq, 1);
 	}
@@ -2482,7 +2500,8 @@ pci_write_bar(device_t dev, struct pci_map *pm, pci_addr_t base)
 		pci_write_config(dev, pm->pm_reg + 4, base >> 32, 4);
 	pm->pm_value = pci_read_config(dev, pm->pm_reg, 4);
 	if (ln2range == 64)
-		pm->pm_value |= (pci_addr_t)pci_read_config(dev, pm->pm_reg + 4, 4) << 32;
+		pm->pm_value |= (pci_addr_t)pci_read_config(dev,
+		    pm->pm_reg + 4, 4) << 32;
 }
 
 struct pci_map *
@@ -2680,7 +2699,7 @@ pci_add_map(device_t bus, device_t dev, int reg, struct resource_list *rl,
 	count = (pci_addr_t)1 << mapsize;
 	if (basezero || base == pci_mapbase(testval)) {
 		start = 0;	/* Let the parent decide. */
-		end = ~0ULL;
+		end = ~0ul;
 	} else {
 		start = base;
 		end = base + count - 1;

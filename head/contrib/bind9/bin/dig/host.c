@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: host.c,v 1.116.216.5 2010-10-19 23:45:58 tbox Exp $ */
+/* $Id: host.c,v 1.124 2010-11-16 05:38:30 marka Exp $ */
 
 /*! \file */
 
@@ -140,6 +140,9 @@ rcode_totext(dns_rcode_t rcode)
 		totext.consttext = rcodetext[rcode];
 	return totext.deconsttext;
 }
+
+ISC_PLATFORM_NORETURN_PRE static void
+show_usage(void) ISC_PLATFORM_NORETURN_POST;
 
 static void
 show_usage(void) {

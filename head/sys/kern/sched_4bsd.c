@@ -951,8 +951,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 	if (td->td_flags & TDF_IDLETD) {
 		TD_SET_CAN_RUN(td);
 #ifdef SMP
-		/* Spinlock held here, assume no migration. */
-		CPU_NAND(&idle_cpus_mask, PCPU_PTR(cpumask));
+		CPU_CLR(PCPU_GET(cpuid), &idle_cpus_mask);
 #endif
 	} else {
 		if (TD_IS_RUNNING(td)) {
@@ -1026,7 +1025,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 
 #ifdef SMP
 	if (td->td_flags & TDF_IDLETD)
-		CPU_OR(&idle_cpus_mask, PCPU_PTR(cpumask));
+		CPU_SET(PCPU_GET(cpuid), &idle_cpus_mask);
 #endif
 	sched_lock.mtx_lock = (uintptr_t)td;
 	td->td_oncpu = PCPU_GET(cpuid);
@@ -1055,7 +1054,8 @@ static int
 forward_wakeup(int cpunum)
 {
 	struct pcpu *pc;
-	cpuset_t dontuse, id, map, map2, me;
+	cpuset_t dontuse, map, map2;
+	u_int id, me;
 	int iscpuset;
 
 	mtx_assert(&sched_lock, MA_OWNED);
@@ -1073,27 +1073,24 @@ forward_wakeup(int cpunum)
 	/*
 	 * Check the idle mask we received against what we calculated
 	 * before in the old version.
-	 *
-	 * Also note that sched_lock is held now, thus no migration is
-	 * expected.
 	 */
-	me = PCPU_GET(cpumask);
+	me = PCPU_GET(cpuid);
 
 	/* Don't bother if we should be doing it ourself. */
-	if (CPU_OVERLAP(&me, &idle_cpus_mask) &&
-	    (cpunum == NOCPU || CPU_ISSET(cpunum, &me)))
+	if (CPU_ISSET(me, &idle_cpus_mask) &&
+	    (cpunum == NOCPU || me == cpunum))
 		return (0);
 
-	dontuse = me;
+	CPU_SETOF(me, &dontuse);
 	CPU_OR(&dontuse, &stopped_cpus);
 	CPU_OR(&dontuse, &hlt_cpus_mask);
 	CPU_ZERO(&map2);
 	if (forward_wakeup_use_loop) {
 		STAILQ_FOREACH(pc, &cpuhead, pc_allcpu) {
-			id = pc->pc_cpumask;
-			if (!CPU_OVERLAP(&id, &dontuse) &&
+			id = pc->pc_cpuid;
+			if (!CPU_ISSET(id, &dontuse) &&
 			    pc->pc_curthread == pc->pc_idlethread) {
-				CPU_OR(&map2, &id);
+				CPU_SET(id, &map2);
 			}
 		}
 	}
@@ -1125,11 +1122,11 @@ forward_wakeup(int cpunum)
 	if (!CPU_EMPTY(&map)) {
 		forward_wakeups_delivered++;
 		STAILQ_FOREACH(pc, &cpuhead, pc_allcpu) {
-			id = pc->pc_cpumask;
-			if (!CPU_OVERLAP(&map, &id))
+			id = pc->pc_cpuid;
+			if (!CPU_ISSET(id, &map))
 				continue;
 			if (cpu_idle_wakeup(pc->pc_cpuid))
-				CPU_NAND(&map, &id);
+				CPU_CLR(id, &map);
 		}
 		if (!CPU_EMPTY(&map))
 			ipi_selected(map, IPI_AST);
@@ -1147,7 +1144,7 @@ kick_other_cpu(int pri, int cpuid)
 	int cpri;
 
 	pcpu = pcpu_find(cpuid);
-	if (CPU_OVERLAP(&idle_cpus_mask, &pcpu->pc_cpumask)) {
+	if (CPU_ISSET(cpuid, &idle_cpus_mask)) {
 		forward_wakeups_delivered++;
 		if (!cpu_idle_wakeup(cpuid))
 			ipi_cpu(cpuid, IPI_AST);
@@ -1205,10 +1202,10 @@ void
 sched_add(struct thread *td, int flags)
 #ifdef SMP
 {
-	cpuset_t idle, me, tidlemsk;
+	cpuset_t tidlemsk;
 	struct td_sched *ts;
+	u_int cpu, cpuid;
 	int forwarded = 0;
-	int cpu;
 	int single_cpu = 0;
 
 	ts = td->td_sched;
@@ -1271,23 +1268,17 @@ sched_add(struct thread *td, int flags)
 		ts->ts_runq = &runq;
 	}
 
-	if (single_cpu && (cpu != PCPU_GET(cpuid))) {
+	cpuid = PCPU_GET(cpuid);
+	if (single_cpu && cpu != cpuid) {
 	        kick_other_cpu(td->td_priority, cpu);
 	} else {
 		if (!single_cpu) {
+			tidlemsk = idle_cpus_mask;
+			CPU_NAND(&tidlemsk, &hlt_cpus_mask);
+			CPU_CLR(cpuid, &tidlemsk);
 
-			/*
-			 * Thread spinlock is held here, assume no
-			 * migration is possible.
-			 */
-			me = PCPU_GET(cpumask);
-			idle = idle_cpus_mask;
-			tidlemsk = idle;
-			CPU_AND(&idle, &me);
-			CPU_OR(&me, &hlt_cpus_mask);
-			CPU_NAND(&tidlemsk, &me);
-
-			if (CPU_EMPTY(&idle) && ((flags & SRQ_INTR) == 0) &&
+			if (!CPU_ISSET(cpuid, &idle_cpus_mask) &&
+			    ((flags & SRQ_INTR) == 0) &&
 			    !CPU_EMPTY(&tidlemsk))
 				forwarded = forward_wakeup(cpu);
 		}

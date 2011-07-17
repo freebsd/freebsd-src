@@ -1,5 +1,5 @@
 /*
- *  $Id: pause.c,v 1.26 2011/01/18 10:16:33 tom Exp $
+ *  $Id: pause.c,v 1.29 2011/06/29 09:48:53 tom Exp $
  *
  *  pause.c -- implements the pause dialog
  *
@@ -53,6 +53,7 @@ dialog_pause(const char *title,
 {
     /* *INDENT-OFF* */
     static DLG_KEYS_BINDING binding[] = {
+	HELPKEY_BINDINGS,
 	ENTERKEY_BINDINGS,
 	DLG_KEYS_DATA( DLGK_ENTER,	' ' ),
 	DLG_KEYS_DATA( DLGK_FIELD_NEXT,	KEY_DOWN ),
@@ -124,6 +125,7 @@ dialog_pause(const char *title,
 	dlg_draw_box(dialog, 0, 0, height, width, dialog_attr, border_attr);
 
 	dlg_draw_title(dialog, title);
+	dlg_draw_helpline(dialog, FALSE);
 
 	wattrset(dialog, dialog_attr);
 	dlg_print_autowrap(dialog, prompt, height, width);
@@ -215,7 +217,7 @@ dialog_pause(const char *title,
 				 FALSE, width);
 		break;
 	    case DLGK_ENTER:
-		result = dlg_ok_buttoncode(button);
+		result = dlg_enter_buttoncode(button);
 		break;
 	    case DLGK_MOUSE(0):
 		result = DLG_EXIT_OK;

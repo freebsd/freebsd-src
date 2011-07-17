@@ -146,7 +146,7 @@ SYSCTL_INT(_hw_usb_mos, OID_AUTO, debug, CTLFLAG_RW, &mos_debug, 0,
 
 
 /* Various supported device vendors/products. */
-static const struct usb_device_id mos_devs[] = {
+static const STRUCT_USB_HOST_ID mos_devs[] = {
 	{USB_VPI(USB_VENDOR_MOSCHIP, USB_PRODUCT_MOSCHIP_MCS7730, MCS7730)},
 	{USB_VPI(USB_VENDOR_MOSCHIP, USB_PRODUCT_MOSCHIP_MCS7830, MCS7830)},
 	{USB_VPI(USB_VENDOR_SITECOMEU, USB_PRODUCT_SITECOMEU_LN030, MCS7830)},

@@ -84,10 +84,6 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 
-#ifdef notyet
-extern struct mbuf *m_copypack();
-#endif
-
 VNET_DEFINE(int, path_mtu_discovery) = 1;
 SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, path_mtu_discovery, CTLFLAG_RW,
 	&VNET_NAME(path_mtu_discovery), 1,
@@ -820,19 +816,6 @@ send:
 			TCPSTAT_INC(tcps_sndpack);
 			TCPSTAT_ADD(tcps_sndbyte, len);
 		}
-#ifdef notyet
-		if ((m = m_copypack(so->so_snd.sb_mb, off,
-		    (int)len, max_linkhdr + hdrlen)) == 0) {
-			SOCKBUF_UNLOCK(&so->so_snd);
-			error = ENOBUFS;
-			goto out;
-		}
-		/*
-		 * m_copypack left space for our hdr; use it.
-		 */
-		m->m_len += hdrlen;
-		m->m_data -= hdrlen;
-#else
 		MGETHDR(m, M_DONTWAIT, MT_DATA);
 		if (m == NULL) {
 			SOCKBUF_UNLOCK(&so->so_snd);
@@ -872,7 +855,7 @@ send:
 				goto out;
 			}
 		}
-#endif /* notyet */
+
 		/*
 		 * If we're sending everything we've got, set PUSH.
 		 * (This will keep happy those implementations which only
@@ -1102,8 +1085,15 @@ send:
 		m->m_pkthdr.tso_segsz = tp->t_maxopd - optlen;
 	}
 
+#ifdef IPSEC
+	KASSERT(len + hdrlen + ipoptlen - ipsec_optlen == m_length(m, NULL),
+	    ("%s: mbuf chain shorter than expected: %ld + %u + %u - %u != %u",
+	    __func__, len, hdrlen, ipoptlen, ipsec_optlen, m_length(m, NULL)));
+#else
 	KASSERT(len + hdrlen + ipoptlen == m_length(m, NULL),
-	    ("%s: mbuf chain shorter than expected", __func__));
+	    ("%s: mbuf chain shorter than expected: %ld + %u + %u != %u",
+	    __func__, len, hdrlen, ipoptlen, m_length(m, NULL)));
+#endif
 
 	/*
 	 * In transmit state, time the transmission and arrange for
@@ -1331,7 +1321,7 @@ out:
 	 * then remember the size of the advertised window.
 	 * Any pending ACK has now been sent.
 	 */
-	if (recwin > 0 && SEQ_GT(tp->rcv_nxt + recwin, tp->rcv_adv))
+	if (recwin >= 0 && SEQ_GT(tp->rcv_nxt + recwin, tp->rcv_adv))
 		tp->rcv_adv = tp->rcv_nxt + recwin;
 	tp->last_ack_sent = tp->rcv_nxt;
 	tp->t_flags &= ~(TF_ACKNOW | TF_DELACK);

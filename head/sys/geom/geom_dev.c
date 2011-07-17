@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/conf.h>
+#include <sys/ctype.h>
 #include <sys/bio.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -52,6 +53,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/limits.h>
 #include <geom/geom.h>
 #include <geom/geom_int.h>
+#include <machine/stdarg.h>
+
+/*
+ * Use the consumer private field to reference a physdev alias (if any).
+ */
+#define cp_alias_dev	private
 
 static d_open_t		g_dev_open;
 static d_close_t	g_dev_close;
@@ -72,12 +79,14 @@ static struct cdevsw g_dev_cdevsw = {
 
 static g_taste_t g_dev_taste;
 static g_orphan_t g_dev_orphan;
+static g_attrchanged_t g_dev_attrchanged;
 
 static struct g_class g_dev_class	= {
 	.name = "DEV",
 	.version = G_VERSION,
 	.taste = g_dev_taste,
 	.orphan = g_dev_orphan,
+	.attrchanged = g_dev_attrchanged
 };
 
 void
@@ -93,6 +102,40 @@ g_dev_print(void)
 	printf("\n");
 }
 
+static void
+g_dev_attrchanged(struct g_consumer *cp, const char *attr)
+{
+
+	if (strcmp(attr, "GEOM::physpath") != 0)
+		return;
+
+	if (g_access(cp, 1, 0, 0) == 0) {
+		char *physpath;
+		int error, physpath_len;
+
+		physpath_len = MAXPATHLEN;
+		physpath = g_malloc(physpath_len, M_WAITOK|M_ZERO);
+		error =
+		    g_io_getattr("GEOM::physpath", cp, &physpath_len, physpath);
+		g_access(cp, -1, 0, 0);
+		if (error == 0 && strlen(physpath) != 0) {
+			struct cdev *dev;
+			struct cdev *old_alias_dev;
+			struct cdev **alias_devp;
+
+			dev = cp->geom->softc;
+			old_alias_dev = cp->cp_alias_dev;
+			alias_devp = (struct cdev **)&cp->cp_alias_dev;
+			make_dev_physpath_alias(MAKEDEV_WAITOK, alias_devp,
+			    dev, old_alias_dev, physpath);
+		} else if (cp->cp_alias_dev) {
+			destroy_dev((struct cdev *)cp->cp_alias_dev);
+			cp->cp_alias_dev = NULL;
+		}
+		g_free(physpath);
+	}
+}
+
 struct g_provider *
 g_dev_getprovider(struct cdev *dev)
 {
@@ -106,7 +149,6 @@ g_dev_getprovider(struct cdev *dev)
 	cp = dev->si_drv2;
 	return (cp->provider);
 }
-
 
 static struct g_geom *
 g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
@@ -167,6 +209,9 @@ g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 		adev->si_drv1 = gp;
 		adev->si_drv2 = cp;
 	}
+
+	g_dev_attrchanged(cp, "GEOM::physpath");
+
 	return (gp);
 }
 
@@ -364,6 +409,11 @@ g_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread
 		break;
 	case DIOCGSTRIPEOFFSET:
 		*(off_t *)data = cp->provider->stripeoffset;
+		break;
+	case DIOCGPHYSPATH:
+		error = g_io_getattr("GEOM::physpath", cp, &i, data);
+		if (error == 0 && *(char *)data == '\0')
+			error = ENOENT;
 		break;
 	default:
 		if (cp->provider->geom->ioctl != NULL) {

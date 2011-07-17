@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007, 2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2009-2011  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: tkey.h,v 1.26.332.2 2009-01-18 23:47:41 tbox Exp $ */
+/* $Id: tkey.h,v 1.32 2011-01-08 23:47:01 tbox Exp $ */
 
 #ifndef DNS_TKEY_H
 #define DNS_TKEY_H 1
@@ -44,6 +44,7 @@ struct dns_tkeyctx {
 	gss_cred_id_t gsscred;
 	isc_mem_t *mctx;
 	isc_entropy_t *ectx;
+	char *gssapi_keytab;
 };
 
 isc_result_t
@@ -123,7 +124,8 @@ dns_tkey_builddhquery(dns_message_t *msg, dst_key_t *key, dns_name_t *name,
 isc_result_t
 dns_tkey_buildgssquery(dns_message_t *msg, dns_name_t *name, dns_name_t *gname,
 		       isc_buffer_t *intoken, isc_uint32_t lifetime,
-		       gss_ctx_id_t *context, isc_boolean_t win2k);
+		       gss_ctx_id_t *context, isc_boolean_t win2k,
+		       isc_mem_t *mctx, char **err_message);
 /*%<
  *	Builds a query containing a TKEY that will generate a GSSAPI context.
  *	The key is requested to have the specified lifetime (in seconds).
@@ -141,6 +143,7 @@ dns_tkey_buildgssquery(dns_message_t *msg, dns_name_t *name, dns_name_t *gname,
  *\li		ISC_R_SUCCESS	msg was successfully updated to include the
  *				query to be sent
  *\li		other		an error occurred while building the message
+ *\li		*err_message	optional error message
  */
 
 
@@ -187,7 +190,7 @@ isc_result_t
 dns_tkey_processgssresponse(dns_message_t *qmsg, dns_message_t *rmsg,
 			    dns_name_t *gname, gss_ctx_id_t *context,
 			    isc_buffer_t *outtoken, dns_tsigkey_t **outkey,
-			    dns_tsig_keyring_t *ring);
+			    dns_tsig_keyring_t *ring, char **err_message);
 /*%<
  * XXX
  */
@@ -211,12 +214,11 @@ dns_tkey_processdeleteresponse(dns_message_t *qmsg, dns_message_t *rmsg,
  *				component of the query or response
  */
 
-
 isc_result_t
 dns_tkey_gssnegotiate(dns_message_t *qmsg, dns_message_t *rmsg,
 		      dns_name_t *server, gss_ctx_id_t *context,
 		      dns_tsigkey_t **outkey, dns_tsig_keyring_t *ring,
-		      isc_boolean_t win2k);
+		      isc_boolean_t win2k, char **err_message);
 
 /*
  *	Client side negotiation of GSS-TSIG.  Process the response

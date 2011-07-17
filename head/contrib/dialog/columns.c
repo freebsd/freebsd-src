@@ -1,5 +1,5 @@
 /*
- *  $Id: columns.c,v 1.7 2011/01/16 21:51:44 tom Exp $
+ *  $Id: columns.c,v 1.8 2011/06/28 09:26:23 tom Exp $
  *
  *  columns.c -- implements column-alignment
  *
@@ -25,7 +25,7 @@
 
 #define each(row, data) \
  		row = 0, data = target; \
- 		row < num_rows - 1; \
+ 		row < num_rows; \
 		++row, data = next_row(data, per_row)
 
 static char *

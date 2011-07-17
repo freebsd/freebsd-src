@@ -1,6 +1,6 @@
 divert(-1)
 #
-# Copyright (c) 1998-2009 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1998-2010 Sendmail, Inc. and its suppliers.
 #	All rights reserved.
 # Copyright (c) 1983, 1995 Eric P. Allman.  All rights reserved.
 # Copyright (c) 1988, 1993
@@ -13,10 +13,10 @@ divert(-1)
 #
 divert(0)
 
-VERSIONID(`$Id: proto.m4,v 8.741 2009/12/11 00:04:53 ca Exp $')
+VERSIONID(`$Id: proto.m4,v 8.744 2010/11/23 20:29:47 guenther Exp $')
 
 # level CF_LEVEL config file format
-V`'CF_LEVEL/ifdef(`VENDOR_NAME', `VENDOR_NAME', `Berkeley')
+V`'CF_LEVEL`'ifdef(`NO_VENDOR',`', `/ifdef(`VENDOR_NAME', `VENDOR_NAME', `Berkeley')')
 divert(-1)
 
 dnl if MAILER(`local') not defined: do it ourself; be nice
@@ -1795,7 +1795,7 @@ ifdef(`_CONN_CONTROL_',`dnl
 ifdef(`_CONN_CONTROL_IMMEDIATE_',`',`dnl
 dnl workspace: ignored...
 R$*		$: $>"ConnControl" dummy')', `dnl')
-undivert(8)
+undivert(8)dnl LOCAL_DNSBL
 ifdef(`_REQUIRE_RDNS_', `dnl
 R$*			$: $&{client_addr} $| $&{client_resolve}
 R$=R $*			$@ RELAY		We relay for these

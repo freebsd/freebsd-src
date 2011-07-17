@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 26, 2011
+.Dd July 14, 2011
 .Dt RCTL 8
 .Os
 .Sh NAME
@@ -121,32 +121,31 @@ A filter that matches all defined rules for nproc resource would be
 "::nproc".
 .Pp
 .Sh RESOURCES
-.Bl -column -offset 3n "msgqqueued"
-.It cpu		CPU time, in milliseconds
-.It data	data size, in bytes
-.It stack	stack size, in bytes
-.It core	core dump size, in bytes
-.It rss		resident set size, in bytes
-.It memlock	locked memory, in bytes
-.It nproc	number of processes
-.It nofile	file descriptor table size
-.It vmem	address space limit, in bytes
-.It npts	number of PTYs
-.It swap	swap usage, in bytes
-.It nthr	number of threads
-.It msgqqueued	number of queued SysV messages
-.It msgqsize	SysV message queue size, in bytes
-.It nmsgq	number of SysV message queues
-.It nsem	number of SysV semaphores
-.It nsemop	number of SysV semaphores modified in a single semop(2) call
-.It nshm	number of SysV shared memory segments
-.It shmsize	SysV shared memory size, in bytes
-.It wallclock	wallclock time, in milliseconds
-.It pctcpu	%cpu time
+.Bl -column -offset 3n "pseudoterminals"
+.It cputime		CPU time, in seconds
+.It datasize		data size, in bytes
+.It stacksize		stack size, in bytes
+.It coredumpsize	core dump size, in bytes
+.It memoryuse		resident set size, in bytes
+.It memorylocked	locked memory, in bytes
+.It maxproc		number of processes
+.It openfiles		file descriptor table size
+.It vmemoryuse		address space limit, in bytes
+.It pseudoterminals	number of PTYs
+.It swapuse		swap usage, in bytes
+.It nthr		number of threads
+.It msgqqueued		number of queued SysV messages
+.It msgqsize		SysV message queue size, in bytes
+.It nmsgq		number of SysV message queues
+.It nsem		number of SysV semaphores
+.It nsemop		number of SysV semaphores modified in a single semop(2) call
+.It nshm		number of SysV shared memory segments
+.It shmsize		SysV shared memory size, in bytes
+.It wallclock		wallclock time, in seconds
 .El
 .Pp
 .Sh ACTIONS
-.Bl -column -offset 3n "msgqqueued"
+.Bl -column -offset 3n "pseudoterminals"
 .It deny	deny the allocation; not supported for cpu and wallclock
 .It log		log a warning to the console
 .It devctl	send notification to
@@ -167,7 +166,7 @@ Note that limiting RSS may kill the machine due to thrashing.
 .Sh EXIT STATUS
 .Ex -std
 .Sh EXAMPLES
-.Dl rctl -a user:joe:vmem:deny=1g
+.Dl rctl -a user:joe:vmemoryuse:deny=1g
 .Pp
 Prevent user "joe" from allocating more than 1GB of virtual memory.
 .Pp

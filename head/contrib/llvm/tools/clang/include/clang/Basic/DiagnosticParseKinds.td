@@ -108,6 +108,7 @@ def err_expected_ident_lparen : Error<"expected identifier or '('">;
 def err_expected_ident_lbrace : Error<"expected identifier or '{'">;
 def err_expected_lbrace : Error<"expected '{'">;
 def err_expected_lparen : Error<"expected '('">;
+def err_expected_lparen_or_lbrace : Error<"expected '('or '{'">;
 def err_expected_rparen : Error<"expected ')'">;
 def err_expected_lsquare : Error<"expected '['">;
 def err_expected_rsquare : Error<"expected ']'">;
@@ -161,6 +162,8 @@ def err_unexpected_namespace_attributes_alias : Error<
 def err_inline_namespace_alias : Error<"namespace alias cannot be inline">;
 def err_namespace_nonnamespace_scope : Error<
   "namespaces can only be defined in global or namespace scope">;
+def err_nested_namespaces_with_double_colon : Error<
+  "nested namespace definition must define each namespace separately">;
 def err_expected_semi_after_attribute_list : Error<
   "expected ';' after attribute list">;
 def err_expected_semi_after_static_assert : Error<
@@ -190,6 +193,8 @@ def ext_ref_qualifier : ExtWarn<
   "reference qualifiers on functions are a C++0x extension">, InGroup<CXX0x>;
 def ext_inline_namespace : ExtWarn<
   "inline namespaces are a C++0x feature">, InGroup<CXX0x>;
+def err_generalized_initializer_lists : Error<
+  "generalized initializer lists are a C++0x extension unsupported in Clang">;
 def ext_generalized_initializer_lists : ExtWarn<
   "generalized initializer lists are a C++0x extension unsupported in Clang">,
   InGroup<CXX0x>;
@@ -343,6 +348,9 @@ def err_operator_string_not_empty : Error<
 // Classes.
 def err_anon_type_definition : Error<
   "declaration of anonymous %0 must be a definition">;
+def err_default_delete_in_multiple_declaration : Error<
+  "'= %select{default|delete}0' is a function definition and must occur in a "
+  "standalone declaration">;
 
 def err_cxx0x_attribute_forbids_arguments : Error<
   "C++0x attribute '%0' cannot have an argument list">;
@@ -434,12 +442,26 @@ def err_missing_whitespace_digraph : Error<
 
 def warn_deleted_function_accepted_as_extension: ExtWarn<
   "deleted function definition accepted as a C++0x extension">, InGroup<CXX0x>;
+def warn_defaulted_function_accepted_as_extension: ExtWarn<
+  "defaulted function definition accepted as a C++0x extension">,
+  InGroup<CXX0x>;
+
+// C++0x in-class member initialization
+def warn_nonstatic_member_init_accepted_as_extension: ExtWarn<
+  "in-class initialization of non-static data member accepted as a C++0x extension">,
+  InGroup<CXX0x>;
+def err_bitfield_member_init: Error<
+  "bitfield member cannot have an in-class initializer">;
+def err_incomplete_array_member_init: Error<
+  "array bound cannot be deduced from an in-class initializer">;
 
 // C++0x alias-declaration
 def ext_alias_declaration : ExtWarn<
   "alias declarations accepted as a C++0x extension">, InGroup<CXX0x>;
 def err_alias_declaration_not_identifier : Error<
   "name defined in alias declaration must be an identifier">;
+def err_alias_declaration_specialization : Error<
+  "%select{partial specialization|explicit specialization|explicit instantiation}0 of alias templates is not permitted">;
     
 // C++0x override control
 def ext_override_control_keyword : Extension<

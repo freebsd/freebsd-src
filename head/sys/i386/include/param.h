@@ -56,6 +56,7 @@
 
 
 #define __HAVE_ACPI
+#define	__HAVE_PIR
 #define __PCI_REROUTE_INTERRUPT
 
 #ifndef MACHINE

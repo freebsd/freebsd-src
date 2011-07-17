@@ -47,6 +47,23 @@ llvm::Value *CodeGenFunction::EmitObjCProtocolExpr(const ObjCProtocolExpr *E) {
   return CGM.getObjCRuntime().GenerateProtocolRef(Builder, E->getProtocol());
 }
 
+/// \brief Adjust the type of the result of an Objective-C message send 
+/// expression when the method has a related result type.
+static RValue AdjustRelatedResultType(CodeGenFunction &CGF,
+                                      const Expr *E,
+                                      const ObjCMethodDecl *Method,
+                                      RValue Result) {
+  if (!Method)
+    return Result;
+  if (!Method->hasRelatedResultType() ||
+      CGF.getContext().hasSameType(E->getType(), Method->getResultType()) ||
+      !Result.isScalar())
+    return Result;
+  
+  // We have applied a related result type. Cast the rvalue appropriately.
+  return RValue::get(CGF.Builder.CreateBitCast(Result.getScalarVal(),
+                                               CGF.ConvertType(E->getType())));
+}
 
 RValue CodeGenFunction::EmitObjCMessageExpr(const ObjCMessageExpr *E,
                                             ReturnValueSlot Return) {
@@ -59,15 +76,17 @@ RValue CodeGenFunction::EmitObjCMessageExpr(const ObjCMessageExpr *E,
   bool isClassMessage = false;
   ObjCInterfaceDecl *OID = 0;
   // Find the receiver
+  QualType ReceiverType;
   llvm::Value *Receiver = 0;
   switch (E->getReceiverKind()) {
   case ObjCMessageExpr::Instance:
     Receiver = EmitScalarExpr(E->getInstanceReceiver());
+    ReceiverType = E->getInstanceReceiver()->getType();
     break;
 
   case ObjCMessageExpr::Class: {
-    const ObjCObjectType *ObjTy
-      = E->getClassReceiver()->getAs<ObjCObjectType>();
+    ReceiverType = E->getClassReceiver();
+    const ObjCObjectType *ObjTy = ReceiverType->getAs<ObjCObjectType>();
     assert(ObjTy && "Invalid Objective-C class message send");
     OID = ObjTy->getInterface();
     assert(OID && "Invalid Objective-C class message send");
@@ -77,11 +96,13 @@ RValue CodeGenFunction::EmitObjCMessageExpr(const ObjCMessageExpr *E,
   }
 
   case ObjCMessageExpr::SuperInstance:
+    ReceiverType = E->getSuperType();
     Receiver = LoadObjCSelf();
     isSuperMessage = true;
     break;
 
   case ObjCMessageExpr::SuperClass:
+    ReceiverType = E->getSuperType();
     Receiver = LoadObjCSelf();
     isSuperMessage = true;
     isClassMessage = true;
@@ -94,31 +115,35 @@ RValue CodeGenFunction::EmitObjCMessageExpr(const ObjCMessageExpr *E,
   QualType ResultType =
     E->getMethodDecl() ? E->getMethodDecl()->getResultType() : E->getType();
 
+  RValue result;
   if (isSuperMessage) {
     // super is only valid in an Objective-C method
     const ObjCMethodDecl *OMD = cast<ObjCMethodDecl>(CurFuncDecl);
     bool isCategoryImpl = isa<ObjCCategoryImplDecl>(OMD->getDeclContext());
-    return Runtime.GenerateMessageSendSuper(*this, Return, ResultType,
-                                            E->getSelector(),
-                                            OMD->getClassInterface(),
-                                            isCategoryImpl,
-                                            Receiver,
-                                            isClassMessage,
-                                            Args,
-                                            E->getMethodDecl());
+    result = Runtime.GenerateMessageSendSuper(*this, Return, ResultType,
+                                              E->getSelector(),
+                                              OMD->getClassInterface(),
+                                              isCategoryImpl,
+                                              Receiver,
+                                              isClassMessage,
+                                              Args,
+                                              E->getMethodDecl());
+  } else {
+    result = Runtime.GenerateMessageSend(*this, Return, ResultType,
+                                         E->getSelector(),
+                                         Receiver, Args, OID,
+                                         E->getMethodDecl());
   }
-
-  return Runtime.GenerateMessageSend(*this, Return, ResultType,
-                                     E->getSelector(),
-                                     Receiver, Args, OID,
-                                     E->getMethodDecl());
+  
+  return AdjustRelatedResultType(*this, E, E->getMethodDecl(), result);
 }
 
 /// StartObjCMethod - Begin emission of an ObjCMethod. This generates
 /// the LLVM function and sets the other context used by
 /// CodeGenFunction.
 void CodeGenFunction::StartObjCMethod(const ObjCMethodDecl *OMD,
-                                      const ObjCContainerDecl *CD) {
+                                      const ObjCContainerDecl *CD,
+                                      SourceLocation StartLoc) {
   FunctionArgList args;
   // Check if we should generate debug info for this method.
   if (CGM.getModuleDebugInfo() && !OMD->hasAttr<NoDebugAttr>())
@@ -138,7 +163,7 @@ void CodeGenFunction::StartObjCMethod(const ObjCMethodDecl *OMD,
 
   CurGD = OMD;
 
-  StartFunction(OMD, OMD->getResultType(), Fn, FI, args, OMD->getLocStart());
+  StartFunction(OMD, OMD->getResultType(), Fn, FI, args, StartLoc);
 }
 
 void CodeGenFunction::GenerateObjCGetterBody(ObjCIvarDecl *Ivar, 
@@ -151,16 +176,14 @@ void CodeGenFunction::GenerateObjCGetterBody(ObjCIvarDecl *Ivar,
   // objc_copyStruct (ReturnValue, &structIvar, 
   //                  sizeof (Type of Ivar), isAtomic, false);
   CallArgList Args;
-  RValue RV = RValue::get(Builder.CreateBitCast(ReturnValue,
-                                                Types.ConvertType(getContext().VoidPtrTy)));
+  RValue RV = RValue::get(Builder.CreateBitCast(ReturnValue, VoidPtrTy));
   Args.add(RV, getContext().VoidPtrTy);
-  RV = RValue::get(Builder.CreateBitCast(LV.getAddress(),
-                                         Types.ConvertType(getContext().VoidPtrTy)));
+  RV = RValue::get(Builder.CreateBitCast(LV.getAddress(), VoidPtrTy));
   Args.add(RV, getContext().VoidPtrTy);
   // sizeof (Type of Ivar)
   CharUnits Size =  getContext().getTypeSizeInChars(Ivar->getType());
   llvm::Value *SizeVal =
-  llvm::ConstantInt::get(Types.ConvertType(getContext().LongTy), 
+  llvm::ConstantInt::get(Types.ConvertType(getContext().LongTy),
                          Size.getQuantity());
   Args.add(RValue::get(SizeVal), getContext().LongTy);
   llvm::Value *isAtomic =
@@ -179,7 +202,7 @@ void CodeGenFunction::GenerateObjCGetterBody(ObjCIvarDecl *Ivar,
 /// Generate an Objective-C method.  An Objective-C method is a C function with
 /// its pointer, name, and types registered in the class struture.
 void CodeGenFunction::GenerateObjCMethod(const ObjCMethodDecl *OMD) {
-  StartObjCMethod(OMD, OMD->getClassInterface());
+  StartObjCMethod(OMD, OMD->getClassInterface(), OMD->getLocStart());
   EmitStmt(OMD->getBody());
   FinishFunction(OMD->getBodyRBrace());
 }
@@ -199,7 +222,7 @@ void CodeGenFunction::GenerateObjCGetter(ObjCImplementationDecl *IMP,
     !(PD->getPropertyAttributes() & ObjCPropertyDecl::OBJC_PR_nonatomic);
   ObjCMethodDecl *OMD = PD->getGetterMethodDecl();
   assert(OMD && "Invalid call to generate getter (empty method)");
-  StartObjCMethod(OMD, IMP->getClassInterface());
+  StartObjCMethod(OMD, IMP->getClassInterface(), PID->getLocStart());
   
   // Determine if we should use an objc_getProperty call for
   // this. Non-atomic properties are directly evaluated.
@@ -292,7 +315,7 @@ void CodeGenFunction::GenerateObjCGetter(ObjCImplementationDecl *IMP,
         const CXXRecordDecl *classDecl = IVART->getAsCXXRecordDecl();
         
         if (PID->getGetterCXXConstructor() &&
-            classDecl && !classDecl->hasTrivialConstructor()) {
+            classDecl && !classDecl->hasTrivialDefaultConstructor()) {
           ReturnStmt *Stmt = 
             new (getContext()) ReturnStmt(SourceLocation(), 
                                           PID->getGetterCXXConstructor(),
@@ -398,7 +421,7 @@ void CodeGenFunction::GenerateObjCSetter(ObjCImplementationDecl *IMP,
   const ObjCPropertyDecl *PD = PID->getPropertyDecl();
   ObjCMethodDecl *OMD = PD->getSetterMethodDecl();
   assert(OMD && "Invalid call to generate setter (empty method)");
-  StartObjCMethod(OMD, IMP->getClassInterface());
+  StartObjCMethod(OMD, IMP->getClassInterface(), PID->getLocStart());
   const llvm::Triple &Triple = getContext().Target.getTriple();
   QualType IVART = Ivar->getType();
   bool IsCopy = PD->getSetterKind() == ObjCPropertyDecl::Copy;
@@ -496,7 +519,7 @@ void CodeGenFunction::GenerateObjCSetter(ObjCImplementationDecl *IMP,
     }
     else {
       // FIXME: Find a clean way to avoid AST node creation.
-      SourceLocation Loc = PD->getLocation();
+      SourceLocation Loc = PID->getLocStart();
       ValueDecl *Self = OMD->getSelfDecl();
       ObjCIvarDecl *Ivar = PID->getPropertyIvarDecl();
       DeclRefExpr Base(Self, Self->getType(), VK_RValue, Loc);
@@ -618,7 +641,7 @@ void CodeGenFunction::GenerateObjCCtorDtorMethod(ObjCImplementationDecl *IMP,
                                                  ObjCMethodDecl *MD,
                                                  bool ctor) {
   MD->createImplicitParams(CGM.getContext(), IMP->getClassInterface());
-  StartObjCMethod(MD, IMP->getClassInterface());
+  StartObjCMethod(MD, IMP->getClassInterface(), MD->getLocStart());
 
   // Emit .cxx_construct.
   if (ctor) {
@@ -712,26 +735,31 @@ RValue CodeGenFunction::EmitLoadOfPropertyRefLValue(LValue LV,
   const ObjCPropertyRefExpr *E = LV.getPropertyRefExpr();
   QualType ResultType = E->getGetterResultType();
   Selector S;
+  const ObjCMethodDecl *method;
   if (E->isExplicitProperty()) {
     const ObjCPropertyDecl *Property = E->getExplicitProperty();
     S = Property->getGetterName();
+    method = Property->getGetterMethodDecl();
   } else {
-    const ObjCMethodDecl *Getter = E->getImplicitPropertyGetter();
-    S = Getter->getSelector();
+    method = E->getImplicitPropertyGetter();
+    S = method->getSelector();
   }
 
   llvm::Value *Receiver = LV.getPropertyRefBaseAddr();
 
   // Accesses to 'super' follow a different code path.
   if (E->isSuperReceiver())
-    return GenerateMessageSendSuper(*this, Return, ResultType,
-                                    S, Receiver, CallArgList());
-
+    return AdjustRelatedResultType(*this, E, method,
+                                   GenerateMessageSendSuper(*this, Return, 
+                                                            ResultType,
+                                                            S, Receiver, 
+                                                            CallArgList()));
   const ObjCInterfaceDecl *ReceiverClass
     = (E->isClassReceiver() ? E->getClassReceiver() : 0);
-  return CGM.getObjCRuntime().
-             GenerateMessageSend(*this, Return, ResultType, S,
-                                 Receiver, CallArgList(), ReceiverClass);
+  return AdjustRelatedResultType(*this, E, method,
+                                 CGM.getObjCRuntime().
+                 GenerateMessageSend(*this, Return, ResultType, S,
+                                     Receiver, CallArgList(), ReceiverClass));
 }
 
 void CodeGenFunction::EmitStoreThroughPropertyRefLValue(RValue Src,

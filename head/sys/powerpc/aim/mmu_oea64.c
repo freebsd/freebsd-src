@@ -998,9 +998,7 @@ moea64_activate(mmu_t mmu, struct thread *td)
 	pmap_t	pm;
 
 	pm = &td->td_proc->p_vmspace->vm_pmap;
-	sched_pin();
-	CPU_OR(&pm->pm_active, PCPU_PTR(cpumask));
-	sched_unpin();
+	CPU_SET(PCPU_GET(cpuid), &pm->pm_active);
 
 	#ifdef __powerpc64__
 	PCPU_SET(userslb, pm->pm_slb);
@@ -1015,9 +1013,7 @@ moea64_deactivate(mmu_t mmu, struct thread *td)
 	pmap_t	pm;
 
 	pm = &td->td_proc->p_vmspace->vm_pmap;
-	sched_pin();
-	CPU_NAND(&pm->pm_active, PCPU_PTR(cpumask));
-	sched_unpin();
+	CPU_CLR(PCPU_GET(cpuid), &pm->pm_active);
 	#ifdef __powerpc64__
 	PCPU_SET(userslb, NULL);
 	#else
@@ -1715,7 +1711,7 @@ moea64_kextract(mmu_t mmu, vm_offset_t va)
 	pvo = moea64_pvo_find_va(kernel_pmap, va);
 	KASSERT(pvo != NULL, ("moea64_kextract: no addr found for %#" PRIxPTR,
 	    va));
-	pa = (pvo->pvo_pte.lpte.pte_lo & LPTE_RPGN) + (va - PVO_VADDR(pvo));
+	pa = (pvo->pvo_pte.lpte.pte_lo & LPTE_RPGN) | (va - PVO_VADDR(pvo));
 	PMAP_UNLOCK(kernel_pmap);
 	return (pa);
 }

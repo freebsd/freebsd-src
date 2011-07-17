@@ -189,6 +189,7 @@ namespace {
     SDNode *Select(SDNode *N);
     SDNode *SelectAtomic64(SDNode *Node, unsigned Opc);
     SDNode *SelectAtomicLoadAdd(SDNode *Node, EVT NVT);
+    SDNode *SelectAtomicLoadArith(SDNode *Node, EVT NVT);
 
     bool MatchLoadInAddress(LoadSDNode *N, X86ISelAddressMode &AM);
     bool MatchWrapper(SDValue N, X86ISelAddressMode &AM);
@@ -1329,6 +1330,8 @@ SDNode *X86DAGToDAGISel::SelectAtomic64(SDNode *Node, unsigned Opc) {
   return ResNode;
 }
 
+// FIXME: Figure out some way to unify this with the 'or' and other code
+// below.
 SDNode *X86DAGToDAGISel::SelectAtomicLoadAdd(SDNode *Node, EVT NVT) {
   if (Node->hasAnyUseOfValue(0))
     return 0;
@@ -1479,6 +1482,158 @@ SDNode *X86DAGToDAGISel::SelectAtomicLoadAdd(SDNode *Node, EVT NVT) {
   }
 }
 
+enum AtomicOpc {
+  OR,
+  AND,
+  XOR,
+  AtomicOpcEnd
+};
+
+enum AtomicSz {
+  ConstantI8,
+  I8,
+  SextConstantI16,
+  ConstantI16,
+  I16,
+  SextConstantI32,
+  ConstantI32,
+  I32,
+  SextConstantI64,
+  ConstantI64,
+  I64,
+  AtomicSzEnd
+};
+
+static const unsigned int AtomicOpcTbl[AtomicOpcEnd][AtomicSzEnd] = {
+  {
+    X86::LOCK_OR8mi,
+    X86::LOCK_OR8mr,
+    X86::LOCK_OR16mi8,
+    X86::LOCK_OR16mi,
+    X86::LOCK_OR16mr,
+    X86::LOCK_OR32mi8,
+    X86::LOCK_OR32mi,
+    X86::LOCK_OR32mr,
+    X86::LOCK_OR64mi8,
+    X86::LOCK_OR64mi32,
+    X86::LOCK_OR64mr
+  },
+  {
+    X86::LOCK_AND8mi,
+    X86::LOCK_AND8mr,
+    X86::LOCK_AND16mi8,
+    X86::LOCK_AND16mi,
+    X86::LOCK_AND16mr,
+    X86::LOCK_AND32mi8,
+    X86::LOCK_AND32mi,
+    X86::LOCK_AND32mr,
+    X86::LOCK_AND64mi8,
+    X86::LOCK_AND64mi32,
+    X86::LOCK_AND64mr
+  },
+  {
+    X86::LOCK_XOR8mi,
+    X86::LOCK_XOR8mr,
+    X86::LOCK_XOR16mi8,
+    X86::LOCK_XOR16mi,
+    X86::LOCK_XOR16mr,
+    X86::LOCK_XOR32mi8,
+    X86::LOCK_XOR32mi,
+    X86::LOCK_XOR32mr,
+    X86::LOCK_XOR64mi8,
+    X86::LOCK_XOR64mi32,
+    X86::LOCK_XOR64mr
+  }
+};
+
+SDNode *X86DAGToDAGISel::SelectAtomicLoadArith(SDNode *Node, EVT NVT) {
+  if (Node->hasAnyUseOfValue(0))
+    return 0;
+  
+  // Optimize common patterns for __sync_or_and_fetch and similar arith
+  // operations where the result is not used. This allows us to use the "lock"
+  // version of the arithmetic instruction.
+  // FIXME: Same as for 'add' and 'sub', try to merge those down here.
+  SDValue Chain = Node->getOperand(0);
+  SDValue Ptr = Node->getOperand(1);
+  SDValue Val = Node->getOperand(2);
+  SDValue Tmp0, Tmp1, Tmp2, Tmp3, Tmp4;
+  if (!SelectAddr(Node, Ptr, Tmp0, Tmp1, Tmp2, Tmp3, Tmp4))
+    return 0;
+
+  // Which index into the table.
+  enum AtomicOpc Op;
+  switch (Node->getOpcode()) {
+    case ISD::ATOMIC_LOAD_OR:
+      Op = OR;
+      break;
+    case ISD::ATOMIC_LOAD_AND:
+      Op = AND;
+      break;
+    case ISD::ATOMIC_LOAD_XOR:
+      Op = XOR;
+      break;
+    default:
+      return 0;
+  }
+  
+  bool isCN = false;
+  ConstantSDNode *CN = dyn_cast<ConstantSDNode>(Val);
+  if (CN) {
+    isCN = true;
+    Val = CurDAG->getTargetConstant(CN->getSExtValue(), NVT);
+  }
+  
+  unsigned Opc = 0;
+  switch (NVT.getSimpleVT().SimpleTy) {
+    default: return 0;
+    case MVT::i8:
+      if (isCN)
+        Opc = AtomicOpcTbl[Op][ConstantI8];
+      else
+        Opc = AtomicOpcTbl[Op][I8];
+      break;
+    case MVT::i16:
+      if (isCN) {
+        if (immSext8(Val.getNode()))
+          Opc = AtomicOpcTbl[Op][SextConstantI16];
+        else
+          Opc = AtomicOpcTbl[Op][ConstantI16];
+      } else
+        Opc = AtomicOpcTbl[Op][I16];
+      break;
+    case MVT::i32:
+      if (isCN) {
+        if (immSext8(Val.getNode()))
+          Opc = AtomicOpcTbl[Op][SextConstantI32];
+        else
+          Opc = AtomicOpcTbl[Op][ConstantI32];
+      } else
+        Opc = AtomicOpcTbl[Op][I32];
+      break;
+    case MVT::i64:
+      if (isCN) {
+        if (immSext8(Val.getNode()))
+          Opc = AtomicOpcTbl[Op][SextConstantI64];
+        else if (i64immSExt32(Val.getNode()))
+          Opc = AtomicOpcTbl[Op][ConstantI64];
+      } else
+        Opc = AtomicOpcTbl[Op][I64];
+      break;
+  }
+  
+  DebugLoc dl = Node->getDebugLoc();
+  SDValue Undef = SDValue(CurDAG->getMachineNode(TargetOpcode::IMPLICIT_DEF,
+                                                 dl, NVT), 0);
+  MachineSDNode::mmo_iterator MemOp = MF->allocateMemRefsArray(1);
+  MemOp[0] = cast<MemSDNode>(Node)->getMemOperand();
+  SDValue Ops[] = { Tmp0, Tmp1, Tmp2, Tmp3, Tmp4, Val, Chain };
+  SDValue Ret = SDValue(CurDAG->getMachineNode(Opc, dl, MVT::Other, Ops, 7), 0);
+  cast<MachineSDNode>(Ret)->setMemRefs(MemOp, MemOp + 1);
+  SDValue RetVals[] = { Undef, Ret };
+  return CurDAG->getMergeValues(RetVals, 2, dl).getNode();
+}
+
 /// HasNoSignedComparisonUses - Test whether the given X86ISD::CMP node has
 /// any uses which require the SF or OF bits to be accurate.
 static bool HasNoSignedComparisonUses(SDNode *N) {
@@ -1576,6 +1731,14 @@ SDNode *X86DAGToDAGISel::Select(SDNode *Node) {
 
   case ISD::ATOMIC_LOAD_ADD: {
     SDNode *RetVal = SelectAtomicLoadAdd(Node, NVT);
+    if (RetVal)
+      return RetVal;
+    break;
+  }
+  case ISD::ATOMIC_LOAD_XOR:
+  case ISD::ATOMIC_LOAD_AND:
+  case ISD::ATOMIC_LOAD_OR: {
+    SDNode *RetVal = SelectAtomicLoadArith(Node, NVT);
     if (RetVal)
       return RetVal;
     break;
@@ -1843,17 +2006,17 @@ SDNode *X86DAGToDAGISel::Select(SDNode *Node) {
       if (TryFoldLoad(Node, N0, Tmp0, Tmp1, Tmp2, Tmp3, Tmp4)) {
         SDValue Ops[] = { Tmp0, Tmp1, Tmp2, Tmp3, Tmp4, N0.getOperand(0) };
         Move =
-          SDValue(CurDAG->getMachineNode(X86::MOVZX16rm8, dl, MVT::i16,
+          SDValue(CurDAG->getMachineNode(X86::MOVZX32rm8, dl, MVT::i32,
                                          MVT::Other, Ops,
                                          array_lengthof(Ops)), 0);
         Chain = Move.getValue(1);
         ReplaceUses(N0.getValue(1), Chain);
       } else {
         Move =
-          SDValue(CurDAG->getMachineNode(X86::MOVZX16rr8, dl, MVT::i16, N0),0);
+          SDValue(CurDAG->getMachineNode(X86::MOVZX32rr8, dl, MVT::i32, N0),0);
         Chain = CurDAG->getEntryNode();
       }
-      Chain  = CurDAG->getCopyToReg(Chain, dl, X86::AX, Move, SDValue());
+      Chain  = CurDAG->getCopyToReg(Chain, dl, X86::EAX, Move, SDValue());
       InFlag = Chain.getValue(1);
     } else {
       InFlag =

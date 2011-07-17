@@ -37,6 +37,7 @@ ExternalHeaderFileInfoSource::~ExternalHeaderFileInfoSource() {}
 
 HeaderSearch::HeaderSearch(FileManager &FM)
     : FileMgr(FM), FrameworkMap(64) {
+  AngledDirIdx = 0;
   SystemDirIdx = 0;
   NoCurDirSearch = false;
 
@@ -317,7 +318,7 @@ const FileEntry *HeaderSearch::LookupFile(
   CurDir = 0;
 
   // If this is a system #include, ignore the user #include locs.
-  unsigned i = isAngled ? SystemDirIdx : 0;
+  unsigned i = isAngled ? AngledDirIdx : 0;
 
   // If this is a #include_next request, start searching after the directory the
   // file was found in.
@@ -480,6 +481,21 @@ HeaderFileInfo &HeaderSearch::getFileInfo(const FileEntry *FE) {
     HFI.Resolved = true;
   }
   return HFI;
+}
+
+bool HeaderSearch::isFileMultipleIncludeGuarded(const FileEntry *File) {
+  // Check if we've ever seen this file as a header.
+  if (File->getUID() >= FileInfo.size())
+    return false;
+
+  // Resolve header file info from the external source, if needed.
+  HeaderFileInfo &HFI = FileInfo[File->getUID()];
+  if (ExternalSource && !HFI.Resolved) {
+    HFI = ExternalSource->GetHeaderFileInfo(File);
+    HFI.Resolved = true;
+  }
+
+  return HFI.isPragmaOnce || HFI.ControllingMacro || HFI.ControllingMacroID;
 }
 
 void HeaderSearch::setHeaderFileInfoForUID(HeaderFileInfo HFI, unsigned UID) {

@@ -296,8 +296,7 @@ void InitListChecker::FillInValueInitForField(unsigned Init, FieldDecl *Field,
       // Do nothing
     } else if (Init < NumInits) {
       ILE->setInit(Init, MemberInit.takeAs<Expr>());
-    } else if (InitSeq.getKind()
-                 == InitializationSequence::ConstructorInitialization) {
+    } else if (InitSeq.isConstructorInitialization()) {
       // Value-initialization requires a constructor call, so
       // extend the initializer list to include the constructor
       // call and make a note that we'll need to take another pass
@@ -418,8 +417,7 @@ InitListChecker::FillInValueInitializations(const InitializedEntity &Entity,
           return;
         }
 
-        if (InitSeq.getKind()
-                   == InitializationSequence::ConstructorInitialization) {
+        if (InitSeq.isConstructorInitialization()) {
           // Value-initialization requires a constructor call, so
           // extend the initializer list to include the constructor
           // call and make a note that we'll need to take another pass
@@ -2137,7 +2135,7 @@ bool InitializationSequence::isDirectReferenceBinding() const {
 }
 
 bool InitializationSequence::isAmbiguous() const {
-  if (getKind() != FailedSequence)
+  if (!Failed())
     return false;
 
   switch (getFailureKind()) {
@@ -2310,7 +2308,7 @@ void InitializationSequence::AddArrayInitStep(QualType T) {
 
 void InitializationSequence::SetOverloadFailure(FailureKind Failure,
                                                 OverloadingResult Result) {
-  SequenceKind = FailedSequence;
+  setSequenceKind(FailedSequence);
   this->Failure = Failure;
   this->FailedOverloadResult = Result;
 }
@@ -2331,7 +2329,6 @@ static void TryListInitialization(Sema &S,
   // well-formed. When we actually "perform" list initialization, we'll
   // do all of the necessary checking.  C++0x initializer lists will
   // force us to perform more checking here.
-  Sequence.setSequenceKind(InitializationSequence::ListInitialization);
 
   QualType DestType = Entity.getType();
 
@@ -2800,7 +2797,6 @@ static void TryStringLiteralInitialization(Sema &S,
                                            const InitializationKind &Kind,
                                            Expr *Initializer,
                                        InitializationSequence &Sequence) {
-  Sequence.setSequenceKind(InitializationSequence::StringInit);
   Sequence.AddStringInitStep(Entity.getType());
 }
 
@@ -2813,8 +2809,6 @@ static void TryConstructorInitialization(Sema &S,
                                          Expr **Args, unsigned NumArgs,
                                          QualType DestType,
                                          InitializationSequence &Sequence) {
-  Sequence.setSequenceKind(InitializationSequence::ConstructorInitialization);
-
   // Build the candidate set directly in the initialization sequence
   // structure, so that it will persist if we fail.
   OverloadCandidateSet &CandidateSet = Sequence.getFailedCandidateSet();
@@ -2947,7 +2941,6 @@ static void TryValueInitialization(Sema &S,
   }
 
   Sequence.AddZeroInitializationStep(Entity.getType());
-  Sequence.setSequenceKind(InitializationSequence::ZeroInitialization);
 }
 
 /// \brief Attempt default initialization (C++ [dcl.init]p6).
@@ -2973,7 +2966,6 @@ static void TryDefaultInitialization(Sema &S,
   }
 
   //     - otherwise, no initialization is performed.
-  Sequence.setSequenceKind(InitializationSequence::NoInitialization);
 
   //   If a program calls for the default initialization of an object of
   //   a const-qualified type T, T shall be a class type with a user-provided
@@ -2990,8 +2982,6 @@ static void TryUserDefinedConversion(Sema &S,
                                      const InitializationKind &Kind,
                                      Expr *Initializer,
                                      InitializationSequence &Sequence) {
-  Sequence.setSequenceKind(InitializationSequence::UserDefinedConversion);
-
   QualType DestType = Entity.getType();
   assert(!DestType->isReferenceType() && "References are handled elsewhere");
   QualType SourceType = Initializer->getType();
@@ -3176,6 +3166,9 @@ InitializationSequence::InitializationSequence(Sema &S,
     return;
   }
 
+  // Almost everything is a normal sequence.
+  setSequenceKind(NormalSequence);
+
   for (unsigned I = 0; I != NumArgs; ++I)
     if (Args[I]->getObjectKind() == OK_ObjCProperty) {
       ExprResult Result = S.ConvertPropertyForRValue(Args[I]);
@@ -3252,7 +3245,6 @@ InitializationSequence::InitializationSequence(Sema &S,
       else if (Initializer->HasSideEffects(S.Context))
         SetFailed(FK_NonConstantArrayInit);
       else {
-        setSequenceKind(ArrayInit);
         AddArrayInitStep(DestType);
       }
     } else if (DestAT->getElementType()->isAnyCharacterType())
@@ -3265,7 +3257,6 @@ InitializationSequence::InitializationSequence(Sema &S,
 
   // Handle initialization in C
   if (!S.getLangOptions().CPlusPlus) {
-    setSequenceKind(CAssignment);
     AddCAssignmentStep(DestType);
     return;
   }
@@ -3325,8 +3316,6 @@ InitializationSequence::InitializationSequence(Sema &S,
     else
       SetFailed(InitializationSequence::FK_ConversionFailed);
   }
-  else
-    setSequenceKind(StandardConversion);
 }
 
 InitializationSequence::~InitializationSequence() {
@@ -3650,13 +3639,13 @@ InitializationSequence::Perform(Sema &S,
                                 const InitializationKind &Kind,
                                 MultiExprArg Args,
                                 QualType *ResultType) {
-  if (SequenceKind == FailedSequence) {
+  if (Failed()) {
     unsigned NumArgs = Args.size();
     Diagnose(S, Entity, Kind, (Expr **)Args.release(), NumArgs);
     return ExprError();
   }
 
-  if (SequenceKind == DependentSequence) {
+  if (getKind() == DependentSequence) {
     // If the declaration is a non-dependent, incomplete array type
     // that has an initializer, then its type will be completed once
     // the initializer is instantiated.
@@ -3710,7 +3699,8 @@ InitializationSequence::Perform(Sema &S,
                                                  SourceLocation()));
   }
 
-  if (SequenceKind == NoInitialization)
+  // No steps means no initialization.
+  if (Steps.empty())
     return S.Owned((Expr *)0);
 
   QualType DestType = Entity.getType().getNonReferenceType();
@@ -3722,8 +3712,6 @@ InitializationSequence::Perform(Sema &S,
                                      Entity.getType();
 
   ExprResult CurInit = S.Owned((Expr *)0);
-
-  assert(!Steps.empty() && "Cannot have an empty initialization sequence");
 
   // For initialization steps that start with a single initializer,
   // grab the only argument out the Args and place it into the "current"
@@ -4019,8 +4007,9 @@ InitializationSequence::Perform(Sema &S,
         // the definition for completely trivial constructors.
         CXXRecordDecl *ClassDecl = Constructor->getParent();
         assert(ClassDecl && "No parent class for constructor.");
-        if (Constructor->isImplicit() && Constructor->isDefaultConstructor() &&
-            ClassDecl->hasTrivialConstructor() && !Constructor->isUsed(false))
+        if (Constructor->isDefaulted() && Constructor->isDefaultConstructor() &&
+            ClassDecl->hasTrivialDefaultConstructor() &&
+            !Constructor->isUsed(false))
           S.DefineImplicitDefaultConstructor(Loc, Constructor);
       }
 
@@ -4060,8 +4049,7 @@ InitializationSequence::Perform(Sema &S,
           ConstructKind = Entity.getBaseSpecifier()->isVirtual() ?
             CXXConstructExpr::CK_VirtualBase :
             CXXConstructExpr::CK_NonVirtualBase;
-        }
-        if (Entity.getKind() == InitializedEntity::EK_Delegating) {
+        } else if (Entity.getKind() == InitializedEntity::EK_Delegating) {
           ConstructKind = CXXConstructExpr::CK_Delegating;
         }
 
@@ -4216,7 +4204,7 @@ bool InitializationSequence::Diagnose(Sema &S,
                                       const InitializedEntity &Entity,
                                       const InitializationKind &Kind,
                                       Expr **Args, unsigned NumArgs) {
-  if (SequenceKind != FailedSequence)
+  if (!Failed())
     return false;
 
   QualType DestType = Entity.getType();
@@ -4334,6 +4322,9 @@ bool InitializationSequence::Diagnose(Sema &S,
       << Args[0]->isLValue()
       << Args[0]->getType()
       << Args[0]->getSourceRange();
+    if (DestType.getNonReferenceType()->isObjCObjectPointerType() &&
+        Args[0]->getType()->isObjCObjectPointerType())
+      S.EmitRelatedResultTypeNote(Args[0]);
     break;
 
   case FK_ConversionFailed: {
@@ -4344,6 +4335,9 @@ bool InitializationSequence::Diagnose(Sema &S,
       << Args[0]->isLValue()
       << FromType
       << Args[0]->getSourceRange();
+    if (DestType.getNonReferenceType()->isObjCObjectPointerType() &&
+        Args[0]->getType()->isObjCObjectPointerType())
+      S.EmitRelatedResultTypeNote(Args[0]);
     break;
   }
 
@@ -4587,47 +4581,15 @@ void InitializationSequence::dump(llvm::raw_ostream &OS) const {
   }
 
   case DependentSequence:
-    OS << "Dependent sequence: ";
+    OS << "Dependent sequence\n";
     return;
 
-  case UserDefinedConversion:
-    OS << "User-defined conversion sequence: ";
-    break;
-
-  case ConstructorInitialization:
-    OS << "Constructor initialization sequence: ";
+  case NormalSequence:
+    OS << "Normal sequence: ";
     break;
 
   case ReferenceBinding:
     OS << "Reference binding: ";
-    break;
-
-  case ListInitialization:
-    OS << "List initialization: ";
-    break;
-
-  case ZeroInitialization:
-    OS << "Zero initialization\n";
-    return;
-
-  case NoInitialization:
-    OS << "No initialization\n";
-    return;
-
-  case StandardConversion:
-    OS << "Standard conversion: ";
-    break;
-
-  case CAssignment:
-    OS << "C assignment: ";
-    break;
-
-  case StringInit:
-    OS << "String initialization: ";
-    break;
-
-  case ArrayInit:
-    OS << "Array initialization: ";
     break;
   }
 
@@ -4723,6 +4685,21 @@ void InitializationSequence::dump() const {
 //===----------------------------------------------------------------------===//
 // Initialization helper functions
 //===----------------------------------------------------------------------===//
+bool
+Sema::CanPerformCopyInitialization(const InitializedEntity &Entity,
+                                   ExprResult Init) {
+  if (Init.isInvalid())
+    return false;
+
+  Expr *InitE = Init.get();
+  assert(InitE && "No initialization expression");
+
+  InitializationKind Kind = InitializationKind::CreateCopy(SourceLocation(),
+                                                           SourceLocation());
+  InitializationSequence Seq(*this, Entity, Kind, &InitE, 1);
+  return !Seq.Failed();
+}
+
 ExprResult
 Sema::PerformCopyInitialization(const InitializedEntity &Entity,
                                 SourceLocation EqualLoc,

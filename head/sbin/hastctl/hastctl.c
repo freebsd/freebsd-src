@@ -403,15 +403,15 @@ main(int argc, char *argv[])
 			break;
 		case 'e':
 			if (expand_number(optarg, &extentsize) < 0)
-				err(1, "Invalid extentsize");
+				errx(EX_USAGE, "Invalid extentsize");
 			break;
 		case 'k':
 			if (expand_number(optarg, &keepdirty) < 0)
-				err(1, "Invalid keepdirty");
+				errx(EX_USAGE, "Invalid keepdirty");
 			break;
 		case 'm':
 			if (expand_number(optarg, &mediasize) < 0)
-				err(1, "Invalid mediasize");
+				errx(EX_USAGE, "Invalid mediasize");
 			break;
 		case 'h':
 		default:

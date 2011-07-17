@@ -36,8 +36,11 @@
 #include <sys/ioccom.h>
 
 #define	DOSBBSECTOR	0	/* DOS boot block relative sector number */
+#undef DOSPARTOFF
 #define	DOSPARTOFF	0
+#undef DOSPARTSIZE
 #define	DOSPARTSIZE	32
+#undef NDOSPART
 #define	NDOSPART	16
 #define	DOSMAGICOFFSET	510
 #define	DOSMAGIC	0xAA55
@@ -52,6 +55,7 @@
 
 #define	DOSMID_386BSD		(PC98_MID_386BSD | PC98_MID_BOOTABLE)
 #define	DOSSID_386BSD		(PC98_SID_386BSD | PC98_SID_ACTIVE)
+#undef DOSPTYP_386BSD
 #define	DOSPTYP_386BSD		(DOSSID_386BSD << 8 | DOSMID_386BSD)
 
 struct pc98_partition {

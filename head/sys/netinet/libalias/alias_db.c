@@ -552,10 +552,6 @@ static void	IncrementalCleanup(struct libalias *);
 static void	DeleteLink(struct alias_link *);
 
 static struct alias_link *
-AddLink(struct libalias *, struct in_addr, struct in_addr, struct in_addr,
-    u_short, u_short, int, int);
-
-static struct alias_link *
 ReLink(struct alias_link *,
     struct in_addr, struct in_addr, struct in_addr,
     u_short, u_short, int, int);
@@ -571,9 +567,6 @@ static struct alias_link *
 #define ALIAS_PORT_MASK            0x07fff
 #define ALIAS_PORT_MASK_EVEN       0x07ffe
 #define GET_NEW_PORT_MAX_ATTEMPTS       20
-
-#define GET_ALIAS_PORT                  -1
-#define GET_ALIAS_ID        GET_ALIAS_PORT
 
 #define FIND_EVEN_ALIAS_BASE             1
 
@@ -937,17 +930,12 @@ DeleteLink(struct alias_link *lnk)
 }
 
 
-static struct alias_link *
-AddLink(struct libalias *la, struct in_addr src_addr,
-    struct in_addr dst_addr,
-    struct in_addr alias_addr,
-    u_short src_port,
-    u_short dst_port,
-    int alias_port_param,	/* if less than zero, alias   */
-    int link_type)
-{				/* port will be automatically *//* chosen.
-				 * If greater than    */
-	u_int start_point;	/* zero, equal to alias port  */
+struct alias_link *
+AddLink(struct libalias *la, struct in_addr src_addr, struct in_addr dst_addr,
+    struct in_addr alias_addr, u_short src_port, u_short dst_port,
+    int alias_port_param, int link_type)
+{
+	u_int start_point;
 	struct alias_link *lnk;
 
 	LIBALIAS_LOCK_ASSERT(la);

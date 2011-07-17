@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: os.h,v 1.9.332.2 2009-01-18 23:47:35 tbox Exp $ */
+/* $Id: os.h,v 1.12 2009-06-10 00:27:21 each Exp $ */
 
 /*! \file */
 
@@ -26,12 +26,6 @@
 #include <stdio.h>
 
 ISC_LANG_BEGINDECLS
-
-FILE *safe_create(const char *filename);
-/*%<
- * Open 'filename' for writing, truncate if necessary.  If the file was
- * created ensure that only the owner can read/write it.
- */
 
 int set_user(FILE *fd, const char *user);
 /*%<

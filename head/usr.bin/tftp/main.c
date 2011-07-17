@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/file.h>
-#include <sys/param.h>
 #include <sys/stat.h>
 
 #include <netinet/in.h>
@@ -78,7 +77,7 @@ __FBSDID("$FreeBSD$");
 #define	MAXLINE		200
 #define	TIMEOUT		5		/* secs between rexmt's */
 
-static struct	sockaddr_storage peeraddr;
+typedef struct	sockaddr_storage peeraddr;
 static int	connected;
 static char	mode[32];
 jmp_buf		toplevel;
@@ -840,8 +839,8 @@ help(int argc, char *argv[])
 			printf("%-*s\t%s\n", (int)HELPINDENT, c->name, c->help);
 
 		printf("\n[-] : You shouldn't use these ones anymore.\n");
-		printf("[*] : RFC2834 options support required.\n");
-		printf("[**] : Non-standard RFC2834 option.\n");
+		printf("[*] : RFC2347 options support required.\n");
+		printf("[**] : Non-standard RFC2347 option.\n");
 		return;
 	}
 	while (--argc > 0) {

@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-FILES=	asus.conf uath.conf
+FILES=	asus.conf uath.conf usb.conf
 
 NO_OBJ=
 FILESDIR=	/etc/devd

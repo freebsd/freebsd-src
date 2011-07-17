@@ -116,7 +116,6 @@ static ufs2_daddr_t ffs_clusteralloc(struct inode *, u_int, ufs2_daddr_t, int,
 static ino_t	ffs_dirpref(struct inode *);
 static ufs2_daddr_t ffs_fragextend(struct inode *, u_int, ufs2_daddr_t,
 		    int, int);
-static void	ffs_fserr(struct fs *, ino_t, char *);
 static ufs2_daddr_t	ffs_hashalloc
 		(struct inode *, u_int, ufs2_daddr_t, int, int, allocfcn_t *);
 static ufs2_daddr_t ffs_nodealloccg(struct inode *, u_int, ufs2_daddr_t, int,
@@ -217,13 +216,13 @@ nospace:
 	(void) chkdq(ip, -btodb(size), cred, FORCE);
 	UFS_LOCK(ump);
 #endif
-	if (reclaimed == 0) {
+	if (reclaimed == 0 && (flags & IO_BUFLOCKED) == 0) {
 		reclaimed = 1;
 		softdep_request_cleanup(fs, ITOV(ip), cred, FLUSH_BLOCKS_WAIT);
 		goto retry;
 	}
 	UFS_UNLOCK(ump);
-	if (ppsratecheck(&lastfail, &curfail, 1)) {
+	if (reclaimed > 0 && ppsratecheck(&lastfail, &curfail, 1)) {
 		ffs_fserr(fs, ip->i_number, "filesystem full");
 		uprintf("\n%s: write failed, filesystem is full\n",
 		    fs->fs_fsmnt);
@@ -391,7 +390,7 @@ retry:
 		bp->b_blkno = fsbtodb(fs, bno);
 		if (!DOINGSOFTDEP(vp))
 			ffs_blkfree(ump, fs, ip->i_devvp, bprev, (long)osize,
-			    ip->i_number, NULL);
+			    ip->i_number, vp->v_type, NULL);
 		delta = btodb(nsize - osize);
 		DIP_SET(ip, i_blocks, DIP(ip, i_blocks) + delta);
 		if (flags & IO_EXT)
@@ -418,7 +417,7 @@ nospace:
 	/*
 	 * no space available
 	 */
-	if (reclaimed == 0) {
+	if (reclaimed == 0 && (flags & IO_BUFLOCKED) == 0) {
 		reclaimed = 1;
 		UFS_UNLOCK(ump);
 		if (bp) {
@@ -432,7 +431,7 @@ nospace:
 	UFS_UNLOCK(ump);
 	if (bp)
 		brelse(bp);
-	if (ppsratecheck(&lastfail, &curfail, 1)) {
+	if (reclaimed > 0 && ppsratecheck(&lastfail, &curfail, 1)) {
 		ffs_fserr(fs, ip->i_number, "filesystem full");
 		uprintf("\n%s: write failed, filesystem is full\n",
 		    fs->fs_fsmnt);
@@ -671,7 +670,7 @@ ffs_reallocblks_ufs1(ap)
 		if (!DOINGSOFTDEP(vp))
 			ffs_blkfree(ump, fs, ip->i_devvp,
 			    dbtofsb(fs, buflist->bs_children[i]->b_blkno),
-			    fs->fs_bsize, ip->i_number, NULL);
+			    fs->fs_bsize, ip->i_number, vp->v_type, NULL);
 		buflist->bs_children[i]->b_blkno = fsbtodb(fs, blkno);
 #ifdef INVARIANTS
 		if (!ffs_checkblk(ip,
@@ -879,7 +878,7 @@ ffs_reallocblks_ufs2(ap)
 		if (!DOINGSOFTDEP(vp))
 			ffs_blkfree(ump, fs, ip->i_devvp,
 			    dbtofsb(fs, buflist->bs_children[i]->b_blkno),
-			    fs->fs_bsize, ip->i_number, NULL);
+			    fs->fs_bsize, ip->i_number, vp->v_type, NULL);
 		buflist->bs_children[i]->b_blkno = fsbtodb(fs, blkno);
 #ifdef INVARIANTS
 		if (!ffs_checkblk(ip,
@@ -1830,7 +1829,7 @@ gotit:
 	}
 	UFS_UNLOCK(ump);
 	if (DOINGSOFTDEP(ITOV(ip)))
-		softdep_setup_inomapdep(bp, ip, cg * fs->fs_ipg + ipref);
+		softdep_setup_inomapdep(bp, ip, cg * fs->fs_ipg + ipref, mode);
 	bdwrite(bp);
 	if (ibp != NULL)
 		bawrite(ibp);
@@ -1881,7 +1880,7 @@ ffs_blkfree_cg(ump, fs, devvp, bno, size, inum, dephd)
 		printf("dev=%s, bno = %jd, bsize = %ld, size = %ld, fs = %s\n",
 		    devtoname(dev), (intmax_t)bno, (long)fs->fs_bsize,
 		    size, fs->fs_fsmnt);
-		panic("ffs_blkfree: bad size");
+		panic("ffs_blkfree_cg: bad size");
 	}
 #endif
 	if ((u_int)bno >= fs->fs_size) {
@@ -1915,7 +1914,7 @@ ffs_blkfree_cg(ump, fs, devvp, bno, size, inum, dephd)
 			}
 			printf("dev = %s, block = %jd, fs = %s\n",
 			    devtoname(dev), (intmax_t)bno, fs->fs_fsmnt);
-			panic("ffs_blkfree: freeing free block");
+			panic("ffs_blkfree_cg: freeing free block");
 		}
 		ffs_setblock(fs, blksfree, fragno);
 		ffs_clusteracct(fs, cgp, fragno, 1);
@@ -1938,7 +1937,7 @@ ffs_blkfree_cg(ump, fs, devvp, bno, size, inum, dephd)
 				printf("dev = %s, block = %jd, fs = %s\n",
 				    devtoname(dev), (intmax_t)(bno + i),
 				    fs->fs_fsmnt);
-				panic("ffs_blkfree: freeing free frag");
+				panic("ffs_blkfree_cg: freeing free frag");
 			}
 			setbit(blksfree, cgbno + i);
 		}
@@ -2014,13 +2013,14 @@ ffs_blkfree_trim_completed(bip)
 }
 
 void
-ffs_blkfree(ump, fs, devvp, bno, size, inum, dephd)
+ffs_blkfree(ump, fs, devvp, bno, size, inum, vtype, dephd)
 	struct ufsmount *ump;
 	struct fs *fs;
 	struct vnode *devvp;
 	ufs2_daddr_t bno;
 	long size;
 	ino_t inum;
+	enum vtype vtype;
 	struct workhead *dephd;
 {
 	struct mount *mp;
@@ -2035,10 +2035,14 @@ ffs_blkfree(ump, fs, devvp, bno, size, inum, dephd)
 	 */
 	if (devvp->v_type != VREG &&
 	    (devvp->v_vflag & VV_COPYONWRITE) &&
-	    ffs_snapblkfree(fs, devvp, bno, size, inum)) {
+	    ffs_snapblkfree(fs, devvp, bno, size, inum, vtype, dephd)) {
 		return;
 	}
-	if (!ump->um_candelete) {
+	/*
+	 * Nothing to delay if TRIM is disabled, or the operation is
+	 * performed on the snapshot.
+	 */
+	if (!ump->um_candelete || devvp->v_type == VREG) {
 		ffs_blkfree_cg(ump, fs, devvp, bno, size, inum, dephd);
 		return;
 	}
@@ -2335,7 +2339,7 @@ ffs_mapsearch(fs, cgp, bpref, allocsiz)
  * The form of the error message is:
  *	fs: error message
  */
-static void
+void
 ffs_fserr(fs, inum, cp)
 	struct fs *fs;
 	ino_t inum;
@@ -2377,6 +2381,18 @@ ffs_fserr(fs, inum, cp)
  *	in the current directory is oldvalue then change it to newvalue.
  * unlink(nameptr, oldvalue) - Verify that the inode number associated
  *	with nameptr in the current directory is oldvalue then unlink it.
+ *
+ * The following functions may only be used on a quiescent filesystem
+ * by the soft updates journal. They are not safe to be run on an active
+ * filesystem.
+ *
+ * setinode(inode, dip) - the specified disk inode is replaced with the
+ *	contents pointed to by dip.
+ * setbufoutput(fd, flags) - output associated with the specified file
+ *	descriptor (which must reference the character device supporting
+ *	the filesystem) switches from using physio to running through the
+ *	buffer cache when flags is set to 1. The descriptor reverts to
+ *	physio for output when flags is set to zero.
  */
 
 static int sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS);
@@ -2423,10 +2439,20 @@ static SYSCTL_NODE(_vfs_ffs, FFS_SET_DOTDOT, setdotdot, CTLFLAG_WR,
 static SYSCTL_NODE(_vfs_ffs, FFS_UNLINK, unlink, CTLFLAG_WR,
 	sysctl_ffs_fsck, "Unlink a Duplicate Name");
 
+static SYSCTL_NODE(_vfs_ffs, FFS_SET_INODE, setinode, CTLFLAG_WR,
+	sysctl_ffs_fsck, "Update an On-Disk Inode");
+
+static SYSCTL_NODE(_vfs_ffs, FFS_SET_BUFOUTPUT, setbufoutput, CTLFLAG_WR,
+	sysctl_ffs_fsck, "Set Buffered Writing for Descriptor");
+
+#define DEBUG 1
 #ifdef DEBUG
-static int fsckcmds = 0;
+static int fsckcmds = 1;
 SYSCTL_INT(_debug, OID_AUTO, fsckcmds, CTLFLAG_RW, &fsckcmds, 0, "");
 #endif /* DEBUG */
+
+static int buffered_write(struct file *, struct uio *, struct ucred *,
+	int, struct thread *);
 
 static int
 sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
@@ -2441,8 +2467,10 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 	ufs2_daddr_t blkno;
 	long blkcnt, blksize;
 	struct filedesc *fdp;
-	struct file *fp;
+	struct file *fp, *vfp;
 	int vfslocked, filetype, error;
+	static struct fileops *origops, bufferedops;
+	static int outcnt = 0;
 
 	if (req->newlen > sizeof cmd)
 		return (EBADRPC);
@@ -2450,7 +2478,7 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 		return (error);
 	if (cmd.version != FFS_CMD_VERSION)
 		return (ERPCMISMATCH);
-	if ((error = getvnode(curproc->p_fd, cmd.handle, &fp)) != 0)
+	if ((error = getvnode(td->td_proc->p_fd, cmd.handle, &fp)) != 0)
 		return (error);
 	vp = fp->f_data;
 	if (vp->v_type != VREG && vp->v_type != VDIR) {
@@ -2463,12 +2491,13 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 		fdrop(fp, td);
 		return (EINVAL);
 	}
-	if (mp->mnt_flag & MNT_RDONLY) {
+	ump = VFSTOUFS(mp);
+	if ((mp->mnt_flag & MNT_RDONLY) &&
+	    ump->um_fsckpid != td->td_proc->p_pid) {
 		vn_finished_write(mp);
 		fdrop(fp, td);
 		return (EROFS);
 	}
-	ump = VFSTOUFS(mp);
 	fs = ump->um_fs;
 	filetype = IFREG;
 
@@ -2489,7 +2518,7 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 	case FFS_ADJ_REFCNT:
 #ifdef DEBUG
 		if (fsckcmds) {
-			printf("%s: adjust inode %jd count by %jd\n",
+			printf("%s: adjust inode %jd link count by %jd\n",
 			    mp->mnt_stat.f_mntonname, (intmax_t)cmd.value,
 			    (intmax_t)cmd.size);
 		}
@@ -2500,7 +2529,8 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 		ip->i_nlink += cmd.size;
 		DIP_SET(ip, i_nlink, ip->i_nlink);
 		ip->i_effnlink += cmd.size;
-		ip->i_flag |= IN_CHANGE;
+		ip->i_flag |= IN_CHANGE | IN_MODIFIED;
+		error = ffs_update(vp, 1);
 		if (DOINGSOFTDEP(vp))
 			softdep_change_linkcnt(ip);
 		vput(vp);
@@ -2518,7 +2548,8 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 			break;
 		ip = VTOI(vp);
 		DIP_SET(ip, i_blocks, DIP(ip, i_blocks) + cmd.size);
-		ip->i_flag |= IN_CHANGE;
+		ip->i_flag |= IN_CHANGE | IN_MODIFIED;
+		error = ffs_update(vp, 1);
 		vput(vp);
 		break;
 
@@ -2572,7 +2603,7 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 			if (blksize > blkcnt)
 				blksize = blkcnt;
 			ffs_blkfree(ump, fs, ump->um_devvp, blkno,
-			    blksize * fs->fs_fsize, ROOTINO, NULL);
+			    blksize * fs->fs_fsize, ROOTINO, VDIR, NULL);
 			blkno += blksize;
 			blkcnt -= blksize;
 			blksize = fs->fs_frag;
@@ -2718,6 +2749,78 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 		    UIO_USERSPACE, (ino_t)cmd.size);
 		break;
 
+	case FFS_SET_INODE:
+		if (ump->um_fsckpid != td->td_proc->p_pid) {
+			error = EPERM;
+			break;
+		}
+#ifdef DEBUG
+		if (fsckcmds && outcnt++ < 100) {
+			printf("%s: update inode %jd\n",
+			    mp->mnt_stat.f_mntonname, (intmax_t)cmd.value);
+		}
+#endif /* DEBUG */
+		if ((error = ffs_vget(mp, (ino_t)cmd.value, LK_EXCLUSIVE, &vp)))
+			break;
+		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
+		AUDIT_ARG_VNODE1(vp);
+		ip = VTOI(vp);
+		if (ip->i_ump->um_fstype == UFS1)
+			error = copyin((void *)(intptr_t)cmd.size, ip->i_din1,
+			    sizeof(struct ufs1_dinode));
+		else
+			error = copyin((void *)(intptr_t)cmd.size, ip->i_din2,
+			    sizeof(struct ufs2_dinode));
+		if (error) {
+			vput(vp);
+			VFS_UNLOCK_GIANT(vfslocked);
+			break;
+		}
+		ip->i_flag |= IN_CHANGE | IN_MODIFIED;
+		error = ffs_update(vp, 1);
+		vput(vp);
+		VFS_UNLOCK_GIANT(vfslocked);
+		break;
+
+	case FFS_SET_BUFOUTPUT:
+		if (ump->um_fsckpid != td->td_proc->p_pid) {
+			error = EPERM;
+			break;
+		}
+		if (VTOI(vp)->i_ump != ump) {
+			error = EINVAL;
+			break;
+		}
+#ifdef DEBUG
+		if (fsckcmds) {
+			printf("%s: %s buffered output for descriptor %jd\n",
+			    mp->mnt_stat.f_mntonname,
+			    cmd.size == 1 ? "enable" : "disable",
+			    (intmax_t)cmd.value);
+		}
+#endif /* DEBUG */
+		if ((error = getvnode(td->td_proc->p_fd, cmd.value, &vfp)) != 0)
+			break;
+		if (vfp->f_vnode->v_type != VCHR) {
+			fdrop(vfp, td);
+			error = EINVAL;
+			break;
+		}
+		if (origops == NULL) {
+			origops = vfp->f_ops;
+			bcopy((void *)origops, (void *)&bufferedops,
+			    sizeof(bufferedops));
+			bufferedops.fo_write = buffered_write;
+		}
+		if (cmd.size == 1)
+			atomic_store_rel_ptr((volatile uintptr_t *)&vfp->f_ops,
+			    (uintptr_t)&bufferedops);
+		else
+			atomic_store_rel_ptr((volatile uintptr_t *)&vfp->f_ops,
+			    (uintptr_t)origops);
+		fdrop(vfp, td);
+		break;
+
 	default:
 #ifdef DEBUG
 		if (fsckcmds) {
@@ -2731,5 +2834,75 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 	}
 	fdrop(fp, td);
 	vn_finished_write(mp);
+	return (error);
+}
+
+/*
+ * Function to switch a descriptor to use the buffer cache to stage
+ * its I/O. This is needed so that writes to the filesystem device
+ * will give snapshots a chance to copy modified blocks for which it
+ * needs to retain copies.
+ */
+static int
+buffered_write(fp, uio, active_cred, flags, td)
+	struct file *fp;
+	struct uio *uio;
+	struct ucred *active_cred;
+	int flags;
+	struct thread *td;
+{
+	struct vnode *devvp;
+	struct inode *ip;
+	struct buf *bp;
+	struct fs *fs;
+	int error, vfslocked;
+	daddr_t lbn;
+	static int outcnt = 0;
+
+	/*
+	 * The devvp is associated with the /dev filesystem. To discover
+	 * the filesystem with which the device is associated, we depend
+	 * on the application setting the current directory to a location
+	 * within the filesystem being written. Yes, this is an ugly hack.
+	 */
+	devvp = fp->f_vnode;
+	ip = VTOI(td->td_proc->p_fd->fd_cdir);
+	if (ip->i_devvp != devvp)
+		return (EINVAL);
+	fs = ip->i_fs;
+	vfslocked = VFS_LOCK_GIANT(ip->i_vnode->v_mount);
+	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY);
+	if ((flags & FOF_OFFSET) == 0)
+		uio->uio_offset = fp->f_offset;
+#ifdef DEBUG
+	if (fsckcmds && outcnt++ < 100) {
+		printf("%s: buffered write for block %jd\n",
+		    fs->fs_fsmnt, (intmax_t)btodb(uio->uio_offset));
+	}
+#endif /* DEBUG */
+	/*
+	 * All I/O must be contained within a filesystem block, start on
+	 * a fragment boundary, and be a multiple of fragments in length.
+	 */
+	if (uio->uio_resid > fs->fs_bsize - (uio->uio_offset % fs->fs_bsize) ||
+	    fragoff(fs, uio->uio_offset) != 0 ||
+	    fragoff(fs, uio->uio_resid) != 0) {
+		error = EINVAL;
+		goto out;
+	}
+	lbn = numfrags(fs, uio->uio_offset);
+	bp = getblk(devvp, lbn, uio->uio_resid, 0, 0, 0);
+	bp->b_flags |= B_RELBUF;
+	if ((error = uiomove((char *)bp->b_data, uio->uio_resid, uio)) != 0) {
+		brelse(bp);
+		goto out;
+	}
+	error = bwrite(bp);
+	if ((flags & FOF_OFFSET) == 0)
+		fp->f_offset = uio->uio_offset;
+	fp->f_nextoff = uio->uio_offset;
+out:
+	VOP_UNLOCK(devvp, 0);
+	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }

@@ -48,6 +48,7 @@
 #include <sys/param.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
+#include <sys/libkern.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mbuf.h>
@@ -90,6 +91,14 @@
 #define GREMTU	1476
 
 #define GRENAME	"gre"
+
+#define	MTAG_COOKIE_GRE		1307983903
+#define	MTAG_GRE_NESTING	1
+struct mtag_gre_nesting {
+	uint16_t	count;
+	uint16_t	max;
+	struct ifnet	*ifp[];
+};
 
 /*
  * gre_mtx protects all global variables in if_gre.c.
@@ -196,7 +205,6 @@ gre_clone_create(ifc, unit, params)
 	sc->g_proto = IPPROTO_GRE;
 	GRE2IFP(sc)->if_flags |= IFF_LINK0;
 	sc->encap = NULL;
-	sc->called = 0;
 	sc->gre_fibnum = curthread->td_proc->p_fibnum;
 	sc->wccp_ver = WCCP_V1;
 	sc->key = 0;
@@ -240,23 +248,77 @@ gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 	struct gre_softc *sc = ifp->if_softc;
 	struct greip *gh;
 	struct ip *ip;
+	struct m_tag *mtag;
+	struct mtag_gre_nesting *gt;
+	size_t len;
 	u_short gre_ip_id = 0;
 	uint8_t gre_ip_tos = 0;
 	u_int16_t etype = 0;
 	struct mobile_h mob_h;
 	u_int32_t af;
-	int extra = 0;
+	int extra = 0, max;
 
 	/*
-	 * gre may cause infinite recursion calls when misconfigured.
-	 * We'll prevent this by introducing upper limit.
+	 * gre may cause infinite recursion calls when misconfigured.  High
+	 * nesting level may cause stack exhaustion.  We'll prevent this by
+	 * detecting loops and by introducing upper limit.
 	 */
-	if (++(sc->called) > max_gre_nesting) {
-		printf("%s: gre_output: recursively called too many "
-		       "times(%d)\n", if_name(GRE2IFP(sc)), sc->called);
-		m_freem(m);
-		error = EIO;    /* is there better errno? */
-		goto end;
+	mtag = m_tag_locate(m, MTAG_COOKIE_GRE, MTAG_GRE_NESTING, NULL);
+	if (mtag != NULL) {
+		struct ifnet **ifp2;
+
+		gt = (struct mtag_gre_nesting *)(mtag + 1);
+		gt->count++;
+		if (gt->count > min(gt->max,max_gre_nesting)) {
+			printf("%s: hit maximum recursion limit %u on %s\n",
+				__func__, gt->count - 1, ifp->if_xname);
+			m_freem(m);
+			error = EIO;	/* is there better errno? */
+			goto end;
+		}
+
+		ifp2 = gt->ifp;
+		for (max = gt->count - 1; max > 0; max--) {
+			if (*ifp2 == ifp)
+				break;
+			ifp2++;
+		}
+		if (*ifp2 == ifp) {
+			printf("%s: detected loop with nexting %u on %s\n",
+				__func__, gt->count-1, ifp->if_xname);
+			m_freem(m);
+			error = EIO;	/* is there better errno? */
+			goto end;
+		}
+		*ifp2 = ifp;
+
+	} else {
+		/*
+		 * Given that people should NOT increase max_gre_nesting beyond
+		 * their real needs, we allocate once per packet rather than
+		 * allocating an mtag once per passing through gre.
+		 *
+		 * Note: the sysctl does not actually check for saneness, so we
+		 * limit the maximum numbers of possible recursions here.
+		 */
+		max = imin(max_gre_nesting, 256);
+		/* If someone sets the sysctl <= 0, we want at least 1. */
+		max = imax(max, 1);
+		len = sizeof(struct mtag_gre_nesting) +
+		    max * sizeof(struct ifnet *);
+		mtag = m_tag_alloc(MTAG_COOKIE_GRE, MTAG_GRE_NESTING, len,
+		    M_NOWAIT);
+		if (mtag == NULL) {
+			m_freem(m);
+			error = ENOMEM;
+			goto end;
+		}
+		gt = (struct mtag_gre_nesting *)(mtag + 1);
+		bzero(gt, len);
+		gt->count = 1;
+		gt->max = max;
+		*gt->ifp = ifp;
+		m_tag_prepend(m, mtag);
 	}
 
 	if (!((ifp->if_flags & IFF_UP) &&
@@ -444,7 +506,6 @@ gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 	error = ip_output(m, NULL, &sc->route, IP_FORWARDING,
 	    (struct ip_moptions *)NULL, (struct inpcb *)NULL);
   end:
-	sc->called = 0;
 	if (error)
 		ifp->if_oerrors++;
 	return (error);

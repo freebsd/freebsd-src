@@ -49,8 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/controller/ohci.h>
 #include <dev/usb/controller/ohcireg.h>
 
-#include <sys/rman.h>
-
 static int ar71xx_ohci_attach(device_t dev);
 static int ar71xx_ohci_detach(device_t dev);
 static int ar71xx_ohci_probe(device_t dev);

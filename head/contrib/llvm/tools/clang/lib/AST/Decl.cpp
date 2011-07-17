@@ -1422,6 +1422,31 @@ bool FunctionDecl::hasBody(const FunctionDecl *&Definition) const {
   return false;
 }
 
+bool FunctionDecl::hasTrivialBody() const
+{
+  Stmt *S = getBody();
+  if (!S) {
+    // Since we don't have a body for this function, we don't know if it's
+    // trivial or not.
+    return false;
+  }
+
+  if (isa<CompoundStmt>(S) && cast<CompoundStmt>(S)->body_empty())
+    return true;
+  return false;
+}
+
+bool FunctionDecl::isDefined(const FunctionDecl *&Definition) const {
+  for (redecl_iterator I = redecls_begin(), E = redecls_end(); I != E; ++I) {
+    if (I->IsDeleted || I->IsDefaulted || I->Body || I->IsLateTemplateParsed) {
+      Definition = I->IsDeleted ? I->getCanonicalDecl() : *I;
+      return true;
+    }
+  }
+
+  return false;
+}
+
 Stmt *FunctionDecl::getBody(const FunctionDecl *&Definition) const {
   for (redecl_iterator I = redecls_begin(), E = redecls_end(); I != E; ++I) {
     if (I->Body) {
@@ -1450,10 +1475,34 @@ void FunctionDecl::setPure(bool P) {
 }
 
 bool FunctionDecl::isMain() const {
-  ASTContext &Context = getASTContext();
-  return !Context.getLangOptions().Freestanding &&
-    getDeclContext()->getRedeclContext()->isTranslationUnit() &&
-    getIdentifier() && getIdentifier()->isStr("main");
+  const TranslationUnitDecl *tunit =
+    dyn_cast<TranslationUnitDecl>(getDeclContext()->getRedeclContext());
+  return tunit &&
+         !tunit->getASTContext().getLangOptions().Freestanding &&
+         getIdentifier() &&
+         getIdentifier()->isStr("main");
+}
+
+bool FunctionDecl::isReservedGlobalPlacementOperator() const {
+  assert(getDeclName().getNameKind() == DeclarationName::CXXOperatorName);
+  assert(getDeclName().getCXXOverloadedOperator() == OO_New ||
+         getDeclName().getCXXOverloadedOperator() == OO_Delete ||
+         getDeclName().getCXXOverloadedOperator() == OO_Array_New ||
+         getDeclName().getCXXOverloadedOperator() == OO_Array_Delete);
+
+  if (isa<CXXRecordDecl>(getDeclContext())) return false;
+  assert(getDeclContext()->getRedeclContext()->isTranslationUnit());
+
+  const FunctionProtoType *proto = getType()->castAs<FunctionProtoType>();
+  if (proto->getNumArgs() != 2 || proto->isVariadic()) return false;
+
+  ASTContext &Context =
+    cast<TranslationUnitDecl>(getDeclContext()->getRedeclContext())
+      ->getASTContext();
+
+  // The result type and first argument type are constant across all
+  // these operators.  The second argument must be exactly void*.
+  return (proto->getArgType(1).getCanonicalType() == Context.VoidPtrTy);
 }
 
 bool FunctionDecl::isExternC() const {
@@ -1690,11 +1739,11 @@ bool FunctionDecl::isInlined() const {
 /// an externally visible symbol, but "extern inline" will not create an 
 /// externally visible symbol.
 bool FunctionDecl::isInlineDefinitionExternallyVisible() const {
-  assert(isThisDeclarationADefinition() && "Must have the function definition");
+  assert(doesThisDeclarationHaveABody() && "Must have the function definition");
   assert(isInlined() && "Function must be inline");
   ASTContext &Context = getASTContext();
   
-  if (!Context.getLangOptions().C99 || hasAttr<GNUInlineAttr>()) {
+  if (Context.getLangOptions().GNUInline || hasAttr<GNUInlineAttr>()) {
     // If it's not the case that both 'inline' and 'extern' are
     // specified on the definition, then this inline definition is
     // externally visible.
@@ -2028,9 +2077,10 @@ SourceRange FunctionDecl::getSourceRange() const {
 FieldDecl *FieldDecl::Create(const ASTContext &C, DeclContext *DC,
                              SourceLocation StartLoc, SourceLocation IdLoc,
                              IdentifierInfo *Id, QualType T,
-                             TypeSourceInfo *TInfo, Expr *BW, bool Mutable) {
+                             TypeSourceInfo *TInfo, Expr *BW, bool Mutable,
+                             bool HasInit) {
   return new (C) FieldDecl(Decl::Field, DC, StartLoc, IdLoc, Id, T, TInfo,
-                           BW, Mutable);
+                           BW, Mutable, HasInit);
 }
 
 bool FieldDecl::isAnonymousStructOrUnion() const {
@@ -2059,8 +2109,7 @@ unsigned FieldDecl::getFieldIndex() const {
 
     if (IsMsStruct) {
       // Zero-length bitfields following non-bitfield members are ignored.
-      if (getASTContext().ZeroBitfieldFollowsNonBitfield((*i), LastFD) ||
-          getASTContext().ZeroBitfieldFollowsBitfield((*i), LastFD)) {
+      if (getASTContext().ZeroBitfieldFollowsNonBitfield((*i), LastFD)) {
         ++i;
         continue;
       }
@@ -2076,8 +2125,15 @@ unsigned FieldDecl::getFieldIndex() const {
 
 SourceRange FieldDecl::getSourceRange() const {
   if (isBitField())
-    return SourceRange(getInnerLocStart(), BitWidth->getLocEnd());
+    return SourceRange(getInnerLocStart(), getBitWidth()->getLocEnd());
   return DeclaratorDecl::getSourceRange();
+}
+
+void FieldDecl::setInClassInitializer(Expr *Init) {
+  assert(!InitializerOrBitWidth.getPointer() &&
+         "bit width or initializer already set");
+  InitializerOrBitWidth.setPointer(Init);
+  InitializerOrBitWidth.setInt(0);
 }
 
 //===----------------------------------------------------------------------===//

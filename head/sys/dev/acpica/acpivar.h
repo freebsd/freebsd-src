@@ -355,19 +355,19 @@ BOOLEAN		acpi_MatchHid(ACPI_HANDLE h, const char *hid);
 struct acpi_parse_resource_set {
     void	(*set_init)(device_t dev, void *arg, void **context);
     void	(*set_done)(device_t dev, void *context);
-    void	(*set_ioport)(device_t dev, void *context, uint32_t base,
-		    uint32_t length);
-    void	(*set_iorange)(device_t dev, void *context, uint32_t low,
-		    uint32_t high, uint32_t length, uint32_t align);
-    void	(*set_memory)(device_t dev, void *context, uint32_t base,
-		    uint32_t length);
-    void	(*set_memoryrange)(device_t dev, void *context, uint32_t low,
-		    uint32_t high, uint32_t length, uint32_t align);
-    void	(*set_irq)(device_t dev, void *context, u_int8_t *irq,
+    void	(*set_ioport)(device_t dev, void *context, uint64_t base,
+		    uint64_t length);
+    void	(*set_iorange)(device_t dev, void *context, uint64_t low,
+		    uint64_t high, uint64_t length, uint64_t align);
+    void	(*set_memory)(device_t dev, void *context, uint64_t base,
+		    uint64_t length);
+    void	(*set_memoryrange)(device_t dev, void *context, uint64_t low,
+		    uint64_t high, uint64_t length, uint64_t align);
+    void	(*set_irq)(device_t dev, void *context, uint8_t *irq,
 		    int count, int trig, int pol);
-    void	(*set_ext_irq)(device_t dev, void *context, u_int32_t *irq,
+    void	(*set_ext_irq)(device_t dev, void *context, uint32_t *irq,
 		    int count, int trig, int pol);
-    void	(*set_drq)(device_t dev, void *context, u_int8_t *drq,
+    void	(*set_drq)(device_t dev, void *context, uint8_t *drq,
 		    int count);
     void	(*set_start_dependent)(device_t dev, void *context,
 		    int preference);

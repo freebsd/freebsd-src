@@ -69,7 +69,7 @@
  * void cpu_throw(struct thread *old, struct thread *new)
  */
 ENTRY(cpu_throw)
-	mr	%r15, %r4
+	mr	%r2, %r4
 	b	cpu_switchin
 
 /*
@@ -89,10 +89,9 @@ ENTRY(cpu_switch)
 	mflr	%r16			/* Save the link register */
 	stw	%r16,PCB_LR(%r6)
 	stw	%r1,PCB_SP(%r6)		/* Save the stack pointer */
-	stw	%r2,PCB_TOC(%r6)	/* Save the TOC pointer */
 
 	mr	%r14,%r3		/* Copy the old thread ptr... */
-	mr	%r15,%r4		/* and the new thread ptr in scratch */
+	mr	%r2,%r4			/* and the new thread ptr in curthread */
 	mr	%r16,%r5		/* and the new lock */
 	mr	%r17,%r6		/* and the PCB */
 	
@@ -122,24 +121,24 @@ cpu_switchin:
 	lis	%r6,blocked_lock@ha
 	addi	%r6,%r6,blocked_lock@l
 blocked_loop:
-	lwz	%r7,TD_LOCK(%r15)
+	lwz	%r7,TD_LOCK(%r2)
 	cmpw	%r6,%r7 
 	beq	blocked_loop
 #endif
 
 	mfsprg	%r7,0			/* Get the pcpu pointer */
-	stw	%r15,PC_CURTHREAD(%r7)	/* Store new current thread */
-	lwz	%r17,TD_PCB(%r15)	/* Store new current PCB */
+	stw	%r2,PC_CURTHREAD(%r7)	/* Store new current thread */
+	lwz	%r17,TD_PCB(%r2)	/* Store new current PCB */
 	stw	%r17,PC_CURPCB(%r7)
 
-	mr	%r3,%r15		/* Get new thread ptr */
+	mr	%r3,%r2			/* Get new thread ptr */
 	bl	pmap_activate		/* Activate the new address space */
 
 	lwz	%r6, PCB_FLAGS(%r17)
 	/* Restore FPU context if needed */
 	andi.	%r6, %r6, PCB_FPU
 	beq	.L3
-	mr	%r3,%r15		/* Pass curthread to enable_fpu */
+	mr	%r3,%r2			/* Pass curthread to enable_fpu */
 	bl	enable_fpu
 
 .L3:
@@ -147,7 +146,7 @@ blocked_loop:
 	/* Restore Altivec context if needed */
 	andi.	%r6, %r6, PCB_VEC
 	beq	.L4
-	mr	%r3,%r15		/* Pass curthread to enable_vec */
+	mr	%r3,%r2			/* Pass curthread to enable_vec */
 	bl	enable_vec
 
 	/* thread to restore is in r3 */
@@ -163,7 +162,6 @@ blocked_loop:
 	mtsr	USER_SR,%r5
 	isync
 	lwz	%r1,PCB_SP(%r3)		/* Load the stack pointer */
-	lwz	%r2,PCB_TOC(%r3)	/* Load the TOC pointer */
 	/*
 	 * Perform a dummy stwcx. to clear any reservations we may have
 	 * inherited from the previous thread. It doesn't matter if the

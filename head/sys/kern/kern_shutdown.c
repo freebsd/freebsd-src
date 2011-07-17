@@ -555,11 +555,12 @@ panic(const char *fmt, ...)
 				; /* nothing */
 #endif
 
-	bootopt = RB_AUTOBOOT | RB_DUMP;
+	bootopt = RB_AUTOBOOT;
 	newpanic = 0;
 	if (panicstr)
 		bootopt |= RB_NOSYNC;
 	else {
+		bootopt |= RB_DUMP;
 		panicstr = fmt;
 		newpanic = 1;
 	}

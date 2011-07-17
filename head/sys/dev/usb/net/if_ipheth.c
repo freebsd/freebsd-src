@@ -148,7 +148,7 @@ static const struct usb_ether_methods ipheth_ue_methods = {
     USB_IFACE_CLASS(c), USB_IFACE_SUBCLASS(sc), \
     USB_IFACE_PROTOCOL(pt)
 
-static const struct usb_device_id ipheth_devs[] = {
+static const STRUCT_USB_HOST_ID ipheth_devs[] = {
 	{IPHETH_ID(USB_VENDOR_APPLE, USB_PRODUCT_APPLE_IPHONE,
 	    IPHETH_USBINTF_CLASS, IPHETH_USBINTF_SUBCLASS,
 	    IPHETH_USBINTF_PROTO)},

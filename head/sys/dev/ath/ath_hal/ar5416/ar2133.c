@@ -185,7 +185,7 @@ ar2133SetChannel(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	}
 
 	/* Workaround for hw bug - AR5416 specific */
-	if (AR_SREV_OWL(ah) && ath_hal_ar5416_biasadj)
+	if (AR_SREV_OWL(ah) && ah->ah_config.ah_ar5416_biasadj)
 		ar2133ForceBias(ah, freq);
 
 	reg32 = (channelSel << 8) | (aModeRefSel << 2) | (bModeSynth << 1) |

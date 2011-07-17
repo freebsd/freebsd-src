@@ -127,7 +127,7 @@ if [ ! -z "$FETCH_DISTRIBUTIONS" ]; then
 	# Try to use any existing distfiles
 	if [ -d $BSDINSTALL_DISTDIR ]; then
 		DISTDIR_IS_UNIONFS=1
-		mount_unionfs "$BSDINSTALL_FETCHDEST" "$BSDINSTALL_DISTDIR"
+		mount_nullfs -o union "$BSDINSTALL_FETCHDEST" "$BSDINSTALL_DISTDIR"
 	fi
 
 	# Otherwise, fetch everything
@@ -166,6 +166,7 @@ finalconfig() {
 		"Network" "Networking configuration" \
 		"Services" "Set daemons to run on startup" \
 		"Time Zone" "Set system timezone" \
+		"Handbook" "Install FreeBSD Handbook (requires network)" \
 		"Shell" "Open a shell in the new system" \
 		"Exit" "Apply configuration and exit installer" 2>&1 1>&3)
 	exec 3>&-
@@ -193,6 +194,10 @@ finalconfig() {
 		;;
 	"Time Zone")
 		bsdinstall time
+		finalconfig
+		;;
+	"Handbook")
+		bsdinstall docsinstall
 		finalconfig
 		;;
 	"Shell")

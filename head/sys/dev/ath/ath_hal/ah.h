@@ -756,6 +756,17 @@ struct dfs_event {
 };
 typedef struct dfs_event HAL_DFS_EVENT;
 
+typedef struct
+{
+	int ah_debug;			/* only used if AH_DEBUG is defined */
+	int ah_ar5416_biasadj;		/* enable AR2133 radio specific bias fiddling */
+
+	/* NB: these are deprecated; they exist for now for compatibility */
+	int ah_dma_beacon_response_time;/* in TU's */
+	int ah_sw_beacon_response_time;	/* in TU's */
+	int ah_additional_swba_backoff;	/* in TU's */
+}HAL_OPS_CONFIG;
+
 /*
  * Hardware Access Layer (HAL) API.
  *
@@ -784,6 +795,7 @@ struct ath_hal {
 
 	uint16_t	*ah_eepromdata;	/* eeprom buffer, if needed */
 
+	HAL_OPS_CONFIG ah_config;
 	const HAL_RATE_TABLE *__ahdecl(*ah_getRateTable)(struct ath_hal *,
 				u_int mode);
 	void	  __ahdecl(*ah_detach)(struct ath_hal*);

@@ -207,7 +207,8 @@ ipfw_nat(struct ip_fw_args *args, struct cfg_nat *t, struct mbuf *m)
 	struct mbuf *mcl;
 	struct ip *ip;
 	/* XXX - libalias duct tape */
-	int ldt, retval;
+	int ldt, retval, found;
+	struct ip_fw_chain *chain;
 	char *c;
 
 	ldt = 0;
@@ -256,12 +257,44 @@ ipfw_nat(struct ip_fw_args *args, struct cfg_nat *t, struct mbuf *m)
 		ldt = 1;
 
 	c = mtod(mcl, char *);
-	if (args->oif == NULL)
-		retval = LibAliasIn(t->lib, c,
-			mcl->m_len + M_TRAILINGSPACE(mcl));
-	else
-		retval = LibAliasOut(t->lib, c,
-			mcl->m_len + M_TRAILINGSPACE(mcl));
+
+	/* Check if this is 'global' instance */
+	if (t == NULL) {
+		if (args->oif == NULL) {
+			/* Wrong direction, skip processing */
+			args->m = mcl;
+			return (IP_FW_NAT);
+		}
+
+		found = 0;
+		chain = &V_layer3_chain;
+		IPFW_RLOCK(chain);
+		/* Check every nat entry... */
+		LIST_FOREACH(t, &chain->nat, _next) {
+			if ((t->mode & PKT_ALIAS_SKIP_GLOBAL) != 0)
+				continue;
+			retval = LibAliasOutTry(t->lib, c,
+			    mcl->m_len + M_TRAILINGSPACE(mcl), 0);
+			if (retval == PKT_ALIAS_OK) {
+				/* Nat instance recognises state */
+				found = 1;
+				break;
+			}
+		}
+		IPFW_RUNLOCK(chain);
+		if (found != 1) {
+			/* No instance found, return ignore */
+			args->m = mcl;
+			return (IP_FW_NAT);
+		}
+	} else {
+		if (args->oif == NULL)
+			retval = LibAliasIn(t->lib, c,
+				mcl->m_len + M_TRAILINGSPACE(mcl));
+		else
+			retval = LibAliasOut(t->lib, c,
+				mcl->m_len + M_TRAILINGSPACE(mcl));
+	}
 
 	/*
 	 * We drop packet when:
@@ -274,7 +307,7 @@ ipfw_nat(struct ip_fw_args *args, struct cfg_nat *t, struct mbuf *m)
 	if (retval == PKT_ALIAS_ERROR ||
 	    (args->oif == NULL && (retval == PKT_ALIAS_UNRESOLVED_FRAGMENT ||
 	    (retval == PKT_ALIAS_IGNORED &&
-	    (t->lib->packetAliasMode & PKT_ALIAS_DENY_INCOMING) != 0)))) {
+	    (t->mode & PKT_ALIAS_DENY_INCOMING) != 0)))) {
 		/* XXX - should i add some logging? */
 		m_free(mcl);
 		args->m = NULL;

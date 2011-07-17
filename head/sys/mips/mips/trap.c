@@ -91,10 +91,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/kdb.h>
 #endif
 
-#include <sys/cdefs.h>
-#include <sys/syslog.h>
-
-
 #ifdef TRAP_DEBUG
 int trap_debug = 0;
 SYSCTL_INT(_machdep, OID_AUTO, trap_debug, CTLFLAG_RW,

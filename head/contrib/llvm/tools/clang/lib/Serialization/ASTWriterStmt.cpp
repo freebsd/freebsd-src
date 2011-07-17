@@ -30,6 +30,7 @@ namespace clang {
 
   public:
     serialization::StmtCode Code;
+    unsigned AbbrevToUse;
 
     ASTStmtWriter(ASTWriter &Writer, ASTWriter::RecordData &Record)
       : Writer(Writer), Record(Record) { }
@@ -164,6 +165,8 @@ namespace clang {
 
     // CUDA Expressions
     void VisitCUDAKernelCallExpr(CUDAKernelCallExpr *E);
+    
+    void VisitAsTypeExpr(AsTypeExpr *E);
   };
 }
 
@@ -392,6 +395,14 @@ void ASTStmtWriter::VisitDeclRefExpr(DeclRefExpr *E) {
     Record.push_back(NumTemplateArgs);
   }
 
+  DeclarationName::NameKind nk = (E->getDecl()->getDeclName().getNameKind());
+
+  if ((!E->hasExplicitTemplateArgs()) && (!E->hasQualifier()) &&
+      (E->getDecl() == E->getFoundDecl()) &&
+      nk == DeclarationName::Identifier) {
+    AbbrevToUse = Writer.getDeclRefExprAbbrev();
+  }
+
   if (E->hasQualifier())
     Writer.AddNestedNameSpecifierLoc(E->getQualifierLoc(), Record);
 
@@ -411,6 +422,11 @@ void ASTStmtWriter::VisitIntegerLiteral(IntegerLiteral *E) {
   VisitExpr(E);
   Writer.AddSourceLocation(E->getLocation(), Record);
   Writer.AddAPInt(E->getValue(), Record);
+
+  if (E->getValue().getBitWidth() == 32) {
+    AbbrevToUse = Writer.getIntegerLiteralAbbrev();
+  }
+
   Code = serialization::EXPR_INTEGER_LITERAL;
 }
 
@@ -449,6 +465,9 @@ void ASTStmtWriter::VisitCharacterLiteral(CharacterLiteral *E) {
   Record.push_back(E->getValue());
   Writer.AddSourceLocation(E->getLocation(), Record);
   Record.push_back(E->isWide());
+
+  AbbrevToUse = Writer.getCharacterLiteralAbbrev();
+
   Code = serialization::EXPR_CHARACTER_LITERAL;
 }
 
@@ -1416,6 +1435,15 @@ void ASTStmtWriter::VisitCUDAKernelCallExpr(CUDAKernelCallExpr *E) {
 }
 
 //===----------------------------------------------------------------------===//
+// OpenCL Expressions and Statements.
+//===----------------------------------------------------------------------===//
+void ASTStmtWriter::VisitAsTypeExpr(AsTypeExpr *E) {
+  VisitExpr(E);
+  Writer.AddStmt(E->getSrcExpr());
+  Code = serialization::EXPR_ASTYPE;
+}
+
+//===----------------------------------------------------------------------===//
 // ASTWriter Implementation
 //===----------------------------------------------------------------------===//
 
@@ -1460,6 +1488,7 @@ void ASTWriter::WriteSubStmt(Stmt *S) {
   CollectedStmts = &SubStmts;
 
   Writer.Code = serialization::STMT_NULL_PTR;
+  Writer.AbbrevToUse = 0;
   Writer.Visit(S);
   
 #ifndef NDEBUG
@@ -1481,7 +1510,7 @@ void ASTWriter::WriteSubStmt(Stmt *S) {
   while (!SubStmts.empty())
     WriteSubStmt(SubStmts.pop_back_val());
   
-  Stream.EmitRecord(Writer.Code, Record);
+  Stream.EmitRecord(Writer.Code, Record, Writer.AbbrevToUse);
 }
 
 /// \brief Flush all of the statements that have been added to the

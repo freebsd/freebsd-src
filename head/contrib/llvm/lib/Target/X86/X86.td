@@ -101,8 +101,10 @@ def : Proc<"i686",            []>;
 def : Proc<"pentiumpro",      [FeatureCMOV]>;
 def : Proc<"pentium2",        [FeatureMMX, FeatureCMOV]>;
 def : Proc<"pentium3",        [FeatureSSE1]>;
+def : Proc<"pentium3m",       [FeatureSSE1, FeatureSlowBTMem]>;
 def : Proc<"pentium-m",       [FeatureSSE2, FeatureSlowBTMem]>;
 def : Proc<"pentium4",        [FeatureSSE2]>;
+def : Proc<"pentium4m",       [FeatureSSE2, FeatureSlowBTMem]>;
 def : Proc<"x86-64",          [FeatureSSE2,   Feature64Bit, FeatureSlowBTMem]>;
 def : Proc<"yonah",           [FeatureSSE3, FeatureSlowBTMem]>;
 def : Proc<"prescott",        [FeatureSSE3, FeatureSlowBTMem]>;
@@ -122,7 +124,7 @@ def : Proc<"westmere",        [FeatureSSE42,  Feature64Bit, FeatureSlowBTMem,
 // SSE is not listed here since llvm treats AVX as a reimplementation of SSE,
 // rather than a superset.
 // FIXME: Disabling AVX for now since it's not ready.
-def : Proc<"sandybridge",     [FeatureSSE42, Feature64Bit,
+def : Proc<"corei7-avx",      [FeatureSSE42, Feature64Bit,
                                FeatureAES, FeatureCLMUL]>;
 
 def : Proc<"k6",              [FeatureMMX]>;

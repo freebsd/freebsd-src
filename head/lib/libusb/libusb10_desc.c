@@ -300,6 +300,9 @@ libusb_get_string_descriptor_ascii(libusb_device_handle *pdev,
 	if (pdev == NULL || data == NULL || length < 1)
 		return (LIBUSB20_ERROR_INVALID_PARAM);
 
+	if (length > 65535)
+		length = 65535;
+
 	/* put some default data into the destination buffer */
 	data[0] = 0;
 
@@ -314,6 +317,12 @@ int
 libusb_get_descriptor(libusb_device_handle * devh, uint8_t desc_type, 
     uint8_t desc_index, uint8_t *data, int length)
 {
+	if (devh == NULL || data == NULL || length < 1)
+		return (LIBUSB20_ERROR_INVALID_PARAM);
+
+	if (length > 65535)
+		length = 65535;
+
 	return (libusb_control_transfer(devh, LIBUSB_ENDPOINT_IN,
 	    LIBUSB_REQUEST_GET_DESCRIPTOR, (desc_type << 8) | desc_index, 0, data,
 	    length, 1000));

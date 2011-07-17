@@ -59,7 +59,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/pioctl.h>
 #include <sys/proc.h>
-#include <sys/sched.h>
 #include <sys/sf_buf.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
@@ -535,8 +534,8 @@ cpu_reset()
 	u_int cnt;
 
 	if (smp_active) {
-		sched_pin();
-		map = PCPU_GET(other_cpus);
+		map = all_cpus;
+		CPU_CLR(PCPU_GET(cpuid), &map);
 		CPU_NAND(&map, &stopped_cpus);
 		if (!CPU_EMPTY(&map)) {
 			printf("cpu_reset: Stopping other CPUs\n");
@@ -545,7 +544,6 @@ cpu_reset()
 
 		if (PCPU_GET(cpuid) != 0) {
 			cpu_reset_proxyid = PCPU_GET(cpuid);
-			sched_unpin();
 			cpustop_restartfunc = cpu_reset_proxy;
 			cpu_reset_proxy_active = 0;
 			printf("cpu_reset: Restarting BSP\n");
@@ -564,8 +562,7 @@ cpu_reset()
 
 			while (1);
 			/* NOTREACHED */
-		} else
-			sched_unpin();
+		}
 
 		DELAY(1000000);
 	}

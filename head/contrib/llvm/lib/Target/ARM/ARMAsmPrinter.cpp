@@ -172,47 +172,6 @@ getDebugValueLocation(const MachineInstr *MI) const {
   return Location;
 }
 
-/// getDwarfRegOpSize - get size required to emit given machine location using
-/// dwarf encoding.
-unsigned ARMAsmPrinter::getDwarfRegOpSize(const MachineLocation &MLoc) const {
- const TargetRegisterInfo *RI = TM.getRegisterInfo();
-  if (RI->getDwarfRegNum(MLoc.getReg(), false) != -1)
-    return AsmPrinter::getDwarfRegOpSize(MLoc);
-  else {
-    unsigned Reg = MLoc.getReg();
-    if (Reg >= ARM::S0 && Reg <= ARM::S31) {
-      assert(ARM::S0 + 31 == ARM::S31 && "Unexpected ARM S register numbering");
-      // S registers are described as bit-pieces of a register
-      // S[2x] = DW_OP_regx(256 + (x>>1)) DW_OP_bit_piece(32, 0)
-      // S[2x+1] = DW_OP_regx(256 + (x>>1)) DW_OP_bit_piece(32, 32)
-      
-      unsigned SReg = Reg - ARM::S0;
-      unsigned Rx = 256 + (SReg >> 1);
-      OutStreamer.AddComment("Loc expr size");
-      // DW_OP_regx + ULEB + DW_OP_bit_piece + ULEB + ULEB
-      //   1 + ULEB(Rx) + 1 + 1 + 1
-      return 4 + MCAsmInfo::getULEB128Size(Rx);
-    } 
-    
-    if (Reg >= ARM::Q0 && Reg <= ARM::Q15) {
-      assert(ARM::Q0 + 15 == ARM::Q15 && "Unexpected ARM Q register numbering");
-      // Q registers Q0-Q15 are described by composing two D registers together.
-      // Qx = DW_OP_regx(256+2x) DW_OP_piece(8) DW_OP_regx(256+2x+1) DW_OP_piece(8)
-
-      unsigned QReg = Reg - ARM::Q0;
-      unsigned D1 = 256 + 2 * QReg;
-      unsigned D2 = D1 + 1;
-      
-      OutStreamer.AddComment("Loc expr size");
-      // DW_OP_regx + ULEB + DW_OP_piece + ULEB(8) +
-      // DW_OP_regx + ULEB + DW_OP_piece + ULEB(8);
-      //   6 + ULEB(D1) + ULEB(D2)
-      return 6 + MCAsmInfo::getULEB128Size(D1) + MCAsmInfo::getULEB128Size(D2);
-    }
-  }
-  return 0;
-}
-
 /// EmitDwarfRegOp - Emit dwarf register operation.
 void ARMAsmPrinter::EmitDwarfRegOp(const MachineLocation &MLoc) const {
   const TargetRegisterInfo *RI = TM.getRegisterInfo();
@@ -229,10 +188,6 @@ void ARMAsmPrinter::EmitDwarfRegOp(const MachineLocation &MLoc) const {
       unsigned SReg = Reg - ARM::S0;
       bool odd = SReg & 0x1;
       unsigned Rx = 256 + (SReg >> 1);
-      OutStreamer.AddComment("Loc expr size");
-      // DW_OP_regx + ULEB + DW_OP_bit_piece + ULEB + ULEB
-      //   1 + ULEB(Rx) + 1 + 1 + 1
-      EmitInt16(4 + MCAsmInfo::getULEB128Size(Rx));
 
       OutStreamer.AddComment("DW_OP_regx for S register");
       EmitInt8(dwarf::DW_OP_regx);
@@ -260,12 +215,6 @@ void ARMAsmPrinter::EmitDwarfRegOp(const MachineLocation &MLoc) const {
       unsigned D1 = 256 + 2 * QReg;
       unsigned D2 = D1 + 1;
       
-      OutStreamer.AddComment("Loc expr size");
-      // DW_OP_regx + ULEB + DW_OP_piece + ULEB(8) +
-      // DW_OP_regx + ULEB + DW_OP_piece + ULEB(8);
-      //   6 + ULEB(D1) + ULEB(D2)
-      EmitInt16(6 + MCAsmInfo::getULEB128Size(D1) + MCAsmInfo::getULEB128Size(D2));
-
       OutStreamer.AddComment("DW_OP_regx for Q register: D1");
       EmitInt8(dwarf::DW_OP_regx);
       EmitULEB128(D1);
@@ -286,7 +235,7 @@ void ARMAsmPrinter::EmitDwarfRegOp(const MachineLocation &MLoc) const {
 void ARMAsmPrinter::EmitFunctionEntryLabel() {
   if (AFI->isThumbFunction()) {
     OutStreamer.EmitAssemblerFlag(MCAF_Code16);
-    OutStreamer.EmitThumbFunc(Subtarget->isTargetDarwin()? CurrentFnSym : 0);
+    OutStreamer.EmitThumbFunc(CurrentFnSym);
   }
 
   OutStreamer.EmitLabel(CurrentFnSym);
@@ -416,10 +365,63 @@ bool ARMAsmPrinter::PrintAsmOperand(const MachineInstr *MI, unsigned OpNum,
     case 'q': // Print a NEON quad precision register.
       printOperand(MI, OpNum, O);
       return false;
-    case 'Q':
-    case 'R':
-    case 'H':
-      // These modifiers are not yet supported.
+    case 'y': // Print a VFP single precision register as indexed double.
+      // This uses the ordering of the alias table to get the first 'd' register
+      // that overlaps the 's' register. Also, s0 is an odd register, hence the
+      // odd modulus check below.
+      if (MI->getOperand(OpNum).isReg()) {
+        unsigned Reg = MI->getOperand(OpNum).getReg();
+        const TargetRegisterInfo *TRI = MF->getTarget().getRegisterInfo();
+        O << ARMInstPrinter::getRegisterName(TRI->getAliasSet(Reg)[0]) <<
+        (((Reg % 2) == 1) ? "[0]" : "[1]");
+        return false;
+      }
+      return true;
+    case 'B': // Bitwise inverse of integer or symbol without a preceding #.
+      if (!MI->getOperand(OpNum).isImm())
+        return true;
+      O << ~(MI->getOperand(OpNum).getImm());
+      return false;
+    case 'L': // The low 16 bits of an immediate constant.
+      if (!MI->getOperand(OpNum).isImm())
+        return true;
+      O << (MI->getOperand(OpNum).getImm() & 0xffff);
+      return false;
+    case 'M': { // A register range suitable for LDM/STM.
+      if (!MI->getOperand(OpNum).isReg())
+        return true;
+      const MachineOperand &MO = MI->getOperand(OpNum);
+      unsigned RegBegin = MO.getReg();
+      // This takes advantage of the 2 operand-ness of ldm/stm and that we've
+      // already got the operands in registers that are operands to the
+      // inline asm statement.
+      
+      O << "{" << ARMInstPrinter::getRegisterName(RegBegin);
+      
+      // FIXME: The register allocator not only may not have given us the
+      // registers in sequence, but may not be in ascending registers. This
+      // will require changes in the register allocator that'll need to be
+      // propagated down here if the operands change.
+      unsigned RegOps = OpNum + 1;
+      while (MI->getOperand(RegOps).isReg()) {
+        O << ", " 
+          << ARMInstPrinter::getRegisterName(MI->getOperand(RegOps).getReg());
+        RegOps++;
+      }
+
+      O << "}";
+
+      return false;
+    }
+    // These modifiers are not yet supported.
+    case 'p': // The high single-precision register of a VFP double-precision
+              // register.
+    case 'e': // The low doubleword register of a NEON quad register.
+    case 'f': // The high doubleword register of a NEON quad register.
+    case 'h': // A range of VFP/NEON registers suitable for VLD1/VST1.
+    case 'Q': // The least significant register of a pair.
+    case 'R': // The most significant register of a pair.
+    case 'H': // The highest-numbered register of a pair.
       return true;
     }
   }
@@ -432,9 +434,21 @@ bool ARMAsmPrinter::PrintAsmMemoryOperand(const MachineInstr *MI,
                                           unsigned OpNum, unsigned AsmVariant,
                                           const char *ExtraCode,
                                           raw_ostream &O) {
-  if (ExtraCode && ExtraCode[0])
-    return true; // Unknown modifier.
-
+  // Does this asm operand have a single letter operand modifier?
+  if (ExtraCode && ExtraCode[0]) {
+    if (ExtraCode[1] != 0) return true; // Unknown modifier.
+    
+    switch (ExtraCode[0]) {
+      case 'A': // A memory operand for a VLD1/VST1 instruction.
+      default: return true;  // Unknown modifier.
+      case 'm': // The base register of a memory operand.
+        if (!MI->getOperand(OpNum).isReg())
+          return true;
+        O << ARMInstPrinter::getRegisterName(MI->getOperand(OpNum).getReg());
+        return false;
+    }
+  }
+  
   const MachineOperand &MO = MI->getOperand(OpNum);
   assert(MO.isReg() && "unexpected inline asm memory operand");
   O << "[" << ARMInstPrinter::getRegisterName(MO.getReg()) << "]";
@@ -600,6 +614,12 @@ void ARMAsmPrinter::emitAttributes() {
     //
 
     /// ADD additional Else-cases here!
+  } else if (CPUString == "xscale") {
+    AttrEmitter->EmitAttribute(ARMBuildAttrs::CPU_arch, ARMBuildAttrs::v5TEJ);
+    AttrEmitter->EmitAttribute(ARMBuildAttrs::ARM_ISA_use,
+                               ARMBuildAttrs::Allowed);
+    AttrEmitter->EmitAttribute(ARMBuildAttrs::THUMB_ISA_use,
+                               ARMBuildAttrs::Allowed);
   } else if (CPUString == "generic") {
     // FIXME: Why these defaults?
     AttrEmitter->EmitAttribute(ARMBuildAttrs::CPU_arch, ARMBuildAttrs::v4T);
@@ -1184,6 +1204,26 @@ void ARMAsmPrinter::EmitInstruction(const MachineInstr *MI) {
       MCInst TmpInst;
       TmpInst.setOpcode(ARM::BX);
       TmpInst.addOperand(MCOperand::CreateReg(MI->getOperand(0).getReg()));
+      OutStreamer.EmitInstruction(TmpInst);
+    }
+    return;
+  }
+  case ARM::tBXr9_CALL:
+  case ARM::tBX_CALL: {
+    {
+      MCInst TmpInst;
+      TmpInst.setOpcode(ARM::tMOVr);
+      TmpInst.addOperand(MCOperand::CreateReg(ARM::LR));
+      TmpInst.addOperand(MCOperand::CreateReg(ARM::PC));
+      OutStreamer.EmitInstruction(TmpInst);
+    }
+    {
+      MCInst TmpInst;
+      TmpInst.setOpcode(ARM::tBX);
+      TmpInst.addOperand(MCOperand::CreateReg(MI->getOperand(0).getReg()));
+      // Add predicate operands.
+      TmpInst.addOperand(MCOperand::CreateImm(ARMCC::AL));
+      TmpInst.addOperand(MCOperand::CreateReg(0));
       OutStreamer.EmitInstruction(TmpInst);
     }
     return;
@@ -1809,7 +1849,7 @@ void ARMAsmPrinter::EmitInstruction(const MachineInstr *MI) {
     }
     {
       MCInst TmpInst;
-      TmpInst.setOpcode(ARM::tBX_RET_vararg);
+      TmpInst.setOpcode(ARM::tBX);
       TmpInst.addOperand(MCOperand::CreateReg(ScratchReg));
       // Predicate.
       TmpInst.addOperand(MCOperand::CreateImm(ARMCC::AL));
@@ -1838,7 +1878,9 @@ void ARMAsmPrinter::EmitInstruction(const MachineInstr *MI) {
   case ARM::tTAILJMPdND: {
     MCInst TmpInst, TmpInst2;
     LowerARMMachineInstrToMCInst(MI, TmpInst2, *this);
-    TmpInst.setOpcode(ARM::tB);
+    // The Darwin toolchain doesn't support tail call relocations of 16-bit
+    // branches.
+    TmpInst.setOpcode(Opc == ARM::tTAILJMPd ? ARM::t2B : ARM::tB);
     TmpInst.addOperand(TmpInst2.getOperand(0));
     OutStreamer.AddComment("TAILCALL");
     OutStreamer.EmitInstruction(TmpInst);

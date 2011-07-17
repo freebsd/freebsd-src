@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2004, 2006 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2004, 2006, 2010 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1986, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -15,34 +15,15 @@
 #include "map.h"
 
 #if NAMED_BIND
-SM_RCSID("@(#)$Id: domain.c,v 8.202 2006/12/19 01:15:07 ca Exp $ (with name server)")
+SM_RCSID("@(#)$Id: domain.c,v 8.204 2010/06/29 15:35:33 ca Exp $ (with name server)")
 #else /* NAMED_BIND */
-SM_RCSID("@(#)$Id: domain.c,v 8.202 2006/12/19 01:15:07 ca Exp $ (without name server)")
+SM_RCSID("@(#)$Id: domain.c,v 8.204 2010/06/29 15:35:33 ca Exp $ (without name server)")
 #endif /* NAMED_BIND */
 
 #if NAMED_BIND
 
 # include <arpa/inet.h>
 
-
-/*
-**  The standard udp packet size PACKETSZ (512) is not sufficient for some
-**  nameserver answers containing very many resource records. The resolver
-**  may switch to tcp and retry if it detects udp packet overflow.
-**  Also note that the resolver routines res_query and res_search return
-**  the size of the *un*truncated answer in case the supplied answer buffer
-**  it not big enough to accommodate the entire answer.
-*/
-
-# ifndef MAXPACKET
-#  define MAXPACKET 8192	/* max packet size used internally by BIND */
-# endif /* ! MAXPACKET */
-
-typedef union
-{
-	HEADER		qb1;
-	unsigned char	qb2[MAXPACKET];
-} querybuf;
 
 # ifndef MXHOSTBUFSIZE
 #  define MXHOSTBUFSIZE	(128 * MAXMXHOSTS)

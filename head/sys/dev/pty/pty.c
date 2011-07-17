@@ -79,7 +79,7 @@ ptydev_fdopen(struct cdev *dev, int fflags, struct thread *td, struct file *fp)
 	/* Raise a warning when a legacy PTY has been allocated. */
 	if (pty_warningcnt > 0) {
 		pty_warningcnt--;
-		log(LOG_INFO, "pid %d (%s) is using legacy pty devices%s\n", 
+		log(LOG_INFO, "pid %d (%s) is using legacy pty devices%s\n",
 		    td->td_proc->p_pid, td->td_name,
 		    pty_warningcnt ? "" : " - not logging anymore");
 	}
@@ -139,8 +139,8 @@ static int
 pty_modevent(module_t mod, int type, void *data)
 {
 
-        switch(type) {
-        case MOD_LOAD: 
+	switch(type) {
+	case MOD_LOAD:
 		EVENTHANDLER_REGISTER(dev_clone, pty_clone, 0, 1000);
 		make_dev_credf(MAKEDEV_ETERNAL_KLD, &ptmx_cdevsw, 0, NULL,
 		    UID_ROOT, GID_WHEEL, 0666, "ptmx");
