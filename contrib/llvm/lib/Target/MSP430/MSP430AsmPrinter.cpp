@@ -15,7 +15,6 @@
 #define DEBUG_TYPE "asm-printer"
 #include "MSP430.h"
 #include "MSP430InstrInfo.h"
-#include "MSP430MCAsmInfo.h"
 #include "MSP430MCInstLower.h"
 #include "MSP430TargetMachine.h"
 #include "InstPrinter/MSP430InstPrinter.h"
@@ -28,6 +27,7 @@
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineConstantPool.h"
 #include "llvm/CodeGen/MachineInstr.h"
+#include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCInst.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSymbol.h"
@@ -164,11 +164,10 @@ void MSP430AsmPrinter::EmitInstruction(const MachineInstr *MI) {
 }
 
 static MCInstPrinter *createMSP430MCInstPrinter(const Target &T,
-                                                TargetMachine &TM,
                                                 unsigned SyntaxVariant,
                                                 const MCAsmInfo &MAI) {
   if (SyntaxVariant == 0)
-    return new MSP430InstPrinter(TM, MAI);
+    return new MSP430InstPrinter(MAI);
   return 0;
 }
 

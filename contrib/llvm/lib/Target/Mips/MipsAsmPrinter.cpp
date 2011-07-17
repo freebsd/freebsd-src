@@ -13,80 +13,49 @@
 //===----------------------------------------------------------------------===//
 
 #define DEBUG_TYPE "mips-asm-printer"
+#include "MipsAsmPrinter.h"
 #include "Mips.h"
-#include "MipsSubtarget.h"
 #include "MipsInstrInfo.h"
-#include "MipsTargetMachine.h"
 #include "MipsMachineFunction.h"
+#include "MipsMCInstLower.h"
+#include "InstPrinter/MipsInstPrinter.h"
 #include "llvm/BasicBlock.h"
 #include "llvm/Instructions.h"
-#include "llvm/CodeGen/AsmPrinter.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineConstantPool.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCAsmInfo.h"
+#include "llvm/MC/MCInst.h"
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/Target/Mangler.h"
 #include "llvm/Target/TargetData.h"
 #include "llvm/Target/TargetLoweringObjectFile.h"
-#include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/Target/TargetRegistry.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Analysis/DebugInfo.h"
+
 using namespace llvm;
 
-namespace {
-  class MipsAsmPrinter : public AsmPrinter {
-    const MipsSubtarget *Subtarget;
-  public:
-    explicit MipsAsmPrinter(TargetMachine &TM,  MCStreamer &Streamer)
-      : AsmPrinter(TM, Streamer) {
-      Subtarget = &TM.getSubtarget<MipsSubtarget>();
-    }
+void MipsAsmPrinter::EmitInstruction(const MachineInstr *MI) {
+  SmallString<128> Str;
+  raw_svector_ostream OS(Str);
 
-    virtual const char *getPassName() const {
-      return "Mips Assembly Printer";
-    }
+  if (MI->isDebugValue()) {
+    PrintDebugValueComment(MI, OS);
+    return;
+  }
 
-    bool PrintAsmOperand(const MachineInstr *MI, unsigned OpNo,
-                         unsigned AsmVariant, const char *ExtraCode,
-                         raw_ostream &O);
-    void printOperand(const MachineInstr *MI, int opNum, raw_ostream &O);
-    void printUnsignedImm(const MachineInstr *MI, int opNum, raw_ostream &O);
-    void printMemOperand(const MachineInstr *MI, int opNum, raw_ostream &O,
-                         const char *Modifier = 0);
-    void printFCCOperand(const MachineInstr *MI, int opNum, raw_ostream &O,
-                         const char *Modifier = 0);
-    void printSavedRegsBitmask(raw_ostream &O);
-    void printHex32(unsigned int Value, raw_ostream &O);
-
-    const char *getCurrentABIString() const;
-    void emitFrameDirective();
-
-    void printInstruction(const MachineInstr *MI, raw_ostream &O); // autogen'd.
-    void EmitInstruction(const MachineInstr *MI) {
-      SmallString<128> Str;
-      raw_svector_ostream OS(Str);
-      printInstruction(MI, OS);
-      OutStreamer.EmitRawText(OS.str());
-    }
-    virtual void EmitFunctionBodyStart();
-    virtual void EmitFunctionBodyEnd();
-    virtual bool isBlockOnlyReachableByFallthrough(const MachineBasicBlock*
-                                                   MBB) const;
-    static const char *getRegisterName(unsigned RegNo);
-
-    virtual void EmitFunctionEntryLabel();
-    void EmitStartOfAsmFile(Module &M);
-  };
-} // end of anonymous namespace
-
-#include "MipsGenAsmWriter.inc"
+  MipsMCInstLower MCInstLowering(Mang, *MF, *this);
+  MCInst TmpInst0;
+  MCInstLowering.Lower(MI, TmpInst0);
+  OutStreamer.EmitInstruction(TmpInst0);
+}
 
 //===----------------------------------------------------------------------===//
 //
@@ -202,9 +171,9 @@ void MipsAsmPrinter::emitFrameDirective() {
   unsigned stackSize = MF->getFrameInfo()->getStackSize();
 
   OutStreamer.EmitRawText("\t.frame\t$" +
-                          Twine(LowercaseString(getRegisterName(stackReg))) +
-                          "," + Twine(stackSize) + ",$" +
-                          Twine(LowercaseString(getRegisterName(returnReg))));
+           Twine(LowercaseString(MipsInstPrinter::getRegisterName(stackReg))) +
+           "," + Twine(stackSize) + ",$" +
+           Twine(LowercaseString(MipsInstPrinter::getRegisterName(returnReg))));
 }
 
 /// Emit Set directives.
@@ -304,6 +273,19 @@ bool MipsAsmPrinter::PrintAsmOperand(const MachineInstr *MI, unsigned OpNo,
   return false;
 }
 
+bool MipsAsmPrinter::PrintAsmMemoryOperand(const MachineInstr *MI,
+                                           unsigned OpNum, unsigned AsmVariant,
+                                           const char *ExtraCode,
+                                           raw_ostream &O) {
+  if (ExtraCode && ExtraCode[0])
+     return true; // Unknown modifier.
+   
+  const MachineOperand &MO = MI->getOperand(OpNum);
+  assert(MO.isReg() && "unexpected inline asm memory operand");
+  O << "0($" << MipsInstPrinter::getRegisterName(MO.getReg()) << ")";
+  return false;
+}
+
 void MipsAsmPrinter::printOperand(const MachineInstr *MI, int opNum,
                                   raw_ostream &O) {
   const MachineOperand &MO = MI->getOperand(opNum);
@@ -326,7 +308,8 @@ void MipsAsmPrinter::printOperand(const MachineInstr *MI, int opNum,
 
   switch (MO.getType()) {
     case MachineOperand::MO_Register:
-      O << '$' << LowercaseString(getRegisterName(MO.getReg()));
+      O << '$'
+        << LowercaseString(MipsInstPrinter::getRegisterName(MO.getReg()));
       break;
 
     case MachineOperand::MO_Immediate:
@@ -380,24 +363,24 @@ void MipsAsmPrinter::printUnsignedImm(const MachineInstr *MI, int opNum,
 }
 
 void MipsAsmPrinter::
-printMemOperand(const MachineInstr *MI, int opNum, raw_ostream &O,
-                const char *Modifier) {
-  // when using stack locations for not load/store instructions
-  // print the same way as all normal 3 operand instructions.
-  if (Modifier && !strcmp(Modifier, "stackloc")) {
-    printOperand(MI, opNum+1, O);
-    O << ", ";
-    printOperand(MI, opNum, O);
-    return;
-  }
-
+printMemOperand(const MachineInstr *MI, int opNum, raw_ostream &O) {
   // Load/Store memory operands -- imm($reg)
   // If PIC target the target is loaded as the
   // pattern lw $25,%call16($28)
-  printOperand(MI, opNum, O);
-  O << "(";
   printOperand(MI, opNum+1, O);
+  O << "(";
+  printOperand(MI, opNum, O);
   O << ")";
+}
+
+void MipsAsmPrinter::
+printMemOperandEA(const MachineInstr *MI, int opNum, raw_ostream &O) {
+  // when using stack locations for not load/store instructions
+  // print the same way as all normal 3 operand instructions.
+  printOperand(MI, opNum, O);
+  O << ", ";
+  printOperand(MI, opNum+1, O);
+  return;
 }
 
 void MipsAsmPrinter::
@@ -425,8 +408,33 @@ void MipsAsmPrinter::EmitStartOfAsmFile(Module &M) {
   OutStreamer.EmitRawText(StringRef("\t.previous"));
 }
 
+MachineLocation
+MipsAsmPrinter::getDebugValueLocation(const MachineInstr *MI) const {
+  // Handles frame addresses emitted in MipsInstrInfo::emitFrameIndexDebugValue.
+  assert(MI->getNumOperands() == 4 && "Invalid no. of machine operands!");
+  assert(MI->getOperand(0).isReg() && MI->getOperand(1).isImm() &&
+         "Unexpected MachineOperand types");
+  return MachineLocation(MI->getOperand(0).getReg(),
+                         MI->getOperand(1).getImm());
+}
+
+void MipsAsmPrinter::PrintDebugValueComment(const MachineInstr *MI,
+                                           raw_ostream &OS) {
+  // TODO: implement
+}
+
 // Force static initialization.
+static MCInstPrinter *createMipsMCInstPrinter(const Target &T,
+                                              unsigned SyntaxVariant,
+                                              const MCAsmInfo &MAI) {
+  return new MipsInstPrinter(MAI);
+}
+
 extern "C" void LLVMInitializeMipsAsmPrinter() {
   RegisterAsmPrinter<MipsAsmPrinter> X(TheMipsTarget);
   RegisterAsmPrinter<MipsAsmPrinter> Y(TheMipselTarget);
+
+  TargetRegistry::RegisterMCInstPrinter(TheMipsTarget, createMipsMCInstPrinter);
+  TargetRegistry::RegisterMCInstPrinter(TheMipselTarget,
+                                        createMipsMCInstPrinter);
 }

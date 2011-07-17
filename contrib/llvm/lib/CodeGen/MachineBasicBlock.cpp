@@ -22,7 +22,6 @@
 #include "llvm/MC/MCContext.h"
 #include "llvm/Target/TargetRegisterInfo.h"
 #include "llvm/Target/TargetData.h"
-#include "llvm/Target/TargetInstrDesc.h"
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Assembly/Writer.h"
@@ -61,7 +60,7 @@ raw_ostream &llvm::operator<<(raw_ostream &OS, const MachineBasicBlock &MBB) {
   return OS;
 }
 
-/// addNodeToList (MBB) - When an MBB is added to an MF, we need to update the 
+/// addNodeToList (MBB) - When an MBB is added to an MF, we need to update the
 /// parent pointer of the MBB, the MBB numbering, and any instructions in the
 /// MBB to be on the right operand list for registers.
 ///
@@ -93,7 +92,7 @@ void ilist_traits<MachineBasicBlock>::removeNodeFromList(MachineBasicBlock *N) {
 void ilist_traits<MachineInstr>::addNodeToList(MachineInstr *N) {
   assert(N->getParent() == 0 && "machine instruction already in a basic block");
   N->setParent(Parent);
-  
+
   // Add the instruction's register operands to their corresponding
   // use/def lists.
   MachineFunction *MF = Parent->getParent();
@@ -110,7 +109,7 @@ void ilist_traits<MachineInstr>::removeNodeFromList(MachineInstr *N) {
 
   // Remove from the use/def lists.
   N->RemoveRegOperandsFromUseLists();
-  
+
   N->setParent(0);
 
   LeakDetector::addGarbageObject(N);
@@ -339,23 +338,62 @@ void MachineBasicBlock::updateTerminator() {
   }
 }
 
-void MachineBasicBlock::addSuccessor(MachineBasicBlock *succ) {
-  Successors.push_back(succ);
-  succ->addPredecessor(this);
-}
+void MachineBasicBlock::addSuccessor(MachineBasicBlock *succ, uint32_t weight) {
+
+  // If we see non-zero value for the first time it means we actually use Weight
+  // list, so we fill all Weights with 0's.
+  if (weight != 0 && Weights.empty())
+    Weights.resize(Successors.size());
+
+  if (weight != 0 || !Weights.empty())
+    Weights.push_back(weight);
+
+   Successors.push_back(succ);
+   succ->addPredecessor(this);
+ }
 
 void MachineBasicBlock::removeSuccessor(MachineBasicBlock *succ) {
   succ->removePredecessor(this);
   succ_iterator I = std::find(Successors.begin(), Successors.end(), succ);
   assert(I != Successors.end() && "Not a current successor!");
+
+  // If Weight list is empty it means we don't use it (disabled optimization).
+  if (!Weights.empty()) {
+    weight_iterator WI = getWeightIterator(I);
+    Weights.erase(WI);
+  }
+
   Successors.erase(I);
 }
 
-MachineBasicBlock::succ_iterator 
+MachineBasicBlock::succ_iterator
 MachineBasicBlock::removeSuccessor(succ_iterator I) {
   assert(I != Successors.end() && "Not a current successor!");
+
+  // If Weight list is empty it means we don't use it (disabled optimization).
+  if (!Weights.empty()) {
+    weight_iterator WI = getWeightIterator(I);
+    Weights.erase(WI);
+  }
+
   (*I)->removePredecessor(this);
   return Successors.erase(I);
+}
+
+void MachineBasicBlock::replaceSuccessor(MachineBasicBlock *Old,
+                                         MachineBasicBlock *New) {
+  uint32_t weight = 0;
+  succ_iterator SI = std::find(Successors.begin(), Successors.end(), Old);
+
+  // If Weight list is empty it means we don't use it (disabled optimization).
+  if (!Weights.empty()) {
+    weight_iterator WI = getWeightIterator(SI);
+    weight = *WI;
+  }
+
+  // Update the successor information.
+  removeSuccessor(SI);
+  addSuccessor(New, weight);
 }
 
 void MachineBasicBlock::addPredecessor(MachineBasicBlock *pred) {
@@ -371,10 +409,17 @@ void MachineBasicBlock::removePredecessor(MachineBasicBlock *pred) {
 void MachineBasicBlock::transferSuccessors(MachineBasicBlock *fromMBB) {
   if (this == fromMBB)
     return;
-  
+
   while (!fromMBB->succ_empty()) {
     MachineBasicBlock *Succ = *fromMBB->succ_begin();
-    addSuccessor(Succ);
+    uint32_t weight = 0;
+
+
+    // If Weight list is empty it means we don't use it (disabled optimization).
+    if (!fromMBB->Weights.empty())
+      weight = *fromMBB->Weights.begin();
+
+    addSuccessor(Succ, weight);
     fromMBB->removeSuccessor(Succ);
   }
 }
@@ -383,7 +428,7 @@ void
 MachineBasicBlock::transferSuccessorsAndUpdatePHIs(MachineBasicBlock *fromMBB) {
   if (this == fromMBB)
     return;
-  
+
   while (!fromMBB->succ_empty()) {
     MachineBasicBlock *Succ = *fromMBB->succ_begin();
     addSuccessor(Succ);
@@ -637,15 +682,14 @@ void MachineBasicBlock::ReplaceUsesOfBlockWith(MachineBasicBlock *Old,
   }
 
   // Update the successor information.
-  removeSuccessor(Old);
-  addSuccessor(New);
+  replaceSuccessor(Old, New);
 }
 
 /// CorrectExtraCFGEdges - Various pieces of code can cause excess edges in the
 /// CFG to be inserted.  If we have proven that MBB can only branch to DestA and
 /// DestB, remove any other MBB successors from the CFG.  DestA and DestB can be
 /// null.
-/// 
+///
 /// Besides DestA and DestB, retain other edges leading to LandingPads
 /// (currently there can be only one; we don't check or require that here).
 /// Note it is possible that DestA and/or DestB are LandingPads.
@@ -718,6 +762,26 @@ MachineBasicBlock::findDebugLoc(MachineBasicBlock::iterator &MBBI) {
       DL = MBBI2->getDebugLoc();
   }
   return DL;
+}
+
+/// getSuccWeight - Return weight of the edge from this block to MBB.
+///
+uint32_t MachineBasicBlock::getSuccWeight(MachineBasicBlock *succ) {
+  if (Weights.empty())
+    return 0;
+
+  succ_iterator I = std::find(Successors.begin(), Successors.end(), succ);
+  return *getWeightIterator(I);
+}
+
+/// getWeightIterator - Return wight iterator corresonding to the I successor
+/// iterator
+MachineBasicBlock::weight_iterator MachineBasicBlock::
+getWeightIterator(MachineBasicBlock::succ_iterator I) {
+  assert(Weights.size() == Successors.size() && "Async weight list!");
+  size_t index = std::distance(Successors.begin(), I);
+  assert(index < Weights.size() && "Not a current successor!");
+  return Weights.begin() + index;
 }
 
 void llvm::WriteAsOperand(raw_ostream &OS, const MachineBasicBlock *MBB,

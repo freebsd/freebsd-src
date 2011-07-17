@@ -186,6 +186,10 @@ public:
   /// type or not.
   bool isDependent() const;
 
+  /// \brief Whether this nested name specifier involves a template
+  /// parameter.
+  bool isInstantiationDependent() const;
+
   /// \brief Whether this nested-name-specifier contains an unexpanded
   /// parameter pack (for C++0x variadic templates).
   bool containsUnexpandedParameterPack() const;
@@ -434,6 +438,14 @@ public:
   /// \param Context The context into which this nested-name-specifier will be
   /// copied.
   NestedNameSpecifierLoc getWithLocInContext(ASTContext &Context) const;
+
+  /// \brief Retrieve a nested-name-specifier with location
+  /// information based on the information in this builder.  This loc
+  /// will contain references to the builder's internal data and may
+  /// be invalidated by any change to the builder.
+  NestedNameSpecifierLoc getTemporary() const {
+    return NestedNameSpecifierLoc(Representation, Buffer);
+  }
 
   /// \brief Clear out this builder, and prepare it to build another
   /// nested-name-specifier with source-location information.

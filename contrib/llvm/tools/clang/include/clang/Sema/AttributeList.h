@@ -77,6 +77,8 @@ private:
   /// availability attribute.
   unsigned IsAvailability : 1;
 
+  unsigned AttrKind : 8;
+
   /// \brief The location of the 'unavailable' keyword in an
   /// availability attribute.
   SourceLocation UnavailableLoc;
@@ -123,6 +125,7 @@ private:
       DeclspecAttribute(declspec), CXX0XAttribute(cxx0x), Invalid(false),
       IsAvailability(false), NextInPosition(0), NextInPool(0) {
     if (numArgs) memcpy(getArgsBuffer(), args, numArgs * sizeof(Expr*));
+    AttrKind = getKind(getName());
   }
 
   AttributeList(IdentifierInfo *attrName, SourceLocation attrLoc,
@@ -141,6 +144,7 @@ private:
     new (&getAvailabilitySlot(IntroducedSlot)) AvailabilityChange(introduced);
     new (&getAvailabilitySlot(DeprecatedSlot)) AvailabilityChange(deprecated);
     new (&getAvailabilitySlot(ObsoletedSlot)) AvailabilityChange(obsoleted);
+    AttrKind = getKind(getName());
   }
 
   friend class AttributePool;
@@ -148,20 +152,22 @@ private:
 
 public:
   enum Kind {             // Please keep this list alphabetized.
-    AT_IBAction,          // Clang-specific.
-    AT_IBOutlet,          // Clang-specific.
-    AT_IBOutletCollection, // Clang-specific.
     AT_address_space,
     AT_alias,
     AT_aligned,
     AT_always_inline,
     AT_analyzer_noreturn,
     AT_annotate,
+    AT_arc_weakref_unavailable,
     AT_availability,      // Clang-specific
     AT_base_check,
     AT_blocks,
     AT_carries_dependency,
     AT_cdecl,
+    AT_cf_consumed,             // Clang-specific.
+    AT_cf_returns_autoreleased, // Clang-specific.
+    AT_cf_returns_not_retained, // Clang-specific.
+    AT_cf_returns_retained,     // Clang-specific.
     AT_cleanup,
     AT_common,
     AT_const,
@@ -179,32 +185,36 @@ public:
     AT_global,
     AT_gnu_inline,
     AT_host,
+    AT_IBAction,          // Clang-specific.
+    AT_IBOutlet,          // Clang-specific.
+    AT_IBOutletCollection, // Clang-specific.
+    AT_init_priority,
     AT_launch_bounds,
     AT_malloc,
     AT_may_alias,
     AT_mode,
+    AT_MsStruct,
+    AT_naked,
     AT_neon_polyvector_type,    // Clang-specific.
     AT_neon_vector_type,        // Clang-specific.
-    AT_naked,
-    AT_nodebug,
-    AT_noinline,
     AT_no_instrument_function,
     AT_nocommon,
+    AT_nodebug,
+    AT_noinline,
     AT_nonnull,
     AT_noreturn,
     AT_nothrow,
-    AT_nsobject,
-    AT_objc_exception,
-    AT_objc_method_family,
-    AT_cf_returns_not_retained, // Clang-specific.
-    AT_cf_returns_retained,     // Clang-specific.
-    AT_ns_returns_not_retained, // Clang-specific.
-    AT_ns_returns_retained,     // Clang-specific.
-    AT_ns_returns_autoreleased, // Clang-specific.
-    AT_cf_consumed,             // Clang-specific.
     AT_ns_consumed,             // Clang-specific.
     AT_ns_consumes_self,        // Clang-specific.
+    AT_ns_returns_autoreleased, // Clang-specific.
+    AT_ns_returns_not_retained, // Clang-specific.
+    AT_ns_returns_retained,     // Clang-specific.
+    AT_nsobject,
+    AT_objc_exception,
     AT_objc_gc,
+    AT_objc_method_family,
+    AT_objc_ownership,          // Clang-specific.
+    AT_objc_precise_lifetime,   // Clang-specific.
     AT_opencl_image_access,     // OpenCL-specific.
     AT_opencl_kernel_function,  // OpenCL-specific.
     AT_overloadable,       // Clang-specific.
@@ -216,6 +226,7 @@ public:
     AT_pcs,  // ARM specific
     AT_pure,
     AT_regparm,
+    AT_reqd_wg_size,
     AT_section,
     AT_sentinel,
     AT_shared,
@@ -231,11 +242,8 @@ public:
     AT_visibility,
     AT_warn_unused_result,
     AT_weak,
-    AT_weakref,
     AT_weak_import,
-    AT_reqd_wg_size,
-    AT_init_priority,
-    AT_MsStruct,
+    AT_weakref,
     IgnoredAttribute,
     UnknownAttribute
   };
@@ -256,7 +264,7 @@ public:
   bool isInvalid() const { return Invalid; }
   void setInvalid(bool b = true) const { Invalid = b; }
 
-  Kind getKind() const { return getKind(getName()); }
+  Kind getKind() const { return Kind(AttrKind); }
   static Kind getKind(const IdentifierInfo *Name);
 
   AttributeList *getNext() const { return NextInPosition; }

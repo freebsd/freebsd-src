@@ -10,6 +10,7 @@
 #ifndef LLVM_CODEGEN_BRANCHFOLDING_HPP
 #define LLVM_CODEGEN_BRANCHFOLDING_HPP
 
+#include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
 #include <vector>
 
@@ -47,6 +48,7 @@ namespace llvm {
     };
     typedef std::vector<MergePotentialsElt>::iterator MPIterator;
     std::vector<MergePotentialsElt> MergePotentials;
+    SmallPtrSet<const MachineBasicBlock*, 2> TriedMerging;
 
     class SameTailElt {
       MPIterator MPIter;
@@ -93,6 +95,8 @@ namespace llvm {
     bool TailMergeBlocks(MachineFunction &MF);
     bool TryTailMergeBlocks(MachineBasicBlock* SuccBB,
                        MachineBasicBlock* PredBB);
+    void MaintainLiveIns(MachineBasicBlock *CurMBB,
+                         MachineBasicBlock *NewMBB);
     void ReplaceTailWithBranchTo(MachineBasicBlock::iterator OldInst,
                                  MachineBasicBlock *NewDest);
     MachineBasicBlock *SplitMBBAt(MachineBasicBlock &CurMBB,

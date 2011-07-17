@@ -381,7 +381,24 @@ public:
   attr_iterator attr_end() const {
     return hasAttrs() ? getAttrs().end() : 0;
   }
-
+  
+  template <typename T>
+  void dropAttr() {
+    if (!HasAttrs) return;
+    
+    AttrVec &Attrs = getAttrs();
+    for (unsigned i = 0, e = Attrs.size(); i != e; /* in loop */) {
+      if (isa<T>(Attrs[i])) {
+        Attrs.erase(Attrs.begin() + i);
+        --e;
+      }
+      else
+        ++i;
+    }
+    if (Attrs.empty())
+      HasAttrs = false;
+  }
+    
   template <typename T>
   specific_attr_iterator<T> specific_attr_begin() const {
     return specific_attr_iterator<T>(attr_begin());

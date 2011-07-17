@@ -12,19 +12,23 @@
 //===----------------------------------------------------------------------===//
 
 #include "SparcInstrInfo.h"
-#include "SparcSubtarget.h"
 #include "Sparc.h"
-#include "llvm/ADT/STLExtras.h"
-#include "llvm/ADT/SmallVector.h"
+#include "SparcMachineFunctionInfo.h"
+#include "SparcSubtarget.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/Target/TargetRegistry.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/SmallVector.h"
+
+#define GET_INSTRINFO_CTOR
 #include "SparcGenInstrInfo.inc"
-#include "SparcMachineFunctionInfo.h"
+
 using namespace llvm;
 
 SparcInstrInfo::SparcInstrInfo(SparcSubtarget &ST)
-  : TargetInstrInfoImpl(SparcInsts, array_lengthof(SparcInsts)),
+  : SparcGenInstrInfo(SP::ADJCALLSTACKDOWN, SP::ADJCALLSTACKUP),
     RI(ST, *this), Subtarget(ST) {
 }
 

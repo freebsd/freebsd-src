@@ -40,6 +40,9 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/CommandLine.h"
 
+#define GET_REGINFO_TARGET_DESC
+#include "ARMGenRegisterInfo.inc"
+
 using namespace llvm;
 
 static cl::opt<bool>
@@ -54,8 +57,7 @@ EnableBasePointer("arm-use-base-pointer", cl::Hidden, cl::init(true),
 
 ARMBaseRegisterInfo::ARMBaseRegisterInfo(const ARMBaseInstrInfo &tii,
                                          const ARMSubtarget &sti)
-  : ARMGenRegisterInfo(ARM::ADJCALLSTACKDOWN, ARM::ADJCALLSTACKUP),
-    TII(tii), STI(sti),
+  : ARMGenRegisterInfo(), TII(tii), STI(sti),
     FramePtr((STI.isTargetDarwin() || STI.isThumb()) ? ARM::R7 : ARM::R11),
     BasePtr(ARM::R6) {
 }
@@ -100,6 +102,12 @@ getReservedRegs(const MachineFunction &MF) const {
   // Some targets reserve R9.
   if (STI.isR9Reserved())
     Reserved.set(ARM::R9);
+  // Reserve D16-D31 if the subtarget doesn't support them.
+  if (!STI.hasVFP3() || STI.hasD16()) {
+    assert(ARM::D31 == ARM::D16 + 15);
+    for (unsigned i = 0; i != 16; ++i)
+      Reserved.set(ARM::D16 + i);
+  }
   return Reserved;
 }
 
@@ -387,12 +395,12 @@ ARMBaseRegisterInfo::getRegPressureLimit(const TargetRegisterClass *RC,
   }
 }
 
-/// getAllocationOrder - Returns the register allocation order for a specified
-/// register class in the form of a pair of TargetRegisterClass iterators.
-std::pair<TargetRegisterClass::iterator,TargetRegisterClass::iterator>
-ARMBaseRegisterInfo::getAllocationOrder(const TargetRegisterClass *RC,
-                                        unsigned HintType, unsigned HintReg,
-                                        const MachineFunction &MF) const {
+/// getRawAllocationOrder - Returns the register allocation order for a
+/// specified register class with a target-dependent hint.
+ArrayRef<unsigned>
+ARMBaseRegisterInfo::getRawAllocationOrder(const TargetRegisterClass *RC,
+                                           unsigned HintType, unsigned HintReg,
+                                           const MachineFunction &MF) const {
   const TargetFrameLowering *TFI = MF.getTarget().getFrameLowering();
   // Alternative register allocation orders when favoring even / odd registers
   // of register pairs.
@@ -469,70 +477,54 @@ ARMBaseRegisterInfo::getAllocationOrder(const TargetRegisterClass *RC,
 
   // We only support even/odd hints for GPR and rGPR.
   if (RC != ARM::GPRRegisterClass && RC != ARM::rGPRRegisterClass)
-    return std::make_pair(RC->allocation_order_begin(MF),
-                          RC->allocation_order_end(MF));
+    return RC->getRawAllocationOrder(MF);
 
   if (HintType == ARMRI::RegPairEven) {
     if (isPhysicalRegister(HintReg) && getRegisterPairEven(HintReg, MF) == 0)
       // It's no longer possible to fulfill this hint. Return the default
       // allocation order.
-      return std::make_pair(RC->allocation_order_begin(MF),
-                            RC->allocation_order_end(MF));
+      return RC->getRawAllocationOrder(MF);
 
     if (!TFI->hasFP(MF)) {
       if (!STI.isR9Reserved())
-        return std::make_pair(GPREven1,
-                              GPREven1 + (sizeof(GPREven1)/sizeof(unsigned)));
+        return ArrayRef<unsigned>(GPREven1);
       else
-        return std::make_pair(GPREven4,
-                              GPREven4 + (sizeof(GPREven4)/sizeof(unsigned)));
+        return ArrayRef<unsigned>(GPREven4);
     } else if (FramePtr == ARM::R7) {
       if (!STI.isR9Reserved())
-        return std::make_pair(GPREven2,
-                              GPREven2 + (sizeof(GPREven2)/sizeof(unsigned)));
+        return ArrayRef<unsigned>(GPREven2);
       else
-        return std::make_pair(GPREven5,
-                              GPREven5 + (sizeof(GPREven5)/sizeof(unsigned)));
+        return ArrayRef<unsigned>(GPREven5);
     } else { // FramePtr == ARM::R11
       if (!STI.isR9Reserved())
-        return std::make_pair(GPREven3,
-                              GPREven3 + (sizeof(GPREven3)/sizeof(unsigned)));
+        return ArrayRef<unsigned>(GPREven3);
       else
-        return std::make_pair(GPREven6,
-                              GPREven6 + (sizeof(GPREven6)/sizeof(unsigned)));
+        return ArrayRef<unsigned>(GPREven6);
     }
   } else if (HintType == ARMRI::RegPairOdd) {
     if (isPhysicalRegister(HintReg) && getRegisterPairOdd(HintReg, MF) == 0)
       // It's no longer possible to fulfill this hint. Return the default
       // allocation order.
-      return std::make_pair(RC->allocation_order_begin(MF),
-                            RC->allocation_order_end(MF));
+      return RC->getRawAllocationOrder(MF);
 
     if (!TFI->hasFP(MF)) {
       if (!STI.isR9Reserved())
-        return std::make_pair(GPROdd1,
-                              GPROdd1 + (sizeof(GPROdd1)/sizeof(unsigned)));
+        return ArrayRef<unsigned>(GPROdd1);
       else
-        return std::make_pair(GPROdd4,
-                              GPROdd4 + (sizeof(GPROdd4)/sizeof(unsigned)));
+        return ArrayRef<unsigned>(GPROdd4);
     } else if (FramePtr == ARM::R7) {
       if (!STI.isR9Reserved())
-        return std::make_pair(GPROdd2,
-                              GPROdd2 + (sizeof(GPROdd2)/sizeof(unsigned)));
+        return ArrayRef<unsigned>(GPROdd2);
       else
-        return std::make_pair(GPROdd5,
-                              GPROdd5 + (sizeof(GPROdd5)/sizeof(unsigned)));
+        return ArrayRef<unsigned>(GPROdd5);
     } else { // FramePtr == ARM::R11
       if (!STI.isR9Reserved())
-        return std::make_pair(GPROdd3,
-                              GPROdd3 + (sizeof(GPROdd3)/sizeof(unsigned)));
+        return ArrayRef<unsigned>(GPROdd3);
       else
-        return std::make_pair(GPROdd6,
-                              GPROdd6 + (sizeof(GPROdd6)/sizeof(unsigned)));
+        return ArrayRef<unsigned>(GPROdd6);
     }
   }
-  return std::make_pair(RC->allocation_order_begin(MF),
-                        RC->allocation_order_end(MF));
+  return RC->getRawAllocationOrder(MF);
 }
 
 /// ResolveRegAllocHint - Resolves the specified register allocation hint
@@ -965,7 +957,7 @@ eliminateCallFramePseudoInstr(MachineFunction &MF, MachineBasicBlock &MBB,
 
 int64_t ARMBaseRegisterInfo::
 getFrameIndexInstrOffset(const MachineInstr *MI, int Idx) const {
-  const TargetInstrDesc &Desc = MI->getDesc();
+  const MCInstrDesc &Desc = MI->getDesc();
   unsigned AddrMode = (Desc.TSFlags & ARMII::AddrModeMask);
   int64_t InstrOffs = 0;;
   int Scale = 1;
@@ -1115,11 +1107,11 @@ materializeFrameBaseRegister(MachineBasicBlock *MBB,
   if (Ins != MBB->end())
     DL = Ins->getDebugLoc();
 
-  const TargetInstrDesc &TID = TII.get(ADDriOpc);
+  const MCInstrDesc &MCID = TII.get(ADDriOpc);
   MachineRegisterInfo &MRI = MBB->getParent()->getRegInfo();
-  MRI.constrainRegClass(BaseReg, TID.OpInfo[0].getRegClass(this));
+  MRI.constrainRegClass(BaseReg, TII.getRegClass(MCID, 0, this));
 
-  MachineInstrBuilder MIB = BuildMI(*MBB, Ins, DL, TID, BaseReg)
+  MachineInstrBuilder MIB = BuildMI(*MBB, Ins, DL, MCID, BaseReg)
     .addFrameIndex(FrameIdx).addImm(Offset);
 
   if (!AFI->isThumb1OnlyFunction())
@@ -1155,7 +1147,7 @@ ARMBaseRegisterInfo::resolveFrameIndex(MachineBasicBlock::iterator I,
 
 bool ARMBaseRegisterInfo::isFrameOffsetLegal(const MachineInstr *MI,
                                              int64_t Offset) const {
-  const TargetInstrDesc &Desc = MI->getDesc();
+  const MCInstrDesc &Desc = MI->getDesc();
   unsigned AddrMode = (Desc.TSFlags & ARMII::AddrModeMask);
   unsigned i = 0;
 
@@ -1291,11 +1283,5 @@ ARMBaseRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
     }
     // Update the original instruction to use the scratch register.
     MI.getOperand(i).ChangeToRegister(ScratchReg, false, false, true);
-    if (MI.getOpcode() == ARM::t2ADDrSPi)
-      MI.setDesc(TII.get(ARM::t2ADDri));
-    else if (MI.getOpcode() == ARM::t2SUBrSPi)
-      MI.setDesc(TII.get(ARM::t2SUBri));
   }
 }
-
-#include "ARMGenRegisterInfo.inc"

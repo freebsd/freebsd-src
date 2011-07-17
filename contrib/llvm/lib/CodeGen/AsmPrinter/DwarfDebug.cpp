@@ -229,6 +229,7 @@ public:
 void DbgScope::dump() const {
   raw_ostream &err = dbgs();
   err.indent(IndentLevel);
+  err << "DFSIn: " << DFSIn << " DFSOut: " << DFSOut << "\n";
   const MDNode *N = Desc;
   N->dump();
   if (AbstractScope)
@@ -618,6 +619,21 @@ DIE *DwarfDebug::constructInlinedScopeDIE(DbgScope *Scope) {
   return ScopeDIE;
 }
 
+/// isUnsignedDIType - Return true if type encoding is unsigned.
+static bool isUnsignedDIType(DIType Ty) {
+  DIDerivedType DTy(Ty);
+  if (DTy.Verify())
+    return isUnsignedDIType(DTy.getTypeDerivedFrom());
+
+  DIBasicType BTy(Ty);
+  if (BTy.Verify()) {
+    unsigned Encoding = BTy.getEncoding();
+    if (Encoding == dwarf::DW_ATE_unsigned ||
+        Encoding == dwarf::DW_ATE_unsigned_char)
+      return true;
+  }
+  return false;
+}
 
 /// constructVariableDIE - Construct a DIE for the given DbgVariable.
 DIE *DwarfDebug::constructVariableDIE(DbgVariable *DV, DbgScope *Scope) {
@@ -718,6 +734,11 @@ DIE *DwarfDebug::constructVariableDIE(DbgVariable *DV, DbgScope *Scope) {
       else if (DVInsn->getOperand(0).isFPImm())
         updated =
           VariableCU->addConstantFPValue(VariableDie, DVInsn->getOperand(0));
+      else if (DVInsn->getOperand(0).isCImm())
+        updated =
+          VariableCU->addConstantValue(VariableDie, 
+                                       DVInsn->getOperand(0).getCImm(),
+                                       isUnsignedDIType(DV->getType()));
     } else {
       VariableCU->addVariableAddress(DV, VariableDie, 
                                      Asm->getDebugValueLocation(DVInsn));
@@ -913,22 +934,6 @@ CompileUnit *DwarfDebug::getCompileUnit(const MDNode *N) const {
   return I->second;
 }
 
-/// isUnsignedDIType - Return true if type encoding is unsigned.
-static bool isUnsignedDIType(DIType Ty) {
-  DIDerivedType DTy(Ty);
-  if (DTy.Verify())
-    return isUnsignedDIType(DTy.getTypeDerivedFrom());
-
-  DIBasicType BTy(Ty);
-  if (BTy.Verify()) {
-    unsigned Encoding = BTy.getEncoding();
-    if (Encoding == dwarf::DW_ATE_unsigned ||
-        Encoding == dwarf::DW_ATE_unsigned_char)
-      return true;
-  }
-  return false;
-}
-
 // Return const exprssion if value is a GEP to access merged global
 // constant. e.g.
 // i8* getelementptr ({ i8, i8, i8, i8 }* @_MergedGlobals, i32 0, i32 0)
@@ -1017,7 +1022,7 @@ void DwarfDebug::constructGlobalVariableDIE(const MDNode *N) {
     } else {
       TheCU->addBlock(VariableDIE, dwarf::DW_AT_location, 0, Block);
     } 
-  } else if (ConstantInt *CI = 
+  } else if (const ConstantInt *CI = 
              dyn_cast_or_null<ConstantInt>(GV.getConstant()))
     TheCU->addConstantValue(VariableDIE, CI, isUnsignedDIType(GTy));
   else if (const ConstantExpr *CE = getMergedGlobalExpr(N->getOperand(11))) {
@@ -1310,7 +1315,6 @@ bool DwarfDebug::addCurrentFnArgument(const MachineFunction *MF,
 void
 DwarfDebug::collectVariableInfoFromMMITable(const MachineFunction * MF,
                                    SmallPtrSet<const MDNode *, 16> &Processed) {
-  const LLVMContext &Ctx = Asm->MF->getFunction()->getContext();
   MachineModuleInfo::VariableDbgInfoMapTy &VMap = MMI->getVariableDbgInfo();
   for (MachineModuleInfo::VariableDbgInfoMapTy::iterator VI = VMap.begin(),
          VE = VMap.end(); VI != VE; ++VI) {
@@ -1320,11 +1324,7 @@ DwarfDebug::collectVariableInfoFromMMITable(const MachineFunction * MF,
     DIVariable DV(Var);
     const std::pair<unsigned, DebugLoc> &VP = VI->second;
 
-    DbgScope *Scope = 0;
-    if (const MDNode *IA = VP.second.getInlinedAt(Ctx))
-      Scope = ConcreteScopes.lookup(IA);
-    if (Scope == 0)
-      Scope = DbgScopeMap.lookup(VP.second.getScope(Ctx));
+    DbgScope *Scope = findDbgScope(VP.second);
 
     // If variable scope is not found then skip this variable.
     if (Scope == 0)
@@ -1349,6 +1349,34 @@ static bool isDbgValueInDefinedReg(const MachineInstr *MI) {
   return MI->getNumOperands() == 3 &&
          MI->getOperand(0).isReg() && MI->getOperand(0).getReg() &&
          MI->getOperand(1).isImm() && MI->getOperand(1).getImm() == 0;
+}
+
+/// getDebugLocEntry - Get .debug_loc entry for the instraction range starting
+/// at MI.
+static DotDebugLocEntry getDebugLocEntry(AsmPrinter *Asm, 
+                                         const MCSymbol *FLabel, 
+                                         const MCSymbol *SLabel,
+                                         const MachineInstr *MI) {
+  const MDNode *Var =  MI->getOperand(MI->getNumOperands() - 1).getMetadata();
+
+  if (MI->getNumOperands() != 3) {
+    MachineLocation MLoc = Asm->getDebugValueLocation(MI);
+    return DotDebugLocEntry(FLabel, SLabel, MLoc, Var);
+  }
+  if (MI->getOperand(0).isReg() && MI->getOperand(1).isImm()) {
+    MachineLocation MLoc;
+    MLoc.set(MI->getOperand(0).getReg(), MI->getOperand(1).getImm());
+    return DotDebugLocEntry(FLabel, SLabel, MLoc, Var);
+  }
+  if (MI->getOperand(0).isImm())
+    return DotDebugLocEntry(FLabel, SLabel, MI->getOperand(0).getImm());
+  if (MI->getOperand(0).isFPImm())
+    return DotDebugLocEntry(FLabel, SLabel, MI->getOperand(0).getFPImm());
+  if (MI->getOperand(0).isCImm())
+    return DotDebugLocEntry(FLabel, SLabel, MI->getOperand(0).getCImm());
+
+  assert (0 && "Unexpected 3 operand DBG_VALUE instruction!");
+  return DotDebugLocEntry();
 }
 
 /// collectVariableInfo - Populate DbgScope entries with variables' info.
@@ -1379,7 +1407,7 @@ DwarfDebug::collectVariableInfo(const MachineFunction *MF,
         DISubprogram(DV.getContext()).describes(MF->getFunction()))
       Scope = CurrentFnDbgScope;
     else
-      Scope = findDbgScope(MInsn);
+      Scope = findDbgScope(MInsn->getDebugLoc());
     // If variable scope is not found then skip this variable.
     if (!Scope)
       continue;
@@ -1424,6 +1452,8 @@ DwarfDebug::collectVariableInfo(const MachineFunction *MF,
         SLabel = FunctionEndSym;
       else {
         const MachineInstr *End = HI[1];
+        DEBUG(dbgs() << "DotDebugLoc Pair:\n" 
+              << "\t" << *Begin << "\t" << *End << "\n");
         if (End->isDebugValue())
           SLabel = getLabelBeforeInsn(End);
         else {
@@ -1435,25 +1465,7 @@ DwarfDebug::collectVariableInfo(const MachineFunction *MF,
       }
 
       // The value is valid until the next DBG_VALUE or clobber.
-      MachineLocation MLoc;
-      if (Begin->getNumOperands() == 3) {
-        if (Begin->getOperand(0).isReg() && Begin->getOperand(1).isImm()) {
-          MLoc.set(Begin->getOperand(0).getReg(), 
-                   Begin->getOperand(1).getImm());
-          DotDebugLocEntries.
-            push_back(DotDebugLocEntry(FLabel, SLabel, MLoc, Var));
-        }
-        // FIXME: Handle isFPImm also.
-        else if (Begin->getOperand(0).isImm()) {
-          DotDebugLocEntries.
-            push_back(DotDebugLocEntry(FLabel, SLabel, 
-                                       Begin->getOperand(0).getImm()));
-        }
-      } else {
-        MLoc = Asm->getDebugValueLocation(Begin);
-        DotDebugLocEntries.
-          push_back(DotDebugLocEntry(FLabel, SLabel, MLoc, Var));
-      }
+      DotDebugLocEntries.push_back(getDebugLocEntry(Asm, FLabel, SLabel, Begin));
     }
     DotDebugLocEntries.push_back(DotDebugLocEntry());
   }
@@ -1550,8 +1562,12 @@ void DwarfDebug::endInstruction(const MachineInstr *MI) {
 }
 
 /// getOrCreateDbgScope - Create DbgScope for the scope.
-DbgScope *DwarfDebug::getOrCreateDbgScope(const MDNode *Scope,
-                                          const MDNode *InlinedAt) {
+DbgScope *DwarfDebug::getOrCreateDbgScope(DebugLoc DL) {
+  LLVMContext &Ctx = Asm->MF->getFunction()->getContext();
+  MDNode *Scope = NULL;
+  MDNode *InlinedAt = NULL;
+  DL.getScopeAndInlinedAt(Scope, InlinedAt, Ctx);
+
   if (!InlinedAt) {
     DbgScope *WScope = DbgScopeMap.lookup(Scope);
     if (WScope)
@@ -1560,22 +1576,12 @@ DbgScope *DwarfDebug::getOrCreateDbgScope(const MDNode *Scope,
     DbgScopeMap.insert(std::make_pair(Scope, WScope));
     if (DIDescriptor(Scope).isLexicalBlock()) {
       DbgScope *Parent =
-        getOrCreateDbgScope(DILexicalBlock(Scope).getContext(), NULL);
+        getOrCreateDbgScope(DebugLoc::getFromDILexicalBlock(Scope));
       WScope->setParent(Parent);
       Parent->addScope(WScope);
-    }
-
-    if (!WScope->getParent()) {
-      StringRef SPName = DISubprogram(Scope).getLinkageName();
-      // We used to check only for a linkage name, but that fails
-      // since we began omitting the linkage name for private
-      // functions.  The new way is to check for the name in metadata,
-      // but that's not supported in old .ll test cases.  Ergo, we
-      // check both.
-      if (SPName == Asm->MF->getFunction()->getName() ||
-          DISubprogram(Scope).getFunction() == Asm->MF->getFunction())
-        CurrentFnDbgScope = WScope;
-    }
+    } else if (DIDescriptor(Scope).isSubprogram()
+               && DISubprogram(Scope).describes(Asm->MF->getFunction()))
+      CurrentFnDbgScope = WScope;
 
     return WScope;
   }
@@ -1587,35 +1593,12 @@ DbgScope *DwarfDebug::getOrCreateDbgScope(const MDNode *Scope,
 
   WScope = new DbgScope(NULL, DIDescriptor(Scope), InlinedAt);
   DbgScopeMap.insert(std::make_pair(InlinedAt, WScope));
-  DILocation DL(InlinedAt);
+  InlinedDbgScopeMap[DebugLoc::getFromDILocation(InlinedAt)] = WScope;
   DbgScope *Parent =
-    getOrCreateDbgScope(DL.getScope(), DL.getOrigLocation());
+    getOrCreateDbgScope(DebugLoc::getFromDILocation(InlinedAt));
   WScope->setParent(Parent);
   Parent->addScope(WScope);
-
-  ConcreteScopes[InlinedAt] = WScope;
-
   return WScope;
-}
-
-/// hasValidLocation - Return true if debug location entry attached with
-/// machine instruction encodes valid location info.
-static bool hasValidLocation(LLVMContext &Ctx,
-                             const MachineInstr *MInsn,
-                             const MDNode *&Scope, const MDNode *&InlinedAt) {
-  DebugLoc DL = MInsn->getDebugLoc();
-  if (DL.isUnknown()) return false;
-
-  const MDNode *S = DL.getScope(Ctx);
-
-  // There is no need to create another DIE for compile unit. For all
-  // other scopes, create one DbgScope now. This will be translated
-  // into a scope DIE at the end.
-  if (DIScope(S).isCompileUnit()) return false;
-
-  Scope = S;
-  InlinedAt = DL.getInlinedAt(Ctx);
-  return true;
 }
 
 /// calculateDominanceGraph - Calculate dominance graph for DbgScope
@@ -1648,21 +1631,24 @@ static void calculateDominanceGraph(DbgScope *Scope) {
 
 /// printDbgScopeInfo - Print DbgScope info for each machine instruction.
 static
-void printDbgScopeInfo(LLVMContext &Ctx, const MachineFunction *MF,
+void printDbgScopeInfo(const MachineFunction *MF,
                        DenseMap<const MachineInstr *, DbgScope *> &MI2ScopeMap)
 {
 #ifndef NDEBUG
+  LLVMContext &Ctx = MF->getFunction()->getContext();
   unsigned PrevDFSIn = 0;
   for (MachineFunction::const_iterator I = MF->begin(), E = MF->end();
        I != E; ++I) {
     for (MachineBasicBlock::const_iterator II = I->begin(), IE = I->end();
          II != IE; ++II) {
       const MachineInstr *MInsn = II;
-      const MDNode *Scope = NULL;
-      const MDNode *InlinedAt = NULL;
+      MDNode *Scope = NULL;
+      MDNode *InlinedAt = NULL;
 
       // Check if instruction has valid location information.
-      if (hasValidLocation(Ctx, MInsn, Scope, InlinedAt)) {
+      DebugLoc MIDL = MInsn->getDebugLoc();
+      if (!MIDL.isUnknown()) {
+        MIDL.getScopeAndInlinedAt(Scope, InlinedAt, Ctx);
         dbgs() << " [ ";
         if (InlinedAt)
           dbgs() << "*";
@@ -1692,11 +1678,9 @@ bool DwarfDebug::extractScopeInformation() {
     return false;
 
   // Scan each instruction and create scopes. First build working set of scopes.
-  LLVMContext &Ctx = Asm->MF->getFunction()->getContext();
   SmallVector<DbgRange, 4> MIRanges;
   DenseMap<const MachineInstr *, DbgScope *> MI2ScopeMap;
-  const MDNode *PrevScope = NULL;
-  const MDNode *PrevInlinedAt = NULL;
+  DebugLoc PrevDL;
   const MachineInstr *RangeBeginMI = NULL;
   const MachineInstr *PrevMI = NULL;
   for (MachineFunction::const_iterator I = Asm->MF->begin(), E = Asm->MF->end();
@@ -1704,17 +1688,16 @@ bool DwarfDebug::extractScopeInformation() {
     for (MachineBasicBlock::const_iterator II = I->begin(), IE = I->end();
          II != IE; ++II) {
       const MachineInstr *MInsn = II;
-      const MDNode *Scope = NULL;
-      const MDNode *InlinedAt = NULL;
 
       // Check if instruction has valid location information.
-      if (!hasValidLocation(Ctx, MInsn, Scope, InlinedAt)) {
+      const DebugLoc MIDL = MInsn->getDebugLoc();
+      if (MIDL.isUnknown()) {
         PrevMI = MInsn;
         continue;
       }
 
       // If scope has not changed then skip this instruction.
-      if (Scope == PrevScope && PrevInlinedAt == InlinedAt) {
+      if (MIDL == PrevDL) {
         PrevMI = MInsn;
         continue;
       }
@@ -1727,9 +1710,13 @@ bool DwarfDebug::extractScopeInformation() {
         // If we have alread seen a beginning of a instruction range and
         // current instruction scope does not match scope of first instruction
         // in this range then create a new instruction range.
+        DEBUG(dbgs() << "Creating new instruction range :\n");
+        DEBUG(dbgs() << "Begin Range at " << *RangeBeginMI);
+        DEBUG(dbgs() << "End Range at " << *PrevMI);
+        DEBUG(dbgs() << "Next Range starting at " << *MInsn);
+        DEBUG(dbgs() << "------------------------\n");
         DbgRange R(RangeBeginMI, PrevMI);
-        MI2ScopeMap[RangeBeginMI] = getOrCreateDbgScope(PrevScope,
-                                                        PrevInlinedAt);
+        MI2ScopeMap[RangeBeginMI] = getOrCreateDbgScope(PrevDL);
         MIRanges.push_back(R);
       }
 
@@ -1738,16 +1725,15 @@ bool DwarfDebug::extractScopeInformation() {
 
       // Reset previous markers.
       PrevMI = MInsn;
-      PrevScope = Scope;
-      PrevInlinedAt = InlinedAt;
+      PrevDL = MIDL;
     }
   }
 
   // Create last instruction range.
-  if (RangeBeginMI && PrevMI && PrevScope) {
+  if (RangeBeginMI && PrevMI && !PrevDL.isUnknown()) {
     DbgRange R(RangeBeginMI, PrevMI);
     MIRanges.push_back(R);
-    MI2ScopeMap[RangeBeginMI] = getOrCreateDbgScope(PrevScope, PrevInlinedAt);
+    MI2ScopeMap[RangeBeginMI] = getOrCreateDbgScope(PrevDL);
   }
 
   if (!CurrentFnDbgScope)
@@ -1755,7 +1741,7 @@ bool DwarfDebug::extractScopeInformation() {
 
   calculateDominanceGraph(CurrentFnDbgScope);
   if (PrintDbgScope)
-    printDbgScopeInfo(Ctx, Asm->MF, MI2ScopeMap);
+    printDbgScopeInfo(Asm->MF, MI2ScopeMap);
 
   // Find ranges of instructions covered by each DbgScope;
   DbgScope *PrevDbgScope = NULL;
@@ -1842,8 +1828,6 @@ void DwarfDebug::beginFunction(const MachineFunction *MF) {
 
   assert(UserVariables.empty() && DbgValues.empty() && "Maps weren't cleaned");
 
-  /// ProcessedArgs - Collection of arguments already processed.
-  SmallPtrSet<const MDNode *, 8> ProcessedArgs;
   const TargetRegisterInfo *TRI = Asm->TM.getRegisterInfo();
   /// LiveUserVar - Map physreg numbers to the MDNode they contain.
   std::vector<const MDNode*> LiveUserVar(TRI->getNumRegs());
@@ -1883,8 +1867,12 @@ void DwarfDebug::beginFunction(const MachineFunction *MF) {
           if (Prev->isDebugValue()) {
             // Coalesce identical entries at the end of History.
             if (History.size() >= 2 &&
-                Prev->isIdenticalTo(History[History.size() - 2]))
+                Prev->isIdenticalTo(History[History.size() - 2])) {
+              DEBUG(dbgs() << "Coalesce identical DBG_VALUE entries:\n"
+                    << "\t" << *Prev 
+                    << "\t" << *History[History.size() - 2] << "\n");
               History.pop_back();
+            }
 
             // Terminate old register assignments that don't reach MI;
             MachineFunction::const_iterator PrevMBB = Prev->getParent();
@@ -1894,9 +1882,12 @@ void DwarfDebug::beginFunction(const MachineFunction *MF) {
               // its basic block.
               MachineBasicBlock::const_iterator LastMI =
                 PrevMBB->getLastNonDebugInstr();
-              if (LastMI == PrevMBB->end())
+              if (LastMI == PrevMBB->end()) {
                 // Drop DBG_VALUE for empty range.
+                DEBUG(dbgs() << "Drop DBG_VALUE for empty range:\n"
+                      << "\t" << *Prev << "\n");
                 History.pop_back();
+              }
               else {
                 // Terminate after LastMI.
                 History.push_back(LastMI);
@@ -2053,10 +2044,10 @@ void DwarfDebug::endFunction(const MachineFunction *MF) {
   DbgVariableToFrameIndexMap.clear();
   VarToAbstractVarMap.clear();
   DbgVariableToDbgInstMap.clear();
+  InlinedDbgScopeMap.clear();
   DeleteContainerSeconds(DbgScopeMap);
   UserVariables.clear();
   DbgValues.clear();
-  ConcreteScopes.clear();
   DeleteContainerSeconds(AbstractScopes);
   AbstractScopesList.clear();
   AbstractVariables.clear();
@@ -2083,22 +2074,17 @@ bool DwarfDebug::findVariableFrameIndex(const DbgVariable *V, int *FI) {
   return true;
 }
 
-/// findDbgScope - Find DbgScope for the debug loc attached with an
-/// instruction.
-DbgScope *DwarfDebug::findDbgScope(const MachineInstr *MInsn) {
-  DbgScope *Scope = NULL;
-  LLVMContext &Ctx =
-    MInsn->getParent()->getParent()->getFunction()->getContext();
-  DebugLoc DL = MInsn->getDebugLoc();
-
+/// findDbgScope - Find DbgScope for the debug loc.
+DbgScope *DwarfDebug::findDbgScope(DebugLoc DL) {
   if (DL.isUnknown())
-    return Scope;
+    return NULL;
 
-  if (const MDNode *IA = DL.getInlinedAt(Ctx))
-    Scope = ConcreteScopes.lookup(IA);
-  if (Scope == 0)
+  DbgScope *Scope = NULL;
+  LLVMContext &Ctx = Asm->MF->getFunction()->getContext();
+  if (MDNode *IA = DL.getInlinedAt(Ctx))
+    Scope = InlinedDbgScopeMap.lookup(DebugLoc::getFromDILocation(IA));
+  else
     Scope = DbgScopeMap.lookup(DL.getScope(Ctx));
-
   return Scope;
 }
 
@@ -2597,56 +2583,61 @@ void DwarfDebug::emitDebugLoc() {
       MCSymbol *end = Asm->OutStreamer.getContext().CreateTempSymbol();
       Asm->EmitLabelDifference(end, begin, 2);
       Asm->OutStreamer.EmitLabel(begin);
-      if (Entry.isConstant()) {
+      if (Entry.isInt()) {
         DIBasicType BTy(DV.getType());
         if (BTy.Verify() &&
             (BTy.getEncoding()  == dwarf::DW_ATE_signed 
              || BTy.getEncoding() == dwarf::DW_ATE_signed_char)) {
           Asm->OutStreamer.AddComment("DW_OP_consts");
           Asm->EmitInt8(dwarf::DW_OP_consts);
-          Asm->EmitSLEB128(Entry.getConstant());
+          Asm->EmitSLEB128(Entry.getInt());
         } else {
           Asm->OutStreamer.AddComment("DW_OP_constu");
           Asm->EmitInt8(dwarf::DW_OP_constu);
-          Asm->EmitULEB128(Entry.getConstant());
+          Asm->EmitULEB128(Entry.getInt());
         }
-      } else if (DV.hasComplexAddress()) {
-        unsigned N = DV.getNumAddrElements();
-        unsigned i = 0;
-        if (N >= 2 && DV.getAddrElement(0) == DIBuilder::OpPlus) {
-          if (Entry.Loc.getOffset()) {
-            i = 2;
-            Asm->EmitDwarfRegOp(Entry.Loc);
-            Asm->OutStreamer.AddComment("DW_OP_deref");
-            Asm->EmitInt8(dwarf::DW_OP_deref);
-            Asm->OutStreamer.AddComment("DW_OP_plus_uconst");
-            Asm->EmitInt8(dwarf::DW_OP_plus_uconst);
-            Asm->EmitSLEB128(DV.getAddrElement(1));
-          } else {
-            // If first address element is OpPlus then emit
-            // DW_OP_breg + Offset instead of DW_OP_reg + Offset.
-            MachineLocation Loc(Entry.Loc.getReg(), DV.getAddrElement(1));
-            Asm->EmitDwarfRegOp(Loc);
-            i = 2;
-          }
-        } else {
+      } else if (Entry.isLocation()) {
+        if (!DV.hasComplexAddress()) 
+          // Regular entry.
           Asm->EmitDwarfRegOp(Entry.Loc);
+        else {
+          // Complex address entry.
+          unsigned N = DV.getNumAddrElements();
+          unsigned i = 0;
+          if (N >= 2 && DV.getAddrElement(0) == DIBuilder::OpPlus) {
+            if (Entry.Loc.getOffset()) {
+              i = 2;
+              Asm->EmitDwarfRegOp(Entry.Loc);
+              Asm->OutStreamer.AddComment("DW_OP_deref");
+              Asm->EmitInt8(dwarf::DW_OP_deref);
+              Asm->OutStreamer.AddComment("DW_OP_plus_uconst");
+              Asm->EmitInt8(dwarf::DW_OP_plus_uconst);
+              Asm->EmitSLEB128(DV.getAddrElement(1));
+            } else {
+              // If first address element is OpPlus then emit
+              // DW_OP_breg + Offset instead of DW_OP_reg + Offset.
+              MachineLocation Loc(Entry.Loc.getReg(), DV.getAddrElement(1));
+              Asm->EmitDwarfRegOp(Loc);
+              i = 2;
+            }
+          } else {
+            Asm->EmitDwarfRegOp(Entry.Loc);
+          }
+          
+          // Emit remaining complex address elements.
+          for (; i < N; ++i) {
+            uint64_t Element = DV.getAddrElement(i);
+            if (Element == DIBuilder::OpPlus) {
+              Asm->EmitInt8(dwarf::DW_OP_plus_uconst);
+              Asm->EmitULEB128(DV.getAddrElement(++i));
+            } else if (Element == DIBuilder::OpDeref)
+              Asm->EmitInt8(dwarf::DW_OP_deref);
+            else llvm_unreachable("unknown Opcode found in complex address");
+          }
         }
-
-        // Emit remaining complex address elements.
-        for (; i < N; ++i) {
-          uint64_t Element = DV.getAddrElement(i);
-          if (Element == DIBuilder::OpPlus) {
-            Asm->EmitInt8(dwarf::DW_OP_plus_uconst);
-            Asm->EmitULEB128(DV.getAddrElement(++i));
-          } else if (Element == DIBuilder::OpDeref)
-            Asm->EmitInt8(dwarf::DW_OP_deref);
-          else llvm_unreachable("unknown Opcode found in complex address");
-        }
-      } else {
-        // Regular entry.
-        Asm->EmitDwarfRegOp(Entry.Loc);
       }
+      // else ... ignore constant fp. There is not any good way to
+      // to represent them here in dwarf.
       Asm->OutStreamer.EmitLabel(end);
     }
   }

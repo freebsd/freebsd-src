@@ -95,8 +95,8 @@ public:
   /// _Pragma expansion.  This has a variety of magic semantics that this method
   /// sets up.  It returns a new'd Lexer that must be delete'd when done.
   static Lexer *Create_PragmaLexer(SourceLocation SpellingLoc,
-                                   SourceLocation InstantiationLocStart,
-                                   SourceLocation InstantiationLocEnd,
+                                   SourceLocation ExpansionLocStart,
+                                   SourceLocation ExpansionLocEnd,
                                    unsigned TokLen, Preprocessor &PP);
 
 
@@ -241,8 +241,8 @@ public:
   /// is not necessary to copy any data, then the returned string may
   /// not point into the provided buffer.
   ///
-  /// This method lexes at the instantiation depth of the given
-  /// location and does not jump to the instantiation or spelling
+  /// This method lexes at the expansion depth of the given
+  /// location and does not jump to the expansion or spelling
   /// location.
   static llvm::StringRef getSpelling(SourceLocation loc,
                                      llvm::SmallVectorImpl<char> &buffer,
@@ -293,7 +293,19 @@ public:
   static SourceLocation getLocForEndOfToken(SourceLocation Loc, unsigned Offset,
                                             const SourceManager &SM,
                                             const LangOptions &Features);
-    
+
+  /// \brief Returns true if the given MacroID location points at the first
+  /// token of the macro expansion.
+  static bool isAtStartOfMacroExpansion(SourceLocation loc,
+                                            const SourceManager &SM,
+                                            const LangOptions &LangOpts);
+
+  /// \brief Returns true if the given MacroID location points at the last
+  /// token of the macro expansion.
+  static bool isAtEndOfMacroExpansion(SourceLocation loc,
+                                          const SourceManager &SM,
+                                          const LangOptions &LangOpts);
+
   /// \brief Compute the preamble of the given file.
   ///
   /// The preamble of a file contains the initial comments, include directives,

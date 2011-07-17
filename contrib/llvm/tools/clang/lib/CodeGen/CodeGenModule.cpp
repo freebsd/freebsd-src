@@ -62,9 +62,9 @@ CodeGenModule::CodeGenModule(ASTContext &C, const CodeGenOptions &CGO,
   : Context(C), Features(C.getLangOptions()), CodeGenOpts(CGO), TheModule(M),
     TheTargetData(TD), TheTargetCodeGenInfo(0), Diags(diags),
     ABI(createCXXABI(*this)), 
-    Types(C, M, TD, getTargetCodeGenInfo().getABIInfo(), ABI),
+    Types(C, M, TD, getTargetCodeGenInfo().getABIInfo(), ABI, CGO),
     TBAA(0),
-    VTables(*this), Runtime(0), DebugInfo(0),
+    VTables(*this), Runtime(0), DebugInfo(0), ARCData(0), RRData(0),
     CFConstantStringClassRef(0), ConstantStringClassRef(0),
     VMContext(M.getContext()),
     NSConcreteGlobalBlockDecl(0), NSConcreteStackBlockDecl(0),
@@ -88,6 +88,10 @@ CodeGenModule::CodeGenModule(ASTContext &C, const CodeGenOptions &CGO,
 
   Block.GlobalUniqueCount = 0;
 
+  if (C.getLangOptions().ObjCAutoRefCount)
+    ARCData = new ARCEntrypoints();
+  RRData = new RREntrypoints();
+
   // Initialize the type cache.
   llvm::LLVMContext &LLVMContext = M.getContext();
   VoidTy = llvm::Type::getVoidTy(LLVMContext);
@@ -108,6 +112,8 @@ CodeGenModule::~CodeGenModule() {
   delete &ABI;
   delete TBAA;
   delete DebugInfo;
+  delete ARCData;
+  delete RRData;
 }
 
 void CodeGenModule::createObjCRuntime() {
@@ -188,6 +194,10 @@ void CodeGenModule::ErrorUnsupported(const Decl *D, const char *Type,
                                                "cannot compile this %0 yet");
   std::string Msg = Type;
   getDiags().Report(Context.getFullLoc(D->getLocation()), DiagID) << Msg;
+}
+
+llvm::ConstantInt *CodeGenModule::getSize(CharUnits size) {
+  return llvm::ConstantInt::get(SizeTy, size.getQuantity());
 }
 
 void CodeGenModule::setGlobalVisibility(llvm::GlobalValue *GV,
@@ -347,8 +357,8 @@ void CodeGenModule::EmitCtorList(const CtorList &Fns, const char *GlobalName) {
   llvm::Type *CtorPFTy = llvm::PointerType::getUnqual(CtorFTy);
 
   // Get the type of a ctor entry, { i32, void ()* }.
-  llvm::StructType* CtorStructTy =
-    llvm::StructType::get(VMContext, llvm::Type::getInt32Ty(VMContext),
+  llvm::StructType *CtorStructTy =
+    llvm::StructType::get(llvm::Type::getInt32Ty(VMContext),
                           llvm::PointerType::getUnqual(CtorFTy), NULL);
 
   // Construct the constructor and destructor arrays.
@@ -670,7 +680,7 @@ llvm::Constant *CodeGenModule::EmitAnnotateAttr(llvm::GlobalValue *GV,
     llvm::ConstantExpr::getBitCast(unitGV, SBP),
     llvm::ConstantInt::get(llvm::Type::getInt32Ty(VMContext), LineNo)
   };
-  return llvm::ConstantStruct::get(VMContext, Fields, 4, false);
+  return llvm::ConstantStruct::getAnon(Fields);
 }
 
 bool CodeGenModule::MayDeferGeneration(const ValueDecl *Global) {
@@ -830,7 +840,8 @@ void CodeGenModule::EmitGlobalDefinition(GlobalDecl GD) {
 llvm::Constant *
 CodeGenModule::GetOrCreateLLVMFunction(llvm::StringRef MangledName,
                                        const llvm::Type *Ty,
-                                       GlobalDecl D, bool ForVTable) {
+                                       GlobalDecl D, bool ForVTable,
+                                       llvm::Attributes ExtraAttrs) {
   // Lookup the entry, lazily creating it if necessary.
   llvm::GlobalValue *Entry = GetGlobalValue(MangledName);
   if (Entry) {
@@ -846,8 +857,7 @@ CodeGenModule::GetOrCreateLLVMFunction(llvm::StringRef MangledName,
       return Entry;
 
     // Make sure the result is of the correct type.
-    const llvm::Type *PTy = llvm::PointerType::getUnqual(Ty);
-    return llvm::ConstantExpr::getBitCast(Entry, PTy);
+    return llvm::ConstantExpr::getBitCast(Entry, Ty->getPointerTo());
   }
 
   // This function doesn't have a complete type (for example, the return
@@ -869,6 +879,8 @@ CodeGenModule::GetOrCreateLLVMFunction(llvm::StringRef MangledName,
   assert(F->getName() == MangledName && "name was uniqued!");
   if (D.getDecl())
     SetFunctionAttributes(D, F, IsIncompleteFunction);
+  if (ExtraAttrs != llvm::Attribute::None)
+    F->addFnAttr(ExtraAttrs);
 
   // This is the first use or definition of a mangled name.  If there is a
   // deferred decl with this name, remember that we need to emit it at the end
@@ -915,7 +927,7 @@ CodeGenModule::GetOrCreateLLVMFunction(llvm::StringRef MangledName,
     return F;
   }
 
-  const llvm::Type *PTy = llvm::PointerType::getUnqual(Ty);
+  llvm::Type *PTy = llvm::PointerType::getUnqual(Ty);
   return llvm::ConstantExpr::getBitCast(F, PTy);
 }
 
@@ -937,8 +949,10 @@ llvm::Constant *CodeGenModule::GetAddrOfFunction(GlobalDecl GD,
 /// type and name.
 llvm::Constant *
 CodeGenModule::CreateRuntimeFunction(const llvm::FunctionType *FTy,
-                                     llvm::StringRef Name) {
-  return GetOrCreateLLVMFunction(Name, FTy, GlobalDecl(), /*ForVTable=*/false);
+                                     llvm::StringRef Name,
+                                     llvm::Attributes ExtraAttrs) {
+  return GetOrCreateLLVMFunction(Name, FTy, GlobalDecl(), /*ForVTable=*/false,
+                                 ExtraAttrs);
 }
 
 static bool DeclIsConstantGlobal(ASTContext &Context, const VarDecl *D,
@@ -1340,7 +1354,8 @@ CodeGenModule::GetLLVMLinkageVarDefinition(const VarDecl *D,
            ((!CodeGenOpts.NoCommon && !D->getAttr<NoCommonAttr>()) ||
              D->getAttr<CommonAttr>()) &&
            !D->hasExternalStorage() && !D->getInit() &&
-           !D->getAttr<SectionAttr>() && !D->isThreadSpecified()) {
+           !D->getAttr<SectionAttr>() && !D->isThreadSpecified() &&
+           !D->getAttr<WeakImportAttr>()) {
     // Thread local vars aren't considered common linkage.
     return llvm::GlobalVariable::CommonLinkage;
   }
@@ -1398,8 +1413,7 @@ static void ReplaceUsesOfNonProtoTypeWithRealFunction(llvm::GlobalValue *Old,
     // Okay, we can transform this.  Create the new call instruction and copy
     // over the required information.
     ArgList.append(CS.arg_begin(), CS.arg_begin() + ArgNo);
-    llvm::CallInst *NewCall = llvm::CallInst::Create(NewFn, ArgList.begin(),
-                                                     ArgList.end(), "", CI);
+    llvm::CallInst *NewCall = llvm::CallInst::Create(NewFn, ArgList, "", CI);
     ArgList.clear();
     if (!NewCall->getType()->isVoidTy())
       NewCall->takeName(CI);
@@ -1426,7 +1440,7 @@ void CodeGenModule::EmitGlobalFunctionDefinition(GlobalDecl GD) {
   bool variadic = false;
   if (const FunctionProtoType *fpt = D->getType()->getAs<FunctionProtoType>())
     variadic = fpt->isVariadic();
-  const llvm::FunctionType *Ty = getTypes().GetFunctionType(FI, variadic, false);
+  const llvm::FunctionType *Ty = getTypes().GetFunctionType(FI, variadic);
 
   // Get or create the prototype for the function.
   llvm::Constant *Entry = GetAddrOfFunction(GD, Ty);
@@ -1597,10 +1611,10 @@ llvm::Value *CodeGenModule::getBuiltinLibFunction(const FunctionDecl *FD,
   return GetOrCreateLLVMFunction(Name, Ty, D, /*ForVTable=*/false);
 }
 
-llvm::Function *CodeGenModule::getIntrinsic(unsigned IID,const llvm::Type **Tys,
-                                            unsigned NumTys) {
-  return llvm::Intrinsic::getDeclaration(&getModule(),
-                                         (llvm::Intrinsic::ID)IID, Tys, NumTys);
+llvm::Function *CodeGenModule::getIntrinsic(unsigned IID,
+                                            llvm::ArrayRef<llvm::Type*> Tys) {
+  return llvm::Intrinsic::getDeclaration(&getModule(), (llvm::Intrinsic::ID)IID,
+                                         Tys);
 }
 
 static llvm::StringMapEntry<llvm::Constant*> &
@@ -1997,6 +2011,7 @@ void CodeGenModule::EmitObjCIvarInitializations(ObjCImplementationDecl *D) {
                              false, true, false, ObjCMethodDecl::Required);
     D->addInstanceMethod(DTORMethod);
     CodeGenFunction(*this).GenerateObjCCtorDtorMethod(D, DTORMethod, false);
+    D->setHasCXXStructors(true);
   }
 
   // If the implementation doesn't have any ivar initializers, we don't need
@@ -2015,6 +2030,7 @@ void CodeGenModule::EmitObjCIvarInitializations(ObjCImplementationDecl *D) {
                                                 ObjCMethodDecl::Required);
   D->addInstanceMethod(CTORMethod);
   CodeGenFunction(*this).GenerateObjCCtorDtorMethod(D, CTORMethod, true);
+  D->setHasCXXStructors(true);
 }
 
 /// EmitNamespace - Emit all declarations in a namespace.
@@ -2276,7 +2292,7 @@ llvm::Constant *CodeGenModule::getBlockObjectDispose() {
   }
 
   // Otherwise construct the function by hand.
-  const llvm::Type *args[] = { Int8PtrTy, Int32Ty };
+  llvm::Type *args[] = { Int8PtrTy, Int32Ty };
   const llvm::FunctionType *fty
     = llvm::FunctionType::get(VoidTy, args, false);
   return BlockObjectDispose =
@@ -2295,7 +2311,7 @@ llvm::Constant *CodeGenModule::getBlockObjectAssign() {
   }
 
   // Otherwise construct the function by hand.
-  const llvm::Type *args[] = { Int8PtrTy, Int8PtrTy, Int32Ty };
+  llvm::Type *args[] = { Int8PtrTy, Int8PtrTy, Int32Ty };
   const llvm::FunctionType *fty
     = llvm::FunctionType::get(VoidTy, args, false);
   return BlockObjectAssign =

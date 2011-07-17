@@ -67,7 +67,12 @@ public:
     
     /// EP_LoopOptimizerEnd - This extension point allows adding loop passes to
     /// the end of the loop optimizer.
-    EP_LoopOptimizerEnd
+    EP_LoopOptimizerEnd,
+
+    /// EP_ScalarOptimizerLate - This extension point allows adding optimization
+    /// passes after most of the main optimizations, but before the last
+    /// cleanup-ish optimizations.
+    EP_ScalarOptimizerLate
   };
   
   /// The Optimization Level - Specify the basic optimization level.
@@ -147,6 +152,7 @@ public:
     FPM.add(createCFGSimplificationPass());
     FPM.add(createScalarReplAggregatesPass());
     FPM.add(createEarlyCSEPass());
+    FPM.add(createLowerExpectIntrinsicPass());
   }
   
   /// populateModulePassManager - This sets up the primary pass manager.
@@ -223,13 +229,16 @@ public:
     MPM.add(createJumpThreadingPass());         // Thread jumps
     MPM.add(createCorrelatedValuePropagationPass());
     MPM.add(createDeadStoreEliminationPass());  // Delete dead stores
+
+    addExtensionsToPM(EP_ScalarOptimizerLate, MPM);
+
     MPM.add(createAggressiveDCEPass());         // Delete dead instructions
     MPM.add(createCFGSimplificationPass());     // Merge & remove BBs
     MPM.add(createInstructionCombiningPass());  // Clean up after everything.
     
     if (!DisableUnitAtATime) {
+      // FIXME: We shouldn't bother with this anymore.
       MPM.add(createStripDeadPrototypesPass()); // Get rid of dead prototypes
-      MPM.add(createDeadTypeEliminationPass()); // Eliminate dead types
       
       // GlobalOpt already deletes dead functions and globals, at -O3 try a
       // late pass of GlobalDCE.  It is capable of deleting dead cycles.

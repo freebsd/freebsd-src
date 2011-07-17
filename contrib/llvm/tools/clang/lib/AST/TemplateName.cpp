@@ -27,7 +27,19 @@ SubstTemplateTemplateParmPackStorage::getArgumentPack() const {
   return TemplateArgument(Arguments, size());
 }
 
-void SubstTemplateTemplateParmPackStorage::Profile(llvm::FoldingSetNodeID &ID) {
+void SubstTemplateTemplateParmStorage::Profile(llvm::FoldingSetNodeID &ID) {
+  Profile(ID, Parameter, Replacement);
+}
+
+void SubstTemplateTemplateParmStorage::Profile(llvm::FoldingSetNodeID &ID, 
+                                           TemplateTemplateParmDecl *parameter,
+                                               TemplateName replacement) {
+  ID.AddPointer(parameter);
+  ID.AddPointer(replacement.getAsVoidPointer());
+}
+
+void SubstTemplateTemplateParmPackStorage::Profile(llvm::FoldingSetNodeID &ID,
+                                                   ASTContext &Context) {
   Profile(ID, Context, Parameter, TemplateArgument(Arguments, size()));
 }
 
@@ -46,9 +58,14 @@ TemplateName::NameKind TemplateName::getKind() const {
     return DependentTemplate;
   if (Storage.is<QualifiedTemplateName *>())
     return QualifiedTemplate;
-  
-  return getAsOverloadedTemplate()? OverloadedTemplate
-                                  : SubstTemplateTemplateParmPack;
+
+  UncommonTemplateNameStorage *uncommon
+    = Storage.get<UncommonTemplateNameStorage*>();
+  if (uncommon->getAsOverloadedStorage())
+    return OverloadedTemplate;
+  if (uncommon->getAsSubstTemplateTemplateParm())
+    return SubstTemplateTemplateParm;
+  return SubstTemplateTemplateParmPack;
 }
 
 TemplateDecl *TemplateName::getAsTemplateDecl() const {
@@ -57,6 +74,9 @@ TemplateDecl *TemplateName::getAsTemplateDecl() const {
 
   if (QualifiedTemplateName *QTN = getAsQualifiedTemplateName())
     return QTN->getTemplateDecl();
+
+  if (SubstTemplateTemplateParmStorage *sub = getAsSubstTemplateTemplateParm())
+    return sub->getReplacement().getAsTemplateDecl();
 
   return 0;
 }
@@ -77,6 +97,15 @@ bool TemplateName::isDependent() const {
          "overloaded templates shouldn't survive to here");
 
   return true;
+}
+
+bool TemplateName::isInstantiationDependent() const {
+  if (QualifiedTemplateName *QTN = getAsQualifiedTemplateName()) {
+    if (QTN->getQualifier()->isInstantiationDependent())
+      return true;
+  }
+  
+  return isDependent();
 }
 
 bool TemplateName::containsUnexpandedParameterPack() const {
@@ -115,6 +144,9 @@ TemplateName::print(llvm::raw_ostream &OS, const PrintingPolicy &Policy,
       OS << DTN->getIdentifier()->getName();
     else
       OS << "operator " << getOperatorSpelling(DTN->getOperator());
+  } else if (SubstTemplateTemplateParmStorage *subst
+               = getAsSubstTemplateTemplateParm()) {
+    subst->getReplacement().print(OS, Policy, SuppressNNS);
   } else if (SubstTemplateTemplateParmPackStorage *SubstPack
                                         = getAsSubstTemplateTemplateParmPack())
     OS << SubstPack->getParameterPack()->getNameAsString();

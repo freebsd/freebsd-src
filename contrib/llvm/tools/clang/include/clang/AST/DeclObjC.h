@@ -641,6 +641,18 @@ public:
     return false;
   }
 
+  /// isArcWeakrefUnavailable - Checks for a class or one of its super classes
+  /// to be incompatible with __weak references. Returns true if it is.
+  bool isArcWeakrefUnavailable() const {
+    const ObjCInterfaceDecl *Class = this;
+    while (Class) {
+      if (Class->hasAttr<ArcWeakrefUnavailableAttr>())
+        return true;
+      Class = Class->getSuperClass();
+   }
+   return false; 
+  }
+
   ObjCIvarDecl *lookupInstanceVariable(IdentifierInfo *IVarName,
                                        ObjCInterfaceDecl *&ClassDeclared);
   ObjCIvarDecl *lookupInstanceVariable(IdentifierInfo *IVarName) {
@@ -1240,6 +1252,9 @@ class ObjCImplementationDecl : public ObjCImplDecl {
   /// IvarInitializers - The arguments used to initialize the ivars
   CXXCtorInitializer **IvarInitializers;
   unsigned NumIvarInitializers;
+
+  /// true if class has a .cxx_[construct,destruct] method.
+  bool HasCXXStructors : 1;
   
   /// true of class extension has at least one bitfield ivar.
   bool HasSynthBitfield : 1;
@@ -1249,7 +1264,7 @@ class ObjCImplementationDecl : public ObjCImplDecl {
                          ObjCInterfaceDecl *superDecl)
     : ObjCImplDecl(ObjCImplementation, DC, L, classInterface),
        SuperClass(superDecl), IvarInitializers(0), NumIvarInitializers(0),
-       HasSynthBitfield(false) {}
+       HasCXXStructors(false), HasSynthBitfield(false) {}
 public:
   static ObjCImplementationDecl *Create(ASTContext &C, DeclContext *DC,
                                         SourceLocation L,
@@ -1287,6 +1302,9 @@ public:
   void setIvarInitializers(ASTContext &C,
                            CXXCtorInitializer ** initializers,
                            unsigned numInitializers);
+
+  bool hasCXXStructors() const { return HasCXXStructors; }
+  void setHasCXXStructors(bool val) { HasCXXStructors = val; }
   
   bool hasSynthBitfield() const { return HasSynthBitfield; }
   void setHasSynthBitfield (bool val) { HasSynthBitfield = val; }
@@ -1393,7 +1411,16 @@ public:
     OBJC_PR_copy      = 0x20,
     OBJC_PR_nonatomic = 0x40,
     OBJC_PR_setter    = 0x80,
-    OBJC_PR_atomic    = 0x100
+    OBJC_PR_atomic    = 0x100,
+    OBJC_PR_weak      = 0x200,
+    OBJC_PR_strong    = 0x400,
+    OBJC_PR_unsafe_unretained = 0x800
+    // Adding a property should change NumPropertyAttrsBits
+  };
+
+  enum {
+    /// \brief Number of bits fitting all the property attributes.
+    NumPropertyAttrsBits = 12
   };
 
   enum SetterKind { Assign, Retain, Copy };
@@ -1401,8 +1428,8 @@ public:
 private:
   SourceLocation AtLoc;   // location of @property
   TypeSourceInfo *DeclType;
-  unsigned PropertyAttributes : 9;
-  unsigned PropertyAttributesAsWritten : 9;
+  unsigned PropertyAttributes : NumPropertyAttrsBits;
+  unsigned PropertyAttributesAsWritten : NumPropertyAttrsBits;
   // @required/@optional
   unsigned PropertyImplementation : 2;
 
@@ -1445,6 +1472,12 @@ public:
   PropertyAttributeKind getPropertyAttributesAsWritten() const {
     return PropertyAttributeKind(PropertyAttributesAsWritten);
   }
+
+  bool hasWrittenStorageAttribute() const {
+    return PropertyAttributesAsWritten & (OBJC_PR_assign | OBJC_PR_copy |
+        OBJC_PR_unsafe_unretained | OBJC_PR_retain | OBJC_PR_strong |
+        OBJC_PR_weak);
+  }
   
   void setPropertyAttributesAsWritten(PropertyAttributeKind PRVal) {
     PropertyAttributesAsWritten = PRVal;
@@ -1466,7 +1499,7 @@ public:
   /// the property setter. This is only valid if the property has been
   /// defined to have a setter.
   SetterKind getSetterKind() const {
-    if (PropertyAttributes & OBJC_PR_retain)
+    if (PropertyAttributes & (OBJC_PR_retain|OBJC_PR_strong))
       return Retain;
     if (PropertyAttributes & OBJC_PR_copy)
       return Copy;

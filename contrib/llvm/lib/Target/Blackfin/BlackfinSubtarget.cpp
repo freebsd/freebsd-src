@@ -7,18 +7,24 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file implements the blackfin specific subclass of TargetSubtarget.
+// This file implements the blackfin specific subclass of TargetSubtargetInfo.
 //
 //===----------------------------------------------------------------------===//
 
 #include "BlackfinSubtarget.h"
-#include "BlackfinGenSubtarget.inc"
+#include "Blackfin.h"
+#include "llvm/Target/TargetRegistry.h"
+
+#define GET_SUBTARGETINFO_TARGET_DESC
+#define GET_SUBTARGETINFO_CTOR
+#include "BlackfinGenSubtargetInfo.inc"
 
 using namespace llvm;
 
 BlackfinSubtarget::BlackfinSubtarget(const std::string &TT,
+                                     const std::string &CPU,
                                      const std::string &FS)
-  : sdram(false),
+  : BlackfinGenSubtargetInfo(TT, CPU, FS), sdram(false),
     icplb(false),
     wa_mi_shift(false),
     wa_csync(false),
@@ -30,7 +36,9 @@ BlackfinSubtarget::BlackfinSubtarget(const std::string &TT,
     wa_killed_mmr(false),
     wa_rets(false)
 {
-  std::string CPU = "generic";
+  std::string CPUName = CPU;
+  if (CPUName.empty())
+    CPUName = "generic";
   // Parse features string.
-  ParseSubtargetFeatures(FS, CPU);
+  ParseSubtargetFeatures(CPUName, FS);
 }

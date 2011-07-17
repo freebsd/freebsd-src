@@ -60,6 +60,10 @@ public:
   /// that also works with less standard-compliant compilers
   void swap(Use &RHS);
 
+  // A type for the word following an array of hung-off Uses in memory, which is
+  // a pointer back to their User with the bottom bit set.
+  typedef PointerIntPair<User*, 1, unsigned> UserRef;
+
 private:
   /// Copy ctor - do not implement
   Use(const Use &U);
@@ -108,13 +112,16 @@ public:
   Use *getNext() const { return Next; }
 
   
+  /// initTags - initialize the waymarking tags on an array of Uses, so that
+  /// getUser() can find the User from any of those Uses.
+  static Use *initTags(Use *Start, Use *Stop);
+
   /// zap - This is used to destroy Use operands when the number of operands of
   /// a User changes.
   static void zap(Use *Start, const Use *Stop, bool del = false);
 
 private:
   const Use* getImpliedUser() const;
-  static Use *initTags(Use *Start, Use *Stop);
   
   Value *Val;
   Use *Next;
@@ -136,7 +143,6 @@ private:
   }
 
   friend class Value;
-  friend class User;
 };
 
 // simplify_type - Allow clients to treat uses just like values when using
@@ -206,15 +212,6 @@ public:
   /// User.h
   ///
   unsigned getOperandNo() const;
-};
-
-//===----------------------------------------------------------------------===//
-//                         AugmentedUse layout struct
-//===----------------------------------------------------------------------===//
-
-struct AugmentedUse : public Use {
-  PointerIntPair<User*, 1, unsigned> ref;
-  AugmentedUse(); // not implemented
 };
 
 } // End llvm namespace

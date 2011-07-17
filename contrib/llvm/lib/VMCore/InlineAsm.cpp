@@ -47,11 +47,11 @@ InlineAsm::InlineAsm(const PointerType *Ty, const std::string &asmString,
 }
 
 void InlineAsm::destroyConstant() {
-  getRawType()->getContext().pImpl->InlineAsms.remove(this);
+  getType()->getContext().pImpl->InlineAsms.remove(this);
   delete this;
 }
 
-const FunctionType *InlineAsm::getFunctionType() const {
+FunctionType *InlineAsm::getFunctionType() const {
   return cast<FunctionType>(getType()->getElementType());
 }
     
