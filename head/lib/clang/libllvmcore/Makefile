@@ -31,7 +31,6 @@ SRCS=	AsmWriter.cpp \
 	PassRegistry.cpp \
 	PrintModulePass.cpp \
 	Type.cpp \
-	TypeSymbolTable.cpp \
 	Use.cpp \
 	User.cpp \
 	Value.cpp \

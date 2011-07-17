@@ -81,6 +81,9 @@ static void InitLibcallNames(const char **Names) {
   Names[RTLIB::MUL_I32] = "__mulsi3";
   Names[RTLIB::MUL_I64] = "__muldi3";
   Names[RTLIB::MUL_I128] = "__multi3";
+  Names[RTLIB::MULO_I32] = "__mulosi4";
+  Names[RTLIB::MULO_I64] = "__mulodi4";
+  Names[RTLIB::MULO_I128] = "__muloti4";
   Names[RTLIB::SDIV_I8] = "__divqi3";
   Names[RTLIB::SDIV_I16] = "__divhi3";
   Names[RTLIB::SDIV_I32] = "__divsi3";
@@ -136,6 +139,10 @@ static void InitLibcallNames(const char **Names) {
   Names[RTLIB::REM_F64] = "fmod";
   Names[RTLIB::REM_F80] = "fmodl";
   Names[RTLIB::REM_PPCF128] = "fmodl";
+  Names[RTLIB::FMA_F32] = "fmaf";
+  Names[RTLIB::FMA_F64] = "fma";
+  Names[RTLIB::FMA_F80] = "fmal";
+  Names[RTLIB::FMA_PPCF128] = "fmal";
   Names[RTLIB::POWI_F32] = "__powisf2";
   Names[RTLIB::POWI_F64] = "__powidf2";
   Names[RTLIB::POWI_F80] = "__powixf2";
@@ -673,10 +680,16 @@ static unsigned getVectorTypeBreakdownMVT(MVT VT, MVT &IntermediateVT,
     NewVT = EltTy;
   IntermediateVT = NewVT;
 
+  unsigned NewVTSize = NewVT.getSizeInBits();
+
+  // Convert sizes such as i33 to i64.
+  if (!isPowerOf2_32(NewVTSize))
+    NewVTSize = NextPowerOf2(NewVTSize);
+
   EVT DestVT = TLI->getRegisterType(NewVT);
   RegisterVT = DestVT;
   if (EVT(DestVT).bitsLT(NewVT))    // Value is expanded, e.g. i64 -> i16.
-    return NumVectorRegs*(NewVT.getSizeInBits()/DestVT.getSizeInBits());
+    return NumVectorRegs*(NewVTSize/DestVT.getSizeInBits());
 
   // Otherwise, promotion or legal types use the same number of registers as
   // the vector decimated to the appropriate level.
@@ -965,8 +978,14 @@ unsigned TargetLowering::getVectorTypeBreakdown(LLVMContext &Context, EVT VT,
 
   EVT DestVT = getRegisterType(Context, NewVT);
   RegisterVT = DestVT;
+  unsigned NewVTSize = NewVT.getSizeInBits();
+
+  // Convert sizes such as i33 to i64.
+  if (!isPowerOf2_32(NewVTSize))
+    NewVTSize = NextPowerOf2(NewVTSize);
+
   if (DestVT.bitsLT(NewVT))   // Value is expanded, e.g. i64 -> i16.
-    return NumVectorRegs*(NewVT.getSizeInBits()/DestVT.getSizeInBits());
+    return NumVectorRegs*(NewVTSize/DestVT.getSizeInBits());
 
   // Otherwise, promotion or legal types use the same number of registers as
   // the vector decimated to the appropriate level.
@@ -1762,9 +1781,9 @@ bool TargetLowering::SimplifyDemandedBits(SDValue Op,
   case ISD::BITCAST:
     // If this is an FP->Int bitcast and if the sign bit is the only
     // thing demanded, turn this into a FGETSIGN.
-    if (NewMask == APInt::getSignBit(Op.getValueType().getSizeInBits()) &&
-        Op.getOperand(0).getValueType().isFloatingPoint() &&
-        !Op.getOperand(0).getValueType().isVector()) {
+    if (!Op.getOperand(0).getValueType().isVector() &&
+        NewMask == APInt::getSignBit(Op.getValueType().getSizeInBits()) &&
+        Op.getOperand(0).getValueType().isFloatingPoint()) {
       bool OpVTLegal = isOperationLegalOrCustom(ISD::FGETSIGN, Op.getValueType());
       bool i32Legal  = isOperationLegalOrCustom(ISD::FGETSIGN, MVT::i32);
       if ((OpVTLegal || i32Legal) && Op.getValueType().isSimple()) {
@@ -1902,7 +1921,7 @@ TargetLowering::SimplifySetCC(EVT VT, SDValue N0, SDValue N1,
   // comparisons.
   if (isa<ConstantSDNode>(N0.getNode()))
     return DAG.getSetCC(dl, VT, N1, N0, ISD::getSetCCSwappedOperands(Cond));
-  
+
   if (ConstantSDNode *N1C = dyn_cast<ConstantSDNode>(N1.getNode())) {
     const APInt &C1 = N1C->getAPIntValue();
 
@@ -2608,7 +2627,6 @@ PerformDAGCombine(SDNode *N, DAGCombinerInfo &DCI) const {
 
 TargetLowering::ConstraintType
 TargetLowering::getConstraintType(const std::string &Constraint) const {
-  // FIXME: lots more standard ones to handle.
   if (Constraint.size() == 1) {
     switch (Constraint[0]) {
     default: break;
@@ -2661,9 +2679,9 @@ void TargetLowering::LowerAsmOperandForConstraint(SDValue Op,
                                                   std::string &Constraint,
                                                   std::vector<SDValue> &Ops,
                                                   SelectionDAG &DAG) const {
-  
+
   if (Constraint.length() > 1) return;
-  
+
   char ConstraintLetter = Constraint[0];
   switch (ConstraintLetter) {
   default: break;
@@ -2721,13 +2739,6 @@ void TargetLowering::LowerAsmOperandForConstraint(SDValue Op,
   }
   }
 }
-
-std::vector<unsigned> TargetLowering::
-getRegClassForInlineAsmConstraint(const std::string &Constraint,
-                                  EVT VT) const {
-  return std::vector<unsigned>();
-}
-
 
 std::pair<unsigned, const TargetRegisterClass*> TargetLowering::
 getRegForInlineAsmConstraint(const std::string &Constraint,
@@ -2853,7 +2864,7 @@ TargetLowering::AsmOperandInfoVector TargetLowering::ParseConstraints(
           report_fatal_error("Indirect operand for inline asm not a pointer!");
         OpTy = PtrTy->getElementType();
       }
-      
+
       // Look for vector wrapped in a struct. e.g. { <16 x i8> }.
       if (const StructType *STy = dyn_cast<StructType>(OpTy))
         if (STy->getNumElements() == 1)
@@ -2955,10 +2966,13 @@ TargetLowering::AsmOperandInfoVector TargetLowering::ParseConstraints(
       AsmOperandInfo &Input = ConstraintOperands[OpInfo.MatchingInput];
 
       if (OpInfo.ConstraintVT != Input.ConstraintVT) {
+	std::pair<unsigned, const TargetRegisterClass*> MatchRC =
+	  getRegForInlineAsmConstraint(OpInfo.ConstraintCode, OpInfo.ConstraintVT);
+	std::pair<unsigned, const TargetRegisterClass*> InputRC =
+	  getRegForInlineAsmConstraint(Input.ConstraintCode, Input.ConstraintVT);
         if ((OpInfo.ConstraintVT.isInteger() !=
              Input.ConstraintVT.isInteger()) ||
-            (OpInfo.ConstraintVT.getSizeInBits() !=
-             Input.ConstraintVT.getSizeInBits())) {
+            (MatchRC.second != InputRC.second)) {
           report_fatal_error("Unsupported asm: input constraint"
                              " with a matching output constraint of"
                              " incompatible type!");
@@ -3202,6 +3216,32 @@ bool TargetLowering::isLegalAddressingMode(const AddrMode &AM,
   }
 
   return true;
+}
+
+/// BuildExactDiv - Given an exact SDIV by a constant, create a multiplication
+/// with the multiplicative inverse of the constant.
+SDValue TargetLowering::BuildExactSDIV(SDValue Op1, SDValue Op2, DebugLoc dl,
+                                       SelectionDAG &DAG) const {
+  ConstantSDNode *C = cast<ConstantSDNode>(Op2);
+  APInt d = C->getAPIntValue();
+  assert(d != 0 && "Division by zero!");
+
+  // Shift the value upfront if it is even, so the LSB is one.
+  unsigned ShAmt = d.countTrailingZeros();
+  if (ShAmt) {
+    // TODO: For UDIV use SRL instead of SRA.
+    SDValue Amt = DAG.getConstant(ShAmt, getShiftAmountTy(Op1.getValueType()));
+    Op1 = DAG.getNode(ISD::SRA, dl, Op1.getValueType(), Op1, Amt);
+    d = d.ashr(ShAmt);
+  }
+
+  // Calculate the multiplicative inverse, using Newton's method.
+  APInt t, xn = d;
+  while ((t = d*xn) != 1)
+    xn *= APInt(d.getBitWidth(), 2) - t;
+
+  Op2 = DAG.getConstant(xn, Op1.getValueType());
+  return DAG.getNode(ISD::MUL, dl, Op1.getValueType(), Op1, Op2);
 }
 
 /// BuildSDIVSequence - Given an ISD::SDIV node expressing a divide by constant,

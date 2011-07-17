@@ -314,7 +314,8 @@ Decl *Parser::ParseLinkage(ParsingDeclSpec &DS, unsigned Context) {
 Decl *Parser::ParseUsingDirectiveOrDeclaration(unsigned Context,
                                          const ParsedTemplateInfo &TemplateInfo,
                                                SourceLocation &DeclEnd,
-                                             ParsedAttributesWithRange &attrs) {
+                                             ParsedAttributesWithRange &attrs,
+                                               Decl **OwnedType) {
   assert(Tok.is(tok::kw_using) && "Not using token");
 
   // Eat 'using'.
@@ -342,7 +343,8 @@ Decl *Parser::ParseUsingDirectiveOrDeclaration(unsigned Context,
   // Using declarations can't have attributes.
   ProhibitAttributes(attrs);
 
-  return ParseUsingDeclaration(Context, TemplateInfo, UsingLoc, DeclEnd);
+  return ParseUsingDeclaration(Context, TemplateInfo, UsingLoc, DeclEnd,
+                               AS_none, OwnedType);
 }
 
 /// ParseUsingDirective - Parse C++ using-directive, assumes
@@ -422,7 +424,8 @@ Decl *Parser::ParseUsingDeclaration(unsigned Context,
                                     const ParsedTemplateInfo &TemplateInfo,
                                     SourceLocation UsingLoc,
                                     SourceLocation &DeclEnd,
-                                    AccessSpecifier AS) {
+                                    AccessSpecifier AS,
+                                    Decl **OwnedType) {
   CXXScopeSpec SS;
   SourceLocation TypenameLoc;
   bool IsTypeName;
@@ -511,7 +514,7 @@ Decl *Parser::ParseUsingDeclaration(unsigned Context,
 
     TypeAlias = ParseTypeName(0, TemplateInfo.Kind ?
                               Declarator::AliasTemplateContext :
-                              Declarator::AliasDeclContext);
+                              Declarator::AliasDeclContext, 0, AS, OwnedType);
   } else
     // Parse (optional) attributes (most likely GNU strong-using extension).
     MaybeParseGNUAttributes(attrs);
@@ -701,8 +704,7 @@ Parser::TypeResult Parser::ParseClassName(SourceLocation &EndLocation,
                                           CXXScopeSpec &SS) {
   // Check whether we have a template-id that names a type.
   if (Tok.is(tok::annot_template_id)) {
-    TemplateIdAnnotation *TemplateId
-      = static_cast<TemplateIdAnnotation *>(Tok.getAnnotationValue());
+    TemplateIdAnnotation *TemplateId = takeTemplateIdAnnotation(Tok);
     if (TemplateId->Kind == TNK_Type_template ||
         TemplateId->Kind == TNK_Dependent_template_name) {
       AnnotateTemplateIdTokenAsType();
@@ -976,7 +978,7 @@ void Parser::ParseClassSpecifier(tok::TokenKind TagTokKind,
       }
     }
   } else if (Tok.is(tok::annot_template_id)) {
-    TemplateId = static_cast<TemplateIdAnnotation *>(Tok.getAnnotationValue());
+    TemplateId = takeTemplateIdAnnotation(Tok);
     NameLoc = ConsumeToken();
 
     if (TemplateId->Kind != TNK_Type_template &&
@@ -993,7 +995,6 @@ void Parser::ParseClassSpecifier(tok::TokenKind TagTokKind,
 
       DS.SetTypeSpecError();
       SkipUntil(tok::semi, false, true);
-      TemplateId->Destroy();
       if (SuppressingAccessChecks)
         Actions.ActOnStopSuppressingAccessChecks();
 
@@ -1051,9 +1052,6 @@ void Parser::ParseClassSpecifier(tok::TokenKind TagTokKind,
     }
 
     SkipUntil(tok::comma, true);
-
-    if (TemplateId)
-      TemplateId->Destroy();
     return;
   }
 
@@ -1149,7 +1147,6 @@ void Parser::ParseClassSpecifier(tok::TokenKind TagTokKind,
                                     TemplateParams? &(*TemplateParams)[0] : 0,
                                  TemplateParams? TemplateParams->size() : 0));
     }
-    TemplateId->Destroy();
   } else if (TemplateInfo.Kind == ParsedTemplateInfo::ExplicitInstantiation &&
              TUK == Sema::TUK_Declaration) {
     // Explicit instantiation of a member of a class template
@@ -1293,6 +1290,11 @@ void Parser::ParseClassSpecifier(tok::TokenKind TagTokKind,
         ExpectedSemi = false;
       break;
     }
+
+    // C++ [temp]p3 In a template-declaration which defines a class, no
+    // declarator is permitted.
+    if (TemplateInfo.Kind)
+      ExpectedSemi = true;
 
     if (ExpectedSemi) {
       ExpectAndConsume(tok::semi, diag::err_expected_semi_after_tagdecl,
@@ -1828,14 +1830,16 @@ void Parser::ParseCXXClassMemberDeclaration(AccessSpecifier AS,
         Diag(Tok, diag::err_bitfield_member_init);
         SkipUntil(tok::comma, true, true);
       } else {
-        HasDeferredInitializer = !DeclaratorInfo.isFunctionDeclarator() &&
+        HasDeferredInitializer = !DeclaratorInfo.isDeclarationOfFunction() &&
           DeclaratorInfo.getDeclSpec().getStorageClassSpec()
-            != DeclSpec::SCS_static;
+            != DeclSpec::SCS_static &&
+          DeclaratorInfo.getDeclSpec().getStorageClassSpec()
+            != DeclSpec::SCS_typedef;
 
         if (!HasDeferredInitializer) {
           SourceLocation EqualLoc;
           Init = ParseCXXMemberInitializer(
-            DeclaratorInfo.isFunctionDeclarator(), EqualLoc);
+            DeclaratorInfo.isDeclarationOfFunction(), EqualLoc);
           if (Init.isInvalid())
             SkipUntil(tok::comma, true, true);
         }
@@ -2246,8 +2250,7 @@ Parser::MemInitResult Parser::ParseMemInitializer(Decl *ConstructorDecl) {
   ParseOptionalCXXScopeSpecifier(SS, ParsedType(), false);
   ParsedType TemplateTypeTy;
   if (Tok.is(tok::annot_template_id)) {
-    TemplateIdAnnotation *TemplateId
-      = static_cast<TemplateIdAnnotation *>(Tok.getAnnotationValue());
+    TemplateIdAnnotation *TemplateId = takeTemplateIdAnnotation(Tok);
     if (TemplateId->Kind == TNK_Type_template ||
         TemplateId->Kind == TNK_Dependent_template_name) {
       AnnotateTemplateIdTokenAsType();

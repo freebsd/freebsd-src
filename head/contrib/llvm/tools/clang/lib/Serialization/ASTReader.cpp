@@ -147,9 +147,11 @@ PCHValidator::ReadLanguageOptions(const LangOptions &LangOpts) {
   PARSE_LANGOPT_IMPORTANT(OpenCL, diag::warn_pch_opencl);
   PARSE_LANGOPT_IMPORTANT(CUDA, diag::warn_pch_cuda);
   PARSE_LANGOPT_BENIGN(CatchUndefined);
+  PARSE_LANGOPT_BENIGN(DefaultFPContract);
   PARSE_LANGOPT_IMPORTANT(ElideConstructors, diag::warn_pch_elide_constructors);
   PARSE_LANGOPT_BENIGN(SpellChecking);
-  PARSE_LANGOPT_BENIGN(DefaultFPContract);
+  PARSE_LANGOPT_IMPORTANT(ObjCAutoRefCount, diag::warn_pch_auto_ref_count);
+  PARSE_LANGOPT_BENIGN(ObjCInferRelatedReturnType);
 #undef PARSE_LANGOPT_IMPORTANT
 #undef PARSE_LANGOPT_BENIGN
 
@@ -655,7 +657,8 @@ public:
       // and associate it with the persistent ID.
       IdentifierInfo *II = KnownII;
       if (!II)
-        II = &Reader.getIdentifierTable().getOwn(k.first, k.first + k.second);
+        II = &Reader.getIdentifierTable().getOwn(llvm::StringRef(k.first,
+                                                                 k.second));
       Reader.SetIdentifierInfo(ID, II);
       II->setIsFromAST();
       return II;
@@ -682,7 +685,8 @@ public:
     // the new IdentifierInfo.
     IdentifierInfo *II = KnownII;
     if (!II)
-      II = &Reader.getIdentifierTable().getOwn(k.first, k.first + k.second);
+      II = &Reader.getIdentifierTable().getOwn(llvm::StringRef(k.first,
+                                                               k.second));
     Reader.SetIdentifierInfo(ID, II);
 
     // Set or check the various bits in the IdentifierInfo structure.
@@ -999,8 +1003,7 @@ bool ASTReader::ParseLineTable(PerFileData &F,
     std::string Filename(&Record[Idx], &Record[Idx] + FilenameLen);
     Idx += FilenameLen;
     MaybeAddSystemRootToFilename(Filename);
-    FileIDs[I] = LineTable.getLineTableFilenameID(Filename.c_str(),
-                                                  Filename.size());
+    FileIDs[I] = LineTable.getLineTableFilenameID(Filename);
   }
 
   // Parse the line entries
@@ -1192,7 +1195,7 @@ ASTReader::ASTReadResult ASTReader::ReadSourceManagerBlock(PerFileData &F) {
 
     case SM_SLOC_FILE_ENTRY:
     case SM_SLOC_BUFFER_ENTRY:
-    case SM_SLOC_INSTANTIATION_ENTRY:
+    case SM_SLOC_EXPANSION_ENTRY:
       // Once we hit one of the source location entries, we're done.
       return Success;
     }
@@ -1362,7 +1365,7 @@ ASTReader::ASTReadResult ASTReader::ReadSLocEntryRecord(unsigned ID) {
     break;
   }
 
-  case SM_SLOC_INSTANTIATION_ENTRY: {
+  case SM_SLOC_EXPANSION_ENTRY: {
     SourceLocation SpellingLoc = ReadSourceLocation(*F, Record[1]);
     SourceMgr.createInstantiationLoc(SpellingLoc,
                                      ReadSourceLocation(*F, Record[2]),
@@ -1553,17 +1556,17 @@ PreprocessedEntity *ASTReader::LoadPreprocessedEntity(PerFileData &F) {
     (PreprocessorDetailRecordTypes)F.PreprocessorDetailCursor.ReadRecord(
                                              Code, Record, BlobStart, BlobLen);
   switch (RecType) {
-  case PPD_MACRO_INSTANTIATION: {
+  case PPD_MACRO_EXPANSION: {
     if (PreprocessedEntity *PE = PPRec.getPreprocessedEntity(Record[0]))
       return PE;
     
-    MacroInstantiation *MI
-      = new (PPRec) MacroInstantiation(DecodeIdentifierInfo(Record[3]),
+    MacroExpansion *ME =
+      new (PPRec) MacroExpansion(DecodeIdentifierInfo(Record[3]),
                                  SourceRange(ReadSourceLocation(F, Record[1]),
                                              ReadSourceLocation(F, Record[2])),
-                                       getMacroDefinition(Record[4]));
-    PPRec.SetPreallocatedEntity(Record[0], MI);
-    return MI;
+                                 getMacroDefinition(Record[4]));
+    PPRec.SetPreallocatedEntity(Record[0], ME);
+    return ME;
   }
       
   case PPD_MACRO_DEFINITION: {
@@ -2366,6 +2369,15 @@ ASTReader::ReadASTBlock(PerFileData &F) {
         TentativeDefinitions.insert(TentativeDefinitions.end(),
                                     Record.begin(), Record.end());
       break;
+        
+    case KNOWN_NAMESPACES:
+      // Optimization for the first block.
+      if (KnownNamespaces.empty())
+        KnownNamespaces.swap(Record);
+      else
+        KnownNamespaces.insert(KnownNamespaces.end(), 
+                               Record.begin(), Record.end());
+      break;
     }
     First = false;
   }
@@ -2980,6 +2992,7 @@ bool ASTReader::ParseLanguageOptions(
     PARSE_LANGOPT(ElideConstructors);
     PARSE_LANGOPT(SpellChecking);
     PARSE_LANGOPT(MRTD);
+    PARSE_LANGOPT(ObjCAutoRefCount);
   #undef PARSE_LANGOPT
 
     return Listener->ReadLanguageOptions(LangOpts);
@@ -3225,12 +3238,13 @@ QualType ASTReader::ReadTypeRecord(unsigned Index) {
   }
 
   case TYPE_FUNCTION_NO_PROTO: {
-    if (Record.size() != 5) {
+    if (Record.size() != 6) {
       Error("incorrect encoding of no-proto function type");
       return QualType();
     }
     QualType ResultType = GetType(Record[0]);
-    FunctionType::ExtInfo Info(Record[1], Record[2], Record[3], (CallingConv)Record[4]);
+    FunctionType::ExtInfo Info(Record[1], Record[2], Record[3],
+                               (CallingConv)Record[4], Record[5]);
     return Context->getFunctionNoProtoType(ResultType, Info);
   }
 
@@ -3241,9 +3255,10 @@ QualType ASTReader::ReadTypeRecord(unsigned Index) {
     EPI.ExtInfo = FunctionType::ExtInfo(/*noreturn*/ Record[1],
                                         /*hasregparm*/ Record[2],
                                         /*regparm*/ Record[3],
-                                        static_cast<CallingConv>(Record[4]));
+                                        static_cast<CallingConv>(Record[4]),
+                                        /*produces*/ Record[5]);
 
-    unsigned Idx = 5;
+    unsigned Idx = 6;
     unsigned NumParams = Record[Idx++];
     llvm::SmallVector<QualType, 16> ParamTypes;
     for (unsigned I = 0; I != NumParams; ++I)
@@ -3993,12 +4008,9 @@ Stmt *ASTReader::GetExternalDeclStmt(uint64_t Offset) {
   llvm_unreachable("Broken chain");
 }
 
-bool ASTReader::FindExternalLexicalDecls(const DeclContext *DC,
+ExternalLoadResult ASTReader::FindExternalLexicalDecls(const DeclContext *DC,
                                          bool (*isKindWeWant)(Decl::Kind),
                                          llvm::SmallVectorImpl<Decl*> &Decls) {
-  assert(DC->hasExternalLexicalStorage() &&
-         "DeclContext has no lexical decls in storage");
-
   // There might be lexical decls in multiple parts of the chain, for the TU
   // at least.
   // DeclContextOffsets might reallocate as we load additional decls below,
@@ -4023,7 +4035,7 @@ bool ASTReader::FindExternalLexicalDecls(const DeclContext *DC,
   }
 
   ++NumLexicalDeclContextsRead;
-  return false;
+  return ELR_Success;
 }
 
 DeclContext::lookup_result
@@ -4446,6 +4458,17 @@ ASTReader::ReadMethodPool(Selector Sel) {
   return std::pair<ObjCMethodList, ObjCMethodList>();
 }
 
+void ASTReader::ReadKnownNamespaces(
+                          llvm::SmallVectorImpl<NamespaceDecl *> &Namespaces) {
+  Namespaces.clear();
+  
+  for (unsigned I = 0, N = KnownNamespaces.size(); I != N; ++I) {
+    if (NamespaceDecl *Namespace 
+                = dyn_cast_or_null<NamespaceDecl>(GetDecl(KnownNamespaces[I])))
+      Namespaces.push_back(Namespace);
+  }
+}
+
 void ASTReader::LoadSelector(Selector Sel) {
   // It would be complicated to avoid reading the methods anyway. So don't.
   ReadMethodPool(Sel);
@@ -4540,7 +4563,7 @@ IdentifierInfo *ASTReader::DecodeIdentifierInfo(unsigned ID) {
     unsigned StrLen = (((unsigned) StrLenPtr[0])
                        | (((unsigned) StrLenPtr[1]) << 8)) - 1;
     IdentifiersLoaded[ID]
-      = &PP->getIdentifierTable().get(Str, StrLen);
+      = &PP->getIdentifierTable().get(llvm::StringRef(Str, StrLen));
     if (DeserializationListener)
       DeserializationListener->IdentifierRead(ID + 1, IdentifiersLoaded[ID]);
   }
@@ -4715,6 +4738,14 @@ ASTReader::ReadTemplateName(PerFileData &F, const RecordData &Record,
                                                GetIdentifierInfo(Record, Idx));
     return Context->getDependentTemplateName(NNS,
                                          (OverloadedOperatorKind)Record[Idx++]);
+  }
+
+  case TemplateName::SubstTemplateTemplateParm: {
+    TemplateTemplateParmDecl *param
+      = cast_or_null<TemplateTemplateParmDecl>(GetDecl(Record[Idx++]));
+    if (!param) return TemplateName();
+    TemplateName replacement = ReadTemplateName(F, Record, Idx);
+    return Context->getSubstTemplateTemplateParm(param, replacement);
   }
       
   case TemplateName::SubstTemplateTemplateParmPack: {

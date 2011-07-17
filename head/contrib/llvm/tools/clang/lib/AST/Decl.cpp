@@ -197,6 +197,16 @@ getLVForTemplateArgumentList(const TemplateArgumentList &TArgs,
   return getLVForTemplateArgumentList(TArgs.data(), TArgs.size(), F);
 }
 
+static bool shouldConsiderTemplateLV(const FunctionDecl *fn,
+                               const FunctionTemplateSpecializationInfo *spec) {
+  return !(spec->isExplicitSpecialization() &&
+           fn->hasAttr<VisibilityAttr>());
+}
+
+static bool shouldConsiderTemplateLV(const ClassTemplateSpecializationDecl *d) {
+  return !(d->isExplicitSpecialization() && d->hasAttr<VisibilityAttr>());
+}
+
 static LinkageInfo getLVForNamespaceScopeDecl(const NamedDecl *D, LVFlags F) {
   assert(D->getDeclContext()->getRedeclContext()->isFileContext() &&
          "Not a name having namespace scope");
@@ -230,6 +240,14 @@ static LinkageInfo getLVForNamespaceScopeDecl(const NamedDecl *D, LVFlags F) {
       
       if (!FoundExtern)
         return LinkageInfo::internal();
+    }
+    if (Var->getStorageClass() == SC_None) {
+      const VarDecl *PrevVar = Var->getPreviousDeclaration();
+      for (; PrevVar; PrevVar = PrevVar->getPreviousDeclaration())
+        if (PrevVar->getStorageClass() == SC_PrivateExtern)
+          break;
+        if (PrevVar)
+          return PrevVar->getLinkageAndVisibility();
     }
   } else if (isa<FunctionDecl>(D) || isa<FunctionTemplateDecl>(D)) {
     // C++ [temp]p4:
@@ -389,12 +407,16 @@ static LinkageInfo getLVForNamespaceScopeDecl(const NamedDecl *D, LVFlags F) {
         Function->getType()->getLinkage() == UniqueExternalLinkage)
       return LinkageInfo::uniqueExternal();
 
-    if (FunctionTemplateSpecializationInfo *SpecInfo
+    // Consider LV from the template and the template arguments unless
+    // this is an explicit specialization with a visibility attribute.
+    if (FunctionTemplateSpecializationInfo *specInfo
                                = Function->getTemplateSpecializationInfo()) {
-      LV.merge(getLVForDecl(SpecInfo->getTemplate(),
-                            F.onlyTemplateVisibility()));
-      const TemplateArgumentList &TemplateArgs = *SpecInfo->TemplateArguments;
-      LV.merge(getLVForTemplateArgumentList(TemplateArgs, F));
+      if (shouldConsiderTemplateLV(Function, specInfo)) {
+        LV.merge(getLVForDecl(specInfo->getTemplate(),
+                              F.onlyTemplateVisibility()));
+        const TemplateArgumentList &templateArgs = *specInfo->TemplateArguments;
+        LV.merge(getLVForTemplateArgumentList(templateArgs, F));
+      }
     }
 
   //     - a named class (Clause 9), or an unnamed class defined in a
@@ -410,15 +432,17 @@ static LinkageInfo getLVForNamespaceScopeDecl(const NamedDecl *D, LVFlags F) {
 
     // If this is a class template specialization, consider the
     // linkage of the template and template arguments.
-    if (const ClassTemplateSpecializationDecl *Spec
+    if (const ClassTemplateSpecializationDecl *spec
           = dyn_cast<ClassTemplateSpecializationDecl>(Tag)) {
-      // From the template.
-      LV.merge(getLVForDecl(Spec->getSpecializedTemplate(),
-                            F.onlyTemplateVisibility()));
+      if (shouldConsiderTemplateLV(spec)) {
+        // From the template.
+        LV.merge(getLVForDecl(spec->getSpecializedTemplate(),
+                              F.onlyTemplateVisibility()));
 
-      // The arguments at which the template was instantiated.
-      const TemplateArgumentList &TemplateArgs = Spec->getTemplateArgs();
-      LV.merge(getLVForTemplateArgumentList(TemplateArgs, F));
+        // The arguments at which the template was instantiated.
+        const TemplateArgumentList &TemplateArgs = spec->getTemplateArgs();
+        LV.merge(getLVForTemplateArgumentList(TemplateArgs, F));
+      }
     }
 
     // Consider -fvisibility unless the type has C linkage.
@@ -519,14 +543,16 @@ static LinkageInfo getLVForClassMember(const NamedDecl *D, LVFlags F) {
 
     // If this is a method template specialization, use the linkage for
     // the template parameters and arguments.
-    if (FunctionTemplateSpecializationInfo *Spec
+    if (FunctionTemplateSpecializationInfo *spec
            = MD->getTemplateSpecializationInfo()) {
-      LV.merge(getLVForTemplateArgumentList(*Spec->TemplateArguments, F));
-      if (F.ConsiderTemplateParameterTypes)
-        LV.merge(getLVForTemplateParameterList(
-                              Spec->getTemplate()->getTemplateParameters()));
+      if (shouldConsiderTemplateLV(MD, spec)) {
+        LV.merge(getLVForTemplateArgumentList(*spec->TemplateArguments, F));
+        if (F.ConsiderTemplateParameterTypes)
+          LV.merge(getLVForTemplateParameterList(
+                              spec->getTemplate()->getTemplateParameters()));
+      }
 
-      TSK = Spec->getTemplateSpecializationKind();
+      TSK = spec->getTemplateSpecializationKind();
     } else if (MemberSpecializationInfo *MSI =
                  MD->getMemberSpecializationInfo()) {
       TSK = MSI->getTemplateSpecializationKind();
@@ -553,14 +579,16 @@ static LinkageInfo getLVForClassMember(const NamedDecl *D, LVFlags F) {
     // *do* apply -fvisibility to method declarations.
 
   } else if (const CXXRecordDecl *RD = dyn_cast<CXXRecordDecl>(D)) {
-    if (const ClassTemplateSpecializationDecl *Spec
+    if (const ClassTemplateSpecializationDecl *spec
         = dyn_cast<ClassTemplateSpecializationDecl>(RD)) {
-      // Merge template argument/parameter information for member
-      // class template specializations.
-      LV.merge(getLVForTemplateArgumentList(Spec->getTemplateArgs(), F));
+      if (shouldConsiderTemplateLV(spec)) {
+        // Merge template argument/parameter information for member
+        // class template specializations.
+        LV.merge(getLVForTemplateArgumentList(spec->getTemplateArgs(), F));
       if (F.ConsiderTemplateParameterTypes)
         LV.merge(getLVForTemplateParameterList(
-                    Spec->getSpecializedTemplate()->getTemplateParameters()));
+                    spec->getSpecializedTemplate()->getTemplateParameters()));
+      }
     }
 
   // Static data members.
@@ -1302,6 +1330,19 @@ void VarDecl::setInit(Expr *I) {
   }
 
   Init = I;
+}
+
+bool VarDecl::extendsLifetimeOfTemporary() const {
+  assert(getType()->isReferenceType() &&"Non-references never extend lifetime");
+  
+  const Expr *E = getInit();
+  if (!E)
+    return false;
+  
+  if (const ExprWithCleanups *Cleanups = dyn_cast<ExprWithCleanups>(E))
+    E = Cleanups->getSubExpr();
+  
+  return isa<MaterializeTemporaryExpr>(E);
 }
 
 VarDecl *VarDecl::getInstantiatedFromStaticDataMember() const {
@@ -2320,16 +2361,21 @@ void RecordDecl::LoadFieldsFromExternalStorage() const {
   ExternalASTSource::Deserializing TheFields(Source);
 
   llvm::SmallVector<Decl*, 64> Decls;
-  if (Source->FindExternalLexicalDeclsBy<FieldDecl>(this, Decls))
+  LoadedFieldsFromExternalStorage = true;  
+  switch (Source->FindExternalLexicalDeclsBy<FieldDecl>(this, Decls)) {
+  case ELR_Success:
+    break;
+    
+  case ELR_AlreadyLoaded:
+  case ELR_Failure:
     return;
+  }
 
 #ifndef NDEBUG
   // Check that all decls we got were FieldDecls.
   for (unsigned i=0, e=Decls.size(); i != e; ++i)
     assert(isa<FieldDecl>(Decls[i]));
 #endif
-
-  LoadedFieldsFromExternalStorage = true;
 
   if (Decls.empty())
     return;
@@ -2374,6 +2420,16 @@ void BlockDecl::setCaptures(ASTContext &Context,
   void *buffer = Context.Allocate(allocationSize, /*alignment*/sizeof(void*));
   memcpy(buffer, begin, allocationSize);
   Captures = static_cast<Capture*>(buffer);
+}
+
+bool BlockDecl::capturesVariable(const VarDecl *variable) const {
+  for (capture_const_iterator
+         i = capture_begin(), e = capture_end(); i != e; ++i)
+    // Only auto vars can be captured, so no redeclaration worries.
+    if (i->getVariable() == variable)
+      return true;
+
+  return false;
 }
 
 SourceRange BlockDecl::getSourceRange() const {

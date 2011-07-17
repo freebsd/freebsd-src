@@ -6,7 +6,8 @@ SRCDIR=	lib/Target/ARM/TargetInfo/
 INCDIR=	lib/Target/ARM
 SRCS=	ARMTargetInfo.cpp
 
-TGHDRS=	ARMGenInstrNames \
-	ARMGenRegisterNames
+TGHDRS=	ARMGenInstrInfo \
+	ARMGenRegisterInfo \
+	ARMGenSubtargetInfo
 
 .include "../clang.lib.mk"

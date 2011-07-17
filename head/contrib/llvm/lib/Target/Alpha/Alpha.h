@@ -15,6 +15,7 @@
 #ifndef TARGET_ALPHA_H
 #define TARGET_ALPHA_H
 
+#include "MCTargetDesc/AlphaMCTargetDesc.h"
 #include "llvm/Target/TargetMachine.h"
 
 namespace llvm {
@@ -37,17 +38,6 @@ namespace llvm {
   FunctionPass *createAlphaLLRPPass(AlphaTargetMachine &tm);
   FunctionPass *createAlphaBranchSelectionPass();
 
-  extern Target TheAlphaTarget;
-
 } // end namespace llvm;
-
-// Defines symbolic names for Alpha registers.  This defines a mapping from
-// register name to register number.
-//
-#include "AlphaGenRegisterNames.inc"
-
-// Defines symbolic names for the Alpha instructions.
-//
-#include "AlphaGenInstrNames.inc"
 
 #endif
