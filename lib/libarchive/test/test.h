@@ -48,9 +48,6 @@
 #include <sys/types.h>  /* Windows requires this before sys/stat.h */
 #include <sys/stat.h>
 
-#ifdef USE_DMALLOC
-#include <dmalloc.h>
-#endif
 #if HAVE_DIRENT_H
 #include <dirent.h>
 #endif
@@ -299,3 +296,7 @@ int read_open_memory2(struct archive *, void *, size_t, size_t);
   assertion_equal_int(__FILE__, __LINE__, (v1), #v1, (v2), #v2, (a))
 #define assertEqualStringA(a,v1,v2)   \
   assertion_equal_string(__FILE__, __LINE__, (v1), #v1, (v2), #v2, (a))
+
+#ifdef USE_DMALLOC
+#include <dmalloc.h>
+#endif

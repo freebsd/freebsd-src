@@ -6,7 +6,8 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    notice, this list of conditions and the following disclaimer
+ *    in this position and unchanged.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
@@ -23,21 +24,51 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "archive_platform.h"
+#include "lafe_platform.h"
 __FBSDID("$FreeBSD$");
 
-#include "archive.h"
+#ifdef HAVE_STDARG_H
+#include <stdarg.h>
+#endif
+#include <stdio.h>
+#ifdef HAVE_STDLIB_H
+#include <stdlib.h>
+#endif
+#ifdef HAVE_STRING_H
+#include <string.h>
+#endif
 
-int
-archive_read_support_format_all(struct archive *a)
+#include "err.h"
+
+const char *lafe_progname;
+
+static void
+lafe_vwarnc(int code, const char *fmt, va_list ap)
 {
-	archive_read_support_format_ar(a);
-	archive_read_support_format_cpio(a);
-	archive_read_support_format_empty(a);
-	archive_read_support_format_iso9660(a);
-	archive_read_support_format_mtree(a);
-	archive_read_support_format_tar(a);
-	archive_read_support_format_xar(a);
-	archive_read_support_format_zip(a);
-	return (ARCHIVE_OK);
+	fprintf(stderr, "%s: ", lafe_progname);
+	vfprintf(stderr, fmt, ap);
+	if (code != 0)
+		fprintf(stderr, ": %s", strerror(code));
+	fprintf(stderr, "\n");
+}
+
+void
+lafe_warnc(int code, const char *fmt, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	lafe_vwarnc(code, fmt, ap);
+	va_end(ap);
+}
+
+void
+lafe_errc(int eval, int code, const char *fmt, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	lafe_vwarnc(code, fmt, ap);
+	va_end(ap);
+	exit(eval);
 }

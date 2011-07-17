@@ -21,23 +21,35 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
-#include "archive_platform.h"
-__FBSDID("$FreeBSD$");
+/*
+ * This header is the first thing included in any of the libarchive_fe
+ * source files.  As far as possible, platform-specific issues should
+ * be dealt with here and not within individual source files.
+ */
 
-#include "archive.h"
+#ifndef LAFE_PLATFORM_H_INCLUDED
+#define	LAFE_PLATFORM_H_INCLUDED
 
-int
-archive_read_support_format_all(struct archive *a)
-{
-	archive_read_support_format_ar(a);
-	archive_read_support_format_cpio(a);
-	archive_read_support_format_empty(a);
-	archive_read_support_format_iso9660(a);
-	archive_read_support_format_mtree(a);
-	archive_read_support_format_tar(a);
-	archive_read_support_format_xar(a);
-	archive_read_support_format_zip(a);
-	return (ARCHIVE_OK);
-}
+#if defined(PLATFORM_CONFIG_H)
+/* Use hand-built config.h in environments that need it. */
+#include PLATFORM_CONFIG_H
+#else
+/* Read config.h or die trying. */
+#include "config.h"
+#endif
+
+/* Get a real definition for __FBSDID if we can */
+#if HAVE_SYS_CDEFS_H
+#include <sys/cdefs.h>
+#endif
+
+/* If not, define it so as to avoid dangling semicolons. */
+#ifndef __FBSDID
+#define	__FBSDID(a)     struct _undefined_hack
+#endif
+
+#endif

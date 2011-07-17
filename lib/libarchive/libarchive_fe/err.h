@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003-2007 Tim Kientzle
+ * Copyright (c) 2009 Joerg Sonnenberger
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -21,23 +21,23 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
-#include "archive_platform.h"
-__FBSDID("$FreeBSD$");
+#ifndef LAFE_ERR_H
+#define LAFE_ERR_H
 
-#include "archive.h"
+#if defined(__GNUC__) && (__GNUC__ > 2 || \
+                          (__GNUC__ == 2 && __GNUC_MINOR__ >= 5))
+#define __LA_DEAD       __attribute__((__noreturn__))
+#else
+#define __LA_DEAD
+#endif
 
-int
-archive_read_support_format_all(struct archive *a)
-{
-	archive_read_support_format_ar(a);
-	archive_read_support_format_cpio(a);
-	archive_read_support_format_empty(a);
-	archive_read_support_format_iso9660(a);
-	archive_read_support_format_mtree(a);
-	archive_read_support_format_tar(a);
-	archive_read_support_format_xar(a);
-	archive_read_support_format_zip(a);
-	return (ARCHIVE_OK);
-}
+extern const char *lafe_progname;
+
+void	lafe_warnc(int code, const char *fmt, ...);
+void	lafe_errc(int eval, int code, const char *fmt, ...) __LA_DEAD;
+
+#endif
