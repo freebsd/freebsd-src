@@ -293,7 +293,7 @@ set_chdir(struct bsdtar *bsdtar, const char *newdir)
 		free(old_pending);
 	}
 	if (bsdtar->pending_chdir == NULL)
-		bsdtar_errc(1, errno, "No memory");
+		lafe_errc(1, errno, "No memory");
 }
 
 void
@@ -303,7 +303,7 @@ do_chdir(struct bsdtar *bsdtar)
 		return;
 
 	if (chdir(bsdtar->pending_chdir) != 0) {
-		bsdtar_errc(1, 0, "could not chdir to '%s'\n",
+		lafe_errc(1, 0, "could not chdir to '%s'\n",
 		    bsdtar->pending_chdir);
 	}
 	free(bsdtar->pending_chdir);
@@ -367,7 +367,7 @@ edit_pathname(struct bsdtar *bsdtar, struct archive_entry *entry)
 #if HAVE_REGEX_H
 	r = apply_substitution(bsdtar, name, &subst_name, 0);
 	if (r == -1) {
-		bsdtar_warnc(0, "Invalid substitution, skipping entry");
+		lafe_warnc(0, "Invalid substitution, skipping entry");
 		return 1;
 	}
 	if (r == 1) {
@@ -383,7 +383,7 @@ edit_pathname(struct bsdtar *bsdtar, struct archive_entry *entry)
 	if (archive_entry_hardlink(entry)) {
 		r = apply_substitution(bsdtar, archive_entry_hardlink(entry), &subst_name, 1);
 		if (r == -1) {
-			bsdtar_warnc(0, "Invalid substitution, skipping entry");
+			lafe_warnc(0, "Invalid substitution, skipping entry");
 			return 1;
 		}
 		if (r == 1) {
@@ -394,7 +394,7 @@ edit_pathname(struct bsdtar *bsdtar, struct archive_entry *entry)
 	if (archive_entry_symlink(entry) != NULL) {
 		r = apply_substitution(bsdtar, archive_entry_symlink(entry), &subst_name, 1);
 		if (r == -1) {
-			bsdtar_warnc(0, "Invalid substitution, skipping entry");
+			lafe_warnc(0, "Invalid substitution, skipping entry");
 			return 1;
 		}
 		if (r == 1) {
@@ -468,11 +468,11 @@ edit_pathname(struct bsdtar *bsdtar, struct archive_entry *entry)
 		if (p != name && !bsdtar->warned_lead_slash) {
 			/* Generate a warning the first time this happens. */
 			if (slashonly)
-				bsdtar_warnc(0,
+				lafe_warnc(0,
 				    "Removing leading '%c' from member names",
 				    name[0]);
 			else
-				bsdtar_warnc(0,
+				lafe_warnc(0,
 				    "Removing leading drive letter from "
 				    "member names");
 			bsdtar->warned_lead_slash = 1;
