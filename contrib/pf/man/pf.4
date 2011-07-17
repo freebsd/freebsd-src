@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 28 2011
+.Dd July 17 2011
 .Dt PF 4
 .Os
 .Sh NAME
@@ -308,14 +308,17 @@ structure from the state table.
 .It Dv DIOCKILLSTATES Fa "struct pfioc_state_kill *psk"
 Remove matching entries from the state table.
 This ioctl returns the number of killed states in
-.Va psk_af .
+.Va psk_killed .
 .Bd -literal
 struct pfioc_state_kill {
+	struct pf_state_cmp	psk_pfcmp;
 	sa_family_t		psk_af;
 	int			psk_proto;
 	struct pf_rule_addr	psk_src;
 	struct pf_rule_addr	psk_dst;
 	char			psk_ifname[IFNAMSIZ];
+	char			psk_label[PF_RULE_LABEL_SIZE];
+	u_int			psk_killed;
 };
 .Ed
 .It Dv DIOCCLRSTATES Fa "struct pfioc_state_kill *psk"
