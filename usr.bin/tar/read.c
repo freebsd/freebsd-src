@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "lafe_platform.h"
+#include "bsdtar_platform.h"
 __FBSDID("$FreeBSD$");
 
 #ifdef HAVE_SYS_TYPES_H
